@@ -1,0 +1,1 @@
+cmd_/home/rogge/repos/lcnc_tormach/src/xor2.ko := ld -r -m elf_i386 -T /usr/src/linux-headers-2.6.32-122-rtai/scripts/module-common.lds --build-id -o /home/rogge/repos/lcnc_tormach/src/xor2.ko /home/rogge/repos/lcnc_tormach/src/xor2.o /home/rogge/repos/lcnc_tormach/src/xor2.mod.o

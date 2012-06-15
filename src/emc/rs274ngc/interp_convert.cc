@@ -5096,6 +5096,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
                                       setup_pointer settings)   //!< pointer to machine settings                 
 {
   int index;
+  int wear_offset_index;
   EmcPose tool_offset;
   ZERO_EMC_POSE(tool_offset);
 
@@ -5127,6 +5128,22 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     tool_offset.u = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.u);
     tool_offset.v = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.v);
     tool_offset.w = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.w);
+    if (FEATURE(LATHE_TOOLCHANGE)) {
+		if (block->t_number > 99 && block->t_number<10000) {
+			printf("tool number was between 100 and 9999: %d \n", block->t_number); 
+			index = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
+			wear_offset_index = block->t_number % 100;	// wear offset is second two digits
+		} else if (block->t_number < 100) {
+			index = block->t_number + 10000;			// per Smit (p.404 CNC Fundamentals) geo offsets are offset by 10000
+		}	
+		tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
+		tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
+		if (block->t_number > 99) {
+			// wear offsets are stored in the actual tool value register (e.g. T1 X Z stores wear, T10001 X Z stores geo offsets)
+			tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[wear_offset_index].offset.tran.x);
+			tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[wear_offset_index].offset.tran.z);
+		}
+	 }   
   } else if (g_code == G_43_1) {
     tool_offset = settings->tool_offset;
     index = -1;
@@ -5139,7 +5156,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     if(block->u_flag) tool_offset.u = block->u_number;
     if(block->v_flag) tool_offset.v = block->v_number;
     if(block->w_flag) tool_offset.w = block->w_number;
-  } else {
+	} else {
     ERS("BUG: Code not G43, G43.1, or G49");
   }
   USE_TOOL_LENGTH_OFFSET(tool_offset);
@@ -5201,6 +5218,10 @@ int Interp::convert_tool_select(block_pointer block,     //!< pointer to a block
   SELECT_POCKET(pocket, block->t_number);
   settings->selected_pocket = pocket;
   settings->selected_tool = block->t_number;
+  if (FEATURE(LATHE_TOOLCHANGE)) {
+	CHP(convert_tool_change(settings));
+	CHP(convert_tool_length_offset(G_43, block, settings));
+	} 
   return INTERP_OK;
 }
 

@@ -1,0 +1,1 @@
+cmd_/home/rogge/repos/lcnc_tormach/src/conv_float_s32.o := ld -m elf_i386   -r -o /home/rogge/repos/lcnc_tormach/src/conv_float_s32.o /home/rogge/repos/lcnc_tormach/src/objects/hal/components/conv_float_s32.o 

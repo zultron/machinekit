@@ -1,0 +1,1 @@
+cmd_/home/rogge/repos/lcnc_tormach/src/hm2_test.o := ld -m elf_i386   -r -o /home/rogge/repos/lcnc_tormach/src/hm2_test.o /home/rogge/repos/lcnc_tormach/src/hal/drivers/mesa-hostmot2/bitfile.o /home/rogge/repos/lcnc_tormach/src/hal/drivers/mesa-hostmot2/hm2_test.o 

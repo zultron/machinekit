@@ -1,0 +1,1 @@
+cmd_/home/rogge/repos/lcnc_tormach/src/mux4.o := ld -m elf_i386   -r -o /home/rogge/repos/lcnc_tormach/src/mux4.o /home/rogge/repos/lcnc_tormach/src/objects/hal/components/mux4.o 

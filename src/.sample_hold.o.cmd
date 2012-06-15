@@ -1,0 +1,1 @@
+cmd_/home/rogge/repos/lcnc_tormach/src/sample_hold.o := ld -m elf_i386   -r -o /home/rogge/repos/lcnc_tormach/src/sample_hold.o /home/rogge/repos/lcnc_tormach/src/objects/hal/components/sample_hold.o 

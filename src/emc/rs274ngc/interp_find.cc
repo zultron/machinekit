@@ -707,6 +707,11 @@ double Interp::find_turn(double x1,      //!< X-coordinate of start point
 
 int Interp::find_tool_pocket(setup_pointer settings, int toolno, int *pocket)
 {
+    if (FEATURE(LATHE_TOOLCHANGE)) {
+		if (toolno > 99 && toolno < 10000) {
+			toolno = floor(toolno / 100);
+		}
+	}
     if(!settings->random_toolchanger && toolno == 0) {
         *pocket = 0;
         return INTERP_OK;
