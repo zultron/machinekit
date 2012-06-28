@@ -3511,7 +3511,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     CHKS(!(block->x_flag || block->y_flag || block->z_flag ||
 	   block->a_flag || block->b_flag || block->c_flag ||
 	   block->u_flag || block->v_flag || block->w_flag ||
-	   block->r_flag || block->q_flag),
+	   block->r_flag || block->q_flag || block->i_flag),
 	 _("G10 L1 without offsets has no effect"));
 
     if(direct) {
@@ -5130,7 +5130,6 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     tool_offset.w = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.w);
     if (FEATURE(LATHE_TOOLCHANGE)) {
 		if (block->t_number > 99 && block->t_number<10000) {
-			printf("tool number was between 100 and 9999: %d \n", block->t_number); 
 			index = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
 			wear_offset_index = block->t_number % 100;	// wear offset is second two digits
 		} else if (block->t_number < 100) {
