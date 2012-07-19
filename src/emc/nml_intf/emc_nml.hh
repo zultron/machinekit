@@ -2109,6 +2109,45 @@ class EMC_STAT:public EMC_STAT_MSG {
     int debug;			// copy of EMC_DEBUG global
 };
 
+class EMC_PARAM_STAT_MSG:public RCS_STAT_MSG {
+  public:
+    EMC_PARAM_STAT_MSG(NMLTYPE t, size_t s):RCS_STAT_MSG(t, s) {
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+};
+
+class EMC_NUMBERED_PARAMETER:public EMC_PARAM_STAT_MSG {
+  public:
+    EMC_NUMBERED_PARAMETER():EMC_PARAM_STAT_MSG(EMC_NUMBERED_PARAMETER_TYPE,
+					     sizeof(EMC_NUMBERED_PARAMETER))
+    {
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+    
+	int param_start;
+    int param_total;
+	double param_vals[5602 - 5000];
+
+};
+
+class EMC_SET_NUMBERED_PARAMETER:public EMC_TASK_CMD_MSG {
+  public:
+    EMC_SET_NUMBERED_PARAMETER():EMC_TASK_CMD_MSG(EMC_SET_NUMBERED_PARAMETER_TYPE,
+					     sizeof(EMC_SET_NUMBERED_PARAMETER))
+    {
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+    
+	int param_num;
+	double param_val;
+};
+
 /*
    Declarations of EMC status class implementations, for major subsystems.
    These are defined in the appropriate main() files, and referenced

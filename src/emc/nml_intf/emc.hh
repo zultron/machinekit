@@ -285,6 +285,10 @@ class PM_CARTESIAN;
 
 #define EMC_STAT_TYPE                                ((NMLTYPE) 1999)
 
+// get and set numbered parameters
+#define EMC_NUMBERED_PARAMETER_TYPE                  ((NMLTYPE) 2100)
+#define EMC_SET_NUMBERED_PARAMETER_TYPE              ((NMLTYPE) 2101)
+
 // types for EMC_TASK mode
 enum EMC_TASK_MODE_ENUM {
     EMC_TASK_MODE_MANUAL = 1,
@@ -499,6 +503,8 @@ extern int emcTaskPlanLevel();
 extern int emcTaskPlanCommand(char *cmd);
 
 extern int emcTaskUpdate(EMC_TASK_STAT * stat);
+extern int emcSetNumberedParameter(int number, double value);
+extern int emcGetNumberedParameters(int start, int count, double values[]);
 extern int emcAbortCleanup(int reason,const char *message = "");
 
 // implementation functions for EMC_TOOL types

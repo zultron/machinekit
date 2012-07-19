@@ -20,6 +20,7 @@
 #include <structseq.h>
 #include <pthread.h>
 #include <structmember.h>
+#include <float.h>
 #include "config.h"
 #include "rcs.hh"
 #include "emc.hh"
@@ -83,6 +84,13 @@ struct pyStatChannel {
     PyObject_HEAD
     RCS_STAT_CHANNEL *c;
     EMC_STAT status;
+};
+
+// NUMBERED PARAMETERS
+struct pyNumberedParamChannel {
+    PyObject_HEAD
+    RCS_STAT_CHANNEL *c;
+    EMC_NUMBERED_PARAMETER numberedParam;
 };
 
 struct pyCommandChannel {
@@ -637,6 +645,129 @@ static PyGetSetDef Stat_getsetlist[] = {
     {(char*)"tool_table", (getter)Stat_tool_table},
     {NULL}
 };
+
+
+// NUMBERED PARAMETERS
+
+// called via linuxcnc.command.setnumparam()
+static PyObject *NumberedParameter_setparam(pyCommandChannel *s, PyObject *o) {
+    EMC_SET_NUMBERED_PARAMETER m;
+    if(!PyArg_ParseTuple(o, "id", &m.param_num, &m.param_val)) return NULL;
+    m.serial_number = next_serial(s);
+    s->c->write(m);
+    emcWaitCommandReceived(s->serial, s->s);
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject *NumberedParameter_getparam(pyNumberedParamChannel *s, PyObject *o) {
+    int param_num;
+    double ret_val = DBL_MIN;
+    if(!PyArg_ParseTuple(o, "i", &param_num)) return NULL;
+    if (param_num >= s->numberedParam.param_start && param_num < s->numberedParam.param_start + s->numberedParam.param_total) {
+        ret_val = s->numberedParam.param_vals[param_num - s->numberedParam.param_start];
+        return Py_BuildValue("d", ret_val);
+    }
+    else {
+        // throw Python exception
+        char excstr[128];
+        sprintf(excstr, "parameter index %d out of range (%d, %d)", param_num,
+            s->numberedParam.param_start, s->numberedParam.param_start + s->numberedParam.param_total - 1);
+        PyErr_SetString(PyExc_IndexError, excstr);
+    }
+
+    return NULL;
+}
+
+static PyObject *NumberedParameter_getrange(pyNumberedParamChannel *s, PyObject *o) {
+
+    return Py_BuildValue("(ii)", s->numberedParam.param_start, s->numberedParam.param_start + s->numberedParam.param_total - 1);
+}
+
+static PyObject *NumberedParameter_poll(pyNumberedParamChannel *s, PyObject *o) {
+    if(!check_stat(s->c)) return NULL;
+    if(s->c->peek() == EMC_NUMBERED_PARAMETER_TYPE) {
+        EMC_NUMBERED_PARAMETER *emcNumberedParam = static_cast<EMC_NUMBERED_PARAMETER*>(s->c->get_address());
+        memcpy(&s->numberedParam, emcNumberedParam, sizeof(EMC_NUMBERED_PARAMETER));
+    }
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyMethodDef NumberedParameter_methods[] = {
+    {"poll", (PyCFunction)NumberedParameter_poll, METH_NOARGS, "update numbered parameters"},
+    {"getparam", (PyCFunction)NumberedParameter_getparam, METH_VARARGS},
+    //  setparam is sent via linuxcnc.command.setnumparam(num, val)
+    {"getrange", (PyCFunction)NumberedParameter_getrange, METH_VARARGS},
+    {NULL}
+};
+
+static int NumberedParameter_init(pyNumberedParamChannel *self, PyObject *a, PyObject *k) {
+    char *file = get_nmlfile();
+    if(file == NULL) return -1;
+
+    RCS_STAT_CHANNEL *c =
+        new RCS_STAT_CHANNEL(emcFormat, "numberedParams", "xemc", file);
+    if(!c) {
+        PyErr_Format( error, "new RCS_STAT_CHANNEL failed");
+        return -1;
+    }
+
+    self->c = c;
+    return 0;
+}
+
+static void NumberedParameter_dealloc(PyObject *self) {
+    delete ((pyNumberedParamChannel*)self)->c;
+    PyObject_Del(self);
+}
+
+static PyTypeObject NumberedParameter_Type = {
+    PyObject_HEAD_INIT(NULL)
+    0,                      /*ob_size*/
+    "linuxcnc.numberedparameter",             /*tp_name*/
+    sizeof(pyNumberedParamChannel),  /*tp_basicsize*/
+    0,                      /*tp_itemsize*/
+    /* methods */
+    (destructor)NumberedParameter_dealloc, /*tp_dealloc*/
+    0,                      /*tp_print*/
+    0,                      /*tp_getattr*/
+    0,                      /*tp_setattr*/
+    0,                      /*tp_compare*/
+    0,                      /*tp_repr*/
+    0,                      /*tp_as_number*/
+    0,                      /*tp_as_sequence*/
+    0,                      /*tp_as_mapping*/
+    0,                      /*tp_hash*/
+    0,                      /*tp_call*/
+    0,                      /*tp_str*/
+    0,                      /*tp_getattro*/
+    0,                      /*tp_setattro*/
+    0,                      /*tp_as_buffer*/
+    Py_TPFLAGS_DEFAULT,     /*tp_flags*/
+    0,                      /*tp_doc*/
+    0,                      /*tp_traverse*/
+    0,                      /*tp_clear*/
+    0,                      /*tp_richcompare*/
+    0,                      /*tp_weaklistoffset*/
+    0,                      /*tp_iter*/
+    0,                      /*tp_iternext*/
+    NumberedParameter_methods,  /*tp_methods*/
+    0,                      /*tp_members*/
+    0,                      /*tp_getset*/
+    0,                      /*tp_base*/
+    0,                      /*tp_dict*/
+    0,                      /*tp_descr_get*/
+    0,                      /*tp_descr_set*/
+    0,                      /*tp_dictoffset*/
+    (initproc)NumberedParameter_init,    /*tp_init*/
+    0,                      /*tp_alloc*/
+    PyType_GenericNew,      /*tp_new*/
+    0,                      /*tp_free*/
+    0,                      /*tp_is_gc*/
+};
+
+
 
 static PyTypeObject Stat_Type = {
     PyObject_HEAD_INIT(NULL)
@@ -1356,6 +1487,7 @@ static PyMethodDef Command_methods[] = {
     {"set_adaptive_feed", (PyCFunction)set_adaptive_feed, METH_VARARGS},
     {"set_digital_output", (PyCFunction)set_digital_output, METH_VARARGS},
     {"set_analog_output", (PyCFunction)set_analog_output, METH_VARARGS},
+    {"setnumparam", (PyCFunction)NumberedParameter_setparam, METH_VARARGS},
     {NULL}
 };
 
@@ -2166,12 +2298,14 @@ initlinuxcnc(void) {
     m = Py_InitModule3("linuxcnc", emc_methods, "Interface to LinuxCNC");
 
     PyType_Ready(&Stat_Type);
+    PyType_Ready(&NumberedParameter_Type);
     PyType_Ready(&Command_Type);
     PyType_Ready(&Error_Type);
     PyType_Ready(&Ini_Type);
     error = PyErr_NewException((char*)"linuxcnc.error", PyExc_RuntimeError, NULL);
 
     PyModule_AddObject(m, "stat", (PyObject*)&Stat_Type);
+    PyModule_AddObject(m, "numberedparameter", (PyObject*)&NumberedParameter_Type);
     PyModule_AddObject(m, "command", (PyObject*)&Command_Type);
     PyModule_AddObject(m, "error_channel", (PyObject*)&Error_Type);
     PyModule_AddObject(m, "ini", (PyObject*)&Ini_Type);

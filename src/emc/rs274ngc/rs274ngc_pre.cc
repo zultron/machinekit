@@ -1623,6 +1623,35 @@ int Interp::reset()
     return INTERP_OK;
 }
 
+
+void Interp::setNumberedParameter(int param_num, double param_val)
+{
+  char file_name[LINELEN];
+
+  if (param_num > 0 && param_num <= RS274NGC_MAX_PARAMETERS) {
+    if (_setup.parameters[param_num] != param_val) {
+      _setup.parameters[param_num] = param_val;
+
+      GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
+      save_parameters(((file_name[0] ==
+                             0) ?
+                            RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
+                            file_name), _setup.parameters);
+    }
+  }
+}
+
+
+double Interp::getNumberedParameter(int param_num)
+{
+
+  if (param_num > 0 && param_num <= RS274NGC_MAX_PARAMETERS) {
+    return _setup.parameters[param_num];
+  }
+  return 0.0;
+}
+
+
 /***********************************************************************/
 
 /*! Interp::restore_parameters

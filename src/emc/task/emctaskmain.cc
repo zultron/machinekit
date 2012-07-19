@@ -95,12 +95,16 @@ char **Argv;
 static RCS_CMD_CHANNEL *emcCommandBuffer = 0;
 static RCS_STAT_CHANNEL *emcStatusBuffer = 0;
 static NML *emcErrorBuffer = 0;
+static RCS_STAT_CHANNEL *numberedParamsBuffer = 0;
 
 // NML command channel data pointer
 static RCS_CMD_MSG *emcCommand = 0;
 
 // global EMC status
 EMC_STAT *emcStatus = 0;
+
+// NUMBERED PARAMETERS
+EMC_NUMBERED_PARAMETER *numberedParams = 0;
 
 // timer stuff
 static RCS_TIMER *timer = 0;
@@ -406,9 +410,12 @@ static EMC_TASK_PLAN_OPEN *open_msg;
 static EMC_TASK_PLAN_SET_OPTIONAL_STOP *os_msg;
 static EMC_TASK_PLAN_SET_BLOCK_DELETE *bd_msg;
 
+static EMC_SET_NUMBERED_PARAMETER *emc_set_numbered_parameter_msg;
+
 static EMC_AUX_INPUT_WAIT *emcAuxInputWaitMsg;
 static int emcAuxInputWaitType = 0;
 static int emcAuxInputWaitIndex = -1;
+
 
 // commands we compose here
 static EMC_TASK_PLAN_RUN taskPlanRunCmd;	// 16-Aug-1999 FMP
@@ -839,6 +846,7 @@ static int emcTaskPlan(void)
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
+        case EMC_SET_NUMBERED_PARAMETER_TYPE:
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
@@ -2053,6 +2061,11 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	retval = emcToolSetNumber(emc_tool_set_number_msg->tool);
 	break;
 
+    case EMC_SET_NUMBERED_PARAMETER_TYPE:
+    emc_set_numbered_parameter_msg = (EMC_SET_NUMBERED_PARAMETER *) cmd;
+	retval =  emcSetNumberedParameter(emc_set_numbered_parameter_msg->param_num, emc_set_numbered_parameter_msg->param_val);
+	break;
+
 	// task commands
 
     case EMC_TASK_INIT_TYPE:
@@ -2877,6 +2890,39 @@ static int emctask_startup()
 	return -1;
     }
 
+    // NUMBERED_PARAMETERS
+    // get the NML status buffer
+    if (!(emc_debug & EMC_DEBUG_NML)) {
+	set_rcs_print_destination(RCS_PRINT_TO_NULL);	// inhibit diag
+	// messages
+    }
+    end = RETRY_TIME;
+    good = 0;
+    do {
+	if (NULL != numberedParamsBuffer) {
+	    delete numberedParamsBuffer;
+	}
+	numberedParamsBuffer =
+	    new RCS_STAT_CHANNEL(emcFormat, "numberedParams", "emc",
+				 emc_nmlfile);
+	if (numberedParamsBuffer->valid()) {
+	    good = 1;
+	    break;
+	}
+	esleep(RETRY_INTERVAL);
+	end -= RETRY_INTERVAL;
+	if (done) {
+	    emctask_shutdown();
+	    exit(1);
+	}
+    } while (end > 0.0);
+    set_rcs_print_destination(RCS_PRINT_TO_STDOUT);	// restore diag
+    // messages
+    if (!good) {
+	rcs_print_error("can't get numberedParams buffer\n");
+	return -1;
+    }
+
     if (!(emc_debug & EMC_DEBUG_NML)) {
 	set_rcs_print_destination(RCS_PRINT_TO_NULL);	// inhibit diag
 	// messages
@@ -3040,6 +3086,13 @@ static int emctask_shutdown(void)
     if (0 != emcErrorBuffer) {
 	delete emcErrorBuffer;
 	emcErrorBuffer = 0;
+    }
+
+    // NUMBERED_PARAMETERS
+    if (0 != numberedParams) {
+	delete numberedParams;
+	numberedParamsBuffer = 0;
+	numberedParams = 0;
     }
 
     if (0 != emcStatusBuffer) {
@@ -3257,6 +3310,8 @@ int main(int argc, char *argv[])
     // moved up from emc_startup so we can expose it in Python right away
     emcStatus = new EMC_STAT;
 
+    numberedParams = new EMC_NUMBERED_PARAMETER;
+
     // get the Python plugin going
 
     // inistantiate task methods object, too
@@ -3452,6 +3507,16 @@ int main(int argc, char *argv[])
 	// will be updated in the _update() functions above. There's
 	// no need to call the individual functions on all WM items.
 	emcStatusBuffer->write(emcStatus);
+
+
+    // start here
+    numberedParams->param_start = 5000;
+    // fill in what we defined room for in the class
+    numberedParams->param_total = sizeof(numberedParams->param_vals) / sizeof(double);
+
+    // fill in parameter values
+    emcGetNumberedParameters(numberedParams->param_start, numberedParams->param_total, numberedParams->param_vals);
+    numberedParamsBuffer->write(numberedParams);
 
 	// wait on timer cycle, if specified, or calculate actual
 	// interval if ini file says to run full out via

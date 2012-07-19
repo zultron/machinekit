@@ -47,6 +47,9 @@ public:
  int save_parameters(const char *filename,
                                     const double parameters[]);
 
+ void setNumberedParameter(int number, double value);
+ double getNumberedParameter(int number);
+
 // synchronize your internal model with the external world
  int synch();
 
