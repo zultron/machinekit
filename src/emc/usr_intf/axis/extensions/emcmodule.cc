@@ -20,7 +20,7 @@
 #include <structseq.h>
 #include <pthread.h>
 #include <structmember.h>
-#include <float.h>
+#include <math.h>
 #include "config.h"
 #include "rcs.hh"
 #include "emc.hh"
@@ -87,10 +87,17 @@ struct pyStatChannel {
 };
 
 // NUMBERED PARAMETERS
+#ifndef RS274NGC_MAX_PARAMETERS
+// this is defined in rs274ngc/interp_internal.hh
+// but don't include that file
+#define RS274NGC_MAX_PARAMETERS 5602
+#endif
 struct pyNumberedParamChannel {
     PyObject_HEAD
     RCS_STAT_CHANNEL *c;
     EMC_NUMBERED_PARAMETER numberedParam;
+    // stored copy of parameters accessed by index
+    double pyparam_vals[RS274NGC_MAX_PARAMETERS];
 };
 
 struct pyCommandChannel {
@@ -662,7 +669,7 @@ static PyObject *NumberedParameter_setparam(pyCommandChannel *s, PyObject *o) {
 
 static PyObject *NumberedParameter_getparam(pyNumberedParamChannel *s, PyObject *o) {
     int param_num;
-    double ret_val = DBL_MIN;
+    double ret_val = NAN;
     if(!PyArg_ParseTuple(o, "i", &param_num)) return NULL;
     if (param_num >= s->numberedParam.param_start && param_num < s->numberedParam.param_start + s->numberedParam.param_total) {
         ret_val = s->numberedParam.param_vals[param_num - s->numberedParam.param_start];
@@ -689,6 +696,10 @@ static PyObject *NumberedParameter_poll(pyNumberedParamChannel *s, PyObject *o) 
     if(s->c->peek() == EMC_NUMBERED_PARAMETER_TYPE) {
         EMC_NUMBERED_PARAMETER *emcNumberedParam = static_cast<EMC_NUMBERED_PARAMETER*>(s->c->get_address());
         memcpy(&s->numberedParam, emcNumberedParam, sizeof(EMC_NUMBERED_PARAMETER));
+	// copy to pyparams
+	for (int i = 0; i < s->numberedParam.param_total; i++) {
+	    s->pyparam_vals[s->numberedParam.param_start + i] = s->numberedParam.param_vals[i];
+	}
     }
     Py_INCREF(Py_None);
     return Py_None;
@@ -713,6 +724,12 @@ static int NumberedParameter_init(pyNumberedParamChannel *self, PyObject *a, PyO
         return -1;
     }
 
+    // initialize python accessible array
+    for (int i = 0; i < RS274NGC_MAX_PARAMETERS; i++) {
+	// is 0.0 the best choice?
+	self->pyparam_vals[i] = NAN;
+    }
+	
     self->c = c;
     return 0;
 }
@@ -721,6 +738,22 @@ static void NumberedParameter_dealloc(PyObject *self) {
     delete ((pyNumberedParamChannel*)self)->c;
     PyObject_Del(self);
 }
+
+static PyObject *NumberedParameter_params(pyNumberedParamChannel *s) {
+   return double_array(s->pyparam_vals, RS274NGC_MAX_PARAMETERS);
+}
+
+static PyGetSetDef NumberedParameter_getsetlist[] = {
+    {(char*)"params", (getter)NumberedParameter_params},
+    {NULL}
+};
+
+#define ONP(x) offsetof(pyNumberedParamChannel, numberedParam.x)
+static PyMemberDef NumberedParameter_members[] = {
+    {(char*)"total", T_INT, ONP(param_total), READONLY},
+    {(char*)"start", T_INT, ONP(param_start), READONLY},
+    {NULL}
+};
 
 static PyTypeObject NumberedParameter_Type = {
     PyObject_HEAD_INIT(NULL)
@@ -753,8 +786,8 @@ static PyTypeObject NumberedParameter_Type = {
     0,                      /*tp_iter*/
     0,                      /*tp_iternext*/
     NumberedParameter_methods,  /*tp_methods*/
-    0,                      /*tp_members*/
-    0,                      /*tp_getset*/
+    NumberedParameter_members,  /*tp_members*/
+    NumberedParameter_getsetlist,  /*tp_getset*/
     0,                      /*tp_base*/
     0,                      /*tp_dict*/
     0,                      /*tp_descr_get*/
