@@ -5096,7 +5096,8 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
                                       setup_pointer settings)   //!< pointer to machine settings                 
 {
   int index;
-  int wear_offset_index;
+  int geo_offset_register = 0;
+  int wear_offset_register = 0;
   EmcPose tool_offset;
   ZERO_EMC_POSE(tool_offset);
 
@@ -5130,17 +5131,19 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     tool_offset.w = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.w);
     if (FEATURE(LATHE_TOOLCHANGE)) {
 		if (block->t_number > 99 && block->t_number<10000) {
-			index = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
-			wear_offset_index = block->t_number % 100;	// wear offset is second two digits
+			geo_offset_register = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
+			wear_offset_register = block->t_number % 100;	// wear offset is second two digits
 		} else if (block->t_number < 100) {
-			index = block->t_number + 10000;			// per Smit (p.404 CNC Fundamentals) geo offsets are offset by 10000
-		}	
+			geo_offset_register = block->t_number + 10000;			// per Smit (p.404 CNC Fundamentals) geo offsets are offset by 10000
+		}
+		CHP((find_tool_pocket(settings, geo_offset_register, &index)));	
 		tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
 		tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
 		if (block->t_number > 99) {
+			CHP((find_tool_pocket(settings, wear_offset_register, &index)));	
 			// wear offsets are stored in the actual tool value register (e.g. T1 X Z stores wear, T10001 X Z stores geo offsets)
-			tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[wear_offset_index].offset.tran.x);
-			tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[wear_offset_index].offset.tran.z);
+			tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
+			tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
 		}
 	 }   
   } else if (g_code == G_43_1) {
@@ -5214,6 +5217,7 @@ int Interp::convert_tool_select(block_pointer block,     //!< pointer to a block
 {
   int pocket;
   CHP((find_tool_pocket(settings, block->t_number, &pocket)));
+  fprintf(stderr,"\nTool number is %d, pocket is %d\n", block->t_number, pocket);
   SELECT_POCKET(pocket, block->t_number);
   settings->selected_pocket = pocket;
   settings->selected_tool = block->t_number;
