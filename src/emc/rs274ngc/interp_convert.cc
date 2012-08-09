@@ -5217,7 +5217,6 @@ int Interp::convert_tool_select(block_pointer block,     //!< pointer to a block
 {
   int pocket;
   CHP((find_tool_pocket(settings, block->t_number, &pocket)));
-  fprintf(stderr,"\nTool number is %d, pocket is %d\n", block->t_number, pocket);
   SELECT_POCKET(pocket, block->t_number);
   settings->selected_pocket = pocket;
   settings->selected_tool = block->t_number;
