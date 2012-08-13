@@ -200,6 +200,10 @@ char pos, neg; // direction flags
 
 	} else { // input is not set
 		waiting_stepsizes_release = 0;
+		unsigned iloop;
+		current_stepsize = smallest_step; // start size
+		for (iloop = 0; iloop < gui_step_index; iloop++)  // do requisite multiply by 10s
+			current_stepsize = current_stepsize * 10.0;
 	} 
 	jog_microstep_size = current_stepsize; // report stepsize to pin
 	shuttle_step_index = step_size_index; // put index out onto pin
