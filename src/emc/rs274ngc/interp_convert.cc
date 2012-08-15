@@ -2473,6 +2473,11 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
       w_end = w_end_home;  
   }
 
+  // check for unset g28 position (Tormach only)
+  if ((end_x == 9999) || (end_z == 9999)){
+	  ERS("Cannot use G28 until G28 position has been set");
+  }
+
   // move indexers first, one at a time
   if (AA_end != settings->AA_current && settings->a_indexer)
       issue_straight_index(3, AA_end, block->line_number, settings);
