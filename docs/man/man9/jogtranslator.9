@@ -1,4 +1,4 @@
-.TH JOGTRANSLATOR "9" "2012-06-21" "LinuxCNC Documentation" "HAL Component"
+.TH JOGTRANSLATOR "9" "2012-08-20" "LinuxCNC Documentation" "HAL Component"
 .de TQ
 .br
 .ns
@@ -115,6 +115,9 @@ Index to hal table of step sizes - smallest is 0 up to number_of_stepsizes - 1
 .TP
 .B jogtranslator.\fIN\fB.gui-step-index\fR u32 in \fR
 Channel from GUI to hal table of step sizes - smallest is 0 up to number_of_stepsizes - 1
+.TP
+.B jogtranslator.\fIN\fB.is-metric\fR bit in \fR
+Pin to indicate current G20/21 status.  True when in G21, False in G20
 .SH AUTHOR
 
 J A Prentice

@@ -20,4 +20,4 @@ __attribute__((section(".modinfo"))) =
 "depends=hal_lib,rtapi";
 
 
-MODULE_INFO(srcversion, "FBB66239133F7BDB60471C9");
+MODULE_INFO(srcversion, "6873F4061C9441409AD1D2C");
