@@ -691,24 +691,6 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     return 0;
 }
 
-int emcSetNumberedParameter(int number, double value)
-{
-    Interp *i = dynamic_cast<Interp*>(pinterp);
-    i->setNumberedParameter(number, value);
-
-    return 0;
-}
-
-int emcGetNumberedParameters(int start, int total, double param_vals[])
-{
-    Interp *i = dynamic_cast<Interp*>(pinterp);
-    for (int index = 0; index < total; index++) {
-        param_vals[index] = i->getNumberedParameter(start + index);
-    }
-
-    return 0;
-}
-
 int emcAbortCleanup(int reason, const char *message)
 {
     int status = interp.on_abort(reason,message);

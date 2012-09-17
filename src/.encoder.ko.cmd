@@ -1,1 +1,0 @@
-cmd_/home/rogge/repos/lcnc_tormach/src/encoder.ko := ld -r -m elf_i386 -T /usr/src/linux-headers-2.6.32-122-rtai/scripts/module-common.lds --build-id -o /home/rogge/repos/lcnc_tormach/src/encoder.ko /home/rogge/repos/lcnc_tormach/src/encoder.o /home/rogge/repos/lcnc_tormach/src/encoder.mod.o

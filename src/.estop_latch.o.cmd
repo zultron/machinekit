@@ -1,1 +1,0 @@
-cmd_/home/rogge/repos/lcnc_tormach/src/estop_latch.o := ld -m elf_i386   -r -o /home/rogge/repos/lcnc_tormach/src/estop_latch.o /home/rogge/repos/lcnc_tormach/src/objects/hal/components/estop_latch.o 

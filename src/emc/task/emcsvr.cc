@@ -74,7 +74,6 @@ static RCS_STAT_CHANNEL *emcStatusChannel = NULL;
 static NML *emcErrorChannel = NULL;
 static RCS_CMD_CHANNEL *toolCommandChannel = NULL;
 static RCS_STAT_CHANNEL *toolStatusChannel = NULL;
-static RCS_STAT_CHANNEL *numberedParamsChannel = NULL;
 
 int main(int argc, char *argv[])
 {
@@ -98,7 +97,7 @@ int main(int argc, char *argv[])
     while (fabs(etime() - start_time) < 10.0 &&
 	   (emcCommandChannel == NULL || emcStatusChannel == NULL
 	    || (tool_channels && (toolCommandChannel == NULL || toolStatusChannel == NULL))
-	    || emcErrorChannel == NULL || numberedParamsChannel == NULL)
+	    || emcErrorChannel == NULL)
 	) {
 	if (NULL == emcCommandChannel) {
 	    rcs_print("emcCommandChannel==NULL, attempt to create\n");
@@ -115,12 +114,6 @@ int main(int argc, char *argv[])
 	if (NULL == emcErrorChannel) {
 	    emcErrorChannel =
 		new NML(nmlErrorFormat, "emcError", "emcsvr", emc_nmlfile);
-	}
-	if (NULL == numberedParamsChannel) {
-	    rcs_print("numberedParamsChannel==NULL, attempt to create\n");
-	    numberedParamsChannel =
-		new RCS_STAT_CHANNEL(emcFormat, "numberedParams", "emcsvr",
-				     emc_nmlfile);
 	}
 	if (tool_channels) {
 	    if (NULL == toolCommandChannel) {
@@ -146,10 +139,6 @@ int main(int argc, char *argv[])
 	if (!emcErrorChannel->valid()) {
 	    delete emcErrorChannel;
 	    emcErrorChannel = NULL;
-	}
-	if (!numberedParamsChannel->valid()) {
-	    delete numberedParamsChannel;
-	    numberedParamsChannel = NULL;
 	}
 	if (tool_channels) {
 	    if (!toolCommandChannel->valid()) {
@@ -179,11 +168,6 @@ int main(int argc, char *argv[])
     if (NULL == emcErrorChannel) {
 	emcErrorChannel =
 	    new NML(nmlErrorFormat, "emcError", "emcsvr", emc_nmlfile);
-    }
-    if (NULL == numberedParamsChannel) {
-	numberedParamsChannel =
-	    new RCS_STAT_CHANNEL(emcFormat, "numberedParams", "emcsvr",
-				 emc_nmlfile);
     }
     if (tool_channels) {
 	if (NULL == toolCommandChannel) {

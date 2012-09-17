@@ -1,1 +1,0 @@
-cmd_/home/rogge/repos/lcnc_tormach/src/toggle2nist.o := ld -m elf_i386   -r -o /home/rogge/repos/lcnc_tormach/src/toggle2nist.o /home/rogge/repos/lcnc_tormach/src/objects/hal/components/toggle2nist.o 

@@ -2473,11 +2473,6 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
       w_end = w_end_home;  
   }
 
-  // check for unset g28 position (Tormach only)
-  if ((end_x == 9999) || (end_z == 9999)){
-	  ERS("Cannot use G28 until G28 position has been set");
-  }
-
   // move indexers first, one at a time
   if (AA_end != settings->AA_current && settings->a_indexer)
       issue_straight_index(3, AA_end, block->line_number, settings);
@@ -3516,7 +3511,8 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     CHKS(!(block->x_flag || block->y_flag || block->z_flag ||
 	   block->a_flag || block->b_flag || block->c_flag ||
 	   block->u_flag || block->v_flag || block->w_flag ||
-	   block->r_flag || block->q_flag || block->i_flag),
+	   block->r_flag || block->q_flag || block->i_flag ||
+           block->j_flag),
 	 _("G10 L1 without offsets has no effect"));
 
     if(direct) {
@@ -5101,8 +5097,6 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
                                       setup_pointer settings)   //!< pointer to machine settings                 
 {
   int index;
-  int geo_offset_register = 0;
-  int wear_offset_register = 0;
   EmcPose tool_offset;
   ZERO_EMC_POSE(tool_offset);
 
@@ -5134,23 +5128,6 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     tool_offset.u = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.u);
     tool_offset.v = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.v);
     tool_offset.w = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.w);
-    if (FEATURE(LATHE_TOOLCHANGE)) {
-		if (block->t_number > 99 && block->t_number<10000) {
-			geo_offset_register = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
-			wear_offset_register = block->t_number % 100;	// wear offset is second two digits
-		} else if (block->t_number < 100) {
-			geo_offset_register = block->t_number + 10000;			// per Smit (p.404 CNC Fundamentals) geo offsets are offset by 10000
-		}
-		CHP((find_tool_pocket(settings, geo_offset_register, &index)));	
-		tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
-		tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
-		if (block->t_number > 99) {
-			CHP((find_tool_pocket(settings, wear_offset_register, &index)));	
-			// wear offsets are stored in the actual tool value register (e.g. T1 X Z stores wear, T10001 X Z stores geo offsets)
-			tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
-			tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
-		}
-	 }   
   } else if (g_code == G_43_1) {
     tool_offset = settings->tool_offset;
     index = -1;
@@ -5163,7 +5140,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     if(block->u_flag) tool_offset.u = block->u_number;
     if(block->v_flag) tool_offset.v = block->v_number;
     if(block->w_flag) tool_offset.w = block->w_number;
-	} else {
+  } else {
     ERS("BUG: Code not G43, G43.1, or G49");
   }
   USE_TOOL_LENGTH_OFFSET(tool_offset);
@@ -5225,10 +5202,6 @@ int Interp::convert_tool_select(block_pointer block,     //!< pointer to a block
   SELECT_POCKET(pocket, block->t_number);
   settings->selected_pocket = pocket;
   settings->selected_tool = block->t_number;
-  if (FEATURE(LATHE_TOOLCHANGE)) {
-	CHP(convert_tool_change(settings));
-	CHP(convert_tool_length_offset(G_43, block, settings));
-	} 
   return INTERP_OK;
 }
 

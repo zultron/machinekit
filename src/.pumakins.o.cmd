@@ -1,1 +1,0 @@
-cmd_/home/rogge/repos/lcnc_tormach/src/pumakins.o := ld -m elf_i386   -r -o /home/rogge/repos/lcnc_tormach/src/pumakins.o /home/rogge/repos/lcnc_tormach/src/libnml/posemath/_posemath.o /home/rogge/repos/lcnc_tormach/src/libnml/posemath/sincos.o /home/rogge/repos/lcnc_tormach/src/emc/kinematics/pumakins.o 

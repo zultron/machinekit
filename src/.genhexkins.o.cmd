@@ -1,1 +1,0 @@
-cmd_/home/rogge/repos/lcnc_tormach/src/genhexkins.o := ld -m elf_i386   -r -o /home/rogge/repos/lcnc_tormach/src/genhexkins.o /home/rogge/repos/lcnc_tormach/src/emc/kinematics/genhexkins.o /home/rogge/repos/lcnc_tormach/src/libnml/posemath/_posemath.o /home/rogge/repos/lcnc_tormach/src/libnml/posemath/sincos.o 

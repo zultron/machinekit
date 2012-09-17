@@ -467,12 +467,7 @@ int emcFormat(NMLTYPE type, void *buffer, CMS * cms)
     case EMC_TRAJ_STEP_TYPE:
 	((EMC_TRAJ_STEP *) buffer)->update(cms);
 	break;
-    case EMC_NUMBERED_PARAMETER_TYPE:
-	((EMC_NUMBERED_PARAMETER *) buffer)->update(cms);
-	break;
-    case EMC_SET_NUMBERED_PARAMETER_TYPE:
-	((EMC_SET_NUMBERED_PARAMETER *) buffer)->update(cms);
-	break;
+
     default:
 	return (0);
     }
@@ -765,10 +760,6 @@ const char *emc_symbol_lookup(long type)
 	return "EMC_TRAJ_STAT";
     case EMC_TRAJ_STEP_TYPE:
 	return "EMC_TRAJ_STEP";
-    case EMC_SET_NUMBERED_PARAMETER_TYPE:
-    return "EMC_SET_NUMBERED_PARAMETER";
-    case EMC_NUMBERED_PARAMETER_TYPE:
-    return "EMC_NUMBERED_PARAMETER";
     default:
 	return "UNKNOWN";
 	break;
@@ -1840,6 +1831,7 @@ void EMC_TRAJ_SET_SCALE::update(CMS * cms)
 
     EMC_TRAJ_CMD_MSG::update(cms);
     cms->update(scale);
+
 }
 
 /*
@@ -2979,38 +2971,3 @@ void EMC_IO_SET_CYCLE_TIME::update(CMS * cms)
     cms->update(cycleTime);
 
 }
-
-
-void EMC_PARAM_STAT_MSG::update(CMS * cms)
-{
-
-}
-
-
-/*
-*	NML/CMS Update function for EMC_NUMBERED_PARAMETER
-*/
-void EMC_NUMBERED_PARAMETER::update(CMS * cms)
-{
-    EMC_PARAM_STAT_MSG::update(cms);
-    cms->update(param_start);
-    cms->update(param_total);
-    for (int i = 0; i < param_total; i++) {
-        cms->update(param_vals[i]);
-    }
-}
-
-
-/*
-*	NML/CMS Update function for EMC_SET_NUMBERED_PARAMETER
-*/
-void EMC_SET_NUMBERED_PARAMETER::update(CMS * cms)
-{
-    EMC_TASK_CMD_MSG::update(cms);
-    cms->update(param_num);
-    cms->update(param_val);
-}
-
-
-
-
