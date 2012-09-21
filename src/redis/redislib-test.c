@@ -1,3 +1,5 @@
+// defunct - needs overhaul
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,17 +11,18 @@
 
 const char *testtext = "lorem ipsum dolor etcetc";
 
-int main(int argc, char**argv)
+int main(int argc, char**argv) 
 {
+#if 0 // dead for now
+
     int  ival;
     double dval;
     char buffer[1000];
 
     const char *inifile = NULL;
     int rc;
-    if (argc > 1)
+    if (argc > 1) 
 	inifile = argv[1];
-
 
     assert(redis_init(inifile) == 0);
     assert(redis_cmd("SET text %s", testtext) == 0);
@@ -31,7 +34,7 @@ int main(int argc, char**argv)
     // printf("get foo: rc=%d ival=%d\n", rc, ival);
     assert(rc == 0);
     assert(ival == 1000);
-
+    
     assert(redis_get_double(&dval, "GET pi") == 0);
     // printf("get pi: rc=%d dval=%f\n", rc, dval);
 
@@ -46,6 +49,7 @@ int main(int argc, char**argv)
     // retrieve with redis-cli: HGETALL tool:47
 
     assert(redis_close() == 0);
-
+#endif    
     return 0;
 }
+    

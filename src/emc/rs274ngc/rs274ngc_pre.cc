@@ -88,6 +88,8 @@ include an option for suppressing superfluous commands.
 #include "interp_internal.hh"	// interpreter private definitions
 #include "interp_queue.hh"
 #include "rs274ngc_interp.hh"
+#include "redislib.h"
+#include "redis-datamodel.h"
 
 #include "units.h"
 
@@ -104,50 +106,14 @@ const char *Interp::interp_status(int status) {
     return statustext;
 }
 
-extern struct _inittab builtin_modules[];
 int trace;
 
 Interp::Interp()
     : log_file(stderr)  
 {
     _setup.init_once = 1;  
-    init_named_parameters();  // need this before Python init.
- 
-    if (!PythonPlugin::instantiate(builtin_modules)) {  // factory
-	Error("Interp ctor: cant instantiate Python plugin");
-	return;
-    }
-
-    try {
-	// this import will register the C++->Python converter for Interp
-	bp::object interp_module = bp::import("interpreter");
-	
-	// use a boost::cref to avoid per-call instantiation of the
-	// Interp Python wrapper (used for the 'self' parameter in handlers)
-	// since interp.init() may be called repeatedly this would create a new
-	// wrapper instance on every init(), abandoning the old one and all user attributes
-	// tacked onto it, so make sure this is done exactly once
-	_setup.pythis =  boost::python::object(boost::cref(this));
-	
-	// alias to 'interpreter.this' for the sake of ';py, .... ' comments
-	// besides 'this', eventually use proper instance names to handle
-	// several instances 
-	bp::scope(interp_module).attr("this") =  _setup.pythis;
-
-	// make "this" visible without importing interpreter explicitly
-	bp::object retval;
-	python_plugin->run_string("from interpreter import this", retval, false);
-    }
-    catch (bp::error_already_set) {
-	std::string exception_msg;
-	if (PyErr_Occurred()) {
-	    exception_msg = handle_pyerror();
-	} else
-	    exception_msg = "unknown exception";
-	bp::handle_exception();
-	PyErr_Clear();
-	Error("PYTHON: exception during 'this' export:\n%s\n",exception_msg.c_str());
-    }
+    init_numbered_parameters();  
+    init_named_parameters();  
 }
 
 
@@ -770,6 +736,7 @@ int Interp::init()
   char filename[LINELEN];
   double *pars;                 // short name for _setup.parameters
   char *iniFileName;
+  extern int _task;             // 1 in milltask, 0 in gcodemodule
 
   INIT_CANON();
 
@@ -817,6 +784,20 @@ int Interp::init()
 
           inifile.Find(&_setup.debugmask, "DEBUG", "EMC");
 
+          inifile.Find(&_setup.redis_params, "REDIS_PARAMS", "RS274NGC");
+          inifile.Find(&_setup.redis_persistence, "REDIS_PERSISTENCE", "RS274NGC");
+	  if (_setup.redis_params && _task) {
+	      // no point in connecting to redis in gcodemodule:
+	      // save_parameters/restore_parameters is never called from gcodemodule
+	      _setup.redis_context = redis_init(iniFileName);
+	      if (_setup.redis_context == NULL) {
+		  Error("%s: cant connect to redis server - continuing without it\n",__FUNCTION__);
+		  _setup.redis_params = 0;
+	      } else 
+		  // initial connect
+		  logRedis("connected to redis server\n");
+	  }
+	  
 	  _setup.debugmask |= EMC_DEBUG_UNCONDITIONAL;
 
           if(NULL != (inistring = inifile.Find("LOG_LEVEL", "RS274NGC")))
@@ -918,10 +899,36 @@ int Interp::init()
           }
 
 	  // initialize the Python plugin singleton
-          if (NULL != (inistring = inifile.Find("TOPLEVEL", "PYTHON"))) {
-	      int status = python_plugin->configure(iniFileName,"PYTHON");
-	      if (status != PLUGIN_OK) {
-		  Error("Python plugin configure() failed, status = %d", status);
+	  extern struct _inittab builtin_modules[];
+	  if (inifile.Find("TOPLEVEL", "PYTHON")) {
+	      if (PythonPlugin::configure(iniFileName,"PYTHON",  builtin_modules) != NULL) {
+		  try {
+		      // this import will register the C++->Python converter for Interp
+		      bp::object interp_module = bp::import("interpreter");
+
+		      // use a boost::cref to avoid per-call instantiation of the 
+		      // Interp Python wrapper (used for the 'self' parameter in handlers)
+		      // since interp.init() may be called repeatedly this would create a new
+		      // wrapper instance on every init(), abandoning the old one and all user attributes
+		      // tacked onto it, so make sure this is done exactly once
+		      if (_setup.init_once)  
+			  _setup.pythis =  boost::python::object(boost::cref(this));
+
+		      // alias to 'interpreter.this' for the sake of ';py, .... ' comments
+		      bp::scope(interp_module).attr("this") =  _setup.pythis;
+		  }
+		  catch (bp::error_already_set) {
+		      std::string exception_msg;
+		      if (PyErr_Occurred()) {
+			  exception_msg = handle_pyerror();
+		      } else
+			  exception_msg = "unknown exception";
+		      bp::handle_exception();
+		      PyErr_Clear();
+		      Error("PYTHON: exception during 'this' export:\n%s\n",exception_msg.c_str());
+		  }
+	      } else {
+		  Error("no Python plugin available");
 	      }
 	  }
  
@@ -1680,6 +1687,12 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
   double *pars;                 // short name for _setup.parameters
   int k;
 
+  // if told to do the emc.var job through redis, short-circuit here
+  if (_setup.redis_persistence && 
+      _setup.redis_context != NULL) {
+      return redis_restore_parameters(&_setup, _setup.parameters);
+  }
+
   // it's OK if the parameter file doesn't exist yet
   // it'll be created in due course with some default values
   if(access(filename, F_OK) == -1)
@@ -1771,6 +1784,12 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   int required;                 // number of next required parameter
   int index;                    // index into _required_parameters
   int k;
+
+  // if told to do the emc.var job through redis, short-circuit here
+  if (_setup.redis_persistence && 
+      _setup.redis_context != NULL) {
+      return redis_save_parameters(&_setup, parameters);
+  }
 
   if(access(filename, F_OK)==0) 
   {

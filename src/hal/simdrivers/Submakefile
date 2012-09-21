@@ -3,7 +3,8 @@ ifeq ($(BUILD_SYS),sim)
 UPARPORT_SRCS := $(addprefix hal/simdrivers/, \
 	uparport.c)
 
-UPARPORT_LIBS := 
+UPARPORT_LIBS := /usr/local/lib/libcpuid.so
+
 UPARPORT_FLAGS := -DSIM -DSIMULATOR -DRTAPI -UULAPI -D__MODULE__  -Drealtime
 
 USERSRCS += $(UPARPORT_SRCS)

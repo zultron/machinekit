@@ -510,6 +510,7 @@ int read_inputs(setup_pointer settings);
 		       char *posarglist);
 
  int init_named_parameters();
+ int init_numbered_parameters();
     int init_python_predef_parameter(const char *name);
 
     bool has_user_mcode(setup_pointer settings,block_pointer block);
@@ -594,6 +595,15 @@ int read_inputs(setup_pointer settings);
 	    const char *fmt, ...) __attribute__((format(printf,5,6)));
 
  const char *interp_status(int status);
+
+    int get_numbered_parameter(setup_pointer settings,double *dval, int index);
+    int set_numbered_parameter(setup_pointer settings,double dval, int index, bool notitfy = true);
+
+    // internal - restore from redis DB
+    int redis_restore_parameters(setup_pointer settings,  double parameters[]);
+
+    // internal - save interpreter variables to redis DB
+    int redis_save_parameters(setup_pointer settings, const double parameters[]);
 
     //technically this violates encapsulation rules but is needed for
     // the Python introspection module

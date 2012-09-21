@@ -1,8 +1,9 @@
 // test program to time ppdev filedescriptor I/O versus
 // direct register writes
-// compile like so:
+// needs libcpuid 
+// compile like so (assuming libcpuid is in /usr/local):
 //
-// gcc -O5 -g -Wall ppioctl.c  -oppioctl
+// gcc -O5 -g -I/usr/local/include -L/usr/local/lib -g ppioctl.c -lcpuid -oppioctl
 //
 // results: Intel(R) Atom(TM) CPU D525   @ 1.80GHz
 // ioctl-based parport write: 2.8uSec/write
@@ -17,6 +18,7 @@
 #include <sys/io.h>
 
 #include <string.h>
+#include <libcpuid/libcpuid.h>
 #include <linux/ppdev.h> 
 #include <linux/parport.h>
 
@@ -50,6 +52,7 @@ int get_ppdev_res(int dev, struct ppres *ppres)
 {
 	FILE *f;
 	char path[1024], value[100],line[1024], *s;
+	int result;
 	unsigned from, to;
 
 	// parse this:
@@ -106,52 +109,21 @@ int get_ppdev_res(int dev, struct ppres *ppres)
 	return 0;
 }
 
-float cpu_MHz(void) 
-{
-    char *path = "/proc/cpuinfo",  *s, line[1024];
-    float freq;
-    char *cpu_line = "cpu MHz";
-
-    // parse /proc/cpuinfo for the line:
-    // cpu MHz		: 2378.041
-    FILE *f = fopen(path,"r");
-    if (!f) {
-	perror(path);
-	return -1.0;
-    }
-    while (fgets(line, sizeof(line), f)) {
-	if (!strncmp(line, cpu_line, strlen(cpu_line))) {
-	    s = strchr(line, ':');
-	    if (s && 1 == sscanf(s, ":%g", &freq)) {
-		fclose(f);
-		return freq;
-	    }
-	}
-    }
-    fclose(f);
-    return -1.0;
-}
-
-
 int main(int argc, char *argv[])
 {
-    int i,result;
+    int i,addr, result;
     unsigned char ctrl,data, status;
     int mode;
     int parportfd = 0;
-    u64 start;
+    u64 start, stop;
     unsigned int lap;
     double time;
     struct ppres ppres;
     char path[1024];
     int dev = 0;
     int time_ioctl = 1;
-    float mhz = cpu_MHz();
-    if (mhz < 0.0) {
-	fprintf(stderr, "cant get CPU frequency from /proc/cpuinfo\n");
-	exit (1);
-    }
-    printf("mhz = %g\n",mhz);
+    int mhz = cpu_clock();
+    printf("mhz = %d\n",mhz);
 
     if (argc > 1) {
 	dev = atoi(argv[1]);

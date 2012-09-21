@@ -37,9 +37,10 @@ enum pp_status   {
 
 class PythonPlugin {
 public:
-    // factory method
-    static PythonPlugin *instantiate(struct _inittab *inittab = NULL);
-    int configure(const char *iniFilename = NULL, const char *section = NULL);
+    static PythonPlugin *configure(const char *iniFilename = NULL,
+				   const char *section = NULL,
+				   struct _inittab *inittab = NULL
+				   );
     bool is_callable(const char *module, const char *funcname);
     int call(const char *module,const char *callable,
 	     bp::object tupleargs, bp::object kwargs, bp::object &retval);
@@ -48,13 +49,15 @@ public:
 
     int plugin_status() { return status; };
     bool usable() { return (status >= PLUGIN_OK); }
-    int initialize();
+    void initialize(bool reload = false);
     std::string last_exception() { return exception_msg; };
     std::string last_errmsg() { return error_msg; };
     bp::object main_namespace;
 
 private:
-    PythonPlugin(struct _inittab *inittab);       // nb: no public constructor
+    PythonPlugin(const char *iniFilename,         // no public constructor
+		 const char *section,
+		 struct _inittab *inittab);
     PythonPlugin(const PythonPlugin &) {};        // not copyable
     PythonPlugin & operator=(const PythonPlugin&) { return *this; };  // not assignable
     ~PythonPlugin() {};

@@ -1222,7 +1222,7 @@ int Interp::convert_param_comment(char *comment, char *expanded, int len)
                 if((paramNumber >= 0) &&
                    (paramNumber < RS274NGC_MAX_PARAMETERS))
                 {
-                    value = _setup.parameters[paramNumber];
+		    CHP(get_numbered_parameter(&_setup, &value, paramNumber));
                     found = 1;
                 }
             }

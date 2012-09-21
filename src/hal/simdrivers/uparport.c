@@ -115,6 +115,7 @@
 #include <sys/io.h>
 
 #include <string.h>
+#include <libcpuid/libcpuid.h>
 #include <linux/ppdev.h> 
 #include <linux/parport.h>
 #include <linux/limits.h>
@@ -191,7 +192,7 @@ static int num_ports;		/* number of ports configured */
 static unsigned long ns2tsc_factor;
 #define ns2tsc(x) (((x) * (unsigned long long)ns2tsc_factor) >> 12)
 #ifdef SIM
-unsigned int cpu_khz; 
+unsigned int cpu_khz; // set this value by libcpuid cpu_clock()
 #endif
 /***********************************************************************
 *                  LOCAL FUNCTION DECLARATIONS                         *
@@ -238,12 +239,7 @@ int rtapi_app_main(void)
     int n, retval;
 
 #ifdef SIM
-    float MHz = cpu_MHz();
-    if (MHz < 0.0) {
-	rtapi_print_msg(RTAPI_MSG_ERR, "PARPORT: cant retrieve CPU frequency from /proc/cpuinfo\n");
-	return -1;
-    }
-    cpu_khz = (unsigned) (MHz * 1000.0); 
+    cpu_khz = cpu_clock()*1000; 
     ns2tsc_factor = (cpu_khz << 6) / 15625ul;
 #else
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)

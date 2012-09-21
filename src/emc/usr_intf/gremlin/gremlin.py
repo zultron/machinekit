@@ -30,14 +30,12 @@ import pango
 import rs274.glcanon
 import rs274.interpret
 import linuxcnc
-import gcode
 
 import time
 
 import tempfile
 import shutil
 import os
-import sys
 
 import thread
 
@@ -237,10 +235,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
             unitcode = "G%d" % (20 + (s.linear_units == 1))
             initcode = self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
-            result, seq = self.load_preview(filename, canon, unitcode, initcode)
-	    if result > gcode.MIN_ERROR:
-		self.report_gcode_error(result, seq, filename)
-
+            self.load_preview(filename, canon, unitcode, initcode)
         finally:
             shutil.rmtree(td)
 
@@ -341,8 +336,3 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def scroll(self, widget, event):
         if event.direction == gtk.gdk.SCROLL_UP: self.zoomin()
         elif event.direction == gtk.gdk.SCROLL_DOWN: self.zoomout()
-
-    def report_gcode_error(self, result, seq, filename):
-	error_str = gcode.strerror(result)
-	sys.stderr.write("G-Code error in " + os.path.basename(filename) + "\n" + "Near line "
-	                 + str(seq) + " of\n" + filename + "\n" + error_str + "\n")

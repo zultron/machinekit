@@ -1,7 +1,7 @@
 #BOOST_DEBUG_FLAGS= -DBOOST_DEBUG_PYTHON -g -O0
 BOOST_DEBUG_FLAGS=
 
-INCLUDES += emc/rs274ngc
+INCLUDES += emc/rs274ngc 
 
 LIBRS274SRCS := $(addprefix emc/rs274ngc/, \
 	interp_arc.cc \
@@ -24,7 +24,9 @@ LIBRS274SRCS := $(addprefix emc/rs274ngc/, \
 	interp_remap.cc \
 	canonmodule.cc \
 	interpmodule.cc \
+	interp_params.cc \
 	rs274ngc_pre.cc)
+
 USERSRCS += $(LIBRS274SRCS)
 
 $(call TOOBJSDEPS, $(LIBRS274SRCS)) : EXTRAFLAGS=-fPIC  $(BOOST_DEBUG_FLAGS) 
@@ -32,15 +34,16 @@ $(call TOOBJSDEPS, $(LIBRS274SRCS)) : EXTRAFLAGS=-fPIC  $(BOOST_DEBUG_FLAGS)
 TARGETS += ../lib/librs274.so ../lib/librs274.so.0
 
 ../lib/librs274.so.0: $(patsubst %.cc,objects/%.o,$(LIBRS274SRCS)) \
+	../lib/libredisglue.so.0 ../lib/libhiredis.so \
 	../lib/liblinuxcncini.so ../lib/libpyplugin.so ../lib/liblinuxcnchal.so.0
 	$(ECHO) Linking $(notdir $@)
 	@mkdir -p ../lib
 	@rm -f $@
 	$(CXX) -g $(LDFLAGS) -Wl,-soname,$(notdir $@) -shared -o $@ $^ -lstdc++ $(BOOST_PYTHON_LIBS) -l$(LIBPYTHON) -ldl
 
-../include/%.h: ./emc/rs274ngc/%.h
+../include/%.h: ./emc/rs274ngc/%.h 
 	cp $^ $@
-../include/%.hh: ./emc/rs274ngc/%.hh
+../include/%.hh: ./emc/rs274ngc/%.hh 
 	cp $^ $@
 
 GCODEMODULESRCS := emc/rs274ngc/gcodemodule.cc

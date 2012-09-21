@@ -75,7 +75,8 @@ std::string handle_pyerror()
 int Interp::py_reload()
 {
     if (PYUSABLE) {
-	CHKS((python_plugin->initialize() == PLUGIN_EXCEPTION),
+	python_plugin->initialize(true);
+	CHKS((python_plugin->plugin_status() == PLUGIN_EXCEPTION),
 	     "py_reload:\n%s",  python_plugin->last_exception().c_str());
     }
     return INTERP_OK;
