@@ -88,6 +88,8 @@ include an option for suppressing superfluous commands.
 #include "interp_internal.hh"	// interpreter private definitions
 #include "interp_queue.hh"
 #include "rs274ngc_interp.hh"
+#include "redislib.h"
+#include "redis-datamodel.h"
 
 #include "units.h"
 
@@ -110,6 +112,7 @@ Interp::Interp()
     : log_file(stderr)  
 {
     _setup.init_once = 1;  
+    init_numbered_parameters();  
     init_named_parameters();  
 }
 
@@ -733,6 +736,7 @@ int Interp::init()
   char filename[LINELEN];
   double *pars;                 // short name for _setup.parameters
   char *iniFileName;
+  extern int _task;             // 1 in milltask, 0 in gcodemodule
 
   INIT_CANON();
 
@@ -780,6 +784,20 @@ int Interp::init()
 
           inifile.Find(&_setup.debugmask, "DEBUG", "EMC");
 
+          inifile.Find(&_setup.redis_params, "REDIS_PARAMS", "RS274NGC");
+          inifile.Find(&_setup.redis_persistence, "REDIS_PERSISTENCE", "RS274NGC");
+	  if (_setup.redis_params && _task) {
+	      // no point in connecting to redis in gcodemodule:
+	      // save_parameters/restore_parameters is never called from gcodemodule
+	      _setup.redis_context = redis_init(iniFileName);
+	      if (_setup.redis_context == NULL) {
+		  Error("%s: cant connect to redis server - continuing without it\n",__FUNCTION__);
+		  _setup.redis_params = 0;
+	      } else 
+		  // initial connect
+		  logRedis("connected to redis server\n");
+	  }
+	  
 	  _setup.debugmask |= EMC_DEBUG_UNCONDITIONAL;
 
           if(NULL != (inistring = inifile.Find("LOG_LEVEL", "RS274NGC")))
@@ -1623,35 +1641,6 @@ int Interp::reset()
     return INTERP_OK;
 }
 
-
-void Interp::setNumberedParameter(int param_num, double param_val)
-{
-  char file_name[LINELEN];
-
-  if (param_num > 0 && param_num <= RS274NGC_MAX_PARAMETERS) {
-    if (_setup.parameters[param_num] != param_val) {
-      _setup.parameters[param_num] = param_val;
-
-      GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-      save_parameters(((file_name[0] ==
-                             0) ?
-                            RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
-                            file_name), _setup.parameters);
-    }
-  }
-}
-
-
-double Interp::getNumberedParameter(int param_num)
-{
-
-  if (param_num > 0 && param_num <= RS274NGC_MAX_PARAMETERS) {
-    return _setup.parameters[param_num];
-  }
-  return 0.0;
-}
-
-
 /***********************************************************************/
 
 /*! Interp::restore_parameters
@@ -1697,6 +1686,12 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
   int index;                    // index into _required_parameters
   double *pars;                 // short name for _setup.parameters
   int k;
+
+  // if told to do the emc.var job through redis, short-circuit here
+  if (_setup.redis_persistence && 
+      _setup.redis_context != NULL) {
+      return redis_restore_parameters(&_setup, _setup.parameters);
+  }
 
   // it's OK if the parameter file doesn't exist yet
   // it'll be created in due course with some default values
@@ -1789,6 +1784,12 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   int required;                 // number of next required parameter
   int index;                    // index into _required_parameters
   int k;
+
+  // if told to do the emc.var job through redis, short-circuit here
+  if (_setup.redis_persistence && 
+      _setup.redis_context != NULL) {
+      return redis_save_parameters(&_setup, parameters);
+  }
 
   if(access(filename, F_OK)==0) 
   {

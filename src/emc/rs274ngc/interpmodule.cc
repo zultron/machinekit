@@ -137,7 +137,11 @@ struct ParamClass {
 	} else
 	    if (IS_INT(sub)) {
 		int index = bp::extract < int > (sub);
-		retval = interp._setup.parameters[index];
+		if (interp.get_numbered_parameter(&interp._setup, &retval, index) != INTERP_OK) {
+		    std::stringstream sstr;
+		    sstr << "get_numbered_parameter(" << index << "): cannot read param " << index;
+		    throw std::runtime_error(sstr.str());
+		}
 	    } else {
 		throw std::runtime_error("params subscript type must be integer or string");
 	    }
@@ -161,7 +165,12 @@ struct ParamClass {
 		    sstr << "params subscript out of range : " << index << " - must be between 0 and " << RS274NGC_MAX_PARAMETERS;
 		    throw std::runtime_error(sstr.str());
 		}
-		interp._setup.parameters[index] = dvalue;
+		bool notify = interp._setup.persistent_map[index];
+		if (interp.set_numbered_parameter(&interp._setup, dvalue,index, notify) != INTERP_OK) {
+		    std::stringstream sstr;
+		    sstr << "set_numbered_parameter(): cannot store param " << index;
+		    throw std::runtime_error(sstr.str());
+		}
 		return dvalue;
 	    } else
 		throw std::runtime_error("params subscript type must be integer or string");

@@ -1923,7 +1923,8 @@ int Interp::read_parameter(
           NCE_PARAMETER_NUMBER_OUT_OF_RANGE);
       CHKS(((index >= 5420) && (index <= 5428) && (_setup.cutter_comp_side)),
            _("Cannot read current position with cutter radius compensation on"));
-      *double_ptr = parameters[index];
+      // *double_ptr = parameters[index];
+      CHP(get_numbered_parameter(&_setup, double_ptr, index));
   }
   return INTERP_OK;
 }
@@ -2066,6 +2067,7 @@ int Interp::read_parameter_setting(
       _setup.parameter_numbers[_setup.parameter_occurrence] = index;
       _setup.parameter_values[_setup.parameter_occurrence] = value;
       _setup.parameter_occurrence++;
+      CHP(set_numbered_parameter(&_setup, value,index));
   }
   return INTERP_OK;
 }
@@ -3324,9 +3326,5 @@ int Interp::read_z(char *line,   //!< string: line of RS274 code being processed
 
 bool Interp::isreadonly(int index)
 {
-  int i;
-  for (i=0; i< _n_readonly_parameters; i++) {
-    if (_readonly_parameters[i] == index) return 1;
-  }
-  return 0;
+    return _setup.readonly_map[index] != 0;
 }

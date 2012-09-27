@@ -1,1 +1,0 @@
-cmd_/home/rogge/repos/lcnc_tormach/src/tristate_float.o := ld -m elf_i386   -r -o /home/rogge/repos/lcnc_tormach/src/tristate_float.o /home/rogge/repos/lcnc_tormach/src/objects/hal/components/tristate_float.o 

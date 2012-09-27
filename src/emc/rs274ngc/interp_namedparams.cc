@@ -741,6 +741,32 @@ int Interp::init_python_predef_parameter(const char *name)
     return INTERP_OK;
 }
 
+// eventually all parameter handling - named and numbered - should be
+// unified and factored out in a separate class - parameter semantics are
+// pretty much language independent. When that happens, the parameter 
+// attributes should be represented by sets (like bitset) to make
+// handling uniform.
+
+int Interp::init_numbered_parameters()
+{
+    // initialize the persistent params map with values which we know
+    // should be reflected in emc.var / redis
+    // this map is updated by restore_parameters as other ones are found
+    // these params should lateron be saved by saved_parameters
+    for (int i = RS274NGC_UI_PARAM_START; i < RS274NGC_UI_PARAM_END; i++) 
+	_setup.persistent_map[i] = 1;
+
+    // these are 'read only'; for convenience - the underlying arrays make for
+    // very awkward code when used directly
+    for (int i = 0;  _required_parameters[i] != RS274NGC_MAX_PARAMETERS; i++) 
+	_setup.required_map[_required_parameters[i]] = 1;
+
+    for (int i = 0; i < _n_readonly_parameters; i++) 
+	_setup.readonly_map[_readonly_parameters[i]] = 1;
+
+    return INTERP_OK;
+}
+
 int Interp::init_named_parameters()
 {
 

@@ -1222,7 +1222,7 @@ int Interp::convert_param_comment(char *comment, char *expanded, int len)
                 if((paramNumber >= 0) &&
                    (paramNumber < RS274NGC_MAX_PARAMETERS))
                 {
-                    value = _setup.parameters[paramNumber];
+		    CHP(get_numbered_parameter(&_setup, &value, paramNumber));
                     found = 1;
                 }
             }
@@ -5139,18 +5139,18 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
 			geo_offset_register = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
 			wear_offset_register = block->t_number % 100;	// wear offset is second two digits
 		} else if (block->t_number < 100) {
-			geo_offset_register = block->t_number + 10000;			// per Smit (p.404 CNC Fundamentals) geo offsets are offset by 10000
+			geo_offset_register = block->t_number + 10000;	// per Smit (p.404 CNC Fundamentals) geo offsets are offset by 10000
 		}
-		CHP((find_tool_pocket(settings, geo_offset_register, &index)));	
+		CHP((find_tool_pocket(settings, geo_offset_register, &index)));
 		tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
 		tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
 		if (block->t_number > 99) {
-			CHP((find_tool_pocket(settings, wear_offset_register, &index)));	
+			CHP((find_tool_pocket(settings, wear_offset_register, &index)));
 			// wear offsets are stored in the actual tool value register (e.g. T1 X Z stores wear, T10001 X Z stores geo offsets)
 			tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
 			tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
 		}
-	 }   
+	 }
   } else if (g_code == G_43_1) {
     tool_offset = settings->tool_offset;
     index = -1;

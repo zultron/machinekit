@@ -1,1 +1,0 @@
-cmd_/home/rogge/repos/lcnc_tormach/src/conv_s32_bit.ko := ld -r -m elf_i386 -T /usr/src/linux-headers-2.6.32-122-rtai/scripts/module-common.lds --build-id -o /home/rogge/repos/lcnc_tormach/src/conv_s32_bit.ko /home/rogge/repos/lcnc_tormach/src/conv_s32_bit.o /home/rogge/repos/lcnc_tormach/src/conv_s32_bit.mod.o

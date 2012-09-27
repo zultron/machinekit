@@ -1,0 +1,137 @@
+<<<<<<< HEAD
+This directory contains snapshots of:
+=====================================
+
+redis: https://github.com/antirez/redis.git branch 2.6
+$ git describe --dirty --always
+2.6.0-rc6-1-g013189e
+
+redis-py: https://github.com/andymccurdy/redis-py.git branch master
+$ git describe --dirty --always
+fd82c5d
+
+Directory layout:
+=================
+
+'redis/redis': server and hiredis C API source
+'redis/redis-py': Python bindings
+'examples/c' and 'examples/python': linuxcnc-specific redis examples.
+
+later:
+'include' eventually to contain a C include file describing the namespace and query templates.
+'python' : any linuxcnc-specific redis-dependent Pyhton modules
+
+LinuxCNC startup and shutdown:
+=============================
+
+ini options: you dont need any of them, but these are understood:
+
+    [REDIS]
+    SERVER_PATH=redis-server
+    SERVER_LOG=/tmp/redis.log
+    SERVER_ARGS=
+    #DISABLE_SERVER=1
+
+by default, the redis-server startup command is 'redis-server >/dev/null' .
+
+--
+
+post-build test to increase confidence (this runs quite a while so I dont include it in runtests):
+
+$ cd src/redis/redis
+$ make tests
+
+
+Programming notes:
+------------------
+
+including config.h #defines or #undefs CONFIG_REDIS
+for now, this defaults to true
+
+for client configuration options, see redisparams.ini in this directory
+
+
+Usage example - first steps:
+============================
+
+build. I assume all shells mentioned below have sourced scripts/rip-environment.
+
+start the redis server in a separate window:
+$ redis-server
+
+new window - run Python sync subscriber demo:
+$ cd src/redis
+$ python subscribe-test.py
+
+new window - run redis-cli and try a basic set/publish:
+$ redis-cli
+redis 127.0.0.1:6379> set param:5650 3.14
+OK
+redis 127.0.0.1:6379> publish params param:5650
+(integer) 1
+
+The publish command should trigger subscriber-test.py to retrieve the new value.
+
+Now the whole thing from the interpreter - new window:
+
+$ cd src/redis
+$ rs274 -g -i redisparams.ini
+executing
+    1 N..... USE_LENGTH_UNITS(CANON_UNITS_MM)
+    2 N..... SET_G5X_OFFSET(1, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
+    3 N..... SET_G92_OFFSET(0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
+    4 N..... SET_XY_ROTATION(0.0000)
+    5 N..... SET_FEED_REFERENCE(CANON_XYZ)
+READ => (debug,#5650)
+retrieved param[5650] from redis: 3.14
+
+    6 N..... MESSAGE("3.140000")
+READ => #5650 = [3*94]
+storing param[5650] = 282 in redis
+notified 1 subscriber(s) in params channel
+READ => 
+
+the last command should have triggered subscriber-test.py, too.
+
+Using the whole thing with an Axis config:
+==========================================
+
+With the above steps, you had redis-server running because you started
+it explicitly. Kill redis-server now, since linuxcnc starts redis-server
+automatically. 
+
+then:
+
+$ cd configs/sim/axis
+$ linuxcnc axis_mm_redis.ini
+
+this starts axis and redis-server in the background, with redis params in the interp enabled
+all the pub/sub examples above with redis-cli and subscribe-test.py should work as above.
+
+Also, this configuration enables persistent parameters through redis, instead of the emc.var file.
+
+To get emc.var files into redis, see src/redis/emcvarload.sh .
+To export the redis param hash into an emc.var file, see src/redis/emcvardump.py.
+
+Param range 5610-5710 is the 'UI commincation param range'. See interp_internal.hh.
+
+Parameters in the range 30-5399 are considered persistent when inserted into redis.
+
+To make param 4711 persisent, and subject to notification via redis on update, set the key like so:
+
+redis-cli> hset param 4711 0
+
+redis-server, or eg Axis started by 'linuxcnc' must be running.
+
+An update to param 4711 will only be subject to notification after next linuxcnc startup.
+
+
+Interpreter Programming notes:
+------------------------------
+
+The basic functionality for numbered parameters through redis, and persistence is in place.
+interp_params.cc still needs polishing; after more redis integration it will become clearer  
+which redis interactions are needed.
+
+Michael Haberler
+8/2012
