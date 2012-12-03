@@ -5100,6 +5100,8 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
                                       setup_pointer settings)   //!< pointer to machine settings                 
 {
   int index;
+  int geo_offset_register = 0;
+  int wear_offset_register = 
   EmcPose tool_offset;
   ZERO_EMC_POSE(tool_offset);
 
