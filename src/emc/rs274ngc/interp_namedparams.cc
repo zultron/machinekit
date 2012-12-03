@@ -750,7 +750,7 @@ int Interp::init_python_predef_parameter(const char *name)
 int Interp::init_numbered_parameters()
 {
     // initialize the persistent params map with values which we know
-    // should be reflected in emc.var / redis
+    // should be reflected in emc.var / Python API
     // this map is updated by restore_parameters as other ones are found
     // these params should lateron be saved by saved_parameters
     for (int i = RS274NGC_UI_PARAM_START; i < RS274NGC_UI_PARAM_END; i++) 

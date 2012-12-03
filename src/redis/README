@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 This directory contains snapshots of:
 =====================================
 
@@ -16,10 +15,6 @@ Directory layout:
 'redis/redis': server and hiredis C API source
 'redis/redis-py': Python bindings
 'examples/c' and 'examples/python': linuxcnc-specific redis examples.
-
-later:
-'include' eventually to contain a C include file describing the namespace and query templates.
-'python' : any linuxcnc-specific redis-dependent Pyhton modules
 
 LinuxCNC startup and shutdown:
 =============================

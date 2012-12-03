@@ -251,6 +251,13 @@ static int get_task(Interp &i) { return _task; };
 static const char *get_filename(Interp &i) { return i._setup.filename; };
 static const char *get_linetext(Interp &i) { return i._setup.linetext; };
 
+static int is_required(Interp &i, int index) { return IS_REQUIRED_PARAM(&i._setup,index); };
+static int is_persistent(Interp &i, int index) { return IS_PERSISTENT_PARAM(&i._setup,index); };
+static void set_persistent(Interp &i, int index) { i._setup.persistent_map[index] = 1; };
+static void set_required(Interp &i, int index) { i._setup.required_map[index] = 1; };
+static int is_volatile_param(Interp &i, int index) { return IS_VOLATILE_PARAM(index); };
+static int is_ui_param(Interp &i, int index) { return IS_UI_PARAM(index); };
+
 static void  set_x(EmcPose &p, double value) { p.tran.x = value; }
 static void  set_y(EmcPose &p, double value) { p.tran.y = value; }
 static void  set_z(EmcPose &p, double value) { p.tran.z = value; }
@@ -615,6 +622,14 @@ BOOST_PYTHON_MODULE(interpreter) {
 
 	.def("synch", &Interp::synch)
 
+	.def("is_readonly", &Interp::is_readonly)
+	.def("is_required", &is_required)
+	.def("is_persistent", &is_persistent)
+	.def("set_persistent", &set_persistent)
+	.def("set_required", &set_required)
+	.def("is_volatile", &is_volatile_param)
+	.def("is_ui_param", &is_ui_param)
+
 	// those will raise exceptions on return value < INTERP_MIN_ERROR  if throw_exceptions is set.
 	.def("execute", &wrap_interp_execute_1)
 	.def("execute",  &wrap_interp_execute_2)
@@ -689,6 +704,7 @@ BOOST_PYTHON_MODULE(interpreter) {
 	.def_readwrite("program_x", &Interp::_setup.program_x)
 	.def_readwrite("program_y", &Interp::_setup.program_y)
 	.def_readwrite("program_z", &Interp::_setup.program_z)
+	.def_readwrite("python_api", &Interp::_setup.python_api)
 	.def_readwrite("random_toolchanger", &Interp::_setup.random_toolchanger)
 	.def_readwrite("remap_level", &Interp::_setup.remap_level)
 	.def_readwrite("retract_mode", &Interp::_setup.retract_mode)

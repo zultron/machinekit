@@ -1,4 +1,6 @@
 #BOOST_DEBUG_FLAGS= -DBOOST_DEBUG_PYTHON -g -O0
+
+API_FLAGS =  -DPYTHON_API
 BOOST_DEBUG_FLAGS=
 
 INCLUDES += emc/rs274ngc 
@@ -29,12 +31,11 @@ LIBRS274SRCS := $(addprefix emc/rs274ngc/, \
 
 USERSRCS += $(LIBRS274SRCS)
 
-$(call TOOBJSDEPS, $(LIBRS274SRCS)) : EXTRAFLAGS=-fPIC  $(BOOST_DEBUG_FLAGS) 
+$(call TOOBJSDEPS, $(LIBRS274SRCS)) : EXTRAFLAGS=-fPIC  $(BOOST_DEBUG_FLAGS) $(API_FLAGS)
 
 TARGETS += ../lib/librs274.so ../lib/librs274.so.0
 
 ../lib/librs274.so.0: $(patsubst %.cc,objects/%.o,$(LIBRS274SRCS)) \
-	../lib/libredisglue.so.0 ../lib/libhiredis.so \
 	../lib/liblinuxcncini.so ../lib/libpyplugin.so ../lib/liblinuxcnchal.so.0
 	$(ECHO) Linking $(notdir $@)
 	@mkdir -p ../lib

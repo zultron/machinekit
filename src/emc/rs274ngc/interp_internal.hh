@@ -24,8 +24,6 @@
 #include "emcpos.h"
 #include "libintl.h"
 #include "python_plugin.hh"
-#include "redislib.h"
-#include "redis-datamodel.h"
 
 #define _(s) gettext(s)
 
@@ -236,16 +234,25 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 // 5599 = control DEBUG, output, 0=no output; default=1.0
 // 5600-5601 = toolchanger codes
 
+#define RS274NGC_FIRST_RO_PARAM 5400
 #define RS274NGC_UI_PARAM_START 5610
 #define RS274NGC_N_UI_PARAMS    100
 #define RS274NGC_UI_PARAM_END   (RS274NGC_UI_PARAM_START+RS274NGC_N_UI_PARAMS)
 
-#define IS_UI_PARAM(n) (((n) >= RS274NGC_UI_PARAM_START) && ((n) <= RS274NGC_UI_PARAM_END))
-#define IS_PERSISTENT_PARAM(n) (((n) >= 0) && ((n) <=  RS274NGC_MAX_PARAMETERS) && ((int)_setup.persistent_map[(n)]))
-#define IS_REQUIRED_PARAM(n) (((n) >= 0) && ((n) <=  RS274NGC_MAX_PARAMETERS) && ((int) _setup.required_map[(n)]))
-#define IS_VOLATILE_PARAM(n) (((n) > 30) && ((n) <  _readonly_parameters[0])) // 31..5399
-
 #define RS274NGC_MAX_PARAMETERS (RS274NGC_UI_PARAM_START+RS274NGC_N_UI_PARAMS)
+
+#define IS_UI_PARAM(n) (((n) >= RS274NGC_UI_PARAM_START) && ((n) <= RS274NGC_UI_PARAM_END))
+
+#define IS_PERSISTENT_PARAM(settings,n) \
+    (((n) >= 0) && ((n) <=  RS274NGC_MAX_PARAMETERS) && ((int)((settings)->persistent_map[(n)])))
+
+#define IS_REQUIRED_PARAM(settings,n) \
+    (((n) >= 0) && ((n) <=  RS274NGC_MAX_PARAMETERS) && ((int) ((settings)->required_map[(n)])))
+
+#define IS_VOLATILE_PARAM(n) \
+    (((n) > 30) && ((n) < RS274NGC_FIRST_RO_PARAM)) // 31..5399
+
+
 
 // Subroutine parameters
 #define INTERP_SUB_PARAMS 30
@@ -704,11 +711,12 @@ typedef struct setup_struct
   bool feed_hold;                  // feed hold is enabled
   int loggingLevel;                  // 0 means logging is off
   int debugmask;                     // from ini  EMC/DEBUG
+  // enable the Python API
   // mirror/fetch params in the range RS274NGC_UI_PARAM_START ..  RS274NGC_UI_PARAM_END 
-  // in the redis server
-    int redis_params;                // configure flag - mirror paramrange in redis
-    int redis_persistence;           // configure flag - do the emc.var job in redis
-    redisContext *redis_context;       // != NULL iff connected to redis server
+  // take care of parameter persistence across runs
+  // and also for use with numbered parameters and persistence
+  // later enable for tool attribute access
+  int python_api;
   char log_file[PATH_MAX];
   char program_prefix[PATH_MAX];            // program directory
   const char *subroutines[MAX_SUB_DIRS];  // subroutines directories
@@ -752,7 +760,7 @@ typedef struct setup_struct
     int init_once;  
 
     // initialized from  RS274NGC_UI_PARAM_START/RS274NGC_UI_PARAM_END
-    // updatedb by param indices found in emc.var or its redis equivalent
+    // updatedb by param indices found in emc.var or its Python API equivalent
     std::bitset<RS274NGC_MAX_PARAMETERS>  persistent_map;
 
     // initialized by Interp::_required_parameters[]

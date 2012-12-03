@@ -88,8 +88,6 @@ include an option for suppressing superfluous commands.
 #include "interp_internal.hh"	// interpreter private definitions
 #include "interp_queue.hh"
 #include "rs274ngc_interp.hh"
-#include "redislib.h"
-#include "redis-datamodel.h"
 
 #include "units.h"
 
@@ -736,7 +734,6 @@ int Interp::init()
   char filename[LINELEN];
   double *pars;                 // short name for _setup.parameters
   char *iniFileName;
-  extern int _task;             // 1 in milltask, 0 in gcodemodule
 
   INIT_CANON();
 
@@ -783,21 +780,6 @@ int Interp::init()
           inifile.Find(&_setup.orient_offset, "ORIENT_OFFSET", "RS274NGC");
 
           inifile.Find(&_setup.debugmask, "DEBUG", "EMC");
-
-          inifile.Find(&_setup.redis_params, "REDIS_PARAMS", "RS274NGC");
-          inifile.Find(&_setup.redis_persistence, "REDIS_PERSISTENCE", "RS274NGC");
-	  if (_setup.redis_params && _task) {
-	      // no point in connecting to redis in gcodemodule:
-	      // save_parameters/restore_parameters is never called from gcodemodule
-	      _setup.redis_context = redis_init(iniFileName);
-	      if (_setup.redis_context == NULL) {
-		  Error("%s: cant connect to redis server - continuing without it\n",__FUNCTION__);
-		  _setup.redis_params = 0;
-	      } else 
-		  // initial connect
-		  logRedis("connected to redis server\n");
-	  }
-	  
 	  _setup.debugmask |= EMC_DEBUG_UNCONDITIONAL;
 
           if(NULL != (inistring = inifile.Find("LOG_LEVEL", "RS274NGC")))
@@ -931,7 +913,33 @@ int Interp::init()
 		  Error("no Python plugin available");
 	      }
 	  }
- 
+
+          inifile.Find(&_setup.python_api, "PYTHON_API", "RS274NGC");
+
+#if defined(PYTHON_API)
+	  if (_setup.python_api) {
+	      if (!PYUSABLE)
+		  Error("PYTHON_API requested but Python plugin not usable");
+	      // check all required methods
+	      if (!is_pycallable(&_setup, PARAMS_MODULE,"set_param")) {
+		  Error("PYTHON_API: params.set_param method not found");
+	      }
+	      if (!is_pycallable(&_setup, PARAMS_MODULE,"get_param")) {
+		  Error("PYTHON_API: params.get_param method not found");
+	      }
+	      if (!is_pycallable(&_setup, PARAMS_MODULE,"save_params")) {
+		  Error("PYTHON_API: params.save_params method not found");
+	      }
+	      if (!is_pycallable(&_setup, PARAMS_MODULE,"restore_params")) {
+		  Error("PYTHON_API: params.restore_params method not found");
+	      }
+	      // this one is optional; if defined, call it now:
+	      if (is_pycallable(&_setup, PARAMS_MODULE,"__init__")) {
+		  CHP(call_method(&_setup,PARAMS_MODULE,"__init__", PY_SELF, PY_LAST));
+	      }
+
+	  }
+#endif 
 	  int n = 1;
 	  int lineno = -1;
 	  _setup.g_remapped.clear();
@@ -1687,10 +1695,9 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
   double *pars;                 // short name for _setup.parameters
   int k;
 
-  // if told to do the emc.var job through redis, short-circuit here
-  if (_setup.redis_persistence && 
-      _setup.redis_context != NULL) {
-      return redis_restore_parameters(&_setup, _setup.parameters);
+  // if told to do the emc.var job through Python, short-circuit here
+  if (_setup.python_api) {
+      return python_restore_parameters(&_setup, _setup.parameters);
   }
 
   // it's OK if the parameter file doesn't exist yet
@@ -1785,10 +1792,9 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   int index;                    // index into _required_parameters
   int k;
 
-  // if told to do the emc.var job through redis, short-circuit here
-  if (_setup.redis_persistence && 
-      _setup.redis_context != NULL) {
-      return redis_save_parameters(&_setup, parameters);
+  // if told to do the emc.var job through the Python API, short-circuit here
+  if (_setup.python_api) {
+      return python_save_parameters(&_setup, parameters);
   }
 
   if(access(filename, F_OK)==0) 
