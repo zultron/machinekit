@@ -1178,7 +1178,7 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
     stat->probeval = emcmotStatus.probeVal;
     stat->probing = emcmotStatus.probing;
     stat->probe_tripped = emcmotStatus.probeTripped;
-    
+    stat->spindle_sync = emcmotCommand.spindlesync;
     if (emcmotStatus.motionFlag & EMCMOT_MOTION_COORD_BIT)
         enables = emcmotStatus.enables_queued;
     else
