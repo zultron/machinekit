@@ -48,8 +48,8 @@ class DummyProgress:
     def progress(self): pass
 
 class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
-    def __init__(self, colors, geometry, lathe_view_option, stat, random):
-        rs274.glcanon.GLCanon.__init__(self, colors, geometry)
+    def __init__(self, colors, geometry, lathe_view_option, stat, random, inifile):
+        rs274.glcanon.GLCanon.__init__(self, colors, geometry, inifile)
         rs274.interpret.StatMixin.__init__(self, stat, random)
         self.progress = DummyProgress()
         self.lathe_view_option = lathe_view_option
@@ -228,7 +228,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self._current_file = filename
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
-            canon = StatCanon(self.colors, self.get_geometry(),self.lathe_option, s, random)
+            canon = StatCanon(self.colors, self.get_geometry(),self.lathe_option, s, random, self.inifile)
             parameter = self.inifile.find("RS274NGC", "PARAMETER_FILE")
             temp_parameter = os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
             if parameter:
@@ -243,8 +243,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         finally:
             shutil.rmtree(td)
-
-        self.set_current_view()
+	# doing this kills our zoom settings if gremlin.load is called on work offset change
+        #self.set_current_view()
 	
     def get_program_alpha(self): return self.program_alpha
     def get_num_joints(self): return self.num_joints
