@@ -85,7 +85,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         temp = inifile.find("DISPLAY", "GEOMETRY")
         self.is_rear_tp_lathe = bool(temp == "-XZ")
         self.is_foam = bool(inifile.find("DISPLAY", "FOAM"))        
-        self.is_rear_tp_lathe = True
         self.foam_z = 0
         self.foam_w = 1.5
         self.notify = 0
