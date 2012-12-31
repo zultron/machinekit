@@ -1,0 +1,40 @@
+.TH TORMACHLTC "9" "2012-12-31" "LinuxCNC Documentation" "HAL Component"
+.de TQ
+.br
+.ns
+.TP \\$1
+..
+
+.SH NAME
+
+tormachltc \- Tormach Lathe Tool Changer HAL Component
+.SH SYNOPSIS
+.HP
+.B loadrt tormachltc [count=\fIN\fB|names=\fIname1\fB[,\fIname2...\fB]]
+.SH FUNCTIONS
+.TP
+\fBtormachltc.\fIN\fB\fR (requires a floating-point thread)
+Tormach lathe tool changer HAL component
+.SH PINS
+.TP
+.B tormachltc.\fIN\fB.tool-changer-type\fR s32 in \fR
+.TQ
+.B tormachltc.\fIN\fB.manual-tool-changed\fR bit io \fR
+.TQ
+.B tormachltc.\fIN\fB.tool-change-in\fR bit in \fR
+.TQ
+.B tormachltc.\fIN\fB.atc-tool-changed\fR bit in \fR
+.TQ
+.B tormachltc.\fIN\fB.tool-prep-number\fR s32 in \fR
+.TQ
+.B tormachltc.\fIN\fB.tool-change-out\fR bit out \fR
+.TQ
+.B tormachltc.\fIN\fB.tool-changed-out\fR bit out \fR
+.TQ
+.B tormachltc.\fIN\fB.pwm-duty-cycle\fR float out \fR
+.SH AUTHOR
+
+Tormach, LLC
+.SH LICENSE
+
+©2012 Tormach® LLC. All rights reserved.

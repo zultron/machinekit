@@ -1,0 +1,36 @@
+.TH TORMACHLATHE8ATC "9" "2012-12-31" "LinuxCNC Documentation" "HAL Component"
+.de TQ
+.br
+.ns
+.TP \\$1
+..
+
+.SH NAME
+
+tormachlathe8atc \- Tormach Lathe 8 Position Automatic Tool Changer HAL Component
+.SH SYNOPSIS
+.HP
+.B loadrt tormachlathe8atc [count=\fIN\fB|names=\fIname1\fB[,\fIname2...\fB]]
+.SH FUNCTIONS
+.TP
+\fBtormachlathe8atc.\fIN\fB\fR (requires a floating-point thread)
+Tormach 8 position lathe tool changer
+.SH PINS
+.TP
+.B tormachlathe8atc.\fIN\fB.tool-change\fR bit in \fR
+.TQ
+.B tormachlathe8atc.\fIN\fB.tool-changed\fR bit in \fR
+.TQ
+.B tormachlathe8atc.\fIN\fB.tool-prep-number\fR s32 in \fR
+.TQ
+.B tormachlathe8atc.\fIN\fB.tool-change-out\fR bit out \fR
+.TQ
+.B tormachlathe8atc.\fIN\fB.tool-changed-out\fR bit out \fR
+.TQ
+.B tormachlathe8atc.\fIN\fB.pwm-duty-cycle\fR float out \fR
+.SH AUTHOR
+
+Tormach, LLC
+.SH LICENSE
+
+©2012 Tormach® LLC. All rights reserved.
