@@ -3,7 +3,7 @@ Modules.symvers
 .tmp_versions
 Makefile.inc
 Makefile.modinc
-config.h
+/config.h
 config.log
 config.status
 objects
@@ -13,5 +13,5 @@ Module.symvers
 config.status.lineno
 tags
 TAGS
-config.h.in
-configure
+/config.h.in
+/configure
