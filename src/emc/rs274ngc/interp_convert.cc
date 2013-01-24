@@ -2011,45 +2011,51 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
                   block_pointer block,           //!< pointer to current block
                   setup_pointer settings)        //!< pointer to machine settings
 {
-  if (g_code == G_7) {
-    if (!settings->lathe_diameter_mode) {
-      if(block->x_flag)
-      {
-        block->x_number /= 2; //Apply scaling now
-      }
-      if(block->motion_to_be == G_76) {
-          block->i_number /= 2;
-          block->j_number /= 2;
-          block->k_number /= 2;
-      }              
+	if (g_code == G_7) {
+    		if (FEATURE(LATHE_TOOLCHANGE)) {
+   	 		if (!settings->lathe_diameter_mode) {
+      				if(block->x_flag){
+       		 			block->x_number /= 2; //Apply scaling now
+      				}
+      				if(block->motion_to_be == G_76) {
+         	 			block->i_number /= 2;
+          				block->j_number /= 2;
+          				block->k_number /= 2;
+      				}              
 #ifdef DEBUG_EMC
-      COMMENT("interpreter: Lathe diameter mode changed to diameter");
+      				COMMENT("interpreter: Lathe diameter mode changed to diameter");
 #endif
-      settings->lathe_diameter_mode = true;
-    }
-  }
-// 	else if (g_code == G_8) {
-//  	if (settings->lathe_diameter_mode) {
-//    		if(block->x_flag)
-//			{
-//				block->x_number *= 2; //Remove any existing scaling
-//			}
-//      	if(block->motion_to_be == G_76) {
-//				block->i_number *= 2;
-//          	block->j_number *= 2;
-//         		block->k_number *= 2;
-//      	}              
-//#ifdef DEBUG_EMC
-//      COMMENT("interpreter: Lathe diameter mode changed to radius");
-//#endif
-//      	settings->lathe_diameter_mode = false;
-//    	}
-// } 
+      				settings->lathe_diameter_mode = true;
+   	 		}
+ 	 	}
+	else 
+		ERS("G7 - diameter mode - not allowed in mill");
+ }
+ 	else if (g_code == G_8) {
+		if (FEATURE(LATHE_TOOLCHANGE)) {
+			ERS("BUG: G8 - radius mode - not allowed.");	
+			return INTERP_OK;
+		}
+  	if (settings->lathe_diameter_mode) {
+    		if(block->x_flag)
+			{
+				block->x_number *= 2; //Remove any existing scaling
+			}
+      	if(block->motion_to_be == G_76) {
+				block->i_number *= 2;
+          	block->j_number *= 2;
+         		block->k_number *= 2;
+      	}              
+#ifdef DEBUG_EMC
+      COMMENT("interpreter: Lathe diameter mode changed to radius");
+#endif
+      	settings->lathe_diameter_mode = false;
+    	}
+} 
   else
-    ERS("BUG: Code not G7 - Radius mode not allowed.");
+    ERS("BUG: Code not G7 or G8");
   return INTERP_OK;
 }
-
 
 /****************************************************************************/
 
