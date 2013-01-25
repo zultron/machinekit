@@ -1,5 +1,12 @@
 component jogtranslator;
 
+description """This comp is intended to do the mapping of the raw ring, wheel and buttons off a ShuttlXpress
+   to allow them to be connected to control jogging
+   The buttons can be made to latch as a set of radio buttons
+   The ring can be scaled geometrically depending on a minimum value and geometric multiplier.
+   A input can be used to cycle a set of values in powers of 10 starting from a minimum value.""";
+
+
 pin in bit ax_butt_0 "TRUE if button 0 pressed";
 pin in bit ax_butt_1 "TRUE if button 1 pressed";
 pin in bit ax_butt_2 "TRUE if button 2 pressed";
@@ -37,7 +44,11 @@ pin out bit ax_out_4_sel "Axis 4 is selected";
 
 pin out signed ax_selected_axis "Number of selected axis or -1 if none";
 
-pin out float ax_jog_speed "Translated jogging speed";
+pin out float ax_jog_speed "Translated jogging speed - unsigned";
+pin out float ax_jog_speed_signed "Translated jogging speed - signed";
+
+pin in float vec_spd_sq_in "Speeds squared from any previous translate Comp";
+pin out float vec_spd_sq_out "Speeds squared chained to ext translate Comp or te GUI";
 
 pin in float smallest_step "Value of the smallest jogging step e.g. 0.001";
 pin in unsigned number_of_stepsizes "Count of different stepsizes to be generated";
@@ -74,6 +85,11 @@ variable char first_call;  // NZ on first entry to main loop
 // Rev D1 - 23 May 2012 - Added pin input that creates a channel from the GUI to the hal step size table *dpr
 // Rev E1 - 16 Aug 2012 - Added pin input for metric/imperial handling
 // Rev F1 - 16 Dec 2012 - Changed metric step size to match new gui step buttons
+// Rev G1 - originally 23 April 2012 -  adds signed wheel output
+// Rev H1 - originally 11 October 2012 - adds an In/Out chain to calculate the vector sum of squares 
+//    speed with multiple jogshuttles to excite the GUI to switch to manual mode
+
+
 
 EXTRA_SETUP() {
 
@@ -81,7 +97,7 @@ EXTRA_SETUP() {
     jt_speeds[0] =   0.0;
     jt_speeds[1] =   0.5;
     jt_speeds[2] =   1.0;
-    jt_speeds[3] =   5.0;
+    jt_speeds[3] =   5.0; // these spacings are probably sub-optimal JAP
     jt_speeds[4] =  10.0;
     jt_speeds[5] =  20.0;
     jt_speeds[6] =  40.0;
@@ -163,7 +179,10 @@ unsigned int iloop;
 	default: ;
 	} // set up the direction pins
 	
-	ax_jog_speed = jt_speeds[abs(ring_raw)];
+	ax_jog_speed_signed = ax_jog_speed = jt_speeds[abs(ring_raw)];
+	if (ring_raw < 0) { // need negative signed value
+		ax_jog_speed_signed = - ax_jog_speed;
+	} // done with sign
 
 // ==============================================================================================
 // Here we deal with setting up the jog speed table
@@ -209,6 +228,11 @@ unsigned int iloop;
 	} 
 	jog_microstep_size = (current_stepsize/g20_scale); // report stepsize to pin
 	shuttle_step_index = step_size_index; // put index out onto pin
+	
+	// now calculate vector move speed-squared of this and preceding translators
+
+  vec_spd_sq_out = vec_spd_sq_in + ax_jog_speed * ax_jog_speed;
+
 //=======================================================================================================
 
 // Been here once
