@@ -78,16 +78,16 @@ FUNCTION(_) {
         if (tool_change_in) {
 	         // look for indication from GUI that operator has completed tool change
 			 	if (manual_tool_changed) {
-                // copy tool-change to tool-changed-out
+                // copy tool-change-in to tool-changed-out
                 tool_changed_out = tool_change_in;
-
-                // clear it for next tool change
-                manual_tool_changed = 0;
             }
         }
         else {
             // no tool change in progress
             tool_changed_out = 0;
+
+            // clear UI indication for next tool change
+            manual_tool_changed = 0;
         }
     }
     else if (tool_changer_type == TOOL_CHANGER_TYPE_GANG) {
