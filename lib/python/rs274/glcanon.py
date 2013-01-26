@@ -906,8 +906,14 @@ class GlCanonDraw:
             # that this wasn't always the case...
             #if xm < lim_min[0] or xm > lim_max[0]: continue
             #if ym < lim_min[1] or ym > lim_max[1]: continue
-            glVertex3f(*inverse_permutation((x0, y0, lim_min[2])))
-            glVertex3f(*inverse_permutation((x1, y1, lim_min[2])))
+
+            if self.is_rear_tool_post_lathe():
+                x_dir = -1
+            else:
+                x_dir = 1
+
+            glVertex3f(*inverse_permutation((x0, x_dir * y0, lim_min[2])))
+            glVertex3f(*inverse_permutation((x1, x_dir * y1, lim_min[2])))
 
     def draw_grid_permuted(self, rotation, permutation, inverse_permutation):
         grid_size=self.get_grid_size()
@@ -1074,43 +1080,48 @@ class GlCanonDraw:
             glEnable(GL_LINE_STIPPLE)
             glBegin(GL_LINES)
 
-            glVertex3f(machine_limit_min[0], machine_limit_min[1], machine_limit_max[2])
-            glVertex3f(machine_limit_min[0], machine_limit_min[1], machine_limit_min[2])
+            if self.is_rear_tool_post_lathe():
+                x_dir = -1
+            else:
+                x_dir = 1
+            # Draw 3d box at soft limits for X, Y, and Z axes
+            glVertex3f(x_dir * machine_limit_min[0], machine_limit_min[1], machine_limit_max[2])
+            glVertex3f(x_dir * machine_limit_min[0], machine_limit_min[1], machine_limit_min[2])
 
-            glVertex3f(machine_limit_min[0], machine_limit_min[1], machine_limit_min[2])
-            glVertex3f(machine_limit_min[0], machine_limit_max[1], machine_limit_min[2])
+            glVertex3f(x_dir * machine_limit_min[0], machine_limit_min[1], machine_limit_min[2])
+            glVertex3f(x_dir * machine_limit_min[0], machine_limit_max[1], machine_limit_min[2])
 
-            glVertex3f(machine_limit_min[0], machine_limit_max[1], machine_limit_min[2])
-            glVertex3f(machine_limit_min[0], machine_limit_max[1], machine_limit_max[2])
+            glVertex3f(x_dir * machine_limit_min[0], machine_limit_max[1], machine_limit_min[2])
+            glVertex3f(x_dir * machine_limit_min[0], machine_limit_max[1], machine_limit_max[2])
 
-            glVertex3f(machine_limit_min[0], machine_limit_max[1], machine_limit_max[2])
-            glVertex3f(machine_limit_min[0], machine_limit_min[1], machine_limit_max[2])
-
-
-            glVertex3f(machine_limit_max[0], machine_limit_min[1], machine_limit_max[2])
-            glVertex3f(machine_limit_max[0], machine_limit_min[1], machine_limit_min[2])
-
-            glVertex3f(machine_limit_max[0], machine_limit_min[1], machine_limit_min[2])
-            glVertex3f(machine_limit_max[0], machine_limit_max[1], machine_limit_min[2])
-
-            glVertex3f(machine_limit_max[0], machine_limit_max[1], machine_limit_min[2])
-            glVertex3f(machine_limit_max[0], machine_limit_max[1], machine_limit_max[2])
-
-            glVertex3f(machine_limit_max[0], machine_limit_max[1], machine_limit_max[2])
-            glVertex3f(machine_limit_max[0], machine_limit_min[1], machine_limit_max[2])
+            glVertex3f(x_dir * machine_limit_min[0], machine_limit_max[1], machine_limit_max[2])
+            glVertex3f(x_dir * machine_limit_min[0], machine_limit_min[1], machine_limit_max[2])
 
 
-            glVertex3f(machine_limit_min[0], machine_limit_min[1], machine_limit_min[2])
-            glVertex3f(machine_limit_max[0], machine_limit_min[1], machine_limit_min[2])
+            glVertex3f(x_dir * machine_limit_max[0], machine_limit_min[1], machine_limit_max[2])
+            glVertex3f(x_dir * machine_limit_max[0], machine_limit_min[1], machine_limit_min[2])
 
-            glVertex3f(machine_limit_min[0], machine_limit_max[1], machine_limit_min[2])
-            glVertex3f(machine_limit_max[0], machine_limit_max[1], machine_limit_min[2])
+            glVertex3f(x_dir * machine_limit_max[0], machine_limit_min[1], machine_limit_min[2])
+            glVertex3f(x_dir * machine_limit_max[0], machine_limit_max[1], machine_limit_min[2])
 
-            glVertex3f(machine_limit_min[0], machine_limit_max[1], machine_limit_max[2])
-            glVertex3f(machine_limit_max[0], machine_limit_max[1], machine_limit_max[2])
+            glVertex3f(x_dir * machine_limit_max[0], machine_limit_max[1], machine_limit_min[2])
+            glVertex3f(x_dir * machine_limit_max[0], machine_limit_max[1], machine_limit_max[2])
 
-            glVertex3f(machine_limit_min[0], machine_limit_min[1], machine_limit_max[2])
-            glVertex3f(machine_limit_max[0], machine_limit_min[1], machine_limit_max[2])
+            glVertex3f(x_dir * machine_limit_max[0], machine_limit_max[1], machine_limit_max[2])
+            glVertex3f(x_dir * machine_limit_max[0], machine_limit_min[1], machine_limit_max[2])
+
+
+            glVertex3f(x_dir * machine_limit_min[0], machine_limit_min[1], machine_limit_min[2])
+            glVertex3f(x_dir * machine_limit_max[0], machine_limit_min[1], machine_limit_min[2])
+
+            glVertex3f(x_dir * machine_limit_min[0], machine_limit_max[1], machine_limit_min[2])
+            glVertex3f(x_dir * machine_limit_max[0], machine_limit_max[1], machine_limit_min[2])
+
+            glVertex3f(x_dir * machine_limit_min[0], machine_limit_max[1], machine_limit_max[2])
+            glVertex3f(x_dir * machine_limit_max[0], machine_limit_max[1], machine_limit_max[2])
+
+            glVertex3f(x_dir * machine_limit_min[0], machine_limit_min[1], machine_limit_max[2])
+            glVertex3f(x_dir * machine_limit_max[0], machine_limit_min[1], machine_limit_max[2])
 
             glEnd()
             glDisable(GL_LINE_STIPPLE)
@@ -1457,18 +1468,26 @@ class GlCanonDraw:
 
         glColor3f(*self.colors['axis_x'])
         glBegin(GL_LINES)
-        glVertex3f(1.0,0.0,0.0)
+        if self.is_rear_tool_post_lathe():
+            glVertex3f(-1.0,0.0,0.0)
+        else:
+            glVertex3f(1.0,0.0,0.0)
         glVertex3f(0.0,0.0,0.0)
         glEnd()
 
         if view != x:
             glPushMatrix()
             if self.is_lathe():
-                glTranslatef(1.3, -0.1, 0)
-                glTranslatef(0, 0, -0.1)
-                glRotatef(-90, 0, 1, 0)
-                glRotatef(90, 1, 0, 0)
-                glTranslatef(0.1, 0, 0)
+                if self.is_rear_tool_post_lathe(): 
+                    glTranslatef(-1.3, 0, 0)
+                    glRotatef(-90, 0, 0, 1)
+                    glRotatef(90, 0, 1, 0)
+                else:
+                    glTranslatef(1.3, -0.1, 0)
+                    glTranslatef(0, 0, -0.1)
+                    glRotatef(-90, 0, 1, 0)
+                    glRotatef(90, 1, 0, 0)
+                    glTranslatef(0.1, 0, 0)
             else:
                 glTranslatef(1.2, -0.1, 0)
                 if view == y:
@@ -1505,7 +1524,7 @@ class GlCanonDraw:
             glPushMatrix()
             glTranslatef(0, 0, 1.2)
             if self.is_lathe():
-                glRotatef(-90, 0, 1, 0)
+                glRotatef(90, 0, 1, 0)
             if view == x:
                 glRotatef(90, 0, 1, 0)
                 glRotatef(90, 0, 0, 1)
@@ -1533,20 +1552,32 @@ class GlCanonDraw:
         gluDeleteQuadric(q)
 
 
-    lathe_shapes = [
-        None,                           # 0
-        (1,-1), (1,1), (-1,1), (-1,-1), # 1..4
-        (0,-1), (1,0), (0,1), (-1,0),   # 5..8
-        (0,0)                           # 9
-    ]
+
+
     def lathetool(self, current_tool):
+
+        if self.is_rear_tool_post_lathe:
+            lathe_shapes = [
+                None,                           # 0
+                (-1,-1), (-1,1), (1,1), (1,-1), # 1..4
+                (0,-1), (-1,0), (0,1), (1,0),   # 5..8
+                (0,0)                           # 9
+            ]
+        else:
+            lathe_shapes = [
+                None,                           # 0
+                (1,-1), (1,1), (-1,1), (-1,-1), # 1..4
+                (0,-1), (1,0), (0,1), (-1,0),   # 5..8
+                (0,0)                           # 9
+            ]
+
         glDepthFunc(GL_ALWAYS)
         diameter, frontangle, backangle, orientation = current_tool[-4:]
         w = 3/8.
 
         radius = self.to_internal_linear_unit(diameter) / 2.
         glColor3f(*self.colors['lathetool'])
-        glBegin(GL_LINES)
+        glBegin(GL_LINES)  # Draw tool control point cross hairs
         glVertex3f(-radius/2.0,0.0,0.0)
         glVertex3f(radius/2.0,0.0,0.0)
         glVertex3f(0.0,0.0,-radius/2.0)
@@ -1557,13 +1588,13 @@ class GlCanonDraw:
 
         if orientation == 9:
             glBegin(GL_TRIANGLE_FAN)
-            for i in range(37):
-                t = i * math.pi / 18
+            for i in range(37):  # 10 degree increments in 360
+                t = i * math.pi / 18  # angle in Radians
                 glVertex3f(radius * math.cos(t), 0.0, radius * math.sin(t))
             glEnd()
         else:
-            dx, dy = self.lathe_shapes[orientation]
-
+#            dx, dy = self.lathe_shapes[orientation]
+            dx, dy = lathe_shapes[orientation] 
             min_angle = min(backangle, frontangle) * math.pi / 180
             max_angle = max(backangle, frontangle) * math.pi / 180
 
@@ -1587,6 +1618,7 @@ class GlCanonDraw:
                 radius * dx + radius * math.sin(circleminangle) + sz * sinmin,
                 0,
                 radius * dy + radius * math.cos(circleminangle) + sz * cosmin)
+
             for i in range(37):
                 #t = circleminangle + i * (circlemaxangle - circleminangle)/36.
                 t = circleminangle + i * (circlemaxangle - circleminangle)/36.
