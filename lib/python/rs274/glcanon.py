@@ -1001,7 +1001,7 @@ class GlCanonDraw:
                 self.show_extents()
 
         if self.get_show_live_plot() or self.get_show_program():
-    
+
             alist = self.dlist(('axes', self.get_view()), gen=self.draw_axes)
             glPushMatrix()
             if self.get_show_relative() and (s.g5x_offset[0] or s.g5x_offset[1] or s.g5x_offset[2] or
@@ -1011,6 +1011,8 @@ class GlCanonDraw:
                                         gen=self.draw_small_origin)
                 glCallList(olist)
                 g5x_offset = self.to_internal_units(s.g5x_offset)[:3]
+                if  self.is_rear_tool_post_lathe():
+                    g5x_offset[0] *= -1
                 g92_offset = self.to_internal_units(s.g92_offset)[:3]
 
 
@@ -1045,6 +1047,7 @@ class GlCanonDraw:
                 if  self.get_show_offsets() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
                     glBegin(GL_LINES)
                     glVertex3f(0,0,0)
+                    # g92_offset[0] *= -1 if rear tool lathe?
                     glVertex3f(*g92_offset)
                     glEnd()
 
@@ -1464,7 +1467,6 @@ class GlCanonDraw:
         x,y,z,p = 0,1,2,3
         s = self.stat
         view = self.get_view()
-
 
         glColor3f(*self.colors['axis_x'])
         glBegin(GL_LINES)

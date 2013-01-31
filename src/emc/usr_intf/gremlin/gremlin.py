@@ -129,6 +129,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.grid_size = 0.0
         temp = inifile.find("DISPLAY", "LATHE")
         self.lathe_option = bool(temp == "1" or temp == "True" or temp == "true" )
+
+        temp2 = inifile.find("DISPLAY", "GEOMETRY")
+        self.is_rear_tp_lathe = bool(temp2 == "-XZ")
+
         self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
         self.show_offsets = False
 
@@ -274,6 +278,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         return view_dict.get(self.current_view, 3)
 
     def is_lathe(self): return self.lathe_option
+    def is_rear_tool_post_lathe(self): return self.is_rear_tp_lathe
+
     def is_foam(self): return self.foam_option
     def get_current_tool(self):
         for i in self.stat.tool_table:
