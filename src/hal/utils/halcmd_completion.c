@@ -37,6 +37,8 @@
  *  information, go to www.linuxcnc.org.
  */
 
+// TORMACH_RIP_PATCH
+#include <stdlib.h>
 #include "halcmd_completion.h"
 #include "config.h"
 #include "rtapi.h"		/* RTAPI realtime OS API */
@@ -493,12 +495,25 @@ static char *loadusr_generator(const char *text, int state) {
     static DIR *d;
     struct dirent *ent;
     static int doing_table;
+    char bin_path[512];
+// TORMACH_RIP_PATCH
+    char *envPtr;
 
     if(!state) {
 	if(argno == 1) doing_table = 1;
         string_table = loadusr_table;
         len = strlen(text);
-        d = opendir(EMC2_BIN_DIR);
+// TORMACH_RIP_PATCH
+        //d = opendir(EMC2_BIN_DIR);
+        envPtr = getenv("EMC2_BIN_DIR");
+        // if not in environment use config.h #define
+        if (envPtr == NULL) {
+            strcpy(bin_path, EMC2_BIN_DIR);
+        }
+        else {
+            strcpy(bin_path, envPtr);
+        }
+        d = opendir(bin_path);
     }
 
     if(doing_table) {
@@ -526,10 +541,23 @@ static char *loadrt_generator(const char *text, int state) {
     static int len;
     static DIR *d;
     struct dirent *ent;
+    char rtlib_path[512];
+// TORMACH_RIP_PATCH
+    char *envPtr;
 
     if(!state) {
         len = strlen(text);
-        d = opendir(EMC2_RTLIB_DIR);
+// TORMACH_RIP_PATCH
+        //d = opendir(EMC2_RTLIB_DIR);
+        envPtr = getenv("EMC2_RTLIB_DIR");
+        // if not in environment use config.h #define
+        if (envPtr == NULL) {
+            strcpy(rtlib_path, EMC2_RTLIB_DIR);
+        }
+        else {
+            strcpy(rtlib_path, envPtr);
+        }
+        d = opendir(rtlib_path);
     }
 
     while(d && (ent = readdir(d))) {

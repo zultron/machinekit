@@ -1067,9 +1067,20 @@ int do_loadrt_cmd(char *mod_name, char *args[])
     argv[m++] = NULL;
     retval = do_loadusr_cmd(argv);
 #else
-    static char *rtmod_dir = EMC2_RTLIB_DIR;
     struct stat stat_buf;
     char mod_path[MAX_CMD_LEN+1];
+// TORMACH_RIP_PATCH
+    char bin_path[512];
+    char rtmod_dir[512];
+    char *envPtr = getenv("EMC2_RTLIB_DIR");
+    //static char *rtmod_dir = EMC2_RTLIB_DIR;
+    // if not in environment use config.h #define
+    if (envPtr == NULL) {
+        strcpy(rtmod_dir, EMC2_RTLIB_DIR);
+    }
+    else {
+        strcpy(rtmod_dir, envPtr);
+    }
 
     if (hal_get_lock()&HAL_LOCK_LOAD) {
 	halcmd_error("HAL is locked, loading of modules is not permitted\n");
@@ -1089,7 +1100,7 @@ int do_loadrt_cmd(char *mod_name, char *args[])
             return -1;
         } else if (r >= sizeof(mod_path)) {
             // truncation!
-            halcmd_error("module path too long (max %lu) for %s/%s%s\n", sizeof(mod_path)-1, rtmod_dir, mod_name, MODULE_EXT);
+            halcmd_error("module path too long (max %u) for %s/%s%s\n", sizeof(mod_path)-1, rtmod_dir, mod_name, MODULE_EXT);
             return -1;
         }
     }
@@ -1100,8 +1111,20 @@ int do_loadrt_cmd(char *mod_name, char *args[])
         halcmd_error("Can't find module '%s' in %s\n", mod_name, rtmod_dir);
         return -1;
     }
-    
-    argv[0] = EMC2_BIN_DIR "/linuxcnc_module_helper";
+
+// TORMACH_RIP_PATCH    
+    //argv[0] = EMC2_BIN_DIR "/linuxcnc_module_helper";
+    envPtr = getenv("EMC2_BIN_DIR");
+    // if not in environment use config.h #define
+    if (envPtr == NULL) {
+        strcpy(bin_path, EMC2_BIN_DIR "/linuxcnc_module_helper");
+    }
+    else {
+        strcpy(bin_path, envPtr);
+        strcat(bin_path, "/linuxcnc_module_helper");
+    }
+    argv[0] = bin_path;
+
     argv[1] = "insert";
     argv[2] = mod_path;
     /* loop thru remaining arguments */
@@ -1317,7 +1340,19 @@ static int unloadrt_comp(char *mod_name)
     argv[0] = EMC2_BIN_DIR "/rtapi_app";
     argv[1] = "unload";
 #else
-    argv[0] = EMC2_BIN_DIR "/linuxcnc_module_helper";
+    //argv[0] = EMC2_BIN_DIR "/linuxcnc_module_helper";
+    char bin_path[512];
+    char *envPtr = getenv("EMC2_BIN_DIR");
+    // if not in environment use config.h #define
+    if (envPtr == NULL) {
+        strcpy(bin_path, EMC2_BIN_DIR "/linuxcnc_module_helper");
+    }
+    else {
+        strcpy(bin_path, envPtr);
+        strcat(bin_path, "/linuxcnc_module_helper");
+    }
+    argv[0] = bin_path;
+
     argv[1] = "remove";
 #endif
     argv[2] = mod_name;

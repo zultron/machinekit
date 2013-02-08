@@ -2186,7 +2186,15 @@ initlinuxcnc(void) {
     PyModule_AddObject(m, "positionlogger", (PyObject*)&PositionLoggerType);
     pthread_mutex_init(&mutex, NULL);
 
-    PyModule_AddStringConstant(m, "nmlfile", EMC2_DEFAULT_NMLFILE);
+//    PyModule_AddStringConstant(m, "nmlfile", EMC2_DEFAULT_NMLFILE);
+    char *envPtr = getenv("NML_FILE");
+    // if not in environment use config.h #define
+    if (envPtr == NULL) {
+        PyModule_AddStringConstant(m, "nmlfile", EMC2_DEFAULT_NMLFILE);
+    }
+    else {
+        PyModule_AddStringConstant(m, "nmlfile", envPtr);
+    }
 
     PyModule_AddIntConstant(m, "OPERATOR_ERROR", EMC_OPERATOR_ERROR_TYPE);
     PyModule_AddIntConstant(m, "OPERATOR_TEXT", EMC_OPERATOR_TEXT_TYPE);

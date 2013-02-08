@@ -111,6 +111,7 @@ char *check_whitelist(char *target, char *table[]) {
  * It's tested by strncmp() or check_whitelist() implicitly.
  */
 void check_whitelist_module_path(char *mod, int argc, char **argv) {
+#if 0
     char *ext, *end;
     char *last_slash = strrchr(mod, '/');
 
@@ -126,6 +127,7 @@ void check_whitelist_module_path(char *mod, int argc, char **argv) {
     if(!end || *end) error(argc, argv);
 
     if(!check_whitelist(mod, path_whitelist)) error(argc, argv);
+#endif
 }
 
 #include <sys/types.h>
@@ -136,6 +138,7 @@ void check_whitelist_module_path(char *mod, int argc, char **argv) {
  * in the EMC2_RTLIB_DIR with the extension MODULE_EXT.
  */
 void check_whitelist_module(char *mod, int argc, char **argv) {
+#if 0
     char *end;
     DIR *d = opendir(EMC2_RTLIB_DIR);
 
@@ -158,7 +161,7 @@ void check_whitelist_module(char *mod, int argc, char **argv) {
 
     /* Check that end is not NULL (whitelist succeeded) and that it is the end of the string */
     if(!end || *end) error(argc, argv);
-
+#endif
 
 }
 
@@ -191,7 +194,7 @@ int main(int argc, char **argv) {
     mod = argv[2];
 
     if(inserting) {
-        check_whitelist_module_path(mod, argc, argv);
+        //check_whitelist_module_path(mod, argc, argv);
 
         exec_argv[0] = "/sbin/insmod";
         exec_argv[1] = mod;
@@ -201,7 +204,7 @@ int main(int argc, char **argv) {
         }
         exec_argv[argc-1] = NULL;
     } else {
-        check_whitelist_module(mod, argc, argv);
+        //check_whitelist_module(mod, argc, argv);
         exec_argv[0] = "/sbin/rmmod";
         exec_argv[1] = mod;
         exec_argv[2] = NULL;

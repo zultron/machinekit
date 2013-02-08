@@ -57,6 +57,7 @@ static char *license = \
 #include "miscgtk.h"		/* generic GTK stuff */
 #include "scope_usr.h"		/* scope related declarations */
 
+
 /***********************************************************************
 *                         GLOBAL VARIABLES                             *
 ************************************************************************/
@@ -148,7 +149,8 @@ int main(int argc, gchar * argv[])
 
     if (!halpr_find_funct_by_name("scope.sample")) {
 	char buf[1000];
-	sprintf(buf, EMC2_BIN_DIR "/halcmd loadrt scope_rt num_samples=%d",
+//	sprintf(buf, EMC2_BIN_DIR "/halcmd loadrt scope_rt num_samples=%d",
+	sprintf(buf, "halcmd loadrt scope_rt num_samples=%d",
 		num_samples);
 	if(system(buf) != 0) {
 	    rtapi_print_msg(RTAPI_MSG_ERR, "loadrt scope_rt failed\n");

@@ -451,7 +451,8 @@ static void dialog_realtime_not_loaded(void)
 
     if(first_time) {
         first_time = 0;
-        if(system(EMC2_BIN_DIR "/halcmd loadrt scope_rt") == 0) {
+//        if(system(EMC2_BIN_DIR "/halcmd loadrt scope_rt") == 0) {
+        if(system("halcmd loadrt scope_rt") == 0) {
 	    sleep(1);
 	    return;
 	}
