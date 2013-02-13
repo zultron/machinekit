@@ -1,4 +1,4 @@
-.TH JOGTRANSLATOR "9" "2012-12-31" "LinuxCNC Documentation" "HAL Component"
+.TH JOGTRANSLATOR "9" "2013-02-12" "LinuxCNC Documentation" "HAL Component"
 .de TQ
 .br
 .ns
@@ -13,7 +13,11 @@ jogtranslator
 .B loadrt jogtranslator [count=\fIN\fB|names=\fIname1\fB[,\fIname2...\fB]]
 .SH DESCRIPTION
 
-Pre-compute g_multiplier as sixth-root on max_speed/min_speed
+This comp is intended to do the mapping of the raw ring, wheel and buttons off a ShuttlXpress
+   to allow them to be connected to control jogging
+   The buttons can be made to latch as a set of radio buttons
+   The ring can be scaled geometrically depending on a minimum value and geometric multiplier.
+   A input can be used to cycle a set of values in powers of 10 starting from a minimum value.
 .SH FUNCTIONS
 .TP
 \fBjogtranslator.\fIN\fB\fR (requires a floating-point thread)
@@ -96,7 +100,16 @@ Axis 4 is selected
 Number of selected axis or -1 if none
 .TP
 .B jogtranslator.\fIN\fB.ax-jog-speed\fR float out \fR
-Translated jogging speed
+Translated jogging speed - unsigned
+.TP
+.B jogtranslator.\fIN\fB.ax-jog-speed-signed\fR float out \fR
+Translated jogging speed - signed
+.TP
+.B jogtranslator.\fIN\fB.vec-spd-sq-in\fR float in \fR
+Speeds squared from any previous translate Comp
+.TP
+.B jogtranslator.\fIN\fB.vec-spd-sq-out\fR float out \fR
+Speeds squared chained to ext translate Comp or te GUI
 .TP
 .B jogtranslator.\fIN\fB.smallest-step\fR float in \fR
 Value of the smallest jogging step e.g. 0.001
