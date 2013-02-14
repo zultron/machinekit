@@ -4085,7 +4085,8 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
     OPTIONAL_PROGRAM_STOP();
   } else if ((block->m_modes[4] == 2) || (block->m_modes[4] == 30)) {   /* reset stuff here */
 /*1*/
-    settings->current_x += settings->origin_offset_x;
+/* Tormach edits - M30 should behave like Fanuc/Haas, and not clear G5x, G95, G17 settings */
+/*  settings->current_x += settings->origin_offset_x;
     settings->current_y += settings->origin_offset_y;
     settings->current_z += settings->origin_offset_z;
     settings->AA_current += settings->AA_origin_offset;
@@ -4131,20 +4132,22 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
                    settings->v_origin_offset,
                    settings->w_origin_offset);
     SET_XY_ROTATION(settings->rotation_xy);
-
-/*2*/ if (settings->plane != CANON_PLANE_XY) {
+*/
+/*2*/ 
+/*  if (settings->plane != CANON_PLANE_XY) {
       SELECT_PLANE(CANON_PLANE_XY);
       settings->plane = CANON_PLANE_XY;
     }
-
+*/
 /*3*/
     settings->distance_mode = MODE_ABSOLUTE;
 
-/*4*/ settings->feed_mode = UNITS_PER_MINUTE;
+/*4*/ 
+/*    settings->feed_mode = UNITS_PER_MINUTE;
     SET_FEED_MODE(0);
     settings->feed_rate = block->f_number;
     SET_FEED_RATE(0);
-
+*/
 /*5*/ if (!settings->feed_override) {
       ENABLE_FEED_OVERRIDE();
       settings->feed_override = true;
