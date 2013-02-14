@@ -4491,6 +4491,7 @@ static int iniLoad(const char *filename)
     emc_debug = 0;
   }
 
+#if 0
   if (NULL != (inistring = inifile.Find("NML_FILE", "EMC"))) {
     // copy to global
     strcpy(emc_nmlfile, inistring);
@@ -4498,6 +4499,19 @@ static int iniLoad(const char *filename)
   else {
     // not found, use default
   }
+#endif
+    // look in environment before INI file
+    char *envPtr = getenv("NML_FILE");
+    // if not in environment try the INI file
+    if (envPtr == NULL) {
+        if (NULL != (inistring = inifile.Find("NML_FILE", "EMC"))) {
+	         strcpy(emc_nmlfile, inistring);
+        }
+        // else use config.h #define
+    }
+    else {
+        strcpy(emc_nmlfile, envPtr);
+    }
 
   if (NULL != (inistring = inifile.Find("TOOL_TABLE", "EMCIO"))) {
     strcpy(tool_table_file, inistring);
