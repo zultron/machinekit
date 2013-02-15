@@ -2792,7 +2792,6 @@ int Interp::save_settings(setup_pointer settings)
 int Interp::restore_settings(setup_pointer settings,
 			    int from_level)    //!< call level of context to restore from
 {
-
     CHKS((from_level < settings->call_level),
 	 (_("BUG: cannot restore from a lower call level (%d) to a higher call level (%d)")),from_level,settings->call_level);
     CHKS((from_level < 0), (_("BUG: restore from level %d !?")),from_level);
@@ -4166,9 +4165,9 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 
     /* turn off FPR */
     SET_SPINDLE_MODE(0);
-
-/*8*/ settings->motion_mode = G_1;
-
+/*8*/ 
+/*settings->motion_mode = G_1;
+*/
 /*9*/ if (settings->mist) {
       MIST_OFF();
       settings->mist = false;
