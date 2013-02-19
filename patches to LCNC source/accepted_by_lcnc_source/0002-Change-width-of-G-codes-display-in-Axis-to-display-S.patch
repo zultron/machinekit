@@ -1,0 +1,25 @@
+From 97fd1bc2be10aa4c7c0b653d6ab6e31e0816903a Mon Sep 17 00:00:00 2001
+From: Daniel Rogge <drogge@tormach.com>
+Date: Tue, 5 Jun 2012 11:26:09 -0500
+Subject: [PATCH 2/3] Change width of G codes display in Axis to display S word.
+
+---
+ share/axis/tcl/axis.tcl |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/share/axis/tcl/axis.tcl b/share/axis/tcl/axis.tcl
+index fdb751a..3fff828 100644
+--- a/share/axis/tcl/axis.tcl
++++ b/share/axis/tcl/axis.tcl
+@@ -1430,7 +1430,7 @@ setup_widget_accel $_tabs_mdi.gcodel [_ "Active G-Codes:"]
+ 
+ text $_tabs_mdi.gcodes \
+ 	-height 2 \
+-	-width 20 \
++	-width 40 \
+ 	-wrap word
+ 
+ $_tabs_mdi.gcodes insert end {}
+-- 
+1.7.0.4
+

@@ -1,0 +1,204 @@
+#!/bin/bash
+
+echo "installing Tormach lathe_ui software as run-in-place"
+
+
+# the script must live in tormach_linuxcnc/lcnc_source.
+prg=$0
+if [ ! -e "$prg" ]; then
+  case $prg in
+    (*/*) exit 1;;
+    (*) prg=$(command -v -- "$prg") || exit;;
+  esac
+fi
+dir=$(
+  cd -P -- "$(dirname -- "$prg")" && pwd -P
+) || exit
+prg=$dir/$(basename -- "$prg") || exit 
+
+LCNC_ROOT="$dir"
+echo "script directory is: $LCNC_ROOT"
+
+# get name of repository root directory
+REPOS_ROOT=$(dirname $LCNC_ROOT)
+echo "repository root is $REPOS_ROOT"
+
+# get user's home dir for config files (tool.tbl, emc.var, dump.rdb)
+USER_HOME=$(eval echo ~${USER})
+echo "home directory is: $USER_HOME"
+
+
+# create new directory for RIP/encapsulated lcnc
+RIP_ROOT=$REPOS_ROOT/release
+
+
+echo "release directory: $RIP_ROOT"
+
+# for now, configs will live (along with tool.tbl and emc.var and dump.rdb) in release/configs.  later we'll
+# need to modify lcnc such that tool.tbl, dump.rdb, and emc.var live outside of release
+# and when that happens we'll need to at least create that directory with this script or else instruct John and kirk to 
+# create that dir.
+ 
+# create config directories
+#BASE_LATHE_CONFIG=$USER_HOME"/linuxcnc/configs/tormach_lathe"
+#mkdir -p $BASE_LATHE_CONFIG
+#echo "lathe config dir is: $BASE_LATHE_CONFIG"
+#BASE_MILL_CONFIG=$USER_HOME"/linuxcnc/configs/tormach_mill"
+#mkdir -p $BASE_MILL_CONFIG
+#echo "lathe config dir is: $BASE_MILL_CONFIG"
+
+
+
+# we only want a few things from bin
+LCNC_BIN_FILES="
+linuxcncsvr
+halcmd
+halui
+inivar
+io
+milltask
+shuttlexpress
+redis-server
+"
+
+LCNC_LIB_FILES="
+python/gremlin.py
+python/hal.py
+python/_hal.so
+python/hershey.py
+python/linuxcnc.so
+python/gcode.so
+python/glnav.py
+python/minigl.so
+python/_togl.so
+"
+
+LCNC_RTLIB_FILES="
+abs.ko
+debounce.ko
+encoder.ko
+estop_latch.ko
+gearchange.ko
+hal_lib.ko
+hal_parport.ko
+hm2_pci.ko
+hostmot2.ko
+jogtranslator.ko
+limit2.ko
+lowpass.ko
+motmod.ko
+mult2.ko
+mux2.ko
+near.ko
+not.ko
+or2.ko
+probe_parport.ko
+pwmgen.ko
+rtapi.ko
+scale.ko
+sim_encoder.ko
+stepgen.ko
+toggle.ko
+tormachltc.ko
+trivkins.ko
+"
+
+# lib files
+mkdir -p "$RIP_ROOT"/lib
+CMD="cp -p "$LCNC_ROOT"/lib/lib* "$RIP_ROOT"/lib"
+echo $CMD
+cp -a "$LCNC_ROOT"/lib/lib* "$RIP_ROOT"/lib
+
+mkdir -p "$RIP_ROOT"/lib/python/redis
+CMD="cp -p "$LCNC_ROOT"/lib/python/redis/* "$RIP_ROOT"/lib/python/redis"
+echo $CMD
+cp -a "$LCNC_ROOT"/lib/python/redis/* "$RIP_ROOT"/lib/python/redis
+
+mkdir -p "$RIP_ROOT"/lib/python/rs274
+CMD="cp -p "$LCNC_ROOT"/lib/python/rs274/* "$RIP_ROOT"/lib/python/rs274"
+echo $CMD
+cp -a "$LCNC_ROOT"/lib/python/rs274/* "$RIP_ROOT"/lib/python/rs274
+
+for line in $LCNC_LIB_FILES; do
+   echo cp -a "$LCNC_ROOT"/lib/$line "$RIP_ROOT"/lib/$line
+   cp -a "$LCNC_ROOT"/lib/$line "$RIP_ROOT"/lib/$line
+done
+
+mkdir -p "$RIP_ROOT"/rtlib
+for line in $LCNC_RTLIB_FILES; do
+   echo cp -a "$LCNC_ROOT"/rtlib/$line "$RIP_ROOT"/rtlib/$line
+   cp -a "$LCNC_ROOT"/rtlib/$line "$RIP_ROOT"/rtlib/$line
+done
+
+# strip the libraries
+(cd "$LCNC_ROOT"/lib; find . | xargs file | grep "shared object" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded)
+
+
+# bin files
+mkdir -p "$RIP_ROOT"/bin
+for line in $LCNC_BIN_FILES; do
+   echo cp -a "$LCNC_ROOT"/bin/$line "$RIP_ROOT"/bin
+   cp -a "$LCNC_ROOT"/bin/$line "$RIP_ROOT"/bin
+done
+
+# TODO: need way to preserve setuid root files without being root
+# may need to stash helper program that is already setuid root
+# to fix these files
+# we could just globally install these modified version and leave them
+# probably best to write helper install owner/setui changer globally for these
+sudo cp -a "$LCNC_ROOT"/bin/linuxcnc_module_helper "$RIP_ROOT"/bin
+#sudo cp -a "$LCNC_ROOT"/bin/pci_read "$RIP_ROOT"/bin
+#sudo cp -a "$LCNC_ROOT"/bin/pci_write "$RIP_ROOT"/bin
+
+# strip the binaries
+(cd "$RIP_ROOT"/bin; find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded)
+
+CMD="sudo chown root "$RIP_ROOT"/bin/linuxcnc_module_helper"
+echo $CMD
+sudo chown root "$RIP_ROOT"/bin/linuxcnc_module_helper
+
+CMD="sudo chmod 4750 "$RIP_ROOT"/bin/linuxcnc_module_helper"
+echo $CMD
+sudo chmod 4750 "$RIP_ROOT"/bin/linuxcnc_module_helper
+
+# TODO: pretty sure these are unused
+#CMD="sudo chown root "$RIP_ROOT"/bin/pci_read"
+#echo $CMD
+#sudo chown root "$RIP_ROOT"/bin/pci_read
+#
+#CMD="sudo chmod 4750 "$RIP_ROOT"/bin/pci_read"
+#echo $CMD
+#sudo chmod 4750 "$RIP_ROOT"/bin/pci_read
+#
+#CMD="sudo chown root "$RIP_ROOT"/bin/pci_write"
+#echo $CMD
+#sudo chown root "$RIP_ROOT"/bin/pci_write
+#
+#CMD="sudo chmod 4750 "$RIP_ROOT"/bin/pci_write"
+#echo $CMD
+#sudo chmod 4750 "$RIP_ROOT"/bin/pci_write
+
+
+CMD="cp "$LCNC_ROOT"/configs/common/linuxcnc.nml "$RIP_ROOT""
+echo $CMD
+cp "$LCNC_ROOT"/configs/common/linuxcnc.nml "$RIP_ROOT"
+
+# strip the .ko files
+echo "stripping .ko files"
+(cd "$RIP_ROOT"/rtlib; find . | xargs file | grep "relocatable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded)
+
+# for now assume Bebas will be part of the image.
+# install Bebas font to ~/.fonts
+#mkdir -p ~/.fonts
+#CMD="cp -a "$LCNC_ROOT"/Bebas/BEBAS___.ttf "$USER_HOME"/.fonts"
+#echo $CMD
+#cp -a "$LCNC_ROOT"/Bebas/BEBAS___.ttf "$USER_HOME"/.fonts
+
+
+
+
+# restore IFS
+IFS=$tmpIFS
+
+echo "Run the Tormach LinuxCNC run-in-place script if you haven't yet in this terminal"
+

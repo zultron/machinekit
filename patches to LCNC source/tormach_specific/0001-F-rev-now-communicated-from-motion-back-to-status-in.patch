@@ -1,0 +1,77 @@
+From ca6c45f6127581c92a1b1ba6e45a43d86ecb8473 Mon Sep 17 00:00:00 2001
+From: Daniel Rogge <drogge@tormach.com>
+Date: Thu, 6 Dec 2012 14:24:29 -0600
+Subject: [PATCH] F/rev now communicated from motion back to status in machine time, not interp time.
+
+---
+ src/emc/motion/usrmotintf.cc                  |    1 -
+ src/emc/nml_intf/emc.cc                       |    1 +
+ src/emc/nml_intf/emc_nml.hh                   |    1 +
+ src/emc/task/taskintf.cc                      |    2 +-
+ src/emc/usr_intf/axis/extensions/emcmodule.cc |    1 +
+ 5 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/emc/motion/usrmotintf.cc b/src/emc/motion/usrmotintf.cc
+index 857508a..dbefe72 100644
+--- a/src/emc/motion/usrmotintf.cc
++++ b/src/emc/motion/usrmotintf.cc
+@@ -81,7 +81,6 @@ int usrmotWriteEmcmotCommand(emcmot_command_t * c)
+     static int commandNum = 0;
+     static unsigned char headCount = 0;
+     double end;
+-
+     if (!MOTION_ID_VALID(c->id)) {
+         rcs_print("USRMOT: ERROR: invalid motion id: %d\n",c->id);
+ 	return EMCMOT_COMM_INVALID_MOTION_ID;
+diff --git a/src/emc/nml_intf/emc.cc b/src/emc/nml_intf/emc.cc
+index 84d710f..02b204a 100644
+--- a/src/emc/nml_intf/emc.cc
++++ b/src/emc/nml_intf/emc.cc
+@@ -2341,6 +2341,7 @@ void EMC_TRAJ_STAT::update(CMS * cms)
+     cms->update(maxAcceleration);
+     EmcPose_update(cms, &probedPosition);
+     cms->update(probe_tripped);
++    cms->update(spindle_sync);
+     cms->update(probing);
+     cms->update(probeval);
+     cms->update(kinematics_type);
+diff --git a/src/emc/nml_intf/emc_nml.hh b/src/emc/nml_intf/emc_nml.hh
+index d3aa69f..7932a3d 100644
+--- a/src/emc/nml_intf/emc_nml.hh
++++ b/src/emc/nml_intf/emc_nml.hh
+@@ -995,6 +995,7 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
+     EmcPose probedPosition;	// last position where probe was tripped.
+     bool probe_tripped;		// Has the probe been tripped since the last
+     // clear.
++    double spindle_sync;		// Tormach - use as flag for feed/rev mode active
+     bool probing;		// Are we currently looking for a probe
+     // signal.
+     int probeval;		// Current value of probe input.
+diff --git a/src/emc/task/taskintf.cc b/src/emc/task/taskintf.cc
+index c6225ee..c505aad 100644
+--- a/src/emc/task/taskintf.cc
++++ b/src/emc/task/taskintf.cc
+@@ -1178,7 +1178,7 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
+     stat->probeval = emcmotStatus.probeVal;
+     stat->probing = emcmotStatus.probing;
+     stat->probe_tripped = emcmotStatus.probeTripped;
+-    
++    stat->spindle_sync = emcmotCommand.spindlesync;
+     if (emcmotStatus.motionFlag & EMCMOT_MOTION_COORD_BIT)
+         enables = emcmotStatus.enables_queued;
+     else
+diff --git a/src/emc/usr_intf/axis/extensions/emcmodule.cc b/src/emc/usr_intf/axis/extensions/emcmodule.cc
+index 192ed40..961102c 100644
+--- a/src/emc/usr_intf/axis/extensions/emcmodule.cc
++++ b/src/emc/usr_intf/axis/extensions/emcmodule.cc
+@@ -338,6 +338,7 @@ static PyMemberDef Stat_members[] = {
+     {(char*)"max_velocity", T_DOUBLE, O(motion.traj.maxVelocity), READONLY},
+     {(char*)"max_acceleration", T_DOUBLE, O(motion.traj.maxAcceleration), READONLY},
+     {(char*)"probe_tripped", T_BOOL, O(motion.traj.probe_tripped), READONLY},
++    {(char*)"spindle_sync", T_DOUBLE, O(motion.traj.spindle_sync), READONLY},
+     {(char*)"probing", T_BOOL, O(motion.traj.probing), READONLY},
+     {(char*)"probe_val", T_INT, O(motion.traj.probeval), READONLY},
+     {(char*)"kinematics_type", T_INT, O(motion.traj.kinematics_type), READONLY},
+-- 
+1.7.0.4
+

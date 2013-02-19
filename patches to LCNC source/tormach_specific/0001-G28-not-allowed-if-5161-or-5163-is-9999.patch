@@ -1,0 +1,28 @@
+From b9a69463da33655aa4cf53bbff6e16457df6c2e9 Mon Sep 17 00:00:00 2001
+From: Daniel Rogge <drogge@tormach.com>
+Date: Wed, 15 Aug 2012 13:19:17 -0500
+Subject: [PATCH] G28 not allowed if #5161 or #5163 is 9999.
+
+---
+ src/emc/rs274ngc/interp_convert.cc |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+diff --git a/src/emc/rs274ngc/interp_convert.cc b/src/emc/rs274ngc/interp_convert.cc
+index e64df04..18c100b 100644
+--- a/src/emc/rs274ngc/interp_convert.cc
++++ b/src/emc/rs274ngc/interp_convert.cc
+@@ -2473,6 +2473,11 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
+       w_end = w_end_home;  
+   }
+ 
++  // check for unset g28 position (Tormach only)
++  if ((end_x == 9999) || (end_z == 9999)){
++	  ERS("Cannot use G28 until G28 position has been set");
++  }
++
+   // move indexers first, one at a time
+   if (AA_end != settings->AA_current && settings->a_indexer)
+       issue_straight_index(3, AA_end, block->line_number, settings);
+-- 
+1.7.0.4
+

@@ -1,0 +1,61 @@
+From 71243d9dc7c4c6a2a1a2f4e3b9684168e82653c8 Mon Sep 17 00:00:00 2001
+From: Daniel Rogge <drogge@tormach.com>
+Date: Mon, 3 Dec 2012 16:38:18 -0600
+Subject: [PATCH] Interpreter:  No longer allow G8 (radius mode).
+
+---
+ src/emc/rs274ngc/interp_convert.cc |   38 ++++++++++++++++++-----------------
+ 1 files changed, 20 insertions(+), 18 deletions(-)
+
+diff --git a/src/emc/rs274ngc/interp_convert.cc b/src/emc/rs274ngc/interp_convert.cc
+index ca1d5b4..6ed2f64 100644
+--- a/src/emc/rs274ngc/interp_convert.cc
++++ b/src/emc/rs274ngc/interp_convert.cc
+@@ -2027,24 +2027,26 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
+ #endif
+       settings->lathe_diameter_mode = true;
+     }
+-  } else if (g_code == G_8) {
+-    if (settings->lathe_diameter_mode) {
+-      if(block->x_flag)
+-      {
+-        block->x_number *= 2; //Remove any existing scaling
+-      }
+-      if(block->motion_to_be == G_76) {
+-          block->i_number *= 2;
+-          block->j_number *= 2;
+-          block->k_number *= 2;
+-      }              
+-#ifdef DEBUG_EMC
+-      COMMENT("interpreter: Lathe diameter mode changed to radius");
+-#endif
+-      settings->lathe_diameter_mode = false;
+-    }
+-  } else
+-    ERS("BUG: Code not G7 or G8");
++  }
++// 	else if (g_code == G_8) {
++//  	if (settings->lathe_diameter_mode) {
++//    		if(block->x_flag)
++//			{
++//				block->x_number *= 2; //Remove any existing scaling
++//			}
++//      	if(block->motion_to_be == G_76) {
++//				block->i_number *= 2;
++//          	block->j_number *= 2;
++//         		block->k_number *= 2;
++//      	}              
++//#ifdef DEBUG_EMC
++//      COMMENT("interpreter: Lathe diameter mode changed to radius");
++//#endif
++//      	settings->lathe_diameter_mode = false;
++//    	}
++// } 
++  else
++    ERS("BUG: Code not G7 - Radius mode not allowed.");
+   return INTERP_OK;
+ }
+ 
+-- 
+1.7.0.4
+

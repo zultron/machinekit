@@ -525,7 +525,6 @@ void SET_TRAVERSE_RATE(double rate)
 }
 
 void SET_FEED_MODE(int mode) {
-	// NB: units/rev is feed mode = 1, units/min or inverse time feed mode = 0
     flush_segments();
     feed_mode = mode;
     if(feed_mode == 0) STOP_SPEED_FEED_SYNCH();
@@ -533,16 +532,9 @@ void SET_FEED_MODE(int mode) {
 
 void SET_FEED_RATE(double rate)
 {
-
     if(feed_mode) {
-	// TORMACH changes - fix feedrate display bug in f/rev mode
-	// no need to convert from prog units on call to START_SPEED_FEED_SYNCH because that's handled in that routine.
 	START_SPEED_FEED_SYNCH(rate, 1);
-	// but someone years ago forgot to convert to prog len here...
-	// currentLinearFeedRate = rate;
-	currentLinearFeedRate = FROM_PROG_LEN(rate);
-	// note that the actual feedrate (for motion) is set with START_SPEED_FEED_SYNCH, which is why things always worked
-	// correctly, even when they didn't display correctly
+	currentLinearFeedRate = rate;
     } else {
 	/* convert from /min to /sec */
 	rate /= 60.0;
@@ -2475,25 +2467,9 @@ double GET_EXTERNAL_FEED_RATE()
 
     // convert from internal to program units
     // it is wrong to use emcStatus->motion.traj.velocity here, as that is the traj speed regardless of G0 / G1
-    
-    // TORMACH - fix feedrate display bug when in f/rev
-    // previously, when in f/rev (G95) the F word (status.settings[1]) would change when mode went from mode mdi to mode manual (interp synch)
-    // the new F word displayed was off by a factor of 60 when in G21, or 60/25.4 when in G20.the following line causes issues when not in G21.
-    // Two things needed to be fixed here: one is that EMC uses mm for all 'internal' units (see TO_PROG_LEN and FROM_PROG_LEN macros)
-    // but SET_FEED_RATE only changed to internal units when in f/min or inverse time.
-    
     feed = TO_PROG_LEN(currentLinearFeedRate);
-    
-    // the other bug was that we shouldn't convert from units/sec to units per minute if we're in f/rev (G95) mode
-    
-    // feed *= 60.0;
-    if (feed_mode == 0){
-		feed *= 60.0;
-	}
-    
-	
-
-
+    // now convert from per-sec to per-minute
+    feed *= 60.0;
 
     return feed;
 }
