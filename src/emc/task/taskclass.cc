@@ -449,8 +449,27 @@ Task::Task() : use_iocontrol(0), random_toolchanger(0) {
 	use_iocontrol = (inifile.Find("EMCIO", "EMCIO") != NULL);
 	inifile.Find(&random_toolchanger, "RANDOM_TOOLCHANGER", "EMCIO");
 	const char *t;
-	if ((t = inifile.Find("TOOL_TABLE", "EMCIO")) != NULL)
-	    tooltable_filename = strdup(t);
+	if ((t = inifile.Find("TOOL_TABLE", "EMCIO")) != NULL) {
+            // see if filename starts with '~'
+            if (t[0] == '~') {
+                // get user's HOME directory from environment
+                char *home;
+                char *full_path;
+                if ((home = getenv("HOME")) != NULL) {
+                    full_path = (char *)malloc(strlen(home) + strlen(t) + 5);
+                    if (full_path != NULL) {
+                        // start with the path to the HOME directory
+                        strcpy(full_path, home);
+                        // skip the '~'
+                        strcat(full_path, &t[1]);
+                        tooltable_filename = full_path;
+                    }
+                }
+            }
+            else {
+                tooltable_filename = strdup(t);
+            }
+        }
     }
     if (!use_iocontrol) {
 	for(int i = 0; i < CANON_POCKETS_MAX; i++) {

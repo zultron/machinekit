@@ -42,6 +42,20 @@ static int loadTool(IniFile *toolInifile)
     const char *inistring;
 
     if (NULL != (inistring = toolInifile->Find("TOOL_TABLE", "EMCIO"))) {
+        // see if filename starts with '~'
+        if (inistring[0] == '~') {
+            // get user's HOME directory from environment
+            char *home;
+            char full_path[LINELEN];
+            if ((home = getenv("HOME")) != NULL) {
+                // start with the path to the HOME directory
+                strcpy(full_path, home);
+                // skip the '~'
+                strcat(full_path, &inistring[1]);
+                inistring = full_path;
+            }
+        }
+
 	if (0 != emcToolSetToolTableFile(inistring)) {
 	    rcs_print("bad return value from emcToolSetToolTableFile\n");
 	    retval = -1;

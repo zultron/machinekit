@@ -2238,6 +2238,20 @@ int Interp::ini_load(const char *filename)
 
 
     if (NULL != (inistring = inifile.Find("PARAMETER_FILE", "RS274NGC"))) {
+        // see if filename starts with '~'
+        if (inistring[0] == '~') {
+            // get user's HOME directory from environment
+            char *home;
+            char full_path[LINELEN];
+            if ((home = getenv("HOME")) != NULL) {
+                // start with the path to the HOME directory
+                strcpy(full_path, home);
+                // skip the '~'
+                strcat(full_path, &inistring[1]);
+                inistring = full_path;
+            }
+        }
+
 	// found it
 	strncpy(_parameter_file_name, inistring, LINELEN);
         if (_parameter_file_name[LINELEN-1] != '\0') {
@@ -2250,6 +2264,9 @@ int Interp::ini_load(const char *filename)
     } else {
 	// not found, leave RS274NGC_PARAMETER_FILE alone
         logDebug("did not find PARAMETER_FILE");
+        inifile.Close();
+        _parameter_file_name[0] = '\0';
+        return -1;
     }
 
     // close it
