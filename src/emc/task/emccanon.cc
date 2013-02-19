@@ -533,8 +533,9 @@ void SET_FEED_MODE(int mode) {
 void SET_FEED_RATE(double rate)
 {
     if(feed_mode) {
+	// no need to convert from prog units on call to START_SPEED_FEED_SYNCH because that's handled in that routine.
 	START_SPEED_FEED_SYNCH(rate, 1);
-	currentLinearFeedRate = rate;
+	currentLinearFeedRate = rate; 
     } else {
 	/* convert from /min to /sec */
 	rate /= 60.0;
@@ -2467,10 +2468,14 @@ double GET_EXTERNAL_FEED_RATE()
 
     // convert from internal to program units
     // it is wrong to use emcStatus->motion.traj.velocity here, as that is the traj speed regardless of G0 / G1
+    printf("current linear feedrate is %f\n", currentLinearFeedRate);
     feed = TO_PROG_LEN(currentLinearFeedRate);
+    printf("feed  is %f\n", feed);
     // now convert from per-sec to per-minute
-    feed *= 60.0;
-
+    //feed *= 60.0;
+	if (feed_mode == 0){
+		feed *= 60.0;
+	}
     return feed;
 }
 
