@@ -147,8 +147,6 @@ done
 # we could just globally install these modified version and leave them
 # probably best to write helper install owner/setui changer globally for these
 sudo cp -a "$LCNC_ROOT"/bin/linuxcnc_module_helper "$RIP_ROOT"/bin
-#sudo cp -a "$LCNC_ROOT"/bin/pci_read "$RIP_ROOT"/bin
-#sudo cp -a "$LCNC_ROOT"/bin/pci_write "$RIP_ROOT"/bin
 
 # strip the binaries
 (cd "$RIP_ROOT"/bin; find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded)
@@ -160,24 +158,6 @@ sudo chown root "$RIP_ROOT"/bin/linuxcnc_module_helper
 CMD="sudo chmod 4750 "$RIP_ROOT"/bin/linuxcnc_module_helper"
 echo $CMD
 sudo chmod 4750 "$RIP_ROOT"/bin/linuxcnc_module_helper
-
-# TODO: pretty sure these are unused
-#CMD="sudo chown root "$RIP_ROOT"/bin/pci_read"
-#echo $CMD
-#sudo chown root "$RIP_ROOT"/bin/pci_read
-#
-#CMD="sudo chmod 4750 "$RIP_ROOT"/bin/pci_read"
-#echo $CMD
-#sudo chmod 4750 "$RIP_ROOT"/bin/pci_read
-#
-#CMD="sudo chown root "$RIP_ROOT"/bin/pci_write"
-#echo $CMD
-#sudo chown root "$RIP_ROOT"/bin/pci_write
-#
-#CMD="sudo chmod 4750 "$RIP_ROOT"/bin/pci_write"
-#echo $CMD
-#sudo chmod 4750 "$RIP_ROOT"/bin/pci_write
-
 
 CMD="cp "$LCNC_ROOT"/configs/common/linuxcnc.nml "$RIP_ROOT""
 echo $CMD
@@ -193,9 +173,6 @@ echo "stripping .ko files"
 #CMD="cp -a "$LCNC_ROOT"/Bebas/BEBAS___.ttf "$USER_HOME"/.fonts"
 #echo $CMD
 #cp -a "$LCNC_ROOT"/Bebas/BEBAS___.ttf "$USER_HOME"/.fonts
-
-
-
 
 # restore IFS
 IFS=$tmpIFS
