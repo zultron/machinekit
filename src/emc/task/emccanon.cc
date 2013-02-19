@@ -533,9 +533,9 @@ void SET_FEED_MODE(int mode) {
 void SET_FEED_RATE(double rate)
 {
     if(feed_mode) {
-	// no need to convert from prog units on call to START_SPEED_FEED_SYNCH because that's handled in that routine.
-	START_SPEED_FEED_SYNCH(rate, 1);
-	currentLinearFeedRate = rate; 
+	currentLinearFeedRate = FROM_PROG_LEN(rate);
+	START_SPEED_FEED_SYNCH(currentLinearFeedRate, 1);
+	 
     } else {
 	/* convert from /min to /sec */
 	rate /= 60.0;
@@ -1151,7 +1151,7 @@ void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode)
 {
     flush_segments();
     EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
-    spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(FROM_PROG_LEN(feed_per_revolution));
+    spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(feed_per_revolution);
     spindlesyncMsg.velocity_mode = velocity_mode;
     interp_list.append(spindlesyncMsg);
     synched = 1;
