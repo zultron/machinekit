@@ -27,6 +27,70 @@ echo "repository root is $REPOS_ROOT"
 USER_HOME=$(eval echo ~${USER})
 echo "home directory is: $USER_HOME"
 
+# in case they're not already made
+mkdir -p $USER_HOME/lathe_data
+mkdir -p $USER_HOME/mill_data
+
+DEFAULT_LATHE_TOOL_TABLE="T1 P1 D0.031500 I-85.000000 J-5.000000 Q2 ;
+T2 P2 D0.031500 Q9 ;
+T3 P3 D0.031500 Q9 ;
+T4 P4 D0.031500 Q9 ;
+T5 P5 D0.031500 Q9 ;
+T6 P6 D0.031500 Q9 ;
+T7 P7 D0.031500 Q9 ;
+T8 P8 D0.031500 Q9 ;
+T9 P9 D0.031500 Q9 ;
+T10 P10 D0.031500 Q9 ;
+T11 P11 D0.031500 Q9 ;
+T12 P12 D0.031500 Q9 ;
+T13 P13 D0.031500 Q9 ;
+T14 P14 D0.031500 Q9 ;
+T15 P15 D0.031500 Q9 ;
+T16 P16 D0.031500 Q9 ;
+T17 P17 D0.031500 Q9 ;
+T18 P18 D0.031500 Q9 ;
+T19 P19 D0.031500 Q9 ;
+T20 P20 D0.031500 Q9 ;
+T21 P21 D0.031500 Q9 ;
+T22 P22 D0.031500 Q9 ;
+T23 P23 D0.031500 Q9 ;
+T24 P24 D0.031500 Q9 ;
+T25 P25 D0.031500 Q9 ;
+T26 P26 D0.031500 Q9 ;
+T27 P27 D0.031500 Q9 ;
+T10001 P28 X-0.500000 Z-0.200000 I+3.000000 ; none
+T10002 P29 ; none
+T10003 P30 ; none
+T10004 P31 ; none
+T10005 P32 ; none
+T10006 P33 ; none
+T10007 P34 ; none
+T10008 P35 ; none
+T10009 P36 ; none
+T10010 P37 ; none
+T10011 P38 ; none
+T10012 P39 ; none
+T10013 P40 ; none
+T10014 P41 ; none
+T10015 P42 ; none
+T10016 P43 ; none
+T10017 P44 ; none
+T10018 P45 ; none
+T10019 P46 ; none
+T10020 P47 ; none
+T10021 P48 ; none
+T10022 P49 ; none
+T10023 P50 ; none
+T10024 P51 ; none
+T10025 P52 ; none
+T10026 P53 ; none
+T10027 P54 ; none"
+
+if [ ! -f $USER_HOME/lathe_data/tool.tbl ];
+then
+    echo "Creating default tool table in home/lathe_data/tool.tbl"
+    echo "$DEFAULT_LATHE_TOOL_TABLE" > $USER_HOME/lathe_data/tool.tbl
+fi
 
 # create new directory for RIP/encapsulated lcnc
 RIP_ROOT=$REPOS_ROOT/release
