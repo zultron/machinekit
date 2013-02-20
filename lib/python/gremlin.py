@@ -234,6 +234,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
             canon = StatCanon(self.colors, self.get_geometry(),self.lathe_option, s, random, self.inifile)
             parameter = self.inifile.find("RS274NGC", "PARAMETER_FILE")
+            parameter = os.path.expanduser(parameter)
             temp_parameter = os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
             if parameter:
                 shutil.copy(parameter, temp_parameter)
