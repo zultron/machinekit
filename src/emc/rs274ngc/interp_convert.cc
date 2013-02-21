@@ -184,7 +184,6 @@ int Interp::convert_nurbs(int mode,
 	settings->current_x = nurbs_control_points[nurbs_control_points.size()-1].X;
         settings->current_y = nurbs_control_points[nurbs_control_points.size()-1].Y;
         NURBS_FEED(block->line_number, nurbs_control_points, nurbs_order);
-	//printf("hello\n");
 	nurbs_control_points.clear();
 	//printf("%d\n", 	nurbs_control_points.size());
 	settings->motion_mode = -1;
@@ -1650,6 +1649,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
                          &settings->current_x, &settings->current_y, &settings->current_z,
                          &settings->AA_current, &settings->BB_current, &settings->CC_current,
                          &settings->u_current, &settings->v_current, &settings->w_current);
+
 
   // remember that this is new system
   settings->origin_index = origin;
@@ -3755,7 +3755,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
   find_current_in_system(settings, p_int,
                          &cx, &cy, &cz,
                          &ca, &cb, &cc,
-                         &cu, &cv, &cw);
+                         &cu, &cv, &cw);       
 
   if (block->r_flag) {
     CHKS((block->l_number == 20), _("R not allowed in G10 L20"));
@@ -3771,10 +3771,10 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
       // find new desired position in rotated system
       x = cx;
       y = cy;
-
+		
       if (block->x_flag) {
           x = block->x_number;
-      }      
+      }     
       if (block->y_flag) {
           y = block->y_number;
       }
@@ -3787,7 +3787,6 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
       // find new offset
       x = oldx + USER_TO_PROGRAM_LEN(parameters[5201 + (p_int * 20)]) - x;
       y = oldy + USER_TO_PROGRAM_LEN(parameters[5202 + (p_int * 20)]) - y;
-
       // parameters are not rotated
       parameters[5201 + (p_int * 20)] = PROGRAM_TO_USER_LEN(x);
       parameters[5202 + (p_int * 20)] = PROGRAM_TO_USER_LEN(y);
@@ -3816,6 +3815,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
     z = block->z_number;
     if (block->l_number == 20) z = cz + USER_TO_PROGRAM_LEN(parameters[5203 + (p_int * 20)]) - z;
     parameters[5203 + (p_int * 20)] = PROGRAM_TO_USER_LEN(z);
+    
   } else
     z = USER_TO_PROGRAM_LEN(parameters[5203 + (p_int * 20)]);
 
@@ -5114,7 +5114,6 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
   int wear_offset_register = 0;
   EmcPose tool_offset;
   ZERO_EMC_POSE(tool_offset);
-
   CHKS((settings->cutter_comp_side),
        (_("Cannot change tool offset with cutter radius compensation on")));
   if (g_code == G_49) {
@@ -5144,12 +5143,14 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     tool_offset.v = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.v);
     tool_offset.w = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.w);
     if (FEATURE(LATHE_TOOLCHANGE)) {
-	if (block->t_number > 99 && block->t_number<10000) {
-		geo_offset_register = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
-		wear_offset_register = block->t_number % 100;	// wear offset is second two digits
-	} else if (block->t_number < 100) {
-		geo_offset_register = block->t_number + 10000;	// per Smit (p.404 CNC Fundamentals) geo offsets are offset by 10000
-	}
+		if (settings->toolchange_flag ==  false){	
+			if (block->t_number > 99 && block->t_number<10000) {
+				geo_offset_register = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
+				wear_offset_register = block->t_number % 100;	// wear offset is second two digits
+			} else if (block->t_number < 100) {
+				geo_offset_register = block->t_number + 10000;	// per Smit (p.404 CNC Fundamentals) geo offsets are offset by 10000
+			}
+		}
 	CHP((find_tool_pocket(settings, geo_offset_register, &index)));
 	tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
 	tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
@@ -5193,7 +5194,6 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
   settings->u_current += settings->tool_offset.u - tool_offset.u;
   settings->v_current += settings->tool_offset.v - tool_offset.v;
   settings->w_current += settings->tool_offset.w - tool_offset.w;
-
   settings->tool_offset = tool_offset;
   return INTERP_OK;
 }
@@ -5234,10 +5234,12 @@ int Interp::convert_tool_select(block_pointer block,     //!< pointer to a block
   SELECT_POCKET(pocket, block->t_number);
   settings->selected_pocket = pocket;
   settings->selected_tool = block->t_number;
-  if (FEATURE(LATHE_TOOLCHANGE)) {
-	CHP(convert_tool_change(settings));
-	CHP(convert_tool_length_offset(G_43, block, settings));
-  } 
+// moved the following calls to interp::execute in the t_flag switch, which is where it belongs
+//  if (FEATURE(LATHE_TOOLCHANGE)) {
+//	CHP(convert_tool_change(settings));
+//	CHP(convert_tool_length_offset(G_43, block, settings));
+	
+//  } 
   return INTERP_OK;
 }
 
