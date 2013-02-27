@@ -140,6 +140,7 @@ python/_togl.so
 LCNC_RTLIB_FILES="
 abs.ko
 constant.ko
+comp.ko
 debounce.ko
 encoder.ko
 estop_latch.ko
