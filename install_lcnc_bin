@@ -23,94 +23,12 @@ echo "script directory is: $LCNC_ROOT"
 REPOS_ROOT=$(dirname $LCNC_ROOT)
 echo "repository root is $REPOS_ROOT"
 
-# get user's home dir for config files (tool.tbl, emc.var, dump.rdb)
-USER_HOME=$(eval echo ~${USER})
-echo "home directory is: $USER_HOME"
-
-# in case they're not already made
-mkdir -p $USER_HOME/lathe_data
-mkdir -p $USER_HOME/mill_data
-
-DEFAULT_LATHE_TOOL_TABLE="T1 P1 D0.031500 I-85.000000 J-5.000000 Q2 ;
-T2 P2 D0.031500 Q9 ;
-T3 P3 D0.031500 Q9 ;
-T4 P4 D0.031500 Q9 ;
-T5 P5 D0.031500 Q9 ;
-T6 P6 D0.031500 Q9 ;
-T7 P7 D0.031500 Q9 ;
-T8 P8 D0.031500 Q9 ;
-T9 P9 D0.031500 Q9 ;
-T10 P10 D0.031500 Q9 ;
-T11 P11 D0.031500 Q9 ;
-T12 P12 D0.031500 Q9 ;
-T13 P13 D0.031500 Q9 ;
-T14 P14 D0.031500 Q9 ;
-T15 P15 D0.031500 Q9 ;
-T16 P16 D0.031500 Q9 ;
-T17 P17 D0.031500 Q9 ;
-T18 P18 D0.031500 Q9 ;
-T19 P19 D0.031500 Q9 ;
-T20 P20 D0.031500 Q9 ;
-T21 P21 D0.031500 Q9 ;
-T22 P22 D0.031500 Q9 ;
-T23 P23 D0.031500 Q9 ;
-T24 P24 D0.031500 Q9 ;
-T25 P25 D0.031500 Q9 ;
-T26 P26 D0.031500 Q9 ;
-T27 P27 D0.031500 Q9 ;
-T10001 P28 X-0.500000 Z-0.200000 I+3.000000 ; none
-T10002 P29 ; none
-T10003 P30 ; none
-T10004 P31 ; none
-T10005 P32 ; none
-T10006 P33 ; none
-T10007 P34 ; none
-T10008 P35 ; none
-T10009 P36 ; none
-T10010 P37 ; none
-T10011 P38 ; none
-T10012 P39 ; none
-T10013 P40 ; none
-T10014 P41 ; none
-T10015 P42 ; none
-T10016 P43 ; none
-T10017 P44 ; none
-T10018 P45 ; none
-T10019 P46 ; none
-T10020 P47 ; none
-T10021 P48 ; none
-T10022 P49 ; none
-T10023 P50 ; none
-T10024 P51 ; none
-T10025 P52 ; none
-T10026 P53 ; none
-T10027 P54 ; none"
-
-if [ ! -f $USER_HOME/lathe_data/tool.tbl ];
-then
-    echo "Creating default tool table in home/lathe_data/tool.tbl"
-    echo "$DEFAULT_LATHE_TOOL_TABLE" > $USER_HOME/lathe_data/tool.tbl
-fi
 
 # create new directory for RIP/encapsulated lcnc
 RIP_ROOT=$REPOS_ROOT/release
 
 
 echo "release directory: $RIP_ROOT"
-
-# for now, configs will live (along with tool.tbl and emc.var and dump.rdb) in release/configs.  later we'll
-# need to modify lcnc such that tool.tbl, dump.rdb, and emc.var live outside of release
-# and when that happens we'll need to at least create that directory with this script or else instruct John and kirk to 
-# create that dir.
- 
-# create config directories
-#BASE_LATHE_CONFIG=$USER_HOME"/linuxcnc/configs/tormach_lathe"
-#mkdir -p $BASE_LATHE_CONFIG
-#echo "lathe config dir is: $BASE_LATHE_CONFIG"
-#BASE_MILL_CONFIG=$USER_HOME"/linuxcnc/configs/tormach_mill"
-#mkdir -p $BASE_MILL_CONFIG
-#echo "lathe config dir is: $BASE_MILL_CONFIG"
-
 
 
 # we only want a few things from bin
@@ -208,23 +126,8 @@ for line in $LCNC_BIN_FILES; do
    cp -a "$LCNC_ROOT"/bin/$line "$RIP_ROOT"/bin
 done
 
-# TODO: need way to preserve setuid root files without being root
-# may need to stash helper program that is already setuid root
-# to fix these files
-# we could just globally install these modified version and leave them
-# probably best to write helper install owner/setui changer globally for these
-sudo cp -a "$LCNC_ROOT"/bin/linuxcnc_module_helper "$RIP_ROOT"/bin
-
 # strip the binaries
 (cd "$RIP_ROOT"/bin; find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded)
-
-CMD="sudo chown root "$RIP_ROOT"/bin/linuxcnc_module_helper"
-echo $CMD
-sudo chown root "$RIP_ROOT"/bin/linuxcnc_module_helper
-
-CMD="sudo chmod 4750 "$RIP_ROOT"/bin/linuxcnc_module_helper"
-echo $CMD
-sudo chmod 4750 "$RIP_ROOT"/bin/linuxcnc_module_helper
 
 CMD="cp "$LCNC_ROOT"/configs/common/linuxcnc.nml "$RIP_ROOT""
 echo $CMD
@@ -234,12 +137,6 @@ cp "$LCNC_ROOT"/configs/common/linuxcnc.nml "$RIP_ROOT"
 echo "stripping .ko files"
 (cd "$RIP_ROOT"/rtlib; find . | xargs file | grep "relocatable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded)
 
-# for now assume Bebas will be part of the image.
-# install Bebas font to ~/.fonts
-#mkdir -p ~/.fonts
-#CMD="cp -a "$LCNC_ROOT"/Bebas/BEBAS___.ttf "$USER_HOME"/.fonts"
-#echo $CMD
-#cp -a "$LCNC_ROOT"/Bebas/BEBAS___.ttf "$USER_HOME"/.fonts
 
 # restore IFS
 IFS=$tmpIFS
