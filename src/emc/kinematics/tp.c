@@ -768,10 +768,15 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             tp->aborting = 0;
             tp->execId = 0;
             tp->motionType = 0;
-            tp->synchronized = 0;
+            // don't clear the synchoronized flag - this should be a modal setting that sticks around on abort *dpr 3/12/13
+            //tp->synchronized = 0;
+            // relay whatever the f/per setting was in motion on abort back up to status to deal with
+            // disconnect between interp and motion time. *dpr 3/12/13
+            emcmotStatus->uu_per_rev = tp->uu_per_rev;
             waiting_for_index = MOTION_INVALID_ID;
             waiting_for_atspeed = MOTION_INVALID_ID;
-            emcmotStatus->spindleSync = 0;
+            // don't clear the synchoronized flag - this should be a modal setting that sticks around on abort *dpr 3/12/13
+            //emcmotStatus->spindleSync = 0;
             tpResume(tp);
             return 0;
         } else {
@@ -806,7 +811,6 @@ int tpRunCycle(TP_STRUCT * tp, long period)
             waiting_for_atspeed = MOTION_INVALID_ID;
         }
     }
-
     if(tc->active == 0) {
         // this means this tc is being read for the first time.
 
@@ -928,6 +932,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     if(!tc->synchronized) emcmotStatus->spindleSync = 0;
 
 
+
     if(nexttc && nexttc->active == 0) {
         // this means this tc is being read for the first time.
 
@@ -946,7 +951,7 @@ int tpRunCycle(TP_STRUCT * tp, long period)
     if(tc->synchronized) {
         double pos_error;
         double oldrevs = revs;
-
+        
         if(tc->velocity_mode) {
             pos_error = fabs(emcmotStatus->spindleSpeedIn) * tc->uu_per_rev;
             if(nexttc) pos_error -= nexttc->progress; /* ?? */

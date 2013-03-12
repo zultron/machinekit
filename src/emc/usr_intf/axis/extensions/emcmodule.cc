@@ -339,6 +339,7 @@ static PyMemberDef Stat_members[] = {
     {(char*)"max_acceleration", T_DOUBLE, O(motion.traj.maxAcceleration), READONLY},
     {(char*)"probe_tripped", T_BOOL, O(motion.traj.probe_tripped), READONLY},
     {(char*)"spindle_sync", T_DOUBLE, O(motion.traj.spindle_sync), READONLY},
+    {(char*)"uu_per_rev", T_DOUBLE, O(motion.traj.uu_per_rev), READONLY},
     {(char*)"probing", T_BOOL, O(motion.traj.probing), READONLY},
     {(char*)"probe_val", T_INT, O(motion.traj.probeval), READONLY},
     {(char*)"kinematics_type", T_INT, O(motion.traj.kinematics_type), READONLY},

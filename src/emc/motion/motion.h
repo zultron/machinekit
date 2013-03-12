@@ -639,6 +639,7 @@ Suggestion: Split this in to an Error and a Status flag register..
         int spindleSync;        /* we are doing spindle-synced motion */
         double spindleRevs;     /* position of spindle in revolutions */
         double spindleSpeedIn;  /* velocity of spindle in revolutions per minute */
+        double uu_per_rev; 		/* feed per revolution  - added 3/12/13 *dpr */
 
 	spindle_status spindle;	/* data types for spindle status */
 	

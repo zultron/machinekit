@@ -1131,6 +1131,8 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
     stat->distance_to_go = emcmotStatus.distance_to_go;
     stat->dtg = emcmotStatus.dtg;
     stat->current_vel = emcmotStatus.current_vel;
+    // tormach added to deal with disconnect between motion and interp time *dpr 3/12/13
+    stat->uu_per_rev = emcmotStatus.uu_per_rev;
     if (EMC_DEBUG_MOTION_TIME & emc_debug) {
 	if (stat->id != last_id) {
 	    if (last_id != last_id_printed) {
