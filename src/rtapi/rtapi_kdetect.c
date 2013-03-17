@@ -15,6 +15,25 @@
 typedef void (*pf)();
 static const char *progname = "rtapi_kdetect";
 
+// check if release contains "-hintbase" (Deb) and ".hintbase" (RedHat)
+int string_hints(char * release, char * hintbase)
+{
+    char * initial_chars = "-.";
+    char hint[60];
+    int i;
+
+    hint[59] = 0;
+    strncpy(hint+1, hintbase, 58);
+
+    for (i=0; initial_chars[i]; i++) {
+	hint[0] = initial_chars[i];
+	if (strcasestr(release,hint))
+	    return 1;
+    }
+
+    return 0;
+}
+
 int rtapi_kdetect(unsigned long *feat)
 {
     struct stat sb;
@@ -32,11 +51,11 @@ int rtapi_kdetect(unsigned long *feat)
     }
 
     // match u.release for soft hints
-    if (strcasestr (u.release, "-rtai"))
+    if (string_hints (u.release, "rtai"))
 	*feat |= UTSNAME_REL_RTAI;
-    else if (strcasestr (u.release, "-rt"))
+    else if (string_hints (u.release, "rt"))
 	*feat |= UTSNAME_REL_RT;
-    if (strcasestr (u.release, "-xenomai"))
+    if (string_hints (u.release, "xenomai"))
 	*feat |= UTSNAME_REL_XENOMAI;
 
     // a hint of dubious quality
@@ -48,7 +67,7 @@ int rtapi_kdetect(unsigned long *feat)
 	*feat |= HAS_PROC_IPIPE;
 
     // a strong RT PREEMPT hint
-    if (strcasestr (u.version, "PREEMPT RT"))
+    if (string_hints (u.version, "PREEMPT RT"))
 	*feat |= UTSNAME_VER_RT_PREEMPT;
 
     // a strong RT PREEMPT hint
