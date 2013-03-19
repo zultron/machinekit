@@ -38,9 +38,21 @@ module_data *module_array = NULL;
 #endif
 
 
-/* define the rtapi_switch struct, with pointers to all rtapi_*
+/* 
+   define the rtapi_switch struct, with pointers to all rtapi_*
    functions
+
+   ULAPI doesn't define all functions, so for missing functions point
+   to the dummy function _rtapi_dummy() in hopes of more graceful
+   failure
 */
+
+int _rtapi_dummy(void) {
+    rtapi_print_msg(RTAPI_MSG_ERR,
+		    "Error:  _rtapi_dummy function called from rtapi_switch; "
+		    "this should never happen!");
+    return -EINVAL;
+}
 
 static rtapi_switch_t rtapi_switch_struct = {
     .git_version = GIT_VERSION,
@@ -57,12 +69,19 @@ static rtapi_switch_t rtapi_switch_struct = {
 #ifdef RTAPI
     .rtapi_set_msg_handler = &_rtapi_set_msg_handler,
     .rtapi_get_msg_handler = &_rtapi_get_msg_handler,
+#else
+    .rtapi_set_msg_handler = &_rtapi_dummy,
+    .rtapi_get_msg_handler = &_rtapi_dummy,
 #endif
     // time functions
 #ifdef RTAPI
     .rtapi_clock_set_period = &_rtapi_clock_set_period,
     .rtapi_delay = &_rtapi_delay,
     .rtapi_delay_max = &_rtapi_delay_max,
+#else
+    .rtapi_clock_set_period = &_rtapi_dummy,
+    .rtapi_delay = &_rtapi_dummy,
+    .rtapi_delay_max = &_rtapi_dummy,
 #endif
     .rtapi_get_time = &_rtapi_get_time,
     .rtapi_get_clocks = &_rtapi_get_clocks,
@@ -79,6 +98,14 @@ static rtapi_switch_t rtapi_switch_struct = {
     .rtapi_task_resume = &_rtapi_task_resume,
     .rtapi_task_pause = &_rtapi_task_pause,
     .rtapi_task_self = &_rtapi_task_self,
+#else
+    .rtapi_task_new = &_rtapi_dummy,
+    .rtapi_task_delete = &_rtapi_dummy,
+    .rtapi_task_start = &_rtapi_dummy,
+    .rtapi_wait = &_rtapi_dummy,
+    .rtapi_task_resume = &_rtapi_dummy,
+    .rtapi_task_pause = &_rtapi_dummy,
+    .rtapi_task_self = &_rtapi_dummy,
 #endif
     // shared memory functions
     .rtapi_shmem_new = &_rtapi_shmem_new,

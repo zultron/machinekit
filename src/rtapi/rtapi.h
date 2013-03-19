@@ -744,6 +744,9 @@ extern unsigned short _rtapi_inw(unsigned int port);
     above.  The struct is initialized in rtapi_common.c.
 */
 
+// prototype for dummy rtapi placeholder function
+typedef int (*rtapi_dummy_t)(void);
+
 typedef struct {
     const char *git_version;
     // init & exit functions
@@ -759,12 +762,19 @@ typedef struct {
 #ifdef RTAPI
     rtapi_set_msg_handler_t rtapi_set_msg_handler;
     rtapi_get_msg_handler_t rtapi_get_msg_handler;
+#else
+    rtapi_dummy_t rtapi_set_msg_handler;
+    rtapi_dummy_t rtapi_get_msg_handler;
 #endif
     // time functions
 #ifdef RTAPI
     rtapi_clock_set_period_t rtapi_clock_set_period;
     rtapi_delay_t rtapi_delay;
     rtapi_delay_max_t rtapi_delay_max;
+#else
+    rtapi_dummy_t rtapi_clock_set_period;
+    rtapi_dummy_t rtapi_delay;
+    rtapi_dummy_t rtapi_delay_max;
 #endif
     rtapi_get_time_t rtapi_get_time;
     rtapi_get_clocks_t rtapi_get_clocks;
@@ -781,6 +791,14 @@ typedef struct {
     rtapi_task_resume_t rtapi_task_resume;
     rtapi_task_pause_t rtapi_task_pause;
     rtapi_task_self_t rtapi_task_self;
+#else
+    rtapi_dummy_t rtapi_task_new;
+    rtapi_dummy_t rtapi_task_delete;
+    rtapi_dummy_t rtapi_task_start;
+    rtapi_dummy_t rtapi_wait;
+    rtapi_dummy_t rtapi_task_resume;
+    rtapi_dummy_t rtapi_task_pause;
+    rtapi_dummy_t rtapi_task_self;
 #endif
     // shared memory functions
     rtapi_shmem_new_t rtapi_shmem_new;
