@@ -946,6 +946,11 @@ static const char __module_license[] __attribute__((section(".modinfo"))) =   \
 
 #if defined(BUILD_SYS_USER_DSO)
 extern long int simple_strtol(const char *nptr, char **endptr, int base);
+
+// kernel tests in rtapi_compat.c
+extern int kernel_is_xenomai();
+extern int kernel_is_rtai();
+extern int kernel_is_rtpreempt();
 #endif
 
 RTAPI_END_DECLS
