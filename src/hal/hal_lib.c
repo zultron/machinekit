@@ -77,6 +77,7 @@ MODULE_LICENSE("GPL");
 #include <unistd.h>		/* getpid() */
 #include <stdlib.h>		/* exit() */
 #include <dlfcn.h>              /* for dlopen/dlsym ulapi-$THREADSTYLE.so */
+#include <assert.h>
 #endif
 
 char *hal_shmem_base = 0;
@@ -84,8 +85,10 @@ hal_data_t *hal_data = 0;
 static int lib_module_id = -1;	/* RTAPI module ID for library module */
 static int lib_mem_id = 0;	/* RTAPI shmem ID for library module */
 
- extern void  rtapi_verify(char *tag);
- extern void  rtapi_printall(void);
+static const char *git_version = GIT_VERSION;
+
+extern void  rtapi_verify(char *tag);
+extern void  rtapi_printall(void);
 
 /***********************************************************************
 *                  LOCAL FUNCTION DECLARATIONS                         *
@@ -3453,11 +3456,19 @@ static void ulapi_hal_lib_init(void)
 	// fprintf(stderr,"successfully loaded ULAPI '%s': '%s'\n",
 	//         ulapi_lib, rtapi_switch->name);
 	if (debug_tors)
-	    fprintf(stderr,"HAL_LIB: successfully loaded ULAPI '%s' rtapi_switch=%p\n",
-		    ulapi_lib, *symref);
+	    fprintf(stderr,"HAL_LIB: successfully loaded ULAPI '%s' rtapi_switch=%p git=%s\n",
+		    ulapi_lib, *symref, git_version);
 	rtapi_switch = *symref;
-	// XXX: check for rtapi_switch != NULL, and a signature in
-	// the datastructure here
+
+	// there isnt much we can do if the build is so screwed up that
+	// rtapi_switch is NULL
+	assert(rtapi_switch != NULL);
+
+	// sanity check
+	if (strcmp(git_version, rtapi_switch->git_version)) {
+	    fprintf(stderr,"HAL_LIB: ULAPI warning - git versions disagree: hal_lib.c=%s %s=%s\n",
+		    git_version, ulapi_lib, rtapi_switch->git_version);
+	}
 
 	// at this point it is safe to call RTAPI functions since the
 	// rtapi_switch pointer is now valid.
@@ -3514,6 +3525,7 @@ static void ulapi_hal_lib_cleanup(void)
 // the 'phase' argument gives fine-grained control
 // about what should happen in which phase.
 
+static int once; // dont do this on every rtapi_app_main()
 static void rtapi_hal_lib_init(int phase)
 {
 #ifdef DEBUG_RTAPI_CONSTRUCTORS
@@ -3521,7 +3533,25 @@ static void rtapi_hal_lib_init(int phase)
 		    __FILE__,__FUNCTION__, phase);
 #endif
     switch (phase) {
+
     case MAIN_END:
+	// if rtapi_switch were NULL we would have crashed before
+	// rtapi.so/.ko loaded and accessible
+	if (!once) {
+
+	    // do all one-off RTAPI post-loading checks here
+	    if (rtapi_switch &&
+		strcmp(git_version,
+		       rtapi_switch->git_version)) {
+
+		rtapi_print_msg(RTAPI_MSG_ERR,
+				"HAL_LIB: RTAPI warning - git versions disagree: hal_lib.c=%s %s=%s\n",
+				git_version,
+				"RTAPI", // any way to get at the module name here?
+				rtapi_switch->git_version);
+	    }
+	    once++;
+	}
 	break;
 
     default:

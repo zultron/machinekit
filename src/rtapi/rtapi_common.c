@@ -43,6 +43,7 @@ module_data *module_array = NULL;
 */
 
 static rtapi_switch_t rtapi_switch_struct = {
+    .git_version = GIT_VERSION,
     // init & exit functions
     .rtapi_init = &_rtapi_init,
     .rtapi_exit = &_rtapi_exit,

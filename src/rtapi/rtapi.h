@@ -745,6 +745,7 @@ extern unsigned short _rtapi_inw(unsigned int port);
 */
 
 typedef struct {
+    const char *git_version;
     // init & exit functions
     rtapi_init_t rtapi_init;
     rtapi_exit_t rtapi_exit;

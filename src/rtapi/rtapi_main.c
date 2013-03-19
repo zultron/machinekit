@@ -1,4 +1,4 @@
-
+#include "config.h"
 #include "rtapi.h"		/* RTAPI realtime OS API */
 #include "rtapi_app.h"		/* RTAPI realtime module decls */
 
@@ -8,7 +8,7 @@ MODULE_LICENSE("GPL2 or later");
 
 int rtapi_app_main(void)
 {
-    rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI startup\n");
+    rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI %s startup\n", GIT_VERSION);
     return 0;
 }
 
