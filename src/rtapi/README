@@ -1,4 +1,4 @@
-README for RTAPI
+README for RTAPI				-*-auto-fill-*-
 
 RTAPI is a wrapper API that allows realtime programs to use either
 RTLinux or RTAI with no code changes.
@@ -313,3 +313,12 @@ All hooks have function declarations in the .c source files.  This not
 only helps the compiler with missing symbols, but also forces the
 various thread system implementations to comply with the hook function
 prototypes.
+
+
+Notes for RT threads implementers
+---------------------------------
+
+- Thread flavor ID:
+  - Create an enumerator in thread_flavor_id_t in rtapi.h
+  - In the thread flavor's header file, define the macro
+    THREAD_FLAVOR_ID with that enumerator

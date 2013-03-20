@@ -58,11 +58,19 @@ int init_module(void) {
     init_rulapi_data(rulapi_data);
     /* perform a global init if needed */
     init_rtapi_data(rtapi_data);
-    /* check serial code */
+    /* check flavor and serial codes */
+    if (rtapi_data->thread_flavor_id != THREAD_FLAVOR_ID) {
+	/* mismatch - release master shared memory block */
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"RTAPI: ERROR: flavor mismatch %d vs %d\n",
+			rtapi_data->thread_flavor_id, THREAD_FLAVOR_ID);
+	rtapi_module_master_shared_memory_free();
+	return -EINVAL;
+    }
     if (rtapi_data->serial != RTAPI_SERIAL) {
 	/* mismatch - release master shared memory block */
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"RTAPI: ERROR: serial mismatch %d vs %d\n",
+			"RTAPI: ERROR: serial mismatch '%d' vs '%d'\n",
 			rtapi_data->serial, RTAPI_SERIAL);
 	rtapi_module_master_shared_memory_free();
 	return -EINVAL;
@@ -322,11 +330,18 @@ int _rtapi_init(const char *modname) {
    
     /* perform a global init if needed */
     init_rtapi_data(rtapi_data);
-    /* check serial code */
+    /* check flavor and serial codes */
+    if (rtapi_data->thread_flavor_id != THREAD_FLAVOR_ID) {
+	/* mismatch - release master shared memory block */
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"RTAPI: ERROR: flavor mismatch %d vs %d\n",
+			rtapi_data->thread_flavor_id, THREAD_FLAVOR_ID);
+	return -EINVAL;
+    }
     if (rtapi_data->serial != RTAPI_SERIAL) {
 	/* mismatch - release master shared memory block */
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"RTAPI: ERROR: version mismatch %d vs %d\n",
+			"RTAPI: ERROR: serial mismatch %d vs %d\n",
 			rtapi_data->serial, RTAPI_SERIAL);
 	return -EINVAL;
     }

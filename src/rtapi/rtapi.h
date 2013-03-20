@@ -754,13 +754,26 @@ extern unsigned short _rtapi_inw(unsigned int port);
 ************************************************************************/
 /** rtapi_switch contains pointers to the _rtapi_* functions declared
     above.  The struct is initialized in rtapi_common.c.
+
+    Each thread system needs a member in the thread_flavor_id_t enum,
+    and should set the macro THREAD_FLAVOR_ID to that enumerator.
 */
 
 // prototype for dummy rtapi placeholder function
 typedef int (*rtapi_dummy_t)(void);
 
+// guarantee a unique ID for each thread flavor
+typedef enum {
+    RTAPI_POSIX_ID = 0,
+    RTAPI_RT_PREEMPT_USER_ID,
+    RTAPI_XENOMAI_USER_ID,
+    RTAPI_RTAI_KERNEL_ID,
+    RTAPI_XENOMAI_KERNEL_ID,
+} thread_flavor_id_t;
+
 typedef struct {
     const char *git_version;
+    thread_flavor_id_t thread_flavor_id;
     // init & exit functions
     rtapi_init_t rtapi_init;
     rtapi_exit_t rtapi_exit;
