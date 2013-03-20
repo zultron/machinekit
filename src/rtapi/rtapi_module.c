@@ -33,7 +33,8 @@
    needs to delete something, it calls these functions directly.
 */
 static int module_delete(int module_id);
-extern int rtapi_module_master_shared_memory_init(rtapi_data_t **rtapi_data);
+extern int rtapi_module_master_shared_memory_init(rtapi_data_t **rtapi_data,
+						  rulapi_data_t **rulapi_data);
 extern void rtapi_module_cleanup_hook(void);
 extern void rtapi_module_master_shared_memory_free(void);
 
@@ -51,7 +52,7 @@ int init_module(void) {
     /* say hello */
     rtapi_print_msg(RTAPI_MSG_INFO, "RTAPI: Init\n");
     /* get master shared memory block from OS and save its address */
-    res = rtapi_module_master_shared_memory_init(&rtapi_data);
+    res = rtapi_module_master_shared_memory_init(&rtapi_data, &rulapi_data);
     if (res) return res;
     /* perform a global init if needed */
     init_rtapi_data(rtapi_data);
@@ -300,6 +301,7 @@ static int module_delete(int module_id) {
 #else /* ULAPI */
 
 extern rtapi_data_t *rtapi_init_hook();
+extern rulapi_data_t *rulapi_init_hook();
 
 int _rtapi_init(const char *modname) {
     int n, module_id;
@@ -312,7 +314,10 @@ int _rtapi_init(const char *modname) {
 
     if ((rtapi_data = rtapi_init_hook()) == NULL)
 	return -ENOMEM;
-
+    
+    if ((rulapi_data = rulapi_init_hook()) == NULL)
+	return -ENOMEM;
+   
     /* perform a global init if needed */
     init_rtapi_data(rtapi_data);
     /* check revision code */

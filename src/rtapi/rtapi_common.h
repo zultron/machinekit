@@ -73,6 +73,10 @@
 
 #include "rtapi_bitops.h"	/* test_bit() et al. */
 
+#if defined(ULAPI) && defined(BUILD_SYS_USER_DSO)
+#include <sys/ipc.h>		/* IPC_* */
+#endif
+
 #ifndef NULL
 #define NULL 0
 #endif
@@ -206,11 +210,40 @@ typedef struct {
 #endif
 } rtapi_data_t;
 
+// this segment is unversally shared between ULAPI and RTAPI, kernel or userland
+typedef struct {
+    int magic;
+    int  rev_code; 
+    unsigned long mutex;
+    int msg_level;  // this will replace the local msg_level variables
+    // int  instance_id;
+    int  next_module_id; // for rtapi_init()
+    int  rtapi_thread_flavor; 
+} rulapi_data_t;
+
+#define RULAPI_KEY  0x08154711  // key for RULAPI 
+#define RULAPI_REV_CODE 42      // bump on layout changes of rulapi_data_t
+#define RULAPI_MAGIC 0xdeadbeef
+#define RULAPI_DATA_PERMISSIONS	0666
 
 /* rtapi_common.c */
 extern rtapi_data_t *rtapi_data;
-extern void init_rtapi_data(rtapi_data_t * data);
 
+// inited at RTAPI/ULAPI init time, and exported like rtapi_data
+extern  rulapi_data_t *rulapi_data;
+
+#if defined(RTAPI) 
+extern void init_rtapi_data(rtapi_data_t * data);
+extern void init_rulapi_data(rulapi_data_t * data);
+#endif
+
+#if defined(ULAPI) && defined(BUILD_SYS_USER_DSO)
+extern int rulapi_data_attach(key_t key, rulapi_data_t **rulapi_data);
+#endif
+
+#if defined(RTAPI) && defined(BUILD_SYS_USER_DSO)
+extern int  next_module_id(void);
+#endif
 
 /* rtapi_task.c */
 extern task_data *task_array;
@@ -220,10 +253,6 @@ extern task_data *task_array;
 #if defined(MODULE)
 extern RT_TASK *ostask_array[];
 #endif
-
-
-/* rtapi_msg.c */
-extern int msg_level;		/* needed in rtapi_proc.h */
 
 /* rtapi_time.c */
 #ifdef BUILD_SYS_USER_DSO

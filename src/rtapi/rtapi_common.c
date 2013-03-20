@@ -3,6 +3,11 @@
 #include "rtapi.h"
 #include "rtapi_common.h"
 
+#ifdef BUILD_SYS_USER_DSO
+#include <sys/ipc.h>		/* IPC_* */
+#include <sys/shm.h>		/* shmget() */
+#endif
+
 #ifndef MODULE
 #include <stdlib.h>		/* strtol() */
 #endif
@@ -37,6 +42,9 @@ shmem_data *shmem_array = NULL;
 module_data *module_array = NULL;
 #endif
 
+// items shared between RTAPI and ULAPI
+rulapi_data_t *rulapi_data;
+
 
 /* 
    define the rtapi_switch struct, with pointers to all rtapi_*
@@ -59,6 +67,11 @@ static rtapi_switch_t rtapi_switch_struct = {
     // init & exit functions
     .rtapi_init = &_rtapi_init,
     .rtapi_exit = &_rtapi_exit,
+#if defined(BUILD_SYS_USER_DSO)
+    .rtapi_next_module_id = &_rtapi_next_module_id,
+#else
+    .rtapi_next_module_id = &_rtapi_dummy,
+#endif
     // messaging functions
     .rtapi_snprintf = &_rtapi_snprintf,
     .rtapi_vsnprintf = &_rtapi_vsnprintf,
@@ -183,6 +196,71 @@ void init_rtapi_data(rtapi_data_t * data)
     return;
 }
 
+#if defined(RTAPI) 
+void init_rulapi_data(rulapi_data_t * data)
+{
+    /* has the block already been initialized? */
+    if (data->magic == RULAPI_MAGIC) {
+	/* yes, nothing to do */
+	return;
+    }
+    /* no, we need to init it, grab mutex unconditionally */
+    rtapi_mutex_try(&(data->mutex));
+    /* set magic number so nobody else init's the block */
+    data->magic = RULAPI_MAGIC;
+    /* set version code so other modules can check it */
+    data->rev_code = RULAPI_REV_CODE;
+
+    data->msg_level = RTAPI_MSG_INFO; // global message level
+    data->next_module_id = 0; // next value returned by rtapi_init
+
+    //XXX FIXME    data->rtapi_thread_flavor = TBD;
+
+    /* done, release the mutex */
+    rtapi_mutex_give(&(data->mutex));
+    return;
+}
+#endif
+
+#if defined(ULAPI) && defined(BUILD_SYS_USER_DSO)
+
+int rulapi_data_attach(key_t key, rulapi_data_t **rulapi_data) 
+{
+    int shm_id;
+    int size = sizeof(rulapi_data_t);
+    void *rd;
+
+    if ((shm_id = shmget(key, size, RULAPI_DATA_PERMISSIONS )) == -1) {
+	rtapi_print_msg(RTAPI_MSG_ERR, "%s: RULAPI data segment does not exist\n", 
+			__FUNCTION__);
+	return -EEXIST;
+    }
+    // and map it into process space 
+    rd = shmat(shm_id, 0, 0);
+    if (((ssize_t) rd) == -1) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"%s: shmat(%d) failed: %d - %s\n",
+			__FUNCTION__, shm_id, 
+			errno, strerror(errno));
+	return -EINVAL;
+    }
+    *rulapi_data = rd;
+    return shm_id;
+}
+#endif
+
+#if defined(BUILD_SYS_USER_DSO)
+int  _rtapi_next_module_id(void) 
+{
+    int next_id;
+
+    // TODO: replace by atomic ops once rtapi_atomic.h has been merged
+    rtapi_mutex_try(&(rulapi_data->mutex));
+    next_id = rulapi_data->next_module_id++;
+    rtapi_mutex_give(&(rulapi_data->mutex));
+    return next_id;
+}
+#endif
 
 /* simple_strtol defined in
    /usr/src/kernels/<kversion>/include/linux/kernel.h */

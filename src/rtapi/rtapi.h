@@ -157,6 +157,12 @@ typedef int (*rtapi_exit_t)(int);
     rtapi_switch->rtapi_exit(module_id)
 extern int _rtapi_exit(int module_id);
 
+typedef int (*rtapi_next_module_id_t)(void);
+#define rtapi_next_module_id()			\
+    rtapi_switch->rtapi_next_module_id()
+extern int _rtapi_next_module_id(void);
+
+
 /***********************************************************************
 *                      MESSAGING FUNCTIONS                             *
 ************************************************************************/
@@ -752,6 +758,7 @@ typedef struct {
     // init & exit functions
     rtapi_init_t rtapi_init;
     rtapi_exit_t rtapi_exit;
+    rtapi_next_module_id_t rtapi_next_module_id;
     // messaging functions
     rtapi_snprintf_t rtapi_snprintf;
     rtapi_vsnprintf_t rtapi_vsnprintf;
@@ -951,6 +958,7 @@ extern long int simple_strtol(const char *nptr, char **endptr, int base);
 extern int kernel_is_xenomai();
 extern int kernel_is_rtai();
 extern int kernel_is_rtpreempt();
+
 #endif
 
 RTAPI_END_DECLS

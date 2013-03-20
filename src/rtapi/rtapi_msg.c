@@ -17,7 +17,9 @@
 #    include <stdio.h>		/* libc's vsnprintf() */
 #endif
 
-int msg_level = RTAPI_MSG_INFO;	/* message printing level */ //XXX
+// this variable is referenced only during startup before rulapi_data
+// is attached
+static int msg_level = RTAPI_MSG_INFO;	/* message printing level */ //XXX
 #ifdef MODULE
 RTAPI_MP_INT(msg_level, "debug message level (default=1)");
 #endif
@@ -26,6 +28,29 @@ RTAPI_MP_INT(msg_level, "debug message level (default=1)");
 #ifndef RTAPI_PRINTK
 #define RTAPI_PRINTK printk
 #endif
+
+// assure we can use message levels before rulapi_data is visible
+static int get_msg_level(void)
+{
+    if (rulapi_data == 0)
+	return msg_level;
+    else
+	return rulapi_data->msg_level;
+}
+
+static int set_msg_level(int new_level)
+{
+    int old_level;
+    
+    if (rulapi_data) {
+	old_level = rulapi_data->msg_level;
+	rulapi_data->msg_level = new_level;
+    } else {
+	old_level = msg_level;
+	msg_level = new_level;
+    }
+    return old_level;
+}
 
 
 #ifdef MODULE
@@ -39,7 +64,7 @@ void default_rtapi_msg_handler(msg_level_t level, const char *fmt,
 #else /* user land */
 void default_rtapi_msg_handler(msg_level_t level, const char *fmt,
 			       va_list ap) {
-    if(level == RTAPI_MSG_ALL)
+    if (get_msg_level() == RTAPI_MSG_ALL)
 	vfprintf(stdout, fmt, ap);
     else
 	vfprintf(stderr, fmt, ap);
@@ -74,7 +99,7 @@ void _rtapi_print(const char *fmt, ...) {
 void _rtapi_print_msg(int level, const char *fmt, ...) {
     va_list args;
 
-    if ((level <= msg_level) && (msg_level != RTAPI_MSG_NONE)) {
+    if ((level <= get_msg_level()) && (get_msg_level() != RTAPI_MSG_NONE)) {
 	va_start(args, fmt);
 	rtapi_msg_handler(level, fmt, args);
 	va_end(args);
@@ -101,11 +126,11 @@ int _rtapi_set_msg_level(int level) {
     if ((level < RTAPI_MSG_NONE) || (level > RTAPI_MSG_ALL)) {
 	return -EINVAL;
     }
-    msg_level = level;
+    set_msg_level(level);
     return 0;
 }
 
 int _rtapi_get_msg_level() {
-    return msg_level;
+    return get_msg_level();
 }
 

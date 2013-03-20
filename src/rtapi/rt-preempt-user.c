@@ -36,8 +36,12 @@ static int error_printed;
 #ifdef ULAPI
 
 int _rtapi_init(const char *modname) {
-	/* do nothing for ULAPI */
-	return getpid();
+    int retval;
+
+    if ((rulapi_data == NULL) &&
+	((retval = rulapi_data_attach(RULAPI_KEY, &rulapi_data)) < 0))
+	return retval;
+    return rtapi_next_module_id();
 }
 
 int _rtapi_exit(int module_id) {
