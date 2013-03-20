@@ -297,7 +297,7 @@ rtapi_data_t *rtapi_init_hook() {
     int retval;
     rtapi_data_t *rtapi_data;
 
-    if ((retval = rt_heap_bind(&ul_rtapi_heap_desc, MASTER_HEAP, TM_NONBLOCK))) {
+    if ((retval = rt_heap_bind(&ul_rtapi_heap_desc, MASTER_HEAP, TM_INFINITE))) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"RTAPI: ERROR: rtapi_init: rt_heap_bind() "
 			"returns %d - %s\n", 
@@ -320,7 +320,7 @@ rulapi_data_t *rulapi_init_hook() {
     int retval;
     rulapi_data_t *rulapi_data;
 
-    if ((retval = rt_heap_bind(&ul_rulapi_heap_desc, RULAPI_HEAP, TM_NONBLOCK))) {
+    if ((retval = rt_heap_bind(&ul_rulapi_heap_desc, RULAPI_HEAP, TM_INFINITE))) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"RTAPI: ERROR: rulapi_init: rt_heap_bind() "
 			"returns %d - %s\n", 
@@ -364,7 +364,7 @@ void *rtapi_shmem_new_realloc_hook(int shmem_id, int key,
 
     if (shmem_addr_array[shmem_id] == NULL) {
 	if ((retval = rt_heap_bind(&shmem_heap_array[shmem_id], shm_name,
-				   TM_NONBLOCK))) {
+				   TM_INFINITE))) {
 	    rtapi_print_msg(RTAPI_MSG_ERR, 
 			    "ULAPI: ERROR: rtapi_shmem_new: "
 			    "rt_heap_bind(%s) returns %d\n", 
@@ -402,7 +402,7 @@ void * rtapi_shmem_new_malloc_hook(int shmem_id, int key,
 			"RTAPI: ERROR: rt_heap_create() returns %d\n", retval);
 	return NULL;
     }
-    if ((retval = rt_heap_alloc(&shmem_heap_array[shmem_id], 0, TM_INFINITE , 
+    if ((retval = rt_heap_alloc(&shmem_heap_array[shmem_id], 0, TM_INFINITE, 
 				(void **)&shmem_addr)) != 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"RTAPI: ERROR: rt_heap_alloc() returns %d\n", retval);
@@ -432,7 +432,7 @@ void * rtapi_shmem_new_malloc_hook(int shmem_id, int key,
 	    return NULL;
 	}
 	if ((retval = rt_heap_alloc(&shmem_heap_array[shmem_id], 0,
-				    TM_NONBLOCK, (void **)&shmem_addr)) != 0) {
+				    TM_INFINITE, (void **)&shmem_addr)) != 0) {
 	    rtapi_print_msg(RTAPI_MSG_ERR, 
 			    "RTAPI: ERROR: rt_heap_alloc() returns %d - %s\n", 
 			    retval, strerror(retval));
