@@ -59,6 +59,12 @@
     information, go to www.linuxcnc.org.
 */
 
+/*
+  RTAPI_SERIAL should be bumped with changes that break compatibility
+  with previous versions.
+*/
+#define RTAPI_SERIAL 1
+
 #include "config.h"
 
 #if ( !defined RTAPI ) && ( !defined ULAPI )

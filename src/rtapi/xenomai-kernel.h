@@ -4,8 +4,6 @@
 *               the Xenomai kernel thread system
 ********************************************************************/
 
-#define REV_CODE 2
-
 #include <nucleus/types.h>	/* XNOBJECT_NAME_LEN, RTIME */
 #include <native/task.h>	/* RT_TASK, rt_task_*() */
 #include <native/heap.h>	/* RT_HEAP */

@@ -145,7 +145,7 @@ void init_rtapi_data(rtapi_data_t * data)
     /* set magic number so nobody else init's the block */
     data->magic = RTAPI_MAGIC;
     /* set version code so other modules can check it */
-    data->rev_code = REV_CODE;
+    data->serial = RTAPI_SERIAL;
     /* and get busy */
     data->rt_module_count = 0;
     data->ul_module_count = 0;
@@ -213,8 +213,8 @@ void rtapi_printall(void) {
 		    rtapi_data);
     rtapi_print_msg(RTAPI_MSG_DBG, "  magic = %d\n",
 		    rtapi_data->magic);
-    rtapi_print_msg(RTAPI_MSG_DBG, "  rev_code = %08x\n",
-		    rtapi_data->rev_code);
+    rtapi_print_msg(RTAPI_MSG_DBG, "  serial = %s\n",
+		    rtapi_data->serial);
     rtapi_print_msg(RTAPI_MSG_DBG, "  mutex = %lu\n",
 		    rtapi_data->mutex);
     rtapi_print_msg(RTAPI_MSG_DBG, "  rt_module_count = %d\n",

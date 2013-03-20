@@ -108,12 +108,9 @@ MODULE_LICENSE("GPL");
    are accessed by multiple different programs, both user processes
    and kernel modules.  If the structure layouts used by various
    programs don't match, that's bad.  So we have revision checking.
-   Whenever a module or program is loaded, the rev_code is checked
-   against the code in the shared memory area.  If they don't match,
-   the rtapi_init() call will fail.
-
-   Thread system header files should define the macro REV_CODE with a
-   unique integer value.
+   Whenever a module or program is loaded, serial is checked against the
+   code in the shared memory area.  If they don't match, the rtapi_init()
+   call will fail.
   */
 
 /* These structs hold data associated with objects like tasks, etc. */
@@ -188,7 +185,7 @@ typedef struct {
 
 typedef struct {
     int magic;			/* magic number to validate data */
-    int rev_code;		/* revision code for matching */
+    int serial;			/* revision code for matching */
     unsigned long mutex;	/* mutex against simultaneous access */
     int rt_module_count;	/* loaded RT modules */
     int ul_module_count;	/* running UL processes */
