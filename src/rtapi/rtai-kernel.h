@@ -4,7 +4,7 @@
 *               the RTAI thread system
 ********************************************************************/
 
-#define REV_CODE 1
+#define THREAD_FLAVOR_ID RTAPI_RTAI_KERNEL_ID
 
 #include <rtai.h>
 #include <rtai_sched.h>

@@ -9,6 +9,8 @@
 
 
 /* rtapi_common.h */
+#define THREAD_FLAVOR_ID RTAPI_XENOMAI_USER_ID
+
 /* this needs to be fixed
 #undefine RTAPI_NAME_LEN
 #define RTAPI_NAME_LEN XNOBJECT_NAME_LEN

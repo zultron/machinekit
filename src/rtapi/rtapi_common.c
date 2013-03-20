@@ -56,6 +56,7 @@ int _rtapi_dummy(void) {
 
 static rtapi_switch_t rtapi_switch_struct = {
     .git_version = GIT_VERSION,
+    .thread_flavor_id = THREAD_FLAVOR_ID,
     // init & exit functions
     .rtapi_init = &_rtapi_init,
     .rtapi_exit = &_rtapi_exit,
@@ -144,8 +145,9 @@ void init_rtapi_data(rtapi_data_t * data)
     rtapi_mutex_try(&(data->mutex));
     /* set magic number so nobody else init's the block */
     data->magic = RTAPI_MAGIC;
-    /* set version code so other modules can check it */
+    /* set version code and flavor ID so other modules can check it */
     data->serial = RTAPI_SERIAL;
+    data->thread_flavor_id = THREAD_FLAVOR_ID;
     /* and get busy */
     data->rt_module_count = 0;
     data->ul_module_count = 0;
@@ -215,6 +217,8 @@ void rtapi_printall(void) {
 		    rtapi_data->magic);
     rtapi_print_msg(RTAPI_MSG_DBG, "  serial = %s\n",
 		    rtapi_data->serial);
+    rtapi_print_msg(RTAPI_MSG_DBG, "  thread_flavor_id = %d\n",
+		    rtapi_data->thread_flavor_id);
     rtapi_print_msg(RTAPI_MSG_DBG, "  mutex = %lu\n",
 		    rtapi_data->mutex);
     rtapi_print_msg(RTAPI_MSG_DBG, "  rt_module_count = %d\n",
