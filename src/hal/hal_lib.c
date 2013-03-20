@@ -3456,22 +3456,56 @@ static void ulapi_hal_lib_init(void)
 	// fprintf(stderr,"successfully loaded ULAPI '%s': '%s'\n",
 	//         ulapi_lib, rtapi_switch->name);
 	if (debug_tors)
-	    fprintf(stderr,"HAL_LIB: successfully loaded ULAPI '%s' rtapi_switch=%p git=%s\n",
-		    ulapi_lib, *symref, git_version);
+	    fprintf(stderr,"HAL_LIB: successfully loaded ULAPI '%s' rtapi_git=%s\n",
+		    ulapi_lib, git_version);
 	rtapi_switch = *symref;
 
 	// there isnt much we can do if the build is so screwed up that
 	// rtapi_switch is NULL
 	assert(rtapi_switch != NULL);
 
-	// sanity check
+	// sanity check - may be harmless
 	if (strcmp(git_version, rtapi_switch->git_version)) {
 	    fprintf(stderr,"HAL_LIB: ULAPI warning - git versions disagree: hal_lib.c=%s %s=%s\n",
 		    git_version, ulapi_lib, rtapi_switch->git_version);
 	}
 
+	// verify the ulapi-foo.so we just loaded is compatible with
+	// the running kernel if it has special prerequisites
+
+#ifdef AWAITING_THREADSTYLE_TAG_IN_RTAPI_SWITCH
+	
+	switch (rtapi_switch->flavor_id) {
+	case RT_PREEMPT_USER:
+	    if (!kernel_is_xenomai()) {
+		fprintf(stderr,"HAL_LIB: ERROR - RT_PREEMPT ULAPI loaded but kernel is not RT_PREEMPT (%s, %s)\n",
+			ulapi_lib, rtapi_switch->git_version);
+		exit(1);
+	    }
+	    break;
+	case XENOMAI_KERNEL:
+	case XENOMAI_USER:
+	    if (!kernel_is_xenomai()) {
+		fprintf(stderr,"HAL_LIB: ERROR - Xenomai ULAPI loaded but kernel is not Xenomai (%s, %s)\n",
+			ulapi_lib, rtapi_switch->git_version);
+		exit(1);
+	    }
+	    break;
+	case RTAI:
+	    if (!kernel_is_rtai()) {
+		fprintf(stderr,"HAL_LIB: ERROR - RTAI ULAPI loaded but kernel is not RTAI (%s, %s)\n",
+			ulapi_lib, rtapi_switch->git_version);
+		exit(1);
+	    }
+	    break;
+	default:
+	    // no prerequisites for vanilla
+	    break;
+	}
+#endif
 	// at this point it is safe to call RTAPI functions since the
-	// rtapi_switch pointer is now valid.
+	// rtapi_switch pointer is now valid and the stuff we loaded
+	// makes sense for the kernel running.
     } else {
 	errmsg = dlerror();
 	fprintf(stderr,"HAL_LIB: FATAL - resolving %s: cant dlsym(rtapi_switch): %s\n",
@@ -3481,9 +3515,11 @@ static void ulapi_hal_lib_init(void)
     // and off we go!
 
     // previously the HAL shm segment was attached only during the
-    // first hal_init(). Do that now during at shlib load time
-    // so the global HALCOMP can be created right away without
-    // waiting for somebody to do a hal_init()
+    // first hal_init(). Do that now at shlib load time instead of
+    // waiting for somebody to do the first hal_init()
+    // this enables use of the rtapi_data segment for shared state
+    // immediately, not just after the first hal_init(), whenever
+    // that might be (which might be never).
     hal_rtapi_attach();
 }
 
