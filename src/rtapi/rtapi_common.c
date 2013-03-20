@@ -209,12 +209,14 @@ void init_rulapi_data(rulapi_data_t * data)
     /* set magic number so nobody else init's the block */
     data->magic = RULAPI_MAGIC;
     /* set version code so other modules can check it */
-    data->rev_code = RULAPI_REV_CODE;
+    data->layout_version = RULAPI_LAYOUT_VERSION;
+    // global message level
+    data->msg_level = RTAPI_MSG_INFO; 
+    // next value returned by rtapi_init (userland threads)
+    // those dont use fixed sized arrays 
+    data->next_module_id = 0;
 
-    data->msg_level = RTAPI_MSG_INFO; // global message level
-    data->next_module_id = 0; // next value returned by rtapi_init
-
-    //XXX FIXME    data->rtapi_thread_flavor = TBD;
+    //XXX JM FIXME    data->rtapi_thread_flavor = TBD;
 
     /* done, release the mutex */
     rtapi_mutex_give(&(data->mutex));

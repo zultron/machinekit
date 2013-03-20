@@ -54,6 +54,8 @@ int init_module(void) {
     /* get master shared memory block from OS and save its address */
     res = rtapi_module_master_shared_memory_init(&rtapi_data, &rulapi_data);
     if (res) return res;
+    // the globally shared segment */
+    init_rulapi_data(rulapi_data);
     /* perform a global init if needed */
     init_rtapi_data(rtapi_data);
     /* check revision code */

@@ -211,18 +211,20 @@ typedef struct {
 } rtapi_data_t;
 
 // this segment is unversally shared between ULAPI and RTAPI, kernel or userland
+// and can be used for any system-wide data which needs to be universally
+// accessible
+
 typedef struct {
     int magic;
-    int  rev_code; 
+    int layout_version; 
     unsigned long mutex;
-    int msg_level;  // this will replace the local msg_level variables
-    // int  instance_id;
-    int  next_module_id; // for rtapi_init()
-    int  rtapi_thread_flavor; 
+    int rtapi_thread_flavor; 
+    int msg_level;                 // a single global message level
+    int next_module_id;           // for userland threads module id's
 } rulapi_data_t;
 
-#define RULAPI_KEY  0x08154711  // key for RULAPI 
-#define RULAPI_REV_CODE 42      // bump on layout changes of rulapi_data_t
+#define RULAPI_KEY  0x08154711     // key for RULAPI 
+#define RULAPI_LAYOUT_VERSION 42   // bump on layout changes of rulapi_data_t
 #define RULAPI_MAGIC 0xdeadbeef
 #define RULAPI_DATA_PERMISSIONS	0666
 
