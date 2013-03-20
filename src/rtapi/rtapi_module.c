@@ -58,12 +58,12 @@ int init_module(void) {
     init_rulapi_data(rulapi_data);
     /* perform a global init if needed */
     init_rtapi_data(rtapi_data);
-    /* check revision code */
-    if (rtapi_data->rev_code != REV_CODE) {
+    /* check serial code */
+    if (rtapi_data->serial != RTAPI_SERIAL) {
 	/* mismatch - release master shared memory block */
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"RTAPI: ERROR: version mismatch %d vs %d\n",
-			rtapi_data->rev_code, REV_CODE);
+			"RTAPI: ERROR: serial mismatch %d vs %d\n",
+			rtapi_data->serial, RTAPI_SERIAL);
 	rtapi_module_master_shared_memory_free();
 	return -EINVAL;
     }
@@ -322,12 +322,12 @@ int _rtapi_init(const char *modname) {
    
     /* perform a global init if needed */
     init_rtapi_data(rtapi_data);
-    /* check revision code */
-    if (rtapi_data->rev_code != REV_CODE) {
+    /* check serial code */
+    if (rtapi_data->serial != RTAPI_SERIAL) {
 	/* mismatch - release master shared memory block */
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"RTAPI: ERROR: version mismatch %d vs %d\n",
-			rtapi_data->rev_code, REV_CODE);
+			rtapi_data->serial, RTAPI_SERIAL);
 	return -EINVAL;
     }
     /* set up local pointers to global data */
