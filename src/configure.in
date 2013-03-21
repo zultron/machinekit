@@ -290,7 +290,7 @@ ARCHITECTURE=`$ARCHCMD`
 THREADS_SOURCE=""
 
 # xenomai equivalent of pkg-config
-XENO_CONFIG=
+XENO_CONFIG=/bin/true
 
 # whether to build drivers for userland with PCI shim support
 USERMODE_PCI=no
