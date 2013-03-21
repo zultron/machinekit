@@ -52,6 +52,7 @@ void rtapi_app_exit(void)
 {
     rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI exit\n");
     rulapi_shm_free(rulapi_shmid, rulapi_data);
+    rulapi_data = NULL;
 }
 
 
