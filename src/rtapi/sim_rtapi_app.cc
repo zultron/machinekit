@@ -492,8 +492,11 @@ exit_handler(void)
     struct rusage rusage;
 	
     getrusage(RUSAGE_SELF, &rusage);
-    rtapi_print_msg(RTAPI_MSG_DBG, "rtapi_app_main %d: %ld page faults, %ld page reclaims\n",
-		    getpid(), rusage.ru_majflt - majflt , rusage.ru_minflt - minflt);
+    if ((rusage.ru_majflt - majflt) > 0) {
+	// RTAPI already shut down here
+	rtapi_print_msg(RTAPI_MSG_WARN,"rtapi_app_main %d: %ld page faults, %ld page reclaims\n",
+		getpid(), rusage.ru_majflt - majflt , rusage.ru_minflt - minflt);
+    }
 }
 
 static int harden_rt()
