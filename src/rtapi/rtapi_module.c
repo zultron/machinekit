@@ -143,6 +143,7 @@ void cleanup_module(void) {
 	/* never got inited, nothing to do */
 	return;
     }
+    global_data = 0; // cant assume this any more
     /* grab the mutex */
     rtapi_mutex_get(&(rtapi_data->mutex));
     rtapi_print_msg(RTAPI_MSG_INFO, "RTAPI: Exiting\n");
