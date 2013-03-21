@@ -85,7 +85,7 @@ install:
 endif
 
 ifeq ($(BUILDSYS),user-dso)
-EXTRA_CFLAGS += -DSIM -fPIC
+EXTRA_CFLAGS +=  -fPIC $(FLAVOR_FLAGS)
 allmodules = $(patsubst %.o,%.so,$(obj-m))
 modules: $(allmodules)
 

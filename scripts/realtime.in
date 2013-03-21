@@ -162,9 +162,13 @@ Load(){
 	# this is the place to load a
         # threadstyle-dependent userland RTAPI
         # see also Unload()
-	rtapi_app load rtapi
-
-	rtapi_app load hal_lib
+	if [ "$DEBUG" != "" ] ; then
+	    rtapi_app load rtapi
+	    rtapi_app load hal_lib
+	else
+	    rtapi_app load rtapi    >/dev/null 2>&1 
+	    rtapi_app load hal_lib  >/dev/null 2>&1
+        fi
 
 	if [ "$DEBUG" != "" ] ; then
             rtapi_app msglevel  "$DEBUG"
@@ -200,21 +204,19 @@ Unload(){
     case $RTPREFIX in
     posix|xenomai-user|rt-preempt-user)
 
-	rtapi_app unload hal_lib
-	rtapi_app unload rtapi
-
-        rtapi_app exit 
+	if [ "$DEBUG" != "" ] ; then
+	    rtapi_app unload hal_lib
+	    rtapi_app unload rtapi
+            rtapi_app exit 
+	else
+	    rtapi_app unload hal_lib  >/dev/null 2>&1
+	    rtapi_app unload rtapi    >/dev/null 2>&1
+            rtapi_app exit            >/dev/null 2>&1
+        fi
 
 	# remove any linuxcnc-specific shm segments if they exist
-	if ipcs -m | grep 0x48414c32 >/dev/null; then
-	    ipcrm -M 0x48414c32 2>/dev/null ;# HAL_KEY
-	fi     
-        if ipcs -m | grep 0x90280A48 >/dev/null; then
-            ipcrm -M 0x90280A48 2>/dev/null ;# RTAPI_KEY
-	fi
-        if ipcs -m | grep 0x48484c34 >/dev/null; then
-            ipcrm -M 0x48484c34 2>/dev/null ;#  UUID_KEY
-	fi
+	# HAL_KEY  RTAPI_KEY GLOBAL_KEY
+	ipcrm  -M 0x48414c32  -M 0x90280a48 -M 0x08154711 | : >/dev/null 2>&1
         ;;
     *)
         for module in $MODULES_UNLOAD ; do

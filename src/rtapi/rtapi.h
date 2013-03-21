@@ -163,6 +163,12 @@ typedef int (*rtapi_exit_t)(int);
     rtapi_switch->rtapi_exit(module_id)
 extern int _rtapi_exit(int module_id);
 
+typedef int (*rtapi_next_module_id_t)(void);
+#define rtapi_next_module_id()			\
+    rtapi_switch->rtapi_next_module_id()
+extern int _rtapi_next_module_id(void);
+
+
 /***********************************************************************
 *                      MESSAGING FUNCTIONS                             *
 ************************************************************************/
@@ -756,21 +762,21 @@ extern unsigned short _rtapi_inw(unsigned int port);
 // prototype for dummy rtapi placeholder function
 typedef int (*rtapi_dummy_t)(void);
 
-// guarantee a unique ID for each thread flavor
-typedef enum {
-    RTAPI_POSIX_ID = 0,
-    RTAPI_RT_PREEMPT_USER_ID,
-    RTAPI_XENOMAI_USER_ID,
-    RTAPI_RTAI_KERNEL_ID,
-    RTAPI_XENOMAI_KERNEL_ID,
-} thread_flavor_id_t;
-
+// a unique ID for each thread flavor
+// cant be an enum since cpp needs to evaluate this symbol
+#define RTAPI_POSIX_ID  0
+#define RTAPI_RT_PREEMPT_USER_ID 1
+#define RTAPI_XENOMAI_USER_ID 2
+#define RTAPI_RTAI_KERNEL_ID 3
+#define RTAPI_XENOMAI_KERNEL_ID 4
 typedef struct {
     const char *git_version;
-    thread_flavor_id_t thread_flavor_id;
+    const char *thread_flavor_name; // for messsages
+    int  thread_flavor_id;
     // init & exit functions
     rtapi_init_t rtapi_init;
     rtapi_exit_t rtapi_exit;
+    rtapi_next_module_id_t rtapi_next_module_id;
     // messaging functions
     rtapi_snprintf_t rtapi_snprintf;
     rtapi_vsnprintf_t rtapi_vsnprintf;
@@ -970,6 +976,7 @@ extern long int simple_strtol(const char *nptr, char **endptr, int base);
 extern int kernel_is_xenomai();
 extern int kernel_is_rtai();
 extern int kernel_is_rtpreempt();
+
 #endif
 
 RTAPI_END_DECLS

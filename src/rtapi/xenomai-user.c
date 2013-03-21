@@ -39,51 +39,22 @@ void init_rtapi_data_hook(rtapi_data_t * data) {
 
 
 /* rtapi_init() and rtapi_exit() */
-typedef struct {
-    unsigned long mutex;
-    int           uuid;
-} uuid_data_t;
-
-#define UUID_KEY  0x48484c34 /* key for UUID for simulator */
-
 
 /***********************************************************************
 *                    INIT AND EXIT FUNCTIONS                           *
 ************************************************************************/
 
 int _rtapi_init(const char *modname) {
-    static uuid_data_t* uuid_data   = 0;
-    static         int  uuid_mem_id = 0;
-    const static   int  uuid_id     = 0;
 
-    static char* uuid_shmem_base = 0;
-    int retval,id;
-    void *uuid_mem;
+#ifdef ULAPI
+    int retval;
 
-    uuid_mem_id = rtapi_shmem_new(UUID_KEY,uuid_id,sizeof(uuid_data_t));
-    if (uuid_mem_id < 0) {
-        rtapi_print_msg(RTAPI_MSG_ERR,
-        "rtapi_init: could not open shared memory for uuid\n");
-        rtapi_exit(uuid_id);
-        return -EINVAL;
-    }
-    retval = rtapi_shmem_getptr(uuid_mem_id,&uuid_mem);
-    if (retval < 0) {
-        rtapi_print_msg(RTAPI_MSG_ERR,
-        "rtapi_init: could not access shared memory for uuid\n");
-        rtapi_exit(uuid_id);
-        return -EINVAL;
-    }
-    if (uuid_shmem_base == 0) {
-        uuid_shmem_base =        (char *) uuid_mem;
-        uuid_data       = (uuid_data_t *) uuid_mem;
-    }
-    rtapi_mutex_get(&uuid_data->mutex);
-        uuid_data->uuid++;
-        id = uuid_data->uuid;
-    rtapi_mutex_give(&uuid_data->mutex);
+    if ((global_data == NULL) &&
+	((retval = global_data_attach(GLOBAL_KEY, &global_data)) < 0))
+	return retval;
+#endif
 
-    return id;
+    return rtapi_next_module_id();
 }
 
 int _rtapi_exit(int module_id) {

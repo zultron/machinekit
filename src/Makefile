@@ -971,7 +971,7 @@ motmod-objs += libnml/posemath/sincos.o $(MATHSTUB)
 TORTOBJS = $(foreach file,$($(patsubst %.o,%,$(1))-objs), objects/rt$(file))
 
 ifeq ($(BUILD_SYS),user-dso)
-EXTRA_CFLAGS += -fPIC -Os
+EXTRA_CFLAGS += -fPIC -Os $(FLAVOR_FLAGS)
 RTOBJS := $(sort $(foreach mod,$(obj-m),$(call TORTOBJS,$(mod))))
 
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d, $(RTOBJS)))
@@ -988,7 +988,7 @@ modules: $(patsubst %.o,../rtlib/%.so,$(obj-m))
 $(sort $(RTDEPS)): depends/rt%.d: %.c
 	@mkdir -p $(dir $@)
 	$(ECHO) Depending $<
-	$(Q)$(call DEP,$(CC),$@ $(patsubst depends/%.d,objects/%.o,$@),$@,$(OPT) $(DEBUG) -DSIM -DRTAPI $(EXTRA_CFLAGS) $<)
+	$(Q)$(call DEP,$(CC),$@ $(patsubst depends/%.d,objects/%.o,$@),$@,$(OPT) $(DEBUG)  -DRTAPI $(EXTRA_CFLAGS) $<)
 
 # Rules to make .o (object) files
 $(sort $(RTOBJS)) : objects/rt%.o : %.c

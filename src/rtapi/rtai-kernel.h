@@ -4,8 +4,6 @@
 *               the RTAI thread system
 ********************************************************************/
 
-#define THREAD_FLAVOR_ID RTAPI_RTAI_KERNEL_ID
-
 #include <rtai.h>
 #include <rtai_sched.h>
 #if RTAI > 2

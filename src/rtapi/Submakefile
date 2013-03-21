@@ -7,6 +7,34 @@ INCLUDES += rtapi
 ../include/%.hh: ./rtapi/%.hh
 	cp  $^ $@
 
+# cflags for all sources, -DRTAPI or -DULAPI
+#
+# see bottom of this file and Makefile
+RT_CFLAGS := 
+# link flags for -DRTAPI/rtapi_app/rtapi.[ks]o and
+# ../lib/liblinuxcnchal.so
+#
+# see below and hal/Submakefile
+RT_LDFLAGS := 
+
+# see enum thread_flavor_id in rtapi.h
+ifeq ($(THREADS),posix)
+FLAVOR_FLAGS := -DTHREAD_FLAVOR_ID=0
+endif
+ifeq ($(THREADS),rt-preempt-user)
+FLAVOR_FLAGS := -DTHREAD_FLAVOR_ID=1
+endif
+ifeq ($(THREADS),xenomai-user)
+FLAVOR_FLAGS := -DTHREAD_FLAVOR_ID=2
+endif
+ifeq ($(THREADS),rtai)
+FLAVOR_FLAGS := -DTHREAD_FLAVOR_ID=3
+endif
+ifeq ($(THREADS),xenomai-kernel)
+FLAVOR_FLAGS := -DTHREAD_FLAVOR_ID=4
+endif
+RT_CFLAGS += $(FLAVOR_FLAGS)
+
 ##########################################
 # defaults for all thread styles
 
@@ -25,7 +53,7 @@ ULAPI_SRCS := \
 	rtapi/$(THREADS_SOURCE).c \
 	$(if $(filter $(BUILD_SYS),kbuild),rtapi/rtapi_module.c)
 
-$(call TOOBJSDEPS, $(ULAPI_SRCS)): EXTRAFLAGS += -fPIC $(RT_CFLAGS)
+$(call TOOBJSDEPS, $(ULAPI_SRCS)): EXTRAFLAGS += -fPIC $(RT_CFLAGS) 
 ULAPISO := ../lib/ulapi.so
 $(ULAPISO): $(call TOOBJS, $(ULAPI_SRCS))
 	$(ECHO) Creating shared library $(notdir $@)
@@ -44,15 +72,6 @@ TARGETS += $(ULAPISO)
 # date.
 
 
-# cflags for all sources, -DRTAPI or -DULAPI
-#
-# see bottom of this file and Makefile
-RT_CFLAGS := 
-# link flags for -DRTAPI/rtapi_app/rtapi.[ks]o and
-# ../lib/liblinuxcnchal.so
-#
-# see below and hal/Submakefile
-RT_LDFLAGS := 
 
 
 ##################################################################

@@ -313,12 +313,11 @@ All hooks have function declarations in the .c source files.  This not
 only helps the compiler with missing symbols, but also forces the
 various thread system implementations to comply with the hook function
 prototypes.
-
-
 Notes for RT threads implementers
 ---------------------------------
 
 - Thread flavor ID:
-  - Create an enumerator in thread_flavor_id_t in rtapi.h
-  - In the thread flavor's header file, define the macro
-    THREAD_FLAVOR_ID with that enumerator
+  - add a #define  to the list of #defines starting with
+    RTAPI_POSIX_ID in rtapi.h with a unique value
+  - in src/rtapi/Submakefile, add the proper flag where FLAVOR_FLAGS
+    is set
