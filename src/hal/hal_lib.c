@@ -3371,6 +3371,10 @@ static void free_thread_struct(hal_thread_t * thread)
 *                     HAL Library constructor and destructors          *
 ************************************************************************/
 
+// pointer to the global data segment, initialized by reading 
+// the ulapi.so symbol 'global_data' post rtpai_init()
+global_data_t *global_data;
+
 #ifdef ULAPI
 int debug_tors; // leave as extern so gdb can get at it
 
@@ -3454,9 +3458,6 @@ static void __attribute__ ((destructor))  ulapi_hal_lib_cleanup(void);
 // this is the pointer through which _all_ RTAPI/ULAPI references go:
 rtapi_switch_t *rtapi_switch;
 
-// pointer to the global data segment, initialized by reading 
-// the ulapi.so symbol 'global_data' post rtpai_init()
-global_data_t *global_data;
 
 // still need per-threadstyle path settuings here:
 static void *ulapi_so; // dlopen handle for ULAPI .so
