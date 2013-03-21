@@ -664,6 +664,8 @@ endif # userspace
 
 ifneq ($(KERNELRELEASE),)
 include $(BASEPWD)/hal/components/Submakefile
+# to pull FLAVOR_FLAGS - see Makefile.modinc.in
+include $(BASEPWD)/rtapi/Submakefile
 endif
 
 # KERNELRELEASE is nonempty, therefore we are building modules using the
@@ -692,7 +694,8 @@ EXTRA_CFLAGS = $(RTFLAGS) \
 	-fno-unsafe-math-optimizations \
 	$(call cc-option,-mieee-fp) \
 	$(call cc-option,-Wframe-larger-than=2560) \
-	$(KERNEL_MATH_CFLAGS)
+	$(KERNEL_MATH_CFLAGS) \
+	$(FLAVOR_FLAGS)
 
 ifeq "$(USE_STUBS)" "1"
 MATHSTUB := rtapi/mathstubs.o
