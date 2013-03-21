@@ -16,6 +16,8 @@
 #include <linux/delay.h>  // udelay()
 #endif 
 
+#define THREAD_FLAVOR_NAME "rtai-kernel"
+
 /* rtapi_module.c */
 #define RT_LINUX_USE_FPU
 

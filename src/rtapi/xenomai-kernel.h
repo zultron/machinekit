@@ -12,6 +12,8 @@
 #define RTAPI_NAME_LEN XNOBJECT_NAME_LEN
 */
 
+#define THREAD_FLAVOR_NAME "xenomai-kernel"
+
 #define MASTER_HEAP "rtapi-heap"
 
 /* add some fields to rtapi_data_t:

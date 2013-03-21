@@ -15,6 +15,8 @@
 #define RTAPI_NAME_LEN XNOBJECT_NAME_LEN
 */
 
+#define THREAD_FLAVOR_NAME "xenomai-user"
+
 /* add some fields to rtapi_data_t:
    rt_wait_error:		release point missed
    rt_last_overrun:		last number of overruns reported by Xenomai

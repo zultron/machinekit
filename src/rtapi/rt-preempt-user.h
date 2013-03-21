@@ -13,6 +13,12 @@
 #include <sched.h>		// sched_get_priority_*()
 #include <pthread.h>		/* pthread_* */
 
+#ifndef RTAPI_POSIX
+#define THREAD_FLAVOR_NAME "rt-preempt-user"
+#else
+#define THREAD_FLAVOR_NAME "posix"
+#endif
+
 // extra task data
 #define THREAD_TASK_DATA			\
     int deleted;				\
