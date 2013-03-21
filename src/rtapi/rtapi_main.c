@@ -77,7 +77,7 @@ static int check_compatible()
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"%s: started Xenomai RTAPI on an RTAI kernel\n",
 			__FUNCTION__);
-	retval--;
+	//retval--;
     }
     if (kernel_is_rtpreempt()) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
@@ -98,20 +98,20 @@ static int check_compatible()
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"%s: started RT_PREEMPT RTAPI on a non-RT PREEMPT kernel\n",
 			__FUNCTION__);
-	retval--;
+	// retval--;
     }
 
     if (kernel_is_rtai()) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"%s: started RT_PREEMPT RTAPI on an RTAI kernel\n",
 			__FUNCTION__);
-	retval--;
+	// retval--;
     }
     if (kernel_is_xenomai()) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"%s: started RT_PREEMPT RTAPI on a Xenomai kernel\n",
 			__FUNCTION__);
-	retval--;
+	// retval--;
     }
     return retval;
 }
