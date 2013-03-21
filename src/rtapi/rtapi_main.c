@@ -19,7 +19,7 @@
 
 #include "rtapi.h"		/* RTAPI realtime OS API */
 #include "rtapi_app.h"		/* RTAPI realtime module decls */
-#include "rtapi_common.h"       /* rulapi_data_t */
+#include "rtapi_common.h"       /* global_data_t */
 #include "rtapi_kdetect.h"      /* environment autodetection */
 
 
@@ -28,20 +28,20 @@ MODULE_DESCRIPTION("RTAPI stubs for userland threadstyles");
 MODULE_LICENSE("GPL2 or later");
 
 static int check_compatible();
-static int rulapi_shm_init(key_t key, rulapi_data_t **rulapi_data);
-static int rulapi_shm_free(int shm_id, rulapi_data_t *rulapi_data);
-static int rulapi_shmid;
+static int global_shm_init(key_t key, global_data_t **global_data);
+static int global_shm_free(int shm_id, global_data_t *global_data);
+static int global_shmid;
 
 int rtapi_app_main(void)
 {
     rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI %s %s startup\n", 
 		    rtapi_switch->thread_flavor_name, GIT_VERSION);
 
-    if ((rulapi_shmid = rulapi_shm_init(RULAPI_KEY, &rulapi_data)) < 0) {
-	return rulapi_shmid;
+    if ((global_shmid = global_shm_init(GLOBAL_KEY, &global_data)) < 0) {
+	return global_shmid;
     }
     // the globally shared segment */
-    init_rulapi_data(rulapi_data);
+    init_global_data(global_data);
 
     // investigate what we're dealing with and fail
     // rtapi_app_main if the build of this object and the environemt
@@ -53,8 +53,8 @@ void rtapi_app_exit(void)
 {
     rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI %s %s exit\n",
 		    rtapi_switch->thread_flavor_name, GIT_VERSION);
-    rulapi_shm_free(rulapi_shmid, rulapi_data);
-    rulapi_data = NULL;
+    global_shm_free(global_shmid, global_data);
+    global_data = NULL;
 }
 
 #if !defined(THREAD_FLAVOR_ID)
@@ -129,14 +129,14 @@ static int check_compatible()
 #endif
 
 
-static int rulapi_shm_init(key_t key, rulapi_data_t **rulapi_data) 
+static int global_shm_init(key_t key, global_data_t **global_data) 
 {
     int retval, shm_id;
-    int size = sizeof(rulapi_data_t);
+    int size = sizeof(global_data_t);
     struct shmid_ds d;
     void *rd;
 
-    if ((shm_id = shmget(key, size, RULAPI_DATA_PERMISSIONS)) > -1) {
+    if ((shm_id = shmget(key, size, GLOBAL_DATA_PERMISSIONS)) > -1) {
 	rtapi_print_msg(RTAPI_MSG_ERR, "%s: RTAPI data segment already exists\n", 
 			__FUNCTION__);
 	return -EEXIST;
@@ -147,7 +147,7 @@ static int rulapi_shm_init(key_t key, rulapi_data_t **rulapi_data)
 	return -EINVAL;
     }
     // nope, doesnt exist - create
-    if ((shm_id = shmget(key, size, RULAPI_DATA_PERMISSIONS | IPC_CREAT)) == -1) {
+    if ((shm_id = shmget(key, size, GLOBAL_DATA_PERMISSIONS | IPC_CREAT)) == -1) {
 	rtapi_print_msg(RTAPI_MSG_ERR, "%s: shmget(key=0x%x, IPC_CREAT): %d - %s\n", 
 			__FUNCTION__, key, errno, strerror(errno));
 	return -EINVAL;
@@ -186,21 +186,21 @@ static int rulapi_shm_init(key_t key, rulapi_data_t **rulapi_data)
     }
     // Touch each page by zeroing the whole mem
     memset(rd, 0, size);
-    *rulapi_data = rd;
+    *global_data = rd;
     return shm_id;
 }
 
-static int rulapi_shm_free(int shm_id, rulapi_data_t *rulapi_data) 
+static int global_shm_free(int shm_id, global_data_t *global_data) 
 {
     struct shmid_ds d;
     int r1, r2;
 
     /* unmap the shared memory */
-    r1 = shmdt(rulapi_data);
+    r1 = shmdt(global_data);
     if (r1 < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"%s: shmdt(%p) failed: %d - %s\n",
-			__FUNCTION__, rulapi_data, errno, strerror(errno));      
+			__FUNCTION__, global_data, errno, strerror(errno));      
 	return -EINVAL;
     }
     /* destroy the shared memory */

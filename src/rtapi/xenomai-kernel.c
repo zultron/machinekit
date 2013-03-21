@@ -18,7 +18,7 @@
 
 
 #define MASTER_HEAP "rtapi-heap"
-#define RULAPI_HEAP "rulapi-heap"
+#define GLOBAL_HEAP "global-heap"
 
 #define MAX_ERRORS 3
 
@@ -26,13 +26,13 @@ static RT_HEAP shmem_heap_array[RTAPI_MAX_SHMEMS + 1];
 
 #ifdef RTAPI
 static RT_HEAP master_heap;
-static RT_HEAP rulapi_heap;
+static RT_HEAP global_heap;
 static rthal_trap_handler_t old_trap_handler;
 static int rtapi_trap_handler(unsigned event, unsigned domid, void *data);
 
 #else /* ULAPI */
 RT_HEAP ul_rtapi_heap_desc;
-RT_HEAP ul_rulapi_heap_desc;
+RT_HEAP ul_global_heap_desc;
 #endif /* ULAPI */
 
 
@@ -61,7 +61,7 @@ void init_rtapi_data_hook(rtapi_data_t * data) {
 
 #ifdef RTAPI
 int rtapi_module_master_shared_memory_init(rtapi_data_t **rtapi_data,
-					   rulapi_data_t **rulapi_data) {
+					   global_data_t **global_data) {
     int n;
 
     /* get master shared memory block from OS and save its address */
@@ -77,16 +77,16 @@ int rtapi_module_master_shared_memory_init(rtapi_data_t **rtapi_data,
 			"RTAPI: ERROR: rt_heap_alloc(rtapi) returns %d\n", n);
 	return -EINVAL;
     }
-    if ((n = rt_heap_create(&rulapi_heap, RULAPI_HEAP, 
-			    sizeof(rulapi_data_t), H_SHARED)) != 0) {
+    if ((n = rt_heap_create(&global_heap, GLOBAL_HEAP, 
+			    sizeof(global_data_t), H_SHARED)) != 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"RTAPI: ERROR: rt_heap_create(rulapi) returns %d\n", n);
+			"RTAPI: ERROR: rt_heap_create(global) returns %d\n", n);
 	return -EINVAL;
     }
-    if ((n = rt_heap_alloc(&rulapi_heap, 0, TM_INFINITE,
-			   (void **)rulapi_data)) != 0) {
+    if ((n = rt_heap_alloc(&global_heap, 0, TM_INFINITE,
+			   (void **)global_data)) != 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"RTAPI: ERROR: rt_heap_alloc(rulapi) returns %d\n", n);
+			"RTAPI: ERROR: rt_heap_alloc(global) returns %d\n", n);
 	return -EINVAL;
     }
     return 0;
@@ -94,7 +94,7 @@ int rtapi_module_master_shared_memory_init(rtapi_data_t **rtapi_data,
 
 void rtapi_module_master_shared_memory_free(void) {
     rt_heap_delete(&master_heap);
-    rt_heap_delete(&rulapi_heap);
+    rt_heap_delete(&global_heap);
 }
 
 void rtapi_module_init_hook(void) {
@@ -105,7 +105,7 @@ void rtapi_module_init_hook(void) {
 void rtapi_module_cleanup_hook(void) {
     /* release master shared memory block */
     rt_heap_delete(&master_heap);
-    rt_heap_delete(&rulapi_heap);
+    rt_heap_delete(&global_heap);
     rthal_trap_catch(old_trap_handler);
 }
 #endif /* RTAPI */
@@ -316,27 +316,27 @@ rtapi_data_t *rtapi_init_hook() {
     return rtapi_data;
 }
 
-rulapi_data_t *rulapi_init_hook() {
+global_data_t *global_init_hook() {
     int retval;
-    rulapi_data_t *rulapi_data;
+    global_data_t *global_data;
 
-    if ((retval = rt_heap_bind(&ul_rulapi_heap_desc, RULAPI_HEAP, TM_INFINITE))) {
+    if ((retval = rt_heap_bind(&ul_global_heap_desc, GLOBAL_HEAP, TM_INFINITE))) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"RTAPI: ERROR: rulapi_init: rt_heap_bind() "
+			"RTAPI: ERROR: global_init: rt_heap_bind() "
 			"returns %d - %s\n", 
 			retval, strerror(-retval));
 	return NULL;
     }
-    if ((retval = rt_heap_alloc(&ul_rulapi_heap_desc, 0,
-				TM_NONBLOCK, (void **)&rulapi_data)) != 0) {
+    if ((retval = rt_heap_alloc(&ul_global_heap_desc, 0,
+				TM_NONBLOCK, (void **)&global_data)) != 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"RTAPI: ERROR: rt_heap_alloc(rulapi) returns %d - %s\n", 
+			"RTAPI: ERROR: rt_heap_alloc(global) returns %d - %s\n", 
 			retval, strerror(retval));
 	return NULL;
     }
 
     //rtapi_printall();
-    return rulapi_data;
+    return global_data;
 }
 #endif /* ULAPI */
 

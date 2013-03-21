@@ -508,8 +508,8 @@ function Cleanup() {
 }
 
 function LinuxcncRunning() {
-    # 135612177 is the integer ID of the RULAPI data segment:
-    # (RULAPI_KEY 0x08154711). it is universally present for 
+    # 135612177 is the integer ID of the GLOBAL data segment:
+    # (GLOBAL_KEY 0x08154711). it is universally present for 
     # all thread styles build options, and removed by 
     # RTAPI rtapi_app_exit(). Hence it is a more reliable
     # indication for 'RTAPI running' than a lock file.

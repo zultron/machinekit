@@ -43,7 +43,7 @@ module_data *module_array = NULL;
 #endif
 
 // items shared between RTAPI and ULAPI
-rulapi_data_t *rulapi_data;
+global_data_t *global_data;
 
 
 /* 
@@ -215,19 +215,19 @@ void init_rtapi_data(rtapi_data_t * data)
 }
 
 #if defined(RTAPI) 
-void init_rulapi_data(rulapi_data_t * data)
+void init_global_data(global_data_t * data)
 {
     /* has the block already been initialized? */
-    if (data->magic == RULAPI_MAGIC) {
+    if (data->magic == GLOBAL_MAGIC) {
 	/* yes, nothing to do */
 	return;
     }
     /* no, we need to init it, grab mutex unconditionally */
     rtapi_mutex_try(&(data->mutex));
     /* set magic number so nobody else init's the block */
-    data->magic = RULAPI_MAGIC;
+    data->magic = GLOBAL_MAGIC;
     /* set version code so other modules can check it */
-    data->layout_version = RULAPI_LAYOUT_VERSION;
+    data->layout_version = GLOBAL_LAYOUT_VERSION;
     // global message level
     data->msg_level = RTAPI_MSG_INFO; 
     // next value returned by rtapi_init (userland threads)
@@ -245,14 +245,14 @@ void init_rulapi_data(rulapi_data_t * data)
 
 #if defined(ULAPI) && defined(BUILD_SYS_USER_DSO)
 
-int rulapi_data_attach(key_t key, rulapi_data_t **rulapi_data) 
+int global_data_attach(key_t key, global_data_t **global_data) 
 {
     int shm_id;
-    int size = sizeof(rulapi_data_t);
+    int size = sizeof(global_data_t);
     void *rd;
 
-    if ((shm_id = shmget(key, size, RULAPI_DATA_PERMISSIONS )) == -1) {
-	rtapi_print_msg(RTAPI_MSG_ERR, "%s: RULAPI data segment does not exist\n", 
+    if ((shm_id = shmget(key, size, GLOBAL_DATA_PERMISSIONS )) == -1) {
+	rtapi_print_msg(RTAPI_MSG_ERR, "%s: GLOBAL data segment does not exist\n", 
 			__FUNCTION__);
 	return -EEXIST;
     }
@@ -265,7 +265,7 @@ int rulapi_data_attach(key_t key, rulapi_data_t **rulapi_data)
 			errno, strerror(errno));
 	return -EINVAL;
     }
-    *rulapi_data = rd;
+    *global_data = rd;
     return shm_id;
 }
 #endif
@@ -276,9 +276,9 @@ int  _rtapi_next_module_id(void)
     int next_id;
 
     // TODO: replace by atomic ops once rtapi_atomic.h has been merged
-    rtapi_mutex_try(&(rulapi_data->mutex));
-    next_id = rulapi_data->next_module_id++;
-    rtapi_mutex_give(&(rulapi_data->mutex));
+    rtapi_mutex_try(&(global_data->mutex));
+    next_id = global_data->next_module_id++;
+    rtapi_mutex_give(&(global_data->mutex));
     return next_id;
 }
 #endif

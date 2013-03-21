@@ -118,7 +118,7 @@ static int proc_read_status(char *page, char **start, off_t off,
     PROC_PRINT(" Last overrun = %i\n", rtapi_data->rt_last_overrun);
     PROC_PRINT("Total overruns = %i\n", rtapi_data->rt_total_overruns);
 #endif
-    PROC_PRINT("Message level = %i\n", rulapi_data->msg_level);
+    PROC_PRINT("Message level = %i\n", global_data->msg_level);
     PROC_PRINT("\n");
     PROC_PRINT_DONE;
 }
@@ -218,15 +218,15 @@ static int proc_read_debug(char *page, char **start, off_t off,
 {
     PROC_PRINT_VARS;
     PROC_PRINT("******* RTAPI MESSAGES ******\n");
-    PROC_PRINT("  Message Level  = %i\n", rulapi_data->msg_level);
+    PROC_PRINT("  Message Level  = %i\n", global_data->msg_level);
     PROC_PRINT("  ERROR messages = %s\n",
-	rulapi_data->msg_level >= RTAPI_MSG_ERR ? "ON" : "OFF");
+	global_data->msg_level >= RTAPI_MSG_ERR ? "ON" : "OFF");
     PROC_PRINT("WARNING messages = %s\n",
-	rulapi_data->msg_level >= RTAPI_MSG_WARN ? "ON" : "OFF");
+	global_data->msg_level >= RTAPI_MSG_WARN ? "ON" : "OFF");
     PROC_PRINT("   INFO messages = %s\n",
-	rulapi_data->msg_level >= RTAPI_MSG_INFO ? "ON" : "OFF");
+	global_data->msg_level >= RTAPI_MSG_INFO ? "ON" : "OFF");
     PROC_PRINT("  DEBUG messages = %s\n",
-	rulapi_data->msg_level >= RTAPI_MSG_DBG ? "ON" : "OFF");
+	global_data->msg_level >= RTAPI_MSG_DBG ? "ON" : "OFF");
     PROC_PRINT("\n");
     PROC_PRINT_DONE;
 }
@@ -252,7 +252,7 @@ static int proc_write_debug(struct file *file,
 	if (msg_level > RTAPI_MSG_ALL) {
 	    msg_level = RTAPI_MSG_ALL;
 	}
-	rulapi_data-> msg_level =  msg_level;
+	global_data-> msg_level =  msg_level;
     }
     /* tell whoever called us that we used all the data, even though we
        really only used the first byte */

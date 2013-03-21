@@ -17,7 +17,7 @@
 #    include <stdio.h>		/* libc's vsnprintf() */
 #endif
 
-// this variable is referenced only during startup before rulapi_data
+// this variable is referenced only during startup before global_data
 // is attached
 static int msg_level = RTAPI_MSG_INFO;	/* message printing level */ //XXX
 #ifdef MODULE
@@ -29,22 +29,22 @@ RTAPI_MP_INT(msg_level, "debug message level (default=1)");
 #define RTAPI_PRINTK printk
 #endif
 
-// assure we can use message levels before rulapi_data is visible
+// assure we can use message levels before global_data is visible
 static int get_msg_level(void)
 {
-    if (rulapi_data == 0)
+    if (global_data == 0)
 	return msg_level;
     else
-	return rulapi_data->msg_level;
+	return global_data->msg_level;
 }
 
 static int set_msg_level(int new_level)
 {
     int old_level;
     
-    if (rulapi_data) {
-	old_level = rulapi_data->msg_level;
-	rulapi_data->msg_level = new_level;
+    if (global_data) {
+	old_level = global_data->msg_level;
+	global_data->msg_level = new_level;
     } else {
 	old_level = msg_level;
 	msg_level = new_level;

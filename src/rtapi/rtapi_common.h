@@ -219,26 +219,26 @@ typedef struct {
     int rtapi_thread_flavor; 
     int msg_level;                 // a single global message level
     int next_module_id;           // for userland threads module id's
-} rulapi_data_t;
+} global_data_t;
 
-#define RULAPI_KEY  0x08154711     // key for RULAPI 
-#define RULAPI_LAYOUT_VERSION 42   // bump on layout changes of rulapi_data_t
-#define RULAPI_MAGIC 0xdeadbeef
-#define RULAPI_DATA_PERMISSIONS	0666
+#define GLOBAL_KEY  0x08154711     // key for GLOBAL 
+#define GLOBAL_LAYOUT_VERSION 42   // bump on layout changes of global_data_t
+#define GLOBAL_MAGIC 0xdeadbeef
+#define GLOBAL_DATA_PERMISSIONS	0666
 
 /* rtapi_common.c */
 extern rtapi_data_t *rtapi_data;
 
 // inited at RTAPI/ULAPI init time, and exported like rtapi_data
-extern  rulapi_data_t *rulapi_data;
+extern  global_data_t *global_data;
 
 #if defined(RTAPI) 
 extern void init_rtapi_data(rtapi_data_t * data);
-extern void init_rulapi_data(rulapi_data_t * data);
+extern void init_global_data(global_data_t * data);
 #endif
 
 #if defined(ULAPI) && defined(BUILD_SYS_USER_DSO)
-extern int rulapi_data_attach(key_t key, rulapi_data_t **rulapi_data);
+extern int global_data_attach(key_t key, global_data_t **global_data);
 #endif
 
 #if defined(RTAPI) && defined(BUILD_SYS_USER_DSO)

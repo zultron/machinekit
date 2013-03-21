@@ -40,8 +40,8 @@ int _rtapi_init(const char *modname) {
 #ifdef ULAPI
     int retval;
 
-    if ((rulapi_data == NULL) &&
-	((retval = rulapi_data_attach(RULAPI_KEY, &rulapi_data)) < 0))
+    if ((global_data == NULL) &&
+	((retval = global_data_attach(GLOBAL_KEY, &global_data)) < 0))
 	return retval;
 #endif
     return rtapi_next_module_id();

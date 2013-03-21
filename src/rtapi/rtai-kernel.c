@@ -60,7 +60,7 @@ long long int rtapi_get_time_hook(void) {
 
 #ifdef RTAPI
 int rtapi_module_master_shared_memory_init(rtapi_data_t **rtapi_data,
-					   rulapi_data_t **rulapi_data) {
+					   global_data_t **global_data) {
     /* get master shared memory block from OS and save its address */
     *rtapi_data = rtai_kmalloc(RTAPI_KEY, sizeof(rtapi_data_t));
     if (*rtapi_data == NULL) {
@@ -68,10 +68,10 @@ int rtapi_module_master_shared_memory_init(rtapi_data_t **rtapi_data,
 	    "RTAPI: ERROR: could not open rtapi_data shared memory\n");
 	return -ENOMEM;
     }
-    *rulapi_data = rtai_kmalloc(RULAPI_KEY, sizeof(rulapi_data_t));
-    if (*rulapi_data == NULL) {
+    *global_data = rtai_kmalloc(GLOBAL_KEY, sizeof(global_data_t));
+    if (*global_data == NULL) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"RTAPI: ERROR: could not open rulapi_data shared memory\n");
+			"RTAPI: ERROR: could not open global_data shared memory\n");
 	return -ENOMEM;
     }
     return 0;
@@ -79,12 +79,12 @@ int rtapi_module_master_shared_memory_init(rtapi_data_t **rtapi_data,
 
 void rtapi_module_master_shared_memory_free(void) {
     rtai_kfree(RTAPI_KEY);
-    rtai_kfree(RULAPI_KEY);
+    rtai_kfree(GLOBAL_KEY);
 }
 
 void rtapi_module_cleanup_hook(void) {
     rtai_kfree(RTAPI_KEY);
-    rtai_kfree(RULAPI_KEY);
+    rtai_kfree(GLOBAL_KEY);
 }
 
 
@@ -102,14 +102,14 @@ rtapi_data_t *rtapi_init_hook() {
     return result;
 }
 
-rulapi_data_t *rulapi_init_hook() {
-    rulapi_data_t *result;
-    result = rtai_malloc(RULAPI_KEY, sizeof(rulapi_data_t));
+global_data_t *global_init_hook() {
+    global_data_t *result;
+    result = rtai_malloc(GLOBAL_KEY, sizeof(global_data_t));
 
     // the check for -1 here is because rtai_malloc (in at least
     // rtai 3.6.1, and probably others) has a bug where it
     // sometimes returns -1 on error
-    if (result == (rulapi_data_t*)-1)
+    if (result == (global_data_t*)-1)
 	result = NULL;
 
     return result;

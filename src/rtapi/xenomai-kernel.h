@@ -42,7 +42,7 @@
 // #define RT_LINUX_USE_FPU
 
 #define HAVE_RTAPI_MODULE_INIT_HOOK
-#define HAVE_RULAPI_MODULE_INIT_HOOK
+#define HAVE_GLOBAL_MODULE_INIT_HOOK
 
 
 /* rtapi_task.c */
