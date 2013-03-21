@@ -45,7 +45,9 @@ int rtapi_app_main(void)
     // investigate what we're dealing with and fail
     // rtapi_app_main if the build of this object and the environemt
     // is incompatible
-    return check_compatible();
+    check_compatible();
+    // XXX FIXME notyet return check_compatible();
+    return 0;
 }
 
 void rtapi_app_exit(void)
