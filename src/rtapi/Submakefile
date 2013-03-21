@@ -94,13 +94,23 @@ endif # xenomai-user
 
 
 ################################################
-# rt-preempt-user and posix settings
+# posix settings
+ifeq ($(THREADS_SOURCE),posix)
+
+#RT_CFLAGS +=  
+RT_LDFLAGS += -lpthread
+
+endif  # posix
+
+
+################################################
+# rt-preempt-user settings
 ifeq ($(THREADS_SOURCE),rt-preempt-user)
 
 #RT_CFLAGS +=  
 RT_LDFLAGS += -lpthread -lrt
 
-endif  # rt-preempt-user/posix
+endif  # rt-preempt-user
 
 
 ################################################
