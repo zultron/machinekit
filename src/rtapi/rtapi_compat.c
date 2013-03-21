@@ -2,10 +2,6 @@
 #include "config.h"
 #include "rtapi.h"
 
-#if !defined(BUILD_SYS_USER_DSO)
-#error "rtapi_check_compat is available only for userland threadstyles"
-#endif
-
 #include <stdio.h>
 #include <sys/stat.h>
 
