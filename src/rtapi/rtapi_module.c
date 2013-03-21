@@ -21,6 +21,11 @@
 #  if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
 #    include <linux/cpumask.h>	/* NR_CPUS, cpu_online() */
 #  endif
+
+// XXX FIXME: move to global sizing include
+static int hal_size = 262000; // HAL_SIZE
+RTAPI_MP_INT(hal_size, "size of the HAL data segment");
+
 #endif
 
 
@@ -55,7 +60,7 @@ int init_module(void) {
     res = rtapi_module_master_shared_memory_init(&rtapi_data, &global_data);
     if (res) return res;
     // the globally shared segment */
-    init_global_data(global_data);
+    init_global_data(global_data, hal_size);
     /* perform a global init if needed */
     init_rtapi_data(rtapi_data);
     /* check flavor and serial codes */

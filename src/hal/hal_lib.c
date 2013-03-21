@@ -224,6 +224,15 @@ int hal_init(const char *name)
 	rtapi_print_msg(RTAPI_MSG_ERR, "HAL: ERROR: rtapi init failed\n");
 	return -EINVAL;
     }
+
+    // make global_data acccessible
+    global_data = rtapi_get_global_data();
+    if (global_data == NULL) {
+	rtapi_print_msg(RTAPI_MSG_ERR, 
+			"HAL_LIB: ERROR: rtapi_get_global_data() returned NULL\n");
+	return -EINVAL;
+    }
+
     /* get mutex before manipulating the shared data */
     rtapi_mutex_get(&(hal_data->mutex));
     /* make sure name is unique in the system */
@@ -2577,8 +2586,17 @@ int rtapi_app_main(void)
 	rtapi_print_msg(RTAPI_MSG_ERR, "HAL_LIB: ERROR: rtapi init failed\n");
 	return -EINVAL;
     }
+
+    // make global_data acccessible
+    global_data = rtapi_get_global_data();
+    if (global_data == NULL) {
+	rtapi_print_msg(RTAPI_MSG_ERR, 
+			"HAL_LIB: ERROR: rtapi_get_global_data() returned NULL\n");
+	return -EINVAL;
+    }
+
     /* get HAL shared memory block from RTAPI */
-    lib_mem_id = rtapi_shmem_new(HAL_KEY, lib_module_id, HAL_SIZE);
+    lib_mem_id = rtapi_shmem_new(HAL_KEY, lib_module_id, global_data->hal_size);
 
     if (lib_mem_id < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
@@ -2727,7 +2745,7 @@ static int init_hal_data(void)
 
 #if defined(RTAPI_XENOMAI_KERNEL)
     // xenomai heaps contain garbage
-    memset(hal_data, 0, HAL_SIZE);
+    memset(hal_data, 0, global_data->hal_size);
 #endif
 
     /* set version code so nobody else init's the block */
@@ -2754,7 +2772,7 @@ static int init_hal_data(void)
     hal_data->exact_base_period = 0;
     /* set up for shmalloc_xx() */
     hal_data->shmem_bot = sizeof(hal_data_t);
-    hal_data->shmem_top = HAL_SIZE;
+    hal_data->shmem_top = global_data->hal_size;
     hal_data->lock = HAL_LOCK_NONE;
     /* done, release mutex */
     rtapi_mutex_give(&(hal_data->mutex));
@@ -3371,8 +3389,15 @@ int hal_rtapi_attach()
 		"HAL: ERROR: could not not initialize RTAPI\n");
 	    return -EINVAL;
 	}
+	
+	// make global_data acccessible
+	global_data = rtapi_get_global_data();
+
+	// this is userland so OK to use assert
+	assert(global_data != NULL);
+
 	/* get HAL shared memory block from RTAPI */
-	lib_mem_id = rtapi_shmem_new(HAL_KEY, lib_module_id, HAL_SIZE);
+	lib_mem_id = rtapi_shmem_new(HAL_KEY, lib_module_id, global_data->hal_size);
 	if (lib_mem_id < 0) {
 	    rtapi_print_msg(RTAPI_MSG_ERR,
 		"HAL: ERROR: could not open shared memory\n");
@@ -3429,6 +3454,10 @@ static void __attribute__ ((destructor))  ulapi_hal_lib_cleanup(void);
 // this is the pointer through which _all_ RTAPI/ULAPI references go:
 rtapi_switch_t *rtapi_switch;
 
+// pointer to the global data segment, initialized by reading 
+// the ulapi.so symbol 'global_data' post rtpai_init()
+global_data_t *global_data;
+
 // still need per-threadstyle path settuings here:
 static void *ulapi_so; // dlopen handle for ULAPI .so
 static char *ulapi_lib = "ulapi.so";
@@ -3436,11 +3465,15 @@ static char *ulapi_lib = "ulapi.so";
 static void ulapi_hal_lib_init(void)
 {
     const char *errmsg;
-    rtapi_switch_t **symref;
+    rtapi_switch_t **rtsw_ref;
+
     debug_tors = (getenv("DEBUG") != NULL);
 
     if (debug_tors)
 	// RTAPI isnt initialized here yet, so rtapi_print_msg wont work
+
+	// XXX fixme yes we can!
+
 	fprintf(stderr, "%s:%s(pid=%d) called\n",
 		__FILE__,__FUNCTION__, getpid());
 
@@ -3452,67 +3485,64 @@ static void ulapi_hal_lib_init(void)
 	exit(1);
     }
     // resolve the pointer to rtapi_switch
-    if ((symref = (rtapi_switch_t **) dlsym(ulapi_so, "rtapi_switch")) != NULL) {
-	// fprintf(stderr,"successfully loaded ULAPI '%s': '%s'\n",
-	//         ulapi_lib, rtapi_switch->name);
-	if (debug_tors)
-	    fprintf(stderr,"HAL_LIB: successfully loaded ULAPI '%s' rtapi_git=%s\n",
-		    ulapi_lib, git_version);
-	rtapi_switch = *symref;
-
-	// there isnt much we can do if the build is so screwed up that
-	// rtapi_switch is NULL
-	assert(rtapi_switch != NULL);
-
-	// sanity check - may be harmless
-	if (strcmp(git_version, rtapi_switch->git_version)) {
-	    fprintf(stderr,"HAL_LIB: ULAPI warning - git versions disagree: hal_lib.c=%s %s=%s\n",
-		    git_version, ulapi_lib, rtapi_switch->git_version);
-	}
-
-	// verify the ulapi-foo.so we just loaded is compatible with
-	// the running kernel if it has special prerequisites
-
-#ifdef AWAITING_THREADSTYLE_TAG_IN_RTAPI_SWITCH
-	
-	switch (rtapi_switch->flavor_id) {
-	case RT_PREEMPT_USER:
-	    if (!kernel_is_xenomai()) {
-		fprintf(stderr,"HAL_LIB: ERROR - RT_PREEMPT ULAPI loaded but kernel is not RT_PREEMPT (%s, %s)\n",
-			ulapi_lib, rtapi_switch->git_version);
-		exit(1);
-	    }
-	    break;
-	case XENOMAI_KERNEL:
-	case XENOMAI_USER:
-	    if (!kernel_is_xenomai()) {
-		fprintf(stderr,"HAL_LIB: ERROR - Xenomai ULAPI loaded but kernel is not Xenomai (%s, %s)\n",
-			ulapi_lib, rtapi_switch->git_version);
-		exit(1);
-	    }
-	    break;
-	case RTAI:
-	    if (!kernel_is_rtai()) {
-		fprintf(stderr,"HAL_LIB: ERROR - RTAI ULAPI loaded but kernel is not RTAI (%s, %s)\n",
-			ulapi_lib, rtapi_switch->git_version);
-		exit(1);
-	    }
-	    break;
-	default:
-	    // no prerequisites for vanilla
-	    break;
-	}
-#endif
-	// at this point it is safe to call RTAPI functions since the
-	// rtapi_switch pointer is now valid and the stuff we loaded
-	// makes sense for the kernel running.
-    } else {
+    if ((rtsw_ref = (rtapi_switch_t **) dlsym(ulapi_so, "rtapi_switch")) == NULL) {
 	errmsg = dlerror();
 	fprintf(stderr,"HAL_LIB: FATAL - resolving %s: cant dlsym(rtapi_switch): %s\n",
 		ulapi_lib, errmsg ? errmsg : "NULL");
 	exit(1);
     }
-    // and off we go!
+    rtapi_switch = *rtsw_ref;
+
+
+    if (debug_tors)
+	fprintf(stderr,"HAL_LIB: successfully loaded ULAPI '%s' rtapi_git=%s\n",
+		ulapi_lib, git_version);
+
+    // there isnt much we can do if the build is so screwed up that
+    // rtapi_switch is NULL
+    assert(rtapi_switch != NULL);
+
+    // sanity check - may be harmless
+    if (strcmp(git_version, rtapi_switch->git_version)) {
+	fprintf(stderr,"HAL_LIB: ULAPI warning - git versions disagree: hal_lib.c=%s %s=%s\n",
+		git_version, ulapi_lib, rtapi_switch->git_version);
+    }
+
+    // verify the ulapi-foo.so we just loaded is compatible with
+    // the running kernel if it has special prerequisites
+
+	
+    switch (rtapi_switch->thread_flavor_id) {
+    case  RTAPI_RT_PREEMPT_USER_ID:
+	if (!kernel_is_xenomai()) {
+	    fprintf(stderr,"HAL_LIB: ERROR - RT_PREEMPT ULAPI loaded but kernel is not RT_PREEMPT (%s, %s)\n",
+		    ulapi_lib, rtapi_switch->git_version);
+	    exit(1);
+	}
+	break;
+    case RTAPI_XENOMAI_KERNEL_ID:
+    case RTAPI_XENOMAI_USER_ID:
+	if (!kernel_is_xenomai()) {
+	    fprintf(stderr,"HAL_LIB: ERROR - Xenomai ULAPI loaded but kernel is not Xenomai (%s, %s)\n",
+		    ulapi_lib, rtapi_switch->git_version);
+	    exit(1);
+	}
+	break;
+    case RTAPI_RTAI_KERNEL_ID:
+	if (!kernel_is_rtai()) {
+	    fprintf(stderr,"HAL_LIB: ERROR - RTAI ULAPI loaded but kernel is not RTAI (%s, %s)\n",
+		    ulapi_lib, rtapi_switch->git_version);
+	    exit(1);
+	}
+	break;
+    default:
+	// no prerequisites for vanilla
+	break;
+    }
+
+    // at this point it is safe to call RTAPI functions since the
+    // rtapi_switch pointer is now valid and the stuff we loaded
+    // makes sense for the kernel running.
 
     // previously the HAL shm segment was attached only during the
     // first hal_init(). Do that now at shlib load time instead of
@@ -3520,6 +3550,8 @@ static void ulapi_hal_lib_init(void)
     // this enables use of the rtapi_data segment for shared state
     // immediately, not just after the first hal_init(), whenever
     // that might be (which might be never).
+
+    // this also initializes global_data.
     hal_rtapi_attach();
 }
 

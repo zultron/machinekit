@@ -27,6 +27,10 @@ MODULE_AUTHOR("Michael Haberler");
 MODULE_DESCRIPTION("RTAPI stubs for userland threadstyles");
 MODULE_LICENSE("GPL2 or later");
 
+// XXX FIXME: move to global sizing include
+static int hal_size = 262000; // HAL_SIZE
+RTAPI_MP_INT(hal_size, "size of the HAL data segment");
+
 static int check_compatible();
 static int global_shm_init(key_t key, global_data_t **global_data);
 static int global_shm_free(int shm_id, global_data_t *global_data);
@@ -41,7 +45,7 @@ int rtapi_app_main(void)
 	return global_shmid;
     }
     // the globally shared segment */
-    init_global_data(global_data);
+    init_global_data(global_data, hal_size);
 
     // investigate what we're dealing with and fail
     // rtapi_app_main if the build of this object and the environemt

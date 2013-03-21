@@ -93,6 +93,7 @@
 */
 
 #include <rtapi.h>
+#include <rtapi_global.h>
 RTAPI_BEGIN_DECLS
 
 /* SHMPTR(offset) converts 'offset' to a void pointer. */
@@ -105,7 +106,7 @@ RTAPI_BEGIN_DECLS
    location that is part of the HAL shared memory block. */
 
 #define SHMCHK(ptr)  ( ((char *)(ptr)) > (hal_shmem_base) && \
-                       ((char *)(ptr)) < (hal_shmem_base + HAL_SIZE) )
+                       ((char *)(ptr)) < (hal_shmem_base + global_data->hal_size) )
 
 /** The good news is that none of this linked list complexity is
     visible to the components that use this API.  Complexity here
@@ -326,7 +327,7 @@ typedef struct {
 
 #define HAL_KEY   0x48414C32	/* key used to open HAL shared memory */
 #define HAL_VER   0x0000000C	/* version code */
-#define HAL_SIZE  262000
+//#define HAL_SIZE  262000
 
 /* These pointers are set by hal_init() to point to the shmem block
    and to the master data structure. All access should use these

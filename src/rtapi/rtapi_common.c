@@ -43,6 +43,9 @@ module_data *module_array = NULL;
 #endif
 
 // items shared between RTAPI and ULAPI
+// this is NOT shared perEXPORT_SYMBOL() but through
+// the rtapi_get_global_data() method which works uniformly
+// regarding of process environment
 global_data_t *global_data;
 
 
@@ -83,11 +86,8 @@ static rtapi_switch_t rtapi_switch_struct = {
     // init & exit functions
     .rtapi_init = &_rtapi_init,
     .rtapi_exit = &_rtapi_exit,
-#if defined(BUILD_SYS_USER_DSO)
     .rtapi_next_module_id = &_rtapi_next_module_id,
-#else
-    .rtapi_next_module_id = &_rtapi_dummy,
-#endif
+    .rtapi_get_global_data = &_rtapi_get_global_data,
     // messaging functions
     .rtapi_snprintf = &_rtapi_snprintf,
     .rtapi_vsnprintf = &_rtapi_vsnprintf,
@@ -214,7 +214,7 @@ void init_rtapi_data(rtapi_data_t * data)
 }
 
 #if defined(RTAPI) 
-void init_global_data(global_data_t * data)
+void init_global_data(global_data_t * data, int hal_size)
 {
     /* has the block already been initialized? */
     if (data->magic == GLOBAL_MAGIC) {
@@ -236,13 +236,16 @@ void init_global_data(global_data_t * data)
     // tell the others what thread flavor this RTAPI has
     data->rtapi_thread_flavor = THREAD_FLAVOR_ID;
 
+    // HAL segment size - module param to rtapi 'hal_size=n'
+    data->hal_size = hal_size;
+
     /* done, release the mutex */
     rtapi_mutex_give(&(data->mutex));
     return;
 }
 #endif
 
-#if defined(ULAPI) && defined(BUILD_SYS_USER_DSO)
+#if defined(ULAPI) 
 
 int global_data_attach(key_t key, global_data_t **global_data) 
 {
@@ -259,7 +262,7 @@ int global_data_attach(key_t key, global_data_t **global_data)
     rd = shmat(shm_id, 0, 0);
     if (((ssize_t) rd) == -1) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"%s: shmat(%d) failed: %d - %s\n",
+			"%s: shmat(%d) failed: %d - %ds\n",
 			__FUNCTION__, shm_id, 
 			errno, strerror(errno));
 	return -EINVAL;
@@ -269,18 +272,30 @@ int global_data_attach(key_t key, global_data_t **global_data)
 }
 #endif
 
-#if defined(BUILD_SYS_USER_DSO)
+
+// any API, any style:
+global_data_t *_rtapi_get_global_data(void) {
+#ifndef SMART_CODER
+    if (global_data == NULL) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"RTAPI: FATAL: _rtapi_get_global_data(): "
+			"global_data not yet initialzed - called before rtapi_init()?\n" );
+    }
+#endif
+    return global_data;
+}
+
 int  _rtapi_next_module_id(void) 
 {
     int next_id;
 
-    // TODO: replace by atomic ops once rtapi_atomic.h has been merged
+    // TODO: replace by atomic inrement-and-get
+    // once rtapi_atomic.h has been merged
     rtapi_mutex_try(&(global_data->mutex));
     next_id = global_data->next_module_id++;
     rtapi_mutex_give(&(global_data->mutex));
     return next_id;
 }
-#endif
 
 /* simple_strtol defined in
    /usr/src/kernels/<kversion>/include/linux/kernel.h */

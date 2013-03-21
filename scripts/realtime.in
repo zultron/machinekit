@@ -163,11 +163,11 @@ Load(){
         # threadstyle-dependent userland RTAPI
         # see also Unload()
 	if [ "$DEBUG" != "" ] ; then
-	    rtapi_app load rtapi
+	    rtapi_app load rtapi  hal_size=$HAL_SIZE
 	    rtapi_app load hal_lib
 	else
-	    rtapi_app load rtapi    >/dev/null 2>&1 
-	    rtapi_app load hal_lib  >/dev/null 2>&1
+	    rtapi_app load rtapi   hal_size=$HAL_SIZE 2>&1 >/dev/null 
+	    rtapi_app load hal_lib  2>&1 >/dev/null
         fi
 
 	if [ "$DEBUG" != "" ] ; then
@@ -216,7 +216,7 @@ Unload(){
 
 	# remove any linuxcnc-specific shm segments if they exist
 	# HAL_KEY  RTAPI_KEY GLOBAL_KEY
-	ipcrm  -M 0x48414c32  -M 0x90280a48 -M 0x08154711 | : >/dev/null 2>&1
+	ipcrm  -M 0x48414c32  -M 0x90280a48 -M 0x08154711 2>&1 >/dev/null | :  
         ;;
     *)
         for module in $MODULES_UNLOAD ; do

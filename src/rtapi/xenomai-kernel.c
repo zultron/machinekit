@@ -300,15 +300,15 @@ rtapi_data_t *rtapi_init_hook() {
     if ((retval = rt_heap_bind(&ul_rtapi_heap_desc, MASTER_HEAP, TM_INFINITE))) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"RTAPI: ERROR: rtapi_init: rt_heap_bind() "
-			"returns %d - %s\n", 
-			retval, strerror(-retval));
+			"returns %d\n", 
+			retval);
 	return NULL;
     }
     if ((retval = rt_heap_alloc(&ul_rtapi_heap_desc, 0,
 				TM_NONBLOCK, (void **)&rtapi_data)) != 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"RTAPI: ERROR: rt_heap_alloc(rtapi) returns %d - %s\n", 
-			retval, strerror(retval));
+			"RTAPI: ERROR: rt_heap_alloc(rtapi) returns %d \n", 
+			retval);
 	return NULL;
     }
 
@@ -323,15 +323,15 @@ global_data_t *global_init_hook() {
     if ((retval = rt_heap_bind(&ul_global_heap_desc, GLOBAL_HEAP, TM_INFINITE))) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"RTAPI: ERROR: global_init: rt_heap_bind() "
-			"returns %d - %s\n", 
-			retval, strerror(-retval));
+			"returns %d\n", 
+			retval);
 	return NULL;
     }
     if ((retval = rt_heap_alloc(&ul_global_heap_desc, 0,
 				TM_NONBLOCK, (void **)&global_data)) != 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"RTAPI: ERROR: rt_heap_alloc(global) returns %d - %s\n", 
-			retval, strerror(retval));
+			"RTAPI: ERROR: rt_heap_alloc(global) returns %d\n", 
+			retval);
 	return NULL;
     }
 

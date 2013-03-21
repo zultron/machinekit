@@ -66,6 +66,7 @@
 #define RTAPI_SERIAL 1
 
 #include "config.h"
+#include "rtapi_global.h"  
 
 #if ( !defined RTAPI ) && ( !defined ULAPI )
 #error "Please define either RTAPI or ULAPI!"
@@ -125,6 +126,10 @@ typedef __s64		s64;
 
 RTAPI_BEGIN_DECLS
 
+// do NOT use this extern - use rtapi_get_global_data(), see below
+extern global_data_t *global_data;
+
+
 /***********************************************************************
 *                    INIT AND EXIT FUNCTIONS                           *
 ************************************************************************/
@@ -163,10 +168,30 @@ typedef int (*rtapi_exit_t)(int);
     rtapi_switch->rtapi_exit(module_id)
 extern int _rtapi_exit(int module_id);
 
+/** 'rtapi_next_module_id()' returns a globally unique int ID
+    
+ */
 typedef int (*rtapi_next_module_id_t)(void);
 #define rtapi_next_module_id()			\
     rtapi_switch->rtapi_next_module_id()
 extern int _rtapi_next_module_id(void);
+
+/** 'rtapi_get_global_data()' returns a pointer to the global 
+    segment. 
+
+    NB: this may be called only after the first call to 
+    rtapi_init()!
+
+    WARNING: Using code MUST be prepared to fail gracefully
+    if this function returns NULL - to panic is not an option.
+    This indicates a programming error and happens if called
+    before the the first call to rtapi_init().
+    
+ */
+typedef global_data_t *(*rtapi_get_global_data_t)(void);
+#define rtapi_get_global_data()			\
+    rtapi_switch->rtapi_get_global_data()
+extern global_data_t * _rtapi_get_global_data(void);
 
 
 /***********************************************************************
@@ -777,6 +802,7 @@ typedef struct {
     rtapi_init_t rtapi_init;
     rtapi_exit_t rtapi_exit;
     rtapi_next_module_id_t rtapi_next_module_id;
+    rtapi_get_global_data_t rtapi_get_global_data;
     // messaging functions
     rtapi_snprintf_t rtapi_snprintf;
     rtapi_vsnprintf_t rtapi_vsnprintf;
