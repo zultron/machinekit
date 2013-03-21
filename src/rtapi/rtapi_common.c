@@ -64,6 +64,22 @@ int _rtapi_dummy(void) {
 
 static rtapi_switch_t rtapi_switch_struct = {
     .git_version = GIT_VERSION,
+
+#if THREAD_FLAVOR_ID == RTAPI_XENOMAI_USER_ID
+    .thread_flavor_name = "xenomai-user",
+#endif
+#if THREAD_FLAVOR_ID ==  RTAPI_RT_PREEMPT_USER_ID
+    .thread_flavor_name = "rt-preempt-user",
+#endif
+#if THREAD_FLAVOR_ID == RTAPI_POSIX_ID
+    .thread_flavor_name = "posix",
+#endif
+#if THREAD_FLAVOR_ID == RTAPI_RTAI_KERNEL_ID
+    .thread_flavor_name = "rtai",
+#endif
+#if THREAD_FLAVOR_ID == RTAPI_XENOMAI_KERNEL_ID
+    .thread_flavor_name = "xenomai-kernel",
+#endif
     .thread_flavor_id = THREAD_FLAVOR_ID,
     // init & exit functions
     .rtapi_init = &_rtapi_init,
@@ -218,7 +234,8 @@ void init_rulapi_data(rulapi_data_t * data)
     // those dont use fixed sized arrays 
     data->next_module_id = 0;
 
-    //XXX JM FIXME    data->rtapi_thread_flavor = TBD;
+    // tell the others what thread flavor this RTAPI has
+    data->rtapi_thread_flavor = THREAD_FLAVOR_ID;
 
     /* done, release the mutex */
     rtapi_mutex_give(&(data->mutex));

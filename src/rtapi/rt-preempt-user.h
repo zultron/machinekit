@@ -6,11 +6,6 @@
 *		It should be included in rtapi_common.h
 ********************************************************************/
 
-#ifndef RTAPI_POSIX
-#define THREAD_FLAVOR_ID RTAPI_POSIX_ID
-#else
-#define THREAD_FLAVOR_ID RTAPI_RT_PREEMPT_USER_ID
-#endif
 
 /***********************************************************************
 *                           TASK FUNCTIONS                             *

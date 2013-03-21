@@ -34,7 +34,8 @@ static int rulapi_shmid;
 
 int rtapi_app_main(void)
 {
-    rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI %s startup\n", GIT_VERSION);
+    rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI %s %s startup\n", 
+		    rtapi_switch->thread_flavor_name, GIT_VERSION);
 
     if ((rulapi_shmid = rulapi_shm_init(RULAPI_KEY, &rulapi_data)) < 0) {
 	return rulapi_shmid;
@@ -45,28 +46,22 @@ int rtapi_app_main(void)
     // investigate what we're dealing with and fail
     // rtapi_app_main if the build of this object and the environemt
     // is incompatible
-    check_compatible();
-    // XXX FIXME notyet return check_compatible();
-    return 0;
+    return check_compatible();
 }
 
 void rtapi_app_exit(void)
 {
-    rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI exit\n");
+    rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI %s %s exit\n",
+		    rtapi_switch->thread_flavor_name, GIT_VERSION);
     rulapi_shm_free(rulapi_shmid, rulapi_data);
     rulapi_data = NULL;
 }
 
+#if !defined(THREAD_FLAVOR_ID)
+#error "THREAD_FLAVOR_ID is not defined!"
+#endif
 
-// fudge it for testing - please fix by proper include/define
-#define XENOMAI_USER 1
-#define RT_PREEMPT_USER 2
-
-#define THREADSTYLE XENOMAI_USER
-//#define THREADSTYLE  RT_PREEMPT_USER
-
-
-#if THREADSTYLE == XENOMAI_USER
+#if THREAD_FLAVOR_ID == RTAPI_XENOMAI_USER_ID
 static int check_compatible()
 {
     int retval = 0;
@@ -93,7 +88,7 @@ static int check_compatible()
     return retval;
 }
 
-#elif THREADSTYLE == RT_PREEMPT_USER
+#elif THREAD_FLAVOR_ID ==  RTAPI_RT_PREEMPT_USER_ID
 
 static int check_compatible()
 {
@@ -121,9 +116,16 @@ static int check_compatible()
     return retval;
 }
 
+#elif THREAD_FLAVOR_ID == RTAPI_POSIX_ID
+
+static int check_compatible()
+{
+    return 0; // no prerequisites
+}
+
 #else
 
-#error "THREADSTYLE not set"
+#error "THREAD_FLAVOR_ID not set"
 #endif
 
 
