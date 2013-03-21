@@ -50,7 +50,7 @@ int init_module(void) {
   int n, res;
 
     /* say hello */
-    rtapi_print_msg(RTAPI_MSG_INFO, "RTAPI: Init\n");
+    rtapi_print_msg(RTAPI_MSG_INFO, "RTAPI: Init %s\n", GIT_VERSION);
     /* get master shared memory block from OS and save its address */
     res = rtapi_module_master_shared_memory_init(&rtapi_data, &rulapi_data);
     if (res) return res;
