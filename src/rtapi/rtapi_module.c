@@ -70,6 +70,7 @@ int init_module(void) {
 			"RTAPI: ERROR: flavor mismatch %d vs %d\n",
 			rtapi_data->thread_flavor_id, THREAD_FLAVOR_ID);
 	rtapi_module_master_shared_memory_free();
+	global_data = NULL; // invalidate
 	return -EINVAL;
     }
     if (rtapi_data->serial != RTAPI_SERIAL) {
@@ -78,6 +79,7 @@ int init_module(void) {
 			"RTAPI: ERROR: serial mismatch '%d' vs '%d'\n",
 			rtapi_data->serial, RTAPI_SERIAL);
 	rtapi_module_master_shared_memory_free();
+	global_data = NULL; // invalidate
 	return -EINVAL;
     }
     /* set up local pointers to global data */
