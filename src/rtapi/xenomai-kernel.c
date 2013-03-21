@@ -104,8 +104,7 @@ void rtapi_module_init_hook(void) {
 
 void rtapi_module_cleanup_hook(void) {
     /* release master shared memory block */
-    rt_heap_delete(&master_heap);
-    rt_heap_delete(&global_heap);
+    rtapi_module_master_shared_memory_free();
     rthal_trap_catch(old_trap_handler);
 }
 #endif /* RTAPI */
