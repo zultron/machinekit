@@ -203,7 +203,7 @@ shm_t *rcs_shm_open(key_t key, size_t size, int oflag, /* int mode */ ...)
     errno = 0;
 
     shm->size = size;
-    fprintf(stderr, "rcs_shm_open _shm key=%d instance_no=%d\n", key, instance_no);
+    //fprintf(stderr, "rcs_shm_open _shm key=%d instance_no=%d\n", key, instance_no);
     if ((shm->id = shmget(key , (int) size, shmflg)) == -1) {
 	shm->create_errno = errno;
 	rcs_print_error("shmget(%d(0x%X),%zd,%d) failed: (errno = %d): %s\n",
