@@ -218,8 +218,9 @@ Unload(){
         fi
 
 	# remove any linuxcnc-specific shm segments if they exist
-	# HAL_KEY  RTAPI_KEY GLOBAL_KEY
-	ipcrm  -M 0x48414c32  -M 0x90280a48 -M 0x08154711 2>&1 >/dev/null | :  
+	# HAL_KEY  RTAPI_KEY GLOBAL_KEY DEFAULT_MOTION_SHMEM_KEY
+	ipcrm  -M 0x${INSTANCE}414c32  -M 0x${INSTANCE}280a48 \
+	    -M 0x${INSTANCE}154711 0x${INSTANCE}000064 2>&1 >/dev/null | :  
         ;;
     *)
         for module in $MODULES_UNLOAD ; do
