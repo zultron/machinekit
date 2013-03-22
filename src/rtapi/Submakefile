@@ -1,11 +1,13 @@
 INCLUDES += rtapi
 
-# this covers the userpci directory too, in a bit cludgy way
-../include/%.h: ./rtapi/%.h
+../include/%.h: ./rtapi/%.h ../include/userpci/.exists
+	cp $< $@
+../include/%.hh: ./rtapi/%.hh ../include/userpci/.exists
+	cp $< $@
+../include/userpci/.exists:
 	mkdir -p ../include/userpci
-	cp  $^ $@
-../include/%.hh: ./rtapi/%.hh
-	cp  $^ $@
+	touch $@
+.INTERMEDIATE: ../include/userpci/.exists
 
 # cflags for all sources, -DRTAPI or -DULAPI
 #
