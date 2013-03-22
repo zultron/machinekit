@@ -134,9 +134,9 @@ int _rtapi_task_new(void (*taskcode) (void*), void *arg,
 	PRIO_GT(prio,rtapi_prio_highest())) {
 	
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"New task  %d  '%s': invalid priority %d "
+			"New task  %d  '%s:%s': invalid priority %d "
 			"(highest=%d lowest=%d)\n",
-			task_id, name, prio,
+			task_id, name, rtapi_instance, prio,
 			rtapi_prio_highest(),
 			rtapi_prio_lowest());
 	rtapi_mutex_give(&(rtapi_data->mutex));
@@ -165,7 +165,8 @@ int _rtapi_task_new(void (*taskcode) (void*), void *arg,
     rtapi_print_msg(RTAPI_MSG_DBG,
 		    "Task CPU:  %d\n", task->cpu);
     /*    task->cpu = cpu_id;  */
-    strncpy(task->name, name, sizeof(task->name));
+    snprintf(task->name, sizeof(task->name), 
+	     "%s:%d", name, rtapi_instance);
     task->name[sizeof(task->name) - 1] = '\0';
 
 #ifdef MODULE

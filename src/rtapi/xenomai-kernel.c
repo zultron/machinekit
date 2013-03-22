@@ -359,7 +359,7 @@ void *rtapi_shmem_new_realloc_hook(int shmem_id, int key,
     int retval;
     void *shmem_addr;
 
-    snprintf(shm_name, sizeof(shm_name), "shm-%d", shmem_id);
+    snprintf(shm_name, sizeof(shm_name), "shm-%d:%d", shmem_id, rtapi_instance);
 
     if (shmem_addr_array[shmem_id] == NULL) {
 	if ((retval = rt_heap_bind(&shmem_heap_array[shmem_id], shm_name,
@@ -394,7 +394,7 @@ void * rtapi_shmem_new_malloc_hook(int shmem_id, int key,
     void *shmem_addr;
     int retval;
 
-    snprintf(shm_name, sizeof(shm_name), "shm-%d", shmem_id);
+    snprintf(shm_name, sizeof(shm_name), "shm-%d:%d", shmem_id, rtapi_instance);
     if ((retval = rt_heap_create(&shmem_heap_array[shmem_id], shm_name, 
 			    size, H_SHARED)) != 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
@@ -418,10 +418,10 @@ void * rtapi_shmem_new_malloc_hook(int shmem_id, int key,
     void *shmem_addr;
     int retval;
 
-    snprintf(shm_name, sizeof(shm_name), "shm-%d", shmem_id);
+    snprintf(shm_name, sizeof(shm_name), "shm-%d:%d", shmem_id, rtapi_instance);
 
     if (shmem_addr_array[shmem_id] == NULL) {
-	snprintf(shm_name, sizeof(shm_name), "shm-%d", shmem_id);
+	snprintf(shm_name, sizeof(shm_name), "shm-%d:%d", shmem_id, rtapi_instance);
 	if ((retval = rt_heap_create(&shmem_heap_array[shmem_id], shm_name,
 				     size, H_SHARED))) {
 	    rtapi_print_msg(RTAPI_MSG_ERR, 
