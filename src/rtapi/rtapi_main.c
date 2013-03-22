@@ -154,8 +154,8 @@ static int global_shm_init(key_t key, global_data_t **global_data)
     void *rd;
 
     if ((shm_id = shmget(OS_KEY(key), size, GLOBAL_DATA_PERMISSIONS)) > -1) {
-	rtapi_print_msg(RTAPI_MSG_ERR, "%s: RTAPI data segment already exists\n", 
-			__FUNCTION__);
+	rtapi_print_msg(RTAPI_MSG_ERR, "%s: global data segment already exists (key=0x%lx instance=%d)\n", 
+			__FUNCTION__, OS_KEY(key), rtapi_instance);
 	return -EEXIST;
     }
     if (errno != ENOENT) {
