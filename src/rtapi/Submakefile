@@ -51,18 +51,23 @@ ULAPI_SRCS := \
 	rtapi/rtapi_msg.c \
 	rtapi/rtapi_io.c \
 	rtapi/$(THREADS_SOURCE).c \
-	$(if $(filter $(BUILD_SYS),kbuild),rtapi/rtapi_module.c)
+	$(if $(filter $(BUILD_SYS),kbuild),rtapi/rtapi_module.c) 
 
-$(call TOOBJSDEPS, $(ULAPI_SRCS)): EXTRAFLAGS += -fPIC $(RT_CFLAGS) 
+ULAPISO_SRCS := $(ULAPI_SRCS) \
+	rtapi/ulapi_main.c
+
+#$(warning ULAPISO_SRCS=$(ULAPISO_SRCS))
+
+$(call TOOBJSDEPS, $(ULAPISO_SRCS)): EXTRAFLAGS += -fPIC $(RT_CFLAGS) 
 ULAPISO := ../lib/ulapi.so
-$(ULAPISO): $(call TOOBJS, $(ULAPI_SRCS))
-	$(ECHO) Creating shared library $(notdir $@)
+$(ULAPISO): $(call TOOBJS, $(ULAPISO_SRCS))
+	$(ECHO) Creating shared object $(notdir $@)
 	@mkdir -p ../lib
 	@rm -f $@
 	$(Q)$(CC) $(LDFLAGS)  -Wl,-soname,$(notdir $@) -shared \
 	    -o $@ $^ $(RT_LDFLAGS)
 
-USERSRCS += $(ULAPI_SRCS)
+USERSRCS += $(ULAPISO_SRCS) 
 TARGETS += $(ULAPISO)
 
 # RTAPI:  ../rtlib/*

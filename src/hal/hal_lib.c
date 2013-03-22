@@ -3385,6 +3385,12 @@ global_data_t *global_data;
 #ifdef ULAPI
 int debug_tors; // leave as extern so gdb can get at it
 
+typedef int  (*up_api_main_t)(void);
+typedef void (*up_api_exit_t)(void);
+
+static up_api_main_t up_api_main;
+static up_api_exit_t up_api_exit;
+
 int hal_rtapi_attach()
 {
     int retval;
@@ -3439,6 +3445,9 @@ int hal_rtapi_attach()
 
 int hal_rtapi_detach()
 {
+
+    up_api_exit();
+
     /* release RTAPI resources */
     rtapi_shmem_delete(lib_mem_id, lib_module_id);
     rtapi_exit(lib_module_id);
@@ -3462,7 +3471,6 @@ static void __attribute__ ((destructor))  ulapi_hal_lib_cleanup(void);
 // this is the pointer through which _all_ RTAPI/ULAPI references go:
 rtapi_switch_t *rtapi_switch;
 
-
 // still need per-threadstyle path settuings here:
 static void *ulapi_so; // dlopen handle for ULAPI .so
 static char *ulapi_lib = "ulapi.so";
@@ -3471,6 +3479,7 @@ static void ulapi_hal_lib_init(void)
 {
     const char *errmsg;
     rtapi_switch_t **rtsw_ref;
+
 
     debug_tors = (getenv("DEBUG") != NULL);
 
@@ -3489,6 +3498,26 @@ static void ulapi_hal_lib_init(void)
 		ulapi_lib, errmsg ? errmsg : "NULL");
 	exit(1);
     }
+    // resolve main function
+    if ((up_api_main = (up_api_main_t) dlsym(ulapi_so, "up_api_main")) == NULL) {
+	errmsg = dlerror();
+	fprintf(stderr,"HAL_LIB: FATAL - resolving %s: cant dlsym(up_api_main): %s\n",
+		ulapi_lib, errmsg ? errmsg : "NULL");
+	exit(1);
+    }
+    // resolve exit function
+    if ((up_api_exit = (up_api_exit_t) dlsym(ulapi_so, "up_api_exit")) == NULL) {
+	errmsg = dlerror();
+	fprintf(stderr,"HAL_LIB: FATAL - resolving %s: cant dlsym(up_api_exit): %s\n",
+		ulapi_lib, errmsg ? errmsg : "NULL");
+	exit(1);
+    }
+    assert(up_api_main != NULL);
+    assert(up_api_exit != NULL);
+
+    // call the ulapi init method so rtapi_instance gets set
+    up_api_main();
+
     // resolve the pointer to rtapi_switch
     if ((rtsw_ref = (rtapi_switch_t **) dlsym(ulapi_so, "rtapi_switch")) == NULL) {
 	errmsg = dlerror();
@@ -3500,7 +3529,7 @@ static void ulapi_hal_lib_init(void)
 
 
     if (debug_tors)
-	fprintf(stderr,"HAL_LIB: successfully loaded ULAPI '%s' rtapi_git=%s\n",
+	fprintf(stderr,"HAL_LIB: successfully loaded UP API '%s' rtapi_git=%s\n",
 		ulapi_lib, git_version);
 
     // there isnt much we can do if the build is so screwed up that
@@ -3509,7 +3538,7 @@ static void ulapi_hal_lib_init(void)
 
     // sanity check - may be harmless
     if (strcmp(git_version, rtapi_switch->git_version)) {
-	fprintf(stderr,"HAL_LIB: ULAPI warning - git versions disagree: hal_lib.c=%s %s=%s\n",
+	fprintf(stderr,"HAL_LIB: UP API warning - git versions disagree: hal_lib.c=%s %s=%s\n",
 		git_version, ulapi_lib, rtapi_switch->git_version);
     }
 

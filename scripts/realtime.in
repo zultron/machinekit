@@ -162,11 +162,12 @@ Load(){
 	# this is the place to load a
         # threadstyle-dependent userland RTAPI
         # see also Unload()
+	echo Load: INSTANCE=$INSTANCE
 	if [ "$DEBUG" != "" ] ; then
-	    rtapi_app load rtapi  hal_size=$HAL_SIZE
+	    rtapi_app load rtapi  hal_size=$HAL_SIZE rtapi_instance=$INSTANCE
 	    rtapi_app load hal_lib
 	else
-	    rtapi_app load rtapi   hal_size=$HAL_SIZE 2>&1 >/dev/null 
+	    rtapi_app load rtapi   hal_size=$HAL_SIZE rtapi_instance=$INSTANCE 2>&1 >/dev/null 
 	    rtapi_app load hal_lib  2>&1 >/dev/null
         fi
 
@@ -203,6 +204,8 @@ Unload(){
     CheckKernel
     case $RTPREFIX in
     posix|xenomai-user|rt-preempt-user)
+
+	echo Unload: INSTANCE=$INSTANCE
 
 	if [ "$DEBUG" != "" ] ; then
 	    rtapi_app unload hal_lib

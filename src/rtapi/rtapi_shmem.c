@@ -61,11 +61,12 @@ void *shmem_addr_array[RTAPI_MAX_SHMEMS + 1];
 *                           USERLAND THREADS                           *
 ************************************************************************/
 
-int _rtapi_shmem_new(int key, int module_id, unsigned long int size) {
+int _rtapi_shmem_new(int userkey, int module_id, unsigned long int size) {
     shmem_data *shmem;
     struct shmid_ds d;
     int i, ret;
     int is_new = 0;
+    int key = OS_KEY(userkey);
 
     rtapi_mutex_get(&(rtapi_data->mutex));
     for (i=0 ; i < RTAPI_MAX_SHMEMS; i++) {

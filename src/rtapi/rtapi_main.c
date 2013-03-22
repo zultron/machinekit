@@ -22,7 +22,7 @@
 #include "rtapi_common.h"       /* global_data_t */
 #include "rtapi_kdetect.h"      /* environment autodetection */
 
-
+#ifdef RTAPI
 MODULE_AUTHOR("Michael Haberler");
 MODULE_DESCRIPTION("RTAPI stubs for userland threadstyles");
 MODULE_LICENSE("GPL2 or later");
@@ -31,6 +31,17 @@ MODULE_LICENSE("GPL2 or later");
 static int hal_size = 262000; // HAL_SIZE
 RTAPI_MP_INT(hal_size, "size of the HAL data segment");
 
+// intentionally extern
+int rtapi_instance = 0;
+RTAPI_MP_INT(rtapi_instance, "instance ID");
+
+#else // ULAPI
+// intentionally extern
+int rtapi_instance = 0;
+
+#endif
+
+
 static int check_compatible();
 static int global_shm_init(key_t key, global_data_t **global_data);
 static int global_shm_free(int shm_id, global_data_t *global_data);
@@ -38,8 +49,9 @@ static int global_shmid;
 
 int rtapi_app_main(void)
 {
-    rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI %s %s startup\n", 
-		    rtapi_switch->thread_flavor_name, GIT_VERSION);
+    rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI %s %s instance:%d startup\n", 
+		    rtapi_switch->thread_flavor_name, 
+		    GIT_VERSION, rtapi_instance);
 
     if ((global_shmid = global_shm_init(GLOBAL_KEY, &global_data)) < 0) {
 	return global_shmid;
@@ -55,8 +67,9 @@ int rtapi_app_main(void)
 
 void rtapi_app_exit(void)
 {
-    rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI %s %s exit\n",
-		    rtapi_switch->thread_flavor_name, GIT_VERSION);
+    rtapi_print_msg(RTAPI_MSG_INFO,"RTAPI %s %s instance:%d exit\n",
+		    rtapi_switch->thread_flavor_name, 
+		    GIT_VERSION, rtapi_instance);
     global_shm_free(global_shmid, global_data);
     global_data = NULL;
 }
@@ -140,7 +153,7 @@ static int global_shm_init(key_t key, global_data_t **global_data)
     struct shmid_ds d;
     void *rd;
 
-    if ((shm_id = shmget(key, size, GLOBAL_DATA_PERMISSIONS)) > -1) {
+    if ((shm_id = shmget(OS_KEY(key), size, GLOBAL_DATA_PERMISSIONS)) > -1) {
 	rtapi_print_msg(RTAPI_MSG_ERR, "%s: RTAPI data segment already exists\n", 
 			__FUNCTION__);
 	return -EEXIST;
@@ -151,7 +164,7 @@ static int global_shm_init(key_t key, global_data_t **global_data)
 	return -EINVAL;
     }
     // nope, doesnt exist - create
-    if ((shm_id = shmget(key, size, GLOBAL_DATA_PERMISSIONS | IPC_CREAT)) == -1) {
+    if ((shm_id = shmget(OS_KEY(key), size, GLOBAL_DATA_PERMISSIONS | IPC_CREAT)) == -1) {
 	rtapi_print_msg(RTAPI_MSG_ERR, "%s: shmget(key=0x%x, IPC_CREAT): %d - %s\n", 
 			__FUNCTION__, key, errno, strerror(errno));
 	return -EINVAL;

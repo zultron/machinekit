@@ -1028,9 +1028,10 @@ endif # end BUILD_SYS=user-dso
 
 # build kernel RTAPI modules
 ifneq "$(filter normal user-dso,$(BUILD_SYS))" ""
-#ifneq "$(BUILD_SYS)" "user-dso"
+ifneq "$(BUILD_SYS)" "user-dso"
+#../rtlib/ulapi(MODULE_EXT): $(addprefix objects/rt,$(ulapi-objs))
+endif
 ../rtlib/rtapi$(MODULE_EXT): $(addprefix objects/rt,$(rtapi-objs))
-#endif
 ../rtlib/classicladder_rt$(MODULE_EXT): $(addprefix objects/rt,$(classicladder_rt-objs))
 ../rtlib/boss_plc$(MODULE_EXT): $(addprefix objects/rt,$(boss_plc-objs))
 ../rtlib/debounce$(MODULE_EXT): $(addprefix objects/rt,$(debounce-objs))

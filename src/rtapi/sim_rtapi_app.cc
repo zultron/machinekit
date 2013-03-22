@@ -57,9 +57,12 @@
 //extern "C" int sim_rtapi_run_threads(int fd);
 static int harden_rt();
 
+int rtapi_instance; // init from env
+
 using namespace std;
 
-#define SOCKET_PATH "\0/tmp/rtapi_fifo"
+// X will be replace by '\' post-snprintf
+#define SOCKET_PATH "X/tmp/rtapi_fifo:%d"
 
 /* Pre-allocation size. Must be enough for the whole application life to avoid
  * pagefaults by new memory requested from the system. */
@@ -607,6 +610,15 @@ static int harden_rt()
 
 int main(int argc, char **argv)
 {
+    struct sockaddr_un addr = { AF_UNIX, "" };
+    const char *instance = getenv("INSTANCE");
+
+    if (instance != NULL)
+	rtapi_instance = atoi(instance);
+
+    snprintf(addr.sun_path, sizeof(addr.sun_path), 
+	     SOCKET_PATH, rtapi_instance);
+    addr.sun_path[0] = '\0';
 
     vector<string> args;
     for(int i=1; i<argc; i++) { args.push_back(string(argv[i])); }
@@ -617,7 +629,7 @@ become_master:
 
     int enable = 1;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable));
-    struct sockaddr_un addr = { AF_UNIX, SOCKET_PATH };
+    //struct sockaddr_un addr = { AF_UNIX, socket_path };
     int result = bind(fd, (sockaddr*)&addr, sizeof(addr));
 
     if(result == 0) {

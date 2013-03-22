@@ -26,6 +26,9 @@
 static int hal_size = 262000; // HAL_SIZE
 RTAPI_MP_INT(hal_size, "size of the HAL data segment");
 
+// intentionally extern but not settable since kernel styles
+// do not support multiple instances
+const int rtapi_instance = 0;
 #endif
 
 

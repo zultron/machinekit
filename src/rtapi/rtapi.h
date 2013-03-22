@@ -864,6 +864,11 @@ typedef struct {
 
 extern rtapi_switch_t *rtapi_switch;
 
+// exported by rtapi_module.c (kstyles) and rtapi_main.c (userlandRT)
+// configurable at rtapi.so module load time _only_
+extern int rtapi_instance;
+
+
 
 /***********************************************************************
 *                      MODULE PARAMETER MACROS                         *

@@ -227,6 +227,9 @@ void init_global_data(global_data_t * data, int hal_size)
     data->magic = GLOBAL_MAGIC;
     /* set version code so other modules can check it */
     data->layout_version = GLOBAL_LAYOUT_VERSION;
+
+    // instance ID already set
+
     // global message level
     data->msg_level = RTAPI_MSG_INFO; 
     // next value returned by rtapi_init (userland threads)
@@ -253,7 +256,7 @@ int global_data_attach(key_t key, global_data_t **global_data)
     int size = sizeof(global_data_t);
     void *rd;
 
-    if ((shm_id = shmget(key, size, GLOBAL_DATA_PERMISSIONS )) == -1) {
+    if ((shm_id = shmget(OS_KEY(key), size, GLOBAL_DATA_PERMISSIONS )) == -1) {
 	rtapi_print_msg(RTAPI_MSG_ERR, "%s: GLOBAL data segment does not exist\n", 
 			__FUNCTION__);
 	return -EEXIST;
