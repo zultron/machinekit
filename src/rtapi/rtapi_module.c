@@ -26,9 +26,11 @@
 static int hal_size = 262000; // HAL_SIZE
 RTAPI_MP_INT(hal_size, "size of the HAL data segment");
 
-// intentionally extern but not settable since kernel styles
-// do not support multiple instances
+// intentionally extern but no effect since
+// kernel styles do not support multiple instances
+// this just numbers this particular instance to fit with the scheme
 int rtapi_instance = 0;
+RTAPI_MP_INT(rtapi_instance, "instance id");
 #endif
 
 
@@ -58,7 +60,8 @@ int init_module(void) {
   int n, res;
 
     /* say hello */
-    rtapi_print_msg(RTAPI_MSG_INFO, "RTAPI: Init %s\n", GIT_VERSION);
+    rtapi_print_msg(RTAPI_MSG_INFO, "RTAPI: Init %s instance:%d\n", 
+		    GIT_VERSION, rtapi_instance);
     /* get master shared memory block from OS and save its address */
     res = rtapi_module_master_shared_memory_init(&rtapi_data, &global_data);
     if (res) return res;
@@ -198,7 +201,8 @@ void cleanup_module(void) {
     /* perform thread system-specific module cleanups */
     rtapi_module_cleanup_hook();
 
-    rtapi_print_msg(RTAPI_MSG_INFO, "RTAPI: Exit complete\n");
+    rtapi_print_msg(RTAPI_MSG_INFO, "RTAPI: Exit %s instance:%d complete\n"
+		    GIT_VERSION, rtapi_instance);
     return;
 }
 

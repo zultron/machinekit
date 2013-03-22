@@ -27,21 +27,26 @@ int rtapi_instance;
 // we cannot yet use rtapi_print_msg here; for some reason rtapi_switch is
 // still 0 here - FIXME
 
+static int verbose;
+
 int up_api_main(void)
 {
     const char *instance = getenv("INSTANCE");
+    verbose = (getenv("DEBUG") != NULL);
 
     if (instance != NULL)
     	rtapi_instance = atoi(instance);
 
-    fprintf(stderr, "UP API %s instance:%d startup\n", 
-	    GIT_VERSION, rtapi_instance);
+    if (verbose)
+	fprintf(stderr, "UP API %s instance:%d startup\n", 
+		GIT_VERSION, rtapi_instance);
     return 0;
 }
 
 void up_api_exit(void)
 {
-    fprintf(stderr, "UP API %s %s instance:%d exit\n",
-	    rtapi_switch->thread_flavor_name, 
-	    GIT_VERSION, rtapi_instance);
+    if (verbose)
+	fprintf(stderr, "UP API %s %s instance:%d exit\n",
+		rtapi_switch->thread_flavor_name, 
+		GIT_VERSION, rtapi_instance);
 }
