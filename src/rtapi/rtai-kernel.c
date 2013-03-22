@@ -62,13 +62,13 @@ long long int rtapi_get_time_hook(void) {
 int rtapi_module_master_shared_memory_init(rtapi_data_t **rtapi_data,
 					   global_data_t **global_data) {
     /* get master shared memory block from OS and save its address */
-    *rtapi_data = rtai_kmalloc(RTAPI_KEY, sizeof(rtapi_data_t));
+    *rtapi_data = rtai_kmalloc(OS_KEY(RTAPI_KEY), sizeof(rtapi_data_t));
     if (*rtapi_data == NULL) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 	    "RTAPI: ERROR: could not open rtapi_data shared memory\n");
 	return -ENOMEM;
     }
-    *global_data = rtai_kmalloc(GLOBAL_KEY, sizeof(global_data_t));
+    *global_data = rtai_kmalloc(OS_KEY(GLOBAL_KEY), sizeof(global_data_t));
     if (*global_data == NULL) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"RTAPI: ERROR: could not open global_data shared memory\n");
@@ -78,20 +78,20 @@ int rtapi_module_master_shared_memory_init(rtapi_data_t **rtapi_data,
 }
 
 void rtapi_module_master_shared_memory_free(void) {
-    rtai_kfree(RTAPI_KEY);
-    rtai_kfree(GLOBAL_KEY);
+    rtai_kfree(OS_KEY(RTAPI_KEY));
+    rtai_kfree(OS_KEY(GLOBAL_KEY));
 }
 
 void rtapi_module_cleanup_hook(void) {
-    rtai_kfree(RTAPI_KEY);
-    rtai_kfree(GLOBAL_KEY);
+    rtai_kfree(OS_KEY(RTAPI_KEY));
+    rtai_kfree(OS_KEY(GLOBAL_KEY));
 }
 
 
 #else /* ULAPI */
 rtapi_data_t *rtapi_init_hook() {
     rtapi_data_t *result;
-    result = rtai_malloc(RTAPI_KEY, sizeof(rtapi_data_t));
+    result = rtai_malloc(OS_KEY(RTAPI_KEY), sizeof(rtapi_data_t));
 
     // the check for -1 here is because rtai_malloc (in at least
     // rtai 3.6.1, and probably others) has a bug where it
@@ -104,7 +104,7 @@ rtapi_data_t *rtapi_init_hook() {
 
 global_data_t *global_init_hook() {
     global_data_t *result;
-    result = rtai_malloc(GLOBAL_KEY, sizeof(global_data_t));
+    result = rtai_malloc(OS_KEY(GLOBAL_KEY), sizeof(global_data_t));
 
     // the check for -1 here is because rtai_malloc (in at least
     // rtai 3.6.1, and probably others) has a bug where it
