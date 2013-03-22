@@ -22,6 +22,11 @@ EOF
     esac
 }
 
+# set the default instance
+if [ "$INSTANCE" == "" ] ; then
+    INSTANCE="0"
+fi
+
 RUN_IN_PLACE=@RUN_IN_PLACE@
 if [ $RUN_IN_PLACE = yes ]; then
     # When using RIP make sure PATH includes the directory where rtapi_app
@@ -178,7 +183,12 @@ Load(){
     ;;
     *)
         for MOD in $MODULES_LOAD ; do
-            $INSMOD $MOD || return $?
+	    # if loading rtapi.ko, tack on parameters
+	    if echo $MOD | grep rtapi.ko >/dev/null  ; then
+		$INSMOD $MOD hal_size=$HAL_SIZE rtapi_instance=$INSTANCE
+	    else
+		$INSMOD $MOD || return $?
+	    fi
         done
         if [ "$DEBUG" != "" ] && [ -w /proc/rtapi/debug ] ; then
             echo "$DEBUG" > /proc/rtapi/debug
