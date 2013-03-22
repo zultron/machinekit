@@ -588,7 +588,7 @@ static int release_HAL_mutex(void)
     hal_data_t *hal_data;
 
     /* do RTAPI init */
-    comp_id = rtapi_init("hal_unlocker");
+    comp_id = rtapi_init("hal_unlocker", NULL);
     if (comp_id < 0) {
         rtapi_print_msg(RTAPI_MSG_ERR, "ERROR: rtapi init failed\n");
         return -EINVAL;

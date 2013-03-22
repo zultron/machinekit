@@ -209,7 +209,7 @@ simply register that another module is using the RTAPI.
 For other RTOSes, things might be different, especially
 if the RTOS does not use modules. */
 
-int _rtapi_init(const char *modname) {
+int _rtapi_init(const char *modname, global_data_t **global) {
     int n, module_id;
     module_data *module;
 
@@ -243,6 +243,8 @@ int _rtapi_init(const char *modname) {
     rtapi_data->rt_module_count++;
     rtapi_print_msg(RTAPI_MSG_DBG, "RTAPI: module '%s' loaded, ID: %d\n",
 	module->name, module_id);
+    if (global != NULL)
+	*global = global_data;
     rtapi_mutex_give(&(rtapi_data->mutex));
     return module_id;
 }
@@ -321,7 +323,7 @@ static int module_delete(int module_id) {
 extern rtapi_data_t *rtapi_init_hook();
 extern global_data_t *global_init_hook();
 
-int _rtapi_init(const char *modname) {
+int _rtapi_init(const char *modname, global_data_t **global) {
     int n, module_id;
     module_data *module;
 
@@ -336,6 +338,9 @@ int _rtapi_init(const char *modname) {
     if ((global_data = global_init_hook()) == NULL)
 	return -ENOMEM;
    
+    if (global != NULL)
+	*global = global_data;
+
     /* perform a global init if needed */
     init_rtapi_data(rtapi_data);
     /* check flavor and serial codes */

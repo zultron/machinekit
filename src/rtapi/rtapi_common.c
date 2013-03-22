@@ -245,7 +245,7 @@ void init_global_data(global_data_t * data, int hal_size)
 }
 #endif
 
-#if defined(ULAPI) 
+#if defined(ULAPI) && defined(BUILD_SYS_USER_DSO)
 
 int global_data_attach(key_t key, global_data_t **global_data) 
 {

@@ -19,7 +19,7 @@ int main()
 {
     int retval;
 
-    module = rtapi_init("SHMEM_USR");
+    module = rtapi_init("SHMEM_USR", NULL);
     if (module < 1) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 	    "shmemusr main: rtapi_init returned %d\n", module);

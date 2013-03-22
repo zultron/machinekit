@@ -347,6 +347,7 @@ HEADERS := \
     rtapi/rtapi_math.h \
     rtapi/rtapi_math_i386.h \
     rtapi/rtapi_common.h \
+    rtapi/rtapi_global.h \
     rtapi/rtapi_ctype.h \
     rtapi/rtapi_errno.h \
     rtapi/rtapi_string.h \

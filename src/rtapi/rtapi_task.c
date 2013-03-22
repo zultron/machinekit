@@ -25,7 +25,7 @@
   thread system, so these are defined in rtapi_module.c for kernel
   threads systems and $THREADS.c for the userland thread systems
 
-  int rtapi_init(const char *modname)
+  int rtapi_init(const char *modname, global_data_t **global)
   int rtapi_exit(int id)
 */
 

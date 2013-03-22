@@ -219,17 +219,16 @@ int hal_init(const char *name)
     rtapi_snprintf(rtapi_name, RTAPI_NAME_LEN, "HAL_%s", name);
     rtapi_snprintf(hal_name, sizeof(hal_name), "%s", name);
     /* do RTAPI init */
-    comp_id = rtapi_init(rtapi_name);
+    comp_id = rtapi_init(rtapi_name, &global_data);
     if (comp_id < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR, "HAL: ERROR: rtapi init failed\n");
 	return -EINVAL;
     }
 
-    // make global_data acccessible
-    global_data = rtapi_get_global_data();
+    // paranoia
     if (global_data == NULL) {
 	rtapi_print_msg(RTAPI_MSG_ERR, 
-			"HAL_LIB: ERROR: rtapi_get_global_data() returned NULL\n");
+			"HAL_LIB: ERROR: global_data == NULL\n");
 	return -EINVAL;
     }
 
@@ -276,6 +275,15 @@ int hal_init(const char *name)
     rtapi_print_msg(RTAPI_MSG_DBG,
 	"HAL: component '%s' initialized, ID = %02d\n", hal_name, comp_id);
     return comp_id;
+}
+
+// convenience
+int hal_init_global(const char *name, global_data_t **global)
+{
+    int retval = hal_init(name);
+    if (global != NULL)
+	*global = global_data;
+    return retval;
 }
 
 int hal_exit(int comp_id)
@@ -2581,17 +2589,16 @@ int rtapi_app_main(void)
     rtapi_hal_lib_init(MAIN_START); // call constructor
 
     /* do RTAPI init */
-    lib_module_id = rtapi_init("HAL_LIB");
+    lib_module_id = rtapi_init("HAL_LIB", &global_data);
     if (lib_module_id < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR, "HAL_LIB: ERROR: rtapi init failed\n");
 	return -EINVAL;
     }
 
-    // make global_data acccessible
-    global_data = rtapi_get_global_data();
+    // paranoia
     if (global_data == NULL) {
 	rtapi_print_msg(RTAPI_MSG_ERR, 
-			"HAL_LIB: ERROR: rtapi_get_global_data() returned NULL\n");
+			"HAL_LIB: ERROR: global_data == NULL\n");
 	return -EINVAL;
     }
 
@@ -3387,15 +3394,12 @@ int hal_rtapi_attach()
     if(!lib_mem_id) {
 	rtapi_print_msg(RTAPI_MSG_DBG, "HAL: initializing hal_lib\n");
 	rtapi_snprintf(rtapi_name, RTAPI_NAME_LEN, "HAL_LIB_%d", (int)getpid());
-	lib_module_id = rtapi_init(rtapi_name);
+	lib_module_id = rtapi_init(rtapi_name, &global_data);
 	if (lib_module_id < 0) {
 	    rtapi_print_msg(RTAPI_MSG_ERR,
 		"HAL: ERROR: could not not initialize RTAPI\n");
 	    return -EINVAL;
 	}
-	
-	// make global_data acccessible
-	global_data = rtapi_get_global_data();
 
 	// this is userland so OK to use assert
 	assert(global_data != NULL);

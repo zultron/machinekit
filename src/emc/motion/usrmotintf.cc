@@ -677,7 +677,7 @@ int usrmotInit(const char *modname)
 {
     int retval;
 
-    module_id = rtapi_init(modname);
+    module_id = rtapi_init(modname, NULL);
     if (module_id < 0) {
 	fprintf(stderr,
 	    "usrmotintf: ERROR: rtapi init failed\n");

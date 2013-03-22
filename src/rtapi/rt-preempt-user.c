@@ -34,8 +34,7 @@ static int error_printed;
 
 #define MODULE_OFFSET		32768
 
-
-int _rtapi_init(const char *modname) {
+int _rtapi_init(const char *modname, global_data_t **global) {
 
 #ifdef ULAPI
     int retval;
@@ -44,6 +43,9 @@ int _rtapi_init(const char *modname) {
 	((retval = global_data_attach(GLOBAL_KEY, &global_data)) < 0))
 	return retval;
 #endif
+
+    if (global != NULL) 
+	*global = global_data;
     return rtapi_next_module_id();
 }
 

@@ -148,10 +148,10 @@ extern global_data_t *global_data;
     above.  Call only from within user or init/cleanup code, not
     from realtime tasks.
 */
-typedef int (*rtapi_init_t)(const char *);
-#define rtapi_init(modname)			\
-    rtapi_switch->rtapi_init(modname)
-extern int _rtapi_init(const char *modname);
+typedef int (*rtapi_init_t)(const char *, global_data_t **global);
+#define rtapi_init(modname, global)			\
+    rtapi_switch->rtapi_init(modname, global)
+extern int _rtapi_init(const char *modname, global_data_t **global);
 
 /** 'rtapi_exit()' shuts down and cleans up the RTAPI.  It must be
     called prior to exit by any module that called rtapi_init.

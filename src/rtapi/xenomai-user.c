@@ -44,7 +44,7 @@ void init_rtapi_data_hook(rtapi_data_t * data) {
 *                    INIT AND EXIT FUNCTIONS                           *
 ************************************************************************/
 
-int _rtapi_init(const char *modname) {
+int _rtapi_init(const char *modname, global_data_t **global) {
 
 #ifdef ULAPI
     int retval;
@@ -54,6 +54,8 @@ int _rtapi_init(const char *modname) {
 	return retval;
 #endif
 
+    if (global != NULL) 
+	*global = global_data;
     return rtapi_next_module_id();
 }
 

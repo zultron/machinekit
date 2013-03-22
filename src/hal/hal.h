@@ -167,6 +167,13 @@ RTAPI_BEGIN_DECLS
 */
 extern int hal_init(const char *name);
 
+/** 'hal_init_global()' is convenience variant of hal_init()
+    which initializes a pointer to the global segment (if not zero).
+
+*/
+extern int hal_init_global(const char *name, global_data_t **global);
+
+
 /** 'hal_exit()' must be called before a HAL component exits, to
     free resources associated with the component.
     'comp_id' is the ID of the component as returned from its initial
