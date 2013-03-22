@@ -39,19 +39,20 @@
     for instance instance management if one were to support multiple 
     HAL/RTAPI instances within a single machine.
 */
+#include "rtapi_shmkeys.h"
 
 // the universally shared global structure
 typedef struct {
     int magic;
     int layout_version; 
     unsigned long mutex;
+    int instance_id;
     int rtapi_thread_flavor; 
     int msg_level;                 // a single global message level
     int next_module_id;            // for userland threads module id's
     int hal_size;                  // make HAL data segment size configurable
 } global_data_t;
 
-#define GLOBAL_KEY  0x08154711     // key for GLOBAL 
 #define GLOBAL_LAYOUT_VERSION 42   // bump on layout changes of global_data_t
 #define GLOBAL_MAGIC 0xdeadbeef
 #define GLOBAL_DATA_PERMISSIONS	0666

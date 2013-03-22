@@ -247,7 +247,6 @@ void rtapi_module_timer_stop(void);
 
 
 /* rtapi_shmem.c */
-#define RTAPI_KEY   0x90280A48	/* key used to open RTAPI shared memory */
 #define RTAPI_MAGIC 0x12601409	/* magic number used to verify shmem */
 #define SHMEM_MAGIC_DEL_LOCKED 25454  /* don't obtain mutex when deleting */
 

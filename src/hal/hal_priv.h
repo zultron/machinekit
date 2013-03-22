@@ -324,8 +324,7 @@ typedef struct {
    the structs will be fully protected, with a clean shutdown and
    meaningfull error messages in case of a mismatch.
 */
-
-#define HAL_KEY   0x48414C32	/* key used to open HAL shared memory */
+#include "rtapi_shmkeys.h"
 #define HAL_VER   0x0000000C	/* version code */
 //#define HAL_SIZE  262000
 
