@@ -32,8 +32,6 @@ static int error_printed;
 #  endif
 #endif  /* RTAPI */
 
-#define MODULE_OFFSET		32768
-
 int _rtapi_init(const char *modname, global_data_t **global) {
 
 #ifdef ULAPI
