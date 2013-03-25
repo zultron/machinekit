@@ -17,6 +17,7 @@
 #endif 
 
 #define THREAD_FLAVOR_NAME "rtai-kernel"
+#define THREAD_FLAVOR_ID RTAPI_RTAI_KERNEL_ID
 
 /* rtapi_module.c */
 #define RT_LINUX_USE_FPU

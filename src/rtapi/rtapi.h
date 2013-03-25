@@ -788,16 +788,18 @@ extern unsigned short _rtapi_inw(unsigned int port);
 typedef int (*rtapi_dummy_t)(void);
 
 // a unique ID for each thread flavor
-// cant be an enum since cpp needs to evaluate this symbol
-#define RTAPI_POSIX_ID  0
-#define RTAPI_RT_PREEMPT_USER_ID 1
-#define RTAPI_XENOMAI_USER_ID 2
-#define RTAPI_RTAI_KERNEL_ID 3
-#define RTAPI_XENOMAI_KERNEL_ID 4
+typedef enum {
+    RTAPI_POSIX_ID,
+    RTAPI_RT_PREEMPT_USER_ID,
+    RTAPI_XENOMAI_USER_ID,
+    RTAPI_RTAI_KERNEL_ID,
+    RTAPI_XENOMAI_KERNEL_ID,
+} rtapi_flavor_id_t;
+
 typedef struct {
     const char *git_version;
     const char *thread_flavor_name; // for messsages
-    int  thread_flavor_id;
+    rtapi_flavor_id_t  thread_flavor_id;
     // init & exit functions
     rtapi_init_t rtapi_init;
     rtapi_exit_t rtapi_exit;

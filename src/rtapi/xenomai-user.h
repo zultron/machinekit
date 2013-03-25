@@ -16,6 +16,7 @@
 */
 
 #define THREAD_FLAVOR_NAME "xenomai-user"
+#define THREAD_FLAVOR_ID RTAPI_XENOMAI_USER_ID
 
 /* add some fields to rtapi_data_t:
    rt_wait_error:		release point missed

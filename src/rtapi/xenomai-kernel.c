@@ -16,6 +16,8 @@
 #include <errno.h>		/* errno */
 #endif
 
+#define THREAD_FLAVOR_NAME "xenomai-kernel"
+#define THREAD_FLAVOR_ID RTAPI_XENOMAI_KERNEL_ID
 
 #define MASTER_HEAP "rtapi-heap"
 #define GLOBAL_HEAP "global-heap"

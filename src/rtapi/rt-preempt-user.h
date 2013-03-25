@@ -15,8 +15,10 @@
 
 #ifndef RTAPI_POSIX
 #define THREAD_FLAVOR_NAME "rt-preempt-user"
+#define THREAD_FLAVOR_ID RTAPI_RT_PREEMPT_USER_ID
 #else
 #define THREAD_FLAVOR_NAME "posix"
+#define THREAD_FLAVOR_ID RTAPI_POSIX_ID
 #endif
 
 // extra task data
