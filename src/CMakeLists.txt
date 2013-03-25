@@ -7,8 +7,18 @@ set (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cMake)
 # Build shared libraries by default
 set (BUILD_SHARED_LIBS TRUE)
 
+# Always add -I.
+set (CMAKE_INCLUDE_CURRENT_DIR ON)
+
 # Put binaries into ../bin
-set (RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/../bin)
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/../bin)
+
+# Put libraries into ../lib
+set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/../lib)
+
+# Add ../lib to linker search path
+# (not needed, since our lib output dir is here)
+#link_directories (${CMAKE_SOURCE_DIR}/../lib)
 
 # config.h is in the top level directory
 include_directories (${CMAKE_CURRENT_SOURCE_DIR})
@@ -17,11 +27,28 @@ set (DEBUG_CFLAGS " -g -Wall")
 set (COMPILE_FLAGS "-Os ${DEBUG_CFLAGS}")
 
 
+# find libraries
+
+# pkg-config, which we'll piggy-back off of
+find_package(PkgConfig REQUIRED)
+
+# glib2 (at least hal/user_comps/modbus.c)
+pkg_check_modules (GLIB2 REQUIRED glib-2.0)
+
+# gtk+-2.0 (at least classicladder)
+find_package(GTK2 REQUIRED)
+# ...and libgnomeprintui-2.2
+if (GTK2_FOUND)
+  pkg_check_modules(GNOMEPRINT libgnomeprintui-2.2)
+endif (GTK2_FOUND)
+
+
 # subdirectories to build
 add_subdirectory (rtapi)
 add_subdirectory (libnml)
 add_subdirectory (libnml/posemath)
 add_subdirectory (libnml/inifile)
+add_subdirectory (hal)
 
 
 # CFLAGS defines for RTAPI; these appear to be needed by classicladder
