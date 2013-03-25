@@ -789,6 +789,7 @@ typedef int (*rtapi_dummy_t)(void);
 
 // a unique ID for each thread flavor
 typedef enum {
+    RTAPI_UNKNOWN_ID=0,
     RTAPI_POSIX_ID,
     RTAPI_RT_PREEMPT_USER_ID,
     RTAPI_XENOMAI_USER_ID,
