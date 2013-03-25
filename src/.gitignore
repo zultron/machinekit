@@ -17,3 +17,7 @@ config.h.in
 configure
 modules.order
 linuxcncconfig.py-tmp
+#
+# CMake artifacts
+/CMakeCache.txt
+/Makefile

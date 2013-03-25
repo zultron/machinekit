@@ -32,6 +32,11 @@ tests/*/skip
 tests/*/*/skip
 tests/*/*/*/skip
 #
+# CMake artifacts
+CMakeFiles/
+cmake_install.cmake
+Makefile
+#
 # emacs droppings
 *~
 \#*\#
