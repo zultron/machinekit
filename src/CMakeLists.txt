@@ -1,6 +1,13 @@
 cmake_minimum_required (VERSION 2.8)
 project (LinuxCNC)
 
+
+######################################################
+# Default settings
+
+# Set default C++ compiler (/usr/bin/c++ by default)
+set (CMAKE_CXX_COMPILER "/usr/bin/g++")
+
 # Local CMake scripts directory e.g. Xenomai
 set (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cMake)
 
@@ -23,8 +30,10 @@ set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/../lib)
 # config.h is in the top level directory
 include_directories (${CMAKE_CURRENT_SOURCE_DIR})
 
-set (DEBUG_CFLAGS " -g -Wall")
-set (COMPILE_FLAGS "-Os ${DEBUG_CFLAGS}")
+# set default C and C++ flags
+set (DEBUG_CFLAGS "-g -Wall")
+set (CMAKE_C_FLAGS "-Os ${DEBUG_CFLAGS}")
+set (CMAKE_CXX_FLAGS "-Os ${DEBUG_CFLAGS}")
 
 
 # find libraries
