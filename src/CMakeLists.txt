@@ -30,18 +30,39 @@ set (COMPILE_FLAGS "-Os ${DEBUG_CFLAGS}")
 # find libraries
 
 # pkg-config, which we'll piggy-back off of
-find_package(PkgConfig REQUIRED)
+find_package (PkgConfig REQUIRED)
 
 # glib2 (at least hal/user_comps/modbus.c)
+# FIXME:  This doesn't find the header file, dangit
 pkg_check_modules (GLIB2 REQUIRED glib-2.0)
 
-# gtk+-2.0 (at least classicladder)
-find_package(GTK2 REQUIRED)
+# gtk+-2.0 (everything graphical)
+find_package (GTK2 REQUIRED)
 # ...and libgnomeprintui-2.2
 if (GTK2_FOUND)
-  pkg_check_modules(GNOMEPRINT libgnomeprintui-2.2)
+  pkg_check_modules (GNOMEPRINT libgnomeprintui-2.2)
 endif (GTK2_FOUND)
+# this is needed a LOT, so just set variables right here
+set (GTK_INCLUDE_DIRECTORIES ${GTK2_INCLUDE_DIRS})
+set (GTK_COMPILE_DEFINITIONS
+  GTK_INTERFACE GTK2  # in Submakefile but not pkg-config; origin???
+  )
+set (GTK_LIBS ${GTK2_LIBRARIES})
+if (GNOMEPRINT_FOUND)
+  set (GTK_INCLUDE_DIRECTORIES ${GTK_INCLUDE_DIRECTORIES}
+    ${GNOMEPRINT_INCLUDE_DIRS}
+    )
+  set (GTK_COMPILE_DEFINITIONS ${GTK_COMPILE_DEFINITIONS}
+    GNOME_PRINT_USE  # in Submakefile but not pkg-config; origin???
+    )
+  set (GTK_LIBS ${GTK_LIBS}
+    ${GNOMEPRINT_LIBRARIES}
+    )
+endif (GNOMEPRINT_FOUND)
 
+# readline
+# FIXME:  This needs to check for readline v.5; v.6 is GPLv3, IIRC
+find_package (Readline REQUIRED)
 
 # subdirectories to build
 add_subdirectory (rtapi)

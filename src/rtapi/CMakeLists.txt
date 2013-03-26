@@ -1,3 +1,5 @@
+# ENABLE_EXPORTS property:  related to dlopen()?
+
 # Detect xenomai user flavor: Turn on or off on cmake commandline with
 # -DFLAVOR_XENOMAI_USER=off/in
 option (FLAVOR_XENOMAI_USER "Build Xenomai user threads" on)
