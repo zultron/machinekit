@@ -1,3 +1,6 @@
+######################################################
+# Set up project
+
 cmake_minimum_required (VERSION 2.8)
 project (LinuxCNC)
 
@@ -23,11 +26,7 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/../bin)
 # Put libraries into ../lib
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/../lib)
 
-# Add ../lib to linker search path
-# (not needed, since our lib output dir is here)
-#link_directories (${CMAKE_SOURCE_DIR}/../lib)
-
-# config.h is in the top level directory
+# -I top level directory for config.h
 include_directories (${CMAKE_CURRENT_SOURCE_DIR})
 
 # set default C and C++ flags
@@ -36,7 +35,8 @@ set (CMAKE_C_FLAGS "-Os ${DEBUG_CFLAGS}")
 set (CMAKE_CXX_FLAGS "-Os ${DEBUG_CFLAGS}")
 
 
-# find libraries
+######################################################
+# Check dependencies
 
 # pkg-config, which we'll piggy-back off of
 find_package (PkgConfig REQUIRED)
@@ -69,11 +69,21 @@ if (GNOMEPRINT_FOUND)
     )
 endif (GNOMEPRINT_FOUND)
 
-# readline
+# readline (halcmd)
 # FIXME:  This needs to check for readline v.5; v.6 is GPLv3, IIRC
 find_package (Readline REQUIRED)
 
-# subdirectories to build
+
+######################################################
+# Build config.h
+
+# need a configure_file() here for config.h
+# use file(APPEND) if needed
+
+
+######################################################
+# Build subdirectories
+
 add_subdirectory (rtapi)
 add_subdirectory (libnml)
 add_subdirectory (libnml/posemath)
@@ -81,13 +91,3 @@ add_subdirectory (libnml/inifile)
 add_subdirectory (hal)
 
 
-# CFLAGS defines for RTAPI; these appear to be needed by classicladder
-# from old Makefile
-set (CLASSICLADDER_DEFINES
-  SEQUENTIAL_SUPPORT DYNAMIC_PLCSIZE RT_SUPPORT OLD_TIMERS_MONOS_SUPPORT
-  MODBUS_IO_MASTER HAL_SUPPORT)
-
-
-# need a configure_file here for config.h
-
-# file(APPEND) can be used to write stuff into files
