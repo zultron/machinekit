@@ -7,4 +7,7 @@ set (posemath_srcs
 
 include_directories (${CMAKE_SOURCE_DIR}/rtapi)
 
-add_library (posemath ${posemath_srcs})
+add_library (posemath SHARED ${posemath_srcs})
+set_target_properties (posemath PROPERTIES
+  SOVERSION 0)
+install (TARGETS posemath DESTINATION lib)
