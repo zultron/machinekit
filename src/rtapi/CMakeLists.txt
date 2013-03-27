@@ -105,13 +105,17 @@ foreach (Style ${userland_thread_styles})
 endforeach (Style)
 
 
-# kdetect executable
+# kdetect and rtapiload executables
 add_executable (kdetect rtapi_kdetect.c)
-target_link_libraries (kdetect dl rt linuxcnchal)
+target_link_libraries (kdetect rt linuxcnchal)
 
-set_property (TARGET kdetect APPEND PROPERTY
+add_executable (rtapiload rtapi_load.c)
+target_link_libraries (rtapiload linuxcnchal)
+
+set_property (TARGET kdetect rtapiload APPEND PROPERTY
   COMPILE_DEFINITIONS ULAPI TEST
   )
+
 
 # binaries below depend on hal includes
 include_directories (${CMAKE_SOURCE_DIR}/hal)
