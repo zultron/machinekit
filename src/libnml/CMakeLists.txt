@@ -1,17 +1,3 @@
-# /usr/bin/g++ -c -I. -Ilibnml/linklist -Ilibnml/cms -Ilibnml/rcs -Ilibnml/inifile -Ilibnml/os_intf -Ilibnml/nml -Ilibnml/buffer -Ilibnml/posemath -Irtapi -Ihal -Iemc/nml_intf -Iemc/kinematics -Iemc/motion -Iemc/ini -Iemc/rs274ngc -I/include -I/usr/include/python2.6 -Os -g -Wall -DULAPI  -fPIC libnml/inifile/inifile.cc -o objects/libnml/inifile/inifile.o
-
-# /usr/bin/g++ -L/tmp/git-jman/linuxcnc-src/lib -Wl,-rpath,/tmp/git-jman/linuxcnc-src/lib -Wl,-soname,liblinuxcncini.so.0 -shared -o ../lib/liblinuxcncini.so.0 objects/libnml/inifile/inifile.o
-
-# ln -sf liblinuxcncini.so.0 ../lib/liblinuxcncini.so
-
-
-# Linking inivar
-# /usr/bin/g++ -L/tmp/git-jman/linuxcnc-src/lib -Wl,-rpath,/tmp/git-jman/linuxcnc-src/lib -o ../bin/inivar objects/libnml/inifile/inivar.o ../lib/liblinuxcncini.so.0 
-
-# gcc -c -I. -Ilibnml/linklist -Ilibnml/cms -Ilibnml/rcs -Ilibnml/inifile -Ilibnml/os_intf -Ilibnml/nml -Ilibnml/buffer -Ilibnml/posemath -Irtapi -Ihal -Iemc/nml_intf -Iemc/kinematics -Iemc/motion -Iemc/ini -Iemc/rs274ngc -I/include -I/usr/include/python2.6 -Os -g -Wall -DULAPI  -Wdeclaration-after-statement  -fPIC libnml/posemath/_posemath.c -o objects/libnml/posemath/_posemath.o
-
-# /usr/bin/g++ -c -I. -Ilibnml/linklist -Ilibnml/cms -Ilibnml/rcs -Ilibnml/inifile -Ilibnml/os_intf -Ilibnml/nml -Ilibnml/buffer -Ilibnml/posemath -Irtapi -Ihal -Iemc/nml_intf -Iemc/kinematics -Iemc/motion -Iemc/ini -Iemc/rs274ngc -I/include -I/usr/include/python2.6 -Os -g -Wall -DULAPI  -fPIC libnml/posemath/posemath.cc -o objects/libnml/posemath/posemath.o
-
 set (libnml_srcs
   rcs/rcs_print.cc
   rcs/rcs_exit.cc
@@ -61,6 +47,8 @@ set (NML_Subdirs
   rcs
   )
 
+# FIXME: For some reason the original had an rpath set; should this be
+# present?
 add_library (libnml ${libnml_srcs})
 
 include_directories (${NML_Subdirs})
@@ -68,37 +56,5 @@ include_directories (inifile posemath)
 
 set_property (TARGET libnml
   APPEND PROPERTY INCLUDE_DIRECTORIES "${${Style}-includes}")
-
-# set (NML_Subdirs
-#   buffer 
-#   cms 
-#   linklist 
-#   nml 
-#   os_intf 
-#   rcs
-#   )
-
-# include_directories (${CMAKE_CURRENT_SOURCE_DIR})
-# add_subdirectory (rcs)
-# add_subdirectory (os_intf)
-# add_subdirectory (buffer)
-# add_subdirectory (cms)
-# add_subdirectory (nml)
-# add_subdirectory (linklist)
-# not in Submakefile?
-#  inifile
-#  posemath
-
-
-# add_library (libnml
-#   ${NML_RCS_Srcs}
-#   ${NML_OS_Intf_Srcs}
-#   ${NML_Buffer_Srcs}
-#   ${NML_CMS_Srcs}
-#   ${NML_Linklist_Srcs}
-#   )
-# add_library (libnml)
-
-# target_link_libraries (libnml ${NML_Subdirs})
-
-  
+set_target_properties (libnml PROPERTIES
+  SOVERSION 0)
