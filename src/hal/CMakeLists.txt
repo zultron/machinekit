@@ -4,6 +4,5 @@ include_directories (${CMAKE_SOURCE_DIR}/rtapi)
 
 add_subdirectory (components)
 add_subdirectory (user_comps)
-# Broken until dlopen() set up
-#add_subdirectory (classicladder)
+add_subdirectory (classicladder)
 add_subdirectory (utils)
