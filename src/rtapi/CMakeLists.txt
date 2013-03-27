@@ -43,10 +43,17 @@ foreach (Style ${userland_thread_styles})
     # Compute target name
     set (target_name "${XXApi}-${Style}")
 
-    # Build shared library
-    add_library (${target_name}
+    # link ulapi_main with ulapi.so
+    set (extra_lib_srcs "")
+    if (XXApi STREQUAL ulapi)
+      set (extra_lib_srcs ulapi_main.c)
+    endif ()
+
+    # Build module rtapi.so/ulapi.so
+    add_library (${target_name} MODULE
       ${rtapi_common_srcs}
       "${Style}.c"
+      ${extra_lib_srcs}
       )
 
     # Add -DRTAPI/-DULAPI to target properties
