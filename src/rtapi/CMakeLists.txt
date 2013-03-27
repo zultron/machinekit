@@ -160,6 +160,9 @@ add_library (linuxcnchal
 set_property (TARGET linuxcnchal APPEND PROPERTY
   COMPILE_DEFINITIONS ULAPI
   )
+target_link_libraries (linuxcnchal dl)
+set_target_properties (linuxcnchal PROPERTIES
+  SOVERSION 0)
 
 
 # Build the usermode pci code
