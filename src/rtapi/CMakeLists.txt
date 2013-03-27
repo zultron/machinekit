@@ -8,6 +8,8 @@ if (FLAVOR_XENOMAI_USER)
   set (xenomai-user-includes ${XENOMAI_INCLUDE_DIRS})
   include_directories (${XENOMAI_INCLUDE_DIRS})
   list (APPEND userland_thread_styles xenomai-user)
+  set (xenomai-user_LIBS ${XENOMAI_LIBRARIES})
+  set (xenomai-user_CFLAGS ${XENOMAI_CFLAGS_CLEAN})
 endif (FLAVOR_XENOMAI_USER)
 
 
@@ -58,10 +60,9 @@ foreach (Style ${userland_thread_styles})
     endif()
 
     # Add RTAPI/ULAPI CFLAGS, if any
-    if (DEFINED ${XXApi_Upper}_CFLAGS)
-      set_property (TARGET ${target_name}
-	APPEND PROPERTY COMPILE_FLAGS ${${XXApi_Upper}_CFLAGS})
-    endif()
+    set_property (TARGET ${target_name}
+      APPEND PROPERTY COMPILE_FLAGS
+      " ${${XXApi_Upper}_CFLAGS} ${${Style}_CFLAGS}")
 
     # Add any flavor-specific includes
     if (DEFINED ${Style}-includes)
@@ -69,6 +70,9 @@ foreach (Style ${userland_thread_styles})
 	APPEND PROPERTY INCLUDE_DIRECTORIES "${${Style}-includes}")
     endif(DEFINED ${Style}-includes)
 
+    # Add any flavor-specific libraries
+    target_link_libraries (${target_name}
+      ${${Style}_LIBS} ${${Style}_LIBS})
   endforeach (XXApi)
 endforeach (Style)
 
