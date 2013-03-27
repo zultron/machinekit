@@ -39,8 +39,7 @@ else()
 
   # All cflags
   execute_process (
-    COMMAND echo -n
-	"\$(${XENOMAI_XENO_CONFIG} --skin=${XENOMAI_SKIN} --cflags)"
+    COMMAND ${XENOMAI_XENO_CONFIG} --skin=${XENOMAI_SKIN} --cflags
     OUTPUT_VARIABLE XENOMAI_CFLAGS
     )
   #message("XENOMAI_CFLAGS ${XENOMAI_CFLAGS}")
@@ -57,7 +56,7 @@ else()
   # Clean (non-"-I") cflags
   execute_process (
     COMMAND bash -c "for i in ${XENOMAI_CFLAGS}
-	do test \${i#-I} = \$i && echo -n \$i
+	do test \${i#-I} = \$i && echo -n \\ \$i
 	done"
     OUTPUT_VARIABLE XENOMAI_CFLAGS_CLEAN
     )
