@@ -5,7 +5,6 @@ add_executable (halcmd
 target_link_libraries (halcmd
   linuxcncini linuxcnchal
   ${READLINE_LIBRARY}
-  dl
   )
 
 add_executable (halrmt
@@ -13,7 +12,7 @@ add_executable (halrmt
   )
 target_link_libraries (halrmt
   linuxcnchal
-  dl pthread
+  pthread
   )
 
 add_executable (halmeter
