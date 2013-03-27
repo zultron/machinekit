@@ -80,6 +80,27 @@ foreach (Style ${userland_thread_styles})
     # Add any flavor-specific libraries
     target_link_libraries (${target_name}
       ${${Style}_LIBS} ${${Style}_LIBS})
+
+
+    # FIXME:  this is temporary until dlopen() is working
+    if (XXApi STREQUAL rtapi)
+      add_executable (rtapi_app_${Style}
+	${rtapi_common_srcs}
+	"${Style}.c"
+	sim_rtapi_app.cc
+	)
+      set_property (TARGET rtapi_app_${Style} APPEND PROPERTY
+	COMPILE_DEFINITIONS RTAPI
+	)
+      set_target_properties (rtapi_app_${Style} PROPERTIES
+	INSTALL_RPATH_USE_LINK_PATH TRUE
+	)
+      target_link_libraries(rtapi_app_${Style} ${${Style}_LIBS} dl)
+      set_property (TARGET rtapi_app_${Style}
+	APPEND PROPERTY COMPILE_FLAGS
+	" ${${XXApi_Upper}_CFLAGS} ${${Style}_CFLAGS}")
+    endif ()
+
   endforeach (XXApi)
 endforeach (Style)
 
