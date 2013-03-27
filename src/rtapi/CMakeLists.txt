@@ -125,27 +125,29 @@ include_directories (${CMAKE_SOURCE_DIR}/hal)
 #  )
 
 
+# FIXME:  commented out until dlopen() working
 # rtapi_app
 #/usr/bin/g++ -rdynamic -L/tmp/git-jman/linuxcnc-src/lib -Wl,-rpath,/tmp/git-jman/linuxcnc-src/lib -o ../bin/rtapi_app objects/rtrtapi/rtapi_common.o objects/rtrtapi/rtapi_task.o objects/rtrtapi/rtapi_shmem.o objects/rtrtapi/rtapi_time.o objects/rtrtapi/rtapi_msg.o objects/rtrtapi/rtapi_io.o objects/rtrtapi/xenomai-user.o objects/rtrtapi/rtapi_pci.o objects/rtapi/sim_rtapi_app.o  -lnative -L/usr/lib64 -lxenomai -lpthread -lrt  -ludev   -ldl
 
-add_executable (rtapi_app sim_rtapi_app.cc)
-set_property (TARGET rtapi_app APPEND PROPERTY
-  COMPILE_DEFINITIONS ULAPI
-  )
+# add_executable (rtapi_app sim_rtapi_app.cc)
+# set_property (TARGET rtapi_app APPEND PROPERTY
+#   COMPILE_DEFINITIONS ULAPI
+#   )
 #set_property (TARGET rtapi_app APPEND PROPERTY
 #  INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/hal
 #  )
 #
 # Does this or the next do anything?  How to get -Wl,-rpath,<rpath>
 # into the linker command like in the above g++ command?
-set_property (TARGET rtapi_app APPEND PROPERTY
-  INSTALL_RPATH_USE_LINK_PATH TRUE
-  )
-set_target_properties (rtapi_app PROPERTIES
-  INSTALL_RPATH ${CMAKE_CURRENT_SOURCE_DIR})
-# add -ldl and Xeno libs to linker command
-# does the following need -lrt?
-target_link_libraries(rtapi_app dl ${XENOMAI_LIBRARIES})
+# set_property (TARGET rtapi_app APPEND PROPERTY
+#   INSTALL_RPATH_USE_LINK_PATH TRUE
+#   )
+# set_target_properties (rtapi_app PROPERTIES
+#   INSTALL_RPATH ${CMAKE_CURRENT_SOURCE_DIR})
+# # add -ldl and Xeno libs to linker command
+# # FIXME: does the following need -lrt?  (included by default with xenomai)
+# # FIXME: does the following need -ludev?  (in original)
+# target_link_libraries(rtapi_app dl)
 
 # liblinuxcnchal.so
 #gcc -L/tmp/git-jman/linuxcnc-src/lib -Wl,-rpath,/tmp/git-jman/linuxcnc-src/lib  -Wl,-soname,liblinuxcnchal.so.0 -shared \
@@ -156,7 +158,6 @@ add_library (linuxcnchal
   rtapi_compat.c
   ${CMAKE_SOURCE_DIR}/hal/hal_lib.c
   )
-
 set_property (TARGET linuxcnchal APPEND PROPERTY
   COMPILE_DEFINITIONS ULAPI
   )
