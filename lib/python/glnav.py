@@ -339,12 +339,17 @@ class GlNavBase:
         self._redraw()
 
     def set_view_y(self):
+        if self.is_rear_tp_lathe:
+            x_dir = -1
+        else:
+            x_dir = 1
+
         self.reset()
         glRotatef(-90, 1, 0, 0)
         if self.is_lathe():
             glRotatef(90, 0, 1, 0)
         mid, size = self.extents_info()
-        glTranslatef(-mid[0], -mid[1], -mid[2])
+        glTranslatef(x_dir * -mid[0], -mid[1], -mid[2])
         self.set_eyepoint_from_extents(size[0], size[2])
         self.perspective = False
         self.lat = -90

@@ -153,13 +153,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         return linuxcnc.draw_dwells(self.geometry, dwells, alpha, for_selection, self.is_lathe())
 
     def calc_extents(self):
-
         self.min_extents, self.max_extents, self.min_extents_notool, self.max_extents_notool = gcode.calc_extents(self.arcfeed, self.feed, self.traverse)
-        if self.is_rear_tp_lathe:
-            # the min/max come in from gcode_calc extents as the negative of the actual value
-            # if we're displaying a plot for a rear TP lathe
-            self.min_extents[0] *= (-1)
-            self.max_extents[0] *= (-1)   
         if self.is_foam:
             min_z = min(self.foam_z, self.foam_w)
             max_z = max(self.foam_z, self.foam_w)
@@ -169,6 +163,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
                 self.min_extents_notool[0], self.min_extents_notool[1], min_z
             self.max_extents_notool = \
                 self.max_extents_notool[0], self.max_extents_notool[1], max_z
+
     def tool_offset(self, xo, yo, zo, ao, bo, co, uo, vo, wo):
         self.first_move = True
         x, y, z, a, b, c, u, v, w = self.lo
@@ -585,20 +580,26 @@ class GlCanonDraw:
         else:
             z_pos = g.min_extents[z] - pullback
             zdashwidth = dashwidth
-        # x dimension
 
         self.color_limit(0)
         glBegin(GL_LINES)
-        if view != x:
+
+        # x dimension
+        if view != x and g.max_extents[x] > g.min_extents[x]:
+            if self.is_rear_tp_lathe:
+                x_dir = -1
+            else:
+                x_dir = 1
+
             y_pos = g.min_extents[y] - pullback
-            glVertex3f(g.min_extents[x], y_pos, z_pos)
-            glVertex3f(g.max_extents[x], y_pos, z_pos)
+            glVertex3f(x_dir * g.min_extents[x], y_pos, z_pos)
+            glVertex3f(x_dir * g.max_extents[x], y_pos, z_pos)
 
-            glVertex3f(g.min_extents[x], y_pos - dashwidth, z_pos - zdashwidth)
-            glVertex3f(g.min_extents[x], y_pos + dashwidth, z_pos + zdashwidth)
+            glVertex3f(x_dir * g.min_extents[x], y_pos - dashwidth, z_pos - zdashwidth)
+            glVertex3f(x_dir * g.min_extents[x], y_pos + dashwidth, z_pos + zdashwidth)
 
-            glVertex3f(g.max_extents[x], y_pos - dashwidth, z_pos - zdashwidth)
-            glVertex3f(g.max_extents[x], y_pos + dashwidth, z_pos + zdashwidth)
+            glVertex3f(x_dir * g.max_extents[x], y_pos - dashwidth, z_pos - zdashwidth)
+            glVertex3f(x_dir * g.max_extents[x], y_pos + dashwidth, z_pos + zdashwidth)
 
         # y dimension
         if view != y and g.max_extents[y] > g.min_extents[y]:
@@ -614,20 +615,21 @@ class GlCanonDraw:
 
         # z dimension
         if view != z and g.max_extents[z] > g.min_extents[z]:
-            if g.max_extents[x] > g.min_extents[x]:
-                x_pos = g.min_extents[x] - pullback
+            if self.is_rear_tp_lathe:
+                x_dir = -1
             else:
-                # rear tool post lathe
-                x_pos = g.min_extents[x] + pullback
+                x_dir = 1
+
+            x_pos = g.min_extents[x] - pullback
             y_pos = g.min_extents[y] - pullback
-            glVertex3f(x_pos, y_pos, g.min_extents[z])
-            glVertex3f(x_pos, y_pos, g.max_extents[z])
+            glVertex3f(x_dir * x_pos, y_pos, g.min_extents[z])
+            glVertex3f(x_dir * x_pos, y_pos, g.max_extents[z])
 
-            glVertex3f(x_pos - dashwidth, y_pos - zdashwidth, g.min_extents[z])
-            glVertex3f(x_pos + dashwidth, y_pos + zdashwidth, g.min_extents[z])
+            glVertex3f(x_dir * x_pos - dashwidth, y_pos - zdashwidth, g.min_extents[z])
+            glVertex3f(x_dir * x_pos + dashwidth, y_pos + zdashwidth, g.min_extents[z])
 
-            glVertex3f(x_pos - dashwidth, y_pos - zdashwidth, g.max_extents[z])
-            glVertex3f(x_pos + dashwidth, y_pos + zdashwidth, g.max_extents[z])
+            glVertex3f(x_dir * x_pos - dashwidth, y_pos - zdashwidth, g.max_extents[z])
+            glVertex3f(x_dir * x_pos + dashwidth, y_pos + zdashwidth, g.max_extents[z])
 
         glEnd()
 
@@ -636,42 +638,50 @@ class GlCanonDraw:
             offset = self.to_internal_units(s.g5x_offset + s.g92_offset)
         else:
             offset = 0, 0, 0
+
+        if self.is_rear_tp_lathe:
+            x_dir = -1
+        else:
+            x_dir = 1
+
+        # ### plot Z extent labels ###
         if view != z and g.max_extents[z] > g.min_extents[z]:
+
             if view == x:
                 x_pos = g.min_extents[x] - pullback
                 y_pos = g.min_extents[y] - 6.0*dashwidth
-            else:
-                if g.max_extents[x] > g.min_extents[x]:
-                    x_pos = g.min_extents[x] - 6.0*dashwidth
-                    y_pos = g.min_extents[y] - pullback
-                else:
-                    # rear tool post lathe
-                    x_pos = g.min_extents[x] + 12.0*dashwidth
 
+            else:  # view must be y then
+                x_pos = g.min_extents[x] - (x_dir * 6.0*dashwidth)
+                y_pos = g.min_extents[y] - pullback
+
+            # create Z min extent value and ready for plotting
             bbox = self.color_limit(g.min_extents[z] < machine_limit_min[z])
             glPushMatrix()
             f = fmt % ((g.min_extents[z]-offset[z]) * dimscale)
             glTranslatef(x_pos, y_pos, g.min_extents[z] - halfchar)
             glScalef(charsize, charsize, charsize)
-            glRotatef(-90, 0, 1, 0)
+            glRotatef(x_dir * -90, 0, 1, 0)
             glRotatef(-90, 0, 0, 1)
             if view != x:
                 glRotatef(-90, 0, 1, 0)
             self.hershey.plot_string(f, 0, bbox)
             glPopMatrix()
 
+            # create Z max extent value and ready for plotting
             bbox = self.color_limit(g.max_extents[z] > machine_limit_max[z])
             glPushMatrix()
             f = fmt % ((g.max_extents[z]-offset[z]) * dimscale)
             glTranslatef(x_pos, y_pos, g.max_extents[z] - halfchar)
             glScalef(charsize, charsize, charsize)
-            glRotatef(-90, 0, 1, 0)
+            glRotatef(x_dir * -90, 0, 1, 0)
             glRotatef(-90, 0, 0, 1)
             if view != x:
                 glRotatef(-90, 0, 1, 0)
             self.hershey.plot_string(f, 0, bbox)
             glPopMatrix()
 
+            # create Z extnet distance value and ready for plotting
             self.color_limit(0)
             glPushMatrix()
             f = fmt % ((g.max_extents[z] - g.min_extents[z]) * dimscale)
@@ -683,6 +693,7 @@ class GlCanonDraw:
             self.hershey.plot_string(f, .5, bbox)
             glPopMatrix()
 
+        # ### plot Y extent labels ###
         if view != y and g.max_extents[y] > g.min_extents[y]:
             x_pos = g.min_extents[x] - 6.0*dashwidth
 
@@ -726,13 +737,16 @@ class GlCanonDraw:
             self.hershey.plot_string(f, .5)
             glPopMatrix()
 
+        # ### plot X extent labels ###
         if view != x and g.max_extents[x] > g.min_extents[x]:
+
             y_pos = g.min_extents[y] - 6.0*dashwidth
 
+            # create X min extent value and ready for plotting
             bbox = self.color_limit(g.min_extents[x] < machine_limit_min[x])
             glPushMatrix()
             f = fmt % ((g.min_extents[x] - offset[x]) * dimscale)
-            glTranslatef(g.min_extents[x] - halfchar, y_pos, z_pos)
+            glTranslatef(x_dir * (g.min_extents[x] - halfchar), y_pos, z_pos)
             glRotatef(-90, 0, 0, 1)
             if view == y:
                 glRotatef(90, 0, 1, 0)
@@ -741,10 +755,11 @@ class GlCanonDraw:
             self.hershey.plot_string(f, 0, bbox)
             glPopMatrix()
 
+            # create X max extent value and ready for plotting
             bbox = self.color_limit(g.max_extents[x] > machine_limit_max[x])
             glPushMatrix()
             f = fmt % ((g.max_extents[x] - offset[x]) * dimscale)
-            glTranslatef(g.max_extents[x] - halfchar, y_pos, z_pos)
+            glTranslatef(x_dir * (g.max_extents[x] - halfchar), y_pos, z_pos)
             glRotatef(-90, 0, 0, 1)
             if view == y:
                 glRotatef(90, 0, 1, 0)
@@ -753,11 +768,12 @@ class GlCanonDraw:
             self.hershey.plot_string(f, 0, bbox)
             glPopMatrix()
 
+            # create X extnet distance value and ready for plotting
             self.color_limit(0)
             glPushMatrix()
             f = fmt % ((g.max_extents[x] - g.min_extents[x]) * dimscale)
 
-            glTranslatef((g.max_extents[x] + g.min_extents[x])/2, y_pos,
+            glTranslatef(x_dir * (g.max_extents[x] + g.min_extents[x])/2, y_pos,
                         z_pos)
             if view == y:
                 glRotatef(-90, 1, 0, 0)
@@ -765,48 +781,6 @@ class GlCanonDraw:
             glScalef(charsize, charsize, charsize)
             self.hershey.plot_string(f, .5)
             glPopMatrix()
-        elif view != x and g.max_extents[x] < g.min_extents[x]:
-            # rear tp lathe
-            y_pos = g.min_extents[y] - 6.0*dashwidth
-
-            bbox = self.color_limit(g.min_extents[x] < machine_limit_min[x])
-            glPushMatrix()
-            f = fmt % ((g.min_extents[x] + offset[x]) * dimscale * (-1))
-            glTranslatef(g.min_extents[x] - halfchar, y_pos, z_pos)
-
-            glRotatef(-90, 0, 0, 1)
-            if view == y:
-                glRotatef(90, 0, 1, 0)
-                glTranslatef(dashwidth*1.5, 0, 0)
-            glScalef(charsize, charsize, charsize)
-            self.hershey.plot_string(f, 0, bbox)
-            glPopMatrix()
-
-            bbox = self.color_limit(g.max_extents[x] > machine_limit_max[x])
-            glPushMatrix()
-            f = fmt % ((g.max_extents[x] + offset[x]) * dimscale * (-1))
-            glTranslatef(g.max_extents[x] - halfchar, y_pos, z_pos)
-          
-            glRotatef(-90, 0, 0, 1)
-            if view == y:
-                glRotatef(90, 0, 1, 0)
-                glTranslatef(dashwidth*1.5, 0, 0)
-            glScalef(charsize, charsize, charsize)
-            self.hershey.plot_string(f, 0, bbox)
-            glPopMatrix()
-
-            self.color_limit(0)
-            glPushMatrix()
-            f = fmt % ((g.min_extents[x] - g.max_extents[x]) * dimscale)
-
-            glTranslatef((g.max_extents[x] + g.min_extents[x])/2, y_pos,
-                        z_pos)
-            if view == y:
-                glRotatef(-90, 1, 0, 0)
-                glTranslatef(0, halfchar, 0)
-            glScalef(charsize, charsize, charsize)
-            self.hershey.plot_string(f, .5)
-            glPopMatrix()            
 
     def to_internal_linear_unit(self, v, unit=None):
         if unit is None:
@@ -1001,27 +975,31 @@ class GlCanonDraw:
                 self.show_extents()
 
         if self.get_show_live_plot() or self.get_show_program():
-
             alist = self.dlist(('axes', self.get_view()), gen=self.draw_axes)
             glPushMatrix()
+
             if self.get_show_relative() and (s.g5x_offset[0] or s.g5x_offset[1] or s.g5x_offset[2] or
                                              s.g92_offset[0] or s.g92_offset[1] or s.g92_offset[2] or
                                              s.rotation_xy):
-                olist = self.dlist('draw_small_origin',
-                                        gen=self.draw_small_origin)
-                glCallList(olist)
+
+                if self.show_g53_origin == True :  # plot machine zero
+                    olist = self.dlist('draw_small_origin', gen=self.draw_small_origin)
+                    glCallList(olist)
+
                 g5x_offset = self.to_internal_units(s.g5x_offset)[:3]
                 if  self.is_rear_tool_post_lathe():
                     g5x_offset[0] *= -1
                 g92_offset = self.to_internal_units(s.g92_offset)[:3]
 
-
                 if self.get_show_offsets() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2]):
+
+                    # plot offset crosshair
                     glBegin(GL_LINES)
                     glVertex3f(0,0,0)
                     glVertex3f(*g5x_offset)
                     glEnd()
 
+                    # plot offset label
                     i = s.g5x_index
                     if i<7:
                         label = "G5%d" % (i+3)
@@ -1043,7 +1021,6 @@ class GlCanonDraw:
                 glTranslatef(*g5x_offset)
                 glRotatef(s.rotation_xy, 0, 0, 1)
 
-                
                 if  self.get_show_offsets() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
                     glBegin(GL_LINES)
                     glVertex3f(0,0,0)
