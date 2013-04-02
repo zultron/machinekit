@@ -652,7 +652,7 @@ class GlCanonDraw:
                 y_pos = g.min_extents[y] - 6.0*dashwidth
 
             else:  # view must be y then
-                x_pos = g.min_extents[x] - (x_dir * 6.0*dashwidth)
+                x_pos = x_dir * (g.min_extents[x] - 6.0*dashwidth)
                 y_pos = g.min_extents[y] - pullback
 
             # create Z min extent value and ready for plotting
