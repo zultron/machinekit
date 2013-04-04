@@ -198,7 +198,7 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
     CHKS(((!axis_flag) && (block->g_modes[0] == G_92)), NCE_ALL_AXES_MISSING_WITH_G92);
   } else if (axis_flag || polar_flag) {
     CHKS(((settings->motion_mode == -1)
-         || (settings->motion_mode == G_80)) && (block->g_modes[8] != G_43_1),
+         || (settings->motion_mode == G_80)) && (block->g_modes[8] != G_43_1) && (mode0 != G_28_1),
         NCE_CANNOT_USE_AXIS_VALUES_WITHOUT_A_G_CODE_THAT_USES_THEM);
     if (block->g_modes[8] != G_43_1) {
        block->motion_to_be = settings->motion_mode;
