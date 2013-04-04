@@ -534,7 +534,7 @@ void SET_FEED_RATE(double rate)
 {
     if(feed_mode) {
 	currentLinearFeedRate = FROM_PROG_LEN(rate);
-	START_SPEED_FEED_SYNCH(currentLinearFeedRate, 1);
+	START_SPEED_FEED_SYNCH_FROM_CANON(currentLinearFeedRate, 1);
 	 
     } else {
 	/* convert from /min to /sec */
@@ -986,7 +986,7 @@ void STRAIGHT_TRAVERSE(int line_number,
     }
 
     if(old_feed_mode)
-	START_SPEED_FEED_SYNCH(currentLinearFeedRate, 1);
+	START_SPEED_FEED_SYNCH_FROM_CANON(currentLinearFeedRate, 1);
 
     canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
 }
@@ -1144,14 +1144,29 @@ void STOP_CUTTER_RADIUS_COMPENSATION()
 {
     // nothing need be done here
 }
-
-
+// CANON sees the world in mm, whereas interp convert, task, etc. see the world in 
+// program units.  START_SPEED_SYNCH was called both from within emccanon.cc (set feedrate for G95
+// mode moves) and from interp_convert (in the case of threading and G33).
+// the old START_SPEED_FEED_SYNCH function is left intact below, but all 
+// calls to this function from within canon are now diverted to 
+// START_SPEED_FEED_SYNCH_FROM_CANNON.  This allows a fix for the bug where the feedrate
+// would get bonked to a mult. of 25.4 and 60 (for units/min to units/rev) on
+// mode switch.  Tormach - *dpr 4/4/13
+void START_SPEED_FEED_SYNCH_FROM_CANON(double feed_per_revolution, bool velocity_mode)
+{
+    flush_segments();
+    EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
+    spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(feed_per_revolution);
+    spindlesyncMsg.velocity_mode = velocity_mode;
+    interp_list.append(spindlesyncMsg);
+    synched = 1;
+}
 
 void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode)
 {
     flush_segments();
     EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
-    spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(feed_per_revolution);
+    spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(FROM_PROG_LEN(feed_per_revolution));
     spindlesyncMsg.velocity_mode = velocity_mode;
     interp_list.append(spindlesyncMsg);
     synched = 1;
@@ -1881,7 +1896,7 @@ void CHANGE_TOOL(int slot)
             interp_list.append(linearMoveMsg);
 
 	if(old_feed_mode)
-	    START_SPEED_FEED_SYNCH(currentLinearFeedRate, 1);
+	    START_SPEED_FEED_SYNCH_FROM_CANON(currentLinearFeedRate, 1);
 
         canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
     }
@@ -3016,7 +3031,7 @@ int UNLOCK_ROTARY(int line_number, int axis) {
     interp_list.append(m);
     // no need to update endpoint
     if(old_feed_mode)
-	START_SPEED_FEED_SYNCH(currentLinearFeedRate, 1);
+	START_SPEED_FEED_SYNCH_FROM_CANON(currentLinearFeedRate, 1);
 
     // now, the next move is the real indexing move, so be ready
     rotary_unlock_for_traverse = axis;
