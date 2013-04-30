@@ -3682,7 +3682,17 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
                              settings->tool_table[pocket].backangle,
                              settings->tool_table[pocket].orientation);
     }
-
+    if (FEATURE(LATHE_TOOLCHANGE)) {
+        // G10 command doesn't automatically apply a G43 length offset to the newly measured tool
+		// we don't want to call a G43 in our python code for lathe, so we'll deal with applying the offset here.
+		// Tormach *dpr 4/30/13
+		EmcPose tool_offset;
+		ZERO_EMC_POSE(tool_offset);
+		tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
+		tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.z);
+        USE_TOOL_LENGTH_OFFSET(tool_offset);
+        settings->tool_offset = tool_offset;		
+    } 
     return INTERP_OK;
 }
 
@@ -5126,6 +5136,9 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
   if (g_code == G_49) {
     index = 0;
   } else if (g_code == G_43) {
+	      if (FEATURE(LATHE_TOOLCHANGE)) {
+		ERS("Error: G43 invalid in Lathe.  Txxyy command applies TLO without G43");
+    }
       logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
 	      block->h_flag,block->h_number,settings->toolchange_flag,settings->current_pocket);
       if(block->h_flag) {
@@ -5149,23 +5162,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     tool_offset.u = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.u);
     tool_offset.v = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.v);
     tool_offset.w = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.w);
-    if (FEATURE(LATHE_TOOLCHANGE)) {
-	if (block->t_number > 99 && block->t_number<10000) {
-		geo_offset_register = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
-		wear_offset_register = block->t_number % 100;	// wear offset is second two digits
-	} else if (block->t_number < 100) {
-		geo_offset_register = block->t_number + 10000;	// per Smit (p.404 CNC Fundamentals) geo offsets are offset by 10000
-	}
-	CHP((find_tool_pocket(settings, geo_offset_register, &index)));
-	tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
-	tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
-	if (block->t_number > 99) {
-		CHP((find_tool_pocket(settings, wear_offset_register, &index)));
-		// wear offsets are stored in the actual tool value register (e.g. T1 X Z stores wear, T10001 X Z stores geo offsets)
-		tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
-		tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
-	}
-    }
+
   } else if (g_code == G_43_1) {
     tool_offset = settings->tool_offset;
     index = -1;
@@ -5240,11 +5237,93 @@ int Interp::convert_tool_select(block_pointer block,     //!< pointer to a block
   SELECT_POCKET(pocket, block->t_number);
   settings->selected_pocket = pocket;
   settings->selected_tool = block->t_number;
-  if (FEATURE(LATHE_TOOLCHANGE)) {
-	CHP(convert_tool_change(settings));
-	CHP(convert_tool_length_offset(G_43, block, settings));
-  } 
+// moved the following calls to interp::execute in the t_flag switch, which is where it belongs
+//  if (FEATURE(LATHE_TOOLCHANGE)) {
+//	CHP(convert_tool_change(settings));
+//	CHP(convert_tool_length_offset(G_43, block, settings));
+	
+//  } 
   return INTERP_OK;
 }
 
 
+/****************************************************************************/
+
+/*! convert_lathe_tool_change
+
+Returned Value: int
+   If the tool slot given in the block is larger than allowed,
+   this returns NCE_SELECTED_TOOL_SLOT_NUMBER_TOO_LARGE.
+   Otherwise, it returns INTERP_OK.
+
+Side effects: See below
+
+Called by: execute_block
+
+*/
+
+// OK to select tool in a concave corner, I think?
+
+int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a block of RS274 instructions
+                               setup_pointer settings)  //!< pointer to machine settings             
+{
+
+
+ int pocket;
+  CHP((find_tool_pocket(settings, block->t_number, &pocket)));
+  SELECT_POCKET(pocket, block->t_number);
+  settings->selected_pocket = pocket;
+  settings->selected_tool = block->t_number;
+ 
+  
+  if (settings->selected_pocket < 0) {
+    ERS(NCE_TXX_MISSING_FOR_M6);
+  }
+
+  CHKS((settings->cutter_comp_side),
+       (_("Cannot change tools with cutter radius compensation on")));
+
+  START_CHANGE(); // indicate start of change operation
+  if (!settings->tool_change_with_spindle_on) {
+      STOP_SPINDLE_TURNING();
+      settings->spindle_turning = CANON_STOPPED;
+  }
+
+  
+  CHANGE_TOOL(settings->selected_pocket);
+
+  settings->current_pocket = settings->selected_pocket;
+  // tool change can move the controlled point.  reread it:
+  settings->toolchange_flag = true; 
+  set_tool_parameters();
+  
+  
+  int index;
+  int geo_offset_register = 0;
+  int wear_offset_register = 0;
+  EmcPose tool_offset;
+  ZERO_EMC_POSE(tool_offset);
+
+	if (block->t_number > 99 && block->t_number<10000) {
+		geo_offset_register = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
+		wear_offset_register = block->t_number % 100;	// wear offset is second two digits
+	} else if (block->t_number < 100) {
+		geo_offset_register = block->t_number + 10000;	// per Smit (p.404 CNC Fundamentals) geo offsets are offset by 10000
+	}
+	CHP((find_tool_pocket(settings, geo_offset_register, &index)));
+	tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
+	tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
+	if (block->t_number > 99) {
+		CHP((find_tool_pocket(settings, wear_offset_register, &index)));
+		// wear offsets are stored in the actual tool value register (e.g. T1 X Z stores wear, T10001 X Z stores geo offsets)
+		tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
+		tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
+	}
+
+  USE_TOOL_LENGTH_OFFSET(tool_offset);
+
+  settings->tool_offset = tool_offset;
+  return INTERP_OK;
+  
+
+}

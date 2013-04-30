@@ -276,9 +276,7 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 	  return (convert_remapped_code(block,settings,STEP_PREPARE,'T'));
       } else {
 		if (FEATURE(LATHE_TOOLCHANGE)) {
-			CHP(convert_tool_select(block, settings));
-			CHP(convert_tool_change(settings));
-			CHP(convert_tool_length_offset(G_43, block, settings));
+			CHP(convert_lathe_tool_change(block, settings));
 		}
 		else {
 			CHP(convert_tool_select(block, settings));

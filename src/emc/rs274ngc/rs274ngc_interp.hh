@@ -278,6 +278,7 @@ public:
  int convert_threading_cycle(block_pointer block, setup_pointer settings,
                              double end_x, double end_y, double end_z);
  int convert_tool_change(setup_pointer settings);
+ int convert_lathe_tool_change(block_pointer block, setup_pointer settings);
  int convert_tool_length_offset(int g_code, block_pointer block,
                                       setup_pointer settings);
  int convert_tool_select(block_pointer block, setup_pointer settings);
