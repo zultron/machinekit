@@ -22,12 +22,12 @@ USERSRCS += $(MODBUSSRCS)
 TARGETS += ../bin/gs2_vfd
 
 ifeq ($(HIDRAW_H_USABLE),yes)
-SHUTTLEXPRESS_SRC = hal/user_comps/shuttlexpress.c
-USERSRCS += $(SHUTTLEXPRESS_SRC)
-../bin/shuttlexpress: $(call TOOBJS, $(SHUTTLEXPRESS_SRC)) ../lib/liblinuxcnchal.so.0
+TORMACHHEIGHTGUAGE_SRC = hal/user_comps/tormachheightgauge.c
+USERSRCS += $(TORMACHHEIGHTGUAGE_SRC)
+../bin/tormachheightgauge: $(call TOOBJS, $(TORMACHHEIGHTGUAGE_SRC)) ../lib/liblinuxcnchal.so.0
 	$(ECHO) Linking $(notdir $@)
 	$(Q)$(CC) $(LDFLAGS) -o $@ $^
-TARGETS += ../bin/shuttlexpress
+TARGETS += ../bin/tormachheightgauge
 endif
 
 ../include/%.h: ./hal/user_comps/%.h
