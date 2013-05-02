@@ -41,6 +41,7 @@ io
 milltask
 shuttlexpress
 redis-server
+tormachheightgauge
 "
 
 LCNC_LIB_FILES="
