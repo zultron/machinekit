@@ -184,7 +184,6 @@ int Interp::convert_nurbs(int mode,
 	settings->current_x = nurbs_control_points[nurbs_control_points.size()-1].X;
         settings->current_y = nurbs_control_points[nurbs_control_points.size()-1].Y;
         NURBS_FEED(block->line_number, nurbs_control_points, nurbs_order);
-	//printf("hello\n");
 	nurbs_control_points.clear();
 	//printf("%d\n", 	nurbs_control_points.size());
 	settings->motion_mode = -1;
@@ -2291,7 +2290,7 @@ int Interp::convert_savehome(int code, block_pointer block, setup_pointer s) {
     
     // Tormach - set G28.1 to 9999 on initial startup
     if (block->x_flag) x = block->x_number;  
-	if (block->z_flag) z = block->z_number;  
+    if (block->z_flag) z = block->z_number;
  
 
     if(s->a_axis_wrapped) {
@@ -2403,6 +2402,12 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
   CHKS((settings->cutter_comp_side),
       NCE_CANNOT_USE_G28_OR_G30_WITH_CUTTER_RADIUS_COMP);
 
+                      
+  // check for unset g28 position (Tormach only)
+  if ((parameters[5161] == 9999.) || (parameters[5163] == 9999.)){
+	  ERS("Cannot use G28 until G28 position has been set");
+  }
+
   // waypoint is in currently active coordinate system
 
   // move indexers first, one at a time
@@ -2455,6 +2460,8 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
                     &u_end_home, &v_end_home, &w_end_home, settings);
   } else
     ERS(NCE_BUG_CODE_NOT_G28_OR_G30);
+    
+
   
   // if any axes are specified, home only those axes after the waypoint 
   // (both fanuc & haas, contrary to emc historical operation)
@@ -2486,10 +2493,7 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
       w_end = w_end_home;  
   }
 
-// check for unset g28 position (Tormach only)
-if ((end_x == 9999) || (end_z == 9999)){
-	ERS("Cannot use G28 until G28 position has been set");
-}
+
   // move indexers first, one at a time
   if (AA_end != settings->AA_current && settings->a_indexer)
       issue_straight_index(3, AA_end, block->line_number, settings);
@@ -2497,6 +2501,7 @@ if ((end_x == 9999) || (end_z == 9999)){
       issue_straight_index(4, BB_end, block->line_number, settings);
   if (CC_end != settings->CC_current && settings->c_indexer)
       issue_straight_index(5, CC_end, block->line_number, settings);
+      
 
   STRAIGHT_TRAVERSE(block->line_number, end_x, end_y, end_z,
                     AA_end, BB_end, CC_end,
@@ -5126,8 +5131,6 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
                                       setup_pointer settings)   //!< pointer to machine settings                 
 {
   int index;
-  int geo_offset_register = 0;
-  int wear_offset_register = 0;
   EmcPose tool_offset;
   ZERO_EMC_POSE(tool_offset);
 
