@@ -3249,6 +3249,13 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
     return convert_remapped_code(block,settings,STEP_M_10,'m',
 				   block->m_modes[10]);
 
+ } else if ((block->m_modes[10] == 998) && ONCE_M(10)){
+	 // Tormach only
+	 if (FEATURE(LATHE_TOOLCHANGE)){
+		 CHKS(1, NCE_UNKNOWN_M_CODE_USED);
+	 } else {
+		CHP(convert_home(G_30, block, settings));
+	}
  } else if ((block->m_modes[10] != -1)  && ONCE_M(10)){
      /* user-defined M codes */
     int index = block->m_modes[10];
