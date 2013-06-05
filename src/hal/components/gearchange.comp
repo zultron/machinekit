@@ -34,6 +34,7 @@ FUNCTION(_) {
 	temp_in = -temp_in;
     }
     if(sel) {		/* gear 2 */
+        alarm = 0;
     	if (temp_in < min2){
     	    temp_in = min2;
     	    alarm = 1;
