@@ -1317,6 +1317,17 @@ static PyObject *wait_complete(pyCommandChannel *s, PyObject *o) {
     return PyInt_FromLong(emcWaitCommandComplete(s->serial, s->s, timeout));
 }
 
+static PyObject *wait_received(pyCommandChannel *s, PyObject *o) {
+    double timeout = EMC_COMMAND_TIMEOUT;
+    if (!PyArg_ParseTuple(o, "|d:emc.command.wait_received", &timeout))
+        return NULL;
+    emcWaitCommandReceived(s->serial, s->s);
+    return Py_None;
+}
+
+
+
+
 static PyMemberDef Command_members[] = {
     {(char*)"serial", T_INT, offsetof(pyCommandChannel, serial), READONLY},
     {NULL}
@@ -1328,6 +1339,7 @@ static PyMethodDef Command_methods[] = {
     {"teleop_vector", (PyCFunction)set_teleop_vector, METH_VARARGS},
     {"traj_mode", (PyCFunction)set_traj_mode, METH_VARARGS},
     {"wait_complete", (PyCFunction)wait_complete, METH_VARARGS},
+    {"wait_received", (PyCFunction)wait_received, METH_VARARGS},
     {"state", (PyCFunction)state, METH_VARARGS},
     {"mdi", (PyCFunction)mdi, METH_VARARGS},
     {"mode", (PyCFunction)mode, METH_VARARGS},
