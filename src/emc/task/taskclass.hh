@@ -27,7 +27,7 @@ public:
     virtual int emcToolSetOffset(int pocket, int toolno, EmcPose offset, double diameter,
 				 double frontangle, double backangle, int orientation);
     virtual int emcToolPrepare(int p, int tool);
-    virtual int emcToolLoad();
+    virtual int emcToolLoad(int phase);
     virtual int emcToolLoadToolTable(const char *file);
     virtual int emcToolUnload();
     virtual int emcToolSetNumber(int number);
