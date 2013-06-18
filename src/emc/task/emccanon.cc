@@ -1863,29 +1863,12 @@ void CHANGE_TOOL(int slot)
      * move to a particular coordinate before the tool change
      * is called.  */
     
-    /* Tormach - * dpr 6/13/13 support for Zbot ATC.  We will
-     * need to come up with a switch here for whether or not a tool
-     * changer is enabled.  This should be something set dynamically,
-     * not set in the INI file.  */
-
-
-
-    // if (have_tool_change_position) {
-    if (1) {
+    if (have_tool_change_position) {
         double vel, acc, x, y, z, a, b, c, u, v, w;
-
-        /* May be able to skip the move to tool change position entirely
-         * if we enable the TOOL_CHANGE_AT_G30 flag for all configs */
-
 
         x = FROM_EXT_LEN(tool_change_position.tran.x);
         y = FROM_EXT_LEN(tool_change_position.tran.y);
         z = FROM_EXT_LEN(tool_change_position.tran.z);
-
-	    x = 5;
-		y=5;
-	    z=-2.75*25.4;
- 
         a = FROM_EXT_ANG(tool_change_position.a);
         b = FROM_EXT_ANG(tool_change_position.b);
         c = FROM_EXT_ANG(tool_change_position.c);
@@ -1902,7 +1885,7 @@ void CHANGE_TOOL(int slot)
         linearMoveMsg.vel = linearMoveMsg.ini_maxvel = toExtVel(vel);
         linearMoveMsg.acc = toExtAcc(acc);
         linearMoveMsg.type = EMC_MOTION_TYPE_TOOLCHANGE;
-	    linearMoveMsg.feed_mode = 0;
+	linearMoveMsg.feed_mode = 0;
         linearMoveMsg.indexrotary = -1;
 
 	int old_feed_mode = feed_mode;
@@ -1912,93 +1895,15 @@ void CHANGE_TOOL(int slot)
         if(vel && acc) 
             interp_list.append(linearMoveMsg);
 
-
-        canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
-    
-
-    /* regardless of optional moves above, we'll always send a load tool
-       message */
-	load_tool_msg.change_phase = 1;
-    interp_list.append(load_tool_msg);
-
-
-	// TODO - understand what flush_segments() does...
-
-    flush_segments();
-
-		// Bob's kludge for hover Z
-
-		x = 5;
-		y=5;
-		z=-0;
-       
-        vel = getStraightVelocity(x, y, z, a, b, c, u, v, w);
-        acc = getStraightAcceleration(x, y, z, a, b, c, u, v, w);
-
-        linearMoveMsg.end = to_ext_pose(x, y, z, a, b, c, u, v, w);
-
-        linearMoveMsg.vel = linearMoveMsg.ini_maxvel = toExtVel(vel);
-        linearMoveMsg.acc = toExtAcc(acc);
-        linearMoveMsg.type = EMC_MOTION_TYPE_TOOLCHANGE;
-		linearMoveMsg.feed_mode = 0;
-        linearMoveMsg.indexrotary = -1;
-
-
- 
-        if(vel && acc) 
-            interp_list.append(linearMoveMsg);
-
-
-        canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
-   
-
-    /* regardless of optional moves above, we'll always send a load tool
-       message */
-	load_tool_msg.change_phase = 2;
-    interp_list.append(load_tool_msg);
-	   
-	flush_segments();
-
-
-		// Back to tool change position
-
-		x = 5;
-		y=05;
-		z=-2.75*25.4;
-
-
-
-        vel = getStraightVelocity(x, y, z, a, b, c, u, v, w);
-        acc = getStraightAcceleration(x, y, z, a, b, c, u, v, w);
-
-        linearMoveMsg.end = to_ext_pose(x, y, z, a, b, c, u, v, w);
-
-        linearMoveMsg.vel = linearMoveMsg.ini_maxvel = toExtVel(vel);
-        linearMoveMsg.acc = toExtAcc(acc);
-        linearMoveMsg.type = EMC_MOTION_TYPE_TOOLCHANGE;
-	    linearMoveMsg.feed_mode = 0;
-        linearMoveMsg.indexrotary = -1;
-
-	if(feed_mode)
-	    STOP_SPEED_FEED_SYNCH();
-       
-        if(vel && acc) 
-            interp_list.append(linearMoveMsg);
-
 	if(old_feed_mode)
-	    START_SPEED_FEED_SYNCH(currentLinearFeedRate, 1);
-
+	    START_SPEED_FEED_SYNCH_FROM_CANON(currentLinearFeedRate, 1);
 
         canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
-  
+    }
 
     /* regardless of optional moves above, we'll always send a load tool
        message */
-	load_tool_msg.change_phase = 3;
     interp_list.append(load_tool_msg);
-
-  }
-
 }
 
 /* SELECT_POCKET results from T1, for example */
