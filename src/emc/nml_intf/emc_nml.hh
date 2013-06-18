@@ -1500,7 +1500,6 @@ class EMC_TOOL_LOAD:public EMC_TOOL_CMD_MSG {
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
-    int change_phase;
 };
 
 class EMC_TOOL_UNLOAD:public EMC_TOOL_CMD_MSG {

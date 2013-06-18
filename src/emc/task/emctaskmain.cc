@@ -395,7 +395,6 @@ static EMC_SPINDLE_ORIENT *spindle_orient_msg;
 static EMC_SPINDLE_WAIT_ORIENT_COMPLETE *wait_spindle_orient_complete_msg;
 static EMC_SPINDLE_ON *spindle_on_msg;
 static EMC_TOOL_PREPARE *tool_prepare_msg;
-static EMC_TOOL_LOAD *tool_load_msg;
 static EMC_TOOL_LOAD_TOOL_TABLE *load_tool_table_msg;
 static EMC_TOOL_SET_OFFSET *emc_tool_set_offset_msg;
 static EMC_TOOL_SET_NUMBER *emc_tool_set_number_msg;
@@ -2026,8 +2025,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TOOL_LOAD_TYPE:
-	tool_load_msg = (EMC_TOOL_LOAD *) cmd;
-	retval = emcToolLoad(tool_load_msg->change_phase); // Tormach - support for Zbot ATC *dpr 6/17/13
+	retval = emcToolLoad();
 	break;
 
     case EMC_TOOL_UNLOAD_TYPE:

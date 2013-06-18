@@ -282,7 +282,7 @@ int emcLubeOn() { return task_methods->emcLubeOn(); }
 int emcLubeOff() { return task_methods->emcLubeOff(); }
 int emcToolPrepare(int p, int tool) { return task_methods->emcToolPrepare(p, tool); }
 int emcToolStartChange() { return task_methods->emcToolStartChange(); }
-int emcToolLoad(int phase) { return task_methods->emcToolLoad(phase); }
+int emcToolLoad() { return task_methods->emcToolLoad(); }
 int emcToolUnload()  { return task_methods->emcToolUnload(); }
 int emcToolLoadToolTable(const char *file) { return task_methods->emcToolLoadToolTable(file); }
 int emcToolSetOffset(int pocket, int toolno, EmcPose offset, double diameter,
@@ -648,10 +648,10 @@ int Task::emcToolStartChange()
 }
 
 
-int Task::emcToolLoad(int phase)
+int Task::emcToolLoad()
 {
     EMC_TOOL_LOAD toolLoadMsg;
-    toolLoadMsg.change_phase = phase;
+
     sendCommand(&toolLoadMsg);
 
     return 0;
