@@ -84,6 +84,7 @@ rtapi.ko
 scale.ko
 sim_encoder.ko
 stepgen.ko
+threads.ko
 toggle.ko
 tormachltc.ko
 trivkins.ko
