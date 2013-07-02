@@ -2404,28 +2404,28 @@ int Interp::leave_remap(void)
 
 int Interp::on_abort(int reason, const char *message)
 {
-	int pocket;
+	int pocket, tool;
     logDebug("on_abort reason=%d message='%s'", reason, message);
     
     
     
     // If running the FANUC_LATHE_TOOLCHANGE feature, the interp reads ahead and on abort the wrong tool
     // offset will be used if a program is stopped in the middle.  We need to resynch here.
-    // Note: this is a bit of a kludge.  pocket+27 will need to change when the tool table gets bigger
-    // It would be better to get the pocket from the active tool, which can be accessed with 
-    // _setup.tool_table[0].toolno.  No time or energy to do this now as it requires jumping through a
+    // Note: this is a bit of a kludge.  pocket = tool+27 will need to change when the tool table gets bigger
+    // No time or energy to do this now as it requires jumping through a
     // number of hoops.  I suspect this will all have to change with a redis-based tool table anyway.
-    // Tormach - *dpr 4/30/13
+    // Tormach - *dpr 4/30/13, ammended 7/2/13
 	if (FEATURE(LATHE_TOOLCHANGE)) {
-	pocket = GET_EXTERNAL_SELECTED_TOOL_SLOT();
-	
+	tool =  _setup.tool_table[0].toolno;
+	pocket = tool + 27;
 	EmcPose tool_offset;
     ZERO_EMC_POSE(tool_offset);
 
-	tool_offset.tran.x = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket + 27].offset.tran.x);
-	tool_offset.tran.z = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket + 27].offset.tran.z);
+	tool_offset.tran.x = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.x);
+	tool_offset.tran.z = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.z);
 
     USE_TOOL_LENGTH_OFFSET(tool_offset);
+    
 	}
 	
 	
