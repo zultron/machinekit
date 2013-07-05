@@ -4308,6 +4308,9 @@ int Interp::convert_straight(int move,   //!< either G_0 or G_1
     } else if (settings->feed_mode == UNITS_PER_REVOLUTION) {
       CHKS((settings->feed_rate == 0.0), NCE_CANNOT_DO_G1_WITH_ZERO_FEED_RATE);
       CHKS((settings->speed == 0.0), _("Cannot feed with zero spindle speed in feed per rev mode"));
+      CHKS(((settings->spindle_turning != CANON_CLOCKWISE) &&
+           (settings->spindle_turning != CANON_COUNTERCLOCKWISE)),
+          _("Cannot feed with spindle not turning in feed per rev mode"));
     } else if (settings->feed_mode == INVERSE_TIME) {
       CHKS((!block->f_flag),
           NCE_F_WORD_MISSING_WITH_INVERSE_TIME_G1_MOVE);
