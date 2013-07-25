@@ -3,7 +3,6 @@ component jogtranslator;
 description """This comp is intended to do the mapping of the raw ring, wheel and buttons off a ShuttlXpress
    to allow them to be connected to control jogging
    The buttons can be made to latch as a set of radio buttons
-   The ring can be scaled geometrically depending on a minimum value and geometric multiplier.
    A input can be used to cycle a set of values in powers of 10 starting from a minimum value.""";
 
 
@@ -14,11 +13,6 @@ pin in bit ax_butt_3 "TRUE if button 3 pressed";
 pin in bit ax_butt_4 "TRUE if button 4 pressed";
 
 pin in signed ring_raw "Signed value of jog ring position";
-
-pin in float min_speed "Minimum output value i.e. wheel in position 1";
-pin in float g_multiplier "Max output value for position 7 is min_speed * g_multiplier^6";
-
-description "Pre-compute g_multiplier as sixth-root on max_speed/min_speed";
 
 pin in unsigned radio_latching "Set true if you want the priority ax_butt signals to be latched";
 
@@ -60,7 +54,15 @@ pin out unsigned shuttle_step_index "Index to hal table of step sizes - smallest
 pin in unsigned gui_step_index "Channel from GUI to hal table of step sizes - smallest is 0 up to number_of_stepsizes - 1";
 pin in bit is_metric "Pin to indicate current G20/21 status.  True when in G21, False in G20";
 
-
+// overwrite these directly if the g_multiplier^6 method isn't to your liking.
+pin in float jt_speed_0 "Outer ring position center speed";
+pin in float jt_speed_1 "Outer ring position 1 speed";
+pin in float jt_speed_2 "Outer ring position 2 speed";
+pin in float jt_speed_3 "Outer ring position 3 speed";
+pin in float jt_speed_4 "Outer ring position 4 speed";
+pin in float jt_speed_5 "Outer ring position 5 speed";
+pin in float jt_speed_6 "Outer ring position 6 speed";
+pin in float jt_speed_7 "Outer ring position 7 speed";
 
 function _ "This comp translates raw data from shuttle devices to drive jogging pins";
 
@@ -70,10 +72,7 @@ license "GPL";
 
 author "J A Prentice";
 
-variable float jt_speeds[8];
 variable signed latched_button;
-variable float last_min_speed;
-variable float last_g_multiplier;
 variable char waiting_stepsizes_release;
 variable unsigned step_size_index;
 variable float current_stepsize;
@@ -88,23 +87,11 @@ variable char first_call;  // NZ on first entry to main loop
 // Rev G1 - originally 23 April 2012 -  adds signed wheel output
 // Rev H1 - originally 11 October 2012 - adds an In/Out chain to calculate the vector sum of squares 
 //    speed with multiple jogshuttles to excite the GUI to switch to manual mode
-
+// Rev I1 - 23 July 2013 - outer ring speeds made into pins settable via UI, removed min_speed and g_multiplier
 
 
 EXTRA_SETUP() {
 
-// TODO - these speeds should be calculated from min_speed and max_speed in ini file.
-    jt_speeds[0] =   0.0;
-    jt_speeds[1] =   0.5;
-    jt_speeds[2] =   1.0;
-    jt_speeds[3] =   5.0; // these spacings are probably sub-optimal JAP
-    jt_speeds[4] =  10.0;
-    jt_speeds[5] =  20.0;
-    jt_speeds[6] =  40.0;
-    jt_speeds[7] =  80.0;
-
-    last_min_speed = 1; // dummy initial values to pick up changes
-    last_g_multiplier = 1; 
     latched_button = -1;
 
     waiting_stepsizes_release = 0; // not awaiting release of cycle-stepsizes
@@ -178,35 +165,48 @@ unsigned int iloop;
 	break;
 	default: ;
 	} // set up the direction pins
-	
-	ax_jog_speed_signed = ax_jog_speed = jt_speeds[abs(ring_raw)];
+
+	switch (abs(ring_raw)) {
+		case 0:
+			ax_jog_speed = jt_speed_0;
+			break;
+		case 1:
+			ax_jog_speed = jt_speed_1;
+			break;
+		case 2:
+			ax_jog_speed = jt_speed_2;
+			break;
+		case 3:
+			ax_jog_speed = jt_speed_3;
+			break;
+		case 4:
+			ax_jog_speed = jt_speed_4;
+			break;
+		case 5:
+			ax_jog_speed = jt_speed_5;
+			break;
+		case 6:
+			ax_jog_speed = jt_speed_6;
+			break;
+		case 7:
+			ax_jog_speed = jt_speed_7;
+			break;
+		default:
+			ax_jog_speed = jt_speed_0;
+			break;
+	}
+	ax_jog_speed_signed = ax_jog_speed;
 	if (ring_raw < 0) { // need negative signed value
 		ax_jog_speed_signed = - ax_jog_speed;
 	} // done with sign
-
-// ==============================================================================================
-// Here we deal with setting up the jog speed table
-// ==============================================================================================
-
-	if ((g_multiplier != last_g_multiplier) || (min_speed != last_min_speed)) { // we need to recalc speed table
-		unsigned table_index;
-		float c_multiplier; // the current multiplier during table build
-
-		c_multiplier = 1.0; 
-
-		for (table_index = 1; table_index < 8; table_index++) { // fill in the speed table
-			jt_speeds [table_index] = min_speed * c_multiplier;
-			c_multiplier = c_multiplier * g_multiplier; // update the multiplier
-		} // end for
-
-		last_min_speed = min_speed; last_g_multiplier = g_multiplier; // remember where we are now
-	} // table recalc
 
 //=====================================================================================================
 // Here we deal with cycling the stepsizes
 //=====================================================================================================
 
-	if (first_call) current_stepsize = smallest_step; // initialise
+	if (first_call) {
+		current_stepsize = smallest_step; // initialise
+	}
 
 	if (cycle_stepsizes) {
 		if (!waiting_stepsizes_release) { // we need to do next stepsize
