@@ -1,4 +1,4 @@
-.TH JOGTRANSLATOR "9" "2013-05-16" "LinuxCNC Documentation" "HAL Component"
+.TH JOGTRANSLATOR "9" "2013-07-30" "LinuxCNC Documentation" "HAL Component"
 .de TQ
 .br
 .ns
@@ -16,7 +16,6 @@ jogtranslator
 This comp is intended to do the mapping of the raw ring, wheel and buttons off a ShuttlXpress
    to allow them to be connected to control jogging
    The buttons can be made to latch as a set of radio buttons
-   The ring can be scaled geometrically depending on a minimum value and geometric multiplier.
    A input can be used to cycle a set of values in powers of 10 starting from a minimum value.
 .SH FUNCTIONS
 .TP
@@ -41,12 +40,6 @@ TRUE if button 4 pressed
 .TP
 .B jogtranslator.\fIN\fB.ring-raw\fR s32 in \fR
 Signed value of jog ring position
-.TP
-.B jogtranslator.\fIN\fB.min-speed\fR float in \fR
-Minimum output value i.e. wheel in position 1
-.TP
-.B jogtranslator.\fIN\fB.g-multiplier\fR float in \fR
-Max output value for position 7 is min_speed * g_multiplier^6
 .TP
 .B jogtranslator.\fIN\fB.radio-latching\fR u32 in \fR
 Set true if you want the priority ax_butt signals to be latched
@@ -131,6 +124,30 @@ Channel from GUI to hal table of step sizes - smallest is 0 up to number_of_step
 .TP
 .B jogtranslator.\fIN\fB.is-metric\fR bit in \fR
 Pin to indicate current G20/21 status.  True when in G21, False in G20
+.TP
+.B jogtranslator.\fIN\fB.jt-speed-0\fR float in \fR
+Outer ring position center speed
+.TP
+.B jogtranslator.\fIN\fB.jt-speed-1\fR float in \fR
+Outer ring position 1 speed
+.TP
+.B jogtranslator.\fIN\fB.jt-speed-2\fR float in \fR
+Outer ring position 2 speed
+.TP
+.B jogtranslator.\fIN\fB.jt-speed-3\fR float in \fR
+Outer ring position 3 speed
+.TP
+.B jogtranslator.\fIN\fB.jt-speed-4\fR float in \fR
+Outer ring position 4 speed
+.TP
+.B jogtranslator.\fIN\fB.jt-speed-5\fR float in \fR
+Outer ring position 5 speed
+.TP
+.B jogtranslator.\fIN\fB.jt-speed-6\fR float in \fR
+Outer ring position 6 speed
+.TP
+.B jogtranslator.\fIN\fB.jt-speed-7\fR float in \fR
+Outer ring position 7 speed
 .SH AUTHOR
 
 J A Prentice
