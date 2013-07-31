@@ -1202,11 +1202,25 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
 
 int emcPositionLoad() {
     double positions[EMCMOT_MAX_JOINTS];
+    char expanded_posfile[256];
     IniFile ini;
     ini.Open(emc_inifile);
     const char *posfile = ini.Find("POSITION_FILE", "TRAJ");
     ini.Close();
     if(!posfile || !posfile[0]) return 0;
+    // expand '~' to $HOME if present
+    if(posfile[0] == '~') {
+        // see if filename starts with '~'
+        // get user's HOME directory from environment
+        char *home;
+        if ((home = getenv("HOME")) != NULL) {
+            // start with the path to the HOME directory
+            strcpy(expanded_posfile, home);
+            // skip the '~'
+            strcat(expanded_posfile, &posfile[1]);
+            posfile = expanded_posfile;
+        }
+    }
     FILE *f = fopen(posfile, "r");
     if(!f) return 0;
     for(int i=0; i<EMCMOT_MAX_JOINTS; i++) {
@@ -1225,6 +1239,7 @@ int emcPositionLoad() {
 int emcPositionSave() {
     IniFile ini;
     const char *posfile;
+    char expanded_posfile[256];
 
     ini.Open(emc_inifile);
     try {
@@ -1236,6 +1251,19 @@ int emcPositionSave() {
     ini.Close();
 
     if(!posfile || !posfile[0]) return 0;
+    // expand '~' to $HOME if present
+    if(posfile[0] == '~') {
+        // see if filename starts with '~'
+        // get user's HOME directory from environment
+        char *home;
+        if ((home = getenv("HOME")) != NULL) {
+            // start with the path to the HOME directory
+            strcpy(expanded_posfile, home);
+            // skip the '~'
+            strcat(expanded_posfile, &posfile[1]);
+            posfile = expanded_posfile;
+        }
+    }
     // like the var file, make sure the posfile is recreated according to umask
     unlink(posfile);
     FILE *f = fopen(posfile, "w");
