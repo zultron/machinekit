@@ -3699,7 +3699,8 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
 		// we don't want to call a G43 in our python code for lathe, so we'll deal with applying the offset here.
 		// Tormach *dpr 4/30/13
 		// Don't apply the offset unless the P number is the same as the current tool, however *dpr 8/12/13
-		if (toolno == settings->tool_table[0].toolno){
+		//printf("toolno is %d and tool_table[0].toolno is %d", toolno, settings->tool_table[0].toolno);
+		if ((toolno == settings->tool_table[0].toolno) || ((toolno - 10000) == settings->tool_table[0].toolno)){
 			EmcPose tool_offset;
 			ZERO_EMC_POSE(tool_offset);
 			tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
