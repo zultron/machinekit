@@ -4210,8 +4210,8 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 /*7*/ STOP_SPINDLE_TURNING();
     settings->spindle_turning = CANON_STOPPED;
 
-    /* turn off FPR */
-    SET_SPINDLE_MODE(0);
+    /* turn off CSS */
+    // SET_SPINDLE_MODE(0); Leave spindle in CSS on M30 - 8/20/13 *dpr - Tormach.
 /*8*/ 
 /*settings->motion_mode = G_1;
 */
