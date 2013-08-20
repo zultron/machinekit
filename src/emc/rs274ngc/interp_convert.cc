@@ -3706,6 +3706,21 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
 			tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
 			tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.z);
 			USE_TOOL_LENGTH_OFFSET(tool_offset);
+			double dx, dy;
+
+			dx = settings->tool_offset.tran.x - tool_offset.tran.x;
+			dy = settings->tool_offset.tran.y - tool_offset.tran.y;
+			rotate(&dx, &dy, -settings->rotation_xy);
+
+			settings->current_x += dx;
+			settings->current_y += dy;
+			settings->current_z += settings->tool_offset.tran.z - tool_offset.tran.z;
+			settings->AA_current += settings->tool_offset.a - tool_offset.a;
+			settings->BB_current += settings->tool_offset.b - tool_offset.b;
+			settings->CC_current += settings->tool_offset.c - tool_offset.c;
+			settings->u_current += settings->tool_offset.u - tool_offset.u;
+			settings->v_current += settings->tool_offset.v - tool_offset.v;
+			settings->w_current += settings->tool_offset.w - tool_offset.w;
 			settings->tool_offset = tool_offset;
 		}		
     } 
