@@ -28,6 +28,18 @@ USERSRCS += $(TORMACHHEIGHTGUAGE_SRC)
 	$(ECHO) Linking $(notdir $@)
 	$(Q)$(CC) $(LDFLAGS) -o $@ $^
 TARGETS += ../bin/tormachheightgauge
+SHUTTLEXPRESS_SRC = hal/user_comps/shuttlexpress.c
+USERSRCS += $(SHUTTLEXPRESS_SRC)
+../bin/shuttlexpress: $(call TOOBJS, $(SHUTTLEXPRESS_SRC)) ../lib/liblinuxcnchal.so.0
+	$(ECHO) Linking $(notdir $@)
+	$(Q)$(CC) $(LDFLAGS) -o $@ $^
+TARGETS += ../bin/shuttlexpress
+SHUTTLEXPRESS4_SRC = hal/user_comps/shuttlexpress4.c
+USERSRCS += $(SHUTTLEXPRESS4_SRC)
+../bin/shuttlexpress4: $(call TOOBJS, $(SHUTTLEXPRESS4_SRC)) ../lib/liblinuxcnchal.so.0
+	$(ECHO) Linking $(notdir $@)
+	$(Q)$(CC) $(LDFLAGS) -o $@ $^
+TARGETS += ../bin/shuttlexpress4
 endif
 
 ../include/%.h: ./hal/user_comps/%.h
