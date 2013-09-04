@@ -132,12 +132,6 @@ done
 # strip the binaries
 (cd "$RIP_ROOT"/bin; find . | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded)
 
-# rename shuttlexpress to shuttlexpress_original
-# then copy shuttlexpress4 to shuttlexpress
-rm -f "$RIP_ROOT"/bin/shuttlexpress_original
-mv "$RIP_ROOT"/bin/shuttlexpress "$RIP_ROOT"/bin/shuttlexpress_original
-cp "$RIP_ROOT"/bin/shuttlexpress4 "$RIP_ROOT"/bin/shuttlexpress
-
 CMD="cp "$LCNC_ROOT"/configs/common/linuxcnc.nml "$RIP_ROOT""
 echo $CMD
 cp "$LCNC_ROOT"/configs/common/linuxcnc.nml "$RIP_ROOT"

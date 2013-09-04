@@ -72,7 +72,7 @@
 
 
 // the module name, and prefix for all HAL pins 
-char *modname = "shuttlexpress";
+char *modname = "shuttlexpress4";
 
 
 int hal_comp_id;
