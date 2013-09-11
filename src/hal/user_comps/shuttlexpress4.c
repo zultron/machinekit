@@ -365,7 +365,7 @@ void glob_dev_names(glob_t *gb) {
 
     r = glob("/dev/hidraw*", 0, NULL, gb);
     if (r == GLOB_NOMATCH) {
-        fprintf(stderr, "%s: no /dev/hidraw* device entries found, is device plugged in?\n", modname);
+        //fprintf(stderr, "%s: no /dev/hidraw* device entries found, is device plugged in?\n", modname);
     } else if (r != 0) {
         fprintf(stderr, "%s: error with glob!\n", modname);
         exit(1);
