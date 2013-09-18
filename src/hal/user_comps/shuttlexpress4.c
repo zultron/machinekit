@@ -266,10 +266,11 @@ void check_for_shuttlexpress(char *dev_filename) {
 
     s->fd = open(dev_filename, O_RDONLY);
     if (s->fd < 0) {
-        fprintf(stderr, "%s: error opening %s: %s\n", modname, dev_filename, strerror(errno));
-        if (errno == EACCES) {
-            fprintf(stderr, "%s: make sure you have read permission on %s, read the shuttlexpress(1) manpage for more info\n", modname, dev_filename);
-        }
+        // probably just no read permission on the mouse or keyboard, quietly continue
+        //fprintf(stderr, "%s: error opening %s: %s\n", modname, dev_filename, strerror(errno));
+        //if (errno == EACCES) {
+        //    fprintf(stderr, "%s: make sure you have read permission on %s, read the shuttlexpress(1) manpage for more info\n", modname, dev_filename);
+        //}
         return;
     }
 
@@ -323,10 +324,11 @@ int shuttle_present(char *dev_filename)
 
     fd = open(dev_filename, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "%s: error opening %s: %s\n", modname, dev_filename, strerror(errno));
-        if (errno == EACCES) {
-            fprintf(stderr, "%s: make sure you have read permission on %s, read the shuttlexpress(1) manpage for more info\n", modname, dev_filename);
-        }
+        // probably just no read permission on the mouse or keyboard, quietly continue
+        //fprintf(stderr, "%s: error opening %s: %s\n", modname, dev_filename, strerror(errno));
+        //if (errno == EACCES) {
+        //    fprintf(stderr, "%s: make sure you have read permission on %s, read the shuttlexpress(1) manpage for more info\n", modname, dev_filename);
+        //}
         return -1;
     }
 
