@@ -1062,8 +1062,6 @@ int Interp::init()
 //_setup.plane set in Interp::synch
   _setup.probe_flag = false;
   _setup.toolchange_flag = false;
-  _setup.current_lathe_wear_offset_index = 0;
-  _setup.prev_lathe_wear_offset_index = 0;
   _setup.input_flag = false;
   _setup.input_index = -1;
   _setup.input_digital = false;
@@ -2416,8 +2414,7 @@ int Interp::on_abort(int reason, const char *message)
     // Note: this is a bit of a kludge.  pocket = tool+27 will need to change when the tool table gets bigger
     // No time or energy to do this now as it requires jumping through a
     // number of hoops.  I suspect this will all have to change with a redis-based tool table anyway.
-    // Tormach - *dpr 4/30/13, amended 7/2/13, amended again to include correct setting of the _setup.tool_offset
-    // and applying wear offsets as necessary
+    // Tormach - *dpr 4/30/13, ammended 7/2/13
 	if (FEATURE(LATHE_TOOLCHANGE)) {
 	tool =  _setup.tool_table[0].toolno;
 	pocket = tool + 27;
@@ -2426,12 +2423,8 @@ int Interp::on_abort(int reason, const char *message)
 
 	tool_offset.tran.x = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.x);
 	tool_offset.tran.z = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.z);
-	
-	tool_offset.tran.x += USER_TO_PROGRAM_LEN(_setup.tool_table[_setup.prev_lathe_wear_offset_index].offset.tran.x);
-	tool_offset.tran.z += USER_TO_PROGRAM_LEN(_setup.tool_table[_setup.prev_lathe_wear_offset_index].offset.tran.z);
 
     USE_TOOL_LENGTH_OFFSET(tool_offset);
-    _setup.tool_offset = tool_offset;
     
 	}
 	

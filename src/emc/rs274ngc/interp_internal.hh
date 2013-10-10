@@ -666,8 +666,6 @@ typedef struct setup_struct
   bool probe_flag;            // flag indicating probing done
   bool input_flag;            // flag indicating waiting for input done
   bool toolchange_flag;       // flag indicating we just had a tool change
-  int current_lathe_wear_offset_index; 
-  int prev_lathe_wear_offset_index;  // used to keep track of which wear offset was previously applied
   int input_index;		// channel queried
   bool input_digital;		// input queried was digital (false=analog)
   bool cutter_comp_firstmove; // this is the first comp move
