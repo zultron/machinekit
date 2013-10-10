@@ -5300,7 +5300,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
                                setup_pointer settings)  //!< pointer to machine settings             
 {
 
-
+ 
  int pocket;
   CHP((find_tool_pocket(settings, block->t_number, &pocket)));
   SELECT_POCKET(pocket, block->t_number);
@@ -5323,7 +5323,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
 
   
   CHANGE_TOOL(settings->selected_pocket);
-
+  settings->prev_lathe_wear_offset_index = settings->current_lathe_wear_offset_index;
   settings->current_pocket = settings->selected_pocket;
   // tool change can move the controlled point.  reread it:
   settings->toolchange_flag = true; 
@@ -5347,6 +5347,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
 	tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
 	if (block->t_number > 99) {
 		CHP((find_tool_pocket(settings, wear_offset_register, &index)));
+		settings->current_lathe_wear_offset_index = index;
 		// wear offsets are stored in the actual tool value register (e.g. T1 X Z stores wear, T10001 X Z stores geo offsets)
 		tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
 		tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
