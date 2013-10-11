@@ -2420,12 +2420,12 @@ int Interp::on_abort(int reason, const char *message)
 	pocket = tool + 27;
 	EmcPose tool_offset;
     ZERO_EMC_POSE(tool_offset);
-
+	
 	tool_offset.tran.x = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.x);
 	tool_offset.tran.z = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.z);
-
+ 
     USE_TOOL_LENGTH_OFFSET(tool_offset);
-    
+    _setup.tool_offset = tool_offset;
 	}
 	
 	
