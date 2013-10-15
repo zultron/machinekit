@@ -5345,11 +5345,16 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
 	CHP((find_tool_pocket(settings, geo_offset_register, &index)));
 	tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
 	tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
+	tool_offset.w = 0;
 	if (block->t_number > 99) {
 		CHP((find_tool_pocket(settings, wear_offset_register, &index)));
 		// wear offsets are stored in the actual tool value register (e.g. T1 X Z stores wear, T10001 X Z stores geo offsets)
 		tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
 		tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
+		// store which wear offset is currently applied in the .w field (not using a w axis on the lathe, are we?)
+		// the USE_TOOL_LENGTH offset in cannon sets the status.task.toolOffset struct in machine time, and the GUI gets it in machine time
+		// so we can tell which offset is really in use
+		tool_offset.w = wear_offset_register;
 	}
 
   USE_TOOL_LENGTH_OFFSET(tool_offset);
