@@ -14,6 +14,8 @@ public:
 
 // close the currently open NC code file
  int close();
+ 
+ double get_numbered_parameter(int number);
 
 // execute a line of NC code
  int execute(const char *command);

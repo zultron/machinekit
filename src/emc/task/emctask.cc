@@ -679,6 +679,12 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     interp.active_g_codes(&stat->activeGCodes[0]);
     interp.active_m_codes(&stat->activeMCodes[0]);
     interp.active_settings(&stat->activeSettings[0]);
+    
+	//Interp *i = dynamic_cast<Interp*>(pinterp);
+	//stat->g54_offset.tran.x = i->get_numbered_parameter(5201);
+
+    //printf("5201 is %f\n", stat->g54_offset.tran.x);
+    
 
     //update state of optional stop
     stat->optional_stop_state = GET_OPTIONAL_PROGRAM_STOP();

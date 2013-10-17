@@ -160,6 +160,20 @@ what to do. They are declared in rs274ngc.hh.
 
 */
 
+
+
+
+double Interp::get_numbered_parameter(int param_num)
+{
+
+  if (param_num > 0 && param_num <= RS274NGC_MAX_PARAMETERS) {
+    return _setup.parameters[param_num];
+  }
+return 0.0;
+}
+
+
+
 /***********************************************************************/
 
 /*! Interp::close
