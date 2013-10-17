@@ -92,6 +92,7 @@ public:
     void active_g_codes(int active_gcodes[ACTIVE_G_CODES]);
     void active_m_codes(int active_mcodes[ACTIVE_M_CODES]);
     void active_settings(double active_settings[ACTIVE_SETTINGS]);
+    EmcPose get_work_offset(int origin);
     void set_loglevel(int level);
     FILE *f;
     char filename[PATH_MAX];

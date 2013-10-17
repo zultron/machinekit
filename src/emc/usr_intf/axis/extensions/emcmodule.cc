@@ -416,6 +416,42 @@ static PyObject *Stat_g5x_offset(pyStatChannel *s) {
     return pose(s->status.task.g5x_offset);
 }
 
+static PyObject *Stat_g54_offset(pyStatChannel *s) {
+    return pose(s->status.task.g54_offset);
+}
+
+static PyObject *Stat_g55_offset(pyStatChannel *s) {
+    return pose(s->status.task.g55_offset);
+}
+
+static PyObject *Stat_g56_offset(pyStatChannel *s) {
+    return pose(s->status.task.g56_offset);
+}
+
+static PyObject *Stat_g57_offset(pyStatChannel *s) {
+    return pose(s->status.task.g57_offset);
+}
+
+static PyObject *Stat_g58_offset(pyStatChannel *s) {
+    return pose(s->status.task.g58_offset);
+}
+
+static PyObject *Stat_g59_offset(pyStatChannel *s) {
+    return pose(s->status.task.g59_offset);
+}
+
+static PyObject *Stat_g59_1_offset(pyStatChannel *s) {
+    return pose(s->status.task.g59_1_offset);
+}
+
+static PyObject *Stat_g59_2_offset(pyStatChannel *s) {
+    return pose(s->status.task.g59_2_offset);
+}
+
+static PyObject *Stat_g59_3_offset(pyStatChannel *s) {
+    return pose(s->status.task.g59_3_offset);
+}
+
 static PyObject *Stat_g92_offset(pyStatChannel *s) {
     return pose(s->status.task.g92_offset);
 }
@@ -627,6 +663,15 @@ static PyGetSetDef Stat_getsetlist[] = {
     {(char*)"limit", (getter)Stat_limit},
     {(char*)"mcodes", (getter)Stat_activemcodes},
     {(char*)"g5x_offset", (getter)Stat_g5x_offset},
+    {(char*)"g54_offset", (getter)Stat_g54_offset},
+    {(char*)"g55_offset", (getter)Stat_g55_offset},
+    {(char*)"g56_offset", (getter)Stat_g56_offset},
+    {(char*)"g57_offset", (getter)Stat_g57_offset},
+    {(char*)"g58_offset", (getter)Stat_g58_offset},
+    {(char*)"g59_offset", (getter)Stat_g59_offset},
+    {(char*)"g59_1_offset", (getter)Stat_g59_1_offset},
+    {(char*)"g59_2_offset", (getter)Stat_g59_2_offset},
+    {(char*)"g59_3_offset", (getter)Stat_g59_3_offset},
     {(char*)"g5x_index", (getter)Stat_g5x_index},
     {(char*)"g92_offset", (getter)Stat_g92_offset},
     {(char*)"position", (getter)Stat_position},

@@ -15,7 +15,7 @@ public:
 // close the currently open NC code file
  int close();
  
- double get_numbered_parameter(int number);
+ EmcPose get_work_offset(int origin);
 
 // execute a line of NC code
  int execute(const char *command);

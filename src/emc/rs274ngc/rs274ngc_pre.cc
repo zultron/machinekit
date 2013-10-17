@@ -163,13 +163,21 @@ what to do. They are declared in rs274ngc.hh.
 
 
 
-double Interp::get_numbered_parameter(int param_num)
+EmcPose Interp::get_work_offset(int origin)
 {
+	EmcPose pose;
 
-  if (param_num > 0 && param_num <= RS274NGC_MAX_PARAMETERS) {
-    return _setup.parameters[param_num];
-  }
-return 0.0;
+	pose.tran.x = USER_TO_PROGRAM_LEN(_setup.parameters[5201 + (origin * 20)]);
+	pose.tran.y = USER_TO_PROGRAM_LEN(_setup.parameters[5202 + (origin * 20)]);
+    pose.tran.z = USER_TO_PROGRAM_LEN(_setup.parameters[5203 + (origin * 20)]);
+    pose.a      = USER_TO_PROGRAM_ANG(_setup.parameters[5204 + (origin * 20)]);
+	pose.b      = USER_TO_PROGRAM_ANG(_setup.parameters[5205 + (origin * 20)]);
+	pose.c      = USER_TO_PROGRAM_ANG(_setup.parameters[5206 + (origin * 20)]);
+	pose.u      = USER_TO_PROGRAM_LEN(_setup.parameters[5207 + (origin * 20)]);
+	pose.v      = USER_TO_PROGRAM_LEN(_setup.parameters[5208 + (origin * 20)]);
+	pose.w      = USER_TO_PROGRAM_LEN(_setup.parameters[5209 + (origin * 20)]);
+
+	return pose;
 }
 
 

@@ -680,11 +680,16 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     interp.active_m_codes(&stat->activeMCodes[0]);
     interp.active_settings(&stat->activeSettings[0]);
     
-	//Interp *i = dynamic_cast<Interp*>(pinterp);
-	//stat->g54_offset.tran.x = i->get_numbered_parameter(5201);
-
-    //printf("5201 is %f\n", stat->g54_offset.tran.x);
-    
+	// Tormach - bring the current work offsets back to emcmodule's status object 
+	stat->g54_offset   = interp.get_work_offset(1);
+	stat->g55_offset   = interp.get_work_offset(2);
+	stat->g56_offset   = interp.get_work_offset(3);
+	stat->g57_offset   = interp.get_work_offset(4);
+	stat->g58_offset   = interp.get_work_offset(5);
+	stat->g59_offset   = interp.get_work_offset(6);
+	stat->g59_1_offset = interp.get_work_offset(7);
+	stat->g59_2_offset = interp.get_work_offset(8);
+	stat->g59_3_offset = interp.get_work_offset(9);
 
     //update state of optional stop
     stat->optional_stop_state = GET_OPTIONAL_PROGRAM_STOP();
