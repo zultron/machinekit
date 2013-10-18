@@ -1,0 +1,110 @@
+
+component freq2pin "Tormach Frequency to Pin Component";
+
+license "©2013 Tormach® LLC. All rights reserved.";
+author "Tormach, LLC";
+
+// Reads a frequency input and decodes it to a bitmap of pin outputs
+//
+// Type changed via 'tool_changer_type' HAL pin
+//
+// HAL mappings:
+//
+//    Inputs:
+//          input      - possibly from an encoder velocity-out pin
+//          freq-width - input must with within +/- half this of freq-table entry
+//          freq-table
+//
+//    Outputs:
+//          output-0
+//          output-not-0
+//          output-1
+//          output-not-1
+//          and so on . . .
+
+pin in float input;
+
+param rw unsigned freq-width;
+
+param rw unsigned stability_count;
+
+param rw unsigned stability_width;
+
+param rw unsigned freq-table-##[256 : (personality * personality)];
+
+pin io bit output_#[8 : personality];
+
+pin io bit output_not_#[8 : personality];
+
+function _ "Decodes frequency input to bitmap pin output.";
+
+;;
+
+int consecutive_count = 0;
+float prev_abs_input;
+
+FUNCTION(_) {
+    signed int idx;
+    signed int freq_idx;
+    unsigned int bitmask;
+    unsigned int num_frequencies = (personality & 0x7) * (personality & 0x7);
+    float abs_input;
+
+    // correct for possible negative encoder velocity input
+    abs_input = input;
+    if (abs_input < 0.0) {
+        abs_input = -input;
+    }
+
+    // check frequency stability before processing to prevent output glitching at frequency transistions
+    if ((abs_input >= (prev_abs_input - stability_width/2)) && 
+        (abs_input <= (prev_abs_input + stability_width/2)) &&
+        (consecutive_count < stability_count)) {
+        consecutive_count++;
+    }
+    else {
+        // not stable
+        consecutive_count = 0;
+    }
+    prev_abs_input = abs_input;
+    if (consecutive_count < stability_count) {
+        // not yet
+        return;
+    }
+
+    freq_idx = -1;
+    // find which table frequency is closest to the input
+    for (idx = 0; idx < num_frequencies; idx++) {
+        if ((abs_input >= (freq_table(idx) - freq_width/2)) && 
+            (abs_input <= (freq_table(idx) + freq_width/2))) {
+            // found it
+            freq_idx = idx;
+            break;
+        }
+    }
+
+    if (freq_idx == -1) {
+        // too far below or above valid range
+        // set all outputs inactive
+        for (idx = 0; idx < personality; idx++) {
+            output(idx) = 0;
+            output_not(idx) = 1;
+        }
+    }
+    else {
+        bitmask = 0x01;
+        // set the bits according to the index
+        for (idx = 0; idx < personality; idx++) {
+            if (freq_idx & bitmask) {
+                output(idx) = 1;
+                output_not(idx) = 0;
+            }
+            else {
+                output(idx) = 0;
+                output_not(idx) = 1;
+            }
+            bitmask = (bitmask << 1);
+        }
+    }
+}
+
