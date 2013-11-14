@@ -2286,12 +2286,7 @@ int Interp::convert_savehome(int code, block_pointer block, setup_pointer s) {
     double u = PROGRAM_TO_USER_LEN(s->u_current + s->tool_offset.u + s->u_origin_offset + s->u_axis_offset);
     double v = PROGRAM_TO_USER_LEN(s->v_current + s->tool_offset.v + s->v_origin_offset + s->v_axis_offset);
     double w = PROGRAM_TO_USER_LEN(s->w_current + s->tool_offset.w + s->w_origin_offset + s->w_axis_offset);
-    
-    
-    // Tormach - set G28.1 to 9999 on initial startup
-    if (block->x_flag) x = block->x_number;  
-    if (block->z_flag) z = block->z_number;
- 
+
 
     if(s->a_axis_wrapped) {
         a = fmod(a, 360.0);
@@ -2402,11 +2397,7 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
   CHKS((settings->cutter_comp_side),
       NCE_CANNOT_USE_G28_OR_G30_WITH_CUTTER_RADIUS_COMP);
 
-                      
-  // check for unset g28 position (Tormach only)
-  if ((parameters[5161] == 9999.) || (parameters[5163] == 9999.)){
-	  ERS("Cannot use G28 until G28 position has been set");
-  }
+
 
   // waypoint is in currently active coordinate system
 
