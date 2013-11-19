@@ -741,8 +741,21 @@ static void check_for_faults(void)
 		    /* trip on limits */
 		    if (!GET_JOINT_ERROR_FLAG(joint)) {
 			/* report the error just this once */
-			reportError(_("joint %d on limit switch error"),
-			    joint_num);
+			/* dispaly joint number as sensible axis */
+			switch (joint_num) {
+			    case 0:
+			        reportError(_("%s axis limit switch active"), "X");
+			        break;
+			    case 1:
+			        reportError(_("%s axis limit switch active"), "Y");
+			        break;
+			    case 2:
+			        reportError(_("%s axis limit switch active"), "Z");
+			        break;
+			    default:
+			        reportError(_("joint %d on limit switch error"), joint_num);
+			        break;
+			}
 		    }
 		    SET_JOINT_ERROR_FLAG(joint, 1);
 		    emcmotDebug->enabling = 0;
