@@ -753,7 +753,8 @@ static void check_for_faults(void)
 			        reportError(_("%s axis limit switch active"), "Z");
 			        break;
 			    default:
-			        reportError(_("joint %d on limit switch error"), joint_num);
+			        //reportError(_("joint %d on limit switch error"), joint_num);
+			        reportError(_("One or both of the X and Z limit switches is active"));
 			        break;
 			}
 		    }

@@ -1,0 +1,39 @@
+.TH FREQ2PIN "9" "2013-11-21" "LinuxCNC Documentation" "HAL Component"
+.de TQ
+.br
+.ns
+.TP \\$1
+..
+
+.SH NAME
+
+freq2pin \- Tormach Frequency to Pin Component
+.SH SYNOPSIS
+.HP
+.B loadrt freq2pin [count=\fIN\fB|names=\fIname1\fB[,\fIname2...\fB]] [personality=\fIP,P,...\fB]
+.SH FUNCTIONS
+.TP
+\fBfreq2pin.\fIN\fB\fR (requires a floating-point thread)
+Decodes frequency input to bitmap pin output.
+.SH PINS
+.TP
+.B freq2pin.\fIN\fB.input\fR float in \fR
+.TQ
+.B freq2pin.\fIN\fB.output-\fIM\fB\fR bit io  (M=0..personality) \fR
+.TQ
+.B freq2pin.\fIN\fB.output-not-\fIM\fB\fR bit io  (M=0..personality) \fR
+.SH PARAMETERS
+.TP
+.B freq2pin.\fIN\fB.freq-width\fR u32 rw \fR
+.TQ
+.B freq2pin.\fIN\fB.stability-count\fR u32 rw \fR
+.TQ
+.B freq2pin.\fIN\fB.stability-width\fR u32 rw \fR
+.TQ
+.B freq2pin.\fIN\fB.freq-table-\fIMM\fB\fR u32 rw  (MM=00..( personality * personality )) \fR
+.SH AUTHOR
+
+Tormach, LLC
+.SH LICENSE
+
+©2013 Tormach® LLC. All rights reserved.
