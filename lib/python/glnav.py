@@ -381,7 +381,10 @@ class GlNavBase:
         self.perspective = True
         mid, size = self.extents_info()
         glTranslatef(-mid[0], -mid[1], -mid[2])
-        size = (size[0] ** 2 + size[1] ** 2 + size[2] ** 2) ** .5
+        if self.canon:
+            size = (size[0] ** 2 + size[1] ** 2 + size[2] ** 2) ** .5
+        else:
+            size = ((size[0] ** 2 + size[1] ** 2 + size[2] ** 2) ** .5) / .55
         if size > 1e99: size = 5. # in case there are no moves in the preview
         w = self.winfo_width()
         h = self.winfo_height()

@@ -562,6 +562,7 @@ class GlCanonDraw:
         is_metric = self.get_show_metric()
         dimscale = is_metric and 25.4 or 1.0
         fmt = is_metric and "%.1f" or "%.2f"
+        dfmt = is_metric and "Ds%.1f" or "Ds%.2f"
 
         machine_limit_min, machine_limit_max = self.soft_limits()
 
@@ -745,7 +746,12 @@ class GlCanonDraw:
             # create X min extent value and ready for plotting
             bbox = self.color_limit(g.min_extents[x] < machine_limit_min[x])
             glPushMatrix()
-            f = fmt % ((g.min_extents[x] - offset[x]) * dimscale)
+
+            if self.is_rear_tp_lathe:
+                f = dfmt % ((g.min_extents[x] - offset[x]) * dimscale * 2)
+            else:
+                f = fmt % ((g.min_extents[x] - offset[x]) * dimscale)
+
             glTranslatef(x_dir * (g.min_extents[x] - halfchar), y_pos, z_pos)
             glRotatef(-90, 0, 0, 1)
             if view == y:
@@ -758,7 +764,12 @@ class GlCanonDraw:
             # create X max extent value and ready for plotting
             bbox = self.color_limit(g.max_extents[x] > machine_limit_max[x])
             glPushMatrix()
-            f = fmt % ((g.max_extents[x] - offset[x]) * dimscale)
+
+            if self.is_rear_tp_lathe:
+                f = dfmt % ((g.max_extents[x] - offset[x]) * dimscale * 2)
+            else:
+                f = fmt % ((g.max_extents[x] - offset[x]) * dimscale)
+
             glTranslatef(x_dir * (g.max_extents[x] - halfchar), y_pos, z_pos)
             glRotatef(-90, 0, 0, 1)
             if view == y:
@@ -1614,10 +1625,29 @@ class GlCanonDraw:
     def extents_info(self):
         if self.canon:
             mid = [(a+b)/2 for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
-            size = [(a-b) for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
-        else:
-            mid = [0, 0, 0]
-            size = [3, 3, 3]
+            if self.is_lathe():
+                size = [(.5 * (a-b)) for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
+            else:
+                size = [(a-b) for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
+        else:  # use work space extents (limits) from .ini file
+            x_limit_positive = float(self.inifile.find("AXIS_0", "MAX_LIMIT"))
+            x_limit_negative = float(self.inifile.find("AXIS_0", "MIN_LIMIT"))
+            y_limit_positive = float(self.inifile.find("AXIS_1", "MAX_LIMIT") or 0)
+            y_limit_negative = float(self.inifile.find("AXIS_1", "MIN_LIMIT") or 0)
+            z_limit_positive = float(self.inifile.find("AXIS_2", "MAX_LIMIT"))
+            z_limit_negative = float(self.inifile.find("AXIS_2", "MIN_LIMIT"))
+            mid = [(x_limit_positive + x_limit_negative) / 2,
+                   (y_limit_positive + y_limit_negative) / 2,
+                   (z_limit_positive + z_limit_negative) / 2]
+            if self.is_lathe():
+                size = [.37 * (x_limit_positive - x_limit_negative),
+                        .37 * (y_limit_positive - y_limit_negative),
+                        .37 * (z_limit_positive - z_limit_negative) ]
+            else:
+                size = [.43 * (x_limit_positive - x_limit_negative),
+                        .43 * (y_limit_positive - y_limit_negative),
+                        .43 * (z_limit_positive - z_limit_negative) ]
+
         return mid, size
 
     def make_selection_list(self, unused=None):
