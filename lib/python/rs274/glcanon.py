@@ -856,6 +856,9 @@ class GlCanonDraw:
         k0 = int(math.ceil(d0/space))
         k1 = int(math.floor(d1/space))
         delta = (dx, dy)
+
+        s = self.stat
+
         for k in range(k0, k1+1):
             d = k*space
             # Now we're drawing the line dx(x-ox) + dx(y-oy) + d = 0
@@ -892,13 +895,30 @@ class GlCanonDraw:
             #if xm < lim_min[0] or xm > lim_max[0]: continue
             #if ym < lim_min[1] or ym > lim_max[1]: continue
 
+            view = self.get_view()
+            if self.is_rear_tool_post_lathe():
+                glVertex3f(*inverse_permutation((x0 - s.tool_offset[2], -y0 + s.tool_offset[0], lim_min[2])))
+                glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], -y1 + s.tool_offset[0], lim_min[2])))
+            elif view == 2:
+                glVertex3f(*inverse_permutation((x0, y0, lim_min[2] - s.tool_offset[2])))
+                glVertex3f(*inverse_permutation((x1, y1, lim_min[2] - s.tool_offset[2])))
+            else:
+                glVertex3f(*inverse_permutation((x0 - s.tool_offset[2], y0, lim_min[2])))
+                glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], y1, lim_min[2])))
+
+            """
             if self.is_rear_tool_post_lathe():
                 x_dir = -1
             else:
                 x_dir = 1
-
-            glVertex3f(*inverse_permutation((x0, x_dir * y0, lim_min[2])))
-            glVertex3f(*inverse_permutation((x1, x_dir * y1, lim_min[2])))
+            view = self.get_view()
+            if view == 2:
+                glVertex3f(*inverse_permutation((x0, x_dir * y0, lim_min[2] - s.tool_offset[2])))
+                glVertex3f(*inverse_permutation((x1, x_dir * y1, lim_min[2] - s.tool_offset[2])))
+            else:
+                glVertex3f(*inverse_permutation((x0 - s.tool_offset[2], x_dir * y0, lim_min[2])))
+                glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], x_dir * y1, lim_min[2])))
+            """
 
     def draw_grid_permuted(self, rotation, permutation, inverse_permutation):
         grid_size=self.get_grid_size()
@@ -1066,53 +1086,131 @@ class GlCanonDraw:
 
         if self.get_show_limits():
             glLineWidth(1)
-            glColor3f(1.0,0.0,0.0)
+            glColor3f(0.3,0.5,1.0)
             glLineStipple(1, 0x1111)
             glEnable(GL_LINE_STIPPLE)
             glBegin(GL_LINES)
 
             if self.is_rear_tool_post_lathe():
                 x_dir = -1
+                # Draw 3d box at soft limits for X, Y, and Z axes
+                glColor3f(0.0,1.0,0.0)
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]) )
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
+
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
+
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
+
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
+
             else:
                 x_dir = 1
-            # Draw 3d box at soft limits for X, Y, and Z axes
-            glVertex3f(x_dir * machine_limit_min[0], machine_limit_min[1], machine_limit_max[2])
-            glVertex3f(x_dir * machine_limit_min[0], machine_limit_min[1], machine_limit_min[2])
+                # Draw 3d box at soft limits for X, Y, and Z axes
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]) )
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
 
-            glVertex3f(x_dir * machine_limit_min[0], machine_limit_min[1], machine_limit_min[2])
-            glVertex3f(x_dir * machine_limit_min[0], machine_limit_max[1], machine_limit_min[2])
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_max[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
 
-            glVertex3f(x_dir * machine_limit_min[0], machine_limit_max[1], machine_limit_min[2])
-            glVertex3f(x_dir * machine_limit_min[0], machine_limit_max[1], machine_limit_max[2])
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_max[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_max[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
 
-            glVertex3f(x_dir * machine_limit_min[0], machine_limit_max[1], machine_limit_max[2])
-            glVertex3f(x_dir * machine_limit_min[0], machine_limit_min[1], machine_limit_max[2])
-
-
-            glVertex3f(x_dir * machine_limit_max[0], machine_limit_min[1], machine_limit_max[2])
-            glVertex3f(x_dir * machine_limit_max[0], machine_limit_min[1], machine_limit_min[2])
-
-            glVertex3f(x_dir * machine_limit_max[0], machine_limit_min[1], machine_limit_min[2])
-            glVertex3f(x_dir * machine_limit_max[0], machine_limit_max[1], machine_limit_min[2])
-
-            glVertex3f(x_dir * machine_limit_max[0], machine_limit_max[1], machine_limit_min[2])
-            glVertex3f(x_dir * machine_limit_max[0], machine_limit_max[1], machine_limit_max[2])
-
-            glVertex3f(x_dir * machine_limit_max[0], machine_limit_max[1], machine_limit_max[2])
-            glVertex3f(x_dir * machine_limit_max[0], machine_limit_min[1], machine_limit_max[2])
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_max[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
 
 
-            glVertex3f(x_dir * machine_limit_min[0], machine_limit_min[1], machine_limit_min[2])
-            glVertex3f(x_dir * machine_limit_max[0], machine_limit_min[1], machine_limit_min[2])
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
 
-            glVertex3f(x_dir * machine_limit_min[0], machine_limit_max[1], machine_limit_min[2])
-            glVertex3f(x_dir * machine_limit_max[0], machine_limit_max[1], machine_limit_min[2])
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_max[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
 
-            glVertex3f(x_dir * machine_limit_min[0], machine_limit_max[1], machine_limit_max[2])
-            glVertex3f(x_dir * machine_limit_max[0], machine_limit_max[1], machine_limit_max[2])
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_max[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_max[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
 
-            glVertex3f(x_dir * machine_limit_min[0], machine_limit_min[1], machine_limit_max[2])
-            glVertex3f(x_dir * machine_limit_max[0], machine_limit_min[1], machine_limit_max[2])
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_max[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
+
+
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
+
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_max[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_max[1] - s.tool_offset[1]),
+                                   (machine_limit_min[2] - s.tool_offset[2]))
+
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_max[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_max[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
+
+                glVertex3f(x_dir * (machine_limit_min[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
+                glVertex3f(x_dir * (machine_limit_max[0] - s.tool_offset[0]),
+                                   (machine_limit_min[1] - s.tool_offset[1]),
+                                   (machine_limit_max[2] - s.tool_offset[2]))
 
             glEnd()
             glDisable(GL_LINE_STIPPLE)
@@ -1636,14 +1734,20 @@ class GlCanonDraw:
             y_limit_negative = float(self.inifile.find("AXIS_1", "MIN_LIMIT") or 0)
             z_limit_positive = float(self.inifile.find("AXIS_2", "MAX_LIMIT"))
             z_limit_negative = float(self.inifile.find("AXIS_2", "MIN_LIMIT"))
-            mid = [(x_limit_positive + x_limit_negative) / 2,
-                   (y_limit_positive + y_limit_negative) / 2,
-                   (z_limit_positive + z_limit_negative) / 2]
+            s = self.stat
             if self.is_lathe():
+                mid = [((x_limit_positive + x_limit_negative) / 2) - s.tool_offset[0],
+                       ((y_limit_positive + y_limit_negative) / 2) - s.tool_offset[1],
+                       ((z_limit_positive + z_limit_negative) / 2) - s.tool_offset[2] ]
+
                 size = [.37 * (x_limit_positive - x_limit_negative),
                         .37 * (y_limit_positive - y_limit_negative),
                         .37 * (z_limit_positive - z_limit_negative) ]
             else:
+                mid = [(((x_limit_positive + x_limit_negative) / 2) - s.tool_offset[0]),
+                       (((y_limit_positive + y_limit_negative) / 2) - s.tool_offset[1]),
+                       (((z_limit_positive + z_limit_negative) / 2) - s.tool_offset[2]) ]
+
                 size = [.43 * (x_limit_positive - x_limit_negative),
                         .43 * (y_limit_positive - y_limit_negative),
                         .43 * (z_limit_positive - z_limit_negative) ]
