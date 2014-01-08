@@ -86,6 +86,7 @@ scale.ko
 sim_encoder.ko
 stepgen.ko
 threads.ko
+time.ko
 toggle.ko
 tormachltc.ko
 trivkins.ko
