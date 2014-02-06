@@ -1355,6 +1355,22 @@ static PyObject *set_analog_output(pyCommandChannel *s, PyObject *o) {
     return Py_None;
 }
 
+static PyObject *set_homing_params(pyCommandChannel *s, PyObject *o) {
+    EMC_AXIS_SET_HOMING_PARAMS m;
+    if(!PyArg_ParseTuple(o, "idddddiiiiii", &m.axis, &m.home, &m.offset, &m.home_final_vel, 
+        &m.search_vel, &m.latch_vel, &m.use_index, &m.ignore_limits, &m.is_shared, 
+        &m.home_sequence, &m.volatile_home, &m.locking_indexer))
+        return NULL;
+
+    //m.now = 1;
+    m.serial_number = next_serial(s);
+    s->c->write(m);
+    emcWaitCommandReceived(s->serial, s->s);
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}                                        
+
 static PyObject *wait_complete(pyCommandChannel *s, PyObject *o) {
     double timeout = EMC_COMMAND_TIMEOUT;
     if (!PyArg_ParseTuple(o, "|d:emc.command.wait_complete", &timeout))
@@ -1415,6 +1431,7 @@ static PyMethodDef Command_methods[] = {
     {"set_adaptive_feed", (PyCFunction)set_adaptive_feed, METH_VARARGS},
     {"set_digital_output", (PyCFunction)set_digital_output, METH_VARARGS},
     {"set_analog_output", (PyCFunction)set_analog_output, METH_VARARGS},
+    {"set_homing_params", (PyCFunction)set_homing_params, METH_VARARGS},
     {NULL}
 };
 
