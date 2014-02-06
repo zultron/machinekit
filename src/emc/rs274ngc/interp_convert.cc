@@ -3689,9 +3689,12 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
         // G10 command doesn't automatically apply a G43 length offset to the newly measured tool
 		// we don't want to call a G43 in our python code for lathe, so we'll deal with applying the offset here.
 		// Tormach *dpr 4/30/13
-		// Don't apply the offset unless the P number is the same as the current tool, however *dpr 8/12/13
-		//printf("toolno is %d and tool_table[0].toolno is %d", toolno, settings->tool_table[0].toolno);
-		if ((toolno == settings->tool_table[0].toolno) || ((toolno - 10000) == settings->tool_table[0].toolno)){
+		// Don't apply the offset unless the P number is the same as the current tool *dpr 8/12/13
+		// Also, don't apply the offset if we're just setting a wear offset.  Instead, clear the wear offset register
+		// (which happens with a ZERO_EMC_POSE(tool_offset)) because we don't want to deal with the case
+		// where a user has T0204 active and edits wear offset register 4.  Too complicated, so we'll
+		// just say that G10 clears the wear offset application.  *dpr 2/6/14
+		if (((toolno - 10000) == settings->tool_table[0].toolno)){
 			EmcPose tool_offset;
 			ZERO_EMC_POSE(tool_offset);
 			tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
