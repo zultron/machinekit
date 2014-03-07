@@ -135,8 +135,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
         self.show_offsets = False
-        #self.show_offsets = True
-        self.show_g53_origin = False
 
 	self.a_axis_wrapped = inifile.find("AXIS_3", "WRAPPED_ROTARY")
 	self.b_axis_wrapped = inifile.find("AXIS_4", "WRAPPED_ROTARY")
