@@ -30,3 +30,9 @@ docs/html/drivers
 lib/python/gremlin.py
 lib/python/touchy
 redis/redis/src/release.h
+
+#Exceptions for .9 files
+freq2pin.9
+jogtranslator.9
+mesa_uart.9
+tormachltc.9
