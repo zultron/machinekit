@@ -842,7 +842,7 @@ class GlCanonDraw:
         return num * 1. / den
 
     def draw_grid_lines(self, space, (ox, oy), (dx, dy), lim_min, lim_max,
-            inverse_permutation):
+            inverse_permutation, line_dir):
         # draw a series of line segments of the form
         #   dx(x-ox) + dy(y-oy) + k*space = 0
         # for integers k that intersect the AABB [lim_min, lim_max]
@@ -859,66 +859,117 @@ class GlCanonDraw:
 
         s = self.stat
 
-        for k in range(k0, k1+1):
-            d = k*space
-            # Now we're drawing the line dx(x-ox) + dx(y-oy) + d = 0
-            p0 = (ox - dy * d, oy + dx * d)
-            # which is the same as the line p0 + u * delta
+        if self.is_rear_tool_post_lathe():
+            x_dir = -1
+            machine_limit_min, machine_limit_max = self.soft_limits()
 
-            # but we only want the part that's inside the box lim_pts...
-            if dx and dy:
-                times = [
-                        self.param(p0, delta, lim_min[:2], (0, 1)),
-                        self.param(p0, delta, lim_min[:2], (1, 0)),
-                        self.param(p0, delta, lim_max[:2], (0, 1)),
-                        self.param(p0, delta, lim_max[:2], (1, 0))]
-                times.sort()
-                t0, t1 = times[1], times[2] # Take the middle two times
-            elif dx:
-                times = [
-                        self.param(p0, delta, lim_min[:2], (0, 1)),
-                        self.param(p0, delta, lim_max[:2], (0, 1))]
-                times.sort()
-                t0, t1 = times[0], times[1] # Take the only two times
-            else:
-                times = [
-                        self.param(p0, delta, lim_min[:2], (1, 0)),
-                        self.param(p0, delta, lim_max[:2], (1, 0))]
-                times.sort()
-                t0, t1 = times[0], times[1] # Take the only two times
-            x0, y0 = p0[0] + delta[0]*t0, p0[1] + delta[1]*t0
-            x1, y1 = p0[0] + delta[0]*t1, p0[1] + delta[1]*t1
-            xm, ym = (x0+x1)/2, (y0+y1)/2
-            # The computation of k0 and k1 above should mean that
-            # the lines are always in the limits, but I observed
-            # that this wasn't always the case...
-            #if xm < lim_min[0] or xm > lim_max[0]: continue
-            #if ym < lim_min[1] or ym > lim_max[1]: continue
+            if line_dir == 1:
+                grid_offset = 0
+                grid_count = 0
+                while (-d1 + grid_offset) < (machine_limit_max[2] - s.tool_offset[2]):
+                    if (-d1 + grid_offset) > (machine_limit_min[2] - s.tool_offset[2]):
+                        glVertex3f((x_dir * (machine_limit_min[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
+                        glVertex3f((x_dir * (machine_limit_max[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
+                    grid_offset = grid_count * space
+                    grid_count += 1
+                    if grid_count > 100:
+                        break
 
-            view = self.get_view()
-            if self.is_rear_tool_post_lathe():
-                glVertex3f(*inverse_permutation((x0 - s.tool_offset[2], -y0 + s.tool_offset[0], lim_min[2])))
-                glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], -y1 + s.tool_offset[0], lim_min[2])))
-            elif view == 2:
-                glVertex3f(*inverse_permutation((x0, y0, lim_min[2] - s.tool_offset[2])))
-                glVertex3f(*inverse_permutation((x1, y1, lim_min[2] - s.tool_offset[2])))
-            else:
-                glVertex3f(*inverse_permutation((x0 - s.tool_offset[2], y0, lim_min[2])))
-                glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], y1, lim_min[2])))
+                grid_offset = 0
+                grid_count = 0
+                while (-d1 + grid_offset) > (machine_limit_min[2] - s.tool_offset[2]):
+                    if (-d1 + grid_offset) < (machine_limit_max[2] - s.tool_offset[2]):
+                        glVertex3f((x_dir * (machine_limit_min[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
+                        glVertex3f((x_dir * (machine_limit_max[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
+                    grid_offset = -grid_count * space
+                    grid_count += 1
+                    if grid_count > 100:
+                        break
 
-            """
-            if self.is_rear_tool_post_lathe():
-                x_dir = -1
-            else:
-                x_dir = 1
-            view = self.get_view()
-            if view == 2:
-                glVertex3f(*inverse_permutation((x0, x_dir * y0, lim_min[2] - s.tool_offset[2])))
-                glVertex3f(*inverse_permutation((x1, x_dir * y1, lim_min[2] - s.tool_offset[2])))
-            else:
-                glVertex3f(*inverse_permutation((x0 - s.tool_offset[2], x_dir * y0, lim_min[2])))
-                glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], x_dir * y1, lim_min[2])))
-            """
+            elif line_dir == 0:
+                grid_offset = 0
+                grid_count = 0
+                while (-d1 + grid_offset) < (machine_limit_max[0] - s.tool_offset[0]):
+                    if (-d1 + grid_offset) > (machine_limit_min[0] - s.tool_offset[0]):
+                        glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_min[2] - s.tool_offset[2]))
+                        glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_max[2] - s.tool_offset[2]))
+                    grid_offset = grid_count * space
+                    grid_count += 1
+                    if grid_count > 100:
+                        break
+
+                grid_offset = 0
+                grid_count = 0
+                while (-d1 + grid_offset) > (machine_limit_min[0] - s.tool_offset[0]):
+                    if (-d1 + grid_offset) < (machine_limit_max[0] - s.tool_offset[0]):
+                        glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_min[2] - s.tool_offset[2]))
+                        glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_max[2] - s.tool_offset[2]))
+                    grid_offset = -grid_count * space
+                    grid_count += 1
+                    if grid_count > 100:
+                        break
+        else:
+            for k in range(k0, k1+1):
+                d = k*space
+                # Now we're drawing the line dx(x-ox) + dx(y-oy) + d = 0
+                p0 = (ox - dy * d, oy + dx * d)
+                # which is the same as the line p0 + u * delta
+
+                # but we only want the part that's inside the box lim_pts...
+                if dx and dy:
+                    times = [
+                            self.param(p0, delta, lim_min[:2], (0, 1)),
+                            self.param(p0, delta, lim_min[:2], (1, 0)),
+                            self.param(p0, delta, lim_max[:2], (0, 1)),
+                            self.param(p0, delta, lim_max[:2], (1, 0))]
+                    times.sort()
+                    t0, t1 = times[1], times[2] # Take the middle two times
+                elif dx:
+                    times = [
+                            self.param(p0, delta, lim_min[:2], (0, 1)),
+                            self.param(p0, delta, lim_max[:2], (0, 1))]
+                    times.sort()
+                    t0, t1 = times[0], times[1] # Take the only two times
+                else:
+                    times = [
+                            self.param(p0, delta, lim_min[:2], (1, 0)),
+                            self.param(p0, delta, lim_max[:2], (1, 0))]
+                    times.sort()
+                    t0, t1 = times[0], times[1] # Take the only two times
+                x0, y0 = p0[0] + delta[0]*t0, p0[1] + delta[1]*t0
+                x1, y1 = p0[0] + delta[0]*t1, p0[1] + delta[1]*t1
+                xm, ym = (x0+x1)/2, (y0+y1)/2
+                # The computation of k0 and k1 above should mean that
+                # the lines are always in the limits, but I observed
+                # that this wasn't always the case...
+                #if xm < lim_min[0] or xm > lim_max[0]: continue
+                #if ym < lim_min[1] or ym > lim_max[1]: continue
+
+                view = self.get_view()
+                #if self.is_rear_tool_post_lathe():
+                #    glVertex3f(*inverse_permutation((x0 - s.tool_offset[2], -y0 + s.tool_offset[0], lim_min[2])))
+                #    glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], -y1 + s.tool_offset[0], lim_min[2])))
+                #elif view == 2:
+                if view == 2:
+                    glVertex3f(*inverse_permutation((x0, y0, lim_min[2] - s.tool_offset[2])))
+                    glVertex3f(*inverse_permutation((x1, y1, lim_min[2] - s.tool_offset[2])))
+                else:
+                    glVertex3f(*inverse_permutation((x0 - s.tool_offset[2], y0, lim_min[2])))
+                    glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], y1, lim_min[2])))
+
+                """
+                if self.is_rear_tool_post_lathe():
+                    x_dir = -1
+                else:
+                    x_dir = 1
+                view = self.get_view()
+                if view == 2:
+                    glVertex3f(*inverse_permutation((x0, x_dir * y0, lim_min[2] - s.tool_offset[2])))
+                    glVertex3f(*inverse_permutation((x1, x_dir * y1, lim_min[2] - s.tool_offset[2])))
+                else:
+                    glVertex3f(*inverse_permutation((x0 - s.tool_offset[2], x_dir * y0, lim_min[2])))
+                    glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], x_dir * y1, lim_min[2])))
+                """
 
     def draw_grid_permuted(self, rotation, permutation, inverse_permutation):
         grid_size=self.get_grid_size()
@@ -953,9 +1004,9 @@ class GlCanonDraw:
         glDepthMask(False)
         glBegin(GL_LINES)
         self.draw_grid_lines(grid_size, offset, (cos_rot, sin_rot),
-                lim_min, lim_max, inverse_permutation)
+                lim_min, lim_max, inverse_permutation, 0)
         self.draw_grid_lines(grid_size, offset, (sin_rot, -cos_rot),
-                lim_min, lim_max, inverse_permutation)
+                lim_min, lim_max, inverse_permutation, 1)
         glEnd()
         glDepthMask(True)
 
