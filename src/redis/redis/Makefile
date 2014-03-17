@@ -1,6 +1,17 @@
 # Top level makefile, the real shit is at src/Makefile
 
-default: all
+default: depends all
+
+DEPENDS := \
+	jemalloc \
+	hiredis \
+	linenoise
+
+.PHONY: depends
+depends: $(DEPENDS)
+
+$(DEPENDS):
+	$(MAKE) -C deps/$@
 
 .DEFAULT:
 	cd src && $(MAKE) $@
@@ -8,4 +19,8 @@ default: all
 install:
 	cd src && $(MAKE) $@
 
+clean:
+	@for dir in $(DEPENDS); do \
+	$(MAKE) -C deps/$$dir clean; done
+	
 .PHONY: install
