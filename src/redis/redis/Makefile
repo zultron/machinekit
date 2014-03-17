@@ -1,9 +1,6 @@
 # Top level makefile, the real shit is at src/Makefile
 
-default: depends all
-
-depends:
-	$(MAKE) -C deps/
+default: all
 
 .DEFAULT:
 	cd src && $(MAKE) $@
@@ -12,7 +9,9 @@ install:
 	cd src && $(MAKE) $@
 
 clean:
-	@for dir in $(DEPENDS); do \
-	$(MAKE) -C deps/$$dir clean; done
+	cd src && $(MAKE) $@
+
+distclean:
+	cd src && $(MAKE) $@
 
 .PHONY: install
