@@ -2,16 +2,8 @@
 
 default: depends all
 
-DEPENDS := \
-	jemalloc \
-	hiredis \
-	linenoise
-
-.PHONY: depends
-depends: $(DEPENDS)
-
-$(DEPENDS):
-	$(MAKE) -C deps/$@
+depends:
+	$(MAKE) -C deps/
 
 .DEFAULT:
 	cd src && $(MAKE) $@
@@ -22,5 +14,5 @@ install:
 clean:
 	@for dir in $(DEPENDS); do \
 	$(MAKE) -C deps/$$dir clean; done
-	
+
 .PHONY: install
