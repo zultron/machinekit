@@ -1,6 +1,6 @@
 # Delete the default suffix rules
 .SUFFIXES:
-.PHONY: default userspace modules clean modclean depclean install python pythonclean
+.PHONY: default userspace modules clean modclean depclean install python pythonclean distclean
 
 # A "trivial build" is one which should not include dependency information
 # either because it should be usable before dependency information can be
@@ -406,6 +406,7 @@ clean: depclean modclean
 	-rm -f ../rtlib/*.$(MODULE_EXT)
 	-rm -f hal/components/conv_*.comp
 
+distclean: clean
 # So that nothing is built as root, this rule does not depend on the touched
 # files (Note that files in depends/ might be rebuilt, and there's little that
 # can be done about it)
