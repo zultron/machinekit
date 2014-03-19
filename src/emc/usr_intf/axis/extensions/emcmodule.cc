@@ -103,7 +103,8 @@ static int Ini_init(pyIniFile *self, PyObject *a, PyObject *k) {
     char *inifile;
     if(!PyArg_ParseTuple(a, "s", &inifile)) return -1;
 
-    self->i = new IniFile();
+    if(!self->i)
+        self->i = new IniFile();
 
     if (!self->i->Open(inifile)) {
         PyErr_Format( error, "inifile.open() failed");
@@ -143,7 +144,8 @@ static PyObject *Ini_findall(pyIniFile *self, PyObject *args) {
 }
 
 static void Ini_dealloc(pyIniFile *self) {
-    self->i->Close();
+    if (self->i)
+        self->i->Close();
     delete self->i;
     PyObject_Del(self);
 }
@@ -839,13 +841,17 @@ static PyObject *spindleoverride(pyCommandChannel *s, PyObject *o) {
 
 static PyObject *spindle(pyCommandChannel *s, PyObject *o) {
     int dir;
-    if(!PyArg_ParseTuple(o, "i", &dir)) return NULL;
+    double vel;
+    if(!PyArg_ParseTuple(o, "i|d", &dir, &vel)) return NULL;
     switch(dir) {
         case LOCAL_SPINDLE_FORWARD:
         case LOCAL_SPINDLE_REVERSE:
         {
+            if(PyTuple_Size(o) != 2) {
+            vel = 1;
+            }
             EMC_SPINDLE_ON m;
-            m.speed = dir;
+            m.speed = dir * vel;
             m.serial_number = next_serial(s);
             s->c->write(m);
             emcWaitCommandReceived(s->serial, s->s);
@@ -2261,6 +2267,8 @@ initlinuxcnc(void) {
     PyModule_AddObject(m, "positionlogger", (PyObject*)&PositionLoggerType);
     pthread_mutex_init(&mutex, NULL);
 
+    PyModule_AddStringConstant(m, "PREFIX", EMC2_HOME);
+    PyModule_AddStringConstant(m, "SHARE", EMC2_HOME "/share");
 //    PyModule_AddStringConstant(m, "nmlfile", EMC2_DEFAULT_NMLFILE);
     char *envPtr = getenv("NML_FILE");
     // if not in environment use config.h #define
@@ -2350,6 +2358,7 @@ initlinuxcnc(void) {
     ENUMX(9, EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO);
     ENUMX(9, EMC_TASK_EXEC_WAITING_FOR_DELAY);
     ENUMX(9, EMC_TASK_EXEC_WAITING_FOR_SYSTEM_CMD);
+    ENUMX(9, EMC_TASK_EXEC_WAITING_FOR_SPINDLE_ORIENTED);
 
     ENUM(RCS_DONE);
     ENUM(RCS_EXEC);

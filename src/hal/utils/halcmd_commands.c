@@ -299,6 +299,14 @@ int do_stop_cmd(void) {
     return retval;
 }
 
+int do_echo_cmd(void) {
+    printf("Echo on\n");
+    return 0;
+}
+int do_unecho_cmd(void) {
+    printf("Echo off\n");
+    return 0;
+}
 int do_addf_cmd(char *func, char *thread, char **opt) {
     char *position_str = opt ? opt[0] : NULL;
     int position = -1;
@@ -1100,7 +1108,7 @@ int do_loadrt_cmd(char *mod_name, char *args[])
             return -1;
         } else if (r >= sizeof(mod_path)) {
             // truncation!
-            halcmd_error("module path too long (max %u) for %s/%s%s\n", sizeof(mod_path)-1, rtmod_dir, mod_name, MODULE_EXT);
+            halcmd_error("module path too long (max %lu) for %s/%s%s\n", (unsigned long)sizeof(mod_path)-1, rtmod_dir, mod_name, MODULE_EXT);
             return -1;
         }
     }
@@ -1212,7 +1220,7 @@ int do_delsig_cmd(char *mod_name)
 	rtapi_mutex_give(&(hal_data->mutex));
 	sigs[n][0] = '\0';
 
-	if ( ( sigs[0][0] == '\0' )) {
+	if ( sigs[0][0] == '\0' ) {
 	    /* desired signals not found */
 	    halcmd_error("no signals found to be deleted\n");
 	    return -1;
@@ -2836,6 +2844,14 @@ int do_help_cmd(char *command)
         printf("  Removes any alias from the pin or parameter \"name\".\n");
         printf("  \"type\" must be pin or param\n");
         printf("  \"name\" must be an existing name or alias of the specified type.\n");
+    } else if (strcmp(command, "echo") == 0) {
+        printf("echo\n");
+        printf("echo the commands from stdin to stderr\n");
+        printf("Useful for debugging scripted commands from a running program\n");
+    } else if (strcmp(command, "unecho") == 0) {
+        printf("unecho\n");
+        printf("Turn off echo of commands from stdin to stdout\n");
+
     } else {
 	printf("No help for unknown command '%s'\n", command);
     }
@@ -2868,5 +2884,6 @@ static void print_help_commands(void)
     printf("  save                Print config as commands\n");
     printf("  start, stop         Start/stop realtime threads\n");
     printf("  alias, unalias      Add or remove pin or parameter name aliases\n");
+    printf("  echo, unecho        Echo commands from stdin to stderr\n");
     printf("  quit, exit          Exit from halcmd\n");
 }

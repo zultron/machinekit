@@ -1,3 +1,18 @@
+//    Copyright 2004-2010 various authors.
+//
+//    This program is free software; you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation; either version 2 of the License, or
+//    (at your option) any later version.
+//
+//    This program is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with this program; if not, write to the Free Software
+//    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #ifndef RS274NGC_RETURN_HH
 #define RS274NGC_RETURN_HH
 #include "interp_return.hh"
@@ -72,7 +87,7 @@
 #define NCE_K_WORD_MISSING_WITH_G87 _("K word missing with g87")
 #define NCE_LEFT_BRACKET_MISSING_AFTER_SLASH_WITH_ATAN _("Left bracket missing after slash with atan")
 #define NCE_LEFT_BRACKET_MISSING_AFTER_UNARY_OPERATION_NAME _("Left bracket missing after unary operation name")
-#define NCE_M_CODE_GREATER_THAN_199 _("M code greater than 199")
+#define NCE_M_CODE_GREATER_THAN_199 _("M code greater than 199: M%d")
 #define NCE_MIXED_RADIUS_IJK_FORMAT_FOR_ARC _("Mixed radius ijk format for arc")
 #define NCE_MULTIPLE_A_WORDS_ON_ONE_LINE _("Multiple a words on one line")
 #define NCE_MULTIPLE_B_WORDS_ON_ONE_LINE _("Multiple b words on one line")
@@ -135,7 +150,7 @@
 #define NCE_UNCLOSED_COMMENT_FOUND _("Unclosed comment found")
 #define NCE_UNCLOSED_EXPRESSION _("Unclosed expression")
 #define NCE_UNKNOWN_G_CODE_USED _("Unknown g code used")
-#define NCE_UNKNOWN_M_CODE_USED _("Unknown m code used")
+#define NCE_UNKNOWN_M_CODE_USED _("Unknown m code used: M%d")
 #define NCE_UNKNOWN_OPERATION _("Unknown operation")
 #define NCE_UNKNOWN_OPERATION_NAME_STARTING_WITH_A _("Unknown operation name starting with a")
 #define NCE_UNKNOWN_OPERATION_NAME_STARTING_WITH_M _("Unknown operation name starting with m")
@@ -173,6 +188,7 @@
 #define NCE_NESTED_SUBROUTINE_DEFN _("Nested subroutine definition")
 #define NCE_NOT_IN_SUBROUTINE_DEFN _("Not in subroutine definition")
 #define NCE_FILE_NOT_OPEN _("File not open")
+#define NCE_CANNOT_REOPEN_FILE _("cannot reopen file %s - removed or renamed? (%s)")
 #define NCE_TXX_MISSING_FOR_M6 _("Need tool prepared -Txx- for toolchange")
 #define NCE_CANNOT_CHANGE_PLANES_WITH_CUTTER_RADIUS_COMP_ON _("Cannot change planes with cutter radius compensation on")
 #define NCE_RADIUS_COMP_ONLY_IN_XY_OR_XZ _("Cutter radius compensation allowed only in XY, XZ planes")

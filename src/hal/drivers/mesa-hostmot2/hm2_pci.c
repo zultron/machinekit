@@ -198,13 +198,29 @@ MODULE_DEVICE_TABLE(pci, hm2_pci_tbl);
 
 static int hm2_pci_read(hm2_lowlevel_io_t *this, u32 addr, void *buffer, int size) {
     hm2_pci_t *board = this->private;
-    memcpy(buffer, (board->base + addr), size);
+    void *src = board->base + addr;
+
+    while (size > 0) {
+        *(u32*)buffer = *(u32*)src;
+        src += 4;
+        buffer += 4;
+        size -=4;
+    }
+
     return 1;  // success
 }
 
 static int hm2_pci_write(hm2_lowlevel_io_t *this, u32 addr, void *buffer, int size) {
     hm2_pci_t *board = this->private;
-    memcpy((board->base + addr), buffer, size);
+    void *dest = board->base + addr;
+
+    while (size > 0) {
+        *(u32*)dest = *(u32*)buffer;
+        dest += 4;
+        buffer += 4;
+        size -=4;
+    }
+
     return 1;  // success
 }
 
@@ -538,11 +554,11 @@ static int hm2_pci_probe(struct pci_dev *dev, const struct pci_device_id *id) {
         case HM2_PCI_SSDEV_4I69_25: {
             if (dev->subsystem_device == HM2_PCI_SSDEV_4I69_16) {
                 LL_PRINT("discovered 4I69-16 at %s\n", pci_name(dev));
-                board->llio.fpga_part_number = "6slx16fg256";
+                board->llio.fpga_part_number = "6slx16ftg256";
 
             } else {
                 LL_PRINT("discovered 4I69-25 at %s\n", pci_name(dev));
-                board->llio.fpga_part_number = "6slx25fg256";
+                board->llio.fpga_part_number = "6slx25ftg256";
             }
             rtapi_snprintf(board->llio.name, sizeof(board->llio.name), "hm2_4i69.%d", num_4i69);
             num_4i69 ++;

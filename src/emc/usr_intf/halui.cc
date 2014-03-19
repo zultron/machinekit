@@ -1044,6 +1044,10 @@ static int sendManual()
 {
     EMC_TASK_SET_MODE mode_msg;
 
+    if (emcStatus->task.mode == EMC_TASK_MODE_MANUAL) {
+        return 0;
+    }
+
     mode_msg.mode = EMC_TASK_MODE_MANUAL;
     mode_msg.serial_number = ++emcCommandSerialNumber;
     emcCommandBuffer->write(mode_msg);
@@ -1054,6 +1058,10 @@ static int sendAuto()
 {
     EMC_TASK_SET_MODE mode_msg;
 
+    if (emcStatus->task.mode == EMC_TASK_MODE_AUTO) {
+        return 0;
+    }
+
     mode_msg.mode = EMC_TASK_MODE_AUTO;
     mode_msg.serial_number = ++emcCommandSerialNumber;
     emcCommandBuffer->write(mode_msg);
@@ -1063,6 +1071,10 @@ static int sendAuto()
 static int sendMdi()
 {
     EMC_TASK_SET_MODE mode_msg;
+
+    if (emcStatus->task.mode == EMC_TASK_MODE_MDI) {
+        return 0;
+    }
 
     mode_msg.mode = EMC_TASK_MODE_MDI;
     mode_msg.serial_number = ++emcCommandSerialNumber;
@@ -1386,12 +1398,15 @@ static int sendJogCont(int axis, double speed)
     EMC_AXIS_JOG emc_axis_jog_msg;
     EMC_TRAJ_SET_TELEOP_VECTOR emc_set_teleop_vector;
 
-    if ((emcStatus->task.state != EMC_TASK_STATE_ON) || (emcStatus->task.mode != EMC_TASK_MODE_MANUAL))
+    if (emcStatus->task.state != EMC_TASK_STATE_ON) {
 	return -1;
+    }
 
     if (axis < 0 || axis >= EMC_AXIS_MAX) {
 	return -1;
     }
+
+    sendManual();
 
     if (emcStatus->motion.traj.mode != EMC_TRAJ_MODE_TELEOP) {
 	emc_axis_jog_msg.serial_number = ++emcCommandSerialNumber;
@@ -1433,11 +1448,14 @@ static int sendJogInc(int axis, double speed, double inc)
 {
     EMC_AXIS_INCR_JOG emc_axis_jog_msg;
 
-    if ((emcStatus->task.state != EMC_TASK_STATE_ON) || (emcStatus->task.mode != EMC_TASK_MODE_MANUAL))
+    if (emcStatus->task.state != EMC_TASK_STATE_ON) {
 	return -1;
+    }
 
     if (axis < 0 || axis >= EMC_AXIS_MAX)
 	return -1;
+
+    sendManual();
 
     if (emcStatus->motion.traj.mode == EMC_TRAJ_MODE_TELEOP)
     	return -1;
@@ -1679,7 +1697,8 @@ static void check_hal_changes()
 {
     hal_s32_t counts;
     int select_changed, joint;
-    hal_bit_t bit, js;
+    hal_bit_t bit;
+    int js;
     hal_float_t floatt;
     int jog_speed_changed;
 
@@ -2111,15 +2130,15 @@ static void modify_hal_pins()
     *(halui_data->axis_pos_feedback[6]) = emcStatus->motion.traj.actualPosition.u;
     *(halui_data->axis_pos_feedback[7]) = emcStatus->motion.traj.actualPosition.v;
     *(halui_data->axis_pos_feedback[8]) = emcStatus->motion.traj.actualPosition.w;
-    *(halui_data->axis_pos_relative[0]) = emcStatus->motion.traj.actualPosition.tran.x - emcStatus->task.g5x_offset.tran.x - emcStatus->task.g92_offset.tran.x;	
-    *(halui_data->axis_pos_relative[1]) = emcStatus->motion.traj.actualPosition.tran.y - emcStatus->task.g5x_offset.tran.y - emcStatus->task.g92_offset.tran.y;	
-    *(halui_data->axis_pos_relative[2]) = emcStatus->motion.traj.actualPosition.tran.z - emcStatus->task.g5x_offset.tran.z - emcStatus->task.g92_offset.tran.z;
-    *(halui_data->axis_pos_relative[3]) = emcStatus->motion.traj.actualPosition.a - emcStatus->task.g5x_offset.a - emcStatus->task.g92_offset.a;
-    *(halui_data->axis_pos_relative[4]) = emcStatus->motion.traj.actualPosition.b - emcStatus->task.g5x_offset.b - emcStatus->task.g92_offset.b;
-    *(halui_data->axis_pos_relative[5]) = emcStatus->motion.traj.actualPosition.c - emcStatus->task.g5x_offset.c - emcStatus->task.g92_offset.c;
-    *(halui_data->axis_pos_relative[6]) = emcStatus->motion.traj.actualPosition.u - emcStatus->task.g5x_offset.u - emcStatus->task.g92_offset.u;
-    *(halui_data->axis_pos_relative[7]) = emcStatus->motion.traj.actualPosition.v - emcStatus->task.g5x_offset.v - emcStatus->task.g92_offset.v;
-    *(halui_data->axis_pos_relative[8]) = emcStatus->motion.traj.actualPosition.w - emcStatus->task.g5x_offset.w - emcStatus->task.g92_offset.w;
+    *(halui_data->axis_pos_relative[0]) = emcStatus->motion.traj.actualPosition.tran.x - emcStatus->task.g5x_offset.tran.x - emcStatus->task.g92_offset.tran.x - emcStatus->task.toolOffset.tran.x;
+    *(halui_data->axis_pos_relative[1]) = emcStatus->motion.traj.actualPosition.tran.y - emcStatus->task.g5x_offset.tran.y - emcStatus->task.g92_offset.tran.y - emcStatus->task.toolOffset.tran.y;
+    *(halui_data->axis_pos_relative[2]) = emcStatus->motion.traj.actualPosition.tran.z - emcStatus->task.g5x_offset.tran.z - emcStatus->task.g92_offset.tran.z - emcStatus->task.toolOffset.tran.z;
+    *(halui_data->axis_pos_relative[3]) = emcStatus->motion.traj.actualPosition.a - emcStatus->task.g5x_offset.a - emcStatus->task.g92_offset.a - emcStatus->task.toolOffset.a;
+    *(halui_data->axis_pos_relative[4]) = emcStatus->motion.traj.actualPosition.b - emcStatus->task.g5x_offset.b - emcStatus->task.g92_offset.b - emcStatus->task.toolOffset.b;
+    *(halui_data->axis_pos_relative[5]) = emcStatus->motion.traj.actualPosition.c - emcStatus->task.g5x_offset.c - emcStatus->task.g92_offset.c - emcStatus->task.toolOffset.c;
+    *(halui_data->axis_pos_relative[6]) = emcStatus->motion.traj.actualPosition.u - emcStatus->task.g5x_offset.u - emcStatus->task.g92_offset.u - emcStatus->task.toolOffset.u;
+    *(halui_data->axis_pos_relative[7]) = emcStatus->motion.traj.actualPosition.v - emcStatus->task.g5x_offset.v - emcStatus->task.g92_offset.v - emcStatus->task.toolOffset.v;
+    *(halui_data->axis_pos_relative[8]) = emcStatus->motion.traj.actualPosition.w - emcStatus->task.g5x_offset.w - emcStatus->task.g92_offset.w - emcStatus->task.toolOffset.w;
 
     *(halui_data->joint_is_homed[num_axes]) = emcStatus->motion.axis[*(halui_data->joint_selected)].homed;
     *(halui_data->joint_on_soft_min_limit[num_axes]) = emcStatus->motion.axis[*(halui_data->joint_selected)].minSoftLimit;

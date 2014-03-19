@@ -664,7 +664,7 @@ int read_initial(modbus_t *ctx, haldata_t *haldata, param_pointer p)
 	voltage, model, cpu1, cpu2, eeprom, max_freq;
 
     GETREG(REG_UPPERLIMIT, &max_freq);
-    *(haldata->upper_limit_hz) = (float)max_freq/100.0;
+    *(haldata->upper_limit_hz) = max_freq/100.0;
     *(haldata->max_rpm) = *(haldata->upper_limit_hz) * 
 	haldata->motor_nameplate_RPM /
 	haldata->motor_nameplate_hz;
@@ -746,7 +746,7 @@ int read_data(modbus_t *ctx, haldata_t *haldata, param_pointer p)
     }
     // unsure what to do here with ST_FAILURE_FL bit
 
-    if ((pollcount == 0) && !haldata->max_speed) {
+    if ((pollcount == 0) && !(*haldata->max_speed)) {
 
 	// less urgent registers
 	GETREG(SR_ESTIMATED_OPFREQ, &val);

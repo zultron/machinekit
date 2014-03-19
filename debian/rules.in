@@ -30,7 +30,9 @@ debian/control:
 	sed -e 's/@@KVERSION@@/$(kernel_version)/g' \
 	    debian/control.in >> debian/control
 
-build: build-stamp
+build: build-arch build-indep
+build-arch: build-stamp
+build-indep: build-stamp
 build-stamp:
 	dh_testdir
 
@@ -68,7 +70,7 @@ install: build
 	dh_installdirs
 # start the install
 	mkdir -p debian/tmp
-	-(cd debian/@EXTRAS@ && find . | cpio -pdmuv ../tmp)
+	-(cd debian/@EXTRAS@ && cp -a * ../tmp)
 	(cd src; export DESTDIR=`pwd`/../debian/tmp; $(MAKE) $@)
 	mkdir -p debian/tmp/usr/lib debian/tmp/usr/include/linuxcnc
 	cp lib/*.a debian/tmp/usr/lib

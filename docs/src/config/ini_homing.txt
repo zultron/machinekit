@@ -11,10 +11,10 @@ complicated.
 
 == Homing Sequence
 
-There are four possible homing sequences, along with the associated
-configuration parameters as shown in the following table. For a more
-detailed description of what each configuration parameter does, see the
-following section.
+There are four possible homing sequences defined by the sign of SEARCH_VEL
+and LATCH_VEL, along with the associated configuration parameters as shown
+in the following table. For a more detailed description of what each
+configuration parameter does, see the following section.
 
 .Homing Sequences[[fig:motion-homing-sequence-diagram]]
 
@@ -22,9 +22,8 @@ image::images/emc2-motion-homing-diag.png[align="center"]
 
 == Configuration
 
-There are six pieces of information that determine exactly how the
-home sequence behaves. They are defined in an [AXIS] section of the
-inifile.
+The following determines exactly how the home sequence behaves.
+They are defined in an [AXIS] section of the inifile.
 
 [width="80%", options="header", cols="4*^"]
 |==========================================================
@@ -83,14 +82,14 @@ The value must be a positive number.
 
 === HOME_IGNORE_LIMITS (((HOME IGNORE LIMITS)))
 
-Can hold the values YES / NO. This flag determines whether LinuxCNC will
-ignore the limit switch input for this axis while homing. Some machine 
-configurations do not use a separate home switch, instead they route 
-one of the limit switch signals to the home switch input as well. 
-In this case, LinuxCNC needs to ignore that limit during homing. The default 
-value for this parameter is NO. To use only one input for all homing and 
-limits you will have to block the limits of the axis not homing with axis 
-that is homing in HAL.
+Can hold the values YES / NO. The default value for this parameter is NO.
+This flag determines whether LinuxCNC will ignore the limit switch input
+for this axis while homing. Setting this to YES will not ignore limit inputs
+for other axes. If you do not have a separate home switch set this to YES and
+case connect the limit switch signal to the home switch input in HAL. LinuxCNC
+will ignore the limit switch input for this axis while homing. To use only
+one input for all homing and limits you will have to block the limit signals
+of the axes not homing in HAL and home one axis at a time.
 
 === HOME_USE_INDEX (((HOME USE INDEX)))
 
@@ -158,4 +157,15 @@ this.
 If this axis is a locking rotary indexer, it will unlock before
 homing, and lock afterward.
 
+=== Immediate Homing (((Immediate Homing)))
+
+If an axis does not have home switches or does not have a logical
+home position like a rotary axis and you want that axis to home at
+the current position when the "Home All" button is pressed in Axis
+the following ini entries for that axis are needed.
+
+. SEARCH_VEL = 0
+. LATCH_VEL = 0
+. USE_INDEX = NO
+. HOME_SEQUENCE = 0
 

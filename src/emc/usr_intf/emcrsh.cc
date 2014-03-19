@@ -29,6 +29,7 @@
 #include <netinet/in.h>
 #include <pthread.h>
 #include <errno.h>
+#include <limits.h>
 
 #include <getopt.h>
 
@@ -455,10 +456,10 @@ typedef struct {
   int commProt;
   char inBuf[256];
   char outBuf[4096];
-  char progName[256];} connectionRecType;
+  char progName[PATH_MAX];} connectionRecType;
 
 int port = 5007;
-int server_sockfd, client_sockfd;
+int server_sockfd;
 socklen_t server_len, client_len;
 struct sockaddr_in server_address;
 struct sockaddr_in client_address;
@@ -555,7 +556,16 @@ static int initSockets()
   server_len = sizeof(server_address);
   bind(server_sockfd, (struct sockaddr *)&server_address, server_len);
   listen(server_sockfd, 5);
-  signal(SIGCHLD, SIG_IGN);
+
+  // ignore SIGCHLD
+  {
+    struct sigaction act;
+    act.sa_handler = SIG_IGN;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = 0;
+    sigaction(SIGCHLD, &act, NULL);
+  }
+
   return 0;
 }
 
@@ -592,13 +602,22 @@ static int commandHello(connectionRecType *context)
   pch = strtok(NULL, delims);
   if (pch == NULL) return -1;
   if (strcmp(pch, pwd) != 0) return -1;
+
   pch = strtok(NULL, delims);
   if (pch == NULL) return -1;
-  strcpy(context->hostName, pch);  
+  strncpy(context->hostName, pch, sizeof(context->hostName));
+  if (context->hostName[sizeof(context->hostName)-1] != '\0') {
+    return -1;
+  }
+
   pch = strtok(NULL, delims);
   if (pch == NULL) return -1;
+  strncpy(context->version, pch, sizeof(context->version));
+  if (context->version[sizeof(context->version)-1] != '\0') {
+    return -1;
+  }
+
   context->linked = true;    
-  strcpy(context->version, pch);
   printf("Connected to %s\n", context->hostName);
   return 0;
 }
@@ -1055,15 +1074,17 @@ static cmdResponseType setTaskPlanInit(char *s, connectionRecType *context)
 static cmdResponseType setOpen(char *s, connectionRecType *context)
 {
   char *pch;
-  char fileStr[80];
   
   pch = strtok(NULL, "\n\r\0");
   if (pch == NULL) return rtStandardError;
-  strcpy(context->progName, pch);
-//  strcpy(fileStr, "../../nc_files/");
-  strcpy(fileStr, defaultPath);
-  strcat(fileStr, pch);
-  if (sendProgramOpen(fileStr) != 0) return rtStandardError;
+
+  strncpy(context->progName, pch, sizeof(context->progName));
+  if (context->progName[sizeof(context->progName) - 1] != '\0') {
+    fprintf(stderr, "linuxcncrsh: 'set open' filename too long for context (got %lu bytes, max %lu)", (unsigned long)strlen(pch), (unsigned long)sizeof(context->progName));
+    return rtStandardError;
+  }
+
+  if (sendProgramOpen(context->progName) != 0) return rtStandardError;
   return rtNoError;
 }
 
@@ -2590,6 +2611,7 @@ commandTokenType lookupToken(char *s)
   return i;
 }
   
+// handle the linuxcncrsh command in context->inBuf
 int parseCommand(connectionRecType *context)
 {
   int ret = 0;
@@ -2638,57 +2660,59 @@ int parseCommand(connectionRecType *context)
 
 void *readClient(void *arg)
 {
-  char str[1600];
   char buf[1600];
-  unsigned int i, j;
+  int context_index;
+  int i;
   int len;
-  connectionRecType *context;
+  connectionRecType *context = (connectionRecType *)arg;
   
-  signal(SIGPIPE, SIG_IGN);
-  
-  context = (connectionRecType *) malloc(sizeof(connectionRecType));
-  context->cliSock = client_sockfd;
-  context->linked = false;
-  context->echo = true;
-  context->verbose = false;
-  strcpy(context->version, "1.0");
-  strcpy(context->hostName, "Default");
-  context->enabled = false;
-  context->commMode = 0;
-  context->commProt = 0;
-  context->inBuf[0] = 0;
-  buf[0] = 0;
+  context_index = 0;
   
   while (1) {
-    len = read(context->cliSock, &str, 1600);
-    if (len <= 0) goto finished;
-    str[len] = 0;
-    strcat(buf, str);
-    if ((!memchr(str, '\r', strlen(str))) && (!memchr(str, '\n', strlen(str)))) continue;
+    // We always start this loop with an empty buf, though there may be one
+    // partial line in context->inBuf[0..context_index].
+    len = read(context->cliSock, buf, sizeof(buf));
+    if (len < 0) {
+      fprintf(stderr, "linuxcncrsh: error reading from client: %s\n", strerror(errno));
+      goto finished;
+    }
+    if (len == 0) {
+      printf("linuxcncrsh: eof from client\n");
+      goto finished;
+    }
+
     if (context->echo && context->linked)
-      if(write(context->cliSock, buf, strlen(buf)) != (ssize_t)strlen(buf)) {
-        fprintf(stderr, "emcrsh: write() failed: %s", strerror(errno));
+      if(write(context->cliSock, buf, len) != (ssize_t)len) {
+        fprintf(stderr, "linuxcncrsh: write() failed: %s", strerror(errno));
       }
-    i = 0;
-    j = 0;
-    while (i <= strlen(buf)) {
+
+    for (i = 0; i < len; i ++) {
       if ((buf[i] != '\n') && (buf[i] != '\r')) {
-        context->inBuf[j] = buf[i];
-	j++;
+            context->inBuf[context_index] = buf[i];
+            context_index ++;
+            continue;
 	}
-      else
-        if (j > 0)
-          {
-  	    context->inBuf[j] = 0;
-            if (parseCommand(context) == -1) goto finished;
-	    j = 0;
+
+        // if we get here, i is the index of a line terminator in buf
+
+        if (context_index > 0) {
+            // we have some bytes in the context buffer, parse them now
+            context->inBuf[context_index] = '\0';
+
+            // The return value from parseCommand was meant to indicate
+            // success or error, but it is unusable.  Some paths return
+            // the return value of write(2) and some paths return small
+            // positive integers (cmdResponseType) to indicate failure.
+            // We're best off just ignoring it.
+            (void)parseCommand(context);
+
+            context_index = 0;
 	}
-        i++;	
       }
-    buf[0] = 0;
     } 
 
 finished:
+  printf("linuxcncrsh: disconnecting client %s (%s)\n", context->hostName, context->version);
   close(context->cliSock);
   free(context);
   pthread_exit((void *)0);
@@ -2697,19 +2721,47 @@ finished:
 
 int sockMain()
 {
-    pthread_t thrd;
     int res;
     
     while (1) {
+      int client_sockfd;
       
       client_len = sizeof(client_address);
       client_sockfd = accept(server_sockfd,
         (struct sockaddr *)&client_address, &client_len);
       if (client_sockfd < 0) exit(0);
       sessions++;
-      if ((maxSessions == -1) || (sessions <= maxSessions))
-        res = pthread_create(&thrd, NULL, readClient, (void *)NULL);
-      else res = -1;
+      if ((maxSessions == -1) || (sessions <= maxSessions)) {
+        pthread_t *thrd;
+        connectionRecType *context;
+
+        thrd = (pthread_t *)calloc(1, sizeof(pthread_t));
+        if (thrd == NULL) {
+          fprintf(stderr, "linuxcncrsh: out of memory\n");
+          exit(1);
+        }
+
+        context = (connectionRecType *) malloc(sizeof(connectionRecType));
+        if (context == NULL) {
+          fprintf(stderr, "linuxcncrsh: out of memory\n");
+          exit(1);
+        }
+
+        context->cliSock = client_sockfd;
+        context->linked = false;
+        context->echo = true;
+        context->verbose = false;
+        strcpy(context->version, "1.0");
+        strcpy(context->hostName, "Default");
+        context->enabled = false;
+        context->commMode = 0;
+        context->commProt = 0;
+        context->inBuf[0] = 0;
+
+        res = pthread_create(thrd, NULL, readClient, (void *)context);
+      } else {
+        res = -1;
+      }
       if (res != 0) {
         close(client_sockfd);
         sessions--;
@@ -2794,7 +2846,22 @@ int main(int argc, char *argv[])
     saveEmcCommandSerialNumber = emcStatus->echo_serial_number;
 
     // attach our quit function to SIGINT
-    signal(SIGINT, sigQuit);
+    {
+        struct sigaction act;
+        act.sa_handler = sigQuit;
+        sigemptyset(&act.sa_mask);
+        act.sa_flags = 0;
+        sigaction(SIGINT, &act, NULL);
+    }
+
+    // make all threads ignore SIGPIPE
+    {
+        struct sigaction act;
+        act.sa_handler = SIG_IGN;
+        sigemptyset(&act.sa_mask);
+        act.sa_flags = 0;
+        sigaction(SIGPIPE, &act, NULL);
+    }
 
     if (useSockets) sockMain();
 

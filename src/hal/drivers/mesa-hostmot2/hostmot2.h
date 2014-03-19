@@ -17,6 +17,9 @@
 //    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 //
 
+#ifndef __HOSTMOT2_H
+#define __HOSTMOT2_H
+
 // please God where do these live in real life?
 #define INT32_MIN (-2147483647-1)
 #define INT32_MAX (2147483647)
@@ -24,6 +27,7 @@
 
 #include "rtapi.h"
 #include "hal.h"
+#include "sserial.h"
 
 #include "hostmot2-lowlevel.h"
 
@@ -97,22 +101,37 @@ char **argv_split(gfp_t gfp, const char *str, int *argcp);
 // Module Descriptor constants
 // 
 
-#define HM2_GTAG_WATCHDOG         (2)
-#define HM2_GTAG_IOPORT           (3)
-#define HM2_GTAG_ENCODER          (4)
-#define HM2_GTAG_STEPGEN          (5)
-#define HM2_GTAG_PWMGEN           (6)
-#define HM2_GTAG_UART_TX          (9)
-#define HM2_GTAG_UART_RX         (10)
-#define HM2_GTAG_TRANSLATIONRAM  (11)
-#define HM2_GTAG_BSPI            (14)
-#define HM2_GTAG_TPPWM           (19)
-#define HM2_GTAG_LED            (128)
-#define HM2_GTAG_MUXED_ENCODER   (12)
+#define HM2_GTAG_WATCHDOG          (2)
+#define HM2_GTAG_IOPORT            (3)
+#define HM2_GTAG_ENCODER           (4)
+#define HM2_GTAG_STEPGEN           (5)
+#define HM2_GTAG_PWMGEN            (6)
+#define HM2_GTAG_SPI               (7) // Not supported
+#define HM2_GTAG_SSI               (8)
+#define HM2_GTAG_UART_TX           (9)
+#define HM2_GTAG_UART_RX           (10)
+#define HM2_GTAG_TRANSLATIONRAM    (11)
+#define HM2_GTAG_MUXED_ENCODER     (12)
 #define HM2_GTAG_MUXED_ENCODER_SEL (13)
-#define HM2_GTAG_RESOLVER       (192)
-#define HM2_GTAG_SMARTSERIAL    (193)
+#define HM2_GTAG_BSPI              (14)
+#define HM2_GTAG_DBSPI             (15) // Not supported
+#define HM2_GTAG_DPLL              (16) // Not supported
+#define HM2_GTAG_MUXED_ENCODER_M   (17) // Not supported
+#define HM2_GTAG_MUXED_ENC_SEL_M   (18) // Not supported
+#define HM2_GTAG_TPPWM             (19)
+#define HM2_GTAG_WAVEGEN           (20) // Not supported
+#define HM2_GTAG_DAQFIFO           (21) // Not supported
+#define HM2_GTAG_BINOSC            (22) // Not supported
+#define HM2_GTAG_DDMA              (23) // Not supported
+#define HM2_GTAG_BISS              (24) 
+#define HM2_GTAG_FABS              (25) 
+#define HM2_GTAG_HM2DPLL           (26) 
+#define HM2_GTAG_LIOPORT           (64) // Not supported
+#define HM2_GTAG_LED               (128)
 
+#define HM2_GTAG_RESOLVER          (192)
+#define HM2_GTAG_SMARTSERIAL       (193)
+#define HM2_GTAG_TWIDDLER          (194) // Not supported
 
 
 
@@ -261,6 +280,7 @@ typedef struct {
             hal_bit_t *latch_enable;
             hal_bit_t *latch_polarity;
             hal_bit_t *quadrature_error;
+            hal_bit_t *quadrature_error_enable;
         } pin;
 
         struct {
@@ -324,6 +344,42 @@ typedef struct {
 } hm2_encoder_t;
 
 //
+// absolute encoder
+//
+
+#define MAX_ABSENCS (32)
+#define MAX_ABSENC_LEN (128)
+
+typedef struct {
+    int gtag;
+    int index;
+    char string[MAX_ABSENC_LEN];
+    struct list_head list;
+} hm2_absenc_format_t;
+
+/* The absolute encoder protocols, with a bit field containing many
+ * different data points end up looking so much like the smart-serial
+ * protocol that the module uses the smart-serial data structure and
+ * much of the same functions
+ */
+
+typedef struct {
+    int num_chans;
+    hm2_sserial_remote_t *chans;
+
+    u32 clock_frequency;
+    u8 ssi_version;
+    u8 biss_version;
+    u8 fanuc_version;
+    u32 ssi_global_start_addr;
+    u32 fabs_global_start_addr;
+    u32 biss_global_start_addr;
+    u32 *biss_busy_flags;
+    u32 *ssi_busy_flags;
+    u32 *fabs_busy_flags;
+} hm2_absenc_t;
+
+//
 // resolver
 //
 
@@ -345,13 +401,15 @@ typedef struct {
         struct {
             hal_float_t scale;
             hal_float_t vel_scale;
+            hal_u32_t index_div;
         } param;
 
     } hal;
     
-    long long accum;
-    long long offset;
-    u32 old_reg;
+    __s64 accum;
+    __s64 offset;
+    __u32 old_reg;
+    __u32 index_cnts;
 
 } hm2_resolver_instance_t;
 
@@ -542,168 +600,6 @@ typedef struct {
 
 } hm2_tp_pwmgen_t;
 
-//
-// sserial (Smart Serial Interface)
-//
-
-#define HM2_SSERIAL_TYPE_8I20               0x30324938  // '8i20' as 4 ascii
-#define HM2_SSERIAL_TYPE_7I64               0x34364937  // More to be added later.
-#define HM2_SSERIAL_MAX_STRING_LENGTH       32
-
-typedef struct {
-    struct {
-        hal_float_t *hm2_phase_angle;
-        hal_float_t *hm2_current;
-        hal_float_t *hm2_bus_voltage;
-        hal_float_t *hm2_card_temp;
-        hal_u32_t   *hm2_fault;
-        hal_u32_t   *hm2_status;
-        hal_u32_t   *hm2_comms;
-        hal_bit_t   *enable;
-        hal_u32_t   *hm2_reg_cs;
-        hal_u32_t   *hm2_reg_0;
-        hal_u32_t   *hm2_reg_1;
-    }pin;
-    struct{
-        hal_float_t hm2_nv_max_current;
-        hal_float_t hm2_max_current;
-        hal_u32_t hm2_serialnumber;
-    }param;
-}hal_8i20_t;
-
-typedef struct {
-    struct{
-        hal_bit_t *digital_in[24];
-        hal_bit_t *digital_in_not[24];
-        hal_bit_t *digital_out[24];
-        hal_float_t *analogue_in[2];
-    }pin;
-    struct{
-        hal_bit_t invert[24];
-    }param;
-    hal_u32_t in_reg;
-    hal_u32_t out_reg;
-    hal_u32_t hm2_serialnumber;
-}hal_7i64_t;
-
-typedef struct {
-    unsigned char RecordType;
-    unsigned char DataLength;
-    unsigned char DataType;
-    unsigned char DataDir;
-    float ParmMin;
-    float ParmMax;
-    short ParmAddr;
-    char UnitString[HM2_SSERIAL_MAX_STRING_LENGTH+1];
-    char NameString[HM2_SSERIAL_MAX_STRING_LENGTH+1];
-}hm2_sserial_data_t;
-
-typedef struct {
-    unsigned char RecordType;
-    unsigned char ModeIndex;
-    unsigned char ModeType;
-    unsigned char Unused;
-    char NameString[HM2_SSERIAL_MAX_STRING_LENGTH+1];
-}hm2_sserial_mode_t;
-
-typedef struct {
-    hal_u32_t *u32_pin;
-    hal_s32_t *s32_pin;
-    hal_float_t *float_pin;
-    hal_bit_t **bit_pins;
-    hal_bit_t **bit_pins_not;
-    hal_bit_t *invert;
-    hal_bit_t *boolean;
-    hal_bit_t *boolean_not;
-    hal_float_t maxlim;
-    hal_float_t minlim;
-    hal_float_t fullscale;
-    s32 oldval;
-}hm2_sserial_pins_t;
-
-typedef struct {
-    int num_confs;
-    int num_modes;
-    int num_pins;
-    hm2_sserial_mode_t *modes;
-    hm2_sserial_data_t *conf;
-    hm2_sserial_pins_t *pins;
-    hal_u32_t hm2_serialnumber;
-    hal_u32_t status;
-}hal_sserial_auto_t;
-
-typedef struct {
-    u32 *reg_cs_read;
-    u32 *reg_cs_write;
-    u32 *reg_0_read;
-    u32 *reg_0_write;
-    u32 *reg_1_read;
-    u32 *reg_1_write;
-    u32 *reg_2_read;
-    u32 *reg_2_write;
-    u32 reg_cs_addr;
-    u32 reg_0_addr;
-    u32 reg_1_addr;
-    u32 reg_2_addr;
-    int index;
-    u32 reg_command_addr; // a duplicate so that a single channel can be passed
-    u32 reg_data_addr;
-    char name[10];
-}hm2_sserial_tram_t;
-
-typedef struct {
-    int device_id;
-    int num_8i20;
-    unsigned char tag_8i20;
-    hal_8i20_t *hal_8i20;
-    hm2_sserial_tram_t *tram_8i20;
-    int num_7i64;
-    unsigned char tag_7i64;
-    hal_7i64_t *hal_7i64;
-    hm2_sserial_tram_t *tram_7i64;
-    int num_auto;
-    unsigned char tag_auto;
-    hal_sserial_auto_t *hal_auto;
-    hm2_sserial_tram_t *tram_auto;
-    int num_all;
-    unsigned char tag_all;
-
-    int num_channels;
-    int module_index;
-    u32 command_reg_addr;
-    u32 *command_reg_read;
-    u32 *command_reg_write;
-    u32 data_reg_addr;
-    u32 *data_reg_read;
-    u32 *data_reg_write;
-    hal_u32_t *fault_count;
-    hal_u32_t fault_inc;
-    hal_u32_t fault_dec;
-    hal_u32_t fault_lim;
-
-    hal_bit_t *run;
-    hal_u32_t *state;
-    u32 timer;
-} hm2_sserial_instance_t;
-
-typedef struct {
-    // global config pins
-    hal_u32_t *port;
-    hal_u32_t *channel;
-    hal_bit_t *read;
-    hal_bit_t *write;
-    hal_u32_t *parameter;
-    hal_u32_t *value;
-    hal_u32_t *state;
-} hm2_sserial_hal_t;
-
-typedef struct {
-    u8 version;
-    int num_instances; // number of active instances
-    hm2_sserial_instance_t *instance ;
-    hm2_sserial_hal_t *hal;
-} hm2_sserial_t;
-
 
 // 
 // ioport
@@ -778,6 +674,7 @@ typedef struct {
             hal_u32_t dirhold;
 
             hal_u32_t step_type;
+            hal_u32_t table[5]; // the Fifth Element is used as a very crude hash
         } param;
 
     } hal;
@@ -796,8 +693,9 @@ typedef struct {
     u32 written_stepspace;
     u32 written_dirsetup;
     u32 written_dirhold;
-
     u32 written_step_type;
+    u32 table_width;
+    
 } hm2_stepgen_instance_t;
 
 
@@ -900,6 +798,47 @@ typedef struct {
     u8 instances;
     u8 num_registers;
 } hm2_uart_t;
+
+//
+// HM2DPLL
+//
+
+typedef struct {
+    hal_float_t *time1_us;
+    hal_float_t *time2_us;
+    hal_float_t *time3_us;
+    hal_float_t *time4_us;
+    hal_float_t *base_freq;
+    hal_float_t *phase_error;
+    hal_u32_t *plimit;
+    hal_u32_t *ddssize;
+    hal_u32_t *time_const;
+    hal_u32_t *prescale;
+} hm2_dpll_pins_t ;
+
+typedef struct {
+
+    int num_instances ;
+    hm2_dpll_pins_t *pins ;
+
+    u32 base_rate_addr;
+    u32 base_rate_written;
+    u32 phase_err_addr;
+    u32 control_reg0_addr;
+    u32 control_reg0_written;
+    u32 control_reg1_addr;
+    u32 control_reg1_written;
+    u32 *control_reg1_read;
+    u32 timer_12_addr;
+    u32 timer_12_written;
+    u32 timer_34_addr;
+    u32 timer_34_written;
+    u32 hm2_dpll_sync_addr;
+    u32 *hm2_dpll_sync_reg;
+    u32 clock_frequency;
+
+} hm2_dpll_t ;
+
 
 // 
 // watchdog
@@ -1017,6 +956,8 @@ typedef struct {
 
     struct {
         int num_encoders;
+        int num_absencs;
+        struct list_head absenc_formats;
         int num_resolvers;
         int num_pwmgens;
         int num_tp_pwmgens;
@@ -1025,6 +966,7 @@ typedef struct {
         int num_sserials;
         int num_bspis;
         int num_uarts;
+        int num_dplls;
         char sserial_modes[4][8];
         int enable_raw;
         char *firmware;
@@ -1038,6 +980,8 @@ typedef struct {
     hm2_module_descriptor_t md[HM2_MAX_MODULE_DESCRIPTORS];
     int num_mds;
 
+    int use_serial_numbers;
+    
     hm2_pin_t *pin;
     int num_pins;
 
@@ -1052,6 +996,7 @@ typedef struct {
 
     // the hostmot2 "Functions"
     hm2_encoder_t encoder;
+    hm2_absenc_t absenc;
     hm2_resolver_t resolver;
     hm2_pwmgen_t pwmgen;
     hm2_tp_pwmgen_t tp_pwmgen;
@@ -1061,6 +1006,7 @@ typedef struct {
     hm2_uart_t uart;
     hm2_ioport_t ioport;
     hm2_watchdog_t watchdog;
+    hm2_dpll_t dpll;
     hm2_led_t led;
 
     hm2_raw_t *raw;
@@ -1100,7 +1046,10 @@ const char *hm2_hz_to_mhz(u32 freq_hz);
 
 void hm2_print_modules(hostmot2_t *hm2);
 
-
+// functions to get handles to components by name
+hm2_sserial_remote_t *hm2_get_sserial(hostmot2_t **hm2, char *name);
+int hm2_get_bspi(hostmot2_t **hm2, char *name);
+int hm2_get_uart(hostmot2_t **hm2, char *name);
 
 
 //
@@ -1164,6 +1113,19 @@ void hm2_encoder_cleanup(hostmot2_t *hm2);
 void hm2_encoder_print_module(hostmot2_t *hm2);
 void hm2_encoder_force_write(hostmot2_t *hm2);
 
+
+//
+// absolute encoder functions
+//
+
+
+int hm2_absenc_parse_md(hostmot2_t *hm2, int md_index);
+int hm2_absenc_register_tram(hostmot2_t *hm2);
+void hm2_absenc_process_tram_read(hostmot2_t *hm2, long period);
+void hm2_absenc_cleanup(hostmot2_t *hm2);
+void hm2_absenc_print_module(hostmot2_t *hm2);
+void hm2_absenc_write(hostmot2_t *hm2);
+
 //
 // resolver functions
 //
@@ -1201,51 +1163,6 @@ void hm2_tp_pwmgen_read(hostmot2_t *hm2);
 
 
 //
-// Smart Serial functions
-//
-
-int  hm2_sserial_parse_md(hostmot2_t *hm2, int md_index);
-int hm2_sserial_allocate_pins(hostmot2_t *hm2);
-void hm2_sserial_print_module(hostmot2_t *hm2);
-void hm2_sserial_force_write(hostmot2_t *hm2);
-void hm2_sserial_prepare_tram_write(hostmot2_t *hm2, long period);
-void hm2_sserial_process_tram_read(hostmot2_t *hm2, long period);
-void hm2_sserial_process_config(hostmot2_t *hm2, long period);
-u32 hm2_sserial_get_param(hostmot2_t *hm2, hm2_sserial_tram_t *channel, int param);
-int hm2_sserial_get_bytes(hostmot2_t *hm2, hm2_sserial_tram_t *chan, void *buffer, int addr, int size);
-int hm2_sserial_waitfor(hostmot2_t *hm2, u32 addr, u32 mask, int ms);
-void hm2_sserial_cleanup(hostmot2_t *hm2);
-int hm2_sserial_config_create(hostmot2_t *hm2);
-int hm2_sserial_check_errors(hostmot2_t *hm2, hm2_sserial_tram_t *tram);
-
-    // Smart-Serial functions in hm2_8i20.c
-    int hm2_8i20_create(hostmot2_t *hm2, hm2_module_descriptor_t *md);
-    void hm2_8i20_prepare_tram_write(hostmot2_t *hm2);
-    void hm2_8i20_process_tram_read(hostmot2_t *hm2);
-    int hm2_8i20_params(hostmot2_t *hm2);
-    void hm2_8i20_setmode(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
-    void hm2_sserial_8i20_cleanup(hostmot2_t *hm2);
-    int hm2_sserial_8i20_check(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
-
-    // Smart-Serial functions in hm2_7i64.c
-    int hm2_7i64_create(hostmot2_t *hm2, hm2_module_descriptor_t *md);
-    void hm2_7i64_prepare_tram_write(hostmot2_t *hm2);
-    void hm2_7i64_process_tram_read(hostmot2_t *hm2);
-    void hm2_7i64_setmode(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
-    void hm2_sserial_7i64_cleanup(hostmot2_t *hm2);
-    int hm2_sserial_7i64_check(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
-
-    // Smart-Serial functions in hm2_sserial_auto.c
-    int hm2_auto_create(hostmot2_t *hm2, hm2_module_descriptor_t *md);
-    void hm2_sserial_auto_print_conf(hostmot2_t *hm2, hm2_sserial_data_t *chan);
-    void hm2_sserial_auto_print_modes(hostmot2_t *hm2, hm2_sserial_mode_t *conf);
-    void hm2_auto_process_tram_read(hostmot2_t *hm2);
-    void hm2_auto_prepare_tram_write(hostmot2_t *hm2);
-    void hm2_sserial_auto_setmode(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
-    void hm2_sserial_auto_cleanup(hostmot2_t *hm2);
-    int hm2_sserial_auto_check(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
-
-//
 // stepgen functions
 //
 
@@ -1258,6 +1175,26 @@ void hm2_stepgen_prepare_tram_write(hostmot2_t *hm2, long period);
 void hm2_stepgen_process_tram_read(hostmot2_t *hm2, long period);
 void hm2_stepgen_allocate_pins(hostmot2_t *hm2);
 
+//
+// Smart Serial functions
+//
+
+int  hm2_sserial_parse_md(hostmot2_t *hm2, int md_index);
+void hm2_sserial_print_module(hostmot2_t *hm2);
+void hm2_sserial_force_write(hostmot2_t *hm2);
+void hm2_sserial_prepare_tram_write(hostmot2_t *hm2, long period);
+int hm2_sserial_read_pins(hm2_sserial_remote_t *chan);
+void hm2_sserial_process_tram_read(hostmot2_t *hm2, long period);
+void hm2_sserial_cleanup(hostmot2_t *hm2);
+int hm2_sserial_waitfor(hostmot2_t *hm2, u32 addr, u32 mask, int ms);
+int hm2_sserial_check_errors(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
+int hm2_sserial_setup_channel(hostmot2_t *hm2, hm2_sserial_instance_t *inst, int index);
+int hm2_sserial_setup_remotes(hostmot2_t *hm2, hm2_sserial_instance_t *inst, hm2_module_descriptor_t *md);
+void hm2_sserial_setmode(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
+int hm2_sserial_create_pins(hostmot2_t *hm2, hm2_sserial_remote_t *chan);
+int hm2_sserial_register_tram(hostmot2_t *hm2, hm2_sserial_remote_t *chan);
+int hm2_sserial_read_configs(hostmot2_t *hm2, hm2_sserial_remote_t *chan);
+void hm2_sserial_setmode(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
 
 //
 // Buffered SPI functions
@@ -1272,7 +1209,6 @@ void hm2_bspi_prepare_tram_write(hostmot2_t *hm2, long period);
 void hm2_bspi_process_tram_read(hostmot2_t *hm2, long period);
 int hm2_allocate_bspi_tram(char* name);
 int hm2_bspi_write_chan(char* name, int chan, u32 val);
-int hm2_get_bspi(hostmot2_t **hm2, char *name); // actually in hostmot.c
 int hm2_allocate_bspi_tram(char* name);
 int hm2_tram_add_bspi_frame(char *name, int chan, u32 **wbuff, u32 **rbuff);
 int hm2_bspi_setup_chan(char *name, int chan, int cs, int bits, float mhz, 
@@ -1291,10 +1227,19 @@ void hm2_uart_write(hostmot2_t *hm2);
 void hm2_uart_force_write(hostmot2_t *hm2);
 void hm2_uart_prepare_tram_write(hostmot2_t *hm2, long period);
 void hm2_uart_process_tram_read(hostmot2_t *hm2, long period);
-int hm2_get_uart(hostmot2_t **hm2, char *name); // actually in hostmot.c
 int hm2_uart_setup(char *name, int bitrate, s32 tx_mode, s32 rx_mode);
 int hm2_uart_send(char *name, unsigned char data[], int count);
 int hm2_uart_read(char *name, unsigned char data[]);
+
+//
+// hm2dpll functions
+//
+
+void hm2_dpl_cleanup(hostmot2_t *hm2);
+int hm2_dpll_force_write(hostmot2_t *hm2);
+int hm2_dpll_parse_md(hostmot2_t *hm2, int md_index);
+void hm2_dpll_process_tram_read(hostmot2_t *hm2, long period);
+void hm2_dpll_write(hostmot2_t *hm2, long period);
 
 // 
 // watchdog functions
@@ -1333,3 +1278,4 @@ void hm2_raw_write(hostmot2_t *hm2);
 // used by hm2_register() to initialize and by hm2_pet_watchdog() to recover from io errors and watchdog errors
 void hm2_force_write(hostmot2_t *hm2);
 
+#endif

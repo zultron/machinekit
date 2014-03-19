@@ -91,12 +91,15 @@ typedef int CANON_SIDE;
 #define CANON_SIDE_OFF 3
 
 typedef int CANON_AXIS;
-#define CANON_AXIS_X 1
-#define CANON_AXIS_Y 2
-#define CANON_AXIS_Z 3
-#define CANON_AXIS_A 4
-#define CANON_AXIS_B 5
-#define CANON_AXIS_C 6
+#define CANON_AXIS_X 0
+#define CANON_AXIS_Y 1
+#define CANON_AXIS_Z 2
+#define CANON_AXIS_A 3
+#define CANON_AXIS_B 4
+#define CANON_AXIS_C 5
+#define CANON_AXIS_U 6
+#define CANON_AXIS_V 7
+#define CANON_AXIS_W 8
 
 /* Currently using the typedefs above rather than the enums below
 typedef enum {CANON_PLANE_XY, CANON_PLANE_YZ, CANON_PLANE_XZ} CANON_PLANE;
@@ -543,8 +546,7 @@ a change_tool command, the select_tool command must have been given
 before the change_tool command, and the value of slot must be the slot
 number of the selected tool. */
 
-// extern void SELECT_POCKET(int i);	/* i is slot number */
-extern void SELECT_POCKET(int i, int tool);	/* i is slot number, tool is tool number */
+extern void SELECT_POCKET(int pocket, int tool);	/* pocket is pocket number, tool is tool number */
 
 extern void CHANGE_TOOL_NUMBER(int number);
 

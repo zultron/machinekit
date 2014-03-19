@@ -1,8 +1,10 @@
 :lang: fr
 :toc:
 :localdate: {sys: date +%d/%m/%Y}
-Manuel de l'utilisateur V2.5  {localdate}
-=========================================
+:ascii-ids:
+:lversion: {sys: cat ../VERSION}
+Manuel de l'utilisateur V{lversion}, {localdate}
+================================================
 :masterdir: {indir}
 :leveloffset: 1
 

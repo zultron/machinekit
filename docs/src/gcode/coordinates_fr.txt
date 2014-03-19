@@ -67,12 +67,12 @@ est enregistrée dans une variable numérotée.
 [width="40%",cols="^,^",options="header"]
 |==============
 |Variable|Valeur
-|5241 |0.000000
-|5242 |0.000000
-|5243 |0.000000
-|5244 |0.000000
-|5245 |0.000000
-|5246 |0.000000
+|5241 |0.000000
+|5242 |0.000000
+|5243 |0.000000
+|5244 |0.000000
+|5245 |0.000000
+|5246 |0.000000
 |==============
 
 Dans le schéma d'un fichier VAR, la première variable contient la
@@ -89,12 +89,12 @@ directement le fichier pour que G55 prenne les valeurs suivantes:
 [width="40%",cols="^,^",options="header"]
 |==============
 |Variable|Valeur
-|5241 |2.000000
-|5242 |1.000000
-|5243 |-2.000000
-|5244 |0.000000
-|5245 |0.000000
-|5246 |0.000000
+|5241 |2.000000
+|5242 |1.000000
+|5243 |-2.000000
+|5244 |0.000000
+|5245 |0.000000
+|5246 |0.000000
 |==============
 
 Vous pouvez voir que les positions zéro de G55 sont passées en X = 2, 
@@ -134,15 +134,15 @@ les commandes suivantes auraient voulu retourner dans le système de
 coordonnées du G55 toujours actif.
 
 ----
-G54   utilise les réglages du système de coordonnées 1(((G54)))
-G55   utilise les réglages du système de coordonnées 2(((G55)))
-G56   utilise les réglages du système de coordonnées 3(((G56)))
-G57   utilise les réglages du système de coordonnées 4(((G57)))
-G58   utilise les réglages du système de coordonnées 5(((G58)))
-G59   utilise les réglages du système de coordonnées 6(((G59)))
-G59.1 utilise les réglages du système de coordonnées 7(((G59.1)))
-G59.2 utilise les réglages du système de coordonnées 8(((G59.2)))
-G59.3 utilise les réglages du système de coordonnées 9(((G59.3)))
+G54	utilise les réglages du système de coordonnées 1(((G54)))
+G55	utilise les réglages du système de coordonnées 2(((G55)))
+G56	utilise les réglages du système de coordonnées 3(((G56)))
+G57	utilise les réglages du système de coordonnées 4(((G57)))
+G58	utilise les réglages du système de coordonnées 5(((G58)))
+G59	utilise les réglages du système de coordonnées 6(((G59)))
+G59.1	utilise les réglages du système de coordonnées 7(((G59.1)))
+G59.2	utilise les réglages du système de coordonnées 8(((G59.2)))
+G59.3	utilise les réglages du système de coordonnées 9(((G59.3)))
 ----
 
 === Système de coordonnées par défaut
@@ -252,12 +252,12 @@ peut les rendre de nouveau actives. Les variables sont numérotées:
 [width="40%",cols="^,^",options="header"]
 |==============
 |Variable|Valeur
-|5211 | 0.000000
-|5212 | 0.000000
-|5213 | 0.000000
-|5214 | 0.000000
-|5215 | 0.000000
-|5216 | 0.000000
+|5211 | 0.000000
+|5212 | 0.000000
+|5213 | 0.000000
+|5214 | 0.000000
+|5215 | 0.000000
+|5216 | 0.000000
 |==============
 
 où 5211 est le numéro du décalage de l'axe X et ainsi de suite. Si

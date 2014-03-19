@@ -1379,41 +1379,31 @@ void ARC_FEED(int line_number,
     second_end = FROM_PROG_LEN(second_end);
     axis_end_point = FROM_PROG_LEN(axis_end_point);
 
+    double first_start, second_start, axis_start_point;
+    int normal_axis;
     /* associate x with x, etc., offset by program origin, and set normals */
+
     switch (activePlane) {
     default: // to eliminate "uninitalized" warnings
     case CANON_PLANE_XY:
 
-	// offset and align args properly
 	end.tran.x = first_end;
 	end.tran.y = second_end;
 	end.tran.z = axis_end_point;
-        rotate_and_offset_pos(end.tran.x, end.tran.y, end.tran.z, unused, unused, unused, unused, unused, unused);
+
 	center.x = first_axis;
 	center.y = second_axis;
 	center.z = end.tran.z;
-        rotate_and_offset_pos(center.x, center.y, center.z, unused, unused, unused, unused, unused, unused);
+
 	normal.x = 0.0;
 	normal.y = 0.0;
 	normal.z = 1.0;
+            normal_axis = CANON_AXIS_Z;
 
-        theta1 = atan2(canonEndPoint.y - center.y, canonEndPoint.x - center.x);
-        theta2 = atan2(end.tran.y - center.y, end.tran.x - center.x);
-        radius = hypot(canonEndPoint.x - center.x, canonEndPoint.y - center.y);
-        axis_len = fabs(end.tran.z - canonEndPoint.z);
+            first_start = canonEndPoint.x;
+            second_start = canonEndPoint.y;
+            axis_start_point = canonEndPoint.z;
 
-	v1 = FROM_EXT_LEN(axis_max_velocity[0]);
-	v2 = FROM_EXT_LEN(axis_max_velocity[1]);
-	a1 = FROM_EXT_LEN(axis_max_acceleration[0]);
-	a2 = FROM_EXT_LEN(axis_max_acceleration[1]);
-        circ_maxvel = ini_maxvel = MIN(v1, v2);
-        circ_acc = acc = MIN(a1, a2);
-        if(axis_valid(2) && axis_len > 0.001) {
-            axial_maxvel = v1 = FROM_EXT_LEN(axis_max_velocity[2]);
-            a1 = FROM_EXT_LEN(axis_max_acceleration[2]);
-            ini_maxvel = MIN(ini_maxvel, v1);
-            acc = MIN(acc, a1);
-        }
 	break;
 
     case CANON_PLANE_YZ:
@@ -1422,35 +1412,21 @@ void ARC_FEED(int line_number,
 	end.tran.y = first_end;
 	end.tran.z = second_end;
 	end.tran.x = axis_end_point;
-        rotate_and_offset_pos(end.tran.x, end.tran.y, end.tran.z, unused, unused, unused, unused, unused, unused);
 
         center.y = first_axis;
         center.z = second_axis;
 	center.x = end.tran.x;
-        rotate_and_offset_pos(center.x, center.y, center.z, unused, unused, unused, unused, unused, unused);
+
 	normal.y = 0.0;
 	normal.z = 0.0;
 	normal.x = 1.0;
-        rotate(normal.x, normal.y, xy_rotation);
+            normal_axis = CANON_AXIS_X;
 
-        theta1 = atan2(canonEndPoint.z - center.z, canonEndPoint.y - center.y);
-        theta2 = atan2(end.tran.z - center.z, end.tran.y - center.y);
-        radius = hypot(canonEndPoint.y - center.y, canonEndPoint.z - center.z);
-        axis_len = fabs(end.tran.x - canonEndPoint.x);
+            first_start = canonEndPoint.y;
+            second_start = canonEndPoint.z;
+            axis_start_point = canonEndPoint.x;
 
-	v1 = FROM_EXT_LEN(axis_max_velocity[1]);
-	v2 = FROM_EXT_LEN(axis_max_velocity[2]);
-	a1 = FROM_EXT_LEN(axis_max_acceleration[1]);
-	a2 = FROM_EXT_LEN(axis_max_acceleration[2]);
-        circ_maxvel = ini_maxvel = MIN(v1, v2);
-        circ_acc = acc = MIN(a1, a2);
-        if(axis_valid(0) && axis_len > 0.001) {
-            axial_maxvel = v1 = FROM_EXT_LEN(axis_max_velocity[0]);
-            a1 = FROM_EXT_LEN(axis_max_acceleration[0]);
-            ini_maxvel = MIN(ini_maxvel, v1);
-            acc = MIN(acc, a1);
-        }
-
+            rotate(normal.x, normal.y, xy_rotation);
 	break;
 
     case CANON_PLANE_XZ:
@@ -1459,42 +1435,60 @@ void ARC_FEED(int line_number,
 	end.tran.z = first_end;
 	end.tran.x = second_end;
 	end.tran.y = axis_end_point;
-        rotate_and_offset_pos(end.tran.x, end.tran.y, end.tran.z, unused, unused, unused, unused, unused, unused);
 
 	center.z = first_axis;
 	center.x = second_axis;
 	center.y = end.tran.y;
-        rotate_and_offset_pos(center.x, center.y, center.z, unused, unused, unused, unused, unused, unused);
+
 	normal.z = 0.0;
 	normal.x = 0.0;
 	normal.y = 1.0;
+            normal_axis = CANON_AXIS_Y;
+
+            first_start = canonEndPoint.z;
+            second_start = canonEndPoint.x;
+            axis_start_point = canonEndPoint.y;
+
         rotate(normal.x, normal.y, xy_rotation);
+            break;
+    }
 
-        theta1 = atan2(canonEndPoint.x - center.x, canonEndPoint.z - center.z);
-        theta2 = atan2(end.tran.x - center.x, end.tran.z - center.z);
-        radius = hypot(canonEndPoint.x - center.x, canonEndPoint.z - center.z);
-        axis_len = fabs(end.tran.y - canonEndPoint.y);
+    rotate_and_offset_pos(end.tran.x, end.tran.y, end.tran.z, unused, unused, unused, unused, unused, unused);
+    rotate_and_offset_pos(center.x, center.y, center.z, unused, unused, unused, unused, unused, unused);
 
-	v1 = FROM_EXT_LEN(axis_max_velocity[0]);
-	v2 = FROM_EXT_LEN(axis_max_velocity[2]);
-	a1 = FROM_EXT_LEN(axis_max_acceleration[0]);
-	a2 = FROM_EXT_LEN(axis_max_acceleration[2]);
+    theta1 = atan2(first_start - first_axis, second_start - second_axis);
+    theta2 = atan2(first_end - first_axis, second_end - second_axis);
+    radius = hypot(first_start - first_axis, second_start - second_axis);
+    axis_len = fabs(axis_end_point - axis_start_point);
+
+    // KLUDGE Get axis indices of plane
+    int axis1 = (normal_axis + 1) % 3;
+    int axis2 = (normal_axis + 2) % 3;
+
+    // Get planar velocity bounds
+    v1 = FROM_EXT_LEN(axis_max_velocity[axis1]);
+    v2 = FROM_EXT_LEN(axis_max_velocity[axis2]);
+
+    // Get planar acceleration bounds
+    a1 = FROM_EXT_LEN(axis_max_acceleration[axis1]);
+    a2 = FROM_EXT_LEN(axis_max_acceleration[axis2]);
 	circ_maxvel = ini_maxvel = MIN(v1, v2);
         circ_acc = acc = MIN(a1, a2);
-        if(axis_valid(1) && axis_len > 0.001) {
-            axial_maxvel = v1 = FROM_EXT_LEN(axis_max_velocity[1]);
-            a1 = FROM_EXT_LEN(axis_max_acceleration[1]);
+
+    if(axis_valid(normal_axis) && axis_len > 0.001) {
+        axial_maxvel = v1 = FROM_EXT_LEN(axis_max_velocity[normal_axis]);
+        a1 = FROM_EXT_LEN(axis_max_acceleration[normal_axis]);
             ini_maxvel = MIN(ini_maxvel, v1);
             acc = MIN(acc, a1);
         }
-	break;
-    }
 
+    // Correct for angle wrap
     if(rotation < 0) {
         if(theta2 >= theta1) theta2 -= M_PI * 2.0;
     } else {
         if(theta2 <= theta1) theta2 += M_PI * 2.0;
     }
+
     angle = theta2 - theta1;
     helical_length = hypot(angle * radius, axis_len);
 
@@ -1572,6 +1566,8 @@ void ARC_FEED(int line_number,
 
     if (rotation == 0) {
 	// linear move
+        // FIXME (Rob) Am I missing something? the P word should never be zero,
+        // or we wouldn't be calling ARC_FEED
 
 	linearMoveMsg.end.tran.x = TO_EXT_LEN(end.tran.x);
 	linearMoveMsg.end.tran.y = TO_EXT_LEN(end.tran.y);
@@ -1632,6 +1628,9 @@ void ARC_FEED(int line_number,
         circularMoveMsg.vel = toExtVel(vel);
         circularMoveMsg.ini_maxvel = toExtVel(ini_maxvel);
         circularMoveMsg.acc = toExtAcc(acc);
+
+        //FIXME what happens if accel or vel is zero?
+        // The end point is still updated, but nothing is added to the interp list
         if(vel && acc) {
             interp_list.set_line_number(line_number);
             interp_list.append(circularMoveMsg);
@@ -1846,7 +1845,7 @@ void START_CHANGE()
     interp_list.append(emc_start_change_msg);
 }
 
-/* CHANGE_TOOL results from M6, for example */
+/* CHANGE_TOOL results from M6 */
 void CHANGE_TOOL(int slot)
 {
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
@@ -1906,7 +1905,7 @@ void CHANGE_TOOL(int slot)
     interp_list.append(load_tool_msg);
 }
 
-/* SELECT_POCKET results from T1, for example */
+/* SELECT_POCKET results from Tn */
 void SELECT_POCKET(int slot , int tool)
 {
     EMC_TOOL_PREPARE prep_for_tool_msg;
@@ -1917,12 +1916,12 @@ void SELECT_POCKET(int slot , int tool)
     interp_list.append(prep_for_tool_msg);
 }
 
-/* CHANGE_TOOL_NUMBER results from M61, for example */
-void CHANGE_TOOL_NUMBER(int number)
+/* CHANGE_TOOL_NUMBER results from M61 */
+void CHANGE_TOOL_NUMBER(int pocket_number)
 {
     EMC_TOOL_SET_NUMBER emc_tool_set_number_msg;
     
-    emc_tool_set_number_msg.tool = number;
+    emc_tool_set_number_msg.tool = pocket_number;
 
     interp_list.append(emc_tool_set_number_msg);
 }
@@ -2738,11 +2737,27 @@ int GET_EXTERNAL_QUEUE_EMPTY(void)
     return emcStatus->motion.traj.queue == 0 ? 1 : 0;
 }
 
+// Returns the "home pocket" of the tool currently in the spindle, ie the
+// pocket that the current tool was loaded from.  Returns 0 if there is no
+// tool in the spindle.
 int GET_EXTERNAL_TOOL_SLOT()
 {
-    return emcStatus->io.tool.toolInSpindle;
+    int toolno = emcStatus->io.tool.toolInSpindle;
+    int pocket;
+
+    for (pocket = 1; pocket < CANON_POCKETS_MAX; pocket++) {
+        if (emcStatus->io.tool.toolTable[pocket].toolno == toolno) {
+            return pocket;
+        }
+    }
+
+    return 0;  // no tool in spindle
 }
 
+// If the tool changer has prepped a pocket (after a Txxx command) and is
+// ready to perform a tool change, return the currently prepped pocket
+// number.  If the tool changer is idle (because no Txxx command has been
+// run, or because an M6 tool change has completed), return -1.
 int GET_EXTERNAL_SELECTED_TOOL_SLOT()
 {
     return emcStatus->io.tool.pocketPrepped;

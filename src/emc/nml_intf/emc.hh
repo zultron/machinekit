@@ -36,8 +36,8 @@ class CMS;
 class RCS_CMD_CHANNEL;
 class RCS_STAT_CHANNEL;
 class NML;
-class EmcPose;
-class PM_CARTESIAN;
+struct EmcPose;
+struct PM_CARTESIAN;
 
 // ---------------------
 // EMC TYPE DECLARATIONS
@@ -164,9 +164,7 @@ class PM_CARTESIAN;
 #define EMC_TASK_PLAN_OPEN_TYPE                      ((NMLTYPE) 506)
 #define EMC_TASK_PLAN_RUN_TYPE                       ((NMLTYPE) 507)
 #define EMC_TASK_PLAN_READ_TYPE                      ((NMLTYPE) 508)
-// this enables distinguishing MDI commands coming from the UI from
-// internally generated execute commands
-#define EMC_TASK_PLAN_EXECUTE_INTERNAL_TYPE                   ((NMLTYPE) 509)
+#define EMC_TASK_PLAN_EXECUTE_TYPE                   ((NMLTYPE) 509)
 #define EMC_TASK_PLAN_PAUSE_TYPE                     ((NMLTYPE) 510)
 #define EMC_TASK_PLAN_STEP_TYPE                      ((NMLTYPE) 511)
 #define EMC_TASK_PLAN_RESUME_TYPE                    ((NMLTYPE) 512)
@@ -177,7 +175,6 @@ class PM_CARTESIAN;
 #define EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE         ((NMLTYPE) 517)
 #define EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE          ((NMLTYPE) 518)
 #define EMC_TASK_PLAN_OPTIONAL_STOP_TYPE             ((NMLTYPE) 519)
-#define EMC_TASK_PLAN_EXECUTE_TYPE                   ((NMLTYPE) 520)
 
 #define EMC_TASK_STAT_TYPE                           ((NMLTYPE) 599)
 
@@ -470,35 +467,6 @@ extern int emcMotionSetDout(unsigned char index, unsigned char start,
 
 extern int emcMotionUpdate(EMC_MOTION_STAT * stat);
 
-// implementation functions for EMC_TASK types
-
-extern int emcTaskInit();
-extern int emcTaskHalt();
-extern int emcTaskAbort();
-extern int emcTaskSetMode(int mode);
-extern int emcTaskSetState(int state);
-extern int emcTaskPlanInit();
-extern int emcTaskPlanSetWait();
-extern int emcTaskPlanIsWait();
-extern int emcTaskPlanClearWait();
-extern int emcTaskPlanSynch();
-extern int emcTaskPlanSetOptionalStop(bool state);
-extern int emcTaskPlanSetBlockDelete(bool state);
-extern int emcTaskPlanExit();
-extern int emcTaskPlanOpen(const char *file);
-extern int emcTaskPlanRead();
-extern int emcTaskPlanExecute(const char *command);
-extern int emcTaskPlanExecute(const char *command, int line_number); //used in case of MDI to pass the pseudo line number to interp
-extern int emcTaskPlanPause();
-extern int emcTaskPlanResume();
-extern int emcTaskPlanClose();
-extern int emcTaskPlanReset();
-
-extern int emcTaskPlanLine();
-extern int emcTaskPlanLevel();
-extern int emcTaskPlanCommand(char *cmd);
-
-extern int emcTaskUpdate(EMC_TASK_STAT * stat);
 extern int emcAbortCleanup(int reason,const char *message = "");
 
 // implementation functions for EMC_TOOL types
@@ -575,6 +543,13 @@ extern int emcIoUpdate(EMC_IO_STAT * stat);
 extern int emcInit();
 extern int emcHalt();
 extern int emcAbort();
+
+int emcSetMaxFeedOverride(double maxFeedScale);
+int emcSetupArcBlends(int arcBlendEnable,
+        int arcBlendFallbackEnable,
+        int arcBlendOptDepth,
+        double arcBlendGapCycles,
+        double arcBlendRampFreq);
 
 extern int emcUpdate(EMC_STAT * stat);
 // full EMC status

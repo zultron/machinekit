@@ -1,44 +1,31 @@
-Developer Manual V2.5, {localdate}
-==================================
+:lversion: {sys: cat ../VERSION}
+Developer Manual V{lversion}, {localdate}
+=========================================
 
 :lang: en
-
 :masterdir: {indir}
 
-The LinuxCNC Team
 
-:leveloffset: 1
+== Introduction
 
 image::common/images/emc2-intro.*[]
 
 include::common/overleaf.txt[]
 
-:leveloffset: 0
-== LinuxCNC Code Notes
+
 :leveloffset: 1
 
 include::code/Code_Notes.txt[]
 
-:leveloffset: 0
-= NML Messages
-:leveloffset: 1
-
 include::code/NML_Messages.txt[]
 
-:leveloffset: 0
-
-= Coding Style Guide
-
-:leveloffset: 1
-
 include::code/Style_Guide.txt[]
+
+include::code/Contributing-to-LinuxCNC.txt[]
 
 include::common/Glossary.txt[]
 
 include::common/GPLD_Copyright.txt[]
 
-// = Index
-
 // vim: set syntax=asciidoc:
-
 
