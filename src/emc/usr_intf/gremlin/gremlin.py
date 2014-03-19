@@ -130,7 +130,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.show_tool = True
         self.show_dtg = True
         self.grid_size = 0.0
-		self.use_default_controls = True
+        self.use_default_controls = True
         temp = inifile.find("DISPLAY", "LATHE")
         self.lathe_option = bool(temp == "1" or temp == "True" or temp == "true" )
 
@@ -262,7 +262,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             shutil.rmtree(td)
 	# doing this kills our zoom settings if gremlin.load is called on work offset change
         #self.set_current_view()
-	
+
     def get_program_alpha(self): return self.program_alpha
     def get_num_joints(self): return self.num_joints
     def get_geometry(self):
