@@ -10,7 +10,7 @@
 ifeq ($(MAKECMDGOALS),)
 TRIVIAL_BUILD=no
 else
-ifeq ($(filter-out docclean clean setuid install tags swish,$(MAKECMDGOALS)),)
+ifeq ($(filter-out docclean distclean clean setuid install tags swish,$(MAKECMDGOALS)),)
 TRIVIAL_BUILD=yes
 else
 TRIVIAL_BUILD=no
@@ -407,6 +407,10 @@ clean: depclean modclean
 	-rm -f hal/components/conv_*.comp
 
 distclean: clean
+	rm configure
+	rm Makefile.inc
+	rm Makefile.modinc
+
 # So that nothing is built as root, this rule does not depend on the touched
 # files (Note that files in depends/ might be rebuilt, and there's little that
 # can be done about it)
