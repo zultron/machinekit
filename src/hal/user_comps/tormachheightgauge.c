@@ -62,6 +62,8 @@
 char *modname = "tormachheightgauge";
 
 char *device_file = "/dev/tormachheightgauge";
+// this device is created via a udev rule:
+// SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04d9", ATTRS{idProduct}=="e002", MODE=="0666", SYMLINK+="tormachheightgauge"
 
 int hal_comp_id;
 
@@ -80,6 +82,7 @@ struct heightgauge_hal {
     hal_bit_t *set_zero_offset; // if non-zero sets zero_offset to cur_reading, clears flag
     hal_bit_t *present;         // if non-zero gauge is connected
     hal_bit_t *debug;           // if non-zero print debug messsages
+    hal_bit_t *enable;          // set True by UI while tool offsets page is active
 };
 
 
@@ -239,6 +242,8 @@ int alloc_hal() {
     if (code != 0) return 0;
     code = hal_pin_bit_newf(HAL_IN, &(hal->debug), hal_comp_id, "%s.debug", modname);
     if (code != 0) return 0;
+    code = hal_pin_bit_newf(HAL_IN, &(hal->enable), hal_comp_id, "%s.enable", modname);
+    if (code != 0) return 0;
 
     *hal->net_height = 0.0;
     *hal->raw_value = 0;
@@ -250,6 +255,7 @@ int alloc_hal() {
     *hal->set_zero_offset = FALSE;
     *hal->present = FALSE;
     *hal->debug = FALSE;
+    *hal->enable = FALSE;
 
     return 1;
 }
@@ -278,6 +284,12 @@ int main(int argc, char *argv[]) {
 
     // super loop
     while (1) {
+        if (*hal->enable == FALSE) {
+            // stay asleep until woken by UI
+            sleep(1);
+            continue;
+        }
+
         if (*hal->present == FALSE) {
             // attempt to open device
             if (check_for_height_gauge(device_file)) {
