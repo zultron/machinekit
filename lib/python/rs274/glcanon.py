@@ -872,7 +872,7 @@ class GlCanonDraw:
                         glVertex3f((x_dir * (machine_limit_max[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
                     grid_offset = grid_count * space
                     grid_count += 1
-                    if grid_count > 100:
+                    if grid_count > 1000:
                         break
 
                 grid_offset = 0
@@ -883,7 +883,7 @@ class GlCanonDraw:
                         glVertex3f((x_dir * (machine_limit_max[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
                     grid_offset = -grid_count * space
                     grid_count += 1
-                    if grid_count > 100:
+                    if grid_count > 1000:
                         break
 
             elif line_dir == 0:
@@ -895,7 +895,7 @@ class GlCanonDraw:
                         glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_max[2] - s.tool_offset[2]))
                     grid_offset = grid_count * space
                     grid_count += 1
-                    if grid_count > 100:
+                    if grid_count > 1000:
                         break
 
                 grid_offset = 0
@@ -906,7 +906,7 @@ class GlCanonDraw:
                         glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_max[2] - s.tool_offset[2]))
                     grid_offset = -grid_count * space
                     grid_count += 1
-                    if grid_count > 100:
+                    if grid_count > 1000:
                         break
         else:
             for k in range(k0, k1+1):
