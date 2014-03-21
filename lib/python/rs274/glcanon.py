@@ -1010,6 +1010,39 @@ class GlCanonDraw:
         glEnd()
         glDepthMask(True)
 
+        # draw grid size label
+        # TODO maybe have the label follow the origin?
+        x,y,z,p = 0,1,2,3
+        view = self.get_view()
+        if view == p: return
+
+        grid_size=self.get_grid_size()
+        if self.get_show_metric():  # the 's' is a space for hershey.py
+            grid_string = '%smm' % int(grid_size * 25.4)
+        else:
+            grid_string = '%ssin.' % grid_size
+        glPushMatrix()
+        glColor3f(1.0, 1.0, 1.0)
+        if view == z:
+            glTranslatef(0.2, 0.2, 0.0)
+            glScalef(0.3,0.3,0.3)
+        elif view == y:
+            glRotatef(90, 1, 0, 0)
+            glTranslatef(0.3, -0.5, 0.0)
+            glScalef(0.3,0.3,0.3)
+        elif view == x:
+            glRotatef(90, 0, 1, 0)
+            glRotatef(90, 0, 0, 1)
+            glTranslatef(0.3, -0.5, 0.0)
+            glScalef(0.3,0.3,0.3)
+        else:
+            pass
+        self.hershey.plot_string(grid_string, 0.1)
+        glPopMatrix()
+
+        grid_size=self.get_grid_size()
+
+
     def draw_grid(self):
         x,y,z,p = 0,1,2,3
         view = self.get_view()
