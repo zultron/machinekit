@@ -46,3 +46,12 @@ oprofile*
 *.log
 position.txt
 *.9
+
+# redis libs
+lib/python/redis
+lib/python/
+lib/python/gmoccapy/
+lib/python/gscreen/
+lib/python/redis/
+lib/python/stepconf/
+*~

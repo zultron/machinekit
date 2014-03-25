@@ -877,7 +877,7 @@ class GlCanonDraw:
                         glVertex3f((x_dir * (machine_limit_max[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
                     grid_offset = grid_count * space
                     grid_count += 1
-                    if grid_count > 100:
+                    if grid_count > 1000:
                         break
 
                 grid_offset = 0
@@ -888,7 +888,7 @@ class GlCanonDraw:
                         glVertex3f((x_dir * (machine_limit_max[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
                     grid_offset = -grid_count * space
                     grid_count += 1
-                    if grid_count > 100:
+                    if grid_count > 1000:
                         break
 
             elif line_dir == 0:
@@ -900,7 +900,7 @@ class GlCanonDraw:
                         glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_max[2] - s.tool_offset[2]))
                     grid_offset = grid_count * space
                     grid_count += 1
-                    if grid_count > 100:
+                    if grid_count > 1000:
                         break
 
                 grid_offset = 0
@@ -911,7 +911,7 @@ class GlCanonDraw:
                         glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_max[2] - s.tool_offset[2]))
                     grid_offset = -grid_count * space
                     grid_count += 1
-                    if grid_count > 100:
+                    if grid_count > 1000:
                         break
         else:
             for k in range(k0, k1+1):
@@ -1014,6 +1014,39 @@ class GlCanonDraw:
                 lim_min, lim_max, inverse_permutation, 1)
         glEnd()
         glDepthMask(True)
+
+        # draw grid size label
+        # TODO maybe have the label follow the origin?
+        x,y,z,p = 0,1,2,3
+        view = self.get_view()
+        if view == p: return
+
+        grid_size=self.get_grid_size()
+        if self.get_show_metric():  # the 's' is a space for hershey.py
+            grid_string = '%smm' % int(grid_size * 25.4)
+        else:
+            grid_string = '%ssin.' % grid_size
+        glPushMatrix()
+        glColor3f(1.0, 1.0, 1.0)
+        if view == z:
+            glTranslatef(0.2, 0.2, 0.0)
+            glScalef(0.3,0.3,0.3)
+        elif view == y:
+            glRotatef(90, 1, 0, 0)
+            glTranslatef(0.3, -0.5, 0.0)
+            glScalef(0.3,0.3,0.3)
+        elif view == x:
+            glRotatef(90, 0, 1, 0)
+            glRotatef(90, 0, 0, 1)
+            glTranslatef(0.3, -0.5, 0.0)
+            glScalef(0.3,0.3,0.3)
+        else:
+            pass
+        self.hershey.plot_string(grid_string, 0.1)
+        glPopMatrix()
+
+        grid_size=self.get_grid_size()
+
 
     def draw_grid(self):
         x,y,z,p = 0,1,2,3

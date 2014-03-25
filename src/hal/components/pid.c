@@ -313,7 +313,7 @@ static void calc_pid(void *arg, long period)
     command = *(pid->command);
     feedback = *(pid->feedback);
     /* calculate the error */
-    if((!(pid->prev_ie && !*(pid->index_enable))) && 
+    if((!(pid->prev_ie && !*(pid->index_enable))) &&
        (*(pid->error_previous_target))) {
         // the user requests ferror against prev_cmd, and we can honor
         // that request because we haven't just had an index reset that
