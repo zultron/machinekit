@@ -36,3 +36,12 @@ freq2pin.9
 jogtranslator.9
 mesa_uart.9
 tormachltc.9
+
+# redis libs
+lib/python/redis
+lib/python/
+lib/python/gmoccapy/
+lib/python/gscreen/
+lib/python/redis/
+lib/python/stepconf/
+*~
