@@ -406,7 +406,10 @@ clean: depclean modclean
 	-rm -f ../rtlib/*.$(MODULE_EXT)
 	-rm -f hal/components/conv_*.comp
 
-distclean: clean
+distclean: clean configure-clean
+
+.PHONY: configure-clean
+configure-clean:
 	rm configure
 	rm Makefile.inc
 	rm Makefile.modinc
