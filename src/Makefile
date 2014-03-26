@@ -74,7 +74,10 @@ cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
 ifeq ($(KERNELRELEASE),)
 # When KERNELRELEASE is not defined, this is the userspace build.
 # The "modules" target is the gateway to the kernel module build.
-default: configs userspace modules
+#default: configs userspace modules
+# "modules" removed from default to speed up rebuilds
+# run "make modules" if you really need them to be built
+default: configs userspace
 ifeq ($(RUN_IN_PLACE),yes)
 ifneq ($(BUILD_SYS),sim)
 	@if [ -f ../bin/linuxcnc_module_helper ]; then if ! [ `stat -c %u ../bin/linuxcnc_module_helper` -eq 0 -a -u ../bin/linuxcnc_module_helper ]; then $(VECHO) "You now need to run 'sudo make setuid' in order to run in place."; fi; fi
