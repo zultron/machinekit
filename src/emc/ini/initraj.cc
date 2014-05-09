@@ -25,6 +25,9 @@
 #include "emcIniFile.hh"
 #include "initraj.hh"		// these decls
 #include "emcglb.h"		/*! \todo TRAVERSE_RATE (FIXME) */
+#include "inihal.hh"
+
+extern value_inihal_data old_inihal_data;
 
 /*
   loadTraj()
@@ -113,6 +116,7 @@ static int loadTraj(EmcIniFile *trajInifile)
 
         // set the corresponding global
         traj_default_velocity = vel;
+        old_inihal_data.traj_default_velocity = vel;
 
         // and set dynamic value
         if (0 != emcTrajSetVelocity(0, vel)) { //default velocity on startup 0
@@ -127,6 +131,7 @@ static int loadTraj(EmcIniFile *trajInifile)
 
         // set the corresponding global
         traj_max_velocity = vel;
+        old_inihal_data.traj_max_velocity = vel;
 
         // and set dynamic value
         if (0 != emcTrajSetMaxVelocity(vel)) {
@@ -145,6 +150,7 @@ static int loadTraj(EmcIniFile *trajInifile)
             }
             return -1;
         }
+        old_inihal_data.traj_default_acceleration = acc;
 
         acc = 1e99; // let the axis values apply
         trajInifile->Find(&acc, "MAX_ACCELERATION", "TRAJ");
@@ -155,6 +161,37 @@ static int loadTraj(EmcIniFile *trajInifile)
             }
             return -1;
         }
+        old_inihal_data.traj_max_acceleration = acc;
+
+        int arcBlendEnable = 0;
+        int arcBlendFallbackEnable = 0;
+        int arcBlendOptDepth = 0;
+        double arcBlendGapCycles = 2;
+        double arcBlendRampFreq = 100.0;
+
+        trajInifile->Find(&arcBlendEnable, "ARC_BLEND_ENABLE", "TRAJ");
+        trajInifile->Find(&arcBlendFallbackEnable, "ARC_BLEND_FALLBACK_ENABLE", "TRAJ");
+        trajInifile->Find(&arcBlendOptDepth, "ARC_BLEND_OPTIMIZATION_DEPTH", "TRAJ");
+        trajInifile->Find(&arcBlendGapCycles, "ARC_BLEND_GAP_CYCLES", "TRAJ");
+        trajInifile->Find(&arcBlendRampFreq, "ARC_BLEND_RAMP_FREQ", "TRAJ");
+
+        if (0 != emcSetupArcBlends(arcBlendEnable, arcBlendFallbackEnable,
+                    arcBlendOptDepth, arcBlendGapCycles, arcBlendRampFreq)) {
+            if (emc_debug & EMC_DEBUG_CONFIG) {
+                rcs_print("bad return value from emcSetupArcBlends\n");
+            }
+            return -1;
+        } 
+
+        double maxFeedScale;
+        trajInifile->Find(&maxFeedScale, "MAX_FEED_OVERRIDE", "DISPLAY");
+
+        if (0 != emcSetMaxFeedOverride(maxFeedScale)) {
+            if (emc_debug & EMC_DEBUG_CONFIG) {
+                rcs_print("bad return value from emcSetMaxFeedOverride\n");
+            }
+            return -1;
+        } 
     }
 
     catch(EmcIniFile::Exception &e){

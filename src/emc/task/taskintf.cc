@@ -29,6 +29,9 @@
 #include "inifile.hh"
 #include "iniaxis.hh"
 #include "initraj.hh"
+#include "inihal.hh"
+
+value_inihal_data old_inihal_data;
 
 /* define this to catch isnan errors, for rtlinux FPU register 
    problem testing */
@@ -1293,10 +1296,19 @@ int emcMotionInit()
 	}
     }
 
+
     r3 = emcPositionLoad();
 
     if (r1 == 0 && r2 == 0 && r3 == 0) {
 	emcmotion_initialized = 1;
+    }
+
+    if (ini_hal_init()) {
+	rcs_print("emcMotionInit: ini_hal_init fail\n");
+    }
+
+    if (ini_hal_init_pins()) {
+	rcs_print("emcMotionInit: ini_hal_init_pins fail\n");
     }
 
     return (r1 == 0 && r2 == 0 && r3 == 0) ? 0 : -1;
@@ -1558,3 +1570,25 @@ int emcMotionUpdate(EMC_MOTION_STAT * stat)
     }
     return (r1 == 0 && r2 == 0) ? 0 : -1;
 }
+
+int emcSetupArcBlends(int arcBlendEnable,
+        int arcBlendFallbackEnable,
+        int arcBlendOptDepth,
+        double arcBlendGapCycles,
+        double arcBlendRampFreq) {
+
+    emcmotCommand.command = EMCMOT_SETUP_ARC_BLENDS;
+    emcmotCommand.arcBlendEnable = arcBlendEnable;
+    emcmotCommand.arcBlendFallbackEnable = arcBlendFallbackEnable;
+    emcmotCommand.arcBlendOptDepth = arcBlendOptDepth;
+    emcmotCommand.arcBlendGapCycles = arcBlendGapCycles;
+    emcmotCommand.arcBlendRampFreq = arcBlendRampFreq;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
+int emcSetMaxFeedOverride(double maxFeedScale) {
+    emcmotCommand.command = EMCMOT_SET_MAX_FEED_OVERRIDE;
+    emcmotCommand.maxFeedScale = maxFeedScale;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+

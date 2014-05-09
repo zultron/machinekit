@@ -156,6 +156,11 @@ int Interp::read_named_parameter(
 	*double_ptr = value;
 	return INTERP_OK;
     } else {
+        // do not require named parameters to be defined during a 
+        // subroutine definition:
+        if (_setup.defining_sub)
+            return INTERP_OK;
+
 	logNP("%s: referencing undefined named parameter '%s' level=%d",
 	      name, paramNameBuf, (paramNameBuf[0] == '_') ? 0 : _setup.call_level);
 	ERS(_("Named parameter #<%s> not defined"), paramNameBuf);
@@ -261,8 +266,12 @@ int Interp::fetch_hal_param( const char *nameBuf, int *status, double *value)
 		logOword("%s: no signal connected", hal_name);
 	    } 
 	    type = pin->type;
-	    hal_sig_t * sig = (hal_sig_t *) SHMPTR(pin->signal);
+	    if (pin->signal != 0) {
+		sig = (hal_sig_t *) SHMPTR(pin->signal);
 	    ptr = (hal_data_u *) SHMPTR(sig->data_ptr);
+	    } else {
+		ptr = (hal_data_u *) &(pin->dummysig);
+	    }
 	    goto assign;
 	}
 	if ((sig = halpr_find_sig_by_name(hal_name)) != NULL) {

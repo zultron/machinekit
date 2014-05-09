@@ -84,11 +84,12 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.g5x_offset_w = 0.0
         temp = inifile.find("DISPLAY", "GEOMETRY")
         self.is_rear_tp_lathe = bool(temp == "-XZ")
-        self.is_foam = bool(inifile.find("DISPLAY", "FOAM"))        
+        self.is_foam = bool(inifile.find("DISPLAY", "FOAM"))
         self.foam_z = 0
         self.foam_w = 1.5
         self.notify = 0
         self.notify_message = ""
+        self.highlight_line = None
 
     def comment(self, arg):
         if arg.startswith("AXIS,"):
@@ -97,7 +98,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             if command == "stop": raise KeyboardInterrupt
             if command == "hide": self.suppress += 1
             if command == "show": self.suppress -= 1
-            if command == "XY_Z_POS": 
+            if command == "XY_Z_POS":
                 if len(parts) > 2 :
                     try:
                         self.foam_z = float(parts[2])
@@ -105,7 +106,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
                             self.foam_z = self.foam_z / 25.4
                     except:
                         self.foam_z = 5.0/25.4
-            if command == "UV_Z_POS": 
+            if command == "UV_Z_POS":
                 if len(parts) > 2 :
                     try:
                         self.foam_w = float(parts[2])
@@ -460,15 +461,19 @@ class GlCanonDraw:
         for base, count in self._dlists.values():
             glDeleteLists(base, count)
 
+    def update_highlight_variable(self,line):
+        self.highlight_line = line
+
     def set_current_line(self, line): pass
     def set_highlight_line(self, line):
         if line == self.get_highlight_line(): return
+        self.update_highlight_variable(line)
         highlight = self.dlist('highlight')
         glNewList(highlight, GL_COMPILE)
         if line is not None and self.canon is not None:
             if self.is_foam():
                 glPushMatrix()
-                glTranslatef(0, 0, self.get_foam_z()) 
+                glTranslatef(0, 0, self.get_foam_z())
                 x, y, z = self.canon.highlight(line, "XY")
                 glTranslatef(0, 0, self.get_foam_w()-self.get_foam_z())
                 u, v, w = self.canon.highlight(line, "UV")
@@ -1421,18 +1426,32 @@ class GlCanonDraw:
         ypos -= linespace+5
         i=0
         glColor3f(*self.colors['overlay_foreground'])
-        for string in posstrs:
-            maxlen = max(maxlen, len(string))
-            glRasterPos2i(5, ypos)
-            for char in string:
-                glCallList(base + ord(char))
-            if i < len(homed) and homed[i]:
-                glRasterPos2i(pixel_width + 8, ypos)
-                glBitmap(13, 16, 0, 3, 17, 0, homeicon)
-            if i < len(homed) and limit[i]:
-                glBitmap(13, 16, 0, 1, 17, 0, limiticon)
-            ypos -= linespace
-            i = i + 1
+        if not self.get_show_offsets():
+            for string in posstrs:
+                maxlen = max(maxlen, len(string))
+                glRasterPos2i(5, ypos)
+                for char in string:
+                    glCallList(base + ord(char))
+                if i < len(homed) and homed[i]:
+                    glRasterPos2i(pixel_width + 8, ypos)
+                    glBitmap(13, 16, 0, 3, 17, 0, homeicon)
+                if i < len(homed) and limit[i]:
+                    glBitmap(13, 16, 0, 1, 17, 0, limiticon)
+                ypos -= linespace
+                i = i + 1
+        if self.get_show_offsets():
+            i=0
+            for string in droposstrs:
+                maxlen = max(maxlen, len(string))
+                glRasterPos2i(5, ypos)
+                for char in string:
+                    glCallList(base + ord(char))
+                if i < len(homed) and homed[i]:
+                    glRasterPos2i(charwidth *3, ypos)
+                    glBitmap(13, 16, 0, 3, 17, 0, homeicon)
+                ypos -= linespace
+                i = i + 1
+
         glDepthFunc(GL_LESS)
         glDepthMask(GL_TRUE)
 
@@ -1518,6 +1537,8 @@ class GlCanonDraw:
             g5x_offset = self.to_internal_units(s.g5x_offset)
             g92_offset = self.to_internal_units(s.g92_offset)
             tlo_offset = self.to_internal_units(s.tool_offset)
+            dtg = self.to_internal_linear_unit(s.distance_to_go)
+            spd = self.to_internal_linear_unit(s.current_vel)
 
             if self.get_show_metric():
                 positions = self.from_internal_units(positions, 1)
@@ -1525,73 +1546,72 @@ class GlCanonDraw:
                 g5x_offset = self.from_internal_units(g5x_offset, 1)
                 g92_offset = self.from_internal_units(g92_offset, 1)
                 tlo_offset = self.from_internal_units(tlo_offset, 1)
-                format = "% 6s:% 9.3f"
-                droformat = " " + format + "  DTG %1s:% 9.3f"
-                offsetformat = "% 5s %1s:% 9.3f  G92 %1s:% 9.3f"
-                rotformat = "% 5s %1s:% 9.3f"
-            else:
-                format = "% 6s:% 9.4f"
-                droformat = " " + format + "  DTG %1s:% 9.4f"
-                offsetformat = "% 5s %1s:% 9.4f  G92 %1s:% 9.4f"
-                rotformat = "% 5s %1s:% 9.4f"
-            diaformat = " " + format
-
-            posstrs = []
-            droposstrs = []
-            for i in range(9):
-                a = "XYZABCUVW"[i]
-                if s.axis_mask & (1<<i):
-                    posstrs.append(format % (a, positions[i]))
-                    droposstrs.append(droformat % (a, positions[i], a, axisdtg[i]))
-
-            droposstrs.append("")
-
-            for i in range(9):
-                index = s.g5x_index
-                if index<7:
-                    label = "G5%d" % (index+3)
-                else:
-                    label = "G59.%d" % (index-6)
-
-                a = "XYZABCUVW"[i]
-                if s.axis_mask & (1<<i):
-                    droposstrs.append(offsetformat % (label, a, g5x_offset[i], a, g92_offset[i]))
-            droposstrs.append(rotformat % (label, 'R', s.rotation_xy))
-
-            droposstrs.append("")
-            for i in range(9):
-                a = "XYZABCUVW"[i]
-                if s.axis_mask & (1<<i):
-                    droposstrs.append(rotformat % ("TLO", a, tlo_offset[i]))
-
-
-            if self.is_lathe():
-                posstrs[0] = format % ("Rad", positions[0])
-                posstrs.insert(1, format % ("Dia", positions[0]*2.0))
-                droposstrs[0] = droformat % ("Rad", positions[0], "R", axisdtg[0])
-                droposstrs.insert(1, diaformat % ("Dia", positions[0]*2.0))
-
-            if self.get_show_machine_speed():
-                spd = self.to_internal_linear_unit(s.current_vel)
-                if self.get_show_metric():
-                    spd = spd * 25.4 * 60
-                else:
-                    spd = spd * 60
-                posstrs.append(format % ("Vel", spd))
-
-            if self.get_show_distance_to_go():
-                dtg = self.to_internal_linear_unit(s.distance_to_go)
-                if self.get_show_metric():
-                    dtg *= 25.4
-                posstrs.append(format % ("DTG", dtg))
+                dtg *= 25.4
+                spd = spd * 25.4
+            spd = spd * 60
+            limit, homed, posstrs, droposstrs = self.dro_format(self.stat,spd,dtg,limit,homed,positions,axisdtg,g5x_offset,g92_offset,tlo_offset)
         else:
             # N.B. no conversion here because joint positions are unitless
             posstrs = ["  %s:% 9.4f" % i for i in
                 zip(range(self.get_num_joints()), s.joint_actual_position)]
             droposstrs = posstrs
-
         return limit, homed, posstrs, droposstrs
 
+    def dro_format(self,s,spd,dtg,limit,homed,positions,axisdtg,g5x_offset,g92_offset,tlo_offset):
+        if self.get_show_metric():
+            format = "% 6s:% 9.3f"
+            droformat = " " + format + "  DTG %1s:% 9.3f"
+            offsetformat = "% 5s %1s:% 9.3f  G92 %1s:% 9.3f"
+            rotformat = "% 5s %1s:% 9.3f"
+        else:
+            format = "% 6s:% 9.4f"
+            droformat = " " + format + "  DTG %1s:% 9.4f"
+            offsetformat = "% 5s %1s:% 9.4f  G92 %1s:% 9.4f"
+            rotformat = "% 5s %1s:% 9.4f"
+        diaformat = " " + format
+
+        posstrs = []
+        droposstrs = []
+        for i in range(9):
+            a = "XYZABCUVW"[i]
+            if s.axis_mask & (1<<i):
+                posstrs.append(format % (a, positions[i]))
+                droposstrs.append(droformat % (a, positions[i], a, axisdtg[i]))
+
+        droposstrs.append("")
+
+        for i in range(9):
+            index = s.g5x_index
+            if index<7:
+                label = "G5%d" % (index+3)
+            else:
+                label = "G59.%d" % (index-6)
+
+            a = "XYZABCUVW"[i]
+            if s.axis_mask & (1<<i):
+                droposstrs.append(offsetformat % (label, a, g5x_offset[i], a, g92_offset[i]))
+        droposstrs.append(rotformat % (label, 'R', s.rotation_xy))
+
+        droposstrs.append("")
+        for i in range(9):
+            a = "XYZABCUVW"[i]
+            if s.axis_mask & (1<<i):
+                droposstrs.append(rotformat % ("TLO", a, tlo_offset[i]))
+
+
+        if self.is_lathe():
+            posstrs[0] = format % ("Rad", positions[0])
+            posstrs.insert(1, format % ("Dia", positions[0]*2.0))
+            droposstrs[0] = droformat % ("Rad", positions[0], "R", axisdtg[0])
+            droposstrs.insert(1, diaformat % ("Dia", positions[0]*2.0))
+
+        if self.get_show_machine_speed():
+            posstrs.append(format % ("Vel", spd))
+
+        if self.get_show_distance_to_go():
+            posstrs.append(format % ("DTG", dtg))
+
+        return limit, homed, posstrs, droposstrs
 
     def draw_small_origin(self, n):
         glNewList(n, GL_COMPILE)
@@ -1650,7 +1670,7 @@ class GlCanonDraw:
         if view != x:
             glPushMatrix()
             if self.is_lathe():
-                if self.is_rear_tool_post_lathe(): 
+                if self.is_rear_tool_post_lathe():
                     glTranslatef(-1.3, 0, 0)
                     glRotatef(-90, 0, 0, 1)
                     glRotatef(90, 0, 1, 0)
@@ -1766,7 +1786,7 @@ class GlCanonDraw:
             glEnd()
         else:
 #            dx, dy = self.lathe_shapes[orientation]
-            dx, dy = lathe_shapes[orientation] 
+            dx, dy = lathe_shapes[orientation]
             min_angle = min(backangle, frontangle) * math.pi / 180
             max_angle = max(backangle, frontangle) * math.pi / 180
 

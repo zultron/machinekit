@@ -47,6 +47,8 @@ RTAPI_MP_INT(key, "shared memory key");
 
 static long base_period_nsec = 0;	/* fastest thread period */
 RTAPI_MP_LONG(base_period_nsec, "fastest thread period (nsecs)");
+int base_thread_fp = 0;	/* default is no floating point in base thread */
+RTAPI_MP_INT(base_thread_fp, "floating point in base thread?");
 static long servo_period_nsec = 1000000;	/* servo thread period */
 RTAPI_MP_LONG(servo_period_nsec, "servo thread period (nsecs)");
 static long traj_period_nsec = 0;	/* trajectory planner period */
@@ -299,8 +301,12 @@ static int init_hal_io(void)
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_reverse), mot_comp_id, "motion.spindle-reverse")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_brake), mot_comp_id, "motion.spindle-brake")) < 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_speed_out), mot_comp_id, "motion.spindle-speed-out")) < 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_speed_out_abs), mot_comp_id, "motion.spindle-speed-out-abs")) < 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_speed_out_rps), mot_comp_id, "motion.spindle-speed-out-rps")) < 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_speed_out_rps_abs), mot_comp_id, "motion.spindle-speed-out-rps-abs")) < 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_speed_cmd_rps), mot_comp_id, "motion.spindle-speed-cmd-rps")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->spindle_inhibit), mot_comp_id, "motion.spindle-inhibit")) < 0) goto error;
+    *(emcmot_hal_data->spindle_inhibit) = 0;
 
     // spindle orient pins
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->spindle_orient_angle), mot_comp_id, "motion.spindle-orient-angle")) < 0) goto error;
@@ -323,6 +329,8 @@ static int init_hal_io(void)
     *(emcmot_hal_data->adaptive_feed) = 1.0;
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->feed_hold), mot_comp_id, "motion.feed-hold")) < 0) goto error;
     *(emcmot_hal_data->feed_hold) = 0;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->feed_inhibit), mot_comp_id, "motion.feed-inhibit")) < 0) goto error;
+    *(emcmot_hal_data->feed_inhibit) = 0;
 
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->enable), mot_comp_id, "motion.enable")) < 0) goto error;
 
@@ -601,7 +609,7 @@ static int init_hal_io(void)
 	/* FIXME - struct members are in a state of flux - make sure to
 	   update this - most won't need initing anyway */
 	*(joint_data->amp_enable) = 0;
-	joint_data->home_state = 0;
+	*(joint_data->home_state) = 0;
 	/* We'll init the index model to EXT_ENCODER_INDEX_MODEL_RAW for now,
 	   because it is always supported. */
     }
@@ -790,7 +798,7 @@ static int export_joint(int num, joint_hal_t * addr)
     if (retval != 0) {
 	return retval;
     }
-    retval = hal_param_s32_newf(HAL_RO, &(addr->home_state), mot_comp_id, "axis.%d.home-state", num);
+    retval = hal_pin_s32_newf(HAL_OUT, &(addr->home_state), mot_comp_id, "axis.%d.home-state", num);
     if (retval != 0) {
 	return retval;
     }
@@ -1020,18 +1028,18 @@ static int init_comm_buffers(void)
     emcmotDebug->start_time = etime();
     emcmotDebug->running_time = 0.0;
 
-    /* init motion emcmotDebug->queue */
-    if (-1 == tpCreate(&emcmotDebug->queue, DEFAULT_TC_QUEUE_SIZE,
+    /* init motion emcmotDebug->tp */
+    if (-1 == tpCreate(&emcmotDebug->tp, DEFAULT_TC_QUEUE_SIZE,
 	    emcmotDebug->queueTcSpace)) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-	    "MOTION: failed to create motion emcmotDebug->queue\n");
+	    "MOTION: failed to create motion emcmotDebug->tp\n");
 	return -1;
     }
-//    tpInit(&emcmotDebug->queue); // tpInit called from tpCreate
-    tpSetCycleTime(&emcmotDebug->queue, emcmotConfig->trajCycleTime);
-    tpSetPos(&emcmotDebug->queue, emcmotStatus->carte_pos_cmd);
-    tpSetVmax(&emcmotDebug->queue, emcmotStatus->vel, emcmotStatus->vel);
-    tpSetAmax(&emcmotDebug->queue, emcmotStatus->acc);
+//    tpInit(&emcmotDebug->tp); // tpInit called from tpCreate
+    tpSetCycleTime(&emcmotDebug->tp, emcmotConfig->trajCycleTime);
+    tpSetPos(&emcmotDebug->tp, &emcmotStatus->carte_pos_cmd);
+    tpSetVmax(&emcmotDebug->tp, emcmotStatus->vel, emcmotStatus->vel);
+    tpSetAmax(&emcmotDebug->tp, emcmotStatus->acc);
 
     emcmotStatus->tail = 0;
 
@@ -1073,7 +1081,7 @@ static int init_threads(void)
     /* create HAL threads for each period */
     /* only create base thread if it is faster than servo thread */
     if (servo_base_ratio > 1) {
-	retval = hal_create_thread("base-thread", base_period_nsec, 0);
+	retval = hal_create_thread("base-thread", base_period_nsec, base_thread_fp);
 	if (retval < 0) {
 	    rtapi_print_msg(RTAPI_MSG_ERR,
 		"MOTION: failed to create %ld nsec base thread\n",
@@ -1157,7 +1165,7 @@ static int setTrajCycleTime(double secs)
         emcmotConfig->interpolationRate = 1;
 
     /* set traj planner */
-    tpSetCycleTime(&emcmotDebug->queue, secs);
+    tpSetCycleTime(&emcmotDebug->tp, secs);
 
     /* set the free planners, cubic interpolation rate and segment time */
     for (t = 0; t < num_joints; t++) {

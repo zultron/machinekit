@@ -1,6 +1,23 @@
+//    Copyright 2009-2011, various authors
+//
+//    This program is free software; you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation; either version 2 of the License, or
+//    (at your option) any later version.
+//
+//    This program is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with this program; if not, write to the Free Software
+//    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
 #ifndef RS274NGC_INTERP_H
 #define RS274NGC_INTERP_H
 #include "rs274ngc.hh"
+#include "interp_internal.hh"
 
 class Interp : public InterpBase {
 
@@ -215,7 +232,7 @@ public:
                              CANON_DIRECTION direction,
                              CANON_SPEED_FEED_MODE mode);
  int convert_cycle_g85(block_pointer block, CANON_PLANE plane, double x, double y,
-                             double clear_z, double bottom_z);
+                             double r, double clear_z, double bottom_z);
  int convert_cycle_g86(block_pointer block, CANON_PLANE plane, double x, double y,
                              double clear_z, double bottom_z, double dwell,
                              CANON_DIRECTION direction);
@@ -633,7 +650,7 @@ int read_inputs(setup_pointer settings);
  read_function_pointer _readers[256];
  static const read_function_pointer default_readers[256];
 
- static setup _setup;
+ setup _setup;
 
  enum {
      AXIS_MASK_X =   1, AXIS_MASK_Y =   2, AXIS_MASK_Z =   4,

@@ -59,6 +59,7 @@
 #include <libintl.h>
 #include <locale.h>
 
+
 #if 0
 // Enable this to niftily trap floating point exceptions for debugging
 #include <fpu_control.h>
@@ -80,6 +81,7 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 #include "task.hh"		// emcTaskCommand etc
 #include "taskclass.hh"
 #include "motion.h"             // EMCMOT_ORIENT_*
+#include "inihal.hh"
 
 /* time after which the user interface is declared dead
  * because it would'nt read any more messages
@@ -401,7 +403,7 @@ static EMC_TOOL_SET_NUMBER *emc_tool_set_number_msg;
 static EMC_TASK_SET_MODE *mode_msg;
 static EMC_TASK_SET_STATE *state_msg;
 static EMC_TASK_PLAN_RUN *run_msg;
-static EMC_TASK_PLAN_EXECUTE_INTERNAL *execute_msg;
+static EMC_TASK_PLAN_EXECUTE *execute_msg;
 static EMC_TASK_PLAN_OPEN *open_msg;
 static EMC_TASK_PLAN_SET_OPTIONAL_STOP *os_msg;
 static EMC_TASK_PLAN_SET_BLOCK_DELETE *bd_msg;
@@ -702,7 +704,13 @@ static void mdi_execute_hook(void)
 	return;
     }
 
-    if (mdi_execute_level < 0 && !mdi_execute_wait && mdi_execute_queue.len()) {
+    if (
+        (mdi_execute_level < 0)
+        && (mdi_execute_wait == 0)
+        && (mdi_execute_queue.len() > 0)
+        && (interp_list.len() == 0)
+        && (emcTaskCommand == NULL)
+    ) {
 	interp_list.append(mdi_execute_queue.get());
 	return;
     }
@@ -731,7 +739,7 @@ static void mdi_execute_hook(void)
 
     mdi_execute_next = 0;
 
-    EMC_TASK_PLAN_EXECUTE_INTERNAL msg;
+    EMC_TASK_PLAN_EXECUTE msg;
     msg.command[0] = (char) 0xff;
 
     interp_list.append(msg);
@@ -962,7 +970,7 @@ static int emcTaskPlan(void)
 
 		// queued commands
 
-	    case EMC_TASK_PLAN_EXECUTE_INTERNAL_TYPE:
+	    case EMC_TASK_PLAN_EXECUTE_TYPE:
 		// resynch the interpreter, since we may have moved
 		// externally
 		emcTaskIssueCommand(&taskPlanSynchCmd);
@@ -1046,7 +1054,7 @@ static int emcTaskPlan(void)
 		case EMC_TASK_PLAN_INIT_TYPE:
 		case EMC_TASK_PLAN_OPEN_TYPE:
 		case EMC_TASK_PLAN_RUN_TYPE:
-		case EMC_TASK_PLAN_EXECUTE_INTERNAL_TYPE:
+		case EMC_TASK_PLAN_EXECUTE_TYPE:
 		case EMC_TASK_PLAN_PAUSE_TYPE:
 		case EMC_TASK_PLAN_RESUME_TYPE:
 		case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
@@ -1137,6 +1145,12 @@ static int emcTaskPlan(void)
 		case EMC_AUX_INPUT_WAIT_TYPE:
 		case EMC_TRAJ_RIGID_TAP_TYPE:
 		case EMC_SET_DEBUG_TYPE:
+                case EMC_COOLANT_MIST_ON_TYPE:
+                case EMC_COOLANT_MIST_OFF_TYPE:
+                case EMC_COOLANT_FLOOD_ON_TYPE:
+                case EMC_COOLANT_FLOOD_OFF_TYPE:
+                case EMC_LUBE_ON_TYPE:
+                case EMC_LUBE_OFF_TYPE:
 		    retval = emcTaskIssueCommand(emcCommand);
 		    return retval;
 		    break;
@@ -1203,7 +1217,7 @@ static int emcTaskPlan(void)
 		case EMC_TASK_SET_MODE_TYPE:
 		case EMC_TASK_SET_STATE_TYPE:
 		case EMC_TASK_ABORT_TYPE:
-		case EMC_TASK_PLAN_EXECUTE_INTERNAL_TYPE:
+		case EMC_TASK_PLAN_EXECUTE_TYPE:
 		case EMC_TASK_PLAN_PAUSE_TYPE:
 		case EMC_TASK_PLAN_RESUME_TYPE:
 		case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
@@ -1270,7 +1284,7 @@ static int emcTaskPlan(void)
 		case EMC_SPINDLE_INCREASE_TYPE:
 		case EMC_SPINDLE_DECREASE_TYPE:
 		case EMC_SPINDLE_CONSTANT_TYPE:
-		case EMC_TASK_PLAN_EXECUTE_INTERNAL_TYPE:
+		case EMC_TASK_PLAN_EXECUTE_TYPE:
 		case EMC_TASK_PLAN_PAUSE_TYPE:
 		case EMC_TASK_PLAN_RESUME_TYPE:
 		case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
@@ -1284,6 +1298,12 @@ static int emcTaskPlan(void)
 		case EMC_AUX_INPUT_WAIT_TYPE:
 	        case EMC_TRAJ_RIGID_TAP_TYPE:
 		case EMC_SET_DEBUG_TYPE:
+                case EMC_COOLANT_MIST_ON_TYPE:
+                case EMC_COOLANT_MIST_OFF_TYPE:
+                case EMC_COOLANT_FLOOD_ON_TYPE:
+                case EMC_COOLANT_FLOOD_OFF_TYPE:
+                case EMC_LUBE_ON_TYPE:
+                case EMC_LUBE_OFF_TYPE:
 		    retval = emcTaskIssueCommand(emcCommand);
 		    break;
 
@@ -1318,27 +1338,6 @@ static int emcTaskPlan(void)
 	    break;		// case EMC_TASK_MODE_AUTO
 
 	case EMC_TASK_MODE_MDI:	// ON, MDI
-
-	    if (emcStatus->task.interpState == EMC_TASK_INTERP_IDLE &&
-		// emcCommand == NULL &&
-		mdi_input_queue.len() > 0) {
-		// MDI done, and queued command(s) remaining:
-		EMC_TASK_PLAN_EXECUTE *mdicmd = (EMC_TASK_PLAN_EXECUTE *) mdi_input_queue.get();
-		if (mdicmd) {
-		    emcCommand = mdicmd;
-		    type = emcCommand->type;
-		    if (emc_debug & EMC_DEBUG_TASK_ISSUE)
-			rcs_print("emcTaskPlan: MDI: dequeueing '%s' (remaining: %d)\n",
-				  mdicmd->command, mdi_input_queue.len());
-		} else {
-		    rcs_print_error("emcTaskPlan: MDI: dequeueing NULL command? (remaining: %d)\n",
-				    mdi_input_queue.len());
-		    type = 0;
-		}
-	    } else
-		emcCommand = emcCommandBuffer->get_address();
-	    emcStatus->task.queuedMDIcommands = mdi_input_queue.len();
-
 	    switch (type) {
 	    case 0:
 	    case EMC_NULL_TYPE:
@@ -1378,7 +1377,6 @@ static int emcTaskPlan(void)
 	    case EMC_TASK_SET_STATE_TYPE:
 	    case EMC_TASK_PLAN_INIT_TYPE:
 	    case EMC_TASK_PLAN_OPEN_TYPE:
-	    case EMC_TASK_PLAN_EXECUTE_INTERNAL_TYPE:
 	    case EMC_TASK_PLAN_PAUSE_TYPE:
 	    case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 	    case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
@@ -1397,25 +1395,19 @@ static int emcTaskPlan(void)
 		break;
 
 	    case EMC_TASK_PLAN_EXECUTE_TYPE:
-		// in MDI, and a command currently executing.
-		if (emcStatus->task.interpState != EMC_TASK_INTERP_IDLE) {
-		    // in MDI, and a command currently executing.
-		    if (mdi_input_queue.len() < max_mdi_queued_commands) {
-			// space left to queue it.
-			mdi_input_queue.append(emcCommand);
-			emcStatus->task.queuedMDIcommands = mdi_input_queue.len();
-			if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
-			    rcs_print("MDI: queueing '%s' (queue len=%d)\n",
-				      execute_msg->command,mdi_input_queue.len());
-			}
-		    } else {
-			emcOperatorError(0, _("maximum number of queued MDI commands exceeded (%d)"),
-					 max_mdi_queued_commands);
-		    }
-		} else {
-		    emcStatus->task.queuedMDIcommands = 0;
-		    // MDI input queue empty. Go ahead and issue right away.
+                // If there are no queued MDI commands and no commands
+                // in interp_list, then this new incoming MDI command
+                // can just be issued directly.  Otherwise we need to
+                // queue it and deal with it later.
+                if (
+                    (mdi_execute_queue.len() == 0)
+                    && (interp_list.len() == 0)
+                    && (emcTaskCommand == NULL)
+                ) {
 		    retval = emcTaskIssueCommand(emcCommand);
+                } else {
+                    mdi_execute_queue.append(emcCommand);
+                    retval = 0;
 		}
 		break;
 
@@ -1550,7 +1542,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TASK_PLAN_INIT_TYPE:
     case EMC_TASK_PLAN_RUN_TYPE:
     case EMC_TASK_PLAN_SYNCH_TYPE:
-    case EMC_TASK_PLAN_EXECUTE_INTERNAL_TYPE:
+    case EMC_TASK_PLAN_EXECUTE_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
@@ -2140,11 +2132,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	}
 	break;
 
-    case EMC_TASK_PLAN_EXECUTE_INTERNAL_TYPE:
     case EMC_TASK_PLAN_EXECUTE_TYPE:
 	stepping = 0;
 	steppingWait = 0;
-	execute_msg = (EMC_TASK_PLAN_EXECUTE_INTERNAL *) cmd;
+	execute_msg = (EMC_TASK_PLAN_EXECUTE *) cmd;
         if (!all_homed() && !no_force_homing) { //!no_force_homing = force homing before MDI
             emcOperatorError(0, _("Can't issue MDI command when not homed"));
             retval = -1;
@@ -2166,11 +2157,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	    } else {
 		// record initial MDI command
 		strcpy(emcStatus->task.command, execute_msg->command);
-	    }
-
-	    if ((mdi_execute_level >= 0 || mdi_execute_wait) && command) {
-		mdi_execute_queue.append(execute_msg);
-		break;
 	    }
 
 	    int level = emcTaskPlanLevel();
@@ -2419,7 +2405,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TASK_PLAN_END_TYPE:
     case EMC_TASK_PLAN_INIT_TYPE:
     case EMC_TASK_PLAN_SYNCH_TYPE:
-    case EMC_TASK_PLAN_EXECUTE_INTERNAL_TYPE:
+    case EMC_TASK_PLAN_EXECUTE_TYPE:
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 	return EMC_TASK_EXEC_DONE;
 	break;
@@ -3305,6 +3291,7 @@ int main(int argc, char *argv[])
     maxTime = 0.0;		// set to value that can never be underset
 
     while (!done) {
+        check_ini_hal_items();
 	// read command
 	if (0 != emcCommandBuffer->peek()) {
 	    // got a new command, so clear out errors

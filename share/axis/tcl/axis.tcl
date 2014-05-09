@@ -166,7 +166,7 @@ setup_menu_accel .menu.machine end [_ "Paste to MDI histor_y"]
 setup_menu_accel .menu.machine end [_ "_Calibration"]
 
 .menu.machine add command \
-        -command {exec $env(LINUXCNC_TCL_DIR)/bin/halshow.tcl -- -ini $emcini &}
+        -command {exec $env(LINUXCNC_TCL_DIR)/bin/halshow.tcl &}
 setup_menu_accel .menu.machine end [_ "Show _Hal Configuration"]
 
 .menu.machine add command \
@@ -1945,7 +1945,7 @@ proc update_state {args} {
     state  {$interp_state == $INTERP_IDLE && $taskfile != ""} \
         .toolbar.reload {.menu.file "_Reload"}
     state  {$taskfile != ""} \
-        .toolbar.reload {.menu.file "_Save gcode as..."}
+        {.menu.file "_Save gcode as..."}
     state  {$interp_state == $INTERP_IDLE && $taskfile != "" && $::has_editor} \
         {.menu.file "_Edit..."}
     state  {$taskfile != ""} {.menu.file "_Properties..."}

@@ -1,5 +1,5 @@
 
-= Extending EMC
+= Extending LinuxCNC
 
 :ini: {basebackend@docbook:'':ini}
 :hal: {basebackend@docbook:'':hal}
@@ -32,10 +32,10 @@ requires resorting to changes at the 'C/C\+\+' language level. The latter
 is unpopular for good reasons - changing internals requires in-depth
 understanding of interpreter internals, and moreover brings its own
 set of support issues. While it is conceivable that certain patches
-might make their way into the main EMC2 distribution, the result of
+might make their way into the main LinuxCNC distribution, the result of
 this approach is a hodge-podge of special-case solutions.
 
-A good example for this deficiency is tool change support in EMC2:
+A good example for this deficiency is tool change support in LinuxCNC:
 while random toolchangers are well supported, it is next to impossible
 to reasonably define a configuration for a manual-toolchange machine
 with, for example, an automatic tool length offset switch being
@@ -107,11 +107,11 @@ somewhat cumbersome RS274NGC language at all.
 ==== A Word on Embedded Python
 
 Many people are familiar with 'extending' the Python interpreter by
-'C/C\+\+' modules, and this is heavily used in EMC2 to access Task,
+'C/C\+\+' modules, and this is heavily used in LinuxCNC to access Task,
 HAL and and Interpreter internals from Python scripts. 'Extending
 Python' basically means: your Python script executes as 'it is in the
 driver seat', and may access non-Python code by importing and using
-extension modules written in 'C/C\+\+'. Examples for this are the EMC2
+extension modules written in 'C/C\+\+'. Examples for this are the LinuxCNC
 `hal`, `gcode` and `emc` modules.
 
 Embedded Python is a bit different and and less commonly known: The
@@ -203,8 +203,6 @@ know where your code fits into this scheme. For this
 reason, you need to choose an appropriate modal group for your code to
 execute in.
 
-// FIXME default modal group?
-
 === An minimal example remapped code
 
 To give you an idea how the pieces fit together, let's explore a
@@ -286,19 +284,19 @@ keyword-value pairs and currently are:
 `python=`'<Python function name>'::
 	Instead of calling an ngc O-word procedure call a Python
 	function. The function is expected to be defined in the
-	<<remap:module_basename, module basename>>`.oword`
+	`module_basename.oword`
 	module. Mutually exclusive with `ngc=`.
 
 `prolog=`'<Python function name>'::
 	Before executing an ngc procedure, call this Python function.
 	The function is expected to be defined in the
-	<<remap:module_basename, module basename>>`.remap`
+	`module_basename.remap`
 	module. Optional.
 
 `epilog=`'<Python function name>'::
 	After executing an ngc procedure, call this Python function.
 	The function is expected to be defined in the
-	<<remap:module_basename, module basename>>`.remap`
+	`module_basename.remap`
 	module. Optional.
 
 The `python`, `prolog` and `epilog` options require the Python
@@ -345,7 +343,6 @@ G-code, there is the somewhat easier way of
 
 === The 'argspec' parameter [[remap:argspec-parameter]]
 
-FIXME linkto word definition in gcode/overview - no tag there
 
 The argument specification (keyword `argspec`) describes required and
 optional words to be passed to an ngc procedure, as well as optional
@@ -473,7 +470,7 @@ Assume the code is defined as
 `REMAP=G88.6 modalgroup=1  argspec=XYZp  python=g886`
 
 This instructs the interpreter to execute the Python function `g886`
-in the <<remap:module_basename, module basename>>`.remap` module
+in the `module_basename.remap` module
 which might look like so:
 
 [source,python]
@@ -638,7 +635,7 @@ $ linuxcnc xxx.ini
 
 === Overview
 
-If you are unfamiliar with EMC2 internals, first read the
+If you are unfamiliar with LinuxCNC internals, first read the
 <<remap::how-toolchange-currently-works, How toolchange currently
 works>> section (dire but necessary).
 
@@ -937,6 +934,11 @@ o<mychange> endsub
 m2
 ---------------------------------------------------------------------
 
+
+CAUTION: when redefining a builtin code, *do not specify any leading
+zeroes in G- or M-codes* - for example, say `REMAP=M1 ..`, not
+`REMAP=M01 ...`.
+
 See the `configs/sim/remap/extend-builtins` directory for a complete
 configuration which is the recommded starting point for own work
 when extending builtin codes.
@@ -1022,7 +1024,8 @@ def prepare_epilog(self, **words):
 ---------------------------------------------------------------------
 
 prepare_prolog and prepare_epilog are part of the 'standard glue'
-provided by 'FIXME pathname'. This module is intended to cover most
+provided by 'nc_files/remap_lib/python-stdglue/stdglue.py'.
+This module is intended to cover most
 standard remapping situations in a common way.
 
 
@@ -1228,9 +1231,10 @@ configured, and hence has its own section `PYTHON` in the ini file.
 
 === Executing Python statements from the interpreter [[remap::executing-Python-statements]]
 
-For ad-hoc execution of commands the Python 'hot comment' has
-been added. Python output by default goes to stdout, so you need to
-start EMC from a terminal window to see results. Example (eg. in the MDI window):
+For ad-hoc execution of commands the Python 'hot comment' has been
+added. Python output by default goes to stdout, so you need to start
+LinuxCNC from a terminal window to see results. Example (eg. in the
+MDI window):
 
   ;py,print 2*3
 
@@ -1278,28 +1282,54 @@ although there is no explicit Python definition of this class (it's a
 'Boost.Python' wrapper instance) and hence receive the as the first
 parameter `self` which can be used to access internals.
 
-=== The Interpreter `__init__` function
+=== The Interpreter `__init__` and `__delete__` functions
 
 If the `TOPLEVEL`  module defines a function `__init__`, it will be
 called once the interpreter is fully configured (ini file read, and
-state synchronized with the world model):
+state synchronized with the world model). 
+
+If the `TOPLEVEL`  module defines a function `__delete__`, it will be
+called once before the interpreter is shutdown and after the persistent
+parameters have been saved to the `PARAMETER_FILE`.
+
+Note_ at this time, the `__delete__` handler does not work for
+interpreter instances created by importing the `gcode` module. If you
+need an equivalent functionality there (which is quite unlikely),
+please consider the Python `atexit` module.
 
 [source,python]
 ---------------------------------------------------------------------
 # this would be defined in the TOPLEVEL module
+
 def __init__(self):
     # add any one-time initialisation here
+    if self.task:
+	# this is the milltask instance of interp
+	pass
+    else:
+	# this is a non-milltask instance of interp
+        pass
+
+def __delete__(self):
+    # add any cleanup/state saving actions here
+    if self.task: # as above
+	pass
+    else:
     pass
 ---------------------------------------------------------------------
 
 This function may be used to initialize any Python-side attributes
 which might be needed later, for instance in remap or oword
-functions. If there are setup actions which are to happen only in the
-milltask Interpreter instance, this can be tested for by
+functions, and save or restore state beyond what `PARAMETER_FILE` provides.
+
+If there are setup or cleanup actions which are to happen only in the
+milltask Interpreter instance (as opposed to the interpreter instance
+which sits in the `gcode` Python module and serves preview/progress
+display purposes but nothing else), this can be tested for by
 <<cha:Axis-Preview-and-Remapped-code-execution,evaluating
 'self.task'>>.
 
-An example use of `__init__` can be found in
+An example use of `__init__` and `__delete__` can be found in
 'configs/sim/remap/cycle/python/toplevel.py' initialising attributes
 needed to handle cycles in 'configs/sim/remap/python-stdglue/stdglue.py'.
 
@@ -1445,7 +1475,7 @@ This demonstrates call continuation with a single point-of-restart:
 
 [source,python]
 ---------------------------------------------------------------------
-def read_pin(self,**words):
+def read_pin(self,*args):
     # wait 5secs for digital-input 00 to go high
     emccanon.WAIT(0,1,2,5.0)
     # cede control after executing the queue buster:
@@ -1453,8 +1483,18 @@ def read_pin(self,**words):
     # post-sync() execution resumes here:
     pin_status = emccanon.GET_EXTERNAL_DIGITAL_INPUT(0,0);
     print "pin status=",pin_status
-    return INTERP_OK # done
 ---------------------------------------------------------------------
+
+WARNING: The 'yield' feature is fragile. The following restrictions
+apply to the usage of 'yield INTERP_EXECUTE_FINISH': 
+
+- Python code executing a 'yield INTERP_EXECUTE_FINISH' must be part
+  of a remap procedure. Yield does not work in a Python oword procedure.
+- A Python remap subroutine containing 'yield INTERP_EXECUTE_FINISH' statement may
+not return a value, as with normal Python yield statements.
+- Code following a yield may not recursively call the interpreter, like with
+  self.execute("<mdi command>"). This is an architectural restriction
+  of the interpreter and is not fixable without a major redesign.
 
 === Calling conventions: Python to NGC
 
@@ -1545,7 +1585,8 @@ probably easier to trap InterpreterException as per below.
 CAUTION: The parameter insertion/retrieval method described in the previous section does not
 work in this case. It is good enough for just executing simple NGC
 commands or a procedure call and advanced introspection into the
-procedure, and passing of local named parameters is not needed.
+procedure, and passing of local named parameters is not needed. The
+recursive call feature is fragile.
 
 ==== Interpreter Exception during execute()
 
@@ -1847,8 +1888,8 @@ The following flags are relevant for remapping and Python - related execution:
  EMC_DEBUG_PYTHON            0x00008000  calls to the Python plugin
  EMC_DEBUG_NAMEDPARAM        0x00010000  trace named parameter access
  EMC_DEBUG_PYTHON_TASK       0x00040000  trace the task Python plugin
- EMC_DEBUG_USER1             0x10000000  user-defined - not interpreted by EMC
- EMC_DEBUG_USER2             0x20000000  user-defined - not interpreted by EMC
+ EMC_DEBUG_USER1             0x10000000  user-defined - not interpreted by LinuxCNC
+ EMC_DEBUG_USER2             0x20000000  user-defined - not interpreted by LinuxCNC
 
 'or' these flags into the `[EMC]DEBUG` variable as needed. For a current
 list of debug flags see 'src/emc/nml_intf/debugflags.h'.
@@ -1869,7 +1910,7 @@ To use this approach:
 selection)
 - install the PyDev plugin from the
 http://pydev.org/updates[Pydev Update Site]
-- setup the EMC2 source tree as an Eclipse project
+- setup the LinuxCNC source tree as an Eclipse project
 - start the Pydev Debug Server in Eclipse
 - make sure the embedded Python code can find the `pydevd.py` module
 which comes with that plugin - it's buried somewhere deep under the
@@ -1954,7 +1995,7 @@ Note that the use of M61 currently requires the use of iocontrol-v2.
 
 === Currently unallocated G-codes: [[remap:unallocated-g-codes]]
 
-These codes are currently undefined in the current implementation of EMC2
+These codes are currently undefined in the current implementation of LinuxCNC
 and may be used to define new G-codes:
 
 FIXTHIS too verbose
@@ -2062,7 +2103,7 @@ G99.1 G99.2 G99.3 G99.4 G99.5 G99.6 G99.7 G99.8 G99.9
 
 === Currently unallocated M-codes: [[remap:unallocated-m-codes]]
 
-These codes are currently undefined in the current implementation of EMC2
+These codes are currently undefined in the current implementation of LinuxCNC
 and may be used to define new M-codes:
 
  M10
@@ -2107,7 +2148,7 @@ foo
 
 // setup examples
 
-== A short survey of EMC program execution
+== A short survey of LinuxCNC program execution
 To understand remapping of codes it might be helpful to survey the
 execution  of task and interpreter as far as it relates to remapping.
 
@@ -2134,17 +2175,17 @@ Most of this state is aggregated in a - fairly unsystematic -
 
 === Task and Interpreter interaction, Queueing and Read-Ahead
 
-The task part of EMC is responsible for coordinating actual machine
+The task part of LinuxCNC is responsible for coordinating actual machine
 commands - movement, HAL interactions and so forth. It does not by
 itself handle the RS274NGC language. To do so, task calls upon the
 interpreter to parse and execute the next command - either from MDI or
 the current file.
 
-The interpreter execution generates canonical machine
-operations, which actually move something. These are, however, not immediately executed but put on a queue. The
-actual execution of these codes happens in the task part of EMC: canon
-commands are pulled off that interpreter queue, and executed resulting
-in actual machine movements.
+The interpreter execution generates canonical machine operations, which
+actually move something. These are, however, not immediately executed but
+put on a queue. The actual execution of these codes happens in the task
+part of LinuxCNC: canon commands are pulled off that interpreter queue,
+and executed resulting in actual machine movements.
 
 This means that typically the interpreter is far ahead of the actual
 execution of commands - the parsing of the program might well be
@@ -2283,8 +2324,8 @@ parsing and execution as long as there is still a procedure executing
 (call_level > 0).
 
 === How toolchange currently works [[remap::how-toolchange-currently-works]]
-The actions happening in EMC are a bit involved, but it's necessary to
-get the overall idea what currently happens before you set out to
+The actions happening in LinuxCNC are a bit involved, but it's necessary
+to get the overall idea what currently happens before you set out to
 adapt those workings to your own needs.
 
 Note that remapping an existing code completely disables all internal
@@ -2324,7 +2365,7 @@ To see fields in the global emcStatus structure, try this:
  ;py,print emcstat.io.tool.toolInSpindle
  ;py,print emcstat.io.tool.toolTable[0]
 
-You need to have emc started from a terminal window to see the
+You need to have LinuxCNC started from a terminal window to see the
 results.
 
 === How Tx (Prepare Tool) works
@@ -2342,7 +2383,7 @@ variable for later, and  queues a canon command
 
 When task gets around to handle a SELECT_POCKET, it sends a
 EMC_TOOL_PREPARE message to the iocontrol process, which handles most
-tool-related actions in EMC.
+tool-related actions in LinuxCNC.
 
 In the current implementation, task actually waits for iocontrol to
 complete the changer positioning operation, which is not necessary IMO
@@ -2524,9 +2565,6 @@ interpreter. These parameters are read-only - assigning a value will
 cause a runtime error. The names are not case sensitive - they are
 converted to uppercase before consulting the ini file.
 
-
-FIXME footnote this:
-
 Permanent setup information is usually stored in the ini file. While
 ini variables can be easily accessed from the shell, Python and C code,
 so far there was no way to refer to ini file variables from G-code.
@@ -2570,7 +2608,6 @@ o100 else
   (debug, [motion-controller.time] does not exist)
 o100 endif
 ---------------------------------------------------------------------
-FIXME footnote this:
 
 This feature was motivated by the desire for stronger coupling between
 user interface components like `GladeVCP` and `PyVCP` to act as
@@ -2591,9 +2628,11 @@ changing a Python file.
 
 . M61 (remapped or not) is broken in iocontrol and requires
 iocontrol-v2 to actually work.
-// A short survey of EMC2 execution
+
+// A short survey of LinuxCNC execution
 // Interpreter internals access - Python view
 // Task internals access - Python view
+
 ==  Build notes - Lucid (10.04)
 
 For the interpreter & task Python plugins, this is required:

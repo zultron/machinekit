@@ -168,7 +168,10 @@ which is supposed be close to an integer is considered close enough if
 it is within 0.0001 of an integer.
 
 
-== Parameters (Variables)[[sec:parameters]](((Parameters)))
+[[sec:parameters]]
+== Parameters
+(Variables)
+(((Parameters)))
 
 The RS274/NGC language supports 'parameters' - what in other
 programming languages would be called 'variables'. There are several
@@ -210,7 +213,7 @@ assignment statement.
 
 Persistence:: When LinuxCNC is shut down, volatile parameters lose their
 values. All parameters except numbered parameters in the current
-persistent range footnoteref:[persistent range,The range of persistent
+persistent range footnoteref:[persistent_range,The range of persistent
 parameters may change as development progresses. This range is
 currently 5161- 5390. It is defined in the '_required_parameters array'
 in file the src/emc/rs274ngc/interp_array.cc .]  are volatile.
@@ -289,6 +292,9 @@ example '##2'  means the value of the parameter whose index is the
 5210::
     1 if "G92" offset is currently applied, 0 otherwise. Persistent.
 
+5211-5219::
+    'G92' offset (X Y Z A B C U V W).
+
 5220::
     Coordinate System number 1 - 9 for G54 - G59.3. Persistent.
 
@@ -342,8 +348,7 @@ example '##2'  means the value of the parameter whose index is the
 
 5420-5428::
      Current Position including all offsets and in the current program
-    units for X, Y, Z, A, B, C, U, V & W. In absolute machine coordinates, 
-    volatile.
+    units for X, Y, Z, A, B, C, U, V & W, volatile.
 
 5599::
    flag for controlling the output of (DEBUG,) statements.
@@ -358,15 +363,9 @@ example '##2'  means the value of the parameter whose index is the
    Reflects the value of the `toolchanger-reason` HAL pin if a fault occured. 
    Volatile.
 
-=== Subroutine Parameters [[sub:Subroutine-Parameters]]
 
-1-30::
-     Subroutine local parameters of call arguments. These parameters are
-    local to the subroutine. Volatile. See also the chapter on <<cha:O-Codes,O-Codes>>.
-
-
-
-=== Subroutine Parameters [[sub:subroutine-parameters]]
+[[sub:subroutine-parameters]]
+=== Subroutine Parameters
 
 1-30::
      Subroutine local parameters of call arguments. These parameters are
@@ -594,31 +593,31 @@ parameters>> can be added easily without changes to the source code.
     Return the current spindle speed (S).
 
 * `#<_x>` -
-    Return absolute machine X coordinate. Same as #5420.
+    Return current machine X coordinate. Same as #5420.
 
 * `#<_y>` -
-    Return absolute machine Y coordinate. Same as #5421.
+    Return current machine Y coordinate. Same as #5421.
 
 * `#<_z>` -
-    Return absolute machine Z coordinate. Same as #5422.
+    Return current machine Z coordinate. Same as #5422.
 
 * `#<_a>` -
-    Return absolute machine A coordinate. Same as #5423.
+    Return current machine A coordinate. Same as #5423.
 
 * `#<_b>` -
-    Return absolute machine B coordinate. Same as #5424.
+    Return current machine B coordinate. Same as #5424.
 
 * `#<_c>` -
-    Return absolute machine C coordinate. Same as #5425.
+    Return current machine C coordinate. Same as #5425.
 
 * `#<_u>` -
-    Return absolute machine U coordinate. Same as #5426.
+    Return current machine U coordinate. Same as #5426.
 
 * `#<_v>` -
-    Return absolute machine V coordinate. Same as #5427.
+    Return current machine V coordinate. Same as #5427.
 
 * `#<_w>` -
-    Return absolute machine W coordinate. Same as #5428.
+    Return current machine W coordinate. Same as #5428.
 
 * `#<_current_tool>` -
     Return number of the current tool in spindle. Same as #5400.
@@ -980,7 +979,8 @@ G10, G28, G30, and G92.
 It is an error to include any unrelated words on a line with 'O-' flow
 control.
 
-== Comments[[sec:comments]]
+[[sec:comments]]
+== Comments
 
 Comments can be added to lines of G code to help clear up the
 intention of the programmer. Comments can be embedded in a line using
@@ -1010,7 +1010,8 @@ comment will in effect disable the active comment. For example, '(foo)
 A comment introduced by a semicolon is by definition the last comment
 on that line, and will always be interpreted for active comment syntax.
 
-== Messages[[sec:messages]]
+[[sec:messages]]
+== Messages
 (((Messages)))
 
 * '(MSG,)' - displays message if 'MSG' appears after the left
@@ -1026,7 +1027,8 @@ on that line, and will always be interpreted for active comment syntax.
 (MSG, This is a message)
 ----
 
-== Probe Logging[[sec:probe-logging]]
+[[sec:probe-logging]]
+== Probe Logging
 (((Probe Logging)))
 
 * '(PROBEOPEN filename.txt)' - will open filename.txt and store the 9-number
@@ -1036,7 +1038,8 @@ on that line, and will always be interpreted for active comment syntax.
 
 For more information on probing see the <<sec:G38-probe,G38>> Section.
 
-== Logging[[sec:log]]
+[[sec:log]]
+== Logging
 (((Logging)))
 
 * '(LOGOPEN,filename.txt)' - opens the named log file. If the file
@@ -1050,13 +1053,15 @@ For more information on probing see the <<sec:G38-probe,G38>> Section.
 * '(LOG,)' - everything past the ',' is written to the log file if it is open.
              Supports expansion of parameters as described below.
 
-== Debug Messages[[sec:debug-messages]]
+[[sec:debug-messages]]
+== Debug Messages
 (((Debug Messages)))
 
 * '(DEBUG,)' - displays a message like '(MSG,)' with the addition of
               special handling for comment parameters as described below.
 
-== Print Messages[[sec:print-messages]]
+[[sec:print-messages]]
+== Print Messages
 (((Print Messages)))
 
 * '(PRINT,)' - messages are output to 'stderr' with special handling
@@ -1108,8 +1113,9 @@ size. The preview can be turned off in Axis to speed up loading large
 part programs. In Axis sections of the preview can be turned off using
 <<sub:axis-preview-control,preview control>> comments.
 
+[[sec:Order-of-Execution]]
 == G Code Order of Execution
-[[sec:Order-of-Execution]] (((G Code Order of Execution)))
+(((G Code Order of Execution)))
 
 The order of execution of items on a line is defined not by the
 position of each item on the line, but by the following list:
@@ -1230,15 +1236,15 @@ material removal rate.
 [[var_file_format]]
 
 The values of parameters in the persistent range are retained over
-time, even if the machining center is powered down.  EMC2 uses a
+time, even if the machining center is powered down.  LinuxCNC uses a
 parameter file to ensure persistence. It is managed by the
 Interpreter. The Interpreter reads the file when it starts up, and
 writes the file when it exits.
 
 The format of a parameter file is shown in Table
-<<cap:Parameter-File-Format,Parameter File Format>>. 
+<<cap:format-parameter-file,Parameter File Format>>. 
 
-The Interpreter expects the file to have two colums. It skips any
+The Interpreter expects the file to have two columns. It skips any
 lines which do not contain exactly two numeric values. The first
 column is expected to contain an integer value (the parameter's
 number). The second column contains a floating point number (this
@@ -1254,13 +1260,13 @@ Missing Parameters in the persistent range will be initialized to zero
 and written with their current values on the next save operation.
 
 The parameter numbers must be arranged in ascending order. An
-`Parameter file out of order` error  will be signalled if they are  not in
+`Parameter file out of order` error  will be signaled if they are  not in
 ascending order. 
 
 The original file is saved as a backup file when the new file
 is written. 
 
-.Parameter File Format[[cap:Parameter-File-Format]]
+.Parameter File Format[[format-parameter-file]]
 
 [width="90%", options="header"]
 |========================================

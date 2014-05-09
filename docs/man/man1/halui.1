@@ -217,11 +217,20 @@ pin for requesting joint by joint jog mode
 .B halui.mode.manual\fR bit in \fR
 pin for requesting manual mode
 .TP
-.B Ihalui.mode.mdi\fR bit in \fR
+.B halui.mode.mdi\fR bit in \fR
 pin for requesting mdi mode
 .TP
 .B halui.mode.teleop\fR bit in \fR
 pin for requesting coordinated jog mode
+
+.SS mdi \fR(optional)
+.TP
+.B halui.mdi-command-XX\fR bit in
+\fBhalui\fR looks for ini variables named [HALUI]MDI_COMMAND, and
+exports a pin for each command it finds.  When the pin is driven TRUE,
+\fBhalui\fR runs the specified MDI command.  XX is a two digit number
+starting at 00.  If no [HALUI]MDI_COMMAND variables are set in the ini
+file, no halui.mdi-command-XX pins will be exported by halui.
 
 .SS mist
 .TP
@@ -352,10 +361,10 @@ pin for jogging the axis N using an float value (e.g. joystick)
 .B halui.jog.N.increment\fR float in \fR
 pin for setting the jog increment for axis N when using increment-plus/minus
 .TP
-.B halui.jog.N.increment-minus\fR float in \fR
+.B halui.jog.N.increment-minus\fR bit in \fR
 a rising edge will will make axis N jog in the negative direction by the increment amount
 .TP
-.B halui.jog.N.increment-plus\fR float in \fR
+.B halui.jog.N.increment-plus\fR bit in \fR
 a rising edge will will make axis N jog in the positive direction by the increment amount
 .TP
 .B halui.jog.N.minus\fR bit in \fR
@@ -367,10 +376,10 @@ pin for jogging axis N in positive direction at the halui.jog-speed velocity
 .B halui.jog.selected.increment\fR float in \fR
 pin for setting the jog increment for the selected axis when using increment-plus/minus
 .TP
-.B halui.jog.selected.increment-minus\fR float in \fR
+.B halui.jog.selected.increment-minus\fR bit in \fR
 a rising edge will will make the selected axis jog in the negative direction by the increment amount
 .TP
-.B halui.jog.selected.increment-plus\fR float in \fR
+.B halui.jog.selected.increment-plus\fR bit in \fR
 a rising edge will will make the selected axis jog in the positive direction by the increment amount
 .TP
 .B halui.jog.selected.minus\fR bit in \fR
@@ -448,8 +457,8 @@ pin for requesting home-all
 .SH BUGS
 none known at this time.
 .SH AUTHOR
-Written by Alex Joni, as part of the LinuxCNC Enhanced Machine
-Controller project. Updated by John Thornton
+Written by Alex Joni, as part of the LinuxCNC project. Updated by John
+Thornton
 .SH REPORTING BUGS
 Report bugs to alex_joni AT users DOT sourceforge DOT net
 .SH COPYRIGHT

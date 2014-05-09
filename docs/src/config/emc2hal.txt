@@ -4,7 +4,8 @@
 
 See also the man pages 'motion(9)'.
 
-== Motion [[sec:motion]]
+[[sec:motion]]
+== Motion
 
 These pins and parameters are created by the realtime 'motmod' module.
 This module provides a HAL interface for LinuxCNC’s motion planner.
@@ -77,7 +78,7 @@ These pins, parameters, and functions are created by the realtime
 'motmod' module.
 
 * 'motion.adaptive-feed' - 
-     (float, in) When adaptive feed is enabled with 'M52 P1' , the
+     (float, in) When adaptive feed is enabled with 'M52 P1' , the
     commanded velocity is multiplied by this value. This effect is
      multiplicative with the NML-level feed override value and
     'motion.feed-hold'.
@@ -118,8 +119,12 @@ These pins, parameters, and functions are created by the realtime
     operator. For normal motion, drive this bit TRUE.
 
 * 'motion.feed-hold' - 
-     (bit, in) When Feed Stop Control is enabled with 'M53 P1', and this
+     (bit, in) When Feed Stop Control is enabled with 'M53 P1', and this
     bit is TRUE, the feed rate is set to 0.
+
+* 'motion.feed-inhibit' - 
+     (bit, in) When this bit is TRUE, the feed rate is set to 0.
+    This will be delayed during spindle synch moves till the end of the move.
 
 * 'motion.in-position' - 
     (bit, out) TRUE if the machine is in position.
@@ -166,6 +171,9 @@ These pins, parameters, and functions are created by the realtime
 * 'motion.spindle-index-enable' - 
      (bit, I/O) For correct operation of spindle synchronized moves, this
     pin must be hooked to the index-enable pin of the spindle encoder. 
+
+* 'motion.spindle-inhibit' - 
+     (bit, in) When this bit is TRUE, the spindle speed is set to 0.
 
 * 'motion.spindle-on' - 
     (bit, out) TRUE when spindle should rotate.
@@ -482,7 +490,7 @@ iocontrol − accepts NML I/O commands, interacts with HAL in userspace.
 
 The signals are turned on and off in userspace - if you have strict
 timing requirements or simply need more i/o, consider using the realtime
-synchronized i/o provided by <<motion,motion>> instead.
+synchronized i/o provided by <<sec:motion,motion>> instead.
 
 === Pins (((iocontrol (HAL pins))))
 

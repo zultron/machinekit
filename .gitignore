@@ -12,7 +12,7 @@ build-stamp
 *.cmd
 .tmp*
 # Ignore generated html files, 
-*.html
+/docs/**/*.html
 # Except Gcode quick-ref cards (en,de,sp,fr) which are maintained by hand
 !docs/html/gcode*.html
 # Ignore all LyX files, we're done with them now. 
@@ -36,6 +36,16 @@ freq2pin.9
 jogtranslator.9
 mesa_uart.9
 tormachltc.9
+configs/sim/gmoccapy/*.pref
+configs/sim/gmoccapy/gmoccapy_plasma/*.pref
+# Miscellaneous generated files (Rob)
+cscope
+cscope.*
+*.kdev*
+oprofile*
+*.log
+position.txt
+*.9
 
 # redis libs
 lib/python/redis
