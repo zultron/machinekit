@@ -1,0 +1,304 @@
+
+component milljogtranslator;
+
+description """This comp is intended to do the mapping of the raw ring, wheel and buttons off a ShuttlXpress
+   to allow them to be connected to control jogging
+   The buttons can be made to latch as a set of radio buttons
+   A input can be used to cycle a set of values in powers of 10 starting from a minimum value.""";
+
+
+pin in bit ax_butt_0 "TRUE if button 0 pressed";
+pin in bit ax_butt_1 "TRUE if button 1 pressed";
+pin in bit ax_butt_2 "TRUE if button 2 pressed";
+pin in bit ax_butt_3 "TRUE if button 3 pressed";
+pin in bit ax_butt_4 "TRUE if button 4 pressed";
+
+pin in signed ring_raw "Signed value of jog ring position"; // 0 - 7
+
+pin in unsigned radio_latching "Set true if you want the priority ax_butt signals to be latched";
+
+pin out bit ax_out_pos "Jogs selected axis in positive direction";
+pin out bit ax_out_neg "Jogs selected axis in negative direction";
+
+pin out bit ax_out_0_sel "Axis 0 is selected";
+pin out bit ax_out_1_sel "Axis 1 is selected";
+pin out bit ax_out_2_sel "Axis 2 is selected";
+pin out bit ax_out_3_sel "Axis 3 is selected";
+pin out bit ax_out_4_sel "Axis 4 is selected";
+
+pin out signed ax_selected_axis "Number of selected axis or -1 if none";
+
+pin out float ax_jog_speed "Translated jogging speed - float";
+pin out float ax_jog_speed_signed "Translated jogging speed - float";
+
+pin in float smallest_step "Value of the smallest jogging step e.g. 0.001";
+pin in unsigned number_of_stepsizes "Count of different stepsizes to be generated";
+pin in bit cycle_stepsizes "moves to next size of step when this goes high. Wraps around in hitting number if sizes";
+
+pin out float jog_microstep_size "Size of desired step divided by 1000 as each wheel click is 1000 microsteps";
+pin out unsigned shuttle_step_index "Index to hal table of step sizes - smallest is 0 up to number_of_stepsizes - 1";
+pin in unsigned gui_step_index "Channel from GUI to hal table of step sizes - smallest is 0 up to number_of_stepsizes - 1";
+pin in bit is_metric "Pin to indicate current G20/21 status.  True when in G21, False in G20";
+
+// array of rings speeds - each axis has independent speeds
+pin out float jt_speed_0.#[5] "Outer ring position center speed";
+pin out float jt_speed_1.#[5] "Outer ring position 1 speed";
+pin out float jt_speed_2.#[5] "Outer ring position 2 speed";
+pin out float jt_speed_3.#[5] "Outer ring position 3 speed";
+pin out float jt_speed_4.#[5] "Outer ring position 4 speed";
+pin out float jt_speed_5.#[5] "Outer ring position 5 speed";
+pin out float jt_speed_6.#[5] "Outer ring position 6 speed";
+pin out float jt_speed_7.#[5] "Outer ring position 7 speed";
+
+pin in float jt_min_speed.#[5] "Minimum ring speed";
+pin in float jt_max_speed.#[5] "Maximum ring speed";
+
+function _ "This comp translates raw data from shuttle devices to drive jogging pins";
+
+option extra_setup;
+
+license "GPL";
+
+author "J A Prentice, modified by Tormach for independant axis ring speeds";
+
+variable signed latched_button;
+variable char waiting_stepsizes_release;
+variable unsigned step_size_index;
+variable float current_stepsize;
+variable char first_call;  // NZ on first entry to main loop
+
+variable float prev_min_speed[5];
+variable float prev_max_speed[5];
+;;
+
+
+#include <rtapi_math.h>
+#define NUM_AXES 5
+
+// Rev C1 - 21 April 2012
+// Rev D1 - 23 May 2012 - Added pin input that creates a channel from the GUI to the hal step size table *dpr
+// Rev E1 - 16 Aug 2012 - Added pin input for metric/imperial handling
+// Rev F1 - 16 Dec 2012 - Changed metric step size to match new gui step buttons
+// Rev G1 - originally 23 April 2012 -  adds signed wheel output
+// Rev H1 - originally 11 October 2012 - adds an In/Out chain to calculate the vector sum of squares 
+//    speed with multiple jogshuttles to excite the GUI to switch to manual mode
+// Rev I1 - 23 July 2013 - outer ring speeds made into pins settable via UI, removed min_speed and g_multiplier
+//
+// May 2014 - began life anew as 'milljogtranslator.comp' with independent speeds per axis
+
+EXTRA_SETUP() {
+    int axis;
+
+    latched_button = -1;
+
+    waiting_stepsizes_release = 0; // not awaiting release of cycle-stepsizes
+    step_size_index = 0;
+
+    first_call = 1; // used to do pin based init
+
+    for (axis = 0; axis < NUM_AXES; axis++) {
+        prev_min_speed[axis] = 0.0;
+        prev_max_speed[axis] = 0.0;
+    }
+
+    return 0;
+}
+
+
+FUNCTION(_) { 
+
+    signed int current_button;  // what we see this time
+    signed int output_button;   // what we are going to output
+    float g20_scale = 1;            // inch versus mm
+    char pos, neg;                  // direction flags
+    unsigned int iloop;
+    int index;
+    double range;
+    double c_multiplier;
+    double g_multiplier;
+
+    if (is_metric)
+        g20_scale = 0.254;
+
+    current_button = -1;
+
+    output_button = 0;
+
+    if (ax_butt_0)
+        current_button = 0;
+    else if (ax_butt_1)
+        current_button = 1;	
+    else if (ax_butt_2)
+        current_button = 2;	
+    else if (ax_butt_3)
+        current_button = 3;	
+    else if (ax_butt_4)
+        current_button = 4;	
+
+    if (current_button >= 0) { 
+        output_button = current_button;
+        if (radio_latching) {
+            // need to remember this button
+            latched_button = current_button;
+        }
+    }
+    else {
+        output_button = latched_button;
+    }
+
+    // initialise outputs
+    ax_out_0_sel = 0;
+    ax_out_1_sel = 0;
+    ax_out_2_sel = 0;
+    ax_out_3_sel = 0;
+
+    // connected to halui.joint.select
+    ax_selected_axis = output_button;
+    switch (output_button){
+        case 0: ax_out_0_sel = 1;
+                break;
+
+        case 1: ax_out_1_sel = 1;
+                break;
+
+        case 2: ax_out_2_sel = 1;
+                break;
+
+        case 3: ax_out_3_sel = 1;
+                break;
+
+        case 4: ax_out_4_sel = 1;
+                break;
+
+        default:break; // no axis select button has been pressed yet
+    } // set up the direction pins
+
+    // if min or max speed on an axis has changed then recompute geometric progression of speeds
+    for (index = 0; index < NUM_AXES; index++) {
+        if (prev_min_speed[index] != jt_min_speed(index) ||
+            prev_max_speed[index] != jt_max_speed(index)) {
+
+            // recompute ring speeds for this axis using min and max
+            range = jt_max_speed(index) / jt_min_speed(index);
+            g_multiplier = pow(range, (1.0 / 6.0));
+            c_multiplier = 1.0;
+            jt_speed_0(index) = 0.0;
+            jt_speed_1(index) = c_multiplier * jt_min_speed(index);
+            c_multiplier *= g_multiplier;
+            jt_speed_2(index) = c_multiplier * jt_min_speed(index);
+            c_multiplier *= g_multiplier;
+            jt_speed_3(index) = c_multiplier * jt_min_speed(index);
+            c_multiplier *= g_multiplier;
+            jt_speed_4(index) = c_multiplier * jt_min_speed(index);
+            c_multiplier *= g_multiplier;
+            jt_speed_5(index) = c_multiplier * jt_min_speed(index);
+            c_multiplier *= g_multiplier;
+            jt_speed_6(index) = c_multiplier * jt_min_speed(index);
+            c_multiplier *= g_multiplier;
+            jt_speed_7(index) = c_multiplier * jt_min_speed(index);
+
+            // set previous to current
+            prev_min_speed[index] = jt_min_speed(index);
+            prev_max_speed[index] = jt_max_speed(index);
+        }
+    }
+
+    // establish direction
+    neg = (ring_raw < 0); 
+    pos = (ring_raw > 0);
+
+    ax_out_pos = 0;
+    ax_out_neg = 0;
+    if (ax_out_0_sel || ax_out_1_sel || ax_out_2_sel || ax_out_3_sel || ax_out_4_sel) {
+        // do not set these if no axis selected
+        // in other words, no jogging unless an axis is selected
+        ax_out_pos = pos;
+        ax_out_neg = neg;
+    }
+
+    // clamp selected axis index between 0 to NUM_AXES inclusive
+    index = output_button;
+    if (output_button < 0) {
+        index = 0;
+    }
+
+    if (output_button >= NUM_AXES) {
+        index = NUM_AXES - 1;
+    }
+
+    switch (abs(ring_raw)) {
+        case 0:
+                ax_jog_speed = jt_speed_0(index);
+                break;
+        case 1:
+                ax_jog_speed = jt_speed_1(index);
+                break;
+        case 2:
+                ax_jog_speed = jt_speed_2(index);
+                break;
+        case 3:
+                ax_jog_speed = jt_speed_3(index);
+                break;
+        case 4:
+                ax_jog_speed = jt_speed_4(index);
+                break;
+        case 5:
+                ax_jog_speed = jt_speed_5(index);
+                break;
+        case 6:
+                ax_jog_speed = jt_speed_6(index);
+                break;
+        case 7:
+                ax_jog_speed = jt_speed_7(index);
+                break;
+        default:
+                ax_jog_speed = jt_speed_0(index);
+                break;
+    }
+
+    ax_jog_speed_signed = ax_jog_speed;
+    if (ring_raw < 0) {
+        // need negative signed value
+        ax_jog_speed_signed = - ax_jog_speed;
+    }
+
+//=====================================================================================================
+// Here we deal with cycling the stepsizes
+//=====================================================================================================
+
+    if (first_call) {
+        current_stepsize = smallest_step; // initialise
+    }
+
+    if (cycle_stepsizes) {
+        if (!waiting_stepsizes_release) {
+            // we need to do next stepsize
+            step_size_index = gui_step_index;
+            waiting_stepsizes_release = 1; // only do it once per "click"
+            step_size_index++; // move to next index
+            if (step_size_index == number_of_stepsizes)
+                step_size_index = 0; // wrap it
+            current_stepsize = smallest_step; // start size
+            for (iloop = 0; iloop < step_size_index; iloop++) {
+                // do requisite multiply by 10s
+                current_stepsize = current_stepsize * 10.0;
+            }
+         }
+    }
+    else { // input is not set
+        waiting_stepsizes_release = 0;
+        current_stepsize = smallest_step; // start size
+        for (iloop = 0; iloop < gui_step_index; iloop++) {
+            // do requisite multiply by 10s
+            current_stepsize = current_stepsize * 10.0;
+        }
+    } 
+    jog_microstep_size = (current_stepsize/g20_scale); // report stepsize to pin
+    shuttle_step_index = step_size_index; // put index out onto pin
+
+    //=======================================================================================================
+    // Been here once
+    first_call = 0;
+	
+} // main function
+
