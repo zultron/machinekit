@@ -539,10 +539,10 @@ int Interp::parse_remap(const char *inistring, int lineno)
 	}
 	if ( gcode == -1) {
 	    if (sscanf(code + 1, "%d", &gcode) != 1) {
-	    Error("code '%s' : cant parse G-code : %d:REMAP = %s",
-		  code, lineno, inistring);
-	    goto fail;
-	}
+		Error("code '%s' : cant parse G-code : %d:REMAP = %s",
+		      code, lineno, inistring);
+		goto fail;
+	    }
 	    gcode *= 10;
 	}
 	r.motion_code = gcode;

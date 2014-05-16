@@ -107,13 +107,6 @@ static int get_task(Interp &i) { return _task; };
 static const char *get_filename(Interp &i) { return i._setup.filename; };
 static const char *get_linetext(Interp &i) { return i._setup.linetext; };
 
-static int is_required(Interp &i, int index) { return IS_REQUIRED_PARAM(&i._setup,index); };
-static int is_persistent(Interp &i, int index) { return IS_PERSISTENT_PARAM(&i._setup,index); };
-static void set_persistent(Interp &i, int index) { i._setup.persistent_map[index] = 1; };
-static void set_required(Interp &i, int index) { i._setup.required_map[index] = 1; };
-static int is_volatile_param(Interp &i, int index) { return IS_VOLATILE_PARAM(index); };
-static int is_ui_param(Interp &i, int index) { return IS_UI_PARAM(index); };
-
 // those are exposed here because they look useful for regression testing
 static bool __equal(double a, double b) { return fabs(a - b) < TOLERANCE_EQUAL; }
 // see interp_convert.cc
@@ -831,14 +824,6 @@ BOOST_PYTHON_MODULE(interpreter) {
 	.def("get_errormsg", &Interp::getSavedError)
 	.def("stack", &errorStack)
 	.def("synch", &Interp::synch)
-
-	.def("is_readonly", &Interp::is_readonly)
-	.def("is_required", &is_required)
-	.def("is_persistent", &is_persistent)
-	.def("set_persistent", &set_persistent)
-	.def("set_required", &set_required)
-	.def("is_volatile", &is_volatile_param)
-	.def("is_ui_param", &is_ui_param)
 
 	// those will raise exceptions on return value < INTERP_MIN_ERROR  if throw_exceptions is set.
 	.def("execute", &wrap_interp_execute_1)

@@ -18,7 +18,6 @@
 #define EMC_DEBUG_NAMEDPARAM        0x00010000
 #define EMC_DEBUG_GDBONSIGNAL       0x00020000
 #define EMC_DEBUG_PYTHON_TASK       0x00040000
-#define EMC_DEBUG_PYTHON_API        0x00080000
 
 // not interpreted by EMC.
 #define EMC_DEBUG_USER1             0x10000000
@@ -29,5 +28,5 @@
 						 */
 // debug prefix flags
 #define LOG_TIME  1
-#define LOG_PID   2
+#define LOG_PROCESSID   2
 #define LOG_FILENAME 4 // and line

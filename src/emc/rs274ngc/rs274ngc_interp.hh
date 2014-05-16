@@ -464,7 +464,7 @@ public:
  int write_m_codes(block_pointer block, setup_pointer settings);
  int write_settings(setup_pointer settings);
  int unwrap_rotary(double *, double, double, double, char);
- bool is_readonly(int index);
+ bool isreadonly(int index);
 
   // O_word stuff
 
@@ -530,7 +530,6 @@ int read_inputs(setup_pointer settings);
 		       char *posarglist);
 
  int init_named_parameters();
- int init_numbered_parameters();
     int init_python_predef_parameter(const char *name);
 
     bool has_user_mcode(setup_pointer settings,block_pointer block);
@@ -578,8 +577,6 @@ int read_inputs(setup_pointer settings);
 #define OWORD_MODULE "oword"
 #define REMAP_MODULE "remap"
 #define NAMEDPARAMS_MODULE "namedparams"
-#define PARAMS_MODULE "params"
-#define TOOLSTORE_MODULE "toolstore"
     // describes intented use, and hence parameter and return value
     // interpretation
     enum py_calltype { PY_OWORDCALL,
@@ -594,14 +591,6 @@ int read_inputs(setup_pointer settings);
 		       PY_EXECUTE,
 		       PY_PLUGIN_CALL
     };
-    enum py_argtype { // for call_method()
-	PY_SELF, 
-	PY_INT,
-	PY_DOUBLE,
-	PY_STRING,
-	PY_LAST
-    };
-
     int pycall(setup_pointer settings,
 	       context_pointer frame,
 	       const char *module,
@@ -625,16 +614,6 @@ int read_inputs(setup_pointer settings);
 	    const char *fmt, ...) __attribute__((format(printf,5,6)));
 
  const char *interp_status(int status);
-
-    int call_method(setup_pointer settings, const char *module,  const char *method, ...);
-    int get_numbered_parameter(setup_pointer settings,double *dval, int index);
-    int set_numbered_parameter(setup_pointer settings,double dval, int index, bool notitfy = true);
-
-    // internal - restore through embedded Python calls
-    int python_restore_parameters(setup_pointer settings,  double parameters[]);
-
-    // internal - save interpreter variables through embedded Python calls
-    int python_save_parameters(setup_pointer settings, const double parameters[]);
 
     //technically this violates encapsulation rules but is needed for
     // the Python introspection module

@@ -184,6 +184,7 @@ int Interp::convert_nurbs(int mode,
 	settings->current_x = nurbs_control_points[nurbs_control_points.size()-1].X;
         settings->current_y = nurbs_control_points[nurbs_control_points.size()-1].Y;
         NURBS_FEED(block->line_number, nurbs_control_points, nurbs_order);
+	//printf("hello\n");
 	nurbs_control_points.clear();
 	//printf("%d\n", 	nurbs_control_points.size());
 	settings->motion_mode = -1;
@@ -1221,7 +1222,7 @@ int Interp::convert_param_comment(char *comment, char *expanded, int len)
                 if((paramNumber >= 0) &&
                    (paramNumber < RS274NGC_MAX_PARAMETERS))
                 {
-		    CHP(get_numbered_parameter(&_setup, &value, paramNumber));
+                    value = _setup.parameters[paramNumber];
                     found = 1;
                 }
             }
@@ -2057,6 +2058,7 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
   return INTERP_OK;
 }
 
+
 /****************************************************************************/
 
 /*! convert_dwell
@@ -2273,6 +2275,7 @@ int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS27
 }
 
 int Interp::convert_savehome(int code, block_pointer block, setup_pointer s) {
+    double *p = s->parameters;
     
     if(s->cutter_comp_side) {
         ERS(_("Cannot set reference point with cutter compensation in effect"));
@@ -2287,7 +2290,6 @@ int Interp::convert_savehome(int code, block_pointer block, setup_pointer s) {
     double u = PROGRAM_TO_USER_LEN(s->u_current + s->tool_offset.u + s->u_origin_offset + s->u_axis_offset);
     double v = PROGRAM_TO_USER_LEN(s->v_current + s->tool_offset.v + s->v_origin_offset + s->v_axis_offset);
     double w = PROGRAM_TO_USER_LEN(s->w_current + s->tool_offset.w + s->w_origin_offset + s->w_axis_offset);
-
 
     if(s->a_axis_wrapped) {
         a = fmod(a, 360.0);
@@ -2305,25 +2307,25 @@ int Interp::convert_savehome(int code, block_pointer block, setup_pointer s) {
     }
 
     if(code == G_28_1) {
-	CHP(set_numbered_parameter(s,x,5161));
-	CHP(set_numbered_parameter(s,y,5162));
-	CHP(set_numbered_parameter(s,z,5163));
-	CHP(set_numbered_parameter(s,a,5164));
-	CHP(set_numbered_parameter(s,b,5165));
-	CHP(set_numbered_parameter(s,c,5166));
-	CHP(set_numbered_parameter(s,u,5167));
-	CHP(set_numbered_parameter(s,v,5168));
-	CHP(set_numbered_parameter(s,w,5169));
+        p[5161] = x;
+        p[5162] = y;
+        p[5163] = z;
+        p[5164] = a;
+        p[5165] = b;
+        p[5166] = c;
+        p[5167] = u;
+        p[5168] = v;
+        p[5169] = w;
     } else if(code == G_30_1) {
-	CHP(set_numbered_parameter(s,x,5181));
-	CHP(set_numbered_parameter(s,y,5182));
-	CHP(set_numbered_parameter(s,z,5183));
-	CHP(set_numbered_parameter(s,a,5184));
-	CHP(set_numbered_parameter(s,b,5185));
-	CHP(set_numbered_parameter(s,c,5186));
-	CHP(set_numbered_parameter(s,u,5187));
-	CHP(set_numbered_parameter(s,v,5188));
-	CHP(set_numbered_parameter(s,w,5189));
+        p[5181] = x;
+        p[5182] = y;
+        p[5183] = z;
+        p[5184] = a;
+        p[5185] = b;
+        p[5186] = c;
+        p[5187] = u;
+        p[5188] = v;
+        p[5189] = w;
     } else {
         ERS("BUG: Code not G28.1 or G38.1");
     }
@@ -2398,8 +2400,6 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
   CHKS((settings->cutter_comp_side),
       NCE_CANNOT_USE_G28_OR_G30_WITH_CUTTER_RADIUS_COMP);
 
-
-
   // waypoint is in currently active coordinate system
 
   // move indexers first, one at a time
@@ -2452,8 +2452,6 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
                     &u_end_home, &v_end_home, &w_end_home, settings);
   } else
     ERS(NCE_BUG_CODE_NOT_G28_OR_G30);
-    
-
   
   // if any axes are specified, home only those axes after the waypoint 
   // (both fanuc & haas, contrary to emc historical operation)
@@ -2485,7 +2483,6 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
       w_end = w_end_home;  
   }
 
-
   // move indexers first, one at a time
   if (AA_end != settings->AA_current && settings->a_indexer)
       issue_straight_index(3, AA_end, block->line_number, settings);
@@ -2493,7 +2490,6 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
       issue_straight_index(4, BB_end, block->line_number, settings);
   if (CC_end != settings->CC_current && settings->c_indexer)
       issue_straight_index(5, CC_end, block->line_number, settings);
-      
 
   STRAIGHT_TRAVERSE(block->line_number, end_x, end_y, end_z,
                     AA_end, BB_end, CC_end,
@@ -2798,6 +2794,7 @@ int Interp::save_settings(setup_pointer settings)
 int Interp::restore_settings(setup_pointer settings,
 			    int from_level)    //!< call level of context to restore from
 {
+
     CHKS((from_level < settings->call_level),
 	 (_("BUG: cannot restore from a lower call level (%d) to a higher call level (%d)")),from_level,settings->call_level);
     CHKS((from_level < 0), (_("BUG: restore from level %d !?")),from_level);
@@ -3250,13 +3247,6 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
     return convert_remapped_code(block,settings,STEP_M_10,'m',
 				   block->m_modes[10]);
 
- } else if ((block->m_modes[10] == 998) && ONCE_M(10)){
-	 // Tormach only
-	 if (FEATURE(LATHE_TOOLCHANGE)){
-		 CHKS(1, NCE_UNKNOWN_M_CODE_USED);
-	 } else {
-		CHP(convert_home(G_30, block, settings));
-	}
  } else if ((block->m_modes[10] != -1)  && ONCE_M(10)){
      /* user-defined M codes */
     int index = block->m_modes[10];
@@ -5223,7 +5213,6 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     tool_offset.u = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.u);
     tool_offset.v = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.v);
     tool_offset.w = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.w);
-
   } else if (g_code == G_43_1) {
     tool_offset = settings->tool_offset;
     pocket_number = -1;

@@ -91,7 +91,6 @@ include an option for suppressing superfluous commands.
 
 #include "units.h"
 
-
 extern char * _rs274ngc_errors[];
 
 const char *Interp::interp_status(int status) {
@@ -114,7 +113,6 @@ Interp::Interp()
       _setup(setup_struct())
 {
     _setup.init_once = 1;  
-    init_numbered_parameters();  
     init_named_parameters();  // need this before Python init.
  
     if (!PythonPlugin::instantiate(builtin_modules)) {  // factory
@@ -180,7 +178,7 @@ void Interp::doLog(unsigned int flags, const char *file, int line,
 		tm->tm_hour, tm->tm_min, tm->tm_sec,
 		tv.tv_usec/1000);
     }
-    if (flags & LOG_PID) {
+    if (flags & LOG_PROCESSID) {
 	fprintf(log_file, "%4d ",getpid());
     }
     if (flags & LOG_FILENAME) {
@@ -865,6 +863,7 @@ int Interp::init()
           inifile.Find(&_setup.orient_offset, "ORIENT_OFFSET", "RS274NGC");
 
           inifile.Find(&_setup.debugmask, "DEBUG", "EMC");
+
 	  _setup.debugmask |= EMC_DEBUG_UNCONDITIONAL;
 
           if(NULL != (inistring = inifile.Find("LOG_LEVEL", "RS274NGC")))
@@ -976,33 +975,7 @@ int Interp::init()
 		  Error("Python plugin configure() failed, status = %d", status);
 	      }
 	  }
-
-          inifile.Find(&_setup.python_api, "PYTHON_API", "RS274NGC");
-
-#if defined(PYTHON_API)
-	  if (_setup.python_api) {
-	      if (!PYUSABLE)
-		  Error("PYTHON_API requested but Python plugin not usable");
-	      // check all required methods
-	      if (!is_pycallable(&_setup, PARAMS_MODULE,"set_param")) {
-		  Error("PYTHON_API: params.set_param method not found");
-	      }
-	      if (!is_pycallable(&_setup, PARAMS_MODULE,"get_param")) {
-		  Error("PYTHON_API: params.get_param method not found");
-	      }
-	      if (!is_pycallable(&_setup, PARAMS_MODULE,"save_params")) {
-		  Error("PYTHON_API: params.save_params method not found");
-	      }
-	      if (!is_pycallable(&_setup, PARAMS_MODULE,"restore_params")) {
-		  Error("PYTHON_API: params.restore_params method not found");
-	      }
-	      // this one is optional; if defined, call it now:
-	      if (is_pycallable(&_setup, PARAMS_MODULE,"__init__")) {
-		  CHP(call_method(&_setup,PARAMS_MODULE,"__init__", PY_SELF, PY_LAST));
-	      }
-
-	  }
-#endif 
+ 
 	  int n = 1;
 	  int lineno = -1;
 	  _setup.g_remapped.clear();
@@ -1758,11 +1731,6 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
   double *pars;                 // short name for _setup.parameters
   int k;
 
-  // if told to do the emc.var job through Python, short-circuit here
-  if (_setup.python_api) {
-      return python_restore_parameters(&_setup, _setup.parameters);
-  }
-
   // it's OK if the parameter file doesn't exist yet
   // it'll be created in due course with some default values
   if(access(filename, F_OK) == -1)
@@ -1855,11 +1823,6 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   int required;                 // number of next required parameter
   int index;                    // index into _required_parameters
   int k;
-
-  // if told to do the emc.var job through the Python API, short-circuit here
-  if (_setup.python_api) {
-      return python_save_parameters(&_setup, parameters);
-  }
 
   if(access(filename, F_OK)==0) 
   {
