@@ -1319,7 +1319,10 @@ int Interp::open(const char *filename) //!< string: the name of the input NC-pro
          NULL), NCE_FILE_ENDED_WITH_NO_PERCENT_SIGN);
     length = strlen(line);
     if (length == (LINELEN - 1)) {   // line is too long. need to finish reading the line to recover
-      for (; fgetc(_setup.file_pointer) != '\n';);      // could look for EOF
+      // look for EOL or EOF - no EOL found == stuck loop
+      // files with only bare carriage returns (like from macs) cause trouble here
+      int single_char;
+      for (; (single_char = fgetc(_setup.file_pointer)) != '\n' && single_char != EOF;);
       ERS(NCE_COMMAND_TOO_LONG);
     }
     for (index = (length - 1);  // index set on last char
