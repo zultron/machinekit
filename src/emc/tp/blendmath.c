@@ -359,18 +359,21 @@ int calculateInscribedDiameter(PmCartesian const * const normal,
 
     //Find perpendicular component of unit directions
     // FIXME Assumes normal is unit length
-    // FIXME use plane project?
+
+    /* This section projects the X / Y / Z unit vectors onto the plane
+     * containing the motions. The operation is done "backwards" here due to a
+     * quirk with posemath.
+     *
+     */
     pmCartScalMult(normal, -normal->x, &planar_x);
     pmCartScalMult(normal, -normal->y, &planar_y);
     pmCartScalMult(normal, -normal->z, &planar_z);
 
-    planar_x.x+=1.0;
-    planar_y.y+=1.0;
-    planar_z.z+=1.0;
-
-    pmCartAbs(&planar_x, &planar_x);
-    pmCartAbs(&planar_y, &planar_y);
-    pmCartAbs(&planar_z, &planar_z);
+    //KLUDGE Fix div by zero by padding the "unit" vector a bit
+    const double unit_vector_padding = 1.0e-8;
+    planar_x.x+= (1.0 + unit_vector_padding);
+    planar_y.y+= (1.0 + unit_vector_padding);
+    planar_z.z+= (1.0 + unit_vector_padding);
 
     PmCartesian planar_scales;
     pmCartMag(&planar_x, &planar_scales.x);
@@ -378,8 +381,13 @@ int calculateInscribedDiameter(PmCartesian const * const normal,
     pmCartMag(&planar_z, &planar_scales.z);
 
     PmCartesian extents;
+
     pmCartCartDiv(bounds, &planar_scales, &extents);
 
+    pmCartAbs(&extents, &extents);
+
+    //TODO check for and skip disabled axes here (assumes that X Y Z are all
+    //active with valid limit)
     *diameter = pmCartMin(&extents);
     return TP_ERR_OK;
 }
