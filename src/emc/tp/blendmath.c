@@ -359,10 +359,10 @@ int calculateInscribedDiameter(PmCartesian const * const normal,
 
     //Find perpendicular component of unit directions
     // FIXME Assumes normal is unit length
-
+    
     /* This section projects the X / Y / Z unit vectors onto the plane
      * containing the motions. The operation is done "backwards" here due to a
-     * quirk with posemath.
+     * quirk with posemath. 
      *
      */
     pmCartScalMult(normal, -normal->x, &planar_x);

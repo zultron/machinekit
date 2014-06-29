@@ -2815,7 +2815,7 @@ STATIC int tpCheckEndCondition(TP_STRUCT const * const tp, TC_STRUCT * const tc,
         tc_debug_print("revised dt small, finishing tc\n");
         tc->progress = tc->target;
         tcSetSplitCycle(tc, 0.0, v_f);
-    } else if (dt < tp->cycleTime ) {
+    } else if (dt <= (tp->cycleTime - TP_TIME_EPSILON) ) {
         tc_debug_print(" corrected v_f = %f, a = %f\n", v_f, a);
         tcSetSplitCycle(tc, dt, v_f);
     } else {
