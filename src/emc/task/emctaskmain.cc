@@ -156,9 +156,10 @@ static int all_homed(void) {
 
 void emctask_quit(int sig)
 {
+    //rcs_print("emctask_quit(signal %d) called\n", sig);
     // set main's done flag
     done = 1;
-    if (sig == SIGTERM && chain_sigterm_handler) {
+    if (sig == SIGTERM && chain_sigterm_handler != NULL) {
         rcs_print("calling previous SIGTERM handler\n");
         chain_sigterm_handler(sig);
     }
@@ -3222,6 +3223,9 @@ int main(int argc, char *argv[])
     done = 0;
     // trap ^C
     struct sigaction newsig;
+    memset(&newsig, '\0', sizeof(newsig));
+    sigemptyset(&newsig.sa_mask);
+    newsig.sa_flags = 0;
     newsig.sa_handler = emctask_quit;
     sigemptyset(&newsig.sa_mask);
     sigaction(SIGINT, &newsig, NULL);
@@ -3295,6 +3299,8 @@ int main(int argc, char *argv[])
 
     // check to see if something during init grabbed SIGTERM away from us
     struct sigaction old_action;
+    memset(&old_action, '\0', sizeof(old_action));
+    chain_sigterm_handler = NULL;
     sigaction(SIGTERM, NULL, &old_action);
     if (old_action.sa_handler != emctask_quit) {
         // someone (halmodule.cc via python remap) grabbed SIGTERM, remember its handler
