@@ -1,0 +1,102 @@
+
+component tormachspindle "Tormach spindle-at-speed Component";
+
+license "©2014 Tormach® LLC. All rights reserved.";
+author "Tormach, LLC";
+
+// Purpose:
+// Drive motion.spindle-at-speed while compensating for contactor delay and motor accleration.
+// Since the pindle doesn't provide encoder feedback we estimate the speed.
+//
+// If the spindle was off include a delay period for the VFD contactor to close and the VFD to power up.
+// Then calculate the estimated spindle speed based upon elapsed time and acceleration.
+// After "speed-in" is reach assert "at-speed" pin.
+//
+// If the spindle was already on, ignore any time required for acceleratio and keep "at-speed" asserted.
+//
+// HAL mappings:
+//
+//    Inputs:
+//          speed-in             <= motion.spindle-speed-out
+//          startup-delay           seconds
+//          accleration             spindle RPM/s^2
+//          belt-position           1 -> high belt, 0 -> low belt position
+//
+//    Outputs:
+//          at-speed             => motion.spindle-at-speed
+//          speed-out               connect to UI for display during gcode program execution
+
+// connect to motion.spindle-speed-out
+pin in float speed_in;
+
+// connect to motion.spindle-at-speed
+pin out bit at_speed;
+
+// connect to UI
+pin out float speed_out;
+
+// startup delay period for contactor/VFD startup
+pin in float startup_delay;
+
+// hi-low belt position
+pin in bit belt_position;
+
+// spindle speed acceleration in spindle RPM/s^2
+pin in float acceleration_low;
+pin in float acceleration_high;
+
+pin out float elapsed_delay_time;
+pin out float elapsed_accel_time;
+
+
+function _ "Tormach spindle-at-speed Component";
+
+;;
+
+#include <rtapi_math.h>
+
+
+FUNCTION(_) {
+    float acceleration = 0.0;
+
+    // non-zero spindle speed and spindle not yet at_speed
+    if (fabs(speed_in) > 0.0) {
+        // spindle is on
+        if (at_speed == 0) {
+            // not yet at speed
+            if (elapsed_delay_time >= startup_delay) {
+                // in accleration state
+                elapsed_accel_time += fperiod;
+                acceleration = acceleration_low;
+                if (belt_position) {
+                    acceleration = acceleration_high;
+                }
+                // v = a * t + v(0)
+                speed_out = acceleration * elapsed_accel_time;
+                if (speed_out >= fabs(speed_in)) {
+                    // spindle should now be at speed
+                    at_speed = 1;
+                }
+            }
+            else {
+                // still in delay state
+                // add to elapsed delay before start
+                elapsed_delay_time += fperiod;
+                // keep accel time reset
+                elapsed_accel_time = 0.0;
+            }
+        }
+        // in at-speed state - speed-out follows speed-in
+        else {
+            speed_out = fabs(speed_in);
+        }
+    }
+    else {
+        // spindle is off
+        at_speed = 0;
+        elapsed_delay_time = 0.0;
+        elapsed_accel_time = 0.0;
+        speed_out = 0.0;
+    }
+}
+
