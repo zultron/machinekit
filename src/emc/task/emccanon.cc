@@ -482,6 +482,7 @@ static void send_g5x_msg(int index) {
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed);
     }
+    set_g5x_msg.line_number = sloc;
     interp_list.append(set_g5x_msg);
 }
 
@@ -497,12 +498,14 @@ static void send_g92_msg(void) {
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed);
     }
+    set_g92_msg.line_number = sloc;
     interp_list.append(set_g92_msg);
 }
 
 void SET_XY_ROTATION(double t) {
     EMC_TRAJ_SET_ROTATION sr;
     sr.rotation = t;
+    sr.line_number = sloc;
 	interp_list.append(sr);
 
     xy_rotation = t;

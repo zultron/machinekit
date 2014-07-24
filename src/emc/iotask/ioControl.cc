@@ -1040,12 +1040,14 @@ int main(int argc, char *argv[])
 	    break;
 
 	case EMC_LUBE_ON_TYPE:
+        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_LUBE_ON\n");
 	    emcioStatus.lube.on = 1;
 	    *(iocontrol_data->lube) = 1;
 	    break;
 
 	case EMC_LUBE_OFF_TYPE:
+        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_LUBE_OFF\n");
 	    emcioStatus.lube.on = 0;
 	    *(iocontrol_data->lube) = 0;

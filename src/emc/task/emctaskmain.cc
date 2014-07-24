@@ -1609,6 +1609,17 @@ int emcTaskQueueCommand(NMLmsg * cmd)
     return 0;
 }
 
+#if 0
+// forces an update of the currentLine in emcStatus to prevent stepping over a command
+static void updateCurrentLine(NMLmsg * cmd)
+{
+    int line = ((RCS_CMD_MSG*)cmd)->line_number;
+    if (line > 0) {
+        emcStatus->task.currentLine = line;
+    }
+}
+#endif
+
 // issues command immediately
 static int emcTaskIssueCommand(NMLmsg * cmd)
 {
@@ -1957,6 +1968,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_SPINDLE_SPEED_TYPE:
 	spindle_speed_msg = (EMC_SPINDLE_SPEED *) cmd;
 	retval = emcSpindleSpeed(spindle_speed_msg->speed, spindle_speed_msg->factor, spindle_speed_msg->xoffset);
+    //updateCurrentLine(cmd);
 	break;
 
     case EMC_SPINDLE_ORIENT_TYPE:
@@ -1967,10 +1979,12 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
    case EMC_SPINDLE_ON_TYPE:
 	spindle_on_msg = (EMC_SPINDLE_ON *) cmd;
 	retval = emcSpindleOn(spindle_on_msg->speed, spindle_on_msg->factor, spindle_on_msg->xoffset);
+    //updateCurrentLine(cmd);
 	break;
 
     case EMC_SPINDLE_OFF_TYPE:
 	retval = emcSpindleOff();
+    //updateCurrentLine(cmd);
 	break;
 
     case EMC_SPINDLE_BRAKE_RELEASE_TYPE:
@@ -1979,10 +1993,12 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_SPINDLE_INCREASE_TYPE:
 	retval = emcSpindleIncrease();
+    //updateCurrentLine(cmd);
 	break;
 
     case EMC_SPINDLE_DECREASE_TYPE:
 	retval = emcSpindleDecrease();
+    //updateCurrentLine(cmd);
 	break;
 
     case EMC_SPINDLE_CONSTANT_TYPE:
@@ -1993,35 +2009,22 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	retval = emcSpindleBrakeEngage();
 	break;
 
-    case EMC_COOLANT_MIST_ON_TYPE:
-	retval = task_methods->emcCoolantMistOn();
-	break;
-
-    case EMC_COOLANT_MIST_OFF_TYPE:
-	retval = task_methods->emcCoolantMistOff();
-	break;
-
-    case EMC_COOLANT_FLOOD_ON_TYPE:
-	retval = task_methods->emcCoolantFloodOn();
-	break;
-
-    case EMC_COOLANT_FLOOD_OFF_TYPE:
-	retval = task_methods->emcCoolantFloodOff();
-	break;
-
+    //First group of "passthrough" commands that just recycle the NML message (tagged with a line number)
     case EMC_LUBE_ON_TYPE:
     case EMC_LUBE_OFF_TYPE:
     case EMC_COOLANT_FLOOD_ON_TYPE:
     case EMC_COOLANT_FLOOD_OFF_TYPE:
     case EMC_COOLANT_MIST_ON_TYPE:
-    case EMC_COOLANT_MIST_OFF_TYPE:
     case EMC_TOOL_PREPARE_TYPE:
-    case EMC_TOOL_START_CHANGE_TYPE:
     case EMC_TOOL_LOAD_TYPE:
+    //updateCurrentLine(cmd);
+    //Second group of commands that don't update the line number but do pass a message
+    //NOTE: intentional waterfall here
+    case EMC_TOOL_START_CHANGE_TYPE:
     case EMC_TOOL_UNLOAD_TYPE:
+    case EMC_COOLANT_MIST_OFF_TYPE:
     retval = task_methods->emcToolPassMsg((RCS_CMD_MSG*)cmd);
-	//tool_prepare_msg = (EMC_TOOL_PREPARE *) cmd;
-	//retval = task_methods->emcToolPrepare(tool_prepare_msg->pocket,tool_prepare_msg->tool,tool_prepare_msg->line_number);
+    rcs_print("*Updating current line from MESSAGE: %d\n",emcStatus->task.currentLine);
 	break;
 
     case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
@@ -2038,11 +2041,13 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
                                   emc_tool_set_offset_msg->frontangle,
                                   emc_tool_set_offset_msg->backangle,
                                   emc_tool_set_offset_msg->orientation);
+    //updateCurrentLine(cmd);
 	break;
 
     case EMC_TOOL_SET_NUMBER_TYPE:
 	emc_tool_set_number_msg = (EMC_TOOL_SET_NUMBER *) cmd;
 	retval = task_methods->emcToolSetNumber(emc_tool_set_number_msg->tool);
+    //updateCurrentLine(cmd);
 	break;
 
 	// task commands
@@ -2456,6 +2461,7 @@ if (stepping) {                                                            \
   }                                                                        \
   else {                                                                   \
     if (emcStatus->task.currentLine != steppedLine) {                      \
+    /*rcs_print("waiting with currentLine = %d, steppedLine = %d\n", emcStatus->task.currentLine,steppedLine);*/ \
       break;                                                               \
     }                                                                      \
   }                                                                        \
@@ -2533,8 +2539,17 @@ static int emcTaskExecute(void)
 		// it
 		if (0 != emcTaskCommand) {
 		    emcTaskEager = 1;
-		    emcStatus->task.currentLine =
-			interp_list.get_line_number();
+            //Hack to not have interp lines overwrite the lines from TASK messages
+            int message_line = ((RCS_CMD_MSG*)emcTaskCommand)->line_number;
+            int interp_line = interp_list.get_line_number();
+			if (message_line <= 0) {
+                emcStatus->task.currentLine = interp_line;
+                rcs_print("*Updating current line from INTERP: %d\n",emcStatus->task.currentLine);
+            } else {
+                emcStatus->task.currentLine = message_line;
+                rcs_print("*Updating current line from MESSAGE: %d\n",emcStatus->task.currentLine);
+            }
+
 		    // and set it for all subsystems which use queued ids
 		    emcTrajSetMotionId(emcStatus->task.currentLine);
 		    if (emcStatus->motion.traj.queueFull) {
