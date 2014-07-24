@@ -1063,6 +1063,7 @@ int main(int argc, char *argv[])
 	    break;
 
 	default:
+        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print("IO: unknown command %s\n", emcSymbolLookup(type));
 	    break;
 	}			/* switch (type) */

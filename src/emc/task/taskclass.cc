@@ -745,5 +745,10 @@ int Task::emcIoPluginCall(int len, const char *msg)
     return 0;
 }
 
+int Task::emcIoSetLineNumber( RCS_CMD_MSG * cmd)
+{
+    sendCommand(cmd);
+    return 0;
+}
 
 
