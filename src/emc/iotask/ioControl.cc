@@ -836,9 +836,6 @@ int main(int argc, char *argv[])
 
     // Update the IO HAL line number if it's non-zero
     int line_number = ((EMC_TOOL_CMD_MSG *) emcioCommand)->line_number;
-    if (line_number) {
-        *(iocontrol_data->program_line) = line_number;
-    }
 
 	switch (type) {
 	case 0:
@@ -873,6 +870,7 @@ int main(int argc, char *argv[])
 	    break;
 
 	case EMC_TOOL_PREPARE_TYPE:
+        *(iocontrol_data->program_line) = line_number;
             {
                 signed int p = ((EMC_TOOL_PREPARE*)emcioCommand)->pocket;
                 int t = ((EMC_TOOL_PREPARE*)emcioCommand)->tool;
@@ -993,24 +991,28 @@ int main(int argc, char *argv[])
 
 
 	case EMC_COOLANT_MIST_ON_TYPE:
+        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_COOLANT_MIST_ON\n");
 	    emcioStatus.coolant.mist = 1;
 	    *(iocontrol_data->coolant_mist) = 1;
 	    break;
 
 	case EMC_COOLANT_MIST_OFF_TYPE:
+        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_COOLANT_MIST_OFF\n");
 	    emcioStatus.coolant.mist = 0;
 	    *(iocontrol_data->coolant_mist) = 0;
 	    break;
 
 	case EMC_COOLANT_FLOOD_ON_TYPE:
+        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_COOLANT_FLOOD_ON\n");
 	    emcioStatus.coolant.flood = 1;
 	    *(iocontrol_data->coolant_flood) = 1;
 	    break;
 
 	case EMC_COOLANT_FLOOD_OFF_TYPE:
+        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_COOLANT_FLOOD_OFF\n");
 	    emcioStatus.coolant.flood = 0;
 	    *(iocontrol_data->coolant_flood) = 0;

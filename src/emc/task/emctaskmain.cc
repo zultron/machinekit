@@ -2010,29 +2010,18 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_LUBE_ON_TYPE:
-	retval = task_methods->emcLubeOn();
-	break;
-
     case EMC_LUBE_OFF_TYPE:
-	retval = task_methods->emcLubeOff();
-	break;
-
+    case EMC_COOLANT_FLOOD_ON_TYPE:
+    case EMC_COOLANT_FLOOD_OFF_TYPE:
+    case EMC_COOLANT_MIST_ON_TYPE:
+    case EMC_COOLANT_MIST_OFF_TYPE:
     case EMC_TOOL_PREPARE_TYPE:
+    case EMC_TOOL_START_CHANGE_TYPE:
+    case EMC_TOOL_LOAD_TYPE:
+    case EMC_TOOL_UNLOAD_TYPE:
     retval = task_methods->emcToolPassMsg((RCS_CMD_MSG*)cmd);
 	//tool_prepare_msg = (EMC_TOOL_PREPARE *) cmd;
 	//retval = task_methods->emcToolPrepare(tool_prepare_msg->pocket,tool_prepare_msg->tool,tool_prepare_msg->line_number);
-	break;
-
-    case EMC_TOOL_START_CHANGE_TYPE:
-        retval = task_methods->emcToolStartChange();
-	break;
-
-    case EMC_TOOL_LOAD_TYPE:
-	retval = task_methods->emcToolLoad();
-	break;
-
-    case EMC_TOOL_UNLOAD_TYPE:
-	retval = task_methods->emcToolUnload();
 	break;
 
     case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
