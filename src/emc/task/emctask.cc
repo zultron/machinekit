@@ -261,8 +261,8 @@ int emcTaskSetState(int state)
 	    emcAxisDisable(t);
 	}
 	emcTrajDisable();
-	emcIoAbort(EMC_ABORT_TASK_STATE_OFF);
-	emcLubeOff();
+	task_methods->emcIoAbort(EMC_ABORT_TASK_STATE_OFF);
+	task_methods->emcLubeOff();
 	emcTaskAbort();
         emcSpindleAbort();
         emcAxisUnhome(-2); // only those joints which are volatile_home
@@ -276,15 +276,15 @@ int emcTaskSetState(int state)
 	for (t = 0; t < emcStatus->motion.traj.axes; t++) {
 	    emcAxisEnable(t);
 	}
-	emcLubeOn();
+	task_methods->emcLubeOn();
 	break;
 
     case EMC_TASK_STATE_ESTOP_RESET:
 	// reset the estop
-	emcAuxEstopOff();
-	emcLubeOff();
+	task_methods->emcAuxEstopOff();
+	task_methods->emcLubeOff();
 	emcTaskAbort();
-        emcIoAbort(EMC_ABORT_TASK_STATE_ESTOP_RESET);
+        task_methods->emcIoAbort(EMC_ABORT_TASK_STATE_ESTOP_RESET);
         emcSpindleAbort();
 	emcAbortCleanup(EMC_ABORT_TASK_STATE_ESTOP_RESET);
 	emcTaskPlanSynch();
@@ -294,14 +294,14 @@ int emcTaskSetState(int state)
         emcMotionAbort();
         emcSpindleAbort();
 	// go into estop-- do both IO estop and machine servos off
-	emcAuxEstopOn();
+	task_methods->emcAuxEstopOn();
 	for (t = 0; t < emcStatus->motion.traj.axes; t++) {
 	    emcAxisDisable(t);
 	}
 	emcTrajDisable();
-	emcLubeOff();
+	task_methods->emcLubeOff();
 	emcTaskAbort();
-        emcIoAbort(EMC_ABORT_TASK_STATE_ESTOP);
+        task_methods->emcIoAbort(EMC_ABORT_TASK_STATE_ESTOP);
         emcSpindleAbort();
         emcAxisUnhome(-2); // only those joints which are volatile_home
 	emcAbortCleanup(EMC_ABORT_TASK_STATE_ESTOP);
@@ -663,7 +663,7 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     if(oldstate == EMC_TASK_STATE_ON && oldstate != stat->state) {
 	emcTaskAbort();
         emcSpindleAbort();
-        emcIoAbort(EMC_ABORT_TASK_STATE_NOT_ON);
+        task_methods->emcIoAbort(EMC_ABORT_TASK_STATE_NOT_ON);
 	emcAbortCleanup(EMC_ABORT_TASK_STATE_NOT_ON);
     }
 

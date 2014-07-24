@@ -9,31 +9,30 @@
 class Task {
 public:
     Task();
-    virtual ~Task();
 
-    virtual int emcIoInit();
-    virtual int emcIoHalt();
-    virtual int emcIoAbort(int reason);
-    virtual int emcToolStartChange();
-    virtual int emcAuxEstopOn();
-    virtual int emcAuxEstopOff();
-    virtual int emcCoolantMistOn();
-    virtual int emcCoolantMistOff();
-    virtual int emcCoolantFloodOn();
-    virtual int emcCoolantFloodOff();
-    virtual int emcLubeOn();
-    virtual int emcLubeOff();
-    virtual int emcIoSetDebug(int debug);
-    virtual int emcToolSetOffset(int pocket, int toolno, EmcPose offset, double diameter,
+    int emcIoInit();
+    int emcIoHalt();
+    int emcIoAbort(int reason);
+    int emcToolStartChange();
+    int emcAuxEstopOn();
+    int emcAuxEstopOff();
+    int emcCoolantMistOn();
+    int emcCoolantMistOff();
+    int emcCoolantFloodOn();
+    int emcCoolantFloodOff();
+    int emcLubeOn();
+    int emcLubeOff();
+    int emcIoSetDebug(int debug);
+    int emcToolSetOffset(int pocket, int toolno, EmcPose offset, double diameter,
 				 double frontangle, double backangle, int orientation);
-    virtual int emcToolPrepare(int p, int tool);
-    virtual int emcToolLoad();
-    virtual int emcToolLoadToolTable(const char *file);
-    virtual int emcToolUnload();
-    virtual int emcToolSetNumber(int number);
-    virtual int emcIoUpdate(EMC_IO_STAT * stat);
+    int emcToolPrepare(int p, int tool,int line_number);
+    int emcToolLoad();
+    int emcToolLoadToolTable(const char *file);
+    int emcToolUnload();
+    int emcToolSetNumber(int number);
+    int emcIoUpdate(EMC_IO_STAT * stat);
 
-    virtual int emcIoPluginCall(int len, const char *msg);
+    int emcIoPluginCall(int len, const char *msg);
 
     int use_iocontrol;
     int random_toolchanger;

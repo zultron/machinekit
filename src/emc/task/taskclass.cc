@@ -256,7 +256,7 @@ static int forceCommand(RCS_CMD_MSG * msg)
 
 // glue
 
-int emcIoInit() { return task_methods->emcIoInit(); }
+//int emcIoInit() { return task_methods->emcIoInit(); }
 
 int emcIoHalt() {
     try {
@@ -269,30 +269,6 @@ int emcIoHalt() {
     }
 }
 
-
-int emcIoAbort(int reason) { return task_methods->emcIoAbort(reason); }
-int emcIoSetDebug(int debug) { return task_methods->emcIoSetDebug(debug); }
-int emcAuxEstopOn()  { return task_methods->emcAuxEstopOn(); }
-int emcAuxEstopOff() { return task_methods->emcAuxEstopOff(); }
-int emcCoolantMistOn() { return task_methods->emcCoolantMistOn(); }
-int emcCoolantMistOff() { return task_methods->emcCoolantMistOff(); }
-int emcCoolantFloodOn() { return task_methods->emcCoolantFloodOn(); }
-int emcCoolantFloodOff() { return task_methods->emcCoolantFloodOff(); }
-int emcLubeOn() { return task_methods->emcLubeOn(); }
-int emcLubeOff() { return task_methods->emcLubeOff(); }
-int emcToolPrepare(int p, int tool) { return task_methods->emcToolPrepare(p, tool); }
-int emcToolStartChange() { return task_methods->emcToolStartChange(); }
-int emcToolLoad() { return task_methods->emcToolLoad(); }
-int emcToolUnload()  { return task_methods->emcToolUnload(); }
-int emcToolLoadToolTable(const char *file) { return task_methods->emcToolLoadToolTable(file); }
-int emcToolSetOffset(int pocket, int toolno, EmcPose offset, double diameter,
-                     double frontangle, double backangle, int orientation) {
-    return task_methods->emcToolSetOffset( pocket,  toolno,  offset,  diameter,
-					   frontangle,  backangle,  orientation); }
-int emcToolSetNumber(int number) { return task_methods->emcToolSetNumber(number); }
-int emcIoUpdate(EMC_IO_STAT * stat) { return task_methods->emcIoUpdate(stat); }
-int emcIoPluginCall(EMC_IO_PLUGIN_CALL *call_msg) { return task_methods->emcIoPluginCall(call_msg->len,
-											   call_msg->call); }
 static const char *instance_name = "task_instance";
 
 int emcTaskOnce(const char *filename)
@@ -482,8 +458,6 @@ Task::Task() : use_iocontrol(0), random_toolchanger(0) {
 
 };
 
-
-Task::~Task() {};
 
 // NML commands
 

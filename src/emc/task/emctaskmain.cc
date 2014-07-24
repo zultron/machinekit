@@ -1941,7 +1941,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	/* set the debug level here */
 	emc_debug = ((EMC_SET_DEBUG *) cmd)->debug;
 	/* and in IO and motion */
-	emcIoSetDebug(emc_debug);
+	task_methods->emcIoSetDebug(emc_debug);
 	emcMotionSetDebug(emc_debug);
 	/* and reflect it in the status-- this isn't updated continually */
 	emcStatus->debug = emc_debug;
@@ -1991,54 +1991,54 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_COOLANT_MIST_ON_TYPE:
-	retval = emcCoolantMistOn();
+	retval = task_methods->emcCoolantMistOn();
 	break;
 
     case EMC_COOLANT_MIST_OFF_TYPE:
-	retval = emcCoolantMistOff();
+	retval = task_methods->emcCoolantMistOff();
 	break;
 
     case EMC_COOLANT_FLOOD_ON_TYPE:
-	retval = emcCoolantFloodOn();
+	retval = task_methods->emcCoolantFloodOn();
 	break;
 
     case EMC_COOLANT_FLOOD_OFF_TYPE:
-	retval = emcCoolantFloodOff();
+	retval = task_methods->emcCoolantFloodOff();
 	break;
 
     case EMC_LUBE_ON_TYPE:
-	retval = emcLubeOn();
+	retval = task_methods->emcLubeOn();
 	break;
 
     case EMC_LUBE_OFF_TYPE:
-	retval = emcLubeOff();
+	retval = task_methods->emcLubeOff();
 	break;
 
     case EMC_TOOL_PREPARE_TYPE:
 	tool_prepare_msg = (EMC_TOOL_PREPARE *) cmd;
-	retval = emcToolPrepare(tool_prepare_msg->pocket,tool_prepare_msg->tool);
+	retval = task_methods->emcToolPrepare(tool_prepare_msg->pocket,tool_prepare_msg->tool,tool_prepare_msg->line_number);
 	break;
 
     case EMC_TOOL_START_CHANGE_TYPE:
-        retval = emcToolStartChange();
+        retval = task_methods->emcToolStartChange();
 	break;
 
     case EMC_TOOL_LOAD_TYPE:
-	retval = emcToolLoad();
+	retval = task_methods->emcToolLoad();
 	break;
 
     case EMC_TOOL_UNLOAD_TYPE:
-	retval = emcToolUnload();
+	retval = task_methods->emcToolUnload();
 	break;
 
     case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
 	load_tool_table_msg = (EMC_TOOL_LOAD_TOOL_TABLE *) cmd;
-	retval = emcToolLoadToolTable(load_tool_table_msg->file);
+	retval = task_methods->emcToolLoadToolTable(load_tool_table_msg->file);
 	break;
 
     case EMC_TOOL_SET_OFFSET_TYPE:
 	emc_tool_set_offset_msg = (EMC_TOOL_SET_OFFSET *) cmd;
-	retval = emcToolSetOffset(emc_tool_set_offset_msg->pocket,
+	retval = task_methods->emcToolSetOffset(emc_tool_set_offset_msg->pocket,
                                   emc_tool_set_offset_msg->toolno,
                                   emc_tool_set_offset_msg->offset,
                                   emc_tool_set_offset_msg->diameter,
@@ -2049,7 +2049,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TOOL_SET_NUMBER_TYPE:
 	emc_tool_set_number_msg = (EMC_TOOL_SET_NUMBER *) cmd;
-	retval = emcToolSetNumber(emc_tool_set_number_msg->tool);
+	retval = task_methods->emcToolSetNumber(emc_tool_set_number_msg->tool);
 	break;
 
 	// task commands
@@ -2061,7 +2061,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TASK_ABORT_TYPE:
 	// abort everything
 	emcTaskAbort();
-        emcIoAbort(EMC_ABORT_TASK_ABORT);
+        task_methods->emcIoAbort(EMC_ABORT_TASK_ABORT);
         emcSpindleAbort();
 	mdi_execute_abort();
 	emcAbortCleanup(EMC_ABORT_TASK_ABORT);
@@ -2208,7 +2208,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 		interp_list.clear();
 		// abort everything
 		emcTaskAbort();
-		emcIoAbort(EMC_ABORT_INTERPRETER_ERROR_MDI);
+		task_methods->emcIoAbort(EMC_ABORT_INTERPRETER_ERROR_MDI);
 		emcSpindleAbort(); 
 		mdi_execute_abort(); // sets emcStatus->task.interpState to  EMC_TASK_INTERP_IDLE
 		emcAbortCleanup(EMC_ABORT_INTERPRETER_ERROR_MDI, "interpreter error during MDI");
@@ -2314,7 +2314,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_IO_PLUGIN_CALL_TYPE:
-	retval =  emcIoPluginCall( (EMC_IO_PLUGIN_CALL *) cmd);
+	retval =  task_methods->emcIoPluginCall(((EMC_IO_PLUGIN_CALL *) cmd)->len, ((EMC_IO_PLUGIN_CALL *) cmd)->call);
 	break;
 
      default:
@@ -2496,7 +2496,7 @@ static int emcTaskExecute(void)
 
 	// abort everything
 	emcTaskAbort();
-        emcIoAbort(EMC_ABORT_TASK_EXEC_ERROR);
+        task_methods->emcIoAbort(EMC_ABORT_TASK_EXEC_ERROR);
         emcSpindleAbort();
 	mdi_execute_abort();
 
@@ -2914,7 +2914,7 @@ static int emctask_startup()
     end = RETRY_TIME;
     good = 0;
     do {
-	if (0 == emcIoInit()) {
+	if (0 == task_methods->emcIoInit()) {
 	    good = 1;
 	    break;
 	}
@@ -2935,7 +2935,7 @@ static int emctask_startup()
     end = RETRY_TIME;
     good = 0;
     do {
-	if (0 == emcIoUpdate(&emcStatus->io)) {
+	if (0 == task_methods->emcIoUpdate(&emcStatus->io)) {
 	    good = 1;
 	    break;
 	}
@@ -3335,14 +3335,14 @@ int main(int argc, char *argv[])
 	}
 	// update subordinate status
 
-	emcIoUpdate(&emcStatus->io);
+	task_methods->emcIoUpdate(&emcStatus->io);
 	emcMotionUpdate(&emcStatus->motion);
 	// synchronize subordinate states
 	if (emcStatus->io.aux.estop) {
 	    if (emcStatus->motion.traj.enabled) {
 		emcTrajDisable();
 		emcTaskAbort();
-		emcIoAbort(EMC_ABORT_AUX_ESTOP);
+		task_methods->emcIoAbort(EMC_ABORT_AUX_ESTOP);
 		emcSpindleAbort();
 		emcAxisUnhome(-2); // only those joints which are volatile_home
 		mdi_execute_abort();
@@ -3350,13 +3350,13 @@ int main(int argc, char *argv[])
 		emcTaskPlanSynch();
 	    }
 	    if (emcStatus->io.coolant.mist) {
-		emcCoolantMistOff();
+		task_methods->emcCoolantMistOff();
 	    }
 	    if (emcStatus->io.coolant.flood) {
-		emcCoolantFloodOff();
+		task_methods->emcCoolantFloodOff();
 	    }
 	    if (emcStatus->io.lube.on) {
-		emcLubeOff();
+		task_methods->emcLubeOff();
 	    }
 	    if (emcStatus->motion.spindle.enabled) {
 		emcSpindleOff();
@@ -3411,7 +3411,7 @@ int main(int argc, char *argv[])
 
         // abort everything
         emcTaskAbort();
-        emcIoAbort(EMC_ABORT_MOTION_OR_IO_RCS_ERROR);
+        task_methods->emcIoAbort(EMC_ABORT_MOTION_OR_IO_RCS_ERROR);
         emcSpindleAbort();
 	    mdi_execute_abort();
 	    // without emcTaskPlanClose(), a new run command resumes at
