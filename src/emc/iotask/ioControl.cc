@@ -102,6 +102,7 @@ struct iocontrol_str {
     //tool-change
     hal_bit_t *tool_change;	/* output, notifies a tool-change should happen (emc should be in the tool-change position) */
     hal_bit_t *tool_changed;	/* input, notifies tool has been changed */
+    hal_s32_t *program_line;    /* output, shows line associated with last IO command */
 
     // note: spindle control has been moved to motion
 } * iocontrol_data;			//pointer to the HAL-struct
@@ -208,6 +209,8 @@ static int iniLoad(const char *filename)
 	} else {
 	    strncpy(version, "unknown", LINELEN-1);
 	}
+
+	rtapi_set_msg_level(RTAPI_MSG_DBG);
 
 	if (NULL != (inistring = inifile.Find("MACHINE", "EMC"))) {
 	    strncpy(machine, inistring, LINELEN-1);
@@ -523,6 +526,16 @@ int iocontrol_hal_init(void)
 	return -1;
     }
 
+    retval = hal_pin_s32_newf(HAL_IN, &(iocontrol_data->program_line), comp_id,
+			     "iocontrol.%d.program-line", n);
+    if (retval < 0) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"IOCONTROL: ERROR: iocontrol %d pin program-line export failed with err=%i\n",
+			n, retval);
+	hal_exit(comp_id);
+	return -1;
+    }
+
     hal_ready(comp_id);
 
     return 0;
@@ -547,6 +560,7 @@ void hal_init_pins(void)
     *(iocontrol_data->tool_prep_number)=0;	/* output, pin that holds the tool number to be prepared, only valid when tool-prepare=TRUE */
     *(iocontrol_data->tool_prep_pocket)=0;	/* output, pin that holds the tool number to be prepared, only valid when tool-prepare=TRUE */
     *(iocontrol_data->tool_change)=0;		/* output, notifies a tool-change should happen (emc should be in the tool-change position) */
+    *(iocontrol_data->program_line)=0;
 }
 
 
@@ -820,6 +834,12 @@ int main(int argc, char *argv[])
 	type = emcioCommand->type;
 	emcioStatus.status = RCS_DONE;
 
+    // Update the IO HAL line number if it's non-zero
+    int line_number = ((EMC_TOOL_CMD_MSG *) emcioCommand)->line_number;
+    if (line_number) {
+        *(iocontrol_data->program_line) = line_number;
+    }
+
 	switch (type) {
 	case 0:
 	    break;
@@ -855,7 +875,7 @@ int main(int argc, char *argv[])
 	case EMC_TOOL_PREPARE_TYPE:
             {
                 signed int p = ((EMC_TOOL_PREPARE*)emcioCommand)->pocket;
-		int t = ((EMC_TOOL_PREPARE*)emcioCommand)->tool;
+                int t = ((EMC_TOOL_PREPARE*)emcioCommand)->tool;
                 rtapi_print_msg(RTAPI_MSG_DBG, "EMC_TOOL_PREPARE tool=%d pocket=%d\n", t, p);
 
                 // it doesn't make sense to prep the spindle pocket

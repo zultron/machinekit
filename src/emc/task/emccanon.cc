@@ -60,6 +60,12 @@ static const double tiny = 1e-7;
 static double xy_rotation = 0.;
 static int rotary_unlock_for_traverse = -1;
 
+static int _sloc;
+void UPDATE_SLOC(int sloc) {
+    printf("--Got UPDATE_SLOC: %d--\n",sloc);
+    _sloc = sloc;
+}
+
 #ifndef MIN
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #endif
@@ -2038,6 +2044,9 @@ void SELECT_POCKET(int slot , int tool)
 
     prep_for_tool_msg.pocket = slot;
     prep_for_tool_msg.tool = tool;
+    prep_for_tool_msg.line_number = _sloc;
+
+    printf("in SELECT_POCKET: _sloc = %d\n",_sloc);
 
     interp_list.append(prep_for_tool_msg);
 }

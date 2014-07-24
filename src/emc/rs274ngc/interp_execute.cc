@@ -238,7 +238,9 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 {
   int status;
 
+
   block->line_number = settings->sequence_number;
+  convert_line_number(block->line_number);
   if ((block->comment[0] != 0) && ONCE(STEP_COMMENT)) {
     status = convert_comment(block->comment);
     CHP(status);

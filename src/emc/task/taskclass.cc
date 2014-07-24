@@ -614,6 +614,12 @@ int Task::emcToolPrepare(int p, int tool)
     return 0;
 }
 
+int Task::emcToolPassMsg(RCS_CMD_MSG * toolMsg)
+{
+    sendCommand(toolMsg);
+    return 0;
+}
+
 
 int Task::emcToolStartChange()
 {

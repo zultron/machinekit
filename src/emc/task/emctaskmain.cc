@@ -350,7 +350,10 @@ int emcSystemCmd(char *s)
 	// convert string to argc/argv
 	argvize(s, buffer, argv, EMC_SYSTEM_CMD_LEN);
 	// drop any setuid privileges
-	setuid(getuid());
+	int result = setuid(getuid());
+    if (-1 == result) {
+        rcs_print("got %d from setuid\n",result);
+    }
 	execvp(argv[0], argv);
 	// if we get here, we didn't exec
 	if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
@@ -403,7 +406,7 @@ static EMC_SPINDLE_SPEED *spindle_speed_msg;
 static EMC_SPINDLE_ORIENT *spindle_orient_msg;
 static EMC_SPINDLE_WAIT_ORIENT_COMPLETE *wait_spindle_orient_complete_msg;
 static EMC_SPINDLE_ON *spindle_on_msg;
-static EMC_TOOL_PREPARE *tool_prepare_msg;
+//static EMC_TOOL_PREPARE *tool_prepare_msg;
 static EMC_TOOL_LOAD_TOOL_TABLE *load_tool_table_msg;
 static EMC_TOOL_SET_OFFSET *emc_tool_set_offset_msg;
 static EMC_TOOL_SET_NUMBER *emc_tool_set_number_msg;
@@ -2015,8 +2018,9 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TOOL_PREPARE_TYPE:
-	tool_prepare_msg = (EMC_TOOL_PREPARE *) cmd;
-	retval = task_methods->emcToolPrepare(tool_prepare_msg->pocket,tool_prepare_msg->tool,tool_prepare_msg->line_number);
+    retval = task_methods->emcToolPassMsg((RCS_CMD_MSG*)cmd);
+	//tool_prepare_msg = (EMC_TOOL_PREPARE *) cmd;
+	//retval = task_methods->emcToolPrepare(tool_prepare_msg->pocket,tool_prepare_msg->tool,tool_prepare_msg->line_number);
 	break;
 
     case EMC_TOOL_START_CHANGE_TYPE:

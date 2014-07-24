@@ -21,6 +21,7 @@ class RCS_CMD_MSG:public NMLmsg {
   public:
     RCS_CMD_MSG(NMLTYPE t, long sz);
     int serial_number;
+    int line_number;
 };
 
 extern int RCS_CMD_MSG_format(NMLTYPE, void *, CMS *);

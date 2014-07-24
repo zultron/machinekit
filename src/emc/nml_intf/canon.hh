@@ -908,4 +908,6 @@ extern void PLUGIN_CALL(int len, const char *call);
 // same for IoTask context
 extern void IO_PLUGIN_CALL(int len, const char *call);
 
+extern void UPDATE_SLOC(int sloc);
+
 #endif				/* ifndef CANON_HH */

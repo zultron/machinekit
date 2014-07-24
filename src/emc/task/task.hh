@@ -16,7 +16,10 @@
 #ifndef EMC_TASK_HH
 #define EMC_TASK_HH
 #include "taskclass.hh"
+
+// global command pointer
 extern NMLmsg *emcTaskCommand;
+
 extern int stepping;
 extern int steppingWait;
 extern int emcTaskQueueCommand(NMLmsg *cmd);
