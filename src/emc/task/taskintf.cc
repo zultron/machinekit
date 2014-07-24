@@ -22,6 +22,7 @@
 #include "motion.h"		// emcmot_command_t,STATUS, etc.
 #include "motion_debug.h"
 #include "emc.hh"
+#include "emc_statics.hh"
 #include "emcglb.h"		// EMC_INIFILE
 #include "emc_nml.hh"
 #include "rcs_print.hh"

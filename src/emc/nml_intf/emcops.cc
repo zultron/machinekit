@@ -15,7 +15,7 @@
 * Last change:
 ********************************************************************/
 
-#include "emc.hh"
+#include "emc_types.hh"
 #include "emc_nml.hh"
 
 EMC_AXIS_STAT::EMC_AXIS_STAT():

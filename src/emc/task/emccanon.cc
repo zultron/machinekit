@@ -36,7 +36,7 @@
 #include <math.h>
 #include <string.h>		// strncpy()
 #include <ctype.h>		// isspace()
-#include "emc.hh"		// EMC NML
+#include "emc_statics.hh"
 #include "emc_nml.hh"
 #include "canon.hh"
 #include "canon_position.hh"		// data type for a machine position

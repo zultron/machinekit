@@ -61,7 +61,8 @@
 #include "hal.h"		/* access to HAL functions/definitions */
 #include "rtapi.h"		/* rtapi_print_msg */
 #include "rcs.hh"		/* RCS_CMD_CHANNEL */
-#include "emc.hh"		/* EMC NML */
+#include "emc.hh"	    	/* EMC NML */
+#include "emc_types.hh"
 #include "emc_nml.hh"
 #include "emcglb.h"		/* EMC_NMLFILE, EMC_INIFILE, TOOL_TABLE_FILE */
 #include "inifile.hh"		/* INIFILE */

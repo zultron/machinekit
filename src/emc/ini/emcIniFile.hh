@@ -32,7 +32,7 @@
 #ifndef _EMCINIFILE_HH_
 #define _EMCINIFILE_HH_
  
-#include "emc.hh"
+#include "emc_types.hh"
 #include "inifile.hh"
 
 

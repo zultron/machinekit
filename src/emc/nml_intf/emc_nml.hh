@@ -14,7 +14,7 @@
 ********************************************************************/
 #ifndef EMC_NML_HH
 #define EMC_NML_HH
-#include "emc.hh"
+#include "emc_types.hh"
 #include "rcs.hh"
 #include "cmd_msg.hh"
 #include "stat_msg.hh"

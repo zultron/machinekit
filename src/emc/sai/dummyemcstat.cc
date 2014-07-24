@@ -1,7 +1,7 @@
 // keep linker happy so TaskMod can be resolved
 
 #include "rcs.hh"		// NML classes, nmlErrorFormat()
-#include "emc.hh"		// EMC NML
+#include "emc_types.hh"
 #include "emc_nml.hh"
 #include "rs274ngc.hh"
 #include "rs274ngc_interp.hh"

@@ -68,6 +68,8 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 
 #include "rcs.hh"		// NML classes, nmlErrorFormat()
 #include "emc.hh"		// EMC NML
+#include "emc_types.hh"
+#include "emc_statics.hh"
 #include "emc_nml.hh"
 #include "canon.hh"		// CANON_TOOL_TABLE stuff
 #include "inifile.hh"		// INIFILE

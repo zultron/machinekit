@@ -22,6 +22,8 @@
 
 #include "rcs.hh"		// INIFILE
 #include "emc.hh"		// EMC NML
+#include "emc_types.hh"
+#include "emc_statics.hh"
 #include "emc_nml.hh"
 #include "emcglb.h"		// EMC_INIFILE
 #include "interpl.hh"		// NML_INTERP_LIST, interp_list

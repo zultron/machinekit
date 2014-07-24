@@ -23,7 +23,7 @@
 
 #include <stdio.h>
 #include "canon.hh"
-#include "emc.hh"
+#include "emc_types.hh"
 #include "debugflags.h"
 
 typedef struct setup_struct setup;

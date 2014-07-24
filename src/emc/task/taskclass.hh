@@ -1,7 +1,7 @@
 #ifndef TASKCLASS_HH
 #define TASKCLASS_HH
 
-#include "emc.hh"
+#include "emc_types.hh"
 #include "initool.hh"
 #include "tool_parse.h"
 #include "inifile.hh"
