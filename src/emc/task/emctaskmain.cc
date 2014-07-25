@@ -90,6 +90,7 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
  */
 #define DEFAULT_EMC_UI_TIMEOUT 5.0
 
+static int emcTaskEchoLineToIo(NMLmsg * cmd);
 
 // command line args-- global so that other modules can access 
 int Argc;
@@ -894,6 +895,7 @@ static int emcTaskPlan(void)
 		break;
 
 	    }			// switch (type)
+                    emcTaskEchoLineToIo(emcCommand);
 
 	default:
 	    // invalid mode
@@ -1620,6 +1622,40 @@ static void updateCurrentLine(NMLmsg * cmd)
 }
 #endif
 
+static int emcTaskEchoLineToIo(NMLmsg * cmd)
+{
+
+    if (!cmd) {
+        return -1;
+    }
+
+    switch (cmd->type) {
+
+        case EMC_TRAJ_SET_TERM_COND_TYPE:
+        case EMC_TRAJ_SET_SPINDLESYNC_TYPE:
+        case EMC_TRAJ_SET_OFFSET_TYPE:
+        case EMC_TRAJ_SET_ROTATION_TYPE:
+        case EMC_TRAJ_SET_G5X_TYPE:
+        case EMC_TRAJ_SET_G92_TYPE:
+        case EMC_TRAJ_PROBE_TYPE:
+        case EMC_TRAJ_RIGID_TAP_TYPE:
+        case EMC_MOTION_ADAPTIVE_TYPE:
+        case EMC_SPINDLE_SPEED_TYPE:
+        case EMC_SPINDLE_ORIENT_TYPE:
+        case EMC_SPINDLE_ON_TYPE:
+        case EMC_SPINDLE_OFF_TYPE:
+        case EMC_SPINDLE_INCREASE_TYPE:
+        case EMC_SPINDLE_DECREASE_TYPE:
+        case EMC_SPINDLE_CONSTANT_TYPE:
+            int line_number = ((RCS_CMD_MSG*)cmd)->line_number;
+            rcs_print("Passing line number %d to IO\n", line_number);
+            task_methods->emcIoSetLineNumber((RCS_CMD_MSG*)cmd);
+            break;
+
+    }
+    return 0;
+}
+
 // issues command immediately
 static int emcTaskIssueCommand(NMLmsg * cmd)
 {
@@ -1871,7 +1907,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	// struct-copy program origin
 	emcStatus->task.g5x_offset = ((EMC_TRAJ_SET_G5X *) cmd)->origin;
         emcStatus->task.g5x_index = ((EMC_TRAJ_SET_G5X *) cmd)->g5x_index;
-        task_methods->emcIoSetLineNumber((RCS_CMD_MSG*)cmd);
 	retval = 0;
 	break;
     case EMC_TRAJ_SET_G92_TYPE:
@@ -1969,7 +2004,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_SPINDLE_SPEED_TYPE:
 	spindle_speed_msg = (EMC_SPINDLE_SPEED *) cmd;
 	retval = emcSpindleSpeed(spindle_speed_msg->speed, spindle_speed_msg->factor, spindle_speed_msg->xoffset);
-    //updateCurrentLine(cmd);
 	break;
 
     case EMC_SPINDLE_ORIENT_TYPE:
@@ -1980,12 +2014,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
    case EMC_SPINDLE_ON_TYPE:
 	spindle_on_msg = (EMC_SPINDLE_ON *) cmd;
 	retval = emcSpindleOn(spindle_on_msg->speed, spindle_on_msg->factor, spindle_on_msg->xoffset);
-    //updateCurrentLine(cmd);
 	break;
 
     case EMC_SPINDLE_OFF_TYPE:
 	retval = emcSpindleOff();
-    //updateCurrentLine(cmd);
 	break;
 
     case EMC_SPINDLE_BRAKE_RELEASE_TYPE:
@@ -1994,7 +2026,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_SPINDLE_INCREASE_TYPE:
 	retval = emcSpindleIncrease();
-    //updateCurrentLine(cmd);
 	break;
 
     case EMC_SPINDLE_DECREASE_TYPE:
