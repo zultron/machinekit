@@ -1641,12 +1641,12 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
     ERS(NCE_BUG_CODE_NOT_IN_RANGE_G54_TO_G593);
   }
 
-  if (origin == settings->origin_index) {       /* already using this origin */
-#ifdef DEBUG_EMC
-    enqueue_COMMENT("interpreter: continuing to use same coordinate system");
-#endif
-    return INTERP_OK;
-  }
+  //if (origin == settings->origin_index) {       [> already using this origin <]
+//#ifdef DEBUG_EMC
+    //enqueue_COMMENT("interpreter: continuing to use same coordinate system");
+//#endif
+    //return INTERP_OK;
+  //}
 
   // move the current point into the new system
   find_current_in_system(settings, origin,

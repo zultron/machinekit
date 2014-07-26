@@ -472,7 +472,6 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
 	cmd = il->get();
 
 	switch (cmd->type) {
-
 	case EMC_OPERATOR_ERROR_TYPE:
 	    emcOperatorError(operator_error_msg->id, "%s",
 			     operator_error_msg->error);
@@ -1093,6 +1092,7 @@ static int emcTaskPlan(void)
 		    emcStatus->task.interpState = EMC_TASK_INTERP_PAUSED;
 		    emcStatus->task.task_paused = 1;
 		    retval = 0;
+            rcs_print("Got TASK_PLAN_STEP (1)\n");
 		    break;
 
 		case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
@@ -1167,6 +1167,7 @@ static int emcTaskPlan(void)
 		    break;
 
 		case EMC_TASK_PLAN_STEP_TYPE:
+            rcs_print("Got TASK_PLAN_STEP(2)\n");
 		    stepping = 1;	// set stepping mode in case it's not
 		    steppingWait = 0;	// clear the wait
 		    break;
@@ -1253,6 +1254,7 @@ static int emcTaskPlan(void)
 			emcStatus->task.interpState = (enum EMC_TASK_INTERP_ENUM) interpResumeState;
 		    }
 		    emcStatus->task.task_paused = 1;
+            rcs_print("Got TASK_PLAN_STEP(3)\n");
 		    break;
 
 		    // otherwise we can't handle it
@@ -1321,6 +1323,7 @@ static int emcTaskPlan(void)
 		case EMC_TASK_PLAN_STEP_TYPE:
 		    stepping = 1;	// set stepping mode in case it's not
 		    steppingWait = 0;	// clear the wait
+            rcs_print("Got TASK_PLAN_STEP (4)\n");
 		    break;
 
 		    // otherwise we can't handle it
