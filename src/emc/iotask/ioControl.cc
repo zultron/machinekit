@@ -1062,6 +1062,11 @@ int main(int argc, char *argv[])
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_TOOL_START_CHANGE\n");
 	    break;
 
+    case EMC_IO_SET_LINE_NUMBER_TYPE:
+        *(iocontrol_data->program_line) = line_number;
+	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_IO_SET_LINE_NUMBER\n");
+        break;
+
 	default:
         *(iocontrol_data->program_line) = line_number;
 	    rtapi_print("IO: unknown command %s\n", emcSymbolLookup(type));

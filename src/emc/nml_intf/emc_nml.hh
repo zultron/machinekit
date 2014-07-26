@@ -2108,6 +2108,17 @@ class EMC_STAT:public EMC_STAT_MSG {
     int debug;			// copy of EMC_DEBUG global
 };
 
+class EMC_IO_SET_LINE_NUMBER:public EMC_TOOL_CMD_MSG {
+  public:
+    EMC_IO_SET_LINE_NUMBER():EMC_TOOL_CMD_MSG(EMC_IO_SET_LINE_NUMBER_TYPE,
+					   sizeof(EMC_IO_SET_LINE_NUMBER)) {
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+};
+
+
 /*
    Declarations of EMC status class implementations, for major subsystems.
    These are defined in the appropriate main() files, and referenced

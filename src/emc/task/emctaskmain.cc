@@ -895,7 +895,6 @@ static int emcTaskPlan(void)
 		break;
 
 	    }			// switch (type)
-                    emcTaskEchoLineToIo(emcCommand);
 
 	default:
 	    // invalid mode
@@ -1529,6 +1528,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TOOL_PREPARE_TYPE:
     case EMC_LUBE_ON_TYPE:
     case EMC_LUBE_OFF_TYPE:
+    case EMC_IO_SET_LINE_NUMBER_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_IO;
 	break;
 
@@ -1672,6 +1672,9 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	rcs_print("Issuing %s -- \t (%s)\n", emcSymbolLookup(cmd->type),
 		  emcCommandBuffer->msg2str(cmd));
     }
+
+    emcTaskEchoLineToIo(cmd);
+
     switch (cmd->type) {
 	// general commands
 
@@ -2055,6 +2058,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TOOL_START_CHANGE_TYPE:
     case EMC_TOOL_UNLOAD_TYPE:
     case EMC_COOLANT_MIST_OFF_TYPE:
+    // cheat to pass line to IO
+    case EMC_IO_SET_LINE_NUMBER_TYPE:
     retval = task_methods->emcToolPassMsg((RCS_CMD_MSG*)cmd);
     rcs_print("*Updating current line from MESSAGE: %d\n",emcStatus->task.currentLine);
 	break;
@@ -2434,6 +2439,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_COOLANT_FLOOD_OFF_TYPE:
     case EMC_LUBE_ON_TYPE:
     case EMC_LUBE_OFF_TYPE:
+    case EMC_IO_SET_LINE_NUMBER_TYPE:
 	return EMC_TASK_EXEC_DONE;
 	break;
 

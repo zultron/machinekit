@@ -121,6 +121,24 @@ static PM_QUATERNION quat(1, 0, 0, 0);
 static void flush_segments(void);
 
 
+/**
+ * Flush segments and send an empty line number packet down to IO.
+ * This somewhat clumsy function passes an empty message to IO except for the
+ * current line number.  This is used to tack a line number onto commands that
+ * don't ordinarily get propagated down to IO or motion. Note that this command
+ * triggers a flush of lines, so it will interrupt Naive CAM Detection.
+ */
+static void send_line_number_msg(void) {
+    flush_segments();
+
+    /* append it to interp list so it gets updated at the right time, not at
+       read-ahead time */
+    EMC_IO_SET_LINE_NUMBER msg;
+    msg.line_number = _sloc;
+    interp_list.append(msg);
+}
+
+
 /*
   These decls were from the old 3-axis canon.hh, and refer functions
   defined here that are used for convenience but no longer have decls
@@ -1001,6 +1019,8 @@ void STRAIGHT_TRAVERSE(int line_number,
     linearMoveMsg.acc = toExtAcc(acc);
     linearMoveMsg.indexrotary = rotary_unlock_for_traverse;
 
+    linearMoveMsg.line_number = _sloc;
+
     int old_feed_mode = feed_mode;
     if(feed_mode)
 	STOP_SPEED_FEED_SYNCH();
@@ -1023,6 +1043,7 @@ void STRAIGHT_FEED(int line_number,
 {
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = feed_mode;
+    linearMoveMsg.line_number = _sloc;
 
     from_prog(x,y,z,a,b,c,u,v,w);
     rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
@@ -1055,12 +1076,13 @@ void RIGID_TAP(int line_number, double x, double y, double z)
     rigidTapMsg.vel = toExtVel(vel);
     rigidTapMsg.ini_maxvel = toExtVel(ini_maxvel);
     rigidTapMsg.acc = toExtAcc(acc);
+    rigidTapMsg.line_number = _sloc;
 
     flush_segments();
 
     if(vel && acc)  {
         interp_list.set_line_number(line_number);
-	interp_list.append(rigidTapMsg);
+        interp_list.append(rigidTapMsg);
     }
 
     // don't move the endpoint because after this move, we are back where we started
@@ -1155,11 +1177,13 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
 void SET_NAIVECAM_TOLERANCE(double tolerance)
 {
     canonNaivecamTolerance =  FROM_PROG_LEN(tolerance);
+    send_line_number_msg();
 }
 
 void SELECT_PLANE(CANON_PLANE in_plane)
 {
     activePlane = in_plane;
+    send_line_number_msg();
 }
 
 void SET_CUTTER_RADIUS_COMPENSATION(double radius)
@@ -1185,6 +1209,7 @@ void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode)
     EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
     spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(FROM_PROG_LEN(feed_per_revolution));
     spindlesyncMsg.velocity_mode = velocity_mode;
+    spindlesyncMsg.line_number = _sloc;
 	interp_list.append(spindlesyncMsg);
     synched = 1;
 }
@@ -1195,6 +1220,7 @@ void STOP_SPEED_FEED_SYNCH()
     EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
     spindlesyncMsg.feed_per_revolution = 0.0;
     spindlesyncMsg.velocity_mode = false;
+    spindlesyncMsg.line_number = _sloc;
 	interp_list.append(spindlesyncMsg);
     synched = 0;
 }
@@ -1730,7 +1756,8 @@ void ARC_FEED(int line_number,
         linearMoveMsg.indexrotary = -1;
         if(vel && a_max){
             interp_list.set_line_number(line_number);
-	interp_list.append(linearMoveMsg);
+            interp_list.append(linearMoveMsg);
+            linearMoveMsg.line_number = _sloc;
         }
     } else {
         circularMoveMsg.end = to_ext_pose(endpt);
@@ -1755,6 +1782,7 @@ void ARC_FEED(int line_number,
         // The end point is still updated, but nothing is added to the interp list
         if(vel && a_max) {
             interp_list.set_line_number(line_number);
+            circularMoveMsg.line_number = _sloc;
 	interp_list.append(circularMoveMsg);
         }
     }
@@ -2408,7 +2436,7 @@ void OPTIONAL_PROGRAM_STOP()
 
     flush_segments();
 
-    stopMsg.line_number=_sloc;
+    stopMsg.line_number = _sloc;
 	interp_list.append(stopMsg);
 }
 
