@@ -1639,6 +1639,10 @@ static int emcTaskEchoLineToIo(NMLmsg * cmd)
         case EMC_TRAJ_SET_G92_TYPE:
         case EMC_TRAJ_PROBE_TYPE:
         case EMC_TRAJ_RIGID_TAP_TYPE:
+
+        case EMC_TRAJ_LINEAR_MOVE_TYPE:
+        case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
+
         case EMC_MOTION_ADAPTIVE_TYPE:
         case EMC_SPINDLE_SPEED_TYPE:
         case EMC_SPINDLE_ORIENT_TYPE:
@@ -1647,6 +1651,10 @@ static int emcTaskEchoLineToIo(NMLmsg * cmd)
         case EMC_SPINDLE_INCREASE_TYPE:
         case EMC_SPINDLE_DECREASE_TYPE:
         case EMC_SPINDLE_CONSTANT_TYPE:
+        case EMC_TASK_PLAN_RUN_TYPE:
+        case EMC_TASK_PLAN_END_TYPE:
+        case EMC_TASK_PLAN_STEP_TYPE:
+
             int line_number = ((RCS_CMD_MSG*)cmd)->line_number;
             rcs_print("Passing line number %d to IO\n", line_number);
             task_methods->emcIoSetLineNumber((RCS_CMD_MSG*)cmd);
@@ -1672,8 +1680,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	rcs_print("Issuing %s -- \t (%s)\n", emcSymbolLookup(cmd->type),
 		  emcCommandBuffer->msg2str(cmd));
     }
-
-    emcTaskEchoLineToIo(cmd);
+    if (stepping) {
+        rcs_print("In Stepping mode, Echoing line numbers to IO\n");
+        emcTaskEchoLineToIo(cmd);
+    }
 
     switch (cmd->type) {
 	// general commands

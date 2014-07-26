@@ -690,6 +690,50 @@ static void do_hal_exit(void) {
     hal_exit(comp_id);
 }
 
+static int update_line_number(NMLmsg * cmd) {
+
+    if (!cmd) {
+        return -1;
+    }
+    switch (cmd->type) {
+        case EMC_LUBE_ON_TYPE:
+        case EMC_LUBE_OFF_TYPE:
+        case EMC_COOLANT_FLOOD_ON_TYPE:
+        case EMC_COOLANT_FLOOD_OFF_TYPE:
+        case EMC_COOLANT_MIST_ON_TYPE:
+        case EMC_TOOL_PREPARE_TYPE:
+        case EMC_TOOL_LOAD_TYPE:
+        case EMC_TOOL_START_CHANGE_TYPE:
+        case EMC_TOOL_UNLOAD_TYPE:
+        case EMC_COOLANT_MIST_OFF_TYPE:
+        case EMC_IO_SET_LINE_NUMBER_TYPE:
+        case EMC_TRAJ_SET_TERM_COND_TYPE:
+        case EMC_TRAJ_SET_SPINDLESYNC_TYPE:
+        case EMC_TRAJ_SET_OFFSET_TYPE:
+        case EMC_TRAJ_SET_ROTATION_TYPE:
+        case EMC_TRAJ_SET_G5X_TYPE:
+        case EMC_TRAJ_SET_G92_TYPE:
+        case EMC_TRAJ_PROBE_TYPE:
+        case EMC_TRAJ_RIGID_TAP_TYPE:
+        case EMC_TRAJ_LINEAR_MOVE_TYPE:
+        case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
+        case EMC_MOTION_ADAPTIVE_TYPE:
+        case EMC_SPINDLE_SPEED_TYPE:
+        case EMC_SPINDLE_ORIENT_TYPE:
+        case EMC_SPINDLE_ON_TYPE:
+        case EMC_SPINDLE_OFF_TYPE:
+        case EMC_SPINDLE_INCREASE_TYPE:
+        case EMC_SPINDLE_DECREASE_TYPE:
+        case EMC_SPINDLE_CONSTANT_TYPE:
+        case EMC_TASK_PLAN_RUN_TYPE:
+        case EMC_TASK_PLAN_END_TYPE:
+
+            (*iocontrol_data->program_line)=((RCS_CMD_MSG *)cmd)->line_number;
+            break;
+    }
+    return 0;
+}
+
 /********************************************************************
 *
 * Description: main(int argc, char * argv[])
@@ -834,8 +878,7 @@ int main(int argc, char *argv[])
 	type = emcioCommand->type;
 	emcioStatus.status = RCS_DONE;
 
-    // Update the IO HAL line number if it's non-zero
-    int line_number = ((EMC_TOOL_CMD_MSG *) emcioCommand)->line_number;
+    update_line_number(emcioCommand);
 
 	switch (type) {
 	case 0:
@@ -870,7 +913,6 @@ int main(int argc, char *argv[])
 	    break;
 
 	case EMC_TOOL_PREPARE_TYPE:
-        *(iocontrol_data->program_line) = line_number;
             {
                 signed int p = ((EMC_TOOL_PREPARE*)emcioCommand)->pocket;
                 int t = ((EMC_TOOL_PREPARE*)emcioCommand)->tool;
@@ -991,28 +1033,24 @@ int main(int argc, char *argv[])
 
 
 	case EMC_COOLANT_MIST_ON_TYPE:
-        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_COOLANT_MIST_ON\n");
 	    emcioStatus.coolant.mist = 1;
 	    *(iocontrol_data->coolant_mist) = 1;
 	    break;
 
 	case EMC_COOLANT_MIST_OFF_TYPE:
-        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_COOLANT_MIST_OFF\n");
 	    emcioStatus.coolant.mist = 0;
 	    *(iocontrol_data->coolant_mist) = 0;
 	    break;
 
 	case EMC_COOLANT_FLOOD_ON_TYPE:
-        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_COOLANT_FLOOD_ON\n");
 	    emcioStatus.coolant.flood = 1;
 	    *(iocontrol_data->coolant_flood) = 1;
 	    break;
 
 	case EMC_COOLANT_FLOOD_OFF_TYPE:
-        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_COOLANT_FLOOD_OFF\n");
 	    emcioStatus.coolant.flood = 0;
 	    *(iocontrol_data->coolant_flood) = 0;
@@ -1040,14 +1078,12 @@ int main(int argc, char *argv[])
 	    break;
 
 	case EMC_LUBE_ON_TYPE:
-        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_LUBE_ON\n");
 	    emcioStatus.lube.on = 1;
 	    *(iocontrol_data->lube) = 1;
 	    break;
 
 	case EMC_LUBE_OFF_TYPE:
-        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_LUBE_OFF\n");
 	    emcioStatus.lube.on = 0;
 	    *(iocontrol_data->lube) = 0;
@@ -1063,12 +1099,10 @@ int main(int argc, char *argv[])
 	    break;
 
     case EMC_IO_SET_LINE_NUMBER_TYPE:
-        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_IO_SET_LINE_NUMBER\n");
         break;
 
 	default:
-        *(iocontrol_data->program_line) = line_number;
 	    rtapi_print("IO: unknown command %s\n", emcSymbolLookup(type));
 	    break;
 	}			/* switch (type) */

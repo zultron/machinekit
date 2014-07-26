@@ -572,6 +572,8 @@ void SET_FEED_MODE(int mode) {
     flush_segments();
     feed_mode = mode;
     if(feed_mode == 0) STOP_SPEED_FEED_SYNCH();
+    send_line_number_msg();
+
 }
 
 void SET_FEED_RATE(double rate)
@@ -596,6 +598,7 @@ void SET_FEED_RATE(double rate)
 	currentLinearFeedRate = newLinearFeedRate;
 	currentAngularFeedRate = newAngularFeedRate;
     }
+    send_line_number_msg();
 }
 
 void SET_FEED_REFERENCE(CANON_FEED_REFERENCE reference)
@@ -1188,17 +1191,17 @@ void SELECT_PLANE(CANON_PLANE in_plane)
 
 void SET_CUTTER_RADIUS_COMPENSATION(double radius)
 {
-    // nothing need be done here
+    send_line_number_msg();
 }
 
 void START_CUTTER_RADIUS_COMPENSATION(int side)
 {
-    // nothing need be done here
+    send_line_number_msg();
 }
 
 void STOP_CUTTER_RADIUS_COMPENSATION()
 {
-    // nothing need be done here
+    send_line_number_msg();
 }
 
 
@@ -1811,6 +1814,7 @@ void SPINDLE_RETRACT_TRAVERSE()
 
 void SET_SPINDLE_MODE(double css_max) {
     css_maximum = fabs(css_max);
+    send_line_number_msg();
 }
 
 void START_SPINDLE_CLOCKWISE()
