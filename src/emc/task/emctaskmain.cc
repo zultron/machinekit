@@ -1255,6 +1255,11 @@ static int emcTaskPlan(void)
 		    }
 		    emcStatus->task.task_paused = 1;
             rcs_print("Got TASK_PLAN_STEP(3)\n");
+            {
+            EMC_IO_SET_LINE_NUMBER msg;
+            msg.line_number=0;
+            emcTaskIssueCommand(&msg);
+            }
 		    break;
 
 		    // otherwise we can't handle it
