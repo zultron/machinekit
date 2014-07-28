@@ -240,7 +240,12 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 
 
   block->line_number = settings->sequence_number;
-  convert_line_number(block->line_number);
+  //printf("***Remapping level: %d\n",settings->remap_level);
+  if (settings->remap_level==0) {
+      convert_line_number(block->line_number);
+  } else if (block->saved_line_number){
+      convert_line_number(block->saved_line_number);
+  }
   if ((block->comment[0] != 0) && ONCE(STEP_COMMENT)) {
     status = convert_comment(block->comment);
     CHP(status);

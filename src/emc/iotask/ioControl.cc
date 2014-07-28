@@ -701,11 +701,12 @@ static int update_line_number(NMLmsg * cmd) {
         case EMC_COOLANT_FLOOD_ON_TYPE:
         case EMC_COOLANT_FLOOD_OFF_TYPE:
         case EMC_COOLANT_MIST_ON_TYPE:
+        case EMC_COOLANT_MIST_OFF_TYPE:
         case EMC_TOOL_PREPARE_TYPE:
+        case EMC_TOOL_SET_NUMBER_TYPE:
         case EMC_TOOL_LOAD_TYPE:
         case EMC_TOOL_START_CHANGE_TYPE:
         case EMC_TOOL_UNLOAD_TYPE:
-        case EMC_COOLANT_MIST_OFF_TYPE:
         case EMC_IO_SET_LINE_NUMBER_TYPE:
         case EMC_TRAJ_SET_TERM_COND_TYPE:
         case EMC_TRAJ_SET_SPINDLESYNC_TYPE:

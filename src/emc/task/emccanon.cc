@@ -598,6 +598,7 @@ void SET_FEED_RATE(double rate)
 	currentLinearFeedRate = newLinearFeedRate;
 	currentAngularFeedRate = newAngularFeedRate;
     }
+    //FIXME spams IO
     send_line_number_msg();
 }
 

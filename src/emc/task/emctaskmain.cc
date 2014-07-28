@@ -410,7 +410,6 @@ static EMC_SPINDLE_ON *spindle_on_msg;
 //static EMC_TOOL_PREPARE *tool_prepare_msg;
 static EMC_TOOL_LOAD_TOOL_TABLE *load_tool_table_msg;
 static EMC_TOOL_SET_OFFSET *emc_tool_set_offset_msg;
-static EMC_TOOL_SET_NUMBER *emc_tool_set_number_msg;
 static EMC_TASK_SET_MODE *mode_msg;
 static EMC_TASK_SET_STATE *state_msg;
 static EMC_TASK_PLAN_RUN *run_msg;
@@ -1092,7 +1091,6 @@ static int emcTaskPlan(void)
 		    emcStatus->task.interpState = EMC_TASK_INTERP_PAUSED;
 		    emcStatus->task.task_paused = 1;
 		    retval = 0;
-            rcs_print("Got TASK_PLAN_STEP (1)\n");
 		    break;
 
 		case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
@@ -1156,18 +1154,17 @@ static int emcTaskPlan(void)
 		case EMC_AUX_INPUT_WAIT_TYPE:
 		case EMC_TRAJ_RIGID_TAP_TYPE:
 		case EMC_SET_DEBUG_TYPE:
-                case EMC_COOLANT_MIST_ON_TYPE:
-                case EMC_COOLANT_MIST_OFF_TYPE:
-                case EMC_COOLANT_FLOOD_ON_TYPE:
-                case EMC_COOLANT_FLOOD_OFF_TYPE:
-                case EMC_LUBE_ON_TYPE:
-                case EMC_LUBE_OFF_TYPE:
-		    retval = emcTaskIssueCommand(emcCommand);
-		    return retval;
-		    break;
+        case EMC_COOLANT_MIST_ON_TYPE:
+        case EMC_COOLANT_MIST_OFF_TYPE:
+        case EMC_COOLANT_FLOOD_ON_TYPE:
+        case EMC_COOLANT_FLOOD_OFF_TYPE:
+        case EMC_LUBE_ON_TYPE:
+        case EMC_LUBE_OFF_TYPE:
+            retval = emcTaskIssueCommand(emcCommand);
+            return retval;
+            break;
 
 		case EMC_TASK_PLAN_STEP_TYPE:
-            rcs_print("Got TASK_PLAN_STEP(2)\n");
 		    stepping = 1;	// set stepping mode in case it's not
 		    steppingWait = 0;	// clear the wait
 		    break;
@@ -1254,7 +1251,6 @@ static int emcTaskPlan(void)
 			emcStatus->task.interpState = (enum EMC_TASK_INTERP_ENUM) interpResumeState;
 		    }
 		    emcStatus->task.task_paused = 1;
-            rcs_print("Got TASK_PLAN_STEP(3)\n");
             {
             EMC_IO_SET_LINE_NUMBER msg;
             msg.line_number=0;
@@ -1314,21 +1310,20 @@ static int emcTaskPlan(void)
 		case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
 		case EMC_TRAJ_PROBE_TYPE:
 		case EMC_AUX_INPUT_WAIT_TYPE:
-	        case EMC_TRAJ_RIGID_TAP_TYPE:
-		case EMC_SET_DEBUG_TYPE:
-                case EMC_COOLANT_MIST_ON_TYPE:
-                case EMC_COOLANT_MIST_OFF_TYPE:
-                case EMC_COOLANT_FLOOD_ON_TYPE:
-                case EMC_COOLANT_FLOOD_OFF_TYPE:
-                case EMC_LUBE_ON_TYPE:
-                case EMC_LUBE_OFF_TYPE:
-		    retval = emcTaskIssueCommand(emcCommand);
-		    break;
+        case EMC_TRAJ_RIGID_TAP_TYPE:
+        case EMC_SET_DEBUG_TYPE:
+        case EMC_COOLANT_MIST_ON_TYPE:
+        case EMC_COOLANT_MIST_OFF_TYPE:
+        case EMC_COOLANT_FLOOD_ON_TYPE:
+        case EMC_COOLANT_FLOOD_OFF_TYPE:
+        case EMC_LUBE_ON_TYPE:
+        case EMC_LUBE_OFF_TYPE:
+            retval = emcTaskIssueCommand(emcCommand);
+            break;
 
 		case EMC_TASK_PLAN_STEP_TYPE:
 		    stepping = 1;	// set stepping mode in case it's not
 		    steppingWait = 0;	// clear the wait
-            rcs_print("Got TASK_PLAN_STEP (4)\n");
 		    break;
 
 		    // otherwise we can't handle it
@@ -1536,7 +1531,6 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TOOL_PREPARE_TYPE:
     case EMC_LUBE_ON_TYPE:
     case EMC_LUBE_OFF_TYPE:
-    case EMC_IO_SET_LINE_NUMBER_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_IO;
 	break;
 
@@ -1593,6 +1587,8 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 	return EMC_TASK_EXEC_DONE;
 	break;
 
+    case EMC_IO_SET_LINE_NUMBER_TYPE:
+    return EMC_TASK_EXEC_DONE;
 
     default:
 	// unrecognized command
@@ -1640,18 +1636,16 @@ static int emcTaskEchoLineToIo(NMLmsg * cmd)
     switch (cmd->type) {
 
         case EMC_TRAJ_SET_TERM_COND_TYPE:
-        case EMC_TRAJ_SET_SPINDLESYNC_TYPE:
         case EMC_TRAJ_SET_OFFSET_TYPE:
         case EMC_TRAJ_SET_ROTATION_TYPE:
         case EMC_TRAJ_SET_G5X_TYPE:
         case EMC_TRAJ_SET_G92_TYPE:
         case EMC_TRAJ_PROBE_TYPE:
-        case EMC_TRAJ_RIGID_TAP_TYPE:
 
+        case EMC_TRAJ_RIGID_TAP_TYPE:
         case EMC_TRAJ_LINEAR_MOVE_TYPE:
         case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
 
-        case EMC_MOTION_ADAPTIVE_TYPE:
         case EMC_SPINDLE_SPEED_TYPE:
         case EMC_SPINDLE_ORIENT_TYPE:
         case EMC_SPINDLE_ON_TYPE:
@@ -1664,7 +1658,7 @@ static int emcTaskEchoLineToIo(NMLmsg * cmd)
         case EMC_TASK_PLAN_STEP_TYPE:
 
             int line_number = ((RCS_CMD_MSG*)cmd)->line_number;
-            rcs_print("Passing line number %d to IO\n", line_number);
+            //printf("Got Non-IO command, passing line number %d to IO\n", line_number);
             task_methods->emcIoSetLineNumber((RCS_CMD_MSG*)cmd);
             break;
 
@@ -2070,16 +2064,13 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_COOLANT_MIST_ON_TYPE:
     case EMC_TOOL_PREPARE_TYPE:
     case EMC_TOOL_LOAD_TYPE:
-    //updateCurrentLine(cmd);
-    //Second group of commands that don't update the line number but do pass a message
-    //NOTE: intentional waterfall here
+    case EMC_TOOL_SET_NUMBER_TYPE:
     case EMC_TOOL_START_CHANGE_TYPE:
     case EMC_TOOL_UNLOAD_TYPE:
     case EMC_COOLANT_MIST_OFF_TYPE:
     // cheat to pass line to IO
     case EMC_IO_SET_LINE_NUMBER_TYPE:
     retval = task_methods->emcToolPassMsg((RCS_CMD_MSG*)cmd);
-    rcs_print("*Updating current line from MESSAGE: %d\n",emcStatus->task.currentLine);
 	break;
 
     case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
@@ -2096,12 +2087,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
                                   emc_tool_set_offset_msg->frontangle,
                                   emc_tool_set_offset_msg->backangle,
                                   emc_tool_set_offset_msg->orientation);
-    //updateCurrentLine(cmd);
-	break;
-
-    case EMC_TOOL_SET_NUMBER_TYPE:
-	emc_tool_set_number_msg = (EMC_TOOL_SET_NUMBER *) cmd;
-	retval = task_methods->emcToolSetNumber(emc_tool_set_number_msg->tool);
     //updateCurrentLine(cmd);
 	break;
 
@@ -2597,15 +2582,12 @@ static int emcTaskExecute(void)
 		    emcTaskEager = 1;
             //Hack to not have interp lines overwrite the lines from TASK messages
             int message_line = ((RCS_CMD_MSG*)emcTaskCommand)->line_number;
-            int interp_line = interp_list.get_line_number();
-			if (message_line <= 0) {
-                emcStatus->task.currentLine = interp_line;
-                rcs_print("*Updating current line from INTERP: %d\n",emcStatus->task.currentLine);
-            } else {
+			if (message_line > 0) {
                 emcStatus->task.currentLine = message_line;
-                rcs_print("*Updating current line from MESSAGE: %d\n",emcStatus->task.currentLine);
-            }
-
+                rcs_print("*Updating current line from MESSAGE of type %lu: %d\n",
+                        emcTaskCommand->type,
+                        emcStatus->task.currentLine);
+            } 
 		    // and set it for all subsystems which use queued ids
 		    emcTrajSetMotionId(emcStatus->task.currentLine);
 		    if (emcStatus->motion.traj.queueFull) {
