@@ -61,9 +61,12 @@ static double xy_rotation = 0.;
 static int rotary_unlock_for_traverse = -1;
 
 static int _sloc;
+static int _sloc_sent=0;
 void UPDATE_SLOC(int sloc) {
-    printf("--Got UPDATE_SLOC: %d--\n",sloc);
+    canon_debug("--Got UPDATE_SLOC: %d--\n",sloc);
     _sloc = sloc;
+    //Crude way to prevent duplicate line number messages
+    _sloc_sent = 0;
 }
 
 #ifndef MIN
@@ -133,9 +136,13 @@ static void send_line_number_msg(void) {
 
     /* append it to interp list so it gets updated at the right time, not at
        read-ahead time */
+    if (_sloc_sent) {
+        return;
+    }
     EMC_IO_SET_LINE_NUMBER msg;
     msg.line_number = _sloc;
     interp_list.append(msg);
+    _sloc_sent = 1;
 }
 
 

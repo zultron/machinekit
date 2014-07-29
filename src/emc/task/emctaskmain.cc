@@ -85,6 +85,18 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 #include "motion.h"             // EMCMOT_ORIENT_*
 #include "inihal.hh"
 
+//#define EMCTASK_DEBUG
+
+//Simple compile-time debug macro
+#ifdef EMCTASK_DEBUG
+#define task_debug(...) rcs_print(__VA_ARGS__)
+#else
+#define task_debug(...)
+#endif
+
+
+
+
 /* time after which the user interface is declared dead
  * because it would'nt read any more messages
  */
@@ -1658,7 +1670,7 @@ static int emcTaskEchoLineToIo(NMLmsg * cmd)
         case EMC_TASK_PLAN_STEP_TYPE:
 
             int line_number = ((RCS_CMD_MSG*)cmd)->line_number;
-            //printf("Got Non-IO command, passing line number %d to IO\n", line_number);
+            task_debug("Got Non-IO command, passing line number %d to IO\n", line_number);
             task_methods->emcIoSetLineNumber((RCS_CMD_MSG*)cmd);
             break;
 
@@ -1683,7 +1695,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 		  emcCommandBuffer->msg2str(cmd));
     }
     if (stepping) {
-        rcs_print("In Stepping mode, Echoing line numbers to IO\n");
         emcTaskEchoLineToIo(cmd);
     }
 
@@ -2584,7 +2595,7 @@ static int emcTaskExecute(void)
             int message_line = ((RCS_CMD_MSG*)emcTaskCommand)->line_number;
 			if (message_line > 0) {
                 emcStatus->task.currentLine = message_line;
-                rcs_print("*Updating current line from MESSAGE of type %lu: %d\n",
+                task_debug("Updating current line from MESSAGE of type %lu: %d\n",
                         emcTaskCommand->type,
                         emcStatus->task.currentLine);
             } 
