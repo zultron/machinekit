@@ -414,6 +414,7 @@ void FINISH() {}
 void PALLET_SHUTTLE() {}
 void SELECT_POCKET(int pocket, int tool) {}
 void UPDATE_SLOC(int sloc) {}
+void SEND_LINE_NUMBER() {}
 void OPTIONAL_PROGRAM_STOP() {}
 void START_CHANGE() {}
 int  GET_EXTERNAL_TC_FAULT() {return 0;}

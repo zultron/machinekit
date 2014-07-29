@@ -5319,8 +5319,14 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
   return INTERP_OK;
 }
 
-int Interp::convert_line_number(int sloc)
+int Interp::update_line_number(int sloc)
 {
   UPDATE_SLOC(sloc);
+  return INTERP_OK;
+}
+
+int Interp::convert_line_number()
+{
+  SEND_LINE_NUMBER();
   return INTERP_OK;
 }

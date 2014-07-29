@@ -910,4 +910,6 @@ extern void IO_PLUGIN_CALL(int len, const char *call);
 
 extern void UPDATE_SLOC(int sloc);
 
+extern void SEND_LINE_NUMBER();
+
 #endif				/* ifndef CANON_HH */

@@ -1179,3 +1179,8 @@ void UPDATE_SLOC(int sloc){
     //Do nothing
     printf("UPDATE_SLOC (empty)\n");
 }
+
+void SEND_LINE_NUMBER(){
+    //Do nothing
+    printf("SEND_LINE_NUMBER (empty)\n");
+}

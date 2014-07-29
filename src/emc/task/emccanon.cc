@@ -62,6 +62,16 @@ static int rotary_unlock_for_traverse = -1;
 
 static int _sloc;
 static int _sloc_sent=0;
+
+
+/**
+ * This flag is used to prevent duplicate line number messages from being sent out to IO. 
+ */
+
+/**
+ * When called from interp, this updates the internal g code line.
+ * This also clears the "sent" flag, since we haven't sent out an NML message yet with the new line number.
+ */
 void UPDATE_SLOC(int sloc) {
     canon_debug("--Got UPDATE_SLOC: %d--\n",sloc);
     _sloc = sloc;
@@ -123,6 +133,29 @@ static PM_QUATERNION quat(1, 0, 0, 0);
 
 static void flush_segments(void);
 
+/**
+ * Crude way to add a line number by doing some ugly casting
+ */
+static inline void add_sloc_to_msg(NMLmsg * msg, int sloc){
+    ((RCS_CMD_MSG *) msg)->line_number = sloc;
+}
+
+
+/**
+ * Add the the given line number and append the message to the interp list.
+ * Note that the append function takes the message by reference, so this also
+ * needs to have the message passed in by reference or it barfs.
+ */
+static inline void tag_and_send(NMLmsg &msg, int sloc) {
+    add_sloc_to_msg(&msg,sloc);
+    interp_list.append(msg);
+    _sloc_sent = 1;
+}
+
+static inline void tag_and_send(NMLmsg &msg) {
+    tag_and_send(msg,_sloc);
+}
+
 
 /**
  * Flush segments and send an empty line number packet down to IO.
@@ -140,9 +173,15 @@ static void send_line_number_msg(void) {
         return;
     }
     EMC_IO_SET_LINE_NUMBER msg;
-    msg.line_number = _sloc;
-    interp_list.append(msg);
-    _sloc_sent = 1;
+    tag_and_send(msg);
+}
+
+
+/**
+ * Kludge wrapper for send line number msg
+ */
+extern void SEND_LINE_NUMBER(void) {
+    send_line_number_msg();
 }
 
 
@@ -507,8 +546,7 @@ static void send_g5x_msg(int index) {
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed);
     }
-    set_g5x_msg.line_number = _sloc;
-    interp_list.append(set_g5x_msg);
+    tag_and_send(set_g5x_msg);
 }
 
 static void send_g92_msg(void) {
@@ -523,15 +561,13 @@ static void send_g92_msg(void) {
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed);
     }
-    set_g92_msg.line_number = _sloc;
-    interp_list.append(set_g92_msg);
+    tag_and_send(set_g92_msg);
 }
 
 void SET_XY_ROTATION(double t) {
     EMC_TRAJ_SET_ROTATION sr;
     sr.rotation = t;
-    sr.line_number = _sloc;
-	interp_list.append(sr);
+	tag_and_send(sr);
 
     xy_rotation = t;
 }
@@ -906,10 +942,9 @@ static void flush_segments(void) {
     linearMoveMsg.type = EMC_MOTION_TYPE_FEED;
     linearMoveMsg.indexrotary = -1;
 
-    linearMoveMsg.line_number = line_no;
     if ((vel && acc) || synched) {
         interp_list.set_line_number(line_no);
-        interp_list.append(linearMoveMsg);
+        tag_and_send(linearMoveMsg,line_no);
     }
     canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
 
@@ -1020,15 +1055,13 @@ void STRAIGHT_TRAVERSE(int line_number,
     linearMoveMsg.acc = toExtAcc(acc);
     linearMoveMsg.indexrotary = rotary_unlock_for_traverse;
 
-    linearMoveMsg.line_number = line_number;
-
     int old_feed_mode = feed_mode;
     if(feed_mode)
 	STOP_SPEED_FEED_SYNCH();
 
     if(vel && acc)  {
         interp_list.set_line_number(line_number);
-	interp_list.append(linearMoveMsg);
+        tag_and_send(linearMoveMsg, line_number);
     }
 
     if(old_feed_mode)
@@ -1044,7 +1077,6 @@ void STRAIGHT_FEED(int line_number,
 {
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = feed_mode;
-    linearMoveMsg.line_number = _sloc;
 
     from_prog(x,y,z,a,b,c,u,v,w);
     rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
@@ -1077,13 +1109,12 @@ void RIGID_TAP(int line_number, double x, double y, double z)
     rigidTapMsg.vel = toExtVel(vel);
     rigidTapMsg.ini_maxvel = toExtVel(ini_maxvel);
     rigidTapMsg.acc = toExtAcc(acc);
-    rigidTapMsg.line_number = _sloc;
 
     flush_segments();
 
     if(vel && acc)  {
         interp_list.set_line_number(line_number);
-        interp_list.append(rigidTapMsg);
+        tag_and_send(rigidTapMsg, line_number);
     }
 
     // don't move the endpoint because after this move, we are back where we started
@@ -1138,8 +1169,7 @@ void STRAIGHT_PROBE(int line_number,
 
     if(vel && acc)  {
         interp_list.set_line_number(line_number);
-        probeMsg.line_number=_sloc;
-	interp_list.append(probeMsg);
+        tag_and_send(probeMsg,line_number);
     }
     canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
 }
@@ -1171,8 +1201,7 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
         break;
     }
 
-    setTermCondMsg.line_number=_sloc;
-	interp_list.append(setTermCondMsg);
+	tag_and_send(setTermCondMsg);
 }
 
 void SET_NAIVECAM_TOLERANCE(double tolerance)
@@ -1210,8 +1239,7 @@ void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode)
     EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
     spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(FROM_PROG_LEN(feed_per_revolution));
     spindlesyncMsg.velocity_mode = velocity_mode;
-    spindlesyncMsg.line_number = _sloc;
-	interp_list.append(spindlesyncMsg);
+	tag_and_send(spindlesyncMsg);
     synched = 1;
 }
 
@@ -1221,8 +1249,7 @@ void STOP_SPEED_FEED_SYNCH()
     EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
     spindlesyncMsg.feed_per_revolution = 0.0;
     spindlesyncMsg.velocity_mode = false;
-    spindlesyncMsg.line_number = _sloc;
-	interp_list.append(spindlesyncMsg);
+	tag_and_send(spindlesyncMsg);
     synched = 0;
 }
 
@@ -1757,8 +1784,7 @@ void ARC_FEED(int line_number,
         linearMoveMsg.indexrotary = -1;
         if(vel && a_max){
             interp_list.set_line_number(line_number);
-            interp_list.append(linearMoveMsg);
-            linearMoveMsg.line_number = line_number;
+            tag_and_send(linearMoveMsg,line_number);
         }
     } else {
         circularMoveMsg.end = to_ext_pose(endpt);
@@ -1783,8 +1809,7 @@ void ARC_FEED(int line_number,
         // The end point is still updated, but nothing is added to the interp list
         if(vel && a_max) {
             interp_list.set_line_number(line_number);
-            circularMoveMsg.line_number = line_number;
-            interp_list.append(circularMoveMsg);
+            tag_and_send(circularMoveMsg, line_number);
         }
     }
     // update the end point
@@ -1800,8 +1825,7 @@ void DWELL(double seconds)
 
     delayMsg.delay = seconds;
 
-    delayMsg.line_number=_sloc;
-	interp_list.append(delayMsg);
+	tag_and_send(delayMsg);
 }
 
 /* Spindle Functions */
@@ -1834,8 +1858,7 @@ void START_SPINDLE_CLOCKWISE()
 	emc_spindle_on_msg.speed = spindle_dir * spindleSpeed;
 	css_numerator = 0;
     }
-    emc_spindle_on_msg.line_number=_sloc;
-	interp_list.append(emc_spindle_on_msg);
+	tag_and_send(emc_spindle_on_msg);
 }
 
 void START_SPINDLE_COUNTERCLOCKWISE()
@@ -1857,8 +1880,7 @@ void START_SPINDLE_COUNTERCLOCKWISE()
 	emc_spindle_on_msg.speed = spindle_dir * spindleSpeed;
 	css_numerator = 0;
     }
-    emc_spindle_on_msg.line_number=_sloc;
-	interp_list.append(emc_spindle_on_msg);
+	tag_and_send(emc_spindle_on_msg);
 }
 
 void SET_SPINDLE_SPEED(double r)
@@ -1882,8 +1904,7 @@ void SET_SPINDLE_SPEED(double r)
 	emc_spindle_speed_msg.speed = spindle_dir * spindleSpeed;
 	css_numerator = 0;
     }
-    emc_spindle_speed_msg.line_number=_sloc;
-	interp_list.append(emc_spindle_speed_msg);
+	tag_and_send(emc_spindle_speed_msg);
     
 }
 
@@ -1893,8 +1914,7 @@ void STOP_SPINDLE_TURNING()
 
     flush_segments();
 
-    emc_spindle_off_msg.line_number=_sloc;
-	interp_list.append(emc_spindle_off_msg);
+	tag_and_send(emc_spindle_off_msg);
 }
 
 void SPINDLE_RETRACT()
@@ -1909,8 +1929,7 @@ void ORIENT_SPINDLE(double orientation, int mode)
     flush_segments();
     o.orientation = orientation;
     o.mode = mode;
-    o.line_number=_sloc;
-	interp_list.append(o);
+	tag_and_send(o);
 }
 
 void WAIT_SPINDLE_ORIENT_COMPLETE(double timeout)
@@ -1919,8 +1938,7 @@ void WAIT_SPINDLE_ORIENT_COMPLETE(double timeout)
 
     flush_segments();
     o.timeout = timeout;
-    o.line_number=_sloc;
-	interp_list.append(o);
+	tag_and_send(o);
 }
 
 void USE_SPINDLE_FORCE(void)
@@ -1952,8 +1970,7 @@ void SET_TOOL_TABLE_ENTRY(int pocket, int toolno, EmcPose offset, double diamete
     o.frontangle = frontangle;
     o.backangle = backangle;
     o.orientation = orientation;
-	o.line_number=_sloc;
-	interp_list.append(o);
+	tag_and_send(o);
 }
 
 /*
@@ -1992,8 +2009,7 @@ void USE_TOOL_LENGTH_OFFSET(EmcPose offset)
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed);
     }
-    set_offset_msg.line_number=_sloc;
-	interp_list.append(set_offset_msg);
+	tag_and_send(set_offset_msg);
 }
 
 /* issued at very start of an M6 command. Notification. */
@@ -2003,8 +2019,7 @@ void START_CHANGE()
 
     flush_segments();
 
-    emc_start_change_msg.line_number=_sloc;
-	interp_list.append(emc_start_change_msg);
+	tag_and_send(emc_start_change_msg);
 }
 
 /* CHANGE_TOOL results from M6 */
@@ -2071,7 +2086,7 @@ void CHANGE_TOOL(int slot)
         }
 
         if(vel && acc) {
-            interp_list.append(linearMoveMsg);
+            tag_and_send(linearMoveMsg);
         }
 
         if(old_feed_mode) {
@@ -2083,8 +2098,7 @@ void CHANGE_TOOL(int slot)
 
     /* regardless of optional moves above, we'll always send a load tool
        message */
-    load_tool_msg.line_number=_sloc;
-	interp_list.append(load_tool_msg);
+	tag_and_send(load_tool_msg);
 }
 
 /* SELECT_POCKET results from Tn */
@@ -2095,8 +2109,7 @@ void SELECT_POCKET(int slot , int tool)
     prep_for_tool_msg.pocket = slot;
     prep_for_tool_msg.tool = tool;
 
-    prep_for_tool_msg.line_number=_sloc;
-	interp_list.append(prep_for_tool_msg);
+	tag_and_send(prep_for_tool_msg);
 }
 
 /* CHANGE_TOOL_NUMBER results from M61 */
@@ -2106,8 +2119,7 @@ void CHANGE_TOOL_NUMBER(int pocket_number)
     
     emc_tool_set_number_msg.tool = pocket_number;
 
-    emc_tool_set_number_msg.line_number=_sloc;
-	interp_list.append(emc_tool_set_number_msg);
+	tag_and_send(emc_tool_set_number_msg);
 }
 
 
@@ -2219,8 +2231,7 @@ void DISABLE_FEED_OVERRIDE()
     flush_segments();
     
     set_fo_enable_msg.mode = 0;
-    set_fo_enable_msg.line_number=_sloc;
-	interp_list.append(set_fo_enable_msg);
+	tag_and_send(set_fo_enable_msg);
 }
 
 void ENABLE_FEED_OVERRIDE()
@@ -2229,8 +2240,7 @@ void ENABLE_FEED_OVERRIDE()
     flush_segments();
     
     set_fo_enable_msg.mode = 1;
-    set_fo_enable_msg.line_number=_sloc;
-	interp_list.append(set_fo_enable_msg);
+	tag_and_send(set_fo_enable_msg);
 }
 
 //refers to adaptive feed override (HAL input, usefull for EDM for example)
@@ -2240,8 +2250,7 @@ void DISABLE_ADAPTIVE_FEED()
     flush_segments();
 
     emcmotAdaptiveMsg.status = 0;
-    emcmotAdaptiveMsg.line_number=_sloc;
-	interp_list.append(emcmotAdaptiveMsg);
+	tag_and_send(emcmotAdaptiveMsg);
 }
 
 void ENABLE_ADAPTIVE_FEED()
@@ -2250,8 +2259,7 @@ void ENABLE_ADAPTIVE_FEED()
     flush_segments();
 
     emcmotAdaptiveMsg.status = 1;
-    emcmotAdaptiveMsg.line_number=_sloc;
-	interp_list.append(emcmotAdaptiveMsg);
+	tag_and_send(emcmotAdaptiveMsg);
 }
 
 //refers to spindle speed
@@ -2261,8 +2269,7 @@ void DISABLE_SPEED_OVERRIDE()
     flush_segments();
     
     set_so_enable_msg.mode = 0;
-    set_so_enable_msg.line_number=_sloc;
-	interp_list.append(set_so_enable_msg);
+	tag_and_send(set_so_enable_msg);
 }
 
 
@@ -2272,8 +2279,7 @@ void ENABLE_SPEED_OVERRIDE()
     flush_segments();
     
     set_so_enable_msg.mode = 1;
-    set_so_enable_msg.line_number=_sloc;
-	interp_list.append(set_so_enable_msg);
+	tag_and_send(set_so_enable_msg);
 }
 
 void ENABLE_FEED_HOLD()
@@ -2282,8 +2288,7 @@ void ENABLE_FEED_HOLD()
     flush_segments();
     
     set_feed_hold_msg.mode = 1;
-    set_feed_hold_msg.line_number=_sloc;
-	interp_list.append(set_feed_hold_msg);
+	tag_and_send(set_feed_hold_msg);
 }
 
 void DISABLE_FEED_HOLD()
@@ -2292,8 +2297,7 @@ void DISABLE_FEED_HOLD()
     flush_segments();
     
     set_feed_hold_msg.mode = 0;
-    set_feed_hold_msg.line_number=_sloc;
-	interp_list.append(set_feed_hold_msg);
+	tag_and_send(set_feed_hold_msg);
 }
 
 void FLOOD_OFF()
@@ -2302,8 +2306,7 @@ void FLOOD_OFF()
 
     flush_segments();
 
-    flood_off_msg.line_number=_sloc;
-	interp_list.append(flood_off_msg);
+	tag_and_send(flood_off_msg);
 }
 
 void FLOOD_ON()
@@ -2312,8 +2315,7 @@ void FLOOD_ON()
 
     flush_segments();
 
-    flood_on_msg.line_number=_sloc;
-	interp_list.append(flood_on_msg);
+	tag_and_send(flood_on_msg);
 }
 
 void MESSAGE(char *s)
@@ -2324,8 +2326,7 @@ void MESSAGE(char *s)
     operator_display_msg.id = 0;
     strncpy(operator_display_msg.display, s, LINELEN);
     operator_display_msg.display[LINELEN - 1] = 0;
-    operator_display_msg.line_number=_sloc;
-	interp_list.append(operator_display_msg);
+	tag_and_send(operator_display_msg);
 }
 
 static FILE *logfile = NULL;
@@ -2362,8 +2363,7 @@ void MIST_OFF()
 
     flush_segments();
 
-    mist_off_msg.line_number=_sloc;
-	interp_list.append(mist_off_msg);
+	tag_and_send(mist_off_msg);
 }
 
 void MIST_ON()
@@ -2372,8 +2372,7 @@ void MIST_ON()
 
     flush_segments();
 
-    mist_on_msg.line_number=_sloc;
-	interp_list.append(mist_on_msg);
+	tag_and_send(mist_on_msg);
 }
 
 void PALLET_SHUTTLE()
@@ -2390,7 +2389,7 @@ void TURN_PROBE_ON()
 {
     EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG clearMsg;
 
-	interp_list.append(clearMsg);
+	tag_and_send(clearMsg);
 }
 
 void UNCLAMP_AXIS(CANON_AXIS axis)
@@ -2408,7 +2407,7 @@ void PROGRAM_STOP()
 
     flush_segments();
 
-	interp_list.append(pauseMsg);
+	tag_and_send(pauseMsg);
 }
 
 void SET_BLOCK_DELETE(bool state)
@@ -2438,8 +2437,7 @@ void OPTIONAL_PROGRAM_STOP()
 
     flush_segments();
 
-    stopMsg.line_number = _sloc;
-	interp_list.append(stopMsg);
+	tag_and_send(stopMsg);
 }
 
 void PROGRAM_END()
@@ -2448,8 +2446,7 @@ void PROGRAM_END()
 
     EMC_TASK_PLAN_END endMsg;
 
-    endMsg.line_number=_sloc;
-	interp_list.append(endMsg);
+	tag_and_send(endMsg);
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_XOFFSET()
@@ -2572,8 +2569,7 @@ void CANON_ERROR(const char *fmt, ...)
 	operator_error_msg.error[0] = 0;
     }
 
-    operator_error_msg.line_number=_sloc;
-	interp_list.append(operator_error_msg);
+	tag_and_send(operator_error_msg);
 }
 
 /*
@@ -3068,8 +3064,7 @@ void SET_MOTION_OUTPUT_BIT(int index)
   dout_msg.end = 1;		// endvalue = 1, means it doesn't get reset after current motion
   dout_msg.now = 0;		// not immediate, but synched with motion (goes to the TP)
 
-  dout_msg.line_number=_sloc;
-	interp_list.append(dout_msg);
+	tag_and_send(dout_msg);
 
   return;
 }
@@ -3097,8 +3092,7 @@ void CLEAR_MOTION_OUTPUT_BIT(int index)
   dout_msg.end = 0;		// endvalue = 0, means it stays 0 after current motion
   dout_msg.now = 0;		// not immediate, but synched with motion (goes to the TP)
 
-  dout_msg.line_number=_sloc;
-	interp_list.append(dout_msg);
+	tag_and_send(dout_msg);
 
   return;
 }
@@ -3124,8 +3118,7 @@ void SET_AUX_OUTPUT_BIT(int index)
   dout_msg.end = 1;		// endvalue = 1, means it doesn't get reset after current motion
   dout_msg.now = 1;		// immediate, we don't care about synching for AUX
 
-  dout_msg.line_number=_sloc;
-	interp_list.append(dout_msg);
+	tag_and_send(dout_msg);
 
   return;
 }
@@ -3150,8 +3143,7 @@ void CLEAR_AUX_OUTPUT_BIT(int index)
   dout_msg.end = 0;		// endvalue = 0, means it stays 0 after current motion
   dout_msg.now = 1;		// immediate, we don't care about synching for AUX
 
-  dout_msg.line_number=_sloc;
-	interp_list.append(dout_msg);
+	tag_and_send(dout_msg);
 
   return;
 }
@@ -3172,8 +3164,7 @@ void SET_MOTION_OUTPUT_VALUE(int index, double value)
   aout_msg.end = value;		// end value
   aout_msg.now = 0;		// immediate=1, or synched when motion start=0
 
-  aout_msg.line_number=_sloc;
-	interp_list.append(aout_msg);
+	tag_and_send(aout_msg);
 
   return;
 }
@@ -3194,8 +3185,7 @@ void SET_AUX_OUTPUT_VALUE(int index, double value)
   aout_msg.end = value;		// end value
   aout_msg.now = 1;		// immediate=1, or synched when motion start=0
 
-  aout_msg.line_number=_sloc;
-	interp_list.append(aout_msg);
+	tag_and_send(aout_msg);
 
   return;
 }
@@ -3227,8 +3217,7 @@ int WAIT(int index, /* index of the motion exported input */
  wait_msg.wait_type = wait_type;
  wait_msg.timeout = timeout;
  
- wait_msg.line_number=_sloc;
-	interp_list.append(wait_msg);
+	tag_and_send(wait_msg);
  return 0;
 }
 
@@ -3248,8 +3237,7 @@ int UNLOCK_ROTARY(int line_number, int axis) {
     if(feed_mode)
 	STOP_SPEED_FEED_SYNCH();
     interp_list.set_line_number(line_number);
-	m.line_number=_sloc;
-	interp_list.append(m);
+	tag_and_send(m);
     // no need to update endpoint
     if(old_feed_mode)
 	START_SPEED_FEED_SYNCH(currentLinearFeedRate, 1);
@@ -3281,8 +3269,7 @@ void PLUGIN_CALL(int len, const char *call)
 
     printf("canon: PLUGIN_CALL(arglen=%zd)\n",strlen(call));
 
-    call_msg.line_number=_sloc;
-	interp_list.append(call_msg);
+	tag_and_send(call_msg);
 }
 
 void IO_PLUGIN_CALL(int len, const char *call)
@@ -3298,6 +3285,5 @@ void IO_PLUGIN_CALL(int len, const char *call)
 
     printf("canon: IO_PLUGIN_CALL(arglen=%d)\n",len);
 
-    call_msg.line_number=_sloc;
-	interp_list.append(call_msg);
+	tag_and_send(call_msg);
 }
