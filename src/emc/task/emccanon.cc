@@ -889,19 +889,7 @@ static void flush_segments(void) {
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = feed_mode;
 
-    // now x, y, z, and b are in absolute mm or degree units
-    linearMoveMsg.end.tran.x = TO_EXT_LEN(x);
-    linearMoveMsg.end.tran.y = TO_EXT_LEN(y);
-    linearMoveMsg.end.tran.z = TO_EXT_LEN(z);
-
-    linearMoveMsg.end.u = TO_EXT_LEN(u);
-    linearMoveMsg.end.v = TO_EXT_LEN(v);
-    linearMoveMsg.end.w = TO_EXT_LEN(w);
-
-    // fill in the orientation
-    linearMoveMsg.end.a = TO_EXT_ANG(a);
-    linearMoveMsg.end.b = TO_EXT_ANG(b);
-    linearMoveMsg.end.c = TO_EXT_ANG(c);
+    linearMoveMsg.end = to_ext_pose(x,y,z,a,b,c,u,v,w);
 
     linearMoveMsg.vel = toExtVel(vel);
     linearMoveMsg.ini_maxvel = toExtVel(ini_maxvel);
@@ -910,9 +898,11 @@ static void flush_segments(void) {
 
     linearMoveMsg.type = EMC_MOTION_TYPE_FEED;
     linearMoveMsg.indexrotary = -1;
+
+    linearMoveMsg.line_number = line_no;
     if ((vel && acc) || synched) {
         interp_list.set_line_number(line_no);
-	interp_list.append(linearMoveMsg);
+        interp_list.append(linearMoveMsg);
     }
     canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
 
@@ -1023,7 +1013,7 @@ void STRAIGHT_TRAVERSE(int line_number,
     linearMoveMsg.acc = toExtAcc(acc);
     linearMoveMsg.indexrotary = rotary_unlock_for_traverse;
 
-    linearMoveMsg.line_number = _sloc;
+    linearMoveMsg.line_number = line_number;
 
     int old_feed_mode = feed_mode;
     if(feed_mode)
@@ -1761,7 +1751,7 @@ void ARC_FEED(int line_number,
         if(vel && a_max){
             interp_list.set_line_number(line_number);
             interp_list.append(linearMoveMsg);
-            linearMoveMsg.line_number = _sloc;
+            linearMoveMsg.line_number = line_number;
         }
     } else {
         circularMoveMsg.end = to_ext_pose(endpt);
@@ -1786,8 +1776,8 @@ void ARC_FEED(int line_number,
         // The end point is still updated, but nothing is added to the interp list
         if(vel && a_max) {
             interp_list.set_line_number(line_number);
-            circularMoveMsg.line_number = _sloc;
-	interp_list.append(circularMoveMsg);
+            circularMoveMsg.line_number = line_number;
+            interp_list.append(circularMoveMsg);
         }
     }
     // update the end point
