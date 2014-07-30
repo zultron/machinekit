@@ -1263,11 +1263,13 @@ static int emcTaskPlan(void)
 			emcStatus->task.interpState = (enum EMC_TASK_INTERP_ENUM) interpResumeState;
 		    }
 		    emcStatus->task.task_paused = 1;
+#if 0
             {
             EMC_IO_SET_LINE_NUMBER msg;
             msg.line_number=0;
             emcTaskIssueCommand(&msg);
             }
+#endif
 		    break;
 
 		    // otherwise we can't handle it
@@ -1671,6 +1673,9 @@ static int emcTaskEchoLineToIo(NMLmsg * cmd)
 
             int line_number = ((RCS_CMD_MSG*)cmd)->line_number;
             task_debug("Got Non-IO command, passing line number %d to IO\n", line_number);
+            if (!stepping) {
+                ((RCS_CMD_MSG*)cmd)->line_number = 0;
+            }
             task_methods->emcIoSetLineNumber((RCS_CMD_MSG*)cmd);
             break;
 
@@ -1694,9 +1699,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	rcs_print("Issuing %s -- \t (%s)\n", emcSymbolLookup(cmd->type),
 		  emcCommandBuffer->msg2str(cmd));
     }
-    if (stepping) {
-        emcTaskEchoLineToIo(cmd);
-    }
+    emcTaskEchoLineToIo(cmd);
 
     switch (cmd->type) {
 	// general commands
@@ -2080,9 +2083,15 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TOOL_UNLOAD_TYPE:
     case EMC_COOLANT_MIST_OFF_TYPE:
     // cheat to pass line to IO
-    case EMC_IO_SET_LINE_NUMBER_TYPE:
     retval = task_methods->emcToolPassMsg((RCS_CMD_MSG*)cmd);
 	break;
+
+    case EMC_IO_SET_LINE_NUMBER_TYPE:
+        if (!stepping) {
+            ((RCS_CMD_MSG*)cmd)->line_number = 0;
+        }
+        retval = task_methods->emcToolPassMsg((RCS_CMD_MSG*)cmd);
+        break;
 
     case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
 	load_tool_table_msg = (EMC_TOOL_LOAD_TOOL_TABLE *) cmd;
