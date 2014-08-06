@@ -305,15 +305,6 @@ STATIC inline double tpGetScaledAccel(TP_STRUCT const * const tp,
 }
 
 /**
- * Cap velocity based on trajectory properties
- */
-STATIC inline double tpGetSampleVelocity(double vel, double length, double dt) {
-    //FIXME div by zero check
-    double v_sample = length / dt;
-    return fmin(vel,v_sample);
-}
-
-/**
  * Convert a raw spindle position into a "progress" position in the current spindle direction.
  * In other words, how far has the spindle moved in the indicated direction?
  *
