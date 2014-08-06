@@ -505,7 +505,7 @@ static char *loadusr_generator(const char *text, int state) {
         len = strlen(text);
 // TORMACH_RIP_PATCH
         //d = opendir(EMC2_BIN_DIR);
-        envPtr = getenv("EMC2_BIN_DIR");
+        envPtr = getenv("LINUXCNC_BIN_DIR");
         // if not in environment use config.h #define
         if (envPtr == NULL) {
             strcpy(bin_path, EMC2_BIN_DIR);

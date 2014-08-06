@@ -1122,7 +1122,7 @@ int do_loadrt_cmd(char *mod_name, char *args[])
 
 // TORMACH_RIP_PATCH    
     //argv[0] = EMC2_BIN_DIR "/linuxcnc_module_helper";
-    envPtr = getenv("EMC2_BIN_DIR");
+    envPtr = getenv("LINUXCNC_BIN_DIR");
     // if not in environment use config.h #define
     if (envPtr == NULL) {
         strcpy(bin_path, EMC2_BIN_DIR "/linuxcnc_module_helper");
@@ -1350,7 +1350,7 @@ static int unloadrt_comp(char *mod_name)
 #else
     //argv[0] = EMC2_BIN_DIR "/linuxcnc_module_helper";
     char bin_path[512];
-    char *envPtr = getenv("EMC2_BIN_DIR");
+    char *envPtr = getenv("LINUXCNC_BIN_DIR");
     // if not in environment use config.h #define
     if (envPtr == NULL) {
         strcpy(bin_path, EMC2_BIN_DIR "/linuxcnc_module_helper");
