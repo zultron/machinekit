@@ -237,6 +237,7 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 			  setup_pointer settings) //!< pointer to machine settings
 {
   int status;
+  int skip_line_number = 0;
 
 
   block->line_number = settings->sequence_number;
@@ -248,6 +249,7 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
   }
   if ((block->comment[0] != 0) && ONCE(STEP_COMMENT)) {
     status = convert_comment(block->comment);
+    skip_line_number = 1;
     CHP(status);
   }
   if ((block->g_modes[GM_SPINDLE_MODE] != -1) && ONCE(STEP_SPINDLE_MODE)) {
@@ -315,7 +317,9 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
       return (INTERP_EXECUTE_FINISH);
 
   // By default, update for every new block
-  convert_line_number();
+  if (!skip_line_number) {
+      convert_line_number();
+  }
   return INTERP_OK;
 }
 
