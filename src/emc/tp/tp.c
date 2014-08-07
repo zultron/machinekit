@@ -365,6 +365,7 @@ int tpClear(TP_STRUCT * const tp)
     tp->goalPos = tp->currentPos;
     tp->nextId = 0;
     tp->execId = 0;
+    tp->nextexecId = 0;
     tp->motionType = 0;
     tp->termCond = TC_TERM_COND_PARABOLIC;
     tp->tolerance = 0.0;
@@ -510,6 +511,15 @@ int tpGetExecId(TP_STRUCT * const tp)
     }
 
     return tp->execId;
+}
+
+int tpGetNextExecId(TP_STRUCT * const tp)
+{
+    if (0 == tp) {
+        return TP_ERR_FAIL;
+    }
+
+    return tp->nextexecId;
 }
 
 /**
@@ -2185,7 +2195,10 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT const * const tp,
  * Based on the specified trajectory segment tc, read its progress and status
  * flags. Then, update the emcmotStatus structure with this information.
  */
-STATIC void tpUpdateMovementStatus(TP_STRUCT * const tp, TC_STRUCT const * const tc ) {
+STATIC void tpUpdateMovementStatus(TP_STRUCT * const tp,
+        TC_STRUCT const * const tc,
+        TC_STRUCT const * const nexttc)
+{
     EmcPose target;
     tcGetEndpoint(tc, &target);
 
@@ -2197,6 +2210,8 @@ STATIC void tpUpdateMovementStatus(TP_STRUCT * const tp, TC_STRUCT const * const
     emcmotStatus->enables_queued = tc->enables;
     // report our line number to the guis
     tp->execId = tc->id;
+    // Store the next ID as well to show what will execute next to the GUI
+    tp->nextexecId = nexttc ? nexttc->id : 0;
     emcmotStatus->requested_vel = tc->reqvel;
     emcmotStatus->current_vel = tc->currentvel;
 
@@ -2326,6 +2341,7 @@ STATIC int tpHandleAbort(TP_STRUCT * const tp, TC_STRUCT * const tc,
         tp->depth = tp->activeDepth = 0;
         tp->aborting = 0;
         tp->execId = 0;
+        tp->nextexecId = 0;
         tp->motionType = 0;
         tp->synchronized = 0;
         tp->spindle.waiting_for_index = MOTION_INVALID_ID;
@@ -2603,10 +2619,12 @@ STATIC int tpDoParabolicBlending(TP_STRUCT * const tp, TC_STRUCT * const tc,
     /* Status updates */
     //Decide which segment we're in depending on which is moving faster
     if(tc->currentvel > nexttc->currentvel) {
-        tpUpdateMovementStatus(tp, tc);
+        tpUpdateMovementStatus(tp, tc, nexttc);
     } else {
         tpToggleDIOs(nexttc);
-        tpUpdateMovementStatus(tp, nexttc);
+        //Hack to get next tc status
+        TC_STRUCT *next2tc = tcqItem(&tp->queue, 2);
+        tpUpdateMovementStatus(tp, nexttc, next2tc);
     }
 #ifdef TP_SHOW_BLENDS
     // hack to show blends in axis
@@ -2886,10 +2904,10 @@ STATIC int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
     if (tc->cycle_time > nexttc->cycle_time && tc->term_cond == TC_TERM_COND_TANGENT) {
         //Majority of time spent in current segment
         tpToggleDIOs(tc);
-        tpUpdateMovementStatus(tp, tc);
+        tpUpdateMovementStatus(tp, tc, nexttc);
     } else {
         tpToggleDIOs(nexttc);
-        tpUpdateMovementStatus(tp, nexttc);
+        tpUpdateMovementStatus(tp, nexttc, next2tc);
     }
 
     return TP_ERR_OK;
@@ -2916,7 +2934,7 @@ STATIC int tpHandleRegularCycle(TP_STRUCT * const tp,
     } else {
         //Update status for a normal step
         tpToggleDIOs(tc);
-        tpUpdateMovementStatus(tp, tc);
+        tpUpdateMovementStatus(tp, tc, nexttc);
     }
     return TP_ERR_OK;
 }

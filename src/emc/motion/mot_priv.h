@@ -102,6 +102,7 @@ typedef struct {
     hal_bit_t *on_soft_limit;	/* RPA: TRUE if outside a limit */
 
     hal_s32_t *program_line;    /* RPA: program line causing current motion */
+    hal_s32_t *next_program_line;    /* RPA: program line causing current motion */
     hal_float_t *current_vel;   /* RPI: velocity magnitude in machine units */
     hal_float_t *requested_vel;   /* RPI: requested velocity magnitude in machine units */
     hal_float_t *distance_to_go;/* RPI: distance to go in current move*/

@@ -665,6 +665,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 				   changed. */
 	double computeTime;
 	int id;			/* id for executing motion */
+	int next_id;			/* id for executing motion */
 	int depth;		/* motion queue depth */
 	int activeDepth;	/* depth of active blend elements */
 	int queueFull;		/* Flag to indicate the tc queue is full */

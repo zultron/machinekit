@@ -408,6 +408,11 @@ static int init_hal_io(void)
     if (retval != 0) {
 	return retval;
     }
+	hal_pin_s32_new("motion.next-program-line", HAL_OUT, &(emcmot_hal_data->next_program_line),
+	mot_comp_id);
+    if (retval != 0) {
+	return retval;
+    }
     /* export debug parameters */
     /* these can be used to view any internal variable, simply change a line
        in control.c:output_to_hal() and recompile */

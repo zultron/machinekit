@@ -29,6 +29,7 @@ int tpSetVlimit(TP_STRUCT * const tp, double vLimit);
 int tpSetAmax(TP_STRUCT * const tp, double aMax);
 int tpSetId(TP_STRUCT * const tp, int id);
 int tpGetExecId(TP_STRUCT * const tp);
+int tpGetNextExecId(TP_STRUCT * const tp);
 int tpSetTermCond(TP_STRUCT * const tp, int cond, double tolerance);
 int tpSetPos(TP_STRUCT * const tp, EmcPose const * const pos);
 int tpAddCurrentPos(TP_STRUCT * const tp, EmcPose const * const disp);
