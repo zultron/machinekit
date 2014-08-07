@@ -2686,6 +2686,7 @@ STATIC int tpUpdateInitialStatus(TP_STRUCT const * const tp) {
     emcmotStatus->tcqlen = tcqLen(&tp->queue);
     // Set default value for requested speed
     emcmotStatus->requested_vel = 0.0;
+    emcmotStatus->current_vel = 0.0;
     return TP_ERR_OK;
 }
 
