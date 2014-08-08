@@ -1104,7 +1104,7 @@ int main(int argc, char *argv[])
         break;
 
 	default:
-	    rtapi_print("IO: unknown command %s\n", emcSymbolLookup(type));
+	    rtapi_print_msg(RTAPI_MSG_DBG,"IO: unknown command %s\n", emcSymbolLookup(type));
 	    break;
 	}			/* switch (type) */
 
