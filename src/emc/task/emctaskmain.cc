@@ -1654,11 +1654,6 @@ static int emcTaskEchoLineToIo(NMLmsg * cmd)
         case EMC_TRAJ_SET_ROTATION_TYPE:
         case EMC_TRAJ_SET_G5X_TYPE:
         case EMC_TRAJ_SET_G92_TYPE:
-        case EMC_TRAJ_PROBE_TYPE:
-
-        case EMC_TRAJ_RIGID_TAP_TYPE:
-        case EMC_TRAJ_LINEAR_MOVE_TYPE:
-        case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
 
         case EMC_SPINDLE_SPEED_TYPE:
         case EMC_SPINDLE_ORIENT_TYPE:
@@ -1667,17 +1662,17 @@ static int emcTaskEchoLineToIo(NMLmsg * cmd)
         case EMC_SPINDLE_INCREASE_TYPE:
         case EMC_SPINDLE_DECREASE_TYPE:
         case EMC_SPINDLE_CONSTANT_TYPE:
-        case EMC_TASK_PLAN_RUN_TYPE:
-        case EMC_TASK_PLAN_END_TYPE:
-        case EMC_TASK_PLAN_STEP_TYPE:
-
-            int line_number = ((RCS_CMD_MSG*)cmd)->line_number;
-            task_debug("Got Non-IO command, passing line number %d to IO\n", line_number);
-            if (!stepping) {
-                ((RCS_CMD_MSG*)cmd)->line_number = 0;
-            }
+            //Check if these types are needed, may be causing extra steps
+            task_debug("Skipping IO echo of line number %d for type %ld\n", ((RCS_CMD_MSG*)cmd)->line_number, cmd->type);
             task_methods->emcIoSetLineNumber((RCS_CMD_MSG*)cmd);
             break;
+        case EMC_TRAJ_RIGID_TAP_TYPE:
+        case EMC_TRAJ_LINEAR_MOVE_TYPE:
+        case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
+        case EMC_TRAJ_PROBE_TYPE:
+            task_debug("Skipping IO echo of line number %d for type %ld\n", ((RCS_CMD_MSG*)cmd)->line_number, cmd->type);
+            break;
+
 
     }
     return 0;
@@ -2082,14 +2077,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TOOL_START_CHANGE_TYPE:
     case EMC_TOOL_UNLOAD_TYPE:
     case EMC_COOLANT_MIST_OFF_TYPE:
-    // cheat to pass line to IO
-    retval = task_methods->emcToolPassMsg((RCS_CMD_MSG*)cmd);
-	break;
-
     case EMC_IO_SET_LINE_NUMBER_TYPE:
-        if (!stepping) {
-            ((RCS_CMD_MSG*)cmd)->line_number = 0;
-        }
         retval = task_methods->emcToolPassMsg((RCS_CMD_MSG*)cmd);
         break;
 
