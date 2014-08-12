@@ -1059,9 +1059,10 @@ void STRAIGHT_TRAVERSE(int line_number,
     if(feed_mode)
 	STOP_SPEED_FEED_SYNCH();
 
+    // Since we're not doing NCD on traverse moves, we can safely overwrite the line_number with _sloc
     if(vel && acc)  {
-        interp_list.set_line_number(line_number);
-        tag_and_send(linearMoveMsg, line_number);
+        interp_list.set_line_number(_sloc);
+        tag_and_send(linearMoveMsg, _sloc);
     }
 
     if(old_feed_mode)
