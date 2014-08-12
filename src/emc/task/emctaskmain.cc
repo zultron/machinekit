@@ -1664,7 +1664,7 @@ static int emcTaskEchoLineToIo(NMLmsg * cmd)
         case EMC_SPINDLE_CONSTANT_TYPE:
         case EMC_TRAJ_DELAY_TYPE:
             //Check if these types are needed, may be causing extra steps
-            task_debug("Skipping IO echo of line number %d for type %ld\n", ((RCS_CMD_MSG*)cmd)->line_number, cmd->type);
+            task_debug("Echoing line number %d for type %ld to IO\n", ((RCS_CMD_MSG*)cmd)->line_number, cmd->type);
             task_methods->emcIoSetLineNumber((RCS_CMD_MSG*)cmd);
             break;
         case EMC_TRAJ_RIGID_TAP_TYPE:
@@ -2589,15 +2589,12 @@ static int emcTaskExecute(void)
 		// it
 		if (0 != emcTaskCommand) {
 		    emcTaskEager = 1;
-            //Hack to not have interp lines overwrite the lines from TASK messages
+            // Get the current line from the message, rather than the interp list
             int message_line = ((RCS_CMD_MSG*)emcTaskCommand)->line_number;
-			if (message_line > 0) {
-                emcStatus->task.currentLine = message_line;
-                task_debug("Updating current line from MESSAGE of type %lu: %d\n",
-                        emcTaskCommand->type,
-                        emcStatus->task.currentLine);
-            } 
-		    // and set it for all subsystems which use queued ids
+            emcStatus->task.currentLine = message_line;
+            task_debug("Updating current line from MESSAGE of type %lu: %d\n",
+                    emcTaskCommand->type,
+                    emcStatus->task.currentLine);
 		    emcTrajSetMotionId(emcStatus->task.currentLine);
 		    if (emcStatus->motion.traj.queueFull) {
 			emcStatus->task.execState =
