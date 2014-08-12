@@ -1662,6 +1662,7 @@ static int emcTaskEchoLineToIo(NMLmsg * cmd)
         case EMC_SPINDLE_INCREASE_TYPE:
         case EMC_SPINDLE_DECREASE_TYPE:
         case EMC_SPINDLE_CONSTANT_TYPE:
+        case EMC_TRAJ_DELAY_TYPE:
             //Check if these types are needed, may be causing extra steps
             task_debug("Skipping IO echo of line number %d for type %ld\n", ((RCS_CMD_MSG*)cmd)->line_number, cmd->type);
             task_methods->emcIoSetLineNumber((RCS_CMD_MSG*)cmd);
