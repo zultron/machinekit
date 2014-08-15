@@ -809,6 +809,16 @@ static PyObject *mode(pyCommandChannel *s, PyObject *o) {
     return Py_None;
 }
 
+static PyObject *set_axis_max_velocity(pyCommandChannel *s, PyObject *o) {
+    EMC_AXIS_SET_MAX_VELOCITY m;
+    if(!PyArg_ParseTuple(o, "id", &m.axis, &m.vel)) return NULL;
+    m.serial_number = next_serial(s);
+    s->c->write(m);
+    emcWaitCommandReceived(s->serial, s->s);
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyObject *maxvel(pyCommandChannel *s, PyObject *o) {
     EMC_TRAJ_SET_MAX_VELOCITY m;
     if(!PyArg_ParseTuple(o, "d", &m.velocity)) return NULL;
@@ -817,7 +827,7 @@ static PyObject *maxvel(pyCommandChannel *s, PyObject *o) {
     emcWaitCommandReceived(s->serial, s->s);
     Py_INCREF(Py_None);
     return Py_None;
-}    
+}
 
 static PyObject *feedrate(pyCommandChannel *s, PyObject *o) {
     EMC_TRAJ_SET_SCALE m;
@@ -1438,6 +1448,7 @@ static PyMethodDef Command_methods[] = {
     {"set_digital_output", (PyCFunction)set_digital_output, METH_VARARGS},
     {"set_analog_output", (PyCFunction)set_analog_output, METH_VARARGS},
     {"set_homing_params", (PyCFunction)set_homing_params, METH_VARARGS},
+    {"set_axis_max_velocity", (PyCFunction)set_axis_max_velocity, METH_VARARGS},
     {NULL}
 };
 

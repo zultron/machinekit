@@ -394,6 +394,7 @@ static EMC_AXIS_SET_FERROR *set_ferror_msg;
 static EMC_AXIS_SET_MIN_FERROR *set_min_ferror_msg;
 static EMC_AXIS_SET_MAX_POSITION_LIMIT *set_max_limit_msg;
 static EMC_AXIS_SET_MIN_POSITION_LIMIT *set_min_limit_msg;
+static EMC_AXIS_SET_MAX_VELOCITY *set_max_velocity_msg;
 static EMC_AXIS_OVERRIDE_LIMITS *axis_lim_msg;
 //static EMC_AXIS_SET_OUTPUT *axis_output_msg;
 static EMC_AXIS_LOAD_COMP *axis_load_comp_msg;
@@ -935,6 +936,7 @@ static int emcTaskPlan(void)
 	    case EMC_AXIS_SET_MIN_FERROR_TYPE:
 	    case EMC_AXIS_SET_MAX_POSITION_LIMIT_TYPE:
 	    case EMC_AXIS_SET_MIN_POSITION_LIMIT_TYPE:
+	    case EMC_AXIS_SET_MAX_VELOCITY_TYPE:
 	    case EMC_AXIS_ABORT_TYPE:
 	    case EMC_AXIS_HALT_TYPE:
 	    case EMC_AXIS_HOME_TYPE:
@@ -1809,6 +1811,12 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	set_min_limit_msg = (EMC_AXIS_SET_MIN_POSITION_LIMIT *) cmd;
 	retval = emcAxisSetMinPositionLimit(set_min_limit_msg->axis,
 					    set_min_limit_msg->limit);
+	break;
+
+    case EMC_AXIS_SET_MAX_VELOCITY_TYPE:
+	set_max_velocity_msg = (EMC_AXIS_SET_MAX_VELOCITY *) cmd;
+	retval = emcAxisSetMaxVelocity(set_max_velocity_msg->axis,
+					    set_max_velocity_msg->vel);
 	break;
 
     case EMC_AXIS_HALT_TYPE:
