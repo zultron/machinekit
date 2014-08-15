@@ -2014,33 +2014,41 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
                   block_pointer block,           //!< pointer to current block
                   setup_pointer settings)        //!< pointer to machine settings
 {
-  if (g_code == G_7) {
-    if (!settings->lathe_diameter_mode) {
-      if(block->x_flag)
-      {
-        block->x_number /= 2; //Apply scaling now
-      }
-      if(block->motion_to_be == G_76) {
-          block->i_number /= 2;
-          block->j_number /= 2;
-          block->k_number /= 2;
-      }              
+	if (g_code == G_7) {
+    		if (FEATURE(LATHE_TOOLCHANGE)) {
+   	 		if (!settings->lathe_diameter_mode) {
+      				if(block->x_flag){
+       		 			block->x_number /= 2; //Apply scaling now
+      				}
+      				if(block->motion_to_be == G_76) {
+         	 			block->i_number /= 2;
+          				block->j_number /= 2;
+          				block->k_number /= 2;
+      				}              
 #ifdef DEBUG_EMC
       COMMENT("interpreter: Lathe diameter mode changed to diameter");
 #endif
-      settings->lathe_diameter_mode = true;
-    }
-  } else if (g_code == G_8) {
-    if (settings->lathe_diameter_mode) {
-      if(block->x_flag)
-      {
-        block->x_number *= 2; //Remove any existing scaling
-      }
-      if(block->motion_to_be == G_76) {
-          block->i_number *= 2;
-          block->j_number *= 2;
-          block->k_number *= 2;
-      }              
+      				settings->lathe_diameter_mode = true;
+   	 		}
+ 	 	}
+	else 
+		ERS("G7 - diameter mode - not allowed in mill");
+ }
+ 	else if (g_code == G_8) {
+		if (FEATURE(LATHE_TOOLCHANGE)) {
+			ERS("BUG: G8 - radius mode - not allowed.");	
+			return INTERP_OK;
+		}
+  	if (settings->lathe_diameter_mode) {
+    		if(block->x_flag)
+			{
+				block->x_number *= 2; //Remove any existing scaling
+			}
+      	if(block->motion_to_be == G_76) {
+				block->i_number *= 2;
+          	block->j_number *= 2;
+         		block->k_number *= 2;
+      	}              
 #ifdef DEBUG_EMC
       COMMENT("interpreter: Lathe diameter mode changed to radius");
 #endif
@@ -3235,6 +3243,13 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
     return convert_remapped_code(block,settings,STEP_M_10,'m',
 				   block->m_modes[10]);
 
+ } else if ((block->m_modes[10] == 998) && ONCE_M(10)){
+	 // Tormach only
+	 if (FEATURE(LATHE_TOOLCHANGE)){
+		 CHKS(1, NCE_UNKNOWN_M_CODE_USED);
+	 } else {
+		CHP(convert_home(G_30, block, settings));
+	}
  } else if ((block->m_modes[10] != -1)  && ONCE_M(10)){
      /* user-defined M codes */
     int index = block->m_modes[10];
@@ -3514,6 +3529,8 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
 
     CHP((find_tool_pocket(settings, toolno, &pocket)));
 
+    settings->tool_table[pocket].toolno = toolno;
+
     CHKS(!(block->x_flag || block->y_flag || block->z_flag ||
 	   block->a_flag || block->b_flag || block->c_flag ||
 	   block->u_flag || block->v_flag || block->w_flag ||
@@ -3696,7 +3713,39 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
                              settings->tool_table[pocket].backangle,
                              settings->tool_table[pocket].orientation);
     }
+    if (FEATURE(LATHE_TOOLCHANGE)) {
+        // G10 command doesn't automatically apply a G43 length offset to the newly measured tool
+		// we don't want to call a G43 in our python code for lathe, so we'll deal with applying the offset here.
+		// Tormach *dpr 4/30/13
+		// Don't apply the offset unless the P number is the same as the current tool *dpr 8/12/13
+		// Also, don't apply the offset if we're just setting a wear offset.  Instead, clear the wear offset register
+		// (which happens with a ZERO_EMC_POSE(tool_offset)) because we don't want to deal with the case
+		// where a user has T0204 active and edits wear offset register 4.  Too complicated, so we'll
+		// just say that G10 clears the wear offset application.  *dpr 2/6/14
+		if (((toolno - 10000) == settings->tool_table[0].toolno)){
+			EmcPose tool_offset;
+			ZERO_EMC_POSE(tool_offset);
+			tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
+			tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.z);
+			USE_TOOL_LENGTH_OFFSET(tool_offset);
+			double dx, dy;
 
+			dx = settings->tool_offset.tran.x - tool_offset.tran.x;
+			dy = settings->tool_offset.tran.y - tool_offset.tran.y;
+			rotate(&dx, &dy, -settings->rotation_xy);
+
+			settings->current_x += dx;
+			settings->current_y += dy;
+			settings->current_z += settings->tool_offset.tran.z - tool_offset.tran.z;
+			settings->AA_current += settings->tool_offset.a - tool_offset.a;
+			settings->BB_current += settings->tool_offset.b - tool_offset.b;
+			settings->CC_current += settings->tool_offset.c - tool_offset.c;
+			settings->u_current += settings->tool_offset.u - tool_offset.u;
+			settings->v_current += settings->tool_offset.v - tool_offset.v;
+			settings->w_current += settings->tool_offset.w - tool_offset.w;
+			settings->tool_offset = tool_offset;
+		}		
+    } 
     return INTERP_OK;
 }
 
@@ -4104,7 +4153,8 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
     OPTIONAL_PROGRAM_STOP();
   } else if ((block->m_modes[4] == 2) || (block->m_modes[4] == 30)) {   /* reset stuff here */
 /*1*/
-    settings->current_x += settings->origin_offset_x;
+/* Tormach edits - M30 should behave like Fanuc/Haas, and not clear G5x, G95, G17 settings */
+/*  settings->current_x += settings->origin_offset_x;
     settings->current_y += settings->origin_offset_y;
     settings->current_z += settings->origin_offset_z;
     settings->AA_current += settings->AA_origin_offset;
@@ -4150,20 +4200,22 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
                    settings->v_origin_offset,
                    settings->w_origin_offset);
     SET_XY_ROTATION(settings->rotation_xy);
-
-/*2*/ if (settings->plane != CANON_PLANE_XY) {
+*/
+/*2*/ 
+/*  if (settings->plane != CANON_PLANE_XY) {
       SELECT_PLANE(CANON_PLANE_XY);
       settings->plane = CANON_PLANE_XY;
     }
-
+*/
 /*3*/
     settings->distance_mode = MODE_ABSOLUTE;
 
-/*4*/ settings->feed_mode = UNITS_PER_MINUTE;
+/*4*/ 
+/*    settings->feed_mode = UNITS_PER_MINUTE;
     SET_FEED_MODE(0);
     settings->feed_rate = block->f_number;
     SET_FEED_RATE(0);
-
+*/
 /*5*/ if (!settings->feed_override) {
       ENABLE_FEED_OVERRIDE();
       settings->feed_override = true;
@@ -4180,11 +4232,11 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 /*7*/ STOP_SPINDLE_TURNING();
     settings->spindle_turning = CANON_STOPPED;
 
-    /* turn off FPR */
-    SET_SPINDLE_MODE(0);
-
-/*8*/ settings->motion_mode = G_1;
-
+    /* turn off CSS */
+    // SET_SPINDLE_MODE(0); Leave spindle in CSS on M30 - 8/20/13 *dpr - Tormach.
+/*8*/ 
+/*settings->motion_mode = G_1;
+*/
 /*9*/ if (settings->mist) {
       MIST_OFF();
       settings->mist = false;
@@ -4297,6 +4349,9 @@ int Interp::convert_straight(int move,   //!< either G_0 or G_1
     } else if (settings->feed_mode == UNITS_PER_REVOLUTION) {
       CHKS((settings->feed_rate == 0.0), NCE_CANNOT_DO_G1_WITH_ZERO_FEED_RATE);
       CHKS((settings->speed == 0.0), _("Cannot feed with zero spindle speed in feed per rev mode"));
+      CHKS(((settings->spindle_turning != CANON_CLOCKWISE) &&
+           (settings->spindle_turning != CANON_COUNTERCLOCKWISE)),
+          _("Cannot feed with spindle not turning in feed per rev mode"));
     } else if (settings->feed_mode == INVERSE_TIME) {
       CHKS((!block->f_flag),
           NCE_F_WORD_MISSING_WITH_INVERSE_TIME_G1_MOVE);
