@@ -684,10 +684,6 @@ check_stuff ( "before command_handler()" );
 		/* can't do two kinds of jog at once */
 		break;
 	    }
-	    if (emcmotStatus->net_feed_scale < 0.0001 ) {
-		/* don't jog if feedhold is on or if feed override is zero */
-		break;
-	    }
             if (joint->home_flags & HOME_UNLOCK_FIRST) {
                 reportError("Can't jog a locking axis.");
 		SET_JOINT_ERROR_FLAG(joint, 1);
@@ -748,10 +744,6 @@ check_stuff ( "before command_handler()" );
 	    }
 	    if (joint->wheel_jog_active) {
 		/* can't do two kinds of jog at once */
-		break;
-	    }
-	    if (emcmotStatus->net_feed_scale < 0.0001 ) {
-		/* don't jog if feedhold is on or if feed override is zero */
 		break;
 	    }
             if (joint->home_flags & HOME_UNLOCK_FIRST) {
@@ -821,10 +813,6 @@ check_stuff ( "before command_handler()" );
 	    }
 	    if (joint->wheel_jog_active) {
 		/* can't do two kinds of jog at once */
-		break;
-	    }
-	    if (emcmotStatus->net_feed_scale < 0.0001 ) {
-		/* don't jog if feedhold is on or if feed override is zero */
 		break;
 	    }
 	    /* don't jog further onto limits */

@@ -1000,10 +1000,6 @@ static void handle_jogwheels(void)
 	if (joint->kb_jog_active) {
 	    continue;
 	}
-	if (emcmotStatus->net_feed_scale < 0.0001 ) {
-	    /* don't jog if feedhold is on or if feed override is zero */
-	    break;
-	}
 	/* calculate distance to jog */
 	distance = delta * *(joint_data->jog_scale);
 	/* check for joint already on hard limit */
