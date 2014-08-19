@@ -3002,14 +3002,16 @@ int Interp::read_text(
                  _setup.skipping_to_sub,
                  _setup.skipping_start);
       }
-      if (_setup.percent_flag)
+/*      if (_setup.percent_flag)
       {
         ERS(NCE_FILE_ENDED_WITH_NO_PERCENT_SIGN);
       }
       else
       {
         ERS(NCE_FILE_ENDED_WITH_NO_PERCENT_SIGN_OR_PROGRAM_END);
-      }
+      } removed by Tormach *dpr 8/19/14 */
+      FINISH();
+      return INTERP_ENDFILE;  // added *dpr 8/19/14
     }
     _setup.sequence_number++;   /* moved from version1, was outside if */
     if (strlen(raw_line) == (LINELEN - 1)) { // line is too long. need to finish reading the line to recover
