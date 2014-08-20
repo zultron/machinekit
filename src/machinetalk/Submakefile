@@ -95,7 +95,8 @@ PROTOCXX_CXX_FLAGS := -fPIC $(PROTOBUF_CFLAGS)
 
 # NANOPB_CFLAGS are also passed to module build through
 # RTFLAGS - see hal/msgcomponents/Submakefile
-NANOPB_CFLAGS := -DPB_FIELD_32BIT '-DPB_SYSTEM_HEADER=<'$(MACHINETALK)'/include/pb-linuxcnc.h>'
+NANOPB_CFLAGS := -DPB_FIELD_32BIT \
+	'-DPB_SYSTEM_HEADER=<'$(MACHINETALK)'/include/pb-linuxcnc.h>'
 NANOPB_OPTIONS := $(MACHINETALK)/nanopb.options
 
 # any extra flags to C compile nanopb bindings
@@ -133,7 +134,6 @@ PROTO_PY_TARGETS += $(subst $(PROTODIR)/, \
 ifeq ($(BUILD_PROTOC_C),yes)
 
 # generated C includes
-PROTO_C_INCS := $(PBGEN)/nanopb.pb-c.h
 PROTO_C_INCS += $(PBGEN)/google/protobuf/descriptor.pb-c.h
 PROTO_C_INCS += $(subst $(PROTODIR)/, \
 	$(PBGEN)/,  \
@@ -149,6 +149,7 @@ else
 PROTO_C_INCS :=
 PROTO_C_SRCS :=
 endif
+$(info PROTO_C_INCS = $(PROTO_C_INCS))
 
 # generated C++ includes
 PROTO_CXX_INCS :=
@@ -168,9 +169,10 @@ MT_INSTALL_INCS := $(subst $(PBGEN), \
 	$(PROTO_CXX_INCS) $(PROTO_C_INCS) $(PROTO_NANOPB_C_INCS))
 
 MT_INSTALL_INCS +=  \
-	../include/machinetalk/nanopb/pb.h \
-	../include/machinetalk/nanopb/pb_encode.h \
-	../include/machinetalk/nanopb/pb_decode.h
+	../include/$(NANOPB)/pb.h \
+	../include/$(NANOPB)/pb_encode.h \
+	../include/$(NANOPB)/pb_decode.h
+$(info MT_INSTALL_INCS = $(MT_INSTALL_INCS))
 
 # generate emctypes.proto from emc/nml_intf/emc.hh
 $(PBGEN)/emctypes.proto: emc/nml_intf/emc.hh $(MACHINETALK)/scripts/extract-nmltypes
@@ -348,29 +350,43 @@ $(PROTOCXXLIB).0: $(patsubst %.cc,objects/%.o,$(PROTO_CXX_SRCS))
 	$(Q)$(CXX) $(LDFLAGS) -Wl,-soname,$(notdir $@) -shared -o $@ $^
 
 # protoc/protoc-c generated headers are exported to ../include
-../include/%.h: ./$(PBGEN)/%.h
+# PROTO_C_INCS
+# 	$(PROTO_CXX_INCS) $(PROTO_NANOPB_C_INCS)
+# 	$(PROTO_C_INCS) $(PROTO_CXX_INCS) $(PROTO_NANOPB_C_INCS)
+# targets $(PROTO_CXX_INCS) $(PROTO_C_INCS) $(PROTO_NANOPB_C_INCS)
+# HEADERS += $(MT_INSTALL_INCS)
+
+
+$(MT_INSTALL_INCS): ../include/%.h: %.h
 	@mkdir -p $(dir $@)
 	cp $^ $@
+
+# Copy into ../install, preserving subdirectory structure
+SUBDIRECTORY_HEADERS += $(MT_INSTALL_INCS)
 
 ../include/%.hh: ./$(PBGEN)/%.hh
 	@mkdir -p $(dir $@)
 	cp $^ $@
 
-# as are the nanop library headers
-../include/%.h: ./$(NANOPB)/%.h
+../include/%.hh: ./$(MTINCLUDES)/%.hh
 	@mkdir -p $(dir $@)
 	cp $^ $@
 
-../include/%.h: ./$(MACHINETALK)/%.h
-	cp $^ $@
+# ../include/%.h: ./$(PBGEN)/%.h
+# 	@mkdir -p $(dir $@)
+# 	cp $^ $@
 
-../include/%.h: ./$(MACHINETALK)/include/%.h
-	@mkdir -p $(dir $@)
-	cp $^ $@
+# # as are the nanop library headers
+# ../include/%.h: ./$(NANOPB)/%.h
+# 	@mkdir -p $(dir $@)
+# 	cp $^ $@
 
-../include/%.hh: ./$(MACHINETALK)/include/%.hh
-	@mkdir -p $(dir $@)
-	cp $^ $@
+# ../include/%.h: ./$(MACHINETALK)/%.h
+# 	cp $^ $@
+
+# ../include/%.h: ./$(MTINCLUDES)/%.h
+# 	@mkdir -p $(dir $@)
+# 	cp $^ $@
 
 # those will be compiled
 USERSRCS +=  $(NANOPB_C_SRCS) \
@@ -379,22 +395,18 @@ USERSRCS +=  $(NANOPB_C_SRCS) \
 
 ifeq ($(BUILD_PROTOC_C),yes)
 
-USERSRCS += $(PROTO_C_SRCS) \
-	$(MACHINETALK)/generated/descriptor.pb-c.c
+USERSRCS += $(PROTO_C_SRCS)
 endif
 
 GENERATED += $(PROTO_PY_TARGETS) \
-	$(MACHINETALK)/generated/nanopb.pb.h	\
-	$(MACHINETALK)/generated/nanopb.pb.cc \
 	$(PROTO_CXX_SRCS) $(PROTO_NANOPB_C_SRCS) \
 	$(PROTO_CXX_INCS) $(PROTO_NANOPB_C_INCS)
+$(info GENERATED = $(GENERATED))
 
 ifeq ($(BUILD_PROTOC_C),yes)
 GENERATED += \
 	$(PROTO_C_SRCS) $(PROTO_CXX_SRCS) $(PROTO_NANOPB_C_SRCS) \
-	$(PROTO_C_INCS) $(PROTO_CXX_INCS) $(PROTO_NANOPB_C_INCS) \
-	$(MACHINETALK)/generated/nanopb.pb-c.h  \
-	$(MACHINETALK)/generated/nanopb.pb-c.c
+	$(PROTO_C_INCS) $(PROTO_CXX_INCS) $(PROTO_NANOPB_C_INCS)
 endif
 
 
@@ -410,8 +422,9 @@ INCLUDES += $(PBGEN)
 INCLUDES += $(NANOPB)
 INCLUDES += $(MTINCLUDES)
 
+
 TARGETS += $(PROTO_CXX_INCS) $(PROTO_C_INCS) $(PROTO_NANOPB_C_INCS)
-TARGETS += $(MT_INSTALL_INCS)
+$(info TARGETS = $(TARGETS))
 TARGETS += $(NANOPROTOCLIB) $(NANOPROTOCLIB).0 \
 	$(PROTOCXXLIB) $(PROTOCXXLIB).0
 
