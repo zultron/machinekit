@@ -380,7 +380,6 @@ USERSRCS +=  $(NANOPB_C_SRCS) \
 ifeq ($(BUILD_PROTOC_C),yes)
 
 USERSRCS += $(PROTO_C_SRCS) \
-	$(MACHINETALK)/generated/descriptor.pb-c.h \
 	$(MACHINETALK)/generated/descriptor.pb-c.c
 endif
 
