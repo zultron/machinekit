@@ -168,10 +168,7 @@ MT_INSTALL_INCS := $(subst $(PBGEN), \
 	../include/$(PBGEN),  \
 	$(PROTO_CXX_INCS) $(PROTO_C_INCS) $(PROTO_NANOPB_C_INCS))
 
-MT_INSTALL_INCS +=  \
-	../include/$(NANOPB)/pb.h \
-	../include/$(NANOPB)/pb_encode.h \
-	../include/$(NANOPB)/pb_decode.h
+MT_INSTALL_INCS += $(NANOPB_INSTALL_INCS)
 $(info MT_INSTALL_INCS = $(MT_INSTALL_INCS))
 
 # generate emctypes.proto from emc/nml_intf/emc.hh
@@ -197,7 +194,7 @@ PROTO_DEPS :=  $(patsubst %,objects/%,$(patsubst %.proto,%.d,$(PROTO_SPECS)))
 # options to the dependency generator protoc plugin
 PBDEP_OPT :=
 #PBDEP_OPT += --debug
-PBDEP_OPT += --cgen=$(MACHINETALK)/generated
+PBDEP_OPT += --cgen=$(PBGEN)
 PBDEP_OPT += --pygen=lib/python
 PBDEP_OPT += --jsgen=$(JSGEN)
 # this path must match the vpath arrangement exactly or the deps will be wrong
@@ -356,10 +353,6 @@ $(PROTOCXXLIB).0: $(patsubst %.cc,objects/%.o,$(PROTO_CXX_SRCS))
 # targets $(PROTO_CXX_INCS) $(PROTO_C_INCS) $(PROTO_NANOPB_C_INCS)
 # HEADERS += $(MT_INSTALL_INCS)
 
-
-$(MT_INSTALL_INCS): ../include/%.h: %.h
-	@mkdir -p $(dir $@)
-	cp $^ $@
 
 # Copy into ../install, preserving subdirectory structure
 SUBDIRECTORY_HEADERS += $(MT_INSTALL_INCS)

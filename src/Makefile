@@ -557,9 +557,11 @@ HEADERS := \
 # Make each include file a target
 TARGETS += $(patsubst %,../include/%,$(foreach h,$(HEADERS),$(notdir $h)))
 
-# Add headers to this list that need to go into subdirectories; their
-# respective Submakefiles will need to provide rules to copy them into
-# ../install.
+# Add headers that need to be installed in subdirectories to the
+# SUBDIRECTORY_HEADERS list.
+$(SUBDIRECTORY_HEADERS): ../include/%.h: %.h
+	@mkdir -p ../include/$(dir $@)
+	cp $^ $@
 TARGETS += $(SUBDIRECTORY_HEADERS)
 
 # Add converting of %.po files
