@@ -41,7 +41,7 @@
 #include "canon.hh"
 #include "canon_position.hh"		// data type for a machine position
 #include "interpl.hh"		// interp_list
-#include "emcglb.h"		// TRAJ_MAX_VELOCITY
+#include "emcglb.h"		// global values from INI for max velocity, tolerance, etc.
 
 //#define EMCCANON_DEBUG
 
@@ -1185,7 +1185,14 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
 
     canonMotionMode = mode;
     canon_debug("canonMotionMode = %d\n", mode);
-    canonMotionTolerance =  FROM_PROG_LEN(tolerance);
+    
+    // Negative value means we use default tolerance as specified in INI file
+    if (tolerance < 0) {
+        // convert to canon units
+        canonMotionTolerance = FROM_EXT_LEN(traj_default_tolerance);
+    } else {
+        canonMotionTolerance = FROM_PROG_LEN(tolerance);
+    }
 
     switch (mode) {
     case CANON_CONTINUOUS:
@@ -1201,14 +1208,22 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
         setTermCondMsg.cond = EMC_TRAJ_TERM_COND_STOP;
         break;
     }
+    printf("Setting tolerance to %f\n",canonMotionTolerance);
 
 	tag_and_send(setTermCondMsg);
 }
 
 void SET_NAIVECAM_TOLERANCE(double tolerance)
 {
-    canonNaivecamTolerance =  FROM_PROG_LEN(tolerance);
-    send_line_number_msg();
+    // Strip negative tolerances
+    if (tolerance < 0.0) {
+        canonNaivecamTolerance = FROM_EXT_LEN(traj_default_naivecam_tolerance);
+    } else {
+        canonNaivecamTolerance = FROM_PROG_LEN(tolerance);
+    }
+    printf("Setting naivecam tolerance to %f\n",canonNaivecamTolerance);
+    //TODO enforce a minimum naivecam tolerance to prevent bogging down on
+    //stupidly short segments?
 }
 
 void SELECT_PLANE(CANON_PLANE in_plane)

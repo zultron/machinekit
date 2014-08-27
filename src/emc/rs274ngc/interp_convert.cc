@@ -1493,31 +1493,27 @@ int Interp::convert_control_mode(int g_code,     //!< g_code being executed (G_6
 				double naivecam_tolerance,    //tolerance for the naivecam
                                 setup_pointer settings) //!< pointer to machine settings                 
 {
-  CHKS((settings->cutter_comp_side),
-       (_("Cannot change control mode with cutter radius compensation on")));
-  if (g_code == G_61) {
-    SET_MOTION_CONTROL_MODE(CANON_EXACT_PATH, 0);
-    settings->control_mode = CANON_EXACT_PATH;
-  } else if (g_code == G_61_1) {
-    SET_MOTION_CONTROL_MODE(CANON_EXACT_STOP, 0);
-    settings->control_mode = CANON_EXACT_STOP;
-  } else if (g_code == G_64) {
-	if (tolerance >= 0) {
-	    SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, tolerance);
-	} else {
-	    SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, 0);
-	}
-	if (naivecam_tolerance >= 0) {
-	    SET_NAIVECAM_TOLERANCE(naivecam_tolerance);
-	} else if (tolerance >= 0) {
-	    SET_NAIVECAM_TOLERANCE(tolerance);   // if no naivecam_tolerance specified use same for both
-	} else {
-	    SET_NAIVECAM_TOLERANCE(0);
-	}
-    settings->control_mode = CANON_CONTINUOUS;
-  } else 
-    ERS(NCE_BUG_CODE_NOT_G61_G61_1_OR_G64);
-  return INTERP_OK;
+    CHKS((settings->cutter_comp_side),
+            (_("Cannot change control mode with cutter radius compensation on")));
+
+    switch (g_code) {
+        case G_61:
+            SET_MOTION_CONTROL_MODE(CANON_EXACT_PATH, 0);
+            settings->control_mode = CANON_EXACT_PATH;
+            break;
+        case G_61_1:
+            SET_MOTION_CONTROL_MODE(CANON_EXACT_STOP, 0);
+            settings->control_mode = CANON_EXACT_STOP;
+            break;
+        case G_64:
+            SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, tolerance);
+            SET_NAIVECAM_TOLERANCE(naivecam_tolerance);
+            settings->control_mode = CANON_CONTINUOUS;
+            break;
+        default:
+            ERS(NCE_BUG_CODE_NOT_G61_G61_1_OR_G64);
+    }
+    return INTERP_OK;
 }
 
 /****************************************************************************/
@@ -2248,9 +2244,16 @@ int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS27
 	CHP(status);
     }
     if ((block->g_modes[GM_CONTROL_MODE] != -1) && ONCE(STEP_CONTROL_MODE)) {
-	status = convert_control_mode(block->g_modes[GM_CONTROL_MODE],
-				      block->p_number, block->q_number, settings);
-	CHP(status);
+        // If P and Q words are not specified, pass a negative value to
+        // indicate that defaults should be used.
+        double tolerance = block->p_flag ? block->p_number : -1;
+        double naivecam_tolerance = block->q_flag ? block->q_number : -1;
+
+        status = convert_control_mode(block->g_modes[GM_CONTROL_MODE],
+                tolerance,
+                naivecam_tolerance,
+                settings);
+        CHP(status);
     }
     if ((block->g_modes[GM_DISTANCE_MODE] != -1) && ONCE(STEP_DISTANCE_MODE)) {
       status = convert_distance_mode(block->g_modes[GM_DISTANCE_MODE], settings);

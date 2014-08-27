@@ -38,6 +38,9 @@ char tool_table_file[LINELEN] = DEFAULT_TOOL_TABLE_FILE;
 double traj_default_velocity = DEFAULT_TRAJ_DEFAULT_VELOCITY;
 double traj_max_velocity = DEFAULT_TRAJ_MAX_VELOCITY;
 
+double traj_default_tolerance = DEFAULT_TRAJ_TOLERANCE;
+double traj_default_naivecam_tolerance = DEFAULT_TRAJ_NAIVECAM_TOLERANCE;
+
 double axis_max_velocity[EMC_AXIS_MAX] = { 1.0 };	/*! \todo FIXME - I think
 							   these should be
 							   0.0 */

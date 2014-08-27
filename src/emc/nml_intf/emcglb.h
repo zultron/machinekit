@@ -66,6 +66,11 @@ extern "C" {
     extern struct EmcPose tool_holder_clear;
     extern unsigned char have_tool_holder_clear;
 
+    // Store default tolerances from INI file. If not set in INI file, they
+    // behave like the linuxcnc default.
+    extern double traj_default_tolerance;
+    extern double traj_default_naivecam_tolerance;
+
 /*just used to keep track of unneccessary debug printing. */
     extern int taskplanopen;
 

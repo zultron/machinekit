@@ -24,7 +24,7 @@
 #include "posemath.h"		// PM_POSE, PM_RPY
 #include "emcIniFile.hh"
 #include "initraj.hh"		// these decls
-#include "emcglb.h"		/*! \todo TRAVERSE_RATE (FIXME) */
+#include "emcglb.h"		// A bunch of global values used across canon and interp
 #include "inihal.hh"
 
 extern value_inihal_data old_inihal_data;
@@ -175,13 +175,20 @@ static int loadTraj(EmcIniFile *trajInifile)
         trajInifile->Find(&arcBlendGapCycles, "ARC_BLEND_GAP_CYCLES", "TRAJ");
         trajInifile->Find(&arcBlendRampFreq, "ARC_BLEND_RAMP_FREQ", "TRAJ");
 
-        if (0 != emcSetupArcBlends(arcBlendEnable, arcBlendFallbackEnable,
-                    arcBlendOptDepth, arcBlendGapCycles, arcBlendRampFreq)) {
+        if (0 != emcSetupArcBlends(arcBlendEnable,
+                    arcBlendFallbackEnable,
+                    arcBlendOptDepth,
+                    arcBlendGapCycles,
+                    arcBlendRampFreq)) {
             if (emc_debug & EMC_DEBUG_CONFIG) {
                 rcs_print("bad return value from emcSetupArcBlends\n");
             }
             return -1;
         } 
+
+        // Store default blend tolerance in emc globals
+        trajInifile->Find(&traj_default_tolerance, "DEFAULT_TOLERANCE", "TRAJ");
+        trajInifile->Find(&traj_default_naivecam_tolerance, "DEFAULT_NAIVECAM_TOLERANCE", "TRAJ");
 
         double maxFeedScale = 1.0;
         trajInifile->Find(&maxFeedScale, "MAX_FEED_OVERRIDE", "DISPLAY");
