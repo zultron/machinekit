@@ -165,8 +165,6 @@ static inline void tag_and_send(NMLmsg &msg) {
  * triggers a flush of lines, so it will interrupt Naive CAM Detection.
  */
 static void send_line_number_msg(void) {
-    flush_segments();
-
     /* append it to interp list so it gets updated at the right time, not at
        read-ahead time */
     if (_sloc_sent) {
@@ -968,11 +966,12 @@ static bool
 linkable(double x, double y, double z, 
          double a, double b, double c, 
          double u, double v, double w) {
+    if (chained_points.empty() || chained_points.size() > 100) {
+        return false;
+    }
     struct pt &pos = chained_points.back();
     if(canonMotionMode != CANON_CONTINUOUS || canonNaivecamTolerance == 0)
         return false;
-    //FIXME make this length controlled elsewhere?
-    if(chained_points.size() > 100) return false;
 
     //If ABCUVW motion, then the tangent calculation fails?
     // TODO is there a fundamental reason that we can't handle 9D motion here?
