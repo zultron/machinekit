@@ -1,16 +1,52 @@
 
-component tormachspindle "Tormach spindle-at-speed Component";
+component tormachspindle "Tormach Spindle Component";
 
 license "©2014 Tormach® LLC. All rights reserved.";
 author "Tormach, LLC";
 
 // Purpose:
+//
+// Replaces use of gearchange.comp and supports standard, speeder, and high speed spindles each
+// with a high and low RPM range. Direction is controlled by a discrete electrical signal outside this comp.
+//
+// Alarm checking and MCB frequency drive
+//
+// Inputs:
+//
+//          spindle-type            0 = standard, 1 = speeder, high speed = 2
+//                                  standard honors belt position and low/high min/max
+//                                  speeder multiplies the values in min/max by speeder-factor
+//                                  high speed ignores belt position and uses hispeed-min and hispeed-max always
+//
+//          low-min                 minumum RPM in low belt
+//          low-max                 maximum RPM in low belt
+//          high-min                minimum RPM in high belt
+//          high-max                maximum RPM in high belt
+//
+//          hispeed-min             maximum RPM for high speed spindle-type
+//          hispeed-max             minimum RPM for high speed spindle-type
+//
+//          speed-in             <= motion.spindle-speed-out
+//          belt-position           1 -> high belt, 0 -> low belt position
+//          speeder-factor          defaults to 3.0 - applied to min/max if spindle-type == speeder
+//
+//          min-mcb-freq-out        frequency sent to machine control board to achieve min speed, default 0.0
+//          max-mcb-freq-out        frequency sent to machine control board to achieve max speed, default 10900.0
+//
+// Outputs:
+//
+//          speed-alarm             if true then speed-in is out of range for the current belt position - connect to UI
+//          mcb-freq-out            min-mcb-freq-out Hz -> min speed, max-mcb-freq-out Hz -> max speed of VFD/motor combination
+//                                  This is a velocity command to a stepgen comp that drives the machine control board
+//
+// Spindle-at-speed:
+//
 // Drive motion.spindle-at-speed while compensating for contactor delay and motor accleration.
-// Since the pindle doesn't provide encoder feedback we estimate the speed.
+// Since the spindle doesn't provide encoder feedback we estimate the speed.
 //
 // If the spindle was off include a delay period for the VFD contactor to close and the VFD to power up.
 // Then calculate the estimated spindle speed based upon elapsed time and acceleration.
-// After "speed-in" is reach assert "at-speed" pin.
+// After "speed-in" is reached assert "at-speed" pin.
 //
 // If the spindle was already on, ignore any time required for acceleratio and keep "at-speed" asserted.
 //
@@ -18,13 +54,16 @@ author "Tormach, LLC";
 //
 //    Inputs:
 //          speed-in             <= motion.spindle-speed-out
-//          startup-delay           seconds
-//          accleration             spindle RPM/s^2
-//          belt-position           1 -> high belt, 0 -> low belt position
+//          startup-delay           seconds before starting accelerating speed computation
+//          seconds-to-max-rpm      seconds from 0 to max RPM in any belt position
 //
 //    Outputs:
 //          at-speed             => motion.spindle-at-speed
 //          speed-out               connect to UI for display during gcode program execution
+//
+
+// standard, speeder, high speed
+pin in s32 spindle_type;
 
 // connect to motion.spindle-speed-out
 pin in float speed_in;
@@ -41,46 +80,201 @@ pin in float startup_delay;
 // hi-low belt position
 pin in bit belt_position;
 
-// spindle speed acceleration in spindle RPM/s^2
-pin in float acceleration_low;
-pin in float acceleration_high;
+// seconds from stopped to max rpm (any belt position)
+pin in float seconds_to_max_rpm;
 
 pin out float elapsed_delay_time;
 pin out float elapsed_accel_time;
 
+pin in float low_min;
+pin in float low_max;
+pin in float high_min;
+pin in float high_max;
 
-function _ "Tormach spindle-at-speed Component";
+// current min and max speeds based upon spindle-type and belt-position
+pin out float min_speed;
+pin out float max_speed;
+
+// this forces hispeed spindle type no matter the value of spindle-type
+pin in bit is_hispeed;
+
+pin in float hispeed-min;
+pin in float hispeed-max;
+
+pin in float speeder_factor;
+
+pin in float min_mcb_freq_out;
+pin in float max_mcb_freq_out;
+
+pin out bit speed_alarm;
+pin out float mcb_freq_out;
+
+function _ "Tormach pindle Component";
 
 ;;
 
 #include <rtapi_math.h>
 
+#define BIT_FALSE 0
+#define BIT_TRUE  1
+
+#define STANDARD_TYPE 0
+#define SPEEDER_TYPE  1
+#define HISPEED_TYPE  2
+
+#define BELT_POSITION_LOW  0
+#define BELT_POSITION_HIGH 1
+
+#define SPEEDER_FACTOR_DEFAULT 3.0
+
+#define STEPGEN_MIN_FREQ 500.0
+#define STEPGEN_MAX_FREQ 10900.0
+
+#define RPM_CLOSE_TO_ZERO 0.1
 
 FUNCTION(_) {
-    float acceleration = 0.0;
+    float acceleration;
+    float speeder_multiplier;
+    float actual_min_mcb_freq_out;
+    float actual_max_mcb_freq_out;
+    float clamped_speed_in;
+    float freq_slope;
 
-    // non-zero spindle speed and spindle not yet at_speed
-    if (fabs(speed_in) > 0.0) {
-        // spindle is on
-        if (at_speed == 0) {
-            // not yet at speed
-            if (elapsed_delay_time >= startup_delay) {
-                // in accleration state
-                elapsed_accel_time += fperiod;
-                acceleration = acceleration_low;
-                if (belt_position) {
-                    acceleration = acceleration_high;
+    // spindle-type - for high speed use only low belt params
+    //                for speeder compensate for tripled output speed
+    //                for standard pay attention to belt position
+    switch (spindle_type) {
+        default:
+        case STANDARD_TYPE:
+        case HISPEED_TYPE:
+                // standard
+                speeder_multiplier = 1.0;
+                break;
+
+        case SPEEDER_TYPE:
+                // speeder
+                if (speeder_factor != 0.0) {
+                    // use HAL value
+                    speeder_multiplier = fabs(speeder_factor);
                 }
+                else {
+                    // use default of SPEEDER_FACTOR_DEFAULT
+                    speeder_multiplier = SPEEDER_FACTOR_DEFAULT;
+                }
+    }
+
+    // set min and max speed from belt position
+    min_speed = low_min;
+    max_speed = low_max;
+    if (belt_position != BELT_POSITION_LOW) {
+        min_speed = high_min;
+        max_speed = high_max;
+    }
+
+    // ignore sign/direction
+    min_speed = fabs(min_speed);
+    max_speed = fabs(max_speed);
+
+    // test for speeder spindle type
+    if (spindle_type == SPEEDER_TYPE) {
+        min_speed = min_speed * speeder_multiplier;
+        max_speed = max_speed * speeder_multiplier;
+    }
+
+    // test for high speed spindle type
+    if (spindle_type == HISPEED_TYPE || is_hispeed) {
+        // use high speed spindle min and max
+        min_speed = fabs(hispeed_min);
+        max_speed = fabs(hispeed_max);
+    }
+
+    // if min_speed is greater than max_speed then swap their values to prevent sign inversion
+    if (min_speed > max_speed) {
+        float tmp_speed;
+        tmp_speed = min_speed;
+        min_speed = max_speed;
+        max_speed = tmp_speed;
+    }
+
+    // range check and clamp speed-in between min and max (0.0 is OK for stopped)
+    speed_alarm = BIT_FALSE;
+
+    // ignore direction sign from speed-in
+    clamped_speed_in = fabs(speed_in);
+
+    // if close to zero make it zero
+    if (clamped_speed_in < RPM_CLOSE_TO_ZERO) {
+        clamped_speed_in = 0.0;
+    }
+    else if (clamped_speed_in < min_speed) {
+        // under min
+        speed_alarm = BIT_TRUE;
+        clamped_speed_in = min_speed;
+    }
+    else if (clamped_speed_in > max_speed) {
+        // over max
+        speed_alarm = BIT_TRUE;
+        clamped_speed_in = max_speed;
+    }
+
+    // use default or specified max_mcb_freq_out
+    if (max_mcb_freq_out != 0.0) {
+        actual_max_mcb_freq_out = fabs(max_mcb_freq_out);
+    }
+    else {
+        // use default of STEPGEN_MAX_FREQ Hz
+        actual_max_mcb_freq_out = STEPGEN_MAX_FREQ;
+    }
+    // use default or specified min_mcb_freq_out
+    if (min_mcb_freq_out != 0.0) {
+        actual_min_mcb_freq_out = fabs(min_mcb_freq_out);
+    }
+    else {
+        // use default of 5STEPGEN_MIN_FREQ00 Hz
+        actual_min_mcb_freq_out = STEPGEN_MIN_FREQ;
+    }
+
+    // compute frequency to send to machine control speed input
+    // min_mcb_freq_out Hz -> min speed and min_mcb_freq_out Hz -> max speed
+
+    // slope is rise over run: (max_freq - min_freq) / (max_speed - min_speed)
+    freq_slope = (actual_max_mcb_freq_out - actual_min_mcb_freq_out) / (max_speed - min_speed);
+
+    // freq is slope * speed + min_mcb_freq
+    mcb_freq_out = (freq_slope * clamped_speed_in) + actual_min_mcb_freq_out;
+
+    // clamp to acceptable range
+    if (mcb_freq_out < actual_min_mcb_freq_out) {
+        mcb_freq_out = actual_min_mcb_freq_out;
+    }
+    else if (mcb_freq_out > actual_max_mcb_freq_out) {
+        mcb_freq_out = actual_max_mcb_freq_out;
+    }
+
+    // spindle-at-speed open loop computation
+    //
+    // non-zero spindle speed and spindle not yet at_speed
+    if (clamped_speed_in > 0.0) {
+        // spindle is on
+        if (at_speed == BIT_FALSE) {
+            // not yet at speed
+            if (elapsed_delay_time >= fabs(startup_delay)) {
+                // in accleration state
+                // 'fperiod' is a convenience macro provided by the 'comp' generator
+                elapsed_accel_time += fperiod;
                 // v = a * t + v(0)
-                speed_out = acceleration * elapsed_accel_time;
-                if (speed_out >= fabs(speed_in)) {
+                // compute acceleration from max speed acceleration period
+                acceleration = max_speed / seconds_to_max_rpm;
+                speed_out = fabs(acceleration * elapsed_accel_time);
+                if (speed_out >= clamped_speed_in) {
                     // spindle should now be at speed
-                    at_speed = 1;
+                    at_speed = BIT_TRUE;
                 }
             }
             else {
                 // still in delay state
                 // add to elapsed delay before start
+                // 'fperiod' is a convenience macro provided by the 'comp' generator
                 elapsed_delay_time += fperiod;
                 // keep accel time reset
                 elapsed_accel_time = 0.0;
@@ -88,15 +282,16 @@ FUNCTION(_) {
         }
         // in at-speed state - speed-out follows speed-in
         else {
-            speed_out = fabs(speed_in);
+            speed_out = clamped_speed_in;
         }
     }
     else {
         // spindle is off
-        at_speed = 0;
+        at_speed = BIT_FALSE;
         elapsed_delay_time = 0.0;
         elapsed_accel_time = 0.0;
         speed_out = 0.0;
+        speed_alarm = BIT_FALSE;
     }
 }
 
