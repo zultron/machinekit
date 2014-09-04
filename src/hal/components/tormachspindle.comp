@@ -18,10 +18,15 @@ author "Tormach, LLC";
 //                                  speeder multiplies the values in min/max by speeder-factor
 //                                  high speed ignores belt position and uses hispeed-min and hispeed-max always
 //
-//          low-min                 minumum RPM in low belt
-//          low-max                 maximum RPM in low belt
-//          high-min                minimum RPM in high belt
-//          high-max                maximum RPM in high belt
+//          lowbelt-min-rpm         minumum RPM in low belt
+//          lowbelt-max-rpm         maximum RPM in low belt
+//          lowbelt-min-mcb-freq    frequency sent to machine control board to achieve lowbelt min speed, default STEPGEN_MIN_FREQ
+//          lowbelt-max-mcb-freq    frequency sent to machine control board to achieve lowbelt max speed, default STEPGEN_MAX_FREQ
+//
+//          highbelt-min-rpm        minimum RPM in high belt
+//          highbelt-max-rom        maximum RPM in high belt
+//          highbelt-min-mcb-freq   frequency sent to machine control board to achieve highbelt min speed, default STEPGEN_MIN_FREQ
+//          highbelt-max-mcb-freq   frequency sent to machine control board to achieve highbelt max speed, default STEPGEN_MAX_FREQ
 //
 //          hispeed-min             maximum RPM for high speed spindle-type
 //          hispeed-max             minimum RPM for high speed spindle-type
@@ -30,8 +35,6 @@ author "Tormach, LLC";
 //          belt-position           1 -> high belt, 0 -> low belt position
 //          speeder-factor          defaults to 3.0 - applied to min/max if spindle-type == speeder
 //
-//          min-mcb-freq-out        frequency sent to machine control board to achieve min speed, default 0.0
-//          max-mcb-freq-out        frequency sent to machine control board to achieve max speed, default 10900.0
 //
 // Outputs:
 //
@@ -86,25 +89,27 @@ pin in float seconds_to_max_rpm;
 pin out float elapsed_delay_time;
 pin out float elapsed_accel_time;
 
-pin in float low_min;
-pin in float low_max;
-pin in float high_min;
-pin in float high_max;
+pin in float lowbelt_min_rpm;
+pin in float lowbelt_max_rpm;
+pin in float lowbelt_min_mcb_freq;
+pin in float lowbelt_max_mcb_freq;
+
+pin in float highbelt_min_rpm;
+pin in float highbelt_max_rpm;
+pin in float highbelt_min_mcb_freq;
+pin in float highbelt_max_mcb_freq;
 
 // current min and max speeds based upon spindle-type and belt-position
 pin out float min_speed;
 pin out float max_speed;
 
-// this forces hispeed spindle type no matter the value of spindle-type
+// when true this forces hispeed spindle type no matter the value of spindle-type
 pin in bit is_hispeed;
 
 pin in float hispeed-min;
 pin in float hispeed-max;
 
 pin in float speeder_factor;
-
-pin in float min_mcb_freq_out;
-pin in float max_mcb_freq_out;
 
 pin out bit speed_alarm;
 pin out float mcb_freq_out;
@@ -135,8 +140,8 @@ function _ "Tormach pindle Component";
 FUNCTION(_) {
     float acceleration;
     float speeder_multiplier;
-    float actual_min_mcb_freq_out;
-    float actual_max_mcb_freq_out;
+    float actual_min_mcb_freq;
+    float actual_max_mcb_freq;
     float clamped_speed_in;
     float freq_slope;
 
@@ -164,11 +169,13 @@ FUNCTION(_) {
     }
 
     // set min and max speed from belt position
-    min_speed = low_min;
-    max_speed = low_max;
     if (belt_position != BELT_POSITION_LOW) {
-        min_speed = high_min;
-        max_speed = high_max;
+        min_speed = highbelt_min_rpm;
+        max_speed = highbelt_max_rpm;
+    }
+    else {
+        min_speed = lowbelt_min_rpm;
+        max_speed = lowbelt_max_rpm;
     }
 
     // ignore sign/direction
@@ -202,11 +209,13 @@ FUNCTION(_) {
     // ignore direction sign from speed-in
     clamped_speed_in = fabs(speed_in);
 
+/* should there be an alarm for speed 0 or just treat it as 0?
     // if close to zero make it zero
     if (clamped_speed_in < RPM_CLOSE_TO_ZERO) {
         clamped_speed_in = 0.0;
     }
-    else if (clamped_speed_in < min_speed) {
+    else */
+    if (clamped_speed_in < min_speed) {
         // under min
         speed_alarm = BIT_TRUE;
         clamped_speed_in = min_speed;
@@ -217,38 +226,65 @@ FUNCTION(_) {
         clamped_speed_in = max_speed;
     }
 
-    // use default or specified max_mcb_freq_out
-    if (max_mcb_freq_out != 0.0) {
-        actual_max_mcb_freq_out = fabs(max_mcb_freq_out);
+    // set min and max mcb frequencies base upon belt position
+    if (belt_position != BELT_POSITION_LOW) {
+        // BELT_POSITION_HIGH
+
+        // high belt min freq
+        if (highbelt_min_mcb_freq != 0.0) {
+            actual_min_mcb_freq = fabs(highbelt_min_mcb_freq);
+        }
+        else {
+            // use default
+            actual_min_mcb_freq = STEPGEN_MIN_FREQ;
+        }
+
+        // high belt max freq
+        if (highbelt_max_mcb_freq != 0.0) {
+            actual_max_mcb_freq = fabs(highbelt_max_mcb_freq);
+        }
+        else {
+            // use default
+            actual_max_mcb_freq = STEPGEN_MAX_FREQ;
+        }
     }
     else {
-        // use default of STEPGEN_MAX_FREQ Hz
-        actual_max_mcb_freq_out = STEPGEN_MAX_FREQ;
-    }
-    // use default or specified min_mcb_freq_out
-    if (min_mcb_freq_out != 0.0) {
-        actual_min_mcb_freq_out = fabs(min_mcb_freq_out);
-    }
-    else {
-        // use default of 5STEPGEN_MIN_FREQ00 Hz
-        actual_min_mcb_freq_out = STEPGEN_MIN_FREQ;
+        // BELT_POSITION_LOW
+
+        // low belt min freq
+        if (lowbelt_min_mcb_freq != 0.0) {
+            actual_min_mcb_freq = fabs(lowbelt_min_mcb_freq);
+        }
+        else {
+            // use default
+            actual_min_mcb_freq = STEPGEN_MIN_FREQ;
+        }
+
+        // low belt max freq
+        if (lowbelt_max_mcb_freq != 0.0) {
+            actual_max_mcb_freq = fabs(lowbelt_max_mcb_freq);
+        }
+        else {
+            // use default
+            actual_max_mcb_freq = STEPGEN_MAX_FREQ;
+        }
     }
 
     // compute frequency to send to machine control speed input
     // min_mcb_freq_out Hz -> min speed and min_mcb_freq_out Hz -> max speed
 
     // slope is rise over run: (max_freq - min_freq) / (max_speed - min_speed)
-    freq_slope = (actual_max_mcb_freq_out - actual_min_mcb_freq_out) / (max_speed - min_speed);
+    freq_slope = (actual_max_mcb_freq - actual_min_mcb_freq) / (max_speed - min_speed);
 
-    // freq is slope * speed + min_mcb_freq
-    mcb_freq_out = (freq_slope * clamped_speed_in) + actual_min_mcb_freq_out;
+    // freq is slope * (speed_in - min_speed) + min_mcb_freq
+    mcb_freq_out = (freq_slope * (clamped_speed_in - min_speed)) + actual_min_mcb_freq;
 
     // clamp to acceptable range
-    if (mcb_freq_out < actual_min_mcb_freq_out) {
-        mcb_freq_out = actual_min_mcb_freq_out;
+    if (mcb_freq_out < actual_min_mcb_freq) {
+        mcb_freq_out = actual_min_mcb_freq;
     }
-    else if (mcb_freq_out > actual_max_mcb_freq_out) {
-        mcb_freq_out = actual_max_mcb_freq_out;
+    else if (mcb_freq_out > actual_max_mcb_freq) {
+        mcb_freq_out = actual_max_mcb_freq;
     }
 
     // spindle-at-speed open loop computation
