@@ -57,12 +57,14 @@ author "Tormach, LLC";
 //
 //    Inputs:
 //          speed-in             <= motion.spindle-speed-out
+//          spindle-on           <= motion.spindle-on
 //          startup-delay           seconds before starting accelerating speed computation
 //          seconds-to-max-rpm      seconds from 0 to max RPM in any belt position
 //
 //    Outputs:
 //          at-speed             => motion.spindle-at-speed
-//          speed-out               connect to UI for display during gcode program execution
+//          speed-out               open loop speed-out in RPM
+//          speed-out-rps           connect to UI for display during gcode program execution
 //
 
 // standard, speeder, high speed
@@ -74,7 +76,10 @@ pin in float speed_in;
 // connect to motion.spindle-at-speed
 pin out bit at_speed;
 
+pin in bit spindle-on;
+
 // connect to UI
+pin out float speed_out_rps;
 pin out float speed_out;
 
 // startup delay period for contactor/VFD startup
@@ -209,12 +214,6 @@ FUNCTION(_) {
     // ignore direction sign from speed-in
     clamped_speed_in = fabs(speed_in);
 
-/* should there be an alarm for speed 0 or just treat it as 0?
-    // if close to zero make it zero
-    if (clamped_speed_in < RPM_CLOSE_TO_ZERO) {
-        clamped_speed_in = 0.0;
-    }
-    else */
     if (clamped_speed_in < min_speed) {
         // under min
         speed_alarm = BIT_TRUE;
@@ -290,7 +289,7 @@ FUNCTION(_) {
     // spindle-at-speed open loop computation
     //
     // non-zero spindle speed and spindle not yet at_speed
-    if (clamped_speed_in > 0.0) {
+    if (spindle_on && (clamped_speed_in > 0.0)) {
         // spindle is on
         if (at_speed == BIT_FALSE) {
             // not yet at speed
@@ -329,5 +328,6 @@ FUNCTION(_) {
         speed_out = 0.0;
         speed_alarm = BIT_FALSE;
     }
+    speed_out_rps = speed_out / 60.0;
 }
 
