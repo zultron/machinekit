@@ -130,6 +130,9 @@ int read_update(struct shuttlexpress_t *s) {
     int r;
     int8_t packet[PACKET_LEN];
 
+    *s->hal->spring_wheel_s32 = 0;
+    *s->hal->spring_wheel_f = 0.0;
+
     r = read(s->fd, packet, PACKET_LEN);
     if (r < 0) {
         // this happens when shuttle gets unplugged
@@ -300,7 +303,7 @@ void check_for_shuttlexpress(char *dev_filename) {
         close(s->fd);
         return;
     }
-    printf("%s: found '%s' on device '%s'\n", modname, name, dev_filename);
+    fprintf(stderr, "%s: found '%s' on device '%s'\n", modname, name, dev_filename);
 
     // clear first event flag
     s->read_first_event = 0;
