@@ -122,7 +122,7 @@ int default_policy(wtself_t *self,
 			}
 
 			lwsl_uri("%s %d: URI= '%s'\n", __func__, fd,uri);
-			if (zsocket_connect (wss->socket, uri)) {
+			if (zsocket_connect (wss->socket, "%s", uri)) {
 			    lwsl_err("%s %d: cant connect to %s: %s\n",
 				     __func__, fd, uri, strerror(errno));
 			    return -1;
@@ -135,7 +135,7 @@ int default_policy(wtself_t *self,
 		    } else {
 			lwsl_uri("%s %d: connecting to %s type %d\n",
 				 __func__, fd, q->value, wss->socket_type);
-			if (zsocket_connect (wss->socket, q->value)) {
+			if (zsocket_connect (wss->socket, "%s", q->value)) {
 			    lwsl_err("%s %d: cant connect to %s: %s\n",
 				     __func__, fd, q->value, strerror(errno));
 			    return -1;
@@ -144,7 +144,7 @@ int default_policy(wtself_t *self,
 		    }
 		}
 		if (!strcmp(q->key,"bind")) {
-		    if (zsocket_bind (wss->socket, q->value) < 0) {
+		    if (zsocket_bind (wss->socket, "%s", q->value) < 0) {
 			lwsl_err("%s %d: cant bind to %s: %s\n",
 				 __func__, fd, q->value, strerror(errno));
 			return -1;
