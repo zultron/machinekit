@@ -316,7 +316,7 @@ void hm2_watchdog_force_write(hostmot2_t *hm2) {
          __udivdi3 with do_div */
         tmp = ((u64)hm2->watchdog.instance[0].hal.param.timeout_ns *
                hm2->watchdog.clock_frequency);
-        do_div(tmp,(u64)(1000 * 1000 * 1000)) - 1;
+        do_div(tmp,(u64)(1000 * 1000 * 1000)); tmp -= 1;
 #else
         tmp = ((u64)hm2->watchdog.instance[0].hal.param.timeout_ns *
 	       hm2->watchdog.clock_frequency / (1000 * 1000 * 1000)) - 1;
