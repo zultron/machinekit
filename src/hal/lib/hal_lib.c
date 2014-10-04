@@ -3704,7 +3704,7 @@ void hal_print_msg(int level, const char *fmt, ...)
     va_start(args, fmt);
 
     vsnprintf(_hal_errmsg, HALPRINTBUFFERLEN, fmt, args);
-    rtapi_print_msg(level, _hal_errmsg);
+    rtapi_print_msg(level, "%s", _hal_errmsg);
     va_end(args);
 }
 
