@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #include <machinetalk/include/pb-linuxcnc.h>
 #include <machinetalk/nanopb/pb_decode.h>
@@ -38,7 +39,9 @@ bool print_container(pb_istream_t *stream)
     uint64_t length;
     uint64_t taghdr;
     pb_wire_type_t wiretype;
+#if 0
     bool eof;
+#endif
 
 #if 1
     if (!pb_decode_varint(stream, &taghdr)) {
@@ -58,7 +61,7 @@ bool print_container(pb_istream_t *stream)
     if (!pb_decode_varint(stream, &length)) {
 	printf("Parsing field#2 failed: %s\n", PB_GET_ERROR(stream));
     }
-    printf("submessage length=%llu\n", length);
+    printf("submessage length=%" PRIu64 "\n", length);
 
     printf("submessage: %s NML; %s Motion\n",
 	   is_NML_container(tag) ? "is" : "not",
