@@ -171,23 +171,27 @@ zmq_init(htself_t *self)
     assert(self->z_halgroup);
     zsocket_set_linger (self->z_halgroup, 0);
     zsocket_set_xpub_verbose (self->z_halgroup, 1);
-    self->z_group_port = zsocket_bind(self->z_halgroup, self->cfg->halgroup);
+    self->z_group_port = zsocket_bind(self->z_halgroup, "%s",
+				      self->cfg->halgroup);
     assert (self->z_group_port > -1);
     self->z_halgroup_dsn = zsocket_last_endpoint (self->z_halgroup);
 
     rtapi_print_msg(RTAPI_MSG_DBG, "%s: talking HALGroup on '%s'",
-		    conf.progname, conf.remote ? self->z_halgroup_dsn : self->cfg->halgroup);
+		    conf.progname,
+		    conf.remote ? self->z_halgroup_dsn : self->cfg->halgroup);
 
     self->z_halrcomp = zsocket_new (self->z_context, ZMQ_XPUB);
     assert(self->z_halrcomp);
     zsocket_set_linger (self->z_halrcomp, 0);
     zsocket_set_xpub_verbose (self->z_halrcomp, 1);
-    self->z_rcomp_port = zsocket_bind(self->z_halrcomp, self->cfg->halrcomp);
+    self->z_rcomp_port = zsocket_bind(self->z_halrcomp, "%s",
+				      self->cfg->halrcomp);
     assert (self->z_rcomp_port > -1);
     self->z_halrcomp_dsn = zsocket_last_endpoint (self->z_halrcomp);
 
     rtapi_print_msg(RTAPI_MSG_DBG, "%s: talking HALRcomp on '%s'",
-		    conf.progname, conf.remote ? self->z_halrcomp_dsn:self->cfg->halrcomp);
+		    conf.progname,
+		    conf.remote ? self->z_halrcomp_dsn:self->cfg->halrcomp);
 
 
     self->z_halrcmd = zsocket_new (self->z_context, ZMQ_ROUTER);
@@ -195,7 +199,8 @@ zmq_init(htself_t *self)
     zsocket_set_linger (self->z_halrcmd, 0);
     zsocket_set_identity (self->z_halrcmd, self->cfg->modname);
 
-    self->z_halrcomp_port = zsocket_bind(self->z_halrcmd, self->cfg->command);
+    self->z_halrcomp_port = zsocket_bind(self->z_halrcmd, "%s",
+					 self->cfg->command);
     assert (self->z_halrcomp_port > -1);
     self->z_halrcmd_dsn = zsocket_last_endpoint (self->z_halrcmd);
 
