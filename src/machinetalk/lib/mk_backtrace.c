@@ -36,7 +36,7 @@ static void error_callback(void *data, const char *msg, int errnum)
 
 static void syminfo_callback (void *data, uintptr_t pc,
 			      const char *symname,
-			      uintptr_t symval, uintptr_t symsize)
+			      uintptr_t symval)
 {
     struct bt_ctx *ctx = data;
 
