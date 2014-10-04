@@ -114,8 +114,10 @@ int _rtapi_task_new(void (*taskcode) (void*), void *arg,
 		   int prio, int owner, unsigned long int stacksize, 
 		   int uses_fp, char *name, int cpu_id) {
     int task_id;
-    int retval = 0;
     task_data *task;
+#ifdef HAVE_RTAPI_TASK_NEW_HOOK
+    int retval;
+#endif
 
     /* get the mutex */
     rtapi_mutex_get(&(rtapi_data->mutex));
@@ -219,7 +221,6 @@ int _rtapi_task_new(void (*taskcode) (void*), void *arg,
 
     /* the task has been created, update data */
     task->state = PAUSED;
-    retval = task_id;
 #else  /* userland thread */
     /* userland threads: rtapi_task_new_hook() should perform any
        thread system-specific tasks, and return task_id or an error
@@ -229,8 +230,11 @@ int _rtapi_task_new(void (*taskcode) (void*), void *arg,
 
 #  ifdef HAVE_RTAPI_TASK_NEW_HOOK
     retval = _rtapi_task_new_hook(task,task_id);
-#  else
-    retval = task_id;
+    if (retval < 0) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"rt_task_create failed, rc = %d\n", retval );
+	return -EINVAL;
+    }
 #  endif
 #endif  /* userland thread */
 
