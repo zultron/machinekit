@@ -348,7 +348,10 @@ int emcSystemCmd(char *s)
 	// convert string to argc/argv
 	argvize(s, buffer, argv, EMC_SYSTEM_CMD_LEN);
 	// drop any setuid privileges
-	setuid(getuid());
+	if (setuid(getuid()) == -1) {
+	    rcs_print("failed to drop setuid privileges\n");
+	    return -1;
+	}
 	execvp(argv[0], argv);
 	// if we get here, we didn't exec
 	if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
