@@ -271,7 +271,9 @@ void log_write_async(void)
 	  memmove(entries->payload, start, entries->length);
 	  entries->payload[entries->length - 1] = '\r';
 	  entries->payload[entries->length] = '\n';
-	  write(fd, entries->payload, entries->length + 1);
+	  if (write(fd, entries->payload, entries->length + 1) == -1) {
+	      // Error?  This at least shuts up the warning.
+	  }
 	  close(fd);
 	}
 
