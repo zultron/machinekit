@@ -990,7 +990,7 @@ int main(int argc, char **argv)
 
 	}
     }
-    logpub_port = zsocket_bind(logpub, logpub_uri);
+    logpub_port = zsocket_bind(logpub, "%s", logpub_uri);
     const char *dsn = NULL;
     if (logpub_port  < 0) {
 	syslog_async(LOG_INFO,"zsocket_bind(%s) failed: %s, ZMQ log service not available\n",
