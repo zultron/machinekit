@@ -2219,7 +2219,7 @@ static PyObject *__pyx_pf_5rtapi_11RTAPILogger_2write(struct __pyx_obj_5rtapi_RT
  *     def flush(self):
  */
   __pyx_t_3 = __Pyx_PyObject_AsString(__pyx_v_l); if (unlikely((!__pyx_t_3) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 109; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-  rtapi_print_msg(__pyx_v_self->_level, __pyx_t_3);
+  rtapi_print_msg(__pyx_v_self->_level, "%s", __pyx_t_3);
 
   __pyx_r = Py_None; __Pyx_INCREF(Py_None);
   goto __pyx_L0;
