@@ -502,7 +502,7 @@ int _rtapi_shmem_delete_inst(int shmem_id, int instance, int module_id) {
     sm.flags = 0;
     if ((retval = shmdrv_detach(&sm)) < 0) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
-			"RTAPI:%d ERROR: shmdrv_detach(%x,%d) fail: %d\n",
+			"RTAPI:%d ERROR: shmdrv_detach(%x,%zu) fail: %d\n",
 			rtapi_instance, sm.key, sm.size, retval);
     }
 #endif  /* RTAPI */
