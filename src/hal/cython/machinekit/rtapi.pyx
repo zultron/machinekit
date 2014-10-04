@@ -106,7 +106,7 @@ cdef class RTAPILogger:
 
     def write(self,line):
         l = line.rstrip(" \t\f\v\n\r")
-        rtapi_print_msg(self._level, l)
+        rtapi_print_msg(self._level, "%s", <bytes> l)
 
     def flush(self):
         pass
