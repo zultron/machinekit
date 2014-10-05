@@ -28,7 +28,7 @@
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
 
-extern int abort_and_switchback(); // command.c
+extern int abort_and_switchback(void); // command.c
 
 /***********************************************************************
 *                  LOCAL VARIABLE DECLARATIONS                         *
@@ -453,7 +453,7 @@ static void process_probe_inputs(void) {
 
 extern int inRange(EmcPose pos, int id, char *move_type); // from command.c
 
-static void update_offset_pose()
+static void update_offset_pose(void)
 {
     EmcPose *nt = &emcmotStatus->pause_offset_carte_pos;
     EmcPose *ipp = &emcmotStatus->pause_carte_pos;

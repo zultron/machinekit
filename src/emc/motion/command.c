@@ -358,7 +358,7 @@ STATIC int is_feed_type(int motion_type)
 // gets reported on next tpRunCycle
 // clear pins, state and signal to task the paused motion
 // is now 'done' (otherwise task will hang in RCS_EXEC).
-int abort_and_switchback()
+int abort_and_switchback(void)
 {
     if (emcmotQueue == emcmotAltQueue) {
 	EmcPose where;
