@@ -156,10 +156,10 @@ static void shm_free(struct shm_segment *seg)
 // usage tracking
 static void shmdrv_vma_open(struct vm_area_struct *vma)
 {
-    int segno = (int) vma->vm_private_data;
+    long int segno = (long int) vma->vm_private_data;
     struct shm_segment *seg = &shm_segments[segno];
 
-    dbg("VMA open, virt %lx, phys %lx length %ld segno=%d",
+    dbg("VMA open, virt %lx, phys %lx length %ld segno=%ld",
 	vma->vm_start, 
 	vma->vm_pgoff << PAGE_SHIFT,
 	vma->vm_end - vma->vm_start,
@@ -171,10 +171,10 @@ static void shmdrv_vma_open(struct vm_area_struct *vma)
 static void shmdrv_vma_close(struct vm_area_struct *vma)
 {
     int ret;
-    int segno = (int) vma->vm_private_data;
+    long int segno = (long int) vma->vm_private_data;
     struct shm_segment *seg = &shm_segments[segno];
 
-    dbg("VMA close releasing %p, segno=%d", vma, segno);
+    dbg("VMA close releasing %p, segno=%ld", vma, segno);
     seg->n_uattach--;
     if (gc && ((seg->n_uattach + seg->n_kattach) == 0)) {
 	// last reference gone away, gc true
@@ -186,7 +186,7 @@ static void shmdrv_vma_close(struct vm_area_struct *vma)
 	    shm_free(seg);
 	    ret = 0;
 	}
-	dbg("unmap: gc segment %d key=0x%8.8x", segno, seg->key);
+	dbg("unmap: gc segment %ld key=0x%8.8x", segno, seg->key);
 	seg->in_use = 0;
     }
 }
@@ -199,20 +199,21 @@ static int shmdrv_generic_access_phys(struct vm_area_struct *vma, unsigned long 
 {
     void __iomem *maddr;
     struct shm_segment *seg;
-    int segno,offset;
+    long int segno;
+    int offset;
 
-    segno = (int) vma->vm_private_data;
+    segno = (long int) vma->vm_private_data;
 
     if ((segno < 0) || (segno > nseg)) {
-	err("segno out of range: %d",segno);
+	err("segno out of range: %ld",segno);
 	return -EINVAL;
     }
 
     seg = &shm_segments[segno];
     offset = (addr) - vma->vm_start;
     maddr = phys_to_virt(__pa(seg->kmem));
-    dbg("%d: maddr %p kmem %p len %d offset %d wr:%d",
-	 segno,maddr, seg->kmem, len,offset, write);
+    dbg("%ld: maddr %p kmem %p len %d offset %d wr:%d",
+	 segno, maddr, seg->kmem, len,offset, write);
 
     if (write)
         memcpy_toio(maddr + offset, buf, len);
@@ -239,21 +240,22 @@ static struct vm_operations_struct mmap_ops = {
 
 static int shm_mmap(struct file *file, struct vm_area_struct *vma)
 {
-    int length, segno;
+    int length;
+    long int segno;
     int ret;
     struct shm_segment *seg;
 
     // check file for private_data pointing to a shmem_data entry, fail if not
     // this must have been set by the ioctl ATTACH
-    segno = (int) file->private_data;
+    segno = (long int) file->private_data;
 
-    dbg("%s(%ld) , segno=%d",
+    dbg("%s(%ld) , segno=%ld",
 	__func__, 
 	vma->vm_end - vma->vm_start,
 	segno);
 
     if ((segno < 0) || (segno > nseg-1)) {
-	err("invalid segment index  %d, nseg=%d", segno, nseg);
+	err("invalid segment index  %ld, nseg=%d", segno, nseg);
 	return -EINVAL;
     }
 
@@ -261,17 +263,17 @@ static int shm_mmap(struct file *file, struct vm_area_struct *vma)
     length = vma->vm_end - vma->vm_start;
 
     if (length > seg->act_size) {
-	err("segment %d: map size %d greater than segment size %zu/%zu",
+	err("segment %ld: map size %d greater than segment size %zu/%zu",
 	    segno, length,seg->act_size,seg->size);
 	return -EINVAL;
     }
 
     if (!seg->in_use) {
-	err("BUG: segment %d not in use", segno);
+	err("BUG: segment %ld not in use", segno);
 	return -EINVAL;
     }
     if (!seg->kmem) {
-	err("BUG: segment %d kmem == NULL", segno);
+	err("BUG: segment %ld kmem == NULL", segno);
 	return -EINVAL;
     }
 
@@ -283,7 +285,7 @@ static int shm_mmap(struct file *file, struct vm_area_struct *vma)
     vma->vm_private_data = (void *) segno; // so it can be referenced in vma ops
     vma->vm_ops = &mmap_ops;
     shmdrv_vma_open(vma);  // track usage
-    dbg("mmap seg %d size %zu key %d/%x at %p length %d",
+    dbg("mmap seg %ld size %zu key %d/%x at %p length %d",
 	 segno, seg->size, seg->key, seg->key, seg->kmem, length);
     return(0);
 }
@@ -606,7 +608,8 @@ EXPORT_SYMBOL(shmdrv_detach);
 
 static long shm_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-    int ret = 0, segno;
+    int ret = 0;
+    long int segno;
     struct shm_status sm; 
     struct shm_segment *seg;
 
@@ -658,7 +661,7 @@ static long shm_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lon
 	if (ret < 0) {
 	    err("IOC_SHM_CREATE: copy_to_user %d", ret);
 	}
-	info("created seg %d size %zu key 0x%8.8x at %p",
+	info("created seg %ld size %zu key 0x%8.8x at %p",
 	    segno, seg->size, seg->key, seg->kmem);
 	ret =  segno;
 	break;
@@ -683,7 +686,7 @@ static long shm_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lon
 	}
 	file->private_data = (void *) sm.id; // record shm id for ensuing mmap
 	seg = &shm_segments[sm.id];
-	dbg("attached seg %d size %zu key 0x%8.8x key at %p",
+	dbg("attached seg %ld size %zu key 0x%8.8x key at %p",
 	    sm.id, seg->size, seg->key, seg->kmem);
 	ret = 0;
 	break;
@@ -716,7 +719,7 @@ static struct miscdevice shm_misc_dev = {
 };
 
 static ssize_t sys_status(struct device* dev, struct device_attribute* attr, 
-			  char* buf, size_t count)
+			  char* buf)
 {
     int i;
     size_t size, written, left = PAGE_SIZE - 80; // leave some space for "..." line

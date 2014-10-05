@@ -151,7 +151,7 @@ int shmdrv_gc(void)
 void shmdrv_print_status(struct shm_status *sm, const char *tag)
 {
     printf("%skey = %d (0x%x)\n", tag, sm->key,sm->key);
-    printf("id = %d\n", sm->id);
+    printf("id = %ld\n", sm->id);
     printf("size = %zu\n", sm->size);
     printf("act_size = %zu\n", sm->act_size);
     printf("n_uattach = %d\n", sm->n_uattach);

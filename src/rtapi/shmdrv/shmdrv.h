@@ -37,7 +37,7 @@ struct shm_status {
     size_t act_size;
     void *addr;
     int flags;
-    int id;
+    long int id;   // long, so that it can be cast to/from void *
     int n_kattach;
     int n_uattach;
     int creator;
