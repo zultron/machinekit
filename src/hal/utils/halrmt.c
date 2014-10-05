@@ -467,10 +467,14 @@ static int initSockets()
 
 static int sockWrite(connectionRecType *context)
 {
-   int ret;
+   int ret, len;
    strcat(context->outBuf, "\r\n");
-   ret = write(context->cliSock, context->outBuf, strlen(context->outBuf));
+   len = strlen(context->outBuf);
+   ret = write(context->cliSock, context->outBuf, len);
    //FIXME return error based on ret, probably return (ret >= 0);
+   if (ret != len)
+     // do nothing?
+     return 0;
    return 0;
 }
 
@@ -2653,11 +2657,16 @@ int commandGet(connectionRecType *context)
   halCommandType cmd;
   char *pch;
   int retval;
+  int len;
   cmdResponseType ret = rtNoError;
   
   pch = strtok(NULL, delims);
   if (pch == NULL) {
-    retval = write(context->cliSock, setNakStr, strlen(setNakStr));
+    len = strlen(setNakStr);
+    retval = write(context->cliSock, setNakStr, len);
+    if (retval != len)
+	// do nothing?
+	return 0;
     return 0;
     }
   strupr(pch);
@@ -3023,11 +3032,16 @@ int commandSet(connectionRecType *context)
   char *pch;
   char *pcmd;
   int retval;
+  int len;
   cmdResponseType ret = rtNoError;
   
   pcmd = strtok(NULL, delims);
   if (pcmd == NULL) {
-    retval = write(context->cliSock, setNakStr, strlen(setNakStr));
+    len = strlen(setNakStr);
+    retval = write(context->cliSock, setNakStr, len);
+    if (retval != len)
+	// do nothing?
+	return 0;
     return 0;
     }
   strupr(pcmd);
@@ -3366,7 +3380,11 @@ void *readClient(void *arg)
     strcat(buf, str);
     if (!memchr(str, 0x0d, strlen(str))) continue;
     if ((context->echo == 1) && (context->linked) == 1)
-      ret = write(context->cliSock, &buf, strlen(buf));
+      len = strlen(buf);
+      ret = write(context->cliSock, &buf, len);
+      if (ret != len)
+	// do nothing?
+	return 0;
     i = 0;
     j = 0;
     while (i <= strlen(buf)) {
