@@ -34,7 +34,7 @@
 //utility function delarations
 int hm2_sserial_stopstart(hostmot2_t *hm2, hm2_module_descriptor_t *md, 
                           hm2_sserial_instance_t *inst, u32 start_mode);
-int getbits(hm2_sserial_remote_t *chan, u64 *val, int start, int len);
+void getbits(hm2_sserial_remote_t *chan, u64 *val, int start, int len);
 int setbits(hm2_sserial_remote_t *chan, u64 *val, int start, int len);
 int hm2_sserial_get_bytes(hostmot2_t *hm2, hm2_sserial_remote_t *chan, void *buffer, int addr, int size);
 int hm2_sserial_read_globals(hostmot2_t *hm2,hm2_sserial_remote_t *chan);
@@ -305,6 +305,9 @@ int hm2_sserial_parse_md(hostmot2_t *hm2, int md_index){
 fail0:
     hm2_sserial_cleanup(hm2);
     hm2->sserial.num_instances = 0;
+    if (r) return r;
+	
+    HM2_ERR("hm2_sserial_parse_md: Unknown failure\n");
     return -EINVAL;
 }
 
@@ -1360,7 +1363,7 @@ int hm2_sserial_read_pins(hm2_sserial_remote_t *chan){
     static int h_flag = 0, l_flag = 0;//these are the "memory" for 2-part 
     static int bitshift = 1;               //Fanuc encoders where the full turns
     static u64 buff_store;             //and part turns are not contiguous
-    int b, p, r;
+    int b, p;
     int bitcount = 0;
     u64 buff;
     s32 buff32;
@@ -1370,7 +1373,7 @@ int hm2_sserial_read_pins(hm2_sserial_remote_t *chan){
         hm2_sserial_data_t *conf = &chan->confs[p];
         hm2_sserial_pins_t *pin = &chan->pins[p];
         if (! (conf->DataDir & 0x80)){
-            r = getbits(chan, &buff, bitcount, conf->DataLength);
+            getbits(chan, &buff, bitcount, conf->DataLength);
             
             switch (conf->DataType){
             case LBP_PAD:
@@ -1611,7 +1614,7 @@ int hm2_sserial_get_bytes(hostmot2_t *hm2, hm2_sserial_remote_t *chan, void *buf
     return addr;
 }
 
-int getbits(hm2_sserial_remote_t *chan, u64 *val, int start, int len){
+void getbits(hm2_sserial_remote_t *chan, u64 *val, int start, int len){
     long long user0 = (chan->reg_0_read == NULL)? 0 : *chan->reg_0_read;
     long long user1 = (chan->reg_1_read == NULL)? 0 : *chan->reg_1_read;
     long long user2 = (chan->reg_2_read == NULL)? 0 : *chan->reg_2_read;
@@ -1635,7 +1638,6 @@ int getbits(hm2_sserial_remote_t *chan, u64 *val, int start, int len){
                     | (user0 >> start)) & mask;
         }
     }
-    return 0;
 }
 
 

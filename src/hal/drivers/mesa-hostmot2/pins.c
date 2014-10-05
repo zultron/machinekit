@@ -28,7 +28,9 @@
 
 #include "hal/drivers/mesa-hostmot2/hostmot2.h"
 
-
+#ifdef BUILD_SYS_USER_DSO
+#include <stdio.h>		/* sprintf */
+#endif
 
 
 int debug_pin_descriptors = 0;

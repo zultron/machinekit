@@ -35,7 +35,7 @@ int hm2_uart_parse_md(hostmot2_t *hm2, int md_index)
     // some standard sanity checks
     //
     
-    int i, r;
+    int i;
     hm2_module_descriptor_t *md = &hm2->md[md_index];
     static int last_gtag = -1;
     
@@ -85,8 +85,7 @@ int hm2_uart_parse_md(hostmot2_t *hm2, int md_index)
                                                                * sizeof(hm2_uart_instance_t));
         if (hm2->uart.instance == NULL) {
             HM2_ERR("out of memory!\n");
-            r = -ENOMEM;
-            goto fail0;
+            return -ENOMEM;
         }
     }
     
@@ -95,7 +94,12 @@ int hm2_uart_parse_md(hostmot2_t *hm2, int md_index)
         // For the time being we assume that all UARTS come on pairs
         if (inst->clock_freq == 0){
             inst->clock_freq = md->clock_freq;
-            r = sprintf(inst->name, "%s.uart.%01d", hm2->llio->name, i);
+	    if (sprintf(inst->name, "%s.uart.%01d", hm2->llio->name, i) < 7) {
+		// this shouldn't happen, but avoid a compiler warning by
+		// checking the result
+		HM2_ERR("hm2_uart_parse_md:  sprintf failed");
+		return -EINVAL;
+	    }
             HM2_PRINT("created UART Interface function %s.\n", inst->name);
         }
         if (md->gtag == HM2_GTAG_UART_TX){
