@@ -25,6 +25,8 @@
 #ifndef CMS_SERVER_HH
 #define CMS_SERVER_HH
 
+#include <stdint.h>		/* uint32_t */
+
 #include "cms_user.hh"		/* class CMS, CMS_STATUS */
 #include "cms_cfg.hh"		/* CMS_CONFIG_LINELEN */
 #include "rem_msg.hh"		/* struct REMOTE_READ_REQUEST, */
@@ -190,7 +192,10 @@ class CMS_SERVER {
     REMOTE_GET_DIAG_INFO_REPLY *get_diag_info_reply;
     CMS_SERVER_LOCAL_PORT *last_local_port_used;
     int diag_enabled;
-    char set_diag_info_buf[0x400];
+    union {
+	char charstr[0x400];
+	uint32_t ints[0x100];
+    } set_diag_info_buf;
     int max_total_subdivisions;
     virtual void set_diag_info(REMOTE_SET_DIAG_INFO_REQUEST * _diag_info);
     virtual void reset_diag_info(int buffer_number);

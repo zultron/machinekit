@@ -25,6 +25,7 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
 class TCPMEM:public CMS {
   public:
     TCPMEM(const char *bufline, const char *procline);
@@ -49,7 +50,10 @@ class TCPMEM:public CMS {
   protected:
       CMS_STATUS handle_old_replies();
     void send_diag_info();
-    char diag_info_buf[0x400];
+    union {
+	char charstr[0x400];
+	uint32_t ints[0x100];
+    } diag_info_buf;
     int recvd_bytes;
     long serial_number;
     long returned_serial_number;
@@ -58,7 +62,10 @@ class TCPMEM:public CMS {
     struct hostent *server_host_entry;
     struct sockaddr_in server_socket_address;
     int socket_fd;
-    char temp_buffer[0x2000];
+    union {
+	char charstr[0x2000];
+	uint32_t ints[0x0800];
+    } temp_buffer;
     REMOTE_CMS_REQUEST_TYPE timedout_request;
     long bytes_to_throw_away;
     int polling;

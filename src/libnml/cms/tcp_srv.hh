@@ -63,7 +63,10 @@ class CMS_SERVER_REMOTE_TCP_PORT:public CMS_SERVER_REMOTE_PORT {
     long connection_port;
     struct sockaddr_in server_socket_address;
     REMOTE_CMS_REQUEST *request;
-    char temp_buffer[0x2000];
+    union {
+	char charstr[0x2000];
+	uint32_t ints[0x0800];
+    } temp_buffer;
     int current_poll_interval_millis;
     int polling_enabled;
     struct timeval select_timeout;
