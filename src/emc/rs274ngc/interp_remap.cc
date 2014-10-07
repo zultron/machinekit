@@ -656,6 +656,7 @@ int Interp::init_remap_sets()
     _setup.g_remappable[281] = 1;   // G28.1 Go to Predefined Position
     _setup.g_remappable[300] = 1;   // G30   Go to Predefined Position
     _setup.g_remappable[301] = 1;   // G30.1 Go to Predefined Position
+    _setup.g_remappable[840] = 1;   // G84 Rigid tapping - Tormach edit *dpr 10/06/14
 
     return INTERP_OK;
 }
