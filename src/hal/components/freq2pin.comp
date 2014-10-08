@@ -1,8 +1,8 @@
 
-component freq2pin "Tormach Frequency to Pin Component";
+component freq2pin "Frequency to Pin HAL Component";
 
-license "©2013 Tormach® LLC. All rights reserved.";
-author "Tormach, LLC";
+license "GPL";
+author "";
 
 // Reads a frequency input and decodes it to a bitmap of pin outputs
 //

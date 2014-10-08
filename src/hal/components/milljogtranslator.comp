@@ -59,7 +59,7 @@ option extra_setup;
 
 license "GPL";
 
-author "J A Prentice, modified by Tormach for independant axis ring speeds";
+author "J A Prentice, modified for independant axis ring speeds";
 
 variable signed latched_button;
 variable char waiting_stepsizes_release;

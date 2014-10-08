@@ -1,8 +1,8 @@
 
 component tormachltc "Tormach Lathe Tool Changer HAL Component";
 
-license "©2012 Tormach® LLC. All rights reserved.";
-author "Tormach, LLC";
+license "GPL";
+author "";
 
 // Catch-all tool change component supports manual, gang, and 8-position ATC
 //
@@ -52,7 +52,7 @@ pin out bit tool_changed_out;
 // connect this to a HAL pwmgen value, e.g. hm2_5i25.0.pwmgen.00.value
 pin out float pwm_duty_cycle;
 
-function _ "Tormach lathe tool changer HAL component";
+function _ "Tormach Lathe Tool Changer HAL Component";
 
 ;;
 

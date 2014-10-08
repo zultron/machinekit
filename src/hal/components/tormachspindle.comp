@@ -1,8 +1,8 @@
 
-component tormachspindle "Tormach Spindle Component";
+component tormachspindle "Tormach Spindle HAL Component";
 
-license "©2014 Tormach® LLC. All rights reserved.";
-author "Tormach, LLC";
+license "GPL";
+author "";
 
 // Purpose:
 //
@@ -119,7 +119,7 @@ pin in float speeder_factor;
 pin out bit speed_alarm;
 pin out float mcb_freq_out;
 
-function _ "Tormach pindle Component";
+function _ "Tormach Spindle HAL Component";
 
 ;;
 
