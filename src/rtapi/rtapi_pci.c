@@ -42,6 +42,7 @@
 #include <dirent.h>
 #include <sys/mman.h>
 #include <time.h>
+#include <inttypes.h>		/* uintptr_t, SCNxPTR */
 
 #include "rtapi.h"
 #include "rtapi_pci.h"
@@ -647,9 +648,11 @@ int pci_enable_device(struct pci_dev *dev)
     FILE *stream;
     char path[256];
     int i,r;
-    unsigned long long L1, L2, L3;
+    uintptr_t P1, P2;
+    long long unsigned int L3;
 
-    rtapi_print_msg(RTAPI_MSG_DBG, "RTAPI_PCI: Enabling Device %s\n", dev->dev_name);
+    rtapi_print_msg(RTAPI_MSG_DBG, "RTAPI_PCI: Enabling Device %s\n",
+		    dev->dev_name);
 
     /* Enable the device */
     snprintf(path, sizeof(path), "%s/enable", dev->sys_path);
@@ -675,14 +678,15 @@ int pci_enable_device(struct pci_dev *dev)
         
     /* ...and read in the data */
     for (i=0; i < 6; i++) {
-        r=fscanf(stream, "%Lx %Lx %Lx", &L1, &L2, &L3);
+        r=fscanf(stream, "%" SCNxPTR " %" SCNxPTR " %Lx", &P1, &P2, &L3);
         if (r != 3) {
-		    rtapi_print_msg(RTAPI_MSG_ERR,"Failed to parse \"%s\"\n", path);
+		    rtapi_print_msg(RTAPI_MSG_ERR,"Failed to parse \"%s\"\n",
+				    path);
             fclose(stream);
 		    return -1;
         }
-        dev->resource[i].start = (void*) L1;
-        dev->resource[i].end   = (void*) L2;
+        dev->resource[i].start = (void*) P1;
+        dev->resource[i].end   = (void*) P2;
         dev->resource[i].flags = (unsigned long) L3;
 
         rtapi_print_msg(RTAPI_MSG_DBG,"Resource %d: %p %p %08lx\n", i,
