@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <set>
 
 #define MAX_ERRMSG_SIZE 256
 
@@ -384,3 +385,14 @@ PythonPlugin *PythonPlugin::instantiate(struct _inittab *inittab)
     return (python_plugin->usable()) ? python_plugin : NULL;
 }
 
+static std::set<std::string> stringtable;
+
+const char *strstore(const char *s)
+{
+    using namespace std;
+
+    if (s == NULL)
+        throw invalid_argument("strstore(): NULL argument");
+    pair< set<string>::iterator, bool > pair = stringtable.insert(s);
+    return string(*pair.first).c_str();
+}
