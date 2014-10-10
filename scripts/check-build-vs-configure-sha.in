@@ -8,7 +8,7 @@
 # on @DATE@
 #
 
-GIT_CONFIG_SHA=@GIT_CONFIG_SHA@
+GIT_CONFIG_SHA="@GIT_CONFIG_SHA@"
 GIT_BUILD_SHA=`../scripts/get-git-sha`
 
 if test "$GIT_CONFIG_SHA" != "$GIT_BUILD_SHA"; then
