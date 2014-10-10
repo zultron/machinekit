@@ -56,7 +56,6 @@ TARGETS += ../lib/python/machinekit/rtapi.so
 	 $(patsubst %.cc,objects/%.o,$(RTAPISO_CXXSRCS)) \
 	../lib/liblinuxcnchal.so.0 \
 	../lib/liblinuxcnc-pb2++.so.0 \
-	../lib/libmtalk.so.0
 	$(ECHO) Linking $($@)
 	@mkdir -p $(dir $@)
 	$(CC) -g $(LDFLAGS) -shared -o $@ $^
