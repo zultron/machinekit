@@ -30,7 +30,9 @@
 
 /* rtapi_time.c */
 #define HAVE_RTAPI_MODULE_TIMER_STOP
-#define HAVE_RTAPI_GET_TIME_HOOK
+#ifdef RTAPI
+#define HAVE_RTAPI_GET_TIME_HOOK  /* only available in kernel */
+#endif
 #define HAVE_RTAPI_CLOCK_SET_PERIOD_HOOK
 
 /* rtapi_task.c */
