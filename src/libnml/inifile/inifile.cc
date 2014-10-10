@@ -18,6 +18,9 @@
 #include <string.h>             /* strstr() */
 #include <ctype.h>              /* isspace() */
 #include <fcntl.h>
+#include <set>			/* std::set */
+#include <string>		/* std::string */
+#include <stdexcept>		/* invalid_argument() */
 
 
 #include "config.h"
@@ -671,4 +674,17 @@ iniFindDouble(FILE *fp, const char *tag, const char *section, double *result)
 {
     IniFile f(false, fp);
     return(f.Find(result, tag, section));
+}
+
+
+static std::set<std::string> stringtable;
+
+const char *strstore(const char *s)
+{
+    using namespace std;
+
+    if (s == NULL)
+        throw invalid_argument("strstore(): NULL argument");
+    pair< set<string>::iterator, bool > pair = stringtable.insert(s);
+    return string(*pair.first).c_str();
 }

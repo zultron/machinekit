@@ -79,8 +79,6 @@ include an option for suppressing superfluous commands.
 #include <time.h>
 #include <unistd.h>
 #include <libintl.h>
-#include <set>
-#include <stdexcept>
 
 #include "inifile.hh"		// INIFILE
 #include "rs274ngc.hh"
@@ -2505,17 +2503,3 @@ FILE *Interp::find_ngc_file(setup_pointer settings,const char *basename, char *f
 	strcpy(foundhere, newFileName);
     return newFP;
 }
-
-static std::set<std::string> stringtable;
-
-const char *strstore(const char *s)
-{
-    using namespace std;
-
-    if (s == NULL)
-        throw invalid_argument("strstore(): NULL argument");
-    pair< set<string>::iterator, bool > pair = stringtable.insert(s);
-    return string(*pair.first).c_str();
-}
-
-
