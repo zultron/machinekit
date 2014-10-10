@@ -105,10 +105,9 @@ static int rtapi_default_rt_exception_handler(rtapi_exception_t type,
 	case XK_TRAP:
 	    rtapi_print_msg(level,
 			    "%d: trap event: thread %d - error %d "
-			    "event=%d domain=%u ip:%p sp:%p",
+			    "event=%d ip:%p sp:%p",
 			    type, detail->task_id, detail->error_code,
 			    detail->flavor.xeno.event,
-			    detail->flavor.xeno.domid,
 			    detail->flavor.xeno.ip,
 			    detail->flavor.xeno.sp);
 	    break;

@@ -41,7 +41,8 @@
 
 #ifdef RTAPI
 static rthal_trap_handler_t old_trap_handler;
-static int _rtapi_trap_handler(unsigned event, unsigned domid, void *data);
+static int _rtapi_trap_handler(unsigned event,
+			       rthal_pipeline_stage_t *stage, void *data);
 
 #endif /* RTAPI */
 
@@ -154,7 +155,8 @@ extern rtapi_exception_handler_t rt_exception_handler;
 // not better than the builtin Xenomai handler, but at least
 // hook into to rtapi_exception_handler
 
-int _rtapi_trap_handler(unsigned event, unsigned domid, void *data) {
+int _rtapi_trap_handler(unsigned event, rthal_pipeline_stage_t *stage,
+			void *data) {
     struct pt_regs *regs = data;
     xnthread_t *thread = xnpod_current_thread(); ;
 
@@ -166,7 +168,7 @@ int _rtapi_trap_handler(unsigned event, unsigned domid, void *data) {
     detail.error_code = thread->errcode;
 
     detail.flavor.xeno.event = event;
-    detail.flavor.xeno.domid = domid;
+    detail.flavor.xeno.stage = (void *)stage;
     detail.flavor.xeno.ip = (exc_register_t) regs->ip;
     detail.flavor.xeno.sp = (exc_register_t) regs->sp;
 
@@ -176,7 +178,7 @@ int _rtapi_trap_handler(unsigned event, unsigned domid, void *data) {
 			     &global_data->thread_status[task_id] : NULL);
 
     // forward to default Xenomai trap handler
-    return ((rthal_trap_handler_t) old_trap_handler)(event, domid, data);
+    return ((rthal_trap_handler_t) old_trap_handler)(event, stage, data);
 }
 
 int _rtapi_task_self_hook(void) {

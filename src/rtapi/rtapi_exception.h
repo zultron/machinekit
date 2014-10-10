@@ -147,7 +147,7 @@ typedef struct  {
 typedef struct {
     // details for a Xenomai trap event
     unsigned event; // Xenomai trap event number
-    unsigned domid; // Domain id
+    void *stage; // Xenomai domain pointer
     exc_register_t ip;  // instruction pointer
     exc_register_t sp;  // stack pointer
     int      pid;   // user process pid
