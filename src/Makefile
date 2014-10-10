@@ -1217,6 +1217,8 @@ obj-$(CONFIG_HAL_GPIO) += hal_bb_gpio.o
 hal_bb_gpio-objs := hal/drivers/hal_bb_gpio.o
 obj-$(CONFIG_PEPPER) += pepper.o
 pepper-objs := hal/components/pepper.o $(MATHSTUB)
+# silence warning about non-byte-aligned struct
+pepper-objs:  EXTRA_FLAGS +=  -Wno-packed-bitfield-compat
 endif
 
 obj-m += hal_arm335xQEP.o
