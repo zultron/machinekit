@@ -58,7 +58,7 @@ TCLSRCS := \
 po/linuxcnc.pot:
 	$(ECHO) Localizing linuxcnc.pot
 	$(Q)(cd ..; $(XGETTEXT) -k_ -o src/$@ `src/po/fixpaths.py -j src $^`)
-	touch $@
+	$(Q)touch $@
 TARGETS += po/linuxcnc.pot
 
 pofiles: po/linuxcnc.pot

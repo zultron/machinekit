@@ -1430,7 +1430,7 @@ RTDEPS := $(sort $(patsubst $(OBJDIR)/%.o,$(DEPDIR)/%.d, $(RTOBJS)))
 IS_POWERPC = test `uname -m` = ppc -o `uname -m` = ppc64
 modules: $(patsubst %.o,$(RTLIBDIR)/%.so,$(obj-m))
 $(RTLIBDIR)/%.so:
-	$(ECHO) Linking $@
+	$(ECHO) Linking realtime $(threads) $(notdir $@)
 	@mkdir -p $(dir $@)
 	$(Q)ld -r -o $(OBJDIR)/$*.tmp $^
 	@if ! $(IS_POWERPC); then objcopy -j .rtapi_export -O binary \
@@ -1450,7 +1450,7 @@ $(sort $(RTDEPS)): $(DEPDIR)/%.d: %.c
 
 # Rules to make .o (object) files
 $(sort $(RTOBJS)) : $(OBJDIR)/%.o : %.c
-	$(ECHO) Compiling realtime $<
+	$(ECHO) Compiling realtime $(threads) $<
 	@rm -f $@
 	@mkdir -p $(dir $@)
 	$(Q)$(CC) -c $(OPT) $(DEBUG) $(EXTRA_CFLAGS) $< -o $@
