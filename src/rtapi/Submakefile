@@ -78,6 +78,9 @@ ULAPI_SRCS := \
 	rtapi/$(threads)/ulapi_main.c
 ifeq ($(BUILD_SYS),kbuild)
 ULAPI_SRCS += rtapi/$(threads)/rtapi_module.c
+else
+# only userland ulapi.so modules need links to the RT libs
+ULAPISO_RT_LDFLAGS = $(RT_LDFLAGS)
 endif
 
 # resolved at loadtime
@@ -92,7 +95,7 @@ $(ULAPISO): ../lib/liblinuxcnchal.so ../lib/liblinuxcncshm.so \
 	@mkdir -p ../rtlib
 	@rm -f $@
 	$(Q)$(CC) $(LDFLAGS)  -Wl,-soname,$(notdir $@) -shared \
-	    -o $@ $^ $(ULAPISO_LIBS) $(RT_LDFLAGS) \
+	    -o $@ $^ $(ULAPISO_LIBS) $(ULAPISO_RT_LDFLAGS) \
 	../lib/liblinuxcncshm.so \
 	../lib/liblinuxcnchal.so
 
