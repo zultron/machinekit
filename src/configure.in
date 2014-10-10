@@ -1319,7 +1319,7 @@ test "$with_posix" = check && with_posix=yes
 test "$have_librt" = no && with_posix=no
 AC_MSG_RESULT($with_posix)
 if test "$with_posix" = yes; then
-   POSIX_THREADS_LDFLAGS="-lpthread -lrt"
+   POSIX_THREADS_LDFLAGS="-lpthread"
    POSIX_THREADS_RTFLAGS="$POSIX_THREADS_RTFLAGS -pthread"
    BUILD_THREAD_FLAVORS="$BUILD_THREAD_FLAVORS posix"
 fi
@@ -1329,7 +1329,7 @@ test "$with_rt_preempt" = check && with_rt_preempt=yes
 test "$have_librt" = no && with_rt_preempt=no
 AC_MSG_RESULT($with_rt_preempt)
 if test "$with_rt_preempt" = yes; then
-    RT_PREEMPT_THREADS_LDFLAGS="-lpthread -lrt"
+    RT_PREEMPT_THREADS_LDFLAGS="-lpthread"
     RT_PREEMPT_THREADS_RTFLAGS="$RT_PREEMPT_THREADS_RTFLAGS -pthread"
     BUILD_THREAD_FLAVORS="$BUILD_THREAD_FLAVORS rt-preempt"
     with_userland_rt_threads=yes
