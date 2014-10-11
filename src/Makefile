@@ -1657,6 +1657,5 @@ cscope:
 cscopeclean:
 	bash -c 'for f in `find ./ -name "cscope.*out"`;do rm $$f;done'
 
-NOSETESTS := $(wildcard ../nosetests/*.py)
-nosetest:
-	$(foreach var,$(NOSETESTS),nosetests -v $(var);)
+nosetests:
+	nosetests -v -w ../nosetests
