@@ -17,6 +17,27 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
+# dpkg-shlibdeps warning exclusions
+SHLIBDEPS_X :=  # add patterns here
+#
+# The name 'libtk8.6.so' can't be parsed by dpkg-shlibdeps, it seems:
+#     "can't extract name and version from library name 'libtk8.6.so'
+SHLIBDEPS_X += tcltk/linuxcnc/linuxcnc.so dist-packages/_togl _togl.so
+# 
+# libcanterp.so.0 and librs274.so.0: hack for now:  see
+# https://github.com/machinekit/machinekit/issues/324
+#     "symbol ... used by ... found in none of the libraries"
+SHLIBDEPS_X += libcanterp.so.0 librs274.so.0
+
+# Parallel make jobs
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    MAKEFLAGS += -j$(NUMJOBS)
+endif
+
+# Host arch used in computing package names
+DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
+
 # Enable packaging of the PDF docs
 #BUILDDOCS = --enable-build-documentation=pdf
 
@@ -193,7 +214,7 @@ binary-arch: build install debian/substvars
 
 	cat debian/machinekit/DEBIAN/shlibs debian/shlibs.pre > \
 	    debian/shlibs.local
-	dh_shlibdeps -l debian/machinekit/usr/lib
+	dh_shlibdeps $(foreach p, $(SHLIBDEPS_X), -X $(p))
 	dh_gencontrol -- -Tdebian/substvars
 	dh_md5sums
 	dh_builddeb
