@@ -135,7 +135,7 @@ PROTO_CXX_INCS :=
 PROTO_CXX_INCS += $(subst $(PROTODIR)/, \
 	$(PBGEN)/,  \
 	$(patsubst %.proto, %.pb.h, $(PROTO_SPECS)))
-PROTO_CXX_INCS += ../include/machinetalk/generated/nanopb.pb.h
+PROTO_CXX_INCS += machinetalk/generated/nanopb.pb.h
 
 # generated C++ sources
 PROTO_CXX_SRCS  :=  $(PBGEN)/nanopb.pb.cc
