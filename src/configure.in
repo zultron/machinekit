@@ -3226,7 +3226,7 @@ echo "#   Before running the software, set the environment:                #"
 echo "#         . (top dir)/scripts/rip-environment                        #"
 else
 bold
-echo "#   warning: If you already have an installed linuxcnc, this will    #"
+echo "#   caution: If you already have an installed linuxcnc, this will    #"
 echo "#         replace an existing installation.  If you have installed   #"
 echo "#         a linuxcnc package, this will damage the package.          #"
 offbold
