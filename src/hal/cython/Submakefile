@@ -93,7 +93,16 @@ TARGETS += ../lib/python/machinekit/shmcommon.so
 	@mkdir -p $(dir $@)
 	$(Q)$(CC) -g  -shared -o $@ $^ $(LDFLAGS) -lrt
 
+# This conditional should disappear someday when Cython v. 0.19+ is
+# available in common, current distros.
 ifeq ($(HAVE_CYTHON),yes)
+$(patsubst %.pyx, %.c, $(wildcard $(HALNGMKDIR)/*.pyx)): \
 $(HALNGDIR)/machinekit/%.c: $(addprefix $(HALNGDIR)/machinekit/, %.pyx %.pxd)
-	$(CYTHON) -o $@ $<
+	$(ECHO) Cythoning $(notdir $@)
+	$(Q)$(CYTHON) -o $@ $<
+else
+$(patsubst %.pyx, %.c, $(wildcard $(HALNGMKDIR)/*.pyx)): \
+$(HALNGDIR)/machinekit/%.c: $(HALNGDIR)/machinekit/attic/%.c
+	$(ECHO) Copying cython $(notdir $@)
+	$(Q)cp $< $@
 endif

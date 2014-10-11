@@ -1,0 +1,15 @@
+For those changing the Cython bindings:
+
+Rebuilding the Cython bindings requires Cython v. 0.19 or greater.  In
+Debian Wheezy, this is available from `wheezy-backports`.
+
+If a suitable Cython is not available, pre-compiled bindings will be
+copied from the `hal/cython/machinekit/attic` directory.
+
+To contribute Cython binding changes back to the Machinekit project,
+check in changes to the `.pxd` and `.pyx` files as expected, and also
+copy the generated `.c` files into the `attic` directory and check
+those in, too.
+
+This need will go away once newer Cythons are commonly available in
+current distros.
