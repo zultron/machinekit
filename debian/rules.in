@@ -111,7 +111,7 @@ clean: debian/control debian/substvars
 	    --sysconfdir=/etc \
 	    --mandir=/usr/share/man \
 	    --enable-emcweb
-	cd src && $(MAKE) clean -s
+	+$(MAKE) -C src clean -s
 	rm -f Makefile.inc
 	rm -f src/config.log src/config.status
 
