@@ -59,6 +59,17 @@ cdef class Ring:
             if self._hr == NULL:
                 raise RuntimeError("halpr_find_ring_by_name(%s) failed: %s" %
                                    (name, hal_lasterror()))
+    @classmethod
+    def delete(cls,name):
+        '''
+        Delete the named HAL ring buffer.
+        This is a class method, since refs to the object must be zero.
+        '''
+        r = hal_ring_delete(name)
+        if r:
+            raise RuntimeError("hal_ring_delete(%s) failed: %d %s" %
+                               (name, r, hal_lasterror()))
+
     def __dealloc__(self):
         if self._hr != NULL:
             name = self._hr.name
