@@ -36,6 +36,12 @@ cdef class Group:
                     raise RuntimeError("userarg2 does not match for existing group %s: %d, was %d" %
                                        (name, arg2, self._grp.userarg2))
 
+    def delete(self):
+        rc = hal_group_delete(self._grp.name)
+        if rc:
+            raise RuntimeError("Failed to delete group '%s': %s" %
+                               (self._grp.name, hal_lasterror()))
+
     def signal_members(self):  # member groups resolved into signals
         result = []
         rc = halpr_foreach_member(self._grp.name, _list_signal_members_cb,
@@ -77,7 +83,7 @@ cdef class Group:
                 raise RuntimeError("hal_group_compile(%s) failed: %s" %
                                    (self._grp.name, hal_lasterror()))
 
-    def add(self, member, int arg1=0, int eps_index=0):
+    def member_add(self, member, int arg1=0, int eps_index=0):
         if isinstance(member, Signal) or isinstance(member, Group):
             member = member.name
         rc = hal_member_new(self._grp.name, member, arg1, eps_index)
@@ -85,7 +91,7 @@ cdef class Group:
             raise RuntimeError("Failed to add member '%s' to  group '%s': %s" %
                                (member, self._grp.name, hal_lasterror()))
 
-    def delete(self, member):
+    def member_delete(self, member):
         if isinstance(member, Signal) or isinstance(member, Group):
             member = member.name
         rc = hal_member_delete(self._grp.name, member)
