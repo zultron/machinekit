@@ -321,17 +321,20 @@ int hal_ring_detach(const char *name, ringbuffer_t *rbptr)
 
     if ((rbptr == NULL) || (rbptr->magic != RINGBUFFER_MAGIC)) {
 	hal_print_msg(RTAPI_MSG_ERR,
-			"HAL: ERROR: hal_ring_detach: invalid ringbuffer\n");
+		      "HAL: ERROR: hal_ring_detach(%s): invalid ringbuffer\n",
+		      name);
 	return -EINVAL;
     }
     if (hal_data == 0) {
 	hal_print_msg(RTAPI_MSG_ERR,
-			"HAL: ERROR: hal_ring_detach called before init\n");
+		      "HAL: ERROR: hal_ring_detach(%s) called before init\n",
+		      name);
 	return -EINVAL;
     }
     if (hal_data->lock & HAL_LOCK_CONFIG)  {
 	hal_print_msg(RTAPI_MSG_ERR,
-			"HAL: ERROR: hal_ring_detach called while HAL locked\n");
+		      "HAL: ERROR: hal_ring_detach(%s) called while "
+		      "HAL locked\n", name);
 	return -EPERM;
     }
 
