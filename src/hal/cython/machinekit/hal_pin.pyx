@@ -134,4 +134,4 @@ class Pin(_Pin):
     def get(self): raise NotImplementedError("Pin is write-only")
 
     def __repr__(self):
-        return "<hal.Pin %s %s %s >" % self.names[self]
+        return "<hal.Pin %s>" % self.name
