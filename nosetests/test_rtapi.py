@@ -1,35 +1,38 @@
-#!/usr/bin/env python
-import os,time
+from utils import RTAPITestCase, check_hal_clean
+from proboscis import test, after_class
+from proboscis.asserts import assert_is_not_none
 
-from nose import with_setup
-from machinekit.nosetests.realtime import setup_module ,teardown_module
+from machinekit import hal
+import time
 
-from machinekit import rtapi,hal
+@test(groups=["rtapi","rtapi_base"])
+class TestRtapiBase(RTAPITestCase):
 
-import ConfigParser
+    @test
+    def rtapi_connect(self):
+        """RtapiBase: Connect to RTAPI"""
+        # This really just makes sure RTAPITestCase.rtapi has been
+        # initialized; it should be the first test
+        r = self.rtapi
+        assert_is_not_none(r)
 
-def test_get_uuid():
-    global uuid, rt
-    cfg = ConfigParser.ConfigParser()
-    cfg.read(os.getenv("MACHINEKIT_INI"))
-    uuid = cfg.get("MACHINEKIT", "MKUUID")
+    @test(depends_on=[rtapi_connect])
+    def loadrt_or2(self):
+        """RtapiBase: Load a component and start threads"""
+        self.rtapi.loadrt("or2")
+        self.rtapi.newthread("servo-thread",1000000,use_fp=True)
+        hal.addf("or2.0","servo-thread")
+        hal.start_threads()
+        time.sleep(0.2)
 
-def test_rtapi_connect():
-    global rt
-    rt = rtapi.RTAPIcommand(uuid=uuid)
+    @test(depends_on=[loadrt_or2])
+    def unloadrt_or2(self):
+        """RtapiBase: Stop threads and unload component"""
+        hal.stop_threads()
+        self.rtapi.delthread("servo-thread")
+        self.rtapi.unloadrt("or2")
 
-def test_loadrt_or2():
-    global rt
-    rt.loadrt("or2")
-    rt.newthread("servo-thread",1000000,use_fp=True)
-    hal.addf("or2.0","servo-thread")
-    hal.start_threads()
-    time.sleep(0.2)
-
-def test_unloadrt_or2():
-    hal.stop_threads()
-    rt.delthread("servo-thread")
-    rt.unloadrt("or2")
-
-(lambda s=__import__('signal'):
-     s.signal(s.SIGTERM, s.SIG_IGN))()
+    @after_class
+    def check_clean(self):
+        """RtapiBase: Check HAL is clean"""
+        check_hal_clean()

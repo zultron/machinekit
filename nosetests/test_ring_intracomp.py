@@ -3,32 +3,44 @@
 # create a ring
 # assure records written can be read back
 
-import os,time,sys
+from utils import RTAPITestCase, check_hal_clean
+from proboscis import test, before_class, after_class
+from nose.tools import assert_equal, assert_is_none, assert_is_not_none
 
-from nose import with_setup
-from machinekit.nosetests.realtime import setup_module ,teardown_module
 from machinekit import hal
 
+@test(groups=["hal","hal_ring_rw"],
+      depends_on_groups=["hal_ring_base"])
+class TestRingIntracompCmd(RTAPITestCase):
 
-def test_create_ring():
-    global r1
-    # size given mean - create existing ring
-    r1 = hal.Ring("ring1", size=4096)
-    # leave around - reused below
+    @before_class
+    def init_ring(self):
+        """Ring Read/Write:  Initialize ring"""
+        # size given mean - create existing ring
+        self.r = hal.Ring("ring1", size=4096)
+        # leave around - reused below
 
-def test_ring_write_read():
-    nr = 0
-    count = 100
-    for n in range(count):
-        r1.write("record %d" % n)
-        record = r1.read()
-        if record is None:
-            raise RuntimeError, "no record after write %d" % n
-        nr += 1
-        r1.shift()
-    assert nr == count
-    record = r1.read()
-    assert record is None # ring must be empty
+    @test
+    def ring_write_read(self):
+        """Ring Read/Write:  Write to and read from ring"""
+        r = hal.Ring('ring1')
+        nr = 0
+        count = 100
+        for n in range(count):
+            r.write("record %d" % n)
+            record = r.read()
+            assert_is_not_none(record,"no record after write %d" % n)
+            nr += 1
+            r.shift()
+        assert_equal(nr, count)
+        record = r.read()
+        assert_is_none(record) # ring must be empty
 
-(lambda s=__import__('signal'):
-     s.signal(s.SIGTERM, s.SIG_IGN))()
+    @after_class
+    def delete_ring(self):
+        """Ring Read/Write:  Delete ring"""
+        self.r = None  # remove refcount
+        hal.Ring.delete("ring1")
+        assert_equal(len(hal.rings()),0)
+
+        check_hal_clean()

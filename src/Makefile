@@ -1658,4 +1658,4 @@ cscopeclean:
 	bash -c 'for f in `find ./ -name "cscope.*out"`;do rm $$f;done'
 
 nosetests:
-	nosetests -v -w ../nosetests
+	python ../nosetests/run_tests.py

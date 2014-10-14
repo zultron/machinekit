@@ -3,28 +3,47 @@
 # create a ring
 # assure records written can be read back
 
-import os,time,sys
+from utils import RTAPITestCase, check_hal_clean
+from proboscis import test, before_class, after_class
+from nose.tools import assert_equal, assert_not_in
 
-from nose import with_setup
-from machinekit.nosetests.realtime import setup_module# ,teardown_module
 from machinekit import hal
 
-size=4096
+@test(groups=["hal"],
+      depends_on_groups=["hal_ring_rw","rtapi_base"])
+class TestStreamringCmd(RTAPITestCase):
 
-def test_create_ring():
-    global r,sr
-    r = hal.Ring("ring1", size=size, type=hal.RINGTYPE_STREAM)
-    sr = hal.StreamRing(r)
+    size=4096
 
-def test_ring_write_read():
-    nr = 0
-    for n in range(size):
-        if sr.write("X") < 1:
-            assert n == size - 1
+    @before_class
+    def init_streamring(self):
+        """Stream Ring:  Initialize stream ring """
+        # the ring needs to have a reference to it maintained or it
+        # will be garbage collected, and the next test will result in
+        # a segfault
+        self.r = hal.Ring("ring1", size=self.size, type=hal.RINGTYPE_STREAM)
+        self.sr = hal.StreamRing(self.r)
 
-    m = sr.read()
-    assert len(m) == size -1
+    @test
+    def ring_write_read(self):
+        """Stream Ring:  Write to and read from stream ring"""
+        for n in range(self.size):
+            if self.sr.write("X") < 1:
+                assert_equal(n, self.size - 1)
 
+        m = self.sr.read()
+        assert_equal(len(m), self.size - 1)
 
-(lambda s=__import__('signal'):
-     s.signal(s.SIGTERM, s.SIG_IGN))()
+    @after_class
+    def teardown_class(self):
+        """Stream Ring:  Remove stream ring"""
+        # remove refs to ring
+        self.sr = None
+        self.r = None
+
+        hal.Ring.delete("ring1")
+        assert_not_in("ring1",hal.rings(),
+                      "Failed to delete ring 'ring1'; rings: %s" % hal.rings())
+
+        check_hal_clean()
+
