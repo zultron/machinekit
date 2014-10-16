@@ -1657,5 +1657,18 @@ cscope:
 cscopeclean:
 	bash -c 'for f in `find ./ -name "cscope.*out"`;do rm $$f;done'
 
-nosetests:
+nosetests test:
+ifeq ($(RUN_IN_PLACE),yes)
 	python ../nosetests/run_tests.py
+else
+#	# Set up test command so that it works both with Non-RIP
+#	# builds and when installing to $(DESTDIR) in a package build
+	PYTHONPATH="$(DESTDIR)$(SITEPY)" \
+	LD_LIBRARY_PATH="$(DESTDIR)$(EMC2_RTLIB_DIR):$(DESTDIR)$(libdir)" \
+	MACHINEKIT_INI="$(DESTDIR)$(EMC2_SYSTEM_CONFIG_DIR)/machinekit.ini" \
+	RTAPI_INI="$(DESTDIR)$(EMC2_SYSTEM_CONFIG_DIR)/rtapi.ini" \
+	PATH="$(DESTDIR)$(EMC2_BIN_DIR):$$PATH" \
+	RTLIB_DIR="$(DESTDIR)$(EMC2_RTLIB_BASE_DIR)" \
+	DESTDIR="$(DESTDIR)" \
+	python ../nosetests/run_tests.py
+endif

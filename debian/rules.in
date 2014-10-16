@@ -184,12 +184,18 @@ endif
 
 	dh_install --sourcedir=debian/tmp --fail-missing -Xusr/bin/pasm
 
+test: install
+#	# Run nosetests, unsetting LD_PRELOAD to silence fakeroot warnings
+	env -u LD_PRELOAD \
+	    make -C src nosetests \
+		DESTDIR=`readlink -f debian/tmp`
+
 # Build architecture-independent files here.
-binary-indep: build install
+binary-indep: build install test
 # We have nothing to do by default.
 
 # Build architecture-dependent files here.
-binary-arch: build install debian/substvars
+binary-arch: build install test debian/substvars
 	dh_testdir
 	dh_testroot
 	dh_installchangelogs

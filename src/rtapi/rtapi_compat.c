@@ -58,6 +58,9 @@ static FILE *rtapi_inifile = NULL;
 
 static int check_rtapi_lib(char *name);
 
+static char rtapi_lib_path[PATH_MAX];
+static int got_rtapi_lib_path = 0;  // set to 1 after rtapi_lib_path is set
+
 int kernel_is_xenomai()
 {
     struct stat sb;
@@ -286,12 +289,14 @@ void check_rtapi_config_open()
     /* Open rtapi.ini if needed.  Private function used by
        get_rtapi_config(). */
     char config_file[PATH_MAX];
+    const char *rtapi_ini_env = getenv("RTAPI_INI");
 
     if (rtapi_inifile == NULL) {
-	/* it's the first -i (ignore repeats) */
-	/* there is a following arg, and it's not an option */
-	snprintf(config_file, PATH_MAX,
-		 "%s/rtapi.ini", EMC2_SYSTEM_CONFIG_DIR);
+	if (rtapi_ini_env != NULL)
+	    snprintf(config_file, PATH_MAX, "%s", rtapi_ini_env);
+	else
+	    snprintf(config_file, PATH_MAX,
+		     "%s/rtapi.ini", EMC2_SYSTEM_CONFIG_DIR);
 	rtapi_inifile = fopen(config_file, "r");
 	if (rtapi_inifile == NULL) {
 	    fprintf(stderr,
@@ -341,24 +346,37 @@ int get_rtapi_config(char *result, const char *param, int n)
     return 0;
 }
 
+char *ulapi_lib_fname(const char *name)
+{
+    char *val;
+
+    if (! got_rtapi_lib_path) {
+	val = getenv("RTLIB_DIR");
+	if (val == NULL)
+	    val = get_rtapi_param(name, "RTLIB_DIR");
+	if (val==NULL)
+	    return NULL;
+
+	snprintf(rtapi_lib_path, PATH_MAX, "%s/ulapi-%s.so", val, name);
+	got_rtapi_lib_path = 1;
+    }
+
+    return rtapi_lib_path;
+}
+    
+
 int check_rtapi_lib(char *name)
 {
     /* Check if the corresponding rtapi lib for a particular 
 	flavor is present */
     char *val;
-    char fname[PATH_MAX];
     struct stat sb;
 
-    val = get_rtapi_param(name, "RTLIB_DIR");
-
-    if (val==NULL) {
+    if ((val = ulapi_lib_fname(name)) == NULL)
 	return 0;
-    }
-
-    snprintf(fname, PATH_MAX,"%s/ulapi-%s.so", val, name);
 
     /* check if rtapi lib exists */
-    return (stat(fname, &sb) == 0);
+    return (stat(val, &sb) == 0);
 }
 
 int module_path(char *result, const char *basename)

@@ -5,21 +5,20 @@
 #
 
 # Basic variables
-export LANG=C
+LANG=C
 prefix=@prefix@
 exec_prefix=@exec_prefix@
-RTAPI_INI=@EMC2_SYSTEM_CONFIG_DIR@/rtapi.ini
-INIVAR=@EMC2_LIBEXEC_DIR@/inivar
+RTAPI_INI=${DESTDIR}@EMC2_SYSTEM_CONFIG_DIR@/rtapi.ini
+INIVAR=${DESTDIR}@EMC2_LIBEXEC_DIR@/inivar
 LSMOD=@LSMOD@
 PIDOF=@PIDOF@
 SHM_DEV=/dev/shmdrv
 SHM_STAT=/sys/devices/virtual/misc/shmdrv/status
+test -n "$MACHINEKIT_INI" || \
+    MACHINEKIT_INI=${DESTDIR}@EMC2_SYSTEM_CONFIG_DIR@/machinekit.ini
 
-# if not overridden by user, point MACHINEKIT_INI to installed default:
-if [ -z "$MACHINEKIT_INI" ]; then
-    MACHINEKIT_INI=@EMC2_SYSTEM_CONFIG_DIR@/machinekit.ini
-fi
-export MACHINEKIT_INI
+# Environment
+export LANG RTAPI_INI MACHINEKIT_INI
 
 # Basic checks
 if ! test -r "$RTAPI_INI"; then
@@ -33,34 +32,42 @@ fi
 
 # Helper function to get variables from config
 getvar() {
-    # getvar <variable> [ --flavor ]
+    # getvar <variable> [ --flavor ] [ --path ]
     # set variable from rtapi_ini;
     # with --flavor, if $FLAVOR is set, look in the [flavor_$FLAVOR] section
-    var=$1
-    flav_var=$2
+    # with --path, if ${DESTDIR} is set, prepend to value
+    local flav_var=false
+    local prefix=""
+    for ARG in $*; do
+	case $ARG in
+	    --flavor) flav_var=true ;;
+	    --path) prefix=${DESTDIR} ;;
+	    *) var=$ARG ;;
+	esac
+    done
 
-    if test "$flav_var" = "--flavor" -a ! -z "$FLAVOR"; then
+    if "$flav_var" && test -n "$FLAVOR"; then
 	SEC="-sec flavor_$FLAVOR"
     else
 	SEC=""
     fi
 
-    eval "$var='$($INIVAR -var $var -ini $RTAPI_INI $SEC 2>/dev/null)'"
+    eval "$var='${prefix}$($INIVAR -var $var -ini $RTAPI_INI $SEC 2>/dev/null)'"
 }
 
 # Fill in other variable values
 #
 # Executables
-getvar flavor
-getvar linuxcnc_module_helper
-getvar rtapi_msgd
-#getvar halcmd
+getvar flavor --path
+getvar linuxcnc_module_helper --path
+getvar rtapi_msgd --path
+#getvar halcmd --path
 
 # Flavor configuration
 FLAVOR=$($flavor)
 BUILD_SYS=`${flavor} -b`
 getvar MODULES --flavor
-getvar rtapi_app --flavor
+getvar rtapi_app --flavor --path
 
 # catch this common error early on:
 if ! test -u ${rtapi_app}
@@ -82,6 +89,16 @@ if [ "$DEBUG" == "" ]  ; then
     getvar DEBUG
 fi
 DEBUG=$((10#0$DEBUG))  # be sure $DEBUG is some base-10 number
+
+# If DESTDIR is set (maybe running unit tests in packages), fix up
+# some extra environment to support it
+if test -n "${DESTDIR}"; then
+    PYTHONPATH="${DESTDIR}@SITEPY@"
+    LD_LIBRARY_PATH="${DESTDIR}@EMC2_RTLIB_DIR@/${FLAVOR}:${DESTDIR}@libdir@"
+    PATH="${DESTDIR}@bindir@:$PATH"
+    RTLIB_DIR="${DESTDIR}@EMC2_RTLIB_DIR@"
+    export PYTHONPATH LD_LIBRARY_PATH RTLIB_DIR
+fi
 
 # SHMDRV_OPTS:
 # suggested use: SHMDRV_OPTS='debug=3'
@@ -177,13 +194,16 @@ Load(){
     ${rtapi_msgd} --instance=$INSTANCE $NAME_CMD \
 	--rtmsglevel=$DEBUG \
 	--usrmsglevel=$DEBUG \
-	--halsize=$HAL_SIZE $MSGD_OPTS || \
+	--halsize=$HAL_SIZE \
+	--ini=$MACHINEKIT_INI \
+	$MSGD_OPTS || \
 	(echo "rtapi_msgd startup failed - aborting"; exit $?)
 
     # rtapi_app_<flavor> now handles the kernel module loading
     # for kthreads as needed
     if [ $DEBUG -gt 0 ] ; then
-	    ${rtapi_app} --instance=$INSTANCE $RTAPI_APP_OPTS  || \
+	    ${rtapi_app} --instance=$INSTANCE -i $MACHINEKIT_INI \
+		$RTAPI_APP_OPTS  || \
 		(echo "rtapi_app startup failed - aborting"; exit $?)
     fi
     # wait until rtapi_app responds, meaning setup is complete

@@ -162,6 +162,13 @@ extern int module_path(char *result, const char *basename);
 
 extern int get_rtapi_config(char *result, const char *param, int n);
 
+/*
+ * Return a (possibly NULL) pointer to a static string containing the
+ * ulapi-<flavor>.so shared object file.
+ */
+
+extern char *ulapi_lib_fname(const char *name);
+
 SUPPORT_END_DECLS
 
 #endif // MODULE

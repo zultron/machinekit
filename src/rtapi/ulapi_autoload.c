@@ -56,7 +56,6 @@ flavor_ptr flavor;
 // end exported symbols:
 
 static void *ulapi_so; // dlopen handle for ULAPI .so
-static char *ulapi_lib = "ulapi";
 
 static ulapi_main_t ulapi_main_ref;
 static ulapi_exit_t ulapi_exit_ref;
@@ -150,7 +149,7 @@ static int ulapi_load(rtapi_switch_t **ulapi_switch)
     int retval;
     const char *errmsg;
     rtapi_get_handle_t rtapi_get_handle;
-    char ulapi_lib_fname[PATH_MAX];
+    char *ulapi_lib_fname_ptr;
     char *instance = getenv("INSTANCE");
     char *debug_env = getenv("ULAPI_DEBUG");
     int size = 0;
@@ -231,15 +230,21 @@ static int ulapi_load(rtapi_switch_t **ulapi_switch)
 	return -EINVAL;
     }
 
-    snprintf(ulapi_lib_fname,PATH_MAX,"%s/%s-%s%s",
-	     EMC2_RTLIB_DIR, ulapi_lib, flavor->name, flavor->so_ext);
+    // get the ulapi.so filename for this flavor
+    if ((ulapi_lib_fname_ptr = ulapi_lib_fname(flavor->name)) == NULL) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+			"HAL_LIB:%d FATAL - unable to determine ulapi library "
+			"name for flavor %s\n", rtapi_instance, flavor->name);
+	return -ENOENT;
+    }
 
-    // dynload the proper ulapi.so:
-    if ((ulapi_so = dlopen(ulapi_lib_fname, RTLD_GLOBAL|RTLD_NOW))  == NULL) {
+    // dynload ulapi.so:
+    if ((ulapi_so = dlopen(ulapi_lib_fname_ptr,
+			   RTLD_GLOBAL|RTLD_NOW))  == NULL) {
 	errmsg = dlerror();
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"HAL_LIB:%d FATAL - dlopen(%s) failed: %s\n",
-			rtapi_instance, ulapi_lib_fname,
+			rtapi_instance, ulapi_lib_fname_ptr,
 			errmsg ? errmsg : "NULL");
 	return -ENOENT;
     }
@@ -252,7 +257,8 @@ static int ulapi_load(rtapi_switch_t **ulapi_switch)
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"HAL_LIB:%d FATAL - resolving %s: cant"
 			" dlsym(rtapi_get_handle): %s\n",
-			rtapi_instance, ulapi_lib, errmsg ? errmsg : "NULL");
+			rtapi_instance, ulapi_lib_fname_ptr,
+			errmsg ? errmsg : "NULL");
 	return -ENOENT;
     }
 
@@ -272,7 +278,8 @@ static int ulapi_load(rtapi_switch_t **ulapi_switch)
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"HAL_LIB:%d FATAL - resolving %s: "
 			"cant dlsym(ulapi_main): %s\n",
-			rtapi_instance, ulapi_lib, errmsg ? errmsg : "NULL");
+			rtapi_instance, ulapi_lib_fname_ptr,
+			errmsg ? errmsg : "NULL");
 	return -ENOENT;
     }
     // resolve exit function
@@ -283,7 +290,8 @@ static int ulapi_load(rtapi_switch_t **ulapi_switch)
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"HAL_LIB: FATAL - resolving %s:"
 			" cant dlsym(ulapi_exit): %s\n",
-		ulapi_lib, errmsg ? errmsg : "NULL");
+			ulapi_lib_fname_ptr,
+			errmsg ? errmsg : "NULL");
 	return -ENOENT;
     }
 
@@ -313,7 +321,8 @@ static int ulapi_load(rtapi_switch_t **ulapi_switch)
 	rtapi_print_msg(RTAPI_MSG_WARN,
 			"HAL_LIB: UP API warning - git versions disagree:"
 			" hal_lib.c=%s %s=%s\n",
-			GIT_VERSION, ulapi_lib, rtapi_switch->git_version);
+			GIT_VERSION, ulapi_lib_fname_ptr,
+			rtapi_switch->git_version);
     }
 
     // declare victory
