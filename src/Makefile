@@ -616,7 +616,7 @@ TARGETS += ../bin/halshow
 	$(Q)chmod +x $@
 
 # And make userspace depend on $(TARGETS)
-userspace: $(TARGETS)
+userspace: $(TARGETS) $(CYTHON_TARGETS)
 
 ifeq ($(BUILD_PYTHON),yes)
 pythonclean:

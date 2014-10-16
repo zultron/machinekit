@@ -26,7 +26,7 @@ ifeq ($(HAVE_CYTHON),yes)
 $(HALNGMKDIR)/hal.c: $(wildcard $(HALNGMKDIR)/*.pyx $(HALNGMKDIR)/*.pxd)
 endif
 
-TARGETS += ../lib/python/machinekit/hal.so
+CYTHON_TARGETS += ../lib/python/machinekit/hal.so
 ../lib/python/machinekit/hal.so: $(HALSO_OBJS) ../lib/liblinuxcnchal.so.0
 	$(ECHO) Linking python module $(notdir $@)
 	@mkdir -p $(dir $@)
@@ -47,7 +47,7 @@ USERSRCS += $(RTAPISO_CSRCS) $(RTAPISO_CXXSRCS)
 $(call TOOBJSDEPS, $(RTAPISO_CSRCS) $(RTAPISO_CXXSRCS)) : \
 	EXTRAFLAGS=-fPIC -Ihal/utils -I.
 
-TARGETS += ../lib/python/machinekit/rtapi.so
+CYTHON_TARGETS += ../lib/python/machinekit/rtapi.so
 
 ../lib/python/machinekit/rtapi.so: $(RTAPISO_OBJS) \
 		../lib/liblinuxcnchal.so.0 \
@@ -68,7 +68,7 @@ endif
 USERSRCS += $(COMPATSO_CSRCS)
 $(call TOOBJSDEPS, $(COMPATSO_CSRCS)) : EXTRAFLAGS=-fPIC
 
-TARGETS += ../lib/python/machinekit/compat.so
+CYTHON_TARGETS += ../lib/python/machinekit/compat.so
 
 ../lib/python/machinekit/compat.so: $(COMPATSO_OBJS) \
 		../lib/liblinuxcnchal.so.0
@@ -86,7 +86,7 @@ SHMCOMMONSO_OBJS = $(call TOOBJS, $(SHMCOMMONSO_CSRCS))
 USERSRCS += $(SHMCOMMONSO_CSRCS)
 $(call TOOBJSDEPS, $(SHMCOMMONSO_CSRCS)) : EXTRAFLAGS=-fPIC -Irtapi/shmdrv
 
-TARGETS += ../lib/python/machinekit/shmcommon.so
+CYTHON_TARGETS += ../lib/python/machinekit/shmcommon.so
 
 ../lib/python/machinekit/shmcommon.so: $(SHMCOMMONSO_OBJS)
 	$(ECHO) Linking python module $(notdir $@)
