@@ -1493,6 +1493,8 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   char fullNameBuf[2*LINELEN+1];
   int oNumber;
   extern const char *o_ops[];
+  int n;
+  int is_named_oword;
 
   CHKS((line[*counter] != 'o'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
 
@@ -1504,14 +1506,20 @@ int Interp::read_o(    /* ARGUMENTS                                     */
 
   if(line[*counter] == '<')
   {
+      is_named_oword = 1;
       read_name(line, counter, oNameBuf);
   }
   else
   {
-     CHP(read_integer_value(line, counter, &oNumber,
-                            parameters));
-     sprintf(oNameBuf, "%d", oNumber);
+     for (n = 0; isdigit(line[*counter]); (*counter)++, n++) {
+       oNameBuf[n] = line[*counter];
+     }
+     oNameBuf[n] = 0;
+     is_named_oword = 0;
   }
+
+  logDebug("oNameBuf:  |%s|", oNameBuf);
+  logDebug("remainder: |%s|", &line[*counter]);
 
   // We stash the text the offset part of setup
 
@@ -1548,8 +1556,21 @@ int Interp::read_o(    /* ARGUMENTS                                     */
     block->o_type = O_endrepeat;
   else if(CMP("return"))
     block->o_type = O_return;
-  else
+  else {
     block->o_type = O_none;
+    // unrecognized o-word keyword - treat line as program title
+    logDebug("O_none - ignoring entire line");
+    for (; line[*counter] != '\0'; (*counter)++) {
+      // eat rest of line
+    }
+    return INTERP_OK;
+  }
+
+  if (is_named_oword == 0) {
+    n = 0;
+    CHP(read_integer_value(oNameBuf, &n, &oNumber, parameters));
+    logDebug("oNumber: %d", oNumber);
+  }
 
   // we now have it characterized
   // now create the text of the oword
