@@ -11,7 +11,8 @@ from nose.tools import assert_equal, assert_almost_equal, assert_in, \
 from machinekit import hal
 import os
 
-@test(groups=["hal", "hal_base"])
+@test(groups=["hal", "hal_signal", "hal_base"],
+      depends_on_groups=["rtapi", "hal_pin"])
 class TestEpsindex(RTAPITestCase):
 
     @before_class
@@ -141,7 +142,7 @@ class TestEpsindex(RTAPITestCase):
         assert_in(self.signame, hal.signals)
         assert_equal(hal.signals[self.signame].name, self.signame)
 
-    @after_class
+    @after_class(always_run = True)
     def teardown_epsindex(self):
         """Epsindex:  Stop component"""
         hal.Signal.delete(self.signame)
@@ -151,7 +152,8 @@ class TestEpsindex(RTAPITestCase):
         check_hal_clean()
 
 
-@test(groups=["hal_base"])
+@test(groups=["hal", "hal_base"],
+      depends_on_groups=["rtapi", "hal_signal"])
 class TestEpstest(RTAPITestCase):
 
     @before_class

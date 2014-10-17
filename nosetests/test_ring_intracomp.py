@@ -10,7 +10,7 @@ from nose.tools import assert_equal, assert_is_none, assert_is_not_none
 from machinekit import hal
 
 @test(groups=["hal","hal_ring_rw"],
-      depends_on_groups=["hal_ring_base"])
+      depends_on_groups=["hal_ring","rtapi"])
 class TestRingIntracompCmd(RTAPITestCase):
 
     @before_class
@@ -36,7 +36,7 @@ class TestRingIntracompCmd(RTAPITestCase):
         record = r.read()
         assert_is_none(record) # ring must be empty
 
-    @after_class
+    @after_class(always_run=True)
     def delete_ring(self):
         """Ring Read/Write:  Delete ring"""
         self.r = None  # remove refcount

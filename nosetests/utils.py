@@ -1,5 +1,6 @@
 import os, subprocess, ConfigParser
 from proboscis import test, after_class, factory
+from proboscis.decorators import DEFAULT_REGISTRY
 from nose.plugins import Plugin
 from nose.tools import assert_equal, assert_almost_equal, assert_in, \
     assert_greater, assert_false, assert_true, \
@@ -8,7 +9,7 @@ from nose.tools import assert_equal, assert_almost_equal, assert_in, \
 
 from machinekit import rtapi, hal
 
-@test(groups=["realtime"])
+@test(groups=["realtime_environment"])
 class realtime_environment():
     """
     This class's methods start and stop the realtime environment.
@@ -22,7 +23,7 @@ class realtime_environment():
 
     DEBUG = "5"
 
-    @test(groups=["realtime_start"])
+    @test(groups=["realtime"])
     def realtime_start(self):
         """Start realtime"""
         e=os.environ.copy()
@@ -31,7 +32,7 @@ class realtime_environment():
                          stderr=subprocess.STDOUT, env=e)
 
     @test(groups=["realtime_stop"],
-          runs_after_groups = ["all_rt_tests"],
+          runs_after_groups=["all_rt_tests"],
           always_run = True)
     def realtime_stop(self):
         """Stop realtime"""
@@ -89,3 +90,31 @@ def check_hal_clean():
                  "HAL signal groups still exist: %s" % hal.groups())
     assert_equal(len(hal.rings()),0,
                  "HAL ring buffers still exist: %s" % hal.rings())
+
+def after_class_hal_clean(home=None, **kwargs):
+    """
+    Like @after_class decorator, but defaults to always_run=True, and
+    checks HAL environment for leftovers that might interfere with
+    later tests
+    """
+    kwargs.setdefault("always_run",True)
+    kwargs['run_after_class'] = True
+
+    # our wrapper runs the after_class wrapper and then checks the
+    # environment
+    if home:
+        def fn_wrap_home(*iargs, **ikwargs):
+            res = home(*iargs, **ikwargs)
+            check_hal_clean()
+            return res
+        return DEFAULT_REGISTRY.register(fn_wrap_home, **kwargs)
+    else:
+        def cb_method(home_2):
+            def fn_wrap_home(*iargs, **ikwargs):
+                res = home_2(*iargs, **ikwargs)
+                check_hal_clean()
+                return res
+            return DEFAULT_REGISTRY.register(fn_wrap_home, **kwargs)
+        return cb_method
+
+

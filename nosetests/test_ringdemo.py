@@ -8,7 +8,8 @@ from machinekit import rtapi,hal
 import time
 
 @test(groups=["hal"],
-      depends_on_groups=["hal_ring_rw","rtapi_base"])
+      depends_on_groups=["hal_net","hal_signal","hal_pin","hal_ring_rw",
+                         "rtapi_base"])
 class RingDemo(RTAPITestCase):
 
     @before_class
@@ -56,7 +57,7 @@ class RingDemo(RTAPITestCase):
         self.rtapi.delthread("fast")
         self.rtapi.delthread("slow")
 
-    @after_class
+    @after_class(always_run=True)
     def cleanup(self):
         """Ring Demo:  clean up"""
         self.rtapi.unloadrt("ringload")

@@ -7,8 +7,8 @@ from nose.tools import assert_raises, assert_equal, assert_almost_equal, \
 
 from machinekit import hal
 
-@test(groups=["hal","hal_pins"],
-      depends_on_groups=["hal_base"])
+@test(groups=["hal","hal_pin"],
+      depends_on_groups=["rtapi"])
 class TestPinOps(RTAPITestCase):
     places = 6
     pins = [

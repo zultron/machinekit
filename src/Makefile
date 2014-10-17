@@ -1670,5 +1670,5 @@ else
 	PATH="$(DESTDIR)$(EMC2_BIN_DIR):$$PATH" \
 	RTLIB_DIR="$(DESTDIR)$(EMC2_RTLIB_BASE_DIR)" \
 	DESTDIR="$(DESTDIR)" \
-	python ../nosetests/run_tests.py
+	python ../nosetests/run_tests.py $(NOSETEST_ARGS)
 endif

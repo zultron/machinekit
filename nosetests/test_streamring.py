@@ -9,8 +9,8 @@ from nose.tools import assert_equal, assert_not_in
 
 from machinekit import hal
 
-@test(groups=["hal"],
-      depends_on_groups=["hal_ring_rw","rtapi_base"])
+@test(groups=["hal","hal_streamring"],
+      depends_on_groups=["hal_ring_rw","rtapi"])
 class TestStreamringCmd(RTAPITestCase):
 
     size=4096
@@ -34,14 +34,14 @@ class TestStreamringCmd(RTAPITestCase):
         m = self.sr.read()
         assert_equal(len(m), self.size - 1)
 
-    @after_class
+    @after_class(always_run=True)
     def teardown_class(self):
         """Stream Ring:  Remove stream ring"""
         # remove refs to ring
         self.sr = None
         self.r = None
 
-        hal.Ring.delete("ring1")
+        #hal.Ring.delete("ring1") # cleaned up automatically?
         assert_not_in("ring1",hal.rings(),
                       "Failed to delete ring 'ring1'; rings: %s" % hal.rings())
 

@@ -8,8 +8,8 @@ from nose.tools import assert_raises, \
 
 from machinekit import hal
 
-@test(groups=["hal"],
-      depends_on_groups=["hal_pins"])
+@test(groups=["hal", "hal_net"],
+      depends_on_groups=["hal_pins", "hal_signal", "rtapi"])
 class TestNetCmd(RTAPITestCase):
 
     @before_class
@@ -117,7 +117,7 @@ class TestNetCmd(RTAPITestCase):
         hal.new_sig("floatsig2", hal.HAL_FLOAT)
         assert_raises(TypeError, hal.net, "floatsig2", "c2.s32out")
 
-    @after_class
+    @after_class(always_run=True)
     def cleanup(self):
         """Net:  Clean up"""
         hal.Signal.delete("floatsig1")

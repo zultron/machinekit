@@ -27,24 +27,35 @@ def run_tests():
     ############################################
     # Group dependencies
     #
-    # List of groups needing the realtime environment initialized
-    # (almost everything)
-    realtime_groups = [ "rtapi", "hal", "std_comps" ];
+    # realtime_start
+    # realtime
+    # rtapi_base
+    # rtapi
+    # hal_pins
+    # hal_ring
+    # hal_base
+    # hal
+    # comp_env
 
-    # Groups in the realtime_groups list depend on "realtime_start"
-    # group and will be run after the RT is started
-    register(groups = realtime_groups,
-             depends_on_groups = ["realtime_start"])
+    # "realtime" group: Anything depending on this has the base RT
+    # environment established, with no functionality tested.
+
+    # "rtapi" group: This group tests the basic RTAPI environment.
+
+    # "hal" group: This group tests the basic HAL environment.
+
+    # "base" group: Anything depending on this will already have a
+    # tested RT and HAL environment established.
+    register(groups = ["base"],
+             depends_on_groups = ["rtapi", "hal"])
+
+    # "std_comp" group: Test standard components.  Tests in this group
+    # should depend on "base".
 
     # Groups depended upon by the "all_rt_tests" group will be run
     # before the RT environment is stopped
     register(groups = [ "all_rt_tests" ],
-             depends_on_groups = realtime_groups)
-
-    # Standard component tests should only be run if basic RTAPI and
-    # HAL tests succeed
-    register(groups = [ "std_comps" ],
-             depends_on_groups = ["rtapi", "hal"])
+             depends_on_groups = ["base", "std_comp"])
 
     ############################################
     # Run proboscis

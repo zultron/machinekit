@@ -7,7 +7,8 @@ from nose.tools import assert_equal, assert_true, assert_false
 import time
 from machinekit import hal
 
-@test(groups=["std_comps"])
+@test(groups=["std_comp"],
+      depends_on_groups=["base"])
 class TestOr2(RTAPITestCase):
 
     @before_class
@@ -65,7 +66,7 @@ class TestOr2(RTAPITestCase):
         assert_true(out.get())
 
 
-    @after_class
+    @after_class(always_run=True)
     def unloadrt(self):
         """or2:  clean up"""
         hal.stop_threads()

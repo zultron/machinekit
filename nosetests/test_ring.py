@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from utils import RTAPITestCase, check_hal_clean
+from utils import RTAPITestCase, after_class_hal_clean
 from proboscis import test, before_class, after_class
 from nose.tools import assert_raises, assert_equal, assert_greater, \
     assert_in, assert_not_in
@@ -7,8 +7,8 @@ from nose.tools import assert_raises, assert_equal, assert_greater, \
 from machinekit import hal
 import time
 
-@test(groups=["hal","hal_ring_base"],
-      depends_on_groups=["hal_base","rtapi_base"])
+@test(groups=["hal","hal_ring"],
+      depends_on_groups=["rtapi","hal_pin"])
 class TestRingCmd(RTAPITestCase):
 
     @before_class
@@ -71,7 +71,7 @@ class TestRingCmd(RTAPITestCase):
             self.r.shift()
         assert_greater(nr, 0)
 
-    @test(depends_on=[ring_read])
+    @test(depends_on=[ring_read],always_run=True)
     def unloadrt_ringwrite(self):
         """Ring:  Stop and unloadrt ringwrite thread"""
         # unload the ringwrite component to deref ring1
@@ -80,14 +80,9 @@ class TestRingCmd(RTAPITestCase):
         self.rtapi.delthread("servo-thread")
         self.rtapi.unloadrt("ringwrite")
 
-    @test(depends_on=[unloadrt_ringwrite])
-    def delete_ring(self):
-        """Ring:  Delete ring"""
-        self.r = None  # remove reference
-        hal.Ring.delete("ring1")
-        assert_not_in("ring1",hal.rings())
-
-    @after_class
+    @after_class_hal_clean
     def cleanup(self):
         """Ring:  Clean up"""
-        check_hal_clean()
+        assert_in("ring1",hal.rings())
+        self.r = None  # remove reference
+        #hal.Ring.delete("ring1") # automatically cleaned?

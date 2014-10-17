@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
-from utils import RTAPITestCase, check_hal_clean
-from proboscis import test, before_class, after_class
+from utils import RTAPITestCase, after_class_hal_clean
+from proboscis import test, before_class
 from nose.tools import assert_equal, assert_in, assert_not_in, \
     assert_raises
 
 from machinekit import hal
 
-@test(groups=["hal"],
-      depends_on_groups=["hal_base"])
+@test(groups=["hal", "hal_groups"],
+      depends_on_groups=["rtapi", "hal_signal"])
 class TestGroup(RTAPITestCase):
 
     @before_class
@@ -129,7 +129,7 @@ class TestGroup(RTAPITestCase):
         assert_equal(len(self.g2.signal_members()),0)
         print "delete all signals; g1.refcount: %d" % self.g1.refcount
 
-    @after_class
+    @after_class_hal_clean
     def remove_signals_and_groups(self):
         """SignalGroups:  Remove signals"""
 
@@ -159,5 +159,3 @@ class TestGroup(RTAPITestCase):
         self.g3.delete()
         print "other group deleted; g1.refcount: %d" % self.g1.refcount
         assert_equal(len(hal.groups()),0)
-        
-        check_hal_clean()

@@ -5,7 +5,8 @@ from proboscis.asserts import assert_is_not_none
 from machinekit import hal
 import time
 
-@test(groups=["rtapi","rtapi_base"])
+@test(groups=["rtapi","rtapi_load"],
+      depends_on_groups=["realtime"])
 class TestRtapiBase(RTAPITestCase):
 
     @test

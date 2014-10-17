@@ -6,7 +6,8 @@ from nose.tools import assert_equal
 
 from machinekit import compat
 
-@test(groups=["rtapi"])
+@test(groups=["rtapi"],
+      depends_on_groups=["realtime"])
 class TestCompat(RTAPITestCase):
     @test
     def compat(self):
