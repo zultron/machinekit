@@ -1,40 +1,26 @@
 #!/usr/bin/env python
 
-from utils import RTAPITestCase, check_hal_clean
-from proboscis import test, before_class, after_class
+from utils import RTAPITestCase
 from nose.tools import assert_not_in
 
 from machinekit import rtapi,hal
 import time
 
-@test(groups=["hal"],
-      depends_on_groups=["hal_net","hal_signal","hal_pin","hal_ring_rw",
-                         "rtapi_base"])
-class RingDemo(RTAPITestCase):
+class test_018_hal_ring_demo(RTAPITestCase):
 
-    @before_class
-    def check_environment(self):
-        """Ring Demo:  Environment is clean"""
-        # check the ring doesn't already exist for some reason
-        assert_not_in("ring1",hal.rings(),
-                      "Ring 'ring1' already exists; rings: %s" % hal.rings())
-
-    @test
-    def loadrt_ringmods(self):
-        """Ring Demo:  loadrt"""
+    def test_01810_loadrt_ringmods(self):
+        """01810 hal ring demo:  loadrt"""
         self.rtapi.loadrt("ringload",   "num_rings=4", "size=16386")
         self.rtapi.loadrt("ringread",  "ring=ring_2")
         self.rtapi.loadrt("ringwrite", "ring=ring_2")
         self.rtapi.loadrt("charge_pump")
 
-    @test(depends_on=[loadrt_ringmods])
-    def net(self):
-        """Ring Demo:  Net pins"""
+    def test_01820_net(self):
+        """01820 hal ring demo:  Net pins"""
         hal.net("square-wave","charge-pump.out","ringwrite.write")
 
-    @test(depends_on=[net])
-    def runthread(self):
-        """Ring Demo:  Start threads"""
+    def test_01830_start_threads(self):
+        """01830 hal ring demo:  Start threads"""
         cpe = hal.Pin("charge-pump.enable")
         cpe.set(0)
 
@@ -47,9 +33,8 @@ class RingDemo(RTAPITestCase):
         cpe.set(1)    # enable charge_pump
         time.sleep(3) # let rt thread write a bit to ring
 
-    @test(depends_on=[runthread])
-    def stopthread(self):
-        """Ring Demo:  Stop and delete threads"""
+    def test_01840_stop_threads(self):
+        """01840 hal ring demo:  Stop and delete threads"""
         hal.stop_threads()
         hal.delf("charge-pump","slow")
         hal.delf("ringwrite","slow")
@@ -57,9 +42,8 @@ class RingDemo(RTAPITestCase):
         self.rtapi.delthread("fast")
         self.rtapi.delthread("slow")
 
-    @after_class(always_run=True)
-    def cleanup(self):
-        """Ring Demo:  clean up"""
+    def test_01890_cleanup(self):
+        """01890 ring demo:  clean up"""
         self.rtapi.unloadrt("ringload")
         self.rtapi.unloadrt("ringread")
         self.rtapi.unloadrt("ringwrite")
@@ -67,6 +51,3 @@ class RingDemo(RTAPITestCase):
 
         hal.Ring.delete('ring_2')
         hal.Signal.delete('square-wave')
-
-        check_hal_clean()
-

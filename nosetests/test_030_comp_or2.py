@@ -1,27 +1,22 @@
 #!/usr/bin/env python
 
-from utils import RTAPITestCase, check_hal_clean
-from proboscis import test, before_class, after_class
+from utils import RTAPITestCase
 from nose.tools import assert_equal, assert_true, assert_false
 
-import time
 from machinekit import hal
+import time
 
-@test(groups=["std_comp"],
-      depends_on_groups=["base"])
-class TestOr2(RTAPITestCase):
+class test_030_comp_or2(RTAPITestCase):
 
-    @before_class
-    def loadrt(self):
-        "or2:  loadrt and start threads"
+    def test_03010_loadrt(self):
+        "03010 comp or2:  loadrt and start threads"
         self.rtapi.loadrt("or2")
         self.rtapi.newthread("servo-thread",1000000,use_fp=True)
         hal.addf("or2.0","servo-thread")
         hal.start_threads()
 
-    @test
-    def pin_properties(self):
-        "or2:  pin properties"
+    def test_03020_pin_properties(self):
+        "03020 comp or2:  pin properties"
         in0 = hal.Pin("or2.0.in0")
         assert_equal(in0.type, hal.HAL_BIT)
         assert_equal(in0.dir, hal.HAL_IN)
@@ -66,12 +61,9 @@ class TestOr2(RTAPITestCase):
         assert_true(out.get())
 
 
-    @after_class(always_run=True)
-    def unloadrt(self):
-        """or2:  clean up"""
+    def test_03090_unloadrt(self):
+        """03090 comp or2:  clean up"""
         hal.stop_threads()
         hal.delf("or2.0","servo-thread")
         self.rtapi.delthread("servo-thread")
         self.rtapi.unloadrt("or2")
-
-        check_hal_clean()
