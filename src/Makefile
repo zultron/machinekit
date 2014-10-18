@@ -636,7 +636,7 @@ endif
 ifeq ($(BUILD_SYS)+$(BUILD_THREAD_MODULES),kbuild+yes)
 modules:  $(OBJDIR)/.separate-kbuild-artifacts-hack.stamp
 	mkdir -p $(RTLIBDIR)
-	$(PYTHON) modsilent.py $(MAKE) \
+	$(PYTHON) -u modsilent.py $(MAKE) \
 	    -C $(KERNELDIR) \
 	    SUBDIRS=$(BASEPWD)/$(OBJDIR) \
 	    CC=$(CC) KBUILD_VERBOSE=$(BUILD_VERBOSE) modules
