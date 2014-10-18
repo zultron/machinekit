@@ -8,8 +8,10 @@ class test_rtapi(RTAPITestCase):
 
     env = {
         "DEBUG" : "5",
-        "MSGD_OPTS" : "-s",
+        "RTAPI_LOG" : "nosetests.rt.log",
     }
+
+    __test__ = True
 
     def test_00001_start_rt(self):
         """00001 rtapi:  Start realtime environment"""

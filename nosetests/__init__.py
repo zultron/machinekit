@@ -1,17 +1,8 @@
-import os, subprocess, ConfigParser
+import os, ConfigParser
 
 from nose.tools import assert_equal
 
 from machinekit import rtapi, hal
-
-env = {
-    "DEBUG" : "5",
-    "MSGD_OPTS" : "-s",
-}
-
-
-#################
-# RTAPITestCase
 
 class Fixture(object):
     """
@@ -85,7 +76,7 @@ class RTAPITestCase(object):
 
 
     def test_99010_check_hal_clean(self):
-        """Teardown: Check HAL for leftover objects"""
+        """      Teardown: Check HAL for leftover objects"""
         assert_equal(len(hal.components()),1,
                      "HAL components still exist: %s" % hal.components())
         assert_equal(len(hal.pins()),0,

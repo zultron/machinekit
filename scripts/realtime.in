@@ -191,13 +191,17 @@ Load(){
     # rtapi_msgd creates the global segment containing the error ring buffer
     # so start this first:
 
-    ${rtapi_msgd} --instance=$INSTANCE $NAME_CMD \
+    cmd="${rtapi_msgd} --instance=$INSTANCE $NAME_CMD \
 	--rtmsglevel=$DEBUG \
 	--usrmsglevel=$DEBUG \
 	--halsize=$HAL_SIZE \
 	--ini=$MACHINEKIT_INI \
-	$MSGD_OPTS || \
-	(echo "rtapi_msgd startup failed - aborting"; exit $?)
+	$MSGD_OPTS"
+    if test -n "$RTAPI_LOG"; then
+	bash -c "$cmd -s -F" > $RTAPI_LOG 2>&1 &
+    else
+	$cmd
+    fi
 
     # rtapi_app_<flavor> now handles the kernel module loading
     # for kthreads as needed
@@ -208,7 +212,8 @@ Load(){
     fi
     # wait until rtapi_app responds, meaning setup is complete
     # this avoids startup races
-    halcmd ping
+    halcmd ping  || \
+	(echo "rtapi_app startup failed - aborting"; exit $?)
 
     if test BUILD_SYS = 'kbuild'; then
 	# help debugging startup issues for kthreads
