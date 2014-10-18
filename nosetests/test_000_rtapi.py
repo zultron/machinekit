@@ -2,11 +2,23 @@ from . import RTAPITestCase
 from nose.tools import assert_is_not_none
 
 from machinekit import hal
-import time
+import time, os, subprocess
 
 class test_rtapi(RTAPITestCase):
 
-    def test_000_rtapi_connect(self):
+    env = {
+        "DEBUG" : "5",
+        "MSGD_OPTS" : "-s",
+    }
+
+    def test_00001_start_rt(self):
+        """00001 rtapi:  Start realtime environment"""
+        e=os.environ.copy()
+        e.update(self.env)
+        subprocess.call(["realtime","restart"],
+                        stderr=subprocess.STDOUT, env=e)
+
+    def test_00010_rtapi_connect(self):
         """00010 rtapi: Connect to RTAPI"""
         # This really just makes sure RTAPITestCase.rtapi has been
         # initialized; it should be the very first test in the module

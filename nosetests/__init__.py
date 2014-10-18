@@ -5,25 +5,9 @@ from nose.tools import assert_equal
 from machinekit import rtapi, hal
 
 env = {
-    #"DEBUG" : "5",
-    #"MSGD_OPTS" : "-s",
+    "DEBUG" : "5",
+    "MSGD_OPTS" : "-s",
 }
-
-def setup_package():
-    """
-    Start RT environment
-    """
-    e=os.environ.copy()
-    e.update(env)
-    subprocess.call(["realtime","restart"],
-                    stderr=subprocess.STDOUT, env=e)
-
-def teardown_package():
-    """Stop realtime"""
-    e=os.environ.copy()
-    e.update(env)
-    subprocess.call(["realtime","stop"],
-                    stderr=subprocess.STDOUT, env=e)
 
 
 #################
@@ -100,7 +84,7 @@ class RTAPITestCase(object):
         return self.pdict['rtapi']
 
 
-    def test_99999_check_hal_clean(self):
+    def test_99010_check_hal_clean(self):
         """Teardown: Check HAL for leftover objects"""
         assert_equal(len(hal.components()),1,
                      "HAL components still exist: %s" % hal.components())
