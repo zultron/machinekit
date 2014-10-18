@@ -1,4 +1,4 @@
-from utils import RTAPITestCase
+from . import RTAPITestCase
 from nose.tools import assert_is_not_none
 
 from machinekit import hal

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from utils import RTAPITestCase
+from . import RTAPITestCase
 from nose.tools import assert_equal
 
 from machinekit import compat

@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-
-from utils import RTAPITestCase
+from . import RTAPITestCase
 from nose.tools import assert_not_in
 
 from machinekit import rtapi,hal

@@ -1659,7 +1659,7 @@ cscopeclean:
 
 nosetests test:
 ifeq ($(RUN_IN_PLACE),yes)
-	python ../nosetests/run_tests.py
+	nosetests -v ../nosetests $(NOSETEST_ARGS)
 else
 #	# Set up test command so that it works both with Non-RIP
 #	# builds and when installing to $(DESTDIR) in a package build
@@ -1670,5 +1670,5 @@ else
 	PATH="$(DESTDIR)$(EMC2_BIN_DIR):$$PATH" \
 	RTLIB_DIR="$(DESTDIR)$(EMC2_RTLIB_BASE_DIR)" \
 	DESTDIR="$(DESTDIR)" \
-	python ../nosetests/run_tests.py $(NOSETEST_ARGS)
+	nosetests -v ../nosetests $(NOSETEST_ARGS)
 endif

@@ -1,4 +1,4 @@
-from utils import RTAPITestCase
+from . import RTAPITestCase
 from nose.tools import assert_equal, assert_almost_equal, assert_in, \
     assert_greater, assert_false, assert_true, \
     assert_is_none, assert_is_not_none, assert_is_instance, \

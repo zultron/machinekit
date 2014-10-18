@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-from utils import RTAPITestCase
+from . import RTAPITestCase
 from nose.tools import assert_raises, assert_equal, assert_greater, \
     assert_in, assert_not_in
 

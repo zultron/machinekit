@@ -188,7 +188,8 @@ test: install
 #	# Run nosetests, unsetting LD_PRELOAD to silence fakeroot warnings
 	env -u LD_PRELOAD \
 	    make -C src nosetests \
-		DESTDIR=`readlink -f debian/tmp`
+		DESTDIR=`readlink -f debian/tmp` \
+		NOSETEST_ARGS="--with-xunit"
 
 # Build architecture-independent files here.
 binary-indep: build install test

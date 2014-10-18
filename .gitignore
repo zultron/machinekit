@@ -69,3 +69,5 @@ scripts/machinekit.ini.tmpl
 src/objects/*
 debian/linuxcnc-*.files
 src/hal/cython/machinekit/*.c
+# 'nosetests --with-xunit' creates this in $PWD
+nosetests.xml

@@ -1,7 +1,7 @@
 # create a ring
 # assure records written can be read back
 
-from utils import RTAPITestCase
+from . import RTAPITestCase
 from nose.tools import assert_equal, assert_is_none, assert_is_not_none
 
 from machinekit import hal
