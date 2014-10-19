@@ -189,7 +189,8 @@ test: install
 	env -u LD_PRELOAD \
 	    make -C src nosetests \
 		DESTDIR=`readlink -f debian/tmp` \
-		NOSETEST_ARGS="--with-xunit"
+		NOSETEST_ARGS="--with-xunit" || { \
+	    cat nosetests.rt.log; false; }
 
 # Build architecture-independent files here.
 binary-indep: build install test
