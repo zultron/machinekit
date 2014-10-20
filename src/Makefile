@@ -1670,5 +1670,6 @@ else
 	PATH="$(DESTDIR)$(EMC2_BIN_DIR):$$PATH" \
 	RTLIB_DIR="$(DESTDIR)$(EMC2_RTLIB_BASE_DIR)" \
 	DESTDIR="$(DESTDIR)" \
+	PYTHONUNBUFFERED=1 \
 	nosetests -v ../nosetests $(NOSETEST_ARGS)
 endif
