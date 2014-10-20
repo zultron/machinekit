@@ -114,8 +114,8 @@ class RunWithLog(threading.Thread):
 
         with open(self.fname,'w') as fd:
             while True:
-                line = self.proc.stderr.readline()
-                fd.write(line)
+                for line in iter(self.proc.stderr.readline, ''):
+                    fd.write(line)
                 code = self.proc.poll()
                 if code is not None:
                     fd.close()
