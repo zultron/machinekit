@@ -197,8 +197,14 @@ Load(){
 	--halsize=$HAL_SIZE \
 	--ini=$MACHINEKIT_INI \
 	$MSGD_OPTS"
-    if test -n "$RTAPI_LOG"; then
-	bash -c "$cmd -s -F" > $RTAPI_LOG 2>&1 &
+    if test -n "$RTAPI_FOREGROUND"; then
+	# Simulate running in the foreground:
+	#
+	# Start msgd as a foreground daemon with output directed to
+	# stdout, but put in the background; after rtapi_app is
+	# started, wait for msgd to finish
+	bash -c "$cmd -s -F" &
+	rtapi_msgd_pid=$!
     else
 	$cmd
     fi
@@ -220,6 +226,10 @@ Load(){
         if [ $DEBUG -gt 0 ] && [ -w /proc/rtapi/debug ] ; then
             echo "$DEBUG" > /proc/rtapi/debug
         fi
+    fi
+
+    if test -n "$RTAPI_FOREGROUND"; then
+	wait $rtapi_msgd_pid
     fi
 }
 
