@@ -1,4 +1,4 @@
-import os, ConfigParser
+import os, ConfigParser, threading, Queue, subprocess
 
 from nose.tools import assert_equal
 
@@ -88,3 +88,50 @@ class RTAPITestCase(object):
         assert_equal(len(hal.rings()),0,
                      "HAL ring buffers still exist: %s" % hal.rings())
 
+runwithlog_threads = []  # list of running RunWithLog objects that
+                         # need join()ing at shutdown
+
+class RunWithLog(threading.Thread):
+    """
+    Run a command in a thread, optionally setting extra environment
+    variables, directing stdout to a log file.
+    """
+    def __init__(self, cmd, fname, env_update={}):
+        super(RunWithLog, self).__init__()
+        self.cmd = cmd
+        self.fname = fname
+        self.env = os.environ.copy()
+        self.env.update(env_update)
+        #self.daemon = True
+
+    def run(self):
+        runwithlog_threads.append(self)
+        self.proc = subprocess.Popen(self.cmd,
+                                     stderr=subprocess.PIPE,
+                                     bufsize=1,
+                                     close_fds=True,
+                                     env=self.env)
+
+        with open(self.fname,'w') as fd:
+            while True:
+                line = self.proc.stderr.readline()
+                fd.write(line)
+                code = self.proc.poll()
+                if code is not None:
+                    fd.close()
+                    return code
+
+    @classmethod
+    def wait_for_finish(cls):
+        for t in runwithlog_threads:
+            t.join()
+
+class Run(object):
+    """
+    Run a command
+    """
+    @classmethod
+    def simple(cls, cmd, env_update={}):
+        env = os.environ.copy()
+        env.update(env_update)
+        return subprocess.call(cmd, env=env)
