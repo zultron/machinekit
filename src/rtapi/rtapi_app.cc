@@ -1203,6 +1203,8 @@ int main(int argc, char **argv)
     int c;
     progname = argv[0];
     inifile =  getenv("MACHINEKIT_INI");
+    char *log_delay_env = getenv("SYSLOG_ASYNC_DELAY");
+    int log_delay;
 
     uuid_generate_time(process_uuid);
     uuid_unparse(process_uuid, process_uuid_str);
@@ -1210,8 +1212,17 @@ int main(int argc, char **argv)
     rtapi_set_msg_handler(rtapi_app_msg_handler);
     openlog_async(argv[0], LOG_NDELAY, LOG_LOCAL1);
     setlogmask_async(LOG_UPTO(LOG_DEBUG));
-    // max out async syslog buffers for slow system in debug mode
-    tunelog_async(99,1000);
+    if (log_delay_env != NULL) {
+	log_delay = strtol(log_delay_env, (char **)NULL, 10);
+	// Allow tuning of async syslog buffers for slow system in
+	// debug mode
+	if ((0 <= log_delay) && (log_delay <= 999))
+	    tunelog_async(99,log_delay);
+	else
+	    fprintf(stderr,
+		    "Warning:  invalid value for SYSLOG_ASYNC_DELAY; "
+		    "must be between 0 and 999\n");
+    }
 
     while (1) {
 	int option_index = 0;

@@ -682,6 +682,9 @@ int main(int argc, char **argv)
 
     inifile = getenv("MACHINEKIT_INI");
 
+    char *log_delay_env = getenv("SYSLOG_ASYNC_DELAY");
+    int log_delay;
+
     uuid_generate_time(process_uuid);
     uuid_unparse(process_uuid, process_uuid_str);
 
@@ -881,8 +884,17 @@ int main(int argc, char **argv)
     backtrace_init(proctitle);
 
     openlog_async(proctitle, option , SYSLOG_FACILITY);
-    // max out async syslog buffers for slow system in debug mode
-    tunelog_async(99,1000);
+    if (log_delay_env != NULL) {
+	// Allow tuning of async syslog buffers for slow system in
+	// debug mode
+	log_delay = strtol(log_delay_env, (char **)NULL, 10);
+	if ((0 <= log_delay) && (log_delay <= 999))
+	    tunelog_async(99,log_delay);
+	else
+	    fprintf(stderr,
+		    "Warning:  invalid value for SYSLOG_ASYNC_DELAY; "
+		    "must be between 0 and 999\n");
+    }
 
     // set new process name
     argv0_len = strlen(argv[0]);
