@@ -17,7 +17,7 @@ cdef extern from "shmdrv.h":
         int creator
         int shmdrv_loaded
 
-    # bint c_shmdrv_available "shmdrv_available"()
+    int c_shmdrv_available "shmdrv_available"()
     # int c_shmdrv_driver_fd "shmdrv_driver_fd"()
     # int c_shmdrv_status "shmdrv_status"(shm_status *shmstat)
     # int c_shmdrv_create "shmdrv_create"(shm_status *shmstat)
