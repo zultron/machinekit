@@ -82,6 +82,7 @@ SUPPORT_BEGIN_DECLS
 extern int is_module_loaded(const char *module);
 extern int load_module(const char *module, const char *modargs);
 extern int run_module_helper(const char *format, ...);
+// this doesn't belong here.
 extern long int simple_strtol(const char *nptr, char **endptr, int base);
 
 

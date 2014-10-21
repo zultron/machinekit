@@ -34,7 +34,7 @@ CYTHON_TARGETS += ../lib/python/machinekit/hal.so
 
 
 RTAPISO_CSRCS := $(addprefix $(HALNGMKDIR)/, \
-	rtapi.c)
+	rtapi_bindings.c)
 RTAPISO_CXXSRCS := \
 	hal/utils/halcmd_rtapiapp.cc
 RTAPISO_OBJS = $(call TOOBJS, $(RTAPISO_CSRCS) $(RTAPISO_CXXSRCS))
@@ -47,9 +47,9 @@ USERSRCS += $(RTAPISO_CSRCS) $(RTAPISO_CXXSRCS)
 $(call TOOBJSDEPS, $(RTAPISO_CSRCS) $(RTAPISO_CXXSRCS)) : \
 	EXTRAFLAGS=-fPIC -Ihal/utils -I.
 
-CYTHON_TARGETS += ../lib/python/machinekit/rtapi.so
+CYTHON_TARGETS += ../lib/python/machinekit/rtapi/rtapi_bindings.so
 
-../lib/python/machinekit/rtapi.so: $(RTAPISO_OBJS) \
+../lib/python/machinekit/rtapi/rtapi_bindings.so: $(RTAPISO_OBJS) \
 		../lib/liblinuxcnchal.so.0 \
 		../lib/liblinuxcnc-pb2++.so.0
 	$(ECHO) Linking python module $(notdir $@)
@@ -58,7 +58,7 @@ CYTHON_TARGETS += ../lib/python/machinekit/rtapi.so
 
 
 COMPATSO_CSRCS := $(addprefix $(HALNGMKDIR)/, \
-	compat.c)
+	compat_bindings.c)
 COMPATSO_OBJS = $(call TOOBJS, $(COMPATSO_CSRCS))
 
 ifeq ($(HAVE_CYTHON),yes)
@@ -68,9 +68,9 @@ endif
 USERSRCS += $(COMPATSO_CSRCS)
 $(call TOOBJSDEPS, $(COMPATSO_CSRCS)) : EXTRAFLAGS=-fPIC
 
-CYTHON_TARGETS += ../lib/python/machinekit/compat.so
+CYTHON_TARGETS += ../lib/python/machinekit/compat/compat_bindings.so
 
-../lib/python/machinekit/compat.so: $(COMPATSO_OBJS) \
+../lib/python/machinekit/compat/compat_bindings.so: $(COMPATSO_OBJS) \
 		../lib/liblinuxcnchal.so.0
 	$(ECHO) Linking python module $(notdir $@)
 	@mkdir -p $(dir $@)

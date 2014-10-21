@@ -1,3 +1,52 @@
+#  RTAPI environment deamon
+# 
+#  This daemon is responsible for setting up the real-time
+#  environment, independent of thread flavor.
+#
+#  Functions, in approximate order of execution:
+#
+#  - Process commandline options
+#  - Run sanity checks
+#  - Select a suitable thread flavor
+#  - Load shmdrv, if applicable
+#  - Initialize logging
+#  - Load global segment
+#  - Start ZMQ log channels
+#  
+#  This daemon should start up rtapi_app, giving it a log channel
+#
+#  Then get rid of syslog_async
+#
+#  polls the rtapi message ring in the global data segment and
+#  eventually logs them this is the single place for RTAPI and any
+#  ULAPI processes where log messages pass through, regardless of
+#  origin or thread style (kernel, rtapi_app, ULAPI) * doubles as
+#  zeroMQ PUBLISH server making messages available to any interested
+#  subscribers the PUBLISH/SUBSCRIBE pattern will also fix the current
+#  situation where an error message consumed by an entity is not seen
+#  by any other entities
+# 
+# 
+#  Copyright (C) 2014 John Morris <john@zultron.com>
+#  Based on work:
+#  Copyright (C) 2012, 2013  Michael Haberler <license AT mah DOT priv DOT at>
+# 
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public License
+#  as published by the Free Software Foundation; either version 2.1 of
+#  the License, or (at your option) any later version.
+# 
+#  This program is distributed in the hope that it will be useful, but
+#  WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#  Lesser General Public License for more details.
+# 
+#  You should have received a copy of the GNU Lesser General Public
+#  License along with this library; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+#  02110-1301 USA
+
+
 import sys, os
 import argparse, ConfigParser
 
@@ -6,6 +55,8 @@ from machinekit import compat, shmcommon
 class CLI(object):
 
     def __init__(self):
+        self.flavors = compat.Flavors()
+
         self.getenv()
         self.init_args()
         self.read_ini()
@@ -17,7 +68,6 @@ class CLI(object):
         self.get_flavor()
         # Sanity checks
         self.getuid()
-        self.flavor_checks()
         self.get_shmdrv()
 
     def error(self, msg, exitval=1):
@@ -47,6 +97,7 @@ class CLI(object):
                                             "/etc/linuxcnc/machinekit.ini"),
                        help="Path to Machinekit .ini file")
         p.add_argument('--flavor', '-f',
+                       default=self.env.get("FLAVOR",None),
                        help="RTAPI flavor, e.g. posix, xenomai, rt-preempt")
         p.add_argument('--user-msglevel', '-u', type=int,
                        help="ULAPI debug message level")
@@ -105,42 +156,28 @@ class CLI(object):
         self.opts.interfaces = self.opts.interfaces.split()
 
     def get_flavor(self):
-        # create a list of flavors for convenience
-        self.flavors = []
-        id = 0
-        while True:
-            try:
-                self.flavors.append(compat.flavor_byid(id))
-                id += 1
-            except RuntimeError:
-                break
-            
-        # set flavor from compat default routines unless -f option set
-        if self.opts.flavor == None:
-            self.flavor = compat.default_flavor()
-            self.opts.flavor = self.flavor.name
-        else:
-            try:
-                self.flavor = compat.flavor_byname(self.opts.flavor)
-            except RuntimeError:
-                self.error("Error:  failed to set flavor '%s'; "
-                           "valid flavors:" % self.opts.flavor, 0)
-                self.error("    %s\n"
-                           % ' '.join([f.name for f in self.flavors]))
+        try:
+            self.flavor = self.flavors.select_flavor(self.opts.flavor)
+        except (
+            KeyError,
+            compat.RTAPIFlavorPrivilegeException,
+            compat.RTAPIFlavorKernelException,
+            compat.RTAPIFlavorPrivilegeException,
+            compat.RTAPIFlavorULimitException,
+            ) as e:
+            # Print clean warning message for exceptions we know about
+            self.error("Error:  unable to select thread flavor", 0)
+            self.error(str(e))
+        except:
+            # For exceptions we don't know about (bug!), do the messy
+            # backtrace
+            raise
 
     def getuid(self):
         if os.getuid() == 0:
             self.error("Error:  Refusing to run as root")
         if os.geteuid() == 0:
             self.error("Error:  Refusing to run as setuid root")
-
-    def flavor_checks(self):
-        # FIXME: flavors need their own encapsulated sanity checks:
-        #
-        # - kernel compatibility
-        # - xenomai gid
-        # - stuff in scripts/check-system-configuration.sh
-        pass
 
     def get_shmdrv(self):
         # FIXME:  related to flavor_checks?
@@ -159,15 +196,11 @@ class CLI(object):
                 self.error("Error:  shmdrv module not detected; please "
                            "report this bug")
 
-
-            
-
     def run(self):
         from pprint import pprint
         pprint(self.opts.__dict__)
 
         self.start_shmdrv()
-
 
 
 if __name__ == "__main__":

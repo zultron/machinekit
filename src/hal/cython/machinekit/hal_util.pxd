@@ -7,7 +7,7 @@ from cpython.bool  cimport bool
 from .hal_priv     cimport hal_shmem_base, hal_data_u, hal_pin_t, hal_sig_t, hal_data
 from .hal_const    cimport HAL_BIT, HAL_FLOAT,HAL_S32,HAL_U32, HAL_TYPE_UNSPECIFIED
 from .hal_const    cimport HAL_IN, HAL_OUT, HAL_IO
-from .rtapi cimport rtapi_mutex_get,rtapi_mutex_give
+from .rtapi_bindings cimport rtapi_mutex_get,rtapi_mutex_give
 import sys
 
 cdef inline void *shmptr(int offset):

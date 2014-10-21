@@ -4,7 +4,7 @@
 # RT logger
 # rtapi_app command interface
 
-from .rtapi cimport *
+from .rtapi_bindings cimport *
 from .global_data cimport *
 from .rtapi_app cimport *
 from os import strerror, getpid

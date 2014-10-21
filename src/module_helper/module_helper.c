@@ -37,6 +37,7 @@ think of a better way.
 #include <limits.h>                // PATH_MAX
 
 #include "rtapi.h"
+// needed for module_path; pass in?
 #include "rtapi_compat.h"
 
 void error(int argc, char **argv) {
