@@ -857,6 +857,7 @@ static int emcTaskPlan(void)
 	    case EMC_TASK_SET_STATE_TYPE:
 	    case EMC_TASK_PLAN_INIT_TYPE:
 	    case EMC_TASK_PLAN_OPEN_TYPE:
+	    case EMC_TASK_PLAN_CLOSE_TYPE:
 	    case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 	    case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
 	    case EMC_TASK_ABORT_TYPE:
@@ -1076,6 +1077,7 @@ static int emcTaskPlan(void)
 		case EMC_TASK_ABORT_TYPE:
 		case EMC_TASK_PLAN_INIT_TYPE:
 		case EMC_TASK_PLAN_OPEN_TYPE:
+		case EMC_TASK_PLAN_CLOSE_TYPE:
 		case EMC_TASK_PLAN_RUN_TYPE:
 		case EMC_TASK_PLAN_EXECUTE_TYPE:
 		case EMC_TASK_PLAN_PAUSE_TYPE:
@@ -1407,6 +1409,7 @@ static int emcTaskPlan(void)
 	    case EMC_TASK_SET_STATE_TYPE:
 	    case EMC_TASK_PLAN_INIT_TYPE:
 	    case EMC_TASK_PLAN_OPEN_TYPE:
+	    case EMC_TASK_PLAN_CLOSE_TYPE:
 	    case EMC_TASK_PLAN_PAUSE_TYPE:
 	    case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 	    case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
@@ -2191,6 +2194,18 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	} else {
 	    strcpy(emcStatus->task.file, open_msg->file);
 	    retval = 0;
+	}
+	break;
+
+    case EMC_TASK_PLAN_CLOSE_TYPE:
+	//close_msg = (EMC_TASK_PLAN_CLOSE *) cmd;
+	retval = emcTaskPlanClose();
+	if (retval > INTERP_MIN_ERROR) {
+	    retval = -1;
+	}
+	retval = emcTaskPlanInit();
+	if (retval > INTERP_MIN_ERROR) {
+	    retval = -1;
 	}
 	break;
 
