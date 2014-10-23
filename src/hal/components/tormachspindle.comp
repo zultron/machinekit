@@ -13,6 +13,8 @@ author "";
 //
 // Inputs:
 //
+//          disable                 0 = normal operation, 1 = no spindle rotation
+//
 //          spindle-type            0 = standard, 1 = speeder, high speed = 2
 //                                  standard honors belt position and low/high min/max
 //                                  speeder multiplies the values in min/max by speeder-factor
@@ -76,7 +78,11 @@ pin in float speed_in;
 // connect to motion.spindle-at-speed
 pin out bit at_speed;
 
-pin in bit spindle-on;
+// connect to motion.spindle-on
+pin in bit spindle_on;
+
+// this inbits the spindle from turning no matter what is commanded
+pin in bit disable;
 
 // connect to UI
 pin out float speed_out_rps;
@@ -327,6 +333,10 @@ FUNCTION(_) {
         elapsed_accel_time = 0.0;
         speed_out = 0.0;
         speed_alarm = BIT_FALSE;
+    }
+    if (disable) {
+        // no spindle motion allowed
+        mcb_freq_out = 0.0;
     }
     speed_out_rps = speed_out / 60.0;
 }
