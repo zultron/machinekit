@@ -6,18 +6,18 @@ from nose.tools import assert_equal, assert_almost_equal, assert_in, \
 
 from machinekit import hal
 
-class test_012_hal_epsilon(RTAPITestCase):
+class test_220_hal_epsilon(RTAPITestCase):
 
-    def test_01210_init_component(self):
-        """01210 hal epsilon:   Initialize component"""
+    def test_22010_init_component(self):
+        """22010 hal epsilon:   Initialize component"""
         # custom deltas (leave epsilon[0] - the default - untouched)
         hal.epsilon[1] = 100.0
         hal.epsilon[2] = 1000.0
 
         self.f.epstestcomp = hal.Component('epstest')
 
-    def test_01220_ccomp_and_epsilon(self):
-        """01220 hal epsilon:   Test pin change detection"""
+    def test_22020_ccomp_and_epsilon(self):
+        """22020 hal epsilon:   Test pin change detection"""
         # select epsilon[1] for change detection on 'out1'
         # means: out1 must change by more than 100.0 to report a changed pin
         p1 = self.f.epstestcomp.newpin("out1", hal.HAL_FLOAT, hal.HAL_OUT, eps=1)
@@ -59,6 +59,6 @@ class test_012_hal_epsilon(RTAPITestCase):
         # since no changes since last report, must be 0:
         assert_equal(self.f.epstestcomp.changed(), 0)
 
-    def test_01290_teardown_class(self):
-        """01290 hal epsilon:   Stop component"""
+    def test_22090_teardown_class(self):
+        """22090 hal epsilon:   Stop component"""
         self.f.epstestcomp.exit()

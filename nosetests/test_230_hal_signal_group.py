@@ -6,10 +6,10 @@ from nose.tools import assert_equal, assert_in, assert_not_in, \
 
 from machinekit import hal
 
-class test_013_hal_signal_group(RTAPITestCase):
+class test_230_hal_signal_group(RTAPITestCase):
 
-    def test_01310_init_group(self):
-        """01310 hal signal group:  Initialize signal groups"""
+    def test_23010_init_group(self):
+        """23010 hal signal group:  Initialize signal groups"""
         self.f.g1 = hal.Group("group1",arg1=123,arg2=4711)
         print "new; g1.refcount: %d" % self.f.g1.refcount
 
@@ -18,20 +18,20 @@ class test_013_hal_signal_group(RTAPITestCase):
         assert_equal(len(hal.groups()), 1)
         assert_in("group1", hal.groups())
 
-    def test_01320_group_attributes(self):
-        """01320 hal signal group:  Signal group attributes"""
+    def test_23020_group_attributes(self):
+        """23020 hal signal group:  Signal group attributes"""
         assert_equal(self.f.g1.userarg1, 123)
         assert_equal(self.f.g1.userarg2, 4711)
 
-    def test_01321_group_attributes_by_name(self):
-        """01321 hal signal group:  Signal group attributes by name"""
+    def test_23021_group_attributes_by_name(self):
+        """23021 hal signal group:  Signal group attributes by name"""
         # access via name - second wrapper
         self.f.g2 = hal.Group("group1")
         assert_equal(self.f.g2.userarg1, 123)
         assert_equal(self.f.g2.userarg2, 4711)
 
-    def test_01330_add_signals(self):
-        """01330 hal signal group:  Add signals"""
+    def test_23030_add_signals(self):
+        """23030 hal signal group:  Add signals"""
         # add signals to group
         self.f.s1 = hal.Signal("sigs32",   hal.HAL_S32)
         self.f.s2 = hal.Signal("sigfloat", hal.HAL_FLOAT)
@@ -57,8 +57,8 @@ class test_013_hal_signal_group(RTAPITestCase):
         assert_equal(len(self.f.g2.changed()), 0)
         print "check changed; g1.refcount: %d" % self.f.g1.refcount
 
-    def test_01331_change_signals(self):
-        """01331 hal signal group:  Change member signals"""
+    def test_23031_change_signals(self):
+        """23031 hal signal group:  Change member signals"""
 
         # change a member signal
         self.f.s2.set(3.14)
@@ -84,8 +84,8 @@ class test_013_hal_signal_group(RTAPITestCase):
         self.f.g3.member_add(hal.Signal("someu32",   hal.HAL_U32))
         print "add new group; g1.refcount: %d" % self.f.g1.refcount
 
-    def test_01340_nested_signals(self):
-        """01340 hal signal group:  Nested signal groups"""
+    def test_23040_nested_signals(self):
+        """23040 hal signal group:  Nested signal groups"""
 
         # add as nested group
         self.f.g2.member_add(self.f.g3)
@@ -103,8 +103,8 @@ class test_013_hal_signal_group(RTAPITestCase):
         assert_raises(RuntimeError,hal.Signal.delete,"sigs32")
         print "delete memer signal; g1.refcount: %d" % self.f.g1.refcount
 
-    def test_01350_remove_member_signals(self):
-        """01350 hal signal group:  Remove member signals"""
+    def test_23050_remove_member_signals(self):
+        """23050 hal signal group:  Remove member signals"""
 
         # remove a signal from group
         self.f.g2.member_delete("sigs32")
@@ -120,8 +120,8 @@ class test_013_hal_signal_group(RTAPITestCase):
         assert_equal(len(self.f.g2.signal_members()),0)
         print "delete all signals; g1.refcount: %d" % self.f.g1.refcount
 
-    def test_01360_remove_signals_and_groups(self):
-        """01360 hal signal group:  Remove signals"""
+    def test_23060_remove_signals_and_groups(self):
+        """23060 hal signal group:  Remove signals"""
 
         # exception:  someu32 is still in group3
         assert_raises(RuntimeError,hal.Signal.delete,"someu32")

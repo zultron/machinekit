@@ -4,7 +4,7 @@ from nose.tools import assert_raises, assert_equal, assert_almost_equal, \
 
 from machinekit import hal
 
-class test_011_hal_pinops(RTAPITestCase):
+class test_210_hal_pinops(RTAPITestCase):
     places = 6
     pins = [
         ("s32out", hal.HAL_S32, hal.HAL_OUT,42),
@@ -24,8 +24,8 @@ class test_011_hal_pinops(RTAPITestCase):
         ("bitio", hal.HAL_BIT, hal.HAL_IO, True),
         ]
 
-    def test_01110_init_pins(self):
-        """01110 hal pinops:  Initialize pins"""
+    def test_21010_init_pins(self):
+        """21010 hal pinops:  Initialize pins"""
         c1 = hal.Component("c1")
 
         for p in self.pins:
@@ -33,8 +33,8 @@ class test_011_hal_pinops(RTAPITestCase):
 
         c1.ready()
 
-    def test_01120_getters(self):
-        """01120 hal pinops:  Check getters """
+    def test_21020_getters(self):
+        """21020 hal pinops:  Check getters """
 
         assert_equal(self.f.s32out.get(), 42)
         assert_equal(self.f.s32in.get(), 42)
@@ -55,8 +55,8 @@ class test_011_hal_pinops(RTAPITestCase):
         assert_almost_equal(self.f.floatio.get(),
                             3.14, places=self.places)
 
-    def test_01130_setters(self):
-        """01130 hal pinops:  Check setters """
+    def test_21030_setters(self):
+        """21030 hal pinops:  Check setters """
 
         assert_equal(self.f.s32out.set(4711), 4711)
         assert_equal(self.f.s32in.set(4711), 4711)
@@ -87,6 +87,6 @@ class test_011_hal_pinops(RTAPITestCase):
         # FIXME:  AssertionError: RuntimeError not raised
         #assert_raises(RuntimeError, self.f.floatio.set, True)
 
-    def test_01190_stop_component(self):
-        """01190 hal pinops:  Stop component"""
+    def test_21090_stop_component(self):
+        """21090 hal pinops:  Stop component"""
         hal.Component('c1',wrap=True).exit()
