@@ -1,17 +1,19 @@
 from machinekit.rtapi.config.store.ini import IniStore
 
-class MKIniStore(IniStore):
+class TestIniStore(IniStore):
     """
-    'machinekit.ini' configuration storage class (read-only)
+    'test.ini' configuration storage class (read-only) for testing
     """
 
-    name = "machinekit.ini"
+    name = "test.ini"
     priority = 30                       # normally follows command
                                         # line and environment
+    disabled = True                     # normally disabled
     inifile_config = ('rtapi_config','inifile')
-                                        # machinekit.ini filename config item
+                                        # reuse machinekit.ini filename config
 
-    # Migrating machinekit.ini 'machinekit' section to 'service'
+    # Test migration
     section_map = {
         'service' : 'MACHINEKIT',
+        'rtapi' : 'global',
         }

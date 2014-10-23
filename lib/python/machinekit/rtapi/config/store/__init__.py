@@ -21,6 +21,9 @@ class ConfigStore(object):
         # keep reference to top-level config
         self.config = config
 
+        # add any supplied plugin configuration
+        self.plugin_config = self.config.store_config.get(self.name,{})
+
         # register this store with each item that this store can handle
         for item in self.config.items:
             if self.handles(item):

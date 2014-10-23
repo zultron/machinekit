@@ -1,8 +1,13 @@
-import os, ConfigParser, threading, Queue, subprocess
+import os, sys, ConfigParser, threading, Queue, subprocess
 
 from nose.tools import assert_equal
 
 from machinekit import rtapi, hal
+
+# Turn on debug output for tests
+import logging, logging.config
+logging.config.fileConfig(os.path.join(os.path.dirname(__file__),'logging.conf'))
+logger = logging.getLogger('nosetestLogger')
 
 class Fixture(object):
     """
@@ -12,13 +17,30 @@ class Fixture(object):
 
 fixture_dict = {}
 
-class RTAPITestCase(object):
+class FixtureTestCase(object):
     """
-    This class should be subclassed by other tests.
+    This test case class provides:
 
-    It provides three things:
+    1) A 'self.f' fixture object whose attributes remain persistent
+    between tests within a class.  The 'nosetests' system
+    reinitializes the test class object between each test, so setting
+    a 'self.foo' object in one test doesn't persist to the next test.
 
-    1) A lazily-created 'self.rtapi' attribute that is persistent
+    2) A 'self.log' logger object.
+    """
+
+    def __init__(self):
+        self.f = fixture_dict.setdefault(self.__class__.__name__,Fixture())
+        self.log = logger
+        super(FixtureTestCase,self).__init__()
+
+
+class RTAPITestCase(FixtureTestCase):
+    """
+    This test case class provides RTAPI and HAL functions on top of
+    the 'FixtureTestCase' class:
+
+    2) A lazily-created 'self.rtapi' attribute that is persistent
     across the entire 'nosetests' run, across classes and modules.
     This enables the realtime environment to be initialized once per
     'nosetests' run, and 'rtapi.RTAPIcommand()' run once (since it
@@ -26,16 +48,12 @@ class RTAPITestCase(object):
     connection.  The first reference should be during the '100_rtapi'
     tests.
 
-    2) A 'test_99999_check_hal_clean' function that automatically
+    3) A 'test_99999_check_hal_clean' function that automatically
     checks HAL for objects leftover by a test class.  Two benefits are
     ensuring that tear down is tested for all test classes, and the
     HAL environment is clean of anything that may interfere with the
     next class's tests.
 
-    3) A 'self.f' fixture object whose attributes remain persistent
-    between tests within a class.  The 'nosetests' system
-    reinitializes the test class object between each test, so setting
-    a 'self.foo' object in one test doesn't persist to the next test.
     """
 
     pdict = {   # dict to persist data in across instances
@@ -44,10 +62,6 @@ class RTAPITestCase(object):
         'config'     : None,
         'rtapi'      : None,
         }
-
-    def __init__(self):
-        self.f = fixture_dict.setdefault(self.__class__.__name__,Fixture())
-        super(RTAPITestCase,self).__init__()
 
     @property
     def configfile(self):

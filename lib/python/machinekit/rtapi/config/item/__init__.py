@@ -30,6 +30,9 @@ class ConfigItem(object):
         self.store_list = []
         self._store = None
 
+        # add any supplied plugin configuration
+        self.plugin_config = self.config.item_config.get(self.name,{})
+
     def register_store(self, store):
         self.store_list.append(store)
 

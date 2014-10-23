@@ -12,12 +12,12 @@ class IniStore(ConfigStore):
     Subclasses should add 'name' and 'inifile_config' attributes
     """
 
-    name = 'myconfig.ini'               # name for storage backend
+    #name = 'myconfig.ini'              # name for storage backend
     inifile_config = ('global','inifile')
                                         # config item naming .ini file path
-    #priority = 30                      # normally follows command
+    priority = 30                       # normally follows command
                                         # line and environment
-    section_map = {}                   # dict mapping item.section to
+    section_map = {}                    # dict mapping item.section to
                                         # config file section; this is
                                         # used for migration purposes
     read_only = True                    # .ini files are read-only
@@ -30,7 +30,10 @@ class IniStore(ConfigStore):
     @property
     def ini_filename(self):
         if self._ini_filename is None:
-            self._ini_filename = self.config.get(*self.inifile_config)
+            # Get .ini filename either from config passed in, or from
+            # a higher-level config store
+            self._ini_filename = self.plugin_config.get(
+                'inifile', self.config.get(*self.inifile_config))
             if self._ini_filename is None:
                 raise RTAPIConfigException(
                     "Unable to find configuration %s/%s file path for %s" % \
@@ -45,7 +48,13 @@ class IniStore(ConfigStore):
         self._ini_filename = None
 
         try:
-            self.parser.read(self.ini_filename)
+            files_read = self.parser.read(self.ini_filename)
+            if len(files_read) == 0:
+                raise RTAPIConfigException(
+                    "Unable to read file %s" %
+                    (self.ini_filename))
+            self.log.debug("Read %d ini files: %s" % (len(files_read),
+                                                      ' '.join(files_read)))
         except Exception as e:
             raise RTAPIConfigException("Unable to read and parse file %s: %s" %
                                        (self.ini_filename, e))
@@ -68,8 +77,8 @@ class IniStore(ConfigStore):
             try:
                 # run ConfigParser.parser.(get|getint|getboolean)
                 value = self.get_by_type(item)
-            except NoSectionError as e:
-                # if there's a section mapping, try again
+            except (NoSectionError, NoOptionError) as e:
+                # not found; if there's a section mapping, try again
                 if self.section_map.get(item.section,None):
                     value = self.get_by_type(
                         item, section=self.section_map[item.section])

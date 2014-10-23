@@ -32,20 +32,6 @@ class PluginLoader(object):
     priocmp = None              # cmp function
     no_sort = False             # Set to True to disable sorting
 
-    @staticmethod
-    def get_cmp_closure(flag_attr):
-        def attr_cmp(x,y):
-            """
-            Sort objects by the attribute named in flag_attr
-            """
-            if getattr(x, flag_attr) > getattr(y, flag_attr):
-                return 1
-            if getattr(x, flag_attr) < getattr(y, flag_attr):
-                return -1
-            return 0
-        return attr_cmp
-
-
     @property
     def plugindir(self):
         if self._plugindir is None:
@@ -78,61 +64,95 @@ class PluginLoader(object):
         return module_names
 
     def load_module(self, module_name):
-        self.log.debug("      Inspecting module '%s'" % module_name)
+        """Find and load module"""
         info = imp.find_module(module_name, [self.plugindir])
         module = imp.load_module(module_name, *info)
         return module
 
-    def search_module_for_plugins(self, module):
+    def filter_module_plugin_classes(self, module):
+        """Filter out disabled, abstract, etc. module plugin classes"""
+        count = 0; loaded_count = 0
         for attrname in dir(module):
-            attr = getattr(module, attrname)
-            if type(attr) == type:
-                cls = attr  # attribute is a class
-                if (issubclass(cls, self.pluginclass) and \
-                        not getattr(cls,'disabled',False) and \
-                        getattr(cls,self.flagattr,None) is not None):
-                    # class is an enabled plugin class
-                    self.plugin_classes.append(cls)
+            cls = getattr(module, attrname)
+            if not isinstance(cls, type) or \
+                    not issubclass(cls, self.pluginclass) or \
+                    getattr(cls,'name',None) is None:
+                continue  # not a plugin or abstract plugin class
+            count += 1
+
+            # filter plugins
+            if getattr(cls,'disabled',False) and self.enabled_plugins is None:
+                continue  # 'disabled' attribute set; overridden by
+                          # enabled_plugins
+            if self.enabled_plugins is not None and \
+                    cls.name not in self.enabled_plugins:
+                continue  # not in 'enabled_plugins' list
+            if self.disabled_plugins is not None and \
+                    cls.name in self.enabled_plugins:
+                continue  # in 'disabled_plugins' list
+
+            # plugin looks good; add to list
+            self.plugin_classes.append(cls)
+            loaded_count += 1
+        self.log.debug("      Module %s:  loaded %d of %d plugin classes" %
+                       (module.__name__, loaded_count, count))
 
     def process_plugin_classes(self,*args,**kwargs):
+        # sort plugins if applicable
+        if not self.no_sort:
+            self.plugin_classes.sort(self.cmp_closure)
+
         for cls in self.plugin_classes:
             if self.instantiate:
                 obj = cls(*args,**kwargs)
-                self.log.debug("        Loading object %s" % obj)
                 self.plugins.append(obj)
+                self.log.debug("      Added object %s" % obj)
             else:
-                self.log.debug("        Loading class %s" % cls)
+                self.log.debug("      Added class %s" % cls)
                 self.plugins.append(cls)
+
+    @property
+    def cmp_closure(self):
+        self.log.debug("Sorting plugins by attribute '%s'" % self.flagattr)
+        def attr_cmp(x,y):
+            """
+            Sort objects by the attribute named in flag_attr
+            """
+            if getattr(x, self.flagattr) > getattr(y, self.flagattr):
+                return 1
+            if getattr(x, self.flagattr) < getattr(y, self.flagattr):
+                return -1
+            return 0
+        return attr_cmp
+
 
     def __init__(self,*args,**kwargs):
         """
         Initialize plugin system, especially setting up the plugin
         directory
         """
+        # logging
+        self.log = logging.getLogger(self.__module__)
+        self.log.debug("  Loading plugins for class '%s'" %
+                       self.pluginclass.__name__)
+
         # set up basic attributes
         self.name = self.pluginclass.__name__
         self._plugindir = None
         self.plugins = []
         self.plugin_classes = []
-
-        # logging
-        self.log = logging.getLogger(self.__module__)
-        self.log.debug("    Loading plugins for class '%s'" % self.name)
+        self.enabled_plugins = kwargs.pop('enabled_plugins',None)
+        self.disabled_plugins = kwargs.pop('disabled_plugins',None)
 
         # load modules and look for plugin classes
+        self.log.debug("    Importing modules and searching for plugins")
         for module_name in self.find_plugin_modules():
-
             module = self.load_module(module_name)
-            self.search_module_for_plugins(module)
+            self.filter_module_plugin_classes(module)
 
         # process classes and add to plugin list
+        self.log.debug("    Build plugin list")
         self.process_plugin_classes(*args,**kwargs)
-
-        # sort plugins if applicable
-        if not self.no_sort:
-            if self.priocmp is None:
-                self.priocmp = self.get_cmp_closure(self.flagattr)
-            self.plugins.sort(self.priocmp)
 
         self.log.debug("    Loaded %d %s(s)" %
                        (len(self.plugins), self.name))

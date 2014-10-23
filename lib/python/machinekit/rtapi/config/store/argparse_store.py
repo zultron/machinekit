@@ -1,12 +1,15 @@
 from machinekit.rtapi.config.item import ConfigInt, ConfigBool
 from machinekit.rtapi.config.store import ConfigStore
 from machinekit.rtapi.exceptions import RTAPIConfigNotFoundException
-import argparse, string
+import sys, argparse, string
 
 class ArgparseStore(ConfigStore):
     """
     Command line argument configuration storage class: a read-only
     source of configuration variables
+
+    By default, read arguments from sys.argv, or a list supplied
+    through the 'argv' plugin configuration, useful for unit testing.
     """
 
     name = "argv"
@@ -53,7 +56,8 @@ class ArgparseStore(ConfigStore):
                 self.add_argument(item)
 
         self.log.debug("Parsing command line args")
-        self.opts = self.parser.parse_args()
+        self.opts = self.parser.parse_args(
+            args=self.plugin_config.get('argv',sys.argv[1:]))
 
     def get(self, item):
         value = getattr(self.opts, item.longopt)

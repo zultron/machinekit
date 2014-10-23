@@ -19,8 +19,14 @@ class Config(object):
     finds one able to perform the operation.
     """
 
-    def __init__(self):
+    def __init__(self,
+                 store_config={}, enabled_stores=None, disabled_stores=None,
+                 item_config={}):
         self.log = logging.getLogger(self.__module__)
+
+        # Configuration to be passed to plugins
+        self.store_config = store_config
+        self.item_config = item_config
 
         # Index for storing (section,name) config items
         self.index = {}
@@ -31,7 +37,9 @@ class Config(object):
 
         self.log.debug("Finding and loading config store backend plugins")
         # ConfigStores register themselves with items
-        self.stores = ConfigStoreLoader(self)
+        self.stores = ConfigStoreLoader(self,
+                                        enabled_plugins=enabled_stores,
+                                        disabled_plugins=disabled_stores)
 
         self.log.debug("Machinekit configuration initialized and ready")
 

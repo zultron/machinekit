@@ -6,6 +6,7 @@ class rtapi_debug(ConfigInt):
     longopt = 'debug'
     shortopt = 'd'
     default = 1
+    env_ok = True
     help = "Debug level (1-5), default 1"
 
 class rtapi_ulapi_msglevel(ConfigInt):
