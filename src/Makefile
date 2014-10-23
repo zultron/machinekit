@@ -1657,9 +1657,11 @@ cscope:
 cscopeclean:
 	bash -c 'for f in `find ./ -name "cscope.*out"`;do rm $$f;done'
 
+NOSETESTS_NAMES ?= ../nosetests
+NOSETESTS_COMMAND = nosetests -v $(NOSETESTS_NAMES)
 nosetests test:
 ifeq ($(RUN_IN_PLACE),yes)
-	nosetests -v ../nosetests $(NOSETEST_ARGS)
+	$(NOSETESTS_COMMAND) $(NOSETESTS_ARGS)
 else
 #	# Set up test command so that it works both with Non-RIP
 #	# builds and when installing to $(DESTDIR) in a package build
@@ -1672,5 +1674,5 @@ else
 	DESTDIR="$(DESTDIR)" \
 	PYTHONUNBUFFERED=1 \
 	SYSLOG_ASYNC_DELAY=20 \
-	nosetests -v ../nosetests $(NOSETEST_ARGS)
+	$(NOSETESTS_COMMAND) $(NOSETESTS_ARGS)
 endif
