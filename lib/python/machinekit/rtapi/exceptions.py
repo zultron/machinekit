@@ -1,3 +1,11 @@
+# Config store exceptions
+from machinekit.rtapi.config.exceptions import \
+    RTAPIConfigException, RTAPIConfigNotFoundException
+
+# Plugin exceptions
+from machinekit.rtapi.plugin import RTAPIPluginException
+
+
 # RTAPI Flavor exceptions
 class RTAPIFlavorKernelException(RuntimeError):
     """
@@ -19,24 +27,3 @@ class RTAPIFlavorULimitException(RuntimeError):
     insufficient
     """
     pass
-
-# Plugin exceptions
-class RTAPIPluginException(RuntimeError):
-    """
-    Raised by plugin system
-    """
-    pass
-
-# Config store exceptions
-class RTAPIConfigException(RuntimeError):
-    """
-    Raised by config store system
-    """
-    pass
-
-class RTAPIConfigNotFoundException(RuntimeError):
-    """
-    Raised by config store system when config item not found
-    """
-    pass
-

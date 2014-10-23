@@ -1,0 +1,51 @@
+RTAPI Configuration Unification
+
+In the past, configuration came from many sources, including various
+.ini files, environment variables and command-line arguments.  Each
+method had its own means of plumbing the configuration data into the
+places it was needed, and each place it was needed had its own means
+of deciding which source of data to prioritize.  Managing these
+sources of data, their plumbing and final processing was extremely
+difficult, and successive attempts by different developers ended up
+with yet a new, kludgy method.
+
+This code presents a single interface to all configuration data through
+simple get/set methods on (section/name) keys.
+
+It accesses the data through simple, pluggable configuration storage
+backends.  Currently there are configuration stores pulling data from
+environment variables, command-line arguments and .ini files.  A new
+backend simply needs to write a `get` method, and optionally
+`__init__`, `set` and `handles` methods, and can be as simple as a
+dozen lines of code--see the environment variable store in
+`store/env.py` for a simple example; `.ini` stores are even
+simpler--see `store/mk_ini.py`.
+
+Each data item is a simple plugin class.  The class defines static
+attributes of the datum, such as `section` and `name`, as well as
+command-line argument strings, help strings and defaults.  A new
+configuration item can be added with just a few lines; see examples in
+the `item` directory.
+
+== Data flow
+
+The `Config` object `get(section,name)` method is very simple: it
+simply retrieves the `ConfigItem` object from the index, and passes
+its arguments along to that object's `get()` method.
+
+The `ConfigItem` object`s `get()` function manages the 'which source
+to prioritize' logic.  During initialization, each configuration store
+backend 'registers' itself with each `ConfigItem` it is able to handle
+(i.e., its `handles(item)` method returns `True`).  The `ConfigItem`
+goes through the list of registered stores, sorted in priority order,
+looking for the first one that can provide the item's value.  Although
+a store, such as the environment variable store, may be able to
+'handle' an item, such as the thread flavor, it however may be unable
+to provide the value (e.g. the `FLAVOR` environment veriable is
+unset).  Each backend store plugin is tested, in decreasing priority
+order, until one is found that can return the value.  If no plugin can
+provide the value, the configuration item's `default` is returned.
+
+To speed the search next time the variable is queried, the successful
+store is recorded.
+

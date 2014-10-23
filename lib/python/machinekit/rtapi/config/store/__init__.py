@@ -1,8 +1,8 @@
 from machinekit.rtapi.plugin import PluginLoader
-from machinekit.rtapi.exceptions import RTAPIConfigException
+from machinekit.rtapi.config.exceptions import RTAPIConfigException
 import logging
 
-class ConfigStore(PluginLoader):
+class ConfigStore(object):
     """
     Abstract Machinekit configuration item storage backend class
 
@@ -15,50 +15,52 @@ class ConfigStore(PluginLoader):
     name = None                 # name of configuration store
     priority = None             # uint, 0 is highest priority
 
-    def __init__(self):
+    def __init__(self, config):
         self.log = logging.getLogger(self.__module__)
-        # Set to True when store is ready for get/set operation
-        self.initialized = False
 
-    def can_get(self, cls):
+        # keep reference to top-level config
+        self.config = config
+
+        # register this store with each item that this store can handle
+        for item in self.config.items:
+            if self.handles(item):
+                item.register_store(self)
+
+    def handles(self, obj):
         """Return True if this config store is suitable for getting
         the section/key value"""
-        return self.item_class_get_filter(self, cls)
+        return True  # default
 
-    def get(self, section, key):
+    def get(self, item):
         """Get the value of section/key from this config store"""
         raise RTAPIConfigException(
             "Config store backends must implement the get() method")
 
-    def can_set(self, cls):
-        """Return True if this config store is suitable for setting
-        the section/key value"""
-        return self.item_class_set_filter(self, cls)
-
-    def set(self, section, key, value):
+    def set(self, item, value):
         """Get the value of section/key in this config store"""
-        raise RTAPIConfigException(
-            "Config store backends must implement the set() method")
+        if self.read_only:
+            raise RTAPIConfigException(
+                "Attempt to set %s/%s in read-only config backend %s" %
+                (item.section, item.name, self.name))
+        else:
+            raise RTAPIConfigException(
+                "Read/write config store backends must implement the "
+                "set() method")
 
-    def item_class_get_filter(self, cls):
-        """can_get all config items"""
-        return True
-
-    def item_class_set_filter(self, cls):
-        """can_set all config items"""
-        return True
-
-    def plugin_class_translator(self, cls):
-        """Apply transformation to item class"""
-        return cls
-
-    def finalize_init(self):
-        """Finalize initialization of store and mark as ready for operation"""
-        self.initialized = True
-
-    def str(self):
-        return "<%s config store backend>" % (self.__class__.__name__)
+    def __str__(self):
+        return self.name
 
     def __repr__(self):
-        return self.str()
+        return "<%s config store backend>" % (self.__class__.__name__)
+
+class ConfigStoreLoader(PluginLoader):
+    """
+    Machinekit configuration storage stack class
+
+    A Config object is a stack of configuration storage backend
+    plugins sorted by priority.  A storage backend knows how to filter
+    config items for which its get/set operations are applicable.
+    """
+
+    pluginclass = ConfigStore
 
