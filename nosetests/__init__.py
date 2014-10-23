@@ -18,11 +18,13 @@ class RTAPITestCase(object):
 
     It provides three things:
 
-    1) A 'self.rtapi' attribute that is persistent across the entire
-    'nosetests' run, across classes and modules.  This enables the
-    realtime environment to be initialized once per 'nosetests' run,
-    and 'rtapi.RTAPIcommand()' run once (on demand) to establish a
-    connection (this command fails if run multiple times).
+    1) A lazily-created 'self.rtapi' attribute that is persistent
+    across the entire 'nosetests' run, across classes and modules.
+    This enables the realtime environment to be initialized once per
+    'nosetests' run, and 'rtapi.RTAPIcommand()' run once (since it
+    fails if run multiple times) at first reference to establish a
+    connection.  The first reference should be during the '100_rtapi'
+    tests.
 
     2) A 'test_99999_check_hal_clean' function that automatically
     checks HAL for objects leftover by a test class.  Two benefits are
