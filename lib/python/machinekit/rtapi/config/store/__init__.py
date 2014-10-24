@@ -29,9 +29,8 @@ class ConfigStore(object):
             if self.handles(item):
                 item.register_store(self)
 
-    def handles(self, obj):
-        """Return True if this config store is suitable for getting
-        the section/key value"""
+    def handles(self, item):
+        """True if this store can handle this ConfigItem"""
         return True  # default
 
     def get(self, item):
@@ -43,8 +42,8 @@ class ConfigStore(object):
         """Get the value of section/key in this config store"""
         if self.read_only:
             raise RTAPIConfigException(
-                "Attempt to set %s/%s in read-only config backend %s" %
-                (item.section, item.name, self.name))
+                "Attempt to set %s in read-only config backend %s" %
+                (item.name, self.name))
         else:
             raise RTAPIConfigException(
                 "Read/write config store backends must implement the "

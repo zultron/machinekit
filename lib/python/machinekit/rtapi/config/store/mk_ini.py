@@ -8,8 +8,7 @@ class MKIniStore(IniStore):
     name = "machinekit.ini"
     priority = 30                       # normally follows command
                                         # line and environment
-    inifile_config = ('rtapi_config','inifile')
-                                        # machinekit.ini filename config item
+    inifile_config = 'inifile'          # machinekit.ini filename config item
 
     # Migrating machinekit.ini 'machinekit' section to 'service'
     section_map = {

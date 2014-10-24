@@ -13,8 +13,7 @@ class IniStore(ConfigStore):
     """
 
     #name = 'myconfig.ini'              # name for storage backend
-    inifile_config = ('global','inifile')
-                                        # config item naming .ini file path
+    inifile_config = 'inifile'          # config item naming .ini file path
     priority = 30                       # normally follows command
                                         # line and environment
     section_map = {}                    # dict mapping item.section to
@@ -23,9 +22,9 @@ class IniStore(ConfigStore):
     read_only = True                    # .ini files are read-only
                                         # in practice
 
-    def handles(self, obj):
-        """Handle items with section attribute from .ini files"""
-        return getattr(obj,'section',None) is not None
+    def handles(self, item):
+        """Handle items with 'section' attribute from .ini files"""
+        return getattr(item,'section',None) is not None
 
     @property
     def ini_filename(self):
@@ -33,7 +32,7 @@ class IniStore(ConfigStore):
             # Get .ini filename either from config passed in, or from
             # a higher-level config store
             self._ini_filename = self.plugin_config.get(
-                'inifile', self.config.get(*self.inifile_config))
+                'inifile', self.config.get(self.inifile_config))
             if self._ini_filename is None:
                 raise RTAPIConfigException(
                     "Unable to find configuration %s/%s file path for %s" % \
@@ -60,15 +59,18 @@ class IniStore(ConfigStore):
                                        (self.ini_filename, e))
 
     def get_by_type(self, item, section=None):
+        # Use item's usual section, or an alternate remapped section
         if section is None:
             section = item.section
+
         if isinstance(item, ConfigString):
             return self.parser.get(section, item.name)
         if isinstance(item, ConfigInt):
             return self.parser.getint(section, item.name)
         if isinstance(item, ConfigBool):
             return self.parser.getboolean(section, item.name)
-        raise Exception("shouldn't be here")
+        raise RTAPIConfigException(
+            "Unhandled ConfigItem class for %s" % item.name)
 
     def get(self, item):
         # outer 'try:' catches usual exceptions

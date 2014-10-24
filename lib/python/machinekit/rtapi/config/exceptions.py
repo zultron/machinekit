@@ -4,7 +4,7 @@ class RTAPIConfigException(RuntimeError):
     """
     pass
 
-class RTAPIConfigNotFoundException(RuntimeError):
+class RTAPIConfigNotFoundException(KeyError):
     """
     Raised by config store system when config item not found
     """

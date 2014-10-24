@@ -8,15 +8,15 @@ class Config(object):
     The Machinekit configuration management class
 
     The Config object loads and indexes ConfigItem plugins at init
-    time.  When the Config object is given a get/set for a
-    (section,name) key, it retrieves the ConfigItem associated with
-    that key from the index and passes the get/set operation to it.
+    time.  When the Config object is given a get/set for a key, it
+    retrieves the ConfigItem associated with that key from the index
+    and passes the get/set operation to it.
 
     The Config object also loads ConfigStore plugins at init time,
-    which register themselves with the ConfigItems they can handle.
-    When a ConfigItem is given a get/set operation, it goes through
-    its register of ConfigStore plugins in priority order until it
-    finds one able to perform the operation.
+    which register themselves with the ConfigItems they know how to
+    handle.  When a ConfigItem is given a get/set operation, it goes
+    through its register of ConfigStore plugins in priority order
+    until it finds one able to perform the operation.
     """
 
     def __init__(self,
@@ -28,7 +28,7 @@ class Config(object):
         self.store_config = store_config
         self.item_config = item_config
 
-        # Index for storing (section,name) config items
+        # ConfigItem object index
         self.index = {}
 
         self.log.debug("Finding and loading config item plugins")
@@ -44,26 +44,35 @@ class Config(object):
         self.log.debug("Machinekit configuration initialized and ready")
 
     def index_add(self,item):
-        """Add ConfigItem item index by (section,name) key"""
-        self.index.setdefault(item.section,{})[item.name] = item
+        """Index ConfigItem object"""
+        if self.index.has_key(item.name):
+            raise RTAPIConfigException(
+                "ConfigItem plugin name duplicate:  %s" % item.name)
+        self.index[item.name] = item
 
-    def index_lookup(self, section, name):
-        """Retrieve ConfigItem by (section,name) key"""
+    def index_lookup(self, name):
+        """Retrieve ConfigItem from index"""
         try:
-            return self.index[section][name]
+            return self.index[name]
         except KeyError:
-            raise KeyError ("No such config item, section '%s' name '%s'" %
-                            (section, name))
+            raise RTAPIConfigNotFoundException(
+                "No such config item key '%s'" % name)
 
     def __iter__(self):
         """Iterate through each ConfigItem in index"""
-        return iter(reduce(
-                lambda a, b: a+b,
-                [[self.index[s][n] for n in self.index[s]] \
-                     for s in self.index]))
+        return iter(self.index.values())
 
-    def get(self, section, name):
-        return self.index_lookup(section, name).get()
+    def get(self, name):
+        """
+        Get item value
+        """
+        return self.index_lookup(name).get()
+
+    def set(self, name, value):
+        """
+        Set item value
+        """
+        return self.index_lookup(name).set(value)
 
     def dump(self):
         self.log.info("Dumping configuration")

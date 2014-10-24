@@ -10,7 +10,7 @@ difficult, and successive attempts by different developers ended up
 with yet a new, kludgy method.
 
 This code presents a single interface to all configuration data through
-simple get/set methods on (section/name) keys.
+simple get/set methods on ConfigItem objects in an index.
 
 It accesses the data through simple, pluggable configuration storage
 backends.  Currently there are configuration stores pulling data from
@@ -29,9 +29,9 @@ the `item` directory.
 
 == Data flow
 
-The `Config` object `get(section,name)` method is very simple: it
-simply retrieves the `ConfigItem` object from the index, and passes
-its arguments along to that object's `get()` method.
+The `Config` object `get(name)` method is very simple: it simply
+retrieves the `ConfigItem` object from the index, and passes its
+arguments along to that object's `get()` method.
 
 The `ConfigItem` object`s `get()` function manages the 'which source
 to prioritize' logic.  During initialization, each configuration store

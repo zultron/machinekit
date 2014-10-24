@@ -9,7 +9,7 @@ class TestIniStore(IniStore):
     priority = 30                       # normally follows command
                                         # line and environment
     disabled = True                     # normally disabled
-    inifile_config = ('rtapi_config','inifile')
+    inifile_config = 'inifile'
                                         # reuse machinekit.ini filename config
 
     # Test migration

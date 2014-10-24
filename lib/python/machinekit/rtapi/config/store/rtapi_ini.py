@@ -6,7 +6,7 @@ class RTAPIIniStore(IniStore):
     """
     name = 'rtapi.ini'
     priority = 25
-    inifile_config = ('rtapi_config','rtapi_ini')
+    inifile_config = 'rtapi_ini'
 
     # Migrating rtapi.ini 'global' section to 'rtapi'
     section_map = {
