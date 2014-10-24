@@ -63,6 +63,9 @@ class ConfigItem(object):
         except RTAPIConfigNotFoundException:
             return self.default
 
+    def set(self, value):
+        self.store().set(self, value)
+
     @property
     def initialized(self):
         return self.store().initialized
