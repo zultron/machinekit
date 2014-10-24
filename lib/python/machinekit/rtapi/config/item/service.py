@@ -1,6 +1,7 @@
-from machinekit.rtapi.config.item import ConfigString, ConfigInt, ConfigBool
+from machinekit.rtapi.config.item import \
+    ConfigString, ConfigInt, ConfigBool, IniFileConfig
 
-class service_uuid(ConfigString):
+class service_uuid(ConfigString,IniFileConfig):
     name = 'mkuuid'
     section = 'service'
     longopt = 'service_uuid'
@@ -17,7 +18,7 @@ instances running on a LAN, there might be collisions hence, change
 this UUID by using the output of 'uuidgen':
 """
 
-class service_remote(ConfigBool):
+class service_remote(ConfigBool,IniFileConfig):
     name = 'remote'
     section = 'service'
     default = False
@@ -34,7 +35,7 @@ RUNDIR/<rtapi_instance>.<service>.<uuid>, and zeroconf announcement
 will be disabled.
 """
 
-class service_interfaces(ConfigString):
+class service_interfaces(ConfigString,IniFileConfig):
     name = 'interfaces'
     section = 'service'
     default = 'eth wlan usb'

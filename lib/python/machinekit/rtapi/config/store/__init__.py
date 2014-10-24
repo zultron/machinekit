@@ -1,6 +1,8 @@
 from machinekit.rtapi.plugin import PluginLoader
-from machinekit.rtapi.config.exceptions import RTAPIConfigException
+from machinekit.rtapi.config.exceptions import \
+    RTAPIConfigNotFoundException, RTAPIConfigException
 import logging
+import inspect
 
 class ConfigStore(object):
     """
@@ -14,6 +16,8 @@ class ConfigStore(object):
     """
     name = None                 # name of configuration store
     priority = None             # uint, 0 is highest priority
+    item_class_filter = None    # item class to filter on
+    item_attr_filter = None     # item attribute to filter on
 
     def __init__(self, config):
         self.log = logging.getLogger(self.__module__)
@@ -25,13 +29,25 @@ class ConfigStore(object):
         self.plugin_config = self.config.store_config.get(self.name,{})
 
         # register this store with each item that this store can handle
+        item_count = 0; handled_item_count = 0
         for item in self.config.items:
+            item_count += 1
             if self.handles(item):
                 item.register_store(self)
+                handled_item_count += 1
+                if self.name == 'current_flavor':
+                    self.log.debug("current_flavor var %s" % item.name)
+        self.log.debug("  Config store %s handles %d of %d items" %
+                       (self.name, handled_item_count, item_count))
 
     def handles(self, item):
         """True if this store can handle this ConfigItem"""
-        return True  # default
+        res = True
+        if self.item_class_filter is not None:
+            res &= isinstance(item, self.item_class_filter)
+        if self.item_attr_filter is not None:
+            res &= hasattr(item, self.item_attr_filter)
+        return res
 
     def get(self, item):
         """Get the value of section/key from this config store"""

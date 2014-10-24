@@ -151,3 +151,13 @@ class Run(object):
         env = os.environ.copy()
         env.update(env_update)
         return subprocess.call(cmd, env=env)
+
+
+def teardown_package():
+    """
+    Stop realtime after tests.  This duplicates test_99999_stop_rt,
+    but depending on how nosetests is run, that won't always be
+    called.
+    """
+    subprocess.call(["realtime","stop"],
+                    stderr=subprocess.STDOUT)

@@ -1,5 +1,6 @@
 from machinekit.rtapi.config.store import ConfigStore
-from machinekit.rtapi.config.item import ConfigString, ConfigInt, ConfigBool
+from machinekit.rtapi.config.item import ConfigString, ConfigInt, ConfigBool, \
+    IniFileConfig
 from machinekit.rtapi.exceptions import \
     RTAPIConfigNotFoundException, RTAPIConfigException
 from ConfigParser import SafeConfigParser, NoSectionError, NoOptionError
@@ -21,10 +22,7 @@ class IniStore(ConfigStore):
                                         # used for migration purposes
     read_only = True                    # .ini files are read-only
                                         # in practice
-
-    def handles(self, item):
-        """Handle items with 'section' attribute from .ini files"""
-        return getattr(item,'section',None) is not None
+    item_class_filter = IniFileConfig   # only handle this item class
 
     @property
     def ini_filename(self):

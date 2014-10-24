@@ -1,5 +1,6 @@
 from machinekit.rtapi.plugin import PluginLoader
-from machinekit.rtapi.config.exceptions import RTAPIConfigNotFoundException
+from machinekit.rtapi.config.exceptions import \
+    RTAPIConfigNotFoundException, RTAPIConfigException
 import logging
 
 class ConfigItem(object):
@@ -66,6 +67,13 @@ class ConfigItem(object):
     def set(self, value):
         self.store().set(self, value)
 
+    # Enable items to be used as a descriptor for the Config class
+    def __get__(self, obj, objtype):
+        return self.get()
+
+    def __set__(self, obj, value):
+        self.set(value)
+
     @property
     def initialized(self):
         return self.store().initialized
@@ -74,7 +82,7 @@ class ConfigItem(object):
         return "%s/%s" % (self.section, self.name)
 
     def __repr__(self):
-        return "<ConfigItem %s/%s>" % (self.section, self.name)
+        return "<ConfigItem object %s/%s>" % (self.section, self.name)
 
 class ConfigString(ConfigItem):
     """String configuration item"""
@@ -87,6 +95,53 @@ class ConfigInt(ConfigItem):
 class ConfigBool(ConfigItem):
     """Boolean configuration item"""
     valtype = bool
+
+# ConfigItem generator
+class ConfigItemFactory(object):
+    
+    def __init__(self, *args, **attrs):
+        """
+        Generate a ConfigItem object with base classes in the 'bases'
+        tuple and with supplied name and attributes.
+        """
+        # extract attributes
+        try:
+            self.name = attrs['name']
+            self.bases = attrs.pop('bases')
+        except KeyError:
+            raise RTAPIConfigException(
+                "ConfigItemFactory needs at least 'name' and 'bases' "
+                "attributes")
+
+        self.attrs = attrs
+
+    def gen_config_item(self, globals_dict):
+        # assert class doesn't already exist
+        if globals_dict.has_key(self.name):
+            raise RTAPIConfigException(
+                "Attempted to duplicate existing item class '%s'" % self.name)
+
+        # insert class into module where ConfigItemLoader can find it
+        globals_dict[self.name] = type(self.name, self.bases, self.attrs)
+
+
+# Mixins to match item to various store backends
+class IniFileConfig(ConfigItem):
+    pass
+
+class FlavorConfig(ConfigItem):
+    section = 'flavor'
+    # The item's value is a FlavorConfig subclass attribute
+    value = None
+
+class CurrentFlavorConfig(ConfigItem):
+    section = 'current_flavor'
+
+class MiscConfig(ConfigItem):
+    pass
+
+class SystemRlimitConfig(ConfigItem):
+    pass
 
 
 class ConfigItemLoader(PluginLoader):

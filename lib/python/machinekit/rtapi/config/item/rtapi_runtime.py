@@ -1,6 +1,7 @@
-from machinekit.rtapi.config.item import ConfigString, ConfigInt, ConfigBool
+from machinekit.rtapi.config.item import \
+    ConfigString, ConfigInt, ConfigBool, IniFileConfig, MiscConfig
 
-class rtapi_debug(ConfigInt):
+class rtapi_debug(ConfigInt,IniFileConfig):
     name = 'debug'
     section = 'rtapi'
     longopt = 'debug'
@@ -9,28 +10,29 @@ class rtapi_debug(ConfigInt):
     env_ok = True
     help = "Debug level (1-5), default 1"
 
-class rtapi_ulapi_msglevel(ConfigInt):
+class rtapi_ulapi_msglevel(ConfigInt,IniFileConfig):
     name = 'ulapi_msglevel'
     section = 'rtapi'
     longopt = 'ulapi_msglevel'
     shortopt = 'u'
     help = "ULAPI debug message level"
 
-class rtapi_rtapi_msglevel(ConfigInt):
+class rtapi_rtapi_msglevel(ConfigInt,IniFileConfig):
     name = 'rtapi_msglevel'
     section = 'rtapi'
     longopt = 'rtapi_msglevel'
     shortopt = 'r'
     help = "RTAPI debug message level"
 
-class rtapi_use_shmdrv(ConfigBool):
+class rtapi_use_shmdrv(ConfigBool,IniFileConfig,MiscConfig):
     name = 'use_shmdrv'
     section = 'rtapi'
     longopt = 'use_shmdrv'
+    filt_use_shmdrv = True      # for the 'use_shmdrv' store
     shortopt = 'S'
     help = "Use shmdrv (default for kernel thread flavors)"
 
-class rtapi_shmdrv_opts(ConfigString):
+class rtapi_shmdrv_opts(ConfigString,IniFileConfig):
     name = 'shmdrv_opts'
     section = 'rtapi'
     longopt = 'shmdrv_opts'
@@ -38,7 +40,7 @@ class rtapi_shmdrv_opts(ConfigString):
     default = ''
     help = "Options to pass to shmdrv module"
 
-class rtapi_hal_size(ConfigInt):
+class rtapi_hal_size(ConfigInt,IniFileConfig):
     name = 'hal_size'
     section = 'rtapi'
     longopt = 'hal_size'
@@ -46,15 +48,15 @@ class rtapi_hal_size(ConfigInt):
     default = 512000
     help = "HAL thread stack size"
 
-class rtapi_rtlib_dir(ConfigString):
+class rtapi_rtlib_dir(ConfigString,IniFileConfig):
     name = 'rtlib_dir'
     section = 'rtapi'
 
-class rtapi_libexec_dir(ConfigString):
+class rtapi_libexec_dir(ConfigString,IniFileConfig):
     name = 'libexec_dir'
     section = 'rtapi'
 
-class rtapi_bin_dir(ConfigString):
+class rtapi_bin_dir(ConfigString,IniFileConfig):
     name = 'bin_dir'
     section = 'rtapi'
 

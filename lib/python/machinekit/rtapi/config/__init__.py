@@ -1,4 +1,4 @@
-from item import ConfigItemLoader
+from item import ConfigItemLoader, ConfigItem
 from store import ConfigStoreLoader
 from exceptions import *
 import logging
@@ -19,9 +19,12 @@ class Config(object):
     until it finds one able to perform the operation.
     """
 
+    # Keep track of descriptors we add
+    _descriptors = []
+
     def __init__(self,
                  store_config={}, enabled_stores=None, disabled_stores=None,
-                 item_config={}):
+                 item_config={}, enabled_items=None, disabled_items=None):
         self.log = logging.getLogger(self.__module__)
 
         # Configuration to be passed to plugins
@@ -33,7 +36,9 @@ class Config(object):
 
         self.log.debug("Finding and loading config item plugins")
         # ConfigItems add themselves to our index
-        self.items = ConfigItemLoader(self)
+        self.items = ConfigItemLoader(self,
+                                      enabled_plugins=enabled_items,
+                                      disabled_plugins=disabled_items)
 
         self.log.debug("Finding and loading config store backend plugins")
         # ConfigStores register themselves with items
@@ -43,12 +48,27 @@ class Config(object):
 
         self.log.debug("Machinekit configuration initialized and ready")
 
+    def add_descriptor(self, obj):
+        cls = self.__class__
+        # Be sure we don't override any real class attributes
+        if hasattr(self, obj.name) and \
+                obj.name not in self._descriptors:
+            raise RTAPIConfigException(
+                "ConfigItem plugin name '%s' overrides existing "
+                "Config object attribute" % obj.name)
+        setattr(cls, obj.name, obj)
+        self._descriptors.append(obj.name)
+
     def index_add(self,item):
         """Index ConfigItem object"""
+        # Ensure no duplicate config item names
         if self.index.has_key(item.name):
-            raise RTAPIConfigException(
-                "ConfigItem plugin name duplicate:  %s" % item.name)
+            raise RTAPIConfigException("ConfigItem %s duplicated" % item.name)
+        # Index item
         self.index[item.name] = item
+
+        # Add attribute to self as descriptor attribute, ensuring no overlap
+        self.add_descriptor(item)
 
     def index_lookup(self, name):
         """Retrieve ConfigItem from index"""
