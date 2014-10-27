@@ -104,7 +104,7 @@ int _rtapi_shmem_new_inst(int userkey, int instance, int module_id, unsigned lon
 
     // redefine size == 0 to mean 'attach only, dont create'
     actual_size = size;
-    ret = shm_common_new(key, &actual_size, instance, &shmem->mem, size > 0);
+    ret = shm_common_new(key, &actual_size, &shmem->mem, size > 0);
     if (ret > 0)
 	is_new = 1;
     if (ret < 0) {

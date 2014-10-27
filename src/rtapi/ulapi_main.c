@@ -74,7 +74,7 @@ int ulapi_main(int instance, int flavor, global_data_t *global)
 	// attach to existing RTAPI segment
 	// not all thread flavors actuall might use it
 	if ((retval = shm_common_new(rtapikey, &size,
-				     rtapi_instance, (void **) &rtapi_data, 0))) {
+				     (void **) &rtapi_data, 0))) {
 	    rtapi_print_msg(RTAPI_MSG_ERR,
 			    "ULAPI:%d ERROR: cannot attach rtapi"
 			    " segment key=0x%x %s\n",

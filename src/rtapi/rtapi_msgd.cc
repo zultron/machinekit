@@ -234,29 +234,29 @@ static int create_global_segment()
 	    shmdrv_gc();
 	} else {
 	    // Posix shm case.
-	    char segment_name[LINELEN];
+	    char segment_name[SHM_NAME_MAXLEN];
 
 	    if (hal_exists) {
-		sprintf(segment_name, SHM_FMT, rtapi_instance, halkey);
+		shm_common_segment_posix_name(segment_name, halkey);
 		fprintf(stderr,"warning: removing unused HAL shm segment %s\n",
 			segment_name);
-		if (shm_unlink(segment_name))
+		if (shm_common_unlink(halkey))
 		    perror(segment_name);
 	    }
 	    if (rtapi_exists) {
-		sprintf(segment_name, SHM_FMT, rtapi_instance, rtapikey);
-		fprintf(stderr,"warning: removing unused RTAPI"
-			" shm segment %s\n",
+		shm_common_segment_posix_name(segment_name, rtapikey);
+		fprintf(stderr,
+			"warning: removing unused RTAPI shm segment %s\n",
 			segment_name);
-		if (shm_unlink(segment_name))
+		if (shm_common_unlink(rtapikey))
 		    perror(segment_name);
 	    }
 	    if (global_exists) {
-		sprintf(segment_name, SHM_FMT, rtapi_instance, globalkey);
-		fprintf(stderr,"warning: removing unused global"
-			" shm segment %s\n",
+		shm_common_segment_posix_name(segment_name, globalkey);
+		fprintf(stderr,
+			"warning: removing unused global shm segment %s\n",
 			segment_name);
-		if (shm_unlink(segment_name))
+		if (shm_common_unlink(globalkey))
 		    perror(segment_name);
 	    }
 	}
@@ -273,8 +273,7 @@ static int create_global_segment()
 
     int size = sizeof(global_data_t);
 
-    retval = shm_common_new(globalkey, &size,
-			    rtapi_instance, (void **) &global_data, 1);
+    retval = shm_common_new(globalkey, &size, (void **) &global_data, 1);
     if (retval < 0) {
 	fprintf(stderr,
 		"MSGD:%d ERROR: cannot create global segment key=0x%x %s\n",

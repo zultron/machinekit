@@ -69,8 +69,7 @@ int main(int argc, char **argv)
     halkey = OS_KEY(HAL_KEY, rtapi_instance);
 
     size = sizeof(global_data_t);
-    retval = shm_common_new(globalkey, &size, 
-			    rtapi_instance, (void **) &global_data, 0);
+    retval = shm_common_new(globalkey, &size, (void **) &global_data, 0);
      if (retval < 0)
 	 fprintf(stderr, "cannot attach global segment key=0x%x %s\n",
 		globalkey, strerror(-retval));

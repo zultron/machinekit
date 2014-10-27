@@ -32,7 +32,8 @@
 
 // actual shm keys are constructed as follows:
 
-#define OS_KEY(key, instance) (( key & 0x00ffffff) | ((instance << 24) & 0xff000000))
+#define OS_KEY(key, instance) (( key & 0x00ffffff) | \
+			       ((instance << 24) & 0xff000000))
 #define INSTANCE_OF(key)  (((key & 0xff000000) >> 24) & 0x000000ff)
 
 // formerly emcmotcfg.h
@@ -40,6 +41,7 @@
 
 // the global segment shm key
 #define GLOBAL_KEY  0x00154711     // key for GLOBAL 
+#define INSTANCE_GLOBAL_KEY OS_KEY(GLOBAL_KEY, rtapi_instance)
 
 // from scope_shm.h
 #define SCOPE_SHM_KEY  0x000CF406
@@ -53,16 +55,18 @@
 
 // from hal/hal_priv.h
 #define HAL_KEY   0x00414C32	/* key used to open HAL shared memory */
+#define HAL_GLOBAL_KEY OS_KEY(HAL_KEY, rtapi_instance)
 
 // from rtapi/rtapi_common.h
 #define RTAPI_KEY   0x00280A48	/* key used to open RTAPI shared memory */
+#define RTAPI_GLOBAL_KEY OS_KEY(RTAPI_KEY, rtapi_instance)
 
 // RTAPI rings
 #define RTAPI_RING_SHM_KEY 0x00415000  
 
 // filename format in /dev/shm for POSIX shm_open() names:
-// 'linuxcnc-<rtapi_instance>-<key>
+// 'linuxcnc-<key>'
 // this makes it easier to delete all leftover segments in scripts/realtime:Unload
-#define SHM_FMT "/linuxcnc-%d-%8.8x"
+#define SHM_PREFIX "/linuxcnc-"
 
 #endif // _RTAPI_SHMKEYS_H

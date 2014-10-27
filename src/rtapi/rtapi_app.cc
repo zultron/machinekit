@@ -464,8 +464,7 @@ static int attach_global_segment()
 
     shm_common_init();
     do {
-	retval = shm_common_new(globalkey, &size,
-				instance_id, (void **) &global_data, 0);
+	retval = shm_common_new(globalkey, &size, (void **) &global_data, 0);
 	if (retval < 0) {
 	    tries--;
 	    if (tries == 0) {

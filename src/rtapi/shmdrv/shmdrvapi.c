@@ -30,12 +30,12 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#include "config.h"		// build configuration
-#include "rtapi.h"
-#include "rtapi/shmdrv/shmdrv.h"
 #include "shmdrv.h"
 
 static const char *driver_name = "/dev/" DEVICE_NAME;
+
+#define SHM_NAME_FMT_MAXLEN SHM_NAME_PREFIX_MAXLEN + 4  // + room for '%04x'
+static char shm_name_fmt[SHM_NAME_FMT_MAXLEN];
 
 int shmdrv_loaded;
 static long page_size;
@@ -44,6 +44,7 @@ int shm_common_init(void)
 {
     page_size = sysconf(_SC_PAGESIZE);
     shmdrv_loaded = shmdrv_available();
+    strcpy(shm_name_fmt, "/shmdrvapi_%08x");  // set default format
     return 0;
 }
 
@@ -160,7 +161,17 @@ void shmdrv_print_status(struct shm_status *sm, const char *tag)
     printf("flags = %d/0x%x\n", sm->flags, sm->flags);
 }
 
-int shm_common_new(int key, int *size, int instance, void **shmptr, int create)
+void shm_common_set_name_format(const char *prefix)
+{
+    snprintf(shm_name_fmt, SHM_NAME_FMT_MAXLEN, "%s%%08x", prefix);
+}
+
+void shm_common_segment_posix_name(char *segment_name, int key)
+{
+    sprintf(segment_name, shm_name_fmt, key);
+}
+
+int shm_common_new(int key, int *size, void **shmptr, int create)
 {
     struct shm_status sm;
     int retval;
@@ -202,12 +213,12 @@ int shm_common_new(int key, int *size, int instance, void **shmptr, int create)
 
 	int shmfd, mmap_size;
 	mode_t old_umask;
-	char segment_name[LINELEN];
+	char segment_name[SHM_NAME_MAXLEN];
 	if ((size == 0) || (*size == 0))
 	    mmap_size = 0;
 	else
 	    mmap_size = *size;
-	sprintf(segment_name, SHM_FMT, instance, key);
+	shm_common_segment_posix_name(segment_name, key);
 	old_umask = umask(0); //S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 	if (create && ((shmfd = shm_open(segment_name, 
 					 (O_CREAT | O_EXCL | O_RDWR),
@@ -270,9 +281,9 @@ int shm_common_exists(int key)
 	return retval == 0;
     } else {
 	int shmfd;
-	char segment_name[LINELEN];
+	char segment_name[SHM_NAME_MAXLEN];
 
-	sprintf(segment_name, SHM_FMT, INSTANCE_OF(key), key);
+	shm_common_segment_posix_name(segment_name, key);
 	if ((shmfd = shm_open(segment_name, O_RDWR,
 			      (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP))) < 0) {
 	    retval = 0;
@@ -293,9 +304,9 @@ int shm_common_unlink(int key)
 	// will do this on last detach
 	return 0;
     } else {
-	char segment_name[LINELEN];
+	char segment_name[SHM_NAME_MAXLEN];
 
-	sprintf(segment_name, SHM_FMT, INSTANCE_OF(key), key);
+	shm_common_segment_posix_name(segment_name, key);
 	return shm_unlink(segment_name);
     }
 }

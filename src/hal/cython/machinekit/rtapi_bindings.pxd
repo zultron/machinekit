@@ -11,6 +11,7 @@ cdef extern from "rtapi_shmkeys.h":
     cdef int HAL_KEY
     cdef int RTAPI_KEY
     cdef int RTAPI_RING_SHM_KEY
+    cdef char *SHM_PREFIX
 
 
 cdef extern from "rtapi_bitops.h":

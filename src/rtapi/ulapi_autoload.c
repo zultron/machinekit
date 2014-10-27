@@ -182,8 +182,7 @@ static int ulapi_load(rtapi_switch_t **ulapi_switch)
     shm_common_init();
 
     globalkey = OS_KEY(GLOBAL_KEY, rtapi_instance);
-    retval = shm_common_new(globalkey, &size,
-			    rtapi_instance, (void **) &global_data, 0);
+    retval = shm_common_new(globalkey, &size, (void **) &global_data, 0);
 
     if (retval == -ENOENT) {
 	// the global_data segment does not exist. Happens if the realtime

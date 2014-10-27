@@ -78,13 +78,34 @@ extern int shmdrv_detach(struct shm_status *shmstat);
 extern "C" {
 #endif // __cplusplus
 
+/*
+  POSIX shm name utilities
+
+  POSIX shm segment name format is sprintf('%s%08x', prefix, key).
+
+  'prefix' is max length 128 bytes and should begin with '/'.
+
+  shm_common_set_name_format(prefix) sets the format for the
+  shm_common_*(key,...) functions that translate an int key into a
+  string shm name.
+
+  shm_common_segment_posix_name() copies the format for external
+  functions that want to print meaningful error messages.
+
+  SHM_NAME_PREFIX_MAXLEN is the maximum length of a shm prefix
+  SHM_NAME_MAXLEN is the maximum length of the segment_name
+  */
+#define SHM_NAME_PREFIX_MAXLEN 128
+#define SHM_NAME_MAXLEN SHM_NAME_PREFIX_MAXLEN + 8 // + rendered '%08x'
+extern void shm_common_set_name_format(const char *prefix);
+extern void shm_common_segment_posix_name(char *segment_name, int key);
+
 extern int shmdrv_loaded;
 
 // an mmap() failure returns MAP_FAILED, not NULL, so test for both
 #define MMAP_OK(x) (((x) != NULL) && ((x) != MAP_FAILED))
 #define PAGESIZE_ALIGN(x)  ((x) + (-(x) & (page_size - 1)))
 
-extern int shmdrv_available(void);
 extern int shmdrv_available(void);
 extern int shmdrv_driver_fd(void);
 extern int shmdrv_status(struct shm_status *shmstat);
@@ -95,7 +116,7 @@ extern int shmdrv_gc(void);
 extern void shmdrv_print_status(struct shm_status *sm, const char *tag);
 
 extern int shm_common_init(void);
-extern int shm_common_new(int key, int *size, int instance, void **shmptr, int create);
+extern int shm_common_new(int key, int *size, void **shmptr, int create);
 extern int shm_common_detach(int size, void *shmptr);
 extern int shm_common_exists(int key);
 extern int shm_common_unlink(int key);

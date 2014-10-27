@@ -85,8 +85,7 @@ int rtapi_app_main(void)
 
     // attach to global segment which rtapi_msgd owns and already
     // has set up:
-    retval = shm_common_new(globalkey, &size,
-			    rtapi_instance, (void **) &global_data, 0);
+    retval = shm_common_new(globalkey, &size, (void **) &global_data, 0);
 
     if (retval ==  -ENOENT) {
 	// the global_data segment does not exist.
@@ -132,8 +131,7 @@ int rtapi_app_main(void)
 
     if (rtapi_switch->thread_flavor_flags & FLAVOR_RTAPI_DATA_IN_SHM) {
 	size = sizeof(rtapi_data_t);
-	retval = shm_common_new(rtapikey, &size,
-				rtapi_instance, (void **) &rtapi_data, 1);
+	retval = shm_common_new(rtapikey, &size, (void **) &rtapi_data, 1);
 	if (retval ==  0) {
 	    // the rtapi_data segment already existed.
 	    rtapi_print_msg(RTAPI_MSG_ERR,
