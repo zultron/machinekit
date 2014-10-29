@@ -4,10 +4,8 @@ from nose.tools import assert_equal
 
 from machinekit import rtapi, hal
 
-# Turn on debug output for tests
-import logging, logging.config
+import logging, logging.config, sys
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__),'logging.conf'))
-logger = logging.getLogger('nosetestLogger')
 
 class Fixture(object):
     """
@@ -21,19 +19,52 @@ class FixtureTestCase(object):
     """
     This test case class provides:
 
-    1) A 'self.f' fixture object whose attributes remain persistent
-    between tests within a class.  The 'nosetests' system
-    reinitializes the test class object between each test, so setting
-    a 'self.foo' object in one test doesn't persist to the next test.
+    1) A 'self.fix(attr1=val1, attr2=val2)' method whose attributes
+    become class attributes, persistent between tests within a class.
+    The 'nosetests' system reinitializes the test class object between
+    each test, so setting a 'self.foo' object in one test doesn't
+    persist to the next test; this skirts that limitation by setting
+    the attributes in the class, instead..
 
     2) A 'self.log' logger object.
     """
 
     def __init__(self):
-        self.f = fixture_dict.setdefault(self.__class__.__name__,Fixture())
-        self.log = logger
         super(FixtureTestCase,self).__init__()
 
+        # DEPRECATED
+        self.f = fixture_dict.setdefault(self.__class__.__name__,Fixture())
+
+        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+        self.log = logging.getLogger('nosetestLogger')
+        self.log.setLevel(logging.DEBUG)
+
+    @classmethod
+    def add_fixture(cls,name,obj):
+        """
+        Add a new attribute in the class scope that will survive
+        across class instances
+        """
+        # if hasattr(cls,name):
+        #     print (dir(cls))
+        #     raise AttributeError(
+        #         "Attempt to add existing attribute '%s' to class '%s'" %
+        #         (name, cls.__name__))
+        setattr(cls,name,obj)
+
+    @classmethod
+    def fix(cls,**kwargs):
+        """
+        Add new attributes to the class scope that will survive across
+        class instances
+        """
+        # if hasattr(cls,name):
+        #     print (dir(cls))
+        #     raise AttributeError(
+        #         "Attempt to add existing attribute '%s' to class '%s'" %
+        #         (name, cls.__name__))
+        for key in kwargs:
+            setattr(cls,key,kwargs[key])
 
 class RTAPITestCase(FixtureTestCase):
     """
