@@ -1,9 +1,10 @@
 # vim: sts=4 sw=4 et
-
+cdef extern from "stdint.h" nogil:
+    ctypedef size_t uintptr_t
 
 cdef extern from "Python.h":
     ctypedef struct PyObject
-    cdef PyObject *PyExc_IOError
+    cdef PyObject *PyExc_MemoryError
     PyObject *PyErr_SetFromErrno(PyObject *)
 
 cdef extern from "shmdrv.h":
@@ -45,3 +46,19 @@ cdef extern from "shmdrv.h":
     int c_shm_common_detach "shm_common_detach" (int size, void *shmptr)
     bint c_shm_common_exists "shm_common_exists" (int key)
     int c_shm_common_unlink "shm_common_unlink" (int key)
+
+
+# Cython can't handle a C #define specially, but only as an int, so
+# this doesn't work: cdef char foo[SHM_NAME_MAXLEN]; instead, an enum
+# has similar properties, and consistency is checked in functions
+# where it's used
+cdef enum:
+    LOCAL_SHM_NAME_PREFIX_MAXLEN = 128
+cdef enum:
+    LOCAL_SHM_NAME_MAXLEN = 136
+
+
+cdef struct _shm_seg_struct:
+    int _key
+    int _size
+    void *_ptr

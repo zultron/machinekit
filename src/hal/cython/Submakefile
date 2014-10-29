@@ -78,21 +78,6 @@ CYTHON_TARGETS += ../lib/python/machinekit/compat/compat_bindings.so
 
 
 
-SHMCOMMONSO_CSRCS := $(addprefix $(HALNGMKDIR)/, \
-	shmcommon.c ) \
-	rtapi/shmdrv/shmdrvapi.c
-SHMCOMMONSO_OBJS = $(call TOOBJS, $(SHMCOMMONSO_CSRCS))
-
-USERSRCS += $(SHMCOMMONSO_CSRCS)
-$(call TOOBJSDEPS, $(SHMCOMMONSO_CSRCS)) : EXTRAFLAGS=-fPIC -Irtapi/shmdrv
-
-CYTHON_TARGETS += ../lib/python/machinekit/shmcommon.so
-
-../lib/python/machinekit/shmcommon.so: $(SHMCOMMONSO_OBJS)
-	$(ECHO) Linking python module $(notdir $@)
-	@mkdir -p $(dir $@)
-	$(Q)$(CC) -g  -shared -o $@ $^ $(LDFLAGS) -lrt
-
 # This conditional should disappear someday when Cython v. 0.19+ is
 # available in common, current distros.
 ifeq ($(HAVE_CYTHON),yes)

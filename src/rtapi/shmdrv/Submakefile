@@ -86,3 +86,32 @@ USERSRCS += $(MUTEXWATCH_SRCS)
 TARGETS += ../bin/mutexwatch
 
 endif # BUILD_EXAMPLES
+
+##################################################################
+#                     shm_common.so python module
+##################################################################
+SHMDRV_API_SO_CSRCS = rtapi/shmdrv/shmdrv_api.c
+SHMDRV_API_SRCS = \
+	rtapi/shmdrv/shmdrvapi.c \
+	$(SHMDRV_API_SO_CSRCS)
+
+$(call TOOBJSDEPS, $(SHMDRV_API_SRCS)) : \
+	EXTRAFLAGS=-fPIC
+$(call TOOBJSDEPS, $(SHMDRV_API_SRCS)) : \
+	rtapi/shmdrv/Submakefile
+
+USERSRCS += $(SHMDRV_API_SRCS)
+
+$(SHMDRV_API_SO_CSRCS): %.c: %.pyx $(wildcard %.pxd)
+	$(ECHO) Cythonizing $(notdir $@)
+	$(Q)$(CYTHON) -o $@ $<
+
+SHMDRV_API_OBJS = $(call TOOBJS, $(SHMDRV_API_SRCS))
+
+../lib/python/machinekit/rtapi/shmdrv_api.so: $(SHMDRV_API_OBJS)
+	$(ECHO) Linking python module $(notdir $@)
+	@mkdir -p $(dir $@)
+	$(Q)$(CC) -g  -shared -o $@ $^ $(LDFLAGS) -lrt
+
+CYTHON_TARGETS += ../lib/python/machinekit/rtapi/shmdrv_api.so
+
