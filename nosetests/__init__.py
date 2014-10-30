@@ -138,6 +138,81 @@ class RTAPITestCase(FixtureTestCase):
 runwithlog_threads = []  # list of running RunWithLog objects that
                          # need join()ing at shutdown
 
+
+class FakeHarness(object):
+    """
+    This class pretends to be another class for simulating conditions
+    in a test.  It can fake these things:
+
+    Simple method: an object method that takes any arguments and
+    always returns the same value
+
+    Simple property:  a property that always returns the same value
+
+    Arg method: an object method that returns a value from a given
+    set of command-line args
+
+    Fake object: returns an object with attributes set from the
+    __init__ function **kwargs.
+    """
+
+    class _simple_method_descriptor(object):
+        def __init__(self, name, value):
+            print "initializing method %s, value %s" % (name, value)
+            self.name = name
+            self.value = value
+        def _closure(self, *args, **kwargs):
+            if hasattr(self.value,'__dict__'):
+                print "simple method:  called %s; returning obj %s" % \
+                    (self.name, self.value.__dict__)
+            else:
+                print "simple method:  called %s; returning %s" % \
+                    (self.name, self.value)
+            return self.value
+        def __get__(self, obj, objtype=None):
+            return self._closure
+
+    def add_simple_methods(self, **kwargs):
+        for key in kwargs:
+            print "setting method %s, value %s" % (key, kwargs[key])
+            setattr(self.__class__,
+                    key, self._simple_method_descriptor(key, kwargs[key]))
+
+    class _simple_property_descriptor(object):
+        def __init__(self,value):
+            self.value = value
+        def __get__(self, obj, objtype=None):
+            return self.value
+
+    def add_simple_properties(self, **kwargs):
+        for key in kwargs:
+            setattr(self.__class__,
+                    key, self._simple_property_descriptor(kwargs[key]))
+
+    class _arg_method_descriptor(object):
+        def __init__(self, **kwargs):
+            self.result_dict = {}
+            for key in kwargs:
+                value = kwargs[key]
+                if isinstance(key, tuple):
+                    self.result_dict[key] = value
+                else:
+                    self.result_dict[(key,)] = value
+        def __get__(self, obj, objtype=None):
+            return lambda *args: self.result_dict[args]
+
+    def add_dict_method(self, name, **kwargs):
+        setattr(self.__class__,
+                name, self._dict_method_descriptor(**kwargs))
+
+    class _fake_object(object):
+        def __init__(self, **kwargs):
+            for attr in kwargs:
+                setattr(self, attr, kwargs[attr])
+    @classmethod
+    def fake_object(cls, **kwargs):
+        return cls._fake_object(**kwargs)
+
 class RunWithLog(threading.Thread):
     """
     Run a command in a thread, optionally setting extra environment
