@@ -14,16 +14,3 @@ class RTAPIFlavorKernelException(RuntimeError):
     """
     pass
 
-class RTAPIFlavorPrivilegeException(RuntimeError):
-    """
-    Raised by flavor sanity checks when user has insufficient
-    privileges to access real-time environment
-    """
-    pass
-
-class RTAPIFlavorULimitException(RuntimeError):
-    """
-    Raised by flavor sanity checks when system resource limits are
-    insufficient
-    """
-    pass
