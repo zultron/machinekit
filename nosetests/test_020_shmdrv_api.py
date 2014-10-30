@@ -149,7 +149,6 @@ class test_020_shmdrv_api(FixtureTestCase):
         assert_false(os.path.exists("/dev/shm/%s" % self.posix_name(self.key1)))
         assert_false(os.path.exists("/dev/shm/%s" % self.posix_name(self.key2)))
 
-    @skip("shmdrvapi.c:  no error unlinking unlinked segment")
     def test_02074_unlink_unlinked_segment_fails(self):
         """02074 shmdrv_api:  unlinking unlinked segment fails"""
         # This one doesn't raise an error like one might expect.  If
