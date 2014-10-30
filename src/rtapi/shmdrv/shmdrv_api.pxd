@@ -2,6 +2,9 @@
 cdef extern from "stdint.h" nogil:
     ctypedef size_t uintptr_t
 
+cdef extern from "errno.h":
+    cdef int errno
+
 cdef extern from "Python.h":
     ctypedef struct PyObject
     cdef PyObject *PyExc_MemoryError

@@ -146,7 +146,7 @@ class MKSHMSegment(shmdrv_api.SHMSegment):
         return self
 
 
-class SHM(object):
+class SHMOps(object):
 
     def __init__(self, config=None):
         if config is None:
@@ -156,13 +156,16 @@ class SHM(object):
         self.util = Util(config=self.config)
 
         # initialize right here
-        MKSHMSegment.init_shm(self.config._instance)
+        MKSHMSegment.init_shm(self.config.instance)
 
     @property
-    def shmdrv_available(self):
+    def shmdrv_available(self, instance=0):
         return shmdrv_api.shmdrv_available()
 
-    def init_shmdrv(self):
+    def init_shm(self, instance=0):
+        MKSHMSegment.init_shm(instance=instance)
+
+    def init_shmdrv(self, instance=None):
         if not self.config.use_shmdrv:
             return  # shmdrv not needed
         if self.shmdrv_available:
@@ -170,16 +173,14 @@ class SHM(object):
 
         # set up shmdrv
         self.util.insert_module("shmdrv", self.config.shmdrv_opts)
-        self.shm_common_init()
+        self.init_shm(instance=instance)
         if not shmdrv_api.shmdrv_available():
             raise RTAPISHMRuntimeError(
                 "Shmdrv module not detected; please report this bug")
 
-    @property
-    def any_segment_exists(self):
+    def any_segment_exists(self, instance=None):
         for name in MKSHMSegment.all_seg_names:
-            seg = MKSHMSegment(name)
-            if seg.exists:
+            if MKSHMSegment.exists(name, instance):
                 return True
         return False
 
@@ -191,23 +192,21 @@ class SHM(object):
         from under a running instance.
         """
         # If no shm segments exist, we're sane.
-        if not self.any_segment_exists:
+        if not self.any_segment_exists():
             return
 
-        # Otherwise, try to clean up existing shm segments.
-
-        # Otherwise, clean up leftover shm segments.
+        # Otherwise, clean up left-over shm segments.
         if self.config.use_shmdrv:
             self.cleanup_shmdrv()
         else:
             self.cleanup_shm_posix(barf=False)
 
         # If leftovers still exist after cleanup, raise exception.
-        global_seg = MKSHMSegment('global')
-        if global_seg.exists:
-            raise RTAPIEnvironmentInitError(
-                "Unable to cleanup conflicting global segment, key=%s" %
-                global_seg.key)
+        for name in MKSHMSegment.all_seg_names:
+            if MKSHMSegment.exists(name):
+                raise RTAPISHMRuntimeError(
+                    "Unable to cleanup conflicting %s segment, key=%s" %
+                    (name, MKSHMSegment(name).key))
             
     def assert_sanity(self):
         """
@@ -234,12 +233,17 @@ class SHM(object):
         shmdrv_api.shmdrv_gc()
 
     def cleanup_shm_posix(self, barf=True):
+        """
+        Clean up 'global', 'hal' and 'rtapi' shm segments.  When barf
+        is True, an exception will be raised if any segments are found
+        to be already unlinked.
+        """
         # clean up keys in hal, rtapi, global order
         for name in reversed(MKSHMSegment.all_seg_names):
             seg = MKSHMSegment(name)
-            if not seg.exists:
+            if not seg.exists():
                 if not barf:  continue
-                raise RTAPIEnvironmentInitError(
+                raise RTAPISHMRuntimeError(
                     "Unable to cleanup non-existent %s segment, key=%s" %
                     (name, seg.key))
 

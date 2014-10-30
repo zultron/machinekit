@@ -10,7 +10,7 @@ import os
 def init():
     r = c_shm_common_init() # always returns 0
 
-class SHMDrvAPIRuntimeError(RuntimeError):
+class SHMDrvAPIRuntimeError(MemoryError):
     """
     Thrown for problems in shm_common
     """
@@ -97,14 +97,8 @@ cdef class SHMSegment:
         def __get__(self): return <uintptr_t>self._ptr
 
 
-    cdef _wrap_exception(self, str msg):
-        try:  # Put strerror string into our own exception type
-            PyErr_SetFromErrno(PyExc_MemoryError)
-        except Exception as e:
-            raise SHMDrvAPIRuntimeError(msg % e)
-
-
     def new(self, int key, int size, bint create = 1):
+        """Create new shm object from key and size"""
         cdef int res
         cdef bytes oper = <bytes>(('attach','create')[create])
 
@@ -137,7 +131,7 @@ cdef class SHMSegment:
         return self  # so we can e.g. SHMSegment('global').new().unlink()
         
     def attach(self, int key):
-        """Attach existing shm segment with key and size"""
+        """Attach existing shm segment by key"""
         SHMSegment.new(self, key, 0, 0)
         return self
 
@@ -148,18 +142,23 @@ cdef class SHMSegment:
     def detach(self):
         """Detach existing shm segment"""
         if self.key == 0:
-            raise SHMDrvAPIRuntimeError("Detach failed:  uninitialized object")
+            raise SHMDrvAPIRuntimeError(
+                "Detach failed:  uninitialized object")
 
         cdef int res = c_shm_common_detach(self.size, self._ptr)
         if res == -1:
-            self._wrap_exception(
-                "Failed to detach shm object, key=%08x:  %%s" % self.key)
+            raise SHMDrvAPIRuntimeError(
+                "Failed to detach shm object key=%08x: %s" %
+                (self.key, os.strerror(errno)), errno)
 
     def unlink(self):
+        """Unlink existing shm segment"""
         if self.key == 0:
-            raise SHMDrvAPIRuntimeError("Unlink failed:  uninitialized object")
+            raise SHMDrvAPIRuntimeError(
+                "Unlink failed:  uninitialized object")
 
         cdef int res = c_shm_common_unlink(self.key)
         if res == -1:
-            self._wrap_exception(
-                "Failed to unlink shm object, key=%08x:  %%s" % self.key)
+            raise SHMDrvAPIRuntimeError(
+                "Failed to unlink shm object key=%08x: %s" %
+                (self.key, os.strerror(errno)), errno)
