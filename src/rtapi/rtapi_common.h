@@ -65,6 +65,8 @@
 
 /* Keep the includes here - It might get messy.. */
 
+#include "rtapi.h"		/* RTAPI_NAME_LEN */
+
 #ifdef RTAPI
 #include <linux/sched.h>	/* for blocking when needed */
 #else
@@ -73,24 +75,15 @@
 
 #include "rtapi_bitops.h"	/* test_bit() et al. */
 
-#if defined(BUILD_SYS_USER_DSO)
+#ifndef BUILD_SYS_KBUILD
 #include <sys/ipc.h>		/* IPC_* */
 #include <sys/shm.h>
 #include <sys/types.h>  
 #endif
 
-#if defined(BUILD_SYS_USER_DSO)
-#include <sys/ipc.h>		/* IPC_* */
-#include <sys/shm.h>
-#include <sys/types.h>
-#endif
-
 #ifndef NULL
 #define NULL 0
 #endif
-
-
-#include THREADS_HEADERS	/* thread-specific headers */
 
 
 /* module information */
@@ -205,9 +198,6 @@ typedef struct {
     task_data task_array[RTAPI_MAX_TASKS + 1];	/* data for tasks */
     shmem_data shmem_array[RTAPI_MAX_SHMEMS + 1];	/* data for shared
 							   memory */
-#ifdef THREAD_RTAPI_DATA
-    THREAD_RTAPI_DATA;		/* RTAPI data defined in thread system */
-#endif
 } rtapi_data_t;
 
 
@@ -219,10 +209,6 @@ extern void init_rtapi_data(rtapi_data_t * data);
 extern void init_global_data(global_data_t * data, 
 			     int instance_id, int hal_size, 
 			     int rtlevel, int userlevel, const char *name);
-#endif
-
-#if defined(RTAPI) && defined(BUILD_SYS_USER_DSO)
-extern int  _next_handle(void);
 #endif
 
 // set first thing in rtapi_app_main
@@ -244,7 +230,7 @@ extern RT_TASK *ostask_array[];
 #endif
 
 /* rtapi_time.c */
-#ifdef BUILD_SYS_USER_DSO
+#ifndef BUILD_SYS_KBUILD  /* BUILD_SYS_USER_DSO */
 extern int period;
 #else /* BUILD_SYS_KBUILD */
 extern long int max_delay;
