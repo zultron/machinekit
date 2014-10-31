@@ -116,7 +116,7 @@ class MKSHMSegment(shmdrv_api.SHMSegment):
                 (self.name,self.size,requested_size))
 
         self.log.debug("Created new %s shm segment: key=%08x, size=%d",
-                       self.key, self.size)
+                       self.name, self.key, self.size)
         return self
 
     def attach(self):
@@ -126,23 +126,25 @@ class MKSHMSegment(shmdrv_api.SHMSegment):
                 self.attr['requested_size'] != self.size:
             raise RTAPISHMRuntimeError(
                 "Segment %s:  attached size %d != requested size %d" %
-                (self.name,self.size,self.attr['requested_size']))
+                (self.name, self.size, self.attr['requested_size']))
 
         self.log.debug(
             "Attached existing %s shm segment: key=%08x, size=%d",
-            self.key, self.size)
+            self.name, self.key, self.size)
         return self
 
     def detach(self):
         super(MKSHMSegment, self).detach()
 
-        self.log.debug("Detached %s shm segment: key=%08x", self.key)
+        self.log.debug("Detached %s shm segment: key=%08x",
+                       self.name, self.key)
         return self
 
     def unlink(self):
         super(MKSHMSegment, self).unlink()
 
-        self.log.debug("Unlinked %s shm segment: key=%08x", self.key)
+        self.log.debug("Unlinked %s shm segment: key=%08x",
+                       self.name, self.key)
         return self
 
 
