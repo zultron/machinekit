@@ -1,0 +1,142 @@
+= RTAPI Master Daemon
+
+The RTAPI master daemon, or simply `masterd`, is python code that sets
+up and tears down the real-time environment.
+
+During initialization, `masterd` determines configuration and performs
+environment sanity checks, and for kernel threads loads kernel
+modules.  It then forks into a daemon process, initializes shared
+memory and log output, and sets up logging, parameter and control
+services.  With the environment now initialized, `masterd` starts the
+`rtapi_app` process.
+
+While the real-time environment runs, `masterd` monitors `rtapi_app`
+and provides logging and parameter services.
+
+At shut down, `masterd` attempts a graceful tear down of real-time
+enviroment components, in reverse order of initialization.
+
+== Components
+
+The `masterd` system is written in Python with Cython extensions, and
+is made up of components intended to be flexible and reusable.
+Several main components include: a configuration storage component;
+components for managing shared memory and the shared global data
+structure; a logging service component; a configuration parameter
+service component.
+
+
+== Configuration 
+
+The configuration storage component is the master source of all
+real-time environment configuration, and is intended to be a source of
+build system configuration in the future.
+
+The main configuration storage object is an instance of the Python
+class `machinekit.rtapi.config.Config`.  At initialization, the
+`Config` object loads configuration item and store plugins.  It
+indexes items for access, prioritizes stores, and sets up lists of
+applicable stores for each config item.
+
+Once initialized, the `Config` object's configuration items may be
+directly accessed either as an object descriptor or with `get` and
+`set` methods.  The following are all valid:
+
+    # Access through Config object descriptors
+    instance = config.instance
+    config.flavor = 'xenomai'
+    # Equivalent access through 'get' and 'set' methods
+    instance = config.get('instance')
+    config.set('flavor','xenomai')
+
+Each configuration item, such as `instance` or `flavor`, is its own
+class, a subclass of `ConfigString`, `ConfigInt` or `ConfigBool`, and
+in turn a subclass of the main `ConfigItem` class.  The class defines
+attributes static to the item, such as the mandatory parameter `name`
+or the optional parameter `help` string and `default` value.  The
+configuration item class may also belong to one or more mix-in
+subclasses such as `IniFileConfig`, used to match it to a suitable
+configuration store.  The item class may also have store-specific
+attributes such as `section` for `.ini` files or `longopt` and
+`shortopt` for command-line arguments.  (There may be other future
+uses for mix-in subclasses, such as validation.)
+
+A configuration store, such as `env` for environment variables or
+`machinekit.ini` for that `.ini` file, represents a store where
+configuration item values my be read and optionally written.  Stores
+may set a filter that selects items applicable to the store
+(e.g. there is no environment variable for configuring `hal_size`).  A
+store may filter items simply by class or by existence of a particular
+attribute, or may use a custom function for more complex filters.  A
+minimal store must define a `get` method.  When the store's `get`
+method is queried for an item class it can handle, the `get` method
+retrieves the value from the backend store based on the item's class
+attributes.  Sometimes the store can handle an item class, but cannot
+retrieve the item value, such as when the optional `$DEBUG`
+environment variable is not set.  In this case, the store raises an
+`RTAPIConfigNotFoundException` exception.
+
+The `Config` object must locate a configuration item's value from one
+of possibly many suitable stores.  Each store has a `priority` class
+attribute.  At `Config` object initialization, the list of stores is
+sorted by priority, and a filtered copy is attached to each item
+object.  To locate an item's value, the `Config` object iterates
+through the item's list, querying each store for the item's value.  If
+the store raises the 'not found' exception (above), the next store is
+tried until a store is able to produce the value.  If no store can
+produce the value, the item's default is returned, and if no default
+is configured, an exception is raised.  The first time an item is
+found in a store, the store is marked so that it may be directly
+queried the next time.
+
+Clearly, configuration store priorities are critical.  If environment
+variables are to override `.ini` configuration, but to be overridden
+by command-line arguments, incorrect priorities will yield incorrect
+configurations.  There are also cases where one configuration store
+depends on the value from another, such as a `.ini` file store, whose
+file path may be set in an environment variable; in this case, the
+`.ini` file store's priority must be less than the environment
+variable store's, ensuring at time of initialization that the
+environment variable's value will be available.
+
+It may be non-intuitive when considering what can constitute a
+configuration store, which may not be a 'store' by usual thinking.
+Stores can be used quite creatively in the configuration system.  Some
+non-persistent stores are `env`, which returns environment variable
+values, and `system_rlimit`, which returns `getrlimit` values.  The
+`flavor` store unsurprisingly handles static attributes for all RT
+flavors, but the dynamic `current_flavor` store queries attributes
+from the `flavor` store, depending on the value of the `flavor`
+configuration item, which itself can come from any of the `argv`,
+`env`, or other stores.
+
+Collecting configuration into one system in this manner turns out to
+be extremely useful in a unit testing harness.  A `test` store, with
+highest priority, uses a configurable Python `dict` as its store.
+Unit tests have great flexibility to test program logic; for example,
+when running unit tests on an environment sanity routine that asserts
+a reasonable `memlock` system limit value, the
+`system_rlimit_memlock_soft` configuration item, normally read from
+`resource.getrlimit(RLIMIT_MEMLOCK)`, can be tested with a range of
+'fake' values to exercise the routine's internal logic.
+
+== 
+
+Replaces `rtapi_msgd`, `realtime` script
+- centralized, flexible configuration
+  - pluggable config storage
+  - nosetests test harness
+  - config param server
+  - build params
+- flexible, centralized logging
+  - logging over zmq sockets gets rid of syslog+threading problems
+  - python's `logging` package is super-flexible:
+    - log to anywhere:  file, syslog, stderr, BYOBackend
+    - adjust logging on per-component basis:  config system DEBUG=5, HAL system DEBUG=1
+- python flexibility
+- better control of `rtapi_app` startup/shutdown
+- flexibility with realtime start-up:  from stand-alone python script or embed into other app scripts
+
+Now possible because:
+- Cython bindings
+- ZeroMQ sockets

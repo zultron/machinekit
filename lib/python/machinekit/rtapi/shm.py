@@ -249,10 +249,9 @@ class SHMOps(object):
                     "Unable to cleanup non-existent %s segment, key=%s" %
                     (name, seg.key))
 
-            seg.attach()
             self.log.warn("Removing unused %s shm segment %s",
                           name, seg.posix_name)
-            seg.unlink()
+            seg.attach().unlink()
 
 
 class RTAPISHMRuntimeError(RuntimeError):

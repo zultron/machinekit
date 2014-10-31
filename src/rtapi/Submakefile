@@ -301,6 +301,94 @@ USERSRCS += $(FLAVOR_SRCS)
 TARGETS += ../libexec/flavor
 
 ##################################################################
+#                     rtapi_masterd python lib
+##################################################################
+
+RTAPI_GLOBAL_BINDINGS_SO_CSRCS = rtapi/rtapi_global_bindings.c
+RTAPI_GLOBAL_BINDINGS_SO_SRCS = \
+	rtapi/rtapi_heap.c \
+	$(RTAPI_GLOBAL_BINDINGS_SO_CSRCS)
+
+$(call TOOBJSDEPS, $(RTAPI_GLOBAL_BINDINGS_SO_SRCS)) : \
+	EXTRAFLAGS=-fPIC
+$(call TOOBJSDEPS, $(RTAPI_GLOBAL_BINDINGS_SO_SRCS)) : \
+	rtapi/Submakefile
+USERSRCS += $(RTAPI_GLOBAL_BINDINGS_SO_SRCS)
+
+$(RTAPI_GLOBAL_BINDINGS_SO_CSRCS): %.c: %.pyx \
+		rtapi/rtapi_global.pxd \
+		rtapi/cython_helpers.pxd \
+		rtapi/rtapi.pxd \
+		rtapi/ring.pxd \
+		rtapi/rtapi_int.pxd \
+		rtapi/mk_config.pxd \
+		rtapi/Submakefile
+	$(ECHO) Cythonizing $(notdir $@)
+	$(Q)$(CYTHON) -I rtapi -I rtapi/shmdrv -o $@ $<
+
+RTAPI_GLOBAL_BINDINGS_SO_OBJS = $(call TOOBJS, $(RTAPI_GLOBAL_BINDINGS_SO_SRCS))
+
+../lib/python/machinekit/rtapi/rtapi_global_bindings.so: $(RTAPI_GLOBAL_BINDINGS_SO_OBJS)
+	$(ECHO) Linking python module $(notdir $@)
+	@mkdir -p $(dir $@)
+	$(Q)$(CC) -g  -shared -o $@ $^ $(LDFLAGS) -luuid
+
+CYTHON_TARGETS += ../lib/python/machinekit/rtapi/rtapi_global_bindings.so
+
+
+
+
+RTAPI_COMMON_SO_CSRCS = rtapi/rtapi_common.c
+RTAPI_COMMON_SO_SRCS = \
+	$(RTAPI_COMMON_SO_CSRCS)
+
+$(call TOOBJSDEPS, $(RTAPI_COMMON_SO_SRCS)) : \
+	EXTRAFLAGS=-fPIC
+$(call TOOBJSDEPS, $(RTAPI_COMMON_SO_SRCS)) : \
+	rtapi/Submakefile
+USERSRCS += $(RTAPI_COMMON_SO_SRCS)
+
+$(RTAPI_COMMON_SO_CSRCS): %.c: %.pyx %.pxd \
+		rtapi/Submakefile
+	$(ECHO) Cythonizing $(notdir $@)
+	$(Q)$(CYTHON) -I rtapi -o $@ $<
+
+RTAPI_COMMON_SO_OBJS = $(call TOOBJS, $(RTAPI_COMMON_SO_SRCS))
+
+../lib/python/machinekit/rtapi/rtapi_common.so: $(RTAPI_COMMON_SO_OBJS)
+	$(ECHO) Linking python module $(notdir $@)
+	@mkdir -p $(dir $@)
+	$(Q)$(CC) -g  -shared -o $@ $^ $(LDFLAGS)
+
+CYTHON_TARGETS += ../lib/python/machinekit/rtapi/rtapi_common.so
+
+
+
+# MK_CONFIG_SO_CSRCS = rtapi/mk_config.c
+# MK_CONFIG_SO_SRCS = \
+# 	$(MK_CONFIG_SO_CSRCS)
+
+# $(call TOOBJSDEPS, $(MK_CONFIG_SO_SRCS)) : \
+# 	EXTRAFLAGS=-fPIC
+# $(call TOOBJSDEPS, $(MK_CONFIG_SO_SRCS)) : \
+# 	rtapi/Submakefile
+# USERSRCS += $(MK_CONFIG_SO_SRCS)
+
+# $(MK_CONFIG_SO_CSRCS): %.c: %.pyx %.pxd \
+# 		rtapi/Submakefile
+# 	$(ECHO) Cythonizing $(notdir $@)
+# 	$(Q)$(CYTHON) -I rtapi -I . -o $@ $<
+
+# MK_CONFIG_SO_OBJS = $(call TOOBJS, $(MK_CONFIG_SO_SRCS))
+
+# ../lib/python/machinekit/mk_config.so: $(MK_CONFIG_SO_OBJS)
+# 	$(ECHO) Linking python module $(notdir $@)
+# 	@mkdir -p $(dir $@)
+# 	$(Q)$(CC) -g  -shared -o $@ $^ $(LDFLAGS)
+
+# CYTHON_TARGETS += ../lib/python/machinekit/mk_config.so
+
+##################################################################
 #                     rtapi.ini config file
 ##################################################################
 

@@ -6,3 +6,7 @@
 /rtai-kernel
 /xenomai-kernel
 /.flavor-*-link-create-stamp
+
+# Cython generated
+/rtapi_global_bindings.c
+/rtapi_common.c

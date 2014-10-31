@@ -15,6 +15,7 @@ class rtapi_ulapi_msglevel(ConfigInt,IniFileConfig):
     section = 'rtapi'
     longopt = 'ulapi_msglevel'
     shortopt = 'u'
+    default = 1
     help = "ULAPI debug message level"
 
 class rtapi_rtapi_msglevel(ConfigInt,IniFileConfig):
@@ -22,6 +23,7 @@ class rtapi_rtapi_msglevel(ConfigInt,IniFileConfig):
     section = 'rtapi'
     longopt = 'rtapi_msglevel'
     shortopt = 'r'
+    default = 1
     help = "RTAPI debug message level"
 
 class rtapi_use_shmdrv(ConfigBool,IniFileConfig,MiscConfig):
@@ -46,7 +48,19 @@ class rtapi_hal_size(ConfigInt,IniFileConfig):
     longopt = 'hal_size'
     shortopt = 'H'
     default = 512000
+    help = "HAL data segment size"
+
+class rtapi_hal_stack_size(ConfigInt,IniFileConfig):
+    name = 'hal_stack_size'
+    section = 'rtapi'
+    longopt = 'halstacksize'
+    shortopt = 'T'
+    default = 32768
     help = "HAL thread stack size"
+    description = """
+        default size of the thread stack size passed to rtapi_task_new() in
+        hal_create_thread()
+        """
 
 class rtapi_rtlib_dir(ConfigString,IniFileConfig):
     name = 'rtlib_dir'

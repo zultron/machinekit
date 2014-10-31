@@ -6,15 +6,16 @@ from nose.tools import assert_equal, assert_not_equal, assert_almost_equal, \
     assert_is_none, assert_is_not_none, assert_is_instance, \
     assert_raises
 
-from machinekit.rtapi import GlobalData, RTAPIGlobalDataException, \
-    Config, MKSHMSegment
+from machinekit.rtapi import Config, MKSHMSegment
+from machinekit.rtapi.rtapi_global_bindings import \
+    _GlobalData, RTAPIGlobalDataException
 
 import os, logging, resource
 
-class test_050_rtapi_global(FixtureTestCase):
+class test_050_rtapi_global_bindings(FixtureTestCase):
 
     def test_05010_init_config(self):
-        """05010 rtapi global:  init config"""
+        """05010 rtapi global bindings:  init config"""
 
         # add config fixtures
         self.fix(
@@ -38,7 +39,7 @@ class test_050_rtapi_global(FixtureTestCase):
             seg.attach().unlink()
 
     def test_05011_set_up_global_shm_seg(self):
-        """05011 rtapi global:  set up global shm segment"""
+        """05011 rtapi global bindings:  set up global shm segment"""
 
         # handy things for tests
         self.fix(
@@ -51,23 +52,23 @@ class test_050_rtapi_global(FixtureTestCase):
         assert_true(self.seg.new().exists())
 
     def test_05012_global_shm_seg_size(self):
-        """05012 rtapi global:  global shm segment size"""
+        """05012 rtapi global bindings:  global shm segment size"""
 
         assert_equal(self.seg.size, self.size)
 
     def test_05020_init_global_data_obj(self):
-        """05020 rtapi global:  init global data object"""
+        """05020 rtapi global bindings:  init global data object"""
 
         # Setup:  initialize gd shm segment
         self.fix(
-            gd = GlobalData(self.seg),
+            gd = _GlobalData(self.seg),
             )
 
         # Test:  gd object pointer == shm seg ptr
         assert_equal(self.gd.ptr, self.seg.ptr)
 
     def test_05030_attribute_read_write(self):
-        """05030 rtapi global:  attribute read/write"""
+        """05030 rtapi global bindings:  attribute read/write"""
 
         # Setup: list of attribute : (value, zero) pairs
         self.fix(
@@ -94,11 +95,11 @@ class test_050_rtapi_global(FixtureTestCase):
 
 
     def test_05031_reattach_attribute_read(self):
-        """05031 rtapi global:  reattach and read attribute"""
+        """05031 rtapi global bindings:  reattach and read attribute"""
 
         # Setup:  attach new object to existing data segment
         seg_copy = MKSHMSegment('global').attach()
-        gd_copy = GlobalData(seg_copy)
+        gd_copy = _GlobalData(seg_copy)
 
         # Test:  write attributes and verify read
         for (attr, value_zero) in self.attrdict.items():
@@ -107,7 +108,7 @@ class test_050_rtapi_global(FixtureTestCase):
             assert_equal(getattr(self.gd, attr), getattr(gd_copy, attr))
 
     def test_05040_zero(self):
-        """05040 rtapi global:  zero"""
+        """05040 rtapi global bindings:  zero"""
 
         # Test: zero global seg and test some values
         self.gd.zero()
@@ -116,7 +117,7 @@ class test_050_rtapi_global(FixtureTestCase):
             assert_equal(getattr(self.gd, attr), zero)
 
     def test_05041_mlock_munlock(self):
-        """05041 rtapi global:  mlock and munlock"""
+        """05041 rtapi global bindings:  mlock and munlock"""
 
         # Read memlock rlimits
         (memlock_rlimit_soft, memlock_rlimit_hard) = \
@@ -149,7 +150,7 @@ class test_050_rtapi_global(FixtureTestCase):
         self.gd.mlock()
 
     def test_05045_mutex(self):
-        """05045 rtapi global:  mutex try and give functions"""
+        """05045 rtapi global bindings:  mutex try and give functions"""
 
         # Sanity:  mutex is 0
         assert_equal(self.gd.mutex, 0)
@@ -172,11 +173,11 @@ class test_050_rtapi_global(FixtureTestCase):
 
     @skip("Unwritten")
     def test_05050_error_ring_init(self):
-        """05050 rtapi global:  error_ring_init()"""
+        """05050 rtapi global bindings:  error_ring_init()"""
         pass
 
     @skip("Unwritten")
     def test_05055_init_rtapi_heap(self):
-        """05055 rtapi global:  init_rtapi_heap()"""
+        """05055 rtapi global bindings:  init_rtapi_heap()"""
         pass
 

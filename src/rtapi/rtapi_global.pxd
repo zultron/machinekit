@@ -5,6 +5,12 @@ cdef extern from "rtapi_global.h":
     int GLOBAL_HEAP_SIZE
     int MESSAGE_RING_SIZE
 
+    int GLOBAL_LAYOUT_VERSION
+
+    int GLOBAL_INITIALIZING
+    int GLOBAL_READY
+    int GLOBAL_EXITED
+
     ctypedef struct global_data_t:
         unsigned magic
         int layout_version

@@ -61,6 +61,7 @@
 #ifndef RING_H
 #define RING_H
 
+#include <errno.h>		/* EINVAL, EAGAIN, etc. */
 #include "rtapi_bitops.h"
 #include "rtapi_mbarrier.h"
 #include "rtapi_string.h"
@@ -258,6 +259,12 @@ static inline void ringheader_init(ringheader_t *ringheader, int flags,
 	ringheader->generation = 0;
     }
     ringheader->refcount = 1;
+}
+
+// zero out buffer
+static inline void ringbuffer_zero(ringheader_t *ringheader)
+{
+    memset(&ringheader->buf[0], 0, ringheader->size);
 }
 
 // given a ringheader_t *, initialize a ringbuffer_t

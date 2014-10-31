@@ -1,3 +1,4 @@
+
 from .rtapi_int cimport *
 from .cython_helpers cimport *
 
@@ -5,6 +6,7 @@ cdef extern from "ring.h":
     int SIZE_ALIGN(x)
 
     ctypedef struct ringheader_t:
+        int use_wmutex
         int32 refcount
         int32 reader
     ctypedef struct ringbuffer_t:

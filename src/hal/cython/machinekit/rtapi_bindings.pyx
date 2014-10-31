@@ -37,6 +37,12 @@ MSG_INFO = RTAPI_MSG_INFO
 MSG_DBG = RTAPI_MSG_DBG
 MSG_ALL = RTAPI_MSG_ALL
 
+def global_data_size():
+    cdef int s
+    s = sizeof(global_data_t)
+    return s
+
+
 cdef class mview:
     cdef void *base
     cdef int size

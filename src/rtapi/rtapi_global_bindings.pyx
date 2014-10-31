@@ -1,8 +1,9 @@
 from .cython_helpers cimport *
 from .rtapi cimport *
-from .global_data cimport *
+from .rtapi_global cimport *
 from .rtapi_heap cimport *
 from .ring cimport *
+from .mk_config cimport *
 
 import os
 
@@ -28,19 +29,50 @@ class RTAPIGlobalDataException(RuntimeError):
     pass
 
 
-cdef class GlobalData:
+cdef class _GlobalData:
     cdef global_data_t *_ptr
     cdef ringbuffer_t rtapi_msg_buffer
     cdef char uuid_buf[16]
     cdef char uuid_str_buf[37]
     cdef object segment
 
-    def __cinit__(self, seg):
+    def __cinit__(self, object seg, object config=None):
         self.segment = seg
         cdef uintptr_t i = seg.ptr  # can't cast and assign directly
                                     # to self._ptr
         self._ptr = <global_data_t *>i
 
+    # macros from rtapi_global
+    property GLOBAL_HEAP_SIZE:
+        def __get__(self):
+            return GLOBAL_HEAP_SIZE
+
+    property MESSAGE_RING_SIZE:
+        def __get__(self):
+            return MESSAGE_RING_SIZE
+
+    property GLOBAL_LAYOUT_VERSION:
+        def __get__(self):
+            return GLOBAL_LAYOUT_VERSION
+
+    property GLOBAL_INITIALIZING:
+        def __get__(self):
+            return GLOBAL_INITIALIZING
+
+    property GLOBAL_READY:
+        def __get__(self):
+            return GLOBAL_READY
+
+    property GLOBAL_EXITED:
+        def __get__(self):
+            return GLOBAL_EXITED
+
+    # macros from config.h (rtapi/mk_config.pxd)
+    property RTAPI_MAX_MODULES:
+        def __get__(self):
+            return RTAPI_MAX_MODULES
+
+    # properties from global_data_t struct
     property ptr:  # mostly for debugging
         def __get__(self):
             return <uintptr_t>self._ptr
@@ -50,6 +82,16 @@ cdef class GlobalData:
             return self._ptr.magic
         def __set__(self, int magic):
             self._ptr.magic = magic
+
+    property layout_version:
+        def __get__(self):
+            return self._ptr.layout_version
+        def __set__(self, int layout_version):
+            self._ptr.layout_version = layout_version
+
+    property mutex:
+        def __get__(self):
+            return self._ptr.mutex
 
     property instance_id:
         def __get__(self):
@@ -112,10 +154,6 @@ cdef class GlobalData:
             return self._ptr.rtapi_msgd_pid
         def __set__(self, int rtapi_msgd_pid):
             self._ptr.rtapi_msgd_pid = rtapi_msgd_pid
-
-    property mutex:
-        def __get__(self):
-            return self._ptr.mutex
 
     # Helpers to manipulate stuff not possible in python
 
