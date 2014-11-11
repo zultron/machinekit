@@ -24,11 +24,15 @@ author "";
 //          lowbelt-max-rpm         maximum RPM in low belt
 //          lowbelt-min-mcb-freq    frequency sent to machine control board to achieve lowbelt min speed, default STEPGEN_MIN_FREQ
 //          lowbelt-max-mcb-freq    frequency sent to machine control board to achieve lowbelt max speed, default STEPGEN_MAX_FREQ
+//          lowbelt-min-pwm-dc      PWM duty cycle sent to machine control board to achieve lowbelt min speed, default PWMGEN_MIN_DUTY_CYCLE
+//          lowbelt-max-pwm-dc      PWM duty cycle sent to machine control board to achieve lowbelt max speed, default PWMGEN_MAX_DUTY_CYCLE
 //
 //          highbelt-min-rpm        minimum RPM in high belt
 //          highbelt-max-rom        maximum RPM in high belt
 //          highbelt-min-mcb-freq   frequency sent to machine control board to achieve highbelt min speed, default STEPGEN_MIN_FREQ
 //          highbelt-max-mcb-freq   frequency sent to machine control board to achieve highbelt max speed, default STEPGEN_MAX_FREQ
+//          highbelt-min-pwm-dc     PWM duty cycle sent to machine control board to achieve highbelt min speed, default PWMGEN_MIN_DUTY_CYCLE
+//          highbelt-max-pwm-dc     PWM duty cycle sent to machine control board to achieve highbelt max speed, default PWMGEN_MIN_DUTY_CYCLE
 //
 //          hispeed-min             maximum RPM for high speed spindle-type
 //          hispeed-max             minimum RPM for high speed spindle-type
@@ -43,6 +47,7 @@ author "";
 //          speed-alarm             if true then speed-in is out of range for the current belt position - connect to UI
 //          mcb-freq-out            min-mcb-freq-out Hz -> min speed, max-mcb-freq-out Hz -> max speed of VFD/motor combination
 //                                  This is a velocity command to a stepgen comp that drives the machine control board
+//          mcb-pwm-out             PWM duty cycle output for the speed and belt position
 //
 // Spindle-at-speed:
 //
@@ -104,11 +109,15 @@ pin in float lowbelt_min_rpm;
 pin in float lowbelt_max_rpm;
 pin in float lowbelt_min_mcb_freq;
 pin in float lowbelt_max_mcb_freq;
+pin in float lowbelt_min_pwm_dc;
+pin in float lowbelt_max_pwm_dc;
 
 pin in float highbelt_min_rpm;
 pin in float highbelt_max_rpm;
 pin in float highbelt_min_mcb_freq;
 pin in float highbelt_max_mcb_freq;
+pin in float highbelt_min_pwm_dc;
+pin in float highbelt_max_pwm_dc;
 
 // current min and max speeds based upon spindle-type and belt-position
 pin out float min_speed;
@@ -124,6 +133,7 @@ pin in float speeder_factor;
 
 pin out bit speed_alarm;
 pin out float mcb_freq_out;
+pin out float mcb_pwm_out;
 
 function _ "Tormach Spindle HAL Component";
 
@@ -146,6 +156,9 @@ function _ "Tormach Spindle HAL Component";
 #define STEPGEN_MIN_FREQ 500.0
 #define STEPGEN_MAX_FREQ 10900.0
 
+#define PWMGEN_MIN_DUTY_CYCLE 0.0
+#define PWMGEN_MAX_DUTY_CYCLE 100.0
+
 #define RPM_CLOSE_TO_ZERO 0.1
 
 FUNCTION(_) {
@@ -155,6 +168,9 @@ FUNCTION(_) {
     float actual_max_mcb_freq;
     float clamped_speed_in;
     float freq_slope;
+    float actual_min_pwm_dc;
+    float actual_max_pwm_dc;
+    float pwm_slope;
 
     // spindle-type - for high speed use only low belt params
     //                for speeder compensate for tripled output speed
@@ -238,19 +254,23 @@ FUNCTION(_) {
         // high belt min freq
         if (highbelt_min_mcb_freq != 0.0) {
             actual_min_mcb_freq = fabs(highbelt_min_mcb_freq);
+            actual_min_pwm_dc   = fabs(highbelt_min_pwm_dc);
         }
         else {
             // use default
             actual_min_mcb_freq = STEPGEN_MIN_FREQ;
+            actual_min_pwm_dc   = PWMGEN_MIN_DUTY_CYCLE;
         }
 
         // high belt max freq
         if (highbelt_max_mcb_freq != 0.0) {
             actual_max_mcb_freq = fabs(highbelt_max_mcb_freq);
+            actual_max_pwm_dc   = fabs(highbelt_max_pwm_dc);
         }
         else {
             // use default
             actual_max_mcb_freq = STEPGEN_MAX_FREQ;
+            actual_max_pwm_dc   = PWMGEN_MAX_DUTY_CYCLE;
         }
     }
     else {
@@ -259,19 +279,23 @@ FUNCTION(_) {
         // low belt min freq
         if (lowbelt_min_mcb_freq != 0.0) {
             actual_min_mcb_freq = fabs(lowbelt_min_mcb_freq);
+            actual_min_pwm_dc   = fabs(lowbelt_min_pwm_dc);
         }
         else {
             // use default
             actual_min_mcb_freq = STEPGEN_MIN_FREQ;
+            actual_min_pwm_dc   = PWMGEN_MIN_DUTY_CYCLE;
         }
 
         // low belt max freq
         if (lowbelt_max_mcb_freq != 0.0) {
             actual_max_mcb_freq = fabs(lowbelt_max_mcb_freq);
+            actual_max_pwm_dc   = fabs(lowbelt_max_pwm_dc);
         }
         else {
             // use default
             actual_max_mcb_freq = STEPGEN_MAX_FREQ;
+            actual_max_pwm_dc   = PWMGEN_MAX_DUTY_CYCLE;
         }
     }
 
@@ -280,9 +304,11 @@ FUNCTION(_) {
 
     // slope is rise over run: (max_freq - min_freq) / (max_speed - min_speed)
     freq_slope = (actual_max_mcb_freq - actual_min_mcb_freq) / (max_speed - min_speed);
+    pwm_slope  = (actual_max_pwm_dc   - actual_min_pwm_dc)   / (max_speed - min_speed);
 
     // freq is slope * (speed_in - min_speed) + min_mcb_freq
     mcb_freq_out = (freq_slope * (clamped_speed_in - min_speed)) + actual_min_mcb_freq;
+    mcb_pwm_out  = (pwm_slope  * (clamped_speed_in - min_speed)) + actual_min_pwm_dc;
 
     // clamp to acceptable range
     if (mcb_freq_out < actual_min_mcb_freq) {
@@ -290,6 +316,12 @@ FUNCTION(_) {
     }
     else if (mcb_freq_out > actual_max_mcb_freq) {
         mcb_freq_out = actual_max_mcb_freq;
+    }
+    if (mcb_pwm_out < actual_min_pwm_dc) {
+        mcb_pwm_out = actual_min_pwm_dc;
+    }
+    else if (mcb_pwm_out > actual_max_pwm_dc) {
+        mcb_pwm_out = actual_max_pwm_dc;
     }
 
     // spindle-at-speed open loop computation
@@ -337,6 +369,7 @@ FUNCTION(_) {
     if (disable) {
         // no spindle motion allowed
         mcb_freq_out = 0.0;
+        mcb_pwm_out  = 0.0;
     }
     speed_out_rps = speed_out / 60.0;
 }
