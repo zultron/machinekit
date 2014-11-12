@@ -1,0 +1,97 @@
+component enadir440 "DIR ENA spindle drive HAL Component";
+
+license "GPL";
+author "";
+
+// Purpose:
+//
+// The 440 spindle drive CANNOT have DIR change while ENA is active. Insert this comp between motion.spindle-on|forward and the GPIO DB-25 pins.
+
+// Must be connected to 1 ms thread.
+
+// Inputs:
+//
+//          enable-in               from motion.spindle-on
+//          direction-in            from motion.spindle-forward
+//          enable-off-to-dir       time in milliseconds between deasserting ENA and changing DIR
+//          dir-change-to-enable    time in milliseconds between changing DIR and asserting ENA
+//
+// Outputs:
+//
+//          enable-out              connect to GPIO
+//          direction-out           connect to GPIO
+
+// connect to motion.spindle-on
+pin in bit enable_in;
+
+// connect to motion.spindle-forward
+pin in bit direction_in;
+
+// connect to GPIO ENA
+pin out bit enable_out;
+
+// connect to GPIO DIR
+pin out bit direction_out;
+
+// milliseconds
+pin in s32 enable_off_to_dir;
+
+// milliseconds
+pin in s32 dir_change_to_enable;
+
+function _ "DIR ENA spindle drive HAL Component";
+
+;;
+
+#define BIT_FALSE 0
+#define BIT_TRUE  1
+
+s32 enable_out_delay_count;
+s32 dir_change_to_enable_count;
+
+int previous_direction_in;
+
+
+FUNCTION(_) {
+
+  // has direction-in changed?
+  if (direction_in != previous_direction_in) {
+    // disable ENA
+    enable_out = BIT_FALSE;
+
+    // start timer to wait with ENA inactive
+    enable_out_delay_count = enable_off_to_dir + 1;
+    dir_change_to_enable_count = 0;
+
+    // previous is now current direction
+    previous_direction_in = direction_in;
+  }
+
+  // if not delaying enable-out follows enable-in
+  if (enable_out_delay_count <= 0 && dir_change_to_enable_count <= 0) {
+    // not in delay state so out = in
+    enable_out = enable_in;
+    // we are done, no more checks
+    return;
+  }
+
+  // at this point one of the delay counts is not zero
+  if (enable_out_delay_count > 0) {
+    // in delay state, decrement counter
+    enable_out_delay_count--;
+    if (enable_out_delay_count <= 0) {
+      // ENA inactive delay has just completed, change DIR
+      direction_out = direction_in;
+      dir_change_to_enable_count = dir_change_to_enable + 1;
+    }
+  }
+
+  if (dir_change_to_enable_count > 0) {
+    // in delay state, decrement counter
+    dir_change_to_enable_count--;
+    // when this runs down to 0 then enable-out will follow enable-in
+  }
+
+}
+
+
