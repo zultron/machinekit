@@ -1,0 +1,20 @@
+component mux2 "Direct one input to one of two output values.";
+pin in bit sel "Select pin";
+pin in bit in "Input";
+pin out bit out0 "Follows the value of in if sel is FALSE";
+pin out bit out1 "Follows the value of in if sel is TRUE";
+pin in bit default0 "Default value for out0 when sel is TRUE";
+pin in bit default1 "Default value for out1 when sel is FALSE";
+function _;
+license "GPL";
+;;
+FUNCTION(_) {
+    if(sel){ 
+	out1 = in;
+	out0 = default0;
+	}
+    else {
+	out0 = in;
+	out1 = default1;
+	}
+}
