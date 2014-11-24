@@ -1,4 +1,4 @@
-component mux2 "Direct one input to one of two output values.";
+component demux2 "Direct one input to one of two output values.";
 pin in bit sel "Select pin";
 pin in bit in "Input";
 pin out bit out0 "Follows the value of in if sel is FALSE";
