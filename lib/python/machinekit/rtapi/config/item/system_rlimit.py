@@ -13,6 +13,8 @@ resources = [
     "ofile",
     "memlock",
     "as",
+    # FIXME
+    # need RTLIMIT and RTPRIO
     ]
 
 for r in resources:
