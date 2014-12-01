@@ -68,6 +68,8 @@ class RTAPIEnvironment(object):
                                util=self.util)
         self.shm = SHMOps(config=self.config)
 
+
+    def prepare_environment(self):
         # Run sanity checks:
         #
         # Environment:  setuid, rlimits, running daemons
@@ -76,32 +78,58 @@ class RTAPIEnvironment(object):
         #   *** WARNING ***:  Do not run this before Environment sanity checks
         self.shm.assert_sanity()
 
-    def run(self):
         # set up shm
         self.shm.init_shmdrv()
         self.global_segment = self.shm.create_global_segment()
-
-        # fork
-        if not self.config.foreground:
-            self.util.daemonize()
 
         # init global data
         self.global_data = GlobalData(self.global_segment, self.config)
         self.global_data.init_global_data()
 
-        # print some runtime data; rtapi_msgd.cc:935
+        # FIXME  Do something with logs that they don't come out on stdout
 
-        # check global seg for another msgd pid
+
+    def daemonize(self):
+        # fork into a background daemon, unless asked not to
+        if not self.config.foreground:
+            self.util.daemonize()
+
+        # print some runtime data; rtapi_msgd.cc:935
+        #  FIXME  This needs build data
+
+        # if another masterd is registered in global data, bail
+        self.global_data.assert_no_other_rtapi_masterd()
 
         # setup signals 959
-
+        
         # setup zmq log publisher socket 974
 
-        # fix up global data
+        # set global data 'ready' 1049
 
-        # [ fire off rtapi_app ]
+    def fork_rtapi_app(self):
+        # fire off rtapi_app; happens in realtime script after daemonize()
 
         # spin....
+
+        pass
+
+    def shutdown(self, exit_code=0):
+        # stop rtapi_app
+
+        # close down global data
+        self.global_data.exit()
+
+        # detach and unlink global shm segment
+        try:
+            self.shm.unlink_global_segment()
+        except Exception as e:
+            self.log.error(
+                "rtapi_masterd instance %d:  Failed to shut down "
+                "global shm segment:  %s" % (self.config.instance, e))
+        else:
+            self.log.info(
+                "rtapi_masterd instance %d:  Global segment detached" %
+                self.config.instance)
 
         # shutdown logging
 
@@ -110,14 +138,129 @@ class RTAPIEnvironment(object):
         # close log
 
         # exit
+        sys.exit(exit_code)
 
-if __name__ == "__main__":
+    def sigaction_handler(self, sig):
+        # this is only for bad problems?
+        # Michael's:
+
+        # log an error
+        self.log.error(
+            "rtapi_masterd instance %d: received signal %d; killing rtapi",
+            self.config.instance, sig)
+
+        # shut down global segment and kill rtapi_app
+        if self.global_data.exists():
+            self.global_data.exit()
+            self.util.kill_rtapi_app(self.global_data)
+
+        # print backtrace
+
+        # close logs
+
+        # reset handler
+
+        # dump core
+
+    def signalfd_handler(self, zloop, zpoller, *args):
+        # read signalfd_siginfo
+        # FIXME
+        sig = zpoller.sig
+
+        # shut down global segment and kill rtapi_app
+        if self.global_data.exists():
+            self.global_data.exit()
+            self.util.kill_rtapi_app(self.global_data)
+
+        if self.handler.is_user_termination_signal(sig):
+            self.log.info(
+                "rtapi_masterd instance %d:  terminated by user",
+                self.config.instance)
+
+            # Print stats about error ring buffer
+
+            # Exit reactor normally
+            return -1
+
+        else:
+            # This should have been handled either above or in
+            # sigaction_handler
+            self.log.error(
+                "rtapi_masterd instance %d:  Unhandled signal %d", sig)
+            # Continue reactor
+            return 0
+
+
+def trap_errors(function, error_message, args=()):
+    """
+    Run function (with optional args), returning result.
+
+    If a known exception is raised, log the error_message and
+    exception message and exit.
+    """
     try:
-        rtapi = RTAPIEnvironment()
-    except RTAPIEnvironmentInitError as e:
-        logging.error("Failed to start RTAPI environment:")
+        return function(*args)
+    except rtapi_exceptions as e:
+        logging.error(message)
         for line in str(e).split('\n'):
-            logging.error("    %s" % line)
+            logging.error("    ", line)
         sys.exit(1)
 
-    rtapi.run()
+
+if __name__ == "__main__":
+    # Initialization:
+    #
+    # Everything here is setup; nothing is touched
+    #
+    # - Set up config
+    # - Initalize objects
+    rtapi = trap_errors(
+        RTAPIEnvironment,
+        "Failed to start RTAPI environment")
+
+    # Prepare RTAPI environment:
+    #
+    # Set up the pre-daemonization environment; any failure here can
+    # be cleaned up by the next run
+    #
+    # - Run environment sanity checks
+    # - Run shm sanity checks; clean up any messes
+    # - Initialize shm
+    # - Initialize global data segment
+    trap_errors(
+        rtapi.prepare_environment,
+        "Failed to prepare RTAPI environment")
+
+    # Daemonize:
+    #
+    # Become a daemon; prepare for rtapi_app launch; any failure here
+    # can be cleaned up by the next run
+    #
+    # - Informational log messages
+    # - Last safety checks
+    # - Set up signal handlers
+    # - Set up zmq services
+    # - Mark global data as 'ready'
+    trap_errors(
+        rtapi.daemonize,
+        "Failed to daemonize")
+
+    # Run rtapi_app:
+    #
+    # Fork an rtapi_app and spin; anything that goes wrong here may
+    # need manual cleanup
+    trap_errors(
+        rtapi.fork_rtapi_app,
+        "Failed to run rtapi_app")
+
+    # Shutdown:
+    #
+    # - Stop rtapi_app
+    # - Close global data
+    # - Unlink global shm segment
+    # - Shut down zmq services
+    # - Close logs
+    # - Exit
+    trap_errors(
+        rtapi.shutdown,
+        "Failed to shut down")
