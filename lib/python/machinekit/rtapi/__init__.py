@@ -23,4 +23,3 @@ rtapi_exceptions = (
 
 # FIXME trash?
 from compat import Compat
-from setuid_helper import SetuidHelper
