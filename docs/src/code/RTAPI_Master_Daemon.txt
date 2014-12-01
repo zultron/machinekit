@@ -1,7 +1,23 @@
-= RTAPI Master Daemon
+= Machinekit Master Daemon
 
-The RTAPI master daemon, or simply `masterd`, is python code that sets
-up and tears down the real-time environment.
+The Machinekit Master Daemon, or simply `masterd`, is the system that
+sets up, manages and tears down the environment and infrastructure
+needed by the real-time and HAL systems.
+
+The `masterd` system is a drop-in replacement for the former
+`realtime` script and `rtapi_msgd` daemon.  It can also be started
+from just a few lines of Python code in its own thread; the formerly
+cumbersome task of running the real-time system is now simple to
+integrate into applications.
+
+This is only now possible for the first time thanks to Michael
+Haberler's 'Machinetalk' contributions, which provided an initial unit
+testing system, quite complete Python bindings to `RTAPI` and `HAL`,
+and of course the pattern for Protobuf-encapsulated services over ZMQ
+transport.
+
+
+== Master Daemon Life Cycle
 
 During initialization, `masterd` determines configuration and performs
 environment sanity checks, and for kernel threads loads kernel
@@ -11,32 +27,53 @@ services.  With the environment now initialized, `masterd` starts the
 `rtapi_app` process.
 
 While the real-time environment runs, `masterd` monitors `rtapi_app`
-and provides logging and parameter services.
+and forwards messages to clients, and the parameter server manages
+configuration state for both real-time and clients.
 
-At shut down, `masterd` attempts a graceful tear down of real-time
-enviroment components, in reverse order of initialization.
+At shut down, `masterd` stops the real-time system and tears down the
+infrastructure it set up.
+
 
 == Components
 
 The `masterd` system is written in Python with Cython extensions, and
 is made up of components intended to be flexible and reusable.
-Several main components include: a configuration storage component;
-components for managing shared memory and the shared global data
-structure; a logging service component; a configuration parameter
-service component.
+Several main components include:
+
+* a centralized system for managing configuration data from a variety
+  of sources
+* a configuration data server for the real-time system and for
+  Machinekit clients
+* libraries for managing shared memory and initializing the shared
+  global data structure
+* libraries for checking pre-runtime environment sanity, including
+  rlimits and privileges, and for conflicts with other running
+  Machinekit instances
+* a logging server that forwards messages from the real-time system to
+  configurable destinations, such as clients, log files or syslog
 
 
-== Configuration 
+== Configuration Sources
 
-The configuration storage component is the master source of all
-real-time environment configuration, and is intended to be a source of
-build system configuration in the future.
+The configuration source system is the master source of all
+real-time environment configuration, and may be integrated into the
+build system in the future.
 
-The main configuration storage object is an instance of the Python
+It features 'pluggable' configuration source back-ends, currently
+supporting the traditional `.ini` files, command-line arguments and
+environment variables, and also integrates configuration data
+concerning the various supported real-time thread flavors.  New
+configuration source plugins are trivial to write, as simple as a few
+lines of code in the environment variable source plugin.
+
+
+=== Configuration Source Basic Operation
+
+The main configuration source object is an instance of the Python
 class `machinekit.rtapi.config.Config`.  At initialization, the
-`Config` object loads configuration item and store plugins.  It
-indexes items for access, prioritizes stores, and sets up lists of
-applicable stores for each config item.
+`Config` object loads configuration item and source plugins.  It
+indexes items for access, prioritizes sources, and sets up lists of
+applicable sources for each config item.
 
 Once initialized, the `Config` object's configuration items may be
 directly accessed either as an object descriptor or with `get` and
@@ -49,6 +86,12 @@ directly accessed either as an object descriptor or with `get` and
     instance = config.get('instance')
     config.set('flavor','xenomai')
 
+[NOTE: configuration item metadata are currently encoded as Python
+classes; this will be re-evaluated against storing metadata in a
+simple key-value store; in the following, class attributes would be
+replaced by groups of key/value pairs for each configuration data
+item.]
+
 Each configuration item, such as `instance` or `flavor`, is its own
 class, a subclass of `ConfigString`, `ConfigInt` or `ConfigBool`, and
 in turn a subclass of the main `ConfigItem` class.  The class defines
@@ -56,63 +99,61 @@ attributes static to the item, such as the mandatory parameter `name`
 or the optional parameter `help` string and `default` value.  The
 configuration item class may also belong to one or more mix-in
 subclasses such as `IniFileConfig`, used to match it to a suitable
-configuration store.  The item class may also have store-specific
+configuration source.  The item class may also have source-specific
 attributes such as `section` for `.ini` files or `longopt` and
-`shortopt` for command-line arguments.  (There may be other future
-uses for mix-in subclasses, such as validation.)
+`shortopt` for command-line arguments.
 
-A configuration store, such as `env` for environment variables or
-`machinekit.ini` for that `.ini` file, represents a store where
-configuration item values my be read and optionally written.  Stores
-may set a filter that selects items applicable to the store
-(e.g. there is no environment variable for configuring `hal_size`).  A
-store may filter items simply by class or by existence of a particular
-attribute, or may use a custom function for more complex filters.  A
-minimal store must define a `get` method.  When the store's `get`
-method is queried for an item class it can handle, the `get` method
-retrieves the value from the backend store based on the item's class
-attributes.  Sometimes the store can handle an item class, but cannot
-retrieve the item value, such as when the optional `$DEBUG`
-environment variable is not set.  In this case, the store raises an
-`RTAPIConfigNotFoundException` exception.
+A configuration source, such as `env` for environment variables or
+`machinekit.ini` for that `.ini` file, represents a source where
+configuration item values my be read and optionally written.  Source
+back-end plugins may set a filter that selects items applicable to the
+source (e.g. there is no environment variable for configuring
+`hal_size`).  A source may filter items simply by class or by existence
+of a particular attribute, or may use a custom function for more
+complex filters.  A minimal source must define a `get` method.  When
+the source's `get` method is queried for an item class it can handle,
+the `get` method retrieves the value from the backend source based on
+the item's class attributes.  Sometimes the source can handle an item
+class, but cannot retrieve the item value, such as when the optional
+`$DEBUG` environment variable is not set.  In this case, the source
+raises an `RTAPIConfigNotFoundException` exception.
 
-The `Config` object must locate a configuration item's value from one
-of possibly many suitable stores.  Each store has a `priority` class
-attribute.  At `Config` object initialization, the list of stores is
-sorted by priority, and a filtered copy is attached to each item
-object.  To locate an item's value, the `Config` object iterates
-through the item's list, querying each store for the item's value.  If
-the store raises the 'not found' exception (above), the next store is
-tried until a store is able to produce the value.  If no store can
-produce the value, the item's default is returned, and if no default
-is configured, an exception is raised.  The first time an item is
-found in a store, the store is marked so that it may be directly
+This exception is used by the `Config` class routines, which search
+through a priority-sorted and filtered list of configuration sources.
+If a source in the list raises the above 'not found' exception, the
+next source is tried until a source is able to produce the value,
+finally returning the data item's default value.  The first time an item
+is found in a source, the source is marked so that it may be directly
 queried the next time.
 
-Clearly, configuration store priorities are critical.  If environment
-variables are to override `.ini` configuration, but to be overridden
-by command-line arguments, incorrect priorities will yield incorrect
-configurations.  There are also cases where one configuration store
-depends on the value from another, such as a `.ini` file store, whose
-file path may be set in an environment variable; in this case, the
-`.ini` file store's priority must be less than the environment
-variable store's, ensuring at time of initialization that the
-environment variable's value will be available.
+
+=== Further Configuration Source Discussion
+
+Clearly, configuration source priorities have a major impact on the
+system's behavior.  If environment variables are to override `.ini`
+configuration, but to be overridden by command-line arguments,
+incorrect priorities will yield incorrect configurations.  There are
+also cases where one configuration source depends on the value from
+another, such as a `.ini` file source, whose file path may be set in an
+environment variable; in this case, the `.ini` file source's priority
+must be less than the environment variable source's, ensuring at time
+of initialization that the environment variable's value will be
+available.
 
 It may be non-intuitive when considering what can constitute a
-configuration store, which may not be a 'store' by usual thinking.
-Stores can be used quite creatively in the configuration system.  Some
-non-persistent stores are `env`, which returns environment variable
+'configuration source', which may not conform to usual thinking.
+Sources can be used quite creatively in the configuration system.  Some
+non-persistent sources are `env`, which returns environment variable
 values, and `system_rlimit`, which returns `getrlimit` values.  The
-`flavor` store unsurprisingly handles static attributes for all RT
-flavors, but the dynamic `current_flavor` store queries attributes
-from the `flavor` store, depending on the value of the `flavor`
+`flavor` source unsurprisingly handles static attributes for all RT
+flavors, but the dynamic `current_flavor` source queries attributes
+from the `flavor` source, depending on the value of the `flavor`
 configuration item, which itself can come from any of the `argv`,
-`env`, or other stores.
+`env`, or other sources.
 
 Collecting configuration into one system in this manner turns out to
-be extremely useful in a unit testing harness.  A `test` store, with
-highest priority, uses a configurable Python `dict` as its store.
+be extremely useful in a unit testing harness.  A `test` source, with
+highest priority, uses a configurable Python `dict` as its source.
 Unit tests have great flexibility to test program logic; for example,
 when running unit tests on an environment sanity routine that asserts
 a reasonable `memlock` system limit value, the
@@ -120,23 +161,59 @@ a reasonable `memlock` system limit value, the
 `resource.getrlimit(RLIMIT_MEMLOCK)`, can be tested with a range of
 'fake' values to exercise the routine's internal logic.
 
-== 
 
-Replaces `rtapi_msgd`, `realtime` script
-- centralized, flexible configuration
-  - pluggable config storage
-  - nosetests test harness
-  - config param server
-  - build params
-- flexible, centralized logging
-  - logging over zmq sockets gets rid of syslog+threading problems
-  - python's `logging` package is super-flexible:
-    - log to anywhere:  file, syslog, stderr, BYOBackend
-    - adjust logging on per-component basis:  config system DEBUG=5, HAL system DEBUG=1
-- python flexibility
-- better control of `rtapi_app` startup/shutdown
-- flexibility with realtime start-up:  from stand-alone python script or embed into other app scripts
+== Configuration Service
 
-Now possible because:
-- Cython bindings
-- ZeroMQ sockets
+The configuration service connects the configuration source back-ends
+to both the real-time system and to Machinekit clients.  It provides a
+centralized, single view of configuration data, following the same
+pattern of Protobuf-encoded messages over ZMQ.  Currently, it is
+simple request/reply service, but should easily be extensible to
+provide reliable PUB/SUB configuration updates to clients.
+
+Details to be fleshed out later.
+
+
+== Unit Tests
+
+As part of this project, the new Python- and 'nose'-based unit tests
+introduced with Michael Haberler's 'Machinetalk' contributions are
+being expanded upon.
+
+Quick points to be fleshed out later:
+
+* Extensive unit tests are being developed in lock-step with
+  Machinekit Masterd
+* Uses `unittests`, `nosetests` and `mock`, all well-established
+  Python tools, simple to use and well-documented
+* A goal is to integrate tests into package builds so that these can
+  be moved off the buildbot and into public package build
+  infrastructure
+* Another packaging goal is to package unit tests so that testing in
+  the specialized RT kernel environments is simplified
+
+
+== Message Service
+
+The message service is responsible for forwarding messages from the
+real-time system and HAL to any configurable location.
+
+Quick points to be fleshed out later:
+
+* Messages are delivered to the message service Protobuf encapsulated
+  over a ZMQ transport
+* The Python `logging` facility may be used to direct messages
+  practically anywhere, including `stdout`, a log file or syslog, or
+  write your own log handler; this facility comes with fine-grained
+  control over debug levels
+* The message service will offer [not yet implemented] an interface to
+  forward messages to subscribed clients
+* Promises sanity in dealing with unit test debugging!
+
+
+== Control Service
+
+The control service is for remote control of the Master Daemon,
+currently for shutdown and status requests.
+
+To be fleshed out later.
