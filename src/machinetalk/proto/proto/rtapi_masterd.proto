@@ -1,0 +1,47 @@
+//								-*-C-*-
+package masterd;
+
+// Masterd control messages
+//
+// Currently only 'shutdown'
+message MasterdControlCommand {
+    // Type of message
+    enum Type {
+	SHUTDOWN = 1;
+    }
+    required Type type = 10;
+}
+
+
+// Masterd config server messages
+message MasterdConfigItem {
+    // Type of message
+    enum Type {
+	GET = 10;
+	GET_RESULT = 11;
+	GET_ERROR = 12;
+
+	SET = 20;
+	SET_RESULT = 21;
+	SET_ERROR = 22;
+    }
+    required	Type		type		= 10;
+
+    // Configuration item unique name
+    optional	string		name		= 20;
+
+    // both GET and SET messages set a value_type and fill in the
+    // corresponding field
+    enum ValueType {
+	BOOL	= 1;
+	INT	= 2;
+	STRING	= 3;
+    }
+    optional	ValueType	value_type	= 30;
+    optional	bool		value_bool	= 40;
+    optional	int32		value_int	= 41;
+    optional	string		value_string	= 42;
+    
+    optional	string		error_message	= 50;
+}
+
