@@ -2,30 +2,44 @@ from . import RTAPITestCase, RunWithLog, Run
 from nose.tools import assert_equal, assert_is_none, assert_is_not_none
 
 from machinekit import hal
-import time
+from machinekit.rtapi import Config, RTAPI
+import os,time
 
 class test_100_rtapi(RTAPITestCase):
 
     env = {
         "DEBUG" : "5",
         "RTAPI_FOREGROUND" : "1",
+        "MKUUID" : "3b09646d-c125-4e4f-987e-ecd56bed3754",
     }
+    uuid = "3b09646d-c125-4e4f-987e-ecd56bed3754"
 
     def test_10001_start_rt(self):
         """10001 rtapi:  Start realtime environment"""
-        RunWithLog(["realtime","restart"], "nosetests.rt.log", self.env).start()
+        RunWithLog(["realtime","restart"],
+                   "nosetests.rt.log", self.env).start()
         assert_equal(Run.simple(["halcmd","ping"]),0)
 
     def test_10005_no_rtapi_object(self):
         """10005 rtapi:  No RTAPI object exists yet"""
+        self.add_fixture(
+            'config',
+            Config(enabled_stores=['test'],
+                   store_config = {'test' : {'instance' : 0,
+                                             'mkuuid' : self.uuid,
+                                             }}))
+        self.add_fixture(
+            'rtapi',
+            RTAPI(self.config))
+
         # Assert nobody has opened the RTAPI command connection yet
-        assert_is_none(self.pdict['rtapi'])
+        assert_is_none(self.rtapi.__class__._RTAPIcommand)
 
     def test_10010_rtapi_connect(self):
         """10010 rtapi: Connect to RTAPI"""
         # This really just makes sure RTAPITestCase.rtapi has been
         # initialized; it should be the very first test in the module
-        assert_is_not_none(self.rtapi)
+        assert_is_not_none(self.rtapi.RTAPIcommand)
 
     def test_10020_loadrt_or2(self):
         """10020 rtapi: Load a component and start threads"""
