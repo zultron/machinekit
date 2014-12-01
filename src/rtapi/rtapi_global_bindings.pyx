@@ -183,7 +183,7 @@ cdef class _GlobalData:
                 (self.ptr, sizeof(global_data_t), os.strerror(errno)), errno)
 
     # FIXME this goes elsewhere; ring?  msg_buffer?
-    def error_ring_init(self):
+    def rtapi_msg_buffer_init(self):
         ringheader_init(&(self._ptr.rtapi_messages), 0, MESSAGE_RING_SIZE, 0)
         ringbuffer_zero(&(self._ptr.rtapi_messages))
 
@@ -192,6 +192,10 @@ cdef class _GlobalData:
         self.rtapi_msg_buffer.header.refcount = 1
         self.rtapi_msg_buffer.header.reader = os.getpid();
         self._ptr.rtapi_messages.use_wmutex = 1
+
+    def rtapi_msg_buffer_cleanup(self):
+        if self.rtapi_msg_buffer.header != NULL:
+            self.rtapi_msg_buffer.header.refcount -= 1
 
     # FIXME this goes elsewhere; heap?
     def rtapi_heap_init(self):

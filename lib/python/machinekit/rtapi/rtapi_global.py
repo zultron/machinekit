@@ -55,8 +55,8 @@ class GlobalData(rtapi_global_bindings._GlobalData):
         # set service_uuid
         self.service_uuid = self.config.mkuuid
 
-        # init and attach the error ring
-        self.error_ring_init()
+        # init and attach the message buffer ring
+        self.rtapi_msg_buffer_init()
 
         # demon pids
         self.rtapi_app_pid = -1;  # not yet started
@@ -67,3 +67,22 @@ class GlobalData(rtapi_global_bindings._GlobalData):
 
         # release the mutex
         self.mutex_give()
+
+    def assert_no_other_rtapi_masterd(self):
+        if self.rtapi_msgd_pid != 0:
+            raise RTAPIGlobalDataException(
+                "Found another rtapi_masterd pid=%d registered in global data" %
+                self.rtapi_msgd_pid)
+
+    def exists(self):
+        return self.seg.exists()
+
+    def exit(self):
+        # advertise state
+        self.magic = self.GLOBAL_EXITED
+
+        # release interest in gd segment
+        self.rtapi_masterd_pid = 0
+
+        # remove our reference to message buffer
+        self.rtapi_msg_buffer_cleanup()

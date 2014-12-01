@@ -230,6 +230,19 @@ class SHMOps(object):
         global_seg.new()
         return global_seg
         
+    def global_segment_exists(self):
+        # boolean:  Does the shm segment still exist?
+        return MKSHMSegment.exists('global')
+        
+    def unlink_global_segment(self):
+        # Unlink the global segment.
+        #
+        # At this point, all global data shutdown activities must have
+        # been performed.
+
+        global_seg = MKSHMSegment('global').attach()
+        global_seg.detach()
+        global_seg.unlink()
 
     def cleanup_shmdrv(self):
         shmdrv_api.shmdrv_gc()
