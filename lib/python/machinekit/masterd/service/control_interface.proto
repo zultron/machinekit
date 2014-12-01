@@ -1,0 +1,61 @@
+//								-*-C-*-
+// Masterd control service message definitions
+
+package machinekit.masterd.service.control_interface;
+
+message ControlInterfaceRequest {
+    // Type of message
+    enum Type {
+	SHUTDOWN = 1;
+	RESTART = 2;
+	STATUS = 3;
+	PING = 4;
+    };
+    required Type type = 10;
+}
+
+message ControlInterfaceReply {
+    // Type of message
+    enum Type {
+	SHUTDOWN = 1;
+	RESTART = 2;
+	STATUS = 3;
+	PING_ACK = 4;
+    };
+
+    // SHUTDOWN command reply
+    message Shutdown {
+	enum Result {
+	    OK = 1;
+	    ERROR = 2;
+	};
+	optional    Result	result	    = 10;
+	optional    string	msg	    = 20;
+    };
+
+    // RESTART command reply
+    message Restart {
+	enum Result {
+	    OK = 1;
+	    ERROR = 2;
+	};
+	optional    Result	result	    = 10;
+	optional    string	msg	    = 20;
+    };
+
+    message Status {
+	// Handler status
+	message Handler {
+	    optional	string		transport	= 10;
+	    optional	bool		receiving	= 20;
+	    optional	bool		closed		= 30;
+	};
+	repeated    Handler	handler	    = 10;
+    };
+
+    required	Type	    type	= 10;
+    optional	Shutdown    shutdown    = 20;
+    optional	Restart     restart     = 30;
+    optional	Status	    status	= 40;
+
+}

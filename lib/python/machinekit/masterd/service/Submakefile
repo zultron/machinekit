@@ -1,0 +1,13 @@
+MASTERD_SERVICE = ../lib/python/machinekit/masterd/service
+MASTERD_PROTO_SOURCES = $(wildcard $(MASTERD_SERVICE)/*.proto)
+MASTERD_PROTO_PY = $(patsubst %.proto, %_pb2.py, $(MASTERD_PROTO_SOURCES))
+
+$(MASTERD_PROTO_PY): \
+%_pb2.py: %.proto
+	protoc \
+	--python_out=$(MASTERD_SERVICE) \
+	--proto_path=$(MASTERD_SERVICE) \
+	$<
+
+
+PYTARGETS += $(MASTERD_PROTO_PY)

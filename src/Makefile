@@ -242,8 +242,10 @@ SUBDIRS := \
 	\
 	po \
 	\
-	../docs/src
-
+	../docs/src \
+	\
+	../lib/python/machinekit/rtapi/config \
+	../lib/python/machinekit/masterd/service
 
 # moved to src/rtapi/Submakefile
 # ULAPISRCS := rtapi/$(RTPREFIX)_ulapi.c

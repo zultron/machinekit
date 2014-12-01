@@ -1,0 +1,46 @@
+//								-*-C-*-
+// Masterd config service message definitions
+
+package machinekit.masterd.service.config;
+
+message ConfigRequest {
+    // Type of message
+    enum Type {
+	GET = 10;
+	SET = 20;
+    }
+
+    required	Type		type		= 10;
+    optional	string		name		= 20;
+    optional	string		value		= 30;
+}
+
+message ConfigReply {
+    // Type of message
+    enum Type {
+	GET_RESULT = 10;
+	GET_ERROR = 11;
+
+	SET_RESULT_OK = 20;
+	SET_RESULT_ERROR = 21;
+    }
+    required	Type		type		= 10;
+
+    // Configuration item unique name
+    optional	string		name		= 20;
+
+    // both GET and SET messages set a value_type and fill in the
+    // corresponding field
+    enum ValueType {
+	BOOL	= 1;
+	INT	= 2;
+	STRING	= 3;
+    }
+    optional	ValueType	value_type	= 30;
+    optional	bool		value_bool	= 40;
+    optional	int32		value_int	= 41;
+    optional	string		value_string	= 42;
+    
+    optional	string		error_message	= 50;
+}
+

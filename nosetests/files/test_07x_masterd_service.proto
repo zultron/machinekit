@@ -1,0 +1,32 @@
+//								-*-C-*-
+// Masterd test service message definitions
+
+package machinekit.masterd.service.test;
+
+message TestRequest {
+    // Type of message
+    enum Type {
+	TEST1 = 10;
+	TEST2 = 20;
+    }
+
+    required	Type		type		= 10;
+    optional	string		name		= 20;
+    optional	string		strvalue	= 30;
+    optional	int32		intvalue	= 40;
+    optional	bool		boolvalue	= 50;
+}
+
+message TestReply {
+    // Type of message
+    enum Type {
+	TEST1_OK = 10;
+	TEST2_OK = 20;
+    }
+    required	Type		type		= 10;
+    optional	string		name		= 20;
+    optional	string		strvalue	= 30;
+    optional	int32		intvalue	= 40;
+    optional	bool		boolvalue	= 50;
+}
+
