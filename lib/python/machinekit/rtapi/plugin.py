@@ -176,3 +176,13 @@ class PluginLoader(object):
 
     def __iter__(self):
         return iter(self.plugins)
+
+    def by_name(self,name):
+        """
+        An expensive way to get a plugin by name
+        """
+        for p in self.plugins:
+            if p.name == name:
+                return p
+        else:
+            return None
