@@ -27,7 +27,13 @@ class FixtureTestCase(object):
     the attributes in the class, instead..
 
     2) A 'self.log' logger object.
+
+    3) A 'filesdir' path.
     """
+
+    filesdir = os.path.realpath(os.path.join(
+            os.path.dirname(__file__),'files'))
+    nosetestsdir = os.path.realpath(os.path.dirname(__file__))
 
     def __init__(self):
         super(FixtureTestCase,self).__init__()
@@ -38,6 +44,10 @@ class FixtureTestCase(object):
         logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
         self.log = logging.getLogger('nosetestLogger')
         self.log.setLevel(logging.DEBUG)
+
+        # Add nosetestsdir to python path
+        if self.nosetestsdir not in sys.path:
+            sys.path.append(self.nosetestsdir)
 
     @classmethod
     def add_fixture(cls,name,obj):
