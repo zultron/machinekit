@@ -15,12 +15,12 @@ RTAPI_BEGIN_DECLS
 
 #include "config.h"
 
-struct rtapi_heap;
-struct rtapi_heap_stat {
+typedef struct rtapi_heap rtapi_heap;
+typedef struct rtapi_heap_stat {
     size_t total_avail;
     size_t fragments;
     size_t largest;
-};
+} rtapi_heap_stat;
 
 void *rtapi_malloc(struct rtapi_heap *h, size_t nbytes);
 void *rtapi_calloc(struct rtapi_heap *h, size_t n, size_t size);

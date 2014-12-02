@@ -362,6 +362,34 @@ RTAPI_COMMON_SO_OBJS = $(call TOOBJS, $(RTAPI_COMMON_SO_SRCS))
 
 CYTHON_TARGETS += ../lib/python/machinekit/rtapi/rtapi_common.so
 
+RTAPI_HEAP_BINDINGS_SO_CSRCS = rtapi/rtapi_heap_bindings.c
+RTAPI_HEAP_BINDINGS_SO_SRCS = \
+	rtapi/rtapi_heap.c \
+	$(RTAPI_HEAP_BINDINGS_SO_CSRCS)
+
+$(call TOOBJSDEPS, $(RTAPI_HEAP_BINDINGS_SO_SRCS)) : \
+	EXTRAFLAGS=-fPIC
+$(call TOOBJSDEPS, $(RTAPI_HEAP_BINDINGS_SO_SRCS)) : \
+	rtapi/Submakefile
+USERSRCS += $(RTAPI_HEAP_BINDINGS_SO_SRCS)
+
+$(RTAPI_HEAP_BINDINGS_SO_CSRCS): %.c: %.pyx \
+		rtapi/rtapi_heap.pxd \
+		rtapi/cython_helpers.pxd \
+		rtapi/Submakefile
+	$(ECHO) Cythonizing $(notdir $@)
+	$(Q)$(CYTHON) -I rtapi -o $@ $<
+
+RTAPI_HEAP_BINDINGS_SO_OBJS = $(call TOOBJS, $(RTAPI_HEAP_BINDINGS_SO_SRCS))
+
+../lib/python/machinekit/rtapi/rtapi_heap_bindings.so: $(RTAPI_HEAP_BINDINGS_SO_OBJS)
+	$(ECHO) Linking python module $(notdir $@)
+	@mkdir -p $(dir $@)
+	$(Q)$(CC) -g  -shared -o $@ $^ $(LDFLAGS)
+
+CYTHON_TARGETS += ../lib/python/machinekit/rtapi/rtapi_heap_bindings.so
+
+
 
 
 # MK_CONFIG_SO_CSRCS = rtapi/mk_config.c

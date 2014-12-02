@@ -9,6 +9,9 @@ cdef extern from "stdint.h" nogil:
     # uintptr_t is used to pass pointers around in python
     ctypedef size_t uintptr_t
 
+cdef extern from "errno.h":
+    cdef int errno
+
 
 # Numbers
 cdef:

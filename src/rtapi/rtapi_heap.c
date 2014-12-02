@@ -145,6 +145,42 @@ size_t rtapi_print_freelist(struct rtapi_heap *h)
     }
 }
 
+void rtapi_heap_freelist_iter_init(struct rtapi_heap *h,
+				   rtapi_heap_freelist_cursor *cursor)
+{
+    cursor->free_p = h->free_p;
+    cursor->next_p =
+    	((rtapi_malloc_hdr_t *)heap_ptr(h, cursor->free_p))->s.next;
+    cursor->eol = 0;
+}
+
+int rtapi_heap_freelist_iter_next(struct rtapi_heap *h,
+				  rtapi_heap_freelist_cursor *cursor,
+				  size_t *size, size_t *offset)
+{
+    // if eol flag set, return signal saying so
+    if (cursor->eol) return 1;
+
+    // set eol flag if cursor has gone full circle
+    if (cursor->free_p == cursor->next_p)
+	cursor->eol = 1;
+
+    // pass results back through function params
+    *size = ((rtapi_malloc_hdr_t *)heap_ptr(h, cursor->next_p))->s.size *
+	sizeof(rtapi_malloc_hdr_t);
+    *offset = cursor->next_p;
+
+    // advance cursor
+    cursor->next_p =
+	((rtapi_malloc_hdr_t *)heap_ptr(h, cursor->next_p))->s.next;
+
+    // if this is the base, skip it
+    if (*size == 0 && *offset == 0)
+	return rtapi_heap_freelist_iter_next(h, cursor, size, offset);
+    else
+	return 0;
+}
+
 int rtapi_heap_addmem(struct rtapi_heap *h, void *space, size_t size)
 {
     if (space < (void*) h) return -EINVAL;

@@ -15,9 +15,6 @@ cdef extern from "sys/mman.h":
     int mlock(const void *addr, size_t len)
     int munlock(const void *addr, size_t len)
 
-cdef extern from "errno.h":
-    cdef int errno
-
 cdef extern from "uuid/uuid.h":
     ctypedef unsigned char uuid_t[16]
     int uuid_parse(const char *instr, uuid_t uu)

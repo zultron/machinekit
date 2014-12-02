@@ -10,3 +10,4 @@
 # Cython generated
 /rtapi_global_bindings.c
 /rtapi_common.c
+/rtapi_heap_bindings.c
