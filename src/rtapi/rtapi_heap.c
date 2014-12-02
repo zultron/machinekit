@@ -63,7 +63,7 @@ void *rtapi_malloc(struct rtapi_heap *h, size_t nbytes)
 	    return (void *)(p+1);
 	}
 	if (p == freep)	{	/* wrapped around free list */
-	    //rtapi_print_msg(RTAPI_MSG_ERR, "rtapi_malloc: out of memory (size=%zu arena=%zu)", nbytes, h->arena_size);
+	    //rtapi_print_msg(RTAPI_MSG_ERR, "rtapi_malloc: out of memory (size=%zu)", nbytes);
 	    //if ((p = morecore(nunits)) == NULL)
 	    return NULL;	/* none left */
 	}
@@ -197,7 +197,6 @@ int rtapi_heap_init(struct rtapi_heap *heap)
     heap->free_p = 0;      // and free list sentinel
     heap->base.s.size = 0;
     heap->mutex = 0;
-    heap->arena_size = 0;
     return 0;
 }
 

@@ -27,8 +27,6 @@ typedef union rtapi_malloc_header rtapi_malloc_hdr_t;
 typedef struct rtapi_heap {
     rtapi_malloc_hdr_t base;
     size_t free_p;
-    // FIXME not needed
-    size_t arena_size;
     rtapi_atomic_type mutex;
 } rtapi_heap;
 typedef rtapi_heap *rtapi_heap_ptr_t;  // Make Cython's life easier
