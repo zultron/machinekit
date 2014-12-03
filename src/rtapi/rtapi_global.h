@@ -109,7 +109,7 @@ typedef struct {
     char buf[SIZE_ALIGN(MESSAGE_RING_SIZE)];
     ringtrailer_t rtapi_messages_trailer;
 
-    struct rtapi_heap heap;
+    rtapi_heap heap;
     //size_t heap_size;
 #define GLOBAL_HEAP_SIZE (512*512)
     unsigned char arena[GLOBAL_HEAP_SIZE] __attribute__((aligned(16)));

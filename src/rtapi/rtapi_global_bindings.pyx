@@ -193,9 +193,3 @@ cdef class _GlobalData:
     def rtapi_msg_buffer_cleanup(self):
         if self.rtapi_msg_buffer.header != NULL:
             self.rtapi_msg_buffer.header.refcount -= 1
-
-    # FIXME this goes elsewhere; heap?
-    def rtapi_heap_init(self):
-        rtapi_heap_init(&(self._ptr.heap))
-        rtapi_heap_addmem(&(self._ptr.heap), self._ptr.arena,
-                           GLOBAL_HEAP_SIZE)

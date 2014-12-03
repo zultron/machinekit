@@ -3,8 +3,8 @@ from rtapi import RTAPI, RTAPIPermissionError
 from config import Config, RTAPIConfigException, RTAPIConfigNotFoundException
 from environment import Environment, RTAPIEnvironmentInitError, \
     RTAPIEnvironmentRLimitError, RTAPIEnvironmentPrivilegeError
-from shm import MKSHMSegment, SHMDrvAPIRuntimeError, \
-    SHMOps, RTAPISHMRuntimeError
+from shm import MKSHMSegment, GlobalSegment, RTAPISegment, HALSegment, \
+    SHMDrvAPIRuntimeError, SHMOps, RTAPISHMRuntimeError
 from util import Util
 from rtapi_global import GlobalData, RTAPIGlobalDataException
 

@@ -76,9 +76,9 @@ cdef class SHMSegment:
 
     def __repr__(self):
         return "<shm segment %s>" % self.key
-    def __cinit__(self):
-        self.key = 0
-        self.size = 0
+    def __cinit__(self, int key=0, int size=0, **kwargs):
+        self.key = key
+        self.size = size
         self._ptr = NULL
         # Be sure that the value in shmdrv.h and here haven't diverged
         assert_shm_name_length_consistency()
@@ -97,42 +97,28 @@ cdef class SHMSegment:
         def __get__(self): return <uintptr_t>self._ptr
 
 
-    def new(self, int key, int size, bint create = 1):
-        """Create new shm object from key and size"""
+    def new(self, bint create = 1):
+        """Create new shm object"""
         cdef int res
         cdef bytes oper = <bytes>(('attach','create')[create])
-
-        if key == 0:
-            raise SHMDrvAPIRuntimeError(
-                "Refusing to %s segment: requested key=%08x" %
-                (oper, self.key))
-
-        if self.key != 0:
-            raise SHMDrvAPIRuntimeError(
-                "Failed to %s segment: object already initialized: "
-                "key=%08x" % (oper, self.key))
-
-        self.key = key
-        self.size = size
 
         # get new shm seg
         res = c_shm_common_new(self.key, &self.size, &self._ptr, create)
         if res < 0:
             raise SHMDrvAPIRuntimeError(
-                "Failed to %s shm object, key=%08x size=%d:  %s" %
-                (("attach","create")[create], key, self.size,
-                 os.strerror(-res)))
+                "Failed to %s shm object key=%08x size=%d:  %s" %
+                (oper, self.key, self.size, os.strerror(-res)))
 
-        if create == 1 and res == 0:
+        if create and res == 0:
             raise SHMDrvAPIRuntimeError(
-                "Failed to create new shm object:  key=%08x already exists" %
-                key)
+                "Failed to create shm object, key=%08x:  already exists" %
+                self.key)
 
         return self  # so we can e.g. SHMSegment('global').new().unlink()
         
-    def attach(self, int key):
-        """Attach existing shm segment by key"""
-        SHMSegment.new(self, key, 0, 0)
+    def attach(self):
+        """Attach existing shm segment"""
+        SHMSegment.new(self, 0)
         return self
 
     def exists(self):
@@ -141,10 +127,6 @@ cdef class SHMSegment:
 
     def detach(self):
         """Detach existing shm segment"""
-        if self.key == 0:
-            raise SHMDrvAPIRuntimeError(
-                "Detach failed:  uninitialized object")
-
         cdef int res = c_shm_common_detach(self.size, self._ptr)
         if res == -1:
             raise SHMDrvAPIRuntimeError(
@@ -153,10 +135,6 @@ cdef class SHMSegment:
 
     def unlink(self):
         """Unlink existing shm segment"""
-        if self.key == 0:
-            raise SHMDrvAPIRuntimeError(
-                "Unlink failed:  uninitialized object")
-
         cdef int res = c_shm_common_unlink(self.key)
         if res == -1:
             raise SHMDrvAPIRuntimeError(

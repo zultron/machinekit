@@ -17,32 +17,19 @@ class MKSHMSegment(shmdrv_api.SHMSegment):
     """
 
     SHM_PREFIX = rtapi_bindings._SHM_PREFIX
-    _instance = 0
-    all_seg_names = ('global', 'rtapi', 'hal')
-
-    attsdict = {
-        "rtapi" : {
-            "magic"         : rtapi_bindings._RTAPI_KEY,
-            "requested_size" : rtapi_common.RTAPI_DATA_SIZE,
-            },
-        "hal" : {
-            "magic"          : rtapi_bindings._HAL_KEY,
-            "requested_size" : HAL_SIZE
-            },
-        "global" : {
-            "magic"          : rtapi_bindings._GLOBAL_KEY,
-            "requested_size" : rtapi_bindings.global_data_size(),
-            },
-        }
+    instance = 0
+    requested_size = None
+    magic = None
+    log = logging.getLogger(__name__)
 
     @classmethod
     def posix_name_prefix(cls, instance = None):
-        if instance is None:  instance = cls._instance
+        if instance is None:  instance = cls.instance
         return "%s" % (cls.SHM_PREFIX)
 
     @classmethod
     def init_shm(cls, instance=0, prefix=None):
-        cls._instance = instance
+        cls.instance = instance
         shmdrv_api.init()
         if prefix is None:
             # set prefix to default /linuxcnc-%(key)08x
@@ -51,104 +38,97 @@ class MKSHMSegment(shmdrv_api.SHMSegment):
         log.debug("Initialized shm: POSIX name prefix '%s', instance %d",
                   prefix, instance)
 
-    @classmethod
-    def all_key_names(cls):
-        return self.atts.keys()
-
-    class exists_descr(object):
-        """
-        A descriptor class for a unified exists() instance and class
-        method
-        """
-        def __get__(self, obj, objtype=None):
-            if obj is not None:
-                return lambda: shmdrv_api.exists(
-                    obj.key_byname(obj.name, obj._instance))
-            else:
-                return lambda name, instance=None: shmdrv_api.exists(
-                    objtype.key_byname(
-                        name, (instance,objtype._instance)[instance is None]))
-    exists = exists_descr()
-
-    class instance_descr(object):
-        def __get__(self, obj, type=None):
-            if obj is not None:
-                return obj._instance
-            return type._instance
-        def __set__(self, obj, value):
-            obj._instance = value
-    instance = instance_descr()
-
-    def __init__(self, name):
-        self.name = name
-        # Don't want obj instance to change if class instance is changed
-        self.instance = self.__class__._instance
-        self.log = logging.getLogger(self.__module__)
-
-    @property
-    def attr(self):
-        return self.attsdict[self.name]
+    def __init__(self, key = 0, size = 0, instance = None):
+        # Set `instance` in object in case class instance is changed
+        if instance is not None:
+            self.instance = instance
+        else:
+            self.instance = self.__class__.instance
+        # Set parent object key
+        self.key = self.key_byname(self.instance, self)
+        # If we're a subclass, we have size data
+        if self.requested_size is not None and size == 0:
+            self.size = self.requested_size
 
     @classmethod
-    def key_byname(cls, name, instance):
-        # Usable as either object or class method
-        return ((cls.attsdict[name]['magic'] & 0x00ffffff) |
+    def key_byname(cls, instance, obj=None):
+        if cls.magic is None: magic = obj.key
+        else:  magic = cls.magic
+
+        return ((magic & 0x00ffffff) |
                 ((instance << 24) & 0xff000000))
 
     @property
-    def key(self):
-        return self.key_byname(self.name, self._instance)
+    def name(self):
+        '''Subclasses may override'''
+        return "0x%08x" % self.key
 
-    @property
-    def requested_size(self):
-        return self.attr.get('requested_size',None)
+    def new(self):
+        super(MKSHMSegment, self).new()
 
-    def new(self, requested_size=None):
-        requested_size = self.attr.setdefault('requested_size',requested_size)
-        if requested_size is None:
-            raise RTAPISHMRuntimeError(
-                "Unknown requested size creating shm seg %s" % self.name)
-        super(MKSHMSegment, self).new(self.key, requested_size)
         # be sure size is same as requested
-        if requested_size != self.size:
+        if self.requested_size and self.requested_size != self.size:
             raise RTAPISHMRuntimeError(
-                "Segment %s:  created size %d != requested size %d" %
-                (self.name,self.size,requested_size))
+                "Segment '%s':  created size %d != requested size %d" %
+                (self.name, self.size, self.requested_size))
 
-        self.log.debug("Created new %s shm segment: key=%08x, size=%d",
+        self.log.debug("Segment '%s': create new key=%08x, size=%d",
                        self.name, self.key, self.size)
         return self
 
     def attach(self):
-        super(MKSHMSegment, self).attach(self.key)
+        super(MKSHMSegment, self).attach()
         # be sure size is same as requested
-        if self.attr['requested_size'] and \
-                self.attr['requested_size'] != self.size:
+        if self.requested_size and \
+                self.requested_size != self.size:
             raise RTAPISHMRuntimeError(
-                "Segment %s:  attached size %d != requested size %d" %
+                "Segment '%s':  attached size %d != requested size %d" %
                 (self.name, self.size, self.attr['requested_size']))
 
         self.log.debug(
-            "Attached existing %s shm segment: key=%08x, size=%d",
+            "Segment '%s':  attached existing key=%08x, size=%d",
             self.name, self.key, self.size)
         return self
 
     def detach(self):
         super(MKSHMSegment, self).detach()
 
-        self.log.debug("Detached %s shm segment: key=%08x",
+        self.log.debug("Segment '%s':  detached key=%08x",
                        self.name, self.key)
         return self
 
     def unlink(self):
         super(MKSHMSegment, self).unlink()
 
-        self.log.debug("Unlinked %s shm segment: key=%08x",
+        self.log.debug("Segment '%s':  unlinked key=%08x",
                        self.name, self.key)
         return self
 
 
+class GlobalSegment(MKSHMSegment):
+    requested_size = rtapi_bindings.global_data_size()
+    magic = rtapi_bindings._GLOBAL_KEY
+    name = "global"
+
+class RTAPISegment(MKSHMSegment):
+    requested_size = rtapi_common.RTAPI_DATA_SIZE
+    magic = rtapi_bindings._RTAPI_KEY
+    name = "rtapi"
+
+class HALSegment(MKSHMSegment):
+    requested_size = HAL_SIZE
+    magic = rtapi_bindings._HAL_KEY
+    name = "hal"
+
+
+
 class SHMOps(object):
+
+    all_seg_classes = [
+        GlobalSegment,
+        RTAPISegment,
+        HALSegment,
+        ]
 
     def __init__(self, config=None):
         if config is None:
@@ -181,12 +161,12 @@ class SHMOps(object):
                 "Shmdrv module not detected; please report this bug")
 
     def any_segment_exists(self, instance=None):
-        for name in MKSHMSegment.all_seg_names:
-            if MKSHMSegment.exists(name, instance):
+        for cls in self.all_seg_classes:
+            if cls(instance=instance).exists():
                 return True
         return False
 
-    def assert_segment_sanity(self):
+    def assert_segment_sanity(self, instance=None):
         """
         Sanity check: Be sure that any loaded shm segs are in a state
         they can be cleaned up.  This should only be run after
@@ -204,13 +184,13 @@ class SHMOps(object):
             self.cleanup_shm_posix(barf=False)
 
         # If leftovers still exist after cleanup, raise exception.
-        for name in MKSHMSegment.all_seg_names:
-            if MKSHMSegment.exists(name):
+        for cls in self.all_seg_classes:
+            if cls(instance=instance).exists():
                 raise RTAPISHMRuntimeError(
                     "Unable to cleanup conflicting %s segment, key=%s" %
-                    (name, MKSHMSegment(name).key))
+                    (cls.__name__, cls(instance=instance).key))
             
-    def assert_sanity(self):
+    def assert_sanity(self, instance=None):
         """
         Sanity checks
         
@@ -218,53 +198,52 @@ class SHMOps(object):
         Environment.assert_sanity() to avoid cleaning up SHM segments
         from under a running instance.
         """
-        self.assert_segment_sanity()
+        self.assert_segment_sanity(instance=instance)
 
-    def create_global_segment(self):
+    def create_global_segment(self, instance=None):
         # Create the global segment.
         #
         # At this point, all environment sanity checks must have been
         # performed.
 
-        global_seg = MKSHMSegment('global')
+        global_seg = GlobalSegment(instance=instance)
         global_seg.new()
         return global_seg
         
-    def global_segment_exists(self):
+    def global_segment_exists(self, instance=None):
         # boolean:  Does the shm segment still exist?
-        return MKSHMSegment.exists('global')
+        return GlobalSegment(instance=instance).exists()
         
-    def unlink_global_segment(self):
+    def unlink_global_segment(self, instance=None):
         # Unlink the global segment.
         #
         # At this point, all global data shutdown activities must have
         # been performed.
 
-        global_seg = MKSHMSegment('global').attach()
-        global_seg.detach()
+        global_seg = GlobalSegment(instance=instance)
         global_seg.unlink()
 
     def cleanup_shmdrv(self):
         shmdrv_api.shmdrv_gc()
 
-    def cleanup_shm_posix(self, barf=True):
+    def cleanup_shm_posix(self, instance=None, barf=True):
         """
         Clean up 'global', 'hal' and 'rtapi' shm segments.  When barf
         is True, an exception will be raised if any segments are found
         to be already unlinked.
         """
         # clean up keys in hal, rtapi, global order
-        for name in reversed(MKSHMSegment.all_seg_names):
-            seg = MKSHMSegment(name)
+        for cls in reversed(self.all_seg_classes):
+            seg = cls(instance=instance)
             if not seg.exists():
                 if not barf:  continue
                 raise RTAPISHMRuntimeError(
                     "Unable to cleanup non-existent %s segment, key=%s" %
-                    (name, seg.key))
+                    (cls.__name__, seg.key))
 
             self.log.warn("Removing unused %s shm segment %s",
-                          name, seg.posix_name)
-            seg.attach().unlink()
+                          cls.__name__, seg.posix_name)
+            seg.unlink()
 
 
 class RTAPISHMRuntimeError(RuntimeError):

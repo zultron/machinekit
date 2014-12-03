@@ -1,6 +1,11 @@
 from .rtapi_heap cimport *  # struct rtapi_heap
 from .ring cimport *
 
+cdef extern from "rtapi_heap.h":
+    cdef struct rtapi_heap:
+        pass
+    ctypedef rtapi_heap rtapi_heap
+
 cdef extern from "rtapi_global.h":
     int GLOBAL_HEAP_SIZE
     int MESSAGE_RING_SIZE

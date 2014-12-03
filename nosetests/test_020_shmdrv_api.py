@@ -35,23 +35,14 @@ class test_020_shmdrv_api(FixtureTestCase):
                 self.log.warn("Unlinking existing shm seg, key=%08d" % key)
                 shmdrv_api.SHMSegment().attach(key).unlink()
 
-    def test_02020_uninitialized_seg_attributes(self):
-        """02020 shmdrv_api:  uninitialized seg attributes are None"""
+    def test_02020_seg_attribute_init(self):
+        """02020 shmdrv_api:  seg attributes initialization"""
 
-        seg = shmdrv_api.SHMSegment()
-        # Attributes start out as None
-        assert_equal(seg.key, 0)
-        assert_equal(seg.size, 0)
-        assert_is_none(seg.posix_name)
+        seg = shmdrv_api.SHMSegment(self.key1, self.size1)
+        # Attributes initialized properly
+        assert_equal(seg.key, self.key1)
+        assert_equal(seg.size, self.size1)
         assert_equal(seg.ptr, 0)
-
-    def test_02021_create_invalid_key(self):
-        """02021 shmdrv_api:  new seg with invalid key raises exception"""
-
-        seg = shmdrv_api.SHMSegment()
-        assert_raises(shmdrv_api.SHMDrvAPIRuntimeError,
-                      seg.new, 0, self.size1)
-
 
     @skip("Unwritten")
     def test_02022_set_name_format(self):
@@ -63,7 +54,7 @@ class test_020_shmdrv_api(FixtureTestCase):
         """02030 shmdrv_api:  new shm segment"""
 
         # make it a fixture for later
-        self.fix(seg1 = shmdrv_api.SHMSegment().new(self.key1, self.size1))
+        self.fix(seg1 = shmdrv_api.SHMSegment(self.key1, self.size1).new())
 
 
     def test_02031_shm_seg_attributes(self):
@@ -93,12 +84,12 @@ class test_020_shmdrv_api(FixtureTestCase):
         assert_equal(self.seg1.key, self.key1)
 
         assert_raises(shmdrv_api.SHMDrvAPIRuntimeError,
-                      self.seg1.new,self.key1,self.size1)
+                      self.seg1.new)
 
     def test_02040_shm_attach(self):
         """02040 shmdrv_api:  attach to existing shm segment"""
 
-        seg = shmdrv_api.SHMSegment().attach(self.key1)
+        seg = shmdrv_api.SHMSegment(self.key1).attach()
         assert_equal(seg.posix_name, self.seg1.posix_name)
 
         # make object a fixture
@@ -107,7 +98,7 @@ class test_020_shmdrv_api(FixtureTestCase):
     def test_02050_second_segment(self):
         """02050 shmdrv_api:  create a second segment and check it"""
 
-        seg2 = shmdrv_api.SHMSegment().new(self.key2, self.size2)
+        seg2 = shmdrv_api.SHMSegment(self.key2, self.size2).new()
         # make obj a fixture
         self.fix(seg2 = seg2)
 
@@ -140,13 +131,13 @@ class test_020_shmdrv_api(FixtureTestCase):
         """02061 shmdrv_api:  attach unlinked segment fails"""
 
         assert_raises(shmdrv_api.SHMDrvAPIRuntimeError,
-                      shmdrv_api.SHMSegment().attach, self.key2)
+                      shmdrv_api.SHMSegment(self.key2).attach)
 
     def test_02062_create_new_existing_seg_fails(self):
         """02062 shmdrv_api:  create new existing segment fails"""
 
         assert_raises(shmdrv_api.SHMDrvAPIRuntimeError,
-                      shmdrv_api.SHMSegment().new, self.key1, self.size1)
+                      shmdrv_api.SHMSegment(self.key1, self.size1).new)
 
     def test_02063_unlink_last_segment(self):
         """02063 shmdrv_api:  unlink last segment"""

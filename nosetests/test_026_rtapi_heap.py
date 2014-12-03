@@ -86,14 +86,14 @@ class test_026_rtapi_heap(FixtureTestCase):
 
         # Unlink any existing seg
         try:
-            shmdrv_api.SHMSegment().attach(self.key1).unlink()
+            shmdrv_api.SHMSegment(self.key1).unlink()
             print "(detached existing seg)"
         except:
             pass
 
         # Create heap shm segment
         self.fix(
-            seg1 = shmdrv_api.SHMSegment().new(self.key1, self.size1),
+            seg1 = shmdrv_api.SHMSegment(self.key1, self.size1).new(),
             )
         print "created shm seg %s, addr %x, key %s, size %s" % \
             (self.seg1.posix_name, self.seg1.ptr, self.seg1.key, self.seg1.size)

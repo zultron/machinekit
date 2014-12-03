@@ -10,7 +10,7 @@ from machinekit.rtapi.config import Config, \
     RTAPIConfigException, RTAPIConfigNotFoundException
 from machinekit.rtapi import \
     SHMOps, RTAPISHMRuntimeError, \
-    MKSHMSegment, SHMDrvAPIRuntimeError
+    MKSHMSegment, GlobalSegment, RTAPISegment, HALSegment, SHMDrvAPIRuntimeError
 
 import os, logging
 
@@ -69,35 +69,35 @@ class test_024_rtapi_shmops(FixtureTestCase):
         """02430 rtapi shmops:  any_segment_exists()"""
 
         # Sanity check on list of segments
-        for name in ("global", "hal", "rtapi"):
-            assert_in(name, MKSHMSegment.all_seg_names)
+        for cls in (GlobalSegment, RTAPISegment, HALSegment):
+            assert_in(cls, self.shmops.all_seg_classes)
 
         # Setup:  no segment exists
-        for name in MKSHMSegment.all_seg_names:
-            assert_false(MKSHMSegment.exists(name))
+        for cls in self.shmops.all_seg_classes:
+            assert_false(cls().exists())
 
         # Test:  any_segment_exists() returns False
         assert_false(self.shmops.any_segment_exists())
 
-        for name in MKSHMSegment.all_seg_names:
-            # Setup:  a segment exists
-            seg = MKSHMSegment(name).new()
+        for cls in self.shmops.all_seg_classes:
+            # Setup:  create segment
+            seg = cls().new()
 
-            # Test:  True
+            # Test:  any_segment_exists() is True
             assert_true(self.shmops.any_segment_exists())
 
             # Setup:  remove segment
             seg.unlink()
 
-            # Test:  False
+            # Test:  any_segment_exists() is False
             assert_false(self.shmops.any_segment_exists())
 
     def test_02440_cleanup_shm_posix(self):
         """02440 rtapi shmops:  cleanup_shm_posix()"""
 
         # Setup:  no segs exist
-        for name in MKSHMSegment.all_seg_names:
-            assert_false(MKSHMSegment.exists(name))
+        for cls in self.shmops.all_seg_classes:
+            assert_false(cls().exists())
 
         # Test:  no exception when barf=False
         self.shmops.cleanup_shm_posix(barf=False)
@@ -107,45 +107,45 @@ class test_024_rtapi_shmops(FixtureTestCase):
                       self.shmops.cleanup_shm_posix,barf=True)
 
         # Setup:  'hal' and 'global' segs exist, but 'rtapi' missing
-        MKSHMSegment('hal').new()
-        MKSHMSegment('global').new()
+        HALSegment().new()
+        GlobalSegment().new()
 
         # Test:  exception when barf=True
         assert_raises(RTAPISHMRuntimeError,
                       self.shmops.cleanup_shm_posix,barf=True)
 
         # Test:  global seg still exists (rtapi cleaned up; barfed on hal)
-        assert_true(MKSHMSegment.exists('global'))
-        assert_false(MKSHMSegment.exists('hal'))
-        assert_false(MKSHMSegment.exists('rtapi'))
+        assert_true(GlobalSegment().exists())
+        assert_false(HALSegment().exists())
+        assert_false(RTAPISegment().exists())
 
         # Test:  no exception when barf=False
         self.shmops.cleanup_shm_posix(barf=False)
 
         # Test:  all segs unlinked
-        for name in MKSHMSegment.all_seg_names:
-            assert_false(MKSHMSegment.exists(name))
+        for cls in self.shmops.all_seg_classes:
+            assert_false(cls().exists())
 
 
     def test_02450_assert_segment_sanity_posix(self):
         """02450 rtapi shmops:  assert_segment_sanity() for POSIX shm"""
         
         # Setup:  no segment exists
-        for name in MKSHMSegment.all_seg_names:
-            assert_false(MKSHMSegment.exists(name))
+        for cls in self.shmops.all_seg_classes:
+            assert_false(cls().exists())
 
         # Test:  no exception
         self.shmops.assert_segment_sanity()
 
         # Setup:  a segment exists; use_shmdrv is False
-        seg = MKSHMSegment('global').new()
+        seg = GlobalSegment().new()
         self.config_dict['use_shmdrv'] = False
 
         # Test: no exception
         self.shmops.assert_segment_sanity()
 
         # Setup:  simulate failure to clean up all segs
-        seg = MKSHMSegment('global').new()
+        seg = GlobalSegment().new()
         # give shmops object a no-op cleanup_shm_posix function
         self.shmops.cleanup_shm_posix = lambda barf: None;
 
@@ -174,8 +174,8 @@ class test_024_rtapi_shmops(FixtureTestCase):
         """02470 rtapi shmops:  create_global_segment()"""
 
         # Setup:  no global seg exists
-        assert_false(MKSHMSegment.exists('global'))
+        assert_false(GlobalSegment().exists())
 
         # Test:  global seg exists after execution
         self.shmops.create_global_segment()
-        assert_true(MKSHMSegment.exists('global'))
+        assert_true(GlobalSegment().exists())
