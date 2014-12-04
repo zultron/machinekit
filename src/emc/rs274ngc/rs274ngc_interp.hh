@@ -89,7 +89,12 @@ public:
  char *error_text(int error_code, char *error_text,
                                 size_t max_size);
 
+ char *warning_text(char *error_text,
+                                size_t max_size);
+
  void setError(const char *fmt, ...) __attribute__((format(printf,2,3)));
+
+ void setWarning(const char *fmt, ...) __attribute__((format(printf,2,3)));
 
 // copy the name of the currently open file into the file_name array,
 // but stop at max_size if the name is longer
