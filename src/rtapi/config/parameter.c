@@ -17,15 +17,6 @@
  * 02110-1301 USA
  ********************************************************************/
 
-#include <string.h>  // strcpy
-//#include "rtapi_heap.h"
-#include "rtapi_heap_private.h"  // need sizeof(rtapi_heap)
-#include <assert.h>
-// FIXME
-#include <stdio.h>
-
-#include "parameter.h"
-
 /*
  * Data structure:
  *
@@ -46,41 +37,37 @@
  * char* bytes are in a separate malloc chunk
 */
 
-// Pointer to heap
-static rtapi_heap* heap = NULL;
-static int rtapi_config_locked = 0;
 
+#include <string.h>  // strcpy
+//#include "rtapi_heap.h"
+#include "rtapi_heap_private.h"  // need sizeof(rtapi_heap)
+#include <assert.h>
+// FIXME
+#include <stdio.h>
+#include "parameter.h"
+
+
+/*
+ * Config header and section, parameter and value node structures
+ */
 typedef struct rtapi_config_header {
     rtapi_heap heap;
     int rtapi_config_locked;
     size_t topsection_offset;
 } rtapi_config_header;
-static rtapi_config_header* header_ptr;
 
-
-/*
- * Section, parameter and value node structures
- *
- * Node offset->ptr and ptr->offset functions for convenience
- */
 typedef struct section_node {
     char name[RTAPI_CONFIG_NAME_MAX];
     size_t next;		// offset of next section in same level
     size_t child;		// offset of first subsection
     size_t parameter;		// offset of first parameter
 } section_node;
-static inline section_node* snode_off_to_ptr(size_t offset) {
-    return (section_node*)heap_ptr(heap, offset);
-}
 
 typedef struct parameter_node {
     char name[RTAPI_CONFIG_NAME_MAX];
     size_t next_value;		// offset of next value_node
     size_t next_param;		// offset of next parameter
 } parameter_node;
-static inline parameter_node* pnode_off_to_ptr(size_t offset) {
-    return (parameter_node*)heap_ptr(heap, offset);
-}
 
 typedef struct value_node {
     union {			// union of all value types
@@ -91,15 +78,37 @@ typedef struct value_node {
     } value;
     size_t next;		// offset of next value_node
 } value_node;
+
+/*
+ * Globals
+ */
+// Pointer to config tree header struct
+static rtapi_config_header* header_ptr = NULL;
+// Pointer to heap
+static rtapi_heap* heap = NULL;
+// Pointer to top section
+static section_node* topsection_ptr = NULL;
+
+
+/*
+ * Node offset->ptr and ptr->offset functions for convenience
+ */
+static inline section_node* snode_off_to_ptr(size_t offset) {
+    if (offset == 0) return NULL;
+    return (section_node*)heap_ptr(heap, offset);
+}
+static inline parameter_node* pnode_off_to_ptr(size_t offset) {
+    if (offset == 0) return NULL;
+    return (parameter_node*)heap_ptr(heap, offset);
+}
 static inline value_node* vnode_off_to_ptr(size_t offset) {
+    if (offset == 0) return NULL;
     return (value_node*)heap_ptr(heap, offset);
 }
-
 static inline size_t node_ptr_to_off(void* ptr) {
     return heap_off(heap, ptr);
 }
 
-static section_node* topsection_ptr = NULL;
 
 /*
  * split_section_path():  Split top-level section name from a section path
@@ -124,8 +133,10 @@ static const char* split_section_path(const char* section_path,
     return (char*)section_path + i;
 }
 
+
 /*
- * Create a new section relative to a parent or previous section node
+ * Allocate, initialize and link a new section relative to a parent or
+ * previous section node
  */
 static int new_section(const char* name,
 		       section_node* parent, section_node* prev)
@@ -133,7 +144,7 @@ static int new_section(const char* name,
     section_node* ptr;
 
     // Don't do anything if config is locked
-    if (rtapi_config_locked == 1) {
+    if (header_ptr->rtapi_config_locked == 1) {
 	// FIXME
 	printf("new_section:  config locked; returning 1\n");
 	return 1;
@@ -227,12 +238,15 @@ static section_node* find_subsection(section_node* base,
 }
 
 
+/*
+ * Allocate, initialize and link a new parameter node
+ */
 static int new_parameter(const char* name, size_t* pnode_off_ptr)
 {
     parameter_node* pnode;
 
     // Don't do anything if config is locked
-    if (rtapi_config_locked == 1)
+    if (header_ptr->rtapi_config_locked == 1)
 	return 1;
 
     // allocate space
@@ -251,6 +265,11 @@ static int new_parameter(const char* name, size_t* pnode_off_ptr)
     return 0;
 }
 
+
+/*
+ * find_parameter(): Locate a parameter in the config tree; create if
+ * necessary
+ */
 static parameter_node* find_parameter(const char* section_path,
 				      const char* name)
 {
@@ -286,12 +305,15 @@ static parameter_node* find_parameter(const char* section_path,
     return pnode_off_to_ptr(*pnode_off_ptr);
 }
 
+/*
+ * new_value():  Allocate, initialize and link a new value node
+ */
 static int new_value(size_t* vnode_off_ptr)
 {
     value_node* vnode;
 
     // Don't do anything if config is locked
-    if (rtapi_config_locked == 1)
+    if (header_ptr->rtapi_config_locked == 1)
 	return 1;
 
     // allocate space
@@ -306,11 +328,16 @@ static int new_value(size_t* vnode_off_ptr)
     *vnode_off_ptr = node_ptr_to_off(vnode);
 
     // FIXME
-    printf("      created new value @%zu\n", *vnode_off_ptr);
+    printf("      created new value @%zu/%p\n",
+	   *vnode_off_ptr, vnode_off_to_ptr(*vnode_off_ptr));
 
     return 0;
 }
 
+/*
+ * find_value(): find a value node in the config tree, create if
+ * needed
+ */
 static value_node* find_value(const char* section_path, const char* name,
 			      int index)
 {
@@ -346,6 +373,43 @@ static value_node* find_value(const char* section_path, const char* name,
     return vnode_off_to_ptr(*vnode_off_ptr);
 }
 
+/*
+ * value_node_iter_init():  Public:  Set up a value node iterator
+ */
+size_t rtapi_config_value_iter_init(const char* section_path, const char* name)
+{
+    return find_parameter(section_path, name)->next_value;
+}
+
+/*
+ * rtapi_config_value_iter_next(): Return value node pointed to by
+ * offset_ptr and update offset_ptr; used by the typed iter_next
+ * functions below
+ */
+static value_node* rtapi_config_value_iter_next(size_t* offset_ptr)
+{
+    value_node* res = vnode_off_to_ptr(*offset_ptr);
+    *offset_ptr = res->next;
+	
+    // FIXME
+    printf("Next offset = %zu\n", *offset_ptr);
+    return res;
+}
+
+/*
+ * rtapi_config_check(): Public: Return true if a config parameter
+ * exists (or can be created); used in Cython bindings
+ */
+int rtapi_config_check(const char* section_path, const char* name,
+		       int index)
+{
+    return (find_value(section_path, name, index) != NULL);
+}
+
+/*
+ * rtapi_config_bool(): Public: Return pointer to a config parameter's
+ * boolean value for direct read/write access
+ */
 int* rtapi_config_bool(const char* section_path, const char* name,
 		       int index)
 {
@@ -361,6 +425,19 @@ int* rtapi_config_bool(const char* section_path, const char* name,
     return &value->value.vbool;
 }
 
+/*
+ * rtapi_config_value_iter_next_bool(): Public: Return pointer to bool
+ * value and update iter offset
+ */
+int* rtapi_config_value_iter_next_bool(size_t* offset_ptr)
+{
+    return &(rtapi_config_value_iter_next(offset_ptr))->value.vbool;
+}
+
+/*
+ * rtapi_config_int(): Public: Return pointer to a config parameter's
+ * integer value for direct read/write access
+ */
 int* rtapi_config_int(const char* section_path, const char* name,
 		      int index)
 {
@@ -376,6 +453,19 @@ int* rtapi_config_int(const char* section_path, const char* name,
     return &value->value.vint;
 }
 
+/*
+ * rtapi_config_value_iter_next_int(): Public: Return pointer to int
+ * value and update iter offset
+ */
+int* rtapi_config_value_iter_next_int(size_t* offset_ptr)
+{
+    return &rtapi_config_value_iter_next(offset_ptr)->value.vint;
+}
+
+/*
+ * rtapi_config_double(): Public: Return pointer to a config parameter's
+ * double value for direct read/write access
+ */
 double* rtapi_config_double(const char* section_path, const char* name,
 			    int index)
 {
@@ -391,6 +481,20 @@ double* rtapi_config_double(const char* section_path, const char* name,
     return &value->value.vdouble;
 }
 
+/*
+ * rtapi_config_value_iter_next_double(): Public: Return pointer to
+ * double value and update iter offset
+ */
+double* rtapi_config_value_iter_next_double(size_t* offset_ptr)
+{
+    return &rtapi_config_value_iter_next(offset_ptr)->value.vdouble;
+}
+
+/*
+ * rtapi_config_string(): Public: Return pointer to a config
+ * parameter's string value for direct read-only access; use
+ * rtapi_config_string_set() for write
+ */
 char* rtapi_config_string(const char* section_path, const char* name,
 			  int index)
 {
@@ -401,9 +505,10 @@ char* rtapi_config_string(const char* section_path, const char* name,
 	return NULL;
 
     // FIXME
-    printf("  rtapi_config_string('%s'/'%s'[%d]) -> '%s'@%zu\n",
+    printf("  rtapi_config_string('%s'/'%s'[%d]) -> '%s'@%zu/%p\n",
 	   section_path, name, index,
-	   (char*)heap_ptr(heap, vnode->value.vstring), vnode->value.vstring);
+	   (char*)heap_ptr(heap, vnode->value.vstring), vnode->value.vstring,
+	   heap_ptr(heap, vnode->value.vstring));
 
     // If the string malloc fails, the string offset will be 0
     if (vnode->value.vstring == 0)
@@ -411,6 +516,20 @@ char* rtapi_config_string(const char* section_path, const char* name,
     return (char*)heap_ptr(heap, vnode->value.vstring);
 }
 
+/*
+ * rtapi_config_value_iter_next_string(): Public: Return pointer to
+ * string value and update iter offset
+ */
+char* rtapi_config_value_iter_next_string(size_t* offset_ptr)
+{
+    return heap_ptr(heap,
+		    rtapi_config_value_iter_next(offset_ptr)->value.vstring);
+}
+
+/*
+ * rtapi_config_string_set(): Public: Set a config parameter's string
+ * value
+ */
 char* rtapi_config_string_set(const char* section_path, const char* name,
 			      int index, const char* value)
 {
@@ -434,97 +553,38 @@ char* rtapi_config_string_set(const char* section_path, const char* name,
     	rtapi_free(heap, heap_ptr(heap, old_string));
 
     // FIXME
-    printf("  rtapi_config_string_set('%s'/'%s'[%d]) -> '%s'@%zu\n",
-	   section_path, name, index, string, vnode->value.vstring);
+    printf("  rtapi_config_string_set('%s'/'%s'[%d]) -> '%s'@%zu/%p\n",
+	   section_path, name, index, string, vnode->value.vstring,
+	   heap_ptr(heap,vnode->value.vstring));
 
     return string;
 }
 
+
+/*
+ * rtapi_config_lock():  Lock the config tree structure
+ *
+ * When the config tree structure is locked, attempts to create new
+ * sections, parameters or values will fail. Read/write access to the
+ * parameters is unchanged.
+ */
 void rtapi_config_lock(int lock)
 {
-    rtapi_config_locked = lock;
+    header_ptr->rtapi_config_locked = lock;
 }
 
-void testy(void)
-{
-    char** section_list = (char *[]){
-	"/sec1/subsec1/subsubsec1",
-	"/sec1/subsec1/subsubsec2",
-	"/sec1/subsec2/subsubsec3",
-	/* "/sec1/subsec3", */
-	/* "/sec2", */
-	/* "/sec2/subsec4", */
-	/* "/sec1/subsec1", */
-	"/sec1/subsec2/subsubsec3",
-	"",
-	NULL
-    };
-    char** param_list = (char *[]){
-	"param1",
-	"param2",
-	"param1",
-	/* "param2", */
-	NULL
-    };
-    char** param_list_ptr;
-    int* int_list = (int []){5, 0, 1, 2, 1, 0, 2, -1};
-    int* int_list_ptr;
-    value_node* value;
-    
-    /* rtapi_config_lock(1); */
-
-    for (; section_list[0] != NULL; section_list++) {
-	for (param_list_ptr = param_list; param_list_ptr[0] != NULL;
-	     param_list_ptr++) {
-	    for (int_list_ptr = int_list; int_list_ptr[0] != -1;
-		 int_list_ptr++) {
-		printf("\nfind_value (%s/%s[%d])\n",
-		       section_list[0], param_list_ptr[0], int_list_ptr[0]);
-		value = find_value(section_list[0], param_list_ptr[0],
-				   int_list_ptr[0]);
-		if (value == NULL) {
-		    printf("Got NULL result\n");
-		    return;
-		}
-		printf("Found value [%d]@%zu, offsets next = %zu\n",
-		       int_list_ptr[0], node_ptr_to_off(value), value->next);
-	    }
-	}
-    }
-}
-
-void testy_next_subsection(void)
-{
-    const char* section_path = "/sec/subsec/subsubsec";
-    char section_name[RTAPI_CONFIG_NAME_MAX];
-    int i;
-    
-    for (i=0; i<=4; i++) {
-    	section_path = split_section_path(section_path, section_name);
-    	printf("result: %s\n", section_name);
-    }
-}
-
-static section_node* get_topsection_ptr(void* heap_shm_ptr)
-{
-    size_t* topsection_off_ptr;
-
-    // Offset of top section is located after heap struct
-    topsection_off_ptr = heap_shm_ptr + sizeof(rtapi_heap);
-
-    // Be sure top parameter section is initialized
-    if (*topsection_off_ptr == 0)
-	return NULL;
-
-    // Return ptr to top section node
-    return snode_off_to_ptr(*topsection_off_ptr);
-}
-
-int rtapi_config_attach(void* heap_shm_ptr)
+/*
+ * rtapi_config_attach():  Init global variables
+ *
+ * Before calling this, heap, *node_off_to_ptr() and node_ptr_to_off()
+ * are unavailable
+ */
+int rtapi_config_attach(void* shm_ptr)
 //size_t* tsop, rtapi_heap* h)
 {
-    heap = heap_shm_ptr;
-    topsection_ptr = get_topsection_ptr(heap_shm_ptr);
+    header_ptr = (rtapi_config_header*)shm_ptr;
+    heap = &header_ptr->heap;
+    topsection_ptr = snode_off_to_ptr(header_ptr->topsection_offset);
 
     if (topsection_ptr == NULL)
 	return 1;
@@ -532,92 +592,86 @@ int rtapi_config_attach(void* heap_shm_ptr)
     return 0;
 }
 
-int rtapi_config_init(void* heap_shm_ptr, int shm_size)
+int rtapi_config_init(void* shm_ptr, int shm_size)
 {
     int res;
-    size_t* tsop;		// pointer to top section offset
-    section_node* tsp;		// local pointer to top section
-    void* arena_ptr;		// pointer to malloc arena
-    int arena_size;		// size of malloc arena
+    rtapi_config_header* local_header_ptr;	// local header pointer
+    section_node* tsp;				// local pointer to top section
+    void* arena_ptr;				// pointer to malloc arena
+    int arena_size;				// size of malloc arena
 
     /*
      * Set up structures at top of shm segment and init allocator
      */
 
-    // Lay down heap struct at beginning of shm segment
-    if ((res = rtapi_heap_init(heap_shm_ptr)) != 0) {
+    // Lay down config header at top of shm segment
+    local_header_ptr = (rtapi_config_header*)shm_ptr;
+    memset(local_header_ptr, 0, sizeof(*local_header_ptr));
+
+    // Init heap
+    if ((res = rtapi_heap_init(&local_header_ptr->heap)) != 0) {
 	// always returns 0
 	return 1;
     }
 
-    // Offset of top section after heap struct
-    tsop = heap_shm_ptr + sizeof(rtapi_heap);
-    *tsop = 0;
-
-    // Allocate heap arena in shm space following top section offset
-    arena_ptr = (void*)tsop + sizeof(*tsop);
-    arena_size = shm_size -
-	(sizeof(rtapi_heap) + sizeof(*tsop));
-    if ((res = rtapi_heap_addmem(heap_shm_ptr, arena_ptr, arena_size)) != 0) {
+    // Allocate heap arena in shm space following config header
+    arena_ptr = (void*)(local_header_ptr + 1);
+    arena_size = shm_size - sizeof(*local_header_ptr);
+    res = rtapi_heap_addmem(&local_header_ptr->heap, arena_ptr, arena_size);
+    if (res != 0) {
 	// FIXME
-	printf("Unable to allocate heap space\n");
+	printf("Unable to add heap space\n");
 	return 1;
     }
     // Sanity check:  arena ends at shm segment end
-    assert(heap_shm_ptr + shm_size == (void *)arena_ptr + arena_size);
+    assert(shm_ptr + shm_size == arena_ptr + arena_size);
 
     // FIXME
     printf("    shm = %p..%p; arena = %p..%p\n",
-	   heap_shm_ptr, (void *)heap_shm_ptr+RTAPI_CONFIG_SHM_SIZE,
+	   shm_ptr, (void *)shm_ptr+RTAPI_CONFIG_SHM_SIZE,
 	   arena_ptr, (void *)arena_ptr + arena_size);
 
     /*
      * Set up the top section node
      */
 
-    // Allocate the struct
-    tsp = (section_node* )rtapi_malloc((rtapi_heap*)heap_shm_ptr,
+    // Allocate, initialize and link the struct
+    tsp = (section_node* )rtapi_malloc(&local_header_ptr->heap,
 				       sizeof(section_node));
     if (tsp == NULL)
 	return 1;
-
-    // The top section node offset is the handle
-    *tsop = heap_off((rtapi_heap*)heap_shm_ptr, tsp);
-
-    // Set empty name and null pointers
-    strcpy(tsp->name, "");
-    tsp->next = 0;
-    tsp->child = 0;
-    tsp->parameter = 0;
+    memset(tsp, 0, sizeof(*tsp));
+    local_header_ptr->topsection_offset =
+	heap_off(&local_header_ptr->heap, tsp);
 
     // FIXME
     printf("Initialized tsp '%s'@%zu; child=%zu\n",
-	   tsp->name,
-	   heap_off((rtapi_heap*)heap_shm_ptr, tsp), tsp->child);
+	   tsp->name, local_header_ptr->topsection_offset, tsp->child);
 
     /*
      * Init global variables
      */
 
     // Init global heap and topsection_pointer variables
-    if ((res = rtapi_config_attach(heap_shm_ptr)) == 1) {
+    if ((res = rtapi_config_attach(shm_ptr)) == 1) {
 	// FIXME
 	printf("Unable to init parameter structs\n");
 	return 1;
     }
-    if (heap != heap_shm_ptr || topsection_ptr != tsp) {
-	// FIXME
-	printf("Unknown failure initializing parameter structs\n");
-	printf("  heap=%p, heap_shm_ptr=%p, topsection_ptr=%zu/%p, tsp=%zu/%p\n",
-	       heap, heap_shm_ptr,
-	       node_ptr_to_off(topsection_ptr), topsection_ptr,
-	       node_ptr_to_off(tsp), tsp);
+    // FIXME
+    printf("   header_ptr=%p ?= shm_ptr=%p\n"
+	   "   heap=%p ?= &local_header_ptr->heap=%p\n"
+	   "   topsection_ptr=%zu/%p ?= tsp=%zu/%p\n"
+	   "   ",
+	   header_ptr, shm_ptr,
+	   heap, &local_header_ptr->heap,
+	   node_ptr_to_off(topsection_ptr), topsection_ptr,
+	   node_ptr_to_off(tsp), tsp);
+
+    // Sanity checks
+    if (header_ptr != shm_ptr || heap != &local_header_ptr->heap
+	|| topsection_ptr != tsp)
 	return 1;
-    }
 
     return 0;
 }
-
-
-// /tmp/machinekit/machinekit/src/rtapi/rtapi_heap_private.h
-// /tmp/machinekit/machinekit/src/rtapi/rtapi_heap.h

@@ -10,6 +10,8 @@ cdef extern from "parameter.h":
     int rtapi_config_attach(void* heap_shm_ptr)
     void rtapi_config_lock(int lock)
 
+    bint rtapi_config_check(
+        const char *section, const char *name, int index)
     int* rtapi_config_bool(
         const char *section, const char *name, int index)
     int* rtapi_config_int(
@@ -20,3 +22,10 @@ cdef extern from "parameter.h":
         const char *section, const char *name, int index)
     char* rtapi_config_string_set(
         const char *section, const char *name, int index, const char *value)
+
+    size_t rtapi_config_value_iter_init(const char* section_path,
+                                        const char* name)
+    int* rtapi_config_value_iter_next_bool(size_t* offset_ptr)
+    int* rtapi_config_value_iter_next_int(size_t* offset_ptr)
+    double* rtapi_config_value_iter_next_double(size_t* offset_ptr)
+    char* rtapi_config_value_iter_next_string(size_t* offset_ptr)

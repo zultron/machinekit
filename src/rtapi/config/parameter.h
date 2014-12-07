@@ -32,6 +32,8 @@ extern void rtapi_config_lock(int lock);
 // and may have multiple values accessed by an integer `index`.
 //
 // Returns a pointer to the value on success, NULL on failure
+extern int rtapi_config_check(const char *section, const char *name,
+			      int index);
 extern int* rtapi_config_bool(const char *section, const char *name,
 			      int index);
 extern int* rtapi_config_int(const char *section, const char *name,
@@ -44,5 +46,15 @@ extern char* rtapi_config_string(const char *section, const char *name,
 				 int index);
 extern char* rtapi_config_string_set(const char *section, const char *name,
 				     int index, const char *value);
+
+// Parameter value iterators
+//
+// Functions for walking through multi-value parameters
+extern size_t rtapi_config_value_iter_init(const char* section_path,
+					   const char* name);
+extern int* rtapi_config_value_iter_next_bool(size_t* offset_ptr);
+extern int* rtapi_config_value_iter_next_int(size_t* offset_ptr);
+extern double* rtapi_config_value_iter_next_double(size_t* offset_ptr);
+extern char* rtapi_config_value_iter_next_string(size_t* offset_ptr);
 
 #endif // _RTAPI_CONFIG_PARAMETER_INCLUDED
