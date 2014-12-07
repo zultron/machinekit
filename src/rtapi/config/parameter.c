@@ -592,6 +592,10 @@ int rtapi_config_attach(void* shm_ptr)
     return 0;
 }
 
+/*
+ * Given a shm segment, set up initial headers, top section node and
+ * attach
+ */
 int rtapi_config_init(void* shm_ptr, int shm_size)
 {
     int res;
@@ -649,7 +653,7 @@ int rtapi_config_init(void* shm_ptr, int shm_size)
 	   tsp->name, local_header_ptr->topsection_offset, tsp->child);
 
     /*
-     * Init global variables
+     * Attach config
      */
 
     // Init global heap and topsection_pointer variables
