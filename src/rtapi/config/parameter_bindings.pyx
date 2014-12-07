@@ -23,63 +23,80 @@ cdef class Parameter:
         self.name = name
         self.index = index
         self._ptr = NULL
+        # Raise any allocation-related exceptions during init
+        self.ptr_check()
 
-    cdef void* get_ptr(self):
-        raise RTAPIParameterRuntimeError(
-            "Subclasses of Parameter must override get_ptr()")
+    cpdef get_ptr(self):
+        # This is the boolean accessor, overridden in subclasses
+        # It must be here for the ptr_check() call from __cinit__
+        self._ptr = rtapi_config_anyptr(
+            self.section, self.name, self.index)
 
     cdef void* ptr(self):
         if self._ptr == NULL:
-            self._ptr = self.get_ptr()
-            if self._ptr == NULL:
-                raise RTAPIParameterRuntimeError(
-                    "Error retrieving parameter (%s,%s[%d])" %
-                    (self.section, self.name, self.index))
+            self.get_ptr()
+            print ("Retrieved (%s,%s[%d]) @ 0x%x" %
+                    (self.section, self.name, self.index, <uintptr_t>self._ptr))
         return <void*>self._ptr
 
+    cdef ptr_check(self):
+        cdef void* ptr = self.ptr()
+        if ptr == NULL:
+            raise RTAPIParameterRuntimeError(
+                "Unable to access parameter (%s,%s[%d])" %
+                (self.section, self.name, self.index))
+        return None  # Don't ignore exception
+
 cdef class ParameterBool(Parameter):
-    cdef void* get_ptr(self):
-        return <void*>rtapi_config_bool(
+    cpdef get_ptr(self):
+        self._ptr = <void*>rtapi_config_bool(
             self.section, self.name, self.index)
 
     property val:
         def __get__(self):
+            self.ptr_check()
             return (<bint*>self.ptr())[0]
 
         def __set__(self, object val):
+            self.ptr_check()
             (<bint*>self.ptr())[0] = <bint>val
 
 cdef class ParameterInt(Parameter):
-    cdef void* get_ptr(self):
-        return <void*>rtapi_config_int(
+    cpdef get_ptr(self):
+        self._ptr = <void*>rtapi_config_int(
             self.section, self.name, self.index)
 
     property val:
         def __get__(self):
+            self.ptr_check()
             return (<int*>self.ptr())[0]
 
         def __set__(self, object val):
+            self.ptr_check()
             (<int*>self.ptr())[0] = <int>val
 
 cdef class ParameterDouble(Parameter):
-    cdef void* get_ptr(self):
-        return <void*>rtapi_config_double(
+    cpdef get_ptr(self):
+        self._ptr = <void*>rtapi_config_double(
             self.section, self.name, self.index)
 
     property val:
         def __get__(self):
+            self.ptr_check()
             return (<double*>self.ptr())[0]
 
         def __set__(self, object val):
+            self.ptr_check()
             (<double*>self.ptr())[0] = <double>val
 
 cdef class ParameterString(Parameter):
-    cdef void* get_ptr(self):
-        return <void*>rtapi_config_string(
+    cpdef get_ptr(self):
+        self._ptr = <void*>rtapi_config_string(
             self.section, self.name, self.index)
 
     property val:
         def __get__(self):
+            self.ptr_check()
             return <char*>self.ptr()
 
         def __set__(self, object val):
@@ -90,6 +107,7 @@ cdef class ParameterString(Parameter):
                     "Error setting string parameter (%s,%s[%d])" %
                     (self.section, self.name, self.index))
             self._ptr = <void*>p
+            print ("Set string at 0x%x" % <uintptr_t>self._ptr)
 
 
 cdef class ParameterTree:
