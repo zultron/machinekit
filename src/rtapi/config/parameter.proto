@@ -1,0 +1,61 @@
+// Masterd config service message definitions
+
+package machinekit.rtapi.config.parameter;
+
+// Parameters have:
+// - a unique key, (section1, section2, ..., name)
+// - a value, or for '...List' parameters, values
+
+// The Parameter*Get and Parameter*Set messages are requests
+//
+// The Parameter*Set messages may also be replies, in which case the
+// status is set to true or false
+
+message ParameterBoolGet {
+    repeated	string		section		= 10;
+    required	string		name		= 20;
+}
+
+message ParameterBoolSet {
+    repeated	string		section		= 10;
+    required	string		name		= 20;
+    repeated	bool		value		= 30;
+    optional	bool		status		= 40;
+}
+
+message ParameterIntGet {
+    repeated	string		section		= 10;
+    required	string		name		= 20;
+}
+
+message ParameterIntSet {
+    repeated	string		section		= 10;
+    required	string		name		= 20;
+    repeated	int32		value		= 30;
+    optional	bool		status		= 40;
+}
+
+message ParameterDoubleGet {
+    repeated	string		section		= 10;
+    required	string		name		= 20;
+}
+
+message ParameterDoubleSet {
+    repeated	string		section		= 10;
+    required	string		name		= 20;
+    repeated	double		value		= 30;
+    optional	bool		status		= 40;
+}
+
+message ParameterStringGet {
+    repeated	string		section		= 10;
+    required	string		name		= 20;
+}
+
+message ParameterStringSet {
+    repeated	string		section		= 10;
+    required	string		name		= 20;
+    repeated	string		value		= 30;
+    optional	bool		status		= 40;
+}
+
