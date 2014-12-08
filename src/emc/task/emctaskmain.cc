@@ -611,6 +611,7 @@ interpret_again:
 			    emcTaskPlanCommand((char *) &emcStatus->task.
 					       command);
 			    // and execute it if it's not a read-behind line because the start line was changed by the operator
+			    execRetval = INTERP_OK;
 			    if (!(emcStatus->task.readLine < programStartLine)){
 			    execRetval = emcTaskPlanExecute(0);
 				}
