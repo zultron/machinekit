@@ -17,6 +17,7 @@
 /configure
 /modules.order
 /linuxcncconfig.py-tmp
+/generated/
 /halcomp-srcs/
 /.html-images-stamp
 /.htmldoc-stamp

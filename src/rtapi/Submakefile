@@ -425,3 +425,123 @@ CYTHON_TARGETS += ../lib/python/machinekit/rtapi/rtapi_heap_bindings.so
 	bash $< > $@
 TARGETS += ../etc/linuxcnc/rtapi.ini
 
+
+
+##################################################################
+#                     parameter server
+##################################################################
+
+# Start with some macros
+
+MACHINEKIT_PY_DIR = ../lib/python/machinekit
+
+# PROTO_TO_NPB_C/H:  generate .proto -> .npb.c file mappings
+#   usage:  $(call PROTO_TO_NPB_C, sources.proto ...)
+PROTO_TO_NPB_C = $(patsubst %.proto, generated/%.npb.c, $(1))
+PROTO_TO_NPB_H = $(patsubst %.proto, generated/%.npb.h, $(1))
+PROTO_TO_NPB_CH = $(patsubst %.proto, generated/%.npb.c generated/%.npb.h, $(1))
+PROTO_TO_PB_PY = $(patsubst %.proto, $(MACHINEKIT_PY_DIR)/%_pb2.py, $(1))
+
+# NPB_DEPS:  generate .proto -> .npb.[ch] -> .npb.o deps
+#     $(eval $(call NANOPBDEPS sources.proto ...))
+# Depends on NANOPB_SUPPORT from machinetalk/Submakefile
+define PB_DEPS
+NPB_EXTRA_DEPS = $(wildcard $(patsubst %.proto,%.options,$(PARAMETER_PROTO))) \
+	$(NANOPB_SUPPORT)
+$$(call PROTO_TO_NPB_C, $(1)): generated/%.npb.c: %.proto $$(NPB_EXTRA_DEPS)
+$$(call PROTO_TO_NPB_H, $(1)): generated/%.npb.h: %.proto $$(NPB_EXTRA_DEPS)
+$$(call PROTO_TO_PB_PY, $(1)): $(MACHINEKIT_PY_DIR)/%_pb2.py: %.proto
+USERSRCS += $$(call PROTO_TO_NPB_C, $(1))
+PYTARGETS += $$(call PROTO_TO_PB_PY, $(1))
+
+endef
+
+
+PARAMETER_PROTO = rtapi/config/parameter.proto
+PARAMETER_C_SRCS = rtapi/config/parameter.c
+# Set up nanopb, py deps
+$(eval $(call PB_DEPS, $(PARAMETER_PROTO)))
+
+# ----------- Nanopb c/h rules
+#
+# Nanopb: generate *.npb.{c,h} from proto files
+# these depend on npb options
+
+# Nanopb parameter protocol
+$(call PROTO_TO_NPB_CH, $(PARAMETER_PROTO)):
+	$(ECHO) "protoc create $@ from $<"
+	@mkdir -p $(dir $@)
+	$(Q)$(PROTOC) $(PROTOC_FLAGS) \
+	--plugin=protoc-gen-nanopb=../lib/python/protoc-gen-nanopb \
+	--nanopb_out="--extension=.npb:generated" \
+	$<
+
+PARAMETER_NPB_C_SRCS = $(call PROTO_TO_NPB_C, $(PARAMETER_PROTO))
+PARAMETER_NPB_LIB_SRCS = $(NANOPB_C_SRCS) $(PARAMETER_NPB_C_SRCS) \
+		$(PARAMETER_C_SRCS) \
+		rtapi/rtapi_heap.c
+
+USERSRCS += $(PARAMETER_C_SRCS)
+
+PARAMETER_NPB_CFLAGS := -DPB_FIELD_32BIT \
+#	'-DPB_SYSTEM_HEADER=<'$(MACHINETALK)'/include/pb-linuxcnc.h>'
+$(call TOOBJSDEPS, $(PARAMETER_NPB_C_SRCS)) : \
+	EXTRAFLAGS += $(PARAMETER_NPB_CFLAGS)
+$(call TOOBJSDEPS, $(PARAMETER_C_SRCS)) : \
+	EXTRAFLAGS += -Igenerated
+
+PARAMETER_NPB_LIB := ../lib/libmkparameter-npb.so
+
+$(PARAMETER_NPB_LIB).0: $(call TOOBJS, $(PARAMETER_NPB_LIB_SRCS))
+	$(ECHO) Linking $(notdir $@)
+	@mkdir -p ../lib
+	@rm -f $@
+	$(Q)$(CC) $(LDFLAGS) -Wl,-soname,$(notdir $@) -shared -o $@ $^
+
+
+$(call PROTO_TO_PB_PY, $(PARAMETER_PROTO)):
+	$(ECHO) "protoc create $@ from $<"
+	@mkdir -p $(dir $@)
+	$(Q)$(PROTOC) $(PROTOC_FLAGS) \
+	--python_out=$(MACHINEKIT_PY_DIR) \
+	$<
+
+# FIXME
+
+USERSRCS += parameter_test.c
+parameter_test:  \
+		$(call TOOBJS, $(PARAMETER_C_SRCS) \
+			rtapi/rtapi_heap.c parameter_test.c) \
+		../lib/liblinuxcncshm.so
+	$(Q)$(CC) $(LDFLAGS) -o $@ -I. -Irtapi $^
+
+RTAPI_CONFIG_PARAMETER_BINDINGS_SO_CSRCS = rtapi/config/parameter_bindings.c
+RTAPI_CONFIG_PARAMETER_BINDINGS_SO_SRCS = \
+	rtapi/config/parameter.c \
+	rtapi/rtapi_heap.c \
+	$(RTAPI_CONFIG_PARAMETER_BINDINGS_SO_CSRCS)
+
+$(call TOOBJSDEPS, $(RTAPI_CONFIG_PARAMETER_BINDINGS_SO_SRCS)) : \
+	EXTRAFLAGS=-fPIC
+$(call TOOBJSDEPS, $(RTAPI_CONFIG_PARAMETER_BINDINGS_SO_SRCS)) : \
+	rtapi/Submakefile
+USERSRCS += $(RTAPI_CONFIG_PARAMETER_BINDINGS_SO_SRCS)
+
+$(RTAPI_CONFIG_PARAMETER_BINDINGS_SO_CSRCS): %.c: %.pyx \
+		rtapi/config/parameter.pxd \
+		rtapi/cython_helpers.pxd \
+		rtapi/Submakefile
+	$(ECHO) Cythonizing $(notdir $@)
+	$(Q)$(CYTHON) -I rtapi -o $@ $<
+
+RTAPI_CONFIG_PARAMETER_BINDINGS_SO_OBJS = \
+	$(call TOOBJS, $(RTAPI_CONFIG_PARAMETER_BINDINGS_SO_SRCS))
+
+../lib/python/machinekit/rtapi/config/parameter_bindings.so: \
+		$(RTAPI_CONFIG_PARAMETER_BINDINGS_SO_OBJS)
+	$(ECHO) Linking python module $(notdir $@)
+	@mkdir -p $(dir $@)
+	$(Q)$(CC) -g  -shared -o $@ $^ $(LDFLAGS) -luuid
+
+CYTHON_TARGETS += ../lib/python/machinekit/rtapi/config/parameter_bindings.so
+
