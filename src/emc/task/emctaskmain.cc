@@ -610,8 +610,10 @@ interpret_again:
 
 			    emcTaskPlanCommand((char *) &emcStatus->task.
 					       command);
-			    // and execute it
+			    // and execute it if it's not a read-behind line because the start line was changed by the operator
+			    if (!(emcStatus->task.readLine < programStartLine)){
 			    execRetval = emcTaskPlanExecute(0);
+				}
 			    if (execRetval > INTERP_MIN_ERROR) {
 				emcStatus->task.interpState =
 				    EMC_TASK_INTERP_WAITING;
