@@ -642,6 +642,7 @@ int read_inputs(setup_pointer settings);
     const char *getSavedError();
     // set error message text without going through printf format interpretation
     int setSavedError(const char *msg); 
+    int setSavedWarning(const char *msg); 
 
     int unwind_call(int status, const char *file, int line, const char *function);
 

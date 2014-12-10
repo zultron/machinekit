@@ -107,7 +107,7 @@ const char *Interp::interp_status(int status) {
 extern struct _inittab builtin_modules[];
 int trace;
 static char savedError[LINELEN+1];
-static char savedWarning[LINELEN+1]="";
+static char savedWarning[LINELEN+1];
 
 Interp::Interp()
     : log_file(stderr),
@@ -2043,6 +2043,7 @@ void Interp::setError(const char *fmt, ...)
     va_start(ap, fmt);
 
     vsnprintf(savedError, LINELEN, fmt, ap);
+    printf("Got a saved error");
 
     va_end(ap);
 }
@@ -2069,6 +2070,13 @@ int Interp::setSavedError(const char *msg)
 {
     savedError[0] = '\0';
     strncpy(savedError, msg, LINELEN);
+    return INTERP_OK;
+}
+
+int Interp::setSavedWarning(const char *msg)
+{
+    savedWarning[0] = '\0';
+    strncpy(savedWarning, msg, LINELEN);
     return INTERP_OK;
 }
 
