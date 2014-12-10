@@ -412,11 +412,12 @@ static void print_interp_warning()
 {
 
     interp_warning_text_buf[0] = 0;
-    interp.warning_text(interp_warning_text_buf, LINELEN);
-    printf(interp_warning_text_buf);
-    emcOperatorText(0, "%s", interp_warning_text_buf);
-    if (0 != interp_warning_text_buf[0]) {
-        rcs_print_error("interp_warning: %s\n", interp_warning_text_buf);
+    ((Interp*)pinterp)->warning_text(interp_warning_text_buf, LINELEN);
+    if (interp_warning_text_buf[0] > 0) {
+        // Print the warning and clear it
+        emcOperatorText(0, "%s", interp_warning_text_buf);
+        //HACK clear the warning since we're done with it
+        ((Interp*)pinterp)->warning_text("",LINELEN);
     }
 }
 
@@ -444,7 +445,7 @@ int emcTaskPlanInit()
     waitFlag = 0;
 
     int retval = interp.init();
-	print_interp_warning();
+	//print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {  // I'd think this should be fatal.
 	print_interp_error(retval);
     } else {
@@ -532,7 +533,7 @@ int emcTaskPlanOpen(const char *file)
     }
 
     int retval = interp.open(file);
-	print_interp_warning();
+	//print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {
 	print_interp_error(retval);
 	return retval;
@@ -550,7 +551,7 @@ int emcTaskPlanOpen(const char *file)
 int emcTaskPlanRead()
 {
     int retval = interp.read();
-	print_interp_warning();
+	//print_interp_warning();
     if (retval == INTERP_FILE_NOT_OPEN) {
 	if (emcStatus->task.file[0] != 0) {
 	    retval = interp.open(emcStatus->task.file);

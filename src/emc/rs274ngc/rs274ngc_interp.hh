@@ -642,7 +642,7 @@ int read_inputs(setup_pointer settings);
     const char *getSavedError();
     // set error message text without going through printf format interpretation
     int setSavedError(const char *msg); 
-    int setSavedWarning(const char *msg); 
+    int clearWarning();
 
     int unwind_call(int status, const char *file, int line, const char *function);
 
@@ -671,6 +671,7 @@ int read_inputs(setup_pointer settings);
 
  setup _setup;
 
+ char warning_text_buf[LINELEN];
  enum {
      AXIS_MASK_X =   1, AXIS_MASK_Y =   2, AXIS_MASK_Z =   4,
      AXIS_MASK_A =   8, AXIS_MASK_B =  16, AXIS_MASK_C =  32,

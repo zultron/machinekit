@@ -107,7 +107,6 @@ const char *Interp::interp_status(int status) {
 extern struct _inittab builtin_modules[];
 int trace;
 static char savedError[LINELEN+1];
-static char savedWarning[LINELEN+1];
 
 Interp::Interp()
     : log_file(stderr),
@@ -2043,7 +2042,7 @@ void Interp::setError(const char *fmt, ...)
     va_start(ap, fmt);
 
     vsnprintf(savedError, LINELEN, fmt, ap);
-    printf("Got a saved error");
+    //printf("Got a saved error");
 
     va_end(ap);
 }
@@ -2054,7 +2053,7 @@ void Interp::setWarning(const char *fmt, ...)
 
     va_start(ap, fmt);
 
-    vsnprintf(savedWarning, LINELEN, fmt, ap);
+    vsnprintf(this->warning_text_buf, LINELEN, fmt, ap);
     //printf(savedWarning);
 
     va_end(ap);
@@ -2073,10 +2072,9 @@ int Interp::setSavedError(const char *msg)
     return INTERP_OK;
 }
 
-int Interp::setSavedWarning(const char *msg)
+int Interp::clearWarning()
 {
-    savedWarning[0] = '\0';
-    strncpy(savedWarning, msg, LINELEN);
+    //savedWarning[0] = '\0';
     return INTERP_OK;
 }
 
@@ -2118,7 +2116,7 @@ char * Interp::error_text(int error_code,        //!< code number of error
 char * Interp::warning_text(char *warning_text,      //!< char array to copy error text into  
                          size_t max_size)  //!< maximum number of characters to copy
 {
-    strncpy(warning_text, savedWarning, max_size);
+    strncpy(warning_text, warning_text_buf, max_size);
     warning_text[max_size-1] = 0;
     //printf("warning max size = %d\n",max_size);
     //printf(savedWarning);
