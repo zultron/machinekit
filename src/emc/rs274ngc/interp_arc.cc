@@ -124,6 +124,15 @@ int Interp::arc_data_comp_ijk(int move,  //!<either G_2 (cw arc) or G_3 (ccw arc
        a, end_x, b, end_y, arc_radius, radius2,
        abs_err, rel_err*100);
 
+  if ((abs_err > spiral_abs_tolerance/100.0) || (rel_err > spiral_rel_tolerance/100.0)) {
+        setWarning("Warning: radius to end of arc differs from radius to start. Actual path may be degraded: "
+       "start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f) r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%",
+       a, current_x, b, current_y,
+       a, *center_x, b, *center_y,
+       a, end_x, b, end_y, arc_radius, radius2,
+       abs_err, rel_err*100);
+  }
+
   CHKS(((arc_radius <= tool_radius) && (((side == LEFT) && (move == G_3)) ||
                                        ((side == RIGHT) && (move == G_2)))),
       NCE_TOOL_RADIUS_NOT_LESS_THAN_ARC_RADIUS_WITH_COMP);
@@ -288,7 +297,6 @@ int Interp::arc_data_ijk(int move,       //!< either G_2 (cw arc) or G_3 (ccw ar
        a, end_x, b, end_y, radius, radius2);
   double abs_err = fabs(radius - radius2);
   double rel_err = abs_err / std::max(radius, radius2);
-  setWarning("From interp, got an ijk arc %d",0);
   CHKS((abs_err > spiral_abs_tolerance) || (rel_err > spiral_rel_tolerance),
       _("Radius to end of arc differs from radius to start: "
        "start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f) r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%"),
@@ -296,6 +304,17 @@ int Interp::arc_data_ijk(int move,       //!< either G_2 (cw arc) or G_3 (ccw ar
        a, *center_x, b, *center_y, 
        a, end_x, b, end_y, radius, radius2,
        abs_err, rel_err*100);
+  // Warn if we have arcs that are bad but not too bad.
+  // TODO formalize these tolerances (maybe a warning threshold)?
+  // TODO refactor error / warning into separate function since these should be mutually exclusive
+  if ((abs_err > spiral_abs_tolerance/100.0) || (rel_err > spiral_rel_tolerance/100.0)) {
+        setWarning("Warning: radius to end of arc differs from radius to start. Actual path may be degraded: "
+       "start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f) r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%",
+       a, current_x, b, current_y,
+       a, *center_x, b, *center_y,
+       a, end_x, b, end_y, radius, radius2,
+       abs_err, rel_err*100);
+  }
   if (move == G_2)
     *turn = -1 * p_number;
   else if (move == G_3)

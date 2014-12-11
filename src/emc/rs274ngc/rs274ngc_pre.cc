@@ -1540,6 +1540,8 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
   if(command)logDebug("%s:[cmd]:|%s|", name, command);
   else logDebug("%s:|%s|", name, _setup.linetext);
 
+  // Clear the warning text buffer before reading a new line
+  warning_text_buf[0]=0;
   if ((read_status == INTERP_EXECUTE_FINISH)
       || (read_status == INTERP_OK)) {
     if (_setup.line_length != 0) {
