@@ -610,11 +610,20 @@ interpret_again:
 
 			    emcTaskPlanCommand((char *) &emcStatus->task.
 					       command);
-			    // and execute it if it's not a read-behind line because the start line was changed by the operator
+			    // and execute it 
 			    execRetval = INTERP_OK;
-			    if (!(emcStatus->task.readLine < programStartLine)){
-			    execRetval = emcTaskPlanExecute(0);
+			    // Tormach - set _task variable appropriately so that 
+			    // remap code can decide what to do in read-behind *dpr 12/15
+			    if (programStartLine < 0 ||
+				emcStatus->task.readLine <
+				programStartLine){
+					_task = -1;
 				}
+				else {
+					_task = 1;
+				}
+			    execRetval = emcTaskPlanExecute(0);
+
 			    if (execRetval > INTERP_MIN_ERROR) {
 				emcStatus->task.interpState =
 				    EMC_TASK_INTERP_WAITING;
