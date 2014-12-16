@@ -298,8 +298,9 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   }
 
   if (block->p_flag) {
+	  // Tormach edit - temporarily allow P word on G83 to accomodate questionable legacy sprut post *dpr 12/16
       CHKS(((block->g_modes[0] != G_10) && (block->g_modes[0] != G_4) && (block->g_modes[13] != G_64) &&
-          (motion != G_76) && (motion != G_82) && (motion != G_86) && (motion != G_88) && 
+          (motion != G_76) && (motion != G_82) && (motion != G_83) && (motion != G_86) && (motion != G_88) && 
           (motion != G_89) && (motion != G_5) && (motion != G_5_2) &&
           (motion != G_2) && (motion != G_3) &&
           (block->m_modes[9] != 50) && (block->m_modes[9] != 51) && (block->m_modes[9] != 52) &&
