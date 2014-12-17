@@ -1112,7 +1112,7 @@ def open_file_guts(f, filtered=False, addrecent=True):
         else:
 		unitcode = ''
         try:
-            result, seq = o.load_preview(f, canon, unitcode, initcode, interpname)
+            result, seq, warnings = o.load_preview(f, canon, unitcode, initcode, interpname)
         except KeyboardInterrupt:
             result, seq = 0, 0
         # According to the documentation, MIN_ERROR is the largest value that is

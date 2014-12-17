@@ -1883,7 +1883,6 @@ class GlCanonDraw:
         self.set_canon(canon)
         result, seq, warnings = gcode.parse(f, canon, unitcode, initcode, interpname)
 
-        print warnings
         if result <= gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)
             canon.calc_extents()
@@ -1892,7 +1891,7 @@ class GlCanonDraw:
             self.stale_dlist('select_rapids')
             self.stale_dlist('select_norapids')
 
-        return result, seq
+        return result, seq, warnings
 
     def from_internal_units(self, pos, unit=None):
         if unit is None:

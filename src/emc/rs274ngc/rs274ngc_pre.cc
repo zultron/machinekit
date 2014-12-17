@@ -2058,10 +2058,14 @@ void Interp::setWarning(const char *fmt, ...)
     vsnprintf(this->warning_text_buf, LINELEN, fmt, ap);
 
     //Ugly way to package the warning string up
-    //TODO append line number
     std::string msg(this->warning_text_buf);
+    // Build a crude line tag from the interpreters internal sequence number
+    // FIXME sequence number could be wrong due to remap
+    char line_number_buf[100];
+    sprintf(line_number_buf, "Warning at line %d: ",this->_setup.sequence_number);
+    msg.insert(0,line_number_buf);
+
     this->warning_list.push_back(msg);
-    //printf(savedWarning);
 
     va_end(ap);
 }

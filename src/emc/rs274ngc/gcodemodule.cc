@@ -757,11 +757,14 @@ out_error:
     PyTuple_SetItem(retval, 0, PyInt_FromLong(result));
     PyTuple_SetItem(retval, 1, PyInt_FromLong(last_sequence_number + error_line_offset));
 
-    int len = ((Interp*)pinterp)->warning_list.size();
+    // Start with an empty list
     PyObject* warning_list_out = PyList_New(0);
-    for (int i = 0; i < len; i++) {
 
-        PyList_Append(warning_list_out,PyString_FromString(((Interp*)pinterp)->warning_list[i].c_str()));
+    // Fill the list with the warning entries
+    for (std::vector<std::string>::iterator it = ((Interp*)pinterp)->warning_list.begin();
+            it != ((Interp*)pinterp)->warning_list.end();
+            ++it) {
+        PyList_Append(warning_list_out, PyString_FromString(it->c_str()));
     }
 
     PyTuple_SetItem(retval, 2, warning_list_out);

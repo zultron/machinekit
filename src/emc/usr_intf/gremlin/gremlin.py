@@ -254,9 +254,11 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
             unitcode = "G%d" % (20 + (s.linear_units == 1))
             initcode = self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
-            result, seq = self.load_preview(filename, canon, unitcode, initcode)
+            result, seq, warnings = self.load_preview(filename, canon, unitcode, initcode)
             if result > gcode.MIN_ERROR:
                 self.report_gcode_error(result, seq, filename)
+            if len(warnings) > 0:
+                self.show_gcode_warnings(warnings, filename)
 
         finally:
             shutil.rmtree(td)
@@ -367,10 +369,15 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         elif event.direction == gtk.gdk.SCROLL_DOWN: self.zoomout()
 
     def report_gcode_error(self, result, seq, filename):
+        error_str = gcode.strerror(result)
+        sys.stderr.write("G-Code error in " + os.path.basename(filename) + "\n" + "Near line "
+                         + str(seq) + " of\n" + filename + "\n" + error_str + "\n")
 
-	error_str = gcode.strerror(result)
-	sys.stderr.write("G-Code error in " + os.path.basename(filename) + "\n" + "Near line "
-	                 + str(seq) + " of\n" + filename + "\n" + error_str + "\n")
+    def show_gcode_warnings(self, warnings, filename):
+        for w in warnings:
+            sys.stderr.write("G-Code Warning in " + os.path.basename(filename) + "\n" + "In file "
+                             + filename + "\n" + w + "\n")
+
 
     # These are for external controlling of the view
 
