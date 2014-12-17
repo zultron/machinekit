@@ -1881,8 +1881,9 @@ class GlCanonDraw:
 
     def load_preview(self, f, canon, unitcode, initcode, interpname=""):
         self.set_canon(canon)
-        result, seq = gcode.parse(f, canon, unitcode, initcode, interpname)
+        result, seq, warnings = gcode.parse(f, canon, unitcode, initcode, interpname)
 
+        print warnings
         if result <= gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)
             canon.calc_extents()

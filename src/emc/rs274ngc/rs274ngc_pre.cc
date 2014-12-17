@@ -2056,6 +2056,11 @@ void Interp::setWarning(const char *fmt, ...)
     va_start(ap, fmt);
 
     vsnprintf(this->warning_text_buf, LINELEN, fmt, ap);
+
+    //Ugly way to package the warning string up
+    //TODO append line number
+    std::string msg(this->warning_text_buf);
+    this->warning_list.push_back(msg);
     //printf(savedWarning);
 
     va_end(ap);
@@ -2076,7 +2081,7 @@ int Interp::setSavedError(const char *msg)
 
 int Interp::clearWarning()
 {
-    //savedWarning[0] = '\0';
+    this->warning_list.clear();
     return INTERP_OK;
 }
 
