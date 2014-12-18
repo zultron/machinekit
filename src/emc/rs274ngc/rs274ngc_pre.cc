@@ -1691,6 +1691,7 @@ int Interp::reset()
     _setup.line_length = 0;
 
     unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__);
+    warning_list = PyList_New(0);
     return INTERP_OK;
 }
 

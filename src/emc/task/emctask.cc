@@ -410,13 +410,15 @@ static void print_interp_error(int retval)
 
 static void print_interp_warning()
 {
-
+    //No longer needed since we have load-time warnings (also not hardened against uninitialized values according to valgrind)
+#if 0
     Interp* local_pinterp = (Interp*)pinterp;
     //interp_warning_text_buf[0] = 0;
     if (local_pinterp->warning_text_buf[0] != 0) {
         local_pinterp->warning_text(interp_warning_text_buf, LINELEN);
         emcOperatorText(0, "%s", interp_warning_text_buf);
     }
+#endif
 }
 
 int emcTaskPlanInit()
