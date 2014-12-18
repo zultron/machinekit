@@ -1124,10 +1124,20 @@ def open_file_guts(f, filtered=False, addrecent=True):
                     _("Near line %(seq)d of %(f)s:\n%(error_str)s") % {'seq': seq, 'f': f, 'error_str': error_str},
                     "error",0,_("OK"))
 
-        for w in warnings:
+        max_dialogs = 4
+        ind = min(max_dialogs,len(warnings))
+
+        for w in warnings[0:ind]:
             root_window.tk.call("nf_dialog", ".warning",
                     _("G-Code warning in %s") % os.path.basename(f),
                     _("%(error_str)s") % {'error_str': w},
+                    "warning",0,_("OK"))
+
+        num_suppressed_warnings = len(warnings) - max_dialogs
+        if num_suppressed_warnings > 0:
+            root_window.tk.call("nf_dialog", ".warning",
+                    _("G-Code warning in %s") % os.path.basename(f),
+                    _("Suppressed %d additional warnings...") % num_suppressed_warnings,
                     "warning",0,_("OK"))
 
 

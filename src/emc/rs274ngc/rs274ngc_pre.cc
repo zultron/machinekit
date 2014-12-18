@@ -2066,7 +2066,7 @@ void Interp::setWarning(const char *fmt, ...)
     // Build a crude line tag from the interpreters internal sequence number
     // FIXME sequence number could be wrong due to remap
     char line_number_buf[100];
-    sprintf(line_number_buf, "Warning at line %d: ",this->_setup.sequence_number);
+    sprintf(line_number_buf, "Line %d: ",this->_setup.sequence_number);
     msg.insert(0,line_number_buf);
 
     PyList_Append(this->warning_list,PyString_FromString(msg.c_str()));
