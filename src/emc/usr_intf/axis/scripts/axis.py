@@ -1114,7 +1114,7 @@ def open_file_guts(f, filtered=False, addrecent=True):
         try:
             result, seq, warnings = o.load_preview(f, canon, unitcode, initcode, interpname)
         except KeyboardInterrupt:
-            result, seq = 0, 0
+            result, seq , warnings = 0, 0, []
         # According to the documentation, MIN_ERROR is the largest value that is
         # not an error.  Crazy though that sounds...
         if result > gcode.MIN_ERROR:
@@ -1123,6 +1123,13 @@ def open_file_guts(f, filtered=False, addrecent=True):
                     _("G-Code error in %s") % os.path.basename(f),
                     _("Near line %(seq)d of %(f)s:\n%(error_str)s") % {'seq': seq, 'f': f, 'error_str': error_str},
                     "error",0,_("OK"))
+
+        for w in warnings:
+            root_window.tk.call("nf_dialog", ".warning",
+                    _("G-Code warning in %s") % os.path.basename(f),
+                    _("%(error_str)s") % {'error_str': w},
+                    "warning",0,_("OK"))
+
 
         t.configure(state="disabled")
         o.lp.set_depth(from_internal_linear_unit(o.get_foam_z()),
