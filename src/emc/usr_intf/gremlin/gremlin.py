@@ -242,6 +242,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         td = tempfile.mkdtemp()
         self._current_file = filename
+        #KLUDGE define dummy vars here
+        result = 0
+        warnings = []
+        seq = 0
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
             canon = StatCanon(self.colors, self.get_geometry(),self.lathe_option, s, random, self.inifile)
@@ -257,11 +261,13 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             result, seq, warnings = self.load_preview(filename, canon, unitcode, initcode)
             if result > gcode.MIN_ERROR:
                 self.report_gcode_error(result, seq, filename)
-            if len(warnings) > 0:
-                self.show_gcode_warnings(warnings, filename)
+            #if len(warnings) > 0:
+                #self.show_gcode_warnings(warnings, filename)
 
         finally:
             shutil.rmtree(td)
+
+        return result, seq, warnings
 	# doing this kills our zoom settings if gremlin.load is called on work offset change
         #self.set_current_view()
 
