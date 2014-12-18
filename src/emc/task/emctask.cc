@@ -372,7 +372,8 @@ static int determineState()
 static int waitFlag = 0;
 
 static char interp_error_text_buf[LINELEN];
-static char interp_warning_text_buf[LINELEN];
+// Don't need this buffer if we don't throw run-time warnings
+//static char interp_warning_text_buf[LINELEN];
 static char interp_stack_buf[LINELEN];
 
 static void print_interp_error(int retval)
