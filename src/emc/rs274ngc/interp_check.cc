@@ -254,8 +254,8 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   if (block->d_flag) {
     CHKS(((block->g_modes[7] != G_41) && (block->g_modes[7] != G_42) &&
         (block->g_modes[7] != G_41_1) && (block->g_modes[7] != G_42_1) &&
-	(block->g_modes[14] != G_96)),
-        _("D word with no G41, G41.1, G42, G42.1, or G96 to use it"));
+	(block->g_modes[14] != G_96) && (block->g_modes[1] != G_76)),
+        _("D word with no G41, G41.1, G42, G42.1, G76, or G96 to use it"));
   }
 
   if (block->e_flag) {

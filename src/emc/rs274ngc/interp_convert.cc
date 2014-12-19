@@ -4521,38 +4521,48 @@ threading_pass(setup_pointer settings, block_pointer block,
 	       int boring, double safe_x, double depth, double end_depth, 
 	       double start_y, double start_z, double zoff, double taper_dist,
 	       int entry_taper, int exit_taper, double taper_pitch, 
-	       double pitch, double full_threadheight, double target_z) {
+	       double pitch, double full_threadheight, double target_z, double d_number) {
+
+    double d1, d2;
+    if (d_number < 0) {
+        d1 = d_number;
+        d2 = 0;
+    } else {
+        d2 = d_number;
+        d1 = 0;
+    }
+
     STRAIGHT_TRAVERSE(block->line_number, boring?
-		      safe_x + depth - end_depth:
-		      safe_x - depth + end_depth,
+		      safe_x + depth - end_depth + d1:
+		      safe_x - depth + end_depth - d1,
 		      start_y, start_z - zoff, AABBCC); //back
     if(taper_dist && entry_taper) {
 	DISABLE_FEED_OVERRIDE();
 	START_SPEED_FEED_SYNCH(taper_pitch, 0);
 	STRAIGHT_FEED(block->line_number, boring? 
-		      safe_x + depth - full_threadheight: 
-		      safe_x - depth + full_threadheight,
+		      safe_x + depth - full_threadheight + d1: 
+		      safe_x - depth + full_threadheight - d1,
 		      start_y, start_z - zoff, AABBCC); //in
-	STRAIGHT_FEED(block->line_number, boring? safe_x + depth: safe_x - depth, //angled in
+	STRAIGHT_FEED(block->line_number, boring? safe_x + depth + d1: safe_x - depth - d1, //angled in
 		      start_y, start_z - zoff - taper_dist, AABBCC);
 	START_SPEED_FEED_SYNCH(pitch, 0);
     } else {
-	STRAIGHT_TRAVERSE(block->line_number, boring? safe_x + depth: safe_x - depth, 
+	STRAIGHT_TRAVERSE(block->line_number, boring? safe_x + depth + d1: safe_x - depth - d1, 
 			  start_y, start_z - zoff, AABBCC); //in
 	DISABLE_FEED_OVERRIDE();
 	START_SPEED_FEED_SYNCH(pitch, 0);
     }
         
     if(taper_dist && exit_taper) {
-	STRAIGHT_FEED(block->line_number, boring? safe_x + depth: safe_x - depth,  //over
+	STRAIGHT_FEED(block->line_number, boring? safe_x + depth + d2: safe_x - depth - d2,  //over
 		      start_y, target_z - zoff + taper_dist, AABBCC);
 	START_SPEED_FEED_SYNCH(taper_pitch, 0);
 	STRAIGHT_FEED(block->line_number, boring? 
-		      safe_x + depth - full_threadheight: 
-		      safe_x - depth + full_threadheight, 
+		      safe_x + depth - full_threadheight + d2: 
+		      safe_x - depth + full_threadheight - d2, 
 		      start_y, target_z - zoff, AABBCC); //angled out
     } else {
-	STRAIGHT_FEED(block->line_number, boring? safe_x + depth: safe_x - depth, 
+	STRAIGHT_FEED(block->line_number, boring? safe_x + depth + d2: safe_x - depth - d2, 
 		      start_y, target_z - zoff, AABBCC); //over
     }
     STOP_SPEED_FEED_SYNCH();
@@ -4582,6 +4592,7 @@ int Interp::convert_threading_cycle(block_pointer block,
     double start_y = settings->current_y;
     double start_z = settings->current_z;
 
+    double d_number = block->d_number_float;
     double i_number = block->i_number;
     double j_number = block->j_number;
     double k_number = block->k_number;
@@ -4639,7 +4650,7 @@ int Interp::convert_threading_cycle(block_pointer block,
     while (depth < end_depth) {
 	threading_pass(settings, block, boring, safe_x, depth, end_depth, start_y, 
 		       start_z, zoff, taper_dist, entry_taper, exit_taper, 
-		       taper_pitch, pitch, full_threadheight, target_z);
+		       taper_pitch, pitch, full_threadheight, target_z, d_number);
         depth = full_dia_depth + cut_increment * pow(++pass, 1.0/degression);
         zoff = (depth - full_dia_depth) * tan(compound_angle);
     } 
@@ -4650,13 +4661,13 @@ int Interp::convert_threading_cycle(block_pointer block,
     for(int i = 0; i<spring_cuts+1; i++) {
 	threading_pass(settings, block, boring, safe_x, depth, end_depth, start_y, 
 		       start_z, zoff, taper_dist, entry_taper, exit_taper, 
-		       taper_pitch, pitch, full_threadheight, target_z);
+		       taper_pitch, pitch, full_threadheight, target_z, d_number);
     } 
     STRAIGHT_TRAVERSE(block->line_number, end_x, end_y, end_z, AABBCC);
     settings->current_x = end_x;
     settings->current_y = end_y;
     settings->current_z = end_z;
-#undef AABBC
+#undef AABBCC
     return INTERP_OK;
 }
 
