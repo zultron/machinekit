@@ -1668,10 +1668,10 @@ int findSpiralArcLengthFit(PmCircle const * const circle,
 
 
 /**
- * Intermediate function to find the angle for a parameter from 0..1 along the
- * spiral arc.
+ * Compute the angle around a circular segment from the total progress along
+ * the curve.
  */
-static double pmCircleAngleFromParam(PmCircle const * const circle,
+double pmCircleAngleFromProgress(PmCircle const * const circle,
         SpiralArcLengthFit const * const fit,
         double progress)
 {
