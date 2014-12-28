@@ -117,19 +117,22 @@ int Interp::arc_data_comp_ijk(int move,  //!<either G_2 (cw arc) or G_3 (ccw arc
   double rel_err = abs_err / std::max(arc_radius, radius2);
 
   CHKS((abs_err > spiral_abs_tolerance) || (rel_err > spiral_rel_tolerance),
-      _("Radius to end of arc differs from radius to start: "
-       "start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f) r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%"),
+      _("Radius difference too large between start and end of arc: r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%."
+       "Note: start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f)"),
+       arc_radius, radius2,
+       abs_err, rel_err*100,
        a, current_x, b, current_y, 
        a, *center_x, b, *center_y, 
-       a, end_x, b, end_y, arc_radius, radius2,
-       abs_err, rel_err*100);
+       a, end_x, b, end_y);
 
-  if ((abs_err > spiral_abs_tolerance/100.0) || (rel_err > spiral_rel_tolerance/100.0)) {
-        setWarning("Radius to end of arc differs from radius to start. Actual path may be degraded: "
-       "start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f) r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%",
-       a, current_x, b, current_y,
-       a, *center_x, b, *center_y,
-       a, end_x, b, end_y, arc_radius, radius2,
+  double abs_warn_thresh = spiral_abs_tolerance * SPIRAL_WARNING_THRESHOLD;
+  double rel_warn_thresh = spiral_rel_tolerance * SPIRAL_WARNING_THRESHOLD;
+
+  if ((abs_err > abs_warn_thresh) || (rel_err > rel_warn_thresh)) {
+        setWarning("Arc segment has differing start radius (%.4f) and end "
+                "radius (%.4f), and may be distorted. Absolute error = %.4g and "
+                "relative error =%.4f%%.",
+       arc_radius, radius2,
        abs_err, rel_err*100);
   }
 
@@ -297,22 +300,24 @@ int Interp::arc_data_ijk(int move,       //!< either G_2 (cw arc) or G_3 (ccw ar
        a, end_x, b, end_y, radius, radius2);
   double abs_err = fabs(radius - radius2);
   double rel_err = abs_err / std::max(radius, radius2);
+
   CHKS((abs_err > spiral_abs_tolerance) || (rel_err > spiral_rel_tolerance),
-      _("Radius to end of arc differs from radius to start: "
-       "start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f) r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%"),
+      _("Radius difference too large between start and end of arc: r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%."
+       "Note: start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f)"),
+       radius, radius2,
+       abs_err, rel_err*100,
        a, current_x, b, current_y, 
        a, *center_x, b, *center_y, 
-       a, end_x, b, end_y, radius, radius2,
-       abs_err, rel_err*100);
-  // Warn if we have arcs that are bad but not too bad.
-  // TODO formalize these tolerances (maybe a warning threshold)?
-  // TODO refactor error / warning into separate function since these should be mutually exclusive
-  if ((abs_err > spiral_abs_tolerance/100.0) || (rel_err > spiral_rel_tolerance/100.0)) {
-        setWarning("Radius to end of arc differs from radius to start. Actual path may be degraded: "
-       "start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f) r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%",
-       a, current_x, b, current_y,
-       a, *center_x, b, *center_y,
-       a, end_x, b, end_y, radius, radius2,
+       a, end_x, b, end_y);
+
+  double abs_warn_thresh = spiral_abs_tolerance * SPIRAL_WARNING_THRESHOLD;
+  double rel_warn_thresh = spiral_rel_tolerance * SPIRAL_WARNING_THRESHOLD;
+
+  if ((abs_err > abs_warn_thresh) || (rel_err > rel_warn_thresh)) {
+        setWarning("Arc segment has differing start radius (%.4f) and end "
+                "radius (%.4f), and may be distorted. Absolute error = %.4g and "
+                "relative error =%.4f%%.",
+       radius, radius2,
        abs_err, rel_err*100);
   }
   if (move == G_2)
