@@ -206,7 +206,7 @@ STATIC inline double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT con
 
     // Check if the cartesian velocity limit applies and clip the maximum velocity if need be
     // TODO can we lift this restriction for non-synced moves?
-    if (!tcPureRotaryCheck(tc) && (tc->synchronized != TC_SYNC_POSITION)){
+    if (!tcPureRotaryCheck(tc) && (tc->synchronized == TC_SYNC_VELOCITY)){
         tc_debug_print("Cartesian velocity limit active\n");
         v_max_target = fmin(v_max_target, tp->vLimit);
     }
