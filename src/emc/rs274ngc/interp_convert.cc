@@ -4523,54 +4523,81 @@ threading_pass(setup_pointer settings, block_pointer block,
 	       int entry_taper, int exit_taper, double taper_pitch, 
 	       double pitch, double full_threadheight, double target_z, double d_number) {
 
-    double d1, d2;
-    if (d_number < 0) {
-        d1 = d_number;
-        d2 = 0;
-    } else {
-        d2 = d_number;
-        d1 = 0;
-    }
+    if (d_number != 0) {
+        // back
+        STRAIGHT_TRAVERSE(block->line_number,
+                          // internal : external
+                          boring? safe_x + depth - end_depth : safe_x - depth + end_depth,
+                          start_y, 
+                          start_z - zoff, 
+                          AABBCC);
 
-    STRAIGHT_TRAVERSE(block->line_number, boring?
-		      safe_x + depth - end_depth + d1:
-		      safe_x - depth + end_depth - d1,
-		      start_y, start_z - zoff, AABBCC); //back
-    if(taper_dist && entry_taper) {
-	DISABLE_FEED_OVERRIDE();
-	START_SPEED_FEED_SYNCH(taper_pitch, 0);
-	STRAIGHT_FEED(block->line_number, boring? 
-		      safe_x + depth - full_threadheight + d1: 
-		      safe_x - depth + full_threadheight - d1,
-		      start_y, start_z - zoff, AABBCC); //in
-	STRAIGHT_FEED(block->line_number, boring? safe_x + depth + d1: safe_x - depth - d1, //angled in
-		      start_y, start_z - zoff - taper_dist, AABBCC);
-	START_SPEED_FEED_SYNCH(pitch, 0);
+        // in
+        STRAIGHT_TRAVERSE(block->line_number,
+                          boring? safe_x + depth : safe_x - depth, 
+                          start_y, 
+                          start_z - zoff, 
+                          AABBCC);
+        DISABLE_FEED_OVERRIDE();
+        START_SPEED_FEED_SYNCH(pitch, 0);
+
+        // over
+        STRAIGHT_FEED(block->line_number, 
+                      boring? safe_x + depth + d_number : safe_x - depth + d_number, 
+                      start_y, 
+                      target_z - zoff, 
+                      AABBCC);
+
+        // out
+        STOP_SPEED_FEED_SYNCH();
+        STRAIGHT_TRAVERSE(block->line_number, 
+                          boring? safe_x + depth - end_depth : safe_x - depth + end_depth,
+                          start_y, 
+                          target_z - zoff, 
+                          AABBCC);
+        ENABLE_FEED_OVERRIDE();
+
     } else {
-	STRAIGHT_TRAVERSE(block->line_number, boring? safe_x + depth + d1: safe_x - depth - d1, 
-			  start_y, start_z - zoff, AABBCC); //in
-	DISABLE_FEED_OVERRIDE();
-	START_SPEED_FEED_SYNCH(pitch, 0);
+        STRAIGHT_TRAVERSE(block->line_number, boring?
+		          safe_x + depth - end_depth:
+		          safe_x - depth + end_depth,
+		          start_y, start_z - zoff, AABBCC); //back
+        if(taper_dist && entry_taper) {
+	    DISABLE_FEED_OVERRIDE();
+	    START_SPEED_FEED_SYNCH(taper_pitch, 0);
+	    STRAIGHT_FEED(block->line_number, boring? 
+		          safe_x + depth - full_threadheight: 
+		          safe_x - depth + full_threadheight,
+		          start_y, start_z - zoff, AABBCC); //in
+	    STRAIGHT_FEED(block->line_number, boring? safe_x + depth: safe_x - depth, //angled in
+		          start_y, start_z - zoff - taper_dist, AABBCC);
+	    START_SPEED_FEED_SYNCH(pitch, 0);
+        } else {
+	    STRAIGHT_TRAVERSE(block->line_number, boring? safe_x + depth: safe_x - depth, 
+			      start_y, start_z - zoff, AABBCC); //in
+	    DISABLE_FEED_OVERRIDE();
+	    START_SPEED_FEED_SYNCH(pitch, 0);
+        }
+            
+        if(taper_dist && exit_taper) {
+	    STRAIGHT_FEED(block->line_number, boring? safe_x + depth: safe_x - depth,  //over
+		          start_y, target_z - zoff + taper_dist, AABBCC);
+	    START_SPEED_FEED_SYNCH(taper_pitch, 0);
+	    STRAIGHT_FEED(block->line_number, boring? 
+		          safe_x + depth - full_threadheight: 
+		          safe_x - depth + full_threadheight, 
+		          start_y, target_z - zoff, AABBCC); //angled out
+        } else {
+	    STRAIGHT_FEED(block->line_number, boring? safe_x + depth: safe_x - depth, 
+		          start_y, target_z - zoff, AABBCC); //over
+        }
+        STOP_SPEED_FEED_SYNCH();
+        STRAIGHT_TRAVERSE(block->line_number, boring? 
+		          safe_x + depth - end_depth:
+		          safe_x - depth + end_depth,
+		          start_y, target_z - zoff, AABBCC); //out
+        ENABLE_FEED_OVERRIDE();
     }
-        
-    if(taper_dist && exit_taper) {
-	STRAIGHT_FEED(block->line_number, boring? safe_x + depth + d2: safe_x - depth - d2,  //over
-		      start_y, target_z - zoff + taper_dist, AABBCC);
-	START_SPEED_FEED_SYNCH(taper_pitch, 0);
-	STRAIGHT_FEED(block->line_number, boring? 
-		      safe_x + depth - full_threadheight + d2: 
-		      safe_x - depth + full_threadheight - d2, 
-		      start_y, target_z - zoff, AABBCC); //angled out
-    } else {
-	STRAIGHT_FEED(block->line_number, boring? safe_x + depth + d2: safe_x - depth - d2, 
-		      start_y, target_z - zoff, AABBCC); //over
-    }
-    STOP_SPEED_FEED_SYNCH();
-    STRAIGHT_TRAVERSE(block->line_number, boring? 
-		      safe_x + depth - end_depth:
-		      safe_x - depth + end_depth,
-		      start_y, target_z - zoff, AABBCC); //out
-    ENABLE_FEED_OVERRIDE();
 }
 
 int Interp::convert_threading_cycle(block_pointer block, 
