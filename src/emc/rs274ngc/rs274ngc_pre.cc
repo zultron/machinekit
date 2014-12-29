@@ -151,6 +151,9 @@ Interp::Interp()
 	PyErr_Clear();
 	Error("PYTHON: exception during 'this' export:\n%s\n",exception_msg.c_str());
     }
+
+    this->warning_list = PyList_New(0);
+
 }
 
 
@@ -1540,6 +1543,8 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
   if(command)logDebug("%s:[cmd]:|%s|", name, command);
   else logDebug("%s:|%s|", name, _setup.linetext);
 
+  // Clear the warning text buffer before reading a new line
+  warning_text_buf[0]=0;
   if ((read_status == INTERP_EXECUTE_FINISH)
       || (read_status == INTERP_OK)) {
     if (_setup.line_length != 0) {
@@ -1686,6 +1691,7 @@ int Interp::reset()
     _setup.line_length = 0;
 
     unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__);
+    warning_list = PyList_New(0);
     return INTERP_OK;
 }
 
@@ -2042,6 +2048,28 @@ void Interp::setError(const char *fmt, ...)
     va_start(ap, fmt);
 
     vsnprintf(savedError, LINELEN, fmt, ap);
+    //printf("Got a saved error");
+
+    va_end(ap);
+}
+
+void Interp::setWarning(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+
+    vsnprintf(this->warning_text_buf, LINELEN, fmt, ap);
+
+    //Ugly way to package the warning string up
+    std::string msg(this->warning_text_buf);
+    // Build a crude line tag from the interpreters internal sequence number
+    // FIXME sequence number could be wrong due to remap
+    char line_number_buf[100];
+    sprintf(line_number_buf, "Line %d: ",this->_setup.sequence_number);
+    msg.insert(0,line_number_buf);
+
+    PyList_Append(this->warning_list,PyString_FromString(msg.c_str()));
 
     va_end(ap);
 }
@@ -2056,6 +2084,12 @@ int Interp::setSavedError(const char *msg)
 {
     savedError[0] = '\0';
     strncpy(savedError, msg, LINELEN);
+    return INTERP_OK;
+}
+
+int Interp::clearWarning()
+{
+    //this->warning_list.clear();
     return INTERP_OK;
 }
 
@@ -2092,6 +2126,16 @@ char * Interp::error_text(int error_code,        //!< code number of error
 
     error_text[0] = 0;
     return error_text;
+}
+
+char * Interp::warning_text(char *warning_text,      //!< char array to copy error text into  
+                         size_t max_size)  //!< maximum number of characters to copy
+{
+    strncpy(warning_text, warning_text_buf, max_size);
+    warning_text[max_size-1] = 0;
+    //printf("warning max size = %d\n",max_size);
+    //printf(savedWarning);
+    return warning_text;
 }
 
 /***********************************************************************/

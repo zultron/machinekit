@@ -27,6 +27,7 @@ class InterpBase {
 public:
     virtual ~InterpBase();
     virtual char *error_text(int errcode, char *buf, size_t buflen) = 0;
+    virtual char *warning_text(char *buf, size_t buflen) = 0;
     virtual char *line_text(char *buf, size_t buflen) = 0;
     virtual char *file_name(char *buf, size_t buflen) = 0;
     virtual char *stack_name(int index, char *buf, size_t buflen) = 0;

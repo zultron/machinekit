@@ -46,8 +46,8 @@ function _ "DIR ENA spindle drive HAL Component";
 #define BIT_FALSE 0
 #define BIT_TRUE  1
 
-s32 enable_out_delay_count;
-s32 dir_change_to_enable_count;
+int enable_out_delay_count;
+int dir_change_to_enable_count;
 
 int previous_direction_in;
 

@@ -56,9 +56,26 @@
  */
 #define MAX_NESTED_REMAPS 10
 
+// English - Metric conversion (long number keeps error buildup down)
+#define MM_PER_INCH 25.4
+//#define INCH_PER_MM 0.039370078740157477
+
 /* numerical constants */
-#define TOLERANCE_INCH 0.0010
-#define TOLERANCE_MM 0.010
+//FIXME made very large here to allow badly formed arcs into canon
+#define SPIRAL_TOLERANCE_INCH 1.0
+// Note: started from original tolerance and divided by 10 here (since that was originally done inside the interpreter)
+#define RADIUS_TOLERANCE_INCH 0.00005
+
+/* Equivalent metric constants */
+#define SPIRAL_TOLERANCE_MM (SPIRAL_TOLERANCE_INCH * MM_PER_INCH)
+#define RADIUS_TOLERANCE_MM (RADIUS_TOLERANCE_INCH * MM_PER_INCH)
+
+// Modest relative error
+#define SPIRAL_RELATIVE_TOLERANCE 0.75
+
+// If error values reach this fraction of the tolerance, a warning is thrown.
+#define SPIRAL_WARNING_THRESHOLD 0.05
+
 /* angle threshold for concavity for cutter compensation, in radians */
 #define TOLERANCE_CONCAVE_CORNER 0.05  
 #define TOLERANCE_EQUAL 0.0001 /* two numbers compare EQ if the
@@ -74,10 +91,6 @@ static inline bool equal(double a, double b)
 
 // max number of m codes on one line
 #define MAX_EMS  4
-
-// English - Metric conversion (long number keeps error buildup down)
-#define MM_PER_INCH 25.4
-//#define INCH_PER_MM 0.039370078740157477
 
 // feed_mode
 enum feed_mode { UNITS_PER_MINUTE=0, INVERSE_TIME=1, UNITS_PER_REVOLUTION=2 };

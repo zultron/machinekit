@@ -89,11 +89,12 @@ int Interp::arc_data_comp_ijk(int move,  //!<either G_2 (cw arc) or G_3 (ccw arc
                              double *center_x,  //!<pointer to first coordinate of center of arc
                              double *center_y,  //!<pointer to second coordinate of center of arc
                              int *turn, //!<pointer to number of full or partial circles CCW
-                             double tolerance)  //!<tolerance of differing radii
+                             double radius_tolerance, //!<minimum radius tolerance
+                             double spiral_abs_tolerance,  //!<tolerance of start and end radius difference
+                             double spiral_rel_tolerance)
 {
   double arc_radius;
   double radius2;
-  double min_radius = 0.1 * tolerance;	/* smaller than this is treated as zero */
   char a = arc_axis1(plane), b = arc_axis2(plane);
 
   if ( ij_absolute ) {
@@ -105,16 +106,35 @@ int Interp::arc_data_comp_ijk(int move,  //!<either G_2 (cw arc) or G_3 (ccw arc
   }
   arc_radius = hypot((*center_x - current_x), (*center_y - current_y));
   radius2 = hypot((*center_x - end_x), (*center_y - end_y));
-  CHKS(((arc_radius < min_radius) || (radius2 < min_radius)), _("Zero radius arc"));
+  CHKS(((arc_radius < radius_tolerance) || (radius2 < radius_tolerance)),
+          _("Zero-radius arc: "
+       "start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f) r1=%.4f r2=%.4f"),
+       a, current_x, b, current_y,
+       a, *center_x, b, *center_y,
+       a, end_x, b, end_y, arc_radius, radius2);
+
   double abs_err = fabs(arc_radius - radius2);
   double rel_err = abs_err / std::max(arc_radius, radius2);
-  CHKS(abs_err > 100*tolerance || (abs_err > tolerance && (rel_err > .001)),
-      _("Radius to end of arc differs from radius to start: "
-       "start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f) r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%"),
+
+  CHKS((abs_err > spiral_abs_tolerance) || (rel_err > spiral_rel_tolerance),
+      _("Radius difference too large between start and end of arc: r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%."
+       "Note: start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f)"),
+       arc_radius, radius2,
+       abs_err, rel_err*100,
        a, current_x, b, current_y, 
        a, *center_x, b, *center_y, 
-       a, end_x, b, end_y, arc_radius, radius2,
+       a, end_x, b, end_y);
+
+  double abs_warn_thresh = spiral_abs_tolerance * SPIRAL_WARNING_THRESHOLD;
+  double rel_warn_thresh = spiral_rel_tolerance * SPIRAL_WARNING_THRESHOLD;
+
+  if ((abs_err > abs_warn_thresh) || (rel_err > rel_warn_thresh)) {
+        setWarning("Arc segment has differing start radius (%.4f) and end "
+                "radius (%.4f), and may be distorted. Absolute error = %.4g and "
+                "relative error =%.4f%%.",
+       arc_radius, radius2,
        abs_err, rel_err*100);
+  }
 
   CHKS(((arc_radius <= tool_radius) && (((side == LEFT) && (move == G_3)) ||
                                        ((side == RIGHT) && (move == G_2)))),
@@ -256,11 +276,12 @@ int Interp::arc_data_ijk(int move,       //!< either G_2 (cw arc) or G_3 (ccw ar
                         double *center_x,       //!< pointer to first coordinate of center of arc
                         double *center_y,       //!< pointer to second coordinate of center of arc
                         int *turn,      //!< pointer to no. of full or partial circles CCW
-                        double tolerance)       //!< tolerance of differing radii
+                        double radius_tolerance, //!<minimum radius tolerance
+                        double spiral_abs_tolerance,  //!<tolerance of start and end radius difference
+                        double spiral_rel_tolerance)
 {
   double radius;                /* radius to current point */
   double radius2;               /* radius to end point     */
-  double min_radius = 0.1 * tolerance;	/* smaller than this is treated as zero */
   char a = arc_axis1(plane), b = arc_axis2(plane);
 
   if ( ij_absolute ) {
@@ -272,16 +293,33 @@ int Interp::arc_data_ijk(int move,       //!< either G_2 (cw arc) or G_3 (ccw ar
   }
   radius = hypot((*center_x - current_x), (*center_y - current_y));
   radius2 = hypot((*center_x - end_x), (*center_y - end_y));
-  CHKS(((radius < min_radius) || (radius2 < min_radius)), NCE_ZERO_RADIUS_ARC);
+  CHKS(((radius < radius_tolerance) || (radius2 < radius_tolerance)),_("Zero-radius arc: "
+       "start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f) r1=%.4f r2=%.4f"),
+       a, current_x, b, current_y,
+       a, *center_x, b, *center_y,
+       a, end_x, b, end_y, radius, radius2);
   double abs_err = fabs(radius - radius2);
   double rel_err = abs_err / std::max(radius, radius2);
-  CHKS(abs_err > 100*tolerance || (abs_err > tolerance && (rel_err > .001)),
-      _("Radius to end of arc differs from radius to start: "
-       "start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f) r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%"),
+
+  CHKS((abs_err > spiral_abs_tolerance) || (rel_err > spiral_rel_tolerance),
+      _("Radius difference too large between start and end of arc: r1=%.4f r2=%.4f abs_err=%.4g rel_err=%.4f%%."
+       "Note: start=(%c%.4f,%c%.4f) center=(%c%.4f,%c%.4f) end=(%c%.4f,%c%.4f)"),
+       radius, radius2,
+       abs_err, rel_err*100,
        a, current_x, b, current_y, 
        a, *center_x, b, *center_y, 
-       a, end_x, b, end_y, radius, radius2,
+       a, end_x, b, end_y);
+
+  double abs_warn_thresh = spiral_abs_tolerance * SPIRAL_WARNING_THRESHOLD;
+  double rel_warn_thresh = spiral_rel_tolerance * SPIRAL_WARNING_THRESHOLD;
+
+  if ((abs_err > abs_warn_thresh) || (rel_err > rel_warn_thresh)) {
+        setWarning("Arc segment has differing start radius (%.4f) and end "
+                "radius (%.4f), and may be distorted. Absolute error = %.4g and "
+                "relative error =%.4f%%.",
+       radius, radius2,
        abs_err, rel_err*100);
+  }
   if (move == G_2)
     *turn = -1 * p_number;
   else if (move == G_3)

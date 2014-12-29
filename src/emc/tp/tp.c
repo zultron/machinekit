@@ -130,26 +130,6 @@ STATIC int tpGetMachineAccelBounds(PmCartesian  * const acc_bound) {
 }
 
 
-/**
- * Get a safe maximum acceleration based on X,Y, and Z.
- * Use the lowest bound on the linear axes, rather than using the
- * trajectory max accels. These are computed with the infinity norm, which
- * means we can't just assume that the smaller of the two is within the limits.
- */
-STATIC int tpGetMachineAccelLimit(double * const acc_limit) {
-    if (!acc_limit) {
-        return TP_ERR_FAIL;
-    }
-
-    PmCartesian acc_bound;
-    tpGetMachineAccelBounds(&acc_bound);
-
-    *acc_limit = pmCartMin(&acc_bound);
-    tp_debug_print(" arc blending a_max=%f\n", *acc_limit);
-    return TP_ERR_OK;
-}
-
-
 STATIC int tpGetMachineVelBounds(PmCartesian  * const vel_bound) {
     if (!vel_bound) {
         return TP_ERR_FAIL;
@@ -161,26 +141,27 @@ STATIC int tpGetMachineVelBounds(PmCartesian  * const vel_bound) {
     return TP_ERR_OK;
 }
 
-
-/**
- * Get a same maximum velocity for XYZ.
- * This function returns the worst-case safe velocity in any direction along XYZ.
- */
-STATIC int tpGetMachineVelLimit(double * const vel_limit) {
-
-    if (!vel_limit) {
+STATIC int tpGetMachineActiveLimit(double * const act_limit, PmCartesian const * const bounds) {
+    if (!act_limit) {
         return TP_ERR_FAIL;
     }
+    //Start with max accel value
+    *act_limit = fmax(fmax(bounds->x,bounds->y),bounds->z);
 
-    //FIXME check for number of axes first!
-    double x = emcmotDebug->joints[0].vel_limit;
-    double y = emcmotDebug->joints[1].vel_limit;
-    double z = emcmotDebug->joints[2].vel_limit;
-
-    *vel_limit = fmin(fmin(x,y),z);
-    tp_debug_print(" arc blending v_max=%f\n", *vel_limit);
+    // Compare only with active axes
+    if (bounds->x > 0) {
+        *act_limit = fmin(*act_limit, bounds->x);
+    }
+    if (bounds->y > 0) {
+        *act_limit = fmin(*act_limit, bounds->y);
+    }
+    if (bounds->z > 0) {
+        *act_limit = fmin(*act_limit, bounds->z);
+    }
+    tp_debug_print(" arc blending a_max=%f\n", *act_limit);
     return TP_ERR_OK;
 }
+
 
 /**
  * Get a segment's feed scale based on the current planner state and emcmotStatus.
@@ -224,9 +205,10 @@ STATIC inline double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT con
     double v_max_target = tc->target_vel * emcmotConfig->maxFeedScale;
 
     // Check if the cartesian velocity limit applies and clip the maximum velocity if need be
-    if (!tcPureRotaryCheck(tc) && (tc->synchronized != TC_SYNC_POSITION)){
+    // TODO can we lift this restriction for non-synced moves?
+    if (!tcPureRotaryCheck(tc) && (tc->synchronized == TC_SYNC_VELOCITY)){
         tc_debug_print("Cartesian velocity limit active\n");
-        v_max_target = fmin(v_max_target,tp->vLimit);
+        v_max_target = fmin(v_max_target, tp->vLimit);
     }
 
     // Clip maximum velocity by the segment's own maximum velocity
@@ -397,7 +379,9 @@ int tpInit(TP_STRUCT * const tp)
     tp->ini_maxvel = 0.0;
     //Accelerations
     tp->aLimit = 0.0;
-    tpGetMachineAccelLimit(&tp->aMax);
+    PmCartesian acc_bound;
+    tpGetMachineAccelBounds(&acc_bound);
+    tpGetMachineActiveLimit(&tp->aMax, &acc_bound);
     //Angular limits
     tp->wMax = 0.0;
     tp->wDotMax = 0.0;
@@ -409,7 +393,9 @@ int tpInit(TP_STRUCT * const tp)
 
     ZERO_EMC_POSE(tp->currentPos);
 
-    tpGetMachineVelLimit(&tp->vMax);
+    PmCartesian vel_bound;
+    tpGetMachineVelBounds(&vel_bound);
+    tpGetMachineActiveLimit(&tp->vMax, &vel_bound);
 
     return tpClear(tp);
 }
@@ -708,29 +694,6 @@ STATIC int tpInitBlendArcFromPrev(TP_STRUCT const * const tp, TC_STRUCT const * 
     return TP_ERR_OK;
 }
 
-
-/**
- * Given a PmCircle and a circular segment, copy the circle in as the XYZ portion of the segment, then update the motion parameters.
- * NOTE: does not yet support ABC or UVW motion!
- */
-STATIC int tcSetCircleXYZ(TC_STRUCT * const tc, PmCircle const * const circ)
-{
-
-    //Update targets with new arc length
-    if (!circ || tc->motion_type != TC_CIRCULAR) {
-        return TP_ERR_FAIL;
-    }
-    if (!tc->coords.circle.abc.tmag_zero || !tc->coords.circle.uvw.tmag_zero) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "SetCircleXYZ does not supportABC or UVW motion\n");
-        return TP_ERR_FAIL;
-    }
-
-    tc->coords.circle.xyz = *circ;
-    tc->target = circ->angle * circ->radius;
-    return TP_ERR_OK;
-}
-
-
 STATIC int tcSetLineXYZ(TC_STRUCT * const tc, PmCartLine const * const line)
 {
 
@@ -815,10 +778,6 @@ STATIC int tpCreateLineArcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
     PmCircle circ2_temp = tc->coords.circle.xyz;
 
     // Change lengths of circles
-    // FIXME partial failure after this point leaves us in an unrecoverable
-    // state. We might need to do a copy and swap to
-    // ensure that we can quit at any time without borking the existing
-    // geometry.
     double new_len1 = line1_temp.tmag - points_exact.trim1;
     int res_stretch1 = pmCartLineStretch(&line1_temp,
             new_len1,
@@ -1578,8 +1537,11 @@ STATIC int tpSetupTangent(TP_STRUCT const * const tp,
     double v_reachable = fmax(tpGetMaxTargetVel(tp, tc),
             tpGetMaxTargetVel(tp, prev_tc));
     double acc_limit;
-    //TODO move this to setup
-    tpGetMachineAccelLimit(&acc_limit);
+
+    //TODO store this in TP struct instead?
+    PmCartesian acc_bound;
+    tpGetMachineAccelBounds(&acc_bound);
+    tpGetMachineActiveLimit(&acc_limit, &acc_bound);
 
     double max_angle = findMaxTangentAngle(v_reachable, acc_limit, tp->cycleTime);
 
@@ -1598,6 +1560,9 @@ STATIC int tpSetupTangent(TP_STRUCT const * const tp,
         prev_tc->maxvel = fmin(prev_tc->maxvel, prev_tc->target /
                 tp->cycleTime / TP_MIN_SEGMENT_CYCLES);
         return TP_ERR_OK;
+    } else if (phi >= (PM_PI-TP_ANGLE_EPSILON)) {
+        tp_debug_print(" Angle %.12g too close to pi to compute normal\n", phi);
+        return TP_ERR_FAIL;
     } else {
         tp_debug_print(" New segment angle %g > max %g \n", phi, max_angle);
         return TP_ERR_NO_ACTION;
@@ -1614,7 +1579,7 @@ STATIC int tpSetupTangent(TP_STRUCT const * const tp,
  */
 STATIC int tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc) {
 
-    tp_debug_print("** Handle Blend Arc **\n");
+    tp_debug_print("*****************************************\n** Handle Blend Arc **\n");
 
     TC_STRUCT *prev_tc;
     prev_tc = tcqLast(&tp->queue);
@@ -1632,9 +1597,19 @@ STATIC int tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc) {
         return TP_ERR_FAIL;
     }
 
-    if (TP_ERR_OK == tpSetupTangent(tp, prev_tc, tc)) {
-        //Marked segment as tangent
-        return TP_ERR_OK;
+    // Check for tangency between segments and handle any errors
+    // TODO possibly refactor this into a macro?
+    int res_tan = tpSetupTangent(tp, prev_tc, tc);
+    switch (res_tan) {
+        // Abort blend arc creation in these cases
+        case TP_ERR_FAIL:
+        case TP_ERR_OK:
+            return res_tan;
+            break;
+        case TP_ERR_NO_ACTION:
+        default:
+            //Continue with creation
+            break;
     }
 
     TC_STRUCT blend_tc = {0};
@@ -1711,6 +1686,9 @@ int tpAddLine(TP_STRUCT * const tp, EmcPose end, int canon_motion_type, double v
             &tp->goalPos,
             &end);
     tc.target = pmLine9Target(&tc.coords.line);
+    if (tc.target < TP_POS_EPSILON) {
+        return TP_ERR_FAIL;
+    }
     tc.nominal_length = tc.target;
 
     // For linear move, set rotary axis settings 
@@ -1779,14 +1757,21 @@ int tpAddCircle(TP_STRUCT * const tp,
     tcSetupState(&tc, tp);
 
     // Setup circle geometry
-    pmCircle9Init(&tc.coords.circle,
+    int res_init = pmCircle9Init(&tc.coords.circle,
             &tp->goalPos,
             &end,
             &center,
             &normal,
             turn);
 
+    if (res_init) return res_init;
+
+    // Update tc target with existing circular segment
     tc.target = pmCircle9Target(&tc.coords.circle);
+    if (tc.target < TP_POS_EPSILON) {
+        return TP_ERR_FAIL;
+    }
+    tp_debug_print("tc.target = %f\n",tc.target);
     tc.nominal_length = tc.target;
 
     double v_max_actual = pmCircleActualMaxVel(&tc.coords.circle.xyz, ini_maxvel, acc, false);
@@ -1803,6 +1788,7 @@ int tpAddCircle(TP_STRUCT * const tp,
     tpCheckCanonType(prev_tc, &tc);
     if (emcmotConfig->arcBlendEnable){
         tpHandleBlendArc(tp, &tc);
+        findSpiralArcLengthFit(&tc.coords.circle.xyz, &tc.coords.circle.fit);
     }
     tcCheckLastParabolic(&tc, prev_tc);
     tcFinalizeLength(prev_tc);
@@ -3042,6 +3028,11 @@ int tpRunCycle(TP_STRUCT * const tp, long period)
     tc_debug_print("time: %.12e total movement = %.12e vel = %.12e\n",
             time_elapsed,
             mag, emcmotStatus->current_vel);
+
+    tc_debug_print("tp_displacement = %.12e %.12e %.12e\n",
+            disp.tran.x,
+            disp.tran.y,
+            disp.tran.z);
 #endif
 
     // If TC is complete, remove it from the queue.

@@ -67,6 +67,7 @@ class Canterp : public InterpBase {
 public:
     Canterp () : f(0) {}
     char *error_text(int errcode, char *buf, size_t buflen);
+    char *warning_text(char *buf, size_t buflen);
     char *stack_name(int index, char *buf, size_t buflen);
     char *line_text(char *buf, size_t buflen);
     char *file_name(char *buf, size_t buflen);

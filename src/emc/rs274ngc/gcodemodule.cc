@@ -753,9 +753,12 @@ out_error:
     PyErr_Clear();
     maybe_new_line();
     if(PyErr_Occurred()) { interp_error = 1; goto out_error; }
-    PyObject *retval = PyTuple_New(2);
+    PyObject *retval = PyTuple_New(3);
     PyTuple_SetItem(retval, 0, PyInt_FromLong(result));
     PyTuple_SetItem(retval, 1, PyInt_FromLong(last_sequence_number + error_line_offset));
+
+    PyTuple_SetItem(retval, 2, ((Interp*)pinterp)->warning_list);
+
     return retval;
 }
 
