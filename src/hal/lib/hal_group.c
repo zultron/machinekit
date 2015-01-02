@@ -694,7 +694,6 @@ static int cgroup_init_members_cb(int level, hal_group_t **groups, hal_member_t 
 // must be called with hal_data lock aquired by caller
 int halpr_group_compile(const char *name, hal_compiled_group_t **cgroup)
 {
-    int result;
     hal_compiled_group_t *tc;
     hal_group_t *grp;
 
@@ -713,9 +712,7 @@ int halpr_group_compile(const char *name, hal_compiled_group_t **cgroup)
 
     // first pass: determine sizes
     // this fills sets the n_members and n_monitored fields
-    if ((result = halpr_foreach_member(name, cgroup_size_cb,
-				       tc, RESOLVE_NESTED_GROUPS)) < 0)
-	return result;
+    halpr_foreach_member(name, cgroup_size_cb, tc, RESOLVE_NESTED_GROUPS);
     hal_print_msg(RTAPI_MSG_DBG,
 		    "HAL:%d hal_group_compile(%s): %d signals %d monitored\n",
 		    rtapi_instance, name, tc->n_members, tc->n_monitored );
@@ -727,9 +724,7 @@ int halpr_group_compile(const char *name, hal_compiled_group_t **cgroup)
     tc->mon_index = 0;
 
     // second pass: fill in references
-    if ((result = halpr_foreach_member(name, cgroup_init_members_cb,
-				       tc, RESOLVE_NESTED_GROUPS)) < 0)
-	return result;
+    halpr_foreach_member(name, cgroup_init_members_cb, tc, RESOLVE_NESTED_GROUPS);
     assert(tc->n_monitored == tc->mon_index);
     assert(tc->n_members == tc->mbr_index);
 
