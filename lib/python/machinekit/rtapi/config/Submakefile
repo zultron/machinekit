@@ -1,0 +1,33 @@
+PARAMETER_PB_SUBDIR = rtapi/config
+PARAMETER_PB_DIR = ../lib/python/machinekit/$(PARAMETER_PB_SUBDIR)
+PARAMETER_PB_PROTO = $(wildcard $(PARAMETER_PB_DIR)/*.proto)
+
+PARAMETER_PB_PY = $(patsubst %.proto, %_pb2.py, $(PARAMETER_PB_PROTO))
+# PARAMETER_NPB_C_SRCS = $(patsubst $(PARAMETER_PB_DIR)/%.proto, \
+# 	generated/$(PARAMETER_PB_SUBDIR)/%.npb.c, $(PARAMETER_PB_PROTO))
+# PARAMETER_NPB_C_HDRS = $(patsubst %.c, %.npb.h, $(PARAMETER_NPB_C_SRCS))
+# PARAMETER_NPB_C_OBJS = $(call TOOBJS, $(PARAMETER_NPB_C_SRCS))
+
+$(PARAMETER_PB_PY): \
+%_pb2.py: %.proto
+	protoc \
+	--python_out=$(PARAMETER_PB_DIR) \
+	--proto_path=$(PARAMETER_PB_DIR) \
+	$<
+
+PYTARGETS += $(PARAMETER_PB_PY)
+
+
+PBDEP_OPT := --cgen=$(OBJDIR)/$(PARAMETER_PB_SUBDIR)
+
+
+$(patsubst $(PARAMETER_PB_DIR)/%.proto, $(OBJDIR)/$(PARAMETER_PB_SUBDIR)/%.d, \
+	$(PARAMETER_PB_PROTO)) : \
+$(OBJDIR)/$(PARAMETER_PB_SUBDIR)/%.d: $(PARAMETER_PB_DIR)/%.proto
+	$(ECHO) "protoc create dependencies for $<"
+	@mkdir -p $(OBJDIR)/$(PARAMETER_PB_SUBDIR)
+	$(Q)$(PROTOC) \
+	--plugin=protoc-gen-depends=scripts/protoc-gen-depends \
+	--proto_path=$(PARAMETER_PB_DIR)/ \
+	--depends_out="$(PBDEP_OPT)" \
+	 $<
