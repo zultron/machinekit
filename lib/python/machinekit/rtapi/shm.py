@@ -47,8 +47,11 @@ class MKSHMSegment(shmdrv_api.SHMSegment):
         # Set parent object key
         self.key = self.key_byname(self.instance, self)
         # If we're a subclass, we have size data
-        if self.requested_size is not None and size == 0:
-            self.size = self.requested_size
+        if self.requested_size is not None:
+            if size == 0:
+                self.size = self.requested_size
+            else:
+                pass # self.size is set by SHMSegment.__cinit__
 
     @classmethod
     def key_byname(cls, instance, obj=None):
