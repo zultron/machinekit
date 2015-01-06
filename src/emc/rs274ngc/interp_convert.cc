@@ -3253,7 +3253,7 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
  } else if ((block->m_modes[10] == 998) && ONCE_M(10)){
 	 // Tormach only
 	 if (FEATURE(LATHE_TOOLCHANGE)){
-		 CHKS(1, NCE_UNKNOWN_M_CODE_USED);
+		 CHKS(1, NCE_UNKNOWN_M_CODE_USED,998);
 	 } else {
 		CHP(convert_home(G_30, block, settings));
 	}
