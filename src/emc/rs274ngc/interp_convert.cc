@@ -2655,11 +2655,11 @@ int Interp::gen_settings(std::vector<double> &current, std::vector<double> &save
 	    case 0: break; // sequence_number - no point in restoring
 	    case 1:
 		snprintf(buf,sizeof(buf)," F%.1f", saved[i]);
-		strncat(cmd,buf,sizeof(buf));
+		cmd+=buf;
 		break;
 	    case 2:
 		snprintf(buf,sizeof(buf)," S%.0f", saved[i]);
-		strncat(cmd,buf,sizeof(buf));
+		cmd+=buf;
 		break;
 	    }
 	}
@@ -2715,7 +2715,7 @@ int Interp::gen_g_codes(std::vector<int> &current, std::vector<int> &saved, std:
 		    } else {
 			snprintf(buf,sizeof(buf)," G%d", val / 10);
 		    }
-		    strncat(cmd,buf,sizeof(buf));
+		    cmd += buf;
 		} else {
 		    // so complain rather loudly
 		    MSG("------ gen_g_codes BUG: index %d = -1!!\n",i);
@@ -2761,7 +2761,7 @@ int Interp::gen_m_codes(std::vector<int> &current, std::vector<int> &saved, std:
 	    case 8: // feed hold
 		if (val != -1) {  // unsure..
 		    snprintf(buf,sizeof(buf),"M%d\n", val);
-		    strncat(cmd,buf,sizeof(buf));
+		    cmd+=buf;
 		} else {
 		    MSG("------ gen_m_codes: index %d = -1!!\n",i);
 		}
@@ -2812,39 +2812,39 @@ int Interp::restore_settings(setup_pointer settings,
     write_m_codes((block_pointer) NULL, settings, settings->modal_state);
     write_settings(settings, settings->modal_state);
 
-    char cmd[LINELEN];
-    memset(cmd, 0, LINELEN);
+    std::string cmd("");
 
     // construct gcode from the state difference and execute
     // this assures appropriate canon commands are generated if needed -
     // just restoring interp variables is not enough
 
     // G20/G21 switching is special - it is executed beforehand
-    // so restoring feed lateron is interpreted in the correct context
+    // so restoring feed later on is interpreted in the correct context
 
     if (settings->modal_state.g_codes[5] != settings->sub_context[from_level].modal_state.g_codes[5]) {
         char buf[LINELEN];
-	snprintf(buf,sizeof(buf), "G%d",settings->sub_context[from_level].modal_state.g_codes[5]/10);
-	CHKS(execute(buf) != INTERP_OK, _("M7x: restore_settings G20/G21 failed: '%s'"), cmd.c_str());
-	memset(cmd, 0, LINELEN);
+        snprintf(buf,sizeof(buf), "G%d",settings->sub_context[from_level].modal_state.g_codes[5]/10);
+        CHKS(execute(buf) != INTERP_OK, _("M7x: restore_settings G20/G21 failed: '%s'"), cmd.c_str());
     }
     gen_settings(settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings,cmd);
     gen_m_codes(settings->modal_state.m_codes, settings->sub_context[from_level].modal_state.m_codes,cmd);
     gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,cmd);
 
-    if (strlen(cmd) > 0) {
-	// the sequence can be multiline, separated by nl
-	// so split and execute each line
-	char *last = cmd;
-	char *s;
-	while ((s = strtok_r(last, "\n", &last)) != NULL) {
-	    int status = execute(s);
-	    if (status != INTERP_OK) {
-		char currentError[LINELEN+1];
-		strcpy(currentError,getSavedError());
-		CHKS(status, _("M7x: restore_settings failed executing: '%s': %s"), s, currentError);
-	    }
-	}
+    if (cmd.length() > 0) {
+        // the sequence can be multiline, separated by nl
+        // so split and execute each line
+        char cmd_buf[LINELEN];
+        strncpy(cmd_buf,cmd.c_str(), LINELEN);
+        char *last = cmd_buf;
+        char *s;
+        while ((s = strtok_r(last, "\n", &last)) != NULL) {
+            int status = execute(s);
+            if (status != INTERP_OK) {
+                char currentError[LINELEN+1];
+                strcpy(currentError,getSavedError());
+                CHKS(status, _("M7x: restore_settings failed executing: '%s': %s"), s, currentError);
+            }
+        }
 	write_g_codes((block_pointer) NULL, settings, settings->modal_state);
 	write_m_codes((block_pointer) NULL, settings, settings->modal_state);
 	write_settings(settings, settings->modal_state);

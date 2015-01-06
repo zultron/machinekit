@@ -137,7 +137,6 @@ setup_struct::setup_struct() :
     init_once(1),
     m_remappable(),
     g_remappable()
-    modal_state()
 {
     memset(blocktext, 0, sizeof(blocktext));
     memset(filename, 0, sizeof(filename));
