@@ -77,12 +77,15 @@ public:
 
 // copy active G codes into array [0]..[15]
  void active_g_codes(int *codes);
+ void active_g_codes(int *codes, long int line);
 
 // copy active M codes into array [0]..[9]
  void active_m_codes(int *codes);
+ void active_m_codes(int *codes, long int line);
 
 // copy active F, S settings into array [0]..[2]
  void active_settings(double *settings);
+ void active_settings(double *settings, long int line);
 
 // copy the text of the error message whose number is error_code into the
 // error_text array, but stop at max_size if the text is longer.

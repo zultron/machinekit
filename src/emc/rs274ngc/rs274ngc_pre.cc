@@ -512,8 +512,10 @@ int Interp::_execute(const char *command)
 
       // Store active state in the big history
       // Make sure we have enough space (inefficient, should reserve at initial load)
-      _setup.modal_history.history.reserve(_setup.sequence_number + 2);
-      _setup.modal_history.history.at(_setup.sequence_number) = _setup.modal_state;
+      int line = _setup.sequence_number;
+      _setup.modal_history.history.reserve(line + 2);
+      _setup.modal_history.history.at(line) = _setup.modal_state;
+      printf("Updating modal state at line %d\n",line);
 
 	  if ((status == INTERP_EXIT) &&
 	      (_setup.remap_level > 0) &&
@@ -1994,9 +1996,14 @@ See documentation of write_g_codes.
 void Interp::active_g_codes(int *codes)        //!< array of codes to copy into
 {
   int n;
+  for (n = 0; n < ACTIVE_G_CODES; n++) {
+    codes[n] = _setup.modal_state.g_codes[n];
+  }
+}
 
-  //KLUDGE extract info from setup (this should really be an argument)
-  int line = _setup.sequence_number;
+void Interp::active_g_codes(int *codes, long int line)        //!< array of codes to copy into
+{
+  int n;
   for (n = 0; n < ACTIVE_G_CODES; n++) {
     //codes[n] = _setup.modal_state.g_codes[n];
     codes[n] = _setup.modal_history.history.at(line).g_codes[n];
@@ -2021,7 +2028,15 @@ void Interp::active_m_codes(int *codes)        //!< array of codes to copy into
 {
   int n;
 
-  int line = _setup.sequence_number;
+  for (n = 0; n < ACTIVE_M_CODES; n++) {
+    codes[n] = _setup.modal_state.m_codes[n];
+  }
+}
+
+void Interp::active_m_codes(int *codes, long int line)        //!< array of codes to copy into
+{
+  int n;
+
   for (n = 0; n < ACTIVE_M_CODES; n++) {
     codes[n] = _setup.modal_history.history.at(line).m_codes[n];
   }
@@ -2045,7 +2060,15 @@ void Interp::active_settings(double *settings) //!< array of settings to copy in
 {
   int n;
 
-  int line = _setup.sequence_number;
+  for (n = 0; n < ACTIVE_SETTINGS; n++) {
+    settings[n] = _setup.modal_state.settings[n];
+  }
+}
+
+void Interp::active_settings(double *settings, long int line) //!< array of settings to copy into
+{
+  int n;
+
   for (n = 0; n < ACTIVE_SETTINGS; n++) {
     settings[n] = _setup.modal_history.history.at(line).settings[n];
   }
