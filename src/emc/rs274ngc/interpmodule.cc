@@ -33,14 +33,14 @@ namespace pp = pyplusplus::containers::static_sized;
 #define IS_INT(x) (PyObject_IsInstance(x.ptr(), (PyObject*)&PyInt_Type))
 
 static  active_g_codes_array active_g_codes_wrapper ( Interp & inst) {
-    return active_g_codes_array(inst._setup.active_g_codes);
+    return active_g_codes_array(&inst._setup.modal_state.g_codes[0]);
 }
 static  active_m_codes_array active_m_codes_wrapper ( Interp & inst) {
-    return active_m_codes_array(inst._setup.active_m_codes);
+    return active_m_codes_array(&inst._setup.modal_state.m_codes[0]);
 }
 
 static  active_settings_array active_settings_wrapper ( Interp & inst) {
-    return active_settings_array(inst._setup.active_settings);
+    return active_settings_array(&inst._setup.modal_state.settings[0]);
 }
 
 static  blocks_array blocks_wrapper ( Interp & inst) {

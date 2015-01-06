@@ -484,9 +484,9 @@ int Interp::_execute(const char *command)
 		      _setup.mdi_interrupt = false;
 		      // at this point the MDI execution of a remapped block is complete.
 		      logRemap("MDI remap execution complete status=%s\n",interp_status(status));
-		      write_g_codes(eblock, &_setup);
-		      write_m_codes(eblock, &_setup);
-		      write_settings(&_setup);
+		      write_g_codes(eblock, &_setup, _setup.modal_state);
+		      write_m_codes(eblock, &_setup, _setup.modal_state);
+		      write_settings(&_setup, _setup.modal_state);
 		      return INTERP_OK;
 		  }
 	      } else {
@@ -506,9 +506,14 @@ int Interp::_execute(const char *command)
 	  // standard case: unremapped block execution
 	  status = execute_block(eblock, &_setup);
 
-	  write_g_codes(eblock, &_setup);
-	  write_m_codes(eblock, &_setup);
-	  write_settings(&_setup);
+	  write_g_codes(eblock, &_setup, _setup.modal_state);
+	  write_m_codes(eblock, &_setup, _setup.modal_state);
+	  write_settings(&_setup, _setup.modal_state);
+
+      // Store active state in the big history
+      // Make sure we have enough space (inefficient, should reserve at initial load)
+      _setup.modal_history.history.reserve(_setup.sequence_number + 2);
+      _setup.modal_history.history.at(_setup.sequence_number) = _setup.modal_state;
 
 	  if ((status == INTERP_EXIT) &&
 	      (_setup.remap_level > 0) &&
@@ -1150,9 +1155,9 @@ int Interp::init()
 
   synch(); //synch first, then update the interface
 
-  write_g_codes((block_pointer) NULL, &_setup);
-  write_m_codes((block_pointer) NULL, &_setup);
-  write_settings(&_setup);
+  write_g_codes((block_pointer) NULL, &_setup, _setup.modal_state);
+  write_m_codes((block_pointer) NULL, &_setup, _setup.modal_state);
+  write_settings(&_setup, _setup.modal_state);
 
   init_tool_parameters();
   // Synch rest of settings to external world
@@ -1990,8 +1995,11 @@ void Interp::active_g_codes(int *codes)        //!< array of codes to copy into
 {
   int n;
 
+  //KLUDGE extract info from setup (this should really be an argument)
+  int line = _setup.sequence_number;
   for (n = 0; n < ACTIVE_G_CODES; n++) {
-    codes[n] = _setup.active_g_codes[n];
+    //codes[n] = _setup.modal_state.g_codes[n];
+    codes[n] = _setup.modal_history.history.at(line).g_codes[n];
   }
 }
 
@@ -2013,8 +2021,9 @@ void Interp::active_m_codes(int *codes)        //!< array of codes to copy into
 {
   int n;
 
+  int line = _setup.sequence_number;
   for (n = 0; n < ACTIVE_M_CODES; n++) {
-    codes[n] = _setup.active_m_codes[n];
+    codes[n] = _setup.modal_history.history.at(line).m_codes[n];
   }
 }
 
@@ -2036,8 +2045,9 @@ void Interp::active_settings(double *settings) //!< array of settings to copy in
 {
   int n;
 
+  int line = _setup.sequence_number;
   for (n = 0; n < ACTIVE_SETTINGS; n++) {
-    settings[n] = _setup.active_settings[n];
+    settings[n] = _setup.modal_history.history.at(line).settings[n];
   }
 }
 

@@ -2645,7 +2645,7 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
  * given two double arrays representing interpreter settings as stored in
  * _setup.active_settings, construct a G-code sequence to synchronize their state.
  */
-int Interp::gen_settings(double *current, double *saved, char *cmd)
+int Interp::gen_settings(std::vector<double> &current, std::vector<double> &saved, std::string &cmd)
 {
     int i;
     char buf[LINELEN];
@@ -2672,7 +2672,7 @@ int Interp::gen_settings(double *current, double *saved, char *cmd)
  * given two int arrays representing interpreter settings as stored in
  * _setup.active_g_codes, construct a G-code sequence to synchronize their state.
  */
-int Interp::gen_g_codes(int *current, int *saved, char *cmd)
+int Interp::gen_g_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd)
 {
     int i, val;
     char buf[LINELEN];
@@ -2734,7 +2734,7 @@ int Interp::gen_g_codes(int *current, int *saved, char *cmd)
  * use multiple lines here because M7 and M8 may not be on the same line since
  * they are in the same modal group.
  */
-int Interp::gen_m_codes(int *current, int *saved, char *cmd)
+int Interp::gen_m_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd)
 {
     int i,val;
     char buf[LINELEN];
@@ -2776,14 +2776,12 @@ int Interp::save_settings(setup_pointer settings)
 {
       // the state is sprinkled all over _setup
       // collate state in _setup.active_* arrays
-      write_g_codes((block_pointer) NULL, settings);
-      write_m_codes((block_pointer) NULL, settings);
-      write_settings(settings);
+      write_g_codes((block_pointer) NULL, settings, settings->modal_state);
+      write_m_codes((block_pointer) NULL, settings, settings->modal_state);
+      write_settings(settings, settings->modal_state);
 
       // save in the current call frame
-      active_g_codes((int *)settings->sub_context[settings->call_level].saved_g_codes);
-      active_m_codes((int *)settings->sub_context[settings->call_level].saved_m_codes);
-      active_settings((double *)settings->sub_context[settings->call_level].saved_settings);
+      settings->sub_context[settings->call_level].modal_state = settings->modal_state;
 
       // TBD: any other state deemed important to save/restore should be added here
       // context_struct might need to be extended too.
@@ -2810,9 +2808,9 @@ int Interp::restore_settings(setup_pointer settings,
     CHKS((settings->call_level < 0), (_("BUG: restore to level %d !?")),settings->call_level);
 
     // linearize state
-    write_g_codes((block_pointer) NULL, settings);
-    write_m_codes((block_pointer) NULL, settings);
-    write_settings(settings);
+    write_g_codes((block_pointer) NULL, settings, settings->modal_state);
+    write_m_codes((block_pointer) NULL, settings, settings->modal_state);
+    write_settings(settings, settings->modal_state);
 
     char cmd[LINELEN];
     memset(cmd, 0, LINELEN);
@@ -2824,14 +2822,15 @@ int Interp::restore_settings(setup_pointer settings,
     // G20/G21 switching is special - it is executed beforehand
     // so restoring feed lateron is interpreted in the correct context
 
-    if (settings->active_g_codes[5] != settings->sub_context[from_level].saved_g_codes[5]) {
-	snprintf(cmd,sizeof(cmd), "G%d",settings->sub_context[from_level].saved_g_codes[5]/10);
-	CHKS(execute(cmd) != INTERP_OK, _("M7x: restore_settings G20/G21 failed: '%s'"), cmd);
+    if (settings->modal_state.g_codes[5] != settings->sub_context[from_level].modal_state.g_codes[5]) {
+        char buf[LINELEN];
+	snprintf(buf,sizeof(buf), "G%d",settings->sub_context[from_level].modal_state.g_codes[5]/10);
+	CHKS(execute(buf) != INTERP_OK, _("M7x: restore_settings G20/G21 failed: '%s'"), cmd.c_str());
 	memset(cmd, 0, LINELEN);
     }
-    gen_settings((double *)settings->active_settings, (double *)settings->sub_context[from_level].saved_settings,cmd);
-    gen_m_codes((int *) settings->active_m_codes, (int *)settings->sub_context[from_level].saved_m_codes,cmd);
-    gen_g_codes((int *)settings->active_g_codes, (int *)settings->sub_context[from_level].saved_g_codes,cmd);
+    gen_settings(settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings,cmd);
+    gen_m_codes(settings->modal_state.m_codes, settings->sub_context[from_level].modal_state.m_codes,cmd);
+    gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,cmd);
 
     if (strlen(cmd) > 0) {
 	// the sequence can be multiline, separated by nl
@@ -2846,9 +2845,9 @@ int Interp::restore_settings(setup_pointer settings,
 		CHKS(status, _("M7x: restore_settings failed executing: '%s': %s"), s, currentError);
 	    }
 	}
-	write_g_codes((block_pointer) NULL, settings);
-	write_m_codes((block_pointer) NULL, settings);
-	write_settings(settings);
+	write_g_codes((block_pointer) NULL, settings, settings->modal_state);
+	write_m_codes((block_pointer) NULL, settings, settings->modal_state);
+	write_settings(settings, settings->modal_state);
     }
 
     // TBD: any state deemed important to restore should be restored here
@@ -3073,7 +3072,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
     // and then not worry about it through the program.  When you
     // finally unload the last tool, G43 mode is canceled.
 
-      if ((settings->active_g_codes[9] == G_43) && ONCE(STEP_RETAIN_G43)) {
+      if ((settings->modal_state.g_codes[9] == G_43) && ONCE(STEP_RETAIN_G43)) {
         if(settings->selected_pocket > 0) {
             struct block_struct g43;
             init_block(&g43);
