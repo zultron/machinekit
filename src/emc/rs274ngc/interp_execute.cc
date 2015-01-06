@@ -318,8 +318,8 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 
   // By default, update for every new block
   // Hack to check for blocks that would otherwise be skipped
-  if (!skip_line_number ||
-          block->g_modes[GM_LENGTH_UNITS] !=-1
+  if ((!skip_line_number ||
+          block->g_modes[GM_LENGTH_UNITS] !=-1) && block->motion_to_be == -1
           ) {
       convert_line_number();
   }
