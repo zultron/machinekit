@@ -14,6 +14,7 @@
 #ifndef MODAL_STATE_HH
 #define MODAL_STATE_HH
 #include <vector>
+#include <deque>
 struct ModalState {
     ModalState();
     std::vector<int> g_codes;       // array of active G codes
@@ -23,6 +24,6 @@ struct ModalState {
 
 struct ModalStateHistory {
     ModalStateHistory();
-    std::vector<ModalState> history;
+    std::deque<ModalState> history;
 };
 #endif

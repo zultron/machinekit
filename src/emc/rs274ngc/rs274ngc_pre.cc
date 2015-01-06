@@ -511,11 +511,12 @@ int Interp::_execute(const char *command)
 	  write_settings(&_setup, _setup.modal_state);
 
       // Store active state in the big history
-      // Make sure we have enough space (inefficient, should reserve at initial load)
       int line = _setup.sequence_number;
-      _setup.modal_history.history.reserve(line + 2);
+      // Make sure we have enough space (additional buffer space may not be necessary)
+      _setup.modal_history.history.resize(line + 20);
+      // Store the current state for reference
       _setup.modal_history.history.at(line) = _setup.modal_state;
-      printf("Updating modal state at line %d\n",line);
+      //printf("Updating modal state at line %d\n",line);
 
 	  if ((status == INTERP_EXIT) &&
 	      (_setup.remap_level > 0) &&
@@ -1161,6 +1162,9 @@ int Interp::init()
   write_m_codes((block_pointer) NULL, &_setup, _setup.modal_state);
   write_settings(&_setup, _setup.modal_state);
 
+  // Clean up and recycle extra capacity
+  _setup.modal_history.history.resize(2000);
+
   init_tool_parameters();
   // Synch rest of settings to external world
 
@@ -1696,6 +1700,8 @@ int Interp::reset()
     _setup.linetext[0] = 0;
     _setup.blocktext[0] = 0;
     _setup.line_length = 0;
+    // Shrink the modal history back down to a reasonable size
+    //_setup.modal_history.history.resize(2000);
 
     unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__);
     warning_list = PyList_New(0);
