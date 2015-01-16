@@ -27,8 +27,8 @@ echo $0 $* > configure.cmdline
 rules_enable_threads() {
     # enable thread flavors in debian/rules; e.g.
     #    THREADS_POSIX = --with-posix
-    FLAVOR=$1
-    FLAVOR_VAR=THREADS_$(echo $FLAVOR | tr 'a-z-' 'A-Z_')
+    local FLAVOR=$1
+    local FLAVOR_VAR=THREADS_$(echo $FLAVOR | tr 'a-z-' 'A-Z_')
     sed -i rules \
 	-e "s/^${FLAVOR_VAR}[^_].*/${FLAVOR_VAR} = --with-${FLAVOR}/"
     echo "debian/rules:  enabled ${FLAVOR} threads" >&2
@@ -40,10 +40,26 @@ guess_arch_from_kver() {
     # correct for the RTAI kernel packages in the Machinekit Debian
     # archive
     KVER=$1
-    case $KVER in
-	*-?86 | *-?86-pae) echo i386 ;;
-	*-amd64) echo amd64 ;;
-	*) echo any ;;  # For non-Debian kernel package naming
+    if $DEBIAN_STYLE_KPKG; then
+	case $KVER in
+	    *-?86 | *-?86-pae) echo i386 ;;
+	    *-amd64) echo amd64 ;;
+	    *) echo "Unknown Debian kernel version pattern '${KVER}'" >&2;
+		exit 1 ;;
+	esac
+    else
+	echo $KVER
+    fi
+}
+
+guess_flavour_from_arch() {
+    # utility to generate Debian-style kernel package 'flavours' from
+    # arch
+    local ARCH=$1
+    case $ARCH in
+	amd64) echo "x86-amd64" ;;
+	i?86) echo "x86-686-pae" ;;
+	*) echo "Unknown arch '${ARCH}'" >&2; exit 1 ;;
     esac
 }
 
@@ -51,32 +67,44 @@ kernel_build_dep() {
     # generate Build-Depends: for kernels, restricting to a build arch
     # where applicable
     KVER=$1
-    local BUILD_DEP=linux-headers-${KVER}
-    if test $(guess_arch_from_kver ${KVER}) != any; then
-	# Only require these headers for the corresponding ARCH
-	BUILD_DEP+=" [$(guess_arch_from_kver ${KVER})]"
+    KSTYLE=$2  # 'xenomai' or 'rtai', for debian-style pkgs
+    local BUILD_DEP
+    if $DEBIAN_STYLE_KPKG; then
+	for ARCH in $KTHREAD_ARCHES; do
+	    # linux-headers-xenomai.x86-686-pae
+	    # linux-headers-3.8-1-rtai.x86-amd64 [amd64]
+	    local FLAVOUR=$(guess_flavour_from_arch $ARCH)
+	    BUILD_DEP+="linux-headers-${KVER}-${KSTYLE}.${FLAVOUR} [$ARCH], "
+	done
+	BUILD_DEP="${BUILD_DEP%, }"
+    else
+	BUILD_DEP=linux-headers-${KVER}
     fi
     echo $BUILD_DEP
-    echo "debian/control:  added Build-Depends: ${BUILD_DEP}" >&2
 }
 
 rules_set_kthreads_headers() {
     # set list of kernel sources in debian/rules
-    FLAVOR=$1; shift
-    # do nothing if no headers found
-    test -n "$*" || return 0
+    local KSTYLE=$1; shift
+    local FLAVOR=${KSTYLE}-kernel
+    local KERNEL_HEADERS
 
     # Loop through each supported kthreads arch; add any kvers that
     # look like an arch match to the appropriate kernel headers list
     for ARCH in $KTHREAD_ARCHES; do
+	# do nothing if no headers found
+	eval KERNEL_HEADERS=\"\${KERNEL_HEADERS_${KSTYLE}_${ARCH}}\"
+	test -n "$KERNEL_HEADERS" || continue
+
 	# construct list of kernel source directories
-	local HEADERS=
-	for v in $*; do
+	local HEADERS=""
+	for v in $KERNEL_HEADERS; do
 	    # skip incompatible arches
 	    test "$(guess_arch_from_kver ${v})" = $ARCH -o \
 		"$(guess_arch_from_kver ${v})" = any || continue
 	    HEADERS+=" /usr/src/linux-headers-${v}"
 	done
+	HEADERS="${HEADERS# }"
 	# if the list is not empty, add it in debian/rules; e.g.
 	# HEADERS_XENOMAI_KERNEL_i386 = \
 	#     --with-xenomai-kernel-sources="/usr/src/linux-headers-<kver>"
@@ -116,52 +144,44 @@ do_xenomai() {
     HAVE_FLAVOR=true
 }
 
-do_xenomai_kernel() {
-    KVER=$1
-    # Be sure the -dev files only appear once
-    BUILD_DEPS="${BUILD_DEPS/libxenomai-dev, /}libxenomai-dev, "
-    # Headers package is conveniently named after the kver
-    BUILD_DEPS+="$(kernel_build_dep ${KVER}), "
-    # Add '...install' and 'control' file with substitutions
-    sed machinekit-kernel.install.in \
-	-e "s/@KVER@/${KVER}/" \
-	-e "s/@FLAVOR@/xenomai-kernel/" \
-	> machinekit-xenomai-kernel-${KVER}.install
-    echo "debian/machinekit-xenomai-kernel-${KVER}.install:  added" >&2
-    sed control.xenomai-kernel.in \
-	-e "s/@KVER@/$KVER/g" \
-	-e "s/@ARCH@/$(guess_arch_from_kver ${KVER})/g" \
-	>> control
-    echo "debian/control:  Added Xenomai kernel threads ${KVER}" >&2
-    echo "                 with Build-Depends:" >&2
-    echo "    libxenomai-dev" >&2
-    rules_enable_threads xenomai_kernel
-    XENOMAI_KERNEL_HEADERS+=" ${KVER}"
-    HAVE_FLAVOR=true
-}
+do_kernel_threads() {
+    local KSTYLE=$1  # 'xenomai' or 'rtai'
+    local KVER=$2
+    local KDEP=$3
+    local ARCH
 
-do_rtai_kernel() {
-    KVER=$1
-    # Be sure the -dev files only appear once
-    BUILD_DEPS="${BUILD_DEPS/librtai-dev, /}librtai-dev, "
-    # Headers package is conveniently named after the kver
-    BUILD_DEPS+="$(kernel_build_dep ${KVER}), "
-    # Add '...install' and 'control' file with substitutions
-    sed machinekit-kernel.install.in \
-	-e "s/@KVER@/${KVER}/" \
-	-e "s/@FLAVOR@/rtai-kernel/" \
-	> machinekit-rtai-kernel-${KVER}.install
-    echo "debian/machinekit-xenomai-kernel-${KVER}.install:  added" >&2
-    sed control.rtai-kernel.in \
-	-e "s/@KVER@/$KVER/g" \
-	-e "s/@ARCH@/$(guess_arch_from_kver ${KVER})/g" \
-	>> control
-    echo "debian/control:  Added RTAI kernel threads ${KVER}" >&2
-    echo "                 with Build-Depends:" >&2
-    echo "    librtai-dev" >&2
-    rules_enable_threads rtai_kernel
-    RTAI_KERNEL_HEADERS+=" ${KVER}"
-    HAVE_FLAVOR=true
+    # $ARCH-non-specific deps (be sure the -dev files only appear once)
+    BUILD_DEPS="${BUILD_DEPS/$KDEP, /}$KDEP, "
+    # Add kernel build dep
+    local KERNEL_BUILD_DEPS="$(kernel_build_dep ${KVER} ${KSTYLE})"
+    BUILD_DEPS+="${KERNEL_BUILD_DEPS}, "
+    echo "debian/control:  Adding ${KSTYLE} kernel threads Build-Depends:" >&2
+    echo "    ${KDEP}" >&2
+    echo "    ${KERNEL_BUILD_DEPS}" >&2
+
+    for ARCH in $KTHREAD_ARCHES; do
+	local KVER_SUB=${KVER}
+	if $DEBIAN_STYLE_KPKG; then
+	    # Debian-style kernel packages embed flavor into pkg names, e.g.
+	    # 3.8-1-xenomai.x86-amd64, linux-headers-xenomai.x86-686-pae
+	    local FLAVOUR=$(guess_flavour_from_arch ${ARCH})
+	    KVER_SUB=${KVER}-${KSTYLE}.${FLAVOUR}
+	fi
+        # Add '...install' and 'control' file with substitutions
+	sed machinekit-kernel.install.in \
+	    -e "s/@KVER@/${KVER_SUB}/" \
+	    -e "s/@FLAVOR@/${KSTYLE}-kernel/" \
+	    > machinekit-${KSTYLE}-kernel-${KVER_SUB}.install
+	echo "debian/machinekit-${KSTYLE}-kernel-${KVER_SUB}.install:  added" >&2
+	sed control.${KSTYLE}-kernel.in \
+	    -e "s/@KVER@/${KVER_SUB}/g" \
+	    -e "s/@ARCH@/${ARCH}/g" \
+	    >> control
+	echo "debian/control:  Added ${KSTYLE} ${ARCH} kthreads ${KVER_SUB}" >&2
+	eval KERNEL_HEADERS_${KSTYLE}_${ARCH}+=\" \${KVER_SUB}\"
+	HAVE_FLAVOR=true
+    done
+    rules_enable_threads ${KSTYLE}_kernel
 }
 
 do_tcl_tk_version() {
@@ -210,6 +230,7 @@ test "$1" != --help || usage
 # set defaults
 BUILD_DEPS=  # List of Build-Depends
 HAVE_FLAVOR=false
+DEBIAN_STYLE_KPKG=false
 
 # delete old files
 rm -f machinekit-{rtai,xenomai}-kernel-*.install
@@ -221,13 +242,14 @@ cp rules.in rules; chmod +x rules
 echo "debian/rules:  copied base template" >&2
 
 # read command line options
-while getopts dprxR:X:t:?h ARG; do
+while getopts DprxR:X:t:?h ARG; do
     case $ARG in
 	p) do_posix ;;
 	r) do_rt-preempt ;;
 	x) do_xenomai ;;
-	R) do_rtai_kernel "$OPTARG" ;;
-	X) do_xenomai_kernel "$OPTARG" ;;
+	D) DEBIAN_STYLE_KPKG=true ;;
+	R) do_kernel_threads rtai "$OPTARG" librtai-dev ;;
+	X) do_kernel_threads xenomai "$OPTARG" libxenomai-dev ;;
 	t) TCL_TK_VER="$OPTARG" ;;
 	?|h) usage ;;
 	*) usage "Unknown arg: '-$ARG'" ;;
@@ -238,12 +260,12 @@ done
 do_tcl_tk_version "$TCL_TK_VER"
 
 # Set kthreads headers
-rules_set_kthreads_headers xenomai-kernel $XENOMAI_KERNEL_HEADERS
-rules_set_kthreads_headers rtai-kernel $RTAI_KERNEL_HEADERS
+rules_set_kthreads_headers xenomai
+rules_set_kthreads_headers rtai
 
 # Set control Build-Depends:
 sed -i control \
-    -e "s/@BUILD_DEPS@/${BUILD_DEPS}/" \
+    -e "s/@BUILD_DEPS@/${BUILD_DEPS%, }/" \
     -e "s/@TCL_TK_BUILD_DEPS@/${TCL_TK_BUILD_DEPS}/" \
     -e "s/@TCL_TK_DEPS@/${TCL_TK_DEPS}/"
 echo "debian/control:  add final Build-Depends: list" >&2
