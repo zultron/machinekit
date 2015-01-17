@@ -119,7 +119,7 @@ clean: debian/control
 	rm -f Makefile.inc
 	rm -f src/config.log src/config.status
 
-	dh_clean debian/control debian/machinekit-*-kernel-*.install
+	dh_clean
 
 install: build
 	dh_testdir
