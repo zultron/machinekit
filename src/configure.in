@@ -883,6 +883,26 @@ then
     AC_MSG_ERROR([protoc not found - protobuf-compiler package not installed?])
 fi
 
+# FIXME debugging
+echo "Protobuf debug:"
+echo "   Protobuf packages:"
+dpkg-query -W \*protobuf\*
+echo "   Protobuf python libs:"
+echo ls -l '/usr/lib/python2.7/dist-packages/google/protobuf'
+ls -l '/usr/lib/python2.7/dist-packages/google/protobuf'
+echo ls -l '/usr/lib/python2.7/dist-packages/google'
+ls -l '/usr/lib/python2.7/dist-packages/google'
+echo "   Test import google.protobuf.descriptor:"
+python -c 'import google.protobuf.descriptor'
+echo "   Test import google:"
+python -c 'import google; print google.__fi''le__'
+echo "   Python version:"
+python --version
+echo "   Python path:"
+python -c 'import sys; print "    " + "\n   ".join(sys.path)'
+echo "   apt-get check"
+
+
 AC_PYTHON_MODULE(google.protobuf.descriptor, failed to import google.protobuf.descriptor
  - python-protobuf package missing? )
 AC_PYTHON_MODULE(google.protobuf.descriptor_pb2, failed to import google.protobuf.descriptor_pb2
