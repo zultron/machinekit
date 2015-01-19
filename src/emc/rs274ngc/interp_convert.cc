@@ -2845,6 +2845,7 @@ int Interp::restore_settings(setup_pointer settings,
                 CHKS(status, _("M7x: restore_settings failed executing: '%s': %s"), s, currentError);
             }
         }
+    // Write updated state back to local storage
 	write_g_codes((block_pointer) NULL, settings, settings->modal_state);
 	write_m_codes((block_pointer) NULL, settings, settings->modal_state);
 	write_settings(settings, settings->modal_state);
