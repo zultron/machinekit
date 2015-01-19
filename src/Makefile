@@ -443,7 +443,8 @@ endif
 # accomodated here.
 ifeq ($(BUILD_SYS),kbuild)
 
-modules:
+# Force modules invocation to make sure user space is in order before rebuilding
+modules: configs userspace
 	$(PYTHON) modsilent.py $(MAKE) KBUILD_EXTRA_SYMBOLS=$(moduledir)/Module.symvers -C $(KERNELDIR) SUBDIRS=`pwd` CC=$(CC) V=0 modules
 	-cp Module.symvers *$(MODULE_EXT) ../rtlib/
 endif
@@ -999,7 +1000,8 @@ RTOBJS := $(sort $(foreach mod,$(obj-m),$(call TORTOBJS,$(mod))))
 RTDEPS := $(sort $(RTOBJS:.o=.d))
 
 IS_POWERPC = test `uname -m` = ppc -o `uname -m` = ppc64
-modules: $(patsubst %.o,../rtlib/%.so,$(obj-m))
+#Force module build to bring user space up to date before attempting to build modules
+modules: configs userspace $(patsubst %.o,../rtlib/%.so,$(obj-m))
 ../rtlib/%.so:
 	$(ECHO) Linking $@
 	$(Q)ld -d -r -o objects/$*.tmp $^
@@ -1018,7 +1020,7 @@ $(sort $(RTOBJS)) : objects/rt%.o : %.c
 endif
 
 ifeq ($(BUILD_SYS),normal)
-modules: $(patsubst %,../rtlib/%,$(obj-m))
+modules: configs userspace $(patsubst %,../rtlib/%,$(obj-m))
 RTOBJS := $(sort $(foreach mod,$(obj-m),$(call TORTOBJS,$(mod))))
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d, $(RTOBJS)))
 
