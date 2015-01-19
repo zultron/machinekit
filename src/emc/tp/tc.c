@@ -475,8 +475,7 @@ double pmLine9Target(PmLine9 * const line9)
                 line9->xyz.end.x,
                 line9->xyz.end.y,
                 line9->xyz.end.z);
-        //FIXME yet it does return zero...
-        return 0;
+        return 0.0;
     }
 }
 
