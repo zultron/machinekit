@@ -25,8 +25,6 @@ ModalStateHistory::ModalStateHistory(): history(2000)
 
 StateTag::StateTag(): feed(0.0),
     speed(0.0),
+    fields(-1,GM_FIELD_MAX_FIELDS),
     flags(0)
-{
-    // Force all fields to "invalid" value
-    memset(fields,-1, sizeof(fields));
-}
+{}

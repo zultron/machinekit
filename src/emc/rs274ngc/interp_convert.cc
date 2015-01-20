@@ -2779,6 +2779,7 @@ int Interp::save_settings(setup_pointer settings)
       write_g_codes((block_pointer) NULL, settings, settings->modal_state);
       write_m_codes((block_pointer) NULL, settings, settings->modal_state);
       write_settings(settings, settings->modal_state);
+      write_state_tag((block_pointer) NULL, settings, settings->state_tag);
 
       // save in the current call frame
       settings->sub_context[settings->call_level].modal_state = settings->modal_state;

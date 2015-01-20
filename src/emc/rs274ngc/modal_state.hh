@@ -39,33 +39,33 @@ typedef enum {
     GM_FLAG_CUTTER_COMP_TYPE,
     GM_FLAG_UNITS,
     GM_FLAG_DISTANCE_MODE,
-    GM_FLAG_ORIGIN_INDEX_,
     GM_FLAG_TOOL_OFFSETS_ENABLED,
     GM_FLAG_RETRACT_MODE,
-    GM_FLAG_EXACT_PATH,
+    GM_FLAG_BLEND,
     GM_FLAG_EXACT_STOP,
     GM_FLAG_CSS_MODE,
     GM_FLAG_IJK_MODE,
     GM_FLAG_DIAMETER_MODE,
-    GM_FLAG_SPINDLE_DIR,
-    GM_FLAG_TOOL_CHANGE_ACTIVE,
-    GM_FLAG_TOOL_CHANGE_TYPE,
+    GM_FLAG_SPINDLE_ON,
+    GM_FLAG_SPINDLE_CW,
     GM_FLAG_MIST,
     GM_FLAG_FLOOD,
     GM_FLAG_FEED_OVERRIDE,
     GM_FLAG_SPEED_OVERRIDE,
     GM_FLAG_ADAPTIVE_FEED,
     GM_FLAG_FEED_HOLD,
-    GM_FLAG_SPINDLE_ON
+    GM_FLAG_MAX_FLAGS
 } StateFlag;
 
 typedef enum {
     GM_FIELD_LINE_NUMBER,
     GM_FIELD_G_MODE_0,
     GM_FIELD_MOTION_MODE,
-    GM_FIELD_CANON_PLANE,
+    GM_FIELD_PLANE,
     GM_FIELD_FEED_MODE,
     GM_FIELD_M_MODES_4,
+    GM_FIELD_ORIGIN,
+    GM_FIELD_TOOLCHANGE,
     GM_FIELD_MAX_FIELDS
 } StateField;
 
@@ -88,7 +88,7 @@ struct StateTag {
     //TODO add others here if need be
 
     // Any data that doesn't pack nicely into a single bit
-    int fields[GM_FIELD_MAX_FIELDS];
+    std::vector<int> fields;
 
     // G / M mode flags (i.e. simple states like inch / mm, feedhold enable, etc.
     // This field should be no larger than a long int, so that we can easily

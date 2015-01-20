@@ -515,6 +515,7 @@ public:
  int write_g_codes(block_pointer block, setup_pointer settings, ModalState &state);
  int write_m_codes(block_pointer block, setup_pointer settings, ModalState &state);
  int write_settings(setup_pointer settings, ModalState &state);
+ int write_state_tag(block_pointer block, setup_pointer settings, StateTag &state);
  int unwrap_rotary(double *, double, double, double, char);
  bool isreadonly(int index);
 

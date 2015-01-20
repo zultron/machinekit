@@ -632,6 +632,8 @@ typedef struct setup_struct
 
   ModalState modal_state;
   ModalStateHistory modal_history;
+  StateTag state_tag;
+
   bool arc_not_allowed;       // we just exited cutter compensation, so we error if the next move isn't straight
   double axis_offset_x;         // X-axis g92 offset
   double axis_offset_y;         // Y-axis g92 offset
