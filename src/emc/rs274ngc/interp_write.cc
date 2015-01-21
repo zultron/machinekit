@@ -224,28 +224,30 @@ int Interp::write_state_tag(block_pointer block,
             break;
     }
 
-    state.flags[GM_FLAG_CUTTER_COMP_ON] = (settings->cutter_comp_side == RIGHT) || (settings->cutter_comp_side == LEFT);
-    state.flags[GM_FLAG_CUTTER_COMP_TYPE] = (settings->cutter_comp_side == RIGHT);
+  state.fields[GM_FIELD_CUTTER_COMP] =
+    (settings->cutter_comp_side == RIGHT) ? G_42 :
+    (settings->cutter_comp_side == LEFT) ? G_41 : G_40;
 
     state.flags[GM_FLAG_UNITS] = (settings->length_units == CANON_UNITS_INCHES);
 
     state.flags[GM_FLAG_DISTANCE_MODE] = (settings->distance_mode == MODE_ABSOLUTE);
-    state.fields[GM_FIELD_FEED_MODE] = (settings->feed_mode == INVERSE_TIME) ? G_93 :
-        (settings->feed_mode == UNITS_PER_MINUTE) ? G_94 : G_95;
+    state.flags[GM_FLAG_FEED_INVERSE_TIME] = (settings->feed_mode == INVERSE_TIME);
+    state.flags[GM_FLAG_FEED_UPM] = (settings->feed_mode == UNITS_PER_MINUTE);
+
 
     state.fields[GM_FIELD_ORIGIN] =
         (settings->origin_index <
          7) ? (530 + (10 * settings->origin_index)) : (584 +
              settings->origin_index);
 
-    state.flags[GM_FLAG_TOOL_OFFSETS_ENABLED] = (settings->tool_offset.tran.x || settings->tool_offset.tran.y || settings->tool_offset.tran.z ||
+    state.flags[GM_FLAG_TOOL_OFFSETS_ON] = (settings->tool_offset.tran.x || settings->tool_offset.tran.y || settings->tool_offset.tran.z ||
             settings->tool_offset.a || settings->tool_offset.b || settings->tool_offset.c ||
             settings->tool_offset.u || settings->tool_offset.v || settings->tool_offset.w);
-    state.flags[GM_FLAG_RETRACT_MODE] = (settings->retract_mode == OLD_Z);
+    state.flags[GM_FLAG_RETRACT_OLDZ] = (settings->retract_mode == OLD_Z);
     state.flags[GM_FLAG_BLEND] = (settings->control_mode == CANON_CONTINUOUS);
     state.flags[GM_FLAG_EXACT_STOP] = (settings->control_mode == CANON_EXACT_STOP);
     state.flags[GM_FLAG_CSS_MODE] = (settings->spindle_mode == CONSTANT_RPM);
-    state.flags[GM_FLAG_IJK_MODE] = (settings->ijk_distance_mode == MODE_ABSOLUTE);
+    state.flags[GM_FLAG_IJK_ABS] = (settings->ijk_distance_mode == MODE_ABSOLUTE);
     state.flags[GM_FLAG_DIAMETER_MODE] = (settings->lathe_diameter_mode);
 
 

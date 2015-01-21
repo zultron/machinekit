@@ -87,6 +87,12 @@ public:
  void active_settings(double *settings);
  void active_settings(double *settings, long int line);
 
+ // Update the state vectors from a state tag
+ void active_modes(int *g_codes,
+         int *mcodes,
+         double *settings,
+         StateTag const &tag);
+
 // copy the text of the error message whose number is error_code into the
 // error_text array, but stop at max_size if the text is longer.
  char *error_text(int error_code, char *error_text,

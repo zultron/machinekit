@@ -35,16 +35,16 @@ struct ModalStateHistory {
  * matter. However, the bit field should be <=64 bits to fit within a long int.
  */
 typedef enum {
-    GM_FLAG_CUTTER_COMP_ON,
-    GM_FLAG_CUTTER_COMP_TYPE,
     GM_FLAG_UNITS,
     GM_FLAG_DISTANCE_MODE,
-    GM_FLAG_TOOL_OFFSETS_ENABLED,
-    GM_FLAG_RETRACT_MODE,
+    GM_FLAG_TOOL_OFFSETS_ON,
+    GM_FLAG_RETRACT_OLDZ,
     GM_FLAG_BLEND,
     GM_FLAG_EXACT_STOP,
+    GM_FLAG_FEED_INVERSE_TIME,
+    GM_FLAG_FEED_UPM,
     GM_FLAG_CSS_MODE,
-    GM_FLAG_IJK_MODE,
+    GM_FLAG_IJK_ABS,
     GM_FLAG_DIAMETER_MODE,
     GM_FLAG_SPINDLE_ON,
     GM_FLAG_SPINDLE_CW,
@@ -60,9 +60,9 @@ typedef enum {
 typedef enum {
     GM_FIELD_LINE_NUMBER,
     GM_FIELD_G_MODE_0,
+    GM_FIELD_CUTTER_COMP,
     GM_FIELD_MOTION_MODE,
     GM_FIELD_PLANE,
-    GM_FIELD_FEED_MODE,
     GM_FIELD_M_MODES_4,
     GM_FIELD_ORIGIN,
     GM_FIELD_TOOLCHANGE,
@@ -83,8 +83,9 @@ typedef enum {
 struct StateTag {
     StateTag();
     // Machine settings
-    double feed;
-    double speed;
+    // TODO do these have to be double?
+    float feed;
+    float speed;
     //TODO add others here if need be
 
     // Any data that doesn't pack nicely into a single bit

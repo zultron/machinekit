@@ -93,6 +93,11 @@ public:
     void active_g_codes(int active_gcodes[ACTIVE_G_CODES]);
     void active_m_codes(int active_mcodes[ACTIVE_M_CODES]);
     void active_settings(double active_settings[ACTIVE_SETTINGS]);
+    virtual void active_modes(int g_codes[ACTIVE_G_CODES],
+            int m_codes[ACTIVE_M_CODES],
+            double settings[ACTIVE_SETTINGS],
+            StateTag const &tag);
+
     EmcPose get_work_offset(int origin);
     void set_loglevel(int level);
     FILE *f;
@@ -724,6 +729,13 @@ int Canterp::init() { return INTERP_OK; }
 void Canterp::active_g_codes(int gees[]) { std::fill(gees, gees + ACTIVE_G_CODES, 0); }
 void Canterp::active_m_codes(int emms[]) { std::fill(emms, emms + ACTIVE_M_CODES, 0); }
 void Canterp::active_settings(double sets[]) { std::fill(sets, sets + ACTIVE_SETTINGS, 0.0); }
+
+//FIXME
+void active_modes(int g_codes[ACTIVE_G_CODES],
+        int m_codes[ACTIVE_M_CODES],
+        double settings[ACTIVE_SETTINGS],
+        StateTag const &tag){}
+
 void Canterp::set_loglevel(int level) {}
 
 InterpBase *makeInterp() { return new Canterp; }
