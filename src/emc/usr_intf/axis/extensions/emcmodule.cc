@@ -1174,8 +1174,8 @@ static PyObject *program_open(pyCommandChannel *s, PyObject *o) {
 
 static PyObject *program_close(pyCommandChannel *s, PyObject *o) {
     EMC_TASK_PLAN_CLOSE m;
-    char *file;
-    int len;
+    //char *file;
+    //int len;
 
     //if(!PyArg_ParseTuple(o, "s#", &file, &len)) return NULL;
     m.serial_number = next_serial(s);
