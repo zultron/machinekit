@@ -708,9 +708,11 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     // Kludge, maybe this logic should be wrapped in these functions?
 
     if (motionLine) {
-        interp.active_g_codes(&stat->activeGCodes[0], motionLine);
-        interp.active_m_codes(&stat->activeMCodes[0], motionLine);
-        interp.active_settings(&stat->activeSettings[0], motionLine);
+        //interp.active_g_codes(&stat->activeGCodes[0], motionLine);
+        //interp.active_m_codes(&stat->activeMCodes[0], motionLine);
+        //interp.active_settings(&stat->activeSettings[0], motionLine);
+        interp.active_modes(&stat->activeGCodes[0],&stat->activeMCodes[0],&stat->activeSettings[0], emcStatus->motion.traj.tag);
+
     } else {
         interp.active_g_codes(&stat->activeGCodes[0]);
         interp.active_m_codes(&stat->activeMCodes[0]);

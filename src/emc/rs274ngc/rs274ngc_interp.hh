@@ -358,6 +358,7 @@ public:
                                       setup_pointer settings);
  int convert_tool_select(block_pointer block, setup_pointer settings);
  int update_line_number(int sloc);
+ int update_tag(StateTag &tag);
  int convert_line_number();
  int cycle_feed(block_pointer block, CANON_PLANE plane, double end1,
                 double end2, double end3);

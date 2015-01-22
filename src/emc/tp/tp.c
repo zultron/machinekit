@@ -499,6 +499,17 @@ int tpGetExecId(TP_STRUCT * const tp)
     return tp->execId;
 }
 
+struct state_tag_t tpGetExecTag(TP_STRUCT * const tp)
+{
+    if (0 == tp) {
+        struct state_tag_t empty = {0};
+        return empty;
+    }
+
+    return tp->execTag;
+}
+
+
 int tpGetNextExecId(TP_STRUCT * const tp)
 {
     if (0 == tp) {
@@ -1653,7 +1664,7 @@ STATIC int tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc) {
  * currently-active accel and vel settings from the tp struct.
  */
 int tpAddLine(TP_STRUCT * const tp, EmcPose end, int canon_motion_type, double vel, double
-        ini_maxvel, double acc, unsigned char enables, char atspeed, int indexrotary) {
+        ini_maxvel, double acc, unsigned char enables, char atspeed, int indexrotary, struct state_tag_t tag) {
 
     if (tpErrorCheck(tp) < 0) {
         return TP_ERR_FAIL;
@@ -1668,6 +1679,7 @@ int tpAddLine(TP_STRUCT * const tp, EmcPose end, int canon_motion_type, double v
             tp->cycleTime,
             enables,
             atspeed);
+    tc.tag = tag;
 
     // Copy in motion parameters
     tcSetupMotion(&tc,
@@ -1733,7 +1745,8 @@ int tpAddCircle(TP_STRUCT * const tp,
         double ini_maxvel,
         double acc,
         unsigned char enables,
-        char atspeed)
+        char atspeed,
+        struct state_tag_t tag)
 {
     if (tpErrorCheck(tp)<0) {
         return TP_ERR_FAIL;
@@ -1750,6 +1763,7 @@ int tpAddCircle(TP_STRUCT * const tp,
             tp->cycleTime,
             enables,
             atspeed);
+    tc.tag = tag;
     // Setup any synced IO for this move
     tpSetupSyncedIO(tp, &tc);
 
@@ -2500,6 +2514,9 @@ STATIC int tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
         rtapi_print_msg(RTAPI_MSG_DBG, "Waiting on sync...\n");
         return TP_ERR_WAITING;
     }
+
+    // Update the modal state displayed by the TP
+    tp->execTag = tc->tag;
 
     return TP_ERR_OK;
 }

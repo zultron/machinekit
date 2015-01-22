@@ -63,6 +63,7 @@ static int rotary_unlock_for_traverse = -1;
 static int _sloc;
 static int _sloc_sent=0;
 
+static StateTag _tag;
 
 /**
  * This flag is used to prevent duplicate line number messages from being sent out to IO. 
@@ -77,6 +78,11 @@ void UPDATE_SLOC(int sloc) {
     _sloc = sloc;
     //Crude way to prevent duplicate line number messages
     _sloc_sent = 0;
+}
+
+void UPDATE_TAG(StateTag tag) {
+    canon_debug("--Got UPDATE_TAG: %d--\n",tag.fields[GM_FIELD_LINE_NUMBER]);
+    _tag = tag;
 }
 
 #ifndef MIN
@@ -140,6 +146,11 @@ static inline void add_sloc_to_msg(NMLmsg * msg, int sloc){
     ((RCS_CMD_MSG *) msg)->line_number = sloc;
 }
 
+static inline void add_tag_to_msg(NMLmsg * msg, StateTag const &tag){
+    //FIXME this better be an EMC_TRAJ message or bad things will happen
+    ((EMC_TRAJ_CMD_MSG *) msg)->tag = tag;
+}
+
 
 /**
  * Add the the given line number and append the message to the interp list.
@@ -150,6 +161,10 @@ static inline void tag_and_send(NMLmsg &msg, int sloc) {
     add_sloc_to_msg(&msg,sloc);
     interp_list.append(msg);
     _sloc_sent = 1;
+}
+static inline void tag_and_send(NMLmsg &msg, int sloc, StateTag const &tag) {
+    add_tag_to_msg(&msg,tag);
+    tag_and_send(msg,sloc);
 }
 
 static inline void tag_and_send(NMLmsg &msg) {
@@ -942,7 +957,7 @@ static void flush_segments(void) {
 
     if ((vel && acc) || synched) {
         interp_list.set_line_number(line_no);
-        tag_and_send(linearMoveMsg,line_no);
+        tag_and_send(linearMoveMsg,line_no,_tag);
     }
     canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
 
@@ -1061,7 +1076,7 @@ void STRAIGHT_TRAVERSE(int line_number,
     // Since we're not doing NCD on traverse moves, we can safely overwrite the line_number with _sloc
     if(vel && acc)  {
         interp_list.set_line_number(_sloc);
-        tag_and_send(linearMoveMsg, _sloc);
+        tag_and_send(linearMoveMsg, _sloc, _tag);
     }
 
     if(old_feed_mode)
@@ -1818,7 +1833,7 @@ void ARC_FEED(int line_number,
         linearMoveMsg.indexrotary = -1;
         if(vel && a_max){
             interp_list.set_line_number(line_number);
-            tag_and_send(linearMoveMsg,line_number);
+            tag_and_send(linearMoveMsg, line_number, _tag);
         }
     } else {
         circularMoveMsg.end = to_ext_pose(endpt);
@@ -1843,7 +1858,7 @@ void ARC_FEED(int line_number,
         // The end point is still updated, but nothing is added to the interp list
         if(vel && a_max) {
             interp_list.set_line_number(line_number);
-            tag_and_send(circularMoveMsg, line_number);
+            tag_and_send(circularMoveMsg, line_number, _tag);
         }
     }
     // update the end point
@@ -2120,7 +2135,7 @@ void CHANGE_TOOL(int slot)
         }
 
         if(vel && acc) {
-            tag_and_send(linearMoveMsg);
+            tag_and_send(linearMoveMsg, _sloc, _tag);
         }
 
         if(old_feed_mode) {

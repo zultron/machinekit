@@ -312,6 +312,7 @@ HEADERS := \
     emc/rs274ngc/interp_internal.hh \
     emc/rs274ngc/interp_base.hh \
     emc/rs274ngc/rs274ngc.hh \
+    emc/rs274ngc/modal_state.hh \
     hal/hal.h \
     hal/hal_parport.h \
     libnml/buffer/locmem.hh \

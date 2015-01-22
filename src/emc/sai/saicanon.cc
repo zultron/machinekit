@@ -1180,6 +1180,11 @@ void UPDATE_SLOC(int sloc){
     printf("UPDATE_SLOC (empty)\n");
 }
 
+void UPDATE_TAG(StateTag tag){
+    //Do nothing
+    printf("UPDATE_TAG (empty)\n");
+}
+
 void SEND_LINE_NUMBER(){
     //Do nothing
     printf("SEND_LINE_NUMBER (empty)\n");

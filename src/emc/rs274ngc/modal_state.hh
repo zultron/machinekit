@@ -46,8 +46,9 @@ struct ModalStateHistory {
  * operations. Also, because we're inheriting from the C struct, copy /
  * assignment is valid.
  */
-class StateTag : public state_tag_t {
+struct StateTag : public state_tag_t {
     StateTag();
+    StateTag(state_tag_t const &basetag);
     std::bitset<64> flags;
 };
 #endif

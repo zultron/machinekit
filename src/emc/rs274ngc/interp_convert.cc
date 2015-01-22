@@ -2779,7 +2779,6 @@ int Interp::save_settings(setup_pointer settings)
       write_g_codes((block_pointer) NULL, settings, settings->modal_state);
       write_m_codes((block_pointer) NULL, settings, settings->modal_state);
       write_settings(settings, settings->modal_state);
-      write_state_tag((block_pointer) NULL, settings, settings->state_tag);
 
       // save in the current call frame
       settings->sub_context[settings->call_level].modal_state = settings->modal_state;
@@ -5424,6 +5423,12 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
 int Interp::update_line_number(int sloc)
 {
   UPDATE_SLOC(sloc);
+  return INTERP_OK;
+}
+
+int Interp::update_tag(StateTag &tag)
+{
+  UPDATE_TAG(tag);
   return INTERP_OK;
 }
 

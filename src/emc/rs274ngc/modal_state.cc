@@ -23,8 +23,19 @@ ModalState::ModalState(): g_codes(ACTIVE_G_CODES,0),
 ModalStateHistory::ModalStateHistory(): history(2000)
 {}
 
-StateTag::StateTag(): feed(0.0),
-    speed(0.0),
-    fields(-1,GM_FIELD_MAX_FIELDS),
-    flags(0)
-{}
+StateTag::StateTag(): flags(0)
+{
+    memset(fields,-1,sizeof(fields));
+    packed_flags = 0;
+    feed = 0.0;
+    speed = 0.0;
+}
+
+StateTag::StateTag(struct state_tag_t const & basetag): flags(basetag.packed_flags)
+{
+    memcpy(fields,basetag.fields,sizeof(fields));
+    packed_flags = 0;
+    feed = basetag.feed;
+    speed = basetag.speed;
+}
+
