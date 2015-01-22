@@ -1063,9 +1063,22 @@ int do_loadrt_cmd(char *mod_name, char *args[])
     char *argv[MAX_TOK+3];
     char *cp1;
 #if defined(RTAPI_SIM)
+// TORMACH_RIP_PATCH
+    char rtapi_app_path[512];
+    char *envPtr = getenv("EMC2_BIN_DIR");
+
     argv[m++] = "-Wn";
     argv[m++] = mod_name;
-    argv[m++] = EMC2_BIN_DIR "/rtapi_app";
+
+// TORMACH_RIP_PATCH
+    strcpy(rtapi_app_path, EMC2_BIN_DIR);
+    // if not in environment use EMC2_BIN_DIR "/rtapi_app"
+    if (envPtr != NULL) {
+        strcpy(rtapi_app_path, envPtr);
+    }
+    strcat(rtapi_app_path, "/rtapi_app");
+    argv[m++] = rtapi_app_path;
+
     argv[m++] = "load";
     argv[m++] = mod_name;
     /* loop thru remaining arguments */
