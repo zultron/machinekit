@@ -707,7 +707,7 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     // update active G and M codes
     // Kludge, maybe this logic should be wrapped in these functions?
 
-    if (motionLine) {
+    if (emcStatus->task.interpState != EMC_TASK_INTERP_IDLE) {
         //interp.active_g_codes(&stat->activeGCodes[0], motionLine);
         //interp.active_m_codes(&stat->activeMCodes[0], motionLine);
         //interp.active_settings(&stat->activeSettings[0], motionLine);

@@ -904,7 +904,11 @@ double getStraightVelocity(double x, double y, double z,
 }
 
 #include <vector>
-struct pt { double x, y, z, a, b, c, u, v, w; int line_no;};
+struct pt {
+    double x, y, z, a, b, c, u, v, w;
+    int line_no;
+    StateTag tag;
+};
 
 static std::vector<struct pt> chained_points;
 
@@ -957,7 +961,7 @@ static void flush_segments(void) {
 
     if ((vel && acc) || synched) {
         interp_list.set_line_number(line_no);
-        tag_and_send(linearMoveMsg,line_no,_tag);
+        tag_and_send(linearMoveMsg,line_no,pos.tag);
     }
     canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
 
@@ -1016,6 +1020,7 @@ linkable(double x, double y, double z,
 
 static void
 see_segment(int line_number,
+        StateTag tag,
 	    double x, double y, double z, 
             double a, double b, double c,
             double u, double v, double w) {
@@ -1030,7 +1035,7 @@ see_segment(int line_number,
     if(!chained_points.empty() && !linkable(x, y, z, a, b, c, u, v, w)) {
         flush_segments();
     }
-    pt pos = {x, y, z, a, b, c, u, v, w, line_number};
+    pt pos = {x, y, z, a, b, c, u, v, w, line_number, tag};
     chained_points.push_back(pos);
     if(changed_abc || changed_uvw) {
         flush_segments();
@@ -1095,7 +1100,7 @@ void STRAIGHT_FEED(int line_number,
 
     from_prog(x,y,z,a,b,c,u,v,w);
     rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
-    see_segment(line_number, x, y, z, a, b, c, u, v, w);
+    see_segment(line_number, _tag, x, y, z, a, b, c, u, v, w);
 }
 
 
@@ -1529,7 +1534,7 @@ void ARC_FEED(int line_number,
         rotate_and_offset_pos(fa, sa, unused, unused, unused, unused, unused, unused, unused);
         if (chord_deviation(lx, ly, fe, se, fa, sa, rotation, mx, my) < canonNaivecamTolerance) {
             rotate_and_offset_pos(unused, unused, unused, a, b, c, u, v, w);
-            see_segment(line_number, mx, my,
+            see_segment(line_number, _tag, mx, my,
                         (lz + ae)/2, 
                         (canonEndPoint.a + a)/2, 
                         (canonEndPoint.b + b)/2, 
@@ -1537,7 +1542,7 @@ void ARC_FEED(int line_number,
                         (canonEndPoint.u + u)/2, 
                         (canonEndPoint.v + v)/2, 
                         (canonEndPoint.w + w)/2);
-            see_segment(line_number, fe, se, ae, a, b, c, u, v, w);
+            see_segment(line_number, _tag, fe, se, ae, a, b, c, u, v, w);
             return;
         }
     }
