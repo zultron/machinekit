@@ -239,7 +239,6 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
   int status;
   int skip_line_number = 0;
 
-
   block->line_number = settings->sequence_number;
   //printf("***Remapping level: %d\n",settings->remap_level);
   if (settings->remap_level==0) {
@@ -318,11 +317,15 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 
   // By default, update for every new block
   // Hack to check for blocks that would otherwise be skipped
-  if (!skip_line_number ||
-          block->g_modes[GM_LENGTH_UNITS] !=-1
+  if ((!skip_line_number ||
+          block->g_modes[GM_LENGTH_UNITS] !=-1) && block->motion_to_be == -1
           ) {
       convert_line_number();
   }
+  // All changes to settings are complete
+  StateTag tag;
+  write_state_tag(block, settings, tag);
+  update_tag(tag);
   return INTERP_OK;
 }
 

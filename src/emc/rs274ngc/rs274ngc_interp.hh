@@ -77,12 +77,21 @@ public:
 
 // copy active G codes into array [0]..[15]
  void active_g_codes(int *codes);
+ void active_g_codes(int *codes, long int line);
 
 // copy active M codes into array [0]..[9]
  void active_m_codes(int *codes);
+ void active_m_codes(int *codes, long int line);
 
 // copy active F, S settings into array [0]..[2]
  void active_settings(double *settings);
+ void active_settings(double *settings, long int line);
+
+ // Update the state vectors from a state tag
+ void active_modes(int *g_codes,
+         int *mcodes,
+         double *settings,
+         StateTag const &tag);
 
 // copy the text of the error message whose number is error_code into the
 // error_text array, but stop at max_size if the text is longer.
@@ -349,6 +358,7 @@ public:
                                       setup_pointer settings);
  int convert_tool_select(block_pointer block, setup_pointer settings);
  int update_line_number(int sloc);
+ int update_tag(StateTag &tag);
  int convert_line_number();
  int cycle_feed(block_pointer block, CANON_PLANE plane, double end1,
                 double end2, double end3);
@@ -463,9 +473,9 @@ public:
     int free_named_parameters(context_pointer frame);
  int save_settings(setup_pointer settings);
  int restore_settings(setup_pointer settings, int from_level);
- int gen_settings(double *current, double *saved, char *cmd);
- int gen_g_codes(int *current, int *saved, char *cmd);
- int gen_m_codes(int *current, int *saved, char *cmd);
+ int gen_settings(std::vector<double> &current, std::vector<double> &saved, std::string &cmd);
+ int gen_g_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd);
+ int gen_m_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd);
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
                           double *parameters, bool check_exists);
@@ -509,9 +519,10 @@ public:
  int refresh_actual_position(setup_pointer settings);
  void rotate(double *x, double *y, double t);
  int set_probe_data(setup_pointer settings);
- int write_g_codes(block_pointer block, setup_pointer settings);
- int write_m_codes(block_pointer block, setup_pointer settings);
- int write_settings(setup_pointer settings);
+ int write_g_codes(block_pointer block, setup_pointer settings, ModalState &state);
+ int write_m_codes(block_pointer block, setup_pointer settings, ModalState &state);
+ int write_settings(setup_pointer settings, ModalState &state);
+ int write_state_tag(block_pointer block, setup_pointer settings, StateTag &state);
  int unwrap_rotary(double *, double, double, double, char);
  bool isreadonly(int index);
 

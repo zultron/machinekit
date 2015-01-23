@@ -25,7 +25,7 @@
 #include "rs274ngc_interp.hh"
 
 /****************************************************************************/
-/*! write_g_codes
+/*! Update active g codes in the given modal state.
 
 Returned Value: int (INTERP_OK)
 
@@ -72,105 +72,98 @@ group 16 - gez[15] g7,g8 - lathe diameter mode
 */
 
 int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
-                         setup_pointer settings)        //!< pointer to machine settings                 
+                         setup_pointer settings,
+                         ModalState & state)        //!< pointer to machine settings
 {
-  int *gez;
-
-  gez = settings->active_g_codes;
-  gez[0] = settings->sequence_number;
-  gez[1] = settings->motion_mode;
-  gez[2] = ((block == NULL) ? -1 : block->g_modes[0]);
+  state.g_codes[0] = settings->sequence_number;
+  state.g_codes[1] = settings->motion_mode;
+  state.g_codes[2] = ((block == NULL) ? -1 : block->g_modes[0]);
   switch(settings->plane) {
   case CANON_PLANE_XY:
-      gez[3] = G_17;
+      state.g_codes[3] = G_17;
       break;
   case CANON_PLANE_XZ:
-      gez[3] = G_18;
+      state.g_codes[3] = G_18;
       break;
   case CANON_PLANE_YZ:
-      gez[3] = G_19;
+      state.g_codes[3] = G_19;
       break;
   case CANON_PLANE_UV:
-      gez[3] = G_17_1;
+      state.g_codes[3] = G_17_1;
       break;
   case CANON_PLANE_UW:
-      gez[3] = G_18_1;
+      state.g_codes[3] = G_18_1;
       break;
   case CANON_PLANE_VW:
-      gez[3] = G_19_1;
+      state.g_codes[3] = G_19_1;
       break;
   }
-  gez[4] =
+  state.g_codes[4] =
     (settings->cutter_comp_side == RIGHT) ? G_42 :
     (settings->cutter_comp_side == LEFT) ? G_41 : G_40;
-  gez[5] = (settings->length_units == CANON_UNITS_INCHES) ? G_20 : G_21;
-  gez[6] = (settings->distance_mode == MODE_ABSOLUTE) ? G_90 : G_91;
-  gez[7] = (settings->feed_mode == INVERSE_TIME) ? G_93 :
+  state.g_codes[5] = (settings->length_units == CANON_UNITS_INCHES) ? G_20 : G_21;
+  state.g_codes[6] = (settings->distance_mode == MODE_ABSOLUTE) ? G_90 : G_91;
+  state.g_codes[7] = (settings->feed_mode == INVERSE_TIME) ? G_93 :
 	    (settings->feed_mode == UNITS_PER_MINUTE) ? G_94 : G_95;
-  gez[8] =
+  state.g_codes[8] =
     (settings->origin_index <
      7) ? (530 + (10 * settings->origin_index)) : (584 +
                                                    settings->origin_index);
-  gez[9] = (settings->tool_offset.tran.x || settings->tool_offset.tran.y || settings->tool_offset.tran.z ||
+  state.g_codes[9] = (settings->tool_offset.tran.x || settings->tool_offset.tran.y || settings->tool_offset.tran.z ||
             settings->tool_offset.a || settings->tool_offset.b || settings->tool_offset.c ||
             settings->tool_offset.u || settings->tool_offset.v || settings->tool_offset.w) ? G_43 : G_49;
-  gez[10] = (settings->retract_mode == OLD_Z) ? G_98 : G_99;
-  gez[11] =
+  state.g_codes[10] = (settings->retract_mode == OLD_Z) ? G_98 : G_99;
+  state.g_codes[11] =
     (settings->control_mode == CANON_CONTINUOUS) ? G_64 :
     (settings->control_mode == CANON_EXACT_PATH) ? G_61 : G_61_1;
-  gez[12] = -1;
-  gez[13] =
+  state.g_codes[12] = -1;
+  state.g_codes[13] =
     (settings->spindle_mode == CONSTANT_RPM) ? G_97 : G_96;
-  gez[14] = (settings->ijk_distance_mode == MODE_ABSOLUTE) ? G_90_1 : G_91_1;
-  gez[15] = (settings->lathe_diameter_mode) ? G_7 : G_8;
+  state.g_codes[14] = (settings->ijk_distance_mode == MODE_ABSOLUTE) ? G_90_1 : G_91_1;
+  state.g_codes[15] = (settings->lathe_diameter_mode) ? G_7 : G_8;
   return INTERP_OK;
 }
 
 /****************************************************************************/
 
-/*! write_m_codes
+/*! Update the given modal state with current M codes.
 
 Returned Value: int (INTERP_OK)
-
-Side effects:
-   The settings->active_m_codes are updated.
 
 Called by:
    Interp::execute
    Interp::init
 
-This is testing only the feed override to see if overrides is on.
+TODO This is testing only the feed override to see if overrides is on.
 Might add check of speed override.
 
 */
 
 int Interp::write_m_codes(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
-                         setup_pointer settings)        //!< pointer to machine settings                 
+                         setup_pointer settings,
+                         ModalState & state)        //!< pointer to machine settings
 {
-  int *emz;
-
-  emz = settings->active_m_codes;
-  emz[0] = settings->sequence_number;   /* 0 seq number  */
-  emz[1] = (block == NULL) ? -1 : block->m_modes[4];    /* 1 stopping    */
-  emz[2] = (settings->spindle_turning == CANON_STOPPED) ? 5 :   /* 2 spindle     */
+  state.m_codes[0] = settings->sequence_number;   /* 0 seq number  */
+  state.m_codes[1] = (block == NULL) ? -1 : block->m_modes[4];    /* 1 stopping    */
+  state.m_codes[2] = (settings->spindle_turning == CANON_STOPPED) ? 5 :   /* 2 spindle     */
     (settings->spindle_turning == CANON_CLOCKWISE) ? 3 : 4;
-  emz[3] =                      /* 3 tool change */
+  state.m_codes[3] =                      /* 3 tool change */
     (block == NULL) ? -1 : block->m_modes[6];
-  emz[4] =                      /* 4 mist        */
+  state.m_codes[4] =                      /* 4 mist        */
     (settings->mist) ? 7 : (settings->flood) ? -1 : 9;
-  emz[5] =                      /* 5 flood       */
+  state.m_codes[5] =                      /* 5 flood       */
     (settings->flood) ? 8 : -1;
   if (settings->feed_override) {
-    if (settings->speed_override) emz[6] =  48;
-    else emz[6] = 50;
+    if (settings->speed_override) state.m_codes[6] =  48;
+    else state.m_codes[6] = 50;
   } else if (settings->speed_override) {
-    emz[6] = 51;
-  } else emz[6] = 49;
+    state.m_codes[6] = 51;
+  } else state.m_codes[6] = 49;
   
-  emz[7] =                      /* 7 overrides   */
+  state.m_codes[7] =                      /* 7 overrides   */
     (settings->adaptive_feed) ? 52 : -1;
 
-  emz[8] =                      /* 8 overrides   */
+  state.m_codes[8] =                      /* 8 overrides   */
     (settings->feed_hold) ? 53 : -1;
 
   return INTERP_OK;
@@ -192,16 +185,93 @@ Called by:
 
 */
 
-int Interp::write_settings(setup_pointer settings)       //!< pointer to machine settings
-{
-  double *vals;
+int Interp::write_settings(setup_pointer settings,     //!< pointer to machine settings
+        ModalState & state){
 
-  vals = settings->active_settings;
-  vals[0] = settings->sequence_number;  /* 0 sequence number */
-  vals[1] = settings->feed_rate;        /* 1 feed rate       */
-  vals[2] = settings->speed;    /* 2 spindle speed   */
+  state.settings[0] = settings->sequence_number;  /* 0 sequence number */
+  state.settings[1] = settings->feed_rate;        /* 1 feed rate       */
+  state.settings[2] = settings->speed;    /* 2 spindle speed   */
 
   return INTERP_OK;
 }
 
+int Interp::write_state_tag(block_pointer block,
+        setup_pointer settings,
+        StateTag &state)
+{
+
+    state.fields[GM_FIELD_LINE_NUMBER] = settings->sequence_number;
+    state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[0]);
+    state.fields[GM_FIELD_MOTION_MODE] = settings->motion_mode;
+    switch(settings->plane) {
+        case CANON_PLANE_XY:
+            state.fields[GM_FIELD_PLANE] = G_17;
+            break;
+        case CANON_PLANE_XZ:
+            state.fields[GM_FIELD_PLANE] = G_18;
+            break;
+        case CANON_PLANE_YZ:
+            state.fields[GM_FIELD_PLANE] = G_19;
+            break;
+        case CANON_PLANE_UV:
+            state.fields[GM_FIELD_PLANE] = G_17_1;
+            break;
+        case CANON_PLANE_UW:
+            state.fields[GM_FIELD_PLANE] = G_18_1;
+            break;
+        case CANON_PLANE_VW:
+            state.fields[GM_FIELD_PLANE] = G_19_1;
+            break;
+    }
+
+  state.fields[GM_FIELD_CUTTER_COMP] =
+    (settings->cutter_comp_side == RIGHT) ? G_42 :
+    (settings->cutter_comp_side == LEFT) ? G_41 : G_40;
+
+    state.flags[GM_FLAG_UNITS] = (settings->length_units == CANON_UNITS_INCHES);
+
+    state.flags[GM_FLAG_DISTANCE_MODE] = (settings->distance_mode == MODE_ABSOLUTE);
+    state.flags[GM_FLAG_FEED_INVERSE_TIME] = (settings->feed_mode == INVERSE_TIME);
+    state.flags[GM_FLAG_FEED_UPM] = (settings->feed_mode == UNITS_PER_MINUTE);
+
+
+    state.fields[GM_FIELD_ORIGIN] =
+        (settings->origin_index <
+         7) ? (530 + (10 * settings->origin_index)) : (584 +
+             settings->origin_index);
+
+    state.flags[GM_FLAG_TOOL_OFFSETS_ON] = (settings->tool_offset.tran.x || settings->tool_offset.tran.y || settings->tool_offset.tran.z ||
+            settings->tool_offset.a || settings->tool_offset.b || settings->tool_offset.c ||
+            settings->tool_offset.u || settings->tool_offset.v || settings->tool_offset.w);
+    state.flags[GM_FLAG_RETRACT_OLDZ] = (settings->retract_mode == OLD_Z);
+    state.flags[GM_FLAG_BLEND] = (settings->control_mode == CANON_CONTINUOUS);
+    state.flags[GM_FLAG_EXACT_STOP] = (settings->control_mode == CANON_EXACT_STOP);
+    state.flags[GM_FLAG_CSS_MODE] = (settings->spindle_mode == CONSTANT_RPM);
+    state.flags[GM_FLAG_IJK_ABS] = (settings->ijk_distance_mode == MODE_ABSOLUTE);
+    state.flags[GM_FLAG_DIAMETER_MODE] = (settings->lathe_diameter_mode);
+
+
+    state.fields[GM_FIELD_M_MODES_4] = (block == NULL) ? -1 : block->m_modes[4];
+
+    state.flags[GM_FLAG_SPINDLE_ON] = !(settings->spindle_turning != CANON_STOPPED);
+    state.flags[GM_FLAG_SPINDLE_CW] = (settings->spindle_turning == CANON_CLOCKWISE);
+
+    state.fields[GM_FIELD_TOOLCHANGE] = (block == NULL) ? -1 : block->m_modes[6];
+
+    state.flags[GM_FLAG_MIST] = (settings->mist) ;
+    state.flags[GM_FLAG_FLOOD] = (settings->flood);
+
+    state.flags[GM_FLAG_FEED_OVERRIDE] = settings->feed_override;
+    state.flags[GM_FLAG_SPEED_OVERRIDE] = settings->speed_override;
+
+    state.flags[GM_FLAG_ADAPTIVE_FEED] = (settings->adaptive_feed);
+
+    state.flags[GM_FLAG_FEED_HOLD] =  (settings->feed_hold);
+
+    state.feed = settings->feed_rate;        /* 1 feed rate       */
+    state.speed = settings->speed;    /* 2 spindle speed   */
+
+    return 0;
+}
 /****************************************************************************/
+

@@ -18,6 +18,7 @@
 
 #include "emcpos.h"
 #include "emctool.h"
+#include "modal_state.hh"
 
 /*
   This is the header file that all applications that use the
@@ -909,6 +910,8 @@ extern void PLUGIN_CALL(int len, const char *call);
 extern void IO_PLUGIN_CALL(int len, const char *call);
 
 extern void UPDATE_SLOC(int sloc);
+
+extern void UPDATE_TAG(StateTag tag);
 
 extern void SEND_LINE_NUMBER();
 

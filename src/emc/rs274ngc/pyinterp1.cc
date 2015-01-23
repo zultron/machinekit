@@ -16,16 +16,17 @@ namespace bp = boost::python;
 namespace pp = pyplusplus::containers::static_sized;
 #include "interp_array_types.hh"
 
+// FIXME pass pointer to vector raw data for compatibility, complete this refactor
 static  active_g_codes_array saved_g_codes_wrapper ( context &c) {
-    return active_g_codes_array(c.saved_g_codes);
+    return active_g_codes_array(&c.modal_state.g_codes[0]);
 }
 
 static  active_m_codes_array saved_m_codes_wrapper ( context &c) {
-    return active_m_codes_array(c.saved_m_codes);
+    return active_m_codes_array(&c.modal_state.m_codes[0]);
 }
 
 static  active_settings_array saved_settings_wrapper ( context &c) {
-    return active_settings_array(c.saved_settings);
+    return active_settings_array(&c.modal_state.settings[0]);
 }
 
 static params_array saved_params_wrapper ( context &c) {

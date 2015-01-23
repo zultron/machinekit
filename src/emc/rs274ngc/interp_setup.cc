@@ -24,6 +24,7 @@ setup_struct::setup_struct() :
     w_current(0.0),
     w_origin_offset(0.0),
 
+    modal_state(),
     arc_not_allowed(0),
 
     axis_offset_x(0.0),
@@ -136,9 +137,6 @@ setup_struct::setup_struct() :
     m_remappable(),
     g_remappable()
 {
-    memset(active_g_codes, 0, sizeof(active_g_codes));
-    memset(active_m_codes, 0, sizeof(active_m_codes));
-    memset(active_settings, 0, sizeof(active_settings));
     memset(blocktext, 0, sizeof(blocktext));
     memset(filename, 0, sizeof(filename));
     memset(linetext, 0, sizeof(linetext));

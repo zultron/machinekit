@@ -63,6 +63,7 @@ static int rotary_unlock_for_traverse = -1;
 static int _sloc;
 static int _sloc_sent=0;
 
+static StateTag _tag;
 
 /**
  * This flag is used to prevent duplicate line number messages from being sent out to IO. 
@@ -77,6 +78,11 @@ void UPDATE_SLOC(int sloc) {
     _sloc = sloc;
     //Crude way to prevent duplicate line number messages
     _sloc_sent = 0;
+}
+
+void UPDATE_TAG(StateTag tag) {
+    canon_debug("--Got UPDATE_TAG: %d--\n",tag.fields[GM_FIELD_LINE_NUMBER]);
+    _tag = tag;
 }
 
 #ifndef MIN
@@ -140,6 +146,11 @@ static inline void add_sloc_to_msg(NMLmsg * msg, int sloc){
     ((RCS_CMD_MSG *) msg)->line_number = sloc;
 }
 
+static inline void add_tag_to_msg(NMLmsg * msg, StateTag const &tag){
+    //FIXME this better be an EMC_TRAJ message or bad things will happen
+    ((EMC_TRAJ_CMD_MSG *) msg)->tag = tag;
+}
+
 
 /**
  * Add the the given line number and append the message to the interp list.
@@ -150,6 +161,10 @@ static inline void tag_and_send(NMLmsg &msg, int sloc) {
     add_sloc_to_msg(&msg,sloc);
     interp_list.append(msg);
     _sloc_sent = 1;
+}
+static inline void tag_and_send(NMLmsg &msg, int sloc, StateTag const &tag) {
+    add_tag_to_msg(&msg,tag);
+    tag_and_send(msg,sloc);
 }
 
 static inline void tag_and_send(NMLmsg &msg) {
@@ -889,7 +904,11 @@ double getStraightVelocity(double x, double y, double z,
 }
 
 #include <vector>
-struct pt { double x, y, z, a, b, c, u, v, w; int line_no;};
+struct pt {
+    double x, y, z, a, b, c, u, v, w;
+    int line_no;
+    StateTag tag;
+};
 
 static std::vector<struct pt> chained_points;
 
@@ -942,7 +961,7 @@ static void flush_segments(void) {
 
     if ((vel && acc) || synched) {
         interp_list.set_line_number(line_no);
-        tag_and_send(linearMoveMsg,line_no);
+        tag_and_send(linearMoveMsg,line_no,pos.tag);
     }
     canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
 
@@ -1001,6 +1020,7 @@ linkable(double x, double y, double z,
 
 static void
 see_segment(int line_number,
+        StateTag tag,
 	    double x, double y, double z, 
             double a, double b, double c,
             double u, double v, double w) {
@@ -1015,7 +1035,7 @@ see_segment(int line_number,
     if(!chained_points.empty() && !linkable(x, y, z, a, b, c, u, v, w)) {
         flush_segments();
     }
-    pt pos = {x, y, z, a, b, c, u, v, w, line_number};
+    pt pos = {x, y, z, a, b, c, u, v, w, line_number, tag};
     chained_points.push_back(pos);
     if(changed_abc || changed_uvw) {
         flush_segments();
@@ -1061,7 +1081,7 @@ void STRAIGHT_TRAVERSE(int line_number,
     // Since we're not doing NCD on traverse moves, we can safely overwrite the line_number with _sloc
     if(vel && acc)  {
         interp_list.set_line_number(_sloc);
-        tag_and_send(linearMoveMsg, _sloc);
+        tag_and_send(linearMoveMsg, _sloc, _tag);
     }
 
     if(old_feed_mode)
@@ -1080,7 +1100,7 @@ void STRAIGHT_FEED(int line_number,
 
     from_prog(x,y,z,a,b,c,u,v,w);
     rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
-    see_segment(line_number, x, y, z, a, b, c, u, v, w);
+    see_segment(line_number, _tag, x, y, z, a, b, c, u, v, w);
 }
 
 
@@ -1514,7 +1534,7 @@ void ARC_FEED(int line_number,
         rotate_and_offset_pos(fa, sa, unused, unused, unused, unused, unused, unused, unused);
         if (chord_deviation(lx, ly, fe, se, fa, sa, rotation, mx, my) < canonNaivecamTolerance) {
             rotate_and_offset_pos(unused, unused, unused, a, b, c, u, v, w);
-            see_segment(line_number, mx, my,
+            see_segment(line_number, _tag, mx, my,
                         (lz + ae)/2, 
                         (canonEndPoint.a + a)/2, 
                         (canonEndPoint.b + b)/2, 
@@ -1522,7 +1542,7 @@ void ARC_FEED(int line_number,
                         (canonEndPoint.u + u)/2, 
                         (canonEndPoint.v + v)/2, 
                         (canonEndPoint.w + w)/2);
-            see_segment(line_number, fe, se, ae, a, b, c, u, v, w);
+            see_segment(line_number, _tag, fe, se, ae, a, b, c, u, v, w);
             return;
         }
     }
@@ -1726,6 +1746,7 @@ void ARC_FEED(int line_number,
     double a2 = FROM_EXT_LEN(axis_max_acceleration[axis2]);
     double v_max_planar = MIN(v1, v2);
     double a_max_planar = MIN(a1, a2);
+    canon_debug("a_max_planar = %f\n", a_max_planar);
 
     //we have accel, check what the max_vel is that doesn't violate the centripetal accel=accel
     double v_max_radial = sqrt(a_max_planar * effective_radius);
@@ -1755,9 +1776,11 @@ void ARC_FEED(int line_number,
 
 
     // Total path length including helical motion
-    double helical_length = hypot(full_angle * effective_radius, axis_len);
+    double planar_length = full_angle * effective_radius;
+    canon_debug("planar_length = %f\n", planar_length);
+    double helical_length = hypot(planar_length, axis_len);
     canon_debug("full_angle = %f\n", full_angle);
-    canon_debug("helical_length = %f\n",helical_length);
+    canon_debug("helical_length = %f\n", helical_length);
 
     // From the total path time and length, calculate new max velocity
     if (t_max > 0.0) {
@@ -1778,7 +1801,7 @@ void ARC_FEED(int line_number,
         a_max = MIN(a_max, a_max_axial);
     }
 
-    double tt_helix = helical_length / a_max;
+    double tt_helix = axis_len / a_max;
     double tt_max = MAX(tt_motion, tt_helix);
 
     canon_debug("tt_motion = %f\n", tt_motion);
@@ -1786,10 +1809,11 @@ void ARC_FEED(int line_number,
     canon_debug("tt_max = %f\n", tt_max);
 
     // From the total path time and length, calculate new max acceleration
-    if (tt_max > 0.0) {
+    if (tt_helix > 0.0) {
+        // Only need to do this if we have a helical component
         double a_max_helical = helical_length / tt_max;
-        canon_debug("a_max_helical = %f\n",a_max_helical);
-        a_max = a_max_helical;
+        canon_debug("a_max_helical = %f\n", a_max_helical);
+        a_max = fmin(a_max_helical, a_max);
     }
 
     // Limit velocity by maximum
@@ -1799,7 +1823,6 @@ void ARC_FEED(int line_number,
     canon_debug("vel = %f\n",vel);
     canon_debug("v_max = %f\n",v_max);
     canon_debug("a_max = %f\n",a_max);
-    canon_debug("v_max_planar = %f\n",v_max_planar);
 
     cartesian_move = 1;
 
@@ -1815,7 +1838,7 @@ void ARC_FEED(int line_number,
         linearMoveMsg.indexrotary = -1;
         if(vel && a_max){
             interp_list.set_line_number(line_number);
-            tag_and_send(linearMoveMsg,line_number);
+            tag_and_send(linearMoveMsg, line_number, _tag);
         }
     } else {
         circularMoveMsg.end = to_ext_pose(endpt);
@@ -1840,7 +1863,7 @@ void ARC_FEED(int line_number,
         // The end point is still updated, but nothing is added to the interp list
         if(vel && a_max) {
             interp_list.set_line_number(line_number);
-            tag_and_send(circularMoveMsg, line_number);
+            tag_and_send(circularMoveMsg, line_number, _tag);
         }
     }
     // update the end point
@@ -2117,7 +2140,7 @@ void CHANGE_TOOL(int slot)
         }
 
         if(vel && acc) {
-            tag_and_send(linearMoveMsg);
+            tag_and_send(linearMoveMsg, _sloc, _tag);
         }
 
         if(old_feed_mode) {

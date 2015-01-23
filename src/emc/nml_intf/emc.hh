@@ -20,6 +20,7 @@
 #include "nml_type.hh"
 #include "motion_types.h"
 #include "emc_types.hh"
+#include "modal_state.hh"
 
 // --------------
 // EMC VOCABULARY
@@ -85,6 +86,7 @@ extern int emcAxisUpdate(EMC_AXIS_STAT stat[], int numAxes);
 
 // implementation functions for EMC_TRAJ types
 
+extern int emcTrajUpdateTag(StateTag const &tag);
 extern int emcTrajSetAxes(int axes, int axismask);
 extern int emcTrajSetUnits(double linearUnits, double angularUnits);
 extern int emcTrajSetCycleTime(double cycleTime);

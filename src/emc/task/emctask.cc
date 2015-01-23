@@ -45,7 +45,8 @@
 static int mdiOrAuto = EMC_TASK_MODE_AUTO;
 
 InterpBase *pinterp=0;
-#define interp (*pinterp)
+//KLUDGE if we're using this terrible obfuscation, at least make it work for us...
+#define interp (*((Interp*)pinterp))
 setup_pointer _is = 0; // helper for gdb hardware watchpoints FIXME
 
 
@@ -692,8 +693,9 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
 
     // execState set in main
     // interpState set in main
+    int motionLine = emcStatus->motion.traj.id;
     if (emcStatus->motion.traj.id > 0) {
-	stat->motionLine = emcStatus->motion.traj.id;
+        stat->motionLine = motionLine;
     }
     // currentLine set in main
     // readLine set in main
@@ -703,9 +705,19 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     // command set in main
 
     // update active G and M codes
-    interp.active_g_codes(&stat->activeGCodes[0]);
-    interp.active_m_codes(&stat->activeMCodes[0]);
-    interp.active_settings(&stat->activeSettings[0]);
+    // Kludge, maybe this logic should be wrapped in these functions?
+
+    if (emcStatus->task.interpState != EMC_TASK_INTERP_IDLE) {
+        //interp.active_g_codes(&stat->activeGCodes[0], motionLine);
+        //interp.active_m_codes(&stat->activeMCodes[0], motionLine);
+        //interp.active_settings(&stat->activeSettings[0], motionLine);
+        interp.active_modes(&stat->activeGCodes[0],&stat->activeMCodes[0],&stat->activeSettings[0], emcStatus->motion.traj.tag);
+
+    } else {
+        interp.active_g_codes(&stat->activeGCodes[0]);
+        interp.active_m_codes(&stat->activeMCodes[0]);
+        interp.active_settings(&stat->activeSettings[0]);
+    }
     
 	// Tormach - bring the current work offsets back to emcmodule's status object 
 	stat->g54_offset   = interp.get_work_offset(1);

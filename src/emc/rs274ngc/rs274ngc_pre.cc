@@ -484,9 +484,9 @@ int Interp::_execute(const char *command)
 		      _setup.mdi_interrupt = false;
 		      // at this point the MDI execution of a remapped block is complete.
 		      logRemap("MDI remap execution complete status=%s\n",interp_status(status));
-		      write_g_codes(eblock, &_setup);
-		      write_m_codes(eblock, &_setup);
-		      write_settings(&_setup);
+		      write_g_codes(eblock, &_setup, _setup.modal_state);
+		      write_m_codes(eblock, &_setup, _setup.modal_state);
+		      write_settings(&_setup, _setup.modal_state);
 		      return INTERP_OK;
 		  }
 	      } else {
@@ -506,9 +506,9 @@ int Interp::_execute(const char *command)
 	  // standard case: unremapped block execution
 	  status = execute_block(eblock, &_setup);
 
-	  write_g_codes(eblock, &_setup);
-	  write_m_codes(eblock, &_setup);
-	  write_settings(&_setup);
+	  write_g_codes(eblock, &_setup, _setup.modal_state);
+	  write_m_codes(eblock, &_setup, _setup.modal_state);
+	  write_settings(&_setup, _setup.modal_state);
 
 	  if ((status == INTERP_EXIT) &&
 	      (_setup.remap_level > 0) &&
@@ -1150,9 +1150,9 @@ int Interp::init()
 
   synch(); //synch first, then update the interface
 
-  write_g_codes((block_pointer) NULL, &_setup);
-  write_m_codes((block_pointer) NULL, &_setup);
-  write_settings(&_setup);
+  write_g_codes((block_pointer) NULL, &_setup, _setup.modal_state);
+  write_m_codes((block_pointer) NULL, &_setup, _setup.modal_state);
+  write_settings(&_setup, _setup.modal_state);
 
   init_tool_parameters();
   // Synch rest of settings to external world
@@ -1689,6 +1689,8 @@ int Interp::reset()
     _setup.linetext[0] = 0;
     _setup.blocktext[0] = 0;
     _setup.line_length = 0;
+    // Shrink the modal history back down to a reasonable size
+    //_setup.modal_history.history.resize(2000);
 
     unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__);
     warning_list = PyList_New(0);
@@ -1989,9 +1991,8 @@ See documentation of write_g_codes.
 void Interp::active_g_codes(int *codes)        //!< array of codes to copy into
 {
   int n;
-
   for (n = 0; n < ACTIVE_G_CODES; n++) {
-    codes[n] = _setup.active_g_codes[n];
+    codes[n] = _setup.modal_state.g_codes[n];
   }
 }
 
@@ -2014,7 +2015,7 @@ void Interp::active_m_codes(int *codes)        //!< array of codes to copy into
   int n;
 
   for (n = 0; n < ACTIVE_M_CODES; n++) {
-    codes[n] = _setup.active_m_codes[n];
+    codes[n] = _setup.modal_state.m_codes[n];
   }
 }
 
@@ -2037,9 +2038,79 @@ void Interp::active_settings(double *settings) //!< array of settings to copy in
   int n;
 
   for (n = 0; n < ACTIVE_SETTINGS; n++) {
-    settings[n] = _setup.active_settings[n];
+    settings[n] = _setup.modal_state.settings[n];
   }
 }
+
+//TODO rename to read_state_tag?
+
+/**
+ * Unpack state information from a motion line tag into TASK_STAT-style arrays of G/M Codes.
+ * This method allows us to keep the existing infrastructure for g
+ * code status / state storage intact.
+ */
+void Interp::active_modes(int *g_codes,
+         int *m_codes,
+         double *settings,
+         StateTag const &tag)
+{
+    // Extract as-is field values directly into appropriate array
+    // position
+    g_codes[0] = tag.fields[GM_FIELD_LINE_NUMBER];
+    g_codes[1] = tag.fields[GM_FIELD_MOTION_MODE];
+    g_codes[2] = tag.fields[GM_FIELD_G_MODE_0];
+    g_codes[3] = tag.fields[GM_FIELD_PLANE];
+    g_codes[4] = tag.fields[GM_FIELD_CUTTER_COMP];
+
+    // Unpack flags into appropriate G code equivalents
+    g_codes[5] = tag.flags[GM_FLAG_UNITS] ? G_20 : G_21;
+    g_codes[6] = tag.flags[GM_FLAG_DISTANCE_MODE] ? G_90 : G_91;
+    g_codes[7] = tag.flags[GM_FLAG_FEED_INVERSE_TIME] ? G_93 :
+        tag.flags[GM_FLAG_FEED_UPM] ? G_94 : G_95;
+    g_codes[8] = tag.fields[GM_FIELD_ORIGIN];
+    g_codes[9] = tag.flags[GM_FLAG_TOOL_OFFSETS_ON] ? G_43 : G_49;
+    g_codes[10] = tag.flags[GM_FLAG_RETRACT_OLDZ] ? G_98 : G_99;
+    g_codes[11] =
+        tag.flags[GM_FLAG_BLEND] ? G_64 :
+        tag.flags[GM_FLAG_EXACT_STOP] ? G_61 : G_61_1;
+    // Empty status code, leave as default
+    g_codes[12] = -1;
+    g_codes[13] = tag.flags[GM_FLAG_CSS_MODE] ? G_97 : G_96;
+    g_codes[14] = tag.flags[GM_FLAG_IJK_ABS] ? G_90_1 : G_91_1;
+    g_codes[15] = tag.flags[GM_FLAG_DIAMETER_MODE] ? G_7 : G_8;
+    //TODO remove redundant line number?
+    m_codes[0] = tag.fields[GM_FIELD_LINE_NUMBER];
+    m_codes[1] = tag.fields[GM_FIELD_M_MODES_4];
+    m_codes[2] = !tag.flags[GM_FLAG_SPINDLE_ON] ? 5 :
+        tag.flags[GM_FLAG_SPINDLE_CW] ? 3 : 4;
+    m_codes[3] = tag.fields[GM_FIELD_TOOLCHANGE];
+
+    m_codes[4] =
+        tag.flags[GM_FLAG_MIST] ? 7 : tag.flags[GM_FLAG_FLOOD] ? -1 : 9;
+    m_codes[5] =
+        tag.flags[GM_FLAG_FLOOD] ? 8 : -1;
+
+    // Copied from write_m_codes
+    if (tag.flags[GM_FLAG_FEED_OVERRIDE]) {
+        if (tag.flags[GM_FLAG_SPEED_OVERRIDE]) m_codes[6] =  48;
+        else m_codes[6] = 50;
+    } else if (tag.flags[GM_FLAG_SPEED_OVERRIDE]) {
+        m_codes[6] = 51;
+    } else m_codes[6] = 49;
+
+    m_codes[7] =                      /* 7 overrides   */
+        tag.flags[GM_FLAG_ADAPTIVE_FEED] ? 52 : -1;
+
+    m_codes[8] =                      /* 8 overrides   */
+        tag.flags[GM_FLAG_FEED_HOLD] ? 53 : -1;
+
+
+    settings[0] = tag.fields[GM_FIELD_LINE_NUMBER];
+    settings[1] = tag.feed;
+    settings[2] = tag.speed;
+
+}
+
 
 void Interp::setError(const char *fmt, ...)
 {
@@ -2590,4 +2661,10 @@ const char *strstore(const char *s)
     return string(*pair.first).c_str();
 }
 
-
+context_struct::context_struct()
+: position(0), sequence_number(0), filename(""), subName(""),
+context_status(0), modal_state(), call_type(0), py_return_type(0), py_returned_double(0),
+py_returned_int(0)
+{
+    memset(saved_params, 0, sizeof(saved_params));
+}

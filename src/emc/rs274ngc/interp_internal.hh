@@ -26,6 +26,7 @@
 #include "emcpos.h"
 #include "libintl.h"
 #include "python_plugin.hh"
+#include "modal_state.hh"
 
 
 #define _(s) gettext(s)
@@ -554,6 +555,7 @@ typedef parameter_map::iterator parameter_map_iterator;
 #define G_MODE_OK(m) (m == 1)
 
 typedef struct context_struct {
+    context_struct();
     long position;       // location (ftell) in file
     int sequence_number; // location (line number) in file
     const char *filename;      // name of file for this context
@@ -561,9 +563,7 @@ typedef struct context_struct {
     double saved_params[INTERP_SUB_PARAMS];
     parameter_map named_params;
     unsigned char context_status;		// see CONTEXT_ defines below
-    int saved_g_codes[ACTIVE_G_CODES];  // array of active G codes
-    int saved_m_codes[ACTIVE_M_CODES];  // array of active M codes
-    double saved_settings[ACTIVE_SETTINGS];     // array of feed, speed, etc.
+    ModalState modal_state;
     int call_type; // enum call_types
     // Python-related stuff
     boost::python::object tupleargs; // the args tuple for Py functions
@@ -630,9 +630,8 @@ typedef struct setup_struct
   double v_axis_offset, v_current, v_origin_offset;
   double w_axis_offset, w_current, w_origin_offset;
 
-  int active_g_codes[ACTIVE_G_CODES];  // array of active G codes
-  int active_m_codes[ACTIVE_M_CODES];  // array of active M codes
-  double active_settings[ACTIVE_SETTINGS];     // array of feed, speed, etc.
+  ModalState modal_state;
+
   bool arc_not_allowed;       // we just exited cutter compensation, so we error if the next move isn't straight
   double axis_offset_x;         // X-axis g92 offset
   double axis_offset_y;         // Y-axis g92 offset
