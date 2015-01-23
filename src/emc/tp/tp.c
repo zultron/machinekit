@@ -655,14 +655,17 @@ STATIC inline int tpCalculateUnitCartAngle(PmCartesian const * const u1, PmCarte
 }
 
 /**
- * Initialize a blend arc from its parent lines.
- * This copies and initializes properties from the previous and next lines to
+ * Initialize a blend arc from its parent segments.
+ * This copies and initializes properties from the previous and next segments to
  * initialize a blend arc. This function does not handle connecting the
  * segments together, however.
  */
-STATIC int tpInitBlendArcFromPrev(TP_STRUCT const * const tp, TC_STRUCT const * const prev_line_tc,
-        TC_STRUCT* const blend_tc, double vel, double ini_maxvel, double acc) {
-
+STATIC int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
+        TC_STRUCT const * const prev_tc,
+        TC_STRUCT* const blend_tc,
+        double vel,
+        double ini_maxvel,
+        double acc) {
 
 #ifdef TP_SHOW_BLENDS
     int canon_motion_type = EMC_MOTION_TYPE_ARC;
@@ -674,8 +677,10 @@ STATIC int tpInitBlendArcFromPrev(TP_STRUCT const * const tp, TC_STRUCT const * 
             TC_SPHERICAL,
             canon_motion_type,
             tp->cycleTime,
-            prev_line_tc->enables,
-            prev_line_tc->atspeed);
+            prev_tc->enables,
+            prev_tc->atspeed);
+    //FIXME refactor into Init
+    blend_tc->tag = prev_tc->tag;
 
     // Copy over state data from TP
     tcSetupState(blend_tc, tp);
@@ -687,7 +692,7 @@ STATIC int tpInitBlendArcFromPrev(TP_STRUCT const * const tp, TC_STRUCT const * 
             acc);
 
     // Skip syncdio setup since this blend extends the previous line
-    blend_tc->syncdio = prev_line_tc->syncdio; //enqueue the list of DIOs that need toggling
+    blend_tc->syncdio = prev_tc->syncdio; //enqueue the list of DIOs that need toggling
 
     // find "helix" length for target
     double length;
