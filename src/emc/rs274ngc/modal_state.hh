@@ -29,11 +29,6 @@ struct ModalState {
     std::vector<double> settings;     // array of feed, speed, etc.
 };
 
-struct ModalStateHistory {
-    ModalStateHistory();
-    std::deque<ModalState> history;
-};
-
 /**
  * C++ version of state_tag_t structure to stuff interp state info in a motion message.
  * Previously, this information was stored only in the interpreter, and as

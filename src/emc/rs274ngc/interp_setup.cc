@@ -25,7 +25,6 @@ setup_struct::setup_struct() :
     w_origin_offset(0.0),
 
     modal_state(),
-    modal_history(),
     arc_not_allowed(0),
 
     axis_offset_x(0.0),

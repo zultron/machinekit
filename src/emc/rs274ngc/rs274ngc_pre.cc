@@ -510,14 +510,6 @@ int Interp::_execute(const char *command)
 	  write_m_codes(eblock, &_setup, _setup.modal_state);
 	  write_settings(&_setup, _setup.modal_state);
 
-      // Store active state in the big history
-      int line = _setup.sequence_number;
-      // Make sure we have enough space (additional buffer space may not be necessary)
-      _setup.modal_history.history.resize(line + 20);
-      // Store the current state for reference
-      _setup.modal_history.history.at(line) = _setup.modal_state;
-      //printf("Updating modal state at line %d\n",line);
-
 	  if ((status == INTERP_EXIT) &&
 	      (_setup.remap_level > 0) &&
 	      (_setup.call_level > 0)) {
@@ -1161,9 +1153,6 @@ int Interp::init()
   write_g_codes((block_pointer) NULL, &_setup, _setup.modal_state);
   write_m_codes((block_pointer) NULL, &_setup, _setup.modal_state);
   write_settings(&_setup, _setup.modal_state);
-
-  // Clean up and recycle extra capacity
-  _setup.modal_history.history.resize(2000);
 
   init_tool_parameters();
   // Synch rest of settings to external world
@@ -2007,15 +1996,6 @@ void Interp::active_g_codes(int *codes)        //!< array of codes to copy into
   }
 }
 
-void Interp::active_g_codes(int *codes, long int line)        //!< array of codes to copy into
-{
-  int n;
-  for (n = 0; n < ACTIVE_G_CODES; n++) {
-    //codes[n] = _setup.modal_state.g_codes[n];
-    codes[n] = _setup.modal_history.history.at(line).g_codes[n];
-  }
-}
-
 /***********************************************************************/
 
 /*! Interp::active_m_codes
@@ -2039,15 +2019,6 @@ void Interp::active_m_codes(int *codes)        //!< array of codes to copy into
   }
 }
 
-void Interp::active_m_codes(int *codes, long int line)        //!< array of codes to copy into
-{
-  int n;
-
-  for (n = 0; n < ACTIVE_M_CODES; n++) {
-    codes[n] = _setup.modal_history.history.at(line).m_codes[n];
-  }
-}
-
 /***********************************************************************/
 
 /*! Interp::active_settings
@@ -2068,15 +2039,6 @@ void Interp::active_settings(double *settings) //!< array of settings to copy in
 
   for (n = 0; n < ACTIVE_SETTINGS; n++) {
     settings[n] = _setup.modal_state.settings[n];
-  }
-}
-
-void Interp::active_settings(double *settings, long int line) //!< array of settings to copy into
-{
-  int n;
-
-  for (n = 0; n < ACTIVE_SETTINGS; n++) {
-    settings[n] = _setup.modal_history.history.at(line).settings[n];
   }
 }
 

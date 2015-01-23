@@ -19,10 +19,6 @@ ModalState::ModalState(): g_codes(ACTIVE_G_CODES,0),
     settings(ACTIVE_SETTINGS,0.0)
 {}
 
-//FIXME hard-code the initial vector size for now
-ModalStateHistory::ModalStateHistory(): history(2000)
-{}
-
 StateTag::StateTag(): flags(0)
 {
     memset(fields,-1,sizeof(fields));
