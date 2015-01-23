@@ -1407,7 +1407,7 @@ check_stuff ( "before command_handler()" );
 
 	    /* append it to the emcmotDebug->tp */
 	    tpSetId(&emcmotDebug->tp, emcmotCommand->id);
-	    if (-1 == tpAddRigidTap(&emcmotDebug->tp, emcmotCommand->pos, emcmotCommand->vel, emcmotCommand->ini_maxvel, emcmotCommand->acc, emcmotStatus->enables_new)) {
+	    if (-1 == tpAddRigidTap(&emcmotDebug->tp, emcmotCommand->pos, emcmotCommand->vel, emcmotCommand->ini_maxvel, emcmotCommand->acc, emcmotStatus->enables_new, emcmotCommand->tag)) {
                 emcmotStatus->atspeed_next_feed = 0; /* rigid tap always waits for spindle to be at-speed */
 		reportError(_("can't add rigid tap move"));
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
