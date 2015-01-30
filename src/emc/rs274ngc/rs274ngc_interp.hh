@@ -476,6 +476,13 @@ public:
  int gen_settings(std::vector<double> &current, std::vector<double> &saved, std::string &cmd);
  int gen_g_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd);
  int gen_m_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd);
+ int restore_from_tag(setup_pointer settings,
+			    StateTag const &tag);
+ int gen_restore_cmd(int *current_g,
+         int *current_m,
+         double *current_settings,
+         StateTag const &saved,
+         std::string &cmd);
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
                           double *parameters, bool check_exists);
