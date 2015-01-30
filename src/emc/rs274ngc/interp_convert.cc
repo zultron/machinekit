@@ -2904,6 +2904,12 @@ int Interp::restore_from_tag(setup_pointer settings,
 			    StateTag const &tag)
 {
 
+    if (tag.line < 1) {
+        //Invalid line implies a bad tag, don't restore
+        //TODO More robust way to determine valid tags
+        return INTERP_ERROR;
+    }
+
     // linearize state
     write_g_codes((block_pointer) NULL, settings, settings->modal_state);
     write_m_codes((block_pointer) NULL, settings, settings->modal_state);
