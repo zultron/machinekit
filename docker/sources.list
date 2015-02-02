@@ -1,0 +1,19 @@
+#                                                                 -*-conf-*-
+#
+# Ubuntu Trusty
+deb [ arch=amd64 ] http://us.archive.ubuntu.com/ubuntu trusty main restricted universe multiverse
+deb [ arch=armhf ] http://ports.ubuntu.com/ubuntu-ports trusty main restricted universe multiverse
+deb-src http://us.archive.ubuntu.com/ubuntu trusty main restricted universe multiverse
+
+# Ubuntu Trusty updates
+deb [ arch=amd64 ] http://us.archive.ubuntu.com/ubuntu trusty-updates main restricted universe multiverse
+deb [ arch=armhf ] http://ports.ubuntu.com/ubuntu-ports trusty-updates main restricted universe multiverse
+deb-src http://us.archive.ubuntu.com/ubuntu trusty-updates main restricted universe multiverse
+
+# Ubuntu Trusty security
+deb [ arch=amd64 ] http://security.ubuntu.com/ubuntu trusty-security main restricted universe multiverse
+deb [ arch=armhf ] http://ports.ubuntu.com/ubuntu-ports trusty-security main restricted universe multiverse
+deb-src http://security.ubuntu.com/ubuntu trusty-security main restricted universe multiverse
+
+# Ubuntu Trusty Machinekit deps in zultron's OBS
+deb http://download.opensuse.org/repositories/home:/zultron:/machinekit-deps/xUbuntu_14.04/ ./

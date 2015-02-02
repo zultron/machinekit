@@ -1,0 +1,40 @@
+FROM debian:wheezy
+MAINTAINER John Morris <john@zultron.com>
+
+# Add armhf and Machinekit dep package archives
+ADD	sources.list.debian /etc/apt/sources.list
+ADD	zultron-obs.key /etc/apt/
+RUN	apt-key add /etc/apt/zultron-obs.key
+RUN	apt-key adv --keyserver hkp://keys.gnupg.net --recv-key 7F32AE6B73571BB9
+RUN	apt-key adv --keyserver hkp://keys.gnupg.net --recv-key B2710B8359890110
+
+# Update apt cache
+RUN	apt-get update
+
+# Install basic build tools and things to help with setup
+RUN	apt-get install -y --no-install-recommends \
+	    devscripts \
+	    equivs \
+	    dpkg-dev \
+	    git \
+	    ca-certificates \
+	    gcc
+
+# Unpack Machinekit sources; pick one:
+#    - Tarball from git-archive
+ADD	machinekit.tar.gz /usr/src/
+#    - Git clone
+# WORKDIR	/usr/src
+# RUN	git clone -b armhf-cross --depth 1 \
+# 	    https://github.com/zultron/machinekit.git
+
+# Install Machinekit deps
+WORKDIR	/usr/src/machinekit
+RUN	debian/configure -pxt 8.5 \
+	    -X 3.8-1-xenomai.x86-amd64 -R 3.8-1-rtai.x86-amd64
+RUN	yes | CC=gcc mk-build-deps -ir
+
+WORKDIR	/usr/src/machinekit/src
+RUN	./autogen.sh
+RUN	./configure
+RUN	make V=1
