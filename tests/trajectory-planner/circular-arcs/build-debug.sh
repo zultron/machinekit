@@ -4,9 +4,9 @@ cd ../../../src
 #used anywhere else...
 touch emc/tp/t[cp]*.[ch]
 # Show debug info for each timestep, as well as segment creation
-#make EXTRA_DEBUG='-DTC_DEBUG -DTP_DEBUG'
+#make default modules EXTRA_DEBUG='-DTC_DEBUG -DTP_DEBUG'
 # Show debugging info for segment creation and optimization
 #make EXTRA_DEBUG='-DTP_DEBUG -DTP_INFO_LOGGING'
-#make EXTRA_DEBUG='-DTC_DEBUG -DTP_DEBUG -DTP_INFO_LOGGING'
-make EXTRA_DEBUG='-DTP_DEBUG'
+make default modules -j3 EXTRA_DEBUG='-DTC_DEBUG -DTP_DEBUG -DTP_INFO_LOGGING'
+#make default modules -j3 EXTRA_DEBUG='-DTP_DEBUG'
 #make EXTRA_DEBUG='-DTC_DEBUG'
