@@ -81,7 +81,7 @@ void UPDATE_SLOC(int sloc) {
 }
 
 void UPDATE_TAG(StateTag tag) {
-    canon_debug("--Got UPDATE_TAG: %d--\n",tag.line);
+    canon_debug("--Got UPDATE_TAG: %d--\n",tag.fields[GM_FIELD_LINE_NUMBER]);
     _tag = tag;
 }
 
