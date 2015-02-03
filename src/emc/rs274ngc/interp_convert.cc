@@ -2793,7 +2793,11 @@ int Interp::gen_restore_cmd(ModalState &state,
     std::vector<double> saved_settings(ACTIVE_SETTINGS,0);
 
     //Extract saved state to local vectors
-    active_modes(&saved_g[0], &saved_m[0], &saved_settings[0], saved);
+    int res_unpack = active_modes(&saved_g[0], &saved_m[0], &saved_settings[0], saved);
+    if (res_unpack != INTERP_OK) {
+        return INTERP_ERROR;
+    }
+
     //Mimic the order of restoration commands used elsewhere
     if (state.g_codes[5] != saved_g[5]) {
         char buf[LINELEN];
@@ -2801,11 +2805,13 @@ int Interp::gen_restore_cmd(ModalState &state,
         CHKS(execute(buf) != INTERP_OK, _("gen_restore G20/G21 failed: '%s'"), cmd.c_str());
     }
 
-    gen_settings(state.settings, saved_settings, cmd);
-    gen_m_codes(state.g_codes, saved_m, cmd);
-    gen_g_codes(state.m_codes, saved_g, cmd);
+    int res_settings = gen_settings(state.settings, saved_settings, cmd);
+    int res_m = gen_m_codes(state.g_codes, saved_m, cmd);
+    int res_g = gen_g_codes(state.m_codes, saved_g, cmd);
 
-    //TODO catch errors here
+    if (res_settings || res_m || res_g) {
+        return INTERP_ERROR;
+    }
     return INTERP_OK;
 }
 
@@ -2900,8 +2906,7 @@ int Interp::restore_settings(setup_pointer settings,
 /**
  * Variation of restore_settings to pull state from a StateTag.
  */
-int Interp::restore_from_tag(setup_pointer settings,
-			    StateTag const &tag)
+int Interp::restore_from_tag(StateTag const &tag)
 {
 
     if (tag.fields[GM_FIELD_LINE_NUMBER] < 1) {
@@ -2911,9 +2916,9 @@ int Interp::restore_from_tag(setup_pointer settings,
     }
 
     // linearize state
-    write_g_codes((block_pointer) NULL, settings, settings->modal_state);
-    write_m_codes((block_pointer) NULL, settings, settings->modal_state);
-    write_settings(settings, settings->modal_state);
+    write_g_codes((block_pointer) NULL, &_setup, _setup.modal_state);
+    write_m_codes((block_pointer) NULL, &_setup, _setup.modal_state);
+    write_settings(&_setup, _setup.modal_state);
 
     std::string cmd;
 
@@ -2924,9 +2929,12 @@ int Interp::restore_from_tag(setup_pointer settings,
     // G20/G21 switching is special - it is executed beforehand
     // so restoring feed lateron is interpreted in the correct context
 
-    gen_restore_cmd(settings->modal_state,
+    int res_unpack = gen_restore_cmd(_setup.modal_state,
             tag,
             cmd);
+    if (res_unpack != INTERP_OK) {
+        return res_unpack;
+    }
 
     if (!cmd.empty()) {
         // the sequence can be multiline, separated by nl
@@ -2943,9 +2951,9 @@ int Interp::restore_from_tag(setup_pointer settings,
                 CHKS(status, _("M7x: restore_settings failed executing: '%s': %s"), s, currentError);
             }
         }
-        write_g_codes((block_pointer) NULL, settings, settings->modal_state);
-        write_m_codes((block_pointer) NULL, settings, settings->modal_state);
-        write_settings(settings, settings->modal_state);
+        write_g_codes((block_pointer) NULL, &_setup, _setup.modal_state);
+        write_m_codes((block_pointer) NULL, &_setup, _setup.modal_state);
+        write_settings(&_setup, _setup.modal_state);
     }
 
     return INTERP_OK;

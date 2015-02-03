@@ -45,5 +45,6 @@ struct StateTag : public state_tag_t {
     StateTag();
     StateTag(state_tag_t const &basetag);
     std::bitset<64> flags;
+    int is_valid(void) const;
 };
 #endif

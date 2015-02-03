@@ -88,7 +88,7 @@ public:
  void active_settings(double *settings, long int line);
 
  // Update the state vectors from a state tag
- void active_modes(int *g_codes,
+ int active_modes(int *g_codes,
          int *mcodes,
          double *settings,
          StateTag const &tag);
@@ -476,8 +476,7 @@ public:
  int gen_settings(std::vector<double> &current, std::vector<double> &saved, std::string &cmd);
  int gen_g_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd);
  int gen_m_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd);
- int restore_from_tag(setup_pointer settings,
-			    StateTag const &tag);
+ int restore_from_tag(StateTag const &tag);
  int gen_restore_cmd(ModalState &state,
         StateTag const &saved,
         std::string &cmd);
