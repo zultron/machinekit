@@ -1,10 +1,15 @@
 FROM debian:wheezy
 MAINTAINER John Morris <john@zultron.com>
 
+ENV	TCL_VER 8.5
+ENV	CODENAME wheezy
+
 # Add armhf and Machinekit dep package archives
-ADD	sources.list /etc/apt/sources.list
+ADD	sources.list.${CODENAME} /etc/apt/sources.list
 ADD	zultron-obs.key /etc/apt/
 RUN	apt-key add /etc/apt/zultron-obs.key
+RUN	apt-key adv --keyserver hkp://keys.gnupg.net --recv-key 7F32AE6B73571BB9
+RUN	apt-key adv --keyserver hkp://keys.gnupg.net --recv-key B2710B8359890110
 
 # Add armhf as foreign architecture
 RUN	dpkg --add-architecture armhf
@@ -73,21 +78,21 @@ RUN	apt-get install -y --no-install-recommends \
 	    libxinerama-dev:armhf \
 	    libgl1-mesa-dev:armhf \
 	    libglu1-mesa-dev:armhf \
-	    tcl8.6-dev:armhf \
-	    tk8.6-dev:armhf
+	    tcl${TCL_VER}-dev:armhf \
+	    tk${TCL_VER}-dev:armhf
 
 
 # Unpack Machinekit sources; pick one:
 #    - Tarball from git-archive
-# ADD	machinekit.tar.gz /usr/src/
+ADD	machinekit.tar.gz /usr/src/
 #    - Git clone
-WORKDIR	/usr/src
-RUN	git clone -b armhf-cross --depth 1 \
-	    https://github.com/zultron/machinekit.git
+# WORKDIR	/usr/src
+# RUN	git clone -b armhf-cross --depth 1 \
+# 	    https://github.com/zultron/machinekit.git
 
 # Broken:  see above
 # # Install Machinekit deps
-# RUN	debian/configure -xt 8.6
+# RUN	debian/configure -xt ${TCL_VER}
 # ENV	CC_CONFIGURE /usr/bin/arm-linux-gnueabihf-gcc-4.8
 # RUN	yes | CC=${CC_CONFIGURE} mk-build-deps -ira armhf
 

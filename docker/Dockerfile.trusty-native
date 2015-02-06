@@ -1,8 +1,11 @@
 FROM ubuntu:trusty
 MAINTAINER John Morris <john@zultron.com>
 
+ENV	TCL_VER 8.6
+ENV	CODENAME trusty
+
 # Add armhf and Machinekit dep package archives
-ADD	sources.list /etc/apt/sources.list
+ADD	sources.list.${CODENAME} /etc/apt/sources.list
 ADD	zultron-obs.key /etc/apt/
 RUN	apt-key add /etc/apt/zultron-obs.key
 
@@ -27,7 +30,7 @@ ADD	machinekit.tar.gz /usr/src/
 
 # Install Machinekit deps
 WORKDIR	/usr/src/machinekit
-RUN	debian/configure -pxt 8.6 \
+RUN	debian/configure -pxt ${TCL_VER} \
 	    -X 3.8-1-xenomai.x86-amd64 -R 3.8-1-rtai.x86-amd64
 RUN	yes | mk-build-deps -ir
 

@@ -1,8 +1,11 @@
 FROM ubuntu:trusty
 MAINTAINER John Morris <john@zultron.com>
 
+ENV	TCL_VER 8.6
+ENV	CODENAME trusty
+
 # Add armhf and Machinekit dep package archives
-ADD	sources.list /etc/apt/sources.list
+ADD	sources.list.${CODENAME} /etc/apt/sources.list
 ADD	zultron-obs.key /etc/apt/
 RUN	apt-key add /etc/apt/zultron-obs.key
 
@@ -73,8 +76,8 @@ RUN	apt-get install -y --no-install-recommends \
 	    libxinerama-dev:armhf \
 	    libgl1-mesa-dev:armhf \
 	    libglu1-mesa-dev:armhf \
-	    tcl8.6-dev:armhf \
-	    tk8.6-dev:armhf
+	    tcl${TCL_VER}-dev:armhf \
+	    tk${TCL_VER}-dev:armhf
 
 
 # Unpack Machinekit sources; pick one:
@@ -87,7 +90,7 @@ ADD	machinekit.tar.gz /usr/src/
 
 # Broken:  see above
 # # Install Machinekit deps
-# RUN	debian/configure -xt 8.6
+# RUN	debian/configure -xt ${TCL_VER}
 # ENV	CC_CONFIGURE /usr/bin/arm-linux-gnueabihf-gcc-4.8
 # RUN	yes | CC=${CC_CONFIGURE} mk-build-deps -ira armhf
 
