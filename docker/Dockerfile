@@ -1,0 +1,104 @@
+FROM ubuntu:trusty
+MAINTAINER John Morris <john@zultron.com>
+
+ENV	TCL_VER 8.6
+ENV	CODENAME trusty
+
+# Add armhf and Machinekit dep package archives
+ADD	sources.list.${CODENAME} /etc/apt/sources.list
+ADD	zultron-obs.key /etc/apt/
+RUN	apt-key add /etc/apt/zultron-obs.key
+
+# Add armhf as foreign architecture
+RUN	dpkg --add-architecture armhf
+
+# Update apt cache
+RUN	apt-get update
+
+# Install basic build tools and armhf cross-compile toolchain
+RUN	apt-get install -y --no-install-recommends \
+	    devscripts \
+	    equivs \
+	    dpkg-dev \
+	    git \
+	    ca-certificates
+
+# Install cross-build tools
+RUN	apt-get install -y --no-install-recommends \
+	    gcc-arm-linux-gnueabihf \
+	    g++-arm-linux-gnueabihf \
+	    pkg-config-arm-linux-gnueabihf \
+	    cpp-arm-linux-gnueabihf \
+	    binutils-arm-linux-gnueabihf
+
+# Install Machinekit deps
+#   - Lots of MultiLib problems still, so mk-build-deps -a armhf doesn't work
+RUN	apt-get install -y --no-install-recommends \
+	    build-essential:native \
+	    python-support \
+	    libboost-python-dev:armhf \
+	    libboost-thread-dev:armhf \
+	    libboost-serialization-dev:armhf \
+	    libreadline-dev:armhf \
+	    libusb-1.0-0-dev:armhf \
+	    libmodbus-dev:armhf \
+	    libzmq4-dev:armhf \
+	    libczmq-dev:armhf \
+	    python-zmq \
+	    libudev-dev:armhf \
+	    uuid-dev:armhf \
+	    libavahi-client-dev:armhf \
+	    libprotobuf-dev:armhf \
+	    libprotoc-dev:armhf \
+	    python-protobuf \
+	    protobuf-compiler \
+	    cython \
+	    python-netifaces \
+	    psmisc \
+	    python-setuptools \
+	    python-pyftpdlib \
+	    uuid-runtime \
+	    python \
+	    autoconf \
+	    automake \
+	    libxenomai-dev:armhf \
+	    libssl-dev:armhf \
+	    libjansson-dev:armhf \
+	    python-simplejson \
+	    libwebsockets-dev:armhf \
+	    liburiparser-dev:armhf \
+	    libncurses-dev:armhf \
+	    libxaw7-dev:armhf \
+	    libgtk2.0-dev:armhf \
+	    python-tk \
+	    libxmu-headers \
+	    bwidget \
+	    libxinerama-dev:armhf \
+	    libgl1-mesa-dev:armhf \
+	    libglu1-mesa-dev:armhf \
+	    tcl${TCL_VER}-dev:armhf \
+	    tk${TCL_VER}-dev:armhf
+
+
+# Unpack Machinekit sources; pick one:
+#    - Tarball from git-archive
+ADD	machinekit.tar.gz /usr/src/
+#    - Git clone
+# WORKDIR	/usr/src
+# RUN	git clone -b armhf-cross --depth 1 \
+# 	    https://github.com/zultron/machinekit.git
+
+# Broken:  see above
+# # Install Machinekit deps
+# RUN	debian/configure -xt ${TCL_VER}
+# ENV	CC_CONFIGURE /usr/bin/arm-linux-gnueabihf-gcc-4.8
+# RUN	yes | CC=${CC_CONFIGURE} mk-build-deps -ira armhf
+
+# Canadian Cross build
+WORKDIR	/usr/src/machinekit/src
+RUN	./autogen.sh
+RUN	./configure \
+	    --host=arm-linux-gnueabihf \
+	    --with-xenomai \
+	    --with-platform-beaglebone
+RUN	make V=1
