@@ -1,5 +1,5 @@
 # MK source tarball generated for inclusion into chroot
-/machinekit.tar.gz
+#/machinekit.tar.gz
 
 # Copied Dockerfile
-/Dockerfile
+#/Dockerfile
