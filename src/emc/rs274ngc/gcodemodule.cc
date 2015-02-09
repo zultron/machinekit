@@ -26,6 +26,7 @@
 #include "config.h"		// LINELEN
 
 int _task = 0; // control preview behaviour when remapping
+const int MAX_GLCANON_LINES = 50000;
 
 char _parameter_file_name[LINELEN];
 extern "C" void initinterpreter();
@@ -143,6 +144,7 @@ static int last_sequence_number;
 static bool metric;
 static double _pos_x, _pos_y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w;
 EmcPose tool_offset;
+static int _linecount=0;
 
 static InterpBase *pinterp;
 #define interp_new (*pinterp)
@@ -172,10 +174,13 @@ static void maybe_new_line(int sequence_number) {
     Py_DECREF(new_line_code);
     if(result == NULL) interp_error ++;
     Py_XDECREF(result);
+    _linecount++;
 }
 #else
 static inline void maybe_new_line(int sequence_number=interp_new.sequence_number());
-static inline void maybe_new_line(int sequence_number) {};
+static inline void maybe_new_line(int sequence_number) {
+    _linecount++;
+}
 #endif
 
 
@@ -215,14 +220,16 @@ void ARC_FEED(int line_number,
     }
     maybe_new_line(line_number);
     if(interp_error) return;
-    PyObject *result =
-        callmethod(callback, "arc_feed", "iffffifffffff",
-                            line_number, first_end, second_end, first_axis, second_axis,
-                            rotation, axis_end_point, 
-                            a_position, b_position, c_position,
-                            u_position, v_position, w_position);
-    if(result == NULL) interp_error ++;
-    Py_XDECREF(result);
+    if (_linecount < MAX_GLCANON_LINES) {
+        PyObject *result =
+            callmethod(callback, "arc_feed", "iffffifffffff",
+                    line_number, first_end, second_end, first_axis, second_axis,
+                    rotation, axis_end_point, 
+                    a_position, b_position, c_position,
+                    u_position, v_position, w_position);
+        if(result == NULL) interp_error ++;
+        Py_XDECREF(result);
+    }
 }
 
 void STRAIGHT_FEED(int line_number,
@@ -235,11 +242,13 @@ void STRAIGHT_FEED(int line_number,
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
-    PyObject *result =
-        callmethod(callback, "straight_feed", "ifffffffff",
-                            line_number, x, y, z, a, b, c, u, v, w);
-    if(result == NULL) interp_error ++;
-    Py_XDECREF(result);
+    if (_linecount < MAX_GLCANON_LINES) {
+        PyObject *result =
+            callmethod(callback, "straight_feed", "ifffffffff",
+                    line_number, x, y, z, a, b, c, u, v, w);
+        if(result == NULL) interp_error ++;
+        Py_XDECREF(result);
+    }
 }
 
 void STRAIGHT_TRAVERSE(int line_number,
@@ -252,23 +261,25 @@ void STRAIGHT_TRAVERSE(int line_number,
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
-    PyObject *result =
-        callmethod(callback, "straight_traverse", "ifffffffff",
-                            line_number, x, y, z, a, b, c, u, v, w);
-    if(result == NULL) interp_error ++;
-    Py_XDECREF(result);
+    if (_linecount < MAX_GLCANON_LINES) {
+        PyObject *result =
+            callmethod(callback, "straight_traverse", "ifffffffff",
+                    line_number, x, y, z, a, b, c, u, v, w);
+        if(result == NULL) interp_error ++;
+        Py_XDECREF(result);
+    }
 }
 
 void SET_G5X_OFFSET(int g5x_index,
-                    double x, double y, double z,
-                    double a, double b, double c,
-                    double u, double v, double w) {
+        double x, double y, double z,
+        double a, double b, double c,
+        double u, double v, double w) {
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "set_g5x_offset", "ifffffffff",
-                            g5x_index, x, y, z, a, b, c, u, v, w);
+                g5x_index, x, y, z, a, b, c, u, v, w);
     if(result == NULL) interp_error ++;
     Py_XDECREF(result);
 }
@@ -490,13 +501,15 @@ void STRAIGHT_PROBE(int line_number,
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
-    PyObject *result =
-        callmethod(callback, "straight_probe", "ifffffffff",
-                line_number, x, y, z, a, b, c, u, v, w);
-    if(result == NULL) interp_error ++;
-    Py_XDECREF(result);
-
+    if (_linecount < MAX_GLCANON_LINES) {
+        PyObject *result =
+            callmethod(callback, "straight_probe", "ifffffffff",
+                    line_number, x, y, z, a, b, c, u, v, w);
+        if(result == NULL) interp_error ++;
+        Py_XDECREF(result);
+    }
 }
+
 void RIGID_TAP(int line_number,
                double x, double y, double z) {
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; }
@@ -723,6 +736,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
 
     _pos_x = _pos_y = _pos_z = _pos_a = _pos_b = _pos_c = 0;
     _pos_u = _pos_v = _pos_w = 0;
+    _linecount=0;
 
     interp_new.init();
     interp_new.open(f);
