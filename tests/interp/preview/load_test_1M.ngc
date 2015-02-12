@@ -1,0 +1,16 @@
+G20 G90 G17 G40 G80 G98
+G64
+G0 X0 Y0 Z1
+G1 X0 Y0 Z0 F100
+(1000000 lines)
+o103 repeat [125000]
+G1 X.1
+X.2 Y.1
+Y.2
+X.1 Y.3
+X0
+X-.1 Y.2
+Y.1
+X0 Y0
+o103 endrepeat
+M30
