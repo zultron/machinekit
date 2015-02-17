@@ -2783,6 +2783,12 @@ int Interp::gen_m_codes(std::vector<int> &current, std::vector<int> &saved, std:
 }
 
 
+/**
+ * Create a G code string to restore a modal state on program abort.
+ * Note: This is only designed to be called on program abort. It restores the
+ * modal state in the interpreter to the equivalent state at the most recent
+ * motion line, but does not restore M codes.
+ */
 int Interp::gen_restore_cmd(ModalState &state,
         StateTag const &saved,
         std::string &cmd)
@@ -2798,6 +2804,13 @@ int Interp::gen_restore_cmd(ModalState &state,
         return INTERP_ERROR;
     }
 
+    /* Now we clean up any G / M modes that should be reset when ending a
+     * program. Note that most of these mode states are based on logic in
+     * write_XXX functions.
+     */
+    // Force cancellation of tool compensation
+    saved_g[4] = G_40;
+
     //Mimic the order of restoration commands used elsewhere
     if (state.g_codes[5] != saved_g[5]) {
         char buf[LINELEN];
@@ -2806,7 +2819,8 @@ int Interp::gen_restore_cmd(ModalState &state,
     }
 
     int res_settings = gen_settings(state.settings, saved_settings, cmd);
-    int res_m = gen_m_codes(state.g_codes, saved_m, cmd);
+    //M codes should not be restored during an abort
+    int res_m = 0;
     int res_g = gen_g_codes(state.m_codes, saved_g, cmd);
 
     if (res_settings || res_m || res_g) {
@@ -2925,10 +2939,6 @@ int Interp::restore_from_tag(StateTag const &tag)
     // construct gcode from the state difference and execute
     // this assures appropriate canon commands are generated if needed -
     // just restoring interp variables is not enough
-
-    // G20/G21 switching is special - it is executed beforehand
-    // so restoring feed lateron is interpreted in the correct context
-
     int res_unpack = gen_restore_cmd(_setup.modal_state,
             tag,
             cmd);
@@ -2948,7 +2958,7 @@ int Interp::restore_from_tag(StateTag const &tag)
             if (status != INTERP_OK) {
                 char currentError[LINELEN+1];
                 strcpy(currentError,getSavedError());
-                CHKS(status, _("M7x: restore_settings failed executing: '%s': %s"), s, currentError);
+                CHKS(status, _("Failed to restore interp state on abort '%s': %s"), s, currentError);
             }
         }
         write_g_codes((block_pointer) NULL, &_setup, _setup.modal_state);
