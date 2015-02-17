@@ -30,6 +30,7 @@ extern int emcRunHalFiles(const char *filename);
 
 int emcTaskInit();
 int emcTaskHalt();
+int emcTaskStateRestore();
 int emcTaskAbort();
 int emcTaskSetMode(int mode);
 int emcTaskSetState(int state);
