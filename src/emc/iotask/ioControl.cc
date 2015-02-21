@@ -729,7 +729,8 @@ static int update_line_number(NMLmsg * cmd) {
         case EMC_TASK_PLAN_RUN_TYPE:
         case EMC_TASK_PLAN_END_TYPE:
 
-            (*iocontrol_data->program_line)=((RCS_CMD_MSG *)cmd)->line_number;
+            (*iocontrol_data->program_line)=((EMC_CMD_MSG *)cmd)->line_number;
+            //(*iocontrol_data->program_line)=((EMC_CMD_MSG *)cmd)->tag.fields[GM_FIELD_LINE_NUMBER];
             break;
     }
     return 0;

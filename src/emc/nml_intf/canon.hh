@@ -116,15 +116,6 @@ typedef enum {CANON_AXIS_X, CANON_AXIS_Y, CANON_AXIS_Z, CANON_AXIS_A,
               CANON_AXIS_B, CANON_AXIS_C} CANON_AXIS;
 */
 
-struct CANON_VECTOR {
-    CANON_VECTOR() {
-    } CANON_VECTOR(double _x, double _y, double _z) {
-	x = _x;
-	y = _y;
-	z = _z;
-    }
-    double x, y, z;
-};
 /* Initialization */
 
 /* reads world model data into the canonical interface */
