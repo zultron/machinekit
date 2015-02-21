@@ -827,7 +827,7 @@ void EMC_TRAJ_SET_HOME::update(CMS * cms)
 */
 void EMC_CMD_MSG::update(CMS * cms)
 {
-
+    cms->update(tag);
 }
 
 /*
@@ -950,7 +950,7 @@ void EMC_SPINDLE_CONSTANT::update(CMS * cms)
 */
 void EMC_SPINDLE_CMD_MSG::update(CMS * cms)
 {
-
+    EMC_CMD_MSG::update(cms);
 }
 
 /*
@@ -1034,7 +1034,7 @@ void EMC_TASK_PLAN_SYNCH::update(CMS * cms)
 */
 void EMC_COOLANT_CMD_MSG::update(CMS * cms)
 {
-
+    EMC_CMD_MSG::update(cms);
 }
 
 /*
@@ -1244,7 +1244,7 @@ void EMC_TRAJ_SET_CYCLE_TIME::update(CMS * cms)
 */
 void EMC_IO_CMD_MSG::update(CMS * cms)
 {
-
+    EMC_CMD_MSG::update(cms);
 }
 
 /*
@@ -1567,7 +1567,7 @@ void EMC_TASK_PLAN_RUN::update(CMS * cms)
 */
 void EMC_TOOL_CMD_MSG::update(CMS * cms)
 {
-
+    EMC_CMD_MSG::update(cms);
 }
 
 /*
@@ -2168,7 +2168,7 @@ void EMC_AXIS_ABORT::update(CMS * cms)
 */
 void EMC_TRAJ_CMD_MSG::update(CMS * cms)
 {
-
+    EMC_CMD_MSG::update(cms);
 }
 
 /*
@@ -2333,7 +2333,7 @@ void EMC_TRAJ_STAT::update(CMS * cms)
     cms->update(probeval);
     cms->update(kinematics_type);
     cms->update(motion_type);
-
+    cms->update(tag);
 }
 
 /*

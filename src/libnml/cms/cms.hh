@@ -26,6 +26,7 @@ extern "C" {
 }
 #endif
 #include "cms_cfg.hh"		/* CMS_CONFIG_LINELEN */
+#include "state_tag.h"
 
 class PHYSMEM_HANDLE;
 struct PM_CARTESIAN;
@@ -281,6 +282,8 @@ class CMS {
     CMS_STATUS update(float *x, unsigned int len);
     CMS_STATUS update(double *x, unsigned int len);        /* Used by emc2 */
     CMS_STATUS update(long double *x, unsigned int len);
+
+    CMS_STATUS update(state_tag_t & tag);
 
   /*************************************************************************
    * CMS UPDATE FUNCTIONS for POSEMATH classes, defined in cms_pm.cc       *

@@ -27,10 +27,9 @@ NMLTYPE nmltype;
 #include "cmd_msg.hh"
 #include "linklist.hh"
 
-RCS_CMD_MSG::RCS_CMD_MSG(NMLTYPE t, long sz):NMLmsg(t, sz)
-{
-    serial_number = 0;
-}
+RCS_CMD_MSG::RCS_CMD_MSG(NMLTYPE t, long sz):NMLmsg(t, sz),
+    serial_number(0)
+{}
 
 int RCS_CMD_MSG_format(NMLTYPE t, void *buf, CMS * cms)
 {

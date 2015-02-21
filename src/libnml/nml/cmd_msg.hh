@@ -16,12 +16,14 @@
 
 #include "nml.hh"
 #include "nmlmsg.hh"
+#include "state_tag.h"
 
 class RCS_CMD_MSG:public NMLmsg {
   public:
     RCS_CMD_MSG(NMLTYPE t, long sz);
     int serial_number;
     int line_number;
+    state_tag_t tag;
 };
 
 extern int RCS_CMD_MSG_format(NMLTYPE, void *, CMS *);

@@ -19,7 +19,6 @@
 #include "cmd_msg.hh"
 #include "stat_msg.hh"
 #include "emcpos.h"
-#include "modal_state.hh"
 #include "canon.hh"		// CANON_TOOL_TABLE, CANON_UNITS
 #include "rs274ngc.hh"		// ACTIVE_G_CODES, etc
 
@@ -28,6 +27,16 @@
 // ------------------
 
 // declarations for EMC general classes
+class EMC_CMD_MSG:public RCS_CMD_MSG {
+  public:
+    EMC_CMD_MSG(NMLTYPE t, size_t s): RCS_CMD_MSG(t, s){
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+    state_tag_t tag;
+};
+
 
 /**
  * Send a textual error message to the operator.
@@ -487,14 +496,11 @@ class EMC_AXIS_STAT:public EMC_AXIS_STAT_MSG {
 // declarations for EMC_TRAJ classes
 
 // EMC_TRAJ command base class
-class EMC_TRAJ_CMD_MSG:public RCS_CMD_MSG {
+class EMC_TRAJ_CMD_MSG:public EMC_CMD_MSG {
   public:
-    EMC_TRAJ_CMD_MSG(NMLTYPE t, size_t s): RCS_CMD_MSG(t, s),tag(){
+    EMC_TRAJ_CMD_MSG(NMLTYPE t, size_t s): EMC_CMD_MSG(t, s) {
     };
 
-    //NOTE this does NOT have a corresponding CMS update. This only works
-    //because motion commands don't actually go through NML.
-    StateTag tag;
     // For internal NML/CMS use only.
     void update(CMS * cms);
 };
@@ -1013,15 +1019,15 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
     bool spindle_override_enabled;
     bool adaptive_feed_enabled;
     bool feed_hold_enabled;
-    StateTag tag;
+    state_tag_t tag;
 };
 
 // emc_MOTION is aggregate of all EMC motion-related status classes
 
 // EMC_MOTION command base class
-class EMC_MOTION_CMD_MSG:public RCS_CMD_MSG {
+class EMC_MOTION_CMD_MSG:public EMC_CMD_MSG {
   public:
-    EMC_MOTION_CMD_MSG(NMLTYPE t, size_t s):RCS_CMD_MSG(t, s) {
+    EMC_MOTION_CMD_MSG(NMLTYPE t, size_t s):EMC_CMD_MSG(t, s) {
     };
 
     // For internal NML/CMS use only.
@@ -1162,9 +1168,9 @@ class EMC_MOTION_STAT:public EMC_MOTION_STAT_MSG {
 // declarations for EMC_TASK classes
 
 // EMC_TASK command base class
-class EMC_TASK_CMD_MSG:public RCS_CMD_MSG {
+class EMC_TASK_CMD_MSG:public EMC_CMD_MSG {
   public:
-    EMC_TASK_CMD_MSG(NMLTYPE t, size_t s):RCS_CMD_MSG(t, s) {
+    EMC_TASK_CMD_MSG(NMLTYPE t, size_t s):EMC_CMD_MSG(t, s) {
     };
 
     // For internal NML/CMS use only.
@@ -1442,13 +1448,14 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
 // declarations for EMC_TOOL classes
 
 // EMC_TOOL command base class
-class EMC_TOOL_CMD_MSG:public RCS_CMD_MSG {
+class EMC_TOOL_CMD_MSG:public EMC_CMD_MSG {
   public:
-    EMC_TOOL_CMD_MSG(NMLTYPE t, size_t s):RCS_CMD_MSG(t, s) {
+    EMC_TOOL_CMD_MSG(NMLTYPE t, size_t s):EMC_CMD_MSG(t, s) {
     };
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
+
 };
 
 class EMC_TOOL_INIT:public EMC_TOOL_CMD_MSG {
@@ -1592,9 +1599,9 @@ class EMC_TOOL_STAT:public EMC_TOOL_STAT_MSG {
 // EMC_AUX type declarations
 
 // EMC_AUX command base class
-class EMC_AUX_CMD_MSG:public RCS_CMD_MSG {
+class EMC_AUX_CMD_MSG:public EMC_CMD_MSG {
   public:
-    EMC_AUX_CMD_MSG(NMLTYPE t, size_t s):RCS_CMD_MSG(t, s) {
+    EMC_AUX_CMD_MSG(NMLTYPE t, size_t s):EMC_CMD_MSG(t, s) {
     };
 
     // For internal NML/CMS use only.
@@ -1670,13 +1677,14 @@ class EMC_AUX_STAT:public EMC_AUX_STAT_MSG {
 // EMC_SPINDLE type declarations
 
 // EMC_SPINDLE command base class
-class EMC_SPINDLE_CMD_MSG:public RCS_CMD_MSG {
+class EMC_SPINDLE_CMD_MSG:public EMC_CMD_MSG {
   public:
-    EMC_SPINDLE_CMD_MSG(NMLTYPE t, size_t s):RCS_CMD_MSG(t, s) {
+    EMC_SPINDLE_CMD_MSG(NMLTYPE t, size_t s):EMC_CMD_MSG(t, s) {
     };
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
+
 };
 
 class EMC_SPINDLE_SPEED:public EMC_SPINDLE_CMD_MSG {
@@ -1804,9 +1812,9 @@ class EMC_SPINDLE_BRAKE_ENGAGE:public EMC_SPINDLE_CMD_MSG {
 // EMC_COOLANT type declarations
 
 // EMC_COOLANT command base class
-class EMC_COOLANT_CMD_MSG:public RCS_CMD_MSG {
+class EMC_COOLANT_CMD_MSG:public EMC_CMD_MSG {
   public:
-    EMC_COOLANT_CMD_MSG(NMLTYPE t, size_t s):RCS_CMD_MSG(t, s) {
+    EMC_COOLANT_CMD_MSG(NMLTYPE t, size_t s):EMC_CMD_MSG(t, s) {
     };
 
     // For internal NML/CMS use only.
@@ -1881,9 +1889,9 @@ class EMC_COOLANT_STAT:public EMC_COOLANT_STAT_MSG {
 // EMC_LUBE type declarations
 
 // EMC_LUBE command base class
-class EMC_LUBE_CMD_MSG:public RCS_CMD_MSG {
+class EMC_LUBE_CMD_MSG:public EMC_CMD_MSG {
   public:
-    EMC_LUBE_CMD_MSG(NMLTYPE t, size_t s):RCS_CMD_MSG(t, s) {
+    EMC_LUBE_CMD_MSG(NMLTYPE t, size_t s):EMC_CMD_MSG(t, s) {
     };
 
     // For internal NML/CMS use only.
@@ -1933,13 +1941,14 @@ class EMC_LUBE_STAT:public EMC_LUBE_STAT_MSG {
 // EMC_IO is aggregate of all EMC IO-related status classes
 
 // EMC_IO command base class
-class EMC_IO_CMD_MSG:public RCS_CMD_MSG {
+class EMC_IO_CMD_MSG:public EMC_CMD_MSG {
   public:
-    EMC_IO_CMD_MSG(NMLTYPE t, size_t s):RCS_CMD_MSG(t, s) {
+    EMC_IO_CMD_MSG(NMLTYPE t, size_t s):EMC_CMD_MSG(t, s) {
     };
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
+
 };
 
 class EMC_IO_INIT:public EMC_IO_CMD_MSG {
@@ -2016,16 +2025,6 @@ class EMC_IO_STAT:public EMC_IO_STAT_MSG {
 };
 
 // EMC is aggregate of EMC_TASK, EMC_TRAJ, EMC_IO, etc.
-
-// EMC command base class
-class EMC_CMD_MSG:public RCS_CMD_MSG {
-  public:
-    EMC_CMD_MSG(NMLTYPE t, size_t s):RCS_CMD_MSG(t, s) {
-    };
-
-    // For internal NML/CMS use only.
-    void update(CMS * cms);
-};
 
 class EMC_INIT:public EMC_CMD_MSG {
   public:
