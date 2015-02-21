@@ -287,6 +287,7 @@ HEADERS := \
     emc/motion/emcmotcfg.h \
     emc/motion/emcmotglb.h \
     emc/motion/motion.h \
+    emc/motion/state_tag.h \
     emc/motion/usrmotintf.h \
     emc/motion/state_tag.h \
     emc/nml_intf/canon.hh \
