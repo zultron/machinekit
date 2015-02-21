@@ -1345,6 +1345,12 @@ static int emcTaskPlan(void)
             break;
 
 		case EMC_TASK_PLAN_STEP_TYPE:
+            //Motion may still have segments, so tell it to step itself too.
+            if (emcStatus->motion.traj.paused &&
+                    emcStatus->motion.traj.queue > 0) {
+                emcTrajStep();
+            }
+
 		    stepping = 1;	// set stepping mode in case it's not
 		    steppingWait = 0;	// clear the wait
 		    break;
