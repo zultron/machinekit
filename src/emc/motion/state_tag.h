@@ -9,7 +9,7 @@
 * License: GPL Version 2
 * System: Linux
 *
-* Copyright (c) 2004 All rights reserved
+* Copyright (c) 2015 All rights reserved
 ********************************************************************/
 
 
@@ -45,7 +45,6 @@ typedef enum {
     GM_FLAG_MAX_FLAGS
 } StateFlag;
 
-
 /**
  * Enum for various fields of state info that aren't binary.
  * WARNING:
@@ -55,7 +54,8 @@ typedef enum {
  * TODO: make that standalone function a method here for maintainability
  */
 typedef enum {
-    GM_FIELD_LINE_NUMBER,
+    GM_FIELD_LINE_NUMBER=0,
+    GM_FIELD_STEPPING_ID,
     GM_FIELD_G_MODE_0,
     GM_FIELD_CUTTER_COMP,
     GM_FIELD_MOTION_MODE,
@@ -93,5 +93,9 @@ struct state_tag_t {
      */
     unsigned long int packed_flags;
 };
+
+// Utility functions for motion / tp
+int get_line_number(struct state_tag_t const * const tag);
+int get_stepping_id(struct state_tag_t const * const tag);
 
 #endif
