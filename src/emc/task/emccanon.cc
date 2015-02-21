@@ -60,27 +60,13 @@ static const double tiny = 1e-7;
 static double xy_rotation = 0.;
 static int rotary_unlock_for_traverse = -1;
 
-static int _sloc;
-static int _sloc_sent=0;
-
 static StateTag _tag;
 
 /**
  * This flag is used to prevent duplicate line number messages from being sent out to IO. 
  */
 
-/**
- * When called from interp, this updates the internal g code line.
- * This also clears the "sent" flag, since we haven't sent out an NML message yet with the new line number.
- */
-void UPDATE_SLOC(int sloc) {
-    canon_debug("--Got UPDATE_SLOC: %d--\n",sloc);
-    _sloc = sloc;
-    //Crude way to prevent duplicate line number messages
-    _sloc_sent = 0;
-}
-
-void UPDATE_TAG(StateTag tag) {
+void UPDATE_TAG(StateTag &tag) {
     canon_debug("--Got UPDATE_TAG: %d--\n",tag.fields[GM_FIELD_LINE_NUMBER]);
     _tag = tag;
 }
@@ -155,36 +141,19 @@ static PM_QUATERNION quat(1, 0, 0, 0);
 
 static void flush_segments(void);
 
-/**
- * Crude way to add a line number by doing some ugly casting
- */
-static inline void add_sloc_to_msg(NMLmsg * msg, int sloc){
-    ((RCS_CMD_MSG *) msg)->line_number = sloc;
-}
-
-static inline void add_tag_to_msg(NMLmsg * msg, StateTag const &tag){
-    //FIXME this better be an EMC_TRAJ message or bad things will happen
-    ((EMC_TRAJ_CMD_MSG *) msg)->tag = tag;
-}
-
-
-/**
- * Add the the given line number and append the message to the interp list.
- * Note that the append function takes the message by reference, so this also
- * needs to have the message passed in by reference or it barfs.
- */
-static inline void tag_and_send(NMLmsg &msg, int sloc) {
-    add_sloc_to_msg(&msg,sloc);
+//Template experiment
+template <typename T>
+static inline void tag_and_send(T &msg, StateTag const &tag) {
+    msg.tag = tag.get_state_tag();
+    canon_debug("Adding message for line: %d id\n",
+            tag.fields[GM_FIELD_LINE_NUMBER]);
     interp_list.append(msg);
-    _sloc_sent = 1;
-}
-static inline void tag_and_send(NMLmsg &msg, int sloc, StateTag const &tag) {
-    add_tag_to_msg(&msg,tag);
-    tag_and_send(msg,sloc);
 }
 
-static inline void tag_and_send(NMLmsg &msg) {
-    tag_and_send(msg,_sloc);
+template <typename T>
+static inline void tag_and_send(T &msg) {
+    msg.tag = _tag.get_state_tag();
+    interp_list.append(msg);
 }
 
 
@@ -195,12 +164,9 @@ static inline void tag_and_send(NMLmsg &msg) {
  * don't ordinarily get propagated down to IO or motion. Note that this command
  * triggers a flush of lines, so it will interrupt Naive CAM Detection.
  */
-static void send_line_number_msg(void) {
+static void send_tag_io_msg(void) {
     /* append it to interp list so it gets updated at the right time, not at
        read-ahead time */
-    if (_sloc_sent) {
-        return;
-    }
     EMC_IO_SET_LINE_NUMBER msg;
     tag_and_send(msg);
 }
@@ -209,8 +175,8 @@ static void send_line_number_msg(void) {
 /**
  * Kludge wrapper for send line number msg
  */
-extern void SEND_LINE_NUMBER(void) {
-    send_line_number_msg();
+extern void SEND_TAG_MSG(void) {
+    send_tag_io_msg();
 }
 
 
@@ -644,7 +610,7 @@ void SET_FEED_MODE(int mode) {
     flush_segments();
     feed_mode = mode;
     if(feed_mode == 0) STOP_SPEED_FEED_SYNCH();
-    send_line_number_msg();
+    send_tag_io_msg();
 
 }
 
@@ -671,7 +637,7 @@ void SET_FEED_RATE(double rate)
 	currentAngularFeedRate = newAngularFeedRate;
     }
     //FIXME spams IO
-    send_line_number_msg();
+    send_tag_io_msg();
 }
 
 void SET_FEED_REFERENCE(CANON_FEED_REFERENCE reference)
@@ -1021,7 +987,7 @@ static void flush_segments(void) {
 
     if ((vel && acc) || synched) {
         interp_list.set_line_number(line_no);
-        tag_and_send(linearMoveMsg,line_no,pos.tag);
+        tag_and_send(linearMoveMsg, pos.tag);
     }
     canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
 
@@ -1143,8 +1109,7 @@ void STRAIGHT_TRAVERSE(int line_number,
 
     // Since we're not doing NCD on traverse moves, we can safely overwrite the line_number with _sloc
     if(vel && acc)  {
-        interp_list.set_line_number(_sloc);
-        tag_and_send(linearMoveMsg, _sloc, _tag);
+        tag_and_send(linearMoveMsg);
     }
 
     if(old_feed_mode)
@@ -1198,8 +1163,7 @@ void RIGID_TAP(int line_number, double x, double y, double z)
     flush_segments();
 
     if(ini_maxvel && acc)  {
-        interp_list.set_line_number(line_number);
-        tag_and_send(rigidTapMsg, line_number);
+        tag_and_send(rigidTapMsg);
     }
 
     // don't move the endpoint because after this move, we are back where we started
@@ -1255,8 +1219,7 @@ void STRAIGHT_PROBE(int line_number,
     probeMsg.pos = to_ext_pose(x,y,z,a,b,c,u,v,w);
 
     if(vel && acc)  {
-        interp_list.set_line_number(line_number);
-        tag_and_send(probeMsg,line_number);
+        tag_and_send(probeMsg);
     }
     canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
 }
@@ -1315,22 +1278,22 @@ void SET_NAIVECAM_TOLERANCE(double tolerance)
 void SELECT_PLANE(CANON_PLANE in_plane)
 {
     activePlane = in_plane;
-    send_line_number_msg();
+    send_tag_io_msg();
 }
 
 void SET_CUTTER_RADIUS_COMPENSATION(double radius)
 {
-    send_line_number_msg();
+    send_tag_io_msg();
 }
 
 void START_CUTTER_RADIUS_COMPENSATION(int side)
 {
-    send_line_number_msg();
+    send_tag_io_msg();
 }
 
 void STOP_CUTTER_RADIUS_COMPENSATION()
 {
-    send_line_number_msg();
+    send_tag_io_msg();
 }
 
 
@@ -1882,8 +1845,7 @@ void ARC_FEED(int line_number,
         linearMoveMsg.acc = toExtAcc(a_max);
         linearMoveMsg.indexrotary = -1;
         if(vel && a_max){
-            interp_list.set_line_number(line_number);
-            tag_and_send(linearMoveMsg, line_number, _tag);
+            tag_and_send(linearMoveMsg);
         }
     } else {
         circularMoveMsg.end = to_ext_pose(endpt);
@@ -1908,8 +1870,7 @@ void ARC_FEED(int line_number,
         // The end point is still updated, but nothing is added to the interp list
         // seems to be a crude way to indicate a zero length segment?
         if(vel && a_max) {
-            interp_list.set_line_number(line_number);
-            tag_and_send(circularMoveMsg, line_number, _tag);
+            tag_and_send(circularMoveMsg);
         }
     }
     // update the end point
@@ -1936,7 +1897,7 @@ void SPINDLE_RETRACT_TRAVERSE()
 
 void SET_SPINDLE_MODE(double css_max) {
     css_maximum = fabs(css_max);
-    send_line_number_msg();
+    send_tag_io_msg();
 }
 
 void START_SPINDLE_CLOCKWISE()
@@ -2188,7 +2149,7 @@ void CHANGE_TOOL(int slot)
         }
 
         if(vel && acc) {
-            tag_and_send(linearMoveMsg, _sloc, _tag);
+            tag_and_send(linearMoveMsg);
         }
 
         if(old_feed_mode) {
@@ -2428,7 +2389,7 @@ void MESSAGE(char *s)
     operator_display_msg.id = 0;
     strncpy(operator_display_msg.display, s, LINELEN);
     operator_display_msg.display[LINELEN - 1] = 0;
-	tag_and_send(operator_display_msg);
+	interp_list.append(operator_display_msg);
 }
 
 static FILE *logfile = NULL;
@@ -2509,7 +2470,7 @@ void PROGRAM_STOP()
 
     flush_segments();
 
-	tag_and_send(pauseMsg);
+	interp_list.append(pauseMsg);
 }
 
 void SET_BLOCK_DELETE(bool state)
@@ -2539,7 +2500,7 @@ void OPTIONAL_PROGRAM_STOP()
 
     flush_segments();
 
-	tag_and_send(stopMsg);
+	interp_list.append(stopMsg);
 }
 
 void PROGRAM_END()
@@ -2548,7 +2509,7 @@ void PROGRAM_END()
 
     EMC_TASK_PLAN_END endMsg;
 
-	tag_and_send(endMsg);
+	interp_list.append(endMsg);
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_XOFFSET()
@@ -2671,7 +2632,7 @@ void CANON_ERROR(const char *fmt, ...)
 	operator_error_msg.error[0] = 0;
     }
 
-	tag_and_send(operator_error_msg);
+	interp_list.append(operator_error_msg);
 }
 
 /*
@@ -3319,7 +3280,7 @@ int WAIT(int index, /* index of the motion exported input */
  wait_msg.wait_type = wait_type;
  wait_msg.timeout = timeout;
  
-	tag_and_send(wait_msg);
+ interp_list.append(wait_msg);
  return 0;
 }
 
@@ -3371,7 +3332,7 @@ void PLUGIN_CALL(int len, const char *call)
 
     printf("canon: PLUGIN_CALL(arglen=%zd)\n",strlen(call));
 
-	tag_and_send(call_msg);
+	interp_list.append(call_msg);
 }
 
 void IO_PLUGIN_CALL(int len, const char *call)
@@ -3387,5 +3348,5 @@ void IO_PLUGIN_CALL(int len, const char *call)
 
     printf("canon: IO_PLUGIN_CALL(arglen=%d)\n",len);
 
-	tag_and_send(call_msg);
+	interp_list.append(call_msg);
 }

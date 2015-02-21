@@ -240,12 +240,12 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
   int skip_line_number = 0;
 
   block->line_number = settings->sequence_number;
-  //printf("***Remapping level: %d\n",settings->remap_level);
-  if (settings->remap_level==0) {
-      update_line_number(block->line_number);
-  } else if (block->saved_line_number){
-      update_line_number(block->saved_line_number);
-  }
+
+  //KLUDGE stuff the tag here so that at least the line is correct, but not much else
+  StateTag tag;
+  write_state_tag(block, settings, tag);
+  update_tag(tag);
+
   if ((block->comment[0] != 0) && ONCE(STEP_COMMENT)) {
     status = convert_comment(block->comment);
     skip_line_number = 1;
@@ -320,12 +320,8 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
   if ((!skip_line_number ||
           block->g_modes[GM_LENGTH_UNITS] !=-1) && block->motion_to_be == -1
           ) {
-      convert_line_number();
+      send_tag_io_msg();
   }
-  // All changes to settings are complete
-  StateTag tag;
-  write_state_tag(block, settings, tag);
-  update_tag(tag);
   return INTERP_OK;
 }
 

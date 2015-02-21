@@ -5548,20 +5548,14 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
   return INTERP_OK;
 }
 
-int Interp::update_line_number(int sloc)
-{
-  UPDATE_SLOC(sloc);
-  return INTERP_OK;
-}
-
 int Interp::update_tag(StateTag &tag)
 {
-  UPDATE_TAG(tag);
-  return INTERP_OK;
+    UPDATE_TAG(tag);
+    return INTERP_OK;
 }
 
-int Interp::convert_line_number()
+int Interp::send_tag_io_msg()
 {
-  SEND_LINE_NUMBER();
+  SEND_TAG_MSG();
   return INTERP_OK;
 }

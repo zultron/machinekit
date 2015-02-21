@@ -90,6 +90,7 @@ include an option for suppressing superfluous commands.
 #include "rs274ngc_interp.hh"
 
 #include "units.h"
+#include "modal_state.hh"
 
 extern char * _rs274ngc_errors[];
 

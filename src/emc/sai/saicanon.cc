@@ -1175,17 +1175,10 @@ void IO_PLUGIN_CALL(int len, const char *call)
     printf("IO_PLUGIN_CALL(%d)\n",len);
 }
 
-void UPDATE_SLOC(int sloc){
+void UPDATE_TAG(StateTag &tag){
     //Do nothing
-    printf("UPDATE_SLOC (empty)\n");
 }
 
-void UPDATE_TAG(StateTag tag){
+void SEND_TAG_MSG(){
     //Do nothing
-    printf("UPDATE_TAG (empty)\n");
-}
-
-void SEND_LINE_NUMBER(){
-    //Do nothing
-    printf("SEND_LINE_NUMBER (empty)\n");
 }

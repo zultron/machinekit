@@ -1279,13 +1279,6 @@ static int emcTaskPlan(void)
 			emcStatus->task.interpState = (enum EMC_TASK_INTERP_ENUM) interpResumeState;
 		    }
 		    emcStatus->task.task_paused = 1;
-#if 0
-            {
-            EMC_IO_SET_LINE_NUMBER msg;
-            msg.line_number=0;
-            emcTaskIssueCommand(&msg);
-            }
-#endif
 		    break;
 
 		    // otherwise we can't handle it
@@ -1645,17 +1638,6 @@ int emcTaskQueueCommand(NMLmsg * cmd)
 
     return 0;
 }
-
-#if 0
-// forces an update of the currentLine in emcStatus to prevent stepping over a command
-static void updateCurrentLine(NMLmsg * cmd)
-{
-    int line = ((RCS_CMD_MSG*)cmd)->line_number;
-    if (line > 0) {
-        emcStatus->task.currentLine = line;
-    }
-}
-#endif
 
 static int emcTaskEchoLineToIo(NMLmsg * cmd)
 {
