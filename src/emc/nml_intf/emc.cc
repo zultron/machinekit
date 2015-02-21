@@ -1902,6 +1902,7 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(motionLine);
     cms->update(currentLine);
     cms->update(readLine);
+    cms->update(stepping_id);
     cms->update(file, 256);
     cms->update(command, 256);
     EmcPose_update(cms, &g5x_offset);

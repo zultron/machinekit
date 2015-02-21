@@ -1968,8 +1968,7 @@ static void update_status(void)
 
     /* check to see if we should pause in order to implement
        single emcmotDebug->stepping */
-
-    if (emcmotDebug->stepping && emcmotDebug->idForStep != emcmotStatus->id) {
+    if (emcmotDebug->stepping && emcmotDebug->idForStep < emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID]) {
       tpPause(&emcmotDebug->tp);
       emcmotDebug->stepping = 0;
       emcmotStatus->paused = 1;

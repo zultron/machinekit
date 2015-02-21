@@ -1690,8 +1690,8 @@ int Interp::reset()
     _setup.linetext[0] = 0;
     _setup.blocktext[0] = 0;
     _setup.line_length = 0;
-    // Shrink the modal history back down to a reasonable size
-    //_setup.modal_history.history.resize(2000);
+    // reset stepping ID so we don't grow indefinitely
+    _setup.stepping_id = 0;
 
     unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__);
     warning_list = PyList_New(0);
@@ -2391,6 +2391,18 @@ int Interp::ini_load(const char *filename)
 
     logDebug("Opened inifile:%s:", filename);
 
+    // FIXME do this case-insensitive, and maybe use existing code, this is a mess right now
+    if (NULL != (inistring = inifile.Find("SINGLE_BLOCK_THROUGH_SUB", "RS274NGC"))) {
+        if (strcmp(inistring,"True") == 0 ||
+                strcmp(inistring, "true") == 0 ||
+                strcmp(inistring, "YES") == 0) {
+            logDebug("SINGLE_BLOCK_THROUGH_SUB = TRUE");
+            _setup.single_block_thru_sub = true;
+        } else {
+            _setup.single_block_thru_sub = false;
+        }
+    }
+
 
     if (NULL != (inistring = inifile.Find("PARAMETER_FILE", "RS274NGC"))) {
         // see if filename starts with '~'
@@ -2522,6 +2534,7 @@ int Interp::enter_remap(void)
 	logRemap("enter_remap: toplevel - saved_line_number=%d",_setup.sequence_number);
 	CONTROLLING_BLOCK(_setup).saved_line_number  =
 	    _setup.sequence_number;
+        _setup.stepping_id++;
     } else {
 	logRemap("enter_remap into %d - saved_line_number=%d",
 		 _setup.remap_level,

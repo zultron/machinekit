@@ -67,7 +67,8 @@ static StateTag _tag;
  */
 
 void UPDATE_TAG(StateTag &tag) {
-    canon_debug("--Got UPDATE_TAG: %d--\n",tag.fields[GM_FIELD_LINE_NUMBER]);
+    canon_debug("--Got UPDATE_TAG: line %d, id %d--\n",tag.fields[GM_FIELD_LINE_NUMBER],
+            tag.fields[GM_FIELD_STEPPING_ID]);
     _tag = tag;
 }
 
@@ -145,8 +146,10 @@ static void flush_segments(void);
 template <typename T>
 static inline void tag_and_send(T &msg, StateTag const &tag) {
     msg.tag = tag.get_state_tag();
-    canon_debug("Adding message for line: %d id\n",
-            tag.fields[GM_FIELD_LINE_NUMBER]);
+    canon_debug("Adding message for line: %d id %d\n",
+            tag.fields[GM_FIELD_LINE_NUMBER],
+            tag.fields[GM_FIELD_STEPPING_ID]
+            );
     interp_list.append(msg);
 }
 

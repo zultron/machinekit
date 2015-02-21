@@ -88,6 +88,7 @@ setup_struct::setup_struct() :
     selected_pocket(0),
     selected_tool(0),
     sequence_number(0),
+    stepping_id(0),
     speed (0.0),
     spindle_mode(CONSTANT_RPM),
     speed_feed_mode(0),
@@ -132,6 +133,7 @@ setup_struct::setup_struct() :
     lathe_diameter_mode(0),
     mdi_interrupt(0),
     feature_set(0),
+    single_block_thru_sub(false),
     on_abort_command(NULL),
     init_once(1),
     m_remappable(),
@@ -151,4 +153,14 @@ setup_struct::setup_struct() :
     memset(tool_table, 0, sizeof(tool_table));
     ZERO_EMC_POSE(tool_offset);
 
+}
+
+
+int setup_struct::get_toplevel_line_number()
+{
+    if (remap_level < 1) {
+        return sequence_number;
+    } else {
+        return blocks[1].saved_line_number;
+    }
 }

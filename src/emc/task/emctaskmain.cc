@@ -446,7 +446,7 @@ static int programStartLine = 0;	// which line to run program from
 
 int stepping = 0;
 int steppingWait = 0;
-static int steppedLine = 0;
+static int steppedID = 0;
 
 // Variables to handle MDI call interrupts
 // Depth of call level before interrupted MDI call
@@ -1663,14 +1663,14 @@ static int emcTaskEchoLineToIo(NMLmsg * cmd)
         case EMC_SPINDLE_CONSTANT_TYPE:
         case EMC_TRAJ_DELAY_TYPE:
             //Check if these types are needed, may be causing extra steps
-            task_debug("Echoing line number %d for type %ld to IO\n", ((RCS_CMD_MSG*)cmd)->line_number, cmd->type);
+            task_debug("Echoing line number %d for type %ld to IO\n", ((EMC_CMD_MSG*)cmd)->tag.fields[GM_FIELD_LINE_NUMBER], cmd->type);
             task_methods->emcIoSetLineNumber((RCS_CMD_MSG*)cmd);
             break;
         case EMC_TRAJ_RIGID_TAP_TYPE:
         case EMC_TRAJ_LINEAR_MOVE_TYPE:
         case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
         case EMC_TRAJ_PROBE_TYPE:
-            task_debug("Skipping IO echo of line number %d for type %ld\n", ((RCS_CMD_MSG*)cmd)->line_number, cmd->type);
+            task_debug("Skipping IO echo of line number %d for type %ld\n", ((EMC_CMD_MSG*)cmd)->tag.fields[GM_FIELD_LINE_NUMBER], cmd->type);
             break;
 
 
@@ -2526,21 +2526,104 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
   STEPPING_CHECK() is a macro that prefaces a switch-case with a check
   for stepping. If stepping is active, it waits until the step has been
   given, then falls through to the rest of the case statement.
-*/
+   */
 
+#define STEPPING_IN_TASK
+#ifdef STEPPING_IN_TASK
 #define STEPPING_CHECK()                                                   \
-if (stepping) {                                                            \
+    if (stepping) {                                                            \
   if (! steppingWait) {                                                    \
     steppingWait = 1;                                                      \
-    steppedLine = emcStatus->task.currentLine;                             \
+    steppedID = emcStatus->task.stepping_id;                             \
   }                                                                        \
   else {                                                                   \
-    if (emcStatus->task.currentLine != steppedLine) {                      \
-    /*rcs_print("waiting with currentLine = %d, steppedLine = %d\n", emcStatus->task.currentLine,steppedLine);*/ \
+            if (emcStatus->task.stepping_id != steppedID)  {                      \
+                /*rcs_print("waiting with currentLine = %d, steppedID = %d\n", emcStatus->task.stepping_id, steppedID);*/ \
       break;                                                               \
     }                                                                      \
   }                                                                        \
+    }
+
+#else
+#define STEPPING_CHECK()
+#endif
+static int emcTaskUpdateFromTag(NMLmsg const * const cmd)
+{
+
+    int message_line = 0;
+    int stepping_id = 0;
+    switch (cmd->type) {
+
+        case EMC_TRAJ_SET_AXES_TYPE:
+        case EMC_TRAJ_SET_UNITS_TYPE:
+        case EMC_TRAJ_SET_CYCLE_TIME_TYPE:
+        case EMC_TRAJ_SET_MODE_TYPE:
+        case EMC_TRAJ_SET_VELOCITY_TYPE:
+        case EMC_TRAJ_SET_ACCELERATION_TYPE:
+        case EMC_TRAJ_SET_MAX_VELOCITY_TYPE:
+        case EMC_TRAJ_SET_MAX_ACCELERATION_TYPE:
+        case EMC_TRAJ_SET_SCALE_TYPE:
+        case EMC_TRAJ_SET_RAPID_SCALE_TYPE:
+        case EMC_TRAJ_SET_MOTION_ID_TYPE:
+
+        case EMC_TRAJ_INIT_TYPE:
+        case EMC_TRAJ_HALT_TYPE:
+        case EMC_TRAJ_ENABLE_TYPE:
+        case EMC_TRAJ_DISABLE_TYPE:
+        case EMC_TRAJ_DELAY_TYPE:
+        case EMC_TRAJ_LINEAR_MOVE_TYPE:
+        case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
+        case EMC_TRAJ_SET_TERM_COND_TYPE:
+        case EMC_TRAJ_SET_OFFSET_TYPE:
+        case EMC_TRAJ_SET_G5X_TYPE:
+        case EMC_TRAJ_SET_HOME_TYPE:
+        case EMC_TRAJ_SET_ROTATION_TYPE:
+        case EMC_TRAJ_SET_G92_TYPE:
+
+        case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
+        case EMC_TRAJ_PROBE_TYPE:
+        case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
+        case EMC_TRAJ_SET_TELEOP_VECTOR_TYPE:
+        case EMC_TRAJ_SET_SPINDLESYNC_TYPE:
+        case EMC_TRAJ_SET_SPINDLE_SCALE_TYPE:
+        case EMC_TRAJ_SET_FO_ENABLE_TYPE:
+        case EMC_TRAJ_SET_SO_ENABLE_TYPE:
+        case EMC_TRAJ_SET_FH_ENABLE_TYPE:
+        case EMC_TRAJ_RIGID_TAP_TYPE:
+
+
+
+
+	    case EMC_MOTION_SET_DOUT_TYPE:
+	    case EMC_MOTION_ADAPTIVE_TYPE:
+	    case EMC_MOTION_SET_AOUT_TYPE:
+	    case EMC_TOOL_SET_OFFSET_TYPE:
+        case EMC_TOOL_SET_NUMBER_TYPE:
+        case EMC_TOOL_PREPARE_TYPE:
+	    case EMC_SPINDLE_SPEED_TYPE:
+	    case EMC_SPINDLE_ON_TYPE:
+	    case EMC_SPINDLE_OFF_TYPE:
+	    case EMC_SPINDLE_INCREASE_TYPE:
+	    case EMC_SPINDLE_DECREASE_TYPE:
+	    case EMC_COOLANT_MIST_ON_TYPE:
+	    case EMC_COOLANT_MIST_OFF_TYPE:
+	    case EMC_COOLANT_FLOOD_ON_TYPE:
+	    case EMC_COOLANT_FLOOD_OFF_TYPE:
+	    case EMC_LUBE_ON_TYPE:
+	    case EMC_LUBE_OFF_TYPE:
+        case EMC_IO_SET_LINE_NUMBER_TYPE:
+            message_line = ((EMC_CMD_MSG*)emcTaskCommand)->tag.fields[GM_FIELD_LINE_NUMBER];
+            stepping_id = ((EMC_CMD_MSG*)emcTaskCommand)->tag.fields[GM_FIELD_STEPPING_ID];
+            break;
+        default:
+            printf("Not updating from CMD type %ld\n",cmd->type);
+            break;
+    }
+    emcStatus->task.currentLine = message_line;
+    emcStatus->task.stepping_id = stepping_id;
+    return 0;
 }
+
 
 // executor function
 static int emcTaskExecute(void)
@@ -2615,8 +2698,7 @@ static int emcTaskExecute(void)
 		if (0 != emcTaskCommand) {
 		    emcTaskEager = 1;
             // Get the current line from the message, rather than the interp list
-            int message_line = ((RCS_CMD_MSG*)emcTaskCommand)->line_number;
-            emcStatus->task.currentLine = message_line;
+            emcTaskUpdateFromTag(emcTaskCommand);
             task_debug("Updating current line from MESSAGE of type %lu: %d\n",
                     emcTaskCommand->type,
                     emcStatus->task.currentLine);

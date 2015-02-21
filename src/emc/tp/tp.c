@@ -2282,9 +2282,19 @@ STATIC void tpUpdateMovementStatus(TP_STRUCT * const tp,
     emcmotStatus->distance_to_go = tc->target - tc->progress;
     emcmotStatus->enables_queued = tc->enables;
     // report our line number to the guis
-    tp->execId = tc->id;
+    tp->execId = tc->tag.fields[GM_FIELD_LINE_NUMBER];
     // Store the next ID as well to show what will execute next to the GUI
-    tp->nextexecId = nexttc ? nexttc->id : 0;
+    if (!nexttc) {
+        TC_STRUCT *lookup_nexttc = tcqItem(&tp->queue, 1);
+        if (lookup_nexttc) {
+            tp->nextexecId = lookup_nexttc->tag.fields[GM_FIELD_LINE_NUMBER];
+        } else {
+            tp->nextexecId = 0;
+        }
+
+    } else {
+        tp->nextexecId = nexttc->tag.fields[GM_FIELD_LINE_NUMBER];
+    }
     emcmotStatus->requested_vel = tc->reqvel;
     emcmotStatus->current_vel = tc->currentvel;
 
@@ -2921,6 +2931,7 @@ STATIC int tpCheckEndCondition(TP_STRUCT const * const tp, TC_STRUCT * const tc,
         tcSetSplitCycle(tc, dt, v_f);
     } else {
         tc_debug_print(" dt = %f, not at end yet\n",dt);
+        return TP_ERR_NO_ACTION;
     }
     return TP_ERR_OK;
 }

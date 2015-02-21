@@ -1025,7 +1025,7 @@ check_stuff ( "before command_handler()" );
 	    /* can happen at any time */
             rtapi_print_msg(RTAPI_MSG_DBG, "STEP");
             if(emcmotStatus->paused) {
-                emcmotDebug->idForStep = emcmotStatus->id;
+                emcmotDebug->idForStep = emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID];
                 emcmotDebug->stepping = 1;
                 tpResume(&emcmotDebug->tp);
                 emcmotStatus->paused = 1;
