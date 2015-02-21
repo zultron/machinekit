@@ -718,7 +718,6 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     // Start by assuming that we can't unpack a state tag from motion
     int res_state = INTERP_ERROR;
     if (emcStatus->task.interpState != EMC_TASK_INTERP_IDLE) {
-        //Ignore error here since we can't do anytgin
         res_state = interp.active_modes(&stat->activeGCodes[0],&stat->activeMCodes[0],&stat->activeSettings[0], emcStatus->motion.traj.tag);
 
     } 
