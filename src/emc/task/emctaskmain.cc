@@ -2584,11 +2584,8 @@ static int need_stepping_wait() {
 
 #define STEPPING_CHECK() if (need_stepping_wait()) {break;}
 
-static int emcTaskUpdateFromTag(NMLmsg const * const cmd)
+static state_tag_t * const emcTaskGetTagFromCommand(NMLmsg const * const cmd)
 {
-
-    int message_line = 0;
-    int stepping_id = 0;
     switch (cmd->type) {
 
         case EMC_TRAJ_SET_AXES_TYPE:
@@ -2628,9 +2625,6 @@ static int emcTaskUpdateFromTag(NMLmsg const * const cmd)
         case EMC_TRAJ_SET_FH_ENABLE_TYPE:
         case EMC_TRAJ_RIGID_TAP_TYPE:
 
-
-
-
 	    case EMC_MOTION_SET_DOUT_TYPE:
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_MOTION_SET_AOUT_TYPE:
@@ -2649,15 +2643,23 @@ static int emcTaskUpdateFromTag(NMLmsg const * const cmd)
 	    case EMC_LUBE_ON_TYPE:
 	    case EMC_LUBE_OFF_TYPE:
         case EMC_IO_SET_LINE_NUMBER_TYPE:
-            message_line = ((EMC_CMD_MSG*)emcTaskCommand)->tag.fields[GM_FIELD_LINE_NUMBER];
-            stepping_id = ((EMC_CMD_MSG*)emcTaskCommand)->tag.fields[GM_FIELD_STEPPING_ID];
-            break;
+            return &((EMC_CMD_MSG*)emcTaskCommand)->tag;
         default:
-            printf("Not updating from CMD type %ld\n",cmd->type);
+            return NULL;
             break;
     }
-    emcStatus->task.currentLine = message_line;
-    emcStatus->task.stepping_id = stepping_id;
+
+}
+
+static int emcTaskUpdateFromTag(state_tag_t const * const tag)
+{
+
+    if (!tag) {
+        //FIXME do we need to update to zero from an invalid tag?
+        return -1;
+    }
+    emcStatus->task.currentLine = tag->fields[GM_FIELD_LINE_NUMBER];
+    emcStatus->task.stepping_id = tag->fields[GM_FIELD_STEPPING_ID];
     return 0;
 }
 
@@ -2735,7 +2737,8 @@ static int emcTaskExecute(void)
 		if (0 != emcTaskCommand) {
 		    emcTaskEager = 1;
             // Get the current line from the message, rather than the interp list
-            emcTaskUpdateFromTag(emcTaskCommand);
+            state_tag_t *tag = emcTaskGetTagFromCommand(emcTaskCommand);
+            emcTaskUpdateFromTag(tag);
             task_debug("Updating current line from MESSAGE of type %lu: %d\n",
                     emcTaskCommand->type,
                     emcStatus->task.currentLine);
