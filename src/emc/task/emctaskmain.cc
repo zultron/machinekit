@@ -2562,10 +2562,7 @@ static int need_stepping_wait() {
         return false;
     }
 
-    if (emcStatus->motion.traj.queue == 0) {
-        // Continue as usual, since the motion queue is empty, we need to queue
-        // up the next move before we can do stepping
-    } else if (steppingWait != 1) {
+    if (steppingWait != 1) {
         // If we are stepping and aren't yet waiting, start waiting
         steppingWait = 1;
         // Sets the ID we should wait to see out of motion before continuing
