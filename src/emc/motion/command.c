@@ -897,6 +897,13 @@ check_stuff ( "before command_handler()" );
             tpAbort(&emcmotDebug->tp);
             SET_MOTION_ERROR_FLAG(1);
             break;
+        } else if (res_addline != 0) {
+            //TODO make this hand-shake more explicit
+            //KLUDGE Non fatal error, need to restore state so that the next
+            //line properly handles at_speed
+            if (issue_atspeed) {
+                emcmotStatus->atspeed_next_feed = 1;
+            }
         } else {
 		SET_MOTION_ERROR_FLAG(0);
 		/* set flag that indicates all joints need rehoming, if any
@@ -934,18 +941,25 @@ check_stuff ( "before command_handler()" );
             }
 	    /* append it to the emcmotDebug->tp */
 	    tpSetId(&emcmotDebug->tp, emcmotCommand->id);
-	    if (-1 ==
-		tpAddCircle(&emcmotDebug->tp, emcmotCommand->pos,
+	    int res_addcircle = tpAddCircle(&emcmotDebug->tp, emcmotCommand->pos,
                             emcmotCommand->center, emcmotCommand->normal,
                             emcmotCommand->turn, emcmotCommand->motion_type,
                             emcmotCommand->vel, emcmotCommand->ini_maxvel,
-                            emcmotCommand->acc, emcmotStatus->enables_new, issue_atspeed, emcmotCommand->tag)) {
+                            emcmotCommand->acc, emcmotStatus->enables_new, issue_atspeed, emcmotCommand->tag);
+        if (res_addcircle == -1) {
 		reportError(_("can't add circular move"));
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
 		tpAbort(&emcmotDebug->tp);
 		SET_MOTION_ERROR_FLAG(1);
 		break;
-	    } else {
+        } else if (res_addcircle != 0) {
+            //TODO make this hand-shake more explicit
+            //KLUDGE Non fatal error, need to restore state so that the next
+            //line properly handles at_speed
+            if (issue_atspeed) {
+                emcmotStatus->atspeed_next_feed = 1;
+            }
+        } else {
 		SET_MOTION_ERROR_FLAG(0);
 		/* set flag that indicates all joints need rehoming, if any
 		   joint is moved in joint mode, for machines with no forward
