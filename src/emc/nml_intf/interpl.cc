@@ -187,3 +187,29 @@ int NML_INTERP_LIST::get_line_number()
 {
     return line_number;
 }
+
+
+/**
+ * Iterate over list and return the next valid line number.
+ * This is designed to be used AFTER a call to get(), so that the next number can be tagged onto an outgoing message.
+ */
+int NML_INTERP_LIST::get_next_line_number()
+{
+    if (NULL == linked_list_ptr) {
+        return 0;
+    }
+
+    NML_INTERP_LIST_NODE *node_ptr;
+    node_ptr = (NML_INTERP_LIST_NODE *) linked_list_ptr->get_head();
+
+    int line_number = 0;
+    while (NULL != node_ptr) {
+        line_number = node_ptr->line_number;
+        if (line_number > 0) {
+            return line_number;
+        }
+        node_ptr = (NML_INTERP_LIST_NODE *) linked_list_ptr->get_next();
+    }
+    return 0;
+}
+
