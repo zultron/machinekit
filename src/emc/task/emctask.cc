@@ -181,6 +181,7 @@ int emcTaskStateRestore()
     // Do NOT restore on MDI command
     if (emcStatus->task.mode == EMC_TASK_MODE_AUTO) {
         // Validity of state tag checked within restore function
+        rcs_print("emcTaskStateRestore: restoring from motion state tag\n");
         pinterp->restore_from_tag(emcStatus->motion.traj.tag);
     }
     return 0;

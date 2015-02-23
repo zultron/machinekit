@@ -642,7 +642,7 @@ STATIC double tpCalculateTriangleVel(TP_STRUCT const * const tp, TC_STRUCT * con
     //Compute peak velocity for blend calculations
     double acc_scaled = tpGetScaledAccel(tp, tc);
     double triangle_vel = pmSqrt( acc_scaled * tc->target);
-    tp_debug_print("triangle vel for segment %d is %f\n", tc->id, triangle_vel);
+    tc_debug_print("triangle vel for segment %d is %f\n", tc->id, triangle_vel);
 
     return triangle_vel;
 }

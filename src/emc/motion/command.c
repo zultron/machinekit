@@ -1006,7 +1006,7 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_PAUSE:
 	    /* pause the motion */
 	    /* can happen at any time */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "PAUSE");
+	    rtapi_print( "PAUSE\n");
 	    tpPause(&emcmotDebug->tp);
 	    emcmotStatus->paused = 1;
 	    break;
@@ -1014,7 +1014,7 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_RESUME:
 	    /* resume paused motion */
 	    /* can happen at any time */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "RESUME");
+	    rtapi_print("RESUME\n");
 	    emcmotDebug->stepping = 0;
 	    tpResume(&emcmotDebug->tp);
 	    emcmotStatus->paused = 0;
@@ -1023,9 +1023,12 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_STEP:
 	    /* resume paused motion until id changes */
 	    /* can happen at any time */
-            rtapi_print_msg(RTAPI_MSG_DBG, "STEP");
+            rtapi_print("STEP\n");
             if(emcmotStatus->paused) {
                 emcmotDebug->idForStep = emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID];
+                rtapi_print(" idForStep = %d, line = %d\n",
+                        emcmotDebug->idForStep,
+                        emcmotStatus->tag.fields[GM_FIELD_LINE_NUMBER]);
                 emcmotDebug->stepping = 1;
                 tpResume(&emcmotDebug->tp);
                 emcmotStatus->paused = 1;
@@ -1485,7 +1488,7 @@ check_stuff ( "before command_handler()" );
 	    break;
 
 	case EMCMOT_SPINDLE_ON:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE_ON");
+	    rtapi_print("SPINDLE_ON");
 
 	    if (*(emcmot_hal_data->spindle_orient)) 
 		rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE_ORIENT cancelled by SPINDLE_ON");

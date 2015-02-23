@@ -1968,7 +1968,15 @@ static void update_status(void)
 
     /* check to see if we should pause in order to implement
        single emcmotDebug->stepping */
+    /*if (emcmotDebug->stepping) {*/
+        /*rtapi_print("stepping active, tag ID is %d\n",*/
+                /*emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID]);*/
+    /*}*/
     if (emcmotDebug->stepping && emcmotDebug->idForStep < emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID]) {
+      rtapi_print("paused due to stepping at id %d, idForStep = %d, line is %d\n",
+              emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID],
+              emcmotDebug->idForStep,
+              emcmotStatus->tag.fields[GM_FIELD_LINE_NUMBER]);
       tpPause(&emcmotDebug->tp);
       emcmotDebug->stepping = 0;
       emcmotStatus->paused = 1;

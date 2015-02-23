@@ -625,7 +625,7 @@ int tcFinalizeLength(TC_STRUCT * const tc)
     }
 
     if (tc->finalized) {
-        tp_debug_print("tc %d already finalized\n", tc->id);
+        tc_debug_print("tc %d already finalized\n", tc->id);
         return TP_ERR_NO_ACTION;
     }
 

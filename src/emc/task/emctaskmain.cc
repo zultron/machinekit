@@ -1106,6 +1106,7 @@ static int emcTaskPlan(void)
 		    break;
 
 		case EMC_TASK_PLAN_STEP_TYPE:
+            rcs_print("Got PLAN_STEP at start\n");
 		    // handles case where first action is to step the program
 		    taskPlanRunCmd.line = 1;	// run from start
 		    /*! \todo FIXME-- can have GUI set this; send a run instead of a 
@@ -1193,6 +1194,7 @@ static int emcTaskPlan(void)
             break;
 
 		case EMC_TASK_PLAN_STEP_TYPE:
+                                    rcs_print("Got PLAN_STEP during READING\n");
 		    stepping = 1;	// set stepping mode in case it's not
 		    steppingWait = 0;	// clear the wait
 		    break;
@@ -1269,6 +1271,7 @@ static int emcTaskPlan(void)
 		    break;
 
 		case EMC_TASK_PLAN_STEP_TYPE:
+                                    rcs_print("Got PLAN_STEP during pause\n");
 		    stepping = 1;
 		    steppingWait = 0;
 		    if (emcStatus->motion.traj.paused &&
@@ -1346,6 +1349,7 @@ static int emcTaskPlan(void)
 
 		case EMC_TASK_PLAN_STEP_TYPE:
             //Motion may still have segments, so tell it to step itself too.
+            rcs_print("Got PLAN_STEP during interp wait\n");
             if (emcStatus->motion.traj.paused &&
                     emcStatus->motion.traj.queue > 0) {
                 emcTrajStep();
@@ -1519,6 +1523,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:	// and this
     case EMC_AUX_INPUT_WAIT_TYPE:
     case EMC_SPINDLE_WAIT_ORIENT_COMPLETE_TYPE:
+            rcs_print("In preconditions waiting due to msg of type: %ld\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
@@ -1555,6 +1560,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_SPINDLE_ON_TYPE:
     case EMC_SPINDLE_OFF_TYPE:
     case EMC_SPINDLE_ORIENT_TYPE: // not sure
+            rcs_print("In preconditions waiting due to msg of type: %ld\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
@@ -1566,6 +1572,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 
     case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
     case EMC_TOOL_SET_OFFSET_TYPE:
+            rcs_print("In preconditions waiting due to msg of type: %ld\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
@@ -1576,10 +1583,12 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TASK_PLAN_PAUSE_TYPE:
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 	/* pause on the interp list is queued, so wait until all are done */
+            rcs_print("In preconditions waiting due to msg of type: %ld\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
     case EMC_TASK_PLAN_END_TYPE:
+            rcs_print("In preconditions waiting due to msg of type: %ld\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
@@ -1587,10 +1596,12 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TASK_PLAN_RUN_TYPE:
     case EMC_TASK_PLAN_SYNCH_TYPE:
     case EMC_TASK_PLAN_EXECUTE_TYPE:
+            rcs_print("In preconditions waiting due to msg of type: %ld\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
     case EMC_TRAJ_DELAY_TYPE:
+            rcs_print("In preconditions waiting due to msg of type: %ld\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
