@@ -1353,6 +1353,10 @@ static int emcTaskPlan(void)
             if (emcStatus->motion.traj.paused &&
                     emcStatus->motion.traj.queue > 0) {
                 emcTrajStep();
+            } else {
+                rcs_print("Not sending step command, paused = %d, queue size = %d\n",
+                        emcStatus->motion.traj.paused,
+                        emcStatus->motion.traj.queue);
             }
 
 		    stepping = 1;	// set stepping mode in case it's not

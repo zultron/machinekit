@@ -1488,7 +1488,7 @@ check_stuff ( "before command_handler()" );
 	    break;
 
 	case EMCMOT_SPINDLE_ON:
-	    rtapi_print("SPINDLE_ON");
+	    rtapi_print("SPINDLE_ON\n");
 
 	    if (*(emcmot_hal_data->spindle_orient)) 
 		rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE_ORIENT cancelled by SPINDLE_ON");
