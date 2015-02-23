@@ -2549,25 +2549,44 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
   given, then falls through to the rest of the case statement.
    */
 
-#define STEPPING_IN_TASK
-#ifdef STEPPING_IN_TASK
-#define STEPPING_CHECK()                                                   \
-    if (stepping) {                                                            \
-  if (! steppingWait) {                                                    \
-    steppingWait = 1;                                                      \
-    steppedID = emcStatus->task.stepping_id;                             \
-  }                                                                        \
-  else {                                                                   \
-            if (emcStatus->task.stepping_id != steppedID)  {                      \
-                /*rcs_print("waiting with currentLine = %d, steppedID = %d\n", emcStatus->task.stepping_id, steppedID);*/ \
-      break;                                                               \
-    }                                                                      \
-  }                                                                        \
+
+/**
+ * Function version of old STEPPING_CHECK macro.
+ * The idea here is that we check for various conditions related to stepping,
+ * and return true if we need to abort further task handling due to stepping.
+ * If this function returns true, then we wait until stepping is completed
+ * before continuing with task handling (i.e. queueing additional commands).
+ */
+static int need_stepping_wait() {
+    if (!stepping) {
+        return false;
     }
 
-#else
-#define STEPPING_CHECK()
-#endif
+    if (emcStatus->motion.traj.queue == 0) {
+        // Continue as usual, since the motion queue is empty, we need to queue
+        // up the next move before we can do stepping
+    } else if (steppingWait != 1) {
+        // If we are stepping and aren't yet waiting, start waiting
+        steppingWait = 1;
+        // Sets the ID we should wait to see out of motion before continuing
+        steppedID = emcStatus->task.stepping_id;
+        task_debug("Waiting on steppedID = %dn", steppedID);
+    } else {
+        // We are stepping, and already waiting. If motion hasn't caught up
+        // yet, then signal that we don't want to continue executing the
+        // interpreter until it has.
+        if (emcStatus->task.stepping_id != steppedID)  {
+            task_debug("waiting with currentLine = %d, steppedID = %d\n",
+                    emcStatus->task.stepping_id,
+                    steppedID);
+            return true;
+        }
+    }
+    return false;
+}
+
+#define STEPPING_CHECK() if (need_stepping_wait()) {break;}
+
 static int emcTaskUpdateFromTag(NMLmsg const * const cmd)
 {
 
