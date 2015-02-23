@@ -639,8 +639,8 @@ static int localEmcTrajMotionId = 0;
 //FIXME if you can't beat em...
 static struct state_tag_t localEmcTrajTag;
 
-int emcTrajUpdateTag(StateTag const &tag) {
-    localEmcTrajTag = tag.get_state_tag();
+int emcTrajUpdateTag(state_tag_t const * const tag) {
+    localEmcTrajTag = *tag;
     return 0;
 }
 

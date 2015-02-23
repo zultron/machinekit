@@ -1895,7 +1895,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TRAJ_LINEAR_MOVE_TYPE:
-    emcTrajUpdateTag(((EMC_TRAJ_LINEAR_MOVE *) cmd)->tag);
 	emcTrajLinearMoveMsg = (EMC_TRAJ_LINEAR_MOVE *) cmd;
         retval = emcTrajLinearMove(emcTrajLinearMoveMsg->end,
                                    emcTrajLinearMoveMsg->type, emcTrajLinearMoveMsg->vel,
@@ -1904,7 +1903,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
-    emcTrajUpdateTag(((EMC_TRAJ_LINEAR_MOVE *) cmd)->tag);
 	emcTrajCircularMoveMsg = (EMC_TRAJ_CIRCULAR_MOVE *) cmd;
         retval = emcTrajCircularMove(emcTrajCircularMoveMsg->end,
                 emcTrajCircularMoveMsg->center, emcTrajCircularMoveMsg->normal,
@@ -2002,7 +2000,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TRAJ_RIGID_TAP_TYPE:
-    emcTrajUpdateTag(((EMC_TRAJ_LINEAR_MOVE *) cmd)->tag);
 	retval = emcTrajRigidTap(((EMC_TRAJ_RIGID_TAP *) cmd)->pos,
 	        ((EMC_TRAJ_RIGID_TAP *) cmd)->vel,
         	((EMC_TRAJ_RIGID_TAP *) cmd)->ini_maxvel,  
@@ -2656,6 +2653,8 @@ static int emcTaskUpdateFromTag(state_tag_t const * const tag)
 
     if (!tag) {
         //FIXME do we need to update to zero from an invalid tag?
+        emcStatus->task.currentLine = 0;
+        emcStatus->task.stepping_id = 0;
         return -1;
     }
     emcStatus->task.currentLine = tag->fields[GM_FIELD_LINE_NUMBER];
@@ -2739,6 +2738,7 @@ static int emcTaskExecute(void)
             // Get the current line from the message, rather than the interp list
             state_tag_t *tag = emcTaskGetTagFromCommand(emcTaskCommand);
             emcTaskUpdateFromTag(tag);
+            emcTrajUpdateTag(tag);
             task_debug("Updating current line from MESSAGE of type %lu: %d\n",
                     emcTaskCommand->type,
                     emcStatus->task.currentLine);
