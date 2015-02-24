@@ -343,6 +343,7 @@ int tpClearDIOs(TP_STRUCT * const tp) {
 int tpClear(TP_STRUCT * const tp)
 {
     tcqInit(&tp->queue);
+    tp->tc_completed=NULL;
     tp->queueSize = 0;
     tp->goalPos = tp->currentPos;
     tp->nextId = 0;
@@ -497,6 +498,17 @@ int tpGetExecId(TP_STRUCT * const tp)
     }
 
     return tp->execId;
+}
+
+int tpGetCompletedId(TP_STRUCT * const tp)
+{
+    if (!tp || !tp->tc_completed) {
+        return 0;
+    }
+
+    //Ugly but direct approach
+    //Alternative is to store ID locally
+    return tp->tc_completed->id;
 }
 
 struct state_tag_t tpGetExecTag(TP_STRUCT * const tp)
@@ -2396,6 +2408,7 @@ STATIC int tpCompleteSegment(TP_STRUCT * const tp,
     }
 
     // done with this move
+    tp->tc_completed = tc;
     tcqRemove(&tp->queue, 1);
     tp_debug_print("Finished tc id %d\n", tc->id);
 

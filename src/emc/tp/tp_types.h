@@ -94,6 +94,10 @@ typedef struct {
     TC_QUEUE_STRUCT queue;
     tp_spindle_t spindle; //Spindle data
 
+    TC_STRUCT const * tc_completed; /* Pointer to most recent
+                                       completed segment, i.e. "-1" in
+                                       the queue"*/
+
     EmcPose currentPos;
     EmcPose goalPos;
 

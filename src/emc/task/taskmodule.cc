@@ -314,6 +314,8 @@ BOOST_PYTHON_MODULE(emctask) {
 	.def_readwrite("activeQueue", &EMC_TRAJ_STAT::activeQueue )
 	.def_readwrite("queueFull", &EMC_TRAJ_STAT::queueFull )
 	.def_readwrite("id", &EMC_TRAJ_STAT::id )
+	.def_readwrite("next_id", &EMC_TRAJ_STAT::next_id )
+	.def_readwrite("completed_id", &EMC_TRAJ_STAT::completed_id )
 	.def_readwrite("paused", &EMC_TRAJ_STAT::paused )
 	.def_readwrite("scale", &EMC_TRAJ_STAT::scale )
 	.def_readwrite("spindle_scale", &EMC_TRAJ_STAT::spindle_scale )

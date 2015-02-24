@@ -61,6 +61,8 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
     activeQueue = 0;
     queueFull = OFF;
     id = 0;
+    next_id = 0;
+    completed_id = 0;
     paused = OFF;
     scale = 0.0;
     spindle_scale = 0.0;

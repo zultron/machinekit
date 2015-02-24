@@ -1802,6 +1802,8 @@ static void output_to_hal(void)
     
     *(emcmot_hal_data->program_line) = emcmotStatus->id;
     *(emcmot_hal_data->next_program_line) = emcmotStatus->next_id;
+    *(emcmot_hal_data->completed_program_line) = emcmotStatus->completed_id;
+
     *(emcmot_hal_data->distance_to_go) = emcmotStatus->distance_to_go;
     if(GET_MOTION_COORD_FLAG()) {
         *(emcmot_hal_data->current_vel) = emcmotStatus->current_vel;
@@ -1963,6 +1965,7 @@ static void update_status(void)
     emcmotStatus->id = tpGetExecId(&emcmotDebug->tp);
     emcmotStatus->tag = tpGetExecTag(&emcmotDebug->tp);
     emcmotStatus->next_id = tpGetNextExecId(&emcmotDebug->tp);
+    emcmotStatus->completed_id = tpGetCompletedId(&emcmotDebug->tp);
     emcmotStatus->motionType = tpGetMotionType(&emcmotDebug->tp);
     emcmotStatus->queueFull = tcqFull(&emcmotDebug->tp.queue);
 
