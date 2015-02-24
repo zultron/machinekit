@@ -42,6 +42,7 @@ typedef enum {
     GM_FLAG_SPEED_OVERRIDE,
     GM_FLAG_ADAPTIVE_FEED,
     GM_FLAG_FEED_HOLD,
+    GM_FLAG_STEP_THRU,
     GM_FLAG_MAX_FLAGS
 } StateFlag;
 
@@ -56,6 +57,7 @@ typedef enum {
 typedef enum {
     GM_FIELD_LINE_NUMBER=0,
     GM_FIELD_STEPPING_ID,
+    GM_FIELD_NEXT_LINE,
     GM_FIELD_G_MODE_0,
     GM_FIELD_CUTTER_COMP,
     GM_FIELD_MOTION_MODE,

@@ -146,10 +146,16 @@ static void flush_segments(void);
 template <typename T>
 static inline void tag_and_send(T &msg, StateTag const &tag) {
     msg.tag = tag.get_state_tag();
-    canon_debug("Adding message for line: %d id %d\n",
-            tag.fields[GM_FIELD_LINE_NUMBER],
-            tag.fields[GM_FIELD_STEPPING_ID]
-            );
+    //KLUDGE since it's a PITA to access the state tag stuff from within an
+    //arbitrary NML message, we cheat here by using interp line number field.
+    //If this segment should be treated as part of the previous segment, then
+    //we set the "next line number" to zero, which tells get_next_line_number
+    //to keep searching.
+    if (tag.flags[GM_FLAG_STEP_THRU]) {
+        interp_list.set_line_number(0);
+    } else {
+        interp_list.set_line_number(tag.fields[GM_FIELD_LINE_NUMBER]);
+    }
     interp_list.append(msg);
 }
 

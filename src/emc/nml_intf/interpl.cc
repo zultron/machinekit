@@ -193,7 +193,7 @@ int NML_INTERP_LIST::get_line_number()
  * Iterate over list and return the next valid line number.
  * This is designed to be used AFTER a call to get(), so that the next number can be tagged onto an outgoing message.
  */
-int NML_INTERP_LIST::get_next_line_number()
+int NML_INTERP_LIST::get_next_line_number(int search_depth)
 {
     if (NULL == linked_list_ptr) {
         return 0;
@@ -203,12 +203,17 @@ int NML_INTERP_LIST::get_next_line_number()
     node_ptr = (NML_INTERP_LIST_NODE *) linked_list_ptr->get_head();
 
     int line_number = 0;
-    while (NULL != node_ptr) {
+    int iterations = 0;
+    rcs_print("Staring search for line number\n");
+    while (NULL != node_ptr && iterations < search_depth) {
         line_number = node_ptr->line_number;
+        rcs_print("line_number=%d\n",
+              line_number);
         if (line_number > 0) {
             return line_number;
         }
         node_ptr = (NML_INTERP_LIST_NODE *) linked_list_ptr->get_next();
+        ++iterations;
     }
     return 0;
 }

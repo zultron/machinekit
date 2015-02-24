@@ -2296,17 +2296,13 @@ STATIC void tpUpdateMovementStatus(TP_STRUCT * const tp,
     // report our line number to the guis
     tp->execId = tc->tag.fields[GM_FIELD_LINE_NUMBER];
     // Store the next ID as well to show what will execute next to the GUI
-    if (!nexttc) {
-        TC_STRUCT *lookup_nexttc = tcqItem(&tp->queue, 1);
-        if (lookup_nexttc) {
-            tp->nextexecId = lookup_nexttc->tag.fields[GM_FIELD_LINE_NUMBER];
-        } else {
-            tp->nextexecId = 0;
-        }
-
-    } else {
+    int nextexecId = tp->nextexecId = tc->tag.fields[GM_FIELD_NEXT_LINE];
+    if (0 == nextexecId && nexttc) {
         tp->nextexecId = nexttc->tag.fields[GM_FIELD_LINE_NUMBER];
+    } else {
+        tp->nextexecId = nextexecId;
     }
+
     emcmotStatus->requested_vel = tc->reqvel;
     emcmotStatus->current_vel = tc->currentvel;
 

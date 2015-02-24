@@ -202,6 +202,7 @@ int Interp::write_state_tag(block_pointer block,
 
     state.fields[GM_FIELD_LINE_NUMBER] = settings->get_toplevel_line_number();
     state.fields[GM_FIELD_STEPPING_ID] = settings->stepping_id;
+    state.flags[GM_FLAG_STEP_THRU] = settings->step_thru;
     state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[0]);
     state.fields[GM_FIELD_MOTION_MODE] = settings->motion_mode;
     switch(settings->plane) {

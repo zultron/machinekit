@@ -240,30 +240,7 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
   int skip_line_number = 0;
 
   block->line_number = settings->sequence_number;
-  /* The idea here is to only increment the stepping ID if we want to be able
-   * to step through to this particular block. If this block is part of
-   * remapped or sub-routined code, we may not want to step through each block
-   * individually. This behavior is controlled through INI settings:
-   *  SINGLE_BLOCK_THROUGH_SUB
-   */
-
-  bool in_remap = (settings->remap_level > 0 && settings->call_level > 0);
-  bool in_subroutine = (settings->call_level > 0 && settings->remap_level == 0);
-  bool sub_file = settings->sub_context[settings->call_level].filename[0];
-  bool file_mismatch = strcmp(settings->filename, settings->sub_context[settings->call_level].filename);
-
-  if (in_remap) {
-      //printf(" Skipping ID update due to remap\n");
-  }
-  else if (in_subroutine && settings->single_block_thru_sub) {
-      //printf(" Skipping ID update due to sub\n");
-  }
-  else if (in_subroutine && sub_file && file_mismatch) {
-      //printf(" Skipping ID update sub file is %s\n",settings->sub_context[settings->call_level].filename);
-  }
-  else {
-      settings->stepping_id++;
-  }
+  settings->inc_stepping_id();
 
   //KLUDGE stuff the tag here so that at least the line is correct, but not much else
   StateTag tag;

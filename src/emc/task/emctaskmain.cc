@@ -2737,6 +2737,9 @@ static int emcTaskExecute(void)
 		    emcTaskEager = 1;
             // Get the current line from the message, rather than the interp list
             state_tag_t *tag = emcTaskGetTagFromCommand(emcTaskCommand);
+            if (tag) {
+                tag->fields[GM_FIELD_NEXT_LINE] = interp_list.get_next_line_number(50);
+            }
             emcTaskUpdateFromTag(tag);
             emcTrajUpdateTag(tag);
             task_debug("Updating current line from MESSAGE of type %lu: %d\n",
