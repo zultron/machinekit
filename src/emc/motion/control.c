@@ -1245,7 +1245,8 @@ static void get_pos_cmds(long period)
 	while (cubicNeedNextPoint(&(joints[0].cubic))) {
 	    /* they're empty, pull next point(s) off Cartesian planner */
 	    /* run coordinated trajectory planning cycle */
-	    tpRunCycle(&emcmotDebug->tp, period);
+        int res_cycle = tpRunCycle(&emcmotDebug->tp, period);
+        emcmotStatus->stopped = (TP_ERR_STOPPED == res_cycle);
 	    /* gt new commanded traj pos */
 	    tpGetPos(&emcmotDebug->tp, &emcmotStatus->carte_pos_cmd);
 	    /* OUTPUT KINEMATICS - convert to joints in local array */

@@ -992,7 +992,8 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
     int id;			// id of the currently executing motion
     int next_id;
     int completed_id;
-    bool paused;			// non-zero means motion paused
+    bool paused;			// non-zero means motion pause has been commanded
+    bool stopped;			// non-zero means motion has actually stopped
     double scale;		// velocity scale factor
     double spindle_scale;	// spindle velocity scale factor
 

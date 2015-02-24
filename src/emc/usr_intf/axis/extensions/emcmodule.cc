@@ -335,6 +335,7 @@ static PyMemberDef Stat_members[] = {
     {(char*)"next_id", T_INT, O(motion.traj.next_id), READONLY},
     {(char*)"completed_id", T_INT, O(motion.traj.completed_id), READONLY},
     {(char*)"paused", T_BOOL, O(motion.traj.paused), READONLY},
+    {(char*)"stopped", T_BOOL, O(motion.traj.stopped), READONLY},
     {(char*)"feedrate", T_DOUBLE, O(motion.traj.scale), READONLY},
     {(char*)"spindlerate", T_DOUBLE, O(motion.traj.spindle_scale), READONLY},
     

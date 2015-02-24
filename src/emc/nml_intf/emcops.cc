@@ -64,6 +64,7 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
     next_id = 0;
     completed_id = 0;
     paused = OFF;
+    stopped = OFF;
     scale = 0.0;
     spindle_scale = 0.0;
 
