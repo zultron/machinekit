@@ -640,6 +640,9 @@ static int localEmcTrajMotionId = 0;
 static struct state_tag_t localEmcTrajTag;
 
 int emcTrajUpdateTag(state_tag_t const * const tag) {
+    if (!tag) {
+        return -1;
+    }
     localEmcTrajTag = *tag;
     return 0;
 }

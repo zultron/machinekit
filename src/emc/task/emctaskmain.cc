@@ -2581,7 +2581,7 @@ static int need_stepping_wait() {
 
 #define STEPPING_CHECK() if (need_stepping_wait()) {break;}
 
-static state_tag_t * const emcTaskGetTagFromCommand(NMLmsg const * const cmd)
+static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd)
 {
     switch (cmd->type) {
 
