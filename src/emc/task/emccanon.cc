@@ -61,7 +61,7 @@ static double xy_rotation = 0.;
 static int rotary_unlock_for_traverse = -1;
 
 static StateTag _tag;
-static bool _step_thru;
+static int prev_stepping_id=0;
 
 /**
  * This flag is used to prevent duplicate line number messages from being sent out to IO. 
@@ -70,7 +70,6 @@ static bool _step_thru;
 void UPDATE_TAG(StateTag &tag) {
     canon_debug("--Got UPDATE_TAG: line %d, id %d--\n",tag.fields[GM_FIELD_LINE_NUMBER],
             tag.fields[GM_FIELD_STEPPING_ID]);
-    _step_thru = (tag.fields[GM_FIELD_STEPPING_ID] == _tag.fields[GM_FIELD_STEPPING_ID]);
     _tag = tag;
 }
 
@@ -153,11 +152,15 @@ static inline void tag_and_send(T &msg, StateTag const &tag) {
     //If this segment should be treated as part of the previous segment, then
     //we set the "next line number" to zero, which tells get_next_line_number
     //to keep searching.
-    if (_step_thru) {
+    if (tag.fields[GM_FIELD_STEPPING_ID] == prev_stepping_id) {
         interp_list.set_line_number(0);
     } else {
         interp_list.set_line_number(tag.fields[GM_FIELD_LINE_NUMBER]);
     }
+
+    //Update last ID
+    prev_stepping_id = tag.fields[GM_FIELD_STEPPING_ID];
+
     canon_debug("Adding message for line: %d id %d\n",
             tag.fields[GM_FIELD_LINE_NUMBER],
             tag.fields[GM_FIELD_STEPPING_ID]);
