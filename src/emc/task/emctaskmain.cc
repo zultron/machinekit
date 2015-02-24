@@ -1278,9 +1278,8 @@ static int emcTaskPlan(void)
 			emcStatus->motion.traj.queue > 0) {
 			// there are pending motions paused; step them
 			emcTrajStep();
-		    } else {
-			emcStatus->task.interpState = (enum EMC_TASK_INTERP_ENUM) interpResumeState;
 		    }
+			emcStatus->task.interpState = (enum EMC_TASK_INTERP_ENUM) interpResumeState;
 		    emcStatus->task.task_paused = 1;
 		    break;
 
