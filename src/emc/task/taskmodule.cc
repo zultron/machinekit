@@ -412,6 +412,7 @@ BOOST_PYTHON_MODULE(emctask) {
 	.def_readwrite("interpState",  &EMC_TASK_STAT::interpState)
 	.def_readwrite("motionLine", &EMC_TASK_STAT::motionLine)
 	.def_readwrite("currentLine", &EMC_TASK_STAT::currentLine)
+	.def_readwrite("previousLine", &EMC_TASK_STAT::previousLine)
 	.def_readwrite("readLine", &EMC_TASK_STAT::readLine)
 	.def_readwrite("optional_stop_state", &EMC_TASK_STAT::optional_stop_state)
 	.def_readwrite("block_delete_state", &EMC_TASK_STAT::block_delete_state)

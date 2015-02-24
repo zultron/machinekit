@@ -1901,6 +1901,7 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update((int *) &interpState, 1);
     cms->update(motionLine);
     cms->update(currentLine);
+    cms->update(previousLine);
     cms->update(readLine);
     cms->update(stepping_id);
     cms->update(file, 256);

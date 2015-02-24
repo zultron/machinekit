@@ -2653,12 +2653,18 @@ static int emcTaskUpdateFromTag(state_tag_t const * const tag)
 
     if (!tag) {
         //FIXME do we need to update to zero from an invalid tag?
-        emcStatus->task.currentLine = 0;
-        emcStatus->task.stepping_id = 0;
+        //emcStatus->task.currentLine = 0;
+        //emcStatus->task.stepping_id = 0;
         return -1;
+    }
+
+    //Check if the new segment marks a new macro-level motion
+    if (emcStatus->task.stepping_id != tag->fields[GM_FIELD_STEPPING_ID]) {
+        emcStatus->task.previousLine = emcStatus->task.currentLine;
     }
     emcStatus->task.currentLine = tag->fields[GM_FIELD_LINE_NUMBER];
     emcStatus->task.stepping_id = tag->fields[GM_FIELD_STEPPING_ID];
+
     return 0;
 }
 
@@ -2710,7 +2716,9 @@ static int emcTaskExecute(void)
 	emcTaskCommand = 0;
 	interp_list.clear();
 	emcAbortCleanup(EMC_ABORT_TASK_EXEC_ERROR);
-        emcStatus->task.currentLine = 0;
+    //FIXME seems like this should be done in a reset() function of some sort
+    emcStatus->task.currentLine = 0;
+    emcStatus->task.previousLine = 0;
 
 	// clear out the interpreter state
 	emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
@@ -2738,13 +2746,15 @@ static int emcTaskExecute(void)
             // Get the current line from the message, rather than the interp list
             state_tag_t *tag = emcTaskGetTagFromCommand(emcTaskCommand);
             if (tag) {
+                // Iterate over the interp list to find the line corresponding to the next step
                 tag->fields[GM_FIELD_NEXT_LINE] = interp_list.get_next_line_number(50);
+                emcTaskUpdateFromTag(tag);
+                emcTrajUpdateTag(tag);
             }
-            emcTaskUpdateFromTag(tag);
-            emcTrajUpdateTag(tag);
             task_debug("Updating current line from MESSAGE of type %lu: %d\n",
                     emcTaskCommand->type,
                     emcStatus->task.currentLine);
+            //FIXME deprecate this in favor of directly extracting from the tag?
 		    emcTrajSetMotionId(emcStatus->task.currentLine);
 		    if (emcStatus->motion.traj.queueFull) {
 			emcStatus->task.execState =
@@ -3628,9 +3638,12 @@ int main(int argc, char *argv[])
 	    }
 
 	    // clear out the pending command
+        // FIXME handle with a reset() function
 	    emcTaskCommand = 0;
 	    interp_list.clear();
 	    emcStatus->task.currentLine = 0;
+	    emcStatus->task.previousLine = 0;
+
 
 	    emcAbortCleanup(EMC_ABORT_MOTION_OR_IO_RCS_ERROR);
 

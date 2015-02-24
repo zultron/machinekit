@@ -305,6 +305,7 @@ static PyMemberDef Stat_members[] = {
     {(char*)"read_line", T_INT, O(task.readLine), READONLY},
     {(char*)"motion_line", T_INT, O(task.motionLine), READONLY},
     {(char*)"current_line", T_INT, O(task.currentLine), READONLY},
+    {(char*)"previous_line", T_INT, O(task.previousLine), READONLY},
     {(char*)"file", T_STRING_INPLACE, O(task.file), READONLY},
     {(char*)"command", T_STRING_INPLACE, O(task.command), READONLY},
     {(char*)"program_units", T_INT, O(task.programUnits), READONLY},
