@@ -89,7 +89,6 @@ setup_struct::setup_struct() :
     selected_tool(0),
     sequence_number(0),
     stepping_id(0),
-    step_thru(false),
     speed (0.0),
     spindle_mode(CONSTANT_RPM),
     speed_feed_mode(0),
@@ -163,32 +162,5 @@ int setup_struct::get_toplevel_line_number()
         return sequence_number;
     } else {
         return blocks[1].saved_line_number;
-    }
-}
-
-int setup_struct::inc_stepping_id()
-{
-    /* The idea here is to only increment the stepping ID if we want to be able
-     * to step through to this particular block. If this block is part of
-     * remapped or sub-routined code, we may not want to step through each block
-     * individually. This behavior is controlled through INI settings:
-     *  SINGLE_BLOCK_THROUGH_SUB
-     */
-
-    bool in_remap = (remap_level > 1 && call_level > 0);
-    bool in_subroutine = (call_level > 0 && remap_level == 0);
-    bool sub_file = sub_context[call_level].filename[0];
-    bool file_mismatch = strcmp(filename, sub_context[call_level].filename);
-    step_thru = true;
-    if (in_remap) {
-        return false;
-    } else if (in_subroutine && single_block_thru_sub) {
-        return false;
-    } else if (in_subroutine && sub_file && file_mismatch) {
-        return false;
-    } else {
-        stepping_id++;
-        step_thru = false;
-        return true;
     }
 }

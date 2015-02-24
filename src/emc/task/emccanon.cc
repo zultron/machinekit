@@ -158,6 +158,9 @@ static inline void tag_and_send(T &msg, StateTag const &tag) {
     } else {
         interp_list.set_line_number(tag.fields[GM_FIELD_LINE_NUMBER]);
     }
+    canon_debug("Adding message for line: %d id %d\n",
+            tag.fields[GM_FIELD_LINE_NUMBER],
+            tag.fields[GM_FIELD_STEPPING_ID]);
     interp_list.append(msg);
 }
 

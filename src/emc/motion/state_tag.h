@@ -42,7 +42,6 @@ typedef enum {
     GM_FLAG_SPEED_OVERRIDE,
     GM_FLAG_ADAPTIVE_FEED,
     GM_FLAG_FEED_HOLD,
-    GM_FLAG_STEP_THRU,
     GM_FLAG_MAX_FLAGS
 } StateFlag;
 

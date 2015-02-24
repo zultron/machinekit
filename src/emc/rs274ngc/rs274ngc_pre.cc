@@ -2535,7 +2535,6 @@ int Interp::enter_remap(void)
 	CONTROLLING_BLOCK(_setup).saved_line_number  =
 	    _setup.sequence_number;
         _setup.stepping_id++;
-        _setup.step_thru = false;
     } else {
 	logRemap("enter_remap into %d - saved_line_number=%d",
 		 _setup.remap_level,

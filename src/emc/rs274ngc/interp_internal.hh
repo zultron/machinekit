@@ -617,7 +617,6 @@ typedef struct setup_struct
  ~setup_struct() { assert(!pythis || Py_IsInitialized()); }
 
   int get_toplevel_line_number();
-  int inc_stepping_id();
 
   double AA_axis_offset;        // A-axis g92 offset
   double AA_current;            // current A-axis position
@@ -709,7 +708,6 @@ typedef struct setup_struct
     int selected_tool;          // start switchover to pocket-agnostic interp
   int sequence_number;          // sequence number of line last read
   int stepping_id;              // tag value used to control stepping
-  bool step_thru;
   double speed;                 // current spindle speed in rpm or SxM
   SPINDLE_MODE spindle_mode;    // CONSTANT_RPM or CONSTANT_SURFACE
   CANON_SPEED_FEED_MODE speed_feed_mode;        // independent or synched
