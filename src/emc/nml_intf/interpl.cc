@@ -204,11 +204,8 @@ int NML_INTERP_LIST::get_next_line_number(int search_depth)
 
     int line_number = 0;
     int iterations = 0;
-    rcs_print("Staring search for line number\n");
     while (NULL != node_ptr && iterations < search_depth) {
         line_number = node_ptr->line_number;
-        rcs_print("line_number=%d\n",
-              line_number);
         if (line_number > 0) {
             return line_number;
         }
