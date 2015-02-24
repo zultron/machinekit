@@ -155,8 +155,7 @@ static inline void tag_and_send(T &msg, StateTag const &tag) {
 
 template <typename T>
 static inline void tag_and_send(T &msg) {
-    msg.tag = _tag.get_state_tag();
-    interp_list.append(msg);
+    tag_and_send(msg, _tag);
 }
 
 
