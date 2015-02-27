@@ -26,7 +26,7 @@
 #include "config.h"		// LINELEN
 
 int _task = 0; // control preview behaviour when remapping
-const int MAX_GLCANON_LINES = 50000;
+const int MAX_GLCANON_LINES = 100000;
 
 char _parameter_file_name[LINELEN];
 extern "C" void initinterpreter();
@@ -781,6 +781,13 @@ out_error:
     PyObject *retval = PyTuple_New(3);
     PyTuple_SetItem(retval, 0, PyInt_FromLong(result));
     PyTuple_SetItem(retval, 1, PyInt_FromLong(last_sequence_number + error_line_offset));
+
+    // Throw a warning if we're clipping lines
+    if (_linecount > MAX_GLCANON_LINES) {
+        std::stringstream preview_cutoff_warning;
+        preview_cutoff_warning << "Program exceeds " << MAX_GLCANON_LINES << " motion lines (" << _linecount << " total), displayed extents may not be accurate.";
+        PyList_Append(((Interp*)pinterp)->warning_list, PyString_FromString(preview_cutoff_warning.str().c_str()));
+    }
 
     PyTuple_SetItem(retval, 2, ((Interp*)pinterp)->warning_list);
 
