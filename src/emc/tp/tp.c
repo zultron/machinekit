@@ -39,7 +39,7 @@
 
 #include "tp_debug.h"
 
-#define TP_SHOW_BLENDS
+/*#define TP_SHOW_BLENDS*/
 #define TP_OPTIMIZATION_LAZY
 #define TP_PEDANTIC
 
@@ -680,7 +680,7 @@ STATIC int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
 #ifdef TP_SHOW_BLENDS
     int canon_motion_type = EMC_MOTION_TYPE_ARC;
 #else
-    int canon_motion_type = prev_line_tc->canon_motion_type;
+    int canon_motion_type = prev_tc->canon_motion_type;
 #endif
 
     tcInit(blend_tc,
