@@ -3047,6 +3047,29 @@ STATIC int tpHandleRegularCycle(TP_STRUCT * const tp,
     return TP_ERR_OK;
 }
 
+STATIC int tpSteppingCheck(TP_STRUCT * const tp, TC_STRUCT * const tc, TC_STRUCT const * const nexttc)
+{
+    if (!tc || !tp) {
+        return TP_ERR_MISSING_INPUT;
+    }
+
+    if (nexttc && nexttc->tag.fields[GM_FIELD_STEPPING_ID] == tc->tag.fields[GM_FIELD_STEPPING_ID]) {
+        //Not stepping since next segment is the same ID, so don't enforce exact stop
+        return TP_ERR_NO_ACTION;
+    }
+
+    if (tc->motion_type != TC_LINEAR && tc->motion_type != TC_CIRCULAR) {
+        //No special case for stepping
+        return TP_ERR_NO_ACTION;
+    }
+
+    // We're looking for parabolic blends coming up that would mess with stepping
+    // Also, by checking against final decel, we won't clobber a blend already happening
+    if (tc->term_cond == TC_TERM_COND_PARABOLIC && emcmotDebug->stepping && !tc->blending_next) {
+        tcSetTermCond(tc, TC_TERM_COND_STOP);
+    }
+    return TP_ERR_OK;
+}
 /**
  * Calculate an updated goal position for the next timestep.
  * This is the brains of the operation. It's called every TRAJ period and is
@@ -3134,6 +3157,8 @@ int tpRunCycle(TP_STRUCT * const tp, long period)
 #ifdef TC_DEBUG
     EmcPose pos_before = tp->currentPos;
 #endif
+
+    tpSteppingCheck(tp, tc, nexttc);
 
     // Update the current tc
     if (tc->splitting) {
