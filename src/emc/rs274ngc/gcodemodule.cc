@@ -149,6 +149,11 @@ static InterpBase *pinterp;
 
 #define callmethod(o, m, f, ...) PyObject_CallMethod((o), (char*)(m), (char*)(f), ## __VA_ARGS__)
 
+#define SUPPRESS_NEXT_LINE_CB
+// Experiment: suppress maybe new line since we don't need it for non-axis GUIs
+// maybe_new_line doesn't seem to do anything if we don't actually have a
+// callback connected, other than cost us overhead.
+#ifndef SUPPRESS_NEXT_LINE_CB
 static void maybe_new_line(int sequence_number=interp_new.sequence_number());
 static void maybe_new_line(int sequence_number) {
     if(!pinterp) return;
@@ -168,6 +173,11 @@ static void maybe_new_line(int sequence_number) {
     if(result == NULL) interp_error ++;
     Py_XDECREF(result);
 }
+#else
+static inline void maybe_new_line(int sequence_number=interp_new.sequence_number());
+static inline void maybe_new_line(int sequence_number) {};
+#endif
+
 
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
     double u = 0.0;
@@ -206,8 +216,8 @@ void ARC_FEED(int line_number,
     maybe_new_line(line_number);
     if(interp_error) return;
     PyObject *result =
-        callmethod(callback, "arc_feed", "ffffifffffff",
-                            first_end, second_end, first_axis, second_axis,
+        callmethod(callback, "arc_feed", "iffffifffffff",
+                            line_number, first_end, second_end, first_axis, second_axis,
                             rotation, axis_end_point, 
                             a_position, b_position, c_position,
                             u_position, v_position, w_position);
@@ -226,8 +236,8 @@ void STRAIGHT_FEED(int line_number,
     maybe_new_line(line_number);
     if(interp_error) return;
     PyObject *result =
-        callmethod(callback, "straight_feed", "fffffffff",
-                            x, y, z, a, b, c, u, v, w);
+        callmethod(callback, "straight_feed", "ifffffffff",
+                            line_number, x, y, z, a, b, c, u, v, w);
     if(result == NULL) interp_error ++;
     Py_XDECREF(result);
 }
@@ -243,8 +253,8 @@ void STRAIGHT_TRAVERSE(int line_number,
     maybe_new_line(line_number);
     if(interp_error) return;
     PyObject *result =
-        callmethod(callback, "straight_traverse", "fffffffff",
-                            x, y, z, a, b, c, u, v, w);
+        callmethod(callback, "straight_traverse", "ifffffffff",
+                            line_number, x, y, z, a, b, c, u, v, w);
     if(result == NULL) interp_error ++;
     Py_XDECREF(result);
 }
@@ -481,8 +491,8 @@ void STRAIGHT_PROBE(int line_number,
     maybe_new_line(line_number);
     if(interp_error) return;
     PyObject *result =
-        callmethod(callback, "straight_probe", "fffffffff",
-                            x, y, z, a, b, c, u, v, w);
+        callmethod(callback, "straight_probe", "ifffffffff",
+                line_number, x, y, z, a, b, c, u, v, w);
     if(result == NULL) interp_error ++;
     Py_XDECREF(result);
 
@@ -493,8 +503,8 @@ void RIGID_TAP(int line_number,
     maybe_new_line(line_number);
     if(interp_error) return;
     PyObject *result =
-        callmethod(callback, "rigid_tap", "fff",
-            x, y, z);
+        callmethod(callback, "rigid_tap", "ifff",
+            line_number, x, y, z);
     if(result == NULL) interp_error ++;
     Py_XDECREF(result);
 }

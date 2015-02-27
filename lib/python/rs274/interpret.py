@@ -91,10 +91,10 @@ class ArcsToSegmentsMixin:
     def set_plane(self, plane):
         self.plane = plane
 
-    def arc_feed(self, x1, y1, cx, cy, rot, z1, a, b, c, u, v, w):
+    def arc_feed(self, lineno, x1, y1, cx, cy, rot, z1, a, b, c, u, v, w):
         self.lo = tuple(self.lo)
         segs = gcode.arc_to_segments(self, x1, y1, cx, cy, rot, z1, a, b, c, u, v, w, self.arcdivision)
-        self.straight_arcsegments(segs)
+        self.straight_arcsegments(lineno, segs)
 
 class PrintCanon:
     def set_g5x_offset(self, *args):

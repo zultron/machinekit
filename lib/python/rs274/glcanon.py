@@ -98,22 +98,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             if command == "stop": raise KeyboardInterrupt
             if command == "hide": self.suppress += 1
             if command == "show": self.suppress -= 1
-            if command == "XY_Z_POS":
-                if len(parts) > 2 :
-                    try:
-                        self.foam_z = float(parts[2])
-                        if 210 in self.state.gcodes:
-                            self.foam_z = self.foam_z / 25.4
-                    except:
-                        self.foam_z = 5.0/25.4
-            if command == "UV_Z_POS":
-                if len(parts) > 2 :
-                    try:
-                        self.foam_w = float(parts[2])
-                        if 210 in self.state.gcodes:
-                            self.foam_w = self.foam_w / 25.4
-                    except:
-                        self.foam_w = 30.0
             if command == "notify":
                 self.notify = self.notify + 1
                 self.notify_message = "(AXIS,notify):" + str(self.notify)
@@ -125,8 +109,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def check_abort(self): pass
 
     def next_line(self, st):
-        self.state = st
-        self.lineno = self.state.sequence_number
+        pass
 
     def draw_lines(self, lines, for_selection, j=0, geometry=None):
         return linuxcnc.draw_lines(geometry or self.geometry, lines, for_selection)
@@ -187,22 +170,22 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def change_tool(self, arg):
         self.first_move = True
 
-    def straight_traverse(self, x,y,z, a,b,c, u, v, w):
+    def straight_traverse(self, lineno, x,y,z, a,b,c, u, v, w):
         if self.suppress > 0: return
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
         if not self.first_move:
-                self.traverse_append((self.lineno, self.lo, l, [self.xo, self.yo, self.zo]))
+                self.traverse_append((lineno, self.lo, l, [self.xo, self.yo, self.zo]))
         self.lo = l
 
-    def rigid_tap(self, x, y, z):
+    def rigid_tap(self, lineno, x, y, z):
         if self.suppress > 0: return
         self.first_move = False
         l = self.rotate_and_translate(x,y,z,0,0,0,0,0,0)[:3]
         l += [self.lo[3], self.lo[4], self.lo[5],
                self.lo[6], self.lo[7], self.lo[8]]
-        self.feed_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
+        self.feed_append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
 #        self.dwells_append((self.lineno, self.colors['dwell'], x + self.offset_x, y + self.offset_y, z + self.offset_z, 0))
-        self.feed_append((self.lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
+        self.feed_append((lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
 
     def arc_feed(self, *args):
         if self.suppress > 0: return
@@ -213,10 +196,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         finally:
             self.in_arc = False
 
-    def straight_arcsegments(self, segs):
+    def straight_arcsegments(self, lineno, segs):
         self.first_move = False
         lo = self.lo
-        lineno = self.lineno
         feedrate = self.feedrate
         to = [self.xo, self.yo, self.zo]
         append = self.arcfeed_append
@@ -225,24 +207,24 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             lo = l
         self.lo = lo
 
-    def straight_feed(self, x,y,z, a,b,c, u, v, w):
+    def straight_feed(self, lineno, x,y,z, a,b,c, u, v, w):
         if self.suppress > 0: return
         self.first_move = False
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
-        self.feed_append((self.lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
+        self.feed_append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
         self.lo = l
     straight_probe = straight_feed
 
     def user_defined_function(self, i, p, q):
         if self.suppress > 0: return
         color = self.colors['m1xx']
-        self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
+        self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], 0))
 
     def dwell(self, arg):
         if self.suppress > 0: return
         self.dwell_time += arg
         color = self.colors['dwell']
-        self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], self.state.plane/10-17))
+        self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], 0))
 
 
     def highlight(self, lineno, geometry):
@@ -251,6 +233,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         glColor3f(*c)
         glBegin(GL_LINES)
         coords = []
+        #FIXME limit seek depth here? This could go on for a long time
         for line in self.traverse:
             if line[0] != lineno: continue
             linuxcnc.line9(geometry, line[1], line[2])
