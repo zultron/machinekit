@@ -768,7 +768,8 @@ typedef struct setup_struct
    * implies that we want to treat the move as a single block, false
    * indicates that we should step through every single sub-command.
    * */
-  bool single_block_thru_sub;
+  bool single_block_local_sub;
+  bool single_block_external_sub;
 
 #define FEATURE(x) (_setup.feature_set & FEATURE_ ## x)
 #define FEATURE_RETAIN_G43           0x00000001

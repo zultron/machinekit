@@ -2392,14 +2392,25 @@ int Interp::ini_load(const char *filename)
     logDebug("Opened inifile:%s:", filename);
 
     // FIXME do this case-insensitive, and maybe use existing code, this is a mess right now
-    if (NULL != (inistring = inifile.Find("SINGLE_BLOCK_THROUGH_SUB", "RS274NGC"))) {
+    if (NULL != (inistring = inifile.Find("SINGLE_BLOCK_LOCAL_SUB", "RS274NGC"))) {
         if (strcmp(inistring,"True") == 0 ||
                 strcmp(inistring, "true") == 0 ||
                 strcmp(inistring, "YES") == 0) {
-            logDebug("SINGLE_BLOCK_THROUGH_SUB = TRUE");
-            _setup.single_block_thru_sub = true;
+            logDebug("SINGLE_BLOCK_LOCAL_SUB = TRUE");
+            _setup.single_block_local_sub = true;
         } else {
-            _setup.single_block_thru_sub = false;
+            _setup.single_block_local_sub = false;
+        }
+    }
+
+    if (NULL != (inistring = inifile.Find("SINGLE_BLOCK_EXTERNAL_SUB", "RS274NGC"))) {
+        if (strcmp(inistring,"True") == 0 ||
+                strcmp(inistring, "true") == 0 ||
+                strcmp(inistring, "YES") == 0) {
+            logDebug("SINGLE_BLOCK_EXTERNAL_SUB = TRUE");
+            _setup.single_block_external_sub = true;
+        } else {
+            _setup.single_block_external_sub = false;
         }
     }
 

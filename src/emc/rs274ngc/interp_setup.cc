@@ -133,7 +133,8 @@ setup_struct::setup_struct() :
     lathe_diameter_mode(0),
     mdi_interrupt(0),
     feature_set(0),
-    single_block_thru_sub(false),
+    single_block_local_sub(false),
+    single_block_external_sub(false),
     on_abort_command(NULL),
     init_once(1),
     m_remappable(),
@@ -158,9 +159,28 @@ setup_struct::setup_struct() :
 
 int setup_struct::get_toplevel_line_number()
 {
-    if (remap_level < 1) {
-        return sequence_number;
-    } else {
+    bool in_remap = (remap_level > 0 && call_level > 0);
+    bool in_subroutine = (call_level > 0 && remap_level == 0);
+    bool external_sub = strcmp(filename, sub_context[0].filename);
+
+    /*
+     * The line number is for cosmetic labelling only. Based on the interpreter
+     * settings from the INI file, we can substitute the controlling block's
+     * line number for the actual local line number. One use of this is with
+     * external subroutines. If the UI doesn't have the means to display the
+     * text of these subroutines, then the line numbers will be wrong if
+     * overlaid on the parent file.
+    */
+    if (in_remap) {
         return blocks[1].saved_line_number;
+    }
+    else if (in_subroutine && external_sub && single_block_external_sub) {
+        return blocks[1].saved_line_number;
+    }
+    else if (in_subroutine && !external_sub && single_block_local_sub) {
+        return blocks[1].saved_line_number;
+    }
+    else {
+        return sequence_number;
     }
 }

@@ -244,22 +244,20 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
    * to step through to this particular block. If this block is part of
    * remapped or sub-routined code, we may not want to step through each block
    * individually. This behavior is controlled through INI settings:
-   *  SINGLE_BLOCK_THROUGH_SUB
+   *  SINGLE_BLOCK_LOCAL_SUB and SINGLE_BLOCK_EXTERNAL_SUB
    */
 
   bool in_remap = (settings->remap_level > 0 && settings->call_level > 0);
   bool in_subroutine = (settings->call_level > 0 && settings->remap_level == 0);
-  bool sub_file = settings->sub_context[0].filename[0];
-  bool file_mismatch = strcmp(settings->filename, settings->sub_context[0].filename);
+  bool external_sub = strcmp(settings->filename, settings->sub_context[0].filename);
 
   if (in_remap) {
       //printf(" Skipping ID update due to remap\n");
   }
-  else if (in_subroutine && settings->single_block_thru_sub) {
-      //printf(" Skipping ID update due to sub\n");
+  else if (in_subroutine && external_sub && settings->single_block_external_sub) {
+      //Skip ID increment for local subroutine
   }
-  else if (in_subroutine && sub_file && file_mismatch) {
-      //printf(" Skipping ID update sub file is %s\n",settings->sub_context[settings->call_level].filename);
+  else if (in_subroutine && !external_sub && settings->single_block_local_sub) {
   }
   else {
       settings->stepping_id++;
