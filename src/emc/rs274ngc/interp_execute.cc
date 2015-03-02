@@ -254,10 +254,10 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
   if (in_remap) {
       //printf(" Skipping ID update due to remap\n");
   }
-  else if (in_subroutine && external_sub && settings->single_block_external_sub) {
+  else if (in_subroutine && external_sub && !settings->single_block_external_sub) {
       //Skip ID increment for local subroutine
   }
-  else if (in_subroutine && !external_sub && settings->single_block_local_sub) {
+  else if (in_subroutine && !external_sub && !settings->single_block_local_sub) {
   }
   else {
       settings->stepping_id++;

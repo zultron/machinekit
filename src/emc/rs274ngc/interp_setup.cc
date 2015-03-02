@@ -174,10 +174,10 @@ int setup_struct::get_toplevel_line_number()
     if (in_remap) {
         return blocks[1].saved_line_number;
     }
-    else if (in_subroutine && external_sub && single_block_external_sub) {
+    else if (in_subroutine && external_sub && !single_block_external_sub) {
         return blocks[1].saved_line_number;
     }
-    else if (in_subroutine && !external_sub && single_block_local_sub) {
+    else if (in_subroutine && !external_sub && !single_block_local_sub) {
         return blocks[1].saved_line_number;
     }
     else {
