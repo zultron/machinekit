@@ -249,8 +249,8 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 
   bool in_remap = (settings->remap_level > 0 && settings->call_level > 0);
   bool in_subroutine = (settings->call_level > 0 && settings->remap_level == 0);
-  bool sub_file = settings->sub_context[settings->call_level].filename[0];
-  bool file_mismatch = strcmp(settings->filename, settings->sub_context[settings->call_level].filename);
+  bool sub_file = settings->sub_context[0].filename[0];
+  bool file_mismatch = strcmp(settings->filename, settings->sub_context[0].filename);
 
   if (in_remap) {
       //printf(" Skipping ID update due to remap\n");

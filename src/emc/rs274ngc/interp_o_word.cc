@@ -737,6 +737,8 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 	    CHP(enter_context(settings, block));
 	}
 	current_frame = &settings->sub_context[settings->call_level];
+    //Increment stepping ID since we're entering a new line
+    settings->stepping_id++;
 	CHP(execute_call(settings, current_frame,
 			 current_frame->call_type)); 
 	break;
