@@ -175,10 +175,10 @@ int setup_struct::get_toplevel_line_number()
         return blocks[1].saved_line_number;
     }
     else if (in_subroutine && external_sub && !single_block_external_sub) {
-        return blocks[1].saved_line_number;
+        return sub_context[0].sequence_number;
     }
     else if (in_subroutine && !external_sub && !single_block_local_sub) {
-        return blocks[1].saved_line_number;
+        return sub_context[0].sequence_number;
     }
     else {
         return sequence_number;
