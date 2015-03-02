@@ -180,6 +180,7 @@ static void maybe_new_line(int sequence_number) {
 static inline void maybe_new_line(int sequence_number=interp_new.sequence_number());
 static inline void maybe_new_line(int sequence_number) {
     _linecount++;
+    last_sequence_number = sequence_number;
 }
 #endif
 
