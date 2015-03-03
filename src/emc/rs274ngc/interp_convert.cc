@@ -4749,7 +4749,10 @@ int Interp::convert_threading_cycle(block_pointer block,
     double start_y = settings->current_y;
     double start_z = settings->current_z;
 
-    double d_number = block->d_number_float;
+	double d_number = 0; // Tormach - init d value to zero - fix for issue 801 *dpr 3/3/15
+	if (block->d_flag){
+		d_number = block->d_number_float;
+	}
     double i_number = block->i_number;
     double j_number = block->j_number;
     double k_number = block->k_number;
