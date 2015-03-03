@@ -120,6 +120,7 @@ EMC_TASK_STAT_MSG(EMC_TASK_STAT_TYPE, sizeof(EMC_TASK_STAT)),
     currentLine(0),
     previousLine(0),
     readLine(0),
+    stepping_id(0),
     optional_stop_state(OFF),
     block_delete_state(OFF),
     input_timeout(OFF)
