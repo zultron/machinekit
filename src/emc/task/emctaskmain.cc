@@ -2718,6 +2718,7 @@ static int emcTaskExecute(void)
     //FIXME seems like this should be done in a reset() function of some sort
     emcStatus->task.currentLine = 0;
     emcStatus->task.previousLine = 0;
+    emcStatus->task.stepping_id = 0;
 
 	// clear out the interpreter state
 	emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
@@ -3642,6 +3643,7 @@ int main(int argc, char *argv[])
 	    interp_list.clear();
 	    emcStatus->task.currentLine = 0;
 	    emcStatus->task.previousLine = 0;
+	    emcStatus->task.stepping_id = 0;
 
 
 	    emcAbortCleanup(EMC_ABORT_MOTION_OR_IO_RCS_ERROR);

@@ -541,10 +541,11 @@ void emcTaskPlanExit()
 int emcTaskPlanOpen(const char *file)
 {
     if (emcStatus != 0) {
-	emcStatus->task.motionLine = 0;
-	emcStatus->task.currentLine = 0;
-	emcStatus->task.previousLine = 0;
-	emcStatus->task.readLine = 0;
+        emcStatus->task.motionLine = 0;
+        emcStatus->task.currentLine = 0;
+        emcStatus->task.previousLine = 0;
+        emcStatus->task.readLine = 0;
+        emcStatus->task.stepping_id = 0;
     }
 
     int retval = interp.open(file);
