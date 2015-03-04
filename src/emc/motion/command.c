@@ -83,6 +83,52 @@ extern void check_stuff(const char *msg);
 KINEMATICS_FORWARD_FLAGS fflags = 0;
 KINEMATICS_INVERSE_FLAGS iflags = 0;
 
+
+/**
+ * Helper function to execute a single step command.
+ * This sets the appropriate flags so that the trajectory planner runs just the
+ * next segment.
+ */
+STATIC int do_step_cmd(struct state_tag_t const * const tag) {
+
+    if(!emcmotStatus->paused) {
+        reportError(_("MOTION: can't STEP while already executing"));
+        return -1;
+    }
+
+    if (!tag) {
+        reportError(_("MOTION: invalid ID trying to do a STEP"));
+        return -1;
+    }
+
+    emcmotDebug->idForStep = tag->fields[GM_FIELD_STEPPING_ID];
+    rtapi_print(" idForStep = %d, line = %d\n",
+            emcmotDebug->idForStep,
+            tag->fields[GM_FIELD_LINE_NUMBER]);
+    emcmotDebug->stepping = 1;
+    tpResume(&emcmotDebug->tp);
+    emcmotStatus->paused = 1;
+    return 0;
+}
+
+/**
+ * Check if a move has been added to an empty queue, and trigger a step command
+ * if necessary.
+ * This assumes that single-stepping is done in task, and so receiving a new
+ * motion command on an empty queue while stepping will only happen when a step
+ * command is issued to task.
+ */
+STATIC int do_firstmove_step(struct state_tag_t const * const tag) {
+
+    if(!emcmotStatus->paused || emcmotStatus->depth > 0) {
+        return -1;
+    }
+
+    do_step_cmd(tag);
+    return 0;
+}
+
+
 /* loops through the active joints and checks if any are not homed */
 int checkAllHomed(void) {
     int joint_num;
@@ -905,6 +951,7 @@ check_stuff ( "before command_handler()" );
                 emcmotStatus->atspeed_next_feed = 1;
             }
         } else {
+        do_firstmove_step(&emcmotCommand->tag);
 		SET_MOTION_ERROR_FLAG(0);
 		/* set flag that indicates all joints need rehoming, if any
 		   joint is moved in joint mode, for machines with no forward
@@ -965,6 +1012,7 @@ check_stuff ( "before command_handler()" );
 		   joint is moved in joint mode, for machines with no forward
 		   kins */
 		rehomeAll = 1;
+        do_firstmove_step(&emcmotCommand->tag);
 	    }
 	    break;
 
@@ -1037,18 +1085,8 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_STEP:
 	    /* resume paused motion until id changes */
 	    /* can happen at any time */
-            rtapi_print("STEP\n");
-            if(emcmotStatus->paused) {
-                emcmotDebug->idForStep = emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID];
-                rtapi_print(" idForStep = %d, line = %d\n",
-                        emcmotDebug->idForStep,
-                        emcmotStatus->tag.fields[GM_FIELD_LINE_NUMBER]);
-                emcmotDebug->stepping = 1;
-                tpResume(&emcmotDebug->tp);
-                emcmotStatus->paused = 1;
-            } else {
-		reportError(_("MOTION: can't STEP while already executing"));
-	    }
+        rtapi_print("STEP\n");
+        do_step_cmd(&emcmotStatus->tag);
 	    break;
 
 	case EMCMOT_FEED_SCALE:
@@ -1397,6 +1435,7 @@ check_stuff ( "before command_handler()" );
 		   joint is moved in joint mode, for machines with no forward
 		   kins */
 		rehomeAll = 1;
+        do_firstmove_step(&emcmotCommand->tag);
 	    }
 	    break;
 
@@ -1436,6 +1475,7 @@ check_stuff ( "before command_handler()" );
 		break;
 	    } else {
 		SET_MOTION_ERROR_FLAG(0);
+        do_firstmove_step(&emcmotCommand->tag);
 	    }
 	    break;
 
