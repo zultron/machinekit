@@ -1197,6 +1197,11 @@ static int emcTaskPlan(void)
                                     rcs_print("Got PLAN_STEP during READING\n");
 		    stepping = 1;	// set stepping mode in case it's not
 		    steppingWait = 0;	// clear the wait
+		    if (emcStatus->motion.traj.paused &&
+			emcStatus->motion.traj.queue > 0) {
+			// there are pending motions paused; step them
+			emcTrajStep();
+		    }
 		    break;
 
 		    // otherwise we can't handle it
