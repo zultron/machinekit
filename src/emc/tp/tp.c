@@ -2201,7 +2201,7 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT const * const tp,
 
     switch (tc->coords.rigidtap.state) {
         case TAPPING:
-            rtapi_print_msg(RTAPI_MSG_DBG, "TAPPING");
+            tc_debug_print("TAPPING\n");
             if (tc->progress >= tc->coords.rigidtap.reversal_target) {
                 // command reversal
                 emcmotStatus->spindle.speed *= -1.0;
@@ -2209,7 +2209,7 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT const * const tp,
             }
             break;
         case REVERSING:
-            rtapi_print_msg(RTAPI_MSG_DBG, "REVERSING");
+            tc_debug_print("REVERSING\n");
             if (new_spindlepos < old_spindlepos) {
                 PmCartesian start, end;
                 PmCartLine *aux = &tc->coords.rigidtap.aux_xyz;
@@ -2228,17 +2228,17 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT const * const tp,
                 tc->coords.rigidtap.state = RETRACTION;
             }
             old_spindlepos = new_spindlepos;
-            rtapi_print_msg(RTAPI_MSG_DBG, "Spindlepos = %f", new_spindlepos);
+            tc_debug_print("Spindlepos = %f\n", new_spindlepos);
             break;
         case RETRACTION:
-            rtapi_print_msg(RTAPI_MSG_DBG, "RETRACTION");
+            tc_debug_print("RETRACTION\n");
             if (tc->progress >= tc->coords.rigidtap.reversal_target) {
                 emcmotStatus->spindle.speed *= -1;
                 tc->coords.rigidtap.state = FINAL_REVERSAL;
             }
             break;
         case FINAL_REVERSAL:
-            rtapi_print_msg(RTAPI_MSG_DBG, "FINAL_REVERSAL");
+            tc_debug_print("FINAL_REVERSAL\n");
             if (new_spindlepos > old_spindlepos) {
                 PmCartesian start, end;
                 PmCartLine *aux = &tc->coords.rigidtap.aux_xyz;
@@ -2256,7 +2256,7 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT const * const tp,
             old_spindlepos = new_spindlepos;
             break;
         case FINAL_PLACEMENT:
-            rtapi_print_msg(RTAPI_MSG_DBG, "FINAL_PLACEMENT\n");
+            tc_debug_print("FINAL_PLACEMENT\n");
             // this is a regular move now, it'll stop at target above.
             break;
     }
