@@ -159,7 +159,7 @@ setup_struct::setup_struct() :
 
 int setup_struct::get_toplevel_line_number()
 {
-    bool in_remap = (remap_level > 0 && call_level > 0);
+    bool in_remap = (remap_level > 0);
     bool in_subroutine = (call_level > 0 && remap_level == 0);
     bool external_sub = strcmp(filename, sub_context[0].filename);
 

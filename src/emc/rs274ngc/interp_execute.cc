@@ -247,10 +247,9 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
    *  SINGLE_BLOCK_LOCAL_SUB and SINGLE_BLOCK_EXTERNAL_SUB
    */
 
-  bool in_remap = (settings->remap_level > 0 && settings->call_level > 0);
+  bool in_remap = (settings->remap_level > 0);
   bool in_subroutine = (settings->call_level > 0 && settings->remap_level == 0);
   bool external_sub = strcmp(settings->filename, settings->sub_context[0].filename);
-
   if (in_remap) {
       //printf(" Skipping ID update due to remap\n");
   }
