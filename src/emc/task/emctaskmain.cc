@@ -2760,7 +2760,6 @@ static int emcTaskExecute(void)
             task_debug("Updating current line from MESSAGE of type %lu: %d\n",
                     emcTaskCommand->type,
                     emcStatus->task.currentLine);
-            //FIXME deprecate this in favor of directly extracting from the tag?
 		    emcTrajSetMotionId(emcStatus->task.currentLine);
 		    if (emcStatus->motion.traj.queueFull) {
 			emcStatus->task.execState =
