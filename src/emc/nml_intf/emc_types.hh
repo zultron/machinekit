@@ -198,7 +198,7 @@ struct PM_CARTESIAN;
 #define EMC_EXEC_PLUGIN_CALL_TYPE                   ((NMLTYPE) 1112)
 #define EMC_IO_PLUGIN_CALL_TYPE                   ((NMLTYPE) 1113)
 
-#define EMC_IO_SET_LINE_NUMBER_TYPE                       ((NMLTYPE) 1114)
+#define EMC_TASK_SET_TAG_TYPE                       ((NMLTYPE) 1114)
 
 #define EMC_TOOL_STAT_TYPE                           ((NMLTYPE) 1199)
 

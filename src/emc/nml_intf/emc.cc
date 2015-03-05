@@ -464,8 +464,8 @@ int emcFormat(NMLTYPE type, void *buffer, CMS * cms)
     case EMC_TRAJ_STEP_TYPE:
 	((EMC_TRAJ_STEP *) buffer)->update(cms);
 	break;
-    case EMC_IO_SET_LINE_NUMBER_TYPE:
-	((EMC_IO_SET_LINE_NUMBER *) buffer)->update(cms);
+    case EMC_TASK_SET_TAG_TYPE:
+	((EMC_TASK_SET_TAG *) buffer)->update(cms);
 	break;
 
     default:
@@ -758,8 +758,8 @@ const char *emc_symbol_lookup(long type)
 	return "EMC_TRAJ_STAT";
     case EMC_TRAJ_STEP_TYPE:
 	return "EMC_TRAJ_STEP";
-    case EMC_IO_SET_LINE_NUMBER_TYPE:
-	return "EMC_IO_SET_LINE_NUMBER";
+    case EMC_TASK_SET_TAG_TYPE:
+	return "EMC_TASK_SET_TAG";
     default:
 	return "UNKNOWN";
 	break;
@@ -2954,8 +2954,8 @@ void EMC_IO_SET_CYCLE_TIME::update(CMS * cms)
 
 }
 
-void EMC_IO_SET_LINE_NUMBER::update(CMS * cms)
+void EMC_TASK_SET_TAG::update(CMS * cms)
 {
-    EMC_TOOL_CMD_MSG::update(cms);
+    EMC_CMD_MSG::update(cms);
 }
 

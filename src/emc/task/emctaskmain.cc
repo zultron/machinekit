@@ -1636,7 +1636,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 	return EMC_TASK_EXEC_DONE;
 	break;
 
-    case EMC_IO_SET_LINE_NUMBER_TYPE:
+    case EMC_TASK_SET_TAG_TYPE:
     return EMC_TASK_EXEC_DONE;
 
     default:
@@ -2109,7 +2109,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TOOL_START_CHANGE_TYPE:
     case EMC_TOOL_UNLOAD_TYPE:
     case EMC_COOLANT_MIST_OFF_TYPE:
-    case EMC_IO_SET_LINE_NUMBER_TYPE:
+    case EMC_TASK_SET_TAG_TYPE:
         retval = task_methods->emcToolPassMsg((EMC_CMD_MSG*)cmd);
         break;
 
@@ -2499,7 +2499,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_COOLANT_FLOOD_OFF_TYPE:
     case EMC_LUBE_ON_TYPE:
     case EMC_LUBE_OFF_TYPE:
-    case EMC_IO_SET_LINE_NUMBER_TYPE:
+    case EMC_TASK_SET_TAG_TYPE:
 	return EMC_TASK_EXEC_DONE;
 	break;
 
@@ -2644,7 +2644,7 @@ static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd)
 	    case EMC_COOLANT_FLOOD_OFF_TYPE:
 	    case EMC_LUBE_ON_TYPE:
 	    case EMC_LUBE_OFF_TYPE:
-        case EMC_IO_SET_LINE_NUMBER_TYPE:
+        case EMC_TASK_SET_TAG_TYPE:
             return &((EMC_CMD_MSG*)emcTaskCommand)->tag;
         default:
             return NULL;

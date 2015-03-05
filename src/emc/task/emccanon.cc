@@ -180,10 +180,10 @@ static inline void tag_and_send(T &msg) {
  * don't ordinarily get propagated down to IO or motion. Note that this command
  * triggers a flush of lines, so it will interrupt Naive CAM Detection.
  */
-static void send_tag_io_msg(void) {
+static void send_tag_msg(void) {
     /* append it to interp list so it gets updated at the right time, not at
        read-ahead time */
-    EMC_IO_SET_LINE_NUMBER msg;
+    EMC_TASK_SET_TAG msg;
     tag_and_send(msg);
 }
 
@@ -194,7 +194,7 @@ static void send_tag_io_msg(void) {
 extern void SEND_TAG_MSG(void) {
     //Prevent line echo message from interupting a motion sequence
     flush_segments();
-    send_tag_io_msg();
+    send_tag_msg();
 }
 
 
@@ -628,7 +628,7 @@ void SET_FEED_MODE(int mode) {
     flush_segments();
     feed_mode = mode;
     if(feed_mode == 0) STOP_SPEED_FEED_SYNCH();
-    send_tag_io_msg();
+    send_tag_msg();
 
 }
 
@@ -655,7 +655,7 @@ void SET_FEED_RATE(double rate)
 	currentAngularFeedRate = newAngularFeedRate;
     }
     //FIXME spams IO
-    send_tag_io_msg();
+    send_tag_msg();
 }
 
 void SET_FEED_REFERENCE(CANON_FEED_REFERENCE reference)
@@ -1295,22 +1295,22 @@ void SET_NAIVECAM_TOLERANCE(double tolerance)
 void SELECT_PLANE(CANON_PLANE in_plane)
 {
     activePlane = in_plane;
-    send_tag_io_msg();
+    send_tag_msg();
 }
 
 void SET_CUTTER_RADIUS_COMPENSATION(double radius)
 {
-    send_tag_io_msg();
+    send_tag_msg();
 }
 
 void START_CUTTER_RADIUS_COMPENSATION(int side)
 {
-    send_tag_io_msg();
+    send_tag_msg();
 }
 
 void STOP_CUTTER_RADIUS_COMPENSATION()
 {
-    send_tag_io_msg();
+    send_tag_msg();
 }
 
 
@@ -1914,7 +1914,7 @@ void SPINDLE_RETRACT_TRAVERSE()
 
 void SET_SPINDLE_MODE(double css_max) {
     css_maximum = fabs(css_max);
-    send_tag_io_msg();
+    send_tag_msg();
 }
 
 void START_SPINDLE_CLOCKWISE()

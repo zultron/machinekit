@@ -1083,8 +1083,8 @@ int main(int argc, char *argv[])
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_TOOL_START_CHANGE\n");
 	    break;
 
-    case EMC_IO_SET_LINE_NUMBER_TYPE:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_IO_SET_LINE_NUMBER\n");
+    case EMC_TASK_SET_TAG_TYPE:
+	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_TASK_SET_TAG\n");
         break;
 
 	default:
