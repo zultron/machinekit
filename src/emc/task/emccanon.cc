@@ -192,6 +192,8 @@ static void send_tag_io_msg(void) {
  * Kludge wrapper for send line number msg
  */
 extern void SEND_TAG_MSG(void) {
+    //Prevent line echo message from interupting a motion sequence
+    flush_segments();
     send_tag_io_msg();
 }
 
@@ -1002,7 +1004,6 @@ static void flush_segments(void) {
     linearMoveMsg.indexrotary = -1;
 
     if ((vel && acc) || synched) {
-        interp_list.set_line_number(line_no);
         tag_and_send(linearMoveMsg, pos.tag);
     }
     canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
