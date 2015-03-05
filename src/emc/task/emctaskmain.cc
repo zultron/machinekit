@@ -2186,7 +2186,9 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 		// clear out the pending command
 		emcTaskCommand = 0;
 		interp_list.clear();
-                emcStatus->task.currentLine = 0;
+        emcStatus->task.currentLine = 0;
+        emcStatus->task.previousLine = 0;
+        emcStatus->task.stepping_id = 0;
 
 		// clear out the interpreter state
 		emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
