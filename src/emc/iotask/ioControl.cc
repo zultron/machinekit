@@ -702,32 +702,16 @@ static int update_line_number(NMLmsg * cmd) {
         case EMC_COOLANT_FLOOD_OFF_TYPE:
         case EMC_COOLANT_MIST_ON_TYPE:
         case EMC_COOLANT_MIST_OFF_TYPE:
+        case EMC_TOOL_INIT_TYPE:
+        case EMC_TOOL_HALT_TYPE:
+        case EMC_TOOL_ABORT_TYPE:
+        case EMC_TOOL_LOAD_TYPE:
+        case EMC_TOOL_UNLOAD_TYPE:
+        case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
+        case EMC_TOOL_SET_OFFSET_TYPE: 
         case EMC_TOOL_PREPARE_TYPE:
         case EMC_TOOL_SET_NUMBER_TYPE:
-        case EMC_TOOL_LOAD_TYPE:
         case EMC_TOOL_START_CHANGE_TYPE:
-        case EMC_TOOL_UNLOAD_TYPE:
-        case EMC_IO_SET_LINE_NUMBER_TYPE:
-        case EMC_TRAJ_SET_TERM_COND_TYPE:
-        case EMC_TRAJ_SET_SPINDLESYNC_TYPE:
-        case EMC_TRAJ_SET_OFFSET_TYPE:
-        case EMC_TRAJ_SET_ROTATION_TYPE:
-        case EMC_TRAJ_SET_G5X_TYPE:
-        case EMC_TRAJ_SET_G92_TYPE:
-        case EMC_TRAJ_PROBE_TYPE:
-        case EMC_TRAJ_RIGID_TAP_TYPE:
-        case EMC_TRAJ_LINEAR_MOVE_TYPE:
-        case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
-        case EMC_MOTION_ADAPTIVE_TYPE:
-        case EMC_SPINDLE_SPEED_TYPE:
-        case EMC_SPINDLE_ORIENT_TYPE:
-        case EMC_SPINDLE_ON_TYPE:
-        case EMC_SPINDLE_OFF_TYPE:
-        case EMC_SPINDLE_INCREASE_TYPE:
-        case EMC_SPINDLE_DECREASE_TYPE:
-        case EMC_SPINDLE_CONSTANT_TYPE:
-        case EMC_TASK_PLAN_RUN_TYPE:
-        case EMC_TASK_PLAN_END_TYPE:
 
             (*iocontrol_data->program_line)=((EMC_CMD_MSG *)cmd)->tag.fields[GM_FIELD_LINE_NUMBER];
             break;

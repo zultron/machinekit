@@ -6,6 +6,7 @@
 #include "tool_parse.h"
 #include "inifile.hh"
 #include "cmd_msg.hh"
+#include "emc_nml.hh"
 
 class Task {
 public:
@@ -27,7 +28,7 @@ public:
     int emcToolSetOffset(int pocket, int toolno, EmcPose offset, double diameter,
 				 double frontangle, double backangle, int orientation);
     int emcToolPrepare(int p, int tool);
-    int emcToolPassMsg(RCS_CMD_MSG * toolMsg);
+    int emcToolPassMsg(EMC_CMD_MSG * toolMsg);
     int emcToolLoad();
     int emcToolLoadToolTable(const char *file);
     int emcToolUnload();

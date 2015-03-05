@@ -1664,6 +1664,7 @@ int emcTaskQueueCommand(NMLmsg * cmd)
     return 0;
 }
 
+#if 0
 static int emcTaskEchoLineToIo(NMLmsg * cmd)
 {
 
@@ -1702,6 +1703,7 @@ static int emcTaskEchoLineToIo(NMLmsg * cmd)
     }
     return 0;
 }
+#endif
 
 // issues command immediately
 static int emcTaskIssueCommand(NMLmsg * cmd)
@@ -1719,7 +1721,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	rcs_print("Issuing %s -- \t (%s)\n", emcSymbolLookup(cmd->type),
 		  emcCommandBuffer->msg2str(cmd));
     }
-    emcTaskEchoLineToIo(cmd);
 
     switch (cmd->type) {
 	// general commands
@@ -2109,7 +2110,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TOOL_UNLOAD_TYPE:
     case EMC_COOLANT_MIST_OFF_TYPE:
     case EMC_IO_SET_LINE_NUMBER_TYPE:
-        retval = task_methods->emcToolPassMsg((RCS_CMD_MSG*)cmd);
+        retval = task_methods->emcToolPassMsg((EMC_CMD_MSG*)cmd);
         break;
 
     case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:

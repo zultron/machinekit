@@ -987,6 +987,7 @@ void EMC_AXIS_ABS_JOG::update(CMS * cms)
 */
 void EMC_LUBE_CMD_MSG::update(CMS * cms)
 {
+    EMC_CMD_MSG::update(cms);
 
 }
 
