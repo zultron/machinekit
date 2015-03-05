@@ -102,7 +102,6 @@ struct iocontrol_str {
     //tool-change
     hal_bit_t *tool_change;	/* output, notifies a tool-change should happen (emc should be in the tool-change position) */
     hal_bit_t *tool_changed;	/* input, notifies tool has been changed */
-    hal_s32_t *program_line;    /* output, shows line associated with last IO command */
 
     // note: spindle control has been moved to motion
 } * iocontrol_data;			//pointer to the HAL-struct
@@ -526,16 +525,6 @@ int iocontrol_hal_init(void)
 	return -1;
     }
 
-    retval = hal_pin_s32_newf(HAL_IN, &(iocontrol_data->program_line), comp_id,
-			     "iocontrol.%d.program-line", n);
-    if (retval < 0) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-			"IOCONTROL: ERROR: iocontrol %d pin program-line export failed with err=%i\n",
-			n, retval);
-	hal_exit(comp_id);
-	return -1;
-    }
-
     hal_ready(comp_id);
 
     return 0;
@@ -560,7 +549,6 @@ void hal_init_pins(void)
     *(iocontrol_data->tool_prep_number)=0;	/* output, pin that holds the tool number to be prepared, only valid when tool-prepare=TRUE */
     *(iocontrol_data->tool_prep_pocket)=0;	/* output, pin that holds the tool number to be prepared, only valid when tool-prepare=TRUE */
     *(iocontrol_data->tool_change)=0;		/* output, notifies a tool-change should happen (emc should be in the tool-change position) */
-    *(iocontrol_data->program_line)=0;
 }
 
 
@@ -690,6 +678,7 @@ static void do_hal_exit(void) {
     hal_exit(comp_id);
 }
 
+#if 0
 static int update_line_number(NMLmsg * cmd) {
 
     if (!cmd) {
@@ -718,6 +707,7 @@ static int update_line_number(NMLmsg * cmd) {
     }
     return 0;
 }
+#endif
 
 /********************************************************************
 *
@@ -862,8 +852,6 @@ int main(int argc, char *argv[])
 
 	type = emcioCommand->type;
 	emcioStatus.status = RCS_DONE;
-
-    update_line_number(emcioCommand);
 
 	switch (type) {
 	case 0:
