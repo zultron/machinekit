@@ -25,14 +25,12 @@ import gtk.gdk
 
 import glnav
 import gobject
-import pango
 
 import rs274.glcanon
 import rs274.interpret
 import linuxcnc
 import gcode
 
-import time
 import re
 import tempfile
 import shutil
@@ -41,7 +39,6 @@ import sys
 
 import thread
 
-from minigl import *
 
 class DummyProgress:
     def nextphase(self, unused): pass
