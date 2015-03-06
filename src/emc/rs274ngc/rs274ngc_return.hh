@@ -149,7 +149,7 @@
 #define NCE_UNABLE_TO_OPEN_FILE _("Unable to open file <%s>")
 #define NCE_UNCLOSED_COMMENT_FOUND _("Unclosed comment found")
 #define NCE_UNCLOSED_EXPRESSION _("Unclosed expression")
-#define NCE_UNKNOWN_G_CODE_USED _("Unknown g code used")
+#define NCE_UNKNOWN_G_CODE_USED _("Unknown g code used: G%.1f")
 #define NCE_UNKNOWN_M_CODE_USED _("Unknown m code used: M%d")
 #define NCE_UNKNOWN_OPERATION _("Unknown operation")
 #define NCE_UNKNOWN_OPERATION_NAME_STARTING_WITH_A _("Unknown operation name starting with a")

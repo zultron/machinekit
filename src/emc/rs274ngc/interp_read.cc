@@ -516,12 +516,14 @@ int Interp::read_g(char *line,   //!< string: line of RS274/NGC code being proce
                   double *parameters)   //!< array of system parameters                    
 {
   double value_read;
+  double g_id;
   int value;
   int mode;
 
   CHKS((line[*counter] != 'g'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
   *counter = (*counter + 1);
   CHP(read_real_value(line, counter, &value_read, parameters));
+  g_id = value_read;
   value_read = (10.0 * value_read);
   value = (int) floor(value_read);
 
@@ -546,7 +548,7 @@ int Interp::read_g(char *line,   //!< string: line of RS274/NGC code being proce
       return INTERP_OK;
   }
   mode = _gees[value];
-  CHKS((mode == -1), NCE_UNKNOWN_G_CODE_USED);
+  CHKS((mode == -1), NCE_UNKNOWN_G_CODE_USED, g_id);
   if ((value == G_80) && (block->g_modes[mode] != -1));
   else {
     if (block->g_modes[mode] == G_80);
