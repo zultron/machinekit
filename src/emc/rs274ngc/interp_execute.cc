@@ -251,12 +251,13 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
   bool in_subroutine = (settings->call_level > 0 && settings->remap_level == 0);
   bool external_sub = strcmp(settings->filename, settings->sub_context[0].filename);
   if (in_remap) {
-      //printf(" Skipping ID update due to remap\n");
+      // Skip ID update for remapped code
   }
   else if (in_subroutine && external_sub && !settings->single_block_external_sub) {
-      //Skip ID increment for local subroutine
+      // Skip ID increment for local subroutine
   }
   else if (in_subroutine && !external_sub && !settings->single_block_local_sub) {
+      // SKip ID update for external subroutine
   }
   else {
       settings->stepping_id++;
