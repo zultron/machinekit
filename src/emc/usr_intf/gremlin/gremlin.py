@@ -57,6 +57,32 @@ class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
         rs274.glcanon.GLCanon.change_tool(self,pocket)
         rs274.interpret.StatMixin.change_tool(self,pocket)
 
+    def get_soft_limits(self):
+        ax = self.s.axis
+
+        return (
+            self.to_internal_units([self.fudge(ax[i]['min_position_limit']) for i in range(3)]),
+            self.to_internal_units([self.fudge(ax[i]['max_position_limit']) for i in range(3)]))
+
+    def to_internal_units(self, pos, unit = None):
+        """ Convert a raw position to internal units.
+        Copied from axis
+        returns a list of 9 values
+        """
+        if unit is None:
+            unit = self.s.linear_units
+        lu = (unit or 1) * 25.4
+
+        lus = [lu, lu, lu, 1, 1, 1, lu, lu, lu]
+        return [a/b for a, b in zip(pos, lus)]
+
+    @staticmethod
+    def fudge(x):
+        if abs(x) > 1e30: return 0
+        return x
+
+
+
 class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
               rs274.glcanon.GlCanonDraw):
     rotation_vectors = [(1.,0.,0.), (0., 0., 1.)]
@@ -256,10 +282,20 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             unitcode = "G%d" % (20 + (s.linear_units == 1))
             initcode = self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
             result, seq, warnings = self.load_preview(filename, canon, unitcode, initcode)
+
+            #Handle extents violation (copied from AXIS)
+            machine_limit_min, machine_limit_max = canon.get_soft_limits()
+            for i in range(3): # Does not enforce angle limits
+                if not(s.axis_mask & (1<<i)): continue
+                if canon.min_extents_notool[i] < machine_limit_min[i]:
+                    warnings.append("Program exceeds machine minimum on axis %s"
+                        % "XYZABCUVW"[i])
+                if canon.max_extents_notool[i] > machine_limit_max[i]:
+                    warnings.append("Program exceeds machine maximum on axis %s"
+                        % "XYZABCUVW"[i])
+
             if result > gcode.MIN_ERROR:
                 self.report_gcode_error(result, seq, filename)
-            #if len(warnings) > 0:
-                #self.show_gcode_warnings(warnings, filename)
 
         finally:
             shutil.rmtree(td)
