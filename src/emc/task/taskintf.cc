@@ -1184,16 +1184,6 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
 	stat->status = RCS_EXEC;
     }
 
-    if (EMC_DEBUG_MOTION_TIME & emc_debug) {
-	if (stat->status == RCS_DONE && last_status != RCS_DONE
-	    && stat->id != last_id_printed) {
-	    rcs_print("Motion id %d took %f seconds.\n", last_id,
-		      etime() - last_id_time);
-	    last_id_printed = last_id = stat->id;
-	    last_id_time = etime();
-	}
-    }
-
     stat->probedPosition = emcmotStatus.probedPos;
 
     stat->probeval = emcmotStatus.probeVal;
