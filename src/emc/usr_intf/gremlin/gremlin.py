@@ -285,14 +285,18 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
             #Handle extents violation (copied from AXIS)
             machine_limit_min, machine_limit_max = canon.get_soft_limits()
+            # KLUDGE: reverse engineer the machine units
+            unit_suffix = "mm" if s.linear_units == 1 else "in"
             for i in range(3): # Does not enforce angle limits
                 if not(s.axis_mask & (1<<i)): continue
                 if canon.min_extents_notool[i] < machine_limit_min[i]:
-                    warnings.append("Program exceeds machine minimum on axis %s"
-                        % "XYZABCUVW"[i])
+                    neg_overhang = canon.min_extents_notool[i] - machine_limit_min[i]
+                    warnings.append("Program exceeds machine minimum on %c axis  by %0.4f %s"
+                        % ("XYZABCUVW"[i], neg_overhang, unit_suffix))
                 if canon.max_extents_notool[i] > machine_limit_max[i]:
-                    warnings.append("Program exceeds machine maximum on axis %s"
-                        % "XYZABCUVW"[i])
+                    pos_overhang = canon.max_extents_notool[i] - machine_limit_max[i]
+                    warnings.append("Program exceeds machine maximum on %c axis by %0.4f %s"
+                        % ("XYZABCUVW"[i], pos_overhang, unit_suffix))
 
             if result > gcode.MIN_ERROR:
                 self.report_gcode_error(result, seq, filename)
