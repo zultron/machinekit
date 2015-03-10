@@ -66,6 +66,7 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
     paused = OFF;
     stopped = OFF;
     scale = 0.0;
+    rapid_scale = 0.0;
     spindle_scale = 0.0;
 
     ZERO_EMC_POSE(position);

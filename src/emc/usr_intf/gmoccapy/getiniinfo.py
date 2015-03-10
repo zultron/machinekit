@@ -29,8 +29,6 @@ import os
 
 CONFIGPATH = os.environ['CONFIG_DIR']
 
-# the player class does the work of playing the audio hints
-# http://pygstdocs.berlios.de/pygst-tutorial/introduction.html
 class GetIniInfo:
 
     def __init__(self):
@@ -167,7 +165,7 @@ class GetIniInfo:
     def get_program_prefix(self):
         # and we want to set the default path
         default_path = self.inifile.find("DISPLAY", "PROGRAM_PREFIX")
-        if not os.path.exists(os.path.expanduser(default_path)):
+        if not default_path:
             print("**** GMOCCAPY GETINIINFO **** \n Path %s from DISPLAY , PROGRAM_PREFIX does not exist" % default_path)
             print("**** GMOCCAPY GETINIINFO **** \n Trying default path...")
             default_path = "~/linuxcnc/nc_files/"
@@ -243,4 +241,18 @@ class GetIniInfo:
             return False
         return  temp
 
+    def get_user_messages(self):
+        message_text = self.inifile.findall("DISPLAY", "MESSAGE_TEXT")
+        message_type = self.inifile.findall("DISPLAY", "MESSAGE_TYPE")
+        message_pinname = self.inifile.findall("DISPLAY", "MESSAGE_PINNAME")
+        if len(message_text) != len(message_type) or len(message_text) != len(message_pinname):
+            print("**** GMOCCAPY GETINIINFO **** \n ERROR in user message setup")
+            return None
+        else:
+            for element in message_pinname:
+                if " " in element:
+                    print("**** GMOCCAPY GETINIINFO **** \n ERROR in user message setup \n Pinname should not contain spaces")
+                    return None
+            messages = zip(message_text, message_type, message_pinname)
+            return messages
 

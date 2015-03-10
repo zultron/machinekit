@@ -180,7 +180,7 @@ static int pyhal_write_common(halitem *pin, PyObject *value) {
             case HAL_U32: {
                 if(is_int) {
                     if(intval < 0) goto rangeerr;
-                    if(intval != (__s32)intval) goto rangeerr;
+                    if(intval != (rtapi_s32)intval) goto rangeerr;
                     *pin->u->pin.u32 = intval;
                     break;
                 }
@@ -191,19 +191,19 @@ static int pyhal_write_common(halitem *pin, PyObject *value) {
                     return -1;
                 } 
                 unsigned long uintval = PyLong_AsUnsignedLong(value);
-                if(uintval != (__u32)uintval) goto rangeerr;
+                if(uintval != (rtapi_u32)uintval) goto rangeerr;
                 if(PyErr_Occurred()) return -1;
                 *pin->u->pin.u32 = uintval;
                 break;
             }
             case HAL_S32:
                 if(is_int) {
-                    if(intval != (__s32)intval) goto rangeerr;
+                    if(intval != (rtapi_s32)intval) goto rangeerr;
                     *pin->u->pin.s32 = intval;
                 } else if(PyLong_Check(value)) {
                     intval = PyLong_AsLong(value);
                     if(PyErr_Occurred()) return -1;
-                    if(intval != (__s32)intval) goto rangeerr;
+                    if(intval != (rtapi_s32)intval) goto rangeerr;
                     *pin->u->pin.u32 = intval;
                 }
                 break;
@@ -231,7 +231,7 @@ static int pyhal_write_common(halitem *pin, PyObject *value) {
                 unsigned long uintval;
                 if(is_int) {
                     if(intval < 0) goto rangeerr;
-                    if(intval != (__s32)intval) goto rangeerr;
+                    if(intval != (rtapi_s32)intval) goto rangeerr;
                     pin->u->param.u32 = intval;
                     break;
                 }
@@ -243,13 +243,13 @@ static int pyhal_write_common(halitem *pin, PyObject *value) {
                 }
                 uintval = PyLong_AsUnsignedLong(value);
                 if(PyErr_Occurred()) return -1;
-                if(uintval != (__u32)uintval) goto rangeerr;
+                if(uintval != (rtapi_u32)uintval) goto rangeerr;
                 pin->u->param.u32 = uintval;
                 break;
             }
             case HAL_S32:
                 if(!is_int) goto typeerr;
-                if(intval != (__s32)intval) goto rangeerr;
+                if(intval != (rtapi_s32)intval) goto rangeerr;
                 pin->u->param.s32 = intval;
                 break;
             default:
@@ -1148,13 +1148,11 @@ void init_hal(void) {
     PyModule_AddIntConstant(m, "HAL_OUT", HAL_OUT);
     PyModule_AddIntConstant(m, "HAL_IO", HAL_IO);
 
-#ifdef RTAPI_SIM
-    PyModule_AddIntConstant(m, "is_sim", 1);
-    PyModule_AddIntConstant(m, "is_rt", 0);
-#else
-    PyModule_AddIntConstant(m, "is_sim", 0);
-    PyModule_AddIntConstant(m, "is_rt", 1);
-#endif
+    PyModule_AddIntConstant(m, "is_sim", !rtapi_is_realtime());
+    PyModule_AddIntConstant(m, "is_rt", rtapi_is_realtime());
+
+    PyModule_AddIntConstant(m, "is_kernelspace", rtapi_is_kernelspace());
+    PyModule_AddIntConstant(m, "is_userspace", !rtapi_is_kernelspace());
 
 #ifdef RTAPI_KERNEL_VERSION
     PyModule_AddStringConstant(m, "kernel_version", RTAPI_KERNEL_VERSION);

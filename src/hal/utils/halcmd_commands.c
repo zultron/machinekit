@@ -518,7 +518,7 @@ int do_newinst_cmd(char *comp_name, char *inst_name) {
         return -EINVAL;
     }	
 
-#if defined(RTAPI_SIM)
+#if defined(RTAPI_USPACE)
     {
         char *argv[MAX_TOK];
         int m = 0, result;
@@ -1062,7 +1062,7 @@ int do_loadrt_cmd(char *mod_name, char *args[])
     hal_comp_t *comp;
     char *argv[MAX_TOK+3];
     char *cp1;
-#if defined(RTAPI_SIM)
+#if defined(RTAPI_USPACE)
 // TORMACH_RIP_PATCH
     char rtapi_app_path[512];
     char *envPtr = getenv("EMC2_BIN_DIR");
@@ -1161,11 +1161,11 @@ int do_loadrt_cmd(char *mod_name, char *args[])
 #endif
 
     if ( retval != 0 ) {
-	halcmd_error("insmod failed, returned %d\n"
-#if !defined(RTAPI_SIM)
+	halcmd_error("insmod for %s failed, returned %d\n"
+#if !defined(RTAPI_USPACE)
             "See the output of 'dmesg' for more information.\n"
 #endif
-        , retval );
+        , mod_name, retval );
 	return -1;
     }
     /* make the args that were passed to the module into a single string */
@@ -1357,7 +1357,7 @@ static int unloadrt_comp(char *mod_name)
     int retval;
     char *argv[4];
 
-#if defined(RTAPI_SIM)
+#if defined(RTAPI_USPACE)
     argv[0] = EMC2_BIN_DIR "/rtapi_app";
     argv[1] = "unload";
 #else
@@ -1505,7 +1505,12 @@ int do_loadusr_cmd(char *args[])
 	    /* check for program ending */
 	    retval = waitpid( pid, &status, WNOHANG );
 	    if ( retval != 0 ) {
-		exited = 1;
+		    exited = 1;
+	        if (WIFEXITED(status) && WEXITSTATUS(status)) {
+	            halcmd_error("waitpid failed %s %s\n",prog_name,new_comp_name);
+	            ready = 0;
+	            break;
+	        }
 	    }
 	    /* check for program becoming ready */
             rtapi_mutex_get(&(hal_data->mutex));
@@ -2423,19 +2428,38 @@ static void save_comps(FILE *dst)
 
     fprintf(dst, "# components\n");
     rtapi_mutex_get(&(hal_data->mutex));
+
+    int ncomps = 0;
     next = hal_data->comp_list_ptr;
     while (next != 0) {
 	comp = SHMPTR(next);
 	if ( comp->type == 1 ) {
-	    /* only print realtime components */
-	    if ( comp->insmod_args == 0 ) {
-		fprintf(dst, "#loadrt %s  (not loaded by loadrt, no args saved)\n", comp->name);
-	    } else {
-		fprintf(dst, "loadrt %s %s\n", comp->name,
-		    (char *)SHMPTR(comp->insmod_args));
-	    }
-	}
+            ncomps ++;
+        }
 	next = comp->next_ptr;
+    }
+
+    hal_comp_t *comps[ncomps], **compptr = comps;
+    next = hal_data->comp_list_ptr;
+    while(next != 0)  {
+	comp = SHMPTR(next);
+	if ( comp->type == 1 ) {
+            *compptr++ = SHMPTR(next);
+        }
+	next = comp->next_ptr;
+    }
+
+    int i;
+    for(i=ncomps; i--;)
+    {
+        comp = comps[i];
+        /* only print realtime components */
+        if ( comp->insmod_args == 0 ) {
+            fprintf(dst, "#loadrt %s  (not loaded by loadrt, no args saved)\n", comp->name);
+        } else {
+            fprintf(dst, "loadrt %s %s\n", comp->name,
+                (char *)SHMPTR(comp->insmod_args));
+        }
     }
 #if 0  /* newinst deferred to version 2.2 */
     next = hal_data->comp_list_ptr;

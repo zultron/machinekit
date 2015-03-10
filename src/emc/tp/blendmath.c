@@ -1070,10 +1070,9 @@ int blendInit3FromLineLine(BlendGeom3 * const geom, BlendParameters * const para
 
     blendGeom3Print(geom);
 
-    const double greediness = 0.5;
     //Nominal length restriction prevents gobbling too much of parabolic blends
-    param->L1 = fmin(prev_tc->target, prev_tc->nominal_length * greediness);
-    param->L2 = tc->target * greediness;
+    param->L1 = fmin(prev_tc->target, prev_tc->nominal_length * BLEND_DIST_FRACTION);
+    param->L2 = tc->target * BLEND_DIST_FRACTION;
     tp_debug_print("prev. nominal length = %f, next nominal_length = %f\n",
             prev_tc->nominal_length, tc->nominal_length);
     tp_debug_print("L1 = %f, L2 = %f\n", param->L1, param->L2);
@@ -1212,9 +1211,8 @@ int blendCheckConsume(BlendParameters * const param,
     double L_prev = prev_tc->target - points->trim1;
     double prev_seg_time = L_prev / param->v_plan;
 
-    int in_time_limit = prev_seg_time < gap_cycles * prev_tc->cycle_time;
-    param->consume = (in_time_limit && !prev_tc->blend_prev);
-
+    bool can_consume = tcCanConsume(prev_tc);
+    param->consume = (prev_seg_time < gap_cycles * prev_tc->cycle_time && can_consume);
     if (param->consume) {
         tp_debug_print("consuming prev line, L_prev = %g\n",
                 L_prev);
@@ -1624,7 +1622,11 @@ int blendPoints3Print(BlendPoints3 const * const points)
 
 }
 
-double pmCircleActualMaxVel(PmCircle * const circle, double v_max, double a_max, int parabolic)
+double pmCircleActualMaxVel(PmCircle * const circle,
+        double * const acc_ratio_tangential,
+        double v_max,
+        double a_max,
+        int parabolic)
 {
     if (parabolic) {
         a_max /= 2.0;
@@ -1632,6 +1634,13 @@ double pmCircleActualMaxVel(PmCircle * const circle, double v_max, double a_max,
     double a_n_max = BLEND_ACC_RATIO_NORMAL * a_max;
     double eff_radius = pmCircleEffectiveMinRadius(circle);
     double v_max_acc = pmSqrt(a_n_max * eff_radius);
+    double v_max_eff = fmin(v_max_acc, v_max);
+    if (acc_ratio_tangential) {
+        double a_normal = fmin(pmSq(v_max_eff) / eff_radius, a_n_max);
+        *acc_ratio_tangential = (pmSqrt(pmSq(a_max) - pmSq(a_normal)) / a_max);
+        tp_debug_print("acc_ratio_tan = %f\n",*acc_ratio_tangential);
+    }
+
     if (v_max_acc < v_max) {
         tp_debug_print("Maxvel limited from %f to %f for tangential acceleration\n", v_max, v_max_acc);
         return v_max_acc;
@@ -1661,8 +1670,10 @@ static double pmCircleAngleFromParam(PmCircle const * const circle,
     // Quadratic formula to invert arc length -> angle
     double angle_out;
     double disc = 4.0 * fit->b0 * s_in + pmSq(fit->b1);
+    //FIXME bigger than POS_EPSILON to smooth out acceleration on near-circular cases
+    const double MIN_FIT_COEF = 1e-10;
 
-    if (fabs(fit->b0) > TP_POS_EPSILON && disc > TP_POS_EPSILON) {
+    if (fabs(fit->b0) > MIN_FIT_COEF && disc > TP_POS_EPSILON) {
         //Know that discriminant is positive and divisor is large enough not to
         //cause numerical errors
         angle_out = (pmSqrt(disc) - fit->b1) / (2.0 * fit->b0);

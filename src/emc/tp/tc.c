@@ -126,6 +126,25 @@ int tcGetIntersectionPoint(TC_STRUCT const * const prev_tc,
     return TP_ERR_OK;
 }
 
+
+/**
+ * Check if a segment can be consumed without disrupting motion or synced IO.
+ */
+int tcCanConsume(TC_STRUCT const * const tc)
+{
+    if (!tc) {
+        return false;
+    }
+
+    if (tc->syncdio.anychanged || tc->blend_prev || tc->atspeed) {
+        //TODO add other conditions here (for any segment that should not be consumed by blending
+        return false;
+    }
+
+    return true;
+
+}
+
 /**
  * Find the geometric tangent vector to a helical arc.
  * Unlike the acceleration vector, the result of this calculation is a vector
@@ -510,6 +529,8 @@ int tcInit(TC_STRUCT * const tc,
 
     tc->active_depth = 1;
 
+    tc->acc_ratio_tan = BLEND_ACC_RATIO_TANGENTIAL;
+
     return TP_ERR_OK;
 }
 
@@ -625,7 +646,7 @@ int tcFinalizeLength(TC_STRUCT * const tc)
     }
 
     if (tc->finalized) {
-        tc_debug_print("tc %d already finalized\n", tc->id);
+        tp_debug_print("tc %d already finalized\n", tc->id);
         return TP_ERR_NO_ACTION;
     }
 
@@ -635,7 +656,7 @@ int tcFinalizeLength(TC_STRUCT * const tc)
     tp_debug_print("blend_prev = %d, term_cond = %d\n",tc->blend_prev, tc->term_cond);
 
     if (tc->motion_type == TC_CIRCULAR) {
-        tc->maxvel = pmCircleActualMaxVel(&tc->coords.circle.xyz, tc->maxvel, tc->maxaccel, parabolic);
+        tc->maxvel = pmCircleActualMaxVel(&tc->coords.circle.xyz, &tc->acc_ratio_tan, tc->maxvel, tc->maxaccel, parabolic);
     }
     tc->finalized = 1;
     return TP_ERR_OK;
@@ -734,6 +755,18 @@ int tcSetCircleXYZ(TC_STRUCT * const tc, PmCircle const * const circ)
     // compute the new total arc length using the fit and store as new
     // target distance
     tc->target = pmCircle9Target(&tc->coords.circle);
+
+    return TP_ERR_OK;
+}
+
+int tcClearFlags(TC_STRUCT * const tc)
+{
+    if (!tc) {
+        return TP_ERR_MISSING_INPUT;
+    }
+
+    //KLUDGE this will need to be updated manually if any other flags are added.
+    tc->is_blending = false;
 
     return TP_ERR_OK;
 }

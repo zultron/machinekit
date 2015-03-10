@@ -53,7 +53,7 @@ else
   Q = @
 endif
 
-ifeq "$(findstring s,$(MAKEFLAGS))" ""
+ifeq "$(findstring s,$(filter-out --%, $(MAKEFLAGS)))" ""
 ECHO=@echo
 VECHO=echo
 else
@@ -78,21 +78,21 @@ ifeq ($(RTPREFIX),)
 $(error Makefile.inc must specify RTPREFIX and other variables)
 endif
 
-DEP = $(1) -MM -MT "$(2)" $(4) -o $(3).tmp && mv -f "$(3)".tmp "$(3)"
-
 cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
 	     > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
 
-ifeq ($(KERNELRELEASE),)
+ifeq ($(origin KERNELRELEASE),undefined)
 # When KERNELRELEASE is not defined, this is the userspace build.
 # The "modules" target is the gateway to the kernel module build.
 #default: configs userspace modules
 # "modules" removed from default to speed up rebuilds
 # run "make modules" if you really need them to be built
-default: configs userspace
+default: userspace
 ifeq ($(RUN_IN_PLACE),yes)
-ifneq ($(BUILD_SYS),sim)
+ifneq ($(BUILD_SYS),uspace)
 	@if [ -f ../bin/linuxcnc_module_helper ]; then if ! [ `stat -c %u ../bin/linuxcnc_module_helper` -eq 0 -a -u ../bin/linuxcnc_module_helper ]; then $(VECHO) "You now need to run 'sudo make setuid' in order to run in place."; fi; fi
+else
+	@if [ -f ../bin/rtapi_app ]; then if ! [ `stat -c %u ../bin/rtapi_app` -eq 0 -a -u ../bin/rtapi_app ]; then $(VECHO) "You now need to run 'sudo make setuid' in order to run in place with access to hardware."; fi; fi
 endif
 endif
 
@@ -104,6 +104,7 @@ MAKEFLAGS += w
 # as a "substitute at assignment time" variable
 TARGETS :=
 PYTARGETS :=
+GENERATED_MANPAGES :=
 
 # Submakefiles from each of these directories will be included if they exist
 SUBDIRS := \
@@ -115,7 +116,7 @@ SUBDIRS := \
     \
     hal/components hal/drivers hal/user_comps/devices hal/user_comps/mb2hal \
     hal/user_comps hal/user_comps/vismach hal/user_comps/vfs11_vfd hal/classicladder hal/utils hal \
-    hal/user_comps/vfdb_vfd \
+    hal/user_comps/vfdb_vfd hal/user_comps/wj200_vfd \
     \
     emc/usr_intf/axis emc/usr_intf/touchy emc/usr_intf/stepconf emc/usr_intf/pncconf \
     emc/usr_intf/gremlin \ emc/usr_intf/gscreen \
@@ -130,7 +131,6 @@ SUBDIRS := \
     ../docs/src \
 	redis \
     redis/examples/c \
-    hal/simdrivers
 
 ULAPISRCS := rtapi/$(RTPREFIX)_ulapi.c
 
@@ -159,10 +159,9 @@ SUBMAKEFILES := $(patsubst %,%/Submakefile,$(SUBDIRS))
 # or C++ files
 ASSERT_EMPTY = $(if $(1), $(error "Should be empty but is not: $(1)"))
 $(call ASSERT_EMPTY,$(filter-out %.c %.cc, $(USERSRCS)))
-$(call ASSERT_EMPTY,$(filter-out %.c, $(RTSRCS)))
 
 ifeq ($(BUILD_PYTHON),yes)
-$(call TOOBJS,$(PYSRCS)) : EXTRAFLAGS += -fPIC $(call cc-option,-fno-strict-aliasing)
+$(call TOOBJS,$(PYSRCS)) : EXTRAFLAGS += -fPIC -fno-strict-aliasing
 USERSRCS += $(PYSRCS)
 endif
 
@@ -176,16 +175,10 @@ ifeq ($(TRIVIAL_BUILD),no)
 # Find the dependency filenames, then include them all
 DEPS := $(sort $(patsubst %.o,%.d,$(CUSEROBJS) $(CXXUSEROBJS)))
 READ_DEPS = $(wildcard $(DEPS))
-$(shell echo 1>&2 Reading $(words $(READ_DEPS))/$(words $(DEPS)) dependency files)
+$(shell $(VECHO) 1>&2 Reading $(words $(READ_DEPS))/$(words $(DEPS)) dependency files)
 -include $(READ_DEPS)
 UNREAD_DEPS = $(filter-out $(READ_DEPS), $(DEPS))
-LEGACY_DEPS = $(patsubst objects/%, depends/%, $(UNREAD_DEPS))
-READ_LEGACY_DEPS = $(wildcard $(LEGACY_DEPS))
-ifneq ($(READ_LEGACY_DEPS),)
-$(shell echo 1>&2 Reading $(words $(READ_LEGACY_DEPS)) old-style dependency files)
--include $(READ_LEGACY_DEPS)
-endif
-$(shell echo 1>&2 Done reading dependencies)
+$(shell $(VECHO) 1>&2 Done reading dependencies)
 endif
 
 # Each directory in $(INCLUDES) is passed as a -I directory when compiling.
@@ -195,9 +188,10 @@ INCLUDE += -I$(INCLUDEPY)
 endif
 
 # Compilation options.	Perhaps some of these should come from Makefile.inc? (CXXFLAGS now does)
-OPT := -Os
+INTEGER_OVERFLOW_FLAGS := -fwrapv
+OPT := -Os $(INTEGER_OVERFLOW_FLAGS)
 DEBUG := $(DEBUG) -g -Wall
-CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) $(EXTRA_DEBUG) -DULAPI $(call cc-option,-std=gnu99 -fgnu89-inline)
+CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) $(EXTRA_DEBUG) -DULAPI -std=gnu99 -fgnu89-inline
 CXXFLAGS := $(INCLUDE) $(CXXFLAGS)   $(EXTRA_DEBUG) -DULAPI $(DEBUG) $(OPT)
 
 ifeq ($(RUN_IN_PLACE),yes)
@@ -259,11 +253,7 @@ INFILES = \
 	../share/desktop-directories/cnc.directory ../share/menus/CNC.menu \
 	../share/applications/linuxcnc.desktop \
 	../share/applications/linuxcnc-latency.desktop \
-
-ifeq ($(HAVE_WORKING_BLT),yes)
-INFILES += ../scripts/latencyplot ../share/applications/linuxcnc-latencyplot.desktop
-INFILES += ../scripts/latencyhistogram
-endif
+	../scripts/linuxcnc_var \
 
 $(INFILES): %: %.in config.status
 	@./config.status --file=$@
@@ -365,11 +355,21 @@ HEADERS := \
     rtapi/rtapi.h \
     rtapi/rtapi_app.h \
     rtapi/rtapi_bitops.h \
+    rtapi/rtapi_bool.h \
     rtapi/rtapi_byteorder.h \
+    rtapi/rtapi_device.h \
+    rtapi/rtapi_firmware.h \
+    rtapi/rtapi_gfp.h \
+    rtapi/rtapi_io.h \
     rtapi/rtapi_limits.h \
+    rtapi/rtapi_list.h \
     rtapi/rtapi_math.h \
     rtapi/rtapi_math_i386.h \
     rtapi/rtapi_math64.h \
+    rtapi/rtapi_parport.h \
+    rtapi/rtapi_pci.h \
+    rtapi/rtapi_slab.h \
+    rtapi/rtapi_stdint.h \
     rtapi/rtapi_common.h \
     rtapi/rtapi_ctype.h \
     rtapi/rtapi_errno.h \
@@ -447,6 +447,7 @@ ifeq ($(BUILD_SYS),kbuild)
 
 # Force modules invocation to make sure user space is in order before rebuilding
 modules: configs userspace
+	MAKEFLAGS="$(filter-out --warn-undefined-variables,$(MAKEFLAGS))" \
 	$(PYTHON) modsilent.py $(MAKE) KBUILD_EXTRA_SYMBOLS=$(moduledir)/Module.symvers -C $(KERNELDIR) SUBDIRS=`pwd` CC=$(CC) V=0 modules
 	-cp Module.symvers *$(MODULE_EXT) ../rtlib/
 endif
@@ -469,6 +470,7 @@ clean: depclean modclean
 	find . -name '*.o' |xargs rm -f
 	-rm -rf objects
 	-rm -f $(TARGETS)
+	-rm -f $(GENERATED_MANPAGES)
 	-rm -f $(COPY_CONFIGS)
 	-rm -f ../rtlib/*.$(MODULE_EXT)
 	-rm -f hal/components/conv_*.comp
@@ -484,11 +486,11 @@ configure-clean:
 # So that nothing is built as root, this rule does not depend on the touched
 # files (Note that files in depends/ might be rebuilt, and there's little that
 # can be done about it)
-ifeq ($(BUILD_SYS),sim)
 setuid:
-	@echo "'make setuid' is not needed for the simulator"
+ifeq ($(BUILD_SYS),uspace)
+	chown root ../bin/rtapi_app
+	chmod 4750 ../bin/rtapi_app
 else
-setuid:
 	chown root ../bin/linuxcnc_module_helper
 	chmod 4750 ../bin/linuxcnc_module_helper
 	chown root ../bin/pci_write
@@ -500,9 +502,9 @@ endif
 # These rules allows a header file from this directory to be installed into
 # ../include.  A pair of rules like these will exist in the Submakefile
 # of each file that contains headers.
-../include/%.h: %.h
+$(patsubst %,../include/%,$(wildcard *.h)): ../include/%.h: %.h
 	$(Q)-cp $^ $@
-../include/%.hh: %.hh
+$(patsubst %,../include/%,$(wildcard *.hh)): ../include/%.hh: %.hh
 	$(Q)-cp $^ $@
 
 DIR=install -d -m 0755 -o root
@@ -525,11 +527,7 @@ install:
 MENUS = ../share/menus/CNC.menu \
     ../share/desktop-directories/cnc.directory \
     ../share/applications/linuxcnc.desktop \
-    ../share/applications/linuxcnc-latency.desktop
-
-ifeq ($(HAVE_WORKING_BLT),yes)
-MENUS += ../share/applications/linuxcnc-latencyplot.desktop
-endif
+    ../share/applications/linuxcnc-latency.desktop \
 
 install-menus install-menu: $(MENUS)
 	mkdir -p $(HOME)/.config/menus/applications-merged
@@ -577,7 +575,9 @@ install-dirs:
 		$(DESTDIR)$(datadir)/glade3/pixmaps \
 		$(DESTDIR)$(datadir)/gtksourceview-2.0/language-specs \
 		$(DESTDIR)$(datadir)/linuxcnc/stepconf \
-		$(DESTDIR)$(datadir)/linuxcnc/pncconf/pncconf-help
+		$(DESTDIR)$(datadir)/linuxcnc/pncconf \
+		$(DESTDIR)$(datadir)/linuxcnc/pncconf/pncconf-help \
+		$(DESTDIR)$(datadir)/linuxcnc/hallib
 
 install-kernel-indep: install-dirs
 	$(FILE) ../docs/man/man1/*.1 $(DESTDIR)$(mandir)/man1
@@ -592,18 +592,24 @@ install-kernel-indep: install-dirs
 	$(EXE) ../scripts/sim_pin $(DESTDIR)$(bindir)
 	$(FILE) ../docs/UPDATING $(DESTDIR)$(docsdir)/UPDATING
 	$(FILE) ../*.png ../*.gif $(DESTDIR)$(datadir)/linuxcnc
+	$(FILE) ../lib/hallib/*   $(DESTDIR)$(datadir)/linuxcnc/hallib
 
 	# install all the sample configs, including subdirs (tar is required on debian systems, and common on others)
 	$(DIR) $(DESTDIR)$(sampleconfsdir)
 	((cd ../configs && tar --exclude CVS --exclude .cvsignore --exclude .gitignore -cf - .) | (cd $(DESTDIR)$(sampleconfsdir) && tar -xf -))
 
-	$(EXE) $(filter-out ../bin/linuxcnc_module_helper ../bin/pci_write ../bin/pci_read ../bin/test_rtapi_vsnprintf, $(filter ../bin/%,$(TARGETS))) $(DESTDIR)$(bindir)
+	$(EXE) $(filter-out ../bin/rtapi_app ../bin/linuxcnc_module_helper ../bin/pci_write ../bin/pci_read ../bin/test_rtapi_vsnprintf, $(filter ../bin/%,$(TARGETS))) $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/linuxcnc $(DESTDIR)$(bindir)
+	$(EXE) ../scripts/linuxcnc_info $(DESTDIR)$(bindir)
+	$(EXE) ../scripts/linuxcnc_var $(DESTDIR)$(bindir)
+	$(EXE) ../scripts/monitor-xhc-hb04 $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/latency-test $(DESTDIR)$(bindir)
-ifeq ($(HAVE_WORKING_BLT),yes)
-	$(EXE) ../scripts/latencyplot $(DESTDIR)$(bindir)
-	$(EXE) ../scripts/latencyhistogram $(DESTDIR)$(bindir)
-endif
+	$(EXE) ../scripts/latency-plot $(DESTDIR)$(bindir)
+	$(EXE) ../scripts/latency-histogram $(DESTDIR)$(bindir)
+	$(EXE) ../scripts/moveoff_gui $(DESTDIR)$(bindir)
+	$(EXE) ../scripts/hal-histogram $(DESTDIR)$(bindir)
+	$(EXE) ../scripts/pyvcp_demo $(DESTDIR)$(bindir)
+	$(EXE) ../scripts/gladevcp_demo $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/linuxcncmkdesktop $(DESTDIR)$(bindir)
 	$(FILE) $(filter ../lib/%.a ../lib/%.so.0,$(TARGETS)) $(DESTDIR)$(libdir)
 	cp --no-dereference $(filter ../lib/%.so, $(TARGETS)) $(DESTDIR)$(libdir)
@@ -629,7 +635,7 @@ endif
 	$(FILE) ../share/linuxcnc/gscreen.glade $(DESTDIR)$(prefix)/share/linuxcnc
 	$(FILE) ../share/linuxcnc/gscreen2.glade $(DESTDIR)$(prefix)/share/linuxcnc
 	$(FILE) ../share/gmoccapy/gmoccapy.glade $(DESTDIR)$(prefix)/share/gmoccapy
-	$(FILE) ../share/linuxcnc/pncconf.glade $(DESTDIR)$(prefix)/share/linuxcnc
+	$(FILE) ../share/linuxcnc/pncconf/*.glade $(DESTDIR)$(prefix)/share/linuxcnc/pncconf
 	$(FILE) ../share/linuxcnc/gremlin_view.ui $(DESTDIR)$(prefix)/share/linuxcnc
 	$(FILE) ../share/linuxcnc/popupkeyboard.ui $(DESTDIR)$(prefix)/share/linuxcnc
 	$(FILE) ../configs/common/linuxcnc.nml $(DESTDIR)$(prefix)/share/linuxcnc
@@ -650,6 +656,7 @@ install-python: install-dirs
 	$(DIR) $(DESTDIR)$(SITEPY)/gmoccapy
 	$(DIR) $(DESTDIR)$(SITEPY)/gladevcp
 	$(DIR) $(DESTDIR)$(SITEPY)/stepconf
+	$(DIR) $(DESTDIR)$(SITEPY)/pncconf
 	$(FILE) ../lib/python/*.py ../lib/python/*.so $(DESTDIR)$(SITEPY)
 	$(FILE) ../lib/python/rs274/*.py $(DESTDIR)$(SITEPY)/rs274
 	$(FILE) ../lib/python/touchy/*.py $(DESTDIR)$(SITEPY)/touchy
@@ -659,6 +666,7 @@ install-python: install-dirs
 	$(FILE) ../lib/python/gladevcp/*.glade $(DESTDIR)$(SITEPY)/gladevcp
 	$(FILE) ../lib/python/gladevcp/*.glade $(DESTDIR)$(SITEPY)/gladevcp
 	$(FILE) ../lib/python/stepconf/*.py $(DESTDIR)$(SITEPY)/stepconf
+	$(FILE) ../lib/python/pncconf/*.py $(DESTDIR)$(SITEPY)/pncconf
 	$(EXE) ../bin/stepconf $(DESTDIR)$(bindir)
 	$(EXE) ../bin/pncconf $(DESTDIR)$(bindir)
 	$(EXE) ../bin/hal_input $(DESTDIR)$(bindir)
@@ -690,11 +698,13 @@ install-kernel-dep:
 		$(DESTDIR)$(bindir) \
 		$(DESTDIR)$(sysconfdir)/linuxcnc
 	$(FILE) ../rtlib/*$(MODULE_EXT) $(DESTDIR)$(EMC2_RTLIB_DIR)
-ifneq "$(BUILD_SYS)" "sim"
+ifneq "$(BUILD_SYS)" "uspace"
 	$(FILE) Module.symvers $(DESTDIR)$(EMC2_RTLIB_DIR)
 	$(SETUID) ../bin/linuxcnc_module_helper $(DESTDIR)$(bindir)
 	$(SETUID) ../bin/pci_write $(DESTDIR)$(bindir)
 	$(SETUID) ../bin/pci_read $(DESTDIR)$(bindir)
+else
+	$(SETUID) ../bin/rtapi_app $(DESTDIR)$(bindir)
 endif
 	$(FILE) ../scripts/rtapi.conf $(DESTDIR)$(sysconfdir)/linuxcnc
 endif # RUN_IN_PLACE
@@ -703,58 +713,6 @@ CONF=../configs
 COMMON=$(CONF)/common
 CONFILES=$(addsuffix /$(1), $(filter-out $(COMMON) $(CONF),\
                                          ${shell find ${CONF} -type d -print}))
-
-.PHONY: configs
-COPY_CONFIGS = $(patsubst %,../configs/%/core_stepper.hal, \
-                sim \
-                by_interface/parport/stepper \
-                by_machine/sherline/Sherline3Axis \
-                by_machine/sherline/SherlineLathe \
-                by_machine/cooltool \
-                by_interface/parport/classicladder/demo_step_cl)
-
-COPY_CONFIGS += $(patsubst %,../configs/%/core_servo.hal, \
-                sim \
-                by_interface/vitalsystems \
-                by_interface/servotogo \
-                by_interface/vigilant)
-
-COPY_CONFIGS += $(patsubst %,../configs/%/core_sim.hal, \
-                sim)
-
-COPY_CONFIGS += $(patsubst %,../configs/%/core_sim9.hal, \
-                sim)
-
-COPY_CONFIGS += $(patsubst %,../configs/%/axis_manualtoolchange.hal, \
-                sim \
-                by_interface/pluto/lathe-pluto\
-                by_interface/parport/plasma-thc-sim)
-
-show_configs_copy_stuff:
-	@echo CONFILES=$(CONFILES)
-	@echo CALL:$(call CONFILES,axis_manualtoolchange.hal)
-	@echo CALL:$(call CONFILES,core_stepper.hal)
-	@echo CALL:$(call CONFILES,core_servo.hal)
-	@echo CALL:$(call CONFILES,core_sim.hal)
-	@echo CALL:$(call CONFILES,core_sim9.hal)
-	@echo COPY_CONFIGS=$(COPY_CONFIGS)
-
-configs: $(COPY_CONFIGS)
-
-.PHONY: print_copy_configs
-print_copy_configs:
-	$(ECHO) copying shared configs
-
-$(call CONFILES,axis_manualtoolchange.hal): %/axis_manualtoolchange.hal: ../configs/common/axis_manualtoolchange.hal print_copy_configs
-	$(Q)-cp $< $@
-$(call CONFILES,core_stepper.hal): %/core_stepper.hal: ../configs/common/core_stepper.hal print_copy_configs
-	$(Q)-cp $< $@
-$(call CONFILES,core_servo.hal): %/core_servo.hal: ../configs/common/core_servo.hal print_copy_configs
-	$(Q)-cp $< $@
-$(call CONFILES,core_sim.hal): %/core_sim.hal: ../configs/common/core_sim.hal print_copy_configs
-	$(Q)-cp $< $@
-$(call CONFILES,core_sim9.hal): %/core_sim9.hal: ../configs/common/core_sim9.hal print_copy_configs
-	$(Q)-cp $< $@
 
 endif # userspace
 
@@ -766,14 +724,15 @@ endif
 # "kbuild" system.  $(BASEPWD) is used here, instead of relative paths, because
 # that's what kbuild seems to require
 
-EXTRA_CFLAGS = $(filter-out -ffast-math,$(RTFLAGS)) -D__MODULE__ -I$(BASEPWD) -I$(BASEPWD)/libnml/linklist \
+EXTRA_CFLAGS := $(filter-out -ffast-math,$(RTFLAGS)) -D__MODULE__ -I$(BASEPWD) -I$(BASEPWD)/libnml/linklist \
 	-I$(BASEPWD)/libnml/cms -I$(BASEPWD)/libnml/rcs -I$(BASEPWD)/libnml/inifile \
 	-I$(BASEPWD)/libnml/os_intf -I$(BASEPWD)/libnml/nml -I$(BASEPWD)/libnml/buffer \
 	-I$(BASEPWD)/libnml/posemath -I$(BASEPWD)/rtapi -I$(BASEPWD)/hal \
 	-I$(BASEPWD)/emc/nml_intf -I$(BASEPWD)/emc/kinematics -I$(BASEPWD)/emc/tp -I$(BASEPWD)/emc/motion \
 	-DSEQUENTIAL_SUPPORT -DHAL_SUPPORT -DDYNAMIC_PLCSIZE -DRT_SUPPORT -DOLD_TIMERS_MONOS_SUPPORT -DMODBUS_IO_MASTER \
 	-fno-fast-math $(call cc-option,-mieee-fp) -fno-unsafe-math-optimizations \
-	$(call cc-option,-Wframe-larger-than=2560) $(call cc-option,-Wno-declaration-after-statement)
+	-Wframe-larger-than=2560 -Wno-declaration-after-statement \
+	$(INTEGER_OVERFLOW_FLAGS)
 ifneq ($(KERNELRELEASE),)
 ifeq ($(RTARCH):$(RTAI):$(filter $(RTFLAGS),-msse),x86_64:3:)
 EXTRA_CFLAGS += -msse
@@ -795,7 +754,7 @@ endif
 # find a way around it.
 
 # Subdirectory:  rtapi
-ifneq ($(BUILD_SYS),sim)
+ifneq ($(BUILD_SYS),uspace)
 obj-$(CONFIG_RTAPI) += rtapi.o
 rtapi-objs := rtapi/$(RTPREFIX)_rtapi.o
 endif
@@ -847,9 +806,9 @@ obj-$(CONFIG_SAMPLER) += sampler.o
 sampler-objs := hal/components/sampler.o $(MATHSTUB)
 
 # Subdirectory: hal/drivers
-ifneq ($(BUILD_SYS),sim)
 obj-$(CONFIG_HAL_PARPORT) += hal_parport.o
 hal_parport-objs := hal/drivers/hal_parport.o $(MATHSTUB)
+ifneq ($(BUILD_SYS),uspace)
 obj-$(CONFIG_PCI_8255) += pci_8255.o
 pci_8255-objs := hal/drivers/pci_8255.o
 obj-$(CONFIG_HAL_TIRO) += hal_tiro.o
@@ -864,21 +823,24 @@ obj-$(CONFIG_HAL_MOTENC) += hal_motenc.o
 hal_motenc-objs := hal/drivers/hal_motenc.o $(MATHSTUB)
 obj-$(CONFIG_HAL_AX521H) += hal_ax5214h.o
 hal_ax5214h-objs := hal/drivers/hal_ax5214h.o $(MATHSTUB)
-obj-$(CONFIG_HAL_PPMC) += hal_ppmc.o
-hal_ppmc-objs := hal/drivers/hal_ppmc.o $(MATHSTUB)
 obj-$(CONFIG_HAL_SPEAKER) += hal_speaker.o
 hal_speaker-objs := hal/drivers/hal_speaker.o $(MATHSTUB)
 obj-$(CONFIG_HAL_SKELETON) += hal_skeleton.o
 hal_skeleton-objs := hal/drivers/hal_skeleton.o $(MATHSTUB)
 obj-$(CONFIG_OPTO_AC5) += opto_ac5.o
 opto_ac5-objs := hal/drivers/opto_ac5.o $(MATHSTUB)
+endif
 obj-$(CONFIG_HAL_GM) += hal_gm.o
 hal_gm-objs := hal/drivers/hal_gm.o $(MATHSTUB)
+obj-$(CONFIG_HAL_PPMC) += hal_ppmc.o
+hal_ppmc-objs := hal/drivers/hal_ppmc.o $(MATHSTUB)
 
-obj-$(CONFIG_HOSTMOT2) += hostmot2.o hm2_7i43.o hm2_pci.o hm2_test.o setsserial.o
+obj-$(CONFIG_HOSTMOT2) += hostmot2.o hm2_test.o hm2_pci.o hm2_7i43.o hm2_7i90.o setsserial.o
+ifeq ($(BUILD_SYS),uspace)
+obj-$(CONFIG_HOSTMOT2) += hm2_eth.o hm2_spi.o
+endif
 hostmot2-objs :=			  \
     hal/drivers/mesa-hostmot2/hostmot2.o  \
-    hal/drivers/mesa-hostmot2/backported-strings.o  \
     hal/drivers/mesa-hostmot2/ioport.o	  \
     hal/drivers/mesa-hostmot2/encoder.o   \
     hal/drivers/mesa-hostmot2/abs_encoder.o\
@@ -897,6 +859,10 @@ hostmot2-objs :=			  \
     hal/drivers/mesa-hostmot2/raw.o	  \
     hal/drivers/mesa-hostmot2/bitfile.o   \
     $(MATHSTUB)
+hm2_7i90-objs :=			  \
+    hal/drivers/mesa-hostmot2/hm2_7i90.o  \
+    hal/drivers/mesa-hostmot2/bitfile.o   \
+    $(MATHSTUB)
 hm2_7i43-objs :=			  \
     hal/drivers/mesa-hostmot2/hm2_7i43.o  \
     hal/drivers/mesa-hostmot2/bitfile.o   \
@@ -905,6 +871,12 @@ hm2_pci-objs  :=			  \
     hal/drivers/mesa-hostmot2/hm2_pci.o   \
     hal/drivers/mesa-hostmot2/bitfile.o   \
     $(MATHSTUB)
+hm2_eth-objs  :=			  \
+    hal/drivers/mesa-hostmot2/hm2_eth.o   \
+    $(MATHSTUB)
+hm2_spi-objs  :=			  \
+    hal/drivers/mesa-hostmot2/hm2_spi.o   \
+    $(MATHSTUB)
 hm2_test-objs :=			  \
     hal/drivers/mesa-hostmot2/hm2_test.o  \
     hal/drivers/mesa-hostmot2/bitfile.o   \
@@ -912,10 +884,6 @@ hm2_test-objs :=			  \
 setsserial-objs :=			  \
     hal/drivers/mesa-hostmot2/setsserial.o  \
     $(MATHSTUB)
-
-obj-$(CONFIG_PROBE_PARPORT) += probe_parport.o
-probe_parport-objs := hal/drivers/probe_parport.o $(MATHSTUB)
-endif
 
 obj-$(CONFIG_CLASSICLADDER_RT) += classicladder_rt.o
 classicladder_rt-objs := hal/classicladder/module_hal.o $(MATHSTUB)
@@ -996,7 +964,7 @@ motmod-objs += libnml/posemath/_posemath.o
 motmod-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 TORTOBJS = $(foreach file,$($(patsubst %.o,%,$(1))-objs), objects/rt$(file))
-ifeq ($(BUILD_SYS),sim)
+ifeq ($(BUILD_SYS),uspace)
 EXTRA_CFLAGS += -fPIC -Os
 RTOBJS := $(sort $(foreach mod,$(obj-m),$(call TORTOBJS,$(mod))))
 
@@ -1012,18 +980,20 @@ modules: configs userspace $(patsubst %.o,../rtlib/%.so,$(obj-m))
 	@if ! $(IS_POWERPC); then objcopy -G __x86.get_pc_thunk.bx -G __i686.get_pc_thunk.bx `xargs -r0n1 echo -G < objects/$*.exp | grep -ve '^-G $$' | sort -u` objects/$*.tmp; fi
 	$(Q)$(CC) -shared -Bsymbolic $(LDFLAGS) -o $@ objects/$*.tmp -lm
 
+RTFLAGS += -fno-strict-aliasing -fwrapv
+
 # Rules to make .o (object) files
 $(sort $(RTOBJS)) : objects/rt%.o : %.c
 	$(ECHO) Compiling realtime $<
 	@rm -f $@
 	@mkdir -p $(dir $@)
-	$(Q)$(CC) -c $(OPT) $(DEBUG) $(EXTRA_DEBUG) -DSIM -DSIMULATOR -DRTAPI $(EXTRA_CFLAGS) \
+	$(Q)$(CC) -c $(OPT) $(DEBUG) $(EXTRA_DEBUG) -DRTAPI $(EXTRA_CFLAGS) \
 		-MP -MD -MF "${@:.o=.d}" -MT "$@" \
 		$< -o $@
 endif
 
 ifeq ($(BUILD_SYS),normal)
-modules: configs userspace $(patsubst %,../rtlib/%,$(obj-m))
+modules: $(patsubst %,../rtlib/%,$(obj-m))
 RTOBJS := $(sort $(foreach mod,$(obj-m),$(call TORTOBJS,$(mod))))
 RTDEPS := $(sort $(patsubst objects/%.o,depends/%.d, $(RTOBJS)))
 
@@ -1038,11 +1008,11 @@ $(sort $(RTOBJS)) : objects/rt%.o : %.c
 
 ../rtlib/%.o:
 	$(ECHO) Linking $@
-	$(Q)ld -r -static -S -Os $(LDFLAGS) -o $@ $^ $(EXTRALINK) $(MATHLIB)
+	$(Q)ld -r -static -S $(LDFLAGS) -o $@ $^ $(EXTRALINK) $(MATHLIB)
 endif
 
-ifneq "$(filter normal sim,$(BUILD_SYS))" ""
-ifneq "$(BUILD_SYS)" "sim"
+ifneq "$(filter normal uspace,$(BUILD_SYS))" ""
+ifneq "$(BUILD_SYS)" "uspace"
 ../rtlib/rtapi$(MODULE_EXT): $(addprefix objects/rt,$(rtapi-objs))
 endif
 ../rtlib/classicladder_rt$(MODULE_EXT): $(addprefix objects/rt,$(classicladder_rt-objs))
@@ -1094,12 +1064,22 @@ endif
 ../rtlib/pumakins$(MODULE_EXT): $(addprefix objects/rt,$(pumakins-objs))
 ../rtlib/scarakins$(MODULE_EXT): $(addprefix objects/rt,$(scarakins-objs))
 ../rtlib/hal_gm$(MODULE_EXT): $(addprefix objects/rt,$(hal_gm-objs))
+../rtlib/hostmot2$(MODULE_EXT): $(addprefix objects/rt,$(hostmot2-objs))
+../rtlib/hm2_test$(MODULE_EXT): $(addprefix objects/rt,$(hm2_test-objs))
+../rtlib/hm2_pci$(MODULE_EXT): $(addprefix objects/rt,$(hm2_pci-objs))
+../rtlib/hm2_7i43$(MODULE_EXT): $(addprefix objects/rt,$(hm2_7i43-objs))
+../rtlib/hm2_7i90$(MODULE_EXT): $(addprefix objects/rt,$(hm2_7i90-objs))
+../rtlib/setsserial$(MODULE_EXT): $(addprefix objects/rt,$(setsserial-objs))
+../rtlib/hal_parport$(MODULE_EXT): $(addprefix objects/rt,$(hal_parport-objs))
+../rtlib/hal_ppmc$(MODULE_EXT): $(addprefix objects/rt,$(hal_ppmc-objs))
+../rtlib/hm2_eth$(MODULE_EXT): $(addprefix objects/rt,$(hm2_eth-objs))
+../rtlib/hm2_spi$(MODULE_EXT): $(addprefix objects/rt,$(hm2_spi-objs))
 
 ifeq ($(TRIVIAL_BUILD),no)
 READ_RTDEPS = $(wildcard $(RTDEPS))
-$(shell echo 1>&2 Reading $(words $(READ_RTDEPS))/$(words $(RTDEPS)) realtime dependency files)
+$(shell $(VECHO) 1>&2 Reading $(words $(READ_RTDEPS))/$(words $(RTDEPS)) realtime dependency files)
 -include $(READ_RTDEPS)
-$(shell echo 1>&2 Done reading realtime dependencies)
+$(shell $(VECHO) 1>&2 Done reading realtime dependencies)
 endif
 endif
 
@@ -1160,3 +1140,4 @@ cscope:
 cscopeclean:
 	bash -c 'for f in `find ./ -name "cscope.*out"`;do rm $$f;done'
 # vim:ts=8:sts=8:sw=8:noet:
+

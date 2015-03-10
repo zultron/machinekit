@@ -54,6 +54,12 @@ int ini_hal_init_pins(void);
     FIELD(hal_float_t,traj_default_acceleration) \
     FIELD(hal_float_t,traj_max_acceleration) \
 \
+    FIELD(hal_bit_t,traj_arc_blend_enable) \
+    FIELD(hal_bit_t,traj_arc_blend_fallback_enable) \
+    FIELD(hal_s32_t,traj_arc_blend_optimization_depth) \
+    FIELD(hal_float_t,traj_arc_blend_gap_cycles) \
+    FIELD(hal_float_t,traj_arc_blend_ramp_freq) \
+\
     ARRAY(hal_float_t,backlash,EMCMOT_MAX_JOINTS) \
     ARRAY(hal_float_t,min_limit,EMCMOT_MAX_JOINTS) \
     ARRAY(hal_float_t,max_limit,EMCMOT_MAX_JOINTS) \
@@ -69,8 +75,8 @@ struct PTR {
 
 template<class T> struct NATIVE {};
 template<> struct NATIVE<hal_bit_t> { typedef bool type; };
-template<> struct NATIVE<hal_s32_t> { typedef __s32 type; };
-template<> struct NATIVE<hal_u32_t> { typedef __u32 type; };
+template<> struct NATIVE<hal_s32_t> { typedef rtapi_s32 type; };
+template<> struct NATIVE<hal_u32_t> { typedef rtapi_u32 type; };
 template<> struct NATIVE<hal_float_t> { typedef double type; };
 struct VALUE {
     template<class T> struct field { typedef typename NATIVE<T>::type type; };

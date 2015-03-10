@@ -57,11 +57,13 @@ as the 'L number', and so on for any other letter.
 |====================================================================
 |Code                               |Description
 |<<sec:G0,G0>>                      |Coordinated Straight Motion Rapid Rate
-|<<sec:G1,G1>>        |Coordinated Straight Motion Feed Rate
+|<<sec:G1,G1>>                      |Coordinated Straight Motion Feed Rate
 |<<sec:G2-G3-Arc,G2 G3>>            |Coordinated Helical Motion Feed Rate
 |<<sec:G4-Dwell,G4>>                |Dwell
-|<<sec:G5_1-B-spline,G5.1>>         |Quadratic B-Spline
-|<<sec:G5_2-G5_3-NURBs,G5.2 G5.3>>  |NURBs Block
+|<<sec:G5-Cubic-Spline,G5>>         |Cubic Spline
+|<<sec:G5_1-Quadratic-Spline,G5.1>> |Quadratic B-Spline
+|<<sec:G5_2-G5_3-NURBS,G5.2>>       |NURBS, add control point
+|<<sec:G5_2-G5_3-NURBS,G5.3>>       |NURBS, execute
 |<<sec:G7-Diameter-Mode,G7>>        |Diameter Mode (lathe)
 |<<sec:G8-Radius-Mode,G8>>          |Radius Mode (lathe)
 |<<sec:G10-L1_,G10 L1>>             |Set Tool Table Entry
@@ -81,6 +83,7 @@ as the 'L number', and so on for any other letter.
 |<<sec:G41_1-G42_1,G41.1 G42.1>>    |Dynamic Cutter Compensation
 |<<sec:G43,G43>>                    |Use Tool Length Offset from Tool Table
 |<<sec:G43_1,G43.1>>                |Dynamic Tool Length Offset
+|<<sec:G43_2,G43.2>>                |Apply additional Tool Length Offset
 |<<sec:G49-Tool,G49>>               |Cancel Tool Length Offset
 |<<sec:G53-Move-in,G53>>            |Motion in Machine Coordinate System
 |<<sec:G54-G59_3,G54-G59>>          |Select Coordinate System (1 - 6)
@@ -332,7 +335,7 @@ It is an error if:
 Deciphering the Error message 'Radius to end of arc differs from radius to start:'
 
 * 'start' - the current position
-* 'center' - the center position as calculated using the i,j or k words
+* 'center' - the center position as calculated using the i, j, or k words
 * 'end' - the programmed end point
 * 'r1' - radius from the start position to the center
 * 'r2' - radius from the end position to the center
@@ -381,27 +384,23 @@ G3 X0 Y0 I1 J-0.5 F25 (counterclockwise arc in the XY plane)
 
 image::images/g2-3.png[align="center"]
 
-.G2 Example Line
+In the next example we show how the arc can make a helix in the Z axis
+by adding the Z word.
+
+.G2 Example Helix
 [source,{ngc}]
 ----
 G0 X0 Y0 Z0
 G17 G2 X10 Y16 I3 J4 Z-1 (helix arc with Z added)
 ----
 
+In the next example we show how to make more than one turn using the P word.
+
 .P word Example
 ----
 G0 X0 Y0 Z0
 G2 X0 Y1 Z-1 I1 J0.5 P2 F25
 ----
-
-The above example line will make a clockwise (as viewed from the positive Z-axis)
-circular or helical arc whose axis is parallel to the Z-axis, ending
-where X=10, Y=16, and Z=9, with its center offset in the X direction by
-3 units from the current X location and offset in the Y direction by 4
-units from the current Y location. If the current location has X=7, Y=7
-at the outset, the center will be at X=10, Y=11. If the starting value
-of Z is 9, this is a circular arc; otherwise it is a helical arc. The
-radius of this arc would be 5.
 
 In the center format, the radius of the arc is not specified, but it
 may be found easily as the distance from the center of the circle to
@@ -475,75 +474,131 @@ It is an error if:
 
 * the P number is negative or not specified.
 
-[[sec:G5_1-B-spline]]
-== G5.1 Quadratic B-spline
-(((G5.1 Quadratic B-spline)))
+[[sec:G5-Cubic-Spline]]
+== G5 Cubic spline
+(((G5 Cubic spline)))
+
+----
+G5 X- Y- <I- J-> P- Q-
+----
+* 'I' - X incremental offset from start point to first control point
+* 'J' - Y incremental offset from start point to first control point
+* 'P' - X incremental offset from end point to second control point
+* 'Q' - Y incremental offset from end point to second control point
+
+G5 creates a cubic B-spline in the XY plane with the X and Y axes only.
+P and Q must both be specified for every G5 command.
+
+For the first G5 command in a series of G5 commands, I and J must both
+be specified.  For subsequent G5 commands, either both I and J must be
+specified, or neither.  If I and J are unspecified, the starting
+direction of this cubic will automatically match the ending direction of
+the previous cubic (as if I and J are the negation of the previous P and
+Q).
+
+For example, to program a curvy N shape:
+
+.G5 Sample initial cubic spline
+----
+G90 G17
+G0 X0 Y0
+G5 I0 J3 P0 Q-3 X1 Y1
+----
+
+A second curvy N that attaches smoothly to this one can now be made
+without specifying I and J:
+
+.G5 Sample subsequent cubic spline
+----
+G5 P0 Q-3 X2 Y2
+----
+
+It is an error if:
+
+* P and Q are not both specified
+* Just one of I or J are specified
+* I or J are unspecified in the first of a series of G5 commands
+* An axis other than X or Y is specified
+* The active plane is not G17
+
+[[sec:G5_1-Quadratic-Spline]]
+== G5.1 Quadratic spline
+(((G5.1 Quadratic spline)))
 
 ----
 G5.1 X- Y- I- J-
 ----
-* 'I' - X axis offset
-* 'J' - Y axis offset
+* 'I' - X incremental offset from start point to control point
+* 'J' - Y incremental offset from start point to control point
 
-G5.1 creates a quadratic B-spline in the XY plane with the X and Y axis only.
-The offsets are I for X axis and J for Y axis.
+G5.1 creates a quadratic B-spline in the XY plane with the X and Y axis
+only.  Not specifying I or J gives zero offset for the unspecified axis,
+so one or both must be given.
 
-// FIX ME add example code
+For example, to program a parabola, through the origin, from X-2 Y4 to X2 Y4:
+
+.G5.1 Sample quadratic spline
+----
+G90 G17
+G0 X-2 Y4
+G5.1 X2 I2 J-8
+----
 
 It is an error if:
 
-* I and J offset is not specified
+* both I and J offset are unspecified or zero
 * An axis other than X or Y is specified
 * The active plane is not G17
 
-[[sec:G5_2-G5_3-NURBs]]
-== G5.2 G5.3 NURBs Block
-(((G5.2 G5.3 NURBs Block)))
+[[sec:G5_2-G5_3-NURBS]]
+== G5.2 G5.3 NURBS Block
+(((G5.2 G5.3 NURBS Block)))
 
 ----
-G5.2 X- Y- P- <L->
-X- Y- P- <L->
+G5.2 <P-> <X- Y-> <L->
+X- Y- <P->
 ...
 G5.3
 ----
 
 Warning: G5.2, G5.3 is experimental and not fully tested.
 
-G5.2 is for opening the data block defining a NURBs and G5.3 for
+G5.2 is for opening the data block defining a NURBS and G5.3 for
 closing the data block. In the lines between these two codes the curve
 control points are defined with both their related 'weights' (P) and
-their parameter (L) which determines the order of the curve (k) and
-subsequently its degree (k-1).
+the parameter (L) which determines the order of the curve.
 
-Using this curve definition the knots of the NURBs curve are not
-defined by the user they are calculated by the inside algorithm, in the
-same way as it happens in a great number of graphic applications, where
-the curve shape can be modified only acting on either control points or
-weights.
+The current coordinate, before the first G5.2 command, is always taken
+as the first NURBS control point.  To set the weight for this first
+control point, first program G5.2 P- without giving any X Y.
+
+The default weight if P is unspecified is 1.  The default order if L is
+unspecified is 3.
 
 .G5.2 Example
 [source,{ngc}]
----------------
+----
 G0 X0 Y0 (rapid move)
 F10 (set feed rate)
-G5.2 X0 Y1 P1 L3
+G5.2 P1 L3
+     X0 Y1 P1
      X2 Y2 P1
      X2 Y0 P1
      X0 Y0 P2
 G5.3
-; The rapid moves show the same path without the NURBs Block
+; The rapid moves show the same path without the NURBS Block
 G0 X0 Y1
    X2 Y2
    X2 Y0
    X0 Y0
 M2
----------------
+----
 
-.Sample NURBs Output
+.Sample NURBS Output
 
 image:images/nurbs01.png[align="center"]
 
-More information on NURBs can be found here:
+More information on NURBS can be found here:
 
 http://wiki.linuxcnc.org/cgi-bin/wiki.pl?NURBS[http://wiki.linuxcnc.org/cgi-bin/wiki.pl?NURBS]
 
@@ -1172,7 +1227,7 @@ G43 <H->
 * 'H' - tool number (optional)
 
 G43 enables tool length compensation.  G43 changes subsequent motions
-by offsetting the Z and/or X coordinates by the length of the tool. G43
+by offsetting the axis coordinates by the length of the offset. G43
 does not cause any motion. The next time a compensated axis is moved,
 that axis's endpoint is the compensated location.
 
@@ -1232,6 +1287,38 @@ M2 (end program)
 It is an error if:
 
 * motion is commanded on the same line as 'G43.1'
+
+[[sec:G43_2]]
+== G43.2: Apply additional Tool Length Offset
+(((G43.2 Apply additional Tool Length Offset)))
+
+----
+G43.2 H-
+----
+* 'H' - tool number
+
+G43.2 applies an additional simultaneous tool offset.
+
+.G43.2 Example
+----
+G90 (set absolute mode)
+T1 M6 (load tool 1)
+G43 (or G43 H1 - replace all tool offsets with T1's offset)
+G43.2 H10 (also add in T10's tool offset)
+M2 (end program)
+----
+
+You can sum together an arbitrary number of offsets by calling G43.2
+more times.  There are no built-in assumptions about which numbers are geometry
+offsets and which are wear offsets, or that you should have only one of each.
+
+Like the other G43 commands, G43.2 does not cause any motion.  The next time a
+compensated axis is moved, that axis's endpoint is the compensated location.
+
+It is an error if:
+
+* 'H' is unspecified, or
+* the given tool number does not exist in the tool table
 
 [[sec:G49-Tool]]
 == G49: Cancel Tool Length Compensation
@@ -1352,9 +1439,8 @@ the naive cam algorithm for lines. Thus, line-arc, arc-arc, and
 arc-line cases as well as line-line benefit from the 'naive cam
 detector'. This improves contouring performance by simplifying the
 path. It is OK to program for the mode that is already active. See also
-the <<sec:Path-Control-Mode,Path Control Mode>> Section and 
-<<sec:trajectory-control,Trajectory Control>> Section for more
-information on these modes. 
+the <<sec:trajectory-control,Trajectory Control>> Section for more
+information on these modes.
 If Q is not specified then it will have the same behavior as before and
 use the value of P-.
 

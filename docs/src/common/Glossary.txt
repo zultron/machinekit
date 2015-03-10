@@ -25,6 +25,14 @@ Axis(GUI)::
     the only open-source interface that displays the entire tool path as
     soon as a file is opened.
 
+Gmoccapy (GUI)::
+     (((GUI))) A Graphical User Interfaces available to users of
+    LinuxCNC. It features the use and feel of an industrial comtrol and can
+    be used with touch screen, mouse and keyboard. It support embedded tabs and
+    hal driven user messages, it offers a lot of hal beens to be controled with 
+    hardware. Gmoccapy is highly cusomizable.
+
+
 Backlash::
      (((backlash)))[[glo:Backlash]] The amount of "play" or lost motion that
     occurs when direction is reversed in a lead screw. or other mechanical
@@ -298,7 +306,7 @@ RTLINUX::
 
 RTAPI::
      (((RTAPI)))A portable interface to real-time operating systems
-    including RTAI and RTLINUX
+    including RTAI and POSIX pthreads with realtime extensions.
 
 RS-274/NGC::
      (((RS274NGC)))[[glo:RS274NGC]] The formal name for the language

@@ -263,7 +263,7 @@ void rtapi_print(const char *fmt, ...)
     va_end(args);
 }
 
-void rtapi_print_msg(int level, const char *fmt, ...)
+void rtapi_print_msg(msg_level_t level, const char *fmt, ...)
 {
     va_list args;
 
@@ -849,3 +849,6 @@ unsigned char rtapi_inb(unsigned int port)
 {
     return inb(port);
 }
+
+int rtapi_is_realtime() { return 1; }
+int rtapi_is_kernelspace() { return 1; }

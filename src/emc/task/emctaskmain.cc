@@ -106,10 +106,6 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 static int emcTaskEchoLineToIo(NMLmsg * cmd);
 #endif
 
-// command line args-- global so that other modules can access 
-int Argc;
-char **Argv;
-
 // NML channels
 static RCS_CMD_CHANNEL *emcCommandBuffer = 0;
 static RCS_STAT_CHANNEL *emcStatusBuffer = 0;
@@ -403,6 +399,7 @@ static EMC_AXIS_LOAD_COMP *axis_load_comp_msg;
 //static EMC_AXIS_SET_STEP_PARAMS *set_step_params_msg;
 
 static EMC_TRAJ_SET_SCALE *emcTrajSetScaleMsg;
+static EMC_TRAJ_SET_RAPID_SCALE *emcTrajSetRapidScaleMsg;
 static EMC_TRAJ_SET_MAX_VELOCITY *emcTrajSetMaxVelocityMsg;
 static EMC_TRAJ_SET_SPINDLE_SCALE *emcTrajSetSpindleScaleMsg;
 static EMC_TRAJ_SET_VELOCITY *emcTrajSetVelocityMsg;
@@ -859,6 +856,7 @@ static int emcTaskPlan(void)
 	    case EMC_AXIS_LOAD_COMP_TYPE:
 	    case EMC_AXIS_UNHOME_TYPE:
 	    case EMC_TRAJ_SET_SCALE_TYPE:
+	    case EMC_TRAJ_SET_RAPID_SCALE_TYPE:
 	    case EMC_TRAJ_SET_MAX_VELOCITY_TYPE:
 	    case EMC_TRAJ_SET_SPINDLE_SCALE_TYPE:
 	    case EMC_TRAJ_SET_FO_ENABLE_TYPE:
@@ -964,6 +962,7 @@ static int emcTaskPlan(void)
 	    case EMC_TRAJ_RESUME_TYPE:
 	    case EMC_TRAJ_ABORT_TYPE:
 	    case EMC_TRAJ_SET_SCALE_TYPE:
+	    case EMC_TRAJ_SET_RAPID_SCALE_TYPE:
 	    case EMC_TRAJ_SET_MAX_VELOCITY_TYPE:
 	    case EMC_TRAJ_SET_SPINDLE_SCALE_TYPE:
 	    case EMC_TRAJ_SET_FO_ENABLE_TYPE:
@@ -1065,6 +1064,7 @@ static int emcTaskPlan(void)
 		case EMC_TRAJ_RESUME_TYPE:
 		case EMC_TRAJ_ABORT_TYPE:
 		case EMC_TRAJ_SET_SCALE_TYPE:
+		case EMC_TRAJ_SET_RAPID_SCALE_TYPE:
 		case EMC_TRAJ_SET_MAX_VELOCITY_TYPE:
 		case EMC_TRAJ_SET_SPINDLE_SCALE_TYPE:
 		case EMC_TRAJ_SET_FO_ENABLE_TYPE:
@@ -1164,6 +1164,7 @@ static int emcTaskPlan(void)
 		case EMC_TRAJ_RESUME_TYPE:
 		case EMC_TRAJ_ABORT_TYPE:
 		case EMC_TRAJ_SET_SCALE_TYPE:
+		case EMC_TRAJ_SET_RAPID_SCALE_TYPE:
                 case EMC_TRAJ_SET_MAX_VELOCITY_TYPE:
 		case EMC_TRAJ_SET_SPINDLE_SCALE_TYPE:
 		case EMC_TRAJ_SET_FO_ENABLE_TYPE:
@@ -1239,6 +1240,7 @@ static int emcTaskPlan(void)
 		case EMC_TRAJ_RESUME_TYPE:
 		case EMC_TRAJ_ABORT_TYPE:
 		case EMC_TRAJ_SET_SCALE_TYPE:
+		case EMC_TRAJ_SET_RAPID_SCALE_TYPE:
 		case EMC_TRAJ_SET_MAX_VELOCITY_TYPE:
 		case EMC_TRAJ_SET_SPINDLE_SCALE_TYPE:
 		case EMC_TRAJ_SET_FO_ENABLE_TYPE:
@@ -1322,6 +1324,7 @@ static int emcTaskPlan(void)
 		case EMC_TRAJ_RESUME_TYPE:
 		case EMC_TRAJ_ABORT_TYPE:
 		case EMC_TRAJ_SET_SCALE_TYPE:
+		case EMC_TRAJ_SET_RAPID_SCALE_TYPE:
 		case EMC_TRAJ_SET_MAX_VELOCITY_TYPE:
 		case EMC_TRAJ_SET_SPINDLE_SCALE_TYPE:
 		case EMC_TRAJ_SET_FO_ENABLE_TYPE:
@@ -1409,6 +1412,7 @@ static int emcTaskPlan(void)
 	    case EMC_AXIS_SET_MIN_FERROR_TYPE:
 	    case EMC_AXIS_UNHOME_TYPE:
 	    case EMC_TRAJ_SET_SCALE_TYPE:
+	    case EMC_TRAJ_SET_RAPID_SCALE_TYPE:
 	    case EMC_TRAJ_SET_MAX_VELOCITY_TYPE:
 	    case EMC_TRAJ_SET_SPINDLE_SCALE_TYPE:
 	    case EMC_TRAJ_SET_FO_ENABLE_TYPE:
@@ -1866,6 +1870,11 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TRAJ_SET_SCALE_TYPE:
 	emcTrajSetScaleMsg = (EMC_TRAJ_SET_SCALE *) cmd;
 	retval = emcTrajSetScale(emcTrajSetScaleMsg->scale);
+	break;
+
+    case EMC_TRAJ_SET_RAPID_SCALE_TYPE:
+	emcTrajSetRapidScaleMsg = (EMC_TRAJ_SET_RAPID_SCALE *) cmd;
+	retval = emcTrajSetRapidScale(emcTrajSetRapidScaleMsg->scale);
 	break;
 
     case EMC_TRAJ_SET_MAX_VELOCITY_TYPE:
@@ -3438,10 +3447,6 @@ int main(int argc, char *argv[])
     setlocale(LC_CTYPE,"");
     textdomain("linuxcnc");
 
-    // copy command line args
-    Argc = argc;
-    Argv = argv;
-
     // loop until done
     done = 0;
     // trap ^C
@@ -3542,7 +3547,7 @@ int main(int argc, char *argv[])
     while (!done) {
         check_ini_hal_items();
 	// read command
-	if (0 != emcCommandBuffer->peek()) {
+	if (0 != emcCommandBuffer->read()) {
 	    // got a new command, so clear out errors
 	    taskPlanError = 0;
 	    taskExecuteError = 0;
@@ -3691,6 +3696,7 @@ int main(int argc, char *argv[])
 		   emcStatus->task.execState == EMC_TASK_EXEC_DONE &&
 		   emcStatus->motion.status == RCS_DONE &&
 		   emcStatus->io.status == RCS_DONE &&
+		   mdi_execute_queue.len() == 0 &&
 		   interp_list.len() == 0 &&
 		   emcTaskCommand == 0 &&
 		   emcStatus->task.interpState == EMC_TASK_INTERP_IDLE) {

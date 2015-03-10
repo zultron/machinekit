@@ -1,4 +1,4 @@
-#!/usr/bin/python2.4
+#!/usr/bin/python
 
 #    Gscreen a GUI for linuxcnc cnc controller 
 #    Chris Morley copyright 2012
@@ -1154,45 +1154,59 @@ class Gscreen:
     def on_keycall_ABORT(self,state,SHIFT,CNTRL,ALT):
         if state: # only activate when pushed not when released
             self.widgets.hal_action_stop.emit("activate")
+            return True
     def on_keycall_ESTOP(self,state,SHIFT,CNTRL,ALT):
         if state:
             self.widgets.button_estop.emit('clicked')
+            return True
     def on_keycall_POWER(self,state,SHIFT,CNTRL,ALT):
         if state:
             self.widgets.button_machine_on.emit('clicked')
+            return True
     def on_keycall_XPOS(self,state,SHIFT,CNTRL,ALT):
         if self.data._MAN in self.check_mode(): # manual mode required
             self.do_key_jog(_X,1,state)
+            return True
     def on_keycall_XNEG(self,state,SHIFT,CNTRL,ALT):
         if self.data._MAN in self.check_mode(): # manual mode required
             self.do_key_jog(_X,0,state)
+            return True
     def on_keycall_YPOS(self,state,SHIFT,CNTRL,ALT):
         if self.data._MAN in self.check_mode(): # manual mode required
             self.do_key_jog(_Y,1,state)
+            return True
     def on_keycall_YNEG(self,state,SHIFT,CNTRL,ALT):
         if self.data._MAN in self.check_mode(): # manual mode required
             self.do_key_jog(_Y,0,state)
+            return True
     def on_keycall_ZPOS(self,state,SHIFT,CNTRL,ALT):
         if self.data._MAN in self.check_mode(): # manual mode required
             self.do_key_jog(_Z,1,state)
+            return True
     def on_keycall_ZNEG(self,state,SHIFT,CNTRL,ALT):
         if self.data._MAN in self.check_mode(): # manual mode required
             self.do_key_jog(_Z,0,state)
+            return True
     def on_keycall_APOS(self,state,SHIFT,CNTRL,ALT):
         if self.data._MAN in self.check_mode(): # manual mode required
             self.do_key_jog(_A,1,state)
+            return True
     def on_keycall_ANEG(self,state,SHIFT,CNTRL,ALT):
         if self.data._MAN in self.check_mode(): # manual mode required
             self.do_key_jog(_A,0,state)
+            return True
     def on_keycall_INCREMENTS(self,state,SHIFT,CNTRL,ALT):
-        if state: 
+        if state and self.data._MAN in self.check_mode(): # manual mode required
             if SHIFT:
                 self.set_jog_increments(index_dir = -1)
             else:
                 self.set_jog_increments(index_dir = 1)
+            return True
+
     def on_keycall_(self,state,SHIFT,CNTRL,ALT):
         if self.data._MAN in self.check_mode(): # manual mode required
             pass
+            return True
 
     def on_button_spindle_controls_clicked(self,widget):
         self.spindle_dialog()
@@ -1202,10 +1216,17 @@ class Gscreen:
         print self.data.angular_jog_adjustment_flag
 
     def search_fwd(self,widget):
-        self.widgets.gcode_view.text_search(direction=True,text=self.widgets.search_entry.get_text())
+        self.widgets.gcode_view.text_search(direction=True,mixed_case=self.widgets.ignorecase_checkbutton.get_active(),
+                                text=self.widgets.search_entry.get_text())
 
     def search_bwd(self,widget):
-        self.widgets.gcode_view.text_search(direction=False,text=self.widgets.search_entry.get_text())
+        self.widgets.gcode_view.text_search(direction=False,mixed_case=self.widgets.ignorecase_checkbutton.get_active(),
+                                text=self.widgets.search_entry.get_text())
+
+    def replace_text(self,widget):
+        self.widgets.gcode_view.replace_text_search(direction=True,mixed_case=self.widgets.ignorecase_checkbutton.get_active(),
+                                text=self.widgets.search_entry.get_text(),re_text=self.widgets.search_entry1.get_text(),
+                                replace_all=self.widgets.replaceall_checkbutton.get_active())
 
     def undo_edit(self,widget):
         self.widgets.gcode_view.undo()
@@ -1237,11 +1258,10 @@ class Gscreen:
             method = self.keylookup.convert(keyname)
             if method:
                 try:
-                    self.handler_instance[method](state,SHIFT,CNTRL,ALT)
-                    return True
+                    return self.handler_instance[method](state,SHIFT,CNTRL,ALT)
                 except:
-                    self[method](state,SHIFT,CNTRL,ALT) 
-                    return True                             
+                    self.show_try_errors()
+                    return self[method](state,SHIFT,CNTRL,ALT) 
         except:
             self.show_try_errors()
 
@@ -2193,6 +2213,7 @@ class Gscreen:
 
                         ["","button_search_fwd","clicked", "search_fwd"],
                         ["","button_search_bwd","clicked", "search_bwd"],
+                        ["","button_replace_text","clicked", "replace_text"],
                         ["","button_undo","clicked", "undo_edit"],
                         ["","button_redo","clicked", "redo_edit"],]
 

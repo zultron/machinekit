@@ -170,7 +170,6 @@ it is within 0.0001 of an integer.
 
 [[sec:parameters]]
 == Parameters
-(Variables)
 (((Parameters)))
 
 The RS274/NGC language supports 'parameters' - what in other
@@ -179,7 +178,7 @@ types of parameter of different purpose and appearance, each described
 in the following sections. The only value type supported by parameters
 is floating-point; there are no string, boolean or integer types in
 G-code like in other programming languages. However, logic expressions
-can be formulated with <<sub:Binary-Operators,boolean operators>>
+can be formulated with <<sec:Binary-Operators,boolean operators>>
 ( 'AND', 'OR', 'XOR', and the comparison operators
 'EQ','NE','GT','GE','LT','LE'), and the 'MOD', 'ROUND', 'FUP' and
 'FIX' <<cap:Functions,operators>> support integer arithmetic.
@@ -347,8 +346,9 @@ example '##2'  means the value of the parameter whose index is the
     Tool Orientation. Volatile.
 
 5420-5428::
-     Current Position including all offsets and in the current program
-    units for X, Y, Z, A, B, C, U, V & W, volatile.
+    Current relative position in the active coordinate system including all
+    offsets and in the current program units for X, Y, Z, A, B, C, U, V & W,
+    volatile.
 
 5599::
    flag for controlling the output of (DEBUG,) statements.
@@ -593,31 +593,31 @@ parameters>> can be added easily without changes to the source code.
     Return the current spindle speed (S).
 
 * `#<_x>` -
-    Return current machine X coordinate. Same as #5420.
+    Return current X coordinate. Same as #5420.
 
 * `#<_y>` -
-    Return current machine Y coordinate. Same as #5421.
+    Return current Y coordinate. Same as #5421.
 
 * `#<_z>` -
-    Return current machine Z coordinate. Same as #5422.
+    Return current Z coordinate. Same as #5422.
 
 * `#<_a>` -
-    Return current machine A coordinate. Same as #5423.
+    Return current A coordinate. Same as #5423.
 
 * `#<_b>` -
-    Return current machine B coordinate. Same as #5424.
+    Return current B coordinate. Same as #5424.
 
 * `#<_c>` -
-    Return current machine C coordinate. Same as #5425.
+    Return current C coordinate. Same as #5425.
 
 * `#<_u>` -
-    Return current machine U coordinate. Same as #5426.
+    Return current U coordinate. Same as #5426.
 
 * `#<_v>` -
-    Return current machine V coordinate. Same as #5427.
+    Return current V coordinate. Same as #5427.
 
 * `#<_w>` -
-    Return current machine W coordinate. Same as #5428.
+    Return current W coordinate. Same as #5428.
 
 * `#<_current_tool>` -
     Return number of the current tool in spindle. Same as #5400.
@@ -635,8 +635,7 @@ parameters>> can be added easily without changes to the source code.
 * `#<_value>` -  [[param:_value]]
     Return value from the last O-word `return` or `endsub`.  Default
     value 0 if no expression after `return` or `endsub`.  Initialized
-    to 0 on program start.  See also
-    <<sec:Subroutine-return-values,Subroutine return values>>.
+    to 0 on program start.
 
 * `#<_value_returned>` -
     1.0 if the last O-word `return` or `endsub` returned a value, 0
@@ -682,7 +681,7 @@ on the left of the operation to the power on
 strictly less than ('LT'), and less than or equal to ('LE').
 
 The binary operations are divided into several groups according to
-their precedence. (see table  <<cap:Operator-Precedence>>) If
+their precedence. (see table  <<cap:Operator-Precedence,Operator-Precedence>>) If
 operations in different precedence groups are strung together (for
 example in the expression '[2.0 / 3 * 1.5 - 5.5 / 11.0]'), operations
 in a higher group are to be performed before operations
@@ -724,7 +723,7 @@ A function is either 'ATAN' followed by one expression divided by
 another expression (for
  example 'ATAN[2]/[1+3]') or any other function name followed by an
 expression (for example 'SIN[90]'). The available functions are
-shown in table  <<cap:Functions>>.
+shown in table  <<cap:Functions,Functions>>.
  Arguments to unary operations which take angle measures ('COS', 'SIN',
 and 'TAN' ) are in degrees. Values returned by unary operations which
 return
@@ -1242,7 +1241,7 @@ Interpreter. The Interpreter reads the file when it starts up, and
 writes the file when it exits.
 
 The format of a parameter file is shown in Table
-<<cap:format-parameter-file,Parameter File Format>>. 
+<<sec:format-parameter-file,Parameter File Format>>. 
 
 The Interpreter expects the file to have two columns. It skips any
 lines which do not contain exactly two numeric values. The first
@@ -1266,7 +1265,7 @@ ascending order.
 The original file is saved as a backup file when the new file
 is written. 
 
-.Parameter File Format[[format-parameter-file]]
+.Parameter File Format[[sec:format-parameter-file]]
 
 [width="90%", options="header"]
 |========================================

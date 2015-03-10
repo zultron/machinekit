@@ -51,6 +51,11 @@ tr.head td, tr.head th { background: navy; color: white; }
 <TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G0">G0</A> <TD> <TD> Interpolation lin&eacute;aire en vitesse rapide </TR>
 <TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G1">G1</A> <TD> <TD> Interpolation lin&eacute;aire en vitesse programm&eacute;e </TR>
 <TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G2-G3">G2</A>, <A HREF="gcode/gcode_fr.html#sec:G2-G3">G3</A> <TD> I J K ou R, P <TD> Interpolation circulaire ("ou h&eacute;lico&iuml;dale") sens horaire, sens anti-horaire </TR>
+<TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G4-Tempo">G4</A> <TD> P <TD> Temporisation (secondes) </TR>
+<TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G5-Cubic-Spline">G5</A> <TD> I J P Q <TD> Spline cubique </TR>
+<TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G5_1-Quadratic-Spline">G5.1</A> <TD> I J <TD> B-spline quadratique </TR>
+<TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G5_2-G5_3-NURBS">G5.2</A> <TD> P L <TD> NURBS, ajout point de contr&ocirc;le </TR>
+<TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G5_2-G5_3-NURBS">G5.3</A> <TD> <TD> NURBS, Ex&eacute;cute </TR>
 <TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G38-x-Palpeur">G38.2&hellip;G38.5</A> <TD> <TD> Mesure au palpeur </TR>
 <TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G80-Revocation-modaux">G80</A> <TD> <TD> R&eacute;vocation des codes modaux </TR>
 <TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G81-Cycle-de-percage">G81</A> <TD> R L P <TD> Cycle de per&ccedil;age </TR>
@@ -72,6 +77,7 @@ tr.head td, tr.head th { background: navy; color: white; }
 <TR> <TH COLSPAN=3>Contr&ocirc;le de broche </TR>
 <TR> <TD> <A HREF="gcode/m-code_fr.html#sec:M3-M4-M5">M3, M4</A> <TD> S <TD> Marche broche sens horaire, sens anti-horaire </TR>
 <TR> <TD> <A HREF="gcode/m-code_fr.html#sec:M3-M4-M5">M5</A> <TD> <TD> Arr&ecirc;t de la broche </TR>
+<TR> <TD> <A HREF="gcode/m-code_fr.html#sec:M19">M19</A> <TD> <TD> Orientation de la broche </TR>
 <TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G96-G97-Broche">G96</A> <TD> D S <TD> Vitesse de coupe constante (pieds par minute ou m&egrave;tres par minute) </TR>
 <TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G96-G97-Broche">G97</A> <TD> <TD> Vitesse en tours par minute </TR>
 <TR> <TH COLSPAN=3>Arrosages </TR>
@@ -123,6 +129,10 @@ tr.head td, tr.head th { background: navy; color: white; }
 <TR> <TD> <A HREF="gcode/o-code_fr.html#sec:Boucles">O- while</A> <TD> <TD>Boucles, while/endwhile do/while</TR>
 <TR> <TD> <A HREF="gcode/o-code_fr.html#sec:Conditionnels">O- if</A> <TD> <TD>Conditionnels, if/else/endif</TR>
 <TR> <TD> <A HREF="gcode/o-code_fr.html#sec:Repetitions">O- repeat</A> <TD> <TD>R&eacute;p&egrave;te n fois l'ex&eacute;cution de blocs de code</TR>
+<TR> <TD> <A HREF="gcode/m-code_fr.html#_m70_save_modal_state_a_id_sec_m70_save_modal_state_a">M70</A> <TD> <TD>Enregistre l'&eacute;tat modal</TR>
+<TR> <TD> <A HREF="gcode/m-code_fr.html#_m71_invalidate_stored_modal_state_a_id_sec_m71_invalidate_stored_modal_state_a">M71</A> <TD> <TD>Invalide l'&eacute;tat modal enregistr&eacute;</TR>
+<TR> <TD> <A HREF="gcode/m-code_fr.html#_m72_restore_modal_state_a_id_sec_m72_restore_modal_state_a">M72</A> <TD> <TD>Restaure l'&eacute;tat modal enregistr&eacute;</TR>
+<TR> <TD> <A HREF="gcode/m-code_fr.html#_m73_save_and_autorestore_modal_state_a_id_sec_m73_save_autorestore_modal_state_a">M73</A> <TD> <TD>Enregistre et auto-restaure l'&eacute;tat modal</TR>
 <TR> <TH COLSPAN=3>Codes d'entr&eacute;e/sortie </TR>
 <TR> <TD> <A HREF="gcode/m-code_fr.html#sec:M62-a-M65-Ctrl-Sortie-Numerique">M62&hellip;M65</A> <TD> P <TD> Contr&ocirc;le de sortie num&eacute;rique </TR>
 <TR> <TD> <A HREF="gcode/m-code_fr.html#sec:M66-Ctrl-Entree-Numerique-Et-Analogique">M66</A> <TD> P E L Q <TD> Contr&ocirc;le d'entr&eacute;e num&eacute;rique et analogique </TR>
@@ -132,7 +142,7 @@ tr.head td, tr.head th { background: navy; color: white; }
 <TR> <TH COLSPAN=3>Codes non modaux </TR>
 <TR> <TD> <A HREF="gcode/m-code_fr.html#sec:M6-Appel-Outil">M6</A> <TD> T <TD> Appel d'outil </TR>
 <TR> <TD> <A HREF="gcode/m-code_fr.html#sec:M61-Correction-Numero-Outil-Courant">M61</A> <TD> Q <TD> Fixe le num&eacute;ro de l'outil courant </TR>
-<TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G4-Tempo">G4</A> <TD> P <TD> Temporisation (secondes) </TR>
+
 <TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G10-L1">G10 L1</A> <TD> P Q R X W Z <TD> Entr&eacute;e longueur, rayon, orientation de l'outil dans la table d'outils</TR>
 <TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G10-L10">G10 L10</A> <TD> P <em>axes</em> <TD> Modifie les offsets d'outil dans la table d'outils, selon les coordonn&eacute;es pi&egrave;ce</TR>
 <TR> <TD> <A HREF="gcode/gcode_fr.html#sec:G10-L11">G10 L11</A> <TD> P <em>axes</em> <TD> Modifie les offsets d'outil dans la table d'outils, selon les coordonn&eacute;es du porte-pi&egrave;ce</TR>

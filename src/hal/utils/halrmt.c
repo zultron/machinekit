@@ -1131,7 +1131,7 @@ static int doLoadRt(char *mod_name, char *args[], connectionRecType *context)
     char *cp1;
     const char *nakStr = "SET LOADRT NAK";
 
-#if defined(RTAPI_SIM)
+#if defined(RTAPI_USPACE)
 #if 0
     argv[m++] = "-Wn";
     argv[m++] = mod_name;
@@ -2835,7 +2835,7 @@ static cmdResponseType setLoadRt(char *s, connectionRecType *context)
     pch = strtok(NULL, delims);
     i++;
     } 
-  args[i] = '\0';
+  args[i] = NULL;
   if (doLoadRt(s, args, context) == 0)
     return rtNoError;
   else

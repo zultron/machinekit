@@ -104,6 +104,8 @@ RTAPI_BEGIN_DECLS
 /* SHMCHK(ptr) verifies that a pointer actually points to a
    location that is part of the HAL shared memory block. */
 
+/* offset 0 is reserved for a null-ish pointer, so SHMCHK(hal_shmem_base) is
+   false by design */
 #define SHMCHK(ptr)  ( ((char *)(ptr)) > (hal_shmem_base) && \
                        ((char *)(ptr)) < (hal_shmem_base + HAL_SIZE) )
 
@@ -275,8 +277,9 @@ typedef struct {
     int users;			/* number of threads using function */
     void *arg;			/* argument for function */
     void (*funct) (void *, long);	/* ptr to function code */
-    hal_s32_t runtime;		/* duration of last run, in nsec */
-    hal_s32_t maxtime;		/* duration of longest run, in nsec */
+    hal_s32_t* runtime;	/* (pin) duration of last run, in nsec */
+    hal_s32_t maxtime;	/* (param) duration of longest run, in nsec */
+    hal_bit_t maxtime_increased;	/* on last call, maxtime increased */
     char name[HAL_NAME_LEN + 1];	/* function name */
 } hal_funct_t;
 
@@ -324,8 +327,8 @@ typedef struct {
 */
 
 #define HAL_KEY   0x48414C32	/* key used to open HAL shared memory */
-#define HAL_VER   0x0000000C	/* version code */
-#define HAL_SIZE  262000
+#define HAL_VER   0x0000000D	/* version code */
+#define HAL_SIZE  (75*4096)
 
 /* These pointers are set by hal_init() to point to the shmem block
    and to the master data structure. All access should use these

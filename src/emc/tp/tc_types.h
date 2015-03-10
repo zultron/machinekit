@@ -21,6 +21,7 @@
 #include "emcmotcfg.h"
 #include "state_tag.h"
 
+#define BLEND_DIST_FRACTION 0.5
 /* values for endFlag */
 typedef enum {
     TC_TERM_COND_STOP = 0,
@@ -127,6 +128,7 @@ typedef struct {
 
     //Acceleration
     double maxaccel;        // accel calc'd by task
+    double acc_ratio_tan;// ratio between normal and tangential accel
     
     int id;                 // segment's serial number
     struct state_tag_t tag; /* state tag corresponding to running motion */
@@ -169,6 +171,9 @@ typedef struct {
                             * after this will it take to slow to zero
                             * speed) */
     int finalized;
+
+    // Temporary status flags (reset each cycle)
+    int is_blending;
 } TC_STRUCT;
 
 #endif				/* TC_TYPES_H */

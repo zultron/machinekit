@@ -132,7 +132,7 @@ RTAPI_BEGIN_DECLS
 
 #include <rtapi_errno.h>
 
-#define HAL_NAME_LEN     41	/* length for pin, signal, etc, names */
+#define HAL_NAME_LEN     47	/* length for pin, signal, etc, names */
 
 /** These locking codes define the state of HAL locking, are used by most functions */
 /** The functions locked will return a -EPERM error message **/
@@ -233,6 +233,14 @@ extern char* hal_comp_name(int comp_id);
 *                     DATA RELATED TYPEDEFS                            *
 ************************************************************************/
 
+/* The hal enums are arranged as distinct powers-of-two, so
+   that accidental confusion of one type with another (which ought
+   to be diagnosed by the type system) can be diagnosed as unexpected
+   values.  Note how HAL_RW is an exception to the powers-of-two rule,
+   as it is the bitwise OR of HAL_RO and the (nonexistent and nonsensical)
+   HAL_WO param direction.
+ */
+
 /** HAL pins and signals are typed, and the HAL only allows pins
     to be attached to signals of the same type.
     All HAL types can be read or written atomically.  (Read-modify-
@@ -274,22 +282,18 @@ typedef enum {
 
 typedef enum {
     HAL_RO = 64,
-    HAL_RW = 192,
+    HAL_RW = HAL_RO | 128 /* HAL_WO */,
 } hal_param_dir_t;
 
 /* Use these for x86 machines, and anything else that can write to
    individual bytes in a machine word. */
-#include <linux/types.h>
-#ifdef __cplusplus
-typedef bool hal_bool;
-#else
-typedef _Bool hal_bool;
-#endif
-typedef volatile hal_bool hal_bit_t;
-typedef volatile __u32 hal_u32_t;
-typedef volatile __s32 hal_s32_t;
+#include <rtapi_bool.h>
+#include <rtapi_stdint.h>
+typedef volatile bool hal_bit_t;
+typedef volatile rtapi_u32 hal_u32_t;
+typedef volatile rtapi_s32 hal_s32_t;
 typedef double real_t __attribute__((aligned(8)));
-typedef __u64 ireal_t __attribute__((aligned(8))); // integral type as wide as real_t / hal_float_t
+typedef rtapi_u64 ireal_t __attribute__((aligned(8))); // integral type as wide as real_t / hal_float_t
 #define hal_float_t volatile real_t
 
 /***********************************************************************

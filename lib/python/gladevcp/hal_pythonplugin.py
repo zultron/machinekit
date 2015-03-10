@@ -1,3 +1,4 @@
+from hal_widgets import HAL_HideTable
 from hal_widgets import HAL_HBox
 from hal_widgets import HAL_Table
 from hal_widgets import HAL_ComboBox
@@ -8,6 +9,7 @@ from hal_widgets import HAL_ProgressBar
 from hal_widgets import HAL_CheckButton
 from hal_widgets import HAL_VScale
 from hal_widgets import HAL_HScale
+from hal_widgets import HALIO_HScale
 from hal_widgets import HAL_SpinButton
 from hal_widgets import HAL_Label
 
@@ -25,6 +27,7 @@ from hal_gremlin import HAL_Gremlin
 from hal_graph import HAL_Graph
 
 from jogwheel import JogWheel
+from hal_dial import Hal_Dial
 
 from hal_actions import *
 from hal_filechooser import *

@@ -223,7 +223,15 @@ proc ::tp::addf_substitute {args} {
 
 proc ::tp::hide_cmds {} {
   set ::TP(cmds) [hal --commands]
-  set ::TP(nochange,cmds) {addf loadrt loadusr source}
+
+  # nochange,cmds:
+  #   addf, loadrt, loadusr:  substituted directly herein
+  #   list, gets: needed when procedure source_the_files sources
+  #
+  #   Note: 'list' and 'gets' are also conflictwords
+  #   and substituted in procedure hal_to_tcl when converting
+  #   a hal file to a temporary tcl file
+  set ::TP(nochange,cmds) {addf loadrt loadusr source list gets}
 
   rename loadusr            orig_loadusr
   rename loadusr_substitute loadusr
@@ -272,11 +280,55 @@ proc ::tp::pass0 {} {
 proc ::tp::prep_the_files {} {
   set passno [passnumber]
   if {$passno == 0} {
-    # first convert if necessary
-    foreach f $::HAL(HALFILE) {
+    # find file by search rules
+    set libtag "LIB:"
+    foreach file_plus_args $::HAL(HALFILE) {
+      set f [lindex $file_plus_args 0]          ;# the file
+      set f_argv [lrange $file_plus_args 1 end] ;# possibly has args
+      set foundmsg ""
+      # test for LIB:filename
+      if {[string first "LIB:" $f] == 0} {
+         set explicit_file_in_hallib \
+            [string range $f [string len $libtag] end]
+         if {"$explicit_file_in_hallib" == ""} {
+           puts "twopass:ILLFORMED LIB:file:<$f>"
+         }
+         set explicit_file_in_hallib \
+            [file join $::env(HALLIB_DIR) $explicit_file_in_hallib]
+         if [file readable $explicit_file_in_hallib] {
+           set foundfile $explicit_file_in_hallib
+           set foundmsg "Found LIB file:$explicit_file_in_hallib"
+         }
+      } else {
+        foreach pathdir [split $::env(HALLIB_PATH) :] {
+          set foundfile [file join $pathdir $f]
+          if [file readable $foundfile] {
+             set foundmsg "Found file:$foundfile"
+             break
+          }
+        }
+      }
+      if [file isdirectory $foundfile] {set foundmsg ""}
+      if {"$foundmsg" == ""} {
+        puts "twopass:CANNOT FIND FILE FOR:$f"
+        if [info exists ::env(PRINT_FILE)] {
+           set fd [open $::env(PRINT_FILE) a]
+           puts $fd "twopass:CANNOT FIND FILE FOR:$f"
+           close $fd
+        }
+        exit 1
+      }
+      puts "twopass:$foundmsg"
+      set f $foundfile
+
+      # convert to a temporary tcl file if necessary
       set suffix [filesuffix $f]
       switch -exact $suffix {
-        tcl {lappend ::TP(runfiles) $f
+        tcl {
+             if {[llength $f_argv]} {
+               set f "$f $f_argv" ;# optional args
+             }
+             lappend ::TP(runfiles) $f
              verbose "tclfile: $f"
             }
         hal {set ::TP($f,tmp) /tmp/[file tail $f].tmp
@@ -286,7 +338,7 @@ proc ::tp::prep_the_files {} {
              set ::TP(origfile,$::TP($f,tmp)) $f
         }
         default {return -code error \
-                "source_the_files:unknown file type <$suffix>"}
+                "prep_the_files:unknown file type <$suffix>"}
       }
     }
   }
@@ -326,9 +378,11 @@ proc ::tp::hal_to_tcl {ifile ofile} {
       if {   ([string first "$suspect "  $line] == 0)
           || ([string first " $suspect " $line] >= 0)
         } {
-         puts "hal_to_tcl:WARNING in file $ifile, line $lno: \"$suspect\"\
-              conflicts with tcl usage"
+         puts "hal_to_tcl:NOTE: in file $ifile, line $lno: \"$suspect\"\
+         conflicts with haltcl usage,\nprepended with 'hal' for compatibility"
          puts "$lno:<$theline>"
+         # prepend hal command to convert conflictword:
+         set line "# hal_to_tcl prepended hal:\nhal $line"
       }
     }
     set idx 0
@@ -373,15 +427,41 @@ proc ::tp::hal_to_tcl {ifile ofile} {
   return $ofile
 } ;# hal_to_tcl
 
+proc ::tp::parse_ini {filename} {
+  # adapted from haltcl.in
+  set f [open $filename]
+  while {[gets $f line] >= 0} {
+    if {[regexp {^\[(.*)\]\s*$} $line _ section]} {
+      # nothing
+    } elseif {[regexp {^([^#]+?)\s*=\s*(.*?)\s*$} $line _  k v]} {
+      upvar $section s
+      lappend s([string trim $k]) $v
+    }
+  }
+  close $f
+} ;# parse_ini
+
 proc ::tp::source_the_files {} {
-  foreach f $::TP(runfiles) {
+  foreach file_plus_args $::TP(runfiles) {
+    catch {unset ::argv}
+    set f [lindex $file_plus_args 0]
+    if {[filesuffix $f] == "tcl"} {
+      # note: ::argv supplies the file_plus_args to the sourced file
+      #       ::argv0 is not set to maintain compatibility with
+      #       the way the linuxcnc script uses haltcl to use tcl files
+      set ::argv [lrange $file_plus_args 1 end]
+    }
     verbose "sourcing: $f"
     set errct 0
+
     if [catch {source $f} msg] {
        if [info exists ::TP(origfile,$f)] {
          set f $::TP(origfile,$f)
        }
        puts "twopass: Error in file $f:\n    $msg"
+       if { [string first "invalid command name" $msg] >= 0} {
+          puts "Command not found using ::auto_path=\n$::auto_path"
+       }
        incr errct
     }
   }
@@ -397,6 +477,10 @@ proc ::tp::filesuffix {f} {
 } ;# filesuffix
 
 proc ::tp::load_the_modules {} {
+  if ![info exists ::TP(modules)] {
+    # no modules unlikely, but can occur in testing
+    set ::TP(modules) ""
+  }
   foreach m $::TP(modules) {
     set cmd "orig_loadrt $m" ;# this is the real loadrt
     if [info exists ::TP($m,count)] {
@@ -428,6 +512,9 @@ proc ::tp::addf_the_funcs {} {
 proc ::tp::pass1 {} {
   verbose "pass1:BEGIN"
   incr ::TP(passnumber)
+  if { [info exists ::env(INI_FILE_NAME)]} {
+    parse_ini $::env(INI_FILE_NAME)
+  }
   source_the_files
   if {$::TP(combine_addfs)} {
     # execute all addf's at end of pass1
@@ -449,6 +536,8 @@ proc ::tp::verbose {msg} {
   puts "twopass: $msg"
 } ;# verbose
 
+#----------------------------------------------------------------------
+# begin
 set ::tp::options ""
 set ::tp::verbose 0
 if {[string first verbose [string tolower $::HAL(TWOPASS)]] >=0} {
@@ -460,7 +549,17 @@ if {[string first nodelete [string tolower $::HAL(TWOPASS)]] >=0} {
   set ::tp::nodelete 1
   lappend ::tp::options nodelete
 }
-puts "twopass: invoked with <$::tp::options> options"
+
+# the linuxcnc script exports LINUXCNC_TCL_DIR
+# make sure it is first in case run-in-place with existing deb install
+if [info exists ::auto_path] {
+  # prepend:
+  set ::auto_path [lreplace $::auto_path -1 -1 $::env(LINUXCNC_TCL_DIR)]
+} else {
+  set ::auto_path $::env(LINUXCNC_TCL_DIR)
+}
+
+puts "twopass:invoked with <$::tp::options> options"
 
 ::tp::pass0
 ::tp::pass1

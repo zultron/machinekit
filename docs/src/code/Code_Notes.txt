@@ -24,7 +24,6 @@ very much a work in progress, and its layout may change in the future.
     orientation. A second set of linear orthagonal coordinates U, V, and W
     allows tool motion (typically for cutting actions) relative to the
     previously offset and rotated axes.
-
     Unfortunately “axis” is also
     sometimes used to mean a degree of freedom of the machine itself, such
     as the saddle, table, or quill of a Bridgeport type milling machine. On
@@ -160,6 +159,16 @@ the motion controller. The seven forms of position data are as follows:
    because of unhomed axes or other problems, in which case do (B). If no
    forward kins, do (A), since otherwise actualPos would _never_ get
    updated. 
+
+== Homing
+
+=== Homing state diagram
+
+image::homing.svg[align="center"]
+
+=== Another homing diagram
+
+image::hss.svg[align="center"]
 
 == Commands
 
@@ -676,7 +685,12 @@ nearly identical for every parameter.
 
 == Task controller (EMCTASK)
 
- +
+=== State
+
+Task has three possible internal states: *E-stop*, *E-stop Reset*,
+and *Machine On*.
+
+image::task-state-transitions.svg[align="center"]
 
 == IO controller (EMCIO)
 
@@ -1029,7 +1043,7 @@ table file.
 
 LinuxCNC supports two kinds of toolchanger hardware,
 called _nonrandom_ and _random_.  The ini setting
-<<sub:[EMCIO]-Section,[EMCIO]RANDOM_TOOLCHANGER>> controls which of
+<<sub:EMCIO-Section,[EMCIO]RANDOM_TOOLCHANGER>> controls which of
 these kinds of hardware LinuxCNC thinks it's connected to.
 
 

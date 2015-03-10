@@ -13,28 +13,27 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program; if not, write to the Free Software
 //    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#ifndef RTAPI_STRING_H
+#define RTAPI_STRING_H
+
 #ifdef MODULE
 /* Suspect only very early kernels are missing the basic string functions.
    To be sure, see what has been implemented by looking in linux/string.h
    and {linux_src_dir}/lib/string.c */
 #include <linux/string.h>
 #include <linux/version.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0)
-#ifndef __HAVE_ARCH_STRCMP	/* This flag will be defined if we do */
-#define __HAVE_ARCH_STRCMP	/* have strcmp */
-/* some kernels don't have strcmp */
-static int strcmp(const char *cs, const char *ct)
-{
-    signed char __res;
-    while (1) {
-	if ((__res = *cs - *ct++) != 0 || !*cs++) {
-	    break;
-	}
-    }
-    return __res;
-}
-#endif /* __HAVE_ARCH_STRCMP */
-#endif /* linux 2.4 */
+#define rtapi_argv_split argv_split
+#define rtapi_argv_free argv_free
+#define rtapi_kstrdup(a,b) kstrdup(a,b)
 #else
 #include <string.h>
+#include <rtapi.h>
+#include <rtapi_gfp.h>
+RTAPI_BEGIN_DECLS
+extern char **rtapi_argv_split(rtapi_gfp_t, const char *argstr, int *argc);
+extern void rtapi_argv_free(char **argv);
+#define rtapi_kstrdup(a,b) strdup(a)
+RTAPI_END_DECLS
+#endif
+
 #endif

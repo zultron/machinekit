@@ -28,8 +28,6 @@
 #        it is caused because the height of the first message is not taken in care
 #        calculating the hight of the popup.
 
-#        I disabled the frame widget to save space, but the use would be more beautifull
-
 import gtk
 import gobject
 import pango
@@ -59,6 +57,11 @@ class Notification(gtk.Window):
                     True, gobject.PARAM_READWRITE | gobject.PARAM_CONSTRUCT),
                       }
     __gproperties = __gproperties__
+
+    __gsignals__ = {
+                'message_deleted': (gobject.SIGNAL_RUN_FIRST, gobject.TYPE_NONE, (gobject.TYPE_PYOBJECT,)),
+               }
+
 
     # build the main gui
     def __init__(self):
@@ -102,10 +105,20 @@ class Notification(gtk.Window):
         label = gtk.Label()
         label.set_line_wrap(True)
         label.set_line_wrap_mode(pango.WRAP_CHAR)
-        label.set_text(text)
         label.set_size_request(self.message_width, -1)
         font_desc = pango.FontDescription(self.font)
         label.modify_font(font_desc)
+        # As messages may contain non pango conform syntax like "vel <= 0" we will have to check that to avoid an error
+        pango_ok = True
+        try:
+            # The GError exception is raised if an error occurs while parsing the markup text.
+            pango.parse_markup(text)        
+        except:
+            pango_ok = False
+        if pango_ok:
+            label.set_markup(text)
+        else:
+            label.set_text(text)
         hbox.pack_start(label)
         btn_close = gtk.Button()
         image = gtk.Image()
@@ -128,9 +141,9 @@ class Notification(gtk.Window):
         btn_close.show()
         hbox.show()
         icon.show()
+# we do not show the labelnumber, but we use it for the handling
 #        labelnumber.show()
         self.vbox.show()
-#        self.popup.show()
 
     # add a message, the message is a string, it will be line wraped
     # if to long for the frame
@@ -162,6 +175,7 @@ class Notification(gtk.Window):
         if len(self.messages) != 0:
             del self.messages[0]
             self._refill_messages()
+            self.emit("message_deleted", self.messages)
 
     def del_last(self):
         '''del_last()
@@ -170,6 +184,7 @@ class Notification(gtk.Window):
         if len(self.messages) != 0:
             del self.messages[len(self.messages) - 1]
             self._refill_messages()
+            self.emit("message_deleted", self.messages)
 
     # this will delete a message, if the user gives a valid number it will be deleted,
     # but the user must take care to use the correct number
@@ -181,6 +196,7 @@ class Notification(gtk.Window):
            messagenumber = integer
                            -1 will erase all messages
         '''
+        self.emit("message_deleted", self.messages)
         if messagenumber == -1:
             self.messages = []
             self._refill_messages()
@@ -199,6 +215,7 @@ class Notification(gtk.Window):
     # close button of the coresponding frame
     def _on_btn_close_clicked(self, widget, labelnumber):
         del self.messages[int(labelnumber)]
+        self.emit("message_deleted", self.messages)
         self._refill_messages()
 
     def _refill_messages(self):
@@ -228,10 +245,9 @@ class Notification(gtk.Window):
         if name in self.__gproperties.keys():
             return getattr(self, name)
         else:
-            raise AttributeError('unknown iconview get_property %s' % property.name)
+            raise AttributeError('unknown notification get_property %s' % property.name)
 
     def do_set_property(self, property, value):
-#        print(property,"=",value)
         try:
             name = property.name.replace('-', '_')
             if name in self.__gproperties.keys():
@@ -254,7 +270,7 @@ class Notification(gtk.Window):
                 if name == 'use_frames':
                     self.use_frames = value
             else:
-                raise AttributeError('unknown iconview set_property %s' % property.name)
+                raise AttributeError('unknown notification set_property %s' % property.name)
         except:
             print('Attribute error', property, "and", type(value) , value)
             pass
@@ -263,8 +279,12 @@ class Notification(gtk.Window):
 def main():
 
     notification = Notification()
-    notification.add_message('Halo World out there', '/home/emcmesa/linuxcnc-dev/share/gscreen/images/std_info.gif')
+    notification.add_message('Halo World out there', '/usr/share/gmoccapy/images/applet-critical.png')
+    notification.add_message('Hallo World ', '/usr/share/gmoccapy/images/std_info.gif')
     notification.show()
+    def debug(self, text):
+        print "debug", text
+    notification.connect("message_deleted", debug)
     gtk.main()
 
 if __name__ == "__main__":

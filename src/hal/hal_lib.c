@@ -882,10 +882,10 @@ int hal_signal_new(const char *name, hal_type_t type)
 	data_addr = shmalloc_up(sizeof(hal_bit_t));
 	break;
     case HAL_S32:
-	data_addr = shmalloc_up(sizeof(hal_u32_t));
+	data_addr = shmalloc_up(sizeof(hal_s32_t));
 	break;
     case HAL_U32:
-	data_addr = shmalloc_up(sizeof(hal_s32_t));
+	data_addr = shmalloc_up(sizeof(hal_u32_t));
 	break;
     case HAL_FLOAT:
 	data_addr = shmalloc_up(sizeof(hal_float_t));
@@ -1095,6 +1095,11 @@ int hal_link(const char *pin_name, const char *sig_name)
     comp = SHMPTR(pin->owner_ptr);
     data_addr = comp->shmem_base + sig->data_ptr;
     *data_ptr_addr = data_addr;
+    if (( sig->readers == 0 ) && ( sig->writers == 0 ) && ( sig->bidirs == 0 )) {
+	/* this is the first pin for this signal, copy value from pin's "dummy" field */
+	data_addr = hal_shmem_base + sig->data_ptr;
+	*((hal_data_u *)data_addr) = pin->dummysig;
+    }
     /* update the signal's reader/writer/bidir counts */
     if ((pin->dir & HAL_IN) != 0) {
 	sig->readers++;
@@ -1682,18 +1687,28 @@ int hal_export_funct(const char *name, void (*funct) (void *, long),
     }
     /* at this point we have a new function and can yield the mutex */
     rtapi_mutex_give(&(hal_data->mutex));
-    /* init time logging variables */
-    new->runtime = 0;
-    new->maxtime = 0;
+
+    /* create a pin with the function's runtime in it */
+    if (hal_pin_s32_newf(HAL_OUT, &(new->runtime), comp_id,"%s.time",name)) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+	   "HAL: ERROR: fail to create pin '%s.time'\n", name);
+	return -EINVAL;
+    }
+    *(new->runtime) = 0;
+
     /* note that failure to successfully create the following params
        does not cause the "export_funct()" call to fail - they are
        for debugging and testing use only */
-    /* create a parameter with the function's runtime in it */
-    rtapi_snprintf(buf, sizeof(buf), "%s.time", name);
-    hal_param_s32_new(buf, HAL_RO, &(new->runtime), comp_id);
     /* create a parameter with the function's maximum runtime in it */
     rtapi_snprintf(buf, sizeof(buf), "%s.tmax", name);
+    new->maxtime = 0;
     hal_param_s32_new(buf, HAL_RW, &(new->maxtime), comp_id);
+
+    /* create a parameter with the function's maximum runtime in it */
+    rtapi_snprintf(buf, sizeof(buf), "%s.tmax-increased", name);
+    new->maxtime_increased = 0;
+    hal_param_bit_new(buf, HAL_RO, &(new->maxtime_increased), comp_id);
+
     return 0;
 }
 
@@ -2528,11 +2543,7 @@ hal_pin_t *halpr_find_pin_by_sig(hal_sig_t * sig, hal_pin_t * start)
    or rmmod'ed.
 */
 
-#ifdef SIM
-#undef CONFIG_PROC_FS
-#endif
-
-#ifdef CONFIG_PROC_FS
+#if defined(__KERNEL__) && defined( CONFIG_PROC_FS ) && LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
 #include <linux/proc_fs.h>
 extern struct proc_dir_entry *rtapi_dir;
 static struct proc_dir_entry *hal_dir = 0;
@@ -2684,9 +2695,12 @@ static void thread_task(void *arg)
 		/* point to function structure */
 		funct = SHMPTR(funct_entry->funct_ptr);
 		/* update execution time data */
-		funct->runtime = (hal_s32_t)(end_time - start_time);
-		if (funct->runtime > funct->maxtime) {
-		    funct->maxtime = funct->runtime;
+		*(funct->runtime) = (hal_s32_t)(end_time - start_time);
+		if ( *(funct->runtime) > funct->maxtime) {
+		    funct->maxtime = *(funct->runtime);
+		    funct->maxtime_increased = 1;
+		} else {
+		    funct->maxtime_increased = 0;
 		}
 		/* point to next next entry in list */
 		funct_entry = SHMPTR(funct_entry->links.next);
@@ -3113,6 +3127,7 @@ static void unlink_pin(hal_pin_t * pin)
     hal_sig_t *sig;
     hal_comp_t *comp;
     void *dummy_addr, **data_ptr_addr;
+    hal_data_u *sig_data_addr;
 
     /* is this pin linked to a signal? */
     if (pin->signal != 0) {
@@ -3123,6 +3138,12 @@ static void unlink_pin(hal_pin_t * pin)
 	comp = SHMPTR(pin->owner_ptr);
 	dummy_addr = comp->shmem_base + SHMOFF(&(pin->dummysig));
 	*data_ptr_addr = dummy_addr;
+
+	/* copy current signal value to dummy */
+	sig_data_addr = (hal_data_u *)(hal_shmem_base + sig->data_ptr);
+	dummy_addr = hal_shmem_base + SHMOFF(&(pin->dummysig));
+	*(hal_data_u *)dummy_addr = *sig_data_addr;
+
 	/* update the signal's reader/writer counts */
 	if ((pin->dir & HAL_IN) != 0) {
 	    sig->readers--;
@@ -3251,6 +3272,7 @@ static void free_funct_struct(hal_funct_t * funct)
     funct->users = 0;
     funct->arg = 0;
     funct->funct = 0;
+    funct->runtime = 0;
     funct->name[0] = '\0';
     /* add it to free list */
     funct->next_ptr = hal_data->funct_free_ptr;

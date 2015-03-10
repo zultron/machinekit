@@ -619,6 +619,18 @@ class EMC_TRAJ_SET_SCALE:public EMC_TRAJ_CMD_MSG {
     double scale;
 };
 
+class EMC_TRAJ_SET_RAPID_SCALE:public EMC_TRAJ_CMD_MSG {
+  public:
+    EMC_TRAJ_SET_RAPID_SCALE():EMC_TRAJ_CMD_MSG(EMC_TRAJ_SET_RAPID_SCALE_TYPE,
+					  sizeof(EMC_TRAJ_SET_RAPID_SCALE)) {
+    };
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+
+    double scale;
+};
+
 class EMC_TRAJ_SET_SPINDLE_SCALE:public EMC_TRAJ_CMD_MSG {
   public:
     EMC_TRAJ_SET_SPINDLE_SCALE():EMC_TRAJ_CMD_MSG(EMC_TRAJ_SET_SPINDLE_SCALE_TYPE,
@@ -995,6 +1007,7 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
     bool paused;			// non-zero means motion pause has been commanded
     bool stopped;			// non-zero means motion has actually stopped
     double scale;		// velocity scale factor
+    double rapid_scale;		// rapid scale factor
     double spindle_scale;	// spindle velocity scale factor
 
     EmcPose position;		// current commanded position
@@ -1119,7 +1132,7 @@ class EMC_MOTION_STAT_MSG:public RCS_STAT_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    unsigned long int heartbeat;
+    uint32_t heartbeat;
 };
 
 
@@ -1398,7 +1411,7 @@ class EMC_TASK_STAT_MSG:public RCS_STAT_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    unsigned long int heartbeat;
+    uint32_t heartbeat;
 };
 
 class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
@@ -2005,7 +2018,7 @@ class EMC_IO_STAT_MSG:public RCS_STAT_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    unsigned long int heartbeat;
+    uint32_t heartbeat;
 };
 
 class EMC_IO_STAT:public EMC_IO_STAT_MSG {

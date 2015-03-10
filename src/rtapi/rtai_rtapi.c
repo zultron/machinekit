@@ -67,23 +67,10 @@
 #include <asm/uaccess.h>	/* copy_from_user() */
 #include <asm/msr.h>		/* rdtscll() */
 
-#ifndef LINUX_VERSION_CODE
-#include <linux/version.h>
-#endif
-#ifndef KERNEL_VERSION
-#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
-#endif
-
 /* get inb(), outb(), ioperm() */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,17)
 #include <asm/io.h>
-#else
-#include <sys/io.h>
-#endif
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
 #include <linux/cpumask.h>	/* NR_CPUS, cpu_online() */
-#endif
 
 #include "vsnprintf.h"
 
@@ -181,20 +168,15 @@ int init_module(void)
     rtapi_data->timer_period = 0;
     max_delay = DEFAULT_MAX_DELAY;
     rt_linux_use_fpu(1);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
     /* on SMP machines, we want to put RT code on the last CPU */
     n = NR_CPUS-1;
     while ( ! cpu_online(n) ) {
 	n--;
     }
     rtapi_data->rt_cpu = n;
-#else
-    /* old kernel, the SMP hooks aren't available, so use CPU 0 */
-    rtapi_data->rt_cpu = 0;
-#endif
 
 
-#ifdef CONFIG_PROC_FS
+#ifdef RTAPI_USE_PROCFS
     /* set up /proc/rtapi */
     if (proc_init() != 0) {
 	rtapi_print_msg(RTAPI_MSG_WARN,
@@ -278,7 +260,7 @@ void cleanup_module(void)
 	max_delay = DEFAULT_MAX_DELAY;
     }
     rtapi_mutex_give(&(rtapi_data->mutex));
-#ifdef CONFIG_PROC_FS
+#ifdef RTAPI_USE_PROCFS
     proc_clean();
 #endif
     /* release master shared memory block */
@@ -467,7 +449,7 @@ void rtapi_print(const char *fmt, ...)
 }
 
 
-void rtapi_print_msg(int level, const char *fmt, ...)
+void rtapi_print_msg(msg_level_t level, const char *fmt, ...)
 {
     va_list args;
 
@@ -630,13 +612,7 @@ static void wrapper(long task_id)
     return;
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,24)
 #define IP(x) ((x)->ip)
-#elif defined(__i386__)
-#define IP(x) ((x)->eip)
-#else
-#define IP(x) ((x)->rip)
-#endif
 
 static int rtapi_trap_handler(int vec, int signo, struct pt_regs *regs,
         void *task) {
@@ -1693,6 +1669,8 @@ unsigned char rtapi_inb(unsigned int port)
     return inb(port);
 }
 
+int rtapi_is_realtime() { return 1; }
+int rtapi_is_kernelspace() { return 1; }
 
 /* starting with kernel 2.6, symbols that are used by other modules
    _must_ be explicitly exported.  2.4 and earlier kernels exported
@@ -1748,3 +1726,5 @@ EXPORT_SYMBOL(rtapi_enable_interrupt);
 EXPORT_SYMBOL(rtapi_disable_interrupt);
 EXPORT_SYMBOL(rtapi_outb);
 EXPORT_SYMBOL(rtapi_inb);
+EXPORT_SYMBOL(rtapi_is_realtime);
+EXPORT_SYMBOL(rtapi_is_kernelspace);

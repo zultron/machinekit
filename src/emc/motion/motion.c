@@ -76,7 +76,6 @@ emcmot_joint_t joint_array[EMCMOT_MAX_JOINTS];
 #endif
 
 int mot_comp_id;	/* component ID for motion module */
-int first_pass = 1;	/* used to set initial conditions */
 int kinType = 0;
 
 /*
@@ -179,8 +178,6 @@ int rtapi_app_main(void)
 
     rtapi_print_msg(RTAPI_MSG_INFO, "MOTION: init_module() starting...\n");
 
-    /* set flag */
-    first_pass = 1;
     /* connect to the HAL and RTAPI */
     mot_comp_id = hal_init("motmod");
     if (mot_comp_id < 0) {
@@ -361,6 +358,12 @@ static int init_hal_io(void)
 	return retval;
     }
     retval =
+	hal_pin_s32_new("motion.motion-type", HAL_OUT, &(emcmot_hal_data->motion_type),
+	mot_comp_id);
+    if (retval != 0) {
+	return retval;
+    }
+     retval =
 	hal_pin_bit_new("motion.coord-mode", HAL_OUT, &(emcmot_hal_data->coord_mode),
 	mot_comp_id);
     if (retval != 0) {
@@ -589,6 +592,7 @@ static int init_hal_io(void)
        with data from the emcmotStatus struct */
     *(emcmot_hal_data->motion_enabled) = 0;
     *(emcmot_hal_data->in_position) = 0;
+    *(emcmot_hal_data->motion_type) = 0;
     *(emcmot_hal_data->coord_mode) = 0;
     *(emcmot_hal_data->teleop_mode) = 0;
     *(emcmot_hal_data->coord_error) = 0;
@@ -908,6 +912,7 @@ static int init_comm_buffers(void)
     emcmotConfig->limitVel = VELOCITY;
     emcmotStatus->acc = ACCELERATION;
     emcmotStatus->feed_scale = 1.0;
+    emcmotStatus->rapid_scale = 1.0;
     emcmotStatus->spindle_scale = 1.0;
     emcmotStatus->net_feed_scale = 1.0;
     /* adaptive feed is off by default, feed override, spindle 

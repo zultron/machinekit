@@ -52,6 +52,15 @@
 #define canon_debug(...)
 #endif
 
+//#define EMCCANON_DEBUG
+
+//Simple compile-time debug macro
+#ifdef EMCCANON_DEBUG
+#define canon_debug(...) printf(__VA_ARGS__)
+#else
+#define canon_debug(...)
+#endif
+
 static int debug_velacc = 0;
 static double css_maximum, css_numerator; // both always positive
 static int spindle_dir = 0;
@@ -1251,6 +1260,7 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
 
     canonMotionMode = mode;
     canon_debug("canonMotionMode = %d\n", mode);
+    canon_debug("canonMotionMode = %d\n", mode);
     
     // Negative value means we use default tolerance as specified in INI file
     if (tolerance < 0) {
@@ -1455,7 +1465,7 @@ void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_points, uns
 
 /**
  * Simple circular shift function for PM_CARTESIAN type.
- * Cycle around axes without changing the individual values. A circshift of 1
+ * Cycle around axes without changing the individual values. A circshift of -1
  * makes the X value become the new Y, Y become the Z, and Z become the new X.
  */
 static PM_CARTESIAN circshift(PM_CARTESIAN & vec, int steps)
@@ -1770,7 +1780,7 @@ void ARC_FEED(int line_number,
 
     // KLUDGE: assumes 0,1,2 for X Y Z
     // Find normal axis
-    int norm_axis_ind = 2 + shift_ind % 3;
+    int norm_axis_ind = (2 - shift_ind) % 3;
     // Find maximum velocities and accelerations for planar axes
     int axis1 = (norm_axis_ind + 1) % 3;
     int axis2 = (norm_axis_ind + 2) % 3;

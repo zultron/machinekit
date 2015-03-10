@@ -203,6 +203,7 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 #define G_42_1 421
 #define G_43   430
 #define G_43_1 431
+#define G_43_2 432
 #define G_49   490
 #define G_50   500
 #define G_51   510
@@ -675,6 +676,8 @@ typedef struct setup_struct
   FILE *file_pointer;           // file pointer for open NC code file
   bool flood;                 // whether flood coolant is on
   CANON_UNITS length_units;     // millimeters or inches
+  double center_arc_radius_tolerance_inch; // modify with ini setting
+  double center_arc_radius_tolerance_mm;   // modify with ini setting
   int line_length;              // length of line last read
   char linetext[LINELEN];       // text of most recent line read
   bool mist;                  // whether mist coolant is on

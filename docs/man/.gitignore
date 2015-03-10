@@ -13,6 +13,8 @@ man9/abs_s32.9
 man9/and2.9
 man9/bin2gray.9
 man9/biquad.9
+man9/bitslice.9
+man9/bitwise.9
 man9/bldc.9
 man9/bldc_hall3.9
 man9/bldc_sine.9
@@ -117,5 +119,6 @@ man9/tristate_bit.9
 man9/tristate_float.9
 man9/updown.9
 man9/wcomp.9
+man9/wj200_vfd.9
 man9/xhc_hb04_util.9
 man9/xor2.9

@@ -16,8 +16,11 @@ usage () {
 $P: Set up debian/ files to build for a particular kernel
 
 Usage:
+    $P uspace
+        Build for a userspace realtime systems or simulator
+
     $P sim
-        Build for a system without a realtime kernel
+        Deprecated synonym for '$P uspace'
 
     $P [kernel-version]
         Build for the realtime kernel [kernel-version], such as 2.6.12-magma
@@ -83,70 +86,81 @@ else
 fi
 
 case $DISTRIB_NAME in
+Ubuntu-14.04) # Trusty Tahr
+	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish,texlive-font-utils,module-init-tools
+	TCLTK_VERSION=8.6
+	;;
 Ubuntu-12.10) # Quantal Quetzal
-	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish,texlive-font-utils
+	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish,texlive-font-utils,module-init-tools
 	TCLTK_VERSION=8.5
 	;;
 Ubuntu-12.04) # Precise Pangolin LTS
-	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish,texlive-font-utils
+	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish,texlive-font-utils,module-init-tools
 	TCLTK_VERSION=8.5
 	;;
 Ubuntu-11.04) # natty
-	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish,texlive-font-utils
+	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish,texlive-font-utils,module-init-tools
 	TCLTK_VERSION=8.5
 	;;
 Ubuntu-10.04)
-	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish,texlive-font-utils
+	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish,texlive-font-utils,module-init-tools
 	TCLTK_VERSION=8.5
 	;;
 Ubuntu-9.10)
-	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish
+	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish,module-init-tools
 	TCLTK_VERSION=8.5
 	;;
 Ubuntu-8.04)
-	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish
+	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-spanish,module-init-tools
 	TCLTK_VERSION=8.4
 	;;
+Debian-testing)
+	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-german,texlive-lang-spanish,texlive-lang-polish,texlive-font-utils,kmod
+	TCLTK_VERSION=8.6
+        ;;
+Debian-8.*)
+	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-german,texlive-lang-spanish,texlive-lang-polish,texlive-font-utils,kmod
+	TCLTK_VERSION=8.6
+        ;;
 Debian-7.*)
-	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-german,texlive-lang-spanish,texlive-lang-polish,texlive-font-utils
+	EXTRA_BUILD=dvipng,texlive-extra-utils,texlive-latex-recommended,texlive-fonts-recommended,ghostscript,imagemagick,texlive-lang-french,texlive-lang-german,texlive-lang-spanish,texlive-lang-polish,texlive-font-utils,kmod
 	TCLTK_VERSION=8.5
 	;;
-Debian-testing|Debian-6.0*)
-	EXTRA_BUILD=dvipng
+Debian-6.0*)
+	EXTRA_BUILD=dvipng,module-init-tools
 	TCLTK_VERSION=8.5
 	;;
 Debian-5.0*)
-	EXTRA_BUILD=dvipng
+	EXTRA_BUILD=dvipng,module-init-tools
 	TCLTK_VERSION=8.4
 	;;
 *)
         echo "unknown distribution: $DISTRIB_NAME"
         echo "configuration may be wrong!"
-	EXTRA_BUILD=dvipng
+	EXTRA_BUILD=dvipng,kmod
 	TCLTK_VERSION=8.4
 	;;
 esac
 
 DOC_BUILD=
 MAIN_PACKAGE_NAME=linuxcnc
-OTHER_MAIN_PACKAGE_NAME=linuxcnc-sim
-OLD_PACKAGE_NAME=emc2
-EXTRA_RECOMMENDS=hostmot2-firmware
+OTHER_MAIN_PACKAGE_NAME=linuxcnc-uspace
+EXTRA_RECOMMENDS=hostmot2-firmware-all
 case $TARGET in
-    sim)
+    uspace|sim)
+	TARGET=uspace
         MODULE_PATH=usr/lib/linuxcnc/modules
 	MODULE_EXT=.so
-	KERNEL_DEPENDS=
-	KERNEL_HEADERS=libpth-dev
+	KERNEL_DEPENDS=libudev-dev
+	KERNEL_HEADERS=
+	KERNEL_VERSION=uspace
 	DRIVERS=
         EXTRA_FILES="usr/bin/rtapi_app"
-	DISTRIB_NAME=sim-$DISTRIB_NAME
-	MAIN_PACKAGE_NAME=linuxcnc-sim
+	DISTRIB_NAME=uspace-$DISTRIB_NAME
+	MAIN_PACKAGE_NAME=linuxcnc-uspace
         OTHER_MAIN_PACKAGE_NAME=linuxcnc
-	OLD_PACKAGE_NAME=emc2-sim
 
-        # don't bother recommending hostmot2 firmware on sim
-        EXTRA_RECOMMENDS=
+        EXTRA_RECOMMENDS="$EXTRA_RECOMMENDS, linux-image-rt-amd64 [linux-amd64], linux-image-rt-686-pae [linux-i386]"
     ;;
     2.6.12-magma)
         KERNEL_HEADERS=$KERNEL_HEADERS,gcc-3.4
@@ -175,7 +189,6 @@ sed -e "s|@MODULE_PATH@|$MODULE_PATH|g" \
     -e "s|@EXTRA_RECOMMENDS@|$EXTRA_RECOMMENDS|g" \
     -e "s|@MAIN_PACKAGE_NAME@|$MAIN_PACKAGE_NAME|g" \
     -e "s|@OTHER_MAIN_PACKAGE_NAME@|$OTHER_MAIN_PACKAGE_NAME|g" \
-    -e "s|@OLD_PACKAGE_NAME@|$OLD_PACKAGE_NAME|g" \
     -e "s|@EXTRAS@|$EXTRAS|g" \
     -e "s|@EXTRA_FILES@|$EXTRA_FILES|g" \
     -e "s|@DISTRIB_NAME@|$DISTRIB_NAME|g" \
@@ -188,8 +201,8 @@ sed -e "s|@MODULE_PATH@|$MODULE_PATH|g" \
 
 subst control.in > control
 
-if [ "$TARGET" == "sim" ]; then
-    cp linuxcnc-dev.files.in linuxcnc-sim-dev.files
+if [ "$TARGET" == "uspace" ]; then
+    cp linuxcnc-dev.files.in linuxcnc-uspace-dev.files
 else
     cp linuxcnc-dev.files.in linuxcnc-dev.files
     echo "$MODULE_PATH/Module.symvers" >> linuxcnc-dev.files

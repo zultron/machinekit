@@ -102,6 +102,7 @@ typedef struct {
     hal_bit_t *on_soft_limit;	/* RPA: TRUE if outside a limit */
 
     hal_s32_t *program_line;    /* RPA: program line causing current motion */
+    hal_s32_t *motion_type;	/* RPA: type (feed/rapid) of currently commanded motion */
     hal_s32_t *next_program_line;    /* program line next to execute */
     hal_s32_t *completed_program_line;    /* program line most recently completed */
     hal_float_t *current_vel;   /* RPI: velocity magnitude in machine units */
@@ -211,12 +212,6 @@ extern emcmot_hal_data_t *emcmot_hal_data;
    determined by the init code in motion.c
 */
 extern emcmot_joint_t *joints;
-
-/* flag used to indicate that this is the very first pass thru the
-   code.  Various places in the code use this to set initial conditions
-   and avoid startup glitches.
-*/
-extern int first_pass;
 
 /* Variable defs */
 extern int kinType;
@@ -348,9 +343,7 @@ extern void reportError(const char *fmt, ...) __attribute((format(printf,1,2)));
 
 #define SET_JOINT_FAULT_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_FAULT_BIT; else (joint)->flag &= ~EMCMOT_JOINT_FAULT_BIT;
 
-#if defined(LINUX_VERSION_CODE) && !defined(SIM)
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
+#if defined(__KERNEL__)
 #define HAVE_CPU_KHZ
-#endif
 #endif
 #endif /* MOT_PRIV_H */

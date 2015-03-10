@@ -52,6 +52,12 @@ tr.head td, tr.head th { background: black; color: white; }
 <TR> <TD> <A HREF="gcode/gcode.html#sec:G1">G1</A> <TD> <TD> Coordinated motion ("Straight feed") </TR>
 <TR> <TD> <A HREF="gcode/gcode.html#sec:G2-G3-Arc">G2, G3</A> <A HREF="gcode/gcode.html#sec:G2-G3-Arc"></A> <TD> I J K or R, P <TD> Coordinated helical motion ("Arc feed") CW or CCW </TR>
 <TR> <TD> <A HREF="gcode/gcode.html#sec:G4-Dwell">G4</A> <TD> P <TD> Dwell (no motion for P seconds) </TR>
+
+<TR> <TD> <A HREF="gcode/gcode.html#sec:G5-Cubic-Spline">G5</A> <TD> I J P Q <TD> Cubic spline </TR>
+<TR> <TD> <A HREF="gcode/gcode.html#sec:G5_1-Quadratic-Spline">G5.1</A> <TD> I J <TD> Quadratic spline </TR>
+<TR> <TD> <A HREF="gcode/gcode.html#sec:G5_2-G5_3-NURBS">G5.2</A> <TD> P L <TD> NURBS, add control point </TR>
+<TR> <TD> <A HREF="gcode/gcode.html#sec:G5_2-G5_3-NURBS">G5.3</A> <TD> <TD> NURBS, execute </TR>
+
 <TR> <TD> <A HREF="gcode/gcode.html#sec:G38-probe">G38.2&hellip;G38.5</A> <TD> <TD> Straight probe </TR>
 <TR> <TD> <A HREF="gcode/gcode.html#sec:G33-Spindle-Sync">G33</A> <TD> K <TD> Spindle-synchronized motion </TR>
 <TR> <TD> <A HREF="gcode/gcode.html#sec:G33_1-Rigid-Tapping">G33.1</A> <TD> K <TD> Rigid tapping </TR>
@@ -75,6 +81,7 @@ tr.head td, tr.head th { background: black; color: white; }
 <TR> <TH COLSPAN=3>Spindle Control </TR>
 <TR> <TD> <A HREF="gcode/m-code.html#sec:M3-M4-M5">M3, M4</A> <TD> S <TD> Turn spindle clockwise or counterclockwise </TR>
 <TR> <TD> <A HREF="gcode/m-code.html#sec:M3-M4-M5">M5</A> <TD> <TD> Stop spindle </TR>
+<TR> <TD> <A HREF="gcode/m-code.html#sec:M19">M19</A> <TD> <TD> Orient spindle </TR>
 <TR> <TD> <A HREF="gcode/gcode.html#sec:G96-G97-Spindle">G96</A> <TD> S D <TD> CSS mode (Constant Surface Speed)</TR>
 <TR> <TD> <A HREF="gcode/gcode.html#sec:G96-G97-Spindle">G97</A> <TD> <TD> RPM mode </TR>
 <TR> <TH COLSPAN=3>Coolant </TR>
@@ -83,7 +90,8 @@ tr.head td, tr.head th { background: black; color: white; }
 <TR> <TD> <A HREF="gcode/m-code.html#sec:M7-M8-M9">M9</A> <TD> <TD> Turn all coolant off </TR>
 <TR> <TH COLSPAN=3>Tool Length Offset </TR>
 <TR> <TD> <A HREF="gcode/gcode.html#sec:G43">G43</A> <TD> H <TD> Use tool length offset from tool table</TR>
-<TR> <TD> <A HREF="gcode/gcode.html#sec:G43_1">G43.1</A> <TD> I K <TD> Use specified tool length offset for transient tool</TR>
+<TR> <TD> <A HREF="gcode/gcode.html#sec:G43_1">G43.1</A> <TD> <TD> Use specified tool length offset for transient tool</TR>
+<TR> <TD> <A HREF="gcode/gcode.html#sec:G43_2">G43.2</A> <TD> H <TD> Apply additional tool length offset</TR>
 <TR> <TD> <A HREF="gcode/gcode.html#sec:G49-Tool">G49</A> <TD> <TD> Cancel tool length offset </TR>
 <TR> <TH COLSPAN=3>Stopping </TR>
 <TR> <TD> <A HREF="gcode/m-code.html#sec:M0-M1">M0</A> <TD> <TD> Program Pause </TR>
@@ -123,6 +131,10 @@ tr.head td, tr.head th { background: black; color: white; }
 <TR> <TD> <A HREF="gcode/o-code.html#sec:looping">O- while</A> <TD> <TD>Looping, while/endwhile do/while</TR>
 <TR> <TD> <A HREF="gcode/o-code.html#sec:conditional">O- if</A> <TD> <TD>Conditional, if/else/endif</TR>
 <TR> <TD> <A HREF="gcode/o-code.html#sec:repeat">O- repeat</A> <TD> <TD>Run enclosed code more than once</TR>
+<TR> <TD> <A HREF="gcode/m-code.html#_m70_save_modal_state_a_id_sec_m70_save_modal_state_a">M70</A> <TD> <TD>Save modal state</TR>
+<TR> <TD> <A HREF="gcode/m-code.html#_m71_invalidate_stored_modal_state_a_id_sec_m71_invalidate_stored_modal_state_a">M71</A> <TD> <TD>Invalidate stored state</TR>
+<TR> <TD> <A HREF="gcode/m-code.html#_m72_restore_modal_state_a_id_sec_m72_restore_modal_state_a">M72</A> <TD> <TD>Restore modal state</TR>
+<TR> <TD> <A HREF="gcode/m-code.html#_m73_save_and_autorestore_modal_state_a_id_sec_m73_save_autorestore_modal_state_a">M73</A> <TD> <TD>Save and Auto-restore modal state</TR>
 <TR> <TH COLSPAN=3>Input/Output Codes </TR>
 <TR> <TD> <A HREF="gcode/m-code.html#sec:M62-M65">M62&hellip;M65</A> <TD> P <TD> Digital Output Control </TR>
 <TR> <TD> <A HREF="gcode/m-code.html#sec:M66-Input-Control">M66</A> <TD> P E L Q <TD> Digital and Analog Input Control </TR>

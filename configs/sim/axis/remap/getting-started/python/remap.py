@@ -1,9 +1,28 @@
+#   This is a component of LinuxCNC
+#   Copyright 2011, 2013, 2014 Dewey Garrett <dgarrett@panix.com>,
+#   Michael Haberler <git@mah.priv.at>
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
 import sys
 import traceback
 from math import sin,cos
 
 from interpreter import *
-from emccanon import MESSAGE
+from emccanon import MESSAGE, SET_MOTION_OUTPUT_BIT, CLEAR_MOTION_OUTPUT_BIT,SET_AUX_OUTPUT_BIT,CLEAR_AUX_OUTPUT_BIT
+
 from util import lineno, call_pydevd
 
 throw_exceptions = 1 # raises InterpreterException if execute() or read() fail
@@ -70,3 +89,26 @@ def involute(self, **words):
     return INTERP_OK
 
 
+def m462(self, **words):
+    """ remap function which does the equivalent of M62, but via Python """
+
+    p = int(words['p'])
+    q = int(words['q'])
+
+    if q:
+        SET_MOTION_OUTPUT_BIT(p)
+    else:
+        CLEAR_MOTION_OUTPUT_BIT(p)
+    return INTERP_OK
+
+def m465(self, **words):
+    """ remap function which does the equivalent of M65, but via Python """
+
+    p = int(words['p'])
+    q = int(words['q'])
+
+    if q:
+        SET_AUX_OUTPUT_BIT(p)
+    else:
+        CLEAR_AUX_OUTPUT_BIT(p)
+    return INTERP_OK

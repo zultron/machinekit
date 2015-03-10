@@ -21,6 +21,7 @@
 #include "motion_types.h"
 #include "emc_types.hh"
 #include "modal_state.hh"
+#include <stdint.h>
 
 // --------------
 // EMC VOCABULARY
@@ -30,7 +31,7 @@
 extern int emcFormat(NMLTYPE type, void *buffer, CMS * cms);
 
 // NML Symbol Lookup Function
-extern const char *emc_symbol_lookup(long type);
+extern const char *emc_symbol_lookup(uint32_t type);
 #define emcSymbolLookup(a) emc_symbol_lookup(a)
 
 // ------------------------
@@ -90,13 +91,14 @@ extern int emcTrajUpdateTag(state_tag_t const * const tag);
 extern int emcTrajSetAxes(int axes, int axismask);
 extern int emcTrajSetUnits(double linearUnits, double angularUnits);
 extern int emcTrajSetCycleTime(double cycleTime);
-extern int emcTrajSetMode(int axes);
+extern int emcTrajSetMode(int traj_mode);
 extern int emcTrajSetTeleopVector(EmcPose vel);
 extern int emcTrajSetVelocity(double vel, double ini_maxvel);
 extern int emcTrajSetAcceleration(double acc);
 extern int emcTrajSetMaxVelocity(double vel);
 extern int emcTrajSetMaxAcceleration(double acc);
 extern int emcTrajSetScale(double scale);
+extern int emcTrajSetRapidScale(double scale);
 extern int emcTrajSetFOEnable(unsigned char mode);   //feed override enable
 extern int emcTrajSetFHEnable(unsigned char mode);   //feed hold enable
 extern int emcTrajSetSpindleScale(double scale);
@@ -222,6 +224,13 @@ extern int emcIoUpdate(EMC_IO_STAT * stat);
 extern int emcInit();
 extern int emcHalt();
 extern int emcAbort();
+
+int emcSetMaxFeedOverride(double maxFeedScale);
+int emcSetupArcBlends(int arcBlendEnable,
+        int arcBlendFallbackEnable,
+        int arcBlendOptDepth,
+        double arcBlendGapCycles,
+        double arcBlendRampFreq);
 
 int emcSetMaxFeedOverride(double maxFeedScale);
 int emcSetupArcBlends(int arcBlendEnable,

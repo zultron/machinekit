@@ -24,6 +24,7 @@
 #include "tc.h"
 #include "motion_debug.h"
 #include "config.h"
+#include "motion_types.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -235,7 +236,7 @@ void emcmotController(void *arg, long period)
 
 
     static long long int last = 0;
-#ifndef RTAPI_SIM
+#ifdef __KERNEL__
     static int index = 0;
     static long int cycles[CYCLE_HISTORY];
     static int priming = 1;
@@ -248,7 +249,7 @@ void emcmotController(void *arg, long period)
     emcmot_hal_data->last_period_ns = this_run * 1e6 / cpu_khz;
 #endif
 
-#ifndef RTAPI_SIM
+#ifdef __KERNEL__
     if(!priming) {
         // we have CYCLE_HISTORY samples, so check for this call being 
         // anomolously late
@@ -271,7 +272,7 @@ void emcmotController(void *arg, long period)
                         _("This time, there were %ld which is so anomalously\n"
                         "large that it probably signifies a problem with your\n"
                         "realtime configuration.  For the rest of this run of\n"
-                        "EMC, this message will be suppressed.\n\n"),
+                        "LinuxCNC, this message will be suppressed.\n\n"),
                         this_run);
                     rtapi_set_msg_level(saved_level);
                 }
@@ -339,9 +340,6 @@ check_stuff ( "after update_status()" );
     emcmotStatus->heartbeat++;
     /* set tail to head, to indicate work complete */
     emcmotStatus->tail = emcmotStatus->head;
-    /* clear init flag */
-    first_pass = 0;
-
 /* end of controller function */
 }
 
@@ -460,8 +458,13 @@ static void process_inputs(void)
     }
     /* feed scaling first:  feed_scale, adaptive_feed, and feed_hold */
     scale = 1.0;
-    if ( enables & FS_ENABLED ) {
-	scale *= emcmotStatus->feed_scale;
+    if (   (emcmotStatus->motion_state != EMCMOT_MOTION_FREE)
+        && (enables & FS_ENABLED) ) {
+        if (emcmotStatus->motionType == EMC_MOTION_TYPE_TRAVERSE) {
+            scale *= emcmotStatus->rapid_scale;
+        } else {
+            scale *= emcmotStatus->feed_scale;
+        }
     }
     if ( enables & AF_ENABLED ) {
 	/* read and clamp (0.0 to 1.0) adaptive feed HAL pin */
@@ -958,6 +961,7 @@ static void handle_jogwheels(void)
     joint_hal_t *joint_data;
     int new_jog_counts, delta;
     double distance, pos, stop_dist;
+    static int first_pass = 1;	/* used to set initial conditions */
 
     for (joint_num = 0; joint_num < num_joints; joint_num++) {
 	/* point to joint data */
@@ -1052,6 +1056,9 @@ static void handle_jogwheels(void)
 	   since homing, otherwise just do this one */
 	clearHomes(joint_num);
     }
+
+    // done with initialization, do the whole thing from now on
+    first_pass = 0;
 }
 
 static void get_pos_cmds(long period)
@@ -1802,6 +1809,7 @@ static void output_to_hal(void)
     *(emcmot_hal_data->spindle_brake) = (emcmotStatus->spindle.brake != 0) ? 1 : 0;
     
     *(emcmot_hal_data->program_line) = emcmotStatus->id;
+    *(emcmot_hal_data->motion_type) = emcmotStatus->motionType;
     *(emcmot_hal_data->next_program_line) = emcmotStatus->next_id;
     *(emcmot_hal_data->completed_program_line) = emcmotStatus->completed_id;
 
@@ -1972,10 +1980,6 @@ static void update_status(void)
 
     /* check to see if we should pause in order to implement
        single emcmotDebug->stepping */
-    /*if (emcmotDebug->stepping) {*/
-        /*rtapi_print("stepping active, tag ID is %d\n",*/
-                /*emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID]);*/
-    /*}*/
     if (emcmotDebug->stepping && emcmotDebug->idForStep < emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID]) {
       rtapi_print("paused due to stepping at id %d, idForStep = %d, line is %d\n",
               emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID],

@@ -38,7 +38,7 @@ foreach class { Button Checkbutton Entry Label Listbox Menu Menubutton \
 set numaxes [emc_ini "AXES" "TRAJ"]
 
 # Find the name of the ini file used for this run.
-set thisinifile "$EMC_INIFILE"
+set thisinifile "$::EMC_INIFILE"
 set thisconfigdir [file dirname $thisinifile]
 
 
@@ -127,7 +127,9 @@ set inilastline $nl
 for {set i 1} {$i < $nl} {incr i} {
     if { [$initext get $i.0] == "\[" } {
         set inisectionname [$initext get $i.1 $i.end]
-        set inisectionname [string trimright $inisectionname \] ]
+        set tab "	"
+        set spc " "
+        set inisectionname [string trimright $inisectionname "$spc$tab]" ]
         array set sectionarray "$inisectionname $i"
         lappend sectionlist $inisectionname
     }
@@ -143,7 +145,9 @@ set endline $sectionarray([lindex $sectionlist [expr [lsearch -exact $sectionlis
 set halfilelist ""
 for {set i $startline} {$i < $endline} {incr i} {
     set thisstring [$initext get $i.0 $i.end]
-    if { [lindex $thisstring 0] == "HALFILE" } {
+    if {   [lindex $thisstring 0] == "HALFILE"
+        || [lindex $thisstring 0] == "POSTGUI_HALFILE"
+       } {
         set thishalname [lindex $thisstring end]
         lappend halfilelist $thisconfigdir/$thishalname
     }
@@ -165,7 +169,7 @@ proc makeIniTune {} {
         grid rowconfigure $af($j) 9999 -weight 1
     }
 
-    puts "af: [array get af]"
+    #puts "af: [array get af]"
 
     foreach fname $halfilelist {
         $haltext config -state normal
@@ -182,14 +186,14 @@ proc makeIniTune {} {
         for {set i 1} { $i < $nl } {incr i} {
             set tmpstring [$haltext get $i.0 $i.end]
             if {[string match *AXIS* $tmpstring] && ![string match *#* $tmpstring]} {
-	      set halcommand [split $tmpstring " "]
+	      set halcommand [split $tmpstring " \t"]
 	      if { [lindex $halcommand 0] == "setp" || [lindex $halcommand 1] == "\=" } {
                         if { [lindex $halcommand 1] == "\=" } {
                             set tmpstring "setp [lindex $halcommand 0] [lindex $halcommand 2]"
                         }
                 for {set j 0} {$j < $numaxes} {incr j} {
                     if {[string match *AXIS_${j}* $tmpstring]} {
-			puts [list $j $tmpstring]
+                        # puts "j=axisno,match:[list $j $tmpstring]"
                         # this is a hal file search ordered loop
                         set thisininame [string trimright [lindex [split $tmpstring "\]" ] end ]]
                         set lowername "[string tolower $thisininame]"
@@ -216,6 +220,10 @@ proc makeIniTune {} {
             }
         }
     }
+    if { ![info exists ininamearray] } {
+        incompatible_ini_file
+        return
+    }
 
     # build the buttons to control axis variables.
     for {set j 0} {$j<$numaxes } {incr j} {
@@ -231,7 +239,32 @@ proc makeIniTune {} {
             -command {iniTuneButtonpress refresh}]
         pack $tmpok $tmptest $tmpcancel $tmprefresh -side left -fill both -expand yes -pady 5
     }
-}
+} ;# makeIniTune
+
+proc incompatible_ini_file {} {
+   set progname [file tail $::argv0]
+   set fname [file tail $::EMC_INIFILE]
+   set answer [tk_messageBox \
+      -title "Ini file not compatible with $progname" \
+      -message [msgcat::mc "\
+               No Tuneable items in ini file: <$fname>\n\n\
+               To specify tuneable item(s):\n\n\
+                  1) Include all \[AXIS_n\] sections\n\
+                     and specify itemnames(s)\n\n\
+                     Inifile example:\n\
+                        \[AXIS_0\]\n\
+                        P = 1\n\n\
+                  2) Use setp for \[AXIS_n\]itemname\n\n\
+                     Halfile example:\n\
+                     loadrt pid names=example\n\
+                     ...\n\
+                     setp example.Pgain \[AXIS_0\]P\n\
+               \n\
+               " ] \
+      -type ok \
+      -icon info]
+      exit 1
+} ;# incompatible_ini_file
 
 proc selectAxis {which} {
     global axisentry
@@ -401,7 +434,8 @@ proc saveIni {which} {
                         "#" {}
                         default {
                             set tmpstr [$initext get $ind.0 $ind.end]
-                            set tmpvar [lindex $tmpstr 0]
+                            set tmpvar [lindex [split $tmpstr "="] 0]
+                            set tmpvar [string trim $tmpvar]
                             set tmpindx [lsearch $upvarnames $tmpvar]
                             if {$tmpindx != -1} {
                                 set cmd [lindex $varcommands $tmpindx]
@@ -455,6 +489,20 @@ proc saveFile {filename contents} {
     if { [catch {open $filename w} fileout] } {
         puts stdout [msgcat::mc "can't save %s" $halconfFilename($name)]
         return
+    }
+    if {-1 != [string first ".ini.expanded" $filename]} {
+       set fname [file tail $filename]
+       set answer [tk_messageBox \
+          -title "Expanded File" \
+          -message [msgcat::mc "\
+                   Save to: <$fname>\n\n\
+                   Expanded file for \#INCLUDEs\n\n\
+                   \#INCLUDE files (*.inc)\n\
+                   must be edited separately\n\
+                   \n\
+                   " ] \
+          -type ok \
+          -icon info]
     }
     switch -- [string index $contents 0] {
         "/" {

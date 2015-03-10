@@ -18,10 +18,7 @@
 #include "tc_types.h"
 #include "tcq.h"
 
-//KLUDGE hack to get bool working in sim
-#ifdef SIM
-#include <stdbool.h>
-#endif
+#include <rtapi_bool.h>
 
 #define TP_DEFAULT_QUEUE_SIZE 32
 /* Minimum length of a segment in cycles (must be greater than 1 to ensure each
@@ -55,7 +52,6 @@
  * the future.
  */
 typedef enum {
-    TP_ERR_ZERO_LENGTH = -10,
     TP_ERR_INVALID = -9,
     TP_ERR_INPUT_TYPE = -8,
     TP_ERR_TOLERANCE = -7,
@@ -70,6 +66,7 @@ typedef enum {
     TP_ERR_SLOWING,
     TP_ERR_STOPPED,
     TP_ERR_WAITING,
+    TP_ERR_ZERO_LENGTH,
     TP_ERR_LAST
 } tp_err_t;
 

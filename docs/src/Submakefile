@@ -11,11 +11,11 @@ LOC_HL_DIR=../docs/src/source-highlight
 LOC_LANG_MAP=$(LOC_HL_DIR)/local/lang.map
 
 
-MAN_SRCS := $(sort \
-	$(patsubst %.in,%,$(wildcard $(DOC_DIR)/man/man1/*.1  $(DOC_DIR)/man/man1/*.1.in)) \
-	$(filter-out $(DOC_DIR)/man/man3/skeleton%, $(wildcard $(DOC_DIR)/man/man3/*.3rtapi $(DOC_DIR)/man/man3/*.3hal)) \
-	$(filter-out $(DOC_DIR)/man/man9/skeleton%, $(wildcard $(DOC_DIR)/man/man9/*.9)) \
-	$(COMP_MANPAGES) $(COMP_DRIVER_MANPAGES))
+MAN_SRCS = $(sort \
+	$(wildcard $(DOC_DIR)/man/man1/*.1) \
+	$(wildcard $(DOC_DIR)/man/man3/*.3*) \
+	$(wildcard $(DOC_DIR)/man/man9/*.9) \
+	$(GENERATED_MANPAGES))
 
 ifneq ($(MANDB),)
 default: $(DOC_DIR)/man/index.db
@@ -31,27 +31,21 @@ DOC_SRCS_EN := \
 	code/NML_Messages.txt \
 	code/Contributing-to-LinuxCNC.txt \
 	common/emc-history.txt \
-	common/Getting_LinuxCNC.txt \
 	common/Glossary.txt \
 	common/GPLD_Copyright.txt \
 	common/Integrator_Concepts.txt \
-	common/Linux_FAQ.txt \
 	common/overleaf.txt \
 	common/python-interface.txt \
 	common/starting-emc.txt \
 	common/Stepper_Diagnostics.txt \
-	common/System_Requirements.txt \
-	common/Updating_LinuxCNC.txt \
 	common/User_Concepts.txt \
 	common/userforeword.txt \
 	common/user_intro.txt \
-	config/copy_and_run.txt \
 	config/emc2hal.txt \
 	config/ini_config.txt \
 	config/ini_homing.txt \
 	config/lathe_config.txt \
-	config/pncconf.txt \
-	config/stepconf.txt \
+	config/moveoff.txt \
 	config/stepper.txt \
 	drivers/AX5214H.txt \
 	drivers/VFS11.txt \
@@ -78,8 +72,11 @@ DOC_SRCS_EN := \
 	gcode/overview.txt \
 	gcode/rs274ngc.txt \
 	gcode/tool_compensation.txt \
+	gui/selector.txt \
 	gui/axis.txt \
+        gui/gmoccapy.txt \
 	gui/gladevcp.txt \
+	gui/gscreen.txt \
 	gui/halui.txt \
 	gui/image-to-gcode.txt \
 	gui/keystick.txt \
@@ -113,25 +110,21 @@ DOC_SRCS_EN := \
 	motion/kinematics.txt \
 	motion/pid_theory.txt \
 	motion/tweaking_steppers.txt \
-	quickstart/stepper_quickstart.txt \
 	remap/structure.txt \
 	Master_Getting_Started.txt \
+	getting-started/index.txt \
 	Master_User.txt \
 	Master_HAL.txt \
 	Master_Integrator.txt \
 	Master_Developer.txt
 
 DOC_SRCS_FR := \
-	common/Getting_linuxcnc_fr.txt \
 	common/Glossary_fr.txt \
 	common/GPLD_Copyright_fr.txt \
 	common/Integrator_Concepts_fr.txt \
-	common/Linux_FAQ_fr.txt \
 	common/outdated-notice_fr.txt \
 	common/overleaf_fr.txt \
 	common/Stepper_Diagnostics_fr.txt \
-	common/System_Requirements_fr.txt \
-	common/Updating_linuxcnc_fr.txt \
 	common/User_Concepts_fr.txt \
 	common/userforeword_fr.txt \
 	common/user_intro_fr.txt \
@@ -139,8 +132,6 @@ DOC_SRCS_FR := \
 	config/ini_config_fr.txt \
 	config/ini_homing_fr.txt \
 	config/lathe_config_fr.txt \
-	config/pncconf_fr.txt \
-	config/stepconf_fr.txt \
 	config/stepper_fr.txt \
 	drivers/AX5214H_fr.txt \
 	drivers/GS2_fr.txt \
@@ -197,32 +188,25 @@ DOC_SRCS_FR := \
 	motion/kinematics_fr.txt \
 	motion/pid_theory_fr.txt \
 	motion/tweaking_steppers_fr.txt \
-	quickstart/stepper_quickstart_fr.txt \
 	Master_Getting_Started_fr.txt \
+        getting-started/index-fr.txt \
 	Master_User_fr.txt \
 	Master_HAL_fr.txt \
 	Master_Integrator_fr.txt \
 
 DOC_SRCS_ES := \
-	common/Getting_EMC_es.txt \
 	common/Glossary_es.txt \
 	common/Integrator_Concepts_es.txt \
-	common/Linux_FAQ_es.txt \
 	common/starting-emc_es.txt \
 	common/Stepper_Diagnostics_es.txt \
-	common/System_Requirements_es.txt \
 	common/translator-needed_es.txt \
-	common/Updating_EMC_es.txt \
 	common/User_Concepts_es.txt \
 	common/userforeword_es.txt \
 	common/user_intro_es.txt \
-	config/copy_and_run_es.txt \
 	config/emc2hal_es.txt \
 	config/ini_config_es.txt \
 	config/ini_homing_es.txt \
 	config/lathe_config_es.txt \
-	config/pncconf_es.txt \
-	config/stepconf_es.txt \
 	config/stepper_es.txt \
 	drivers/AX5214H_es.txt \
 	drivers/GS2_es.txt \
@@ -281,8 +265,8 @@ DOC_SRCS_ES := \
 	motion/kinematics_es.txt \
 	motion/pid_theory_es.txt \
 	motion/tweaking_steppers_es.txt \
-	quickstart/stepper_quickstart_es.txt \
 	Master_Getting_Started_es.txt \
+        getting-started/index-es.txt \
 	Master_User_es.txt \
 	Master_HAL_es.txt \
 	Master_Integrator_es.txt \
@@ -306,7 +290,7 @@ DOC_TARGETS_HTML_ES := $(filter %_es.html, $(DOC_TARGETS_HTML))
 DOC_TARGETS_HTML_FR := $(filter %_fr.html, $(DOC_TARGETS_HTML))
 DOC_TARGETS_HTML_EN := $(filter-out $(DOC_TARGETS_HTML_ES), $(filter-out $(DOC_TARGETS_HTML_FR), $(DOC_TARGETS_HTML)) )
 
-MAN_HTML_TARGETS := $(patsubst $(DOC_DIR)/man/%, $(DOC_DIR)/html/man/%.html, $(MAN_SRCS))
+MAN_HTML_TARGETS = $(patsubst $(DOC_DIR)/man/%, $(DOC_DIR)/html/man/%.html, $(MAN_SRCS))
 
 PDF_TARGETS_EN := $(addprefix $(DOC_DIR)/, \
 	LinuxCNC_Getting_Started.pdf \
@@ -357,10 +341,18 @@ ifeq ($(TRIVIAL_BUILD),no)
 Makefile: $(patsubst %.txt, depends/%.d, $(DOC_SRCS_TXT))
 endif
 
-docs: ../docs/man/man1/linuxcnc.1
+GENERATED_MANPAGES += ../docs/man/man1/linuxcnc.1
 
 ../docs/man/man1/linuxcnc.1: ../docs/src/man/man1/linuxcnc.1.in config.status
 	./config.status --file=$@:$<
+
+docs: manpages
+manpages: $(GENERATED_MANPAGES)
+
+clean: clean-manpages
+clean-manpages:
+	-rm -f $(GENERATED_MANPAGES)
+
 
 ifeq ($(BUILD_DOCS_PDF),yes)
 docs: pdfdocs
@@ -371,7 +363,10 @@ docs: htmldocs
 install-doc: install-doc-html
 endif
 pdfdocs: $(PDF_TARGETS)
-htmldocs: copy_asciidoc_files $(HTML_TARGETS) $(MAN_HTML_TARGETS) checkref
+htmldocs: .htmldoc-stamp checkref
+
+.htmldoc-stamp: copy_asciidoc_files $(HTML_TARGETS) .html-images-stamp
+	touch $@
 
 .PHONY: copy_asciidoc_files
 copy_asciidoc_files:
@@ -380,17 +375,16 @@ copy_asciidoc_files:
 
 checkref: checkref_en checkref_fr checkref_es
 
-checkref_en: $(DOC_TARGETS_HTML_EN)
+checkref_en: $(DOC_TARGETS_HTML_EN) .htmldoc-stamp
 	@$(DOC_SRCDIR)/checkref English $^
 
-checkref_fr: $(DOC_TARGETS_HTML_FR)
+checkref_fr: $(DOC_TARGETS_HTML_FR) .htmldoc-stamp
 	@$(DOC_SRCDIR)/checkref French $^
 
-# the spanish docs are full of broken links, only warn on failure
-checkref_es: $(DOC_TARGETS_HTML_ES)
-	@$(DOC_SRCDIR)/checkref --warn-on-failure Spanish $^
+checkref_es: $(DOC_TARGETS_HTML_ES) .htmldoc-stamp
+	@$(DOC_SRCDIR)/checkref Spanish $^
 
-MAN_SRCS_NOSO := $(patsubst $(DOC_DIR)/man/%,%, \
+MAN_SRCS_NOSO = $(patsubst $(DOC_DIR)/man/%,%, \
 			$(shell grep -L '^\.so ' $(sort $(MAN_SRCS))))
 
 PDF_MAN_ORDER := man1/linuxcnc.1 $(filter-out %/linuxcnc.1, $(filter man1/%, $(MAN_SRCS_NOSO))) \
@@ -445,20 +439,40 @@ ST := style=\" \
     column-gap: 4ex; \
 \"
 
-objects/index.incl: objects/var-MAN_HTML_TARGETS $(DOC_SRCDIR)/Submakefile
-	echo "<A NAME=\"man1\"><LI>Commands and userspace components<UL $(ST)>" > $@.tmp
-	for i in $(filter %.1.html, $(MAN_HTML_TARGETS)); do j=$$(basename $$i .html); echo "<LI><A HREF=\"$${i#$(DOC_DIR)/html/}\">$$j</A>"; done >> $@.tmp
-	echo "</UL><BR>" >> $@.tmp
-	echo "<A NAME=\"man9\"><LI>Realtime components and kernel modules<UL $(ST)>" >> $@.tmp
-	for i in $(filter %.9.html, $(MAN_HTML_TARGETS)); do j=$$(basename $$i .html); echo "<LI><A HREF=\"$${i#$(DOC_DIR)/html/}\">$$j</A>"; done >> $@.tmp
-	echo "</UL><BR>" >> $@.tmp
-	echo "<A NAME=\"man3hal\"><LI>HAL API calls<UL $(ST)>" >> $@.tmp
-	for i in $(filter %.3hal.html, $(MAN_HTML_TARGETS)); do j=$$(basename $$i .html); echo "<LI><A HREF=\"$${i#$(DOC_DIR)/html/}\">$$j</A>"; done >> $@.tmp
-	echo "</UL><BR>" >> $@.tmp
-	echo "<A NAME=\"man3rtapi\"><LI>RTAPI calls<UL $(ST)>" >> $@.tmp
-	for i in $(filter %.3rtapi.html, $(MAN_HTML_TARGETS)); do j=$$(basename $$i .html); echo "<LI><A HREF=\"$${i#$(DOC_DIR)/html/}\">$$j</A>"; done >> $@.tmp
-	echo "</UL><BR>" >> $@.tmp
-	mv -f $@.tmp $@
+#
+# This function appends a section to the "manpages" HTML fragment called
+# index.incl, listing all the specified manpages.  It takes 2 arguments:
+#     * the part of the manpage space, for example "1" or "3rtapi"
+#     * the manpage section title
+#
+ADD_HTML_MANPAGES = \
+	@echo "Adding manpages: man$(strip $(1)): $(strip $(2))"; \
+	echo "<A NAME=\"man$(strip $(1))\"><LI>$(strip $(2))<UL $(ST)>" >> objects/index.incl; \
+	for HTML_FILE in $(filter %.$(strip $(1)).html, $(MAN_HTML_TARGETS)); do \
+		BASENAME=$$(basename $$HTML_FILE .html); \
+		echo "<LI><A HREF=\"$${HTML_FILE\#$(DOC_DIR)/html/}\">$$BASENAME</A>"; \
+	done >> objects/index.incl; \
+	echo "</UL><BR>" >> objects/index.incl
+
+objects/index.incl: $(GENERATED_MANPAGES) objects/var-MAN_HTML_TARGETS $(DOC_SRCDIR)/Submakefile
+	rm -f $@
+	$(call ADD_HTML_MANPAGES, 1, Commands and userspace components)
+	$(call ADD_HTML_MANPAGES, 9, Realtime components and kernel modules)
+	$(call ADD_HTML_MANPAGES, 3hal, API calls: HAL)
+	$(call ADD_HTML_MANPAGES, 3rtapi, API calls: RTAPI)
+	$(call ADD_HTML_MANPAGES, 3hm2,  API calls: Hostmot2)
+	$(call ADD_HTML_MANPAGES, 3, API calls: General)
+	
+	# now make sure all manpages made it into the html index
+	FAIL=0; \
+	for F in $$(find $(DOC_DIR)/man/man? -type f); do \
+		B=$$(basename $$F); \
+		if ! grep -q $$B $@; then \
+			echo stray manpage not added to index: $$B; \
+			FAIL=1; \
+		fi; \
+	done; \
+	if [ $$FAIL -ne 0 ]; then false; fi
 
 $(DOC_DIR)/html/index_%.html: $(DOC_SRCDIR)/index_%.tmpl ../VERSION $(DOC_SRCDIR)/index.foot
 	cat $(filter-out ../VERSION, $^) | \
@@ -510,15 +524,21 @@ objects/xref_fr.links: $(patsubst %.txt,objects/%.links,$(DOC_SRCS_FR_SMALL))
 
 $(DOC_TARGETS_HTML): $(DOC_DIR)/html/%.html: $(DOC_SRCDIR)/%.html
 	@d=`dirname $*`; \
-	for f in $(shell xsltproc --novalid --nonet $(DOC_SRCDIR)/html-images.xslt $<); do\
-		mkdir -p $(DOC_DIR)/html/$$d/`dirname $$f`; \
-		cp -f $(DOC_SRCDIR)/$$d/$$f $(DOC_DIR)/html/$$d/$$f; \
-	done
 	mkdir -p $(shell dirname $@)
 	@cp $< $@
-	mkdir -p objects/image-cache
-	HTML_LATEX_CACHE=objects/image-cache $(DOC_SRCDIR)/html-latex-images $@ || \
-				(X=$$?; rm $@; exit $$X)
+
+.html-images-stamp: $(DOC_TARGETS_HTML)
+	for HTML_FILE in $^; do \
+		HTML_DIR=$$(basename $$(dirname $$HTML_FILE)); \
+		for IMAGE_FILE in $$(xsltproc --novalid --nonet $(DOC_SRCDIR)/html-images.xslt $$HTML_FILE); do \
+			IMAGE_DIR=$$(dirname $$IMAGE_FILE); \
+			mkdir -p $(DOC_DIR)/html/$$HTML_DIR/$$IMAGE_DIR; \
+			cp -f $(DOC_SRCDIR)/$$HTML_DIR/$$IMAGE_FILE $(DOC_DIR)/html/$$HTML_DIR/$$IMAGE_FILE; \
+		done; \
+		mkdir -p objects/image-cache; \
+		HTML_LATEX_CACHE=objects/image-cache $(DOC_SRCDIR)/html-latex-images $$HTML_FILE || (X=$$?; rm $$HTML_FILE; exit $$X); \
+	done
+	touch $@
 
 # rebuild source-highlight/local/lang.map if needed - note this will cause a major rebuild
 # unsure how to do this as Submakefile -mah
@@ -529,7 +549,12 @@ $(LOC_LANG_MAP): $(wildcard $(LOC_HL_DIR)/*.lang) $(LANG_MAP)
 # the relative path from this html target to the root of the generated
 # document tree (docs/html in the git repo).  This is where the CSS files
 # and javascript files will be installed.
-$(DOC_SRCDIR)/%.html: STYLES_SCRIPTS_DIR=$(shell for i in $(shell dirname $* | tr '/' '\n' ); do echo -n "../"; done; echo)
+$(DOC_SRCDIR)/%.html: STYLES_SCRIPTS=$(shell \
+    D=$$(python -c "print '../' * '$*'.count('/')"); \
+    if [ ! -z $$D ]; then \
+        echo "-a 'scriptsdir=$$D' -a 'stylesdir=$$D'"; \
+    fi \
+)
 
 $(patsubst %.txt,$(DOC_SRCDIR)/%.html,$(DOC_SRCS_EN_SMALL)): $(DOC_SRCDIR)/%.html: $(DOC_SRCDIR)/%.txt objects/xref_en.links $(LOC_LANG_MAP)
 	asciidoc -f $(DOC_SRCDIR)/xhtml11.conf \
@@ -537,8 +562,7 @@ $(patsubst %.txt,$(DOC_SRCDIR)/%.html,$(DOC_SRCS_EN_SMALL)): $(DOC_SRCDIR)/%.htm
 		 -f $(LOC_HL_DIR)/emc-langs-source-highlight.conf \
 		 -a "source_highlight_dir=$(LOC_HL_DIR)/local" \
 		 -a linkcss \
-		 -a "scriptsdir=$(STYLES_SCRIPTS_DIR)" \
-		 -a "stylesdir=$(STYLES_SCRIPTS_DIR)" \
+		 $(STYLES_SCRIPTS) \
 	         -a "scriptdir=$(DOC_SRCDIR)/" \
 	         -a "relindir=$(shell dirname $*)" \
 	         -a "linksfile=objects/xref_en.links" \
@@ -551,8 +575,7 @@ $(patsubst %.txt,$(DOC_SRCDIR)/%.html,$(DOC_SRCS_FR_SMALL)): $(DOC_SRCDIR)/%.htm
 		 -f $(LOC_HL_DIR)/emc-langs-source-highlight.conf \
 		 -a "source_highlight_dir=$(LOC_HL_DIR)/local" \
 		 -a linkcss \
-		 -a "scriptsdir=$(STYLES_SCRIPTS_DIR)" \
-		 -a "stylesdir=$(STYLES_SCRIPTS_DIR)" \
+		 $(STYLES_SCRIPTS) \
 	         -a "scriptdir=$(DOC_SRCDIR)/" \
 	         -a "relindir=$(shell dirname $*)" \
 	         -a "linksfile=objects/xref_fr.links" \
@@ -563,8 +586,7 @@ $(patsubst %.txt,$(DOC_SRCDIR)/%.html,$(DOC_SRCS_ES_SMALL)): $(DOC_SRCDIR)/%.htm
 	asciidoc -f $(DOC_SRCDIR)/xhtml11.conf \
 		 -f $(DOC_SRCDIR)/asciidoc-dont-replace-arrows.conf \
 		 -a linkcss \
-		 -a "scriptsdir=$(STYLES_SCRIPTS_DIR)" \
-		 -a "stylesdir=$(STYLES_SCRIPTS_DIR)" \
+		 $(STYLES_SCRIPTS) \
 	         -a "scriptdir=$(DOC_SRCDIR)/" \
 	         -a "relindir=$(shell dirname $*)" \
 	         -a "linksfile=objects/xref_es.links" \
@@ -590,11 +612,6 @@ install-doc-html:
 	$(DIR) $(DESTDIR)$(docsdir)
 	cp -a $(DOC_DIR)/html $(DESTDIR)$(docsdir)
 install-kernel-indep: install-doc
-else
-docs:
-	$(error Cannot build documents, missing AsciiDoc or some other required program, or explicitly disabled in configure)
-
-endif
 
 docclean:
 	-rm -f $(DOC_DIR)/LinuxCNC_Getting_Started.pdf
@@ -632,11 +649,12 @@ docclean:
 	-rm -f $(DOC_DIR)/html/man/man3/*.*
 	-rm -f $(DOC_DIR)/html/man/man9/*.*
 	-rm -f $(DOC_TARGETS_HTML) $(DOC_DIR)/html/xref*.html $(DOC_DIR)/html/index*.html $(DOC_DIR)/*.png $(DOC_DIR)/man/*.png
+	-rm -f .htmldoc-stamp
+	-rm -f .html-images-stamp
 # unsure how to do this as Submakefile: -mah
 	-(cd $(LOC_HL_DIR); make clean)
 
 
-ifeq ($(BUILD_DOCS),yes)
 MAN_DEPS := $(patsubst $(DOC_DIR)/man/%, depends/%.d, $(MAN_SRCS))
 $(MAN_DEPS): depends/%.d: $(DOC_DIR)/man/%
 	@echo Depending $(notdir $<)
@@ -651,11 +669,24 @@ ifeq ($(TRIVIAL_BUILD),no)
 Makefile: $(MAN_DEPS)
 endif
 
+%.png: %.dot
+	dot -Tpng -o$@ $<
+
+%.svg: %.dot
+	dot -Tsvg -o$@ $<
+
 %.png:; $(error Required image file $@ does not exist)
 %.jpg:; $(error Required image file $@ does not exist)
 %.svg:; $(error Required image file $@ does not exist)
 %.dxf:; $(error Required image file $@ does not exist)
 %.ps:; $(error Required image file $@ does not exist)
 %.eps:; $(error Required image file $@ does not exist)
+
+else
+docclean:
+	@:
+
+docs:
+	$(error Cannot build documents, missing AsciiDoc or some other required program, or explicitly disabled in configure)
 
 endif
