@@ -2306,8 +2306,10 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT const * const tp,
  * Based on the specified trajectory segment tc, read its progress and status
  * flags. Then, update the emcmotStatus structure with this information.
  */
-STATIC int tpUpdateMovementStatus(TP_STRUCT * const tp, TC_STRUCT const * const tc ) {
-
+STATIC int tpUpdateMovementStatus(TP_STRUCT * const tp,
+        TC_STRUCT const * const tc,
+        TC_STRUCT const * const nexttc)
+{
 
     if (!tp) {
         return TP_ERR_FAIL;
@@ -2400,7 +2402,7 @@ STATIC void tpHandleEmptyQueue(TP_STRUCT * const tp)
     tp->execId = 0;
     tp->motionType = 0;
 
-    tpUpdateMovementStatus(tp, NULL);
+    tpUpdateMovementStatus(tp, NULL, NULL);
 
     tpResume(tp);
     // when not executing a move, use the current enable flags
@@ -2773,10 +2775,11 @@ STATIC int tpDoParabolicBlending(TP_STRUCT * const tp, TC_STRUCT * const tc,
     /* Status updates */
     //Decide which segment we're in depending on which is moving faster
     if(tc->currentvel > nexttc->currentvel) {
-        tpUpdateMovementStatus(tp, tc);
+        tpUpdateMovementStatus(tp, tc, nexttc);
     } else {
         tpToggleDIOs(nexttc);
-        tpUpdateMovementStatus(tp, nexttc);
+        TC_STRUCT *next2tc = tcqItem(&tp->queue, 2);
+        tpUpdateMovementStatus(tp, nexttc, next2tc);
     }
 #ifdef TP_SHOW_BLENDS
     // hack to show blends in axis
@@ -3060,10 +3063,11 @@ STATIC int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
     if (tc->cycle_time > nexttc->cycle_time && tc->term_cond == TC_TERM_COND_TANGENT) {
         //Majority of time spent in current segment
         tpToggleDIOs(tc);
-        tpUpdateMovementStatus(tp, tc);
+        tpUpdateMovementStatus(tp, tc, nexttc);
     } else {
         tpToggleDIOs(nexttc);
-        tpUpdateMovementStatus(tp, nexttc);
+        TC_STRUCT *next2tc = tcqItem(&tp->queue, 2);
+        tpUpdateMovementStatus(tp, nexttc, next2tc);
     }
 
     return TP_ERR_OK;
@@ -3090,7 +3094,7 @@ STATIC int tpHandleRegularCycle(TP_STRUCT * const tp,
     } else {
         //Update status for a normal step
         tpToggleDIOs(tc);
-        tpUpdateMovementStatus(tp, tc);
+        tpUpdateMovementStatus(tp, tc, nexttc);
     }
     return TP_ERR_OK;
 }
