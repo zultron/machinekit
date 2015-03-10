@@ -2336,7 +2336,15 @@ STATIC int tpUpdateMovementStatus(TP_STRUCT * const tp, TC_STRUCT const * const 
     emcmotStatus->distance_to_go = tc->target - tc->progress;
     emcmotStatus->enables_queued = tc->enables;
     // report our line number to the guis
-    tp->execId = tc->id;
+    tp->execId = tc->tag.fields[GM_FIELD_LINE_NUMBER];
+    // Store the next ID as well to show what will execute next to the GUI
+    int nextexecId = tp->nextexecId = tc->tag.fields[GM_FIELD_NEXT_LINE];
+    if (0 == nextexecId && nexttc) {
+        tp->nextexecId = nexttc->tag.fields[GM_FIELD_LINE_NUMBER];
+    } else {
+        tp->nextexecId = nextexecId;
+    }
+
     emcmotStatus->requested_vel = tc->reqvel;
     emcmotStatus->current_vel = tc->currentvel;
 
