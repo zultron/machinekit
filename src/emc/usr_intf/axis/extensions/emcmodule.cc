@@ -818,9 +818,7 @@ static PyObject *mode(pyCommandChannel *s, PyObject *o) {
 static PyObject *set_axis_max_velocity(pyCommandChannel *s, PyObject *o) {
     EMC_AXIS_SET_MAX_VELOCITY m;
     if(!PyArg_ParseTuple(o, "id", &m.axis, &m.vel)) return NULL;
-    m.serial_number = next_serial(s);
-    s->c->write(m);
-    emcWaitCommandReceived(s->serial, s->s);
+    emcSendCommand(s, m);
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -1134,14 +1132,8 @@ static PyObject *program_open(pyCommandChannel *s, PyObject *o) {
 
 static PyObject *program_close(pyCommandChannel *s, PyObject *o) {
     EMC_TASK_PLAN_CLOSE m;
-    //char *file;
-    //int len;
 
-    //if(!PyArg_ParseTuple(o, "s#", &file, &len)) return NULL;
-    m.serial_number = next_serial(s);
-    //strcpy(m.file, file);
-    s->c->write(m);
-    emcWaitCommandReceived(s->serial, s->s);
+    emcSendCommand(s, m);
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -1320,10 +1312,7 @@ static PyObject *set_homing_params(pyCommandChannel *s, PyObject *o) {
         &m.home_sequence, &m.volatile_home, &m.locking_indexer))
         return NULL;
 
-    //m.now = 1;
-    m.serial_number = next_serial(s);
-    s->c->write(m);
-    emcWaitCommandReceived(s->serial, s->s);
+    emcSendCommand(s, m);
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -1336,13 +1325,6 @@ static PyObject *wait_complete(pyCommandChannel *s, PyObject *o) {
     return PyInt_FromLong(emcWaitCommandComplete(s, timeout));
 }
 
-static PyObject *wait_received(pyCommandChannel *s, PyObject *o) {
-    double timeout = EMC_COMMAND_TIMEOUT;
-    if (!PyArg_ParseTuple(o, "|d:emc.command.wait_received", &timeout))
-        return NULL;
-    emcWaitCommandReceived(s->serial, s->s);
-    return Py_None;
-}
 
 
 
@@ -1358,7 +1340,6 @@ static PyMethodDef Command_methods[] = {
     {"teleop_vector", (PyCFunction)set_teleop_vector, METH_VARARGS},
     {"traj_mode", (PyCFunction)set_traj_mode, METH_VARARGS},
     {"wait_complete", (PyCFunction)wait_complete, METH_VARARGS},
-    {"wait_received", (PyCFunction)wait_received, METH_VARARGS},
     {"state", (PyCFunction)state, METH_VARARGS},
     {"mdi", (PyCFunction)mdi, METH_VARARGS},
     {"mode", (PyCFunction)mode, METH_VARARGS},
