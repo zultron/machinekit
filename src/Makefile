@@ -84,7 +84,7 @@ cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
 ifeq ($(origin KERNELRELEASE),undefined)
 # When KERNELRELEASE is not defined, this is the userspace build.
 # The "modules" target is the gateway to the kernel module build.
-#default: configs userspace modules
+#default: userspace modules
 # "modules" removed from default to speed up rebuilds
 # run "make modules" if you really need them to be built
 default: userspace
@@ -446,7 +446,7 @@ endif
 ifeq ($(BUILD_SYS),kbuild)
 
 # Force modules invocation to make sure user space is in order before rebuilding
-modules: configs userspace
+modules: userspace
 	MAKEFLAGS="$(filter-out --warn-undefined-variables,$(MAKEFLAGS))" \
 	$(PYTHON) modsilent.py $(MAKE) KBUILD_EXTRA_SYMBOLS=$(moduledir)/Module.symvers -C $(KERNELDIR) SUBDIRS=`pwd` CC=$(CC) V=0 modules
 	-cp Module.symvers *$(MODULE_EXT) ../rtlib/
@@ -972,7 +972,7 @@ RTDEPS := $(sort $(RTOBJS:.o=.d))
 
 IS_POWERPC = test `uname -m` = ppc -o `uname -m` = ppc64
 #Force module build to bring user space up to date before attempting to build modules
-modules: configs userspace $(patsubst %.o,../rtlib/%.so,$(obj-m))
+modules: userspace $(patsubst %.o,../rtlib/%.so,$(obj-m))
 ../rtlib/%.so:
 	$(ECHO) Linking $@
 	$(Q)ld -d -r -o objects/$*.tmp $^
