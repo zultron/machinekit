@@ -62,13 +62,29 @@
 //#define INCH_PER_MM 0.039370078740157477
 
 /* numerical constants */
-//FIXME made very large here to allow badly formed arcs into canon
+
+/*****************************************************************************
+The default tolerance (if none tighter is specified in the ini file) should be:
+2 * 0.001 * sqrt(2) for inch, and 2 * 0.01 * sqrt(2) for mm.
+This would mean that any valid arc where the endpoints and/or centerpoint
+got rounded or truncated to 0.001 inch or 0.01 mm precision would be accepted.
+
+Tighter tolerance down to a minimum of 1 micron +- also accepted.
+******************************************************************************/
+
+#define CENTER_ARC_RADIUS_TOLERANCE_INCH (2 * 0.001 * M_SQRT2)
+#define MIN_CENTER_ARC_RADIUS_TOLERANCE_INCH 0.00004
 #define SPIRAL_TOLERANCE_INCH 1.0
 // Note: started from original tolerance and divided by 10 here (since that was originally done inside the interpreter)
 #define RADIUS_TOLERANCE_INCH 0.00005
 
 /* Equivalent metric constants */
+//FIXME leaving this in for compatibility
 #define SPIRAL_TOLERANCE_MM (SPIRAL_TOLERANCE_INCH * MM_PER_INCH)
+
+#define CENTER_ARC_RADIUS_TOLERANCE_MM (2 * 0.01 * M_SQRT2)
+#define MIN_CENTER_ARC_RADIUS_TOLERANCE_MM 0.001
+
 #define RADIUS_TOLERANCE_MM (RADIUS_TOLERANCE_INCH * MM_PER_INCH)
 
 // Modest relative error
