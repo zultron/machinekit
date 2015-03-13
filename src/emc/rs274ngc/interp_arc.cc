@@ -401,12 +401,14 @@ int Interp::arc_data_r(int move, //!< either G_2 (cw arc) or G_3 (ccw arc)
 
   if (radius_error > radius_warn_thresh && radius_error < tolerance) {
       radius += radius_error;
-      setWarning("Radius of %.6g is too small to reach end point, and was increased to %.6g",
+      setWarning("Radius of %.6g too small to reach end point by %.12g, increasing to %.6g",
               radius_in,
+              radius_error,
               radius);
   } else {
       CHKS((radius_error > tolerance),
-          NCE_ARC_RADIUS_TOO_SMALL_TO_REACH_END_POINT);
+              _("Arc radius %.6g too small to reach endpoint (error = %.6g)"),
+              radius, radius_error);
   }
 
   if ((half_length / abs_radius) > (1 - TINY))
