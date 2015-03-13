@@ -372,7 +372,7 @@ int Interp::arc_data_r(int move, //!< either G_2 (cw arc) or G_3 (ccw arc)
                       double current_y, //!< second coordinate of current point
                       double end_x,     //!< first coordinate of arc end point
                       double end_y,     //!< second coordinate of arc end point
-                      double radius,    //!< radius of arc
+                      double radius_in,    //!< radius of arc
                       int p_number,
                       double *center_x, //!< pointer to first coordinate of center of arc
                       double *center_y, //!< pointer to second coordinate of center of arc
@@ -389,12 +389,26 @@ int Interp::arc_data_r(int move, //!< either G_2 (cw arc) or G_3 (ccw arc)
 
   CHKS(((end_x == current_x) && (end_y == current_y)),
       NCE_CURRENT_POINT_SAME_AS_END_POINT_OF_ARC);
-  abs_radius = fabs(radius);
+  abs_radius = fabs(radius_in);
   mid_x = (end_x + current_x) / 2.0;
   mid_y = (end_y + current_y) / 2.0;
   half_length = hypot((mid_x - end_x), (mid_y - end_y));
-  CHKS(((half_length - abs_radius) > tolerance),
-      NCE_ARC_RADIUS_TOO_SMALL_TO_REACH_END_POINT);
+
+  // Check for radius error
+  double radius_error = half_length - abs_radius;
+  double radius_warn_thresh = tolerance * RADIUS_WARNING_THRESHOLD;
+  double radius = radius_in;
+
+  if (radius_error > radius_warn_thresh && radius_error < tolerance) {
+      radius += radius_error;
+      setWarning("Radius of %.6g is too small to reach end point, and was increased to %.6g",
+              radius_in,
+              radius);
+  } else {
+      CHKS((radius_error > tolerance),
+          NCE_ARC_RADIUS_TOO_SMALL_TO_REACH_END_POINT);
+  }
+
   if ((half_length / abs_radius) > (1 - TINY))
     half_length = abs_radius;   /* allow a small error for semicircle */
   /* check needed before calling asin   */
