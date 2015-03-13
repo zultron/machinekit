@@ -17,10 +17,10 @@
 #define MM_PER_INCH 25.4
 
 /* numerical constants */
-//FIXME made very large here to allow badly formed arcs into canon
+// Allow large absolute errors since these aren't controlled very well at the
+// interpreter level.
 #define SPIRAL_TOLERANCE_INCH 1.0
-// Note: started from original tolerance and divided by 10 here (since that was originally done inside the interpreter)
-#define RADIUS_TOLERANCE_INCH 0.00005
+#define RADIUS_TOLERANCE_INCH 0.0005
 
 /* Equivalent metric constants */
 #define SPIRAL_TOLERANCE_MM (SPIRAL_TOLERANCE_INCH * MM_PER_INCH)
@@ -31,6 +31,7 @@
 
 // If error values reach this fraction of the tolerance, a warning is thrown.
 #define SPIRAL_WARNING_THRESHOLD 0.05
+#define RADIUS_WARNING_THRESHOLD 0.2
 
 /* angle threshold for concavity for cutter compensation, in radians */
 #define TOLERANCE_CONCAVE_CORNER 0.05  
