@@ -26,6 +26,7 @@
 #include "rs274ngc.hh"
 #include "rs274ngc_return.hh"
 #include "interp_internal.hh"
+#include "interp_tolerances.hh"
 #include "rs274ngc_interp.hh"
 
 #define RESULT_OK(x) ((x) == INTERP_OK || (x) == INTERP_EXECUTE_FINISH)

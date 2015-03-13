@@ -27,6 +27,7 @@
 #include "rs274ngc_return.hh"
 #include "rs274ngc_interp.hh"
 #include "interp_internal.hh"
+#include "interp_tolerances.hh"
 
 #define _(s) gettext(s)
 

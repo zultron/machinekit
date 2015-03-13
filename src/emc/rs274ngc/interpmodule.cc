@@ -16,6 +16,7 @@ extern int _task;  // zero in gcodemodule, 1 in milltask
 #include "rs274ngc.hh"
 #include "interp_return.hh"
 #include "interp_internal.hh"
+#include "interp_tolerances.hh"
 #include "rs274ngc_interp.hh"
 #include "units.h"
 #include "array1.hh"
