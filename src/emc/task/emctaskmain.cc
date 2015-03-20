@@ -102,7 +102,9 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
  */
 #define DEFAULT_EMC_UI_TIMEOUT 5.0
 
+#if 0
 static int emcTaskEchoLineToIo(NMLmsg * cmd);
+#endif
 
 // command line args-- global so that other modules can access 
 int Argc;
