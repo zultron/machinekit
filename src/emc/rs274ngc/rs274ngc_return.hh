@@ -144,7 +144,7 @@
 #define NCE_TOO_MANY_M_CODES_ON_LINE _("Too many m codes on line")
 #define NCE_POCKET_MAX_TOO_LARGE _("Pocket max too large")
 #define NCE_TOOL_RADIUS_NOT_LESS_THAN_ARC_RADIUS_WITH_COMP _("Tool radius not less than arc radius with comp")
-#define NCE_TWO_G_CODES_USED_FROM_SAME_MODAL_GROUP _("Two g codes used from same modal group")
+#define NCE_TWO_G_CODES_USED_FROM_SAME_MODAL_GROUP _("Two g codes used from same modal group.  Move G%.0f to a separate line.")
 #define NCE_TWO_M_CODES_USED_FROM_SAME_MODAL_GROUP _("Two m codes used from same modal group")
 #define NCE_UNABLE_TO_OPEN_FILE _("Unable to open file <%s>")
 #define NCE_UNCLOSED_COMMENT_FOUND _("Unclosed comment found")

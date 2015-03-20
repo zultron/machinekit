@@ -543,7 +543,7 @@ int Interp::read_g(char *line,   //!< string: line of RS274/NGC code being proce
       CHKS ((mode < 0),"BUG: G remapping: modal group < 0"); // real bad
 
       CHKS((block->g_modes[mode] != -1),
-	   NCE_TWO_G_CODES_USED_FROM_SAME_MODAL_GROUP);
+	   NCE_TWO_G_CODES_USED_FROM_SAME_MODAL_GROUP, g_id);
       block->g_modes[mode] = value;
       return INTERP_OK;
   }
@@ -554,7 +554,7 @@ int Interp::read_g(char *line,   //!< string: line of RS274/NGC code being proce
     if (block->g_modes[mode] == G_80);
     else {
       CHKS((block->g_modes[mode] != -1),
-          NCE_TWO_G_CODES_USED_FROM_SAME_MODAL_GROUP);
+          NCE_TWO_G_CODES_USED_FROM_SAME_MODAL_GROUP, g_id);
     }
     block->g_modes[mode] = value;
   }
