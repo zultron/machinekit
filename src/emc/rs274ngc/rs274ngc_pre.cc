@@ -2641,7 +2641,7 @@ FILE *Interp::find_ngc_file(setup_pointer settings,const char *basename, char *f
     int  dct;
 
     // look for a new file
-    sprintf(tmpFileName, "%s.ngc", basename);
+    sprintf(tmpFileName, "%s.nc", basename);
 
     // find subroutine by search: program_prefix, subroutines, wizard_root
     // use first file found
