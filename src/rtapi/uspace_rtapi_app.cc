@@ -215,7 +215,16 @@ static int do_load_cmd(string name, vector<string> args) {
     void *w = modules[name];
     if(w == NULL) {
         char what[LINELEN+1];
-        snprintf(what, LINELEN, "%s/%s.so", EMC2_RTLIB_DIR, name.c_str());
+// TORMACH_RIP_PATCH
+        char *envPtr = getenv("EMC2_RTLIB_DIR");
+        // if not in environment use config.h #define
+        if (envPtr == NULL) {
+            snprintf(what, LINELEN, "%s/%s.so", EMC2_RTLIB_DIR, name.c_str());
+        }
+        else {
+            snprintf(what, LINELEN, "%s/%s.so", envPtr, name.c_str());
+        }
+        //snprintf(what, LINELEN, "%s/%s.so", EMC2_RTLIB_DIR, name.c_str());
         void *module = modules[name] = dlopen(what, RTLD_GLOBAL | RTLD_NOW);
         if(!module) {
             rtapi_print_msg(RTAPI_MSG_ERR, "%s: dlopen: %s\n", name.c_str(), dlerror());
