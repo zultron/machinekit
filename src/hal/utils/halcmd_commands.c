@@ -1358,7 +1358,18 @@ static int unloadrt_comp(char *mod_name)
     char *argv[4];
 
 #if defined(RTAPI_USPACE)
-    argv[0] = EMC2_BIN_DIR "/rtapi_app";
+// TORMACH_RIP_PATCH
+    char rtapi_app_path[512];
+    char *envPtr = getenv("EMC2_BIN_DIR");
+    strcpy(rtapi_app_path, EMC2_BIN_DIR);
+    // if not in environment use EMC2_BIN_DIR "/rtapi_app"
+    if (envPtr != NULL) {
+        strcpy(rtapi_app_path, envPtr);
+    }
+    strcat(rtapi_app_path, "/rtapi_app");
+
+    argv[0] = rtapi_app_path;
+    //argv[0] = EMC2_BIN_DIR "/rtapi_app";
     argv[1] = "unload";
 #else
     //argv[0] = EMC2_BIN_DIR "/linuxcnc_module_helper";

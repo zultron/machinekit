@@ -215,7 +215,7 @@ static int do_load_cmd(string name, vector<string> args) {
     void *w = modules[name];
     if(w == NULL) {
         char what[LINELEN+1];
-// TORMACH_RIP_PATCH
+// TORMACH_RIP_PATCH    
         char *envPtr = getenv("EMC2_RTLIB_DIR");
         // if not in environment use config.h #define
         if (envPtr == NULL) {
