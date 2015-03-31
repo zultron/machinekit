@@ -286,16 +286,23 @@ int Interp::read_comment(char *line,     //!< string: line of RS274 code being p
                         block_pointer block,    //!< pointer to a block being filled from the line
                         double *parameters)     //!< array of system parameters                   
 {
-  int n;
+    int n;
 
-  CHKS((line[*counter] != '('), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
-  (*counter)++;
-  for (n = 0; line[*counter] != ')'; (*counter)++, n++) {
-    block->comment[n] = line[*counter];
-  }
-  block->comment[n] = 0;
-  (*counter)++;
-  return INTERP_OK;
+    CHKS((line[*counter] != '('), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
+    (*counter)++;
+    int level=1;
+    //FIXME Use a vector of characters here to prevent overrun
+    for (n = 0; level > 0; (*counter)++, n++) {
+        if (line[*counter] == ')') {
+            level--;
+        } else if (line[*counter] == '(') {
+            level++;
+        }
+        block->comment[n] = line[*counter];
+    }
+    block->comment[n] = 0;
+    (*counter)++;
+    return INTERP_OK;
 }
 
 // A semicolon marks the beginning of a comment.  The comment goes to
