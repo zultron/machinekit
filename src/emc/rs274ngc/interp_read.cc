@@ -291,14 +291,18 @@ int Interp::read_comment(char *line,     //!< string: line of RS274 code being p
     CHKS((line[*counter] != '('), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
     (*counter)++;
     int level=1;
-    //FIXME Use a vector of characters here to prevent overrun
+    //FIXME The only thing preventing overflow here is previous checks against
+    //unclosed comments!
     for (n = 0; level > 0; (*counter)++, n++) {
         if (line[*counter] == ')') {
             level--;
         } else if (line[*counter] == '(') {
             level++;
         }
-        block->comment[n] = line[*counter];
+        if (level > 0) {
+            //KLUDGE ignore trailing parenthesis
+            block->comment[n] = line[*counter];
+        }
     }
     block->comment[n] = 0;
     (*counter)++;
