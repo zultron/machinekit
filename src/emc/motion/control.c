@@ -364,11 +364,14 @@ static void process_probe_inputs(void) {
     // trigger when the probe clears, instead of the usual case of triggering when it trips
     char probe_whenclears = !!(probe_type & 2);
     
+    // alow a g38.6 move - ignore all inputs so we can back off a tripped point and ignore any bounce. Tormach *dpr 4/2/15
+    char ignore_probe  = !!(probe_type & 4);
+
     /* read probe input */
     emcmotStatus->probeVal = !!*(emcmot_hal_data->probe_input);
     if (emcmotStatus->probing) {
         /* check if the probe has been tripped */
-        if (emcmotStatus->probeVal ^ probe_whenclears) {
+        if (!ignore_probe && (emcmotStatus->probeVal ^ probe_whenclears)) {
             /* remember the current position */
             emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
             /* stop! */
@@ -381,8 +384,9 @@ static void process_probe_inputs(void) {
                position here, because it will still be queried */
             emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
             emcmotStatus->probing = 0;
-            if (probe_suppress) {
+            if (ignore_probe || probe_suppress) {
                 emcmotStatus->probeTripped = 0;
+                emcmotStatus->probe_type = 0;
             } else if(probe_whenclears) {
                 reportError(_("G38.4 move finished without breaking contact."));
                 SET_MOTION_ERROR_FLAG(1);

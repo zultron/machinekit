@@ -3493,7 +3493,7 @@ int Interp::convert_motion(int motion,   //!< g_code for a line, arc, canned cyc
   } else if ((motion == G_3) || (motion == G_2)) {
     CHP(convert_arc(motion, block, settings));
   } else if (motion == G_38_2 || motion == G_38_3 || 
-             motion == G_38_4 || motion == G_38_5) {
+             motion == G_38_4 || motion == G_38_5 || motion == G_38_6) {
     CHP(convert_probe(block, motion, settings));
   } else if (motion == G_80) {
 #ifdef DEBUG_EMC
@@ -3573,9 +3573,12 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
      ~1 = error if probe operation is unsuccessful (ngc default)
      |1 = suppress error, report in # instead
      ~2 = move until probe trips (ngc default)
-     |2 = move until probe clears */
+     |2 = move until probe clears
+     ~4 = move normally
+     |4 = move unconditionally - don't care if probe trips */
 
   unsigned char probe_type = g_code - G_38_2;
+
   
   CHKS((settings->cutter_comp_side),
       NCE_CANNOT_PROBE_WITH_CUTTER_RADIUS_COMP_ON);
