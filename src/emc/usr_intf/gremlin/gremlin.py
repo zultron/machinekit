@@ -254,6 +254,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         if self.current_view not in ['p', 'x', 'y', 'y2', 'z', 'z2']:
             return
         return getattr(self, 'set_view_%s' % self.current_view)()
+    
+    def set_geometry(self, geometry):
+	self.geometry = geometry
 
     def load(self,filename = None):
         s = self.stat
@@ -271,7 +274,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         seq = 0
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
-            canon = StatCanon(self.colors, self.get_geometry(),self.lathe_option, s, random, self.inifile)
+            canon = StatCanon(self.colors, self.geometry, self.lathe_option, s, random, self.inifile)
             parameter = self.inifile.find("RS274NGC", "PARAMETER_FILE")
             parameter = os.path.expanduser(parameter)
             temp_parameter = os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
@@ -311,13 +314,14 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def get_program_alpha(self): return self.program_alpha
     def get_num_joints(self): return self.num_joints
     def get_geometry(self):
-        temp = self.inifile.find("DISPLAY", "GEOMETRY")
-        if temp:
-            geometry = re.split(" *(-?[XYZABCUVW])", temp.upper())
-            self.geometry = "".join(reversed(geometry))
-        else:
-            self.geometry = 'XYZ'
-        return self.geometry
+	if self.geometry == '':
+	    temp = self.inifile.find("DISPLAY", "GEOMETRY")
+	    if temp:
+		geometry = re.split(" *(-?[XYZABCUVW])", temp.upper())
+		self.geometry = "".join(reversed(geometry))
+	    else:
+		self.geometry = 'XYZ'
+	return self.geometry
 
     def get_joints_mode(self): return self.use_joints_mode
     def get_show_commanded(self): return self.use_commanded
