@@ -88,7 +88,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     rotation_vectors = [(1.,0.,0.), (0., 0., 1.)]
 
     def __init__(self, inifile):
-
+	self.geometry = ''
         display_mode = ( gtk.gdkgl.MODE_RGB | gtk.gdkgl.MODE_DEPTH |
                          gtk.gdkgl.MODE_DOUBLE )
         glconfig = gtk.gdkgl.Config(mode=display_mode)
