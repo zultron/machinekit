@@ -229,7 +229,7 @@ int emcSetMaxFeedOverride(double maxFeedScale);
 int emcSetupArcBlends(int arcBlendEnable,
         int arcBlendFallbackEnable,
         int arcBlendOptDepth,
-        double arcBlendGapCycles,
+        int arcBlendGapCycles,
         double arcBlendRampFreq);
 
 int emcSetMaxFeedOverride(double maxFeedScale);

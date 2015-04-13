@@ -253,7 +253,7 @@ extern "C" {
         int arcBlendOptDepth;
         int arcBlendEnable;
         int arcBlendFallbackEnable;
-        double arcBlendGapCycles;
+        int arcBlendGapCycles;
         double arcBlendRampFreq;
         double maxFeedScale;
     struct state_tag_t tag;
@@ -753,7 +753,7 @@ Suggestion: Split this in to an Error and a Status flag register..
         int arcBlendOptDepth;
         int arcBlendEnable;
         int arcBlendFallbackEnable;
-        double arcBlendGapCycles;
+        int arcBlendGapCycles;
         double arcBlendRampFreq;
         double maxFeedScale;
     } emcmot_config_t;

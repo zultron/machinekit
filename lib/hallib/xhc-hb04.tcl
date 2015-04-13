@@ -11,7 +11,7 @@ source [file join $hallib_dir hal_procs_lib.tcl]
 #   ...
 #   HALFILE = xhc-hb04.tcl
 #
-#   [XHC-HB04_CONFIG]
+#   [XHC_HB04_CONFIG]
 #   layout = 2       (required: 1|2 are supported)
 #   coords = x y z a (up to 4 unique letters from x y z a b c u v w)
 #   coefs  = 1 1 1 1 (optional, filter coefs, 0 < coef < 1, not usually reqd)
@@ -20,8 +20,9 @@ source [file join $hallib_dir hal_procs_lib.tcl]
 #   sequence = 1     (optional: 1|2)
 #   jogmode = normal (optional: normal|vnormal|plus-minus(Experimental))
 #   require_pendant = yes (optional: yes|no)
+#   inch_or_mm = in  (optional: in|mm, default is mm)
 
-#   [XHC-HB04_BUTTONS]
+#   [XHC_HB04_BUTTONS]
 #   name = pin  (connect button to hal pin)
 #   name = ""   (no connect button)
 #   special cases:
@@ -132,6 +133,19 @@ proc connect_pins {} {
 } ;# connect_pins
 
 proc wheel_setup {jogmode} {
+  if [info exists ::XHC_HB04_CONFIG(mpg_accels)] {
+    set idx 0
+    foreach g $::XHC_HB04_CONFIG(mpg_accels) {
+      set g1 $g
+      if {$g < 0} {
+         set g [expr -1 * $g]
+         puts stderr "$::progname: mpg_accel #$idx must be positive was:$g1, is:$g"
+      }
+      set ::XHC_HB04_CONFIG(accel,$idx) $g
+      incr idx
+    }
+  }
+
   # defaults if not in inifile:
   set ::XHC_HB04_CONFIG(coef,0) 1.0
   set ::XHC_HB04_CONFIG(coef,1) 1.0
@@ -172,7 +186,9 @@ proc wheel_setup {jogmode} {
   #   multiply the pendant_util.scale$idx by $kvalue
   # to manipulate the integer (s32) axis.N.jog-counts
 
-  set kvalue 1000000.0;
+  set kvalue 100.0; # allow fractional scales (.1, .01)
+                    # Note: larger values not advised as the
+                    #        jog-counts are type s32 (~ +/-2e9)
   setp pendant_util.k $kvalue
 
   net pendant:jog-prescale    <= xhc-hb04.jog.scale
@@ -183,6 +199,12 @@ proc wheel_setup {jogmode} {
 
   net pendant:wheel-counts     <= xhc-hb04.jog.counts
   net pendant:wheel-counts-neg <= xhc-hb04.jog.counts-neg
+
+  net pendant:is-manual <= halui.mode.is-manual
+  net pendant:is-manual => pendant_util.is-manual
+
+  net pendant:jogenable-off <= xhc-hb04.jog.enable-off
+  net pendant:jogenable-off => pendant_util.jogenable-off
 
   set anames        {x y z a}
   set available_idx {0 1 2 3}
@@ -244,6 +266,24 @@ proc wheel_setup {jogmode} {
     net pendant:wheel-counts-$coord-filtered <= pendant_util.out$idx \
                                              => axis.$axno.jog-counts
 
+    #-----------------------------------------------------------------------
+    # multiplexer for ini.N.max_acceleration
+    if [catch {set std_accel [set ::AXIS_[set axno](MAX_ACCELERATION)]} msg] {
+      err_exit "Error: missing \[AXIS_[set axno]\]MAX_ACCELERATION"
+    }
+    setp pendant_util.amux$idx-in0 $std_accel
+    if ![info exists ::XHC_HB04_CONFIG(accel,$idx)] {
+      set ::XHC_HB04_CONFIG(accel,$idx) $std_accel ;# if not specified
+    }
+    setp pendant_util.amux$idx-in1 $::XHC_HB04_CONFIG(accel,$idx)
+
+    # This signal is named using $axno so the connection can be made
+    # later when the ini pins have been created
+    net pendant:muxed-accel-$axno <= pendant_util.amux$idx-out
+    # a script running after task is started must connect:
+    # net pendant:muxed-accel-$axno => ini.$axno.max_acceleration
+
+    #-----------------------------------------------------------------------
     switch $jogmode {
       normal - vnormal {
         net pendant:jog-$coord <= xhc-hb04.jog.enable-$acoord \
@@ -344,6 +384,7 @@ proc popup_msg {msg} {
 } ;# popup_msg
 
 proc err_exit {msg} {
+  popup_msg $msg
   puts stderr "\n$::progname: $msg\n"
   exit 1
 } ;# err_exit
@@ -362,6 +403,12 @@ set cfg LIB:xhc-hb04-layout2.cfg ;# default
 
 if ![info exists ::HAL(HALUI)] {
   err_exit "\[HAL\]HALUI is not set"
+}
+if {[array names ::XHC_HB04_CONFIG] == ""} {
+  err_exit "Missing stanza: \[XHC_HB04_CONFIG\]"
+}
+if {[array names ::XHC_HB04_BUTTONS] == ""} {
+  err_exit "Missing stanza: \[XHC_HB04_BUTTONS\]"
 }
 
 foreach name [array names ::XHC_HB04_CONFIG] {
@@ -422,6 +469,14 @@ if [catch {eval $cmd} msg] {
   set msg "$msg \nFailing cmd:\n$cmd"
   popup_msg "$msg"
   return ;# not an exit
+}
+
+if ![info exists ::XHC_HB04_CONFIG(inch_or_mm)] {
+  set ::XHC_HB04_CONFIG(inch_or_mm) mm
+}
+switch -glob $::XHC_HB04_CONFIG(inch_or_mm) {
+  in*     {setp xhc-hb04.inch-icon 1}
+  default {}
 }
 
 # jogmodes:

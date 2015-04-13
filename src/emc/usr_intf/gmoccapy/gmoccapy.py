@@ -88,7 +88,7 @@ if debug:
 
 # constants
 #         # gmoccapy  #"
-_RELEASE = "  1.5.2.2"
+_RELEASE = "  1.5.3.1"
 _INCH = 0                         # imperial units are active
 _MM = 1                           # metric units are active
 _TEMPDIR = tempfile.gettempdir()  # Now we know where the tempdir is, usualy /tmp
@@ -112,6 +112,7 @@ DATADIR = os.path.join( BASE, "share", "gmoccapy" )
 IMAGEDIR = os.path.join( DATADIR, "images" )
 XMLNAME = os.path.join( DATADIR, "gmoccapy.glade" )
 THEMEDIR = "/usr/share/themes"
+USERTHEMEDIR = os.path.join(os.path.expanduser("~"), ".themes")
 LOCALEDIR = os.path.join( BASE, "share", "locale" )
 
 # path to TCL for external programs eg. halshow
@@ -987,19 +988,31 @@ class gmoccapy( object ):
 
     def _init_themes( self ):
         # If there are themes then add them to combo box
-        if os.path.exists( THEMEDIR ):
-            model = self.widgets.theme_choice.get_model()
-            model.clear()
-            model.append( ( "Follow System Theme", ) )
-            temp = 0
-            names = os.listdir( THEMEDIR )
+        model = self.widgets.theme_choice.get_model()
+        model.clear()
+        model.append(("Follow System Theme",))
+        themes = []
+        if os.path.exists(USERTHEMEDIR):
+            names = os.listdir(USERTHEMEDIR)
             names.sort()
-            theme_name = self.prefs.getpref( "gtk_theme", "Follow System Theme", str )
-            for search, dirs in enumerate( names ):
-                model.append( ( dirs, ) )
-                if dirs == theme_name:
-                    temp = search + 1
-            self.widgets.theme_choice.set_active( temp )
+            for dirs in names:
+                sbdirs = os.listdir(os.path.join(USERTHEMEDIR, dirs))
+                if 'gtk-2.0' in sbdirs:
+                    themes.append(dirs)
+        if os.path.exists(THEMEDIR):
+            names = os.listdir(THEMEDIR)
+            names.sort()
+            for dirs in names:
+                sbdirs = os.listdir(os.path.join(THEMEDIR, dirs))
+                if 'gtk-2.0' in sbdirs:
+                    themes.append(dirs)
+        temp = 0
+        theme_name = self.prefs.getpref( "gtk_theme", "Follow System Theme", str )
+        for index,theme in enumerate(themes):
+            model.append((theme,))
+            if theme == theme_name:
+                temp = index + 1
+        self.widgets.theme_choice.set_active(temp)
         settings = gtk.settings_get_default()
         if not theme_name == "Follow System Theme":
             settings.set_string_property( "gtk-theme-name", theme_name, "" )
@@ -1589,7 +1602,8 @@ class gmoccapy( object ):
         self.widgets.tbtn_on.set_image( self.widgets.img_machine_off )
         self.widgets.tbtn_on.set_sensitive( True )
         self.widgets.ntb_jog.set_sensitive( True )
-        self.widgets.hbox_jog.set_sensitive( False )
+        self.widgets.tbl_jog_btn.set_sensitive( False )
+        self.widgets.vbtb_jog_incr.set_sensitive( False )
         self.widgets.hbox_jog_vel.set_sensitive( False )
         self.widgets.chk_ignore_limits.set_sensitive( True )
         self._check_limits()
@@ -1598,7 +1612,7 @@ class gmoccapy( object ):
         if self.log: self._add_alarm_entry( "State Off" )
         self._add_alarm_entry( "state_off" )
         widgetlist = ["rbt_manual", "rbt_mdi", "rbt_auto", "btn_homing", "btn_touch", "btn_tool",
-                      "hbox_jog_vel", "hbox_jog", "scl_feed", "btn_feed_100", "rbt_forward", "btn_index_tool",
+                      "hbox_jog_vel", "tbl_jog_btn", "vbtb_jog_incr", "scl_feed", "btn_feed_100", "rbt_forward", "btn_index_tool",
                       "rbt_reverse", "rbt_stop", "tbtn_flood", "tbtn_mist", "btn_change_tool", "btn_select_tool_by_no",
                       "btn_spindle_100", "scl_max_vel", "scl_spindle",
                       "btn_tool_touchoff_x", "btn_tool_touchoff_z"
@@ -1820,7 +1834,7 @@ class gmoccapy( object ):
 
     def _update_widgets( self, state ):
         widgetlist = ["rbt_manual", "btn_homing", "btn_touch", "btn_tool",
-                      "hbox_jog_vel", "hbox_jog", "scl_feed", "btn_feed_100", "rbt_forward", "btn_index_tool",
+                      "hbox_jog_vel", "tbl_jog_btn", "vbtb_jog_incr", "scl_feed", "btn_feed_100", "rbt_forward", "btn_index_tool",
                       "rbt_reverse", "rbt_stop", "tbtn_flood", "tbtn_mist", "btn_change_tool", "btn_select_tool_by_no",
                       "btn_spindle_100", "scl_max_vel", "scl_spindle",
                       "btn_tool_touchoff_x", "btn_tool_touchoff_z"
