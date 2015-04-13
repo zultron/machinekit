@@ -232,13 +232,6 @@ int emcSetupArcBlends(int arcBlendEnable,
         int arcBlendGapCycles,
         double arcBlendRampFreq);
 
-int emcSetMaxFeedOverride(double maxFeedScale);
-int emcSetupArcBlends(int arcBlendEnable,
-        int arcBlendFallbackEnable,
-        int arcBlendOptDepth,
-        double arcBlendGapCycles,
-        double arcBlendRampFreq);
-
 extern int emcUpdate(EMC_STAT * stat);
 
 #endif				// #ifndef EMC_HH
