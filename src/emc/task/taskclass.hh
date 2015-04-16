@@ -36,7 +36,6 @@ public:
     int emcIoUpdate(EMC_IO_STAT * stat);
 
     int emcIoPluginCall(int len, const char *msg);
-    int emcIoSetLineNumber( RCS_CMD_MSG * cmd);
 
     int use_iocontrol;
     int random_toolchanger;

@@ -102,10 +102,6 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
  */
 #define DEFAULT_EMC_UI_TIMEOUT 5.0
 
-#if 0
-static int emcTaskEchoLineToIo(NMLmsg * cmd);
-#endif
-
 // command line args-- global so that other modules can access 
 int Argc;
 char **Argv;
@@ -1665,47 +1661,6 @@ int emcTaskQueueCommand(NMLmsg * cmd)
 
     return 0;
 }
-
-#if 0
-static int emcTaskEchoLineToIo(NMLmsg * cmd)
-{
-
-    if (!cmd) {
-        return -1;
-    }
-
-    switch (cmd->type) {
-
-        case EMC_TRAJ_SET_TERM_COND_TYPE:
-        case EMC_TRAJ_SET_OFFSET_TYPE:
-        case EMC_TRAJ_SET_ROTATION_TYPE:
-        case EMC_TRAJ_SET_G5X_TYPE:
-        case EMC_TRAJ_SET_G92_TYPE:
-
-        case EMC_SPINDLE_SPEED_TYPE:
-        case EMC_SPINDLE_ORIENT_TYPE:
-        case EMC_SPINDLE_ON_TYPE:
-        case EMC_SPINDLE_OFF_TYPE:
-        case EMC_SPINDLE_INCREASE_TYPE:
-        case EMC_SPINDLE_DECREASE_TYPE:
-        case EMC_SPINDLE_CONSTANT_TYPE:
-        case EMC_TRAJ_DELAY_TYPE:
-            //Check if these types are needed, may be causing extra steps
-            task_debug("Echoing line number %d for type %ld to IO\n", ((EMC_CMD_MSG*)cmd)->tag.fields[GM_FIELD_LINE_NUMBER], cmd->type);
-            task_methods->emcIoSetLineNumber((RCS_CMD_MSG*)cmd);
-            break;
-        case EMC_TRAJ_RIGID_TAP_TYPE:
-        case EMC_TRAJ_LINEAR_MOVE_TYPE:
-        case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
-        case EMC_TRAJ_PROBE_TYPE:
-            task_debug("Skipping IO echo of line number %d for type %ld\n", ((EMC_CMD_MSG*)cmd)->tag.fields[GM_FIELD_LINE_NUMBER], cmd->type);
-            break;
-
-
-    }
-    return 0;
-}
-#endif
 
 // issues command immediately
 static int emcTaskIssueCommand(NMLmsg * cmd)
