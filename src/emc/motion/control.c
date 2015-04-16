@@ -1981,7 +1981,7 @@ static void update_status(void)
                 /*emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID]);*/
     /*}*/
     if (emcmotDebug->stepping && emcmotDebug->idForStep < emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID]) {
-      rtapi_print("paused due to stepping at id %d, idForStep = %d, line is %d\n",
+      rtapi_print_msg(RTAPI_DEBUG_MSG,"paused due to stepping at id %d, idForStep = %d, line is %d\n",
               emcmotStatus->tag.fields[GM_FIELD_STEPPING_ID],
               emcmotDebug->idForStep,
               emcmotStatus->tag.fields[GM_FIELD_LINE_NUMBER]);

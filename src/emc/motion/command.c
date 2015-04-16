@@ -102,7 +102,7 @@ STATIC int do_step_cmd(struct state_tag_t const * const tag) {
     }
 
     emcmotDebug->idForStep = tag->fields[GM_FIELD_STEPPING_ID];
-    rtapi_print(" idForStep = %d, line = %d\n",
+    rtapi_print_msg(RTAPI_MSG_DBG," idForStep = %d, line = %d\n",
             emcmotDebug->idForStep,
             tag->fields[GM_FIELD_LINE_NUMBER]);
     emcmotDebug->stepping = 1;
