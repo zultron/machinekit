@@ -2111,7 +2111,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TOOL_START_CHANGE_TYPE:
     case EMC_TOOL_UNLOAD_TYPE:
     case EMC_COOLANT_MIST_OFF_TYPE:
-    case EMC_TASK_SET_TAG_TYPE:
         retval = task_methods->emcToolPassMsg((EMC_CMD_MSG*)cmd);
         break;
 
