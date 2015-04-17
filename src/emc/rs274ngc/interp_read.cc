@@ -299,9 +299,12 @@ int Interp::read_comment(char *line,     //!< string: line of RS274 code being p
         } else if (line[*counter] == '(') {
             level++;
         }
+
+        //KLUDGE ignore trailing parenthesis
         if (level > 0) {
-            //KLUDGE ignore trailing parenthesis
             block->comment[n] = line[*counter];
+        } else {
+            block->comment[n] = 0;
         }
     }
     block->comment[n] = 0;
