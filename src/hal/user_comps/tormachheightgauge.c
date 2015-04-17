@@ -36,9 +36,12 @@
 
 #include <linux/types.h>
 #include <linux/hidraw.h>
+#include <linux/input.h>
 
 #include "hal.h"
 
+#define USB_HEIGHTGAUGE_V1 1
+#define USB_HEIGHTGAUGE_V2 2
 
 #ifndef HIDIOCGRAWNAME
 #define HIDIOCGRAWNAME(len)     _IOC(_IOC_READ, 'H', 0x04, len)
@@ -57,6 +60,13 @@
 
 #define PACKET_LEN 4
 
+// USB VID:PID version 2 with 3 buttons
+#define VENDOR_IDv2  0x0e8f
+#define PRODUCT_IDv2 0x00fb
+
+char *device_filev2 = "/dev/tormachheightgaugev2";
+// this device is created via a udev rule:
+// SUBSYSTEM=="input", ATTRS{idVendor}=="0e8f", ATTRS{idProduct}=="00fb", MODE=="0666", SYMLINK+="tormachheightgaugev2"
 
 // the module name and prefix for all HAL pins 
 char *modname = "tormachheightgauge";
@@ -64,6 +74,12 @@ char *modname = "tormachheightgauge";
 char *device_file = "/dev/tormachheightgauge";
 // this device is created via a udev rule:
 // SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04d9", ATTRS{idProduct}=="e002", MODE=="0666", SYMLINK+="tormachheightgauge"
+
+
+// common to both
+
+// 1 -> original, 2 -> v2 with 3 buttons
+int gauge_version = 1;
 
 int hal_comp_id;
 
@@ -83,6 +99,7 @@ struct heightgauge_hal {
     hal_bit_t *present;         // if non-zero gauge is connected
     hal_bit_t *debug;           // if non-zero print debug messsages
     hal_bit_t *enable;          // set True by UI while tool offsets page is active
+    hal_bit_t *has_zero_button; // v3 3-button USB cable has a ZERO
 };
 
 
@@ -90,7 +107,13 @@ struct heightgauge_hal *hal;
     
 
 static void exit_handler(int sig) {
-    printf("%s: exiting\n", modname);
+    fprintf(stderr, "%s: exiting\n", modname);
+    if (gauge_fd > 0) {
+        // release exclusive capture of device
+        ioctl(gauge_fd, EVIOCGRAB, 0);
+        close(gauge_fd);
+        gauge_fd = 0;
+    }
     exit(0);
 }
 
@@ -100,7 +123,113 @@ static void call_hal_exit(void) {
 }
 
 
-int read_update(int fd) {
+int read_updatev2(int fd) {
+    int bytes_read;
+    unsigned int event_type;
+    unsigned int key_code;
+    unsigned int key_value;
+    struct input_event input;
+    static char input_buffer[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    static int input_index = 0;
+
+    // read input
+    bytes_read = read(fd, &input, sizeof(input));
+    if (bytes_read < 0) {
+        fprintf(stderr, "%s: error reading %s: %s\n", modname, device_file, strerror(errno));
+        return -1;
+    }
+    else if (bytes_read != sizeof(input)) {
+        fprintf(stderr, "%s: expected to read %d bytes %s only read %d\n", modname, sizeof(input), device_file, bytes_read);
+        return -1;
+    }
+    else if (bytes_read == 0) {
+        fprintf(stderr, "%s: EOF %s\n", modname, device_file);
+        return -1;
+    }
+
+    // offset 2 holds key value '0-9', '.', '-', and 'Enter'
+    event_type = (unsigned int)input.type;
+    key_code = (unsigned int)input.code;
+    key_value = input.value;
+    //fprintf(stderr, "%d %d %d\n", (unsigned int)input.type, (unsigned int)input.code, input.value);
+    //if (event_type == EV_KEY) {
+    //    fprintf(stderr, "got key: %d, val: %d\n", key_code, key_value);
+    //}
+    if (event_type != EV_KEY || key_value == 0) {
+        return 0;
+    }
+
+    switch (key_code) {
+        case KEY_ENTER:
+            // Enter - end of stream
+            input_buffer[input_index] = '\0';
+            input_index = 0;
+            // 4 digits past the decimal point is inches
+            // 2 digits past the decimal point is mm
+            int digit_count = 0;
+            int counting = 0;
+            for (int i = 0; i < strlen(input_buffer); i++) {
+                if (input_buffer[i] == '.') {
+                    // start counting digits
+                    counting = 1;
+                }
+                else if (counting) {
+                    digit_count++;
+                }
+            }
+            // ASCII to float
+            *hal->cur_reading = strtof(input_buffer, NULL);
+            //fprintf(stderr, "input_buffer: '%s'", input_buffer);
+            if (digit_count < 3 && !(*hal->mm_mode)) {
+                *hal->cur_reading = *hal->cur_reading / 25.4;
+            }
+            //fprintf(stderr, "-> %0.4f\n", *hal->cur_reading);
+
+            if (*hal->set_zero_offset) {
+                // set new zero offset to current reading, clear flag
+                *hal->zero_offset = *hal->cur_reading;
+                *hal->set_zero_offset = FALSE;
+            }
+            // apply offset
+            *hal->net_height = *hal->cur_reading - *hal->zero_offset;
+
+            *hal->button_pressed = TRUE;
+            *hal->button_changed = TRUE;
+            break;
+
+        case KEY_DOT:
+            input_buffer[input_index++] = '.';
+            break;
+
+        case KEY_MINUS:
+            input_buffer[input_index++] = '-';
+            break;
+
+        case KEY_0:
+            input_buffer[input_index++] = '0';
+            break;
+
+        case KEY_1:
+        case KEY_2:
+        case KEY_3:
+        case KEY_4:
+        case KEY_5:
+        case KEY_6:
+        case KEY_7:
+        case KEY_8:
+        case KEY_9:
+            input_buffer[input_index++] = '1' + (key_code - KEY_1);
+            break;
+
+        default:
+            break;
+    }
+    return 0;
+
+    return bytes_read;
+}
+
+int read_updatev1(int fd) {
     int bytes_read;
     unsigned char buf[PACKET_LEN];
 
@@ -166,6 +295,17 @@ int read_update(int fd) {
 }
 
 
+int read_update(int fd) {
+    if (gauge_version == USB_HEIGHTGAUGE_V1) {
+        return read_updatev1(fd);
+    }
+    else if (gauge_version == USB_HEIGHTGAUGE_V2) {
+        return read_updatev2(fd);
+    }
+    return 0;
+}
+
+
 int check_for_height_gauge(char *dev_filename) {
     struct hidraw_devinfo devinfo;
     char name[100];
@@ -205,10 +345,43 @@ int check_for_height_gauge(char *dev_filename) {
         close(gauge_fd);
         return 0;
     }
-    if (*hal->debug) {
-        printf("%s: found '%s' on %s\n", modname, name, device_file);
-    }
+    //if (*hal->debug) {
+        fprintf(stderr, "%s: found '%s' on %s\n", modname, name, device_file);
+    //}
     // success
+    
+    gauge_version = USB_HEIGHTGAUGE_V1;
+    return 1;
+}
+
+
+int check_for_height_gaugev2(char *dev_filename) {
+    int code;
+
+    gauge_fd = open(device_filev2, O_RDONLY);
+    if (gauge_fd < 0) {
+        //fprintf(stderr, "%s: error opening %s: %s\n", modname, device_file, strerror(errno));
+        if (errno == EACCES) {
+            fprintf(stderr, "%s: is %s readable by any user?\n", modname, device_filev2);
+        }
+        return 0;
+    }
+
+    // exclusive capture of device
+    code = ioctl(gauge_fd, EVIOCGRAB, 1);
+    if (code < 0) {
+        fprintf(stderr, "%s: error with ioctl EVIOCGRAB(1) on %s: %s\n", modname, device_filev2, strerror(errno));
+        close(gauge_fd);
+        gauge_fd = 0;
+        return 0;
+    }
+
+    //if (*hal->debug) {
+        fprintf(stderr, "%s: found '%s' on %s\n", modname, "USB height gauge v2", device_file);
+    //}
+    // success
+
+    gauge_version = USB_HEIGHTGAUGE_V2;
     return 1;
 }
 
@@ -294,7 +467,12 @@ int main(int argc, char *argv[]) {
             // attempt to open device
             if (check_for_height_gauge(device_file)) {
                 // found it!
-                printf("%s: found device on %s\n", modname, device_file);
+                //fprintf(stderr, "%s: found device on %s\n", modname, device_file);
+                *hal->present = TRUE;
+            }
+            else if (check_for_height_gaugev2(device_filev2)) {
+                // found it!
+                //fprintf(stderr, "%s: found device on %s\n", modname, device_filev2);
                 *hal->present = TRUE;
             }
             else {
@@ -329,6 +507,10 @@ int main(int argc, char *argv[]) {
                     if (count < 0) {
                         // gauge unplugged
                         fprintf(stderr, "%s: unplugged?\n", modname);
+                        if (gauge_version == USB_HEIGHTGAUGE_V2) {
+                            // release exclusive capture of device (v2 specific)
+                            ioctl(gauge_fd, EVIOCGRAB, 0);
+                        }
                         close(gauge_fd);
                         gauge_fd = 0;
                         *hal->present = FALSE;
