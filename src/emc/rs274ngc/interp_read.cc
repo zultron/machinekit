@@ -307,8 +307,6 @@ int Interp::read_comment(char *line,     //!< string: line of RS274 code being p
             block->comment[n] = 0;
         }
     }
-    block->comment[n] = 0;
-    (*counter)++;
     return INTERP_OK;
 }
 
