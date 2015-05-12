@@ -99,7 +99,7 @@ struct heightgauge_hal {
     hal_bit_t *present;         // if non-zero gauge is connected
     hal_bit_t *debug;           // if non-zero print debug messsages
     hal_bit_t *enable;          // set True by UI while tool offsets page is active
-    hal_bit_t *has_zero_button; // v3 3-button USB cable has a ZERO
+    hal_bit_t *has_zero_button; // v2 3-button USB cable has a ZERO
 };
 
 
@@ -351,6 +351,7 @@ int check_for_height_gauge(char *dev_filename) {
     // success
     
     gauge_version = USB_HEIGHTGAUGE_V1;
+    *hal->has_zero_button = FALSE;
     return 1;
 }
 
@@ -382,6 +383,7 @@ int check_for_height_gaugev2(char *dev_filename) {
     // success
 
     gauge_version = USB_HEIGHTGAUGE_V2;
+    *hal->has_zero_button = TRUE;
     return 1;
 }
 
@@ -417,6 +419,8 @@ int alloc_hal() {
     if (code != 0) return 0;
     code = hal_pin_bit_newf(HAL_IN, &(hal->enable), hal_comp_id, "%s.enable", modname);
     if (code != 0) return 0;
+    code = hal_pin_bit_newf(HAL_OUT, &(hal->has_zero_button), hal_comp_id, "%s.has-zero-button", modname);
+    if (code != 0) return 0;
 
     *hal->net_height = 0.0;
     *hal->raw_value = 0;
@@ -429,6 +433,7 @@ int alloc_hal() {
     *hal->present = FALSE;
     *hal->debug = FALSE;
     *hal->enable = FALSE;
+    *hal->has_zero_button = TRUE;
 
     return 1;
 }
