@@ -170,7 +170,7 @@ STATIC int tpGetMachineActiveLimit(double * const act_limit, PmCartesian const *
 STATIC double tpGetFeedScale(TP_STRUCT const * const tp,
         TC_STRUCT const * const tc) {
     //All reasons to disable feed override go here
-    bool pausing = tp->pausing && tc->synchronized == TC_SYNC_NONE;
+    bool pausing = tp->pausing && (tc->synchronized == TC_SYNC_NONE || tc->synchronized == TC_SYNC_VELOCITY); // added fix for pause during G95 move but not g33.1 move 5/2015 *dpr
     bool aborting = tp->aborting;
     if (pausing)  {
         tc_debug_print("pausing\n");
@@ -194,11 +194,11 @@ STATIC inline double tpGetRealTargetVel(TP_STRUCT const * const tp,
         TC_STRUCT const * const tc) {
 
     // Start with the scaled target velocity based on the current feed scale
-    double v_target = (tc->synchronized ? tc->target_vel : tc->reqvel) * tpGetFeedScale(tp,tc);
+    double v_target = tc->synchronized ? tc->target_vel : tc->reqvel;
     /*tc_debug_print("Initial v_target = %f\n",v_target);*/
 
     // Get the maximum allowed target velocity, and make sure we're below it
-    return fmin(v_target, tpGetMaxTargetVel(tp, tc));
+    return fmin(v_target * tpGetFeedScale(tp,tc), tpGetMaxTargetVel(tp, tc));
 }
 
 
