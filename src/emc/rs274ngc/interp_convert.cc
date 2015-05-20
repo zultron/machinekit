@@ -4369,11 +4369,15 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 /*8*/ 
 /*settings->motion_mode = G_1;
 */
-/*9*/ if (settings->mist) {
+/*9*/ if (1) {
+      MIST_ON();
+      DWELL(.1);
       MIST_OFF();
       settings->mist = false;
     }
-    if (settings->flood) {
+    if (1) {
+      FLOOD_ON();
+      DWELL(.1);
       FLOOD_OFF();
       settings->flood = false;
     }
