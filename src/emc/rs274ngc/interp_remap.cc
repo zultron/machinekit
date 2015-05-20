@@ -641,6 +641,12 @@ int Interp::init_remap_sets()
     _setup.m_remappable[1] = 1;   // program pause if the optional stop switch is on
 
     _setup.m_remappable[60] = 1;  //Pallet Change Pause
+    
+    //added in by z-bot to support schnozz
+    _setup.m_remappable[7] = 1;  // mist
+    _setup.m_remappable[8] = 1;  // flood
+    _setup.m_remappable[9] = 1;  // cool off
+
 
 
     // the G codes:
