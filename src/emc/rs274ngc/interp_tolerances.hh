@@ -20,7 +20,7 @@
 // Allow large absolute errors since these aren't controlled very well at the
 // interpreter level.
 #define SPIRAL_TOLERANCE_INCH 1.0
-#define RADIUS_TOLERANCE_INCH 0.0005
+#define RADIUS_TOLERANCE_INCH 0.0002
 
 /* Equivalent metric constants */
 #define SPIRAL_TOLERANCE_MM (SPIRAL_TOLERANCE_INCH * MM_PER_INCH)
