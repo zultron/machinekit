@@ -287,6 +287,7 @@ static int saveToolTable(const char *filename,
     FILE *fp;
     const char *name;
     int start_pocket;
+    int fd;
 
     // check filename
     if (filename[0] == 0) {
@@ -326,7 +327,9 @@ static int saveToolTable(const char *filename,
             fprintf(fp, " ;%s\n", ttcomments[pocket]);
         }
     }
-
+	fd = fileno(fp); // Tormach - attempt to close possible routes to offset loss as reported by Saunders *dpr 6/23/15
+	fflush(fp);
+	fsync(fd);
     fclose(fp);
     return 0;
 }
