@@ -1836,6 +1836,8 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   int required;                 // number of next required parameter
   int index;                    // index into _required_parameters
   int k;
+  int fd;
+
 
   if(access(filename, F_OK)==0) 
   {
@@ -1898,7 +1900,11 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
       required = _required_parameters[index++];
     }
   }
+  fd = fileno(outfile); // Tormach - prevent loss of var file on computer power loss *dpr 6/23/15
+  fflush(outfile);
+  fsync(fd);
   fclose(outfile);
+
   return INTERP_OK;
 }
 
