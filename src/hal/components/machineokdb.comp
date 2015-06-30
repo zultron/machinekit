@@ -11,9 +11,6 @@ license "GPL";
 
 ;;
 
-EXTRA_SETUP() {
-    return 0;
-}
 
 FUNCTION(_) {
 
