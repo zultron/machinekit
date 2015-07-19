@@ -1,0 +1,7 @@
+add_subdirectory(task)
+add_subdirectory(nml_intf)
+add_subdirectory(motion)
+add_subdirectory(pythonplugin)
+add_subdirectory(tp)
+add_subdirectory(kinematics)
+add_subdirectory(ini)

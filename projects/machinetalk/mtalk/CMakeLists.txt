@@ -16,5 +16,11 @@ target_include_directories(mtalk PUBLIC
 	include
 	$<TARGET_PROPERTY:mtalk_proto,INTERFACE_INCLUDE_DIRECTORIES>
 	$<TARGET_PROPERTY:inifile,INTERFACE_INCLUDE_DIRECTORIES>)
-target_link_libraries(mtalk mtalk_proto inifile)
+target_link_libraries(mtalk
+	mtalk_proto
+	inifile
+	${JANSSON_LIBRARIES}
+	${AVAHICLIENT_LIBRARIES}
+	${ZMQ_LIBRARIES}
+	)
 set_target_properties(mtalk PROPERTIES COMPILE_DEFINITIONS "${machinetalk_DEFINITIONS}")

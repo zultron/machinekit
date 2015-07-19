@@ -41,7 +41,13 @@ add_library(rtapi_math SHARED
 	src/librtapi_math.c
 )
 
-target_include_directories(rtapi_math PUBLIC include)
+target_include_directories(rtapi_math PUBLIC
+	include
+	$<TARGET_PROPERTY:rtapi,INTERFACE_INCLUDE_DIRECTORIES>
+	)
+
+target_link_libraries(rtapi_math rtapi)
+
 set_target_properties(rtapi_math PROPERTIES COMPILE_DEFINITIONS
 	"_IEEE_LIBM"
 	"_ISOC99_SOURCE"
