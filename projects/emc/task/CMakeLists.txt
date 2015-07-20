@@ -1,7 +1,7 @@
 add_executable(milltask
+	src/emctaskmain.cc
 	src/emctask.cc
 	src/emccanon.cc
-	src/emctaskmain.cc
 	src/taskmodule.cc
 	src/taskclass.cc
 	src/backtrace.cc
@@ -12,19 +12,17 @@ target_include_directories(milltask PUBLIC
 	include
 	$<TARGET_PROPERTY:nml,INTERFACE_INCLUDE_DIRECTORIES>
 	$<TARGET_PROPERTY:linuxcnc,INTERFACE_INCLUDE_DIRECTORIES>
-	$<TARGET_PROPERTY:linuxcncini,INTERFACE_INCLUDE_DIRECTORIES>
 	)
-target_link_libraries(milltask nml linuxcnc linuxcncini motmod)
+target_link_libraries(milltask nml rs274ngc linuxcnc motmod pyplugin)
 
 
-# add_executable(linuxcncsvr
-# 	src/emcsvr.cc
-# )
-# target_include_directories(linuxcncsvr PUBLIC
-# 	include
-# 	$<TARGET_PROPERTY:nml,INTERFACE_INCLUDE_DIRECTORIES>
-# 	$<TARGET_PROPERTY:linuxcnc,INTERFACE_INCLUDE_DIRECTORIES>
-# 	$<TARGET_PROPERTY:linuxcncini,INTERFACE_INCLUDE_DIRECTORIES>
-# 	$<TARGET_PROPERTY:rtapi_math,INTERFACE_INCLUDE_DIRECTORIES>
-# 	)
-# target_link_libraries(linuxcncsvr nml rtapi_math linuxcnc linuxcncini motmod)
+add_executable(linuxcncsvr
+	src/emcsvr.cc
+)
+target_include_directories(linuxcncsvr PUBLIC
+	include
+	$<TARGET_PROPERTY:nml,INTERFACE_INCLUDE_DIRECTORIES>
+	$<TARGET_PROPERTY:linuxcnc,INTERFACE_INCLUDE_DIRECTORIES>
+	$<TARGET_PROPERTY:rtapi_math,INTERFACE_INCLUDE_DIRECTORIES>
+	)
+target_link_libraries(linuxcncsvr nml rtapi_math linuxcnc motmod linuxcnchal)

@@ -38,4 +38,4 @@ target_include_directories(rs274ngc PUBLIC
 	${PYTHON_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
 	)
-target_link_libraries(rs274ngc rtapi_math pyplugin ${PYTHON_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(rs274ngc rtapi_math linuxcnc pyplugin ${PYTHON_LIBRARIES} ${Boost_LIBRARIES})

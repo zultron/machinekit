@@ -28,6 +28,7 @@ find_package(Threads REQUIRED)
 pkg_check_modules(JANSSON REQUIRED jansson)
 pkg_check_modules(AVAHICLIENT REQUIRED avahi-client)
 pkg_check_modules(ZMQ REQUIRED libczmq)
+pkg_check_modules(UUID REQUIRED uuid)
 message("PYTHON DIRS: ${PYTHON_INCLUDE_DIRS}")
 find_path(Protobuf_INCLUDE google/protobuf/descriptor.proto PATHS
 	/usr/include
