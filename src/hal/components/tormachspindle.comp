@@ -41,6 +41,9 @@ author "";
 //          belt-position           1 -> high belt, 0 -> low belt position
 //          speeder-factor          defaults to 3.0 - applied to min/max if spindle-type == speeder
 //
+//          enc-door-switch-configured  pay attention to the door switch input to limit RPM when open
+//          enc-door-switch-status      limit spindle speed when enclosure door is open (pin is 0)
+//          enc-door-open-max-rpm       speed limit when enclosure door is open
 //
 // Outputs:
 //
@@ -134,6 +137,10 @@ pin in float speeder_factor;
 pin out bit speed_alarm;
 pin out float mcb_freq_out;
 pin out float mcb_pwm_out;
+
+pin in bit enc_door_switch_configured;
+pin in bit enc_door_switch_status;
+pin in float enc_door_open_max_rpm;
 
 function _ "Tormach Spindle HAL Component";
 
@@ -329,7 +336,15 @@ FUNCTION(_) {
     // non-zero spindle speed and spindle not yet at_speed
     if (spindle_on && (clamped_speed_in > 0.0)) {
         // spindle is on
-        if (at_speed == BIT_FALSE) {
+        if (enc_door_switch_configured == 1 && enc_door_switch_status == 1 && clamped_speed_in > enc_door_open_max_rpm) {
+            // enclosure door is open - limit speed
+            speed_out = enc_door_open_max_rpm;
+            // freq is slope * (speed_in - min_speed) + min_mcb_freq
+            mcb_freq_out = (freq_slope * (speed_out - min_speed)) + actual_min_mcb_freq;
+            mcb_pwm_out  = (pwm_slope  * (speed_out - min_speed)) + actual_min_pwm_dc;
+            at_speed = BIT_TRUE;
+        }
+        else if (at_speed == BIT_FALSE) {
             // not yet at speed
             if (elapsed_delay_time >= fabs(startup_delay)) {
                 // in accleration state
