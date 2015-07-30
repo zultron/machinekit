@@ -339,12 +339,6 @@ FUNCTION(_) {
         if (enc_door_switch_configured == 1 && enc_door_switch_status == 1 && clamped_speed_in > enc_door_open_max_rpm) {
             // enclosure door is open - limit speed
             speed_out = enc_door_open_max_rpm;
-            if (speed_out < min_speed) {
-                speed_out = min_speed;
-            }
-            else if (speed_out > max_speed) {
-                speed_out = max_speed;
-            }
             // freq is slope * (speed_in - min_speed) + min_mcb_freq
             mcb_freq_out = (freq_slope * (speed_out - min_speed)) + actual_min_mcb_freq;
             mcb_pwm_out  = (pwm_slope  * (speed_out - min_speed)) + actual_min_pwm_dc;
