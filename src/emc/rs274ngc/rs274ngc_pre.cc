@@ -827,6 +827,9 @@ int Interp::init()
   char *iniFileName;
 
   INIT_CANON();
+  // JFP: this init() is also called by via emcTaskPlanClose()
+  // INIT_CANON() steps on cannon's currentToolOffset so it must get restored
+  USE_TOOL_LENGTH_OFFSET(_setup.tool_offset);
 
   iniFileName = getenv("INI_FILE_NAME");
 
@@ -1123,7 +1126,11 @@ int Interp::init()
 //_setup.spindle_turning set in Interp::synch
 //_setup.stack does not need initialization
 //_setup.stack_index does not need initialization
-   ZERO_EMC_POSE(_setup.tool_offset);
+
+// JFP: do not clear tool_offset. setup_struct constructor clears it initially
+//      and it should not get cleared again - especially via emcTaskPlanClose().
+//   ZERO_EMC_POSE(_setup.tool_offset);
+
 //_setup.tool_max set in Interp::synch
 //_setup.tool_table set in Interp::synch
 //_setup.traverse_rate set in Interp::synch
