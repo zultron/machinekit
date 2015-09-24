@@ -3060,7 +3060,13 @@ if test -e "$BUILD_TOPLEVEL/etc/linuxcnc/machinekit.ini"; then
 else
    AC_MSG_RESULT($BUILD_TOPLEVEL/etc/linuxcnc/machinekit.ini does not exist - using default version)
    mkdir -p  $BUILD_TOPLEVEL/etc/linuxcnc
-   cp ../scripts/machinekit.ini.tmpl $BUILD_TOPLEVEL/etc/linuxcnc/machinekit.ini
+   (
+	cat ../scripts/machinekit.ini.tmpl
+	# Hack:  ifdef MK_ANNOUNCE_DISABLE, disable zeroconf announcement;
+	# for running MK in (e.g. build) environments without avahi-daemon
+	test -z "$MK_ANNOUNCE_DISABLE" || \
+	    echo -e "ANNOUNCE_IPV4=0\nANNOUNCE_IPV6=0"
+    ) > $BUILD_TOPLEVEL/etc/linuxcnc/machinekit.ini
    AC_MSG_RESULT(please review and edit $BUILD_TOPLEVEL/etc/linuxcnc/machinekit.ini as needed!)
 fi
 
