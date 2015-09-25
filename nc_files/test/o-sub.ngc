@@ -2,18 +2,18 @@
 ( A simple O sub example )
 
 (Subroutine:  drill 3x 1" deep holes 1" apart along X)
-O2000 sub                       (subroutine 2000)
-G90 G99 G81 Z-1.0 R0.25         (abs drill)
-G91 G99 G81 X1 Z-1.25 R0 L2     (drill two more holes 1" apart on X)
-O2000 endsub                    (return)
+O2000                        (O2000 sub)    (subroutine 2000)
+G90 G99 G81 Z-1.0 R0.25                     (abs drill)
+G91 G99 G81 X1 Z-1.25 R0 L2                 (drill two more holes 1" apart on X)
+M99                          (O2000 endsub) (return)
 
 (main program)
 (- drill two rows of holes starting at X0.5 Y0.5 and then X0.5 Y1.5)
 F40
-G90 G0 Z0.25                    (abs jog to X0 Y0 Z0.25)
+G90 G0 Z0.25                                (abs jog to X0 Y0 Z0.25)
 G0 X0.5 Y0.5
-O2000 call                      (drill three holes at Y0.5)
-G90 G0 X0.5 Y1.5                (abs jog to X0 Y1)
-O2000 call                      (drill three holes at Y1.5)
-M30                             (end)
+M98 P2000                    (O2000 call)   (drill three holes at Y0.5)
+G90 G0 X0.5 Y1.5                            (abs jog to X0 Y1)
+M98 P2000                    (O2000 call)   (drill three holes at Y1.5)
+M30                                         (end)
 %
