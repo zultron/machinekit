@@ -782,7 +782,8 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
     CHP(read_n_number(line, &counter, block));
   }
 
-  if (line[counter] == 'o' || strncmp(line+counter,"m99",3) == 0)
+  if (line[counter] == 'o' || strncmp(line+counter,"m99",3) == 0 ||
+      strncmp(line+counter,"m98",3) == 0)
  /* Handle 'o' explicitly here. Default is
     to read letters via pointer calls to related
     reader functions. 'o' control lines have their
@@ -1491,11 +1492,12 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   char oNameBuf[LINELEN+1];
   const char *subName;
   char fullNameBuf[2*LINELEN+1];
-  int o_m99 = 0; // flag m99 (== O... endsub)
+  int o_m98 = 0; int o_m99 = 0; // flag m98 and m99 pseudo-O-words
   int oNumber;
   extern const char *o_ops[];
 
-  CHKS((line[*counter] != 'o' && strncmp(line+*counter,"m99",3) != 0),
+  CHKS((line[*counter] != 'o' && strncmp(line+*counter,"m99",3) != 0 &&
+	strncmp(line+*counter,"m98",3) != 0),
        NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
 
   if (strncmp(line+*counter,"m99",3) == 0) {
@@ -1522,7 +1524,13 @@ int Interp::read_o(    /* ARGUMENTS                                     */
 
       // changed spec so we now read an expression
       // so... we can have a parameter contain a function pointer!
-      *counter += 1;
+
+      if (strncmp(line+*counter,"m98p",3) == 0) {
+	  // Fanuc-style subroutine call: "m98"
+	  *counter += 4;
+	  o_m98 = 1;  // signal 'call'
+      } else
+	  *counter += 1;
 
       logDebug("In: %s line:%d |%s|", name, block->line_number, line);
 
@@ -1544,7 +1552,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
     block->o_type = O_sub;
   else if(CMP("endsub") || o_m99)
     block->o_type = O_endsub;
-  else if(CMP("call"))
+  else if(CMP("call") || o_m98)
     block->o_type = O_call;
   else if(CMP("do"))
     block->o_type = O_do;
