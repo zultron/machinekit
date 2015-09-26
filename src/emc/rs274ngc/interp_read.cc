@@ -1548,6 +1548,10 @@ int Interp::read_o(    /* ARGUMENTS                                     */
     block->o_type = O_endrepeat;
   else if(CMP("return"))
     block->o_type = O_return;
+  else if((line+*counter)[0] == '(' || (line+*counter)[0] == 0) {
+    // Fanuc-style subroutine definition:  "O2000" with no following args
+    block->o_type = O_sub;
+  }
   else
     block->o_type = O_none;
 
