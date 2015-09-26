@@ -782,7 +782,7 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
     CHP(read_n_number(line, &counter, block));
   }
 
-  if (line[counter] == 'o')
+  if (line[counter] == 'o' || strncmp(line+counter,"m99",3) == 0)
  /* Handle 'o' explicitly here. Default is
     to read letters via pointer calls to related
     reader functions. 'o' control lines have their
@@ -1491,26 +1491,48 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   char oNameBuf[LINELEN+1];
   const char *subName;
   char fullNameBuf[2*LINELEN+1];
+  int o_m99 = 0; // flag m99 (== O... endsub)
   int oNumber;
   extern const char *o_ops[];
 
-  CHKS((line[*counter] != 'o'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
+  CHKS((line[*counter] != 'o' && strncmp(line+*counter,"m99",3) != 0),
+       NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
 
-  // changed spec so we now read an expression
-  // so... we can have a parameter contain a function pointer!
-  *counter += 1;
+  if (strncmp(line+*counter,"m99",3) == 0) {
+      // Fanuc-style subroutine return: "m99"
 
-  logDebug("In: %s line:%d |%s|", name, block->line_number, line);
+      // Subroutine name not provided in Fanuc syntax, so pull from
+      // context
+      if(_setup.defining_sub)
+	  strncpy(oNameBuf, _setup.sub_name, LINELEN+1);
+      else if(_setup.call_level)
+	  strncpy(oNameBuf, _setup.sub_context[_setup.call_level].subName,
+		  LINELEN+1);
+      else {
+	  Error("Found 'm99' code outside of sub definition or call context");
+	  ERN(INTERP_ERROR);
+      }
 
-  if(line[*counter] == '<')
-  {
-      read_name(line, counter, oNameBuf);
-  }
-  else
-  {
-     CHP(read_integer_value(line, counter, &oNumber,
-                            parameters));
-     sprintf(oNameBuf, "%d", oNumber);
+      *counter += 3;
+      o_m99 = 1;  // signal 'endsub'
+
+      logDebug("In: %s line:%d |%s| subroutine=|%s|",
+	       name, block->line_number, line, oNameBuf);
+  } else {
+
+      // changed spec so we now read an expression
+      // so... we can have a parameter contain a function pointer!
+      *counter += 1;
+
+      logDebug("In: %s line:%d |%s|", name, block->line_number, line);
+
+      if (line[*counter] == '<') {
+	      read_name(line, counter, oNameBuf);
+      } else {
+	      CHP(read_integer_value(line, counter, &oNumber,
+				     parameters));
+	      sprintf(oNameBuf, "%d", oNumber);
+      }
   }
 
   // We stash the text the offset part of setup
@@ -1520,7 +1542,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
 
   if(CMP("sub"))
     block->o_type = O_sub;
-  else if(CMP("endsub"))
+  else if(CMP("endsub") || o_m99)
     block->o_type = O_endsub;
   else if(CMP("call"))
     block->o_type = O_call;
