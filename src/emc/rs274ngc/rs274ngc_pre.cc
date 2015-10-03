@@ -2722,9 +2722,6 @@ FILE *Interp::find_ngc_file(setup_pointer settings,const char *basename, char *f
     if (foundhere && (newFP != NULL)) 
        strcpy(foundhere, newFileName);
 
-    if (newFP != NULL)
-        Log("fopen: |%s| OK", newFileName);
-
     return newFP;
 }
 
