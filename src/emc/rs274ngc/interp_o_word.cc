@@ -533,8 +533,7 @@ int Interp::control_back_to( block_pointer block, // pointer to block
         }
     } else {
 	char *dirname = get_current_dir_name();
-	logOword("fopen: |%s| failed CWD:|%s|", newFileName,
-		 dirname);
+	logOword("fopen: failed CWD:|%s|", dirname);
 	free(dirname);
 	ERS(NCE_UNABLE_TO_OPEN_FILE,tmpFileName);
     }
