@@ -135,6 +135,7 @@ setup_struct::setup_struct() :
     feature_set(0),
     single_block_local_sub(false),
     single_block_external_sub(false),
+    enable_fanuc_style_sub(true),
     on_abort_command(NULL),
     init_once(1),
     m_remappable(),
