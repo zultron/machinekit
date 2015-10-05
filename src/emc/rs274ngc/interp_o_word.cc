@@ -107,7 +107,8 @@ int Interp::control_save_offset(block_pointer block,        /* pointer to a bloc
     // the sequence number has already been bumped, so save
     // the proper value
     new_offset.sequence_number = settings->sequence_number - 1;
-    settings->offset_map[block->o_name] = new_offset;
+    settings->offset_map.insert(std::pair<const char *,offset>
+				(strstore(o_name),new_offset));
     return INTERP_OK;
 }
 
