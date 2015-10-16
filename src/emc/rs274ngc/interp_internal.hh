@@ -178,6 +178,7 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 #define G_49   490
 #define G_50   500
 #define G_51   510
+#define G_52   520
 #define G_53   530
 #define G_54   540
 #define G_55   550
@@ -747,6 +748,7 @@ typedef struct setup_struct
   bool single_block_external_sub;
 
   bool enable_fanuc_style_sub;
+  bool persistent_g92_offset;
 
 #define FEATURE(x) (_setup.feature_set & FEATURE_ ## x)
 #define FEATURE_RETAIN_G43           0x00000001
