@@ -784,6 +784,7 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
                       double *parameters)   //!< array of system parameters 
 {
   int counter;
+  int m_number, m_counter;  // for checking m98/m99 as o-words
   int length;
 
   length = strlen(line);
@@ -797,8 +798,10 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
   }
 
   if (line[counter] == 'o' ||
-      strncmp(line+counter,"m98",3) == 0 ||
-      strncmp(line+counter,"m99",3) == 0)
+      (line[counter] == 'm' &&
+       read_integer_value(line, &(m_counter=counter+1), &m_number,
+			  parameters) == INTERP_OK &&
+       (m_number == 98 || m_number == 99)))
  /* Handle 'o', 'm98' and 'm99' explicitly here. Default is
     to read letters via pointer calls to related
     reader functions. 'o' control lines have their
@@ -1512,41 +1515,48 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   int n;
   int is_named_oword;
 
-  if (strncmp(line+*counter,"m98",3) == 0) {
-      CHKS(!_setup.enable_fanuc_style_sub,
-	   "ENABLE_FANUC_STYLE_SUB disabled in .ini file, but found m98");
+  if (line[*counter] == 'm' &&
+      read_integer_value(line, &(n=*counter+1), &oNumber,
+			 parameters) == INTERP_OK) {
+      // m98 or m99 found
+      if (oNumber == 98) {
+	  CHKS(!_setup.enable_fanuc_style_sub,
+	       "ENABLE_FANUC_STYLE_SUB disabled in .ini file, but found m98");
 
-      // Fanuc-style subroutine call with loop: "m98"
-      block->o_type = M_98;
-      *counter += 3;
+	  // Fanuc-style subroutine call with loop: "m98"
+	  block->o_type = M_98;
+	  *counter += 3;
 
-      // Read P-word and L-word now
-      n = strlen(line);
-      while (*counter < n)
-	  CHP(read_one_item(line, counter, block, parameters));
-      // P-word
-      CHKS(block->o_name == NULL, "Found 'm98' code with no P-word");
-      strcpy(oNameBuf, block->o_name);  // hack:  copied back below
+	  // Read P-word and L-word now
+	  n = strlen(line);
+	  while (*counter < n)
+	      CHP(read_one_item(line, counter, block, parameters));
+	  // P-word
+	  CHKS(block->o_name == NULL, "Found 'm98' code with no P-word");
+	  strcpy(oNameBuf, block->o_name);  // hack:  copied back below
+      } else if (oNumber == 99) {
+	  CHKS(!_setup.enable_fanuc_style_sub,
+	       "ENABLE_FANUC_STYLE_SUB disabled in .ini file, but found m99");
 
-  } else if (strncmp(line+*counter,"m99",3) == 0) {
-      CHKS(!_setup.enable_fanuc_style_sub,
-	   "ENABLE_FANUC_STYLE_SUB disabled in .ini file, but found m99");
+	  // Fanuc-style subroutine return: "m99"
+	  block->o_type = M_99;
+	  *counter += 3;
 
-      // Fanuc-style subroutine return: "m99"
-      block->o_type = M_99;
-      *counter += 3;
-
-      // Subroutine name not provided in Fanuc syntax, so pull from
-      // context
-      if(_setup.defining_sub)
-	  strncpy(oNameBuf, _setup.sub_name, LINELEN+1);
-      else if(_setup.call_level)
-	  strncpy(oNameBuf, _setup.sub_context[_setup.call_level].subName,
-		  LINELEN+1);
-      else {
-	  Error("Found 'm99' code outside of sub definition or call context");
-	  ERN(INTERP_ERROR);
-      }
+	  // Subroutine name not provided in Fanuc syntax, so pull from
+	  // context
+	  if(_setup.defining_sub)
+	      strncpy(oNameBuf, _setup.sub_name, LINELEN+1);
+	  else if(_setup.call_level)
+	      strncpy(oNameBuf, _setup.sub_context[_setup.call_level].subName,
+		      LINELEN+1);
+	  else {
+	      Error("Found 'm99' code outside of sub definition or call context");
+	      ERN(INTERP_ERROR);
+	  }
+      } else
+	  // any other m-code should have been handled by read_m()
+	  OERR(_("%d: Bug:  Non-m98/m99 code passed to read_o(): '%s'"),
+	       _setup.sequence_number, _setup.linetext);
 
   } else {
       CHKS((line[*counter] != 'o'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -1571,11 +1581,6 @@ int Interp::read_o(    /* ARGUMENTS                                     */
 	      is_named_oword = 0;
 	  }
 
-      if (is_named_oword == 0) {
-	  n = 0;
-	  CHP(read_integer_value(oNameBuf, &n, &oNumber, parameters));
-	  logDebug("oNumber: %d", oNumber);
-      }
       logDebug("oNameBuf:  |%s|", oNameBuf);
       logDebug("remainder: |%s|", &line[*counter]);
 
@@ -1630,6 +1635,12 @@ int Interp::read_o(    /* ARGUMENTS                                     */
 	      // eat rest of line
 	  }
 	  return INTERP_OK;
+      }
+
+      if (is_named_oword == 0) {
+	  n = 0;
+	  CHP(read_integer_value(oNameBuf, &n, &oNumber, parameters));
+	  logDebug("oNumber: %d", oNumber);
       }
   }
 
