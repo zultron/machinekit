@@ -3006,6 +3006,27 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
      M67 reads a digital input
      M68 reads an analog input*/
 
+  if ((block->m_modes[0] != -1)  && ONCE_M(0)){
+      switch (block->m_modes[0]) {
+      case 98:
+	  // Fanuc-style sub call
+	  //
+	  // This is a place-holder; M98 is really handled in
+	  // interp_o_word.cc convert_control_functions()
+	  OERR(_("%d: Bug:  Never should have gotten here: '%s'"),
+	       settings->sequence_number, settings->linetext);
+	  break;
+      case 99:
+	  // Fanuc-style sub return
+	  //
+	  // This is a place-holder; M99 is really handled in
+	  // interp_o_word.cc convert_control_functions()
+	  OERR(_("%d: Bug:  Never should have gotten here: '%s'"),
+	       settings->sequence_number, settings->linetext);
+	  break;
+      }
+  }
+
   if (IS_USER_MCODE(block,settings,5) && ONCE_M(5))  {
       return convert_remapped_code(block, settings, STEP_M_5, 'm',
 				   block->m_modes[5]);

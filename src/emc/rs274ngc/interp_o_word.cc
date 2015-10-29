@@ -146,8 +146,10 @@ const char *o_ops[] = {
     "O_return",
     "O_repeat",
     "O_endrepeat",
-    "O_continue_call",
-    "O_pyreturn",
+    "M_98",
+    "M_99",
+    "O_",
+
 };
 
 const char *call_statenames[] = {
@@ -159,7 +161,9 @@ const char *call_statenames[] = {
 };
 
 const char *call_typenames[] = {
+    "CT_NONE",
     "CT_NGC_OWORD_SUB",   
+    "CT_NGC_M98_SUB",
     "CT_PYTHON_OWORD_SUB",
     "CT_REMAP",  
 };
@@ -184,32 +188,36 @@ int Interp::execute_call(setup_pointer settings,
 
     switch (call_type) {
 
+    case CT_NONE:
+	ERS("BUG:  execute_call():  arrived with call_type=CT_NONE");
+	break;
+
     case CT_NGC_OWORD_SUB:
-	// copy parameters from context
-	// save old values of parameters
-	// save current file position in context
+    case CT_NGC_M98_SUB:
 	// if we were skipping, no longer
 	if (settings->skipping_o) {
-	    logOword("case O_call -- no longer skipping to:|%s|",
+	    logOword("case O_call/M_98 -- no longer skipping to:|%s|",
 		     settings->skipping_o);
 	    settings->skipping_o = NULL;
 	}
-	for(i = 0; i < INTERP_SUB_PARAMS; i++)	{
-	    previous_frame->saved_params[i] =
-		settings->parameters[i + INTERP_FIRST_SUBROUTINE_PARAM];
-	    settings->parameters[i + INTERP_FIRST_SUBROUTINE_PARAM] =
-		eblock->params[i];
-	}
 
-	// if the previous file was NULL, mark positon as -1 so as not to
-	// reopen it on return.
-	if (settings->file_pointer == NULL) {
+	// copy parameters from context
+	// save old values of parameters
+	if (call_type != CT_NGC_M98_SUB) // M98:  pass #1..#30 from parent
+	    for (i = 0; i < INTERP_SUB_PARAMS; i++) {
+		previous_frame->saved_params[i] =
+		    settings->parameters[i + INTERP_FIRST_SUBROUTINE_PARAM];
+		settings->parameters[i + INTERP_FIRST_SUBROUTINE_PARAM] =
+		    eblock->params[i];
+	    }
+
+	// Set up return to next block (may be overridden by M98)
+	if (settings->file_pointer == NULL)
+	    // if the previous file was NULL, mark positon as -1 so as not to
+	    // reopen it on return.
 	    previous_frame->position = -1;
-	} else {
+	else
 	    previous_frame->position = ftell(settings->file_pointer);
-	}
-
-	// save return location
 	previous_frame->filename = strstore(settings->filename);
 	previous_frame->sequence_number = settings->sequence_number;
 	logOword("saving return location[cl=%d]: %s:%d offset=%ld", 
@@ -226,12 +234,42 @@ int Interp::execute_call(setup_pointer settings,
 				  OVERRIDE_READONLY));
 	}
 
-	// transfer control
-	if (control_back_to(eblock, settings) == INTERP_ERROR) {
+	// M98 w/ L-word:  Handle looping
+	if (eblock->o_type == M_98 && eblock->l_flag) {
+	    // Set up loop counter
+
+	    // Loop count from L-word
+	    if (previous_frame->m98_loop_counter == -1)
+		{ // FIXME
+		// If m98_loop_counter == -1, this is a new loop
+		logOword("FIXME new loop");
+		previous_frame->m98_loop_counter = round_to_int(eblock->l_number);
+		} // FIXME
+	    logOword("Looping on O%s; remaining: %d",
+		     eblock->o_name, previous_frame->m98_loop_counter);
+
+	    // if repeats remain, set up another loop
+	    previous_frame->m98_loop_counter--;
+	    if (previous_frame->m98_loop_counter > 0) {
+
+		// Set return location to repeat this block for next
+		// iteration
+		previous_frame->position = eblock->offset;
+
+	    } else
+		// No loops remain; reset loop counter
+		previous_frame->m98_loop_counter = -1;
+	}
+
+	
+	if (eblock->o_type == M_98 && eblock->l_flag && eblock->l_number == 0)
+	    logOword("M98 L0 instruction; skipping call");
+	else if (control_back_to(eblock, settings) == INTERP_ERROR) {
 	    settings->call_level--;
 	    ERS(NCE_UNABLE_TO_OPEN_FILE,eblock->o_name);
 	    return INTERP_ERROR;
 	}
+
 	break;
 
     case CT_PYTHON_OWORD_SUB:
@@ -355,9 +393,11 @@ int Interp::execute_return(setup_pointer settings, context_pointer current_frame
     // if level is not zero, in a call
     // otherwise in a defn
     // if we were skipping, no longer
-    if (settings->skipping_o && (eblock->o_type == O_endsub)) {
-	logOword("case O_%s -- no longer skipping to:|%s|",
-		 (eblock->o_type == O_endsub) ? "endsub" : "return",
+    if (settings->skipping_o &&
+	((eblock->o_type == O_endsub) || (eblock->o_type == M_99))) {
+	logOword("case %s -- no longer skipping to:|%s|",
+		 (eblock->o_type == O_endsub) ? "O_endsub" :
+		 (eblock->o_type == M_99) ? "M_99" : "O_return",
 		 settings->skipping_o);
 	settings->skipping_o = NULL;
     }
@@ -389,13 +429,16 @@ int Interp::execute_return(setup_pointer settings, context_pointer current_frame
 	}
 	// fall through to normal NGC return handling 
     case CT_NGC_OWORD_SUB:
+    case CT_NGC_M98_SUB:
+    case CT_NONE:  // sub definition
 	if (settings->call_level != 0) {
 
 	    // restore subroutine parameters.
-	    for(int i = 0; i < INTERP_SUB_PARAMS; i++) {
-		settings->parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
-		    previous_frame->saved_params[i];
-	    }
+	    if (call_type != CT_NGC_M98_SUB) // M98:  pass #1..#30 from parent
+		for(int i = 0; i < INTERP_SUB_PARAMS; i++) {
+		    settings->parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
+			previous_frame->saved_params[i];
+		}
 
 	    // file at this level was marked as closed, so dont reopen.
 	    if (previous_frame->position == -1) {
@@ -440,11 +483,12 @@ int Interp::execute_return(setup_pointer settings, context_pointer current_frame
 	    }
 	} else { // call_level == 0
 	    // a definition
-	    if (eblock->o_type == O_endsub) {
+	    if ((eblock->o_type == O_endsub) || (eblock->o_type == M_99)) {
 		CHKS((settings->defining_sub != 1), NCE_NOT_IN_SUBROUTINE_DEFN);
 		// no longer skipping or defining
 		if (settings->skipping_o)  {
-		    logOword("case O_endsub in defn -- no longer skipping to:|%s|",
+		    logOword("case O_endsub/M_99 in defn -- "
+			     "no longer skipping to:|%s|",
 			     settings->skipping_o);
 		    settings->skipping_o = NULL;
 		}
@@ -603,7 +647,8 @@ int Interp::enter_context(setup_pointer settings, block_pointer block)
     frame->py_returned_int = 0;
     frame->py_returned_double = 0.0;
     frame->py_return_type = -1;
-    frame->call_type = block->call_type; // distinguish call frames: oword,python,remap
+    // distinguish call frames: oword,m99,python,remap
+    frame->call_type = block->call_type;
     return INTERP_OK;
 }
 
@@ -663,7 +708,8 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 	logOword("skipping to line: |%s|", settings->skipping_o);
 	return INTERP_OK;
     }
-    if (settings->skipping_to_sub && (block->o_type != O_sub)) {
+    if (settings->skipping_to_sub && (block->o_type != O_sub)
+	&& (block->o_type != O_)) {
 	logOword("skipping to sub: |%s|", settings->skipping_to_sub);
 	return INTERP_OK;
     }
@@ -679,8 +725,25 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 	break;
 
     case O_sub:
-	// if the level is not zero, this is a call
-	// not the definition
+    case O_:
+	// Check that rs274ngc and Fanuc sub call and definition
+	// styles not mixed
+	current_frame = &settings->sub_context[settings->call_level];
+	// 'O....' sub must be called with 'M98'
+	// FIXME:  catch this at definition time
+	CHKS((block->o_type == O_ &&
+	      current_frame->call_type != CT_NGC_M98_SUB &&
+	      current_frame->call_type != CT_NONE),
+	     "Fanuc 'O....' subroutine definition must be called with 'M98'");
+	// 'O.... sub' sub must be called with 'O.... call'
+	logDebug("block->o_type == %s, call_type == %s",o_ops[block->o_type],call_typenames[current_frame->call_type]);
+	CHKS((block->o_type == O_sub &&
+	      current_frame->call_type != CT_NGC_OWORD_SUB &&
+	      current_frame->call_type != CT_PYTHON_OWORD_SUB &&
+	      current_frame->call_type != CT_REMAP &&
+	      current_frame->call_type != CT_NONE),
+	     "'O.... sub' subroutine must be called with 'O.... call'");
+
 	// if we were skipping, no longer
 	if (settings->skipping_o) {
 	    logOword("sub(o_|%s|) was skipping to here", settings->skipping_o);
@@ -691,6 +754,8 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 	}
 	settings->skipping_to_sub = NULL; // this IS our block number
 
+	// if the level is not zero, this is a call
+	// not the definition
 	if (settings->call_level != 0) {
 	    logOword("call:%f:%f:%f",
 		     settings->parameters[1],
@@ -698,7 +763,8 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 		     settings->parameters[3]);
 	} else {
 	    // a definition. We're on the O<name> sub line.
-	    logOword("started a subroutine defn: %s",block->o_name);   
+	    logOword("started a %s-style subroutine defn: %s",
+		     block->o_type==O_?"Fanuc":"rs274", block->o_name);
 	    CHKS((settings->defining_sub == 1), NCE_NESTED_SUBROUTINE_DEFN);
 	    CHP(control_save_offset( block, settings));
 
@@ -713,22 +779,36 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 
     case O_endsub:
     case O_return:
+    case M_99:
 
-	if  ((settings->call_level == 0) && 
+	if  ((settings->call_level == 0) &&
 	     (settings->sub_name == NULL)) {
 	    // detect a standalone 'o<label> return|endsub'
 	    OERR(_("%d: not in a subroutine definition: '%s'"),
 		 settings->sequence_number, settings->linetext);
 	} 
 
+	current_frame = &settings->sub_context[settings->call_level];
+
+	// 'O....' sub defn must be closed with 'M99'
+	CHKS((current_frame->call_type == CT_NGC_M98_SUB &&
+	      block->o_type != M_99),
+	     "Fanuc 'O....' subroutine definition must end with 'M99'");
+	// 'O.... sub' sub defn must be closed with 'O.... endsub' or
+	// 'O.... return'
+	CHKS((current_frame->call_type == CT_NGC_OWORD_SUB &&
+	      block->o_type != O_endsub && block->o_type != O_return),
+	     "'O.... endsub' or 'O.... return' must follow 'O.... sub' "
+	     "subroutine definition");
+
 	// proper label semantics (only refer to defined sub, within sub defn etc)
 	// is handled in read_o() for return & endsub
-	current_frame = &settings->sub_context[settings->call_level];
 	CHP(execute_return(settings, current_frame,
 			   current_frame->call_type)); 
 	break;
 
     case O_call:
+    case M_98:
 	// only enter new frame if not reexecuting a Python handler 
 	// which returned INTERP_EXECUTE_FINISH
 	if (settings->call_state == CS_NORMAL) {
