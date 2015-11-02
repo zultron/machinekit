@@ -1,0 +1,5 @@
+#!/bin/sh
+#
+# Is this code disabled?  In interp_read.cc read_o(), there's no
+# provision for reading a token following 'o' that begins with '#'.
+exit 1

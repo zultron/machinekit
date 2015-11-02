@@ -170,7 +170,7 @@ The G10 L2x command can be used to set coordinate (fixture) offsets:
 * 'G10 L20 P(fixture 1-9)' - Set offset(s) so current position becomes a value. 
                          (see <<sec:G10-L20,G10 L20>> for details)
 
-== G92 Offsets[[sec:G92-Offsets]]
+== G92 Offsets[[sec:G52-and-G92-Offsets]]
 
 === The G92 commands
 

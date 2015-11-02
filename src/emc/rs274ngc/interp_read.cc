@@ -784,6 +784,7 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
                       double *parameters)   //!< array of system parameters 
 {
   int counter;
+  int m_number, m_counter;  // for checking m98/m99 as o-words
   int length;
 
   length = strlen(line);
@@ -796,8 +797,12 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
     CHP(read_n_number(line, &counter, block));
   }
 
-  if (line[counter] == 'o')
- /* Handle 'o' explicitly here. Default is
+  if (line[counter] == 'o' ||
+      (line[counter] == 'm' &&
+       read_integer_value(line, &(m_counter=counter+1), &m_number,
+			  parameters) == INTERP_OK &&
+       (m_number == 98 || m_number == 99)))
+ /* Handle 'o', 'm98' and 'm99' explicitly here. Default is
     to read letters via pointer calls to related
     reader functions. 'o' control lines have their
     own commands and command handlers. */
@@ -1510,81 +1515,137 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   int n;
   int is_named_oword;
 
-  CHKS((line[*counter] != 'o'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
+  if (line[*counter] == 'm' &&
+      read_integer_value(line, &(n=*counter+1), &oNumber,
+			 parameters) == INTERP_OK) {
+      // m98 or m99 found
+      if (oNumber == 98) {
+	  CHKS(!_setup.enable_fanuc_style_sub,
+	       "ENABLE_FANUC_STYLE_SUB disabled in .ini file, but found m98");
 
-  // changed spec so we now read an expression
-  // so... we can have a parameter contain a function pointer!
-  *counter += 1;
+	  // Fanuc-style subroutine call with loop: "m98"
+	  block->o_type = M_98;
+	  *counter += 3;
 
-  logDebug("In: %s line:%d |%s|", name, block->line_number, line);
+	  // Read P-word and L-word now
+	  n = strlen(line);
+	  while (*counter < n)
+	      CHP(read_one_item(line, counter, block, parameters));
+	  // P-word
+	  CHKS(block->o_name == NULL, "Found 'm98' code with no P-word");
+	  strcpy(oNameBuf, block->o_name);  // hack:  copied back below
+      } else if (oNumber == 99) {
+	  CHKS(!_setup.enable_fanuc_style_sub,
+	       "ENABLE_FANUC_STYLE_SUB disabled in .ini file, but found m99");
 
-  if(line[*counter] == '<')
-  {
-      is_named_oword = 1;
-      read_name(line, counter, oNameBuf);
-  }
-  else
-  {
-     for (n = 0; isdigit(line[*counter]); (*counter)++, n++) {
-       oNameBuf[n] = line[*counter];
-     }
-     oNameBuf[n] = 0;
-     is_named_oword = 0;
-  }
+	  // Fanuc-style subroutine return: "m99"
+	  block->o_type = M_99;
+	  *counter += 3;
 
-  logDebug("oNameBuf:  |%s|", oNameBuf);
-  logDebug("remainder: |%s|", &line[*counter]);
+	  // Subroutine name not provided in Fanuc syntax, so pull from
+	  // context
+	  if(_setup.defining_sub)
+	      strncpy(oNameBuf, _setup.sub_name, LINELEN+1);
+	  else if(_setup.call_level)
+	      strncpy(oNameBuf, _setup.sub_context[_setup.call_level].subName,
+		      LINELEN+1);
+	  else {
+	      Error("Found 'm99' code outside of sub definition or call context");
+	      ERN(INTERP_ERROR);
+	  }
+      } else
+	  // any other m-code should have been handled by read_m()
+	  OERR(_("%d: Bug:  Non-m98/m99 code passed to read_o(): '%s'"),
+	       _setup.sequence_number, _setup.linetext);
 
-  // We stash the text the offset part of setup
+  } else {
+      CHKS((line[*counter] != 'o'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
+
+      // rs274-style O-word
+
+      // changed spec so we now read an expression
+      // so... we can have a parameter contain a function pointer!
+      *counter += 1;
+
+      if(line[*counter] == '<')
+	  {
+	      is_named_oword = 1;
+	      read_name(line, counter, oNameBuf);
+	  }
+      else
+	  {
+	      for (n = 0; isdigit(line[*counter]); (*counter)++, n++) {
+		  oNameBuf[n] = line[*counter];
+	      }
+	      oNameBuf[n] = 0;
+	      is_named_oword = 0;
+	  }
+
+      logDebug("oNameBuf:  |%s|", oNameBuf);
+      logDebug("remainder: |%s|", &line[*counter]);
+
+      // We stash the text the offset part of setup
 
 #define CMP(txt) (strncmp(line+*counter, txt, strlen(txt)) == 0 && (*counter += strlen(txt)))
-  // characterize the type of o-word
+      // characterize the type of o-word
 
-  if(CMP("sub"))
-    block->o_type = O_sub;
-  else if(CMP("endsub"))
-    block->o_type = O_endsub;
-  else if(CMP("call"))
-    block->o_type = O_call;
-  else if(CMP("do"))
-    block->o_type = O_do;
-  else if(CMP("while"))
-    block->o_type = O_while;
-  else if(CMP("repeat"))
-    block->o_type = O_repeat;
-  else if(CMP("if"))
-    block->o_type = O_if;
-  else if(CMP("elseif"))
-    block->o_type = O_elseif;
-  else if(CMP("else"))
-    block->o_type = O_else;
-  else if(CMP("endif"))
-    block->o_type = O_endif;
-  else if(CMP("break"))
-    block->o_type = O_break;
-  else if(CMP("continue"))
-    block->o_type = O_continue;
-  else if(CMP("endwhile"))
-    block->o_type = O_endwhile;
-  else if(CMP("endrepeat"))
-    block->o_type = O_endrepeat;
-  else if(CMP("return"))
-    block->o_type = O_return;
-  else {
-    block->o_type = O_none;
-    // unrecognized o-word keyword - treat line as program title
-    logDebug("O_none - ignoring entire line");
-    for (; line[*counter] != '\0'; (*counter)++) {
-      // eat rest of line
-    }
-    return INTERP_OK;
+      if(CMP("sub"))
+	  block->o_type = O_sub;
+      else if(CMP("endsub"))
+	  block->o_type = O_endsub;
+      else if(CMP("call"))
+	  block->o_type = O_call;
+      else if(CMP("do"))
+	  block->o_type = O_do;
+      else if(CMP("while"))
+	  block->o_type = O_while;
+      else if(CMP("repeat"))
+	  block->o_type = O_repeat;
+      else if(CMP("if"))
+	  block->o_type = O_if;
+      else if(CMP("elseif"))
+	  block->o_type = O_elseif;
+      else if(CMP("else"))
+	  block->o_type = O_else;
+      else if(CMP("endif"))
+	  block->o_type = O_endif;
+      else if(CMP("break"))
+	  block->o_type = O_break;
+      else if(CMP("continue"))
+	  block->o_type = O_continue;
+      else if(CMP("endwhile"))
+	  block->o_type = O_endwhile;
+      else if(CMP("endrepeat"))
+	  block->o_type = O_endrepeat;
+      else if(CMP("return"))
+	  block->o_type = O_return;
+      else if((line+*counter)[0] == '(' || (line+*counter)[0] == ';'
+	      || (line+*counter)[0] == 0)
+	  // Fanuc-style subroutine definition:  "O2000" with no following args
+	  block->o_type = O_;
+      else {
+	  CHKS(!_setup.enable_fanuc_style_sub,
+	       "ENABLE_FANUC_STYLE_SUB disabled in .ini file, but found "
+	       "bare O-word");
+
+	  block->o_type = O_none;
+	  // unrecognized o-word keyword - treat line as program title
+	  logDebug("O_none - ignoring entire line");
+	  for (; line[*counter] != '\0'; (*counter)++) {
+	      // eat rest of line
+	  }
+	  return INTERP_OK;
+      }
+
+      if (is_named_oword == 0) {
+	  n = 0;
+	  CHP(read_integer_value(oNameBuf, &n, &oNumber, parameters));
+	  logDebug("oNumber: %d", oNumber);
+      }
   }
 
-  if (is_named_oword == 0) {
-    n = 0;
-    CHP(read_integer_value(oNameBuf, &n, &oNumber, parameters));
-    logDebug("oNumber: %d", oNumber);
-  }
+  logDebug("In: %s line:%d |%s| subroutine=|%s|",
+	   name, block->line_number, line, oNameBuf);
 
   // we now have it characterized
   // now create the text of the oword
@@ -1593,9 +1654,12 @@ int Interp::read_o(    /* ARGUMENTS                                     */
     {
       // the global cases first
     case O_sub:
+    case O_:
     case O_endsub:
     case O_call:
+    case M_98:
     case O_return:
+    case M_99:
 	block->o_name = strstore(oNameBuf);
 	logDebug("global case:|%s|", block->o_name);
 	break;
@@ -1624,12 +1688,13 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   logDebug("o_type:%s o_name: %s  line:%d %s", o_ops[block->o_type], block->o_name,
 	   block->line_number, line);
 
-  if (block->o_type == O_sub)
+  if (block->o_type == O_sub || block->o_type == O_)
     {
-      block->o_type = O_sub;
+	// do nothing
     }
   // in terms of execution endsub and return do the same thing
-  else if ((block->o_type == O_endsub) || (block->o_type == O_return))
+  else if ((block->o_type == O_endsub) || (block->o_type == O_return) ||
+	   (block->o_type == M_99))
     {
 	if ((_setup.skipping_o != 0) &&
 	    (0 != strcmp(_setup.skipping_o, block->o_name))) {
@@ -1637,7 +1702,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
 	}
 
 	// optional return value expression
-	if (line[*counter] == '[') {
+	if (block->o_type != M_99 && line[*counter] == '[') {
 	    CHP(read_real_expression(line, counter, &value, parameters));
 	    logOword("%s %s value %lf",
 		     (block->o_type == O_endsub) ? "endsub" : "return",
@@ -1694,6 +1759,12 @@ int Interp::read_o(    /* ARGUMENTS                                     */
 	  block->params[param_cnt] = 0.0;
 	}
     }
+  else if(block->o_type == M_98) {
+      // No params in M98 block (this could also be 30!)
+      block->param_cnt = 0;
+      // Distinguish from 'O.... call'
+      block->call_type = CT_NGC_M98_SUB;
+  }
   else if(block->o_type == O_do)
     {
       block->o_type = O_do;
@@ -1830,10 +1901,25 @@ int Interp::read_p(char *line,   //!< string: line of RS274/NGC code being proce
                   double *parameters)   //!< array of system parameters                    
 {
   double value;
+  int n;
+  char oNameBuf[LINELEN+1];
 
   CHKS((line[*counter] != 'p'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
   *counter = (*counter + 1);
   CHKS((block->p_number > -1.0), NCE_MULTIPLE_P_WORDS_ON_ONE_LINE);
+
+  if (block->o_type == M_98) {
+      // Special handling for P word: read as string rather than
+      // integer, since leading zeros are significant
+      for (n = 0; isdigit(line[*counter]); (*counter)++, n++)
+	  oNameBuf[n] = line[*counter];
+      oNameBuf[n] = 0;
+      CHKS(strlen(oNameBuf) == 0, "M98 P-word with no following number");
+      block->o_name = strstore(oNameBuf);
+      return INTERP_OK;
+  }
+      
+  // Otherwise, read a float value
   CHP(read_real_value(line, counter, &value, parameters));
   // FMP removed check for negatives, since we may want them for
   // user-defined codes

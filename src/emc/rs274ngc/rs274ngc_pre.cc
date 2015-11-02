@@ -999,6 +999,36 @@ int Interp::init()
 	      n++;
 	  }
 
+          if(NULL != (inistring = inifile.Find("ENABLE_FANUC_STYLE_SUB",
+					       "RS274NGC")))
+          {
+	      if (strcmp(inistring,"True") == 0 ||
+		  strcmp(inistring, "true") == 0 ||
+		  strcmp(inistring, "YES") == 0) {
+		  logDebug("init:  ENABLE_FANUC_STYLE_SUB = TRUE");
+		  _setup.enable_fanuc_style_sub = true;
+	      } else {
+		  logDebug("init:  ENABLE_FANUC_STYLE_SUB = FALSE");
+		  _setup.enable_fanuc_style_sub = false;
+	      }
+          } else
+	      logDebug("init:  ENABLE_FANUC_STYLE_SUB = TRUE (default)");
+
+          if(NULL != (inistring = inifile.Find("PERSISTENT_G92_OFFSET",
+					       "RS274NGC")))
+          {
+	      if (strcmp(inistring,"True") == 0 ||
+		  strcmp(inistring, "true") == 0 ||
+		  strcmp(inistring, "YES") == 0) {
+		  logDebug("init:  PERSISTENT_G92_OFFSET = TRUE");
+		  _setup.persistent_g92_offset = true;
+	      } else {
+		  logDebug("init:  PERSISTENT_G92_OFFSET = FALSE");
+		  _setup.persistent_g92_offset = false;
+	      }
+          } else
+	      logDebug("init:  PERSISTENT_G92_OFFSET = FALSE (default)");
+
           // close it
           inifile.Close();
       }
@@ -1038,6 +1068,15 @@ int Interp::init()
                  _setup.u_origin_offset ,
                  _setup.v_origin_offset ,
                  _setup.w_origin_offset);
+
+  // Restore G92 offset if PERSISTENT_G92_OFFSET is set in .ini file.
+  // This can't be done with the static _required_parameters[], where
+  // the .vars file contents would reflect that setting, so instead
+  // edit the restored parameters here.
+  if (! _setup.persistent_g92_offset)
+      // Persistence disabled:  clear g92 parameters
+      for (k = 5210; k < 5220; k++)
+	  pars[k] = 0;
 
   if (pars[5210]) {
       _setup.axis_offset_x = USER_TO_PROGRAM_LEN(pars[5211]);
@@ -1510,11 +1549,15 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
    
   block_pointer eblock = &EXECUTING_BLOCK(_setup);
 
-  if ((_setup.call_state > CS_NORMAL) && 
-      (eblock->call_type > CT_NGC_OWORD_SUB)  && 
+  if ((_setup.call_state > CS_NORMAL) &&
+      (eblock->call_type != CT_NGC_OWORD_SUB)  &&
+      (eblock->call_type != CT_NGC_M98_SUB)  &&
+      (eblock->call_type != CT_NONE)  &&
       ((eblock->o_type == O_call) ||
+       (eblock->o_type == M_98) ||
        (eblock->o_type == O_return) ||
-       (eblock->o_type == O_endsub))) {
+       (eblock->o_type == O_endsub) ||
+       (eblock->o_type == M_99))) {
 
       logDebug("read(): skipping read");
       _setup.line_length = 0;
@@ -1609,10 +1652,11 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 	    sub->subName = 0;
 	}
 
-	for(i=0; i<INTERP_SUB_PARAMS; i++) {
-	    _setup.parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
-		sub->saved_params[i];
-	}
+	if (sub->call_type != CT_NGC_M98_SUB) // M98:  pass #1..#30 from parent
+	    for(i=0; i<INTERP_SUB_PARAMS; i++) {
+		_setup.parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
+		    sub->saved_params[i];
+	    }
 
 	// When called from Interp::close via Interp::reset, this one is NULL
 	if (!_setup.file_pointer) continue;
@@ -2721,9 +2765,6 @@ FILE *Interp::find_ngc_file(setup_pointer settings,const char *basename, char *f
 
     if (foundhere && (newFP != NULL)) 
        strcpy(foundhere, newFileName);
-
-    if (newFP != NULL)
-        Log("fopen: |%s| OK", newFileName);
 
     return newFP;
 }

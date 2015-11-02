@@ -132,6 +132,9 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 #define O_return   13
 #define O_repeat   14
 #define O_endrepeat 15
+#define M_98       16
+#define M_99       17
+#define O_         18
 
 // G Codes are symbolic to be dialect-independent in source code
 #define G_0      0
@@ -175,6 +178,7 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 #define G_49   490
 #define G_50   500
 #define G_51   510
+#define G_52   520
 #define G_53   530
 #define G_54   540
 #define G_55   550
@@ -266,6 +270,7 @@ enum phases  {
     STEP_SET_FEED_RATE,
     STEP_SET_SPINDLE_SPEED,
     STEP_PREPARE,
+    STEP_M_0,
     STEP_M_5,
     STEP_M_6,
     STEP_RETAIN_G43,
@@ -486,7 +491,9 @@ enum call_states {
 
 // detail for O_call; tags the frame
 enum call_types {
+    CT_NONE,             // not in a call
     CT_NGC_OWORD_SUB,    // no restartable Python code involved
+    CT_NGC_M98_SUB,      // like above; Fanuc-style, pass in params #1..#30
     CT_PYTHON_OWORD_SUB, // restartable Python code may be involved
     CT_REMAP,            // restartable Python code may be involved
 };
@@ -739,6 +746,9 @@ typedef struct setup_struct
    * */
   bool single_block_local_sub;
   bool single_block_external_sub;
+
+  bool enable_fanuc_style_sub;
+  bool persistent_g92_offset;
 
 #define FEATURE(x) (_setup.feature_set & FEATURE_ ## x)
 #define FEATURE_RETAIN_G43           0x00000001

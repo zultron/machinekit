@@ -541,11 +541,25 @@ public:
   block_pointer block,       /* pointer to a block of RS274/NGC instructions */
   setup_pointer settings);   /* pointer to machine settings */
 
+ int control_save_offset(
+  block_pointer block,
+  const char *o_name,        /* o_name key */
+  setup_pointer settings);
+
+ int control_find_oword(     /* ARGUMENTS                   */
+  const char *o_name,        /* o-word name                 */
+  setup_pointer settings,    /* pointer to machine settings */
+  offset_pointer *ppo);
+
  int control_find_oword(     /* ARGUMENTS                   */
   block_pointer block,       /* block pointer to get (o-word) name        */
   setup_pointer settings,    /* pointer to machine settings */
   offset_pointer *ppo);
 //  int *o_index);             /* the index of o-word (returned) */
+
+ int control_back_to(        /* ARGUMENTS                   */
+  const char *o_name,        /* o-word name                 */
+  setup_pointer settings);   /* pointer to machine settings */
 
  int control_back_to(        /* ARGUMENTS                   */
   block_pointer block, // pointer to block
