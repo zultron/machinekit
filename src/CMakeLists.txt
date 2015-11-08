@@ -45,30 +45,6 @@ find_package (PkgConfig REQUIRED)
 # FIXME:  This doesn't find the header file, dangit
 pkg_check_modules (GLIB2 REQUIRED glib-2.0)
 
-# gtk+-2.0 (everything graphical)
-find_package (GTK2 REQUIRED)
-# ...and libgnomeprintui-2.2
-if (GTK2_FOUND)
-  pkg_check_modules (GNOMEPRINT libgnomeprintui-2.2)
-endif (GTK2_FOUND)
-# this is needed a LOT, so just set variables right here
-set (GTK_INCLUDE_DIRECTORIES ${GTK2_INCLUDE_DIRS})
-set (GTK_COMPILE_DEFINITIONS
-  GTK_INTERFACE GTK2  # in Submakefile but not pkg-config; origin???
-  )
-set (GTK_LIBS ${GTK2_LIBRARIES})
-if (GNOMEPRINT_FOUND)
-  set (GTK_INCLUDE_DIRECTORIES ${GTK_INCLUDE_DIRECTORIES}
-    ${GNOMEPRINT_INCLUDE_DIRS}
-    )
-  set (GTK_COMPILE_DEFINITIONS ${GTK_COMPILE_DEFINITIONS}
-    GNOME_PRINT_USE  # in Submakefile but not pkg-config; origin???
-    )
-  set (GTK_LIBS ${GTK_LIBS}
-    ${GNOMEPRINT_LIBRARIES}
-    )
-endif (GNOMEPRINT_FOUND)
-
 # readline (halcmd)
 # FIXME:  This needs to check for readline v.5; v.6 is GPLv3, IIRC
 find_package (Readline REQUIRED)
@@ -85,9 +61,6 @@ find_package (Readline REQUIRED)
 # Build subdirectories
 
 add_subdirectory (rtapi)
-add_subdirectory (libnml)
-add_subdirectory (libnml/posemath)
-add_subdirectory (libnml/inifile)
 add_subdirectory (hal)
 
 
