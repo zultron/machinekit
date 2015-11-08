@@ -154,15 +154,15 @@ include_directories (${CMAKE_SOURCE_DIR}/hal)
 #	    -o ../lib/liblinuxcnchal.so.0 objects/hal/hal_lib.o objects/rtapi/rtapi_compat.o -ldl  -lnative -L/usr/lib64 -lxenomai -lpthread -lrt
 #ln -sf liblinuxcnchal.so.0 ../lib/liblinuxcnchal.so
 
-add_library (linuxcnchal
+add_library (liblinuxcnchal
   rtapi_compat.c
   ${CMAKE_SOURCE_DIR}/hal/hal_lib.c
   )
-set_property (TARGET linuxcnchal APPEND PROPERTY
+set_property (TARGET liblinuxcnchal APPEND PROPERTY
   COMPILE_DEFINITIONS ULAPI
   )
-target_link_libraries (linuxcnchal dl)
-set_target_properties (linuxcnchal PROPERTIES
+target_link_libraries (liblinuxcnchal dl)
+set_target_properties (liblinuxcnchal PROPERTIES
   SOVERSION 0)
 
 
