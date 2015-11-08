@@ -107,7 +107,7 @@ endforeach (Style)
 
 # kdetect and rtapiload executables
 add_executable (kdetect rtapi_kdetect.c)
-target_link_libraries (kdetect rt linuxcnchal)
+target_link_libraries (kdetect rt liblinuxcnchal)
 
 add_executable (rtapiload rtapi_load.c)
 target_link_libraries (rtapiload linuxcnchal)
