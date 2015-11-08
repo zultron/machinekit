@@ -3,7 +3,6 @@ Modules.symvers
 .tmp_versions
 Makefile.inc
 Makefile.modinc
-config.h
 config.log
 config.status
 objects
