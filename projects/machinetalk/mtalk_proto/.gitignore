@@ -1,3 +1,2 @@
-objects/*
-js/*.js
-
+/*.pb.cc
+/*.pb.h
