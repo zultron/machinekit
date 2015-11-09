@@ -1,12 +1,15 @@
 cmake_minimum_required(VERSION 2.8)
-project(machinekit)
+project(MACHINEKIT)
 
 set(MACHINEKIT_MAJOR_VERSION 0)
 set(MACHINEKIT_MINOR_VERSION 1)
 set(MACHINEKIT_PATCH_VERSION 0)
 set(MACHINEKIT_VERSION ${MACHINEKIT_MAJOR_VERSION}.${MACHINEKIT_MINOR_VERSION}.${MACHINEKIT_PATCH_VERSION})
 
-# CMake plugins
+# CMake modules
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+
+# CMake modules
 # TODO: Remove unused ones.
 include(CheckFunctionExists)
 include(CheckIncludeFile)
@@ -18,6 +21,8 @@ include(CheckStructHasMember)
 include(CheckCSourceCompiles)
 include(CheckPrototypeDefinition)
 include(FindPkgConfig)
+# From https://github.com/thewtex/cython-cmake-example:
+include(UseCython)
 
 # External packages
 find_package(Boost COMPONENTS python REQUIRED)

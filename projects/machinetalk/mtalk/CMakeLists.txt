@@ -22,6 +22,7 @@ target_include_directories(mtalk PUBLIC
 	${UUID_INCLUDE_DIRS}
 )
 target_link_libraries(mtalk
+	PRIVATE  # Using libraries:  don't include the following in linker cmd
 	mtalk_proto
 	inifile
 	${JANSSON_LIBRARIES}
@@ -29,4 +30,7 @@ target_link_libraries(mtalk
 	${ZMQ_LIBRARIES}
 	${UUID_LIBRARIES}
 	)
-set_target_properties(mtalk PROPERTIES COMPILE_DEFINITIONS "${machinetalk_DEFINITIONS}")
+set_target_properties(mtalk PROPERTIES
+  COMPILE_DEFINITIONS "${machinetalk_DEFINITIONS}"
+  SOVERSION "${MACHINEKIT_MAJOR_VERSION}"
+  )
