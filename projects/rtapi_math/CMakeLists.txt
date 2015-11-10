@@ -41,10 +41,10 @@ add_library(rtapi_math SHARED
 	src/librtapi_math.c
 )
 
-target_include_directories(rtapi_math PUBLIC
-	include
-	$<TARGET_PROPERTY:rtapi,INTERFACE_INCLUDE_DIRECTORIES>
-	)
+target_include_directories(rtapi_math
+  PUBLIC include
+  PRIVATE	$<TARGET_PROPERTY:rtapi,INTERFACE_INCLUDE_DIRECTORIES>
+  )
 
 target_link_libraries(rtapi_math rtapi)
 

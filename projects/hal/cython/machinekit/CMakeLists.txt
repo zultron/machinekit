@@ -1,7 +1,7 @@
 # UseCython requires pyx file directories to have INCLUDE_DIRECTORIES
 # set
 set_directory_properties(PROPERTIES
-  INCLUDE_DIRECTORIES "${MACHINEKIT_SOURCE_DIR}")
+  INCLUDE_DIRECTORIES "${MACHINEKIT_BINARY_DIR}")
 
 #
 # hal.so cython module
@@ -22,6 +22,9 @@ cython_add_module(hal
 target_link_libraries(hal
   linuxcnchal
   mtalk
+  )
+target_include_directories(hal PRIVATE
+  $<TARGET_PROPERTY:rtapi,INTERFACE_INCLUDE_DIRECTORIES>
   )
 
 #
@@ -47,7 +50,10 @@ set_target_properties(rtapi_cython PROPERTIES
   OUTPUT_NAME "rtapi"
   )
 target_include_directories(rtapi_cython PRIVATE
+  # FIXME: convert this to generator expression when
+  # hal/utils/CMakeLists.txt is complete
   "${MACHINEKIT_SOURCE_DIR}/hal/utils"
+  $<TARGET_PROPERTY:rtapi,INTERFACE_INCLUDE_DIRECTORIES>
   )
 
 #
@@ -61,6 +67,9 @@ cython_add_module(compat
 target_link_libraries(compat
   linuxcnchal
   )
+target_include_directories(compat PRIVATE
+  $<TARGET_PROPERTY:rtapi,INTERFACE_INCLUDE_DIRECTORIES>
+  )
 
 #
 # shmcommon.so cython module
@@ -71,6 +80,6 @@ cython_add_module(shmcommon
   shmcommon.pxd
   global_data.pxd
   )
-target_include_directories(shmcommon PUBLIC
+target_include_directories(shmcommon PRIVATE
   $<TARGET_PROPERTY:linuxcncshm,INTERFACE_INCLUDE_DIRECTORIES>
   )

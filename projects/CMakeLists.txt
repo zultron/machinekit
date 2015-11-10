@@ -23,6 +23,7 @@ include(CheckPrototypeDefinition)
 include(FindPkgConfig)
 # From https://github.com/thewtex/cython-cmake-example:
 include(UseCython)
+include(UseHALComp)
 
 # External packages
 find_package(Boost COMPONENTS python REQUIRED)
@@ -40,6 +41,11 @@ find_path(Protobuf_INCLUDE google/protobuf/descriptor.proto PATHS
 	/usr/include/protobuf
 	)
 list(APPEND PROTOBUF_IMPORT_DIRS ${Protobuf_INCLUDE})
+
+
+# Local python path and how to run python
+set(PYTHONPATH ${MACHINEKIT_SOURCE_DIR}/../lib/python)
+set(LOCAL_PYTHON_EXECUTABLE env PYTHONPATH=${PYTHONPATH} ${PYTHON_EXECUTABLE})
 
 # Generate config.h
 configure_file(config.h.in config.h)

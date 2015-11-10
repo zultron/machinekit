@@ -44,8 +44,9 @@ set(KERNEL_INCLUDE_DIRS "${KERNEL_INCLUDE_DIR}" "${KERNEL_ARCH_INCLUDE_DIR}")
 
 
 target_include_directories(rtapi
-PUBLIC
+  PUBLIC
 	include
+  PRIVATE
 	$<TARGET_PROPERTY:inifile,INTERFACE_INCLUDE_DIRECTORIES>
 	$<TARGET_PROPERTY:mtalk,INTERFACE_INCLUDE_DIRECTORIES>
 	$<TARGET_PROPERTY:mtalk_proto,INTERFACE_INCLUDE_DIRECTORIES>
@@ -65,7 +66,7 @@ target_link_libraries(rtapi inifile mtalk mtalk_proto linuxcnchal linuxcncshm)
 add_executable(flavor
 	src/flavor.c
 	src/rtapi_compat.c)
-target_include_directories(flavor PUBLIC
+target_include_directories(flavor PRIVATE
 	include
 	$<TARGET_PROPERTY:inifile,INTERFACE_INCLUDE_DIRECTORIES>)
 target_link_libraries(flavor inifile)

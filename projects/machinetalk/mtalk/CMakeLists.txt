@@ -12,14 +12,15 @@ add_library(mtalk SHARED
 	src/json2pb.cc
 	)
 
-target_include_directories(mtalk PUBLIC
-	include
-	$<TARGET_PROPERTY:mtalk_proto,INTERFACE_INCLUDE_DIRECTORIES>
-	$<TARGET_PROPERTY:inifile,INTERFACE_INCLUDE_DIRECTORIES>
-	${JANSSON_INCLUDE_DIRS}
-	${AVAHICLIENT_INCLUDE_DIRS}
-	${ZMQ_INCLUDE_DIRS}
-	${UUID_INCLUDE_DIRS}
+target_include_directories(mtalk
+  PUBLIC include
+  PRIVATE
+  $<TARGET_PROPERTY:mtalk_proto,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:inifile,INTERFACE_INCLUDE_DIRECTORIES>
+  ${JANSSON_INCLUDE_DIRS}
+  ${AVAHICLIENT_INCLUDE_DIRS}
+  ${ZMQ_INCLUDE_DIRS}
+  ${UUID_INCLUDE_DIRS}
 )
 target_link_libraries(mtalk
 	PRIVATE  # Using libraries:  don't include the following in linker cmd

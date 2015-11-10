@@ -17,11 +17,13 @@ add_library(linuxcnchal SHARED
 	src/hal_misc.c
 	src/hal_instance.c)
 
-target_include_directories(linuxcnchal PUBLIC
-	include
-	$<TARGET_PROPERTY:rtapi,INTERFACE_INCLUDE_DIRECTORIES>
-	$<TARGET_PROPERTY:shmdrv,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(linuxcnchal
+  PUBLIC include
+  PRIVATE
+  $<TARGET_PROPERTY:rtapi,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:shmdrv,INTERFACE_INCLUDE_DIRECTORIES>
+  )
 set_target_properties(linuxcnchal PROPERTIES
   COMPILE_DEFINITIONS "${MACHINEKIT_COMPILE_DEFINITIONS}"
   SOVERSION "${MACHINEKIT_MAJOR_VERSION}"
-)
+  )
