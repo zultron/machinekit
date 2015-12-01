@@ -1,13 +1,13 @@
 #!/bin/bash -ex
 cd "$(dirname $0)/.."
 
-CHROOT_PATH="/opt/rootfs"
-MACHINEKIT_PATH="/usr/src/machinekit"
-TRAVIS_PATH="$MACHINEKIT_PATH/.travis"
-DOCKER_CONTAINER=${DOCKER_CONTAINER:-"kinsamanka/mkdocker"}
+TRAVIS_PATH=${MACHINEKIT_PATH}/${TRAVIS_DIR}
+DOCKER_IMAGE=${DOCKER_IMAGE:-"kinsamanka/mkdocker"}
 COMMITTER_NAME="$(git log -1 --pretty=format:%an)"
 COMMITTER_EMAIL="$(git log -1 --pretty=format:%ae)"
 COMMIT_TIMESTAMP="$(git log -1 --pretty=format:%at)"
+DISTRO=${TAG%-*}
+ARCH=${TAG#*-}
 # Verbose RIP build output:  "true" or "false"
 MK_BUILD_VERBOSE=${MK_BUILD_VERBOSE:-"false"}
 # Verbose package build output:  "true" or "false"
@@ -24,7 +24,7 @@ fi
 # run build step
 docker run \
     -v $(pwd):${CHROOT_PATH}${MACHINEKIT_PATH} \
-    -e FLAV="${FLAV}" \
+    -e FLAV=${FLAV} \
     -e JOBS=${JOBS} \
     -e TAG=${TAG} \
     -e CHROOT_PATH=${CHROOT_PATH} \
@@ -45,13 +45,15 @@ docker run \
     -e TRAVIS_COMMIT \
     -e TRAVIS_BRANCH \
     -e LC_ALL="POSIX" \
-    ${DOCKER_CONTAINER}:${TAG} \
+    ${DOCKER_IMAGE}:${TAG} \
     ${CHROOT_PATH}${TRAVIS_PATH}/${cmd}.sh
 
-# tests are run under a new container instead of chrooting
-# this will allow us to run docker without using privileged mode
-if [ ${CMD} == "run_tests" ];
-then
+if [ ${TRAVIS_PULL_REQUEST} != "false" && ${CMD} == "run_tests" ]; then
+    # Run regression tests for PRs
+    #
+    # tests are run under a new container instead of chrooting
+    # this will allow us to run docker without using privileged mode
+
     # create container using RIP rootfs
     docker build -t mk_runtest .travis/mk_runtests
     
@@ -61,4 +63,14 @@ then
         -e MK_DEBUG_TESTS=${MK_DEBUG_TESTS} \
         -e LC_ALL="POSIX" \
         --rm=true mk_runtest /run_tests.sh
+else
+    # Upload packages to packagecloud, if applicable
+    if test -n "${PACKAGECLOUD_USER}"; then
+	PACKAGECLOUD_REPO=${PACKAGECLOUD_REPO:-machinekit}
+	repo=${PACKAGECLOUD_USER}/${PACKAGECLOUD_REPO}/debian/${DISTRO}
+	package_cloud push ${repo} ${TRAVIS_BUILD_DIR}/deploy/*deb
+	if test ${ARCH} = 64; then
+            package_cloud push ${repo} ${TRAVIS_BUILD_DIR}/deploy/*dsc
+	fi
+    fi	
 fi

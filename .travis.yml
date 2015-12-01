@@ -16,10 +16,17 @@ language: bash
 services:
 - docker
 
+before_install:
+  - gem install package_cloud
+  - pip install --user travispy
+
 env:
   global:
-    - ROOT=/opt/rootfs
     - JOBS=2
+    - CHROOT_PATH=/opt/rootfs
+    - MACHINEKIT_PATH=/usr/src/machinekit
+    - TRAVIS_DIR=.travis
+    - DOCKER_IMAGE=kinsamanka/mkdocker
   matrix:
     - TAG=wheezy-64    CMD=run_tests
     - TAG=wheezy-64    CMD=build_deb
@@ -30,4 +37,3 @@ env:
 
 script:
 - .travis/docker_run.sh
-
