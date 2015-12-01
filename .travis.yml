@@ -16,6 +16,10 @@ language: bash
 services:
 - docker
 
+before_install:
+  - gem install package_cloud
+  - pip install --user travispy
+
 env:
   global:
     - ROOT=/opt/rootfs
