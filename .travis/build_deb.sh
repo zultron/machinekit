@@ -3,6 +3,9 @@
 # this script is run inside a docker container
 cd ${CHROOT_PATH}${MACHINEKIT_PATH}
 
+# FIXME add to contaner
+apt-get install -y --no-install-recommends git
+
 # Verbose build
 if ${MK_PACKAGE_VERBOSE}; then
     DEBUILD_OPTS+=" -eDH_VERBOSE=1"
