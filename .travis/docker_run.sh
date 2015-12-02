@@ -29,6 +29,17 @@ docker run \
     -e TRAVIS_PATH=${TRAVIS_PATH} \
     -e MK_BUILD_VERBOSE \
     -e MK_PACKAGE_VERBOSE \
+    -e MAJOR_MINOR_VERSION \
+    -e PKGSOURCE \
+    -e DISTRO \
+    -e DEBIAN_SUITE \
+    -e GITHUB_URL \
+    -e MAINTAINER_NAME \
+    -e MAINTAINER_EMAIL \
+    -e TRAVIS_REPO_SLUG \
+    -e TRAVIS_PULL_REQUEST \
+    -e TRAVIS_COMMIT \
+    -e TRAVIS_BRANCH \
     ${CONTAINER}:${TAG} \
     ${CHROOT_PATH}${TRAVIS_PATH}/${cmd}.sh
 
