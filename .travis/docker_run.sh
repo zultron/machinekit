@@ -50,7 +50,7 @@ docker run \
     ${DOCKER_IMAGE}:${TAG} \
     ${CHROOT_PATH}${TRAVIS_PATH}/${cmd}.sh
 
-if [ ${TRAVIS_PULL_REQUEST} != "false" && ${CMD} == "run_tests" ]; then
+if [ ${TRAVIS_PULL_REQUEST} != "false" -a ${CMD} == "run_tests" ]; then
     # Run regression tests for PRs
     #
     # tests are run under a new container instead of chrooting
