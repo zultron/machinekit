@@ -7,7 +7,7 @@ COMMITTER_NAME="$(git log -1 --pretty=format:%an)"
 COMMITTER_EMAIL="$(git log -1 --pretty=format:%ae)"
 COMMIT_TIMESTAMP="$(git log -1 --pretty=format:%at)"
 DISTRO=${TAG%-*}
-ARCH=${TAG#*-}
+MARCH=${TAG#*-}
 # Verbose RIP build output:  "true" or "false"
 MK_BUILD_VERBOSE=${MK_BUILD_VERBOSE:-"false"}
 # Verbose package build output:  "true" or "false"
@@ -27,6 +27,8 @@ docker run \
     -e FLAV=${FLAV} \
     -e JOBS=${JOBS} \
     -e TAG=${TAG} \
+    -e DISTRO=${DISTRO} \
+    -e MARCH=${MARCH} \
     -e CHROOT_PATH=${CHROOT_PATH} \
     -e MACHINEKIT_PATH=${MACHINEKIT_PATH} \
     -e TRAVIS_PATH=${TRAVIS_PATH} \
@@ -69,7 +71,7 @@ else
 	PACKAGECLOUD_REPO=${PACKAGECLOUD_REPO:-machinekit}
 	repo=${PACKAGECLOUD_USER}/${PACKAGECLOUD_REPO}/debian/${DISTRO}
 	package_cloud push ${repo} ${TRAVIS_BUILD_DIR}/deploy/*deb
-	if test ${ARCH} = 64; then
+	if test ${MARCH} = 64; then
             package_cloud push ${repo} ${TRAVIS_BUILD_DIR}/deploy/*dsc
 	fi
     fi	
