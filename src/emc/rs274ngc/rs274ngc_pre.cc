@@ -65,7 +65,13 @@ suppression can produce more concise output. Future versions might
 include an option for suppressing superfluous commands.
 
 ****************************************************************************/
-#include <boost/python.hpp>
+#include "python_plugin.hh"
+#include <boost/python/dict.hpp>
+#include <boost/python/extract.hpp>
+#include <boost/python/import.hpp>
+#include <boost/python/list.hpp>
+#include <boost/python/scope.hpp>
+#include <boost/python/tuple.hpp>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,6 +100,8 @@ include an option for suppressing superfluous commands.
 
 #include "units.h"
 #include "modal_state.hh"
+
+namespace bp = boost::python;
 
 extern char * _rs274ngc_errors[];
 
