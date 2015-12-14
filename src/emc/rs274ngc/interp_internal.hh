@@ -35,15 +35,12 @@
 /*   COMPILER MACROS  */
 /**********************/
 
-#ifndef R2D
-#define R2D(r) ((r)*180.0/M_PI)
-#endif
-#ifndef D2R
-#define D2R(r) ((r)*M_PI/180.0)
-#endif
-#ifndef SQ
-#define SQ(a) ((a)*(a))
-#endif
+template<class T>
+T R2D(T r) { return r * (180. / M_PI); }
+template<class T>
+T D2R(T r) { return r * (M_PI / 180.); }
+template<class T>
+T SQ(T a) { return a*a; }
 
 #define MAX(x, y)        ((x) > (y) ? (x) : (y))
 
