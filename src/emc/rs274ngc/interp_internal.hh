@@ -23,8 +23,7 @@
 #include "canon.hh"
 #include "emcpos.h"
 #include "libintl.h"
-#include <boost/python/object.hpp>
-//#include "python_plugin.hh"
+#include <boost/python/object_fwd.hpp>
 #include "modal_state.hh"
 #include "interp_base.hh"
 
@@ -528,6 +527,15 @@ typedef parameter_map::iterator parameter_map_iterator;
 #define M_MODE_OK(m) ((m > 3) && (m < 11))
 #define G_MODE_OK(m) (m == 1)
 
+struct pycontext_impl;
+struct pycontext {
+    pycontext();
+    pycontext(const struct pycontext &);
+    pycontext &operator=(const struct pycontext &);
+    ~pycontext();
+    pycontext_impl *impl;
+};
+
 typedef struct context_struct {
     context_struct();
     void clear();
@@ -541,14 +549,8 @@ typedef struct context_struct {
     unsigned char context_status;		// see CONTEXT_ defines below
     ModalState modal_state;
     int call_type; // enum call_types
+    pycontext pystuff;
     // Python-related stuff
-    boost::python::object tupleargs; // the args tuple for Py functions
-    boost::python::object kwargs; // the args dict for Py functions
-    int py_return_type;   // type of Python return value - enum retopts 
-    double py_returned_double;
-    int py_returned_int;
-    // generator object next method as returned if Python function contained a yield statement
-    boost::python::object generator_next; 
 } context;
 
 typedef context *context_pointer;
@@ -590,7 +592,7 @@ and is not represented here
 typedef struct setup_struct
 {
   setup_struct();
- ~setup_struct() { assert(!pythis || Py_IsInitialized()); }
+ ~setup_struct();
 
   int get_toplevel_line_number();
 
@@ -766,7 +768,7 @@ typedef struct setup_struct
 #define FEATURE_OWORD_WARNONLY       0x00000020
 #define FEATURE_LATHE_TOOLCHANGE     0x00000040
 
-    boost::python::object pythis;  // boost::cref to 'this'
+    boost::python::object *pythis;  // boost::cref to 'this'
     const char *on_abort_command;
     int_remap_map  g_remapped,m_remapped;
     remap_map remaps;

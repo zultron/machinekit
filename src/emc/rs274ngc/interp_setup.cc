@@ -19,6 +19,7 @@
  */
 #include <string.h>
 #include "rs274ngc_interp.hh"
+#include <boost/python/object.hpp>
 
 setup_struct::setup_struct() :
     AA_axis_offset(0.0),
@@ -206,4 +207,9 @@ int setup_struct::get_toplevel_line_number()
     else {
         return sequence_number;
     }
+}
+
+setup_struct::~setup_struct() {
+    assert(!pythis || Py_IsInitialized());
+    if(pythis) delete pythis;
 }

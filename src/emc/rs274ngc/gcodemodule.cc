@@ -24,6 +24,7 @@
 #include "interp_return.hh"
 #include "canon.hh"
 #include "config.h"		// LINELEN
+#include <sstream>
 
 int _task = 0; // control preview behaviour when remapping
 

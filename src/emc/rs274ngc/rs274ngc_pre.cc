@@ -142,12 +142,12 @@ Interp::Interp()
 	// since interp.init() may be called repeatedly this would create a new
 	// wrapper instance on every init(), abandoning the old one and all user attributes
 	// tacked onto it, so make sure this is done exactly once
-	_setup.pythis = boost::python::object(boost::cref(*this));
+	_setup.pythis = new boost::python::object(boost::cref(*this));
 
 	// alias to 'interpreter.this' for the sake of ';py, .... ' comments
 	// besides 'this', eventually use proper instance names to handle
 	// several instances
-	bp::scope(interp_module).attr("this") =  _setup.pythis;
+	bp::scope(interp_module).attr("this") =  *_setup.pythis;
 
 	// make "this" visible without importing interpreter explicitly
 	bp::object retval;
@@ -785,7 +785,7 @@ int Interp::exit()
       bp::object retval, tupleargs, kwargs;
       bp::list plist;
 
-      plist.append(_setup.pythis); // self
+      plist.append(*_setup.pythis); // self
       tupleargs = bp::tuple(plist);
       kwargs = bp::dict();
 
@@ -1280,7 +1280,7 @@ int Interp::init()
 	  bp::object retval, tupleargs, kwargs;
 	  bp::list plist;
 
-	  plist.append(_setup.pythis); // self
+	  plist.append(*_setup.pythis); // self
 	  tupleargs = bp::tuple(plist);
 	  kwargs = bp::dict();
 
@@ -2856,8 +2856,7 @@ const char *strstore(const char *s)
 
 context_struct::context_struct()
   : position(0), sequence_number(0), filename(""), subName(""),
-    m98_loop_counter(-1), context_status(0), modal_state(), call_type(0),
-    py_return_type(0), py_returned_double(0), py_returned_int(0)
+    m98_loop_counter(-1), context_status(0), modal_state(), call_type(0)
 {
 }
 

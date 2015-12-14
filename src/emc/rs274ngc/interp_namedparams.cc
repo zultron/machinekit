@@ -366,7 +366,7 @@ int Interp::find_named_param(
 	  bp::object retval, tupleargs, kwargs;
 	  bp::list plist;
 
-	  plist.append(_setup.pythis); // self
+	  plist.append(*_setup.pythis); // self
 	  tupleargs = bp::tuple(plist);
 	  kwargs = bp::dict();
 
