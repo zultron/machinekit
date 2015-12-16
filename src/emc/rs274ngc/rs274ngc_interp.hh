@@ -583,6 +583,11 @@ int read_inputs(setup_pointer settings);
   block_pointer block,       /* pointer to a block of RS274/NGC instructions */
   setup_pointer settings);   /* pointer to machine settings */
 
+  // Send control back to main program, if one is defined and
+  // currently skipping; used in blocks or EOF that would signal main
+  // program end
+  int conditionally_skip_back_to_main(block_pointer block,
+				      setup_pointer settings);
 
  // parse a REMAP= descriptor from the ini file
  int parse_remap(const char *inistring, int lineno);

@@ -99,6 +99,7 @@ setup_struct::setup_struct() :
     traverse_rate (0.0),
     orient_offset (0.0),
 
+    main_name(NULL),
     defining_sub(0),
     sub_name(NULL),
     doing_continue(0),

@@ -1474,7 +1474,7 @@ zero, this parses the line into the _setup.block1.
 int Interp::_read(const char *command)  //!< may be NULL or a string to read
 {
   static char name[] = "Interp::read";
-  int read_status;
+  int read_status, res;
 
   // this input reading code is in the wrong place. It should be executed
   // in sync(), not here. This would make correct parameter values available 
@@ -1621,8 +1621,23 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
             EXECUTING_BLOCK(_setup).o_type = 0;
 	}
     }
-  } else if (read_status == INTERP_ENDFILE);
-  else
+  } else if (read_status == INTERP_ENDFILE) {
+      // If we skipped all the way to EOF while defining the main
+      // program, this is the end;  now go back and execute it
+      res = conditionally_skip_back_to_main(&(EXECUTING_BLOCK(_setup)),
+					    &_setup);
+      if (res == INTERP_OK)
+	  // skipped back to main, so ignore EOF
+	  return INTERP_OK;
+      if (res != INTERP_CONTINUE)
+	  // hit an error, pass it up the stack
+	  ERP(res);
+
+      // If skipping but not defining the main program, we hit EOF
+      // before finding the sub we're looking for; error out
+      CHKS((_setup.skipping_o != NULL),
+	   "Failed to find sub 'O%s' before EOF", _setup.skipping_o);
+  } else
     ERP(read_status);
   return read_status;
 }

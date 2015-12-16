@@ -785,7 +785,7 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
 {
   int counter;
   int m_number, m_counter;  // for checking m98/m99 as o-words
-  int length;
+  int length, res;
 
   length = strlen(line);
   counter = 0;
@@ -797,11 +797,20 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
     CHP(read_n_number(line, &counter, block));
   }
 
-  if (line[counter] == 'o' ||
-      (line[counter] == 'm' &&
-       read_integer_value(line, &(m_counter=counter+1), &m_number,
-			  parameters) == INTERP_OK &&
-       (m_number == 98 || m_number == 99)))
+  // Pre-check for M code, used in following logic
+  if (! (line[counter] == 'm' &&
+	 read_integer_value(line, &(m_counter=counter+1), &m_number,
+			    parameters) == INTERP_OK))
+      m_number = -1;
+
+  // M02 or M30 signals end of main program; if currently skipping to
+  // main program definition end, jump back to main program O-word
+  if ((m_number == 2 || m_number == 30) &&
+      (res = conditionally_skip_back_to_main(block,
+					     &_setup)) != INTERP_CONTINUE) 
+      return res;
+
+  if (line[counter] == 'o' || m_number == 98 || m_number == 99)
  /* Handle 'o', 'm98' and 'm99' explicitly here. Default is
     to read letters via pointer calls to related
     reader functions. 'o' control lines have their
@@ -1690,7 +1699,8 @@ int Interp::read_o(    /* ARGUMENTS                                     */
 
   if (block->o_type == O_sub || block->o_type == O_)
     {
-	// do nothing
+	// Check we're not already defining a main- or sub-program
+	CHKS((_setup.defining_sub == 1), NCE_NESTED_SUBROUTINE_DEFN);
     }
   // in terms of execution endsub and return do the same thing
   else if ((block->o_type == O_endsub) || (block->o_type == O_return) ||
@@ -3131,7 +3141,8 @@ int Interp::read_text(
       {
         ERS(NCE_FILE_ENDED_WITH_NO_PERCENT_SIGN_OR_PROGRAM_END);
       } removed by Tormach *dpr 8/19/14 */
-      FINISH();
+      if (! _setup.skipping_o)
+	  FINISH();
       return INTERP_ENDFILE;  // added *dpr 8/19/14
     }
     _setup.sequence_number++;   /* moved from version1, was outside if */
@@ -3148,7 +3159,8 @@ int Interp::read_text(
     strcpy(line, raw_line);
     CHP(close_and_downcase(line));
     if ((line[0] == '%') && (line[1] == 0) && (_setup.percent_flag)) {
-        FINISH();
+	if (! _setup.skipping_o)
+	    FINISH();
         return INTERP_ENDFILE;
     }
   } else {

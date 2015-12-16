@@ -239,6 +239,9 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 // max number of local variables saved (?)
 #define MAX_NAMED_PARAMETERS 50
 
+// private return code; addition to those in interp_return.hh
+#define INTERP_CONTINUE 99
+
 /**********************/
 /*      TYPEDEFS      */
 /**********************/
@@ -698,6 +701,7 @@ typedef struct setup_struct
   double orient_offset;         // added to M19 R word, from [RS274NGC]ORIENT_OFFSET
 
   /* stuff for subroutines and control structures */
+  const char *main_name;             // name of main program
   int defining_sub;                  // true if in a subroutine defn
   const char *sub_name;                    // name of sub we are defining (free this)
   int doing_continue;                // true if doing a continue

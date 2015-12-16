@@ -759,6 +759,20 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 
     case O_sub:
     case O_:
+	// If this is the main program, do nothing
+	if (settings->main_name != NULL &&
+	    strcmp(settings->main_name, block->o_name) == 0) {
+	    logOword("Fanuc-style main program definition 'O%s'",
+		     settings->main_name);
+	    return INTERP_OK;
+	}
+
+	// If we were defining the main program or another subprogram
+	// already, there was no M02, M30, M99 or O endsub marking the
+	// end of the program/subprogram.
+	CHKS(settings->defining_sub,
+	     "Main or subprogram missing M02, M30, M99 or O endsub");
+
 	// Check that rs274ngc and Fanuc sub call and definition
 	// styles not mixed
 	current_frame = &settings->sub_context[settings->call_level];
@@ -796,9 +810,8 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 		     settings->parameters[3]);
 	} else {
 	    // a definition. We're on the O<name> sub line.
-	    logOword("started a %s-style subroutine defn: %s",
+	    logOword("started a %s-style main- or sub-program defn: %s",
 		     block->o_type==O_?"Fanuc":"rs274", block->o_name);
-	    CHKS((settings->defining_sub == 1), NCE_NESTED_SUBROUTINE_DEFN);
 	    CHP(control_save_offset( block, settings));
 
 	    // start skipping to the corresponding ensub.
@@ -1197,6 +1210,46 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
     // return status;
     return INTERP_OK;
 }
+
+/************************************************************************/
+/* conditionally_skip_back_to_main
+
+Call this function when hitting a block (or EOF) that may signal the
+end of the main program, such as M02, M30 or %.  If a main program is
+currently being defined, then stop defining it and return to the
+beginning of the program for execution.
+
+Returned Value: int (INTERP_OK)
+Side effects:
+   Send control back to main program, if one is being defined
+
+Called by: read_items, read
+
+Calls: control_back_to
+*/
+
+int Interp::conditionally_skip_back_to_main(block_pointer block,
+					    setup_pointer settings)
+{
+    if (! (settings->defining_sub && settings->skipping_o &&
+	   settings->main_name == NULL))
+	// Not applicable
+	return INTERP_CONTINUE;
+
+    logOword("Returning to main program O%s",
+	     settings->skipping_o);
+    // Set main_name so we know a main program has been found, stop
+    // skipping and return control back to main program definition
+    // block
+    settings->main_name = strstore(settings->skipping_o);
+    block->o_name = settings->skipping_o;
+    settings->skipping_o = NULL;
+    settings->defining_sub = 0;
+    CHP(control_back_to(block, &_setup));
+    return INTERP_OK;
+}
+
+
 //========================================================================
 // End of functions for control stuff (O-words)
 //========================================================================
