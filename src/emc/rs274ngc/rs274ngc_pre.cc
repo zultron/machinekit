@@ -1177,6 +1177,7 @@ int Interp::init()
 //_setup.feed_hold set in Interp::synch
 
   // initialization stuff for subroutines and control structures
+  _setup.main_name = NULL;
   _setup.call_level = 0;
   _setup.defining_sub = 0;
   _setup.skipping_o = 0;
@@ -1701,6 +1702,7 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 	_setup.sub_name = 0;
     }
     _setup.remap_level = 0; // reset remapping stack
+    _setup.main_name = NULL;
     _setup.defining_sub = 0;
     _setup.skipping_o = 0;
     _setup.skipping_to_sub = 0;
