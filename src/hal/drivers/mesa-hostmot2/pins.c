@@ -405,6 +405,11 @@ int hm2_read_pin_descriptors(hostmot2_t *hm2) {
             case 32:      /* 5I21 punt on this for now */
                 pin->port_pin = i + 1;
                 break;
+            case 26:
+                /* TORMACH ECM1 board */
+                /* split pins between ports? */
+                pin->port_pin = (i % 26);
+                break;
             default:
                 HM2_ERR("hm2_print_pin_usage: invalid port width %d\n", hm2->idrom.port_width);
         }
