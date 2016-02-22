@@ -1,0 +1,38 @@
+component timedelay2 "Relay that will not turn back on unless it has been off for X seconds";
+
+
+pin in bit in;
+pin out bit out """Follows the value of \\fBin\\fR.  Will turn off immediately but
+will not turn on again unless it has been off for  after applying the delays
+ \\fBoff-delay\\fR seconds.""";
+
+pin in float off-delay = 0.5 """The time, in seconds, for which \\fBin\\fR must be
+\\fBfalse\\fR before \\fBout\\fR will be toggled true again/""";
+
+pin out float elapsed "Current value of the internal timer";
+variable double timer;
+
+function _;
+
+license "GPL";
+author "Daniel Rogge, based on works by Stephen Wille Padnos, John Kasunich, and Jeff Eppler";
+;;
+hal_bit_t in_ = in;
+if(in_ != out) {
+    if(in_) { 							// just turned spindle on
+        if(timer >= off_delay) {		// check to see if we've been off long enough
+            out = 1;
+        } else {
+        	timer += fperiod;
+			elapsed = timer;    
+        }
+    } else {							// turning spindle off immediately
+        out = 0;
+        timer = 0.0;					// reset timer	
+    }
+} else {
+	if (!out) {						// off now, increment timer
+	timer += fperiod;
+    elapsed = timer;
+	}
+}
