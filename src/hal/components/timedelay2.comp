@@ -31,7 +31,7 @@ if(in_ != out) {
         timer = 0.0;					// reset timer	
     }
 } else {
-	if (!out && timer < off_delay)  {						// off now, increment timer
+	if (!out) {						// off now, increment timer
 	timer += fperiod;
     elapsed = timer;
 	}
