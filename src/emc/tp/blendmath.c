@@ -653,8 +653,13 @@ int blendParamKinematics(BlendGeom3 * const geom,
     tp_debug_print("a_max = %f, a_n_max = %f\n", param->a_max,
             param->a_n_max);
 
+    //TODO refactor with target velocity calculations in tp.c
     // Find common velocity and acceleration
-    param->v_req = fmax(prev_tc->reqvel, tc->reqvel);
+    double v_req_prev = prev_tc->synchronized ? prev_tc->maxvel : prev_tc->reqvel;
+    double v_req_this = tc->synchronized ? tc->maxvel : tc->reqvel;
+    tp_debug_print("vr_prev = %f, vr_this = %f\n", v_req_prev, v_req_this);
+
+    param->v_req = fmax(v_req_prev, v_req_this);
     param->v_goal = param->v_req * maxFeedScale;
 
     // Calculate the maximum planar velocity
@@ -699,7 +704,6 @@ int blendParamKinematics(BlendGeom3 * const geom,
     tp_debug_print("v_max = %f\n", v_max);
     param->v_goal = fmin(param->v_goal, v_max);
 
-    tp_debug_print("vr1 = %f, vr2 = %f\n", prev_tc->reqvel, tc->reqvel);
     tp_debug_print("v_goal = %f, max scale = %f\n", param->v_goal, maxFeedScale);
 
     return res_dia;
