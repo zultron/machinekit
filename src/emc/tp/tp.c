@@ -193,10 +193,8 @@ STATIC double tpGetFeedScale(TP_STRUCT const * const tp,
 STATIC inline double tpGetRealTargetVel(TP_STRUCT const * const tp,
         TC_STRUCT const * const tc) {
 
-
     // Start with the scaled target velocity based on the current feed scale
     double v_target = tc->synchronized ? tc->target_vel : tc->reqvel;
-    /*tc_debug_print("Initial v_target = %f\n",v_target);*/
 
     // Get the maximum allowed target velocity, and make sure we're below it
     return fmin(v_target * tpGetFeedScale(tp,tc), tpGetMaxTargetVel(tp, tc));
@@ -205,30 +203,11 @@ STATIC inline double tpGetRealTargetVel(TP_STRUCT const * const tp,
 
 /**
  * Get the worst-case target velocity for a segment based on the trajectory planner state.
+ * Note that this factors in the user-specified velocity limit.
  */
 STATIC inline double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc)
 {
-    double max_scale = emcmotConfig->maxFeedScale;
-    double v_max_target;
-
-    switch (tc->synchronized) {
-        case TC_SYNC_NONE:
-            // Get maximum reachable velocity from max feed override
-            v_max_target = tc->reqvel * max_scale;
-            break;
-
-        case TC_SYNC_VELOCITY: //Fallthrough
-            max_scale = 1.0;
-        case TC_SYNC_POSITION:
-            // Assume no spindle override during blend target
-            v_max_target = tc->uu_per_rev * tc->tag.speed * max_scale;
-            break;
-
-        default:
-            v_max_target = tc->maxvel;
-            break;
-    }
-
+    double v_max_target = tcGetMaxTargetVel(tc, emcmotConfig->maxFeedScale);
     /* Check if the cartesian velocity limit applies and clip the maximum
      * velocity. The vLimit is from the max velocity slider, and should
      * restrict the maximum velocity during non-synced moves and velocity
@@ -241,8 +220,7 @@ STATIC inline double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT con
         v_max_target = fmin(v_max_target, tp->vLimit);
     }
 
-    // Clip maximum velocity by the segment's own maximum velocity
-    return fmin(v_max_target, tc->maxvel);
+    return v_max_target;
 }
 
 
@@ -1657,8 +1635,10 @@ STATIC int tpSetupTangent(TP_STRUCT const * const tp,
 
     // Calculate instantaneous acceleration required for change in direction
     // from v1 to v2, assuming constant speed
-    double v_max1 = tpGetMaxTargetVel(tp, tc);
-    double v_max2 = tpGetMaxTargetVel(tp, tc);
+    double v_max1 = tcGetMaxTargetVel(prev_tc, emcmotConfig->maxFeedScale);
+    double v_max2 = tcGetMaxTargetVel(tc, emcmotConfig->maxFeedScale);
+    // Note that this is a minimum since the velocity at the intersection must
+    // be the slower of the two segments not to violate constraints.
     double v_max = fmin(v_max1, v_max2);
     tp_debug_print("tangent v_max = %f\n",v_max);
 
