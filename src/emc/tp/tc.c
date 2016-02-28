@@ -526,14 +526,15 @@ int tcSetupMotion(TC_STRUCT * const tc,
         double ini_maxvel,
         double acc)
 {
+    //FIXME assumes that state is already set up in TC_STRUCT, which depends on external order of function calls.
 
     tc->maxaccel = acc;
 
     tc->maxvel = ini_maxvel;
 
     tc->reqvel = vel;
-    // Initial guess at target velocity is just the requested velocity
-    tc->target_vel = vel;
+
+    tc->target_vel = 0;
 
     return TP_ERR_OK;
 }

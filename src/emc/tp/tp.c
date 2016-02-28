@@ -193,6 +193,7 @@ STATIC double tpGetFeedScale(TP_STRUCT const * const tp,
 STATIC inline double tpGetRealTargetVel(TP_STRUCT const * const tp,
         TC_STRUCT const * const tc) {
 
+
     // Start with the scaled target velocity based on the current feed scale
     double v_target = tc->synchronized ? tc->target_vel : tc->reqvel;
     /*tc_debug_print("Initial v_target = %f\n",v_target);*/
@@ -212,16 +213,19 @@ STATIC inline double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT con
 
     switch (tc->synchronized) {
         case TC_SYNC_NONE:
-        case TC_SYNC_POSITION:
             // Get maximum reachable velocity from max feed override
-            v_max_target = tc->target_vel * max_scale;
+            v_max_target = tc->reqvel * max_scale;
             break;
 
-        case TC_SYNC_VELOCITY:
+        case TC_SYNC_VELOCITY: //Fallthrough
+            max_scale = 1.0;
+        case TC_SYNC_POSITION:
             // Assume no spindle override during blend target
-            v_max_target=tc->uu_per_rev * tc->tag.speed;
+            v_max_target = tc->uu_per_rev * tc->tag.speed * max_scale;
+            break;
+
         default:
-            v_max_target=tc->maxvel;
+            v_max_target = tc->maxvel;
             break;
     }
 
@@ -900,7 +904,6 @@ STATIC int tpCreateLineArcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
     //set the max velocity to v_plan, since we'll violate constraints otherwise.
     tpInitBlendArcFromPrev(tp, prev_tc, blend_tc, param.v_req,
             param.v_plan, param.a_max);
-    blend_tc->target_vel = param.v_actual;
 
     int res_tangent = checkTangentAngle(&circ2_temp,
             &blend_tc->coords.arc.xyz,
@@ -1057,7 +1060,6 @@ STATIC int tpCreateArcLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
     //set the max velocity to v_plan, since we'll violate constraints otherwise.
     tpInitBlendArcFromPrev(tp, prev_tc, blend_tc, param.v_req,
             param.v_plan, param.a_max);
-    blend_tc->target_vel = param.v_actual;
 
     int res_tangent = checkTangentAngle(&circ1_temp, &blend_tc->coords.arc.xyz, &geom, &param, tp->cycleTime, false);
     if (res_tangent) {
@@ -1222,7 +1224,6 @@ STATIC int tpCreateArcArcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, 
     //set the max velocity to v_plan, since we'll violate constraints otherwise.
     tpInitBlendArcFromPrev(tp, prev_tc, blend_tc, param.v_req,
             param.v_plan, param.a_max);
-    blend_tc->target_vel = param.v_actual;
 
     int res_tangent1 = checkTangentAngle(&circ1_temp, &blend_tc->coords.arc.xyz, &geom, &param, tp->cycleTime, false);
     int res_tangent2 = checkTangentAngle(&circ2_temp, &blend_tc->coords.arc.xyz, &geom, &param, tp->cycleTime, true);
@@ -1296,7 +1297,8 @@ STATIC int tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc
     //set the max velocity to v_plan, since we'll violate constraints otherwise.
     tpInitBlendArcFromPrev(tp, prev_tc, blend_tc, param.v_req,
             param.v_plan, param.a_max);
-    blend_tc->target_vel = param.v_actual;
+
+    tp_debug_print("blend_tc target_vel = %g\n", blend_tc->target_vel);
 
     int retval = TP_ERR_FAIL;
 
@@ -1512,8 +1514,8 @@ STATIC int tpComputeOptimalVelocity(TP_STRUCT const * const tp, TC_STRUCT * cons
     double sample_maxvel = tc->target / (tp->cycleTime * TP_MIN_SEGMENT_CYCLES);
     tc->maxvel = fmin(tc->maxvel, sample_maxvel);
 
-    tp_info_print(" prev1_tc-> fv = %f, tc->fv = %f, capped target = %f\n",
-            prev1_tc->finalvel, tc->finalvel, tc->target_vel);
+    tp_info_print(" prev1_tc-> fv = %f, tc->fv = %f\n",
+            prev1_tc->finalvel, tc->finalvel);
 
     return TP_ERR_OK;
 }
@@ -1655,8 +1657,8 @@ STATIC int tpSetupTangent(TP_STRUCT const * const tp,
 
     // Calculate instantaneous acceleration required for change in direction
     // from v1 to v2, assuming constant speed
-    double v_max1 = fmin(prev_tc->maxvel, tpGetMaxTargetVel(tp, tc) * emcmotConfig->maxFeedScale);
-    double v_max2 = fmin(tc->maxvel,  tpGetMaxTargetVel(tp, tc) * emcmotConfig->maxFeedScale);
+    double v_max1 = tpGetMaxTargetVel(tp, tc);
+    double v_max2 = tpGetMaxTargetVel(tp, tc);
     double v_max = fmin(v_max1, v_max2);
     tp_debug_print("tangent v_max = %f\n",v_max);
 
@@ -1780,6 +1782,9 @@ STATIC int tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc) {
 
     if (res_create == TP_ERR_OK) {
         //Need to do this here since the length changed
+        //KLUDGE set a "fake" target velocity for optimization purposes. This
+        //will be overwritten during actual execution with the sync
+        //calculations.
         tpAddSegmentToQueue(tp, &blend_tc, false);
     } else {
         return res_create;
@@ -1813,17 +1818,17 @@ int tpAddLine(TP_STRUCT * const tp, EmcPose end, int canon_motion_type, double v
             atspeed);
     tc.tag = tag;
 
-    // Copy in motion parameters
-    tcSetupMotion(&tc,
-            vel,
-            ini_maxvel,
-            acc);
-
     // Setup any synced IO for this move
     tpSetupSyncedIO(tp, &tc);
 
     // Copy over state data from the trajectory planner
     tcSetupState(&tc, tp);
+
+    // Copy in motion parameters
+    tcSetupMotion(&tc,
+            vel,
+            ini_maxvel,
+            acc);
 
     // Setup line geometry
     pmLine9Init(&tc.coords.line,
@@ -2674,7 +2679,7 @@ STATIC int tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
  * Run velocity mode synchronization.
  * Update requested velocity to follow the spindle's velocity (scaled by feed rate).
  */
-STATIC void tpSyncVelocityMode(TP_STRUCT * const tp, TC_STRUCT * const tc, TC_STRUCT const * nexttc) {
+STATIC void tpSyncVelocityMode(TP_STRUCT * const tp, TC_STRUCT * const tc, TC_STRUCT * const nexttc) {
     double speed = emcmotStatus->spindleSpeedIn;
     double pos_error = fabs(speed) * tc->uu_per_rev;
     // Account for movement due to parabolic blending with next segment
@@ -2682,6 +2687,12 @@ STATIC void tpSyncVelocityMode(TP_STRUCT * const tp, TC_STRUCT * const tc, TC_ST
         pos_error -= nexttc->progress;
     }
     tc->target_vel = pos_error;
+
+    if (nexttc && nexttc->synchronized) {
+        //If the next move is synchronized too, then match it's
+        //requested velocity to the current move
+        nexttc->target_vel = tc->target_vel;
+    }
 }
 
 
