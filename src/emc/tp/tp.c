@@ -218,7 +218,8 @@ STATIC inline double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT con
             break;
 
         case TC_SYNC_VELOCITY:
-            // Don't know what spindle speed corresponds to this move, so assume the worst
+            // Assume no spindle override during blend target
+            v_max_target=tc->uu_per_rev * tc->tag.speed;
         default:
             v_max_target=tc->maxvel;
             break;

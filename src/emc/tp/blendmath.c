@@ -655,8 +655,8 @@ int blendParamKinematics(BlendGeom3 * const geom,
 
     //TODO refactor with target velocity calculations in tp.c
     // Find common velocity and acceleration
-    double v_req_prev = prev_tc->synchronized ? prev_tc->maxvel : prev_tc->reqvel;
-    double v_req_this = tc->synchronized ? tc->maxvel : tc->reqvel;
+    double v_req_prev = prev_tc->synchronized ? prev_tc->uu_per_rev * prev_tc->tag.speed : prev_tc->reqvel;
+    double v_req_this = tc->synchronized ? tc->uu_per_rev * tc->tag.speed : tc->reqvel;
     tp_debug_print("vr_prev = %f, vr_this = %f\n", v_req_prev, v_req_this);
 
     param->v_req = fmax(v_req_prev, v_req_this);
