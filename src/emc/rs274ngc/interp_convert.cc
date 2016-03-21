@@ -3563,9 +3563,14 @@ int Interp::convert_motion(int motion,   //!< g_code for a line, arc, canned cyc
   CHKS((ci && (xyzuvw_flag || block->a_flag || block->b_flag)),
        (_("Indexing axis %c can only be moved alone")), 'C');
 
-  if (!is_a_cycle(motion))
+  if (!is_a_cycle(motion)){
     settings->cycle_il_flag = false;
-
+    // not in a cycle, and not canceling a cycle, record mode for future restoration
+    // Tormach - remember G1/G0 mode on G80 *dpr 3/16
+    if (motion != G_80){
+		settings->prev_motion_mode = motion;
+	}
+  }
   if (ai || bi || ci) {
     int n;
     if(ai) n=3; else if(bi) n=4; else n=5;
@@ -3581,7 +3586,8 @@ int Interp::convert_motion(int motion,   //!< g_code for a line, arc, canned cyc
 #ifdef DEBUG_EMC
     enqueue_COMMENT("interpreter: motion mode set to none");
 #endif
-    settings->motion_mode = G_80;
+    // Tormach - restore G1/G0 mode on G80 *dpr 3/16
+    settings->motion_mode = settings->prev_motion_mode;
   } else if (IS_USER_GCODE(motion)) {
       CHP(convert_remapped_code(block, settings, STEP_MOTION, 'g', motion));
   } else if (is_a_cycle(motion)) {
