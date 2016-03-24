@@ -3579,9 +3579,10 @@ int Interp::convert_motion(int motion,   //!< g_code for a line, arc, canned cyc
     CHP(convert_probe(block, motion, settings));
   } else if (motion == G_80) {
 #ifdef DEBUG_EMC
-    enqueue_COMMENT("interpreter: motion mode set to none");
+    enqueue_COMMENT("interpreter: motion mode set to G0 after G80 cancel canned cycle");
 #endif
-    settings->motion_mode = G_80;
+    // Tormach - set motion mode to G0 on G80 per Smid, 2nd Ed. pp 189 *dpr 3/16
+    settings->motion_mode = G_0;
   } else if (IS_USER_GCODE(motion)) {
       CHP(convert_remapped_code(block, settings, STEP_MOTION, 'g', motion));
   } else if (is_a_cycle(motion)) {
