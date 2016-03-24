@@ -1,0 +1,33 @@
+component home2index "HAL component for homing to index without an encoder on the axes";
+
+license "GPL";
+author "Rogge/Penn";
+
+// Input:
+//          z-index                 from machine axis encoder Z channel
+
+// IO
+//          index-enable            from motion.index-enable
+
+
+
+// connect to motion.index-enable
+pin io bit index_enable;
+
+// connect to encoder Z channel
+pin in bit z_index;
+
+#define BIT_FALSE 0
+#define BIT_TRUE  1
+
+
+FUNCTION(_) {
+  // operation: check index_enable - if false, do nothing
+  // if true, wait for z_index, then set index_enable false
+  // TODO - position-based timeout
+  if ((index_enable == BIT_TRUE) && (z_index == BIT_TRUE)){
+	index_enable = BIT_FALSE;
+  }
+}
+
+
