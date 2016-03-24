@@ -658,7 +658,6 @@ typedef struct setup_struct
   char linetext[LINELEN];       // text of most recent line read
   bool mist;                  // whether mist coolant is on
   int motion_mode;              // active G-code for motion
-  int prev_motion_mode;         // return to G0, G1? after G80 cancels canned cycle
   int origin_index;             // active origin (1=G54 to 9=G59.3)
   double origin_offset_x;       // g5x offset x
   double origin_offset_y;       // g5x offset y

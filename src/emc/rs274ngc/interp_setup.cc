@@ -64,7 +64,6 @@ setup_struct::setup_struct() :
     line_length(0),
     mist(0),
     motion_mode(0),
-    prev_motion_mode(0),
     origin_index(0),
     origin_offset_x (0.0),
     origin_offset_y (0.0),
