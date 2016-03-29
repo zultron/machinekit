@@ -17,9 +17,12 @@ pin io bit index_enable;
 // connect to encoder Z channel
 pin in bit z_index;
 
+function _;
+
+;;
+
 #define BIT_FALSE 0
 #define BIT_TRUE  1
-
 
 FUNCTION(_) {
   // operation: check index_enable - if false, do nothing
