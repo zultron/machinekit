@@ -1,36 +1,115 @@
-component home2index "HAL component for homing to index without an encoder on the axes";
+component home2index "HAL component for homing to index after limit switch";
 
 license "GPL";
-author "Rogge/Penn";
+author "Tormach";
 
 // Input:
-//          z-index                 from machine axis encoder Z channel
+//          index-in                from machine axis encoder Z channel or screw flag sensor
+//          limit-in                from machine axis limit switch
+//          home-state              from axis.N.home-state
+//
+// Params:
+//          screw-pitch             units/rev for computing index search timeout
+//          latch-vel               units/s
+//          
 
-// IO
-//          index-enable            from motion.index-enable
+// Output:
+//          limit-out               to axis.N.home/neg/pos-lim-sw-in
+//          index-timed-out         to UI to log index timeout
 
 
+// pins
 
-// connect to motion.index-enable
-pin io bit index_enable;
+// actual index input
+pin in bit index_in;
 
-// connect to encoder Z channel
-pin in bit z_index;
+// actual limit input
+pin in bit limit_in;
+
+// current home state from axis.N.home-state
+pin in s32 home_state;
+
+// what we tell motion/axis.N the limit state is
+pin out bit limit_out;
+
+// I/O so reader can clear if desired
+pin io bit index_timed_out;
+pin io s32 index_search_loop_count;
+
+// params
+
+// timeout for index search 1+ screw revolution
+pin in float screw_pitch;
+pin in float latch_vel;
 
 function _;
 
 ;;
 
+#include <math.h>
+
 #define BIT_FALSE 0
 #define BIT_TRUE  1
 
+// copied over from motion.h
+// home_state value to check
+#define HOME_FALL_SEARCH_WAIT (14)
+
 FUNCTION(_) {
-  // operation: check index_enable - if false, do nothing
-  // if true, wait for z_index, then set index_enable false
-  // TODO - position-based timeout
-  if ((index_enable == BIT_TRUE) && (z_index == BIT_TRUE)){
-	index_enable = BIT_FALSE;
-  }
+    static unsigned int prev_home_state = 0;
+    static bool wait_for_limit_inactive = FALSE;
+    static bool prev_limit_in = FALSE;
+
+    if (home_state != HOME_FALL_SEARCH_WAIT) {
+        // if not looking for limit or index be normal
+        limit_out = limit_in;
+        wait_for_limit_inactive = FALSE;
+    }
+    else {
+        // test for state transition into HOME_FALL_SEARCH_WAIT
+        if (prev_home_state < HOME_FALL_SEARCH_WAIT && home_state == HOME_FALL_SEARCH_WAIT) {
+            // now starting HOME_FALL_SEARCH_WAIT
+            // must start watching for limit to go inactive
+            wait_for_limit_inactive = TRUE;
+            index_timed_out = FALSE;
+            limit_out = TRUE;
+        }
+        else if (home_state == HOME_FALL_SEARCH_WAIT) {
+            // this is where limit-out gets stretched until index-in is active
+
+		    if (wait_for_limit_inactive == TRUE && (prev_limit_in == TRUE && limit_in == FALSE)) {
+		        // limit_in has gone inactive - start index timeout loop counter
+		        // seconds to search index slightly more than one screw revolution
+		        if (latch_vel != 0.0) {
+                    index_search_loop_count = (int)(fperiod * 1000.0 * (1.10 * screw_pitch) / fabs(latch_vel)) * 1000;
+                }
+                wait_for_limit_inactive = FALSE;
+		    }
+
+		    if (limit_in == FALSE) {
+		        // limit is inactive - watch for index active
+                if (index_in == TRUE) {
+                    // index is active so inform motion/axis.N that limit is now inactive
+                    limit_out = FALSE;
+                }
+                // check for timeout if limit_out has not gone inactive
+                else if (screw_pitch != 0.0 &&
+                         index_search_loop_count <= 0 &&
+                         limit_out != FALSE) {
+                    // index not seen within timeout - assume index sensor failure
+                    index_timed_out = TRUE;
+                    limit_out = limit_in;
+                }
+
+                if (index_search_loop_count > 0) {
+                    --index_search_loop_count;
+                }
+            }
+        }
+    }
+
+    prev_home_state = home_state;
+    prev_limit_in = limit_in;
 }
 
 
