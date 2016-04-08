@@ -601,6 +601,12 @@ o<showstate> call
 m2
 ---------------------------------------------------------------------
 
+== M98 and M99[[sec:M98-M99]] ==
+
+The interpreter supports Fanuc-style main- and sub-programs with the
+'M98' and 'M99' M-codes.  See <<sec:Fanuc-Style-Programs,Fanuc-Style
+Programs>>.
+
 === Selectively restoring modal state by testing predefined parameters [[sec:Selectively-restoring-modal-state]]
 
 Executing an 'M72' or returning from a subroutine which contains an

@@ -654,7 +654,8 @@ interpret_again:
 			    // throw the results away if we're supposed to
 			    // read
 			    // through it
-			    if (emcTaskPlanLevel() == 0 &&
+			    if (programStartLine != 0 &&
+				emcTaskPlanLevel() == 0 &&
 				(programStartLine < 0 ||
 				 emcTaskPlanLine() <= programStartLine)) {
 				// we're stepping over lines, so check them

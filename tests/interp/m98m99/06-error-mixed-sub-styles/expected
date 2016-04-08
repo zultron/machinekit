@@ -1,5 +1,5 @@
 executing
-Fanuc 'O....' subroutine definition must be called with 'M98'
+Fanuc 'O....' subroutine must be called with 'M98'
 O1
     1 N..... USE_TOOL_LENGTH_OFFSET(0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000)
     2 N..... USE_LENGTH_UNITS(CANON_UNITS_MM)

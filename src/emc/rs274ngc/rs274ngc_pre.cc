@@ -1177,7 +1177,6 @@ int Interp::init()
 //_setup.feed_hold set in Interp::synch
 
   // initialization stuff for subroutines and control structures
-  _setup.main_name = NULL;
   _setup.call_level = 0;
   _setup.defining_sub = 0;
   _setup.skipping_o = 0;
@@ -1259,6 +1258,12 @@ int Interp::init()
   
   return INTERP_OK;
 }
+
+void Interp::set_loop_on_main_m99(bool state) {
+    // Enable/disable M99 main program endless looping
+    _setup.loop_on_main_m99 = state;
+}
+
 
 /***********************************************************************/
 
@@ -1475,7 +1480,7 @@ zero, this parses the line into the _setup.block1.
 int Interp::_read(const char *command)  //!< may be NULL or a string to read
 {
   static char name[] = "Interp::read";
-  int read_status, res;
+  int read_status;
 
   // this input reading code is in the wrong place. It should be executed
   // in sync(), not here. This would make correct parameter values available 
@@ -1623,17 +1628,6 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
 	}
     }
   } else if (read_status == INTERP_ENDFILE) {
-      // If we skipped all the way to EOF while defining the main
-      // program, this is the end;  now go back and execute it
-      res = conditionally_skip_back_to_main(&(EXECUTING_BLOCK(_setup)),
-					    &_setup);
-      if (res == INTERP_OK)
-	  // skipped back to main, so ignore EOF
-	  return INTERP_OK;
-      if (res != INTERP_CONTINUE)
-	  // hit an error, pass it up the stack
-	  ERP(res);
-
       // If skipping but not defining the main program, we hit EOF
       // before finding the sub we're looking for; error out
       CHKS((_setup.skipping_o != NULL),
@@ -1702,7 +1696,6 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 	_setup.sub_name = 0;
     }
     _setup.remap_level = 0; // reset remapping stack
-    _setup.main_name = NULL;
     _setup.defining_sub = 0;
     _setup.skipping_o = 0;
     _setup.skipping_to_sub = 0;

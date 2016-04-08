@@ -93,11 +93,16 @@ int Interp::control_save_offset(block_pointer block,        /* pointer to a bloc
     logOword("Entered:%s for o_name:|%s|", name, o_name);
 
     if (control_find_oword(o_name, settings, &op) == INTERP_OK) {
-	// already exists
-	ERS(_("File:%s line:%d redefining sub: o|%s| already defined in file:%s"),
-	    settings->filename, settings->sequence_number,
-	    o_name,
-	    op->filename);
+	if (settings->sequence_number -1 == op->sequence_number)
+	    // hit this definition before; must be in illegal location
+	    ERS(_("File:%s line:%d sub: o|%s| found in illegal location"),
+		settings->filename, settings->sequence_number, o_name);
+	else
+	    // already exists
+	    ERS(_("File:%s line:%d redefining sub: o|%s| already defined in file:%s"),
+		settings->filename, settings->sequence_number,
+		o_name,
+		op->filename);
     }
     offset new_offset;
 
@@ -420,11 +425,9 @@ int Interp::execute_return(setup_pointer settings, context_pointer current_frame
     // if level is not zero, in a call
     // otherwise in a defn
     // if we were skipping, no longer
-    if (settings->skipping_o &&
-	((eblock->o_type == O_endsub) || (eblock->o_type == M_99))) {
-	logOword("case %s -- no longer skipping to:|%s|",
-		 (eblock->o_type == O_endsub) ? "O_endsub" :
-		 (eblock->o_type == M_99) ? "M_99" : "O_return",
+    if (settings->skipping_o && (eblock->o_type == O_endsub)) {
+	logOword("case O_%s -- no longer skipping to:|%s|",
+		 (eblock->o_type == O_endsub) ? "endsub" : "return",
 		 settings->skipping_o);
 	settings->skipping_o = NULL;
     }
@@ -510,12 +513,11 @@ int Interp::execute_return(setup_pointer settings, context_pointer current_frame
 	    }
 	} else { // call_level == 0
 	    // a definition
-	    if ((eblock->o_type == O_endsub) || (eblock->o_type == M_99)) {
+	    if (eblock->o_type == O_endsub) {
 		CHKS((settings->defining_sub != 1), NCE_NOT_IN_SUBROUTINE_DEFN);
 		// no longer skipping or defining
 		if (settings->skipping_o)  {
-		    logOword("case O_endsub/M_99 in defn -- "
-			     "no longer skipping to:|%s|",
+		    logOword("case O_endsub in defn -- no longer skipping to:|%s|",
 			     settings->skipping_o);
 		    settings->skipping_o = NULL;
 		}
@@ -525,6 +527,21 @@ int Interp::execute_return(setup_pointer settings, context_pointer current_frame
 	}
     } 
     return status;
+}
+
+// this is executed for m99 in the main program, signifying an endless
+// loop; m99 main program endless loop is handled in
+// interp_convert.cc, but because this is like an O-word function
+// skipping around the file, it's placed here instead.
+void Interp::loop_to_beginning(setup_pointer settings)
+{
+    logOword("loop_to_beginning state=%s file=%s",
+	     call_statenames[settings->call_state],
+	     settings->filename);
+
+    // scroll back to beginning of file/first block
+    fseek(settings->file_pointer, 0, SEEK_SET);
+    settings->sequence_number = 0;
 }
 
 //
@@ -538,7 +555,7 @@ int Interp::execute_return(setup_pointer settings, context_pointer current_frame
 //             open it and start skipping (as in 3, below)
 // 3 -- skip to the o_word (will be an error if not found)
 //
-int Interp::control_back_to( const char *o_name,       // o_name key
+int Interp::control_back_to( block_pointer block, // pointer to block
 			     setup_pointer settings)   // pointer to machine settings
 {
     static char name[] = "control_back_to";
@@ -547,9 +564,9 @@ int Interp::control_back_to( const char *o_name,       // o_name key
     offset_map_iterator it;
     offset_pointer op;
 
-    logOword("Entered:%s %s", name,o_name);
+    logOword("Entered:%s %s", name,block->o_name);
 
-    it = settings->offset_map.find(o_name);
+    it = settings->offset_map.find(block->o_name);
     if (it != settings->offset_map.end()) {
 	op = &it->second;
 	if ((settings->filename[0] != 0) &
@@ -586,7 +603,7 @@ int Interp::control_back_to( const char *o_name,       // o_name key
 	settings->sequence_number = op->sequence_number;
 	return INTERP_OK;
     }
-    newFP = find_ngc_file(settings, o_name, newFileName);
+    newFP = find_ngc_file(settings, block->o_name, newFileName);
 
     if (newFP) {
 	logOword("fopen: |%s| OK", newFileName);
@@ -607,16 +624,9 @@ int Interp::control_back_to( const char *o_name,       // o_name key
 	free(dirname);
     }
 
-    settings->skipping_o = o_name; // start skipping
-    settings->skipping_to_sub = o_name; // start skipping
+    settings->skipping_o = block->o_name; // start skipping
+    settings->skipping_to_sub = block->o_name; // start skipping
     settings->skipping_start = settings->sequence_number;
-    return INTERP_OK;
-}
-
-int Interp::control_back_to( block_pointer block,
-			     setup_pointer settings)
-{
-    CHP(control_back_to(block->o_name, settings));
     return INTERP_OK;
 }
 
@@ -759,31 +769,15 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 
     case O_sub:
     case O_:
-	// If this is the main program, do nothing
-	if (settings->main_name != NULL &&
-	    strcmp(settings->main_name, block->o_name) == 0) {
-	    logOword("Fanuc-style main program definition 'O%s'",
-		     settings->main_name);
-	    return INTERP_OK;
-	}
-
-	// If we were defining the main program or another subprogram
-	// already, there was no M02, M30, M99 or O endsub marking the
-	// end of the program/subprogram.
-	CHKS(settings->defining_sub,
-	     "Main or subprogram missing M02, M30, M99 or O endsub");
-
-	// Check that rs274ngc and Fanuc sub call and definition
-	// styles not mixed
 	current_frame = &settings->sub_context[settings->call_level];
-	// 'O....' sub must be called with 'M98'
-	// FIXME:  catch this at definition time
+
+	// Mixing Fanuc- and rs274ngc-style sub calls & defs is not allowed:
+	// - Fanuc:  'O....' subprogram must be called with 'M98'
 	CHKS((block->o_type == O_ &&
 	      current_frame->call_type != CT_NGC_M98_SUB &&
 	      current_frame->call_type != CT_NONE),
-	     "Fanuc 'O....' subroutine definition must be called with 'M98'");
-	// 'O.... sub' sub must be called with 'O.... call'
-	logDebug("block->o_type == %s, call_type == %s",o_ops[block->o_type],call_typenames[current_frame->call_type]);
+	     "Fanuc 'O....' subroutine must be called with 'M98'");
+	// - rs274ngc:  'O.... sub' subprogram must be called with 'O.... call'
 	CHKS((block->o_type == O_sub &&
 	      current_frame->call_type != CT_NGC_OWORD_SUB &&
 	      current_frame->call_type != CT_PYTHON_OWORD_SUB &&
@@ -801,6 +795,12 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 	}
 	settings->skipping_to_sub = NULL; // this IS our block number
 
+	if (block->o_type == O_) {
+	    // Done:  continue executing into Fanuc-style programs w/o skipping
+	    logOword("Entering Fanuc-style program number %s", block->o_name);
+	    break;
+	}
+
 	// if the level is not zero, this is a call
 	// not the definition
 	if (settings->call_level != 0) {
@@ -810,11 +810,12 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 		     settings->parameters[3]);
 	} else {
 	    // a definition. We're on the O<name> sub line.
-	    logOword("started a %s-style main- or sub-program defn: %s",
-		     block->o_type==O_?"Fanuc":"rs274", block->o_name);
+	    logOword("started a rs274-style sub-program defn: %s",
+		     block->o_name);
+	    CHKS((settings->defining_sub == 1), NCE_NESTED_SUBROUTINE_DEFN);
 	    CHP(control_save_offset( block, settings));
 
-	    // start skipping to the corresponding ensub.
+	    // start skipping to the corresponding endsub.
 	    settings->skipping_o = block->o_name; 
 	    settings->skipping_start = settings->sequence_number;
 	    settings->defining_sub = 1;
@@ -827,6 +828,11 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
     case O_return:
     case M_99:
 
+	// For M99, this only handles return from a subprogram
+	CHKS((block->o_type == M_99 && settings->call_level == 0),
+	     "Bug:  Reached convert_control_functions() "
+	     "from M99 in main program");
+
 	if  ((settings->call_level == 0) &&
 	     (settings->sub_name == NULL)) {
 	    // detect a standalone 'o<label> return|endsub'
@@ -837,7 +843,6 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 	current_frame = &settings->sub_context[settings->call_level];
 
 	// 'O....' sub defn must be closed with 'M99'
-	// FIXME:  catch this at definition time
 	CHKS((current_frame->call_type == CT_NGC_M98_SUB &&
 	      block->o_type != M_99),
 	     "Fanuc 'O....' subroutine definition must end with 'M99'");
@@ -1210,45 +1215,6 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
     // return status;
     return INTERP_OK;
 }
-
-/************************************************************************/
-/* conditionally_skip_back_to_main
-
-Call this function when hitting a block (or EOF) that may signal the
-end of the main program, such as M02, M30 or %.  If a main program is
-currently being defined, then stop defining it and return to the
-beginning of the program for execution.
-
-Returned Value: int (INTERP_OK)
-Side effects:
-   Send control back to main program, if one is being defined
-
-Called by: read_items, read
-
-Calls: control_back_to
-*/
-
-int Interp::conditionally_skip_back_to_main(block_pointer block,
-					    setup_pointer settings)
-{
-    if (! (settings->defining_sub && settings->skipping_o &&
-	   settings->main_name == NULL))
-	// Not applicable
-	return INTERP_CONTINUE;
-
-    logOword("Returning to main program O%s",
-	     settings->skipping_o);
-    // Set main_name so we know a main program has been found, stop
-    // skipping and return control back to main program definition
-    // block
-    settings->main_name = strstore(settings->skipping_o);
-    block->o_name = settings->skipping_o;
-    settings->skipping_o = NULL;
-    settings->defining_sub = 0;
-    CHP(control_back_to(block, &_setup));
-    return INTERP_OK;
-}
-
 
 //========================================================================
 // End of functions for control stuff (O-words)

@@ -99,7 +99,6 @@ setup_struct::setup_struct() :
     traverse_rate (0.0),
     orient_offset (0.0),
 
-    main_name(NULL),
     defining_sub(0),
     sub_name(NULL),
     doing_continue(0),
@@ -138,6 +137,7 @@ setup_struct::setup_struct() :
     single_block_external_sub(false),
     enable_fanuc_style_sub(true),
     persistent_g92_offset(false),
+    loop_on_main_m99(false),
     on_abort_command(NULL),
     init_once(1),
     m_remappable(),
