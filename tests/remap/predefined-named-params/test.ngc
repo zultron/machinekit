@@ -22,13 +22,13 @@ o200 if [#<_py_motion_mode> NE 10]
      (abort,_py_motion_mode != 10: #<_py_motion_mode>)
 o200 endif
 g80
-;py,assert this.params["_motion_mode"] == 800
-;py,assert this.params["_py_motion_mode"] == 800
-o300 if [#<_motion_mode> NE 800]
-     (abort,_motion_mode != 800: #<_motion_mode>)
+;py,assert this.params["_motion_mode"] == 0
+;py,assert this.params["_py_motion_mode"] == 0
+o300 if [#<_motion_mode> NE 0]
+     (abort,_motion_mode != 0: #<_motion_mode>)
 o300 endif
-o400 if [#<_py_motion_mode> NE 800]
-     (abort,_py_motion_mode != 800: #<_py_motion_mode>)
+o400 if [#<_py_motion_mode> NE 0]
+     (abort,_py_motion_mode != 0: #<_py_motion_mode>)
 o400 endif
 
 m2
