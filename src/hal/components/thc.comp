@@ -110,6 +110,10 @@ FUNCTION(_) {
             last_z_in = 0;
         }
         if(!torch_on){ // remove any offset
+            // seems buggy in that offset never goes to zero after torch goes off
+            // set offset to 0.0 if torch off
+            offset = 0.0;
+            #if 0
             float z_diff;
             z_diff = z_pos_in - last_z_in;
             if(z_diff > 0 && offset != 0){ // torch is moving up
@@ -127,6 +131,7 @@ FUNCTION(_) {
                 }
             }
             last_z_in = z_pos_in;
+            #endif
         }
         z_pos_out = z_pos_in + offset;
         z_fb_out = z_pos_in; // keep axis motor position fb from being confused
