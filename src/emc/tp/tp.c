@@ -1432,6 +1432,7 @@ int tpAddRigidTap(TP_STRUCT * const tp,
             tp->cycleTime,
             enables,
             1);
+    tc.tag = tag;
 
     // Setup any synced IO for this move
     tpSetupSyncedIO(tp, &tc);
