@@ -200,8 +200,6 @@ int Interp::execute_call(setup_pointer settings,
     int status = INTERP_OK;
     int i;
     bp::list plist;
-    char oNameBuf[LINELEN+12+6+1]; // strlen("return-from-" "-99999") = 12+6
-    offset_pointer op = NULL;
 
     context_pointer previous_frame = &settings->sub_context[settings->call_level-1];
 
@@ -263,26 +261,18 @@ int Interp::execute_call(setup_pointer settings,
 
 	// M98 w/ L-word:  Handle looping
 	if (eblock->o_type == M_98 && eblock->l_flag) {
-	    // Set up a loop counter in an offset pointer
-	    //
-	    // Offset pointer map needs a unique key to fetch;
-	    // a static string + call_level should be sufficient
-	    sprintf(oNameBuf, "m98-cl-%d", settings->call_level);
-	    if (control_find_oword(oNameBuf, settings, &op) != INTERP_OK) {
-		CHP(control_save_offset(eblock, oNameBuf, settings));
-		control_find_oword(oNameBuf, settings, &op);
-	    }
+	    // Set up a loop counter
 
-	    // Set up loop counter from L-word
-	    if (op->repeat_count == -1)
-		// If repeat_count == -1, this is a new loop
-		op->repeat_count = round_to_int(eblock->l_number);
+	    // Loop count from L-word
+	    if (previous_frame->m98_loop_counter == -1)
+		// If m98_loop_counter == -1, this is a new loop
+		previous_frame->m98_loop_counter = round_to_int(eblock->l_number);
 	    logOword("Looping on O%s; remaining: %d",
-		     eblock->o_name, op->repeat_count);
+		     eblock->o_name, previous_frame->m98_loop_counter);
 
 	    // if repeats remain, set up another loop
-	    op->repeat_count--;
-	    if (op->repeat_count > 0) {
+	    previous_frame->m98_loop_counter--;
+	    if (previous_frame->m98_loop_counter > 0) {
 
 		// Set return location to repeat this block for next
 		// iteration
@@ -290,7 +280,7 @@ int Interp::execute_call(setup_pointer settings,
 
 	    } else
 		// No loops remain; reset loop counter
-		op->repeat_count = -1;
+		previous_frame->m98_loop_counter = -1;
 	}
 
 	

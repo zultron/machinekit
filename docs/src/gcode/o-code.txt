@@ -117,7 +117,7 @@ alternative to the rs274ngc subroutines described above, provided for
 compatibility with Fanuc and other machine controllers.
 
 Numbered programs are enabled by default, and may be disabled by
-placing `ENABLE_FANUC_STYLE_SUB = false` in the `[RS274NGC]` section
+placing `DISABLE_FANUC_STYLE_SUB = 1` in the `[RS274NGC]` section
 of the `.ini` file.
 
 [NOTE]

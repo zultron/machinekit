@@ -1,3 +1,5 @@
 #!/bin/bash -e
-rs274 -g test-named.ngc
-rs274 -g test-numbered.ngc
+for t in test-named.ngc test-numbered.ngc; do
+    rs274 -g $t | awk '{$1=""; print}'
+    if test ${PIPESTATUS[0]} != 0; then exit 1; fi
+done

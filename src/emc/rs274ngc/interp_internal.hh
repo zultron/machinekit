@@ -535,6 +535,7 @@ typedef struct context_struct {
     int sequence_number; // location (line number) in file
     const char *filename;      // name of file for this context
     const char *subName;       // name of the subroutine (oword)
+    int m98_loop_counter;      // loop counter for Fanuc-style sub calls
     double saved_params[INTERP_SUB_PARAMS];
     parameter_map named_params;
     unsigned char context_status;		// see CONTEXT_ defines below
@@ -746,8 +747,8 @@ typedef struct setup_struct
   bool single_block_local_sub;
   bool single_block_external_sub;
 
-  bool enable_fanuc_style_sub;
   bool persistent_g92_offset;
+    int disable_fanuc_style_sub;
     // M99 in main is treated as program end by default; this causes
     // control to skip to beginning of file
     bool loop_on_main_m99;

@@ -73,7 +73,7 @@ executing
    26 N..... PALLET_SHUTTLE()
    27 N..... PROGRAM_END()
 executing
-ENABLE_FANUC_STYLE_SUB disabled in .ini file, but found m98
+DISABLE_FANUC_STYLE_SUB set in .ini file, but found m98
 M98 P1 L3
     1 N..... USE_TOOL_LENGTH_OFFSET(0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000)
     2 N..... USE_LENGTH_UNITS(CANON_UNITS_MM)

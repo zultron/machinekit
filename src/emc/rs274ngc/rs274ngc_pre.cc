@@ -999,20 +999,12 @@ int Interp::init()
 	      n++;
 	  }
 
-          if(NULL != (inistring = inifile.Find("ENABLE_FANUC_STYLE_SUB",
-					       "RS274NGC")))
-          {
-	      if (strcmp(inistring,"True") == 0 ||
-		  strcmp(inistring, "true") == 0 ||
-		  strcmp(inistring, "YES") == 0) {
-		  logDebug("init:  ENABLE_FANUC_STYLE_SUB = TRUE");
-		  _setup.enable_fanuc_style_sub = true;
-	      } else {
-		  logDebug("init:  ENABLE_FANUC_STYLE_SUB = FALSE");
-		  _setup.enable_fanuc_style_sub = false;
-	      }
-          } else
-	      logDebug("init:  ENABLE_FANUC_STYLE_SUB = TRUE (default)");
+	  // ini file m98/m99 subprogram default setting
+	  inifile.Find(&_setup.disable_fanuc_style_sub,
+		       "DISABLE_FANUC_STYLE_SUB",
+		       "RS274NGC");
+	  logDebug("init:  DISABLE_FANUC_STYLE_SUB = %d",
+		   _setup.disable_fanuc_style_sub);
 
           if(NULL != (inistring = inifile.Find("PERSISTENT_G92_OFFSET",
 					       "RS274NGC")))
@@ -2792,9 +2784,9 @@ const char *strstore(const char *s)
 }
 
 context_struct::context_struct()
-: position(0), sequence_number(0), filename(""), subName(""),
-context_status(0), modal_state(), call_type(0), py_return_type(0), py_returned_double(0),
-py_returned_int(0)
+  : position(0), sequence_number(0), filename(""), subName(""),
+    m98_loop_counter(-1), context_status(0), modal_state(), call_type(0),
+    py_return_type(0), py_returned_double(0), py_returned_int(0)
 {
     memset(saved_params, 0, sizeof(saved_params));
 }

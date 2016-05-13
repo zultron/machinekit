@@ -571,7 +571,7 @@ public:
     //int execute_pycall(setup_pointer settings, const char *name, int call_phase);
  int execute_call(setup_pointer settings, context_pointer current_frame, int call_type);  
  int execute_return(setup_pointer settings,  context_pointer current_frame, int call_type);  
- void loop_to_beginning(setup_pointer settings);  
+ void loop_to_beginning(setup_pointer settings);
     //int execute_remap(setup_pointer settings, int call_phase);   // remap call state machine
     int handler_returned( setup_pointer settings, 
 			  context_pointer active_frame, const char *name, bool osub);

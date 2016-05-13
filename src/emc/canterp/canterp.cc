@@ -102,6 +102,7 @@ public:
 
     EmcPose get_work_offset(int origin);
     void set_loglevel(int level);
+    void set_loop_on_main_m99(bool state);
     FILE *f;
     char filename[PATH_MAX];
 };
@@ -740,5 +741,6 @@ int Canterp::active_modes(int g_codes[ACTIVE_G_CODES],
         StateTag const &tag){ return -1;}
 
 void Canterp::set_loglevel(int level) {}
+void Canterp::set_loop_on_main_m99(bool state) {}
 
 InterpBase *makeInterp() { return new Canterp; }
