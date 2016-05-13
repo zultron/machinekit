@@ -1,7 +1,0 @@
-/home/operator/repos/tormach_linuxcnc/linuxcnc/src/hal/components
-
-~/repos/tormach_linuxcnc/configs/tormach_plasma
-
-
-
-
