@@ -65,14 +65,10 @@ pin in float vel_tol "Velocity Tolerance (Corner Lock)";
 pin in bit torch_on "Connect to motion.spindle-on";
 pin in bit arc_ok "Arc OK from Plasma Torch";
 pin in bit enable "Enable the THC, if not enabled Z position is passed through";
-pin in float z_pos_in "Z Motor Position Command in from axis.n.motor-pos-cmd";
 pin in float z_vel_in "pid.N.output";
-pin in float z_fb_in "stepgen.N.position-fb";
 pin in float debug_in;
 
 // Output Pins
-pin out float z_pos_out "Z Motor Position Command Out";
-pin out float z_fb_out "Z Position Feedback to Axis";
 pin out float volts "The Calculated Volts";
 pin out bit vel_status "When the THC thinks we are at requested speed";
 pin out float z_vel_out "stepgen.N.velocity-cmd";
@@ -111,9 +107,7 @@ function _;
 FUNCTION(_) {
 //default to this; other things below may over-write!!
 	z_vel_out = z_vel_in;
-	z_fb_out = z_fb_in;
-	z_pos_out = z_pos_in;
-	
+		
 	if(torch_on) {
 		torch_off_ticks = 0; 
 		velocity_pass_through = false;
@@ -144,7 +138,6 @@ FUNCTION(_) {
 	
 	//do torch height correction only when z velocity very close to zero
         if(!velocity_pass_through && torch_on && arc_ok && (z_vel_in < (correction_vel*2) || z_vel_in > (correction_vel*2))) {
-		z_fb_out = initial_fb;  // lie to it about all movements
 #if 0
         	// convert encoder velocity to volts
 		volts = (encoder_vel - scale_offset) * vel_scale;
