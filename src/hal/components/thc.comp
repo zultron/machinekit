@@ -65,7 +65,7 @@ pin in float vel_tol "Velocity Tolerance (Corner Lock)";
 pin in bit torch_on "Connect to motion.spindle-on";
 pin in bit arc_ok "Arc OK from Plasma Torch";
 pin in bit enable "Enable the THC, if not enabled Z position is passed through";
-//pin in float z_pos_in "Z Motor Position Command in from axis.n.motor-pos-cmd";
+pin in float z_pos_in "Z Motor Position Command in from axis.n.motor-pos-cmd";
 pin in float z_vel_in "pid.N.output";
 pin in float z_fb_in "stepgen.N.position-fb";
 pin in float debug_in;
@@ -120,6 +120,7 @@ FUNCTION(_) {
 //default to this; other things below may over-write!!
 	z_vel_out = z_vel_in;
 	z_fb_out = z_fb_in;
+	z_pos_out = z_pos_in;
 	
 	tick_count++;
 
