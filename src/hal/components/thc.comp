@@ -76,10 +76,7 @@ pin out float z_fb_out "Z Position Feedback to Axis";
 pin out float volts "The Calculated Volts";
 pin out bit vel_status "When the THC thinks we are at requested speed";
 pin out float z_vel_out "stepgen.N.velocity-cmd";
-pin out float debug_z_vel_overide;
-pin out float debug_torch_off_ticks;
-pin out float debug_torch_on_ticks;
-pin out float debug_initial_fb;
+pin out float debug_initial_fb;  // initial_fb copy
 
 // Parameters
 param rw float vel_scale "The scale to convert the Velocity signal to Volts";
@@ -102,15 +99,10 @@ param rw float correction_vel "The amount of change in user units per period to 
 
 
 // Global Variables
-//variable float offset;
-variable float last_z_in;
-variable float initial_fb;  //this is fb position when arc is commanded on, in present G code .15" height above material
-variable int tick_count;
+variable float initial_fb;
 variable int torch_on_ticks;
 variable int torch_off_ticks;
-variable float z_vel_overide;
-variable int torch_on_count;
-variable bool velocity_overide_active;
+variable bool velocity_pass_through;
 
 function _;
 ;;
@@ -122,143 +114,58 @@ FUNCTION(_) {
 	z_fb_out = z_fb_in;
 	z_pos_out = z_pos_in;
 	
-	tick_count++;
-
 	if(torch_on) {
+		torch_off_ticks = 0; 
+		velocity_pass_through = false;
 		if(torch_on_ticks++ == 0)
-			torch_on_count++;
-		torch_off_ticks = 0;
-//		torch_on_ticks++;
-		z_vel_overide = 0;
-		velocity_overide_active = false;
+			initial_fb = z_fb_in;
 	}
 	else {
 		torch_on_ticks = 0;
 		torch_off_ticks++;
 	}
 	
-
-	if(torch_on_ticks == 1) {
-		initial_fb = z_fb_in;
+	//if torch was just turned off, turn velocity_pass_through back on
+	if(!velocity_pass_through && torch_off_ticks > 10)  {
+		velocity_pass_through  = true;
 	}
-
-	//magic numbers alert: (for below z_vel_overide) I can't figure out how to declare defines numbers in .comp file
-	// the .8 inches is the feed rate observed for my example G code file
-	// the .3 is the approx factor for observed z_vel_in of .025.  The thought is to ramp vel to .8, rather than 
-	//jump it in one .001 of sec loop
-	// .3 * .025 = .0075 per 1/1000 th sec, means .8 is reached in .8/.0075 = 106/1000 or about .1 of a sec
-
-
-	//if torch_off for more than .1 secs
-	// AND we have a z_vel_in command i.e. z position needs to be moved
-	// AND requested_vel ~ equals zero i.e. x and y movement has ceased
-	if(torch_on_count && !velocity_overide_active && torch_off_ticks > 100 && torch_off_ticks < 200 && ((z_vel_in > .001) || (z_vel_in < -.001))) { // && requested_vel < .00001 && requested_vel > -.00001) {
-		velocity_overide_active = true;
-		if(z_vel_in < 0) { //if moving negative is required
-			z_vel_overide = -.8;
-//			if(z_vel_overide > -.8) { //don't exceed .8 inches/sec in negative direction
-//				z_vel_overide += z_vel_in * .3;
-//			}
-		}
-		else if (z_vel_in > 0) {
-			z_vel_overide = .8;
-//			if(z_vel_overide < .8) { //don't exceed .8 inches/sec in positive direction
-//				z_vel_overide += z_vel_in * .3;	
-//			}
-		}
-		else  z_vel_overide = 0; 
-	}
-	//else {
-	//	z_vel_overide = 0;
-	//}
-
-    //if (z velocity essentially zero), i.e. torch height correct only when very small
-    //velocities are requested.
-    if (z_vel_in < (correction_vel*2) || z_vel_in > (correction_vel*2)) {
+	
+	//we do this here for diagnostic purposes; we don't need to if not debugging
+	//saves a few CPU cycles if we do in if statement below
 	// convert encoder velocity to volts
 	volts = (encoder_vel - scale_offset) * vel_scale;
-	if(volts < 0){volts = 0;} // make sure volts is not negative
+	if(volts < 0){
+		volts = 0;
+	} // make sure volts is not negative
 
-        if(torch_on && arc_ok && !velocity_overide_active) { // && vel_status){   //&& arc_ok && vel_status){ // allow correction
-            if(volts  > (volts_requested + voltage_tol)){
-		z_vel_out = -.14;
-	    }
-            else if(volts < (volts_requested - voltage_tol)){
-		z_vel_out = .14;
-            }
-	    else {
-	    	z_vel_out = 0;
-	    }	
+	//unhandled errors:
+	//if arc_ok never goes on while torch_on being requested 
+	//if arc_ok goes off while torch_on is being requested
+	
+	//do torch height correction only when z velocity very close to zero
+        if(!velocity_pass_through && torch_on && arc_ok && (z_vel_in < (correction_vel*2) || z_vel_in > (correction_vel*2))) {
+		z_fb_out = initial_fb;  // lie to it about all movements
+#if 0
+        	// convert encoder velocity to volts
+		volts = (encoder_vel - scale_offset) * vel_scale;
+		if(volts < 0){
+			volts = 0;
+		} // make sure volts is not negative
+#endif		
+		if(volts  > (volts_requested + voltage_tol)){
+			z_vel_out = -.14;
+		}
+		else if(volts < (volts_requested - voltage_tol)){
+			z_vel_out = .14;
+		}
+		else {
+			z_vel_out = 0;
+		}	
         }
 
-	if(velocity_overide_active){
-		z_vel_out = z_vel_overide;
-		float delta = (initial_fb + (.8 - .15)) - z_fb_in;
-		if(delta < 0)
-			delta *= -1; //make positive
-		if(delta < .2) { //checking absolute value distance from destination
-			z_vel_overide = 0;
-			velocity_overide_active = false;
-		}
-	}
-		
-     }   
-
-	debug_z_vel_overide = z_vel_overide;
-	debug_torch_off_ticks = torch_off_ticks;
-	debug_torch_on_ticks = torch_on_ticks;
 	debug_initial_fb = initial_fb;
 
-#if 0
-    // convert encoder velocity to volts
-    volts = (encoder_vel - scale_offset) * vel_scale;
-    if(volts < 0){volts = 0;} // make sure volts is not negative
-    
-    if(enable){
-        float min_velocity = requested_vel -(requested_vel*(1/velocity_tol));
-        if(current_vel > 0 && current_vel >= min_velocity){vel_status = 1;}
-        else {vel_status =0;}
-        
-        if(torch_on && arc_ok && vel_status){ // allow correction
-            if((volts + voltage_tol) > volts_requested){
-                offset -= correction_vel;
-            }
-            if((volts - voltage_tol) < volts_requested){
-                offset += correction_vel;
-            }    
-            last_z_in = 0;
-        }
-        if(!torch_on){ // remove any offset
-            // seems buggy in that offset never goes to zero after torch goes off
-            // set offset to 0.0 if torch off
-            offset = 0.0;
-            #if 0
-            float z_diff;
-            z_diff = z_pos_in - last_z_in;
-            if(z_diff > 0 && offset != 0){ // torch is moving up
-                if(offset > 0){ // positive offset
-                    if(offset > z_diff){ // remove some
-                        offset -= z_diff;
-                    }
-                    else {offset = 0;}
-                }
-                if(offset < 0){ // negative offset
-                    if(offset < z_diff){ // remove some
-                        offset += z_diff;
-                    }
-                    else {offset = 0;}
-                }
-            }
-            last_z_in = z_pos_in;
-            #endif
-        }
-        z_pos_out = z_pos_in + offset;
-        z_fb_out = z_pos_in; // keep axis motor position fb from being confused
-    }
-    else {
-        z_pos_out = z_pos_in;
-        z_fb_out = z_pos_in; // keep axis motor position fb from being confused
-    }
-#endif
 }
+
+
 
