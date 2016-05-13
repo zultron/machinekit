@@ -964,8 +964,6 @@ static void flush_segments(void) {
     double a = pos.a, b = pos.b, c = pos.c;
     double u = pos.u, v = pos.v, w = pos.w;
     
-    int line_no = pos.line_no;
-
 #ifdef SHOW_JOINED_SEGMENTS
     for(unsigned int i=0; i != chained_points.size(); i++) { printf("."); }
     printf("\n");
