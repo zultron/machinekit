@@ -9,7 +9,7 @@ executing
     8 N..... SET_SPINDLE_SPEED(300.0000)
     9 N..... START_SPINDLE_CLOCKWISE()
    10 N..... STRAIGHT_FEED(1.0000, 1.0000, 0.0000, 0.0000, 0.0000, 0.0000)
-   11 N..... COMMENT("interpreter: motion mode set to none")
+   11 N..... COMMENT("interpreter: motion mode set to G0 after G80 cancel canned cycle")
    12 N..... STOP_SPINDLE_TURNING()
    13 N..... MIST_ON()
    14 N..... DWELL(0.1000)

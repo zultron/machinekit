@@ -45,6 +45,7 @@ public:
 
 // get ready to run
  int init();
+ void set_loop_on_main_m99(bool state);
 
 // load a tool table
  int load_tool_table();
@@ -558,10 +559,6 @@ public:
 //  int *o_index);             /* the index of o-word (returned) */
 
  int control_back_to(        /* ARGUMENTS                   */
-  const char *o_name,        /* o-word name                 */
-  setup_pointer settings);   /* pointer to machine settings */
-
- int control_back_to(        /* ARGUMENTS                   */
   block_pointer block, // pointer to block
   setup_pointer settings);   /* pointer to machine settings */
 
@@ -574,6 +571,7 @@ public:
     //int execute_pycall(setup_pointer settings, const char *name, int call_phase);
  int execute_call(setup_pointer settings, context_pointer current_frame, int call_type);  
  int execute_return(setup_pointer settings,  context_pointer current_frame, int call_type);  
+ void loop_to_beginning(setup_pointer settings);
     //int execute_remap(setup_pointer settings, int call_phase);   // remap call state machine
     int handler_returned( setup_pointer settings, 
 			  context_pointer active_frame, const char *name, bool osub);
@@ -583,11 +581,6 @@ int read_inputs(setup_pointer settings);
   block_pointer block,       /* pointer to a block of RS274/NGC instructions */
   setup_pointer settings);   /* pointer to machine settings */
 
-  // Send control back to main program, if one is defined and
-  // currently skipping; used in blocks or EOF that would signal main
-  // program end
-  int conditionally_skip_back_to_main(block_pointer block,
-				      setup_pointer settings);
 
  // parse a REMAP= descriptor from the ini file
  int parse_remap(const char *inistring, int lineno);

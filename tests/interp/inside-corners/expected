@@ -14,7 +14,7 @@
  N..... SET_FEED_MODE(0)
  N..... SET_FEED_RATE(0.0000)
  N..... COMMENT("interpreter: continuing to use same coordinate system")
- N..... COMMENT("interpreter: motion mode set to none")
+ N..... COMMENT("interpreter: motion mode set to G0 after G80 cancel canned cycle")
  N..... STOP_SPINDLE_TURNING()
  N..... STRAIGHT_TRAVERSE(0.0000, 0.0000, 1.0000, 0.0000, 0.0000, 0.0000)
  N..... PROGRAM_STOP()
