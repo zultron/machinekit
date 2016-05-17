@@ -460,6 +460,8 @@ int emcTaskPlanInit()
 
     int retval = interp.init();
 	print_interp_warning();
+	// In task, enable M99 main program endless looping
+	interp.set_loop_on_main_m99(true);
     if (retval > INTERP_MIN_ERROR) {  // I'd think this should be fatal.
 	print_interp_error(retval);
     } else {

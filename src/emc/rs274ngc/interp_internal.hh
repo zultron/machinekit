@@ -239,9 +239,6 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 // max number of local variables saved (?)
 #define MAX_NAMED_PARAMETERS 50
 
-// private return code; addition to those in interp_return.hh
-#define INTERP_CONTINUE 99
-
 /**********************/
 /*      TYPEDEFS      */
 /**********************/
@@ -273,7 +270,6 @@ enum phases  {
     STEP_SET_FEED_RATE,
     STEP_SET_SPINDLE_SPEED,
     STEP_PREPARE,
-    STEP_M_0,
     STEP_M_5,
     STEP_M_6,
     STEP_RETAIN_G43,
@@ -539,6 +535,7 @@ typedef struct context_struct {
     int sequence_number; // location (line number) in file
     const char *filename;      // name of file for this context
     const char *subName;       // name of the subroutine (oword)
+    int m98_loop_counter;      // loop counter for Fanuc-style sub calls
     double saved_params[INTERP_SUB_PARAMS];
     parameter_map named_params;
     unsigned char context_status;		// see CONTEXT_ defines below
@@ -701,7 +698,6 @@ typedef struct setup_struct
   double orient_offset;         // added to M19 R word, from [RS274NGC]ORIENT_OFFSET
 
   /* stuff for subroutines and control structures */
-  const char *main_name;             // name of main program
   int defining_sub;                  // true if in a subroutine defn
   const char *sub_name;                    // name of sub we are defining (free this)
   int doing_continue;                // true if doing a continue
@@ -751,8 +747,11 @@ typedef struct setup_struct
   bool single_block_local_sub;
   bool single_block_external_sub;
 
-  bool enable_fanuc_style_sub;
   bool persistent_g92_offset;
+    int disable_fanuc_style_sub;
+    // M99 in main is treated as program end by default; this causes
+    // control to skip to beginning of file
+    bool loop_on_main_m99;
 
 #define FEATURE(x) (_setup.feature_set & FEATURE_ ## x)
 #define FEATURE_RETAIN_G43           0x00000001
