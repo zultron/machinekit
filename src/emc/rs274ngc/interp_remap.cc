@@ -647,6 +647,12 @@ int Interp::init_remap_sets()
     _setup.m_remappable[8] = 1;  // flood
     _setup.m_remappable[9] = 1;  // cool off
 
+    //adding for digital io module
+    _setup.m_remappable[62] = 1;  // digital io output on synched
+    _setup.m_remappable[63] = 1;  // digital io output off synched
+    _setup.m_remappable[64] = 1;  // digital io output on immediate
+    _setup.m_remappable[65] = 1;  // digital io output off immediate
+    _setup.m_remappable[66] = 1;  // analog io input
 
 
     // the G codes:
