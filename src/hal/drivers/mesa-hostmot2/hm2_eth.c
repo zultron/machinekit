@@ -567,7 +567,7 @@ static int hm2_eth_probe() {
         strncpy(llio_name, board_name, 4);
 
         board->llio.num_ioport_connectors = 2;
-        board->llio.pins_per_connector = 29;
+        board->llio.pins_per_connector = 32;
         board->llio.ioport_connector_name[0] = "P2";
         board->llio.ioport_connector_name[1] = "P1";
         board->llio.fpga_part_number = "XC6SLX9";
