@@ -785,7 +785,7 @@ out_error:
     // Throw a warning if we're clipping lines
     if (_linecount > max_glcanon_lines) {
         std::stringstream preview_cutoff_warning;
-        preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.";
+        preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
         PyList_Append(((Interp*)pinterp)->warning_list, PyString_FromString(preview_cutoff_warning.str().c_str()));
     }
 
