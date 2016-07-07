@@ -1855,10 +1855,17 @@ int Interp::read_o(    /* ARGUMENTS                                     */
       }
   else
     {
-      // not legal
-      block->o_type = O_none;
-      ERS(NCE_UNKNOWN_COMMAND_IN_O_LINE);
+	// Not normally legal G code; this is another workaround for
+	// the SprutCAM post processor "OBoreProject" bug for the case
+	// when a filename begins with a digit, producing
+	// e.g. `O2ugly`.
+	logDebug("O_none - ignoring entire line");
+	block->o_type = O_none;
+	for (; line[*counter] != '\0'; (*counter)++)
+	    // eat rest of line
+	    ;
     }
+
 
   return INTERP_OK;
 }

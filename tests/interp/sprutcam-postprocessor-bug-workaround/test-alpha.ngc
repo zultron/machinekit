@@ -1,0 +1,8 @@
+%
+(test-alpha.ngc)
+(SprutCAM post processor bug workaround)
+(Alpha title)
+OMyProgram
+(...program body)
+M30
+%
