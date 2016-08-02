@@ -1,0 +1,279 @@
+
+component escspindle "ESC Spindle HAL Component";
+
+license "GPL";
+author "";
+
+// Purpose:
+//
+// No Reverse. No belt position. Outputs 5% to 10% RC servo pulse width for Electronic Speed Controller.
+//
+// Alarm checking and PWM duty cycle output
+//
+// Inputs:
+//
+//          disable                 0 = normal operation, 1 = no spindle rotation
+//
+//          min-rpm                 minumum RPM
+//          max-rpm                 maximum RPM
+//          min-pwm-dc              PWM duty cycle sent to machine control board to achieve lowbelt min speed, default PWMGEN_MIN_DUTY_CYCLE
+//          max-pwm-dc              PWM duty cycle sent to machine control board to achieve lowbelt max speed, default PWMGEN_MAX_DUTY_CYCLE
+//
+//          speed-in             <= motion.spindle-speed-out
+//
+//          enc-door-switch-configured  pay attention to the door switch input to limit RPM when open
+//          enc-door-switch-status      limit spindle speed when enclosure door is open (pin is 0)
+//          enc-door-open-max-rpm       speed limit when enclosure door is open
+//
+// Outputs:
+//
+//          speed-alarm             if true then speed-in is out of range for the current belt position - connect to UI
+//          pwm-out                 PWM duty cycle output
+//
+// Spindle-at-speed:
+//
+// Drive motion.spindle-at-speed while compensating for motor accleration.
+// Since the spindle doesn't provide encoder feedback we estimate the speed.
+//
+// Calculate the estimated spindle speed based upon elapsed time and acceleration.
+// After "speed-in" is reached assert "at-speed" pin.
+//
+// If the spindle was already on, ignore any time required for acceleratio and keep "at-speed" asserted.
+//
+// HAL mappings:
+//
+//    Inputs:
+//          speed-in             <= motion.spindle-speed-out
+//          spindle-on           <= motion.spindle-on
+//          seconds-to-max-rpm      seconds from 0 to max RPM in any belt position
+//
+//    Outputs:
+//          at-speed             => motion.spindle-at-speed
+//          speed-out               open loop speed-out in RPM
+//          speed-out-rps           connect to UI for display during gcode program execution
+//
+
+// connect to motion.spindle-speed-out
+pin in float speed_in;
+
+// connect to motion.spindle-at-speed
+pin out bit at_speed;
+
+// connect to motion.spindle-on
+pin in bit spindle_on;
+
+// this inbits the spindle from turning no matter what is commanded
+pin in bit disable;
+
+// connect to UI
+pin out float speed_out_rps;
+pin out float speed_out;
+
+// seconds from stopped to max rpm
+pin in float seconds_to_max_rpm;
+
+pin out float elapsed_accel_time;
+
+pin in float min_rpm;
+pin in float max_rpm;
+pin in float min_pwm_dc = 5.0;
+pin in float max_pwm_dc = 10.0;
+
+// current min and max speeds based upon spindle-type and belt-position
+pin out float min_speed;
+pin out float max_speed;
+
+pin out bit speed_alarm;
+pin out float pwm_out;
+
+pin in bit enc_door_switch_configured;
+pin in bit enc_door_switch_status;
+pin in float enc_door_open_max_rpm;
+
+// make sure these lengths match NUM_TABLE_ENTRIES
+param rw float rpm-##[11] "RPM in";
+param rw float pwm-dc-##[11] "PWM duty cycle out";
+
+option extra_setup 1;
+
+function _ "ESC Spindle HAL Component";
+
+;;
+
+#include <rtapi_math.h>
+
+#define BIT_FALSE 0
+#define BIT_TRUE  1
+
+// make sure this matches rpm and pwm-dc array lengths
+#define NUM_TABLE_ENTRIES 11
+
+#define PWMGEN_OFF_DUTY_CYCLE 5.0
+
+#define PWMGEN_MIN_DUTY_CYCLE 5.0
+#define PWMGEN_MAX_DUTY_CYCLE 10.0
+
+#define RPM_CLOSE_TO_ZERO 0.1
+
+
+EXTRA_SETUP() {
+
+    // make sure the total entries matches NUM_TABLE_ENTRIES and the length of rpm and pwm-ds arrays
+    pwm_dc(0) = 5.000000;    rpm(0) = 0;
+    pwm_dc(1) = 5.552242;    rpm(1) = 1500;
+    pwm_dc(1) = 5.591662;    rpm(1) = 1620;
+    pwm_dc(2) = 5.656945;    rpm(2) = 2470;
+    pwm_dc(3) = 5.689558;    rpm(3) = 2600;
+    pwm_dc(4) = 5.737107;    rpm(4) = 3690;
+    pwm_dc(5) = 5.737107;    rpm(5) = 4320;
+    pwm_dc(6) = 5.814353;    rpm(6) = 5090;
+    pwm_dc(7) = 5.984892;    rpm(7) = 6020;
+    pwm_dc(8) = 6.306971;    rpm(8) = 7180;
+    pwm_dc(9) = 7.248897;    rpm(9) = 7920;
+    pwm_dc(10) = 9.439000;   rpm(10) = 8600;
+
+    return 0;
+}
+
+
+FUNCTION(_) {
+    int i;
+    double segment_slope;
+    float acceleration;
+    float clamped_speed_in;
+    float actual_min_pwm_dc;
+    float actual_max_pwm_dc;
+
+    min_speed = min_rpm;
+    max_speed = max_rpm;
+
+    // ignore sign/direction
+    min_speed = fabs(min_speed);
+    max_speed = fabs(max_speed);
+
+    // if min_speed is greater than max_speed then swap their values to prevent sign inversion
+    if (min_speed > max_speed) {
+        float tmp_speed;
+        tmp_speed = min_speed;
+        min_speed = max_speed;
+        max_speed = tmp_speed;
+    }
+
+    // range check and clamp speed-in between min and max (0.0 is OK for stopped)
+    speed_alarm = BIT_FALSE;
+
+    // ignore direction sign from speed-in
+    clamped_speed_in = fabs(speed_in);
+
+    if (clamped_speed_in < min_speed) {
+        // under min
+        speed_alarm = BIT_TRUE;
+        clamped_speed_in = min_speed;
+    }
+    else if (clamped_speed_in > max_speed) {
+        // over max
+        speed_alarm = BIT_TRUE;
+        clamped_speed_in = max_speed;
+    }
+
+    // set min and max pwm
+    // min pwm
+    if (min_pwm_dc != 0.0) {
+        actual_min_pwm_dc   = fabs(min_pwm_dc);
+    }
+    else {
+        // use default
+        actual_min_pwm_dc   = PWMGEN_MIN_DUTY_CYCLE;
+    }
+
+    // max pwm
+    if (max_pwm_dc != 0.0) {
+        actual_max_pwm_dc   = fabs(max_pwm_dc);
+    }
+    else {
+        // use default
+        actual_max_pwm_dc   = PWMGEN_MAX_DUTY_CYCLE;
+    }
+
+    // lookup table piecewise linear lookup table
+    if (clamped_speed_in >= rpm(NUM_TABLE_ENTRIES - 1)) {
+        pwm_out = pwm_dc(NUM_TABLE_ENTRIES - 1);
+    }
+    else if (clamped_speed_in <= rpm(0)) {
+        pwm_out = pwm_dc(0);
+    }
+    else {
+       i = 0;
+       while (clamped_speed_in > rpm(i + 1)) { i++; }
+       while (clamped_speed_in < rpm(i    )) { i--; }
+       segment_slope = (clamped_speed_in - rpm(i))/(rpm(i + 1) - rpm(i));
+       pwm_out = pwm_dc(i) + (segment_slope * (pwm_dc(i + 1) - pwm_dc(i)));
+    }
+
+    // clamp to acceptable range
+    if (pwm_out < actual_min_pwm_dc) {
+        pwm_out = actual_min_pwm_dc;
+    }
+    else if (pwm_out > actual_max_pwm_dc) {
+        pwm_out = actual_max_pwm_dc;
+    }
+
+    // spindle-at-speed open loop computation
+    //
+    // non-zero spindle speed and spindle not yet at_speed
+    if (spindle_on && (clamped_speed_in > 0.0)) {
+        // spindle is on
+        if (enc_door_switch_configured == 1 && enc_door_switch_status == 1 && clamped_speed_in > enc_door_open_max_rpm) {
+            // enclosure door is open - limit speed
+            speed_out = enc_door_open_max_rpm;
+            // lookup table piecewise linear lookup table
+            if (speed_out >= rpm(NUM_TABLE_ENTRIES - 1)) {
+                pwm_out = pwm_dc(NUM_TABLE_ENTRIES - 1);
+            }
+            else if (speed_out <= rpm(0)) {
+                pwm_out = pwm_dc(0);
+            }
+            else {
+                i = 0;
+                while (speed_out > rpm(i + 1)) { i++; }
+                while (speed_out < rpm(i    )) { i--; }
+                segment_slope = (speed_out - rpm(i))/(rpm(i + 1) - rpm(i));
+                pwm_out = pwm_dc(i) + (segment_slope * (pwm_dc(i + 1) - pwm_dc(i)));
+                at_speed = BIT_TRUE;
+            }
+        }
+        else if (at_speed == BIT_FALSE) {
+            // not yet at speed
+            // in accleration state
+            // 'fperiod' is a convenience macro provided by the 'comp' generator
+            elapsed_accel_time += fperiod;
+            // v = a * t + v(0)
+            // compute acceleration from max speed acceleration period
+            acceleration = max_speed / seconds_to_max_rpm;
+            speed_out = fabs(acceleration * elapsed_accel_time);
+            if (speed_out >= clamped_speed_in) {
+                // spindle should now be at speed
+                at_speed = BIT_TRUE;
+            }
+        }
+        // in at-speed state - speed-out follows speed-in
+        else {
+            speed_out = clamped_speed_in;
+        }
+    }
+    else {
+        // spindle is off
+        pwm_out = PWMGEN_OFF_DUTY_CYCLE;
+        at_speed = BIT_FALSE;
+        elapsed_accel_time = 0.0;
+        speed_out = 0.0;
+        speed_alarm = BIT_FALSE;
+    }
+    if (disable) {
+        // no spindle motion allowed
+        pwm_out  = PWMGEN_OFF_DUTY_CYCLE;
+        speed_out = 0.0;
+    }
+    speed_out_rps = speed_out / 60.0;
+}
+
