@@ -1026,7 +1026,7 @@ linkable(double x, double y, double z,
 
 static void
 see_segment(int line_number,
-        StateTag tag,
+	    StateTag tag,
 	    double x, double y, double z, 
             double a, double b, double c,
             double u, double v, double w) {
@@ -2122,13 +2122,11 @@ void CHANGE_TOOL(int slot)
 	if(feed_mode)
 	    STOP_SPEED_FEED_SYNCH();
 
-        if(vel && acc) {
+        if(vel && acc)
             tag_and_send(linearMoveMsg, _tag);
-        }
 
-        if(old_feed_mode) {
+        if(old_feed_mode)
             START_SPEED_FEED_SYNCH(currentLinearFeedRate, 1);
-        }
 
         canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
     }
