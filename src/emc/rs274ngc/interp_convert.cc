@@ -2929,7 +2929,8 @@ int Interp::restore_from_tag(StateTag const &tag)
         return INTERP_ERROR;
     }
 
-	// clear queue buster sflags, otherwise the command won't be executed - Tormach *dpr 8/17/15
+	// clear queue buster sflags, otherwise the command won't be
+	// executed - Tormach *dpr 8/17/15
 	_setup.input_flag = false;
 	_setup.toolchange_flag = false;
 	_setup.probe_flag = false;
@@ -2968,7 +2969,8 @@ int Interp::restore_from_tag(StateTag const &tag)
             if (status != INTERP_OK) {
                 char currentError[LINELEN+1];
                 strcpy(currentError,getSavedError());
-                CHKS(status, _("Failed to restore interp state on abort '%s': %s"), s, currentError);
+                CHKS(status, _("Failed to restore interp state on abort "
+			       "'%s': %s"), s, currentError);
             }
         }
         write_g_codes((block_pointer) NULL, &_setup);

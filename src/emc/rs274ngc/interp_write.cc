@@ -210,10 +210,12 @@ int Interp::write_state_tag(block_pointer block,
 {
 
     state.fields[GM_FIELD_LINE_NUMBER] = settings->sequence_number;
-    //FIXME refactor these into setup methods, and maybe put this whole method in setup struct
+    //FIXME refactor these into setup methods, and maybe put this
+    //whole method in setup struct
     bool in_remap = (settings->remap_level > 0);
     bool in_sub = (settings->call_level > 0 && settings->remap_level == 0);
-    bool external_sub = strcmp(settings->filename, settings->sub_context[0].filename);
+    bool external_sub = strcmp(settings->filename,
+			       settings->sub_context[0].filename);
 
     state.flags[GM_FLAG_IN_REMAP] = in_remap;
     state.flags[GM_FLAG_IN_SUB] = in_sub;
