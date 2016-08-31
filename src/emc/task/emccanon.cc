@@ -1580,18 +1580,18 @@ void ARC_FEED(int line_number,
 
         get_last_pos(lx, ly, lz);
 
-        a = FROM_PROG_ANG(a);
-        b = FROM_PROG_ANG(b);
-        c = FROM_PROG_ANG(c);
-        u = FROM_PROG_LEN(u);
-        v = FROM_PROG_LEN(v);
-        w = FROM_PROG_LEN(w);
-
         double fe=FROM_PROG_LEN(first_end), se=FROM_PROG_LEN(second_end), ae=FROM_PROG_LEN(axis_end_point);
         double fa=FROM_PROG_LEN(first_axis), sa=FROM_PROG_LEN(second_axis);
         rotate_and_offset_pos(fe, se, ae, unused, unused, unused, unused, unused, unused);
         rotate_and_offset_pos(fa, sa, unused, unused, unused, unused, unused, unused, unused);
         if (chord_deviation(lx, ly, fe, se, fa, sa, rotation, mx, my) < canonNaivecamTolerance) {
+            a = FROM_PROG_ANG(a);
+            b = FROM_PROG_ANG(b);
+            c = FROM_PROG_ANG(c);
+            u = FROM_PROG_LEN(u);
+            v = FROM_PROG_LEN(v);
+            w = FROM_PROG_LEN(w);
+
             rotate_and_offset_pos(unused, unused, unused, a, b, c, u, v, w);
             see_segment(line_number, _tag, mx, my,
                         (lz + ae)/2, 
@@ -1796,6 +1796,20 @@ void ARC_FEED(int line_number,
     double a2 = FROM_EXT_LEN(axis_max_acceleration[axis2]);
     double v_max_axes = MIN(v1, v2);
     double a_max_axes = MIN(a1, a2);
+
+    if(xy_rotation && activePlane != CANON_PLANE_XY) {
+        // also consider the third plane's constraint, which may get
+        // involved since we're rotated.
+
+        int axis3 = (norm_axis_ind + 3) % 3;
+        if (axis_valid(axis3)) {
+            double v3 = FROM_EXT_LEN(axis_max_velocity[axis3]);
+            double a3 = FROM_EXT_LEN(axis_max_acceleration[axis3]);
+            v_max_axes = MIN(v3, v_max_axes);
+            a_max_axes = MIN(a3, a_max_axes);
+        }
+    }
+
     //FIXME allow tangential acceleration like in TP
     double a_max_normal = a_max_axes * sqrt(3.0)/2.0;
     canon_debug("a_max_axes = %f\n", a_max_axes);

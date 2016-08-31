@@ -27,6 +27,8 @@ exec $LINUXCNC_EMCSH "$0" "$@"
 source [file join [file dirname [info script]] .. linuxcnc.tcl]
 eval emc_init $argv
 
+source [file join $::env(HALLIB_DIR) hal_procs_lib.tcl]
+
 package require BWidget
 
 # add a few default characteristics to the display
@@ -143,13 +145,14 @@ set startline $sectionarray(HAL)
 set endline $sectionarray([lindex $sectionlist [expr [lsearch -exact $sectionlist HAL] + 1 ]])
 
 set halfilelist ""
+
 for {set i $startline} {$i < $endline} {incr i} {
     set thisstring [$initext get $i.0 $i.end]
     if {   [lindex $thisstring 0] == "HALFILE"
         || [lindex $thisstring 0] == "POSTGUI_HALFILE"
        } {
         set thishalname [lindex $thisstring end]
-        lappend halfilelist $thisconfigdir/$thishalname
+        lappend halfilelist [find_file_in_hallib_path $thishalname $thisinifile]
     }
 }
 
@@ -172,10 +175,14 @@ proc makeIniTune {} {
     #puts "af: [array get af]"
 
     foreach fname $halfilelist {
+        if {[string first LIB: $fname] != -1} {
+            # LIB: files are not candidates tunable items
+            continue
+        }
         $haltext config -state normal
         $haltext delete 1.0 end
         if {[catch {open $fname} programin]} {
-            return
+            continue
         } else {
             $haltext insert end [read $programin]
             catch {close $programin}
@@ -184,7 +191,7 @@ proc makeIniTune {} {
         # find the ini references in this hal and build widgets        
         scan [$haltext index end] %d nl
         for {set i 1} { $i < $nl } {incr i} {
-            set tmpstring [$haltext get $i.0 $i.end]
+            set tmpstring [string trim [$haltext get $i.0 $i.end]]
             if {[string match *AXIS* $tmpstring] && ![string match *#* $tmpstring]} {
 	      set halcommand [split $tmpstring " \t"]
 	      if { [lindex $halcommand 0] == "setp" || [lindex $halcommand 1] == "\=" } {

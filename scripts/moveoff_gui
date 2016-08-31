@@ -1,6 +1,9 @@
 #!/usr/bin/tclsh
 
-# library procs:
+# library procs
+# Note: use linuxcnc_var script since this program can be
+#       started without using the linuxcnc script and
+#       ::env(HALLIB_DIR) will not exist
 set hallib_dir [exec linuxcnc_var HALLIB_DIR]
 source [file join $hallib_dir hal_procs_lib.tcl]
 
@@ -831,11 +834,11 @@ Options for special cases:
     \[-no_pause_requirement\] (default: $default_no_pause_requirement)
                               (no check for halui.program.is-paused)
     \[-no_cancel_autoresume\] (default: $default_no_cancel_autoresume)
-                              (useful for retraact offsets with simple)
-                              (external control                       )
+                              (useful for retracting offsets with simple)
+                              (external controls)
     \[-no_display\]           (default: $default_no_display)
-                              (Use when both external controls and displays)
-                              (are in use (see Note))                      )
+                              (Use when both external controls and external)
+                              (displays are in use)
 
 Note: If the moveoff move-enable pin ($::m.move-enable) is connected when
       $::MV(prog) is started, external controls are required and only

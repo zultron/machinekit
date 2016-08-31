@@ -189,6 +189,11 @@ int hal_init(const char *name)
 	rtapi_print_msg(RTAPI_MSG_DBG, "HAL: initializing hal_lib\n");
 	rtapi_snprintf(rtapi_name, RTAPI_NAME_LEN, "HAL_LIB_%d", (int)getpid());
 	lib_module_id = rtapi_init(rtapi_name);
+	if (lib_module_id < 0) {
+	    rtapi_print_msg(RTAPI_MSG_ERR,
+		"HAL: ERROR: could not initialize RTAPI\n");
+	    return -EINVAL;
+	}
 
 	/* get HAL shared memory block from RTAPI */
 	lib_mem_id = rtapi_shmem_new(HAL_KEY, lib_module_id, HAL_SIZE);
@@ -909,7 +914,7 @@ int hal_signal_new(const char *name, hal_type_t type)
     /* initialize the signal value */
     switch (type) {
     case HAL_BIT:
-	*((char *) data_addr) = 0;
+	*((hal_bit_t *) data_addr) = 0;
 	break;
     case HAL_S32:
 	*((hal_s32_t *) data_addr) = 0;
@@ -1744,10 +1749,7 @@ int hal_create_thread(const char *name, unsigned long period_nsec, int uses_fp)
     int retval, n;
     hal_thread_t *new, *tptr;
     long prev_period, curr_period;
-/*! \todo Another #if 0 */
-#if 0
     char buf[HAL_NAME_LEN + 1];
-#endif
 
     rtapi_print_msg(RTAPI_MSG_DBG,
 	"HAL: creating thread %s, %ld nsec\n", name, period_nsec);
@@ -1883,23 +1885,31 @@ int hal_create_thread(const char *name, unsigned long period_nsec, int uses_fp)
     hal_data->thread_list_ptr = SHMOFF(new);
     /* done, release mutex */
     rtapi_mutex_give(&(hal_data->mutex));
-    /* init time logging variables */
-    new->runtime = 0;
+
+    rtapi_snprintf(buf,sizeof(buf), HAL_PSEUDO_COMP_PREFIX"%s",new->name); // pseudo prefix
+    new->comp_id = hal_init(buf);
+    if (new->comp_id < 0) {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+           "HAL: ERROR: fail to create pseudo comp for thread: '%s'\n", new->name);
+        return -EINVAL;
+    }
+
+    rtapi_snprintf(buf, sizeof(buf), "%s.tmax", new->name);
     new->maxtime = 0;
-/*! \todo Another #if 0 */
-#if 0
-/* These params need to be re-visited when I refactor HAL.  Right
-   now they cause problems - they can no longer be owned by the calling
-   component, and they can't be owned by the hal_lib because it isn't
-   actually a component.
-*/
-    /* create a parameter with the thread's runtime in it */
-    rtapi_snprintf(buf, sizeof(buf), "%s.time", name);
-    hal_param_s32_new(buf, HAL_RO, &(new->runtime), lib_module_id);
-    /* create a parameter with the thread's maximum runtime in it */
-    rtapi_snprintf(buf, sizeof(buf), "%s.tmax", name);
-    hal_param_s32_new(buf, HAL_RW, &(new->maxtime), lib_module_id);
-#endif
+    if (hal_param_s32_new(buf, HAL_RW, &(new->maxtime), new->comp_id)) {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+           "HAL: ERROR: fail to create param '%s.tmax'\n", new->name);
+        return -EINVAL;
+    }
+
+    if (hal_pin_s32_newf(HAL_OUT, &(new->runtime), new->comp_id,"%s.time",new->name)) {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+           "HAL: ERROR: fail to create pin '%s.time'\n", new->name);
+        return -EINVAL;
+    }
+    *(new->runtime) = 0;
+    hal_ready(new->comp_id);
+
     rtapi_print_msg(RTAPI_MSG_DBG, "HAL: thread created\n");
     return 0;
 }
@@ -1931,6 +1941,10 @@ extern int hal_thread_delete(const char *name)
 	thread = SHMPTR(next);
 	if (strcmp(thread->name, name) == 0) {
 	    /* this is the right thread, unlink from list */
+	    if (thread->comp_id != 0) {
+	        hal_exit(thread->comp_id);
+	        thread->comp_id = 0;
+	    }
 	    *prev = thread->next_ptr;
 	    /* and delete it */
 	    free_thread_struct(thread);
@@ -2734,9 +2748,9 @@ static void thread_task(void *arg)
 		start_time = end_time;
 	    }
 	    /* update thread execution time */
-	    thread->runtime = (hal_s32_t)(end_time - thread_start_time);
-	    if (thread->runtime > thread->maxtime) {
-		thread->maxtime = thread->runtime;
+	    *(thread->runtime) = (hal_s32_t)(end_time - thread_start_time);
+	    if ( *(thread->runtime) > thread->maxtime) {
+	        thread->maxtime = *(thread->runtime);
 	    }
 	}
 	/* wait until next period */
@@ -3481,4 +3495,6 @@ EXPORT_SYMBOL(halpr_find_funct_by_owner);
 
 EXPORT_SYMBOL(halpr_find_pin_by_sig);
 
+EXPORT_SYMBOL(hal_pin_alias);
+EXPORT_SYMBOL(hal_param_alias);
 #endif /* rtapi */

@@ -275,7 +275,11 @@ static void hm2_stepgen_instance_prepare_tram_write(hostmot2_t *hm2, long l_peri
     *s->hal.pin.velocity_fb = (hal_float_t)new_vel;
 
     steps_per_sec_cmd = new_vel * s->hal.param.position_scale;
-    hm2->stepgen.step_rate_reg[i] = steps_per_sec_cmd * (4294967296.0 / (double)hm2->stepgen.clock_frequency);
+    // the double cast here is intentional.  (uint32_t)(-1.0) is undefined in
+    // C (and in practice it gives the undesired value 0 on arm systems), but
+    // (uint32_t)(int32-t)(-1.0) is defined and gives the desired value on all
+    // systems.
+    hm2->stepgen.step_rate_reg[i] = (uint32_t)(int32_t)(steps_per_sec_cmd * (4294967296.0 / (double)hm2->stepgen.clock_frequency));
     *s->hal.pin.dbg_step_rate = hm2->stepgen.step_rate_reg[i];
 }
 
@@ -432,7 +436,7 @@ void hm2_stepgen_write(hostmot2_t *hm2) {
             hm2->llio->write(hm2->llio, hm2->stepgen.mode_addr + (i * sizeof(rtapi_u32)), &hm2->stepgen.mode_reg[i], sizeof(rtapi_u32));
         }
     }
-    if (hm2->dpll_module_present) {
+    if (hm2->stepgen.num_instances > 0 && hm2->dpll_module_present) {
         if (*hm2->stepgen.hal->pin.dpll_timer_num != hm2->stepgen.written_dpll_timer_num) {
             hm2_stepgen_set_dpll_timer(hm2);
         }
@@ -522,7 +526,7 @@ static void hm2_stepgen_force_write_master_dds(hostmot2_t *hm2) {
 }
 
 static void hm2_stepgen_force_write_dpll_timer(hostmot2_t *hm2) {
-    if (hm2->dpll_module_present) {
+    if (hm2->stepgen.num_instances > 0 && hm2->dpll_module_present) {
         hm2_stepgen_set_dpll_timer(hm2);
     }
 }

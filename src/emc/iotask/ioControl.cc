@@ -624,7 +624,7 @@ void load_tool(int pocket) {
     } else if(pocket == 0) {
         // on non-random tool-changers, asking for pocket 0 is the secret
         // handshake for "unload the tool from the spindle"
-	emcioStatus.tool.toolTable[0].toolno = -1;
+	emcioStatus.tool.toolTable[0].toolno = 0;
         ZERO_EMC_POSE(emcioStatus.tool.toolTable[0].offset);
         emcioStatus.tool.toolTable[0].diameter = 0.0;
         emcioStatus.tool.toolTable[0].frontangle = 0.0;
@@ -821,11 +821,16 @@ int main(int argc, char *argv[])
     /* set status values to 'normal' */
     emcioStatus.aux.estop = 1; //estop=1 means to emc that ESTOP condition is met
     emcioStatus.tool.pocketPrepped = -1;
-    emcioStatus.tool.toolInSpindle = 0;
+    if (random_toolchanger) {
+        emcioStatus.tool.toolInSpindle = emcioStatus.tool.toolTable[0].toolno;
+    } else {
+        emcioStatus.tool.toolInSpindle = 0;
+    }
     emcioStatus.coolant.mist = 0;
     emcioStatus.coolant.flood = 0;
     emcioStatus.lube.on = 0;
     emcioStatus.lube.level = 1;
+    *(iocontrol_data->tool_number) = emcioStatus.tool.toolInSpindle;
 
     while (!done) {
 	// check for inputs from HAL (updates emcioStatus)
@@ -1015,9 +1020,9 @@ int main(int argc, char *argv[])
 		
 		pocket_number = ((EMC_TOOL_SET_NUMBER *) emcioCommand)->tool;
 		rtapi_print_msg(RTAPI_MSG_DBG, "EMC_TOOL_SET_NUMBER old_loaded_tool=%d new_pocket_number=%d new_tool=%d\n", emcioStatus.tool.toolInSpindle, pocket_number, emcioStatus.tool.toolTable[pocket_number].toolno);
+                load_tool(pocket_number);
 		emcioStatus.tool.toolInSpindle = emcioStatus.tool.toolTable[pocket_number].toolno;
 		*(iocontrol_data->tool_number) = emcioStatus.tool.toolInSpindle; //likewise in HAL
-                load_tool(pocket_number);
 	    }
 	    break;
 

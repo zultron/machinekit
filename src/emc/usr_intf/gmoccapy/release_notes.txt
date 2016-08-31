@@ -1,3 +1,86 @@
+ver. 1.5.6.4
+- bugfix: if toggle button user tabs was active and the user changed the mode
+  (Manual,MDI or AUTO) the user tabs button staid active, but the screen
+  layout changed to the corresponding mode, letting the button pressed.
+- if embedded tabs was set in the INI file, the toggle button user tabs 
+  got active, even if no tab was configured for "ntb_user_tabs", changed this
+  and sorted the code to be together with the rest of user tabs
+
+ver. 1.5.6.3
+- bugfix: In _init_IconFileSelection the icon size was fixed with 48 
+  so changes the user makes to the glade file was not been taken care of
+- In glade file a signal on_btn_load_state_changed was set, but no handler present, 
+  leading to a error message on start in the terminal, erased the signal
+
+ver. 1.5.6.2.1
+- bug in initialize optional stops
+
+ver. 1.5.6.2
+- bugfix: run from line was trying to set an entry in the alarm page, whitch
+  I drobed in 1.5.6 
+  I cleared the code from unneeded imports and comments
+
+ver. 1.5.6.1
+- bugfix: If a user did jog with keyboard and while jogging changed the increments
+  pressing "i" on the keyboard the jog move would never stop. I do check now for
+  self.stat.state and do avoid that way the increment changes
+  if the user changes the jog-increment using the hal pin, the increment will change
+  to the new value, but the jog command will be aborted.
+- corrected some typos 
+
+ver. 1.5.6
+- deleted the alarm_entry log page, as it has not been used by users
+  to report bugs, and therefor it was designed.
+- changing DRO mode by click can be disabled on settings page
+- corercted and added information to the docs
+- added a new property to combi_dro to disable readout toggling
+
+ver. 1.5.5.5
+- if using gmoccapy jog hal pin in MDI mode a error was thrown on button release
+- Typo in settings page, corrected also the translation files
+
+ver. 1.5.5.4
+- corrected a error shown on start up, because I used greeen instead of green
+- glade file did contain a signal "on_gremlin_clicked", but gmoccapy did not offer a handler,
+  resulting in error messages in the terminal on start up. the unneeded signal has been errased
+- The horizontal buttons of gmoccapy will stay synconized with the iconview widget
+ 
+ver. 1.5.5.3
+- deleted the working area limit pin, as this can be realized better
+  with standard hal pin and did not work well with gmoccapy
+- settings page, all previes settings are now in one frame
+- updated the documentation
+- new serbian translation files, and corrected the language code 
+  was rs.po instead sr.po
+
+ver. 1.5.5.2
+- unloading a tool with M61 Q0 did not reset the tool information 
+  because the tool number changed to "-1" and I tested only for "0"
+  To unload the tool with M61 Q0 the command has to be executed twice
+  because of a linuxcnc bug (IMHO)
+
+ver. 1.5.5.1
+- corrected the step by step behavior
+
+ver. 1.5.5
+- gmoccapy will take notice of the settings 
+  "DISPLAY", "POSITION_FEEDBACK" in the INI File and 
+  set the DRO accordingly (Code basis from Steffen)
+- Added keyboard shortcut F3 to change to manual mode
+- Added keyboard shortcut F5 to change to MDI Mode
+- Added keyboard shortcut "Enter" for MDI Mode to 
+  submit the selected command
+- Added keyboard shortcut "i" and "I" to switch 
+  jog increments forward and backwards like in axis
+
+ver. 1.5.4.1
+- changed fullsize preview button in manual mode to new position
+  to be the same place in auto and manual mode.
+
+ver. 1.5.4
+- changing in auto mode, being in fullsize preview to edit page leaded
+  to blank screen, I corrected that bug.
+
 ver. 1.5.3.1
 - solved a bug in widget handling, not enabling the ignore limits checkbox,
   being on a limit switch

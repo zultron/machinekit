@@ -380,7 +380,7 @@ class Data:
         self.amicrostep = 2
         self.apulleynum = 1
         self.apulleyden = 1
-        self.aleadscrew = 8
+        self.aleadscrew = 360
         self.amaxvel = 360
         self.amaxacc = 1200
 
@@ -754,6 +754,8 @@ class StepconfApp:
         self.d.load_preferences()
         self.p.initialize()
         window.show()
+        #self.w.xencoderscale.realize()
+        self.origbg = self.w.xsteprev.style.bg[gtk.STATE_NORMAL]
 
     def build_base(self):
         base = os.path.expanduser("~/linuxcnc/configs/%s" % self.d.machinename)
@@ -994,12 +996,15 @@ class StepconfApp:
     # for Axis page calculation updates
     def update_pps(self, axis):
         def get(n): return float(self.w[axis + n].get_text())
-
+        self.axis_sanity_test(axis)
         try:
             pitch = get("leadscrew")
+            step = get("steprev")
+            micro = get("microstep")
+            pullnum = get("pulleynum")
+            pulldem = get("pulleyden")
             if self.d.units == 1 or axis == 'a': pitch = 1./pitch
-            pps = (pitch * get("steprev") * get("microstep") *
-                (get("pulleynum") / get("pulleyden")) * get("maxvel"))
+            pps = (pitch * step * micro * (pullnum / pulldem) * get("maxvel"))
             if pps == 0: raise ValueError
             pps = abs(pps)
             acctime = get("maxvel") / get("maxacc")
@@ -1007,9 +1012,12 @@ class StepconfApp:
             self.w[axis + "acctime"].set_text("%.4f" % acctime)
             self.w[axis + "accdist"].set_text("%.4f" % accdist)
             self.w[axis + "hz"].set_text("%.1f" % pps)
-            scale = self.d[axis + "scale"] = (1.0 * pitch * get("steprev")
-                * get("microstep") * (get("pulleynum") / get("pulleyden")))
+            scale = self.d[axis + "scale"] = (1.0 * pitch * step
+                * micro * (pullnum / pulldem))
             self.w[axis + "scale"].set_text("%.1f" % scale)
+            temp = "Axis Scale: %d × %d × (%.1f ÷ %.1f) × %.3f ="% (
+                int(step),int(micro),(pullnum),(pulldem),pitch)
+            self.w[axis + "scaledescr"].set_text(temp)
             self.p.set_buttons_sensitive(1,1)
             self.w[axis + "axistest"].set_sensitive(1)
         except (ValueError, ZeroDivisionError): # Some entries not numbers or not valid
@@ -1019,6 +1027,19 @@ class StepconfApp:
             self.w[axis + "scale"].set_text("")
             self.p.set_buttons_sensitive(0,0)
             self.w[axis + "axistest"].set_sensitive(0)
+
+    def axis_sanity_test(self,axis):
+        def get(n): return float(self.w[axis + n].get_text())
+        datalist = ('steprev','microstep','pulleynum','pulleyden','leadscrew',
+                    'maxvel','maxacc')
+        for i in datalist:
+            try:
+                a=get(i)
+                if a <= 0:raise ValueError
+            except:
+                self.w[axis+i].modify_base(gtk.STATE_NORMAL, self.w[axis+i].get_colormap().alloc_color("red"))
+            else:
+                self.w[axis+i].modify_base(gtk.STATE_NORMAL, self.origbg)
 
     # pport functions
     # disallow some signal combinations
@@ -1240,8 +1261,7 @@ class StepconfApp:
         if debug:
             halrun.write("echo\n")
         axnum = "xyza".index(axis)
-        step = axis + "step"
-        dir = axis + "dir"
+
         halrun.write("""
             loadrt steptest
             loadrt stepgen step_type=0
@@ -1271,8 +1291,10 @@ class StepconfApp:
             halrun.write( "addf parport.0.write fast\n")
         if self.d.number_pports>2:
             halrun.write( "addf parport.0.write fast\n")
-        step_pin,dummy = self.find_output(step)
-        dir_pin,dummy = self.find_output(dir)
+        temp = self.find_output(axis +'step')
+        step_pin = temp[0][0]
+        temp = self.find_output(axis +'dir')
+        dir_pin = temp[0][0] 
         halrun.write("""
             addf stepgen.capture-position slow
             addf steptest.0 slow
@@ -1308,13 +1330,15 @@ class StepconfApp:
             """ % {
                 'resettime': self.d['steptime']
             })
-        amp,amp_port = self.find_output(SIG.AMP)
-        if amp:
+        amp_signals = self.find_output(SIG.AMP)
+        for pin in amp_signals:
+            amp,amp_port = pin
             halrun.write("setp parport.%(portnum)d.pin-%(enablepin)02d-out 1\n"
                 % {'enablepin': amp,'portnum': amp_port})
 
-        estop,e_port = self.find_output(SIG.ESTOP)
-        if estop:
+        estop_signals = self.find_output(SIG.ESTOP)
+        for pin in estop_signals:
+            estop,e_port = pin
             halrun.write("setp parport.%(portnum)d.pin-%(estoppin)02d-out 1\n"
                 % {'estoppin': estop,'portnum': e_port})
 
@@ -1322,7 +1346,17 @@ class StepconfApp:
             inv = getattr(self.d, "pin%dinv" % pin)
             if inv:
                 halrun.write("setp parport.0.pin-%(pin)02d-out-invert 1\n"
-                    % {'pin': pin}) 
+                    % {'pin': pin})
+        if self.d.number_pports > 1:
+            if self.d.pp2_direction:# Input option
+                out_list =(1,14,16,17)
+            else:
+                out_list =(1,2,3,4,5,6,7,8,9,14,16,17)
+            for pin in (out_list):
+                inv = getattr(self.d, "pp2_pin%dinv" % pin)
+                if inv:
+                    halrun.write("setp parport.1.pin-%(pin)02d-out-invert 1\n"
+                    % {'pin': pin})
         if debug:
             halrun.write("loadusr halmeter sig cmd -g 275 415\n")
 
@@ -1384,10 +1418,16 @@ class StepconfApp:
         result = self.w.dialog1.run()
         self.w.dialog1.hide()
         
-        if amp:
-            halrun.write("""setp parport.%d.pin-%02d-out 0\n""" % (amp_port,amp))
-        if estop:
-            halrun.write("""setp parport.%d.pin-%02d-out 0\n""" % (e_port,estop))
+        if amp_signals:
+            for pin in amp_signals:
+                amp,amp_port = pin
+                halrun.write("setp parport.%(portnum)d.pin-%(enablepin)02d-out 0\n"
+                % {'enablepin': amp,'portnum': amp_port})
+        if estop_signals:
+            for pin in estop_signals:
+                estop,e_port = pin
+                halrun.write("setp parport.%(portnum)d.pin-%(estoppin)02d-out 0\n"
+                % {'estoppin': estop,'portnum': e_port})
 
         time.sleep(.001)
         halrun.close()
@@ -1455,22 +1495,23 @@ class StepconfApp:
         return None
 
     def find_output(self, output):
+        found_list = []
         out_list = set((1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 16, 17))
         port = 0
         for i in out_list:
             pin = self.d["pin%d" % i]
             inv = self.d["pin%dinv" % i]
-            if pin == output: return i,port
+            if pin == output: found_list.append((i,port))
         if self.d.number_pports > 1:
             port = 1
             if self.d.pp2_direction:# Input option
                 out_list =(1,14,16,17)
             else:
                 out_list =(1,2,3,4,5,6,7,8,9,14,16,17)
-            for pin in (out_list):
-                p = 'pp2_pin%d' % pin
-                if pin == output: return i,port
-        return None,None
+            for i in (out_list):
+                pin = self.d['pp2_pin%d' % i]
+                if pin == output: found_list.append((i,port))
+        return found_list
 
     def doublestep(self, steptime=None):
         if steptime is None: steptime = self.d.steptime

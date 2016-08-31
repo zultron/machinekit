@@ -377,7 +377,7 @@ class EMC_ToggleAction_Run(_EMC_ToggleAction, EMC_Action_Run):
         self.gstat.connect('file-loaded', self.file_loaded_check)
 
     def file_loaded_check(self,widget,filename):
-        self.set_sensitive( self.machine_on() and self.is_all_homed() )
+        self.set_sensitive( self.machine_on() and (self.is_all_homed() or self.no_home_required()) )
 
     def set_restart_line(self,line,resetline=0):
         self.program_start_line = line
@@ -441,7 +441,8 @@ class FloatComp:
     def __init__(self, comp):
         self.comp = comp
     def __getitem__(self, k):
-        return float(self.comp[k])
+        v = float(self.comp[k])
+        return "%f" % v
 
 class EMC_Action_MDI(_EMC_Action):
     __gtype_name__ = 'EMC_Action_MDI'

@@ -1426,6 +1426,7 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
 
     enum EMC_TASK_EXEC_ENUM execState;	// EMC_DONE,WAITING_FOR_MOTION, etc.
     enum EMC_TASK_INTERP_ENUM interpState;	// EMC_IDLE,READING,PAUSED,WAITING
+    int callLevel;              // current subroutine level - 0 if not in a subroutine, > 0 otherwise
     int motionLine;		// line motion is executing-- may lag
     int currentLine;		// line currently "executing" in task (tends to lead motion)
     int previousLine;		// previous line handled by task

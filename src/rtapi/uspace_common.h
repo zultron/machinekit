@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <sys/utsname.h>
 #include <string.h>
+#include <unistd.h>
 #include <rtapi_errno.h>
 
 static int msg_level = RTAPI_MSG_ERR;	/* message printing level */
@@ -64,7 +65,7 @@ int rtapi_shmem_new(int key, int module_id, unsigned long int size)
   /* now get shared memory block from OS */
   shmem->id = shmget((key_t) key, (int) size, IPC_CREAT | 0666);
   if (shmem->id == -1) {
-    rtapi_print_msg(RTAPI_MSG_ERR, "rtapi_shmem_new failed due to shmget()\n");
+    rtapi_print_msg(RTAPI_MSG_ERR, "rtapi_shmem_new failed due to shmget(key=0x%08x): %s\n", key, strerror(errno));
     return -errno;
   }
 
@@ -164,10 +165,13 @@ int rtapi_shmem_delete(int handle, int module_id)
 
 
 void default_rtapi_msg_handler(msg_level_t level, const char *fmt, va_list ap) {
-    if(level == RTAPI_MSG_ALL)
+    if(level == RTAPI_MSG_ALL) {
 	vfprintf(stdout, fmt, ap);
-    else
+        fflush(stdout);
+    } else {
 	vfprintf(stderr, fmt, ap);
+        fflush(stderr);
+    }
 }
 static rtapi_msg_handler_t rtapi_msg_handler = default_rtapi_msg_handler;
 

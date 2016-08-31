@@ -132,7 +132,7 @@ Interp::Interp()
 	// since interp.init() may be called repeatedly this would create a new
 	// wrapper instance on every init(), abandoning the old one and all user attributes
 	// tacked onto it, so make sure this is done exactly once
-	_setup.pythis =  boost::python::object(boost::cref(this));
+	_setup.pythis = boost::python::object(boost::cref(*this));
 	
 	// alias to 'interpreter.this' for the sake of ';py, .... ' comments
 	// besides 'this', eventually use proper instance names to handle
@@ -158,6 +158,10 @@ Interp::Interp()
 
 }
 
+InterpBase *makeInterp()
+{
+    return new Interp;
+}
 
 Interp::~Interp() {
 
@@ -550,7 +554,8 @@ int Interp::execute(const char *command, int line_number)
 {
     int status;
 
-    _setup.sequence_number = line_number;
+    if(command && line_number)
+        _setup.sequence_number = line_number;
     status = Interp::execute(command);
     if (status > INTERP_MIN_ERROR) {
 	unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
@@ -887,9 +892,9 @@ int Interp::init()
           if(NULL != (inistring = inifile.Find("LOG_FILE", "RS274NGC")))
           {
 	      if ((log_file = fopen(inistring, "a"))  == NULL) {
+		  log_file = stderr;
 		  logDebug( "(%d): Unable to open log file:%s, using stderr",
 			  getpid(), inistring);
-		  log_file = stderr;
 	      }
           } else {
 	      log_file = stderr;
@@ -1011,7 +1016,7 @@ int Interp::init()
               "RS274NGC"
           );
           if ((r != IniFile::ERR_NONE) && (r != IniFile::ERR_TAG_NOT_FOUND)) {
-              Error("invalid [RS275NGC]CENTER_ARC_RADIUS_TOLERANCE_INCH in ini file\n");
+              Error("invalid [RS274NGC]CENTER_ARC_RADIUS_TOLERANCE_INCH in ini file\n");
           }
 
           r = inifile.Find(
@@ -1022,7 +1027,7 @@ int Interp::init()
               "RS274NGC"
           );
           if ((r != IniFile::ERR_NONE) && (r != IniFile::ERR_TAG_NOT_FOUND)) {
-              Error("invalid [RS275NGC]CENTER_ARC_RADIUS_TOLERANCE_MM in ini file\n");
+              Error("invalid [RS274NGC]CENTER_ARC_RADIUS_TOLERANCE_MM in ini file\n");
           }
 
           // close it
@@ -2233,6 +2238,13 @@ char * Interp::error_text(int error_code,        //!< code number of error
 
         return error_text;
     }
+    else if (error_code == INTERP_FILE_NOT_OPEN)
+    {
+        strncpy(error_text, "File not open", max_size);
+        error_text[max_size-1] = 0;
+
+        return error_text;
+    }
 
     error_text[0] = 0;
     return error_text;
@@ -2613,6 +2625,101 @@ int Interp::leave_remap(void)
     return INTERP_OK;
 }
 
+
+void Interp::program_end_cleanup(setup_pointer settings) {
+/* Tormach edits - M30 should behave like Fanuc/Haas, and not clear G5x, G95, G17 settings */
+/*  settings->current_x += settings->origin_offset_x;
+    settings->current_y += settings->origin_offset_y;
+    settings->current_z += settings->origin_offset_z;
+    settings->AA_current += settings->AA_origin_offset;
+    settings->BB_current += settings->BB_origin_offset;
+    settings->CC_current += settings->CC_origin_offset;
+    settings->u_current += settings->u_origin_offset;
+    settings->v_current += settings->v_origin_offset;
+    settings->w_current += settings->w_origin_offset;
+    rotate(&settings->current_x, &settings->current_y, settings->rotation_xy);
+
+    settings->origin_index = 1;
+    settings->parameters[5220] = 1.0;
+    settings->origin_offset_x = USER_TO_PROGRAM_LEN(settings->parameters[5221]);
+    settings->origin_offset_y = USER_TO_PROGRAM_LEN(settings->parameters[5222]);
+    settings->origin_offset_z = USER_TO_PROGRAM_LEN(settings->parameters[5223]);
+    settings->AA_origin_offset = USER_TO_PROGRAM_ANG(settings->parameters[5224]);
+    settings->BB_origin_offset = USER_TO_PROGRAM_ANG(settings->parameters[5225]);
+    settings->CC_origin_offset = USER_TO_PROGRAM_ANG(settings->parameters[5226]);
+    settings->u_origin_offset = USER_TO_PROGRAM_LEN(settings->parameters[5227]);
+    settings->v_origin_offset = USER_TO_PROGRAM_LEN(settings->parameters[5228]);
+    settings->w_origin_offset = USER_TO_PROGRAM_LEN(settings->parameters[5229]);
+    settings->rotation_xy = settings->parameters[5230];
+
+    rotate(&settings->current_x, &settings->current_y, -settings->rotation_xy);
+    settings->current_x -= settings->origin_offset_x;
+    settings->current_y -= settings->origin_offset_y;
+    settings->current_z -= settings->origin_offset_z;
+    settings->AA_current -= settings->AA_origin_offset;
+    settings->BB_current -= settings->BB_origin_offset;
+    settings->CC_current -= settings->CC_origin_offset;
+    settings->u_current -= settings->u_origin_offset;
+    settings->v_current -= settings->v_origin_offset;
+    settings->w_current -= settings->w_origin_offset;
+
+    SET_G5X_OFFSET(settings->origin_index,
+                   settings->origin_offset_x,
+                   settings->origin_offset_y,
+                   settings->origin_offset_z,
+                   settings->AA_origin_offset,
+                   settings->BB_origin_offset,
+                   settings->CC_origin_offset,
+                   settings->u_origin_offset,
+                   settings->v_origin_offset,
+                   settings->w_origin_offset);
+    SET_XY_ROTATION(settings->rotation_xy);
+*/
+
+    if (settings->plane != CANON_PLANE_XY) {
+        SELECT_PLANE(CANON_PLANE_XY);
+        settings->plane = CANON_PLANE_XY;
+    }
+
+    settings->distance_mode = MODE_ABSOLUTE;
+
+    settings->feed_mode = UNITS_PER_MINUTE;
+    SET_FEED_MODE(0);
+    settings->feed_rate = 0;
+    SET_FEED_RATE(0);
+
+    if (!settings->feed_override) {
+        ENABLE_FEED_OVERRIDE();
+        settings->feed_override = true;
+    }
+    if (!settings->speed_override) {
+        ENABLE_SPEED_OVERRIDE();
+        settings->speed_override = true;
+    }
+
+    settings->cutter_comp_side = false;
+    settings->cutter_comp_firstmove = true;
+
+    STOP_SPINDLE_TURNING();
+    settings->spindle_turning = CANON_STOPPED;
+
+    /* turn off FPR */
+    // SET_SPINDLE_MODE(0); Leave spindle in CSS on M30 - 8/20/13 *dpr - Tormach.
+
+    /*    settings->motion_mode = G_1;
+     */
+
+    if (settings->mist) {
+        MIST_OFF();
+        settings->mist = false;
+    }
+    if (settings->flood) {
+        FLOOD_OFF();
+        settings->flood = false;
+    }
+}
+
+
 int Interp::on_abort(int reason, const char *message)
 {
 	int pocket, tool;
@@ -2721,7 +2828,7 @@ const char *strstore(const char *s)
     if (s == NULL)
         throw invalid_argument("strstore(): NULL argument");
     pair< set<string>::iterator, bool > pair = stringtable.insert(s);
-    return string(*pair.first).c_str();
+    return pair.first->c_str();
 }
 
 context_struct::context_struct()

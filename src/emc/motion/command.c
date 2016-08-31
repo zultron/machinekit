@@ -895,9 +895,9 @@ check_stuff ( "before command_handler()" );
 	    tpSetTermCond(&emcmotDebug->tp, emcmotCommand->termCond, emcmotCommand->tolerance);
 	    break;
 
-    case EMCMOT_SET_SPINDLESYNC:
-        tpSetSpindleSync(&emcmotDebug->tp, emcmotCommand->spindlesync, emcmotCommand->flags);
-        break;
+        case EMCMOT_SET_SPINDLESYNC:
+            tpSetSpindleSync(&emcmotDebug->tp, emcmotCommand->spindlesync, emcmotCommand->flags);
+            break;
 
 	case EMCMOT_SET_LINE:
 	    /* emcmotDebug->tp up a linear move */
@@ -1697,6 +1697,7 @@ check_stuff ( "before command_handler()" );
             emcmotConfig->arcBlendOptDepth = emcmotCommand->arcBlendOptDepth;
             emcmotConfig->arcBlendGapCycles = emcmotCommand->arcBlendGapCycles;
             emcmotConfig->arcBlendRampFreq = emcmotCommand->arcBlendRampFreq;
+            emcmotConfig->arcBlendTangentKinkRatio = emcmotCommand->arcBlendTangentKinkRatio;
             break;
 
 	}			/* end of: command switch */

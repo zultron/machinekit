@@ -1,8 +1,7 @@
 # xhc-hb04.tcl: HALFILE for xhc-hb04 pendant
 
 # library procs:
-set hallib_dir [exec linuxcnc_var HALLIB_DIR]
-source [file join $hallib_dir hal_procs_lib.tcl]
+source [file join $::env(HALLIB_DIR) hal_procs_lib.tcl]
 
 # Usage:
 # In ini file, include:
@@ -65,7 +64,7 @@ source [file join $hallib_dir hal_procs_lib.tcl]
 #       World-mode (aka Teleop mode) only supports continuous jogging.
 
 #-----------------------------------------------------------------------
-# Copyright: 2014-15
+# Copyright: 2014-16
 # Author:    Dewey Garrett <dgarrett@panix.com>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -344,9 +343,25 @@ proc wheel_setup {jogmode} {
   net pendant:spindle-override <= halui.spindle-override.value \
                                => xhc-hb04.spindle-override
 
-  net pendant:spindle-rps <= motion.spindle-speed-out-rps-abs \
-                          => xhc-hb04.spindle-rps
+  set sname [existing_outpin_signame \
+                motion.spindle-speed-out-rps-abs pendant:spindle-rps]
+  net $sname <= motion.spindle-speed-out-rps-abs \
+             => xhc-hb04.spindle-rps
 } ;# wheel_setup
+
+proc existing_outpin_signame {pinname newsigname} {
+  # return existing outpin signame if it exists, else newsigname
+  set answer [is_connected $pinname signame]
+  switch $answer {
+    not_connected {return $newsigname}
+        is_output {puts "$::progname: Using existing outpin signame: $signame"
+                   return "$signame"
+                  }
+         default {return -code error \
+                   "existing_outpin_signame:UNEXPECTED $answer"
+                 }
+  }
+} ;# existing_outpin_signame
 
 proc std_start_pause_button {} {
   # hardcoded setup for button-start-pause
@@ -399,7 +414,8 @@ if { [namespace exists ::tp] && ([::tp::passnumber] == 0) } {
   puts "$::progname: suppressing messages in twopass pass0"
 }
 
-set cfg LIB:xhc-hb04-layout2.cfg ;# default
+set libtag "LIB:"
+set cfg ${libtag}xhc-hb04-layout2.cfg ;# default
 
 if ![info exists ::HAL(HALUI)] {
   err_exit "\[HAL\]HALUI is not set"
@@ -417,8 +433,8 @@ foreach name [array names ::XHC_HB04_CONFIG] {
 
 if [info exists ::XHC_HB04_CONFIG(layout)] {
   switch ${::XHC_HB04_CONFIG(layout)} {
-    1 {set cfg LIB:xhc-hb04-layout1.cfg}
-    2 {set cfg LIB:xhc-hb04-layout2.cfg}
+    1 {set cfg ${libtag}xhc-hb04-layout1.cfg}
+    2 {set cfg ${libtag}xhc-hb04-layout2.cfg}
     default {
       set msg "Nonstandard layout:<$::XHC_HB04_CONFIG(layout)>"
       set cfg $::XHC_HB04_CONFIG(layout)
@@ -429,13 +445,8 @@ if [info exists ::XHC_HB04_CONFIG(layout)] {
   }
 }
 
-set libtag "LIB:"
-# test for LIB:filename
-if {[string first "LIB:" $cfg] == 0} {
-   set cfg [string range $cfg [string len $libtag] end]
-   set cfg [file join $::env(HALLIB_DIR) $cfg]
-   puts "$::progname: LIB file: $cfg"
-}
+# .cfg files use same search path as halfiles
+set cfg [find_file_in_hallib_path $cfg]
 
 if ![file exists $cfg] {
   set msg "Cannot find file: <$cfg>\nCannot configure pendant\n"
@@ -529,8 +540,12 @@ if ![info exists ::XHC_HB04_CONFIG(threadname)] {
 loadrt xhc_hb04_util names=pendant_util
 addf   pendant_util $::XHC_HB04_CONFIG(threadname)
 
-connect_pins    ;# per ini file items: [XHC_HB04_BUTTONS]buttonname=pin
-wheel_setup  $::XHC_HB04_CONFIG(jogmode)
-                 # jog wheel per ini file items:
-                 #     [XHC_HB04_CONFIG]coords,coefs,scales
+# If twopass, do not call procs in pass0 that test pin
+# connections since components not yet loaded
+if { ![namespace exists ::tp] || ([::tp::passnumber] != 0) } {
+  connect_pins    ;# per ini file items: [XHC_HB04_BUTTONS]buttonname=pin
+  wheel_setup  $::XHC_HB04_CONFIG(jogmode)
+                   # jog wheel per ini file items:
+                   #     [XHC_HB04_CONFIG]coords,coefs,scales
+}
 #parray ::XHC_HB04_CONFIG

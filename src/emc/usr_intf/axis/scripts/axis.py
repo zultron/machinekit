@@ -221,12 +221,13 @@ help2 = [
     ("F10", _("Turn spindle counterclockwise")),
     ("F11", _("Turn spindle more slowly")),
     ("F12", _("Turn spindle more quickly")),
-    ("", ""),
     (_("Control-K"), _("Clear live plot")),
     ("V", _("Cycle among preset views")),
     ("F4", _("Cycle among preview, DRO, and user tabs")),
-    ("", ""),
+    ("@", _("toggle Actual/Commanded")),
+    ("#", _("toggle Relative/Machine")),
     (_("Ctrl-Space"), _("Clear notifications")),
+    (_("Alt-F, M, V"), _("Open a Menu")),
 ]
 
 
@@ -1272,6 +1273,13 @@ widgets = nf.Widgets(root_window,
     ("homemenu", Menu, ".menu.machine.home"),
     ("unhomemenu", Menu, ".menu.machine.unhome")
 )
+# Work around an apparent regression in python-tk which causes the value
+# associated with the Y axis button to be changed to the string "True",
+# related to the interpretation of the string "y" as true in a boolean
+# context in Tcl's typeless value system.
+# https://github.com/LinuxCNC/linuxcnc/issues/146
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=834783
+widgets.axis_y.configure(value="y")
 
 def activate_axis(i, force=0):
     if not force and not manual_ok(): return
@@ -2923,7 +2931,7 @@ def units(s, d=1.0):
 
 random_toolchanger = int(inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
 vars.emcini.set(sys.argv[2])
-open_directory = inifile.find("DISPLAY", "PROGRAM_PREFIX")
+open_directory = inifile.find("DISPLAY", "PROGRAM_PREFIX") or open_directory
 vars.machine.set(inifile.find("EMC", "MACHINE"))
 extensions = inifile.findall("FILTER", "PROGRAM_EXTENSION")
 extensions = [e.split(None, 1) for e in extensions]
@@ -3394,7 +3402,10 @@ def check_dynamic_tabs():
         raise SystemExit(r)
     else:
         if postgui_halfile:
-            res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-i", vars.emcini.get(), "-f", postgui_halfile])
+            if postgui_halfile.lower().endswith('.tcl'):
+                res = os.spawnvp(os.P_WAIT, "haltcl", ["haltcl", "-i", vars.emcini.get(), postgui_halfile])
+            else:
+                res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-i", vars.emcini.get(), "-f", postgui_halfile])
             if res: raise SystemExit, res
         root_window.deiconify()
         destroy_splash()

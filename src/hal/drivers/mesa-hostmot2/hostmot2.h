@@ -319,6 +319,7 @@ typedef struct {
     struct {
         hal_u32_t *sample_frequency;
         hal_u32_t *skew;
+        hal_s32_t *dpll_timer_num;
     } pin;
 } hm2_encoder_module_global_t;
 
@@ -336,6 +337,7 @@ typedef struct {
     rtapi_u32 written_sample_frequency;
     int has_skew;
     rtapi_u32 written_skew;
+    uint32_t desired_dpll_timer_reg, written_dpll_timer_reg;
 
     // hw registers
     rtapi_u32 counter_addr;
@@ -354,6 +356,8 @@ typedef struct {
     rtapi_u32 prev_timestamp_count_reg;
 
     rtapi_u32 filter_rate_addr;
+
+    rtapi_u32 dpll_timer_num_addr;
 } hm2_encoder_t;
 
 //
@@ -1080,7 +1084,10 @@ int hm2_register_tram_read_region(hostmot2_t *hm2, rtapi_u16 addr, rtapi_u16 siz
 int hm2_register_tram_write_region(hostmot2_t *hm2, rtapi_u16 addr, rtapi_u16 size, rtapi_u32 **buffer);
 int hm2_allocate_tram_regions(hostmot2_t *hm2);
 int hm2_tram_read(hostmot2_t *hm2);
+int hm2_finish_read(hostmot2_t *hm2);
+int hm2_queue_read(hostmot2_t *hm2);
 int hm2_tram_write(hostmot2_t *hm2);
+int hm2_finish_write(hostmot2_t *hm2);
 void hm2_tram_cleanup(hostmot2_t *hm2);
 
 
@@ -1179,7 +1186,8 @@ void hm2_tp_pwmgen_cleanup(hostmot2_t *hm2);
 void hm2_tp_pwmgen_write(hostmot2_t *hm2);
 void hm2_tp_pwmgen_force_write(hostmot2_t *hm2);
 void hm2_tp_pwmgen_prepare_tram_write(hostmot2_t *hm2);
-void hm2_tp_pwmgen_read(hostmot2_t *hm2);
+void hm2_tp_pwmgen_queue_read(hostmot2_t *hm2);
+void hm2_tp_pwmgen_process_read(hostmot2_t *hm2);
 
 
 //
@@ -1207,7 +1215,8 @@ int hm2_sserial_read_pins(hm2_sserial_remote_t *chan);
 void hm2_sserial_process_tram_read(hostmot2_t *hm2, long period);
 void hm2_sserial_cleanup(hostmot2_t *hm2);
 int hm2_sserial_waitfor(hostmot2_t *hm2, rtapi_u32 addr, rtapi_u32 mask, int ms);
-int hm2_sserial_check_errors(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
+int hm2_sserial_check_local_errors(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
+int hm2_sserial_check_remote_errors(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
 int hm2_sserial_setup_channel(hostmot2_t *hm2, hm2_sserial_instance_t *inst, int index);
 int hm2_sserial_setup_remotes(hostmot2_t *hm2, hm2_sserial_instance_t *inst, hm2_module_descriptor_t *md);
 void hm2_sserial_setmode(hostmot2_t *hm2, hm2_sserial_instance_t *inst);
@@ -1289,7 +1298,7 @@ void hm2_led_cleanup(hostmot2_t *hm2);
 //
 
 int hm2_raw_setup(hostmot2_t *hm2);
-void hm2_raw_read(hostmot2_t *hm2);
+void hm2_raw_queue_read(hostmot2_t *hm2);
 void hm2_raw_write(hostmot2_t *hm2);
 
 

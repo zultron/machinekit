@@ -419,9 +419,10 @@ static NML *emcErrorBuffer = 0;
 // the serial number to use.
 static int emcCommandSerialNumber = 0;
 
-// default value for timeout, 0 means wait forever
-// use same timeout value as in tkemc & mini
-static double receiveTimeout = 1.;
+// how long to wait for Task to report that it has received our command
+static double receiveTimeout = 5.0;
+
+// how long to wait for Task to finish running our command
 static double doneTimeout = 60.;
 
 static void quit(int sig)
@@ -540,14 +541,20 @@ static int updateStatus()
 {
     NMLTYPE type;
 
-    if (0 == emcStatus || 0 == emcStatusBuffer
-	|| !emcStatusBuffer->valid()) {
+    if (0 == emcStatus || 0 == emcStatusBuffer) {
+        rtapi_print("halui: %s: no status buffer\n", __func__);
+        return -1;
+    }
+
+    if (!emcStatusBuffer->valid()) {
+        rtapi_print("halui: %s: status buffer is not valid\n", __func__);
 	return -1;
     }
 
     switch (type = emcStatusBuffer->peek()) {
     case -1:
 	// error on CMS channel
+        rtapi_print("halui: %s: error peeking status buffer\n", __func__);
 	return -1;
 	break;
 
@@ -556,6 +563,7 @@ static int updateStatus()
 	break;
 
     default:
+        rtapi_print("halui: %s: unknown error peeking status buffer\n", __func__);
 	return -1;
 	break;
     }
@@ -599,6 +607,7 @@ static int emcCommandSend(RCS_CMD_MSG & cmd)
 {
     // write command
     if (emcCommandBuffer->write(&cmd)) {
+        rtapi_print("halui: %s: error writing to Task\n", __func__);
         return -1;
     }
     emcCommandSerialNumber = cmd.serial_number;
@@ -616,6 +625,7 @@ static int emcCommandSend(RCS_CMD_MSG & cmd)
 	esleep(EMC_COMMAND_DELAY);
     }
 
+    rtapi_print("halui: %s: no echo from Task after %.3f seconds\n", __func__, receiveTimeout);
     return -1;
 }
 
@@ -1121,15 +1131,22 @@ static int sendMdiCommand(int n)
 
     // switch to MDI mode if needed
     if (emcStatus->task.mode != EMC_TASK_MODE_MDI) {
-	if (sendMdi() || updateStatus()) {
+	if (sendMdi() != 0) {
+            rtapi_print("halui: %s: failed to Set Mode MDI\n", __func__);
+            return -1;
+	}
+	if (updateStatus() != 0) {
+            rtapi_print("halui: %s: failed to update status\n", __func__);
 	    return -1;
 	}
 	if (emcStatus->task.mode != EMC_TASK_MODE_MDI) {
+            rtapi_print("halui: %s: switched mode, but got %d instead of mdi\n", __func__, emcStatus->task.mode);
 	    return -1;
 	}
     }
     strcpy(emc_task_plan_execute_msg.command, mdi_commands[n]);
     if (emcCommandSend(emc_task_plan_execute_msg)) {
+        rtapi_print("halui: %s: failed to send mdi command %d\n", __func__, n);
 	return -1;
     }
     halui_sent_mdi = 1;
@@ -1674,6 +1691,23 @@ static void copy_hal_data(const halui_str &i, local_halui_str &j)
 #undef ARRAY
 }
 
+
+// Returns true if any of halui.jog.N.plus, halui.jog.N.minus, or
+// halui.jog.N.analog are true (where N is the passed-in joint number).
+// Otherwise, returns false.
+static bool jogging_joint(local_halui_str &hal, int joint) {
+    return (hal.jog_plus[joint] || hal.jog_minus[joint] || hal.jog_analog[joint]);
+}
+
+
+// Returns true if any of halui.jog.selected.plus,
+// halui.jog.selected.minus, or halui.jog.selected.analog are true.
+// Otherwise, returns false.
+static bool jogging_selected_joint(local_halui_str &hal) {
+    return (hal.jog_plus[num_axes] || hal.jog_minus[num_axes]);
+}
+
+
 // this function looks if any of the hal pins has changed
 // and sends appropiate messages if so
 static void check_hal_changes()
@@ -1951,7 +1985,7 @@ static void check_hal_changes()
 		*halui_data->joint_selected = joint;
 		select_changed = joint; // flag that we changed the selected joint
 	    } 
-	    old_halui_data.joint_home[joint] = bit;
+	    old_halui_data.joint_nr_select[joint] = bit;
 	}
     }
     
@@ -1959,8 +1993,16 @@ static void check_hal_changes()
 	for (joint = 0; joint < num_axes; joint++) {
 	    if (joint != select_changed) {
 		*(halui_data->joint_is_selected[joint]) = 0;
+                if (jogging_selected_joint(old_halui_data) && !jogging_joint(old_halui_data, joint)) {
+                    sendJogStop(joint);
+                }
     	    } else {
 		*(halui_data->joint_is_selected[joint]) = 1;
+                if (*halui_data->jog_plus[num_axes]) {
+                    sendJogCont(joint, new_halui_data.jog_speed);
+                } else if (*halui_data->jog_minus[num_axes]) {
+                    sendJogCont(joint, -new_halui_data.jog_speed);
+                }
 	    }
 	}
     }
@@ -2068,10 +2110,10 @@ static void modify_hal_pins()
 	*(halui_data->mode_is_teleop)=0;
     }
 
-    if (emcStatus->motion.traj.mode == EMC_TRAJ_MODE_TELEOP) {
-	*(halui_data->mode_is_joint)=0;
-    } else {
+    if (emcStatus->motion.traj.mode == EMC_TRAJ_MODE_FREE) {
 	*(halui_data->mode_is_joint)=1;
+    } else {
+	*(halui_data->mode_is_joint)=0;
     }
 
     *(halui_data->program_is_paused) = emcStatus->task.interpState == EMC_TASK_INTERP_PAUSED;

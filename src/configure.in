@@ -142,6 +142,14 @@ AC_SUBST([EMC2VERSION])
 AC_PATH_PROG(GREP, grep)
 AC_PATH_PROG(EGREP, egrep)
 
+#
+# check for pkg-config
+#
+AC_PATH_PROG([PKG_CONFIG], [pkg-config])
+if test -z "$PKG_CONFIG"; then
+  AC_MSG_ERROR([pkg-config is required to build LinuxCNC])
+fi
+
 ##############################################################################
 # Section 2                                                                  #
 # RealTime checking (either RTAI, or RT-Linux)                               #
@@ -159,6 +167,17 @@ RTAI=""
 RTPREFIX=""
 KERNELDIR=""
 RTFLAGS=""
+
+NONDISTRIBUTABLE=false
+AC_ARG_ENABLE(non-distributable,
+    AS_HELP_STRING(
+        [--enable-non-distributable],
+        [To build LinuxCNC even if a license problem would render the resulting binaries non-distributable under the terms of the LinuxCNC license]),
+    [
+        case "$enableval" in
+        (yes) NONDISTRIBUTABLE=true ;;
+        esac
+    ])
 
 ##############################################################################
 # Subsection 2.1                                                             #
@@ -213,7 +232,10 @@ if test "$RTS" = uspace ; then
 
   AC_MSG_CHECKING([whether to enable userspace PCI access])
   AC_ARG_ENABLE(userspace-pci,
-      [ --disable-userspace-pci                  If libudev is unavailable],
+      AS_HELP_STRING(
+        [--disable-userspace-pci],
+        [Disable userspace PCI access (use this if libudev is unavailable).],
+      ),
       [
 	case "$enableval" in
 	(Y*|y*)
@@ -286,13 +308,16 @@ case $RTS in
 */rtai-config)
     RTNAME=rtai-3.0
     RTPREFIX=rtai
-    RTAI=3
+    RTAI_VERSION=$($RTS --version)
+    RTAI=$(echo $RTAI_VERSION | cut -f 1 -d .)
     RTDIR=`$RTS --prefix`
     RTDIR=$(cd $RTDIR ; pwd -P )
     RTFLAGS=`$RTS --module-cflags`
-    RTFLAGS="$RTFLAGS -DRTAI=3"
+    RTFLAGS="$RTFLAGS -DRTAI=$RTAI"
     KERNELDIR=`$RTS --linux-dir`
     RTARCH=`$RTS --arch`
+    ULAPI_CFLAGS=`$RTS --lxrt-cflags`
+    ULAPI_LDFLAGS=`$RTS --lxrt-ldflags`
 ;;
 uspace)
     RTPREFIX=uspace
@@ -301,6 +326,8 @@ uspace)
     BUILD_SYS=uspace
     MODEXT=.so
     MODULE_DIR=${prefix}/lib/linuxcnc/modules
+    ULAPI_CFLAGS=""
+    ULAPI_LDFLAGS=""
 esac
 
 if test "$RTS" != uspace; then
@@ -325,6 +352,8 @@ AC_SUBST([KERNELDIR])
 AC_SUBST([RTFLAGS])
 AC_SUBST([RTDIR])
 AC_SUBST([RTARCH])
+AC_SUBST([ULAPI_CFLAGS])
+AC_SUBST([ULAPI_LDFLAGS])
 
 case "$RTPREFIX" in
 uspace)
@@ -563,7 +592,7 @@ AC_SUBST([EXT_RTFLAGS])
 #                                                                            #
 # Provides the user the possibility to specify (--with-module-dir=<path>)    #
 # If not specified default inside /lib/modules/${KERNEL_VERS}/               #
-# to the location where a RT-module gets found (mbuff.o or rtai_shm.o)       #
+# to the location where a RT-module gets found (mbuff.o or rtai_shed.o)     #
 # (maybe the default should be /lib/modules/$KERNEL_VERS/extra if it exists? #
 ##############################################################################
 
@@ -1070,7 +1099,7 @@ AC_SUBST(BUILD_DOCS_HTML)
 
 if test $RTS '!=' uspace
 then
-for m in adeos rtai_hal rtai_ksched rtai_fifos rtai_shm rtai_sem rtai_math \
+for m in adeos rtai_hal rtai_ksched rtai_sched rtai_fifos rtai_sem rtai_math \
 ; do
     AC_MSG_CHECKING([for $m])
     TMP=$(find $MODULE_DIR -name $m$MODEXT 2>/dev/null)
@@ -1084,8 +1113,8 @@ done
 AC_SUBST(MODPATH_adeos)
 AC_SUBST(MODPATH_rtai_hal)
 AC_SUBST(MODPATH_rtai_ksched)
+AC_SUBST(MODPATH_rtai_sched)
 AC_SUBST(MODPATH_rtai_fifos)
-AC_SUBST(MODPATH_rtai_shm)
 AC_SUBST(MODPATH_rtai_sem)
 AC_SUBST(MODPATH_rtai_math)
 fi
@@ -1403,6 +1432,30 @@ elif test "x$HAVE_READLINE_TERMCAP" = "xyes"; then
 else
     HAVE_READLINE=no
 fi
+
+AC_MSG_CHECKING([whether readline license is compatible with GPL-2])
+AC_TRY_COMPILE([
+        #include <readline/readline.h>
+    ],[
+        #if RL_VERSION_MAJOR > 5
+        #error Readline version 6 and up are not compatible with GPL-2
+        #endif
+    ],[AC_MSG_RESULT(yes)],[
+        AC_MSG_RESULT(no)
+        AC_MSG_WARN(
+[The LinuxCNC binary you are building may not be
+distributable due to a license incompatibility with LinuxCNC (some portions
+GPL-2 only) and Readline version 6 and greater (GPL-3 or later).])
+        if $NONDISTRIBUTABLE; then
+            AC_MSG_WARN(
+[User requested to enable non-distributable builds.  Continuing.])
+        else
+            AC_MSG_ERROR(
+[To configure LinuxCNC in this way, you must
+invoke configure with "--enable-non-distributable=yes".  Note that on
+Debian-based systems, you may be able to use libreadline-gplv2-dev instead.])
+        fi
+])
 
 if test "x$HAVE_READLINE" = "xyes"; then
     AC_DEFINE([HAVE_READLINE], [], [Define to 1 if you have the 'readline' library (-lreadline) and required headers])

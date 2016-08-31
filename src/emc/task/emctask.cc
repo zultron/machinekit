@@ -203,6 +203,7 @@ int emcTaskAbort()
     emcStatus->task.motionLine = 0;
     emcStatus->task.readLine = 0;
     emcStatus->task.command[0] = 0;
+    emcStatus->task.callLevel = 0;
 
     stepping = 0;
     steppingWait = 0;
@@ -315,7 +316,6 @@ int emcTaskSetState(int state)
 	task_methods->emcLubeOff();
 	emcTaskAbort();
         task_methods->emcIoAbort(EMC_ABORT_TASK_STATE_ESTOP);
-        emcSpindleAbort();
         emcAxisUnhome(-2); // only those joints which are volatile_home
 	emcAbortCleanup(EMC_ABORT_TASK_STATE_ESTOP);
 	emcTaskPlanSynch();

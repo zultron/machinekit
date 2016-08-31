@@ -1,5 +1,5 @@
 #    This is a component of AXIS, a front-end for LinuxCNC
-#    Copyright 2004, 2005, 2006, 2007, 2008, 2009
+#    Copyright 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015
 #    Jeff Epler <jepler@unpythonic.net> and Chris Radek <chris@timeguy.com>
 #
 #    This program is free software; you can redistribute it and/or modify
@@ -1788,7 +1788,7 @@ text .about.message \
 	.about.message configure -cursor hand2
 	.about.message tag configure link -foreground red}
 .about.message tag bind link <ButtonPress-1><ButtonRelease-1> {launch_website}
-.about.message insert end [subst [_ "LinuxCNC/AXIS version \$version\n\nCopyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012 Jeff Epler and Chris Radek.\n\nThis is free software, and you are welcome to redistribute it under certain conditions.  See the file COPYING, included with LinuxCNC.\n\nVisit the LinuxCNC web site: "]] {} {http://www.linuxcnc.org/} link
+.about.message insert end [subst [_ "LinuxCNC/AXIS version \$version\n\nCopyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015 Jeff Epler and Chris Radek.\n\nThis is free software, and you are welcome to redistribute it under certain conditions.  See the file COPYING, included with LinuxCNC.\n\nVisit the LinuxCNC web site: "]] {} {http://www.linuxcnc.org/} link
 .about.message configure -state disabled
 
 button .about.ok \
@@ -1946,14 +1946,15 @@ set INTERP_WAITING 4
 set TRAJ_MODE_FREE 1
 set KINEMATICS_IDENTITY 1
 
-set manual [concat [winfo children $_tabs_manual.axes] \
+set manualgroup [concat [winfo children $_tabs_manual.axes] \
     $_tabs_manual.jogf.zerohome.home \
     $_tabs_manual.jogf.jog.jogminus \
     $_tabs_manual.jogf.jog.jogplus \
     $_tabs_manual.spindlef.cw $_tabs_manual.spindlef.ccw \
     $_tabs_manual.spindlef.stop $_tabs_manual.spindlef.brake \
-    $_tabs_manual.flood $_tabs_manual.mist $_tabs_mdi.command \
-    $_tabs_mdi.go $_tabs_mdi.history]
+    $_tabs_manual.flood $_tabs_manual.mist]
+
+set mdigroup [concat $_tabs_mdi.command $_tabs_mdi.go $_tabs_mdi.history]
 
 proc disable_group {ws} { foreach w $ws { $w configure -state disabled } }
 proc enable_group {ws} { foreach w $ws { $w configure -state normal } }
@@ -2069,20 +2070,19 @@ proc update_state {args} {
         set ::position [concat [_ "Position:"] $coord_str $display_str]
     }
 
-    if {$::task_state == $::STATE_ON} {
-	if {$::interp_state == $::INTERP_IDLE} {
-	    if {$::last_interp_state != $::INTERP_IDLE || $::last_task_state != $::task_state} {
-		set_mode_from_tab
-	    }
-	    enable_group $::manual
-	}
-	if {$::queued_mdi_commands < $::max_queued_mdi_commands } {
-	    enable_group $::manual
-	} else {
-	    disable_group $::manual
-	}
+    if {$::task_state == $::STATE_ON && $::interp_state == $::INTERP_IDLE} {
+        if {$::last_interp_state != $::INTERP_IDLE || $::last_task_state != $::task_state} {
+            set_mode_from_tab
+        }
+        enable_group $::manualgroup
     } else {
-        disable_group $::manual
+        disable_group $::manualgroup
+    }
+
+    if {$::task_state == $::STATE_ON && $::queued_mdi_commands < $::max_queued_mdi_commands } {
+        enable_group $::mdigroup
+    } else {
+        disable_group $::mdigroup
     }
 
     if {$::task_state == $::STATE_ON && $::interp_state == $::INTERP_IDLE &&

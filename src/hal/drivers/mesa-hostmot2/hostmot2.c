@@ -74,14 +74,35 @@ static int comp_id;
 // functions exported to LinuxCNC
 //
 
-static void hm2_read(void *void_hm2, long period) {
+static void hm2_read_request(void *void_hm2, long period) {
     hostmot2_t *hm2 = void_hm2;
+    hm2->llio->period = period;
 
     // if there are comm problems, wait for the user to fix it
     if ((*hm2->llio->io_error) != 0) return;
 
     hm2_tram_read(hm2);
     if ((*hm2->llio->io_error) != 0) return;
+    hm2_raw_queue_read(hm2);
+    hm2_tp_pwmgen_queue_read(hm2);
+    if ((*hm2->llio->io_error) != 0) return;
+    hm2_queue_read(hm2);
+    hm2->llio->read_requested = true;
+    hm2->llio->read_time = rtapi_get_time();
+}
+
+static void hm2_read(void *void_hm2, long period) {
+    hostmot2_t *hm2 = void_hm2;
+
+    if(!hm2->llio->read_requested) hm2_read_request(void_hm2, period);
+    hm2->llio->read_requested = false;
+
+    // if there are comm problems, wait for the user to fix it
+    if ((*hm2->llio->io_error) != 0) return;
+    // if there's a temporary read failure, don't sweat it
+    if(hm2_finish_read(hm2) == -EAGAIN) return;
+    if ((*hm2->llio->io_error) != 0) return;
+
     hm2_watchdog_process_tram_read(hm2);
     hm2_ioport_gpio_process_tram_read(hm2);
     hm2_encoder_process_tram_read(hm2, period);
@@ -92,9 +113,8 @@ static void hm2_read(void *void_hm2, long period) {
     hm2_absenc_process_tram_read(hm2, period);
     //UARTS need to be explicity handled by an external component
 
-    hm2_tp_pwmgen_read(hm2); // check the status of the fault bit
+    hm2_tp_pwmgen_process_read(hm2); // check the status of the fault bit
     hm2_dpll_process_tram_read(hm2, period);
-    hm2_raw_read(hm2);
 }
 
 
@@ -128,6 +148,7 @@ static void hm2_write(void *void_hm2, long period) {
     hm2_led_write(hm2);	      // Update on-board LEDs
 
     hm2_raw_write(hm2);
+    hm2_finish_write(hm2);
 }
 
 
@@ -1015,13 +1036,13 @@ static void hm2_release_device(struct rtapi_device *dev) {
 
 static int dummy_queue_write(hm2_lowlevel_io_t *this, rtapi_u32 addr,
         void *buffer, int size) {
-    if(size != -1) return this->write(this, addr, buffer, size);
+    if(size >= 0) return this->write(this, addr, buffer, size);
     return 1; // success
 }
 
 static int dummy_queue_read(hm2_lowlevel_io_t *this, rtapi_u32 addr,
         void *buffer, int size) {
-    if(size != -1) return this->read(this, addr, buffer, size);
+    if(size >= 0) return this->read(this, addr, buffer, size);
     return 1; // success
 }
 
@@ -1429,6 +1450,16 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
         goto fail1;
     }
 
+    hm2_queue_read(hm2);
+    if (r != 0) {
+        goto fail1;
+    }
+
+    r = hm2_finish_read(hm2);
+    if (r != 0) {
+        goto fail1;
+    }
+
     // set HAL gpio input pins based on FPGA pins
     hm2_ioport_gpio_process_tram_read(hm2);
 
@@ -1461,6 +1492,10 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
         goto fail1;
     }
 
+    r = hm2_finish_write(hm2);
+    if (r != 0) {
+        goto fail1;
+    }
 
     //
     // final check for comm errors
@@ -1491,6 +1526,15 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
     {
         char name[HAL_NAME_LEN + 1];
 
+        if(hm2->llio->split_read) {
+            rtapi_snprintf(name, sizeof(name), "%s.read-request", hm2->llio->name);
+            r = hal_export_funct(name, hm2_read_request, hm2, 1, 0, hm2->llio->comp_id);
+            if (r != 0) {
+                HM2_ERR("error %d exporting read function %s\n", r, name);
+                r = -EINVAL;
+                goto fail1;
+            }
+        }
         rtapi_snprintf(name, sizeof(name), "%s.read", hm2->llio->name);
         r = hal_export_funct(name, hm2_read, hm2, 1, 0, hm2->llio->comp_id);
         if (r != 0) {

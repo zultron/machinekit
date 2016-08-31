@@ -22,6 +22,8 @@
 # 3 =          left zoom,   middle rotate, right move
 # 4 =          left move,   middle zoom,   right rotate
 # 5 =          left rotate, middle zoom,   right move
+# 2015 Moses McKnight introduced mode 6 
+# 6 = left move, middle zoom, right zoom (no rotate - for 2D plasma machines or lathes)
 
 import os
 import gtk, gobject
@@ -76,8 +78,16 @@ class HAL_Gremlin(gremlin.Gremlin, _EMC_ActionBase):
                     False, gobject.PARAM_READWRITE | gobject.PARAM_CONSTRUCT),
         'use_default_controls' : ( gobject.TYPE_BOOLEAN, 'Use Default Mouse Controls', 'Use Default Mouse Controls',
                     True, gobject.PARAM_READWRITE | gobject.PARAM_CONSTRUCT),
-        'mouse_btn_mode' : ( gobject.TYPE_INT, 'Mouse Button Mode','Mousebutton assignment, l means left, m middle, r right\n\ 0 = default: l-rotate, m-move, r-zoom \n\ 1 = l-zoom, m-move, r-rotate\n\ 2 = l-move, m-rotate, r-zoom\n\ 3 = l-zoom, m-rotate, r-move\n\ 4 = l-move, m-zoom, r-rotate\n\ 5 = l-rotate, m-zoom, r-move', 0, 5, 0, gobject.PARAM_READWRITE | gobject.PARAM_CONSTRUCT),
-
+        'mouse_btn_mode' : ( gobject.TYPE_INT, 'Mouse Button Mode',
+                                               ('Mousebutton assignment, l means left, m middle, r right \n'
+                                                '0 = default: l-rotate, m-move, r-zoom \n'
+                                                '1 = l-zoom, m-move, r-rotate\n'
+                                                '2 = l-move, m-rotate, r-zoom\n'
+                                                '3 = l-zoom, m-rotate, r-move\n'
+                                                '4 = l-move, m-zoom, r-rotate\n'
+                                                '5 = l-rotate, m-zoom, r-move\n'
+                                                '6 = l-move, m-zoom, r-zoom'),
+                    0, 6, 0, gobject.PARAM_READWRITE | gobject.PARAM_CONSTRUCT),
     }
     __gproperties = __gproperties__
     def __init__(self, *a, **kw):
@@ -235,7 +245,8 @@ class HAL_Gremlin(gremlin.Gremlin, _EMC_ActionBase):
     # Override gremlin's / glcannon.py function so we can emit a GObject signal
     def update_highlight_variable(self,line):
         self.highlight_line = line
-        if line == None: return
+        if line == None:
+            line = -1
         self.emit('line-clicked', line)
 
     def realize(self, widget):

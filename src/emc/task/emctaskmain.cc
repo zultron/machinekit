@@ -622,7 +622,10 @@ interpret_again:
 					_task = 1;
 				}
 			    execRetval = emcTaskPlanExecute(0);
-
+			    // line number may need update after
+			    // returns from subprograms in external
+			    // files
+			    emcStatus->task.readLine = emcTaskPlanLine();
 			    if (execRetval > INTERP_MIN_ERROR) {
 				emcStatus->task.interpState =
 				    EMC_TASK_INTERP_WAITING;
@@ -655,9 +658,9 @@ interpret_again:
 			    // throw the results away if we're supposed to
 			    // read
 			    // through it
-			    if (programStartLine < 0 ||
-				emcStatus->task.readLine <
-				programStartLine) {
+			    if ((programStartLine < 0 ||
+				 emcStatus->task.readLine < programStartLine) &&
+				emcTaskPlanLevel() == 0) {
 				// we're stepping over lines, so check them
 				// for
 				// limits, etc. and clear then out
@@ -674,7 +677,8 @@ interpret_again:
 				interp_list.clear();
 			    }
 
-			    if (emcStatus->task.readLine < programStartLine) {
+			    if (emcStatus->task.readLine < programStartLine &&
+				emcTaskPlanLevel() == 0) {
 			    
 				//update the position with our current position, as the other positions are only skipped through
 				CANON_UPDATE_END_POINT(emcStatus->motion.traj.actualPosition.tran.x,
@@ -711,6 +715,8 @@ interpret_again:
 
 static void mdi_execute_abort(void)
 {
+    int queued_mdi_commands;
+
     // XXX: Reset needed?
     if (mdi_execute_wait || mdi_execute_next)
         emcTaskPlanReset();
@@ -718,7 +724,12 @@ static void mdi_execute_abort(void)
     mdi_execute_wait = 0;
     mdi_execute_next = 0;
 
+    queued_mdi_commands = mdi_execute_queue.len();
+    if (queued_mdi_commands > 0) {
+        rcs_print("mdi_execute_abort: dropping %d queued MDI commands\n", queued_mdi_commands);
+    }
     mdi_execute_queue.clear();
+
     emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
 }
 
@@ -3440,6 +3451,9 @@ int main(int argc, char *argv[])
     int taskPlanError = 0;
     int taskExecuteError = 0;
     double startTime, endTime, deltaTime;
+    double first_start_time;
+    int num_latency_warnings = 0;
+    int latency_excursion_factor = 10;  // if latency is worse than (factor * expected), it's an excursion
     double minTime, maxTime;
 
     bindtextdomain("linuxcnc", EMC2_PO_DIR);
@@ -3517,11 +3531,19 @@ int main(int argc, char *argv[])
 	exit(1);
     }
     // set the default startup modes
-    emcTaskSetState(EMC_TASK_STATE_ESTOP);
-    emcTaskSetMode(EMC_TASK_MODE_MANUAL);
+    emcMotionAbort();
+    emcSpindleAbort();
+    emcAuxEstopOn();
+    for (int t = 0; t < emcStatus->motion.traj.axes; t++) {
+        emcAxisDisable(t);
+    }
+    emcTrajDisable();
+    emcLubeOff();
+    emcIoAbort(EMC_ABORT_TASK_STATE_ESTOP);
+    emcAxisUnhome(-2);
 
-    // cause the interpreter's starting offset to be reflected
-    emcTaskPlanInit();
+    emcTrajSetMode(EMC_TRAJ_MODE_FREE);
+
     // reflect the initial value of EMC_DEBUG in emcStatus->debug
     emcStatus->debug = emc_debug;
 
@@ -3540,6 +3562,8 @@ int main(int argc, char *argv[])
     }
 
     startTime = etime();	// set start time before entering loop;
+    first_start_time = startTime;
+    endTime = startTime;
     // it will be set at end of loop from now on
     minTime = DBL_MAX;		// set to value that can never be exceeded
     maxTime = 0.0;		// set to value that can never be underset
@@ -3635,10 +3659,10 @@ int main(int argc, char *argv[])
 	    // 	emcOperatorError(0, "wait for orient complete timed out");
 	    // }
 
-        // abort everything
-        emcTaskAbort();
-        task_methods->emcIoAbort(EMC_ABORT_MOTION_OR_IO_RCS_ERROR);
-        emcSpindleAbort();
+	    // abort everything
+	    emcTaskAbort();
+	    task_methods->emcIoAbort(EMC_ABORT_MOTION_OR_IO_RCS_ERROR);
+	    emcSpindleAbort();
 	    mdi_execute_abort();
 	    // without emcTaskPlanClose(), a new run command resumes at
 	    // aborted line-- feature that may be considered later
@@ -3717,15 +3741,19 @@ int main(int argc, char *argv[])
 	// interval if ini file says to run full out via
 	// [TASK] CYCLE_TIME <= 0.0d
 	// emcTaskEager = 0;
-	if (emcTaskNoDelay) {
-	    endTime = etime();
-	    deltaTime = endTime - startTime;
-	    if (deltaTime < minTime)
-		minTime = deltaTime;
-	    else if (deltaTime > maxTime)
-		maxTime = deltaTime;
-	    startTime = endTime;
-	}
+        endTime = etime();
+        deltaTime = endTime - startTime;
+        if (deltaTime < minTime)
+            minTime = deltaTime;
+        else if (deltaTime > maxTime)
+            maxTime = deltaTime;
+        startTime = endTime;
+        if (deltaTime > (latency_excursion_factor * emc_task_cycle_time)) {
+            if (num_latency_warnings < 10) {
+                rcs_print("task: main loop took %.6f seconds\n", deltaTime);
+            }
+            num_latency_warnings ++;
+        }
 
 	if ((emcTaskNoDelay) || (emcTaskEager)) {
 	    emcTaskEager = 0;
@@ -3735,15 +3763,20 @@ int main(int argc, char *argv[])
     }
     // end of while (! done)
 
+    rcs_print(
+        "task: %u cycles, min=%.6f, max=%.6f, avg=%.6f, %u latency excursions (> %dx expected cycle time of %.6fs)\n",
+        emcStatus->task.heartbeat,
+        minTime,
+        maxTime,
+        (emcStatus->task.heartbeat != 0) ?  (endTime - first_start_time) / emcStatus->task.heartbeat : -1.0,
+        num_latency_warnings,
+        latency_excursion_factor,
+        emc_task_cycle_time
+    );
+
     // clean up everything
     emctask_shutdown();
-    /* debugging */
-    if (emcTaskNoDelay) {
-	if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
-	    rcs_print("cycle times (seconds): %f min, %f max\n", minTime,
-	       maxTime);
-	}
-    }
+
     // and leave
     exit(0);
 }

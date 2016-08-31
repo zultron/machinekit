@@ -20,6 +20,8 @@
 #ifndef __INCLUDE_HM2_ETH_H
 #define __INCLUDE_HM2_ETH_H
 
+#include "lbp16.h"
+
 #define MAX_ETH_BOARDS 4
 
 #define HM2_ETH_VERSION "0.2"
@@ -28,13 +30,45 @@
 #define MAX_ETH_READS 64
 
 typedef struct {
-    hm2_lowlevel_io_t llio;
-} hm2_eth_t;
-
-typedef struct {
     void *buffer;
     int size;
     int from;
-} read_queue_entry_t;
+} hm2_read_queue_entry_t;
+
+typedef struct {
+    hm2_lowlevel_io_t llio;
+
+    int sockfd;
+    struct sockaddr_in local_addr;
+    struct sockaddr_in server_addr;
+
+    rtapi_u8 read_packet[1400];
+    rtapi_u8 *read_packet_ptr;
+    hm2_read_queue_entry_t queue_reads[MAX_ETH_READS];
+    int queue_reads_count;
+    int queue_buff_size;
+
+    rtapi_u8 write_packet[1400];
+    rtapi_u8 *write_packet_ptr;
+    int write_packet_size;
+    uint32_t read_cnt, write_cnt;
+    // these two fields must be kept together, they're read by a single
+    // read-request
+    uint32_t confirm_read_cnt, confirm_write_cnt;
+
+    int comm_error_counter;
+    uint16_t old_rxudpcount, rxudpcount;
+    struct arpreq req;
+
+    struct {
+        hal_s32_t read_timeout;
+        hal_s32_t packet_error_limit;
+        hal_s32_t packet_error_increment;
+        hal_s32_t packet_error_decrement;
+        hal_bit_t *packet_error;
+        hal_s32_t *packet_error_level;
+        hal_bit_t *packet_error_exceeded;
+    } *hal;
+} hm2_eth_t;
 
 #endif

@@ -289,6 +289,7 @@ int tcGetPosReal(TC_STRUCT const * const tc, int of_point, EmcPose * const pos)
 
     // Used for arc-length to angle conversion with spiral segments
     double angle = 0.0;
+    int res_fit = TP_ERR_OK;
 
     switch (tc->motion_type){
         case TC_RIGIDTAP:
@@ -313,9 +314,9 @@ int tcGetPosReal(TC_STRUCT const * const tc, int of_point, EmcPose * const pos)
                     &abc);
             break;
         case TC_CIRCULAR:
-            angle = pmCircleAngleFromProgress(&tc->coords.circle.xyz,
+            res_fit = pmCircleAngleFromProgress(&tc->coords.circle.xyz,
                     &tc->coords.circle.fit,
-                    progress);
+                    progress, &angle);
             pmCirclePoint(&tc->coords.circle.xyz,
                     angle,
                     &xyz);
@@ -335,8 +336,11 @@ int tcGetPosReal(TC_STRUCT const * const tc, int of_point, EmcPose * const pos)
             break;
     }
 
-    pmCartesianToEmcPose(&xyz, &abc, &uvw, pos);
-    return 0;
+    if (res_fit == TP_ERR_OK) {
+        // Don't touch pos unless we know the value is good
+        pmCartesianToEmcPose(&xyz, &abc, &uvw, pos);
+    }
+    return res_fit;
 }
 
 
@@ -551,6 +555,8 @@ int tcSetupMotion(TC_STRUCT * const tc,
     tc->reqvel = vel;
     // Initial guess at target velocity is just the requested velocity
     tc->target_vel = vel;
+    // TO be filled in by tangent calculation, negative = invalid (KLUDGE)
+    tc->kink_vel = -1.0;
 
     return TP_ERR_OK;
 }
@@ -641,7 +647,6 @@ int tcFinalizeLength(TC_STRUCT * const tc)
 {
     //Apply velocity corrections
     if (!tc) {
-        tp_debug_print("Missing prev_tc in finalize!\n");
         return TP_ERR_FAIL;
     }
 
@@ -658,7 +663,26 @@ int tcFinalizeLength(TC_STRUCT * const tc)
     if (tc->motion_type == TC_CIRCULAR) {
         tc->maxvel = pmCircleActualMaxVel(&tc->coords.circle.xyz, &tc->acc_ratio_tan, tc->maxvel, tc->maxaccel, parabolic);
     }
+
+    tcClampVelocityByLength(tc);
+
     tc->finalized = 1;
+    return TP_ERR_OK;
+}
+
+
+int tcClampVelocityByLength(TC_STRUCT * const tc)
+{
+    //Apply velocity corrections
+    if (!tc) {
+        return TP_ERR_FAIL;
+    }
+
+    //Reduce max velocity to match sample rate
+    //Assume that cycle time is valid here
+    double sample_maxvel = tc->target / tc->cycle_time;
+    tp_debug_print("sample_maxvel = %f\n",sample_maxvel);
+    tc->maxvel = fmin(tc->maxvel, sample_maxvel);
     return TP_ERR_OK;
 }
 
