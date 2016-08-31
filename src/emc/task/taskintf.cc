@@ -1116,7 +1116,6 @@ int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc)
 
 static int last_id = 0;
 static int last_id_printed = 0;
-static int last_status = 0;
 static double last_id_time;
 
 int emcTrajUpdate(EMC_TRAJ_STAT * stat)

@@ -3533,13 +3533,13 @@ int main(int argc, char *argv[])
     // set the default startup modes
     emcMotionAbort();
     emcSpindleAbort();
-    emcAuxEstopOn();
+    task_methods->emcAuxEstopOn();
     for (int t = 0; t < emcStatus->motion.traj.axes; t++) {
         emcAxisDisable(t);
     }
     emcTrajDisable();
-    emcLubeOff();
-    emcIoAbort(EMC_ABORT_TASK_STATE_ESTOP);
+    task_methods->emcLubeOff();
+    task_methods->emcIoAbort(EMC_ABORT_TASK_STATE_ESTOP);
     emcAxisUnhome(-2);
 
     emcTrajSetMode(EMC_TRAJ_MODE_FREE);
