@@ -87,6 +87,7 @@ include an option for suppressing superfluous commands.
 #include "rs274ngc.hh"
 #include "rs274ngc_return.hh"
 #include "interp_internal.hh"	// interpreter private definitions
+#include "interp_tolerances.hh"
 #include "interp_queue.hh"
 #include "rs274ngc_interp.hh"
 

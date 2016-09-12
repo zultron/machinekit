@@ -20,10 +20,16 @@
 // Allow large absolute errors since these aren't controlled very well at the
 // interpreter level.
 #define SPIRAL_TOLERANCE_INCH 1.0
+
+#define CENTER_ARC_RADIUS_TOLERANCE_INCH (2 * 0.001 * M_SQRT2)
+#define MIN_CENTER_ARC_RADIUS_TOLERANCE_INCH 0.00004
 #define RADIUS_TOLERANCE_INCH 0.0002
 
 /* Equivalent metric constants */
 #define SPIRAL_TOLERANCE_MM (SPIRAL_TOLERANCE_INCH * MM_PER_INCH)
+
+#define CENTER_ARC_RADIUS_TOLERANCE_MM (2 * 0.01 * M_SQRT2)
+#define MIN_CENTER_ARC_RADIUS_TOLERANCE_MM 0.001
 #define RADIUS_TOLERANCE_MM (RADIUS_TOLERANCE_INCH * MM_PER_INCH)
 
 // Modest relative error
