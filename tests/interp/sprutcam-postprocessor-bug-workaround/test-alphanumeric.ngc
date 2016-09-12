@@ -1,0 +1,8 @@
+%
+(test-alphanumeric.ngc)
+(SprutCAM post processor bug workaround)
+(Alphanumeric title, alpha first)
+OMyProgram1
+(...program body)
+M30
+%

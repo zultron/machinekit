@@ -690,16 +690,19 @@ interpret_again:
 						       emcStatus->motion.traj.actualPosition.u,
 						       emcStatus->motion.traj.actualPosition.v,
 						       emcStatus->motion.traj.actualPosition.w);
+			    }
 
-				if ((emcStatus->task.readLine + 1 == programStartLine)  &&
-				    (emcTaskPlanLevel() == 0))  {
+			    if ((emcTaskPlanLevel() == 0) &&
+				(emcTaskPlanLine() == programStartLine))  {
 
-				    emcTaskPlanSynch();
+				emcTaskPlanSynch();
 
-                                    // reset programStartLine so we don't fall into our stepping routines
-                                    // if we happen to execute lines before the current point later (due to subroutines).
-                                    programStartLine = 0;
-                                }
+				// reset programStartLine so we don't
+				// fall into our stepping routines if
+				// we happen to execute lines before
+				// the current point later (due to
+				// subroutines).
+				programStartLine = 0;
 			    }
 
                             if (count++ < emc_task_interp_max_len
@@ -1681,47 +1684,6 @@ int emcTaskQueueCommand(NMLmsg * cmd)
     return 0;
 }
 
-#if 0
-static int emcTaskEchoLineToIo(NMLmsg * cmd)
-{
-
-    if (!cmd) {
-        return -1;
-    }
-
-    switch (cmd->type) {
-
-        case EMC_TRAJ_SET_TERM_COND_TYPE:
-        case EMC_TRAJ_SET_OFFSET_TYPE:
-        case EMC_TRAJ_SET_ROTATION_TYPE:
-        case EMC_TRAJ_SET_G5X_TYPE:
-        case EMC_TRAJ_SET_G92_TYPE:
-
-        case EMC_SPINDLE_SPEED_TYPE:
-        case EMC_SPINDLE_ORIENT_TYPE:
-        case EMC_SPINDLE_ON_TYPE:
-        case EMC_SPINDLE_OFF_TYPE:
-        case EMC_SPINDLE_INCREASE_TYPE:
-        case EMC_SPINDLE_DECREASE_TYPE:
-        case EMC_SPINDLE_CONSTANT_TYPE:
-        case EMC_TRAJ_DELAY_TYPE:
-            //Check if these types are needed, may be causing extra steps
-            task_debug("Echoing line number %d for type %ld to IO\n", ((EMC_CMD_MSG*)cmd)->tag.fields[GM_FIELD_LINE_NUMBER], cmd->type);
-            task_methods->emcIoSetLineNumber((RCS_CMD_MSG*)cmd);
-            break;
-        case EMC_TRAJ_RIGID_TAP_TYPE:
-        case EMC_TRAJ_LINEAR_MOVE_TYPE:
-        case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
-        case EMC_TRAJ_PROBE_TYPE:
-            task_debug("Skipping IO echo of line number %d for type %ld\n", ((EMC_CMD_MSG*)cmd)->tag.fields[GM_FIELD_LINE_NUMBER], cmd->type);
-            break;
-
-
-    }
-    return 0;
-}
-#endif
-
 // issues command immediately
 static int emcTaskIssueCommand(NMLmsg * cmd)
 {
@@ -2131,7 +2093,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TOOL_START_CHANGE_TYPE:
     case EMC_TOOL_UNLOAD_TYPE:
     case EMC_COOLANT_MIST_OFF_TYPE:
-    case EMC_TASK_SET_TAG_TYPE:
         retval = task_methods->emcToolPassMsg((EMC_CMD_MSG*)cmd);
         break;
 

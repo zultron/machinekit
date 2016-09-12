@@ -1,0 +1,4 @@
+Test that comment sequences are properly handled.
+
+"Correct" behavior here is to accept multiple comments in sequence, and only
+pass through the last one.

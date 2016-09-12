@@ -65,77 +65,119 @@ pin in float vel_tol "Velocity Tolerance (Corner Lock)";
 pin in bit torch_on "Connect to motion.spindle-on";
 pin in bit arc_ok "Arc OK from Plasma Torch";
 pin in bit enable "Enable the THC, if not enabled Z position is passed through";
-pin in float z_pos_in "Z Motor Position Command in from axis.n.motor-pos-cmd";
+pin in float z_vel_in "pid.N.output";
+pin in float debug_in;
+pin in float pos_cmd_from_motion;
+pin in float vel_cmd_from_motion;
+pin in float fb_in;
+
 
 // Output Pins
-pin out float z_pos_out "Z Motor Position Command Out";
-pin out float z_fb_out "Z Position Feedback to Axis";
 pin out float volts "The Calculated Volts";
 pin out bit vel_status "When the THC thinks we are at requested speed";
-pin out float offset_value "The Current Offset";
+pin out float z_vel_out "stepgen.N.velocity-cmd";
+pin out float debug_initial_fb;  // initial_fb copy
+pin out float pos_cmd;
+pin out float vel_cmd;
+pin out float fb_out;
+
 
 // Parameters
 param rw float vel_scale "The scale to convert the Velocity signal to Volts";
 param rw float scale_offset "The offset of the velocity input at 0 volts";
 param rw float velocity_tol "The deviation percent from planned velocity";
+
+//voltage_tol setting ideas
+//given range of encoder_vel is ~ 1178 or 9602 counts, that is 8424 counts delta, or about 13 bits.
+//we toss the last 3 bits
+
+//a setting of .015 volts is ~ 3 bits  (set in hal.ini file)
+// 3 bits is 8 counts, we used a "bit" more, or 10 counts
+//derived by using     volts = (encoder_vel - scale_offset) * vel_scale; where scale_offset = -959, and vel_scale = -.00148368
+// assume encoder_vel = 2760, volts = -5.51780592
+// assume encoder_vel = 2770, volts = -5.53264272
+// delta volts = .0148368, set .015 for voltage_tol
 param rw float voltage_tol "The deviation of Tip Voltage before correction takes place";
 param rw float correction_vel "The amount of change in user units per period to move Z to correct";
 
+
+
 // Global Variables
-variable float offset;
-variable float last_z_in;
+variable float initial_fb;
+variable int torch_on_ticks;
+variable int torch_off_ticks;
+variable bool velocity_pass_through;
 
 function _;
-
 ;;
-
 #include "rtapi_math.h"
 
 FUNCTION(_) {
-    // convert encoder velocity to volts
-    volts = (encoder_vel - scale_offset) * vel_scale;
-    if(volts < 0){volts = 0;} // make sure volts is not negative
-    offset_value = offset;
+//default to this; other things below may over-write!!
+	z_vel_out = z_vel_in;
+	pos_cmd = pos_cmd_from_motion;
+	vel_cmd = vel_cmd_from_motion;
+	fb_out = fb_in;
+	if(torch_on) {
+		torch_off_ticks = 0; 
+		velocity_pass_through = false;
+		torch_on_ticks++;
+	}
+	else {
+		torch_on_ticks = 0;
+		torch_off_ticks++;
+	}
+	
+	//if torch was just turned off, turn velocity_pass_through back on
+	if(!velocity_pass_through && torch_off_ticks > 2000)  {
+		velocity_pass_through  = true;
+	}
+	
+	if(!velocity_pass_through && torch_off_ticks <= 2000) {
+		pos_cmd = fb_in;
+		vel_cmd = z_vel_out;
+	}
 
-    if(enable){
-        float min_velocity = requested_vel -(requested_vel*(velocity_tol*0.01));
-        if(current_vel > 0 && current_vel >= min_velocity){vel_status = 1;}
-        else {vel_status =0;}
-        
-        if(torch_on && arc_ok && vel_status){ // allow correction
-            if((volts + voltage_tol) > volts_requested){
-                offset -= correction_vel;
-            }
-            if((volts - voltage_tol) < volts_requested){
-                offset += correction_vel;
-            }    
-            last_z_in = 0;
+	
+	//we do this here for diagnostic purposes; we don't need to if not debugging
+	//saves a few CPU cycles if we do in if statement below
+	// convert encoder velocity to volts
+	volts = (encoder_vel - scale_offset) * vel_scale;
+	if(volts < 0){
+		volts = 0;
+	} // make sure volts is not negative
+
+	//unhandled errors:
+	//if arc_ok never goes on while torch_on being requested 
+	//if arc_ok goes off while torch_on is being requested
+	
+	//do torch height correction only when z velocity very close to zero
+        if(!velocity_pass_through && torch_on && arc_ok && (z_vel_in < (correction_vel*2) || z_vel_in > (correction_vel*2))) {
+#if 0
+        	// convert encoder velocity to volts
+		volts = (encoder_vel - scale_offset) * vel_scale;
+		if(volts < 0){
+			volts = 0;
+		} // make sure volts is not negative
+#endif		
+
+		
+		if(volts  > (volts_requested + voltage_tol)){
+			z_vel_out = -.14;
+		}
+		else if(volts < (volts_requested - voltage_tol)){
+			z_vel_out = .14;
+		}
+		else {
+			z_vel_out = 0;
+		}	
+		pos_cmd = fb_in;
+		vel_cmd = z_vel_out;
         }
-        if(!torch_on){ // remove any offset
-            float z_diff;
-            z_diff = z_pos_in - last_z_in;
-            if(z_diff > 0 && offset != 0){ // torch is moving up
-                if(offset > 0){ // positive offset
-                    if(offset > z_diff){ // remove some
-                        offset -= z_diff;
-                    }
-                    else {offset = 0;}
-                }
-                if(offset < 0){ // negative offset
-                    if(offset < z_diff){ // remove some
-                        offset += z_diff;
-                    }
-                    else {offset = 0;}
-                }
-            }
-            last_z_in = z_pos_in;
-        }
-        z_pos_out = z_pos_in + offset;
-        z_fb_out = z_pos_in; // keep axis motor position fb from being confused
-    }
-    if(!enable){
-        z_pos_out = z_pos_in;
-        z_fb_out = z_pos_in; // keep axis motor position fb from being confused
-    }
+
+	debug_initial_fb = initial_fb;
+
 }
+
+
 

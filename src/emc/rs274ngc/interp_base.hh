@@ -61,6 +61,7 @@ public:
     virtual int restore_from_tag(StateTag const &tag) = 0;
     virtual EmcPose get_work_offset(int origin) = 0;
     virtual void set_loglevel(int level) = 0;
+    virtual void set_loop_on_main_m99(bool state) = 0;
 };
 
 InterpBase *interp_from_shlib(const char *shlib);

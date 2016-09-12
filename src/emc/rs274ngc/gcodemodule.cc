@@ -26,7 +26,6 @@
 #include "config.h"		// LINELEN
 
 int _task = 0; // control preview behaviour when remapping
-const int MAX_GLCANON_LINES = 100000;
 
 char _parameter_file_name[LINELEN];
 extern "C" void initinterpreter();
@@ -144,7 +143,8 @@ static int last_sequence_number;
 static bool metric;
 static double _pos_x, _pos_y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w;
 EmcPose tool_offset;
-static int _linecount=0;
+static uint32_t max_glcanon_lines = 100000;
+static uint32_t _linecount = 0;
 
 static InterpBase *pinterp;
 #define interp_new (*pinterp)
@@ -221,7 +221,7 @@ void ARC_FEED(int line_number,
     }
     maybe_new_line(line_number);
     if(interp_error) return;
-    if (_linecount < MAX_GLCANON_LINES) {
+    if (_linecount < max_glcanon_lines) {
         PyObject *result =
             callmethod(callback, "arc_feed", "iffffifffffff",
                     line_number, first_end, second_end, first_axis, second_axis,
@@ -243,7 +243,7 @@ void STRAIGHT_FEED(int line_number,
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
-    if (_linecount < MAX_GLCANON_LINES) {
+    if (_linecount < max_glcanon_lines) {
         PyObject *result =
             callmethod(callback, "straight_feed", "ifffffffff",
                     line_number, x, y, z, a, b, c, u, v, w);
@@ -262,7 +262,7 @@ void STRAIGHT_TRAVERSE(int line_number,
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
-    if (_linecount < MAX_GLCANON_LINES) {
+    if (_linecount < max_glcanon_lines) {
         PyObject *result =
             callmethod(callback, "straight_traverse", "ifffffffff",
                     line_number, x, y, z, a, b, c, u, v, w);
@@ -501,7 +501,7 @@ void STRAIGHT_PROBE(int line_number,
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
-    if (_linecount < MAX_GLCANON_LINES) {
+    if (_linecount < max_glcanon_lines) {
         PyObject *result =
             callmethod(callback, "straight_probe", "ifffffffff",
                     line_number, x, y, z, a, b, c, u, v, w);
@@ -783,9 +783,9 @@ out_error:
     PyTuple_SetItem(retval, 1, PyInt_FromLong(last_sequence_number + error_line_offset));
 
     // Throw a warning if we're clipping lines
-    if (_linecount > MAX_GLCANON_LINES) {
+    if (_linecount > max_glcanon_lines) {
         std::stringstream preview_cutoff_warning;
-        preview_cutoff_warning << "Program exceeds " << MAX_GLCANON_LINES << " motion lines (" << _linecount << " total), displayed extents may not be accurate.";
+        preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
         PyList_Append(((Interp*)pinterp)->warning_list, PyString_FromString(preview_cutoff_warning.str().c_str()));
     }
 
@@ -1025,6 +1025,16 @@ static PyObject *rs274_arc_to_segments(PyObject *self, PyObject *args) {
     return segs;
 }
 
+static PyObject *get_set_max_glcanon_lines(PyObject *self, PyObject *args) {
+    uint32_t in = 0;
+    if(PyArg_ParseTuple(args, "|l", &in) && in > 0)
+	// Found integer arg; set value
+	max_glcanon_lines = in;
+
+    // return value
+    return Py_BuildValue("l", max_glcanon_lines);
+}
+
 static PyMethodDef gcode_methods[] = {
     {"parse", (PyCFunction)parse_file, METH_VARARGS, "Parse a G-Code file"},
     {"strerror", (PyCFunction)rs274_strerror, METH_VARARGS,
@@ -1033,6 +1043,8 @@ static PyMethodDef gcode_methods[] = {
         "Calculate information about extents of gcode"},
     {"arc_to_segments", (PyCFunction)rs274_arc_to_segments, METH_VARARGS,
         "Convert an arc to straight segments"},
+    {"max_glcanon_lines", (PyCFunction)get_set_max_glcanon_lines, METH_VARARGS,
+     "Get maximum number of lines to preview; pass integer argument to set"},
     {NULL}
 };
 

@@ -77,31 +77,36 @@ int Interp::close_and_downcase(char *line)       //!< string: one line of NC cod
     char item;
     comment = semicomment = 0;
     for (n = 0, m = 0; (item = line[m]) != (char) NULL; m++) {
-	if ((item == ';') && !comment)
-	    semicomment = 1;
+        if ((item == ';') && !comment)
+            semicomment = 1;
 
-	if (semicomment) {
-	    line[n++] = item; // pass literally
-	     continue;
-	}
-	if (comment) {
-	    line[n++] = item;
-	    if (item == ')') {
-		comment = 0;
-	    } else if (item == '(')
-		ERS(NCE_NESTED_COMMENT_FOUND);
-	} else if ((item == ' ') || (item == '\t') || (item == '\r'));
-	/* don't copy blank or tab or CR */
-	else if (item == '\n') {    /* don't copy newline            *//* but check null follows        */
-	    CHKS((line[m + 1] != 0), NCE_NULL_MISSING_AFTER_NEWLINE);
-	} else if ((64 < item) && (item < 91)) {    /* downcase upper case letters */
-	    line[n++] = (32 + item);
-	} else if ((item == '(') && !semicomment) {   /* (comment is starting */
-	    comment = 1;
-	    line[n++] = item;
-	} else {
-	    line[n++] = item;         /* copy anything else */
-	}
+        if (semicomment) {
+            line[n++] = item; // pass literally
+            continue;
+        }
+        if (comment) {
+            line[n++] = item;
+            if (item == ')') {
+                comment--;
+            } else if (item == '(') {
+                comment++;
+            }
+        } else if ((item == ' ') || (item == '\t') || (item == '\r')) {
+        /* don't copy blank or tab or CR */
+        } else if (item == '\n') {
+            /* don't copy newline            */
+            /* but check null follows        */
+            CHKS((line[m + 1] != 0), NCE_NULL_MISSING_AFTER_NEWLINE);
+        } else if ((64 < item) && (item < 91)) {
+            /* downcase upper case letters */
+            line[n++] = (32 + item);
+        } else if ((item == '(') && !semicomment) {
+            /* (comment is starting */
+            comment++;
+            line[n++] = item;
+        } else {
+            line[n++] = item;         /* copy anything else */
+        }
     }
     CHKS((comment), NCE_UNCLOSED_COMMENT_FOUND);
     line[n] = 0;
@@ -119,8 +124,8 @@ Returned Value:
    1. A g80 is in the block, no modal group 0 code that uses axes
       is in the block, and one or more axis values is given:
       NCE_CANNOT_USE_AXIS_VALUES_WITH_G80
-   2. A g92 is in the block and no axis value is given:
-      NCE_ALL_AXES_MISSING_WITH_G92
+   2. A g52 g92 is in the block and no axis value is given:
+      NCE_ALL_AXES_MISSING_WITH_G52_OR_G92
    3. One g-code from group 1 and one from group 0, both of which can use
       axis values, are in the block:
       NCE_CANNOT_USE_TWO_G_CODES_THAT_BOTH_USE_AXIS_VALUES
@@ -176,14 +181,15 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
   mode1 = block->g_modes[1];
   mode_zero_covets_axes =
     ((mode0 == G_10) || (mode0 == G_28) || (mode0 == G_30)
-     || (mode0 == G_92));
+     || (mode0 == G_52) || (mode0 == G_92));
 
   if (mode1 != -1) {
     if (mode1 == G_80) {
       CHKS(((polar_flag || axis_flag) && (!mode_zero_covets_axes)),
           NCE_CANNOT_USE_AXIS_VALUES_WITH_G80);
       CHKS((polar_flag && mode0 == G_92), _("Polar coordinates can only be used for motion"));
-      CHKS(((!axis_flag) && (mode0 == G_92)), NCE_ALL_AXES_MISSING_WITH_G92);
+      CHKS(((!axis_flag) && (mode0 == G_52 || mode0 == G_92)),
+	   NCE_ALL_AXES_MISSING_WITH_G52_OR_G92);
     } else {
       CHKS(mode_zero_covets_axes,
           NCE_CANNOT_USE_TWO_G_CODES_THAT_BOTH_USE_AXIS_VALUES);
@@ -196,7 +202,9 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
     block->motion_to_be = mode1;
   } else if (mode_zero_covets_axes) {   /* other 3 can get by without axes but not G92 */
     CHKS((polar_flag && mode0 == G_92), _("Polar coordinates can only be used for motion"));
-    CHKS(((!axis_flag) && (block->g_modes[0] == G_92)), NCE_ALL_AXES_MISSING_WITH_G92);
+    CHKS(((!axis_flag) &&
+	  (block->g_modes[0] == G_52 || block->g_modes[0] == G_92)),
+	 NCE_ALL_AXES_MISSING_WITH_G52_OR_G92);
   } else if (axis_flag || polar_flag) {
     CHKS(((settings->motion_mode == -1)
          || (settings->motion_mode == G_80)) && (block->g_modes[8] != G_43_1),

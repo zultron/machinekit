@@ -641,6 +641,18 @@ int Interp::init_remap_sets()
     _setup.m_remappable[1] = 1;   // program pause if the optional stop switch is on
 
     _setup.m_remappable[60] = 1;  //Pallet Change Pause
+    
+    //added in by z-bot to support schnozz
+    _setup.m_remappable[7] = 1;  // mist
+    _setup.m_remappable[8] = 1;  // flood
+    _setup.m_remappable[9] = 1;  // cool off
+
+    //adding for digital io module
+    _setup.m_remappable[62] = 1;  // digital io output on synched
+    _setup.m_remappable[63] = 1;  // digital io output off synched
+    _setup.m_remappable[64] = 1;  // digital io output on immediate
+    _setup.m_remappable[65] = 1;  // digital io output off immediate
+    _setup.m_remappable[66] = 1;  // analog io input
 
 
     // the G codes:

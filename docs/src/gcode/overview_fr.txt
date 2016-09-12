@@ -894,7 +894,7 @@ la ligne (en ayant été activé sur une ancienne ligne) et qu'un G-code
 du groupe 0 utilisant des mots d'axes apparaît sur la même ligne,
 l'activité du G-code du groupe 1 est révoquée pour le reste de la
 ligne. Les mots d'axes utilisant des G-codes du groupe 0 sont G10, G28,
-G30 et G92.
+G30, G52 et G92.
 
 C'est une erreur d'inclure des mots sans rapport sur une ligne avec le
 contrôle de flux 'O'.

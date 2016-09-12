@@ -1,0 +1,34 @@
+component machineokdb "debounce for active high machine-ok";
+// requires in pin low for at least delay counts before setting out pin low
+// if in pin is high resets delay counter and set out pin
+pin in bit in;
+pin out bit out;
+pin out bit out-not;
+pin out s32 state;
+pin in s32 delay;
+function _;
+license "GPL";
+
+;;
+
+
+FUNCTION(_) {
+
+    if (in == 0) {
+        // input is low: decrement counter
+        if (state > 0) {
+            state--;
+        }
+        // test for filter delay reached
+        if (state <= 0) {
+            // clear out pin
+            out = 0;
+        }
+    }
+    else {
+        // input is high: set out pin and reset delay counter
+        out = 1;
+        state = delay;
+    }
+    out_not = !out;
+}

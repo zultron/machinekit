@@ -1,0 +1,3 @@
+#<test1>=1.234
+G0 X[#<test1>] (suffix comment)
+M2

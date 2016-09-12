@@ -51,6 +51,8 @@
 * Last change: 
 ********************************************************************/
 
+#include <unistd.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -289,6 +291,7 @@ static int saveToolTable(const char *filename,
     FILE *fp;
     const char *name;
     int start_pocket;
+    int fd;
 
     // check filename
     if (filename[0] == 0) {
@@ -328,7 +331,9 @@ static int saveToolTable(const char *filename,
             fprintf(fp, " ;%s\n", ttcomments[pocket]);
         }
     }
-
+	fd = fileno(fp); // Tormach - attempt to close possible routes to offset loss as reported by Saunders *dpr 6/23/15
+	fflush(fp);
+	fsync(fd);
     fclose(fp);
     return 0;
 }
@@ -694,36 +699,6 @@ static void do_hal_exit(void) {
     hal_exit(comp_id);
 }
 
-#if 0
-static int update_line_number(NMLmsg * cmd) {
-
-    if (!cmd) {
-        return -1;
-    }
-    switch (cmd->type) {
-        case EMC_LUBE_ON_TYPE:
-        case EMC_LUBE_OFF_TYPE:
-        case EMC_COOLANT_FLOOD_ON_TYPE:
-        case EMC_COOLANT_FLOOD_OFF_TYPE:
-        case EMC_COOLANT_MIST_ON_TYPE:
-        case EMC_COOLANT_MIST_OFF_TYPE:
-        case EMC_TOOL_INIT_TYPE:
-        case EMC_TOOL_HALT_TYPE:
-        case EMC_TOOL_ABORT_TYPE:
-        case EMC_TOOL_LOAD_TYPE:
-        case EMC_TOOL_UNLOAD_TYPE:
-        case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
-        case EMC_TOOL_SET_OFFSET_TYPE: 
-        case EMC_TOOL_PREPARE_TYPE:
-        case EMC_TOOL_SET_NUMBER_TYPE:
-        case EMC_TOOL_START_CHANGE_TYPE:
-
-            (*iocontrol_data->program_line)=((EMC_CMD_MSG *)cmd)->tag.fields[GM_FIELD_LINE_NUMBER];
-            break;
-    }
-    return 0;
-}
-#endif
 
 /********************************************************************
 *
@@ -1092,10 +1067,6 @@ int main(int argc, char *argv[])
 	case EMC_TOOL_START_CHANGE_TYPE:
 	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_TOOL_START_CHANGE\n");
 	    break;
-
-    case EMC_TASK_SET_TAG_TYPE:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "EMC_TASK_SET_TAG\n");
-        break;
 
 	default:
 	    rtapi_print_msg(RTAPI_MSG_DBG,"IO: unknown command %s\n", emcSymbolLookup(type));

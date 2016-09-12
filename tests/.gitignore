@@ -1,2 +1,5 @@
 result
 stderr
+*.rdb
+*.var
+*.var.bak

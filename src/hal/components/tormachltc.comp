@@ -122,16 +122,18 @@ FUNCTION(_) {
         // set PWM duty cycle sent to LCB/ATC
         pwm_duty_cycle = duty;
 
-        // convey the tool change request pin from the ATC to LCNC
-        tool_change_out = tool_change_in;
-
         // convey the tool change complete pin from LCB/ATC to iocontrol
         if (tool_prep_number >= MIN_ATC_TOOL_NUM && tool_prep_number <= MAX_ATC_TOOL_NUM) {
+            // convey the tool change request pin from the LCNC to ATC
+            tool_change_out = tool_change_in;
+            // convey the tool changED acknowledge pin from ATC to LCNC
             tool_changed_out = atc_tool_changed;
         }
         else {
             // outside range of changer always copy iocontrol "change" to "changed"
             // assume a ganged tool
+            // do NOT tell the ATC to change the tool - not an ATC tool # here!
+            tool_change_out = 0;
             // loopback iocontrol "tool-change" to "tool-changed"
             tool_changed_out = tool_change_in;
         }

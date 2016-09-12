@@ -471,9 +471,6 @@ int Interp::_execute(const char *command)
 		      (_setup.mdi_interrupt)) { 
 
 		      status = convert_control_functions(eblock, &_setup);
-		      // a prolog might yield INTERP_EXECUTE_FINISH too
-		      if (status == INTERP_EXECUTE_FINISH) 
-			  _setup.mdi_interrupt = true;
 		      CHP(status);
 		      if (_setup.mdi_interrupt) {
 			  _setup.mdi_interrupt = false;
@@ -634,7 +631,8 @@ int Interp::remap_finished(int phase)
 		// if ((status == INTERP_OK) || (status == INTERP_ENDFILE) || (status == INTERP_EXIT) || (status == INTERP_EXECUTE_FINISH)) {
 		// leftover items finished. Drop a remapping level.
 
-		CHP(leave_remap());
+		if (status != INTERP_EXIT) // Don't drop remap lev. at prog exit
+		    CHP(leave_remap());
 		logRemap("executing block leftover items complete, status=%s  remap_level=%d call_level=%d tc=%d probe=%d input=%d mdi_interrupt=%d  line=%d backtoline=%d",
 			 interp_status(status),_setup.remap_level,_setup.call_level,_setup.toolchange_flag,
 			_setup.probe_flag,_setup.input_flag,_setup.mdi_interrupt,_setup.sequence_number,
@@ -675,7 +673,13 @@ int Interp::find_remappings(block_pointer block, setup_pointer settings)
 	    block->remappings.insert(STEP_PREPARE);
     }
     // User defined M-Codes in group 5
-    if (IS_USER_MCODE(block,settings,5))
+    if (IS_USER_MCODE(block,settings,5) &&
+	!(((block->m_modes[5] == 62) && remap_in_progress("M62")) ||
+	  ((block->m_modes[5] == 63) && remap_in_progress("M63")) ||
+	  ((block->m_modes[5] == 64) && remap_in_progress("M64")) ||
+	  ((block->m_modes[5] == 65) && remap_in_progress("M65")) ||
+	  ((block->m_modes[5] == 66) && remap_in_progress("M66"))))
+	// non-recursive behavior
 	block->remappings.insert(STEP_M_5);
 
     // User defined M-Codes in group 6 (including M6, M61)
@@ -831,6 +835,9 @@ int Interp::init()
   IniFile::ErrorCode r;
 
   INIT_CANON();
+  // JFP: this init() is also called by via emcTaskPlanClose()
+  // INIT_CANON() steps on cannon's currentToolOffset so it must get restored
+  USE_TOOL_LENGTH_OFFSET(_setup.tool_offset);
 
   iniFileName = getenv("INI_FILE_NAME");
 
@@ -1030,6 +1037,28 @@ int Interp::init()
               Error("invalid [RS274NGC]CENTER_ARC_RADIUS_TOLERANCE_MM in ini file\n");
           }
 
+	  // ini file m98/m99 subprogram default setting
+	  inifile.Find(&_setup.disable_fanuc_style_sub,
+		       "DISABLE_FANUC_STYLE_SUB",
+		       "RS274NGC");
+	  logDebug("init:  DISABLE_FANUC_STYLE_SUB = %d",
+		   _setup.disable_fanuc_style_sub);
+
+          if(NULL != (inistring = inifile.Find("PERSISTENT_G92_OFFSET",
+					       "RS274NGC")))
+          {
+	      if (strcmp(inistring,"True") == 0 ||
+		  strcmp(inistring, "true") == 0 ||
+		  strcmp(inistring, "YES") == 0) {
+		  logDebug("init:  PERSISTENT_G92_OFFSET = TRUE");
+		  _setup.persistent_g92_offset = true;
+	      } else {
+		  logDebug("init:  PERSISTENT_G92_OFFSET = FALSE");
+		  _setup.persistent_g92_offset = false;
+	      }
+          } else
+	      logDebug("init:  PERSISTENT_G92_OFFSET = FALSE (default)");
+
           // close it
           inifile.Close();
       }
@@ -1069,6 +1098,15 @@ int Interp::init()
                  _setup.u_origin_offset ,
                  _setup.v_origin_offset ,
                  _setup.w_origin_offset);
+
+  // Restore G92 offset if PERSISTENT_G92_OFFSET is set in .ini file.
+  // This can't be done with the static _required_parameters[], where
+  // the .vars file contents would reflect that setting, so instead
+  // edit the restored parameters here.
+  if (! _setup.persistent_g92_offset)
+      // Persistence disabled:  clear g92 parameters
+      for (k = 5210; k < 5220; k++)
+	  pars[k] = 0;
 
   if (pars[5210]) {
       _setup.axis_offset_x = USER_TO_PROGRAM_LEN(pars[5211]);
@@ -1157,7 +1195,11 @@ int Interp::init()
 //_setup.spindle_turning set in Interp::synch
 //_setup.stack does not need initialization
 //_setup.stack_index does not need initialization
-   ZERO_EMC_POSE(_setup.tool_offset);
+
+// JFP: do not clear tool_offset. setup_struct constructor clears it initially
+//      and it should not get cleared again - especially via emcTaskPlanClose().
+//   ZERO_EMC_POSE(_setup.tool_offset);
+
 //_setup.tool_max set in Interp::synch
 //_setup.tool_table set in Interp::synch
 //_setup.traverse_rate set in Interp::synch
@@ -1246,6 +1288,12 @@ int Interp::init()
   
   return INTERP_OK;
 }
+
+void Interp::set_loop_on_main_m99(bool state) {
+    // Enable/disable M99 main program endless looping
+    _setup.loop_on_main_m99 = state;
+}
+
 
 /***********************************************************************/
 
@@ -1537,11 +1585,15 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
    
   block_pointer eblock = &EXECUTING_BLOCK(_setup);
 
-  if ((_setup.call_state > CS_NORMAL) && 
-      (eblock->call_type > CT_NGC_OWORD_SUB)  && 
+  if ((_setup.call_state > CS_NORMAL) &&
+      (eblock->call_type != CT_NGC_OWORD_SUB)  &&
+      (eblock->call_type != CT_NGC_M98_SUB)  &&
+      (eblock->call_type != CT_NONE)  &&
       ((eblock->o_type == O_call) ||
+       (eblock->o_type == M_98) ||
        (eblock->o_type == O_return) ||
-       (eblock->o_type == O_endsub))) {
+       (eblock->o_type == O_endsub) ||
+       (eblock->o_type == M_99))) {
 
       logDebug("read(): skipping read");
       _setup.line_length = 0;
@@ -1605,8 +1657,12 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
             EXECUTING_BLOCK(_setup).o_type = 0;
 	}
     }
-  } else if (read_status == INTERP_ENDFILE);
-  else
+  } else if (read_status == INTERP_ENDFILE) {
+      // If skipping but not defining the main program, we hit EOF
+      // before finding the sub we're looking for; error out
+      CHKS((_setup.skipping_o != NULL),
+	   "Failed to find sub 'O%s' before EOF", _setup.skipping_o);
+  } else
     ERP(read_status);
   return read_status;
 }
@@ -1636,10 +1692,11 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 	    sub->subName = 0;
 	}
 
-	for(i=0; i<INTERP_SUB_PARAMS; i++) {
-	    _setup.parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
-		sub->saved_params[i];
-	}
+	if (sub->call_type != CT_NGC_M98_SUB) // M98:  pass #1..#30 from parent
+	    for(i=0; i<INTERP_SUB_PARAMS; i++) {
+		_setup.parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
+		    sub->saved_params[i];
+	    }
 
 	// When called from Interp::close via Interp::reset, this one is NULL
 	if (!_setup.file_pointer) continue;
@@ -1873,6 +1930,8 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   int required;                 // number of next required parameter
   int index;                    // index into _required_parameters
   int k;
+  int fd;
+
 
   if(access(filename, F_OK)==0) 
   {
@@ -1935,7 +1994,11 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
       required = _required_parameters[index++];
     }
   }
+  fd = fileno(outfile); // Tormach - prevent loss of var file on computer power loss *dpr 6/23/15
+  fflush(outfile);
+  fsync(fd);
   fclose(outfile);
+
   return INTERP_OK;
 }
 
@@ -1997,7 +2060,7 @@ int Interp::synch()
 
   load_tool_table();   /*  must set  _setup.tool_max first */
 
-  // read_inputs(&_setup); // input/probe/toolchange 
+  read_inputs(&_setup); // input/probe/toolchange
 
   return INTERP_OK;
 }
@@ -2585,18 +2648,11 @@ int Interp::enter_remap(void)
     CONTROLLING_BLOCK(_setup).executing_remap = NULL;
 
     // remember the line where remap was discovered
-    if (_setup.remap_level == 1) {
-	logRemap("enter_remap: toplevel - saved_line_number=%d",_setup.sequence_number);
-	CONTROLLING_BLOCK(_setup).saved_line_number  =
-	    _setup.sequence_number;
+    logRemap("enter_remap into %d - saved_line_number=%d",
+	     _setup.remap_level, _setup.sequence_number);
+    if (_setup.remap_level == 1)
         _setup.stepping_id++;
-    } else {
-	logRemap("enter_remap into %d - saved_line_number=%d",
-		 _setup.remap_level,
-		 EXECUTING_BLOCK(_setup).saved_line_number);
-	CONTROLLING_BLOCK(_setup).saved_line_number  =
-	    EXECUTING_BLOCK(_setup).saved_line_number;
-    }
+    CONTROLLING_BLOCK(_setup).saved_line_number = _setup.sequence_number;
     _setup.sequence_number = 0;
     return INTERP_OK;
 }
@@ -2604,19 +2660,10 @@ int Interp::enter_remap(void)
 int Interp::leave_remap(void)
 {
     // restore the line number where remap was found
-    if (_setup.remap_level == 1) {
-	// dropping to top level, so pass onto _setup
-	_setup.sequence_number = CONTROLLING_BLOCK(_setup).saved_line_number;
-	logRemap("leave_remap into toplevel, restoring seqno=%d",_setup.sequence_number);
+    logRemap("leave_remap from %d propagate saved_line_number=%d",
+	     _setup.remap_level, CONTROLLING_BLOCK(_setup).saved_line_number);
 
-    } else {
-	// just dropping a nesting level
-	EXECUTING_BLOCK(_setup).saved_line_number =
-	    CONTROLLING_BLOCK(_setup).saved_line_number ;
-	logRemap("leave_remap from %d propagate saved_line_number=%d",
-		 _setup.remap_level,
-		 EXECUTING_BLOCK(_setup).saved_line_number);
-    }
+    _setup.sequence_number = CONTROLLING_BLOCK(_setup).saved_line_number;
     _setup.blocks[_setup.remap_level].executing_remap = NULL;
     _setup.remap_level--; // drop one nesting level
     if (_setup.remap_level < 0) {
@@ -2771,6 +2818,7 @@ int Interp::on_abort(int reason, const char *message)
 
 // spun out from interp_o_word so we can use it to test ngc file accessibility during
 // config file parsing (REMAP... ngc=<basename>)
+// in each directory first look for basename.ngc and if not there then try basename.nc
 FILE *Interp::find_ngc_file(setup_pointer settings,const char *basename, char *foundhere )
 {
     FILE *newFP;
@@ -2780,6 +2828,7 @@ FILE *Interp::find_ngc_file(setup_pointer settings,const char *basename, char *f
     int  dct;
 
     // look for a new file
+    // look for .ngc extension first
     sprintf(tmpFileName, "%s.ngc", basename);
 
     // find subroutine by search: program_prefix, subroutines, wizard_root
@@ -2788,14 +2837,29 @@ FILE *Interp::find_ngc_file(setup_pointer settings,const char *basename, char *f
     // first look in the program_prefix place
     sprintf(newFileName, "%s/%s", settings->program_prefix, tmpFileName);
     newFP = fopen(newFileName, "r");
+    if (!newFP) {
+        // .ngc not found try .nc extension
+        sprintf(tmpFileName, "%s.nc", basename);
+        newFP = fopen(newFileName, "r");
+    }
 
     // then look in the subroutines place
     if (!newFP) {
 	for (dct = 0; dct < MAX_SUB_DIRS; dct++) {
 	    if (!settings->subroutines[dct])
 		continue;
+	    // try .ngc first
+	    sprintf(tmpFileName, "%s.ngc", basename);
 	    sprintf(newFileName, "%s/%s", settings->subroutines[dct], tmpFileName);
 	    newFP = fopen(newFileName, "r");
+	    if (newFP) {
+		// logOword("fopen: |%s|", newFileName);
+		break; // use first occurrence in dir search
+	    }
+	    // .ngc not found try .nc extension
+            sprintf(tmpFileName, "%s.nc", basename);
+            sprintf(newFileName, "%s/%s", settings->subroutines[dct], tmpFileName);
+            newFP = fopen(newFileName, "r");
 	    if (newFP) {
 		// logOword("fopen: |%s|", newFileName);
 		break; // use first occurrence in dir search
@@ -2805,17 +2869,29 @@ FILE *Interp::find_ngc_file(setup_pointer settings,const char *basename, char *f
     // if not found, search the wizard tree
     if (!newFP) {
 	int ret;
+	// look for .ngc extension first
+	sprintf(tmpFileName, "%s.ngc", basename);
 	ret = findFile(settings->wizard_root, tmpFileName, foundPlace);
 
 	if (INTERP_OK == ret) {
-	    // create the long name
-	    sprintf(newFileName, "%s/%s",
-		    foundPlace, tmpFileName);
+	    sprintf(newFileName, "%s/%s", foundPlace, tmpFileName);
 	    newFP = fopen(newFileName, "r");
 	}
+	else {
+	    // .ngc not found try .nc extension
+	    sprintf(tmpFileName, "%s.nc", basename);
+	    ret = findFile(settings->wizard_root, tmpFileName, foundPlace);
+	    if (INTERP_OK == ret) {
+	        // create the long name
+                sprintf(newFileName, "%s/%s", foundPlace, tmpFileName);
+                newFP = fopen(newFileName, "r");
+	    }
+	}
     }
+
     if (foundhere && (newFP != NULL)) 
-	strcpy(foundhere, newFileName);
+       strcpy(foundhere, newFileName);
+
     return newFP;
 }
 
@@ -2832,8 +2908,9 @@ const char *strstore(const char *s)
 }
 
 context_struct::context_struct()
-: position(0), sequence_number(0), filename(""), subName(""),
-context_status(0), modal_state(), call_type(0)
+  : position(0), sequence_number(0), filename(""), subName(""),
+    m98_loop_counter(-1), context_status(0), modal_state(), call_type(0),
+    py_return_type(0), py_returned_double(0), py_returned_int(0)
 {
     memset(saved_params, 0, sizeof(saved_params));
 }

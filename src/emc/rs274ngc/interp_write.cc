@@ -210,7 +210,8 @@ int Interp::write_state_tag(block_pointer block,
     state.flags[GM_FLAG_IN_REMAP] = in_remap;
     state.flags[GM_FLAG_IN_SUB] = in_sub;
     state.flags[GM_FLAG_EXTERNAL_FILE] = external_sub;
-    state.flags[GM_FLAG_RESTORABLE] = !in_remap && !in_sub;
+    // Tormach - change so that all tags are restorable.  This may change in future
+    state.flags[GM_FLAG_RESTORABLE] = 1;
     state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[0]);
     state.fields[GM_FIELD_MOTION_MODE] = settings->motion_mode;
     switch(settings->plane) {

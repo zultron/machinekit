@@ -34,6 +34,7 @@ extern int _task;  // zero in gcodemodule, 1 in milltask
 #include "rs274ngc.hh"
 #include "interp_return.hh"
 #include "interp_internal.hh"
+#include "interp_tolerances.hh"
 #include "rs274ngc_interp.hh"
 #include "units.h"
 #include "array1.hh"
@@ -174,11 +175,12 @@ static int wrap_interp_execute_1(Interp &interp, const char *command)
 {    
     setup &_setup = interp._setup;
     block saved_block = _setup.blocks[0];
+    int saved_call_state = _setup.call_state;
 
-    // use the remap stack to save/restore the current block
-    CHP(interp.enter_remap());
+    // Temporarily set the call state to CS_NORMAL
+    _setup.call_state = CS_NORMAL;
     int status = interp.execute(command);
-    CHP(interp.leave_remap());
+    _setup.call_state = saved_call_state;
     _setup.blocks[0] = saved_block;
 
     // printf("ie1: tc=%d if=%d pf=%d\n", _setup.toolchange_flag,_setup.input_flag,_setup.probe_flag);

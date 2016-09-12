@@ -33,12 +33,12 @@
  * codes, and the authors of this software can not, and do not, take
  * any responsibility for such compliance.
  *
- * This code was written as part of the LinuxCNC project.  For more
- * information, go to www.linuxcnc.org.
+ * This code was written as part of the Machinekit project.  For more
+ * information, go to www.machinekit.io
  *
  ******************************************************************************/
 
-component gantry "LinuxCNC HAL component for driving multiple joints from a single axis";
+component gantry "Machinekit HAL component for driving multiple joints from a single axis";
 pin out float joint.##.pos-cmd [7 : personality] "Per-joint commanded position";
 pin in  float joint.##.pos-fb  [7 : personality] "Per-joint position feedback";
 pin in  bit   joint.##.home    [7 : personality] "Per-joint home switch";
@@ -50,10 +50,16 @@ pin out bit   limit "Combined limit signal, true if any joint home input is true
 pin in  float search-vel "HOME_SEARCH_VEL from ini file";
 function read  fp "Update position-fb and home/limit outputs based on joint values";
 function write fp "Update joint pos-cmd outputs based on position-cmd in";
+
+variable hal_float_t offset[7] = 0.0;
+variable hal_float_t prev_cmd = 0.0;
+variable hal_s32_t   fb_joint = 0;
+variable hal_bit_t   latching = false;
+
 description """
 Drives multiple physical motors (joints) from a single axis input
 .LP
-The `personality' value is the number of joints to control.  Two is typical, but
+The `pincount' value is the number of joints to control.  Two is typical, but
 up to seven is supported (a three joint setup has been tested with hardware).
 .LP
 All controlled joints track the commanded position (with a per-joint offset)
@@ -68,16 +74,16 @@ and all joints run in lock-step once more.
 For best results, set HOME_SEARCH_VEL and HOME_LATCH_VEL to the same direction
 and as slow as practical.  When a joint home switch trips, the commanded
 velocity will drop immediately from HOME_SEARCH_VEL to zero, with no limit on
-acceleration.
+accleration.
 """;
+
 license "GPL";
-variable float offset[7] = 0.0;
-variable float prev_cmd = 0.0;
-variable int   fb_joint = 0;
-variable int   latching = 0;
+
 ;;
+
+
 FUNCTION(read) {
-    int i=1;
+    hal_s32_t i=1;
 
     // First (or only) joint
     home=joint_home(0);
@@ -86,7 +92,7 @@ FUNCTION(read) {
     // All other joints, if configured
     while (i < personality) {
         // Check to see if machine is in latching state
-        if(latching==0)
+        if(!latching)
         {
             // Don't assert home until all joints hit their home switches
             home  &= joint_home(i);
@@ -110,9 +116,9 @@ FUNCTION(read) {
     // track active joints or motion gets upset with the sudden
     // stop.  If all joints are not homed, but the current joint used
     // for feedback is, find a joint that's still active
-    if ((joint_home(fb_joint) == 1) && (home == 0)) {
+    if ((joint_home(fb_joint) ) && (home == 0)) {
         for (i=0; i < personality; i++) {
-            if (joint_home(i) == 0) {
+            if (!joint_home(i)) {
                 position_fb = joint_pos_fb(i) + offset[i];
                 fb_joint = i;
                 break;
@@ -121,11 +127,13 @@ FUNCTION(read) {
     } else {
         position_fb = joint_pos_fb(fb_joint) + offset[fb_joint];
     }
+
+	return 0;
 }
 
 FUNCTION(write) {
-    int i;
-    float delta;
+    hal_s32_t i;
+    hal_float_t delta;
 
     // Determine if we're moving in the same direction as home search
 
@@ -146,7 +154,7 @@ FUNCTION(write) {
         for (i=0; i < personality; i++) {
             // If home switch is active, update offset, not pos_cmd
             // so the other joints can catch up
-            if (joint_home(i)==1) {
+            if (joint_home(i)) {
                 offset[i] += delta;
             }
         }
@@ -157,5 +165,6 @@ FUNCTION(write) {
         joint_pos_cmd(i) = position_cmd - offset[i];
         joint_offset(i)  = offset[i];
     }
-}
 
+	return 0;
+}

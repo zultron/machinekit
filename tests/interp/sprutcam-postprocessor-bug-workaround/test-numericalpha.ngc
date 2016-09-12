@@ -1,0 +1,9 @@
+%
+(test-numericalpha.ngc)
+(SprutCAM post processor bug workaround)
+(Alphanumeric title, numeric first)
+(This is the worst example yet...)
+O1MyProgram
+(...program body)
+M30
+%

@@ -57,54 +57,6 @@
  */
 #define MAX_NESTED_REMAPS 10
 
-// English - Metric conversion (long number keeps error buildup down)
-#define MM_PER_INCH 25.4
-//#define INCH_PER_MM 0.039370078740157477
-
-/* numerical constants */
-
-/*****************************************************************************
-The default tolerance (if none tighter is specified in the ini file) should be:
-2 * 0.001 * sqrt(2) for inch, and 2 * 0.01 * sqrt(2) for mm.
-This would mean that any valid arc where the endpoints and/or centerpoint
-got rounded or truncated to 0.001 inch or 0.01 mm precision would be accepted.
-
-Tighter tolerance down to a minimum of 1 micron +- also accepted.
-******************************************************************************/
-
-#define CENTER_ARC_RADIUS_TOLERANCE_INCH (2 * 0.001 * M_SQRT2)
-#define MIN_CENTER_ARC_RADIUS_TOLERANCE_INCH 0.00004
-#define SPIRAL_TOLERANCE_INCH 1.0
-// Note: started from original tolerance and divided by 10 here (since that was originally done inside the interpreter)
-#define RADIUS_TOLERANCE_INCH 0.00005
-
-/* Equivalent metric constants */
-//FIXME leaving this in for compatibility
-#define SPIRAL_TOLERANCE_MM (SPIRAL_TOLERANCE_INCH * MM_PER_INCH)
-
-#define CENTER_ARC_RADIUS_TOLERANCE_MM (2 * 0.01 * M_SQRT2)
-#define MIN_CENTER_ARC_RADIUS_TOLERANCE_MM 0.001
-
-#define RADIUS_TOLERANCE_MM (RADIUS_TOLERANCE_INCH * MM_PER_INCH)
-
-// Modest relative error
-#define SPIRAL_RELATIVE_TOLERANCE 0.75
-
-// If error values reach this fraction of the tolerance, a warning is thrown.
-#define SPIRAL_WARNING_THRESHOLD 0.05
-
-/* angle threshold for concavity for cutter compensation, in radians */
-#define TOLERANCE_CONCAVE_CORNER 0.05  
-#define TOLERANCE_EQUAL 0.0001 /* two numbers compare EQ if the
-				  difference is less than this */
-
-static inline bool equal(double a, double b)
-{
-    return (fabs(a - b) < TOLERANCE_EQUAL);
-}
-
-
-#define TINY 1e-12              /* for arc_data_r */
 
 // max number of m codes on one line
 #define MAX_EMS  4
@@ -180,6 +132,9 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 #define O_return   13
 #define O_repeat   14
 #define O_endrepeat 15
+#define M_98       16
+#define M_99       17
+#define O_         18
 
 // G Codes are symbolic to be dialect-independent in source code
 #define G_0      0
@@ -212,6 +167,7 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 #define G_38_3 383
 #define G_38_4 384
 #define G_38_5 385
+#define G_38_6 386
 #define G_40   400
 #define G_41   410
 #define G_41_1 411
@@ -223,6 +179,7 @@ enum SPINDLE_MODE { CONSTANT_RPM, CONSTANT_SURFACE };
 #define G_49   490
 #define G_50   500
 #define G_51   510
+#define G_52   520
 #define G_53   530
 #define G_54   540
 #define G_55   550
@@ -534,7 +491,9 @@ enum call_states {
 
 // detail for O_call; tags the frame
 enum call_types {
+    CT_NONE,             // not in a call
     CT_NGC_OWORD_SUB,    // no restartable Python code involved
+    CT_NGC_M98_SUB,      // like above; Fanuc-style, pass in params #1..#30
     CT_PYTHON_OWORD_SUB, // restartable Python code may be involved
     CT_REMAP,            // restartable Python code may be involved
 };
@@ -577,6 +536,7 @@ typedef struct context_struct {
     int sequence_number; // location (line number) in file
     const char *filename;      // name of file for this context
     const char *subName;       // name of the subroutine (oword)
+    int m98_loop_counter;      // loop counter for Fanuc-style sub calls
     double saved_params[INTERP_SUB_PARAMS];
     parameter_map named_params;
     unsigned char context_status;		// see CONTEXT_ defines below
@@ -789,6 +749,12 @@ typedef struct setup_struct
    * */
   bool single_block_local_sub;
   bool single_block_external_sub;
+
+  bool persistent_g92_offset;
+    int disable_fanuc_style_sub;
+    // M99 in main is treated as program end by default; this causes
+    // control to skip to beginning of file
+    bool loop_on_main_m99;
 
 #define FEATURE(x) (_setup.feature_set & FEATURE_ ## x)
 #define FEATURE_RETAIN_G43           0x00000001

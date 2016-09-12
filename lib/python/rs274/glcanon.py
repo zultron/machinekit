@@ -321,7 +321,7 @@ class GlCanonDraw:
         'backplotfeed': (0.75, 0.25, 0.25),
         'back': (0.00, 0.00, 0.00),
         'lathetool_alpha': 0.10,
-        'axis_x': (0.20, 1.00, 0.20),
+        'axis_y': (0.20, 1.00, 0.20),
         'cone': (1.00, 1.00, 1.00),
         'cone_xy': (0.00, 1.00, 0.00),
         'cone_uv': (0.00, 0.00, 1.00),
@@ -356,7 +356,7 @@ class GlCanonDraw:
         'arc_feed_alpha_xy': 1/3.,
         'arc_feed_uv': (0.20, 0.20, 1.00),
         'arc_feed_alpha_uv': 1/3.,
-        'axis_y': (1.00, 0.20, 0.20),
+        'axis_x': (1.00, 0.20, 0.20),
         'grid': (0.15, 0.15, 0.15),
     }
     def __init__(self, s, lp, g=None):

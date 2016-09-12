@@ -10,29 +10,30 @@
 
 [width="60%", options="header", cols="2^,5<"]
 |========================================
-|Code                                | Description
-|<<mcode:m0-m1,M0 M1>>               | Program Pause
-|<<mcode:m2-m30,M2 M30>>             | Program End
-|<<mcode:m60, M60>>                  | Pallet Change Pause
-|<<mcode:m3-m4-m5,M3 M4 M5>>         | Spindle Control
-|<<mcode:m6,M6>>                     | Tool Change
-|<<mcode:m7-m8-m9,M7 M8 M9>>         | Coolant Control
-|<<mcode:m19,M19>>                   | Orient Spindle
-|<<mcode:m48-m49,M48 M49>>           | Feed & Spindle Overrides Enable/Disable
-|<<mcode:m50,M50>>                   | Feed Override Control
-|<<mcode:m51,M51>>                   | Spindle Override Control
-|<<mcode:m52,M52>>                   | Adaptive Feed Control
-|<<mcode:m53,M53>>                   | Feed Stop Control
-|<<mcode:m61,M61>>                   | Set Current Tool Number
-|<<mcode:m62-m65,m62-m65>>           | Output Control
-|<<mcode:m66,M66>>                   | Input Control
-|<<mcode:m67,M67>>                   | Analog Output Control
-|<<mcode:m68,M68>>                   | Analog Output Control
-|<<mcode:m70,M70>>                   | Save Modal State
-|<<mcode:m71,M71>>                   | Invalidate Stored Modal State
-|<<mcode:m72,M72>>                   | Restore Modal State
-|<<mcode:m73,M73>>                   | Save Autorestore Modal State
-|<<mcode:m100-m199,M100-M199>>       | User Defined M-Codes 
+|Code                                          | Description
+|<<sec:M0-M1,M0 M1>>                           | Program Pause
+|<<sec:M2-M30,M2 M30>>                         | Program End
+|<<sec:M60, M60>>                              | Pallet Change Pause
+|<<sec:M3-M4-M5,M3 M4 M5>>                     | Spindle Control
+|<<sec:M6-Tool-Change,M6>>                     | Tool Change
+|<<sec:M7-M8-M9,M7 M8 M9>>                     | Coolant Control
+|<<sec:M19,M19>>                               | Orient Spindle
+|<<sec:M48-M49-Override,M48 M49>>              | Feed & Spindle Overrides Enable/Disable
+|<<sec:M50-Feed-Override,M50>>                 | Feed Override Control
+|<<sec:M51-Spindle-Override,M51>>              | Spindle Override Control
+|<<sec:M52-Adaptive-Feed-Control,M52>>         | Adaptive Feed Control
+|<<sec:M53-Feed-Stop-Control,M53>>             | Feed Stop Control
+|<<sec:M61-Set-Current-Tool-Number,M61>>       | Set Current Tool Number
+|<<sec:M62-M65,M62-M65>>                       | Output Control
+|<<sec:M66-Input-Control,M66>>                 | Input Control
+|<<sec:M67-Analog-Output,M67>>                 | Analog Output Control
+|<<sec:M68-Analog-Output,M68>>                 | Analog Output Control
+|<<sec:M70-Save-Modal-State,M70>>              | Save Modal State
+|<<sec:M71-Invalidate-Stored-Modal-State,M71>> | Invalidate Stored Modal State
+|<<sec:M72-Restore-Modal-State,M72>>           | Restore Modal State
+|<<sec:M73-Save-Autorestore-Modal-State,M73>>  | Save Autorestore Modal State
+|<<sec:M98-M99,M98 M99>>                       | Call and Return From Subprogram
+|<<sec:M100-to-M199,M100-M199>>                | User Defined M-Codes 
 |========================================
 
 
@@ -608,7 +609,13 @@ o<showstate> call
 m2
 ----
 
-=== Selectively Restoring Modal State
+== M98 and M99[[sec:M98-M99]] ==
+
+The interpreter supports Fanuc-style main- and sub-programs with the
+'M98' and 'M99' M-codes.  See <<sec:Fanuc-Style-Programs,Fanuc-Style
+Programs>>.
+
+=== Selectively restoring modal state by testing predefined parameters [[sec:Selectively-restoring-modal-state]]
 
 Executing an 'M72' or returning from a subroutine which contains an
 'M73' will restore <<mcode:m70-saved-state,*all* modal state saved>>.
