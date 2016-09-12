@@ -131,8 +131,8 @@ SUBDIRS := \
     po \
     \
     ../docs/src ../docs/src/source-highlight \
-	redis \
-    redis/examples/c \
+
+
 
 ULAPISRCS := rtapi/$(RTPREFIX)_ulapi.c
 
@@ -377,8 +377,7 @@ HEADERS := \
     rtapi/rtapi_common.h \
     rtapi/rtapi_ctype.h \
     rtapi/rtapi_errno.h \
-    rtapi/rtapi_string.h \
-    redis/redis/deps/hiredis/hiredis.h
+    rtapi/rtapi_string.h
 
 # Make each include file a target
 TARGETS += $(patsubst %,../include/%,$(foreach h,$(HEADERS),$(notdir $h)))
