@@ -6,12 +6,8 @@
  N..... SET_FEED_REFERENCE(CANON_XYZ)
  sub 100
  sub 200
+ N..... SET_FEED_MODE(0)
+ N..... SET_FEED_RATE(0.0000)
  N..... STOP_SPINDLE_TURNING()
- N..... MIST_ON()
- N..... DWELL(0.1000)
- N..... MIST_OFF()
- N..... FLOOD_ON()
- N..... DWELL(0.1000)
- N..... FLOOD_OFF()
  N..... PALLET_SHUTTLE()
  N..... PROGRAM_END()
