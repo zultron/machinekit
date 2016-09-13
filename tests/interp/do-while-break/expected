@@ -10,7 +10,5 @@
  N..... MESSAGE("post-inner-while")
  N..... MESSAGE("post-nested-while")
  N..... MESSAGE("post-outer-while")
- N..... SET_FEED_MODE(0)
- N..... SET_FEED_RATE(0.0000)
  N..... STOP_SPINDLE_TURNING()
  N..... PROGRAM_END()

@@ -7,7 +7,5 @@ executing
     6 N..... SET_FEED_REFERENCE(CANON_XYZ)
 param1 was retained, value =  25.0
 this is self: True
-    7 N..... SET_FEED_MODE(0)
-    8 N..... SET_FEED_RATE(0.0000)
-    9 N..... STOP_SPINDLE_TURNING()
-   10 N..... PROGRAM_END()
+    7 N..... STOP_SPINDLE_TURNING()
+    8 N..... PROGRAM_END()

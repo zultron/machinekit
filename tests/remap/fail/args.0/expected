@@ -7,7 +7,5 @@
  N..... MESSAGE(" M400 call_level= 1.000000 remap_level=1.000000")
  N..... MESSAGE(" P word set: 47.110000")
  N..... MESSAGE(" Q word set: 8.150000")
- N..... SET_FEED_MODE(0)
- N..... SET_FEED_RATE(0.0000)
  N..... STOP_SPINDLE_TURNING()
  N..... PROGRAM_END()

@@ -6,8 +6,6 @@
  N..... SET_FEED_REFERENCE(CANON_XYZ)
  N..... COMMENT("Fanuc-style subs may follow main program ")
  IN O1
- N..... SET_FEED_MODE(0)
- N..... SET_FEED_RATE(0.0000)
  N..... STOP_SPINDLE_TURNING()
  N..... PALLET_SHUTTLE()
  N..... PROGRAM_END()

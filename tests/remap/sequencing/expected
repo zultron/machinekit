@@ -1204,7 +1204,5 @@
  N..... MESSAGE(" seq=8.000000")
  N..... MESSAGE(" seq=9.000000")
  N..... MESSAGE(" seq=10.000000 - reset to 1")
- N..... SET_FEED_MODE(0)
- N..... SET_FEED_RATE(0.0000)
  N..... STOP_SPINDLE_TURNING()
  N..... PROGRAM_END()

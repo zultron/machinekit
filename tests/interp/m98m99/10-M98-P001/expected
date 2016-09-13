@@ -7,8 +7,6 @@
  N..... COMMENT("main program")
  got here
  N..... COMMENT("end")
- N..... SET_FEED_MODE(0)
- N..... SET_FEED_RATE(0.0000)
  N..... STOP_SPINDLE_TURNING()
  N..... PALLET_SHUTTLE()
  N..... PROGRAM_END()

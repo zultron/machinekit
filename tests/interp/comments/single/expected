@@ -5,7 +5,5 @@
  N..... SET_XY_ROTATION(0.0000)
  N..... SET_FEED_REFERENCE(CANON_XYZ)
  N..... COMMENT("single comment")
- N..... SET_FEED_MODE(0)
- N..... SET_FEED_RATE(0.0000)
  N..... STOP_SPINDLE_TURNING()
  N..... PROGRAM_END()
