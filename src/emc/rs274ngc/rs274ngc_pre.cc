@@ -2724,17 +2724,21 @@ void Interp::program_end_cleanup(setup_pointer settings) {
     SET_XY_ROTATION(settings->rotation_xy);
 */
 
+    /* Tormach change
     if (settings->plane != CANON_PLANE_XY) {
         SELECT_PLANE(CANON_PLANE_XY);
         settings->plane = CANON_PLANE_XY;
     }
+    */
 
     settings->distance_mode = MODE_ABSOLUTE;
 
+    /*
     settings->feed_mode = UNITS_PER_MINUTE;
     SET_FEED_MODE(0);
     settings->feed_rate = 0;
     SET_FEED_RATE(0);
+    */
 
     if (!settings->feed_override) {
         ENABLE_FEED_OVERRIDE();
