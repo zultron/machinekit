@@ -124,7 +124,10 @@ assert(s.enabled == True)
 comp['x-neg-lim-sw'] = True
 
 # let linuxcnc react to the limit switch
-expected_error = 'joint 0 on limit switch error'
+# Tormach change
+#expected_error = 'joint 0 on limit switch error'
+expected_error = 'X axis limit switch active'
+# /Tormach change
 start_time = time.time()
 while (time.time() - start_time < 5):
     error = e.poll()
