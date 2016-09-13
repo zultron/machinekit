@@ -1,4 +1,4 @@
-;Radius to end of arc differs from radius to start: start=(X0.0000,Y0.0000) center=(X300.1428,Y0.0000) end=(X600.0000,Y0.0000) r1=300.1428 r2=299.8572 abs_err=0.2857 rel_err=0.0952%
+;Radius difference too large between start and end of arc: r1=300.1428 r2=299.8572 abs_err=0.2857 rel_err=0.0952%.Note: start=(X0.0000,Y0.0000) center=(X300.1428,Y0.0000) end=(X600.0000,Y0.0000)
 
 g20
 f1
