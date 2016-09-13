@@ -2761,14 +2761,16 @@ void Interp::program_end_cleanup(setup_pointer settings) {
     /*    settings->motion_mode = G_1;
      */
 
-    if (settings->mist) {
-        MIST_OFF();
-        settings->mist = false;
-    }
-    if (settings->flood) {
-        FLOOD_OFF();
-        settings->flood = false;
-    }
+    // Tormach:  changes for coolant pin fix & smart cool
+    MIST_ON();
+    DWELL(.1);
+    MIST_OFF();
+    settings->mist = false;
+
+    FLOOD_ON();
+    DWELL(.1);
+    FLOOD_OFF();
+    settings->flood = false;
 }
 
 
