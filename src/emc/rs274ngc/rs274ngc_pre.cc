@@ -2061,7 +2061,7 @@ int Interp::synch()
 
   load_tool_table();   /*  must set  _setup.tool_max first */
 
-  read_inputs(&_setup); // input/probe/toolchange
+  //read_inputs(&_setup); // input/probe/toolchange
 
   return INTERP_OK;
 }
