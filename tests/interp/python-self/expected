@@ -8,4 +8,10 @@ executing
 param1 was retained, value =  25.0
 this is self: True
     7 N..... STOP_SPINDLE_TURNING()
-    8 N..... PROGRAM_END()
+    8 N..... MIST_ON()
+    9 N..... DWELL(0.1000)
+   10 N..... MIST_OFF()
+   11 N..... FLOOD_ON()
+   12 N..... DWELL(0.1000)
+   13 N..... FLOOD_OFF()
+   14 N..... PROGRAM_END()

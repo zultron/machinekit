@@ -38,5 +38,11 @@
  O2 END: 1=5.000000
  MAIN END: 1=5.000000
  N..... STOP_SPINDLE_TURNING()
+ N..... MIST_ON()
+ N..... DWELL(0.1000)
+ N..... MIST_OFF()
+ N..... FLOOD_ON()
+ N..... DWELL(0.1000)
+ N..... FLOOD_OFF()
  N..... PALLET_SHUTTLE()
  N..... PROGRAM_END()
