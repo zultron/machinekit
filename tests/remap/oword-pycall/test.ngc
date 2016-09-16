@@ -27,24 +27,29 @@ G43
 ;py,assert equal(this.params[5410],10.0) # diameter from tt
 
 ;py,assert this.params[5400] == this.tool_table[0].toolno
-;py,assert equal(this.tool_offset.x, 10.0)
+; Tormach change:  X, Y tool offsets not applied by default:
+; should be 0.0
+;py,assert equal(this.tool_offset.x, 0.0)
 ;py,assert equal(this.tool_offset.y, 0.0)
 ;py,assert equal(this.tool_offset.z, 20.0)
 
-;py,assert equal(this.tool_offset.x, this.tool_table[0].offset.x)
-;py,assert equal(this.tool_offset.y, this.tool_table[0].offset.y)
+; Tormach change:  X, Y tool offsets:  disable
+;#py,assert equal(this.tool_offset.x, this.tool_table[0].offset.x)
+;#py,assert equal(this.tool_offset.y, this.tool_table[0].offset.y)
 ;py,assert equal(this.tool_offset.z, this.tool_table[0].offset.z)
 
-;py,assert equal(this.tool_offset.x, this.params[5401])
-;py,assert equal(this.tool_offset.y, this.params[5402])
+; Tormach change:  X, Y tool offsets: test param directly
+;py,assert equal(10.0, this.params[5401])
+;py,assert equal(0.0, this.params[5402])
 ;py,assert equal(this.tool_offset.z, this.params[5403])
 
 G49
 G10 L1 P1 R10 X20 Y30 Z40
 G43
 
-;py,assert equal(this.tool_offset.x, 20.0)
-;py,assert equal(this.tool_offset.y, 30.0)
+; Tormach change:  X, Y tool offsets:  test against TLO param
+;py,assert equal(this.params[5401], 20.0)
+;py,assert equal(this.params[5402], 30.0)
 ;py,assert equal(this.tool_offset.z, 40.0)
 
 M2
