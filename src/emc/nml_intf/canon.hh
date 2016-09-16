@@ -310,7 +310,6 @@ translation commands. */
 
 /* used for threading */
 extern void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode);
-extern void START_SPEED_FEED_SYNCH_FROM_CANON(double feed_per_revolution, bool velocity_mode);
 extern void STOP_SPEED_FEED_SYNCH();
 
 
