@@ -1,6 +1,6 @@
-;Radius difference too large between start and end of arc: r1=300.1428 r2=299.8572 abs_err=0.2857 rel_err=0.0952%.Note: start=(X0.0000,Y0.0000) center=(X300.1428,Y0.0000) end=(X600.0000,Y0.0000)
+;Radius difference too large between start and end of arc: r1=300.5010 r2=299.4990 abs_err=1.002 rel_err=0.3334%.Note: start=(X0.0000,Y0.0000) center=(X300.5010,Y0.0000) end=(X600.0000,Y0.0000)
 
 g20
 f1
 g0x0y0z0
-g2 x600 i[300 + [100 * [0.00101 * sqrt[2]]]]
+g2 x600 i[300 + 0.501]
