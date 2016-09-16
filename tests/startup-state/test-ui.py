@@ -222,7 +222,10 @@ assert(s.axis_mask == 0x7)
 assert(s.block_delete == True)
 
 assert(s.command == "")
-assert(s.current_line == 0)
+# Tormach:  line number/stepping id work changes
+#assert(s.current_line == 0)
+assert(s.current_line == -1)
+# /Tormach
 assert(s.current_vel == 0.0)
 assert(s.cycle_time > 0.0)
 
