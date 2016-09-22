@@ -17,7 +17,7 @@ def wait_for_linuxcnc_startup(status, timeout=10.0):
 
     """Poll the Status buffer waiting for it to look initialized,
     rather than just allocated (all-zero).  Returns on success, throws
-    TimeoutError on failure."""
+    RuntimeError on failure."""
 
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -27,7 +27,7 @@ def wait_for_linuxcnc_startup(status, timeout=10.0):
             or (status.axis_mask == 0) \
             or (status.cycle_time == 0.0) \
             or (status.exec_state != linuxcnc.EXEC_DONE) \
-            or (s.interp_state != linuxcnc.INTERP_IDLE) \
+            or (status.interp_state != linuxcnc.INTERP_IDLE) \
             or (status.inpos == False) \
             or (status.linear_units == 0.0) \
             or (status.max_acceleration == 0.0) \
@@ -42,7 +42,7 @@ def wait_for_linuxcnc_startup(status, timeout=10.0):
             return
 
     # timeout, throw an exception
-    raise TimeoutError
+    raise RuntimeError
 
 
 def print_status(status):
