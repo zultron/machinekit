@@ -110,8 +110,8 @@ void UPDATE_TAG(StateTag &tag) {
 #define TO_PROG_ANG(deg) (deg)
 
 /* macros for converting program units to internal (mm/deg) units */
-#define FROM_PROG_LEN(prog) ((prog) * (lengthUnits == CANON_UNITS_INCHES ? 25.4 : lengthUnits == CANON_UNITS_CM ? 10.0 : 1.0))
 #define FROM_PROG_ANG(prog) (prog)
+
 
 /* Certain axes are periodic.  Hardcode this for now */
 #define IS_PERIODIC(axisnum) \
@@ -225,6 +225,19 @@ static CANON_POSITION g92Offset(0.0, 0.0, 0.0,
                                 0.0, 0.0, 0.0);
 static CANON_UNITS lengthUnits = CANON_UNITS_MM;
 static CANON_PLANE activePlane = CANON_PLANE_XY;
+
+inline static double FROM_PROG_LEN(double prog_len)
+{
+    switch (lengthUnits) {
+    case CANON_UNITS_INCHES:
+        return prog_len * 25.4;
+    case CANON_UNITS_CM:
+        return prog_len * 10.0;
+    case CANON_UNITS_MM:
+        return prog_len;
+    }
+    return prog_len;
+}
 
 static int feed_mode = 0;
 static int synched = 0;
