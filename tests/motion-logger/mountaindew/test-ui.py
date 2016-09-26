@@ -30,7 +30,7 @@ c.mode(linuxcnc.MODE_AUTO)
 #
 
 c.program_open('mountaindew.ngc')
-c.auto(linuxcnc.AUTO_RUN, 6)
+c.auto(linuxcnc.AUTO_RUN, 5)
 c.wait_complete()
 
 sys.exit(0)

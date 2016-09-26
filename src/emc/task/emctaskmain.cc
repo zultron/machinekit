@@ -693,7 +693,8 @@ interpret_again:
 			    }
 
 			    if ((emcTaskPlanLevel() == 0) &&
-				(emcTaskPlanLine() == programStartLine))  {
+				(emcStatus->task.readLine + 1 ==
+				 programStartLine))  {
 
 				emcTaskPlanSynch();
 
