@@ -201,6 +201,26 @@ STATIC inline double tpGetRealTargetVel(TP_STRUCT const * const tp,
     return fmin(v_target * tpGetFeedScale(tp,tc), tpGetMaxTargetVel(tp, tc));
 }
 
+STATIC inline double getMaxFeedScale(TC_STRUCT const * tc)
+{
+    //All reasons to disable feed override go here
+    if (tc && tc->synchronized == TC_SYNC_POSITION ) {
+        return 1.0;
+    } else {
+        return emcmotConfig->maxFeedScale;
+    }
+}
+
+STATIC inline double getMaxBlendFeedScale(TC_STRUCT const * prev_tc, TC_STRUCT const * tc)
+{
+    //All reasons to disable feed override go here
+    if ((tc && tc->synchronized == TC_SYNC_POSITION) ||
+            (prev_tc && prev_tc->synchronized == TC_SYNC_POSITION)) {
+        return 1.0;
+    } else {
+        return emcmotConfig->maxFeedScale;
+    }
+}
 
 /**
  * Get the worst-case target velocity for a segment based on the trajectory planner state.
@@ -208,7 +228,8 @@ STATIC inline double tpGetRealTargetVel(TP_STRUCT const * const tp,
  */
 STATIC inline double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc)
 {
-    double v_max_target = tcGetMaxTargetVel(tc, emcmotConfig->maxFeedScale);
+    double v_max_target = tcGetMaxTargetVel(tc, getMaxFeedScale(tc));
+
     /* Check if the cartesian velocity limit applies and clip the maximum
      * velocity. The vLimit is from the max velocity slider, and should
      * restrict the maximum velocity during non-synced moves and velocity
@@ -787,7 +808,7 @@ STATIC int tpCreateLineArcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
             tc,
             &acc_bound,
             &vel_bound,
-            emcmotConfig->maxFeedScale);
+            getMaxBlendFeedScale(prev_tc, tc));
 
     if (res_init != TP_ERR_OK) {
         tp_debug_print("blend init failed with code %d, aborting blend arc\n",
@@ -945,7 +966,7 @@ STATIC int tpCreateArcLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
             tc,
             &acc_bound,
             &vel_bound,
-            emcmotConfig->maxFeedScale);
+            getMaxBlendFeedScale(prev_tc, tc));
     if (res_init != TP_ERR_OK) {
         tp_debug_print("blend init failed with code %d, aborting blend arc\n",
                 res_init);
@@ -1090,7 +1111,7 @@ STATIC int tpCreateArcArcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, 
             tc,
             &acc_bound,
             &vel_bound,
-            emcmotConfig->maxFeedScale);
+            getMaxBlendFeedScale(prev_tc, tc));
 
     if (res_init != TP_ERR_OK) {
         tp_debug_print("blend init failed with code %d, aborting blend arc\n",
@@ -1248,7 +1269,7 @@ STATIC int tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc
             tc,
             &acc_bound,
             &vel_bound,
-            emcmotConfig->maxFeedScale);
+            getMaxBlendFeedScale(prev_tc, tc));
 
     if (res_init != TP_ERR_OK) {
         tp_debug_print("blend init failed with code %d, aborting blend arc\n",
@@ -1647,8 +1668,8 @@ STATIC int tpSetupTangent(TP_STRUCT const * const tp,
 
     // Calculate instantaneous acceleration required for change in direction
     // from v1 to v2, assuming constant speed
-    double v_max1 = tcGetMaxTargetVel(prev_tc, emcmotConfig->maxFeedScale);
-    double v_max2 = tcGetMaxTargetVel(tc, emcmotConfig->maxFeedScale);
+    double v_max1 = tcGetMaxTargetVel(prev_tc, getMaxFeedScale(prev_tc));
+    double v_max2 = tcGetMaxTargetVel(tc, getMaxFeedScale(tc));
     // Note that this is a minimum since the velocity at the intersection must
     // be the slower of the two segments not to violate constraints.
     double v_max = fmin(v_max1, v_max2);
