@@ -489,8 +489,8 @@ void START_SPEED_FEED_SYNCH(double sync, bool vel) {
 void STOP_SPEED_FEED_SYNCH() {
     spindle_synched_motion = 0;
 }
-void START_SPINDLE_COUNTERCLOCKWISE() {}
-void START_SPINDLE_CLOCKWISE() {}
+void START_SPINDLE_COUNTERCLOCKWISE(int wait_for_at_speed) {}
+void START_SPINDLE_CLOCKWISE(int wait_for_at_speed) {}
 void SET_SPINDLE_MODE(double css_max) {
     css_max_speed_programmed = css_max;
 }

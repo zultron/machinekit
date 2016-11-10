@@ -573,7 +573,7 @@ extern class PythonPlugin *python_plugin;
 #define PYUSABLE (((python_plugin) != NULL) && (python_plugin->usable()))
 
 inline bool is_a_cycle(int motion) {
-    return ((motion > G_80) && (motion < G_90)) || (motion == G_73);
+    return ((motion > G_80) && (motion < G_90)) || (motion == G_73) || (motion == G_74);
 }
 /*
 
