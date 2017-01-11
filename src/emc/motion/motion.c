@@ -906,6 +906,7 @@ static int init_comm_buffers(void)
     ZERO_EMC_POSE(emcmotStatus->carte_pos_fb);
     emcmotStatus->vel = VELOCITY;
     emcmotConfig->limitVel = VELOCITY;
+    emcmotConfig->limitVelAng = VELOCITY;
     emcmotStatus->acc = ACCELERATION;
     emcmotStatus->feed_scale = 1.0;
     emcmotStatus->spindle_scale = 1.0;
