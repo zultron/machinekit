@@ -113,6 +113,7 @@ static int init_comm_buffers(void) {
 
     emcmotStatus->vel = DEFAULT_VELOCITY;
     emcmotConfig->limitVel = DEFAULT_VELOCITY;
+    emcmotConfig->limitVelAng = DEFAULT_VELOCITY;
     emcmotStatus->acc = DEFAULT_ACCELERATION;
     emcmotStatus->feed_scale = 1.0;
     emcmotStatus->rapid_scale = 1.0;
