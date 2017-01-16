@@ -94,7 +94,7 @@ extern int emcTrajSetMode(int axes);
 extern int emcTrajSetTeleopVector(EmcPose vel);
 extern int emcTrajSetVelocity(double vel, double ini_maxvel);
 extern int emcTrajSetAcceleration(double acc);
-extern int emcTrajSetMaxVelocity(double vel);
+extern int emcTrajSetMaxVelocity(double vel, double vela);
 extern int emcTrajSetMaxAcceleration(double acc);
 extern int emcTrajSetScale(double scale);
 extern int emcTrajSetFOEnable(unsigned char mode);   //feed override enable
