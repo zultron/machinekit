@@ -146,6 +146,11 @@ EmcPose tool_offset;
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
 
+// Track spindle synched motion
+static int spindle_synched_motion = 0;
+static double spindle_synched_feed_per_revolution;
+static double spindle_speed_programmed = 0.0;
+
 static InterpBase *pinterp;
 #define interp_new (*pinterp)
 
@@ -244,11 +249,15 @@ void STRAIGHT_FEED(int line_number,
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
-        PyObject *result =
-            callmethod(callback, "straight_feed", "ifffffffff",
-                    line_number, x, y, z, a, b, c, u, v, w);
-        if(result == NULL) interp_error ++;
-        Py_XDECREF(result);
+	PyObject *result = spindle_synched_motion ?
+	    callmethod(callback, "straight_feed_synched", "ifffffffffff",
+		       line_number, x, y, z, a, b, c, u, v, w,
+		       spindle_speed_programmed,
+		       spindle_synched_feed_per_revolution / (metric?25.4:1.0)) :
+	    callmethod(callback, "straight_feed", "ifffffffff",
+		       line_number, x, y, z, a, b, c, u, v, w);
+	if(result == NULL) interp_error ++;
+	Py_XDECREF(result);
     }
 }
 
@@ -420,14 +429,23 @@ void SET_FEED_REFERENCE(double reference) { }
 void SET_CUTTER_RADIUS_COMPENSATION(double radius) {}
 void START_CUTTER_RADIUS_COMPENSATION(int direction) {}
 void STOP_CUTTER_RADIUS_COMPENSATION(int direction) {}
-void START_SPEED_FEED_SYNCH() {}
-void START_SPEED_FEED_SYNCH(double sync, bool vel) {}
-void STOP_SPEED_FEED_SYNCH() {}
+void START_SPEED_FEED_SYNCH() {
+    spindle_synched_motion = 1;
+}
+void START_SPEED_FEED_SYNCH(double sync, bool vel) {
+    spindle_synched_motion = 1;
+    spindle_synched_feed_per_revolution = sync;
+}
+void STOP_SPEED_FEED_SYNCH() {
+    spindle_synched_motion = 0;
+}
 void START_SPINDLE_COUNTERCLOCKWISE() {}
 void START_SPINDLE_CLOCKWISE() {}
 void SET_SPINDLE_MODE(double) {}
 void STOP_SPINDLE_TURNING() {}
-void SET_SPINDLE_SPEED(double rpm) {}
+void SET_SPINDLE_SPEED(double rpm) {
+    spindle_speed_programmed = rpm;
+}
 void ORIENT_SPINDLE(double d, int i) {}
 void WAIT_SPINDLE_ORIENT_COMPLETE(double timeout) {}
 void PROGRAM_STOP() {}
@@ -733,6 +751,8 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     metric=false;
     interp_error = 0;
     last_sequence_number = -1;
+    spindle_synched_motion = 0;
+    spindle_speed_programmed = 0.0;
 
     _pos_x = _pos_y = _pos_z = _pos_a = _pos_b = _pos_c = 0;
     _pos_u = _pos_v = _pos_w = 0;
