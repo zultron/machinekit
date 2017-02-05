@@ -433,6 +433,7 @@ int tpClear(TP_STRUCT * const tp)
     emcmotStatus->requested_vel = 0.0;
     emcmotStatus->distance_to_go = 0.0;
     emcmotStatus->waiting_on_spindle = 0;
+    emcmotStatus->pos_tracking_error = 0;
     ZERO_EMC_POSE(emcmotStatus->dtg);
     SET_MOTION_INPOS_FLAG(1);
 
@@ -3007,6 +3008,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
             break;
         }
         }
+        emcmotStatus->pos_tracking_error = pos_error;
 
         tc_debug_print("in position sync, target_vel = %f, ideal_vel = %f, vel_err = %f\n", tc->target_vel, v_final, v_final - tc->target_vel);
     }
@@ -3451,6 +3453,9 @@ int tpRunCycle(TP_STRUCT * const tp, long period)
     if (tc->motion_type == TC_RIGIDTAP) {
         tpUpdateRigidTapState(tp, tc);
     }
+
+    // Assume zero tracking error unless position sync is active
+    emcmotStatus->pos_tracking_error = 0.0;
 
     /** If synchronized with spindle, calculate requested velocity to track
      * spindle motion.*/
