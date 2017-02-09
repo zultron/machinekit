@@ -195,8 +195,19 @@ INCLUDE += -I$(INCLUDEPY)
 endif
 
 # Compilation options.	Perhaps some of these should come from Makefile.inc? (CXXFLAGS now does)
+
+ifeq ("$(DEBUG)", "1")
+# Disable optimization for straightforward debugger behavior and
+# strip out extraneous -O1, -O2, or -O3 from CXXFLAGS that configure creates
+OPT := -O0
+CXXFLAGS := $(CXXFLAGS:-O1=)
+CXXFLAGS := $(CXXFLAGS:-O2=)
+CXXFLAGS := $(CXXFLAGS:-O3=)
+else
 OPT := -Os
-DEBUG := $(DEBUG) -g -Wall
+endif
+
+DEBUG := -g -Wall
 CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) $(EXTRA_DEBUG) -DULAPI $(call cc-option,-std=gnu99 -fgnu89-inline)
 CXXFLAGS := $(INCLUDE) $(CXXFLAGS)   $(EXTRA_DEBUG) -DULAPI $(DEBUG) $(OPT)
 
