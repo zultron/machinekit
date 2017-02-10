@@ -139,7 +139,8 @@ int read_updatev2(int fd) {
         return -1;
     }
     else if (bytes_read != sizeof(input)) {
-        fprintf(stderr, "%s: expected to read %d bytes %s only read %d\n", modname, sizeof(input), device_file, bytes_read);
+        fprintf(stderr, "%s: expected to read %lu bytes %s only read %d\n",
+		modname, sizeof(input), device_file, bytes_read);
         return -1;
     }
     else if (bytes_read == 0) {
