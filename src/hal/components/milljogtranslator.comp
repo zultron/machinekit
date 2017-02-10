@@ -86,6 +86,8 @@ variable float prev_max_speed[5];
 //
 // May 2014 - began life anew as 'milljogtranslator.comp' with independent speeds per axis
 
+int abs(int x) { if(x < 0) return -x; else return x; }
+
 EXTRA_SETUP() {
     int axis;
 

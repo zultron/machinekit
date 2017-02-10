@@ -89,6 +89,7 @@ variable char first_call;  // NZ on first entry to main loop
 //    speed with multiple jogshuttles to excite the GUI to switch to manual mode
 // Rev I1 - 23 July 2013 - outer ring speeds made into pins settable via UI, removed min_speed and g_multiplier
 
+int abs(int x) { if(x < 0) return -x; else return x; }
 
 EXTRA_SETUP() {
 
