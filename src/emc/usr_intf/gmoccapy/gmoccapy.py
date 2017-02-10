@@ -45,6 +45,7 @@ import gettext            # to extract the strings to be translated
 from gladevcp.gladebuilder import GladeBuilder
 
 from time import strftime   # needed for the clock in the GUI
+from __builtin__ import next
 
 # Throws up a dialog with debug info when an error is encountered
 def excepthook( exc_type, exc_obj, exc_tb ):
@@ -86,7 +87,7 @@ if debug:
 
 # constants
 #         # gmoccapy  #"
-_RELEASE = " 1.5.6.4"
+_RELEASE = " 1.5.7"
 _INCH = 0                         # imperial units are active
 _MM = 1                           # metric units are active
 _TEMPDIR = tempfile.gettempdir()  # Now we know where the tempdir is, usualy /tmp
@@ -672,7 +673,9 @@ class gmoccapy( object ):
         # will block the UI as well, so everything goes through event handlers (aka callbacks)
         # The gobject.timeout_add() function sets a function to be called at regular intervals
         # the time between calls to the function, in milliseconds
-        gobject.timeout_add( 100, self._periodic )  # time between calls to the function, in milliseconds
+        # CYCLE_TIME = time, in milliseconds, that display will sleep between polls
+        cycle_time = self.get_ini_info.get_cycle_time()
+        gobject.timeout_add( cycle_time, self._periodic )  # time between calls to the function, in milliseconds
 
     def _get_axis_list( self ):
         temp = self.get_ini_info.get_coordinates()
@@ -687,7 +690,12 @@ class gmoccapy( object ):
     def _init_preferences( self ):
         # check if NO_FORCE_HOMING is used in ini
         self.no_force_homing = self.get_ini_info.get_no_force_homing()
-        self.spindle_start_rpm = self.prefs.getpref( 'spindle_start_rpm', 300, float )
+
+        # if there is a INI Entry for default spindle speed, we will use that one as default
+        # but if there is a setting in our preference file, that one will beet the INI entry
+        default_spindle_speed = self.get_ini_info.get_default_spindle_speed()
+        self.spindle_start_rpm = self.prefs.getpref( 'spindle_start_rpm', default_spindle_speed, float )
+
         # if it's a lathe config, set the tooleditor style
         self.lathe_mode = self.get_ini_info.get_lathe()
         self.jog_rate = self.get_ini_info.get_jog_vel()
@@ -1821,21 +1829,9 @@ class gmoccapy( object ):
 
     # What to do if a macro button has been pushed
     def _on_btn_macro_pressed( self, widget = None, data = None ):
+        print (data)
         o_codes = data.split()
-        subroutines_path = self.get_ini_info.get_subroutine_path()
-        if not subroutines_path:
-            message = _( "**** GMOCCAPY ERROR ****" )
-            message += _( "\n**** No subroutine folder or program prefix is given in the ini file **** \n" )
-            message += _( "**** so the corresponding file could not be found ****" )
-            dialogs.warning_dialog( self, _( "Important Warning" ), message )
-            return
-        file = subroutines_path + "/" + o_codes[0] + ".ngc"
-        if not os.path.isfile( file ):
-            message = _( "**** GMOCCAPY ERROR ****" )
-            message += _( "\n**** File %s of the macro could not be found ****\n" % [o_codes[0] + ".ngc"] )
-            message += _( "**** we searched in subdirectory %s ****" % subroutines_path )
-            dialogs.warning_dialog( self, _( "Important Warning" ), message )
-            return
+
         command = str( "O<" + o_codes[0] + "> call" )
         for code in o_codes[1:]:
             parameter = dialogs.entry_dialog( self, data = None, header = _( "Enter value:" ),
@@ -2142,19 +2138,24 @@ class gmoccapy( object ):
     # check if macros are in the INI file and add them to MDI Button List
     def _add_macro_button( self ):
         macros = self.get_ini_info.get_macros()
-        num_macros = len( macros )
+
+        # we have to check here for NONE, as we get that if no macros are in INI file
+        if not macros:
+            num_macros = 0
+        else:
+            num_macros = len( macros )
+
         if num_macros > 9:
-            message = _( "**** GMOCCAPY INFO ****" )
-            message += _( "\n**** found more than 9 macros, only the first 9 will be used ****" )
+            message = _( "**** GMOCCAPY INFO ****\n" )
+            message += _( "**** found more than 9 macros, only the first 9 will be used ****" )
             print( message )
             num_macros = 9
         for increment in range( 0, num_macros ):
             name = macros[increment]
-            # shorten the name if it is to long
-            if len( name ) > 11:
-                lbl = name[0:10]
-            else:
-                lbl = macros[increment]
+            lbl = name.split()[0]
+            # shorten / break line of the name if it is to long
+            if len( lbl ) > 11:
+                lbl = lbl[0:10] + "\n" + lbl[11:20]
             btn = gtk.Button( lbl, None, False )
             btn.connect( "pressed", self._on_btn_macro_pressed, name )
             btn.position = increment
@@ -2794,6 +2795,9 @@ class gmoccapy( object ):
             self.widgets.chk_ignore_limits.set_active( False )
         return False
 
+    def _ignore_limits(self, pin):
+        self.widgets.chk_ignore_limits.set_active(pin.get())     
+
     def on_chk_ignore_limits_toggled( self, widget, data = None ):
         if self.widgets.chk_ignore_limits.get_active():
             if not self._check_limits():
@@ -2860,7 +2864,7 @@ class gmoccapy( object ):
         else:
             speed = self.stat.spindle_speed
         self.widgets.active_speed_label.set_label( "%.0f" % abs( speed ) )
-        self.on_adj_spindle_value_changed( self.widgets.adj_spindle )
+        self.widgets.lbl_spindle_act.set_text( "S %d" % int(speed * self.spindle_override) )
 
     def on_rbt_forward_clicked( self, widget, data = None ):
         if widget.get_active():
@@ -2889,8 +2893,9 @@ class gmoccapy( object ):
         if self.stat.task_state == linuxcnc.STATE_ESTOP:
             return
 
-        # if we do not check this, we will get an error in auto mode
-        if self.stat.task_mode == linuxcnc.MODE_AUTO:
+        # if we do not check this, we will get an error in auto mode and G96 would not run as MDI sub
+        # call, as in the following code the speed will be set to the commanded value not the variable value
+        if self.stat.task_mode != linuxcnc.MODE_MANUAL:
             if self.stat.interp_state == linuxcnc.INTERP_READING or self.stat.interp_state == linuxcnc.INTERP_WAITING:
                 if self.stat.spindle_direction > 0:
                     self.widgets.rbt_forward.set_sensitive( True )
@@ -2972,7 +2977,6 @@ class gmoccapy( object ):
             self.command.spindleoverride( value_to_set / 100 )
         except:
             pass
-        self.widgets.lbl_spindle_act.set_text( "S %d" % real_spindle_speed )
 
     def on_adj_start_spindle_RPM_value_changed( self, widget, data = None ):
         self.spindle_start_rpm = widget.get_value()
@@ -4212,6 +4216,10 @@ class gmoccapy( object ):
         self.halcomp.newpin( "program.length", hal.HAL_S32, hal.HAL_OUT )
         self.halcomp.newpin( "program.current-line", hal.HAL_S32, hal.HAL_OUT )
         self.halcomp.newpin( "program.progress", hal.HAL_FLOAT, hal.HAL_OUT )
+
+        # make a pin to activate ignore limits
+        pin = self.halcomp.newpin( "ignore-limits", hal.HAL_BIT, hal.HAL_IN )
+        hal_glib.GPin( pin ).connect( "value_changed", self._ignore_limits)
 
 # Hal Pin Handling End
 # =========================================================

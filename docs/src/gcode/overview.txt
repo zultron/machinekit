@@ -1,4 +1,4 @@
-[[cha:g-code-overview]](((G Code Overview)))
+[[cha:g-code-overview]]
 
 = G Code Overview
 
@@ -618,37 +618,37 @@ can be added easily without changes to the source code.
     Return 1 if feed hold switch is enabled (M53 P1), else 0.
 
 * '#<_feed>' -
-    Return the current feed value (F).
+    Return the current value of F, not the actual feed rate.
 
 * '#<_rpm>' -
-    Return the current spindle speed (S).
+    Return the current value of S, not the actual spindle speed.
 
 * '#<_x>' -
-    Return current X coordinate. Same as #5420.
+    Return current relative X coordinate including all offsets. Same as #5420.
 
 * '#<_y>' -
-    Return current Y coordinate. Same as #5421.
+    Return current relative Y coordinate including all offsets. Same as #5421.
 
 * '#<_z>' -
-    Return current Z coordinate. Same as #5422.
+    Return current relative Z coordinate including all offsets. Same as #5422.
 
 * '#<_a>' -
-    Return current A coordinate. Same as #5423.
+    Return current relative A coordinate including all offsets. Same as #5423.
 
 * '#<_b>' -
-    Return current B coordinate. Same as #5424.
+    Return current relative B coordinate including all offsets. Same as #5424.
 
 * '#<_c>' -
-    Return current C coordinate. Same as #5425.
+    Return current relative C coordinate including all offsets. Same as #5425.
 
 * '#<_u>' -
-    Return current U coordinate. Same as #5426.
+    Return current relative U coordinate including all offsets. Same as #5426.
 
 * '#<_v>' -
-    Return current V coordinate. Same as #5427.
+    Return current relative V coordinate including all offsets. Same as #5427.
 
 * '#<_w>' -
-    Return current W coordinate. Same as #5428.
+    Return current relative W coordinate including all offsets. Same as #5428.
 
 * '#<_current_tool>' -
     Return number of the current tool in spindle. Same as #5400.
@@ -950,35 +950,33 @@ being in effect. The modal groups are shown in the following Table.
 
 [width="80%", cols="4,6", options="header"]
 |====
-|Modal Group Meaning                   | Member Words
-|Non-modal codes (Group 0)             | G4, G10 G28, G30, G52, G53, G92, G92.1, G92.2, G92.3, 
-.2+|Motion (Group 1)                   | G0, G1, G2, G3, G33, G38.x, G73, G76, G80, G81
-                                       | G82, G83, G84, G85, G86, G87, G88, G89
-|Plane selection (Group 2)             | G17, G18, G19, G17.1, G18.1, G19.1
-|Distance Mode (Group 3)               | G90, G91
-|Arc IJK Distance Mode (Group 4)       | G90.1, G91.1
-|Feed Rate Mode (Group 5)              | G93, G94, G95
-|Units (Group 6)                       | G20, G21
-|Cutter Diameter Compensation (Group 7)| G40, G41, G42, G41.1, G42.1
-|Tool Length Offset (Group 8)          | G43, G43.1, G49
-|Canned Cycles Return Mode (Group 10)  | G98, G99
-|Coordinate System (Group 12)          | G54, G55, G56, G57, G58, G59, G59.1, G59.2, G59.3
-|Control Mode (Group 13)               | G61, G61.1, G64
-|Spindle Speed Mode (Group 14)         | G96, G97
-|Lathe Diameter Mode (Group 15)        | G7, G8
+|Modal Group Meaning                   |Member Words
+|Non-modal codes (Group 0)             |G4, G10 G28, G30, G52, G53, G92, G92.1, G92.2, G92.3,
+.2+|Motion (Group 1)                   |G0, G1, G2, G3, G33, G38.x, G73, G76, G80, G81
+                                       |G82, G83, G84, G85, G86, G87, G88, G89
+|Plane selection (Group 2)             |G17, G18, G19, G17.1, G18.1, G19.1
+|Distance Mode (Group 3)               |G90, G91
+|Arc IJK Distance Mode (Group 4)       |G90.1, G91.1
+|Feed Rate Mode (Group 5)              |G93, G94, G95
+|Units (Group 6)                       |G20, G21
+|Cutter Diameter Compensation (Group 7)|G40, G41, G42, G41.1, G42.1
+|Tool Length Offset (Group 8)          |G43, G43.1, G49
+|Canned Cycles Return Mode (Group 10)  |G98, G99
+|Coordinate System (Group 12)          |G54, G55, G56, G57, G58, G59, G59.1, G59.2, G59.3
+|Control Mode (Group 13)               |G61, G61.1, G64
+|Spindle Speed Mode (Group 14)         |G96, G97
+|Lathe Diameter Mode (Group 15)        |G7, G8
 |====
 
 .M-Code Modal Groups
 
 [width="80%", cols="4,6", options="header"]
 |====
-|Modal Group Meaning           | Member Words
-|Stopping (Group 4)            | M0, M1, M2, M30, M60
-|I/O on/off (Group 5)          | M6 Tn
-|Tool Change (Group 6)         | M6 Tn
-|Spindle (Group 7)             | M3, M4, M5
-|Coolant (Group 8)             | (M7 M8 can both be on), M9
-|Override Switches (Group 9)   | M48, M49
+|Modal Group Meaning           |Member Words
+|Stopping (Group 4)            |M0, M1, M2, M30, M60
+|Spindle (Group 7)             |M3, M4, M5
+|Coolant (Group 8)             |(M7 M8 can both be on), M9
+|Override Switches (Group 9)   |M48, M49
 |User Defined (Group 10)       |M100-M199
 |====
 

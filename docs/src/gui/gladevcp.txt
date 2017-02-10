@@ -1,4 +1,4 @@
-[[cha:glade-vcp]] (((Glade Virtual Control Panel)))
+[[cha:glade-vcp]]
 
 = Glade Virtual Control Panel
 
@@ -1372,7 +1372,8 @@ Text template for metric units::
 Text template for imperial units::
     You can use python formatting to display the position with different precision.
 Reference Type::
-    Absolute (machine origin), Relative (to current user coordinate origin - G5x)
+    Absolute <<sec.machine-corrdinate-system,(machine origin)>>, Relative
+    (to current user coordinate origin - G5x)
     or Distance-to-go (relative to current user coordinate origin)
 Joint Number::
     Used to select which axis (technically which joint) is displayed.
@@ -1480,6 +1481,13 @@ toggle_readout::
     By unchecking the box you can disable that behavior. The toggling can still be done with [widget name].toggle_readout() +
     Value must be bool +    
     default is TRUE
+
+cycle_time::
+    The time the DRO waits between two polls,
+    the value must be an integer in the range of 100 to 1000, +
+    default is 150, this setting should only be changed if you use more +
+    than 5 DRO at the same time, i.e. on a 6 axis config, to avoid, that +
+    the DRO slows down the main application too much.
 
 Direct program control::
     Using gobject to set the above listed properties:

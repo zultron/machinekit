@@ -644,8 +644,7 @@ class GlCanonDraw:
                 x_pos = x_dir * (g.min_extents[x] - 6.0*dashwidth)
                 y_pos = g.min_extents[y] - pullback
 
-            # create Z min extent value and ready for plotting
-            bbox = self.color_limit(g.min_extents[z] < machine_limit_min[z])
+            bbox = self.color_limit(g.min_extents_notool[z] < machine_limit_min[z])
             glPushMatrix()
             f = fmt % ((g.min_extents[z]-offset[z]) * dimscale)
             glTranslatef(x_pos, y_pos, g.min_extents[z] - halfchar)
@@ -657,8 +656,7 @@ class GlCanonDraw:
             self.hershey.plot_string(f, 0, bbox)
             glPopMatrix()
 
-            # create Z max extent value and ready for plotting
-            bbox = self.color_limit(g.max_extents[z] > machine_limit_max[z])
+            bbox = self.color_limit(g.max_extents_notool[z] > machine_limit_max[z])
             glPushMatrix()
             f = fmt % ((g.max_extents[z]-offset[z]) * dimscale)
             glTranslatef(x_pos, y_pos, g.max_extents[z] - halfchar)
@@ -686,7 +684,7 @@ class GlCanonDraw:
         if view != y and g.max_extents[y] > g.min_extents[y]:
             x_pos = g.min_extents[x] - 6.0*dashwidth
 
-            bbox = self.color_limit(g.min_extents[y] < machine_limit_min[y])
+            bbox = self.color_limit(g.min_extents_notool[y] < machine_limit_min[y])
             glPushMatrix()
             f = fmt % ((g.min_extents[y] - offset[y]) * dimscale)
             glTranslatef(x_pos, g.min_extents[y] + halfchar, z_pos)
@@ -699,7 +697,7 @@ class GlCanonDraw:
             self.hershey.plot_string(f, 0, bbox)
             glPopMatrix()
 
-            bbox = self.color_limit(g.max_extents[y] > machine_limit_max[y])
+            bbox = self.color_limit(g.max_extents_notool[y] > machine_limit_max[y])
             glPushMatrix()
             f = fmt % ((g.max_extents[y] - offset[y]) * dimscale)
             glTranslatef(x_pos, g.max_extents[y] + halfchar, z_pos)
@@ -731,8 +729,7 @@ class GlCanonDraw:
 
             y_pos = g.min_extents[y] - 6.0*dashwidth
 
-            # create X min extent value and ready for plotting
-            bbox = self.color_limit(g.min_extents[x] < machine_limit_min[x])
+            bbox = self.color_limit(g.min_extents_notool[x] < machine_limit_min[x])
             glPushMatrix()
 
             if self.is_rear_tp_lathe:
@@ -749,8 +746,7 @@ class GlCanonDraw:
             self.hershey.plot_string(f, 0, bbox)
             glPopMatrix()
 
-            # create X max extent value and ready for plotting
-            bbox = self.color_limit(g.max_extents[x] > machine_limit_max[x])
+            bbox = self.color_limit(g.max_extents_notool[x] > machine_limit_max[x])
             glPushMatrix()
 
             if self.is_rear_tp_lathe:
@@ -965,18 +961,24 @@ class GlCanonDraw:
 
         glLineWidth(1)
         glColor3f(*self.colors['grid'])
+
+        s = self.stat
+        tlo_offset = permutation(self.to_internal_units(s.tool_offset)[:3])
+        g5x_offset = permutation(self.to_internal_units(s.g5x_offset)[:3])[:2]
+        g92_offset = permutation(self.to_internal_units(s.g92_offset)[:3])[:2]
+
         lim_min, lim_max = self.soft_limits()
         lim_min = permutation(lim_min)
         lim_max = permutation(lim_max)
+
+        lim_min = tuple(a-b for a,b in zip(lim_min, tlo_offset))
+        lim_max = tuple(a-b for a,b in zip(lim_max, tlo_offset))
 
         lim_pts = (
                 (lim_min[0], lim_min[1]),
                 (lim_max[0], lim_min[1]),
                 (lim_min[0], lim_max[1]),
                 (lim_max[0], lim_max[1]))
-        s = self.stat
-        g5x_offset = permutation(self.to_internal_units(s.g5x_offset)[:3])[:2]
-        g92_offset = permutation(self.to_internal_units(s.g92_offset)[:3])[:2]
         if self.get_show_relative():
             cos_rot = math.cos(rotation)
             sin_rot = math.sin(rotation)
@@ -1157,6 +1159,7 @@ class GlCanonDraw:
             glPopMatrix()
 
         if self.get_show_limits():
+            glTranslatef(*[-x for x in self.to_internal_units(s.tool_offset)[:3]])
             glLineWidth(1)
             glColor3f(0.3,0.5,1.0)
             glLineStipple(1, 0x1111)
@@ -1287,6 +1290,7 @@ class GlCanonDraw:
             glEnd()
             glDisable(GL_LINE_STIPPLE)
             glLineStipple(2, 0x5555)
+            glTranslatef(*self.to_internal_units(s.tool_offset)[:3])
 
         if self.get_show_live_plot():
             glDepthFunc(GL_LEQUAL)
