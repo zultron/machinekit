@@ -2063,7 +2063,7 @@ int Interp::synch()
 
   //read_inputs(&_setup); // input/probe/toolchange
 
-  write_settings(&_setup);
+  write_settings(&_setup, _setup.modal_state);
 
   return INTERP_OK;
 }
