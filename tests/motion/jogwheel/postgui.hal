@@ -46,3 +46,48 @@ net joint-2-jog-scale => axis.2.jog-scale
 
 net Zpos => test-ui.joint-2-position
 
+#
+# joint 3
+#
+
+net joint-3-jog-enable <= test-ui.joint-3-jog-enable
+net joint-3-jog-enable => axis.3.jog-enable
+
+net joint-3-jog-counts <= test-ui.joint-3-jog-counts
+net joint-3-jog-counts => axis.3.jog-counts
+
+net joint-3-jog-scale <= test-ui.joint-3-jog-scale
+net joint-3-jog-scale => axis.3.jog-scale
+
+net Apos => test-ui.joint-3-position
+
+#
+# joint 4
+#
+
+net joint-4-jog-enable <= test-ui.joint-4-jog-enable
+net joint-4-jog-enable => axis.4.jog-enable
+
+net joint-4-jog-counts <= test-ui.joint-4-jog-counts
+net joint-4-jog-counts => axis.4.jog-counts
+
+net joint-4-jog-scale <= test-ui.joint-4-jog-scale
+net joint-4-jog-scale => axis.4.jog-scale
+
+net Bpos => test-ui.joint-4-position
+
+#
+# joint 5
+#
+
+net joint-5-jog-enable <= test-ui.joint-5-jog-enable
+net joint-5-jog-enable => axis.5.jog-enable
+
+net joint-5-jog-counts <= test-ui.joint-5-jog-counts
+net joint-5-jog-counts => axis.5.jog-counts
+
+net joint-5-jog-scale <= test-ui.joint-5-jog-scale
+net joint-5-jog-scale => axis.5.jog-scale
+
+net Cpos => test-ui.joint-5-position
+
