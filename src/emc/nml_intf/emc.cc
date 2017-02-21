@@ -2345,6 +2345,7 @@ void EMC_TRAJ_STAT::update(CMS * cms)
     cms->update(velocity);
     cms->update(acceleration);
     cms->update(maxVelocity);
+    cms->update(maxAngularVelocity);
     cms->update(maxAcceleration);
     EmcPose_update(cms, &probedPosition);
     cms->update(probe_tripped);
@@ -2597,6 +2598,7 @@ void EMC_TRAJ_SET_MAX_VELOCITY::update(CMS * cms)
 
     EMC_TRAJ_CMD_MSG::update(cms);
     cms->update(velocity);
+    cms->update(velocity_angular);
 
 }
 

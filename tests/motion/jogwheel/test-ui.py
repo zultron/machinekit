@@ -176,8 +176,8 @@ def close_enough(a, b, epsilon=0.000001):
 def jog_joint(joint_number, counts=1, scale=0.001):
     timeout = 5.0
 
-    start_pos = 3*[0]
-    for j in range(0,3):
+    start_pos = 6*[0]
+    for j in range(0,6):
         start_pos[j] = h['joint-%d-position' % j]
 
     target = h['joint-%d-position' % joint_number] + (counts * scale)
@@ -196,7 +196,7 @@ def jog_joint(joint_number, counts=1, scale=0.001):
     print "joint jogged from %.6f to %.6f (%d counts at scale %.6f)" % (start_pos[joint_number], h['joint-%d-position' % joint_number], counts, scale)
 
     success = True
-    for j in range(0,3):
+    for j in range(0,6):
         pin_name = 'joint-%d-position' % j
         if j == joint_number:
             if not close_enough(h[pin_name], target):
@@ -235,6 +235,21 @@ h.newpin("joint-2-jog-counts", hal.HAL_S32, hal.HAL_OUT)
 h.newpin("joint-2-jog-scale", hal.HAL_FLOAT, hal.HAL_OUT)
 h.newpin("joint-2-position", hal.HAL_FLOAT, hal.HAL_IN)
 
+h.newpin("joint-3-jog-enable", hal.HAL_BIT, hal.HAL_OUT)
+h.newpin("joint-3-jog-counts", hal.HAL_S32, hal.HAL_OUT)
+h.newpin("joint-3-jog-scale", hal.HAL_FLOAT, hal.HAL_OUT)
+h.newpin("joint-3-position", hal.HAL_FLOAT, hal.HAL_IN)
+
+h.newpin("joint-4-jog-enable", hal.HAL_BIT, hal.HAL_OUT)
+h.newpin("joint-4-jog-counts", hal.HAL_S32, hal.HAL_OUT)
+h.newpin("joint-4-jog-scale", hal.HAL_FLOAT, hal.HAL_OUT)
+h.newpin("joint-4-position", hal.HAL_FLOAT, hal.HAL_IN)
+
+h.newpin("joint-5-jog-enable", hal.HAL_BIT, hal.HAL_OUT)
+h.newpin("joint-5-jog-counts", hal.HAL_S32, hal.HAL_OUT)
+h.newpin("joint-5-jog-scale", hal.HAL_FLOAT, hal.HAL_OUT)
+h.newpin("joint-5-position", hal.HAL_FLOAT, hal.HAL_IN)
+
 h.ready() # mark the component as 'ready'
 
 os.system("halcmd source ./postgui.hal")
@@ -260,6 +275,9 @@ e.set_mode(linuxcnc.MODE_MANUAL)
 jog_joint(0, counts=1, scale=0.001)
 jog_joint(1, counts=10, scale=-0.025)
 jog_joint(2, counts=-100, scale=0.100)
+jog_joint(3, counts=100, scale=1.000)
+jog_joint(4, counts=-10, scale=0.200)
+jog_joint(5, counts=20, scale=0.300)
 
 sys.exit(0)
 
