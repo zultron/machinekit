@@ -47,9 +47,14 @@ c.abort()
 c.wait_complete()
 s.poll()
 
-# the program ran in g55, but now we should be back to g54
-if not 540 in s.gcodes:
-    print "not back in G54!"
+# # the program ran in g55, but now we should be back to g54
+# if not 540 in s.gcodes:
+#     print "not back in G54!"
+#     print "s.gcodes:", s.gcodes
+#     retval = 1
+# Tormach:  the program ran in g55, we should still be in g55
+if not 550 in s.gcodes:
+    print "not in G55!"
     print "s.gcodes:", s.gcodes
     retval = 1
 
@@ -67,8 +72,12 @@ if math.fabs(s.position[1]) > 0.000001:
     print "'G0 X0 Y0 Z0' took us to Y=%.6f, should be 0" % s.position[1]
     retval = 1
 
-if math.fabs(s.position[2] + 4) > 0.000001:
-    print "'G0 X0 Y0 Z0' took us to Z=%.6f, should be -4" % s.position[2]
+# if math.fabs(s.position[2] + 4) > 0.000001:
+#     print "'G0 X0 Y0 Z0' took us to Z=%.6f, should be -4" % s.position[2]
+#     retval = 1
+# Tormach:  G55 Z = -5
+if math.fabs(s.position[2] + 5) > 0.000001:
+    print "'G0 X0 Y0 Z0' took us to Z=%.6f, should be -5" % s.position[2]
     retval = 1
 
 c.mdi('(debug, G53+#5220; Z#5422) ; Prints "G53+1.0 Z0.0" == G54')
@@ -76,8 +85,12 @@ c.wait_complete()
 err = e.poll()
 print err
 
-if s.g5x_index != 1:
-    print "status has wrong g5x index: %d (expected 1)" % s.g5x_index
+# if s.g5x_index != 1:
+#     print "status has wrong g5x index: %d (expected 1)" % s.g5x_index
+#     retval = 1
+# Tormach:  G55 index = 2
+if s.g5x_index != 2:
+    print "status has wrong g5x index: %d (expected 2)" % s.g5x_index
     retval = 1
 
 if math.fabs(s.g5x_offset[0]) > 0.000001:
@@ -88,8 +101,12 @@ if math.fabs(s.g5x_offset[1]) > 0.000001:
     print "g5x_offset.y is %.6f, should be 0" % s.g5x_offset[1]
     retval = 1
 
-if math.fabs(s.g5x_offset[2] + 4) > 0.000001:
-    print "g5x_offset.z is %.6f, should be -4" % s.g5x_offset[2]
+# if math.fabs(s.g5x_offset[2] + 4) > 0.000001:
+#     print "g5x_offset.z is %.6f, should be -4" % s.g5x_offset[2]
+#     retval = 1
+# Tormach:  G55 Z = -5
+if math.fabs(s.g5x_offset[2] + 5) > 0.000001:
+    print "g5x_offset.z is %.6f, should be -5" % s.g5x_offset[2]
     retval = 1
 
 sys.exit(retval)
