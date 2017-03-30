@@ -4,43 +4,81 @@ license "GPL";
 author "Tormach";
 
 // Input:
-//          index-in                from machine axis encoder Z channel or screw flag sensor
+//          index-count             from encoder/counter input connected to encoder Z
 //          limit-in                from machine axis limit switch
 //          home-state              from axis.N.home-state
+//          limit-enable            from UI setting
+//          joint-pos-fb            from axis.N.joint-pos-fb
+
+
 //
 // Params:
-//          screw-pitch             units/rev for computing index search timeout
-//          latch-vel               units/s
-//          
+//          latch-vel               units/s - used for travel direction
+//          limit-backoff           units to continue off limit before index search
+//          limit-index-min         units minimum distance between switch and index
 
 // Output:
 //          limit-out               to axis.N.home/neg/pos-lim-sw-in
-//          index-timed-out         to UI to log index timeout
+//          error-code              to UI
+//          limit-index-distance    to UI to log
 
 
 // pins
 
-// actual index input
-pin in bit index_in;
+// inputs
 
-// actual limit input
-pin in bit limit_in;
+// from counter connected to encoder index
+pin in s32 index-count;
+
+// physical limit switch input
+pin in bit limit-in;
 
 // current home state from axis.N.home-state
-pin in s32 home_state;
+pin in s32 home-state;
 
-// what we tell motion/axis.N the limit state is
-pin out bit limit_out;
+// UI setting for enabling limit switches
+pin in bit limit-enable;
 
-// I/O so reader can clear if desired
-pin io bit index_timed_out;
-pin io s32 index_search_loop_count;
+// from motion axis.N.joint-pos-fb
+pin in float joint-pos-fb;
+
+// outputs
+
+// what we tell motion axis.N the limit state is
+pin out bit limit-out;
+
+// let UI clear it after reading
+pin io s32 error-code;
+
+// tell the UI distance between switch inactive and index
+// let UI clear it after reading
+pin io float limit-index-distance;
 
 // params
 
-// timeout for index search 1+ screw revolution
-pin in float screw_pitch;
-pin in float latch_vel;
+// index closer to switch than this results in error_code ERROR_INDEX_TOO_CLOSE_TO_SWITCH
+param rw float limit-index-min;
+
+// used for sense of direction on backoff and index search
+param rw float latch-vel;
+
+// distance to move off limit before index search to avoid switch inconsistency
+param rw float limit-backoff;
+
+// distance to go after limit backoff to search for index
+// greater than this results in error_code ERROR_INDEX_SEARCH_TIMEOUT
+param rw float index-search-max;
+
+// must be a pin to compare with limit-in, bool quietly does not work
+pin io bit prev-limit-in;
+
+// as pins for debugging visibility
+pin io s32 prev-index-count;
+pin io float limit-fall-pos;
+pin io float index-active-pos;
+pin io float backoff-pos;
+pin io float index-search-max-pos;
+
 
 function _;
 
@@ -51,65 +89,103 @@ function _;
 #define BIT_FALSE 0
 #define BIT_TRUE  1
 
+#define ERROR_NONE 0
+#define ERROR_INDEX_TOO_CLOSE_TO_SWITCH 1
+#define ERROR_INDEX_SEARCH_TIMEOUT 2
+
 // copied over from motion.h
-// home_state value to check
+// home_state enumerations
+#define HOME_FALL_SEARCH_START (13)
 #define HOME_FALL_SEARCH_WAIT (14)
 
+float fsignof(float fnumber) {
+    if (fnumber < 0.0 )
+	return -1.0;
+    return 1.0;
+}
+
 FUNCTION(_) {
-    static unsigned int prev_home_state = 0;
-    static bool wait_for_limit_inactive = FALSE;
-    static bool prev_limit_in = FALSE;
+    //static int prev_index_count = 0;
 
-    if (home_state != HOME_FALL_SEARCH_WAIT) {
-        // if not looking for limit or index be normal
-        limit_out = limit_in;
-        wait_for_limit_inactive = FALSE;
+    if (!limit_enable) {
+        // do not report limit switch activity if settings have them disabled
+        limit_out = FALSE;
     }
-    else {
-        // test for state transition into HOME_FALL_SEARCH_WAIT
-        if (prev_home_state < HOME_FALL_SEARCH_WAIT && home_state == HOME_FALL_SEARCH_WAIT) {
-            // now starting HOME_FALL_SEARCH_WAIT
-            // must start watching for limit to go inactive
-            wait_for_limit_inactive = TRUE;
-            index_timed_out = FALSE;
-            limit_out = TRUE;
-        }
-        else if (home_state == HOME_FALL_SEARCH_WAIT) {
-            // this is where limit-out gets stretched until index-in is active
+    else if (home_state < HOME_FALL_SEARCH_START) {
+        // if not looking for index be normal
+        limit_out = limit_in;
+        prev_index_count = index_count;
+    }
+    else if (home_state == HOME_FALL_SEARCH_START) {
+        // 
+        limit_out = TRUE;
+        error_code = ERROR_NONE;
+        prev_index_count = index_count;
+    }
+    else if (home_state == HOME_FALL_SEARCH_WAIT) {
+        if (limit_in == FALSE) {
+            // limit is inactive
 
-		    if (wait_for_limit_inactive == TRUE && (prev_limit_in == TRUE && limit_in == FALSE)) {
-		        // limit_in has gone inactive - start index timeout loop counter
-		        // seconds to search index slightly more than one screw revolution
-		        if (latch_vel != 0.0) {
-                    index_search_loop_count = (int)(fperiod * 1000.0 * (1.10 * screw_pitch) / fabs(latch_vel)) * 1000;
-                }
-                wait_for_limit_inactive = FALSE;
-		    }
+            if (prev_limit_in == TRUE) {
+                // first call in this state - compute positions
+                limit_fall_pos = joint_pos_fb;
+                backoff_pos = limit_fall_pos + (fsignof(latch_vel) * limit_backoff);
+                index_search_max_pos = backoff_pos + (fsignof(latch_vel) * index_search_max);
+                prev_index_count = index_count;
+            }
 
-		    if (limit_in == FALSE) {
-		        // limit is inactive - watch for index active
-                if (index_in == TRUE) {
-                    // index is active so inform motion/axis.N that limit is now inactive
-                    limit_out = FALSE;
+            // do not search for index until backoff has finished
+            // test for still backing off switch
+            if (latch_vel >= 0.0 && joint_pos_fb < backoff_pos ||
+                latch_vel <  0.0 && joint_pos_fb > backoff_pos) {
+                // keep previous_index_count in sync during backoff
+                prev_index_count = index_count;
+            }
+            else {
+                // test for still within index search window
+                if (latch_vel >= 0.0 && joint_pos_fb < index_search_max_pos ||
+                    latch_vel <  0.0 && joint_pos_fb > index_search_max_pos) {
+
+                    // test for change of index_count
+                    if (index_count != prev_index_count) {
+                        // index has been seen
+                        // limit_out as FALSE results in change to home_state
+                        limit_out = FALSE;
+
+                        // record where the index was seen
+                        index_active_pos = joint_pos_fb;
+
+                        // indicate distance between limit and index
+                        limit_index_distance = fabs(limit_fall_pos - index_active_pos);
+                        if (limit_index_distance >= limit_index_min) {
+                            // no error
+                            error_code = ERROR_NONE;
+                        }
+                        else {
+                            // error - index too close to switch
+                            error_code = ERROR_INDEX_TOO_CLOSE_TO_SWITCH;
+                        }
+                    }
                 }
-                // check for timeout if limit_out has not gone inactive
-                else if (screw_pitch != 0.0 &&
-                         index_search_loop_count <= 0 &&
-                         limit_out != FALSE) {
+                else {
                     // index not seen within timeout - assume index sensor failure
-                    index_timed_out = TRUE;
-                    limit_out = limit_in;
-                }
+                    // this will change home_state so this code section stops getting run
+                    limit_out = FALSE;
 
-                if (index_search_loop_count > 0) {
-                    --index_search_loop_count;
+                    // indicate timeout
+                    error_code = ERROR_INDEX_SEARCH_TIMEOUT;
+
+                    // indicate distance between limit and index
+                    limit_index_distance = fabs(limit_fall_pos - joint_pos_fb);
                 }
             }
         }
     }
 
-    prev_home_state = home_state;
     prev_limit_in = limit_in;
+    //if (limit_in == TRUE) {
+    //    prev_index_count = index_count;
+    //}
 }
 
 
