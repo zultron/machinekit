@@ -17,6 +17,8 @@
 #ifndef INTERP_LIST_HH
 #define INTERP_LIST_HH
 
+struct NMLmsg;
+
 #define MAX_NML_COMMAND_SIZE 1000
 
 // these go on the interp list

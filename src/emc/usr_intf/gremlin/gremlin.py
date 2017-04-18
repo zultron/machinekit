@@ -300,6 +300,19 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
                     pos_overhang = canon.max_extents_notool[i] - machine_limit_max[i]
                     warnings.append("Program exceeds machine maximum on %c axis by %0.4f %s"
                         % ("XYZABCUVW"[i], pos_overhang, unit_suffix))
+            # Warn user if spindle-synched feeds violate axis limits
+            axis_max_vel = tuple([
+                float(self.inifile.find("AXIS_%d" % i,"MAX_VELOCITY") or 0.0)*60
+                for i in range(9)])
+            for line_no, delta, rpm, fpr in canon.feed_synched:
+                fpm = rpm * fpr  # feed per minute
+                max_fpm = canon.calc_velocity(delta, axis_max_vel) * 0.95
+                if fpm > max_fpm:
+                    warnings.append(
+                        "Spindle speed %(rpm_set).1f RPM exceeds maximum "
+                        "%(rpm_max).1f RPM for spindle-synched motion "
+                        "on line %(line_no)d" %
+                        dict(rpm_set=rpm, rpm_max=max_fpm/fpr, line_no=line_no))
 
             if result > gcode.MIN_ERROR:
                 self.report_gcode_error(result, seq, filename)
