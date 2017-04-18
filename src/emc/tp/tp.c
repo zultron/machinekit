@@ -2243,7 +2243,7 @@ void tpToggleDIOs(TC_STRUCT * const tc) {
 }
 
 //KLUDGE compine this with the version in taskintf
-spindle_direction_code_t getSpindleCmdDir()
+static inline spindle_direction_code_t getSpindleCmdDir(void)
 {
     if (emcmotStatus->spindle_cmd.velocity_rpm_out > 0.0) {
         return SPINDLE_FORWARD;
@@ -2276,12 +2276,12 @@ static inline double findSpindleDisplacement(double new_pos,
  * Helper function to compare commanded and actual spindle velocity.
  * If the signs of velocity don't match, then the spindle is reversing direction.
  */
-static inline bool spindleReversing()
+static inline bool spindleReversing(void)
 {
     return (signum(emcmotStatus->spindle_fb.velocity_rpm) != signum(emcmotStatus->spindle_cmd.velocity_rpm_out));
 }
 
-static inline bool cmdReverseSpindle()
+static inline bool cmdReverseSpindle(void)
 {
     static bool reversed = false;
     // Flip sign on commanded velocity
