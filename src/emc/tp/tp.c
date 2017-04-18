@@ -2243,7 +2243,7 @@ void tpToggleDIOs(TC_STRUCT * const tc) {
 }
 
 //KLUDGE compine this with the version in taskintf
-static inline spindle_direction_code_t getSpindleCmdDir()
+spindle_direction_code_t getSpindleCmdDir()
 {
     if (emcmotStatus->spindle_cmd.velocity_rpm_out > 0.0) {
         return SPINDLE_FORWARD;
