@@ -1650,15 +1650,16 @@ def run_warn():
         axis_max_vel = tuple([
             float(inifile.find("AXIS_%d" % i,"MAX_VELOCITY") or 0.0) * 60 
             for i in range(9)])
+
         for line_no, delta, rpm, fpr in o.canon.feed_synched:
             fpm = rpm * fpr  # feed per minute
             max_fpm = o.canon.calc_velocity(delta, axis_max_vel) * 0.95
             if fpm > max_fpm:
                 warnings.append(_(
-                    "Spindle speed %(rpm_set).1f RPM exceeds maximum "
-                    "%(rpm_max).1f RPM for spindle-synched motion "
-                    "on line %(line_no)d" %
-                    dict(rpm_set=rpm, rpm_max=max_fpm/fpr, line_no=line_no)))
+                    "Spindle synched move at %(rpm_set).1f RPM would exceed safe XYZ velocity limits on line %(line_no)d. "
+                    "Please reduce spindle speed to %(rpm_max).1f RPM or reduce thread pitch/feed per revolution to %(pitch).3f." %
+                    dict(rpm_set=rpm, rpm_max=max_fpm/fpr, line_no=line_no, pitch=max_fpm/rpm)))
+
     if warnings:
         text = "\n".join(warnings)
         return int(root_window.tk.call("nf_dialog", ".error",
