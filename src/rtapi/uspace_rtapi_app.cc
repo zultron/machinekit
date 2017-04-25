@@ -933,11 +933,18 @@ void Posix::wait() {
         static int printed = 0;
         if(policy == SCHED_FIFO && !printed)
         {
+            // TORMACH changed
             rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd\n"
-		    "This Message will only display once per session.\n"
-		    "Run the Latency Test and resolve before continuing.\n", 
-                    task - task_array);
-            printed = 1;
+		    //"This Message will only display once per session.\n"
+		    //"Run the Latency Test and resolve before continuing.\n",
+                    , task - task_array);
+
+            //printed = 1;
+            // TORMACH added
+            rtapi_print_msg(RTAPI_MSG_ERR, "PP_RTAPI_INFO now: %ld.%09ld should be less than nextstart: %ld.%09ld - new deadline already missed, task->period: 0.%09ld\n",
+                    now.tv_sec, now.tv_nsec,
+                    task->nextstart.tv_sec, task->nextstart.tv_nsec,
+                    task->period);
         }
     }
     else
