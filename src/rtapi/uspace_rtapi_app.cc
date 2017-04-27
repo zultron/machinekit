@@ -920,6 +920,12 @@ static bool ts_less(const struct timespec &ta, const struct timespec &tb) {
     return ta.tv_nsec < tb.tv_nsec;
 }
 
+static void ts_elapsed(struct timespec *delta, struct timespec *then, struct timespec *now)
+{
+    delta->tv_nsec = now->tv_nsec - then->tv_nsec;
+    delta->tv_sec = now->tv_sec - then->tv_sec;
+}
+
 void Posix::wait() {
     if(do_thread_lock)
         pthread_mutex_unlock(&thread_lock);
@@ -934,17 +940,20 @@ void Posix::wait() {
         if(policy == SCHED_FIFO && !printed)
         {
             // TORMACH changed
-            rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd\n"
+            //rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd\n"
 		    //"This Message will only display once per session.\n"
 		    //"Run the Latency Test and resolve before continuing.\n",
-                    , task - task_array);
+            //        , task - task_array);
 
             //printed = 1;
             // TORMACH added
-            rtapi_print_msg(RTAPI_MSG_ERR, "PP_RTAPI_INFO now: %ld.%09ld should be less than nextstart: %ld.%09ld - new deadline already missed, task->period: 0.%09ld\n",
+            struct timespec delta;
+            ts_elapsed(&delta, &(task->nextstart), &now);
+            rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd. now: %ld.%09ld is after nextstart: %ld.%09ld - new deadline missed, delta: %ld.%09ld\n",
+                    task - task_array,
                     now.tv_sec, now.tv_nsec,
                     task->nextstart.tv_sec, task->nextstart.tv_nsec,
-                    task->period);
+                    delta.tv_sec, delta.tv_nsec);
         }
     }
     else
