@@ -136,15 +136,15 @@ FUNCTION(_) {
 
             // do not search for index until backoff has finished
             // test for still backing off switch
-            if (latch_vel >= 0.0 && joint_pos_fb < backoff_pos ||
-                latch_vel <  0.0 && joint_pos_fb > backoff_pos) {
+            if ((latch_vel >= 0.0 && joint_pos_fb < backoff_pos) ||
+                (latch_vel <  0.0 && joint_pos_fb > backoff_pos)) {
                 // keep previous_index_count in sync during backoff
                 prev_index_count = index_count;
             }
             else {
                 // test for still within index search window
-                if (latch_vel >= 0.0 && joint_pos_fb < index_search_max_pos ||
-                    latch_vel <  0.0 && joint_pos_fb > index_search_max_pos) {
+                if ((latch_vel >= 0.0 && joint_pos_fb < index_search_max_pos) ||
+                    (latch_vel <  0.0 && joint_pos_fb > index_search_max_pos)) {
 
                     // test for change of index_count
                     if (index_count != prev_index_count) {
