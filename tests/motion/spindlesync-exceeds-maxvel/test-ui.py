@@ -56,8 +56,14 @@ while timeout > 0:
         avg_count += 1
     timeout = 5 if h['running'] else timeout - 1
     time.sleep(0.1)
-avg_pitch = avg_sum/avg_count
-print "Average pitch = %.3f" % avg_pitch
+print "avg_sum = %.3f; avg_count = %d" % (avg_sum, avg_count)
+if avg_count > 0:
+    avg_pitch = avg_sum/avg_count
+    print "Average pitch = %.3f" % avg_pitch
+else:
+    res = 166
+    avg_pitch = 0
+    print "Error:  got no counts"
 
 # Pitch should either be as specified (by slowing down spindle) or
 # else program should have aborted; if it didn't abort and pitch is
