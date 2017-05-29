@@ -63,6 +63,8 @@ STATIC inline int tpAddSegmentToQueue(TP_STRUCT * const tp, TC_STRUCT * const tc
 
 STATIC inline double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc);
 
+STATIC inline int tpIsWaitingOnSpindle(TP_STRUCT const * const tp);
+
 STATIC int tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc);
 /**
  * @section tpcheck Internal state check functions.
@@ -399,6 +401,7 @@ int tpClear(TP_STRUCT * const tp)
     emcmotStatus->current_vel = 0.0;
     emcmotStatus->requested_vel = 0.0;
     emcmotStatus->distance_to_go = 0.0;
+    emcmotStatus->waiting_on_spindle = 0;
     ZERO_EMC_POSE(emcmotStatus->dtg);
 
     return tpClearDIOs(tp);
@@ -2395,6 +2398,7 @@ STATIC void tpUpdateMovementStatus(TP_STRUCT * const tp,
 
     emcmotStatus->requested_vel = tc->reqvel;
     emcmotStatus->current_vel = tc->currentvel;
+    emcmotStatus->waiting_on_spindle = tpIsWaitingOnSpindle(tp);
 
     emcPoseSub(&target, &tp->currentPos, &emcmotStatus->dtg);
 }
@@ -2585,6 +2589,15 @@ STATIC int tpCheckAtSpeed(TP_STRUCT * const tp, TC_STRUCT * const tc)
     }
 
     return TP_ERR_OK;
+}
+
+/**
+ * Return true if a spindle-synched move is waiting on the spindle
+ */
+STATIC inline int tpIsWaitingOnSpindle(TP_STRUCT const * const tp)
+{
+    return (MOTION_ID_VALID(tp->spindle.waiting_for_index) ||
+	    MOTION_ID_VALID(tp->spindle.waiting_for_atspeed));
 }
 
 /**
@@ -2966,6 +2979,8 @@ STATIC int tpUpdateInitialStatus(TP_STRUCT const * const tp) {
     // Set default value for requested speed
     emcmotStatus->requested_vel = 0.0;
     emcmotStatus->current_vel = 0.0;
+    // Set synched move waiting on spindle flag
+    emcmotStatus->waiting_on_spindle = tpIsWaitingOnSpindle(tp);
     return TP_ERR_OK;
 }
 

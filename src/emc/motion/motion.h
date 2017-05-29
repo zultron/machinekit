@@ -706,6 +706,7 @@ typedef enum {
         EmcPose tool_offset;
         int atspeed_next_feed;  /* at next feed move, wait for spindle to be at speed  */
         int spindle_is_atspeed; /* hal input */
+	int waiting_on_spindle; /* flag when synched move waiting on spindle */
 	unsigned char tail;	/* flag count for mutex detect */
         
     } emcmot_status_t;

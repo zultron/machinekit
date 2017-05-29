@@ -1,0 +1,4 @@
+Test the `linuxcnc.status.waiting_on_spindle` flag
+
+This flag should be true during spindle-synchronized moves, and false
+at other times.

@@ -1845,6 +1845,7 @@ static void output_to_hal(void)
             emcmotStatus->current_vel = (*emcmot_hal_data->current_vel) = 0.0;
         *(emcmot_hal_data->requested_vel) = 0.0;
     }
+    *(emcmot_hal_data->waiting_on_spindle) = emcmotStatus->waiting_on_spindle;
 
     /* These params can be used to examine any internal variable. */
     /* Change the following lines to assign the variable you want to observe

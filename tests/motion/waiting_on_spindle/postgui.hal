@@ -1,0 +1,3 @@
+net Zpos => python-ui.Zpos
+net spindle-rpm-est => python-ui.spindle-speed
+net waiting-on-spindle motion.waiting-on-spindle => python-ui.waiting-on-spindle

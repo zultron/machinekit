@@ -109,6 +109,8 @@ typedef struct {
     hal_float_t *current_vel;   /* RPI: velocity magnitude in machine units */
     hal_float_t *requested_vel;   /* RPI: requested velocity magnitude in machine units */
     hal_float_t *distance_to_go;/* RPI: distance to go in current move*/
+    hal_bit_t *waiting_on_spindle; /* RPI: TRUE when spindle-synched
+				    * move is waiting on spindle */
 
     hal_bit_t debug_bit_0;	/* RPA: generic param, for debugging */
     hal_bit_t debug_bit_1;	/* RPA: generic param, for debugging */
