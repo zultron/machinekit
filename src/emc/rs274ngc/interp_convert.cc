@@ -5538,7 +5538,9 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
                                       block_pointer block,      //!< pointer to a block of RS274/NGC instructions
                                       setup_pointer settings)   //!< pointer to machine settings                 
 {
-  int pocket_number;
+    int pocket_number, wear_pocket_number;
+    int geo_offset_register = 0;
+    int wear_offset_register = 0;
   EmcPose tool_offset;
   ZERO_EMC_POSE(tool_offset);
 
@@ -5549,8 +5551,20 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
   } else if (g_code == G_43) {
       logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
 	      block->h_flag,block->h_number,settings->toolchange_flag,settings->current_pocket);
+      if (FEATURE(LATHE_TOOLCHANGE)) {
+	  if (block->h_number < 100)
+	      geo_offset_register = block->h_number + 10000;
+	  else if (block->h_flag < 10000) {
+	      geo_offset_register = floor(block->h_number/100) + 10000;
+	      wear_offset_register = block->h_number % 100;
+	  }
+      } else
+	  geo_offset_register = block->h_number;
+
       if(block->h_flag) {
-        CHP((find_tool_pocket(settings, block->h_number, &pocket_number)));
+	  CHP((find_tool_pocket(settings, geo_offset_register, &pocket_number)));
+      } else if (FEATURE(LATHE_TOOLCHANGE)) {
+	  ERS("G43 with no H-word unsupported");
     } else if (settings->toolchange_flag) {
         // Tool change is in progress, so the "current tool" is in its
         // original pocket still.
@@ -5564,11 +5578,29 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
 	     pocket_number, settings->tool_table[0].toolno,settings->tool_table[settings->current_pocket].toolno);
 	// Alway apply Z offset in G43
     tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.z);
-    // G43 should only apply Z in mill, but we're relying on it for lathe to do X as well - Tormach *dpr 3/7/16
     if (FEATURE(LATHE_TOOLCHANGE)) {
-		tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.x);
-		tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.y);
+	// G43 should only apply Z in mill, but we're relying on it
+	// for lathe to do X as well - Tormach *dpr 3/7/16
+	tool_offset.tran.x = USER_TO_PROGRAM_LEN(
+	    settings->tool_table[pocket_number].offset.tran.x);
+	tool_offset.tran.y = USER_TO_PROGRAM_LEN(
+	    settings->tool_table[pocket_number].offset.tran.y);
+
+	// Apply wear offsets
+	if (wear_offset_register) {
+	    CHP((find_tool_pocket(
+		     settings, wear_offset_register, &wear_pocket_number)));
+	    tool_offset.tran.x += USER_TO_PROGRAM_LEN(
+		settings->tool_table[wear_pocket_number].offset.tran.x);
+	    tool_offset.tran.y += USER_TO_PROGRAM_LEN(
+		settings->tool_table[wear_pocket_number].offset.tran.y);
+	    tool_offset.tran.z += USER_TO_PROGRAM_LEN(
+		settings->tool_table[wear_pocket_number].offset.tran.z);
+	    logDebug("convert_tool_length_offset: "
+		     "added offsets from wear pocket number %d",
+		     wear_pocket_number);
 	}
+    }
     tool_offset.a = USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.a);
     tool_offset.b = USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.b);
     tool_offset.c = USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.c);

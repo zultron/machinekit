@@ -1,3 +1,16 @@
 net Zvel => python-ui.Zvel
 net spindle-rpm-est => python-ui.spindle-speed
 net running halui.program.is-running => python-ui.running
+
+# pitch = feed per rev
+#    spr = 1/rps
+loadrt invert count=1
+addf invert.0 servo-thread
+setp invert.0.deadband 0.001
+net spindle-rps-raw => invert.0.in
+#    pitch
+loadrt mult2 count=1
+addf mult2.0 servo-thread
+net Zvel => mult2.0.in0
+net spindle-spr invert.0.out => mult2.0.in1
+net pitch mult2.0.out => python-ui.pitch

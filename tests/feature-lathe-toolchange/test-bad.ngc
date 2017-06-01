@@ -1,0 +1,2 @@
+; Illegal when LATHE_TOOLCHANGE feature enabled
+G43

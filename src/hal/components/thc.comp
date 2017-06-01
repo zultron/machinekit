@@ -106,7 +106,7 @@ param rw float correction_vel "The amount of change in user units per period to 
 variable float initial_fb;
 variable int torch_on_ticks;
 variable int torch_off_ticks;
-variable bool velocity_pass_through;
+variable int velocity_pass_through;
 
 function _;
 ;;

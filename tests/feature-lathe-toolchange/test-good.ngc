@@ -1,0 +1,89 @@
+G20 ; Inches, so output makes sense
+(print,)
+; T10001 P28 X-0.1       Z+0.1         ; none
+; Total      X-0.1       Z+0.1
+O1 call [1]
+; T10002 P29 X-0.05      Z+0.05        ; none
+; Total      X-0.05      Z+0.05
+O1 call [2]
+; T10003 P30                           ; none
+; Total      X 0          Z 0
+O1 call [3]
+; T10004 P31 X+21.000000               ; none
+; Total      X+21        Z 0
+O1 call [4]
+; T10001 P28 X-0.1       Z+0.1         ; none
+; T1     P1  X+1.0       Z-1.0      Q2 ;
+; Total      X 0.9       Z-0.9
+O1 call [0101]
+; T10002 P29 X-0.05      Z+0.05        ; none
+; T2     P2                         Q2 ;
+; Total      X-0.05      Z+0.05
+O1 call [0202]
+; T10003 P30                           ; none
+; T3     P3  X+0.500000  Z-0.500000 Q2 ;
+; Total      X 0.5       Z-0.5
+O1 call [0303]
+; T10004 P31 X+21.000000               ; none
+; T4     P4  X-0.100000             Q2 ;
+; Total      X+20.9       Z 0
+O1 call [0404]
+; T10004 P31 X+21.000000               ; none
+; T1     P1  X+1.0       Z-1.0      Q2 ;
+; Total      X+22        Z-1.0
+O1 call [0401]
+; T10003 P30                           ; none
+; T2     P2                         Q2 ;
+; Total      X 0          Z 0
+O1 call [0302]
+; T10001 P28 X-0.1       Z+0.1         ; none
+; Total      X-0.1       Z+0.1
+O2 call [1]
+; T10002 P29 X-0.05      Z+0.05        ; none
+; Total      X-0.05      Z+0.05
+O2 call [2]
+; T10003 P30                           ; none
+; Total      X 0          Z 0
+O2 call [3]
+; T10004 P31 X+21.000000               ; none
+; Total      X+21        Z 0
+O2 call [4]
+; T10001 P28 X-0.1       Z+0.1         ; none
+; T1     P1  X+1.0       Z-1.0      Q2 ;
+; Total      X 0.9       Z-0.9
+O2 call [0101]
+; T10002 P29 X-0.05      Z+0.05        ; none
+; T2     P2                         Q2 ;
+; Total      X-0.05      Z+0.05
+O2 call [0202]
+; T10003 P30                           ; none
+; T3     P3  X+0.500000  Z-0.500000 Q2 ;
+; Total      X 0.5       Z-0.5
+O2 call [0303]
+; T10004 P31 X+21.000000               ; none
+; T4     P4  X-0.100000             Q2 ;
+; Total      X+20.9       Z 0
+O2 call [0404]
+; T10004 P31 X+21.000000               ; none
+; T1     P1  X+1.0       Z-1.0      Q2 ;
+; Total      X+22        Z-1.0
+O2 call [0401]
+; T10003 P30                           ; none
+; T2     P2                         Q2 ;
+; Total      X 0          Z 0
+O2 call [0302]
+
+M2
+
+O1 sub
+(print,Switching to tool #1)
+T[#1] M6    ; Select pocket & change tool
+(print,)
+O1 endsub
+
+O2 sub
+(print,Applying tool #1)
+M61 Q[#1]   ; Change tool
+G43 H[#1]   ; Apply TLO
+(print,)
+O2 endsub

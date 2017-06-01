@@ -1023,6 +1023,7 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
     EmcPose probedPosition;	// last position where probe was tripped.
     bool probe_tripped;		// Has the probe been tripped since the last
     // clear.
+    bool waiting_on_spindle;    // Waiting for spindle on spindle-synched move
     double spindle_sync;		// Tormach - use as flag for feed/rev mode active
     double uu_per_rev;		// Tormach added 3/12/13 *dpr
     bool probing;		// Are we currently looking for a probe

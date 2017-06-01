@@ -412,6 +412,11 @@ static int init_hal_io(void)
     if (retval != 0) {
 	return retval;
     }
+    retval = hal_pin_bit_new("motion.waiting-on-spindle", HAL_OUT,
+			     &(emcmot_hal_data->waiting_on_spindle),
+			     mot_comp_id);
+    if (retval != 0)
+	return retval;
     retval =
 	hal_pin_s32_new("motion.program-line", HAL_OUT, &(emcmot_hal_data->program_line),
 	mot_comp_id);

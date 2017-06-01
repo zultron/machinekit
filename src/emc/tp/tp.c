@@ -69,6 +69,8 @@ STATIC int tpAdjustAccelForTangent(TP_STRUCT const * const,
         TC_STRUCT * const tc,
         double normal_acc_scale);
 
+STATIC inline int tpIsWaitingOnSpindle(TP_STRUCT const * const tp);
+
 STATIC int tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc);
 /**
  * @section tpcheck Internal state check functions.
@@ -430,6 +432,7 @@ int tpClear(TP_STRUCT * const tp)
     emcmotStatus->current_vel = 0.0;
     emcmotStatus->requested_vel = 0.0;
     emcmotStatus->distance_to_go = 0.0;
+    emcmotStatus->waiting_on_spindle = 0;
     ZERO_EMC_POSE(emcmotStatus->dtg);
     SET_MOTION_INPOS_FLAG(1);
 
@@ -2362,7 +2365,7 @@ void tpToggleDIOs(TC_STRUCT * const tc) {
 }
 
 //KLUDGE compine this with the version in taskintf
-static inline spindle_direction_code_t getSpindleCmdDir()
+static inline spindle_direction_code_t getSpindleCmdDir(void)
 {
     if (emcmotStatus->spindle_cmd.velocity_rpm_out > 0.0) {
         return SPINDLE_FORWARD;
@@ -2395,12 +2398,12 @@ static inline double findSpindleDisplacement(double new_pos,
  * Helper function to compare commanded and actual spindle velocity.
  * If the signs of velocity don't match, then the spindle is reversing direction.
  */
-static inline bool spindleReversing()
+static inline bool spindleReversing(void)
 {
     return (signum(emcmotStatus->spindle_fb.velocity_rpm) != signum(emcmotStatus->spindle_cmd.velocity_rpm_out));
 }
 
-static inline bool cmdReverseSpindle()
+static inline bool cmdReverseSpindle(void)
 {
     static bool reversed = false;
     // Flip sign on commanded velocity
@@ -2532,6 +2535,7 @@ STATIC int tpUpdateMovementStatus(TP_STRUCT * const tp,
 
     emcmotStatus->requested_vel = tc->reqvel;
     emcmotStatus->current_vel = tc->currentvel;
+    emcmotStatus->waiting_on_spindle = tpIsWaitingOnSpindle(tp);
 
     emcPoseSub(&tc_pos, &tp->currentPos, &emcmotStatus->dtg);
     return TP_ERR_OK;
@@ -2730,6 +2734,51 @@ STATIC int tpCheckAtSpeed(TP_STRUCT * const tp, TC_STRUCT * const tc)
     return TP_ERR_OK;
 }
 
+/**
+ * Return true if a spindle-synched move is waiting on the spindle
+ */
+STATIC inline int tpIsWaitingOnSpindle(TP_STRUCT const * const tp)
+{
+    return (MOTION_ID_VALID(tp->spindle.waiting_for_index) ||
+	    MOTION_ID_VALID(tp->spindle.waiting_for_atspeed));
+}
+
+/**
+ * Finalize the length of a segment and re-run optimization.
+ * This function is a kludgy fix for the problem of finalizing the very last
+ * segment in a program. Since the last segment is never blending with a "next"
+ * segment, it's never marked as finalized. 
+ *
+ * @param tp trajectory planner struct pointer
+ * @param tc segment to check for finalized length
+ *
+ * Usage: call this function on a near-future segment in tpRunCycle (at least 2
+ * segments ahead of the "current" segment). If we detect that tc is not
+ * finalized, then force it to be finalized and re-run optimization. 
+ *
+ * If this isn't actually the end (say we have queue starvation), the blend arc
+ * functions will detect that the prev. line is finalized and skip that blend
+ * arc.
+ */
+#if 0
+STATIC int tpHandleLowQueue(TP_STRUCT * const tp) {
+
+    if (tcqLen(&tp->queue) > TP_QUEUE_THRESHOLD) {
+        return TP_ERR_NO_ACTION;
+    }
+
+    TC_STRUCT *tc_last;
+    tc_last = tcqLast(&tp->queue);
+
+    if(TP_ERR_OK == tcFinalizeLength(tc_last)) {
+        tpRunOptimization(tp);
+        return TP_ERR_OK;
+    } else {
+        return TP_ERR_NO_ACTION;
+    }
+
+}
+#endif
 
 /**
  * "Activate" a segment being read for the first time.
@@ -3074,6 +3123,8 @@ STATIC int tpUpdateInitialStatus(TP_STRUCT const * const tp) {
     // Set default value for requested speed
     emcmotStatus->requested_vel = 0.0;
     emcmotStatus->current_vel = 0.0;
+    // Set synched move waiting on spindle flag
+    emcmotStatus->waiting_on_spindle = tpIsWaitingOnSpindle(tp);
     return TP_ERR_OK;
 }
 
