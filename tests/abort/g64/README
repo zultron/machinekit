@@ -1,0 +1,7 @@
+This test runs and aborts a test .ngc program several times with
+various blend mode and tolerance settings.  At various points at
+execution, it compares expected and active settings for blend mode
+(using the status buffer) and blend tolerances (using X coordinates
+collected by halsampler).
+
+This test replicates Github Issue #177.

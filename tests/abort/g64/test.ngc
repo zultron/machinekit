@@ -1,0 +1,20 @@
+%
+; Start at a fast clip from X0Y0
+G0 X0Y0 F120
+; Run a bunch of zig-zags
+#1 = 0
+O100 WHILE [#1 LT 0.3]
+
+    ; zig
+    G1 X5 Y[#1 + 0.01]
+
+    ; zag
+    G1 X0 Y[#1 + 0.02]
+
+    #1 = [#1 + 0.02]
+O100 ENDWHILE
+
+; Set G64; execution will never reach here
+G64 P0.42 Q0.13
+
+%
