@@ -215,7 +215,7 @@ static int do_load_cmd(string name, vector<string> args) {
     void *w = modules[name];
     if(w == NULL) {
         char what[LINELEN+1];
-// TORMACH_RIP_PATCH    
+// TORMACH_RIP_PATCH
         char *envPtr = getenv("EMC2_RTLIB_DIR");
         // if not in environment use config.h #define
         if (envPtr == NULL) {
@@ -693,6 +693,16 @@ static int harden_rt()
 
 static RtapiApp *makeApp()
 {
+    // TORMACH start
+    // Added easy override ability for realtime posix behavior for virtualized OS environments
+    char* var = getenv("PATHPILOT_NONREALTIME_MODE");
+    if ((var != NULL) and (*var != '0'))
+    {
+        rtapi_print_msg(RTAPI_MSG_ERR, "Note: env var PATHPILOT_NONREALTIME_MODE forced POSIX non-realtime\n");
+        return new Posix(SCHED_OTHER);
+    }
+    // TORMACH end
+
     if(harden_rt() < 0)
     {
         rtapi_print_msg(RTAPI_MSG_ERR, "Note: Using POSIX non-realtime\n");
