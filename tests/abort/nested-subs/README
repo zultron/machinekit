@@ -1,0 +1,9 @@
+Test aborting during several levels of nested subs
+
+@cradek reported an interpreter error, `Unknown oword number`, in
+issue #134 [1]
+
+This is easily tickled by a sub self-calling several stack levels
+deep, and aborting.  The error message will show up in stdout.
+
+[1]: https://github.com/LinuxCNC/linuxcnc/issues/134

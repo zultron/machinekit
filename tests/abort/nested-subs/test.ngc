@@ -1,0 +1,17 @@
+%
+o1000 sub
+    #<level> = #1
+    (debug,o1000; level=#<level> call_level=#<_call_level>)
+
+    o1001 if [#<level> EQ 0]
+        (debug,slow move; hit abort here)
+        G1 X5 F1
+    o1001 else
+        (debug,recursing one deeper)
+        o1000 call [#<level>-1]
+    o1001 endif
+
+o1000 endsub
+
+o1000 call [5]
+%

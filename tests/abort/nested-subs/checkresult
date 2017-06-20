@@ -1,0 +1,9 @@
+#!/bin/bash -x
+MSG='Unknown oword number'
+if grep "$MSG" result; then
+    echo "ERROR:  Found '$MSG' in result"
+    exit 1
+else
+    echo "PASS:  No '$MSG' in result"
+    exit 0
+fi
