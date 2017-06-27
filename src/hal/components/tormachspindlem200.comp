@@ -302,8 +302,9 @@ FUNCTION(_) {
             // at the very bottom end the feedback speed falls off from commanded
             // e.g. 770 high belt 525 RPM feedback is 452 RPM
             //      yet 575 RPM feedback is 587 RPM
-            if (clamped_speed_in < (1.15 * min_speed)) {
-                // at the very 
+            //      1100 high belt 300 RPM feedback is 270 RPM
+            if (clamped_speed_in < (1.25 * min_speed)) {
+                // drastically widen the acceptable range at very low commanded RPM
                 tolerance = tolerance * 4;
             }
             if (is_close_enough(speed_out, clamped_speed_in, tolerance)) {
