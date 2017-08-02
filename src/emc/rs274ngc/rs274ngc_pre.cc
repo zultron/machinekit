@@ -2690,7 +2690,7 @@ int Interp::on_abort(int reason, const char *message)
     // Tormach - *dpr 4/30/13, ammended 7/2/13
 	if (FEATURE(LATHE_TOOLCHANGE)) {
 	tool =  _setup.tool_table[0].toolno;
-	pocket = tool + 27;
+	pocket = tool + 27;//TODO PDH: Fix required for using tools greater than 99
 	EmcPose tool_offset;
     ZERO_EMC_POSE(tool_offset);
 	

@@ -5552,7 +5552,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
       logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
 	      block->h_flag,block->h_number,settings->toolchange_flag,settings->current_pocket);
       if (FEATURE(LATHE_TOOLCHANGE)) {
-	  if (block->h_number < 100)
+	  if (block->h_number < 100)//TODO PDH: Fix required for using tools greater than 99
 	      geo_offset_register = block->h_number + 10000;
 	  else if (block->h_flag < 10000) {
 	      geo_offset_register = floor(block->h_number/100) + 10000;
@@ -5752,7 +5752,12 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
   EmcPose tool_offset;
   ZERO_EMC_POSE(tool_offset);
 
-	if (block->t_number > 99 && block->t_number<10000) {
+  Log("convert_lathe_tool_change: "
+         "called with t_number %d",
+         block->t_number);
+
+
+	if (block->t_number > 99 && block->t_number<10000) {//TODO PDH: Fix required for using tools greater than 99
 		geo_offset_register = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
 		wear_offset_register = block->t_number % 100;	// wear offset is second two digits
 	} else if (block->t_number < 100) {
@@ -5762,7 +5767,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
 	tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
 	tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
 	tool_offset.w = 0;
-	if (block->t_number > 99) {
+	if (block->t_number > 99) { //TODO PDH: Fix required for using tools greater than 99
 		CHP((find_tool_pocket(settings, wear_offset_register, &index)));
 		// wear offsets are stored in the actual tool value register (e.g. T1 X Z stores wear, T10001 X Z stores geo offsets)
 		tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
