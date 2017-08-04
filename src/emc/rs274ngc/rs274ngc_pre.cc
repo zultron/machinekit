@@ -2677,32 +2677,36 @@ int Interp::leave_remap(void)
 
 int Interp::on_abort(int reason, const char *message)
 {
-	int pocket, tool;
+    int pocket, tool;
     logDebug("on_abort reason=%d message='%s'", reason, message);
     
     
     
     // If running the FANUC_LATHE_TOOLCHANGE feature, the interp reads ahead and on abort the wrong tool
     // offset will be used if a program is stopped in the middle.  We need to resynch here.
-    // Note: this is a bit of a kludge.  pocket = tool+27 will need to change when the tool table gets bigger
-    // No time or energy to do this now as it requires jumping through a
-    // number of hoops.  I suspect this will all have to change with a redis-based tool table anyway.
-    // Tormach - *dpr 4/30/13, ammended 7/2/13
-	if (FEATURE(LATHE_TOOLCHANGE)) {
-	tool =  _setup.tool_table[0].toolno;
-	pocket = tool + 27;
-	EmcPose tool_offset;
-    ZERO_EMC_POSE(tool_offset);
-	
-	tool_offset.tran.x = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.x);
-	tool_offset.tran.z = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.z);
+    // One thing to note with this solution is that if you have a T0202 wear offset applied 
+    // it will be lost after stopping and revert to T02. Something to look at in the future.
+    // Tormach - *dpr 4/30/13, ammended 7/2/13, 8/3/17 PDH
 
-    USE_TOOL_LENGTH_OFFSET(tool_offset);
-    _setup.tool_offset = tool_offset;
-	}
-	
-	
-	
+    if (FEATURE(LATHE_TOOLCHANGE)) {
+        tool =  _setup.tool_table[0].toolno;
+
+        //find the geo offset tool pocket number from the tool number plus 10000
+        CHP(find_tool_pocket(&_setup, tool+10000, &pocket));
+      
+        EmcPose tool_offset;
+        ZERO_EMC_POSE(tool_offset);
+        
+        tool_offset.tran.x = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.x);
+        tool_offset.tran.z = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.z);
+        logDebug("Found tool %d with geo offset pocket %d on abort. Applying offset (%.2f, %.2f)", 
+            tool, pocket, tool_offset.tran.x, tool_offset.tran.z);
+        USE_TOOL_LENGTH_OFFSET(tool_offset);
+        _setup.tool_offset = tool_offset;
+    }
+    
+    
+    
     reset();
     _setup.mdi_interrupt = false;
 
@@ -2713,7 +2717,7 @@ int Interp::on_abort(int reason, const char *message)
     _setup.input_flag = false;
 
     if (_setup.on_abort_command == NULL)
-	return -1;
+        return -1;
 
     char cmd[LINELEN];
 
