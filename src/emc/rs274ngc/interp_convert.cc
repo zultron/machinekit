@@ -4775,241 +4775,188 @@ int Interp::issue_straight_index(int axis, double target, int lineno, setup_poin
 
 #define AABBCC settings->AA_current, settings->BB_current, settings->CC_current, settings->u_current, settings->v_current, settings->w_current
 
-int Interp::convert_threading_cycle(block_pointer block,
-        setup_pointer settings,
-        double end_x, double end_y, double end_z) {
+// make one threading pass.  only called from convert_threading_cycle.
+static void 
+threading_pass(setup_pointer settings, block_pointer block,
+	       int boring, double safe_x, double depth, double end_depth, 
+	       double start_y, double start_z, double zoff, double taper_dist,
+	       int entry_taper, int exit_taper, double taper_pitch, 
+	       double pitch, double full_threadheight, double target_z, double d_number) {
 
-    // G76 P- Z- I- J- K- R- Q- H- E- L- D~
+    if (d_number != 0) {
+        // back
+        STRAIGHT_TRAVERSE(block->line_number,
+                          // internal : external
+                          boring? safe_x + depth - end_depth : safe_x - depth + end_depth,
+                          start_y, 
+                          start_z - zoff, 
+                          AABBCC);
 
-    // TODO: check active plane? G17 seems to be active no matter what is selected, or isn't indicated long enough to tell
-    // TODO: errors out with y word, but not with x
+        // in
+        STRAIGHT_TRAVERSE(block->line_number,
+                          boring? safe_x + depth : safe_x - depth, 
+                          start_y, 
+                          start_z - zoff, 
+                          AABBCC);
+        DISABLE_FEED_OVERRIDE();
+        START_SPEED_FEED_SYNCH(pitch, 0);
+
+        // over
+        STRAIGHT_FEED(block->line_number, 
+                      boring? safe_x + depth + d_number : safe_x - depth + d_number, 
+                      start_y, 
+                      target_z - zoff, 
+                      AABBCC);
+
+        // out
+        STOP_SPEED_FEED_SYNCH();
+        STRAIGHT_TRAVERSE(block->line_number, 
+                          boring? safe_x + depth - end_depth : safe_x - depth + end_depth,
+                          start_y, 
+                          target_z - zoff, 
+                          AABBCC);
+        ENABLE_FEED_OVERRIDE();
+
+    } else {
+        STRAIGHT_TRAVERSE(block->line_number, boring?
+		          safe_x + depth - end_depth:
+		          safe_x - depth + end_depth,
+		          start_y, start_z - zoff, AABBCC); //back
+        if(taper_dist && entry_taper) {
+	    DISABLE_FEED_OVERRIDE();
+	    START_SPEED_FEED_SYNCH(taper_pitch, 0);
+	    STRAIGHT_FEED(block->line_number, boring? 
+		          safe_x + depth - full_threadheight: 
+		          safe_x - depth + full_threadheight,
+		          start_y, start_z - zoff, AABBCC); //in
+	    STRAIGHT_FEED(block->line_number, boring? safe_x + depth: safe_x - depth, //angled in
+		          start_y, start_z - zoff - taper_dist, AABBCC);
+	    START_SPEED_FEED_SYNCH(pitch, 0);
+        } else {
+	    STRAIGHT_TRAVERSE(block->line_number, boring? safe_x + depth: safe_x - depth, 
+			      start_y, start_z - zoff, AABBCC); //in
+	    DISABLE_FEED_OVERRIDE();
+	    START_SPEED_FEED_SYNCH(pitch, 0);
+        }
+            
+        if(taper_dist && exit_taper) {
+	    STRAIGHT_FEED(block->line_number, boring? safe_x + depth: safe_x - depth,  //over
+		          start_y, target_z - zoff + taper_dist, AABBCC);
+	    START_SPEED_FEED_SYNCH(taper_pitch, 0);
+	    STRAIGHT_FEED(block->line_number, boring? 
+		          safe_x + depth - full_threadheight: 
+		          safe_x - depth + full_threadheight, 
+		          start_y, target_z - zoff, AABBCC); //angled out
+        } else {
+	    STRAIGHT_FEED(block->line_number, boring? safe_x + depth: safe_x - depth, 
+		          start_y, target_z - zoff, AABBCC); //over
+        }
+        STOP_SPEED_FEED_SYNCH();
+        STRAIGHT_TRAVERSE(block->line_number, boring? 
+		          safe_x + depth - end_depth:
+		          safe_x - depth + end_depth,
+		          start_y, target_z - zoff, AABBCC); //out
+        ENABLE_FEED_OVERRIDE();
+    }
+}
+
+int Interp::convert_threading_cycle(block_pointer block, 
+				    setup_pointer settings,
+				    double end_x, double end_y, double end_z) {
+
 
     CHKS((settings->cutter_comp_side),
          (_("Cannot use G76 threading cycle with cutter radius compensation on")));
 
-    CHKS((block->p_number <= 0),
-        (_("In G76, P must be greater than 0")));
-    double lead = block->p_number;
-
     CHKS((block->i_number == 0),
         (_("In G76, I must not be 0")));
-    double i_number = block->i_number;
-    int boring = (i_number > 0.0) ? 1 : -1;
-    i_number = fabs(i_number);
-
     CHKS((block->j_number <= 0),
         (_("In G76, J must be greater than 0")));
-    double j_number = block->j_number;
-
     CHKS((block->k_number <= block->j_number),
         (_("In G76, K must be greater than J")));
+
+    double start_x = settings->current_x;
+    double start_y = settings->current_y;
+    double start_z = settings->current_z;
+
+	double d_number = 0; // Tormach - init d value to zero - fix for issue 801 *dpr 3/3/15
+	if (block->d_flag){
+		d_number = block->d_number_float;
+	}
+    double i_number = block->i_number;
+    double j_number = block->j_number;
     double k_number = block->k_number;
 
-    /*  Optional parameters R, Q, H, E, L, D
-        If parameter exists, validate value, make local copy
-        If missing, set default value
-    */
-    // R - Depth of cut regression
-    double doc_dgr = 1.0;
-    if(block->r_flag) {
-        CHKS((block->r_number < 1.0),
-        (_("In G76, if R is used it must be 1.0 or greater")));
-        doc_dgr = block->r_number;
-    }
-
-    // Q - Compound slide angle
-    double compound_angle = block->q_flag ? block->q_number : 0;
-    compound_angle *= M_PIl/180.0;  // convert from degrees to radians
-    if(end_z > settings->current_z) compound_angle = -compound_angle;
-
-    // H - Number of spring passes
-    int spring_cuts = block->h_flag ? block->h_number : 0;
-
-    // E - Z distance from Z Start or Z End for entry or exit taper
-    double end_taper = 0.0;
-    if(block->e_flag) {
-        CHKS((block->e_number < 0.0 || block->e_number > (fabs(end_z - settings->current_z) / 2)),
-        (_("In G76, if E is used it must be between 0 and half the distance to Z end, inclusive.")));
-        end_taper = block->e_number;
-    }
-
-    // L - Indicator for which tapers are needed
-    int end_taper_flags = 0;
-    if(block->l_flag) {
-        CHKS((block->l_number < 0 || block->l_number > 3),
-        (_("In G76, if L is used it must be: 0 = no taper, 1 = entry, 2 = exit, 3 = both.")));
-        end_taper_flags = block->l_number;
-    }
-    int entry_taper = end_taper_flags & 1;
-    int exit_taper  = end_taper_flags & 2;
-
-    // D - X distance at far end of synchronized pass for thread taper
-    double d_number = block->d_flag ? block->d_number_float : 0;
-    int main_taper_flag = (fabs(d_number) > 0) ? 1 : 0;
-    int mtout = (d_number < 0.0) ? -1 : 1;
-    d_number = fabs(d_number);
-
-    // convert X values to radius format from diameter mode if needed
     if(_setup.lathe_diameter_mode){
       i_number /= 2;
       j_number /= 2;
       k_number /= 2;
-      d_number /= 2;
     }
 
-    /* Let there be a basic tool path made up of six points.
-       The first point, pA, is set with a move just prior to invoking G76. It 
-       is the base from which the rest of the points are set based on the 
-       command parameters.
 
-       Leg 1 - pA to pB - rapid from tool clearance to beginning of 
-       synchronized motion
-       Leg 2 - pB to pC - sync motion across entry taper if needed
-       Leg 3 - pC to pD - sync motion to cut main thread, may be tapered. 
-       Taper is parallel to the line through pA and pF (tool clearance line)
-       Leg 4 - pD to pE - sync motion across exit taper if needed
-       Leg 5 - pE to pF - rapid to tool clearance line
-       Leg 6 - pF to pA - return to start
-    */
+    int boring = 0;
 
-    /* constant points - two points on the tool clearance line
-       base point, pA; retract point, pF
-    */
-    double pAx = settings->current_x;
-    double pAy = settings->current_y;
-    double pAz = settings->current_z;
-    int tool_side = (pAx < 0.0) ? -1 : 1;
-    double pFx = pAx + (d_number * tool_side * mtout);
-    double pFz = end_z;
+    if (i_number > 0.0)
+	boring = 1;
 
+    double safe_x = start_x;
+    double full_dia_depth = fabs(i_number);
+    double start_depth = fabs(i_number) + fabs(j_number);
+    double cut_increment = fabs(j_number);
+    double full_threadheight = fabs(k_number);
+    double end_depth = fabs(k_number) + fabs(i_number);
 
-    /* The synchronized path shape is set by the final threading pass. This
-       shape is then shifted to the starting points of previous passes.
-       The sync path is made up of three legs -- entry taper, main 
-       thread, and exit taper, or pB to pC to pD to pE.
-       If the entry or exit taper are omitted, pCb and/or pDb are used instead.
-    */
-    double pCbx = pAx + ((i_number + k_number) * boring * tool_side);
-    double pCbz = pAz;
-    //double pDbx = pCbx + (d_number * mtout);
-    double pDbx = pCbx + (d_number * tool_side * mtout);
-    double pDbz = end_z;
+    double pitch = block->p_number;
+    double compound_angle = block->q_number;
+    if(compound_angle == -1) compound_angle = 0;
+    compound_angle *= M_PIl/180.0;
+    if(end_z > start_z) compound_angle = -compound_angle;
 
-    int z_dir = (pAz > pFz) ? -1 : 1;
-    double z_len = fabs(pFz - pAz);
-    double tx = end_taper * ((d_number * mtout) / z_len);
+    int spring_cuts = block->h_flag ? block->h_number: 0;
 
-    double pBx = 0, pBz = 0, pCx = 0, pCz = 0, pDx = 0, pDz = 0, pEx = 0, pEz = 0;
-    if(entry_taper) {
-        pBx = pCbx - (boring * k_number);
-        pBz = pCbz;
-        pCx = pCbx + tx;
-        pCz = pCbz + (z_dir * end_taper);
-    }
+    double degression = block->r_number;
+    if(degression < 1.0 || !block->r_flag) degression = 1.0;
 
-    if(exit_taper) {
-        pDx = pDbx - tx;
-        pDz = pDbz - (z_dir * end_taper);
-        pEx = pDbx - (boring * k_number);
-        pEz = pDbz;
-    }
+    double taper_dist = block->e_flag? block->e_number: 0.0;
+    if(taper_dist < 0.0) taper_dist = 0.0;
+    double taper_pitch = taper_dist > 0.0? 
+	pitch * hypot(taper_dist, full_threadheight)/taper_dist: pitch;
 
-    double lead_et = (end_taper_flags > 0) ?
-        lead * (hypot(end_taper, k_number)/end_taper) : lead;
-    double lead_mt = (main_taper_flag > 0) ?
-        lead * (hypot(z_len, d_number)/z_len) : lead;
+    if(end_z > start_z) taper_dist = -taper_dist;
 
-    double x_factor, pBxi, pCbxi, pCxi, pDbxi, pDxi, pExi;
-    double czi     , pBzi, pCbzi, pCzi, pDbzi, pDzi, pEzi;
+    int taper_flags = block->l_number;
+    if(taper_flags < 0) taper_flags = 0;
 
-    double ji = j_number;
+    int entry_taper = taper_flags & 1;
+    int exit_taper = taper_flags & 2;
 
+    double depth, zoff;
     int pass = 1;
-    while (ji < k_number) {
-        // start of first pass for external threads = last pass pos + K, then -J,
-        // -boring adjusts for internal threads
-        x_factor = (k_number - ji) * -boring * tool_side;
-        //printf("--- i %d  Xf %8.4f  ji %8.4f\n", pass, x_factor, ji);
 
-        pBxi  = pBx  + x_factor;
-        pCbxi = pCbx + x_factor;
-        pCxi  = pCx  + x_factor;
-        pDbxi = pDbx + x_factor;
-        pDxi  = pDx  + x_factor;
-        pExi  = pEx  + x_factor;
+    double target_z = end_z + fabs(k_number) * tan(compound_angle);
 
-        czi = (k_number - ji) * tan(compound_angle);
-        pBzi  = pBz  + czi;
-        pCbzi = pCbz + czi;
-        pCzi  = pCz  + czi;
-        pDbzi = pDbz + czi;
-        pDzi  = pDz  + czi;
-        pEzi  = pEz  + czi;
-
-        if(entry_taper) {
-            // pA to pB, entry leg
-            STRAIGHT_TRAVERSE(block->line_number, pBxi, pAy, pBzi, AABBCC);
-        } else {
-            // pA to pCb, entry leg
-            STRAIGHT_TRAVERSE(block->line_number, pCbxi, pAy, pCbzi, AABBCC);
-        }
-        DISABLE_FEED_OVERRIDE();
-        if(entry_taper) {
-            START_SPEED_FEED_SYNCH(lead_et, 0);
-            STRAIGHT_FEED(block->line_number, pCxi, pAy, pCzi, AABBCC);  // to pC
-        }
-        if(exit_taper) {
-            START_SPEED_FEED_SYNCH(lead_mt, 0);
-            STRAIGHT_FEED(block->line_number, pDxi, pAy, pDzi, AABBCC);  // to pD
-            START_SPEED_FEED_SYNCH(lead_et, 0);
-            STRAIGHT_FEED(block->line_number, pExi, pAy, pEzi, AABBCC);  // to pE
-        } else {
-            START_SPEED_FEED_SYNCH(lead_mt, 0);
-            STRAIGHT_FEED(block->line_number, pDbxi, pAy, pDbzi, AABBCC);  // to pDb
-        }
-        STOP_SPEED_FEED_SYNCH();
-        // to pF, retract leg
-        STRAIGHT_TRAVERSE(block->line_number, pFx, pAy, pFz, AABBCC);
-        ENABLE_FEED_OVERRIDE();
-        // pF to pA, return to the start
-        STRAIGHT_TRAVERSE(block->line_number, pAx, pAy, pAz, AABBCC);
-        ENABLE_FEED_OVERRIDE();
-
-        ji = j_number * pow(++pass, 1.0/doc_dgr);  // distance of next cut from pass zero 
-        // prevents excessive time spent in looping, may need adjustment if
-        // there is a pracical application that needs more passes.
-        if(pass > 100) break;
-    }
-
-    // Do final path
+    depth = start_depth;
+    zoff = (depth - full_dia_depth) * tan(compound_angle);
+    while (depth < end_depth) {
+	threading_pass(settings, block, boring, safe_x, depth, end_depth, start_y, 
+		       start_z, zoff, taper_dist, entry_taper, exit_taper, 
+		       taper_pitch, pitch, full_threadheight, target_z, d_number);
+        depth = full_dia_depth + cut_increment * pow(++pass, 1.0/degression);
+        zoff = (depth - full_dia_depth) * tan(compound_angle);
+    } 
+    // full specified depth now
+    depth = end_depth;
+    zoff = (depth - full_dia_depth) * tan(compound_angle);
+    // cut at least once -- more if spring cuts.
     for(int i = 0; i<spring_cuts+1; i++) {
-        if(entry_taper) {
-            // pA to pB, entry leg
-            STRAIGHT_TRAVERSE(block->line_number, pBx, pAy, pBz, AABBCC);
-        } else {
-            // pA to pCb, entry leg
-            STRAIGHT_TRAVERSE(block->line_number, pCbx, pAy, pCbz, AABBCC);
-        }
-        DISABLE_FEED_OVERRIDE();
-        START_SPEED_FEED_SYNCH(lead, 0);
-        if(entry_taper) {
-            STRAIGHT_FEED(block->line_number, pCx, pAy, pCz, AABBCC);  // to pC
-        }
-        if(exit_taper) {
-            STRAIGHT_FEED(block->line_number, pDx, pAy, pDz, AABBCC);  // to pD
-            STRAIGHT_FEED(block->line_number, pEx, pAy, pEz, AABBCC);  // to pE
-        } else {
-            STRAIGHT_FEED(block->line_number, pDbx, pAy, pDbz, AABBCC);  // to pDb
-        }
-        STOP_SPEED_FEED_SYNCH();
-        // to pF, retract leg
-        STRAIGHT_TRAVERSE(block->line_number, pFx, pAy, pFz, AABBCC);
-        ENABLE_FEED_OVERRIDE();
-        // pF to pA, return to the start
-        STRAIGHT_TRAVERSE(block->line_number, pAx, pAy, pAz, AABBCC);
-        ENABLE_FEED_OVERRIDE();
-    }
-
+	threading_pass(settings, block, boring, safe_x, depth, end_depth, start_y, 
+		       start_z, zoff, taper_dist, entry_taper, exit_taper, 
+		       taper_pitch, pitch, full_threadheight, target_z, d_number);
+    } 
+    STRAIGHT_TRAVERSE(block->line_number, end_x, end_y, end_z, AABBCC);
+    settings->current_x = end_x;
+    settings->current_y = end_y;
+    settings->current_z = end_z;
 #undef AABBCC
     return INTERP_OK;
 }
@@ -5552,7 +5499,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
       logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
 	      block->h_flag,block->h_number,settings->toolchange_flag,settings->current_pocket);
       if (FEATURE(LATHE_TOOLCHANGE)) {
-	  if (block->h_number < 100)//TODO PDH: Fix required for using tools greater than 99
+	  if (block->h_number < 100)//Future change required for using tools greater than 99
 	      geo_offset_register = block->h_number + 10000;
 	  else if (block->h_flag < 10000) {
 	      geo_offset_register = floor(block->h_number/100) + 10000;
@@ -5752,12 +5699,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
   EmcPose tool_offset;
   ZERO_EMC_POSE(tool_offset);
 
-  Log("convert_lathe_tool_change: "
-         "called with t_number %d",
-         block->t_number);
-
-
-	if (block->t_number > 99 && block->t_number<10000) {//TODO PDH: Fix required for using tools greater than 99
+	if (block->t_number > 99 && block->t_number<10000) {//Future change required for using tools greater than 99
 		geo_offset_register = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
 		wear_offset_register = block->t_number % 100;	// wear offset is second two digits
 	} else if (block->t_number < 100) {
@@ -5767,7 +5709,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
 	tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
 	tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
 	tool_offset.w = 0;
-	if (block->t_number > 99) { //TODO PDH: Fix required for using tools greater than 99
+	if (block->t_number > 99) { // Future change required for using tools greater than 99
 		CHP((find_tool_pocket(settings, wear_offset_register, &index)));
 		// wear offsets are stored in the actual tool value register (e.g. T1 X Z stores wear, T10001 X Z stores geo offsets)
 		tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
