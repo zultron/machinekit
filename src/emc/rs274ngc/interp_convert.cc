@@ -4365,12 +4365,12 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 	   (_("Bug:  Reached convert_stop() from M99 as subprogram return")));
 
   if (block->m_modes[4] == 0) {
-    PROGRAM_STOP();
+      PROGRAM_STOP(display_line_number());
   } else if (block->m_modes[4] == 60) {
     PALLET_SHUTTLE();
-    PROGRAM_STOP();
+    PROGRAM_STOP(display_line_number());
   } else if (block->m_modes[4] == 1) {
-    OPTIONAL_PROGRAM_STOP();
+    OPTIONAL_PROGRAM_STOP(display_line_number());
   } else if (block->m_modes[4] == 99 && _setup.loop_on_main_m99) {
       // Fanuc-style M99 main program endless loop
 

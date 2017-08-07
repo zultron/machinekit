@@ -753,8 +753,8 @@ void UNCLAMP_AXIS(CANON_AXIS axis)
 
 /* Program Functions */
 
-void PROGRAM_STOP()
-{PRINT0("PROGRAM_STOP()\n");}
+void PROGRAM_STOP(int line)
+{PRINT1("PROGRAM_STOP(%d)\n", line);}
 
 void SET_BLOCK_DELETE(bool state)
 {block_delete = state;} //state == ON, means we don't interpret lines starting with "/"
@@ -768,8 +768,8 @@ void SET_OPTIONAL_PROGRAM_STOP(bool state)
 bool GET_OPTIONAL_PROGRAM_STOP()
 {return optional_program_stop;} //state == ON, means we stop
 
-void OPTIONAL_PROGRAM_STOP()
-{PRINT0("OPTIONAL_PROGRAM_STOP()\n");}
+void OPTIONAL_PROGRAM_STOP(int line)
+{PRINT1("OPTIONAL_PROGRAM_STOP(%d)\n", line);}
 
 void PROGRAM_END()
 {PRINT0("PROGRAM_END()\n");}

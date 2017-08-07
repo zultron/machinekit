@@ -531,7 +531,8 @@ int Interp::convert_cycle_g88(block_pointer block,
   cycle_feed(block, plane, x, y, bottom_z);
   DWELL(dwell);
   STOP_SPINDLE_TURNING();
-  PROGRAM_STOP();               /* operator retracts the spindle here */
+  /* operator retracts the spindle here */
+  PROGRAM_STOP(display_line_number());
   if (direction == CANON_CLOCKWISE)
     START_SPINDLE_CLOCKWISE();
   else

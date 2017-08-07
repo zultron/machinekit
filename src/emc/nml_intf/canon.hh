@@ -610,7 +610,7 @@ extern bool GET_BLOCK_DELETE(void);
 
 
 /* Program Functions */
-extern void OPTIONAL_PROGRAM_STOP();
+extern void OPTIONAL_PROGRAM_STOP(int line);
 /* If the machining center has an optional stop switch, and it is on
 when this command is read from a program, stop executing the program
 at this point, but be prepared to resume with the next line of the
@@ -631,7 +631,7 @@ extern void PROGRAM_END();
 /* If a program is being read, stop executing the program and be prepared
 to accept a new program or to be shut down. */
 
-extern void PROGRAM_STOP();
+extern void PROGRAM_STOP(int line);
 /* If this command is read from a program, stop executing the program at
 this point, but be prepared to resume with the next line of the
 program. If commands are being executed with a stop after each one

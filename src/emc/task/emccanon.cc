@@ -2556,7 +2556,7 @@ void UNCLAMP_AXIS(CANON_AXIS axis)
 
 /* Program Functions */
 
-void PROGRAM_STOP()
+void PROGRAM_STOP(int line)
 {
     /* 
        implement this as a pause. A resume will cause motion to proceed. */
@@ -2564,7 +2564,8 @@ void PROGRAM_STOP()
 
     flush_segments();
 
-	interp_list.append(pauseMsg);
+    pauseMsg.line = line;
+    interp_list.append(pauseMsg);
 }
 
 void SET_BLOCK_DELETE(bool state)
@@ -2588,13 +2589,14 @@ bool GET_OPTIONAL_PROGRAM_STOP()
     return optional_program_stop; //state == ON, means we stop
 }
 
-void OPTIONAL_PROGRAM_STOP()
+void OPTIONAL_PROGRAM_STOP(int line)
 {
     EMC_TASK_PLAN_OPTIONAL_STOP stopMsg;
 
     flush_segments();
 
-	interp_list.append(stopMsg);
+    stopMsg.line = line;
+    interp_list.append(stopMsg);
 }
 
 void PROGRAM_END()

@@ -2737,6 +2737,7 @@ void EMC_TASK_PLAN_PAUSE::update(CMS * cms)
 {
 
     EMC_TASK_CMD_MSG::update(cms);
+    cms->update(line);
 
 }
 
@@ -2777,6 +2778,7 @@ void EMC_TASK_PLAN_OPTIONAL_STOP::update(CMS * cms)
 {
 
     EMC_TASK_CMD_MSG::update(cms);
+    cms->update(line);
 
 }
 
