@@ -950,20 +950,20 @@ void Posix::wait() {
         if(policy == SCHED_FIFO && !printed)
         {
             // TORMACH changed
-            //rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd\n"
-		    //"This Message will only display once per session.\n"
-		    //"Run the Latency Test and resolve before continuing.\n",
-            //        , task - task_array);
+            rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd\n"
+		    "This Message will only display once per session.\n"
+		    "Run the Latency Test and resolve before continuing.\n",
+                    task - task_array);
 
-            //printed = 1;
+            printed = 1;
             // TORMACH added
-            struct timespec delta;
-            ts_elapsed(&delta, &(task->nextstart), &now);
-            rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd. now: %ld.%09ld is after nextstart: %ld.%09ld - new deadline missed, delta: %ld.%09ld\n",
-                    task - task_array,
-                    now.tv_sec, now.tv_nsec,
-                    task->nextstart.tv_sec, task->nextstart.tv_nsec,
-                    delta.tv_sec, delta.tv_nsec);
+            //struct timespec delta;
+            //ts_elapsed(&delta, &(task->nextstart), &now);
+            //rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd. now: %ld.%09ld is after nextstart: %ld.%09ld - new deadline missed, delta: %ld.%09ld\n",
+            //        task - task_array,
+            //        now.tv_sec, now.tv_nsec,
+            //        task->nextstart.tv_sec, task->nextstart.tv_nsec,
+            //        delta.tv_sec, delta.tv_nsec);
         }
     }
     else
