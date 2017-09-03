@@ -1,0 +1,13 @@
+CHECK Paused at line 11:  units 1=UNITS_INCHES; gcodes[5]=200
+CHECK Paused at line 15:  units 1=UNITS_INCHES; gcodes[5]=200
+CHECK Paused at line 19:  units 2=UNITS_MM; gcodes[5]=210
+CHECK Paused at line 23:  units 2=UNITS_MM; gcodes[5]=210
+CHECK Paused at line 27:  units 1=UNITS_INCHES; gcodes[5]=200
+CHECK Paused at line 31:  units 2=UNITS_MM; gcodes[5]=210
+CHECK Paused at line 35:  units 2=UNITS_MM; gcodes[5]=210
+CHECK hit timeout (expected during motion); aborting
+CHECK    Pre-abort checks:
+CHECK Not paused at line 40:  units 1=UNITS_INCHES; gcodes[5]=200
+CHECK    Post-abort checks:
+CHECK Not paused at line 40:  units 1=UNITS_INCHES; gcodes[5]=200
+CHECK Done; exiting

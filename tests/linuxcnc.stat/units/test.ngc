@@ -1,0 +1,46 @@
+%
+
+; Set values for all offsets
+#1 = 1  ; Offset index
+O1 while [ #1 LE 9 ]
+    G10 L2 P[#1] X[#1 + 0.1] Y[#1 + 0.2] Z[#1 + 0.3]
+    #1 = [ #1 + 1 ]
+O1 endwhile
+
+; Line 11, Case 0:  See what we have
+M00
+
+; Line 15, Case 1:  inches; G54; G54=X1Y2Z3
+G54 G20 G10 L2 P1 X1 Y2 Z3
+M00
+
+; Line 19, Case 2:  metric; G55; no change
+G55 G21
+M00
+
+; Line 23, Case 3:  metric; G56; G54=X2Y4Z6
+G56     G10 L2 P1 X[2*25.4] Y[4*25.4] Z[6*25.4]
+M00
+
+; Line 27, Case 4:  inches; G57; no change
+G57 G20
+M00
+
+; Line 31, Case 5:  metric; G54; no change
+G54 G21
+M00
+
+; Line 35, Case 6:  metric; G59.3; G59.2=X-1Y-1Z-1
+G59.3   G10 L2 P8 X[-1*25.4] Y[-2*25.4] Z[-3*25.4]
+M00
+
+; Line 40, Case 7:  inches; G59; G58=X.1Y.1Z.1; do long motion and
+; abort in middle
+G59 G20 G10 L2 P5 X0.1 Y0.1 Z0.1
+G0 X20 F0.01
+
+; Program should never reach here; change everything
+G55 G21 G10 L2 P2 X10 Y10 Z10
+M3
+
+%

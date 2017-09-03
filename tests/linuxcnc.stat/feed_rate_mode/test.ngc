@@ -1,0 +1,43 @@
+%
+
+; Line 4, Case 0:  See what we have
+M00
+
+; Line 8, Case 1:  G93 w/no motion
+G93
+M00
+
+; Line 12, Case 2:  G94 w/no motion
+G94
+M00
+
+; Line 16, Case 3:  G95 w/no motion
+G95
+M00
+
+; Line 21, Case 4:  G93 w/ motion
+G93
+G1 X0.01 F600  ; Move 0.01" in 1m/600=0.1s
+M00
+
+; Line 26, Case 5:  G94 w/ motion
+G94
+G1 Y0.01 F500  ; Move 0.01" at 500ipm
+M00
+
+; Line 31, Case 6:  G95 w/ motion
+G95
+G1 Z0.01 S2000 M3 F0.001  ; Move 0.01" at 2k RPM * 0.001" per rev = 2ipm
+M00
+
+; Line 35, id 26, Case 7:  G93 w/ motion; abort in middle
+G93
+G1 X10 F0.10  ; Move 9.98" at 1ipm
+
+; Program should never reach here; change everything
+G94
+G1 Y10 S1000 M4 F0.10
+G1 Y00 S1000 M4 F0.10
+M3
+
+%

@@ -1,0 +1,13 @@
+CHECK Paused at line 11:  gcodes[0]=11
+CHECK Paused at line 15:  gcodes[0]=15
+CHECK Paused at line 19:  gcodes[0]=19
+CHECK Paused at line 23:  gcodes[0]=23
+CHECK Paused at line 27:  gcodes[0]=27
+CHECK Paused at line 31:  gcodes[0]=31
+CHECK Paused at line 35:  gcodes[0]=35
+CHECK hit timeout (expected during motion); aborting
+CHECK    Pre-abort checks:
+CHECK Not paused at line 40:  gcodes[0]=40
+CHECK    Post-abort checks:
+CHECK Not paused at line 40:  gcodes[0]=40
+CHECK Done; exiting

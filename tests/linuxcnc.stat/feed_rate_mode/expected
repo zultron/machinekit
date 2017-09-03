@@ -1,0 +1,13 @@
+CHECK Paused at line 4:  Feed rate mode gcodes[7] = 940
+CHECK Paused at line 8:  Feed rate mode gcodes[7] = 930
+CHECK Paused at line 12:  Feed rate mode gcodes[7] = 940
+CHECK Paused at line 16:  Feed rate mode gcodes[7] = 950
+CHECK Paused at line 21:  Feed rate mode gcodes[7] = 930
+CHECK Paused at line 26:  Feed rate mode gcodes[7] = 940
+CHECK Paused at line 31:  Feed rate mode gcodes[7] = 950
+CHECK hit timeout (expected during motion); aborting
+CHECK    Pre-abort checks:
+CHECK Not paused at line 35:  Feed rate mode gcodes[7] = 930
+CHECK    Post-abort checks:
+CHECK Not paused at line 35:  Feed rate mode gcodes[7] = 930
+CHECK Done; exiting

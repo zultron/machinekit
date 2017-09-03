@@ -1,0 +1,5 @@
+Test `linuxcnc.stat.g_codes[7]`, feed rate mode
+
+After issuing `G93`, `G94` and `G95`, check if the python stat module
+`gcodes[7]` is correctly updated during program execution and after
+abort.

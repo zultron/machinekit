@@ -1,0 +1,5 @@
+Test `linuxcnc.stat.program_units`
+
+After issuing `G20` and `G21`, check if the python stat module
+`program_units` and `gcodes[5]` attributes are correctly updated
+during program execution, and whether they are correct after abort.
