@@ -47,16 +47,7 @@
 
 //Simple compile-time debug macro
 #ifdef EMCCANON_DEBUG
-#define canon_debug(...) printf(__VA_ARGS__)
-#else
-#define canon_debug(...)
-#endif
-
-//#define EMCCANON_DEBUG
-
-//Simple compile-time debug macro
-#ifdef EMCCANON_DEBUG
-#define canon_debug(...) printf(__VA_ARGS__)
+#define canon_debug(...) fprintf(stderr,__VA_ARGS__)
 #else
 #define canon_debug(...)
 #endif
@@ -1306,7 +1297,7 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
         setTermCondMsg.cond = EMC_TRAJ_TERM_COND_STOP;
         break;
     }
-    printf("Setting tolerance to %f\n",canonMotionTolerance);
+    fprintf(stderr, "Setting tolerance to %f\n",canonMotionTolerance);
 
 	tag_and_send(setTermCondMsg);
 }
@@ -1319,7 +1310,7 @@ void SET_NAIVECAM_TOLERANCE(double tolerance)
     } else {
         canonNaivecamTolerance = FROM_PROG_LEN(tolerance);
     }
-    printf("Setting naivecam tolerance to %f\n",canonNaivecamTolerance);
+    fprintf(stderr,"Setting naivecam tolerance to %f\n",canonNaivecamTolerance);
     //TODO enforce a minimum naivecam tolerance to prevent bogging down on
     //stupidly short segments?
 }

@@ -3047,7 +3047,7 @@ static int emctask_startup()
 	    exit(1);
 	}
     } while (end > 0.0);
-    set_rcs_print_destination(RCS_PRINT_TO_STDOUT);	// restore diag
+    set_rcs_print_destination(RCS_PRINT_TO_STDERR);	// restore diag
     // messages
     if (!good) {
 	rcs_print_error("can't get emcCommand buffer\n");
@@ -3081,7 +3081,7 @@ static int emctask_startup()
 	    exit(1);
 	}
     } while (end > 0.0);
-    set_rcs_print_destination(RCS_PRINT_TO_STDOUT);	// restore diag
+    set_rcs_print_destination(RCS_PRINT_TO_STDERR);	// restore diag
     // messages
     if (!good) {
 	rcs_print_error("can't get emcStatus buffer\n");
@@ -3111,7 +3111,7 @@ static int emctask_startup()
 	    exit(1);
 	}
     } while (end > 0.0);
-    set_rcs_print_destination(RCS_PRINT_TO_STDOUT);	// restore diag
+    set_rcs_print_destination(RCS_PRINT_TO_STDERR);	// restore diag
     // messages
     if (!good) {
 	rcs_print_error("can't get emcError buffer\n");
@@ -3143,7 +3143,7 @@ static int emctask_startup()
 	    exit(1);
 	}
     } while (end > 0.0);
-    set_rcs_print_destination(RCS_PRINT_TO_STDOUT);	// restore diag
+    set_rcs_print_destination(RCS_PRINT_TO_STDERR);	// restore diag
     // messages
     if (!good) {
 	rcs_print_error("can't initialize IO\n");
@@ -3458,7 +3458,7 @@ int main(int argc, char *argv[])
     sigaction(SIGUSR1, &newsig, NULL);
 
     // set print destination to stdout, for console apps
-    set_rcs_print_destination(RCS_PRINT_TO_STDOUT);
+    set_rcs_print_destination(RCS_PRINT_TO_STDERR);
     // process command line args
     if (0 != emcGetArgs(argc, argv)) {
 	rcs_print_error("error in argument list\n");
@@ -3493,7 +3493,7 @@ int main(int argc, char *argv[])
     // inistantiate task methods object, too
     emcTaskOnce(emc_inifile);
     if (task_methods == NULL) {
-	set_rcs_print_destination(RCS_PRINT_TO_STDOUT);	// restore diag
+	set_rcs_print_destination(RCS_PRINT_TO_STDERR);	// restore diag
 	rcs_print_error("can't initialize Task methods\n");
 	emctask_shutdown();
 	exit(1);
