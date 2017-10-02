@@ -265,9 +265,7 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
   }
 
   //KLUDGE stuff the tag here so that at least the line is correct, but not much else
-  StateTag tag;
-  write_state_tag(block, settings, tag);
-  update_tag(tag);
+  write_and_update_state_tag(block);
 
   if ((block->comment[0] != 0) && ONCE(STEP_COMMENT)) {
     status = convert_comment(block->comment);

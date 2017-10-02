@@ -461,9 +461,7 @@ int Interp::convert_arc(int move,        //!< either G_2 (cw arc) or G_3 (ccw ar
 
   // Should be done with changes to settings here, so we can pack the state
   // Create a state tag and dump it to canon
-  StateTag tag;
-  write_state_tag(block, settings, tag);
-  update_tag(tag);
+  write_and_update_state_tag(block);
 
   if (settings->plane == CANON_PLANE_XY) {
     if ((!settings->cutter_comp_side) ||
@@ -2482,9 +2480,7 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
       issue_straight_index(5, CC_end, block->line_number, settings);
 
   // Create a state tag and dump it to canon
-  StateTag tag;
-  write_state_tag(block, settings, tag);
-  update_tag(tag);
+  write_and_update_state_tag(block);
 
   STRAIGHT_TRAVERSE(block->line_number, end_x, end_y, end_z,
                     AA_end, BB_end, CC_end,
@@ -3130,9 +3126,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 	 ((!block->p_flag) && (!block->e_flag)) ,
 	NCE_INVALID_OR_MISSING_P_AND_E_WORDS_FOR_WAIT_INPUT);
 
-    StateTag tag;
-    write_state_tag(block, settings, tag);
-    update_tag(tag);
+    write_and_update_state_tag(block);
     if (block->p_flag) { // got a digital input
 	if (round_to_int(block->p_number) < 0) // safety check for negative words
 	    ERS(_("invalid P-word with M66"));
@@ -3575,14 +3569,10 @@ int Interp::convert_motion(int motion,   //!< g_code for a line, arc, canned cyc
 
     CHP(convert_cycle(motion, block, settings));
   } else if ((motion == G_5) || (motion == G_5_1)) {
-    StateTag tag;
-    write_state_tag(block, settings, tag);
-    update_tag(tag);
+    write_and_update_state_tag(block);
     CHP(convert_spline(motion, block, settings));
   } else if (motion == G_5_2) {
-    StateTag tag;
-    write_state_tag(block, settings, tag);
-    update_tag(tag);
+    write_and_update_state_tag(block);
     CHP(convert_nurbs(motion, block, settings));
   } else {
     ERS(NCE_BUG_UNKNOWN_MOTION_CODE);
@@ -4628,9 +4618,7 @@ int Interp::convert_straight(int move,   //!< either G_0 or G_1
   }
 
   // Create a state tag and dump it to canon
-  StateTag tag;
-  write_state_tag(block, settings, tag);
-  update_tag(tag);
+  write_and_update_state_tag(block);
 
   if ((settings->cutter_comp_side) &&    /* ! "== true" */
       (settings->cutter_comp_radius > 0.0)) {   /* radius always is >= 0 */

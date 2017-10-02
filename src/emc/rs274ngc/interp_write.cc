@@ -204,17 +204,16 @@ int Interp::write_settings(setup_pointer settings,     //!< pointer to machine s
   return INTERP_OK;
 }
 
-int Interp::write_state_tag(block_pointer block,
-        setup_pointer settings,
-        StateTag &state)
+int Interp::write_and_update_state_tag(block_pointer block)
 {
+    StateTag state;
 
-    state.fields[GM_FIELD_LINE_NUMBER] = settings->get_toplevel_line_number();
-    state.fields[GM_FIELD_STEPPING_ID] = settings->stepping_id;
+    state.fields[GM_FIELD_LINE_NUMBER] = _setup.get_toplevel_line_number();
+    state.fields[GM_FIELD_STEPPING_ID] = _setup.stepping_id;
     //FIXME refactor these into setup methods, and maybe put this whole method in setup struct
-    bool in_remap = (settings->remap_level > 0);
-    bool in_sub = (settings->call_level > 0 && settings->remap_level == 0);
-    bool external_sub = strcmp(settings->filename, settings->sub_context[0].filename);
+    bool in_remap = (_setup.remap_level > 0);
+    bool in_sub = (_setup.call_level > 0 && _setup.remap_level == 0);
+    bool external_sub = strcmp(_setup.filename, _setup.sub_context[0].filename);
 
     state.flags[GM_FLAG_IN_REMAP] = in_remap;
     state.flags[GM_FLAG_IN_SUB] = in_sub;
@@ -222,8 +221,8 @@ int Interp::write_state_tag(block_pointer block,
     // Tormach - change so that all tags are restorable.  This may change in future
     state.flags[GM_FLAG_RESTORABLE] = 1;
     state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[0]);
-    state.fields[GM_FIELD_MOTION_MODE] = settings->motion_mode;
-    switch(settings->plane) {
+    state.fields[GM_FIELD_MOTION_MODE] = _setup.motion_mode;
+    switch(_setup.plane) {
         case CANON_PLANE_XY:
             state.fields[GM_FIELD_PLANE] = G_17;
             break;
@@ -245,52 +244,53 @@ int Interp::write_state_tag(block_pointer block,
     }
 
   state.fields[GM_FIELD_CUTTER_COMP] =
-    (settings->cutter_comp_side == RIGHT) ? G_42 :
-    (settings->cutter_comp_side == LEFT) ? G_41 : G_40;
+    (_setup.cutter_comp_side == RIGHT) ? G_42 :
+    (_setup.cutter_comp_side == LEFT) ? G_41 : G_40;
 
-    state.flags[GM_FLAG_UNITS] = (settings->length_units == CANON_UNITS_INCHES);
+    state.flags[GM_FLAG_UNITS] = (_setup.length_units == CANON_UNITS_INCHES);
 
-    state.flags[GM_FLAG_DISTANCE_MODE] = (settings->distance_mode == MODE_ABSOLUTE);
-    state.flags[GM_FLAG_FEED_INVERSE_TIME] = (settings->feed_mode == INVERSE_TIME);
-    state.flags[GM_FLAG_FEED_UPM] = (settings->feed_mode == UNITS_PER_MINUTE);
+    state.flags[GM_FLAG_DISTANCE_MODE] = (_setup.distance_mode == MODE_ABSOLUTE);
+    state.flags[GM_FLAG_FEED_INVERSE_TIME] = (_setup.feed_mode == INVERSE_TIME);
+    state.flags[GM_FLAG_FEED_UPM] = (_setup.feed_mode == UNITS_PER_MINUTE);
 
 
     state.fields[GM_FIELD_ORIGIN] =
-        (settings->origin_index <
-         7) ? (530 + (10 * settings->origin_index)) : (584 +
-             settings->origin_index);
+        (_setup.origin_index <
+         7) ? (530 + (10 * _setup.origin_index)) : (584 +
+             _setup.origin_index);
 
-    state.flags[GM_FLAG_TOOL_OFFSETS_ON] = (settings->tool_offset.tran.x || settings->tool_offset.tran.y || settings->tool_offset.tran.z ||
-            settings->tool_offset.a || settings->tool_offset.b || settings->tool_offset.c ||
-            settings->tool_offset.u || settings->tool_offset.v || settings->tool_offset.w);
-    state.flags[GM_FLAG_RETRACT_OLDZ] = (settings->retract_mode == OLD_Z);
-    state.flags[GM_FLAG_BLEND] = (settings->control_mode == CANON_CONTINUOUS);
-    state.flags[GM_FLAG_EXACT_STOP] = (settings->control_mode == CANON_EXACT_STOP);
-    state.flags[GM_FLAG_CSS_MODE] = (settings->spindle_mode == CONSTANT_RPM);
-    state.flags[GM_FLAG_IJK_ABS] = (settings->ijk_distance_mode == MODE_ABSOLUTE);
-    state.flags[GM_FLAG_DIAMETER_MODE] = (settings->lathe_diameter_mode);
+    state.flags[GM_FLAG_TOOL_OFFSETS_ON] = (_setup.tool_offset.tran.x || _setup.tool_offset.tran.y || _setup.tool_offset.tran.z ||
+            _setup.tool_offset.a || _setup.tool_offset.b || _setup.tool_offset.c ||
+            _setup.tool_offset.u || _setup.tool_offset.v || _setup.tool_offset.w);
+    state.flags[GM_FLAG_RETRACT_OLDZ] = (_setup.retract_mode == OLD_Z);
+    state.flags[GM_FLAG_BLEND] = (_setup.control_mode == CANON_CONTINUOUS);
+    state.flags[GM_FLAG_EXACT_STOP] = (_setup.control_mode == CANON_EXACT_STOP);
+    state.flags[GM_FLAG_CSS_MODE] = (_setup.spindle_mode == CONSTANT_RPM);
+    state.flags[GM_FLAG_IJK_ABS] = (_setup.ijk_distance_mode == MODE_ABSOLUTE);
+    state.flags[GM_FLAG_DIAMETER_MODE] = (_setup.lathe_diameter_mode);
 
 
     state.fields[GM_FIELD_M_MODES_4] = (block == NULL) ? -1 : block->m_modes[4];
 
-    state.flags[GM_FLAG_SPINDLE_ON] = !(settings->spindle_turning != CANON_STOPPED);
-    state.flags[GM_FLAG_SPINDLE_CW] = (settings->spindle_turning == CANON_CLOCKWISE);
+    state.flags[GM_FLAG_SPINDLE_ON] = !(_setup.spindle_turning != CANON_STOPPED);
+    state.flags[GM_FLAG_SPINDLE_CW] = (_setup.spindle_turning == CANON_CLOCKWISE);
 
     state.fields[GM_FIELD_TOOLCHANGE] = (block == NULL) ? -1 : block->m_modes[6];
 
-    state.flags[GM_FLAG_MIST] = (settings->mist) ;
-    state.flags[GM_FLAG_FLOOD] = (settings->flood);
+    state.flags[GM_FLAG_MIST] = (_setup.mist) ;
+    state.flags[GM_FLAG_FLOOD] = (_setup.flood);
 
-    state.flags[GM_FLAG_FEED_OVERRIDE] = settings->feed_override;
-    state.flags[GM_FLAG_SPEED_OVERRIDE] = settings->speed_override;
+    state.flags[GM_FLAG_FEED_OVERRIDE] = _setup.feed_override;
+    state.flags[GM_FLAG_SPEED_OVERRIDE] = _setup.speed_override;
 
-    state.flags[GM_FLAG_ADAPTIVE_FEED] = (settings->adaptive_feed);
+    state.flags[GM_FLAG_ADAPTIVE_FEED] = (_setup.adaptive_feed);
 
-    state.flags[GM_FLAG_FEED_HOLD] =  (settings->feed_hold);
+    state.flags[GM_FLAG_FEED_HOLD] =  (_setup.feed_hold);
 
-    state.feed = settings->feed_rate;        /* 1 feed rate       */
-    state.speed = settings->speed;    /* 2 spindle speed   */
+    state.feed = _setup.feed_rate;        /* 1 feed rate       */
+    state.speed = _setup.speed;    /* 2 spindle speed   */
 
+    UPDATE_TAG(state);
     return 0;
 }
 /****************************************************************************/
