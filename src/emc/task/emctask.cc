@@ -757,6 +757,8 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
 
 int emcStatusUpdateFromTag(state_tag_t const * const tag)
 {
+    volatile int offset;
+
     if (!tag) {
 	fprintf(stderr, "emcStatusUpdateFromTag: "
 		"Not updating from invalid tag\n");
@@ -781,6 +783,22 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
 	(int*)&emcStatus->task.activeMCodes,
 	(double*)&emcStatus->task.activeSettings,
 	StateTag(*tag));
+
+    // G5x offsets
+    // - current offset index, 1-9
+    emcStatus->task.g5x_index =
+	((tag->fields[GM_FIELD_ORIGIN] <= 590) ?
+	 (tag->fields[GM_FIELD_ORIGIN]/10 - 53) :   // 1...6
+	 (tag->fields[GM_FIELD_ORIGIN] - 590 + 6)); // 7...9
+    // - current offset
+    EMC_POSE_FROM_ARRAY(
+	emcStatus->task.g5x_offset,
+	tag->offsets + (emcStatus->task.g5x_index-1)*9);
+    // - other offsets
+    for (offset=0; offset<9; offset++)
+	EMC_POSE_FROM_ARRAY(
+	    emcStatus->task.g5x_offsets[offset],
+	    tag->offsets + offset*9);
 
     // Add more emcStatus updates here
 

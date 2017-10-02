@@ -97,6 +97,10 @@ struct state_tag_t {
      * pure C struct).
      */
     unsigned long int packed_flags;
+
+    // For updating g5x offsets in task when they don't affect the
+    // current offset
+    double offsets[81];
 };
 
 // Utility functions for motion / tp

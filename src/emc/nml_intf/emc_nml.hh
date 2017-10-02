@@ -1440,6 +1440,7 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     char file[LINELEN];
     char command[LINELEN];
     EmcPose g5x_offset;		// in user units, currently active
+    EmcPose g5x_offsets[9];	// in user units
     int g5x_index;              // index of active g5x system
     EmcPose g92_offset;		// in user units, currently active
     double rotation_xy;

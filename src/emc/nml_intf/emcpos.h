@@ -34,3 +34,15 @@ pos.v = 0.0;                    \
 pos.w = 0.0; } while(0)
 
 #endif
+
+#define EMC_POSE_FROM_ARRAY(pos, ary) do {     \
+	pos.tran.x = (ary)[0];		       \
+	pos.tran.y = (ary)[1];		       \
+	pos.tran.z = (ary)[2];		       \
+	pos.a = (ary)[3];		       \
+	pos.b = (ary)[4];		       \
+	pos.c = (ary)[5];		       \
+	pos.u = (ary)[6];		       \
+	pos.v = (ary)[7];		       \
+	pos.w = (ary)[8];		       \
+    } while (0)

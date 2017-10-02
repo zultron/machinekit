@@ -1730,6 +1730,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   settings->w_origin_offset = USER_TO_PROGRAM_LEN(parameters[5209 + (origin * 20)]);
   settings->rotation_xy = parameters[5210 + (origin * 20)];
 
+  write_and_update_state_tag(NULL);
   SET_G5X_OFFSET(origin,
                  settings->origin_offset_x,
                  settings->origin_offset_y,
@@ -4165,17 +4166,22 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
     settings->v_current -= v;
     settings->w_current -= w;
 
-    SET_G5X_OFFSET(p_int, x, y, z, a, b, c, u, v, w);
-
     rotate(&settings->current_x, &settings->current_y, - r);
     settings->rotation_xy = r;
+
+    write_and_update_state_tag(NULL);
+    SET_G5X_OFFSET(p_int, x, y, z, a, b, c, u, v, w);
     SET_XY_ROTATION(settings->rotation_xy);
 
   }
-#ifdef DEBUG_EMC
-  else
-    enqueue_COMMENT("interpreter: setting coordinate system origin");
-#endif
+  else {
+      // Queue message with non-current offset values
+      write_and_update_state_tag(NULL);
+      SEND_TAG_MSG();
+#     ifdef DEBUG_EMC
+      enqueue_COMMENT("interpreter: setting coordinate system origin");
+#     endif
+  }
   return INTERP_OK;
 }
 

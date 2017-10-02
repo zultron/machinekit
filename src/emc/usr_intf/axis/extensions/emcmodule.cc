@@ -435,6 +435,17 @@ static PyObject *Stat_g5x_offset(pyStatChannel *s) {
     return pose(s->status.task.g5x_offset);
 }
 
+static PyObject *Stat_g5x_offsets(pyStatChannel *s) {
+    PyObject *res = PyTuple_New(10);
+    int i;
+    // Set index 0 to the current offset so that we can write
+    // `stat.g5x_offsets[stat.g5x_index]` in python
+    PyTuple_SET_ITEM(res, 0, pose(s->status.task.g5x_offset));
+    for (i=0; i<9; i++)
+	PyTuple_SET_ITEM(res, i+1, pose(s->status.task.g5x_offsets[i]));
+    return res;
+}
+
 static PyObject *Stat_g92_offset(pyStatChannel *s) {
     return pose(s->status.task.g92_offset);
 }
@@ -646,6 +657,7 @@ static PyGetSetDef Stat_getsetlist[] = {
     {(char*)"limit", (getter)Stat_limit},
     {(char*)"mcodes", (getter)Stat_activemcodes},
     {(char*)"g5x_offset", (getter)Stat_g5x_offset},
+    {(char*)"g5x_offsets", (getter)Stat_g5x_offsets},
     {(char*)"g5x_index", (getter)Stat_g5x_index},
     {(char*)"g92_offset", (getter)Stat_g92_offset},
     {(char*)"position", (getter)Stat_position},

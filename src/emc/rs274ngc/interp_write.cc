@@ -206,6 +206,7 @@ int Interp::write_settings(setup_pointer settings,     //!< pointer to machine s
 
 int Interp::write_and_update_state_tag(block_pointer block)
 {
+    int offset, axis;
     StateTag state;
 
     state.fields[GM_FIELD_LINE_NUMBER] = _setup.get_toplevel_line_number();
@@ -290,8 +291,15 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.feed = _setup.feed_rate;        /* 1 feed rate       */
     state.speed = _setup.speed;    /* 2 spindle speed   */
 
+    for (offset=0; offset<9; offset++)
+	for (axis=0; axis<9; axis++)
+	    state.offsets[offset*9+axis] =
+		_setup.parameters[5221 + offset*20 + axis];
+
     UPDATE_TAG(state);
     return 0;
 }
+    
+
 /****************************************************************************/
 
