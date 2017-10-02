@@ -21,7 +21,7 @@
 
 struct NMLmsg;
 
-#define MAX_NML_COMMAND_SIZE 1000
+#define MAX_NML_COMMAND_SIZE 2048
 
 // these go on the interp list
 struct NML_INTERP_LIST_NODE {

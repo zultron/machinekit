@@ -74,12 +74,14 @@ int NML_INTERP_LIST::append(NMLmsg * nml_msg_ptr)
 
     if (nml_msg_ptr->size > MAX_NML_COMMAND_SIZE - 64) {
 	rcs_print_error
-	    ("NML_INTERP_LIST::append : command size is too large.");
+	    ("NML_INTERP_LIST::append : command size is too large"
+	     " (%ld > %d).\n",
+	     nml_msg_ptr->size, MAX_NML_COMMAND_SIZE - 64);
 	return -1;
     }
     if (nml_msg_ptr->size < 4) {
 	rcs_print_error
-	    ("NML_INTERP_LIST::append : command size is invalid.");
+	    ("NML_INTERP_LIST::append : command size is invalid.\n");
 	return -1;
     }
 #ifdef DEBUG_INTERPL
@@ -88,7 +90,8 @@ int NML_INTERP_LIST::append(NMLmsg * nml_msg_ptr)
 	((void *) &temp_node.line_number) >
 	((void *) &temp_node.command.commandbuf)) {
 	rcs_print_error
-	    ("NML_INTERP_LIST::append : assumptions about NML_INTERP_LIST_NODE have been violated.");
+	    ("NML_INTERP_LIST::append : assumptions about "
+	     "NML_INTERP_LIST_NODE have been violated.\n");
 	return -1;
     }
 #endif
