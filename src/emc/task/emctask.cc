@@ -783,6 +783,9 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
     }
     emcStatus->task.currentLine = tag->fields[GM_FIELD_LINE_NUMBER];
     emcStatus->task.stepping_id = tag->fields[GM_FIELD_STEPPING_ID];
+    emcStatus->task.programUnits = (
+	(tag->packed_flags & (1<<GM_FLAG_UNITS)) ?
+	CANON_UNITS_INCHES : CANON_UNITS_MM );
     // Set emcStatus gcodes, mcodes arrays
     interp.active_modes(
 	(int*)&emcStatus->task.activeGCodes,

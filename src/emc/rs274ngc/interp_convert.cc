@@ -2657,6 +2657,8 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
       settings->tool_offset.v = GET_EXTERNAL_TOOL_LENGTH_VOFFSET();
       settings->tool_offset.w = GET_EXTERNAL_TOOL_LENGTH_WOFFSET();
       settings->feed_rate = GET_EXTERNAL_FEED_RATE();
+
+      write_and_update_state_tag(NULL);
     }
   } else if (g_code == G_21) {
     USE_LENGTH_UNITS(CANON_UNITS_MM);
@@ -2697,6 +2699,8 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
       settings->tool_offset.v = GET_EXTERNAL_TOOL_LENGTH_VOFFSET();
       settings->tool_offset.w = GET_EXTERNAL_TOOL_LENGTH_WOFFSET();
       settings->feed_rate = GET_EXTERNAL_FEED_RATE();
+
+      write_and_update_state_tag(NULL);
     }
   } else
     ERS(NCE_BUG_CODE_NOT_G20_OR_G21);
