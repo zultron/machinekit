@@ -1556,7 +1556,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:	// and this
     case EMC_AUX_INPUT_WAIT_TYPE:
     case EMC_SPINDLE_WAIT_ORIENT_COMPLETE_TYPE:
-            task_debug("In preconditions waiting due to msg of type: %ld\n",cmd->type);
+            task_debug("In preconditions waiting due to msg of type: %d\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
@@ -1593,7 +1593,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_SPINDLE_ON_TYPE:
     case EMC_SPINDLE_OFF_TYPE:
     case EMC_SPINDLE_ORIENT_TYPE: // not sure
-            task_debug("In preconditions waiting due to msg of type: %ld\n",cmd->type);
+            task_debug("In preconditions waiting due to msg of type: %d\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
@@ -1605,7 +1605,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 
     case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
     case EMC_TOOL_SET_OFFSET_TYPE:
-            task_debug("In preconditions waiting due to msg of type: %ld\n",cmd->type);
+            task_debug("In preconditions waiting due to msg of type: %d\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
@@ -1616,12 +1616,12 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TASK_PLAN_PAUSE_TYPE:
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 	/* pause on the interp list is queued, so wait until all are done */
-            task_debug("In preconditions waiting due to msg of type: %ld\n",cmd->type);
+            task_debug("In preconditions waiting due to msg of type: %d\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
     case EMC_TASK_PLAN_END_TYPE:
-            task_debug("In preconditions waiting due to msg of type: %ld\n",cmd->type);
+            task_debug("In preconditions waiting due to msg of type: %d\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
@@ -1629,12 +1629,12 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TASK_PLAN_RUN_TYPE:
     case EMC_TASK_PLAN_SYNCH_TYPE:
     case EMC_TASK_PLAN_EXECUTE_TYPE:
-            task_debug("In preconditions waiting due to msg of type: %ld\n",cmd->type);
+            task_debug("In preconditions waiting due to msg of type: %d\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
     case EMC_TRAJ_DELAY_TYPE:
-            task_debug("In preconditions waiting due to msg of type: %ld\n",cmd->type);
+            task_debug("In preconditions waiting due to msg of type: %d\n",cmd->type);
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 	break;
 
