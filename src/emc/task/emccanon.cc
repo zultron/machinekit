@@ -668,8 +668,10 @@ void SET_TRAVERSE_RATE(double rate)
 void SET_FEED_MODE(int mode) {
     flush_segments();
     feed_mode = mode;
-    if(feed_mode == 0) STOP_SPEED_FEED_SYNCH();
-    send_tag_msg();
+    if(feed_mode == 0)
+	STOP_SPEED_FEED_SYNCH();  // This sends an NML msg; don't do it twice
+    else
+	send_tag_msg();
 
     canon_debug("setting feed mode %d\n", mode);
 }

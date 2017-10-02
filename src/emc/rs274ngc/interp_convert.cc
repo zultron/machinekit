@@ -2170,22 +2170,25 @@ int Interp::convert_feed_mode(int g_code,        //!< g_code being executed (mus
     enqueue_COMMENT("interpreter: feed mode set to inverse time");
 #endif
     settings->feed_mode = INVERSE_TIME;
+    write_and_update_state_tag(NULL);
     enqueue_SET_FEED_MODE(0);
   } else if (g_code == G_94) {
 #ifdef DEBUG_EMC
     enqueue_COMMENT("interpreter: feed mode set to units per minute");
 #endif
     settings->feed_mode = UNITS_PER_MINUTE;
-    enqueue_SET_FEED_MODE(0);
     settings->feed_rate = 0.0;
+    write_and_update_state_tag(NULL);
+    enqueue_SET_FEED_MODE(0);
     enqueue_SET_FEED_RATE(0);
   } else if(g_code == G_95) {
 #ifdef DEBUG_EMC
     enqueue_COMMENT("interpreter: feed mode set to units per revolution");
 #endif
     settings->feed_mode = UNITS_PER_REVOLUTION;
-    enqueue_SET_FEED_MODE(1);
     settings->feed_rate = 0.0;
+    write_and_update_state_tag(NULL);
+    enqueue_SET_FEED_MODE(1);
     enqueue_SET_FEED_RATE(0);
   } else
     ERS("BUG: Code not G93, G94, or G95");
