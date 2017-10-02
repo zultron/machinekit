@@ -644,6 +644,7 @@ int emcTrajUpdateTag(state_tag_t const * const tag) {
         return -1;
     }
     localEmcTrajTag = *tag;
+    localEmcTrajMotionId = tag->fields[GM_FIELD_STEPPING_ID];
     return 0;
 }
 
@@ -871,20 +872,6 @@ int emcTrajSetAFEnable(unsigned char enable)
 	emcmotCommand.flags = 0;
     }
     return usrmotWriteEmcmotCommand(&emcmotCommand);
-}
-
-int emcTrajSetMotionId(int id)
-{
-
-    if (EMC_DEBUG_MOTION_TIME & emc_debug) {
-	if (id != localEmcTrajMotionId) {
-	    rcs_print("Outgoing motion id is %d.\n", id);
-	}
-    }
-
-    localEmcTrajMotionId = id;
-
-    return 0;
 }
 
 int emcTrajInit()

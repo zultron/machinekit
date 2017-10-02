@@ -49,6 +49,8 @@ InterpBase *pinterp=0;
 #define interp (*((Interp*)pinterp))
 setup_pointer _is = 0; // helper for gdb hardware watchpoints FIXME
 
+// Saved tag for restoring interp after abort
+static state_tag_t saved_tag = {0};
 
 /*
   format string for user-defined programs, e.g., "programs/M1%02d" means
@@ -178,19 +180,23 @@ int emcTaskHalt()
 
 int emcTaskStateRestore()
 {
+    // clear out the pending command
+    emcTaskCommand = 0;
+    interp_list.clear();
+
     // Do NOT restore on MDI command
     if (emcStatus->task.mode == EMC_TASK_MODE_AUTO) {
         // Validity of state tag checked within restore function
-        rcs_print("emcTaskStateRestore: restoring from motion state tag\n");
-        pinterp->restore_from_tag(emcStatus->motion.traj.tag);
+        rcs_print(
+	    "emcTaskStateRestore: restoring interp from line %d state tag\n",
+	    saved_tag.fields[GM_FIELD_LINE_NUMBER]);
+        pinterp->restore_from_tag(saved_tag);
     }
     return 0;
 }
 
 int emcTaskAbort()
 {
-    emcMotionAbort();
-
     // clear out the pending command
     emcTaskCommand = 0;
     interp_list.clear();
@@ -719,21 +725,25 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     strcpy(stat->file, interp.file(buf, LINELEN));
     // command set in main
 
-    // update active G and M codes
-    // Start by assuming that we can't unpack a state tag from motion
-    int res_state = INTERP_ERROR;
-    if (emcStatus->task.interpState != EMC_TASK_INTERP_IDLE) {
-        res_state = interp.active_modes(&stat->activeGCodes[0],&stat->activeMCodes[0],&stat->activeSettings[0], emcStatus->motion.traj.tag);
-
-    } 
-    // If we get an error from trying to unpack from the motion state, always
-    // use interp's internal state, so the active state is never out of date
-    if (emcStatus->task.mode != EMC_TASK_MODE_AUTO || res_state == INTERP_ERROR) {
+    if (emcStatus->task.interpState == EMC_TASK_INTERP_IDLE) {
+    	// When the machine is idle, update from interp
         interp.active_g_codes(&stat->activeGCodes[0]);
         interp.active_m_codes(&stat->activeMCodes[0]);
         interp.active_settings(&stat->activeSettings[0]);
+    } else if (emcStatus->motion.traj.queue &&
+	       (emcStatus->task.stepping_id !=
+		emcStatus->motion.traj.tag.fields[GM_FIELD_STEPPING_ID])) {
+	// When the machine is in motion, update from motion tags (if
+	// stepping ID changed)
+	emcStatusUpdateFromTag(&emcStatus->motion.traj.tag);
+	if (emc_debug & EMC_DEBUG_STATUS)
+	    rcs_print(
+		"emcTaskUpdate:  updating status "
+		"from motion tag line %d, stepping %d\n",
+		emcStatus->motion.traj.tag.fields[GM_FIELD_LINE_NUMBER],
+		emcStatus->motion.traj.tag.fields[GM_FIELD_STEPPING_ID]);
     }
-    
+
 	// Tormach - bring the current work offsets back to emcmodule's status object 
 	stat->g54_offset   = interp.get_work_offset(1);
 	stat->g55_offset   = interp.get_work_offset(2);
@@ -747,14 +757,44 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
 
     //update state of optional stop
     stat->optional_stop_state = GET_OPTIONAL_PROGRAM_STOP();
-    
+
     //update state of block delete
     stat->block_delete_state = GET_BLOCK_DELETE();
-    
+
     stat->heartbeat++;
 
     return 0;
 }
+
+int emcStatusUpdateFromTag(state_tag_t const * const tag)
+{
+    if (!tag) {
+	fprintf(stderr, "emcStatusUpdateFromTag: "
+		"Not updating from invalid tag\n");
+        return -1;
+    }
+
+    // Save tag in case of later abort
+    saved_tag = *tag;
+
+    //Check if the new segment marks a new macro-level motion
+    if (emcStatus->task.stepping_id != tag->fields[GM_FIELD_STEPPING_ID]) {
+        emcStatus->task.previousLine = emcStatus->task.currentLine;
+    }
+    emcStatus->task.currentLine = tag->fields[GM_FIELD_LINE_NUMBER];
+    emcStatus->task.stepping_id = tag->fields[GM_FIELD_STEPPING_ID];
+    // Set emcStatus gcodes, mcodes arrays
+    interp.active_modes(
+	(int*)&emcStatus->task.activeGCodes,
+	(int*)&emcStatus->task.activeMCodes,
+	(double*)&emcStatus->task.activeSettings,
+	StateTag(*tag));
+
+    // Add more emcStatus updates here
+
+    return 0;
+}
+
 
 int emcAbortCleanup(int reason, const char *message)
 {

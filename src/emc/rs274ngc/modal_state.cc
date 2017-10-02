@@ -36,7 +36,7 @@ StateTag::StateTag(struct state_tag_t const & basetag): state_tag_t(basetag), fl
 int StateTag::is_valid(void) const
 {
 
-    if (fields[GM_FIELD_LINE_NUMBER] <= 1) {
+    if (fields[GM_FIELD_LINE_NUMBER] < 0) {
         return false;
     }
 

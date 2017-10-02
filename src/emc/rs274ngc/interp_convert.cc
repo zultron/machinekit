@@ -2988,6 +2988,9 @@ int Interp::restore_from_tag(StateTag const &tag)
 	_setup.toolchange_flag = false;
 	_setup.probe_flag = false;
 
+    // Restore line number from tag
+    _setup.sequence_number = tag.fields[GM_FIELD_LINE_NUMBER];
+
     // linearize state
     write_g_codes((block_pointer) NULL, &_setup, _setup.modal_state);
     write_m_codes((block_pointer) NULL, &_setup, _setup.modal_state);
@@ -4358,12 +4361,15 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 	   (_("Bug:  Reached convert_stop() from M99 as subprogram return")));
 
   if (block->m_modes[4] == 0) {
+      write_and_update_state_tag(block);
       PROGRAM_STOP(display_line_number());
   } else if (block->m_modes[4] == 60) {
-    PALLET_SHUTTLE();
-    PROGRAM_STOP(display_line_number());
+      write_and_update_state_tag(block);
+      PALLET_SHUTTLE();
+      PROGRAM_STOP(display_line_number());
   } else if (block->m_modes[4] == 1) {
-    OPTIONAL_PROGRAM_STOP(display_line_number());
+      write_and_update_state_tag(block);
+      OPTIONAL_PROGRAM_STOP(display_line_number());
   } else if (block->m_modes[4] == 99 && _setup.loop_on_main_m99) {
       // Fanuc-style M99 main program endless loop
 

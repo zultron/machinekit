@@ -56,6 +56,7 @@ int emcTaskPlanLevel();
 int emcTaskPlanCommand(char *cmd);
 
 int emcTaskUpdate(EMC_TASK_STAT * stat);
+int emcStatusUpdateFromTag(state_tag_t const * const tag);
 
 #endif
 

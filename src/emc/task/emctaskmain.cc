@@ -158,6 +158,10 @@ extern void setup_signal_handlers(); // backtrace, gdb-in-new-window supportx
 
 static sighandler_t chain_sigterm_handler;
 
+// Forward-declare functions instead of moving them around
+static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd);
+static int need_stepping_wait();
+
 static int all_homed(void) {
     for(int i=0; i<9; i++) {
         unsigned int mask = 1<<i;
@@ -1693,6 +1697,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 {
     int retval = 0;
     int execRetval = 0;
+    state_tag_t *tag = 0;
 
     if (0 == cmd) {
         if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
@@ -1703,6 +1708,24 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
 	rcs_print("Issuing %s -- \t (%s)\n", emcSymbolLookup(cmd->type),
 		  emcCommandBuffer->msg2str(cmd));
+    }
+
+    if ((!need_stepping_wait()) &&
+	((tag = emcTaskGetTagFromCommand(cmd)) || emcStatus->motion.traj.queue)
+	) {
+	if (!emcStatus->motion.traj.queue) {
+	    // No motion executing.  Update status from the latest
+	    // command being issued off the interp queue.
+	    emcStatusUpdateFromTag(tag);
+	    task_debug("emcTaskIssueCommand:  updating status "
+		       "from issued command type %s, line %d, stepping %d\n",
+		       emcSymbolLookup(emcTaskCommand->type),
+		       tag->fields[GM_FIELD_LINE_NUMBER],
+		       tag->fields[GM_FIELD_STEPPING_ID]);
+	}
+	// Update taskintf.cc localEmcTrajTag with state for commands
+	// outgoing to motion queue
+	emcTrajUpdateTag(tag);
     }
 
     switch (cmd->type) {
@@ -2126,12 +2149,11 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TASK_ABORT_TYPE:
-	// abort everything
-    // KLUDGE call motion abort before state restore to make absolutely sure no
-    // stray restore commands make it down to motion
+	// Call motion abort before state restore to make absolutely sure no
+	// stray restore commands make it down to motion
 	emcMotionAbort();
-    // Then call state restore to update the interpreter
-    emcTaskStateRestore();
+	// Then call state restore to update the interpreter
+	emcTaskStateRestore();
 	emcTaskAbort();
         task_methods->emcIoAbort(EMC_ABORT_TASK_ABORT);
         emcSpindleAbort();
@@ -2341,8 +2363,11 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	emcStatus->task.interpState = EMC_TASK_INTERP_PAUSED;
 	emcStatus->task.task_paused = 1;
 	pause_msg = (EMC_TASK_PLAN_PAUSE *) cmd;
-	if (emcStatus->task.mode == EMC_TASK_MODE_AUTO && pause_msg->line > 0)
+	if (emcStatus->task.mode == EMC_TASK_MODE_AUTO
+	    && pause_msg->line > 0) {
 	    emcStatus->task.currentLine = pause_msg->line;
+	    emcStatus->task.activeGCodes[0] = pause_msg->line;
+	}
 	retval = 0;
 	break;
 
@@ -2354,12 +2379,12 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	    }
 	    emcStatus->task.interpState = EMC_TASK_INTERP_PAUSED;
 	    emcStatus->task.task_paused = 1;
-	    rcs_print("task.mode=%d\n", emcStatus->task.mode);
-	    rcs_print("  EMC_TASK_MODE_AUTO=%d\n", EMC_TASK_MODE_AUTO);
 	    os_msg = (EMC_TASK_PLAN_OPTIONAL_STOP *) cmd;
-	    rcs_print("  line=%d\n", os_msg->line);
-	    if (emcStatus->task.mode == EMC_TASK_MODE_AUTO && os_msg->line > 0)
+	    if (emcStatus->task.mode == EMC_TASK_MODE_AUTO
+		&& os_msg->line > 0) {
 		emcStatus->task.currentLine = os_msg->line;
+		emcStatus->task.activeGCodes[0] = pause_msg->line;
+	    }
 	}
 	retval = 0;
 	break;
@@ -2412,7 +2437,11 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	retval =  task_methods->emcIoPluginCall(((EMC_IO_PLUGIN_CALL *) cmd)->len, ((EMC_IO_PLUGIN_CALL *) cmd)->call);
 	break;
 
-     default:
+    case EMC_TASK_SET_TAG_TYPE:
+	// Already did this work at the beginning
+	break;
+
+    default:
 	// unrecognized command
 	if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
 	    rcs_print_error("ignoring issue of unknown command %d:%s\n",
@@ -2596,12 +2625,9 @@ static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd)
         case EMC_TRAJ_SET_MODE_TYPE:
         case EMC_TRAJ_SET_VELOCITY_TYPE:
         case EMC_TRAJ_SET_ACCELERATION_TYPE:
-        case EMC_TRAJ_SET_MAX_VELOCITY_TYPE:
-        case EMC_TRAJ_SET_MAX_ACCELERATION_TYPE:
         case EMC_TRAJ_SET_SCALE_TYPE:
         case EMC_TRAJ_SET_RAPID_SCALE_TYPE:
         case EMC_TRAJ_SET_MOTION_ID_TYPE:
-
         case EMC_TRAJ_INIT_TYPE:
         case EMC_TRAJ_HALT_TYPE:
         case EMC_TRAJ_ENABLE_TYPE:
@@ -2615,64 +2641,75 @@ static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd)
         case EMC_TRAJ_SET_HOME_TYPE:
         case EMC_TRAJ_SET_ROTATION_TYPE:
         case EMC_TRAJ_SET_G92_TYPE:
-
         case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
         case EMC_TRAJ_PROBE_TYPE:
         case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
         case EMC_TRAJ_SET_TELEOP_VECTOR_TYPE:
         case EMC_TRAJ_SET_SPINDLESYNC_TYPE:
-        case EMC_TRAJ_SET_SPINDLE_SCALE_TYPE:
         case EMC_TRAJ_SET_FO_ENABLE_TYPE:
         case EMC_TRAJ_SET_SO_ENABLE_TYPE:
         case EMC_TRAJ_SET_FH_ENABLE_TYPE:
         case EMC_TRAJ_RIGID_TAP_TYPE:
-
-	    case EMC_MOTION_SET_DOUT_TYPE:
-	    case EMC_MOTION_ADAPTIVE_TYPE:
-	    case EMC_MOTION_SET_AOUT_TYPE:
-	    case EMC_TOOL_SET_OFFSET_TYPE:
+	case EMC_MOTION_SET_DOUT_TYPE:
+	case EMC_MOTION_ADAPTIVE_TYPE:
+	case EMC_MOTION_SET_AOUT_TYPE:
+	case EMC_TOOL_SET_OFFSET_TYPE:
         case EMC_TOOL_SET_NUMBER_TYPE:
         case EMC_TOOL_PREPARE_TYPE:
-	    case EMC_SPINDLE_SPEED_TYPE:
-	    case EMC_SPINDLE_ON_TYPE:
-	    case EMC_SPINDLE_OFF_TYPE:
-	    case EMC_SPINDLE_INCREASE_TYPE:
-	    case EMC_SPINDLE_DECREASE_TYPE:
-	    case EMC_COOLANT_MIST_ON_TYPE:
-	    case EMC_COOLANT_MIST_OFF_TYPE:
-	    case EMC_COOLANT_FLOOD_ON_TYPE:
-	    case EMC_COOLANT_FLOOD_OFF_TYPE:
-	    case EMC_LUBE_ON_TYPE:
-	    case EMC_LUBE_OFF_TYPE:
+	case EMC_SPINDLE_SPEED_TYPE:
+	case EMC_SPINDLE_ON_TYPE:
+	case EMC_SPINDLE_OFF_TYPE:
+	case EMC_SPINDLE_INCREASE_TYPE:
+	case EMC_SPINDLE_DECREASE_TYPE:
+	case EMC_COOLANT_MIST_ON_TYPE:
+	case EMC_COOLANT_MIST_OFF_TYPE:
+	case EMC_COOLANT_FLOOD_ON_TYPE:
+	case EMC_COOLANT_FLOOD_OFF_TYPE:
+	case EMC_LUBE_ON_TYPE:
+	case EMC_LUBE_OFF_TYPE:
         case EMC_TASK_SET_TAG_TYPE:
-            return &((EMC_CMD_MSG*)emcTaskCommand)->tag;
+        case EMC_TASK_PLAN_PAUSE_TYPE:
+
+	    return &((EMC_CMD_MSG*)cmd)->tag;
+	    break;
         default:
-            return NULL;
+	    // Not subclasses of EMC_CMD_MSG (see ../nml_intf/emc_nml.hh):
+	    // - EMC_OPERATOR_{DISPLAY,TEXT,ERROR}
+	    // - EMC_SYSTEM_CMD_TYPE
+	    // - EMC_NULL
+	    // - EMC_SET_DEBUG_TYPE
+	    // - EMC_AXIS_{LOAD_COMP,OVERRIDE_LIMITS,HALT,SET_MAX_VELOCITY,
+	    //       SET_MIN_POSITION_LIMIT,SET_MAX_POSITION_LIMIT,
+	    //       SET_MIN_FERROR,SET_FERROR,SET_HOMING_PARAMS,SET_BACKLASH,
+	    //       ABS_JOG,INCR_JOG,ABORT,UNHOME,HOME,ENABLE,DISABLE}
+	    // - EMC_{TRAJ,MOTION,SPINDLE,TASK,TOOL,COOLANT,LUBE,IO}_STAT
+	    // - EMC_STAT
+	    // Subclasses of EMC_CMD_MSG but not in list:
+	    // - EMC_TRAJ_SET_MAX_ACCELERATION_TYPE  -- removed for fun
+	    // - EMC_TRAJ_SET_MAX_VELOCITY_TYPE
+	    // - EMC_SPINDLE_SCALE  -- removed b/c segfault
+	    // - EMC_SPINDLE_{ORIENT,WAIT_ORIENT_COMPLETE,CONSTANT}
+	    // - EMC_SPINDLE_BRAKE_{RELEASE,ENGAGE}
+	    // - EMC_TRAJ_{ABORT,PAUSE,STEP,RESUME}
+	    // - EMC_MOTION_{INIT,HALT,ABORT}
+	    // - EMC_TASK_{INIT,HALT,ABORT}
+	    // - EMC_TASK_SET_{MODE,STATE}
+	    // - EMC_TASK_PLAN_{OPEN,RUN,READ,EXECUTE,STEP,RESUME,END,CLOSE,
+	    //       INIT,SYNCH,OPTIONAL_STOP}
+	    // - EMC_TASK_PLAN_SET_{OPTIONAL_STOP,BLOCK_DELETE}
+	    // - EMC_TOOL_{INIT,HALT,ABORT,LOAD,UNLOAD,LOAD_TOOL_TABLE,
+	    //       START_CHANGE}
+	    // - EMC_AUX_ESTOP_{ON,OFF,RESET}
+	    // - EMC_AUX_INPUT_WAIT
+	    // - EMC_IO_{INIT,HALT,ABORT,SET_CYCLE_TIME}
+	    // - EMC_{INIT,HALT,ABORT}
+	    // - EMC_{EXEC,IO}_PLUGIN_CALL
+	    
+	    return NULL;
             break;
     }
 
 }
-
-static int emcTaskUpdateFromTag(state_tag_t const * const tag)
-{
-
-    if (!tag) {
-        //FIXME do we need to update to zero from an invalid tag?
-        //emcStatus->task.currentLine = 0;
-        //emcStatus->task.stepping_id = 0;
-        return -1;
-    }
-
-    //Check if the new segment marks a new macro-level motion
-    if (emcStatus->task.stepping_id != tag->fields[GM_FIELD_STEPPING_ID]) {
-        emcStatus->task.previousLine = emcStatus->task.currentLine;
-    }
-    emcStatus->task.currentLine = tag->fields[GM_FIELD_LINE_NUMBER];
-    emcStatus->task.stepping_id = tag->fields[GM_FIELD_STEPPING_ID];
-
-    return 0;
-}
-
 
 // executor function
 static int emcTaskExecute(void)
@@ -2744,23 +2781,8 @@ static int emcTaskExecute(void)
 	    emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
 	    if (0 == emcTaskCommand) {
 		// need a new command
-		emcTaskCommand = interp_list.get();
-		// interp_list now has line number associated with this-- get
-		// it
-		if (0 != emcTaskCommand) {
+		if ((emcTaskCommand = interp_list.get()) != 0) {
 		    emcTaskEager = 1;
-            // Get the current line from the message, rather than the interp list
-            state_tag_t *tag = emcTaskGetTagFromCommand(emcTaskCommand);
-            if (tag) {
-                // Iterate over the interp list to find the line corresponding to the next step
-                tag->fields[GM_FIELD_NEXT_LINE] = interp_list.get_next_line_number(50);
-                emcTaskUpdateFromTag(tag);
-                emcTrajUpdateTag(tag);
-            }
-            task_debug("Updating current line from MESSAGE of type %lu: %d\n",
-                    emcTaskCommand->type,
-                    emcStatus->task.currentLine);
-		    emcTrajSetMotionId(emcStatus->task.currentLine);
 		    if (emcStatus->motion.traj.queueFull) {
 			emcStatus->task.execState =
 			    EMC_TASK_EXEC_WAITING_FOR_MOTION_QUEUE;

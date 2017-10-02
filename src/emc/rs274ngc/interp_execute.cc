@@ -238,7 +238,6 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 			  setup_pointer settings) //!< pointer to machine settings
 {
   int status;
-  int skip_line_number = 0;
 
   block->line_number = settings->sequence_number;
   /* The idea here is to only increment the stepping ID if we want to be able
@@ -269,7 +268,6 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 
   if ((block->comment[0] != 0) && ONCE(STEP_COMMENT)) {
     status = convert_comment(block->comment);
-    skip_line_number = 1;
     CHP(status);
   }
   if ((block->g_modes[GM_SPINDLE_MODE] != -1) && ONCE(STEP_SPINDLE_MODE)) {
@@ -337,13 +335,6 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
   if (settings->toolchange_flag)
       return (INTERP_EXECUTE_FINISH);
 
-  // By default, update for every new block
-  // Hack to check for blocks that would otherwise be skipped
-  if ((!skip_line_number ||
-          block->g_modes[GM_LENGTH_UNITS] !=-1) && block->motion_to_be == -1
-          ) {
-      send_tag_io_msg();
-  }
   return INTERP_OK;
 }
 

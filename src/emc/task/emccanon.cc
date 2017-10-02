@@ -2556,7 +2556,7 @@ void PROGRAM_STOP(int line)
     flush_segments();
 
     pauseMsg.line = line;
-    interp_list.append(pauseMsg);
+    tag_and_send(pauseMsg);
 }
 
 void SET_BLOCK_DELETE(bool state)

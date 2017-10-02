@@ -1122,6 +1122,7 @@ int Interp::init()
   _setup.v_origin_offset = USER_TO_PROGRAM_LEN(pars[k + 8]);
   _setup.w_origin_offset = USER_TO_PROGRAM_LEN(pars[k + 9]);
 
+  write_and_update_state_tag(NULL);
   SET_G5X_OFFSET(_setup.origin_index,
                  _setup.origin_offset_x ,
                  _setup.origin_offset_y ,
@@ -1696,6 +1697,9 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
       // before finding the sub we're looking for; error out
       CHKS((_setup.skipping_o != NULL),
 	   "Failed to find sub 'O%s' before EOF", _setup.skipping_o);
+
+      // EOF, so don't leave bogus line number around
+      _setup.sequence_number = 0;
   } else
     ERP(read_status);
   return read_status;
@@ -2752,8 +2756,12 @@ int Interp::on_abort(int reason, const char *message)
     _setup.probe_flag = false;
     _setup.input_flag = false;
 
-    if (_setup.on_abort_command == NULL)
+    // _setup.sequence_number = 0;
+
+    if (_setup.on_abort_command == NULL) {
+	logDebug("Interp::on_abort:  No on_abort_command; returning");
         return -1;
+    }
 
     char cmd[LINELEN];
 
