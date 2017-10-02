@@ -32,8 +32,6 @@ public:
 // close the currently open NC code file
  int close();
  
- EmcPose get_work_offset(int origin);
-
 // execute a line of NC code
  int execute(const char *command);
  int execute();

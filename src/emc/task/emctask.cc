@@ -744,17 +744,6 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
 		emcStatus->motion.traj.tag.fields[GM_FIELD_STEPPING_ID]);
     }
 
-	// Tormach - bring the current work offsets back to emcmodule's status object 
-	stat->g54_offset   = interp.get_work_offset(1);
-	stat->g55_offset   = interp.get_work_offset(2);
-	stat->g56_offset   = interp.get_work_offset(3);
-	stat->g57_offset   = interp.get_work_offset(4);
-	stat->g58_offset   = interp.get_work_offset(5);
-	stat->g59_offset   = interp.get_work_offset(6);
-	stat->g59_1_offset = interp.get_work_offset(7);
-	stat->g59_2_offset = interp.get_work_offset(8);
-	stat->g59_3_offset = interp.get_work_offset(9);
-
     //update state of optional stop
     stat->optional_stop_state = GET_OPTIONAL_PROGRAM_STOP();
 

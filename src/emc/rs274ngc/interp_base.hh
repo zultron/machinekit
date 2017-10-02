@@ -16,7 +16,6 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include <stdlib.h>
-#include <emcpos.h>
 #include <modal_state.hh>
 
 /*
@@ -114,7 +113,6 @@ public:
             double settings[ACTIVE_SETTINGS],
             StateTag const &tag) = 0;
     virtual int restore_from_tag(StateTag const &tag) = 0;
-    virtual EmcPose get_work_offset(int origin) = 0;
     virtual void set_loglevel(int level) = 0;
     virtual void set_loop_on_main_m99(bool state) = 0;
 };

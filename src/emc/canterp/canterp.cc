@@ -63,7 +63,6 @@
 static char the_command[LINELEN] = { 0 };	// our current command
 static char the_command_name[LINELEN] = { 0 };	// just the name part
 static char the_command_args[LINELEN] = { 0 };	// just the args part
-static EmcPose dummy_pose = { 0 };		// for plug function return val
 
 class Canterp : public InterpBase {
 public:
@@ -101,7 +100,6 @@ public:
             StateTag const &tag);
     int restore_from_tag(StateTag const &tag);
 
-    EmcPose get_work_offset(int origin);
     void set_loglevel(int level);
     void set_loop_on_main_m99(bool state);
     FILE *f;
@@ -744,10 +742,6 @@ int Canterp::active_modes(int g_codes[ACTIVE_G_CODES],
         int m_codes[ACTIVE_M_CODES],
         double settings[ACTIVE_SETTINGS],
         StateTag const &tag){ return -1;}
-
-EmcPose Canterp::get_work_offset(int origin) {
-    return dummy_pose;
-}
 
 void Canterp::set_loglevel(int level) {}
 void Canterp::set_loop_on_main_m99(bool state) {}
