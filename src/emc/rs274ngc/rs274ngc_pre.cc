@@ -568,39 +568,6 @@ int Interp::execute(const char *command, int line_number)
     return status;
 }
 
-// The top-level open file is visible to the user in a GUI.
-//
-// Return the line number from the deepest call level that's still in
-// the top-level open file.
-int Interp::display_line_number()
-{
-    int i;
-    int lineno = -1;
-    const char *top_fname;
-
-    // If not running a program, just return -1
-    if (_setup.filename == 0 or _setup.filename[0] == 0)
-	return -1;
-
-    // Get top stack level filename
-    if (_setup.call_level == 0)
-    	top_fname = _setup.filename;
-    else
-    	top_fname = _setup.sub_context[0].filename;
-
-    // Look through stack levels executing in same top-level file
-    for (i=0; i<_setup.call_level; i++)
-	if (strcmp(_setup.sub_context[i].filename, top_fname) == 0)
-	    lineno = _setup.sub_context[i].sequence_number;
-
-    // Finally, look at current open file (deepest stack level)
-    if (strcmp(_setup.filename, top_fname) == 0)
-	lineno = _setup.sequence_number;
-
-    return (lineno == 0 ? -1 : lineno);
-}
-
-
 // when a remapping sub finishes, the oword return/endsub handling code
 // calls back in here to continue block execution
 int Interp::remap_finished(int phase)
@@ -1698,7 +1665,7 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
       CHKS((_setup.skipping_o != NULL),
 	   "Failed to find sub 'O%s' before EOF", _setup.skipping_o);
 
-      // EOF, so don't leave bogus line number around
+      // EOF, so don't leave stale line number around
       _setup.sequence_number = 0;
   } else
     ERP(read_status);
@@ -2755,8 +2722,6 @@ int Interp::on_abort(int reason, const char *message)
     _setup.toolchange_flag = false;
     _setup.probe_flag = false;
     _setup.input_flag = false;
-
-    // _setup.sequence_number = 0;
 
     if (_setup.on_abort_command == NULL) {
 	logDebug("Interp::on_abort:  No on_abort_command; returning");

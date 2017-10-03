@@ -137,11 +137,11 @@ void NURB_CONTROL_POINT(int i, double x, double y, double z,
 void NURB_FEED(double sStart, double sEnd) {}
 void SET_BLOCK_DELETE(bool enabled) {}
 bool GET_BLOCK_DELETE(void) {}
-void OPTIONAL_PROGRAM_STOP(int line) {}
+void OPTIONAL_PROGRAM_STOP() {}
 void SET_OPTIONAL_PROGRAM_STOP(bool state) {}
 bool GET_OPTIONAL_PROGRAM_STOP() {}
 void PROGRAM_END() {}
-void PROGRAM_STOP(int line) {}
+void PROGRAM_STOP() {}
 void SET_MOTION_OUTPUT_BIT(int index) {}
 void CLEAR_MOTION_OUTPUT_BIT(int index) {}
 void SET_AUX_OUTPUT_BIT(int index) {}

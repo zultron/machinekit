@@ -620,12 +620,12 @@ int Canterp::execute(const char *line) {
     }
 
     if (!strcmp(the_command_name, "PROGRAM_STOP")) {
-	PROGRAM_STOP(0);
+	PROGRAM_STOP();
 	return 0;
     }
 
     if (!strcmp(the_command_name, "OPTIONAL_PROGRAM_STOP")) {
-	OPTIONAL_PROGRAM_STOP(0);
+	OPTIONAL_PROGRAM_STOP();
 	return 0;
     }
 

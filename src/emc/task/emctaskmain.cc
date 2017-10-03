@@ -430,9 +430,7 @@ static EMC_TASK_SET_STATE *state_msg;
 static EMC_TASK_PLAN_RUN *run_msg;
 static EMC_TASK_PLAN_EXECUTE *execute_msg;
 static EMC_TASK_PLAN_OPEN *open_msg;
-static EMC_TASK_PLAN_PAUSE *pause_msg;
-static EMC_TASK_PLAN_OPTIONAL_STOP *os_msg;
-static EMC_TASK_PLAN_SET_OPTIONAL_STOP *sos_msg;
+static EMC_TASK_PLAN_SET_OPTIONAL_STOP *os_msg;
 static EMC_TASK_PLAN_SET_BLOCK_DELETE *bd_msg;
 
 static EMC_AUX_INPUT_WAIT *emcAuxInputWaitMsg;
@@ -2362,12 +2360,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	}
 	emcStatus->task.interpState = EMC_TASK_INTERP_PAUSED;
 	emcStatus->task.task_paused = 1;
-	pause_msg = (EMC_TASK_PLAN_PAUSE *) cmd;
-	if (emcStatus->task.mode == EMC_TASK_MODE_AUTO
-	    && pause_msg->line > 0) {
-	    emcStatus->task.currentLine = pause_msg->line;
-	    emcStatus->task.activeGCodes[0] = pause_msg->line;
-	}
 	retval = 0;
 	break;
 
@@ -2379,12 +2371,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	    }
 	    emcStatus->task.interpState = EMC_TASK_INTERP_PAUSED;
 	    emcStatus->task.task_paused = 1;
-	    os_msg = (EMC_TASK_PLAN_OPTIONAL_STOP *) cmd;
-	    if (emcStatus->task.mode == EMC_TASK_MODE_AUTO
-		&& os_msg->line > 0) {
-		emcStatus->task.currentLine = os_msg->line;
-		emcStatus->task.activeGCodes[0] = pause_msg->line;
-	    }
 	}
 	retval = 0;
 	break;
@@ -2418,8 +2404,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
-	sos_msg = (EMC_TASK_PLAN_SET_OPTIONAL_STOP *) cmd;
-	emcTaskPlanSetOptionalStop(sos_msg->state);
+	os_msg = (EMC_TASK_PLAN_SET_OPTIONAL_STOP *) cmd;
+	emcTaskPlanSetOptionalStop(os_msg->state);
 	retval = 0;
 	break;
 

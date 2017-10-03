@@ -468,14 +468,14 @@ void SET_SPINDLE_SPEED(double rpm) {
 }
 void ORIENT_SPINDLE(double d, int i) {}
 void WAIT_SPINDLE_ORIENT_COMPLETE(double timeout) {}
-void PROGRAM_STOP(int line) {}
+void PROGRAM_STOP() {}
 void PROGRAM_END() {}
 void FINISH() {}
 void PALLET_SHUTTLE() {}
 void SELECT_POCKET(int pocket, int tool) {}
 void UPDATE_TAG(StateTag &tag) {}
 void SEND_TAG_MSG() {}
-void OPTIONAL_PROGRAM_STOP(int line) {}
+void OPTIONAL_PROGRAM_STOP() {}
 void START_CHANGE() {}
 int  GET_EXTERNAL_TC_FAULT() {return 0;}
 int  GET_EXTERNAL_TC_REASON() {return 0;}

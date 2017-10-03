@@ -1306,8 +1306,6 @@ class EMC_TASK_PLAN_PAUSE:public EMC_TASK_CMD_MSG {
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
-    
-    int line;
 };
 
 class EMC_TASK_PLAN_STEP:public EMC_TASK_CMD_MSG {
@@ -1402,8 +1400,6 @@ class EMC_TASK_PLAN_OPTIONAL_STOP:public EMC_TASK_CMD_MSG {
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
-    
-    int line;
 };
 
 

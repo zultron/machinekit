@@ -4369,14 +4369,14 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 
   if (block->m_modes[4] == 0) {
       write_and_update_state_tag(block);
-      PROGRAM_STOP(display_line_number());
+      PROGRAM_STOP();
   } else if (block->m_modes[4] == 60) {
       write_and_update_state_tag(block);
       PALLET_SHUTTLE();
-      PROGRAM_STOP(display_line_number());
+      PROGRAM_STOP();
   } else if (block->m_modes[4] == 1) {
       write_and_update_state_tag(block);
-      OPTIONAL_PROGRAM_STOP(display_line_number());
+      OPTIONAL_PROGRAM_STOP();
   } else if (block->m_modes[4] == 99 && _setup.loop_on_main_m99) {
       // Fanuc-style M99 main program endless loop
 

@@ -56,7 +56,7 @@
  N..... MESSAGE("Verify METRIC Sherline.tbl file!")
  N..... MESSAGE("Align XY=0 at center, Z=0 at surface, spindle to match S value, hit [Run]")
  N..... COMMENT("wait for Resume")
- N..... PROGRAM_STOP(64)
+ N..... PROGRAM_STOP()
  N..... COMMENT("spindle CW")
  N..... START_SPINDLE_CLOCKWISE()
  N..... COMMENT("get air for alignment")
