@@ -1,4 +1,4 @@
-component home2nstop "HAL component for homing clear path motors using hard stop or limit switches and other axis motor functions ";
+component home2hstop "HAL component for homing clear path motors using hard stop or limit switches and other axis motor functions ";
 
 license "GPL";
 author "Tormach";
@@ -259,10 +259,11 @@ FUNCTION(_) {
             if (motor_state == MS_NORMAL && internal_status_code == HLFB_POSITION) {
                 status_code = HLFB_OK;
                 internal_status_code = HLFB_OK;
-            {
-            else if (motor_state != MS_FAULT)
+            }
+            else if (motor_state != MS_FAULT) {
                 status_code = HLFB_CMD_INVALID; //clue UI it's lost.
                 //DON'T set internal_status_code 
+            }
         }
         else if (motor_command == MOTOR_CMD_ACK_ERR) {
             if(motor_state != MS_FAULT)
