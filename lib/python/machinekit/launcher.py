@@ -272,4 +272,4 @@ def ensure_mklauncher():
         return
     except subprocess.CalledProcessError:
         pass
-    start_process('mklauncher .')
+    start_process('exec mklauncher .')
