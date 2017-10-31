@@ -251,6 +251,7 @@ def _exitHandler(signum, frame):
 
     if not _exiting:
         _exiting = True  # prevent double execution
+        sys.stdout.write("Caught interrupt; exiting\n")
         end_session()
         sys.exit(0)
 
@@ -266,10 +267,11 @@ def set_machinekit_ini(ini):
 
 
 # ensure mklauncher is running
-def ensure_mklauncher():
+def ensure_mklauncher(debug=False):
     try:
         subprocess.check_output(['pgrep', 'mklauncher'])
         return
     except subprocess.CalledProcessError:
         pass
-    start_process('exec mklauncher .')
+    start_process('exec mklauncher %s .' % (
+        '-d' if debug else ''))

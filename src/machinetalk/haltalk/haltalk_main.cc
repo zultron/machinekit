@@ -435,23 +435,35 @@ int main (int argc, char *argv[])
     // generic binding & announcement parameters
     // from $MACHINEKIT_INI
     self.netopts.rundir = RUNDIR;
-    if (mk_getnetopts(&self.netopts))
+    if (mk_getnetopts(&self.netopts)) {
+	fprintf(stderr, "Error:  mk_getnetopts() failed\n");
 	exit(1);
+    }
 
-    if (read_config(&self))
+    if (read_config(&self)) {
+	fprintf(stderr, "Error:  read_config() failed\n");
 	exit(1);
+    }
 
     // webtalk-specific port number from $MACHINEKIT_INI
-    if (read_machinekit_ini(&self))
+    if (read_machinekit_ini(&self)) {
+	fprintf(stderr, "Error:  read_machinekit_ini() failed\n");
 	exit(1);
+    }
 
     print_container = self.cfg->debug & 1; // log sent protobuf messages to stderr if debug & 1
 
     retval = hal_setup(&self);
-    if (retval) exit(retval);
+    if (retval) {
+	fprintf(stderr, "Error:  hal_setup() failed\n");
+	exit(retval);
+    }
 
     retval = zmq_init(&self);
-    if (retval) exit(retval);
+    if (retval) {
+	fprintf(stderr, "Error:  zmq_init() failed\n");
+	exit(retval);
+    }
 
 #ifdef NOTYET
     retval = bridge_init(&self);
