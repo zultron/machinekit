@@ -4,6 +4,8 @@ import sys
 
 max = 50.0
 min = -50.0
+maxvel = 4000
+maxacc = 10000
 
 result_filename = sys.argv[1]
 result_file = open(result_filename, 'r')
@@ -11,15 +13,23 @@ result_file = open(result_filename, 'r')
 retval = 0
 
 for line in result_file.readlines():
-    (line, in_val, out) = line.split()
+    (line, in_val, out, vel, acc) = line.split()
     out = float(out)
+    vel = float(vel)
+    acc = float(acc)
 
-    if float(out) > max:
+    if float(out) > max * 1.01:
         print "max=%.3f, in=%.3f, out=%.3f, violation on line %s" % (max, float(in_val), out, line)
         retval = 1
 
-    if float(out) < min:
+    if float(out) < min * 1.01:
         print "min=%.3f, in=%.3f, out=%.3f, violation on line %s" % (min, float(in_val), out, line)
         retval = 1
+
+    if vel > maxvel:
+        print "maxvel=%.3f, vel=%.3f, violation on line %s" % (maxvel, vel, line)
+
+    if acc > maxacc:
+        print "maxacc=%.3f, acc=%.3f, violation on line %s" % (maxacc, acc, line)
 
 sys.exit(retval)
