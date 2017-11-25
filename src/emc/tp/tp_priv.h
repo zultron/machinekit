@@ -154,7 +154,7 @@ double findSpindleVelocity(
 
 bool spindleReversed(spindle_origin_t origin, double prev_pos, double current_pos);
 
-bool cmdReverseSpindle(void);
+void cmdReverseSpindle(double reversal_scale);
 
 AxisMaskString axisBitMaskToString(unsigned failed_axes);
 

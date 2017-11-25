@@ -784,7 +784,8 @@ int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override)
 
 int pmRigidTapInit(PmRigidTap * const tap,
         EmcPose const * const start,
-        EmcPose const * const end)
+        EmcPose const * const end,
+        double reversal_scale)
 {
     PmCartesian start_xyz, end_xyz;
     PmCartesian abc, uvw;
@@ -803,6 +804,7 @@ int pmRigidTapInit(PmRigidTap * const tap,
 
     // Setup initial tap state
     tap->reversal_target = tap->nominal_xyz.tmag;
+    tap->reversal_scale = reversal_scale;
     tap->state = RIGIDTAP_TAPPING;
 
     return TP_ERR_OK;

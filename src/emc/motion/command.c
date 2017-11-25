@@ -1497,6 +1497,7 @@ check_stuff ( "before command_handler()" );
 					   emcmotCommand->acc,
 					   emcmotStatus->enables_new,
                        issue_atspeed,
+                       emcmotCommand->scale,
 					   emcmotCommand->tag);
             addSegmentOrReportError(res_addtap, issue_atspeed, "rigid tap");
 	    break;

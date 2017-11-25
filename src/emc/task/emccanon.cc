@@ -1115,7 +1115,7 @@ void STRAIGHT_FEED(int line_number,
 }
 
 
-void RIGID_TAP(int line_number, double x, double y, double z)
+void RIGID_TAP(int line_number, double x, double y, double z, double scale)
 {
     double ini_maxvel,acc;
     double unused=0;
@@ -1152,7 +1152,7 @@ void RIGID_TAP(int line_number, double x, double y, double z)
         rigidTapMsg.vel = toExtVel(nominal_vel); // NOTE: for reference ONLY, the actual feed is identified at runtime using uu/rev and real spindle speed
         rigidTapMsg.ini_maxvel = toExtVel(ini_maxvel);
         rigidTapMsg.acc = toExtAcc(acc);
-
+        rigidTapMsg.scale = scale;
         flush_segments();
 
         if(ini_maxvel && acc)  {

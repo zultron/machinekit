@@ -1457,6 +1457,7 @@ int tpAddRigidTap(TP_STRUCT * const tp,
         double acc,
         unsigned char enables,
         char atspeed,
+        double scale,
         struct state_tag_t tag) {
     if (tpErrorCheck(tp)) {
         return TP_ERR_FAIL;
@@ -1499,7 +1500,8 @@ int tpAddRigidTap(TP_STRUCT * const tp,
     // Setup rigid tap geometry
     pmRigidTapInit(&tc.coords.rigidtap,
             &tp->goalPos,
-            &end);
+            &end,
+            scale);
 
     addRigidTapOverrun(&tc, RIGIDTAP_MAX_OVERSHOOT_REVS);
 
@@ -2380,14 +2382,11 @@ bool spindleReversed(spindle_origin_t origin, double prev_pos, double current_po
  * Commands a spindle reverse during rigid tapping.
  * Does not affect the commanded spindle speed,
  */
-bool cmdReverseSpindle(void)
+void cmdReverseSpindle(double reversal_scale)
 {
-    static bool reversed = false;
     // Flip sign on commanded velocity
-    emcmotStatus->spindle_cmd.velocity_rpm_out *= -1;
-    // (Optional) set an internal flag so we know if the spindle is reversed from the user command
-    reversed = !reversed;
-    return reversed;
+    emcmotStatus->spindle_cmd.velocity_rpm_out *= -1 * reversal_scale;
+
 }
 
 /**
@@ -2444,7 +2443,7 @@ void tpUpdateRigidTapState(
             if (tc->progress >= reversal_target) {
                 // command reversal to stop / reverse at the bottom of the hole
                 emcmotStatus->rigid_tap_reversal_vel_rps = emcmotStatus->spindle_fb.velocity_rps;
-                cmdReverseSpindle();
+                cmdReverseSpindle(tc->coords.rigidtap.reversal_scale);
                 tc->coords.rigidtap.state = RIGIDTAP_REVERSING;
             }
             break;
@@ -2459,7 +2458,7 @@ void tpUpdateRigidTapState(
         case RIGIDTAP_RETRACTION:
             if (tc->progress >= tc->coords.rigidtap.reversal_target) {
                 // Flip spindle direction again to start final reversal
-                cmdReverseSpindle();
+                cmdReverseSpindle(1.0/tc->coords.rigidtap.reversal_scale);
                 tc->coords.rigidtap.state = RIGIDTAP_FINAL_REVERSAL;
             }
             break;

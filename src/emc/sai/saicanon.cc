@@ -466,7 +466,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
 }
 
 
-void RIGID_TAP(int line_number, double x, double y, double z)
+void RIGID_TAP(int line_number, double x, double y, double z, double mult)
 {
     ECHO_WITH_ARGS("%.4f, %.4f, %.4f", x, y, z);
 }

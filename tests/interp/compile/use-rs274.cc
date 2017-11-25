@@ -87,7 +87,7 @@ void STRAIGHT_FEED(int lineno,
                           double u, double v, double w) {}
 void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {}
 void RIGID_TAP(int lineno,
-                      double x, double y, double z) {}
+                      double x, double y, double z, double scale) {}
 void STRAIGHT_PROBE(int lineno,
                            double x, double y, double z,
                            double a, double b, double c,

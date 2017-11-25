@@ -1089,7 +1089,7 @@ int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double ac
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc)
+int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc, double scale)
 {
 #ifdef ISNAN_TRAP
     if (std::isnan(pos.tran.x) || std::isnan(pos.tran.y) || std::isnan(pos.tran.z)) {
@@ -1106,6 +1106,7 @@ int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc)
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
     emcmotCommand.motion_type = EMC_MOTION_TYPE_RIGIDTAP;
+    emcmotCommand.scale = scale;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }

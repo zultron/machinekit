@@ -79,7 +79,8 @@ int pmCircle9Init(PmCircle9 * const circ9,
 
 int pmRigidTapInit(PmRigidTap * const tap,
         EmcPose const * const start,
-        EmcPose const * const end);
+        EmcPose const * const end,
+        double reversal_scale);
 
 int tcInit(TC_STRUCT * const tc,
         tc_motion_type_t motion_type,
