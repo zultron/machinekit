@@ -3410,6 +3410,13 @@ int tpRunCycle(TP_STRUCT * const tp, long period)
     //Set GUI status to "zero" state
     tpUpdateInitialStatus(tp);
 
+#ifdef TC_DEBUG
+    //Hack debug output for timesteps
+    // NOTE: need to track every timestep, even those where the trajectory planner is idle
+    static double time_elapsed = 0;
+    time_elapsed+=tp->cycleTime;
+#endif
+
     //If we have a NULL pointer, then the queue must be empty, so we're done.
     if(!tc) {
         tpHandleEmptyQueue(tp);
@@ -3418,11 +3425,6 @@ int tpRunCycle(TP_STRUCT * const tp, long period)
 
     tc_debug_print("-------------------\n");
 
-#ifdef TC_DEBUG
-    //Hack debug output for timesteps
-    static double time_elapsed = 0;
-    time_elapsed+=tp->cycleTime;
-#endif
 
     /* If the queue empties enough, assume that the program is near the end.
      * This forces the last segment to be "finalized" to let the optimizer run.*/
