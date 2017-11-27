@@ -281,7 +281,8 @@ STATIC inline double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT con
 			    tcPureRotaryCheck(tc) ? tp->vLimitAng : tp->vLimit);
     }
 
-    return v_max_target;
+    // Apply maximum segment velocity limit (must always be respected)
+    return fmin(v_max_target, tc->maxvel);
 }
 
 
