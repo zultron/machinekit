@@ -6,6 +6,7 @@ import sys
 # Initialization
 c = linuxcnc.command()
 s = linuxcnc.stat()
+e = linuxcnc.error_channel()
 c.state(linuxcnc.STATE_ESTOP_RESET)
 c.state(linuxcnc.STATE_ON)
 c.mode(linuxcnc.MODE_MDI)
@@ -26,6 +27,13 @@ def do_dout(cmd, with_motion=False):
     s.poll()
     print "After %s:  s.dout[0] = %s, s.dout[1] = %s" % \
         (cmd, s.dout[0], s.dout[1])
+    error = e.poll()
+    if error:
+        type_code, msg = error
+        if type_code == linuxcnc.OPERATOR_DISPLAY:
+            sys.stderr.write("%s\n" % msg)
+        else:
+            print "Error:  type %d; message %s" % error
 
 # M64/M65 test:  toggle DIO & verify
 do_dout('M64')
