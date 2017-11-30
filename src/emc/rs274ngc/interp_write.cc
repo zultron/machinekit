@@ -75,52 +75,51 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
                          setup_pointer settings,
                          ModalState & state)        //!< pointer to machine settings
 {
-  state.g_codes[0] = settings->sequence_number;
-  state.g_codes[1] = settings->motion_mode;
-  state.g_codes[2] = ((block == NULL) ? -1 : block->g_modes[0]);
+  state.g_codes[G_CODE_SEQUENCE_NUMBER] = settings->sequence_number;
+  state.g_codes[G_CODE_MOTION_MODE] = settings->motion_mode;
+  state.g_codes[G_CODE_MODE_0] = ((block == NULL) ? -1 : block->g_modes[0]);
   switch(settings->plane) {
   case CANON_PLANE_XY:
-      state.g_codes[3] = G_17;
+      state.g_codes[G_CODE_PLANE] = G_17;
       break;
   case CANON_PLANE_XZ:
-      state.g_codes[3] = G_18;
+      state.g_codes[G_CODE_PLANE] = G_18;
       break;
   case CANON_PLANE_YZ:
-      state.g_codes[3] = G_19;
+      state.g_codes[G_CODE_PLANE] = G_19;
       break;
   case CANON_PLANE_UV:
-      state.g_codes[3] = G_17_1;
+      state.g_codes[G_CODE_PLANE] = G_17_1;
       break;
   case CANON_PLANE_UW:
-      state.g_codes[3] = G_18_1;
+      state.g_codes[G_CODE_PLANE] = G_18_1;
       break;
   case CANON_PLANE_VW:
-      state.g_codes[3] = G_19_1;
+      state.g_codes[G_CODE_PLANE] = G_19_1;
       break;
   }
-  state.g_codes[4] =
+  state.g_codes[G_CODE_CUTTER_SIDE] =
     (settings->cutter_comp_side == RIGHT) ? G_42 :
     (settings->cutter_comp_side == LEFT) ? G_41 : G_40;
-  state.g_codes[5] = (settings->length_units == CANON_UNITS_INCHES) ? G_20 : G_21;
-  state.g_codes[6] = (settings->distance_mode == MODE_ABSOLUTE) ? G_90 : G_91;
-  state.g_codes[7] = (settings->feed_mode == INVERSE_TIME) ? G_93 :
+  state.g_codes[G_CODE_UNITS] = (settings->length_units == CANON_UNITS_INCHES) ? G_20 : G_21;
+  state.g_codes[G_CODE_DISTANCE_MODE] = (settings->distance_mode == MODE_ABSOLUTE) ? G_90 : G_91;
+  state.g_codes[G_CODE_FEED_MODE] = (settings->feed_mode == INVERSE_TIME) ? G_93 :
 	    (settings->feed_mode == UNITS_PER_MINUTE) ? G_94 : G_95;
-  state.g_codes[8] =
+  state.g_codes[G_CODE_ORIGIN] =
     (settings->origin_index <
      7) ? (530 + (10 * settings->origin_index)) : (584 +
                                                    settings->origin_index);
-  state.g_codes[9] = (settings->tool_offset.tran.x || settings->tool_offset.tran.y || settings->tool_offset.tran.z ||
+  state.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = (settings->tool_offset.tran.x || settings->tool_offset.tran.y || settings->tool_offset.tran.z ||
             settings->tool_offset.a || settings->tool_offset.b || settings->tool_offset.c ||
             settings->tool_offset.u || settings->tool_offset.v || settings->tool_offset.w) ? G_43 : G_49;
-  state.g_codes[10] = (settings->retract_mode == OLD_Z) ? G_98 : G_99;
-  state.g_codes[11] =
+  state.g_codes[G_CODE_RETRACT_MODE] = (settings->retract_mode == OLD_Z) ? G_98 : G_99;
+  state.g_codes[G_CODE_PATH_MODE] =
     (settings->control_mode == CANON_CONTINUOUS) ? G_64 :
     (settings->control_mode == CANON_EXACT_PATH) ? G_61 : G_61_1;
-  state.g_codes[12] = -1;
-  state.g_codes[13] =
+  state.g_codes[G_CODE_SPINDLE_MODE] =
     (settings->spindle_mode == CONSTANT_RPM) ? G_97 : G_96;
-  state.g_codes[14] = (settings->ijk_distance_mode == MODE_ABSOLUTE) ? G_90_1 : G_91_1;
-  state.g_codes[15] = (settings->lathe_diameter_mode) ? G_7 : G_8;
+  state.g_codes[G_CODE_DISTANCE_MODE_IJK] = (settings->ijk_distance_mode == MODE_ABSOLUTE) ? G_90_1 : G_91_1;
+  state.g_codes[G_CODE_LATHE_DIAMETER_MODE] = (settings->lathe_diameter_mode) ? G_7 : G_8;
   return INTERP_OK;
 }
 
@@ -143,28 +142,34 @@ int Interp::write_m_codes(block_pointer block,   //!< pointer to a block of RS27
                          setup_pointer settings,
                          ModalState & state)        //!< pointer to machine settings
 {
-  state.m_codes[0] = settings->sequence_number;   /* 0 seq number  */
-  state.m_codes[1] = (block == NULL) ? -1 : block->m_modes[4];    /* 1 stopping    */
-  state.m_codes[2] = (settings->spindle_turning == CANON_STOPPED) ? 5 :   /* 2 spindle     */
-    (settings->spindle_turning == CANON_CLOCKWISE) ? 3 : 4;
-  state.m_codes[3] =                      /* 3 tool change */
-    (block == NULL) ? -1 : block->m_modes[6];
-  state.m_codes[4] =                      /* 4 mist        */
-    (settings->mist) ? 7 : (settings->flood) ? -1 : 9;
-  state.m_codes[5] =                      /* 5 flood       */
-    (settings->flood) ? 8 : -1;
-  if (settings->feed_override) {
-    if (settings->speed_override) state.m_codes[6] =  48;
-    else state.m_codes[6] = 50;
+  state.m_codes[M_CODE_SEQUENCE_NUMBER] =   /* 0 seq number */
+      settings->sequence_number;
+  state.m_codes[M_CODE_STOPPING] =			/* 1 stopping */
+      (block == NULL) ? -1 : block->m_modes[4];
+  state.m_codes[M_CODE_SPINDLE] =			/* 2 spindle */
+      (settings->spindle_turning == CANON_STOPPED) ? 5 :
+      (settings->spindle_turning == CANON_CLOCKWISE) ? 3 : 4;
+  state.m_codes[M_CODE_TOOLCHANGE] =			/* 3 tool change */
+      (block == NULL) ? -1 : block->m_modes[6];
+  state.m_codes[M_CODE_MIST] =				/* 4 mist */
+      (settings->mist) ? 7 : (settings->flood) ? -1 : 9;
+  state.m_codes[M_CODE_FLOOD] =				/* 5 flood */
+      (settings->flood) ? 8 : -1;
+  if (settings->feed_override) {			/* 6 overrides */
+      if (settings->speed_override)
+	  state.m_codes[M_CODE_OVERRIDES] =  48;
+      else
+	  state.m_codes[M_CODE_OVERRIDES] = 50;
   } else if (settings->speed_override) {
-    state.m_codes[6] = 51;
-  } else state.m_codes[6] = 49;
+      state.m_codes[M_CODE_OVERRIDES] = 51;
+  } else
+      state.m_codes[M_CODE_OVERRIDES] = 49;
   
-  state.m_codes[7] =                      /* 7 overrides   */
-    (settings->adaptive_feed) ? 52 : -1;
+  state.m_codes[M_CODE_ADAPTIVE_FEED] =			/* 7 adaptive feed */
+      (settings->adaptive_feed) ? 52 : -1;
 
-  state.m_codes[8] =                      /* 8 overrides   */
-    (settings->feed_hold) ? 53 : -1;
+  state.m_codes[M_CODE_FEED_HOLD] =			/* 8 feed hold */
+      (settings->feed_hold) ? 53 : -1;
 
   return INTERP_OK;
 }
@@ -188,9 +193,13 @@ Called by:
 int Interp::write_settings(setup_pointer settings,     //!< pointer to machine settings
         ModalState & state){
 
-  state.settings[0] = settings->sequence_number;  /* 0 sequence number */
-  state.settings[1] = settings->feed_rate;        /* 1 feed rate       */
-  state.settings[2] = settings->speed;    /* 2 spindle speed   */
+    // HERE
+  state.settings[SETTINGS_SEQUENCE_NUMBER] =	/* 0 sequence number */
+      settings->sequence_number;
+  state.settings[SETTINGS_FEED_RATE] =		/* 1 feed rate */
+      settings->feed_rate;
+  state.settings[SETTINGS_SPEED] =		/* 2 spindle speed */
+      settings->speed;
 
   return INTERP_OK;
 }

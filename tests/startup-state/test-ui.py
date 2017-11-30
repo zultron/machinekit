@@ -260,7 +260,8 @@ assert(math.fabs(s.g92_offset[1] - 2.000) < 0.0000001)
 assert(math.fabs(s.g92_offset[2] - 4.000) < 0.0000001)
 assert(s.g92_offset[3:] == (0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
 
-assert(s.gcodes == (0, 800, -1, 170, 400, 200, 900, 940, 540, 490, 990, 640, -1, 970, 911, 80))
+assert(s.gcodes == (0, 800, -1, 170, 400, 200, 900, 940, 540, 490, 990, 640,
+                    970, 911, 80))
 
 assert(s.homed == (0, 0, 0, 0, 0, 0, 0, 0, 0))
 
@@ -283,7 +284,7 @@ assert(s.lube_level == 0)
 
 assert(math.fabs(s.max_acceleration - 123.45) < 0.0000001)
 assert(math.fabs(s.max_velocity - 45.67) < 0.0000001)
-assert(s.mcodes == (0, -1, 5, -1, 9, -1, 48, -1, 53, 0))
+assert(s.mcodes == (0, -1, 5, -1, 9, -1, 48, -1, 53))
 assert(s.mist == 0)
 assert(s.motion_line == 0)
 assert(s.motion_mode == linuxcnc.TRAJ_MODE_FREE)

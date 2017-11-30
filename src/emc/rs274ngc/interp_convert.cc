@@ -2866,12 +2866,12 @@ int Interp::gen_restore_cmd(ModalState &state,
      * write_XXX functions.
      */
     // Force cancellation of tool compensation
-    saved_g[4] = G_40;
+    saved_g[G_CODE_CUTTER_SIDE] = G_40;
 
     //Mimic the order of restoration commands used elsewhere
-    if (state.g_codes[5] != saved_g[5]) {
+    if (state.g_codes[G_CODE_UNITS] != saved_g[G_CODE_UNITS]) {
         char buf[LINELEN];
-        snprintf(buf,sizeof(buf), "G%d",saved_g[5]/10);
+        snprintf(buf,sizeof(buf), "G%d",saved_g[G_CODE_UNITS]/10);
         CHKS(execute(buf) != INTERP_OK, _("gen_restore G20/G21 failed: '%s'"), cmd.c_str());
     }
 
@@ -2936,9 +2936,11 @@ int Interp::restore_settings(setup_pointer settings,
     // G20/G21 switching is special - it is executed beforehand
     // so restoring feed later on is interpreted in the correct context
 
-    if (settings->modal_state.g_codes[5] != settings->sub_context[from_level].modal_state.g_codes[5]) {
+    if (settings->modal_state.g_codes[G_CODE_UNITS] !=
+	settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]) {
         char buf[LINELEN];
-        snprintf(buf,sizeof(buf), "G%d",settings->sub_context[from_level].modal_state.g_codes[5]/10);
+        snprintf(buf, sizeof(buf), "G%d",
+		 settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]/10);
         CHKS(execute(buf) != INTERP_OK, _("M7x: restore_settings G20/G21 failed: '%s'"), cmd.c_str());
     }
     gen_settings(settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings,cmd);
@@ -3250,7 +3252,8 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
     // and then not worry about it through the program.  When you
     // finally unload the last tool, G43 mode is canceled.
 
-      if ((settings->modal_state.g_codes[9] == G_43) && ONCE(STEP_RETAIN_G43)) {
+      if ((settings->modal_state.g_codes[G_CODE_TOOL_LENGTH_OFFSET] == G_43)
+	  && ONCE(STEP_RETAIN_G43)) {
         if(settings->selected_pocket > 0) {
             struct block_struct g43;
             init_block(&g43);

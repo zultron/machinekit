@@ -1,5 +1,5 @@
 CHECK Paused at line 11:  offset 1/540
-CHECK gcodes:  (11, 800, -1, 170, 400, 200, 900, 940, 540, 490, 990, 640, -1, 970, 911, 80)
+CHECK gcodes:  (11, 800, -1, 170, 400, 200, 900, 940, 540, 490, 990, 640, 970, 911, 80)
 CHECK offset 0/cur:  X1.10 Y1.20 Z1.30
 CHECK offset 0/cur:  X1.10 Y1.20 Z1.30
 CHECK offset 1/540:  X1.10 Y1.20 Z1.30
@@ -12,7 +12,7 @@ CHECK offset 7/591:  X7.10 Y7.20 Z7.30
 CHECK offset 8/592:  X8.10 Y8.20 Z8.30
 CHECK offset 9/593:  X9.10 Y9.20 Z9.30
 CHECK Paused at line 15:  offset 1/540
-CHECK gcodes:  (15, 800, -1, 170, 400, 200, 900, 940, 540, 490, 990, 640, -1, 970, 911, 80)
+CHECK gcodes:  (15, 800, -1, 170, 400, 200, 900, 940, 540, 490, 990, 640, 970, 911, 80)
 CHECK offset 0/cur:  X1.00 Y2.00 Z3.00
 CHECK offset 0/cur:  X1.00 Y2.00 Z3.00
 CHECK offset 1/540:  X1.00 Y2.00 Z3.00
@@ -25,7 +25,7 @@ CHECK offset 7/591:  X7.10 Y7.20 Z7.30
 CHECK offset 8/592:  X8.10 Y8.20 Z8.30
 CHECK offset 9/593:  X9.10 Y9.20 Z9.30
 CHECK Paused at line 19:  offset 2/550
-CHECK gcodes:  (19, 800, -1, 170, 400, 210, 900, 940, 550, 490, 990, 640, -1, 970, 911, 80)
+CHECK gcodes:  (19, 800, -1, 170, 400, 210, 900, 940, 550, 490, 990, 640, 970, 911, 80)
 CHECK offset 0/cur:  X2.10 Y2.20 Z2.30
 CHECK offset 0/cur:  X2.10 Y2.20 Z2.30
 CHECK offset 1/540:  X1.00 Y2.00 Z3.00
@@ -38,7 +38,7 @@ CHECK offset 7/591:  X7.10 Y7.20 Z7.30
 CHECK offset 8/592:  X8.10 Y8.20 Z8.30
 CHECK offset 9/593:  X9.10 Y9.20 Z9.30
 CHECK Paused at line 23:  offset 3/560
-CHECK gcodes:  (23, 800, -1, 170, 400, 210, 900, 940, 560, 490, 990, 640, -1, 970, 911, 80)
+CHECK gcodes:  (23, 800, -1, 170, 400, 210, 900, 940, 560, 490, 990, 640, 970, 911, 80)
 CHECK offset 0/cur:  X3.10 Y3.20 Z3.30
 CHECK offset 0/cur:  X3.10 Y3.20 Z3.30
 CHECK offset 1/540:  X2.00 Y4.00 Z6.00
@@ -51,7 +51,7 @@ CHECK offset 7/591:  X7.10 Y7.20 Z7.30
 CHECK offset 8/592:  X8.10 Y8.20 Z8.30
 CHECK offset 9/593:  X9.10 Y9.20 Z9.30
 CHECK Paused at line 27:  offset 4/570
-CHECK gcodes:  (27, 800, -1, 170, 400, 200, 900, 940, 570, 490, 990, 640, -1, 970, 911, 80)
+CHECK gcodes:  (27, 800, -1, 170, 400, 200, 900, 940, 570, 490, 990, 640, 970, 911, 80)
 CHECK offset 0/cur:  X4.10 Y4.20 Z4.30
 CHECK offset 0/cur:  X4.10 Y4.20 Z4.30
 CHECK offset 1/540:  X2.00 Y4.00 Z6.00
@@ -64,7 +64,7 @@ CHECK offset 7/591:  X7.10 Y7.20 Z7.30
 CHECK offset 8/592:  X8.10 Y8.20 Z8.30
 CHECK offset 9/593:  X9.10 Y9.20 Z9.30
 CHECK Paused at line 31:  offset 1/540
-CHECK gcodes:  (31, 800, -1, 170, 400, 210, 900, 940, 540, 490, 990, 640, -1, 970, 911, 80)
+CHECK gcodes:  (31, 800, -1, 170, 400, 210, 900, 940, 540, 490, 990, 640, 970, 911, 80)
 CHECK offset 0/cur:  X2.00 Y4.00 Z6.00
 CHECK offset 0/cur:  X2.00 Y4.00 Z6.00
 CHECK offset 1/540:  X2.00 Y4.00 Z6.00
@@ -77,7 +77,7 @@ CHECK offset 7/591:  X7.10 Y7.20 Z7.30
 CHECK offset 8/592:  X8.10 Y8.20 Z8.30
 CHECK offset 9/593:  X9.10 Y9.20 Z9.30
 CHECK Paused at line 35:  offset 9/593
-CHECK gcodes:  (35, 800, -1, 170, 400, 210, 900, 940, 593, 490, 990, 640, -1, 970, 911, 80)
+CHECK gcodes:  (35, 800, -1, 170, 400, 210, 900, 940, 593, 490, 990, 640, 970, 911, 80)
 CHECK offset 0/cur:  X9.10 Y9.20 Z9.30
 CHECK offset 0/cur:  X9.10 Y9.20 Z9.30
 CHECK offset 1/540:  X2.00 Y4.00 Z6.00
@@ -92,7 +92,7 @@ CHECK offset 9/593:  X9.10 Y9.20 Z9.30
 CHECK hit timeout (expected during motion); aborting
 CHECK    Pre-abort checks:
 CHECK Not paused at line 40:  offset 6/590
-CHECK gcodes:  (40, 0, -1, 170, 400, 200, 900, 940, 590, 490, 990, 640, -1, 970, 911, 80)
+CHECK gcodes:  (40, 0, -1, 170, 400, 200, 900, 940, 590, 490, 990, 640, 970, 911, 80)
 CHECK offset 0/cur:  X6.10 Y6.20 Z6.30
 CHECK offset 0/cur:  X6.10 Y6.20 Z6.30
 CHECK offset 1/540:  X2.00 Y4.00 Z6.00
@@ -106,7 +106,7 @@ CHECK offset 8/592:  X-1.00 Y-2.00 Z-3.00
 CHECK offset 9/593:  X9.10 Y9.20 Z9.30
 CHECK    Post-abort checks:
 CHECK Not paused at line 40:  offset 6/590
-CHECK gcodes:  (40, 0, -1, 170, 400, 200, 900, 940, 590, 490, 990, 640, -1, 970, 911, 80)
+CHECK gcodes:  (40, 0, -1, 170, 400, 200, 900, 940, 590, 490, 990, 640, 970, 911, 80)
 CHECK offset 0/cur:  X6.10 Y6.20 Z6.30
 CHECK offset 0/cur:  X6.10 Y6.20 Z6.30
 CHECK offset 1/540:  X2.00 Y4.00 Z6.00

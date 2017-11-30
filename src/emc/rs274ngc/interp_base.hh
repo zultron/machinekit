@@ -19,10 +19,65 @@
 #include <emcpos.h>
 #include <modal_state.hh>
 
-/* Size of certain arrays */
-#define ACTIVE_G_CODES 16
-#define ACTIVE_M_CODES 10
-#define ACTIVE_SETTINGS 3
+/*
+ * Enum for `g_codes` indices, as written by `active_modes()`, and
+ * similar int arrays used in other places like gcodemodule.cc
+ *
+ * WARNING:  This must start at 0, be monotonic, and ACTIVE_G_CODES
+ * MUST be last
+ */
+typedef enum {
+    G_CODE_SEQUENCE_NUMBER=0,
+    G_CODE_MOTION_MODE,
+    G_CODE_MODE_0, // Optional, from block
+    G_CODE_PLANE,
+    G_CODE_CUTTER_SIDE,
+    G_CODE_UNITS,
+    G_CODE_DISTANCE_MODE,
+    G_CODE_FEED_MODE,
+    G_CODE_ORIGIN,
+    G_CODE_TOOL_LENGTH_OFFSET,
+    G_CODE_RETRACT_MODE,
+    G_CODE_PATH_MODE,
+    G_CODE_SPINDLE_MODE,
+    G_CODE_DISTANCE_MODE_IJK,
+    G_CODE_LATHE_DIAMETER_MODE,
+    ACTIVE_G_CODES
+} ActiveGCodeIndex;
+
+/*
+ * Enum for `m_codes` indices, as written by `active_modes()`, and
+ * similar int arrays used in other places like gcodemodule.cc
+ *
+ * WARNING:  This must start at 0, be monotonic, and ACTIVE_M_CODES
+ * MUST be last
+ */
+typedef enum {
+    M_CODE_SEQUENCE_NUMBER=0,
+    M_CODE_STOPPING,
+    M_CODE_SPINDLE,
+    M_CODE_TOOLCHANGE,
+    M_CODE_MIST,
+    M_CODE_FLOOD,
+    M_CODE_OVERRIDES,
+    M_CODE_ADAPTIVE_FEED,
+    M_CODE_FEED_HOLD,
+    ACTIVE_M_CODES
+} ActiveMCodeIndex;
+
+/*
+ * Enum for `settings` indices, as written by `active_modes()`, and
+ * similar int arrays used in other places like gcodemodule.cc
+ *
+ * WARNING:  This must start at 0, be monotonic, and ACTIVE_SETTINGS
+ * MUST be last
+ */
+typedef enum {
+    SETTINGS_SEQUENCE_NUMBER=0,
+    SETTINGS_FEED_RATE,
+    SETTINGS_SPEED,
+    ACTIVE_SETTINGS
+} ActiveSettingIndex;
 
 class InterpBase {
 public:
