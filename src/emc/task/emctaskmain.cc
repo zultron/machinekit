@@ -2660,6 +2660,7 @@ static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd)
 	case EMC_LUBE_OFF_TYPE:
         case EMC_TASK_SET_TAG_TYPE:
         case EMC_TASK_PLAN_PAUSE_TYPE:
+        case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 
 	    return &((EMC_CMD_MSG*)cmd)->tag;
 	    break;
@@ -2686,7 +2687,7 @@ static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd)
 	    // - EMC_TASK_{INIT,HALT,ABORT}
 	    // - EMC_TASK_SET_{MODE,STATE}
 	    // - EMC_TASK_PLAN_{OPEN,RUN,READ,EXECUTE,STEP,RESUME,END,CLOSE,
-	    //       INIT,SYNCH,OPTIONAL_STOP}
+	    //       INIT,SYNCH}
 	    // - EMC_TASK_PLAN_SET_{OPTIONAL_STOP,BLOCK_DELETE}
 	    // - EMC_TOOL_{INIT,HALT,ABORT,LOAD,UNLOAD,LOAD_TOOL_TABLE,
 	    //       START_CHANGE}

@@ -2585,7 +2585,7 @@ void OPTIONAL_PROGRAM_STOP()
 
     flush_segments();
 
-    interp_list.append(stopMsg);
+    tag_and_send(stopMsg);
 }
 
 void PROGRAM_END()
