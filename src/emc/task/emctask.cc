@@ -187,9 +187,10 @@ int emcTaskStateRestore()
     // Do NOT restore on MDI command
     if (emcStatus->task.mode == EMC_TASK_MODE_AUTO) {
         // Validity of state tag checked within restore function
-        rcs_print(
-	    "emcTaskStateRestore: restoring interp from line %d state tag\n",
-	    saved_tag.fields[GM_FIELD_LINE_NUMBER]);
+	if (emc_debug & EMC_DEBUG_STATUS)
+	    rcs_print(
+		"emcTaskStateRestore: restoring interp from line %d state tag\n",
+		saved_tag.fields[GM_FIELD_LINE_NUMBER]);
         pinterp->restore_from_tag(saved_tag);
     }
     return 0;
@@ -760,8 +761,9 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
     volatile int offset;
 
     if (!tag) {
-	fprintf(stderr, "emcStatusUpdateFromTag: "
-		"Not updating from invalid tag\n");
+	if (emc_debug & EMC_DEBUG_STATUS)
+	    rcs_print(
+		"emcStatusUpdateFromTag: Not updating from invalid tag\n");
         return -1;
     }
 

@@ -1722,11 +1722,13 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	    // No motion executing.  Update status from the latest
 	    // command being issued off the interp queue.
 	    emcStatusUpdateFromTag(tag);
-	    task_debug("emcTaskIssueCommand:  updating status "
-		       "from issued command type %d=%s, line %d, stepping %d\n",
-		       cmd->type, emcSymbolLookup(cmd->type),
-		       tag->fields[GM_FIELD_LINE_NUMBER],
-		       tag->fields[GM_FIELD_STEPPING_ID]);
+	    if (emc_debug & EMC_DEBUG_STATUS)
+		rcs_print(
+		    "emcTaskIssueCommand:  updating status "
+		    "from issued command type %d=%s, line %d, stepping %d\n",
+		    cmd->type, emcSymbolLookup(cmd->type),
+		    tag->fields[GM_FIELD_LINE_NUMBER],
+		    tag->fields[GM_FIELD_STEPPING_ID]);
 	}
 	// Update taskintf.cc localEmcTrajTag with state for commands
 	// outgoing to motion queue
