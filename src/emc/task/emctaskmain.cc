@@ -200,9 +200,8 @@ int emcErrorBufferOKtoWrite(int space, const char *caller)
 	}
     }
     if (etime() >= send_errorchan_timout) {
-	if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
-	    rcs_print("timeout waiting for error channel to drain, caller=`%s' request=%d\n", caller,space);
-	}
+	rcs_print("timeout waiting for error channel to drain, "
+		  "caller=`%s' request=%d\n", caller,space);
 	return -1;
     } else {
 	// printf("--- %d bytes available after %f seconds\n", space, etime() - send_errorchan_timout + DEFAULT_EMC_UI_TIMEOUT);
