@@ -1,0 +1,10 @@
+Test that line numbers are correct during motion.
+
+During program execution of non-motion commands, the status buffer is
+updated from state tags stored in the interp queue.  While a motion is
+playing out, stat should be updated from tags in the traj queue.
+
+This test runs a program with a few short/quick moves followed by a
+long, slow move.  The test watches axes, waiting until motion enters
+the long move, and then checks that the line number reported by status
+matches that of the program.
