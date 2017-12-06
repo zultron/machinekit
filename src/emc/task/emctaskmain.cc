@@ -1719,7 +1719,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	    emcStatusUpdateFromTag(tag);
 	    task_debug("emcTaskIssueCommand:  updating status "
 		       "from issued command type %s, line %d, stepping %d\n",
-		       emcSymbolLookup(emcTaskCommand->type),
+		       emcSymbolLookup(cmd->type),
 		       tag->fields[GM_FIELD_LINE_NUMBER],
 		       tag->fields[GM_FIELD_STEPPING_ID]);
 	}
