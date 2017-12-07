@@ -6,7 +6,6 @@ if [ ! -f $STDERR ]; then
     exit 1
 fi
 if egrep -q 'rtapi_app_main_fails.* Numerical result out of range' $STDERR; then
-    echo "loadrt found the test component, and it failed to load"
     exit 0
 fi
 
