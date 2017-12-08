@@ -2,14 +2,24 @@
 
 FILE="${TRAVIS_REPO_SLUG//\//.}_${TRAVIS_BRANCH}_${TRAVIS_JOB_NUMBER}.tgz"
 
+if [ -z "${SFTP_ADDR}" ]; then
+    echo "No SFTP_ADDR value defined; skipping sftp upload" >&2
+    exit 0
+fi
+
 if [ "${CMD}" = "run_tests" ]; then
     exit 0
 fi
 
 # skip upload on failure
 if [ "${TRAVIS_TEST_RESULT}" -eq 0 ] && [ ! -f ~/no_sftp ]; then
-    cd ${TRAVIS_BUILD_DIR}
-    tar cvzf ${FILE} -C deploy .
+    if [ -d ${ROOTFS}/${MACHINEKIT_PATH}/deploy ]; then
+        cd ${TRAVIS_BUILD_DIR}
+	tar cvzf ${FILE} -C ${ROOTFS}/${MACHINEKIT_PATH}/deploy .
+    else
+	echo "${ROOTFS}/${MACHINEKIT_PATH}/deploy is missing";
+	ls -alR ${ROOTFS}/${MACHINEKIT_PATH}/
+    fi
 
 cat >sftp_cmds <<EOF
 cd shared/incoming

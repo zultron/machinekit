@@ -140,7 +140,7 @@ modules:  userspace
 
 ifeq ($(HAVE_KERNEL_THREADS),yes)
     @test -f ../libexec/linuxcnc_module_helper -a \
-    	\( `stat -c %u ../libexec/linuxcnc_module_helper` -ne 0 -o \
+	\( `stat -c %u ../libexec/linuxcnc_module_helper` -ne 0 -o \
 	    ! -u ../libexec/linuxcnc_module_helper \) \
         && need_setuid=1; 
 endif
@@ -151,6 +151,10 @@ ifeq ($(RUN_IN_PLACE)+$(BUILD_DRIVERS),yes+yes)
 		    \( 0`stat -c %u ../libexec/rtapi_app_$$f 2>/dev/null` \
 			-ne 0 -o ! -u ../libexec/rtapi_app_$$f \) \
 		&& need_setuid=1; \
+	    ln -sf $(EMC2_HOME)/rtlib/prubin/pru_generic.bin ../rtlib/$$f/pru_generic.bin; \
+	    ln -sf $(EMC2_HOME)/rtlib/prubin/pru_generic.dbg ../rtlib/$$f/pru_generic.dbg; \
+	    ln -sf $(EMC2_HOME)/rtlib/prubin/pru_decamux.bin ../rtlib/$$f/pru_decamux.bin; \
+	    ln -sf $(EMC2_HOME)/rtlib/prubin/pru_decamux.dbg ../rtlib/$$f/pru_decamux.dbg; \
 	done; \
 	test "$$need_setuid" = 1 && \
 	    $(VECHO) -n "You now need to run 'sudo make setuid' " && \
@@ -237,6 +241,7 @@ SUBDIRS := \
 	hal/user_comps/vismach \
 	hal/user_comps/vfs11_vfd \
 	hal/user_comps/vfdb_vfd \
+	hal/user_comps/huanyang-vfd \
 	hal/classicladder \
 	hal/utils \
 	hal \
@@ -1058,6 +1063,7 @@ install-python: install-dirs
 	$(EXE) ../bin/hal_storage $(DESTDIR)$(bindir)
 	$(EXE) ../bin/hal_temp_ads7828 $(DESTDIR)$(bindir)
 	$(EXE) ../bin/hal_temp_bbb $(DESTDIR)$(bindir)
+	$(EXE) ../bin/hal_temp_atlas $(DESTDIR)$(bindir)
 	$(EXE) ../bin/pyvcp $(DESTDIR)$(bindir)
 	$(EXE) ../bin/gladevcp $(DESTDIR)$(bindir)
 	$(EXE) ../bin/axis $(DESTDIR)$(bindir)
@@ -1391,7 +1397,7 @@ endif
 ifdef TARGET_PLATFORM_BEAGLEBONE
 ifeq ($(BUILD_SYS),user-dso)
 obj-$(CONFIG_HAL_GPIO) += hal_bb_gpio.o
-hal_bb_gpio-objs := hal/drivers/hal_bb_gpio.o
+hal_bb_gpio-objs := hal/drivers/hal_bb_gpio/hal_bb_gpio.o
 obj-$(CONFIG_PEPPER) += pepper.o
 pepper-objs := hal/components/pepper.o $(MATHSTUB)
 endif
@@ -1483,6 +1489,8 @@ hostmot2-objs +=			  \
     hal/drivers/mesa-hostmot2/fwid.o	  \
     hal/drivers/mesa-hostmot2/tram.o	  \
     hal/drivers/mesa-hostmot2/raw.o	  \
+    hal/drivers/mesa-hostmot2/nano_soc_adc.o \
+    hal/drivers/mesa-hostmot2/capsense.o \
     hal/drivers/mesa-hostmot2/bitfile.o   \
     $(MATHSTUB)
 hm2_7i90-objs :=			  \
@@ -1603,10 +1611,10 @@ motmod-objs += libnml/posemath/sincos.o $(MATHSTUB)
 # vtexport-objs += hal/vtable-example/vcode.o
 
 obj-m += jplan.o
-jplan-objs := hal/jplanner/jplan.o
+jplan-objs := hal/jplanner/jplan.o machinetalk/build/machinetalk/protobuf/jplan.npb.o
 
 obj-m += interpolate.o
-interpolate-objs := hal/interpolator/interpolate.o
+interpolate-objs := hal/interpolator/interpolate.o machinetalk/build/machinetalk/protobuf/ros.npb.o
 
 obj-m += icomp.o
 icomp-objs := hal/icomp-example/icomp.o
