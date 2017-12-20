@@ -63,6 +63,7 @@
 
 static bool limitSpindleSpeed(double rpm);
 static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel);
+static double limitSpindleSpeedByActiveFeedRate(double ini_maxvel);
 
 static int debug_velacc = 0;
 static double css_maximum; // both always positive
@@ -572,7 +573,13 @@ enum FeedRateType
 static double getActiveFeedRate(FeedRateType angular)
 {
     double uuPerRev = feed_mode ? uuPerRev_vel : uuPerRev_pos;
-    double uu_per_sec = uuPerRev * spindleSpeed_rpm / 60.0;
+    // KLUDGE effective spindle speed depends on current state
+    // If CSS mode is active, then we need to assume the worst-case (maximum) spindle speed specified by the D word
+    // Otherwise, the nominal spindle speed is used
+
+    double planned_spindle_rpm = css_maximum > 0.0 ? css_maximum : spindleSpeed_rpm;
+
+    double uu_per_sec = uuPerRev * planned_spindle_rpm / 60.0;
 
     //KLUDGE relies on external state here
     if (!angular) {
@@ -1025,11 +1032,8 @@ static void flush_segments(void) {
     VelData linedata = getStraightVelocity(x, y, z, a, b, c, u, v, w);
     double ini_maxvel = linedata.vel;
 
-    double nominal_vel = getActiveFeedRate(static_cast<FeedRateType>(!cartesian_move && angular_move));
-    canon_debug("in flush_segments: got vel %f, nominal_vel %f\n", vel, nominal_vel);
-    double vel = std::min(ini_maxvel, nominal_vel);
-
-    limitSpindleSpeedFromVel(nominal_vel, ini_maxvel);
+    double vel = limitSpindleSpeedByActiveFeedRate(ini_maxvel);
+    canon_debug("Line segment maximum velocity %f, requested vel %f\n", ini_maxvel, vel);
 
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = feed_mode;
@@ -1205,7 +1209,9 @@ void RIGID_TAP(int line_number, double x, double y, double z)
                               canonEndPoint.u, canonEndPoint.v, canonEndPoint.w);
 
     ini_maxvel = veldata.vel;
-    
+
+    limitSpindleSpeedByActiveFeedRate(ini_maxvel);
+
     AccelData accdata = getStraightAcceleration(x, y, z,
                                   canonEndPoint.a, canonEndPoint.b, canonEndPoint.c,
                                   canonEndPoint.u, canonEndPoint.v, canonEndPoint.w);
@@ -1250,9 +1256,7 @@ void STRAIGHT_PROBE(int line_number,
     VelData veldata = getStraightVelocity(x, y, z, a, b, c, u, v, w);
     double ini_maxvel = veldata.vel;
 
-    double nominal_vel = getActiveFeedRate(static_cast<FeedRateType>(!cartesian_move && angular_move));
-    double vel = std::min(ini_maxvel, nominal_vel);
-    limitSpindleSpeedFromVel(nominal_vel, ini_maxvel);
+    double vel = limitSpindleSpeedByActiveFeedRate(ini_maxvel);
 
     AccelData accdata = getStraightAcceleration(x, y, z, a, b, c, u, v, w);
     double acc = accdata.acc;
@@ -1894,10 +1898,9 @@ void ARC_FEED(int line_number,
 
     // Limit velocity by maximum
     double nominal_vel = getActiveFeedRate(FEED_LINEAR);
-    double vel = MIN(nominal_vel, v_max);
 
     // Make sure spindle speed is within range (for spindle_sync motion only)
-    limitSpindleSpeedFromVel(nominal_vel, v_max);
+    double vel = limitSpindleSpeedByActiveFeedRate(v_max);
 
     canon_debug("current F = %f\n", nominal_vel);
     canon_debug("vel = %f\n",vel);
@@ -2042,6 +2045,7 @@ static bool limitSpindleSpeed(double rpm)
     double limit_rpm = ceil(fabs(rpm));
     if (spindleSpeed_rpm <= limit_rpm) {
         // spindle speed within range, do nothing
+        canon_debug("Spindle speed %f is within max of %f\n", spindleSpeed_rpm, limit_rpm);
         return false;
     }
     EMC_SPINDLE_SPEED emc_spindle_speed_msg;
@@ -2055,6 +2059,10 @@ static bool limitSpindleSpeed(double rpm)
 static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel)
 {
     if (!synched || nominal_vel <= 0.0) {
+        canon_debug("No spindle speed limit required\n");
+        return false;
+    } else if (feed_mode) {
+        canon_debug("Skipping spindle speed limit due to velocity sync\n");
         return false;
     }
     const static double SPINDLE_SYNCH_MARGIN = 0.05;
@@ -2063,6 +2071,19 @@ static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel)
     double maxSpindleRPM = spindleSpeed_rpm * max_vel / nominal_vel * (1.0 - SPINDLE_SYNCH_MARGIN);
     return limitSpindleSpeed(maxSpindleRPM);
 }
+
+static double limitSpindleSpeedByActiveFeedRate(double ini_maxvel)
+{
+    const double nominal_vel = getActiveFeedRate(static_cast<FeedRateType>(!cartesian_move && angular_move));
+    // Limit spindle speed during rigid tapping
+    limitSpindleSpeedFromVel(nominal_vel, ini_maxvel);
+
+    double real_max_vel = std::min(ini_maxvel, nominal_vel);
+    canon_debug("%s: nominal_vel %f, real_max_vel %f\n", __PRETTY_FUNCTION__, nominal_vel, real_max_vel);
+    return real_max_vel;
+}
+
+
 
 void STOP_SPINDLE_TURNING()
 {

@@ -281,7 +281,8 @@ STATIC inline double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT con
 			    tcPureRotaryCheck(tc) ? tp->vLimitAng : tp->vLimit);
     }
 
-    return v_max_target;
+    // Apply maximum segment velocity limit (must always be respected)
+    return fmin(v_max_target, tc->maxvel);
 }
 
 
@@ -333,19 +334,31 @@ STATIC inline double tpGetScaledAccel(TP_STRUCT const * const tp,
     return a_scale;
 }
 
-/**
- * Convert a raw spindle position into a "progress" position in the current spindle direction.
- * In other words, how far has the spindle moved in the indicated direction?
- *
- * @param spindle_pos signed raw spindle position (typically from motion)
- * @param spindle_dir commanded spindle direction
- * @return Spindle progress, POSITIVE if the position and direction have the same sign, NEGATIVE otherwise.
- */
-STATIC inline double getSpindleProgress(double spindle_pos, int spindle_dir) {
-    if (spindle_dir < 0.0) {
-        spindle_pos*=-1.0;
+
+STATIC inline void resetSpindleOrigin(spindle_origin_t *origin)
+{
+    if (!origin) {
+        return;
     }
-    return spindle_pos;
+    origin->direction = 0.0;
+    origin->position = 0.0;
+}
+
+
+/**
+ * Set up a spindle origin based on the current spindle COMMANDED direction and the given position.
+ *
+ * The origin is used to calculate displacements used in spindle position tracking.
+ * The direction is stored as part of the origin to prevent discontinuous
+ * changes in displacement due to sign flips
+ */
+STATIC inline void setSpindleOrigin(spindle_origin_t *origin, double position)
+{
+    if (!origin) {
+        return;
+    }
+    origin->position = position;
+    origin->direction = signum(emcmotStatus->spindle_cmd.velocity_rpm_out);
 }
 
 /**
@@ -433,6 +446,7 @@ int tpClear(TP_STRUCT * const tp)
     emcmotStatus->requested_vel = 0.0;
     emcmotStatus->distance_to_go = 0.0;
     emcmotStatus->waiting_on_spindle = 0;
+    emcmotStatus->pos_tracking_error = 0;
     ZERO_EMC_POSE(emcmotStatus->dtg);
     SET_MOTION_INPOS_FLAG(1);
 
@@ -461,7 +475,7 @@ int tpInit(TP_STRUCT * const tp)
     tp->wMax = 0.0;
     tp->wDotMax = 0.0;
 
-    tp->spindle.offset = 0.0;
+    resetSpindleOrigin(&tp->spindle.origin);
     tp->spindle.waiting_for_index = MOTION_INVALID_ID;
     tp->spindle.waiting_for_atspeed = MOTION_INVALID_ID;
 
@@ -781,7 +795,7 @@ STATIC int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
             canon_motion_type,
             tp->cycleTime,
             prev_tc->enables,
-            prev_tc->atspeed);
+            false); // NOTE: blend arc never needs the atspeed flag, since the previous line will have it (and cannot be consumed).
     //FIXME refactor into Init
     blend_tc->tag = prev_tc->tag;
 
@@ -2364,43 +2378,26 @@ void tpToggleDIOs(TC_STRUCT * const tc) {
     }
 }
 
-//KLUDGE compine this with the version in taskintf
-static inline spindle_direction_code_t getSpindleCmdDir(void)
+/**
+static inline spindle_direction_code_t getSpindleCmdDir()
+ *
+ * The displacement is always computed with respect to a specie
+ */
+static inline double findSpindleDisplacement(
+        double new_pos,
+        spindle_origin_t origin
+        )
 {
-    if (emcmotStatus->spindle_cmd.velocity_rpm_out > 0.0) {
-        return SPINDLE_FORWARD;
-    } else if (emcmotStatus->spindle_cmd.velocity_rpm_out < 0.0) {
-        return SPINDLE_REVERSE;
-    } else {
-        return SPINDLE_STOPPED;
-    }
-}
-
-static inline double findSpindleDisplacement(double new_pos,
-                              double old_pos,
-                              spindle_direction_code_t spindle_cmd_dir)
-{
-    // Difference assuming spindle "forward" direction
-    double forward_diff = new_pos - old_pos;
-
-    switch(spindle_cmd_dir) {
-    case SPINDLE_STOPPED:
-    case SPINDLE_FORWARD:
-        return forward_diff;
-    case SPINDLE_REVERSE:
-        return -forward_diff;
-    }
-    //no default on purpose, compiler should warn on missing states
-    return 0;
+    return origin.direction * (new_pos - origin.position);
 }
 
 /**
  * Helper function to compare commanded and actual spindle velocity.
  * If the signs of velocity don't match, then the spindle is reversing direction.
  */
-static inline bool spindleReversing(void)
+static inline bool spindleReversed(spindle_origin_t origin, double prev_pos, double current_pos)
 {
-    return (signum(emcmotStatus->spindle_fb.velocity_rpm) != signum(emcmotStatus->spindle_cmd.velocity_rpm_out));
+    return origin.direction * (current_pos - prev_pos) < 0;
 }
 
 static inline bool cmdReverseSpindle(void)
@@ -2419,9 +2416,10 @@ static inline bool cmdReverseSpindle(void)
  * during a rigid tap cycle. In particular, the target and spindle goal need to
  * be carefully handled since we're reversing direction.
  */
-STATIC void tpUpdateRigidTapState(TP_STRUCT const * const tp,
+STATIC void tpUpdateRigidTapState(TP_STRUCT * const tp,
         TC_STRUCT * const tc) {
 
+    static double old_spindle_pos = 0.0;
     double spindle_pos = emcmotStatus->spindle_fb.position_rev;
 
     switch (tc->coords.rigidtap.state) {
@@ -2435,11 +2433,11 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT const * const tp,
             break;
         case REVERSING:
             tc_debug_print("REVERSING\n");
-            if (!spindleReversing()) {
+            if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
                 PmCartesian start, end;
                 PmCartLine *aux = &tc->coords.rigidtap.aux_xyz;
                 // we've stopped, so set a new target at the original position
-                tc->coords.rigidtap.spindlepos_at_reversal = spindle_pos;
+                setSpindleOrigin(&tp->spindle.origin, spindle_pos);
 
                 pmCartLinePoint(&tc->coords.rigidtap.xyz, tc->progress, &start);
                 end = tc->coords.rigidtap.xyz.start;
@@ -2447,7 +2445,10 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT const * const tp,
                 rtapi_print_msg(RTAPI_MSG_DBG, "old target = %f", tc->target);
                 tc->coords.rigidtap.reversal_target = aux->tmag;
                 tc->target = aux->tmag + 10. * tc->uu_per_rev;
+                // NOTE: reset both progress and sync location:
+                // At the point of reversal, the spindle is already synchronized
                 tc->progress = 0.0;
+                tc->progress_at_sync = 0.0;
                 rtapi_print_msg(RTAPI_MSG_DBG, "new target = %f", tc->target);
 
                 tc->coords.rigidtap.state = RETRACTION;
@@ -2457,16 +2458,18 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT const * const tp,
         case RETRACTION:
             tc_debug_print("RETRACTION\n");
             if (tc->progress >= tc->coords.rigidtap.reversal_target) {
-                // Flip spindle direction againt to start final reversal
+                // Flip spindle direction again to start final reversal
                 cmdReverseSpindle();
                 tc->coords.rigidtap.state = FINAL_REVERSAL;
             }
             break;
         case FINAL_REVERSAL:
             tc_debug_print("FINAL_REVERSAL\n");
-            if (!spindleReversing()) {
+            if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
                 PmCartesian start, end;
                 PmCartLine *aux = &tc->coords.rigidtap.aux_xyz;
+
+                setSpindleOrigin(&tp->spindle.origin, spindle_pos);
                 pmCartLinePoint(aux, tc->progress, &start);
                 end = tc->coords.rigidtap.xyz.start;
                 pmCartLineInit(aux, &start, &end);
@@ -2484,6 +2487,7 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT const * const tp,
             // this is a regular move now, it'll stop at target above.
             break;
     }
+    old_spindle_pos = spindle_pos;
 }
 
 
@@ -2624,9 +2628,9 @@ STATIC int tpCompleteSegment(TP_STRUCT * const tp,
     // spindle position so the next synced move can be in
     // the right place.
     if(tc->synchronized != TC_SYNC_NONE) {
-        tp->spindle.offset += (tc->target - tc->progress_at_sync) / tc->uu_per_rev;
+        tp->spindle.origin.position += (tc->target - tc->progress_at_sync) / tc->uu_per_rev;
     } else {
-        tp->spindle.offset = 0.0;
+        tp->spindle.origin.position = 0.0;
     }
 
     if(tc->indexrotary != -1) {
@@ -2857,7 +2861,9 @@ STATIC int tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
         tp->spindle.waiting_for_index = tc->id;
         // ask for an index reset
         emcmotStatus->spindle_fb.index_enable = 1;
-        tp->spindle.offset = 0.0;
+
+        tp->spindle.origin.position = 0.0;
+        tp->spindle.origin.direction = signum(emcmotStatus->spindle_cmd.velocity_rpm_out);
         rtapi_print_msg(RTAPI_MSG_DBG, "Waiting on sync...\n");
         return TP_ERR_WAITING;
     }
@@ -2900,21 +2906,13 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
     // Start with raw spindle position and our saved offset
     double spindle_pos = emcmotStatus->spindle_fb.position_rev;
 
-    // If we're backing out of a hole during rigid tapping, our spindle "displacement" is
-    // measured relative to spindle position at the bottom of the hole.
-    // Otherwise, we use the stored spindle offset.
-    double local_spindle_offset = tp->spindle.offset;
-    if ((tc->motion_type == TC_RIGIDTAP) && (tc->coords.rigidtap.state == RETRACTION ||
-                tc->coords.rigidtap.state == FINAL_REVERSAL)) {
-        local_spindle_offset = tc->coords.rigidtap.spindlepos_at_reversal;
-    }
+    spindle_origin_t spindle_origin = tp->spindle.origin;
 
     // Note that this quantity should be non-negative under normal conditions.
     double spindle_displacement = findSpindleDisplacement(spindle_pos,
-                                               local_spindle_offset,
-                                               getSpindleCmdDir());
+                                               spindle_origin);
 
-    tc_debug_print("spindle_displacement %f raw_pos %f", spindle_displacement, spindle_pos);
+    tc_debug_print("spindle_displacement %f, raw_pos %f, ", spindle_displacement, spindle_pos);
 
     const double spindle_vel = emcmotStatus->spindle_fb.velocity_rpm / 60.0;
     if(tc->sync_accel) {
@@ -2926,9 +2924,9 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         if(tc->currentvel >= target_vel) {
             tc_debug_print("Hit accel target in pos sync\n");
             // move target so as to drive pos_error to 0 next cycle
-            tp->spindle.offset = spindle_pos;
+            tp->spindle.origin.position = spindle_pos;
             tc->progress_at_sync = tc->progress;
-            tc_debug_print("Spindle offset %f\n", tp->spindle.offset);
+            tc_debug_print("Spindle offset %f\n", tp->spindle.origin.position);
             tc->sync_accel = 0;
             tc->target_vel = target_vel;
         } else {
@@ -2938,17 +2936,19 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         }
     } else {
         // Multiply by user feed rate to get equivalent desired position
-        double pos_desired = spindle_displacement * tc->uu_per_rev;
-        double pos_error = pos_desired - (tc->progress - tc->progress_at_sync);
-        tc_debug_print(" pos_desired %f, progress %f", pos_desired, tc->progress);
+        const double pos_desired = spindle_displacement * tc->uu_per_rev;
+        double net_progress = tc->progress - tc->progress_at_sync;
 
         if(nexttc) {
             // If we're in a parabolic blend, the next segment will be active too,
             // so make sure to account for its progress
-            tc_debug_print(" nexttc_progress %f", nexttc->progress);
-            pos_error -= nexttc->progress;
+            net_progress += nexttc->progress;
         }
-        tc_debug_print(", pos_error %f\n", pos_error);
+        const double pos_error = pos_desired - net_progress;
+        tc_debug_print("pos_desired %f, net_progress %f, pos_error %f\n",
+                       pos_desired,
+                       net_progress,
+                       pos_error);
 
         // we have synced the beginning of the move as best we can -
         // track position (minimize pos_error).
@@ -3007,6 +3007,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
             break;
         }
         }
+        emcmotStatus->pos_tracking_error = pos_error;
 
         tc_debug_print("in position sync, target_vel = %f, ideal_vel = %f, vel_err = %f\n", tc->target_vel, v_final, v_final - tc->target_vel);
     }
@@ -3410,6 +3411,13 @@ int tpRunCycle(TP_STRUCT * const tp, long period)
     //Set GUI status to "zero" state
     tpUpdateInitialStatus(tp);
 
+#ifdef TC_DEBUG
+    //Hack debug output for timesteps
+    // NOTE: need to track every timestep, even those where the trajectory planner is idle
+    static double time_elapsed = 0;
+    time_elapsed+=tp->cycleTime;
+#endif
+
     //If we have a NULL pointer, then the queue must be empty, so we're done.
     if(!tc) {
         tpHandleEmptyQueue(tp);
@@ -3418,11 +3426,6 @@ int tpRunCycle(TP_STRUCT * const tp, long period)
 
     tc_debug_print("-------------------\n");
 
-#ifdef TC_DEBUG
-    //Hack debug output for timesteps
-    static double time_elapsed = 0;
-    time_elapsed+=tp->cycleTime;
-#endif
 
     /* If the queue empties enough, assume that the program is near the end.
      * This forces the last segment to be "finalized" to let the optimizer run.*/
@@ -3451,6 +3454,9 @@ int tpRunCycle(TP_STRUCT * const tp, long period)
     if (tc->motion_type == TC_RIGIDTAP) {
         tpUpdateRigidTapState(tp, tc);
     }
+
+    // Assume zero tracking error unless position sync is active
+    emcmotStatus->pos_tracking_error = 0.0;
 
     /** If synchronized with spindle, calculate requested velocity to track
      * spindle motion.*/
