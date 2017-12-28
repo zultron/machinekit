@@ -24,7 +24,7 @@
 
 #define MAX_ETH_BOARDS 4
 
-#define HM2_ETH_VERSION "0.2"
+#define HM2_ETH_VERSION "0.3"
 #define HM2_LLIO_NAME "hm2_eth"
 
 #define MAX_ETH_READS 64

@@ -55,7 +55,7 @@
 
 
 
-// 
+//
 // this struct holds an abstract "low-level I/O" driver
 //
 
@@ -75,6 +75,14 @@ struct hm2_lowlevel_io_struct {
     // these two are optional
     int (*program_fpga)(hm2_lowlevel_io_t *self, const bitfile_t *bitfile);
     int (*reset)(hm2_lowlevel_io_t *self);
+
+    // optional
+    // resets the communication method to the fpga - can be called by the
+    // watchdog recovery code.  primary motivation was to add this for hm2_eth.c use
+    // where it needs to close/re-open a socket due to some intermittent ethernet
+    // error that the user has resolved and they don't want to restart the entire world.
+    // if the io_reset fails, set the io_error parameter to true
+    void (*io_reset)(hm2_lowlevel_io_t *self);
 
     // for devices with a lot of inherent latency (ethernet and spi are two
     // examples), it is useful to divide the work of the bulk reads which occur
@@ -102,18 +110,18 @@ struct hm2_lowlevel_io_struct {
     // (in which case a dummy implementation of ->queue_write delegates to ->write)
     int (*queue_write)(hm2_lowlevel_io_t *self, rtapi_u32 addr, void *buffer, int size);
     int (*send_queued_writes)(hm2_lowlevel_io_t *self);
-    // 
+    //
     // This is a HAL parameter allocated and added to HAL by hostmot2.
-    // 
+    //
     // * The llio driver sets it whenever it detects an I/O error.
-    // 
+    //
     // * The hostmot2 driver checks it and stops calling the llio driver if
     //   it's true.
-    // 
+    //
     // * Users can clear it (by poking the HAL parameter), which makes the
     //   hostmot2 driver call into llio to reset the hardware and start
     //   driving it again.
-    // 
+    //
     hal_bit_t *io_error;
 
     // this gets set to TRUE by .read-request and cleared by .read, in order
@@ -139,7 +147,7 @@ struct hm2_lowlevel_io_struct {
     int num_ioport_connectors;
     int pins_per_connector;
     const char *ioport_connector_name[ANYIO_MAX_IOPORT_CONNECTORS];
-    
+
     // llio enumeration is the easiest place to count the leds
     int num_leds;
 
@@ -158,7 +166,7 @@ struct hm2_lowlevel_io_struct {
 
 
 
-// 
+//
 // HostMot2 functions for the low-level I/O drivers to call
 //
 
