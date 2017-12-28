@@ -738,8 +738,29 @@ static int hm2_eth_enqueue_write(hm2_lowlevel_io_t *this, rtapi_u32 addr, void *
 }
 
 static void hm2_eth_io_reset(hm2_lowlevel_io_t *this) {
-    // xxx
     LL_PRINT("hm2_eth_io_reset called!\n");
+
+    // Figure out which board we should reset
+    int ii;
+    for (ii = 0; ii < MAX_ETH_BOARDS; ii++) {
+        if (this == &(boards[ii].llio)) {
+            // Bingo.
+            hm2_eth_t* pBoard = &boards[ii];
+
+            LL_PRINT("hm2_eth_io_reset: closing board!\n");
+            int ev = close_board(pBoard);
+            if (ev == 0) {
+                LL_PRINT("hm2_eth_io_reset: init board!\n");
+                ev = init_board(pBoard, board_ip[ii]);
+            }
+
+            // set io_error if we couldn't successfully reset the board io
+            if (ev != 0)
+                *this->io_error = true;
+
+            return;
+        }
+    }
 }
 
 static int llio_idx(const char *llio_name) {
