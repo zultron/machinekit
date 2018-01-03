@@ -1160,8 +1160,14 @@ error:
 void rtapi_app_exit(void) {
     int i;
     comm_active = 0;
-    for(i = 0; i<MAX_ETH_BOARDS && board_ip[i] && board_ip[i][0]; i++)
+    for(i = 0; i<MAX_ETH_BOARDS && board_ip[i] && board_ip[i][0]; i++) {
         close_board(&boards[i]);
+        // Dump final stats
+        LL_PRINT("HostMot2 ethernet board %s.packet-read-tmax = %d\n", boards[i].llio.name, boards[i].hal->packet_read_tmax);
+        LL_PRINT("HostMot2 ethernet board %s.packet-recv-tmax = %d\n", boards[i].llio.name, boards[i].hal->packet_recv_tmax);
+        LL_PRINT("HostMot2 ethernet board %s.packet-wrong-seq = %d\n", boards[i].llio.name, boards[i].hal->packet_wrong_seq);
+        LL_PRINT("HostMot2 ethernet board %s.packet-recv-attempts = %d\n", boards[i].llio.name, boards[i].hal->packet_recv_attempts);
+    }
 
     if(use_iptables()) clear_iptables();
 
