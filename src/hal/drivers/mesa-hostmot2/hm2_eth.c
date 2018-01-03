@@ -102,7 +102,7 @@ static int comp_id;
 
 #define UDP_PORT 27181
 #define SEND_TIMEOUT_US 10
-#define RECV_TIMEOUT_US 10
+#define RECV_TIMEOUT_US 100        // 100000 nanoseconds, which was the minimum recv timeout before anyway
 #define READ_PCK_DELAY_NS 10000
 
 static hm2_eth_t boards[MAX_ETH_BOARDS];
@@ -393,9 +393,11 @@ static int init_board(hm2_eth_t *board, const char *board_ip) {
         return -errno;
     }
 
+    // Manually create an ARP entry over to the mesa board so the IP stack doesn't need to
+    // figure that out.
+
     memset(&board->req, 0, sizeof(board->req));
     struct sockaddr_in *sin;
-
     sin = (struct sockaddr_in *) &board->req.arp_pa;
     sin->sin_family = AF_INET;
     sin->sin_addr.s_addr = inet_addr(board_ip);
@@ -414,6 +416,8 @@ static int init_board(hm2_eth_t *board, const char *board_ip) {
         board->req.arp_flags &= ~ATF_PERM;
         return -errno;
     }
+
+    // Setup firewall rules
 
     if(use_iptables())
     {
@@ -449,12 +453,15 @@ static int eth_socket_recv(int sockfd, void *buffer, int len, int flags) {
     return recv(sockfd, buffer, len, flags);
 }
 
-static int eth_socket_recv_loop(int sockfd, void *buffer, int len, int flags, long timeout) {
-    long long end = rtapi_get_clocks() + timeout;
+static int eth_socket_recv_loop(int sockfd, void *buffer, int len, int flags, long timeout_ns) {
+    // Seems like this should be using rtapi_get_time() and not rtapi_get_clocks()
+    // since the timeout is specified in nanos.
+    // Changed it.
+    long long end = rtapi_get_time() + timeout_ns;
     int result;
     do {
         result = eth_socket_recv(sockfd, buffer, len, flags);
-    } while(result < 0 && rtapi_get_clocks() < end);
+    } while(result < 0 && rtapi_get_time() < end);
     return result;
 }
 
@@ -462,7 +469,7 @@ static int eth_socket_recv_loop(int sockfd, void *buffer, int len, int flags, lo
 
 static int hm2_eth_read(hm2_lowlevel_io_t *this, rtapi_u32 addr, void *buffer, int size) {
     hm2_eth_t *board = this->private;
-    int send, recv, i = 0;
+    int send, recv, attempts = 0;
     rtapi_u8 tmp_buffer[size + 4];
     long long t1, t2;
 
@@ -470,7 +477,8 @@ static int hm2_eth_read(hm2_lowlevel_io_t *this, rtapi_u32 addr, void *buffer, i
     if (size == 0) return 1;
     board->read_cnt++;
 
-    if(rtapi_task_self() >= 0) {
+    // Are we running in a realtime task context?
+    if (rtapi_task_self() >= 0) {
         static bool printed = false;
         if(!printed) {
             LL_PRINT("ERROR: used llio->read in realtime task (addr=0x%04x)\n", addr);
@@ -494,21 +502,25 @@ static int hm2_eth_read(hm2_lowlevel_io_t *this, rtapi_u32 addr, void *buffer, i
     t1 = rtapi_get_time();
     do {
         errno = 0;
+        // This will block for up to RECV_TIMEOUT_US - which is 100,000 nanoseconds.
+        // The hard coded timeout deadline below is 200,000,000 nanoseconds or 200 milliseconds.
+        // An immense amount of time, not sure why that was picked...
         recv = eth_socket_recv(board->sockfd, (void*) &tmp_buffer, size, 0);
-        if(recv < 0) rtapi_delay(READ_PCK_DELAY_NS);
         t2 = rtapi_get_time();
-        i++;
+        attempts++;
     } while ((recv < 0) && ((t2 - t1) < 200*1000*1000));
 
     if (recv == 4) {
-        LL_PRINT_IF(debug, "read(%d) : PACKET RECV [DATA: %08X | SIZE: %d | TRIES: %d | TIME: %llu]\n", board->read_cnt, *tmp_buffer, recv, i, t2 - t1);
+        LL_PRINT_IF(debug, "read(%d) : PACKET RECV [DATA: %08X | SIZE: %d | TRIES: %d | TIME: %llu]\n", board->read_cnt, *tmp_buffer, recv, attempts, t2 - t1);
     } else {
-        LL_PRINT_IF(debug, "read(%d) : PACKET RECV [SIZE: %d | TRIES: %d | TIME: %llu]\n", board->read_cnt, recv, i, t2 - t1);
+        LL_PRINT_IF(debug, "read(%d) : PACKET RECV [SIZE: %d | TRIES: %d | TIME: %llu]\n", board->read_cnt, recv, attempts, t2 - t1);
     }
+
     if (recv < 0) {
         record_soft_error(board);
         return 0;
     }
+
     memcpy(buffer, tmp_buffer, size);
     decrement_soft_error(board);
     return 1;  // success
@@ -562,7 +574,7 @@ static int hm2_eth_send_queued_reads(hm2_lowlevel_io_t *this) {
 
 static int hm2_eth_receive_queued_reads(hm2_lowlevel_io_t *this) {
     hm2_eth_t *board = this->private;
-    int recv, i = 0;
+    int recv, attempts = 0;
     rtapi_u8 tmp_buffer[board->queue_buff_size];
     long long t1, t2;
     t1 = rtapi_get_time();
@@ -575,26 +587,39 @@ static int hm2_eth_receive_queued_reads(hm2_lowlevel_io_t *this) {
         board->comm_error_counter = 0;
     }
 
+    // So llio.period is documented to be the period (in ns) of the last read-request invocation
+    // unsigned long period;
+    // It is really the period argument passed into the .read function on the servo thread.
+    // At least I think - the docs for adding functions to hal threads.
+    // The servo thread period is 1,000,000 nanoseconds or 1 millisecond.
+
+    // Units on all these are nanoseconds.
     long read_timeout = board->hal ? board->hal->read_timeout : 800000;
-    if(read_timeout <= 0)
+    if (read_timeout <= 0)
         read_timeout = 80;
-    if(read_timeout < 100)
+
+    // If read_timeout is less than 100, it represents a percentage of the servo period so use it to scale the value
+    if (read_timeout < 100)
         read_timeout = rtapi_div_s64(read_timeout * (unsigned long long)board->llio.period, 100);
-    if(read_timeout < 100000)
+
+    // But with a minimum of 0.1 milliseconds.
+    if (read_timeout < 100000)
         read_timeout = 100000;
 
-    if(!board->hal) this->read_time = t1;
+    if (!board->hal) this->read_time = t1;
     unsigned long long read_deadline = this->read_time + read_timeout;
     do {
 do_recv_packet:
+        // This will block for up to RECV_TIMEOUT_US which is 100,000 nanoseconds. This was the floor
+        // of the timeout above anyway.  And we pulled out the rtapi_delay thing which was really just
+        // a busy wait since it had no discernable benefit.
         errno = 0;
-        recv = eth_socket_recv(board->sockfd, (void*) &tmp_buffer, board->queue_buff_size, MSG_DONTWAIT);
-        if(recv < 0) rtapi_delay(READ_PCK_DELAY_NS);
+        recv = eth_socket_recv(board->sockfd, (void*) &tmp_buffer, board->queue_buff_size, 0);
         t2 = rtapi_get_time();
-        i++;
+        attempts++;
     } while (recv != board->queue_buff_size && t2 < read_deadline);
 
-    if(recv != board->queue_buff_size) {
+    if (recv != board->queue_buff_size) {
         // We must have timed out
         board->read_packet_ptr = board->read_packet;
         board->queue_reads_count = 0;
@@ -603,13 +628,16 @@ do_recv_packet:
         return -EAGAIN;
     }
 
-    LL_PRINT_IF(debug, "enqueue_read(%d) : PACKET RECV [SIZE: %d | TRIES: %d | TIME: %llu]\n", board->read_cnt, recv, i, t2 - t1);
+    LL_PRINT_IF(debug, "enqueue_read(%d) : PACKET RECV [SIZE: %d | TRIES: %d | TIME: %llu]\n", board->read_cnt, recv, attempts, t2 - t1);
 
-    for (i = 0; i < board->queue_reads_count; i++) {
-        memcpy(board->queue_reads[i].buffer, &tmp_buffer[board->queue_reads[i].from], board->queue_reads[i].size);
+    int ii;
+    for (ii = 0; ii < board->queue_reads_count; ii++) {
+        memcpy(board->queue_reads[ii].buffer, &tmp_buffer[board->queue_reads[ii].from], board->queue_reads[ii].size);
     }
 
-    if(board->confirm_read_cnt != board->read_cnt && t2 < read_deadline)
+    // This appears to be a "do-over" because the UDP packet "sequence" number wasn't what we wanted
+    // and there is more time.
+    if (board->confirm_read_cnt != board->read_cnt && t2 < read_deadline)
         goto do_recv_packet;
 
     board->read_packet_ptr = board->read_packet;
@@ -655,7 +683,8 @@ static int hm2_eth_enqueue_read(hm2_lowlevel_io_t *this, rtapi_u32 addr, void *b
 static int hm2_eth_enqueue_write(hm2_lowlevel_io_t *this, rtapi_u32 addr, void *buffer, int size);
 
 static int hm2_eth_write(hm2_lowlevel_io_t *this, rtapi_u32 addr, void *buffer, int size) {
-    if(rtapi_task_self() >= 0)
+    // If we running in a realtime task context than treat this as a queued write instead.
+    if (rtapi_task_self() >= 0)
         return hm2_eth_enqueue_write(this, addr, buffer, size);
 
     int send;
