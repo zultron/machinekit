@@ -68,6 +68,10 @@ typedef struct {
         hal_bit_t *packet_error;
         hal_s32_t *packet_error_level;
         hal_bit_t *packet_error_exceeded;
+        hal_s32_t packet_read_tmax;
+        hal_s32_t packet_recv_tmax;
+        hal_s32_t packet_wrong_seq;
+        hal_s32_t packet_recv_attempts;
     } *hal;
 } hm2_eth_t;
 

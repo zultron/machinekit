@@ -471,7 +471,9 @@ static int hm2_eth_read(hm2_lowlevel_io_t *this, rtapi_u32 addr, void *buffer, i
     hm2_eth_t *board = this->private;
     int send, recv, attempts = 0;
     rtapi_u8 tmp_buffer[size + 4];
-    long long t1, t2;
+    long long t1, t2, before_recv_time;
+    long int deltat;
+    long long read_start_time = rtapi_get_time();
 
     if (comm_active == 0) return 1;
     if (size == 0) return 1;
@@ -500,15 +502,29 @@ static int hm2_eth_read(hm2_lowlevel_io_t *this, rtapi_u32 addr, void *buffer, i
     LL_PRINT_IF(debug, "read(%d) : PACKET SENT [CMD:%02X%02X | ADDR: %02X%02X | SIZE: %d]\n", board->read_cnt, read_packet.cmd_hi, read_packet.cmd_lo,
       read_packet.addr_lo, read_packet.addr_hi, size);
     t1 = rtapi_get_time();
+    before_recv_time = t1;
     do {
         errno = 0;
+
         // This will block for up to RECV_TIMEOUT_US - which is 100,000 nanoseconds.
         // The hard coded timeout deadline below is 200,000,000 nanoseconds or 200 milliseconds.
         // An immense amount of time, not sure why that was picked...
         recv = eth_socket_recv(board->sockfd, (void*) &tmp_buffer, size, 0);
+
         t2 = rtapi_get_time();
+
+        // Capture the max time we are ever stuck inside recv calls
+        deltat = (long int)(t2 - before_recv_time);
+        before_recv_time = t2;
+        if ((board->hal) && (board->hal->packet_recv_tmax < deltat))
+            board->hal->packet_recv_tmax = deltat;
+
         attempts++;
     } while ((recv < 0) && ((t2 - t1) < 200*1000*1000));
+
+    // Capture the max recv attempts
+    if ((board->hal) && (board->hal->packet_recv_attempts < attempts))
+        board->hal->packet_recv_attempts = attempts;
 
     if (recv == 4) {
         LL_PRINT_IF(debug, "read(%d) : PACKET RECV [DATA: %08X | SIZE: %d | TRIES: %d | TIME: %llu]\n", board->read_cnt, *tmp_buffer, recv, attempts, t2 - t1);
@@ -523,6 +539,12 @@ static int hm2_eth_read(hm2_lowlevel_io_t *this, rtapi_u32 addr, void *buffer, i
 
     memcpy(buffer, tmp_buffer, size);
     decrement_soft_error(board);
+
+    // Capture the max time we ever spend inside hm2_eth_read()
+    deltat = (long int) (rtapi_get_time() - read_start_time);
+    if ((board->hal) && (board->hal->packet_read_tmax < deltat))
+        board->hal->packet_read_tmax = deltat;
+
     return 1;  // success
 }
 
@@ -576,7 +598,8 @@ static int hm2_eth_receive_queued_reads(hm2_lowlevel_io_t *this) {
     hm2_eth_t *board = this->private;
     int recv, attempts = 0;
     rtapi_u8 tmp_buffer[board->queue_buff_size];
-    long long t1, t2;
+    long long t1, t2, before_recv_time;
+    long int deltat;
     t1 = rtapi_get_time();
 
     // an error occurred in the past but the user has reset the io_error
@@ -608,6 +631,7 @@ static int hm2_eth_receive_queued_reads(hm2_lowlevel_io_t *this) {
 
     if (!board->hal) this->read_time = t1;
     unsigned long long read_deadline = this->read_time + read_timeout;
+    before_recv_time = t1;
     do {
 do_recv_packet:
         // This will block for up to RECV_TIMEOUT_US which is 100,000 nanoseconds. This was the floor
@@ -616,8 +640,19 @@ do_recv_packet:
         errno = 0;
         recv = eth_socket_recv(board->sockfd, (void*) &tmp_buffer, board->queue_buff_size, 0);
         t2 = rtapi_get_time();
+
+        // Capture the max time we are ever stuck inside recv calls
+        deltat = (long int)(t2 - before_recv_time);
+        before_recv_time = t2;
+        if ((board->hal) && (board->hal->packet_recv_tmax < deltat))
+            board->hal->packet_recv_tmax = deltat;
+
         attempts++;
     } while (recv != board->queue_buff_size && t2 < read_deadline);
+
+    // Capture the max recv attempts
+    if ((board->hal) && (board->hal->packet_recv_attempts < attempts))
+        board->hal->packet_recv_attempts = attempts;
 
     if (recv != board->queue_buff_size) {
         // We must have timed out
@@ -636,9 +671,13 @@ do_recv_packet:
     }
 
     // This appears to be a "do-over" because the UDP packet "sequence" number wasn't what we wanted
-    // and there is more time.
-    if (board->confirm_read_cnt != board->read_cnt && t2 < read_deadline)
+    // and there is more time left to read.
+    if (board->confirm_read_cnt != board->read_cnt && t2 < read_deadline) {
+        before_recv_time = rtapi_get_time();
+        if (board->hal)
+            board->hal->packet_wrong_seq += 1;
         goto do_recv_packet;
+    }
 
     board->read_packet_ptr = board->read_packet;
     board->queue_reads_count = 0;
@@ -652,6 +691,12 @@ do_recv_packet:
     } else {
         decrement_soft_error(board);
     }
+
+    // Capture the max time we ever spend inside hm2_eth_receive_queued_reads()
+    deltat = (long int) (rtapi_get_time() - t1);
+    if ((board->hal) && (board->hal->packet_read_tmax < deltat))
+        board->hal->packet_read_tmax = deltat;
+
     return result;
 }
 
@@ -1009,6 +1054,38 @@ static int hm2_eth_items(hm2_eth_t *board) {
             board->llio.name)) < 0)
         return r;
     *board->hal->packet_error_exceeded = 0;
+
+    if((r = hal_param_s32_newf(HAL_RO,
+            &board->hal->packet_read_tmax,
+            board->llio.comp_id,
+            "%s.packet-read-tmax",
+            board->llio.name)) < 0)
+        return r;
+    board->hal->packet_read_tmax = 0;
+
+    if((r = hal_param_s32_newf(HAL_RO,
+            &board->hal->packet_recv_tmax,
+            board->llio.comp_id,
+            "%s.packet-recv-tmax",
+            board->llio.name)) < 0)
+        return r;
+    board->hal->packet_recv_tmax = 0;
+
+    if((r = hal_param_s32_newf(HAL_RO,
+            &board->hal->packet_wrong_seq,
+            board->llio.comp_id,
+            "%s.packet-wrong-seq",
+            board->llio.name)) < 0)
+        return r;
+    board->hal->packet_wrong_seq = 0;
+
+    if((r = hal_param_s32_newf(HAL_RO,
+            &board->hal->packet_recv_attempts,
+            board->llio.comp_id,
+            "%s.packet-recv-attempts",
+            board->llio.name)) < 0)
+        return r;
+    board->hal->packet_recv_attempts = 0;
 
     return 0;
 }
