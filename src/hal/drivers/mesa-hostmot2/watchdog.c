@@ -305,7 +305,7 @@ void hm2_watchdog_write(hostmot2_t *hm2, long period_ns) {
         if (hm2->llio->needs_reset)
             HM2_PRINT("error recover successful!\n");
 
-        hm2->llio->needs_reset = 0
+        hm2->llio->needs_reset = 0;
         hm2->llio->needs_soft_reset = 0;
     }
 
