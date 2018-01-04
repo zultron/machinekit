@@ -309,7 +309,10 @@ static int fetch_hwaddr(const char *board_ip, int sockfd, unsigned char buf[6]) 
 
 // return value indicates if still under the error limit ceiling or not
 static bool record_soft_error(hm2_eth_t *board) {
-    if (!board->hal) return 1; // still early in hm2_eth_probe
+    if (!board->hal) {
+        LL_PRINT("Ignoring soft error during init\n");
+        return true;   // still early in hm2_eth_probe
+    }
 
     // From what I discern, the llio driver here can tolerate some limited packet loss (or timeouts on reads).
     board->llio.needs_soft_reset = 1;
@@ -329,6 +332,7 @@ static bool record_soft_error(hm2_eth_t *board) {
         // had enough packet errors to trip the persistent io_error state that requires user intervention
         *board->hal->packet_error_exceeded = true;
         *board->llio.io_error = true;
+        LL_PRINT("Recording soft error that tripped io_error.");
         return false;
     } else {
         // counted an error, but it hasn't reached the critical level yet.
@@ -336,6 +340,7 @@ static bool record_soft_error(hm2_eth_t *board) {
         // note the original code didn't reset io_error here, it only set it to true if limit was hit
         // io_error indicates a "permanent" error that needs user intervention to fix
         *board->hal->packet_error_exceeded = false;
+        LL_PRINT("Recording soft error.");
         return true;
     }
 }
@@ -701,15 +706,19 @@ do_recv_packet:
     board->queue_buff_size = 0;
 
     int result = 1;
-    // (this means that one in 2^32 lost writes will not be diagnosed,
-    // each time board->write_cnt overflows)
-    if (board->write_cnt && board->write_cnt != board->confirm_write_cnt) {
-        if (record_soft_error(board))
-            result = -EAGAIN;
-        else
-            result = 0;
-    } else {
-        decrement_soft_error(board);
+
+    if (board->hal) {
+        // (this means that one in 2^32 lost writes will not be diagnosed,
+        // each time board->write_cnt overflows)
+        if (board->write_cnt && board->write_cnt != board->confirm_write_cnt) {
+            LL_PRINT("write_cnt: %x   confirm_write_cnt: %x\n", board->write_cnt, board->confirm_write_cnt)
+            if (record_soft_error(board))
+                result = -EAGAIN;
+            else
+                result = 0;
+        } else {
+            decrement_soft_error(board);
+        }
     }
 
     // Capture the max time we ever spend inside hm2_eth_receive_queued_reads()
