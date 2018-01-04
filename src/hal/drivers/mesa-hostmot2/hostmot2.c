@@ -1,4 +1,3 @@
-
 //
 //    Copyright (C) 2007-2008 Sebastian Kuzminsky
 //
@@ -83,9 +82,11 @@ static void hm2_read_request(void *void_hm2, long period) {
 
     hm2_tram_read(hm2);
     if (hm2_watchdog_bite_on_ioerror(hm2)) return;
+
     hm2_raw_queue_read(hm2);
     hm2_tp_pwmgen_queue_read(hm2);
     if (hm2_watchdog_bite_on_ioerror(hm2)) return;
+
     hm2_queue_read(hm2);
     hm2->llio->read_requested = true;
     hm2->llio->read_time = rtapi_get_time();
@@ -94,7 +95,7 @@ static void hm2_read_request(void *void_hm2, long period) {
 static void hm2_read(void *void_hm2, long period) {
     hostmot2_t *hm2 = void_hm2;
 
-    if(!hm2->llio->read_requested) hm2_read_request(void_hm2, period);
+    if (!hm2->llio->read_requested) hm2_read_request(void_hm2, period);
     hm2->llio->read_requested = false;
 
     // if there are comm problems, wait for the user to fix it
@@ -102,6 +103,7 @@ static void hm2_read(void *void_hm2, long period) {
 
     // if there's a temporary read failure, don't sweat it
     if(hm2_finish_read(hm2) == -EAGAIN) return;
+
     // if there are comm problems, wait for the user to fix it
     if (hm2_watchdog_bite_on_ioerror(hm2)) return;
 

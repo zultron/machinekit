@@ -99,6 +99,9 @@ struct hm2_lowlevel_io_struct {
     //   * queue_read and send_queued_reads, in which case send_queued_reads must also
     //     receive and process the reads
     //   * all three
+    //
+    //  Return codes?????  Undocumented.  Assuming they should behave consistent
+    //  with the read and write above which are 0 on failure and !0 on success.
     int (*queue_read)(hm2_lowlevel_io_t *self, rtapi_u32 addr, void *buffer, int size);
     int (*send_queued_reads)(hm2_lowlevel_io_t *self);
     int (*receive_queued_reads)(hm2_lowlevel_io_t *self);
@@ -108,9 +111,12 @@ struct hm2_lowlevel_io_struct {
     //   * actually performing the writes
     // these routines are optional; the llio may either provide both of them, or neither
     // (in which case a dummy implementation of ->queue_write delegates to ->write)
+    //
+    //  Return codes?????  Undocumented.  Assuming they should behave consistent
+    //  with the read and write above which are 0 on failure and !0 on success.
     int (*queue_write)(hm2_lowlevel_io_t *self, rtapi_u32 addr, void *buffer, int size);
     int (*send_queued_writes)(hm2_lowlevel_io_t *self);
-    //
+
     // This is a HAL parameter allocated and added to HAL by hostmot2.
     //
     // * The llio driver sets it whenever it detects an I/O error.
@@ -139,9 +145,13 @@ struct hm2_lowlevel_io_struct {
 
     // this gets set to TRUE when the llio driver detects an io_error, and
     // by the hm2 watchdog (if present) when it detects a watchdog bite
-    // needs_soft_reset is like needs_reset except that no message is logged
-    // to the user
-    int needs_reset, needs_soft_reset;
+    // this requires user intervention to clear the io_error and then
+    // the needs_reset flag will be reacted to in the next
+    // hm2_watchdog_write() call.
+    int needs_reset;
+
+    // !0 when recoverable errors have occurred (minor packet loss in the case of hm2_eth llio driver is an example).
+    int needs_soft_reset;
 
     // the pin-count and names of the io port connectors on this board
     int num_ioport_connectors;

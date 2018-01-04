@@ -278,14 +278,19 @@ void hm2_watchdog_write(hostmot2_t *hm2, long period_ns) {
     // writing to the watchdog wakes it up, and now we can't stop or it will bite!
     hm2->watchdog.instance[0].enable = 1;
 
+    // Do we need to address either reset scenario?
     if (hm2->llio->needs_reset || hm2->llio->needs_soft_reset) {
-        // user has cleared the bit
-        if(hm2->llio->needs_reset)
+
+        if (hm2->llio->needs_reset) {
+            // We need a hard reset here.  Since io_error above is NOT set,
+            // it means the user must have cleared it so let's try a hard
+            // reset to recover now.
             HM2_PRINT("trying to recover from IO error or Watchdog bite\n");
 
-        if (hm2->llio->io_reset != NULL) {
-            HM2_PRINT("llio driver has io_reset() function so calling it\n");
-            hm2->llio->io_reset(hm2->llio);
+            if (hm2->llio->io_reset != NULL) {
+                HM2_PRINT("llio driver has io_reset() function so calling it\n");
+                hm2->llio->io_reset(hm2->llio);
+            }
         }
 
         // reset the watchdog status
@@ -297,10 +302,11 @@ void hm2_watchdog_write(hostmot2_t *hm2, long period_ns) {
             HM2_PRINT("error recovery failed\n");
             return;
         }
-        if(hm2->llio->needs_reset)
+        if (hm2->llio->needs_reset)
             HM2_PRINT("error recover successful!\n");
 
-        hm2->llio->needs_reset = hm2->llio->needs_soft_reset = 0;
+        hm2->llio->needs_reset = 0
+        hm2->llio->needs_soft_reset = 0;
     }
 
     if (

@@ -172,6 +172,10 @@ int hm2_queue_read(hostmot2_t *hm2) {
     return 0;
 }
 
+
+// Mostly 0 means failure and !0 means success.
+// Except that hostmot2.c has a special case check for -EAGAIN
+// and tries to treat that as harmless.
 int hm2_finish_read(hostmot2_t *hm2) {
     if (!hm2->llio->receive_queued_reads) return 0;
     int r = hm2->llio->receive_queued_reads(hm2->llio);
