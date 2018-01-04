@@ -332,7 +332,7 @@ static bool record_soft_error(hm2_eth_t *board) {
         // had enough packet errors to trip the persistent io_error state that requires user intervention
         *board->hal->packet_error_exceeded = true;
         *board->llio.io_error = true;
-        LL_PRINT("Recording soft error that tripped io_error.");
+        LL_PRINT("Recording soft error that tripped io_error. iter=%d\n", board->read_cnt);
         return false;
     } else {
         // counted an error, but it hasn't reached the critical level yet.
@@ -340,7 +340,7 @@ static bool record_soft_error(hm2_eth_t *board) {
         // note the original code didn't reset io_error here, it only set it to true if limit was hit
         // io_error indicates a "permanent" error that needs user intervention to fix
         *board->hal->packet_error_exceeded = false;
-        LL_PRINT("Recording soft error.");
+        LL_PRINT("Recording soft error. iter=%d\n", board->read_cnt);
         return true;
     }
 }
