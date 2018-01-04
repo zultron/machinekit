@@ -49,7 +49,7 @@ RTAPI_MP_INT(debug_idrom, "Developer/debug use only!  Enable debug logging of th
 int debug_module_descriptors = 0;
 RTAPI_MP_INT(debug_module_descriptors, "Developer/debug use only!  Enable debug logging of the HostMot2\nModule Descriptors.");
 
-int debug_modules = 1;
+int debug_modules = 0;
 RTAPI_MP_INT(debug_modules, "Developer/debug use only!  Enable debug logging of the HostMot2\nModules used.");
 
 int use_serial_numbers = 0;
