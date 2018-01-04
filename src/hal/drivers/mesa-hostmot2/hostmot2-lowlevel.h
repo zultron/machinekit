@@ -55,7 +55,7 @@
 
 
 
-// 
+//
 // this struct holds an abstract "low-level I/O" driver
 //
 
@@ -76,6 +76,14 @@ struct hm2_lowlevel_io_struct {
     int (*program_fpga)(hm2_lowlevel_io_t *self, const bitfile_t *bitfile);
     int (*reset)(hm2_lowlevel_io_t *self);
 
+    // optional
+    // resets the communication method to the fpga - can be called by the
+    // watchdog recovery code.  primary motivation was to add this for hm2_eth.c use
+    // where it needs to close/re-open a socket due to some intermittent ethernet
+    // error that the user has resolved and they don't want to restart the entire world.
+    // if the io_reset fails, set the io_error parameter to true
+    void (*io_reset)(hm2_lowlevel_io_t *self);
+
     // for devices with a lot of inherent latency (ethernet and spi are two
     // examples), it is useful to divide the work of the bulk reads which occur
     // every servo cycle into up to three groups:
@@ -91,6 +99,9 @@ struct hm2_lowlevel_io_struct {
     //   * queue_read and send_queued_reads, in which case send_queued_reads must also
     //     receive and process the reads
     //   * all three
+    //
+    //  Return codes?????  Undocumented.  Assuming they should behave consistent
+    //  with the read and write above which are 0 on failure and !0 on success.
     int (*queue_read)(hm2_lowlevel_io_t *self, rtapi_u32 addr, void *buffer, int size);
     int (*send_queued_reads)(hm2_lowlevel_io_t *self);
     int (*receive_queued_reads)(hm2_lowlevel_io_t *self);
@@ -100,20 +111,23 @@ struct hm2_lowlevel_io_struct {
     //   * actually performing the writes
     // these routines are optional; the llio may either provide both of them, or neither
     // (in which case a dummy implementation of ->queue_write delegates to ->write)
+    //
+    //  Return codes?????  Undocumented.  Assuming they should behave consistent
+    //  with the read and write above which are 0 on failure and !0 on success.
     int (*queue_write)(hm2_lowlevel_io_t *self, rtapi_u32 addr, void *buffer, int size);
     int (*send_queued_writes)(hm2_lowlevel_io_t *self);
-    // 
+
     // This is a HAL parameter allocated and added to HAL by hostmot2.
-    // 
+    //
     // * The llio driver sets it whenever it detects an I/O error.
-    // 
+    //
     // * The hostmot2 driver checks it and stops calling the llio driver if
     //   it's true.
-    // 
+    //
     // * Users can clear it (by poking the HAL parameter), which makes the
     //   hostmot2 driver call into llio to reset the hardware and start
     //   driving it again.
-    // 
+    //
     hal_bit_t *io_error;
 
     // this gets set to TRUE by .read-request and cleared by .read, in order
@@ -131,15 +145,19 @@ struct hm2_lowlevel_io_struct {
 
     // this gets set to TRUE when the llio driver detects an io_error, and
     // by the hm2 watchdog (if present) when it detects a watchdog bite
-    // needs_soft_reset is like needs_reset except that no message is logged
-    // to the user
-    int needs_reset, needs_soft_reset;
+    // this requires user intervention to clear the io_error and then
+    // the needs_reset flag will be reacted to in the next
+    // hm2_watchdog_write() call.
+    int needs_reset;
+
+    // !0 when recoverable errors have occurred (minor packet loss in the case of hm2_eth llio driver is an example).
+    int needs_soft_reset;
 
     // the pin-count and names of the io port connectors on this board
     int num_ioport_connectors;
     int pins_per_connector;
     const char *ioport_connector_name[ANYIO_MAX_IOPORT_CONNECTORS];
-    
+
     // llio enumeration is the easiest place to count the leds
     int num_leds;
 
@@ -158,7 +176,7 @@ struct hm2_lowlevel_io_struct {
 
 
 
-// 
+//
 // HostMot2 functions for the low-level I/O drivers to call
 //
 

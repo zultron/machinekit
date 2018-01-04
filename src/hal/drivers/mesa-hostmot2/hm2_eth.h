@@ -24,7 +24,7 @@
 
 #define MAX_ETH_BOARDS 4
 
-#define HM2_ETH_VERSION "0.2"
+#define HM2_ETH_VERSION "0.3"
 #define HM2_LLIO_NAME "hm2_eth"
 
 #define MAX_ETH_READS 64
@@ -68,6 +68,10 @@ typedef struct {
         hal_bit_t *packet_error;
         hal_s32_t *packet_error_level;
         hal_bit_t *packet_error_exceeded;
+        hal_s32_t packet_read_tmax;
+        hal_s32_t packet_recv_tmax;
+        hal_s32_t packet_wrong_seq;
+        hal_s32_t packet_recv_attempts;
     } *hal;
 } hm2_eth_t;
 
