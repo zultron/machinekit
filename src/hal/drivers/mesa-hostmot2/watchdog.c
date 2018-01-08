@@ -296,17 +296,20 @@ void hm2_watchdog_write(hostmot2_t *hm2, long period_ns) {
         // reset the watchdog status
         hm2->watchdog.status_reg[0] = 0;
 
+        // clear these so that if io_error is still going on, then hm2_watchdog_bite_on_ioerror()
+        // will see it and re-bite accordingly.
+        hm2->llio->needs_reset = 0;
+        hm2->llio->needs_soft_reset = 0;
+
         // write all settings out to the FPGA
         hm2_force_write(hm2);
+
         if ((*hm2->llio->io_error) != 0) {
             HM2_PRINT("error recovery failed\n");
             return;
         }
-        if (hm2->llio->needs_reset)
-            HM2_PRINT("error recover successful!\n");
 
-        hm2->llio->needs_reset = 0;
-        hm2->llio->needs_soft_reset = 0;
+        HM2_PRINT("error recover successful!\n");
     }
 
     if (
