@@ -255,7 +255,7 @@ void refresh_jog_limits(emcmot_joint_t *joint)
 /* inRange() returns non-zero if the position lies within the joint
    limits, or 0 if not.  It also reports an error for each joint limit
    violation.  It's possible to get more than one violation per move. */
-STATIC int inRange(EmcPose pos, int id, char *move_type)
+STATIC int inRange(char *move_type)
 {
     double joint_pos[EMCMOT_MAX_JOINTS];
     int joint_num;
@@ -268,7 +268,7 @@ STATIC int inRange(EmcPose pos, int id, char *move_type)
     }
 
     /* now fill in with real values, for joints that are used */
-    kinematicsInverse(&pos, joint_pos, &iflags, &fflags);
+    kinematicsInverse(&emcmotCommand->pos, joint_pos, &iflags, &fflags);
 
     for (joint_num = 0; joint_num < num_joints; joint_num++) {
 	/* point to joint data */
@@ -280,14 +280,18 @@ STATIC int inRange(EmcPose pos, int id, char *move_type)
 	}
 	if (joint_pos[joint_num] > joint->max_pos_limit) {
             in_range = 0;
-	    reportError(_("%s move on line %d would exceed joint %d's positive limit"),
-			move_type, id, joint_num);
+	    reportError(
+		_("%s move on line %d would exceed joint %d's positive limit"),
+		move_type, emcmotCommand->tag.fields[GM_FIELD_LINE_NUMBER],
+		joint_num);
         }
 
         if (joint_pos[joint_num] < joint->min_pos_limit) {
 	    in_range = 0;
-	    reportError(_("%s move on line %d would exceed joint %d's negative limit"),
-			move_type, id, joint_num);
+	    reportError(
+		_("%s move on line %d would exceed joint %d's negative limit"),
+		move_type, emcmotCommand->tag.fields[GM_FIELD_LINE_NUMBER],
+		joint_num);
 	}
     }
     return in_range;
@@ -909,7 +913,7 @@ check_stuff ( "before command_handler()" );
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
 		SET_MOTION_ERROR_FLAG(1);
 		break;
-	    } else if (!inRange(emcmotCommand->pos, emcmotCommand->id, "Linear")) {
+	    } else if (!inRange("Linear")) {
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
 		tpAbort(&emcmotDebug->tp);
 		SET_MOTION_ERROR_FLAG(1);
@@ -970,7 +974,7 @@ check_stuff ( "before command_handler()" );
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
 		SET_MOTION_ERROR_FLAG(1);
 		break;
-	    } else if (!inRange(emcmotCommand->pos, emcmotCommand->id, "Circular")) {
+	    } else if (!inRange("Circular")) {
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
 		tpAbort(&emcmotDebug->tp);
 		SET_MOTION_ERROR_FLAG(1);
@@ -1394,7 +1398,7 @@ check_stuff ( "before command_handler()" );
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
 		SET_MOTION_ERROR_FLAG(1);
 		break;
-	    } else if (!inRange(emcmotCommand->pos, emcmotCommand->id, "Probe")) {
+	    } else if (!inRange("Probe")) {
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
 		tpAbort(&emcmotDebug->tp);
 		SET_MOTION_ERROR_FLAG(1);
@@ -1463,7 +1467,7 @@ check_stuff ( "before command_handler()" );
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
 		SET_MOTION_ERROR_FLAG(1);
 		break;
-	    } else if (!inRange(emcmotCommand->pos, emcmotCommand->id, "Rigid tap")) {
+	    } else if (!inRange("Rigid tap")) {
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
 		tpAbort(&emcmotDebug->tp);
 		SET_MOTION_ERROR_FLAG(1);

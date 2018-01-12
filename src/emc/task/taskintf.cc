@@ -635,7 +635,6 @@ static int localEmcTrajAxes = 0;
 static int localEmcTrajAxisMask = 0;
 static double localEmcTrajLinearUnits = 1.0;
 static double localEmcTrajAngularUnits = 1.0;
-static int localEmcTrajMotionId = 0;
 //FIXME if you can't beat em...
 static struct state_tag_t localEmcTrajTag;
 
@@ -644,7 +643,6 @@ int emcTrajUpdateTag(state_tag_t const * const tag) {
         return -1;
     }
     localEmcTrajTag = *tag;
-    localEmcTrajMotionId = tag->fields[GM_FIELD_STEPPING_ID];
     return 0;
 }
 
@@ -1004,7 +1002,7 @@ int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel, doub
 
     emcmotCommand.pos = end;
 
-    emcmotCommand.id = localEmcTrajMotionId;
+    emcmotCommand.id = localEmcTrajTag.fields[GM_FIELD_STEPPING_ID];
     emcmotCommand.tag = localEmcTrajTag;
     emcmotCommand.motion_type = type;
     emcmotCommand.vel = vel;
@@ -1043,7 +1041,7 @@ int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center,
     emcmotCommand.normal.z = normal.z;
 
     emcmotCommand.turn = turn;
-    emcmotCommand.id = localEmcTrajMotionId;
+    emcmotCommand.id = localEmcTrajTag.fields[GM_FIELD_STEPPING_ID];
     emcmotCommand.tag = localEmcTrajTag;
 
     emcmotCommand.vel = vel;
@@ -1073,7 +1071,7 @@ int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double ac
 
     emcmotCommand.command = EMCMOT_PROBE;
     emcmotCommand.pos = pos;
-    emcmotCommand.id = localEmcTrajMotionId;
+    emcmotCommand.id = localEmcTrajTag.fields[GM_FIELD_STEPPING_ID];
     emcmotCommand.tag = localEmcTrajTag;
     emcmotCommand.motion_type = type;
     emcmotCommand.vel = vel;
@@ -1095,7 +1093,7 @@ int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc)
 
     emcmotCommand.command = EMCMOT_RIGID_TAP;
     emcmotCommand.pos.tran = pos.tran;
-    emcmotCommand.id = localEmcTrajMotionId;
+    emcmotCommand.id = localEmcTrajTag.fields[GM_FIELD_STEPPING_ID];
     emcmotCommand.tag = localEmcTrajTag;
     emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;
