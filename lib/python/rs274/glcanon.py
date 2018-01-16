@@ -1199,7 +1199,21 @@ class GlCanonDraw:
             glPopMatrix()
 
         if self.get_show_limits():
-            glTranslatef(*[-x for x in self.to_internal_units(s.tool_offset)[:3]])
+            # Chris Radek commited a 2 line change
+            # https://github.com/LinuxCNC/linuxcnc/commit/b98597b97b8a777325bafb9e7eab18f4c8305077
+            #
+            # The entire limit box drawing was effected (see the the matching commented out
+            # glTranslatef() and the end of this block which attempts to restore the previous matrix.
+            # (not sure why he didn't just use glPushMatrix/glPopMatrix also)
+            #
+            # The change installs an identity translation matrix which effectively shifts all limit
+            # box vertices negatively by the tool offset. Most visible in Z of course on the mill.
+            #
+            # Do not understand how he thought this was helping, the logic doesn't seem to match his
+            # commit comment (my theory is its somehow effective in Axis so it felt right to him?).
+            #
+            #glTranslatef(*[-x for x in self.to_internal_units(s.tool_offset)[:3]])
+
             glLineWidth(1)
             glColor3f(0.3,0.5,1.0)
             glLineStipple(1, 0x1111)
@@ -1330,7 +1344,9 @@ class GlCanonDraw:
             glEnd()
             glDisable(GL_LINE_STIPPLE)
             glLineStipple(2, 0x5555)
-            glTranslatef(*self.to_internal_units(s.tool_offset)[:3])
+
+            # See comment above at start of limit box drawing for why this is commented out.
+            #glTranslatef(*self.to_internal_units(s.tool_offset)[:3])
 
         if self.get_show_live_plot():
             glDepthFunc(GL_LEQUAL)
