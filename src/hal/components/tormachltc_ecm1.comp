@@ -1,0 +1,404 @@
+
+component tormachltc_ecm1 "Tormach Lathe Turret for ECM1 HAL Component";
+
+license "GPL";
+author "";
+
+// Tool change HAL component supports manual, gang, and 8-position ATC for ECM1 equipped lathes
+//
+// Type changed via 'tool_changer_type' HAL pin
+//
+// Types:   0, 1, 2
+//          manual  - waits for the GUI to tell it operator tool change complete before asserting iocontrol.0.tool-changed
+//          gang    - does nothing, loops iocontrol.0.tool-change <=> iocontrol.0.tool-changed HAL pins
+//          8 position ATC - all turret I/O controlled here for turret tool change
+//
+// HAL mappings:
+//
+//    Inputs:
+//          tool_changer_type   <= postgui HAL connection from GUI
+//          manual_tool_changed <= postgui HAL connection from GUI
+//          tool_change_in      <= iocontrol.0.tool-change written by LinuxCNC iocontrol
+//          tool_prep_number    <= iocontrol.0.tool-prep-number tool number to change to
+//
+//          From the turret
+//          in_position_tool_1
+//          in_position_tool_2
+//          in_position_tool_3
+//          in_position_tool_4
+//          in_position_tool_5
+//          in_position_tool_6
+//          in_position_tool_7
+//          in_position_tool_8
+//          in_position_locked
+//
+//    Outputs:
+//          turret_error        => 0 indicates no error, > 0 is specific error reason
+//          tool_changed_out    => iocontrol.0.tool-changed tells LinuxCNC iocontrol tool change complete
+//
+//          To the turret
+//          turret_run          => closes motor power relay
+//          turret_direction    => controls motor direction
+
+// written by GUI, connected to in postgui HAL file
+pin in s32 tool_changer_type;
+
+// set by GUI, connected to in postgui HAL file
+// cleared here in comp after being asserted by GUI
+pin io bit manual_tool_changed;
+
+// connect this to iocontrol.0.tool-change
+pin in bit tool_change_in;
+
+// connect this to iocontrol.0.tool-prep-number
+pin in s32 tool_prep_number;
+
+// HAL can set this to something other than 1 ms if needed
+pin in u32 loop_period_usecs;
+
+// connect this to iocontrol.0.tool-changed
+pin out bit tool_changed_out;
+
+// read/write so UI can clear it after handling it
+pin io s32 turret_error;
+
+// inputs from the turret control board
+pin in bit in_position_tool_1;
+pin in bit in_position_tool_2;
+pin in bit in_position_tool_3;
+pin in bit in_position_tool_4;
+pin in bit in_position_tool_5;
+pin in bit in_position_tool_6;
+pin in bit in_position_tool_7;
+pin in bit in_position_tool_8;
+pin in bit in_position_locked;
+
+// outputs to the turret control board
+pin out bit turret_run;
+pin out bit turret_direction;
+
+// current state of turret state machine
+pin out s32 atc_state;
+
+// set generate debug messages
+pin io bit debug_messages;
+
+option singleton yes;
+
+function _ "Tormach Lathe Turret for ECM1 HAL Component";
+
+;;
+
+// inputs are active low
+#define POSITION_ACTIVE         0
+#define POSITION_INACTIVE       1
+#define LOCKED_ACTIVE           0
+
+#define ATC_TOOL_1          1
+#define ATC_TOOL_2          2
+#define ATC_TOOL_3          3
+#define ATC_TOOL_4          4
+#define ATC_TOOL_5          5
+#define ATC_TOOL_6          6
+#define ATC_TOOL_7          7
+#define ATC_TOOL_8          8
+
+#define MIN_TURRET_TOOL_NUM 1
+#define MAX_TURRET_TOOL_NUM 8
+
+// these must match in the GUI
+#define TOOL_CHANGER_TYPE_MANUAL             0
+#define TOOL_CHANGER_TYPE_GANG               1
+#define TOOL_CHANGER_TYPE_TURRET_8POSITION   2
+
+// TODO: REMEMBER TO ADD PAUSE STATE BEFORE OPENING DIRECTION RELAY IN CASE OF LOCK TIMEOUT
+
+enum {ATC_STATE_WAIT_FOR_CLEAR, ATC_STATE_WAIT_FOR_CMD, ATC_STATE_SEARCH_FOR_TOOL, ATC_STATE_PAUSE_AFTER_SEARCH, ATC_STATE_PAUSE_BEFORE_LOCK, ATC_STATE_LOCK_TOOL, ATC_STATE_PAUSE_AFTER_LOCK, ATC_STATE_PAUSE_AFTER_LOCK_ERROR};
+
+// these values are reflected back to the UI via turret_error pin
+enum {TURRET_ERROR_NONE, TURRET_ERROR_TOOL_SEARCH_TIMEOUT, TURRET_ERROR_LOCK_SENSOR_TIMEOUT, TURRET_ERROR_MULTIPLE_ACTIVE_POSITION_SENSORS};
+
+// microsecond unit timeout values
+#define TOOL_SEARCH_MAX_USEC            6000000
+#define TOOL_SEARCH_PAUSE_USEC           250000
+#define TOOL_REVERSE_PAUSE_USEC          250000
+#define TOOL_LOCK_MAX_USEC              3000000
+#define TOOL_LOCK_PAUSE_USEC             250000
+
+// active low output to run turret motor
+#define TURRET_RUNNING      0
+#define TURRET_STOPPED      1
+
+// active low output to reverse turret motor
+#define TURRET_REVERSE      0
+#define TURRET_FORWARD      1
+
+// running down timeout timer
+int atc_timeout = 0;
+
+// microseconds elapsed per loop
+unsigned int loop_usecs = 0;
+
+// used to print message just once about invalid tool_changer_type
+static bool once = 0;
+
+int in_position_count = 0;
+
+void error_msg(char *msg) {
+    rtapi_print_msg(RTAPI_MSG_ERR, "turret error: %s", msg);
+}
+
+void debug_msg(bool debug_flag, char *msg) {
+    if (debug_flag) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "turret info: %s", msg);
+    }
+}
+
+
+FUNCTION(_) {
+
+    debug_messages = 0;
+
+    if (tool_changer_type == TOOL_CHANGER_TYPE_MANUAL) {
+
+        // if tool change in progress
+        if (tool_change_in) {
+            // look for indication from GUI that operator has completed tool change
+            if (manual_tool_changed) {
+            // copy tool-change-in to tool-changed-out
+                tool_changed_out = tool_change_in;
+            }
+        }
+        else {
+            // no tool change in progress
+            tool_changed_out = 0;
+
+            // clear UI indication for next tool change
+            manual_tool_changed = 0;
+        }
+    }
+    else if (tool_changer_type == TOOL_CHANGER_TYPE_GANG) {
+
+        // no action required but to copy tool-change to tool-changed-out
+        tool_changed_out = tool_change_in;
+    }
+    else if (tool_changer_type == TOOL_CHANGER_TYPE_TURRET_8POSITION) {
+
+        if (loop_period_usecs == 0) {
+            // default to 1 ms servo loop period
+            loop_usecs = 1000;
+        }
+
+        if (tool_prep_number >= MIN_TURRET_TOOL_NUM && tool_prep_number <= MAX_TURRET_TOOL_NUM) {
+
+            // here begins the state machine for operating the turret
+            switch (atc_state) {
+
+                case ATC_STATE_WAIT_FOR_CLEAR:
+                    // wait for tool_change_in to deassert
+                    turret_run = TURRET_STOPPED;
+                    turret_direction = TURRET_FORWARD;
+                    if (tool_change_in == 0)	{
+                        debug_msg(debug_messages, "found tool-change-in inactive - now waiting for active");
+                        // iocontrol no longer requesting a tool change
+                        atc_state = ATC_STATE_WAIT_FOR_CMD;
+                        // tool change command started, de-assert tool-changed
+                        tool_changed_out = 0;
+                    }
+                    break;
+
+                case ATC_STATE_WAIT_FOR_CMD:
+                    if (tool_change_in) {
+                        debug_msg(debug_messages, "found tool-change-in active");
+                        // iocontrol has requested a tool change
+                        // check if more than one tool position sensor is active
+                        in_position_count = 0;
+#if 1
+                        if (in_position_tool_1 == POSITION_ACTIVE) {
+                            in_position_count++;
+                        }
+                        if (in_position_tool_2 == POSITION_ACTIVE) {
+                            in_position_count++;
+                        }
+                        if (in_position_tool_3 == POSITION_ACTIVE) {
+                            in_position_count++;
+                        }
+                        if (in_position_tool_4 == POSITION_ACTIVE) {
+                            in_position_count++;
+                        }
+                        if (in_position_tool_5 == POSITION_ACTIVE) {
+                            in_position_count++;
+                        }
+                        if (in_position_tool_6 == POSITION_ACTIVE) {
+                            in_position_count++;
+                        }
+                        if (in_position_tool_7 == POSITION_ACTIVE) {
+                            in_position_count++;
+                        }
+                        if (in_position_tool_8 == POSITION_ACTIVE) {
+                            in_position_count++;
+                        }
+                        if (in_position_count > 1) {
+                            // hardware fault if more than 1 sensor is active
+                            if (in_position_tool_1 == POSITION_ACTIVE) {
+                                error_msg("position sensor 1 active");
+                            }
+                            if (in_position_tool_2 == POSITION_ACTIVE) {
+                                error_msg("position sensor 2 active");
+                            }
+                            if (in_position_tool_3 == POSITION_ACTIVE) {
+                                error_msg("position sensor 3 active");
+                            }
+                            if (in_position_tool_4 == POSITION_ACTIVE) {
+                                error_msg("position sensor 4 active");
+                            }
+                            if (in_position_tool_5 == POSITION_ACTIVE) {
+                                error_msg("position sensor 5 active");
+                            }
+                            if (in_position_tool_6 == POSITION_ACTIVE) {
+                                error_msg("position sensor 6 active");
+                            }
+                            if (in_position_tool_7 == POSITION_ACTIVE) {
+                                error_msg("position sensor 7 active");
+                            }
+                            if (in_position_tool_8 == POSITION_ACTIVE) {
+                                error_msg("position sensor 8 active");
+                            }
+                            error_msg("more than one active tool position sensor");
+                            atc_state = ATC_STATE_WAIT_FOR_CLEAR;
+                            turret_error = TURRET_ERROR_MULTIPLE_ACTIVE_POSITION_SENSORS;
+                            break;
+                        }
+#endif
+                        // start rotating turret forward
+                        turret_run = TURRET_RUNNING;
+                        atc_timeout = TOOL_SEARCH_MAX_USEC;
+                        atc_state = ATC_STATE_SEARCH_FOR_TOOL;
+                        turret_error = TURRET_ERROR_NONE;
+                    }
+                    break;
+
+                case ATC_STATE_SEARCH_FOR_TOOL:
+                    if (((tool_prep_number == ATC_TOOL_1) && (in_position_tool_1 == POSITION_ACTIVE)) ||
+                        ((tool_prep_number == ATC_TOOL_2) && (in_position_tool_2 == POSITION_ACTIVE)) ||
+                        ((tool_prep_number == ATC_TOOL_3) && (in_position_tool_3 == POSITION_ACTIVE)) ||
+                        ((tool_prep_number == ATC_TOOL_4) && (in_position_tool_4 == POSITION_ACTIVE)) ||
+                        ((tool_prep_number == ATC_TOOL_5) && (in_position_tool_5 == POSITION_ACTIVE)) ||
+                        ((tool_prep_number == ATC_TOOL_6) && (in_position_tool_6 == POSITION_ACTIVE)) ||
+                        ((tool_prep_number == ATC_TOOL_7) && (in_position_tool_7 == POSITION_ACTIVE)) ||
+                        ((tool_prep_number == ATC_TOOL_8) && (in_position_tool_8 == POSITION_ACTIVE))) {
+                            // found desired tool position active
+                            // stop forward motion
+                            turret_run = TURRET_STOPPED;
+                            // pause before reversing to prevent relay arcing
+                            atc_timeout = TOOL_REVERSE_PAUSE_USEC;
+                            atc_state = ATC_STATE_PAUSE_AFTER_SEARCH;
+                            debug_msg(debug_messages, "found tool position sensor active");
+                    }
+                    else if (atc_timeout > 0) {
+                        atc_timeout -= loop_usecs;
+                    }
+                    else {
+                        // timed out and tool not found
+                        atc_state = ATC_STATE_WAIT_FOR_CLEAR;
+                        error_msg("Turret timeout searching for tool position");
+                        turret_error = TURRET_ERROR_TOOL_SEARCH_TIMEOUT;
+                    }
+                    break;
+
+                case ATC_STATE_PAUSE_AFTER_SEARCH:
+                    if (atc_timeout > 0) {
+                        atc_timeout -= loop_usecs;
+                    }
+                    else {
+                        // forward rotation stopped by now, switch the direction relay
+                        turret_direction = TURRET_REVERSE;	
+                        atc_timeout = TOOL_REVERSE_PAUSE_USEC;
+                        // give the relay a little time before firing run relay
+                        atc_state = ATC_STATE_PAUSE_BEFORE_LOCK;
+                        debug_msg(debug_messages, "reversed turret direction");
+                    }
+                    break;
+
+                case ATC_STATE_PAUSE_BEFORE_LOCK:
+                    if (atc_timeout > 0) {
+                        atc_timeout -= loop_usecs;
+                    }
+                    else {
+                        // start locking turret in position by going backwards
+                        turret_run = TURRET_RUNNING;
+                        atc_timeout = TOOL_LOCK_MAX_USEC;
+                        atc_state = ATC_STATE_LOCK_TOOL;
+                        debug_msg(debug_messages, "finished pause after direction reverse");
+                    }
+                    break;
+
+                case ATC_STATE_LOCK_TOOL:
+                    if (in_position_locked == LOCKED_ACTIVE) {
+                        // sensor active plus minimum reverse time
+                        turret_run = TURRET_STOPPED;
+                        atc_timeout = TOOL_LOCK_PAUSE_USEC;
+                        atc_state = ATC_STATE_PAUSE_AFTER_LOCK;
+                        debug_msg(debug_messages, "found lock sensor active, stopping turret");
+                    }
+                    else if (atc_timeout > 0) {
+                        atc_timeout -= loop_usecs;
+                    }
+                    else {
+                        turret_run = TURRET_STOPPED;
+                        atc_timeout = TOOL_LOCK_PAUSE_USEC;
+                        atc_state = ATC_STATE_PAUSE_AFTER_LOCK_ERROR;
+                        error_msg("timeout waiting for turret lock sensor");
+                        turret_error = TURRET_ERROR_LOCK_SENSOR_TIMEOUT;
+                    }
+                    break;
+
+                case ATC_STATE_PAUSE_AFTER_LOCK:
+                    if (atc_timeout > 0) {
+                        atc_timeout -= loop_usecs;
+                    }
+                    else {
+                        // safe now to open relay
+                        turret_direction = TURRET_REVERSE;
+                        atc_state = ATC_STATE_WAIT_FOR_CLEAR;
+                        // tell iocontrol tool change is complete
+                        turret_error = TURRET_ERROR_NONE;
+                        tool_changed_out = 1;
+                        debug_msg(debug_messages, "finished pause after lock stop");
+                    }
+                    break;
+
+                case ATC_STATE_PAUSE_AFTER_LOCK_ERROR:
+                    // pause before opening direction relay before ATC_STATE_WAIT_FOR_CLEAR
+                    if (atc_timeout > 0) {
+                        atc_timeout -= loop_usecs;
+                    }
+                    else {
+                        turret_direction = TURRET_REVERSE;
+                        atc_state = ATC_STATE_WAIT_FOR_CLEAR;
+                        tool_changed_out = 0;
+                        debug_msg(debug_messages, "finished pause after lock error");
+                    }
+                    break;
+
+            } // turret_state
+
+        }
+        else {
+            // outside range of changer always copy iocontrol "change" to "changed"
+            // assume a ganged tool
+            // loopback iocontrol "tool-change" to "tool-changed"
+            tool_changed_out = tool_change_in;
+        }
+    } // TURRET_8POSITION
+    else {
+        if (!once) {
+            // prnt message once if the tool changer type isn't recognized
+            error_msg("tool-changer-type not 0, 1, or 2");
+            once = 1;
+        }
+    }
+}
+
+
+
