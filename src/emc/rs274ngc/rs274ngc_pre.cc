@@ -1426,6 +1426,7 @@ int Interp::read_inputs(setup_pointer settings)
 {
     // logDebug("read_inputs probe=%d input=%d toolchange=%d",
     // 	     settings->probe_flag, settings->toolchange_flag, settings->input_flag);
+    write_and_update_state_tag(NULL);
     if (settings->probe_flag) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING);
