@@ -63,3 +63,17 @@ state_tag_t StateTag::get_state_tag() const
     return out;
 }
 
+void StateTag::fprint(FILE *stream)
+{
+    fprintf(stream, "State tag dump:  feed %.2f; speed %.2f\n", feed, speed);
+    fprintf(stream, "  fields:  line_number %d; stepping_id %d; next_line %d\n",
+	    fields[GM_FIELD_LINE_NUMBER], fields[GM_FIELD_STEPPING_ID],
+	    fields[GM_FIELD_NEXT_LINE]);
+    fprintf(stream, "           g_mode_0 %d; cutter_comp %d; motion_mode %d\n",
+	    fields[GM_FIELD_G_MODE_0], fields[GM_FIELD_CUTTER_COMP],
+	    fields[GM_FIELD_MOTION_MODE]);
+    fprintf(stream, "           plane %d; m_modes_4 %d; origin %d; toolchange %d\n",
+	    fields[GM_FIELD_PLANE], fields[GM_FIELD_M_MODES_4],
+	    fields[GM_FIELD_ORIGIN], fields[GM_FIELD_TOOLCHANGE]);
+    fprintf(stream, "  flags: %s\n", flags.to_string().c_str());
+}
