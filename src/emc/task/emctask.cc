@@ -35,7 +35,7 @@
 #include "task.hh"		// emcTaskCommand etc
 #include "python_plugin.hh"
 #include "taskclass.hh"
-
+#include "modal_state.hh"
 
 #define USER_DEFINED_FUNCTION_MAX_DIRS 5
 #define MAX_M_DIRS (USER_DEFINED_FUNCTION_MAX_DIRS+1)
@@ -760,7 +760,7 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
 {
     volatile int offset;
 
-    if (!tag) {
+    if (!tag || !StateTag(*tag).is_valid()) {
 	if (emc_debug & EMC_DEBUG_STATUS)
 	    rcs_print(
 		"emcStatusUpdateFromTag: Not updating from invalid tag\n");
