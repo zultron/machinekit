@@ -107,6 +107,12 @@ static void hm2_encoder_update_control_register(hostmot2_t *hm2) {
 
         do_flag(
             &hm2->encoder.control_reg[i],
+            e->hal.param.index_mode,
+            HM2_ENCODER_INDEX_MODE
+        );
+
+        do_flag(
+            &hm2->encoder.control_reg[i],
             e->hal.param.filter,
             HM2_ENCODER_FILTER
         );
@@ -571,6 +577,13 @@ int hm2_encoder_parse_md(hostmot2_t *hm2, int md_index) {
                 goto fail1;
             }
 
+            rtapi_snprintf(name, sizeof(name), "%s.encoder.%02d.index-mode", hm2->llio->name, i);
+            r = hal_param_bit_new(name, HAL_RW, &(hm2->encoder.instance[i].hal.param.index_mode), hm2->llio->comp_id);
+            if (r < 0) {
+                HM2_ERR("error adding param '%s', aborting\n", name);
+                goto fail1;
+            }
+
             rtapi_snprintf(name, sizeof(name), "%s.encoder.%02d.filter", hm2->llio->name, i);
             r = hal_param_bit_new(name, HAL_RW, &(hm2->encoder.instance[i].hal.param.filter), hm2->llio->comp_id);
             if (r < 0) {
@@ -599,6 +612,7 @@ int hm2_encoder_parse_md(hostmot2_t *hm2, int md_index) {
             hm2->encoder.instance[i].hal.param.index_mask = 0;
             hm2->encoder.instance[i].hal.param.index_mask_invert = 0;
             hm2->encoder.instance[i].hal.param.counter_mode = 0;
+            hm2->encoder.instance[i].hal.param.index_mode = 0;
             hm2->encoder.instance[i].hal.param.filter = 1;
             hm2->encoder.instance[i].hal.param.vel_timeout = 0.5;
 

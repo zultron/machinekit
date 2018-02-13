@@ -235,6 +235,7 @@ typedef struct {
 // encoders
 //
 
+#define HM2_ENCODER_INDEX_MODE          (1<<16)
 #define HM2_ENCODER_QUADRATURE_ERROR    (1<<15)
 #define HM2_ENCODER_AB_MASK_POLARITY    (1<<14)
 #define HM2_ENCODER_LATCH_ON_PROBE      (1<<13)
@@ -251,7 +252,7 @@ typedef struct {
 #define HM2_ENCODER_INPUT_B             (1<<1)
 #define HM2_ENCODER_INPUT_A             (1<<0)
 
-#define HM2_ENCODER_CONTROL_MASK  (0x0000ffff)
+#define HM2_ENCODER_CONTROL_MASK  (0x0001ffff)
 
 
 #define hm2_encoder_get_reg_count(hm2, instance)     (hm2->encoder.counter_reg[instance] & 0x0000ffff)
@@ -288,6 +289,7 @@ typedef struct {
             hal_bit_t index_mask;
             hal_bit_t index_mask_invert;
             hal_bit_t counter_mode;
+            hal_bit_t index_mode;
             hal_bit_t filter;
             hal_float_t vel_timeout;
         } param;
