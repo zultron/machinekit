@@ -2127,13 +2127,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TASK_ABORT_TYPE:
-	// abort everything
-    // KLUDGE call motion abort before state restore to make absolutely sure no
-    // stray restore commands make it down to motion
-	emcMotionAbort();
-    // Then call state restore to update the interpreter
-    emcTaskStateRestore();
-	emcTaskAbort();
+	emcTaskAbort(1);
         task_methods->emcIoAbort(EMC_ABORT_TASK_ABORT);
         emcSpindleAbort();
 	mdi_execute_abort();
@@ -2292,7 +2286,6 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
 	    case INTERP_ERROR:
 		// emcStatus->task.interpState =  EMC_TASK_INTERP_WAITING;
-		interp_list.clear();
 		// abort everything
 		emcTaskAbort();
 		task_methods->emcIoAbort(EMC_ABORT_INTERPRETER_ERROR_MDI);
