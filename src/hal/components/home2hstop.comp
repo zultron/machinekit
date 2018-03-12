@@ -10,18 +10,15 @@ author "Tormach";
 // s32      home-state              from axis.N.home-state
 // bit      limit-enable            from UI setting
 // float    joint-pos-fb            from axis.N.joint-pos-fb
-// bit	    hlfb		    from "High Level Feed Back" of CPM
-// bit      index-count 	    SLP not used, remove it
+// bit      hlfb            from "High Level Feed Back" of CPM
 
 // Params:
-//          latch-vel               units/s - used for travel direction
-//          limit-backoff           SLP not used, remove it.  units to continue off limit before index search
-//          limit-index-min         SLP not used, remove it.  units minimum distance between switch and index
+//          latch-vel               units/s - used for travel direction after hitting hard stop
 
 // Outputs:
 // bit      limit-out               to axis.N.home/neg/pos-lim-sw-in
 // bit      motor-enable-out        to Clear Path Motor enable
-// bit 	    motor-fault		    to axis.N.amp-fault-in
+// bit      motor-fault         to axis.N.amp-fault-in
 // s32      motor-state             state of this CPM motor component
 // s32      internal-status-code        used as internal status-code.  The other status-code is read/write and is constantly reset to 0 by UI
 // bit      brake-release           connected to axis (Z) brake
@@ -29,12 +26,8 @@ author "Tormach";
 // Bi-directional Input & Output
 // s32      motor-command           commands from PP UI/Python to this CPM linuxcnc component
 // s32      status-code             status and error code to UI. It is roughly is HLFB from CPM, but includes other command error feedback
-// float    limit-index-distance    //SLP not used, remove it at some point
 
 // input pins
-
-// from counter connected to encoder index
-pin in s32 index-count;
 
 // physical limit switch input
 pin in bit limit-in;
@@ -71,41 +64,19 @@ pin out bit motor-fault;
 // let UI clear it after reading SLP I'm not using bi-directional ability of this pin 
 pin io s32 status-code;
 
-// tell the UI distance between switch inactive and index
-// let UI clear it after reading
-pin io float limit-index-distance;
-
 pin out s32 motor-state;
 pin out bit fake-open; //flag to lie to linuxcnc we're off of limit switch when we're not.
 //needed while we are doing hardstop homing 
 
 // params
-
-// index closer to switch than this results in error_code ERROR_INDEX_TOO_CLOSE_TO_SWITCH
-param rw float limit-index-min;  //set to .030 in ecm1.hal
-
-// used for sense of direction on backoff and index search
+// used for sense of direction on backoff 
 param rw float latch-vel;
 
-// distance to move off limit before index search to avoid switch inconsistency
-param rw float limit-backoff; //set to .020 in ecm1.hal
-
-// distance to go after limit backoff to search for index
-// greater than this results in error_code ERROR_INDEX_SEARCH_TIMEOUT
-param rw float index-search-max; //set to .220 in ecm1.hal
-
-// must be a pin to compare with limit-in, bool quietly does not work
-pin io bit prev-limit-in;
-
 // as pins for debugging visibility
-pin io s32 prev-index-count;
-pin io float limit-fall-pos;
-pin io float index-active-pos;
 pin io float backoff-pos;
-pin io float index-search-max-pos;
-pin out float position-at-hstop;
-pin out float position-at-fall-search-start;
-pin out float position-at-fall;
+//pin out float position-at-hstop;
+//pin out float position-at-fall-search-start;
+//pin out float position-at-fall;
 pin out s32 home-state-out;
 pin out s32 delay-state;
 pin out s32 hit-hardstop;
@@ -128,22 +99,20 @@ function _;
 #define BRAKE_HOLD    0
 
 //########## keep these in sync with constants.py!!
-//Previous error codes for LeadShine drivers
-#define HLFB_OK                         0   //was "ERROR_NONE" No Error. This CPM component understood and acted on last command and so far has no error executing it.
-#define HLFB_INDEX_TOO_CLOSE_TO_SWITCH  1
-#define HLFB_INDEX_SEARCH_TIMEOUT       2
-//CPM Error codes, other motor comps won't use (HLFB_FAULT may be exception)
-#define HLFB_CMD_INVALID                3    //unexpected command, i.e. comp is in invalid state to accept it now ; we ignored it
-#define HLFB_POSITION                   4    //axis motor reported temporary position error. PP UI is expected to clear this error with MOTOR_CMD_ACK_POS command
-#define HLFB_CMD_UNKNOWN                5    //unknown command; we ignored it
-#define HLFB_FAULT                      6    //axis motor has faulted.  Could be a fault or no power on CPM.  We don't know
+#define MFB_OK                         0   //was "ERROR_NONE" No Error. This CPM component understood and acted on last command and so far has no error executing it.
+//CPM Error codes, other motor comps won't use (MFB_FAULT may be exception)
+#define MFB_NO_HOMING                  1 
+#define MFB_CMD_INVALID                2    //unexpected command, i.e. comp is in invalid state to accept it now ; we ignored it
+#define MFB_POSITION                   3    //axis motor reported temporary position error. PP UI is expected to clear this error with MOTOR_CMD_ACK_POS command
+#define MFB_CMD_UNKNOWN                4    //unknown command; we ignored it
+#define MFB_FAULT                      5    //axis motor has faulted.  Could be a fault or no power on CPM.  We don't know
 
 //CPM linuxcnc States
 #define MS_DISABLED         0    //CPM has been commanded disabled
 #define MS_WAIT             1    //This linuxcnc component is initializing CPM; please wait 
-#define MS_HSTOP_SEARCHING  2    //This linuxcnc component is expecting PP UI to be executing homing; we haven't detected a hardstop hit yet
-#define MS_HSTOP_WAITING    3    //This linuxcnc component detected a hardstop hit, but we wait to let CPM motors complete that detection, or to fail with HLFB un-asserted
-#define MS_HSTOP_HIT        4    //The CPM has detected a hardstop hit. We expect Linuxcnc is still finishing backoff, ect.
+#define MS_HOME_SEARCHING   2    //This linuxcnc component is expecting PP UI to be executing homing; we haven't detected a hardstop hit yet
+#define MS_HOME_WAITING     3    //This linuxcnc component detected a hardstop hit, but we wait to let CPM motors complete that detection, or to fail with HLFB un-asserted
+#define MS_HOME_COMPLETE    4    //The CPM has detected a hardstop hit. We expect Linuxcnc is still finishing backoff, ect.
 #define MS_NORMAL           5    //CPM is active and is not in any hardstop mode 
 #define MS_FAULT            6    //CPM is inactive. We've detected a fault or via ESTOP has been powered off, this comp can't really tell. (but UI can infer)
 
@@ -152,11 +121,11 @@ function _;
 #define MOTOR_CMD_DISABLE   1    //Disable CPM.  The enable line to the CPM is immediately de-asserted so it will no longer move or actively hold position
 #define MOTOR_CMD_NORMAL    2    //Enable the CPM for normal operation.  This comp assumes that PP UI issues the requisite minimum 1 step in each direction to disable hardstop homing mode
                                  //This comp passes through "MS_WAIT" state before assuming "MS_NORMAL" state
-#define MOTOR_CMD_HARDSTOP  3    //Enable the CPM for hardstop detection.  After "MS_WAIT", we enter "MS_HSTOP_SEARCHING" state. 
-                                 //Then this comp assumes PP will issue homing commands to linuxcnc.  The first CPM HLFB inactive state triggers "MS_HSTOP_HIT"
-#define MOTOR_CMD_ACK_HSTOP 4    //When homing is finished, use this command to transistion from "MS_HSTOP_HIT" to "MS_NORMAL" without toggling CPM enable which would have put CPM back into torque foldback mode
-#define MOTOR_CMD_ACK_POS   5    //UI uses this command to acknowledge temporary HLFB_POSITION "errors".  This comp will clear error to HLFB_OK and doesn't change motor state
-#define MOTOR_CMD_ACK_ERR   6    //UI use this command to acknowlege all other error.  This comp will clear previous UI command errors to HLFB_OK if CPM hasn't faulted.
+#define MOTOR_CMD_HOME      3    //Enable the CPM for hardstop detection.  After "MS_WAIT", we enter "MS_HOME_SEARCHING" state. 
+                                 //Then this comp assumes PP will issue homing commands to linuxcnc.  The first CPM HLFB inactive state triggers "MS_HOME_COMPLETE"
+#define MOTOR_CMD_ACK_HOME  4    //When homing is finished, use this command to transistion from "MS_HOME_COMPLETE" to "MS_NORMAL" without toggling CPM enable which would have put CPM back into torque foldback mode
+#define MOTOR_CMD_ACK_POS   5    //UI uses this command to acknowledge temporary MFB_POSITION "errors".  This comp will clear error to HLFB_OK and doesn't change motor state
+#define MOTOR_CMD_ACK_ERR   6    //UI use this command to acknowlege all other error.  This comp will clear previous UI command errors to MFB_OK if CPM hasn't faulted.
 //############# end of defines that need to be kept in sync in constants.py 
 
 //The MS_WAIT has 3 delays 
@@ -185,7 +154,7 @@ function _;
 
 float fsignof(float fnumber) {
     if (fnumber < 0.0 )
-	return -1.0;
+    return -1.0;
     return 1.0;
 }
 
@@ -225,53 +194,53 @@ FUNCTION(_) {
             motor_state = MS_WAIT;
             delay_state = DELAY_BRAKE;
             elapsed_timer = 0.0;
-            status_code = HLFB_OK;
-            internal_status_code = HLFB_OK;
+            status_code = MFB_OK;
+            internal_status_code = MFB_OK;
             target_command = motor_command; //keep last command for later state change use
         }
-        else if (motor_command == MOTOR_CMD_NORMAL || motor_command == MOTOR_CMD_HARDSTOP) {
+        else if (motor_command == MOTOR_CMD_NORMAL || motor_command == MOTOR_CMD_HOME) {
             hit_hardstop = FALSE;
             delay_state = DELAY_BRAKE;
             motor_state = MS_WAIT;
             elapsed_timer = 0.0;
-            status_code = HLFB_OK;
-            internal_status_code = HLFB_OK;
+            status_code = MFB_OK;
+            internal_status_code = MFB_OK;
             target_command = motor_command; //keep last command for later state change use
             brake_release = BRAKE_HOLD;
             fake_open = FALSE;
-            position_at_hstop = 99999.0;
-            position_at_fall_search_start = 99999.0;
-            position_at_fall = 99999.0;
+            //position_at_hstop = 99999.0;
+            //position_at_fall_search_start = 99999.0;
+            //position_at_fall = 99999.0;
         }
-        else if (motor_command == MOTOR_CMD_ACK_HSTOP) {
-            if (motor_state == MS_HSTOP_HIT) {
+        else if (motor_command == MOTOR_CMD_ACK_HOME) {
+            if (motor_state == MS_HOME_COMPLETE) {
                 motor_state = MS_NORMAL;
-                status_code = HLFB_OK;
-                internal_status_code = HLFB_OK;
+                status_code = MFB_OK;
+                internal_status_code = MFB_OK;
             }//else don't change motor_state and flag UI it's doing something wrong
             else {
-                if (internal_status_code != HLFB_FAULT) { //never clear a HLFB_FAULT this way (use MOTOR_CMD_NORMAL or MOTOR_CMD_HARDSTOP) 
-                    status_code = HLFB_CMD_INVALID;
+                if (internal_status_code != MFB_FAULT) { //never clear a HLFB_FAULT this way (use MOTOR_CMD_NORMAL or MOTOR_CMD_HOME) 
+                    status_code = MFB_CMD_INVALID;
                 }
             }
         }
         else if (motor_command == MOTOR_CMD_ACK_POS) {
-            if (motor_state == MS_NORMAL && internal_status_code == HLFB_POSITION) {
-                status_code = HLFB_OK;
-                internal_status_code = HLFB_OK;
+            if (motor_state == MS_NORMAL && internal_status_code == MFB_POSITION) {
+                status_code = MFB_OK;
+                internal_status_code = MFB_OK;
             }
             else if (motor_state != MS_FAULT) {
-                status_code = HLFB_CMD_INVALID; //clue UI it's lost.
+                status_code = MFB_CMD_INVALID; //clue UI it's lost.
                 //DON'T set internal_status_code 
             }
         }
         else if (motor_command == MOTOR_CMD_ACK_ERR) {
             if(motor_state != MS_FAULT)
-                status_code = HLFB_OK;
+                status_code = MFB_OK;
                 //DON'T change internal_status_code
         }
         else { //unknown command
-            status_code = HLFB_CMD_UNKNOWN;
+            status_code = MFB_CMD_UNKNOWN;
             //DON'T change internal_status_code
         }
         motor_command = MOTOR_CMD_NONE; //flag UI and use as "edge detect" so we do this only once for each UI request
@@ -281,8 +250,8 @@ FUNCTION(_) {
 
     if (motor_state == MS_DISABLED) { 
         motor_enable_out = FALSE; //disable CPM
-        status_code = HLFB_OK;
-        internal_status_code = HLFB_OK;
+        status_code = MFB_OK;
+        internal_status_code = MFB_OK;
         motor_fault = TRUE; //flag HAL axis-fault-in
         brake_release = BRAKE_HOLD;
     }
@@ -292,16 +261,16 @@ FUNCTION(_) {
         elapsed_timer += fperiod;
 
         if (delay_state == DELAY_BRAKE) {
-            if (elapsed_timer > CPM_BRAKE_DELAY) {
+            if (elapsed_timer > CPM_BRAKE_DELAY) { //wait until brake has been engaged for a perioid
                 elapsed_timer = 0.0;
                 delay_state = DELAY_OFF; 
-                motor_enable_out = FALSE; //toggle enable
+                motor_enable_out = FALSE; //drop CPM motor enable
                 if (target_command == MOTOR_CMD_DISABLE) {
                     motor_state = MS_DISABLED;
                     motor_enable_out = FALSE;
-                    status_code = HLFB_OK;
-                    internal_status_code = HLFB_OK;
-                    motor_fault = TRUE;
+                    status_code = MFB_OK;
+                    internal_status_code = MFB_OK;
+                    motor_fault = TRUE; //let linuxcnc know motor is off-line
                     brake_release = BRAKE_HOLD;
                 }
             }
@@ -316,8 +285,8 @@ FUNCTION(_) {
         else if (delay_state == DELAY_ON) {
             if (elapsed_timer > CPM_EN_ON_DELAY || hlfb == HLFB_ACTIVE) {
                 if (hlfb == HLFB_ACTIVE) { //CPM has responded
-                    if (target_command == MOTOR_CMD_HARDSTOP) {
-                        motor_state = MS_HSTOP_SEARCHING;
+                    if (target_command == MOTOR_CMD_HOME) {
+                        motor_state = MS_HOME_SEARCHING;
                         elapsed_timer = 0.0;
                         brake_release = BRAKE_RELEASE;
                     }
@@ -327,10 +296,10 @@ FUNCTION(_) {
                         brake_release = BRAKE_RELEASE;
                     }
                 }
-                else {
+                else { //we timed out waiting for motor to be "active" 
                     motor_state = MS_FAULT;
-                    status_code = HLFB_FAULT;
-                    internal_status_code = HLFB_FAULT;
+                    status_code = MFB_FAULT;
+                    internal_status_code = MFB_FAULT;
                     motor_enable_out = FALSE;
                     motor_fault = TRUE; //flag HAL axis-fault-in 
                     brake_release = BRAKE_HOLD;
@@ -338,50 +307,50 @@ FUNCTION(_) {
             }
         }
     }
-    else if (motor_state == MS_HSTOP_SEARCHING) {
+    else if (motor_state == MS_HOME_SEARCHING) {
         brake_release = BRAKE_RELEASE;
         //there is no timeout here.  We assume PP and/or linuxcnc gives up seeking home
         motor_fault = FALSE; //flag to HAL axis-fault-in
 #if (DO_HARDSTOP_HOMING) //this is code for when we want actual hard stop homing
         if (hlfb == HLFB_INACTIVE) { //did we hit hard stop??
-            motor_state = MS_HSTOP_WAITING;
+            motor_state = MS_HOME_WAITING;
 #else // this is code for using limit switches to fake hardstop homing
         if (limit_in == TRUE) {//limit switch is active, pretend we hit hardstop
-            motor_state = MS_HSTOP_HIT; //skip MS_HSTOP_WAITING mode as we'd have problems riding up on limit switch if we wait to stop!!
+            motor_state = MS_HOME_COMPLETE; //skip MS_HSTOP_WAITING mode as we'd have problems riding up on limit switch if we wait to stop!!
             hit_hardstop = TRUE;  //flag for below code that deals with linuxcnc homing
 #endif
             elapsed_timer = 0.0; //HLFB from CPM can't stay inactive for too long, so start timer
         }
     }
-    else if (motor_state == MS_HSTOP_WAITING) {
+    else if (motor_state == MS_HOME_WAITING) {
         elapsed_timer += fperiod;
+        //if hlfb is inactive, we figure it out in the next MS_HOME_COMPLETE state
+        //so error handling is not handled in this state.  we're simply delaying in this state
         if(elapsed_timer > CPM_HSTOP_SETTLING_DELAY) { //we waited long enough to check HLFB again
-            if (hlfb == HLFB_ACTIVE) { //SLP we need to check this more than once
-                motor_state = MS_HSTOP_HIT;
+                motor_state = MS_HOME_COMPLETE;
                 hit_hardstop = TRUE;  //flag for below code that deals with linuxcnc homing
                 elapsed_timer = 0.0; //HLFB from CPM can't stay inactive for too long, so start timer
-        }
+            }
     }
-
-    }
-    else if (motor_state == MS_HSTOP_HIT) {
-        //we exit this mode if 1) the CPM HLFB fails for too long or 2) 
-        brake_release = BRAKE_RELEASE;
+    else if (motor_state == MS_HOME_COMPLETE) {
         //we still monitor HLFB here for abnormal periods of in-activity, even when simulating hardstop homing with switches
         //incase CPM goes south
-        motor_fault = FALSE; //flag HAL axis-fault-in
         if (hlfb == HLFB_INACTIVE) {
             elapsed_timer += fperiod;
             if (elapsed_timer > CPM_MAX_POSITION_DELAY) {
                 motor_fault = TRUE; //flag HAL axis-fault-in
-                status_code = HLFB_FAULT;
-                internal_status_code = HLFB_FAULT;
+                status_code = MFB_FAULT;
+                internal_status_code = MFB_FAULT;
                 motor_state = MS_FAULT;
                 motor_enable_out = FALSE;
                 brake_release = BRAKE_HOLD;
             }
         }
-        else elapsed_timer = 0.0; //active CPM HLFB, so reset time-out timer
+        else {
+            brake_release = BRAKE_RELEASE;
+            motor_fault = FALSE;
+            elapsed_timer = 0.0; //active CPM HLFB, so reset time-out timer
+        }
     }
     else if (motor_state == MS_NORMAL) {
         brake_release = BRAKE_RELEASE;
@@ -391,10 +360,14 @@ FUNCTION(_) {
             if (elapsed_timer > CPM_MAX_POSITION_DELAY) {
                 motor_fault = TRUE; //flag HAL axis-fault-in
                 motor_state = MS_FAULT;
-                status_code = HLFB_FAULT;
-                internal_status_code = HLFB_FAULT;
+                status_code = MFB_FAULT;
+                internal_status_code = MFB_FAULT;
                 motor_enable_out = FALSE;
                 brake_release = BRAKE_HOLD;
+            }
+            else { //position glitch seen, not a fault until CPM_MAX_POSITION_DELAY is exceeded
+                status_code = MFB_POSITION;
+                internal_status_code = MFB_POSITION;
             }
         }
         else elapsed_timer = 0.0;
@@ -402,8 +375,8 @@ FUNCTION(_) {
 //    else if (motor_state == MS_FAULT) //do same thing for MS_FAULT or unknown state
     else { //impossible motor_state
         motor_state = MS_FAULT;
-        status_code = HLFB_FAULT;
-        internal_status_code = HLFB_FAULT;
+        status_code = MFB_FAULT;
+        internal_status_code = MFB_FAULT;
         motor_enable_out = FALSE;
         motor_fault = TRUE; //flag HAL axis-fault-in
         brake_release = BRAKE_HOLD;
@@ -426,27 +399,27 @@ FUNCTION(_) {
             limit_out = TRUE; //tell linuxcnc we hit limit switch
             hit_hardstop = FALSE; //reset flag so we don't reuse it
         }
-        position_at_hstop = joint_pos_fb;  //linuxcnc will put HOME_OFFSET here
+        //position_at_hstop = joint_pos_fb;  //linuxcnc will put HOME_OFFSET here
         //backoff_pos = fsignof(latch_vel) * .1; //should move us off limit switch (needed .53 on y)
     }
     else if (home_state == HOME_FALL_SEARCH_START) { //linuxcnc saw homing (limit) switch actuated, reversed dir and is moving off limit switch at LATCHVEL
-        position_at_fall_search_start = joint_pos_fb;
+        //position_at_fall_search_start = joint_pos_fb;
         backoff_pos = joint_pos_fb + (fsignof(latch_vel) * .1); //move .1" from Hard stop.  Linuxcnc will again put HOME_OFFSET here
         limit_out = TRUE; //we can't lie 'till next linuxcnc state we fell off limit switch; is any movement here is an issue to destroy hardstop location detection??!! 
     }
     else if (home_state == HOME_FALL_SEARCH_WAIT) { 
 #if (DO_HARDSTOP_HOMING)
-	//have we moved far enough yet? for 
+    //have we moved far enough yet? for 
         if ((latch_vel >= 0.0 && joint_pos_fb >= backoff_pos) || (latch_vel <  0.0 && joint_pos_fb <= backoff_pos)) {
             limit_out = FALSE;
             fake_open = TRUE; //continue lie we're off limit switch until we don't have to lie 
-            motor_state = MS_NORMAL; //we exit "MS_HSTOP_HIT" state  
-            position_at_fall = joint_pos_fb;
+            motor_state = MS_NORMAL; //we exit "MS_HOME_COMPLETE" state  
+            //position_at_fall = joint_pos_fb;
         }
 #else
         limit_out = limit_in; //pass through true state of limit switch
         if(limit_out == FALSE)
-            motor_state = MS_NORMAL;  //we exit "MS_HSTOP_HIT" state
+            motor_state = MS_NORMAL;  //we exit "MS_HOME_COMPLETE" state
 #endif
     }
 //    keep reporting whatever limit_out was before if we don't know state of homing
