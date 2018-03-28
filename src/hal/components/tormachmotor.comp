@@ -1,0 +1,219 @@
+component tormachmotor "HAL component for axis motors";
+
+license "GPL";
+author "Tormach";
+// This was orignally home2index, and there's a lot of clean up needed here... this was made for 8L lathe hack
+
+// Input:
+//          index-count             from encoder/counter input connected to encoder Z
+//          limit-in                from machine axis limit switch
+//          home-state              from axis.N.home-state
+//          limit-enable            from UI setting
+//          joint-pos-fb            from axis.N.joint-pos-fb
+// bit      hlfb            from "High Level Feed Back" of CPM
+
+
+//
+// Params:
+//          latch-vel               units/s - used for travel direction
+//          limit-backoff           units to continue off limit before index search
+//          limit-index-min         units minimum distance between switch and index
+
+// Output:
+//          limit-out               to axis.N.home/neg/pos-lim-sw-in
+//SLP now status.code          error-code              to UI
+//          limit-index-distance    to UI to log
+//SLP non CPM additions:
+//          motor-fault             to axis.N.amp-fault-in
+// bit      brake-release           connected to axis (Z) brake
+// s32      motor-state             state of this CPM motor component
+
+// Bi-Directional
+// s32      motor-command           commands from PP UI/Python to this CPM linuxcnc component
+// s32      status-code             status and error code to UI. It is roughly is HLFB from CPM, but includes other command error feedback
+
+// pins
+
+// inputs
+
+// from counter connected to encoder index
+pin in s32 index-count;
+
+// physical limit switch input
+pin in bit limit-in;
+
+// current home state from axis.N.home-state
+pin in s32 home-state;
+
+// UI setting for enabling limit switches
+pin in bit limit-enable;
+
+// from motion axis.N.joint-pos-fb
+pin in float joint-pos-fb;
+// High Level Feed Back (hlfb) from ClearPath Motor
+pin in bit hlfb;
+
+
+// outputs
+
+// what we tell motion axis.N the limit state is
+pin out bit limit-out;
+
+// let UI clear it after reading
+pin io s32 status-code; //SLP was error-code;
+
+// tell the UI distance between switch inactive and index
+// let UI clear it after reading
+pin io float limit-index-distance;
+
+pin out bit motor-fault; //SLP
+pin out bit brake-release; //SLP
+pin out bit motor-enable-out; //SLP
+pin out s32 motor-state; //SLP
+// Bi-Directional
+// setting from UI enabling and setting ClearPath Motor Mode
+pin io s32 motor-command;
+
+
+// params
+
+// index closer to switch than this results in status_code ERROR_INDEX_TOO_CLOSE_TO_SWITCH
+param rw float limit-index-min;
+
+// used for sense of direction on backoff and index search
+param rw float latch-vel;
+
+// distance to move off limit before index search to avoid switch inconsistency
+param rw float limit-backoff;
+
+// distance to go after limit backoff to search for index
+// greater than this results in status_code ERROR_INDEX_SEARCH_TIMEOUT
+param rw float index-search-max;
+
+// must be a pin to compare with limit-in, bool quietly does not work
+pin io bit prev-limit-in;
+
+// as pins for debugging visibility
+pin io s32 prev-index-count;
+pin io float limit-fall-pos;
+pin io float index-active-pos;
+pin io float backoff-pos;
+pin io float index-search-max-pos;
+
+
+function _;
+
+;;
+
+#include <math.h>
+
+#define BIT_FALSE 0
+#define BIT_TRUE  1
+
+#define ERROR_NONE 0
+#define ERROR_INDEX_TOO_CLOSE_TO_SWITCH 1
+#define ERROR_INDEX_SEARCH_TIMEOUT 2
+
+// copied over from motion.h
+// home_state enumerations
+#define HOME_FALL_SEARCH_START (13)
+#define HOME_FALL_SEARCH_WAIT (14)
+
+float fsignof(float fnumber) {
+    if (fnumber < 0.0 )
+	return -1.0;
+    return 1.0;
+}
+
+FUNCTION(_) {
+    //static int prev_index_count = 0;
+
+    motor_fault = 0; //SLP
+    brake_release = 1; //SLP
+    motor_enable_out = 0; //SLP
+    motor_state = 5; //SLP MS_NORMAL; 
+    motor_command = 0; //SLP
+
+
+    if (!limit_enable) {
+        // do not report limit switch activity if settings have them disabled
+        limit_out = FALSE;
+    }
+    else if (home_state < HOME_FALL_SEARCH_START) {
+        // if not looking for index be normal
+        limit_out = limit_in;
+        prev_index_count = index_count;
+    }
+    else if (home_state == HOME_FALL_SEARCH_START) {
+        // 
+        limit_out = TRUE;
+        status_code = ERROR_NONE;
+        prev_index_count = index_count;
+    }
+    else if (home_state == HOME_FALL_SEARCH_WAIT) {
+        if (limit_in == FALSE) {
+            // limit is inactive
+
+            if (prev_limit_in == TRUE) {
+                // first call in this state - compute positions
+                limit_fall_pos = joint_pos_fb;
+                backoff_pos = limit_fall_pos + (fsignof(latch_vel) * limit_backoff);
+                index_search_max_pos = backoff_pos + (fsignof(latch_vel) * index_search_max);
+                prev_index_count = index_count;
+            }
+
+            // do not search for index until backoff has finished
+            // test for still backing off switch
+            if ((latch_vel >= 0.0 && joint_pos_fb < backoff_pos) ||
+                (latch_vel <  0.0 && joint_pos_fb > backoff_pos)) {
+                // keep previous_index_count in sync during backoff
+                prev_index_count = index_count;
+            }
+            else {
+                // test for still within index search window
+                if ((latch_vel >= 0.0 && joint_pos_fb < index_search_max_pos) ||
+                    (latch_vel <  0.0 && joint_pos_fb > index_search_max_pos)) {
+
+                    // test for change of index_count
+                    if (index_count != prev_index_count) {
+                        // index has been seen
+                        // limit_out as FALSE results in change to home_state
+                        limit_out = FALSE;
+
+                        // record where the index was seen
+                        index_active_pos = joint_pos_fb;
+
+                        // indicate distance between limit and index
+                        limit_index_distance = fabs(limit_fall_pos - index_active_pos);
+                        if (limit_index_distance >= limit_index_min) {
+                            // no error
+                            status_code = ERROR_NONE;
+                        }
+                        else {
+                            // error - index too close to switch
+                            status_code = ERROR_NONE; //SLP ERROR_INDEX_TOO_CLOSE_TO_SWITCH;
+                        }
+                    }
+                }
+                else {
+                    // index not seen within timeout - assume index sensor failure
+                    // this will change home_state so this code section stops getting run
+                    limit_out = FALSE;
+
+                    // indicate timeout
+                    status_code = ERROR_NONE; //SLP ERROR_INDEX_SEARCH_TIMEOUT;
+
+                    // indicate distance between limit and index
+                    limit_index_distance = fabs(limit_fall_pos - joint_pos_fb);
+                }
+            }
+        }
+    }
+
+    prev_limit_in = limit_in;
+    //if (limit_in == TRUE) {
+    //    prev_index_count = index_count;
+    //}
+}
+
+
