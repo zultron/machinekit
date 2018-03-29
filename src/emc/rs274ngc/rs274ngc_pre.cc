@@ -1752,8 +1752,6 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 	_setup.sequence_number = sub->sequence_number;
 	logDebug("unwind_call: setting sequence number=%d from frame %d",
 		_setup.sequence_number,_setup.call_level);
-
-	sub->clear();
     }
     // call_level == 0 here.
  
