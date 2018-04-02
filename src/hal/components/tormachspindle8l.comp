@@ -1,0 +1,335 @@
+
+component tormachspindle8l "Tormach Spindle HAL Component for 8L";
+
+license "GPL";
+author "";
+
+// Purpose:
+//
+// For Tormach mill M200 VFD driven by ECM1.
+// Direction is controlled by a discrete electrical signal outside this comp.
+//
+// Alarm checking and VFD frequency drive
+//
+// Inputs:
+//
+//          disable                 0 = normal operation, 1 = no spindle rotation
+//
+//          spindle-type            0 = standard, 1 = speeder, high speed = 2
+//                                  standard honors belt position and low/high min/max
+//                                  speeder multiplies the values in min/max by speeder-factor
+//                                  high speed ignores belt position and uses hispeed-min and hispeed-max always
+//
+//          lowbelt-min-rpm         minumum RPM in low belt
+//          lowbelt-max-rpm         maximum RPM in low belt
+//
+//          highbelt-min-rpm        minimum RPM in high belt
+//          highbelt-max-rpm        maximum RPM in high belt
+//
+//          highbelt-ratio          motor to spindle pulley ratio in high belt
+//          lowbelt-ratio           motor to spindle pulley ratio in low belt
+//
+//          hispeed-min             maximum RPM for high speed spindle-type
+//          hispeed-max             minimum RPM for high speed spindle-type
+//
+//          motor-hz-per-cmd-hz     motor Hz per input Hz (defaults 20.0)
+//
+//          speed-in                driven by motion.spindle-speed-out
+//          belt-position           1 -> high belt, 0 -> low belt position
+//          speeder-factor          defaults to 3.0 - applied to min/max if spindle-type == speeder
+//
+//          enc-door-switch-configured  pay attention to the door switch input to limit RPM when open
+//          enc-door-switch-status      limit spindle speed when enclosure door is open (pin is 0)
+//          enc-door-open-max-rpm       speed limit when enclosure door is open
+//
+// Outputs:
+//
+//          speed-alarm             if true then speed-in is out of range for the current belt position - connect to UI
+//          vfd-freq-cmd            Hz to send to VFD to achieve desired motor RPM
+//                                  This is a velocity command to a stepgen comp that drives the ECM1
+//
+// Spindle-at-speed:                Drive motion.spindle-at-speed based on frequency feedback from VFD_RUNNING signal
+//
+//                                  Determined by comparing VFD motor RPM times pulley ratio "close enough" to commanded speed
+//
+// HAL mappings:
+//
+//    Inputs:
+//          speed-in                motion.spindle-speed-out
+//          spindle-on              motion.spindle-on
+//
+//    Outputs:
+//          at-speed             => motion.spindle-at-speed
+//          speed-out               open loop speed-out in RPM
+//          speed-out-rps           connect to UI for display during gcode program execution
+//
+//
+// This HAL comp does the math to achieve commanded spindle RPM in current hi/lo range
+// it uses: commanded speed, belt-position/pulley ratio, motor Hz per command Hz
+// examples for PCNC 770: 
+// 10200 / 1.5 (belt ratio) => 6800 (motor RPM) / 60 => 113.333333 motor Hz * 20 (motor Hz per command Hz) => 2266.666667 Hz (freq sent to VFD)
+// 525 / 1.5 => 350 / 60 => 5.833333 * 20 => 116.666667 Hz command
+// 3250 / 0.477941 => 6800 / 60 => 113.333333 * 20 => 2266.666667 Hz command
+// 175 / 0.477941 => 366.153981 / 60 => 6.102566 * 20 => 122.051327 Hz command
+
+// standard, speeder, high speed
+pin in s32 spindle_type;
+
+// connect to motion.spindle-speed-out
+pin in float speed_in;
+
+// connect to motion.spindle-at-speed
+pin out bit at_speed;
+
+// connect to motion.spindle-on
+pin in bit spindle_on;
+
+// this inbits the spindle from turning no matter what is commanded
+pin in bit disable;
+
+// connect to UI
+pin out float speed_out_rps;
+pin out float speed_out;
+
+// hi-low belt position
+pin in bit belt_position;
+
+pin in float lowbelt_min_rpm;
+pin in float lowbelt_max_rpm;
+
+pin in float highbelt_min_rpm;
+pin in float highbelt_max_rpm;
+
+pin in float highbelt_ratio;
+pin in float lowbelt-ratio;
+
+pin in float motor_hz_per_cmd_hz;
+pin in float vfd_rpm_feedback;
+
+// current min and max speeds based upon spindle-type and belt-position
+pin out float min_speed;
+pin out float max_speed;
+
+// when true this forces hispeed spindle type no matter the value of spindle-type
+pin in bit is_hispeed;
+
+pin in float hispeed-min;
+pin in float hispeed-max;
+
+pin in float speeder_factor;
+
+pin out bit speed_alarm;
+pin out float vfd_freq_cmd;
+pin out float feedback_motor_rpm;
+pin out float feedback_spindle_rpm;
+
+pin in bit enc_door_switch_configured;
+pin in bit enc_door_switch_status;
+pin in float enc_door_open_max_rpm;
+
+function _ "Tormach Spindle HAL Component M200";
+
+;;
+
+#include <rtapi_math.h>
+
+#define BIT_FALSE 0
+#define BIT_TRUE  1
+
+#define STANDARD_TYPE 0
+#define SPEEDER_TYPE  1
+#define HISPEED_TYPE  2
+
+#define BELT_POSITION_LOW  0
+#define BELT_POSITION_HIGH 1
+
+#define SPEEDER_FACTOR_DEFAULT 3.0
+#define HZ_PER_HZ_DEFAULT 20.0
+
+// M200 feedback frequency times this is motor RPM
+#define VFD_FEEDBACK_FACTOR 3.0
+
+// if spindle speed is within +/- 5% call it "at speed"
+#define AT_SPEED_CLOSE_ENOUGH 0.05
+
+#define RPM_CLOSE_TO_ZERO 0.1
+
+float vfd_rpm2freq(float rpm, float pulley_ratio, float hz_per_cmd_hz, float speeder_ratio) {
+    return rpm / pulley_ratio / 60.0 * hz_per_cmd_hz / speeder_ratio;
+}
+
+// return '1' if value is within tolerance of target else return 0
+// tolerance is of form 0.05 to represent 5%
+int is_close_enough(float val, float target, float tolerance) {
+    float delta;
+
+    delta = fabs(target - val);
+    if ((delta / target) <= tolerance) {
+        return 1;
+    }
+    return 0;
+}
+
+FUNCTION(_) {
+    float speeder_ratio;
+    float clamped_speed_in;
+    float pulley_ratio;
+    float hz_per_cmd_hz;
+    float min_speed_freq_cmd;
+    float max_speed_freq_cmd;
+    float tolerance;
+
+    // spindle-type - for high speed use only low belt params
+    //                for speeder compensate for tripled output speed
+    //                for standard pay attention to belt position
+    switch (spindle_type) {
+        default:
+        case STANDARD_TYPE:
+        case HISPEED_TYPE:
+                // standard
+                speeder_ratio = 1.0;
+                break;
+
+        case SPEEDER_TYPE:
+                // speeder
+                if (speeder_factor != 0.0) {
+                    // use HAL value
+                    speeder_ratio = speeder_factor;
+                }
+                else {
+                    // use default of SPEEDER_FACTOR_DEFAULT
+                    speeder_ratio = SPEEDER_FACTOR_DEFAULT;
+                }
+    }
+
+    // set min and max speed from belt position
+    if (belt_position != BELT_POSITION_LOW) {
+        min_speed = highbelt_min_rpm;
+        max_speed = highbelt_max_rpm;
+    }
+    else {
+        min_speed = lowbelt_min_rpm;
+        max_speed = lowbelt_max_rpm;
+    }
+
+    // test for speeder spindle type
+    if (spindle_type == SPEEDER_TYPE) {
+        min_speed = min_speed * speeder_ratio;
+        max_speed = max_speed * speeder_ratio;
+    }
+
+    // test for high speed spindle type
+    if (spindle_type == HISPEED_TYPE) {
+        // use high speed spindle min and max
+        min_speed = hispeed_min;
+        max_speed = hispeed_max;
+    }
+
+    // range check and clamp speed-in between min and max (0.0 is OK for stopped)
+    speed_alarm = BIT_FALSE;
+
+    // ignore direction sign from speed-in
+    clamped_speed_in = fabs(speed_in);
+
+    if (clamped_speed_in < min_speed) {
+        // under min
+        speed_alarm = BIT_TRUE;
+        clamped_speed_in = min_speed;
+    }
+    else if (clamped_speed_in > max_speed) {
+        // over max
+        speed_alarm = BIT_TRUE;
+        clamped_speed_in = max_speed;
+    }
+
+    // set pulley ratio
+    if (spindle_type == HISPEED_TYPE) {
+        pulley_ratio = 1.0;
+    }   
+    else if (belt_position != BELT_POSITION_LOW) {
+        // BELT_POSITION_HIGH
+        pulley_ratio = highbelt_ratio;
+    }
+    else {
+        // BELT_POSITION_LOW
+        pulley_ratio = lowbelt_ratio;
+    }
+
+    hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
+    if (motor_hz_per_cmd_hz != 0.0) {
+        // use HAL pin value if set
+        hz_per_cmd_hz = motor_hz_per_cmd_hz;
+    }
+
+    // compute frequency to send to VFD commanded speed input
+    // freq_cmd = spindle_rpm /  pulley_ratio / 60 * motor_hz_per_cmd_hz
+    vfd_freq_cmd = vfd_rpm2freq(clamped_speed_in, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
+
+    // clamp vfd_freq_cmd to acceptable range
+    min_speed_freq_cmd = vfd_rpm2freq(min_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
+    max_speed_freq_cmd = vfd_rpm2freq(max_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
+    if (vfd_freq_cmd < min_speed_freq_cmd) {
+        vfd_freq_cmd = min_speed_freq_cmd;
+    }
+    else if (vfd_freq_cmd > max_speed_freq_cmd) {
+        vfd_freq_cmd = max_speed_freq_cmd;
+    }
+
+    if (speed_in < 0)
+	vfd_freq_cmd = vfd_freq_cmd * -1.0;
+
+    // low pass filter - feedback is jumpy sometimes
+    feedback_motor_rpm += ((fabs(vfd_rpm_feedback) * VFD_FEEDBACK_FACTOR) - feedback_motor_rpm) * 0.1;
+    if (feedback_motor_rpm <= RPM_CLOSE_TO_ZERO) {
+        feedback_motor_rpm = 0.0;
+    }
+    feedback_spindle_rpm = feedback_motor_rpm * pulley_ratio;
+
+    // spindle-at-speed check
+    //
+    // non-zero spindle speed and spindle not yet at_speed
+    if (spindle_on && (clamped_speed_in > 0.0)) {
+        // spindle is on
+        if (enc_door_switch_configured == 1 && enc_door_switch_status == 1 && clamped_speed_in > enc_door_open_max_rpm) {
+            // enclosure door is open - limit speed
+            speed_out = enc_door_open_max_rpm;
+            vfd_freq_cmd = vfd_rpm2freq(speed_out, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
+            at_speed = BIT_TRUE;
+        }
+        else if (at_speed == BIT_FALSE) {
+            // not yet at speed
+            // speed-out pin will track VFD feedback until "at speed" after which
+            // speed-out will be reported as the commanded speed
+            speed_out = feedback_spindle_rpm;
+            tolerance = AT_SPEED_CLOSE_ENOUGH;
+            // at the very bottom end the feedback speed falls off from commanded
+            // e.g. 770 high belt 525 RPM feedback is 452 RPM
+            //      yet 575 RPM feedback is 587 RPM
+            //      1100 high belt 300 RPM feedback is 270 RPM
+            if (clamped_speed_in < (1.25 * min_speed)) {
+                // drastically widen the acceptable range at very low commanded RPM
+                tolerance = tolerance * 4;
+            }
+            if (is_close_enough(speed_out, clamped_speed_in, tolerance)) {
+                // spindle should now be at speed
+                at_speed = BIT_TRUE;
+            }
+        }
+        // in at-speed state - speed-out follows speed-in
+        else {
+            speed_out = clamped_speed_in;
+        }
+    }
+    else {
+        // spindle is off
+        at_speed = BIT_FALSE;
+        speed_out = 0.0;
+        speed_alarm = BIT_FALSE;
+    }
+    if (disable) {
+        // no spindle motion allowed
+        vfd_freq_cmd = 0.0;
+    }
+    speed_out_rps = speed_out / 60.0;
+}
+
