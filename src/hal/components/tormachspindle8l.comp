@@ -42,11 +42,15 @@ author "";
 //          enc-door-switch-status      limit spindle speed when enclosure door is open (pin is 0)
 //          enc-door-open-max-rpm       speed limit when enclosure door is open
 //
+//          stepgen-velocity-fb     disable the stepgen after this is has gone to zero to prevent spindle off deceleration jerk
+//
 // Outputs:
 //
 //          speed-alarm             if true then speed-in is out of range for the current belt position - connect to UI
 //          vfd-freq-cmd            Hz to send to VFD to achieve desired motor RPM
 //                                  This is a velocity command to a stepgen comp that drives the ECM1
+//
+//          stepgen-enable          disabled after velocity feedback has gone to zero to prevent spindle off deceleration jerk
 //
 // Spindle-at-speed:                Drive motion.spindle-at-speed based on frequency feedback from VFD_RUNNING signal
 //
@@ -106,6 +110,8 @@ pin in float lowbelt-ratio;
 pin in float motor_hz_per_cmd_hz;
 pin in float vfd_rpm_feedback;
 
+pin in float stepgen_velocity_fb;
+
 // current min and max speeds based upon spindle-type and belt-position
 pin out float min_speed;
 pin out float max_speed;
@@ -126,6 +132,8 @@ pin out float feedback_spindle_rpm;
 pin in bit enc_door_switch_configured;
 pin in bit enc_door_switch_status;
 pin in float enc_door_open_max_rpm;
+
+pin out bit stepgen_enable;
 
 function _ "Tormach Spindle HAL Component M200";
 
@@ -326,10 +334,21 @@ FUNCTION(_) {
         speed_out = 0.0;
         speed_alarm = BIT_FALSE;
     }
+
     if (disable) {
         // no spindle motion allowed
         vfd_freq_cmd = 0.0;
     }
+
+    // take care not to disable the stepgen abruptly from a spindle off command
+    // let the stepgen max acceleration handle it then disable it
+    if (!spindle_on && fabs(stepgen_velocity_fb) <= min_speed_freq_cmd) {
+        stepgen_enable = BIT_FALSE;
+    }
+    else {
+        stepgen_enable = BIT_TRUE;
+    }
+
     speed_out_rps = speed_out / 60.0;
 }
 
