@@ -342,7 +342,8 @@ FUNCTION(_) {
 
     // take care not to disable the stepgen abruptly from a spindle off command
     // let the stepgen max acceleration handle it then disable it
-    if (!spindle_on && fabs(stepgen_velocity_fb) <= min_speed_freq_cmd) {
+    if (!spindle_on && fabs(stepgen_velocity_fb) < min_speed_freq_cmd * .01) {  //A bit of a magic number here, but 1/100th 
+				//1 % of min working freq is close enough to zero to prevent any mechanical clunk when stopping spindle
         stepgen_enable = BIT_FALSE;
     }
     else {
