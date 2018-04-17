@@ -11,7 +11,9 @@ author "";
 // Types:   0, 1, 2
 //          manual  - waits for the GUI to tell it operator tool change complete before asserting iocontrol.0.tool-changed
 //          gang    - does nothing, loops iocontrol.0.tool-change <=> iocontrol.0.tool-changed HAL pins
-//          8 position ATC - all turret I/O controlled here for turret tool change
+//          turret  - multi position ATC - all turret I/O controlled here for turret tool change.
+//                    use has_locking_fb, position_fb_type, min_turret_position, max_position_number, and turret_positions 
+//                    to complete turret definition  
 //
 // HAL mappings:
 //
@@ -31,6 +33,21 @@ author "";
 //          in_position_tool_7
 //          in_position_tool_8
 //          in_position_locked
+//
+//          From lathe specific.ini:
+//          has_locking_fb    TRUE if turret has "locked" feedback switch
+//          position_fb_type  POSITION_FEEDBACK_1HOT, POSITION_FEEDBACK_BINARY  
+//                              note position_fb_type = '1HOT implies min tool position readable is "1"
+//                                   position_fb_type = 'BINARY implies min tool position readable is "0" AND 
+//                                                          we add 1 to reading to jive with rest of linuxcnc/PP 
+//          
+//          Positions are assumed to be contiguously numbered from 1 thur turret_positions 
+//          turret_positions          number of positions /pockets on turret
+//      
+//          (FUTURE, cassette support, not implemented here yet:)
+//          cassette_desired (input)  is probably set by GUI and/or running Gcode??
+//          cassette   (output) actual cassette read by this component ... probably uses in_position_tool_# inputs to read ....
+//         
 //
 //    Outputs:
 //          turret_error        => 0 indicates no error, > 0 is specific error reason
@@ -73,9 +90,15 @@ pin in bit in_position_tool_7;
 pin in bit in_position_tool_8;
 pin in bit in_position_locked;
 
+// set by HAL, also read by UI
+pin in bit has_locking_fb;          //  TRUE if turret has locked feedback switch
+pin in u32 position_fb_type;        // POSITION_FEEDBACK_1HOT, POSITION_FEEDBACK_BINARY 
+pin in u32 turret_positions;        //number of positions /pockets in turret
+
 // outputs to the turret control board
 pin out bit turret_run;
 pin out bit turret_direction;
+pin out u32 turret_positions_out;
 
 // current state of turret state machine
 pin out s32 atc_state;
@@ -94,35 +117,45 @@ function _ "Tormach Lathe Turret for ECM1 HAL Component";
 #define POSITION_INACTIVE       1
 #define LOCKED_ACTIVE           0
 
-#define ATC_TOOL_1          1
-#define ATC_TOOL_2          2
-#define ATC_TOOL_3          3
-#define ATC_TOOL_4          4
-#define ATC_TOOL_5          5
-#define ATC_TOOL_6          6
-#define ATC_TOOL_7          7
-#define ATC_TOOL_8          8
+#define POSITION_INVALID            0
 
-#define MIN_TURRET_TOOL_NUM 1
-#define MAX_TURRET_TOOL_NUM 8
+//keep in sync with .ini files and tormachltc_ecm1.comp usage
+#define POSITION_FEEDBACK_BINARY    0
+#define POSITION_FEEDBACK_1HOT      1
+#define POSITION_FEEDBACK_MAX_1HOTS 8   //impossible for us have more than 8 1HOTS not matter the turret type -- invalid config detection
 
-// these must match in the GUI
+#define MIN_TURRET_TOOL_NUM 1 
+//this code here assumes this, change from 1 at your own risk!
+ 
+
+// these must match in the GUI python/constants.py file
 #define TOOL_CHANGER_TYPE_MANUAL             0
 #define TOOL_CHANGER_TYPE_GANG               1
-#define TOOL_CHANGER_TYPE_TURRET_8POSITION   2
+#define TOOL_CHANGER_TYPE_TURRET             2
+#define TOOL_CHANGER_TYPE_ZBOT               3
+
+//          position_fb_type  POSITION_FEEDBACK_1HOT, POSITION_FEEDBACK_BINARY
+//                              note position_fb_type = 1HOT implies min tool position readable is 1
+//                                   position_fb_type = BINARY implies min tool position readable is 0 AND
+//                                                          we add 1 to reading to jive with rest of linuxcnc and PP
+
+
 
 // TODO: REMEMBER TO ADD PAUSE STATE BEFORE OPENING DIRECTION RELAY IN CASE OF LOCK TIMEOUT
 
 enum {ATC_STATE_WAIT_FOR_CLEAR, ATC_STATE_WAIT_FOR_CMD, ATC_STATE_SEARCH_FOR_TOOL, ATC_STATE_PAUSE_AFTER_SEARCH, ATC_STATE_PAUSE_BEFORE_LOCK, ATC_STATE_LOCK_TOOL, ATC_STATE_PAUSE_AFTER_LOCK, ATC_STATE_PAUSE_AFTER_LOCK_ERROR};
 
 // these values are reflected back to the UI via turret_error pin
-enum {TURRET_ERROR_NONE, TURRET_ERROR_TOOL_SEARCH_TIMEOUT, TURRET_ERROR_LOCK_SENSOR_TIMEOUT, TURRET_ERROR_MULTIPLE_ACTIVE_POSITION_SENSORS};
+enum {TURRET_ERROR_NONE, TURRET_ERROR_TOOL_SEARCH_TIMEOUT, TURRET_ERROR_LOCK_SENSOR_TIMEOUT, TURRET_ERROR_MULTIPLE_ACTIVE_POSITION_SENSORS, TURRET_UNKNOWN_TYPE, TURRET_TOO_MANY_1HOTS};
 
 // microsecond unit timeout values
 #define TOOL_SEARCH_MAX_USEC            6000000
 #define TOOL_SEARCH_PAUSE_USEC           250000
 #define TOOL_REVERSE_PAUSE_USEC          250000
 #define TOOL_LOCK_MAX_USEC              3000000
+//used only when has_locking_fb is TRUE; max time to wait for locking indication to happen
+#define TOOL_LOCK_REV_USEC              2000000  
+//time to run motor in reverse when we don't have locking feedback detector/switch
 #define TOOL_LOCK_PAUSE_USEC             250000
 
 // active low output to run turret motor
@@ -143,6 +176,7 @@ unsigned int loop_usecs = 0;
 static bool once = 0;
 
 int in_position_count = 0;
+unsigned int active_position = POSITION_INVALID;
 
 void error_msg(char *msg) {
     rtapi_print_msg(RTAPI_MSG_ERR, "turret error: %s", msg);
@@ -156,6 +190,106 @@ void debug_msg(bool debug_flag, char *msg) {
 
 
 FUNCTION(_) {
+    turret_positions_out = turret_positions;    //pass-through the comp because can't tie 
+                                                //this to GUI in HAL like I want because:
+//tormach_lathe_8l.hal:440: pin 'tormachltc-ecm1.turret-positions' is connected to a signal
+
+
+// TBD we really wanted a local function to call to get the current position
+// inside these .comp files, we apparently cannot have functions that use the
+// preprocessed typedefs like our input bit "in_position_tool_#" so we just 
+// are calling this "routine" at the top of "FUNCTION()" and leaving what 
+// would have been a return value in the variable "active_position"
+//unsigned int decoded_turret_position(void) {
+
+    if (position_fb_type == POSITION_FEEDBACK_1HOT)
+    { 
+        // check if more than one tool position sensor is active
+        in_position_count = 0;
+
+        active_position = POSITION_INVALID;
+
+        // we check all 1 hot inputs, ignoring those not hooked up (e.g. 4 position 8L turret)
+        // magic numbers 1 through 8 numbers here are obvious 
+        if ((turret_positions >= 1) && (in_position_tool_1 == POSITION_ACTIVE)) {
+            in_position_count++;
+            active_position = 1;
+        }
+        if ((turret_positions >= 2) && (in_position_tool_2 == POSITION_ACTIVE)) {
+            in_position_count++;
+            active_position = 2;
+        }
+        if ((turret_positions >= 3) && (in_position_tool_3 == POSITION_ACTIVE)) {
+            active_position = 3;
+        }
+        if ((turret_positions >= 4) && (in_position_tool_4 == POSITION_ACTIVE)) {
+            in_position_count++;
+            active_position = 4;
+        }
+        if ((turret_positions >= 5) && (in_position_tool_5 == POSITION_ACTIVE)) {
+            in_position_count++;
+            active_position = 5;
+        }
+        if ((turret_positions >= 6) && (in_position_tool_6 == POSITION_ACTIVE)) {
+            in_position_count++;
+            active_position = 6;
+        }
+        if ((turret_positions >= 7) && (in_position_tool_7 == POSITION_ACTIVE)) {
+            in_position_count++;
+            active_position = 7;
+        }
+        if ((turret_positions >= 8) && (in_position_tool_8 == POSITION_ACTIVE)) {
+            in_position_count++;
+            active_position = 8;
+        }
+        if (in_position_count > 1) {
+            active_position = POSITION_INVALID;
+        // hardware fault if more than 1 sensor is active
+            if (in_position_tool_1 == POSITION_ACTIVE) {
+                error_msg("position sensor 1 active");
+            }
+            if (in_position_tool_2 == POSITION_ACTIVE) {
+                error_msg("position sensor 2 active");
+            }
+            if (in_position_tool_3 == POSITION_ACTIVE) {
+                error_msg("position sensor 3 active");
+            }
+            if (in_position_tool_4 == POSITION_ACTIVE) {
+                error_msg("position sensor 4 active");
+            }
+            if (in_position_tool_5 == POSITION_ACTIVE) {
+                error_msg("position sensor 5 active");
+            }
+            if (in_position_tool_6 == POSITION_ACTIVE) {
+                error_msg("position sensor 6 active");
+            }
+            if (in_position_tool_7 == POSITION_ACTIVE) {
+                error_msg("position sensor 7 active");
+            }
+            if (in_position_tool_8 == POSITION_ACTIVE) {
+                error_msg("position sensor 8 active");
+            }
+            error_msg("more than one active tool position sensor");
+            atc_state = ATC_STATE_WAIT_FOR_CLEAR;
+            turret_error = TURRET_ERROR_MULTIPLE_ACTIVE_POSITION_SENSORS;
+        }
+        //invalid config 
+        if (turret_positions > POSITION_FEEDBACK_MAX_1HOTS){
+            error_msg("invalid turret configuration");
+            turret_error = TURRET_TOO_MANY_1HOTS;
+            turret_run = TURRET_STOPPED;
+            atc_state = ATC_STATE_WAIT_FOR_CMD;
+        }
+        
+    } // end of if (position_fb_type == POSITION_FEEDBACK_1HOT) 
+    else 
+    { 
+        //TODO: implement binary position_fb_type here, and keep this catchall for invalid feedback types
+        error_msg("invalid turret feedback type");
+        turret_error = TURRET_UNKNOWN_TYPE;
+        turret_run = TURRET_STOPPED;
+        atc_state = ATC_STATE_WAIT_FOR_CMD;
+    }
 
     debug_messages = 0;
 
@@ -182,14 +316,14 @@ FUNCTION(_) {
         // no action required but to copy tool-change to tool-changed-out
         tool_changed_out = tool_change_in;
     }
-    else if (tool_changer_type == TOOL_CHANGER_TYPE_TURRET_8POSITION) {
+    else if (tool_changer_type == TOOL_CHANGER_TYPE_TURRET) { 
 
         if (loop_period_usecs == 0) {
             // default to 1 ms servo loop period
             loop_usecs = 1000;
         }
 
-        if (tool_prep_number >= MIN_TURRET_TOOL_NUM && tool_prep_number <= MAX_TURRET_TOOL_NUM) {
+        if (tool_prep_number >= MIN_TURRET_TOOL_NUM && tool_prep_number <= turret_positions) {
 
             // here begins the state machine for operating the turret
             switch (atc_state) {
@@ -198,7 +332,7 @@ FUNCTION(_) {
                     // wait for tool_change_in to deassert
                     turret_run = TURRET_STOPPED;
                     turret_direction = TURRET_FORWARD;
-                    if (tool_change_in == 0)	{
+                    if (tool_change_in == 0)    {
                         debug_msg(debug_messages, "found tool-change-in inactive - now waiting for active");
                         // iocontrol no longer requesting a tool change
                         atc_state = ATC_STATE_WAIT_FOR_CMD;
@@ -211,65 +345,7 @@ FUNCTION(_) {
                     if (tool_change_in) {
                         debug_msg(debug_messages, "found tool-change-in active");
                         // iocontrol has requested a tool change
-                        // check if more than one tool position sensor is active
-                        in_position_count = 0;
-#if 1
-                        if (in_position_tool_1 == POSITION_ACTIVE) {
-                            in_position_count++;
-                        }
-                        if (in_position_tool_2 == POSITION_ACTIVE) {
-                            in_position_count++;
-                        }
-                        if (in_position_tool_3 == POSITION_ACTIVE) {
-                            in_position_count++;
-                        }
-                        if (in_position_tool_4 == POSITION_ACTIVE) {
-                            in_position_count++;
-                        }
-                        if (in_position_tool_5 == POSITION_ACTIVE) {
-                            in_position_count++;
-                        }
-                        if (in_position_tool_6 == POSITION_ACTIVE) {
-                            in_position_count++;
-                        }
-                        if (in_position_tool_7 == POSITION_ACTIVE) {
-                            in_position_count++;
-                        }
-                        if (in_position_tool_8 == POSITION_ACTIVE) {
-                            in_position_count++;
-                        }
-                        if (in_position_count > 1) {
-                            // hardware fault if more than 1 sensor is active
-                            if (in_position_tool_1 == POSITION_ACTIVE) {
-                                error_msg("position sensor 1 active");
-                            }
-                            if (in_position_tool_2 == POSITION_ACTIVE) {
-                                error_msg("position sensor 2 active");
-                            }
-                            if (in_position_tool_3 == POSITION_ACTIVE) {
-                                error_msg("position sensor 3 active");
-                            }
-                            if (in_position_tool_4 == POSITION_ACTIVE) {
-                                error_msg("position sensor 4 active");
-                            }
-                            if (in_position_tool_5 == POSITION_ACTIVE) {
-                                error_msg("position sensor 5 active");
-                            }
-                            if (in_position_tool_6 == POSITION_ACTIVE) {
-                                error_msg("position sensor 6 active");
-                            }
-                            if (in_position_tool_7 == POSITION_ACTIVE) {
-                                error_msg("position sensor 7 active");
-                            }
-                            if (in_position_tool_8 == POSITION_ACTIVE) {
-                                error_msg("position sensor 8 active");
-                            }
-                            error_msg("more than one active tool position sensor");
-                            atc_state = ATC_STATE_WAIT_FOR_CLEAR;
-                            turret_error = TURRET_ERROR_MULTIPLE_ACTIVE_POSITION_SENSORS;
-                            break;
-                        }
-#endif
+                        // decoded_turret_position();
                         // start rotating turret forward
                         turret_run = TURRET_RUNNING;
                         atc_timeout = TOOL_SEARCH_MAX_USEC;
@@ -279,21 +355,14 @@ FUNCTION(_) {
                     break;
 
                 case ATC_STATE_SEARCH_FOR_TOOL:
-                    if (((tool_prep_number == ATC_TOOL_1) && (in_position_tool_1 == POSITION_ACTIVE)) ||
-                        ((tool_prep_number == ATC_TOOL_2) && (in_position_tool_2 == POSITION_ACTIVE)) ||
-                        ((tool_prep_number == ATC_TOOL_3) && (in_position_tool_3 == POSITION_ACTIVE)) ||
-                        ((tool_prep_number == ATC_TOOL_4) && (in_position_tool_4 == POSITION_ACTIVE)) ||
-                        ((tool_prep_number == ATC_TOOL_5) && (in_position_tool_5 == POSITION_ACTIVE)) ||
-                        ((tool_prep_number == ATC_TOOL_6) && (in_position_tool_6 == POSITION_ACTIVE)) ||
-                        ((tool_prep_number == ATC_TOOL_7) && (in_position_tool_7 == POSITION_ACTIVE)) ||
-                        ((tool_prep_number == ATC_TOOL_8) && (in_position_tool_8 == POSITION_ACTIVE))) {
-                            // found desired tool position active
-                            // stop forward motion
-                            turret_run = TURRET_STOPPED;
-                            // pause before reversing to prevent relay arcing
-                            atc_timeout = TOOL_REVERSE_PAUSE_USEC;
-                            atc_state = ATC_STATE_PAUSE_AFTER_SEARCH;
-                            debug_msg(debug_messages, "found tool position sensor active");
+                    if (tool_prep_number == active_position) { // faux decoded_turret_position() function call  
+                        // found desired tool position active
+                        // stop forward motion
+                        turret_run = TURRET_STOPPED;
+                        // pause before reversing to prevent relay arcing
+                        atc_timeout = TOOL_REVERSE_PAUSE_USEC;
+                        atc_state = ATC_STATE_PAUSE_AFTER_SEARCH;
+                        debug_msg(debug_messages, "found tool position sensor active");
                     }
                     else if (atc_timeout > 0) {
                         atc_timeout -= loop_usecs;
@@ -312,7 +381,7 @@ FUNCTION(_) {
                     }
                     else {
                         // forward rotation stopped by now, switch the direction relay
-                        turret_direction = TURRET_REVERSE;	
+                        turret_direction = TURRET_REVERSE;
                         atc_timeout = TOOL_REVERSE_PAUSE_USEC;
                         // give the relay a little time before firing run relay
                         atc_state = ATC_STATE_PAUSE_BEFORE_LOCK;
@@ -327,29 +396,45 @@ FUNCTION(_) {
                     else {
                         // start locking turret in position by going backwards
                         turret_run = TURRET_RUNNING;
-                        atc_timeout = TOOL_LOCK_MAX_USEC;
+                        if(has_locking_fb == TRUE)
+                            atc_timeout = TOOL_LOCK_MAX_USEC;
+                        else 
+                            atc_timeout = TOOL_LOCK_REV_USEC;
                         atc_state = ATC_STATE_LOCK_TOOL;
                         debug_msg(debug_messages, "finished pause after direction reverse");
                     }
                     break;
-
                 case ATC_STATE_LOCK_TOOL:
-                    if (in_position_locked == LOCKED_ACTIVE) {
-                        // sensor active plus minimum reverse time
-                        turret_run = TURRET_STOPPED;
-                        atc_timeout = TOOL_LOCK_PAUSE_USEC;
-                        atc_state = ATC_STATE_PAUSE_AFTER_LOCK;
-                        debug_msg(debug_messages, "found lock sensor active, stopping turret");
+                    if (has_locking_fb == TRUE) {
+                        if (in_position_locked == LOCKED_ACTIVE) {
+                            // sensor active plus minimum reverse time
+                            turret_run = TURRET_STOPPED;
+                            atc_timeout = TOOL_LOCK_PAUSE_USEC;
+                            atc_state = ATC_STATE_PAUSE_AFTER_LOCK;
+                            debug_msg(debug_messages, "found lock sensor active, stopping turret");
+                        }
+                        else if (atc_timeout > 0) {
+                            atc_timeout -= loop_usecs;
+                        }
+                        else {
+                            turret_run = TURRET_STOPPED;
+                            atc_timeout = TOOL_LOCK_PAUSE_USEC;
+                            atc_state = ATC_STATE_PAUSE_AFTER_LOCK_ERROR;
+                            error_msg("timeout waiting for turret lock sensor");
+                            turret_error = TURRET_ERROR_LOCK_SENSOR_TIMEOUT;
+                        }
                     }
-                    else if (atc_timeout > 0) {
-                        atc_timeout -= loop_usecs;
-                    }
-                    else {
-                        turret_run = TURRET_STOPPED;
-                        atc_timeout = TOOL_LOCK_PAUSE_USEC;
-                        atc_state = ATC_STATE_PAUSE_AFTER_LOCK_ERROR;
-                        error_msg("timeout waiting for turret lock sensor");
-                        turret_error = TURRET_ERROR_LOCK_SENSOR_TIMEOUT;
+                    else {  // There is no lock switch so we just delay for TOOL_LOCK_REV_USEC
+                        if (atc_timeout > 0) {  //just run turret motor in reverse 'till it times out, then move on to next state
+                            atc_timeout -= loop_usecs; 
+                        }   
+                        else {
+                            // sensor active plus minimum reverse time
+                            turret_run = TURRET_STOPPED;
+                            atc_timeout = TOOL_LOCK_PAUSE_USEC;
+                            atc_state = ATC_STATE_PAUSE_AFTER_LOCK;
+                            debug_msg(debug_messages, "no lock sensor, turret reverse has completed");
+                        }
                     }
                     break;
 

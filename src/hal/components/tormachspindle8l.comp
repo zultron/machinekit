@@ -154,8 +154,10 @@ function _ "Tormach Spindle HAL Component M200";
 #define SPEEDER_FACTOR_DEFAULT 3.0
 #define HZ_PER_HZ_DEFAULT 20.0
 
-// M200 feedback frequency times this is motor RPM
-#define VFD_FEEDBACK_FACTOR 3.0
+// M200 feedback frequency times this is motor RPM (was 3.0) for M200
+// the frequency to RPS ratio is 16384 for the 8L spindle drive
+// to convert to RPM, divide by 60
+#define VFD_FEEDBACK_FACTOR (16384/60)
 
 // if spindle speed is within +/- 5% call it "at speed"
 #define AT_SPEED_CLOSE_ENOUGH 0.05
@@ -239,7 +241,7 @@ FUNCTION(_) {
     // ignore direction sign from speed-in
     clamped_speed_in = fabs(speed_in);
 
-    if (clamped_speed_in < min_speed) {
+    if (spindle_on && (clamped_speed_in < min_speed)) {
         // under min
         speed_alarm = BIT_TRUE;
         clamped_speed_in = min_speed;
@@ -276,7 +278,7 @@ FUNCTION(_) {
     // clamp vfd_freq_cmd to acceptable range
     min_speed_freq_cmd = vfd_rpm2freq(min_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
     max_speed_freq_cmd = vfd_rpm2freq(max_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
-    if (vfd_freq_cmd < min_speed_freq_cmd) {
+    if (spindle_on && vfd_freq_cmd < min_speed_freq_cmd) {
         vfd_freq_cmd = min_speed_freq_cmd;
     }
     else if (vfd_freq_cmd > max_speed_freq_cmd) {
@@ -287,10 +289,13 @@ FUNCTION(_) {
 	vfd_freq_cmd = vfd_freq_cmd * -1.0;
 
     // low pass filter - feedback is jumpy sometimes
-    feedback_motor_rpm += ((fabs(vfd_rpm_feedback) * VFD_FEEDBACK_FACTOR) - feedback_motor_rpm) * 0.1;
-    if (feedback_motor_rpm <= RPM_CLOSE_TO_ZERO) {
-        feedback_motor_rpm = 0.0;
-    }
+//    feedback_motor_rpm += ((fabs(vfd_rpm_feedback) * VFD_FEEDBACK_FACTOR) - feedback_motor_rpm) * 0.1;
+//    if (feedback_motor_rpm <= RPM_CLOSE_TO_ZERO) {
+//        feedback_motor_rpm = 0.0;
+//    }
+
+    feedback_motor_rpm = fabs(stepgen_velocity_fb/VFD_FEEDBACK_FACTOR);
+
     feedback_spindle_rpm = feedback_motor_rpm * pulley_ratio;
 
     // spindle-at-speed check
@@ -351,5 +356,6 @@ FUNCTION(_) {
     }
 
     speed_out_rps = speed_out / 60.0;
+
 }
 
