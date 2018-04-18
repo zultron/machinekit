@@ -220,6 +220,7 @@ FUNCTION(_) {
             active_position = 2;
         }
         if ((turret_positions >= 3) && (in_position_tool_3 == POSITION_ACTIVE)) {
+            in_postion_count++;
             active_position = 3;
         }
         if ((turret_positions >= 4) && (in_position_tool_4 == POSITION_ACTIVE)) {
