@@ -727,9 +727,11 @@ void SET_FEED_REFERENCE(CANON_FEED_REFERENCE reference)
  * Get the limiting acceleration for a displacement from the current position to the given position.
  * returns a single acceleration that is the minimum of all axis accelerations.
  */
-static AccelData getStraightAcceleration(double x, double y, double z,
-                               double a, double b, double c,
-                               double u, double v, double w)
+static AccelData getStraightAcceleration(
+  double x, double y, double z,
+  double a, double b, double c,
+  double u, double v, double w,
+  int known_xyz_motion)
 {
     double dx, dy, dz, du, dv, dw, da, db, dc;
     double tx, ty, tz, tu, tv, tw, ta, tb, tc;
@@ -761,12 +763,15 @@ static AccelData getStraightAcceleration(double x, double y, double z,
     if(!axis_valid(8) || dw < tiny) dw = 0.0;
 
     if(debug_velacc) 
-        printf("getStraightAcceleration dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ", 
+        printf("getStraightAcceleration dx %g dy %g dz %g da %g db %g"
+               " dc %g du %g dv %g dw %g\n", 
                dx, dy, dz, da, db, dc, du, dv, dw);
 
     // Figure out what kind of move we're making.  This is used to determine
     // the units of vel/acc.
-    if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
+    if (known_xyz_motion)
+      cartesian_move = 1;
+    else if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
         du <= 0.0 && dv <= 0.0 && dw <= 0.0) {
 	cartesian_move = 0;
     } else {
@@ -848,7 +853,17 @@ static AccelData getStraightAcceleration(double x, double y, double z,
     return out;
 }
 
-static AccelData getStraightAcceleration(CANON_POSITION pos)
+static AccelData getStraightAcceleration(
+  double x, double y, double z,
+  double a, double b, double c,
+  double u, double v, double w)
+{
+    return getStraightAcceleration(
+      x, y, z, a, b, c, u, v, w, 0);
+}
+
+static AccelData getStraightAcceleration(CANON_POSITION pos,
+                                         int known_xyz_motion)
 {
 
     return getStraightAcceleration(pos.x,
@@ -859,7 +874,8 @@ static AccelData getStraightAcceleration(CANON_POSITION pos)
             pos.c,
             pos.u,
             pos.v,
-            pos.w);
+            pos.w,
+            known_xyz_motion);
 }
 
 static VelData getStraightVelocity(double x, double y, double z,
@@ -1886,7 +1902,8 @@ void ARC_FEED(int line_number,
     
     // Use "straight" acceleration measure to compute acceleration bounds due
     // to non-circular components (helical axis, other axes)
-    AccelData accdata = getStraightAcceleration(endpt);
+    AccelData accdata = getStraightAcceleration(
+      endpt, fabs(total_xyz_length) > 0.000001);
 
     double tt_max_motion = accdata.tmax;
     double tt_max_spiral = spiral_length / a_max_axes;
