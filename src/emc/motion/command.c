@@ -1596,6 +1596,7 @@ check_stuff ( "before command_handler()" );
 	    *(emcmot_hal_data->spindle_locked) = 0;
 	    *(emcmot_hal_data->spindle_orient) = 0;
         emcmotStatus->spindle_cmd.orient_state = EMCMOT_ORIENT_NONE;
+	    emcmotStatus->atspeed_next_feed = 0;
 	    break;
 
 	case EMCMOT_SPINDLE_ORIENT:
