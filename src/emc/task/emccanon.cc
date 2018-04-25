@@ -52,15 +52,6 @@
 #define canon_debug(...)
 #endif
 
-//#define EMCCANON_DEBUG
-
-//Simple compile-time debug macro
-#ifdef EMCCANON_DEBUG
-#define canon_debug(...) printf(__VA_ARGS__)
-#else
-#define canon_debug(...)
-#endif
-
 static bool limitSpindleSpeed(double rpm);
 static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel);
 static double limitSpindleSpeedByActiveFeedRate(double ini_maxvel);
