@@ -3477,6 +3477,10 @@ STATIC int tpHandleRegularCycle(TP_STRUCT * const tp,
     double target_vel_next = tpGetRealTargetVel(tp, nexttc);
 
     tpComputeBlendVelocity(tp, tc, nexttc, target_vel_this, target_vel_next, &v_this, &v_next, NULL);
+    tc->blend_vel = v_this;
+    if (nexttc) {
+        nexttc->blend_vel = v_next;
+    }
 
     if (nexttc && tcIsBlending(tc)) {
         tpDoParabolicBlending(tp, tc, nexttc);
