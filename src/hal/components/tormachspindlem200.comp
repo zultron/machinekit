@@ -41,7 +41,9 @@ author "";
 //          enc-door-switch-configured  pay attention to the door switch input to limit RPM when open
 //          enc-door-switch-status      limit spindle speed when enclosure door is open (pin is 0)
 //          enc-door-open-max-rpm       speed limit when enclosure door is open
-//
+//          vfd-feedback-factor     ratio of feed back signal (2 for 770 or 3 for 1100).  
+//                                  We wanted consistent 3 for all m200 VFDs, but 770s VFDs got shipped with 2 ratio
+//           
 // Outputs:
 //
 //          speed-alarm             if true then speed-in is out of range for the current belt position - connect to UI
@@ -126,6 +128,7 @@ pin out float feedback_spindle_rpm;
 pin in bit enc_door_switch_configured;
 pin in bit enc_door_switch_status;
 pin in float enc_door_open_max_rpm;
+pin in float vfd_feedback_factor;
 
 function _ "Tormach Spindle HAL Component M200";
 
@@ -147,7 +150,7 @@ function _ "Tormach Spindle HAL Component M200";
 #define HZ_PER_HZ_DEFAULT 20.0
 
 // M200 feedback frequency times this is motor RPM
-#define VFD_FEEDBACK_FACTOR 3.0
+#define DEFAULT_VFD_FEEDBACK_FACTOR 3.0
 
 // if spindle speed is within +/- 5% call it "at speed"
 #define AT_SPEED_CLOSE_ENOUGH 0.05
@@ -178,6 +181,7 @@ FUNCTION(_) {
     float min_speed_freq_cmd;
     float max_speed_freq_cmd;
     float tolerance;
+    float vfd_feedback_ratio;
 
     // spindle-type - for high speed use only low belt params
     //                for speeder compensate for tripled output speed
@@ -275,8 +279,12 @@ FUNCTION(_) {
         vfd_freq_cmd = max_speed_freq_cmd;
     }
 
+    if (vfd_feedback_factor != 0.0) //if set externally, use it  
+        vfd_feedback_ratio = vfd_feedback_factor; 
+    else vfd_feedback_ratio = DEFAULT_VFD_FEEDBACK_FACTOR; 
+
     // low pass filter - feedback is jumpy sometimes
-    feedback_motor_rpm += ((fabs(vfd_rpm_feedback) * VFD_FEEDBACK_FACTOR) - feedback_motor_rpm) * 0.1;
+    feedback_motor_rpm += ((fabs(vfd_rpm_feedback) * vfd_feedback_ratio) - feedback_motor_rpm) * 0.1;
     if (feedback_motor_rpm <= RPM_CLOSE_TO_ZERO) {
         feedback_motor_rpm = 0.0;
     }
