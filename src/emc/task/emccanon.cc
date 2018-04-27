@@ -54,6 +54,7 @@
 
 static bool limitSpindleSpeed(double rpm);
 static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel);
+static double limitSpindleSpeedByActiveFeedRate(double ini_maxvel);
 
 static int debug_velacc = 0;
 static double css_maximum; // both always positive
@@ -563,7 +564,13 @@ enum FeedRateType
 static double getActiveFeedRate(FeedRateType angular)
 {
     double uuPerRev = feed_mode ? uuPerRev_vel : uuPerRev_pos;
-    double uu_per_sec = uuPerRev * spindleSpeed_rpm / 60.0;
+    // KLUDGE effective spindle speed depends on current state
+    // If CSS mode is active, then we need to assume the worst-case (maximum) spindle speed specified by the D word
+    // Otherwise, the nominal spindle speed is used
+
+    double planned_spindle_rpm = css_maximum > 0.0 ? css_maximum : spindleSpeed_rpm;
+
+    double uu_per_sec = uuPerRev * planned_spindle_rpm / 60.0;
 
     //KLUDGE relies on external state here
     if (!angular) {
@@ -711,9 +718,11 @@ void SET_FEED_REFERENCE(CANON_FEED_REFERENCE reference)
  * Get the limiting acceleration for a displacement from the current position to the given position.
  * returns a single acceleration that is the minimum of all axis accelerations.
  */
-static AccelData getStraightAcceleration(double x, double y, double z,
-                               double a, double b, double c,
-                               double u, double v, double w)
+static AccelData getStraightAcceleration(
+  double x, double y, double z,
+  double a, double b, double c,
+  double u, double v, double w,
+  int known_xyz_motion)
 {
     double dx, dy, dz, du, dv, dw, da, db, dc;
     double tx, ty, tz, tu, tv, tw, ta, tb, tc;
@@ -745,12 +754,15 @@ static AccelData getStraightAcceleration(double x, double y, double z,
     if(!axis_valid(8) || dw < tiny) dw = 0.0;
 
     if(debug_velacc) 
-        printf("getStraightAcceleration dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g ", 
+        printf("getStraightAcceleration dx %g dy %g dz %g da %g db %g"
+               " dc %g du %g dv %g dw %g\n", 
                dx, dy, dz, da, db, dc, du, dv, dw);
 
     // Figure out what kind of move we're making.  This is used to determine
     // the units of vel/acc.
-    if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
+    if (known_xyz_motion)
+      cartesian_move = 1;
+    else if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
         du <= 0.0 && dv <= 0.0 && dw <= 0.0) {
 	cartesian_move = 0;
     } else {
@@ -832,7 +844,17 @@ static AccelData getStraightAcceleration(double x, double y, double z,
     return out;
 }
 
-static AccelData getStraightAcceleration(CANON_POSITION pos)
+static AccelData getStraightAcceleration(
+  double x, double y, double z,
+  double a, double b, double c,
+  double u, double v, double w)
+{
+    return getStraightAcceleration(
+      x, y, z, a, b, c, u, v, w, 0);
+}
+
+static AccelData getStraightAcceleration(CANON_POSITION pos,
+                                         int known_xyz_motion)
 {
 
     return getStraightAcceleration(pos.x,
@@ -843,7 +865,8 @@ static AccelData getStraightAcceleration(CANON_POSITION pos)
             pos.c,
             pos.u,
             pos.v,
-            pos.w);
+            pos.w,
+            known_xyz_motion);
 }
 
 static VelData getStraightVelocity(double x, double y, double z,
@@ -1016,11 +1039,8 @@ static void flush_segments(void) {
     VelData linedata = getStraightVelocity(x, y, z, a, b, c, u, v, w);
     double ini_maxvel = linedata.vel;
 
-    double nominal_vel = getActiveFeedRate(static_cast<FeedRateType>(!cartesian_move && angular_move));
-    canon_debug("in flush_segments: got vel %f, nominal_vel %f\n", vel, nominal_vel);
-    double vel = std::min(ini_maxvel, nominal_vel);
-
-    limitSpindleSpeedFromVel(nominal_vel, ini_maxvel);
+    double vel = limitSpindleSpeedByActiveFeedRate(ini_maxvel);
+    canon_debug("Line segment maximum velocity %f, requested vel %f\n", ini_maxvel, vel);
 
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = feed_mode;
@@ -1196,7 +1216,9 @@ void RIGID_TAP(int line_number, double x, double y, double z)
                               canonEndPoint.u, canonEndPoint.v, canonEndPoint.w);
 
     ini_maxvel = veldata.vel;
-    
+
+    limitSpindleSpeedByActiveFeedRate(ini_maxvel);
+
     AccelData accdata = getStraightAcceleration(x, y, z,
                                   canonEndPoint.a, canonEndPoint.b, canonEndPoint.c,
                                   canonEndPoint.u, canonEndPoint.v, canonEndPoint.w);
@@ -1241,9 +1263,7 @@ void STRAIGHT_PROBE(int line_number,
     VelData veldata = getStraightVelocity(x, y, z, a, b, c, u, v, w);
     double ini_maxvel = veldata.vel;
 
-    double nominal_vel = getActiveFeedRate(static_cast<FeedRateType>(!cartesian_move && angular_move));
-    double vel = std::min(ini_maxvel, nominal_vel);
-    limitSpindleSpeedFromVel(nominal_vel, ini_maxvel);
+    double vel = limitSpindleSpeedByActiveFeedRate(ini_maxvel);
 
     AccelData accdata = getStraightAcceleration(x, y, z, a, b, c, u, v, w);
     double acc = accdata.acc;
@@ -1873,7 +1893,8 @@ void ARC_FEED(int line_number,
     
     // Use "straight" acceleration measure to compute acceleration bounds due
     // to non-circular components (helical axis, other axes)
-    AccelData accdata = getStraightAcceleration(endpt);
+    AccelData accdata = getStraightAcceleration(
+      endpt, fabs(total_xyz_length) > 0.000001);
 
     double tt_max_motion = accdata.tmax;
     double tt_max_spiral = spiral_length / a_max_axes;
@@ -1883,14 +1904,10 @@ void ARC_FEED(int line_number,
     // circle plane and helical axis will still be within limits
     double a_max = total_xyz_length / tt_max;
 
-    // Limit velocity by maximum
-    double nominal_vel = getActiveFeedRate(FEED_LINEAR);
-    double vel = MIN(nominal_vel, v_max);
-
     // Make sure spindle speed is within range (for spindle_sync motion only)
-    limitSpindleSpeedFromVel(nominal_vel, v_max);
+    double vel = limitSpindleSpeedByActiveFeedRate(v_max);
 
-    canon_debug("current F = %f\n", nominal_vel);
+    canon_debug("current F = %f\n", vel);
     canon_debug("vel = %f\n",vel);
 
     canon_debug("v_max = %f\n",v_max);
@@ -2033,6 +2050,7 @@ static bool limitSpindleSpeed(double rpm)
     double limit_rpm = ceil(fabs(rpm));
     if (spindleSpeed_rpm <= limit_rpm) {
         // spindle speed within range, do nothing
+        canon_debug("Spindle speed %f is within max of %f\n", spindleSpeed_rpm, limit_rpm);
         return false;
     }
     EMC_SPINDLE_SPEED emc_spindle_speed_msg;
@@ -2046,6 +2064,10 @@ static bool limitSpindleSpeed(double rpm)
 static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel)
 {
     if (!synched || nominal_vel <= 0.0) {
+        canon_debug("No spindle speed limit required\n");
+        return false;
+    } else if (feed_mode) {
+        canon_debug("Skipping spindle speed limit due to velocity sync\n");
         return false;
     }
     const static double SPINDLE_SYNCH_MARGIN = 0.05;
@@ -2054,6 +2076,19 @@ static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel)
     double maxSpindleRPM = spindleSpeed_rpm * max_vel / nominal_vel * (1.0 - SPINDLE_SYNCH_MARGIN);
     return limitSpindleSpeed(maxSpindleRPM);
 }
+
+static double limitSpindleSpeedByActiveFeedRate(double ini_maxvel)
+{
+    const double nominal_vel = getActiveFeedRate(static_cast<FeedRateType>(!cartesian_move && angular_move));
+    // Limit spindle speed during rigid tapping
+    limitSpindleSpeedFromVel(nominal_vel, ini_maxvel);
+
+    double real_max_vel = std::min(ini_maxvel, nominal_vel);
+    canon_debug("%s: nominal_vel %f, real_max_vel %f\n", __PRETTY_FUNCTION__, nominal_vel, real_max_vel);
+    return real_max_vel;
+}
+
+
 
 void STOP_SPINDLE_TURNING()
 {

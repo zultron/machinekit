@@ -747,7 +747,7 @@ EXTRA_CFLAGS := $(filter-out -ffast-math,$(RTFLAGS)) -D__MODULE__ -I$(BASEPWD) -
 	-DSEQUENTIAL_SUPPORT -DHAL_SUPPORT -DDYNAMIC_PLCSIZE -DRT_SUPPORT -DOLD_TIMERS_MONOS_SUPPORT -DMODBUS_IO_MASTER \
 	-fno-fast-math $(call cc-option,-mieee-fp) -fno-unsafe-math-optimizations \
 	-Wframe-larger-than=3200 -Wno-declaration-after-statement \
-	$(INTEGER_OVERFLOW_FLAGS)
+	$(INTEGER_OVERFLOW_FLAGS) -std=gnu99 -fgnu89-inline
 ifneq ($(KERNELRELEASE),)
 ifeq ($(RTARCH):$(RTAI):$(filter $(RTFLAGS),-msse),x86_64:3:)
 EXTRA_CFLAGS += -msse

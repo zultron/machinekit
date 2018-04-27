@@ -1582,9 +1582,9 @@ check_stuff ( "before command_handler()" );
 	    /* 	tpAbort(&emcmotDebug->tp); */
 	    /* 	SET_MOTION_ERROR_FLAG(1); */
 	    /* } else { */
-        emcmotStatus->spindle_cmd.velocity_rpm_out = emcmotCommand->vel;
-        emcmotStatus->spindle_cmd.css_factor = emcmotCommand->ini_maxvel;
-        emcmotStatus->spindle_cmd.xoffset = emcmotCommand->acc;
+        emcmotStatus->spindle_cmd.velocity_rpm_out = emcmotCommand->spindle_speed;
+        emcmotStatus->spindle_cmd.css_factor = emcmotCommand->css_factor;
+        emcmotStatus->spindle_cmd.xoffset = emcmotCommand->css_xoffset;
         emcmotStatus->spindle_cmd.brake = 0; //disengage brake
 	    emcmotStatus->atspeed_next_feed = 1;
 	    break;
@@ -1600,6 +1600,7 @@ check_stuff ( "before command_handler()" );
 	    *(emcmot_hal_data->spindle_locked) = 0;
 	    *(emcmot_hal_data->spindle_orient) = 0;
         emcmotStatus->spindle_cmd.orient_state = EMCMOT_ORIENT_NONE;
+	    emcmotStatus->atspeed_next_feed = 0;
 	    break;
 
 	case EMCMOT_SPINDLE_ORIENT:

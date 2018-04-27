@@ -1,0 +1,26 @@
+%
+( A nested Fanuc subroutine example )
+
+#1 = 0
+(PRINT,X MAIN BEGIN LINE #<_line> [exp. 5]:  1=#1)
+G91 G0 X0.1 ; generate state tag
+M98 P2 L5   ; line 7
+G91 G0 X0.1 ; generate state tag
+(PRINT,X MAIN END LINE #<_line> [exp. 9]:  1=#1)
+M30
+
+O2
+(PRINT,X O2 BEGIN LINE #<_line> [exp. 13]:  1=#1)
+G91 G0 X0.1 ; generate state tag
+M98 P1 L3   ; line 15
+G91 G0 X0.1 ; generate state tag
+#1 = [FIX[#1] + 1]
+(PRINT,X O2 END LINE #<_line> [exp. 18]:  1=#1)
+M99
+
+O1
+#1 = [#1 + 0.1]
+G91 G0 X0.1 ; generate state tag
+(PRINT,X >>>> LOOP [O2.O1] LINE #<_line> [exp. 24]:  #1)
+M99
+%

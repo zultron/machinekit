@@ -38,14 +38,14 @@ static bool scan_old_style(
 	if(!random_toolchanger) {
 	    fakepocket++;
 	    if(fakepocket >= CANON_POCKETS_MAX) {
-		printf("too many tools. skipping tool %d\n", toolno);
+		fprintf(stderr, "too many tools. skipping tool %d\n", toolno);
 		return true;
 	    }
 	    if(fms) fms[fakepocket] = pocket;
 	    pocket = fakepocket;
 	}
 	if (pocket < 0 || pocket >= CANON_POCKETS_MAX) {
-	    printf("max pocket number is %d. skipping tool %d\n", CANON_POCKETS_MAX-1, toolno);
+	    fprintf(stderr, "max pocket number is %d. skipping tool %d\n", CANON_POCKETS_MAX-1, toolno);
 	    return true;
 	} else {
 	    /* lathe tool */
@@ -66,14 +66,14 @@ static bool scan_old_style(
 	if(!random_toolchanger) {
 	    fakepocket++;
 	    if(fakepocket >= CANON_POCKETS_MAX) {
-		printf("too many tools. skipping tool %d\n", toolno);
+		fprintf(stderr, "too many tools. skipping tool %d\n", toolno);
 		return true;
 	    }
 	    if(fms) fms[fakepocket] = pocket;
 	    pocket = fakepocket;
 	}
 	if (pocket < 0 || pocket >= CANON_POCKETS_MAX) {
-	    printf("max pocket number is %d. skipping tool %d\n", CANON_POCKETS_MAX-1, toolno);
+	    fprintf(stderr, "max pocket number is %d. skipping tool %d\n", CANON_POCKETS_MAX-1, toolno);
 	    return true;
 	} else {
 	    /* mill tool */
@@ -175,7 +175,7 @@ int loadToolTable(const char *filename,
                 if (!random_toolchanger) {
                     fakepocket++;
                     if (fakepocket >= CANON_POCKETS_MAX) {
-                        printf("too many tools. skipping tool %d\n", toolno);
+                        fprintf(stderr, "too many tools. skipping tool %d\n", toolno);
                         valid = 0;
                         break;
                     }
@@ -183,7 +183,7 @@ int loadToolTable(const char *filename,
                     pocket = fakepocket;
                 }
                 if (pocket < 0 || pocket >= CANON_POCKETS_MAX) {
-                    printf("max pocket number is %d. skipping tool %d\n", CANON_POCKETS_MAX - 1, toolno);
+                    fprintf(stderr, "max pocket number is %d. skipping tool %d\n", CANON_POCKETS_MAX - 1, toolno);
                     valid = 0;
                     break;
                 }
@@ -248,6 +248,7 @@ int loadToolTable(const char *filename,
             token = strtok(NULL, " ");
         }
         if (valid) {
+            //fprintf(stderr, "assigning data for pocket: %d, tool: %d\n", pocket, toolno);
             toolTable[pocket].toolno = toolno;
             toolTable[pocket].offset = offset;
             toolTable[pocket].diameter = diameter;
@@ -257,12 +258,16 @@ int loadToolTable(const char *filename,
 
             if (ttcomments && comment)
                 strcpy(ttcomments[pocket], comment);
+
+            if (!random_toolchanger && toolTable[0].toolno == toolTable[pocket].toolno) {
+                toolTable[0] = toolTable[pocket];
+            }
+
         } else {
             fprintf(stderr, "Unrecognized line skipped: %s", orig_line);
         }
-        if (!random_toolchanger && toolTable[0].toolno == toolTable[pocket].toolno) {
-            toolTable[0] = toolTable[pocket];
-        }
+
+
     }
 
     // close the file

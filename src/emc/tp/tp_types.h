@@ -76,7 +76,8 @@ typedef enum {
  * synchronized motion code.
  */
 typedef struct {
-     double offset;
+    spindle_origin_t origin; //!< initial position of spindle during synchronization (direction-aware)
+
      int waiting_for_index;
      int waiting_for_atspeed;
 } tp_spindle_t;
@@ -137,5 +138,18 @@ typedef struct {
     syncdio_t syncdio; //record tpSetDout's here
 
 } TP_STRUCT;
+
+
+/**
+ * Describes blend modes used in the trajectory planner.
+ * @note these values are used as array indices, so make sure valid options
+ * start at 0 and increase by one.
+ */
+typedef enum {
+    NO_BLEND = -1,
+    PARABOLIC_BLEND,
+    TANGENT_SEGMENTS_BLEND,
+    ARC_BLEND
+} tc_blend_type_t;
 
 #endif				/* TP_TYPES_H */

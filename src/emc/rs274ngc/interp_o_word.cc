@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <new>
 #include "rs274ngc.hh"
 #include "rs274ngc_return.hh"
 #include "interp_return.hh"
@@ -277,6 +278,8 @@ int Interp::execute_call(setup_pointer settings,
 		// Set return location to repeat this block for next
 		// iteration
 		previous_frame->position = eblock->offset;
+		// Unbump line number for next iteration
+		previous_frame->sequence_number--;
 
 	    } else
 		// No loops remain; reset loop counter
@@ -675,6 +678,7 @@ int Interp::enter_context(setup_pointer settings, block_pointer block)
 	ERS(NCE_TOO_MANY_SUBROUTINE_LEVELS);
     }
     context_pointer frame = &settings->sub_context[settings->call_level];
+    frame->clear();
     // mark frame for finishing remap
     frame->context_status = (block->call_type  == CT_REMAP) ? REMAP_FRAME : 0;
     frame->subName = block->o_name;
