@@ -200,6 +200,10 @@ int Interp::write_state_tag(block_pointer block,
         StateTag &state)
 {
 
+    if (_setup.skipping_to_sub) {
+	logDebug("write_and_update_state_tag:  not tagging block while skipping");
+	return 0;
+    }
     state.fields[GM_FIELD_LINE_NUMBER] = settings->get_toplevel_line_number();
     state.fields[GM_FIELD_STEPPING_ID] = settings->stepping_id;
     //FIXME refactor these into setup methods, and maybe put this whole method in setup struct
