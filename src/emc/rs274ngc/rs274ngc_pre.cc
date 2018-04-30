@@ -1059,6 +1059,7 @@ int Interp::init()
       _setup.origin_index = 1;
       pars[5220] = 1.0;
   }
+  _setup.plane = GET_EXTERNAL_PLANE();
 
   k = (5200 + (_setup.origin_index * 20));
   _setup.origin_offset_x = USER_TO_PROGRAM_LEN(pars[k + 1]);
