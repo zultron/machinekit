@@ -308,6 +308,8 @@ static int fetch_hwaddr(const char *board_ip, int sockfd, unsigned char buf[6]) 
 }
 
 // return value indicates if still under the error limit ceiling or not
+// if returns false, the persistent io_error flag has been set and requires
+// operator intervention)
 static bool record_soft_error(hm2_eth_t *board) {
     if (!board->hal) {
         LL_PRINT("Ignoring soft error during init\n");
@@ -315,14 +317,19 @@ static bool record_soft_error(hm2_eth_t *board) {
     }
 
     // From what I discern, the llio driver here can tolerate some limited packet loss (or timeouts on reads).
+    // The soft reset flag triggers later write's to do a full force write to refresh the FPGA in case
+    // its out of sync I guess.
     board->llio.needs_soft_reset = 1;
     *board->hal->packet_error = 1;
 
     int32_t increment = board->hal->packet_error_increment;
+
+    // packet_error_increment can be set by other code so sanity check it a little
     if (increment < 1) increment = 1;
     board->comm_error_counter += increment;
 
-    // Bound the error counter to sane values
+    // Bound the error counter to sane values (because the error increment and decrement amounts are
+    // exposed in hal and could be tweaked by some other code)
     if (board->comm_error_counter < 0 || board->comm_error_counter > board->hal->packet_error_limit)
         board->comm_error_counter = board->hal->packet_error_limit;
 
@@ -330,16 +337,16 @@ static bool record_soft_error(hm2_eth_t *board) {
 
     if (board->comm_error_counter == board->hal->packet_error_limit) {
         // had enough packet errors to trip the persistent io_error state that requires user intervention
-        *board->hal->packet_error_exceeded = true;
-        *board->llio.io_error = true;
-        LL_PRINT("Recording soft error that tripped io_error. iter=%d\n", board->read_cnt);
+        *board->hal->packet_error_exceeded = 1;
+        *board->llio.io_error = 1;
+        LL_PRINT("Recording soft error that tripped hard io_error. iter=%d\n", board->read_cnt);
         return false;
     } else {
         // counted an error, but it hasn't reached the critical level yet.
         //
         // note the original code didn't reset io_error here, it only set it to true if limit was hit
         // io_error indicates a "permanent" error that needs user intervention to fix
-        *board->hal->packet_error_exceeded = false;
+        *board->hal->packet_error_exceeded = 0;
         LL_PRINT("Recording soft error. iter=%d\n", board->read_cnt);
         return true;
     }
@@ -347,8 +354,11 @@ static bool record_soft_error(hm2_eth_t *board) {
 
 static void decrement_soft_error(hm2_eth_t *board) {
     if (!board->hal) return; // still early in hm2_eth_probe
+
+    // packet_error_decrement can be set by other code so sanity check it a little
     int32_t decrement = board->hal->packet_error_decrement;
     if (decrement < 1) decrement = 1;
+
     board->comm_error_counter -= decrement;
     if (board->comm_error_counter < 0) board->comm_error_counter = 0;
     *board->hal->packet_error_level = board->comm_error_counter;
@@ -440,17 +450,26 @@ static int init_board(hm2_eth_t *board, const char *board_ip) {
 }
 
 static int close_board(hm2_eth_t *board) {
-    if (use_iptables()) clear_iptables();
+    int ret = 0;
+    if (board->sockfd != -1) {
+        if (use_iptables()) clear_iptables();
 
-    if (board->req.arp_flags & ATF_PERM) {
-        int ret = ioctl(board->sockfd, SIOCDARP, &board->req);
-        if (ret < 0) perror("ioctl SIOCDARP");
+        if (board->req.arp_flags & ATF_PERM) {
+            ret = ioctl(board->sockfd, SIOCDARP, &board->req);
+            if (ret < 0) perror("ioctl SIOCDARP");
+        }
+
+        ret = shutdown(board->sockfd, SHUT_RDWR);
+        if (ret != 0)
+            LL_PRINT("ERROR: can't shutdown socket: %s\n", strerror(errno));
+
+        ret = close(board->sockfd);
+        if (ret != 0)
+            LL_PRINT("ERROR: can't close socket: %s\n", strerror(errno));
+
+        board->sockfd = -1;
     }
-    int ret = shutdown(board->sockfd, SHUT_RDWR);
-    if (ret < 0)
-        LL_PRINT("ERROR: can't close socket: %s\n", strerror(errno));
-
-    return ret < 0 ? -errno : 0;
+    return ret;
 }
 
 static int eth_socket_send(int sockfd, const void *buffer, int len, int flags) {
@@ -572,18 +591,18 @@ static int hm2_eth_send_queued_reads(hm2_lowlevel_io_t *this) {
     if ((board->read_packet_ptr + sizeof(lbp16_cmd_addr)*3 + sizeof(uint32_t)) > board->read_packet + sizeof(board->read_packet)) {
         LL_PRINT("ERROR: read buffer overflow error in hm2_eth_send_queued_reads\n");
         return 0;
-    } else if ((board->queue_reads_count + 2) >= MAX_ETH_READS) {
+    } else if ((board->read_entry_count + 2) >= MAX_ETH_READS) {
         LL_PRINT("ERROR: reached max queued reads already of %d in hm2_eth_send_queued_reads\n", MAX_ETH_READS);
         return 0;
     } else {
         // read (low 16 bits of) last write number from space 4 address 0010
         LBP16_INIT_PACKET4(*(lbp16_cmd_addr*)(board->read_packet_ptr), CMD_READ_COMM_CTRL_ADDR16(1), 0x8);
         board->read_packet_ptr += sizeof(lbp16_cmd_addr);
-        board->queue_reads[board->queue_reads_count].buffer = &board->rxudpcount;
-        board->queue_reads[board->queue_reads_count].size = 2;
-        board->queue_reads[board->queue_reads_count].from = board->queue_buff_size;
-        board->queue_reads_count++;
-        board->queue_buff_size += 2;
+        board->read_entries[board->read_entry_count].buffer = &board->rxudpcount;
+        board->read_entries[board->read_entry_count].size = 2;
+        board->read_entries[board->read_entry_count].received_data_offset = board->total_read_buffer_size;
+        board->read_entry_count++;
+        board->total_read_buffer_size += 2;
 
         board->read_cnt++;
         // write then read back space 4 scratch register at 0010 to verify we got the right receive packet
@@ -594,11 +613,11 @@ static int hm2_eth_send_queued_reads(hm2_lowlevel_io_t *this) {
 
         LBP16_INIT_PACKET4(*(lbp16_cmd_addr*)(board->read_packet_ptr), CMD_READ_TIMER_ADDR16_INCR(4), 0x10);
         board->read_packet_ptr += sizeof(lbp16_cmd_addr);
-        board->queue_reads[board->queue_reads_count].buffer = &board->confirm_read_cnt;
-        board->queue_reads[board->queue_reads_count].size = 8;
-        board->queue_reads[board->queue_reads_count].from = board->queue_buff_size;
-        board->queue_reads_count++;
-        board->queue_buff_size += 8;
+        board->read_entries[board->read_entry_count].buffer = &board->confirm_read_cnt;
+        board->read_entries[board->read_entry_count].size = 8;
+        board->read_entries[board->read_entry_count].received_data_offset = board->total_read_buffer_size;
+        board->read_entry_count++;
+        board->total_read_buffer_size += 8;
 
         send = eth_socket_send(board->sockfd, (void*) &board->read_packet, board->read_packet_ptr - board->read_packet, 0);
         if (send < 0) {
@@ -617,7 +636,7 @@ static int hm2_eth_send_queued_reads(hm2_lowlevel_io_t *this) {
 static int hm2_eth_receive_queued_reads(hm2_lowlevel_io_t *this) {
     hm2_eth_t *board = this->private;
     int recv, attempts = 0;
-    rtapi_u8 tmp_buffer[board->queue_buff_size];
+    rtapi_u8 tmp_buffer[board->total_read_buffer_size];
     long long t1, t2, before_recv_time;
     long int deltat;
     t1 = rtapi_get_time();
@@ -658,7 +677,7 @@ do_recv_packet:
         // of the timeout above anyway.  And we pulled out the rtapi_delay thing which was really just
         // a busy wait since it had no discernable benefit.
         errno = 0;
-        recv = eth_socket_recv(board->sockfd, (void*) &tmp_buffer, board->queue_buff_size, 0);
+        recv = eth_socket_recv(board->sockfd, (void*) &tmp_buffer, board->total_read_buffer_size, 0);
         t2 = rtapi_get_time();
 
         // Capture the max time we are ever stuck inside recv calls
@@ -668,17 +687,17 @@ do_recv_packet:
             board->hal->packet_recv_tmax = deltat;
 
         attempts++;
-    } while (recv != board->queue_buff_size && t2 < read_deadline);
+    } while (recv != board->total_read_buffer_size && t2 < read_deadline);
 
     // Capture the max recv attempts
     if ((board->hal) && (board->hal->packet_recv_attempts < attempts))
         board->hal->packet_recv_attempts = attempts;
 
-    if (recv != board->queue_buff_size) {
+    if (recv != board->total_read_buffer_size) {
         // We must have timed out
         board->read_packet_ptr = board->read_packet;
-        board->queue_reads_count = 0;
-        board->queue_buff_size = 0;
+        board->read_entry_count = 0;
+        board->total_read_buffer_size = 0;
         if (record_soft_error(board))
             return -EAGAIN;
         else
@@ -687,9 +706,11 @@ do_recv_packet:
 
     LL_PRINT_IF(debug, "enqueue_read(%d) : PACKET RECV [SIZE: %d | TRIES: %d | TIME: %llu]\n", board->read_cnt, recv, attempts, t2 - t1);
 
+    // Now that we have the data, copy it from the local stack buffer to the final destinations that we tracked using
+    // the array of hm2_read_entry_t structs.
     int ii;
-    for (ii = 0; ii < board->queue_reads_count; ii++) {
-        memcpy(board->queue_reads[ii].buffer, &tmp_buffer[board->queue_reads[ii].from], board->queue_reads[ii].size);
+    for (ii = 0; ii < board->read_entry_count; ii++) {
+        memcpy(board->read_entries[ii].buffer, &tmp_buffer[board->read_entries[ii].received_data_offset], board->read_entries[ii].size);
     }
 
     // This appears to be a "do-over" because the UDP packet "sequence" number wasn't what we wanted
@@ -702,8 +723,8 @@ do_recv_packet:
     }
 
     board->read_packet_ptr = board->read_packet;
-    board->queue_reads_count = 0;
-    board->queue_buff_size = 0;
+    board->read_entry_count = 0;
+    board->total_read_buffer_size = 0;
 
     int result = 1;
 
@@ -739,18 +760,18 @@ static int hm2_eth_enqueue_read(hm2_lowlevel_io_t *this, rtapi_u32 addr, void *b
     if ((board->read_packet_ptr + sizeof(lbp16_cmd_addr)) > board->read_packet + sizeof(board->read_packet)) {
         LL_PRINT("ERROR: read buffer overflow error in hm2_eth_enqueue_read\n");
         return 0;
-    } else if (board->queue_reads_count >= MAX_ETH_READS) {
+    } else if (board->read_entry_count >= MAX_ETH_READS) {
         LL_PRINT("ERROR: reached max queued reads already of %d in hm2_eth_enqueue_read\n", MAX_ETH_READS);
         return 0;
     } else {
         LBP16_INIT_PACKET4(*(lbp16_cmd_addr*)board->read_packet_ptr, CMD_READ_HOSTMOT2_ADDR32_INCR(size/4), addr);
         board->read_packet_ptr += sizeof(lbp16_cmd_addr);
 
-        board->queue_reads[board->queue_reads_count].buffer = buffer;
-        board->queue_reads[board->queue_reads_count].size = size;
-        board->queue_reads[board->queue_reads_count].from = board->queue_buff_size;
-        board->queue_reads_count++;
-        board->queue_buff_size += size;
+        board->read_entries[board->read_entry_count].buffer = buffer;
+        board->read_entries[board->read_entry_count].size = size;
+        board->read_entries[board->read_entry_count].received_data_offset = board->total_read_buffer_size;
+        board->read_entry_count++;
+        board->total_read_buffer_size += size;
         return 1;
     }
 }
@@ -866,8 +887,10 @@ static void hm2_eth_io_reset(hm2_lowlevel_io_t *this) {
             }
 
             // set io_error if we couldn't successfully reset the board io
-            if (ev != 0)
-                *this->io_error = true;
+            if (ev != 0) {
+                LL_PRINT("hm2_eth_io_reset: failed so setting io_error = 1\n");
+                *this->io_error = 1;
+            }
 
             return;
         }
