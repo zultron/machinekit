@@ -887,8 +887,10 @@ static void hm2_eth_io_reset(hm2_lowlevel_io_t *this) {
             }
 
             // set io_error if we couldn't successfully reset the board io
-            if (ev != 0)
+            if (ev != 0) {
+                LL_PRINT("hm2_eth_io_reset: failed so setting io_error = 1\n");
                 *this->io_error = 1;
+            }
 
             return;
         }
