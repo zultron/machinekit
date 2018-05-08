@@ -1,0 +1,32 @@
+o<setup_while> sub
+    o<setup_while_loop> while [1]
+        (debug,    In o<setup_while_loop>; breaking)
+        o<setup_while_loop> break
+        (debug,    In o<setup_while_loop>; shouldn't get here)
+    o<setup_while_loop> endwhile
+o<setup_while> endsub
+
+o<setup_do_while> sub
+    o<setup_do_while_loop> do
+        (debug,    In o<setup_do_while_loop>; breaking)
+        o<setup_do_while_loop> break
+        (debug,    In o<setup_do_while_loop>; shouldn't get here)
+    o<setup_do_while_loop> while [1]
+o<setup_do_while> endsub
+
+o<test> sub
+    #<steps> = 2
+    o<test_loop> do
+        (debug,    In o<test_loop>; steps = #<steps>)
+        #<steps> = [#<steps> - 1]
+    o<test_loop> while [#<steps> GT 0]
+    (debug,    Done; steps = #<steps>)
+o<test> endsub
+
+(debug,Testing while loop)
+o<setup_while> call
+o<test> call
+
+(debug,Testing do...while loop)
+o<setup_do_while> call
+o<test> call
