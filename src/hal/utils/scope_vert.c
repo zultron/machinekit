@@ -910,6 +910,7 @@ static char search_target[HAL_NAME_LEN+1];
 static guint32 search_time = 0;
 static int search_row = -1;
 #define SEARCH_RESET_TIME 4000 /* ms */
+static GtkWidget* search_label = NULL;
 
 static void selection_made_common(GtkWidget *clist, gint row, dialog_generic_t *dptr) {
     gint n, listnum;
@@ -949,25 +950,30 @@ static gboolean search_for_entry(GtkWidget *widget, GdkEventKey *event, dialog_g
     GtkCList *clist = GTK_CLIST(widget);
     int z, wrapped;
 
-    if(event->keyval == GDK_Return) {
+    if(event->keyval == GDK_Return || event->keyval == GDK_KP_Enter) {
         selection_made_common(widget, clist->focus_row, dptr);
     }
 
     if(event->keyval == GDK_Escape) {
-        printf("search_target reset due to ESC key\n");
         strcpy(search_target, "");
+        gtk_label_set_text(search_label, search_target);
+        search_row = clist->focus_row;
+        return 0;
+    }
+
+    if(event->keyval == GDK_BackSpace) {
+        search_target[strlen(search_target)-1] = '\0';
+        gtk_label_set_text(search_label, search_target);
         search_row = clist->focus_row;
         return 0;
     }
 
     if(!isprint(event->string[0])) {
-        strcpy(search_target, "");
-        search_row = clist->focus_row;
+        // just ignore this
         return 0;
     }
 
     if(event->time - search_time > SEARCH_RESET_TIME) {
-        printf("search_target reset due to time\n");
         strcpy(search_target, "");
         search_row = clist->focus_row;
     }
@@ -983,12 +989,11 @@ static gboolean search_for_entry(GtkWidget *widget, GdkEventKey *event, dialog_g
         strcat(search_target, event->string);
     }
 
-    printf("search_target: %s\n", search_target);
+    gtk_label_set_text(search_label, search_target);
 
     for(z = search_row, wrapped=0; z != search_row || !wrapped; z ++) {
         char *text;
 
-        //printf("search: %d (wrapped=%d)\n", z, wrapped);
         if(!gtk_clist_get_text(clist, z, 0, &text)) {
             if(wrapped) break; // wrapped second time (why?)
             z = 0;
@@ -1112,6 +1117,15 @@ static gboolean dialog_select_source(int chan_num)
         gtk_notebook_set_page(GTK_NOTEBOOK(notebk), 0);
     }
     gtk_widget_show(notebk);
+
+    /* a separator */
+    gtk_hseparator_new_in_box(GTK_DIALOG(dialog.window)->vbox, 0);
+
+    /* a gtk label showing the text that is being used to search */
+    search_label = gtk_label_new("Type name for fast searching");
+    gtk_misc_set_padding(GTK_MISC(search_label), 15, 5);
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog.window)->vbox), search_label, FALSE,
+        TRUE, 0);
 
     /* populate the pin, signal, and parameter lists */
     gtk_clist_clear(GTK_CLIST(vert->lists[0]));
