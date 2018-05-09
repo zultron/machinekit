@@ -1,0 +1,2 @@
+This tests breaking out of loops and whether the
+`settings->doing_break` flag is properly cleared.

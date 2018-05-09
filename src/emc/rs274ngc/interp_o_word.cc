@@ -1188,6 +1188,11 @@ int Interp::convert_control_functions(block_pointer block, // pointer to a block
 		logOword("looping back (continue) to: [%s] in while/repeat",
 			 block->o_name);
 		CHP(control_back_to(block, settings));
+            } else if (settings->doing_break) {
+                  settings->doing_break = 0;
+                  logOword("breaking from while/repeat: [%s]",
+                           block->o_name);
+                  return INTERP_OK;
 	    } else {
 		// not doing continue, we are done
 		logOword("falling thru the complete while/repeat: [%s]",

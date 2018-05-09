@@ -1,0 +1,29 @@
+component sim_probe "Simple probe simulator";
+
+description
+"""
+When enabled, the simulated probe output will go high when the input
+XYZ coordinates are within a bounding box delimited by the XYZ high
+and XY low pin values
+""";
+pin in bit enable "Enable";
+pin in float x_hi "X high limit";
+pin in float x_lo "X low limit";
+pin in float y_hi "Y high limit";
+pin in float y_lo "Y low limit";
+pin in float z_hi "Z high limit";
+pin in float x "X input";
+pin in float y "Y input";
+pin in float z "Z input";
+pin out bit out "Simulated probe output";
+
+function _ fp;
+license "GPL";
+;;
+
+FUNCTION(_) {
+    out = (enable &&
+           x <= x_hi && x >= x_lo &&
+           y <= y_hi && y >= y_lo &&
+           z <= z_hi);
+}
