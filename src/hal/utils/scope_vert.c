@@ -984,7 +984,6 @@ static gboolean search_for_entry(GtkWidget *widget, GdkEventKey *event, dialog_g
         search_row = search_row + 1;
         if(!gtk_clist_get_text(clist, search_row, 0, &text))
             search_row = 0;
-        printf("next search: %d\n", search_row);
     } else {
         strcat(search_target, event->string);
     }
@@ -1227,8 +1226,6 @@ static void selection_made(GtkWidget * clist, gint row, gint column,
            their event type is 3, not 4. */
         return;
     }
-
-    printf("              selection_made\n");
 
     selection_made_common(clist, row, dptr);
 }
