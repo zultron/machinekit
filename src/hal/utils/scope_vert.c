@@ -956,16 +956,29 @@ static gboolean search_for_entry(GtkWidget *widget, GdkEventKey *event, dialog_g
 
     if(event->keyval == GDK_Escape) {
         strcpy(search_target, "");
-        gtk_label_set_text(search_label, search_target);
+        gtk_label_set_text(GTK_LABEL(search_label), search_target);
         search_row = clist->focus_row;
         return 0;
     }
 
     if(event->keyval == GDK_BackSpace) {
         search_target[strlen(search_target)-1] = '\0';
-        gtk_label_set_text(search_label, search_target);
+        gtk_label_set_text(GTK_LABEL(search_label), search_target);
         search_row = clist->focus_row;
         return 0;
+    }
+
+    if((event->keyval == GDK_Home) || (event->keyval == GDK_End)) {
+        z = 0;  // GDK_Home
+        if (event->keyval == GDK_End)
+            z = clist->rows-1;
+
+        double pos = (z+.5) / (clist->rows-1);
+        if(pos > 1) pos = 1;
+        GTK_CLIST_GET_CLASS(clist)->scroll_vertical(clist, GTK_SCROLL_JUMP, pos);
+        gtk_clist_select_row(clist, z, 0);
+        search_row = z;
+        return 1;
     }
 
     if(!isprint(event->string[0])) {
@@ -984,12 +997,11 @@ static gboolean search_for_entry(GtkWidget *widget, GdkEventKey *event, dialog_g
         search_row = search_row + 1;
         if(!gtk_clist_get_text(clist, search_row, 0, &text))
             search_row = 0;
-        printf("next search: %d\n", search_row);
     } else {
         strcat(search_target, event->string);
     }
 
-    gtk_label_set_text(search_label, search_target);
+    gtk_label_set_text(GTK_LABEL(search_label), search_target);
 
     for(z = search_row, wrapped=0; z != search_row || !wrapped; z ++) {
         char *text;
@@ -1028,10 +1040,9 @@ static gboolean dialog_select_source(int chan_num)
     scope_chan_t *chan;
     dialog_generic_t dialog;
     gchar *title, msg[BUFLEN];
-    int next, n, initial_page, row, initial_row, max_row;
+    int next, n, initial_page, row, initial_row;
     gchar *tab_label_text[3], *name;
     GtkWidget *hbox, *label, *notebk, *button;
-    GtkAdjustment *adj;
     hal_pin_t *pin;
     hal_sig_t *sig;
     hal_param_t *param;
@@ -1134,7 +1145,6 @@ static gboolean dialog_select_source(int chan_num)
     rtapi_mutex_get(&(hal_data->mutex));
     next = hal_data->pin_list_ptr;
     initial_row = -1;
-    max_row = -1;
     while (next != 0) {
         pin = SHMPTR(next);
         name = pin->name;
@@ -1143,7 +1153,6 @@ static gboolean dialog_select_source(int chan_num)
             if ( strcmp(name, chan->name) == 0 ) {
                 initial_row = row;
             }
-            max_row = row;
         }
         next = pin->next_ptr;
     }
@@ -1156,7 +1165,6 @@ static gboolean dialog_select_source(int chan_num)
             if ( strcmp(name, chan->name) == 0 ) {
                 initial_row = row;
             }
-            max_row = row;
         }
         next = sig->next_ptr;
     }
@@ -1169,7 +1177,6 @@ static gboolean dialog_select_source(int chan_num)
             if ( strcmp(name, chan->name) == 0 ) {
                 initial_row = row;
             }
-            max_row = row;
         }
         next = param->next_ptr;
     }
@@ -1227,8 +1234,6 @@ static void selection_made(GtkWidget * clist, gint row, gint column,
            their event type is 3, not 4. */
         return;
     }
-
-    printf("              selection_made\n");
 
     selection_made_common(clist, row, dptr);
 }
