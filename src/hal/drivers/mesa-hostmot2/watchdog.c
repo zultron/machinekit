@@ -32,6 +32,10 @@ static void watchdog_handle_reset(hostmot2_t *hm2) {
     if (hm2->llio->io_reset != NULL) {
         HM2_PRINT("llio driver has io_reset() function so calling it\n");
         hm2->llio->io_reset(hm2->llio);
+
+        // if we have to do an io_reset, reset dpll because fpga may have been power cycled
+        // in order to recover from io error.
+        hm2_dpll_reset(hm2);
     }
 }
 

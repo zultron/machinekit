@@ -258,16 +258,21 @@ int hm2_dpll_force_write(hostmot2_t *hm2) {
     /* Other triggerable component types should be added here */
     }
 
-    // Restore state to init time look so that next hm2_dpll_write()
-    // actually writes all of these vs. assuming they're cached over in
-    // the fpga.
-    init_counter = 0;
-    hm2->dpll.base_rate_written = 0;
-    hm2->dpll.control_reg0_written = 0;
-    hm2->dpll.control_reg1_written = 0;
-    hm2->dpll.timer_12_written = 0;
-    hm2->dpll.timer_34_written = 0;
     return 0;
+}
+
+void hm2_dpll_reset(hostmot2_t *hm2) {
+    if (hm2->dpll.num_instances > 0) {
+        // Restore state to init time look so that next hm2_dpll_write()
+        // actually writes all of these vs. assuming they're cached over in the fpga which may have power cycled.
+        HM2_WARN("hm2_dpll_reset() reinitializing dpll state.");
+        init_counter = 0;
+        hm2->dpll.base_rate_written = 0;
+        hm2->dpll.control_reg0_written = 0;
+        hm2->dpll.control_reg1_written = 0;
+        hm2->dpll.timer_12_written = 0;
+        hm2->dpll.timer_34_written = 0;
+    }
 }
 
 void hm2_dpll_cleanup(hostmot2_t *hm2) {
