@@ -63,9 +63,9 @@
 
 
 
-// 
+//
 // idrom addresses & constants
-// 
+//
 
 #define HM2_ADDR_IOCOOKIE  (0x0100)
 #define HM2_IOCOOKIE       (0x55AACAFE)
@@ -79,9 +79,9 @@
 #define HM2_MAX_MODULE_DESCRIPTORS  (48)
 #define HM2_MAX_PIN_DESCRIPTORS     (1000)
 
-// 
+//
 // Pin Descriptor constants
-// 
+//
 
 #define HM2_PIN_SOURCE_IS_PRIMARY   (0x00000000)
 #define HM2_PIN_SOURCE_IS_SECONDARY (0x00000001)
@@ -90,9 +90,9 @@
 #define HM2_PIN_DIR_IS_OUTPUT    (0x00000004)
 
 
-// 
+//
 // Module Descriptor constants
-// 
+//
 
 #define HM2_GTAG_WATCHDOG          (2)
 #define HM2_GTAG_IOPORT            (3)
@@ -116,9 +116,9 @@
 #define HM2_GTAG_DAQFIFO           (21) // Not supported
 #define HM2_GTAG_BINOSC            (22) // Not supported
 #define HM2_GTAG_DDMA              (23) // Not supported
-#define HM2_GTAG_BISS              (24) 
-#define HM2_GTAG_FABS              (25) 
-#define HM2_GTAG_HM2DPLL           (26) 
+#define HM2_GTAG_BISS              (24)
+#define HM2_GTAG_FABS              (25)
+#define HM2_GTAG_HM2DPLL           (26)
 #define HM2_GTAG_LIOPORT           (64) // Not supported
 #define HM2_GTAG_LED               (128)
 
@@ -169,7 +169,7 @@ typedef struct {
 
 
 
-// 
+//
 // these structures keep track of the FPGA's I/O pins; and for I/O pins
 // used as GPIOs, keep track of the HAL state of the pins
 //
@@ -235,6 +235,7 @@ typedef struct {
 // encoders
 //
 
+#define HM2_ENCODER_INDEX_MODE          (1<<16)
 #define HM2_ENCODER_QUADRATURE_ERROR    (1<<15)
 #define HM2_ENCODER_AB_MASK_POLARITY    (1<<14)
 #define HM2_ENCODER_LATCH_ON_PROBE      (1<<13)
@@ -251,7 +252,7 @@ typedef struct {
 #define HM2_ENCODER_INPUT_B             (1<<1)
 #define HM2_ENCODER_INPUT_A             (1<<0)
 
-#define HM2_ENCODER_CONTROL_MASK  (0x0000ffff)
+#define HM2_ENCODER_CONTROL_MASK  (0x0001ffff)
 
 
 #define hm2_encoder_get_reg_count(hm2, instance)     (hm2->encoder.counter_reg[instance] & 0x0000ffff)
@@ -288,6 +289,7 @@ typedef struct {
             hal_bit_t index_mask;
             hal_bit_t index_mask_invert;
             hal_bit_t counter_mode;
+            hal_bit_t index_mode;
             hal_bit_t filter;
             hal_float_t vel_timeout;
         } param;
@@ -422,7 +424,7 @@ typedef struct {
         } param;
 
     } hal;
-    
+
     rtapi_s64 accum;
     rtapi_s64 offset;
     rtapi_u32 old_reg;
@@ -450,31 +452,31 @@ typedef struct {
     // hw registers
     rtapi_u32 status_addr;
     rtapi_u32 *status_reg;
-    
+
     rtapi_u32 command_addr;
-    
+
     rtapi_u32 data_addr;
-    
+
     rtapi_u32 position_addr;
     rtapi_u32 *position_reg;
 
     rtapi_u32 velocity_addr;
     rtapi_s32 *velocity_reg;
-    
+
     hal_float_t written_khz;
     hal_float_t kHz;
-    
+
 } hm2_resolver_t;
 
 
 //
 // pwmgen
-// 
+//
 
 #define HM2_PWMGEN_OUTPUT_TYPE_PWM          1  // this is the same value that the software pwmgen component uses
 #define HM2_PWMGEN_OUTPUT_TYPE_UP_DOWN      2  // this is the same value that the software pwmgen component uses
 #define HM2_PWMGEN_OUTPUT_TYPE_PDM          3  // software pwmgen does not support pdm as an output type
-#define HM2_PWMGEN_OUTPUT_TYPE_PWM_SWAPPED  4  // software pwmgen does not support pwm/swapped output type because it doesnt need to 
+#define HM2_PWMGEN_OUTPUT_TYPE_PWM_SWAPPED  4  // software pwmgen does not support pwm/swapped output type because it doesnt need to
 
 typedef struct {
 
@@ -618,9 +620,9 @@ typedef struct {
 } hm2_tp_pwmgen_t;
 
 
-// 
+//
 // ioport
-// 
+//
 
 typedef struct {
     int num_instances;
@@ -655,9 +657,9 @@ typedef struct {
 
 
 
-// 
+//
 // stepgen
-// 
+//
 
 typedef struct {
     struct {
@@ -712,7 +714,7 @@ typedef struct {
     rtapi_u32 written_dirhold;
     rtapi_u32 written_step_type;
     rtapi_u32 table_width;
-    
+
 } hm2_stepgen_instance_t;
 
 
@@ -762,13 +764,13 @@ typedef struct {
     rtapi_u32 table_sequence_length_addr;
 
     rtapi_u32 master_dds_addr;
-    
+
     rtapi_u32 dpll_timer_num_addr;
 } hm2_stepgen_t;
 
 //
 // Buffered SPI transciever
-// 
+//
 
 typedef struct {
     rtapi_u32 cd[16];
@@ -798,7 +800,7 @@ typedef struct {
 
 //
 // UART
-// 
+//
 
 typedef struct {
     rtapi_u32 clock_freq;
@@ -870,9 +872,9 @@ typedef struct {
 } hm2_dpll_t ;
 
 
-// 
+//
 // watchdog
-// 
+//
 
 typedef struct {
     struct {
@@ -933,7 +935,7 @@ typedef struct {
 } hm2_led_t ;
 
 
-// 
+//
 // raw peek/poke access
 //
 
@@ -955,7 +957,7 @@ typedef struct {
 
 
 
-// 
+//
 // this struct hold an entry in our Translation RAM region list
 //
 
@@ -969,7 +971,7 @@ typedef struct {
 
 
 
-// 
+//
 // this struct holds a HostMot2 instance
 //
 
@@ -1005,7 +1007,7 @@ typedef struct {
 
     int dpll_module_present;
     int use_serial_numbers;
-    
+
     hm2_pin_t *pin;
     int num_pins;
 
@@ -1240,7 +1242,7 @@ int hm2_allocate_bspi_tram(char* name);
 int hm2_bspi_write_chan(char* name, int chan, rtapi_u32 val);
 int hm2_allocate_bspi_tram(char* name);
 int hm2_tram_add_bspi_frame(char *name, int chan, rtapi_u32 **wbuff, rtapi_u32 **rbuff);
-int hm2_bspi_setup_chan(char *name, int chan, int cs, int bits, float mhz, 
+int hm2_bspi_setup_chan(char *name, int chan, int cs, int bits, float mhz,
                         int delay, int cpol, int cpha, int clear, int echo);
 int hm2_bspi_set_read_function(char *name, int (*func)(void *subdata), void *subdata);
 int hm2_bspi_set_write_function(char *name, int (*func)(void *subdata), void *subdata);
@@ -1269,10 +1271,12 @@ int hm2_dpll_force_write(hostmot2_t *hm2);
 int hm2_dpll_parse_md(hostmot2_t *hm2, int md_index);
 void hm2_dpll_process_tram_read(hostmot2_t *hm2, long period);
 void hm2_dpll_write(hostmot2_t *hm2, long period);
+void hm2_dpll_reset(hostmot2_t *hm2);
 
-// 
+
+//
 // watchdog functions
-// 
+//
 
 int hm2_watchdog_parse_md(hostmot2_t *hm2, int md_index);
 void hm2_watchdog_print_module(hostmot2_t *hm2);
@@ -1281,11 +1285,11 @@ void hm2_watchdog_prepare_tram_write(hostmot2_t *hm2);
 void hm2_watchdog_write(hostmot2_t *hm2, long period);
 void hm2_watchdog_force_write(hostmot2_t *hm2);
 void hm2_watchdog_process_tram_read(hostmot2_t *hm2);
+// return true if io_error
+bool hm2_watchdog_bite_on_ioerror(hostmot2_t *hm2);
 
 
-
-
-// 
+//
 // LED functions
 //
 

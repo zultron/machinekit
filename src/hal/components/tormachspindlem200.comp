@@ -7,7 +7,10 @@ author "";
 // Purpose:
 //
 // For Tormach mill M200 VFD driven by ECM1.
-// Direction is controlled by a discrete electrical signal outside this comp.
+// Direction is controlled by a discrete electrical signal outside this comp for normal (non-indexing) mode.
+// With the addition of spindle indexing using an encoder, the direction signal is routed through this comp
+// and is simple pass-thur for normal operation.  Likewise "spindle-on" is routed as pass thur for normal mode.
+// When indexing,  direction and spindle-on are controlled by this comp.
 //
 // Alarm checking and VFD frequency drive
 //
@@ -41,8 +44,20 @@ author "";
 //          enc-door-switch-configured  pay attention to the door switch input to limit RPM when open
 //          enc-door-switch-status      limit spindle speed when enclosure door is open (pin is 0)
 //          enc-door-open-max-rpm       speed limit when enclosure door is open
-//
+//          vfd-feedback-factor     ratio of feed back signal (2 for 770 or 3 for 1100).  
+//                                  We wanted consistent 3 for all m200 VFDs, but 770s VFDs got shipped with 2 ratio
+//  
+//          index-do                "index" spindle - when set, we're in "index" mode for this comp
+//          index-speed-in          vel command input from indexing pid entity, when in "index" mode
+//          index-encoder-position  raw encoder input from the spindle encoder
+//          index-encoder-velocity  encoder velocity input
+//          index-encoder-cpr       encoder counts per rev 
+//          forward_in              input from linuxcnc motion entity, used when not in index mode for feed thur
 // Outputs:
+//          index-modulus           feedback to pid block used control indexing of spindle
+//          spindle-on-thur         added for m200 to enable motion of spindle by itself
+//          spindle-forward-thur    feedthrough when not in indexing, set by this comp when indexing mode
+// 
 //
 //          speed-alarm             if true then speed-in is out of range for the current belt position - connect to UI
 //          vfd-freq-cmd            Hz to send to VFD to achieve desired motor RPM
@@ -62,6 +77,7 @@ author "";
 //          at-speed             => motion.spindle-at-speed
 //          speed-out               open loop speed-out in RPM
 //          speed-out-rps           connect to UI for display during gcode program execution
+//                                  Also used by linuxcnc for G95 feed rate control and hardtapping (if we have a real encoder on spindle)
 //
 //
 // This HAL comp does the math to achieve commanded spindle RPM in current hi/lo range
@@ -83,9 +99,24 @@ pin out bit at_speed;
 
 // connect to motion.spindle-on
 pin in bit spindle_on;
+// connect to m200 run pin (pass through from spindle_on when not in indexing mode)
+pin out bit spindle_on_thur;
 
 // this inbits the spindle from turning no matter what is commanded
 pin in bit disable;
+
+pin in bit index_do; //             execute indexing of spindle   
+
+pin in float index_speed_in;  		// vel command input from pid, used only when in "index" mode
+pin in bit forward_in; 				// forward (or reverse) to m200 from PP, when not in indexing mode
+pin out bit spindle_forward_thur;   // goes to spindle J1 "DIR" I/O
+
+pin in s32 index_encoder_position; 	// raw encoder input position (counts) from spindle 
+pin in float index_encoder_velocity; // encoder input velocity in RPS
+pin in s32 index_encoder_cpr;  		// encoder counts per rev
+
+// Outputs:
+pin out float index_modulus; 		// feedback to pid block used to control indexing
 
 // connect to UI
 pin out float speed_out_rps;
@@ -126,6 +157,7 @@ pin out float feedback_spindle_rpm;
 pin in bit enc_door_switch_configured;
 pin in bit enc_door_switch_status;
 pin in float enc_door_open_max_rpm;
+pin in float vfd_feedback_factor;
 
 function _ "Tormach Spindle HAL Component M200";
 
@@ -147,7 +179,7 @@ function _ "Tormach Spindle HAL Component M200";
 #define HZ_PER_HZ_DEFAULT 20.0
 
 // M200 feedback frequency times this is motor RPM
-#define VFD_FEEDBACK_FACTOR 3.0
+#define DEFAULT_VFD_FEEDBACK_FACTOR 3.0
 
 // if spindle speed is within +/- 5% call it "at speed"
 #define AT_SPEED_CLOSE_ENOUGH 0.05
@@ -178,6 +210,9 @@ FUNCTION(_) {
     float min_speed_freq_cmd;
     float max_speed_freq_cmd;
     float tolerance;
+    float vfd_feedback_ratio;
+    int offset; 		//encoder offset (modulus)
+    int enc_feedback;	//final modulus to external PID.feedback. Ranges to +/- 1/2 of index_encoder_cpr
 
     // spindle-type - for high speed use only low belt params
     //                for speeder compensate for tripled output speed
@@ -228,18 +263,55 @@ FUNCTION(_) {
     // range check and clamp speed-in between min and max (0.0 is OK for stopped)
     speed_alarm = BIT_FALSE;
 
-    // ignore direction sign from speed-in
-    clamped_speed_in = fabs(speed_in);
-
-    if (clamped_speed_in < min_speed) {
-        // under min
-        speed_alarm = BIT_TRUE;
-        clamped_speed_in = min_speed;
+	//note if index_do isn't hooked up, we assume it is going to be "0", which means this comp will behave in
+	//the normal mode which doesn't index
+    if (!index_do) { //switch between normal and index mode and speed inputs
+        clamped_speed_in = fabs(speed_in); //ignore direction sign from speed input
+        if (clamped_speed_in < min_speed) { 
+            // under min
+            speed_alarm = BIT_TRUE;
+            clamped_speed_in = min_speed;
+        }
+        else if (clamped_speed_in > max_speed) {
+            // over max
+            speed_alarm = BIT_TRUE;
+            clamped_speed_in = max_speed;
+        }
+        spindle_on_thur = spindle_on; //pass thur in this mode
+        spindle_forward_thur = forward_in; //pass thur in this mode
     }
-    else if (clamped_speed_in > max_speed) {
-        // over max
-        speed_alarm = BIT_TRUE;
-        clamped_speed_in = max_speed;
+    else {  //when indexing spindle head
+        if(index_speed_in >= 0)  //figure out spindle dir based on input from index PID
+            spindle_forward_thur = BIT_TRUE;  //true selects forward on m200
+        else spindle_forward_thur = BIT_FALSE; //true selects reverse on m200
+
+        clamped_speed_in = fabs(index_speed_in); //dir from input speed is ignored, as spindle_forward_thur sets that
+		//max speed during indexing is "very" low, use min_speed (yes min, not max) to set max speed
+        if (clamped_speed_in > min_speed) { 
+            // over max
+            clamped_speed_in = min_speed;
+        }
+        //compute modulus for PID.feedback for spindle indexing
+		//how that is done is dependent on sign of raw encoder input
+        offset = index_encoder_position % index_encoder_cpr;
+        if (offset < 0) {
+            if (offset <= index_encoder_cpr/-2)
+                enc_feedback = index_encoder_position - (index_encoder_cpr + offset);
+            else
+                enc_feedback = index_encoder_position - offset;
+        }
+        else {
+            if (offset >= index_encoder_cpr/2)
+                enc_feedback = index_encoder_position + (index_encoder_cpr - offset);
+            else
+                enc_feedback = index_encoder_position - offset;
+        }
+		//enc_feedback is now the nearest raw absolute modulus location
+		//normalize to < |index_encoder_cpr| and flip sign for direction
+		//enc_feedback should range -index_encoder_cpr/2 to +index_encoder_cpr/2
+        enc_feedback = enc_feedback - index_encoder_position;  
+        index_modulus = (float) enc_feedback; //PID needs a float
+        spindle_on_thur = BIT_TRUE;  //always enable the spindle in indexing mode
     }
 
     // set pulley ratio
@@ -268,15 +340,19 @@ FUNCTION(_) {
     // clamp vfd_freq_cmd to acceptable range
     min_speed_freq_cmd = vfd_rpm2freq(min_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
     max_speed_freq_cmd = vfd_rpm2freq(max_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
-    if (vfd_freq_cmd < min_speed_freq_cmd) {
+    if (!index_do && vfd_freq_cmd < min_speed_freq_cmd) {   //no minimum command freq for indexing mode
         vfd_freq_cmd = min_speed_freq_cmd;
     }
     else if (vfd_freq_cmd > max_speed_freq_cmd) {
         vfd_freq_cmd = max_speed_freq_cmd;
     }
 
+    if (vfd_feedback_factor != 0.0) //if set externally, use it  
+        vfd_feedback_ratio = vfd_feedback_factor; 
+    else vfd_feedback_ratio = DEFAULT_VFD_FEEDBACK_FACTOR; 
+
     // low pass filter - feedback is jumpy sometimes
-    feedback_motor_rpm += ((fabs(vfd_rpm_feedback) * VFD_FEEDBACK_FACTOR) - feedback_motor_rpm) * 0.1;
+    feedback_motor_rpm += ((fabs(vfd_rpm_feedback) * vfd_feedback_ratio) - feedback_motor_rpm) * 0.1;
     if (feedback_motor_rpm <= RPM_CLOSE_TO_ZERO) {
         feedback_motor_rpm = 0.0;
     }
@@ -295,8 +371,7 @@ FUNCTION(_) {
         }
         else if (at_speed == BIT_FALSE) {
             // not yet at speed
-            // speed-out pin will track VFD feedback until "at speed" after which
-            // speed-out will be reported as the commanded speed
+            // speed-out pin will track VFD feedback
             speed_out = feedback_spindle_rpm;
             tolerance = AT_SPEED_CLOSE_ENOUGH;
             // at the very bottom end the feedback speed falls off from commanded
@@ -312,9 +387,9 @@ FUNCTION(_) {
                 at_speed = BIT_TRUE;
             }
         }
-        // in at-speed state - speed-out follows speed-in
+        // in at-speed state - speed-out follows feedback_spindle_rpm
         else {
-            speed_out = clamped_speed_in;
+            speed_out = feedback_spindle_rpm;
         }
     }
     else {
@@ -327,6 +402,10 @@ FUNCTION(_) {
         // no spindle motion allowed
         vfd_freq_cmd = 0.0;
     }
-    speed_out_rps = speed_out / 60.0;
+    if(index_encoder_cpr == 0.0 || index_encoder_cpr == 1.0) //means no encoder. not setting to "0" as linuxcnc/src/hal/drivers/mesa-hostmot2/encoder.c uses this as a divisor, so !=0, yet we wish to allow HAL to not connect 
+    //this pin, in which case it's going to be 0
+        speed_out_rps = speed_out / 60.0;
+    else
+        speed_out_rps = index_encoder_velocity;  //feed thur of velocity 
 }
 

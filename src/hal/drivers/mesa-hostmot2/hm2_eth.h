@@ -24,16 +24,17 @@
 
 #define MAX_ETH_BOARDS 4
 
-#define HM2_ETH_VERSION "0.2"
+#define HM2_ETH_VERSION "0.3"
 #define HM2_LLIO_NAME "hm2_eth"
 
 #define MAX_ETH_READS 64
 
+// These are descriptors that keep track of the outstanding async read.
 typedef struct {
     void *buffer;
     int size;
-    int from;
-} hm2_read_queue_entry_t;
+    int received_data_offset;
+} hm2_read_entry_t;
 
 typedef struct {
     hm2_lowlevel_io_t llio;
@@ -44,9 +45,11 @@ typedef struct {
 
     rtapi_u8 read_packet[1400];
     rtapi_u8 *read_packet_ptr;
-    hm2_read_queue_entry_t queue_reads[MAX_ETH_READS];
-    int queue_reads_count;
-    int queue_buff_size;
+    // These track the async read requests. The request is made by sending a UDP packet. When a UDP packet is later received,
+    // these entries are iterated through and the received data split up into them - sort of like a scatter-gather pattern.
+    hm2_read_entry_t read_entries[MAX_ETH_READS];
+    int read_entry_count;
+    int total_read_buffer_size;
 
     rtapi_u8 write_packet[1400];
     rtapi_u8 *write_packet_ptr;
@@ -68,6 +71,10 @@ typedef struct {
         hal_bit_t *packet_error;
         hal_s32_t *packet_error_level;
         hal_bit_t *packet_error_exceeded;
+        hal_s32_t packet_read_tmax;
+        hal_s32_t packet_recv_tmax;
+        hal_s32_t packet_wrong_seq;
+        hal_s32_t packet_recv_attempts;
     } *hal;
 } hm2_eth_t;
 

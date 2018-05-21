@@ -27,30 +27,78 @@
 
 #include "hal/drivers/mesa-hostmot2/hostmot2.h"
 
+static void watchdog_handle_reset(hostmot2_t *hm2) {
+    HM2_PRINT("trying to recover from IO error\n");
+    if (hm2->llio->io_reset != NULL) {
+        HM2_PRINT("llio driver has io_reset() function so calling it\n");
+        hm2->llio->io_reset(hm2->llio);
 
+        // if we have to do an io_reset, reset dpll because fpga may have been power cycled
+        // in order to recover from io error.
+        hm2_dpll_reset(hm2);
+    }
+}
 
+// return true if caller should not continue trying to read or write on hm2 interface
+bool hm2_watchdog_bite_on_ioerror(hostmot2_t *hm2) {
+    // if there is no watchdog, then there's nothing to do
+    if (hm2->watchdog.num_instances == 0) return false;
+
+    // if watchdog has bit, don't bother with anything else
+    if (*hm2->watchdog.instance[0].hal.pin.has_bit != 0) return true;
+
+    // if there are comm problems that haven't been seen yet, trigger the watchdog
+    if ((*hm2->llio->io_error) != 0) {
+        if (hm2->llio->needs_reset == 0) {
+            // this is the first time we've seen the io_error so trigger a watchdog bite
+            // user intervention needed to clear these
+            HM2_PRINT("Watchdog saw an io_error which triggers a bite! (set the .has_bit pin to False to resume after clearing io_error)\n");
+            *hm2->watchdog.instance[0].hal.pin.has_bit = 1;
+            hm2->llio->needs_reset = 1;
+            hm2->llio->needs_soft_reset = 1;
+            // A to B transition
+        }
+        return true;
+    }
+    else {
+        // no io_error
+        // no wd
+        // do we need to attempt a reset as part of the recovery?
+        // D to E transition
+        if (hm2->llio->needs_reset != 0) {
+            watchdog_handle_reset(hm2);
+            hm2->llio->needs_reset = 0;
+
+            // make sure on next watchdog write that we force write all fpga settings
+            hm2->llio->needs_soft_reset = 1;
+        }
+    }
+
+    return false;
+}
 
 void hm2_watchdog_process_tram_read(hostmot2_t *hm2) {
     // if there is no watchdog, then there's nothing to do
     if (hm2->watchdog.num_instances == 0) return;
 
-    // if there are comm problems, wait for the user to fix it
-    if ((*hm2->llio->io_error) != 0) return;
+     // if watchdog has bit, don't bother with anything else
+    if (*hm2->watchdog.instance[0].hal.pin.has_bit != 0) return;
 
-    // if we've already noticed the board needs to be reset, don't re-read
-    // the watchdog has-bit bit
-    // Note: we check needs_reset instead of the has-bit pin here, because
-    // has-bit might be cleared by the user at any time, so using it here
-    // would cause a race condition between this function and pet_watchdog
+    // if there are comm problems, wait for the user to fix it
+    if (hm2_watchdog_bite_on_ioerror(hm2)) return;
+
+    // if we're waiting for a reset, let the higher level read or write handle it first
     if (hm2->llio->needs_reset != 0) return;
+    if (hm2->llio->needs_soft_reset != 0) return;
 
     // last time we were here, everything was fine
     // see if the watchdog has bit since then
     if (hm2->watchdog.status_reg[0] & 0x1) {
-        HM2_PRINT("Watchdog has bit! (set the .has-bit pin to False to resume)\n");
+        HM2_PRINT("Watchdog has bit! (set the .has_bit pin to False to resume)\n");
         *hm2->watchdog.instance[0].hal.pin.has_bit = 1;
         hm2->llio->needs_reset = 1;
-    }
+        hm2->llio->needs_soft_reset = 1;
+       }
 }
 
 
@@ -59,7 +107,7 @@ int hm2_watchdog_parse_md(hostmot2_t *hm2, int md_index) {
     int r;
 
 
-    // 
+    //
     // some standard sanity checks
     //
 
@@ -77,7 +125,7 @@ int hm2_watchdog_parse_md(hostmot2_t *hm2, int md_index) {
     }
 
 
-    // 
+    //
     // special sanity checks for watchdog
     //
 
@@ -86,9 +134,9 @@ int hm2_watchdog_parse_md(hostmot2_t *hm2, int md_index) {
     }
 
 
-    // 
+    //
     // looks good, start initializing
-    // 
+    //
 
 
     hm2->watchdog.num_instances = 1;
@@ -120,7 +168,7 @@ int hm2_watchdog_parse_md(hostmot2_t *hm2, int md_index) {
         goto fail0;
     }
 
-    // 
+    //
     // allocate memory for register buffers
     //
 
@@ -243,7 +291,7 @@ void hm2_watchdog_force_write(hostmot2_t *hm2) {
     hm2->watchdog.instance[0].written_timeout_ns = hm2->watchdog.instance[0].hal.param.timeout_ns;
     hm2->watchdog.instance[0].written_enable = hm2->watchdog.instance[0].enable;
 
-    // clear the has-bit bit
+    // clear the has_bit bit
     hm2->llio->write(hm2->llio, hm2->watchdog.status_addr, hm2->watchdog.status_reg, sizeof(rtapi_u32));
 }
 
@@ -261,31 +309,21 @@ void hm2_watchdog_write(hostmot2_t *hm2, long period_ns) {
     // writing to the watchdog wakes it up, and now we can't stop or it will bite!
     hm2->watchdog.instance[0].enable = 1;
 
-    if (hm2->llio->needs_reset || hm2->llio->needs_soft_reset) {
-        // user has cleared the bit
-        if(hm2->llio->needs_reset)
-            HM2_PRINT("trying to recover from IO error or Watchdog bite\n");
+    // Do we need to address the soft reset scenario?
+    if (hm2->llio->needs_soft_reset) {
 
         // reset the watchdog status
         hm2->watchdog.status_reg[0] = 0;
+        hm2->llio->needs_soft_reset = 0;
 
         // write all settings out to the FPGA
         hm2_force_write(hm2);
-        if ((*hm2->llio->io_error) != 0) {
-            HM2_PRINT("error recovery failed\n");
-            return;
-        }
-        if(hm2->llio->needs_reset)
-            HM2_PRINT("error recover successful!\n");
 
-        hm2->llio->needs_reset = hm2->llio->needs_soft_reset = 0;
+        HM2_PRINT("soft error recover successful - force write of all fpga settings done!\n");
     }
 
-    if (
-        (hm2->watchdog.instance[0].hal.param.timeout_ns == hm2->watchdog.instance[0].written_timeout_ns)
-        &&
-        (hm2->watchdog.instance[0].enable == hm2->watchdog.instance[0].written_enable)
-    ) {
+    if ((hm2->watchdog.instance[0].hal.param.timeout_ns == hm2->watchdog.instance[0].written_timeout_ns) &&
+        (hm2->watchdog.instance[0].enable == hm2->watchdog.instance[0].written_enable)) {
         return;
     }
 
