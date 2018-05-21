@@ -68,6 +68,11 @@ pin out s32 motor-state;
 pin out bit fake-open; //flag to lie to linuxcnc we're off of limit switch when we're not.
 //needed while we are doing hardstop homing 
 
+//enable_toggle is used as a one-shot to track when we actually need to toggle the enable (motor-enable-out) to CPM.  
+//For users that love to press "RESET" button on GUI, this prevents a CPM loss of position that otherwise happens as the CPM is disabled briefly
+//All other state engine functions "think" that the CPM enable pin has been de-asserted, but we don't really do it unless this is TRUE
+//Once we actually toggle the motor-enable-out using this, we clear it, so something else must happen to set it.
+pin out bit enable_toggle; 
 // params
 // used for sense of direction on backoff 
 param rw float latch-vel;
@@ -197,8 +202,11 @@ FUNCTION(_) {
             status_code = MFB_OK;
             internal_status_code = MFB_OK;
             target_command = motor_command; //keep last command for later state change use
+            enable_toggle = TRUE;   //we must toggle enable to reset motor
         }
         else if (motor_command == MOTOR_CMD_NORMAL || motor_command == MOTOR_CMD_HOME) {
+            if(motor_command == MOTOR_CMD_HOME)
+                enable_toggle = TRUE; //we always must toggle enable to get into homing mode
             hit_hardstop = FALSE;
             delay_state = DELAY_BRAKE;
             motor_state = MS_WAIT;
@@ -248,8 +256,9 @@ FUNCTION(_) {
 
 //########## Handle CPM motor states here 
 
-    if (motor_state == MS_DISABLED) { 
+    if (motor_state == MS_DISABLED) { //It is assumed motor_state == MS_DISABLED == 0 on first pass through
         motor_enable_out = FALSE; //disable CPM
+        enable_toggle = TRUE;   //we must toggle enable to reset motor to leave disabled state
         status_code = MFB_OK;
         internal_status_code = MFB_OK;
         motor_fault = TRUE; //flag HAL axis-fault-in
@@ -264,7 +273,17 @@ FUNCTION(_) {
             if (elapsed_timer > CPM_BRAKE_DELAY) { //wait until brake has been engaged for a perioid
                 elapsed_timer = 0.0;
                 delay_state = DELAY_OFF; 
-                motor_enable_out = FALSE; //drop CPM motor enable
+                if (enable_toggle == TRUE) { //actually only toggle this when previously determined necessary.  Otherwise, don't toggle to prevent loss of CPM position for user that love to press "RESET" button on GUI
+                    motor_enable_out = FALSE; //drop CPM motor enable
+                    enable_toggle = FALSE; //don't need to toggle again until something else deems it necessary
+                }
+		else {  //jump to MS_NORMAL if we're skipping toggle of CPM enable line, but only for MOTOR_CMD_NORMAL
+		    if (target_command == MOTOR_CMD_NORMAL) { 
+                    motor_state = MS_NORMAL;
+                    elapsed_timer = 0.0;
+                    brake_release = BRAKE_RELEASE;
+                    }
+		}
                 if (target_command == MOTOR_CMD_DISABLE) {
                     motor_state = MS_DISABLED;
                     motor_enable_out = FALSE;
@@ -298,6 +317,7 @@ FUNCTION(_) {
                 }
                 else { //we timed out waiting for motor to be "active" 
                     motor_state = MS_FAULT;
+                    enable_toggle = TRUE;   //we must toggle enable to reset motor 
                     status_code = MFB_FAULT;
                     internal_status_code = MFB_FAULT;
                     motor_enable_out = FALSE;
@@ -345,6 +365,7 @@ FUNCTION(_) {
                 internal_status_code = MFB_FAULT;
                 motor_state = MS_FAULT;
                 motor_enable_out = FALSE;
+                enable_toggle = TRUE;   //we must toggle enable to reset motor
                 brake_release = BRAKE_HOLD;
             }
         }
@@ -361,6 +382,7 @@ FUNCTION(_) {
             if (elapsed_timer > CPM_MAX_POSITION_DELAY) {
                 motor_fault = TRUE; //flag HAL axis-fault-in
                 motor_state = MS_FAULT;
+                enable_toggle = TRUE;   //we must toggle enable to reset motor
                 status_code = MFB_FAULT;
                 internal_status_code = MFB_FAULT;
                 motor_enable_out = FALSE;
@@ -379,6 +401,7 @@ FUNCTION(_) {
         status_code = MFB_FAULT;
         internal_status_code = MFB_FAULT;
         motor_enable_out = FALSE;
+        enable_toggle = TRUE;   //we must toggle enable to reset motor
         motor_fault = TRUE; //flag HAL axis-fault-in
         brake_release = BRAKE_HOLD;
     }
