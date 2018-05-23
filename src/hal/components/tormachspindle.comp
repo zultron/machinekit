@@ -142,6 +142,9 @@ pin in bit enc_door_switch_configured;
 pin in bit enc_door_switch_status;
 pin in float enc_door_open_max_rpm;
 
+pin in  bit enable_in;
+pin out bit enable_out;
+
 function _ "Tormach Spindle HAL Component";
 
 ;;
@@ -331,6 +334,11 @@ FUNCTION(_) {
         mcb_pwm_out = actual_max_pwm_dc;
     }
 
+    // this may get set FALSE if spindle is at 0 RPM or not enabled
+    // the 440 spindle still runs very slowly at commanded 0 RPM but still enabled
+    // this matters with an open enclosure door spindle speed of 0
+    enable_out = enable_in;
+
     // spindle-at-speed open loop computation
     //
     // non-zero spindle speed and spindle not yet at_speed
@@ -342,6 +350,11 @@ FUNCTION(_) {
             // freq is slope * (speed_in - min_speed) + min_mcb_freq
             mcb_freq_out = (freq_slope * (speed_out - min_speed)) + actual_min_mcb_freq;
             mcb_pwm_out  = (pwm_slope  * (speed_out - min_speed)) + actual_min_pwm_dc;
+            if (speed_out < min_speed) {
+                mcb_pwm_out = 0.0;
+                speed_out = 0.0;
+                enable_out = BIT_FALSE;
+            }
             at_speed = BIT_TRUE;
         }
         else if (at_speed == BIT_FALSE) {
@@ -380,11 +393,13 @@ FUNCTION(_) {
         elapsed_accel_time = 0.0;
         speed_out = 0.0;
         speed_alarm = BIT_FALSE;
+        enable_out = BIT_FALSE;
     }
     if (disable) {
         // no spindle motion allowed
         mcb_freq_out = 0.0;
         mcb_pwm_out  = 0.0;
+        enable_out = BIT_FALSE;
     }
     speed_out_rps = speed_out / 60.0;
 }
