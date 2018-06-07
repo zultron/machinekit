@@ -371,7 +371,8 @@ FUNCTION(_) {
         }
         else if (at_speed == BIT_FALSE) {
             // not yet at speed
-            // speed-out pin will track VFD feedback
+            // speed-out pin will track VFD feedback until "at speed" after which
+            // speed-out will be reported as the commanded speed
             speed_out = feedback_spindle_rpm;
             tolerance = AT_SPEED_CLOSE_ENOUGH;
             // at the very bottom end the feedback speed falls off from commanded
@@ -387,9 +388,9 @@ FUNCTION(_) {
                 at_speed = BIT_TRUE;
             }
         }
-        // in at-speed state - speed-out follows feedback_spindle_rpm
+        // in at-speed state - speed-out follows speed-in
         else {
-            speed_out = feedback_spindle_rpm;
+            speed_out = clamped_speed_in;
         }
     }
     else {
