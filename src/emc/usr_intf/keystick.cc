@@ -7,7 +7,7 @@
 * Author:
 * License: GPL Version 2
 * System: Linux
-*    
+*
 * Copyright (c) 2004 All rights reserved.
 *
 * Last change:
@@ -1224,11 +1224,16 @@ void startTimer(int us)
 */
 int sigpipe[2];
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
+
 static void alarmHandler(int sig, siginfo_t *unused, void *unused2)
 {
   char ch = 0;
   write(sigpipe[1], &ch, 1);
 }
+
+#pragma GCC diagnostic pop
 
 static void idleHandler()
 {
@@ -1630,6 +1635,9 @@ int tryNml()
 #undef RETRY_INTERVAL
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
+
 int getch_and_idle()
 {
   fd_set readfds;
@@ -1657,6 +1665,7 @@ int getch_and_idle()
 
   return getch();
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -2874,3 +2883,5 @@ int main(int argc, char *argv[])
 
   return 0;
 }
+
+#pragma GCC diagnostic pop

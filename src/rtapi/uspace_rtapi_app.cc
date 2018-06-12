@@ -459,10 +459,12 @@ int main(int argc, char **argv) {
                 "    sudo env RTAPI_UID=`id -u` RTAPI_FIFO_PATH=$HOME/.rtapi_fifo gdb rtapi_app\n");
             exit(1);
         }
-        setreuid(fallback_uid, 0);
-        fprintf(stderr,
-            "Running with fallback_uid.  getuid()=%d geteuid()=%d\n",
-            getuid(), geteuid());
+        int rv = setreuid(fallback_uid, 0);
+        if (rv != 0) {
+            fprintf(stderr, "setreuid() failed, returned %d\n", rv);
+        }
+        fprintf(stderr, "Running with fallback_uid.  getuid()=%d geteuid()=%d\n",
+                getuid(), geteuid());
     }
     setfsuid(getuid());
     vector<string> args;
@@ -930,11 +932,14 @@ static bool ts_less(const struct timespec &ta, const struct timespec &tb) {
     return ta.tv_nsec < tb.tv_nsec;
 }
 
+
+#pragma GCC diagnostic ignored "-Wunused-function"
 static void ts_elapsed(struct timespec *delta, struct timespec *then, struct timespec *now)
 {
     delta->tv_nsec = now->tv_nsec - then->tv_nsec;
     delta->tv_sec = now->tv_sec - then->tv_sec;
 }
+
 
 void Posix::wait() {
     if(do_thread_lock)
