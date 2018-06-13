@@ -3,27 +3,39 @@ component sim_probe "Simple probe simulator";
 description
 """
 When enabled, the simulated probe output will go high when the input
-XYZ coordinates are within a bounding box delimited by the XYZ high
-and XY low pin values
+(x_in,y_in,z_in) coordinates are within a bounding box or cylinder
+centered at (x,y) with width w and height z.
 """;
 pin in bit enable "Enable";
-pin in float x_hi "X high limit";
-pin in float x_lo "X low limit";
-pin in float y_hi "Y high limit";
-pin in float y_lo "Y low limit";
-pin in float z_hi "Z high limit";
-pin in float x "X input";
-pin in float y "Y input";
-pin in float z "Z input";
+pin in float x "X center";
+pin in float y "Y center";
+pin in float w "Width (or diameter)";
+pin in float z "Z top";
+pin in u32 shape "Shape of boss: 0 = rectangle; 1 = cylinder";
+pin in float x_in "X input";
+pin in float y_in "Y input";
+pin in float z_in "Z input";
 pin out bit out "Simulated probe output";
 
 function _ fp;
 license "GPL";
 ;;
 
+#include "rtapi_math.h"
 FUNCTION(_) {
-    out = (enable &&
-           x <= x_hi && x >= x_lo &&
-           y <= y_hi && y >= y_lo &&
-           z <= z_hi);
+  switch (shape) {
+    case 0: // rectangle
+      out = (enable &&
+             x_in >= (x-w/2) && x_in <= (x+w/2) &&
+             y_in >= (y-w/2) && y_in <= (y+w/2) &&
+             z_in <= z);
+      break;
+    case 1: // cylinder
+      out = (enable &&
+             sqrt(pow(x-x_in,2) + pow(y-y_in,2)) < w/2 &&
+             z_in <= z);
+      break;
+    default:
+      out = 0;
+  }
 }
