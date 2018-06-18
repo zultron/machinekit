@@ -1,0 +1,89 @@
+component stopwatch "Flexible timer in Hours, Minutes, Seconds";
+
+description
+"""
+Stopwatch
+
+When the stopwatch.N.start bit goes true the timer resets and starts
+to time until stopwatch.N.start goes false.  stopwatch.N.pause can be
+set to true to pause the timer without resetting it back to 0.  This
+is useful for measuring actual run time, not include time while paused.
+
+Stopwatch returns the hours, minutes, and seconds that stopwatch.N.start is true
+and that stopwatch.N.pause is false
+
+Sample pyVCP code to display the hours:minutes:seconds.
+
+<pyvcp>
+  <hbox>
+  <label>
+    <text>"Cycle Time"</text>
+    <font>("Helvetica",14)</font>
+  </label>
+  <u32>
+      <halpin>"time-hours"</halpin>
+      <font>("Helvetica",14)</font>
+      <format>"2d"</format>
+  </u32>
+  <label>
+    <text>":"</text>
+    <font>("Helvetica",14)</font>
+  </label>
+  <u32>
+      <halpin>"time-minutes"</halpin>
+      <font>("Helvetica",14)</font>
+      <format>"2d"</format>
+  </u32>
+  <label>
+    <text>":"</text>
+    <font>("Helvetica",14)</font>
+  </label>
+  <u32>
+      <halpin>"time-seconds"</halpin>
+      <font>("Helvetica",14)</font>
+      <format>"2d"</format>
+  </u32>
+  </hbox>
+</pyvcp>
+
+""";
+
+author "John Freeborg, based on time comp from John Thornton";
+
+license "GPL";
+
+// Input Pins
+pin in bit start "Timer On";
+pin in bit pause "Pause Timer";
+
+// Output Pins
+pin out u32 seconds "Seconds";
+pin out u32 minutes "Minutes";
+pin out u32 hours "Hours";
+
+// Global Variables
+variable double totalnsec;
+variable int old_start;
+
+function _;
+
+;;
+
+#include "rtapi_math.h"
+
+FUNCTION(_) {
+    rtapi_u32 totalseconds;
+
+    if (start && !old_start)
+        totalnsec = 0;
+
+    if (start && !pause) {
+        totalnsec = totalnsec + period;
+        totalseconds = totalnsec * 0.000000001;
+        seconds = totalseconds % 60;
+        minutes = (totalseconds / 60) % 60;
+        hours = (totalseconds / 3600);
+    }
+
+    old_start = start;
+}
