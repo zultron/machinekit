@@ -96,6 +96,7 @@ pin in float speed_in;
 
 // connect to motion.spindle-at-speed
 pin out bit at_speed;
+pin out bit at_speed_debounce;
 
 // connect to motion.spindle-on
 pin in bit spindle_on;
@@ -186,6 +187,11 @@ function _ "Tormach Spindle HAL Component M200";
 
 #define RPM_CLOSE_TO_ZERO 0.1
 
+// feedback speed must be stable at speed for this long before
+// setting at-speed pin TRUE
+// this avoids false positive at-speed from power on noise burst from VFD
+#define AT_SPEED_DEBOUNCE_SECS 0.100
+
 float vfd_rpm2freq(float rpm, float pulley_ratio, float hz_per_cmd_hz, float speeder_ratio) {
     return rpm / pulley_ratio / 60.0 * hz_per_cmd_hz / speeder_ratio;
 }
@@ -263,8 +269,8 @@ FUNCTION(_) {
     // range check and clamp speed-in between min and max (0.0 is OK for stopped)
     speed_alarm = BIT_FALSE;
 
-	//note if index_do isn't hooked up, we assume it is going to be "0", which means this comp will behave in
-	//the normal mode which doesn't index
+    //note if index_do isn't hooked up, we assume it is going to be "0", which means this comp will behave in
+    //the normal mode which doesn't index
     if (!index_do) { //switch between normal and index mode and speed inputs
         clamped_speed_in = fabs(speed_in); //ignore direction sign from speed input
         if (clamped_speed_in < min_speed) { 
@@ -384,13 +390,29 @@ FUNCTION(_) {
                 tolerance = tolerance * 4;
             }
             if (is_close_enough(speed_out, clamped_speed_in, tolerance)) {
-                // spindle should now be at speed
-                at_speed = BIT_TRUE;
+                // the M200 outputs a burst of noise approximately 1 second after
+                // its power on boot that
+                // causes a false positive 'at-speed' indication long before the
+                // the spindle is turning let alone anywhere near at speed
+                // said noise is observed to be 65 ms in duration
+                // require a steady state feedback at-speed for AT_SPEED_DEBOUNCE_SECS
+                // before declaring the spindle is 'at-speed'
+                at_speed_debounce += fperiod;
+                if (at_speed_debounce > AT_SPEED_DEBOUNCE_SECS) {
+                    // spindle should now be at speed
+                    at_speed = BIT_TRUE;
+                }
+            }
+            else {
+                // not at-speed so reset debounce timer
+                at_speed_debounce = 0.0;
             }
         }
         // in at-speed state - speed-out follows speed-in
         else {
             speed_out = clamped_speed_in;
+            // uncomment next line for debugging or to display feedback RPM in UI
+            //speed_out = feedback_spindle_rpm
         }
     }
     else {
