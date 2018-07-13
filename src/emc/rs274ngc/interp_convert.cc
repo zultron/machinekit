@@ -238,16 +238,29 @@ int Interp::convert_spline(int mode,
       y1 = settings->current_y + block->j_number;
       CHP(find_ends(block, settings, &x2, &y2, &end_z, &AA_end, &BB_end, &CC_end,
                     &u_end, &v_end, &w_end));
-      cp.W = 1;
-      cp.X = settings->current_x, cp.Y = settings->current_y;
-      nurbs_control_points.push_back(cp);
-      cp.X = x1, cp.Y = y1;
-      nurbs_control_points.push_back(cp);
-      cp.X = x2, cp.Y = y2;
-      nurbs_control_points.push_back(cp);
-      write_and_update_state_tag(block);
-      NURBS_FEED(block->line_number, nurbs_control_points, 3);
-      nurbs_control_points.clear();
+
+      double slope_test;
+      slope_test = fabs( (settings->current_y - y1) * (settings->current_x - x2) -
+                           (settings->current_y - y2) * (settings->current_x - x1) );
+      if (slope_test < 1.0e-6) {
+        // intermediate point is colinear with start and end (same slope test)
+        // STRAIGHT_FEED
+        write_and_update_state_tag(block);
+        STRAIGHT_FEED(block->line_number, x2, y2, end_z, AA_end, BB_end, CC_end, u_end, v_end, w_end);
+      }
+      else {
+        // NURBS_FEED
+        cp.W = 1;
+        cp.X = settings->current_x, cp.Y = settings->current_y;
+        nurbs_control_points.push_back(cp);
+        cp.X = x1, cp.Y = y1;
+        nurbs_control_points.push_back(cp);
+        cp.X = x2, cp.Y = y2;
+        nurbs_control_points.push_back(cp);
+        write_and_update_state_tag(block);
+        NURBS_FEED(block->line_number, nurbs_control_points, 3);
+        nurbs_control_points.clear();
+      }
       settings->current_x = x2;
       settings->current_y = y2;
     } else {
