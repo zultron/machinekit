@@ -38,10 +38,6 @@ typedef enum {
     G_CODE_TOOL_LENGTH_OFFSET,
     G_CODE_RETRACT_MODE,
     G_CODE_PATH_MODE,
-    G_CODE_unsupported,    // This slot in the original array was always set to -1 so assuming it really isn't supported.
-                           // but some python programs that index into the status.gcodes array may depend on the array index
-                           // so leaving this here for backwards compatibility.
-                           // Newer python code should always use these same constant names, e.g. linuxcnc.G_CODE_ORIGIN
     G_CODE_SPINDLE_MODE,
     G_CODE_DISTANCE_MODE_IJK,
     G_CODE_LATHE_DIAMETER_MODE,
