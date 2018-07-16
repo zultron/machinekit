@@ -2276,6 +2276,37 @@ initlinuxcnc(void) {
     ENUMX(9, EMC_TASK_EXEC_WAITING_FOR_SYSTEM_CMD);
     ENUMX(9, EMC_TASK_EXEC_WAITING_FOR_SPINDLE_ORIENTED);
 
+    // Constants for indexing into the status.gcodes[] array
+    ENUMX(0, G_CODE_SEQUENCE_NUMBER);
+    ENUMX(0, G_CODE_MOTION_MODE);
+    ENUMX(0, G_CODE_MODE_0);
+    ENUMX(0, G_CODE_PLANE);
+    ENUMX(0, G_CODE_CUTTER_SIDE);
+    ENUMX(0, G_CODE_UNITS);
+    ENUMX(0, G_CODE_DISTANCE_MODE);
+    ENUMX(0, G_CODE_FEED_MODE);
+    ENUMX(0, G_CODE_ORIGIN);
+    ENUMX(0, G_CODE_TOOL_LENGTH_OFFSET);
+    ENUMX(0, G_CODE_RETRACT_MODE);
+    ENUMX(0, G_CODE_PATH_MODE);
+    // Note there is a gap here on purpose.  G_CODE_unsupported is a valid enum
+    // but makes no sense to expose to the python side yet until its actually
+    // implemented on the linuxcnc side.
+    ENUMX(0, G_CODE_SPINDLE_MODE);
+    ENUMX(0, G_CODE_DISTANCE_MODE_IJK);
+    ENUMX(0, G_CODE_LATHE_DIAMETER_MODE);
+
+    // Constants for indexing into the status.mcodes[] array
+    ENUMX(0, M_CODE_SEQUENCE_NUMBER);
+    ENUMX(0, M_CODE_STOPPING);
+    ENUMX(0, M_CODE_SPINDLE);
+    ENUMX(0, M_CODE_TOOLCHANGE);
+    ENUMX(0, M_CODE_MIST);
+    ENUMX(0, M_CODE_FLOOD);
+    ENUMX(0, M_CODE_OVERRIDES);
+    ENUMX(0, M_CODE_ADAPTIVE_FEED);
+    ENUMX(0, M_CODE_FEED_HOLD);
+
     ENUM(RCS_DONE);
     ENUM(RCS_EXEC);
     ENUM(RCS_ERROR);
