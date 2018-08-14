@@ -46,18 +46,9 @@ author "";
 //          enc-door-open-max-rpm       speed limit when enclosure door is open
 //          vfd-feedback-factor     ratio of feed back signal (2 for 770 or 3 for 1100).  
 //                                  We wanted consistent 3 for all m200 VFDs, but 770s VFDs got shipped with 2 ratio
-//  
-//          index-do                "index" spindle - when set, we're in "index" mode for this comp
-//          index-speed-in          vel command input from indexing pid entity, when in "index" mode
-//          index-encoder-position  raw encoder input from the spindle encoder
-//          index-encoder-velocity  encoder velocity input
-//          index-encoder-cpr       encoder counts per rev 
-//          forward_in              input from linuxcnc motion entity, used when not in index mode for feed thur
+//
+//
 // Outputs:
-//          index-modulus           feedback to pid block used control indexing of spindle
-//          spindle-on-thur         added for m200 to enable motion of spindle by itself
-//          spindle-forward-thur    feedthrough when not in indexing, set by this comp when indexing mode
-// 
 //
 //          speed-alarm             if true then speed-in is out of range for the current belt position - connect to UI
 //          vfd-freq-cmd            Hz to send to VFD to achieve desired motor RPM
@@ -66,12 +57,42 @@ author "";
 // Spindle-at-speed:                Drive motion.spindle-at-speed based on frequency feedback from VFD_RUNNING signal
 //
 //                                  Determined by comparing VFD motor RPM times pulley ratio "close enough" to commanded speed
+  
+////////////////// Start of orient additions
+// Inputs:
+//          orient-execute          orient the spindle - when set, we're in orient mode for this comp
+//                                  driven by motion.spindle-orient
+//          orient-angle            desired orientation angle in degrees (M19's "R" parameter)
+//                                  driven by motion.spindle-orient-angle
+//          orient-mode             Orient mode 0 = minimum path rotation 1 = rotate CW (fwd dir) 2 = rotate CCW (rev dir)  
+//                                  This is M19's "P" parameter  
+//                                  driven by motion.spindle-orient-mode
+//          orient-speed-in         vel command input from indexing pid entity, when in "index" mode
+//          orient-encoder-cpr      encoder counts per rev 
+//          encoder-position        encoder counts (position) input from the spindle encoder (resetable with zindex-enable)
+//          encoder-velocity        encoder velocity input
+//          encoder-rawcounts       encoder raw counts
+//          encoder-rawlatched      encoder raw latched input
+//          
+//          forward_in              input from linuxcnc motion entity, used when not in index mode for feed thur
+// Outputs:
+//          orient-modulus          feedback to pid block used control indexing of spindle
+//          orient-done             feedback to linuxcnc that index is within range.  Connect to motion.spindle-is-oriented
+//          orient-fault            feedback to linuxcnc for fault code.  Connect to motion.spindle-orient-fault
+//          spindle-on-thur         feedthrough of forward-in when not indexing, set by this comp when indexing mode 
+//          spindle-forward-thur    feedthrough of spindle-on when not indexing, set by this comp when indexing mode
+// Bi-directional:
+//          zindex-enable	        used to set spindle encoder's "index-enable" bit to align encoder counts to zero at next z-index
+//         orient-set-bt30           when set starts bt30 indexing mode 
+///////////////////// End of orient additions
+
 //
 // HAL mappings:
 //
 //    Inputs:
 //          speed-in                motion.spindle-speed-out
 //          spindle-on              motion.spindle-on
+//          forward-in              motion.spindle-forward
 //
 //    Outputs:
 //          at-speed             => motion.spindle-at-speed
@@ -79,7 +100,7 @@ author "";
 //          speed-out-rps           connect to UI for display during gcode program execution
 //                                  Also used by linuxcnc for G95 feed rate control and hardtapping (if we have a real encoder on spindle)
 //
-//
+//  SLP ADD Some more for indexing 
 // This HAL comp does the math to achieve commanded spindle RPM in current hi/lo range
 // it uses: commanded speed, belt-position/pulley ratio, motor Hz per command Hz
 // examples for PCNC 770: 
@@ -100,24 +121,9 @@ pin out bit at_speed_debounce;
 
 // connect to motion.spindle-on
 pin in bit spindle_on;
-// connect to m200 run pin (pass through from spindle_on when not in indexing mode)
-pin out bit spindle_on_thur;
 
 // this inbits the spindle from turning no matter what is commanded
 pin in bit disable;
-
-pin in bit index_do; //             execute indexing of spindle   
-
-pin in float index_speed_in;  		// vel command input from pid, used only when in "index" mode
-pin in bit forward_in; 				// forward (or reverse) to m200 from PP, when not in indexing mode
-pin out bit spindle_forward_thur;   // goes to spindle J1 "DIR" I/O
-
-pin in s32 index_encoder_position; 	// raw encoder input position (counts) from spindle 
-pin in float index_encoder_velocity; // encoder input velocity in RPS
-pin in s32 index_encoder_cpr;  		// encoder counts per rev
-
-// Outputs:
-pin out float index_modulus; 		// feedback to pid block used to control indexing
 
 // connect to UI
 pin out float speed_out_rps;
@@ -160,6 +166,46 @@ pin in bit enc_door_switch_status;
 pin in float enc_door_open_max_rpm;
 pin in float vfd_feedback_factor;
 
+
+///////////Spindle orienting additions
+// Inputs:
+pin in s32 encoder_position; 	// encoder input position (counts) from spindle 
+pin in float orient_angle;    //connect to motion.spindle-orient-angle
+pin in s32 orient_mode;       //connect to motion.spindle-orient-mode
+pin in bit orient_execute; //             execute indexing of spindle   
+pin in float orient_speed_in;  		// vel command input from pid, used only when in "index" mode
+pin in bit forward_in; 				// forward (or reverse) to m200 from PP, when not in indexing mode
+pin in float encoder_velocity; // encoder input velocity in RPS
+pin in s32 orient_encoder_cpr;  		// encoder counts per rev
+
+// not used
+//pin in s32 encoder_rawcounts;  
+//pin in s32 encoder_rawlatched;
+
+
+// Bi-directional:
+pin io bit zindex_enable;   //enables reset encoder counts, set from this comp, reset by hm2 encoder comp after z index is hit
+pin io bit orient_set_bt30;  //set the bt30 position.
+pin io s32 bt30_offset;     //offset for the Bt30 index with respect to encoder Z index location Must range from -orient_encoder_cpr/2 to orient_encoder_cpr/2
+                            //this comp will set this when orient_set_bt30 is set.  Or PP GUI can set from non-volatile source.
+
+// Outputs:
+pin out u32 zindex_state;    //See ISTATE_ defines
+pin out bit orient_done;             // feedback to linuxcnc that we've completed orientation/indexing
+pin out float orient_timer;       // used to timeout "in position" (orienting complete)
+pin out s32 orient_fault;            
+pin out float orient_modulus; 		// feedback to pid block used to control indexing
+
+
+pin out bit spindle_forward_thur;   // goes to spindle J1 "DIR" I/O
+// connect to m200 run pin (pass through from spindle_on when not in indexing mode)
+pin out bit spindle_on_thur;
+
+pin out bit target_computed; //set when we know where we're going for "new" M19 command 
+pin out s32 orient_target; //target encoder position for orient_execute command
+pin out s32 orient_deadband; //within this many encoder counts of target, we call orient "done"
+///////////// end of spindle orienting additions
+
 function _ "Tormach Spindle HAL Component M200";
 
 ;;
@@ -192,6 +238,29 @@ function _ "Tormach Spindle HAL Component M200";
 // this avoids false positive at-speed from power on noise burst from VFD
 #define AT_SPEED_DEBOUNCE_SECS 0.100
 
+///////// Orienting additions
+//zindexing_state Bit defines 
+#define ISTATE_PAST     (0x10)  //set when we've completed HM2 encoder z index-enable once in past 
+#define ISTATE_NONE     (0)     // when we've never done an index yet
+#define ISTATE_WAITING  (1)     //waiting for rotation of spindle to clear z index process
+#define ISTATE_DONE     (2)     //z index of encoder has been completed
+#define ISTATE_LOW_MASK (0x03)  //allows access to lower 2 bits if zindex_state
+#define ISTATE_HI_MASK  (0x10)  //allows access to upper bit of zindex_state
+
+//these are from the M19 documenation, the "P" parameter sets these
+#define ORIENT_NEAREST (0)
+#define ORIENT_CW (1)
+#define ORIENT_CCW (2)
+
+#define ORIENT_ERR_MULTIPLE_COMMANDS (-1)
+#define ORIENT_ERR_NO_ZINDEX (-2)
+//TODO: how is timeout ORIENT_ERR handled??
+
+#define ORIENT_DEADBAND_VALUE (4)  //within this range from orient target, we call it "done"
+#define ORIENT_DEADBAND_TIME    (100) //must stay within ORIENT_DEADBAND_VALUE for this many passes through comp (~100ms) to call it "done"
+/////////////// end orienting additions
+
+
 float vfd_rpm2freq(float rpm, float pulley_ratio, float hz_per_cmd_hz, float speeder_ratio) {
     return rpm / pulley_ratio / 60.0 * hz_per_cmd_hz / speeder_ratio;
 }
@@ -208,6 +277,51 @@ int is_close_enough(float val, float target, float tolerance) {
     return 0;
 }
 
+//returns absolute of integer
+signed int iabs(signed int x)
+{
+    if (x >= 0)
+        return x;
+    return -x;
+}
+
+//returns number modulus of input number, normalized range between
+//minimum  iabs(orient_encoder_cpr)/-2    
+//and 
+//maximum  iabs(orient_encoder_cpr)/2
+//we have to be very careful with modulus math when adding and subtracting
+//"current" and "target" positions that the -1/2 to +1/2 cpr range is true
+//or results become incorrect, or we have to check for wrap conditions
+signed int normalizedMod(signed int count, signed int encoder_cpr)
+{
+signed int modulus;
+
+    modulus = count % iabs(encoder_cpr);
+
+    if (modulus < 0) {
+        if (modulus < iabs(encoder_cpr)/-2)
+            modulus += iabs(encoder_cpr);
+    }
+    else {
+        if (modulus > iabs(encoder_cpr)/2)
+            modulus -= iabs(encoder_cpr);
+
+    }
+
+    return modulus;
+}
+
+
+/*
+FIXME:   can't put this here; we can't reference global variables.  Example: encoder_position.
+we get compiler nonsense about encoder_position not defined.  Same issue with any variables.
+So this functin has been placed below, in the FUNCTION(_)
+signed int calcFeedback(void)
+{
+.... encoder_position undefined compile time error
+}
+*/
+
 FUNCTION(_) {
     float speeder_ratio;
     float clamped_speed_in;
@@ -217,10 +331,102 @@ FUNCTION(_) {
     float max_speed_freq_cmd;
     float tolerance;
     float vfd_feedback_ratio;
-    int offset; 		//encoder offset (modulus)
-    int enc_feedback;	//final modulus to external PID.feedback. Ranges to +/- 1/2 of index_encoder_cpr
+    signed int enc_err;	
 
-    // spindle-type - for high speed use only low belt params
+// it appears to work to put calcFeedback() within FUNCTION(_)
+// Wanted this:
+// calcFeedback(void) {
+//    ....
+//    }
+// FUNCTION(_)
+//{
+//.... 
+//    calcFeedback();
+//....
+//}
+// We got this:
+// FUNCTION(_)
+//{
+// calcFeedback(void) {
+//    ....  (no worries, doesn't get called at entry to FUNCTION(_)
+//    }
+//....
+//    calcFeedback();
+//....
+//}
+// It looks screwy, but it works.  
+
+signed int calcFeedback(void)
+{
+signed int enc_feedback; //what PID gets for feedback
+signed int curMod; //modulus of the current position
+signed int desiredMod; //modulus of the target position
+signed int modulusErr; //diff between curMod nad desiredMod
+signed int angle_counts;
+float angle_offset;
+
+        if (!target_computed) { //note we assumed we've checked for previous z index before calling this routine
+            target_computed = 1;
+
+        //mod both the current position and desired positions
+        curMod = normalizedMod(encoder_position, orient_encoder_cpr);
+
+        //convert orient_angle in floating degrees measure to (float) encoder counts
+        angle_offset = ((orient_angle * (float)orient_encoder_cpr)/360.0) + .5;
+        //convert float to int (rounding will work because we added .5 count)
+        angle_counts = angle_offset;
+        angle_counts = normalizedMod(angle_counts, orient_encoder_cpr);
+
+
+        desiredMod = normalizedMod(angle_counts + bt30_offset, orient_encoder_cpr);
+
+        //note the resultant sign of modulusErr is for the PID feedback.
+        //We want the current position, relative to desired.
+        //i.e. if we're at position 150 and desired is 100, then we're returning +50 "too high"
+        // which is what the PID feedback needs.  (The feedback is PID's "current position" input);
+
+        modulusErr = normalizedMod(curMod - desiredMod,orient_encoder_cpr);
+
+        orient_target = encoder_position - modulusErr;
+
+        if( orient_encoder_cpr >= 0) { // encoder cpr is POS, so CW means counts go up
+            if (orient_mode == ORIENT_CW){ //if M19 requesting CW spindle rotation
+                if (orient_target < encoder_position) { //yet we calc'd a CCW rotation
+                    orient_target += orient_encoder_cpr; //add a turn to force target be a more CW location
+                                    //note we already know orient_encoder_cpr is positive, so adding counts to be more CW
+                }
+            }
+            else if (orient_mode == ORIENT_CCW) { //if M19 requesting CCW spindle rotation
+                if (orient_target > encoder_position) { //yet we calc'd a CW rotation
+                    orient_target -= orient_encoder_cpr; //subtract a turn to force target be a more CCW location
+                                    //note we already know orient_encoder_cpr is positive, so subracting counts to be more CCW
+                }
+            }
+        }
+        else { //if encoder cpr is NEG, then CW means counts go _down_!
+            if (orient_mode == ORIENT_CW){ //if M19 requesting CW spindle rotation
+                if (orient_target > encoder_position) { //yet we calc'd a CCW rotation
+                    orient_target += orient_encoder_cpr; //subtract a turn to force target be a more CW location
+                                    //note we already know orient_encoder_cpr is negative, so we're really subtracting counts (more CW)
+                }
+            }
+            else if (orient_mode == ORIENT_CCW) { //if M19 requesting CCW spindle rotation
+                if (orient_target < encoder_position) { //yet we calc'd a CW rotation
+                    orient_target -= orient_encoder_cpr; //add a turn to force target be a more CCW location
+                                    //note we already know orient_encoder_cpr is negative, so we're adding counts (more CCW)
+                }
+            }
+        }
+    }
+
+    enc_feedback = encoder_position - orient_target;
+
+    return enc_feedback;
+}
+
+
+
+// spindle-type - for high speed use only low belt params
     //                for speeder compensate for tripled output speed
     //                for standard pay attention to belt position
     switch (spindle_type) {
@@ -269,11 +475,85 @@ FUNCTION(_) {
     // range check and clamp speed-in between min and max (0.0 is OK for stopped)
     speed_alarm = BIT_FALSE;
 
-    //note if index_do isn't hooked up, we assume it is going to be "0", which means this comp will behave in
+    //note if orient_execute isn't hooked up, we assume it is going to be "0", which means this comp will behave in
     //the normal mode which doesn't index
-    if (!index_do) { //switch between normal and index mode and speed inputs
+
+    if (!(zindex_state & ISTATE_PAST) && !(zindex_state & ISTATE_WAITING)) {
+        //system("halcmd sets spindle-orient-enable 1"); //command z index to happen
+        zindex_enable = 1;
+        zindex_state = ISTATE_WAITING;
+    }
+    else if ((zindex_state & ISTATE_WAITING) && (zindex_enable == 0)) {
+        zindex_state = ISTATE_PAST | ISTATE_DONE;
+    }
+
+    if (orient_execute) {
+        orient_deadband = ORIENT_DEADBAND_VALUE;
+        if(!orient_done)
+            orient_fault = 0;
+
+        spindle_on_thur = BIT_FALSE; //default to spindle off in orient mode until something sets it on
+
+        if (orient_set_bt30){
+            orient_fault = ORIENT_ERR_MULTIPLE_COMMANDS;
+            orient_done = 1;
+            target_computed = 0;
+        }
+        else if (zindex_state != (ISTATE_PAST | ISTATE_DONE)) {
+            orient_fault = ORIENT_ERR_NO_ZINDEX; //we've yet to see an encoder z index -- error out
+            orient_done = 1;
+            target_computed = 0;
+        }
+        else if (!orient_done) { //no errors detected.  if we didn't already complete, do orient 
+            if(orient_speed_in >= 0)  //figure out spindle dir based on input from index PID
+                spindle_forward_thur = BIT_TRUE;  //true selects forward on m200
+            else spindle_forward_thur = BIT_FALSE; //false selects reverse on m200
+
+            clamped_speed_in = fabs(orient_speed_in); //dir from input speed is ignored, as spindle_forward_thur sets that
+            //max speed during indexing is "very" low, use min_speed (yes min, not max) to set max speed
+            if (clamped_speed_in > min_speed) {
+                // over max
+                clamped_speed_in = min_speed;
+            }
+
+            orient_modulus = (float) calcFeedback(); //PID needs a float
+            enc_err = iabs(orient_target - encoder_position);
+            if(enc_err < orient_deadband){ //if indexing feedback is good for 100 ms, call it done
+                if (++orient_timer >= ORIENT_DEADBAND_TIME) {
+                    orient_done = 1;
+                    target_computed = 0;
+                }
+            }
+            else {
+                orient_timer = 0;
+            }
+            spindle_on_thur = BIT_TRUE;  //always enable the spindle in orienting mode
+        }
+    }
+    else if (orient_set_bt30)
+    {
+        //errors or not, we clear all these before finishing the bt30 set operation
+        orient_set_bt30 = 0;   // the user looks at this to go low to know it completed, and can look at fault code to see if err
+        orient_fault = 0;
+        orient_done = 0;
+        target_computed = 0;
+
+        spindle_on_thur = BIT_FALSE; //never enable spindle for bt30 setting
+        if (zindex_state != (ISTATE_PAST | ISTATE_DONE)) {
+            orient_fault = ORIENT_ERR_NO_ZINDEX; //we've yet to see an encoder z index -- error out
+        }
+        else { //we're in orient_set_bt30 mode, no errors detected
+            bt30_offset = normalizedMod(encoder_position,orient_encoder_cpr);
+        }
+    }
+    else //normal spindle operation, no orienting or bt30 setting active
+    {
+        orient_done = 0;
+        target_computed = 0;
+        orient_timer = 0;
+
         clamped_speed_in = fabs(speed_in); //ignore direction sign from speed input
-        if (clamped_speed_in < min_speed) { 
+        if (clamped_speed_in < min_speed) {
             // under min
             speed_alarm = BIT_TRUE;
             clamped_speed_in = min_speed;
@@ -286,39 +566,8 @@ FUNCTION(_) {
         spindle_on_thur = spindle_on; //pass thur in this mode
         spindle_forward_thur = forward_in; //pass thur in this mode
     }
-    else {  //when indexing spindle head
-        if(index_speed_in >= 0)  //figure out spindle dir based on input from index PID
-            spindle_forward_thur = BIT_TRUE;  //true selects forward on m200
-        else spindle_forward_thur = BIT_FALSE; //true selects reverse on m200
 
-        clamped_speed_in = fabs(index_speed_in); //dir from input speed is ignored, as spindle_forward_thur sets that
-		//max speed during indexing is "very" low, use min_speed (yes min, not max) to set max speed
-        if (clamped_speed_in > min_speed) { 
-            // over max
-            clamped_speed_in = min_speed;
-        }
-        //compute modulus for PID.feedback for spindle indexing
-		//how that is done is dependent on sign of raw encoder input
-        offset = index_encoder_position % index_encoder_cpr;
-        if (offset < 0) {
-            if (offset <= index_encoder_cpr/-2)
-                enc_feedback = index_encoder_position - (index_encoder_cpr + offset);
-            else
-                enc_feedback = index_encoder_position - offset;
-        }
-        else {
-            if (offset >= index_encoder_cpr/2)
-                enc_feedback = index_encoder_position + (index_encoder_cpr - offset);
-            else
-                enc_feedback = index_encoder_position - offset;
-        }
-		//enc_feedback is now the nearest raw absolute modulus location
-		//normalize to < |index_encoder_cpr| and flip sign for direction
-		//enc_feedback should range -index_encoder_cpr/2 to +index_encoder_cpr/2
-        enc_feedback = enc_feedback - index_encoder_position;  
-        index_modulus = (float) enc_feedback; //PID needs a float
-        spindle_on_thur = BIT_TRUE;  //always enable the spindle in indexing mode
-    }
+
 
     // set pulley ratio
     if (spindle_type == HISPEED_TYPE) {
@@ -346,7 +595,7 @@ FUNCTION(_) {
     // clamp vfd_freq_cmd to acceptable range
     min_speed_freq_cmd = vfd_rpm2freq(min_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
     max_speed_freq_cmd = vfd_rpm2freq(max_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
-    if (!index_do && vfd_freq_cmd < min_speed_freq_cmd) {   //no minimum command freq for indexing mode
+    if (!orient_execute && vfd_freq_cmd < min_speed_freq_cmd) {   //no minimum command freq for indexing mode
         vfd_freq_cmd = min_speed_freq_cmd;
     }
     else if (vfd_freq_cmd > max_speed_freq_cmd) {
@@ -425,10 +674,10 @@ FUNCTION(_) {
         // no spindle motion allowed
         vfd_freq_cmd = 0.0;
     }
-    if(index_encoder_cpr == 0.0 || index_encoder_cpr == 1.0) //means no encoder. not setting to "0" as linuxcnc/src/hal/drivers/mesa-hostmot2/encoder.c uses this as a divisor, so !=0, yet we wish to allow HAL to not connect 
+    if(orient_encoder_cpr == 0.0 || orient_encoder_cpr == 1.0) //means no encoder. not setting to "0" as linuxcnc/src/hal/drivers/mesa-hostmot2/encoder.c uses this as a divisor, so !=0, yet we wish to allow HAL to not connect 
     //this pin, in which case it's going to be 0
         speed_out_rps = speed_out / 60.0;
     else
-        speed_out_rps = index_encoder_velocity;  //feed thur of velocity 
+        speed_out_rps = encoder_velocity;  //feed thur of velocity 
 }
 
