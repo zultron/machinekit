@@ -333,6 +333,9 @@ FUNCTION(_) {
     float vfd_feedback_ratio;
     signed int enc_err;	
 
+    clamped_speed_in = 0; //keeps compiler happy.  + Defensive programming as
+                       // spindle won't move unless something else sets this
+
 // it appears to work to put calcFeedback() within FUNCTION(_)
 // Wanted this:
 // calcFeedback(void) {
