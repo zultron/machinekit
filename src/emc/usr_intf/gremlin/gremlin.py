@@ -230,6 +230,11 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def clear_live_plotter(self):
         self.logger.clear()
 
+    def stop_live_plotter(self):
+        # this is important as its the only way to clean up the thread that we started which
+        # the logger is running in.
+        self.logger.stop()        
+
     def map(self, *args):
         gobject.timeout_add(50, self.poll)
 
