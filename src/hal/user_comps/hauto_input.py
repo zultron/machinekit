@@ -208,21 +208,21 @@ class HautoInputDevice:
 h = component("hauto_input")
 w = HalWrapper(h)
 h.setprefix("hauto")
-d = []
+deviceList = []
 i = 0
 try:
-    d.append(HautoInputDevice(w, 0, "FranksWorkshop"))
+    deviceList.append(HautoInputDevice(w, 0, "Vendor=1c40 Product=04d9"))
 except LookupError, detail:
     raise SystemExit, detail
 
 w.drive()
 h.ready()
 
-fds = [dev.device.fileno() for dev in d]
+fds = [dev.device.fileno() for dev in deviceList]
 try:
     while 1:
         select.select(fds, [], [], .01)
-        for i in d: i.update()
+        for i in deviceList: i.update()
         w.drive()
 except KeyboardInterrupt:
     pass
