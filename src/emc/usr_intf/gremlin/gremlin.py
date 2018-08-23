@@ -106,7 +106,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     rotation_vectors = [(1.,0.,0.), (0., 0., 1.)]
 
     def __init__(self, inifile):
-	self.geometry = ''
+        self.geometry = ''
         display_mode = ( gtk.gdkgl.MODE_RGB | gtk.gdkgl.MODE_DEPTH |
                          gtk.gdkgl.MODE_DOUBLE )
         glconfig = gtk.gdkgl.Config(mode=display_mode)
@@ -194,6 +194,21 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             live_axis_count += 1
         self.num_joints = int(inifile.find("TRAJ", "JOINTS") or live_axis_count)
 
+        self.timeout_id = None
+
+
+    def destroy(self):
+        # cleanup so that the garbage collector can actually do its work.
+        # this eventually kills the logger thread that was created in the constructor
+        self.stop_live_plotter()
+
+        # and we must stop the timer callback or this single callback will forever keep
+        # this object alive along with all the overhead of the instance data!
+        if self.timeout_id:
+            gobject.source_remove(self.timeout_id)
+        self.inifile = None
+        self.logger = None
+
     def activate(self):
         glcontext = gtk.gtkgl.widget_get_gl_context(self)
         gldrawable = gtk.gtkgl.widget_get_gl_drawable(self)
@@ -236,7 +251,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.logger.stop()        
 
     def map(self, *args):
-        gobject.timeout_add(50, self.poll)
+        self.timeout_id = gobject.timeout_add(50, self.poll)       
 
     def poll(self):
         s = self.stat
