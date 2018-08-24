@@ -3987,6 +3987,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
 			EmcPose tool_offset;
 			ZERO_EMC_POSE(tool_offset);
 			tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
+			tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.y);
 			tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.z);
 			USE_TOOL_LENGTH_OFFSET(tool_offset);
 			double dx, dy;
@@ -5808,6 +5809,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
 	}
 	CHP((find_tool_pocket(settings, geo_offset_register, &index)));
 	tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
+	tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.y);
 	tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
 	tool_offset.w = 0;
 	if (block->t_number > 99) { // Future change required for using tools greater than 99
