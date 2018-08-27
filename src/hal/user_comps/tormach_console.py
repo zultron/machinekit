@@ -27,6 +27,8 @@ try:
 except ImportError:
     pass
 
+NUMBER_SUPPORTED = 1
+
 def tohalname(s): return str(s).lower().replace("_", "-")
 
 class HalWrapper:
@@ -56,7 +58,7 @@ class HalWrapper:
 
 class TormachConsoleInputDevice:
     def __init__(self, wrapped_comp, index, event_device):
-        self.device = event_device
+        self.event_device = event_device
         self.wrapped_comp = wrapped_comp
         self.index = index
         # self.codes os the mapping of HID device inputs to HAL pins
@@ -89,7 +91,6 @@ class TormachConsoleInputDevice:
             self.newpin("%s-invert" % self.codes[led], HAL_BIT, HAL_IN)
             self.set(self.codes[led], 0)
             self.set(self.codes[led] + "-invert", 0)
-            self.device.set_led(ecodes.ecodes[led], 0)
 
         self.newpin("%s-counts" % self.codes['ABS_RX'], HAL_S32, HAL_OUT)
         for i in range(4):
@@ -119,7 +120,7 @@ class TormachConsoleInputDevice:
             self.set(name + "-flat", 0.05)
 
     def update(self):
-        for event in self.device.read():
+        for event in self.event_device.read():
             event = evdev.categorize(event)
             if isinstance(event, evdev.KeyEvent):
                 code = event.keycode
@@ -168,7 +169,7 @@ class TormachConsoleInputDevice:
                     position=center
                 self.set(name + "-position", position)
 
-            current_active_leds = [l[0] for l in self.device.leds(verbose=True)]
+            current_active_leds = [l[0] for l in self.event_device.leds(verbose=True)]
             #write led values
             for led in self.leds:
                 value = led in current_active_leds 
@@ -176,7 +177,7 @@ class TormachConsoleInputDevice:
                 halname = self.codes[led]
                 hal_val = self.wrapped_comp["%s.%s" % (self.index, halname)] != self.wrapped_comp["%s.%s-invert" % (self.index, halname)]
                 if hal_val != value:
-                    self.device.set_led(ecodes.ecodes[led], not value)
+                    self.event_device.set_led(ecodes.ecodes[led], not value)
 
 
     def get(self, name):
@@ -192,21 +193,34 @@ class TormachConsoleInputDevice:
         if name not in self.wrapped_comp._pins:
             self.wrapped_comp.newpin(name, *args)
 
+    def device_connected(self):
+        return self.event_device != None
+
 import time, os
 
 hal_component = component("tormach_console")
 wrapper = HalWrapper(hal_component)
 hal_component.setprefix("tormach-console")
-devices = {}
 
+#We need to initialize these devices up front because HAL needs all pins created now
+devices = [TormachConsoleInputDevice(wrapper, index, None) for index in range(NUMBER_SUPPORTED)]
+
+def connected_devices():
+    return [dev for dev in devices if dev.device_connected()]
+
+#If we have new USB devices, we find the first TormachConsoleInputDevice where event_device==None
+#and set the event_device to the new device
 def check_for_devices():
     device_list = [dev for dev in [evdev.InputDevice(path) for path in evdev.list_devices()] if dev.name=="FranksWorkshop Generic HID Device"]
     for dev in device_list:
-        if dev not in [idev.device for idev in devices.values()]:
-            indexes = [idev.index for idev in devices.values()]
-            next_index = next(ifilterfalse(set(indexes).__contains__, count(0)))
-            devices[dev.fd] = TormachConsoleInputDevice(wrapper, next_index, dev)
-    #print len(devices), "console devices found"
+        if dev not in [idev.event_device for idev in devices]:
+            indexes = [idev.index for idev in devices if idev.device_connected()]
+            try:
+                next_index = next(ifilterfalse(set(indexes).__contains__, range(NUMBER_SUPPORTED)))
+            except StopIteration as e:
+                print "More console devices were plugged in than are supported on this system."
+            devices[next_index].event_device = dev
+    #print len(connected_devices()), "console devices found"
 
 check_for_devices()
 wrapper.newpin('device-connected', HAL_BIT, HAL_OUT)
@@ -216,19 +230,22 @@ hal_component.ready()
 last_check=time.time()
 
 while True:
+    # Check for new console devices every 5 seconds
     if time.time() - last_check > 5:
         check_for_devices()
         last_check = time.time()
-    if len(devices) == 0:
-        time.sleep(1)
+    if len( connected_devices() ) == 0:
         wrapper['device-connected']=0
+        time.sleep(1)
     else:
         wrapper['device-connected']=1
     try:
-        readable, w, x = select(devices, [], [], 1.0)
+        fds = {dev.event_device.fd: dev for dev in devices if dev.device_connected()}
+        readable, w, x = select(fds.keys(), [], [], 1.0)
         for fd in readable:
-            devices[fd].update()
+            fds[fd].update()
     except IOError as e:
-        for fd in devices.keys():
-            if os.fstat(fd).st_mode == 8192:
-                del devices[fd]
+        for dev in connected_devices():
+            if os.fstat(dev.event_device.fd).st_mode == 8192:
+                print "Tormach console device", dev.index, "dissapeared"
+                dev.event_device = None
