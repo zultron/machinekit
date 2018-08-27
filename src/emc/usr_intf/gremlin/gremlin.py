@@ -206,6 +206,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         # this object alive along with all the overhead of the instance data!
         if self.timeout_id:
             gobject.source_remove(self.timeout_id)
+            self.timeout_id = None            
         self.inifile = None
         self.logger = None
 
@@ -251,7 +252,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.logger.stop()        
 
     def map(self, *args):
-        self.timeout_id = gobject.timeout_add(50, self.poll)       
+        # don't schedule multiple timers
+        if self.timeout_id is None:
+            self.timeout_id = gobject.timeout_add(50, self.poll)       
 
     def poll(self):
         s = self.stat
@@ -268,7 +271,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.fingerprint = fingerprint
             self.queue_draw()
 
-        # return self.visible
         return True
 
     @rs274.glcanon.with_context
