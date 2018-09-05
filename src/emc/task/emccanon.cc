@@ -36,6 +36,8 @@
 #include <math.h>
 #include <string.h>		// strncpy()
 #include <ctype.h>		// isspace()
+#include <limits.h>
+#include <wordexp.h>	// wordexp() for ~ path expansion
 #include "emc_statics.hh"
 #include "emc_nml.hh"
 #include "canon.hh"
@@ -2530,16 +2532,78 @@ void LOG(char *s) {
 
 }
 
+static char logfile_prefix[PATH_MAX];
+
+void LOG_SET_LOGFILE_PREFIX(const char *s) {
+    while (isspace(*s))	  // trim leading whitespace
+    	++s;    
+
+    setString(logfile_prefix, s, sizeof(logfile_prefix));
+
+	// trim trailing whitespace
+	char *end = logfile_prefix + strlen(logfile_prefix)-1;
+	while (end >= logfile_prefix && isspace(*end))
+		--end;
+	++end;
+	*end = '\0';
+
+	// terminate path prefix with / separator if needed
+	size_t len = strlen(logfile_prefix);
+    if ((len > 0) && (logfile_prefix[len-1] != '/')) {
+    	addString(logfile_prefix, "/", sizeof(logfile_prefix));
+    }
+}
+
 void LOGOPEN(char *name) {
     if(logfile) fclose(logfile);
-    logfile = fopen(name, "wt");
-    fprintf(stderr, "LOGOPEN(%s) -> %p\n", name, logfile);
+
+    char fullpath[PATH_MAX];
+    setString(fullpath, logfile_prefix, sizeof(fullpath));
+
+    // trim any leading whitespace off the file name
+    while (isspace(*name))
+    	++name;
+    // since logfile_prefix already has a trailing / separator, skip any leading one on name
+    if (*name == '/')
+    	++name;
+
+    addString(fullpath, name, sizeof(fullpath));
+
+    // pass through wordexp to handle any ~ characters
+    wordexp_t result;
+    if (0 == wordexp(fullpath, &result, 0)) {
+    	setString(fullpath, result.we_wordv[0], sizeof(fullpath));
+    	wordfree(&result);
+    }
+
+    logfile = fopen(fullpath, "wt");
+    fprintf(stderr, "LOGOPEN(%s) -> %p\n", fullpath, logfile);
 }
 
 void LOGAPPEND(char *name) {
     if(logfile) fclose(logfile);
-    logfile = fopen(name, "at");
-    fprintf(stderr, "LOGAPPEND(%s) -> %p\n", name, logfile);
+
+    char fullpath[PATH_MAX];
+    setString(fullpath, logfile_prefix, sizeof(fullpath));
+
+    // trim any leading whitespace off the file name
+    while (isspace(*name))
+    	++name;
+    // since logfile_prefix already has a trailing / separator, skip any leading one on name
+    if (*name == '/')
+    	++name;
+
+    addString(fullpath, name, sizeof(fullpath));
+
+    // pass through wordexp to handle any ~ characters
+    wordexp_t result;
+    if (0 == wordexp(fullpath, &result, 0)) {
+    	setString(fullpath, result.we_wordv[0], sizeof(fullpath));
+    	wordfree(&result);
+    }
+
+    logfile = fopen(fullpath, "at");
+    fprintf(stderr, "LOGAPPEND(%s) -> %p\n", fullpath, logfile);
 }
 
 

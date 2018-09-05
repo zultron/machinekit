@@ -3423,6 +3423,12 @@ static int iniLoad(const char *filename)
 	max_mdi_queued_commands = atoi(inistring);
     }
 
+    // path prefix for (LOGOPEN,filename.txt) commands
+    LOG_SET_LOGFILE_PREFIX("");
+    if (NULL != (inistring = inifile.Find("LOGFILE_PREFIX", "TASK"))) {
+        LOG_SET_LOGFILE_PREFIX(inistring);
+    }
+
     // close it
     inifile.Close();
 

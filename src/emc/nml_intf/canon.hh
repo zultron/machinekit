@@ -562,6 +562,7 @@ extern void FLOOD_ON();
 
 extern void MESSAGE(char *s);
 
+extern void LOG_SET_LOGFILE_PREFIX(const char *s);
 extern void LOG(char *s);
 extern void LOGOPEN(char *s);
 extern void LOGAPPEND(char *s);
