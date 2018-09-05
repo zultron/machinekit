@@ -177,6 +177,7 @@ pin in float orient_speed_in;  		// vel command input from pid, used only when i
 pin in bit forward_in; 				// forward (or reverse) to m200 from PP, when not in indexing mode
 pin in float encoder_velocity; // encoder input velocity in RPS
 pin in s32 orient_encoder_cpr;  		// encoder counts per rev
+//pin in u32 window;
 
 // not used
 //pin in s32 encoder_rawcounts;  
@@ -256,7 +257,7 @@ function _ "Tormach Spindle HAL Component M200";
 #define ORIENT_ERR_NO_ZINDEX (-2)
 //TODO: how is timeout ORIENT_ERR handled??
 
-#define ORIENT_DEADBAND_VALUE (4)  //within this range from orient target, we call it "done"
+#define ORIENT_DEADBAND_VALUE (8)  //within this range from orient target, we call it "done"
 #define ORIENT_DEADBAND_TIME    (100) //must stay within ORIENT_DEADBAND_VALUE for this many passes through comp (~100ms) to call it "done"
 /////////////// end orienting additions
 
