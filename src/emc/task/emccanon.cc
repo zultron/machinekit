@@ -1293,8 +1293,7 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
 
     canonMotionMode = mode;
     canon_debug("canonMotionMode = %d\n", mode);
-    canon_debug("canonMotionMode = %d\n", mode);
-    
+
     // Negative value means we use default tolerance as specified in INI file
     if (tolerance < 0) {
         // convert to canon units
@@ -1303,23 +1302,33 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
         canonMotionTolerance = FROM_PROG_LEN(tolerance);
     }
 
+    //fprintf(stderr, "Passed tolerance: %f, canonMotionTolerance: %f mm\n", tolerance, canonMotionTolerance);
+
     switch (mode) {
     case CANON_CONTINUOUS:
+        fprintf(stderr, "Setting motion mode to blend. ");
         setTermCondMsg.cond = EMC_TRAJ_TERM_COND_BLEND;
         setTermCondMsg.tolerance = TO_EXT_LEN(canonMotionTolerance);
         break;
     case CANON_EXACT_PATH:
+        fprintf(stderr, "Setting motion mode to exact path.  ");
         setTermCondMsg.cond = EMC_TRAJ_TERM_COND_EXACT;
+        // TP must have non-zero tolerance or TP operates in G64 P0.0 no tolerance go fast blend mode
+        // 0.00001 inches == 0.000254 mm canon
+        // TP tolerance can go back to 0.0 when TP changes to do the right thing for exact path and tolerance = 0.0
+        if (canonMotionTolerance == 0.0) {
+            setTermCondMsg.tolerance = TO_EXT_LEN(0.000254);
+        }
         break;
-
     case CANON_EXACT_STOP:
     default:
+        fprintf(stderr, "Setting motion mode to exact stop.  ");
         setTermCondMsg.cond = EMC_TRAJ_TERM_COND_STOP;
         break;
     }
-    fprintf(stderr, "Setting tolerance to %f\n",canonMotionTolerance);
+    fprintf(stderr, "Setting tolerance to %f external units\n", setTermCondMsg.tolerance);
 
-	tag_and_send(setTermCondMsg);
+    tag_and_send(setTermCondMsg);
 }
 
 void SET_NAIVECAM_TOLERANCE(double tolerance)
