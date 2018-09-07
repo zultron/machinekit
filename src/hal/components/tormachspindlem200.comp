@@ -82,7 +82,7 @@ author "";
 //          spindle-on-thur         feedthrough of forward-in when not indexing, set by this comp when indexing mode 
 //          spindle-forward-thur    feedthrough of spindle-on when not indexing, set by this comp when indexing mode
 // Bi-directional:
-//          zindex-enable	        used to set spindle encoder's "index-enable" bit to align encoder counts to zero at next z-index
+//          zindex-enable           used to set spindle encoder's "index-enable" bit to align encoder counts to zero at next z-index
 //         orient-set-bt30           when set starts bt30 indexing mode 
 ///////////////////// End of orient additions
 
@@ -169,15 +169,15 @@ pin in float vfd_feedback_factor;
 
 ///////////Spindle orienting additions
 // Inputs:
-pin in s32 encoder_position; 	// encoder input position (counts) from spindle 
-pin in float orient_angle;    //connect to motion.spindle-orient-angle
-pin in s32 orient_mode;       //connect to motion.spindle-orient-mode
-pin in bit orient_execute; //             execute indexing of spindle   
-pin in float orient_speed_in;  		// vel command input from pid, used only when in "index" mode
-pin in bit forward_in; 				// forward (or reverse) to m200 from PP, when not in indexing mode
-pin in float encoder_velocity; // encoder input velocity in RPS
-pin in s32 orient_encoder_cpr;  		// encoder counts per rev
-//pin in u32 window;
+pin in s32 encoder_position;    // encoder input position (counts) from spindle 
+pin in float orient_angle;      //connect to motion.spindle-orient-angle
+pin in s32 orient_mode;         //connect to motion.spindle-orient-mode
+pin in bit orient_execute;      //             execute indexing of spindle   
+pin in float orient_speed_in;   // vel command input from pid, used only when in "index" mode
+pin in bit forward_in;          // forward (or reverse) to m200 from PP, when not in indexing mode
+pin in float encoder_velocity;  // encoder input velocity in RPS
+pin in s32 orient_encoder_cpr;  // encoder counts per rev
+pin in u32 deadband_in;         //the range in +/- encoder counts where we consider the spindle orientation is done
 
 // not used
 //pin in s32 encoder_rawcounts;  
@@ -185,17 +185,17 @@ pin in s32 orient_encoder_cpr;  		// encoder counts per rev
 
 
 // Bi-directional:
-pin io bit zindex_enable;   //enables reset encoder counts, set from this comp, reset by hm2 encoder comp after z index is hit
-pin io bit orient_set_bt30;  //set the bt30 position.
-pin io s32 bt30_offset;     //offset for the Bt30 index with respect to encoder Z index location Must range from -orient_encoder_cpr/2 to orient_encoder_cpr/2
-                            //this comp will set this when orient_set_bt30 is set.  Or PP GUI can set from non-volatile source.
+pin io bit zindex_enable;       //enables reset encoder counts, set from this comp, reset by hm2 encoder comp after z index is hit
+pin io bit orient_set_bt30;     //set the bt30 position.
+pin io s32 bt30_offset;         //offset for the Bt30 index with respect to encoder Z index location Must range from -orient_encoder_cpr/2 to orient_encoder_cpr/2
+                                //this comp will set this when orient_set_bt30 is set.  Or PP GUI can set from non-volatile source.
 
 // Outputs:
 pin out u32 zindex_state;    //See ISTATE_ defines
 pin out bit orient_done;             // feedback to linuxcnc that we've completed orientation/indexing
 pin out float orient_timer;       // used to timeout "in position" (orienting complete)
 pin out s32 orient_fault;            
-pin out float orient_modulus; 		// feedback to pid block used to control indexing
+pin out float orient_modulus;       // feedback to pid block used to control indexing
 
 
 pin out bit spindle_forward_thur;   // goes to spindle J1 "DIR" I/O
@@ -332,7 +332,7 @@ FUNCTION(_) {
     float max_speed_freq_cmd;
     float tolerance;
     float vfd_feedback_ratio;
-    signed int enc_err;	
+    signed int enc_err; 
 
     clamped_speed_in = 0; //keeps compiler happy.  + Defensive programming as
                        // spindle won't move unless something else sets this
@@ -492,7 +492,11 @@ float angle_offset;
     }
 
     if (orient_execute) {
-        orient_deadband = ORIENT_DEADBAND_VALUE;
+        if (deadband_in != 0)
+            orient_deadband = deadband_in;
+        else
+            orient_deadband = ORIENT_DEADBAND_VALUE;
+
         if(!orient_done)
             orient_fault = 0;
 
