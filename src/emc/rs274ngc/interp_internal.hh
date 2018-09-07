@@ -675,6 +675,7 @@ typedef struct setup_struct
   CANON_PLANE plane;            // active plane, XY-, YZ-, or XZ-plane
   bool probe_flag;            // flag indicating probing done
   bool input_flag;            // flag indicating waiting for input done
+  bool orient_flag;           // flag indicating waiting for spindle orient done
   bool toolchange_flag;       // flag indicating we just had a tool change
   int input_index;		// channel queried
   bool input_digital;		// input queried was digital (false=analog)

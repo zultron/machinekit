@@ -1931,6 +1931,8 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(programUnits);
     cms->update(interpreter_errcode);
     cms->update(input_timeout);
+    cms->update(orient_timeout);
+    cms->update(orient_no_exec_error);
     cms->update(rotation_xy);
 
 }

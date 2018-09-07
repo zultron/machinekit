@@ -441,6 +441,8 @@ BOOST_PYTHON_MODULE(emctask) {
 	.def_readwrite("optional_stop_state", &EMC_TASK_STAT::optional_stop_state)
 	.def_readwrite("block_delete_state", &EMC_TASK_STAT::block_delete_state)
 	.def_readwrite("input_timeout", &EMC_TASK_STAT::input_timeout)
+	.def_readwrite("orient_timeout", &EMC_TASK_STAT::orient_timeout)
+	.def_readwrite("orient_no_exec_error", &EMC_TASK_STAT::orient_no_exec_error)
 
 	//  read-only
 	.add_property("file",  &get_file)

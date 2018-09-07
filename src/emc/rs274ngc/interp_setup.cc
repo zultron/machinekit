@@ -95,6 +95,7 @@ setup_struct::setup_struct() :
     plane(0),
     probe_flag(0),
     input_flag(0),
+    orient_flag(0),
     toolchange_flag(0),
     input_index(0),
     input_digital(0),

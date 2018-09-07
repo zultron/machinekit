@@ -3025,6 +3025,7 @@ int Interp::restore_from_tag(StateTag const &tag)
 	_setup.input_flag = false;
 	_setup.toolchange_flag = false;
 	_setup.probe_flag = false;
+	_setup.orient_flag = false;
 
     // Restore line number from tag
     _setup.sequence_number = tag.fields[GM_FIELD_LINE_NUMBER];
@@ -3326,18 +3327,21 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
     enqueue_STOP_SPINDLE_TURNING();
   } else if ((block->m_modes[7] == 19) && ONCE_M(7)) {
       settings->spindle_turning = CANON_STOPPED;
-      if (block->r_flag || block->p_flag) {
+      if (block->r_flag || block->p_flag || block->q_flag) {
+          settings->orient_flag = true;
 	  write_and_update_state_tag(block);
 	  enqueue_ORIENT_SPINDLE(
 	      (block->r_flag ? (block->r_number + settings->orient_offset)
 	       : settings->orient_offset),
 	      block->p_flag ? block->p_number : 0);
+      	if (block->q_flag) {
+		//CHKS((block->q_number <= 0.0),(_("Q word with M19 requires a value > 0")));
+		// Q < 0.0 means don't make a timeout and error, let the g code handle it.
+		write_and_update_state_tag(block);
+		enqueue_WAIT_ORIENT_SPINDLE_COMPLETE(block->q_number);
+	}
       }
-      if (block->q_flag) {
-	  CHKS((block->q_number <= 0.0),(_("Q word with M19 requires a value > 0")));
-	  write_and_update_state_tag(block);
-	  enqueue_WAIT_ORIENT_SPINDLE_COMPLETE(block->q_number);
-      }
+
   } else if ((block->m_modes[7] == 70) || (block->m_modes[7] == 73)) {
 
      // save state in current stack frame. We borrow the o-word call stack
