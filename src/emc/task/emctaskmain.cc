@@ -2019,7 +2019,14 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_SPINDLE_WAIT_ORIENT_COMPLETE_TYPE:
 	wait_spindle_orient_complete_msg = (EMC_SPINDLE_WAIT_ORIENT_COMPLETE *) cmd;
-	taskExecDelayTimeout = etime() + wait_spindle_orient_complete_msg->timeout;
+	emcStatus->task.orient_timeout = 0;
+	if (wait_spindle_orient_complete_msg->timeout < 0.0)
+		// negative timeout (M19 Q-word) let g code check for timeout
+		emcStatus->task.orient_no_exec_error = 1;
+	else
+		// hard error
+		emcStatus->task.orient_no_exec_error = 0;
+	taskExecDelayTimeout = etime() + fabs(wait_spindle_orient_complete_msg->timeout);
 	break;
 
     case EMC_TRAJ_RIGID_TAP_TYPE:
@@ -2861,7 +2868,11 @@ static int emcTaskExecute(void)
 	    emcStatus->task.delayLeft = taskExecDelayTimeout - etime();
 	    if (etime() >= taskExecDelayTimeout) {
 		emcStatus->task.execState = EMC_TASK_EXEC_ERROR;
+		if (emcStatus->task.orient_no_exec_error != 0)
+			// do not interrupt program, let gcode handle it
+			emcStatus->task.execState = EMC_TASK_EXEC_DONE;
 		emcStatus->task.delayLeft = 0;
+		emcStatus->task.orient_timeout = 1; // timeout occured
 		emcTaskEager = 1;
 		emcOperatorError(0, "wait for orient complete: TIMED OUT");
 	    }
@@ -2870,6 +2881,8 @@ static int emcTaskExecute(void)
 	case EMCMOT_ORIENT_FAULTED:
 	    // actually the code in main() should trap this before we get here
 	    emcStatus->task.execState = EMC_TASK_EXEC_ERROR;
+		if (emcStatus->task.orient_no_exec_error != 0)
+			emcStatus->task.execState = EMC_TASK_EXEC_DONE;
 	    emcStatus->task.delayLeft = 0;
 	    emcTaskEager = 1;
 	    emcOperatorError(0, "wait for orient complete: FAULTED code=%d", 

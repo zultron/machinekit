@@ -860,6 +860,8 @@ extern int GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE();
 extern int GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
 extern int GET_EXTERNAL_FEED_HOLD_ENABLE();
 
+extern int GET_EXTERNAL_ORIENT_TIMEOUT();
+
 // Functions to query digital/analog Inputs
 /* def is a default value which should be returned by canon functions
    that can't actually read external hardware - simulators and such */

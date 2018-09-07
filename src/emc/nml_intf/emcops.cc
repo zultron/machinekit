@@ -129,6 +129,8 @@ EMC_TASK_STAT_MSG(EMC_TASK_STAT_TYPE, sizeof(EMC_TASK_STAT))
     optional_stop_state = OFF;
     block_delete_state = OFF;
     input_timeout = OFF;
+    orient_timeout = OFF;
+    orient_no_exec_error = OFF;
     file[0] = 0;
     command[0] = 0;
 

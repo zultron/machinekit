@@ -202,6 +202,7 @@
 #define NCE_OUT_OF_MEMORY _("Out of memory")
 #define NCE_S_WORD_MISSING_WITH_G96 _("S word missing with G96")
 #define NCE_QUEUE_IS_NOT_EMPTY_AFTER_INPUT _("Queue is not empty after external input")
+#define NCE_QUEUE_IS_NOT_EMPTY_AFTER_ORIENT _("Queue is not empty after spindle orient")
 #define NCE_ANALOG_INPUT_WITH_WAIT_NOT_IMMEDIATE _("Can't select analog input with wait type != immediate return")
 #define NCE_ZERO_TIMEOUT_WITH_WAIT_NOT_IMMEDIATE _("Zero timeout with wait type != immediate return")
 #define NCE_BOTH_DIGITAL_AND_ANALOG_INPUT_SELECTED _("Invalid to select both a digital and an analog input with M66")

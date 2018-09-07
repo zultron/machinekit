@@ -1437,6 +1437,8 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     bool optional_stop_state;	// state of optional stop (== ON means we stop on M1)
     bool block_delete_state;	// state of block delete (== ON means we ignore lines starting with "/")
     bool input_timeout;		// has a timeout happened on digital input
+    bool orient_timeout;	// has a timeout happened on spindle orient
+    bool orient_no_exec_error;	// set if M19 Q-word < 0 so g code can handle timeout
     char file[LINELEN];
     char command[LINELEN];
     EmcPose g5x_offset;		// in user units, currently active

@@ -3282,6 +3282,21 @@ CANON_PLANE GET_EXTERNAL_PLANE()
 }
 
 /* returns current value of the digital input selected by index.*/
+int GET_EXTERNAL_ORIENT_TIMEOUT()
+{
+    int retval = 0;
+
+    if (emcStatus->task.orient_timeout) {
+   	retval = -1;
+    }
+
+#ifdef ORIENT_DEBUG
+    printf("GET_EXTERNAL_ORIENT_TIMEOUT called: timed out flag=%d \n", retval);
+#endif
+    return retval;
+}
+
+/* returns current value of the digital input selected by index.*/
 int GET_EXTERNAL_DIGITAL_INPUT(int index, int def)
 {
     if ((index < 0) || (index >= EMC_MAX_DIO))

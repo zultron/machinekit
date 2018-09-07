@@ -810,6 +810,7 @@ void START_SPEED_FEED_SYNCH(double sync, bool vel)
 CANON_MOTION_MODE motion_mode;
 
 int GET_EXTERNAL_DIGITAL_INPUT(int index, int def) { return def; }
+int GET_EXTERNAL_ORIENT_TIMEOUT() { return 0; }
 double GET_EXTERNAL_ANALOG_INPUT(int index, double def) { return def; }
 int WAIT(int index, int input_type, int wait_type, double timeout) { return 0; }
 int UNLOCK_ROTARY(int line_no, int axis) {return 0;}

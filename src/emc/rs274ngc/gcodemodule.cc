@@ -606,6 +606,7 @@ CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket) {
 }
 
 int GET_EXTERNAL_DIGITAL_INPUT(int index, int def) { return def; }
+int GET_EXTERNAL_ORIENT_TIMEOUT() { return 0; }
 double GET_EXTERNAL_ANALOG_INPUT(int index, double def) { return def; }
 int WAIT(int index, int input_type, int wait_type, double timeout) { return 0;}
 

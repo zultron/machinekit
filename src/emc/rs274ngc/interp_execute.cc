@@ -335,6 +335,9 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
   if (settings->toolchange_flag)
       return (INTERP_EXECUTE_FINISH);
 
+  if (settings->orient_flag)
+      return (INTERP_EXECUTE_FINISH);
+
   return INTERP_OK;
 }
 
