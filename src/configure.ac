@@ -557,7 +557,7 @@ AC_ARG_WITH(platform-pc,
 		;;
 	esac
     ])
-    
+
 AC_ARG_WITH(platform-socfpga,
     [AS_HELP_STRING(
         [--with-platform-socfpga],
@@ -1059,6 +1059,12 @@ PKG_CHECK_MODULES([AVAHI], [avahi-client > 0.6],
         AC_DEFINE(HAVE_AVAHI, [], [avahi mDNS client library available])
 	USE_AVAHI=yes
     ],)
+
+PKG_CHECK_MODULES([LIBCGROUP], libcgroup,
+   [
+        AC_DEFINE(HAVE_LIBCGROUP, [], [libcgroup library available])
+	USE_LIBCGROUP=yes
+   ],)
 
 AC_MSG_CHECKING(whether to enable NML-using parts)
 AC_ARG_ENABLE(nml,
@@ -1847,6 +1853,9 @@ AC_SUBST([SSL_LIBS])
 AC_SUBST([UUID_CFLAGS])
 AC_SUBST([UUID_LIBS])
 
+AC_SUBST([LIBCGROUP_CFLAGS])
+AC_SUBST([LIBCGROUP_LIBS])
+
 AC_SUBST([USE_CZMQ])
 AC_SUBST([USE_PROTOBUF])
 AC_SUBST([USE_JANSSON])
@@ -1855,6 +1864,7 @@ AC_SUBST([USE_URIPARSER])
 AC_SUBST([USE_AVAHI])
 AC_SUBST([USE_SSL])
 AC_SUBST([USE_UUID])
+AC_SUBST([USE_LIBCGROUP])
 
 if test "$with_usermode_pci" = yes; then
    AC_DEFINE([USERMODE_PCI], [], [build PCI drivers with usermode PCI support])

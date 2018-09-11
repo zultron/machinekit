@@ -257,6 +257,7 @@ $(call TOOBJSDEPS, rtapi/$(threads)/rtapi_app.cc): EXTRAFLAGS = \
 	    -o $@ \
 	    $^ \
 	    $(LDFLAGS) \
+	    $(LIBCGROUP_LIBS) \
 	    $(PROTOBUF_LIBS) $(CZMQ_LIBS) $(LTTNG_UST_LIBS) \
 	    -lstdc++ -ldl -luuid
 
@@ -399,4 +400,3 @@ TARGETS += ../libexec/flavor
 	@mkdir -p $(dir $@)
 	bash $< > $@
 TARGETS += ../etc/linuxcnc/rtapi.ini
-
