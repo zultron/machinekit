@@ -37,6 +37,8 @@
 #include <string.h>		// strncpy()
 #include <ctype.h>		// isspace()
 #include <limits.h>
+#include <sys/stat.h>	// mkdir()
+#include <sys/types.h>	// mkdir() args
 #include <wordexp.h>	// wordexp() for ~ path expansion
 #include "emc_statics.hh"
 #include "emc_nml.hh"
@@ -2554,6 +2556,39 @@ void LOG_SET_LOGFILE_PREFIX(const char *s) {
     }
 }
 
+
+static int create_dirs_for_path_as_needed(const char* fullpath) {
+	// parse full path for / from beginning and create dirs along the way if they don't exist.	
+	int retcode = 0;
+
+	if (*fullpath == '/') {  // we only work with full paths specified from the root
+	    char tmppath[PATH_MAX];
+	   	setString(tmppath, fullpath, sizeof(tmppath));
+	   	char* search_point = tmppath + 1;  // skip the root /
+	   	while (0 == retcode) {
+		   	char* sep = strchr(search_point, '/');
+		   	if (sep) {
+		   		*sep = '\0';		   		
+		   		// just try to create it vs. 2 ops of check first and then create if it doesn't exist
+		   		mode_t defmode = S_IRUSR | S_IWUSR | S_IXUSR |
+		   		   				 S_IRGRP | S_IXGRP |
+		   					     S_IROTH | S_IXOTH;	   					     
+		   		retcode = mkdir(tmppath, defmode);
+		   		if ((retcode) && (errno == EEXIST)) {
+		   			retcode = 0;  // dir simply exists already so keep going down the path
+		   		}
+				*sep = '/';
+				search_point = sep + 1;
+			} else {
+				break;
+			}
+		}
+	}
+
+	return retcode;
+}
+
+
 void LOGOPEN(char *name) {
     if(logfile) fclose(logfile);
 
@@ -2576,8 +2611,11 @@ void LOGOPEN(char *name) {
     	wordfree(&result);
     }
 
-    logfile = fopen(fullpath, "wt");
-    fprintf(stderr, "LOGOPEN(%s) -> %p\n", fullpath, logfile);
+    int ev = create_dirs_for_path_as_needed(fullpath);
+    if (0 == ev) {
+    	logfile = fopen(fullpath, "wt");
+    	fprintf(stderr, "LOGOPEN(%s) -> %p\n", fullpath, logfile);
+    }    
 }
 
 void LOGAPPEND(char *name) {
@@ -2602,8 +2640,11 @@ void LOGAPPEND(char *name) {
     	wordfree(&result);
     }
 
-    logfile = fopen(fullpath, "at");
-    fprintf(stderr, "LOGAPPEND(%s) -> %p\n", fullpath, logfile);
+    int ev = create_dirs_for_path_as_needed(fullpath);
+    if (0 == ev) {
+	    logfile = fopen(fullpath, "at");
+    	fprintf(stderr, "LOGAPPEND(%s) -> %p\n", fullpath, logfile);
+    }    
 }
 
 
