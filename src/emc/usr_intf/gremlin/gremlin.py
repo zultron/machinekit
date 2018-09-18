@@ -68,12 +68,17 @@ class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
         rs274.interpret.StatMixin.__init__(self, stat, random)
         self.progress = DummyProgress()
         self.lathe_view_option = lathe_view_option
+        self.tools_used = []
 
     def is_lathe(self): return self.lathe_view_option
 
     def change_tool(self, pocket):
         rs274.glcanon.GLCanon.change_tool(self,pocket)
         rs274.interpret.StatMixin.change_tool(self,pocket)
+        self.tools_used.append(pocket)        
+
+    def get_tools_used(self):
+        return self.tools_used
 
     def get_soft_limits(self):
         ax = self.s.axis
@@ -196,6 +201,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         self.timeout_id = None
 
+        self._tools_used = []
+
 
     def destroy(self):
         # cleanup so that the garbage collector can actually do its work.
@@ -209,6 +216,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.timeout_id = None            
         self.inifile = None
         self.logger = None
+        self._tools_used = None
 
     def activate(self):
         glcontext = gtk.gtkgl.widget_get_gl_context(self)
@@ -313,6 +321,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         result = 0
         warnings = []
         seq = 0
+        self._tools_used = []
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
             canon = StatCanon(self.colors, self.geometry, self.lathe_option, s, random, self.inifile)
@@ -361,6 +370,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             if result > gcode.MIN_ERROR:
                 self.report_gcode_error(result, seq, filename)
 
+            self._tools_used = canon.get_tools_used()
+
         finally:
             shutil.rmtree(td)
 
@@ -368,6 +379,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 	# doing this kills our zoom settings if gremlin.load is called on work offset change
         #self.set_current_view()
 
+    def get_tools_used(self): return self._tools_used
     def get_program_alpha(self): return self.program_alpha
     def get_num_joints(self): return self.num_joints
     def get_geometry(self):
