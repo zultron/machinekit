@@ -41,14 +41,18 @@ limiticon = array.array('B',
 class GLCanon(Translated, ArcsToSegmentsMixin):
     lineno = -1
     def __init__(self, colors, geometry, inifile):
-        # traverse list - [line number, [start position], [end position], [tlo x, tlo y, tlo z]]
-        self.traverse = []; self.traverse_append = self.traverse.append
-        # feed list - [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
-        self.feed = []; self.feed_append = self.feed.append
-        # arcfeed list - [line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z]]
-        self.arcfeed = []; self.arcfeed_append = self.arcfeed.append
-        # dwell list - [line number, color, pos x, pos y, pos z, plane]
-        self.dwells = []; self.dwells_append = self.dwells.append
+        # traverse, feed, and arcfeeds are dictionaries where
+        # the key is the tool number and the value is the list of tuples cut using that tool
+        # this makes it super fast to draw only those lines which are desired based on a subset of
+        # tools
+        # traverse key is tool number, value is list of tuples (line number, [start position], [end position], [tlo x, tlo y, tlo z], toolno)
+        self.traverse = { 0:[] }
+        # feed key is tool number, value is list of tuples (line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z], toolno)
+        self.feed = { 0:[] }
+        # arcfeed key is tool number, value is list of tuples (line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z], toolno)
+        self.arcfeed = { 0:[] }
+        # dwell list - (line number, color, pos x, pos y, pos z, plane)
+        self.dwells = []
         # spindle-synched feed list - (line number, (position deltas), S, fpr)
         self.feed_synched = []
         self.choice = None
@@ -92,6 +96,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.notify = 0
         self.notify_message = ""
         self.highlight_line = None
+        self.visible_tools = []
+        self.current_tool = 0
 
     def comment(self, arg):
         if arg.startswith("AXIS,"):
@@ -113,33 +119,45 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def next_line(self, st):
         pass
 
-    def draw_lines(self, lines, for_selection, j=0, geometry=None):
+    def draw_lines(self, lines, for_selection, geometry=None):
         return linuxcnc.draw_lines(geometry or self.geometry, lines, for_selection)
 
-    def colored_lines(self, color, lines, for_selection, j=0):
+    def colored_lines(self, color, lines, for_selection):
         if self.is_foam:
             if not for_selection:
                 self.color_with_alpha(color + "_xy")
             glPushMatrix()
             glTranslatef(0, 0, self.foam_z)
-            self.draw_lines(lines, for_selection, 2*j, 'XY')
+            self.draw_lines(lines, for_selection, 'XY')
             glPopMatrix()
             if not for_selection:
                 self.color_with_alpha(color + "_uv")
             glPushMatrix()
             glTranslatef(0, 0, self.foam_w)
-            self.draw_lines(lines, for_selection, 2*j+len(lines), 'UV')
+            self.draw_lines(lines, for_selection, 'UV')
             glPopMatrix()
         else:
             if not for_selection:
                 self.color_with_alpha(color)
-            self.draw_lines(lines, for_selection, j)
+            self.draw_lines(lines, for_selection)
 
-    def draw_dwells(self, dwells, alpha, for_selection, j0=0):
+    def draw_dwells(self, dwells, alpha, for_selection):
         return linuxcnc.draw_dwells(self.geometry, dwells, alpha, for_selection, self.is_lathe())
 
     def calc_extents(self):
-        self.min_extents, self.max_extents, self.min_extents_notool, self.max_extents_notool = gcode.calc_extents(self.arcfeed, self.feed, self.traverse)
+        all_arcfeeds = []
+        for tool in self.arcfeed.keys():
+            all_arcfeeds.extend(self.arcfeed[tool])
+    
+        all_feeds = []
+        for tool in self.feed.keys():
+            all_feeds.extend(self.feed[tool])
+
+        all_traverse = []
+        for tool in self.traverse.keys():
+            all_traverse.extend(self.traverse[tool])
+
+        self.min_extents, self.max_extents, self.min_extents_notool, self.max_extents_notool = gcode.calc_extents(all_arcfeeds, all_feeds, all_traverse)
         if self.is_foam:
             min_z = min(self.foam_z, self.foam_w)
             max_z = max(self.foam_z, self.foam_w)
@@ -195,14 +213,24 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def set_feed_rate(self, arg): self.feedrate = arg / 60.
     def select_plane(self, arg): pass
 
-    def change_tool(self, arg):
+    def change_tool(self, pocket):
         self.first_move = True
+        # keep track of current tooling so it can be associated with the various paths. this enables us to later
+        # create display lists based on tooling
+        self.current_tool = pocket
+        if self.current_tool not in self.feed:
+            self.feed[self.current_tool] = []
+        if self.current_tool not in self.traverse:
+            self.traverse[self.current_tool] = []
+        if self.current_tool not in self.arcfeed:
+            self.arcfeed[self.current_tool] = []
+
 
     def straight_traverse(self, lineno, x,y,z, a,b,c, u, v, w):
         if self.suppress > 0: return
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
         if not self.first_move:
-                self.traverse_append((lineno, self.lo, l, [self.xo, self.yo, self.zo]))
+                self.traverse[self.current_tool].append((lineno, self.lo, l, [self.xo, self.yo, self.zo]))
         self.lo = l
 
     def rigid_tap(self, lineno, x, y, z):
@@ -211,9 +239,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         l = self.rotate_and_translate(x,y,z,0,0,0,0,0,0)[:3]
         l += [self.lo[3], self.lo[4], self.lo[5],
                self.lo[6], self.lo[7], self.lo[8]]
-        self.feed_append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
-#        self.dwells_append((self.lineno, self.colors['dwell'], x + self.offset_x, y + self.offset_y, z + self.offset_z, 0))
-        self.feed_append((lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
+        self.feed[self.current_tool].append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
+#        self.dwells.append((self.lineno, self.colors['dwell'], x + self.offset_x, y + self.offset_y, z + self.offset_z, 0))
+        self.feed[self.current_tool].append((lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
 
     def arc_feed(self, *args):
         if self.suppress > 0: return
@@ -229,9 +257,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         lo = self.lo
         feedrate = self.feedrate
         to = [self.xo, self.yo, self.zo]
-        append = self.arcfeed_append
         for l in segs:
-            append((lineno, lo, l, feedrate, to))
+            self.arcfeed[self.current_tool].append((lineno, lo, l, feedrate, to))
             lo = l
         self.lo = lo
 
@@ -239,8 +266,10 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         if self.suppress > 0: return
         self.first_move = False
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
-        self.feed_append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
+        self.feed[self.current_tool].append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
         self.lo = l
+
+    # confusing, but I guess this is an alias for straight_feed above
     straight_probe = straight_feed
 
     def straight_feed_synched(self, lineno, x,y,z, a,b,c, u,v,w, s, fpr):
@@ -258,13 +287,13 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def user_defined_function(self, i, p, q):
         if self.suppress > 0: return
         color = self.colors['m1xx']
-        self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], 0))
+        self.dwells.append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], 0))
 
     def dwell(self, arg):
         if self.suppress > 0: return
         self.dwell_time += arg
         color = self.colors['dwell']
-        self.dwells_append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], 0))
+        self.dwells.append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], 0))
 
 
     def highlight(self, lineno, geometry):
@@ -274,21 +303,24 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         glBegin(GL_LINES)
         coords = []
         #FIXME limit seek depth here? This could go on for a long time
-        for line in self.traverse:
-            if line[0] != lineno: continue
-            linuxcnc.line9(geometry, line[1], line[2])
-            coords.append(line[1][:3])
-            coords.append(line[2][:3])
-        for line in self.arcfeed:
-            if line[0] != lineno: continue
-            linuxcnc.line9(geometry, line[1], line[2])
-            coords.append(line[1][:3])
-            coords.append(line[2][:3])
-        for line in self.feed:
-            if line[0] != lineno: continue
-            linuxcnc.line9(geometry, line[1], line[2])
-            coords.append(line[1][:3])
-            coords.append(line[2][:3])
+        for tool in self.traverse.keys():
+            for line in self.traverse[tool]:
+                if line[0] != lineno: continue
+                linuxcnc.line9(geometry, line[1], line[2])
+                coords.append(line[1][:3])
+                coords.append(line[2][:3])
+        for tool in self.arcfeed.keys():                
+            for line in self.arcfeed[tool]:
+                if line[0] != lineno: continue
+                linuxcnc.line9(geometry, line[1], line[2])
+                coords.append(line[1][:3])
+                coords.append(line[2][:3])
+        for tool in self.feed.keys():               
+            for line in self.feed[tool]:
+                if line[0] != lineno: continue
+                linuxcnc.line9(geometry, line[1], line[2])
+                coords.append(line[1][:3])
+                coords.append(line[2][:3])
         glEnd()
         for line in self.dwells:
             if line[0] != lineno: continue
@@ -310,18 +342,32 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def color(self, name):
         glColor3f(*self.colors[name])
 
+    def set_visible_tools(self, tool_list):
+        '''
+        if tool_list is empty, that means 'all tools'
+        '''
+        self.visible_tools = tool_list
+
     def draw(self, for_selection=0, no_traverse=True):
+        # draw only those lines that were made with the tools we are interested in
+
         if not no_traverse:
             glEnable(GL_LINE_STIPPLE)
-            self.colored_lines('traverse', self.traverse, for_selection)
+            for tool in self.traverse.keys():
+                if tool in self.visible_tools or len(self.visible_tools) == 0:
+                    self.colored_lines('traverse', self.traverse[tool], for_selection)
             glDisable(GL_LINE_STIPPLE)
         else:
-            self.colored_lines('straight_feed', self.feed, for_selection, len(self.traverse))
+            for tool in self.feed.keys():           
+                if tool in self.visible_tools or len(self.visible_tools) == 0:
+                    self.colored_lines('straight_feed', self.feed[tool], for_selection)
 
-            self.colored_lines('arc_feed', self.arcfeed, for_selection, len(self.traverse) + len(self.feed))
+            for tool in self.arcfeed.keys():        
+                if tool in self.visible_tools or len(self.visible_tools) == 0:
+                    self.colored_lines('arc_feed', self.arcfeed[tool], for_selection)
 
             glLineWidth(2)
-            self.draw_dwells(self.dwells, self.colors.get('dwell_alpha', 1/3.), for_selection, len(self.traverse) + len(self.feed) + len(self.arcfeed))
+            self.draw_dwells(self.dwells, self.colors.get('dwell_alpha', 1/3.), for_selection)
             glLineWidth(1)
 
 def with_context(f):

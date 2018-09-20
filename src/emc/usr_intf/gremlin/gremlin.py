@@ -138,6 +138,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         self.current_view = 'z'
 
+        self.canon = None
+
         self.select_primed = None
 
         self.connect_after('realize', self.realize)
@@ -244,8 +246,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
     def expose(self, widget=None, event=None):
         if not self.initialised: return
-        if self.perspective: self.redraw_perspective()
-        else: self.redraw_ortho()
+        if self.perspective:
+            self.redraw_perspective()
+        else:
+            self.redraw_ortho()
 
         return True
 
@@ -291,8 +295,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             return
         self._current_file = None
 
-        self.font_base, width, linespace = \
-		glnav.use_pango_font('courier bold 16', 0, 128)
+        self.font_base, width, linespace = glnav.use_pango_font('courier bold 16', 0, 128)
         self.font_linespace = linespace
         self.font_charwidth = width
         rs274.glcanon.GlCanonDraw.realize(self)
@@ -305,7 +308,22 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         return getattr(self, 'set_view_%s' % self.current_view)()
     
     def set_geometry(self, geometry):
-	self.geometry = geometry
+        self.geometry = geometry
+
+
+    def set_visible_tools(self, tool_list):
+        '''
+        An empty tool list means 'all tools'
+        '''
+        if self.canon:
+            self.canon.set_visible_tools(tool_list)
+
+            # if the visible tools changed, need to get GLCanonDraw to rebuild its display lists          
+            self.stale_dlist('program_rapids')
+            self.stale_dlist('program_norapids')
+            self.stale_dlist('select_rapids')
+            self.stale_dlist('select_norapids')
+
 
     def load(self,filename = None):
         s = self.stat
@@ -324,39 +342,39 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self._tools_used = []
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
-            canon = StatCanon(self.colors, self.geometry, self.lathe_option, s, random, self.inifile)
+            self.canon = StatCanon(self.colors, self.geometry, self.lathe_option, s, random, self.inifile)
             parameter = self.inifile.find("RS274NGC", "PARAMETER_FILE")
             parameter = os.path.expanduser(parameter)
             temp_parameter = os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
             if parameter:
                 shutil.copy(parameter, temp_parameter)
-            canon.parameter_file = temp_parameter
+            self.canon.parameter_file = temp_parameter
 
             unitcode = "G%d" % (20 + (s.linear_units == 1))
             initcode = self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
-            result, seq, warnings = self.load_preview(filename, canon, unitcode, initcode)
+            result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode)
 
             #Handle extents violation (copied from AXIS)
-            machine_limit_min, machine_limit_max = canon.get_soft_limits()
+            machine_limit_min, machine_limit_max = self.canon.get_soft_limits()
             # KLUDGE: reverse engineer the machine units
             unit_suffix = "mm" if s.linear_units == 1 else "in"
             for i in range(3): # Does not enforce angle limits
                 if not(s.axis_mask & (1<<i)): continue
-                if canon.min_extents_notool[i] < machine_limit_min[i]:
-                    neg_overhang = canon.min_extents_notool[i] - machine_limit_min[i]
+                if self.canon.min_extents_notool[i] < machine_limit_min[i]:
+                    neg_overhang = self.canon.min_extents_notool[i] - machine_limit_min[i]
                     warnings.append("Program exceeds machine minimum on %c axis  by %0.4f %s"
                         % ("XYZABCUVW"[i], neg_overhang, unit_suffix))
-                if canon.max_extents_notool[i] > machine_limit_max[i]:
-                    pos_overhang = canon.max_extents_notool[i] - machine_limit_max[i]
+                if self.canon.max_extents_notool[i] > machine_limit_max[i]:
+                    pos_overhang = self.canon.max_extents_notool[i] - machine_limit_max[i]
                     warnings.append("Program exceeds machine maximum on %c axis by %0.4f %s"
                         % ("XYZABCUVW"[i], pos_overhang, unit_suffix))
             # Warn user if spindle-synched feeds violate axis limits
             axis_max_vel = tuple([
                 float(self.inifile.find("AXIS_%d" % i,"MAX_VELOCITY") or 0.0)*60
                 for i in range(9)])
-            for line_no, delta, rpm, fpr in canon.feed_synched:
+            for line_no, delta, rpm, fpr in self.canon.feed_synched:
                 fpm = rpm * fpr  # feed per minute
-                max_fpm = canon.calc_velocity(delta, axis_max_vel) * 0.95
+                max_fpm = self.canon.calc_velocity(delta, axis_max_vel) * 0.95
                 if fpm > max_fpm:
                     warnings.append(
                         "Spindle synched move at %(rpm_set).1f RPM would "
@@ -370,27 +388,28 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             if result > gcode.MIN_ERROR:
                 self.report_gcode_error(result, seq, filename)
 
-            self._tools_used = canon.get_tools_used()
+            self._tools_used = self.canon.get_tools_used()
 
         finally:
             shutil.rmtree(td)
 
         return result, seq, warnings
-	# doing this kills our zoom settings if gremlin.load is called on work offset change
+    # doing this kills our zoom settings if gremlin.load is called on work offset change
         #self.set_current_view()
 
+    def get_canon(self): return self.canon
     def get_tools_used(self): return self._tools_used
     def get_program_alpha(self): return self.program_alpha
     def get_num_joints(self): return self.num_joints
     def get_geometry(self):
-	if self.geometry == '':
-	    temp = self.inifile.find("DISPLAY", "GEOMETRY")
-	    if temp:
-		geometry = re.split(" *(-?[XYZABCUVW])", temp.upper())
-		self.geometry = "".join(reversed(geometry))
-	    else:
-		self.geometry = 'XYZ'
-	return self.geometry
+        if self.geometry == '':
+            temp = self.inifile.find("DISPLAY", "GEOMETRY")
+            if temp:
+                geometry = re.split(" *(-?[XYZABCUVW])", temp.upper())
+                self.geometry = "".join(reversed(geometry))
+            else:
+                self.geometry = 'XYZ'
+        return self.geometry
 
     def get_joints_mode(self): return self.use_joints_mode
     def get_show_commanded(self): return self.use_commanded
