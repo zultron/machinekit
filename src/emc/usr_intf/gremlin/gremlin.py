@@ -313,7 +313,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
     def set_visible_tools(self, tool_list):
         '''
-        An empty tool list means 'all tools'
+        Setting the list to None means 'show all tools'
         '''
         if self.canon:
             self.canon.set_visible_tools(tool_list)

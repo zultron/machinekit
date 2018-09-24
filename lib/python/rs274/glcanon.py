@@ -96,7 +96,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.notify = 0
         self.notify_message = ""
         self.highlight_line = None
-        self.visible_tools = []
+        self.visible_tools = None
         self.current_tool = 0
 
     def comment(self, arg):
@@ -344,7 +344,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
     def set_visible_tools(self, tool_list):
         '''
-        if tool_list is empty, that means 'all tools'
+        Setting the list to None means 'show all tools'
         '''
         self.visible_tools = tool_list
 
@@ -354,16 +354,16 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         if not no_traverse:
             glEnable(GL_LINE_STIPPLE)
             for tool in self.traverse.keys():
-                if tool in self.visible_tools or len(self.visible_tools) == 0:
+                if self.visible_tools is None or tool in self.visible_tools:
                     self.colored_lines('traverse', self.traverse[tool], for_selection)
             glDisable(GL_LINE_STIPPLE)
         else:
-            for tool in self.feed.keys():           
-                if tool in self.visible_tools or len(self.visible_tools) == 0:
+            for tool in self.feed.keys():
+                if self.visible_tools is None or tool in self.visible_tools:
                     self.colored_lines('straight_feed', self.feed[tool], for_selection)
 
-            for tool in self.arcfeed.keys():        
-                if tool in self.visible_tools or len(self.visible_tools) == 0:
+            for tool in self.arcfeed.keys():
+                if self.visible_tools is None or tool in self.visible_tools:
                     self.colored_lines('arc_feed', self.arcfeed[tool], for_selection)
 
             glLineWidth(2)
