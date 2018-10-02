@@ -1,0 +1,174 @@
+component dmmhshoming "HAL component for homing to index using limit switch simulated by hard stop on servo driven axis";
+
+license "GPL";
+author "Tormach";
+
+// Input:
+//          index-count             from encoder/counter input connected to encoder Z
+//          on-position-in          from machine axis limit switch
+//          home-state              from axis.N.home-state
+//          limit-enable            from UI setting
+//          joint-pos-fb            from axis.N.joint-pos-fb
+
+// Params:
+//          latch-vel               units/s - used for travel direction
+//          limit-backoff           units to continue off limit before index search
+//          limit-index-min         units minimum distance between hard stop and index. index closer to switch than this results in error_code ERROR_INDEX_TOO_CLOSE_TO_SWITCH
+//          index-search-max        distance to go after limit backoff to search for index greater than this results in error_code ERROR_INDEX_SEARCH_TIMEOUT 
+
+// Output:
+//          limit-out               to axis.N.home/neg/pos-lim-sw-in
+//          on-position-out         servo feedback pin, masked to be TRUE during homing
+//          error-code              to UI
+//          limit-index-distance    distance from hard stop to index - to UI to log
+
+
+// pins
+
+// INPUT
+
+pin in s32 index-count;
+pin in bit on-position-in;
+pin in s32 home-state;
+pin in bit limit-enable;
+pin in float joint-pos-fb;
+
+// OUTPUT
+
+pin out bit limit-out;
+pin out bit on-position-out;
+pin io s32 error-code;
+pin io float limit-index-distance;
+
+// PARAMS
+
+param rw float limit-index-min;
+param rw float latch-vel;
+param rw float limit-backoff;
+param rw float index-search-max;
+
+
+// INTERNAL
+
+// must be a pin to compare with limit-in (from previous servo loop), bool quietly does not work
+pin io bit prev-on-position-in;
+
+// as pins for debugging visibility
+pin io s32 prev-index-count;
+pin io float limit-fall-pos;
+pin io float index-active-pos;
+pin io float backoff-pos;
+pin io float index-search-max-pos;
+
+function _;
+
+;;
+
+#include <math.h>
+
+#define BIT_FALSE 0
+#define BIT_TRUE  1
+
+#define ERROR_NONE 0
+#define ERROR_INDEX_TOO_CLOSE_TO_SWITCH 1
+#define ERROR_INDEX_SEARCH_TIMEOUT 2
+
+// copied over from motion.h
+// home_state enumerations
+#define HOME_IDLE (0)
+#define HOME_FALL_SEARCH_START (13)
+#define HOME_FALL_SEARCH_WAIT (14)
+
+float fsignof(float fnumber) {
+    if (fnumber < 0.0 )
+    return -1.0;
+    return 1.0;
+}
+
+FUNCTION(_) {
+   if (!limit_enable) {
+        // do not report limit switch activity if settings have them disabled
+        limit_out = FALSE;
+        on_position_out = on_position_in;
+        return;
+    }
+    if(home_state == HOME_IDLE) {
+        //if not in a homing procedure, limit switches are always false
+        limit_out = FALSE;
+        //report the real on-position value
+        on_position_out = on_position_in;
+    }
+    else if (home_state > HOME_IDLE && home_state < HOME_FALL_SEARCH_START) {
+        // if looking for a coarse limit switch position (rise), report the "on-position" value
+        limit_out = on_position_in;
+        prev_index_count = index_count;
+        //from now until the end of homing we are always on position
+        on_position_out = TRUE;
+    }
+    else if (home_state == HOME_FALL_SEARCH_START) {
+        // limit-out is true until we hit an index pulse now
+        limit_out = TRUE;
+        error_code = ERROR_NONE;
+        prev_index_count = index_count;
+    }
+    else if (home_state == HOME_FALL_SEARCH_WAIT) {
+        if (on_position_in == TRUE) { //on;ly start working once the joint has moved back into a place where the servo is happy
+            if(prev_on_position_in == FALSE) { //if this is our first time executing since we regained position
+                limit_fall_pos = joint_pos_fb;
+                backoff_pos = limit_fall_pos + (fsignof(latch_vel) * limit_backoff);
+                index_search_max_pos = backoff_pos + (fsignof(latch_vel) * index_search_max);
+            }
+
+            // do not search for index until backoff has finished
+            // test for still backing off switch
+            if ((latch_vel >= 0.0 && joint_pos_fb < backoff_pos) ||
+                (latch_vel <  0.0 && joint_pos_fb > backoff_pos)) {
+                // keep previous_index_count in sync during backoff
+                prev_index_count = index_count;
+                limit_out = TRUE;
+            }
+            else {
+                // test for still within index search window
+                if ((latch_vel >= 0.0 && joint_pos_fb < index_search_max_pos) ||
+                    (latch_vel <  0.0 && joint_pos_fb > index_search_max_pos)) {
+
+                    // test for change of index_count
+                    if (index_count != prev_index_count) {
+                        // index has been seen
+                        // limit_out as FALSE results in change to home_state
+                        limit_out = FALSE;
+
+                        // record where the index was seen
+                        index_active_pos = joint_pos_fb;
+
+                        // indicate distance between limit and index
+                        limit_index_distance = fabs(limit_fall_pos - index_active_pos);
+                        if (limit_index_distance >= limit_index_min) {
+                            // no error
+                            error_code = ERROR_NONE;
+                        }
+                        else {
+                            // error - index too close to switch
+                            error_code = ERROR_INDEX_TOO_CLOSE_TO_SWITCH;
+                        }
+                    }
+                }
+                else {
+                    // index not seen within timeout - assume index sensor failure
+                    // this will change home_state so this code section stops getting run
+                    limit_out = FALSE;
+
+                    // indicate timeout
+                    error_code = ERROR_INDEX_SEARCH_TIMEOUT;
+
+                    // indicate distance between limit and index
+                    limit_index_distance = fabs(limit_fall_pos - joint_pos_fb);
+                }
+            }
+        }
+    }
+
+
+
+    prev_on_position_in = on_position_in;
+}
