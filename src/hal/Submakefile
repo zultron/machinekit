@@ -30,3 +30,10 @@ $(HALMODULE): $(call TOOBJS, $(HALMODULESRCS)) $(HALLIB)
 
 TARGETS += $(HALLIB) ../lib/liblinuxcnchal.so.0
 PYTARGETS += $(HALMODULE)
+
+
+PYTARGETS += ../lib/python/machinekit/__init__.py
+
+../lib/python/machinekit/__init__.py:
+	@mkdir -p ../lib/python/machinekit
+	@touch $@

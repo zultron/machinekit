@@ -30,6 +30,7 @@ docs/html/drivers
 lib/python/gremlin.py
 lib/python/touchy
 redis/redis/src/release.h
+/etc/
 
 #Exceptions for .9 files
 freq2pin.9
@@ -46,6 +47,8 @@ oprofile*
 *.log
 position.txt
 *.9
+src/machinekitcfg.py-tmp
+scripts/machinekit.ini.tmpl
 
 # redis libs
 lib/python/redis
