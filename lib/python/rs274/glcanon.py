@@ -342,6 +342,12 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def color(self, name):
         glColor3f(*self.colors[name])
 
+    def get_visible_tools(self):
+        '''
+        Returns a list of visible tool paths.  None means all tools are visible.
+        '''
+        return self.visible_tools
+
     def set_visible_tools(self, tool_list):
         '''
         Setting the list to None means 'show all tools'

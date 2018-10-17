@@ -311,6 +311,14 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.geometry = geometry
 
 
+    def get_visible_tools(self):
+        '''
+        Returns a list of visible tool paths.  None means all tools are visible.
+        '''
+        if self.canon:
+            return self.canon.get_visible_tools()
+        return None
+
     def set_visible_tools(self, tool_list):
         '''
         Setting the list to None means 'show all tools'
