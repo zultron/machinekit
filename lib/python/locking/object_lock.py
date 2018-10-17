@@ -16,9 +16,9 @@ class ObjectLock(object):
         attr = getattr(self._object, item)
         if callable(attr):
 
-            def wrapped():
+            def wrapped(*args, **kwargs):
                 with self._lock.lock(timeout=self.timeout):
-                    attr()
+                    attr(*args, **kwargs)
 
             return wrapped
         else:

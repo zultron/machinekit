@@ -14,8 +14,8 @@ class FunctionDoer(object):
     def __init__(self, funct):
         self.funct = funct
 
-    def do(self):
-        self.funct()
+    def do(self, arg1):
+        self.funct(arg1)
 
 
 def test_execution_of_function_is_locked():
@@ -29,10 +29,10 @@ def test_execution_of_function_is_locked():
             q.put(2)
 
     def proc2(q):
-        obj = FunctionDoer(lambda: q.put(3))
+        obj = FunctionDoer(lambda x: q.put(x))
         locked_object = ObjectLock(obj, 'mongos', timeout=LOCK_SLEEP_TIME * 5)
 
-        locked_object.do()
+        locked_object.do(3)
 
     thread1 = Thread(target=proc1, args=(queue,))
     thread1.start()
