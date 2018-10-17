@@ -158,13 +158,15 @@ class LinuxCNCWrapper(object):
 
     def __init__(self, context, host='', loopback=False,
                 iniFile=None, svcUuid=None,
-                pollInterval=None, pingInterval=2, debug=False):
+                pollInterval=None, pingInterval=2, debug=False,
+                 no_tool_table=False):
         self.debug = debug
         self.host = host
         self.loopback = loopback
         self.pingInterval = pingInterval
         self.shutdown = threading.Event()
         self.running = False
+        self.tool_table_disabled = no_tool_table
 
         # synchronization locks
         self.commandLock = threading.Lock()
@@ -240,9 +242,10 @@ class LinuxCNCWrapper(object):
             # initialize total line count
             self.totalLines = 0
             # initialize tool table path
-            self.toolTablePath = self.ini.find('EMCIO', 'TOOL_TABLE') or ''
-            if self.toolTablePath is not '':
-                self.toolTablePath = os.path.abspath(os.path.expanduser(self.toolTablePath))
+            if not no_tool_table:
+                self.toolTablePath = self.ini.find('EMCIO', 'TOOL_TABLE') or ''
+                if self.toolTablePath is not '':
+                    self.toolTablePath = os.path.abspath(os.path.expanduser(self.toolTablePath))
             # If specified in the ini, try to open the  default file
             openFile = self.ini.find('DISPLAY', 'OPEN_FILE') or ""
             openFile = openFile.strip('"')  # quote signs are allowed
@@ -822,26 +825,8 @@ class LinuxCNCWrapper(object):
         elif modified:
             self.send_config(self.statusTx.config, MT_EMCSTAT_INCREMENTAL_UPDATE)
 
-    def update_io(self, stat):
+    def update_io_tool_table(self, stat):
         modified = False
-
-        if self.ioFirstrun:
-            self.status.io.estop = 0
-            self.status.io.flood = 0
-            self.status.io.lube = 0
-            self.status.io.lube_level = 0
-            self.status.io.mist = 0
-            self.status.io.pocket_prepped = 0
-            self.status.io.tool_in_spindle = 0
-            self.status.io.tool_offset.MergeFrom(self.zero_position())
-            self.ioFirstrun = False
-
-        for name in ['estop', 'flood', 'lube', 'lube_level', 'mist',
-                     'pocket_prepped', 'tool_in_spindle']:
-            modified |= self.update_io_value(name, getattr(stat, name))
-
-        modified |= self.update_proto_position(self.status.io, self.statusTx.io,
-                                               'tool_offset', stat.tool_offset)
 
         txToolResult = EmcToolData()
         toolTableChanged = False
@@ -919,6 +904,32 @@ class LinuxCNCWrapper(object):
             self.ioToolTableLoaded = False
             modified = True
         del txToolResult
+
+        return modified
+
+    def update_io(self, stat):
+        modified = False
+
+        if self.ioFirstrun:
+            self.status.io.estop = 0
+            self.status.io.flood = 0
+            self.status.io.lube = 0
+            self.status.io.lube_level = 0
+            self.status.io.mist = 0
+            self.status.io.pocket_prepped = 0
+            self.status.io.tool_in_spindle = 0
+            self.status.io.tool_offset.MergeFrom(self.zero_position())
+            self.ioFirstrun = False
+
+        for name in ['estop', 'flood', 'lube', 'lube_level', 'mist',
+                     'pocket_prepped', 'tool_in_spindle']:
+            modified |= self.update_io_value(name, getattr(stat, name))
+
+        modified |= self.update_proto_position(self.status.io, self.statusTx.io,
+                                               'tool_offset', stat.tool_offset)
+
+        if not self.tool_table_disabled:
+            modified |= self.update_io_tool_table(stat)
 
         if self.ioFullUpdate:
             self.add_pparams()
@@ -2022,12 +2033,14 @@ def check_exit():
 def main():
     parser = argparse.ArgumentParser(description='Mkwrapper is wrapper around the linuxcnc python module as temporary workaround for Machinetalk based user interfaces')
     parser.add_argument('-ini', help='INI file', default=None)
+    parser.add_argument('-nt', '--no-tool-table', help='Disable tool table messages', action='store_true')
     parser.add_argument('-d', '--debug', help='Enable debug mode', action='store_true')
 
     args = parser.parse_args()
 
     debug = args.debug
     iniFile = args.ini
+    no_tool_table = args.no_tool_table
 
     mkconfig = config.Config()
     mkini = os.getenv("MACHINEKIT_INI")
@@ -2070,7 +2083,8 @@ def main():
                                     loopback=(not remote),
                                     iniFile=iniFile,
                                     svcUuid=mkUuid,
-                                    debug=debug)
+                                    debug=debug,
+                                    no_tool_table=no_tool_table)
 
         while fileService.running and mkwrapper.running and not check_exit():
             time.sleep(1)
