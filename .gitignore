@@ -27,8 +27,6 @@ docs/html/drivers
 /configs/*/emc.nml
 !/configs/common/emc.nml
 /docs/src/source-highlight/local
-lib/python/gremlin.py
-lib/python/touchy
 redis/redis/src/release.h
 /etc/
 
@@ -51,12 +49,14 @@ src/machinekitcfg.py-tmp
 scripts/machinekit.ini.tmpl
 
 # redis libs
-lib/python/redis
-lib/python/
+#lib/python/
 lib/python/gmoccapy/
 lib/python/gscreen/
-lib/python/redis/
+lib/python/pncconf/
 lib/python/stepconf/
+lib/python/touchy/
+lib/python/gremlin.py
+lib/python/machinekit/config.py
 *~
 
 *.glade.h
