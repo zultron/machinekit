@@ -46,7 +46,15 @@ author "";
 //          enc-door-open-max-rpm       speed limit when enclosure door is open
 //          vfd-feedback-factor     ratio of feed back signal (2 for 770 or 3 for 1100).  
 //                                  We wanted consistent 3 for all m200 VFDs, but 770s VFDs got shipped with 2 ratio
-//
+//          highbelt-step-rpm       rpm below which we expand tolerance when in highbelt
+//          lowbelt-step-rpm        rpm below which we expand tolerance when in lowbelt
+//          highbelt-tol-below      what the rpm tolerance is below highbelt-step-rpm
+//          highbelt-tol-above      what the rpm tolerance is above or equal to highbelt-step-rpm
+//          lowbelt-tol-below       what the rpm tolerance is below lowbelt-step-rpm
+//          lowbelt-tol-above       what the rpm tolerance is above or equal to lowbelt-step-rpm
+//          hispeed-step-rpm        rpm below which we expand tolerance when in lowbelt
+//          hispeed-tol-below       what the rpm tolerance is below hispeed-step-rpm
+//          hispeed-tol-above       what the rpm tolerance is above or equal to hispeed-step-rpm
 //
 // Outputs:
 //
@@ -93,6 +101,7 @@ author "";
 //          speed-in                motion.spindle-speed-out
 //          spindle-on              motion.spindle-on
 //          forward-in              motion.spindle-forward
+//          at-speed-force          used to force one to at-speed after AT_SPEED_FORCE_DELAY_SECS 
 //
 //    Outputs:
 //          at-speed             => motion.spindle-at-speed
@@ -115,9 +124,11 @@ pin in s32 spindle_type;
 // connect to motion.spindle-speed-out
 pin in float speed_in;
 
+pin in bit at_speed_force;  //A debugging pin.  When set, at_speed will be forced true after AT_SPEED_FORCE_DELAY_SECS
 // connect to motion.spindle-at-speed
 pin out bit at_speed;
-pin out bit at_speed_debounce;
+pin out float at_speed_debounce;
+pin out float at_speed_force_timer;
 
 // connect to motion.spindle-on
 pin in bit spindle_on;
@@ -139,7 +150,17 @@ pin in float highbelt_min_rpm;
 pin in float highbelt_max_rpm;
 
 pin in float highbelt_ratio;
-pin in float lowbelt-ratio;
+pin in float lowbelt_ratio;
+
+pin in float highbelt_step_rpm;     // rpm below which we expand tolerance when in highbelt
+pin in float lowbelt_step_rpm;      // rpm below which we expand tolerance when in lowbelt
+pin in float highbelt_tol_below;    // what the rpm tolerance is below highbelt-step-rpm
+pin in float highbelt_tol_above;    // what the rpm tolerance is above or equal to highbelt-step-rpm
+pin in float lowbelt_tol_below;     // what the rpm tolerance is below lowbelt-step-rpm
+pin in float lowbelt_tol_above;     // what the rpm tolerance is above or equal to lowbelt-step-rpm
+pin in float hispeed_step_rpm;      // rpm below which we expand tolerance with highspeed spindle 
+pin in float hispeed_tol_below;     // what the rpm tolerance is below highspeed-step-rpm
+pin in float hispeed_tol_above;     // what the rpm tolerance is above or equal to highspeed-step-rpm
 
 pin in float motor_hz_per_cmd_hz;
 pin in float vfd_rpm_feedback;
@@ -147,6 +168,9 @@ pin in float vfd_rpm_feedback;
 // current min and max speeds based upon spindle-type and belt-position
 pin out float min_speed;
 pin out float max_speed;
+pin out float step_speed;
+pin out float step_tol_below;
+pin out float step_tol_above;
 
 // when true this forces hispeed spindle type no matter the value of spindle-type
 pin in bit is_hispeed;
@@ -170,14 +194,14 @@ pin in float vfd_feedback_factor;
 ///////////Spindle orienting additions
 // Inputs:
 pin in s32 encoder_position;    // encoder input position (counts) from spindle 
-pin in float orient_angle;      //connect to motion.spindle-orient-angle
-pin in s32 orient_mode;         //connect to motion.spindle-orient-mode
-pin in bit orient_execute;      //             execute indexing of spindle   
+pin in float orient_angle;      // connect to motion.spindle-orient-angle
+pin in s32 orient_mode;         // connect to motion.spindle-orient-mode
+pin in bit orient_execute;      // execute indexing of spindle   
 pin in float orient_speed_in;   // vel command input from pid, used only when in "index" mode
 pin in bit forward_in;          // forward (or reverse) to m200 from PP, when not in indexing mode
 pin in float encoder_velocity;  // encoder input velocity in RPS
 pin in s32 orient_encoder_cpr;  // encoder counts per rev
-pin in u32 deadband_in;         //the range in +/- encoder counts where we consider the spindle orientation is done
+pin in u32 deadband_in;         // the range in +/- encoder counts where we consider the spindle orientation is done
 
 // not used
 //pin in s32 encoder_rawcounts;  
@@ -229,15 +253,13 @@ function _ "Tormach Spindle HAL Component M200";
 // M200 feedback frequency times this is motor RPM
 #define DEFAULT_VFD_FEEDBACK_FACTOR 3.0
 
-// if spindle speed is within +/- 5% call it "at speed"
-#define AT_SPEED_CLOSE_ENOUGH 0.05
-
 #define RPM_CLOSE_TO_ZERO 0.1
 
 // feedback speed must be stable at speed for this long before
 // setting at-speed pin TRUE
 // this avoids false positive at-speed from power on noise burst from VFD
 #define AT_SPEED_DEBOUNCE_SECS 0.100
+#define AT_SPEED_FORCE_DELAY_SECS 10.0  //This is the delay before forcing at-speed to be true, when at-speed-force is true
 
 ///////// Orienting additions
 //zindexing_state Bit defines 
@@ -260,6 +282,23 @@ function _ "Tormach Spindle HAL Component M200";
 #define ORIENT_DEADBAND_VALUE (8)  //within this range from orient target, we call it "done"
 #define ORIENT_DEADBAND_TIME    (100) //must stay within ORIENT_DEADBAND_VALUE for this many passes through comp (~100ms) to call it "done"
 /////////////// end orienting additions
+
+#define DEF_HIGHBELT_MIN_RPM 525
+#define DEF_HIGHBELT_MAX_RPM 4500
+#define DEF_LOWBELT_MIN_RPM  200
+#define DEF_LOWBELT_MAX_RPM  2000
+#define DEF_HISPEED_MIN_RPM  1000
+#define DEF_HISPEED_MAX_RPM  10000
+
+#define DEF_HIGHBELT_STEP_RPM 1500  // rpm below which we expand tolerance when in highbelt
+#define DEF_LOWBELT_STEP_RPM 500    // rpm below which we expand tolerance when in lowbelt
+#define DEF_HIGHBELT_TOL_BELOW 25   // what the rpm tolerance is below highbelt-step-rpm
+#define DEF_HIGHBELT_TOL_ABOVE 10   // what the rpm tolerance is above or equal to highbelt-step-rpm
+#define DEF_LOWBELT_TOL_BELOW 15    // what the rpm tolerance is below lowbelt-step-rpm
+#define DEF_LOWBELT_TOL_ABOVE 10    // what the rpm tolerance is above or equal to lowbelt-step-rpm
+#define DEF_HISPEED_STEP_RPM 8000   // rpm below which we expand tolerance with highspeed spindle
+#define DEF_HISPEED_TOL_BELOW 25    // what the rpm tolerance is below highspeed-step-rpm
+#define DEF_HISPEED_TOL_ABOVE 10    // what the rpm tolerance is above or equal to highspeed-step-rpm
 
 
 float vfd_rpm2freq(float rpm, float pulley_ratio, float hz_per_cmd_hz, float speeder_ratio) {
@@ -312,6 +351,12 @@ signed int modulus;
     return modulus;
 }
 
+//if pin isn't zero, use the value of pin, otherwise use default defined in this comp
+float setValue(float x, float def_val)  { 
+    if((int)x) 
+        return x; 
+    return def_val;
+}
 
 /*
 FIXME:   can't put this here; we can't reference global variables.  Example: encoder_position.
@@ -455,25 +500,37 @@ float angle_offset;
 
     // set min and max speed from belt position
     if (belt_position != BELT_POSITION_LOW) {
-        min_speed = highbelt_min_rpm;
-        max_speed = highbelt_max_rpm;
+        min_speed = setValue(highbelt_min_rpm, DEF_HIGHBELT_MIN_RPM);
+        max_speed = setValue(highbelt_max_rpm, DEF_HIGHBELT_MAX_RPM);
+        step_speed = setValue(highbelt_step_rpm, DEF_HIGHBELT_STEP_RPM);
+        step_tol_below = setValue(highbelt_tol_below, DEF_HIGHBELT_TOL_BELOW);
+        step_tol_above = setValue(highbelt_tol_above, DEF_HIGHBELT_TOL_ABOVE);
     }
     else {
-        min_speed = lowbelt_min_rpm;
-        max_speed = lowbelt_max_rpm;
+        min_speed = setValue(lowbelt_min_rpm,DEF_LOWBELT_MIN_RPM);
+        max_speed = setValue(lowbelt_max_rpm,DEF_LOWBELT_MAX_RPM);
+        step_speed = setValue(lowbelt_step_rpm,DEF_LOWBELT_STEP_RPM);
+        step_tol_below = setValue(lowbelt_tol_below,DEF_LOWBELT_TOL_BELOW);
+        step_tol_above = setValue(lowbelt_tol_above,DEF_LOWBELT_TOL_ABOVE);
     }
 
     // test for speeder spindle type
     if (spindle_type == SPEEDER_TYPE) {
         min_speed = min_speed * speeder_ratio;
         max_speed = max_speed * speeder_ratio;
+        step_speed = step_speed * speeder_ratio;
+        step_tol_below = step_tol_below * speeder_ratio;
+        step_tol_above = step_tol_above * speeder_ratio;
     }
 
     // test for high speed spindle type
     if (spindle_type == HISPEED_TYPE) {
         // use high speed spindle min and max
-        min_speed = hispeed_min;
-        max_speed = hispeed_max;
+        min_speed = setValue(hispeed_min,DEF_HISPEED_MIN_RPM);
+        max_speed = setValue(hispeed_max,DEF_HISPEED_MAX_RPM);
+        step_speed = setValue(hispeed_step_rpm,DEF_HISPEED_STEP_RPM);
+        step_tol_below = setValue(hispeed_tol_below,DEF_HISPEED_TOL_BELOW);
+        step_tol_above = setValue(hispeed_tol_above,DEF_HISPEED_TOL_ABOVE);
     }
 
     // range check and clamp speed-in between min and max (0.0 is OK for stopped)
@@ -633,18 +690,24 @@ float angle_offset;
             at_speed = BIT_TRUE;
         }
         else if (at_speed == BIT_FALSE) {
+            if (at_speed_force == BIT_TRUE) {
+                at_speed_force_timer += fperiod; 
+                if (at_speed_force_timer > AT_SPEED_FORCE_DELAY_SECS) {
+                    at_speed = BIT_TRUE;
+                    at_speed_force_timer = 0.0;
+                } 
+            }
             // not yet at speed
             // speed-out pin will track VFD feedback until "at speed" after which
             // speed-out will be reported as the commanded speed
             speed_out = feedback_spindle_rpm;
-            tolerance = AT_SPEED_CLOSE_ENOUGH;
+            
             // at the very bottom end the feedback speed falls off from commanded
-            // e.g. 770 high belt 525 RPM feedback is 452 RPM
-            //      yet 575 RPM feedback is 587 RPM
-            //      1100 high belt 300 RPM feedback is 270 RPM
-            if (clamped_speed_in < (1.25 * min_speed)) {
-                // drastically widen the acceptable range at very low commanded RPM
-                tolerance = tolerance * 4;
+            if (clamped_speed_in < step_speed) {
+                tolerance = step_tol_below/100.0;
+            }
+            else {
+                tolerance = step_tol_above/100.0;
             }
             if (is_close_enough(speed_out, clamped_speed_in, tolerance)) {
                 // the M200 outputs a burst of noise approximately 1 second after
