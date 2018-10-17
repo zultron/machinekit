@@ -25,10 +25,10 @@ from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 
 from google.protobuf.message import DecodeError
+from machinetalk.protobuf.preview_pb2 import Position
 from machinetalk.protobuf.message_pb2 import Container
 from machinetalk.protobuf.types_pb2 import *
 from machinetalk.protobuf.status_pb2 import *
-from machinetalk.protobuf.preview_pb2 import *
 from machinetalk.protobuf.motcmds_pb2 import *
 from machinetalk.protobuf.object_pb2 import ProtocolParameters
 
@@ -181,190 +181,6 @@ class PreviewCanon(object):
 
     def get_block_delete(self):
         return self.c.blockDelete
-
-
-# Preview class works concurrently using multiprocessing
-# Queues are used for communication
-class Preview(object):
-    def __init__(self, stat, randomToolchanger=False, parameterFile="", initcode="", debug=False):
-        self.debug = debug
-        self.filename = ""
-        self.unitcode = ""
-        self.initcode = initcode
-        self.stat = stat
-        self.parameterFile = parameterFile
-        self.randomToolchanger = randomToolchanger
-        self.canon = None
-        self.preview = None
-        self.errorCallback = None
-
-        # multiprocessing tools
-        self.bindEvent = multiprocessing.Event()
-        self.bindCompletedEvent = multiprocessing.Event()
-        self.previewEvent = multiprocessing.Event()
-        self.previewCompleteEvent = multiprocessing.Event()
-        self.shutdownEvent = multiprocessing.Event()
-        self.errorEvent = multiprocessing.Event()
-        self.isStarted = multiprocessing.Value('b', False, lock=False)
-        self.isBound = multiprocessing.Value('b', False, lock=False)
-        self.isRunning = multiprocessing.Value('b', False, lock=False)
-        self.aborted = multiprocessing.Value('b', False, lock=False)
-        self.inqueue = multiprocessing.Queue()  # used to send data to the process
-        self.outqueue = multiprocessing.Queue()  # used to get data from the process
-        self.process = multiprocessing.Process(target=self.run)
-        self.process.start()
-
-    def register_error_callback(self, callback):
-        self.errorCallback = callback
-
-    def bind(self, previewUri, statusUri):
-        self.inqueue.put((previewUri, statusUri))
-        self.bindEvent.set()
-        self.bindCompletedEvent.wait()
-        return self.outqueue.get()
-
-    def abort(self):
-        self.aborted.value = True
-
-    def program_open(self, filename):
-        if os.path.isfile(filename):
-            self.filename = filename
-        else:
-            raise Exception("file does not exist " + filename)
-
-    def start(self):
-        if self.isRunning.value is True:
-            raise Exception("Preview already running")
-
-        # start the monitoring daemon
-        thread = threading.Thread(target=self.monitoring_thread)
-        thread.daemon = True
-        thread.start()
-
-    def stop(self):
-        self.shutdownEvent.set()
-        self.previewCompleteEvent.set()  # in case we are monitoring
-        self.process.join()  # make sure to have one process at exit
-
-    def monitoring_thread(self):
-        if not self.isBound.value:
-            raise Exception('Preview is not bound')
-
-        self.isRunning.value = True
-
-        # create temp dir
-        tempdir = tempfile.mkdtemp()
-
-        # prepare Canon data
-        canon = PreviewCanonData()
-        tools = []
-        for entry in self.stat.tool_table:
-            tools.append(tuple(entry))
-        canon.tools = tools
-        temp_parameter = os.path.join(tempdir, os.path.basename(self.parameterFile))
-        if os.path.exists(self.parameterFile):
-            shutil.copy(self.parameterFile, temp_parameter)
-        canon.parameterFile = temp_parameter
-        canon.randomToolchanger = self.randomToolchanger
-        canon.axisMask = self.stat.axis_mask
-        canon.blockDelete = self.stat.block_delete
-        canon.angularUnits = self.stat.angular_units
-        canon.linearUnits = self.stat.linear_units
-
-        self.unitcode = "G%d" % (20 + (self.stat.linear_units == 1))
-        # put everything on the process queue
-        while not self.inqueue.empty():
-            self.inqueue.get_nowait()
-        self.inqueue.put((self.filename, self.unitcode, self.initcode, canon))
-        # release the dragon
-        self.previewCompleteEvent.clear()
-        self.previewEvent.set()
-        self.previewCompleteEvent.wait()
-        # handle error events
-        if self.errorEvent.wait(0.1):
-            (error, line) = self.outqueue.get()
-            if self.errorCallback is not None:
-                self.errorCallback(error, line)
-            self.errorEvent.clear()
-
-        # cleanup temp dir
-        shutil.rmtree(tempdir)
-
-        self.isRunning.value = False
-
-    def run(self):
-        import preview  # must be imported in new process to work properly
-        self.preview = preview
-
-        self.isStarted.value = True
-
-        # waiting for a bind event
-        while not self.bindEvent.wait(timeout=0.1):
-            if self.shutdownEvent.is_set():  # in case someone shuts down when we are not bound
-                self.isStarted.value = False
-
-        # bind the socket here
-        (previewUri, statusUri) = self.inqueue.get()
-        (previewUri, statusUri) = self.preview.bind(previewUri, statusUri)
-        self.outqueue.put((previewUri, statusUri))
-        self.isBound.value = True
-        self.bindCompletedEvent.set()
-        if self.debug:
-            print('Preview socket bound')
-
-        # wait for preview request or shutdown
-        # event handshaking is used to synchronize the monitoring thread
-        # and the process
-        while not self.shutdownEvent.is_set():
-            if self.previewEvent.wait(timeout=0.1):
-                self.do_preview()
-                self.previewCompleteEvent.set()
-                self.previewEvent.clear()
-
-        if self.debug:
-            print('Preview process exited')
-        self.isStarted.value = False
-
-    def do_preview(self):
-        # get all stuff that is modified at runtime
-        (filename, unitcode, initcode, canonData) = self.inqueue.get()
-        # make abort possible
-        canon = PreviewCanon(canonData, self.debug)
-        self.aborted.value = False
-        canon.check_abort = lambda : self.aborted.value
-        if self.debug:
-            print("Preview starting")
-            print("Filename: " + filename)
-            print("Unitcode: " + unitcode)
-            print("Initcode: " + initcode)
-        try:
-            # here we do all the actual work...
-            (result, last_sequence_number) = self.preview.parse(
-                filename,
-                canon,
-                unitcode,
-                initcode)
-
-            # check if we encountered a error during execution
-            if result > self.preview.MIN_ERROR:
-                error = " gcode error: %s " % (self.preview.strerror(result))
-                line = last_sequence_number - 1
-                if self.debug:
-                    printError("preview: " + filename)
-                    printError(error + " on line " + str(line))
-                # pass error through queue
-                self.outqueue.put((error, str(line)))
-                self.errorEvent.set()
-
-        except Exception as e:
-            error = "preview error: " + str(e)
-            if self.debug:
-                printError(error)
-            self.outqueue.put((error, "0"))
-            self.errorEvent.set()
-
-        if self.debug:
-            print("Preview exiting")
 
 
 class StatusValues(object):
@@ -524,19 +340,6 @@ class LinuxCNCWrapper(object):
         self.commandPort = self.commandSocket.bind_to_random_port(self.baseUri)
         self.commandDsname = self.commandSocket.get_string(zmq.LAST_ENDPOINT, encoding='utf-8')
         self.commandDsname = self.commandDsname.replace('0.0.0.0', self.host)
-        self.preview = Preview(stat=self.stat,
-                               randomToolchanger=self.randomToolChanger,
-                               parameterFile=self.interpParameterFile,
-                               initcode=self.interpInitcode,
-                               debug=self.debug)
-        (self.previewDsname, self.previewstatusDsname) = \
-            self.preview.bind(self.baseUri + ':*', self.baseUri + ':*')
-        self.previewDsname = self.previewDsname.replace('0.0.0.0', self.host)
-        self.previewstatusDsname = self.previewstatusDsname.replace('0.0.0.0', self.host)
-        self.preview.register_error_callback(self.preview_error)
-        self.previewPort = urlparse(self.previewDsname).port
-        self.previewstatusPort = urlparse(self.previewstatusDsname).port
-
         self.statusService = service.Service(type='status',
                                    svcUuid=svcUuid,
                                    dsn=self.statusDsname,
@@ -555,20 +358,6 @@ class LinuxCNCWrapper(object):
                                    svcUuid=svcUuid,
                                    dsn=self.commandDsname,
                                    port=self.commandPort,
-                                   host=self.host,
-                                   loopback=self.loopback,
-                                   debug=self.debug)
-        self.previewService = service.Service(type='preview',
-                                   svcUuid=svcUuid,
-                                   dsn=self.previewDsname,
-                                   port=self.previewPort,
-                                   host=self.host,
-                                   loopback=self.loopback,
-                                   debug=self.debug)
-        self.previewstatusService = service.Service(type='previewstatus',
-                                   svcUuid=svcUuid,
-                                   dsn=self.previewstatusDsname,
-                                   port=self.previewstatusPort,
                                    host=self.host,
                                    loopback=self.loopback,
                                    debug=self.debug)
@@ -632,8 +421,6 @@ class LinuxCNCWrapper(object):
             self.statusService.publish()
             self.errorService.publish()
             self.commandService.publish()
-            self.previewService.publish()
-            self.previewstatusService.publish()
         except Exception as e:
             printError('cannot register DNS service' + str(e))
             sys.exit(1)
@@ -642,12 +429,9 @@ class LinuxCNCWrapper(object):
         self.statusService.unpublish()
         self.errorService.unpublish()
         self.commandService.unpublish()
-        self.previewService.unpublish()
-        self.previewstatusService.unpublish()
 
     def stop(self):
         self.shutdown.set()
-        self.preview.stop()
 
     # handle program extensions
     def preprocess_program(self, filePath):
@@ -1536,9 +1320,6 @@ class LinuxCNCWrapper(object):
         with self.errorNoteLock:
             self.linuxcncErrors.append(note)
 
-    def preview_error(self, error, line):
-        self.add_error("%s\non line %s" % (error, str(line)))
-
     def send_config(self, data, type_):
         self.txStatus.emc_status_config.MergeFrom(data)
         if self.debug:
@@ -1774,7 +1555,7 @@ class LinuxCNCWrapper(object):
                         if self.rx.HasField('ticket'):
                             self.wait_complete(identity, self.rx.ticket)
                     elif self.rx.interp_name == 'preview':
-                        self.preview.abort()
+                        pass
                 else:
                     self.send_command_wrong_params(identity)
 
@@ -1815,7 +1596,7 @@ class LinuxCNCWrapper(object):
                         if self.rx.HasField('ticket'):
                             self.wait_complete(identity, self.rx.ticket)
                     elif self.rx.interp_name == 'preview':
-                        self.preview.start()
+                        pass
                 else:
                     self.send_command_wrong_params(identity)
 
@@ -1977,7 +1758,7 @@ class LinuxCNCWrapper(object):
                         elif self.rx.interp_name == 'preview':
                             if self.rx.HasField('ticket'):
                                 self.send_command_executed(identity, self.rx.ticket)
-                            self.preview.program_open(fileName)
+                            pass
                             if self.rx.HasField('ticket'):
                                 self.send_command_completed(identity, self.rx.ticket)
                 else:
