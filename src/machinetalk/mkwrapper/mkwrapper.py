@@ -1,36 +1,32 @@
 #!/usr/bin/python2
 # -*- coding: UTF-8 -*
-import os
-import zmq
-import threading
-import multiprocessing
-import time
-import math
-import socket
-import signal
-import argparse
-from urlparse import urlparse
-import shutil
-import tempfile
-import subprocess
-import re
-import codecs
 import ConfigParser
+import argparse
+import codecs
 import linuxcnc
-from machinekit import service, config
-# import hal
-
+import math
+import multiprocessing
+import os
+import re
+import shutil
+import signal
+import socket
+import subprocess
+import threading
+import time
 from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 
+import zmq
 from google.protobuf.message import DecodeError
-from machinetalk.protobuf.preview_pb2 import Position
 from machinetalk.protobuf.message_pb2 import Container
-from machinetalk.protobuf.types_pb2 import *
-from machinetalk.protobuf.status_pb2 import *
-from machinetalk.protobuf.motcmds_pb2 import *
 from machinetalk.protobuf.object_pb2 import ProtocolParameters
+from machinetalk.protobuf.preview_pb2 import Position
+from machinetalk.protobuf.status_pb2 import *
+from machinetalk.protobuf.types_pb2 import *
+
+from machinekit import service, config
 
 
 def printError(msg):
