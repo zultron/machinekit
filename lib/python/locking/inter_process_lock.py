@@ -53,8 +53,11 @@ class _InterProcessLock(object):
     def _unlock(self):
         if not self._lock_file:
             return
-        os.unlink(self._lock_file_path)
-        self._lock_file.close()
+        try:
+            os.unlink(self._lock_file_path)
+            self._lock_file.close()
+        except OSError:
+            pass  # in rare cases the file might unlinked by the other process
         self._lock_file = None
 
 

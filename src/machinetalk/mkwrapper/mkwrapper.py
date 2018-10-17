@@ -26,7 +26,7 @@ from machinetalk.protobuf.preview_pb2 import Position
 from machinetalk.protobuf.status_pb2 import *
 from machinetalk.protobuf.types_pb2 import *
 
-from locking.object_lock import ObjectLock
+from locking import ObjectLock
 from machinekit import service, config
 
 MAX_LOCK_TIME = 0.1
@@ -133,53 +133,6 @@ class FileService(threading.Thread):
 
     def stop(self):
         self.shutdown.set()
-
-
-class PreviewCanonData(object):
-    def __init__(self):
-        self.tools = []
-        self.randomToolchanger = False
-        self.parameterFile = ""
-        self.axisMask = 0x0
-        self.blockDelete = False
-        self.angularUnits = 1.0
-        self.linearUnits = 1.0
-
-
-class PreviewCanon(object):
-    def __init__(self, canon, debug=False):
-        self.c = canon
-        self.debug = debug
-
-    def check_abort(self):
-        if self.debug:
-            print("check_abort")
-        return False
-
-    def change_tool(self, pocket):
-        if self.c.randomToolchanger:
-            self.c.tools[0], self.c.tools[pocket] = self.c.tools[pocket], self.c.tools[0]
-        elif pocket == 0:
-            self.c.tools[0] = (-1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0)
-        else:
-            self.c.tools[0] = self.c.tools[pocket]
-
-    def get_tool(self, pocket):
-        if pocket >= 0 and pocket < len(self.c.tools):
-            return self.c.tools[pocket]
-        return (-1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0)
-
-    def get_external_angular_units(self):
-        return self.c.angularUnits or 1.0
-
-    def get_external_length_units(self):
-        return self.c.linearUnits or 1.0
-
-    def get_axis_mask(self):
-        return self.c.axisMask
-
-    def get_block_delete(self):
-        return self.c.blockDelete
 
 
 class StatusValues(object):
