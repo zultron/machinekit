@@ -1,6 +1,7 @@
 autosave.halscope
 build-stamp
 *.pyc
+*.pyo
 *.o
 *.ko
 *.so
