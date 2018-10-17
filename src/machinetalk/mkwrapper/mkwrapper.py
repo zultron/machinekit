@@ -26,7 +26,10 @@ from machinetalk.protobuf.preview_pb2 import Position
 from machinetalk.protobuf.status_pb2 import *
 from machinetalk.protobuf.types_pb2 import *
 
+from locking.object_lock import ObjectLock
 from machinekit import service, config
+
+MAX_LOCK_TIME = 0.1
 
 
 def printError(msg):
@@ -252,9 +255,9 @@ class LinuxCNCWrapper(object):
 
         # Linuxcnc
         try:
-            self.stat = linuxcnc.stat()
-            self.command = linuxcnc.command()
-            self.error = linuxcnc.error_channel()
+            self.stat = ObjectLock(linuxcnc.stat(), 'linuxcnc.stat', MAX_LOCK_TIME)
+            self.command = ObjectLock(linuxcnc.command(), 'linuxcnc.command', MAX_LOCK_TIME)
+            self.error = ObjectLock(linuxcnc.error_channel(), 'linuxcnc.error_channel', MAX_LOCK_TIME)
 
             iniFile = iniFile or os.environ.get('INI_FILE_NAME', '/dev/null')
             self.ini = linuxcnc.ini(iniFile)
