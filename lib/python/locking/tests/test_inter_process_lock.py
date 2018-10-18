@@ -13,10 +13,10 @@ LOCK_SLEEP_TIME = 0.05
 def test_locking_lock_twice_after_each_other_works():
     lock1 = InterProcessLock(name='foliated')
 
-    with lock1.lock():
+    with lock1:
         assert True
 
-    with lock1.lock():
+    with lock1:
         assert True
 
 
@@ -24,10 +24,10 @@ def test_locking_two_locks_after_each_other_works():
     lock1 = InterProcessLock(name='anchors')
     lock2 = InterProcessLock(name='anchors')
 
-    with lock1.lock():
+    with lock1:
         assert True
 
-    with lock2.lock():
+    with lock2:
         assert True
 
 
@@ -35,9 +35,9 @@ def test_locking_twice_throws_access_error():
     lock1 = InterProcessLock(name='tideward')
     lock2 = InterProcessLock(name='tideward')
 
-    with lock1.lock():
+    with lock1:
         with pytest.raises(AccessError):
-            with lock2.lock():
+            with lock2:
                 pass
 
 
@@ -46,13 +46,13 @@ def test_locking_from_multiple_processes_waits_for_lock_to_be_released():
 
     def proc1(q):
         lock1 = InterProcessLock(name='fusspot')
-        with lock1.lock():
+        with lock1:
             q.put(1)
             time.sleep(LOCK_SLEEP_TIME)
 
     def proc2(q):
-        lock2 = InterProcessLock(name='fusspot')
-        with lock2.lock(timeout=LOCK_SLEEP_TIME * 5):
+        lock2 = InterProcessLock(name='fusspot', timeout=LOCK_SLEEP_TIME * 5)
+        with lock2:
             q.put(2)
 
     thread1 = Thread(target=proc1, args=(queue,))

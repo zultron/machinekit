@@ -24,7 +24,7 @@ def test_execution_of_function_is_locked():
     def proc1(q):
         lock2 = InterProcessLock(name='mongos')
         q.put(1)
-        with lock2.lock():
+        with lock2:
             time.sleep(LOCK_SLEEP_TIME)
             q.put(2)
 

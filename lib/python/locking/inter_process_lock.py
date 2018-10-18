@@ -12,11 +12,16 @@ class AccessError(Exception):
     pass
 
 
-class _InterProcessLock(object):
-    def __init__(self, lock_file_path, timeout=0.0):
-        self._lock_file = None
-        self._lock_file_path = lock_file_path
+class InterProcessLock(object):
+    """
+    This class provides inter process locking on Linux.
+    """
+
+    def __init__(self, name, timeout=0.0):
+        self._name = base64.b64encode(name.encode()).replace(b'=', b'').decode()
+        self._lock_file_path = os.path.join(TMP_PATH, self._name + '.lock')
         self.timeout = timeout
+        assert os.path.isdir(TMP_PATH)
 
     def __enter__(self):
         self._lock(timeout=self.timeout)
@@ -59,17 +64,3 @@ class _InterProcessLock(object):
         except OSError:
             pass  # in rare cases the file might unlinked by the other process
         self._lock_file = None
-
-
-class InterProcessLock(object):
-    """
-    This class provides inter process locking on Linux.
-    """
-
-    def __init__(self, name):
-        self._name = base64.b64encode(name.encode()).replace(b'=', b'').decode()
-        self._lock_file_path = os.path.join(TMP_PATH, self._name + '.lock')
-        assert os.path.isdir(TMP_PATH)
-
-    def lock(self, timeout=0.0):
-        return _InterProcessLock(self._lock_file_path, timeout=timeout)
