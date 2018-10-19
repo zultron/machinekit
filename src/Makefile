@@ -108,10 +108,11 @@ GENERATED_MANPAGES :=
 
 # Submakefiles from each of these directories will be included if they exist
 SUBDIRS := \
-	machinetalk/config-service \
-	machinetalk/mkwrapper \
-	machinetalk/mklauncher \
-	\
+    machinetalk \
+    machinetalk/config-service \
+    machinetalk/mkwrapper \
+    machinetalk/mklauncher \
+    \
     libnml/linklist libnml/cms libnml/rcs libnml/inifile libnml/os_intf \
     libnml/nml libnml/buffer libnml/posemath libnml \
     \
@@ -695,6 +696,7 @@ install-kernel-indep: install-dirs
 	$(FILE) ../lib/python/gladevcp/widget*.png  $(DESTDIR)$(datadir)/glade3/pixmaps/
 
 	$(FILE) ../share/gtksourceview-2.0/language-specs/*.lang  $(DESTDIR)$(datadir)/gtksourceview-2.0/language-specs/
+	$(FILE) ../etc/linuxcnc/machinekit.ini $(DESTDIR)$(sysconfdir)/linuxcnc
 
 ifeq ($(BUILD_PYTHON),yes)
 install-kernel-indep: install-python
@@ -740,7 +742,7 @@ install-python: install-dirs
 	$(FILE) ../share/gscreen/images/*.gif $(DESTDIR)$(datadir)/gscreen/images
 	$(TREE) ../share/gscreen/skins/* $(DESTDIR)$(datadir)/gscreen/skins
 	$(FILE) ../share/gmoccapy/images/*.png ../share/gmoccapy/images/*.gif ../share/gmoccapy/images/*.svg $(DESTDIR)$(datadir)/gmoccapy/images
-    $(EXE) ../bin/configserver $(DESTDIR)$(bindir)
+        $(EXE) ../bin/configserver $(DESTDIR)$(bindir)
 	$(EXE) ../bin/mkwrapper $(DESTDIR)$(bindir)
 	$(EXE) ../bin/mklauncher $(DESTDIR)$(bindir)
 endif
@@ -1198,4 +1200,3 @@ cscope:
 cscopeclean:
 	bash -c 'for f in `find ./ -name "cscope.*out"`;do rm $$f;done'
 # vim:ts=8:sts=8:sw=8:noet:
-

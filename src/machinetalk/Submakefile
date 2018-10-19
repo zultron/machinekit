@@ -1,0 +1,5 @@
+../etc/linuxcnc/machinekit.ini: machinetalk/machinekit.ini
+	mkdir -p $(dir $@)
+	machinetalk/install-machinekit_ini.sh $^ $@
+
+TARGETS += ../etc/linuxcnc/machinekit.ini
