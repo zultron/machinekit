@@ -26,7 +26,7 @@ from machinetalk.protobuf.preview_pb2 import Position
 from machinetalk.protobuf.status_pb2 import *
 from machinetalk.protobuf.types_pb2 import *
 
-from locking import ObjectLock
+from locking import ObjectLock, AccessError
 from machinekit import service, config
 
 MAX_LOCK_TIME = 0.1
@@ -360,6 +360,9 @@ class LinuxCNCWrapper(object):
             except linuxcnc.error as detail:
                 printError(str(detail))
                 self.stop()
+            except AccessError as e:
+                printError('locking timed out after %.2f s' % MAX_LOCK_TIME)
+                continue
 
             if (self.pingCount == self.pingRatio):
                 self.pingCount = 0
