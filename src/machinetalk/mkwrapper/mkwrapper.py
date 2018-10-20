@@ -2042,9 +2042,9 @@ def main():
     iniFile = args.ini
     no_tool_table = args.no_tool_table
 
-    mkconfig = config.Config()
     mkini = os.getenv("MACHINEKIT_INI")
     if mkini is None:
+        mkconfig = config.Config()
         mkini = mkconfig.MACHINEKIT_INI
     if not os.path.isfile(mkini):
         sys.stderr.write("MACHINEKIT_INI " + mkini + " does not exist\n")
