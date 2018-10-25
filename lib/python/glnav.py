@@ -152,7 +152,7 @@ class GlNavBase:
         self.far = 1000.0
 
         # View settings
-        self.perspective = 0
+        self.perspective = False
         self.lat = 0
         self.minlat = -90
         self.maxlat = 90
