@@ -148,7 +148,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         all_arcfeeds = []
         for tool in self.arcfeed.keys():
             all_arcfeeds.extend(self.arcfeed[tool])
-    
+
         all_feeds = []
         for tool in self.feed.keys():
             all_feeds.extend(self.feed[tool])
@@ -309,13 +309,13 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
                 linuxcnc.line9(geometry, line[1], line[2])
                 coords.append(line[1][:3])
                 coords.append(line[2][:3])
-        for tool in self.arcfeed.keys():                
+        for tool in self.arcfeed.keys():
             for line in self.arcfeed[tool]:
                 if line[0] != lineno: continue
                 linuxcnc.line9(geometry, line[1], line[2])
                 coords.append(line[1][:3])
                 coords.append(line[2][:3])
-        for tool in self.feed.keys():               
+        for tool in self.feed.keys():
             for line in self.feed[tool]:
                 if line[0] != lineno: continue
                 linuxcnc.line9(geometry, line[1], line[2])
@@ -341,6 +341,12 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         glColor4f(*(self.colors[name] + (self.colors.get(name+'_alpha', 1/3.),)))
     def color(self, name):
         glColor3f(*self.colors[name])
+
+    def get_visible_tools(self):
+        '''
+        Returns a list of visible tool paths.  None means all tools are visible.
+        '''
+        return self.visible_tools
 
     def set_visible_tools(self, tool_list):
         '''
@@ -1521,9 +1527,11 @@ class GlCanonDraw:
                 glRasterPos2i(5, ypos)
                 for char in string:
                     glCallList(base + ord(char))
-                if i < len(homed) and homed[i]:
-                    glRasterPos2i(pixel_width + 8, ypos)
-                    glBitmap(13, 16, 0, 3, 17, 0, homeicon)
+                # Tormach
+                # Eliminate homed indicator as redundant and confusing
+                #if i < len(homed) and homed[i]:
+                #    glRasterPos2i(pixel_width + 8, ypos)
+                #    glBitmap(13, 16, 0, 3, 17, 0, homeicon)
                 if i < len(homed) and limit[i]:
                     glBitmap(13, 16, 0, 1, 17, 0, limiticon)
                 ypos -= linespace
@@ -1535,9 +1543,11 @@ class GlCanonDraw:
                 glRasterPos2i(5, ypos)
                 for char in string:
                     glCallList(base + ord(char))
-                if i < len(homed) and homed[i]:
-                    glRasterPos2i(charwidth *3, ypos)
-                    glBitmap(13, 16, 0, 3, 17, 0, homeicon)
+                # Tormach
+                # Eliminate homed indicator as redundant and confusing
+                #if i < len(homed) and homed[i]:
+                #    glRasterPos2i(charwidth *3, ypos)
+                #    glBitmap(13, 16, 0, 3, 17, 0, homeicon)
                 ypos -= linespace
                 i = i + 1
 
