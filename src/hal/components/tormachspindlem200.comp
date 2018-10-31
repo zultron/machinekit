@@ -633,6 +633,9 @@ float angle_offset;
     }
 
 
+    if (enc_door_switch_configured == 1 && enc_door_switch_status == 1 && clamped_speed_in > enc_door_open_max_rpm) {
+        clamped_speed_in = enc_door_open_max_rpm;
+    }
 
     // set pulley ratio
     if (spindle_type == HISPEED_TYPE) {
@@ -676,20 +679,17 @@ float angle_offset;
     if (feedback_motor_rpm <= RPM_CLOSE_TO_ZERO) {
         feedback_motor_rpm = 0.0;
     }
-    feedback_spindle_rpm = feedback_motor_rpm * pulley_ratio;
+
+    //TODO: Uncomment this code (and add code) once we have an encoder to test this with:
+    //if(orient_encoder_cpr == 0.0 || orient_encoder_cpr == 1.0) //means no encoder. not setting to "0" as linuxcnc/src/hal/drivers/mesa-hostmot2/encoder.c uses this as a divisor, so !=0, yet we wish to allow HAL to not connect
+    //this pin, in which case it's going to be 0
+    feedback_spindle_rpm = feedback_motor_rpm * pulley_ratio; // this is using VFD's feedback, which isn't so accurate, but all we have when no encoder
+    //else use the encoder and add verify VFD motor speed feedback is working and/or alert wrong belt ratios, etc.
+    //   feedback_spindle_rpm = encoder_velocity;
 
     // spindle-at-speed check
-    //
-    // non-zero spindle speed and spindle not yet at_speed
     if (spindle_on && (clamped_speed_in > 0.0)) {
-        // spindle is on
-        if (enc_door_switch_configured == 1 && enc_door_switch_status == 1 && clamped_speed_in > enc_door_open_max_rpm) {
-            // enclosure door is open - limit speed
-            speed_out = enc_door_open_max_rpm;
-            vfd_freq_cmd = vfd_rpm2freq(speed_out, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
-            at_speed = BIT_TRUE;
-        }
-        else if (at_speed == BIT_FALSE) {
+        if (at_speed == BIT_FALSE) {
             if (at_speed_force == BIT_TRUE) {
                 at_speed_force_timer += fperiod; 
                 if (at_speed_force_timer > AT_SPEED_FORCE_DELAY_SECS) {
@@ -721,6 +721,7 @@ float angle_offset;
                 if (at_speed_debounce > AT_SPEED_DEBOUNCE_SECS) {
                     // spindle should now be at speed
                     at_speed = BIT_TRUE;
+                    at_speed_debounce = 0.0; //without this, the debounce only happens once
                 }
             }
             else {
@@ -740,6 +741,7 @@ float angle_offset;
         at_speed = BIT_FALSE;
         speed_out = 0.0;
         speed_alarm = BIT_FALSE;
+        vfd_freq_cmd = 0.0;
     }
     if (disable) {
         // no spindle motion allowed
