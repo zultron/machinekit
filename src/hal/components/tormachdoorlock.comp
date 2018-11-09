@@ -1,0 +1,42 @@
+component tormachdoorlock "Tormach Door Lock";
+
+license "GPL";
+author "";
+
+pin in bit lock; //from PP GUI set to lock door clear to open door
+pin in float scale;  //maximum on value of pwm 
+pin in float foldback;  //pwm value to use when folding back solenoid.  Value is interpreted as portion (%) of scale input and is on period of solenoid
+pin out float drive; // connect to pwmgen.value
+                    //note due to inversions in hardware, drive is inverted.  So drive 100% (in other words drive = scale) means solenoid is off 100% of time
+                    //_THEN_ when solenoid is off, door is LOCKED, if user has or does (in future) close it.
+pin out float timer;
+
+function _ "Tormach Door Lock";
+
+;;
+
+#include <rtapi_math.h>
+#define FOLDBACK_TIME 5.0
+
+FUNCTION(_) {
+
+    if (lock) {
+        drive = scale; //turning solenoid off 100% of time locks door
+    }
+    else { //want to open lock (by powering it)
+        if ( drive == scale ) { //if was off
+            drive = 0.0; //drive is inverted, turns solenoid on 100% of time and opens lock
+            timer = 0.0;
+        }
+        else if (drive == 0.0) { //if we're still driving solenoid on 100% of time
+            timer += fperiod;
+            if (timer >= FOLDBACK_TIME) {
+                drive = fabs(scale) - fabs(foldback);
+                if (drive < 0.0)  { //some error checking
+                    drive = fabs(scale) / 2;  //doing 50% drive is probably fine error recovery
+                }
+            }
+        }
+    }
+}
+
