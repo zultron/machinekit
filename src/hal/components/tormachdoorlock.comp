@@ -4,6 +4,7 @@ license "GPL";
 author "";
 
 pin in bit lock; //from PP GUI set to lock door clear to open door
+pin in bit estop24vdc; // from ECM. Is "Estop switched 24VDC."  Set when Estop circuit is engaged, i.e. set when NOT E stopped
 pin in float scale;  //maximum on value of pwm 
 pin in float foldback;  //pwm value to use when folding back solenoid.  Value is interpreted as portion (%) of scale input and is on period of solenoid
 pin out float drive; // connect to pwmgen.value
@@ -24,7 +25,8 @@ FUNCTION(_) {
         drive = scale; //turning solenoid off 100% of time locks door
     }
     else { //want to open lock (by powering it)
-        if ( drive == scale ) { //if was off
+        if ((estop24vdc == 0) || //if we don't have power keep resetting timer and 100% on drive
+            (drive == scale)) { //if was off
             drive = 0.0; //drive is inverted, turns solenoid on 100% of time and opens lock
             timer = 0.0;
         }
