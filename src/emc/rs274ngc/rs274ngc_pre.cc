@@ -1373,56 +1373,62 @@ file.
 
 int Interp::open(const char *filename) //!< string: the name of the input NC-program file
 {
-  char *line;
-  int index;
-  int length;
+    char *line;
+    int index;
+    int length;
+  
+    logOword("open()");
+    if (_setup.use_lazy_close && _setup.lazy_closing) {
+        _setup.use_lazy_close = 0; // so that close will work
+        close();
+        _setup.use_lazy_close = 1;
+        _setup.lazy_closing = 0;
+    }
 
-  logOword("open()");
-  if(_setup.use_lazy_close && _setup.lazy_closing)
-    {
-      _setup.use_lazy_close = 0; // so that close will work
-      close();
-      _setup.use_lazy_close = 1;
-      _setup.lazy_closing = 0;
+    CHKS((_setup.file_pointer != NULL), NCE_A_FILE_IS_ALREADY_OPEN);
+    CHKS((strlen(filename) > (LINELEN - 1)), NCE_FILE_NAME_TOO_LONG);
+    _setup.file_pointer = fopen(filename, "r");
+    CHKS((_setup.file_pointer == NULL), NCE_UNABLE_TO_OPEN_FILE, filename);
+    line = _setup.linetext;
+  
+    /* skip blank lines */
+    _setup.sequence_number = 0;
+    for (index = -1; index == -1;) {      
+        CHKS((fgets(line, LINELEN, _setup.file_pointer) ==
+             NULL), NCE_FILE_ENDED_WITH_NO_PERCENT_SIGN);
+        length = strlen(line);
+        if (length == (LINELEN - 1)) {   // line is too long. need to finish reading the line to recover
+          // look for EOL or EOF - no EOL found == stuck loop
+          // files with only bare carriage returns (like from macs) cause trouble here
+          int single_char;
+          for (; (single_char = fgetc(_setup.file_pointer)) != '\n' && single_char != EOF;);
+          ERS(NCE_COMMAND_TOO_LONG);
+        }
+        _setup.sequence_number += 1;  // read a line in
+        // get the index set on last char
+        for (index = (length - 1); (index >= 0) && (isspace(line[index])); index--);
     }
-  CHKS((_setup.file_pointer != NULL), NCE_A_FILE_IS_ALREADY_OPEN);
-  CHKS((strlen(filename) > (LINELEN - 1)), NCE_FILE_NAME_TOO_LONG);
-  _setup.file_pointer = fopen(filename, "r");
-  CHKS((_setup.file_pointer == NULL), NCE_UNABLE_TO_OPEN_FILE, filename);
-  line = _setup.linetext;
-  for (index = -1; index == -1;) {      /* skip blank lines */
-    CHKS((fgets(line, LINELEN, _setup.file_pointer) ==
-         NULL), NCE_FILE_ENDED_WITH_NO_PERCENT_SIGN);
-    length = strlen(line);
-    if (length == (LINELEN - 1)) {   // line is too long. need to finish reading the line to recover
-      // look for EOL or EOF - no EOL found == stuck loop
-      // files with only bare carriage returns (like from macs) cause trouble here
-      int single_char;
-      for (; (single_char = fgetc(_setup.file_pointer)) != '\n' && single_char != EOF;);
-      ERS(NCE_COMMAND_TOO_LONG);
-    }
-    for (index = (length - 1);  // index set on last char
-         (index >= 0) && (isspace(line[index])); index--);
-  }
-  if (line[index] == '%') {
-    for (index--; (index >= 0) && (isspace(line[index])); index--);
-    if (index == -1) {
-      _setup.percent_flag = true;
-      _setup.sequence_number = 1;       // We have already read the first line
-      // and we are not going back to it.
+  
+    if (line[index] == '%') {
+        // line ends with a percent.  see if the % is the only non-whitespace on the line.
+        for (index--; (index >= 0) && (isspace(line[index])); index--);
+        if (index == -1) {
+            _setup.percent_flag = true;
+            // We have already read blank line(s) through the first line that has nothing but a percent on it.
+            // We don't go back to them so don't reset the sequence_number here.      
+        } else {
+            fseek(_setup.file_pointer, 0, SEEK_SET);
+            _setup.percent_flag = false;
+            _setup.sequence_number = 0;       // Going back to line 0
+        }
     } else {
-      fseek(_setup.file_pointer, 0, SEEK_SET);
-      _setup.percent_flag = false;
-      _setup.sequence_number = 0;       // Going back to line 0
+        fseek(_setup.file_pointer, 0, SEEK_SET);
+        _setup.percent_flag = false;
+        _setup.sequence_number = 0; // Going back to line 0
     }
-  } else {
-    fseek(_setup.file_pointer, 0, SEEK_SET);
-    _setup.percent_flag = false;
-    _setup.sequence_number = 0; // Going back to line 0
-  }
-  strcpy(_setup.filename, filename);
-  reset();
-  return INTERP_OK;
+    strcpy(_setup.filename, filename);
+    reset();
+    return INTERP_OK;
 }
 
 int Interp::read_inputs(setup_pointer settings)
