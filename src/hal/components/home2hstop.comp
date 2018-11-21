@@ -90,6 +90,7 @@ pin out s32 internal-status-code;
 
 // used with fperiod macro provided by comp processor to compute delays
 pin out float elapsed-timer;  // CPM enable pulse timing, and position verses HLFB error timer
+pin out float hstop-timer; // CPM hardstop completion timing
 
 function _;
 
@@ -111,6 +112,7 @@ function _;
 #define MFB_POSITION                   3    //axis motor reported temporary position error. PP UI is expected to clear this error with MOTOR_CMD_ACK_POS command
 #define MFB_CMD_UNKNOWN                4    //unknown command; we ignored it
 #define MFB_FAULT                      5    //axis motor has faulted.  Could be a fault or no power on CPM.  We don't know
+#define MFB_HSTOP_FAULT                6    //hstop homing error, HLFB was low for too long 
 
 //CPM linuxcnc States
 #define MS_DISABLED         0    //CPM has been commanded disabled
@@ -143,7 +145,9 @@ function _;
 #define CPM_EN_ON_DELAY (0.03)  //CPM should respond within this time after we enable it
 #define CPM_MAX_POSITION_DELAY (0.120) //If HLFB "error" has been asserted for this long, it's not just a position error
 #define CPM_BRAKE_DELAY (.075) //We must wait this long for Z brake to release
-#define CPM_HSTOP_SETTLING_DELAY (.225) //We wait this long for CPM to finish it's Hardstop qualification after we've seen HLFB de-assert during MS_HSTOP_SEARCHING
+#define CPM_HSTOP_SETTLING_DELAY (2.00) //was (.225) prior to CPM "precision homing" a.k.a hardstop then home2index  
+                                        //We wait this long for CPM to finish it's Hardstop qualification (and now home2index) after we've seen HLFB de-assert during MS_HSTOP_SEARCHING
+#define CPM_MAX_HLFB_INACTIVE_TIME (0.120) //Max time HLFB can be inactive during long CPM_HSTOP_SETTLING_DELAY  
 
 #define HLFB_INACTIVE               0 
 #define HLFB_ACTIVE                 1
@@ -340,18 +344,36 @@ FUNCTION(_) {
             hit_hardstop = TRUE;  //flag for below code that deals with linuxcnc homing
 #endif
             elapsed_timer = 0.0; //HLFB from CPM can't stay inactive for too long, so start timer
+            hstop_timer = 0.0; //New timer for HLFB in-active duration 
         }
     }
-    else if (motor_state == MS_HOME_WAITING) {
+    else if (motor_state == MS_HOME_WAITING) { // we now stay here for CPM_HSTOP_SETTLING_DELAY while CPM is completing it's hardstop and home to index
         brake_release = BRAKE_RELEASE; //continue to keep brake released
         elapsed_timer += fperiod;
-        //if hlfb is inactive, we figure it out in the next MS_HOME_COMPLETE state
-        //so error handling is not handled in this state.  we're simply delaying in this state
-        if(elapsed_timer > CPM_HSTOP_SETTLING_DELAY) { //we waited long enough to check HLFB again
-                motor_state = MS_HOME_COMPLETE;
-                hit_hardstop = TRUE;  //flag for below code that deals with linuxcnc homing
-                elapsed_timer = 0.0; //HLFB from CPM can't stay inactive for too long, so start timer
+
+        //This is a new section of code and new timer to make sure HLFB doesn't remain inactive for
+        // too long (100-200ms) during the long CPM_HSTOP_SETTLING_DELAY (2 sec) period 
+        if (hlfb == HLFB_INACTIVE) { // we can't have it inactive for too long
+            hstop_timer += fperiod;
+            if (hstop_timer > CPM_MAX_HLFB_INACTIVE_TIME) {
+                motor_state = MS_FAULT;
+                enable_toggle = TRUE;   //we must toggle enable to reset motor
+                status_code = MFB_HSTOP_FAULT; 
+                internal_status_code = MFB_FAULT;
+                motor_enable_out = FALSE;
+                motor_fault = TRUE; //flag HAL axis-fault-in
+                brake_release = BRAKE_HOLD;
             }
+        }
+        else {
+            hstop_timer = 0.0; //reset hlfb timer as we see it active
+        }
+    
+        if(elapsed_timer > CPM_HSTOP_SETTLING_DELAY && hlfb==HLFB_ACTIVE) { //Have we waited long enough for CPM to complete it's hardstop homing? 
+            motor_state = MS_HOME_COMPLETE;
+            hit_hardstop = TRUE;  //flag for below code that deals with linuxcnc homing
+            elapsed_timer = 0.0; //HLFB from CPM can't stay inactive for too long, so start timer
+        }
     }
     else if (motor_state == MS_HOME_COMPLETE) {
         brake_release = BRAKE_RELEASE; //continue to keep brake released
