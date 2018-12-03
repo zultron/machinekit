@@ -408,6 +408,12 @@ static int init_hal_io(void)
 	return retval;
     }
     retval =
+    hal_pin_float_new("motion.gcode-feed", HAL_OUT, &(emcmot_hal_data->gcode_feed),
+    mot_comp_id);
+    if (retval != 0) {
+    return retval;
+    }
+    retval =
 	hal_pin_float_new("motion.distance-to-go", HAL_OUT, &(emcmot_hal_data->distance_to_go),
 	mot_comp_id);
     if (retval != 0) {

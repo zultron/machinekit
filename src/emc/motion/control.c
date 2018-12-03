@@ -1778,10 +1778,12 @@ static void output_to_hal(void)
     if(GET_MOTION_COORD_FLAG()) {
         *(emcmot_hal_data->current_vel) = emcmotStatus->current_vel;
         *(emcmot_hal_data->requested_vel) = emcmotStatus->requested_vel;
+        *(emcmot_hal_data->gcode_feed) = (emcmotStatus->tag.feed / 60.0);
     } else if(GET_MOTION_TELEOP_FLAG()) {
         PmCartesian t = emcmotDebug->teleop_data.currentVel.tran;
         *(emcmot_hal_data->requested_vel) = 0.0;
         emcmotStatus->current_vel = (*emcmot_hal_data->current_vel) = sqrt(t.x * t.x + t.y * t.y + t.z * t.z);
+        *(emcmot_hal_data->gcode_feed) = 0.0; 
     } else {
         int i;
         double v2 = 0.0;
@@ -1793,6 +1795,7 @@ static void output_to_hal(void)
         else
             emcmotStatus->current_vel = (*emcmot_hal_data->current_vel) = 0.0;
         *(emcmot_hal_data->requested_vel) = 0.0;
+        *(emcmot_hal_data->gcode_feed) = 0.0;
     }
     *(emcmot_hal_data->waiting_on_spindle) = emcmotStatus->waiting_on_spindle;
 
