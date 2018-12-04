@@ -392,7 +392,7 @@ BASE_CXXFLAGS:= $(INCLUDE) $(CXXFLAGS) \
 		$(ARCH_CFLAGS)
 
 CXXFLAGS :=   $(BASE_CXXFLAGS) -DULAPI
-RT_CXXFLAGS :=   $(BASE_CXXFLAGS) 
+RT_CXXFLAGS :=   $(BASE_CXXFLAGS)
 
 ifeq ($(RUN_IN_PLACE),yes)
 LDFLAGS += -L$(LIB_DIR) -Wl,-rpath,$(LIB_DIR)
@@ -658,7 +658,7 @@ HEADERS := \
     rtapi/shmdrv/shmdrv.h
 
 
-    
+
 ## the "headers" target installs all the header files in ../include
 .PHONY: headers
 HEADERS := $(patsubst %,../include/%,$(foreach h,$(HEADERS),$(notdir $h)))
