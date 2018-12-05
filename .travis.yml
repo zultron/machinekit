@@ -52,7 +52,10 @@ before_install:
 
 env:
   global:
-    - IMAGE=${IMAGE:-dovetailautomata/mk-cross-builder}
+    # FIXME for testing
+    # - IMAGE=${IMAGE:-dovetailautomata/mk-cross-builder}
+    - IMAGE=zultron/mk-cross-builder
+    # /FIXME
     - MK_PACKAGE_VERBOSE=${MK_PACKAGE_VERBOSE:-false}
     - JOBS=${JOBS:-2}
     - TEST_DEBUG=false
