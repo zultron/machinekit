@@ -9,6 +9,7 @@ gcc -g -DULAPI \
     ../../lib/liblinuxcnchal.so \
     -o rtapi_test
 
+set -x # FIXME temporary
 realtime stop
 set +e
 ./rtapi_test
