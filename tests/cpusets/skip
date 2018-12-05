@@ -7,6 +7,9 @@ CPUSET_CPUS=1
 # Skip the test if any of the below commands fail
 set -e
 
+# Assert the cgtools are available
+which cgcreate >&/dev/null
+
 # Assert we're running POSIX threads
 test "$(flavor)" = posix -o "$(flavor)" = rt-preempt
 
