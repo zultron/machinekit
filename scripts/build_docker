@@ -10,7 +10,10 @@
 ###########################################################
 # Configuration from environment, CL args and defaults
 CMD=${CMD:-shell}
-IMAGE=${IMAGE:-dovetailautomata/mk-cross-builder}
+# FIXME for testing
+#IMAGE=${IMAGE:-dovetailautomata/mk-cross-builder}
+IMAGE=zultron/mk-cross-builder
+# /FIXME
 TAG=${TAG:-amd64_9}
 JOBS=${JOBS:-2}
 BUILD_SOURCE=${BUILD_SOURCE:-true}  # update Changelog & source pkg
