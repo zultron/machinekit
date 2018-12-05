@@ -1672,14 +1672,14 @@ $(sort $(RTOBJS)) : $(OBJDIR)/%.o : %.c $(DEPDIR)/%.d
 	$(ECHO) Compiling realtime $(threads) $<
 	@rm -f $@
 	@mkdir -p $(dir $@)
-	$(Q)$(CC) -c $(OPT) $(DEBUG) $(EXTRA_CFLAGS) $< -o $@
+	$(Q)$(CC) -c $(OPT) $(CPPFLAGS) $(DEBUG) $(EXTRA_CFLAGS) $< -o $@
 
 # Rules to make .o (object) files from .cc
 $(sort $(CXXRTOBJS)) : $(OBJDIR)/%.o : %.cc $(DEPDIR)/%.d
 	$(ECHO) Compiling realtime++ $<
 	@rm -f $@
 	@mkdir -p $(dir $@)
-	$(Q)$(CXX) -c $(OPT) $(DEBUG) $(RT_CXXFLAGS) $(EXTRA_CFLAGS) $< -o $@
+	$(Q)$(CXX) -c $(OPT) $(CPPFLAGS) $(DEBUG) $(RT_CXXFLAGS) $(EXTRA_CFLAGS) $< -o $@
 
 endif # end BUILD_SYS=user-dso
 
