@@ -1156,6 +1156,7 @@ endif # userspace
 #################################################################################################################
 
 EXTRA_CFLAGS = $(RTFLAGS) \
+	$(DPKG_CFLAGS) \
         $(ARCH_CFLAGS) \
 	-D__MODULE__ \
 	-I$(INCLUDE_PREFIX) \
