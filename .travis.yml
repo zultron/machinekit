@@ -57,6 +57,7 @@ env:
     - JOBS=${JOBS:-2}
     - TEST_DEBUG=false
     - TEST_ARGS=
+    - DPKG_CFLAGS=-Werror
   matrix:
     # Tests
     # - Reduce total build time by starting longest jobs first
