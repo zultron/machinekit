@@ -369,6 +369,7 @@ static void calc_pid(void *arg, long period)
         if(no_reset == 0) {
             /* not enabled, reset integrator */
             *(pid->error_i) = 0;
+            *(pid->error_ii) = 0;
         }
     }
     /* compute command and feedback derivatives to dummysigs */
