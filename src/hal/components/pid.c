@@ -161,6 +161,7 @@ RTAPI_MP_INT(debug, "enables optional params");
 */
 
 typedef struct {
+    hal_bit_t *no_reset;        /* pin: do not reset integrators or change output value when enable is set low */
     hal_bit_t *enable;		/* pin: enable input */
     hal_float_t *command;	/* pin: commanded value */
     hal_float_t *commandvds;	/* pin: commanded derivative dummysig */
@@ -176,6 +177,7 @@ typedef struct {
     hal_float_t *maxcmd_d;	/* pin: limit for differentiated cmd */
     hal_float_t *maxcmd_dd;	/* pin: limit for 2nd derivative of cmd */
     hal_float_t *error_i;	/* opt. pin: integrated error */
+    hal_float_t *error_ii;      /* opt. pin: double integrated error */
     double prev_error;		/* previous error for differentiator */
     hal_float_t *error_d;	/* opt. pin: differentiated error */
     double prev_cmd;		/* previous command for differentiator */
@@ -186,6 +188,7 @@ typedef struct {
     hal_float_t *bias;		/* param: steady state offset */
     hal_float_t *pgain;		/* pin: proportional gain */
     hal_float_t *igain;		/* pin: integral gain */
+    hal_float_t *iigain;        /* pin: double integral gain */
     hal_float_t *dgain;		/* pin: derivative gain */
     hal_float_t *ff0gain;	/* pin: feedforward proportional */
     hal_float_t *ff1gain;	/* pin: feedforward derivative */
@@ -300,6 +303,7 @@ static void calc_pid(void *arg, long period)
     hal_pid_t *pid;
     double tmp1, tmp2, command, feedback;
     int enable;
+    int no_reset;
     double periodfp, periodrecip;
 
     /* point to the data for this PID loop */
@@ -307,6 +311,8 @@ static void calc_pid(void *arg, long period)
     /* precalculate some timing constants */
     periodfp = period * 0.000000001;
     periodrecip = 1.0 / periodfp;
+    /* get the no_reset bit */
+    no_reset = *(pid->no_reset);
     /* get the enable bit */
     enable = *(pid->enable);
     /* read the command and feedback only once */
@@ -349,6 +355,7 @@ static void calc_pid(void *arg, long period)
 	if ( ( tmp1 * pid->limit_state ) <= 0.0 ) {
 	    /* compute integral term */
 	    *(pid->error_i) += tmp1 * periodfp;
+            *(pid->error_ii) += tmp1 * periodfp * periodfp / 2;
 	}
 	/* apply integrator limits */
 	if (*(pid->maxerror_i) != 0.0) {
@@ -359,8 +366,10 @@ static void calc_pid(void *arg, long period)
 	    }
 	}
     } else {
-	/* not enabled, reset integrator */
-	*(pid->error_i) = 0;
+        if(no_reset == 0) {
+            /* not enabled, reset integrator */
+            *(pid->error_i) = 0;
+        }
     }
     /* compute command and feedback derivatives to dummysigs */
     if(!(pid->prev_ie && !*(pid->index_enable))) {
@@ -419,7 +428,7 @@ static void calc_pid(void *arg, long period)
     if (enable != 0) {
 	/* calculate the output value */
 	tmp1 =
-	    *(pid->bias) + *(pid->pgain) * tmp1 + *(pid->igain) * *(pid->error_i) +
+	    *(pid->bias) + *(pid->pgain) * tmp1 + *(pid->igain) * *(pid->error_i) + *(pid->iigain) * *(pid->error_ii) +
 	    *(pid->dgain) * *(pid->error_d);
 	tmp1 += command * *(pid->ff0gain) + *(pid->cmd_d) * *(pid->ff1gain) +
 	    *(pid->cmd_dd) * *(pid->ff2gain);
@@ -436,9 +445,12 @@ static void calc_pid(void *arg, long period)
 	    }
 	}
     } else {
-	/* not enabled, force output to zero */
-	tmp1 = 0.0;
-	pid->limit_state = 0.0;
+        if(no_reset == 0) {
+            /* not enabled, force output to zero */
+            tmp1 = 0.0;
+            pid->limit_state = 0.0;    
+        }
+
     }
     /* write final output value to output pin */
     *(pid->output) = tmp1;
@@ -474,6 +486,11 @@ static int export_pid(hal_pid_t * addr, char * prefix)
     rtapi_set_msg_level(RTAPI_MSG_WARN);
 
     /* export pins */
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->no_reset), comp_id,
+                              "%s.no-reset", prefix);
+    if (retval != 0) {
+        return retval;
+    }
     retval = hal_pin_bit_newf(HAL_IN, &(addr->enable), comp_id,
 			      "%s.enable", prefix);
     if (retval != 0) {
@@ -537,6 +554,11 @@ static int export_pid(hal_pid_t * addr, char * prefix)
 				"%s.Igain", prefix);
     if (retval != 0) {
 	return retval;
+    }
+    retval = hal_pin_float_newf(HAL_IN, &(addr->iigain), comp_id,
+                "%s.IIgain", prefix);
+    if (retval != 0) {
+    return retval;
     }
     retval = hal_pin_float_newf(HAL_IN, &(addr->dgain), comp_id,
 				"%s.Dgain", prefix);
@@ -616,6 +638,11 @@ static int export_pid(hal_pid_t * addr, char * prefix)
 	if (retval != 0) {
 	    return retval;
 	}
+        retval = hal_pin_float_newf(HAL_OUT, &(addr->error_ii), comp_id,
+                                    "%s.errorII", prefix);
+        if (retval != 0) {
+            return retval;
+        }
 	retval = hal_pin_float_newf(HAL_OUT, &(addr->error_d), comp_id,
 				    "%s.errorD", prefix);
 	if (retval != 0) {
@@ -633,16 +660,19 @@ static int export_pid(hal_pid_t * addr, char * prefix)
 	}
     } else {
 	addr->error_i = (hal_float_t *) hal_malloc(sizeof(hal_float_t));
+        addr->error_ii = (hal_float_t *) hal_malloc(sizeof(hal_float_t));
 	addr->error_d = (hal_float_t *) hal_malloc(sizeof(hal_float_t));
 	addr->cmd_d = (hal_float_t *) hal_malloc(sizeof(hal_float_t));
 	addr->cmd_dd = (hal_float_t *) hal_malloc(sizeof(hal_float_t));
     }
 
     *(addr->error_i) = 0.0;
+    *(addr->error_ii) = 0.0;
     *(addr->error_d) = 0.0;
     *(addr->cmd_d) = 0.0;
     *(addr->cmd_dd) = 0.0;
     /* init all structure members */
+    *(addr->no_reset) = 0;
     *(addr->enable) = 0;
     *(addr->error_previous_target) = 1;
     *(addr->command) = 0;
@@ -661,6 +691,7 @@ static int export_pid(hal_pid_t * addr, char * prefix)
     *(addr->bias) = 0.0;
     *(addr->pgain) = 1.0;
     *(addr->igain) = 0.0;
+    *(addr->iigain) = 0.0;
     *(addr->dgain) = 0.0;
     *(addr->ff0gain) = 0.0;
     *(addr->ff1gain) = 0.0;
