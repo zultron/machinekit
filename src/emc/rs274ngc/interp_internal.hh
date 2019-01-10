@@ -27,6 +27,7 @@
 #include "libintl.h"
 #include "python_plugin.hh"
 #include "modal_state.hh"
+#include "interp_base.hh"
 
 
 #define _(s) gettext(s)
