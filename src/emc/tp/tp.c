@@ -828,7 +828,8 @@ STATIC int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
 
     // Copy over state data from TP
     tcSetupState(blend_tc, tp);
-    
+    blend_tc->term_cond = TC_TERM_COND_TANGENT;
+
     // Set kinematics parameters from blend calculations
     tcSetupMotion(blend_tc,
             vel,
@@ -844,9 +845,6 @@ STATIC int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
     tp_info_print("blend tc length = %f\n",length);
     blend_tc->target = length;
     blend_tc->nominal_length = length;
-
-    // Set the blend arc to be tangent to the next segment
-    tcSetTermCond(blend_tc, TC_TERM_COND_TANGENT);
 
     //NOTE: blend arc radius and everything else is finalized, so set this to 1.
     //In the future, radius may be adjustable.
@@ -870,20 +868,6 @@ STATIC int tcSetLineXYZ(TC_STRUCT * const tc, PmCartLine const * const line)
     tc->coords.line.xyz = *line;
     tc->target = line->tmag;
     return TP_ERR_OK;
-}
-
-
-/**
- * Force two segments to be treated as tangent based on the computed kink velocity.
- *
- * @warning for segments that are not close to tangent, the maximum
- * acceleration will be drastically reduced to ensure that the transition is
- * within velocity / acceleration limits.
- */
-static void forceTangentSegments(TC_STRUCT *prev_tc, TC_STRUCT *tc)
-{
-    // Fall back to tangent, using kink_vel as final velocity
-    tcSetTermCond(prev_tc, TC_TERM_COND_TANGENT);
 }
 
 static inline int find_max_element(double arr[], int sz)
@@ -947,13 +931,13 @@ STATIC tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
         case PARABOLIC_BLEND: // parabolic
             tp_debug_print("using parabolic blend\n");
             tcRemoveKinkProperties(prev_tc, tc);
-            tcSetTermCond(prev_tc, TC_TERM_COND_PARABOLIC);
+            tcSetTermCond(prev_tc, tc, TC_TERM_COND_PARABOLIC);
             tcCheckLastParabolic(tc, prev_tc);
             break;
         case TANGENT_SEGMENTS_BLEND: // tangent
             tp_debug_print("using approximate tangent blend\n");
             // NOTE: acceleration / velocity reduction is done dynamically in functions that access TC_STRUCT properties
-            tcSetTermCond(prev_tc, TC_TERM_COND_TANGENT);
+            tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
             break;
         case ARC_BLEND: // arc blend
             tp_debug_print("using blend arc\n");
@@ -1120,7 +1104,7 @@ STATIC tp_err_t tpCreateLineArcBlend(TP_STRUCT * const tp, TC_STRUCT * const pre
     }
     tcSetCircleXYZ(tc, &circ2_temp);
 
-    tcSetTermCond(prev_tc, TC_TERM_COND_TANGENT);
+    tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
 
     return TP_ERR_OK;
 }
@@ -1262,7 +1246,7 @@ STATIC tp_err_t tpCreateArcLineBlend(TP_STRUCT * const tp, TC_STRUCT * const pre
     tcSetLineXYZ(tc, &line2_temp);
 
     //Cleanup any mess from parabolic
-    tcSetTermCond(prev_tc, TC_TERM_COND_TANGENT);
+    tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
     return TP_ERR_OK;
 }
 
@@ -1427,7 +1411,7 @@ STATIC tp_err_t tpCreateArcArcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev
     tcSetCircleXYZ(prev_tc, &circ1_temp);
     tcSetCircleXYZ(tc, &circ2_temp);
 
-    tcSetTermCond(prev_tc, TC_TERM_COND_TANGENT);
+    tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
     return TP_ERR_OK;
 }
 
@@ -1543,22 +1527,44 @@ STATIC inline int tpAddSegmentToQueue(TP_STRUCT * const tp, TC_STRUCT * const tc
     return TP_ERR_OK;
 }
 
-STATIC int handleModeChange(TC_STRUCT * const prev_tc, TC_STRUCT const * const tc)
+int handlePrevTermCondition(TC_STRUCT *prev_tc, TC_STRUCT *tc)
+{
+    if (!tc) {
+        return TP_ERR_FAIL;
+    }
+
+    switch (tc->motion_type) {
+    case TC_RIGIDTAP:
+        tcSetTermCond(tc, NULL, TC_TERM_COND_EXACT);
+        tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
+        break;
+    case TC_LINEAR:
+    case TC_CIRCULAR:
+    case TC_SPHERICAL:
+    {
+        tc_term_cond_t prev_term = prev_tc ? prev_tc->term_cond : TC_TERM_COND_STOP;
+        tcSetTermCond(prev_tc, tc, prev_term);
+    }
+        break;
+    }
+    return TP_ERR_OK;
+}
+
+STATIC int handleModeChange(TC_STRUCT *prev_tc, TC_STRUCT *tc)
 {
     if (!tc || !prev_tc) {
         return TP_ERR_FAIL;
     }
+
     if ((prev_tc->canon_motion_type == EMC_MOTION_TYPE_TRAVERSE) ^
             (tc->canon_motion_type == EMC_MOTION_TYPE_TRAVERSE)) {
         tp_debug_print("Blending disabled: can't blend between rapid and feed motions\n");
-        tcSetTermCond(prev_tc, TC_TERM_COND_STOP);
+        tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
     }
     if (prev_tc->synchronized != TC_SYNC_POSITION &&
             tc->synchronized == TC_SYNC_POSITION) {
-        tp_debug_print("Blending disabled: changing spindle sync mode from %d to %d\n",
-                prev_tc->synchronized,
-                tc->synchronized);
-        tcSetTermCond(prev_tc, TC_TERM_COND_STOP);
+        tp_debug_print("Blending disabled: entering position-sync mode\n");
+        tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
     }
     return TP_ERR_OK;
 }
@@ -1596,7 +1602,13 @@ STATIC int tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
     //TODO refactor this into its own function
     TC_STRUCT *prev_tc;
     prev_tc = tcqLast(&tp->queue);
+
+    // Make sure the blending flags are consistent w/ previous segment
+    handlePrevTermCondition(prev_tc, tc);
+
+    // Prevent blends for specific mode changes (where blending isn't possible anyway)
     handleModeChange(prev_tc, tc);
+
     if (emcmotConfig->arcBlendEnable){
         tpHandleBlendArc(tp, tc);
         tcUpdateArcLengthFit(tc);
@@ -1667,9 +1679,6 @@ int tpAddRigidTap(TP_STRUCT * const tp,
             &tp->goalPos,
             &end);
     tc.target = pmRigidTapTarget(&tc.coords.rigidtap, tp->uu_per_rev);
-
-    // Force exact stop mode after rigid tapping regardless of TP setting
-    tcSetTermCond(&tc, TC_TERM_COND_STOP);
 
     return tpFinalizeAndEnqueue(tp, &tc);
 }
@@ -1930,7 +1939,7 @@ STATIC int tpSetupTangent(TP_STRUCT const * const tp,
     pmCartCartDot(&prev_tan, &this_tan, &dot);
     if (dot < SHARP_CORNER_THRESHOLD) {
         tp_debug_print("Found sharp corner\n");
-        tcSetTermCond(prev_tc, TC_TERM_COND_STOP);
+        tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
         return TP_ERR_FAIL;
     }
 
@@ -1983,7 +1992,7 @@ STATIC int tpSetupTangent(TP_STRUCT const * const tp,
 
     if (acc_scale_max < kink_ratio) {
         tp_debug_print(" Kink acceleration within %g, using tangent blend\n", kink_ratio);
-        tcSetTermCond(prev_tc, TC_TERM_COND_TANGENT);
+        tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
         tcSetKinkProperties(prev_tc, tc, v_max, acc_scale_max);
         return TP_ERR_OK;
     } else {
@@ -2121,6 +2130,7 @@ int tpAddLine(TP_STRUCT * const tp, EmcPose end, int canon_motion_type, double v
 
     // Copy over state data from the trajectory planner
     tcSetupState(&tc, tp);
+    tcSetTermCond(&tc, NULL, tp->termCond);
 
     // Copy in motion parameters
     tcSetupMotion(&tc,
@@ -2191,6 +2201,7 @@ int tpAddCircle(TP_STRUCT * const tp,
 
     // Copy over state data from the trajectory planner
     tcSetupState(&tc, tp);
+    tcSetTermCond(&tc, NULL, tp->termCond);
 
     // Setup circle geometry
     int res_init = pmCircle9Init(&tc.coords.circle,
@@ -3507,7 +3518,7 @@ STATIC int tpHandleRegularCycle(TP_STRUCT * const tp,
     return TP_ERR_OK;
 }
 
-STATIC int tpSteppingCheck(TP_STRUCT * const tp, TC_STRUCT * const tc, TC_STRUCT const * const nexttc)
+STATIC int tpSteppingCheck(TP_STRUCT * const tp, TC_STRUCT * const tc, TC_STRUCT * const nexttc)
 {
     if (!tc || !tp) {
         return TP_ERR_MISSING_INPUT;
@@ -3526,7 +3537,7 @@ STATIC int tpSteppingCheck(TP_STRUCT * const tp, TC_STRUCT * const tc, TC_STRUCT
     // We're looking for parabolic blends coming up that would mess with stepping
     // Also, by checking against final decel, we won't clobber a blend already happening
     if (tc->term_cond == TC_TERM_COND_PARABOLIC && emcmotDebug->stepping && !tc->blending_next) {
-        tcSetTermCond(tc, TC_TERM_COND_STOP);
+        tcSetTermCond(tc, nexttc, TC_TERM_COND_STOP);
     }
     return TP_ERR_OK;
 }
