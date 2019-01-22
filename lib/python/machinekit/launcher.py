@@ -1,19 +1,20 @@
 # coding=utf-8
 import os
+import shlex
 import sys
 from time import *
 import subprocess
 import signal
 
 _processes = []
-_realtimeStarted = False
+_realtime_started = False
 _exiting = False
 
 
 # ends a running Machinekit session
 def end_session():
     stop_processes()
-    if _realtimeStarted:  # Stop realtime only when explicitely started
+    if _realtime_started:  # Stop realtime only when explicitly started
         stop_realtime()
 
 
@@ -106,54 +107,52 @@ def stop_processes():
 
 # starts realtime
 def start_realtime():
-    global _realtimeStarted
+    global _realtime_started
     sys.stdout.write("starting realtime...")
     sys.stdout.flush()
     subprocess.check_call('realtime start', shell=True)
     sys.stdout.write('done\n')
-    _realtimeStarted = True
+    _realtime_started = True
 
 
 # stops realtime
 def stop_realtime():
-    global _realtimeStarted
+    global _realtime_started
     sys.stdout.write("stopping realtime... ")
     sys.stdout.flush()
     subprocess.check_call('realtime stop', shell=True)
     sys.stdout.write('done\n')
-    _realtimeStarted = False
+    _realtime_started = False
 
 
 # rip the Machinekit environment
 def rip_environment(path=None, force=False):
-    if force is False and os.getenv('EMC2_PATH') is not None:   # check if already ripped
+    if force is False and os.getenv('EMC2_PATH') is not None:  # check if already ripped
         return
 
     if path is None:
         command = None
-        scriptFilePath = os.environ['HOME'] + '/.bashrc'
-        if os.path.exists(scriptFilePath):
-            with open(scriptFilePath) as f:    # use the bashrc
+        script_file_path = os.environ['HOME'] + '/.bashrc'
+        if os.path.exists(script_file_path):
+            with open(script_file_path) as f:  # use the bashrc
                 content = f.readlines()
                 for line in content:
                     if 'rip-environment' in line:
                         line = line.strip()
-                        if (line[0] == '.'):
+                        if line[0] == '.':
                             command = line
 
-        scriptFilePath = os.environ['HOME'] + '/linuxcnc/scripts/rip-environment'
-        if os.path.exists(scriptFilePath):
-            command = '. ' + scriptFilePath
+        script_file_path = os.environ['HOME'] + '/machinekit/scripts/rip-environment'
+        if os.path.exists(script_file_path):
+            command = '. ' + script_file_path
 
-        if (command is None):
+        if command is None:
             sys.stderr.write('Unable to rip environment')
             sys.exit(1)
     else:
         command = '. ' + path + '/scripts/rip-environment'
 
-    process = subprocess.Popen(command + ' && env',
-                               stdout=subprocess.PIPE,
-                               shell=True)
+    process = subprocess.Popen(command + ' && env', stdout=subprocess.PIPE, shell=True)
     for line in process.stdout:
         (key, _, value) = line.partition('=')
         os.environ[key] = value.rstrip()
@@ -165,10 +164,10 @@ def rip_environment(path=None, force=False):
 def check_processes():
     for process in _processes:
         process.poll()
-        if (process.returncode is not None):
+        if process.returncode is not None:
             _processes.remove(process)
             end_session()
-            if (process.returncode != 0):
+            if process.returncode != 0:
                 sys.exit(1)
             else:
                 sys.exit(0)
@@ -176,11 +175,11 @@ def check_processes():
 
 # register exit signal handlers
 def register_exit_handler():
-    signal.signal(signal.SIGINT, _exitHandler)
-    signal.signal(signal.SIGTERM, _exitHandler)
+    signal.signal(signal.SIGINT, _exit_handler)
+    signal.signal(signal.SIGTERM, _exit_handler)
 
 
-def _exitHandler(signum, frame):
+def _exit_handler(signum, frame):
     del signum  # unused
     del frame  # unused
     global _exiting
@@ -201,11 +200,26 @@ def set_machinekit_ini(ini):
     os.environ['MACHINEKIT_INI'] = ini
 
 
-# ensure mklauncher is running
-def ensure_mklauncher():
+def _check_for_non_zombie_process(program):
     try:
-        subprocess.check_output(['pgrep', 'mklauncher'])
-        return
+        # get process ids
+        pids = subprocess.check_output(shlex.split('pgrep {}'.format(program))).strip()
+        pids = ' '.join(pids.split('\n'))
+        # check each id if it is not zombie
+        ps_out = subprocess.check_output(
+            shlex.split('ps -p "{}" -o pid=,s='.format(pids))
+        ).strip()
+        lines = ps_out.split('\n')
+        for line in lines:
+            pid, status = line.strip().split(' ')
+            if status != 'Z':
+                return True
     except subprocess.CalledProcessError:
         pass
-    start_process('mklauncher .')
+    return False
+
+
+# ensure mklauncher is running
+def ensure_mklauncher():
+    if not _check_for_non_zombie_process('mklauncher'):
+        start_process('mklauncher .')
