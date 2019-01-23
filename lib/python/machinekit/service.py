@@ -2,7 +2,12 @@
 import avahi
 import dbus
 import os
+import sys
 import uuid
+
+from six.moves.configparser import ConfigParser
+
+from machinekit import config
 
 
 class ZeroconfService(object):
@@ -144,3 +149,29 @@ class Service(object):
 
     def unpublish(self):
         self.status_service.unpublish()
+
+
+def read_machinekit_ini(debug=False):
+    mkconfig = config.Config()
+    mkini = os.getenv("MACHINEKIT_INI")
+    if mkini is None:
+        mkini = mkconfig.MACHINEKIT_INI
+    if not os.path.isfile(mkini):
+        sys.stderr.write('MACHINEKIT_INI %s does not exist\n' % mkini)
+        sys.exit(1)
+
+    mki = ConfigParser()
+    mki.read(mkini)
+    uuid_ = mki.get("MACHINEKIT", "MKUUID")
+    remote = mki.getint("MACHINEKIT", "REMOTE")
+
+    if remote == 0:
+        print(
+            "Remote communication is deactivated, configserver will use the loopback interfaces"
+        )
+        print("set REMOTE in " + mkini + " to 1 to enable remote communication")
+
+    if debug:
+        print('found MACHINEKIT_INI {}'.format(mkini))
+
+    return uuid_, remote
