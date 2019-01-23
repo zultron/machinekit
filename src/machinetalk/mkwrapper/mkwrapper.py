@@ -81,7 +81,7 @@ class FileService(threading.Thread):
         self.file_port = get_free_port()
         self.file_dsname = "ftp://" + self.host + ":" + str(self.file_port)
 
-        self.fileService = service.Service(
+        self.file_service = service.Service(
             type_='file',
             svc_uuid=svc_uuid,
             dsn=self.file_dsname,
@@ -115,7 +115,7 @@ class FileService(threading.Thread):
 
         # Zeroconf
         try:
-            self.fileService.publish()
+            self.file_service.publish()
         except Exception as e:
             print_error('cannot register DNS service' + str(e))
             sys.exit(1)
@@ -130,7 +130,7 @@ class FileService(threading.Thread):
             self.server.serve_forever(timeout=1, blocking=False)
 
         self.server.close_all()
-        self.fileService.unpublish()
+        self.file_service.unpublish()
 
         self.running = False
         return
@@ -169,6 +169,8 @@ class LinuxCNCWrapper(object):
         ping_interval=2,
         debug=False,
         no_tool_table=False,
+        no_command_channel=False,
+        no_error_channel=False,
     ):
         self.debug = debug
         self.host = host
@@ -176,13 +178,18 @@ class LinuxCNCWrapper(object):
         self.ping_interval = ping_interval
         self.shutdown = threading.Event()
         self.running = False
-        self.tool_table_disabled = True
+        self._tool_table_enabled = not no_tool_table
+        self._command_enabled = not no_command_channel
+        self._error_enabled = not no_error_channel
 
         # synchronization locks
-        self.command_lock = threading.Lock()
+
+        if self._command_enabled:
+            self.command_lock = threading.Lock()
         self.status_lock = threading.Lock()
-        self.error_lock = threading.Lock()
-        self.error_note_lock = threading.Lock()
+        if self._error_enabled:
+            self.error_lock = threading.Lock()
+            self.error_note_lock = threading.Lock()
 
         # status
         self.status = StatusValues()
@@ -211,9 +218,10 @@ class LinuxCNCWrapper(object):
 
         self.text_subscribed = False
         self.display_subscribed = False
-        self.error_subscribed = False
-        self.error_service_subscribed = False
-        self.new_error_subscription = False
+        if self._error_enabled:
+            self.error_subscribed = False
+            self.error_service_subscribed = False
+            self.new_error_subscription = False
 
         self.linuxcnc_errors = []
         self.program_extensions = {}
@@ -221,12 +229,14 @@ class LinuxCNCWrapper(object):
         # Linuxcnc
         try:
             self.stat = ObjectLock(linuxcnc.stat(), 'linuxcnc.stat', MAX_LOCK_TIME)
-            self.command = ObjectLock(
-                linuxcnc.command(), 'linuxcnc.command', MAX_LOCK_TIME
-            )
-            self.error = ObjectLock(
-                linuxcnc.error_channel(), 'linuxcnc.error_channel', MAX_LOCK_TIME
-            )
+            if self._command_enabled:
+                self.command = ObjectLock(
+                    linuxcnc.command(), 'linuxcnc.command', MAX_LOCK_TIME
+                )
+            if self._error_enabled:
+                self.error = ObjectLock(
+                    linuxcnc.error_channel(), 'linuxcnc.error_channel', MAX_LOCK_TIME
+                )
 
             ini_file = ini_file or os.environ.get('INI_FILE_NAME', '/dev/null')
             self.ini = linuxcnc.ini(ini_file)
@@ -268,7 +278,7 @@ class LinuxCNCWrapper(object):
             # initialize total line count
             self.total_lines = 0
             # initialize tool table path
-            if not no_tool_table:
+            if self._tool_table_enabled:
                 self.tool_table_path = self.ini.find('EMCIO', 'TOOL_TABLE') or ''
                 if self.tool_table_path is not '':
                     self.tool_table_path = os.path.abspath(
@@ -277,7 +287,7 @@ class LinuxCNCWrapper(object):
             # If specified in the ini, try to open the  default file
             open_file = self.ini.find('DISPLAY', 'OPEN_FILE') or ""
             open_file = open_file.strip('"')  # quote signs are allowed
-            if open_file != "":
+            if open_file != "" and self._command_enabled:
                 open_file = os.path.abspath(os.path.expanduser(open_file))
                 file_name = os.path.basename(open_file)
                 file_path = os.path.join(self.directory, file_name)
@@ -301,8 +311,10 @@ class LinuxCNCWrapper(object):
 
         self.rx = Container()  # Used by the command socket
         self.tx_status = Container()  # Status socket - PUB-SUB
-        self.tx_command = Container()  # Command socket - ROUTER-DEALER
-        self.tx_error = Container()  # Error socket - PUB-SUB
+        if self._command_enabled:
+            self.tx_command = Container()  # Command socket - ROUTER-DEALER
+        if self._error_enabled:
+            self.tx_error = Container()  # Error socket - PUB-SUB
         self.context = context
         self.base_uri = "tcp://"
         if self.loopback:
@@ -316,19 +328,21 @@ class LinuxCNCWrapper(object):
             zmq.LAST_ENDPOINT, encoding='utf-8'
         )
         self.status_dsname = self.status_dsname.replace('0.0.0.0', self.host)
-        self.error_socket = context.socket(zmq.XPUB)
-        self.error_socket.setsockopt(zmq.XPUB_VERBOSE, 1)
-        self.error_port = self.error_socket.bind_to_random_port(self.base_uri)
-        self.error_dsname = self.error_socket.get_string(
-            zmq.LAST_ENDPOINT, encoding='utf-8'
-        )
-        self.error_dsname = self.error_dsname.replace('0.0.0.0', self.host)
-        self.command_socket = context.socket(zmq.ROUTER)
-        self.command_port = self.command_socket.bind_to_random_port(self.base_uri)
-        self.command_dsname = self.command_socket.get_string(
-            zmq.LAST_ENDPOINT, encoding='utf-8'
-        )
-        self.command_dsname = self.command_dsname.replace('0.0.0.0', self.host)
+        if self._error_enabled:
+            self.error_socket = context.socket(zmq.XPUB)
+            self.error_socket.setsockopt(zmq.XPUB_VERBOSE, 1)
+            self.error_port = self.error_socket.bind_to_random_port(self.base_uri)
+            self.error_dsname = self.error_socket.get_string(
+                zmq.LAST_ENDPOINT, encoding='utf-8'
+            )
+            self.error_dsname = self.error_dsname.replace('0.0.0.0', self.host)
+        if self._command_enabled:
+            self.command_socket = context.socket(zmq.ROUTER)
+            self.command_port = self.command_socket.bind_to_random_port(self.base_uri)
+            self.command_dsname = self.command_socket.get_string(
+                zmq.LAST_ENDPOINT, encoding='utf-8'
+            )
+            self.command_dsname = self.command_dsname.replace('0.0.0.0', self.host)
 
         self.status_service = service.Service(
             type_='status',
@@ -339,24 +353,26 @@ class LinuxCNCWrapper(object):
             loopback=self.loopback,
             debug=self.debug,
         )
-        self.error_service = service.Service(
-            type_='error',
-            svc_uuid=svc_uuid,
-            dsn=self.error_dsname,
-            port=self.error_port,
-            host=self.host,
-            loopback=self.loopback,
-            debug=self.debug,
-        )
-        self.command_service = service.Service(
-            type_='command',
-            svc_uuid=svc_uuid,
-            dsn=self.command_dsname,
-            port=self.command_port,
-            host=self.host,
-            loopback=self.loopback,
-            debug=self.debug,
-        )
+        if self._error_enabled:
+            self.error_service = service.Service(
+                type_='error',
+                svc_uuid=svc_uuid,
+                dsn=self.error_dsname,
+                port=self.error_port,
+                host=self.host,
+                loopback=self.loopback,
+                debug=self.debug,
+            )
+        if self._command_enabled:
+            self.command_service = service.Service(
+                type_='command',
+                svc_uuid=svc_uuid,
+                dsn=self.command_dsname,
+                port=self.command_port,
+                host=self.host,
+                loopback=self.loopback,
+                debug=self.debug,
+            )
 
         self.publish()
 
@@ -366,8 +382,10 @@ class LinuxCNCWrapper(object):
     def process_sockets(self):
         poll = zmq.Poller()
         poll.register(self.status_socket, zmq.POLLIN)
-        poll.register(self.error_socket, zmq.POLLIN)
-        poll.register(self.command_socket, zmq.POLLIN)
+        if self._error_enabled:
+            poll.register(self.error_socket, zmq.POLLIN)
+        if self._command_enabled:
+            poll.register(self.command_socket, zmq.POLLIN)
 
         next_poll = time.time() + self.poll_interval_s
         poll_delay = self.poll_interval_s * 1000  # convert to ms
@@ -375,9 +393,17 @@ class LinuxCNCWrapper(object):
             s = dict(poll.poll(poll_delay))
             if self.status_socket in s and s[self.status_socket] == zmq.POLLIN:
                 self.process_status(self.status_socket)
-            if self.error_socket in s and s[self.error_socket] == zmq.POLLIN:
+            if (
+                self._error_enabled
+                and self.error_socket in s
+                and s[self.error_socket] == zmq.POLLIN
+            ):
                 self.process_error(self.error_socket)
-            if self.command_socket in s and s[self.command_socket] == zmq.POLLIN:
+            if (
+                self._command_enabled
+                and self.command_socket in s
+                and s[self.command_socket] == zmq.POLLIN
+            ):
                 self.process_command(self.command_socket)
 
             poll_delay = (next_poll - time.time()) * 1000  # convert to ms
@@ -393,7 +419,7 @@ class LinuxCNCWrapper(object):
                     self.update_status(self.stat)
                     if self.ping_count == self.ping_ratio:
                         self.ping_status()
-                if self.error_service_subscribed:
+                if self._error_enabled and self.error_service_subscribed:
                     error = self.error.poll()
                     self.update_error(error)
                     if self.ping_count == self.ping_ratio:
@@ -418,16 +444,20 @@ class LinuxCNCWrapper(object):
         # Zeroconf
         try:
             self.status_service.publish()
-            self.error_service.publish()
-            self.command_service.publish()
+            if self._error_enabled:
+                self.error_service.publish()
+            if self._command_enabled:
+                self.command_service.publish()
         except Exception as e:
             print_error('cannot register DNS service' + str(e))
             sys.exit(1)
 
     def unpublish(self):
         self.status_service.unpublish()
-        self.error_service.unpublish()
-        self.command_service.unpublish()
+        if self._error_enabled:
+            self.error_service.unpublish()
+        if self._command_enabled:
+            self.command_service.unpublish()
 
     def stop(self):
         self.shutdown.set()
@@ -1043,7 +1073,7 @@ class LinuxCNCWrapper(object):
             self.status.io, self.status_tx.io, 'tool_offset', stat.tool_offset
         )
 
-        if not self.tool_table_disabled:
+        if self._tool_table_enabled:
             modified |= self.update_io_tool_table(stat)
 
         if self.io_full_update:
@@ -2325,13 +2355,24 @@ def main():
         help='Disable tool table messages',
         action='store_true',
     )
+    parser.add_argument(
+        '-nc',
+        '--no-command-channel',
+        help='Disable the command channel.',
+        action='store_true',
+    )
+    parser.add_argument(
+        '-ne',
+        '--no-error-channel',
+        help='Disable the error channel.',
+        action='store_true',
+    )
     parser.add_argument('-d', '--debug', help='Enable debug mode', action='store_true')
 
     args = parser.parse_args()
 
     debug = args.debug
     ini_file = args.ini
-    no_tool_table = args.no_tool_table
 
     mkconfig = config.Config()
     mkini = os.getenv("MACHINEKIT_INI")
@@ -2380,7 +2421,9 @@ def main():
             ini_file=ini_file,
             svc_uuid=mk_uuid,
             debug=debug,
-            no_tool_table=no_tool_table
+            no_tool_table=args.no_tool_table,
+            no_command_channel=args.no_command_channel,
+            no_error_channel=args.no_error_channel,
         )
 
         while file_service.running and mkwrapper.running and not check_exit():
