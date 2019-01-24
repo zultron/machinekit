@@ -337,14 +337,6 @@ static void process_probe_inputs(void) {
         int i;
         int aborted = 0;
 
-        if(!GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->tp) &&
-           tpGetExecId(&emcmotDebug->tp) <= 0) {
-            // running an MDI command
-            tpAbort(&emcmotDebug->tp);
-            reportError(_("Probe tripped during non-probe MDI command."));
-	    SET_MOTION_ERROR_FLAG(1);
-        }
-
         for(i=0; i<num_joints; i++) {
             emcmot_joint_t *joint = &joints[i];
 
@@ -366,6 +358,13 @@ static void process_probe_inputs(void) {
                 // is needed so the user gets the correct error.
                 if(!aborted) aborted=2;
             }
+
+            // abort any active motion on joint
+            if(!GET_MOTION_INPOS_FLAG()) {
+                tpAbort(&emcmotDebug->tp);
+                if(!aborted) aborted=3;
+                SET_MOTION_ERROR_FLAG(1);
+            }
         }
 
         if(aborted == 1) {
@@ -374,6 +373,10 @@ static void process_probe_inputs(void) {
 
         if(aborted == 2) {
             reportError(_("Probe tripped during a jog."));
+        }
+
+        if(aborted == 3) {
+            reportError(_("Probe tripped during non-probe motion."));
         }
     }
     old_probeVal = emcmotStatus->probeVal;
