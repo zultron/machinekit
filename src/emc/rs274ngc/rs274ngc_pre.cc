@@ -1471,6 +1471,7 @@ int Interp::read_inputs(setup_pointer settings)
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_ORIENT);
 	settings->parameters[5414] = GET_EXTERNAL_ORIENT_TIMEOUT();
+  settings->orient_flag = false;
     }
 
     return INTERP_OK;
