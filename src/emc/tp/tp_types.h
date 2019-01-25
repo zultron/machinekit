@@ -98,6 +98,7 @@ typedef struct {
 
     EmcPose currentPos;
     EmcPose goalPos;
+    EmcPose currentVel;
 
     int queueSize;
     double cycleTime;
@@ -108,11 +109,6 @@ typedef struct {
                                    subsequent moves */
     double vLimit;		/* absolute upper limit on all linear vels */
     double vLimitAng;		/* absolute upper limit on all angular vels */
-
-    double aMax;        /* max accel (unused) */
-    //FIXME this shouldn't be a separate limit,
-    double aMaxCartesian; /* max cartesian acceleration by machine bounds */
-    double aLimit;        /* max accel (unused) */
 
     double wMax;		/* rotational velocity max */
     double wDotMax;		/* rotational accelleration max */
@@ -137,6 +133,9 @@ typedef struct {
 
 
     syncdio_t syncdio; //record tpSetDout's here
+
+    double time_elapsed_sec; // Total elapsed TP run time in seconds
+    long long time_elapsed_ticks; // Total elapsed TP run time in cycles (ticks)
 
 } TP_STRUCT;
 

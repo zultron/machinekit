@@ -968,6 +968,7 @@ motmod-objs += emc/tp/tcq.o
 motmod-objs += emc/tp/tp.o
 motmod-objs += emc/tp/spherical_arc.o
 motmod-objs += emc/tp/blendmath.o
+motmod-objs += emc/tp/joint_util.o
 motmod-objs += emc/motion/motion.o
 motmod-objs += emc/motion/command.o
 motmod-objs += emc/motion/control.o
