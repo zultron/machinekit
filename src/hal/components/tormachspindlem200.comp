@@ -1,4 +1,3 @@
-
 component tormachspindlem200 "Tormach Spindle HAL Component M200";
 
 license "GPL";
@@ -83,9 +82,10 @@ author "";
 //          encoder-rawlatched      encoder raw latched input
 //          
 //          forward_in              input from linuxcnc motion entity, used when not in index mode for feed thur
+//          spindle-lock            from linuxcnc motion.spidle-lock
 // Outputs:
 //          orient-modulus          feedback to pid block used control indexing of spindle
-//          orient-done             feedback to linuxcnc that index is within range.  Connect to motion.spindle-is-oriented
+//          oriented                feedback to linuxcnc that index is within range.  Connect to motion.spindle-is-oriented
 //          orient-fault            feedback to linuxcnc for fault code.  Connect to motion.spindle-orient-fault
 //          spindle-on-thur         feedthrough of forward-in when not indexing, set by this comp when indexing mode 
 //          spindle-forward-thur    feedthrough of spindle-on when not indexing, set by this comp when indexing mode
@@ -202,6 +202,7 @@ pin in bit forward_in;          // forward (or reverse) to m200 from PP, when no
 pin in float encoder_velocity;  // encoder input velocity in RPS
 pin in s32 orient_encoder_cpr;  // encoder counts per rev
 pin in u32 deadband_in;         // the range in +/- encoder counts where we consider the spindle orientation is done
+pin in bit spindle_lock;
 
 // not used
 //pin in s32 encoder_rawcounts;  
@@ -216,7 +217,7 @@ pin io s32 bt30_offset;         //offset for the Bt30 index with respect to enco
 
 // Outputs:
 pin out u32 zindex_state;    //See ISTATE_ defines
-pin out bit orient_done;             // feedback to linuxcnc that we've completed orientation/indexing
+pin out bit oriented;             // feedback to linuxcnc that we've completed orientation/indexing
 pin out float orient_timer;       // used to timeout "in position" (orienting complete)
 pin out s32 orient_fault;            
 pin out float orient_modulus;       // feedback to pid block used to control indexing
@@ -548,36 +549,37 @@ float angle_offset;
         zindex_state = ISTATE_PAST | ISTATE_DONE;
     }
 
+    if (spindle_lock) {
+        clamped_speed_in = 0.0;
+        spindle_on_thur = BIT_TRUE; 
+    }
+    
     if (orient_execute) {
         if (deadband_in != 0)
             orient_deadband = deadband_in;
         else
             orient_deadband = ORIENT_DEADBAND_VALUE;
 
-        if(!orient_done)
-            orient_fault = 0;
-
         spindle_on_thur = BIT_FALSE; //default to spindle off in orient mode until something sets it on
 
         if (orient_set_bt30){
             orient_fault = ORIENT_ERR_MULTIPLE_COMMANDS;
-            orient_done = 1;
+            oriented = 0;
             target_computed = 0;
         }
         else if (zindex_state != (ISTATE_PAST | ISTATE_DONE)) {
             orient_fault = ORIENT_ERR_NO_ZINDEX; //we've yet to see an encoder z index -- error out
-            orient_done = 1;
+            oriented = 0;
             target_computed = 0;
         }
-        else if (!orient_done) { //no errors detected.  if we didn't already complete, do orient 
+        else if (!oriented) { //no errors detected.  if we didn't already complete, do orient 
             if(orient_speed_in >= 0)  //figure out spindle dir based on input from index PID
                 spindle_forward_thur = BIT_TRUE;  //true selects forward on m200
             else spindle_forward_thur = BIT_FALSE; //false selects reverse on m200
 
             clamped_speed_in = fabs(orient_speed_in); //dir from input speed is ignored, as spindle_forward_thur sets that
-            //max speed during indexing is "very" low, use min_speed (yes min, not max) to set max speed
+            //max speed during orienting is "very" low, use min_speed (yes min, not max) to set max speed for orient
             if (clamped_speed_in > min_speed) {
-                // over max
                 clamped_speed_in = min_speed;
             }
 
@@ -585,7 +587,7 @@ float angle_offset;
             enc_err = iabs(orient_target - encoder_position);
             if(enc_err < orient_deadband){ //if indexing feedback is good for 100 ms, call it done
                 if (++orient_timer >= ORIENT_DEADBAND_TIME) {
-                    orient_done = 1;
+                    oriented = 1;
                     target_computed = 0;
                 }
             }
@@ -600,7 +602,7 @@ float angle_offset;
         //errors or not, we clear all these before finishing the bt30 set operation
         orient_set_bt30 = 0;   // the user looks at this to go low to know it completed, and can look at fault code to see if err
         orient_fault = 0;
-        orient_done = 0;
+        oriented = 0;
         target_computed = 0;
 
         spindle_on_thur = BIT_FALSE; //never enable spindle for bt30 setting
@@ -613,9 +615,10 @@ float angle_offset;
     }
     else //normal spindle operation, no orienting or bt30 setting active
     {
-        orient_done = 0;
+        oriented = 0;
         target_computed = 0;
         orient_timer = 0;
+        orient_fault = 0;
 
         clamped_speed_in = fabs(speed_in); //ignore direction sign from speed input
         if (clamped_speed_in < min_speed) {
@@ -680,15 +683,21 @@ float angle_offset;
         feedback_motor_rpm = 0.0;
     }
 
-    //TODO: Uncomment this code (and add code) once we have an encoder to test this with:
-    //if(orient_encoder_cpr == 0.0 || orient_encoder_cpr == 1.0) //means no encoder. not setting to "0" as linuxcnc/src/hal/drivers/mesa-hostmot2/encoder.c uses this as a divisor, so !=0, yet we wish to allow HAL to not connect
-    //this pin, in which case it's going to be 0
-    feedback_spindle_rpm = feedback_motor_rpm * pulley_ratio; // this is using VFD's feedback, which isn't so accurate, but all we have when no encoder
-    //else use the encoder and add verify VFD motor speed feedback is working and/or alert wrong belt ratios, etc.
-    //   feedback_spindle_rpm = encoder_velocity;
+    //orient_encoder == 1 means no encoder. Can't reall set to "0" as linuxcnc/src/hal/drivers/mesa-hostmot2/encoder.c uses
+    // this value as a divisor.  Yet we wish to allow a "generic" HALs to ignore & not connect
+    //this pin, in which case it's going to be 0 here.  Our base HAL files set ENCODER_SCALE "1" to indicate no encoder.
+    //a specific ini that then doesn't define ENCODER_SCALE at all means it will be "1" here
+    if(orient_encoder_cpr == 1.0 || orient_encoder_cpr == 0.0) 
+    	feedback_spindle_rpm = feedback_motor_rpm * pulley_ratio; // use VFD's feedback, which isn't so accurate
+    else //use the encoder and TODO add verify VFD motor speed feedback is working and/or alert wrong belt ratios, etc
+    	feedback_spindle_rpm = fabs(encoder_velocity) * 60;
 
     // spindle-at-speed check
-    if (spindle_on && (clamped_speed_in > 0.0)) {
+    if (orient_execute) {
+        at_speed = BIT_FALSE;
+        speed_alarm = BIT_FALSE;
+    }
+    else if (spindle_on && (clamped_speed_in > 0.0)) {
         if (at_speed == BIT_FALSE) {
             if (at_speed_force == BIT_TRUE) {
                 at_speed_force_timer += fperiod; 
