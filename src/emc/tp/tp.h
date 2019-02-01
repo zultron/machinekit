@@ -35,16 +35,40 @@ int tpSetTermCond(TP_STRUCT * const tp, int cond, double tolerance);
 int tpSetPos(TP_STRUCT * const tp, EmcPose const * const pos);
 int tpAddCurrentPos(TP_STRUCT * const tp, EmcPose const * const disp);
 int tpSetCurrentPos(TP_STRUCT * const tp, EmcPose const * const pos);
-int tpAddRigidTap(TP_STRUCT * const tp, EmcPose end, double vel, double
-		  ini_maxvel, double acc, unsigned char enables,
-		  struct state_tag_t tag);
-int tpAddLine(TP_STRUCT * const tp, EmcPose end, int canon_motion_type, double vel, double
-	      ini_maxvel, double acc, unsigned char enables, char atspeed,
-	      int indexrotary, struct state_tag_t tag);
-int tpAddCircle(TP_STRUCT * const tp, EmcPose end, PmCartesian center,
-        PmCartesian normal, int turn, int canon_motion_type, double vel, double ini_maxvel,
-		double acc, unsigned char enables, char atspeed,
-		struct state_tag_t tag);
+
+int tpAddRigidTap(TP_STRUCT * const tp,
+        EmcPose end,
+        double vel,
+        double ini_maxvel,
+        double acc,
+        unsigned char enables,
+        struct state_tag_t tag);
+
+int tpAddLine(TP_STRUCT * const tp,
+        EmcPose end,
+        int canon_motion_type,
+        double vel,
+        double ini_maxvel,
+        double acc,
+        unsigned char enables,
+        char atspeed,
+        int indexrotary,
+        int pure_angular,
+        struct state_tag_t tag);
+
+int tpAddCircle(TP_STRUCT * const tp,
+        EmcPose end,
+        PmCartesian center,
+        PmCartesian normal,
+        int turn,
+        int canon_motion_type,
+        double vel,
+        double ini_maxvel,
+        double acc,
+        unsigned char enables,
+        char atspeed,
+        struct state_tag_t tag);
+
 int tpRunCycle(TP_STRUCT * const tp, long period);
 int tpPause(TP_STRUCT * const tp);
 int tpResume(TP_STRUCT * const tp);

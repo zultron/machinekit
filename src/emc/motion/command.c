@@ -937,8 +937,9 @@ check_stuff ( "before command_handler()" );
         int res_addline = tpAddLine(&emcmotDebug->tp, emcmotCommand->pos, emcmotCommand->motion_type, 
                                 emcmotCommand->vel, emcmotCommand->ini_maxvel, 
                                 emcmotCommand->acc, emcmotStatus->enables_new, issue_atspeed,
-				    emcmotCommand->turn,
-				    emcmotCommand->tag);
+                                emcmotCommand->turn,
+                                emcmotCommand->pure_angular,
+                                emcmotCommand->tag);
         //KLUDGE ignore zero length line
         if (res_addline < 0) {
             reportError(_("can't add linear move at line %d, error code %d"),
@@ -1437,6 +1438,7 @@ check_stuff ( "before command_handler()" );
 				emcmotCommand->motion_type, emcmotCommand->vel,
 				emcmotCommand->ini_maxvel, emcmotCommand->acc,
 				emcmotStatus->enables_new, 0, -1,
+				emcmotCommand->pure_angular,
 				emcmotCommand->tag)) {
 		reportError(_("can't add probe move"));
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;

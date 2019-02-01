@@ -218,6 +218,7 @@ extern "C" {
 	double vela;		/* max angular velocity */
         double ini_maxvel;      /* max velocity allowed by machine
                                    constraints (the ini file) */
+        int pure_angular;       // Canon decided this move should be treated as an angular move (may have small XYZUVW motion anyway)
         int motion_type;        /* this move is because of traverse, feed, arc, or toolchange */
         double spindlesync;     /* user units per spindle revolution, 0 = no sync */
         double spindle_speed;		/* commanded spindle speed */
