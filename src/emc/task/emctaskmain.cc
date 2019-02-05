@@ -2874,7 +2874,7 @@ static int emcTaskExecute(void)
 		emcStatus->task.delayLeft = 0;
 		emcStatus->task.orient_timeout = 1; // timeout occured
 		emcTaskEager = 1;
-		emcOperatorError(0, "wait for orient complete: TIMED OUT");
+    rcs_print("wait for orient complete: TIMED OUT\n");
 	    }
 	    break;
 
