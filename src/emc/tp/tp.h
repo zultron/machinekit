@@ -65,6 +65,7 @@ int tpAddCircle(TP_STRUCT * const tp,
         double vel,
         double ini_maxvel,
         double acc,
+        double acc_normal,
         unsigned char enables,
         char atspeed,
         struct state_tag_t tag);

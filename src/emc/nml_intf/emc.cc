@@ -1529,6 +1529,7 @@ void EMC_TRAJ_CIRCULAR_MOVE::update(CMS * cms)
     cms->update(vel);
     cms->update(ini_maxvel);
     cms->update(acc);
+    cms->update(acc_normal);
     cms->update(feed_mode);
 
 }

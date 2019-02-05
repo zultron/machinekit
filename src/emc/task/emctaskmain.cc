@@ -1934,7 +1934,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
                 emcTrajCircularMoveMsg->turn, emcTrajCircularMoveMsg->type,
                 emcTrajCircularMoveMsg->vel,
                 emcTrajCircularMoveMsg->ini_maxvel,
-                emcTrajCircularMoveMsg->acc);
+                emcTrajCircularMoveMsg->acc,
+                emcTrajCircularMoveMsg->acc_normal);
 	break;
 
     case EMC_TRAJ_PAUSE_TYPE:

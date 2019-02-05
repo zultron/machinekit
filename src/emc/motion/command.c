@@ -994,11 +994,12 @@ check_stuff ( "before command_handler()" );
 	    /* append it to the emcmotDebug->tp */
 	    tpSetId(&emcmotDebug->tp, emcmotCommand->id);
 	    int res_addcircle = tpAddCircle(&emcmotDebug->tp, emcmotCommand->pos,
-                            emcmotCommand->center, emcmotCommand->normal,
-                            emcmotCommand->turn, emcmotCommand->motion_type,
-                            emcmotCommand->vel, emcmotCommand->ini_maxvel,
-                            emcmotCommand->acc, emcmotStatus->enables_new,
-					    issue_atspeed, emcmotCommand->tag);
+                emcmotCommand->center, emcmotCommand->normal,
+                emcmotCommand->turn, emcmotCommand->motion_type,
+                emcmotCommand->vel, emcmotCommand->ini_maxvel,
+                emcmotCommand->acc, emcmotCommand->acc_normal,
+                emcmotStatus->enables_new, issue_atspeed,
+                emcmotCommand->tag);
         if (res_addcircle < 0) {
             reportError(_("can't add circular move at line %d, error code %d"),
                     emcmotCommand->id, res_addcircle);
