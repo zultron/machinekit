@@ -54,7 +54,7 @@ extern emcmot_debug_t *emcmotDebug;
 extern emcmot_config_t *emcmotConfig;
 
 /** static function primitives (ugly but less of a pain than moving code around)*/
-STATIC int tpComputeBlendVelocity(TP_STRUCT const * const tp,
+STATIC int tpComputeBlendVelocity(
         TC_STRUCT const *tc,
         TC_STRUCT const *nexttc,
         double v_target_this,
@@ -2168,7 +2168,7 @@ int tpAddCircle(TP_STRUCT * const tp,
  * @note This function will compute the parabolic blend start / end velocities
  * regardless of the current terminal condition (useful for planning).
  */
-STATIC int tpComputeBlendVelocity(TP_STRUCT const * const tp,
+STATIC int tpComputeBlendVelocity(
         TC_STRUCT const *tc,
         TC_STRUCT const *nexttc,
         double target_vel_this,
@@ -2211,10 +2211,15 @@ STATIC int tpComputeBlendVelocity(TP_STRUCT const * const tp,
 
     double theta;
 
-    PmCartesian v1, v2;
+    PmCartesian v1={0}, v2={0};
 
-    tcGetEndAccelUnitVector(tc, &v1);
-    tcGetStartAccelUnitVector(nexttc, &v2);
+    int res1 = tcGetEndAccelUnitVector(tc, &v1);
+    int res2 = tcGetStartAccelUnitVector(nexttc, &v2);
+
+    if (res1 || res2) {
+        rtapi_print_msg(RTAPI_MSG_WARN, "Got bad unit vectors in parabolic blend velocity calculation\n");
+        return TP_ERR_FAIL;
+    }
     findIntersectionAngle(&v1, &v2, &theta);
 
     double cos_theta = cos(theta);
@@ -2268,7 +2273,7 @@ STATIC double estimateParabolicBlendPerformance(
     double target_vel_next = tpGetMaxTargetVel(tp, nexttc);
 
     double v_net = 0.0;
-    tpComputeBlendVelocity(tp, tc, nexttc, target_vel_this, target_vel_next, &v_this, &v_next, &v_net);
+    tpComputeBlendVelocity(tc, nexttc, target_vel_this, target_vel_next, &v_this, &v_next, &v_net);
 
     return v_net;
 }
@@ -3377,6 +3382,9 @@ STATIC int tpHandleRegularCycle(TP_STRUCT * const tp,
         TC_STRUCT * const tc,
         TC_STRUCT * const nexttc)
 {
+    if (!tc) {
+        return TP_ERR_FAIL;
+    }
     if (tc->remove) {
         //Don't need to update since this segment is flagged for removal
         return TP_ERR_NO_ACTION;
@@ -3393,10 +3401,12 @@ STATIC int tpHandleRegularCycle(TP_STRUCT * const tp,
     double target_vel_this = tpGetRealTargetVel(tp, tc);
     double target_vel_next = tpGetRealTargetVel(tp, nexttc);
 
-    tpComputeBlendVelocity(tp, tc, nexttc, target_vel_this, target_vel_next, &v_this, &v_next, NULL);
-    tc->blend_vel = v_this;
-    if (nexttc) {
-        nexttc->blend_vel = v_next;
+    if (tc->term_cond == TC_TERM_COND_PARABOLIC) {
+        tpComputeBlendVelocity(tc, nexttc, target_vel_this, target_vel_next, &v_this, &v_next, NULL);
+        tc->blend_vel = v_this;
+        if (nexttc) {
+            nexttc->blend_vel = v_next;
+        }
     }
 
     if (nexttc && tcIsBlending(tc)) {
