@@ -116,7 +116,7 @@ typedef struct {
     int execId;
     struct state_tag_t execTag; /* state tag corresponding to running motion */
     int nextexecId;
-    int termCond;
+    tc_term_cond_t termCond;
     int done;
     int depth;			/* number of total queued motions */
     int activeDepth;		/* number of motions blending */
