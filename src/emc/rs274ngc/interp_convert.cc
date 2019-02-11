@@ -3309,67 +3309,80 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
     }
   }
   //#endif
-
- if (IS_USER_MCODE(block,settings,7) && ONCE_M(7)) {
-    return convert_remapped_code(block, settings, STEP_M_7, 'm',
-				   block->m_modes[7]);
- } else if ((block->m_modes[7] == 3)  && ONCE_M(7)) {
-    settings->spindle_turning = CANON_CLOCKWISE;
-    write_and_update_state_tag(block);
-    enqueue_START_SPINDLE_CLOCKWISE();
- } else if ((block->m_modes[7] == 4) && ONCE_M(7)) {
-    settings->spindle_turning = CANON_COUNTERCLOCKWISE;
-    write_and_update_state_tag(block);
-    enqueue_START_SPINDLE_COUNTERCLOCKWISE();
- } else if ((block->m_modes[7] == 5) && ONCE_M(7)){
-    settings->spindle_turning = CANON_STOPPED;
-    write_and_update_state_tag(block);
-    enqueue_STOP_SPINDLE_TURNING();
-  } else if ((block->m_modes[7] == 19) && ONCE_M(7)) {
-      settings->spindle_turning = CANON_STOPPED;
-      if (block->r_flag || block->p_flag || block->q_flag) {
-          settings->orient_flag = true;
-	  write_and_update_state_tag(block);
-	  enqueue_ORIENT_SPINDLE(
-	      (block->r_flag ? (block->r_number + settings->orient_offset)
-	       : settings->orient_offset),
-	      block->p_flag ? block->p_number : 0);
-      	if (block->q_flag) {
-		//CHKS((block->q_number <= 0.0),(_("Q word with M19 requires a value > 0")));
-		// Q < 0.0 means don't make a timeout and error, let the g code handle it.
-		write_and_update_state_tag(block);
-		enqueue_WAIT_ORIENT_SPINDLE_COMPLETE(block->q_number);
-	}
+  
+ 
+  if ((block->m_modes[7] != -1) && ONCE_M(7)) {
+  
+      bool remapped_in_block = STEP_REMAPPED_IN_BLOCK(block, STEP_M_7);
+  
+      if (IS_USER_MCODE(block,settings,7) && remapped_in_block) {
+        logRemap("M3-M4-M5 remap conversion running");
+        return convert_remapped_code(block, settings, STEP_M_7, 'm', block->m_modes[7]);
+      } else {
+          // the code was used in its very remap procedure
+          // the 'recursion case'; record the fact and keep going.
+        logRemap("M3-M4-M5 recursion detected so running real one?");
+        CONTROLLING_BLOCK(*settings).builtin_used = !remapped_in_block;
       }
+  
+      if (block->m_modes[7] == 3) {
+        settings->spindle_turning = CANON_CLOCKWISE;
+        write_and_update_state_tag(block);
+        enqueue_START_SPINDLE_CLOCKWISE();
+      } else if (block->m_modes[7] == 4) {
+        settings->spindle_turning = CANON_COUNTERCLOCKWISE;
+        write_and_update_state_tag(block);
+        enqueue_START_SPINDLE_COUNTERCLOCKWISE();
+      } else if (block->m_modes[7] == 5) {
+        settings->spindle_turning = CANON_STOPPED;
+        write_and_update_state_tag(block);
+        enqueue_STOP_SPINDLE_TURNING();
+      } else if (block->m_modes[7] == 19) {
+          settings->spindle_turning = CANON_STOPPED;
+          if (block->r_flag || block->p_flag || block->q_flag) {
+              settings->orient_flag = true;
+  	    write_and_update_state_tag(block);
+  	    enqueue_ORIENT_SPINDLE(
+  	        (block->r_flag ? (block->r_number + settings->orient_offset)
+  	         : settings->orient_offset),
+  	        block->p_flag ? block->p_number : 0);
 
-  } else if ((block->m_modes[7] == 70) || (block->m_modes[7] == 73)) {
-
-     // save state in current stack frame. We borrow the o-word call stack
-     // and extend it to hold modes & settings.
-     save_settings(&_setup);
-
-     // flag this frame as containing a valid context
-     _setup.sub_context[_setup.call_level].context_status |= CONTEXT_VALID;
-
-     // mark as auto-restore context
-     if (block->m_modes[7] == 73) {
-	 if (_setup.call_level == 0) {
-	     MSG("Warning - M73 at top level: nothing to return to; storing context anyway\n");
-	 } else {
-	     _setup.sub_context[_setup.call_level].context_status |= CONTEXT_RESTORE_ON_RETURN;
-	 }
-     }
- } else if ((block->m_modes[7] == 71) && ONCE_M(7))  {
-      // M72 - invalidate context at current level
-      _setup.sub_context[_setup.call_level].context_status &= ~CONTEXT_VALID;
-
- } else if ((block->m_modes[7] == 72)  && ONCE_M(7)) {
-
-      // restore state from current stack frame.
-      CHKS((!(_setup.sub_context[_setup.call_level].context_status & CONTEXT_VALID)),
-           (_("Cannot restore context from invalid stack frame - missing M70/M73?")));
-      CHP(restore_settings(&_setup, _setup.call_level));
+       	     if (block->q_flag) {
+  	       //CHKS((block->q_number <= 0.0),(_("Q word with M19 requires a value > 0")));
+  	       // Q < 0.0 means don't make a timeout and error, let the g code handle it.
+  	       write_and_update_state_tag(block);
+  	       enqueue_WAIT_ORIENT_SPINDLE_COMPLETE(block->q_number);
+  	     }
+          }
+      } else if ((block->m_modes[7] == 70) || (block->m_modes[7] == 73)) {
+       // save state in current stack frame. We borrow the o-word call stack
+       // and extend it to hold modes & settings.
+       save_settings(&_setup);
+  
+       // flag this frame as containing a valid context
+       _setup.sub_context[_setup.call_level].context_status |= CONTEXT_VALID;
+  
+       // mark as auto-restore context
+       if (block->m_modes[7] == 73) {
+  	 if (_setup.call_level == 0) {
+  	     MSG("Warning - M73 at top level: nothing to return to; storing context anyway\n");
+  	 } else {
+  	     _setup.sub_context[_setup.call_level].context_status |= CONTEXT_RESTORE_ON_RETURN;
+  	 }
+       }
+    } else if (block->m_modes[7] == 71) {
+        // M72 - invalidate context at current level
+        _setup.sub_context[_setup.call_level].context_status &= ~CONTEXT_VALID;
+  
+    } else if (block->m_modes[7] == 72) {
+  
+        // restore state from current stack frame.
+        CHKS((!(_setup.sub_context[_setup.call_level].context_status & CONTEXT_VALID)),
+             (_("Cannot restore context from invalid stack frame - missing M70/M73?")));
+        CHP(restore_settings(&_setup, _setup.call_level));
+    }
   }
+
 
   if (IS_USER_MCODE(block,settings,8) && ONCE_M(8)) {
      return convert_remapped_code(block, settings, STEP_M_8, 'm',

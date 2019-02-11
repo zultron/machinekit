@@ -676,8 +676,20 @@ int Interp::find_remappings(block_pointer block, setup_pointer settings)
     } // else we get the builtin behaviour
     
     // User defined M-Codes in group 7
-    if (IS_USER_MCODE(block,settings,7))
-	block->remappings.insert(STEP_M_7);
+    // added recursion detection here so a remap of spindle control can check for
+    // safety conditions and then call the real action.
+    if (IS_USER_MCODE(block,settings,7)) {
+      if (!(((block->m_modes[7] == 3) && remap_in_progress("M3")) ||
+            ((block->m_modes[7] == 4) && remap_in_progress("M4")) ||
+            ((block->m_modes[7] == 5) && remap_in_progress("M5")))) {
+        logRemap("M3-M4-M5 and remap not in progress so inserting step");
+        block->remappings.insert(STEP_M_7);
+      } else {
+        // We're in a recursion situation.  Let the real spindle command do its work.
+        // "builtin behavior"
+        logRemap("M3-M4-M5 recursion attempt detected");       
+      }
+    }
 
     // User defined M-Codes in group 8
     if (IS_USER_MCODE(block,settings,8))

@@ -640,6 +640,11 @@ int Interp::init_remap_sets()
     _setup.m_remappable[0] = 1;   // program pause
     _setup.m_remappable[1] = 1;   // program pause if the optional stop switch is on
 
+    // M3, M4, M5 remappable to check for safety conditions before starting
+    _setup.m_remappable[3] = 1;   // spindle forward
+    _setup.m_remappable[4] = 1;   // spindle reverse
+    _setup.m_remappable[5] = 1;   // spindle stop
+
     _setup.m_remappable[60] = 1;  //Pallet Change Pause
     
     //added in by z-bot to support schnozz
