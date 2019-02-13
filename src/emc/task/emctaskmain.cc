@@ -2867,14 +2867,18 @@ static int emcTaskExecute(void)
 	case EMCMOT_ORIENT_IN_PROGRESS:
 	    emcStatus->task.delayLeft = taskExecDelayTimeout - etime();
 	    if (etime() >= taskExecDelayTimeout) {
-		emcStatus->task.execState = EMC_TASK_EXEC_ERROR;
-		if (emcStatus->task.orient_no_exec_error != 0)
-			// do not interrupt program, let gcode handle it
-			emcStatus->task.execState = EMC_TASK_EXEC_DONE;
-		emcStatus->task.delayLeft = 0;
-		emcStatus->task.orient_timeout = 1; // timeout occured
-		emcTaskEager = 1;
-    rcs_print("wait for orient complete: TIMED OUT\n");
+            emcStatus->task.execState = EMC_TASK_EXEC_ERROR;
+            emcStatus->task.delayLeft = 0;
+            emcStatus->task.orient_timeout = 1; // timeout occured
+            emcTaskEager = 1;
+            if (emcStatus->task.orient_no_exec_error != 0) {
+                // do not interrupt program, let gcode handle it
+                emcStatus->task.execState = EMC_TASK_EXEC_DONE;
+                rcs_print("wait for orient complete: TIMED OUT\n");
+            }
+            else {
+                emcOperatorError(0, "wait for orient complete: TIMED OUT");
+            }
 	    }
 	    break;
 
