@@ -1,0 +1,322 @@
+component dspin "register settings for dspin stepper drivers";
+
+
+pin in float overcurrent_threshold = 0.2;
+pin in float stall_threshold = 16;
+
+pin in float full_step_speed = 2000;
+pin in float current_mode = 1;
+pin in float micro_stepping = 4;
+
+pin in float dclink_compensation = 1;
+pin in float current_prediction = 1;
+
+pin in float pwm_div = 0;
+pin in float pwm_mul = 7;
+pin in float current_loop_freq = 8;
+
+pin in float hold_volt = 0.25;
+pin in float k_run = 1;
+pin in float k_acc = 1;
+pin in float k_dec = 1;
+
+pin in float int_speed = 1032;
+pin in float st_slp = 25;
+pin in float fn_slp_acc = 41;
+pin in float fn_slp_dec = 41;
+
+pin in float hold_current = 0.07;
+pin in float t_run = 1.5;
+pin in float t_acc = 1.5;
+pin in float t_dec = 1.5;
+
+pin in float vccval = 1;
+pin in float gate_current = 7;
+pin in float gate_time = 2;
+pin in float gate_boost = 0;
+pin in float deadtime = 2;
+pin in float current_sense_blanking = 2;
+
+pin in float toff_fast = 1;
+pin in float fast_step = 9;
+pin in float ton_min = 3;
+pin in float toff_min = 41;
+
+pin in float acc = 4094;
+pin in float dec = 4094;
+pin in float max_speed = 1023;
+
+
+pin in unsigned reg_addr;
+pin out float value;
+
+//interface to hm2_raw
+pin out unsigned read_address;
+pin in  unsigned read_data;
+pin out unsigned write_data;
+pin out unsigned write_address;
+pin out bit write_strobe;
+
+pin out unsigned stat-# [4];       //status word
+pin out unsigned stall-# [4];      //stall detected
+pin out unsigned ocd-# [4];        //overcurrent
+pin out unsigned th-status-# [4];  //thermal status
+pin out unsigned uvlo-adc-# [4];   //ADC undervoltage
+pin out unsigned uvlo-# [4];       //undervoltage
+pin out unsigned mot_status-# [4]; //motor status, stopped, acc, dec, constant speed
+pin out unsigned dir-# [4];        //motor direction
+pin out unsigned hiz-# [4];        //powerstage disabled
+
+variable int state = 0;
+variable int reg_num = 0;
+variable int read_reg_num = 20;
+variable int read_instance = 0;
+variable int base_addr = 760;
+variable int register_stride = 32;
+variable int instance_stride = 4;
+
+function _;
+license "GPL"; // indicates GPL v2 or later
+;;
+
+
+#pragma pack(1)
+union{
+	struct{
+		uint16_t acc_r : 12; // 0x05
+		uint16_t tmp30 : 4;
+		uint16_t dec_r : 12; // 0x06
+		uint16_t tmp31 : 4;
+		uint16_t max_speed_r : 10; // 0x07
+		uint16_t tmp32 : 6;
+		uint16_t kval_hold_r : 8; // 0x09
+		uint16_t tmp0 : 8;
+		uint16_t kval_run_r : 8; // 0x0a
+		uint16_t tmp1 : 8;
+		uint16_t kval_acc_r : 8; // 0x0b
+		uint16_t tmp2 : 8;
+		uint16_t kval_dec_r : 8; // 0x0c
+		uint16_t tmp3 : 8;
+		uint16_t int_speed_r : 14; // 0x0d
+		uint16_t tmp4 : 2;
+		uint16_t st_slp_r : 8; // 0x0e
+		uint16_t tmp5 : 8;
+		uint16_t fn_slp_acc_r : 8; // 0x0f
+		uint16_t tmp6 : 8;
+		uint16_t fn_slp_dec_r : 8; // 0x10
+		uint16_t tmp7 : 8;
+		uint16_t ocd_th_r : 5; // 0x13
+		uint16_t tmp8 : 11;
+		uint16_t stall_th_r : 5; // 0x14
+		uint16_t tmp9 : 11;
+		uint16_t fs_spd_r : 11; // 0x15
+		uint16_t tmp10 : 5;
+		uint16_t step_mode_step_sel_r : 3; // 0x16
+		uint16_t step_mode_cm_vm_r : 1;
+		uint16_t step_mode_sync_sel_r : 3;
+		uint16_t step_mode_sync_en_r : 1;
+		uint16_t tmp11 : 8;
+		uint16_t gatecfg1_tcc_r : 5; // 0x18
+		uint16_t gatecfg1_igate_r : 3;
+		uint16_t gatecfg1_tboost_r : 3;
+		uint16_t gatecfg1_wd_en_r : 1;
+		uint16_t tmp12 : 5;
+		uint16_t gatecfg2_tdt_r : 5; // 0x19
+		uint16_t gatecfg2_tblank_r : 3;
+		uint16_t tmp13 : 8;
+		uint16_t config_osc_sel_r : 3; // 0x1a
+		uint16_t config_ext_clk_r : 1;
+		uint16_t config_sw_mode_r : 1;
+		uint16_t config_en_vscomp_r : 1;
+		uint16_t tmp14 : 1;
+		uint16_t config_oc_sd_r : 1;
+		uint16_t config_uvloval_r : 1;
+		uint16_t config_vccval_r : 1;
+		uint16_t config_f_pwm_dec_r : 3;
+		uint16_t config_f_pwm_int_r : 3;
+	} volt;
+	struct{
+		uint16_t acc_r : 12; // 0x05
+		uint16_t tmp33 : 4;
+		uint16_t dec_r : 12; // 0x06
+		uint16_t tmp34 : 4;
+		uint16_t max_speed_r : 10; // 0x07
+		uint16_t tmp35 : 6;
+		uint16_t tval_hold_r : 8; // 0x09
+		uint16_t tmp15 : 8;
+		uint16_t tval_run_r : 8; // 0x0a
+		uint16_t tmp16 : 8;
+		uint16_t tval_acc_r : 8; // 0x0b
+		uint16_t tmp17 : 8;
+		uint16_t tval_dec_r : 8; // 0x0c
+		uint16_t tmp18 : 8;
+		uint16_t tmp19 : 16; // 0xd
+		uint16_t t_fast_fast_step_r : 4; // 0x0e
+		uint16_t t_fast_foff_fast_r : 4;
+		uint16_t tmp20 : 8;
+		uint16_t ton_min_r : 8; // 0x0f
+		uint16_t tmp21 : 8;
+		uint16_t toff_min_r : 8; // 0x10
+		uint16_t tmp22 : 8;
+		uint16_t ocd_th_r : 5; // 0x13
+		uint16_t tmp23 : 11;
+		uint16_t tmp24 : 16; // 0x14
+		uint16_t fs_spd_r : 11; // 0x15
+		uint16_t tmp25 : 5;
+		uint16_t step_mode_step_sel_r : 3; // 0x16
+		uint16_t step_mode_cm_vm_r : 1;
+		uint16_t step_mode_sync_sel_r : 3;
+		uint16_t step_mode_sync_en_r : 1;
+		uint16_t tmp26 : 8;
+		uint16_t gatecfg1_tcc_r : 5; // 0x18
+		uint16_t gatecfg1_igate_r : 3;
+		uint16_t gatecfg1_tboost_r : 3;
+		uint16_t gatecfg1_wd_en_r : 1;
+		uint16_t tmp27 : 4;
+		uint16_t gatecfg2_tdt_r : 5; // 0x19
+		uint16_t gatecfg2_tblank_r : 3;
+		uint16_t tmp28 : 8;
+		uint16_t config_osc_sel_r : 3; // 0x1a
+		uint16_t config_ext_clk_r : 1;
+		uint16_t config_sw_mode_r : 1;
+		uint16_t config_en_toreq_r : 1;
+		uint16_t tmp29 : 1;
+		uint16_t config_oc_sd_r : 1;
+		uint16_t config_uvloval_r : 1;
+		uint16_t config_vccval_r : 1;
+		uint16_t config_tsw_r : 5;
+		uint16_t config_pred_en : 1;
+	} current;
+	uint16_t data_r[18];
+} regs;
+
+#pragma pack(1)
+typedef union{
+	struct{
+		uint16_t hiz : 1;
+		uint16_t busy : 1;
+		uint16_t sw_f : 1;
+		uint16_t sw_evn : 1;
+		uint16_t dir : 1;
+		uint16_t mot_status : 2;
+		uint16_t cmd_err : 1;
+		uint16_t stck_mod : 1;
+		uint16_t uvlo : 1;
+		uint16_t uvlo_adc : 1;
+		uint16_t th_status : 2;
+		uint16_t ocd : 1;
+		uint16_t stall : 2;
+	};
+	uint16_t word;
+} status_t;
+
+for(int i = 0; i < sizeof(regs) / 2; i++){
+	regs.data_r[i] = 0;
+}
+
+regs.current.acc_r = acc;
+regs.current.dec_r = dec;
+regs.current.max_speed_r = max_speed;
+
+regs.current.ocd_th_r = (uint16_t)(overcurrent_threshold / 0.03125 - 0.5);
+regs.current.fs_spd_r = full_step_speed;
+
+regs.current.step_mode_cm_vm_r = current_mode;
+regs.current.step_mode_sync_sel_r = 0;
+regs.current.step_mode_sync_en_r = 0;
+
+regs.current.gatecfg1_tcc_r = gate_time;
+regs.current.gatecfg1_igate_r = gate_current;
+regs.current.gatecfg1_tboost_r = gate_boost;
+regs.current.gatecfg1_wd_en_r = 0;
+
+regs.current.gatecfg2_tdt_r = deadtime;
+regs.current.gatecfg2_tblank_r = current_sense_blanking;
+
+regs.current.config_osc_sel_r = 0;
+regs.current.config_ext_clk_r = 0;
+
+regs.current.config_sw_mode_r = 1;
+regs.current.config_oc_sd_r = 1;
+regs.current.config_uvloval_r = vccval;
+regs.current.config_vccval_r = vccval;
+
+
+if(current_mode){
+	regs.current.tval_hold_r = (uint16_t)(hold_current / 0.0078 - 0.5);
+	regs.current.tval_run_r = (uint16_t)(hold_current * t_run / 0.0078 - 0.5);
+	regs.current.tval_acc_r = (uint16_t)(hold_current * t_acc / 0.0078 - 0.5);
+	regs.current.tval_dec_r = (uint16_t)(hold_current * t_dec / 0.0078 - 0.5);
+
+	regs.current.t_fast_fast_step_r = fast_step;
+	regs.current.t_fast_foff_fast_r = toff_fast;
+	
+	regs.current.ton_min_r = ton_min;
+	regs.current.toff_min_r = toff_min;
+
+	regs.current.step_mode_step_sel_r = micro_stepping < 4 ? micro_stepping : 4;
+
+	regs.current.config_en_toreq_r = 0;
+	regs.current.config_tsw_r = current_loop_freq;
+	regs.current.config_pred_en = current_prediction;
+}
+else{
+	regs.volt.kval_hold_r = (uint16_t)(hold_volt / 0.0078 - 0.5);
+	regs.volt.kval_run_r = (uint16_t)(hold_volt * k_run / 0.0078 - 0.5);
+	regs.volt.kval_acc_r = (uint16_t)(hold_volt * k_acc / 0.0078 - 0.5);
+	regs.volt.kval_dec_r = (uint16_t)(hold_volt * k_dec / 0.0078 - 0.5);
+
+	regs.volt.int_speed_r = int_speed;
+	regs.volt.st_slp_r = st_slp;
+	regs.volt.fn_slp_acc_r = fn_slp_acc;
+	regs.volt.fn_slp_dec_r = fn_slp_dec;
+	
+	regs.volt.stall_th_r = (uint16_t)(stall_threshold / 0.03125 - 0.5);
+	
+	regs.volt.step_mode_step_sel_r = micro_stepping;
+	
+	regs.volt.config_en_vscomp_r = dclink_compensation;
+	regs.volt.config_f_pwm_dec_r = pwm_mul;
+	regs.volt.config_f_pwm_int_r = pwm_div;
+}
+
+
+value = regs.data_r[reg_addr];
+
+
+//1272 1276 1280 1284
+
+
+switch(state){
+
+	case 0://set address and data
+	write_strobe = 0;
+	write_address = base_addr + reg_num * register_stride;
+	write_data = regs.data_r[reg_num];
+	stat(read_instance) = read_data;
+	status_t status;
+	status.word = read_data;
+	stall(read_instance) = status.stall;
+	ocd(read_instance) = status.ocd;
+	th_status(read_instance) = status.th_status;
+	uvlo_adc(read_instance) = status.uvlo_adc;
+	mot_status(read_instance) = status.mot_status;
+	dir(read_instance) = status.dir;
+	hiz(read_instance) = status.hiz;
+	read_instance++;
+	if(read_instance > 3){
+		read_instance = 0;
+	}
+	reg_num++;
+	if(reg_num > sizeof(regs) / 2){
+		reg_num = 0;
+	}
+	state = 1;
+	break;
+
+	case 1://strobe write
+	write_strobe = 1;
+	read_address = base_addr + read_reg_num * register_stride + read_instance * instance_stride;
+	state = 0;
+	break;
+}
