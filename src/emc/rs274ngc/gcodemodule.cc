@@ -1068,12 +1068,20 @@ static PyObject *rs274_arc_to_segments(PyObject *self, PyObject *args) {
 
 static PyObject *get_set_max_glcanon_lines(PyObject *self, PyObject *args) {
     uint32_t in = 0;
-    if(PyArg_ParseTuple(args, "|l", &in) && in > 0)
+
+    // The proper format arg is I which converts between
+    // an unsigned int and a Python integer.
+    // Formerly the code was using l which on the C++ side
+    // is a long int which is 64-bits.  With some compiler optimization settings,
+	// this can corrupt the stack return address and crash.
+
+    if (PyArg_ParseTuple(args, "|I", &in) && in > 0) {
 	// Found integer arg; set value
-	max_glcanon_lines = in;
+        max_glcanon_lines = in;
+    }
 
     // return value
-    return Py_BuildValue("l", max_glcanon_lines);
+    return Py_BuildValue("I", max_glcanon_lines);
 }
 
 static PyMethodDef gcode_methods[] = {

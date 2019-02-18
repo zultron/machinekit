@@ -195,11 +195,14 @@ INTEGER_OVERFLOW_FLAGS := -fwrapv
 ifeq ("$(DEBUG)","1")
 # Disable optimization for straightforward debugger behavior and
 # strip out extraneous -O1,-O2, or -O3 from CXXFLAGS that configure creates
+# -O0 disables optimization
+# -Og optimizes for debugging
 OPT := -O0
 CXXFLAGS := $(CXXFLAGS:-O1=)
 CXXFLAGS := $(CXXFLAGS:-O2=)
 CXXFLAGS := $(CXXFLAGS:-O3=)
 else
+# This optimizes for size
 OPT := -Os
 endif
 
