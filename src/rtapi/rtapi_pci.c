@@ -29,7 +29,6 @@
 #endif
 
 #include "config.h"
-#if defined(USERMODE_PCI)
 
 #include <libudev.h>
 #include <stdio.h>		/* vprintf() */
@@ -744,5 +743,3 @@ EXPORT_SYMBOL(pci_register_driver);
 EXPORT_SYMBOL(pci_unregister_driver);
 EXPORT_SYMBOL(pci_ioremap_bar);
 
-
-#endif // USERMODE_PCI
