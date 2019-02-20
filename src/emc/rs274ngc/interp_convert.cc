@@ -5638,16 +5638,11 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     }
     logDebug("convert_tool_length_offset: using index=%d spindle_toolno=%d pocket_toolno=%d",
 	     pocket_number, settings->tool_table[0].toolno,settings->tool_table[settings->current_pocket].toolno);
-	// Alway apply Z offset in G43
+
+    tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.x);
+    tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.y);
     tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.z);
     if (FEATURE(LATHE_TOOLCHANGE)) {
-	// G43 should only apply Z in mill, but we're relying on it
-	// for lathe to do X as well - Tormach *dpr 3/7/16
-	tool_offset.tran.x = USER_TO_PROGRAM_LEN(
-	    settings->tool_table[pocket_number].offset.tran.x);
-	tool_offset.tran.y = USER_TO_PROGRAM_LEN(
-	    settings->tool_table[pocket_number].offset.tran.y);
-
 	// Apply wear offsets
 	if (wear_offset_register) {
 	    CHP((find_tool_pocket(
