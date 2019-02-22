@@ -53,9 +53,11 @@ $(PRU_DBG): $(PRUBINDIR)/%.dbg : objects/$(PRU_SRC_DIR)/%.dbg
 install_prubin:
 	$(DIR) $(DESTDIR)$(EMC2_RTLIB_DIR)/prubin
 #	#  Copy .bin and .dbg files to the rtlib/prubin directory
+	@mkdir -p $(DESTDIR)$(EMC2_RTLIB_BASE_DIR)/prubin
 	$(FILE) $(PRUBINDIR)/*.bin $(DESTDIR)$(EMC2_RTLIB_BASE_DIR)/prubin
 	$(FILE) $(PRUBINDIR)/*.dbg $(DESTDIR)$(EMC2_RTLIB_BASE_DIR)/prubin
 #	#  Copy .bin and .dbg symlinks to the rtlib/modules directory
+	@mkdir -p $(DESTDIR)$(EMC2_RTLIB_DIR)
 	$(FILE) ../rtlib/*.bin $(DESTDIR)$(EMC2_RTLIB_DIR)
 	$(FILE) ../rtlib/*.dbg $(DESTDIR)$(EMC2_RTLIB_DIR)
 
