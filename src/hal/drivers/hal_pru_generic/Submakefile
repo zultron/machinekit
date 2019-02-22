@@ -42,10 +42,12 @@ objects/%.bin objects/%.dbg : %.p objects/%.d $(PASM)
 
 $(PRU_BIN): $(PRUBINDIR)/%.bin : objects/$(PRU_SRC_DIR)/%.bin
 	cp -f $^ $@
+	$(Q)mkdir -p ../rtlib/modules/
 	ln -sf ../prubin/$(notdir $@) ../rtlib/modules/$(notdir $@)
 
 $(PRU_DBG): $(PRUBINDIR)/%.dbg : objects/$(PRU_SRC_DIR)/%.dbg
 	cp -f $^ $@
+	$(Q)mkdir -p ../rtlib/modules/
 	ln -sf ../prubin/$(notdir $@) ../rtlib/modules/$(notdir $@)
 
 install_prubin:
