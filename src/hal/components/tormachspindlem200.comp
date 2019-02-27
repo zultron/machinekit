@@ -89,6 +89,7 @@ author "";
 //          orient-fault            feedback to linuxcnc for fault code.  Connect to motion.spindle-orient-fault
 //          spindle-on-thur         feedthrough of forward-in when not indexing, set by this comp when indexing mode 
 //          spindle-forward-thur    feedthrough of spindle-on when not indexing, set by this comp when indexing mode
+//          spindle-orient-error    0 -> oriented, -1 or 1 error direction if not oriented
 // Bi-directional:
 //          zindex-enable           used to set spindle encoder's "index-enable" bit to align encoder counts to zero at next z-index
 //         orient-set-bt30           when set starts bt30 indexing mode 
@@ -245,6 +246,8 @@ pin out bit target_computed; //set when we know where we're going for "new" M19 
 pin out bit last_spindle_lock;
 pin out s32 orient_target; //target encoder position for orient_execute command
 pin out s32 orient_deadband; //within this many encoder counts of target, we call orient "done"
+
+pin out s32 spindle_orient_error; // 0 -> oriented within tolerance, -1 or 1 direction of error if not oriented
 
 //DEBUG PINS
 pin out bit orient_to;  //flag that that last orient timed out
@@ -799,8 +802,15 @@ float angle_offset;
                     if (orient_timer >= ORIENT_DEADBAND_TIME)
                         oriented = 1;
                 }
+                spindle_orient_error = 0;
             }
             else {
+                if (enc_err > 0) {
+                    spindle_orient_error = 1;
+                }
+                else {
+                    spindle_orient_error = -1;
+                }
                 orient_timer = 0.0;
                 within_deadband = 0;
                 if (spindle_state == SPINDLE_STATE_LOCKED)
