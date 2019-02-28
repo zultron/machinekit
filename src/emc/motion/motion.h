@@ -179,6 +179,7 @@ extern "C" {
         EMCMOT_SET_OFFSET, /* set tool offsets */
         EMCMOT_SET_MAX_FEED_OVERRIDE,
         EMCMOT_SETUP_ARC_BLENDS,
+        EMCMOT_SETUP_CONSISTENCY_CHECKS,
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */
@@ -196,6 +197,11 @@ extern "C" {
 #define EMCMOT_TERM_COND_BLEND 2
 #define EMCMOT_TERM_COND_TANGENT 3
 
+typedef struct {
+    // Consistency checking within TP
+    int extraConsistencyChecks;
+    double maxPositionDriftError;
+} consistency_check_config_t;
 /*********************************
        COMMAND STRUCTURE
 *********************************/
@@ -264,6 +270,9 @@ extern "C" {
         double arcBlendRampFreq;
         double arcBlendTangentKinkRatio;
         double maxFeedScale;
+
+    consistency_check_config_t consistencyCheckConfig;
+
     struct state_tag_t tag;
     } emcmot_command_t;
 
@@ -776,6 +785,7 @@ typedef enum {
         double arcBlendRampFreq;
         double arcBlendTangentKinkRatio;
         double maxFeedScale;
+    consistency_check_config_t consistencyCheckConfig;
     } emcmot_config_t;
 
 /*********************************

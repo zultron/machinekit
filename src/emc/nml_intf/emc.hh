@@ -232,6 +232,8 @@ int emcSetupArcBlends(int arcBlendEnable,
         double arcBlendRampFreq,
         double arcBlendTangentKinkRatio);
 
+int emcSetupConsistencyChecks(int consistency_checks, double max_position_drift_error);
+
 extern int emcUpdate(EMC_STAT * stat);
 
 #endif				// #ifndef EMC_HH
