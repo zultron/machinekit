@@ -55,5 +55,3 @@ setp match_all.b4 0
 setp match_all.b5 0
 setp match_all.b6 0
 setp match_all.b7 0
-
-net constraints-ok <= match_all.out
