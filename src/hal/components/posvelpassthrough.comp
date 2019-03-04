@@ -1,0 +1,45 @@
+component posvelpassthrough """Switchable position / velocity command passthrough. 
+When using velocity mode, keeps track of position offset created. 
+When in position mode, applies the offset to an input value, as well as negating the offset on a feedback value.""";
+
+pin in float velocity_cmd = 0 """When 'enabled' is true, 'velocity_out' is set to this value. 
+Changes is 'position_fb' are acumulated in offset.""";
+pin in float velocity_cmd_passthrough = 0 """When 'enabled' is false, 'velocity_out' is set to this value. No offset is recorded""";
+pin in float position_cmd;
+pin in float position_fb;
+
+
+pin io float position_offset """The difference between in and fb_in (captured during the last servo loop when 'enabled' was true.
+Resetting this pin to 0 implies that the offset value has been aknowledged and dealt with somewhere else.""";
+
+pin out float velocity_out "Velocity output, usually directly connected to stepgen.";
+pin out float position_out "The value of 'position_cmd' + 'position_offset'. Updated even when in velocity passthrough mode";
+pin out float position_fb_out "The value of 'position_fb' - 'position_offset'. Updated even when in velocity passthrough mode";
+
+pin in float position_max =  1e20;
+pin in float position_min = -1e20;
+
+pin in bit enable = 0 """If True, velocity passthrough is enabled. If False, offset is held constant. 
+Any changes to 'position_cmd' while 'enable' is true are ignored and simply added to the offset value.""";
+
+function _;
+license "GPL";
+;;
+#include "rtapi_math.h"
+FUNCTION(_) {
+    float safe_vel_cmd = velocity_cmd;
+    if (position_out > position_max) safe_vel_cmd = fmin(velocity_cmd, 0);
+    if (position_out < position_min) safe_vel_cmd = fmax(velocity_cmd, 0);
+
+    if(enable != 0) {
+        position_offset = position_fb - position_cmd;
+        velocity_out = safe_vel_cmd;
+    } else {
+        velocity_out = velocity_cmd_passthrough;
+    }
+
+    position_out = position_cmd + position_offset;
+    position_fb_out = position_fb - position_offset;
+
+
+}

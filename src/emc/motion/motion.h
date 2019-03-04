@@ -542,6 +542,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 	int index_enable;	/* current state of index enable pin */
 
 	home_state_t home_state;	/* state machine for homing */
+    double downstream_offset;   /* Offset that has been applied to this axis downstream of motmod (in HAL) */
 	double motor_offset;	/* diff between internal and motor pos, used
 				   to set position to zero during homing */
 	int old_jog_counts;	/* prior value, used for deltas */

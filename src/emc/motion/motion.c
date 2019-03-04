@@ -679,6 +679,11 @@ static int export_joint(int num, joint_hal_t * addr)
 	return retval;
     }
     retval =
+        hal_pin_float_newf(HAL_IO, &(addr->downstream_offset), mot_comp_id, "axis.%d.downstream-offset", num);
+    if (retval != 0) {
+        return retval;
+    }
+    retval =
 	hal_pin_float_newf(HAL_OUT, &(addr->motor_offset), mot_comp_id, "axis.%d.motor-offset", num);
     if (retval != 0) {
 	return retval;

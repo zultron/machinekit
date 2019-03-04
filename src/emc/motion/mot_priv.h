@@ -39,6 +39,9 @@ typedef struct {
     hal_float_t *backlash_corr;	/* RPI: correction for backlash */
     hal_float_t *backlash_filt;	/* RPI: filtered backlash correction */
     hal_float_t *backlash_vel;	/* RPI: backlash speed variable */
+    hal_float_t *downstream_offset; /* WRPI: offset being applied to the axis by some component past motion (in HAL) */
+                                    /* HAL component sets: An offset is being applied to axis on top of pos_cmd */
+                                    /* motmod clears: Offset value has been incorparated into pos_cmd, HAL comp should stop applying */
     hal_float_t *motor_offset;	/* RPI: motor offset, for checking homing stability */
     hal_float_t *motor_pos_cmd;	/* WPI: commanded position, with comp */
     hal_float_t *motor_pos_fb;	/* RPI: position feedback, with comp */

@@ -475,6 +475,7 @@ static void process_inputs(void)
 	/* copy data from HAL to joint structure */
 	joint->index_enable = *(joint_data->index_enable);
 	joint->motor_pos_fb = *(joint_data->motor_pos_fb);
+        joint->downstream_offset = *(joint_data->downstream_offset);
 	/* calculate pos_fb */
 	if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
 	    ( joint->index_enable == 0 )) {
@@ -1155,6 +1156,13 @@ static void get_pos_cmds(long period)
 		    /* joint has stopped, so any outstanding jogs are done */
 		    joint->kb_jog_active = 0;
 		    joint->wheel_jog_active = 0;
+
+                    // Since joint has stopped, now is the time to consume any downstream offset to this axis
+                    // and apply it to pos_cmd
+                    joint->pos_cmd += joint->downstream_offset;
+                    // This would cause a large f_error, unless the motor's pos_fb is updated to remove the offset and
+                    // reflect the new commanded position before the next call to process_inputs (next servo cycle)
+                    joint->downstream_offset = 0;
 		}
 	    }//if (GET_JOINT_ACTIVE_FLAG(join))
 	}//for loop for joints
@@ -1848,6 +1856,7 @@ static void output_to_hal(void)
 	/* point to HAL data */
 	joint_data = &(emcmot_hal_data->joint[joint_num]);
 	/* write to HAL pins */
+        *(joint_data->downstream_offset) = joint->downstream_offset;
         *(joint_data->motor_offset) = joint->motor_offset;
 	*(joint_data->motor_pos_cmd) = joint->motor_pos_cmd;
 	*(joint_data->joint_pos_cmd) = joint->pos_cmd;
