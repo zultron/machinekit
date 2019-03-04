@@ -22,31 +22,31 @@ PmCartesian getXYZVelBounds() {
     return vel_bound;
 }
 
-inline unsigned jointAccelViolation(int joint_idx, double acc)
+unsigned jointAccelViolation(int joint_idx, double acc)
 {
     // Allow some numerical tolerance here since max acceleration is a bit
     // fuzzy anyway. Torque is the true limiting factor, so there has to be
     // some slack here anyway due to variations in table load, friction, etc.
     static const double ABS_TOL = 1e-4;
-    static const double REL_TOL = 1.0 + ABS_TOL;
+    const double REL_TOL = 1.0 + ABS_TOL;
     const double a_max_nominal = emcmotDebug->joints[joint_idx].acc_limit;
     const double a_limit = fmax(a_max_nominal * REL_TOL, a_max_nominal + ABS_TOL);
     return (unsigned)(fabs(acc) > a_limit) << joint_idx;
 }
 
-inline unsigned jointVelocityViolation(int joint_idx, double v_actual)
+unsigned jointVelocityViolation(int joint_idx, double v_actual)
 {
     // Allow some numerical tolerance here since max acceleration is a bit
     // fuzzy anyway. Torque is the true limiting factor, so there has to be
     // some slack here anyway due to variations in table load, friction, etc.
     static const double ABS_TOL = 1e-2;
-    static const double REL_ACC_TOL = 1.0 + ABS_TOL;
+    const double REL_ACC_TOL = 1.0 + ABS_TOL;
     const double v_max_nominal = emcmotDebug->joints[joint_idx].vel_limit;
     const double v_limit = fmax(v_max_nominal * REL_ACC_TOL, v_max_nominal + ABS_TOL);
     return (unsigned)(fabs(v_actual) > v_limit) << joint_idx;
 }
 
-inline unsigned jointPositionViolation(int joint_idx, double position)
+unsigned jointPositionViolation(int joint_idx, double position)
 {
     static const double ABS_TOL = 1e-6;
     return (unsigned)(position < emcmotDebug->joints[joint_idx].min_pos_limit - ABS_TOL &&

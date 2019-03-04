@@ -237,7 +237,7 @@ TEST checkEndCondition_below_vf_far()
                                    v_final,
                                    a_max_mock
                                    );
-    ASSERT(ec.dt < cycle_time);
+    ASSERT(ec.dt > cycle_time);
     ASSERT_IN_RANGEm("final velocity", ec.v_f, 1.0, v_final);
     PASS();
 }
@@ -246,7 +246,6 @@ TEST checkEndCondition_above_vf_far()
 {
     const double v_final = 1.0;
     const double v_current = v_max_mock;
-    const double nominal_cycle_dist = v_current * cycle_time;
 
     EndCondition ec = checkEndCondition(cycle_time,
                                               0.0,
@@ -274,7 +273,7 @@ TEST checkEndCondition_above_vf_close()
                                               v_final,
                                               a_max_mock
                                               );
-    ASSERT_FLOAT_EQ(ec.dt, cycle_time);
+    ASSERT_IN_RANGE(ec.dt, cycle_time, TP_TIME_EPSILON);
     ASSERT_IN_RANGEm("final velocity", ec.v_f, 1.0, v_final);
     PASS();
 }
