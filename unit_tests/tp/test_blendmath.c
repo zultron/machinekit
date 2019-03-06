@@ -393,6 +393,69 @@ TEST test_pmCircleTangentVector_spiralout()
     PASS();
 }
 
+TEST test_findSpiralArcLengthFit_spiralout()
+{
+    // Unit circle with some spiral component centered at origin
+    PmCircle c = {0};
+    c.rTan.x = 1;
+    c.rPerp.y = 1;
+    c.angle = M_PI;
+    c.spiral = 0.001;
+    c.normal.z = 1;
+    c.radius = 1;
+
+    SpiralArcLengthFit f;
+    findSpiralArcLengthFit(&c, &f);
+
+    ASSERT_FALSE(f.spiral_in);
+    ASSERT(f.total_planar_length > c.radius * c.angle);
+    ASSERT(f.b0 > 0);
+    ASSERT(f.b1 > 0);
+    PASS();
+}
+
+TEST test_findSpiralArcLengthFit_spiralin()
+{
+    // Unit circle with some spiral component centered at origin
+    PmCircle c = {0};
+    c.rTan.x = 1;
+    c.rPerp.y = 1;
+    c.angle = M_PI;
+    c.spiral = -0.1;
+    c.normal.z = 1;
+    c.radius = 1;
+
+    SpiralArcLengthFit f;
+    findSpiralArcLengthFit(&c, &f);
+
+    ASSERT(f.spiral_in);
+    ASSERT(f.total_planar_length < c.radius * c.angle);
+    ASSERT(f.b0 > 0);
+    ASSERT(f.b1 > 0);
+    PASS();
+}
+
+
+TEST test_findSpiralArcLengthFit_exact()
+{
+    // Unit circle with some spiral component centered at origin
+    PmCircle c = {0};
+    c.rTan.x = 1;
+    c.rPerp.y = 1;
+    c.angle = M_PI;
+    c.spiral = 0.0;
+    c.normal.z = 1;
+    c.radius = 1;
+
+    SpiralArcLengthFit f;
+    findSpiralArcLengthFit(&c, &f);
+
+    ASSERT_FALSE(f.spiral_in);
+    ASSERT_FLOAT_EQ(c.radius * c.angle, f.total_planar_length);
+    ASSERT_FLOAT_EQ(0, f.b0);
+    ASSERT_FLOAT_EQ(1, f.b1);
+    PASS();
+}
 
 TEST test_pmCircleActualMaxVel_cutoff()
 {
@@ -414,11 +477,58 @@ TEST test_pmCircleActualMaxVel_cutoff()
     PASS();
 }
 
+TEST test_pmCircle9Init()
+{
+    PmCircle9 c;
+
+    EmcPose start = {{1.0, 2.0, 3.0}, 4, 5, 6, 7, 8, 9};
+    EmcPose end = {{3.0, 2.0, 4.0}, 5, 4, 3, 2, 1, 0};
+    PmCartesian center = {2.0, 2.0, 3.0};
+    PmCartesian normal = {0, 0, 1};
+
+    ASSERT_FALSE(pmCircle9Init(&c, &start, &end, &center, &normal, 0));
+    ASSERT_PMCARTESIAN_IN_RANGE(c.xyz.center, center, V_FUZZ);
+    ASSERT_FLOAT_EQ(c.xyz.radius, 1.0);
+    ASSERT_IN_RANGE(c.xyz.spiral, 0.0, TP_POS_EPSILON);
+
+    double target = pmCircle9Target(&c);
+    double expected_target = sqrt(pmSq(M_PI*1.0) + pmSq(1.0));
+    ASSERT_IN_RANGE(expected_target, target, TP_POS_EPSILON);
+    PASS();
+}
+
+TEST test_pmCircle9Target()
+{
+    PmCircle9 c;
+    EmcPose start = {{1.0, 2.0, 3.0},0,0,0,0,0,0};
+    EmcPose end = start;
+    end.tran.x = 3.5;
+    end.tran.z = 7.0;
+    PmCartesian center = {2.0, 2.0, 3.0};
+
+    PmCartesian normal = {0, 0, 1};
+
+    ASSERT_FALSE(pmCircle9Init(&c, &start, &end, &center, &normal, 0));
+
+    double target = pmCircle9Target(&c);
+    // KLUDGE get known good value from current code (assumes spiral fit is close enough)
+    // FIXME likely to break with small changes in fit strategy
+    double expected_target = 5.628631592039345;
+    ASSERT_IN_RANGE(expected_target, target, TP_POS_EPSILON);
+
+    PASS();
+}
+
 SUITE(circle_funcs)
 {
     RUN_TEST(test_pmCircleTangentVector_unitcircle);
     RUN_TEST(test_pmCircleTangentVector_spiralout);
+    RUN_TEST(test_findSpiralArcLengthFit_spiralout);
+    RUN_TEST(test_findSpiralArcLengthFit_spiralin);
+    RUN_TEST(test_findSpiralArcLengthFit_exact);
     RUN_TEST(test_pmCircleActualMaxVel_cutoff);
+    RUN_TEST(test_pmCircle9Init);
+    RUN_TEST(test_pmCircle9Target);
 }
 
 TEST test_calculateInscribedRadius()
