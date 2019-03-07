@@ -20,8 +20,8 @@ pin in float volts_max = 180;
 pin in float volts_in = 0 "Input from plasma source. Lowpass recommended.";
 pin out bit volts_ok = 0 "Status of voltage safety limits. 0=THC paused, 1=volts ok";
 
-pin in float THC_vel_cmd_in = 0;
-pin out float THC_vel_cmd_out = 0 "Commanded vertical velocity from an external PID component, but held to 0 when THC is paused or disabled.";
+//pin in float THC_vel_cmd_in = 0;
+//pin out float THC_vel_cmd_out = 0 "Commanded vertical velocity from an external PID component, but held to 0 when THC is paused or disabled.";
 
 
 function _;
@@ -63,7 +63,7 @@ FUNCTION(_) {
     pause_out = (enable_out && pause_in && volts_ok && vel_ok && arc_ok);
 
     // Commanded velocity output is held to 0 when THC is paused
-    THC_vel_cmd_out = THC_vel_cmd_in * pause_out;
+    //THC_vel_cmd_out = THC_vel_cmd_in * pause_out;
 
     // Voltage error value, for feedback into a PID component
     //volts_error = volts_in - volts_target;
