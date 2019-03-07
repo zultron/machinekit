@@ -8,8 +8,6 @@ pin in float velocity_cmd_passthrough = 0 """When 'enabled' is false, 'velocity_
 pin in float position_cmd;
 pin in float position_fb;
 
-pin out bit index_enable = 1;
-
 
 pin io float position_offset """The difference between in and fb_in (captured during the last servo loop when 'enabled' was true.
 Resetting this pin to 0 implies that the offset value has been aknowledged and dealt with somewhere else.""";
@@ -34,20 +32,10 @@ FUNCTION(_) {
 
 }
 FUNCTION(feedback) {
-    static float prev_offset = 0;
-
     if(enable != 0) {
         position_offset = position_fb - position_cmd;
     }
     position_fb_out = position_fb - position_offset;
-
-    if(position_offset == 0 && prev_offset != 0) {
-        index_enable=0;
-    } else {
-        index_enable=1;
-    }
-
-    prev_offset = position_offset;
 }
 FUNCTION(command) {
     float safe_vel_cmd = velocity_cmd;

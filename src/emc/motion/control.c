@@ -1046,6 +1046,8 @@ static void get_pos_cmds(long period)
 	joint = &joints[joint_num];
 	/* copy coarse command */
 	positions[joint_num] = joint->coarse_pos;
+
+        joint->continuous_output = 1;
     }
     /* if less than a full complement of joints, zero out the rest */
     while ( joint_num < EMCMOT_MAX_JOINTS ) {
@@ -1163,6 +1165,7 @@ static void get_pos_cmds(long period)
                     // This would cause a large f_error, unless the motor's pos_fb is updated to remove the offset and
                     // reflect the new commanded position before the next call to process_inputs (next servo cycle)
                     joint->downstream_offset = 0;
+                    joint->continuous_output = 0;
 		}
 	    }//if (GET_JOINT_ACTIVE_FLAG(join))
 	}//for loop for joints
@@ -1857,6 +1860,7 @@ static void output_to_hal(void)
 	joint_data = &(emcmot_hal_data->joint[joint_num]);
 	/* write to HAL pins */
         *(joint_data->downstream_offset) = joint->downstream_offset;
+        *(joint_data->continuous_output) = joint->continuous_output;
         *(joint_data->motor_offset) = joint->motor_offset;
 	*(joint_data->motor_pos_cmd) = joint->motor_pos_cmd;
 	*(joint_data->joint_pos_cmd) = joint->pos_cmd;

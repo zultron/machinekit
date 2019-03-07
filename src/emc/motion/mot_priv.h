@@ -42,6 +42,7 @@ typedef struct {
     hal_float_t *downstream_offset; /* WRPI: offset being applied to the axis by some component past motion (in HAL) */
                                     /* HAL component sets: An offset is being applied to axis on top of pos_cmd */
                                     /* motmod clears: Offset value has been incorparated into pos_cmd, HAL comp should stop applying */
+    hal_bit_t *continuous_output;   /* RPI: Normally 1, zero on this pin indicates a step in motor_pos_output */
     hal_float_t *motor_offset;	/* RPI: motor offset, for checking homing stability */
     hal_float_t *motor_pos_cmd;	/* WPI: commanded position, with comp */
     hal_float_t *motor_pos_fb;	/* RPI: position feedback, with comp */
