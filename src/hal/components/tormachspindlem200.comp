@@ -821,16 +821,16 @@ float angle_offset;
             }
             else { //normal orient
 #endif
-            spindle_on_thur = BIT_TRUE;  //always enable the spindle in orienting mode
-            if(orient_speed_in >= 0)  //figure out spindle dir based on input from index PID
-                spindle_forward_thur = BIT_TRUE;  //true selects forward on m200
-            else 
-                spindle_forward_thur = BIT_FALSE; //false selects reverse on m200
+                spindle_on_thur = BIT_TRUE;  //always enable the spindle in orienting mode
+                if(orient_speed_in >= 0)  //figure out spindle dir based on input from index PID
+                    spindle_forward_thur = BIT_TRUE;  //true selects forward on m200
+                else 
+                    spindle_forward_thur = BIT_FALSE; //false selects reverse on m200
 
-            vfd_rpm_cmd = fabs(orient_speed_in);
+                vfd_rpm_cmd = fabs(orient_speed_in);
 
-            //max speed during orienting is "very" low, use min_speed (yes min, not max) to set max speed
-            if (orient_speed_in > min_speed) {
+                //max speed during orienting is "very" low, use min_speed (yes min, not max) to set max speed
+                if (orient_speed_in > min_speed) {
                     vfd_rpm_cmd = min_speed;
             }
 
@@ -901,7 +901,10 @@ float angle_offset;
     vfd_freq_cmd = vfd_rpm2freq(vfd_rpm_cmd, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
 
     if (spindle_forward_thur == 0) //if reverse, flip sign of vfd_rpm_cmd ... this is a DEBUG operation, does nothing useful
-        vfd_rpm_cmd = -1.0 * vfd_rpm_cmd; 
+        vfd_rpm_cmd = -1.0 * vfd_rpm_cmd;  //SLP does nothing useful, debugging output 
+
+    if (vfd_freq_cmd < 0)
+        vfd_freq_cmd = -1.0 * vfd_freq_cmd; //make sure it's positive // TODO: consider all possiblities of orient , should always be positive for non-orient??? 
 
     // clamp vfd_freq_cmd to acceptable range using previously calculated min_speed_freq_cmd and max_speed_freq_cmd value
     if (vfd_freq_cmd < min_speed_freq_cmd) {  
@@ -944,7 +947,7 @@ float angle_offset;
         speed_out = feedback_spindle_rpm;
         speed_alarm = BIT_FALSE;
     }
-    else if (spindle_on && (vfd_rpm_cmd > 0.0)) {
+    else if (spindle_on && (iabs(vfd_rpm_cmd) > 0.0)) {
         if (at_speed == BIT_FALSE) {
             if (at_speed_force == BIT_TRUE) {
                 at_speed_force_timer += fperiod; 
