@@ -66,6 +66,7 @@ pin out unsigned uvlo-# [4];       //undervoltage
 pin out unsigned mot_status-# [4]; //motor status, stopped, acc, dec, constant speed
 pin out unsigned dir-# [4];        //motor direction
 pin out unsigned hiz-# [4];        //powerstage disabled
+pin out unsigned cmd-err-# [4];    //command error
 
 variable int state = 0;
 variable int reg_num = 0;
@@ -300,9 +301,11 @@ switch(state){
 	ocd(read_instance) = status.ocd;
 	th_status(read_instance) = status.th_status;
 	uvlo_adc(read_instance) = status.uvlo_adc;
+	uvlo(read_instance) = status.uvlo;
 	mot_status(read_instance) = status.mot_status;
 	dir(read_instance) = status.dir;
 	hiz(read_instance) = status.hiz;
+	cmd_err(read_instance) = status.cmd_err;
 	read_instance++;
 	if(read_instance > 3){
 		read_instance = 0;
