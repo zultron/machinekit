@@ -166,12 +166,11 @@ pin in float hispeed_tol_above;     // what the rpm tolerance is above or equal 
 pin in float motor_hz_per_cmd_hz;
 pin in float vfd_rpm_feedback;
 
-//#if (ERR_LIE)
-pin out float err_lie;
-// #if _38_SPECIAL
-pin out bit last_fwd;
-pin out float last_rpm;
-pin out u32 orient_total_ticks;
+//#if _38_SPECIAL  TODO: Condition won't work in this section of this .comp ... uncomment these lines to manually enable _38_SPECIAL
+//pin out bit last_fwd;
+//pin out float last_rpm;
+//pin out u32 orient_total_ticks;
+//#endif
 
 // current min and max speeds based upon spindle-type and belt-position
 pin out float min_speed;
@@ -280,7 +279,7 @@ function _ "Tormach Spindle HAL Component M200";
                                     //so theoritically, this is present in normal spindle mode, but the freq is 41/25 = 1.64 Hz vfd-cmd-freq which is what RPM???
 
 #define ERR_LIE (0)
-#define _38_SPECIAL (1)
+#define _38_SPECIAL (0)   //IF you make this (1), then you also need to "uncomment-out" some _38_SPECIAL pins above (grep for "_38_SPECIAL")
 #define TEST_TIME (8000)  //time in millisecs for one cycle of test.  vfd-freq-cmd pulses will be 1/4 this time.
 #define _38_SPECIAL_RPM (10.0)
 
@@ -695,9 +694,6 @@ float angle_offset;
             else {  
                 spindle_state = SPINDLE_STATE_LOCKED; //move to this state even if error
                 orient_P2 = 1.0; //switch to 2nd PID constants
-#if (ERR_LIE)
-                err_lie = orient_modulus;    
-#endif
                 if (!oriented) {
                     orient_to = 1;
                     orient_fault = ORIENT_ERR_TIME_OUT;
@@ -837,10 +833,6 @@ float angle_offset;
             
             orient_modulus = fbFilter(calcFeedback(orient_mode)); 
             enc_err = orient_target - encoder_position;
-#if (ERR_LIE)
-            if(orient_P2)
-                orient_modulus = err_lie;
-#endif
 
             if (orient_P2) {
                 pidP = pidP2in;
