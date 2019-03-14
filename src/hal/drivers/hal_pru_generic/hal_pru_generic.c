@@ -60,10 +60,6 @@
 #error "This driver is for the beaglebone platform only"
 #endif
 
-#if !defined(BUILD_SYS_USER_DSO)
-#error "This driver is for usermode threads only"
-#endif
-
 #include RTAPI_INC_LIST_H
 #include "rtapi.h"          /* RTAPI realtime OS API */
 #include "rtapi_app.h"      /* RTAPI realtime module decls */
@@ -107,7 +103,7 @@ MODULE_LICENSE("GPL");
 // Default pin to use for PRU modules...use a pin that does not leave the PRU
 #define PRU_DEFAULT_PIN 17
 
-// Start out with default pulse length/width and setup/hold delays of 1 mS (1000000 nS) 
+// Start out with default pulse length/width and setup/hold delays of 1 mS (1000000 nS)
 #define DEFAULT_DELAY 1000000
 
 #define f_period_s ((double)(l_period_ns * 1e-9))
@@ -153,7 +149,7 @@ static int comp_id;     /* component ID */
 static const char *modname = "hal_pru_generic";
 
 // if filename doesnt exist, prefix this path:
-char *fw_path = "/lib/firmware/pru/";       
+char *fw_path = "/lib/firmware/pru/";
 
 // shared with PRU
 static unsigned long *pru_data_ram;     // points to PRU data RAM
@@ -217,11 +213,11 @@ int rtapi_app_main(void)
     hpg->config.name         = modname;
     hpg->config.halname      = halname;
 
-    rtapi_print("num_pwmgens : %d\n",num_pwmgens);
-    rtapi_print("num_stepgens: %d\n",num_stepgens);
-    rtapi_print("num_encoders: %d\n",num_encoders);
+    rtapi_print_msg(RTAPI_MSG_DBG, "num_pwmgens : %d\n",num_pwmgens);
+    rtapi_print_msg(RTAPI_MSG_DBG, "num_stepgens: %d\n",num_stepgens);
+    rtapi_print_msg(RTAPI_MSG_DBG, "num_encoders: %d\n",num_encoders);
 
-    rtapi_print("Init pwm\n");
+    rtapi_print_msg(RTAPI_MSG_DBG, "Init pwm\n");
     // Initialize various functions and generate PRU data ram contents
     if ((retval = hpg_pwmgen_init(hpg))) {
         HPG_ERR("ERROR: pwmgen init failed: %d\n", retval);
@@ -229,14 +225,14 @@ int rtapi_app_main(void)
         return -1;
     }
 
-    rtapi_print("Init stepgen\n");
+    rtapi_print_msg(RTAPI_MSG_DBG, "Init stepgen\n");
     if ((retval = hpg_stepgen_init(hpg))) {
         HPG_ERR("ERROR: stepgen init failed: %d\n", retval);
         hal_exit(comp_id);
         return -1;
     }
 
-    rtapi_print("Init encoder\n");
+    rtapi_print_msg(RTAPI_MSG_DBG, "Init encoder\n");
     if ((retval = hpg_encoder_init(hpg))) {
         HPG_ERR("ERROR: encoder init failed: %d\n", retval);
         hal_exit(comp_id);
@@ -383,7 +379,7 @@ int assure_module_loaded(const char *module)
 }
 
 int pru_init(int pru, char *filename, int disabled, hal_pru_generic_t *hpg) {
-    
+
     int i;
     int retval;
 
@@ -394,12 +390,12 @@ int pru_init(int pru, char *filename, int disabled, hal_pru_generic_t *hpg) {
     if ((retval = assure_module_loaded(UIO_PRUSS)))
     return retval;
 
-rtapi_print("prussdrv_init\n");
+rtapi_print_msg(RTAPI_MSG_DBG, "prussdrv_init\n");
     // Allocate and initialize memory
     prussdrv_init ();
 
     // opens an event out and initializes memory mapping
-rtapi_print("prussdrv_open\n");
+rtapi_print_msg(RTAPI_MSG_DBG, "prussdrv_open\n");
     if (prussdrv_open(event > -1 ? event : PRU_EVTOUT_0) < 0)
     return -1;
 
@@ -407,17 +403,17 @@ rtapi_print("prussdrv_open\n");
     pruss = &prussdrv;
 
     // Map PRU's INTC
-rtapi_print("prussdrv_pruintc_init\n");
+rtapi_print_msg(RTAPI_MSG_DBG, "prussdrv_pruintc_init\n");
     if (prussdrv_pruintc_init(&pruss_intc_initdata) < 0)
     return -1;
 
     // Maps the PRU DRAM memory to input pointer
-rtapi_print("prussdrv_map_prumem\n");
+rtapi_print_msg(RTAPI_MSG_DBG, "prussdrv_map_prumem\n");
     if (prussdrv_map_prumem(pru ? PRUSS0_PRU1_DATARAM : PRUSS0_PRU0_DATARAM,
             (void **) &pru_data_ram) < 0)
     return -1;
 
-rtapi_print("PRU data ram mapped\n");
+rtapi_print_msg(RTAPI_MSG_DBG, "PRU data ram mapped\n");
     rtapi_print_msg(RTAPI_MSG_DBG, "%s: PRU data ram mapped at %p\n",
             modname, pru_data_ram);
 
@@ -445,7 +441,7 @@ rtapi_print("PRU data ram mapped\n");
 }
 
 int setup_pru(int pru, char *filename, int disabled, hal_pru_generic_t *hpg) {
-    
+
     int retval;
 
     if (event > -1) {
@@ -461,7 +457,7 @@ int setup_pru(int pru, char *filename, int disabled, hal_pru_generic_t *hpg) {
     // default the .bin filename if not given
     if (!strlen(filename))
     filename = DEFAULT_CODE;
-    
+
     strcpy(pru_binpath, filename);
 
     struct stat statb;
@@ -605,7 +601,7 @@ int fixup_pin(u32 hal_pin) {
             break;
         default:
             ret = 0;
-        }    
+        }
 
         if (ret == 0)
             HPG_ERR("Unknown pin: %d\n",(int)hal_pin);
@@ -618,4 +614,3 @@ int fixup_pin(u32 hal_pin) {
 
     return ret;
 }
-

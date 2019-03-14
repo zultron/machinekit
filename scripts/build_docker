@@ -12,7 +12,7 @@
 CMD=${CMD:-shell}
 IMAGE=${IMAGE:-dovetailautomata/mk-cross-builder}
 TAG=${TAG:-amd64_9}
-JOBS=${JOBS:-2}
+JOBS=${JOBS:-$(nproc)}
 BUILD_SOURCE=${BUILD_SOURCE:-true}  # update Changelog & source pkg
 
 # CL arguments
@@ -54,23 +54,13 @@ case ${TAG} in
     *) echo "Warning:  unknown tag '${TAG}'" >&2 ;;
 esac
 
-# Distro-specific:
-case ${TAG} in
-    *_8)
-	PKG_CONFIGURE_ARGS="-prx"   # Enable Xenomai
-	;;
-    *)
-	PKG_CONFIGURE_ARGS="-pr"    # Build posix and preempt-rt threads
-	;;
-esac
-
 # Distro specific warnings level
 case ${TAG} in
     *_8|*_9)
 	WERROR_FLAG="-Werror"
 	;;
     *)
-	WERROR_FLAG=""    # Buster and above have many as yet unresolved warnings
+	WERROR_FLAG=""  # Buster and above have many as yet unresolved warnings
 	;;
 esac
 
@@ -98,7 +88,7 @@ export TAG
 declare -a BUILD_CL DOCKER_EXTRA_OPTS
 case $CMD in
     "shell"|"") # Interactive shell (default)
-	DOCKER_EXTRA_OPTS=( --privileged --interactive --tty )
+	DOCKER_EXTRA_OPTS=( --privileged --interactive )
 	if test -z "$*"; then
 	    BUILD_CL=( bash -i )
 	else
@@ -124,7 +114,7 @@ case $CMD in
 
 	BUILD_CL=( bash -xec "
             # configure source package
-            debian/configure ${PKG_CONFIGURE_ARGS};
+            debian/configure;
 
             # update Changelog and build source package
             $SCRIPT_DIR/build_source_package $BUILD_SOURCE
@@ -144,7 +134,7 @@ case $CMD in
 	    (
 		cd src;
 		./autogen.sh;
-		./configure --host=\$HOST_MULTIARCH --with-posix;
+		./configure --host=\$HOST_MULTIARCH;
 	    )
 
             # Build
@@ -156,17 +146,26 @@ case $CMD in
 	    echo -e 'ANNOUNCE_IPV4=0\nANNOUNCE_IPV6=0' >> \
 		etc/linuxcnc/machinekit.ini;
 	    tail -2 etc/linuxcnc/machinekit.ini;
-	    flavor;
 
             # Run regression tests
 	    ${RUN_TESTS} ${TEST_ARGS}"
 	)
 	;;
-    *)   echo "Unkown command '$CMD'" >&2; exit 1 ;;
+    "docs") # Just build docs
+	BUILD_CL=( bash -xec "
+	    cd src ;
+	    ./autogen.sh ;
+	    ./configure --enable-build-documentation ;
+	    make docpages i_docpages ;"
+	)
+	;;
+    *)   echo "Unknown command '$CMD'" >&2; exit 1 ;;
 esac
 
 ###########################################################
-# Update container image with custom /etc/passwd
+# Update new container image and add custom /etc/passwd
+
+test -n "$DOCKER_NO_PULL" || docker pull ${IMAGE}:${TAG}
 
 if test ${UID_GID/:*/} != 1000; then
     echo "Updating /etc/passwd for UID $TRAVIS_UID" >&2
@@ -197,6 +196,7 @@ set -x  # Show user the command
 # hide --it
 exec docker run \
     --rm \
+    --tty \
     "${DOCKER_EXTRA_OPTS[@]}" \
     -u ${UID_GID} -e USER=${USER} \
     -v ${HOME}:${HOME} -e HOME=${HOME} \

@@ -1,10 +1,10 @@
 /********************************************************************
 * Description:  rtapi_pci.c
-*               This file, 'rtapi_pci.c', implements the 
-*               usermode PCI functions 
+*               This file, 'rtapi_pci.c', implements the
+*               usermode PCI functions
 *
 *
-* Copyright (C) 2009 - 2013 Michael Büsch <m AT bues DOT CH>, 
+* Copyright (C) 2009 - 2013 Michael Büsch <m AT bues DOT CH>,
 *                           Charles Steinkuehler <charles AT steinkuehler DOT net>
 *                           John Morris <john AT zultron DOT com>
 *                           Michael Haberler <license AT mah DOT priv DOT at>
@@ -29,7 +29,6 @@
 #endif
 
 #include "config.h"
-#if defined(USERMODE_PCI) && defined(BUILD_SYS_USER_DSO)
 
 #include <libudev.h>
 #include <stdio.h>		/* vprintf() */
@@ -361,7 +360,7 @@ void * rtapi_pci_ioremap(struct rtapi_pcidev *dev, int bar, size_t size)
 		return NULL;
 	}
 
-//	rtapi_print_msg(RTAPI_MSG_ERR, "%i: %lx.%lx %lx.%lx\n", i, 
+//	rtapi_print_msg(RTAPI_MSG_ERR, "%i: %lx.%lx %lx.%lx\n", i,
 //		*((unsigned long *) (mmio + 0xff0)),
 //		*((unsigned long *) (mmio + 0xff4)),
 //		*((unsigned long *) (mmio + 0xff8)),
@@ -485,8 +484,8 @@ int pci_register_driver(struct pci_driver *driver)
     }
 
     for (i=0; driver->id_table[i].vendor != 0; i++) {
-        snprintf(buf, sizeof(buf), "%04X:%04X", 
-            driver->id_table[i].vendor, 
+        snprintf(buf, sizeof(buf), "%04X:%04X",
+            driver->id_table[i].vendor,
             driver->id_table[i].device);
 
         err = udev_enumerate_add_match_property(enumerate, "PCI_ID", buf);
@@ -653,8 +652,6 @@ int pci_enable_device(struct pci_dev *dev)
     FILE *stream;
     char path[256];
     int i,r;
-    void *L1, *L2;
-    unsigned long L3;
 
     rtapi_print_msg(RTAPI_MSG_DBG, "RTAPI_PCI: Enabling Device %s\n", dev->dev_name);
 
@@ -669,7 +666,7 @@ int pci_enable_device(struct pci_dev *dev)
 	}
     fprintf(stream, "1");
     fclose(stream);
-        
+
     /* Open the resource file... */
     snprintf(path, sizeof(path), "%s/resource", dev->sys_path);
     stream = fopen(path, "r");
@@ -679,18 +676,18 @@ int pci_enable_device(struct pci_dev *dev)
 				path, strerror(errno));
 		return -1;
 	}
-        
+
     /* ...and read in the data */
     for (i=0; i < 6; i++) {
-        r=fscanf(stream, "%p %p %lu", &L1, &L2, &L3);
+        r=fscanf(stream, "%p %p %lx",
+                 &dev->resource[i].start,
+                 &dev->resource[i].end,
+                 &dev->resource[i].flags);
         if (r != 3) {
-		    rtapi_print_msg(RTAPI_MSG_ERR,"Failed to parse \"%s\"\n", path);
+	    rtapi_print_msg(RTAPI_MSG_ERR,"Failed to parse \"%s\"\n", path);
             fclose(stream);
-		    return -1;
+	    return -1;
         }
-        dev->resource[i].start = (void*) L1;
-        dev->resource[i].end   = (void*) L2;
-        dev->resource[i].flags = (unsigned long) L3;
 
         rtapi_print_msg(RTAPI_MSG_DBG,"Resource %d: %p %p %08lx\n", i,
             dev->resource[i].start,
@@ -744,5 +741,3 @@ EXPORT_SYMBOL(pci_register_driver);
 EXPORT_SYMBOL(pci_unregister_driver);
 EXPORT_SYMBOL(pci_ioremap_bar);
 
-
-#endif // USERMODE_PCI

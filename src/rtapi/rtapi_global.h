@@ -82,7 +82,6 @@ typedef struct {
     // this is set once on startup by rtapi_msgd and is to be considered a constant
     // throughout the session:
     int instance_id;
-    int rtapi_thread_flavor;
 
     // runtime parameters
     int rt_msg_level;              // message level for RT
@@ -126,7 +125,7 @@ typedef struct {
     struct rtapi_heap heap;
     //size_t heap_size;
 
-    unsigned char arena[0] __attribute__((aligned(RTAPI_CACHELINE)));
+    unsigned char arena[] __attribute__((aligned(RTAPI_CACHELINE)));
 
 } global_data_t;
 
