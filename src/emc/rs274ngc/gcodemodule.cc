@@ -32,8 +32,8 @@ extern "C" void initinterpreter();
 extern "C" void initemccanon();
 extern "C" struct _inittab builtin_modules[];
 struct _inittab builtin_modules[] = {
-    { (char *) "interpreter", initinterpreter },
-    { (char *) "emccanon", initemccanon },
+    { const_cast<char*>("interpreter"), initinterpreter },
+    { const_cast<char*>("emccanon"), initemccanon },
     // any others...
     { nullptr, nullptr }
 };
@@ -61,55 +61,55 @@ static PyObject *LineCode_mcodes(LineCode *l) {
 }
 
 static PyGetSetDef LineCodeGetSet[] = {
-    {(char*)"gcodes", (getter)LineCode_gcodes},
-    {(char*)"mcodes", (getter)LineCode_mcodes},
-    {nullptr, nullptr},
+    {const_cast<char*>("gcodes"), (getter)LineCode_gcodes, nullptr, nullptr, nullptr},
+    {const_cast<char*>("mcodes"), (getter)LineCode_mcodes, nullptr, nullptr, nullptr},
+    {},
 };
 
 static PyMemberDef LineCodeMembers[] = {
-    {(char*)"sequence_number", T_INT,
-     offsetof(LineCode, gcodes[G_CODE_SEQUENCE_NUMBER]), READONLY},
+    {const_cast<char*>("sequence_number"), T_INT,
+     offsetof(LineCode, gcodes[G_CODE_SEQUENCE_NUMBER]), READONLY, nullptr},
 
-    {(char*)"feed_rate", T_DOUBLE,
-     offsetof(LineCode, settings[SETTINGS_FEED_RATE]), READONLY},
-    {(char*)"speed", T_DOUBLE,
-     offsetof(LineCode, settings[SETTINGS_SPEED]), READONLY},
-    {(char*)"motion_mode", T_INT,
-     offsetof(LineCode, gcodes[G_CODE_MOTION_MODE]), READONLY},
-    {(char*)"block", T_INT,
-     offsetof(LineCode, gcodes[G_CODE_MODE_0]), READONLY},
-    {(char*)"plane", T_INT,
-     offsetof(LineCode, gcodes[G_CODE_PLANE]), READONLY},
-    {(char*)"cutter_side", T_INT,
-     offsetof(LineCode, gcodes[G_CODE_CUTTER_SIDE]), READONLY},
-    {(char*)"units", T_INT,
-     offsetof(LineCode, gcodes[G_CODE_UNITS]), READONLY},
-    {(char*)"distance_mode", T_INT,
-     offsetof(LineCode, gcodes[G_CODE_DISTANCE_MODE]), READONLY},
-    {(char*)"feed_mode", T_INT,
-     offsetof(LineCode, gcodes[G_CODE_FEED_MODE]), READONLY},
-    {(char*)"origin", T_INT,
-     offsetof(LineCode, gcodes[G_CODE_ORIGIN]), READONLY},
-    {(char*)"tool_length_offset", T_INT,
-     offsetof(LineCode, gcodes[G_CODE_TOOL_LENGTH_OFFSET]), READONLY},
-    {(char*)"retract_mode", T_INT,
-     offsetof(LineCode, gcodes[G_CODE_RETRACT_MODE]), READONLY},
-    {(char*)"path_mode", T_INT,
-     offsetof(LineCode, gcodes[G_CODE_PATH_MODE]), READONLY},
+    {const_cast<char*>("feed_rate"), T_DOUBLE,
+     offsetof(LineCode, settings[SETTINGS_FEED_RATE]), READONLY, nullptr},
+    {const_cast<char*>("speed"), T_DOUBLE,
+     offsetof(LineCode, settings[SETTINGS_SPEED]), READONLY, nullptr},
+    {const_cast<char*>("motion_mode"), T_INT,
+     offsetof(LineCode, gcodes[G_CODE_MOTION_MODE]), READONLY, nullptr},
+    {const_cast<char*>("block"), T_INT,
+     offsetof(LineCode, gcodes[G_CODE_MODE_0]), READONLY, nullptr},
+    {const_cast<char*>("plane"), T_INT,
+     offsetof(LineCode, gcodes[G_CODE_PLANE]), READONLY, nullptr},
+    {const_cast<char*>("cutter_side"), T_INT,
+     offsetof(LineCode, gcodes[G_CODE_CUTTER_SIDE]), READONLY, nullptr},
+    {const_cast<char*>("units"), T_INT,
+     offsetof(LineCode, gcodes[G_CODE_UNITS]), READONLY, nullptr},
+    {const_cast<char*>("distance_mode"), T_INT,
+     offsetof(LineCode, gcodes[G_CODE_DISTANCE_MODE]), READONLY, nullptr},
+    {const_cast<char*>("feed_mode"), T_INT,
+     offsetof(LineCode, gcodes[G_CODE_FEED_MODE]), READONLY, nullptr},
+    {const_cast<char*>("origin"), T_INT,
+     offsetof(LineCode, gcodes[G_CODE_ORIGIN]), READONLY, nullptr},
+    {const_cast<char*>("tool_length_offset"), T_INT,
+     offsetof(LineCode, gcodes[G_CODE_TOOL_LENGTH_OFFSET]), READONLY, nullptr},
+    {const_cast<char*>("retract_mode"), T_INT,
+     offsetof(LineCode, gcodes[G_CODE_RETRACT_MODE]), READONLY, nullptr},
+    {const_cast<char*>("path_mode"), T_INT,
+     offsetof(LineCode, gcodes[G_CODE_PATH_MODE]), READONLY, nullptr},
 
-    {(char*)"stopping", T_INT,
-     offsetof(LineCode, mcodes[M_CODE_STOPPING]), READONLY},
-    {(char*)"spindle", T_INT,
-     offsetof(LineCode, mcodes[M_CODE_SPINDLE]), READONLY},
-    {(char*)"toolchange", T_INT,
-     offsetof(LineCode, mcodes[M_CODE_TOOLCHANGE]), READONLY},
-    {(char*)"mist", T_INT,
-     offsetof(LineCode, mcodes[M_CODE_MIST]), READONLY},
-    {(char*)"flood", T_INT,
-     offsetof(LineCode, mcodes[M_CODE_FLOOD]), READONLY},
-    {(char*)"overrides", T_INT,
-     offsetof(LineCode, mcodes[M_CODE_OVERRIDES]), READONLY},
-    {nullptr}
+    {const_cast<char*>("stopping"), T_INT,
+     offsetof(LineCode, mcodes[M_CODE_STOPPING]), READONLY, nullptr},
+    {const_cast<char*>("spindle"), T_INT,
+     offsetof(LineCode, mcodes[M_CODE_SPINDLE]), READONLY, nullptr},
+    {const_cast<char*>("toolchange"), T_INT,
+     offsetof(LineCode, mcodes[M_CODE_TOOLCHANGE]), READONLY, nullptr},
+    {const_cast<char*>("mist"), T_INT,
+     offsetof(LineCode, mcodes[M_CODE_MIST]), READONLY, nullptr},
+    {const_cast<char*>("flood"), T_INT,
+     offsetof(LineCode, mcodes[M_CODE_FLOOD]), READONLY, nullptr},
+    {const_cast<char*>("overrides"), T_INT,
+     offsetof(LineCode, mcodes[M_CODE_OVERRIDES]), READONLY, nullptr},
+    {}
 };
 
 static PyTypeObject LineCodeType = {
@@ -174,7 +174,7 @@ static double spindle_speed_programmed = 0.0;
 static InterpBase *pinterp;
 #define interp_new (*pinterp)
 
-#define callmethod(o, m, f, ...) PyObject_CallMethod((o), static_cast<char*>(m), static_cast<char*>(f), ## __VA_ARGS__)
+#define callmethod(o, m, f, ...) PyObject_CallMethod((o), const_cast<char*>(m), const_cast<char*>(f), ## __VA_ARGS__)
 
 #define SUPPRESS_NEXT_LINE_CB
 // Experiment: suppress maybe new line since we don't need it for non-axis GUIs
