@@ -46,12 +46,12 @@ static PyObject *int_array(int *arr, int sz) {
     return res;
 }
 
-typedef struct {
+struct LineCode {
     PyObject_HEAD
     double settings[ACTIVE_SETTINGS];
     int gcodes[ACTIVE_G_CODES];
     int mcodes[ACTIVE_M_CODES];
-} LineCode;
+};
 
 static PyObject *LineCode_gcodes(LineCode *l) {
     return int_array(l->gcodes, ACTIVE_G_CODES);
