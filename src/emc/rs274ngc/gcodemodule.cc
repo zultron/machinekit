@@ -1093,7 +1093,7 @@ static PyMethodDef gcode_methods[] = {
         "Convert an arc to straight segments"},
     {"max_glcanon_lines", (PyCFunction)get_set_max_glcanon_lines, METH_VARARGS,
      "Get maximum number of lines to preview; pass integer argument to set"},
-    {nullptr}
+    {}
 };
 
 PyMODINIT_FUNC
