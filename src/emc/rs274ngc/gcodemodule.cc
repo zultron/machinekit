@@ -162,7 +162,7 @@ static int interp_error;
 static int last_sequence_number;
 static bool metric;
 static double _pos_x, _pos_y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w;
-EmcPose tool_offset;
+static EmcPose tool_offset;
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
 
@@ -738,7 +738,7 @@ static bool check_abort() {
 
 USER_DEFINED_FUNCTION_TYPE USER_DEFINED_FUNCTION[USER_DEFINED_FUNCTION_NUM];
 
-CANON_MOTION_MODE motion_mode;
+static CANON_MOTION_MODE motion_mode;
 void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance) { motion_mode = mode; }
 void SET_MOTION_CONTROL_MODE(double tolerance) { }
 void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode) { motion_mode = mode; }
@@ -854,7 +854,7 @@ static PyObject *rs274_calc_extents(PyObject *self, PyObject *args) {
         PyObject *si = PyTuple_GetItem(args, i);
         if(!si) return nullptr;
         int j;
-        double xs, ys, zs, xe, ye, ze, xt, yt, zt;
+        double xs=0, ys=0, zs=0, xe=0, ye=0, ze=0, xt=0, yt=0, zt=0;
         for(j=0; j<PySequence_Length(si); j++) {
             PyObject *sj = PySequence_GetItem(si, j);
             PyObject *unused;

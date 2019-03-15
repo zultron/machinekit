@@ -807,7 +807,6 @@ int GET_EXTERNAL_SELECTED_TOOL_SLOT() { return 0; }
 int GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE() {return 1;}
 void START_SPEED_FEED_SYNCH(double sync, bool vel)
 {PRINT2("START_SPEED_FEED_SYNC(%f,%d)\n", sync, vel);}
-CANON_MOTION_MODE motion_mode;
 
 int GET_EXTERNAL_DIGITAL_INPUT(int index, int def) { return def; }
 int GET_EXTERNAL_ORIENT_TIMEOUT() { return 0; }
