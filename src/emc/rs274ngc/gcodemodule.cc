@@ -174,7 +174,7 @@ static double spindle_speed_programmed = 0.0;
 static InterpBase *pinterp;
 #define interp_new (*pinterp)
 
-#define callmethod(o, m, f, ...) PyObject_CallMethod((o), (char*)(m), (char*)(f), ## __VA_ARGS__)
+#define callmethod(o, m, f, ...) PyObject_CallMethod((o), static_cast<char*>(m), static_cast<char*>(f), ## __VA_ARGS__)
 
 #define SUPPRESS_NEXT_LINE_CB
 // Experiment: suppress maybe new line since we don't need it for non-axis GUIs
@@ -834,7 +834,6 @@ out_error:
 
     return retval;
 }
-
 
 static int maxerror = -1;
 
