@@ -256,7 +256,7 @@ pin out s32 orient_targetband; //within this many encoder counts of target, we c
 pin in u32 orient_targetband_override;  // PP can set range in +/- encoder counts where we consider the spindle orientation is done
 
 
-pin out float spindle_orient_error; // 0 -> oriented within tolerance, -1 or 1 direction of error if not oriented  TODO: rename this??
+pin out float spindle_orient_error;  // 0 -> oriented within tolerance, -1 or 1 direction of error if not oriented  TODO: rename this??
 pin out bit orienting_stuck;  //goes hi when we detect spindle is not responding
 pin out float orienting_stuck_timer;  //time since last movement seen on encoder during orient
 pin out float orienting_boost; //RPM boost value increases ORIENT_BOOST_RPM every ORIENT_BOOST_PERIOD when active
