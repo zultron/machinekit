@@ -89,7 +89,7 @@ author "";
 //          orient-fault            feedback to linuxcnc for fault code.  Connect to motion.spindle-orient-fault
 //          spindle-on-thur         feedthrough of forward-in when not indexing, set by this comp when indexing mode 
 //          spindle-forward-thur    feedthrough of spindle-on when not indexing, set by this comp when indexing mode
-//          spindle-orient-error    0 -> oriented, -1 or 1 error direction if not oriented
+//          orient-status    0 -> oriented, -1 or 1 error direction if not oriented
 // Bi-directional:
 //          zindex-enable           used to set spindle encoder's "index-enable" bit to align encoder counts to zero at next z-index
 //         orient-set-bt30           when set starts bt30 indexing mode 
@@ -256,7 +256,7 @@ pin out s32 orient_targetband; //within this many encoder counts of target, we c
 pin in u32 orient_targetband_override;  // PP can set range in +/- encoder counts where we consider the spindle orientation is done
 
 
-pin out float spindle_orient_error; // 0 -> oriented within tolerance, -1 or 1 direction of error if not oriented  TODO: rename this??
+pin out float orient_status; // 0 -> oriented within tolerance, -1 or 1 direction of error if not oriented  TODO: rename this??
 pin out bit orienting_stuck;  //goes hi when we detect spindle is not responding
 pin out float orienting_stuck_timer;  //time since last movement seen on encoder during orient
 pin out float orienting_boost; //RPM boost value increases ORIENT_BOOST_RPM every ORIENT_BOOST_PERIOD when active
@@ -759,7 +759,7 @@ float angle_offset;
             else
                 orient_targetband = ORIENT_TARGETBAND;
             orient_on_target = 0;
-            spindle_orient_error = 0;
+            orient_status = 0;
             //if (motor_hz_per_cmd_hz == 0.0) 
             //    hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
             //else
@@ -888,14 +888,14 @@ float angle_offset;
                     if (orient_good_timer >= ORIENT_TARGETBAND_TIME) //subject to reset/restart at very end of this comp when vfd_freq_cmd isn't stable.
                         oriented = 1;
                 }
-                spindle_orient_error = 0;
+                orient_status = 0;
             }
             else {
                 if (enc_err > 0) {
-                    spindle_orient_error = 1;
+                    orient_status = 1;
                 }
                 else {
-                    spindle_orient_error = -1;
+                    orient_status = -1;
                 }
                 orient_good_timer = 0.0;
                 orient_on_target = 0;
@@ -952,17 +952,17 @@ float angle_offset;
             }
 
             //since orient_on_target is using tighter tolerance than orient_targetband, we
-            //have to deal with spindle_orient_error seperately
+            //have to deal with orient_status seperately
             if (spindle_state == SPINDLE_STATE_LOCKED) {
                 if (enc_err <= -1 * iabs(orient_targetband))
-                    spindle_orient_error = -1;
+                    orient_status = -1;
                 else if (enc_err >= iabs(orient_targetband))
-                    spindle_orient_error = 1;
+                    orient_status = 1;
                 else
-                    spindle_orient_error = 0; 
+                    orient_status = 0; 
             }
             else {
-                spindle_orient_error = 0; //lie it's all OK until as not error yet since orient hasn't finished
+                orient_status = 0; //lie it's all OK until as not error yet since orient hasn't finished
             }
 
             if(iabs(enc_err) <= (orient_targetband/2)){ //if indexing feedback is good for ORIENT_TARGETBAND_TIME, _AND_ vfd_freq_cmd is stable too, call it done
