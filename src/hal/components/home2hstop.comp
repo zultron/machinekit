@@ -11,6 +11,7 @@ author "Tormach";
 // bit      limit-enable            from UI setting
 // float    joint-pos-fb            from axis.N.joint-pos-fb
 // bit      hlfb            from "High Level Feed Back" of CPM
+// float    backoff                 amount to backoff from hardstop (default 0)
 
 // Params:
 //          latch-vel               units/s - used for travel direction after hitting hard stop
@@ -47,6 +48,8 @@ pin in bit hlfb;
 
 // from motion axis.N.joint-pos-fb
 pin in float joint-pos-fb;
+
+pin in float backoff = 0;
 
 // outputs
 pin out bit brake-release;   
@@ -450,7 +453,7 @@ FUNCTION(_) {
     }
     else if (home_state == HOME_FALL_SEARCH_START) { //linuxcnc saw homing (limit) switch actuated, reversed dir and is moving off limit switch at LATCHVEL
         //position_at_fall_search_start = joint_pos_fb;
-        backoff_pos = joint_pos_fb + (fsignof(latch_vel) * .1); //move .1" from Hard stop.  Linuxcnc will again put HOME_OFFSET here
+        backoff_pos = joint_pos_fb + (fsignof(latch_vel) * backoff); //move .1" from Hard stop.  Linuxcnc will again put HOME_OFFSET here
         limit_out = TRUE; //we can't lie 'till next linuxcnc state we fell off limit switch; is any movement here is an issue to destroy hardstop location detection??!! 
     }
     else if (home_state == HOME_FALL_SEARCH_WAIT) { 
