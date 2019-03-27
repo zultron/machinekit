@@ -5616,7 +5616,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
       if (FEATURE(LATHE_TOOLCHANGE)) {
 	  if (block->h_number < 100)//Future change required for using tools greater than 99
 	      geo_offset_register = block->h_number + 10000;
-	  else if (block->h_flag < 10000) {
+	  else if (block->h_number < 10000) {
 	      geo_offset_register = floor(block->h_number/100) + 10000;
 	      wear_offset_register = block->h_number % 100;
 	  }
