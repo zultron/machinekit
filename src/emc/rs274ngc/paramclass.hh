@@ -16,7 +16,13 @@
  *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef PARAM_CLASS_HH
+#define PARAM_CLASS_HH
+
 #include <boost/python/list.hpp>
+
+#include <interp_internal.hh>
+struct Interp;
 
 struct ParamClass {
 
@@ -33,3 +39,5 @@ struct ParamClass {
 };
 
 extern void export_ParamClass();
+
+#endif
