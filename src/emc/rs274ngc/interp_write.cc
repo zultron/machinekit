@@ -274,13 +274,15 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.flags[GM_FLAG_IJK_ABS] = (_setup.ijk_distance_mode == MODE_ABSOLUTE);
     state.flags[GM_FLAG_DIAMETER_MODE] = (_setup.lathe_diameter_mode);
 
-
     state.fields[GM_FIELD_M_MODES_4] = (block == NULL) ? -1 : block->m_modes[4];
 
     state.flags[GM_FLAG_SPINDLE_ON] = !(_setup.spindle_turning != CANON_STOPPED);
     state.flags[GM_FLAG_SPINDLE_CW] = (_setup.spindle_turning == CANON_CLOCKWISE);
 
     state.fields[GM_FIELD_TOOLCHANGE] = (block == NULL) ? -1 : block->m_modes[6];
+
+    state.fields[GM_FIELD_POCKET_NUMBER] = (_setup.current_pocket);
+    state.fields[GM_FIELD_TOOL_NUMBER] = (_setup.tool_table[_setup.current_pocket].toolno);
 
     state.flags[GM_FLAG_MIST] = (_setup.mist) ;
     state.flags[GM_FLAG_FLOOD] = (_setup.flood);
