@@ -392,14 +392,15 @@ function _ "Tormach Spindle HAL Component M200";
 #define VFD_MODE_RAPIDTURN 1
 #define VFD_MODE_HISPEED 2
 #define VFD_MODE_ORIENT 3
+#define VFD_MODE_NONE 4
 
 static float hz_per_cmd_hz; //this is ratio of ECM freq to resultant VFD freq out to motor, nominally 20 or 200 in orient mode
 static float min_speed_freq_cmd;
 static float max_speed_freq_cmd;
 static unsigned int vfd_mode;
-static unsigned int last_vfd_mode;   //used to detect vfd_mode change, and turns on the vfd_run_inhibit_timer
+static unsigned int last_vfd_mode = VFD_MODE_NONE;   //used to detect vfd_mode change, and turns on the vfd_run_inhibit_timer
 static float vfd_run_inhibit_timer;  //this timer counts down. while active (>0.0) it means VFD "RUN" pin will not be asserted
-
+static float stuck_delay; //Is either (ORIENT_LONG_ORIENT_TIME) OR (ORIENT_LONG_ORIENT_TIME + VFD_RUN_DELAY).  Time that must pass before we start yet another timer to decide if orienting_stuck should be set.
 
 #define FILTER_LENGTH (16)
 static signed int firstFlag = 0;
@@ -759,6 +760,9 @@ float angle_offset;
             oriented = 0;
             orient_P2 = 0; //start at "PID 1" values
             orient_fault = 0; //clear last error, if any
+            orienting_stuck = 0;
+            orient_timer = 0.0;
+            stuck_delay = ORIENT_LONG_ORIENT_TIME; 
             orient_vfd_delay_timer = VFD_CMD_FREQ_DELAY + fperiod;  //start timer always to avoid vfd-cmd-freq glitch from PID 
             if (orient_targetband_override != 0)
                 orient_targetband = orient_targetband_override;
@@ -974,14 +978,15 @@ float angle_offset;
             //have to deal with orient_status separately
             if (spindle_state == SPINDLE_STATE_LOCKED) {
                 if (enc_err <= -1 * iabs(orient_targetband))
-                    orient_status = -1.0;
+                    orient_status = enc_err; //SLP DEBUG test to simply return enc_err restore this -1.0;
                 else if (enc_err >= iabs(orient_targetband))
-                    orient_status = 1.0;
+                    orient_status = enc_err; //SLP restore this 1.0;
                 else
                     orient_status = 0.0; 
             }
-            else {
-                orient_status = 0; //lie it's all OK until as not error yet since orient hasn't finished
+            else { //presently setting to "invalid" number incase ATC code samples me at "wrong" time for this variable.  It'll generate a fault as he's looking for it to be zero or not.
+                    //DEBUG statements in .ngc files are logging the return ... if we see this MAGIC NUMBER, then we know it was sampled at wrong time
+                orient_status = -.456789;//SLP return to 0 //lie it's all OK until as not error yet since orient hasn't finished 
             }
 
             if(iabs(enc_err) <= (orient_targetband/2)){ //if indexing feedback is good for ORIENT_TARGETBAND_TIME, _AND_ vfd_freq_cmd is stable too, call it done
@@ -1000,8 +1005,7 @@ float angle_offset;
 //Debug                if (spindle_state == SPINDLE_STATE_LOCKED)
 //Debug                    orient_to = 1; //abuse this pin to indicate holding error
             }
-
-                if((iabs(enc_err) > (orient_targetband/2)) && (orient_timer > ORIENT_LONG_ORIENT_TIME)) {
+                if((iabs(enc_err) > (orient_targetband/2)) && (orient_timer > stuck_delay)) {
                 if(!orienting_stuck) {
                     orienting_stuck_timer += fperiod;
                     if (orienting_stuck_timer >= ORIENT_STUCK_PREAMBLE_TIME) {
@@ -1239,34 +1243,55 @@ float angle_offset;
 
     // DEBUG for orient speed_out = feedback_spindle_rpm;  //clobbers "at-speed" stuff above, NOT for shipping m200 code!
 
-    if(last_vfd_mode != vfd_mode) //not that on power up or first thur, last_vfd_mode will = vfd_mode = 0, but then K2 contactor provides needed delay
-    {
-        last_vfd_mode = vfd_mode;
+    if(last_vfd_mode != vfd_mode) {
+        float local_variable = fabs(feedback_spindle_rpm); //if no encoder, use this
+        if(orient_encoder_cpr != 1.0 && orient_encoder_cpr != 0.0) 
+            local_variable = fabs(encoder_velocity); //if encoder, use this
+        if (local_variable < RPM_CLOSE_TO_ZERO) { //wait for any pending spindle motion to be "Zero" before switching modes
+            last_vfd_mode = vfd_mode;
+            switch (vfd_mode) {
+            default:
+            case VFD_MODE_DEFAULT:
+                vfd_mode0 = 0;
+                vfd_mode1 = 0;
+                break;
+            case VFD_MODE_RAPIDTURN:
+                vfd_mode0 = 1;
+                vfd_mode1 = 0;
+                break;
+            case VFD_MODE_HISPEED:
+                vfd_mode0 = 0;
+                vfd_mode1 = 1;
+                break;
+            case VFD_MODE_ORIENT:
+                vfd_mode0 = 1;
+                vfd_mode1 = 1;
+                break;
+            }
+        }
+        else {
+            target_computed = 0; //force new orient target to be computed, as spindle is moving
+        }
+        spindle_on_thur = 0; //over ride any previous "on" of this pin.  If was normal M3 S1000 "running", then this decels drive using "normal" VFD curves
         vfd_run_inhibit_timer = VFD_RUN_DELAY + fperiod;
+        stuck_delay = ORIENT_LONG_ORIENT_TIME + VFD_RUN_DELAY; //VFD_RUN_DELAY must expire before deciding ORIENT_LONG_ORIENT_TIME has passed
     }
-    
-    if (vfd_run_inhibit_timer > 0.0) { //if timer running
-        vfd_run_inhibit_timer -= fperiod;
-        spindle_on_thur = 0;    //over ride any previous "on" of this pin    
+    else {
+        if (vfd_run_inhibit_timer > 0.0) { //if timer running
+            vfd_run_inhibit_timer -= fperiod;
+            spindle_on_thur = 0;    //over ride any previous "on" of this pin    
+            if ((spindle_state == SPINDLE_STATE_ORIENTING) || (spindle_state == SPINDLE_STATE_LOCKED)) {
+                //none of these timers should be tallying during VFD RUN inhibit active
+                orienting_stuck_timer = 0.0; 
+                orienting_boost = 0.0;
+                vfd_freq_cmd = VFD_BIPOLAR_FREQ_OFFSET;
+            }
+            else {
+                vfd_freq_cmd = 0;
+            }
+        }
     }
 
-    switch (vfd_mode) {
-        default: 
-        case VFD_MODE_DEFAULT:
-            vfd_mode0 = 0;
-            vfd_mode1 = 0;
-            break;
-        case VFD_MODE_RAPIDTURN:
-            vfd_mode0 = 1;
-            vfd_mode1 = 0;
-            break;
-        case VFD_MODE_HISPEED:
-            vfd_mode0 = 0;
-            vfd_mode1 = 1;
-            break;
-        case VFD_MODE_ORIENT:
-            vfd_mode0 = 1;
-            vfd_mode1 = 1;
-            break;
-    }
 }
+
+

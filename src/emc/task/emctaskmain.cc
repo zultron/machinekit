@@ -2857,11 +2857,12 @@ static int emcTaskExecute(void)
 	STEPPING_CHECK(); // not sure
 	switch (emcStatus->motion.spindle.orient_state) {
 	case EMCMOT_ORIENT_NONE:
+        rcs_print("wait for orient complete: nothing to do\n");
 	case EMCMOT_ORIENT_COMPLETE:
 	    emcStatus->task.execState = EMC_TASK_EXEC_DONE;
 	    emcStatus->task.delayLeft = 0;
 	    emcTaskEager = 1;
-	    rcs_print("wait for orient complete: nothing to do\n");
+	    rcs_print("orient completed\n");
 	    break;
 
 	case EMCMOT_ORIENT_IN_PROGRESS:
