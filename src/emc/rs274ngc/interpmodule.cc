@@ -678,7 +678,7 @@ static inline int get_length_units (Interp &interp)  {
     return interp._setup.length_units;
 }
 static inline void set_length_units(Interp &interp, int value)  {
-    interp._setup.length_units = value;
+    interp._setup.length_units = static_cast<CANON_UNITS>(value);
 }
 static inline int get_loggingLevel (Interp &interp)  {
     return interp._setup.loggingLevel;
@@ -702,7 +702,7 @@ static inline int get_plane (Interp &interp)  {
     return interp._setup.plane;
 }
 static inline void set_plane(Interp &interp, int value)  {
-    interp._setup.plane = value;
+    interp._setup.plane = static_cast<CANON_PLANE>(value);
 }
 static inline int get_pockets_max (Interp &interp)  {
     return interp._setup.pockets_max;
@@ -750,7 +750,7 @@ static inline int get_speed_feed_mode (Interp &interp)  {
     return interp._setup.speed_feed_mode;
 }
 static inline void set_speed_feed_mode(Interp &interp, int value)  {
-    interp._setup.speed_feed_mode = value;
+    interp._setup.speed_feed_mode = static_cast<CANON_SPEED_FEED_MODE>(value);
 }
 static inline int get_spindle_mode (Interp &interp)  {
     return interp._setup.spindle_mode;
@@ -762,7 +762,7 @@ static inline int get_spindle_turning (Interp &interp)  {
     return interp._setup.spindle_turning;
 }
 static inline void set_spindle_turning(Interp &interp, int value)  {
-    interp._setup.spindle_turning = value;
+    interp._setup.spindle_turning = static_cast<CANON_DIRECTION>(value);
 }
 static inline int get_stack_index (Interp &interp)  {
     return interp._setup.stack_index;

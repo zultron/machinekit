@@ -516,7 +516,7 @@ void CANON_UPDATE_END_POINT(double x, double y, double z,
 
 /* motion control mode is used to signify blended v. stop-at-end moves.
    Set to 0 (invalid) at start, so first call will send command out */
-static CANON_MOTION_MODE canonMotionMode = 0;
+static CANON_MOTION_MODE canonMotionMode = CANON_EXACT_STOP;
 
 /* motion path-following tolerance is used to set the max path-following
    deviation during CANON_CONTINUOUS.
