@@ -2743,45 +2743,29 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
 
 
 /*
- * given two double arrays representing interpreter settings as stored in
- * _setup.active_settings, construct a G-code sequence to synchronize their state.
- */
-int Interp::gen_settings(std::vector<double> &current, std::vector<double> &saved, std::string &cmd, bool force_speed)
-{
-    int i;
-    char buf[LINELEN];
-    for (i = 0; i < ACTIVE_SETTINGS; i++) {
-	if ((saved[i] != current[i]) || (2 == i && force_speed)) {
-	    switch (i) {
-	    case 0: break; // sequence_number - no point in restoring
-	    case 1:
-		snprintf(buf,sizeof(buf)," F%.1f", saved[i]);
-		cmd+=buf;
-		break;
-	    case 2:
-		snprintf(buf,sizeof(buf)," S%.0f", saved[i]);
-		cmd+=buf;
-		break;
-	    }
-	}
-    }
-    return INTERP_OK;
-}
-
-
-/*
  * given two int arrays representing interpreter settings as stored in
  * _setup.active_g_codes, construct a G-code sequence to synchronize their state.
+ *
+ * similarly do the same for F and S words, but they have some dependency on G codes so
+ * do this all within a single contained method.
+ *
  */
-int Interp::gen_g_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd)
+int Interp::gen_g_codes(
+	std::vector<int> &current,
+	std::vector<int> &saved,
+	std::vector<double> &current_settings,
+	std::vector<double> &saved_settings,
+	std::string &cmd)
 {
-    int i, val;
+    int ii, val;
     char buf[LINELEN];
-    for (i = 0; i < ACTIVE_G_CODES; i++) {
-	val = saved[i];
-	if (val != current[i]) {
+    bool spindle_mode_restored = false;
 
-	    switch (i) {
+    for (ii = 0; ii < ACTIVE_G_CODES; ii++) {
+	val = saved[ii];
+	if (val != current[ii]) {
+
+	    switch (ii) {
 	    case 0:
 		// // sequence_number - no point in restoring
 		break;
@@ -2796,6 +2780,11 @@ int Interp::gen_g_codes(std::vector<int> &current, std::vector<int> &saved, std:
 	    case 1: // - motion_mode
 		// restoring the motion mode is a real bad idea to start with
 		break;
+
+	    case 13: // - spindle mode
+                spindle_mode_restored = true;
+                // purposeful fall through!!
+
 	    case 3: // - plane
 	    case 4: // - cutter compensation
 	    case 6: // - distance mode
@@ -2803,11 +2792,9 @@ int Interp::gen_g_codes(std::vector<int> &current, std::vector<int> &saved, std:
 	    case 8: // - coordinate system
 	    case 9: // - tool offset (G43/G49)
 	    case 10: // - retract mode
-	    case 11: // - control mode
-	    case 13: // - spindle mode
+	    case 11: // - control mode    
 	    case 14: // - ijk distance mode
 	    case 15: // - lathe diameter mode
-
 		if (val != -1) { // FIXME not sure if this is correct!
 		    // if this was set in sub, and unset in caller, it will
 		    // not be reset
@@ -2819,12 +2806,32 @@ int Interp::gen_g_codes(std::vector<int> &current, std::vector<int> &saved, std:
 		    cmd += buf;
 		} else {
 		    // so complain rather loudly
-		    MSG("------ gen_g_codes BUG: index %d = -1!!\n",i);
+		    MSG("------ gen_g_codes BUG: index %d = -1!!\n", ii);
 		}
 		break;
 	    }
 	}
     }
+
+    // If G96 spindle mode is present for constant surface speed, you must have an S word
+    // also even if S appears to be the same between saved and current vectors.
+
+    for (ii = 0; ii < ACTIVE_SETTINGS; ii++) {
+	if ((saved_settings[ii] != current_settings[ii]) || (2 == ii && spindle_mode_restored)) {
+	    switch (ii) {
+	    case 0: break; // sequence_number - no point in restoring
+	    case 1:
+		snprintf(buf,sizeof(buf)," F%.1f", saved_settings[ii]);
+		cmd+=buf;
+		break;
+	    case 2:
+		snprintf(buf,sizeof(buf)," S%.0f", saved_settings[ii]);
+		cmd+=buf;
+		break;
+	    }
+	}
+    }
+
     return INTERP_OK;
 }
 
@@ -2911,14 +2918,7 @@ int Interp::gen_restore_cmd(ModalState &state,
 
     //M codes should not be restored during an abort
     int res_m = 0;
-    int res_g = gen_g_codes(state.m_codes, saved_g, cmd);
-
-    // If G96 spindle mode is present for constant surface speed, you must have an S word
-    // also.
-    bool force_speed = false;
-    if (cmd.find("G96") != std::string::npos) {
-        force_speed = true;
-    }
+    int res_g = gen_g_codes(state.m_codes, saved_g, state.settings, saved_settings, cmd);
 
     // If G43 is present for lathes, you must have an H word
     if (FEATURE(LATHE_TOOLCHANGE)) {
@@ -2929,10 +2929,10 @@ int Interp::gen_restore_cmd(ModalState &state,
         }
     }   
 
-    int res_settings = gen_settings(state.settings, saved_settings, cmd, force_speed);
-    if (res_settings || res_m || res_g) {
+    if (res_m || res_g) {
         return INTERP_ERROR;
     }
+    
     return INTERP_OK;
 }
 
@@ -2993,9 +2993,9 @@ int Interp::restore_settings(setup_pointer settings,
 		 settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]/10);
         CHKS(execute(buf) != INTERP_OK, _("M7x: restore_settings G20/G21 failed: '%s'"), cmd.c_str());
     }
-    gen_settings(settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings,cmd,false);
     gen_m_codes(settings->modal_state.m_codes, settings->sub_context[from_level].modal_state.m_codes,cmd);
-    gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,cmd);
+    gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,
+                settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings, cmd);
 
     if (cmd.length() > 0) {
         // the sequence can be multiline, separated by nl
@@ -3074,8 +3074,9 @@ int Interp::restore_from_tag(StateTag const &tag)
         while ((s = strtok_r(last, "\n", &last)) != NULL) {
             int status = execute(s);
             if (status != INTERP_OK) {
-                char currentError[LINELEN+1];
-                strcpy(currentError,getSavedError());
+                char currentError[LINELEN + 1];
+                strcpy(currentError, getSavedError());
+                logDebug("Interp::restore_from_tag - FAILED with status=%d ('%s') trying to execute line: %s", status, currentError, s);
                 CHKS(status, _("Failed to restore interp state on abort '%s': %s"), s, currentError);
             }
         }

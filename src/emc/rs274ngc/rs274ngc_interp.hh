@@ -471,8 +471,9 @@ public:
     int free_named_parameters(context_pointer frame);
  int save_settings(setup_pointer settings);
  int restore_settings(setup_pointer settings, int from_level);
- int gen_settings(std::vector<double> &current, std::vector<double> &saved, std::string &cmd, bool force_speed);
- int gen_g_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd);
+ int gen_g_codes(std::vector<int> &current, std::vector<int> &saved,
+                 std::vector<double> &current_settings, std::vector<double> &saved_settings,
+                 std::string &cmd);
  int gen_m_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd);
  int restore_from_tag(StateTag const &tag);
  int gen_restore_cmd(ModalState &state,
