@@ -673,39 +673,39 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_X:  // current position
-	*value = _setup.current_x;
+	*value = _setup.current[X];
 	break;
 
     case NP_Y:  // current position
-	*value = _setup.current_y;
+	*value = _setup.current[Y];
 	break;
 
     case NP_Z:  // current position
-	*value = _setup.current_z;
+	*value = _setup.current[Z];
 	break;
 
     case NP_A:  // current position
-	*value = _setup.AA_current;
+	*value = _setup.current[A];
 	break;
 
     case NP_B:  // current position
-	*value = _setup.BB_current;
+	*value = _setup.current[B];
 	break;
 
     case NP_C:  // current position
-	*value = _setup.CC_current;
+	*value = _setup.current[C];
 	break;
 
     case NP_U:  // current position
-	*value = _setup.u_current;
+	*value = _setup.current[U];
 	break;
 
     case NP_V:  // current position
-	*value = _setup.v_current;
+	*value = _setup.current[V];
 	break;
 
     case NP_W:  // current position
-	*value = _setup.w_current;
+	*value = _setup.current[W];
 	break;
 
     case NP_PROBE_RESULT:  // expected probe trip completed

@@ -169,8 +169,8 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
 #endif
         CHKS((block->radius_flag || block->theta_flag), _("Cannot use polar coordinates with G53"));
 
-        double cx = s->current_x;
-        double cy = s->current_y;
+        double cx = s->current[X];
+        double cy = s->current[Y];
         rotate(&cx, &cy, s->rotation_xy);
 
         if(block->x_flag) {
@@ -190,61 +190,61 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         if(block->z_flag) {
             *pz = block->z_number - s->origin_offset_z - s->axis_offset_z - s->tool_offset.tran.z;
         } else {
-            *pz = s->current_z;
+            *pz = s->current[Z];
         }
 
         if(block->a_flag) {
             if(s->a_axis_wrapped) {
                 CHP(unwrap_rotary(AA_p, block->a_number, 
                                   block->a_number - s->AA_origin_offset - s->AA_axis_offset - s->tool_offset.a,
-                                  s->AA_current, 'A'));
+                                  s->current[A], 'A'));
             } else {
                 *AA_p = block->a_number - s->AA_origin_offset - s->AA_axis_offset;
             }
         } else {
-            *AA_p = s->AA_current;
+            *AA_p = s->current[A];
         }
 
         if(block->b_flag) {
             if(s->b_axis_wrapped) {
                 CHP(unwrap_rotary(BB_p, block->b_number, 
                                   block->b_number - s->BB_origin_offset - s->BB_axis_offset - s->tool_offset.b,
-                                  s->BB_current, 'B'));
+                                  s->current[B], 'B'));
             } else {
                 *BB_p = block->b_number - s->BB_origin_offset - s->BB_axis_offset;
             }
         } else {
-            *BB_p = s->BB_current;
+            *BB_p = s->current[B];
         }
 
         if(block->c_flag) {
             if(s->c_axis_wrapped) {
                 CHP(unwrap_rotary(CC_p, block->c_number, 
                                   block->c_number - s->CC_origin_offset - s->CC_axis_offset - s->tool_offset.c,
-                                  s->CC_current, 'C'));
+                                  s->current[C], 'C'));
             } else {
                 *CC_p = block->c_number - s->CC_origin_offset - s->CC_axis_offset;
             }
         } else {
-            *CC_p = s->CC_current;
+            *CC_p = s->current[C];
         }
 
         if(block->u_flag) {
             *u_p = block->u_number - s->u_origin_offset - s->u_axis_offset - s->tool_offset.u;
         } else {
-            *u_p = s->u_current;
+            *u_p = s->current[U];
         }
 
         if(block->v_flag) {
             *v_p = block->v_number - s->v_origin_offset - s->v_axis_offset - s->tool_offset.v;
         } else {
-            *v_p = s->v_current;
+            *v_p = s->current[V];
         }
 
         if(block->w_flag) {
             *w_p = block->w_number - s->w_origin_offset - s->w_axis_offset - s->tool_offset.w;
         } else {
-            *w_p = s->w_current;
+            *w_p = s->current[W];
         }
     } else if (s->distance_mode == MODE_ABSOLUTE) {
 
@@ -252,14 +252,14 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
             *px = block->x_number;
         } else {
             // both cutter comp planes affect X ...
-            *px = (comp && middle) ? s->program_x : s->current_x;
+            *px = (comp && middle) ? s->program_x : s->current[X];
         }
 
         if(block->y_flag) {
             *py = block->y_number;
         } else {
             // but only XY affects Y ...
-            *py = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y : s->current_y;
+            *py = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y : s->current[Y];
         }
 
         if(block->radius_flag && block->theta_flag) {
@@ -285,51 +285,51 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
             *pz = block->z_number;
         } else {
             // and only XZ affects Z.
-            *pz = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z : s->current_z;
+            *pz = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z : s->current[Z];
         }
 
         if(block->a_flag) {
             if(s->a_axis_wrapped) {
-                CHP(unwrap_rotary(AA_p, block->a_number, block->a_number, s->AA_current, 'A'));
+                CHP(unwrap_rotary(AA_p, block->a_number, block->a_number, s->current[A], 'A'));
             } else {
                 *AA_p = block->a_number;
             }
         } else {
-            *AA_p = s->AA_current;
+            *AA_p = s->current[A];
         }
 
         if(block->b_flag) {
             if(s->b_axis_wrapped) {
-                CHP(unwrap_rotary(BB_p, block->b_number, block->b_number, s->BB_current, 'B'));
+                CHP(unwrap_rotary(BB_p, block->b_number, block->b_number, s->current[B], 'B'));
             } else {
                 *BB_p = block->b_number;
             }
         } else {
-            *BB_p = s->BB_current;
+            *BB_p = s->current[B];
         }
 
         if(block->c_flag) {
             if(s->c_axis_wrapped) {
-                CHP(unwrap_rotary(CC_p, block->c_number, block->c_number, s->CC_current, 'C'));
+                CHP(unwrap_rotary(CC_p, block->c_number, block->c_number, s->current[C], 'C'));
             } else {
                 *CC_p = block->c_number;
             }
         } else {
-            *CC_p = s->CC_current;
+            *CC_p = s->current[C];
         }
 
-        *u_p = (block->u_flag) ? block->u_number : s->u_current;
-        *v_p = (block->v_flag) ? block->v_number : s->v_current;
-        *w_p = (block->w_flag) ? block->w_number : s->w_current;
+        *u_p = (block->u_flag) ? block->u_number : s->current[U];
+        *v_p = (block->v_flag) ? block->v_number : s->current[V];
+        *w_p = (block->w_flag) ? block->w_number : s->current[W];
 
     } else {                      /* mode is MODE_INCREMENTAL */
 
         // both cutter comp planes affect X ...
-        *px = (comp && middle) ? s->program_x: s->current_x;
+        *px = (comp && middle) ? s->program_x: s->current[X];
         if(block->x_flag) *px += block->x_number;
 
         // but only XY affects Y ...
-        *py = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y: s->current_y;
+        *py = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y: s->current[Y];
         if(block->y_flag) *py += block->y_number;
 
         if(block->radius_flag) {
@@ -353,25 +353,25 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         }
 
         // and only XZ affects Z.
-        *pz = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z: s->current_z;
+        *pz = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z: s->current[Z];
         if(block->z_flag) *pz += block->z_number;
 
-        *AA_p = s->AA_current;
+        *AA_p = s->current[A];
         if(block->a_flag) *AA_p += block->a_number;
 
-        *BB_p = s->BB_current;
+        *BB_p = s->current[B];
         if(block->b_flag) *BB_p += block->b_number;
 
-        *CC_p = s->CC_current;
+        *CC_p = s->current[C];
         if(block->c_flag) *CC_p += block->c_number;
 
-        *u_p = s->u_current;
+        *u_p = s->current[U];
         if(block->u_flag) *u_p += block->u_number;
 
-        *v_p = s->v_current;
+        *v_p = s->current[V];
         if(block->v_flag) *v_p += block->v_number;
 
-        *w_p = s->w_current;
+        *w_p = s->current[W];
         if(block->w_flag) *w_p += block->w_number;
     }
     return INTERP_OK;
@@ -427,7 +427,7 @@ int Interp::find_relative(double x1,     //!< absolute x position
   if(settings->a_axis_wrapped) {
       CHP(unwrap_rotary(AA_2, AA_1,
                         AA_1 - settings->AA_origin_offset - settings->AA_axis_offset - settings->tool_offset.a,
-                        settings->AA_current, 'A'));
+                        settings->current[A], 'A'));
   } else {
       *AA_2 = AA_1 - settings->AA_origin_offset - settings->AA_axis_offset;
   }
@@ -435,7 +435,7 @@ int Interp::find_relative(double x1,     //!< absolute x position
   if(settings->b_axis_wrapped) {
       CHP(unwrap_rotary(BB_2, BB_1,
                         BB_1 - settings->BB_origin_offset - settings->BB_axis_offset - settings->tool_offset.b,
-                        settings->BB_current, 'B'));
+                        settings->current[B], 'B'));
   } else {
       *BB_2 = BB_1 - settings->BB_origin_offset - settings->BB_axis_offset;
   }
@@ -443,7 +443,7 @@ int Interp::find_relative(double x1,     //!< absolute x position
   if(settings->c_axis_wrapped) {
       CHP(unwrap_rotary(CC_2, CC_1,
                         CC_1 - settings->CC_origin_offset - settings->CC_axis_offset - settings->tool_offset.c,
-                        settings->CC_current, 'C'));
+                        settings->current[C], 'C'));
   } else {
       *CC_2 = CC_1 - settings->CC_origin_offset - settings->CC_axis_offset;
   }
@@ -462,15 +462,15 @@ int Interp::find_current_in_system(setup_pointer s, int system,
                                    double *u, double *v, double *w) {
     double *p = s->parameters;
 
-    *x = s->current_x;
-    *y = s->current_y;
-    *z = s->current_z;
-    *a = s->AA_current;
-    *b = s->BB_current;
-    *c = s->CC_current;
-    *u = s->u_current;
-    *v = s->v_current;
-    *w = s->w_current;
+    *x = s->current[X];
+    *y = s->current[Y];
+    *z = s->current[Z];
+    *a = s->current[A];
+    *b = s->current[B];
+    *c = s->current[C];
+    *u = s->current[U];
+    *v = s->current[V];
+    *w = s->current[W];
 
     *x += s->axis_offset_x;
     *y += s->axis_offset_y;
@@ -531,15 +531,15 @@ int Interp::find_current_in_system_without_tlo(setup_pointer s, int system,
                                    double *u, double *v, double *w) {
     double *p = s->parameters;
 
-    *x = s->current_x;
-    *y = s->current_y;
-    *z = s->current_z;
-    *a = s->AA_current;
-    *b = s->BB_current;
-    *c = s->CC_current;
-    *u = s->u_current;
-    *v = s->v_current;
-    *w = s->w_current;
+    *x = s->current[X];
+    *y = s->current[Y];
+    *z = s->current[Z];
+    *a = s->current[A];
+    *b = s->current[B];
+    *c = s->current[C];
+    *u = s->current[U];
+    *v = s->current[V];
+    *w = s->current[W];
 
     *x += s->axis_offset_x;
     *y += s->axis_offset_y;

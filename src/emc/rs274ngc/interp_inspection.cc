@@ -4,32 +4,32 @@
 
 double &currentX(setup_pointer s)
 {
-  return s->current_x;
+  return s->current[X];
 }
 
 double &currentY(setup_pointer s)
 {
-  return s->current_y;
+  return s->current[Y];
 }
 
 double &currentZ(setup_pointer s)
 {
-  return s->current_z;
+  return s->current[Z];
 }
 
 double & currentA(setup_pointer s)
 {
-  return s->AA_current;
+  return s->current[A];
 }
 
 double & currentB(setup_pointer s)
 {
-  return s->BB_current;
+  return s->current[B];
 }
 
 double & currentC(setup_pointer s)
 {
-  return s->CC_current;
+  return s->current[C];
 }
 
 double & currentWorkOffsetX(setup_pointer s)

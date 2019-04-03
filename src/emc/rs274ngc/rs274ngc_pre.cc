@@ -1672,15 +1672,15 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
   CHKN(((command == NULL) && (_setup.file_pointer == NULL)),
       INTERP_FILE_NOT_OPEN);
 
-  _setup.parameters[5420] = _setup.current_x;
-  _setup.parameters[5421] = _setup.current_y;
-  _setup.parameters[5422] = _setup.current_z;
-  _setup.parameters[5423] = _setup.AA_current;
-  _setup.parameters[5424] = _setup.BB_current;
-  _setup.parameters[5425] = _setup.CC_current;
-  _setup.parameters[5426] = _setup.u_current;
-  _setup.parameters[5427] = _setup.v_current;
-  _setup.parameters[5428] = _setup.w_current;
+  _setup.parameters[5420] = _setup.current[X];
+  _setup.parameters[5421] = _setup.current[Y];
+  _setup.parameters[5422] = _setup.current[Z];
+  _setup.parameters[5423] = _setup.current[A];
+  _setup.parameters[5424] = _setup.current[B];
+  _setup.parameters[5425] = _setup.current[C];
+  _setup.parameters[5426] = _setup.current[U];
+  _setup.parameters[5427] = _setup.current[V];
+  _setup.parameters[5428] = _setup.current[W];
 
   if(_setup.file_pointer)
   {
@@ -2094,16 +2094,16 @@ int Interp::synch()
   char file_name[LINELEN];
 
   _setup.control_mode = GET_EXTERNAL_MOTION_CONTROL_MODE();
-  _setup.AA_current = GET_EXTERNAL_POSITION_A();
-  _setup.BB_current = GET_EXTERNAL_POSITION_B();
-  _setup.CC_current = GET_EXTERNAL_POSITION_C();
+  _setup.current[A] = GET_EXTERNAL_POSITION_A();
+  _setup.current[B] = GET_EXTERNAL_POSITION_B();
+  _setup.current[C] = GET_EXTERNAL_POSITION_C();
   _setup.current_pocket = GET_EXTERNAL_TOOL_SLOT();
-  _setup.current_x = GET_EXTERNAL_POSITION_X();
-  _setup.current_y = GET_EXTERNAL_POSITION_Y();
-  _setup.current_z = GET_EXTERNAL_POSITION_Z();
-  _setup.u_current = GET_EXTERNAL_POSITION_U();
-  _setup.v_current = GET_EXTERNAL_POSITION_V();
-  _setup.w_current = GET_EXTERNAL_POSITION_W();
+  _setup.current[X] = GET_EXTERNAL_POSITION_X();
+  _setup.current[Y] = GET_EXTERNAL_POSITION_Y();
+  _setup.current[Z] = GET_EXTERNAL_POSITION_Z();
+  _setup.current[U] = GET_EXTERNAL_POSITION_U();
+  _setup.current[V] = GET_EXTERNAL_POSITION_V();
+  _setup.current[W] = GET_EXTERNAL_POSITION_W();
   _setup.feed_rate = GET_EXTERNAL_FEED_RATE();
   _setup.flood = GET_EXTERNAL_FLOOD();
   _setup.length_units = GET_EXTERNAL_LENGTH_UNIT_TYPE();

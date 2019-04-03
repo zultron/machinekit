@@ -24,26 +24,21 @@
 #pragma GCC diagnostic error "-Wmissing-field-initializers"
 
 setup_struct::setup_struct() :
+    current(),
     AA_axis_offset(0.0),
-    AA_current(0.0),
     AA_origin_offset(0.0),
     BB_axis_offset(0.0),
-    BB_current(0.0),
     BB_origin_offset(0.0),
     CC_axis_offset(0.0),
-    CC_current(0.0),
     CC_origin_offset(0.0),
 
     u_axis_offset(0.0),
-    u_current(0.0),
     u_origin_offset(0.0),
 
     v_axis_offset(0.0),
-    v_current(0.0),
     v_origin_offset(0.0),
 
     w_axis_offset(0.0),
-    w_current(0.0),
     w_origin_offset(0.0),
 
     modal_state(),
@@ -60,9 +55,6 @@ setup_struct::setup_struct() :
     control_mode(CANON_EXACT_STOP),
     current_pocket(0),
 
-    current_x (0.0),
-    current_y (0.0),
-    current_z (0.0),
     cutter_comp_radius (0.0),
     cutter_comp_orientation(0),
     cutter_comp_side(0),

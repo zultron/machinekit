@@ -28,6 +28,7 @@
 #include "interp_parameter_def.hh"
 #include "interp_fwd.hh"
 
+#include <coordinatetransform.hh>
 
 #define _(s) gettext(s)
 
@@ -589,20 +590,20 @@ struct setup_struct
 
   int get_toplevel_line_number();
 
+  PositionArray current;
+  //LocalToMachineTransform transform;
+
   // TODO PURGE
   double AA_axis_offset;        // A-axis g92 offset
-  double AA_current;            // current A-axis position
   double AA_origin_offset;      // A-axis origin offset
   double BB_axis_offset;        // B-axis g92offset
-  double BB_current;            // current B-axis position
   double BB_origin_offset;      // B-axis origin offset
   double CC_axis_offset;        // C-axis g92offset
-  double CC_current;            // current C-axis position
   double CC_origin_offset;      // C-axis origin offset
 
-  double u_axis_offset, u_current, u_origin_offset;
-  double v_axis_offset, v_current, v_origin_offset;
-  double w_axis_offset, w_current, w_origin_offset;
+  double u_axis_offset, u_origin_offset;
+  double v_axis_offset, v_origin_offset;
+  double w_axis_offset, w_origin_offset;
   // END PURGE
 
   ModalState modal_state;
@@ -626,12 +627,6 @@ struct setup_struct
   char blocktext[LINELEN];   // linetext downcased, white space gone
   CANON_MOTION_MODE control_mode;       // exact path or cutting mode
   int current_pocket;             // carousel slot number of current tool
-
-  // TODO PURGE
-  double current_x;             // current X-axis position
-  double current_y;             // current Y-axis position
-  double current_z;             // current Z-axis position
-  // END PURGE
 
   double cutter_comp_radius;    // current cutter compensation radius
   int cutter_comp_orientation;  // current cutter compensation tool orientation

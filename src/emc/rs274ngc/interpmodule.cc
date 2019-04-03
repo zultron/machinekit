@@ -310,10 +310,10 @@ static inline void set_toolchange_flag(Interp &interp, bool value)  {
     interp._setup.toolchange_flag = value;
 }
 static inline double get_u_current (Interp &interp)  {
-    return interp._setup.u_current;
+    return interp._setup.current[U];
 }
 static inline void set_u_current(Interp &interp, double value)  {
-    interp._setup.u_current = value;
+    interp._setup.current[U] = value;
 }
 static inline double get_AA_axis_offset (Interp &interp)  {
     return interp._setup.AA_axis_offset;
@@ -322,10 +322,10 @@ static inline void set_AA_axis_offset(Interp &interp, double value)  {
     interp._setup.AA_axis_offset = value;
 }
 static inline double get_AA_current (Interp &interp)  {
-    return interp._setup.AA_current;
+    return interp._setup.current[A];
 }
 static inline void set_AA_current(Interp &interp, double value)  {
-    interp._setup.AA_current = value;
+    interp._setup.current[A] = value;
 }
 static inline double get_AA_origin_offset (Interp &interp)  {
     return interp._setup.AA_origin_offset;
@@ -340,10 +340,10 @@ static inline void set_BB_axis_offset(Interp &interp, double value)  {
     interp._setup.BB_axis_offset = value;
 }
 static inline double get_BB_current (Interp &interp)  {
-    return interp._setup.BB_current;
+    return interp._setup.current[B];
 }
 static inline void set_BB_current(Interp &interp, double value)  {
-    interp._setup.BB_current = value;
+    interp._setup.current[B] = value;
 }
 static inline double get_BB_origin_offset (Interp &interp)  {
     return interp._setup.BB_origin_offset;
@@ -358,10 +358,10 @@ static inline void set_CC_axis_offset(Interp &interp, double value)  {
     interp._setup.CC_axis_offset = value;
 }
 static inline double get_CC_current (Interp &interp)  {
-    return interp._setup.CC_current;
+    return interp._setup.current[C];
 }
 static inline void set_CC_current(Interp &interp, double value)  {
-    interp._setup.CC_current = value;
+    interp._setup.current[C] = value;
 }
 static inline double get_CC_origin_offset (Interp &interp)  {
     return interp._setup.CC_origin_offset;
@@ -388,22 +388,22 @@ static inline void set_axis_offset_z(Interp &interp, double value)  {
     interp._setup.axis_offset_z = value;
 }
 static inline double get_current_x (Interp &interp)  {
-    return interp._setup.current_x;
+    return interp._setup.current[X];
 }
 static inline void set_current_x(Interp &interp, double value)  {
-    interp._setup.current_x = value;
+    interp._setup.current[X] = value;
 }
 static inline double get_current_y (Interp &interp)  {
-    return interp._setup.current_y;
+    return interp._setup.current[Y];
 }
 static inline void set_current_y(Interp &interp, double value)  {
-    interp._setup.current_y = value;
+    interp._setup.current[Y] = value;
 }
 static inline double get_current_z (Interp &interp)  {
-    return interp._setup.current_z;
+    return interp._setup.current[Z];
 }
 static inline void set_current_z(Interp &interp, double value)  {
-    interp._setup.current_z = value;
+    interp._setup.current[Z] = value;
 }
 static inline double get_cutter_comp_radius (Interp &interp)  {
     return interp._setup.cutter_comp_radius;
@@ -544,10 +544,10 @@ static inline void set_v_axis_offset(Interp &interp, double value)  {
     interp._setup.v_axis_offset = value;
 }
 static inline double get_v_current(Interp &interp)  {
-    return interp._setup.v_current;
+    return interp._setup.current[V];
 }
 static inline void set_v_current(Interp &interp, double value)  {
-    interp._setup.v_current = value;
+    interp._setup.current[V] = value;
 }
 static inline double get_v_origin_offset (Interp &interp)  {
     return interp._setup.v_origin_offset;
@@ -562,10 +562,10 @@ static inline void set_w_axis_offset(Interp &interp, double value)  {
     interp._setup.w_axis_offset = value;
 }
 static inline double get_w_current (Interp &interp)  {
-    return interp._setup.w_current;
+    return interp._setup.current[W];
 }
 static inline void set_w_current(Interp &interp, double value)  {
-    interp._setup.w_current = value;
+    interp._setup.current[W] = value;
 }
 static inline double get_w_origin_offset (Interp &interp)  {
     return interp._setup.w_origin_offset;

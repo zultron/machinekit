@@ -109,17 +109,17 @@ int Interp::inverse_time_rate_straight(double end_x,     //!< x coordinate of en
       cy = settings->program_y;
       cz = settings->program_z;
   } else {
-      cx = settings->current_x;
-      cy = settings->current_y;
-      cz = settings->current_z;
+      cx = settings->current[X];
+      cy = settings->current[Y];
+      cz = settings->current[Z];
   }
 
   length = find_straight_length(end_x, end_y, end_z,
                                 AA_end, BB_end, CC_end,
                                 u_end, v_end, w_end,
                                 cx, cy, cz,
-                                settings->AA_current, settings->BB_current, settings->CC_current,
-                                settings->u_current, settings->v_current, settings->w_current);
+                                settings->current[A], settings->current[B], settings->current[C],
+                                settings->current[U], settings->current[V], settings->current[W]);
 
   rate = std::max(0.1, (length * block->f_number));
   enqueue_SET_FEED_RATE(rate);
