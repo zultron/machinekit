@@ -38,13 +38,7 @@ double findMaxTangentAngle(double v_plan, double acc_limit, double cycle_time)
     //TODO somewhat redundant with findKinkAccel, should refactor
     double acc_margin = BLEND_ACC_RATIO_NORMAL * BLEND_KINK_FACTOR * acc_limit;
     double dx = v_plan / cycle_time;
-    if (dx > 0.0) {
-        return (acc_margin / dx);
-    } else {
-        tp_debug_print(" Velocity or period is negative!\n");
-        //Should not happen...
-        return TP_ANGLE_EPSILON;
-    }
+    return fabs(acc_margin / fmax(dx, TP_POS_EPSILON));
 }
 
 
@@ -57,12 +51,7 @@ double findMaxTangentAngle(double v_plan, double acc_limit, double cycle_time)
 double findKinkAccel(double kink_angle, double v_plan, double cycle_time)
 {
     double dx = v_plan / cycle_time;
-    if (dx > 0.0) {
-        return (dx * kink_angle);
-    } else {
-        rtapi_print_msg(RTAPI_MSG_ERR, "dx < 0 in KinkAccel\n");
-        return 0;
-    }
+    return fabs(dx * kink_angle);
 }
 
 
@@ -82,7 +71,7 @@ double fsign(double f)
 }
 
 /** negate a value (or not) based on a bool parameter */
-inline double negate(double f, int neg)
+static inline double negate(double f, int neg)
 {
     return (neg) ? -f : f;
 }
@@ -301,80 +290,73 @@ int checkTangentAngle(PmCircle const * const circ, SphericalArc const * const ar
 }
 
 
+/**
+ * Checks if two UNIT vectors are parallel to the given angle tolerance (in radians).
+ * @warning tol depends on the small angle approximation and will not be
+ * accurate for angles larger than about 10 deg. This function is meant for
+ * small tolerances!
+ */
+int pmCartCartParallel(PmCartesian const * const u1,
+                       PmCartesian const * const u2,
+                       double tol)
+{
+    double d_diff;
+    {
+        PmCartesian u_diff;
+        pmCartCartSub(u1, u2, &u_diff);
+        pmCartMagSq(&u_diff, &d_diff);
+    }
+
+#if defined(TP_DEBUG) && defined(TP_PEDANTIC)
+    print_json5_log_start(pmCartCartParallel, Check);
+    print_json5_double(d_diff);
+    print_json5_end_();
+#endif
+
+    return d_diff < tol;
+}
 
 /**
- * Check if two cartesian vectors are parallel.
+ * Checks if two UNIT vectors are anti-parallel to the given angle tolerance (in radians).
+ * @warning tol depends on the small angle approximation and will not be
+ * accurate for angles larger than about 10 deg. This function is meant for
+ * small tolerances!
+ */
+int pmCartCartAntiParallel(PmCartesian const * const u1,
+                           PmCartesian const * const u2,
+                           double tol)
+{
+    double d_sum;
+    {
+        PmCartesian u_sum;
+        pmCartCartAdd(u1, u2, &u_sum);
+        pmCartMagSq(&u_sum, &d_sum);
+    }
+
+#if defined(TP_DEBUG) && defined(TP_PEDANTIC)
+    print_json5_log_start(pmCartCartAntiParallel, Check);
+    print_json5_double(d_sum);
+    print_json5_end_();
+#endif
+
+    return d_sum < tol;
+}
+
+
+/**
+ * Check if two cartesian vectors are parallel or anti-parallel
  * The input tolerance specifies what the maximum angle between the
  * lines containing two vectors is. Note that vectors pointing in
  * opposite directions are still considered parallel, since their
  * containing lines are parallel.
- * @param v1 input vector 1
- * @param v2 input vector 2
- * @param tol angle tolerance for parallelism
+ * @param u1 input unit vector 1
+ * @param u2 input unit vector 2
+ * @pre BOTH u1 and u2 must be unit vectors or calculation may be skewed.
  */
-int pmCartCartParallel(PmCartesian const * const v1,
-        PmCartesian const * const v2, double tol)
+int pmUnitCartsColinear(PmCartesian const * const u1,
+        PmCartesian const * const u2)
 {
-    PmCartesian u1,u2;
-    pmCartUnit(v1, &u1);
-    pmCartUnit(v2, &u2);
-    double dot;
-    pmCartCartDot(&u1, &u2, &dot);
-    double theta = acos(fabs(dot));
-    if (theta < tol) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-
-/**
- * Check if a Circle and line are coplanar.
- *
- * @param circ PmCircle input
- * @param line PmCartLine input
- * @param tol deviation tolerance (magnitude of error component)
- */
-int pmCircLineCoplanar(PmCircle const * const circ,
-        PmCartLine const * const line, double tol)
-{
-    double dot;
-    int res = pmCartCartDot(&circ->normal, &line->uVec, &dot);
-    tp_debug_print("normal = %.12g %.12g %.12g, uVec = %.12g %.12g %.12g, dot = %.12g\n",
-            circ->normal.x,
-            circ->normal.y,
-            circ->normal.z,
-            line->uVec.x,
-            line->uVec.y,
-            line->uVec.z,
-            dot);
-    if (fabs(dot) < tol && !res) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-
-int blendCoplanarCheck(PmCartesian const * const normal,
-        PmCartesian const * const u1_tan,
-        PmCartesian const * const u2_tan,
-        double tol)
-{
-    if (!normal || !u1_tan  || !u2_tan) {
-        return TP_ERR_MISSING_INPUT;
-    }
-
-    double dot1, dot2;
-    int res1 = pmCartCartDot(normal, u1_tan, &dot1);
-    int res2 = pmCartCartDot(normal, u2_tan, &dot2);
-
-    if (fabs(dot1) < tol && fabs(dot2) < tol && !res1 && !res2) {
-        return 1;
-    } else {
-        return 0;
-    }
+    return pmCartCartParallel(u1, u2, TP_ANGLE_EPSILON_SQ) || pmCartCartAntiParallel(u1, u2, TP_ANGLE_EPSILON_SQ);
 }
 
 
@@ -419,13 +401,13 @@ double pmCartMin(PmCartesian const * const in)
  * Calculate the diameter of a circle incscribed on a central cross section of a 3D
  * rectangular prism.
  *
- * @param normal normal direction of plane slicing prism.
+ * @param normal normal direction of plane slicing prism (must be unit length!).
  * @param extents distance from center to one corner of the prism.
  * @param diameter diameter of inscribed circle on cross section.
  *
  */
-int calculateInscribedDiameter(PmCartesian const * const normal,
-        PmCartesian const * const bounds, double * const diameter)
+int calculateInscribedRadius(PmCartesian const * const normal,
+        PmCartesian const * const bounds, double * const radius)
 {
     if (!normal ) {
         return TP_ERR_MISSING_INPUT;
@@ -476,28 +458,28 @@ int calculateInscribedDiameter(PmCartesian const * const normal,
     pmCartMag(&planar_z, &z_scale);
 
     double x_extent=0, y_extent=0, z_extent=0;
-    if (bounds->x != 0) {
+    if (bounds->x > 0) {
         x_extent = bounds->x / x_scale;
     }
-    if (bounds->y != 0) {
+    if (bounds->y > 0) {
         y_extent = bounds->y / y_scale;
     }
-    if (bounds->z != 0) {
+    if (bounds->z > 0) {
         z_extent = bounds->z / z_scale;
     }
 
     // Find the highest value to start from
-    *diameter = fmax(fmax(x_extent, y_extent),z_extent);
+    *radius = fmax(fmax(x_extent, y_extent),z_extent);
 
     // Only for active axes, find the minimum extent
-    if (bounds->x != 0) {
-        *diameter = fmin(*diameter, x_extent);
+    if (bounds->x > 0) {
+        *radius = fmin(*radius, x_extent);
     }
-    if (bounds->y != 0) {
-        *diameter = fmin(*diameter, y_extent);
+    if (bounds->y > 0) {
+        *radius = fmin(*radius, y_extent);
     }
-    if (bounds->z != 0) {
-        *diameter = fmin(*diameter, z_extent);
+    if (bounds->z > 0) {
+        *radius = fmin(*radius, z_extent);
     }
 
     return TP_ERR_OK;
@@ -646,7 +628,7 @@ int blendParamKinematics(BlendGeom3 * const geom,
     tcFindBlendTolerance(prev_tc, tc, &param->tolerance, &nominal_tolerance);
 
     // Calculate max acceleration based on plane containing lines
-    int res_dia = calculateInscribedDiameter(&geom->binormal, acc_bound, &param->a_max);
+    int res_dia = calculateInscribedRadius(&geom->binormal, acc_bound, &param->a_max);
 
     // Store max normal acceleration
     param->a_n_max = param->a_max * BLEND_ACC_RATIO_NORMAL;
@@ -666,7 +648,7 @@ int blendParamKinematics(BlendGeom3 * const geom,
     // Calculate the maximum planar velocity
     double v_planar_max;
     //FIXME sloppy handling of return value
-    res_dia |= calculateInscribedDiameter(&geom->binormal, vel_bound, &v_planar_max);
+    res_dia |= calculateInscribedRadius(&geom->binormal, vel_bound, &v_planar_max);
     tp_debug_print("v_planar_max = %f\n", v_planar_max);
 
     // Clip the angle at a reasonable value (less than 90 deg), to prevent div by zero
@@ -748,7 +730,7 @@ int blendInit3FromLineArc(BlendGeom3 * const geom, BlendParameters * const param
             &geom->center2,
             &geom->radius2);
     // Handle convexity
-    param->convex2 = arcConvexTest(&geom->center2, &geom->P, &geom->u_tan1, true);
+    param->convex2 = checkRayIntersectsArc(&geom->center2, &geom->P, &geom->u_tan1, true);
     tp_debug_print("circ2 convex: %d\n",
             param->convex2);
 
@@ -834,7 +816,7 @@ int blendInit3FromArcLine(BlendGeom3 * const geom, BlendParameters * const param
             &geom->center1,
             &geom->radius1);
 
-    param->convex1 = arcConvexTest(&geom->center1, &geom->P, &geom->u_tan2, false);
+    param->convex1 = checkRayIntersectsArc(&geom->center1, &geom->P, &geom->u_tan2, false);
     tp_debug_print("circ1 convex: %d\n",
             param->convex1);
 
@@ -950,8 +932,8 @@ int blendInit3FromArcArc(BlendGeom3 * const geom, BlendParameters * const param,
             geom->P.y,
             geom->P.z);
 
-    param->convex1 = arcConvexTest(&geom->center1, &geom->P, &geom->u_tan2, false);
-    param->convex2 = arcConvexTest(&geom->center2, &geom->P, &geom->u_tan1, true);
+    param->convex1 = checkRayIntersectsArc(&geom->center1, &geom->P, &geom->u_tan2, false);
+    param->convex2 = checkRayIntersectsArc(&geom->center2, &geom->P, &geom->u_tan1, true);
     tp_debug_print("circ1 convex: %d, circ2 convex: %d\n",
             param->convex1,
             param->convex2);
@@ -1627,32 +1609,57 @@ int blendPoints3Print(BlendPoints3 const * const points)
 
 }
 
-double pmCircleActualMaxVel(PmCircle * const circle,
-        double * const acc_ratio_tangential,
-        double v_max,
-        double a_max,
-        int parabolic)
+double pmCartAbsMax(PmCartesian const * const v)
 {
-    if (parabolic) {
-        a_max /= 2.0;
-    }
-    double a_n_max = BLEND_ACC_RATIO_NORMAL * a_max;
+    return fmax(fmax(fabs(v->x),fabs(v->y)),fabs(v->z));
+}
+
+
+PmCircleLimits pmCircleActualMaxVel(PmCircle const * circle,
+        double v_max,
+        double a_max)
+{
+    double a_n_max_cutoff = BLEND_ACC_RATIO_NORMAL * a_max;
+
+    // For debugging only
     double eff_radius = pmCircleEffectiveMinRadius(circle);
-    double v_max_acc = pmSqrt(a_n_max * eff_radius);
-    double v_max_eff = fmin(v_max_acc, v_max);
-    if (acc_ratio_tangential) {
-        double a_normal = fmin(pmSq(v_max_eff) / eff_radius, a_n_max);
-        *acc_ratio_tangential = (pmSqrt(pmSq(a_max) - pmSq(a_normal)) / a_max);
-        tp_debug_print("acc_ratio_tan = %f\n",*acc_ratio_tangential);
+
+    // Find the acceleration necessary to reach the maximum velocity
+    double a_n_vmax = pmSq(v_max) / fmax(eff_radius, DOUBLE_FUZZ);
+    // Find the maximum velocity that still obeys our desired tangential / total acceleration ratio
+    double v_max_cutoff = pmSqrt(a_n_max_cutoff * eff_radius);
+
+    double v_max_actual = v_max;
+    double acc_ratio_tan = BLEND_ACC_RATIO_TANGENTIAL;
+
+    if (a_n_vmax > a_n_max_cutoff) {
+        v_max_actual = v_max_cutoff;
+    } else {
+        acc_ratio_tan = pmSqrt(1.0 - pmSq(a_n_vmax / a_max));
     }
 
-    if (v_max_acc < v_max) {
-        tp_debug_print("Maxvel limited from %f to %f for tangential acceleration\n", v_max, v_max_acc);
-        return v_max_acc;
-    } else {
-        tp_debug_print("v_max %f is within limit of v_max_acc %f\n",v_max, v_max_acc);
-        return v_max;
-    }
+#ifdef TP_DEBUG
+    print_json5_log_start(pmCircleActualMaxVel, Check);
+    print_json5_double_("angle", circle->angle);
+    print_json5_double_("nominal_radius", circle->radius);
+    double r_spiral = spiralEffectiveRadius(circle);
+    print_json5_double_("spiral_radius", r_spiral);
+    print_json5_double(eff_radius);
+    print_json5_double(v_max);
+    print_json5_double(v_max_cutoff);
+    print_json5_double(a_max);
+    print_json5_double(a_n_max_cutoff);
+    print_json5_double(a_n_vmax);
+    print_json5_double(acc_ratio_tan);
+    print_json5_log_end();
+#endif
+
+    PmCircleLimits limits = {
+        v_max_actual,
+        acc_ratio_tan
+    };
+
+    return limits;
 }
 
 
@@ -1712,14 +1719,22 @@ static int pmCircleAngleFromParam(PmCircle const * const circle,
     return TP_ERR_OK;
 }
 
-
-static void printSpiralArcLengthFit(SpiralArcLengthFit const * const fit)
+static void printSpiralArcLengthFit(SpiralArcLengthFit const * const fit,
+                                    double min_radius,
+                                    double total_angle,
+                                    double spiral_coef)
 {
-    tp_debug_print("Spiral fit: b0 = %.12f, b1 = %.12f, length = %.12f, spiral_in = %d\n",
-            fit->b0,
-            fit->b1,
-            fit->total_planar_length,
-            fit->spiral_in);
+#ifdef TP_DEBUG
+    print_json5_log_start(SpiralFit, Command);
+    print_json5_double(min_radius);
+    print_json5_double(total_angle);
+    print_json5_double(spiral_coef);
+    print_json5_double_("b0", fit->b0);
+    print_json5_double_("b1", fit->b1);
+    print_json5_double_("total_planar_length", fit->total_planar_length);
+    print_json5_bool_("spiral_in", fit->spiral_in);
+    print_json5_log_end();
+#endif
 }
 
 /**
@@ -1759,9 +1774,6 @@ int findSpiralArcLengthFit(PmCircle const * const circle,
     } else {
         fit->spiral_in = false;
     }
-    tp_debug_print("radius = %.12f, angle = %.12f\n", min_radius, circle->angle);
-    tp_debug_print("spiral_coef = %.12f\n", spiral_coef);
-
 
     //Compute the slope of the arc length vs. angle curve at the start and end of the segment
     double slope_start = pmSqrt(pmSq(min_radius) + pmSq(spiral_coef));
@@ -1771,7 +1783,7 @@ int findSpiralArcLengthFit(PmCircle const * const circle,
     fit->b1 = slope_start;
 
     fit->total_planar_length = fit->b0 * pmSq(circle->angle) + fit->b1 * circle->angle;
-    printSpiralArcLengthFit(fit);
+    printSpiralArcLengthFit(fit, min_radius, circle->angle, spiral_coef);
 
     // Check against start and end angle
     double angle_end_chk = 0.0;
@@ -1814,25 +1826,36 @@ int pmCircleAngleFromProgress(PmCircle const * const circle,
     return pmCircleAngleFromParam(circle, fit, t, angle);
 }
 
+double spiralEffectiveRadius(PmCircle const * circle)
+{
+    double dr = circle->spiral / circle->angle;
+
+    // Exact representation of spiral arc length flattened into
+    double n_inner = pmSq(dr) + pmSq(circle->radius);
+    double den = n_inner+pmSq(dr);
+    double num = pmSqrt(pmCb(n_inner));
+    double r_spiral = num / den;
+
+    return r_spiral;
+}
+
 
 /**
  * Find the effective minimum radius for acceleration calculations.
  * The radius of curvature of a spiral is larger than the circle of the same
  * radius.
  */
-double pmCircleEffectiveMinRadius(PmCircle const * const circle)
+double pmCircleEffectiveMinRadius(PmCircle const * circle)
 {
-    double radius0 = circle->radius;
-    double radius1 = circle->radius + circle->spiral;
+    double h2;
+    pmCartMagSq(&circle->rHelix, &h2);
+    double dh2 = h2 / pmSq(circle->angle);
 
-    double min_radius = fmin(radius0, radius1);
+    double r_spiral = spiralEffectiveRadius(circle);
 
-    double dr = circle->spiral / circle->angle;
-    double effective_radius = pmSqrt(pmSq(min_radius)+pmSq(dr));
+    // Curvature of helix, assuming that helical motion is independent of plane motion
+    double effective_radius = dh2 / r_spiral + r_spiral;
 
-    tp_debug_print("min_radius = %f, effective_min_radius = %f\n",
-            min_radius,
-            effective_radius);
     return effective_radius;
 }
 
@@ -1860,4 +1883,80 @@ double findTrapezoidalDesiredVel(double a_max,
     }
 
     return maxnewvel;
+}
+
+EndCondition checkEndCondition(double cycleTime,
+                               double progress,
+                               double target,
+                               double currentvel,
+                               double v_f,
+                               double a_max)
+{
+    double dx = target - progress;
+    // Start with safe defaults (segment will not end next cycle
+    EndCondition out = {
+        v_f,
+        TP_BIG_NUM * cycleTime,
+    };
+
+    double v_avg = (currentvel + v_f) / 2.0;
+
+    //Check that we have a non-zero "average" velocity between now and the
+    //finish. If not, it means that we have to accelerate from a stop, which
+    //will take longer than the minimum 2 timesteps that each segment takes, so
+    //we're safely far form the end.
+
+    //Get dt assuming that we can magically reach the final velocity at
+    //the end of the move.
+    //
+    //KLUDGE: start with a value below the cutoff
+    double dt = TP_TIME_EPSILON / 2.0;
+    if (v_avg > TP_VEL_EPSILON) {
+        //Get dt from distance and velocity (avoid div by zero)
+        dt = fmax(dt, dx / v_avg);
+    } else {
+        if ( dx > (v_avg * cycleTime) && dx > TP_POS_EPSILON) {
+            tc_pdebug_print(" below velocity threshold, assuming far from end\n");
+            return out;
+        }
+    }
+
+
+    // Assuming a full timestep:
+    double dv = v_f - currentvel;
+    double a_f = dv / fmax(dt, TP_TIME_EPSILON);
+
+    //If this is a valid acceleration, then we're done. If not, then we solve
+    //for v_f and dt given the max acceleration allowed.
+    //If we exceed the maximum acceleration, then the dt estimate is too small.
+    double a = a_f;
+    int recalc = sat_inplace(&a, a_max);
+
+    //Need to recalculate vf and above
+    if (recalc) {
+        double disc = pmSq(currentvel / a) + 2.0 / a * dx;
+        if (disc < 0) {
+            //Should mean that dx is too big, i.e. we're not close enough
+            tc_pdebug_print(" dx = %f, too large, not at end yet\n",dx);
+            return out;
+        }
+
+        if (disc < TP_TIME_EPSILON * TP_TIME_EPSILON) {
+            tc_pdebug_print("disc too small, skipping sqrt\n");
+            dt =  -currentvel / a;
+        } else if (a > 0) {
+            tc_pdebug_print("using positive sqrt\n");
+            dt = -currentvel / a + pmSqrt(disc);
+        } else {
+            tc_pdebug_print("using negative sqrt\n");
+            dt = -currentvel / a - pmSqrt(disc);
+        }
+
+        tc_pdebug_print(" revised dt = %f\n", dt);
+        //Update final velocity with actual result
+        out.v_f = currentvel + dt * a;
+    }
+
+    out.dt = dt;
+    return out;
 }

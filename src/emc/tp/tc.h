@@ -24,6 +24,14 @@
 
 double tcGetMaxTargetVel(TC_STRUCT const * const tc,
         double max_scale);
+
+double tcGetAccelScale(TC_STRUCT const * tc);
+double tcGetOverallMaxAccel(TC_STRUCT const * tc);
+double tcGetTangentialMaxAccel(TC_STRUCT const * const tc);
+
+int tcSetKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc, double kink_vel, double accel_reduction);
+int tcInitKinkProperties(TC_STRUCT *tc);
+int tcRemoveKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc);
 int tcGetEndpoint(TC_STRUCT const * const tc, EmcPose * const out);
 int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const out);
 int tcGetPos(TC_STRUCT const * const tc,  EmcPose * const out);
@@ -38,7 +46,7 @@ int tcGetIntersectionPoint(TC_STRUCT const * const prev_tc,
 
 int tcCanConsume(TC_STRUCT const * const tc);
 
-int tcSetTermCond(TC_STRUCT * const tc, int term_cond);
+int tcSetTermCond(TC_STRUCT * tc, TC_STRUCT * nexttc, tc_term_cond_t term_cond);
 
 int tcConnectBlendArc(TC_STRUCT * const prev_tc, TC_STRUCT * const tc,
         PmCartesian const * const circ_start,
@@ -56,7 +64,7 @@ int pmCircleTangentVector(PmCircle const * const circle,
 int tcFlagEarlyStop(TC_STRUCT * const tc,
         TC_STRUCT * const nexttc);
 
-double pmLine9Target(PmLine9 * const line9);
+double pmLine9Target(PmLine9 * const line9, int pure_angular);
 
 int pmLine9Init(PmLine9 * const line9,
         EmcPose const * const start,
@@ -78,7 +86,7 @@ int pmRigidTapInit(PmRigidTap * const tap,
 double pmRigidTapTarget(PmRigidTap * const tap, double uu_per_rev);
 
 int tcInit(TC_STRUCT * const tc,
-        int motion_type,
+        tc_motion_type_t motion_type,
         int canon_motion_type,
         double cycle_time,
         unsigned char enables,
@@ -93,6 +101,8 @@ int tcSetupMotion(TC_STRUCT * const tc,
 
 int tcSetupState(TC_STRUCT * const tc, TP_STRUCT const * const tp);
 
+int tcUpdateCircleAccRatio(TC_STRUCT * tc);
+
 int tcFinalizeLength(TC_STRUCT * const tc);
 
 int tcClampVelocityByLength(TC_STRUCT * const tc);
@@ -102,4 +112,9 @@ int tcPureRotaryCheck(TC_STRUCT const * const tc);
 int tcSetCircleXYZ(TC_STRUCT * const tc, PmCircle const * const circ);
 
 int tcClearFlags(TC_STRUCT * const tc);
+
+const char *tcTermCondAsString(tc_term_cond_t c);
+const char *tcMotionTypeAsString(tc_motion_type_t c);
+const char *tcSyncModeAsString(tc_spindle_sync_t c);
+
 #endif				/* TC_H */

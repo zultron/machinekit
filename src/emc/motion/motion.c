@@ -1070,21 +1070,20 @@ static int init_comm_buffers(void)
 
     /* init motion emcmotDebug->tp */
     if (-1 == tpCreate(&emcmotDebug->tp, DEFAULT_TC_QUEUE_SIZE,
-	    emcmotDebug->queueTcSpace)) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-	    "MOTION: failed to create motion emcmotDebug->tp\n");
-	return -1;
+                       emcmotDebug->queueTcSpace)) {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+                        "MOTION: failed to create motion emcmotDebug->tp\n");
+        return -1;
     }
-//    tpInit(&emcmotDebug->tp); // tpInit called from tpCreate
+
     tpSetCycleTime(&emcmotDebug->tp, emcmotConfig->trajCycleTime);
-    tpSetPos(&emcmotDebug->tp, &emcmotStatus->carte_pos_cmd);
-    tpSetVmax(&emcmotDebug->tp, emcmotStatus->vel, emcmotStatus->vel);
-    tpSetAmax(&emcmotDebug->tp, emcmotStatus->acc);
+    int res_pos = tpSetPos(&emcmotDebug->tp, &emcmotStatus->carte_pos_cmd);
+    int res_vel = tpSetVmax(&emcmotDebug->tp, emcmotStatus->vel, emcmotStatus->vel);
 
     emcmotStatus->tail = 0;
 
     rtapi_print_msg(RTAPI_MSG_INFO, "MOTION: init_comm_buffers() complete\n");
-    return 0;
+    return res_pos | res_vel;
 }
 
 /* init_threads() creates realtime threads, exports functions to

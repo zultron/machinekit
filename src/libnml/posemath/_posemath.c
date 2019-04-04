@@ -777,12 +777,9 @@ int pmHomPoseConvert(PmHomogeneous const * const h, PmPose * const p)
 
 int pmCartCartCompare(PmCartesian const * const v1, PmCartesian const * const v2)
 {
-    if (fabs(v1->x - v2->x) >= V_FUZZ ||
-	fabs(v1->y - v2->y) >= V_FUZZ || fabs(v1->z - v2->z) >= V_FUZZ) {
-	return 0;
-    }
-
-    return 1;
+    return fabs(v1->x - v2->x) < V_FUZZ
+            && fabs(v1->y - v2->y) < V_FUZZ
+            && fabs(v1->z - v2->z) < V_FUZZ;
 }
 
 int pmCartCartDot(PmCartesian const * const v1, PmCartesian const * const v2, double *d)
@@ -822,6 +819,12 @@ int pmCartCartCross(PmCartesian const * const v1, PmCartesian const * const v2,
     vout->y = v1->z * v2->x - v1->x * v2->z;
     vout->z = v1->x * v2->y - v1->y * v2->x;
 
+    return pmErrno = 0;
+}
+
+int pmCartInfNorm(PmCartesian const * v, double * out)
+{
+    *out = fmax(fabs(v->x),fmax(fabs(v->y),fabs(v->z)));
     return pmErrno = 0;
 }
 
@@ -918,7 +921,7 @@ int pmCartInvEq(PmCartesian * const v)
 
     if (size_sq == 0.0) {
 #ifdef PM_PRINT_ERROR
-        pmPrintError(&"Zero vector in pmCartInv\n");
+        pmPrintError("Zero vector in pmCartInv\n");
 #endif
         return pmErrno = PM_NORM_ERR;
     }
@@ -985,7 +988,7 @@ int pmCartScalDivEq(PmCartesian * const v, double d)
 
     if (d == 0.0) {
 #ifdef PM_PRINT_ERROR
-        pmPrintError(&"Divide by 0 in pmCartScalDiv\n");
+        pmPrintError("Divide by 0 in pmCartScalDiv\n");
 #endif
 
         return pmErrno = PM_DIV_ERR;
@@ -1449,7 +1452,7 @@ int pmQuatCartMult(PmQuaternion const * const q1, PmCartesian const * const v2, 
 #ifdef PM_DEBUG
     if (!pmQuatIsNorm(q1)) {
 #ifdef PM_PRINT_ERROR
-	pmPrintError(&"Bad quaternion in pmQuatCartMult\n");
+    pmPrintError("Bad quaternion in pmQuatCartMult\n");
 #endif
 	return pmErrno = PM_NORM_ERR;
     }
@@ -1502,7 +1505,7 @@ int pmPoseCartMult(PmPose const * const p1, PmCartesian const * const v2, PmCart
 #ifdef PM_DEBUG
     if (!pmQuatIsNorm(&p1->rot)) {
 #ifdef PM_PRINT_ERROR
-	pmPrintError(&"Bad quaternion in pmPoseCartMult\n");
+    pmPrintError("Bad quaternion in pmPoseCartMult\n");
 #endif
 	return pmErrno = PM_NORM_ERR;
     }
@@ -1646,7 +1649,6 @@ int pmLinePoint(PmLine const * const line, double len, PmPose * const point)
 int pmCartLineInit(PmCartLine * const line, PmCartesian const * const start, PmCartesian const * const end)
 {
     int r1 = 0, r2 = 0;
-    double tmag = 0.0;
 
     if (0 == line) {
         return (pmErrno = PM_ERR);
@@ -1659,16 +1661,20 @@ int pmCartLineInit(PmCartLine * const line, PmCartesian const * const start, PmC
         return r1;
     }
 
-    pmCartMag(&line->uVec, &tmag);
-    if (IS_FUZZ(tmag, CART_FUZZ)) {
+    pmCartMag(&line->uVec, &line->tmag);
+    // NOTE: use the same criteria for "zero" length vectors as used by canon
+    double max_xyz=0;
+    pmCartInfNorm(&line->uVec, &max_xyz);
+
+    if (IS_FUZZ(max_xyz, CART_FUZZ)) {
         line->uVec.x = 1.0;
         line->uVec.y = 0.0;
         line->uVec.z = 0.0;
+        line->tmag_zero = 1;
     } else {
-        r2 = pmCartUnit(&line->uVec, &line->uVec);
+        r2 = pmCartUnitEq(&line->uVec);
+        line->tmag_zero = 0;
     }
-    line->tmag = tmag;
-    line->tmag_zero = (line->tmag <= CART_FUZZ);
 
     /* return PM_NORM_ERR if uVec has been set to 1, 0, 0 */
     return pmErrno = (r1 || r2) ? PM_NORM_ERR : 0;

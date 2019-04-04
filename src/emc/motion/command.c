@@ -937,8 +937,9 @@ check_stuff ( "before command_handler()" );
         int res_addline = tpAddLine(&emcmotDebug->tp, emcmotCommand->pos, emcmotCommand->motion_type, 
                                 emcmotCommand->vel, emcmotCommand->ini_maxvel, 
                                 emcmotCommand->acc, emcmotStatus->enables_new, issue_atspeed,
-				    emcmotCommand->turn,
-				    emcmotCommand->tag);
+                                emcmotCommand->turn,
+                                emcmotCommand->pure_angular,
+                                emcmotCommand->tag);
         //KLUDGE ignore zero length line
         if (res_addline < 0) {
             reportError(_("can't add linear move at line %d, error code %d"),
@@ -993,11 +994,12 @@ check_stuff ( "before command_handler()" );
 	    /* append it to the emcmotDebug->tp */
 	    tpSetId(&emcmotDebug->tp, emcmotCommand->id);
 	    int res_addcircle = tpAddCircle(&emcmotDebug->tp, emcmotCommand->pos,
-                            emcmotCommand->center, emcmotCommand->normal,
-                            emcmotCommand->turn, emcmotCommand->motion_type,
-                            emcmotCommand->vel, emcmotCommand->ini_maxvel,
-                            emcmotCommand->acc, emcmotStatus->enables_new,
-					    issue_atspeed, emcmotCommand->tag);
+                emcmotCommand->center, emcmotCommand->normal,
+                emcmotCommand->turn, emcmotCommand->motion_type,
+                emcmotCommand->vel, emcmotCommand->ini_maxvel,
+                emcmotCommand->acc, emcmotCommand->acc_normal,
+                emcmotStatus->enables_new, issue_atspeed,
+                emcmotCommand->tag);
         if (res_addcircle < 0) {
             reportError(_("can't add circular move at line %d, error code %d"),
                     emcmotCommand->id, res_addcircle);
@@ -1070,9 +1072,9 @@ check_stuff ( "before command_handler()" );
 	    /* set the max acceleration */
 	    /* can do it at any time */
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_ACCEL");
-	    emcmotStatus->acc = emcmotCommand->acc;
-	    tpSetAmax(&emcmotDebug->tp, emcmotStatus->acc);
-	    break;
+        emcmotStatus->acc = emcmotCommand->acc;
+        // WARNING has no effect on coordinated motion TP, only single-axis planner
+        break;
 
 	case EMCMOT_PAUSE:
 	    /* pause the motion */
@@ -1437,6 +1439,7 @@ check_stuff ( "before command_handler()" );
 				emcmotCommand->motion_type, emcmotCommand->vel,
 				emcmotCommand->ini_maxvel, emcmotCommand->acc,
 				emcmotStatus->enables_new, 0, -1,
+				emcmotCommand->pure_angular,
 				emcmotCommand->tag)) {
 		reportError(_("can't add probe move"));
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
@@ -1693,26 +1696,32 @@ check_stuff ( "before command_handler()" );
 	    joint->comp.entries++;
 	    break;
 
-        case EMCMOT_SET_OFFSET:
-            emcmotStatus->tool_offset = emcmotCommand->tool_offset;
-            break;
+    case EMCMOT_SET_OFFSET:
+        emcmotStatus->tool_offset = emcmotCommand->tool_offset;
+        break;
 
-	default:
-	    rtapi_print_msg(RTAPI_MSG_DBG, "UNKNOWN");
-	    reportError(_("unrecognized command %d"), emcmotCommand->command);
-	    emcmotStatus->commandStatus = EMCMOT_COMMAND_UNKNOWN_COMMAND;
-	    break;
-        case EMCMOT_SET_MAX_FEED_OVERRIDE:
-            emcmotConfig->maxFeedScale = emcmotCommand->maxFeedScale;
-            break;
-        case EMCMOT_SETUP_ARC_BLENDS:
-            emcmotConfig->arcBlendEnable = emcmotCommand->arcBlendEnable;
-            emcmotConfig->arcBlendFallbackEnable = emcmotCommand->arcBlendFallbackEnable;
-            emcmotConfig->arcBlendOptDepth = emcmotCommand->arcBlendOptDepth;
-            emcmotConfig->arcBlendGapCycles = emcmotCommand->arcBlendGapCycles;
-            emcmotConfig->arcBlendRampFreq = emcmotCommand->arcBlendRampFreq;
-            emcmotConfig->arcBlendTangentKinkRatio = emcmotCommand->arcBlendTangentKinkRatio;
-            break;
+    case EMCMOT_SET_MAX_FEED_OVERRIDE:
+        emcmotConfig->maxFeedScale = emcmotCommand->maxFeedScale;
+        break;
+
+    case EMCMOT_SETUP_ARC_BLENDS:
+        emcmotConfig->arcBlendEnable = emcmotCommand->arcBlendEnable;
+        emcmotConfig->arcBlendFallbackEnable = emcmotCommand->arcBlendFallbackEnable;
+        emcmotConfig->arcBlendOptDepth = emcmotCommand->arcBlendOptDepth;
+        emcmotConfig->arcBlendGapCycles = emcmotCommand->arcBlendGapCycles;
+        emcmotConfig->arcBlendRampFreq = emcmotCommand->arcBlendRampFreq;
+        emcmotConfig->arcBlendTangentKinkRatio = emcmotCommand->arcBlendTangentKinkRatio;
+        break;
+
+    case EMCMOT_SETUP_CONSISTENCY_CHECKS:
+        emcmotConfig->consistencyCheckConfig = emcmotCommand->consistencyCheckConfig;
+        break;
+
+    default:
+        rtapi_print_msg(RTAPI_MSG_DBG, "UNKNOWN");
+        reportError(_("unrecognized command %d"), emcmotCommand->command);
+        emcmotStatus->commandStatus = EMCMOT_COMMAND_UNKNOWN_COMMAND;
+        break;
 
 	}			/* end of: command switch */
 	if (emcmotStatus->commandStatus != EMCMOT_COMMAND_OK) {

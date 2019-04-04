@@ -31,7 +31,7 @@
 double tcGetMaxTargetVel(TC_STRUCT const * const tc,
         double max_scale)
 {
-    double v_max_target;
+    double v_max_target = tc->maxvel;
 
     switch (tc->synchronized) {
         case TC_SYNC_NONE:
@@ -45,14 +45,73 @@ double tcGetMaxTargetVel(TC_STRUCT const * const tc,
             // Assume no spindle override during blend target
             v_max_target = tc->uu_per_rev * tc->tag.speed * max_scale;
             break;
-
-        default:
-            v_max_target = tc->maxvel;
-            break;
     }
 
     // Clip maximum velocity by the segment's own maximum velocity
     return fmin(v_max_target, tc->maxvel);
+}
+
+double tcGetAccelScale(const TC_STRUCT *tc)
+{
+    // Handle any acceleration reduction due to an approximate-tangent "blend" with the previous or next segment
+    double a_scale = (1.0 - fmax(tc->kink_accel_reduce, tc->kink_accel_reduce_prev));
+
+    // Parabolic blending conditions: If the next segment or previous segment
+    // has a parabolic blend with this one, acceleration is scaled down by 1/2
+    // so that the sum of the two does not exceed the maximum.
+    if (tc->blend_prev || TC_TERM_COND_PARABOLIC == tc->term_cond) {
+        a_scale *= 0.5;
+    }
+
+    return a_scale;
+}
+double tcGetOverallMaxAccel(const TC_STRUCT *tc)
+{
+    return tc->maxaccel * tcGetAccelScale(tc);
+}
+
+/**
+ * Get acceleration for a tc based on the trajectory planner state.
+ */
+double tcGetTangentialMaxAccel(TC_STRUCT const * const tc)
+{
+    double a_scale = tcGetAccelScale(tc);
+
+    // Reduce allowed tangential acceleration in circular motions to stay
+    // within overall limits (accounts for centripetal acceleration while
+    // moving along the circular path).
+    if (tc->motion_type == TC_CIRCULAR || tc->motion_type == TC_SPHERICAL) {
+        //Limit acceleration for cirular arcs to allow for normal acceleration
+        a_scale *= tc->acc_ratio_tan;
+    }
+    return tc->maxaccel * a_scale;
+}
+
+
+int tcSetKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc, double kink_vel, double accel_reduction)
+{
+  prev_tc->kink_vel = kink_vel;
+  //
+  prev_tc->kink_accel_reduce = fmax(accel_reduction, prev_tc->kink_accel_reduce);
+  tc->kink_accel_reduce_prev = fmax(accel_reduction, tc->kink_accel_reduce_prev);
+
+  return 0;
+}
+
+int tcInitKinkProperties(TC_STRUCT *tc)
+{
+    tc->kink_vel = -1.0;
+    tc->kink_accel_reduce = 0.0;
+    tc->kink_accel_reduce_prev = 0.0;
+    return 0;
+}
+
+int tcRemoveKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc)
+{
+    prev_tc->kink_vel = -1.0;
+    prev_tc->kink_accel_reduce = 0.0;
+    tc->kink_accel_reduce_prev = 0.0;
+    return 0;
 }
 
 
@@ -72,7 +131,7 @@ int tcCircleStartAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const
     pmCartCartSub(&tc->coords.circle.xyz.center, &startpoint, &perp);
     pmCartUnitEq(&perp);
 
-    pmCartScalMult(&tan, tc->maxaccel, &tan);
+    pmCartScalMult(&tan, tcGetOverallMaxAccel(tc), &tan);
     pmCartScalMultEq(&perp, pmSq(0.5 * tc->reqvel)/tc->coords.circle.xyz.radius);
     pmCartCartAdd(&tan, &perp, out);
     pmCartUnitEq(out);
@@ -195,10 +254,6 @@ int pmCircleTangentVector(PmCircle const * const circle,
      * dtheta. Since we're normalizing the vector anyway, assume dtheta = 1.
      */
     pmCartCartCross(&circle->normal, &radius, &uTan);
-
-    // find dz/dtheta and get differential movement along helical axis
-    double h;
-    pmCartMag(&circle->rHelix, &h);
 
     /* the binormal component of the tangent vector is (dz / dtheta) * dtheta.
      */
@@ -373,12 +428,19 @@ int tcGetPosReal(TC_STRUCT const * const tc, int of_point, EmcPose * const pos)
 
 
 /**
- * Set the terminal condition of a segment.
- * This function will eventually handle state changes associated with altering a terminal condition.
+ * Set the terminal condition (i.e. blend or stop) for the given motion segment.
+ * Also sets flags on the next segment relevant to blending (e.g. parabolic blend sets the blend_prev flag).
  */
-int tcSetTermCond(TC_STRUCT * const tc, int term_cond) {
-    tp_debug_print("setting term condition %d on tc id %d, type %d\n", term_cond, tc->id, tc->motion_type);
-    tc->term_cond = term_cond;
+int tcSetTermCond(TC_STRUCT *tc, TC_STRUCT *nexttc, tc_term_cond_t term_cond)
+{
+    if (tc) {
+        tp_debug_print("setting term condition %d on tc id %d, type %d\n", term_cond, tc->id, tc->motion_type);
+        tc->term_cond = term_cond;
+    }
+    if (nexttc) {
+        nexttc->blend_prev = (tc && term_cond == TC_TERM_COND_PARABOLIC);
+        tp_debug_print("set blend_prev flag %d on tc id %d, type %d\n", nexttc->blend_prev, nexttc->id, nexttc->motion_type);
+    }
     return 0;
 }
 
@@ -405,10 +467,11 @@ int tcConnectBlendArc(TC_STRUCT * const prev_tc, TC_STRUCT * const tc,
         prev_tc->target = prev_tc->coords.line.xyz.tmag;
         tp_debug_print("Target = %f\n",prev_tc->target);
         //Setup tangent blending constraints
-        tcSetTermCond(prev_tc, TC_TERM_COND_TANGENT);
+        tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
         tp_debug_print(" L1 end  : %f %f %f\n",prev_tc->coords.line.xyz.end.x,
                 prev_tc->coords.line.xyz.end.y,
                 prev_tc->coords.line.xyz.end.z);
+
     } else {
         tp_debug_print("connect: consume prev_tc\n");
     }
@@ -423,8 +486,7 @@ int tcConnectBlendArc(TC_STRUCT * const prev_tc, TC_STRUCT * const tc,
             tc->coords.line.xyz.start.y,
             tc->coords.line.xyz.start.z);
 
-    //Disable flag for parabolic blending with previous
-    tc->blend_prev = 0;
+    tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
 
     tp_info_print("       Q1: %f %f %f\n",circ_start->x,circ_start->y,circ_start->z);
     tp_info_print("       Q2: %f %f %f\n",circ_end->x,circ_end->y,circ_end->z);
@@ -460,10 +522,10 @@ int tcFindBlendTolerance(TC_STRUCT const * const prev_tc,
     double T1 = prev_tc->tolerance;
     double T2 = tc->tolerance;
     //Detect zero tolerance = no tolerance and force to reasonable maximum
-    if (T1 == 0) {
+    if (T1 <= 0) {
         T1 = prev_tc->nominal_length * tolerance_ratio;
     }
-    if (T2 == 0) {
+    if (T2 <= 0) {
         T2 = tc->nominal_length * tolerance_ratio;
     }
     *nominal_tolerance = fmin(T1,T2);
@@ -496,7 +558,7 @@ int tcFlagEarlyStop(TC_STRUCT * const tc,
         // we'll have to wait for spindle sync; might as well
         // stop at the right place (don't blend)
         tp_debug_print("waiting on spindle sync for tc %d\n", tc->id);
-        tcSetTermCond(tc, TC_TERM_COND_STOP);
+        tcSetTermCond(tc, nexttc, TC_TERM_COND_STOP);
     }
 
     if(nexttc->atspeed) {
@@ -504,15 +566,17 @@ int tcFlagEarlyStop(TC_STRUCT * const tc,
         // stop at the right place (don't blend), like above
         // FIXME change the values so that 0 is exact stop mode
         tp_debug_print("waiting on spindle atspeed for tc %d\n", tc->id);
-        tcSetTermCond(tc, TC_TERM_COND_STOP);
+        tcSetTermCond(tc, nexttc, TC_TERM_COND_STOP);
     }
 
     return TP_ERR_OK;
 }
 
-double pmLine9Target(PmLine9 * const line9)
+double pmLine9Target(PmLine9 * const line9, int pure_angular)
 {
-    if (!line9->xyz.tmag_zero) {
+    if (pure_angular && !line9->abc.tmag_zero) {
+        return line9->abc.tmag;
+    } else if (!line9->xyz.tmag_zero) {
         return line9->xyz.tmag;
     } else if (!line9->uvw.tmag_zero) {
         return line9->uvw.tmag;
@@ -538,7 +602,7 @@ double pmLine9Target(PmLine9 * const line9)
  * the struct is properly initialized BEFORE calling this function.
  */
 int tcInit(TC_STRUCT * const tc,
-        int motion_type,
+        tc_motion_type_t motion_type,
         int canon_motion_type,
         double cycle_time,
         unsigned char enables,
@@ -584,8 +648,8 @@ int tcSetupMotion(TC_STRUCT * const tc,
     tc->reqvel = vel;
     // Initial guess at target velocity is just the requested velocity
     tc->target_vel = vel;
-    // TO be filled in by tangent calculation, negative = invalid (KLUDGE)
-    tc->kink_vel = -1.0;
+    // To be filled in by tangent calculation, negative = invalid (KLUDGE)
+    tcInitKinkProperties(tc);
 
     return TP_ERR_OK;
 }
@@ -593,7 +657,6 @@ int tcSetupMotion(TC_STRUCT * const tc,
 
 int tcSetupState(TC_STRUCT * const tc, TP_STRUCT const * const tp)
 {
-    tcSetTermCond(tc, tp->termCond);
     tc->tolerance = tp->tolerance;
     tc->synchronized = tp->synchronized;
     tc->uu_per_rev = tp->uu_per_rev;
@@ -617,6 +680,14 @@ int pmLine9Init(PmLine9 * const line9,
     int xyz_fail = pmCartLineInit(&line9->xyz, &start_xyz, &end_xyz);
     int abc_fail = pmCartLineInit(&line9->abc, &start_abc, &end_abc);
     int uvw_fail = pmCartLineInit(&line9->uvw, &start_uvw, &end_uvw);
+
+#ifdef TP_DEBUG
+    print_json5_log_start(pmLine9Init, Command);
+    print_json5_PmCartLine_("xyz", line9->xyz);
+    print_json5_PmCartLine_("abc", line9->abc);
+    print_json5_PmCartLine_("uvw", line9->abc);
+    print_json5_end_();
+#endif
 
     if (xyz_fail || abc_fail || uvw_fail) {
         rtapi_print_msg(RTAPI_MSG_ERR,"Failed to initialize Line9, err codes %d, %d, %d\n",
@@ -665,6 +736,20 @@ double pmCircle9Target(PmCircle9 const * const circ9)
     return helical_length;
 }
 
+int tcUpdateCircleAccRatio(TC_STRUCT * tc)
+{
+    if (tc->motion_type == TC_CIRCULAR) {
+        PmCircleLimits limits = pmCircleActualMaxVel(&tc->coords.circle.xyz,
+                             tc->maxvel,
+                             tc->acc_normal_max * tcGetAccelScale(tc));
+        tc->maxvel = limits.v_max;
+        tc->acc_ratio_tan = limits.acc_ratio;
+        return 0;
+    }
+    // TODO handle blend arc here too?
+    return 1; //nothing to do, but not an error
+}
+
 /**
  * "Finalizes" a segment so that its length can't change.
  * By setting the finalized flag, we tell the optimizer that this segment's
@@ -683,17 +768,23 @@ int tcFinalizeLength(TC_STRUCT * const tc)
         tp_debug_print("tc %d already finalized\n", tc->id);
         return TP_ERR_NO_ACTION;
     }
-
-    tp_debug_print("Finalizing tc id %d, type %d\n", tc->id, tc->motion_type);
-    //TODO function to check for parabolic?
-    int parabolic = (tc->blend_prev || tc->term_cond == TC_TERM_COND_PARABOLIC);
-    tp_debug_print("blend_prev = %d, term_cond = %d\n",tc->blend_prev, tc->term_cond);
-
-    if (tc->motion_type == TC_CIRCULAR) {
-        tc->maxvel = pmCircleActualMaxVel(&tc->coords.circle.xyz, &tc->acc_ratio_tan, tc->maxvel, tc->maxaccel, parabolic);
-    }
+#ifdef TP_DEBUG
+    double maxvel_old = tc->maxvel;
+#endif
 
     tcClampVelocityByLength(tc);
+
+    tcUpdateCircleAccRatio(tc);
+
+#ifdef TP_DEBUG
+    print_json5_log_start(tpFinalizeLength, Lookahead);
+    print_json5_int_("id", tc->id);
+    print_json5_string_("motion_type", tcMotionTypeAsString((tc_motion_type_t)tc->motion_type));
+    print_json5_double(maxvel_old);
+    print_json5_double_("maxvel", tc->maxvel);
+    print_json5_double_("acc_ratio_tan", tc->acc_ratio_tan);
+    print_json5_log_end();
+#endif
 
     tc->finalized = 1;
     return TP_ERR_OK;
@@ -710,7 +801,6 @@ int tcClampVelocityByLength(TC_STRUCT * const tc)
     //Reduce max velocity to match sample rate
     //Assume that cycle time is valid here
     double sample_maxvel = tc->target / tc->cycle_time;
-    tp_debug_print("sample_maxvel = %f\n",sample_maxvel);
     tc->maxvel = fmin(tc->maxvel, sample_maxvel);
     return TP_ERR_OK;
 }
@@ -824,4 +914,50 @@ int tcClearFlags(TC_STRUCT * const tc)
     return TP_ERR_OK;
 }
 
+// Helper functions to convert enums to pretty-print for debug output
 
+const char *tcTermCondAsString(tc_term_cond_t c)
+{
+    switch (c)
+    {
+        case TC_TERM_COND_STOP:
+            return "EXACT_STOP";
+        case TC_TERM_COND_EXACT:
+            return "EXACT_PATH";
+        case TC_TERM_COND_PARABOLIC:
+            return "PARABOLIC";
+        case TC_TERM_COND_TANGENT:
+            return "TANGENT";
+    }
+    return "NONE";
+}
+
+const char *tcMotionTypeAsString(tc_motion_type_t c)
+{
+    switch (c)
+    {
+        case TC_LINEAR:
+            return "Linear";
+        case TC_CIRCULAR:
+            return "Circular";
+        case TC_RIGIDTAP:
+            return "RigidTap";
+        case TC_SPHERICAL:
+            return "SphericalArc";
+    }
+    return "NONE";
+}
+
+const char *tcSyncModeAsString(tc_spindle_sync_t c)
+{
+    switch (c)
+    {
+        case TC_SYNC_NONE:
+            return "sync_none";
+        case TC_SYNC_VELOCITY:
+            return "sync_velocity";
+        case TC_SYNC_POSITION:
+            return "sync_position";
+    }
+    return "NONE";
+}
