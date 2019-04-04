@@ -41,8 +41,6 @@ T D2R(T r) { return r * (M_PI / 180.); }
 template<class T>
 T SQ(T a) { return a*a; }
 
-#define MAX(x, y)        ((x) > (y) ? (x) : (y))
-
 template<class T>
 inline int round_to_int(T x) {
     return (int)std::nearbyint(x);
