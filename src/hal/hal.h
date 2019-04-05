@@ -292,9 +292,19 @@ typedef enum {
 typedef volatile bool hal_bit_t;
 typedef volatile rtapi_u32 hal_u32_t;
 typedef volatile rtapi_s32 hal_s32_t;
-typedef double real_t __attribute__((aligned(8)));
-typedef rtapi_u64 ireal_t __attribute__((aligned(8))); // integral type as wide as real_t / hal_float_t
-#define hal_float_t volatile real_t
+
+
+
+#ifdef __x86_64__
+// alignment is already 8 bytes on x64 systems, so stop the compiler from complaining about it
+#define FORCE_ALIGN_8
+#else
+#define FORCE_ALIGN_8 __attribute__((aligned(8)));
+#endif
+
+typedef double real_t ;
+typedef rtapi_u64 ireal_t FORCE_ALIGN_8; // integral type as wide as real_t / hal_float_t
+typedef volatile real_t hal_float_t FORCE_ALIGN_8;
 
 /***********************************************************************
 *                      "LOCKING" FUNCTIONS                             *
