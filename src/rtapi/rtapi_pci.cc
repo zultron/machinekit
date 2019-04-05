@@ -274,7 +274,7 @@ void rtapi__iomem *rtapi_pci_ioremap_bar(struct rtapi_pci_dev *dev, int bar)
 {
     WITH_ROOT;
     void *mmio;
-    char path[256];
+    char path[512];
 
     rtapi_print_msg(RTAPI_MSG_DBG, "RTAPI_PCI: Map BAR %i\n", bar);
 
