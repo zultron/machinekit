@@ -11,12 +11,14 @@
 ********************************************************************/
 
 #include "motion.h"
+#include "kinematics.h"
 #include "hal.h"
-#include "rtapi.h"
 #include "rtapi.h"		/* RTAPI realtime OS API */
 #include "rtapi_app.h"		/* RTAPI realtime module decls */
 #include "rtapi_math.h"
 #include "rtapi_string.h"
+
+#define VTVERSION VTKINEMATICS_VERSION1
 
 struct data { 
     hal_s32_t joints[EMCMOT_MAX_JOINTS];
@@ -101,6 +103,13 @@ EXPORT_SYMBOL(kinematicsForward);
 EXPORT_SYMBOL(kinematicsInverse);
 MODULE_LICENSE("GPL");
 
+static vtkins_t vtk = {
+    .kinematicsForward = kinematicsForward,
+    .kinematicsInverse  = kinematicsInverse,
+    // .kinematicsHome = kinematicsHome,
+    .kinematicsType = kinematicsType
+};
+
 static int next_axis_number(void) {
     while(*coordinates) {
 	switch(*coordinates) {
@@ -123,25 +132,43 @@ static int next_axis_number(void) {
     return -1;
 }
 int comp_id;
+static const char *name = "trivkins";
+static int vtable_id;
+
 int rtapi_app_main(void) {
     int i;
     comp_id = hal_init("trivkins");
-    if(comp_id < 0) return comp_id;
 
-    data = hal_malloc(sizeof(struct data));
+    if(comp_id > 0) {
+        vtable_id = hal_export_vtable(name, VTVERSION, &vtk, comp_id);
 
-    for(i=0; i<EMCMOT_MAX_JOINTS; i++) {
-	data->joints[i] = next_axis_number();
+        if (vtable_id < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                            "%s: ERROR: hal_export_vtable(%s,%d,%p) failed: %d\n",
+                            name, name, VTVERSION, &vtk, vtable_id );
+            return -ENOENT;
+            }
+        data = hal_malloc(sizeof(struct data));
+
+        for(i=0; i<EMCMOT_MAX_JOINTS; i++) {
+            data->joints[i] = next_axis_number();
+            }
+        switch (*kinstype) {
+          case 'b': case 'B': ktype = KINEMATICS_BOTH;         break;
+          case 'f': case 'F': ktype = KINEMATICS_FORWARD_ONLY; break;
+          case 'i': case 'I': ktype = KINEMATICS_INVERSE_ONLY; break;
+          case '1': default:  ktype = KINEMATICS_IDENTITY;
+            }
+        hal_ready(comp_id);
+        return 0;
     }
-    switch (*kinstype) {
-      case 'b': case 'B': ktype = KINEMATICS_BOTH;         break;
-      case 'f': case 'F': ktype = KINEMATICS_FORWARD_ONLY; break;
-      case 'i': case 'I': ktype = KINEMATICS_INVERSE_ONLY; break;
-      case '1': default:  ktype = KINEMATICS_IDENTITY;
-    }
+    return comp_id;
 
     hal_ready(comp_id);
     return 0;
 }
 
-void rtapi_app_exit(void) { hal_exit(comp_id); }
+void rtapi_app_exit(void) {
+    hal_remove_vtable(vtable_id);
+    hal_exit(comp_id);
+}
