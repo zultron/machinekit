@@ -2850,7 +2850,7 @@ static cmdResponseType setLoadRt(char *s, connectionRecType *context)
   char *args[MAX_TOK+3];
   int i;
   
-  if (s == '\0') return rtCustomHandledError;
+  if (!s || s[0] == '\0') return rtCustomHandledError;
   i = 0;
   pch = strtok(NULL, delims);
   while (pch != NULL) {
