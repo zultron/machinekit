@@ -3366,63 +3366,61 @@ int parseCommand(connectionRecType *context)
 
 void *readClient(void *arg)
 {
-  char str[1600];
-  char buf[1600];
-  unsigned int i, j;
-  int len;
-  int ret;
-  connectionRecType *context;
-  
-  
-//  res = 1;
-  context = (connectionRecType *) malloc(sizeof(connectionRecType));
-  context->cliSock = client_sockfd;
-  context->linked = 0;
-  context->echo = 1;
-  context->verbose = 0;
-  strcpy(context->version, "1.0");
-  strcpy(context->hostName, "Default");
-  connCount++;
-  context->commMode = 0;
-  context->commProt = 0;
-  context->inBuf[0] = 0;
-  buf[0] = 0;
-  
-  while (1) {
-    len = read(context->cliSock, &str, 1600);
-    if (len <= 0) goto finished;
-    str[len] = 0;
-    strcat(buf, str);
-    if (!memchr(str, 0x0d, strlen(str))) continue;
-    if ((context->echo == 1) && (context->linked == 1)) {
-      ret = write(context->cliSock, &buf, strlen(buf));
-      if (ret < 0) {
-        goto finished;
-      }
-    }
-    i = 0;
-    j = 0;
-    while (i <= strlen(buf)) {
-      if ((buf[i] != '\n') && (buf[i] != '\r')) {
-        context->inBuf[j] = buf[i];
-	j++;
-	}
-      else
-        if (j > 0)
-          {
-  	    context->inBuf[j] = 0;
-            if (parseCommand(context) == -1) goto finished;
-	    j = 0;
-	}
-        i++;	
-      }
+    char str[1600];
+    char buf[1600];
+    unsigned int i, j;
+    int len;
+    int ret;
+    connectionRecType *context;
+
+    //  res = 1;
+    context = (connectionRecType *) malloc(sizeof(connectionRecType));
+    context->cliSock = client_sockfd;
+    context->linked = 0;
+    context->echo = 1;
+    context->verbose = 0;
+    strcpy(context->version, "1.0");
+    strcpy(context->hostName, "Default");
+    connCount++;
+    context->commMode = 0;
+    context->commProt = 0;
+    context->inBuf[0] = 0;
     buf[0] = 0;
-    } 
+
+    while (1) {
+        len = read(context->cliSock, &str, 1600);
+        if (len <= 0) goto finished;
+        str[len] = 0;
+        strcat(buf, str);
+        if (!memchr(str, 0x0d, strlen(str))) continue;
+        if ((context->echo == 1) && (context->linked == 1)) {
+            ret = write(context->cliSock, &buf, strlen(buf));
+            if (ret < 0) {
+                goto finished;
+            }
+        }
+        i = 0;
+        j = 0;
+        while (i <= strlen(buf)) {
+            if ((buf[i] != '\n') && (buf[i] != '\r')) {
+                context->inBuf[j] = buf[i];
+                j++;
+            }
+            else if (j > 0)
+            {
+                context->inBuf[j] = 0;
+                if (parseCommand(context) == -1) goto finished;
+                j = 0;
+            }
+            i++;
+        }
+        buf[0] = 0;
+    }
 
 finished:
-  close(context->cliSock);
-  free(context);
-  pthread_exit((void *)0);
+    close(context->cliSock);
+    free(context);
+    pthread_exit((void *)0);
 }
   
 /***********************************************************************
