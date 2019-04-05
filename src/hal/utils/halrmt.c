@@ -1847,7 +1847,7 @@ static void getThreadInfo(char *pattern, connectionRecType *context)
     while (next_thread != 0) {
       tptr = SHMPTR(next_thread);
       if (strncmp(pattern, tptr->name, len) == 0) {
-        char name[HAL_NAME_LEN+1];
+        char name[3*HAL_NAME_LEN];
         hal_pin_t* pin;
         hal_sig_t* sig;
         void* dptr;

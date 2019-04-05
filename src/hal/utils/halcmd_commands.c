@@ -1944,7 +1944,7 @@ static void print_thread_info(char **patterns)
 	tptr = SHMPTR(next_thread);
 	if ( match(patterns, tptr->name) ) {
 		/* note that the scriptmode format string has no \n */
-            char name[HAL_NAME_LEN+1];
+            char name[3*HAL_NAME_LEN];
             hal_pin_t* pin;
             hal_sig_t *sig;
             void *dptr;

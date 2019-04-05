@@ -92,7 +92,7 @@ GtkWidget * CreateGeneralParametersPage( void )
 	for (NumObj=0; NumObj<NBR_OBJECTS; NumObj++)
 	{
 		char BuffLabel[ 50 ];
-		char BuffValue[ 200 ];
+        char BuffValue[ 400 ];
                 
 		int InfoUsed = 0;
 		hbox[NumObj] = gtk_hbox_new (FALSE, 0);
