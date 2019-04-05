@@ -1144,61 +1144,60 @@ void *checkQueue(void *arg)
 
 void *readClient(void *arg)
 {
-  char str[1600];
-  char buf[1600];
-  unsigned int i, j;
-  int len;
-  connectionRecType *context;
-  
-  
-//  res = 1;
-  context = (connectionRecType *) malloc(sizeof(connectionRecType));
-  context->cliSock = client_sockfd;
-  context->linked = false;
-  context->echo = true;
-  context->verbose = false;
-  strcpy(context->version, "1.0");
-  strcpy(context->hostName, "Default");
-  context->enabled = false;
-  context->commMode = 0;
-  context->commProt = 0;
-  context->inBuf[0] = 0;
-  buf[0] = 0;
-  
-  while (1) {
-    len = read(context->cliSock, &str, 1600);
-    if (len <= 0) goto finished;
-    str[len] = 0;
-    strcat(buf, str);
-    if (!memchr(str, 0x0d, strlen(str))) continue;
-    if (context->echo && context->linked)
-      if(write(context->cliSock, buf, strlen(buf)) != (ssize_t)strlen(buf)) {
-        fprintf(stderr, "emcrsh: write() failed: %s", strerror(errno));
-      }
-    i = 0;
-    j = 0;
-    while (i <= strlen(buf)) {
-      if ((buf[i] != '\n') && (buf[i] != '\r')) {
-        context->inBuf[j] = buf[i];
-	j++;
-	}
-      else
-        if (j > 0)
-          {
-  	    context->inBuf[j] = 0;
-            if (parseCommand(context) == -1) goto finished;
-	    j = 0;
-	}
-        i++;	
-      }
+    char str[1600];
+    char buf[1600];
+    unsigned int i, j;
+    int len;
+    connectionRecType *context;
+
+
+    //  res = 1;
+    context = (connectionRecType *) malloc(sizeof(connectionRecType));
+    context->cliSock = client_sockfd;
+    context->linked = false;
+    context->echo = true;
+    context->verbose = false;
+    strcpy(context->version, "1.0");
+    strcpy(context->hostName, "Default");
+    context->enabled = false;
+    context->commMode = 0;
+    context->commProt = 0;
+    context->inBuf[0] = 0;
     buf[0] = 0;
-    } 
+
+    while (1) {
+        len = read(context->cliSock, &str, 1600);
+        if (len <= 0) goto finished;
+        str[len] = 0;
+        strcat(buf, str);
+        if (!memchr(str, 0x0d, strlen(str))) continue;
+        if (context->echo && context->linked)
+            if(write(context->cliSock, buf, strlen(buf)) != (ssize_t)strlen(buf)) {
+                fprintf(stderr, "emcrsh: write() failed: %s", strerror(errno));
+            }
+        i = 0;
+        j = 0;
+        while (i <= strlen(buf)) {
+            if ((buf[i] != '\n') && (buf[i] != '\r')) {
+                context->inBuf[j] = buf[i];
+                j++;
+            }
+            else if (j > 0)
+            {
+                context->inBuf[j] = 0;
+                if (parseCommand(context) == -1) goto finished;
+                j = 0;
+            }
+            i++;
+        }
+        buf[0] = 0;
+    }
 
 finished:
-  close(context->cliSock);
-  free(context);
-  pthread_exit((void *)0);
-  sessions--;  // FIXME: not reached
+    close(context->cliSock);
+    free(context);
+    pthread_exit((void *)0);
+    sessions--;  // FIXME: not reached
 }
 
 int sockMain()
