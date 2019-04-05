@@ -337,7 +337,7 @@ int rtapi_pci_enable_device(struct rtapi_pci_dev *dev)
 {
     WITH_ROOT;
     FILE *stream;
-    char path[256];
+    char path[300];
     int i,r;
     unsigned long long L1, L2, L3;
 
