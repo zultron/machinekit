@@ -25,6 +25,7 @@
 #include "canon.hh"
 #include "config.h"		// LINELEN
 #include <sstream>
+#include <memory>
 
 int _task = 0; // control preview behaviour when remapping
 
@@ -172,8 +173,7 @@ static int spindle_synched_motion = 0;
 static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
 
-static InterpBase *pinterp;
-#define interp_new (*pinterp)
+static std::unique_ptr<InterpBase> pinterp;
 
 #define callmethod(o, m, f, ...) PyObject_CallMethod((o), const_cast<char*>(m), const_cast<char*>(f), ## __VA_ARGS__)
 
@@ -203,7 +203,7 @@ static void maybe_new_line(int sequence_number) {
     _linecount++;
 }
 #else
-static inline void maybe_new_line(int sequence_number=interp_new.sequence_number());
+static inline void maybe_new_line(int sequence_number=pinterp->sequence_number());
 static inline void maybe_new_line(int sequence_number) {
     _linecount++;
     last_sequence_number = sequence_number;
@@ -756,14 +756,12 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     if(!PyArg_ParseTuple(args, "sO|sss", &f, &callback, &unitcode, &initcode, &interpname))
         return nullptr;
 
-    if(pinterp) {
-        delete pinterp;
-        pinterp = 0;
+    if(interpname && *interpname) {
+        pinterp.reset(interp_from_shlib(interpname));
     }
-    if(interpname && *interpname)
-        pinterp = interp_from_shlib(interpname);
-    if(!pinterp)
-        pinterp = new Interp;
+    if(!pinterp) {
+        pinterp.reset(new Interp());
+    }
 
     for(int i=0; i<USER_DEFINED_FUNCTION_NUM; i++)
         USER_DEFINED_FUNCTION[i] = user_defined_function;
@@ -780,25 +778,25 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     _pos_u = _pos_v = _pos_w = 0;
     _linecount=0;
 
-    interp_new.init();
-    interp_new.open(f);
+    pinterp->init();
+    pinterp->open(f);
 
     maybe_new_line();
 
     int result = INTERP_OK;
     if(unitcode) {
-        result = interp_new.read(unitcode);
+        result = pinterp->read(unitcode);
         if(!RESULT_OK) goto out_error;
-        result = interp_new.execute();
+        result = pinterp->execute();
     }
     if(initcode && RESULT_OK) {
-        result = interp_new.read(initcode);
+        result = pinterp->read(initcode);
         if(!RESULT_OK) goto out_error;
-        result = interp_new.execute();
+        result = pinterp->execute();
     }
     while(!interp_error && RESULT_OK) {
         error_line_offset = 1;
-        result = interp_new.read();
+        result = pinterp->read();
         gettimeofday(&t1, nullptr);
         if(t1.tv_sec > t0.tv_sec + wait) {
             if(check_abort()) return nullptr;
@@ -806,7 +804,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
         }
         if(!RESULT_OK) break;
         error_line_offset = 0;
-        result = interp_new.execute();
+        result = pinterp->execute();
     }
 out_error:
     if(pinterp) pinterp->close();
@@ -828,10 +826,10 @@ out_error:
     if (_linecount > max_glcanon_lines) {
         std::stringstream preview_cutoff_warning;
         preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use the context menu of the g-code window on the Main tab to load all preview lines.  Or use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
-        PyList_Append(((Interp*)pinterp)->warning_list, PyString_FromString(preview_cutoff_warning.str().c_str()));
+        PyList_Append(reinterpret_cast<Interp*>(pinterp.get())->warning_list, PyString_FromString(preview_cutoff_warning.str().c_str()));
     }
 
-    PyTuple_SetItem(retval, 2, ((Interp*)pinterp)->warning_list);
+    PyTuple_SetItem(retval, 2, reinterpret_cast<Interp*>(pinterp.get())->warning_list);
 
     return retval;
 }
@@ -842,7 +840,7 @@ static char savedError[LINELEN+1];
 static PyObject *rs274_strerror(PyObject *s, PyObject *o) {
     int err;
     if(!PyArg_ParseTuple(o, "i", &err)) return nullptr;
-    interp_new.error_text(err, savedError, LINELEN);
+    pinterp->error_text(err, savedError, LINELEN);
     return PyString_FromString(savedError);
 }
 
