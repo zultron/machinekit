@@ -868,7 +868,7 @@ int Interp::init()
   _setup.center_arc_radius_tolerance_inch = CENTER_ARC_RADIUS_TOLERANCE_INCH;
   _setup.center_arc_radius_tolerance_mm = CENTER_ARC_RADIUS_TOLERANCE_MM;
 
-  if(iniFileName != NULL) {
+  if(iniFileName) {
 
       IniFile inifile;
       if (inifile.Open(iniFileName) == false) {
@@ -1247,7 +1247,7 @@ int Interp::init()
 
   // call __init__(self) once in toplevel module if defined
   // once fully set up and sync()ed
-  if ((iniFileName != NULL) && _setup.init_once && PYUSABLE ) {
+  if ((iniFileName) && _setup.init_once && PYUSABLE ) {
 
       // initialize any python global predefined named parameters
       // walk the namedparams module for callables and add their names as predefs
