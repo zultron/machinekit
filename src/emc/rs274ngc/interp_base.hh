@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 #include <modal_state.hh>
+#include <StateTag.hh>
 
 /*
  * Enum for `g_codes` indices, as written by `active_modes()`, and

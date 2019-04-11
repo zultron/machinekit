@@ -12,10 +12,8 @@
 * Copyright (c) 2015 All rights reserved
 ********************************************************************/
 
-
 #ifndef STATE_TAG_H
 #define STATE_TAG_H
-
 
 /**
  * Enum to define bit names for StateTag's flags register.

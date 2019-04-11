@@ -18,8 +18,8 @@
 
 #include "emcpos.h"
 #include "emctool.h"
-#include "modal_state.hh"
 
+struct StateTag;
 /*
   This is the header file that all applications that use the
   canonical commands for three- to nine-axis machining should include.

@@ -50,6 +50,7 @@ python2_dep = dependency('python2')
 
 subdir('src')
 subdir('src/emc/nml_intf')
+subdir('src/emc/interp_shared')
 subdir('src/emc/rs274ngc')
 subdir('src/emc/sai')
 subdir('src/emc/pythonplugin')
@@ -218,21 +219,30 @@ rs274ngc_external_inc = [
   posemath_inc,
 ]
 
-interp_src = join_paths(src_root, 'emc/rs274ngc')
+libinterp_shared = shared_module('interp_shared',
+  interp_shared_srcs,
+  dependencies : [
+    libposemath_dep,
+    libemcpose_dep,
+    ],
+  include_directories : [interp_shared_inc, motion_inc]
+  )
 
+libinterp_shared_dep = declare_dependency(include_directories : interp_shared_inc,
+    link_with : libinterp_shared)
 
 librs274ngc = shared_module('rs274ngc',
   rs274ngc_srcs,
   dependencies : [
     boost_dep, 
     python2_dep, 
-    dl_dep, 
     liblinuxcncini_dep, 
     libpyplugin_dep,
-    libposemath_cpp_dep
+    libposemath_cpp_dep,
+    libinterp_shared_dep,
     ],
-  include_directories : [tp_unit_test_inc, rs274ngc_inc, rs274ngc_external_inc],
-  link_with: [libposemath_cpp])
+  include_directories : [tp_unit_test_inc, rs274ngc_inc, rs274ngc_external_inc]
+  )
 
 librs274ngc_dep = declare_dependency(include_directories : rs274ngc_inc,
     link_with : librs274ngc)
@@ -240,7 +250,7 @@ librs274ngc_dep = declare_dependency(include_directories : rs274ngc_inc,
 libsaicanon = shared_module('saicanon',
   saicanon_srcs,
   include_directories : [sai_inc, rs274ngc_external_inc ],
-  dependencies : [boost_dep, python2_dep, dl_dep, liblinuxcncini_dep, librs274ngc_dep]
+  dependencies : [boost_dep, python2_dep, dl_dep, liblinuxcncini_dep, librs274ngc_dep, libinterp_shared_dep]
   )
 
 libsaicanon_dep = declare_dependency(include_directories : sai_inc,
@@ -256,6 +266,7 @@ test_interp_ex = executable('test_interp',
         libpyplugin_dep,
         liblinuxcnchal_dep,
         libsaicanon_dep,
+        libinterp_shared_dep,
         ]
     )
 
