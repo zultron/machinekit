@@ -2696,9 +2696,14 @@ int Interp::on_abort(int reason, const char *message)
 {
     int pocket, tool;
     logDebug("on_abort reason=%d message='%s'", reason, message);
-    
-    
-    
+
+#if 0
+    // This tool change code below is all legacy before state tags existed.
+    // Now on stop (command abort), state is restored from the tag and that includes
+    // G43 state which will apply both the geo offset and wear offset if the wear offset
+    // was in effect at the time the state tag was written (otherwise it is just a geo offset).
+    // jwf 4/1/2019
+
     // If running the FANUC_LATHE_TOOLCHANGE feature, the interp reads ahead and on abort the wrong tool
     // offset will be used if a program is stopped in the middle.  We need to resynch here.
     // One thing to note with this solution is that if you have a T0202 wear offset applied 
@@ -2714,15 +2719,16 @@ int Interp::on_abort(int reason, const char *message)
         EmcPose tool_offset;
         ZERO_EMC_POSE(tool_offset);
         
+        // must apply x y and z as all 3 are used in rapidturn situations
         tool_offset.tran.x = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.x);
+        tool_offset.tran.y = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.y);
         tool_offset.tran.z = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.z);
-        logDebug("Found tool %d with geo offset pocket %d on abort. Applying offset (%.2f, %.2f)", 
-            tool, pocket, tool_offset.tran.x, tool_offset.tran.z);
+        logDebug("Found tool %d with geo offset pocket %d on abort. Applying offset (x %.2f, y %.2f, z %.2f)", 
+            tool, pocket, tool_offset.tran.x, tool_offset.tran.y, tool_offset.tran.z);
         USE_TOOL_LENGTH_OFFSET(tool_offset);
         _setup.tool_offset = tool_offset;
-    }
-    
-    
+    }   
+#endif    
     
     reset();
     _setup.mdi_interrupt = false;

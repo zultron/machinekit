@@ -68,6 +68,8 @@ typedef enum {
     GM_FIELD_M_MODES_4,
     GM_FIELD_ORIGIN,
     GM_FIELD_TOOLCHANGE,
+    GM_FIELD_TOOL_NUMBER,
+    GM_FIELD_POCKET_NUMBER,
     GM_FIELD_MAX_FIELDS
 } StateField;
 
@@ -99,8 +101,8 @@ struct state_tag_t {
     unsigned long int packed_flags;
 
     // For updating g5x offsets in task when they don't affect the
-    // current offset
-    double offsets[81];
+    // current offset.  9 axis * 9 work offsets
+    double offsets[9 * 9];  
 };
 
 // Utility functions for motion / tp
