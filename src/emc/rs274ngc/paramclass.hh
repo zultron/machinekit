@@ -21,8 +21,8 @@
 
 #include <boost/python/list.hpp>
 
-#include <interp_internal.hh>
 struct Interp;
+typedef struct context_struct context;
 
 struct ParamClass {
 
