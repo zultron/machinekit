@@ -16,6 +16,7 @@
 
 #include <Python.h> // must be first header
 #include "rs274ngc.hh"
+#include "canon.hh"
 
 int main() {
     InterpBase *b = makeInterp();
