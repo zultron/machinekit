@@ -48,6 +48,7 @@
 #include "emcglb.h"		// global values from INI for max velocity, tolerance, etc.
 
 #include "coordinatetransform.hh"
+#include "units.h"
 
 //#define EMCCANON_DEBUG
 
@@ -106,22 +107,6 @@ void UPDATE_TAG(StateTag &tag) {
 #ifndef MAX9
 #define MAX9(a,b,c,d,e,f,g,h,i) (MAX3((MAX3(a,b,c)),(MAX3(d,e,f)),(MAX3(g,h,i))))
 #endif
-
-/* macros for converting internal (mm/deg) units to external units */
-#define TO_EXT_LEN(mm) ((mm) * GET_EXTERNAL_LENGTH_UNITS())
-#define TO_EXT_ANG(deg) ((deg) * GET_EXTERNAL_ANGLE_UNITS())
-
-/* macros for converting external units to internal (mm/deg) units */
-#define FROM_EXT_LEN(ext) ((ext) / GET_EXTERNAL_LENGTH_UNITS())
-#define FROM_EXT_ANG(ext) ((ext) / GET_EXTERNAL_ANGLE_UNITS())
-
-/* macros for converting internal (mm/deg) units to program units */
-#define TO_PROG_LEN(mm) ((mm) / (lengthUnits == CANON_UNITS_INCHES ? 25.4 : lengthUnits == CANON_UNITS_CM ? 10.0 : 1.0))
-#define TO_PROG_ANG(deg) (deg)
-
-/* macros for converting program units to internal (mm/deg) units */
-#define FROM_PROG_ANG(prog) (prog)
-
 
 /* Certain axes are periodic.  Hardcode this for now */
 #define IS_PERIODIC(axisnum) \

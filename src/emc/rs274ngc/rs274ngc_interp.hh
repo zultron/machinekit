@@ -672,37 +672,48 @@ int read_inputs(setup_pointer settings);
     int unwind_call(int status, const char *file, int line, const char *function);
 
 
- int convert_straight_indexer(int, block*, setup*);
- int issue_straight_index(int, double, int, setup*);
+    int convert_straight_indexer(int, block*, setup*);
+    int issue_straight_index(int, double, int, setup*);
 
- void doLog(unsigned int flags, const char *file, int line,
-	    const char *fmt, ...) __attribute__((format(printf,5,6)));
+    void doLog(unsigned int flags, const char *file, int line,
+               const char *fmt, ...) __attribute__((format(printf,5,6)));
 
- const char *interp_status(int status);
+    const char *interp_status(int status);
 
     //technically this violates encapsulation rules but is needed for
     // the Python introspection module
 
- FILE *log_file;
+    FILE *log_file;
 
-/* Internal arrays */
- static const int _gees[];
- static const int _ems[];
- static const int _required_parameters[];
- static const int _readonly_parameters[];
- static const int _n_readonly_parameters;
- read_function_pointer _readers[256];
- static const read_function_pointer default_readers[256];
+    /* Internal arrays */
+    static const int _gees[];
+    static const int _ems[];
+    static const int _required_parameters[];
+    static const int _readonly_parameters[];
+    static const int _n_readonly_parameters;
+    read_function_pointer _readers[256];
+    static const read_function_pointer default_readers[256];
 
- setup _setup;
- PyObject* warning_list;
+    setup _setup;
+    PyObject* warning_list;
 
- char warning_text_buf[LINELEN];
- enum {
-     AXIS_MASK_X =   1, AXIS_MASK_Y =   2, AXIS_MASK_Z =   4,
-     AXIS_MASK_A =   8, AXIS_MASK_B =  16, AXIS_MASK_C =  32,
-     AXIS_MASK_U =  64, AXIS_MASK_V = 128, AXIS_MASK_W = 256,
- };
+    char warning_text_buf[LINELEN];
+    enum {
+        AXIS_MASK_X =   1, AXIS_MASK_Y =   2, AXIS_MASK_Z =   4,
+        AXIS_MASK_A =   8, AXIS_MASK_B =  16, AXIS_MASK_C =  32,
+        AXIS_MASK_U =  64, AXIS_MASK_V = 128, AXIS_MASK_W = 256,
+    };
+
+private:
+    double TO_PROG_LEN(double mm);
+    double FROM_PROG_LEN(double);
+    double TO_PROG_ANG(double);
+    double FROM_PROG_ANG(double);
+
+    double USER_TO_PROGRAM_LEN(double u);
+    double PROGRAM_TO_USER_LEN(double p);
+    double USER_TO_PROGRAM_ANG(double u);
+    double PROGRAM_TO_USER_ANG(double p);
 };
 
 #endif

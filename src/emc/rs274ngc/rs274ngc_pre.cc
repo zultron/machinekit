@@ -121,6 +121,43 @@ const char *Interp::interp_status(int status) {
     return statustext;
 }
 
+double Interp::TO_PROG_LEN(double mm)
+{
+    return ((mm) / (_setup.length_units == CANON_UNITS_INCHES ? 25.4 : _setup.length_units == CANON_UNITS_CM ? 10.0 : 1.0));
+}
+
+double Interp::TO_PROG_ANG(double deg) {
+    return deg;
+}
+
+double Interp::FROM_PROG_LEN(double prog) {
+    return ((prog) * (_setup.length_units == CANON_UNITS_INCHES ? 25.4 : _setup.length_units == CANON_UNITS_CM ? 10.0 : 1.0));
+}
+
+double Interp::FROM_PROG_ANG(double prog) {
+    return prog;
+}
+
+double Interp::USER_TO_PROGRAM_LEN(double u)
+{
+    return TO_PROG_LEN(FROM_EXT_LEN(u));
+}
+
+double Interp::PROGRAM_TO_USER_LEN(double p)
+{
+    return TO_EXT_LEN(FROM_PROG_LEN(p));
+}
+
+double Interp::USER_TO_PROGRAM_ANG(double u)
+{
+    return TO_PROG_ANG(FROM_EXT_ANG(u));
+}
+
+double Interp::PROGRAM_TO_USER_ANG(double p)
+{
+    return TO_EXT_ANG(FROM_PROG_ANG(p));
+}
+
 extern struct _inittab builtin_modules[];
 int trace;
 static char savedError[LINELEN+1];
