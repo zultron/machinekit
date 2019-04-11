@@ -160,7 +160,6 @@ static int updateStatus()
     case -1:
       // error on CMS channel
       return -1;
-      break;
 
     case 0:                     // no new data
     case EMC_STAT_TYPE: // new data
@@ -169,7 +168,6 @@ static int updateStatus()
 
     default:
       return -1;
-      break;
     }
 
   return 0;
@@ -190,7 +188,6 @@ static int updateError()
     case -1:
       // error reading channel
       return -1;
-      break;
 
     case 0:
       // nothing new
@@ -242,7 +239,6 @@ static int updateError()
     default:
       sprintf(error_string, "unrecognized error %" PRId32,type);
       return -1;
-      break;
     }
 
   return 0;
@@ -3524,7 +3520,7 @@ static char oldProgramString[256] = "";
 void timeoutCB(XtPointer clientdata, XtIntervalId *id)
 {
   double now;
-  char string[256];             // FIXME-- hardcoded
+  char string[512];             // FIXME-- hardcoded
   int t;
   int changedPositionType;
   double newX, newY, newZ;
