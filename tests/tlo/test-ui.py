@@ -316,8 +316,7 @@ e.g('g43')
 
 verify_tool(
     tool=100,
-    # Tormach:  X, Y TLOs not applied by default
-    x=0, y=0, z=-1,
+    x=-2, y=0, z=-1,
     a=0, b=0, c=0,
     u=0, v=0, w=0,
     diameter=0.125,
@@ -332,8 +331,7 @@ e.g('g43 h200')
 
 verify_tool(
     tool=100,
-    # Tormach:  X, Y TLOs not applied by default
-    x=0, y=0, z=-0.1,
+    x=-0.2, y=0, z=-0.1,
     a=0, b=0, c=0,
     u=0, v=0, w=0,
     diameter=0.125,
@@ -365,8 +363,7 @@ e.g('g43.2 h100')
 
 verify_tool(
     tool=100,
-    # Tormach:  X, Y TLOs not applied by default
-    x=-2.0, y=0, z=-1.1,
+    x=-2.2, y=0, z=-1.1,
     a=0, b=0, c=0,
     u=0, v=0, w=0,
     diameter=0.125,
@@ -381,8 +378,7 @@ e.g('g43.2 h300')
 
 verify_tool(
     tool=100,
-    # Tormach:  X, Y TLOs not applied by default
-    x=-2.02, y=0, z=-1.11,
+    x=-2.22, y=0, z=-1.11,
     a=0, b=0, c=0,
     u=0, v=0, w=0,
     diameter=0.125,
@@ -397,8 +393,7 @@ e.g('g43.2 h400')
 
 verify_tool(
     tool=100,
-    # Tormach:  X, Y TLOs not applied by default
-    x=-2.022, y=0, z=-1.111,
+    x=-2.222, y=0, z=-1.111,
     a=0, b=0, c=0,
     u=0, v=0, w=0,
     diameter=0.125,
@@ -413,8 +408,7 @@ e.g('g43.2 h400')
 
 verify_tool(
     tool=100,
-    # Tormach:  X, Y TLOs not applied by default
-    x=-2.024, y=0, z=-1.112,
+    x=-2.224, y=0, z=-1.112,
     a=0, b=0, c=0,
     u=0, v=0, w=0,
     diameter=0.125,
@@ -428,8 +422,7 @@ e.g('g10 l2 p1 r33')
 
 verify_tool(
     tool=100,
-    # Tormach:  X, Y TLOs not applied by default
-    x=-2.024 * math.cos(math.radians(33)), y=2.024 * math.sin(math.radians(33)), z=-1.112,
+    x=-2.224 * math.cos(math.radians(33)), y=2.224 * math.sin(math.radians(33)), z=-1.112,
     a=0, b=0, c=0,
     u=0, v=0, w=0,
     diameter=0.125,
@@ -457,8 +450,7 @@ e.g('g43 h100')
 
 verify_tool(
     tool=100,
-    # Tormach:  X, Y TLOs not applied by default
-    x=0*math.cos(math.radians(33)), y=0*math.sin(math.radians(33)), z=-1,
+    x=-2*math.cos(math.radians(33)), y=2*math.sin(math.radians(33)), z=-1,
     a=0, b=0, c=0,
     u=0, v=0, w=0,
     diameter=0.125,
@@ -472,8 +464,7 @@ e.g('g43.2 h200')
 
 verify_tool(
     tool=100,
-    # Tormach:  X, Y TLOs not applied by default
-    x=-0.2*math.cos(math.radians(33)), y=0.2*math.sin(math.radians(33)), z=-1.1,
+    x=-2.2*math.cos(math.radians(33)), y=2.2*math.sin(math.radians(33)), z=-1.1,
     a=0, b=0, c=0,
     u=0, v=0, w=0,
     diameter=0.125,
