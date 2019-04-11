@@ -1073,214 +1073,94 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
                                 block_pointer block,    //!< pointer to a block of RS274/NGC instructions  
                                 setup_pointer settings) //!< pointer to machine settings                   
 {
-  double *pars;                 /* short name for settings->parameters            */
+    double *pars;                 /* short name for settings->parameters            */
 
-  CHKS((settings->cutter_comp_side),      /* not "== true" */
-      NCE_CANNOT_CHANGE_AXIS_OFFSETS_WITH_CUTTER_RADIUS_COMP);
-  CHKS((block->a_flag && settings->a_axis_wrapped &&
-	(block->a_number <= -360.0 || block->a_number >= 360.0)),
-       (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
-       block->a_number, 'A');
-  CHKS((block->b_flag && settings->b_axis_wrapped &&
-	(block->b_number <= -360.0 || block->b_number >= 360.0)),
-       (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
-       block->b_number, 'B');
-  CHKS((block->c_flag && settings->c_axis_wrapped &&
-	(block->c_number <= -360.0 || block->c_number >= 360.0)),
-       (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
-       block->c_number, 'C');
-  pars = settings->parameters;
-  if ((g_code == G_52) || (g_code == G_92)) {
-      pars[G92_APPLIED] = 1.0;
+    CHKS((settings->cutter_comp_side),      /* not "== true" */
+         NCE_CANNOT_CHANGE_AXIS_OFFSETS_WITH_CUTTER_RADIUS_COMP);
+    CHKS((block->a_flag && settings->a_axis_wrapped &&
+          (block->a_number <= -360.0 || block->a_number >= 360.0)),
+         (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
+         block->a_number, 'A');
+    CHKS((block->b_flag && settings->b_axis_wrapped &&
+          (block->b_number <= -360.0 || block->b_number >= 360.0)),
+         (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
+         block->b_number, 'B');
+    CHKS((block->c_flag && settings->c_axis_wrapped &&
+          (block->c_number <= -360.0 || block->c_number >= 360.0)),
+         (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
+         block->c_number, 'C');
+    pars = settings->parameters;
+    if ((g_code == G_52) || (g_code == G_92)) {
+        pars[G92_APPLIED] = 1.0;
 
-      if (g_code == G_52) {
-	  if (block->x_flag) {
-          settings->current[X] += settings->transform.g92Offset.tf[X] - block->x_number;
-          settings->transform.g92Offset.tf[X] = block->x_number;
-	  }
+        PositionArray cmd_axis_values = getCommandPosition(block, settings->transform.g92Offset.tf);
 
-	  if (block->y_flag) {
-          settings->current[Y] += settings->transform.g92Offset.tf[Y] - block->y_number;
-          settings->transform.g92Offset.tf[Y] = block->y_number;
-	  }
+        // FIXME these cases preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
+        if (g_code == G_52) {
+            // Command represents new offsets, copy them in directly, and apply the difference to the current position
+            // FIXME this preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
+            settings->current += (settings->transform.g92Offset.tf - cmd_axis_values);
+            settings->transform.g92Offset.tf = cmd_axis_values;
+        } else {
+            // Command represents new desired position directly
+            settings->transform.g92Offset.tf += (settings->current  - cmd_axis_values);
+            settings->current = cmd_axis_values;
+        }
 
-	  if (block->z_flag) {
-          settings->current[Z] += settings->transform.g92Offset.tf[Z] - block->z_number;
-          settings->transform.g92Offset.tf[Z] = block->z_number;
-	  }
-	  if (block->a_flag) {
-          settings->current[A] += settings->transform.g92Offset.tf[A] - block->a_number;
-          settings->transform.g92Offset.tf[A] = block->a_number;
-	  }
-	  if (block->b_flag) {
-          settings->current[B] += settings->transform.g92Offset.tf[B] - block->b_number;
-          settings->transform.g92Offset.tf[B] = block->b_number;
-	  }
-	  if (block->c_flag) {
-          settings->current[C] += settings->transform.g92Offset.tf[C] - block->c_number;
-          settings->transform.g92Offset.tf[C] = block->c_number;
-	  }
-	  if (block->u_flag) {
-          settings->current[U] += settings->transform.g92Offset.tf[U] - block->u_number;
-          settings->transform.g92Offset.tf[U] = block->u_number;
-	  }
-	  if (block->v_flag) {
-          settings->current[V] += settings->transform.g92Offset.tf[V] - block->v_number;
-          settings->transform.g92Offset.tf[V] = block->v_number;
-	  }
-	  if (block->w_flag) {
-          settings->current[W] += settings->transform.g92Offset.tf[W] - block->w_number;
-          settings->transform.g92Offset.tf[W] = block->w_number;
-	  }
+        // Update user-facing parameters for G92
+        pars[G92_X] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[X]);
+        pars[G92_Y] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[Y]);
+        pars[G92_Z] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[Z]);
+        pars[G92_A] = PROGRAM_TO_USER_ANG(settings->transform.g92Offset.tf[A]);
+        pars[G92_B] = PROGRAM_TO_USER_ANG(settings->transform.g92Offset.tf[B]);
+        pars[G92_C] = PROGRAM_TO_USER_ANG(settings->transform.g92Offset.tf[C]);
+        pars[G92_U] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[U]);
+        pars[G92_V] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[V]);
+        pars[G92_W] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[W]);
 
-      } else {
-	  if (block->x_flag) {
-          settings->transform.g92Offset.tf[X] =
-          (settings->current[X] + settings->transform.g92Offset.tf[X] - block->x_number);
-          settings->current[X] = block->x_number;
-	  }
+    } else if ((g_code == G_92_1) || (g_code == G_92_2)) {
 
-	  if (block->y_flag) {
-          settings->transform.g92Offset.tf[Y] =
-          (settings->current[Y] + settings->transform.g92Offset.tf[Y] - block->y_number);
-          settings->current[Y] = block->y_number;
-	  }
+        // Clear current offset (first removing it from the interp position)
+        pars[5210] = 0.0;
+        settings->current += settings->transform.g92Offset.tf;
+        settings->transform.g92Offset.tf.fill(0);
 
-	  if (block->z_flag) {
-          settings->transform.g92Offset.tf[Z] =
-          (settings->current[Z] + settings->transform.g92Offset.tf[Z] - block->z_number);
-          settings->current[Z] = block->z_number;
-	  }
-	  if (block->a_flag) {
-          settings->transform.g92Offset.tf[A] = (settings->current[A] +
-                      settings->transform.g92Offset.tf[A] - block->a_number);
-          settings->current[A] = block->a_number;
-	  }
-	  if (block->b_flag) {
-          settings->transform.g92Offset.tf[B] = (settings->current[B] +
-                      settings->transform.g92Offset.tf[B] - block->b_number);
-          settings->current[B] = block->b_number;
-	  }
-	  if (block->c_flag) {
-          settings->transform.g92Offset.tf[C] = (settings->current[C] +
-                      settings->transform.g92Offset.tf[C] - block->c_number);
-          settings->current[C] = block->c_number;
-	  }
-	  if (block->u_flag) {
-          settings->transform.g92Offset.tf[U] = (settings->current[U] +
-                     settings->transform.g92Offset.tf[U] - block->u_number);
-          settings->current[U] = block->u_number;
-	  }
-	  if (block->v_flag) {
-          settings->transform.g92Offset.tf[V] = (settings->current[V] +
-                     settings->transform.g92Offset.tf[V] - block->v_number);
-          settings->current[V] = block->v_number;
-	  }
-	  if (block->w_flag) {
-          settings->transform.g92Offset.tf[W] = (settings->current[W] +
-                     settings->transform.g92Offset.tf[W] - block->w_number);
-          settings->current[W] = block->w_number;
-	  }
-      }
+        if (g_code == G_92_1) {
+            pars[G92_X] = 0.0;
+            pars[G92_Y] = 0.0;
+            pars[G92_Z] = 0.0;
+            pars[G92_A] = 0.0;
+            pars[G92_B] = 0.0;
+            pars[G92_C] = 0.0;
+            pars[G92_U] = 0.0;
+            pars[G92_V] = 0.0;
+            pars[G92_W] = 0.0;
+        }
+    } else if (g_code == G_92_3) {
+        pars[5210] = 1.0;
 
-    SET_G92_OFFSET(settings->transform.g92Offset.tf[X],
-                   settings->transform.g92Offset.tf[Y],
-                   settings->transform.g92Offset.tf[Z],
-                   settings->transform.g92Offset.tf[A],
-                   settings->transform.g92Offset.tf[B],
-                   settings->transform.g92Offset.tf[C],
-                   settings->transform.g92Offset.tf[U],
-                   settings->transform.g92Offset.tf[V],
-                   settings->transform.g92Offset.tf[W]);
+        settings->current += settings->transform.g92Offset.tf;
 
-    pars[5211] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[X]);
-    pars[5212] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[Y]);
-    pars[5213] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[Z]);
-    pars[5214] = PROGRAM_TO_USER_ANG(settings->transform.g92Offset.tf[A]);
-    pars[5215] = PROGRAM_TO_USER_ANG(settings->transform.g92Offset.tf[B]);
-    pars[5216] = PROGRAM_TO_USER_ANG(settings->transform.g92Offset.tf[C]);
-    pars[5217] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[U]);
-    pars[5218] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[V]);
-    pars[5219] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[W]);
 
-  } else if ((g_code == G_92_1) || (g_code == G_92_2)) {
-    pars[5210] = 0.0;
-    settings->current[X] = settings->current[X] + settings->transform.g92Offset.tf[X];
-    settings->current[Y] = settings->current[Y] + settings->transform.g92Offset.tf[Y];
-    settings->current[Z] = settings->current[Z] + settings->transform.g92Offset.tf[Z];
-    settings->current[A] = (settings->current[A] + settings->transform.g92Offset.tf[A]);
-    settings->current[B] = (settings->current[B] + settings->transform.g92Offset.tf[B]);
-    settings->current[C] = (settings->current[C] + settings->transform.g92Offset.tf[C]);
-    settings->current[U] = (settings->current[U] + settings->transform.g92Offset.tf[U]);
-    settings->current[V] = (settings->current[V] + settings->transform.g92Offset.tf[V]);
-    settings->current[W] = (settings->current[W] + settings->transform.g92Offset.tf[W]);
+        settings->transform.g92Offset.tf[X] = USER_TO_PROGRAM_LEN(pars[5211]);
+        settings->transform.g92Offset.tf[Y] = USER_TO_PROGRAM_LEN(pars[5212]);
+        settings->transform.g92Offset.tf[Z] = USER_TO_PROGRAM_LEN(pars[5213]);
+        settings->transform.g92Offset.tf[A] = USER_TO_PROGRAM_ANG(pars[5214]);
+        settings->transform.g92Offset.tf[B] = USER_TO_PROGRAM_ANG(pars[5215]);
+        settings->transform.g92Offset.tf[C] = USER_TO_PROGRAM_ANG(pars[5216]);
+        settings->transform.g92Offset.tf[U] = USER_TO_PROGRAM_LEN(pars[5217]);
+        settings->transform.g92Offset.tf[V] = USER_TO_PROGRAM_LEN(pars[5218]);
+        settings->transform.g92Offset.tf[W] = USER_TO_PROGRAM_LEN(pars[5219]);
 
-    SET_G92_OFFSET(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-
-    settings->transform.g92Offset.tf[X] = 0.0;
-    settings->transform.g92Offset.tf[Y] = 0.0;
-    settings->transform.g92Offset.tf[Z] = 0.0;
-    settings->transform.g92Offset.tf[A] = 0.0;
-    settings->transform.g92Offset.tf[B] = 0.0;
-    settings->transform.g92Offset.tf[C] = 0.0;
-    settings->transform.g92Offset.tf[U] = 0.0;
-    settings->transform.g92Offset.tf[V] = 0.0;
-    settings->transform.g92Offset.tf[W] = 0.0;
-    if (g_code == G_92_1) {
-      pars[G92_X] = 0.0;
-      pars[G92_Y] = 0.0;
-      pars[G92_Z] = 0.0;
-      pars[G92_A] = 0.0;
-      pars[G92_B] = 0.0;
-      pars[G92_C] = 0.0;
-      pars[G92_U] = 0.0;
-      pars[G92_V] = 0.0;
-      pars[G92_W] = 0.0;
+        settings->current -= settings->transform.g92Offset.tf;
+    } else {
+        ERS(NCE_BUG_CODE_NOT_IN_G52_G92_SERIES);
     }
-  } else if (g_code == G_92_3) {
-    pars[5210] = 1.0;
-    settings->current[X] =
-      settings->current[X] + settings->transform.g92Offset.tf[X] - USER_TO_PROGRAM_LEN(pars[5211]);
-    settings->current[Y] =
-      settings->current[Y] + settings->transform.g92Offset.tf[Y] - USER_TO_PROGRAM_LEN(pars[5212]);
-    settings->current[Z] =
-      settings->current[Z] + settings->transform.g92Offset.tf[Z] - USER_TO_PROGRAM_LEN(pars[5213]);
-    settings->current[A] =
-      settings->current[A] + settings->transform.g92Offset.tf[A] - USER_TO_PROGRAM_ANG(pars[5214]);
-    settings->current[B] =
-      settings->current[B] + settings->transform.g92Offset.tf[B] - USER_TO_PROGRAM_ANG(pars[5215]);
-    settings->current[C] =
-      settings->current[C] + settings->transform.g92Offset.tf[C] - USER_TO_PROGRAM_ANG(pars[5216]);
-    settings->current[U] =
-      settings->current[U] + settings->transform.g92Offset.tf[U] - USER_TO_PROGRAM_LEN(pars[5217]);
-    settings->current[V] =
-      settings->current[V] + settings->transform.g92Offset.tf[V] - USER_TO_PROGRAM_LEN(pars[5218]);
-    settings->current[W] =
-      settings->current[W] + settings->transform.g92Offset.tf[W] - USER_TO_PROGRAM_LEN(pars[5219]);
 
-    settings->transform.g92Offset.tf[X] = USER_TO_PROGRAM_LEN(pars[5211]);
-    settings->transform.g92Offset.tf[Y] = USER_TO_PROGRAM_LEN(pars[5212]);
-    settings->transform.g92Offset.tf[Z] = USER_TO_PROGRAM_LEN(pars[5213]);
-    settings->transform.g92Offset.tf[A] = USER_TO_PROGRAM_ANG(pars[5214]);
-    settings->transform.g92Offset.tf[B] = USER_TO_PROGRAM_ANG(pars[5215]);
-    settings->transform.g92Offset.tf[C] = USER_TO_PROGRAM_ANG(pars[5216]);
-    settings->transform.g92Offset.tf[U] = USER_TO_PROGRAM_LEN(pars[5217]);
-    settings->transform.g92Offset.tf[V] = USER_TO_PROGRAM_LEN(pars[5218]);
-    settings->transform.g92Offset.tf[W] = USER_TO_PROGRAM_LEN(pars[5219]);
+    // Always send a (valid) offset update down to Canon
+    SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
 
-    SET_G92_OFFSET(settings->transform.g92Offset.tf[X],
-                   settings->transform.g92Offset.tf[Y],
-                   settings->transform.g92Offset.tf[Z],
-                   settings->transform.g92Offset.tf[A],
-                   settings->transform.g92Offset.tf[B],
-                   settings->transform.g92Offset.tf[C],
-                   settings->transform.g92Offset.tf[U],
-                   settings->transform.g92Offset.tf[V],
-                   settings->transform.g92Offset.tf[W]);
-  } else
-    ERS(NCE_BUG_CODE_NOT_IN_G52_G92_SERIES);
-
-  return INTERP_OK;
+    return INTERP_OK;
 }
 
 #define VAL_LEN 30

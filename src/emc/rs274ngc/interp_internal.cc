@@ -476,3 +476,37 @@ int Interp::set_probe_data(setup_pointer settings)       //!< pointer to machine
 }
 
 int Interp::call_level(void) { return _setup.call_level; }
+
+PositionMask getUpdatedAxes(block_pointer b)
+{
+    PositionMask axes_updated;
+    axes_updated[X] = b->x_flag;
+    axes_updated[Y] = b->y_flag;
+    axes_updated[Z] = b->z_flag;
+    axes_updated[A] = b->a_flag;
+    axes_updated[B] = b->b_flag;
+    axes_updated[C] = b->c_flag;
+    axes_updated[U] = b->u_flag;
+    axes_updated[V] = b->v_flag;
+    axes_updated[W] = b->w_flag;
+
+    return axes_updated;
+}
+
+PositionArray getCommandPosition(block_pointer b, const PositionArray & current)
+{
+    PositionArray out;
+
+    out[X] = b->x_flag ? b->x_number : current[X];
+    out[Y] = b->y_flag ? b->y_number : current[Y];
+    out[Z] = b->z_flag ? b->z_number : current[Z];
+
+    out[A] = b->a_flag ? b->a_number : current[A];
+    out[B] = b->b_flag ? b->b_number : current[B];
+    out[C] = b->c_flag ? b->c_number : current[C];
+
+    out[U] = b->u_flag ? b->u_number : current[U];
+    out[V] = b->v_flag ? b->v_number : current[V];
+    out[W] = b->w_flag ? b->w_number : current[W];
+    return out;
+}

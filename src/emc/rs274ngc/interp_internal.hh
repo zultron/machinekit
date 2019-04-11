@@ -374,10 +374,6 @@ struct block_struct
 {
   block_struct ();
 
-
-  PositionArray axis_values;
-  PositionMask axis_updated;
-
   bool a_flag;
   double a_number;
   bool b_flag;
@@ -478,6 +474,7 @@ struct block_struct
     // right thing depending on wether the builtin was used or not.
     bool builtin_used; 
 };
+
 
 // indicates which type of Python handler yielded, and needs reexecution
 // post sync/read_inputs
@@ -930,5 +927,7 @@ macros totally crash-proof. If the function call stack is deeper than
        CHP(call); \
      }
 
+PositionMask getUpdatedAxes(block_pointer b);
+PositionArray getCommandPosition(block_pointer b, PositionArray const &current);
 
 #endif // INTERP_INTERNAL_HH
