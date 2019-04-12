@@ -1619,6 +1619,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
     break;
   default:
     ERS(NCE_BUG_CODE_NOT_IN_RANGE_G54_TO_G593);
+    // TODO expand allowed units here
   }
 
   if (origin == settings->origin_index) {       /* already using this origin */
@@ -1629,48 +1630,32 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   }
 
   // move the current point into the new system
-  find_current_in_system(settings, origin,
-                         &settings->current[X], &settings->current[Y], &settings->current[Z],
-                         &settings->current[A], &settings->current[B], &settings->current[C],
-                         &settings->current[U], &settings->current[V], &settings->current[W]);
+  find_current_in_system(settings, origin, UNPACK_POSITION_ARRAY(settings->current));
 
   // remember that this is new system
   settings->origin_index = origin;
-  parameters[5220] = (double) origin;
+  parameters[ACTIVE_WORK_CSYS] = (double) origin;
+
+  UnitsTransform user_to_program_units = convertsUserToProgram();
 
   // load the origin of the newly-selected system
-  settings->transform.g5xOffset.shift.tf[X] = USER_TO_PROGRAM_LEN(parameters[5201 + (origin * 20)]);
-  settings->transform.g5xOffset.shift.tf[Y] = USER_TO_PROGRAM_LEN(parameters[5202 + (origin * 20)]);
-  settings->transform.g5xOffset.shift.tf[Z] = USER_TO_PROGRAM_LEN(parameters[5203 + (origin * 20)]);
-  settings->transform.g5xOffset.shift.tf[A] = USER_TO_PROGRAM_ANG(parameters[5204 + (origin * 20)]);
-  settings->transform.g5xOffset.shift.tf[B] = USER_TO_PROGRAM_ANG(parameters[5205 + (origin * 20)]);
-  settings->transform.g5xOffset.shift.tf[C] = USER_TO_PROGRAM_ANG(parameters[5206 + (origin * 20)]);
-  settings->transform.g5xOffset.shift.tf[U] = USER_TO_PROGRAM_LEN(parameters[5207 + (origin * 20)]);
-  settings->transform.g5xOffset.shift.tf[V] = USER_TO_PROGRAM_LEN(parameters[5208 + (origin * 20)]);
-  settings->transform.g5xOffset.shift.tf[W] = USER_TO_PROGRAM_LEN(parameters[5209 + (origin * 20)]);
-  settings->transform.g5xOffset.setXYRotationDeg(parameters[5210 + (origin * 20)]);
+  settings->transform.g5xOffset.shift.tf = user_to_program_units.forward(toArray(
+                                                                             parameters[getWorkOffsetIdx(origin, X)],
+                                                                             parameters[getWorkOffsetIdx(origin, Y)],
+                                                                             parameters[getWorkOffsetIdx(origin, Z)],
+                                                                             parameters[getWorkOffsetIdx(origin, A)],
+                                                                             parameters[getWorkOffsetIdx(origin, B)],
+                                                                             parameters[getWorkOffsetIdx(origin, C)],
+                                                                             parameters[getWorkOffsetIdx(origin, U)],
+                                                                             parameters[getWorkOffsetIdx(origin, V)],
+                                                                             parameters[getWorkOffsetIdx(origin, W)]
+                                                                             ));
+  settings->transform.g5xOffset.setXYRotationDeg(parameters[getWorkOffsetIdx(origin, R)]);
 
   write_and_update_state_tag(NULL);
-  SET_G5X_OFFSET(origin,
-                 settings->transform.g5xOffset.shift.tf[X],
-                 settings->transform.g5xOffset.shift.tf[Y],
-                 settings->transform.g5xOffset.shift.tf[Z],
-                 settings->transform.g5xOffset.shift.tf[A],
-                 settings->transform.g5xOffset.shift.tf[B],
-                 settings->transform.g5xOffset.shift.tf[C],
-                 settings->transform.g5xOffset.shift.tf[U],
-                 settings->transform.g5xOffset.shift.tf[V],
-                 settings->transform.g5xOffset.shift.tf[W]);
+  SET_G5X_OFFSET(origin, UNPACK_POSITION_ARRAY_REF(settings->transform.g5xOffset.shift.tf));
 
-  SET_G92_OFFSET(settings->transform.g92Offset.tf[X],
-                 settings->transform.g92Offset.tf[Y],
-                 settings->transform.g92Offset.tf[Z],
-                 settings->transform.g92Offset.tf[A],
-                 settings->transform.g92Offset.tf[B],
-                 settings->transform.g92Offset.tf[C],
-                 settings->transform.g92Offset.tf[U],
-                 settings->transform.g92Offset.tf[V],
-                 settings->transform.g92Offset.tf[W]);
+  SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
 
   SET_XY_ROTATION(settings->transform.g5xOffset.getXYRotationDeg());
   return INTERP_OK;

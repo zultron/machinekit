@@ -15,8 +15,14 @@
 #ifndef INTERP_PARAMETER_DEF_H
 #define INTERP_PARAMETER_DEF_H
 
+#include <positionarray.hh>
+enum RotationParameterIndex {
+    R=10
+};
+
 namespace interp_param_global
 {
+
 // 31-5000 - G code user parameters. These parameters are global in the G code file, and available for general use. Volatile.
 enum InterpParameterIndex {
 // 5061-5069 - Coordinates of a G38 probe result (X, Y, Z, A, B, C, U, V & W). Coordinates are in the coordinate system in which the G38 took place. Volatile.
@@ -204,5 +210,10 @@ enum InterpParameterIndex {
     TOOLCHANGER_FAULT_CODE=5601,
     RS274NGC_MAX_PARAMETERS=5602
 };
+
+static inline int getWorkOffsetIdx(int active_csys, int axis)
+{
+    return 5200 + axis + active_csys * 20;
+}
 }
 #endif // INTERP_PARAMETER_DEF_H
