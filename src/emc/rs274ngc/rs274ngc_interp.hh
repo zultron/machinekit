@@ -372,6 +372,9 @@ public:
  double find_arc_length(double x1, double y1, double z1,
                               double center_x, double center_y, int turn,
                               double x2, double y2, double z2);
+
+ RotateShiftTransform findWorkOffset(int origin, double parameters[]);
+ void storeWorkOffset(RotateShiftTransform const &work_offset, int origin, double parameters[]);
  int find_current_in_system(setup_pointer s, int system, double *x, double *y, double *z,
                             double *a, double *b, double *c,
                             double *u, double *v, double *w);

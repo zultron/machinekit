@@ -455,11 +455,12 @@ int Interp::find_relative(double x1,     //!< absolute x position
   return INTERP_OK;
 }
 
-
-RotateShiftTransform findUserWorkOffset(int origin, double parameters[])
+/** Finds the specified work offset in program units. */
+RotateShiftTransform Interp::findWorkOffset(int origin, double parameters[])
 {
     const size_t prm_offset = (size_t)origin * 20;
-    return RotateShiftTransform(toArray( // X-W offsets
+
+    RotateShiftTransform out(convertsUserToProgram().forward(toArray( // X-W offsets
             parameters[5201 + prm_offset],
             parameters[5202 + prm_offset],
             parameters[5203 + prm_offset],
@@ -468,15 +469,35 @@ RotateShiftTransform findUserWorkOffset(int origin, double parameters[])
             parameters[5206 + prm_offset],
             parameters[5207 + prm_offset],
             parameters[5208 + prm_offset],
-            parameters[5209 + prm_offset]),
-            parameters[5210 + prm_offset]); // Rotation
+            parameters[5209 + prm_offset])),
+            0.0);
+    out.setXYRotationDeg(USER_TO_PROGRAM_ANG(parameters[5210 + prm_offset])); // Rotation
+    return out;
+}
+
+void Interp::storeWorkOffset(const RotateShiftTransform & work_offset, int origin, double parameters[])
+{
+    const size_t prm_offset = (size_t)origin * 20;
+
+    extract_axes(convertsProgramToUser().forward(work_offset.shift.tf),
+            parameters[5201 + prm_offset],
+            parameters[5202 + prm_offset],
+            parameters[5203 + prm_offset],
+            parameters[5204 + prm_offset],
+            parameters[5205 + prm_offset],
+            parameters[5206 + prm_offset],
+            parameters[5207 + prm_offset],
+            parameters[5208 + prm_offset],
+            parameters[5209 + prm_offset]);
+
+    parameters[5210 + prm_offset] = PROGRAM_TO_USER_ANG(work_offset.getXYRotationDeg()); // Rotation
 }
 
 /** @overload for returning a position array directly */
 PositionArray Interp::find_current_in_system(setup_pointer s, int system) {
     PositionArray pos_notool = s->transform.forward_notool(s->current);
     LocalToMachineTransform tmp = s->transform;
-    tmp.g5xOffset = findUserWorkOffset(system, s->parameters);
+    tmp.g5xOffset = findWorkOffset(system, s->parameters);
     return tmp.inverse_notool(pos_notool);
 }
 

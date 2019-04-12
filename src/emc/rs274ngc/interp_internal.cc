@@ -493,7 +493,10 @@ PositionMask getUpdatedAxes(block_pointer b)
     return axes_updated;
 }
 
-PositionArray getCommandPosition(block_pointer b, const PositionArray & current)
+/**
+ * Given a G-code block and a baseline position, return a copy that's updated with any active axis commands.
+ */
+PositionArray getAxisWordsFromBlock(block_pointer b, const PositionArray &current)
 {
     PositionArray out;
 
@@ -508,5 +511,15 @@ PositionArray getCommandPosition(block_pointer b, const PositionArray & current)
     out[U] = b->u_flag ? b->u_number : current[U];
     out[V] = b->v_flag ? b->v_number : current[V];
     out[W] = b->w_flag ? b->w_number : current[W];
+    return out;
+}
+
+/**
+ * @overload for G5x transforms
+ */
+RotateShiftTransform getAxisWordsFromBlock(block_pointer b, RotateShiftTransform const & current)
+{
+    RotateShiftTransform out(getAxisWordsFromBlock(b, current.shift.tf), 0.0);
+    out.setXYRotationDeg(b->r_flag ? b->r_number : current.getXYRotationDeg());
     return out;
 }

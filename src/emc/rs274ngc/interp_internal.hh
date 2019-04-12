@@ -924,6 +924,7 @@ macros totally crash-proof. If the function call stack is deeper than
      }
 
 PositionMask getUpdatedAxes(block_pointer b);
-PositionArray getCommandPosition(block_pointer b, PositionArray const &current);
+PositionArray getAxisWordsFromBlock(block_pointer b, PositionArray const &current);
+RotateShiftTransform getAxisWordsFromBlock(block_pointer b, RotateShiftTransform const &current);
 
 #endif // INTERP_INTERNAL_HH

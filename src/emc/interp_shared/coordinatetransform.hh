@@ -35,6 +35,7 @@ struct ShiftTransform : public TransformBase
     // All 9 axes
     void apply_fwd(PositionArray &p) const;
     void apply_inv(PositionArray &p) const;
+
 };
 
 struct RotateShiftTransform : public TransformBase

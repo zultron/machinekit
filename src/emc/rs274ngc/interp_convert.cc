@@ -1074,99 +1074,99 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
                                 block_pointer block,    //!< pointer to a block of RS274/NGC instructions  
                                 setup_pointer settings) //!< pointer to machine settings                   
 {
-    double *pars;                 /* short name for settings->parameters            */
+  double *pars;                 /* short name for settings->parameters            */
 
-    CHKS((settings->cutter_comp_side),      /* not "== true" */
-         NCE_CANNOT_CHANGE_AXIS_OFFSETS_WITH_CUTTER_RADIUS_COMP);
-    CHKS((block->a_flag && settings->a_axis_wrapped &&
-          (block->a_number <= -360.0 || block->a_number >= 360.0)),
-         (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
-         block->a_number, 'A');
-    CHKS((block->b_flag && settings->b_axis_wrapped &&
-          (block->b_number <= -360.0 || block->b_number >= 360.0)),
-         (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
-         block->b_number, 'B');
-    CHKS((block->c_flag && settings->c_axis_wrapped &&
-          (block->c_number <= -360.0 || block->c_number >= 360.0)),
-         (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
-         block->c_number, 'C');
-    pars = settings->parameters;
-    UnitsTransform program_to_user_units = convertsProgramToUser();
+  CHKS((settings->cutter_comp_side),      /* not "== true" */
+       NCE_CANNOT_CHANGE_AXIS_OFFSETS_WITH_CUTTER_RADIUS_COMP);
+  CHKS((block->a_flag && settings->a_axis_wrapped &&
+        (block->a_number <= -360.0 || block->a_number >= 360.0)),
+       (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
+       block->a_number, 'A');
+  CHKS((block->b_flag && settings->b_axis_wrapped &&
+        (block->b_number <= -360.0 || block->b_number >= 360.0)),
+       (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
+       block->b_number, 'B');
+  CHKS((block->c_flag && settings->c_axis_wrapped &&
+        (block->c_number <= -360.0 || block->c_number >= 360.0)),
+       (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
+       block->c_number, 'C');
+  pars = settings->parameters;
+  UnitsTransform program_to_user_units = convertsProgramToUser();
 
-    if ((g_code == G_52) || (g_code == G_92)) {
-        pars[G92_APPLIED] = 1.0;
+  if ((g_code == G_52) || (g_code == G_92)) {
+    pars[G92_APPLIED] = 1.0;
 
-        PositionArray cmd_axis_values = getCommandPosition(block, settings->transform.g92Offset.tf);
-
-        // FIXME these cases preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
-        if (g_code == G_52) {
-            // Command represents new offsets, copy them in directly, and apply the difference to the current position
-            // FIXME this preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
-            settings->current += (settings->transform.g92Offset.tf - cmd_axis_values);
-            settings->transform.g92Offset.tf = cmd_axis_values;
-        } else {
-            // Command represents new desired position directly
-            settings->transform.g92Offset.tf += (settings->current  - cmd_axis_values);
-            settings->current = cmd_axis_values;
-        }
-
-        extract_axes(program_to_user_units.forward(settings->transform.g92Offset.tf),
-                pars[G92_X],
-                pars[G92_Y],
-                pars[G92_Z],
-                pars[G92_A],
-                pars[G92_B],
-                pars[G92_C],
-                pars[G92_U],
-                pars[G92_V],
-                pars[G92_W]
-        );
-
-    } else if ((g_code == G_92_1) || (g_code == G_92_2)) {
-
-        // Clear current offset (first removing it from the interp position)
-        pars[G92_APPLIED] = 0.0;
-        settings->current += settings->transform.g92Offset.tf;
-        settings->transform.g92Offset.tf.fill(0);
-
-        if (g_code == G_92_1) {
-            pars[G92_X] = 0.0;
-            pars[G92_Y] = 0.0;
-            pars[G92_Z] = 0.0;
-            pars[G92_A] = 0.0;
-            pars[G92_B] = 0.0;
-            pars[G92_C] = 0.0;
-            pars[G92_U] = 0.0;
-            pars[G92_V] = 0.0;
-            pars[G92_W] = 0.0;
-        }
-    } else if (g_code == G_92_3) {
-        pars[G92_APPLIED] = 1.0;
-
-        // Remove current offset, then apply user's new offset
-        settings->current += settings->transform.g92Offset.tf;
-
-        settings->transform.g92Offset.tf = program_to_user_units.inverse(toArray(
-                    pars[G92_X],
-                    pars[G92_Y],
-                    pars[G92_Z],
-                    pars[G92_A],
-                    pars[G92_B],
-                    pars[G92_C],
-                    pars[G92_U],
-                    pars[G92_V],
-                    pars[G92_W]
-                    ));
-
-        settings->current -= settings->transform.g92Offset.tf;
+    // FIXME these cases preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
+    if (g_code == G_52) {
+      // Command represents new offsets, copy them in directly, and apply the difference to the current position
+      // FIXME this preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
+      PositionArray cmd_axis_values = getAxisWordsFromBlock(block, settings->transform.g92Offset.tf);
+      settings->current += (settings->transform.g92Offset.tf - cmd_axis_values);
+      settings->transform.g92Offset.tf = cmd_axis_values;
     } else {
-        ERS(NCE_BUG_CODE_NOT_IN_G52_G92_SERIES);
+      // Command represents new desired position directly
+      PositionArray cmd_position_local = getAxisWordsFromBlock(block, settings->current);
+      settings->transform.g92Offset.tf += (settings->current  - cmd_position_local);
+      settings->current = cmd_position_local;
     }
 
-    // Always send a (valid) offset update down to Canon
-    SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
+    extract_axes(program_to_user_units.forward(settings->transform.g92Offset.tf),
+                 pars[G92_X],
+                 pars[G92_Y],
+                 pars[G92_Z],
+                 pars[G92_A],
+                 pars[G92_B],
+                 pars[G92_C],
+                 pars[G92_U],
+                 pars[G92_V],
+                 pars[G92_W]
+                 );
 
-    return INTERP_OK;
+  } else if ((g_code == G_92_1) || (g_code == G_92_2)) {
+
+    // Clear current offset (first removing it from the interp position)
+    pars[G92_APPLIED] = 0.0;
+    settings->current += settings->transform.g92Offset.tf;
+    settings->transform.g92Offset.tf.fill(0);
+
+    if (g_code == G_92_1) {
+      pars[G92_X] = 0.0;
+      pars[G92_Y] = 0.0;
+      pars[G92_Z] = 0.0;
+      pars[G92_A] = 0.0;
+      pars[G92_B] = 0.0;
+      pars[G92_C] = 0.0;
+      pars[G92_U] = 0.0;
+      pars[G92_V] = 0.0;
+      pars[G92_W] = 0.0;
+    }
+  } else if (g_code == G_92_3) {
+    pars[G92_APPLIED] = 1.0;
+
+    // Remove current offset, then apply user's new offset
+    settings->current += settings->transform.g92Offset.tf;
+
+    settings->transform.g92Offset.tf = program_to_user_units.inverse(toArray(
+                                                                       pars[G92_X],
+                                                                       pars[G92_Y],
+                                                                       pars[G92_Z],
+                                                                       pars[G92_A],
+                                                                       pars[G92_B],
+                                                                       pars[G92_C],
+                                                                       pars[G92_U],
+                                                                       pars[G92_V],
+                                                                       pars[G92_W]
+                                                                       ));
+
+    settings->current -= settings->transform.g92Offset.tf;
+  } else {
+    ERS(NCE_BUG_CODE_NOT_IN_G52_G92_SERIES);
+  }
+
+  // Always send a (valid) offset update down to Canon
+  SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
+
+  return INTERP_OK;
 }
 
 #define VAL_LEN 30
@@ -3886,18 +3886,8 @@ See documentation of convert_coordinate_system for more information.
 int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
                          setup_pointer settings)        //!< pointer to machine settings                 
 {
-  double x;
-  double y;
-  double z;
-  double a;
-  double b;
-  double c;
-  double u, v, w;
-  double r;
   double *parameters;
   int p_int;
-
-  double cx, cy, cz, ca, cb, cc, cu, cv, cw;
 
   CHKS((block->i_flag || block->j_flag), _("I J words not allowed with G10 L2"));
 
@@ -3909,178 +3899,69 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
     p_int = settings->origin_index;
   }
 
-  CHKS((block->l_number == 20 && block->a_flag && settings->a_axis_wrapped && 
-        (block->a_number <= -360.0 || block->a_number >= 360.0)), 
+  CHKS((block->l_number == 20 && block->a_flag && settings->a_axis_wrapped &&
+        (block->a_number <= -360.0 || block->a_number >= 360.0)),
        (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), block->a_number, 'A');
-  CHKS((block->l_number == 20 && block->b_flag && settings->b_axis_wrapped && 
-        (block->b_number <= -360.0 || block->b_number >= 360.0)), 
+  CHKS((block->l_number == 20 && block->b_flag && settings->b_axis_wrapped &&
+        (block->b_number <= -360.0 || block->b_number >= 360.0)),
        (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), block->b_number, 'B');
-  CHKS((block->l_number == 20 && block->c_flag && settings->c_axis_wrapped && 
-        (block->c_number <= -360.0 || block->c_number >= 360.0)), 
+  CHKS((block->l_number == 20 && block->c_flag && settings->c_axis_wrapped &&
+        (block->c_number <= -360.0 || block->c_number >= 360.0)),
        (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), block->c_number, 'C');
 
   CHKS((settings->cutter_comp_side && p_int == settings->origin_index),
        (_("Cannot change the active coordinate system with cutter radius compensation on")));
 
-  find_current_in_system(settings, p_int,
-                         &cx, &cy, &cz,
-                         &ca, &cb, &cc,
-                         &cu, &cv, &cw);
+  // Get the global position for later reference
+  const PositionArray pos_notool_global = settings->transform.forward_notool(settings->current);
 
-  if (block->r_flag) {
-    CHKS((block->l_number == 20), _("R not allowed in G10 L20"));
-    r = block->r_number;
-    parameters[5210 + (p_int * 20)] = r;
-  } else
-    r = parameters[5210 + (p_int * 20)];
+  // Starting from the active overall transform, find the effective transform for the desired work offset number
+  LocalToMachineTransform desired_csys = settings->transform;
+  desired_csys.g5xOffset = findWorkOffset(p_int, settings->parameters); // In program units
 
   if (block->l_number == 20) {
-      // old position in rotated system
-      double oldx = cx, oldy = cy;
+    CHKS((block->r_flag), _("R not allowed in G10 L20"));
 
-      // find new desired position in rotated system
-      x = cx;
-      y = cy;
+    // L20 means update the work offset so that the current local position matches the commanded values
+    // This does not change the global position
+    PositionArray current_local_p = desired_csys.inverse_notool(pos_notool_global); // Current LOCAL position in program units, as if p_int cysys was active
+    PositionArray commanded_local = getAxisWordsFromBlock(block, current_local_p); // in program units
 
-      if (block->x_flag) {
-          x = block->x_number;
-      }      
-      if (block->y_flag) {
-          y = block->y_number;
-      }
+    // Unrotate the displacement vector to get the global offset (since G5x offsets are not rotated)
+    //
+    // The work offset increases by the difference between the current local position, and the desired local position
+    // new_offset_global = old_offset_global + rotate_to_global(old_local - new_local)
+    // Expect that a smaller "new" coordinate gives a bigger offset value
+          rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.xy_rotation_rad); //FIXME
+          settings->transform.g5xOffset.xy_rotation_rad = 0; //FIXME
+    // Verify this:
+    const PositionArray verify_global_notool = desired_csys.inverse_notool(commanded_local);
 
-      // move old current position into the unrotated system
-      rotate(&oldx, &oldy, r);
-      // move desired position into the unrotated system
-      rotate(&x, &y, r);
-
-      // find new offset
-      x = oldx + USER_TO_PROGRAM_LEN(parameters[5201 + (p_int * 20)]) - x;
-      y = oldy + USER_TO_PROGRAM_LEN(parameters[5202 + (p_int * 20)]) - y;
-
-      // parameters are not rotated
-      parameters[5201 + (p_int * 20)] = PROGRAM_TO_USER_LEN(x);
-      parameters[5202 + (p_int * 20)] = PROGRAM_TO_USER_LEN(y);
-
-      if (p_int == settings->origin_index) {
-          // let the code below fix up the current coordinates correctly
-          rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.getXYRotationDeg()); //FIXME
-          settings->transform.g5xOffset.setXYRotationDeg(0); //FIXME
-      }
+    // DEBUG only
+    if (max(abs_diff(verify_global_notool, current_local_p)) > 1e-8) {
+        ERS("machine global position mismatch after G10 L20");
+    }
   } else {
-      if (block->x_flag) {
-          x = block->x_number;
-          parameters[5201 + (p_int * 20)] = PROGRAM_TO_USER_LEN(x);
-      } else {
-          x = USER_TO_PROGRAM_LEN(parameters[5201 + (p_int * 20)]);
-      }
-      if (block->y_flag) {
-          y = block->y_number;
-          parameters[5202 + (p_int * 20)] = PROGRAM_TO_USER_LEN(y);
-      } else {
-          y = USER_TO_PROGRAM_LEN(parameters[5202 + (p_int * 20)]);
-      }
+    // L2 means directly edit the work offset of the specified CSYS
+    desired_csys.g5xOffset = getAxisWordsFromBlock(block, desired_csys.g5xOffset);
+    storeWorkOffset(desired_csys.g5xOffset, p_int, parameters);
   }
 
-  if (block->z_flag) {
-    z = block->z_number;
-    if (block->l_number == 20) z = cz + USER_TO_PROGRAM_LEN(parameters[5203 + (p_int * 20)]) - z;
-    parameters[5203 + (p_int * 20)] = PROGRAM_TO_USER_LEN(z);
-  } else
-    z = USER_TO_PROGRAM_LEN(parameters[5203 + (p_int * 20)]);
-
-  if (block->a_flag) {
-    a = block->a_number;
-    if (block->l_number == 20) a = ca + USER_TO_PROGRAM_ANG(parameters[5204 + (p_int * 20)]) - a;
-    parameters[5204 + (p_int * 20)] = PROGRAM_TO_USER_ANG(a);
-  } else
-    a = USER_TO_PROGRAM_ANG(parameters[5204 + (p_int * 20)]);
-
-  if (block->b_flag) {
-    b = block->b_number;
-    if (block->l_number == 20) b = cb + USER_TO_PROGRAM_ANG(parameters[5205 + (p_int * 20)]) - b;
-    parameters[5205 + (p_int * 20)] = PROGRAM_TO_USER_ANG(b);
-  } else
-    b = USER_TO_PROGRAM_ANG(parameters[5205 + (p_int * 20)]);
-
-  if (block->c_flag) {
-    c = block->c_number;
-    if (block->l_number == 20) c = cc + USER_TO_PROGRAM_ANG(parameters[5206 + (p_int * 20)]) - c;
-    parameters[5206 + (p_int * 20)] = PROGRAM_TO_USER_ANG(c);
-  } else
-    c = USER_TO_PROGRAM_ANG(parameters[5206 + (p_int * 20)]);
-
-  if (block->u_flag) {
-    u = block->u_number;
-    if (block->l_number == 20) u = cu + USER_TO_PROGRAM_LEN(parameters[5207 + (p_int * 20)]) - u;
-    parameters[5207 + (p_int * 20)] = PROGRAM_TO_USER_LEN(u);
-  } else
-    u = USER_TO_PROGRAM_LEN(parameters[5207 + (p_int * 20)]);
-
-  if (block->v_flag) {
-    v = block->v_number;
-    if (block->l_number == 20) v = cv + USER_TO_PROGRAM_LEN(parameters[5208 + (p_int * 20)]) - v;
-    parameters[5208 + (p_int * 20)] = PROGRAM_TO_USER_LEN(v);
-  } else
-    v = USER_TO_PROGRAM_LEN(parameters[5208 + (p_int * 20)]);
-
-  if (block->w_flag) {
-    w = block->w_number;
-    if (block->l_number == 20) w = cw + USER_TO_PROGRAM_LEN(parameters[5209 + (p_int * 20)]) - w;
-    parameters[5209 + (p_int * 20)] = PROGRAM_TO_USER_LEN(w);
-  } else
-    w = USER_TO_PROGRAM_LEN(parameters[5209 + (p_int * 20)]);
-
+  write_and_update_state_tag(nullptr);
   if (p_int == settings->origin_index) {        /* system is currently used */
+    // Update the current position and transformation too (since the one we're changing is active
+    rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.xy_rotation_rad); //FIXME
+    settings->current = desired_csys.inverse_notool(pos_notool_global);
+    settings->transform = desired_csys;
 
-    rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.getXYRotationDeg()); //FIXME
-
-    //FIXME transform
-    settings->current[X] += settings->transform.g5xOffset.shift.tf[X];
-    settings->current[Y] += settings->transform.g5xOffset.shift.tf[Y];
-    settings->current[Z] += settings->transform.g5xOffset.shift.tf[Z];
-    settings->current[A] += settings->transform.g5xOffset.shift.tf[A];
-    settings->current[B] += settings->transform.g5xOffset.shift.tf[B];
-    settings->current[C] += settings->transform.g5xOffset.shift.tf[C];
-    settings->current[U] += settings->transform.g5xOffset.shift.tf[U];
-    settings->current[V] += settings->transform.g5xOffset.shift.tf[V];
-    settings->current[W] += settings->transform.g5xOffset.shift.tf[W];
-
-    settings->transform.g5xOffset.shift.tf[X] = x;
-    settings->transform.g5xOffset.shift.tf[Y] = y;
-    settings->transform.g5xOffset.shift.tf[Z] = z;
-    settings->transform.g5xOffset.shift.tf[A] = a;
-    settings->transform.g5xOffset.shift.tf[B] = b;
-    settings->transform.g5xOffset.shift.tf[C] = c;
-    settings->transform.g5xOffset.shift.tf[U] = u;
-    settings->transform.g5xOffset.shift.tf[V] = v;
-    settings->transform.g5xOffset.shift.tf[W] = w;
-
-    settings->current[X] -= x;
-    settings->current[Y] -= y;
-    settings->current[Z] -= z;
-    settings->current[A] -= a;
-    settings->current[B] -= b;
-    settings->current[C] -= c;
-    settings->current[U] -= u;
-    settings->current[V] -= v;
-    settings->current[W] -= w;
-
-    rotate(&settings->current[X], &settings->current[Y], - r);
-    settings->setXYRotationDeg(r);
-
-    write_and_update_state_tag(NULL);
-    SET_G5X_OFFSET(p_int, x, y, z, a, b, c, u, v, w);
-    SET_XY_ROTATION(settings->transform.g5xOffset.getXYRotationDeg());
-
-  }
-  else {
-      // Queue message with non-current offset values
-      write_and_update_state_tag(NULL);
-      SEND_TAG_MSG();
-#     ifdef DEBUG_EMC
-      enqueue_COMMENT("interpreter: setting coordinate system origin");
-#     endif
+    SET_G5X_OFFSET(p_int, UNPACK_POSITION_ARRAY_REF(desired_csys.g5xOffset.shift.tf));
+    SET_XY_ROTATION(desired_csys.g5xOffset.getXYRotationDeg());
+  } else {
+    // Queue message with non-current offset values
+    SEND_TAG_MSG();
+#ifdef DEBUG_EMC
+    enqueue_COMMENT("interpreter: setting coordinate system origin");
+#endif
   }
   return INTERP_OK;
 }
