@@ -723,4 +723,6 @@ int read_inputs(setup_pointer settings);
     UnitsTransform convertsProgramToUser() const;
 };
 
+bool toolOffsetActive(setup_pointer s);
+
 #endif

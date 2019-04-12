@@ -2930,3 +2930,8 @@ void context_struct::clear()
 {
     new (this) context_struct();
 }
+
+bool toolOffsetActive(setup_pointer s)
+{
+    return isNonzero(s->transform.toolOffset.tf) ;
+}

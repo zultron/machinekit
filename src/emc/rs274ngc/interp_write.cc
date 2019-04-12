@@ -108,9 +108,7 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
     (settings->origin_index <
      7) ? (530 + (10 * settings->origin_index)) : (584 +
                                                    settings->origin_index);
-  state.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = (settings->transform.toolOffset.tf[X] || settings->transform.toolOffset.tf[Y] || settings->transform.toolOffset.tf[Z] ||
-            settings->transform.toolOffset.tf[A] || settings->transform.toolOffset.tf[B] || settings->transform.toolOffset.tf[C] ||
-            settings->transform.toolOffset.tf[U] || settings->transform.toolOffset.tf[V] || settings->transform.toolOffset.tf[W]) ? G_43 : G_49;
+  state.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = toolOffsetActive(settings) ? G_43 : G_49;
   state.g_codes[G_CODE_RETRACT_MODE] = (settings->retract_mode == OLD_Z) ? G_98 : G_99;
   state.g_codes[G_CODE_PATH_MODE] =
     (settings->control_mode == CANON_CONTINUOUS) ? G_64 :
@@ -263,9 +261,7 @@ int Interp::write_and_update_state_tag(block_pointer block)
          7) ? (530 + (10 * _setup.origin_index)) : (584 +
              _setup.origin_index);
 
-    state.flags[GM_FLAG_TOOL_OFFSETS_ON] = (_setup.transform.toolOffset.tf[X] || _setup.transform.toolOffset.tf[Y] || _setup.transform.toolOffset.tf[Z] ||
-            _setup.transform.toolOffset.tf[A] || _setup.transform.toolOffset.tf[B] || _setup.transform.toolOffset.tf[C] ||
-            _setup.transform.toolOffset.tf[U] || _setup.transform.toolOffset.tf[V] || _setup.transform.toolOffset.tf[W]);
+    state.flags[GM_FLAG_TOOL_OFFSETS_ON] = toolOffsetActive(&_setup);
     state.flags[GM_FLAG_RETRACT_OLDZ] = (_setup.retract_mode == OLD_Z);
     state.flags[GM_FLAG_BLEND] = (_setup.control_mode == CANON_CONTINUOUS);
     state.flags[GM_FLAG_EXACT_STOP] = (_setup.control_mode == CANON_EXACT_STOP);

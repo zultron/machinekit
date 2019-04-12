@@ -580,9 +580,7 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_TOOL_OFFSET: // _tool_offset
-	*value =  (_setup.transform.toolOffset.tf[X] || _setup.transform.toolOffset.tf[Y] || _setup.transform.toolOffset.tf[Z] ||
-		   _setup.transform.toolOffset.tf[A] || _setup.transform.toolOffset.tf[B] || _setup.transform.toolOffset.tf[C] ||
-		   _setup.transform.toolOffset.tf[U] || _setup.transform.toolOffset.tf[V] || _setup.transform.toolOffset.tf[W]) ;
+    *value =  toolOffsetActive(&_setup);
 	break;
 
     case NP_RETRACT_R_PLANE: // _retract_r_plane - G98
