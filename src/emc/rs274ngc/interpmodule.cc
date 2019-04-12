@@ -238,10 +238,10 @@ static int wrap_interp_read(Interp &interp, const char *command)
 
 // what a barren desert
 static inline EmcPose get_tool_offset (Interp &interp)  {
-    return interp._setup.tool_offset;
+    return toEmcPose(interp._setup.transform.toolOffset.tf);
 }
 static inline void set_tool_offset(Interp &interp, EmcPose value)  {
-    interp._setup.tool_offset = value;
+    interp._setup.transform.toolOffset.tf = toArray(value);
 }
 static inline bool get_arc_not_allowed (Interp &interp)  {
     return interp._setup.arc_not_allowed;

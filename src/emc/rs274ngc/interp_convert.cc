@@ -3831,20 +3831,20 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
             USE_TOOL_LENGTH_OFFSET(tool_offset);
             double dx, dy;
 
-            dx = settings->tool_offset.tran.x - tool_offset.tran.x;
-            dy = settings->tool_offset.tran.y - tool_offset.tran.y;
+            dx = settings->transform.toolOffset.tf[X] - tool_offset.tran.x;
+            dy = settings->transform.toolOffset.tf[Y] - tool_offset.tran.y;
             rotate(&dx, &dy, -settings->transform.g5xOffset.getXYRotationDeg()); //FIXME
 
             settings->current[X] += dx;
             settings->current[Y] += dy;
-            settings->current[Z] += settings->tool_offset.tran.z - tool_offset.tran.z;
-            settings->current[A] += settings->tool_offset.a - tool_offset.a;
-            settings->current[B] += settings->tool_offset.b - tool_offset.b;
-            settings->current[C] += settings->tool_offset.c - tool_offset.c;
-            settings->current[U] += settings->tool_offset.u - tool_offset.u;
-            settings->current[V] += settings->tool_offset.v - tool_offset.v;
-            settings->current[W] += settings->tool_offset.w - tool_offset.w;
-            settings->tool_offset = tool_offset;
+            settings->current[Z] += settings->transform.toolOffset.tf[Z] - tool_offset.tran.z;
+            settings->current[A] += settings->transform.toolOffset.tf[A] - tool_offset.a;
+            settings->current[B] += settings->transform.toolOffset.tf[B] - tool_offset.b;
+            settings->current[C] += settings->transform.toolOffset.tf[C] - tool_offset.c;
+            settings->current[U] += settings->transform.toolOffset.tf[U] - tool_offset.u;
+            settings->current[V] += settings->transform.toolOffset.tf[V] - tool_offset.v;
+            settings->current[W] += settings->transform.toolOffset.tf[W] - tool_offset.w;
+            settings->transform.toolOffset.tf = toArray(tool_offset);
         }
     }
     return INTERP_OK;
@@ -5541,7 +5541,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
         }
 
     } else if (g_code == G_43_1) {
-        tool_offset = settings->tool_offset;
+        tool_offset = toEmcPose(settings->transform.toolOffset.tf);
         pocket_number = -1;
         if(block->x_flag) tool_offset.tran.x = block->x_number;
         if(block->y_flag) tool_offset.tran.y = block->y_number;
@@ -5556,7 +5556,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     } else if (g_code == G_43_2) {
         CHKS((!block->h_flag), (_("G43.2: H-word missing")));
         CHP((find_tool_pocket(settings, block->h_number, &pocket_number)));
-        tool_offset = settings->tool_offset;
+        tool_offset = toEmcPose(settings->transform.toolOffset.tf);
         tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.x);
         tool_offset.tran.y += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.y);
         tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.z);
@@ -5574,23 +5574,23 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     USE_TOOL_LENGTH_OFFSET(tool_offset);
 
     double dx, dy;
-    dx = settings->tool_offset.tran.x - tool_offset.tran.x;
-    dy = settings->tool_offset.tran.y - tool_offset.tran.y;
+  dx = settings->transform.toolOffset.tf[X] - tool_offset.tran.x;
+  dy = settings->transform.toolOffset.tf[Y] - tool_offset.tran.y;
 
   rotate(&dx, &dy, -settings->transform.g5xOffset.getXYRotationDeg());
 
   settings->current[X] += dx;
   settings->current[Y] += dy;
-  settings->current[Z] += settings->tool_offset.tran.z - tool_offset.tran.z;
-  settings->current[A] += settings->tool_offset.a - tool_offset.a;
-  settings->current[B] += settings->tool_offset.b - tool_offset.b;
-  settings->current[C] += settings->tool_offset.c - tool_offset.c;
-  settings->current[U] += settings->tool_offset.u - tool_offset.u;
-  settings->current[V] += settings->tool_offset.v - tool_offset.v;
-  settings->current[W] += settings->tool_offset.w - tool_offset.w;
+  settings->current[Z] += settings->transform.toolOffset.tf[Z] - tool_offset.tran.z;
+  settings->current[A] += settings->transform.toolOffset.tf[A] - tool_offset.a;
+  settings->current[B] += settings->transform.toolOffset.tf[B] - tool_offset.b;
+  settings->current[C] += settings->transform.toolOffset.tf[C] - tool_offset.c;
+  settings->current[U] += settings->transform.toolOffset.tf[U] - tool_offset.u;
+  settings->current[V] += settings->transform.toolOffset.tf[V] - tool_offset.v;
+  settings->current[W] += settings->transform.toolOffset.tf[W] - tool_offset.w;
 
-    settings->tool_offset = tool_offset;
-    return INTERP_OK;
+  settings->transform.toolOffset.tf = toArray(tool_offset);
+  return INTERP_OK;
 }
 
 /****************************************************************************/
@@ -5715,7 +5715,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
 
   USE_TOOL_LENGTH_OFFSET(tool_offset);
 
-  settings->tool_offset = tool_offset;
+  settings->transform.toolOffset.tf = toArray(tool_offset);
   return INTERP_OK;
 }
 

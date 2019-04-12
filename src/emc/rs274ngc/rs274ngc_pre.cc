@@ -907,7 +907,7 @@ int Interp::init()
   INIT_CANON();
   // JFP: this init() is also called by via emcTaskPlanClose()
   // INIT_CANON() steps on cannon's currentToolOffset so it must get restored
-  USE_TOOL_LENGTH_OFFSET(_setup.tool_offset);
+  USE_TOOL_LENGTH_OFFSET(toEmcPose(_setup.transform.toolOffset.tf));
 
   iniFileName = getenv("INI_FILE_NAME");
 
@@ -2801,7 +2801,7 @@ int Interp::on_abort(int reason, const char *message)
         logDebug("Found tool %d with geo offset pocket %d on abort. Applying offset (x %.2f, y %.2f, z %.2f)",
             tool, pocket, tool_offset.tran.x, tool_offset.tran.y, tool_offset.tran.z);
         USE_TOOL_LENGTH_OFFSET(tool_offset);
-        _setup.tool_offset = tool_offset;
+        _setup.transform.toolOffset.tf = toArray(tool_offset);
     }
 #endif
 

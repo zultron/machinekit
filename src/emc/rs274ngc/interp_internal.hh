@@ -673,10 +673,6 @@ struct setup_struct
   char stack[STACK_LEN][STACK_ENTRY_LEN];      // stack of calls for error reporting
   int stack_index;              // index into the stack
 
-  // TODO PURGE
-  EmcPose tool_offset;          // tool length offset
-  // END PURGE
-
   int pockets_max;                 // number of pockets in carousel (including pocket 0, the spindle)
   CANON_TOOL_TABLE tool_table[CANON_POCKETS_MAX];      // index is pocket number
   double traverse_rate;         // rate for traverse motions

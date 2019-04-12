@@ -27,6 +27,7 @@
 #include "interp_internal.hh"
 #include "rs274ngc_interp.hh"
 #include "units.h"
+#include "interp_parameter_def.hh"
 
 /****************************************************************************/
 
@@ -174,13 +175,13 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         rotate(&cx, &cy, s->transform.g5xOffset.getXYRotationDeg()); //FIXME transform
 
         if(block->x_flag) {
-            *px = block->x_number - s->transform.g5xOffset.shift.tf[X] - s->transform.g92Offset.tf[X] - s->tool_offset.tran.x;
+            *px = block->x_number - s->transform.g5xOffset.shift.tf[X] - s->transform.g92Offset.tf[X] - s->transform.toolOffset.tf[X];
         } else {
             *px = cx;
         }
 
         if(block->y_flag) {
-            *py = block->y_number - s->transform.g5xOffset.shift.tf[Y] - s->transform.g92Offset.tf[Y] - s->tool_offset.tran.y;
+            *py = block->y_number - s->transform.g5xOffset.shift.tf[Y] - s->transform.g92Offset.tf[Y] - s->transform.toolOffset.tf[Y];
         } else {
             *py = cy;
         }
@@ -188,7 +189,7 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         rotate(px, py, -s->transform.g5xOffset.getXYRotationDeg()); // FIXME transform
 
         if(block->z_flag) {
-            *pz = block->z_number - s->transform.g5xOffset.shift.tf[Z] - s->transform.g92Offset.tf[Z] - s->tool_offset.tran.z;
+            *pz = block->z_number - s->transform.g5xOffset.shift.tf[Z] - s->transform.g92Offset.tf[Z] - s->transform.toolOffset.tf[Z];
         } else {
             *pz = s->current[Z];
         }
@@ -196,7 +197,7 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         if(block->a_flag) {
             if(s->a_axis_wrapped) {
                 CHP(unwrap_rotary(AA_p, block->a_number, 
-                                  block->a_number - s->transform.g5xOffset.shift.tf[A] - s->transform.g92Offset.tf[A] - s->tool_offset.a,
+                                  block->a_number - s->transform.g5xOffset.shift.tf[A] - s->transform.g92Offset.tf[A] - s->transform.toolOffset.tf[A],
                                   s->current[A], 'A'));
             } else {
                 *AA_p = block->a_number - s->transform.g5xOffset.shift.tf[A] - s->transform.g92Offset.tf[A];
@@ -208,7 +209,7 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         if(block->b_flag) {
             if(s->b_axis_wrapped) {
                 CHP(unwrap_rotary(BB_p, block->b_number, 
-                                  block->b_number - s->transform.g5xOffset.shift.tf[B] - s->transform.g92Offset.tf[B] - s->tool_offset.b,
+                                  block->b_number - s->transform.g5xOffset.shift.tf[B] - s->transform.g92Offset.tf[B] - s->transform.toolOffset.tf[B],
                                   s->current[B], 'B'));
             } else {
                 *BB_p = block->b_number - s->transform.g5xOffset.shift.tf[B] - s->transform.g92Offset.tf[B];
@@ -220,7 +221,7 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         if(block->c_flag) {
             if(s->c_axis_wrapped) {
                 CHP(unwrap_rotary(CC_p, block->c_number, 
-                                  block->c_number - s->transform.g5xOffset.shift.tf[C] - s->transform.g92Offset.tf[C] - s->tool_offset.c,
+                                  block->c_number - s->transform.g5xOffset.shift.tf[C] - s->transform.g92Offset.tf[C] - s->transform.toolOffset.tf[C],
                                   s->current[C], 'C'));
             } else {
                 *CC_p = block->c_number - s->transform.g5xOffset.shift.tf[C] - s->transform.g92Offset.tf[C];
@@ -230,19 +231,19 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         }
 
         if(block->u_flag) {
-            *u_p = block->u_number - s->transform.g5xOffset.shift.tf[U] - s->transform.g92Offset.tf[U] - s->tool_offset.u;
+            *u_p = block->u_number - s->transform.g5xOffset.shift.tf[U] - s->transform.g92Offset.tf[U] - s->transform.toolOffset.tf[U];
         } else {
             *u_p = s->current[U];
         }
 
         if(block->v_flag) {
-            *v_p = block->v_number - s->transform.g5xOffset.shift.tf[V] - s->transform.g92Offset.tf[V] - s->tool_offset.v;
+            *v_p = block->v_number - s->transform.g5xOffset.shift.tf[V] - s->transform.g92Offset.tf[V] - s->transform.toolOffset.tf[V];
         } else {
             *v_p = s->current[V];
         }
 
         if(block->w_flag) {
-            *w_p = block->w_number - s->transform.g5xOffset.shift.tf[W] - s->transform.g92Offset.tf[W] - s->tool_offset.w;
+            *w_p = block->w_number - s->transform.g5xOffset.shift.tf[W] - s->transform.g92Offset.tf[W] - s->transform.toolOffset.tf[W];
         } else {
             *w_p = s->current[W];
         }
@@ -419,14 +420,14 @@ int Interp::find_relative(double x1,     //!< absolute x position
                           double *w_2,
                           setup_pointer settings)        //!< pointer to machine settings
 {
-  *x2 = x1 - settings->transform.g5xOffset.shift.tf[X] - settings->transform.g92Offset.tf[X] - settings->tool_offset.tran.x;
-  *y2 = y1 - settings->transform.g5xOffset.shift.tf[Y] - settings->transform.g92Offset.tf[Y] - settings->tool_offset.tran.y;
+  *x2 = x1 - settings->transform.g5xOffset.shift.tf[X] - settings->transform.g92Offset.tf[X] - settings->transform.toolOffset.tf[X];
+  *y2 = y1 - settings->transform.g5xOffset.shift.tf[Y] - settings->transform.g92Offset.tf[Y] - settings->transform.toolOffset.tf[Y];
   rotate(x2, y2, -settings->transform.g5xOffset.getXYRotationDeg()); // FIXME transform
-  *z2 = z1 - settings->transform.g5xOffset.shift.tf[Z] - settings->transform.g92Offset.tf[Z] - settings->tool_offset.tran.z;
+  *z2 = z1 - settings->transform.g5xOffset.shift.tf[Z] - settings->transform.g92Offset.tf[Z] - settings->transform.toolOffset.tf[Z];
 
   if(settings->a_axis_wrapped) {
       CHP(unwrap_rotary(AA_2, AA_1,
-                        AA_1 - settings->transform.g5xOffset.shift.tf[A] - settings->transform.g92Offset.tf[A] - settings->tool_offset.a,
+                        AA_1 - settings->transform.g5xOffset.shift.tf[A] - settings->transform.g92Offset.tf[A] - settings->transform.toolOffset.tf[A],
                         settings->current[A], 'A'));
   } else {
       *AA_2 = AA_1 - settings->transform.g5xOffset.shift.tf[A] - settings->transform.g92Offset.tf[A];
@@ -434,7 +435,7 @@ int Interp::find_relative(double x1,     //!< absolute x position
 
   if(settings->b_axis_wrapped) {
       CHP(unwrap_rotary(BB_2, BB_1,
-                        BB_1 - settings->transform.g5xOffset.shift.tf[B] - settings->transform.g92Offset.tf[B] - settings->tool_offset.b,
+                        BB_1 - settings->transform.g5xOffset.shift.tf[B] - settings->transform.g92Offset.tf[B] - settings->transform.toolOffset.tf[B],
                         settings->current[B], 'B'));
   } else {
       *BB_2 = BB_1 - settings->transform.g5xOffset.shift.tf[B] - settings->transform.g92Offset.tf[B];
@@ -442,15 +443,15 @@ int Interp::find_relative(double x1,     //!< absolute x position
 
   if(settings->c_axis_wrapped) {
       CHP(unwrap_rotary(CC_2, CC_1,
-                        CC_1 - settings->transform.g5xOffset.shift.tf[C] - settings->transform.g92Offset.tf[C] - settings->tool_offset.c,
+                        CC_1 - settings->transform.g5xOffset.shift.tf[C] - settings->transform.g92Offset.tf[C] - settings->transform.toolOffset.tf[C],
                         settings->current[C], 'C'));
   } else {
       *CC_2 = CC_1 - settings->transform.g5xOffset.shift.tf[C] - settings->transform.g92Offset.tf[C];
   }
 
-  *u_2 = u_1 - settings->transform.g5xOffset.shift.tf[U] - settings->transform.g92Offset.tf[U] - settings->tool_offset.u;
-  *v_2 = v_1 - settings->transform.g5xOffset.shift.tf[V] - settings->transform.g92Offset.tf[V] - settings->tool_offset.v;
-  *w_2 = w_1 - settings->transform.g5xOffset.shift.tf[W] - settings->transform.g92Offset.tf[W] - settings->tool_offset.w;
+  *u_2 = u_1 - settings->transform.g5xOffset.shift.tf[U] - settings->transform.g92Offset.tf[U] - settings->transform.toolOffset.tf[U];
+  *v_2 = v_1 - settings->transform.g5xOffset.shift.tf[V] - settings->transform.g92Offset.tf[V] - settings->transform.toolOffset.tf[V];
+  *w_2 = w_1 - settings->transform.g5xOffset.shift.tf[W] - settings->transform.g92Offset.tf[W] - settings->transform.toolOffset.tf[W];
   return INTERP_OK;
 }
 
@@ -563,15 +564,15 @@ int Interp::find_current_in_system_without_tlo(setup_pointer s, int system,
     *v += s->transform.g5xOffset.shift.tf[V];
     *w += s->transform.g5xOffset.shift.tf[W];
 
-    *x += s->tool_offset.tran.x;
-    *y += s->tool_offset.tran.y;
-    *z += s->tool_offset.tran.z;
-    *a += s->tool_offset.a;
-    *b += s->tool_offset.b;
-    *c += s->tool_offset.c;
-    *u += s->tool_offset.u;
-    *v += s->tool_offset.v;
-    *w += s->tool_offset.w;
+    *x += s->transform.toolOffset.tf[X];
+    *y += s->transform.toolOffset.tf[Y];
+    *z += s->transform.toolOffset.tf[Z];
+    *a += s->transform.toolOffset.tf[A];
+    *b += s->transform.toolOffset.tf[B];
+    *c += s->transform.toolOffset.tf[C];
+    *u += s->transform.toolOffset.tf[U];
+    *v += s->transform.toolOffset.tf[V];
+    *w += s->transform.toolOffset.tf[W];
 
     *x -= USER_TO_PROGRAM_LEN(p[5201 + system * 20]);
     *y -= USER_TO_PROGRAM_LEN(p[5202 + system * 20]);
