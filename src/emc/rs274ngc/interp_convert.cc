@@ -1090,6 +1090,8 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
          (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
          block->c_number, 'C');
     pars = settings->parameters;
+    UnitsTransform program_to_user_units = convertsProgramToUser();
+
     if ((g_code == G_52) || (g_code == G_92)) {
         pars[G92_APPLIED] = 1.0;
 
@@ -1107,21 +1109,22 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
             settings->current = cmd_axis_values;
         }
 
-        // Update user-facing parameters for G92
-        pars[G92_X] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[X]);
-        pars[G92_Y] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[Y]);
-        pars[G92_Z] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[Z]);
-        pars[G92_A] = PROGRAM_TO_USER_ANG(settings->transform.g92Offset.tf[A]);
-        pars[G92_B] = PROGRAM_TO_USER_ANG(settings->transform.g92Offset.tf[B]);
-        pars[G92_C] = PROGRAM_TO_USER_ANG(settings->transform.g92Offset.tf[C]);
-        pars[G92_U] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[U]);
-        pars[G92_V] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[V]);
-        pars[G92_W] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[W]);
+        extract_axes(program_to_user_units.forward(settings->transform.g92Offset.tf),
+                pars[G92_X],
+                pars[G92_Y],
+                pars[G92_Z],
+                pars[G92_A],
+                pars[G92_B],
+                pars[G92_C],
+                pars[G92_U],
+                pars[G92_V],
+                pars[G92_W]
+        );
 
     } else if ((g_code == G_92_1) || (g_code == G_92_2)) {
 
         // Clear current offset (first removing it from the interp position)
-        pars[5210] = 0.0;
+        pars[G92_APPLIED] = 0.0;
         settings->current += settings->transform.g92Offset.tf;
         settings->transform.g92Offset.tf.fill(0);
 
@@ -1137,20 +1140,22 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
             pars[G92_W] = 0.0;
         }
     } else if (g_code == G_92_3) {
-        pars[5210] = 1.0;
+        pars[G92_APPLIED] = 1.0;
 
+        // Remove current offset, then apply user's new offset
         settings->current += settings->transform.g92Offset.tf;
 
-
-        settings->transform.g92Offset.tf[X] = USER_TO_PROGRAM_LEN(pars[5211]);
-        settings->transform.g92Offset.tf[Y] = USER_TO_PROGRAM_LEN(pars[5212]);
-        settings->transform.g92Offset.tf[Z] = USER_TO_PROGRAM_LEN(pars[5213]);
-        settings->transform.g92Offset.tf[A] = USER_TO_PROGRAM_ANG(pars[5214]);
-        settings->transform.g92Offset.tf[B] = USER_TO_PROGRAM_ANG(pars[5215]);
-        settings->transform.g92Offset.tf[C] = USER_TO_PROGRAM_ANG(pars[5216]);
-        settings->transform.g92Offset.tf[U] = USER_TO_PROGRAM_LEN(pars[5217]);
-        settings->transform.g92Offset.tf[V] = USER_TO_PROGRAM_LEN(pars[5218]);
-        settings->transform.g92Offset.tf[W] = USER_TO_PROGRAM_LEN(pars[5219]);
+        settings->transform.g92Offset.tf = program_to_user_units.inverse(toArray(
+                    pars[G92_X],
+                    pars[G92_Y],
+                    pars[G92_Z],
+                    pars[G92_A],
+                    pars[G92_B],
+                    pars[G92_C],
+                    pars[G92_U],
+                    pars[G92_V],
+                    pars[G92_W]
+                    ));
 
         settings->current -= settings->transform.g92Offset.tf;
     } else {
