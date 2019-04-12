@@ -375,6 +375,7 @@ public:
  int find_current_in_system(setup_pointer s, int system, double *x, double *y, double *z,
                             double *a, double *b, double *c,
                             double *u, double *v, double *w);
+ PositionArray find_current_in_system(setup_pointer s, int system);
  int find_current_in_system_without_tlo(setup_pointer s, int system, double *x, double *y, double *z,
                             double *a, double *b, double *c,
                             double *u, double *v, double *w);

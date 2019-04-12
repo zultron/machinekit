@@ -1631,7 +1631,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   }
 
   // move the current point into the new system
-  find_current_in_system(settings, origin, UNPACK_POSITION_ARRAY(settings->current));
+  settings->current = find_current_in_system(settings, origin);
 
   // remember that this is new system
   settings->origin_index = origin;
