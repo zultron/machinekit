@@ -1074,8 +1074,6 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
                                 block_pointer block,    //!< pointer to a block of RS274/NGC instructions  
                                 setup_pointer settings) //!< pointer to machine settings                   
 {
-  double *pars;                 /* short name for settings->parameters            */
-
   CHKS((settings->cutter_comp_side),      /* not "== true" */
        NCE_CANNOT_CHANGE_AXIS_OFFSETS_WITH_CUTTER_RADIUS_COMP);
   CHKS((block->a_flag && settings->a_axis_wrapped &&
@@ -1090,11 +1088,10 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
         (block->c_number <= -360.0 || block->c_number >= 360.0)),
        (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
        block->c_number, 'C');
-  pars = settings->parameters;
   UnitsTransform program_to_user_units = convertsProgramToUser();
 
   if ((g_code == G_52) || (g_code == G_92)) {
-    pars[G92_APPLIED] = 1.0;
+    settings->parameters[G92_APPLIED] = 1.0;
 
     // FIXME these cases preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
     if (g_code == G_52) {
@@ -1111,51 +1108,51 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
     }
 
     extract_axes(program_to_user_units.forward(settings->transform.g92Offset.tf),
-                 pars[G92_X],
-                 pars[G92_Y],
-                 pars[G92_Z],
-                 pars[G92_A],
-                 pars[G92_B],
-                 pars[G92_C],
-                 pars[G92_U],
-                 pars[G92_V],
-                 pars[G92_W]
+                 settings->parameters[G92_X],
+                 settings->parameters[G92_Y],
+                 settings->parameters[G92_Z],
+                 settings->parameters[G92_A],
+                 settings->parameters[G92_B],
+                 settings->parameters[G92_C],
+                 settings->parameters[G92_U],
+                 settings->parameters[G92_V],
+                 settings->parameters[G92_W]
                  );
 
   } else if ((g_code == G_92_1) || (g_code == G_92_2)) {
 
     // Clear current offset (first removing it from the interp position)
-    pars[G92_APPLIED] = 0.0;
+    settings->parameters[G92_APPLIED] = 0.0;
     settings->current += settings->transform.g92Offset.tf;
     settings->transform.g92Offset.tf.fill(0);
 
     if (g_code == G_92_1) {
-      pars[G92_X] = 0.0;
-      pars[G92_Y] = 0.0;
-      pars[G92_Z] = 0.0;
-      pars[G92_A] = 0.0;
-      pars[G92_B] = 0.0;
-      pars[G92_C] = 0.0;
-      pars[G92_U] = 0.0;
-      pars[G92_V] = 0.0;
-      pars[G92_W] = 0.0;
+      settings->parameters[G92_X] = 0.0;
+      settings->parameters[G92_Y] = 0.0;
+      settings->parameters[G92_Z] = 0.0;
+      settings->parameters[G92_A] = 0.0;
+      settings->parameters[G92_B] = 0.0;
+      settings->parameters[G92_C] = 0.0;
+      settings->parameters[G92_U] = 0.0;
+      settings->parameters[G92_V] = 0.0;
+      settings->parameters[G92_W] = 0.0;
     }
   } else if (g_code == G_92_3) {
-    pars[G92_APPLIED] = 1.0;
+    settings->parameters[G92_APPLIED] = 1.0;
 
     // Remove current offset, then apply user's new offset
     settings->current += settings->transform.g92Offset.tf;
 
     settings->transform.g92Offset.tf = program_to_user_units.inverse(toArray(
-                                                                       pars[G92_X],
-                                                                       pars[G92_Y],
-                                                                       pars[G92_Z],
-                                                                       pars[G92_A],
-                                                                       pars[G92_B],
-                                                                       pars[G92_C],
-                                                                       pars[G92_U],
-                                                                       pars[G92_V],
-                                                                       pars[G92_W]
+                                                                       settings->parameters[G92_X],
+                                                                       settings->parameters[G92_Y],
+                                                                       settings->parameters[G92_Z],
+                                                                       settings->parameters[G92_A],
+                                                                       settings->parameters[G92_B],
+                                                                       settings->parameters[G92_C],
+                                                                       settings->parameters[G92_U],
+                                                                       settings->parameters[G92_V],
+                                                                       settings->parameters[G92_W]
                                                                        ));
 
     settings->current -= settings->transform.g92Offset.tf;
@@ -1585,11 +1582,9 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
                                      setup_pointer settings)    //!< pointer to machine settings                  
 {
   int origin;
-  double *parameters;
 
   CHKS((settings->cutter_comp_side),
        (_("Cannot change coordinate systems with cutter radius compensation on")));
-  parameters = settings->parameters;
   switch (g_code) {
   case G_54:
     origin = 1;
@@ -1635,23 +1630,23 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
 
   // remember that this is new system
   settings->origin_index = origin;
-  parameters[ACTIVE_WORK_CSYS] = (double) origin;
+  settings->parameters[ACTIVE_WORK_CSYS] = (double) origin;
 
   UnitsTransform user_to_program_units = convertsUserToProgram();
 
   // load the origin of the newly-selected system
   settings->transform.g5xOffset.shift.tf = user_to_program_units.forward(toArray(
-                                                                             parameters[getWorkOffsetIdx(origin, X)],
-                                                                             parameters[getWorkOffsetIdx(origin, Y)],
-                                                                             parameters[getWorkOffsetIdx(origin, Z)],
-                                                                             parameters[getWorkOffsetIdx(origin, A)],
-                                                                             parameters[getWorkOffsetIdx(origin, B)],
-                                                                             parameters[getWorkOffsetIdx(origin, C)],
-                                                                             parameters[getWorkOffsetIdx(origin, U)],
-                                                                             parameters[getWorkOffsetIdx(origin, V)],
-                                                                             parameters[getWorkOffsetIdx(origin, W)]
+                                                                             settings->parameters[getWorkOffsetIdx(origin, X)],
+                                                                             settings->parameters[getWorkOffsetIdx(origin, Y)],
+                                                                             settings->parameters[getWorkOffsetIdx(origin, Z)],
+                                                                             settings->parameters[getWorkOffsetIdx(origin, A)],
+                                                                             settings->parameters[getWorkOffsetIdx(origin, B)],
+                                                                             settings->parameters[getWorkOffsetIdx(origin, C)],
+                                                                             settings->parameters[getWorkOffsetIdx(origin, U)],
+                                                                             settings->parameters[getWorkOffsetIdx(origin, V)],
+                                                                             settings->parameters[getWorkOffsetIdx(origin, W)]
                                                                              ));
-  settings->transform.g5xOffset.setXYRotationDeg(parameters[getWorkOffsetIdx(origin, R)]);
+  settings->transform.g5xOffset.setXYRotationDeg(settings->parameters[getWorkOffsetIdx(origin, R)]);
 
   write_and_update_state_tag(nullptr);
   SET_G5X_OFFSET(origin, UNPACK_POSITION_ARRAY_REF(settings->transform.g5xOffset.shift.tf));
@@ -2257,7 +2252,6 @@ int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS27
 }
 
 int Interp::convert_savehome(int code, block_pointer block, setup_pointer s) {
-    double *p = s->parameters;
     
     if(s->cutter_comp_side) {
         ERS(_("Cannot set reference point with cutter compensation in effect"));
@@ -2271,26 +2265,26 @@ int Interp::convert_savehome(int code, block_pointer block, setup_pointer s) {
 
     if(code == G_28_1) {
         extract_axes(home_pos,
-                     p[G28_X],
-                     p[G28_Y],
-                     p[G28_Z],
-                     p[G28_A],
-                     p[G28_B],
-                     p[G28_C],
-                     p[G28_U],
-                     p[G28_V],
-                     p[G28_W]);
+                     s->parameters[G28_X],
+                     s->parameters[G28_Y],
+                     s->parameters[G28_Z],
+                     s->parameters[G28_A],
+                     s->parameters[G28_B],
+                     s->parameters[G28_C],
+                     s->parameters[G28_U],
+                     s->parameters[G28_V],
+                     s->parameters[G28_W]);
     } else if(code == G_30_1) {
         extract_axes(home_pos,
-                     p[G30_X],
-                     p[G30_Y],
-                     p[G30_Z],
-                     p[G30_A],
-                     p[G30_B],
-                     p[G30_C],
-                     p[G30_U],
-                     p[G30_V],
-                     p[G30_W]);
+                     s->parameters[G30_X],
+                     s->parameters[G30_Y],
+                     s->parameters[G30_Z],
+                     s->parameters[G30_A],
+                     s->parameters[G30_B],
+                     s->parameters[G30_C],
+                     s->parameters[G30_U],
+                     s->parameters[G30_V],
+                     s->parameters[G30_W]);
     } else {
         ERS("BUG: Code not G28.1 or G38.1");
     }
@@ -2355,9 +2349,7 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
   double u_end_home;
   double v_end_home;
   double w_end_home;
-  double *parameters;
 
-  parameters = settings->parameters;
   CHP(find_ends(block, settings, &end_x, &end_y, &end_z,
                 &AA_end, &BB_end, &CC_end, 
                 &u_end, &v_end, &w_end));
@@ -2393,28 +2385,28 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
   settings->current[W] = w_end;
 
   if (move == G_28) {
-      find_relative(USER_TO_PROGRAM_LEN(parameters[5161]),
-                    USER_TO_PROGRAM_LEN(parameters[5162]),
-                    USER_TO_PROGRAM_LEN(parameters[5163]),
-                    USER_TO_PROGRAM_ANG(parameters[5164]),
-                    USER_TO_PROGRAM_ANG(parameters[5165]),
-                    USER_TO_PROGRAM_ANG(parameters[5166]),
-                    USER_TO_PROGRAM_LEN(parameters[5167]),
-                    USER_TO_PROGRAM_LEN(parameters[5168]),
-                    USER_TO_PROGRAM_LEN(parameters[5169]),
+      find_relative(USER_TO_PROGRAM_LEN(settings->parameters[5161]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[5162]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[5163]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[5164]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[5165]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[5166]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[5167]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[5168]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[5169]),
                     &end_x_home, &end_y_home, &end_z_home,
                     &AA_end_home, &BB_end_home, &CC_end_home, 
                     &u_end_home, &v_end_home, &w_end_home, settings);
   } else if (move == G_30) {
-      find_relative(USER_TO_PROGRAM_LEN(parameters[5181]),
-                    USER_TO_PROGRAM_LEN(parameters[5182]),
-                    USER_TO_PROGRAM_LEN(parameters[5183]),
-                    USER_TO_PROGRAM_ANG(parameters[5184]),
-                    USER_TO_PROGRAM_ANG(parameters[5185]),
-                    USER_TO_PROGRAM_ANG(parameters[5186]),
-                    USER_TO_PROGRAM_LEN(parameters[5187]),
-                    USER_TO_PROGRAM_LEN(parameters[5188]),
-                    USER_TO_PROGRAM_LEN(parameters[5189]),
+      find_relative(USER_TO_PROGRAM_LEN(settings->parameters[5181]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[5182]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[5183]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[5184]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[5185]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[5186]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[5187]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[5188]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[5189]),
                     &end_x_home, &end_y_home, &end_z_home,
                     &AA_end_home, &BB_end_home, &CC_end_home, 
                     &u_end_home, &v_end_home, &w_end_home, settings);
@@ -3887,12 +3879,10 @@ See documentation of convert_coordinate_system for more information.
 int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
                          setup_pointer settings)        //!< pointer to machine settings                 
 {
-  double *parameters;
   int p_int;
 
   CHKS((block->i_flag || block->j_flag), _("I J words not allowed with G10 L2"));
 
-  parameters = settings->parameters;
   p_int = (int) (block->p_number + 0.0001);
 
   // if P = 0 then use whatever coordinate system that is currently active
@@ -3945,7 +3935,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
   } else {
     // L2 means directly edit the work offset of the specified CSYS
     desired_csys.g5xOffset = getAxisWordsFromBlock(block, desired_csys.g5xOffset);
-    storeWorkOffset(desired_csys.g5xOffset, p_int, parameters);
+    storeWorkOffset(desired_csys.g5xOffset, p_int, settings->parameters);
   }
 
   write_and_update_state_tag(nullptr);

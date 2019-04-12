@@ -899,7 +899,6 @@ always calls SET_FEED_REFERENCE(CANON_XYZ).
 int Interp::init()
 {
   char filename[LINELEN];
-  double *pars;                 // short name for _setup.parameters
   char *iniFileName;
   IniFile::ErrorCode r;
 
@@ -1139,11 +1138,10 @@ int Interp::init()
   if (filename[0] == 0)
     strcpy(filename, RS274NGC_PARAMETER_FILE_NAME_DEFAULT);
   CHP(restore_parameters(filename));
-  pars = _setup.parameters;
-  _setup.origin_index = (int) (pars[5220] + 0.0001);
+  _setup.origin_index = (int) (_setup.parameters[5220] + 0.0001);
   if(_setup.origin_index < 1 || _setup.origin_index > 9) {
       _setup.origin_index = 1;
-      pars[5220] = 1.0;
+      _setup.parameters[5220] = 1.0;
   }
   _setup.plane = GET_EXTERNAL_PLANE();
 
@@ -1161,12 +1159,12 @@ int Interp::init()
   if (! _setup.persistent_g92_offset) {
       // Persistence disabled:  clear g92 parameters
       for (int k = 5210; k < 5220; k++) {
-        pars[k] = 0;
+        _setup.parameters[k] = 0;
       }
   }
 
-  if (pars[G92_APPLIED]) {
-    double *axis_offset_begin = pars + G92_X;
+  if (_setup.parameters[G92_APPLIED]) {
+    double *axis_offset_begin = _setup.parameters + G92_X;
     const UnitsTransform user_to_program = convertsUserToProgram();
     _setup.transform.g92Offset.tf = user_to_program.forward(toArray(axis_offset_begin, 9));
   } else {
@@ -1175,7 +1173,6 @@ int Interp::init()
 
   SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(_setup.transform.g92Offset.tf));
   SET_XY_ROTATION(_setup.transform.g5xOffset.getXYRotationDeg());
-
   SET_FEED_REFERENCE(CANON_XYZ);
 //_setup.active_g_codes initialized below
 //_setup.active_m_codes initialized below
@@ -1887,7 +1884,6 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
   double value;
   int required;                 // number of next required parameter
   int index;                    // index into _required_parameters
-  double *pars;                 // short name for _setup.parameters
   int k;
 
   // it's OK if the parameter file doesn't exist yet
@@ -1898,7 +1894,6 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
   infile = fopen(filename, "r");
   CHKS((infile == nullptr), _("Unable to open parameter file: '%s'"), filename);
 
-  pars = _setup.parameters;
   k = 0;
   index = 0;
   required = _required_parameters[index++];
@@ -1916,7 +1911,7 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
           fclose(infile);
           ERS(NCE_PARAMETER_FILE_OUT_OF_ORDER);
         } else if (k == variable) {
-          pars[k] = value;
+          _setup.parameters[k] = value;
           if (k == required)
             required = _required_parameters[index++];
           k++;
@@ -1925,14 +1920,14 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
         {
           if (k == required)
             required = _required_parameters[index++];
-          pars[k] = 0;
+          _setup.parameters[k] = 0;
         }
       }
     }
   }
   fclose(infile);
   for (; k < RS274NGC_MAX_PARAMETERS; k++) {
-    pars[k] = 0;
+    _setup.parameters[k] = 0;
   }
   return INTERP_OK;
 }

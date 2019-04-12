@@ -526,8 +526,6 @@ int Interp::find_current_in_system(setup_pointer s, int system,
                                    double *x, double *y, double *z,
                                    double *a, double *b, double *c,
                                    double *u, double *v, double *w) {
-    double *p = s->parameters;
-
     *x = s->current[X];
     *y = s->current[Y];
     *z = s->current[Z];
@@ -560,28 +558,28 @@ int Interp::find_current_in_system(setup_pointer s, int system,
     *v += s->transform.g5xOffset.shift.tf[V];
     *w += s->transform.g5xOffset.shift.tf[W];
 
-    *x -= USER_TO_PROGRAM_LEN(p[5201 + system * 20]);
-    *y -= USER_TO_PROGRAM_LEN(p[5202 + system * 20]);
-    *z -= USER_TO_PROGRAM_LEN(p[5203 + system * 20]);
-    *a -= USER_TO_PROGRAM_ANG(p[5204 + system * 20]);
-    *b -= USER_TO_PROGRAM_ANG(p[5205 + system * 20]);
-    *c -= USER_TO_PROGRAM_ANG(p[5206 + system * 20]);
-    *u -= USER_TO_PROGRAM_LEN(p[5207 + system * 20]);
-    *v -= USER_TO_PROGRAM_LEN(p[5208 + system * 20]);
-    *w -= USER_TO_PROGRAM_LEN(p[5209 + system * 20]);
+    *x -= USER_TO_PROGRAM_LEN(s->parameters[5201 + system * 20]);
+    *y -= USER_TO_PROGRAM_LEN(s->parameters[5202 + system * 20]);
+    *z -= USER_TO_PROGRAM_LEN(s->parameters[5203 + system * 20]);
+    *a -= USER_TO_PROGRAM_ANG(s->parameters[5204 + system * 20]);
+    *b -= USER_TO_PROGRAM_ANG(s->parameters[5205 + system * 20]);
+    *c -= USER_TO_PROGRAM_ANG(s->parameters[5206 + system * 20]);
+    *u -= USER_TO_PROGRAM_LEN(s->parameters[5207 + system * 20]);
+    *v -= USER_TO_PROGRAM_LEN(s->parameters[5208 + system * 20]);
+    *w -= USER_TO_PROGRAM_LEN(s->parameters[5209 + system * 20]);
 
-    rotate(x, y, -p[5210 + system * 20]);
+    rotate(x, y, -s->parameters[5210 + system * 20]);
 
-    if (p[5210]) {
-        *x -= USER_TO_PROGRAM_LEN(p[5211]);
-        *y -= USER_TO_PROGRAM_LEN(p[5212]);
-        *z -= USER_TO_PROGRAM_LEN(p[5213]);
-        *a -= USER_TO_PROGRAM_ANG(p[5214]);
-        *b -= USER_TO_PROGRAM_ANG(p[5215]);
-        *c -= USER_TO_PROGRAM_ANG(p[5216]);
-        *u -= USER_TO_PROGRAM_LEN(p[5217]);
-        *v -= USER_TO_PROGRAM_LEN(p[5218]);
-        *w -= USER_TO_PROGRAM_LEN(p[5219]);
+    if (s->parameters[5210]) {
+        *x -= USER_TO_PROGRAM_LEN(s->parameters[5211]);
+        *y -= USER_TO_PROGRAM_LEN(s->parameters[5212]);
+        *z -= USER_TO_PROGRAM_LEN(s->parameters[5213]);
+        *a -= USER_TO_PROGRAM_ANG(s->parameters[5214]);
+        *b -= USER_TO_PROGRAM_ANG(s->parameters[5215]);
+        *c -= USER_TO_PROGRAM_ANG(s->parameters[5216]);
+        *u -= USER_TO_PROGRAM_LEN(s->parameters[5217]);
+        *v -= USER_TO_PROGRAM_LEN(s->parameters[5218]);
+        *w -= USER_TO_PROGRAM_LEN(s->parameters[5219]);
     }
 
     return INTERP_OK;
@@ -595,8 +593,6 @@ int Interp::find_current_in_system_without_tlo(setup_pointer s, int system,
                                    double *x, double *y, double *z,
                                    double *a, double *b, double *c,
                                    double *u, double *v, double *w) {
-    double *p = s->parameters;
-
     *x = s->current[X];
     *y = s->current[Y];
     *z = s->current[Z];
@@ -639,28 +635,28 @@ int Interp::find_current_in_system_without_tlo(setup_pointer s, int system,
     *v += s->transform.toolOffset.tf[V];
     *w += s->transform.toolOffset.tf[W];
 
-    *x -= USER_TO_PROGRAM_LEN(p[5201 + system * 20]);
-    *y -= USER_TO_PROGRAM_LEN(p[5202 + system * 20]);
-    *z -= USER_TO_PROGRAM_LEN(p[5203 + system * 20]);
-    *a -= USER_TO_PROGRAM_ANG(p[5204 + system * 20]);
-    *b -= USER_TO_PROGRAM_ANG(p[5205 + system * 20]);
-    *c -= USER_TO_PROGRAM_ANG(p[5206 + system * 20]);
-    *u -= USER_TO_PROGRAM_LEN(p[5207 + system * 20]);
-    *v -= USER_TO_PROGRAM_LEN(p[5208 + system * 20]);
-    *w -= USER_TO_PROGRAM_LEN(p[5209 + system * 20]);
+    *x -= USER_TO_PROGRAM_LEN(s->parameters[5201 + system * 20]);
+    *y -= USER_TO_PROGRAM_LEN(s->parameters[5202 + system * 20]);
+    *z -= USER_TO_PROGRAM_LEN(s->parameters[5203 + system * 20]);
+    *a -= USER_TO_PROGRAM_ANG(s->parameters[5204 + system * 20]);
+    *b -= USER_TO_PROGRAM_ANG(s->parameters[5205 + system * 20]);
+    *c -= USER_TO_PROGRAM_ANG(s->parameters[5206 + system * 20]);
+    *u -= USER_TO_PROGRAM_LEN(s->parameters[5207 + system * 20]);
+    *v -= USER_TO_PROGRAM_LEN(s->parameters[5208 + system * 20]);
+    *w -= USER_TO_PROGRAM_LEN(s->parameters[5209 + system * 20]);
 
-    rotate(x, y, -p[5210 + system * 20]);
+    rotate(x, y, -s->parameters[5210 + system * 20]);
 
-    if (p[5210]) {
-        *x -= USER_TO_PROGRAM_LEN(p[5211]);
-        *y -= USER_TO_PROGRAM_LEN(p[5212]);
-        *z -= USER_TO_PROGRAM_LEN(p[5213]);
-        *a -= USER_TO_PROGRAM_ANG(p[5214]);
-        *b -= USER_TO_PROGRAM_ANG(p[5215]);
-        *c -= USER_TO_PROGRAM_ANG(p[5216]);
-        *u -= USER_TO_PROGRAM_LEN(p[5217]);
-        *v -= USER_TO_PROGRAM_LEN(p[5218]);
-        *w -= USER_TO_PROGRAM_LEN(p[5219]);
+    if (s->parameters[5210]) {
+        *x -= USER_TO_PROGRAM_LEN(s->parameters[5211]);
+        *y -= USER_TO_PROGRAM_LEN(s->parameters[5212]);
+        *z -= USER_TO_PROGRAM_LEN(s->parameters[5213]);
+        *a -= USER_TO_PROGRAM_ANG(s->parameters[5214]);
+        *b -= USER_TO_PROGRAM_ANG(s->parameters[5215]);
+        *c -= USER_TO_PROGRAM_ANG(s->parameters[5216]);
+        *u -= USER_TO_PROGRAM_LEN(s->parameters[5217]);
+        *v -= USER_TO_PROGRAM_LEN(s->parameters[5218]);
+        *w -= USER_TO_PROGRAM_LEN(s->parameters[5219]);
     }
 
     return INTERP_OK;
