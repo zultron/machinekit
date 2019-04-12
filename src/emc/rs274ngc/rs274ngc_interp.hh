@@ -264,7 +264,7 @@ public:
  int convert_control_mode(int g_code, double tolerance, double naivecam_tolerance, setup_pointer settings);
  int convert_adaptive_mode(int g_code, setup_pointer settings);
 
- int convert_coordinate_system(int g_code, setup_pointer settings);
+ int convert_coordinate_system(int g_code, int p_word, setup_pointer settings);
  int convert_cutter_compensation(int g_code, block_pointer block,
                                        setup_pointer settings);
  int convert_cutter_compensation_off(setup_pointer settings);
@@ -373,16 +373,16 @@ public:
                               double center_x, double center_y, int turn,
                               double x2, double y2, double z2);
 
- RotateShiftTransform findWorkOffset(int origin, double parameters[]);
- void storeWorkOffset(RotateShiftTransform const &work_offset, int origin, double parameters[]);
+ int findWorkOffset(int origin, RotateShiftTransform & work_offset, bool create_if_missing = false);
+ int storeWorkOffset(RotateShiftTransform const &work_offset, int origin);
  int find_current_in_system(setup_pointer s, int system, double *x, double *y, double *z,
                             double *a, double *b, double *c,
                             double *u, double *v, double *w);
- PositionArray find_current_in_system(setup_pointer s, int system);
+ int find_current_in_system(setup_pointer s, int system, PositionArray &out);
  int find_current_in_system_without_tlo(setup_pointer s, int system, double *x, double *y, double *z,
                             double *a, double *b, double *c,
                             double *u, double *v, double *w);
- PositionArray find_current_in_system_without_tlo(setup_pointer s, int system);
+ int find_current_in_system_without_tlo(setup_pointer s, int system, PositionArray & out);
  int find_ends(block_pointer block, setup_pointer settings,
                double *px, double *py, double *pz,
                double *AA_p, double *BB_p, double *CC_p,

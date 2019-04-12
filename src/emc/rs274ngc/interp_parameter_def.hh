@@ -16,12 +16,14 @@
 #define INTERP_PARAMETER_DEF_H
 
 #include <positionarray.hh>
+namespace interp_param_global
+{
+
 enum RotationParameterIndex {
     R=10
 };
 
-namespace interp_param_global
-{
+enum {MAX_EXTENDED_WORK_CSYS = 500};
 
 // 31-5000 - G code user parameters. These parameters are global in the G code file, and available for general use. Volatile.
 enum InterpParameterIndex {
@@ -208,7 +210,9 @@ enum InterpParameterIndex {
     TOOLCHANGER_FAULT=5600,
 // 5601 - Toolchanger fault code. Used with the iocontrol-v2 component. Reflects the value of the toolchanger-reason HAL pin if a fault occurred. Volatile.
     TOOLCHANGER_FAULT_CODE=5601,
-    RS274NGC_MAX_PARAMETERS=5602
+    RS274NGC_MAX_PARAMETERS=5602,
+    EXTENDED_WORK_OFFSET_START=10000,
+    EXTENDED_WORK_OFFSET_END=EXTENDED_WORK_OFFSET_START + MAX_EXTENDED_WORK_CSYS * 20,
 };
 
 static inline int getWorkOffsetIdx(int active_csys, int axis)

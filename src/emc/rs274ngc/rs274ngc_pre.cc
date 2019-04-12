@@ -364,69 +364,69 @@ int Interp::_execute(const char *command)
     MDImode = 1;
     status = read(command);
     if (status != INTERP_OK) {
-	// if (status > INTERP_MIN_ERROR)
-	//     _setup.remap_level = 0;
-	return status;
+	// if (status > INTERP_MIN_ERROR) 
+      //     _setup.remap_level = 0;
+      return status;
     }
   }
   logDebug("execute:%s %s='%s' mdi_int=%d o_type=%s o_name=%s cl=%d rl=%d type=%s state=%s",
-	   MDImode ? "MDI" : "auto",
-	   command ? "command" : "line",
-	   command ? command : _setup.linetext,
-	    _setup.mdi_interrupt, o_ops[eblock->o_type], eblock->o_name,
-	   _setup.call_level,_setup.remap_level,
-	   eblock->call_type < 0 ? "*unset*" : call_typenames[eblock->call_type],
-	   call_statenames[_setup.call_state]);
+           MDImode ? "MDI" : "auto",
+           command ? "command" : "line",
+           command ? command : _setup.linetext,
+           _setup.mdi_interrupt, o_ops[eblock->o_type], eblock->o_name,
+	   _setup.call_level,_setup.remap_level, 
+	   eblock->call_type < 0 ? "*unset*" : call_typenames[eblock->call_type], 
+      call_statenames[_setup.call_state]);
 
   // process control functions -- will skip if skipping
   if ((eblock->o_name) || _setup.mdi_interrupt)  {
-      status = convert_control_functions(eblock, &_setup);
-      CHP(status); // relinquish control if INTERP_EXCUTE_FINISH, INTERP_ERROR etc
+    status = convert_control_functions(eblock, &_setup);
+    CHP(status); // relinquish control if INTERP_EXCUTE_FINISH, INTERP_ERROR etc
 
-      // let MDI code call subroutines.
-      // !!!KL not clear what happens if last execution failed while in
-      // !!!KL a subroutine
+    // let MDI code call subroutines.
+    // !!!KL not clear what happens if last execution failed while in
+    // !!!KL a subroutine
 
-      // NOTE: the last executed file will still be open, because "close"
-      // is really a lazy close.
+    // NOTE: the last executed file will still be open, because "close"
+    // is really a lazy close.
 
-      // we had an INTERP_OK, so no need to set up another call to finish after sync()
-      if (_setup.mdi_interrupt) {
-	  _setup.mdi_interrupt = false;
-	  MDImode = 1;
-      }
-      logDebug("!!!KL Open file is:%s:", _setup.filename);
-      logDebug("MDImode = %d", MDImode);
-      while(MDImode && _setup.call_level) // we are still in a subroutine
-      {
-          status = read(nullptr);  // reads from current file and calls parse
-	  if (status > INTERP_MIN_ERROR)
-	      CHP(status);
-          status = execute();  // special handling for mdi errors
-          if (status != INTERP_OK) {
-	      if (status == INTERP_EXECUTE_FINISH) {
-		  _setup.mdi_interrupt = true;
-	      }
-	      CHP(status);
-          }
-      }
+    // we had an INTERP_OK, so no need to set up another call to finish after sync()
+    if (_setup.mdi_interrupt) {
       _setup.mdi_interrupt = false;
-     if (MDImode)
-	  FINISH();
-      return INTERP_OK;
+      MDImode = 1;
     }
+    logDebug("!!!KL Open file is:%s:", _setup.filename);
+    logDebug("MDImode = %d", MDImode);
+    while(MDImode && _setup.call_level) // we are still in a subroutine
+    {
+      status = read(nullptr);  // reads from current file and calls parse
+      if (status > INTERP_MIN_ERROR)
+        CHP(status);
+      status = execute();  // special handling for mdi errors
+      if (status != INTERP_OK) {
+        if (status == INTERP_EXECUTE_FINISH) {
+          _setup.mdi_interrupt = true;
+        }
+        CHP(status);
+      }
+    }
+    _setup.mdi_interrupt = false;
+    if (MDImode)
+      FINISH();
+    return INTERP_OK;
+  }
 
   // skip if skipping
   if(_setup.skipping_o)
-    {
-      logDebug("skipping to: %s", _setup.skipping_o);
-      return INTERP_OK;
-    }
+  {
+    logDebug("skipping to: %s", _setup.skipping_o);
+    return INTERP_OK;
+  }
 
   for (n = 0; n < _setup.parameter_occurrence; n++)
   {  // copy parameter settings from parameter buffer into parameter table
     _setup.parameters[_setup.parameter_numbers[n]]
-          = _setup.parameter_values[n];
+        = _setup.parameter_values[n];
   }
 
   // logDebug("_setup.named_parameter_occurrence = %d",
@@ -434,155 +434,155 @@ int Interp::_execute(const char *command)
   for (n = 0; n < _setup.named_parameter_occurrence; n++)
   {  // copy parameter settings from parameter buffer into parameter table
 
-      logDebug("storing param:|%s|", _setup.named_parameters[n]);
-      CHP(store_named_param(&_setup, _setup.named_parameters[n],
+    logDebug("storing param:|%s|", _setup.named_parameters[n]);
+    CHP(store_named_param(&_setup, _setup.named_parameters[n],
                           _setup.named_parameter_values[n]));
   }
   _setup.named_parameter_occurrence = 0;
 
   if (_setup.line_length != 0) {        /* line not blank */
 
-      // at this point we have a parsed block
-      // if items are to be remapped the flow is as follows:
-      //
-      // 1. push this block onto the remap stack because this might take several
-      //    interp invcocations to finish, while other blocks will be parsed and
-      //    executed by the oword subs. The top-of-stack block is the 'current
-      //    remapped block' or CONTROLLING_BLOCK.
-      //
-      // 2. execute the remap stack top level block, ticking off all items which are done.
-      //
-      // 3. when a remap operation is encountered, this will result in a call like so:
-      //   'o<replacement>call'.
-      //
-      //   this replacement call is parsed with read() into _setup.blocks[0] by the
-      //   corresponding routine (see e.g. handling of T in interp_execute.cc)
-      //   through calling into convert_remapped_code()
-      //
-      // 4. The oword call code might execute an optional prologue handler which is called
-      //    when the subroutine environment is set up (parameters set, execution of
-      //    body to begin). This is the way to set local named parameters e.g. for canned cycles.
-      //
-      // 5. The oword endsub/return code might call an epilogue handler
-      //   which finishes any work at the Python level on endsub/return, and thereafter
-      //   calls back into remap_finished().
-      //
-      // 6. The execution stops after parsing, and returns with an indication of the
-      //   execution phase. We use negative values of enum steps to distinguish them
-      //   from normal INTERP_* type codes which are all >= 0.
-      //
-      // 7. In MDI mode, we have to kick execution by replicating code from above
-      //   to get the osub call going.
-      //
-      // 8. In Auto mode, we do an initial execute(0) to get things going, thereafer
-      //   task will do it for us.
-      //
-      // 9. When a replacment sub finishes, remap_finished() continues execution of
-      //   the current remapped block until done.
-      //
-      if (eblock->remappings.size() > 0) {
-	  std::set<int>::iterator it;
-	  int next_remap = *eblock->remappings.begin();
-	  logRemap("found remap %d in '%s', level=%d filename=%s line=%d",
-		  next_remap,_setup.blocktext,_setup.call_level,_setup.filename,_setup.sequence_number);
+    // at this point we have a parsed block
+    // if items are to be remapped the flow is as follows:
+    //
+    // 1. push this block onto the remap stack because this might take several
+    //    interp invcocations to finish, while other blocks will be parsed and
+    //    executed by the oword subs. The top-of-stack block is the 'current
+    //    remapped block' or CONTROLLING_BLOCK.
+    //
+    // 2. execute the remap stack top level block, ticking off all items which are done.
+    //
+    // 3. when a remap operation is encountered, this will result in a call like so:
+    //   'o<replacement>call'.
+    //
+    //   this replacement call is parsed with read() into _setup.blocks[0] by the
+    //   corresponding routine (see e.g. handling of T in interp_execute.cc)
+    //   through calling into convert_remapped_code()
+    //
+    // 4. The oword call code might execute an optional prologue handler which is called
+    //    when the subroutine environment is set up (parameters set, execution of
+    //    body to begin). This is the way to set local named parameters e.g. for canned cycles.
+    //
+    // 5. The oword endsub/return code might call an epilogue handler
+    //   which finishes any work at the Python level on endsub/return, and thereafter
+    //   calls back into remap_finished().
+    //
+    // 6. The execution stops after parsing, and returns with an indication of the
+    //   execution phase. We use negative values of enum steps to distinguish them
+    //   from normal INTERP_* type codes which are all >= 0.
+    //
+    // 7. In MDI mode, we have to kick execution by replicating code from above
+    //   to get the osub call going.
+    //
+    // 8. In Auto mode, we do an initial execute(0) to get things going, thereafer
+    //   task will do it for us.
+    //
+    // 9. When a replacment sub finishes, remap_finished() continues execution of
+    //   the current remapped block until done.
+    //
+    if (eblock->remappings.size() > 0) {
+      std::set<int>::iterator it;
+      int next_remap = *eblock->remappings.begin();
+      logRemap("found remap %d in '%s', level=%d filename=%s line=%d",
+               next_remap,_setup.blocktext,_setup.call_level,_setup.filename,_setup.sequence_number);
 
 
-	  CHP(enter_remap());
-	  block_pointer cblock = &CONTROLLING_BLOCK(_setup);
-	  cblock->phase = next_remap;
-	  // execute up to the first remap including read() of its handler
-	  // this also sets cblock->executing_remap
-	  status = execute_block(cblock, &_setup);
+      CHP(enter_remap());
+      block_pointer cblock = &CONTROLLING_BLOCK(_setup);
+      cblock->phase = next_remap;
+      // execute up to the first remap including read() of its handler
+      // this also sets cblock->executing_remap
+      status = execute_block(cblock, &_setup);
 #if 0
-	  // this is too naive a test and needs improving (aka: not segfault).
-	  // It needs to kick in only for  new codes, not remapped ones, for which
-	  // recursion just means 'use builtin semantics'
-	  // add some kind of 'is_remapped_builtin()' macro or test method
+	  // this is too naive a test and needs improving (aka: not segfault). 
+      // It needs to kick in only for  new codes, not remapped ones, for which
+      // recursion just means 'use builtin semantics'
+      // add some kind of 'is_remapped_builtin()' macro or test method
 
-	  // detect a remapping recursion.
-	  // since each remapped item pushes a new block onto the remap stack, we walk
-	  // the remap stack searching for an identical remap below the TOS
-	  for (int i = _setup.remap_level - 1; i > 0; i--) {
-	      if (_setup.blocks[i].executing_remap == cblock->executing_remap) {
-		  ERS("recursive remapping for %s detected", cblock->executing_remap->name);
-	      }
-	  }
-#endif
-	  // All items up to the first remap item have been executed.
-	  // The remap item procedure call has been parsed into _setup.blocks[0],
-	  // the EXECUTING_BLOCK.
-	  // after parsing a handler, execute_block() either fails to toplevel or
-	  // returns the negative value of phase (to distinguish them from INTERP_* codes which are all >= 0)
-
-	  if (status < 0) {
-
-	      // the remap phase indicator was returned.
-	      // sanity:
-	      if (cblock->remappings.find(- status) == cblock->remappings.end()) {
-		  ERS("BUG: execute_block: got %d - not in remappings() !! (next_remap=%d)",- status,next_remap);
-	      }
-	      logRemap("inital phase %d",-status);
-	      if (MDImode) {
-		  // need to trigger execution of parsed _setup.block1 here
-		  // replicate MDI oword execution code here
-		  if ((eblock->o_name) ||
-		      (_setup.mdi_interrupt)) {
-
-		      status = convert_control_functions(eblock, &_setup);
-		      CHP(status);
-		      if (_setup.mdi_interrupt) {
-			  _setup.mdi_interrupt = false;
-			  MDImode = 1;
-		      }
-		      status = INTERP_OK;
-		      while(MDImode && _setup.call_level) { // we are still in a subroutine
-			  CHP(read(nullptr));  // reads from current file and calls parse
-			  status = execute();  // special handling for mdi errors
-			  if (status == INTERP_EXECUTE_FINISH)
-			      _setup.mdi_interrupt = true;
-			  CHP(status);
-		      }
-		      _setup.mdi_interrupt = false;
-		      // at this point the MDI execution of a remapped block is complete.
-		      logRemap("MDI remap execution complete status=%s\n",interp_status(status));
-		      write_g_codes(eblock, &_setup, _setup.modal_state);
-		      write_m_codes(eblock, &_setup, _setup.modal_state);
-		      write_settings(&_setup, _setup.modal_state);
-		      return INTERP_OK;
-		  }
-	      } else {
-		  // this should get the osub going
-      status = execute(nullptr);
-		  CHP(status);
-		  // when this is done, blocks[0] will be executed as per standard case
-		  // on endsub/return and g_codes/m_codes/settings recorded there.
-	      }
-	      if ((status != INTERP_OK) &&
-		  (status != INTERP_EXECUTE_FINISH) && (status != INTERP_EXIT))
-		  ERP(status);
-	  } else {
-	      CHP(status);
-	  }
-      } else {
-	  // standard case: unremapped block execution
-	  status = execute_block(eblock, &_setup);
-
-	  write_g_codes(eblock, &_setup, _setup.modal_state);
-	  write_m_codes(eblock, &_setup, _setup.modal_state);
-	  write_settings(&_setup, _setup.modal_state);
-
-	  if ((status == INTERP_EXIT) &&
-	      (_setup.remap_level > 0) &&
-	      (_setup.call_level > 0)) {
-	      // an M2 was encountered while executing a handler.
-	      logRemap("standard case status=%s remap_level=%d call_level=%d blocktext='%s' MDImode=%d",
-		      interp_status(status),_setup.remap_level,_setup.call_level, _setup.blocktext,MDImode);
-	      logRemap("_setup.filename = %s, fn[0]=%s, fn[1]=%s",
-		      _setup.filename,
-		      _setup.sub_context[0].filename,
-		      _setup.sub_context[1].filename);
-	  }
+      // detect a remapping recursion.
+      // since each remapped item pushes a new block onto the remap stack, we walk
+      // the remap stack searching for an identical remap below the TOS
+      for (int i = _setup.remap_level - 1; i > 0; i--) {
+        if (_setup.blocks[i].executing_remap == cblock->executing_remap) {
+          ERS("recursive remapping for %s detected", cblock->executing_remap->name);
+        }
       }
+#endif
+      // All items up to the first remap item have been executed.
+      // The remap item procedure call has been parsed into _setup.blocks[0],
+      // the EXECUTING_BLOCK.
+      // after parsing a handler, execute_block() either fails to toplevel or
+      // returns the negative value of phase (to distinguish them from INTERP_* codes which are all >= 0)
+
+      if (status < 0) {
+
+        // the remap phase indicator was returned.
+        // sanity:
+        if (cblock->remappings.find(- status) == cblock->remappings.end()) {
+          ERS("BUG: execute_block: got %d - not in remappings() !! (next_remap=%d)",- status,next_remap);
+        }
+        logRemap("inital phase %d",-status);
+        if (MDImode) {
+          // need to trigger execution of parsed _setup.block1 here
+          // replicate MDI oword execution code here
+      if ((eblock->o_name) ||
+		      (_setup.mdi_interrupt)) { 
+
+            status = convert_control_functions(eblock, &_setup);
+            CHP(status);
+            if (_setup.mdi_interrupt) {
+              _setup.mdi_interrupt = false;
+              MDImode = 1;
+            }
+            status = INTERP_OK;
+            while(MDImode && _setup.call_level) { // we are still in a subroutine
+        CHP(read(nullptr));  // reads from current file and calls parse
+              status = execute();  // special handling for mdi errors
+              if (status == INTERP_EXECUTE_FINISH)
+                _setup.mdi_interrupt = true;
+              CHP(status);
+            }
+            _setup.mdi_interrupt = false;
+            // at this point the MDI execution of a remapped block is complete.
+            logRemap("MDI remap execution complete status=%s\n",interp_status(status));
+            write_g_codes(eblock, &_setup, _setup.modal_state);
+            write_m_codes(eblock, &_setup, _setup.modal_state);
+            write_settings(&_setup, _setup.modal_state);
+            return INTERP_OK;
+          }
+        } else {
+          // this should get the osub going
+          status = execute(nullptr);
+          CHP(status);
+          // when this is done, blocks[0] will be executed as per standard case
+          // on endsub/return and g_codes/m_codes/settings recorded there.
+        }
+        if ((status != INTERP_OK) &&
+            (status != INTERP_EXECUTE_FINISH) && (status != INTERP_EXIT))
+          ERP(status);
+      } else {
+        CHP(status);
+      }
+    } else {
+      // standard case: unremapped block execution
+      status = execute_block(eblock, &_setup);
+
+      write_g_codes(eblock, &_setup, _setup.modal_state);
+      write_m_codes(eblock, &_setup, _setup.modal_state);
+      write_settings(&_setup, _setup.modal_state);
+
+      if ((status == INTERP_EXIT) &&
+          (_setup.remap_level > 0) &&
+          (_setup.call_level > 0)) {
+        // an M2 was encountered while executing a handler.
+        logRemap("standard case status=%s remap_level=%d call_level=%d blocktext='%s' MDImode=%d",
+                 interp_status(status),_setup.remap_level,_setup.call_level, _setup.blocktext,MDImode);
+        logRemap("_setup.filename = %s, fn[0]=%s, fn[1]=%s",
+                 _setup.filename,
+                 _setup.sub_context[0].filename,
+            _setup.sub_context[1].filename);
+      }
+    }
     if ((status != INTERP_OK) &&
         (status != INTERP_EXECUTE_FINISH) && (status != INTERP_EXIT))
       ERP(status);
@@ -1138,10 +1138,10 @@ int Interp::init()
   if (filename[0] == 0)
     strcpy(filename, RS274NGC_PARAMETER_FILE_NAME_DEFAULT);
   CHP(restore_parameters(filename));
-  _setup.origin_index = (int) (_setup.parameters[5220] + 0.0001);
-  if(_setup.origin_index < 1 || _setup.origin_index > 9) {
-      _setup.origin_index = 1;
-      _setup.parameters[5220] = 1.0;
+  _setup.origin_index = (int) (_setup.parameters[ACTIVE_WORK_CSYS] + 0.0001);
+  if(_setup.origin_index < 1 || _setup.origin_index > MAX_EXTENDED_WORK_CSYS) {
+    _setup.origin_index = 1;
+    _setup.parameters[ACTIVE_WORK_CSYS] = 1.0;
   }
   _setup.plane = GET_EXTERNAL_PLANE();
 
@@ -1721,7 +1721,7 @@ int Interp::read(const char *command)
 {
     int status;
     if ((status = _read(command)) > INTERP_MIN_ERROR) {
-	unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
+      unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
     }
     return status;
 }
@@ -1730,59 +1730,59 @@ int Interp::read(const char *command)
 // falling back to toplevel in a controlled way. Idempotent.
 int Interp::unwind_call(int status, const char *file, int line, const char *function)
 {
-    logDebug("unwind_call: call_level=%d status=%s from %s %s:%d",
-	     _setup.call_level, interp_status(status), function, file, line);
+  logDebug("unwind_call: call_level=%d status=%s from %s %s:%d",
+           _setup.call_level, interp_status(status), function, file, line);
 
-    for(; _setup.call_level > 0; _setup.call_level--) {
-	int i;
-	context * sub = _setup.sub_context + _setup.call_level - 1;
-	free_named_parameters(&_setup.sub_context[_setup.call_level]);
-	if(sub->subName) {
-	    logDebug("unwind_call leaving sub '%s'", sub->subName);
+  for(; _setup.call_level > 0; _setup.call_level--) {
+    int i;
+    context * sub = _setup.sub_context + _setup.call_level - 1;
+    free_named_parameters(&_setup.sub_context[_setup.call_level]);
+    if(sub->subName) {
+      logDebug("unwind_call leaving sub '%s'", sub->subName);
       sub->subName = nullptr;
-	}
-
-	if (sub->call_type != CT_NGC_M98_SUB) // M98:  pass #1..#30 from parent
-	    for(i=0; i<INTERP_SUB_PARAMS; i++) {
-		_setup.parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
-		    sub->saved_params[i];
-	    }
-
-	// When called from Interp::close via Interp::reset, this one is NULL
-	if (!_setup.file_pointer) continue;
-
-	// some frames may not have a filename and hence a position to seek to
-	// on return, like Python handlers
-	// needed to make sure this works in rs274 -n 0 (continue on error) mode
-	if (sub->filename && sub->filename[0]) {
-	    if(0 != strcmp(_setup.filename, sub->filename)) {
-		fclose(_setup.file_pointer);
-		_setup.file_pointer = fopen(sub->filename, "r");
-		logDebug("unwind_call: reopening '%s' at %ld",
-			 sub->filename, sub->position);
-		strcpy(_setup.filename, sub->filename);
-	    }
-	    fseek(_setup.file_pointer, sub->position, SEEK_SET);
-	}
-	_setup.sequence_number = sub->sequence_number;
-	logDebug("unwind_call: setting sequence number=%d from frame %d",
-		_setup.sequence_number,_setup.call_level);
     }
-    // call_level == 0 here.
 
-    if(_setup.sub_name) {
-	logDebug("unwind_call: exiting current sub '%s'\n", _setup.sub_name);
-  _setup.sub_name = nullptr;
+    if (sub->call_type != CT_NGC_M98_SUB) // M98:  pass #1..#30 from parent
+      for(i=0; i<INTERP_SUB_PARAMS; i++) {
+        _setup.parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
+            sub->saved_params[i];
+      }
+
+    // When called from Interp::close via Interp::reset, this one is NULL
+    if (!_setup.file_pointer) continue;
+
+    // some frames may not have a filename and hence a position to seek to
+    // on return, like Python handlers
+    // needed to make sure this works in rs274 -n 0 (continue on error) mode
+    if (sub->filename && sub->filename[0]) {
+      if(0 != strcmp(_setup.filename, sub->filename)) {
+        fclose(_setup.file_pointer);
+        _setup.file_pointer = fopen(sub->filename, "r");
+        logDebug("unwind_call: reopening '%s' at %ld",
+                 sub->filename, sub->position);
+        strcpy(_setup.filename, sub->filename);
+      }
+      fseek(_setup.file_pointer, sub->position, SEEK_SET);
     }
-    _setup.remap_level = 0; // reset remapping stack
-    _setup.defining_sub = 0;
-    _setup.skipping_o = nullptr;
-    _setup.skipping_to_sub = nullptr;
-    _setup.offset_map.clear();
-    _setup.mdi_interrupt = false;
+    _setup.sequence_number = sub->sequence_number;
+    logDebug("unwind_call: setting sequence number=%d from frame %d",
+             _setup.sequence_number,_setup.call_level);
+  }
+  // call_level == 0 here.
 
-    qc_reset();
-    return INTERP_OK;
+  if(_setup.sub_name) {
+    logDebug("unwind_call: exiting current sub '%s'\n", _setup.sub_name);
+    _setup.sub_name = nullptr;
+  }
+  _setup.remap_level = 0; // reset remapping stack
+  _setup.defining_sub = 0;
+  _setup.skipping_o = nullptr;
+  _setup.skipping_to_sub = nullptr;
+  _setup.offset_map.clear();
+  _setup.mdi_interrupt = false;
+
+  qc_reset();
+  return INTERP_OK;
 }
 
 int Interp::read() {
@@ -1878,34 +1878,61 @@ has its value set to zero.
 */
 int Interp::restore_parameters(const char *filename)   //!< name of parameter file to read
 {
-  FILE *infile;
+  FILE *infile = nullptr;
   char line[256];
-  int variable;
-  double value;
-  int required;                 // number of next required parameter
-  int index;                    // index into _required_parameters
-  int k;
 
   // it's OK if the parameter file doesn't exist yet
   // it'll be created in due course with some default values
   if(access(filename, F_OK) == -1)
-      return INTERP_OK;
+    return INTERP_OK;
   // open original for reading
   infile = fopen(filename, "r");
   CHKS((infile == nullptr), _("Unable to open parameter file: '%s'"), filename);
 
-  k = 0;
-  index = 0;
-  required = _required_parameters[index++];
+  int k = 0;
+  int index = 0;
+  int required = _required_parameters[index++];
+
   while (feof(infile) == 0) {
-    if (fgets(line, 256, infile) == NULL) {
+    if (!fgets(line, 256, infile)) {
       break;
     }
-    // try for a variable-value match in the file
-    if (sscanf(line, "%d %lf", &variable, &value) == 2) {
-      CHKS(((variable <= 0)
-           || (variable >= RS274NGC_MAX_PARAMETERS)),
-          NCE_PARAMETER_NUMBER_OUT_OF_RANGE);
+
+    int variable;
+    double value;
+    // Skip the line if it doesn't match the pattern
+    if (sscanf(line, "%d %lf", &variable, &value) < 2) {
+      continue;
+    }
+
+    CHKS((variable <= 0),
+         NCE_PARAMETER_NUMBER_OUT_OF_RANGE);
+
+    // KLUDGE handle work offsets stored as fake parameters
+    if (variable >=  EXTENDED_WORK_OFFSET_START && variable < EXTENDED_WORK_OFFSET_END) {
+      // Work offsets
+      int offset_number = (variable - EXTENDED_WORK_OFFSET_START ) / 20;
+      int offset_base = EXTENDED_WORK_OFFSET_START + 20 * offset_number;
+      int index = offset_number - offset_base;
+      switch (index) {
+      case X:
+      case Y:
+      case Z:
+      case A:
+      case B:
+      case C:
+      case U:
+      case V:
+      case W:
+        _setup.work_offsets[offset_number].shift.tf[index] = value;
+        break;
+      case R:
+        _setup.work_offsets[offset_number].setXYRotationDeg(value);
+        break;
+      }
+      break;
+    } else if (variable < RS274NGC_MAX_PARAMETERS) {
+      // Ensure that no required parameters are skipped
       for (; k < RS274NGC_MAX_PARAMETERS; k++) {
         if (k > variable) {
           fclose(infile);
@@ -1916,8 +1943,7 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
             required = _required_parameters[index++];
           k++;
           break;
-        } else                  // if (k < variable)
-        {
+        } else {
           if (k == required)
             required = _required_parameters[index++];
           _setup.parameters[k] = 0;
@@ -2041,6 +2067,20 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
       required = _required_parameters[index++];
     }
   }
+
+  // TODO write these out sparsely? e.g. don't write zero fields
+  for (auto const& wo : _setup.work_offsets) {
+    CHKS(wo.first < 0, _("Work offset index %d cannot be negative"), wo.first);
+    size_t offset_base = EXTENDED_WORK_OFFSET_START + 20 * (size_t)wo.first;
+
+    for (size_t k = 0; k < wo.second.shift.tf.size(); ++k) {
+      sprintf(line, "%lu\t%0.17g\n", offset_base + k, wo.second.shift.tf[k]);
+      fputs(line, outfile);
+    }
+    sprintf(line, "%lu\t%0.17g\n", offset_base + R, wo.second.getXYRotationDeg());
+    fputs(line, outfile);
+  }
+
   fd = fileno(outfile); // Tormach - prevent loss of var file on computer power loss *dpr 6/23/15
   fflush(outfile);
   fsync(fd);

@@ -430,6 +430,34 @@ SCENARIO("Save / restore of G92 parameters")
   }
 }
 
+SCENARIO("Applying a work offset")
+{
+  GIVEN("No work offsets are defined (defaults)")
+  {
+    DECL_INIT_TEST_INTERP();
+    REQUIRE_INTERP_OK(test_interp.execute("g20"));
+    REQUIRE(settings->length_units == CANON_UNITS_INCHES);
+    WHEN("Invalid offset requested") {
+      THEN("Interp execution fails with an error") {
+        REQUIRE_INTERP_ERROR(test_interp.execute("G54.1 P-1"));
+        REQUIRE_INTERP_ERROR(test_interp.convert_coordinate_system(G_54_1, -1, settings));
+        REQUIRE_INTERP_ERROR(test_interp.convert_coordinate_system(G_54_1, 100, settings));
+      }
+    }
+    WHEN("Valid extended offset is created, then later requested") {
+      const double work_offset_x = 33;
+      const double work_offset_y = 44;
+      THEN("Interp applies work offset as with the original 9") {
+        REQUIRE_INTERP_OK(test_interp.execute("G10 L2 P50 X33 Y44"));
+        REQUIRE_INTERP_OK(test_interp.execute("G54.1 P50"));
+
+        CHECK_FUZZ(currentWorkOffsetX(settings), work_offset_x);
+        CHECK_FUZZ(currentWorkOffsetY(settings), work_offset_y);
+      }
+    }
+  }
+}
+
 
 SCENARIO("Convert G20 / G21 ")
 {

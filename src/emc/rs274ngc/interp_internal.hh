@@ -29,6 +29,7 @@
 #include "interp_fwd.hh"
 
 #include <coordinatetransform.hh>
+#include <unordered_map>
 
 #define _(s) gettext(s)
 
@@ -200,6 +201,7 @@ enum GCodes
     G_52 = 520,
     G_53 = 530,
     G_54 = 540,
+    G_54_1 = 541,
     G_55 = 550,
     G_56 = 560,
     G_57 = 570,
@@ -584,6 +586,8 @@ and is not represented here
 #define STACK_ENTRY_LEN 80
 #define MAX_SUB_DIRS 10
 
+using WorkOffsetMap = std::unordered_map<int, RotateShiftTransform>;
+
 struct setup_struct
 {
   setup_struct();
@@ -593,6 +597,8 @@ struct setup_struct
 
   PositionArray current;
   LocalToMachineTransform transform;
+
+  std::unordered_map<int, RotateShiftTransform> work_offsets;
 
   ModalState modal_state;
 

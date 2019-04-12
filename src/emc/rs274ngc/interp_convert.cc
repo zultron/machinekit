@@ -1578,8 +1578,9 @@ void Interp::rotate(double *x, double *y, double theta) {
     *y = yy;
 }
 
-int Interp::convert_coordinate_system(int g_code,        //!< g_code called (must be one listed above)     
-                                     setup_pointer settings)    //!< pointer to machine settings                  
+int Interp::convert_coordinate_system(int g_code,        //!< g_code called (must be one listed above)
+                                      int p_word, //!< optional P word provided to G54.1 only
+                                      setup_pointer settings)    //!< pointer to machine settings
 {
   int origin;
 
@@ -1613,12 +1614,15 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   case G_59_3:
     origin = 9;
     break;
+  case G_54_1:
+    origin = p_word;
+    CHKS(origin < 1, "Invalid work offset %d requested (must be between 1 and 500)", origin);
+    break;
   default:
     ERS(NCE_BUG_CODE_NOT_IN_RANGE_G54_TO_G593);
-    // TODO expand allowed units here
   }
 
-  if (origin == settings->origin_index) {       /* already using this origin */
+  if (origin == settings->origin_index && origin > 0) {       /* already using this origin */
 #ifdef DEBUG_EMC
     enqueue_COMMENT("interpreter: continuing to use same coordinate system");
 #endif
@@ -1626,7 +1630,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   }
 
   // move the current point into the new system
-  settings->current = find_current_in_system(settings, origin);
+  CHP(find_current_in_system(settings, origin, settings->current));
 
   // remember that this is new system
   settings->origin_index = origin;
@@ -1647,6 +1651,9 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
                                                                              settings->parameters[getWorkOffsetIdx(origin, W)]
                                                                              ));
   settings->transform.g5xOffset.setXYRotationDeg(settings->parameters[getWorkOffsetIdx(origin, R)]);
+
+  // FIXME force the extended work offsets to match parameters (user might have changed them underneath us)
+  settings->work_offsets[origin] = settings->transform.g5xOffset;
 
   write_and_update_state_tag(nullptr);
   SET_G5X_OFFSET(origin, UNPACK_POSITION_ARRAY_REF(settings->transform.g5xOffset.shift.tf));
@@ -2213,7 +2220,9 @@ int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS27
 	CHP(status);
     }
     if ((block->g_modes[GM_COORD_SYSTEM] != -1) && ONCE(STEP_COORD_SYSTEM)){
-	status = convert_coordinate_system(block->g_modes[GM_COORD_SYSTEM], settings);
+    status = convert_coordinate_system(block->g_modes[GM_COORD_SYSTEM],
+                                       block->p_flag ? std::round(block->p_number) : -1,
+                                       settings);
 	CHP(status);
     }
     if ((block->g_modes[GM_CONTROL_MODE] != -1) && ONCE(STEP_CONTROL_MODE)) {
@@ -3672,7 +3681,6 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
             tw += USER_TO_PROGRAM_LEN(settings->parameters[5219]);
         }
 
-
         if(block->x_flag && block->y_flag) {
             tx -= block->x_number;
             ty -= block->y_number;
@@ -3901,7 +3909,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
 
   // Starting from the active overall transform, find the effective transform for the desired work offset number
   LocalToMachineTransform desired_csys = settings->transform;
-  desired_csys.g5xOffset = findWorkOffset(p_int, settings->parameters); // In program units
+  CHP(findWorkOffset(p_int, desired_csys.g5xOffset, true)); // In program units
 
   if (block->l_number == 20) {
     CHKS((block->r_flag), _("R not allowed in G10 L20"));
@@ -3928,7 +3936,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
   } else {
     // L2 means directly edit the work offset of the specified CSYS
     desired_csys.g5xOffset = getAxisWordsFromBlock(block, desired_csys.g5xOffset);
-    storeWorkOffset(desired_csys.g5xOffset, p_int, settings->parameters);
+    storeWorkOffset(desired_csys.g5xOffset, p_int);
   }
 
   write_and_update_state_tag(nullptr);

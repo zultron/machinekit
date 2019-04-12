@@ -23,6 +23,7 @@
 #include "rs274ngc_return.hh"
 #include "interp_internal.hh"
 #include "rs274ngc_interp.hh"
+#include "interp_parameter_def.hh"
 
 /****************************************************************************/
 
@@ -91,7 +92,7 @@ int Interp::check_g_codes(block_pointer block,   //!< pointer to a block to be c
     (block->p_number >= 0) ? p_int = (int) (block->p_number +0.5) :p_int = (int) (block->p_number -0.5);
     CHKS((block->l_number != 2 && block->l_number != 1 && block->l_number != 20 && block->l_number != 10 && block->l_number != 11), _("Line with G10 does not have L1, L10, L11, L2, or L20"));
     CHKS((((block->p_number + 0.0001) - p_int) > 0.0002),  _("P value not an integer with G10"));
-    CHKS((((block->l_number == 2 || block->l_number == 20) && ((p_int < 0) || (p_int > 9)))), _("P value out of range (0-9) with G10 L%d"), block->l_number);
+    CHKS((((block->l_number == 2 || block->l_number == 20) && ((p_int < 0) || (p_int > interp_param_global::MAX_EXTENDED_WORK_CSYS)))), _("P value out of range (0-9) with G10 L%d"), block->l_number);
     CHKS((((block->l_number == 1 || block->l_number == 10 || block->l_number == 11) && p_int < 1)), _("P value out of range with G10 L%d"), block->l_number);
   } else if (mode0 == G_28) {
   } else if (mode0 == G_30) {
@@ -302,8 +303,8 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
 
   if (block->p_flag) {
       //Edited to allow P words even when they will be ignored. These are caught with the warnings below
-      CHKS(((block->g_modes[0] != G_10) && (block->g_modes[0] != G_4) && (block->g_modes[13] != G_64) &&
-          (motion != G_76) && (motion != G_81) && (motion != G_82) && (motion != G_83) && (motion != G_86) && (motion != G_88) && 
+      CHKS(((block->g_modes[0] != G_10) && (block->g_modes[0] != G_4) && (block->g_modes[12] != G_54_1) && (block->g_modes[13] != G_64) &&
+          (motion != G_76) && (motion != G_81) && (motion != G_82) && (motion != G_83) && (motion != G_86) && (motion != G_88) &&
           (motion != G_89) && (motion != G_5) && (motion != G_5_2) &&
           (motion != G_2) && (motion != G_3) &&
           (block->m_modes[9] != 50) && (block->m_modes[9] != 51) && (block->m_modes[9] != 52) &&
@@ -311,7 +312,7 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
           (block->m_modes[5] != 64) && (block->m_modes[5] != 65) && (block->m_modes[5] != 66) &&
           (block->m_modes[7] != 19) && (block->user_m != 1) &&
           (block->o_type != M_98)),
-          _("P word with no G2 G3 G4 G10 G64 G5 G5.2 G76 G82 G86 G88 G89"
+          _("P word with no G2 G3 G4 G10 G64 G5 G5.2 G54.1 G76 G82 G86 G88 G89"
             " or M50 M51 M52 M53 M62 M63 M64 M65 M66 M98 "
             "or user M code to use it"));
       int p_value = round_to_int(block->p_number);

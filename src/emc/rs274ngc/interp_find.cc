@@ -475,49 +475,67 @@ int Interp::find_relative(setup_pointer s, const PositionArray &command_local, P
 }
 
 /** Finds the specified work offset in program units. */
-RotateShiftTransform Interp::findWorkOffset(int origin, double parameters[])
+int Interp::findWorkOffset(int origin, RotateShiftTransform &work_offset, bool create_if_missing)
 {
-    const size_t prm_offset = (size_t)origin * 20;
+  if (origin <= 9) {
+    // Parameters take precedence
+    const size_t prm_offset = (size_t)origin * 20 + 5200;
 
-    RotateShiftTransform out(convertsUserToProgram().forward(toArray( // X-W offsets
-            parameters[5201 + prm_offset],
-            parameters[5202 + prm_offset],
-            parameters[5203 + prm_offset],
-            parameters[5204 + prm_offset],
-            parameters[5205 + prm_offset],
-            parameters[5206 + prm_offset],
-            parameters[5207 + prm_offset],
-            parameters[5208 + prm_offset],
-            parameters[5209 + prm_offset])),
-            0.0);
-    out.setXYRotationDeg(USER_TO_PROGRAM_ANG(parameters[5210 + prm_offset])); // Rotation
-    return out;
+    PositionArray work_offset_user = toArray(
+          _setup.parameters[1 + prm_offset],
+          _setup.parameters[2 + prm_offset],
+          _setup.parameters[3 + prm_offset],
+          _setup.parameters[4 + prm_offset],
+          _setup.parameters[5 + prm_offset],
+          _setup.parameters[6 + prm_offset],
+          _setup.parameters[7 + prm_offset],
+          _setup.parameters[8 + prm_offset],
+          _setup.parameters[9 + prm_offset]);
+    RotateShiftTransform out(convertsUserToProgram().forward(work_offset_user), 0.0);
+    out.setXYRotationDeg(USER_TO_PROGRAM_ANG(_setup.parameters[10 + prm_offset])); // Rotation
+    work_offset = out;
+  } else {
+    auto it_offset = _setup.work_offsets.find(origin);
+    if (it_offset == _setup.work_offsets.end()) {
+      CHKS(!create_if_missing, _("Can't find work offset %d"), origin);
+      work_offset = _setup.work_offsets[origin];
+    } else {
+      work_offset = it_offset->second;
+    }
+  }
+  return INTERP_OK;
 }
 
-void Interp::storeWorkOffset(const RotateShiftTransform & work_offset, int origin, double parameters[])
+int Interp::storeWorkOffset(const RotateShiftTransform & work_offset, int origin)
 {
+  if (origin <= 9) {
     const size_t prm_offset = (size_t)origin * 20;
 
     extract_axes(convertsProgramToUser().forward(work_offset.shift.tf),
-            parameters[5201 + prm_offset],
-            parameters[5202 + prm_offset],
-            parameters[5203 + prm_offset],
-            parameters[5204 + prm_offset],
-            parameters[5205 + prm_offset],
-            parameters[5206 + prm_offset],
-            parameters[5207 + prm_offset],
-            parameters[5208 + prm_offset],
-            parameters[5209 + prm_offset]);
+                _setup.parameters[5201 + prm_offset],
+                _setup.parameters[5202 + prm_offset],
+                _setup.parameters[5203 + prm_offset],
+                _setup.parameters[5204 + prm_offset],
+                _setup.parameters[5205 + prm_offset],
+                _setup.parameters[5206 + prm_offset],
+                _setup.parameters[5207 + prm_offset],
+                _setup.parameters[5208 + prm_offset],
+                _setup.parameters[5209 + prm_offset]);
 
-    parameters[5210 + prm_offset] = PROGRAM_TO_USER_ANG(work_offset.getXYRotationDeg()); // Rotation
+    _setup.parameters[5210 + prm_offset] = PROGRAM_TO_USER_ANG(work_offset.getXYRotationDeg()); // Rotation
+  }
+  _setup.work_offsets[origin] = work_offset;
+  return INTERP_OK;
 }
 
 /** @overload for returning a position array directly */
-PositionArray Interp::find_current_in_system(setup_pointer s, int system) {
+int Interp::find_current_in_system(setup_pointer s, int system, PositionArray &out) {
     PositionArray pos_notool = s->transform.forward_notool(s->current);
     LocalToMachineTransform tmp = s->transform;
-    tmp.g5xOffset = findWorkOffset(system, s->parameters);
-    return tmp.inverse_notool(pos_notool);
+    CHP(findWorkOffset(system, tmp.g5xOffset));
+
+    out = tmp.inverse_notool(pos_notool);
+    return INTERP_OK;
 }
 
 // find what the current coordinates would be if we were in a different system
@@ -662,12 +680,14 @@ int Interp::find_current_in_system_without_tlo(setup_pointer s, int system,
     return INTERP_OK;
 }
 
-PositionArray Interp::find_current_in_system_without_tlo(setup_pointer s, int system)
+int Interp::find_current_in_system_without_tlo(setup_pointer s, int system, PositionArray &out)
 {
     PositionArray pos = s->transform.forward(s->current);
     LocalToMachineTransform tmp = s->transform;
-    tmp.g5xOffset = findWorkOffset(system, s->parameters);
-    return tmp.inverse(pos);
+    CHP(findWorkOffset(system, tmp.g5xOffset));
+    // NOTE: this is where the "tool offsets not applied" part happens.
+    out = tmp.inverse_notool(pos);
+    return INTERP_OK;
 }
 
 /****************************************************************************/

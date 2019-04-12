@@ -13,6 +13,7 @@ using Catch::Matchers::WithinAbs;
 #define CHECK_FUZZ(got, expected) CHECK_THAT(got, WithinAbs(expected, INTERP_FUZZ))
 
 #define REQUIRE_INTERP_OK(val) REQUIRE(val < INTERP_MIN_ERROR)
+#define REQUIRE_INTERP_ERROR(val) REQUIRE(val >= INTERP_MIN_ERROR)
 
 extern InterpBase *pinterp;
 
