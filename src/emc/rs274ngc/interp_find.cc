@@ -174,6 +174,8 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         double cy = s->current[Y];
         rotate(&cx, &cy, s->transform.g5xOffset.getXYRotationDeg()); //FIXME transform
 
+
+        // TODO replace with compact transforms API
         if(block->x_flag) {
             *px = block->x_number - s->transform.g5xOffset.shift.tf[X] - s->transform.g92Offset.tf[X] - s->transform.toolOffset.tf[X];
         } else {

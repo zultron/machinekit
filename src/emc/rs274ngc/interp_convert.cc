@@ -3623,6 +3623,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     double tx, ty, tz, ta, tb, tc, tu, tv, tw;
     int direct = block->l_number == 1;
 
+    // TODO same overhaul as setup (w/ unrotate etc.)
     is_near_int(&toolno, block->p_number);
 
     CHP((find_tool_pocket(settings, toolno, &pocket)));
