@@ -11,6 +11,7 @@ TARGETS += ../bin/linuxcncsvr
 # disabled:	emc/task/iotaskintf.cc
 MILLTASKSRCS := \
 	emc/motion/emcmotglb.c \
+	emc/task/canon_position.cc \
 	emc/task/emctask.cc \
 	emc/task/emccanon.cc \
 	emc/task/emctaskmain.cc \

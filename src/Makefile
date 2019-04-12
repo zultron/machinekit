@@ -324,7 +324,8 @@ HEADERS := \
     emc/rs274ngc/rs274ngc.hh \
     emc/rs274ngc/modal_state.hh \
     emc/rs274ngc/saicanon.hh \
-    emc/interp_shared/canon_position.hh \
+    emc/interp_shared/coordinatetransform.hh \
+    emc/interp_shared/positionarray.hh \
     emc/interp_shared/StateTag.hh \
     hal/hal.h \
     hal/hal_parport.h \

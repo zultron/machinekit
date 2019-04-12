@@ -2,7 +2,8 @@ INCLUDES += emc/interp_shared
 
 LIB_SRCS := \
     emc/interp_shared/StateTag.cc \
-    emc/interp_shared/canon_position.cc \
+    emc/interp_shared/positionarray.cc \
+    emc/interp_shared/coordinatetransform.cc \
 
 USERSRCS += $(LIB_SRCS)
 

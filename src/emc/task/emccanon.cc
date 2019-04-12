@@ -47,6 +47,8 @@
 #include "interpl.hh"		// interp_list
 #include "emcglb.h"		// global values from INI for max velocity, tolerance, etc.
 
+#include "coordinatetransform.hh"
+
 //#define EMCCANON_DEBUG
 
 static constexpr double RIGID_TAP_LEADIN_SAFETY_FACTOR = 1.25;
@@ -66,7 +68,6 @@ static int debug_velacc = 0;
 static double css_maximum; // both always positive
 static int spindle_dir = 0;
 
-static double xy_rotation = 0.;
 static int rotary_unlock_for_traverse = -1;
 
 static StateTag _tag;
@@ -227,198 +228,124 @@ void CANON_MSG(const char *fmt, ...) __attribute__((format(printf,1,2)));
   Units are then converted from mm to external units, as reported by
   the GET_EXTERNAL_LENGTH_UNITS() function.
   */
-static CANON_POSITION g5xOffset(0.0, 0.0, 0.0, 
-                                0.0, 0.0, 0.0,
-                                0.0, 0.0, 0.0);
-static CANON_POSITION g92Offset(0.0, 0.0, 0.0, 
-                                0.0, 0.0, 0.0,
-                                0.0, 0.0, 0.0);
+
 static CANON_UNITS lengthUnits = CANON_UNITS_MM;
 static CANON_PLANE activePlane = CANON_PLANE_XY;
 
-inline static double FROM_PROG_LEN(double prog_len)
+inline static double getProgramLengthUnits(void)
 {
     switch (lengthUnits) {
     case CANON_UNITS_INCHES:
-        return prog_len * 25.4;
+        return 25.4;
     case CANON_UNITS_CM:
-        return prog_len * 10.0;
+        return 10.0;
     case CANON_UNITS_MM:
-        return prog_len;
+        return 1.0;
     }
-    return prog_len;
+    return -1.0;
+}
+
+inline static double FROM_PROG_LEN(double prog_len)
+{
+    return prog_len * getProgramLengthUnits();
+}
+
+/* macros for converting internal (mm/deg) units to program units */
+static inline double TO_PROG_LEN(double mm)
+{
+    return mm / getProgramLengthUnits();
+}
+
+inline static constexpr double getProgramAngularUnits(void)
+{
+    return 1.0;
+}
+
+static inline constexpr double TO_PROG_ANG(double deg)
+{
+    return deg / getProgramAngularUnits();
+}
+
+static inline double FROM_PROG_ANG(double deg)
+{
+    return deg / getProgramAngularUnits();
 }
 
 static int feed_mode = 0;
 static int synched = 0;
 
-/* Tool length offset is saved here */
-static EmcPose currentToolOffset;
 
-#ifndef D2R
-#define D2R(r) ((r)*M_PI/180.0)
-#endif
-
-static void rotate(double &x, double &y, double theta) {
-    double xx, yy;
-    double t = D2R(theta);
-    xx = x, yy = y;
-    x = xx * cos(t) - yy * sin(t); 
-    y = xx * sin(t) + yy * cos(t);
+static inline UnitsTransform ConvertsCanonToMotionUnits()
+{
+    return UnitsTransform(GET_EXTERNAL_LENGTH_UNITS(), GET_EXTERNAL_ANGLE_UNITS());
 }
 
+static inline UnitsTransform ConvertsProgramToCanonUnits()
+{
+    return UnitsTransform(getProgramLengthUnits(), getProgramAngularUnits());
+}
+
+static inline UnitsTransform ConvertsMotionToCanonUnits()
+{
+    return UnitsTransform(1.0 / GET_EXTERNAL_LENGTH_UNITS(), 1.0 / GET_EXTERNAL_ANGLE_UNITS());
+}
+
+static inline UnitsTransform ConvertsCanonToProgramUnits()
+{
+    return UnitsTransform(1.0 / getProgramLengthUnits(), 1.0 / getProgramAngularUnits());
+}
 
 /**
- * Implementation of planar rotation for a 3D vector.
- * This is basically a shortcut for "rotate" when the values are stored in a
- * cartesian vector.
- * The use of static "xy_rotation" is ugly here, but is at least consistent.
+ * Stores coordinate offsets / rotations between user coordinates and machine
+ * cooordinates. 
+ * Offsets are stored in Canon units (e.g. mm / deg)
  */
-static void to_rotated(PM_CARTESIAN &vec) {
-    rotate(vec.x,vec.y,xy_rotation);
+static LocalToMachineTransform interpToMachineTransform;
+
+static void rotate_and_offset(PositionArray & pos) {
+    interpToMachineTransform.apply_fwd(pos);
 }
-#if 0
-static void from_rotated(PM_CARTESIAN &vec) {
-    rotate(vec.x,vec.y,-xy_rotation);
-}
-#endif
-static void rotate_and_offset(CANON_POSITION & pos) {
 
-    pos += g92Offset;
-
-    rotate(pos.x, pos.y, xy_rotation);
-
-    pos += g5xOffset;
-
-    pos += currentToolOffset;
+static void rotate(PM_CARTESIAN & p) {
+    interpToMachineTransform.g5xOffset.rotate_xy(p.x, p.y);
 }
 
 static void rotate_and_offset_xyz(PM_CARTESIAN & xyz) {
-
-    xyz += g92Offset.xyz();
-
-    rotate(xyz.x, xyz.y, xy_rotation);
-
-    xyz += g5xOffset.xyz();
-
-    xyz += PM_CARTESIAN(currentToolOffset.tran.x,
-            currentToolOffset.tran.y,
-            currentToolOffset.tran.z);
+    PositionArray tmp = {xyz.x, xyz.y, xyz.z};
+    interpToMachineTransform.apply_fwd(tmp);
+    xyz.x = tmp[X];
+    xyz.y = tmp[Y];
+    xyz.z = tmp[Z];
 }
 
-static CANON_POSITION unoffset_and_unrotate_pos(const CANON_POSITION pos) {
-    CANON_POSITION res;
-
-    res = pos;
-
-    res -= currentToolOffset;
-    
-    res -= g5xOffset;
-
-    rotate(res.x, res.y, -xy_rotation);
-
-    res -= g92Offset;
-
-    return res;
+static PositionArray unoffset_and_unrotate_pos(PositionArray const &pos) {
+    return interpToMachineTransform.inverse(pos);
 }
 
-static void rotate_and_offset_pos(double &x, double &y, double &z, double &a, double &b, double &c, double &u, double &v, double &w) {
-
-    x += g92Offset.x;
-    y += g92Offset.y;
-    z += g92Offset.z;
-    a += g92Offset.a;
-    b += g92Offset.b;
-    c += g92Offset.c;
-    u += g92Offset.u;
-    v += g92Offset.v;
-    w += g92Offset.w;
-
-    rotate(x, y, xy_rotation);
-
-    x += g5xOffset.x;
-    y += g5xOffset.y;
-    z += g5xOffset.z;
-    a += g5xOffset.a;
-    b += g5xOffset.b;
-    c += g5xOffset.c;
-    u += g5xOffset.u;
-    v += g5xOffset.v;
-    w += g5xOffset.w;
-
-    x += currentToolOffset.tran.x;
-    y += currentToolOffset.tran.y;
-    z += currentToolOffset.tran.z;
-    a += currentToolOffset.a;
-    b += currentToolOffset.b;
-    c += currentToolOffset.c;
-    u += currentToolOffset.u;
-    v += currentToolOffset.v;
-    w += currentToolOffset.w;
+static void rotate_and_offset_pos(double &x, double &y, double &z, double &a, double &b, double &c, double &u, double &v, double &w)
+{
+    PositionArray pos = {x,y,z,a,b,c,u,v,w};
+    interpToMachineTransform.apply_fwd(pos);
+    extract_axes(pos, x,y,z,a,b,c,u,v,w);
 }
 
-
-static CANON_POSITION unoffset_and_unrotate_pos(const EmcPose pos) {
-    CANON_POSITION res(pos);
-    return unoffset_and_unrotate_pos(res);
+static void from_prog(PositionArray &pos) {
+    UnitsTransform program_to_canon_units = ConvertsProgramToCanonUnits();
+    program_to_canon_units.apply_fwd(pos);
 }
-
-// for c in "xyzabcuvw": print "    %s = offset_%s(%s)" % (c,c,c)
 
 static void from_prog(double &x, double &y, double &z, double &a, double &b, double &c, double &u, double &v, double &w) {
-    x = FROM_PROG_LEN(x);
-    y = FROM_PROG_LEN(y);
-    z = FROM_PROG_LEN(z);
-    a = FROM_PROG_ANG(a);
-    b = FROM_PROG_ANG(b);
-    c = FROM_PROG_ANG(c);
-    u = FROM_PROG_LEN(u);
-    v = FROM_PROG_LEN(v);
-    w = FROM_PROG_LEN(w);
+    PositionArray pos = {x,y,z,a,b,c,u,v,w};
+    from_prog(pos);
+    extract_axes(pos, x,y,z,a,b,c,u,v,w);
 }
 
-static void from_prog(CANON_POSITION &pos) {
-    pos.x = FROM_PROG_LEN(pos.x);
-    pos.y = FROM_PROG_LEN(pos.y);
-    pos.z = FROM_PROG_LEN(pos.z);
-    pos.a = FROM_PROG_ANG(pos.a);
-    pos.b = FROM_PROG_ANG(pos.b);
-    pos.c = FROM_PROG_ANG(pos.c);
-    pos.u = FROM_PROG_LEN(pos.u);
-    pos.v = FROM_PROG_LEN(pos.v);
-    pos.w = FROM_PROG_LEN(pos.w);
-}
 
 static void from_prog_len(PM_CARTESIAN &vec) {
     vec.x = FROM_PROG_LEN(vec.x);
     vec.y = FROM_PROG_LEN(vec.y);
     vec.z = FROM_PROG_LEN(vec.z);
 }
-#if 0
-static void to_ext(double &x, double &y, double &z, double &a, double &b, double &c, double &u, double &v, double &w) {
-    x = TO_EXT_LEN(x);
-    y = TO_EXT_LEN(y);
-    z = TO_EXT_LEN(z);
-    a = TO_EXT_ANG(a);
-    b = TO_EXT_ANG(b);
-    c = TO_EXT_ANG(c);
-    u = TO_EXT_LEN(u);
-    v = TO_EXT_LEN(v);
-    w = TO_EXT_LEN(w);
-}
-
-static void to_ext(CANON_POSITION & pos) {
-    pos.x=TO_EXT_LEN(pos.x);
-    pos.y=TO_EXT_LEN(pos.y);
-    pos.z=TO_EXT_LEN(pos.z);
-    pos.a=TO_EXT_ANG(pos.a);
-    pos.b=TO_EXT_ANG(pos.b);
-    pos.c=TO_EXT_ANG(pos.c);
-    pos.u=TO_EXT_LEN(pos.u);
-    pos.v=TO_EXT_LEN(pos.v);
-    pos.w=TO_EXT_LEN(pos.w);
-}
-#endif
 
 static PM_CARTESIAN to_ext_len(const PM_CARTESIAN & pos) {
     PM_CARTESIAN ret;
@@ -428,45 +355,22 @@ static PM_CARTESIAN to_ext_len(const PM_CARTESIAN & pos) {
     return ret;
 }
 
+static EmcPose to_ext_pose(PositionArray pos) {
+    const UnitsTransform canon_to_motion_units = ConvertsCanonToMotionUnits();
+    canon_to_motion_units.apply_fwd(pos);
+    return toEmcPose(pos);
+}
+
 static EmcPose to_ext_pose(double x, double y, double z, double a, double b, double c, double u, double v, double w) {
-    EmcPose result;
-    result.tran.x = TO_EXT_LEN(x);
-    result.tran.y = TO_EXT_LEN(y);
-    result.tran.z = TO_EXT_LEN(z);
-    result.a = TO_EXT_ANG(a);
-    result.b = TO_EXT_ANG(b);
-    result.c = TO_EXT_ANG(c);
-    result.u = TO_EXT_LEN(u);
-    result.v = TO_EXT_LEN(v);
-    result.w = TO_EXT_LEN(w);
-    return result;
+    PositionArray tmp = {x,y,z,a,b,c,u,v,w};
+    return to_ext_pose(tmp);
 }
 
-static EmcPose to_ext_pose(const CANON_POSITION & pos) {
-    EmcPose result;
-    result.tran.x = TO_EXT_LEN(pos.x);
-    result.tran.y = TO_EXT_LEN(pos.y);
-    result.tran.z = TO_EXT_LEN(pos.z);
-    result.a = TO_EXT_ANG(pos.a);
-    result.b = TO_EXT_ANG(pos.b);
-    result.c = TO_EXT_ANG(pos.c);
-    result.u = TO_EXT_LEN(pos.u);
-    result.v = TO_EXT_LEN(pos.v);
-    result.w = TO_EXT_LEN(pos.w);
-    return result;
+static void to_prog(PositionArray &e) {
+    const UnitsTransform program_to_canon_units = ConvertsCanonToProgramUnits();
+    program_to_canon_units.apply_fwd(e);
 }
 
-static void to_prog(CANON_POSITION &e) {
-    e.x = TO_PROG_LEN(e.x);
-    e.y = TO_PROG_LEN(e.y);
-    e.z = TO_PROG_LEN(e.z);
-    e.a = TO_PROG_ANG(e.a);
-    e.b = TO_PROG_ANG(e.b);
-    e.c = TO_PROG_ANG(e.c);
-    e.u = TO_PROG_LEN(e.u);
-    e.v = TO_PROG_LEN(e.v);
-    e.w = TO_PROG_LEN(e.w);
-}
 
 static int axis_valid(int n) {
     return emcStatus->motion.traj.axis_mask & (1<<n);
@@ -481,25 +385,15 @@ static int axis_valid(int n) {
   retrieves the xyz position after the last of the queued segments.  these
   are also in absolute frame, mm units.
   */
-static CANON_POSITION canonEndPoint;
+static PositionArray canonEndPoint;
 static void canonUpdateEndPoint(double x, double y, double z, 
                                 double a, double b, double c,
                                 double u, double v, double w)
 {
-    canonEndPoint.x = x;
-    canonEndPoint.y = y;
-    canonEndPoint.z = z;
-
-    canonEndPoint.a = a;
-    canonEndPoint.b = b;
-    canonEndPoint.c = c;
-
-    canonEndPoint.u = u;
-    canonEndPoint.v = v;
-    canonEndPoint.w = w;
+    assign(canonEndPoint, x, y, z, a, b, c, u, v, w);
 }
 
-static void canonUpdateEndPoint(const CANON_POSITION & pos)
+static void canonUpdateEndPoint(const PositionArray & pos)
 {
     canonEndPoint = pos;
 }
@@ -507,12 +401,13 @@ static void canonUpdateEndPoint(const CANON_POSITION & pos)
 /* External call to update the canon end point.
    Called by emctask during skipping of lines (run-from-line) */
 void CANON_UPDATE_END_POINT(double x, double y, double z, 
-			    double a, double b, double c, 
-			    double u, double v, double w)
+                            double a, double b, double c,
+                            double u, double v, double w)
 {
-    canonUpdateEndPoint(FROM_PROG_LEN(x),FROM_PROG_LEN(y),FROM_PROG_LEN(z),
-    			FROM_PROG_ANG(a),FROM_PROG_ANG(b),FROM_PROG_ANG(c),
-			FROM_PROG_LEN(u),FROM_PROG_LEN(v),FROM_PROG_LEN(w));
+    UnitsTransform program_to_canon_units = ConvertsProgramToCanonUnits();
+    PositionArray const end_point = program_to_canon_units.forward(
+                    toArray(x,y,z,a,b,c,u,v,w));
+    canonUpdateEndPoint(end_point);
 }
 
 
@@ -609,7 +504,7 @@ static void send_g5x_msg(int index) {
 
     set_g5x_msg.g5x_index = index;
 
-    set_g5x_msg.origin = to_ext_pose(g5xOffset);
+    set_g5x_msg.origin = to_ext_pose(interpToMachineTransform.g5xOffset.getOffset());
 
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed_rpm);
@@ -624,7 +519,7 @@ static void send_g92_msg(void) {
        read-ahead time */
     EMC_TRAJ_SET_G92 set_g92_msg;
 
-    set_g92_msg.origin = to_ext_pose(g92Offset);
+    set_g92_msg.origin = to_ext_pose(interpToMachineTransform.g92Offset.getOffset());
 
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed_rpm);
@@ -637,7 +532,7 @@ void SET_XY_ROTATION(double t) {
     sr.rotation = t;
 	tag_and_send(sr);
 
-    xy_rotation = t;
+    interpToMachineTransform.g5xOffset.setXYRotationDeg(t);
 }
 
 void SET_G5X_OFFSET(int index,
@@ -645,11 +540,12 @@ void SET_G5X_OFFSET(int index,
                     double a, double b, double c,
                     double u, double v, double w)
 {
-    CANON_POSITION pos(x,y,z,a,b,c,u,v,w);
+    PositionArray pos = {x,y,z,a,b,c,u,v,w};
+
+    // Convert to canon units (mm / deg)
     from_prog(pos);
 
-    /* convert to mm units */
-    g5xOffset = pos;
+    interpToMachineTransform.g5xOffset.setShift(pos);
 
     send_g5x_msg(index);
 }
@@ -658,10 +554,10 @@ void SET_G92_OFFSET(double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w) {
     /* convert to mm units */
-    CANON_POSITION pos(x,y,z,a,b,c,u,v,w);
+    PositionArray pos = {x,y,z,a,b,c,u,v,w};
     from_prog(pos);
 
-    g92Offset = pos;
+    interpToMachineTransform.g92Offset = ShiftTransform(pos);
 
     send_g92_msg();
 }
@@ -792,15 +688,15 @@ static AccelData getStraightAcceleration(
     out.dtot = 0;
 
     // Compute absolute travel distance for each axis:
-    dx = fabs(x - canonEndPoint.x);
-    dy = fabs(y - canonEndPoint.y);
-    dz = fabs(z - canonEndPoint.z);
-    da = fabs(a - canonEndPoint.a);
-    db = fabs(b - canonEndPoint.b);
-    dc = fabs(c - canonEndPoint.c);
-    du = fabs(u - canonEndPoint.u);
-    dv = fabs(v - canonEndPoint.v);
-    dw = fabs(w - canonEndPoint.w);
+    dx = fabs(x - canonEndPoint[X]);
+    dy = fabs(y - canonEndPoint[Y]);
+    dz = fabs(z - canonEndPoint[Z]);
+    da = fabs(a - canonEndPoint[A]);
+    db = fabs(b - canonEndPoint[B]);
+    dc = fabs(c - canonEndPoint[C]);
+    du = fabs(u - canonEndPoint[U]);
+    dv = fabs(v - canonEndPoint[V]);
+    dw = fabs(w - canonEndPoint[W]);
 
     applyMinDisplacement(dx, dy, dz, da, db, dc, du, dv, dw);
 
@@ -904,19 +800,19 @@ static AccelData getStraightAcceleration(
       x, y, z, a, b, c, u, v, w, 0);
 }
 
-static AccelData getStraightAcceleration(CANON_POSITION pos,
+static AccelData getStraightAcceleration(PositionArray pos,
                                          int known_xyz_motion)
 {
 
-    return getStraightAcceleration(pos.x,
-            pos.y,
-            pos.z,
-            pos.a,
-            pos.b,
-            pos.c,
-            pos.u,
-            pos.v,
-            pos.w,
+    return getStraightAcceleration(pos[X],
+            pos[Y],
+            pos[Z],
+            pos[A],
+            pos[B],
+            pos[C],
+            pos[U],
+            pos[V],
+            pos[W],
             known_xyz_motion);
 }
 
@@ -936,15 +832,15 @@ static VelData getStraightVelocity(double x, double y, double z,
     out.dtot = 0;
 
     // Compute absolute travel distance for each axis:
-    dx = fabs(x - canonEndPoint.x);
-    dy = fabs(y - canonEndPoint.y);
-    dz = fabs(z - canonEndPoint.z);
-    da = fabs(a - canonEndPoint.a);
-    db = fabs(b - canonEndPoint.b);
-    dc = fabs(c - canonEndPoint.c);
-    du = fabs(u - canonEndPoint.u);
-    dv = fabs(v - canonEndPoint.v);
-    dw = fabs(w - canonEndPoint.w);
+    dx = fabs(x - canonEndPoint[X]);
+    dy = fabs(y - canonEndPoint[Y]);
+    dz = fabs(z - canonEndPoint[Z]);
+    da = fabs(a - canonEndPoint[A]);
+    db = fabs(b - canonEndPoint[B]);
+    dc = fabs(c - canonEndPoint[C]);
+    du = fabs(u - canonEndPoint[U]);
+    dv = fabs(v - canonEndPoint[V]);
+    dw = fabs(w - canonEndPoint[W]);
 
     applyMinDisplacement(dx, dy, dz, da, db, dc, du, dv, dw);
 
@@ -1042,37 +938,40 @@ static VelData getStraightVelocity(double x, double y, double z,
     return out;
 }
 
-static VelData getStraightVelocity(CANON_POSITION pos)
+static VelData getStraightVelocity(PositionArray pos)
 {
 
-    return getStraightVelocity(pos.x,
-            pos.y,
-            pos.z,
-            pos.a,
-            pos.b,
-            pos.c,
-            pos.u,
-            pos.v,
-            pos.w);
+    return getStraightVelocity(pos[X],
+            pos[Y],
+            pos[Z],
+            pos[A],
+            pos[B],
+            pos[C],
+            pos[U],
+            pos[V],
+            pos[W]);
 }
 
 #include <vector>
-struct pt {
-    double x, y, z, a, b, c, u, v, w;
-    int line_no;
+struct TaggedPoint : PositionArray {
+    TaggedPoint(PositionArray const &p, StateTag const &tag_in) :
+        PositionArray(p),
+        tag(tag_in)
+    {
+    }
     StateTag tag;
 };
 
-static std::vector<struct pt> chained_points;
+static std::vector<TaggedPoint> chained_points;
 
 static void flush_segments(void) {
     if(chained_points.empty()) return;
 
-    struct pt &pos = chained_points.back();
+    TaggedPoint const &pos = chained_points.back();
 
-    double x = pos.x, y = pos.y, z = pos.z;
-    double a = pos.a, b = pos.b, c = pos.c;
-    double u = pos.u, v = pos.v, w = pos.w;
+    double x = pos[X], y = pos[Y], z = pos[Z];
+    double a = pos[A], b = pos[B], c = pos[C];
+    double u = pos[U], v = pos[V], w = pos[W];
     
 #ifdef SHOW_JOINED_SEGMENTS
     for(unsigned int i=0; i != chained_points.size(); i++) { printf("."); }
@@ -1088,7 +987,7 @@ static void flush_segments(void) {
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = feed_mode;
 
-    linearMoveMsg.end = to_ext_pose(x,y,z,a,b,c,u,v,w);
+    linearMoveMsg.end = to_ext_pose(pos);
 
     linearMoveMsg.pure_angular = angular_move && !cartesian_move;
     linearMoveMsg.vel = toExtVel(vel);
@@ -1110,14 +1009,14 @@ static void flush_segments(void) {
 
 static void get_last_pos(double &lx, double &ly, double &lz) {
     if(chained_points.empty()) {
-        lx = canonEndPoint.x;
-        ly = canonEndPoint.y;
-        lz = canonEndPoint.z;
+        lx = canonEndPoint[X];
+        ly = canonEndPoint[Y];
+        lz = canonEndPoint[Z];
     } else {
-        struct pt &pos = chained_points.back();
-        lx = pos.x;
-        ly = pos.y;
-        lz = pos.z;
+        TaggedPoint &pos = chained_points.back();
+        lx = pos[X];
+        ly = pos[Y];
+        lz = pos[Z];
     }
 }
 
@@ -1128,26 +1027,26 @@ linkable(double x, double y, double z,
     if (chained_points.empty() || chained_points.size() > 100) {
         return false;
     }
-    struct pt &pos = chained_points.back();
+    TaggedPoint &pos = chained_points.back();
     if(canonMotionMode != CANON_CONTINUOUS || canonNaivecamTolerance == 0)
         return false;
 
     //If ABCUVW motion, then the tangent calculation fails?
     // TODO is there a fundamental reason that we can't handle 9D motion here?
-    if(a != pos.a) return false;
-    if(b != pos.b) return false;
-    if(c != pos.c) return false;
-    if(u != pos.u) return false;
-    if(v != pos.v) return false;
-    if(w != pos.w) return false;
+    if(a != pos[A]) return false;
+    if(b != pos[B]) return false;
+    if(c != pos[C]) return false;
+    if(u != pos[U]) return false;
+    if(v != pos[V]) return false;
+    if(w != pos[W]) return false;
 
-    if(x==canonEndPoint.x && y==canonEndPoint.y && z==canonEndPoint.z) return false;
+    if(x==canonEndPoint[X] && y==canonEndPoint[Y] && z==canonEndPoint[Z]) return false;
     
-    for(std::vector<struct pt>::iterator it = chained_points.begin();
+    for(std::vector<TaggedPoint>::iterator it = chained_points.begin();
             it != chained_points.end(); it++) {
-        PM_CARTESIAN M(x-canonEndPoint.x, y-canonEndPoint.y, z-canonEndPoint.z),
-                     B(canonEndPoint.x, canonEndPoint.y, canonEndPoint.z),
-                     P(it->x, it->y, it->z);
+        PM_CARTESIAN M(x-canonEndPoint[X], y-canonEndPoint[Y], z-canonEndPoint[Z]),
+                     B(canonEndPoint[X], canonEndPoint[Y], canonEndPoint[Z]),
+                     P((*it)[X], (*it)[Y], (*it)[Z]);
         double t0 = dot(M, P-B) / dot(M, M);
         if(t0 < 0) t0 = 0;
         if(t0 > 1) t0 = 1;
@@ -1160,22 +1059,22 @@ linkable(double x, double y, double z,
 
 static void
 see_segment(int line_number,
-        StateTag tag,
+        StateTag const &tag,
 	    double x, double y, double z, 
             double a, double b, double c,
             double u, double v, double w) {
-    bool changed_abc = (a != canonEndPoint.a)
-        || (b != canonEndPoint.b)
-        || (c != canonEndPoint.c);
+    bool changed_abc = (a != canonEndPoint[A])
+        || (b != canonEndPoint[B])
+        || (c != canonEndPoint[C]);
 
-    bool changed_uvw = (u != canonEndPoint.u)
-        || (v != canonEndPoint.v)
-        || (w != canonEndPoint.w);
+    bool changed_uvw = (u != canonEndPoint[U])
+        || (v != canonEndPoint[V])
+        || (w != canonEndPoint[W]);
 
     if(!chained_points.empty() && !linkable(x, y, z, a, b, c, u, v, w)) {
         flush_segments();
     }
-    pt pos = {x, y, z, a, b, c, u, v, w, line_number, tag};
+    TaggedPoint pos({x, y, z, a, b, c, u, v, w}, tag);
     chained_points.push_back(pos);
     if(changed_abc || changed_uvw) {
         flush_segments();
@@ -1252,9 +1151,9 @@ void RIGID_TAP(int line_number, double x, double y, double z)
     from_prog(x,y,z,unused,unused,unused,unused,unused,unused);
     rotate_and_offset_pos(x,y,z,unused,unused,unused,unused,unused,unused);
 
-    CANON_POSITION bottom = CANON_POSITION(x, y, z,
-                                          canonEndPoint.a, canonEndPoint.b, canonEndPoint.c,
-                                          canonEndPoint.u, canonEndPoint.v, canonEndPoint.w);
+    PositionArray bottom = toArray(x, y, z,
+                              canonEndPoint[A], canonEndPoint[B], canonEndPoint[C], 
+                              canonEndPoint[U], canonEndPoint[V], canonEndPoint[W]);
 
     VelData veldata = getStraightVelocity(bottom);
 
@@ -1266,7 +1165,7 @@ void RIGID_TAP(int line_number, double x, double y, double z)
     acc = accdata.acc;
 
 
-    double depth = mag((bottom-canonEndPoint).xyz());
+    double depth = mag(xyz(bottom) - xyz(canonEndPoint));
     double safe_lead = ini_maxvel * ini_maxvel / (2.0 * acc) * RIGID_TAP_LEADIN_SAFETY_FACTOR;
 
     if (safe_lead > depth) {
@@ -1471,16 +1370,16 @@ arc(int lineno, double x0, double y0, double x1, double y1, double dx, double dy
     double small = 0.000001;
     double x = x1-x0, y=y1-y0;
     double den = 2 * (y*dx - x*dy);
-    CANON_POSITION p = unoffset_and_unrotate_pos(canonEndPoint);
+    PositionArray p = unoffset_and_unrotate_pos(canonEndPoint);
     to_prog(p);
     if (fabs(den) > small) {
         double r = -(x*x+y*y)/den;
         double i = dy*r, j = -dx*r;
         double cx = x0+i, cy=y0+j;
         ARC_FEED(lineno, x1, y1, cx, cy, r<0 ? 1 : -1,
-                 p.z, p.a, p.b, p.c, p.u, p.v, p.w);
+                 p[Z], p[A], p[B], p[C], p[U], p[V], p[W]);
     } else { 
-        STRAIGHT_FEED(lineno, x1, y1, p.z, p.a, p.b, p.c, p.u, p.v, p.w);
+        STRAIGHT_FEED(lineno, x1, y1, p[Z], p[A], p[B], p[C], p[U], p[V], p[W]);
     }
 }
 
@@ -1564,9 +1463,9 @@ static PM_CARTESIAN circshift(PM_CARTESIAN & vec, int steps)
 }
 
 #if 0
-static CANON_POSITION get_axis_max_velocity()
+static PositionArray get_axis_max_velocity()
 {
-    CANON_POSITION maxvel;
+    PositionArray maxvel;
     maxvel.x = axis_valid(0) ? FROM_EXT_LEN(axis_max_velocity[0]) : 0.0;
     maxvel.y = axis_valid(1) ? FROM_EXT_LEN(axis_max_velocity[1]) : 0.0;
     maxvel.z = axis_valid(2) ? FROM_EXT_LEN(axis_max_velocity[2]) : 0.0;
@@ -1581,9 +1480,9 @@ static CANON_POSITION get_axis_max_velocity()
     return maxvel;
 }
 
-static CANON_POSITION get_axis_max_acceleration()
+static PositionArray get_axis_max_acceleration()
 {
-    CANON_POSITION maxacc;
+    PositionArray maxacc;
     maxacc.x = axis_valid(0) ? FROM_EXT_LEN(axis_max_acceleration[0]) : 0.0;
     maxacc.y = axis_valid(1) ? FROM_EXT_LEN(axis_max_acceleration[1]) : 0.0;
     maxacc.z = axis_valid(2) ? FROM_EXT_LEN(axis_max_acceleration[2]) : 0.0;
@@ -1598,12 +1497,12 @@ static CANON_POSITION get_axis_max_acceleration()
     return maxacc;
 }
 
-static double axis_motion_time(const CANON_POSITION & start, const CANON_POSITION & end)
+static double axis_motion_time(const PositionArray & start, const PositionArray & end)
 {
 
-    CANON_POSITION disp = end - start;
-    CANON_POSITION times; 
-    CANON_POSITION maxvel = get_axis_max_velocity();
+    PositionArray disp = end - start;
+    PositionArray times;
+    PositionArray maxvel = get_axis_max_velocity();
 
     canon_debug(" in axis_motion_time\n");
     // For active axes, find the time required to reach the displacement in each axis
@@ -1622,12 +1521,12 @@ static double axis_motion_time(const CANON_POSITION & start, const CANON_POSITIO
 }
 
 // NOTE: not exactly times, comment TODO
-static double axis_acc_time(const CANON_POSITION & start, const CANON_POSITION & end)
+static double axis_acc_time(const PositionArray & start, const PositionArray & end)
 {
 
-    CANON_POSITION disp = end - start;
-    CANON_POSITION times; 
-    CANON_POSITION maxacc = get_axis_max_acceleration();
+    PositionArray disp = end - start;
+    PositionArray times;
+    PositionArray maxacc = get_axis_max_acceleration();
 
     for (int i = 0; i < 9; ++i) {
         double a = maxacc[i];
@@ -1677,12 +1576,12 @@ void ARC_FEED(int line_number,
             rotate_and_offset_pos(unused, unused, unused, a, b, c, u, v, w);
             see_segment(line_number, _tag, mx, my,
                         (lz + ae)/2, 
-                        (canonEndPoint.a + a)/2, 
-                        (canonEndPoint.b + b)/2, 
-                        (canonEndPoint.c + c)/2, 
-                        (canonEndPoint.u + u)/2, 
-                        (canonEndPoint.v + v)/2, 
-                        (canonEndPoint.w + w)/2);
+                        (canonEndPoint[A] + a)/2, 
+                        (canonEndPoint[B] + b)/2, 
+                        (canonEndPoint[C] + c)/2, 
+                        (canonEndPoint[U] + u)/2, 
+                        (canonEndPoint[V] + v)/2, 
+                        (canonEndPoint[W] + w)/2);
             see_segment(line_number, _tag, fe, se, ae, a, b, c, u, v, w);
             return;
         }
@@ -1703,9 +1602,9 @@ void ARC_FEED(int line_number,
 
 
     canon_debug("start = %f %f %f\n",
-            canonEndPoint.x,
-            canonEndPoint.y,
-            canonEndPoint.z);
+            canonEndPoint[X],
+            canonEndPoint[Y],
+            canonEndPoint[Z]);
     canon_debug("end = %f %f %f\n",
             end_cart.x,
             end_cart.y,
@@ -1757,12 +1656,12 @@ void ARC_FEED(int line_number,
             plane_y.y,
             plane_y.z);
     // Define end point in PROGRAM units and convert to CANON
-    CANON_POSITION endpt(0,0,0,a,b,c,u,v,w);
+    PositionArray endpt = {0,0,0,a,b,c,u,v,w};
     from_prog(endpt);
 
     // Store permuted XYZ end position
     from_prog_len(end_cart);
-    endpt.set_xyz(end_cart);
+    set_xyz(endpt, end_cart);
 
     // Convert to CANON units
     from_prog_len(center_cart);
@@ -1772,9 +1671,9 @@ void ARC_FEED(int line_number,
     rotate_and_offset_xyz(center_cart);
     rotate_and_offset_xyz(end_cart);
     // Also rotate the basis vectors
-    to_rotated(plane_x);
-    to_rotated(plane_y);
-    to_rotated(normal_cart);
+    rotate(plane_x);
+    rotate(plane_y);
+    rotate(normal_cart);
 
     canon_debug("end = %f %f %f\n",
             end_cart.x,
@@ -1782,9 +1681,10 @@ void ARC_FEED(int line_number,
             end_cart.z);
 
     canon_debug("endpt = %f %f %f\n",
-            endpt.x,
-            endpt.y,
-            endpt.z);
+            endpt[X],
+            endpt[Y],
+            endpt[Z]);
+
     canon_debug("center = %f %f %f\n",
             center_cart.x,
             center_cart.y,
@@ -1798,7 +1698,7 @@ void ARC_FEED(int line_number,
 
     // Define displacement vectors from center to end and center to start (3D)
     PM_CARTESIAN end_rel = end_cart - center_cart;
-    PM_CARTESIAN start_rel = canonEndPoint.xyz() - center_cart;
+    PM_CARTESIAN start_rel = PM_CARTESIAN(canonEndPoint[X], canonEndPoint[Y], canonEndPoint[Z]) - center_cart;
 
     // Project each displacement onto the active plane
     double p_end_1 = dot(end_rel,plane_x);
@@ -1886,7 +1786,7 @@ void ARC_FEED(int line_number,
     double v_max_axes = MIN(v1, v2);
     double a_max_axes = MIN(a1, a2);
 
-    if(xy_rotation && activePlane != CANON_PLANE_XY) {
+    if(interpToMachineTransform.rotationActive() && activePlane != CANON_PLANE_XY) {
         // also consider the third plane's constraint, which may get
         // involved since we're rotated.
 
@@ -1922,7 +1822,8 @@ void ARC_FEED(int line_number,
     double spiral_length = hypot(circular_length, spiral);
 
     // Compute length along normal axis and total XYZ arc length
-    double axis_len = dot(end_cart - canonEndPoint.xyz(), normal_cart);
+    PM_CARTESIAN xyz_end(canonEndPoint[X], canonEndPoint[Y], canonEndPoint[Z]);
+    double axis_len = dot(end_cart - xyz_end, normal_cart);
     double total_xyz_length = hypot(spiral_length, axis_len);
 
     // Next, compute the minimum time that we must take to complete the segment. 
@@ -2057,7 +1958,7 @@ void buildSpindleCmd(SpindleMsg & msg, double spindle_rpm)
             css_numerator = 1000 / (2.0 * M_PI) * spindle_rpm * TO_EXT_LEN(1);
         msg.speed = spindle_dir * css_maximum;
         msg.factor = spindle_dir * css_numerator;
-        msg.xoffset = TO_EXT_LEN(g5xOffset.x + g92Offset.x + currentToolOffset.tran.x);
+        msg.xoffset = TO_EXT_LEN(interpToMachineTransform.findAxisoffset(0));
     } else {
         msg.speed = spindle_dir * spindle_rpm;
     }
@@ -2224,30 +2125,17 @@ void USE_TOOL_LENGTH_OFFSET(EmcPose offset)
 
     flush_segments();
 
-    /* convert to mm units for internal canonical use */
-    currentToolOffset.tran.x = FROM_PROG_LEN(offset.tran.x);
-    currentToolOffset.tran.y = FROM_PROG_LEN(offset.tran.y);
-    currentToolOffset.tran.z = FROM_PROG_LEN(offset.tran.z);
-    currentToolOffset.a = FROM_PROG_ANG(offset.a);
-    currentToolOffset.b = FROM_PROG_ANG(offset.b);
-    currentToolOffset.c = FROM_PROG_ANG(offset.c);
-    currentToolOffset.u = FROM_PROG_LEN(offset.u);
-    currentToolOffset.v = FROM_PROG_LEN(offset.v);
-    currentToolOffset.w = FROM_PROG_LEN(offset.w);
+    // Convert from program to canon units and store
+    UnitsTransform from_program_units(getProgramLengthUnits(), getProgramAngularUnits());
+    PositionArray offset_canon = from_program_units.forward(toArray(offset));
+    interpToMachineTransform.toolOffset = ShiftTransform(offset_canon);
 
-    /* append it to interp list so it gets updated at the right time, not at
-       read-ahead time */
-    set_offset_msg.offset.tran.x = TO_EXT_LEN(currentToolOffset.tran.x);
-    set_offset_msg.offset.tran.y = TO_EXT_LEN(currentToolOffset.tran.y);
-    set_offset_msg.offset.tran.z = TO_EXT_LEN(currentToolOffset.tran.z);
-    set_offset_msg.offset.a = TO_EXT_ANG(currentToolOffset.a);
-    set_offset_msg.offset.b = TO_EXT_ANG(currentToolOffset.b);
-    set_offset_msg.offset.c = TO_EXT_ANG(currentToolOffset.c);
-    set_offset_msg.offset.u = TO_EXT_LEN(currentToolOffset.u);
-    set_offset_msg.offset.v = TO_EXT_LEN(currentToolOffset.v);
-    set_offset_msg.offset.w = TO_EXT_LEN(currentToolOffset.w);
+    // Convert to motion units pass on message to motion
+    UnitsTransform to_motion_units(GET_EXTERNAL_LENGTH_UNITS(), GET_EXTERNAL_ANGLE_UNITS());
+    PositionArray offset_machine = to_motion_units.forward(offset_canon);
+    set_offset_msg.offset = toEmcPose(offset_machine);
 
-    if(css_maximum) {
+    if(css_maximum != 0.0) {
         SET_SPINDLE_SPEED(spindleSpeed_rpm);
     }
 	tag_and_send(set_offset_msg);
@@ -2284,15 +2172,15 @@ void CHANGE_TOOL(int slot)
     if (have_tool_change_position) {
         double vel, acc, x, y, z, a, b, c, u, v, w;
 
-        x = canonEndPoint.x;
-        y = canonEndPoint.y;
-        z = canonEndPoint.z;
-        a = canonEndPoint.a;
-        b = canonEndPoint.b;
-        c = canonEndPoint.c;
-        u = canonEndPoint.u;
-        v = canonEndPoint.v;
-        w = canonEndPoint.w;
+        x = canonEndPoint[X];
+        y = canonEndPoint[Y];
+        z = canonEndPoint[Z];
+        a = canonEndPoint[A];
+        b = canonEndPoint[B];
+        c = canonEndPoint[C];
+        u = canonEndPoint[U];
+        v = canonEndPoint[V];
+        w = canonEndPoint[W];
 
         x = FROM_EXT_LEN(tool_change_position.tran.x);
         y = FROM_EXT_LEN(tool_change_position.tran.y);
@@ -2795,49 +2683,54 @@ void PROGRAM_END(bool reset)
 	interp_list.append(endMsg);
 }
 
+static inline double getToolOffsetByIndex(PositionArrayIndex idx)
+{
+    return interpToMachineTransform.toolOffset.getOffset()[idx];
+}
+
 double GET_EXTERNAL_TOOL_LENGTH_XOFFSET()
 {
-    return TO_PROG_LEN(currentToolOffset.tran.x);
+    return TO_PROG_LEN(getToolOffsetByIndex(X));
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_YOFFSET()
 {
-    return TO_PROG_LEN(currentToolOffset.tran.y);
+    return TO_PROG_LEN(getToolOffsetByIndex(Y));
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_ZOFFSET()
 {
-    return TO_PROG_LEN(currentToolOffset.tran.z);
+    return TO_PROG_LEN(getToolOffsetByIndex(Z));
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_AOFFSET()
 {
-    return TO_PROG_ANG(currentToolOffset.a);
+    return TO_PROG_ANG(getToolOffsetByIndex(A));
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_BOFFSET()
 {
-    return TO_PROG_ANG(currentToolOffset.b);
+    return TO_PROG_ANG(getToolOffsetByIndex(B));
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_COFFSET()
 {
-    return TO_PROG_ANG(currentToolOffset.c);
+    return TO_PROG_ANG(getToolOffsetByIndex(C));
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_UOFFSET()
 {
-    return TO_PROG_LEN(currentToolOffset.u);
+    return TO_PROG_LEN(getToolOffsetByIndex(U));
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_VOFFSET()
 {
-    return TO_PROG_LEN(currentToolOffset.v);
+    return TO_PROG_LEN(getToolOffsetByIndex(V));
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_WOFFSET()
 {
-    return TO_PROG_LEN(currentToolOffset.w);
+    return TO_PROG_LEN(getToolOffsetByIndex(W));
 }
 
 /*
@@ -2850,28 +2743,10 @@ void INIT_CANON()
 
     chained_points.clear();
 
-    // initialize locals to original values
-    g5xOffset.x = 0.0;
-    g5xOffset.y = 0.0;
-    g5xOffset.z = 0.0;
-    g5xOffset.a = 0.0;
-    g5xOffset.b = 0.0;
-    g5xOffset.c = 0.0;
-    g5xOffset.u = 0.0;
-    g5xOffset.v = 0.0;
-    g5xOffset.w = 0.0;
-    g92Offset.x = 0.0;
-    g92Offset.y = 0.0;
-    g92Offset.z = 0.0;
-    g92Offset.a = 0.0;
-    g92Offset.b = 0.0;
-    g92Offset.c = 0.0;
-    g92Offset.u = 0.0;
-    g92Offset.v = 0.0;
-    g92Offset.w = 0.0;
-    xy_rotation = 0.;
+    interpToMachineTransform = LocalToMachineTransform();
+
     activePlane = CANON_PLANE_XY;
-    canonUpdateEndPoint(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    canonUpdateEndPoint({});
     SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, 0);
     spindleSpeed_rpm = 0.0;
     preppedTool = 0;
@@ -2881,7 +2756,6 @@ void INIT_CANON()
     currentAngularFeedRate = 0.0;
     uuPerRev_vel = 0.0;
     uuPerRev_pos = 0.0;
-    ZERO_EMC_POSE(currentToolOffset);
     /* 
        to set the units, note that GET_EXTERNAL_LENGTH_UNITS() returns
        traj->linearUnits, which is already set from the .ini file in
@@ -2890,13 +2764,13 @@ void INIT_CANON()
        accordingly. If it doesn't match, we have an error. */
     units = GET_EXTERNAL_LENGTH_UNITS();
     if (fabs(units - 1.0 / 25.4) < 1.0e-3) {
-	lengthUnits = CANON_UNITS_INCHES;
+        USE_LENGTH_UNITS(CANON_UNITS_INCHES);
     } else if (fabs(units - 1.0) < 1.0e-3) {
-	lengthUnits = CANON_UNITS_MM;
+        USE_LENGTH_UNITS(CANON_UNITS_MM);
     } else {
-	CANON_ERROR
-	    ("non-standard length units, setting interpreter to mm");
-	lengthUnits = CANON_UNITS_MM;
+        CANON_ERROR
+                ("non-standard length units, setting interpreter to mm");
+        USE_LENGTH_UNITS(CANON_UNITS_MM);
     }
 }
 
@@ -2907,12 +2781,12 @@ void CANON_ERROR(const char *fmt, ...)
     EMC_OPERATOR_ERROR operator_error_msg;
 
     operator_error_msg.id = 0;
-    if (fmt != NULL) {
+    if (fmt) {
         va_start(ap, fmt);
         vsnprintf(operator_error_msg.error,sizeof(operator_error_msg.error), fmt, ap);
         va_end(ap);
     } else {
-        operator_error_msg.error[0] = 0;
+        operator_error_msg.error[0] = '\0';
     }
 
 	interp_list.append(operator_error_msg);
@@ -2927,7 +2801,7 @@ void CANON_MSG(const char *fmt, ...)
     EMC_OPERATOR_TEXT operator_text_msg;
 
     operator_text_msg.id = 0;
-    if (fmt != NULL) {
+    if (fmt) {
         va_start(ap, fmt);
         vsnprintf(operator_text_msg.text,sizeof(operator_text_msg.text), fmt, ap);
         va_end(ap);
@@ -2966,65 +2840,50 @@ CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket)
     return retval;
 }
 
-CANON_POSITION GET_EXTERNAL_POSITION()
+PositionArray GET_EXTERNAL_POSITION()
 {
-    CANON_POSITION position;
-    EmcPose pos;
+    // Get updated unit converters given current canon / motion settings
+    UnitsTransform machine_to_canon_units = ConvertsMotionToCanonUnits();
+    UnitsTransform canon_to_program_units = ConvertsCanonToProgramUnits();
 
     chained_points.clear();
 
-    pos = emcStatus->motion.traj.position;
-
-    // first update internal record of last position
-    canonUpdateEndPoint(FROM_EXT_LEN(pos.tran.x), FROM_EXT_LEN(pos.tran.y), FROM_EXT_LEN(pos.tran.z),
-                        FROM_EXT_ANG(pos.a), FROM_EXT_ANG(pos.b), FROM_EXT_ANG(pos.c),
-                        FROM_EXT_LEN(pos.u), FROM_EXT_LEN(pos.v), FROM_EXT_LEN(pos.w));
+    canonEndPoint = machine_to_canon_units.forward(toArray(emcStatus->motion.traj.position));
 
     // now calculate position in program units, for interpreter
-    position = unoffset_and_unrotate_pos(canonEndPoint);
-    to_prog(position);
+    PositionArray prog_position = unoffset_and_unrotate_pos(canonEndPoint);
 
-    return position;
+    return canon_to_program_units.forward(prog_position);
 }
 
-CANON_POSITION GET_EXTERNAL_PROBE_POSITION()
+PositionArray GET_EXTERNAL_PROBE_POSITION()
 {
-    CANON_POSITION position;
-    EmcPose pos;
-    static CANON_POSITION last_probed_position;
+    static PositionArray last_probed_position;
+
+    // Get updated unit converters given current canon / motion settings
+    UnitsTransform motion_to_canon_units = ConvertsMotionToCanonUnits();
+    UnitsTransform canon_to_program_units = ConvertsCanonToProgramUnits();
 
     flush_segments();
 
-    pos = emcStatus->motion.traj.probedPosition;
-
-    // first update internal record of last position
-    pos.tran.x = FROM_EXT_LEN(pos.tran.x);
-    pos.tran.y = FROM_EXT_LEN(pos.tran.y);
-    pos.tran.z = FROM_EXT_LEN(pos.tran.z);
-
-    pos.a = FROM_EXT_ANG(pos.a);
-    pos.b = FROM_EXT_ANG(pos.b);
-    pos.c = FROM_EXT_ANG(pos.c);
-
-    pos.u = FROM_EXT_LEN(pos.u);
-    pos.v = FROM_EXT_LEN(pos.v);
-    pos.w = FROM_EXT_LEN(pos.w);
+    // Get probed position in canon units
+    PositionArray pos_probe = motion_to_canon_units.forward(toArray(emcStatus->motion.traj.probedPosition));
 
     // now calculate position in program units, for interpreter
-    position = unoffset_and_unrotate_pos(pos);
-    to_prog(position);
+    PositionArray prog_position = unoffset_and_unrotate_pos(pos_probe);
+    PositionArray probe_position_out = canon_to_program_units.forward(prog_position);
 
-    if (probefile != NULL) {
-	if (last_probed_position != position) {
-	    fprintf(probefile, "%f %f %f %f %f %f %f %f %f\n",
-                    position.x, position.y, position.z,
-                    position.a, position.b, position.c,
-                    position.u, position.v, position.w);
-	    last_probed_position = position;
-	}
+    if (probefile) {
+        if (last_probed_position != probe_position_out) {
+            fprintf(probefile, "%f %f %f %f %f %f %f %f %f\n",
+                    probe_position_out[X], probe_position_out[Y], probe_position_out[Z],
+                    probe_position_out[A], probe_position_out[B], probe_position_out[C],
+                    probe_position_out[U], probe_position_out[V], probe_position_out[W]);
+            last_probed_position = probe_position_out;
+        }
     }
 
-    return position;
+    return probe_position_out;
 }
 
 int GET_EXTERNAL_PROBE_TRIPPED_VALUE()
@@ -3082,10 +2941,10 @@ double GET_EXTERNAL_LENGTH_UNITS(void)
     u = emcStatus->motion.traj.linearUnits;
 
     if (u == 0) {
-	CANON_ERROR("external length units are zero");
-	return 1.0;
+        CANON_ERROR("external length units are zero, assuming mm");
+        return 1.0;
     } else {
-	return u;
+        return u;
     }
 }
 
@@ -3096,10 +2955,10 @@ double GET_EXTERNAL_ANGLE_UNITS(void)
     u = emcStatus->motion.traj.angularUnits;
 
     if (u == 0) {
-	CANON_ERROR("external angle units are zero");
-	return 1.0;
+        CANON_ERROR("external angle units are zero, assuming deg");
+        return 1.0;
     } else {
-	return u;
+        return u;
     }
 }
 
@@ -3163,128 +3022,128 @@ void GET_EXTERNAL_PARAMETER_FILE_NAME(char *file_name,	/* string: to copy
 
 double GET_EXTERNAL_POSITION_X(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_POSITION();
-    return position.x;
+    return position[X];
 }
 
 double GET_EXTERNAL_POSITION_Y(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_POSITION();
-    return position.y;
+    return position[Y];
 }
 
 double GET_EXTERNAL_POSITION_Z(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_POSITION();
-    return position.z;
+    return position[Z];
 }
 
 double GET_EXTERNAL_POSITION_A(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_POSITION();
-    return position.a;
+    return position[A];
 }
 
 double GET_EXTERNAL_POSITION_B(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_POSITION();
-    return position.b;
+    return position[B];
 }
 
 double GET_EXTERNAL_POSITION_C(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_POSITION();
-    return position.c;
+    return position[C];
 }
 
 double GET_EXTERNAL_POSITION_U(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_POSITION();
-    return position.u;
+    return position[U];
 }
 
 double GET_EXTERNAL_POSITION_V(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_POSITION();
-    return position.v;
+    return position[V];
 }
 
 double GET_EXTERNAL_POSITION_W(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_POSITION();
-    return position.w;
+    return position[W];
 }
 
 double GET_EXTERNAL_PROBE_POSITION_X(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_PROBE_POSITION();
-    return position.x;
+    return position[X];
 }
 
 double GET_EXTERNAL_PROBE_POSITION_Y(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_PROBE_POSITION();
-    return position.y;
+    return position[Y];
 }
 
 double GET_EXTERNAL_PROBE_POSITION_Z(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_PROBE_POSITION();
-    return position.z;
+    return position[Z];
 }
 
 double GET_EXTERNAL_PROBE_POSITION_A(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_PROBE_POSITION();
-    return position.a;
+    return position[A];
 }
 
 double GET_EXTERNAL_PROBE_POSITION_B(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_PROBE_POSITION();
-    return position.b;
+    return position[B];
 }
 
 double GET_EXTERNAL_PROBE_POSITION_C(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_PROBE_POSITION();
-    return position.c;
+    return position[C];
 }
 
 double GET_EXTERNAL_PROBE_POSITION_U(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_PROBE_POSITION();
-    return position.u;
+    return position[U];
 }
 
 double GET_EXTERNAL_PROBE_POSITION_V(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_PROBE_POSITION();
-    return position.v;
+    return position[V];
 }
 
 double GET_EXTERNAL_PROBE_POSITION_W(void)
 {
-    CANON_POSITION position;
+    PositionArray position;
     position = GET_EXTERNAL_PROBE_POSITION();
-    return position.w;
+    return position[W];
 }
 
 CANON_MOTION_MODE GET_EXTERNAL_MOTION_CONTROL_MODE()
@@ -3620,9 +3479,9 @@ int UNLOCK_ROTARY(int line_number, int axis) {
     // first, set up a zero length move to interrupt blending and get to final position
     m.type = EMC_MOTION_TYPE_TRAVERSE;
     m.feed_mode = 0;
-    m.end = to_ext_pose(canonEndPoint.x, canonEndPoint.y, canonEndPoint.z,
-                        canonEndPoint.a, canonEndPoint.b, canonEndPoint.c,
-                        canonEndPoint.u, canonEndPoint.v, canonEndPoint.w);
+    m.end = to_ext_pose(canonEndPoint[X], canonEndPoint[Y], canonEndPoint[Z],
+                        canonEndPoint[A], canonEndPoint[B], canonEndPoint[C],
+                        canonEndPoint[U], canonEndPoint[V], canonEndPoint[W]);
     m.vel = m.acc = 1; // nonzero but otherwise doesn't matter
     m.indexrotary = -1;
 
