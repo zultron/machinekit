@@ -531,7 +531,6 @@ int Interp::read_g(char *line,   //!< string: line of RS274/NGC code being proce
 {
   double value_read;
   double g_id;
-  int value;
   int mode;
 
   CHKS((line[*counter] != 'g'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -539,7 +538,7 @@ int Interp::read_g(char *line,   //!< string: line of RS274/NGC code being proce
   CHP(read_real_value(line, counter, &value_read, parameters));
   g_id = value_read;
   value_read = (10.0 * value_read);
-  value = (int) floor(value_read);
+  int value = (int) floor(value_read);
 
   if ((value_read - value) > 0.999)
     value = (int) ceil(value_read);
