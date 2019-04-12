@@ -300,7 +300,7 @@ int Interp::convert_spline(int mode,
       cp.X = x3;
       cp.Y = y3;
       nurbs_control_points.push_back(cp);
-      write_and_update_state_tag(NULL);
+      write_and_update_state_tag(nullptr);
       NURBS_FEED(block->line_number, nurbs_control_points, 4);
       nurbs_control_points.clear();
 
@@ -1369,7 +1369,7 @@ int Interp::convert_comment(char *comment, bool enqueue)       //!< string with 
   lc[n] = 0;                    // null terminate
 
   // compare with MSG, SYSTEM, DEBUG, PRINT
-  write_and_update_state_tag(NULL);
+  write_and_update_state_tag(nullptr);
   if (startswith(lc, MSG_STR)) {
     MESSAGE(comment + start + strlen(MSG_STR));
     return INTERP_OK;
@@ -1481,17 +1481,17 @@ int Interp::convert_control_mode(int g_code,     //!< g_code being executed (G_6
     switch (g_code) {
         case G_61:
             settings->control_mode = CANON_EXACT_PATH;
-	    write_and_update_state_tag(NULL);
+	    write_and_update_state_tag(nullptr);
             SET_MOTION_CONTROL_MODE(CANON_EXACT_PATH, 0);
             break;
         case G_61_1:
             settings->control_mode = CANON_EXACT_STOP;
-	    write_and_update_state_tag(NULL);
+	    write_and_update_state_tag(nullptr);
             SET_MOTION_CONTROL_MODE(CANON_EXACT_STOP, 0);
             break;
         case G_64:
             settings->control_mode = CANON_CONTINUOUS;
-	    write_and_update_state_tag(NULL);
+	    write_and_update_state_tag(nullptr);
             SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, tolerance);
             SET_NAIVECAM_TOLERANCE(naivecam_tolerance);
             break;
@@ -1653,7 +1653,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
                                                                              ));
   settings->transform.g5xOffset.setXYRotationDeg(parameters[getWorkOffsetIdx(origin, R)]);
 
-  write_and_update_state_tag(NULL);
+  write_and_update_state_tag(nullptr);
   SET_G5X_OFFSET(origin, UNPACK_POSITION_ARRAY_REF(settings->transform.g5xOffset.shift.tf));
 
   SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
@@ -1735,7 +1735,7 @@ int Interp::convert_cutter_compensation_off(setup_pointer settings)      //!< po
       double cx, cy, cz;
       comp_get_current(settings, &cx, &cy, &cz);
       CHP(move_endpoint_and_flush(settings, cx, cy));
-      write_and_update_state_tag(NULL);
+      write_and_update_state_tag(nullptr);
       dequeue_canons(settings);
       settings->current[X] = settings->program_x;
       settings->current[Y] = settings->program_y;
@@ -2044,7 +2044,7 @@ Called by: convert_g.
 
 int Interp::convert_dwell(setup_pointer settings, double time)   //!< time in seconds to dwell  */
 {
-    write_and_update_state_tag(NULL);
+    write_and_update_state_tag(nullptr);
   enqueue_DWELL(time);
   return INTERP_OK;
 }
@@ -2079,7 +2079,7 @@ int Interp::convert_feed_mode(int g_code,        //!< g_code being executed (mus
     enqueue_COMMENT("interpreter: feed mode set to inverse time");
 #endif
     settings->feed_mode = INVERSE_TIME;
-    write_and_update_state_tag(NULL);
+    write_and_update_state_tag(nullptr);
     enqueue_SET_FEED_MODE(0);
   } else if (g_code == G_94) {
 #ifdef DEBUG_EMC
@@ -2087,7 +2087,7 @@ int Interp::convert_feed_mode(int g_code,        //!< g_code being executed (mus
 #endif
     settings->feed_mode = UNITS_PER_MINUTE;
     settings->feed_rate = 0.0;
-    write_and_update_state_tag(NULL);
+    write_and_update_state_tag(nullptr);
     enqueue_SET_FEED_MODE(0);
     enqueue_SET_FEED_RATE(0);
   } else if(g_code == G_95) {
@@ -2096,7 +2096,7 @@ int Interp::convert_feed_mode(int g_code,        //!< g_code being executed (mus
 #endif
     settings->feed_mode = UNITS_PER_REVOLUTION;
     settings->feed_rate = 0.0;
-    write_and_update_state_tag(NULL);
+    write_and_update_state_tag(nullptr);
     enqueue_SET_FEED_MODE(1);
     enqueue_SET_FEED_RATE(0);
   } else
@@ -4001,27 +4001,27 @@ int Interp::convert_set_plane(int g_code,        //!< must be G_17, G_18, or G_1
 
   if (g_code == G_17) {
     settings->plane = CANON_PLANE_XY;
-    write_and_update_state_tag(NULL);
+    write_and_update_state_tag(nullptr);
     SELECT_PLANE(CANON_PLANE_XY);
   } else if (g_code == G_18) {
     settings->plane = CANON_PLANE_XZ;
-    write_and_update_state_tag(NULL);
+    write_and_update_state_tag(nullptr);
     SELECT_PLANE(CANON_PLANE_XZ);
   } else if (g_code == G_19) {
-    write_and_update_state_tag(NULL);
+    write_and_update_state_tag(nullptr);
     settings->plane = CANON_PLANE_YZ;
     SELECT_PLANE(CANON_PLANE_YZ);
   } else if (g_code == G_17_1) {
     settings->plane = CANON_PLANE_UV;
-    write_and_update_state_tag(NULL);
+    write_and_update_state_tag(nullptr);
     SELECT_PLANE(CANON_PLANE_UV);
   } else if (g_code == G_18_1) {
     settings->plane = CANON_PLANE_UW;
-    write_and_update_state_tag(NULL);
+    write_and_update_state_tag(nullptr);
     SELECT_PLANE(CANON_PLANE_UW);
   } else if (g_code == G_19_1) {
     settings->plane = CANON_PLANE_VW;
-    write_and_update_state_tag(NULL);
+    write_and_update_state_tag(nullptr);
     SELECT_PLANE(CANON_PLANE_VW);
   } else
     ERS(NCE_BUG_CODE_NOT_G17_G18_OR_G19);
@@ -4562,7 +4562,7 @@ int Interp::convert_straight_indexer(int axis, block_pointer block, setup_pointe
 int Interp::issue_straight_index(int axis, double target, int lineno, setup_pointer settings) {
     CANON_MOTION_MODE save_mode;
     double save_tolerance;
-    write_and_update_state_tag(NULL);
+    write_and_update_state_tag(nullptr);
     // temporarily switch to exact stop mode for indexing move
     save_mode = GET_EXTERNAL_MOTION_CONTROL_MODE();
     save_tolerance = GET_EXTERNAL_MOTION_CONTROL_TOLERANCE();
@@ -5232,11 +5232,11 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
   CHKS((settings->cutter_comp_side),
        (_("Cannot change tools with cutter radius compensation on")));
 
-  write_and_update_state_tag(NULL);
+  write_and_update_state_tag(nullptr);
   START_CHANGE(); // indicate start of change operation
   if (!settings->tool_change_with_spindle_on) {
       settings->spindle_turning = CANON_STOPPED;
-      write_and_update_state_tag(NULL);
+      write_and_update_state_tag(nullptr);
       STOP_SPINDLE_TURNING();
   }
 

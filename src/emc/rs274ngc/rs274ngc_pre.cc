@@ -257,7 +257,7 @@ void Interp::doLog(unsigned int flags, const char *file, int line,
     va_list ap;
 
     if (flags & LOG_TIME) {
-	gettimeofday(&tv, NULL);
+  gettimeofday(&tv, nullptr);
 	tm = localtime(&tv.tv_sec);
 
 	fprintf(log_file, "%04d%02d%02d-%02d:%02d:%02d.%03ld ",
@@ -317,9 +317,9 @@ int Interp::close()
       return INTERP_OK;
     }
 
-  if (_setup.file_pointer != NULL) {
+  if (_setup.file_pointer != nullptr) {
     fclose(_setup.file_pointer);
-    _setup.file_pointer = NULL;
+    _setup.file_pointer = nullptr;
     _setup.percent_flag = false;
   }
   reset();
@@ -360,7 +360,7 @@ int Interp::_execute(const char *command)
   extern const char *call_typenames[];
   extern const char *o_ops[];
 
-  if (NULL != command) {
+  if (nullptr != command) {
     MDImode = 1;
     status = read(command);
     if (status != INTERP_OK) {
@@ -379,7 +379,7 @@ int Interp::_execute(const char *command)
 	   call_statenames[_setup.call_state]);
 
   // process control functions -- will skip if skipping
-  if ((eblock->o_name != 0) || _setup.mdi_interrupt)  {
+  if ((eblock->o_name) || _setup.mdi_interrupt)  {
       status = convert_control_functions(eblock, &_setup);
       CHP(status); // relinquish control if INTERP_EXCUTE_FINISH, INTERP_ERROR etc
 
@@ -399,7 +399,7 @@ int Interp::_execute(const char *command)
       logDebug("MDImode = %d", MDImode);
       while(MDImode && _setup.call_level) // we are still in a subroutine
       {
-          status = read(0);  // reads from current file and calls parse
+          status = read(nullptr);  // reads from current file and calls parse
 	  if (status > INTERP_MIN_ERROR)
 	      CHP(status);
           status = execute();  // special handling for mdi errors
@@ -525,7 +525,7 @@ int Interp::_execute(const char *command)
 	      if (MDImode) {
 		  // need to trigger execution of parsed _setup.block1 here
 		  // replicate MDI oword execution code here
-		  if ((eblock->o_name != 0) ||
+		  if ((eblock->o_name) ||
 		      (_setup.mdi_interrupt)) {
 
 		      status = convert_control_functions(eblock, &_setup);
@@ -536,7 +536,7 @@ int Interp::_execute(const char *command)
 		      }
 		      status = INTERP_OK;
 		      while(MDImode && _setup.call_level) { // we are still in a subroutine
-			  CHP(read(0));  // reads from current file and calls parse
+			  CHP(read(nullptr));  // reads from current file and calls parse
 			  status = execute();  // special handling for mdi errors
 			  if (status == INTERP_EXECUTE_FINISH)
 			      _setup.mdi_interrupt = true;
@@ -552,7 +552,7 @@ int Interp::_execute(const char *command)
 		  }
 	      } else {
 		  // this should get the osub going
-		  status = execute(0);
+      status = execute(nullptr);
 		  CHP(status);
 		  // when this is done, blocks[0] will be executed as per standard case
 		  // on endsub/return and g_codes/m_codes/settings recorded there.
@@ -602,7 +602,7 @@ int Interp::execute(const char *command)
 
 int Interp::execute()
 {
-  return Interp::execute(0);
+  return Interp::execute(nullptr);
 }
 
 int Interp::execute(const char *command, int line_number)
@@ -661,7 +661,7 @@ int Interp::remap_finished(int phase)
 
 	    if (status < 0) {
 		// a remap was parsed, get the block going
-		return execute(0);
+    return execute(nullptr);
 	    } else
 		return status;
 	} else {
@@ -847,7 +847,7 @@ int Interp::exit()
   reset();
 
   // interpreter shutdown Python hook
-  if (python_plugin->is_callable(NULL, DELETE_FUNC)) {
+  if (python_plugin->is_callable(nullptr, DELETE_FUNC)) {
 
       bp::object retval, tupleargs, kwargs;
       bp::list plist;
@@ -856,7 +856,7 @@ int Interp::exit()
       tupleargs = bp::tuple(plist);
       kwargs = bp::dict();
 
-      python_plugin->call(NULL, DELETE_FUNC, tupleargs, kwargs, retval);
+      python_plugin->call(nullptr, DELETE_FUNC, tupleargs, kwargs, retval);
       if (python_plugin->plugin_status() == PLUGIN_EXCEPTION) {
 	  ERM("pycall(%s):\n%s", INIT_FUNC,
 	      python_plugin->last_exception().c_str());
@@ -959,15 +959,15 @@ int Interp::init()
 
 	  _setup.debugmask |= EMC_DEBUG_UNCONDITIONAL;
 
-          if(NULL != (inistring = inifile.Find("LOG_LEVEL", "RS274NGC")))
+          if(nullptr != (inistring = inifile.Find("LOG_LEVEL", "RS274NGC")))
           {
               _setup.loggingLevel = atol(inistring);
           }
 
 	  // default the log_file to stderr.
-          if(NULL != (inistring = inifile.Find("LOG_FILE", "RS274NGC")))
+          if(nullptr != (inistring = inifile.Find("LOG_FILE", "RS274NGC")))
           {
-	      if ((log_file = fopen(inistring, "a"))  == NULL) {
+        if ((log_file = fopen(inistring, "a"))  == nullptr) {
 		  log_file = stderr;
 		  logDebug( "(%d): Unable to open log file:%s, using stderr",
 			  getpid(), inistring);
@@ -979,10 +979,10 @@ int Interp::init()
           _setup.use_lazy_close = 1;
 
 	  _setup.wizard_root[0] = 0;
-          if(NULL != (inistring = inifile.Find("WIZARD_ROOT", "WIZARD")))
+          if(nullptr != (inistring = inifile.Find("WIZARD_ROOT", "WIZARD")))
           {
 	    logDebug("[WIZARD]WIZARD_ROOT:%s", inistring);
-            if (realpath(inistring, _setup.wizard_root) == NULL) {
+            if (realpath(inistring, _setup.wizard_root) == nullptr) {
         	//realpath didn't find the file
 		logDebug("realpath failed to find wizard_root:%s:", inistring);
             }
@@ -990,14 +990,14 @@ int Interp::init()
           logDebug("_setup.wizard_root:%s:", _setup.wizard_root);
 
 	  _setup.program_prefix[0] = 0;
-          if(NULL != (inistring = inifile.Find("PROGRAM_PREFIX", "DISPLAY")))
+          if(nullptr != (inistring = inifile.Find("PROGRAM_PREFIX", "DISPLAY")))
           {
 	    // found it
             char expandinistring[LINELEN];
             if (inifile.TildeExpansion(inistring,expandinistring,sizeof(expandinistring))) {
                    logDebug("TildeExpansion failed for: %s",inistring);
             }
-            if (realpath(expandinistring, _setup.program_prefix) == NULL){
+            if (realpath(expandinistring, _setup.program_prefix) == nullptr){
         	//realpath didn't find the file
 		logDebug("realpath failed to find program_prefix:%s:", inistring);
             }
@@ -1011,7 +1011,7 @@ int Interp::init()
           logDebug("_setup.program_prefix:%s:", _setup.program_prefix);
 
 
-          if(NULL != (inistring = inifile.Find("SUBROUTINE_PATH", "RS274NGC")))
+          if(nullptr != (inistring = inifile.Find("SUBROUTINE_PATH", "RS274NGC")))
           {
             // found it
             int dct;
@@ -1019,7 +1019,7 @@ int Interp::init()
             char tmpdirs[PATH_MAX+1];
 
             for (dct=0; dct < MAX_SUB_DIRS; dct++) {
-                 _setup.subroutines[dct] = NULL;
+                 _setup.subroutines[dct] = nullptr;
             }
 
             strcpy(tmpdirs,inistring);
@@ -1031,10 +1031,10 @@ int Interp::init()
                 if (inifile.TildeExpansion(nextdir,expandnextdir,sizeof(expandnextdir))) {
                    logDebug("TildeExpansion failed for: %s",nextdir);
                 }
-                if (realpath(expandnextdir, tmp_path) == NULL){
+                if (realpath(expandnextdir, tmp_path) == nullptr){
                    //realpath didn't find the directory
                    logDebug("realpath failed to find subroutines[%d]:%s:",dct,nextdir);
-                    _setup.subroutines[dct] = NULL;
+                    _setup.subroutines[dct] = nullptr;
                 } else {
 		    _setup.subroutines[dct] = strstore(tmp_path);
                     logDebug("program prefix[%d]:%s",dct,_setup.subroutines[dct]);
@@ -1044,8 +1044,8 @@ int Interp::init()
                    logDebug("too many entries in SUBROUTINE_PATH, max=%d", MAX_SUB_DIRS);
                    break;
                 }
-                nextdir = strtok(NULL,":");
-                if (nextdir == NULL) break; // no more tokens
+                nextdir = strtok(nullptr,":");
+                if (nextdir == nullptr) break; // no more tokens
              }
           }
           else
@@ -1054,15 +1054,15 @@ int Interp::init()
           }
           // subroutine to execute on aborts - for instance to retract
           // toolchange HAL pins
-          if (NULL != (inistring = inifile.Find("ON_ABORT_COMMAND", "RS274NGC"))) {
+          if (nullptr != (inistring = inifile.Find("ON_ABORT_COMMAND", "RS274NGC"))) {
 	      _setup.on_abort_command = strstore(inistring);
               logDebug("_setup.on_abort_command=%s", _setup.on_abort_command);
           } else {
-	      _setup.on_abort_command = NULL;
+        _setup.on_abort_command = nullptr;
           }
 
 	  // initialize the Python plugin singleton
-          if (NULL != (inistring = inifile.Find("TOPLEVEL", "PYTHON"))) {
+          if (nullptr != (inistring = inifile.Find("TOPLEVEL", "PYTHON"))) {
 	      int status = python_plugin->configure(iniFileName,"PYTHON");
 	      if (status != PLUGIN_OK) {
 		  Error("Python plugin configure() failed, status = %d", status);
@@ -1074,7 +1074,7 @@ int Interp::init()
 	  _setup.g_remapped.clear();
 	  _setup.m_remapped.clear();
 	  _setup.remaps.clear();
-	  while (NULL != (inistring = inifile.Find("REMAP", "RS274NGC",
+    while (nullptr != (inistring = inifile.Find("REMAP", "RS274NGC",
 						   n, &lineno))) {
 
 	      CHP(parse_remap( inistring,  lineno));
@@ -1113,7 +1113,7 @@ int Interp::init()
 	  logDebug("init:  DISABLE_FANUC_STYLE_SUB = %d",
 		   _setup.disable_fanuc_style_sub);
 
-          if(NULL != (inistring = inifile.Find("PERSISTENT_G92_OFFSET",
+          if(nullptr != (inistring = inifile.Find("PERSISTENT_G92_OFFSET",
 					       "RS274NGC")))
           {
 	      if (strcmp(inistring,"True") == 0 ||
@@ -1150,7 +1150,7 @@ int Interp::init()
   int origin = _setup.origin_index;
   CHP(findWorkOffset(origin, _setup.transform.g5xOffset));
 
-  write_and_update_state_tag(NULL);
+  write_and_update_state_tag(nullptr);
 
   SET_G5X_OFFSET(_setup.origin_index, UNPACK_POSITION_ARRAY_REF(_setup.transform.g5xOffset.shift.tf));
 
@@ -1195,7 +1195,7 @@ int Interp::init()
 //_setup.feed_override set in Interp::synch
 //_setup.feed_rate set in Interp::synch
   _setup.filename[0] = 0;
-  _setup.file_pointer = NULL;
+  _setup.file_pointer = nullptr;
 //_setup.flood set in Interp::synch
 //  _setup.tool_offset_index = 1;  // unused - removed, mah
 //_setup.length_units set in Interp::synch
@@ -1253,20 +1253,20 @@ int Interp::init()
   memcpy(_readers, default_readers, sizeof(default_readers));
 
   long axis_mask = GET_EXTERNAL_AXIS_MASK();
-  if(!(axis_mask & AXIS_MASK_X)) _readers[(int)'x'] = 0;
-  if(!(axis_mask & AXIS_MASK_Y)) _readers[(int)'y'] = 0;
-  if(!(axis_mask & AXIS_MASK_Z)) _readers[(int)'z'] = 0;
-  if(!(axis_mask & AXIS_MASK_A)) _readers[(int)'a'] = 0;
-  if(!(axis_mask & AXIS_MASK_B)) _readers[(int)'b'] = 0;
-  if(!(axis_mask & AXIS_MASK_C)) _readers[(int)'c'] = 0;
-  if(!(axis_mask & AXIS_MASK_U)) _readers[(int)'u'] = 0;
-  if(!(axis_mask & AXIS_MASK_V)) _readers[(int)'v'] = 0;
-  if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = 0;
+  if(!(axis_mask & AXIS_MASK_X)) _readers[(int)'x'] = nullptr;
+  if(!(axis_mask & AXIS_MASK_Y)) _readers[(int)'y'] = nullptr;
+  if(!(axis_mask & AXIS_MASK_Z)) _readers[(int)'z'] = nullptr;
+  if(!(axis_mask & AXIS_MASK_A)) _readers[(int)'a'] = nullptr;
+  if(!(axis_mask & AXIS_MASK_B)) _readers[(int)'b'] = nullptr;
+  if(!(axis_mask & AXIS_MASK_C)) _readers[(int)'c'] = nullptr;
+  if(!(axis_mask & AXIS_MASK_U)) _readers[(int)'u'] = nullptr;
+  if(!(axis_mask & AXIS_MASK_V)) _readers[(int)'v'] = nullptr;
+  if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = nullptr;
 
   synch(); //synch first, then update the interface
 
-  write_g_codes((block_pointer) NULL, &_setup, _setup.modal_state);
-  write_m_codes((block_pointer) NULL, &_setup, _setup.modal_state);
+  write_g_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
+  write_m_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
   write_settings(&_setup, _setup.modal_state);
 
   init_tool_parameters();
@@ -1304,7 +1304,7 @@ int Interp::init()
 	  CHKS(unexpected, "exception adding Python predefined named parameter: %s", exception_msg.c_str());
       }
 
-      if (python_plugin->is_callable(NULL, INIT_FUNC)) {
+      if (python_plugin->is_callable(nullptr, INIT_FUNC)) {
 
 	  bp::object retval, tupleargs, kwargs;
 	  bp::list plist;
@@ -1313,7 +1313,7 @@ int Interp::init()
 	  tupleargs = bp::tuple(plist);
 	  kwargs = bp::dict();
 
-	  python_plugin->call(NULL, INIT_FUNC, tupleargs, kwargs, retval);
+    python_plugin->call(nullptr, INIT_FUNC, tupleargs, kwargs, retval);
 	  CHKS(python_plugin->plugin_status() == PLUGIN_EXCEPTION,
 	       "pycall(%s):\n%s", INIT_FUNC,
 	       python_plugin->last_exception().c_str());
@@ -1434,17 +1434,17 @@ int Interp::open(const char *filename) //!< string: the name of the input NC-pro
         _setup.lazy_closing = 0;
     }
 
-    CHKS((_setup.file_pointer != NULL), NCE_A_FILE_IS_ALREADY_OPEN);
+    CHKS((_setup.file_pointer), NCE_A_FILE_IS_ALREADY_OPEN);
     CHKS((strlen(filename) > (LINELEN - 1)), NCE_FILE_NAME_TOO_LONG);
     _setup.file_pointer = fopen(filename, "r");
-    CHKS((_setup.file_pointer == NULL), NCE_UNABLE_TO_OPEN_FILE, filename);
+    CHKS((!_setup.file_pointer), NCE_UNABLE_TO_OPEN_FILE, filename);
     line = _setup.linetext;
 
     /* skip blank lines */
     _setup.sequence_number = 0;
     for (index = -1; index == -1;) {
         CHKS((fgets(line, LINELEN, _setup.file_pointer) ==
-             NULL), NCE_FILE_ENDED_WITH_NO_PERCENT_SIGN);
+             nullptr), NCE_FILE_ENDED_WITH_NO_PERCENT_SIGN);
         length = strlen(line);
         if (length == (LINELEN - 1)) {   // line is too long. need to finish reading the line to recover
           // look for EOL or EOF - no EOL found == stuck loop
@@ -1484,7 +1484,7 @@ int Interp::read_inputs(setup_pointer settings)
 {
 	// logDebug("read_inputs probe=%d input=%d toolchange=%d orient=%d",
     // 	     settings->probe_flag, settings->input_flag, settings->toolchange_flag, settings->orient_flag);
-    write_and_update_state_tag(NULL);
+    write_and_update_state_tag(nullptr);
     if (settings->probe_flag) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING);
@@ -1654,7 +1654,7 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
   CHP(read_inputs(&_setup));
 
 
-  CHKN(((command == NULL) && (_setup.file_pointer == NULL)),
+  CHKN(((command == nullptr) && (_setup.file_pointer == nullptr)),
       INTERP_FILE_NOT_OPEN);
 
   _setup.parameters[5420] = _setup.current[X];
@@ -1677,7 +1677,7 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
               _setup.blocktext, &_setup.line_length);
 
   if (read_status == INTERP_ERROR && _setup.skipping_to_sub) {
-    _setup.skipping_to_sub = NULL;
+    _setup.skipping_to_sub = nullptr;
   }
 
   if(command)logDebug("%s:[cmd]:|%s|", name, command);
@@ -1710,7 +1710,7 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
   } else if (read_status == INTERP_ENDFILE) {
       // If skipping but not defining the main program, we hit EOF
       // before finding the sub we're looking for; error out
-      CHKS((_setup.skipping_o != NULL),
+      CHKS((_setup.skipping_o != nullptr),
 	   "Failed to find sub 'O%s' before EOF", _setup.skipping_o);
 
       // EOF, so don't leave stale line number around
@@ -1742,7 +1742,7 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 	free_named_parameters(&_setup.sub_context[_setup.call_level]);
 	if(sub->subName) {
 	    logDebug("unwind_call leaving sub '%s'", sub->subName);
-	    sub->subName = 0;
+      sub->subName = nullptr;
 	}
 
 	if (sub->call_type != CT_NGC_M98_SUB) // M98:  pass #1..#30 from parent
@@ -1775,12 +1775,12 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 
     if(_setup.sub_name) {
 	logDebug("unwind_call: exiting current sub '%s'\n", _setup.sub_name);
-	_setup.sub_name = 0;
+  _setup.sub_name = nullptr;
     }
     _setup.remap_level = 0; // reset remapping stack
     _setup.defining_sub = 0;
-    _setup.skipping_o = 0;
-    _setup.skipping_to_sub = 0;
+    _setup.skipping_o = nullptr;
+    _setup.skipping_to_sub = nullptr;
     _setup.offset_map.clear();
     _setup.mdi_interrupt = false;
 
@@ -1896,7 +1896,7 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
       return INTERP_OK;
   // open original for reading
   infile = fopen(filename, "r");
-  CHKS((infile == NULL), _("Unable to open parameter file: '%s'"), filename);
+  CHKS((infile == nullptr), _("Unable to open parameter file: '%s'"), filename);
 
   pars = _setup.parameters;
   k = 0;
@@ -1995,7 +1995,7 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
 
     // open backup for reading
     infile = fopen(line, "r");
-    CHKS((infile == NULL), NCE_CANNOT_OPEN_BACKUP_FILE);
+    CHKS((infile == nullptr), NCE_CANNOT_OPEN_BACKUP_FILE);
   } else {
     // it's OK if the parameter file doesn't exist yet
     // it will now be created with a default list of parameters
@@ -2003,13 +2003,13 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   }
   // open original for writing
   outfile = fopen(filename, "w");
-  CHKS((outfile == NULL), NCE_CANNOT_OPEN_VARIABLE_FILE);
+  CHKS((outfile == nullptr), NCE_CANNOT_OPEN_VARIABLE_FILE);
 
   k = 0;
   index = 0;
   required = _required_parameters[index++];
   while (feof(infile) == 0) {
-    if (fgets(line, 256, infile) == NULL) {
+    if (fgets(line, 256, infile) == nullptr) {
       break;
     }
     // try for a variable-value match
@@ -2556,7 +2556,7 @@ int Interp::ini_load(const char *filename)
     logDebug("Opened inifile:%s:", filename);
 
     // FIXME do this case-insensitive, and maybe use existing code, this is a mess right now
-    if (NULL != (inistring = inifile.Find("SINGLE_BLOCK_LOCAL_SUB", "RS274NGC"))) {
+    if (nullptr != (inistring = inifile.Find("SINGLE_BLOCK_LOCAL_SUB", "RS274NGC"))) {
         if (strcmp(inistring,"True") == 0 ||
                 strcmp(inistring, "true") == 0 ||
                 strcmp(inistring, "YES") == 0) {
@@ -2567,7 +2567,7 @@ int Interp::ini_load(const char *filename)
         }
     }
 
-    if (NULL != (inistring = inifile.Find("SINGLE_BLOCK_EXTERNAL_SUB", "RS274NGC"))) {
+    if (nullptr != (inistring = inifile.Find("SINGLE_BLOCK_EXTERNAL_SUB", "RS274NGC"))) {
         if (strcmp(inistring,"True") == 0 ||
                 strcmp(inistring, "true") == 0 ||
                 strcmp(inistring, "YES") == 0) {
@@ -2580,13 +2580,13 @@ int Interp::ini_load(const char *filename)
 
 
     char parameter_file_name[LINELEN] = "";
-    if (NULL != (inistring = inifile.Find("PARAMETER_FILE", "RS274NGC"))) {
+    if (nullptr != (inistring = inifile.Find("PARAMETER_FILE", "RS274NGC"))) {
         // see if filename starts with '~'
         if (inistring[0] == '~') {
             // get user's HOME directory from environment
             char *home;
             char full_path[LINELEN];
-            if ((home = getenv("HOME")) != NULL) {
+            if ((home = getenv("HOME")) != nullptr) {
                 // start with the path to the HOME directory
                 strcpy(full_path, home);
                 // skip the '~'
@@ -2701,7 +2701,7 @@ int Interp::enter_remap(void)
     CONTROLLING_BLOCK(_setup) = EXECUTING_BLOCK(_setup);
     CONTROLLING_BLOCK(_setup).breadcrumbs = 0; // clear trail
     // set later but tested for in remap_in_progress()
-    CONTROLLING_BLOCK(_setup).executing_remap = NULL;
+    CONTROLLING_BLOCK(_setup).executing_remap = nullptr;
 
     // remember the line where remap was discovered
     logRemap("enter_remap into %d - saved_line_number=%d",
@@ -2720,7 +2720,7 @@ int Interp::leave_remap(void)
 	     _setup.remap_level, CONTROLLING_BLOCK(_setup).saved_line_number);
 
     _setup.sequence_number = CONTROLLING_BLOCK(_setup).saved_line_number;
-    _setup.blocks[_setup.remap_level].executing_remap = NULL;
+    _setup.blocks[_setup.remap_level].executing_remap = nullptr;
     _setup.remap_level--; // drop one nesting level
     if (_setup.remap_level < 0) {
 	ERS("BUG: remap_level < 0 : %d",_setup.remap_level);
@@ -2777,7 +2777,7 @@ int Interp::on_abort(int reason, const char *message)
     _setup.input_flag = false;
     _setup.orient_flag = false;
 
-    if (_setup.on_abort_command == NULL) {
+    if (_setup.on_abort_command == nullptr) {
 	logDebug("Interp::on_abort:  No on_abort_command; returning");
         return -1;
     }
@@ -2864,7 +2864,7 @@ FILE *Interp::find_ngc_file(setup_pointer settings,const char *basename, char *f
 	}
     }
 
-    if (foundhere && (newFP != NULL))
+    if (foundhere && newFP)
        strcpy(foundhere, newFileName);
 
     return newFP;
