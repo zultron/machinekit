@@ -3879,16 +3879,9 @@ See documentation of convert_coordinate_system for more information.
 int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
                          setup_pointer settings)        //!< pointer to machine settings                 
 {
-  int p_int;
-
   CHKS((block->i_flag || block->j_flag), _("I J words not allowed with G10 L2"));
 
-  p_int = (int) (block->p_number + 0.0001);
-
-  // if P = 0 then use whatever coordinate system that is currently active
-  if (p_int == 0) {
-    p_int = settings->origin_index;
-  }
+  int p_int = (int) (block->p_number + 0.0001) ?: settings->origin_index;
 
   CHKS((block->l_number == 20 && block->a_flag && settings->a_axis_wrapped &&
         (block->a_number <= -360.0 || block->a_number >= 360.0)),
