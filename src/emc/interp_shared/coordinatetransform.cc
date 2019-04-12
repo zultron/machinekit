@@ -183,3 +183,10 @@ bool LocalToMachineTransform::rotationActive() const
 {
     return g5xOffset.getXYRotationDeg() != 0.0;
 }
+
+void LocalToMachineTransform::rescaleAllTransforms(const UnitsTransform & to_new_units)
+{
+    to_new_units.apply_fwd(g92Offset.tf);
+    to_new_units.apply_fwd(g5xOffset.shift.tf);
+    to_new_units.apply_fwd(toolOffset.tf);
+}

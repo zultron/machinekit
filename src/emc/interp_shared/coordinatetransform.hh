@@ -85,6 +85,8 @@ struct LocalToMachineTransform : public TransformBase
     double findAxisoffset(size_t axis_id);
 
     bool rotationActive() const;
+
+    void rescaleAllTransforms(UnitsTransform const &to_new_units);
 };
 
 #endif // COORDINATETRANSFORM_HH
