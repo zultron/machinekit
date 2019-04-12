@@ -76,6 +76,12 @@ struct LocalToMachineTransform : public TransformBase
     void apply_fwd(PositionArray &p) const;
     void apply_inv(PositionArray &p) const;
 
+    virtual PositionArray forward_to_nose(PositionArray const &local) const;
+    virtual PositionArray inverse_from_nose(PositionArray const &nose) const;
+
+    virtual PositionArray forward_to_tip(PositionArray const &p) const {return forward(p);}
+    virtual PositionArray inverse_from_tip(PositionArray const &p) const {return inverse(p);}
+
     double findAxisoffset(size_t axis_id);
 
     bool rotationActive() const;

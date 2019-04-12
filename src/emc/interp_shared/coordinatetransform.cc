@@ -155,6 +155,22 @@ void LocalToMachineTransform::apply_inv(PositionArray & p) const
     g92Offset.apply_inv(p);
 }
 
+/**
+ * Transform from local coordinates to spindle "nose" coordinate (i.e. tool coordinates without tool offsets).
+ */
+PositionArray LocalToMachineTransform::forward_to_nose(const PositionArray & local) const
+{
+     return g5xOffset.forward(g92Offset.forward(local));
+}
+
+/**
+ * Transform from nose coordinates back to local coordinates.
+ */
+PositionArray LocalToMachineTransform::inverse_from_nose(const PositionArray & nose) const
+{
+     return g92Offset.inverse(g5xOffset.inverse(nose));
+}
+
 double LocalToMachineTransform::findAxisoffset(size_t axis_id)
 {
     // KLUDGE inefficient implementation (lots of redundant work here)
