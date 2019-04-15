@@ -1878,7 +1878,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	axis_load_comp_msg = (EMC_AXIS_LOAD_COMP *) cmd;
 	retval = emcAxisLoadComp(axis_load_comp_msg->axis,
 				 axis_load_comp_msg->file,
-				 axis_load_comp_msg->type);
+				 axis_load_comp_msg->comp_file_type);
 	break;
 
 	// traj commands
@@ -1931,7 +1931,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TRAJ_LINEAR_MOVE_TYPE:
 	emcTrajLinearMoveMsg = (EMC_TRAJ_LINEAR_MOVE *) cmd;
         retval = emcTrajLinearMove(emcTrajLinearMoveMsg->end,
-                                   emcTrajLinearMoveMsg->type, emcTrajLinearMoveMsg->vel,
+                                   emcTrajLinearMoveMsg->emc_motion_type, emcTrajLinearMoveMsg->vel,
                                    emcTrajLinearMoveMsg->ini_maxvel, emcTrajLinearMoveMsg->acc,
                                    emcTrajLinearMoveMsg->indexrotary, emcTrajLinearMoveMsg->pure_angular);
 	break;
@@ -1940,7 +1940,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	emcTrajCircularMoveMsg = (EMC_TRAJ_CIRCULAR_MOVE *) cmd;
         retval = emcTrajCircularMove(emcTrajCircularMoveMsg->end,
                 emcTrajCircularMoveMsg->center, emcTrajCircularMoveMsg->normal,
-                emcTrajCircularMoveMsg->turn, emcTrajCircularMoveMsg->type,
+                emcTrajCircularMoveMsg->turn, emcTrajCircularMoveMsg->emc_motion_type,
                 emcTrajCircularMoveMsg->vel,
                 emcTrajCircularMoveMsg->ini_maxvel,
                 emcTrajCircularMoveMsg->acc,

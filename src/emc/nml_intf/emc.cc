@@ -1498,7 +1498,7 @@ void EMC_TRAJ_LINEAR_MOVE::update(CMS * cms)
 
     EMC_TRAJ_CMD_MSG::update(cms);
     EmcPose_update(cms, &end);
-    cms->update(type);
+    cms->update(emc_motion_type);
     cms->update(vel);
     cms->update(ini_maxvel);
     cms->update(acc);
@@ -1522,7 +1522,7 @@ void EMC_TRAJ_CIRCULAR_MOVE::update(CMS * cms)
     cms->update(center);
     cms->update(normal);
     cms->update(turn);
-    cms->update(type);
+    cms->update(emc_motion_type);
     cms->update(vel);
     cms->update(ini_maxvel);
     cms->update(acc);
@@ -2020,7 +2020,7 @@ void EMC_AXIS_LOAD_COMP::update(CMS * cms)
 
     EMC_AXIS_CMD_MSG::update(cms);
     cms->update(file, 256);
-    cms->update(type);
+    cms->update(comp_file_type);
 
 }
 

@@ -441,7 +441,7 @@ class EMC_AXIS_LOAD_COMP:public EMC_AXIS_CMD_MSG {
     void update(CMS * cms);
 
     char file[LINELEN];
-    int type; // type of the comp file. type==0 means nom, forw, rev triplets
+    int comp_file_type; // type of the comp file. type==0 means nom, forw, rev triplets
               // type != 0 means nom, forw_trim, rev_trim triplets
 };
 
@@ -795,7 +795,7 @@ class EMC_TRAJ_LINEAR_MOVE:public EMC_TRAJ_CMD_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    int type;
+    int emc_motion_type;
     EmcPose end;		// end point
     double vel, ini_maxvel, acc;
     int feed_mode;
@@ -817,7 +817,7 @@ class EMC_TRAJ_CIRCULAR_MOVE:public EMC_TRAJ_CMD_MSG {
     PM_CARTESIAN center;
     PM_CARTESIAN normal;
     int turn;
-    int type;
+    int emc_motion_type;
     double vel, ini_maxvel, acc, acc_normal;
     int feed_mode;
 };

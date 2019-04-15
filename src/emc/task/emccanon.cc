@@ -980,7 +980,7 @@ static void flush_segments(void) {
     double acc = lineaccdata.acc;
     linearMoveMsg.acc = toExtAcc(acc);
 
-    linearMoveMsg.type = EMC_MOTION_TYPE_FEED;
+    linearMoveMsg.emc_motion_type = EMC_MOTION_TYPE_FEED;
     linearMoveMsg.indexrotary = -1;
 
     if ((vel && acc) || synched) {
@@ -1082,9 +1082,9 @@ void STRAIGHT_TRAVERSE(int line_number,
 
     linearMoveMsg.feed_mode = 0;
     if (rotary_unlock_for_traverse != -1)
-        linearMoveMsg.type = EMC_MOTION_TYPE_INDEXROTARY;
+        linearMoveMsg.emc_motion_type = EMC_MOTION_TYPE_INDEXROTARY;
     else
-        linearMoveMsg.type = EMC_MOTION_TYPE_TRAVERSE;
+        linearMoveMsg.emc_motion_type = EMC_MOTION_TYPE_TRAVERSE;
 
     from_prog(x,y,z,a,b,c,u,v,w);
     rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
@@ -1861,7 +1861,7 @@ void ARC_FEED(int line_number,
         // FIXME (Rob) Am I missing something? the P word should never be zero,
         // or we wouldn't be calling ARC_FEED
         linearMoveMsg.end = to_ext_pose(endpt);
-        linearMoveMsg.type = EMC_MOTION_TYPE_ARC;
+        linearMoveMsg.emc_motion_type = EMC_MOTION_TYPE_ARC;
 
         linearMoveMsg.pure_angular = angular_move && !cartesian_move;
         linearMoveMsg.vel = toExtVel(vel);
@@ -1884,7 +1884,7 @@ void ARC_FEED(int line_number,
             // reverse turn
             circularMoveMsg.turn = rotation;
 
-        circularMoveMsg.type = EMC_MOTION_TYPE_ARC;
+        circularMoveMsg.emc_motion_type = EMC_MOTION_TYPE_ARC;
 
         circularMoveMsg.vel = toExtVel(vel);
         circularMoveMsg.ini_maxvel = toExtVel(v_max);
@@ -2192,7 +2192,7 @@ void CHANGE_TOOL(int slot)
         linearMoveMsg.pure_angular = angular_move && !cartesian_move;
         linearMoveMsg.vel = linearMoveMsg.ini_maxvel = toExtVel(vel);
         linearMoveMsg.acc = toExtAcc(acc);
-        linearMoveMsg.type = EMC_MOTION_TYPE_TOOLCHANGE;
+        linearMoveMsg.emc_motion_type = EMC_MOTION_TYPE_TOOLCHANGE;
         linearMoveMsg.feed_mode = 0;
         linearMoveMsg.indexrotary = -1;
 
@@ -3461,7 +3461,7 @@ int WAIT(int index, /* index of the motion exported input */
 int UNLOCK_ROTARY(int line_number, int axis) {
     EMC_TRAJ_LINEAR_MOVE m;
     // first, set up a zero length move to interrupt blending and get to final position
-    m.type = EMC_MOTION_TYPE_TRAVERSE;
+    m.emc_motion_type = EMC_MOTION_TYPE_TRAVERSE;
     m.feed_mode = 0;
     m.end = to_ext_pose(canonEndPoint[X], canonEndPoint[Y], canonEndPoint[Z],
                         canonEndPoint[A], canonEndPoint[B], canonEndPoint[C],
