@@ -476,6 +476,13 @@ int Interp::find_relative(setup_pointer s, const PositionArray &command_local, P
     return INTERP_OK;
 }
 
+int Interp::findToolOffset(int pocket, ShiftTransform & work_offset)
+{
+  CHKS(pocket < 0 || pocket >= CANON_POCKETS_MAX, _("Invalid tool pocket number %d (must be between %d and %d"), pocket, 0, CANON_POCKETS_MAX);
+  work_offset = toArray(_setup.tool_table[pocket].offset);
+  return INTERP_OK;
+}
+
 /** Finds the specified work offset in program units. */
 int Interp::findWorkOffset(int origin, RotateShiftTransform &work_offset, bool create_if_missing)
 {
