@@ -933,203 +933,203 @@ int Interp::init()
 
   if(iniFileName) {
 
-      IniFile inifile;
-      if (inifile.Open(iniFileName) == false) {
-          fprintf(stderr,"Unable to open inifile:%s:\n", iniFileName);
-      } else {
+    IniFile inifile;
+    if (inifile.Open(iniFileName) == false) {
+      fprintf(stderr,"Unable to open inifile:%s:\n", iniFileName);
+    } else {
 
-          const char *inistring;
+      const char *inistring;
 
-          inifile.Find(&_setup.tool_change_at_g30, "TOOL_CHANGE_AT_G30", "EMCIO");
-          inifile.Find(&_setup.tool_change_quill_up, "TOOL_CHANGE_QUILL_UP", "EMCIO");
-          inifile.Find(&_setup.tool_change_with_spindle_on, "TOOL_CHANGE_WITH_SPINDLE_ON", "EMCIO");
-          inifile.Find(&_setup.a_axis_wrapped, "WRAPPED_ROTARY", "AXIS_3");
-          inifile.Find(&_setup.b_axis_wrapped, "WRAPPED_ROTARY", "AXIS_4");
-          inifile.Find(&_setup.c_axis_wrapped, "WRAPPED_ROTARY", "AXIS_5");
-          inifile.Find(&_setup.random_toolchanger, "RANDOM_TOOLCHANGER", "EMCIO");
-          inifile.Find(&_setup.feature_set, "FEATURES", "RS274NGC");
+      inifile.Find(&_setup.tool_change_at_g30, "TOOL_CHANGE_AT_G30", "EMCIO");
+      inifile.Find(&_setup.tool_change_quill_up, "TOOL_CHANGE_QUILL_UP", "EMCIO");
+      inifile.Find(&_setup.tool_change_with_spindle_on, "TOOL_CHANGE_WITH_SPINDLE_ON", "EMCIO");
+      inifile.Find(&_setup.a_axis_wrapped, "WRAPPED_ROTARY", "AXIS_3");
+      inifile.Find(&_setup.b_axis_wrapped, "WRAPPED_ROTARY", "AXIS_4");
+      inifile.Find(&_setup.c_axis_wrapped, "WRAPPED_ROTARY", "AXIS_5");
+      inifile.Find(&_setup.random_toolchanger, "RANDOM_TOOLCHANGER", "EMCIO");
+      inifile.Find(&_setup.feature_set, "FEATURES", "RS274NGC");
 
-          inifile.Find(&_setup.a_indexer, "LOCKING_INDEXER", "AXIS_3");
-          inifile.Find(&_setup.b_indexer, "LOCKING_INDEXER", "AXIS_4");
-          inifile.Find(&_setup.c_indexer, "LOCKING_INDEXER", "AXIS_5");
-          inifile.Find(&_setup.orient_offset, "ORIENT_OFFSET", "RS274NGC");
+      inifile.Find(&_setup.a_indexer, "LOCKING_INDEXER", "AXIS_3");
+      inifile.Find(&_setup.b_indexer, "LOCKING_INDEXER", "AXIS_4");
+      inifile.Find(&_setup.c_indexer, "LOCKING_INDEXER", "AXIS_5");
+      inifile.Find(&_setup.orient_offset, "ORIENT_OFFSET", "RS274NGC");
 
-          inifile.Find(&_setup.debugmask, "DEBUG", "EMC");
+      inifile.Find(&_setup.debugmask, "DEBUG", "EMC");
 
-	  _setup.debugmask |= EMC_DEBUG_UNCONDITIONAL;
+      _setup.debugmask |= EMC_DEBUG_UNCONDITIONAL;
 
-          if(nullptr != (inistring = inifile.Find("LOG_LEVEL", "RS274NGC")))
-          {
-              _setup.loggingLevel = atol(inistring);
-          }
-
-	  // default the log_file to stderr.
-          if(nullptr != (inistring = inifile.Find("LOG_FILE", "RS274NGC")))
-          {
-        if ((log_file = fopen(inistring, "a"))  == nullptr) {
-		  log_file = stderr;
-		  logDebug( "(%d): Unable to open log file:%s, using stderr",
-			  getpid(), inistring);
-	      }
-          } else {
-	      log_file = stderr;
-	  }
-
-          _setup.use_lazy_close = 1;
-
-	  _setup.wizard_root[0] = 0;
-          if(nullptr != (inistring = inifile.Find("WIZARD_ROOT", "WIZARD")))
-          {
-	    logDebug("[WIZARD]WIZARD_ROOT:%s", inistring);
-            if (realpath(inistring, _setup.wizard_root) == nullptr) {
-        	//realpath didn't find the file
-		logDebug("realpath failed to find wizard_root:%s:", inistring);
-            }
-          }
-          logDebug("_setup.wizard_root:%s:", _setup.wizard_root);
-
-	  _setup.program_prefix[0] = 0;
-          if(nullptr != (inistring = inifile.Find("PROGRAM_PREFIX", "DISPLAY")))
-          {
-	    // found it
-            char expandinistring[LINELEN];
-            if (inifile.TildeExpansion(inistring,expandinistring,sizeof(expandinistring))) {
-                   logDebug("TildeExpansion failed for: %s",inistring);
-            }
-            if (realpath(expandinistring, _setup.program_prefix) == nullptr){
-        	//realpath didn't find the file
-		logDebug("realpath failed to find program_prefix:%s:", inistring);
-            }
-            logDebug("program prefix:%s: prefix:%s:",
-		     inistring, _setup.program_prefix);
-          }
-          else
-          {
-	      logDebug("PROGRAM_PREFIX not found");
-          }
-          logDebug("_setup.program_prefix:%s:", _setup.program_prefix);
-
-
-          if(nullptr != (inistring = inifile.Find("SUBROUTINE_PATH", "RS274NGC")))
-          {
-            // found it
-            int dct;
-            char* nextdir;
-            char tmpdirs[PATH_MAX+1];
-
-            for (dct=0; dct < MAX_SUB_DIRS; dct++) {
-                 _setup.subroutines[dct] = nullptr;
-            }
-
-            strcpy(tmpdirs,inistring);
-            nextdir = strtok(tmpdirs,":");  // first token
-            dct = 0;
-            while (1) {
-                char tmp_path[PATH_MAX];
-                char expandnextdir[LINELEN];
-                if (inifile.TildeExpansion(nextdir,expandnextdir,sizeof(expandnextdir))) {
-                   logDebug("TildeExpansion failed for: %s",nextdir);
-                }
-                if (realpath(expandnextdir, tmp_path) == nullptr){
-                   //realpath didn't find the directory
-                   logDebug("realpath failed to find subroutines[%d]:%s:",dct,nextdir);
-                    _setup.subroutines[dct] = nullptr;
-                } else {
-		    _setup.subroutines[dct] = strstore(tmp_path);
-                    logDebug("program prefix[%d]:%s",dct,_setup.subroutines[dct]);
-		    dct++;
-                }
-                if (dct >= MAX_SUB_DIRS) {
-                   logDebug("too many entries in SUBROUTINE_PATH, max=%d", MAX_SUB_DIRS);
-                   break;
-                }
-                nextdir = strtok(nullptr,":");
-                if (nextdir == nullptr) break; // no more tokens
-             }
-          }
-          else
-          {
-              logDebug("SUBROUTINE_PATH not found");
-          }
-          // subroutine to execute on aborts - for instance to retract
-          // toolchange HAL pins
-          if (nullptr != (inistring = inifile.Find("ON_ABORT_COMMAND", "RS274NGC"))) {
-	      _setup.on_abort_command = strstore(inistring);
-              logDebug("_setup.on_abort_command=%s", _setup.on_abort_command);
-          } else {
-        _setup.on_abort_command = nullptr;
-          }
-
-	  // initialize the Python plugin singleton
-          if (nullptr != (inistring = inifile.Find("TOPLEVEL", "PYTHON"))) {
-	      int status = python_plugin->configure(iniFileName,"PYTHON");
-	      if (status != PLUGIN_OK) {
-		  Error("Python plugin configure() failed, status = %d", status);
-	      }
-	  }
-
-	  int n = 1;
-	  int lineno = -1;
-	  _setup.g_remapped.clear();
-	  _setup.m_remapped.clear();
-	  _setup.remaps.clear();
-    while (nullptr != (inistring = inifile.Find("REMAP", "RS274NGC",
-						   n, &lineno))) {
-
-	      CHP(parse_remap( inistring,  lineno));
-	      n++;
-	  }
-
-          // if exist and within bounds, apply ini file arc tolerances
-          // limiting figures are defined in interp_internal.hh
-
-          r = inifile.Find(
-              &_setup.center_arc_radius_tolerance_inch,
-              MIN_CENTER_ARC_RADIUS_TOLERANCE_INCH,
-              CENTER_ARC_RADIUS_TOLERANCE_INCH,
-              "CENTER_ARC_RADIUS_TOLERANCE_INCH",
-              "RS274NGC"
-          );
-          if ((r != IniFile::ERR_NONE) && (r != IniFile::ERR_TAG_NOT_FOUND)) {
-              Error("invalid [RS274NGC]CENTER_ARC_RADIUS_TOLERANCE_INCH in ini file\n");
-          }
-
-          r = inifile.Find(
-              &_setup.center_arc_radius_tolerance_mm,
-              MIN_CENTER_ARC_RADIUS_TOLERANCE_MM,
-              CENTER_ARC_RADIUS_TOLERANCE_MM,
-              "CENTER_ARC_RADIUS_TOLERANCE_MM",
-              "RS274NGC"
-          );
-          if ((r != IniFile::ERR_NONE) && (r != IniFile::ERR_TAG_NOT_FOUND)) {
-              Error("invalid [RS274NGC]CENTER_ARC_RADIUS_TOLERANCE_MM in ini file\n");
-          }
-
-	  // ini file m98/m99 subprogram default setting
-	  inifile.Find(&_setup.disable_fanuc_style_sub,
-		       "DISABLE_FANUC_STYLE_SUB",
-		       "RS274NGC");
-	  logDebug("init:  DISABLE_FANUC_STYLE_SUB = %d",
-		   _setup.disable_fanuc_style_sub);
-
-          if(nullptr != (inistring = inifile.Find("PERSISTENT_G92_OFFSET",
-					       "RS274NGC")))
-          {
-	      if (strcmp(inistring,"True") == 0 ||
-		  strcmp(inistring, "true") == 0 ||
-		  strcmp(inistring, "YES") == 0) {
-		  logDebug("init:  PERSISTENT_G92_OFFSET = TRUE");
-		  _setup.persistent_g92_offset = true;
-	      } else {
-		  logDebug("init:  PERSISTENT_G92_OFFSET = FALSE");
-		  _setup.persistent_g92_offset = false;
-	      }
-          } else
-	      logDebug("init:  PERSISTENT_G92_OFFSET = FALSE (default)");
-
-          // close it
-          inifile.Close();
+      if(nullptr != (inistring = inifile.Find("LOG_LEVEL", "RS274NGC")))
+      {
+        _setup.loggingLevel = atol(inistring);
       }
+
+      // default the log_file to stderr.
+      if(nullptr != (inistring = inifile.Find("LOG_FILE", "RS274NGC")))
+      {
+        if ((log_file = fopen(inistring, "a"))  == nullptr) {
+          log_file = stderr;
+          logDebug( "(%d): Unable to open log file:%s, using stderr",
+                    getpid(), inistring);
+        }
+      } else {
+        log_file = stderr;
+      }
+
+      _setup.use_lazy_close = 1;
+
+      _setup.wizard_root[0] = 0;
+      if(nullptr != (inistring = inifile.Find("WIZARD_ROOT", "WIZARD")))
+      {
+        logDebug("[WIZARD]WIZARD_ROOT:%s", inistring);
+        if (realpath(inistring, _setup.wizard_root) == nullptr) {
+          //realpath didn't find the file
+          logDebug("realpath failed to find wizard_root:%s:", inistring);
+        }
+      }
+      logDebug("_setup.wizard_root:%s:", _setup.wizard_root);
+
+      _setup.program_prefix[0] = 0;
+      if(nullptr != (inistring = inifile.Find("PROGRAM_PREFIX", "DISPLAY")))
+      {
+        // found it
+        char expandinistring[LINELEN];
+        if (inifile.TildeExpansion(inistring,expandinistring,sizeof(expandinistring))) {
+          logDebug("TildeExpansion failed for: %s",inistring);
+        }
+        if (realpath(expandinistring, _setup.program_prefix) == nullptr){
+          //realpath didn't find the file
+          logDebug("realpath failed to find program_prefix:%s:", inistring);
+        }
+        logDebug("program prefix:%s: prefix:%s:",
+                 inistring, _setup.program_prefix);
+      }
+      else
+      {
+        logDebug("PROGRAM_PREFIX not found");
+      }
+      logDebug("_setup.program_prefix:%s:", _setup.program_prefix);
+
+
+      if(nullptr != (inistring = inifile.Find("SUBROUTINE_PATH", "RS274NGC")))
+      {
+        // found it
+        int dct;
+        char* nextdir;
+        char tmpdirs[PATH_MAX+1];
+
+        for (dct=0; dct < MAX_SUB_DIRS; dct++) {
+          _setup.subroutines[dct] = nullptr;
+        }
+
+        strcpy(tmpdirs,inistring);
+        nextdir = strtok(tmpdirs,":");  // first token
+        dct = 0;
+        while (1) {
+          char tmp_path[PATH_MAX];
+          char expandnextdir[LINELEN];
+          if (inifile.TildeExpansion(nextdir,expandnextdir,sizeof(expandnextdir))) {
+            logDebug("TildeExpansion failed for: %s",nextdir);
+          }
+          if (realpath(expandnextdir, tmp_path) == nullptr){
+            //realpath didn't find the directory
+            logDebug("realpath failed to find subroutines[%d]:%s:",dct,nextdir);
+            _setup.subroutines[dct] = nullptr;
+          } else {
+            _setup.subroutines[dct] = strstore(tmp_path);
+            logDebug("program prefix[%d]:%s",dct,_setup.subroutines[dct]);
+            dct++;
+          }
+          if (dct >= MAX_SUB_DIRS) {
+            logDebug("too many entries in SUBROUTINE_PATH, max=%d", MAX_SUB_DIRS);
+            break;
+          }
+          nextdir = strtok(nullptr,":");
+          if (nextdir == nullptr) break; // no more tokens
+        }
+      }
+      else
+      {
+        logDebug("SUBROUTINE_PATH not found");
+      }
+      // subroutine to execute on aborts - for instance to retract
+      // toolchange HAL pins
+      if (nullptr != (inistring = inifile.Find("ON_ABORT_COMMAND", "RS274NGC"))) {
+        _setup.on_abort_command = strstore(inistring);
+        logDebug("_setup.on_abort_command=%s", _setup.on_abort_command);
+      } else {
+        _setup.on_abort_command = nullptr;
+      }
+
+      // initialize the Python plugin singleton
+      if (nullptr != (inistring = inifile.Find("TOPLEVEL", "PYTHON"))) {
+        int status = python_plugin->configure(iniFileName,"PYTHON");
+        if (status != PLUGIN_OK) {
+          Error("Python plugin configure() failed, status = %d", status);
+        }
+      }
+
+      int n = 1;
+      int lineno = -1;
+      _setup.g_remapped.clear();
+      _setup.m_remapped.clear();
+      _setup.remaps.clear();
+      while (nullptr != (inistring = inifile.Find("REMAP", "RS274NGC",
+                                                  n, &lineno))) {
+
+        CHP(parse_remap( inistring,  lineno));
+        n++;
+      }
+
+      // if exist and within bounds, apply ini file arc tolerances
+      // limiting figures are defined in interp_internal.hh
+
+      r = inifile.Find(
+            &_setup.center_arc_radius_tolerance_inch,
+            MIN_CENTER_ARC_RADIUS_TOLERANCE_INCH,
+            CENTER_ARC_RADIUS_TOLERANCE_INCH,
+            "CENTER_ARC_RADIUS_TOLERANCE_INCH",
+            "RS274NGC"
+            );
+      if ((r != IniFile::ERR_NONE) && (r != IniFile::ERR_TAG_NOT_FOUND)) {
+        Error("invalid [RS274NGC]CENTER_ARC_RADIUS_TOLERANCE_INCH in ini file\n");
+      }
+
+      r = inifile.Find(
+            &_setup.center_arc_radius_tolerance_mm,
+            MIN_CENTER_ARC_RADIUS_TOLERANCE_MM,
+            CENTER_ARC_RADIUS_TOLERANCE_MM,
+            "CENTER_ARC_RADIUS_TOLERANCE_MM",
+            "RS274NGC"
+            );
+      if ((r != IniFile::ERR_NONE) && (r != IniFile::ERR_TAG_NOT_FOUND)) {
+        Error("invalid [RS274NGC]CENTER_ARC_RADIUS_TOLERANCE_MM in ini file\n");
+      }
+
+      // ini file m98/m99 subprogram default setting
+      inifile.Find(&_setup.disable_fanuc_style_sub,
+                   "DISABLE_FANUC_STYLE_SUB",
+                   "RS274NGC");
+      logDebug("init:  DISABLE_FANUC_STYLE_SUB = %d",
+               _setup.disable_fanuc_style_sub);
+
+      if(nullptr != (inistring = inifile.Find("PERSISTENT_G92_OFFSET",
+                                              "RS274NGC")))
+      {
+        if (strcmp(inistring,"True") == 0 ||
+            strcmp(inistring, "true") == 0 ||
+            strcmp(inistring, "YES") == 0) {
+          logDebug("init:  PERSISTENT_G92_OFFSET = TRUE");
+          _setup.persistent_g92_offset = true;
+        } else {
+          logDebug("init:  PERSISTENT_G92_OFFSET = FALSE");
+          _setup.persistent_g92_offset = false;
+        }
+      } else
+        logDebug("init:  PERSISTENT_G92_OFFSET = FALSE (default)");
+
+      // close it
+      inifile.Close();
+    }
   }
 
   _setup.length_units = GET_EXTERNAL_LENGTH_UNIT_TYPE();
@@ -1157,10 +1157,10 @@ int Interp::init()
   // the .vars file contents would reflect that setting, so instead
   // edit the restored parameters here.
   if (! _setup.persistent_g92_offset) {
-      // Persistence disabled:  clear g92 parameters
-      for (int k = 5210; k < 5220; k++) {
-        _setup.parameters[k] = 0;
-      }
+    // Persistence disabled:  clear g92 parameters
+    for (int k = 5210; k < 5220; k++) {
+      _setup.parameters[k] = 0;
+    }
   }
 
   if (_setup.parameters[G92_APPLIED]) {
@@ -1273,48 +1273,48 @@ int Interp::init()
   // once fully set up and sync()ed
   if ((iniFileName) && _setup.init_once && PYUSABLE ) {
 
-      // initialize any python global predefined named parameters
-      // walk the namedparams module for callables and add their names as predefs
-      try {
-	  bp::object npmod =  python_plugin->main_namespace[NAMEDPARAMS_MODULE];
-	  bp::dict predef_dict = bp::extract<bp::dict>(npmod.attr("__dict__"));
-	  bp::list iterkeys = (bp::list) predef_dict.iterkeys();
-	  for (int i = 0; i < bp::len(iterkeys); i++)  {
-	      std::string key = bp::extract<std::string>(iterkeys[i]);
-	      bp::object value = predef_dict[key];
-	      if (PyCallable_Check(value.ptr())) {
-		  CHP(init_python_predef_parameter(key.c_str()));
-	      }
-	  }
+    // initialize any python global predefined named parameters
+    // walk the namedparams module for callables and add their names as predefs
+    try {
+      bp::object npmod =  python_plugin->main_namespace[NAMEDPARAMS_MODULE];
+      bp::dict predef_dict = bp::extract<bp::dict>(npmod.attr("__dict__"));
+      bp::list iterkeys = (bp::list) predef_dict.iterkeys();
+      for (int i = 0; i < bp::len(iterkeys); i++)  {
+        std::string key = bp::extract<std::string>(iterkeys[i]);
+        bp::object value = predef_dict[key];
+        if (PyCallable_Check(value.ptr())) {
+          CHP(init_python_predef_parameter(key.c_str()));
+        }
       }
-      catch (bp::error_already_set) {
-	  std::string exception_msg;
-	  bool unexpected = false;
-	  // KeyError is ok - this means the namedparams module doesnt exist
-	  if (!PyErr_ExceptionMatches(PyExc_KeyError)) {
-	      // something else, strange
-	      exception_msg = handle_pyerror();
-	      unexpected = true;
-	  }
-	  bp::handle_exception();
-	  PyErr_Clear();
-	  CHKS(unexpected, "exception adding Python predefined named parameter: %s", exception_msg.c_str());
+    }
+    catch (bp::error_already_set) {
+      std::string exception_msg;
+      bool unexpected = false;
+      // KeyError is ok - this means the namedparams module doesnt exist
+      if (!PyErr_ExceptionMatches(PyExc_KeyError)) {
+        // something else, strange
+        exception_msg = handle_pyerror();
+        unexpected = true;
       }
+      bp::handle_exception();
+      PyErr_Clear();
+      CHKS(unexpected, "exception adding Python predefined named parameter: %s", exception_msg.c_str());
+    }
 
-      if (python_plugin->is_callable(nullptr, INIT_FUNC)) {
+    if (python_plugin->is_callable(nullptr, INIT_FUNC)) {
 
-	  bp::object retval, tupleargs, kwargs;
-	  bp::list plist;
+      bp::object retval, tupleargs, kwargs;
+      bp::list plist;
 
-	  plist.append(*_setup.pythis); // self
-	  tupleargs = bp::tuple(plist);
-	  kwargs = bp::dict();
+      plist.append(*_setup.pythis); // self
+      tupleargs = bp::tuple(plist);
+      kwargs = bp::dict();
 
-    python_plugin->call(nullptr, INIT_FUNC, tupleargs, kwargs, retval);
-	  CHKS(python_plugin->plugin_status() == PLUGIN_EXCEPTION,
-	       "pycall(%s):\n%s", INIT_FUNC,
-	       python_plugin->last_exception().c_str());
-      }
+      python_plugin->call(nullptr, INIT_FUNC, tupleargs, kwargs, retval);
+      CHKS(python_plugin->plugin_status() == PLUGIN_EXCEPTION,
+           "pycall(%s):\n%s", INIT_FUNC,
+           python_plugin->last_exception().c_str());
+    }
   }
   _setup.init_once = 0;
 
