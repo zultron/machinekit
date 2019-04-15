@@ -1158,16 +1158,10 @@ int Interp::init()
   // edit the restored parameters here.
   if (! _setup.persistent_g92_offset) {
     // Persistence disabled:  clear g92 parameters
-    clearPersistentG92Parameters();
+    clearPersistentG92Parameters(&_setup);
   }
 
-  if (_setup.parameters[G92_APPLIED]) {
-    double *axis_offset_begin = _setup.parameters + G92_X;
-    const UnitsTransform user_to_program = convertsUserToProgram();
-    _setup.transform.g92Offset.tf = user_to_program.forward(toArray(axis_offset_begin, 9));
-  } else {
-    _setup.transform.g92Offset = {};
-  }
+  _setup.transform.g92Offset = getG92ActiveOffset(&_setup);
 
   SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(_setup.transform.g92Offset.tf));
   SET_XY_ROTATION(_setup.transform.g5xOffset.getXYRotationDeg());

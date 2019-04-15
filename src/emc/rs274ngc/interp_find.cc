@@ -476,7 +476,7 @@ int Interp::find_relative(setup_pointer s, const PositionArray &command_local, P
     return INTERP_OK;
 }
 
-int Interp::clearPersistentG92Parameters()
+int Interp::clearPersistentG92Parameters(setup_pointer settings)
 {
   static constexpr InterpParameterIndex to_clear[] = {
     G92_APPLIED,
@@ -492,9 +492,42 @@ int Interp::clearPersistentG92Parameters()
   };
 
   for (auto prm : to_clear) {
-    _setup.parameters[prm] = 0.0;
+    settings->parameters[prm] = 0.0;
   }
   return INTERP_OK;
+}
+
+/**
+ * Based on the current parameters, return the active offset (or zeros if it's inactive)
+ * @warning only returns non-zero values if an offset is currently active in the parameter table.
+ */
+ShiftTransform Interp::getG92ActiveOffset(setup_pointer settings)
+{
+  if (settings->parameters[G92_APPLIED] != 0.0) {
+    double *axis_offset_begin = settings->parameters + G92_X;
+    const UnitsTransform user_to_program = convertsUserToProgram();
+    return user_to_program.forward(toArray(axis_offset_begin, 9));
+  } else {
+    return ShiftTransform();
+  }
+}
+
+int Interp::storeG92PersistentParms(const ShiftTransform & tool_offset, setup_pointer settings)
+{
+  PositionArray g92_in_user_units = convertsProgramToUser()(settings->transform.g92Offset.tf);
+
+  extract_axes(g92_in_user_units,
+               settings->parameters[G92_X],
+               settings->parameters[G92_Y],
+               settings->parameters[G92_Z],
+               settings->parameters[G92_A],
+               settings->parameters[G92_B],
+               settings->parameters[G92_C],
+               settings->parameters[G92_U],
+               settings->parameters[G92_V],
+               settings->parameters[G92_W]
+               );
+    return INTERP_OK;
 }
 
 

@@ -1091,8 +1091,6 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
   UnitsTransform program_to_user_units = convertsProgramToUser();
 
   if ((g_code == G_52) || (g_code == G_92)) {
-    settings->parameters[G92_APPLIED] = 1.0;
-
     // FIXME these cases preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
     if (g_code == G_52) {
       // Command represents new offsets, copy them in directly, and apply the difference to the current position
@@ -1107,17 +1105,8 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
       settings->current = cmd_position_local;
     }
 
-    extract_axes(program_to_user_units.forward(settings->transform.g92Offset.tf),
-                 settings->parameters[G92_X],
-                 settings->parameters[G92_Y],
-                 settings->parameters[G92_Z],
-                 settings->parameters[G92_A],
-                 settings->parameters[G92_B],
-                 settings->parameters[G92_C],
-                 settings->parameters[G92_U],
-                 settings->parameters[G92_V],
-                 settings->parameters[G92_W]
-                 );
+    settings->parameters[G92_APPLIED] = 1.0;
+    storeG92PersistentParms(settings->transform.g92Offset, settings);
 
   } else if ((g_code == G_92_1) || (g_code == G_92_2)) {
 
@@ -1126,29 +1115,16 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
     settings->transform.g92Offset = ShiftTransform();
 
     if (g_code == G_92_1) {
-      clearPersistentG92Parameters();
+      clearPersistentG92Parameters(settings);
     } else {
       settings->parameters[G92_APPLIED] = 0.0;
     }
   } else if (g_code == G_92_3) {
-    settings->parameters[G92_APPLIED] = 1.0;
-
     // Remove current offset, then apply user's new offset
-    settings->current += settings->transform.g92Offset.tf;
-
-    settings->transform.g92Offset.tf = program_to_user_units.inverse(toArray(
-                                                                       settings->parameters[G92_X],
-                                                                       settings->parameters[G92_Y],
-                                                                       settings->parameters[G92_Z],
-                                                                       settings->parameters[G92_A],
-                                                                       settings->parameters[G92_B],
-                                                                       settings->parameters[G92_C],
-                                                                       settings->parameters[G92_U],
-                                                                       settings->parameters[G92_V],
-                                                                       settings->parameters[G92_W]
-                                                                       ));
-
-    settings->current -= settings->transform.g92Offset.tf;
+    settings->transform.g92Offset.apply_fwd(settings->current);
+    settings->parameters[G92_APPLIED] = 1.0;
+    settings->transform.g92Offset = getG92ActiveOffset(settings);
+    settings->transform.g92Offset.apply_inv(settings->current);
   } else {
     ERS(NCE_BUG_CODE_NOT_IN_G52_G92_SERIES);
   }
@@ -4263,7 +4239,7 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 /*10*/
     if (! settings->persistent_g92_offset)
       // Clear G92/G52 offset
-      clearPersistentG92Parameters();
+      clearPersistentG92Parameters(settings);
 
     if (block->m_modes[4] == 30) {
       PALLET_SHUTTLE();
