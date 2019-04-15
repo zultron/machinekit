@@ -1245,7 +1245,7 @@ int Interp::init()
   _setup.offset_map.clear();
 
   _setup.lathe_diameter_mode = false;
-  _setup.parameters[5599] = 1.0; // enable (DEBUG, ) output
+  _setup.parameters[DEBUG_LEVEL_FLAG] = 1.0; // enable (DEBUG, ) output
 
   memcpy(_readers, default_readers, sizeof(default_readers));
 
@@ -1496,19 +1496,19 @@ int Interp::read_inputs(setup_pointer settings)
 	settings->toolchange_flag = false;
     }
     // always track toolchanger-fault and toolchanger-reason codes
-    settings->parameters[5600] = GET_EXTERNAL_TC_FAULT();
-    settings->parameters[5601] = GET_EXTERNAL_TC_REASON();
+    settings->parameters[TOOLCHANGER_FAULT] = GET_EXTERNAL_TC_FAULT();
+    settings->parameters[TOOLCHANGER_FAULT_CODE] = GET_EXTERNAL_TC_REASON();
 
     if (settings->input_flag) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_INPUT);
 	if (settings->input_digital) { // we are checking for a digital input
-	    settings->parameters[5399] =
+      settings->parameters[M66_RESULT] =
 		GET_EXTERNAL_DIGITAL_INPUT(settings->input_index,
-					   (settings->parameters[5399] != 0.0));
+             (settings->parameters[M66_RESULT] != 0.0));
 	} else { // checking for analog input
-	    settings->parameters[5399] =
-		GET_EXTERNAL_ANALOG_INPUT(settings->input_index, settings->parameters[5399]);
+      settings->parameters[M66_RESULT] =
+    GET_EXTERNAL_ANALOG_INPUT(settings->input_index, settings->parameters[M66_RESULT]);
 	}
 	settings->input_flag = false;
     }
@@ -1654,15 +1654,15 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
   CHKN(((command == nullptr) && (_setup.file_pointer == nullptr)),
       INTERP_FILE_NOT_OPEN);
 
-  _setup.parameters[5420] = _setup.current[X];
-  _setup.parameters[5421] = _setup.current[Y];
-  _setup.parameters[5422] = _setup.current[Z];
-  _setup.parameters[5423] = _setup.current[A];
-  _setup.parameters[5424] = _setup.current[B];
-  _setup.parameters[5425] = _setup.current[C];
-  _setup.parameters[5426] = _setup.current[U];
-  _setup.parameters[5427] = _setup.current[V];
-  _setup.parameters[5428] = _setup.current[W];
+  _setup.parameters[RELATIVE_POSITION_X] = _setup.current[X];
+  _setup.parameters[RELATIVE_POSITION_Y] = _setup.current[Y];
+  _setup.parameters[RELATIVE_POSITION_Z] = _setup.current[Z];
+  _setup.parameters[RELATIVE_POSITION_A] = _setup.current[A];
+  _setup.parameters[RELATIVE_POSITION_B] = _setup.current[B];
+  _setup.parameters[RELATIVE_POSITION_C] = _setup.current[C];
+  _setup.parameters[RELATIVE_POSITION_U] = _setup.current[U];
+  _setup.parameters[RELATIVE_POSITION_V] = _setup.current[V];
+  _setup.parameters[RELATIVE_POSITION_W] = _setup.current[W];
 
   if(_setup.file_pointer)
   {
@@ -2650,24 +2650,30 @@ int Interp::ini_load(const char *filename)
     return 0;
 }
 
+
+void Interp::copy_tool0_parameters()
+{
+    _setup.parameters[TOOL_NUMBER] = _setup.tool_table[0].toolno;
+    _setup.parameters[TOOL_OFFSET_X] = _setup.tool_table[0].offset.tran.x;
+    _setup.parameters[TOOL_OFFSET_Y] = _setup.tool_table[0].offset.tran.y;
+    _setup.parameters[TOOL_OFFSET_Z] = _setup.tool_table[0].offset.tran.z;
+    _setup.parameters[TOOL_OFFSET_A] = _setup.tool_table[0].offset.a;
+    _setup.parameters[TOOL_OFFSET_B] = _setup.tool_table[0].offset.b;
+    _setup.parameters[TOOL_OFFSET_C] = _setup.tool_table[0].offset.c;
+    _setup.parameters[TOOL_OFFSET_U] = _setup.tool_table[0].offset.u;
+    _setup.parameters[TOOL_OFFSET_V] = _setup.tool_table[0].offset.v;
+    _setup.parameters[TOOL_OFFSET_W] = _setup.tool_table[0].offset.w;
+    _setup.parameters[TOOL_DIAMETER] = _setup.tool_table[0].diameter;
+    _setup.parameters[TOOL_FRONT_ANGLE] = _setup.tool_table[0].frontangle;
+    _setup.parameters[TOOL_BACK_ANGLE] = _setup.tool_table[0].backangle;
+    _setup.parameters[TOOL_ORIENTATION] = _setup.tool_table[0].orientation;
+}
+
 int Interp::init_tool_parameters()
 {
   if (_setup.random_toolchanger) {
      // random_toolchanger: tool at startup expected
-    _setup.parameters[5400] = _setup.tool_table[0].toolno;
-    _setup.parameters[5401] = _setup.tool_table[0].offset.tran.x;
-    _setup.parameters[5402] = _setup.tool_table[0].offset.tran.y;
-    _setup.parameters[5403] = _setup.tool_table[0].offset.tran.z;
-    _setup.parameters[5404] = _setup.tool_table[0].offset.a;
-    _setup.parameters[5405] = _setup.tool_table[0].offset.b;
-    _setup.parameters[5406] = _setup.tool_table[0].offset.c;
-    _setup.parameters[5407] = _setup.tool_table[0].offset.u;
-    _setup.parameters[5408] = _setup.tool_table[0].offset.v;
-    _setup.parameters[5409] = _setup.tool_table[0].offset.w;
-    _setup.parameters[5410] = _setup.tool_table[0].diameter;
-    _setup.parameters[5411] = _setup.tool_table[0].frontangle;
-    _setup.parameters[5412] = _setup.tool_table[0].backangle;
-    _setup.parameters[5413] = _setup.tool_table[0].orientation;
+    copy_tool0_parameters();
   } else {
     // non random_toolchanger: no tool at startup, one-time init
     if (_setup.tool_table[0].toolno == -1) {
@@ -2705,21 +2711,7 @@ int Interp::set_tool_parameters()
   if ((! _setup.random_toolchanger) && (_setup.tool_table[0].toolno <= 0)) {
     default_tool_parameters();
   }
-
-  _setup.parameters[5400] = _setup.tool_table[0].toolno;
-  _setup.parameters[5401] = _setup.tool_table[0].offset.tran.x;
-  _setup.parameters[5402] = _setup.tool_table[0].offset.tran.y;
-  _setup.parameters[5403] = _setup.tool_table[0].offset.tran.z;
-  _setup.parameters[5404] = _setup.tool_table[0].offset.a;
-  _setup.parameters[5405] = _setup.tool_table[0].offset.b;
-  _setup.parameters[5406] = _setup.tool_table[0].offset.c;
-  _setup.parameters[5407] = _setup.tool_table[0].offset.u;
-  _setup.parameters[5408] = _setup.tool_table[0].offset.v;
-  _setup.parameters[5409] = _setup.tool_table[0].offset.w;
-  _setup.parameters[5410] = _setup.tool_table[0].diameter;
-  _setup.parameters[5411] = _setup.tool_table[0].frontangle;
-  _setup.parameters[5412] = _setup.tool_table[0].backangle;
-  _setup.parameters[5413] = _setup.tool_table[0].orientation;
+  copy_tool0_parameters();
 
   return 0;
 }

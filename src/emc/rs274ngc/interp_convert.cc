@@ -1375,7 +1375,7 @@ int Interp::convert_comment(char *comment, bool enqueue)       //!< string with 
   {
       convert_param_comment(comment+start+strlen(DEBUG_STR), expanded,
                             EX_SIZE);
-      if (_setup.parameters[5599] > 0.0)
+      if (_setup.parameters[DEBUG_LEVEL_FLAG] > 0.0)
 	  MESSAGE(expanded);
       return INTERP_OK;
   }
@@ -2394,28 +2394,28 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
   settings->current[W] = w_end;
 
   if (move == G_28) {
-      find_relative(USER_TO_PROGRAM_LEN(settings->parameters[5161]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5162]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5163]),
-                    USER_TO_PROGRAM_ANG(settings->parameters[5164]),
-                    USER_TO_PROGRAM_ANG(settings->parameters[5165]),
-                    USER_TO_PROGRAM_ANG(settings->parameters[5166]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5167]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5168]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5169]),
+      find_relative(USER_TO_PROGRAM_LEN(settings->parameters[G28_X]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G28_Y]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G28_Z]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[G28_A]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[G28_B]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[G28_C]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G28_U]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G28_V]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G28_W]),
                     &end_x_home, &end_y_home, &end_z_home,
                     &AA_end_home, &BB_end_home, &CC_end_home, 
                     &u_end_home, &v_end_home, &w_end_home, settings);
   } else if (move == G_30) {
-      find_relative(USER_TO_PROGRAM_LEN(settings->parameters[5181]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5182]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5183]),
-                    USER_TO_PROGRAM_ANG(settings->parameters[5184]),
-                    USER_TO_PROGRAM_ANG(settings->parameters[5185]),
-                    USER_TO_PROGRAM_ANG(settings->parameters[5186]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5187]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5188]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5189]),
+      find_relative(USER_TO_PROGRAM_LEN(settings->parameters[G30_X]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G30_Y]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G30_Z]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[G30_A]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[G30_B]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[G30_C]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G30_U]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G30_V]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G30_W]),
                     &end_x_home, &end_y_home, &end_z_home,
                     &AA_end_home, &BB_end_home, &CC_end_home, 
                     &u_end_home, &v_end_home, &w_end_home, settings);
@@ -3666,19 +3666,19 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
                                            &ta, &tb, &tc,
                                            &tu, &tv, &tw);
 
-        if ( to_fixture && settings->parameters[5210]) {
+        if ( to_fixture && settings->parameters[G92_APPLIED]) {
             // For G10L11, we don't want to move the origin of the
             // fixture according to G92.  Since find_current_in_system
             // did this for us already, undo it.
-            tx += USER_TO_PROGRAM_LEN(settings->parameters[5211]);
-            ty += USER_TO_PROGRAM_LEN(settings->parameters[5212]);
-            tz += USER_TO_PROGRAM_LEN(settings->parameters[5213]);
-            ta += USER_TO_PROGRAM_ANG(settings->parameters[5214]);
-            tb += USER_TO_PROGRAM_ANG(settings->parameters[5215]);
-            tc += USER_TO_PROGRAM_ANG(settings->parameters[5216]);
-            tu += USER_TO_PROGRAM_LEN(settings->parameters[5217]);
-            tv += USER_TO_PROGRAM_LEN(settings->parameters[5218]);
-            tw += USER_TO_PROGRAM_LEN(settings->parameters[5219]);
+            tx += USER_TO_PROGRAM_LEN(settings->parameters[G92_X]);
+            ty += USER_TO_PROGRAM_LEN(settings->parameters[G92_Y]);
+            tz += USER_TO_PROGRAM_LEN(settings->parameters[G92_Z]);
+            ta += USER_TO_PROGRAM_ANG(settings->parameters[G92_A]);
+            tb += USER_TO_PROGRAM_ANG(settings->parameters[G92_B]);
+            tc += USER_TO_PROGRAM_ANG(settings->parameters[G92_C]);
+            tu += USER_TO_PROGRAM_LEN(settings->parameters[G92_U]);
+            tv += USER_TO_PROGRAM_LEN(settings->parameters[G92_V]);
+            tw += USER_TO_PROGRAM_LEN(settings->parameters[G92_W]);
         }
 
         if(block->x_flag && block->y_flag) {
@@ -3775,30 +3775,30 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     //
     if (settings->random_toolchanger)
         if (settings->tool_table[0].toolno >= 0) {
-            settings->parameters[5400] = settings->tool_table[0].toolno;
+            settings->parameters[TOOL_NUMBER] = settings->tool_table[0].toolno;
         } else {
-            settings->parameters[5400] = -1;
+            settings->parameters[TOOL_NUMBER] = -1;
         } else {
         if (settings->tool_table[0].toolno > 0) {
-            settings->parameters[5400] = settings->tool_table[0].toolno;
+            settings->parameters[TOOL_NUMBER] = settings->tool_table[0].toolno;
         } else {
-            settings->parameters[5400] = 0;
+            settings->parameters[TOOL_NUMBER] = 0;
         }
     }
 
-    settings->parameters[5401] = settings->tool_table[0].offset.tran.x;
-    settings->parameters[5402] = settings->tool_table[0].offset.tran.y;
-    settings->parameters[5403] = settings->tool_table[0].offset.tran.z;
-    settings->parameters[5404] = settings->tool_table[0].offset.a;
-    settings->parameters[5405] = settings->tool_table[0].offset.b;
-    settings->parameters[5406] = settings->tool_table[0].offset.c;
-    settings->parameters[5407] = settings->tool_table[0].offset.u;
-    settings->parameters[5408] = settings->tool_table[0].offset.v;
-    settings->parameters[5409] = settings->tool_table[0].offset.w;
-    settings->parameters[5410] = settings->tool_table[0].diameter;
-    settings->parameters[5411] = settings->tool_table[0].frontangle;
-    settings->parameters[5412] = settings->tool_table[0].backangle;
-    settings->parameters[5413] = settings->tool_table[0].orientation;
+    settings->parameters[TOOL_OFFSET_X] = settings->tool_table[0].offset.tran.x;
+    settings->parameters[TOOL_OFFSET_Y] = settings->tool_table[0].offset.tran.y;
+    settings->parameters[TOOL_OFFSET_Z] = settings->tool_table[0].offset.tran.z;
+    settings->parameters[TOOL_OFFSET_A] = settings->tool_table[0].offset.a;
+    settings->parameters[TOOL_OFFSET_B] = settings->tool_table[0].offset.b;
+    settings->parameters[TOOL_OFFSET_C] = settings->tool_table[0].offset.c;
+    settings->parameters[TOOL_OFFSET_U] = settings->tool_table[0].offset.u;
+    settings->parameters[TOOL_OFFSET_V] = settings->tool_table[0].offset.v;
+    settings->parameters[TOOL_OFFSET_W] = settings->tool_table[0].offset.w;
+    settings->parameters[TOOL_DIAMETER] = settings->tool_table[0].diameter;
+    settings->parameters[TOOL_FRONT_ANGLE] = settings->tool_table[0].frontangle;
+    settings->parameters[TOOL_BACK_ANGLE] = settings->tool_table[0].backangle;
+    settings->parameters[TOOL_ORIENTATION] = settings->tool_table[0].orientation;
 
     // if the modified tool is currently in the spindle, then copy its
     // information to pocket 0 of the tool table (which signifies the
@@ -3905,7 +3905,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
        (_("Cannot change the active coordinate system with cutter radius compensation on")));
 
   // Get the global position for later reference
-  const PositionArray pos_notool_global = settings->transform.forward_notool(settings->current);
+  const PositionArray pos_notool_global = settings->transform.forward_to_nose(settings->current);
 
   // Starting from the active overall transform, find the effective transform for the desired work offset number
   LocalToMachineTransform desired_csys = settings->transform;
@@ -3916,7 +3916,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
 
     // L20 means update the work offset so that the current local position matches the commanded values
     // This does not change the global position
-    PositionArray current_local_p = desired_csys.inverse_notool(pos_notool_global); // Current LOCAL position in program units, as if p_int cysys was active
+    PositionArray current_local_p = desired_csys.inverse_from_nose(pos_notool_global); // Current LOCAL position in program units, as if p_int cysys was active
     PositionArray commanded_local = getAxisWordsFromBlock(block, current_local_p); // in program units
 
     // Unrotate the displacement vector to get the global offset (since G5x offsets are not rotated)
@@ -3927,7 +3927,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
           rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.xy_rotation_rad); //FIXME
           settings->transform.g5xOffset.xy_rotation_rad = 0; //FIXME
     // Verify this:
-    const PositionArray verify_global_notool = desired_csys.inverse_notool(commanded_local);
+    const PositionArray verify_global_notool = desired_csys.inverse_from_nose(commanded_local);
 
     // DEBUG only
     if (max(abs_diff(verify_global_notool, current_local_p)) > 1e-8) {
@@ -3943,7 +3943,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
   if (p_int == settings->origin_index) {        /* system is currently used */
     // Update the current position and transformation too (since the one we're changing is active
     rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.xy_rotation_rad); //FIXME
-    settings->current = desired_csys.inverse_notool(pos_notool_global);
+    settings->current = desired_csys.inverse_from_nose(pos_notool_global);
     settings->transform = desired_csys;
 
     SET_G5X_OFFSET(p_int, UNPACK_POSITION_ARRAY_REF(desired_csys.g5xOffset.shift.tf));
@@ -5258,15 +5258,15 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
       double v_end;
       double w_end;
 
-      find_relative(USER_TO_PROGRAM_LEN(settings->parameters[5181]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5182]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5183]),
-                    USER_TO_PROGRAM_ANG(settings->parameters[5184]),
-                    USER_TO_PROGRAM_ANG(settings->parameters[5185]),
-                    USER_TO_PROGRAM_ANG(settings->parameters[5186]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5187]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5188]),
-                    USER_TO_PROGRAM_LEN(settings->parameters[5189]),
+      find_relative(USER_TO_PROGRAM_LEN(settings->parameters[G30_X]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G30_Y]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G30_Z]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[G30_A]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[G30_B]),
+                    USER_TO_PROGRAM_ANG(settings->parameters[G30_C]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G30_U]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G30_V]),
+                    USER_TO_PROGRAM_LEN(settings->parameters[G30_W]),
                     &end_x, &end_y, &end_z,
                     &AA_end, &BB_end, &CC_end, 
                     &u_end, &v_end, &w_end, settings);

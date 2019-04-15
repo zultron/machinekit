@@ -23,6 +23,8 @@
 #include "rs274ngc_return.hh"
 #include "interp_internal.hh"	// interpreter private definitions
 #include "rs274ngc_interp.hh"
+#include "interp_parameter_def.hh"
+using namespace interp_param_global;
 
 /****************************************************************************/
 
@@ -441,35 +443,35 @@ int Interp::set_probe_data(setup_pointer settings)       //!< pointer to machine
 {
   double a, b, c;
   refresh_actual_position(settings);
-  settings->parameters[5061] = GET_EXTERNAL_PROBE_POSITION_X();
-  settings->parameters[5062] = GET_EXTERNAL_PROBE_POSITION_Y();
-  settings->parameters[5063] = GET_EXTERNAL_PROBE_POSITION_Z();
+  settings->parameters[G38_X] = GET_EXTERNAL_PROBE_POSITION_X();
+  settings->parameters[G38_Y] = GET_EXTERNAL_PROBE_POSITION_Y();
+  settings->parameters[G38_Z] = GET_EXTERNAL_PROBE_POSITION_Z();
 
   a = GET_EXTERNAL_PROBE_POSITION_A();
   if(settings->a_axis_wrapped) {
       a = fmod(a, 360.0);
       if(a<0) a += 360.0;
   }
-  settings->parameters[5064] = a;
+  settings->parameters[G38_A] = a;
 
   b = GET_EXTERNAL_PROBE_POSITION_B();
   if(settings->b_axis_wrapped) {
       b = fmod(b, 360.0);
       if(b<0) b += 360.0;
   }
-  settings->parameters[5065] = b;
+  settings->parameters[G38_B] = b;
 
   c = GET_EXTERNAL_PROBE_POSITION_C();
   if(settings->c_axis_wrapped) {
       c = fmod(c, 360.0);
       if(c<0) c += 360.0;
   }
-  settings->parameters[5066] = c;
+  settings->parameters[G38_C] = c;
 
-  settings->parameters[5067] = GET_EXTERNAL_PROBE_POSITION_U();
-  settings->parameters[5068] = GET_EXTERNAL_PROBE_POSITION_V();
-  settings->parameters[5069] = GET_EXTERNAL_PROBE_POSITION_W();
-  settings->parameters[5070] = (double) GET_EXTERNAL_PROBE_TRIPPED_VALUE();
+  settings->parameters[G38_U] = GET_EXTERNAL_PROBE_POSITION_U();
+  settings->parameters[G38_V] = GET_EXTERNAL_PROBE_POSITION_V();
+  settings->parameters[G38_W] = GET_EXTERNAL_PROBE_POSITION_W();
+  settings->parameters[G38_TRIPPED] = (double) GET_EXTERNAL_PROBE_TRIPPED_VALUE();
 
   // was an undocumented feature?: settings->parameters[5067] = GET_EXTERNAL_PROBE_VALUE();
   return INTERP_OK;

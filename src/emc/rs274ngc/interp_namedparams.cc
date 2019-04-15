@@ -39,6 +39,8 @@ namespace bp = boost::python;
 #include "interp_internal.hh"
 #include "rs274ngc_interp.hh"
 #include "inifile.hh"
+#include "interp_parameter_def.hh"
+using namespace interp_param_global;
 
 // for HAL pin variables
 #include "hal.h"
@@ -707,19 +709,19 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_PROBE_RESULT:  // expected probe trip completed
-	*value = _setup.parameters[5070];
+  *value = _setup.parameters[G38_TRIPPED];
 	break;
 
     case NP_PROBE_X:  // probe x trip position
-	*value = _setup.parameters[5061];
+  *value = _setup.parameters[G38_X];
 	break;
 
     case NP_PROBE_Y:  // probe y trip position
-	*value = _setup.parameters[5062];
+  *value = _setup.parameters[G38_Y];
 	break;
 
     case NP_PROBE_Z:  // probe z trip position
-	*value = _setup.parameters[5063];
+  *value = _setup.parameters[G38_Z];
 	break;
 
     case NP_PROBE_A:  // probe a trip position

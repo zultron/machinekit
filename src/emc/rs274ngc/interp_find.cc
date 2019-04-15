@@ -30,6 +30,8 @@
 #include "interp_parameter_def.hh"
 #include "rotary_axis_util.hh"
 
+using namespace interp_param_global;
+
 /****************************************************************************/
 
 /*! find_arc_length
@@ -509,20 +511,20 @@ int Interp::findWorkOffset(int origin, RotateShiftTransform &work_offset, bool c
 int Interp::storeWorkOffset(const RotateShiftTransform & work_offset, int origin)
 {
   if (origin <= 9) {
-    const size_t prm_offset = (size_t)origin * 20;
+    const size_t prm_offset = (size_t)origin * 20 + 5200;
 
     extract_axes(convertsProgramToUser().forward(work_offset.shift.tf),
-                _setup.parameters[5201 + prm_offset],
-                _setup.parameters[5202 + prm_offset],
-                _setup.parameters[5203 + prm_offset],
-                _setup.parameters[5204 + prm_offset],
-                _setup.parameters[5205 + prm_offset],
-                _setup.parameters[5206 + prm_offset],
-                _setup.parameters[5207 + prm_offset],
-                _setup.parameters[5208 + prm_offset],
-                _setup.parameters[5209 + prm_offset]);
+                _setup.parameters[1 + prm_offset],
+                _setup.parameters[2 + prm_offset],
+                _setup.parameters[3 + prm_offset],
+                _setup.parameters[4 + prm_offset],
+                _setup.parameters[5 + prm_offset],
+                _setup.parameters[6 + prm_offset],
+                _setup.parameters[7 + prm_offset],
+                _setup.parameters[8 + prm_offset],
+                _setup.parameters[9 + prm_offset]);
 
-    _setup.parameters[5210 + prm_offset] = PROGRAM_TO_USER_ANG(work_offset.getXYRotationDeg()); // Rotation
+    _setup.parameters[10 + prm_offset] = PROGRAM_TO_USER_ANG(work_offset.getXYRotationDeg()); // Rotation
   }
   _setup.work_offsets[origin] = work_offset;
   return INTERP_OK;
@@ -530,11 +532,11 @@ int Interp::storeWorkOffset(const RotateShiftTransform & work_offset, int origin
 
 /** @overload for returning a position array directly */
 int Interp::find_current_in_system(setup_pointer s, int system, PositionArray &out) {
-    PositionArray pos_notool = s->transform.forward_notool(s->current);
+    PositionArray pos_nose = s->transform.forward_to_nose(s->current);
     LocalToMachineTransform tmp = s->transform;
     CHP(findWorkOffset(system, tmp.g5xOffset));
 
-    out = tmp.inverse_notool(pos_notool);
+    out = tmp.inverse_from_nose(pos_nose);
     return INTERP_OK;
 }
 
@@ -576,28 +578,29 @@ int Interp::find_current_in_system(setup_pointer s, int system,
     *v += s->transform.g5xOffset.shift.tf[V];
     *w += s->transform.g5xOffset.shift.tf[W];
 
-    *x -= USER_TO_PROGRAM_LEN(s->parameters[5201 + system * 20]);
-    *y -= USER_TO_PROGRAM_LEN(s->parameters[5202 + system * 20]);
-    *z -= USER_TO_PROGRAM_LEN(s->parameters[5203 + system * 20]);
-    *a -= USER_TO_PROGRAM_ANG(s->parameters[5204 + system * 20]);
-    *b -= USER_TO_PROGRAM_ANG(s->parameters[5205 + system * 20]);
-    *c -= USER_TO_PROGRAM_ANG(s->parameters[5206 + system * 20]);
-    *u -= USER_TO_PROGRAM_LEN(s->parameters[5207 + system * 20]);
-    *v -= USER_TO_PROGRAM_LEN(s->parameters[5208 + system * 20]);
-    *w -= USER_TO_PROGRAM_LEN(s->parameters[5209 + system * 20]);
+    const int prm_idx_base = 5200 + system * 20;
+    *x -= USER_TO_PROGRAM_LEN(s->parameters[1 + prm_idx_base]);
+    *y -= USER_TO_PROGRAM_LEN(s->parameters[2 + prm_idx_base]);
+    *z -= USER_TO_PROGRAM_LEN(s->parameters[3 + prm_idx_base]);
+    *a -= USER_TO_PROGRAM_ANG(s->parameters[4 + prm_idx_base]);
+    *b -= USER_TO_PROGRAM_ANG(s->parameters[5 + prm_idx_base]);
+    *c -= USER_TO_PROGRAM_ANG(s->parameters[6 + prm_idx_base]);
+    *u -= USER_TO_PROGRAM_LEN(s->parameters[7 + prm_idx_base]);
+    *v -= USER_TO_PROGRAM_LEN(s->parameters[8 + prm_idx_base]);
+    *w -= USER_TO_PROGRAM_LEN(s->parameters[9 + prm_idx_base]);
 
-    rotate(x, y, -s->parameters[5210 + system * 20]);
+    rotate(x, y, -s->parameters[10 + prm_idx_base]);
 
-    if (s->parameters[5210]) {
-        *x -= USER_TO_PROGRAM_LEN(s->parameters[5211]);
-        *y -= USER_TO_PROGRAM_LEN(s->parameters[5212]);
-        *z -= USER_TO_PROGRAM_LEN(s->parameters[5213]);
-        *a -= USER_TO_PROGRAM_ANG(s->parameters[5214]);
-        *b -= USER_TO_PROGRAM_ANG(s->parameters[5215]);
-        *c -= USER_TO_PROGRAM_ANG(s->parameters[5216]);
-        *u -= USER_TO_PROGRAM_LEN(s->parameters[5217]);
-        *v -= USER_TO_PROGRAM_LEN(s->parameters[5218]);
-        *w -= USER_TO_PROGRAM_LEN(s->parameters[5219]);
+    if (s->parameters[G92_APPLIED]) {
+        *x -= USER_TO_PROGRAM_LEN(s->parameters[G92_X]);
+        *y -= USER_TO_PROGRAM_LEN(s->parameters[G92_Y]);
+        *z -= USER_TO_PROGRAM_LEN(s->parameters[G92_Z]);
+        *a -= USER_TO_PROGRAM_ANG(s->parameters[G92_A]);
+        *b -= USER_TO_PROGRAM_ANG(s->parameters[G92_B]);
+        *c -= USER_TO_PROGRAM_ANG(s->parameters[G92_C]);
+        *u -= USER_TO_PROGRAM_LEN(s->parameters[G92_U]);
+        *v -= USER_TO_PROGRAM_LEN(s->parameters[G92_V]);
+        *w -= USER_TO_PROGRAM_LEN(s->parameters[G92_W]);
     }
 
     return INTERP_OK;
@@ -653,28 +656,29 @@ int Interp::find_current_in_system_without_tlo(setup_pointer s, int system,
     *v += s->transform.toolOffset.tf[V];
     *w += s->transform.toolOffset.tf[W];
 
-    *x -= USER_TO_PROGRAM_LEN(s->parameters[5201 + system * 20]);
-    *y -= USER_TO_PROGRAM_LEN(s->parameters[5202 + system * 20]);
-    *z -= USER_TO_PROGRAM_LEN(s->parameters[5203 + system * 20]);
-    *a -= USER_TO_PROGRAM_ANG(s->parameters[5204 + system * 20]);
-    *b -= USER_TO_PROGRAM_ANG(s->parameters[5205 + system * 20]);
-    *c -= USER_TO_PROGRAM_ANG(s->parameters[5206 + system * 20]);
-    *u -= USER_TO_PROGRAM_LEN(s->parameters[5207 + system * 20]);
-    *v -= USER_TO_PROGRAM_LEN(s->parameters[5208 + system * 20]);
-    *w -= USER_TO_PROGRAM_LEN(s->parameters[5209 + system * 20]);
+    const int prm_idx_base = 5200 + system * 20;
+    *x -= USER_TO_PROGRAM_LEN(s->parameters[1 + prm_idx_base]);
+    *y -= USER_TO_PROGRAM_LEN(s->parameters[2 + prm_idx_base]);
+    *z -= USER_TO_PROGRAM_LEN(s->parameters[3 + prm_idx_base]);
+    *a -= USER_TO_PROGRAM_ANG(s->parameters[4 + prm_idx_base]);
+    *b -= USER_TO_PROGRAM_ANG(s->parameters[5 + prm_idx_base]);
+    *c -= USER_TO_PROGRAM_ANG(s->parameters[6 + prm_idx_base]);
+    *u -= USER_TO_PROGRAM_LEN(s->parameters[7 + prm_idx_base]);
+    *v -= USER_TO_PROGRAM_LEN(s->parameters[8 + prm_idx_base]);
+    *w -= USER_TO_PROGRAM_LEN(s->parameters[9 + prm_idx_base]);
 
-    rotate(x, y, -s->parameters[5210 + system * 20]);
+    rotate(x, y, -s->parameters[10 + prm_idx_base]);
 
-    if (s->parameters[5210]) {
-        *x -= USER_TO_PROGRAM_LEN(s->parameters[5211]);
-        *y -= USER_TO_PROGRAM_LEN(s->parameters[5212]);
-        *z -= USER_TO_PROGRAM_LEN(s->parameters[5213]);
-        *a -= USER_TO_PROGRAM_ANG(s->parameters[5214]);
-        *b -= USER_TO_PROGRAM_ANG(s->parameters[5215]);
-        *c -= USER_TO_PROGRAM_ANG(s->parameters[5216]);
-        *u -= USER_TO_PROGRAM_LEN(s->parameters[5217]);
-        *v -= USER_TO_PROGRAM_LEN(s->parameters[5218]);
-        *w -= USER_TO_PROGRAM_LEN(s->parameters[5219]);
+    if (s->parameters[G92_APPLIED] != 0.0) {
+        *x -= USER_TO_PROGRAM_LEN(s->parameters[G92_X]);
+        *y -= USER_TO_PROGRAM_LEN(s->parameters[G92_Y]);
+        *z -= USER_TO_PROGRAM_LEN(s->parameters[G92_Z]);
+        *a -= USER_TO_PROGRAM_ANG(s->parameters[G92_A]);
+        *b -= USER_TO_PROGRAM_ANG(s->parameters[G92_B]);
+        *c -= USER_TO_PROGRAM_ANG(s->parameters[G92_C]);
+        *u -= USER_TO_PROGRAM_LEN(s->parameters[G92_U]);
+        *v -= USER_TO_PROGRAM_LEN(s->parameters[G92_V]);
+        *w -= USER_TO_PROGRAM_LEN(s->parameters[G92_W]);
     }
 
     return INTERP_OK;
@@ -686,7 +690,7 @@ int Interp::find_current_in_system_without_tlo(setup_pointer s, int system, Posi
     LocalToMachineTransform tmp = s->transform;
     CHP(findWorkOffset(system, tmp.g5xOffset));
     // NOTE: this is where the "tool offsets not applied" part happens.
-    out = tmp.inverse_notool(pos);
+    out = tmp.inverse_from_nose(pos);
     return INTERP_OK;
 }
 

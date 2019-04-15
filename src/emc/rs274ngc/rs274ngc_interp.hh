@@ -134,6 +134,9 @@ public:
 
  char *file(char *buf, size_t len) { file_name(buf, len); return buf; }
 
+private:
+ void copy_tool0_parameters();
+public:
  int init_tool_parameters();
  int default_tool_parameters();
  int set_tool_parameters();
