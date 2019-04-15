@@ -531,14 +531,14 @@ int Interp::storeG92PersistentParms(const ShiftTransform & tool_offset, setup_po
 }
 
 
-int Interp::findToolOffset(int pocket, ShiftTransform & work_offset)
+int Interp::find_tool_offset(int pocket, ShiftTransform & work_offset)
 {
   CHKS(pocket < 0 || pocket >= CANON_POCKETS_MAX, _("Invalid tool pocket number %d (must be between %d and %d"), pocket, 0, CANON_POCKETS_MAX);
   work_offset = convertsUserToProgram()(toArray(_setup.tool_table[pocket].offset));
   return INTERP_OK;
 }
 
-int Interp::storeToolOffset(const ShiftTransform & tool_offset, int pocket)
+int Interp::store_tool_offset(const ShiftTransform & tool_offset, int pocket)
 {
   CHKS(pocket < 0 || pocket >= CANON_POCKETS_MAX, _("Invalid tool pocket number %d (must be between %d and %d"), pocket, 0, CANON_POCKETS_MAX);
   _setup.tool_table[pocket].offset = toEmcPose(convertsProgramToUser()(tool_offset.tf));
