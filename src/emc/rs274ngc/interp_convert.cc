@@ -1122,20 +1122,13 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
   } else if ((g_code == G_92_1) || (g_code == G_92_2)) {
 
     // Clear current offset (first removing it from the interp position)
-    settings->parameters[G92_APPLIED] = 0.0;
-    settings->current += settings->transform.g92Offset.tf;
-    settings->transform.g92Offset.tf.fill(0);
+    settings->transform.g92Offset.apply_fwd(settings->current);
+    settings->transform.g92Offset = ShiftTransform();
 
     if (g_code == G_92_1) {
-      settings->parameters[G92_X] = 0.0;
-      settings->parameters[G92_Y] = 0.0;
-      settings->parameters[G92_Z] = 0.0;
-      settings->parameters[G92_A] = 0.0;
-      settings->parameters[G92_B] = 0.0;
-      settings->parameters[G92_C] = 0.0;
-      settings->parameters[G92_U] = 0.0;
-      settings->parameters[G92_V] = 0.0;
-      settings->parameters[G92_W] = 0.0;
+      clearPersistentG92Parameters();
+    } else {
+      settings->parameters[G92_APPLIED] = 0.0;
     }
   } else if (g_code == G_92_3) {
     settings->parameters[G92_APPLIED] = 1.0;
@@ -4269,9 +4262,8 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 
 /*10*/
     if (! settings->persistent_g92_offset)
-	// Clear G92/G52 offset
-	for (index=5210; index<=5219; index++)
-	    settings->parameters[index] = 0;
+      // Clear G92/G52 offset
+      clearPersistentG92Parameters();
 
     if (block->m_modes[4] == 30) {
       PALLET_SHUTTLE();

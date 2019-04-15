@@ -376,6 +376,7 @@ public:
                               double center_x, double center_y, int turn,
                               double x2, double y2, double z2);
 
+ int clearPersistentG92Parameters();
  int findToolOffset(int pocket, ShiftTransform & work_offset);
  int storeToolOffset(ShiftTransform const &tool_offset, int pocket);
  int findWorkOffset(int origin, RotateShiftTransform & work_offset, bool create_if_missing = false);

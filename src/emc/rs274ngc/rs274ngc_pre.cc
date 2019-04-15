@@ -1158,9 +1158,7 @@ int Interp::init()
   // edit the restored parameters here.
   if (! _setup.persistent_g92_offset) {
     // Persistence disabled:  clear g92 parameters
-    for (int k = 5210; k < 5220; k++) {
-      _setup.parameters[k] = 0;
-    }
+    clearPersistentG92Parameters();
   }
 
   if (_setup.parameters[G92_APPLIED]) {

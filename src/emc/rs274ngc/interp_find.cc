@@ -476,6 +476,28 @@ int Interp::find_relative(setup_pointer s, const PositionArray &command_local, P
     return INTERP_OK;
 }
 
+int Interp::clearPersistentG92Parameters()
+{
+  static constexpr InterpParameterIndex to_clear[] = {
+    G92_APPLIED,
+    G92_X,
+    G92_Y,
+    G92_Z,
+    G92_A,
+    G92_B,
+    G92_C,
+    G92_U,
+    G92_V,
+    G92_W,
+  };
+
+  for (auto prm : to_clear) {
+    _setup.parameters[prm] = 0.0;
+  }
+  return INTERP_OK;
+}
+
+
 int Interp::findToolOffset(int pocket, ShiftTransform & work_offset)
 {
   CHKS(pocket < 0 || pocket >= CANON_POCKETS_MAX, _("Invalid tool pocket number %d (must be between %d and %d"), pocket, 0, CANON_POCKETS_MAX);
