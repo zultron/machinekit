@@ -377,6 +377,7 @@ public:
                               double x2, double y2, double z2);
 
  int findToolOffset(int pocket, ShiftTransform & work_offset);
+ int storeToolOffset(ShiftTransform const &tool_offset, int pocket);
  int findWorkOffset(int origin, RotateShiftTransform & work_offset, bool create_if_missing = false);
  int storeWorkOffset(RotateShiftTransform const &work_offset, int origin);
  int find_current_in_system(setup_pointer s, int system, double *x, double *y, double *z,
