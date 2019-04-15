@@ -17,6 +17,8 @@ struct TransformBase
     virtual PositionArray forward(PositionArray const &p) const;
     virtual PositionArray inverse(PositionArray const &p) const;
 
+    virtual PositionArray operator()(PositionArray const &p) const;
+
     virtual PositionArray forward_relative(PositionArray const &p) const;
     virtual PositionArray inverse_relative(PositionArray const &p) const;
 

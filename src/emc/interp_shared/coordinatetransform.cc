@@ -26,6 +26,11 @@ PositionArray TransformBase::inverse(const PositionArray & p) const
     return tmp;
 }
 
+PositionArray TransformBase::operator()(const PositionArray & p) const
+{
+  return forward(p);
+}
+
 PositionArray TransformBase::forward_relative(const PositionArray & p) const
 {
     PositionArray tmp(p);
