@@ -194,6 +194,7 @@ enum InterpParameterIndex {
     TOOL_BACK_ANGLE=5412,
 // 5413 - Tool Orientation. Volatile.
     TOOL_ORIENTATION=5413,
+    TOOL_ORIENT_TIMEOUT=5414,
 // 5420-5428 - Current relative position in the active coordinate system including all offsets and in the current program units for X, Y, Z, A, B, C, U, V & W, volatile.
     RELATIVE_POSITION_X=5420,
     RELATIVE_POSITION_Y,
