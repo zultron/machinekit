@@ -1146,7 +1146,7 @@ int Interp::init()
   _setup.plane = GET_EXTERNAL_PLANE();
 
   int origin = _setup.origin_index;
-  CHP(findWorkOffset(origin, _setup.transform.g5xOffset));
+  CHP(find_work_offset(origin, _setup.transform.g5xOffset));
 
   write_and_update_state_tag(nullptr);
 

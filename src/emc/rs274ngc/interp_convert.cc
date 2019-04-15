@@ -1606,7 +1606,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   settings->parameters[ACTIVE_WORK_CSYS] = (double) origin;
 
   // load the origin of the newly-selected system
-  CHP(findWorkOffset(origin, settings->transform.g5xOffset));
+  CHP(find_work_offset(origin, settings->transform.g5xOffset));
 
   // FIXME force the extended work offsets to match parameters (user might have changed them underneath us)
   settings->work_offsets[origin] = settings->transform.g5xOffset;
@@ -3844,7 +3844,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
 
   // Starting from the active overall transform, find the effective transform for the desired work offset number
   LocalToMachineTransform desired_csys = settings->transform;
-  CHP(findWorkOffset(p_int, desired_csys.g5xOffset, true)); // In program units
+  CHP(find_work_offset(p_int, desired_csys.g5xOffset, true)); // In program units
 
   if (block->l_number == 20) {
     CHKS((block->r_flag), _("R not allowed in G10 L20"));

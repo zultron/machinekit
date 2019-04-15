@@ -546,7 +546,7 @@ int Interp::storeToolOffset(const ShiftTransform & tool_offset, int pocket)
 }
 
 /** Finds the specified work offset in program units. */
-int Interp::findWorkOffset(int origin, RotateShiftTransform &work_offset, bool create_if_missing)
+int Interp::find_work_offset(int origin, RotateShiftTransform &work_offset, bool create_if_missing)
 {
   if (origin <= 9) {
     // Parameters take precedence
@@ -603,7 +603,7 @@ int Interp::store_work_offset(const RotateShiftTransform & work_offset, int orig
 int Interp::find_current_in_system(setup_pointer s, int system, PositionArray &out) {
     PositionArray pos_nose = s->transform.forward_to_nose(s->current);
     LocalToMachineTransform tmp = s->transform;
-    CHP(findWorkOffset(system, tmp.g5xOffset));
+    CHP(find_work_offset(system, tmp.g5xOffset));
 
     out = tmp.inverse_from_nose(pos_nose);
     return INTERP_OK;
@@ -617,7 +617,7 @@ int Interp::find_current_in_system_without_tlo(setup_pointer s, int system, Posi
 {
     PositionArray pos = s->transform.forward(s->current);
     LocalToMachineTransform tmp = s->transform;
-    CHP(findWorkOffset(system, tmp.g5xOffset));
+    CHP(find_work_offset(system, tmp.g5xOffset));
     // NOTE: this is where the "tool offsets not applied" part happens.
     out = tmp.inverse_from_nose(pos);
     return INTERP_OK;

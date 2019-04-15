@@ -381,7 +381,7 @@ public:
  int storeG92PersistentParms(ShiftTransform const &tool_offset, setup_pointer settings);
  int findToolOffset(int pocket, ShiftTransform & work_offset);
  int storeToolOffset(ShiftTransform const &tool_offset, int pocket);
- int findWorkOffset(int origin, RotateShiftTransform & work_offset, bool create_if_missing = false);
+ int find_work_offset(int origin, RotateShiftTransform & work_offset, bool create_if_missing = false);
  int store_work_offset(RotateShiftTransform const &work_offset, int origin);
  int find_current_in_system(setup_pointer s, int system, PositionArray &out);
  int find_current_in_system_without_tlo(setup_pointer s, int system, PositionArray & out);
