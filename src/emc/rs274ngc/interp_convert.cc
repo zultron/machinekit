@@ -1636,21 +1636,8 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   settings->origin_index = origin;
   settings->parameters[ACTIVE_WORK_CSYS] = (double) origin;
 
-  UnitsTransform user_to_program_units = convertsUserToProgram();
-
   // load the origin of the newly-selected system
-  settings->transform.g5xOffset.shift.tf = user_to_program_units.forward(toArray(
-                                                                             settings->parameters[getWorkOffsetIdx(origin, X)],
-                                                                             settings->parameters[getWorkOffsetIdx(origin, Y)],
-                                                                             settings->parameters[getWorkOffsetIdx(origin, Z)],
-                                                                             settings->parameters[getWorkOffsetIdx(origin, A)],
-                                                                             settings->parameters[getWorkOffsetIdx(origin, B)],
-                                                                             settings->parameters[getWorkOffsetIdx(origin, C)],
-                                                                             settings->parameters[getWorkOffsetIdx(origin, U)],
-                                                                             settings->parameters[getWorkOffsetIdx(origin, V)],
-                                                                             settings->parameters[getWorkOffsetIdx(origin, W)]
-                                                                             ));
-  settings->transform.g5xOffset.setXYRotationDeg(settings->parameters[getWorkOffsetIdx(origin, R)]);
+  CHP(findWorkOffset(origin, settings->transform.g5xOffset));
 
   // FIXME force the extended work offsets to match parameters (user might have changed them underneath us)
   settings->work_offsets[origin] = settings->transform.g5xOffset;
