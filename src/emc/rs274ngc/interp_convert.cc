@@ -3871,7 +3871,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
   } else {
     // L2 means directly edit the work offset of the specified CSYS
     desired_csys.g5xOffset = getAxisWordsFromBlock(block, desired_csys.g5xOffset);
-    storeWorkOffset(desired_csys.g5xOffset, p_int);
+    store_work_offset(desired_csys.g5xOffset, p_int);
   }
 
   write_and_update_state_tag(nullptr);

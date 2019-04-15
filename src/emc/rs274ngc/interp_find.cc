@@ -577,7 +577,7 @@ int Interp::findWorkOffset(int origin, RotateShiftTransform &work_offset, bool c
   return INTERP_OK;
 }
 
-int Interp::storeWorkOffset(const RotateShiftTransform & work_offset, int origin)
+int Interp::store_work_offset(const RotateShiftTransform & work_offset, int origin)
 {
   if (origin <= 9) {
     const size_t prm_offset = (size_t)origin * 20 + 5200;
