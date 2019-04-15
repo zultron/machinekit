@@ -292,10 +292,12 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.feed = _setup.feed_rate;        /* 1 feed rate       */
     state.speed = _setup.speed;    /* 2 spindle speed   */
 
-    for (offset=0; offset<9; offset++)
-	for (axis=0; axis<9; axis++)
-	    state.offsets[offset*9+axis] =
-		_setup.parameters[5221 + offset*20 + axis];
+    for (offset=0; offset<9; offset++) {
+        for (axis=0; axis<9; axis++) {
+            state.offsets[offset*9+axis] =
+            _setup.parameters[5221 + offset*20 + axis];
+        }
+    }
 
     UPDATE_TAG(state);
     return 0;
