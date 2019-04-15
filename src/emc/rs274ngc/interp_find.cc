@@ -566,7 +566,7 @@ int Interp::storeWorkOffset(const RotateShiftTransform & work_offset, int origin
   return INTERP_OK;
 }
 
-/** @overload for returning a position array directly */
+/** Find what current coordinates would be if the specified coordinate system was active. */
 int Interp::find_current_in_system(setup_pointer s, int system, PositionArray &out) {
     PositionArray pos_nose = s->transform.forward_to_nose(s->current);
     LocalToMachineTransform tmp = s->transform;
@@ -576,150 +576,10 @@ int Interp::find_current_in_system(setup_pointer s, int system, PositionArray &o
     return INTERP_OK;
 }
 
-// find what the current coordinates would be if we were in a different system
-
-int Interp::find_current_in_system(setup_pointer s, int system,
-                                   double *x, double *y, double *z,
-                                   double *a, double *b, double *c,
-                                   double *u, double *v, double *w) {
-    *x = s->current[X];
-    *y = s->current[Y];
-    *z = s->current[Z];
-    *a = s->current[A];
-    *b = s->current[B];
-    *c = s->current[C];
-    *u = s->current[U];
-    *v = s->current[V];
-    *w = s->current[W];
-
-    *x += s->transform.g92Offset.tf[X];
-    *y += s->transform.g92Offset.tf[Y];
-    *z += s->transform.g92Offset.tf[Z];
-    *a += s->transform.g92Offset.tf[A];
-    *b += s->transform.g92Offset.tf[B];
-    *c += s->transform.g92Offset.tf[C];
-    *u += s->transform.g92Offset.tf[U];
-    *v += s->transform.g92Offset.tf[V];
-    *w += s->transform.g92Offset.tf[W];
-
-    rotate(x, y, s->transform.g5xOffset.getXYRotationDeg()); //FIXME transform
-
-    *x += s->transform.g5xOffset.shift.tf[X];
-    *y += s->transform.g5xOffset.shift.tf[Y];
-    *z += s->transform.g5xOffset.shift.tf[Z];
-    *a += s->transform.g5xOffset.shift.tf[A];
-    *b += s->transform.g5xOffset.shift.tf[B];
-    *c += s->transform.g5xOffset.shift.tf[C];
-    *u += s->transform.g5xOffset.shift.tf[U];
-    *v += s->transform.g5xOffset.shift.tf[V];
-    *w += s->transform.g5xOffset.shift.tf[W];
-
-    const int prm_idx_base = 5200 + system * 20;
-    *x -= USER_TO_PROGRAM_LEN(s->parameters[1 + prm_idx_base]);
-    *y -= USER_TO_PROGRAM_LEN(s->parameters[2 + prm_idx_base]);
-    *z -= USER_TO_PROGRAM_LEN(s->parameters[3 + prm_idx_base]);
-    *a -= USER_TO_PROGRAM_ANG(s->parameters[4 + prm_idx_base]);
-    *b -= USER_TO_PROGRAM_ANG(s->parameters[5 + prm_idx_base]);
-    *c -= USER_TO_PROGRAM_ANG(s->parameters[6 + prm_idx_base]);
-    *u -= USER_TO_PROGRAM_LEN(s->parameters[7 + prm_idx_base]);
-    *v -= USER_TO_PROGRAM_LEN(s->parameters[8 + prm_idx_base]);
-    *w -= USER_TO_PROGRAM_LEN(s->parameters[9 + prm_idx_base]);
-
-    rotate(x, y, -s->parameters[10 + prm_idx_base]);
-
-    if (s->parameters[G92_APPLIED]) {
-        *x -= USER_TO_PROGRAM_LEN(s->parameters[G92_X]);
-        *y -= USER_TO_PROGRAM_LEN(s->parameters[G92_Y]);
-        *z -= USER_TO_PROGRAM_LEN(s->parameters[G92_Z]);
-        *a -= USER_TO_PROGRAM_ANG(s->parameters[G92_A]);
-        *b -= USER_TO_PROGRAM_ANG(s->parameters[G92_B]);
-        *c -= USER_TO_PROGRAM_ANG(s->parameters[G92_C]);
-        *u -= USER_TO_PROGRAM_LEN(s->parameters[G92_U]);
-        *v -= USER_TO_PROGRAM_LEN(s->parameters[G92_V]);
-        *w -= USER_TO_PROGRAM_LEN(s->parameters[G92_W]);
-    }
-
-    return INTERP_OK;
-}
-
-
-// find what the current coordinates would be if we were in a different system,
-// if TLO were unapplied
-
-int Interp::find_current_in_system_without_tlo(setup_pointer s, int system,
-                                   double *x, double *y, double *z,
-                                   double *a, double *b, double *c,
-                                   double *u, double *v, double *w) {
-    *x = s->current[X];
-    *y = s->current[Y];
-    *z = s->current[Z];
-    *a = s->current[A];
-    *b = s->current[B];
-    *c = s->current[C];
-    *u = s->current[U];
-    *v = s->current[V];
-    *w = s->current[W];
-
-    *x += s->transform.g92Offset.tf[X];
-    *y += s->transform.g92Offset.tf[Y];
-    *z += s->transform.g92Offset.tf[Z];
-    *a += s->transform.g92Offset.tf[A];
-    *b += s->transform.g92Offset.tf[B];
-    *c += s->transform.g92Offset.tf[C];
-    *u += s->transform.g92Offset.tf[U];
-    *v += s->transform.g92Offset.tf[V];
-    *w += s->transform.g92Offset.tf[W];
-
-    rotate(x, y, s->transform.g5xOffset.getXYRotationDeg()); // FIXME transform
-
-    *x += s->transform.g5xOffset.shift.tf[X];
-    *y += s->transform.g5xOffset.shift.tf[Y];
-    *z += s->transform.g5xOffset.shift.tf[Z];
-    *a += s->transform.g5xOffset.shift.tf[A];
-    *b += s->transform.g5xOffset.shift.tf[B];
-    *c += s->transform.g5xOffset.shift.tf[C];
-    *u += s->transform.g5xOffset.shift.tf[U];
-    *v += s->transform.g5xOffset.shift.tf[V];
-    *w += s->transform.g5xOffset.shift.tf[W];
-
-    *x += s->transform.toolOffset.tf[X];
-    *y += s->transform.toolOffset.tf[Y];
-    *z += s->transform.toolOffset.tf[Z];
-    *a += s->transform.toolOffset.tf[A];
-    *b += s->transform.toolOffset.tf[B];
-    *c += s->transform.toolOffset.tf[C];
-    *u += s->transform.toolOffset.tf[U];
-    *v += s->transform.toolOffset.tf[V];
-    *w += s->transform.toolOffset.tf[W];
-
-    const int prm_idx_base = 5200 + system * 20;
-    *x -= USER_TO_PROGRAM_LEN(s->parameters[1 + prm_idx_base]);
-    *y -= USER_TO_PROGRAM_LEN(s->parameters[2 + prm_idx_base]);
-    *z -= USER_TO_PROGRAM_LEN(s->parameters[3 + prm_idx_base]);
-    *a -= USER_TO_PROGRAM_ANG(s->parameters[4 + prm_idx_base]);
-    *b -= USER_TO_PROGRAM_ANG(s->parameters[5 + prm_idx_base]);
-    *c -= USER_TO_PROGRAM_ANG(s->parameters[6 + prm_idx_base]);
-    *u -= USER_TO_PROGRAM_LEN(s->parameters[7 + prm_idx_base]);
-    *v -= USER_TO_PROGRAM_LEN(s->parameters[8 + prm_idx_base]);
-    *w -= USER_TO_PROGRAM_LEN(s->parameters[9 + prm_idx_base]);
-
-    rotate(x, y, -s->parameters[10 + prm_idx_base]);
-
-    if (s->parameters[G92_APPLIED] != 0.0) {
-        *x -= USER_TO_PROGRAM_LEN(s->parameters[G92_X]);
-        *y -= USER_TO_PROGRAM_LEN(s->parameters[G92_Y]);
-        *z -= USER_TO_PROGRAM_LEN(s->parameters[G92_Z]);
-        *a -= USER_TO_PROGRAM_ANG(s->parameters[G92_A]);
-        *b -= USER_TO_PROGRAM_ANG(s->parameters[G92_B]);
-        *c -= USER_TO_PROGRAM_ANG(s->parameters[G92_C]);
-        *u -= USER_TO_PROGRAM_LEN(s->parameters[G92_U]);
-        *v -= USER_TO_PROGRAM_LEN(s->parameters[G92_V]);
-        *w -= USER_TO_PROGRAM_LEN(s->parameters[G92_W]);
-    }
-
-    return INTERP_OK;
-}
-
+/**
+ * Find what current coordinates would be if the specified coordinate system was active, and tool offsets were not applied.
+ * Think of this as spindle-nose coordinates rather than tool-tip coordinates.
+ */
 int Interp::find_current_in_system_without_tlo(setup_pointer s, int system, PositionArray &out)
 {
     PositionArray pos = s->transform.forward(s->current);

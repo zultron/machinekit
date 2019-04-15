@@ -3883,8 +3883,8 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
     // The work offset increases by the difference between the current local position, and the desired local position
     // new_offset_global = old_offset_global + rotate_to_global(old_local - new_local)
     // Expect that a smaller "new" coordinate gives a bigger offset value
-          rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.xy_rotation_rad); //FIXME
-          settings->transform.g5xOffset.xy_rotation_rad = 0; //FIXME
+    rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.getXYRotationDeg());
+    settings->transform.g5xOffset.setXYRotationDeg(0);
     // Verify this:
     const PositionArray verify_global_notool = desired_csys.inverse_from_nose(commanded_local);
 
@@ -3901,7 +3901,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
   write_and_update_state_tag(nullptr);
   if (p_int == settings->origin_index) {        /* system is currently used */
     // Update the current position and transformation too (since the one we're changing is active
-    rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.xy_rotation_rad); //FIXME
+    rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.getXYRotationDeg()); //FIXME
     settings->current = desired_csys.inverse_from_nose(pos_notool_global);
     settings->transform = desired_csys;
 

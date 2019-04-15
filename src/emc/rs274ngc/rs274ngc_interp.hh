@@ -381,13 +381,7 @@ public:
  int storeToolOffset(ShiftTransform const &tool_offset, int pocket);
  int findWorkOffset(int origin, RotateShiftTransform & work_offset, bool create_if_missing = false);
  int storeWorkOffset(RotateShiftTransform const &work_offset, int origin);
- int find_current_in_system(setup_pointer s, int system, double *x, double *y, double *z,
-                            double *a, double *b, double *c,
-                            double *u, double *v, double *w) __attribute__ ((deprecated));
  int find_current_in_system(setup_pointer s, int system, PositionArray &out);
- int find_current_in_system_without_tlo(setup_pointer s, int system, double *x, double *y, double *z,
-                            double *a, double *b, double *c,
-                            double *u, double *v, double *w) __attribute__ ((deprecated));
  int find_current_in_system_without_tlo(setup_pointer s, int system, PositionArray & out);
  int find_ends(block_pointer block, setup_pointer settings,
                double *px, double *py, double *pz,
