@@ -62,6 +62,8 @@ struct UnitsTransform : public TransformBase
 
     void apply_fwd(PositionArray &p) const;
     void apply_inv(PositionArray &p) const;
+
+    UnitsTransform &invert_scale();
 };
 
 struct LocalToMachineTransform : public TransformBase

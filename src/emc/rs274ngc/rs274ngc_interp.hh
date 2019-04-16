@@ -704,16 +704,19 @@ int read_inputs(setup_pointer settings);
         AXIS_MASK_U =  64, AXIS_MASK_V = 128, AXIS_MASK_W = 256,
     };
 
-private:
-    double TO_PROG_LEN(double mm);
-    double FROM_PROG_LEN(double);
-    double TO_PROG_ANG(double);
-    double FROM_PROG_ANG(double);
+    double getProgLenUnits() const;
+    static double getProgAngUnits();
+    double TO_PROG_LEN(double mm) const;
+    double FROM_PROG_LEN(double) const;
+    double TO_PROG_ANG(double) const;
+    double FROM_PROG_ANG(double) const;
 
-    double USER_TO_PROGRAM_LEN(double u);
-    double PROGRAM_TO_USER_LEN(double p);
-    double USER_TO_PROGRAM_ANG(double u);
-    double PROGRAM_TO_USER_ANG(double p);
+    double USER_TO_PROGRAM_LEN(double u) const;
+    double PROGRAM_TO_USER_LEN(double p) const;
+    double USER_TO_PROGRAM_ANG(double u) const;
+    double PROGRAM_TO_USER_ANG(double p) const;
+    UnitsTransform convertsUserToProgram() const;
+    UnitsTransform convertsProgramToUser() const;
 };
 
 #endif

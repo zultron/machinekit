@@ -134,6 +134,13 @@ LocalToMachineTransform::LocalToMachineTransform() :
 {
 }
 
+UnitsTransform & UnitsTransform::invert_scale()
+{
+    linear_fwd = 1.0 / linear_fwd;
+    angular_fwd = 1.0 / angular_fwd;
+    return *this;
+}
+
 void LocalToMachineTransform::apply_fwd(PositionArray & p) const
 {
     g92Offset.apply_fwd(p);

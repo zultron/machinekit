@@ -121,41 +121,64 @@ const char *Interp::interp_status(int status) {
     return statustext;
 }
 
-double Interp::TO_PROG_LEN(double mm)
+double Interp::getProgLenUnits() const
 {
-    return ((mm) / (_setup.length_units == CANON_UNITS_INCHES ? 25.4 : _setup.length_units == CANON_UNITS_CM ? 10.0 : 1.0));
+    return (_setup.length_units == CANON_UNITS_INCHES ? 25.4 : _setup.length_units == CANON_UNITS_CM ? 10.0 : 1.0);
 }
 
-double Interp::TO_PROG_ANG(double deg) {
-    return deg;
+double Interp::getProgAngUnits()
+{
+    // TODO implement me if we ever do rads or grads or something
+    return 1.0;
 }
 
-double Interp::FROM_PROG_LEN(double prog) {
-    return ((prog) * (_setup.length_units == CANON_UNITS_INCHES ? 25.4 : _setup.length_units == CANON_UNITS_CM ? 10.0 : 1.0));
+double Interp::TO_PROG_LEN(double mm) const
+{
+    return mm / getProgLenUnits();
 }
 
-double Interp::FROM_PROG_ANG(double prog) {
-    return prog;
+double Interp::TO_PROG_ANG(double deg) const {
+    return deg / getProgAngUnits();
 }
 
-double Interp::USER_TO_PROGRAM_LEN(double u)
+double Interp::FROM_PROG_LEN(double prog) const {
+    return prog * getProgLenUnits();
+}
+
+double Interp::FROM_PROG_ANG(double prog) const {
+    return prog * getProgAngUnits();
+}
+
+double Interp::USER_TO_PROGRAM_LEN(double u) const
 {
     return TO_PROG_LEN(FROM_EXT_LEN(u));
 }
 
-double Interp::PROGRAM_TO_USER_LEN(double p)
+double Interp::PROGRAM_TO_USER_LEN(double p) const
 {
     return TO_EXT_LEN(FROM_PROG_LEN(p));
 }
 
-double Interp::USER_TO_PROGRAM_ANG(double u)
+double Interp::USER_TO_PROGRAM_ANG(double u) const
 {
     return TO_PROG_ANG(FROM_EXT_ANG(u));
 }
 
-double Interp::PROGRAM_TO_USER_ANG(double p)
+double Interp::PROGRAM_TO_USER_ANG(double p) const
 {
     return TO_EXT_ANG(FROM_PROG_ANG(p));
+}
+
+UnitsTransform Interp::convertsUserToProgram() const
+{
+    return convertsProgramToUser().invert_scale();
+}
+
+UnitsTransform Interp::convertsProgramToUser() const
+{
+    return UnitsTransform(
+                getProgLenUnits() * GET_EXTERNAL_LENGTH_UNITS(),
+                getProgAngUnits() * GET_EXTERNAL_ANGLE_UNITS());
 }
 
 extern struct _inittab builtin_modules[];
