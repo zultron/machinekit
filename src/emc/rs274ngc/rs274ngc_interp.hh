@@ -379,8 +379,8 @@ public:
  int clearPersistentG92Parameters(setup_pointer settings);
  ShiftTransform getG92ActiveOffset(setup_pointer settings);
  int storeG92PersistentParms(ShiftTransform const &tool_offset, setup_pointer settings);
- int find_tool_offset(int pocket, ShiftTransform & work_offset);
- int store_tool_offset(ShiftTransform const &tool_offset, int pocket);
+ int find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & work_offset);
+ int store_tool_offset(setup_pointer settings, ShiftTransform const &tool_offset, int pocket);
  int find_work_offset(int origin, RotateShiftTransform & work_offset, bool create_if_missing = false);
  int store_work_offset(RotateShiftTransform const &work_offset, int origin);
  int find_current_in_system(setup_pointer s, int system, PositionArray &out);

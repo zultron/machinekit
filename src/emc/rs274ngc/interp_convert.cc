@@ -3597,9 +3597,9 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
 
     if(direct) {
        ShiftTransform tool_offset;
-       CHP(find_tool_offset(pocket, tool_offset));
+       CHP(find_tool_offset(settings, pocket, tool_offset));
        tool_offset.tf = getAxisWordsFromBlock(block, tool_offset.tf);
-       store_tool_offset(tool_offset, pocket);
+       store_tool_offset(settings, tool_offset, pocket);
 
     } else {
         // L = 10 or 11
