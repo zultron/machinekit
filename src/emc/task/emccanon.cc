@@ -1717,6 +1717,11 @@ void ARC_FEED(int line_number,
         case CANON_PLANE_YZ:
             shift_ind = -1;
             break;
+        case CANON_PLANE_UV:
+        case CANON_PLANE_VW:
+        case CANON_PLANE_UW:
+            CANON_ERROR("Can't set plane in UVW axes, assuming XY");
+            break;
     }
 
     canon_debug("active plane is %d, shift_ind is %d\n",activePlane,shift_ind);
