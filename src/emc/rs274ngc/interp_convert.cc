@@ -1547,6 +1547,11 @@ void Interp::rotate(double *x, double *y, double theta) {
     *y = yy;
 }
 
+int Interp::convert_coordinate_system(int g_code, setup_pointer settings)
+{
+  return convert_coordinate_system(g_code, -1, settings);
+}
+
 int Interp::convert_coordinate_system(int g_code,        //!< g_code called (must be one listed above)
                                       int p_word, //!< optional P word provided to G54.1 only
                                       setup_pointer settings)    //!< pointer to machine settings
