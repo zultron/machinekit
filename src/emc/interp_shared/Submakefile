@@ -4,6 +4,7 @@ LIB_SRCS := \
     emc/interp_shared/StateTag.cc \
     emc/interp_shared/positionarray.cc \
     emc/interp_shared/coordinatetransform.cc \
+    emc/interp_shared/rotary_axis_util.cc \
 
 USERSRCS += $(LIB_SRCS)
 

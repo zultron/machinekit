@@ -29,6 +29,7 @@
 #include "interp_tolerances.hh"
 #include "interp_queue.hh"
 #include "interp_parameter_def.hh"
+#include <rotary_axis_util.hh>
 
 #include "units.h"
 #define TOOL_INSIDE_ARC(side, turn) (((side)==LEFT&&(turn)>0)||((side)==RIGHT&&(turn)<0))
@@ -2262,52 +2263,34 @@ int Interp::convert_savehome(int code, block_pointer block, setup_pointer s) {
         ERS(_("Cannot set reference point with cutter compensation in effect"));
     }
 
-
-    double x = PROGRAM_TO_USER_LEN(s->current[X] + s->tool_offset.tran.x + s->transform.g5xOffset.shift.tf[X] + s->transform.g92Offset.tf[X]);
-    double y = PROGRAM_TO_USER_LEN(s->current[Y] + s->tool_offset.tran.y + s->transform.g5xOffset.shift.tf[Y] + s->transform.g92Offset.tf[Y]);
-    double z = PROGRAM_TO_USER_LEN(s->current[Z] + s->tool_offset.tran.z + s->transform.g5xOffset.shift.tf[Z] + s->transform.g92Offset.tf[Z]);
-    double a = PROGRAM_TO_USER_ANG(s->current[A] + s->tool_offset.a + s->transform.g5xOffset.shift.tf[A] + s->transform.g92Offset.tf[A]);
-    double b = PROGRAM_TO_USER_ANG(s->current[B] + s->tool_offset.b + s->transform.g5xOffset.shift.tf[B] + s->transform.g92Offset.tf[B]);
-    double c = PROGRAM_TO_USER_ANG(s->current[C] + s->tool_offset.c + s->transform.g5xOffset.shift.tf[C] + s->transform.g92Offset.tf[C]);
-    double u = PROGRAM_TO_USER_LEN(s->current[U] + s->tool_offset.u + s->transform.g5xOffset.shift.tf[U] + s->transform.g92Offset.tf[U]);
-    double v = PROGRAM_TO_USER_LEN(s->current[V] + s->tool_offset.v + s->transform.g5xOffset.shift.tf[V] + s->transform.g92Offset.tf[V]);
-    double w = PROGRAM_TO_USER_LEN(s->current[W] + s->tool_offset.w + s->transform.g5xOffset.shift.tf[W] + s->transform.g92Offset.tf[W]);
-
-    if(s->a_axis_wrapped) {
-        a = fmod(a, 360.0);
-        if(a<0) a += 360.0;
-    }
-
-    if(s->b_axis_wrapped) {
-        b = fmod(b, 360.0);
-        if(b<0) b += 360.0;
-    }
-
-    if(s->c_axis_wrapped) {
-        c = fmod(c, 360.0);
-        if(c<0) c += 360.0;
-    }
+    // Old code looked like this
+    // double x = PROGRAM_TO_USER_LEN(s->current[X] + s->tool_offset.tran.x + s->transform.g5xOffset.shift.tf[X] + s->transform.g92Offset.tf[X]);
+    PositionArray home_pos = convertsProgramToUser().forward(s->transform.forward(s->current));
+    WrapsRotaryAxes wrap(s->a_axis_wrapped, s->b_axis_wrapped, s->c_axis_wrapped);
+    home_pos = wrap(home_pos);
 
     if(code == G_28_1) {
-        p[5161] = x;
-        p[5162] = y;
-        p[5163] = z;
-        p[5164] = a;
-        p[5165] = b;
-        p[5166] = c;
-        p[5167] = u;
-        p[5168] = v;
-        p[5169] = w;
+        extract_axes(home_pos,
+                     p[G28_X],
+                     p[G28_Y],
+                     p[G28_Z],
+                     p[G28_A],
+                     p[G28_B],
+                     p[G28_C],
+                     p[G28_U],
+                     p[G28_V],
+                     p[G28_W]);
     } else if(code == G_30_1) {
-        p[5181] = x;
-        p[5182] = y;
-        p[5183] = z;
-        p[5184] = a;
-        p[5185] = b;
-        p[5186] = c;
-        p[5187] = u;
-        p[5188] = v;
-        p[5189] = w;
+        extract_axes(home_pos,
+                     p[G30_X],
+                     p[G30_Y],
+                     p[G30_Z],
+                     p[G30_A],
+                     p[G30_B],
+                     p[G30_C],
+                     p[G30_U],
+                     p[G30_V],
+                     p[G30_W]);
     } else {
         ERS("BUG: Code not G28.1 or G38.1");
     }
