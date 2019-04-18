@@ -2557,6 +2557,7 @@ int Interp::ini_load(const char *filename)
     }
 
 
+    char parameter_file_name[LINELEN] = "";
     if (NULL != (inistring = inifile.Find("PARAMETER_FILE", "RS274NGC"))) {
         // see if filename starts with '~'
         if (inistring[0] == '~') {
@@ -2572,22 +2573,19 @@ int Interp::ini_load(const char *filename)
             }
         }
 
-	// found it
-	strncpy(_parameter_file_name, inistring, LINELEN);
-        if (_parameter_file_name[LINELEN-1] != '\0') {
+        strncpy(parameter_file_name, inistring, LINELEN);
+
+        if (parameter_file_name[LINELEN-1] != '\0') {
             logDebug("%s:[RS274NGC]PARAMETER_FILE is too long (max len %d)", filename, LINELEN-1);
-            inifile.Close();
-            _parameter_file_name[0] = '\0';
-            return -1;
+        } else {
+          logDebug("found PARAMETER_FILE:%s:", parameter_file_name);
         }
-        logDebug("found PARAMETER_FILE:%s:", _parameter_file_name);
     } else {
-	// not found, leave RS274NGC_PARAMETER_FILE alone
+      // not found, leave RS274NGC_PARAMETER_FILE alone
         logDebug("did not find PARAMETER_FILE");
-        inifile.Close();
-        _parameter_file_name[0] = '\0';
-        return -1;
     }
+    SET_PARAMETER_FILE_NAME(parameter_file_name);
+    CHKS(strlen(parameter_file_name) > 0, _("Parameter file name is missing"));
 
     // close it
     inifile.Close();

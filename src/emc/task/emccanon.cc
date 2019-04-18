@@ -198,7 +198,7 @@ static void send_tag_msg(void) {
 /**
  * Kludge wrapper for send line number msg
  */
-extern void SEND_TAG_MSG(void) {
+void SEND_TAG_MSG(void) {
     //Prevent line echo message from interupting a motion sequence
     flush_segments();
     send_tag_msg();
@@ -210,8 +210,8 @@ extern void SEND_TAG_MSG(void) {
   defined here that are used for convenience but no longer have decls
   in the 6-axis canon.hh. So, we declare them here now.
 */
-extern void CANON_ERROR(const char *fmt, ...) __attribute__((format(printf,1,2)));
-extern void CANON_MSG(const char *fmt, ...) __attribute__((format(printf,1,2)));
+void CANON_ERROR(const char *fmt, ...) __attribute__((format(printf,1,2)));
+void CANON_MSG(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
 /*
   Origin offsets, length units, and active plane are all maintained
@@ -3125,8 +3125,12 @@ int GET_EXTERNAL_POCKETS_MAX()
     return CANON_POCKETS_MAX;
 }
 
-char _parameter_file_name[LINELEN];	/* Not static.Driver
-					   writes */
+static char _parameter_file_name[LINELEN];
+
+void SET_PARAMETER_FILE_NAME(const char *name)
+{
+  strncpy(_parameter_file_name, name, PARAMETER_FILE_NAME_LENGTH);
+}
 
 void GET_EXTERNAL_PARAMETER_FILE_NAME(char *file_name,	/* string: to copy
 							   file name into */
