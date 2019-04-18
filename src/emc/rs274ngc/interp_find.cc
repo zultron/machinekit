@@ -28,6 +28,7 @@
 #include "rs274ngc_interp.hh"
 #include "units.h"
 #include "interp_parameter_def.hh"
+#include "rotary_axis_util.hh"
 
 /****************************************************************************/
 
@@ -380,6 +381,11 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
     return INTERP_OK;
 }
 
+static bool angle_too_big(double absolute_ax_position) {
+    bool outside_limits = absolute_ax_position < -360.0 || absolute_ax_position > 360.0;
+    return !outside_limits;
+}
+
 /****************************************************************************/
 
 /*! find_relative
@@ -455,6 +461,17 @@ int Interp::find_relative(double x1,     //!< absolute x position
   *v_2 = v_1 - settings->transform.g5xOffset.shift.tf[V] - settings->transform.g92Offset.tf[V] - settings->transform.toolOffset.tf[V];
   *w_2 = w_1 - settings->transform.g5xOffset.shift.tf[W] - settings->transform.g92Offset.tf[W] - settings->transform.toolOffset.tf[W];
   return INTERP_OK;
+}
+
+int Interp::find_relative(setup_pointer s, const PositionArray &command_local, PositionArray &relative_local)
+{
+    PositionArray command_global = s->transform.inverse(command_local);
+    CHKS(s->a_axis_wrapped && angle_too_big(command_global[A]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), command_global[A], 'A');
+    CHKS(s->b_axis_wrapped && angle_too_big(command_global[B]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), command_global[B], 'B');
+    CHKS(s->c_axis_wrapped && angle_too_big(command_global[C]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), command_global[C], 'C');
+    UnwrapsRotaryAxes unwrap(s->a_axis_wrapped, s->b_axis_wrapped, s->c_axis_wrapped);
+    relative_local = unwrap(command_global, command_local, s->current);
+    return INTERP_OK;
 }
 
 /** Finds the specified work offset in program units. */
@@ -647,6 +664,14 @@ int Interp::find_current_in_system_without_tlo(setup_pointer s, int system,
     }
 
     return INTERP_OK;
+}
+
+PositionArray Interp::find_current_in_system_without_tlo(setup_pointer s, int system)
+{
+    PositionArray pos = s->transform.forward(s->current);
+    LocalToMachineTransform tmp = s->transform;
+    tmp.g5xOffset = findWorkOffset(system, s->parameters);
+    return tmp.inverse(pos);
 }
 
 /****************************************************************************/

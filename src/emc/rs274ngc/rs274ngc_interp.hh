@@ -382,6 +382,7 @@ public:
  int find_current_in_system_without_tlo(setup_pointer s, int system, double *x, double *y, double *z,
                             double *a, double *b, double *c,
                             double *u, double *v, double *w);
+ PositionArray find_current_in_system_without_tlo(setup_pointer s, int system);
  int find_ends(block_pointer block, setup_pointer settings,
                double *px, double *py, double *pz,
                double *AA_p, double *BB_p, double *CC_p,
@@ -393,6 +394,9 @@ public:
                    double *AA_2, double *BB_2, double *CC_2,
                    double *u_2, double *v_2, double *w_2,
                    setup_pointer settings);
+ int find_relative(setup_pointer s,
+               PositionArray const &current_local,
+               PositionArray &out);
  double find_straight_length(double x2, double y2, double z2,
                              double AA_2, double BB_2, double CC_2,
                              double u_w, double v_2, double w_2,
