@@ -589,6 +589,7 @@ struct setup_struct
 
   int get_toplevel_line_number();
 
+  // TODO PURGE
   double AA_axis_offset;        // A-axis g92 offset
   double AA_current;            // current A-axis position
   double AA_origin_offset;      // A-axis origin offset
@@ -602,14 +603,18 @@ struct setup_struct
   double u_axis_offset, u_current, u_origin_offset;
   double v_axis_offset, v_current, v_origin_offset;
   double w_axis_offset, w_current, w_origin_offset;
+  // END PURGE
 
   ModalState modal_state;
 
   bool arc_not_allowed;       // we just exited cutter compensation, so we error if the next move isn't straight
+
+  // TODO PURGE
   double axis_offset_x;         // X-axis g92 offset
   double axis_offset_y;         // Y-axis g92 offset
   double axis_offset_z;         // Z-axis g92 offset
-  // block block1;                 // parsed next block
+  // END PURGE
+
   // stack of controlling blocks for remap execution
   block blocks[MAX_NESTED_REMAPS];
   // index into blocks, points to currently controlling block
@@ -621,9 +626,13 @@ struct setup_struct
   char blocktext[LINELEN];   // linetext downcased, white space gone
   CANON_MOTION_MODE control_mode;       // exact path or cutting mode
   int current_pocket;             // carousel slot number of current tool
+
+  // TODO PURGE
   double current_x;             // current X-axis position
   double current_y;             // current Y-axis position
   double current_z;             // current Z-axis position
+  // END PURGE
+
   double cutter_comp_radius;    // current cutter compensation radius
   int cutter_comp_orientation;  // current cutter compensation tool orientation
   int cutter_comp_side;         // current cutter compensation side
@@ -653,10 +662,14 @@ struct setup_struct
   bool mist;                  // whether mist coolant is on
   int motion_mode;              // active G-code for motion
   int origin_index;             // active origin (1=G54 to 9=G59.3)
+
+  // TODO PURGE
   double origin_offset_x;       // g5x offset x
   double origin_offset_y;       // g5x offset y
   double origin_offset_z;       // g5x offset z
   double rotation_xy;         // rotation of coordinate system around Z, in degrees
+  // END PURGE
+
   double parameters[interp_param_global::RS274NGC_MAX_PARAMETERS];   // system parameters
   int parameter_occurrence;     // parameter buffer index
   int parameter_numbers[MAX_NAMED_PARAMETERS];    // parameter number buffer
@@ -689,7 +702,11 @@ struct setup_struct
   CANON_DIRECTION spindle_turning;      // direction spindle is turning
   char stack[STACK_LEN][STACK_ENTRY_LEN];      // stack of calls for error reporting
   int stack_index;              // index into the stack
+
+  // TODO PURGE
   EmcPose tool_offset;          // tool length offset
+  // END PURGE
+
   int pockets_max;                 // number of pockets in carousel (including pocket 0, the spindle)
   CANON_TOOL_TABLE tool_table[CANON_POCKETS_MAX];      // index is pocket number
   double traverse_rate;         // rate for traverse motions
