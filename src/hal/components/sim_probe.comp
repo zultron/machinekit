@@ -3,19 +3,25 @@ component sim_probe "Simple probe simulator";
 description
 """
 When enabled, the simulated probe output will go high when the input
-(x_in,y_in,z_in) coordinates are within a bounding box or cylinder
-centered at (x,y) with width w and height z.
+(x_in,y_in,z_in) coordinates are within a bounding boss/pocket box or cylinder
+centered at (x,y) with width w, height h, and height z.
 """;
 pin in bit enable "Enable";
 pin in float x "X center";
 pin in float y "Y center";
 pin in float w "Width (or diameter)";
-pin in float z "Z top";
-pin in u32 shape "Shape of boss: 0 = rectangle; 1 = cylinder";
+pin in float h "Height";
+pin in float z "Z top of boss or pocket";
+pin in u32 shape "Shape of boss: 0 = rectangle; 1 = Z axis cylinder; 2 = X axis cylinder (y,z)";
 pin in float x_in "X input";
 pin in float y_in "Y input";
 pin in float z_in "Z input";
+pin in float effective_tip_diameter "Effective probe tip diameter";
+pin in float probe_length "Probe length";
+pin in bit pocket "Pocket";
 pin out bit out "Simulated probe output";
+
+pin out float z_in_length "z-in with probe length applied";
 
 function _ fp;
 license "GPL";
@@ -23,18 +29,54 @@ license "GPL";
 
 #include "rtapi_math.h"
 FUNCTION(_) {
+  float distance_between_centers;
+  float tip_radius = effective_tip_diameter / 2.0;
+  float height = h;
+  z_in_length = z_in - probe_length;
+
+  // if h is zero make equal to width
+  if (h == 0.0) {
+    height = w;
+  }
+
   switch (shape) {
-    case 0: // rectangle
-      out = (enable &&
-             x_in >= (x-w/2) && x_in <= (x+w/2) &&
-             y_in >= (y-w/2) && y_in <= (y+w/2) &&
-             z_in <= z);
+    case 0: // rectangular
+      if (pocket) {
+        out = (enable &&
+              (x_in - tip_radius <= x - w/2      || x_in + tip_radius >= x + w/2)      ||
+              (y_in - tip_radius <= y - height/2 || y_in + tip_radius >= y + height/2) ||
+              z_in_length <= z);
+      }
+      else {
+        // boss
+        out = (enable &&
+              (x_in + tip_radius >= x - w/2)      && (x_in - tip_radius <= x + w/2)      &&
+              (y_in + tip_radius >= y - height/2) && (y_in - tip_radius <= y + height/2) &&
+              z_in_length <= z);
+      }
       break;
-    case 1: // cylinder
-      out = (enable &&
-             sqrt(pow(x-x_in,2) + pow(y-y_in,2)) < w/2 &&
-             z_in <= z);
+
+    case 1: // cylinder oriented along Z axis
+      distance_between_centers = sqrt(pow(x - x_in, 2) + pow(y - y_in, 2));
+      if (pocket) {
+        // tip is outside pocket if distance between centers plus tip radius is greater than or equal to pocket radius
+        out = (enable &&
+              (distance_between_centers + tip_radius >= w/2) &&
+              z_in_length <= z);
+      }
+      else {
+        // boss
+        // distance between centers must be less than or equal to the sum of the radii
+        out = (enable &&
+              (distance_between_centers <= (w + effective_tip_diameter)/2) &&
+              z_in_length <= z);
+      }
       break;
+
+    case 2: // cylinder oriented along X axis such as in a 4th axis
+      out = 0;
+      break;
+
     default:
       out = 0;
   }
