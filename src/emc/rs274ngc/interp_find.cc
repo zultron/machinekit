@@ -601,6 +601,7 @@ int Interp::store_work_offset(const RotateShiftTransform & work_offset, int orig
 
 /** Find what current coordinates would be if the specified coordinate system was active. */
 int Interp::find_current_in_system(setup_pointer s, int system, PositionArray &out) {
+    // Tool offset is not changed by switching work offsets, so we don't have to transform fully into tool tip coordinates, just spindle nose coordinates
     PositionArray pos_nose = s->transform.forward_to_nose(s->current);
     LocalToMachineTransform tmp = s->transform;
     CHP(find_work_offset(system, tmp.g5xOffset));

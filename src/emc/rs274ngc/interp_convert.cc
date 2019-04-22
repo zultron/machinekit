@@ -3845,7 +3845,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
        (_("Cannot change the active coordinate system with cutter radius compensation on")));
 
   // Get the global position for later reference
-  const PositionArray pos_notool_global = settings->transform.forward_to_nose(settings->current);
+  const PositionArray pos_current_nose = settings->transform.forward_to_nose(settings->current);
 
   // Starting from the active overall transform, find the effective transform for the desired work offset number
   LocalToMachineTransform desired_csys = settings->transform;
@@ -3856,34 +3856,40 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
 
     // L20 means update the work offset so that the current local position matches the commanded values
     // This does not change the global position
-    PositionArray current_local_p = desired_csys.inverse_from_nose(pos_notool_global); // Current LOCAL position in program units, as if p_int cysys was active
-    PositionArray commanded_local = getAxisWordsFromBlock(block, current_local_p); // in program units
+    PositionArray pos_local_in_csys = desired_csys.inverse_from_nose(pos_current_nose); // Current LOCAL position in program units, as if p_int cysys was active
+    PositionArray commanded_local = getAxisWordsFromBlock(block, pos_local_in_csys); // in program units
 
     // Unrotate the displacement vector to get the global offset (since G5x offsets are not rotated)
     //
     // The work offset increases by the difference between the current local position, and the desired local position
     // new_offset_global = old_offset_global + rotate_to_global(old_local - new_local)
     // Expect that a smaller "new" coordinate gives a bigger offset value
-    rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.getXYRotationDeg());
-    settings->transform.g5xOffset.setXYRotationDeg(0);
-    // Verify this:
-    const PositionArray verify_global_notool = desired_csys.inverse_from_nose(commanded_local);
+    desired_csys.g5xOffset.shift.tf -= (desired_csys.forward_to_nose(commanded_local) - pos_current_nose);
+    const PositionArray verify_pos_commanded_nose = desired_csys.forward_to_nose(commanded_local);
 
     // DEBUG only
-    if (max(abs_diff(verify_global_notool, current_local_p)) > 1e-8) {
-        ERS("machine global position mismatch after G10 L20");
+    if (max(abs_diff(verify_pos_commanded_nose, pos_current_nose)) > 1e-8) {
+        ERS("machine global position mismatch after G10 L20, commanded nose [%f %f %f],  current nose [%f %f %f],  current [%f %f %f]",
+            verify_pos_commanded_nose[X],
+            verify_pos_commanded_nose[Y],
+            verify_pos_commanded_nose[Z],
+            pos_current_nose[X],
+            pos_current_nose[Y],
+            pos_current_nose[Z],
+            settings->current[X],
+            settings->current[Y],
+            settings->current[Z]
+            );
     }
   } else {
     // L2 means directly edit the work offset of the specified CSYS
     desired_csys.g5xOffset = getAxisWordsFromBlock(block, desired_csys.g5xOffset);
-    store_work_offset(desired_csys.g5xOffset, p_int);
   }
+  store_work_offset(desired_csys.g5xOffset, p_int);
 
   write_and_update_state_tag(nullptr);
   if (p_int == settings->origin_index) {        /* system is currently used */
-    // Update the current position and transformation too (since the one we're changing is active
-    rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.getXYRotationDeg()); //FIXME
-    settings->current = desired_csys.inverse_from_nose(pos_notool_global);
+    settings->current = desired_csys.inverse_from_nose(pos_current_nose);
     settings->transform = desired_csys;
 
     SET_G5X_OFFSET(p_int, UNPACK_POSITION_ARRAY_REF(desired_csys.g5xOffset.shift.tf));
