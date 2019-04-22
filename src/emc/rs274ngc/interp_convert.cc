@@ -2510,98 +2510,39 @@ XXX Other distance items in the settings (such as the various parameters
 for cycles) need testing.
 
 */
-
 int Interp::convert_length_units(int g_code,     //!< g_code being executed (must be G_20 or G_21)
                                 setup_pointer settings) //!< pointer to machine settings                 
 {
-  if (g_code == G_20) {
-    USE_LENGTH_UNITS(CANON_UNITS_INCHES);
-    if (settings->length_units != CANON_UNITS_INCHES) {
-      settings->length_units = CANON_UNITS_INCHES;
-      settings->current[X] = (settings->current[X] * INCH_PER_MM);
-      settings->current[Y] = (settings->current[Y] * INCH_PER_MM);
-      settings->current[Z] = (settings->current[Z] * INCH_PER_MM);
-      settings->program_x = (settings->program_x * INCH_PER_MM);
-      settings->program_y = (settings->program_y * INCH_PER_MM);
-      settings->program_z = (settings->program_z * INCH_PER_MM);
-      qc_scale(INCH_PER_MM);
-      settings->cutter_comp_radius *= INCH_PER_MM;
-      settings->transform.g92Offset.tf[X] = (settings->transform.g92Offset.tf[X] * INCH_PER_MM);
-      settings->transform.g92Offset.tf[Y] = (settings->transform.g92Offset.tf[Y] * INCH_PER_MM);
-      settings->transform.g92Offset.tf[Z] = (settings->transform.g92Offset.tf[Z] * INCH_PER_MM);
-      settings->transform.g5xOffset.shift.tf[X] = (settings->transform.g5xOffset.shift.tf[X] * INCH_PER_MM);
-      settings->transform.g5xOffset.shift.tf[Y] = (settings->transform.g5xOffset.shift.tf[Y] * INCH_PER_MM);
-      settings->transform.g5xOffset.shift.tf[Z] = (settings->transform.g5xOffset.shift.tf[Z] * INCH_PER_MM);
+    CANON_UNITS new_len_unit;
+    if (g_code == G_20) {
+        new_len_unit = CANON_UNITS_INCHES;
+    } else if (g_code == G_21) {
+        new_len_unit = CANON_UNITS_MM;
+    } else
+        ERS(NCE_BUG_CODE_NOT_G20_OR_G21);
 
-      settings->current[U] = (settings->current[U] * INCH_PER_MM);
-      settings->current[V] = (settings->current[V] * INCH_PER_MM);
-      settings->current[W] = (settings->current[W] * INCH_PER_MM);
-      settings->transform.g92Offset.tf[U] = (settings->transform.g92Offset.tf[U] * INCH_PER_MM);
-      settings->transform.g92Offset.tf[V] = (settings->transform.g92Offset.tf[V] * INCH_PER_MM);
-      settings->transform.g92Offset.tf[W] = (settings->transform.g92Offset.tf[W] * INCH_PER_MM);
-      settings->transform.g5xOffset.shift.tf[U] = (settings->transform.g5xOffset.shift.tf[U] * INCH_PER_MM);
-      settings->transform.g5xOffset.shift.tf[V] = (settings->transform.g5xOffset.shift.tf[V] * INCH_PER_MM);
-      settings->transform.g5xOffset.shift.tf[W] = (settings->transform.g5xOffset.shift.tf[W] * INCH_PER_MM);
+    USE_LENGTH_UNITS(new_len_unit);
+    if (settings->length_units != new_len_unit) {
+        // Convert interpreter internal units
+        UnitsTransform to_new_units(UnitsPerMM[new_len_unit] * mmPerUnit[settings->length_units], 1.0);
+        settings->length_units = new_len_unit;
+        to_new_units.apply_fwd(settings->current);
 
-      settings->tool_offset.tran.x = GET_EXTERNAL_TOOL_LENGTH_XOFFSET();
-      settings->tool_offset.tran.y = GET_EXTERNAL_TOOL_LENGTH_YOFFSET();
-      settings->tool_offset.tran.z = GET_EXTERNAL_TOOL_LENGTH_ZOFFSET();
-      settings->tool_offset.a = GET_EXTERNAL_TOOL_LENGTH_AOFFSET();
-      settings->tool_offset.b = GET_EXTERNAL_TOOL_LENGTH_BOFFSET();
-      settings->tool_offset.c = GET_EXTERNAL_TOOL_LENGTH_COFFSET();
-      settings->tool_offset.u = GET_EXTERNAL_TOOL_LENGTH_UOFFSET();
-      settings->tool_offset.v = GET_EXTERNAL_TOOL_LENGTH_VOFFSET();
-      settings->tool_offset.w = GET_EXTERNAL_TOOL_LENGTH_WOFFSET();
-      settings->feed_rate = GET_EXTERNAL_FEED_RATE();
+        settings->program_x = (settings->program_x * to_new_units.linear_fwd);
+        settings->program_y = (settings->program_y * to_new_units.linear_fwd);
+        settings->program_z = (settings->program_z * to_new_units.linear_fwd);
 
-      write_and_update_state_tag(NULL);
+        qc_scale(to_new_units.linear_fwd);
+        settings->cutter_comp_radius *= to_new_units.linear_fwd;
+
+        // Handles axis, work, and tool offsets
+        settings->transform.rescaleAllTransforms(to_new_units);
+
+        settings->feed_rate = GET_EXTERNAL_FEED_RATE();
+        write_and_update_state_tag(nullptr);
+        SEND_TAG_MSG(); // G20/G21 don't send their own messages
     }
-  } else if (g_code == G_21) {
-    USE_LENGTH_UNITS(CANON_UNITS_MM);
-    if (settings->length_units != CANON_UNITS_MM) {
-      settings->length_units = CANON_UNITS_MM;
-      settings->current[X] = (settings->current[X] * MM_PER_INCH);
-      settings->current[Y] = (settings->current[Y] * MM_PER_INCH);
-      settings->current[Z] = (settings->current[Z] * MM_PER_INCH);
-      settings->program_x = (settings->program_x * MM_PER_INCH);
-      settings->program_y = (settings->program_y * MM_PER_INCH);
-      settings->program_z = (settings->program_z * MM_PER_INCH);
-      qc_scale(MM_PER_INCH);
-      settings->cutter_comp_radius *= MM_PER_INCH;
-      settings->transform.g92Offset.tf[X] = (settings->transform.g92Offset.tf[X] * MM_PER_INCH);
-      settings->transform.g92Offset.tf[Y] = (settings->transform.g92Offset.tf[Y] * MM_PER_INCH);
-      settings->transform.g92Offset.tf[Z] = (settings->transform.g92Offset.tf[Z] * MM_PER_INCH);
-      settings->transform.g5xOffset.shift.tf[X] = (settings->transform.g5xOffset.shift.tf[X] * MM_PER_INCH);
-      settings->transform.g5xOffset.shift.tf[Y] = (settings->transform.g5xOffset.shift.tf[Y] * MM_PER_INCH);
-      settings->transform.g5xOffset.shift.tf[Z] = (settings->transform.g5xOffset.shift.tf[Z] * MM_PER_INCH);
-
-      settings->current[U] = (settings->current[U] * MM_PER_INCH);
-      settings->current[V] = (settings->current[V] * MM_PER_INCH);
-      settings->current[W] = (settings->current[W] * MM_PER_INCH);
-      settings->transform.g92Offset.tf[U] = (settings->transform.g92Offset.tf[U] * MM_PER_INCH);
-      settings->transform.g92Offset.tf[V] = (settings->transform.g92Offset.tf[V] * MM_PER_INCH);
-      settings->transform.g92Offset.tf[W] = (settings->transform.g92Offset.tf[W] * MM_PER_INCH);
-      settings->transform.g5xOffset.shift.tf[U] = (settings->transform.g5xOffset.shift.tf[U] * MM_PER_INCH);
-      settings->transform.g5xOffset.shift.tf[V] = (settings->transform.g5xOffset.shift.tf[V] * MM_PER_INCH);
-      settings->transform.g5xOffset.shift.tf[W] = (settings->transform.g5xOffset.shift.tf[W] * MM_PER_INCH);
-
-      settings->tool_offset.tran.x = GET_EXTERNAL_TOOL_LENGTH_XOFFSET();
-      settings->tool_offset.tran.y = GET_EXTERNAL_TOOL_LENGTH_YOFFSET();
-      settings->tool_offset.tran.z = GET_EXTERNAL_TOOL_LENGTH_ZOFFSET();
-      settings->tool_offset.a = GET_EXTERNAL_TOOL_LENGTH_AOFFSET();
-      settings->tool_offset.b = GET_EXTERNAL_TOOL_LENGTH_BOFFSET();
-      settings->tool_offset.c = GET_EXTERNAL_TOOL_LENGTH_COFFSET();
-      settings->tool_offset.u = GET_EXTERNAL_TOOL_LENGTH_UOFFSET();
-      settings->tool_offset.v = GET_EXTERNAL_TOOL_LENGTH_VOFFSET();
-      settings->tool_offset.w = GET_EXTERNAL_TOOL_LENGTH_WOFFSET();
-      settings->feed_rate = GET_EXTERNAL_FEED_RATE();
-
-      write_and_update_state_tag(NULL);
-    }
-  } else
-    ERS(NCE_BUG_CODE_NOT_G20_OR_G21);
-  SEND_TAG_MSG(); // G20/G21 don't send their own messages
-  return INTERP_OK;
+    return INTERP_OK;
 }
 
 
