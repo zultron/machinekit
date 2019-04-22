@@ -28,6 +28,7 @@ int execute_lines(Interp &interp, const char* (&lines)[N] )
 #define DECL_INIT_TEST_INTERP() \
     Interp test_interp = Interp(); \
     pinterp = &test_interp; \
+    reset_internals(); \
     setup_struct * const settings = &test_interp._setup; \
     test_interp.init(); \
     settings->tool_table[0].toolno = 1; \
