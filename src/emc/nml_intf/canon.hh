@@ -70,9 +70,27 @@ enum CANON_PLANE
 
 enum CANON_UNITS
 {
+    CANON_UNITS_INVALID = 0,
     CANON_UNITS_INCHES = 1,
     CANON_UNITS_MM,
     CANON_UNITS_CM,
+};
+
+// KLUDGE corresponds to canon units
+static constexpr double UnitsPerMM[] =
+{
+    1.0, // Default to mm for invalid case
+    1.0/25.4,
+    1.0,
+    0.1,
+};
+
+static constexpr double mmPerUnit[] =
+{
+    1.0, // Default to mm for invalid case
+    25.4,
+    1.0,
+    10.0,
 };
 
 enum CANON_MOTION_MODE

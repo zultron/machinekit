@@ -220,12 +220,11 @@ static CANON_PLANE activePlane = CANON_PLANE_XY;
 inline static double getProgramLengthUnits(void)
 {
     switch (lengthUnits) {
+    case CANON_UNITS_INVALID:
     case CANON_UNITS_INCHES:
-        return 25.4;
     case CANON_UNITS_CM:
-        return 10.0;
     case CANON_UNITS_MM:
-        return 1.0;
+        return mmPerUnit[lengthUnits];
     }
     return -1.0;
 }
