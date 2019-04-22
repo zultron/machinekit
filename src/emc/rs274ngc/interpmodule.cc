@@ -316,10 +316,10 @@ static inline void set_u_current(Interp &interp, double value)  {
     interp._setup.current[U] = value;
 }
 static inline double get_AA_axis_offset (Interp &interp)  {
-    return interp._setup.AA_axis_offset;
+    return interp._setup.transform.g92Offset.tf[A];
 }
 static inline void set_AA_axis_offset(Interp &interp, double value)  {
-    interp._setup.AA_axis_offset = value;
+    interp._setup.transform.g92Offset.tf[A] = value;
 }
 static inline double get_AA_current (Interp &interp)  {
     return interp._setup.current[A];
@@ -328,16 +328,16 @@ static inline void set_AA_current(Interp &interp, double value)  {
     interp._setup.current[A] = value;
 }
 static inline double get_AA_origin_offset (Interp &interp)  {
-    return interp._setup.AA_origin_offset;
+    return interp._setup.transform.g5xOffset.shift.tf[A];
 }
 static inline void set_AA_origin_offset(Interp &interp, double value)  {
-    interp._setup.AA_origin_offset = value;
+    interp._setup.transform.g5xOffset.shift.tf[A] = value;
 }
 static inline double get_BB_axis_offset (Interp &interp)  {
-    return interp._setup.BB_axis_offset;
+    return interp._setup.transform.g92Offset.tf[B];
 }
 static inline void set_BB_axis_offset(Interp &interp, double value)  {
-    interp._setup.BB_axis_offset = value;
+    interp._setup.transform.g92Offset.tf[B] = value;
 }
 static inline double get_BB_current (Interp &interp)  {
     return interp._setup.current[B];
@@ -346,16 +346,16 @@ static inline void set_BB_current(Interp &interp, double value)  {
     interp._setup.current[B] = value;
 }
 static inline double get_BB_origin_offset (Interp &interp)  {
-    return interp._setup.BB_origin_offset;
+    return interp._setup.transform.g5xOffset.shift.tf[B];
 }
 static inline void set_BB_origin_offset(Interp &interp, double value)  {
-    interp._setup.BB_origin_offset = value;
+    interp._setup.transform.g5xOffset.shift.tf[B] = value;
 }
 static inline double get_CC_axis_offset (Interp &interp)  {
-    return interp._setup.CC_axis_offset;
+    return interp._setup.transform.g92Offset.tf[C];
 }
 static inline void set_CC_axis_offset(Interp &interp, double value)  {
-    interp._setup.CC_axis_offset = value;
+    interp._setup.transform.g92Offset.tf[C] = value;
 }
 static inline double get_CC_current (Interp &interp)  {
     return interp._setup.current[C];
@@ -364,28 +364,28 @@ static inline void set_CC_current(Interp &interp, double value)  {
     interp._setup.current[C] = value;
 }
 static inline double get_CC_origin_offset (Interp &interp)  {
-    return interp._setup.CC_origin_offset;
+    return interp._setup.transform.g5xOffset.shift.tf[C];
 }
 static inline void set_CC_origin_offset(Interp &interp, double value)  {
-    interp._setup.CC_origin_offset = value;
+    interp._setup.transform.g5xOffset.shift.tf[C] = value;
 }
 static inline double get_axis_offset_x (Interp &interp)  {
-    return interp._setup.axis_offset_x;
+    return interp._setup.transform.g92Offset.tf[X];
 }
 static inline void set_axis_offset_x(Interp &interp, double value)  {
-    interp._setup.axis_offset_x = value;
+    interp._setup.transform.g92Offset.tf[X] = value;
 }
 static inline double get_axis_offset_y (Interp &interp)  {
-    return interp._setup.axis_offset_y;
+    return interp._setup.transform.g92Offset.tf[Y];
 }
 static inline void set_axis_offset_y(Interp &interp, double value)  {
-    interp._setup.axis_offset_y = value;
+    interp._setup.transform.g92Offset.tf[Y] = value;
 }
 static inline double get_axis_offset_z (Interp &interp)  {
-    return interp._setup.axis_offset_z;
+    return interp._setup.transform.g92Offset.tf[Z];
 }
 static inline void set_axis_offset_z(Interp &interp, double value)  {
-    interp._setup.axis_offset_z = value;
+    interp._setup.transform.g92Offset.tf[Z] = value;
 }
 static inline double get_current_x (Interp &interp)  {
     return interp._setup.current[X];
@@ -466,22 +466,22 @@ static inline void set_feed_rate(Interp &interp, double value)  {
     interp._setup.feed_rate = value;
 }
 static inline double get_origin_offset_x (Interp &interp)  {
-    return interp._setup.origin_offset_x;
+    return interp._setup.transform.g5xOffset.shift.tf[X];
 }
 static inline void set_origin_offset_x(Interp &interp, double value)  {
-    interp._setup.origin_offset_x = value;
+    interp._setup.transform.g5xOffset.shift.tf[X] = value;
 }
 static inline double get_origin_offset_y (Interp &interp)  {
-    return interp._setup.origin_offset_y;
+    return interp._setup.transform.g5xOffset.shift.tf[Y];
 }
 static inline void set_origin_offset_y(Interp &interp, double value)  {
-    interp._setup.origin_offset_y = value;
+    interp._setup.transform.g5xOffset.shift.tf[Y] = value;
 }
 static inline double get_origin_offset_z (Interp &interp)  {
-    return interp._setup.origin_offset_z;
+    return interp._setup.transform.g5xOffset.shift.tf[Z];
 }
 static inline void set_origin_offset_z(Interp &interp, double value)  {
-    interp._setup.origin_offset_z = value;
+    interp._setup.transform.g5xOffset.shift.tf[Z] = value;
 }
 static inline double get_program_x (Interp &interp)  {
     return interp._setup.program_x;
@@ -508,10 +508,10 @@ static inline void set_return_value(Interp &interp, double value)  {
     interp._setup.return_value = value;
 }
 static inline double get_rotation_xy (Interp &interp)  {
-    return interp._setup.rotation_xy;
+    return interp._setup.transform.g5xOffset.getXYRotationDeg();
 }
 static inline void set_rotation_xy(Interp &interp, double value)  {
-    interp._setup.rotation_xy = value;
+    interp._setup.transform.g5xOffset.setXYRotationDeg(value);
 }
 static inline double get_speed (Interp &interp)  {
     return interp._setup.speed;
@@ -526,22 +526,22 @@ static inline void set_traverse_rate(Interp &interp, double value)  {
     interp._setup.traverse_rate = value;
 }
 static inline double get_u_axis_offset (Interp &interp)  {
-    return interp._setup.u_axis_offset;
+    return interp._setup.transform.g92Offset.tf[U];
 }
 static inline void set_u_axis_offset(Interp &interp, double value)  {
-    interp._setup.u_axis_offset = value;
+    interp._setup.transform.g92Offset.tf[U] = value;
 }
 static inline double get_u_origin_offset (Interp &interp)  {
-    return interp._setup.u_origin_offset;
+    return interp._setup.transform.g5xOffset.shift.tf[U];
 }
 static inline void set_u_origin_offset(Interp &interp, double value)  {
-    interp._setup.u_origin_offset = value;
+    interp._setup.transform.g5xOffset.shift.tf[U] = value;
 }
 static inline double get_v_axis_offset (Interp &interp)  {
-    return interp._setup.v_axis_offset;
+    return interp._setup.transform.g92Offset.tf[V];
 }
 static inline void set_v_axis_offset(Interp &interp, double value)  {
-    interp._setup.v_axis_offset = value;
+    interp._setup.transform.g92Offset.tf[V] = value;
 }
 static inline double get_v_current(Interp &interp)  {
     return interp._setup.current[V];
@@ -550,16 +550,16 @@ static inline void set_v_current(Interp &interp, double value)  {
     interp._setup.current[V] = value;
 }
 static inline double get_v_origin_offset (Interp &interp)  {
-    return interp._setup.v_origin_offset;
+    return interp._setup.transform.g5xOffset.shift.tf[V];
 }
 static inline void set_v_origin_offset(Interp &interp, double value)  {
-    interp._setup.v_origin_offset = value;
+    interp._setup.transform.g5xOffset.shift.tf[V] = value;
 }
 static inline double get_w_axis_offset (Interp &interp)  {
-    return interp._setup.w_axis_offset;
+    return interp._setup.transform.g92Offset.tf[W];
 }
 static inline void set_w_axis_offset(Interp &interp, double value)  {
-    interp._setup.w_axis_offset = value;
+    interp._setup.transform.g92Offset.tf[W] = value;
 }
 static inline double get_w_current (Interp &interp)  {
     return interp._setup.current[W];
@@ -568,10 +568,10 @@ static inline void set_w_current(Interp &interp, double value)  {
     interp._setup.current[W] = value;
 }
 static inline double get_w_origin_offset (Interp &interp)  {
-    return interp._setup.w_origin_offset;
+    return interp._setup.transform.g5xOffset.shift.tf[W];
 }
 static inline void set_w_origin_offset(Interp &interp, double value)  {
-    interp._setup.w_origin_offset = value;
+    interp._setup.transform.g5xOffset.shift.tf[W] = value;
 }
 static inline int get_a_axis_wrapped (Interp &interp)  {
     return interp._setup.a_axis_wrapped;

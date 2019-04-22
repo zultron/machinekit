@@ -1095,137 +1095,137 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
 
       if (g_code == G_52) {
 	  if (block->x_flag) {
-          settings->current[X] += settings->axis_offset_x - block->x_number;
-	      settings->axis_offset_x = block->x_number;
+          settings->current[X] += settings->transform.g92Offset.tf[X] - block->x_number;
+          settings->transform.g92Offset.tf[X] = block->x_number;
 	  }
 
 	  if (block->y_flag) {
-          settings->current[Y] += settings->axis_offset_y - block->y_number;
-	      settings->axis_offset_y = block->y_number;
+          settings->current[Y] += settings->transform.g92Offset.tf[Y] - block->y_number;
+          settings->transform.g92Offset.tf[Y] = block->y_number;
 	  }
 
 	  if (block->z_flag) {
-          settings->current[Z] += settings->axis_offset_z - block->z_number;
-	      settings->axis_offset_z = block->z_number;
+          settings->current[Z] += settings->transform.g92Offset.tf[Z] - block->z_number;
+          settings->transform.g92Offset.tf[Z] = block->z_number;
 	  }
 	  if (block->a_flag) {
-          settings->current[A] += settings->AA_axis_offset - block->a_number;
-	      settings->AA_axis_offset = block->a_number;
+          settings->current[A] += settings->transform.g92Offset.tf[A] - block->a_number;
+          settings->transform.g92Offset.tf[A] = block->a_number;
 	  }
 	  if (block->b_flag) {
-          settings->current[B] += settings->BB_axis_offset - block->b_number;
-	      settings->BB_axis_offset = block->b_number;
+          settings->current[B] += settings->transform.g92Offset.tf[B] - block->b_number;
+          settings->transform.g92Offset.tf[B] = block->b_number;
 	  }
 	  if (block->c_flag) {
-          settings->current[C] += settings->CC_axis_offset - block->c_number;
-	      settings->CC_axis_offset = block->c_number;
+          settings->current[C] += settings->transform.g92Offset.tf[C] - block->c_number;
+          settings->transform.g92Offset.tf[C] = block->c_number;
 	  }
 	  if (block->u_flag) {
-          settings->current[U] += settings->u_axis_offset - block->u_number;
-	      settings->u_axis_offset = block->u_number;
+          settings->current[U] += settings->transform.g92Offset.tf[U] - block->u_number;
+          settings->transform.g92Offset.tf[U] = block->u_number;
 	  }
 	  if (block->v_flag) {
-          settings->current[V] += settings->v_axis_offset - block->v_number;
-	      settings->v_axis_offset = block->v_number;
+          settings->current[V] += settings->transform.g92Offset.tf[V] - block->v_number;
+          settings->transform.g92Offset.tf[V] = block->v_number;
 	  }
 	  if (block->w_flag) {
-          settings->current[W] += settings->w_axis_offset - block->w_number;
-	      settings->w_axis_offset = block->w_number;
+          settings->current[W] += settings->transform.g92Offset.tf[W] - block->w_number;
+          settings->transform.g92Offset.tf[W] = block->w_number;
 	  }
 
       } else {
 	  if (block->x_flag) {
-	      settings->axis_offset_x =
-          (settings->current[X] + settings->axis_offset_x - block->x_number);
+          settings->transform.g92Offset.tf[X] =
+          (settings->current[X] + settings->transform.g92Offset.tf[X] - block->x_number);
           settings->current[X] = block->x_number;
 	  }
 
 	  if (block->y_flag) {
-	      settings->axis_offset_y =
-          (settings->current[Y] + settings->axis_offset_y - block->y_number);
+          settings->transform.g92Offset.tf[Y] =
+          (settings->current[Y] + settings->transform.g92Offset.tf[Y] - block->y_number);
           settings->current[Y] = block->y_number;
 	  }
 
 	  if (block->z_flag) {
-	      settings->axis_offset_z =
-          (settings->current[Z] + settings->axis_offset_z - block->z_number);
+          settings->transform.g92Offset.tf[Z] =
+          (settings->current[Z] + settings->transform.g92Offset.tf[Z] - block->z_number);
           settings->current[Z] = block->z_number;
 	  }
 	  if (block->a_flag) {
-          settings->AA_axis_offset = (settings->current[A] +
-					  settings->AA_axis_offset - block->a_number);
+          settings->transform.g92Offset.tf[A] = (settings->current[A] +
+                      settings->transform.g92Offset.tf[A] - block->a_number);
           settings->current[A] = block->a_number;
 	  }
 	  if (block->b_flag) {
-          settings->BB_axis_offset = (settings->current[B] +
-					  settings->BB_axis_offset - block->b_number);
+          settings->transform.g92Offset.tf[B] = (settings->current[B] +
+                      settings->transform.g92Offset.tf[B] - block->b_number);
           settings->current[B] = block->b_number;
 	  }
 	  if (block->c_flag) {
-          settings->CC_axis_offset = (settings->current[C] +
-					  settings->CC_axis_offset - block->c_number);
+          settings->transform.g92Offset.tf[C] = (settings->current[C] +
+                      settings->transform.g92Offset.tf[C] - block->c_number);
           settings->current[C] = block->c_number;
 	  }
 	  if (block->u_flag) {
-          settings->u_axis_offset = (settings->current[U] +
-					 settings->u_axis_offset - block->u_number);
+          settings->transform.g92Offset.tf[U] = (settings->current[U] +
+                     settings->transform.g92Offset.tf[U] - block->u_number);
           settings->current[U] = block->u_number;
 	  }
 	  if (block->v_flag) {
-          settings->v_axis_offset = (settings->current[V] +
-					 settings->v_axis_offset - block->v_number);
+          settings->transform.g92Offset.tf[V] = (settings->current[V] +
+                     settings->transform.g92Offset.tf[V] - block->v_number);
           settings->current[V] = block->v_number;
 	  }
 	  if (block->w_flag) {
-          settings->w_axis_offset = (settings->current[W] +
-					 settings->w_axis_offset - block->w_number);
+          settings->transform.g92Offset.tf[W] = (settings->current[W] +
+                     settings->transform.g92Offset.tf[W] - block->w_number);
           settings->current[W] = block->w_number;
 	  }
       }
 
-    SET_G92_OFFSET(settings->axis_offset_x,
-                   settings->axis_offset_y,
-                   settings->axis_offset_z,
-                   settings->AA_axis_offset,
-                   settings->BB_axis_offset,
-                   settings->CC_axis_offset,
-                   settings->u_axis_offset,
-                   settings->v_axis_offset,
-                   settings->w_axis_offset);
+    SET_G92_OFFSET(settings->transform.g92Offset.tf[X],
+                   settings->transform.g92Offset.tf[Y],
+                   settings->transform.g92Offset.tf[Z],
+                   settings->transform.g92Offset.tf[A],
+                   settings->transform.g92Offset.tf[B],
+                   settings->transform.g92Offset.tf[C],
+                   settings->transform.g92Offset.tf[U],
+                   settings->transform.g92Offset.tf[V],
+                   settings->transform.g92Offset.tf[W]);
 
-    pars[5211] = PROGRAM_TO_USER_LEN(settings->axis_offset_x);
-    pars[5212] = PROGRAM_TO_USER_LEN(settings->axis_offset_y);
-    pars[5213] = PROGRAM_TO_USER_LEN(settings->axis_offset_z);
-    pars[5214] = PROGRAM_TO_USER_ANG(settings->AA_axis_offset);
-    pars[5215] = PROGRAM_TO_USER_ANG(settings->BB_axis_offset);
-    pars[5216] = PROGRAM_TO_USER_ANG(settings->CC_axis_offset);
-    pars[5217] = PROGRAM_TO_USER_LEN(settings->u_axis_offset);
-    pars[5218] = PROGRAM_TO_USER_LEN(settings->v_axis_offset);
-    pars[5219] = PROGRAM_TO_USER_LEN(settings->w_axis_offset);
+    pars[5211] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[X]);
+    pars[5212] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[Y]);
+    pars[5213] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[Z]);
+    pars[5214] = PROGRAM_TO_USER_ANG(settings->transform.g92Offset.tf[A]);
+    pars[5215] = PROGRAM_TO_USER_ANG(settings->transform.g92Offset.tf[B]);
+    pars[5216] = PROGRAM_TO_USER_ANG(settings->transform.g92Offset.tf[C]);
+    pars[5217] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[U]);
+    pars[5218] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[V]);
+    pars[5219] = PROGRAM_TO_USER_LEN(settings->transform.g92Offset.tf[W]);
 
   } else if ((g_code == G_92_1) || (g_code == G_92_2)) {
     pars[5210] = 0.0;
-    settings->current[X] = settings->current[X] + settings->axis_offset_x;
-    settings->current[Y] = settings->current[Y] + settings->axis_offset_y;
-    settings->current[Z] = settings->current[Z] + settings->axis_offset_z;
-    settings->current[A] = (settings->current[A] + settings->AA_axis_offset);
-    settings->current[B] = (settings->current[B] + settings->BB_axis_offset);
-    settings->current[C] = (settings->current[C] + settings->CC_axis_offset);
-    settings->current[U] = (settings->current[U] + settings->u_axis_offset);
-    settings->current[V] = (settings->current[V] + settings->v_axis_offset);
-    settings->current[W] = (settings->current[W] + settings->w_axis_offset);
+    settings->current[X] = settings->current[X] + settings->transform.g92Offset.tf[X];
+    settings->current[Y] = settings->current[Y] + settings->transform.g92Offset.tf[Y];
+    settings->current[Z] = settings->current[Z] + settings->transform.g92Offset.tf[Z];
+    settings->current[A] = (settings->current[A] + settings->transform.g92Offset.tf[A]);
+    settings->current[B] = (settings->current[B] + settings->transform.g92Offset.tf[B]);
+    settings->current[C] = (settings->current[C] + settings->transform.g92Offset.tf[C]);
+    settings->current[U] = (settings->current[U] + settings->transform.g92Offset.tf[U]);
+    settings->current[V] = (settings->current[V] + settings->transform.g92Offset.tf[V]);
+    settings->current[W] = (settings->current[W] + settings->transform.g92Offset.tf[W]);
 
     SET_G92_OFFSET(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 
-    settings->axis_offset_x = 0.0;
-    settings->axis_offset_y = 0.0;
-    settings->axis_offset_z = 0.0;
-    settings->AA_axis_offset = 0.0;
-    settings->BB_axis_offset = 0.0;
-    settings->CC_axis_offset = 0.0;
-    settings->u_axis_offset = 0.0;
-    settings->v_axis_offset = 0.0;
-    settings->w_axis_offset = 0.0;
+    settings->transform.g92Offset.tf[X] = 0.0;
+    settings->transform.g92Offset.tf[Y] = 0.0;
+    settings->transform.g92Offset.tf[Z] = 0.0;
+    settings->transform.g92Offset.tf[A] = 0.0;
+    settings->transform.g92Offset.tf[B] = 0.0;
+    settings->transform.g92Offset.tf[C] = 0.0;
+    settings->transform.g92Offset.tf[U] = 0.0;
+    settings->transform.g92Offset.tf[V] = 0.0;
+    settings->transform.g92Offset.tf[W] = 0.0;
     if (g_code == G_92_1) {
       pars[G92_X] = 0.0;
       pars[G92_Y] = 0.0;
@@ -1240,43 +1240,43 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
   } else if (g_code == G_92_3) {
     pars[5210] = 1.0;
     settings->current[X] =
-      settings->current[X] + settings->axis_offset_x - USER_TO_PROGRAM_LEN(pars[5211]);
+      settings->current[X] + settings->transform.g92Offset.tf[X] - USER_TO_PROGRAM_LEN(pars[5211]);
     settings->current[Y] =
-      settings->current[Y] + settings->axis_offset_y - USER_TO_PROGRAM_LEN(pars[5212]);
+      settings->current[Y] + settings->transform.g92Offset.tf[Y] - USER_TO_PROGRAM_LEN(pars[5212]);
     settings->current[Z] =
-      settings->current[Z] + settings->axis_offset_z - USER_TO_PROGRAM_LEN(pars[5213]);
+      settings->current[Z] + settings->transform.g92Offset.tf[Z] - USER_TO_PROGRAM_LEN(pars[5213]);
     settings->current[A] =
-      settings->current[A] + settings->AA_axis_offset - USER_TO_PROGRAM_ANG(pars[5214]);
+      settings->current[A] + settings->transform.g92Offset.tf[A] - USER_TO_PROGRAM_ANG(pars[5214]);
     settings->current[B] =
-      settings->current[B] + settings->BB_axis_offset - USER_TO_PROGRAM_ANG(pars[5215]);
+      settings->current[B] + settings->transform.g92Offset.tf[B] - USER_TO_PROGRAM_ANG(pars[5215]);
     settings->current[C] =
-      settings->current[C] + settings->CC_axis_offset - USER_TO_PROGRAM_ANG(pars[5216]);
+      settings->current[C] + settings->transform.g92Offset.tf[C] - USER_TO_PROGRAM_ANG(pars[5216]);
     settings->current[U] =
-      settings->current[U] + settings->u_axis_offset - USER_TO_PROGRAM_LEN(pars[5217]);
+      settings->current[U] + settings->transform.g92Offset.tf[U] - USER_TO_PROGRAM_LEN(pars[5217]);
     settings->current[V] =
-      settings->current[V] + settings->v_axis_offset - USER_TO_PROGRAM_LEN(pars[5218]);
+      settings->current[V] + settings->transform.g92Offset.tf[V] - USER_TO_PROGRAM_LEN(pars[5218]);
     settings->current[W] =
-      settings->current[W] + settings->w_axis_offset - USER_TO_PROGRAM_LEN(pars[5219]);
+      settings->current[W] + settings->transform.g92Offset.tf[W] - USER_TO_PROGRAM_LEN(pars[5219]);
 
-    settings->axis_offset_x = USER_TO_PROGRAM_LEN(pars[5211]);
-    settings->axis_offset_y = USER_TO_PROGRAM_LEN(pars[5212]);
-    settings->axis_offset_z = USER_TO_PROGRAM_LEN(pars[5213]);
-    settings->AA_axis_offset = USER_TO_PROGRAM_ANG(pars[5214]);
-    settings->BB_axis_offset = USER_TO_PROGRAM_ANG(pars[5215]);
-    settings->CC_axis_offset = USER_TO_PROGRAM_ANG(pars[5216]);
-    settings->u_axis_offset = USER_TO_PROGRAM_LEN(pars[5217]);
-    settings->v_axis_offset = USER_TO_PROGRAM_LEN(pars[5218]);
-    settings->w_axis_offset = USER_TO_PROGRAM_LEN(pars[5219]);
+    settings->transform.g92Offset.tf[X] = USER_TO_PROGRAM_LEN(pars[5211]);
+    settings->transform.g92Offset.tf[Y] = USER_TO_PROGRAM_LEN(pars[5212]);
+    settings->transform.g92Offset.tf[Z] = USER_TO_PROGRAM_LEN(pars[5213]);
+    settings->transform.g92Offset.tf[A] = USER_TO_PROGRAM_ANG(pars[5214]);
+    settings->transform.g92Offset.tf[B] = USER_TO_PROGRAM_ANG(pars[5215]);
+    settings->transform.g92Offset.tf[C] = USER_TO_PROGRAM_ANG(pars[5216]);
+    settings->transform.g92Offset.tf[U] = USER_TO_PROGRAM_LEN(pars[5217]);
+    settings->transform.g92Offset.tf[V] = USER_TO_PROGRAM_LEN(pars[5218]);
+    settings->transform.g92Offset.tf[W] = USER_TO_PROGRAM_LEN(pars[5219]);
 
-    SET_G92_OFFSET(settings->axis_offset_x,
-                   settings->axis_offset_y,
-                   settings->axis_offset_z,
-                   settings->AA_axis_offset,
-                   settings->BB_axis_offset,
-                   settings->CC_axis_offset,
-                   settings->u_axis_offset,
-                   settings->v_axis_offset,
-                   settings->w_axis_offset);
+    SET_G92_OFFSET(settings->transform.g92Offset.tf[X],
+                   settings->transform.g92Offset.tf[Y],
+                   settings->transform.g92Offset.tf[Z],
+                   settings->transform.g92Offset.tf[A],
+                   settings->transform.g92Offset.tf[B],
+                   settings->transform.g92Offset.tf[C],
+                   settings->transform.g92Offset.tf[U],
+                   settings->transform.g92Offset.tf[V],
+                   settings->transform.g92Offset.tf[W]);
   } else
     ERS(NCE_BUG_CODE_NOT_IN_G52_G92_SERIES);
 
@@ -1754,40 +1754,40 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   parameters[5220] = (double) origin;
 
   // load the origin of the newly-selected system
-  settings->origin_offset_x = USER_TO_PROGRAM_LEN(parameters[5201 + (origin * 20)]);
-  settings->origin_offset_y = USER_TO_PROGRAM_LEN(parameters[5202 + (origin * 20)]);
-  settings->origin_offset_z = USER_TO_PROGRAM_LEN(parameters[5203 + (origin * 20)]);
-  settings->AA_origin_offset = USER_TO_PROGRAM_ANG(parameters[5204 + (origin * 20)]);
-  settings->BB_origin_offset = USER_TO_PROGRAM_ANG(parameters[5205 + (origin * 20)]);
-  settings->CC_origin_offset = USER_TO_PROGRAM_ANG(parameters[5206 + (origin * 20)]);
-  settings->u_origin_offset = USER_TO_PROGRAM_LEN(parameters[5207 + (origin * 20)]);
-  settings->v_origin_offset = USER_TO_PROGRAM_LEN(parameters[5208 + (origin * 20)]);
-  settings->w_origin_offset = USER_TO_PROGRAM_LEN(parameters[5209 + (origin * 20)]);
-  settings->rotation_xy = parameters[5210 + (origin * 20)];
+  settings->transform.g5xOffset.shift.tf[X] = USER_TO_PROGRAM_LEN(parameters[5201 + (origin * 20)]);
+  settings->transform.g5xOffset.shift.tf[Y] = USER_TO_PROGRAM_LEN(parameters[5202 + (origin * 20)]);
+  settings->transform.g5xOffset.shift.tf[Z] = USER_TO_PROGRAM_LEN(parameters[5203 + (origin * 20)]);
+  settings->transform.g5xOffset.shift.tf[A] = USER_TO_PROGRAM_ANG(parameters[5204 + (origin * 20)]);
+  settings->transform.g5xOffset.shift.tf[B] = USER_TO_PROGRAM_ANG(parameters[5205 + (origin * 20)]);
+  settings->transform.g5xOffset.shift.tf[C] = USER_TO_PROGRAM_ANG(parameters[5206 + (origin * 20)]);
+  settings->transform.g5xOffset.shift.tf[U] = USER_TO_PROGRAM_LEN(parameters[5207 + (origin * 20)]);
+  settings->transform.g5xOffset.shift.tf[V] = USER_TO_PROGRAM_LEN(parameters[5208 + (origin * 20)]);
+  settings->transform.g5xOffset.shift.tf[W] = USER_TO_PROGRAM_LEN(parameters[5209 + (origin * 20)]);
+  settings->transform.g5xOffset.setXYRotationDeg(parameters[5210 + (origin * 20)]);
 
   write_and_update_state_tag(NULL);
   SET_G5X_OFFSET(origin,
-                 settings->origin_offset_x,
-                 settings->origin_offset_y,
-                 settings->origin_offset_z,
-                 settings->AA_origin_offset,
-                 settings->BB_origin_offset,
-                 settings->CC_origin_offset,
-                 settings->u_origin_offset,
-                 settings->v_origin_offset,
-                 settings->w_origin_offset);
+                 settings->transform.g5xOffset.shift.tf[X],
+                 settings->transform.g5xOffset.shift.tf[Y],
+                 settings->transform.g5xOffset.shift.tf[Z],
+                 settings->transform.g5xOffset.shift.tf[A],
+                 settings->transform.g5xOffset.shift.tf[B],
+                 settings->transform.g5xOffset.shift.tf[C],
+                 settings->transform.g5xOffset.shift.tf[U],
+                 settings->transform.g5xOffset.shift.tf[V],
+                 settings->transform.g5xOffset.shift.tf[W]);
 
-  SET_G92_OFFSET(settings->axis_offset_x,
-                 settings->axis_offset_y,
-                 settings->axis_offset_z,
-                 settings->AA_axis_offset,
-                 settings->BB_axis_offset,
-                 settings->CC_axis_offset,
-                 settings->u_axis_offset,
-                 settings->v_axis_offset,
-                 settings->w_axis_offset);
+  SET_G92_OFFSET(settings->transform.g92Offset.tf[X],
+                 settings->transform.g92Offset.tf[Y],
+                 settings->transform.g92Offset.tf[Z],
+                 settings->transform.g92Offset.tf[A],
+                 settings->transform.g92Offset.tf[B],
+                 settings->transform.g92Offset.tf[C],
+                 settings->transform.g92Offset.tf[U],
+                 settings->transform.g92Offset.tf[V],
+                 settings->transform.g92Offset.tf[W]);
 
-  SET_XY_ROTATION(settings->rotation_xy);
+  SET_XY_ROTATION(settings->transform.g5xOffset.getXYRotationDeg());
   return INTERP_OK;
 }
 
@@ -2393,15 +2393,15 @@ int Interp::convert_savehome(int code, block_pointer block, setup_pointer s) {
     }
 
 
-    double x = PROGRAM_TO_USER_LEN(s->current[X] + s->tool_offset.tran.x + s->origin_offset_x + s->axis_offset_x);
-    double y = PROGRAM_TO_USER_LEN(s->current[Y] + s->tool_offset.tran.y + s->origin_offset_y + s->axis_offset_y);
-    double z = PROGRAM_TO_USER_LEN(s->current[Z] + s->tool_offset.tran.z + s->origin_offset_z + s->axis_offset_z);
-    double a = PROGRAM_TO_USER_ANG(s->current[A] + s->tool_offset.a + s->AA_origin_offset + s->AA_axis_offset);
-    double b = PROGRAM_TO_USER_ANG(s->current[B] + s->tool_offset.b + s->BB_origin_offset + s->BB_axis_offset);
-    double c = PROGRAM_TO_USER_ANG(s->current[C] + s->tool_offset.c + s->CC_origin_offset + s->CC_axis_offset);
-    double u = PROGRAM_TO_USER_LEN(s->current[U] + s->tool_offset.u + s->u_origin_offset + s->u_axis_offset);
-    double v = PROGRAM_TO_USER_LEN(s->current[V] + s->tool_offset.v + s->v_origin_offset + s->v_axis_offset);
-    double w = PROGRAM_TO_USER_LEN(s->current[W] + s->tool_offset.w + s->w_origin_offset + s->w_axis_offset);
+    double x = PROGRAM_TO_USER_LEN(s->current[X] + s->tool_offset.tran.x + s->transform.g5xOffset.shift.tf[X] + s->transform.g92Offset.tf[X]);
+    double y = PROGRAM_TO_USER_LEN(s->current[Y] + s->tool_offset.tran.y + s->transform.g5xOffset.shift.tf[Y] + s->transform.g92Offset.tf[Y]);
+    double z = PROGRAM_TO_USER_LEN(s->current[Z] + s->tool_offset.tran.z + s->transform.g5xOffset.shift.tf[Z] + s->transform.g92Offset.tf[Z]);
+    double a = PROGRAM_TO_USER_ANG(s->current[A] + s->tool_offset.a + s->transform.g5xOffset.shift.tf[A] + s->transform.g92Offset.tf[A]);
+    double b = PROGRAM_TO_USER_ANG(s->current[B] + s->tool_offset.b + s->transform.g5xOffset.shift.tf[B] + s->transform.g92Offset.tf[B]);
+    double c = PROGRAM_TO_USER_ANG(s->current[C] + s->tool_offset.c + s->transform.g5xOffset.shift.tf[C] + s->transform.g92Offset.tf[C]);
+    double u = PROGRAM_TO_USER_LEN(s->current[U] + s->tool_offset.u + s->transform.g5xOffset.shift.tf[U] + s->transform.g92Offset.tf[U]);
+    double v = PROGRAM_TO_USER_LEN(s->current[V] + s->tool_offset.v + s->transform.g5xOffset.shift.tf[V] + s->transform.g92Offset.tf[V]);
+    double w = PROGRAM_TO_USER_LEN(s->current[W] + s->tool_offset.w + s->transform.g5xOffset.shift.tf[W] + s->transform.g92Offset.tf[W]);
 
     if(s->a_axis_wrapped) {
         a = fmod(a, 360.0);
@@ -2673,22 +2673,22 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
       settings->program_z = (settings->program_z * INCH_PER_MM);
       qc_scale(INCH_PER_MM);
       settings->cutter_comp_radius *= INCH_PER_MM;
-      settings->axis_offset_x = (settings->axis_offset_x * INCH_PER_MM);
-      settings->axis_offset_y = (settings->axis_offset_y * INCH_PER_MM);
-      settings->axis_offset_z = (settings->axis_offset_z * INCH_PER_MM);
-      settings->origin_offset_x = (settings->origin_offset_x * INCH_PER_MM);
-      settings->origin_offset_y = (settings->origin_offset_y * INCH_PER_MM);
-      settings->origin_offset_z = (settings->origin_offset_z * INCH_PER_MM);
+      settings->transform.g92Offset.tf[X] = (settings->transform.g92Offset.tf[X] * INCH_PER_MM);
+      settings->transform.g92Offset.tf[Y] = (settings->transform.g92Offset.tf[Y] * INCH_PER_MM);
+      settings->transform.g92Offset.tf[Z] = (settings->transform.g92Offset.tf[Z] * INCH_PER_MM);
+      settings->transform.g5xOffset.shift.tf[X] = (settings->transform.g5xOffset.shift.tf[X] * INCH_PER_MM);
+      settings->transform.g5xOffset.shift.tf[Y] = (settings->transform.g5xOffset.shift.tf[Y] * INCH_PER_MM);
+      settings->transform.g5xOffset.shift.tf[Z] = (settings->transform.g5xOffset.shift.tf[Z] * INCH_PER_MM);
 
       settings->current[U] = (settings->current[U] * INCH_PER_MM);
       settings->current[V] = (settings->current[V] * INCH_PER_MM);
       settings->current[W] = (settings->current[W] * INCH_PER_MM);
-      settings->u_axis_offset = (settings->u_axis_offset * INCH_PER_MM);
-      settings->v_axis_offset = (settings->v_axis_offset * INCH_PER_MM);
-      settings->w_axis_offset = (settings->w_axis_offset * INCH_PER_MM);
-      settings->u_origin_offset = (settings->u_origin_offset * INCH_PER_MM);
-      settings->v_origin_offset = (settings->v_origin_offset * INCH_PER_MM);
-      settings->w_origin_offset = (settings->w_origin_offset * INCH_PER_MM);
+      settings->transform.g92Offset.tf[U] = (settings->transform.g92Offset.tf[U] * INCH_PER_MM);
+      settings->transform.g92Offset.tf[V] = (settings->transform.g92Offset.tf[V] * INCH_PER_MM);
+      settings->transform.g92Offset.tf[W] = (settings->transform.g92Offset.tf[W] * INCH_PER_MM);
+      settings->transform.g5xOffset.shift.tf[U] = (settings->transform.g5xOffset.shift.tf[U] * INCH_PER_MM);
+      settings->transform.g5xOffset.shift.tf[V] = (settings->transform.g5xOffset.shift.tf[V] * INCH_PER_MM);
+      settings->transform.g5xOffset.shift.tf[W] = (settings->transform.g5xOffset.shift.tf[W] * INCH_PER_MM);
 
       settings->tool_offset.tran.x = GET_EXTERNAL_TOOL_LENGTH_XOFFSET();
       settings->tool_offset.tran.y = GET_EXTERNAL_TOOL_LENGTH_YOFFSET();
@@ -2715,22 +2715,22 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
       settings->program_z = (settings->program_z * MM_PER_INCH);
       qc_scale(MM_PER_INCH);
       settings->cutter_comp_radius *= MM_PER_INCH;
-      settings->axis_offset_x = (settings->axis_offset_x * MM_PER_INCH);
-      settings->axis_offset_y = (settings->axis_offset_y * MM_PER_INCH);
-      settings->axis_offset_z = (settings->axis_offset_z * MM_PER_INCH);
-      settings->origin_offset_x = (settings->origin_offset_x * MM_PER_INCH);
-      settings->origin_offset_y = (settings->origin_offset_y * MM_PER_INCH);
-      settings->origin_offset_z = (settings->origin_offset_z * MM_PER_INCH);
+      settings->transform.g92Offset.tf[X] = (settings->transform.g92Offset.tf[X] * MM_PER_INCH);
+      settings->transform.g92Offset.tf[Y] = (settings->transform.g92Offset.tf[Y] * MM_PER_INCH);
+      settings->transform.g92Offset.tf[Z] = (settings->transform.g92Offset.tf[Z] * MM_PER_INCH);
+      settings->transform.g5xOffset.shift.tf[X] = (settings->transform.g5xOffset.shift.tf[X] * MM_PER_INCH);
+      settings->transform.g5xOffset.shift.tf[Y] = (settings->transform.g5xOffset.shift.tf[Y] * MM_PER_INCH);
+      settings->transform.g5xOffset.shift.tf[Z] = (settings->transform.g5xOffset.shift.tf[Z] * MM_PER_INCH);
 
       settings->current[U] = (settings->current[U] * MM_PER_INCH);
       settings->current[V] = (settings->current[V] * MM_PER_INCH);
       settings->current[W] = (settings->current[W] * MM_PER_INCH);
-      settings->u_axis_offset = (settings->u_axis_offset * MM_PER_INCH);
-      settings->v_axis_offset = (settings->v_axis_offset * MM_PER_INCH);
-      settings->w_axis_offset = (settings->w_axis_offset * MM_PER_INCH);
-      settings->u_origin_offset = (settings->u_origin_offset * MM_PER_INCH);
-      settings->v_origin_offset = (settings->v_origin_offset * MM_PER_INCH);
-      settings->w_origin_offset = (settings->w_origin_offset * MM_PER_INCH);
+      settings->transform.g92Offset.tf[U] = (settings->transform.g92Offset.tf[U] * MM_PER_INCH);
+      settings->transform.g92Offset.tf[V] = (settings->transform.g92Offset.tf[V] * MM_PER_INCH);
+      settings->transform.g92Offset.tf[W] = (settings->transform.g92Offset.tf[W] * MM_PER_INCH);
+      settings->transform.g5xOffset.shift.tf[U] = (settings->transform.g5xOffset.shift.tf[U] * MM_PER_INCH);
+      settings->transform.g5xOffset.shift.tf[V] = (settings->transform.g5xOffset.shift.tf[V] * MM_PER_INCH);
+      settings->transform.g5xOffset.shift.tf[W] = (settings->transform.g5xOffset.shift.tf[W] * MM_PER_INCH);
 
       settings->tool_offset.tran.x = GET_EXTERNAL_TOOL_LENGTH_XOFFSET();
       settings->tool_offset.tran.y = GET_EXTERNAL_TOOL_LENGTH_YOFFSET();
@@ -4039,7 +4039,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
 
             dx = settings->tool_offset.tran.x - tool_offset.tran.x;
             dy = settings->tool_offset.tran.y - tool_offset.tran.y;
-            rotate(&dx, &dy, -settings->rotation_xy);
+            rotate(&dx, &dy, -settings->transform.g5xOffset.getXYRotationDeg()); //FIXME
 
             settings->current[X] += dx;
             settings->current[Y] += dy;
@@ -4170,8 +4170,8 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
 
       if (p_int == settings->origin_index) {
           // let the code below fix up the current coordinates correctly
-          rotate(&settings->current[X], &settings->current[Y], settings->rotation_xy);
-          settings->rotation_xy = 0;
+          rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.getXYRotationDeg()); //FIXME
+          settings->transform.g5xOffset.setXYRotationDeg(0); //FIXME
       }
   } else {
       if (block->x_flag) {
@@ -4239,27 +4239,28 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
 
   if (p_int == settings->origin_index) {        /* system is currently used */
 
-    rotate(&settings->current[X], &settings->current[Y], settings->rotation_xy);
-      
-    settings->current[X] += settings->origin_offset_x;
-    settings->current[Y] += settings->origin_offset_y;
-    settings->current[Z] += settings->origin_offset_z;
-    settings->current[A] += settings->AA_origin_offset;
-    settings->current[B] += settings->BB_origin_offset;
-    settings->current[C] += settings->CC_origin_offset;
-    settings->current[U] += settings->u_origin_offset;
-    settings->current[V] += settings->v_origin_offset;
-    settings->current[W] += settings->w_origin_offset;
+    rotate(&settings->current[X], &settings->current[Y], settings->transform.g5xOffset.getXYRotationDeg()); //FIXME
 
-    settings->origin_offset_x = x;
-    settings->origin_offset_y = y;
-    settings->origin_offset_z = z;
-    settings->AA_origin_offset = a;
-    settings->BB_origin_offset = b;
-    settings->CC_origin_offset = c;
-    settings->u_origin_offset = u;
-    settings->v_origin_offset = v;
-    settings->w_origin_offset = w;
+    //FIXME transform
+    settings->current[X] += settings->transform.g5xOffset.shift.tf[X];
+    settings->current[Y] += settings->transform.g5xOffset.shift.tf[Y];
+    settings->current[Z] += settings->transform.g5xOffset.shift.tf[Z];
+    settings->current[A] += settings->transform.g5xOffset.shift.tf[A];
+    settings->current[B] += settings->transform.g5xOffset.shift.tf[B];
+    settings->current[C] += settings->transform.g5xOffset.shift.tf[C];
+    settings->current[U] += settings->transform.g5xOffset.shift.tf[U];
+    settings->current[V] += settings->transform.g5xOffset.shift.tf[V];
+    settings->current[W] += settings->transform.g5xOffset.shift.tf[W];
+
+    settings->transform.g5xOffset.shift.tf[X] = x;
+    settings->transform.g5xOffset.shift.tf[Y] = y;
+    settings->transform.g5xOffset.shift.tf[Z] = z;
+    settings->transform.g5xOffset.shift.tf[A] = a;
+    settings->transform.g5xOffset.shift.tf[B] = b;
+    settings->transform.g5xOffset.shift.tf[C] = c;
+    settings->transform.g5xOffset.shift.tf[U] = u;
+    settings->transform.g5xOffset.shift.tf[V] = v;
+    settings->transform.g5xOffset.shift.tf[W] = w;
 
     settings->current[X] -= x;
     settings->current[Y] -= y;
@@ -4272,11 +4273,11 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
     settings->current[W] -= w;
 
     rotate(&settings->current[X], &settings->current[Y], - r);
-    settings->rotation_xy = r;
+    settings->setXYRotationDeg(r);
 
     write_and_update_state_tag(NULL);
     SET_G5X_OFFSET(p_int, x, y, z, a, b, c, u, v, w);
-    SET_XY_ROTATION(settings->rotation_xy);
+    SET_XY_ROTATION(settings->transform.g5xOffset.getXYRotationDeg());
 
   }
   else {
@@ -5782,7 +5783,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     dx = settings->tool_offset.tran.x - tool_offset.tran.x;
     dy = settings->tool_offset.tran.y - tool_offset.tran.y;
 
-    rotate(&dx, &dy, -settings->rotation_xy);
+  rotate(&dx, &dy, -settings->transform.g5xOffset.getXYRotationDeg());
 
   settings->current[X] += dx;
   settings->current[Y] += dy;

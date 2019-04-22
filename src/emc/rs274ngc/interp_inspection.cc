@@ -34,61 +34,61 @@ double & currentC(setup_pointer s)
 
 double & currentWorkOffsetX(setup_pointer s)
 {
-  return s->origin_offset_x;
+  return s->transform.g5xOffset.shift.tf[X];
 }
 
 double & currentWorkOffsetY(setup_pointer s)
 {
-  return s->origin_offset_y;
+  return s->transform.g5xOffset.shift.tf[Y];
 }
 
 double &currentWorkOffsetZ(setup_pointer s)
 {
-  return s->origin_offset_z;
+  return s->transform.g5xOffset.shift.tf[Z];
 }
 
 double & currentWorkOffsetA(setup_pointer s)
 {
-  return s->AA_origin_offset;
+  return s->transform.g5xOffset.shift.tf[A];
 }
 
 double & currentWorkOffsetB(setup_pointer s)
 {
-  return s->BB_origin_offset;
+  return s->transform.g5xOffset.shift.tf[B];
 }
 
 double & currentWorkOffsetC(setup_pointer s)
 {
-  return s->CC_origin_offset;
+  return s->transform.g5xOffset.shift.tf[C];
 }
 
 double & currentAxisOffsetX(setup_pointer s)
 {
-  return s->axis_offset_x;
+  return s->transform.g92Offset.tf[X];
 }
 
 double & currentAxisOffsetY(setup_pointer s)
 {
-  return s->axis_offset_y;
+  return s->transform.g92Offset.tf[Y];
 }
 
 double &currentAxisOffsetZ(setup_pointer s)
 {
-  return s->axis_offset_z;
+  return s->transform.g92Offset.tf[Z];
 }
 
 double & currentAxisOffsetA(setup_pointer s)
 {
-  return s->AA_axis_offset;
+  return s->transform.g92Offset.tf[A];
 }
 
 double & currentAxisOffsetB(setup_pointer s)
 {
-  return s->BB_axis_offset;
+  return s->transform.g92Offset.tf[B];
 }
 
 double & currentAxisOffsetC(setup_pointer s)
 {
-  return s->CC_axis_offset;
+  return s->transform.g92Offset.tf[C];
 }
 

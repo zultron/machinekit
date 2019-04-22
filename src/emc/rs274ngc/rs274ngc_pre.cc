@@ -1126,27 +1126,27 @@ int Interp::init()
   _setup.plane = GET_EXTERNAL_PLANE();
 
   k = (5200 + (_setup.origin_index * 20));
-  _setup.origin_offset_x = USER_TO_PROGRAM_LEN(pars[k + 1]);
-  _setup.origin_offset_y = USER_TO_PROGRAM_LEN(pars[k + 2]);
-  _setup.origin_offset_z = USER_TO_PROGRAM_LEN(pars[k + 3]);
-  _setup.AA_origin_offset = USER_TO_PROGRAM_ANG(pars[k + 4]);
-  _setup.BB_origin_offset = USER_TO_PROGRAM_ANG(pars[k + 5]);
-  _setup.CC_origin_offset = USER_TO_PROGRAM_ANG(pars[k + 6]);
-  _setup.u_origin_offset = USER_TO_PROGRAM_LEN(pars[k + 7]);
-  _setup.v_origin_offset = USER_TO_PROGRAM_LEN(pars[k + 8]);
-  _setup.w_origin_offset = USER_TO_PROGRAM_LEN(pars[k + 9]);
+  _setup.transform.g5xOffset.shift.tf[X] = USER_TO_PROGRAM_LEN(pars[k + 1]);
+  _setup.transform.g5xOffset.shift.tf[Y] = USER_TO_PROGRAM_LEN(pars[k + 2]);
+  _setup.transform.g5xOffset.shift.tf[Z] = USER_TO_PROGRAM_LEN(pars[k + 3]);
+  _setup.transform.g5xOffset.shift.tf[A] = USER_TO_PROGRAM_ANG(pars[k + 4]);
+  _setup.transform.g5xOffset.shift.tf[B] = USER_TO_PROGRAM_ANG(pars[k + 5]);
+  _setup.transform.g5xOffset.shift.tf[C] = USER_TO_PROGRAM_ANG(pars[k + 6]);
+  _setup.transform.g5xOffset.shift.tf[U] = USER_TO_PROGRAM_LEN(pars[k + 7]);
+  _setup.transform.g5xOffset.shift.tf[V] = USER_TO_PROGRAM_LEN(pars[k + 8]);
+  _setup.transform.g5xOffset.shift.tf[W] = USER_TO_PROGRAM_LEN(pars[k + 9]);
 
   write_and_update_state_tag(NULL);
   SET_G5X_OFFSET(_setup.origin_index,
-                 _setup.origin_offset_x ,
-                 _setup.origin_offset_y ,
-                 _setup.origin_offset_z ,
-                 _setup.AA_origin_offset,
-                 _setup.BB_origin_offset,
-                 _setup.CC_origin_offset,
-                 _setup.u_origin_offset ,
-                 _setup.v_origin_offset ,
-                 _setup.w_origin_offset);
+                 _setup.transform.g5xOffset.shift.tf[X] ,
+                 _setup.transform.g5xOffset.shift.tf[Y] ,
+                 _setup.transform.g5xOffset.shift.tf[Z] ,
+                 _setup.transform.g5xOffset.shift.tf[A],
+                 _setup.transform.g5xOffset.shift.tf[B],
+                 _setup.transform.g5xOffset.shift.tf[C],
+                 _setup.transform.g5xOffset.shift.tf[U] ,
+                 _setup.transform.g5xOffset.shift.tf[V] ,
+                 _setup.transform.g5xOffset.shift.tf[W]);
 
   // Restore G92 offset if PERSISTENT_G92_OFFSET is set in .ini file.
   // This can't be done with the static _required_parameters[], where
@@ -1158,38 +1158,38 @@ int Interp::init()
 	  pars[k] = 0;
 
   if (pars[5210]) {
-      _setup.axis_offset_x = USER_TO_PROGRAM_LEN(pars[5211]);
-      _setup.axis_offset_y = USER_TO_PROGRAM_LEN(pars[5212]);
-      _setup.axis_offset_z = USER_TO_PROGRAM_LEN(pars[5213]);
-      _setup.AA_axis_offset = USER_TO_PROGRAM_ANG(pars[5214]);
-      _setup.BB_axis_offset = USER_TO_PROGRAM_ANG(pars[5215]);
-      _setup.CC_axis_offset = USER_TO_PROGRAM_ANG(pars[5216]);
-      _setup.u_axis_offset = USER_TO_PROGRAM_LEN(pars[5217]);
-      _setup.v_axis_offset = USER_TO_PROGRAM_LEN(pars[5218]);
-      _setup.w_axis_offset = USER_TO_PROGRAM_LEN(pars[5219]);
+      _setup.transform.g92Offset.tf[X] = USER_TO_PROGRAM_LEN(pars[5211]);
+      _setup.transform.g92Offset.tf[Y] = USER_TO_PROGRAM_LEN(pars[5212]);
+      _setup.transform.g92Offset.tf[Z] = USER_TO_PROGRAM_LEN(pars[5213]);
+      _setup.transform.g92Offset.tf[A] = USER_TO_PROGRAM_ANG(pars[5214]);
+      _setup.transform.g92Offset.tf[B] = USER_TO_PROGRAM_ANG(pars[5215]);
+      _setup.transform.g92Offset.tf[C] = USER_TO_PROGRAM_ANG(pars[5216]);
+      _setup.transform.g92Offset.tf[U] = USER_TO_PROGRAM_LEN(pars[5217]);
+      _setup.transform.g92Offset.tf[V] = USER_TO_PROGRAM_LEN(pars[5218]);
+      _setup.transform.g92Offset.tf[W] = USER_TO_PROGRAM_LEN(pars[5219]);
   } else {
-      _setup.axis_offset_x = 0.0;
-      _setup.axis_offset_y = 0.0;
-      _setup.axis_offset_z = 0.0;
-      _setup.AA_axis_offset = 0.0;
-      _setup.BB_axis_offset = 0.0;
-      _setup.CC_axis_offset = 0.0;
-      _setup.u_axis_offset = 0.0;
-      _setup.v_axis_offset = 0.0;
-      _setup.w_axis_offset = 0.0;
+      _setup.transform.g92Offset.tf[X] = 0.0;
+      _setup.transform.g92Offset.tf[Y] = 0.0;
+      _setup.transform.g92Offset.tf[Z] = 0.0;
+      _setup.transform.g92Offset.tf[A] = 0.0;
+      _setup.transform.g92Offset.tf[B] = 0.0;
+      _setup.transform.g92Offset.tf[C] = 0.0;
+      _setup.transform.g92Offset.tf[U] = 0.0;
+      _setup.transform.g92Offset.tf[V] = 0.0;
+      _setup.transform.g92Offset.tf[W] = 0.0;
   }
 
-  SET_G92_OFFSET(_setup.axis_offset_x ,
-                 _setup.axis_offset_y ,
-                 _setup.axis_offset_z ,
-                 _setup.AA_axis_offset,
-                 _setup.BB_axis_offset,
-                 _setup.CC_axis_offset,
-                 _setup.u_axis_offset ,
-                 _setup.v_axis_offset ,
-                 _setup.w_axis_offset);
+  SET_G92_OFFSET(_setup.transform.g92Offset.tf[X] ,
+                 _setup.transform.g92Offset.tf[Y] ,
+                 _setup.transform.g92Offset.tf[Z] ,
+                 _setup.transform.g92Offset.tf[A],
+                 _setup.transform.g92Offset.tf[B],
+                 _setup.transform.g92Offset.tf[C],
+                 _setup.transform.g92Offset.tf[U] ,
+                 _setup.transform.g92Offset.tf[V] ,
+                 _setup.transform.g92Offset.tf[W]);
 
-  _setup.rotation_xy = pars[k+10];
+  _setup.setXYRotationDeg(pars[k+10]);
   SET_XY_ROTATION(pars[k+10]);
   SET_FEED_REFERENCE(CANON_XYZ);
 //_setup.active_g_codes initialized below

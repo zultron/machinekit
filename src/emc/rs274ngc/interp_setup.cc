@@ -25,29 +25,11 @@
 
 setup_struct::setup_struct() :
     current(),
-    AA_axis_offset(0.0),
-    AA_origin_offset(0.0),
-    BB_axis_offset(0.0),
-    BB_origin_offset(0.0),
-    CC_axis_offset(0.0),
-    CC_origin_offset(0.0),
-
-    u_axis_offset(0.0),
-    u_origin_offset(0.0),
-
-    v_axis_offset(0.0),
-    v_origin_offset(0.0),
-
-    w_axis_offset(0.0),
-    w_origin_offset(0.0),
+    transform(),
 
     modal_state(),
 
     arc_not_allowed(0),
-
-    axis_offset_x(0.0),
-    axis_offset_y(0.0),
-    axis_offset_z(0.0),
 
     blocks{},
     remap_level(0),
@@ -83,10 +65,6 @@ setup_struct::setup_struct() :
     mist(0),
     motion_mode(0),
     origin_index(0),
-    origin_offset_x (0.0),
-    origin_offset_y (0.0),
-    origin_offset_z (0.0),
-    rotation_xy (0.0),
 
     parameters{0},
     parameter_occurrence(0),
@@ -233,3 +211,8 @@ block_struct::block_struct ()
     params{}, param_cnt(0), breadcrumbs(),
     executing_remap(NULL), remappings(), phase(0), builtin_used(0) {
     }
+
+void setup_struct::setXYRotationDeg(double rot_deg)
+{
+    transform.g5xOffset.setXYRotationDeg(rot_deg);
+}

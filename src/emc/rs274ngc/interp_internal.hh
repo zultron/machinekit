@@ -374,6 +374,10 @@ struct block_struct
 {
   block_struct ();
 
+
+  PositionArray axis_values;
+  PositionMask axis_updated;
+
   bool a_flag;
   double a_number;
   bool b_flag;
@@ -591,30 +595,11 @@ struct setup_struct
   int get_toplevel_line_number();
 
   PositionArray current;
-  //LocalToMachineTransform transform;
-
-  // TODO PURGE
-  double AA_axis_offset;        // A-axis g92 offset
-  double AA_origin_offset;      // A-axis origin offset
-  double BB_axis_offset;        // B-axis g92offset
-  double BB_origin_offset;      // B-axis origin offset
-  double CC_axis_offset;        // C-axis g92offset
-  double CC_origin_offset;      // C-axis origin offset
-
-  double u_axis_offset, u_origin_offset;
-  double v_axis_offset, v_origin_offset;
-  double w_axis_offset, w_origin_offset;
-  // END PURGE
+  LocalToMachineTransform transform;
 
   ModalState modal_state;
 
   bool arc_not_allowed;       // we just exited cutter compensation, so we error if the next move isn't straight
-
-  // TODO PURGE
-  double axis_offset_x;         // X-axis g92 offset
-  double axis_offset_y;         // Y-axis g92 offset
-  double axis_offset_z;         // Z-axis g92 offset
-  // END PURGE
 
   // stack of controlling blocks for remap execution
   block blocks[MAX_NESTED_REMAPS];
@@ -657,13 +642,6 @@ struct setup_struct
   bool mist;                  // whether mist coolant is on
   int motion_mode;              // active G-code for motion
   int origin_index;             // active origin (1=G54 to 9=G59.3)
-
-  // TODO PURGE
-  double origin_offset_x;       // g5x offset x
-  double origin_offset_y;       // g5x offset y
-  double origin_offset_z;       // g5x offset z
-  double rotation_xy;         // rotation of coordinate system around Z, in degrees
-  // END PURGE
 
   double parameters[interp_param_global::RS274NGC_MAX_PARAMETERS];   // system parameters
   int parameter_occurrence;     // parameter buffer index
@@ -788,6 +766,8 @@ struct setup_struct
     // these are initialized in the constructor
     std::bitset<1000>  m_remappable;
     std::bitset<1000>  g_remappable;
+
+    void setXYRotationDeg(double rot_deg);
 
 };
 
