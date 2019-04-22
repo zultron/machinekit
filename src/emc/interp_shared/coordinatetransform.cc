@@ -127,6 +127,13 @@ void UnitsTransform::apply_inv(PositionArray & p) const {
     scale(p, 1.0 / linear_fwd, 1.0 / angular_fwd);
 }
 
+LocalToMachineTransform::LocalToMachineTransform() :
+  g92Offset(),
+  g5xOffset(),
+  toolOffset()
+{
+}
+
 void LocalToMachineTransform::apply_fwd(PositionArray & p) const
 {
     g92Offset.apply_fwd(p);

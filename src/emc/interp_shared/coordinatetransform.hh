@@ -69,6 +69,7 @@ struct LocalToMachineTransform : public TransformBase
     ShiftTransform g92Offset;
     RotateShiftTransform g5xOffset;
     ShiftTransform toolOffset;
+    LocalToMachineTransform();
 
     void apply_fwd(PositionArray &p) const;
     void apply_inv(PositionArray &p) const;
