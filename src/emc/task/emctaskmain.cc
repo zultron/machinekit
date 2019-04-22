@@ -938,10 +938,7 @@ static int emcTaskPlan(void)
 
 	    }			// switch (type)
 
-	default:
-	    // invalid mode
-	    break;
-
+      // invalid mode
 	}			// switch (mode)
 
 	break;			// case EMC_TASK_STATE_OFF,ESTOP,ESTOP_RESET
