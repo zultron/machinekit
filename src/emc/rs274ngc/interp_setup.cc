@@ -96,13 +96,13 @@ setup_struct::setup_struct() :
     origin_offset_z (0.0),
     rotation_xy (0.0),
 
-    parameters{},
+    parameters{0},
     parameter_occurrence(0),
-    parameter_numbers{},
-    parameter_values{},
+    parameter_numbers{0},
+    parameter_values{0},
     named_parameter_occurrence(0),
-    named_parameters{},
-    named_parameter_values{},
+    named_parameters{nullptr},
+    named_parameter_values{0},
     percent_flag(0),
     plane(CANON_PLANE_XY),
     probe_flag(0),
@@ -185,6 +185,7 @@ setup_struct::setup_struct() :
     g_remappable()
 
 {
+  std::fill(parameters, parameters + interp_param_global::RS274NGC_MAX_PARAMETERS, 0);
 }
     // not sure about sub_context:
     // a plain array of a struct with non-POD data?
