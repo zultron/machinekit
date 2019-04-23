@@ -1,0 +1,3 @@
+# Handled in test
+diff offsets-stock.var offsets-stock.var.template
+diff offsets-extended.var offsets-extended.var.template
