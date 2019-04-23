@@ -3849,7 +3849,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
 
   // Starting from the active overall transform, find the effective transform for the desired work offset number
   LocalToMachineTransform desired_csys = settings->transform;
-  CHP(find_work_offset(p_int, desired_csys.g5xOffset, true)); // In program units
+  CHP(find_work_offset(p_int, desired_csys.g5xOffset)); // In program units
 
   if (block->l_number == 20) {
     CHKS((block->r_flag), _("R not allowed in G10 L20"));

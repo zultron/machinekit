@@ -546,7 +546,7 @@ int Interp::store_tool_offset(setup_pointer settings, const ShiftTransform & too
 }
 
 /** Finds the specified work offset in program units. */
-int Interp::find_work_offset(int origin, RotateShiftTransform &work_offset, bool create_if_missing)
+int Interp::find_work_offset(int origin, RotateShiftTransform &work_offset)
 {
   if (origin <= 9) {
     // Parameters take precedence
@@ -566,13 +566,7 @@ int Interp::find_work_offset(int origin, RotateShiftTransform &work_offset, bool
     out.setXYRotationDeg(USER_TO_PROGRAM_ANG(_setup.parameters[10 + prm_offset])); // Rotation
     work_offset = out;
   } else {
-    auto it_offset = _setup.work_offsets.find(origin);
-    if (it_offset == _setup.work_offsets.end()) {
-      CHKS(!create_if_missing, _("Can't find work offset %d"), origin);
-      work_offset = _setup.work_offsets[origin];
-    } else {
-      work_offset = it_offset->second;
-    }
+    work_offset = _setup.work_offsets[origin];
   }
   return INTERP_OK;
 }

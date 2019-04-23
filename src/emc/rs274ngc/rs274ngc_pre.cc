@@ -2060,11 +2060,19 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
     }
   }
 
+  // Purge "duplicate" work offsets that are already written out in parameters 5221 to 5390
+  const int duplicate_idx[] = {1,2,3,4,5,6,7,8,9};
+  for (auto idx : duplicate_idx)
+  {
+    _setup.work_offsets.erase(idx);
+  }
+
   // TODO write these out sparsely? e.g. don't write zero fields
   for (auto const& wo : _setup.work_offsets) {
     CHKS(wo.first < 0, _("Work offset index %d cannot be negative"), wo.first);
     size_t offset_base = EXTENDED_WORK_OFFSET_START + 20 * (size_t)wo.first;
 
+    // KLUDGE avoid writing out duplicate work offsets for G54-G59.3
     for (size_t k = 0; k < wo.second.shift.tf.size(); ++k) {
       sprintf(line, "%lu\t%0.17g\n", offset_base + k, wo.second.shift.tf[k]);
       fputs(line, outfile);
