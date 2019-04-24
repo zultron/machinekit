@@ -54,10 +54,10 @@ TEST_CASE("Interp Basics")
     REQUIRE_INTERP_OK(test_interp.execute("G52 X1 Y0"));
     REQUIRE_INTERP_OK(test_interp.execute("G10 L2 P0 X1 Y0 Z0 R0"));
     CHECK_FUZZ(currentX(settings), -2.0);
-    // FIXME this is the wrong behavior but what the interpreter currently expects
+    // Corrected behavior applying rotation between G92 and G5x
     REQUIRE_INTERP_OK(test_interp.execute("G10 L2 P0 X1 Y0 Z0 R90"));
-    CHECK_FUZZ(currentX(settings), -0.0);
-    CHECK_FUZZ(currentY(settings), 2.0);
+    CHECK_FUZZ(currentX(settings), -1.0);
+    CHECK_FUZZ(currentY(settings), 1.0);
   }
 
   SECTION("G92 off-axis behavior with rotation")
@@ -68,9 +68,8 @@ TEST_CASE("Interp Basics")
     REQUIRE_INTERP_OK(test_interp.execute("G92.1"));
     REQUIRE_INTERP_OK(test_interp.execute("G52 X1 Y0"));
     REQUIRE_INTERP_OK(test_interp.execute("G10 L2 P0 X1 Y2 Z3 A4 B5 C6 R90"));
-    // FIXME this is the wrong behavior but what the interpreter currently expects
-    CHECK_FUZZ(currentX(settings), -2.0);
-    CHECK_FUZZ(currentY(settings), 2.0);
+    CHECK_FUZZ(currentX(settings), -3.0);
+    CHECK_FUZZ(currentY(settings), 1.0);
     // Should not be affected by rotation
     CHECK_FUZZ(currentZ(settings), -3.0);
     CHECK_FUZZ(currentA(settings), -4.0);
@@ -374,11 +373,9 @@ SCENARIO("Call G10 with G92 active (based on runtest g10-with-g92)")
         CHECK_FUZZ(currentWorkOffsetC(settings), 12);
 
         constexpr double xy_rotation = M_PI / 4;
-        // FIXME this math is wrong but what the current interpreter expects
-        const double total_offset_x = axis_offset_x + work_offset_x;
-        const double total_offset_y = axis_offset_y + work_offset_y;
-        const double expect_x = (cos(-xy_rotation) * -total_offset_x + -sin(-xy_rotation) * -total_offset_y);
-        const double expect_y = (sin(-xy_rotation) * -total_offset_x + cos(-xy_rotation) * -total_offset_y);
+        // "Inverse transform from global (machine) to local program coordinates, need to unrotate the workoffset then apply the axis offset
+        const double expect_x = (cos(-xy_rotation) * -work_offset_x + -sin(-xy_rotation) * -work_offset_y) - axis_offset_x;
+        const double expect_y = (sin(-xy_rotation) * -work_offset_x + cos(-xy_rotation) * -work_offset_y) - axis_offset_y;
         CHECK_FUZZ(currentX(settings), expect_x);
         CHECK_FUZZ(currentY(settings), expect_y);
         CHECK_FUZZ(currentZ(settings), -4);
