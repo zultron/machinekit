@@ -1,4 +1,3 @@
-
 component tormachspindlem200 "Tormach Spindle HAL Component M200";
 
 license "GPL";
@@ -83,12 +82,14 @@ author "";
 //          encoder-rawlatched      encoder raw latched input
 //          
 //          forward_in              input from linuxcnc motion entity, used when not in index mode for feed thur
+//          spindle-lock            from linuxcnc motion.spidle-lock
 // Outputs:
 //          orient-modulus          feedback to pid block used control indexing of spindle
-//          orient-done             feedback to linuxcnc that index is within range.  Connect to motion.spindle-is-oriented
+//          oriented                feedback to linuxcnc that index is within range.  Connect to motion.spindle-is-oriented
 //          orient-fault            feedback to linuxcnc for fault code.  Connect to motion.spindle-orient-fault
 //          spindle-on-thur         feedthrough of forward-in when not indexing, set by this comp when indexing mode 
 //          spindle-forward-thur    feedthrough of spindle-on when not indexing, set by this comp when indexing mode
+//          orient-status           0 -> oriented, -1 or 1 error direction if not oriented
 // Bi-directional:
 //          zindex-enable           used to set spindle encoder's "index-enable" bit to align encoder counts to zero at next z-index
 //         orient-set-bt30           when set starts bt30 indexing mode 
@@ -108,8 +109,9 @@ author "";
 //          speed-out               open loop speed-out in RPM
 //          speed-out-rps           connect to UI for display during gcode program execution
 //                                  Also used by linuxcnc for G95 feed rate control and hardtapping (if we have a real encoder on spindle)
-//
-//  SLP ADD Some more for indexing 
+// TODO: list the I/O added for orienting
+
+
 // This HAL comp does the math to achieve commanded spindle RPM in current hi/lo range
 // it uses: commanded speed, belt-position/pulley ratio, motor Hz per command Hz
 // examples for PCNC 770: 
@@ -165,6 +167,12 @@ pin in float hispeed_tol_above;     // what the rpm tolerance is above or equal 
 pin in float motor_hz_per_cmd_hz;
 pin in float vfd_rpm_feedback;
 
+//#if _38_SPECIAL  TODO: Condition won't work in this section of this .comp ... uncomment these lines to manually enable _38_SPECIAL
+//pin out bit last_fwd;
+//pin out float last_rpm;
+//pin out u32 orient_total_ticks;
+//#endif
+
 // current min and max speeds based upon spindle-type and belt-position
 pin out float min_speed;
 pin out float max_speed;
@@ -182,6 +190,7 @@ pin in float speeder_factor;
 
 pin out bit speed_alarm;
 pin out float vfd_freq_cmd;
+pin out float vfd_rpm_cmd;
 pin out float feedback_motor_rpm;
 pin out float feedback_spindle_rpm;
 
@@ -196,12 +205,13 @@ pin in float vfd_feedback_factor;
 pin in s32 encoder_position;    // encoder input position (counts) from spindle 
 pin in float orient_angle;      // connect to motion.spindle-orient-angle
 pin in s32 orient_mode;         // connect to motion.spindle-orient-mode
+pin out s32 enc_err;            //hit debug 
 pin in bit orient_execute;      // execute indexing of spindle   
 pin in float orient_speed_in;   // vel command input from pid, used only when in "index" mode
 pin in bit forward_in;          // forward (or reverse) to m200 from PP, when not in indexing mode
 pin in float encoder_velocity;  // encoder input velocity in RPS
 pin in s32 orient_encoder_cpr;  // encoder counts per rev
-pin in u32 deadband_in;         // the range in +/- encoder counts where we consider the spindle orientation is done
+pin in bit spindle_lock;
 
 // not used
 //pin in s32 encoder_rawcounts;  
@@ -215,20 +225,61 @@ pin io s32 bt30_offset;         //offset for the Bt30 index with respect to enco
                                 //this comp will set this when orient_set_bt30 is set.  Or PP GUI can set from non-volatile source.
 
 // Outputs:
-pin out u32 zindex_state;    //See ISTATE_ defines
-pin out bit orient_done;             // feedback to linuxcnc that we've completed orientation/indexing
-pin out float orient_timer;       // used to timeout "in position" (orienting complete)
-pin out s32 orient_fault;            
-pin out float orient_modulus;       // feedback to pid block used to control indexing
+pin out u32 zindex_state;       //See ISTATE_ defines
+pin out bit oriented;           // feedback to linuxcnc that we've completed orientation/indexing
+pin out float orient_timer;     //total time for this orient to happen (or last one took)
+pin out float orient_good_timer;     // used to timeout "in position" (orienting complete)
+pin out s32 orient_fault;           //feedback to linuxcnc what error  occurred
+pin out float orient_modulus;   // feedback to pid block used to control indexing
+pin out u32 spindle_state;      // Normal, orienting, and spindle locked  
 
+//VFD mode control (i.e. motor configuration ... normal vs rapid turn motor or orienting mode on VFD)
+//Defining mode1 is bit 1 MSBit, mode0 is bit 0 LSBit, then
+//"0" is normal, "1" is rapid_turn, "2" is HSS, and "3" is orienting mode.
+pin out bit vfd_mode0;          //ECM v1.5 J1 pins to VFD  
+pin out bit vfd_mode1;
 
 pin out bit spindle_forward_thur;   // goes to spindle J1 "DIR" I/O
 // connect to m200 run pin (pass through from spindle_on when not in indexing mode)
 pin out bit spindle_on_thur;
-
 pin out bit target_computed; //set when we know where we're going for "new" M19 command 
-pin out s32 orient_target; //target encoder position for orient_execute command
-pin out s32 orient_deadband; //within this many encoder counts of target, we call orient "done"
+
+
+//pin out float encoder_timer; //not used presently ... supposed to be for using encoder to time RPS to RPM calcs, bad belt ratios, etc.
+//pin out s32 last_encoder_position;  // was used with above encoder_timer for RPS calculations
+
+pin out float orient_vfd_delay_timer;  //when activating VFD during orient, use this timer to inhibit vfd_freq_cmd.  timer counts DOWN,
+                                        //unlike all other timers in this comp that count up
+pin out s32 orient_target; //exact target encoder position for orient_execute command
+pin out bit orient_on_target; // encoder is within orient_band
+pin out s32 orient_targetband; //within this many encoder counts of target, we call orient "done"; will be either ORIENT_TARGETBAND_VALUE or orient_targetband_override
+pin in u32 orient_targetband_override;  // PP can set range in +/- encoder counts where we consider the spindle orientation is done
+
+
+pin out float orient_status; // 0 -> oriented within tolerance, -1 or 1 direction of error if not oriented  TODO: rename this??
+pin out bit orienting_stuck;  //goes hi when we detect spindle is not responding
+pin out float orienting_stuck_timer;  //time since last movement seen on encoder during orient
+pin out float orienting_boost; //RPM boost value increases ORIENT_BOOST_RPM every ORIENT_BOOST_PERIOD when active
+pin out s32 orienting_stuck_last; //where we last saw the encoder during "stuck" state 
+
+//DEBUG PINS
+pin out bit orient_to;  //flag that that last orient timed out
+pin out bit orient_P2;
+pin out float pidP;
+pin out float pidD;
+pin out float pidI;
+
+pin in float pidP1in;
+pin in float pidI1in;
+pin in float pidD1in;
+pin in float pidP2in;
+pin in float pidI2in;
+pin in float pidD2in;
+pin in float vfd_freq_offset;
+
+pin out s32 same_enc_err_cnt;
+pin out s32 last_enc_err;
+ 
 ///////////// end of spindle orienting additions
 
 function _ "Tormach Spindle HAL Component M200";
@@ -237,18 +288,29 @@ function _ "Tormach Spindle HAL Component M200";
 
 #include <rtapi_math.h>
 
+
 #define BIT_FALSE 0
 #define BIT_TRUE  1
 
-#define STANDARD_TYPE 0
-#define SPEEDER_TYPE  1
-#define HISPEED_TYPE  2
+//Keep in sync with constants.py
+#define SPINDLE_TYPE_STANDARD  0
+#define SPINDLE_TYPE_SPEEDER  1
+#define SPINDLE_TYPE_HISPEED  2
+#define SPINDLE_TYPE_RAPID_TURN 3
+
+#define SPINDLE_STATE_NONE 0
+#define SPINDLE_STATE_NORMAL 1
+#define SPINDLE_STATE_ORIENTING 2
+#define SPINDLE_STATE_LOCKED 3
+#define SPINDLE_STATE_ERROR 4
+
 
 #define BELT_POSITION_LOW  0
 #define BELT_POSITION_HIGH 1
 
 #define SPEEDER_FACTOR_DEFAULT 3.0
 #define HZ_PER_HZ_DEFAULT 20.0
+#define ORIENT_HZ_PER_HZ_DEFAULT  (124)  //(345.409886398526)  //(HZ_PER_HZ_DEFAULT * 100.0) //when we go into "orient" mode, there's a 100 multiplier
 
 // M200 feedback frequency times this is motor RPM
 #define DEFAULT_VFD_FEEDBACK_FACTOR 3.0
@@ -277,10 +339,34 @@ function _ "Tormach Spindle HAL Component M200";
 
 #define ORIENT_ERR_MULTIPLE_COMMANDS (-1)
 #define ORIENT_ERR_NO_ZINDEX (-2)
-//TODO: how is timeout ORIENT_ERR handled??
+#define ORIENT_ERR_LOCK_WITHOUT_PRIOR_ORIENT (-3)
+#define ORIENT_ERR_TIME_OUT (-4)
 
-#define ORIENT_DEADBAND_VALUE (8)  //within this range from orient target, we call it "done"
-#define ORIENT_DEADBAND_TIME    (100) //must stay within ORIENT_DEADBAND_VALUE for this many passes through comp (~100ms) to call it "done"
+#define ORIENT_TARGETBAND (8)  //within this range from orient target, we call it "done"
+#define ORIENT_TARGETBAND_TIME   (.200) //(.400) // 303mS was observed worst case where slow slopes could cause us to think orienting is "done" when PID is still homing in
+                            //(.100) //must stay within ORIENT_TARGETBAND and have stable vfd_freq_cmd for this many secs to call orient "done"
+
+#define ORIENT_LONG_ORIENT_TIME (1.0) //in secounds, time to wait before starting to figure out if we're stuck
+#define ORIENT_STUCK_PREAMBLE_TIME (.25) //TODO consider the VFD_RUN and VFD_CMD Delays (.25) //in seconds, time to wait before declaring we're stuck
+#define ORIENT_BOOST_RPM (5.0)
+#define ORIENT_MIN_BOOST_RPM (18.0) //need this to exceed the deadband and then some on the VFD 
+#define ORIENT_BOOST_PERIOD (.1) //in secs
+
+#define ERR_LIE (0)
+#define _38_SPECIAL (0)
+#define TEST_TIME (8000)  //time in millisecs for one cycle of test.  vfd-freq-cmd pulses will be 1/4 this time.
+#define _38_SPECIAL_RPM (10.0)
+#define ENCODER_SEC (1.0)
+
+#define VFD_BIPOLAR_MODE (1)
+#define VFD_BIPOLAR_FREQ_OFFSET (5003.127) //(5000.46) //(5000.575683)   //defines what freq from the ECM and into VFD is "0".  Below 5000 is reverse, above is forward
+#define VFD_RUN_DELAY (1.000) //This is the delay the VFD needs as we switch between VFD modes using  mode0 and mode1 pins before we can enable the drive. (i.e. assert VFD "RUN" pin)
+#define VFD_CMD_FREQ_DELAY (.0250) //time that vfd_freq_cmd will = 0 to prevent orient PID glitch
+#define MAGIC_VFD_FREQ_OFFSET (0) //(164.0) //(41.0)  //determined by the minimum freq below which the VFD stops turning the spindle  (when VFD is in *25 sensitivity mode)
+                                  //so theoretically, this is present in normal spindle mode, but the freq is 41/25 = 1.64 Hz vfd-cmd-freq which is what RPM???
+                                  //not presently using MAGIC_VFD_FREQ_OFFSET, probably BIPOLAR Mode VFD_BIPOLAR_FREQ_OFFSET and VFD_DEADBAND_HZ removes the need for (duplicate) MAGIC_VFD_FREQ_OFFSET
+#define VFD_DEADBAND_HZ (14.769)  // this is the value of which we need to exceed (subject to the VFD_BIPOLAR_FREQ_OFFSET) to get outside the VFD_DEADBAND of .03% presently programmed Mar 8th.
+
 /////////////// end orienting additions
 
 #define DEF_HIGHBELT_MIN_RPM 525
@@ -299,6 +385,111 @@ function _ "Tormach Spindle HAL Component M200";
 #define DEF_HISPEED_STEP_RPM 8000   // rpm below which we expand tolerance with highspeed spindle
 #define DEF_HISPEED_TOL_BELOW 25    // what the rpm tolerance is below highspeed-step-rpm
 #define DEF_HISPEED_TOL_ABOVE 10    // what the rpm tolerance is above or equal to highspeed-step-rpm
+
+//These are the two vfd-mode# pins encoding.  vfd-mode0 is LSBit, vfd-mode1 is MSBit.  m200 VFD "par" files must be kept in sync!
+//Do not confuse with SPINDLE_TYPE_??? in constants.py
+#define VFD_MODE_DEFAULT 0 
+#define VFD_MODE_RAPIDTURN 1
+#define VFD_MODE_HISPEED 2
+#define VFD_MODE_ORIENT 3
+#define VFD_MODE_NONE 4
+
+static float hz_per_cmd_hz; //this is ratio of ECM freq to resultant VFD freq out to motor, nominally 20 or 200 in orient mode
+static float min_speed_freq_cmd;
+static float max_speed_freq_cmd;
+static unsigned int vfd_mode;
+static unsigned int last_vfd_mode = VFD_MODE_NONE;   //used to detect vfd_mode change, and turns on the vfd_run_inhibit_timer
+static float vfd_run_inhibit_timer;  //this timer counts down. while active (>0.0) it means VFD "RUN" pin will not be asserted
+static float stuck_delay; //Is either (ORIENT_LONG_ORIENT_TIME) OR (ORIENT_LONG_ORIENT_TIME + VFD_RUN_DELAY).  Time that must pass before we start yet another timer to decide if orienting_stuck should be set.
+
+#define FILTER_LENGTH (16)
+static signed int firstFlag = 0;
+static signed int fbsum;
+static signed int fbvalues[FILTER_LENGTH];
+static signed int fbptr; //next location circular values[] array
+
+float fbFilter(signed int currentFb)
+{
+int ii;
+
+    if(firstFlag==0){
+        fbsum = currentFb * FILTER_LENGTH;
+        for (ii = 0; ii< FILTER_LENGTH; ii++) {
+            fbvalues[ii] = currentFb;
+        }
+        fbptr = 0;
+    }
+
+    firstFlag = 1;
+
+    fbsum -= fbvalues[fbptr]; //remove the oldest value in circular buffer summation
+    fbsum += currentFb; //add newest value to sum
+    fbvalues[fbptr++] = currentFb; //save newest value
+    if(fbptr >= FILTER_LENGTH) //loop circular buffer pointer as required
+        fbptr = 0;
+
+    return (float) ((float)fbsum/(float)FILTER_LENGTH);
+}
+
+
+#define vFILTER_LENGTH (500)
+//static signed int vfirstFlag = 0;
+static double vfbsum;
+static double vfbvalues[vFILTER_LENGTH];
+static signed int vfbptr; //next location circular values[] array
+
+double vFilter(double vcurrentFb)
+{
+/*int ii;
+
+    if(vfirstFlag==0){
+        vfbsum = vcurrentFb * vFILTER_LENGTH;
+        for (ii = 0; ii< vFILTER_LENGTH; ii++) {
+            vfbvalues[ii] = vcurrentFb;
+        }
+        vfbptr = 0;
+    }
+
+    vfirstFlag = 1;
+*/
+
+    vfbsum = vfbsum - vfbvalues[fbptr]; //remove the oldest value in circular buffer summation
+    vfbsum = vfbsum + vcurrentFb; //add newest value to sum
+    vfbvalues[vfbptr++] = vcurrentFb; //save newest value
+    if(vfbptr >= vFILTER_LENGTH) //loop circular buffer pointer as required
+        vfbptr = 0;
+
+    return vfbsum/((double)vFILTER_LENGTH);
+}
+
+
+#define FILTER_RPM_LEN (1024)
+#define POSITION (0)
+#define TIME (1)
+#define COUNTS_TO_RPM_CONSTANT ((double)0.029296875)  // 60 secs per min / 2048 encoder resolution
+static double rpm[FILTER_RPM_LEN][2];  //FILTER_RPM_LEN pairs of POSITION & TIME values
+static unsigned int rpmPtr;
+static double rpmTime;
+
+double filteredRPM(double position, double tNow)
+{
+double currentRPM;
+
+    if (rpmPtr >= FILTER_RPM_LEN) //defensive check to range this on entry rather than exit of routine
+        rpmPtr = 0;
+
+    rpmTime += tNow; //trusting that fperiod (passed as tNow) != 0.0, otherwise divide by 0 is possible in next line
+
+    currentRPM = (position - rpm[rpmPtr][POSITION])/(rpmTime - rpm[rpmPtr][TIME])* COUNTS_TO_RPM_CONSTANT;
+
+    rpm[rpmPtr][POSITION] = position;
+    rpm[rpmPtr][TIME] = rpmTime;
+    
+    rpmPtr++;
+
+    return currentRPM;
+}
+
 
 
 float vfd_rpm2freq(float rpm, float pulley_ratio, float hz_per_cmd_hz, float speeder_ratio) {
@@ -358,6 +549,8 @@ float setValue(float x, float def_val)  {
     return def_val;
 }
 
+
+
 /*
 FIXME:   can't put this here; we can't reference global variables.  Example: encoder_position.
 we get compiler nonsense about encoder_position not defined.  Same issue with any variables.
@@ -370,17 +563,15 @@ signed int calcFeedback(void)
 
 FUNCTION(_) {
     float speeder_ratio;
-    float clamped_speed_in;
     float pulley_ratio;
-    float hz_per_cmd_hz;
-    float min_speed_freq_cmd;
-    float max_speed_freq_cmd;
+//    float hz_per_cmd_hz;
+//    float min_speed_freq_cmd;
+//    float max_speed_freq_cmd;
     float tolerance;
     float vfd_feedback_ratio;
-    signed int enc_err; 
+//    signed int enc_err; 
 
-    clamped_speed_in = 0; //keeps compiler happy.  + Defensive programming as
-                       // spindle won't move unless something else sets this
+    vfd_rpm_cmd = 0; //Defensive programming as spindle won't move unless something else below sets it
 
 // it appears to work to put calcFeedback() within FUNCTION(_)
 // Wanted this:
@@ -405,7 +596,7 @@ FUNCTION(_) {
 //}
 // It looks screwy, but it works.  
 
-signed int calcFeedback(void)
+signed int calcFeedback(signed int orient_direction)
 {
 signed int enc_feedback; //what PID gets for feedback
 signed int curMod; //modulus of the current position
@@ -439,13 +630,13 @@ float angle_offset;
         orient_target = encoder_position - modulusErr;
 
         if( orient_encoder_cpr >= 0) { // encoder cpr is POS, so CW means counts go up
-            if (orient_mode == ORIENT_CW){ //if M19 requesting CW spindle rotation
+            if (orient_direction == ORIENT_CW){ //if M19 requesting CW spindle rotation
                 if (orient_target < encoder_position) { //yet we calc'd a CCW rotation
                     orient_target += orient_encoder_cpr; //add a turn to force target be a more CW location
                                     //note we already know orient_encoder_cpr is positive, so adding counts to be more CW
                 }
             }
-            else if (orient_mode == ORIENT_CCW) { //if M19 requesting CCW spindle rotation
+            else if (orient_direction == ORIENT_CCW) { //if M19 requesting CCW spindle rotation
                 if (orient_target > encoder_position) { //yet we calc'd a CW rotation
                     orient_target -= orient_encoder_cpr; //subtract a turn to force target be a more CCW location
                                     //note we already know orient_encoder_cpr is positive, so subracting counts to be more CCW
@@ -453,13 +644,13 @@ float angle_offset;
             }
         }
         else { //if encoder cpr is NEG, then CW means counts go _down_!
-            if (orient_mode == ORIENT_CW){ //if M19 requesting CW spindle rotation
+            if (orient_direction == ORIENT_CW){ //if M19 requesting CW spindle rotation
                 if (orient_target > encoder_position) { //yet we calc'd a CCW rotation
                     orient_target += orient_encoder_cpr; //subtract a turn to force target be a more CW location
                                     //note we already know orient_encoder_cpr is negative, so we're really subtracting counts (more CW)
                 }
             }
-            else if (orient_mode == ORIENT_CCW) { //if M19 requesting CCW spindle rotation
+            else if (orient_direction == ORIENT_CCW) { //if M19 requesting CCW spindle rotation
                 if (orient_target < encoder_position) { //yet we calc'd a CW rotation
                     orient_target -= orient_encoder_cpr; //add a turn to force target be a more CCW location
                                     //note we already know orient_encoder_cpr is negative, so we're adding counts (more CCW)
@@ -468,45 +659,55 @@ float angle_offset;
         }
     }
 
-    enc_feedback = encoder_position - orient_target;
+	if ( orient_encoder_cpr < 0)
+        enc_feedback = encoder_position - orient_target;
+	else 
+		enc_feedback = orient_target - encoder_position;
 
     return enc_feedback;
 }
-
-
 
 // spindle-type - for high speed use only low belt params
     //                for speeder compensate for tripled output speed
     //                for standard pay attention to belt position
     switch (spindle_type) {
         default:
-        case STANDARD_TYPE:
-        case HISPEED_TYPE:
-                // standard
-                speeder_ratio = 1.0;
-                break;
-
-        case SPEEDER_TYPE:
-                // speeder
-                if (speeder_factor != 0.0) {
-                    // use HAL value
-                    speeder_ratio = speeder_factor;
-                }
-                else {
-                    // use default of SPEEDER_FACTOR_DEFAULT
-                    speeder_ratio = SPEEDER_FACTOR_DEFAULT;
-                }
+        case SPINDLE_TYPE_STANDARD:
+            speeder_ratio = 1.0;
+            vfd_mode = VFD_MODE_DEFAULT; 
+            break;
+        case SPINDLE_TYPE_HISPEED:
+            speeder_ratio = 1.0;
+            vfd_mode = VFD_MODE_HISPEED;
+            break;
+        case SPINDLE_TYPE_SPEEDER:
+            vfd_mode = VFD_MODE_DEFAULT;
+            if (speeder_factor != 0.0) { // use HAL value
+                speeder_ratio = speeder_factor;
+            }
+            else {  // use default of SPEEDER_FACTOR_DEFAULT
+                speeder_ratio = SPEEDER_FACTOR_DEFAULT;
+            }
+            break;
+        case SPINDLE_TYPE_RAPID_TURN:
+            vfd_mode = VFD_MODE_RAPIDTURN;
+            speeder_ratio = 1.0;
+            break;
     }
 
+
     // set min and max speed from belt position
-    if (belt_position != BELT_POSITION_LOW) {
+    // we default or assume hi belt except when HI speed spindle
+    if (belt_position != BELT_POSITION_LOW) { //default HI belt unknowns, too
+        pulley_ratio =  highbelt_ratio;
         min_speed = setValue(highbelt_min_rpm, DEF_HIGHBELT_MIN_RPM);
         max_speed = setValue(highbelt_max_rpm, DEF_HIGHBELT_MAX_RPM);
         step_speed = setValue(highbelt_step_rpm, DEF_HIGHBELT_STEP_RPM);
         step_tol_below = setValue(highbelt_tol_below, DEF_HIGHBELT_TOL_BELOW);
         step_tol_above = setValue(highbelt_tol_above, DEF_HIGHBELT_TOL_ABOVE);
     }
-    else {
+    else { //low belt case
+        pulley_ratio = lowbelt_ratio;
         min_speed = setValue(lowbelt_min_rpm,DEF_LOWBELT_MIN_RPM);
         max_speed = setValue(lowbelt_max_rpm,DEF_LOWBELT_MAX_RPM);
         step_speed = setValue(lowbelt_step_rpm,DEF_LOWBELT_STEP_RPM);
@@ -515,7 +716,7 @@ float angle_offset;
     }
 
     // test for speeder spindle type
-    if (spindle_type == SPEEDER_TYPE) {
+    if (spindle_type == SPINDLE_TYPE_SPEEDER) {
         min_speed = min_speed * speeder_ratio;
         max_speed = max_speed * speeder_ratio;
         step_speed = step_speed * speeder_ratio;
@@ -524,7 +725,8 @@ float angle_offset;
     }
 
     // test for high speed spindle type
-    if (spindle_type == HISPEED_TYPE) {
+    if (spindle_type == SPINDLE_TYPE_HISPEED) {
+        pulley_ratio = 1.0;
         // use high speed spindle min and max
         min_speed = setValue(hispeed_min,DEF_HISPEED_MIN_RPM);
         max_speed = setValue(hispeed_max,DEF_HISPEED_MAX_RPM);
@@ -548,61 +750,63 @@ float angle_offset;
         zindex_state = ISTATE_PAST | ISTATE_DONE;
     }
 
+    // THIS SECTION figures out spinde_state and clears and initializes other state variables,
+    // but doesn't to the heavy lifting of what the spindle_states mean
     if (orient_execute) {
-        if (deadband_in != 0)
-            orient_deadband = deadband_in;
-        else
-            orient_deadband = ORIENT_DEADBAND_VALUE;
-
-        if(!orient_done)
-            orient_fault = 0;
-
-        spindle_on_thur = BIT_FALSE; //default to spindle off in orient mode until something sets it on
-
-        if (orient_set_bt30){
-            orient_fault = ORIENT_ERR_MULTIPLE_COMMANDS;
-            orient_done = 1;
-            target_computed = 0;
-        }
-        else if (zindex_state != (ISTATE_PAST | ISTATE_DONE)) {
-            orient_fault = ORIENT_ERR_NO_ZINDEX; //we've yet to see an encoder z index -- error out
-            orient_done = 1;
-            target_computed = 0;
-        }
-        else if (!orient_done) { //no errors detected.  if we didn't already complete, do orient 
-            if(orient_speed_in >= 0)  //figure out spindle dir based on input from index PID
-                spindle_forward_thur = BIT_TRUE;  //true selects forward on m200
-            else spindle_forward_thur = BIT_FALSE; //false selects reverse on m200
-
-            clamped_speed_in = fabs(orient_speed_in); //dir from input speed is ignored, as spindle_forward_thur sets that
-            //max speed during indexing is "very" low, use min_speed (yes min, not max) to set max speed
-            if (clamped_speed_in > min_speed) {
-                // over max
-                clamped_speed_in = min_speed;
-            }
-
-            orient_modulus = (float) calcFeedback(); //PID needs a float
-            enc_err = iabs(orient_target - encoder_position);
-            if(enc_err < orient_deadband){ //if indexing feedback is good for 100 ms, call it done
-                if (++orient_timer >= ORIENT_DEADBAND_TIME) {
-                    orient_done = 1;
-                    target_computed = 0;
-                }
-            }
-            else {
-                orient_timer = 0;
-            }
-            spindle_on_thur = BIT_TRUE;  //always enable the spindle in orienting mode
+        if(spindle_state!=SPINDLE_STATE_ORIENTING) { //if we just entered this state
+            spindle_state = SPINDLE_STATE_ORIENTING;
+            target_computed = 0; 
+            orient_to = 0;
+            oriented = 0;
+            orient_P2 = 0; //start at "PID 1" values
+            orient_fault = 0; //clear last error, if any
+            orienting_stuck = 0;
+            orient_timer = 0.0;
+            stuck_delay = ORIENT_LONG_ORIENT_TIME; 
+            orient_vfd_delay_timer = VFD_CMD_FREQ_DELAY + fperiod;  //start timer always to avoid vfd-cmd-freq glitch from PID 
+            if (orient_targetband_override != 0)
+                orient_targetband = orient_targetband_override;
+            else
+                orient_targetband = ORIENT_TARGETBAND;
+            orient_on_target = 0;
+            orient_status = 0.0;
+            //if (motor_hz_per_cmd_hz == 0.0) 
+            //    hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
+            //else
+            //    hz_per_cmd_hz = motor_hz_per_cmd_hz; //use eternal value
+            hz_per_cmd_hz = ORIENT_HZ_PER_HZ_DEFAULT;
+            //TODO: add timer for switching to orient mode at VFD
+            min_speed_freq_cmd = 0.0;
+            max_speed_freq_cmd = VFD_BIPOLAR_FREQ_OFFSET;  //vfd_rpm2freq(max_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
+#if (_38_SPECIAL)
+            orient_total_ticks = 0;
+#endif
         }
     }
-    else if (orient_set_bt30)
-    {
+    else if (spindle_lock) {
+        if(spindle_state!=SPINDLE_STATE_LOCKED) { //if just entered this state 
+            if(spindle_state!=SPINDLE_STATE_ORIENTING) { //must enter from orient state
+                orient_fault = ORIENT_ERR_LOCK_WITHOUT_PRIOR_ORIENT; //flag the error
+                spindle_state = SPINDLE_STATE_ERROR; //
+            }
+            else {  
+                spindle_state = SPINDLE_STATE_LOCKED; //move to this state even if error
+                orient_P2 = 1.0; //switch to 2nd PID constants
+                if (!oriented) {
+                    orient_to = 1;
+                //    orient_fault = ORIENT_ERR_TIME_OUT; //TODO does this mess up linuxcnc net M19???
+                }
+            }
+        }
+        oriented = 0;
+    }
+    else if (orient_set_bt30){
         //errors or not, we clear all these before finishing the bt30 set operation
         orient_set_bt30 = 0;   // the user looks at this to go low to know it completed, and can look at fault code to see if err
         orient_fault = 0;
-        orient_done = 0;
-        target_computed = 0;
-
+        oriented = 0;
+        vfd_rpm_cmd = 0.0;
+        spindle_state = SPINDLE_STATE_NONE;
         spindle_on_thur = BIT_FALSE; //never enable spindle for bt30 setting
         if (zindex_state != (ISTATE_PAST | ISTATE_DONE)) {
             orient_fault = ORIENT_ERR_NO_ZINDEX; //we've yet to see an encoder z index -- error out
@@ -611,61 +815,302 @@ float angle_offset;
             bt30_offset = normalizedMod(encoder_position,orient_encoder_cpr);
         }
     }
-    else //normal spindle operation, no orienting or bt30 setting active
-    {
-        orient_done = 0;
-        target_computed = 0;
-        orient_timer = 0;
+    else { //normal spindle operation
+        if(spindle_state != SPINDLE_STATE_NORMAL) {
+            if(spindle_state == SPINDLE_STATE_ORIENTING && !oriented) {
+                orient_to = 1;
+         //       orient_fault = ORIENT_ERR_TIME_OUT; setting this here goofs up linuxcnc such that it will never attempt another M19
+            }
+            spindle_state = SPINDLE_STATE_NORMAL;
+            orient_fault = 0; //clearing this here means orient_fault is only active for 1 ms!, but otherwise see above "never attempt another M19"
+            orient_on_target = 0;
+            if (motor_hz_per_cmd_hz == 0.0)
+                hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
+            else
+                hz_per_cmd_hz = motor_hz_per_cmd_hz; //use eternal value
 
-        clamped_speed_in = fabs(speed_in); //ignore direction sign from speed input
-        if (clamped_speed_in < min_speed) {
-            // under min
-            speed_alarm = BIT_TRUE;
-            clamped_speed_in = min_speed;
+            // calculate clamps for vfd_freq_cmd to acceptable ranges once
+            min_speed_freq_cmd = vfd_rpm2freq(min_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
+            max_speed_freq_cmd = vfd_rpm2freq(max_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
         }
-        else if (clamped_speed_in > max_speed) {
-            // over max
-            speed_alarm = BIT_TRUE;
-            clamped_speed_in = max_speed;
+    }
+
+    //Now we can do the heavy lifting of spindle_states
+
+    if(spindle_state == SPINDLE_STATE_ORIENTING || spindle_state == SPINDLE_STATE_LOCKED) { 
+        if (orient_set_bt30){
+            orient_fault = ORIENT_ERR_MULTIPLE_COMMANDS;
         }
+        else if (zindex_state != (ISTATE_PAST | ISTATE_DONE)) {
+            orient_fault = ORIENT_ERR_NO_ZINDEX; //we've yet to see an encoder z index -- error out
+        }
+        else { //no errors detected. do orient PID
+            vfd_mode = VFD_MODE_ORIENT;
+#if (_38_SPECIAL)
+            if(orient_angle == 38.0) { //do special orient 
+                spindle_on_thur = BIT_TRUE;
+
+//              TODO, remove next two lines, allow 38 special (uncomment switch() below)  over riding normal orienting 
+                last_fwd = BIT_TRUE;
+                last_rpm = 0.0;
+
+
+/*                switch(orient_total_ticks%TEST_TIME){
+                    case 0:  //on forward
+                        last_fwd = BIT_TRUE; //forward
+                        last_rpm = _38_SPECIAL_RPM;
+                        break;
+                    case (TEST_TIME/4): //off forward
+                        last_rpm = 0.0;
+                        break;
+                    case (TEST_TIME/4)+(TEST_TIME/8): // reverse during pause
+                        last_fwd = BIT_FALSE; //reverse
+                        break;
+                    case (TEST_TIME/2): //go reverse
+                        last_rpm = _38_SPECIAL_RPM;
+                        break;
+                    case (TEST_TIME/4)*3: //stop reverse
+                        last_rpm = 0.0;
+                        break;
+                    case ((TEST_TIME/4)*3)+(TEST_TIME/8): // go foward
+                        last_fwd = BIT_TRUE; //forward
+                        break;
+                    default:
+                        break;
+                }
+*/
+
+                spindle_forward_thur = last_fwd;
+                vfd_rpm_cmd = last_rpm; 
+                orient_total_ticks++;
+
+/* we probably don't care about PIDs in 38 special mode
+            if (orient_P2) {
+                pidP = pidP2in;
+                pidD = pidD2in;
+                pidI = pidI2in;
+            }
+            else {
+*/
+                pidP = pidP1in;
+                pidD = pidD1in;
+                pidI = pidI1in;
+            }
+
+//no reason not to do this in 38 special mode
+
+            if(iabs(enc_err) <= (orient_targetband/2)){ //if indexing feedback is good for ORIENT_TARGETBAND_TIME, _AND_ vfd_freq_cmd is stable too, call it done
+                                                //however, we don't calculate vfd_freq_cmd until much later. So the vfd_freq_cmd stablity isn't checked here yet
+                                                //and it can reset/restart orient_good_timer at very end of this comp when vfd_freq_cmd isn't stable
+                orient_on_target = 1;
+                if (spindle_state == SPINDLE_STATE_ORIENTING) {
+                    orient_good_timer += fperiod;
+                    if (orient_good_timer >= ORIENT_TARGETBAND_TIME) //subject to reset/restart at very end of this comp when vfd_freq_cmd isn't stable.
+                        oriented = 1;
+                }
+                orient_status = 0.0;
+            }
+            else {
+                if (enc_err > 0) {
+                    orient_status = 1.0;
+                }
+                else {
+                    orient_status = -1.0;
+                }
+                orient_good_timer = 0.0;
+                orient_on_target = 0;
+//Used for debug                if (spindle_state == SPINDLE_STATE_LOCKED)
+//debug                    orient_to = 1; //abuse this pin to indicate holding error
+            }
+        }  //TODO: YIKES an indentation issue!
+        else { //normal orient
+#endif  //end of _38_SPECIAL, normal orient below here
+            orient_timer += fperiod;
+            spindle_on_thur = BIT_TRUE;  //always enable the spindle in orienting mode
+#if (VFD_BIPOLAR_MODE)
+            spindle_forward_thur = BIT_TRUE;  //true selects forward on m200, but ignored by VFD as freq also controls direction
+            vfd_rpm_cmd = orient_speed_in;
+#else
+            if(orient_speed_in >= 0)  //figure out spindle dir based on input from index PID
+                spindle_forward_thur = BIT_TRUE;  //true selects forward on m200
+            else 
+                spindle_forward_thur = BIT_FALSE; //false selects reverse on m200
+
+            vfd_rpm_cmd = fabs(orient_speed_in);
+#endif
+
+            if(vfd_run_inhibit_timer > 0.0) { //if this timer is active, we don't output rpm commands and don't decrement orient_vfd_delay_timer either
+                vfd_rpm_cmd = 0.0; //inhibit orient rpm commands while vfd RUN is inhibited
+            }
+            else if (orient_vfd_delay_timer > 0.0) { //if timer running
+                orient_vfd_delay_timer -= fperiod; //decrement it
+                vfd_rpm_cmd = 0.0;  //inhibit motion while orient_vfd_delay_timer still active
+            }    
+            
+            //max speed during orienting is "very" low, use min_speed (yes min, not max) to set max speed
+// TODO: don't range check at all for orienting ... done later at vfd_freq_cmd
+//            if (fabs(orient_speed_in) > min_speed) {
+//                if (vfd_rpm_cmd >= 0.0)
+//                    vfd_rpm_cmd = min_speed;
+//                else 
+//                    vfd_rpm_cmd = -1.0 * min_speed;
+//            }
+
+            
+            orient_modulus = fbFilter(calcFeedback(orient_mode)); 
+            enc_err = orient_target - encoder_position;
+
+            if(iabs(enc_err) < 65) //TODO: Magic number!!!!
+                orient_P2 = 1.0; //turn on 2nd orient
+
+            if (orient_P2) {
+                pidP = pidP2in;
+                pidD = pidD2in; 
+                pidI = pidI2in; 
+            }
+            else {
+                pidP = pidP1in;
+                pidD = pidD1in;
+                pidI = pidI1in;
+            }
+
+            //since orient_on_target is using tighter tolerance than orient_targetband, we
+            //have to deal with orient_status separately
+            if (spindle_state == SPINDLE_STATE_LOCKED) {
+                if (enc_err <= -1 * iabs(orient_targetband))
+                    orient_status = enc_err; //SLP DEBUG test to simply return enc_err restore this -1.0;
+                else if (enc_err >= iabs(orient_targetband))
+                    orient_status = enc_err; //SLP restore this 1.0;
+                else
+                    orient_status = 0.0; 
+            }
+            else { //presently setting to "invalid" number incase ATC code samples me at "wrong" time for this variable.  It'll generate a fault as he's looking for it to be zero or not.
+                    //DEBUG statements in .ngc files are logging the return ... if we see this MAGIC NUMBER, then we know it was sampled at wrong time
+                orient_status = -.456789;//SLP return to 0 //lie it's all OK until as not error yet since orient hasn't finished 
+            }
+
+            if(iabs(enc_err) <= (orient_targetband/2)){ //if indexing feedback is good for ORIENT_TARGETBAND_TIME, _AND_ vfd_freq_cmd is stable too, call it done
+                                                //however, we don't calculate vfd_freq_cmd until much later. So the vfd_freq_cmd stablity isn't checked here yet
+                                                //and it can reset/restart orient_good_timer at very end of this comp when vfd_freq_cmd isn't stable
+                orient_on_target = 1;
+                if (spindle_state == SPINDLE_STATE_ORIENTING) {
+                    orient_good_timer += fperiod;
+                    if (orient_good_timer >= ORIENT_TARGETBAND_TIME) //subject to reset/restart at very end of this comp when vfd_freq_cmd isn't stable.
+                        oriented = 1;
+                }
+            }
+            else {
+                orient_good_timer = 0.0;
+                orient_on_target = 0;
+//Debug                if (spindle_state == SPINDLE_STATE_LOCKED)
+//Debug                    orient_to = 1; //abuse this pin to indicate holding error
+            }
+                if((iabs(enc_err) > (orient_targetband/2)) && (orient_timer > stuck_delay)) {
+                if(!orienting_stuck) {
+                    orienting_stuck_timer += fperiod;
+                    if (orienting_stuck_timer >= ORIENT_STUCK_PREAMBLE_TIME) {
+                            orienting_stuck = 1;
+                            orienting_stuck_timer = 0.0; //restart timer for next stage
+                            orienting_stuck_last = encoder_position; 
+                            if (enc_err > 0)
+                                orienting_boost = ORIENT_MIN_BOOST_RPM * -1.0;
+                            else orienting_boost = ORIENT_MIN_BOOST_RPM;
+                    }
+                }
+                else { //previously detected no encoder movement outside of (orient_targetband/2) for ORIENT_STUCK_PREAMBLE_TIME 
+                    if (encoder_position == orienting_stuck_last) {
+                        orienting_stuck_timer += fperiod;
+                        if (orienting_stuck_timer >= ORIENT_BOOST_PERIOD) {
+                            orienting_stuck_timer = 0.0; //restart timer for next ORIENT_BOOST_PERIOD
+                            if (enc_err > 0) {  //what's the polarity of boost?
+                                if(orienting_boost == 0) //if no previous boost, jump start it
+                                    orienting_boost = -1.0 * ORIENT_MIN_BOOST_RPM;
+                                else
+                                    orienting_boost -= ORIENT_MIN_BOOST_RPM; //previously active boost, just nudge it a little
+                            }
+                            else {
+                                if(orienting_boost == 0) //if no previous boost, jump start it
+                                    orienting_boost = ORIENT_MIN_BOOST_RPM;
+                                else
+                                    orienting_boost += ORIENT_BOOST_RPM; //previously active boost, just nudge it a little
+                            }
+                        }
+                    }
+                    else {
+                        orienting_stuck_last = encoder_position; //new "stuck" position, however now it's more of a "last" position, as the encoder could be moving
+                        //orienting_stuck = 0; //TODO: an option would be to exit the "stuck" mode, however we won't right now.  This means we will
+                        // start boosting again in ORIENT_BOOST_PERIOD secs, rather than (ORIENT_STUCK_PREAMBLE_TIME + ORIENT_BOOST_PERIOD) secs
+                        orienting_boost = 0.0; //movement seen, stop orienting_boost immediately so we don't over shoot.
+                        
+                    }
+                }
+                vfd_rpm_cmd += orienting_boost; //add the boost, if any because we're stuck.
+            }
+            else {
+                orienting_boost = 0.0; //guarantee this is not being done since we're inside targetband and/or ORIENT_LONG_ORIENT_TIME hasn't happened yet
+            }
+
+#if _38_SPECIAL
+        } //end normal orient else case when 38 special enabled
+#endif
+        }
+    }    
+    else { //normal spindle operation, no orienting or bt30 setting active
+        vfd_rpm_cmd = fabs(speed_in); 
         spindle_on_thur = spindle_on; //pass thur in this mode
         spindle_forward_thur = forward_in; //pass thur in this mode
+
+        if (vfd_rpm_cmd < min_speed) {
+            // under min
+            speed_alarm = BIT_TRUE;
+            vfd_rpm_cmd = min_speed;
+        }
+        else if (vfd_rpm_cmd > max_speed) {
+            // over max
+            speed_alarm = BIT_TRUE;
+            vfd_rpm_cmd = max_speed;
+        }
     }
 
+    //Now compute vfd_rpm_cmd
 
-
-    // set pulley ratio
-    if (spindle_type == HISPEED_TYPE) {
-        pulley_ratio = 1.0;
-    }   
-    else if (belt_position != BELT_POSITION_LOW) {
-        // BELT_POSITION_HIGH
-        pulley_ratio = highbelt_ratio;
-    }
-    else {
-        // BELT_POSITION_LOW
-        pulley_ratio = lowbelt_ratio;
+    if (enc_door_switch_configured == 1 && enc_door_switch_status == 1 && fabs(vfd_rpm_cmd) > enc_door_open_max_rpm) {
+        if (vfd_rpm_cmd >= 0.0)
+            vfd_rpm_cmd = enc_door_open_max_rpm;
+        else 
+            vfd_rpm_cmd = -1.0 * enc_door_open_max_rpm;
     }
 
-    hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
-    if (motor_hz_per_cmd_hz != 0.0) {
-        // use HAL pin value if set
-        hz_per_cmd_hz = motor_hz_per_cmd_hz;
-    }
 
     // compute frequency to send to VFD commanded speed input
     // freq_cmd = spindle_rpm /  pulley_ratio / 60 * motor_hz_per_cmd_hz
-    vfd_freq_cmd = vfd_rpm2freq(clamped_speed_in, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
+    vfd_freq_cmd = vfd_rpm2freq(vfd_rpm_cmd, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
 
-    // clamp vfd_freq_cmd to acceptable range
-    min_speed_freq_cmd = vfd_rpm2freq(min_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
-    max_speed_freq_cmd = vfd_rpm2freq(max_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
-    if (!orient_execute && vfd_freq_cmd < min_speed_freq_cmd) {   //no minimum command freq for indexing mode
-        vfd_freq_cmd = min_speed_freq_cmd;
+// no longer necessary with VFD_BIPOLAR_MODE operation, as vfd_rpm_cmd is signed now throughout code
+//    if (spindle_forward_thur == 0) //if reverse, flip sign of vfd_rpm_cmd ... this is a DEBUG operation, does nothing useful
+//        vfd_rpm_cmd = -1.0 * vfd_rpm_cmd; 
+
+    // clamp vfd_freq_cmd to acceptable range using previously calculated min_speed_freq_cmd and max_speed_freq_cmd value
+    if (fabs(vfd_freq_cmd) < min_speed_freq_cmd) {  
+        if(vfd_freq_cmd >= 0.0)
+            vfd_freq_cmd = min_speed_freq_cmd;
+        else 
+            vfd_freq_cmd = -1.0 * min_speed_freq_cmd;
     }
     else if (vfd_freq_cmd > max_speed_freq_cmd) {
-        vfd_freq_cmd = max_speed_freq_cmd;
+        if(vfd_freq_cmd >= 0.0)
+            vfd_freq_cmd = max_speed_freq_cmd;
+        else
+            vfd_freq_cmd = -1.0 * max_speed_freq_cmd;
     }
+
+
+/* Where we add MAGIC_VFD_FREQ_OFFSET if necessary ...
+    if(spindle_state == SPINDLE_STATE_ORIENTING || spindle_state == SPINDLE_STATE_LOCKED) {
+        //vfd_freq_cmd += vfd_freq_offset; //MAGIC_VFD_FREQ_OFFSET;  //below ~41 hertz means VFD 0 RPM. We're trying to offset that here
+                                //one doesn't need to worry about the absolute value, as vfd_freq_cmd always positive
+    }
+*/
 
     if (vfd_feedback_factor != 0.0) //if set externally, use it  
         vfd_feedback_ratio = vfd_feedback_factor; 
@@ -676,20 +1121,34 @@ float angle_offset;
     if (feedback_motor_rpm <= RPM_CLOSE_TO_ZERO) {
         feedback_motor_rpm = 0.0;
     }
-    feedback_spindle_rpm = feedback_motor_rpm * pulley_ratio;
 
+    //orient_encoder == 1 means no encoder. Can't reall set to "0" as linuxcnc/src/hal/drivers/mesa-hostmot2/encoder.c uses
+    // this value as a divisor.  Yet we wish to allow a "generic" HALs to ignore & not connect
+    //this pin, in which case it's going to be 0 here.  Our base HAL files set ENCODER_SCALE "1" to indicate no encoder.
+    //a specific ini that then doesn't define ENCODER_SCALE at all means it will be "1" here
+    if(orient_encoder_cpr == 1.0 || orient_encoder_cpr == 0.0) 
+    	feedback_spindle_rpm = feedback_motor_rpm * pulley_ratio; // use VFD's feedback, which isn't so accurate
+    else { //TODO:
+        //use the encoder and TODO add verify VFD motor speed feedback is working and/or alert wrong belt ratios, etc
+    	//feedback_spindle_rpm = fabs(vFilter((double)encoder_velocity)) * (double)60.0;
+        //encoder_timer += fperiod;
+        //if (encoder_timer >= ENCODER_SEC)
+       // {
+            //feedback_spindle_rpm = ((((float)encoder_position) - ((float)last_encoder_position)) / ((float)orient_encoder_cpr)) * ((float)60.0);
+         //   last_encoder_position = encoder_position;
+          //  encoder_timer = 0.0;
+        //} 
+        feedback_spindle_rpm = filteredRPM((double)encoder_position, (double)fperiod);
+    }
     // spindle-at-speed check
-    //
-    // non-zero spindle speed and spindle not yet at_speed
-    if (spindle_on && (clamped_speed_in > 0.0)) {
-        // spindle is on
-        if (enc_door_switch_configured == 1 && enc_door_switch_status == 1 && clamped_speed_in > enc_door_open_max_rpm) {
-            // enclosure door is open - limit speed
-            speed_out = enc_door_open_max_rpm;
-            vfd_freq_cmd = vfd_rpm2freq(speed_out, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
-            at_speed = BIT_TRUE;
-        }
-        else if (at_speed == BIT_FALSE) {
+
+    if (spindle_state == SPINDLE_STATE_ORIENTING || spindle_state == SPINDLE_STATE_LOCKED) {
+        at_speed = BIT_FALSE;
+        speed_out = feedback_spindle_rpm;
+        speed_alarm = BIT_FALSE;
+    }
+    else if (spindle_on && (iabs(vfd_rpm_cmd) > 0.0)) {
+        if (at_speed == BIT_FALSE) {
             if (at_speed_force == BIT_TRUE) {
                 at_speed_force_timer += fperiod; 
                 if (at_speed_force_timer > AT_SPEED_FORCE_DELAY_SECS) {
@@ -703,13 +1162,13 @@ float angle_offset;
             speed_out = feedback_spindle_rpm;
             
             // at the very bottom end the feedback speed falls off from commanded
-            if (clamped_speed_in < step_speed) {
+            if (iabs(vfd_rpm_cmd) < step_speed) {
                 tolerance = step_tol_below/100.0;
             }
             else {
                 tolerance = step_tol_above/100.0;
             }
-            if (is_close_enough(speed_out, clamped_speed_in, tolerance)) {
+            if (is_close_enough(speed_out, iabs(vfd_rpm_cmd), tolerance)) {
                 // the M200 outputs a burst of noise approximately 1 second after
                 // its power on boot that
                 // causes a false positive 'at-speed' indication long before the
@@ -721,6 +1180,7 @@ float angle_offset;
                 if (at_speed_debounce > AT_SPEED_DEBOUNCE_SECS) {
                     // spindle should now be at speed
                     at_speed = BIT_TRUE;
+                    at_speed_debounce = 0.0; //without this, the debounce only happens once
                 }
             }
             else {
@@ -730,7 +1190,7 @@ float angle_offset;
         }
         // in at-speed state - speed-out follows speed-in
         else {
-            speed_out = clamped_speed_in;
+            speed_out = iabs(vfd_rpm_cmd);
             // uncomment next line for debugging or to display feedback RPM in UI
             //speed_out = feedback_spindle_rpm
         }
@@ -740,15 +1200,98 @@ float angle_offset;
         at_speed = BIT_FALSE;
         speed_out = 0.0;
         speed_alarm = BIT_FALSE;
-    }
-    if (disable) {
-        // no spindle motion allowed
         vfd_freq_cmd = 0.0;
     }
+
+    if (disable) { //do this last 
+        // no spindle motion allowed
+        vfd_freq_cmd = 0.0;
+        spindle_on_thur = 0;
+        speed_out = 0.0;
+    }
+
+    if (vfd_freq_cmd == 0.0)
+        vfd_rpm_cmd = 0.0; //just debugging output
+
+#if (VFD_BIPOLAR_MODE)
+    if(spindle_state == SPINDLE_STATE_ORIENTING || spindle_state == SPINDLE_STATE_LOCKED) {
+        vfd_freq_cmd += VFD_BIPOLAR_FREQ_OFFSET;
+        if(vfd_freq_cmd < 10.0)  //error range checking, plus we want to avoid 0 Hz command to drive
+            vfd_freq_cmd = 10.0;
+        if(vfd_freq_cmd > 10000.0)
+            vfd_freq_cmd = 10000;
+
+//        if(last_vfd_freq_cmd != vfd_freq_cmd){ // TODO: SHOULD THIS BE ACTIVE ???? i.e. experimenting with when we call an orient "done"
+//              right now, orient is done when within half targetband for a period of time.  WAS requiring vfd_freq_cmd to be stable for a period of time, too  
+//            orient_good_timer = 0.0;  //reset orient timer because vfd_cmd is not stable -- see also other orient_timer reset with regard to orient_on_target and setting of oriented variable
+//            oriented = 0;
+//        }
+//        last_vfd_freq_cmd = vfd_freq_cmd;
+    }
+    else   //this else is tricky but is correct to fabs(vfd_freq_cmd) always when not VFD_BIPOLAR_MODE, and conditionally (i.e. else case)
+#endif
+       vfd_freq_cmd = fabs(vfd_freq_cmd);
+    
+
+
     if(orient_encoder_cpr == 0.0 || orient_encoder_cpr == 1.0) //means no encoder. not setting to "0" as linuxcnc/src/hal/drivers/mesa-hostmot2/encoder.c uses this as a divisor, so !=0, yet we wish to allow HAL to not connect 
     //this pin, in which case it's going to be 0
         speed_out_rps = speed_out / 60.0;
     else
-        speed_out_rps = encoder_velocity;  //feed thur of velocity 
+        speed_out_rps = feedback_spindle_rpm/60; // encoder_velocity;  //feed thur of velocity 
+            // we are filtering rps into feedback_spindle_rpm above, so use it, not raw encoder_velocity i.e. "feedback_spindle_rpm = fabs(vFilter(encoder_velocity)) * 60;"
+
+    // DEBUG for orient speed_out = feedback_spindle_rpm;  //clobbers "at-speed" stuff above, NOT for shipping m200 code!
+
+    if(last_vfd_mode != vfd_mode) {
+        float local_variable = fabs(feedback_spindle_rpm); //if no encoder, use this
+        if(orient_encoder_cpr != 1.0 && orient_encoder_cpr != 0.0) 
+            local_variable = fabs(encoder_velocity); //if encoder, use this
+        if (local_variable < RPM_CLOSE_TO_ZERO) { //wait for any pending spindle motion to be "Zero" before switching modes
+            last_vfd_mode = vfd_mode;
+            switch (vfd_mode) {
+            default:
+            case VFD_MODE_DEFAULT:
+                vfd_mode0 = 0;
+                vfd_mode1 = 0;
+                break;
+            case VFD_MODE_RAPIDTURN:
+                vfd_mode0 = 1;
+                vfd_mode1 = 0;
+                break;
+            case VFD_MODE_HISPEED:
+                vfd_mode0 = 0;
+                vfd_mode1 = 1;
+                break;
+            case VFD_MODE_ORIENT:
+                vfd_mode0 = 1;
+                vfd_mode1 = 1;
+                break;
+            }
+        }
+        else {
+            target_computed = 0; //force new orient target to be computed, as spindle is moving
+        }
+        spindle_on_thur = 0; //over ride any previous "on" of this pin.  If was normal M3 S1000 "running", then this decels drive using "normal" VFD curves
+        vfd_run_inhibit_timer = VFD_RUN_DELAY + fperiod;
+        stuck_delay = ORIENT_LONG_ORIENT_TIME + VFD_RUN_DELAY; //VFD_RUN_DELAY must expire before deciding ORIENT_LONG_ORIENT_TIME has passed
+    }
+    else {
+        if (vfd_run_inhibit_timer > 0.0) { //if timer running
+            vfd_run_inhibit_timer -= fperiod;
+            spindle_on_thur = 0;    //over ride any previous "on" of this pin    
+            if ((spindle_state == SPINDLE_STATE_ORIENTING) || (spindle_state == SPINDLE_STATE_LOCKED)) {
+                //none of these timers should be tallying during VFD RUN inhibit active
+                orienting_stuck_timer = 0.0; 
+                orienting_boost = 0.0;
+                vfd_freq_cmd = VFD_BIPOLAR_FREQ_OFFSET;
+            }
+            else {
+                vfd_freq_cmd = 0;
+            }
+        }
+    }
+
 }
+
 

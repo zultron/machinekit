@@ -470,6 +470,10 @@ int rtapi_vsnprintf(char *buf, unsigned long size, const char *fmt, va_list args
     return str - buf;
 }
 
+
+// When the code is compiled with GCC 4.8.4 and -Og this fails because string.h or its relatives
+// end up defining strsep as a macro inline expansion and this definition conflicts and compilation breaks.
+#if !defined(strsep)
 /**
  * strsep - Split a string into tokens
  * @s: The string to be searched
@@ -496,3 +500,4 @@ char *strsep(char **s, const char *ct)
 
     return sbegin;
 }
+#endif

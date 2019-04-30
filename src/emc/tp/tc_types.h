@@ -50,8 +50,10 @@ typedef enum {
 #define TC_OPTIM_UNTOUCHED 0
 #define TC_OPTIM_AT_MAX 1
 
-#define TC_ACCEL_TRAPZ 0
-#define TC_ACCEL_RAMP 1
+typedef enum {
+    TC_ACCEL_TRAPZ,
+    TC_ACCEL_RAMP,
+} TCAccelMode;
 
 /**
  * Spiral arc length approximation by quadratic fit.
@@ -132,10 +134,13 @@ typedef struct {
     double finalvel;        // velocity to aim for at end of segment
     double term_vel;        // actual velocity at termination of segment
     double kink_vel;        // Temporary way to store our calculation of maximum velocity we can handle if this segment is declared tangent with the next
+    double kink_accel_reduce_prev; // How much to reduce the allowed tangential acceleration to account for the extra acceleration at an approximate tangent intersection.
+    double kink_accel_reduce; // How much to reduce the allowed tangential acceleration to account for the extra acceleration at an approximate tangent intersection.
 
     //Acceleration
     double maxaccel;        // accel calc'd by task
     double acc_ratio_tan;// ratio between normal and tangential accel
+    double acc_normal_max;         // Max acceleration allowed in normal direction (worst-case for the whole curve)
     
     int id;                 // segment's serial number
     struct state_tag_t tag; /* state tag corresponding to running motion */
@@ -147,19 +152,19 @@ typedef struct {
         Arc9 arc;
     } coords;
 
-    int motion_type;       // TC_LINEAR (coords.line) or
+    tc_motion_type_t motion_type;       // TC_LINEAR (coords.line) or
                             // TC_CIRCULAR (coords.circle) or
                             // TC_RIGIDTAP (coords.rigidtap)
     int active;            // this motion is being executed
     int canon_motion_type;  // this motion is due to which canon function?
-    int term_cond;          // gcode requests continuous feed at the end of
+    tc_term_cond_t term_cond;          // gcode requests continuous feed at the end of
                             // this segment (g64 mode)
 
     int blending_next;      // segment is being blended into following segment
     double blend_vel;       // velocity below which we should start blending
     double tolerance;       // during the blend at the end of this move,
                             // stay within this distance from the path.
-    int synchronized;       // spindle sync state
+    tc_spindle_sync_t synchronized;       // spindle sync state
     double uu_per_rev;      // for sync, user units per rev (e.g. 0.0625 for 16tpi)
     double vel_at_blend_start;
     int sync_accel;         // we're accelerating up to sync with the spindle

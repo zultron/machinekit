@@ -987,7 +987,7 @@ int emcTrajSetTermCond(int cond, double tolerance)
 }
 
 int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel, double acc,
-                      int indexrotary)
+                      int indexrotary, int pure_angular)
 {
 #ifdef ISNAN_TRAP
     if (std::isnan(end.tran.x) || std::isnan(end.tran.y) || std::isnan(end.tran.z) ||
@@ -1009,20 +1009,22 @@ int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel, doub
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
     emcmotCommand.turn = indexrotary;
+    emcmotCommand.pure_angular = pure_angular;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
 int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center,
-			PM_CARTESIAN normal, int turn, int type, double vel, double ini_maxvel, double acc)
+            PM_CARTESIAN normal, int turn, int type, double vel, double ini_maxvel, double acc, double acc_normal)
 {
 #ifdef ISNAN_TRAP
     if (std::isnan(end.tran.x) || std::isnan(end.tran.y) || std::isnan(end.tran.z) ||
 	std::isnan(end.a) || std::isnan(end.b) || std::isnan(end.c) ||
 	std::isnan(end.u) || std::isnan(end.v) || std::isnan(end.w) ||
 	std::isnan(center.x) || std::isnan(center.y) || std::isnan(center.z) ||
-	std::isnan(normal.x) || std::isnan(normal.y) || std::isnan(normal.z)) {
-	printf("std::isnan error in emcTrajCircularMove()\n");
+    std::isnan(normal.x) || std::isnan(normal.y) || std::isnan(normal.z) ||
+    std::isnan(acc_normal)) {
+    printf("std::isnan error in emcTrajCircularMove()\n");
 	return 0;		// ignore it for now, just don't send it
     }
 #endif
@@ -1047,6 +1049,7 @@ int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center,
     emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
+    emcmotCommand.acc_normal = acc_normal;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
@@ -1058,7 +1061,7 @@ int emcTrajClearProbeTrippedFlag()
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double acc, unsigned char probe_type)
+int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double acc, int pure_angular, unsigned char probe_type)
 {
 #ifdef ISNAN_TRAP
     if (std::isnan(pos.tran.x) || std::isnan(pos.tran.y) || std::isnan(pos.tran.z) ||
@@ -1077,6 +1080,7 @@ int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double ac
     emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
+    emcmotCommand.pure_angular = pure_angular;
     emcmotCommand.probe_type = probe_type;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
@@ -1604,6 +1608,15 @@ int emcSetupArcBlends(int arcBlendEnable,
     emcmotCommand.arcBlendGapCycles = arcBlendGapCycles;
     emcmotCommand.arcBlendRampFreq = arcBlendRampFreq;
     emcmotCommand.arcBlendTangentKinkRatio = arcBlendTangentKinkRatio;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
+int emcSetupConsistencyChecks(int consistency_checks,
+                              double max_position_drift_error)
+{
+    emcmotCommand.command = EMCMOT_SETUP_CONSISTENCY_CHECKS;
+    emcmotCommand.consistencyCheckConfig.extraConsistencyChecks = consistency_checks;
+    emcmotCommand.consistencyCheckConfig.maxPositionDriftError = max_position_drift_error;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 

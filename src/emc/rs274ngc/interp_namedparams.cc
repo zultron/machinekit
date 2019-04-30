@@ -82,6 +82,10 @@ enum predefined_named_parameters {
     NP_U,
     NP_V,
     NP_W,
+    NP_PROBE_RESULT,
+    NP_PROBE_X,
+    NP_PROBE_Y,
+    NP_PROBE_Z,
     NP_VALUE,
     NP_CALL_LEVEL,
     NP_REMAP_LEVEL,
@@ -698,6 +702,22 @@ int Interp::lookup_named_param(const char *nameBuf,
 	*value = _setup.w_current;
 	break;
 
+    case NP_PROBE_RESULT:  // expected probe trip completed
+	*value = _setup.parameters[5070];
+	break;
+
+    case NP_PROBE_X:  // probe x trip position
+	*value = _setup.parameters[5061];
+	break;
+
+    case NP_PROBE_Y:  // probe y trip position
+	*value = _setup.parameters[5062];
+	break;
+
+    case NP_PROBE_Z:  // probe z trip position
+	*value = _setup.parameters[5063];
+	break;
+
 	// o-word subs may optionally have an
 	// expression after endsub and return
 	// this 'function return value' is accessible as '_value'
@@ -869,6 +889,11 @@ int Interp::init_named_parameters()
   init_readonly_param("_u", NP_U, PA_USE_LOOKUP);
   init_readonly_param("_v", NP_V, PA_USE_LOOKUP);
   init_readonly_param("_w", NP_W, PA_USE_LOOKUP);
+
+  init_readonly_param("_probe_result", NP_PROBE_RESULT, PA_USE_LOOKUP);
+  init_readonly_param("_probe_x", NP_PROBE_X, PA_USE_LOOKUP);
+  init_readonly_param("_probe_y", NP_PROBE_Y, PA_USE_LOOKUP);
+  init_readonly_param("_probe_z", NP_PROBE_Z, PA_USE_LOOKUP);
 
   // last (optional) endsub/return value
   init_readonly_param("_value", NP_VALUE, PA_USE_LOOKUP);

@@ -64,7 +64,6 @@ static int debug_velacc = 0;
 static double css_maximum; // both always positive
 static int spindle_dir = 0;
 
-static const double tiny = 1e-7;
 static double xy_rotation = 0.;
 static int rotary_unlock_for_traverse = -1;
 
@@ -719,6 +718,60 @@ void SET_FEED_REFERENCE(CANON_FEED_REFERENCE reference)
 }
 
 /**
+ * Get the shortest linear axis displacement that the TP can handle as a discrete move.
+ *
+ * If this looks dirty, it's because it is. Canon runs in its own units, but
+ * the TP uses user units. Therefore, the minimum displacement has to be
+ * computed the same way, with the same threshold, or short moves do strange
+ * things (accel violations or infinite pauses).
+ *
+ * @todo revisit this when the TP is overhauled to use a consistent set of internal units.
+ */
+static double getMinLinearDisplacement()
+{
+    return FROM_EXT_LEN(CART_FUZZ);
+}
+
+/**
+ * Equivalent of getMinLinearDisplacement for rotary axes.
+ */
+static double getMinAngularDisplacement()
+{
+    return FROM_EXT_ANG(CART_FUZZ);
+}
+
+/**
+ * Apply the minimum displacement check to each axis delta.
+ *
+ * Checks that the axis is valid / active, and looks up the appropriate minimum
+ * displacement for the axis type and user units.
+ */
+static void applyMinDisplacement(double &dx,
+                                 double &dy,
+                                 double &dz,
+                                 double &da,
+                                 double &db,
+                                 double &dc,
+                                 double &du,
+                                 double &dv,
+                                 double &dw
+                                 )
+{
+    const double tiny_linear = getMinLinearDisplacement();
+    const double tiny_angular = getMinAngularDisplacement();
+    if(!axis_valid(0) || dx < tiny_linear) dx = 0.0;
+    if(!axis_valid(1) || dy < tiny_linear) dy = 0.0;
+    if(!axis_valid(2) || dz < tiny_linear) dz = 0.0;
+    if(!axis_valid(3) || da < tiny_angular) da = 0.0;
+    if(!axis_valid(4) || db < tiny_linear) db = 0.0;
+    if(!axis_valid(5) || dc < tiny_linear) dc = 0.0;
+    if(!axis_valid(6) || du < tiny_linear) du = 0.0;
+    if(!axis_valid(7) || dv < tiny_linear) dv = 0.0;
+    if(!axis_valid(8) || dw < tiny_linear) dw = 0.0;
+}
+
+
+/**
  * Get the limiting acceleration for a displacement from the current position to the given position.
  * returns a single acceleration that is the minimum of all axis accelerations.
  */
@@ -747,15 +800,7 @@ static AccelData getStraightAcceleration(
     dv = fabs(v - canonEndPoint.v);
     dw = fabs(w - canonEndPoint.w);
 
-    if(!axis_valid(0) || dx < tiny) dx = 0.0;
-    if(!axis_valid(1) || dy < tiny) dy = 0.0;
-    if(!axis_valid(2) || dz < tiny) dz = 0.0;
-    if(!axis_valid(3) || da < tiny) da = 0.0;
-    if(!axis_valid(4) || db < tiny) db = 0.0;
-    if(!axis_valid(5) || dc < tiny) dc = 0.0;
-    if(!axis_valid(6) || du < tiny) du = 0.0;
-    if(!axis_valid(7) || dv < tiny) dv = 0.0;
-    if(!axis_valid(8) || dw < tiny) dw = 0.0;
+    applyMinDisplacement(dx, dy, dz, da, db, dc, du, dv, dw);
 
     if(debug_velacc) 
         printf("getStraightAcceleration dx %g dy %g dz %g da %g db %g"
@@ -899,15 +944,7 @@ static VelData getStraightVelocity(double x, double y, double z,
     dv = fabs(v - canonEndPoint.v);
     dw = fabs(w - canonEndPoint.w);
 
-    if(!axis_valid(0) || dx < tiny) dx = 0.0;
-    if(!axis_valid(1) || dy < tiny) dy = 0.0;
-    if(!axis_valid(2) || dz < tiny) dz = 0.0;
-    if(!axis_valid(3) || da < tiny) da = 0.0;
-    if(!axis_valid(4) || db < tiny) db = 0.0;
-    if(!axis_valid(5) || dc < tiny) dc = 0.0;
-    if(!axis_valid(6) || du < tiny) du = 0.0;
-    if(!axis_valid(7) || dv < tiny) dv = 0.0;
-    if(!axis_valid(8) || dw < tiny) dw = 0.0;
+    applyMinDisplacement(dx, dy, dz, da, db, dc, du, dv, dw);
 
     if(debug_velacc) 
         printf("getStraightVelocity dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g\n",
@@ -1051,6 +1088,7 @@ static void flush_segments(void) {
 
     linearMoveMsg.end = to_ext_pose(x,y,z,a,b,c,u,v,w);
 
+    linearMoveMsg.pure_angular = angular_move && !cartesian_move;
     linearMoveMsg.vel = toExtVel(vel);
     linearMoveMsg.ini_maxvel = toExtVel(ini_maxvel);
     AccelData lineaccdata = getStraightAcceleration(x, y, z, a, b, c, u, v, w);
@@ -1173,6 +1211,7 @@ void STRAIGHT_TRAVERSE(int line_number,
     acc = accdata.acc;
 
     linearMoveMsg.end = to_ext_pose(x,y,z,a,b,c,u,v,w);
+    linearMoveMsg.pure_angular = angular_move && !cartesian_move;
     linearMoveMsg.vel = linearMoveMsg.ini_maxvel = toExtVel(vel);
     linearMoveMsg.acc = toExtAcc(acc);
     linearMoveMsg.indexrotary = rotary_unlock_for_traverse;
@@ -1197,9 +1236,6 @@ void STRAIGHT_FEED(int line_number,
                    double a, double b, double c,
                    double u, double v, double w)
 {
-    EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
-    linearMoveMsg.feed_mode = feed_mode;
-
     from_prog(x,y,z,a,b,c,u,v,w);
     rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
     see_segment(line_number, _tag, x, y, z, a, b, c, u, v, w);
@@ -1275,6 +1311,7 @@ void STRAIGHT_PROBE(int line_number,
     probeMsg.vel = toExtVel(vel);
     probeMsg.ini_maxvel = toExtVel(ini_maxvel);
     probeMsg.acc = toExtAcc(acc);
+    probeMsg.pure_angular = angular_move & ! cartesian_move;
 
     probeMsg.type = EMC_MOTION_TYPE_PROBING;
     probeMsg.probe_type = probe_type;
@@ -1302,10 +1339,14 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
     // Negative value means we use default tolerance as specified in INI file
     if (tolerance < 0) {
         // convert to canon units
-        canonMotionTolerance = FROM_EXT_LEN(traj_default_tolerance);
-    } else {
-        canonMotionTolerance = FROM_PROG_LEN(tolerance);
+        tolerance = FROM_EXT_LEN(traj_default_tolerance);
     }
+
+    const double new_tol = FROM_PROG_LEN(tolerance);
+    if (new_tol != canonMotionTolerance) {
+        fprintf(stderr, "Setting tolerance to %f\n", new_tol);
+    }
+    canonMotionTolerance = new_tol;
 
     switch (mode) {
     case CANON_CONTINUOUS:
@@ -1321,7 +1362,6 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
         setTermCondMsg.cond = EMC_TRAJ_TERM_COND_STOP;
         break;
     }
-    fprintf(stderr, "Setting tolerance to %f\n",canonMotionTolerance);
 
 	tag_and_send(setTermCondMsg);
 }
@@ -1330,13 +1370,14 @@ void SET_NAIVECAM_TOLERANCE(double tolerance)
 {
     // Strip negative tolerances
     if (tolerance < 0.0) {
-        canonNaivecamTolerance = FROM_EXT_LEN(traj_default_naivecam_tolerance);
-    } else {
-        canonNaivecamTolerance = FROM_PROG_LEN(tolerance);
+        tolerance = FROM_EXT_LEN(traj_default_naivecam_tolerance);
     }
-    fprintf(stderr,"Setting naivecam tolerance to %f\n",canonNaivecamTolerance);
-    //TODO enforce a minimum naivecam tolerance to prevent bogging down on
-    //stupidly short segments?
+
+    const double new_tol = FROM_PROG_LEN(tolerance);
+    if (canonNaivecamTolerance != new_tol) {
+        fprintf(stderr,"Setting naivecam tolerance to %f\n", canonNaivecamTolerance);
+    }
+    canonNaivecamTolerance = new_tol;
 }
 
 void SELECT_PLANE(CANON_PLANE in_plane)
@@ -1610,7 +1651,6 @@ void ARC_FEED(int line_number,
 {
 
     EMC_TRAJ_CIRCULAR_MOVE circularMoveMsg;
-    EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
 
     canon_debug("line = %d\n", line_number);
     canon_debug("first_end = %f, second_end = %f\n", first_end,second_end);
@@ -1648,6 +1688,8 @@ void ARC_FEED(int line_number,
         }
     }
 
+
+    EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = feed_mode;
     circularMoveMsg.feed_mode = feed_mode;
     flush_segments();
@@ -1853,11 +1895,11 @@ void ARC_FEED(int line_number,
     }
 
     //FIXME allow tangential acceleration like in TP
-    double a_max_normal = a_max_axes * sqrt(3.0)/2.0;
+    double a_normal_budget = a_max_axes * sqrt(3.0)/2.0;
     canon_debug("a_max_axes = %f\n", a_max_axes);
 
     // Compute the centripetal acceleration
-    double v_max_radial = sqrt(a_max_normal * effective_radius);
+    double v_max_radial = sqrt(a_normal_budget * effective_radius);
     canon_debug("v_max_radial = %f\n", v_max_radial);
 
     // Restrict our maximum velocity in-plane if need be
@@ -1908,10 +1950,15 @@ void ARC_FEED(int line_number,
     // circle plane and helical axis will still be within limits
     double a_max = total_xyz_length / tt_max;
 
+    // Limit velocity by maximum
+#ifdef EMCCANON_DEBUG
+    double nominal_vel = getActiveFeedRate(FEED_LINEAR);
+#endif
+
     // Make sure spindle speed is within range (for spindle_sync motion only)
     double vel = limitSpindleSpeedByActiveFeedRate(v_max);
 
-    canon_debug("current F = %f\n", vel);
+    canon_debug("current F = %f\n", nominal_vel);
     canon_debug("vel = %f\n",vel);
 
     canon_debug("v_max = %f\n",v_max);
@@ -1925,6 +1972,8 @@ void ARC_FEED(int line_number,
         // or we wouldn't be calling ARC_FEED
         linearMoveMsg.end = to_ext_pose(endpt);
         linearMoveMsg.type = EMC_MOTION_TYPE_ARC;
+
+        linearMoveMsg.pure_angular = angular_move && !cartesian_move;
         linearMoveMsg.vel = toExtVel(vel);
         linearMoveMsg.ini_maxvel = toExtVel(v_max);
         linearMoveMsg.acc = toExtAcc(a_max);
@@ -1937,7 +1986,7 @@ void ARC_FEED(int line_number,
 
         // Convert internal center and normal to external units
         circularMoveMsg.center = to_ext_len(center_cart);
-        circularMoveMsg.normal = to_ext_len(normal_cart);
+        circularMoveMsg.normal = normal_cart;
 
         if (rotation > 0)
             circularMoveMsg.turn = rotation - 1;
@@ -1950,6 +1999,7 @@ void ARC_FEED(int line_number,
         circularMoveMsg.vel = toExtVel(vel);
         circularMoveMsg.ini_maxvel = toExtVel(v_max);
         circularMoveMsg.acc = toExtAcc(a_max);
+        circularMoveMsg.acc_normal = toExtAcc(a_max_axes);
 
         //FIXME what happens if accel or vel is zero?
         // The end point is still updated, but nothing is added to the interp list
@@ -2212,6 +2262,7 @@ void START_CHANGE()
 void CHANGE_TOOL(int slot)
 {
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
+
     linearMoveMsg.feed_mode = feed_mode;
     EMC_TOOL_LOAD load_tool_msg;
 
@@ -2261,6 +2312,7 @@ void CHANGE_TOOL(int slot)
 
         linearMoveMsg.end = to_ext_pose(x, y, z, a, b, c, u, v, w);
 
+        linearMoveMsg.pure_angular = angular_move && !cartesian_move;
         linearMoveMsg.vel = linearMoveMsg.ini_maxvel = toExtVel(vel);
         linearMoveMsg.acc = toExtAcc(acc);
         linearMoveMsg.type = EMC_MOTION_TYPE_TOOLCHANGE;

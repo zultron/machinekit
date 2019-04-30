@@ -499,7 +499,7 @@ class EMC_AXIS_STAT:public EMC_AXIS_STAT_MSG {
 class EMC_TRAJ_CMD_MSG:public EMC_CMD_MSG {
   public:
     EMC_TRAJ_CMD_MSG(NMLTYPE t, size_t s): EMC_CMD_MSG(t, s) {
-    };
+    }
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
@@ -799,6 +799,7 @@ class EMC_TRAJ_LINEAR_MOVE:public EMC_TRAJ_CMD_MSG {
     double vel, ini_maxvel, acc;
     int feed_mode;
     int indexrotary;
+    int pure_angular;
 };
 
 class EMC_TRAJ_CIRCULAR_MOVE:public EMC_TRAJ_CMD_MSG {
@@ -816,7 +817,7 @@ class EMC_TRAJ_CIRCULAR_MOVE:public EMC_TRAJ_CMD_MSG {
     PM_CARTESIAN normal;
     int turn;
     int type;
-    double vel, ini_maxvel, acc;
+    double vel, ini_maxvel, acc, acc_normal;
     int feed_mode;
 };
 
@@ -955,6 +956,7 @@ class EMC_TRAJ_PROBE:public EMC_TRAJ_CMD_MSG {
     EmcPose pos;
     int type;
     double vel, ini_maxvel, acc;
+    int pure_angular;
     unsigned char probe_type;
 };
 

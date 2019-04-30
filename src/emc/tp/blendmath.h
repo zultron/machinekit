@@ -141,8 +141,8 @@ int findIntersectionAngle(PmCartesian const * const u1,
 
 double pmCartMin(PmCartesian const * const in);
 
-int calculateInscribedDiameter(PmCartesian const * const normal,
-        PmCartesian const * const bounds, double * const diameter);
+int calculateInscribedRadius(PmCartesian const * const normal,
+        PmCartesian const * const bounds, double * const radius);
 
 int findAccelScale(PmCartesian const * const acc,
         PmCartesian const * const bounds,
@@ -154,8 +154,16 @@ double findTrapezoidalDesiredVel(double a_max,
                               double currentvel,
                               double cycle_time);
 
-int pmCartCartParallel(PmCartesian const * const v1,
-        PmCartesian const * const v2, double tol);
+int pmUnitCartsColinear(PmCartesian const * const u1,
+        PmCartesian const * const u2);
+
+int pmCartCartParallel(PmCartesian const * const u1,
+        PmCartesian const * const u2,
+        double tol);
+
+int pmCartCartAntiParallel(PmCartesian const * const u1,
+        PmCartesian const * const u2,
+        double tol);
 
 int pmCircLineCoplanar(PmCircle const * const circ,
         PmCartLine const * const line, double tol);
@@ -235,17 +243,43 @@ int arcFromBlendPoints3(SphericalArc * const arc, BlendPoints3 const * const poi
 int blendGeom3Print(BlendGeom3 const * const geom);
 int blendParamPrint(BlendParameters const * const param);
 int blendPoints3Print(BlendPoints3 const * const points);
-double pmCircleActualMaxVel(PmCircle * const circle,
-        double * const acc_ratio,
-        double v_max,
-        double a_max,
-        int parabolic);
+
+double pmCartAbsMax(PmCartesian const * const v);
+
+typedef struct {
+    double v_max;
+    double acc_ratio;
+} PmCircleLimits;
+
+PmCircleLimits pmCircleActualMaxVel(const PmCircle *circle,
+        double v_max_nominal,
+        double a_max_nominal);
+
 int findSpiralArcLengthFit(PmCircle const * const circle,
         SpiralArcLengthFit * const fit);
 int pmCircleAngleFromProgress(PmCircle const * const circle,
         SpiralArcLengthFit const * const fit,
         double progress,
         double * const angle);
-double pmCircleEffectiveMinRadius(PmCircle const * const circle);
+double pmCircleEffectiveMinRadius(const PmCircle *circle);
+double spiralEffectiveRadius(PmCircle const * circle);
+
+static inline double findVPeak(double a_t_max, double distance)
+{
+    return pmSqrt(a_t_max * distance);
+}
+
+// Start by mimicing the current structure for minimal changes
+typedef struct {
+    double v_f;
+    double dt;
+} EndCondition;
+
+EndCondition checkEndCondition(double cycleTime,
+                               double progress,
+                               double target,
+                               double currentvel,
+                               double v_f,
+                               double a_max);
 
 #endif

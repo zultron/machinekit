@@ -6,7 +6,7 @@
 * Author:
 * License: GPL Version 2
 * System: Linux
-*    
+*
 * Copyright (c) 2004 All rights reserved.
 *
 * Last change:
@@ -128,17 +128,17 @@ Interp::Interp()
     try {
 	// this import will register the C++->Python converter for Interp
 	bp::object interp_module = bp::import("interpreter");
-	
+
 	// use a boost::cref to avoid per-call instantiation of the
 	// Interp Python wrapper (used for the 'self' parameter in handlers)
 	// since interp.init() may be called repeatedly this would create a new
 	// wrapper instance on every init(), abandoning the old one and all user attributes
 	// tacked onto it, so make sure this is done exactly once
 	_setup.pythis = boost::python::object(boost::cref(*this));
-	
+
 	// alias to 'interpreter.this' for the sake of ';py, .... ' comments
 	// besides 'this', eventually use proper instance names to handle
-	// several instances 
+	// several instances
 	bp::scope(interp_module).attr("this") =  _setup.pythis;
 
 	// make "this" visible without importing interpreter explicitly
@@ -235,8 +235,8 @@ int Interp::close()
     logOword("close()");
     // be "lazy" only if we're not aborting a call in progress
     // in which case we need to reset() the call stack
-    // this does not reset the filename properly 
-    if(_setup.use_lazy_close) //  && (_setup.call_level == 0)) 
+    // this does not reset the filename properly
+    if(_setup.use_lazy_close) //  && (_setup.call_level == 0))
     {
       _setup.lazy_closing = 1;
       return INTERP_OK;
@@ -251,7 +251,7 @@ int Interp::close()
 
   return INTERP_OK;
 }
- 
+
 
 /***********************************************************************/
 
@@ -289,7 +289,7 @@ int Interp::_execute(const char *command)
     MDImode = 1;
     status = read(command);
     if (status != INTERP_OK) {
-	// if (status > INTERP_MIN_ERROR) 
+	// if (status > INTERP_MIN_ERROR)
 	//     _setup.remap_level = 0;
 	return status;
     }
@@ -299,22 +299,22 @@ int Interp::_execute(const char *command)
 	   command ? "command" : "line",
 	   command ? command : _setup.linetext,
 	    _setup.mdi_interrupt, o_ops[eblock->o_type], eblock->o_name,
-	   _setup.call_level,_setup.remap_level, 
-	   eblock->call_type < 0 ? "*unset*" : call_typenames[eblock->call_type], 
+	   _setup.call_level,_setup.remap_level,
+	   eblock->call_type < 0 ? "*unset*" : call_typenames[eblock->call_type],
 	   call_statenames[_setup.call_state]);
 
   // process control functions -- will skip if skipping
   if ((eblock->o_name != 0) || _setup.mdi_interrupt)  {
       status = convert_control_functions(eblock, &_setup);
       CHP(status); // relinquish control if INTERP_EXCUTE_FINISH, INTERP_ERROR etc
-      
+
       // let MDI code call subroutines.
       // !!!KL not clear what happens if last execution failed while in
       // !!!KL a subroutine
 
       // NOTE: the last executed file will still be open, because "close"
       // is really a lazy close.
-    
+
       // we had an INTERP_OK, so no need to set up another call to finish after sync()
       if (_setup.mdi_interrupt) {
 	  _setup.mdi_interrupt = false;
@@ -419,7 +419,7 @@ int Interp::_execute(const char *command)
 	  // this also sets cblock->executing_remap
 	  status = execute_block(cblock, &_setup);
 #if 0
-	  // this is too naive a test and needs improving (aka: not segfault). 
+	  // this is too naive a test and needs improving (aka: not segfault).
 	  // It needs to kick in only for  new codes, not remapped ones, for which
 	  // recursion just means 'use builtin semantics'
 	  // add some kind of 'is_remapped_builtin()' macro or test method
@@ -451,7 +451,7 @@ int Interp::_execute(const char *command)
 		  // need to trigger execution of parsed _setup.block1 here
 		  // replicate MDI oword execution code here
 		  if ((eblock->o_name != 0) ||
-		      (_setup.mdi_interrupt)) { 
+		      (_setup.mdi_interrupt)) {
 
 		      status = convert_control_functions(eblock, &_setup);
 		      CHP(status);
@@ -463,7 +463,7 @@ int Interp::_execute(const char *command)
 		      while(MDImode && _setup.call_level) { // we are still in a subroutine
 			  CHP(read(0));  // reads from current file and calls parse
 			  status = execute();  // special handling for mdi errors
-			  if (status == INTERP_EXECUTE_FINISH) 
+			  if (status == INTERP_EXECUTE_FINISH)
 			      _setup.mdi_interrupt = true;
 			  CHP(status);
 		      }
@@ -669,15 +669,27 @@ int Interp::find_remappings(block_pointer block, setup_pointer settings)
     // call the remap procedure if it the code in that group is remapped unless:
     // it's an M6 or M61 and a remap is in progress
     // (recursion case)
-    if (IS_USER_MCODE(block,settings,6) &&  
+    if (IS_USER_MCODE(block,settings,6) &&
 	!(((block->m_modes[6] == 6) && remap_in_progress("M6")) ||
-	  ((block->m_modes[6] == 61) && remap_in_progress("M61")))) {  
+	  ((block->m_modes[6] == 61) && remap_in_progress("M61")))) {
 	block->remappings.insert(STEP_M_6); // then call the remap procedure
     } // else we get the builtin behaviour
-    
+
     // User defined M-Codes in group 7
-    if (IS_USER_MCODE(block,settings,7))
-	block->remappings.insert(STEP_M_7);
+    // added recursion detection here so a remap of spindle control can check for
+    // safety conditions and then call the real action.
+    if (IS_USER_MCODE(block,settings,7)) {
+      if (!(((block->m_modes[7] == 3) && remap_in_progress("M3")) ||
+            ((block->m_modes[7] == 4) && remap_in_progress("M4")) ||
+            ((block->m_modes[7] == 5) && remap_in_progress("M5")))) {
+        logRemap("M3-M4-M5 and remap not in progress so inserting step");
+        block->remappings.insert(STEP_M_7);
+      } else {
+        // We're in a recursion situation.  Let the real spindle command do its work.
+        // "builtin behavior"
+        logRemap("M3-M4-M5 recursion attempt detected");
+      }
+    }
 
     // User defined M-Codes in group 8
     if (IS_USER_MCODE(block,settings,8))
@@ -696,9 +708,9 @@ int Interp::find_remappings(block_pointer block, setup_pointer settings)
     int mode = block->g_modes[GM_MOTION];
     if ((mode != -1) && IS_USER_GCODE(mode))
 	block->remappings.insert(STEP_MOTION);
-    
+
     // this makes it possible to call remapped codes like cycles:
-    // G84.2 x1 y2 
+    // G84.2 x1 y2
     // x3
     // will execute 'G84.2 x1 y2', then 'G84.2 x3 y2'
     // provided the remap function explicitly sets motion_mode like so:
@@ -982,7 +994,7 @@ int Interp::init()
 		  Error("Python plugin configure() failed, status = %d", status);
 	      }
 	  }
- 
+
 	  int n = 1;
 	  int lineno = -1;
 	  _setup.g_remapped.clear();
@@ -1271,7 +1283,7 @@ int Interp::init()
       }
   }
   _setup.init_once = 0;
-  
+
   return INTERP_OK;
 }
 
@@ -1373,56 +1385,62 @@ file.
 
 int Interp::open(const char *filename) //!< string: the name of the input NC-program file
 {
-  char *line;
-  int index;
-  int length;
+    char *line;
+    int index;
+    int length;
 
-  logOword("open()");
-  if(_setup.use_lazy_close && _setup.lazy_closing)
-    {
-      _setup.use_lazy_close = 0; // so that close will work
-      close();
-      _setup.use_lazy_close = 1;
-      _setup.lazy_closing = 0;
+    logOword("open()");
+    if (_setup.use_lazy_close && _setup.lazy_closing) {
+        _setup.use_lazy_close = 0; // so that close will work
+        close();
+        _setup.use_lazy_close = 1;
+        _setup.lazy_closing = 0;
     }
-  CHKS((_setup.file_pointer != NULL), NCE_A_FILE_IS_ALREADY_OPEN);
-  CHKS((strlen(filename) > (LINELEN - 1)), NCE_FILE_NAME_TOO_LONG);
-  _setup.file_pointer = fopen(filename, "r");
-  CHKS((_setup.file_pointer == NULL), NCE_UNABLE_TO_OPEN_FILE, filename);
-  line = _setup.linetext;
-  for (index = -1; index == -1;) {      /* skip blank lines */
-    CHKS((fgets(line, LINELEN, _setup.file_pointer) ==
-         NULL), NCE_FILE_ENDED_WITH_NO_PERCENT_SIGN);
-    length = strlen(line);
-    if (length == (LINELEN - 1)) {   // line is too long. need to finish reading the line to recover
-      // look for EOL or EOF - no EOL found == stuck loop
-      // files with only bare carriage returns (like from macs) cause trouble here
-      int single_char;
-      for (; (single_char = fgetc(_setup.file_pointer)) != '\n' && single_char != EOF;);
-      ERS(NCE_COMMAND_TOO_LONG);
+
+    CHKS((_setup.file_pointer != NULL), NCE_A_FILE_IS_ALREADY_OPEN);
+    CHKS((strlen(filename) > (LINELEN - 1)), NCE_FILE_NAME_TOO_LONG);
+    _setup.file_pointer = fopen(filename, "r");
+    CHKS((_setup.file_pointer == NULL), NCE_UNABLE_TO_OPEN_FILE, filename);
+    line = _setup.linetext;
+
+    /* skip blank lines */
+    _setup.sequence_number = 0;
+    for (index = -1; index == -1;) {
+        CHKS((fgets(line, LINELEN, _setup.file_pointer) ==
+             NULL), NCE_FILE_ENDED_WITH_NO_PERCENT_SIGN);
+        length = strlen(line);
+        if (length == (LINELEN - 1)) {   // line is too long. need to finish reading the line to recover
+          // look for EOL or EOF - no EOL found == stuck loop
+          // files with only bare carriage returns (like from macs) cause trouble here
+          int single_char;
+          for (; (single_char = fgetc(_setup.file_pointer)) != '\n' && single_char != EOF;);
+          ERS(NCE_COMMAND_TOO_LONG);
+        }
+        _setup.sequence_number += 1;  // read a line in
+        // get the index set on last char
+        for (index = (length - 1); (index >= 0) && (isspace(line[index])); index--);
     }
-    for (index = (length - 1);  // index set on last char
-         (index >= 0) && (isspace(line[index])); index--);
-  }
-  if (line[index] == '%') {
-    for (index--; (index >= 0) && (isspace(line[index])); index--);
-    if (index == -1) {
-      _setup.percent_flag = true;
-      _setup.sequence_number = 1;       // We have already read the first line
-      // and we are not going back to it.
+
+    if (line[index] == '%') {
+        // line ends with a percent.  see if the % is the only non-whitespace on the line.
+        for (index--; (index >= 0) && (isspace(line[index])); index--);
+        if (index == -1) {
+            _setup.percent_flag = true;
+            // We have already read blank line(s) through the first line that has nothing but a percent on it.
+            // We don't go back to them so don't reset the sequence_number here.
+        } else {
+            fseek(_setup.file_pointer, 0, SEEK_SET);
+            _setup.percent_flag = false;
+            _setup.sequence_number = 0;       // Going back to line 0
+        }
     } else {
-      fseek(_setup.file_pointer, 0, SEEK_SET);
-      _setup.percent_flag = false;
-      _setup.sequence_number = 0;       // Going back to line 0
+        fseek(_setup.file_pointer, 0, SEEK_SET);
+        _setup.percent_flag = false;
+        _setup.sequence_number = 0; // Going back to line 0
     }
-  } else {
-    fseek(_setup.file_pointer, 0, SEEK_SET);
-    _setup.percent_flag = false;
-    _setup.sequence_number = 0; // Going back to line 0
-  }
-  strcpy(_setup.filename, filename);
-  reset();
-  return INTERP_OK;
+    strcpy(_setup.filename, filename);
+    reset();
+    return INTERP_OK;
 }
 
 int Interp::read_inputs(setup_pointer settings)
@@ -1465,6 +1483,7 @@ int Interp::read_inputs(setup_pointer settings)
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_ORIENT);
 	settings->parameters[5414] = GET_EXTERNAL_ORIENT_TIMEOUT();
+  settings->orient_flag = false;
     }
 
     return INTERP_OK;
@@ -1507,7 +1526,7 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
   int read_status;
 
   // this input reading code is in the wrong place. It should be executed
-  // in sync(), not here. This would make correct parameter values available 
+  // in sync(), not here. This would make correct parameter values available
   // without doing a read() (e.g. from Python).
   // Unfortunately synch() isnt called in preview (gcodemodule)
 
@@ -1549,34 +1568,34 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
   // times in a row until it finally returns INTERP_OK, the reason being that all Python
   // procedures might 'yield INTERP_EXECUTE_FINISH' or execute a queue buster an arbitrary number
   // of times. So they need to be called again post-sync and post-read-input possibly several times.
-  // 
+  //
   // the task readahead logic assumes a block execution may result in a single INTERP_EXECUTE_FINISH
   // and readahead is started therafter immediately. Modifying the readahead logic would be a massive
   // change. Therefore we use the trick to suppress reading the next block as required, which means
   // we will get several calls to execute() in a row which are used to finish the handlers. This is
   // needed for remapped codes which might involve up to three Python handlers, and Python oword subs.
   // Note this is not an issue for NGC oword procedures. The call/return logic will set _setup.call_state to
-  // CS_REEXEC_PROLOG, CS_REEXEC_PYBODY, CS_REEXEC_EPILOG or CS_REEXEC_PYOSUB before returning, which 
+  // CS_REEXEC_PROLOG, CS_REEXEC_PYBODY, CS_REEXEC_EPILOG or CS_REEXEC_PYOSUB before returning, which
   // also indicates the point which handler needs to be restarted
-  // 
-  // We use the following conditions to 'skip reading the next block and stay on the same block' 
+  //
+  // We use the following conditions to 'skip reading the next block and stay on the same block'
   // until done as follows:
-  // 
+  //
   // 1. block.o_type = O_call and
   //    block.call_type in {CT_PYTHON_OWORD_SUB, CT_REMAP} and
   //    _setup.call_state > CS_NORMAL
-  // 
+  //
   // 2. block.o_type in {O_endsub, O_return} and
   //    block.call_type in {CT_PYTHON_OWORD_SUB, CT_REMAP} and
   //    _setup.call_state > CS_NORMAL
-  // 
+  //
   // handlers eventually return INTERP_OK, which sets _setup.call_state to CS_NORMAL. Then
   // normal readahead continues.
   // A call frame is tagged with the eblock->call_type since this potentially needs to persist across
   // several blocks. Inside the execute_call()/execute_return() logic we use the frame call type
   // to decide what to do.
   // The handler reexec code will call read_inputs() just before continuation.
-   
+
   block_pointer eblock = &EXECUTING_BLOCK(_setup);
 
   if ((_setup.call_state > CS_NORMAL) &&
@@ -1637,11 +1656,11 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
 
     else // Blank line (zero length)
     {
-          /* RUM - this case reached when the block delete '/' character 
+          /* RUM - this case reached when the block delete '/' character
              is used, or READ_FULL_COMMENT is false and a comment is the
-             only content of a line. 
-             If a block o-type is in effect, block->o_number needs to be 
-             incremented to allow o-extensions to work. 
+             only content of a line.
+             If a block o-type is in effect, block->o_number needs to be
+             incremented to allow o-extensions to work.
              Note that the the block is 'refreshed' by init_block(),
              not created new, so this is a legal operation on block1. */
 
@@ -1664,7 +1683,7 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
   return read_status;
 }
 
-int Interp::read(const char *command) 
+int Interp::read(const char *command)
 {
     int status;
     if ((status = _read(command)) > INTERP_MIN_ERROR) {
@@ -1716,7 +1735,7 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 		_setup.sequence_number,_setup.call_level);
     }
     // call_level == 0 here.
- 
+
     if(_setup.sub_name) {
 	logDebug("unwind_call: exiting current sub '%s'\n", _setup.sub_name);
 	_setup.sub_name = 0;
@@ -1823,7 +1842,7 @@ sets of origin offsets. Any parameter not given a value in the file
 has its value set to zero.
 
 */
-int Interp::restore_parameters(const char *filename)   //!< name of parameter file to read  
+int Interp::restore_parameters(const char *filename)   //!< name of parameter file to read
 {
   FILE *infile;
   char line[256];
@@ -1916,7 +1935,7 @@ complain, but does write it in the output file.
 
 */
 int Interp::save_parameters(const char *filename,      //!< name of file to write
-                             const double parameters[]) //!< parameters to save   
+                             const double parameters[]) //!< parameters to save
 {
   FILE *infile;
   FILE *outfile;
@@ -1929,7 +1948,7 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   int fd;
 
 
-  if(access(filename, F_OK)==0) 
+  if(access(filename, F_OK)==0)
   {
     // rename as .bak
     int r;
@@ -2292,7 +2311,7 @@ max_size.
 */
 
 char * Interp::error_text(int error_code,        //!< code number of error
-                         char *error_text,      //!< char array to copy error text into  
+                         char *error_text,      //!< char array to copy error text into
                          size_t max_size)  //!< maximum number of characters to copy
 {
     if(error_code == INTERP_ERROR)
@@ -2314,7 +2333,7 @@ char * Interp::error_text(int error_code,        //!< code number of error
     return error_text;
 }
 
-char * Interp::warning_text(char *warning_text,      //!< char array to copy error text into  
+char * Interp::warning_text(char *warning_text,      //!< char array to copy error text into
                          size_t max_size)  //!< maximum number of characters to copy
 {
     strncpy(warning_text, warning_text_buf, max_size);
@@ -2675,14 +2694,20 @@ int Interp::leave_remap(void)
 
 int Interp::on_abort(int reason, const char *message)
 {
-    int pocket, tool;
     logDebug("on_abort reason=%d message='%s'", reason, message);
-    
-    
-    
+
+#if 0
+    int pocket, tool;
+
+    // This tool change code below is all legacy before state tags existed.
+    // Now on stop (command abort), state is restored from the tag and that includes
+    // G43 state which will apply both the geo offset and wear offset if the wear offset
+    // was in effect at the time the state tag was written (otherwise it is just a geo offset).
+    // jwf 4/1/2019
+
     // If running the FANUC_LATHE_TOOLCHANGE feature, the interp reads ahead and on abort the wrong tool
     // offset will be used if a program is stopped in the middle.  We need to resynch here.
-    // One thing to note with this solution is that if you have a T0202 wear offset applied 
+    // One thing to note with this solution is that if you have a T0202 wear offset applied
     // it will be lost after stopping and revert to T02. Something to look at in the future.
     // Tormach - *dpr 4/30/13, ammended 7/2/13, 8/3/17 PDH
 
@@ -2691,20 +2716,21 @@ int Interp::on_abort(int reason, const char *message)
 
         //find the geo offset tool pocket number from the tool number plus 10000
         CHP(find_tool_pocket(&_setup, tool+10000, &pocket));
-      
+
         EmcPose tool_offset;
         ZERO_EMC_POSE(tool_offset);
-        
+
+        // must apply x y and z as all 3 are used in rapidturn situations
         tool_offset.tran.x = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.x);
+        tool_offset.tran.y = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.y);
         tool_offset.tran.z = USER_TO_PROGRAM_LEN(_setup.tool_table[pocket].offset.tran.z);
-        logDebug("Found tool %d with geo offset pocket %d on abort. Applying offset (%.2f, %.2f)", 
-            tool, pocket, tool_offset.tran.x, tool_offset.tran.z);
+        logDebug("Found tool %d with geo offset pocket %d on abort. Applying offset (x %.2f, y %.2f, z %.2f)",
+            tool, pocket, tool_offset.tran.x, tool_offset.tran.y, tool_offset.tran.z);
         USE_TOOL_LENGTH_OFFSET(tool_offset);
         _setup.tool_offset = tool_offset;
     }
-    
-    
-    
+#endif
+
     reset();
     _setup.mdi_interrupt = false;
 
@@ -2802,7 +2828,7 @@ FILE *Interp::find_ngc_file(setup_pointer settings,const char *basename, char *f
 	}
     }
 
-    if (foundhere && (newFP != NULL)) 
+    if (foundhere && (newFP != NULL))
        strcpy(foundhere, newFileName);
 
     return newFP;

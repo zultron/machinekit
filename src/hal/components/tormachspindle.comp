@@ -264,22 +264,36 @@ FUNCTION(_) {
         // high belt min freq
         if (highbelt_min_mcb_freq != 0.0) {
             actual_min_mcb_freq = fabs(highbelt_min_mcb_freq);
-            actual_min_pwm_dc   = fabs(highbelt_min_pwm_dc);
         }
         else {
             // use default
             actual_min_mcb_freq = STEPGEN_MIN_FREQ;
+        }
+
+        // high belt min PWM duty cycle
+        if (highbelt_min_pwm_dc != 0.0) {
+            actual_min_pwm_dc   = fabs(highbelt_min_pwm_dc);
+        }
+        else {
+            // use default
             actual_min_pwm_dc   = PWMGEN_MIN_DUTY_CYCLE;
         }
 
         // high belt max freq
         if (highbelt_max_mcb_freq != 0.0) {
             actual_max_mcb_freq = fabs(highbelt_max_mcb_freq);
-            actual_max_pwm_dc   = fabs(highbelt_max_pwm_dc);
         }
         else {
             // use default
             actual_max_mcb_freq = STEPGEN_MAX_FREQ;
+        }
+
+        // high belt max PWM duty cycle
+        if (highbelt_max_pwm_dc != 0.0) {
+            actual_max_pwm_dc   = fabs(highbelt_max_pwm_dc);
+        }
+        else {
+            // use default
             actual_max_pwm_dc   = PWMGEN_MAX_DUTY_CYCLE;
         }
     }

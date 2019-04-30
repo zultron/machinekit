@@ -408,6 +408,12 @@ static int init_hal_io(void)
 	return retval;
     }
     retval =
+    hal_pin_float_new("motion.gcode-feed", HAL_OUT, &(emcmot_hal_data->gcode_feed),
+    mot_comp_id);
+    if (retval != 0) {
+    return retval;
+    }
+    retval =
 	hal_pin_float_new("motion.distance-to-go", HAL_OUT, &(emcmot_hal_data->distance_to_go),
 	mot_comp_id);
     if (retval != 0) {
@@ -671,6 +677,16 @@ static int export_joint(int num, joint_hal_t * addr)
 	hal_pin_float_newf(HAL_OUT, &(addr->motor_pos_cmd), mot_comp_id, "axis.%d.motor-pos-cmd", num);
     if (retval != 0) {
 	return retval;
+    }
+    retval =
+        hal_pin_float_newf(HAL_IO, &(addr->downstream_offset), mot_comp_id, "axis.%d.downstream-offset", num);
+    if (retval != 0) {
+        return retval;
+    }
+    retval =
+        hal_pin_bit_newf(HAL_IO, &(addr->continuous_output), mot_comp_id, "axis.%d.continuous-output", num);
+    if (retval != 0) {
+        return retval;
     }
     retval =
 	hal_pin_float_newf(HAL_OUT, &(addr->motor_offset), mot_comp_id, "axis.%d.motor-offset", num);
@@ -1054,21 +1070,20 @@ static int init_comm_buffers(void)
 
     /* init motion emcmotDebug->tp */
     if (-1 == tpCreate(&emcmotDebug->tp, DEFAULT_TC_QUEUE_SIZE,
-	    emcmotDebug->queueTcSpace)) {
-	rtapi_print_msg(RTAPI_MSG_ERR,
-	    "MOTION: failed to create motion emcmotDebug->tp\n");
-	return -1;
+                       emcmotDebug->queueTcSpace)) {
+        rtapi_print_msg(RTAPI_MSG_ERR,
+                        "MOTION: failed to create motion emcmotDebug->tp\n");
+        return -1;
     }
-//    tpInit(&emcmotDebug->tp); // tpInit called from tpCreate
+
     tpSetCycleTime(&emcmotDebug->tp, emcmotConfig->trajCycleTime);
-    tpSetPos(&emcmotDebug->tp, &emcmotStatus->carte_pos_cmd);
-    tpSetVmax(&emcmotDebug->tp, emcmotStatus->vel, emcmotStatus->vel);
-    tpSetAmax(&emcmotDebug->tp, emcmotStatus->acc);
+    int res_pos = tpSetPos(&emcmotDebug->tp, &emcmotStatus->carte_pos_cmd);
+    int res_vel = tpSetVmax(&emcmotDebug->tp, emcmotStatus->vel, emcmotStatus->vel);
 
     emcmotStatus->tail = 0;
 
     rtapi_print_msg(RTAPI_MSG_INFO, "MOTION: init_comm_buffers() complete\n");
-    return 0;
+    return res_pos | res_vel;
 }
 
 /* init_threads() creates realtime threads, exports functions to

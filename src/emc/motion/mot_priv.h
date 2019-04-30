@@ -39,6 +39,10 @@ typedef struct {
     hal_float_t *backlash_corr;	/* RPI: correction for backlash */
     hal_float_t *backlash_filt;	/* RPI: filtered backlash correction */
     hal_float_t *backlash_vel;	/* RPI: backlash speed variable */
+    hal_float_t *downstream_offset; /* WRPI: offset being applied to the axis by some component past motion (in HAL) */
+                                    /* HAL component sets: An offset is being applied to axis on top of pos_cmd */
+                                    /* motmod clears: Offset value has been incorparated into pos_cmd, HAL comp should stop applying */
+    hal_bit_t *continuous_output;   /* RPI: Normally 1, zero on this pin indicates a step in motor_pos_output */
     hal_float_t *motor_offset;	/* RPI: motor offset, for checking homing stability */
     hal_float_t *motor_pos_cmd;	/* WPI: commanded position, with comp */
     hal_float_t *motor_pos_fb;	/* RPI: position feedback, with comp */
@@ -109,7 +113,8 @@ typedef struct {
     hal_s32_t *next_program_line;    /* program line next to execute */
     hal_s32_t *completed_program_line;    /* program line most recently completed */
     hal_float_t *current_vel;   /* RPI: velocity magnitude in machine units */
-    hal_float_t *requested_vel;   /* RPI: requested velocity magnitude in machine units */
+    hal_float_t *requested_vel;   /* RPI: requested velocity magnitude in machine units / second */
+    hal_float_t *gcode_feed;      /* RPI: gcode F-word velocity magnitude in machine units */
     hal_float_t *distance_to_go;/* RPI: distance to go in current move*/
     hal_bit_t *waiting_on_spindle; /* RPI: TRUE when spindle-synched
 				    * move is waiting on spindle */

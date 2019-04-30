@@ -1,0 +1,71 @@
+component thclogic """Component to handle THC enable / disable and 
+corner locking along with safety limits.""";
+
+pin in bit enable_in = 0 "Overall disable bit for THC. If you're using a PID for torch velocity control make sure to clear the integrator when this pin goes 0.";
+pin in bit is_idle_in = 0 "Connect to halui.program.is-idle to disable THC if stop button is pressed"; 
+pin out bit enable_out = 0 "Overall enabled state of THC. If is_idle_in goes high, enable_out goes low until enable_in has been toggled low -> high";
+pin in bit pause_in = 0 "Input bit to pause THC without clearing integrators. Can be set from gcode by tying this pin to a digital-out";
+pin out bit pause_out = 0 """Overall status of THC pause (combination of pause_in, velocity ok, corner locking, and safety limits)
+Connect this to your PID.enable. Works best with the Tormach no-reset version of PID to avoid clearing integrators in corners.""";
+
+pin in bit arc_ok = 0 "Input from plasma source to signal that arc is lit. Arc not lit = THC paused";
+
+pin in float requested_vel "Connect to motion.req-vel so that g-code requested feed rate can be compared to actual machine velocity";
+pin in float current_vel "Connect to motion.current-vel for corner locking"; 
+pin in float vel_window = 0.05 "Velocity window in percent for unpaused THC. Used for corner locking.";
+pin out bit vel_ok = 0 "Status of corner locking. 0=THC paused, 1=velocity ok";
+
+pin in float volts_min = 30;
+pin in float volts_max = 180;
+pin in float volts_in = 0 "Input from plasma source. Lowpass recommended.";
+pin out bit volts_ok = 0 "Status of voltage safety limits. 0=THC paused, 1=volts ok";
+
+//pin in float THC_vel_cmd_in = 0;
+//pin out float THC_vel_cmd_out = 0 "Commanded vertical velocity from an external PID component, but held to 0 when THC is paused or disabled.";
+
+
+function _;
+license "GPL";
+;;
+#include "rtapi_math.h"
+
+enum enable_states {
+    DISABLED,
+    STICKY_DISABLED,
+    ENABLED,
+} enable_state;
+
+
+FUNCTION(_) {
+    // Handle enable state transitions
+    switch(enable_state) {
+        case DISABLED:
+            if(enable_in && !is_idle_in) { enable_state = ENABLED; }
+            break;
+        case STICKY_DISABLED:
+            // To escape this state, enable_in needs to be pulled low
+            if(!enable_in) { enable_state = DISABLED; }
+            break;
+        case ENABLED:
+            if(!enable_in) { enable_state = DISABLED; }
+            else if(enable_in && is_idle_in) { enable_state=STICKY_DISABLED; }
+            break;
+    }
+
+    enable_out = (enable_state == ENABLED);
+
+    // Handle computation of safety windows first
+    volts_ok = (volts_min <= volts_in && volts_in <= volts_max);
+
+    // vel_window is treated as a percent of requested_vel from the gcode
+    vel_ok = (fabs(requested_vel - current_vel) < (requested_vel * vel_window));
+
+    pause_out = (enable_out && pause_in && volts_ok && vel_ok && arc_ok);
+
+    // Commanded velocity output is held to 0 when THC is paused
+    //THC_vel_cmd_out = THC_vel_cmd_in * pause_out;
+
+    // Voltage error value, for feedback into a PID component
+    //volts_error = volts_in - volts_target;
+}
+

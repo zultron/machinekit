@@ -1,0 +1,57 @@
+component tormachcolletcontrol "Flexible lathe collet control";
+
+description
+"""
+Tormach Lathe Collet Control
+
+Provides a way that both the g-code interpreter (via M10 and M11 remap) and the UI manual button
+can control the collet clamp and unclamp, even when the interpreter is paused on M00 or M01.
+
+'Last commanded' output wins essentially. The interpreter or the manual button set an output level
+and then toggle the state of the associated request pin.  That gets the attention of the comp to
+snapshot the desired output and make it so.  It then remembers that output and just continues that
+until some other change happens.
+
+This way during an interpreter pause, you can change the collet state, and then resume the interpreter
+and the interpreter doesn't have to remember any state on what its last commanded collet state was.
+""";
+
+author "John Freeborg";
+
+license "GPL";
+
+// Input Pins
+pin in bit interp_collet_output "Desired collet output level from interpreter";
+pin in bit interp_request "Toggle value to force edge detection and latch value of interp-collet-output";
+pin in bit manual_collet_output "Desired collet output level from manual operator";
+pin in bit manual_request "Toggle value to force edge detection and latch value of manual-collet-output";
+
+// Output Pins
+pin out bit collet_output "Output level commanded to collet";
+
+// Global Variables
+variable int interp_prev_request;
+variable int manual_prev_request;
+variable int prev_output;
+
+function _;
+
+;;
+
+#include "rtapi_math.h"
+
+FUNCTION(_) {   
+    int output;
+    output = prev_output;
+
+    if (manual_prev_request != manual_request)
+        output = manual_collet_output;
+    manual_prev_request = manual_request;
+
+    if (interp_prev_request != interp_request)
+        output = interp_collet_output;
+    interp_prev_request = interp_request;
+
+    prev_output = output;
+    collet_output = output;
+}

@@ -55,3 +55,8 @@ lib/python/gscreen/
 lib/python/redis/
 lib/python/stepconf/
 *~
+
+*.glade.h
+# expanded INI files
+*.ini.expanded
+build

@@ -179,6 +179,7 @@ extern "C" {
         EMCMOT_SET_OFFSET, /* set tool offsets */
         EMCMOT_SET_MAX_FEED_OVERRIDE,
         EMCMOT_SETUP_ARC_BLENDS,
+        EMCMOT_SETUP_CONSISTENCY_CHECKS,
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */
@@ -196,6 +197,11 @@ extern "C" {
 #define EMCMOT_TERM_COND_BLEND 2
 #define EMCMOT_TERM_COND_TANGENT 3
 
+typedef struct {
+    // Consistency checking within TP
+    int extraConsistencyChecks;
+    double maxPositionDriftError;
+} consistency_check_config_t;
 /*********************************
        COMMAND STRUCTURE
 *********************************/
@@ -218,13 +224,15 @@ extern "C" {
 	double vela;		/* max angular velocity */
         double ini_maxvel;      /* max velocity allowed by machine
                                    constraints (the ini file) */
+        int pure_angular;       // Canon decided this move should be treated as an angular move (may have small XYZUVW motion anyway)
         int motion_type;        /* this move is because of traverse, feed, arc, or toolchange */
         double spindlesync;     /* user units per spindle revolution, 0 = no sync */
         double spindle_speed;		/* commanded spindle speed */
         double css_factor; // Only used during CSS mode
         double css_xoffset; // Only used during CSS mode
 	double acc;		/* max acceleration */
-	double backlash;	/* amount of backlash */
+    double acc_normal;		/* max normal acceleration (circular moves only)*/
+    double backlash;	/* amount of backlash */
 	int id;			/* id for motion */
 	int termCond;		/* termination condition */
 	double tolerance;	/* tolerance for path deviation in CONTINUOUS mode */
@@ -262,6 +270,9 @@ extern "C" {
         double arcBlendRampFreq;
         double arcBlendTangentKinkRatio;
         double maxFeedScale;
+
+    consistency_check_config_t consistencyCheckConfig;
+
     struct state_tag_t tag;
     } emcmot_command_t;
 
@@ -542,6 +553,8 @@ Suggestion: Split this in to an Error and a Status flag register..
 	int index_enable;	/* current state of index enable pin */
 
 	home_state_t home_state;	/* state machine for homing */
+    double downstream_offset;   /* Offset that has been applied to this axis downstream of motmod (in HAL) */
+    int continuous_output;      /* Falling edge on this signal indiccates a step function in motor_pos_cmd */
 	double motor_offset;	/* diff between internal and motor pos, used
 				   to set position to zero during homing */
 	int old_jog_counts;	/* prior value, used for deltas */
@@ -709,7 +722,7 @@ typedef enum {
         double current_vel;
         double requested_vel;
 
-        unsigned int tcqlen;
+        int tcqlen;
         EmcPose tool_offset;
         int atspeed_next_feed;  /* at next feed move, wait for spindle to be at speed  */
         int spindle_is_atspeed; /* hal input */
@@ -774,6 +787,7 @@ typedef enum {
         double arcBlendRampFreq;
         double arcBlendTangentKinkRatio;
         double maxFeedScale;
+    consistency_check_config_t consistencyCheckConfig;
     } emcmot_config_t;
 
 /*********************************

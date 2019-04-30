@@ -188,10 +188,17 @@ int emcTaskStateRestore()
     if (emcStatus->task.mode == EMC_TASK_MODE_AUTO) {
         // Validity of state tag checked within restore function
 	if (emc_debug & EMC_DEBUG_STATUS)
-	    rcs_print(
-		"emcTaskStateRestore: restoring interp from line %d state tag\n",
-		saved_tag.fields[GM_FIELD_LINE_NUMBER]);
+	    rcs_print("emcTaskStateRestore: restoring interp from line %d state tag\n",
+		      saved_tag.fields[GM_FIELD_LINE_NUMBER]);
+
         pinterp->restore_from_tag(saved_tag);
+
+        // Sigh...the interp object has some stale static tag data that can get used by
+		// new commands that will be added to the interp list so update that.
+        static_cast<Interp*>(pinterp)->write_and_update_state_tag((block_pointer) NULL);
+		// And the interp list itself has a line number that is now stale also so be sure
+		// to update that as well.
+        interp_list.set_line_number(saved_tag.fields[GM_FIELD_LINE_NUMBER]);
     }
     return 0;
 }
@@ -201,6 +208,7 @@ int emcTaskAbort(int restore_task_state)
     // Call motion abort before state restore to make absolutely sure no
     // stray restore commands make it down to motion
     emcMotionAbort();
+
     if (restore_task_state)
 	// Then call state restore to update the interpreter
 	emcTaskStateRestore();
@@ -223,6 +231,8 @@ int emcTaskAbort(int restore_task_state)
     steppingWait = 0;
 
     // now queue up command to resynch interpreter
+
+    // hits interp list directly so uses whatever is hanging around in there for 'next line number'   
     EMC_TASK_PLAN_SYNCH taskPlanSynchCmd;
     emcTaskQueueCommand(&taskPlanSynchCmd);
 

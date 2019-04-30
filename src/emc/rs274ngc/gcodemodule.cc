@@ -1,5 +1,5 @@
 //    This is a component of AXIS, a front-end for emc
-//    Copyright 2004, 2005, 2006 Jeff Epler <jepler@unpythonic.net> and 
+//    Copyright 2004, 2005, 2006 Jeff Epler <jepler@unpythonic.net> and
 //    Chris Radek <chris@timeguy.com>
 //
 //    This program is free software; you can redistribute it and/or modify
@@ -194,7 +194,7 @@ static void maybe_new_line(int sequence_number) {
     interp_new.active_m_codes(new_line_code->mcodes);
     new_line_code->gcodes[0] = sequence_number;
     last_sequence_number = sequence_number;
-    PyObject *result = 
+    PyObject *result =
         callmethod(callback, "next_line", "O", new_line_code);
     Py_DECREF(new_line_code);
     if(result == NULL) interp_error ++;
@@ -215,13 +215,13 @@ void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points
     unsigned int n = nurbs_control_points.size() - 1;
     double umax = n - k + 2;
     unsigned int div = nurbs_control_points.size()*15;
-    std::vector<unsigned int> knot_vector = knot_vector_creator(n, k);	
+    std::vector<unsigned int> knot_vector = knot_vector_creator(n, k);
     PLANE_POINT P1;
     while (u+umax/div < umax) {
         PLANE_POINT P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
         STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
         u = u + umax/div;
-    } 
+    }
     P1.X = nurbs_control_points[n].X;
     P1.Y = nurbs_control_points[n].Y;
     STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
@@ -250,7 +250,7 @@ void ARC_FEED(int line_number,
         PyObject *result =
             callmethod(callback, "arc_feed", "iffffifffffff",
                     line_number, first_end, second_end, first_axis, second_axis,
-                    rotation, axis_end_point, 
+                    rotation, axis_end_point,
                     a_position, b_position, c_position,
                     u_position, v_position, w_position);
         if(result == NULL) interp_error ++;
@@ -262,7 +262,7 @@ void STRAIGHT_FEED(int line_number,
                    double x, double y, double z,
                    double a, double b, double c,
                    double u, double v, double w) {
-    _pos_x=x; _pos_y=y; _pos_z=z; 
+    _pos_x=x; _pos_y=y; _pos_z=z;
     _pos_a=a; _pos_b=b; _pos_c=c;
     _pos_u=u; _pos_v=v; _pos_w=w;
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
@@ -285,7 +285,7 @@ void STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
                        double a, double b, double c,
                        double u, double v, double w) {
-    _pos_x=x; _pos_y=y; _pos_z=z; 
+    _pos_x=x; _pos_y=y; _pos_z=z;
     _pos_a=a; _pos_b=b; _pos_c=c;
     _pos_u=u; _pos_v=v; _pos_w=w;
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
@@ -339,7 +339,7 @@ void SET_XY_ROTATION(double t) {
 void USE_LENGTH_UNITS(CANON_UNITS u) { metric = u == CANON_UNITS_MM; }
 
 void SELECT_PLANE(CANON_PLANE pl) {
-    maybe_new_line();   
+    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "set_plane", "i", pl);
@@ -348,7 +348,7 @@ void SELECT_PLANE(CANON_PLANE pl) {
 }
 
 void SET_TRAVERSE_RATE(double rate) {
-    maybe_new_line();   
+    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "set_traverse_rate", "f", rate);
@@ -358,7 +358,7 @@ void SET_TRAVERSE_RATE(double rate) {
 
 void SET_FEED_MODE(int mode) {
 #if 0
-    maybe_new_line();   
+    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "set_feed_mode", "i", mode);
@@ -370,7 +370,7 @@ void SET_FEED_MODE(int mode) {
 void CHANGE_TOOL(int pocket) {
     maybe_new_line();
     if(interp_error) return;
-    PyObject *result = 
+    PyObject *result =
         callmethod(callback, "change_tool", "i", pocket);
     if(result == NULL) interp_error ++;
     Py_XDECREF(result);
@@ -387,7 +387,7 @@ void CHANGE_TOOL_NUMBER(int pocket) {
  * time feed wrong anyway..
  */
 void SET_FEED_RATE(double rate) {
-    maybe_new_line();   
+    maybe_new_line();
     if(interp_error) return;
     if(metric) rate /= 25.4;
     PyObject *result =
@@ -397,7 +397,7 @@ void SET_FEED_RATE(double rate) {
 }
 
 void DWELL(double time) {
-    maybe_new_line();   
+    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "dwell", "f", time);
@@ -406,7 +406,7 @@ void DWELL(double time) {
 }
 
 void MESSAGE(char *comment) {
-    maybe_new_line();   
+    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "message", "s", comment);
@@ -420,7 +420,7 @@ void LOGAPPEND(char *f) {}
 void LOGCLOSE() {}
 
 void COMMENT(const char *comment) {
-    maybe_new_line();   
+    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "comment", "s", comment);
@@ -481,7 +481,7 @@ int  GET_EXTERNAL_TC_FAULT() {return 0;}
 int  GET_EXTERNAL_TC_REASON() {return 0;}
 
 
-extern bool GET_BLOCK_DELETE(void) { 
+extern bool GET_BLOCK_DELETE(void) {
     int bd = 0;
     if(interp_error) return 0;
     PyObject *result =
@@ -529,11 +529,11 @@ void INTERP_ABORT(int reason,const char *message) {}
 void PLUGIN_CALL(int len, const char *call) {}
 void IO_PLUGIN_CALL(int len, const char *call) {}
 
-void STRAIGHT_PROBE(int line_number, 
-                    double x, double y, double z, 
+void STRAIGHT_PROBE(int line_number,
+                    double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
-    _pos_x=x; _pos_y=y; _pos_z=z; 
+    _pos_x=x; _pos_y=y; _pos_z=z;
     _pos_a=a; _pos_b=b; _pos_c=c;
     _pos_u=u; _pos_v=v; _pos_w=w;
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
@@ -584,7 +584,7 @@ void INIT_CANON() {}
 void GET_EXTERNAL_PARAMETER_FILE_NAME(char *name, int max_size) {
     PyObject *result = PyObject_GetAttrString(callback, "parameter_file");
     if(!result) { name[0] = 0; return; }
-    char *s = PyString_AsString(result);    
+    char *s = PyString_AsString(result);
     if(!s) { name[0] = 0; return; }
     memset(name, 0, max_size);
     strncpy(name, s, max_size - 1);
@@ -632,8 +632,8 @@ int GET_EXTERNAL_MIST() { return 0; }
 CANON_PLANE GET_EXTERNAL_PLANE() { return 1; }
 double GET_EXTERNAL_SPEED() { return 0; }
 int GET_EXTERNAL_POCKETS_MAX() { return CANON_POCKETS_MAX; }
-void DISABLE_ADAPTIVE_FEED() {} 
-void ENABLE_ADAPTIVE_FEED() {} 
+void DISABLE_ADAPTIVE_FEED() {}
+void ENABLE_ADAPTIVE_FEED() {}
 
 int GET_EXTERNAL_FEED_OVERRIDE_ENABLE() {return 1;}
 int GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE() {return 1;}
@@ -764,7 +764,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     if(!pinterp)
         pinterp = new Interp;
 
-    for(int i=0; i<USER_DEFINED_FUNCTION_NUM; i++) 
+    for(int i=0; i<USER_DEFINED_FUNCTION_NUM; i++)
         USER_DEFINED_FUNCTION[i] = user_defined_function;
 
     gettimeofday(&t0, NULL);
@@ -826,7 +826,7 @@ out_error:
     // Throw a warning if we're clipping lines
     if (_linecount > max_glcanon_lines) {
         std::stringstream preview_cutoff_warning;
-        preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
+        preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use the context menu of the g-code window on the Main tab to load all preview lines.  Or use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
         PyList_Append(((Interp*)pinterp)->warning_list, PyString_FromString(preview_cutoff_warning.str().c_str()));
     }
 
@@ -1068,12 +1068,20 @@ static PyObject *rs274_arc_to_segments(PyObject *self, PyObject *args) {
 
 static PyObject *get_set_max_glcanon_lines(PyObject *self, PyObject *args) {
     uint32_t in = 0;
-    if(PyArg_ParseTuple(args, "|l", &in) && in > 0)
+
+    // The proper format arg is I which converts between
+    // an unsigned int and a Python integer.
+    // Formerly the code was using l which on the C++ side
+    // is a long int which is 64-bits.  With some compiler optimization settings,
+	// this can corrupt the stack return address and crash.
+
+    if (PyArg_ParseTuple(args, "|I", &in) && in > 0) {
 	// Found integer arg; set value
-	max_glcanon_lines = in;
+        max_glcanon_lines = in;
+    }
 
     // return value
-    return Py_BuildValue("l", max_glcanon_lines);
+    return Py_BuildValue("I", max_glcanon_lines);
 }
 
 static PyMethodDef gcode_methods[] = {
