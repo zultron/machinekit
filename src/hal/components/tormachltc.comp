@@ -21,11 +21,13 @@ author "";
 //          tool_change_in      <= iocontrol.0.tool-change written by LCNC iocontrol
 //          atc_tool_changed    <= hm2_5i25.0.gpio.010.in_not LCB/ATC has completed tool change
 //          tool_prep_number    <= iocontrol.0.tool-prep-number tool number to change to
+//			turret_positions	<= number of positions /pockets in turret, set from ini and hal file "setp"
 //
 //    Outputs:
 //          tool_change_out     => hm2_5i25.0.gpio.011.out tells LCB/ATC to begins ATC tool change
 //          tool_changed_out    => iocontrol.0.tool-changed tells LCNC iocontrol tool change complete
 //          pwm_duty_cycle      => hm2_5i25.0.pwmgen.00.value tells LCB/ATC tool number
+//			turret_positions_out => connected to PP via post gui hal.  Simple copy of turret_positions input pin
 
 // written by GUI, connected to in postgui HAL file
 pin in s32 tool_changer_type;
@@ -52,6 +54,20 @@ pin out bit tool_changed_out;
 // connect this to a HAL pwmgen value, e.g. hm2_5i25.0.pwmgen.00.value
 pin out float pwm_duty_cycle;
 
+
+// These two next two pins are here because of 8L lathe.  The 8L doesn't use this comp, but 
+// the PP GUI can deal with turrets that have other than 8 locations. (8L turrent has only 4.)
+// The PP GUI needs to know how many tools in the turret.
+// This 15L turrent comp assumes 8 tools through out.  But if it ever needs to care, here it is, or
+// we start having a 10 tool turret, PP is already theoretically ready for different numbers of positions.
+// This comp simply feeds an ini value through to PP GUI, and doesn't otherwise use it yet.
+pin in u32 turret_positions;        //number of positions /pockets in turret
+pin out u32 turret_positions_out;   //connected to PP via post gui hal.
+// future pins available in model of "new" turret -- NOT YET USED in this comp
+//pin in bit has_locking_fb;          // TRUE if turret has locked feedback switch  (8L doesn't have any lock switch, 15L turret does)
+//pin in u32 position_fb_type;        // POSITION_FEEDBACK_1HOT, POSITION_FEEDBACK_BINARY (ECM has 1 hot feedback, mesa board (series 3 lathe) is binary)
+
+
 function _ "Tormach Lathe Tool Changer HAL Component";
 
 ;;
@@ -61,13 +77,18 @@ function _ "Tormach Lathe Tool Changer HAL Component";
 #define MIN_ATC_TOOL_NUM 1
 #define MAX_ATC_TOOL_NUM 8
 
-// these must match in the GUI
+// these must match in the GUI  python/constants.py file
 #define TOOL_CHANGER_TYPE_MANUAL          0
 #define TOOL_CHANGER_TYPE_GANG            1
-#define TOOL_CHANGER_TYPE_ATC_8POSITION   2
+#define TOOL_CHANGER_TYPE_ATC_8POSITION   2   //AKA TOOL_CHANGER_TYPE_TURRET
+#define TOOL_CHANGER_TYPE_ZBOT            3   // not used in this comp, available in new model of lathe tool changers
 
 
 FUNCTION(_) {
+    turret_positions_out = turret_positions;    //pass-through the comp because can't tie
+                                                //this to GUI in HAL like I want because:
+//tormach_lathe_8l.hal:440: pin 'tormachltc-ecm1.turret-positions' is connected to a signal  
+// yes, message applies for 8L, but porting code in here for same reason 
 
     if (tool_changer_type == TOOL_CHANGER_TYPE_MANUAL) {
 
