@@ -1334,19 +1334,13 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
 
     canonMotionMode = mode;
     canon_debug("canonMotionMode = %d\n", mode);
-    canon_debug("canonMotionMode = %d\n", mode);
-    
-    // Negative value means we use default tolerance as specified in INI file
-    if (tolerance < 0) {
-        // convert to canon units
-        tolerance = FROM_EXT_LEN(traj_default_tolerance);
-    }
 
-    const double new_tol = FROM_PROG_LEN(tolerance);
-    if (new_tol != canonMotionTolerance) {
-        fprintf(stderr, "Setting tolerance to %f\n", new_tol);
+    const double new_tol_mm = tolerance < 0 ? FROM_EXT_LEN(traj_default_tolerance) : FROM_PROG_LEN(tolerance);
+
+    if (new_tol_mm != canonMotionTolerance) {
+        fprintf(stderr, "Setting tolerance to %f mm\n", new_tol_mm);
     }
-    canonMotionTolerance = new_tol;
+    canonMotionTolerance = new_tol_mm;
 
     switch (mode) {
     case CANON_CONTINUOUS:
@@ -1368,16 +1362,11 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
 
 void SET_NAIVECAM_TOLERANCE(double tolerance)
 {
-    // Strip negative tolerances
-    if (tolerance < 0.0) {
-        tolerance = FROM_EXT_LEN(traj_default_naivecam_tolerance);
+    const double new_tol_mm = tolerance < 0.0 ? FROM_EXT_LEN(traj_default_naivecam_tolerance) : FROM_PROG_LEN(tolerance);
+    if (canonNaivecamTolerance != new_tol_mm) {
+        fprintf(stderr,"Setting naivecam tolerance to %f mm\n", canonNaivecamTolerance);
     }
-
-    const double new_tol = FROM_PROG_LEN(tolerance);
-    if (canonNaivecamTolerance != new_tol) {
-        fprintf(stderr,"Setting naivecam tolerance to %f\n", canonNaivecamTolerance);
-    }
-    canonNaivecamTolerance = new_tol;
+    canonNaivecamTolerance = new_tol_mm;
 }
 
 void SELECT_PLANE(CANON_PLANE in_plane)
