@@ -67,11 +67,13 @@ for ngc in glob.glob('*.ngc'):
     m = re.match('(.*)\.ngc', ngc)
     basename = m.group(1)
 
+    print >>sys.stderr, "running reset.ngc"
     c.program_open('reset.ngc')
     c.auto(linuxcnc.AUTO_RUN, 0)
     c.wait_complete()
     end_log('reset')
 
+    print >>sys.stderr, "running ", ngc
     c.program_open(ngc)
     c.auto(linuxcnc.AUTO_RUN, 0)
     c.wait_complete()

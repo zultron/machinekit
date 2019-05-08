@@ -145,11 +145,8 @@ char LoadSequential(char * FileName)
 						pSeqComment->NumPage = StepData[ ScanData++ ];
 						pSeqComment->PosiX = StepData[ ScanData++ ];
 						pSeqComment->PosiY = StepData[ ScanData++ ];
-						if ( pCommentString!='\0' )
-						{
-							strcpy( pSeqComment->Comment, pCommentString );
+                        strcpy( pSeqComment->Comment, pCommentString ?: "");
 //							RemoveEndLine( pSeqComment->Comment );
-						}
 						break;
 				}
 			}

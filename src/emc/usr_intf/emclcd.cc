@@ -1432,7 +1432,7 @@ static int initScreens()
 static int stepCount(char *fileName)
 {
   FILE *f;
-  char buffer[80];
+  char buffer[512]={};
   int len;
 
   sprintf(buffer, "wc -l < %s", fileName);

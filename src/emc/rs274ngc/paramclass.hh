@@ -15,18 +15,29 @@
  *    along with this program; if not, write to the Free Software
  *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+
+#ifndef PARAM_CLASS_HH
+#define PARAM_CLASS_HH
+
+#include <boost/python/list.hpp>
+
+struct Interp;
+typedef struct context_struct context;
+
 struct ParamClass {
 
     Interp &interp;
 
     ParamClass(Interp &i);
-    double getitem( bp::object sub);
-    double setitem(bp::object sub, double dvalue);
-    bp::list namelist(context &c) const;
-    bp::list locals();
-    bp::list globals();
-    bp::list operator()() const;
+    double getitem(boost::python::object sub);
+    double setitem(boost::python::object sub, double dvalue);
+    boost::python::list namelist(context &c) const;
+    boost::python::list locals();
+    boost::python::list globals();
+    boost::python::list operator()() const;
     int length();
 };
 
 extern void export_ParamClass();
+
+#endif

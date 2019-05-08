@@ -10,6 +10,10 @@
 *
 ********************************************************************/
 
+#ifndef STREAMER_H
+#define STREAMER_H
+#include <hal.h>
+
 #define MAX_STREAMERS		8
 #define MAX_SAMPLERS		8
 #define MAX_PINS 		20
@@ -49,3 +53,4 @@ typedef union {
     hal_s32_t *hs32;
 } pin_data_t;
 
+#endif

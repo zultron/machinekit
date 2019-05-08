@@ -14,7 +14,6 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <boost/python.hpp>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +28,8 @@
 #include "interp_internal.hh"
 #include "rs274ngc_interp.hh"
 #include <cmath>
+
+using namespace interp_param_global;
 
 /****************************************************************************/
 
@@ -2032,7 +2033,7 @@ int Interp::read_parameter(
       CHP(read_integer_value(line, counter, &index, parameters));
       if(check_exists)
       {
-	  *double_ptr = index >= 1 && index < RS274NGC_MAX_PARAMETERS;
+      *double_ptr = index >= 1 && index < RS274NGC_MAX_PARAMETERS;
 	  return INTERP_OK;
       }
       CHKS(((index < 1) || (index >= RS274NGC_MAX_PARAMETERS)),

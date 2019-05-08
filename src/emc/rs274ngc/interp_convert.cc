@@ -28,11 +28,13 @@
 #include "interp_internal.hh"
 #include "interp_tolerances.hh"
 #include "interp_queue.hh"
+#include "interp_parameter_def.hh"
 
 #include "units.h"
 #define TOOL_INSIDE_ARC(side, turn) (((side)==LEFT&&(turn)>0)||((side)==RIGHT&&(turn)<0))
 #define DEBUG_EMC
 
+using namespace interp_param_global;
 
 // These four functions help make the rest of cutter comp
 // plane-agnostic in much the same way the ARC_FEED canon call is.
@@ -251,11 +253,14 @@ int Interp::convert_spline(int mode,
       else {
         // NURBS_FEED
         cp.W = 1;
-        cp.X = settings->current_x, cp.Y = settings->current_y;
+        cp.X = settings->current_x;
+        cp.Y = settings->current_y;
         nurbs_control_points.push_back(cp);
-        cp.X = x1, cp.Y = y1;
+        cp.X = x1;
+        cp.Y = y1;
         nurbs_control_points.push_back(cp);
-        cp.X = x2, cp.Y = y2;
+        cp.X = x2;
+        cp.Y = y2;
         nurbs_control_points.push_back(cp);
         write_and_update_state_tag(block);
         NURBS_FEED(block->line_number, nurbs_control_points, 3);
@@ -282,13 +287,17 @@ int Interp::convert_spline(int mode,
       y2 = y3 + block->q_number;
 
       cp.W = 1;
-      cp.X = settings->current_x, cp.Y = settings->current_y;
+      cp.X = settings->current_x;
+      cp.Y = settings->current_y;
       nurbs_control_points.push_back(cp);
-      cp.X = x1, cp.Y = y1;
+      cp.X = x1;
+      cp.Y = y1;
       nurbs_control_points.push_back(cp);
-      cp.X = x2, cp.Y = y2;
+      cp.X = x2;
+      cp.Y = y2;
       nurbs_control_points.push_back(cp);
-      cp.X = x3, cp.Y = y3;
+      cp.X = x3;
+      cp.Y = y3;
       nurbs_control_points.push_back(cp);
       write_and_update_state_tag(NULL);
       NURBS_FEED(block->line_number, nurbs_control_points, 4);
@@ -1082,7 +1091,7 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
        block->c_number, 'C');
   pars = settings->parameters;
   if ((g_code == G_52) || (g_code == G_92)) {
-      pars[5210] = 1.0;
+      pars[G92_APPLIED] = 1.0;
 
       if (g_code == G_52) {
 	  if (block->x_flag) {
@@ -1218,15 +1227,15 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
     settings->v_axis_offset = 0.0;
     settings->w_axis_offset = 0.0;
     if (g_code == G_92_1) {
-      pars[5211] = 0.0;
-      pars[5212] = 0.0;
-      pars[5213] = 0.0;
-      pars[5214] = 0.0;
-      pars[5215] = 0.0;
-      pars[5216] = 0.0;
-      pars[5217] = 0.0;
-      pars[5218] = 0.0;
-      pars[5219] = 0.0;
+      pars[G92_X] = 0.0;
+      pars[G92_Y] = 0.0;
+      pars[G92_Z] = 0.0;
+      pars[G92_A] = 0.0;
+      pars[G92_B] = 0.0;
+      pars[G92_C] = 0.0;
+      pars[G92_U] = 0.0;
+      pars[G92_V] = 0.0;
+      pars[G92_W] = 0.0;
     }
   } else if (g_code == G_92_3) {
     pars[5210] = 1.0;
@@ -3826,30 +3835,30 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     settings->tool_table[pocket].toolno = toolno;
 
     CHKS(!(block->x_flag || block->y_flag || block->z_flag ||
-	   block->a_flag || block->b_flag || block->c_flag ||
-	   block->u_flag || block->v_flag || block->w_flag ||
-	   block->r_flag || block->q_flag || block->i_flag ||
+           block->a_flag || block->b_flag || block->c_flag ||
+           block->u_flag || block->v_flag || block->w_flag ||
+           block->r_flag || block->q_flag || block->i_flag ||
            block->j_flag),
-	 _("G10 L1 without offsets has no effect"));
+         _("G10 L1 without offsets has no effect"));
 
     if(direct) {
         if(block->x_flag)
             settings->tool_table[pocket].offset.tran.x = PROGRAM_TO_USER_LEN(block->x_number);
         if(block->y_flag)
             settings->tool_table[pocket].offset.tran.y = PROGRAM_TO_USER_LEN(block->y_number);
-        if(block->z_flag) 
+        if(block->z_flag)
             settings->tool_table[pocket].offset.tran.z = PROGRAM_TO_USER_LEN(block->z_number);
-        if(block->a_flag) 
+        if(block->a_flag)
             settings->tool_table[pocket].offset.a = PROGRAM_TO_USER_ANG(block->a_number);
-        if(block->b_flag) 
+        if(block->b_flag)
             settings->tool_table[pocket].offset.b = PROGRAM_TO_USER_ANG(block->b_number);
-        if(block->c_flag) 
+        if(block->c_flag)
             settings->tool_table[pocket].offset.c = PROGRAM_TO_USER_ANG(block->c_number);
-        if(block->u_flag) 
+        if(block->u_flag)
             settings->tool_table[pocket].offset.u = PROGRAM_TO_USER_LEN(block->u_number);
-        if(block->v_flag) 
+        if(block->v_flag)
             settings->tool_table[pocket].offset.v = PROGRAM_TO_USER_LEN(block->v_number);
-        if(block->w_flag) 
+        if(block->w_flag)
             settings->tool_table[pocket].offset.w = PROGRAM_TO_USER_LEN(block->w_number);
     } else {
         int to_fixture = block->l_number == 11;
@@ -3892,7 +3901,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
             ox = 0;
             rotate(&ox, &oy, settings->parameters[5210 + destination_system * 20]);
 
-            
+
             tx -= block->x_number;
             ty = 0;
             rotate(&tx, &ty, settings->parameters[5210 + destination_system * 20]);
@@ -3916,19 +3925,19 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
         }
 
 
-        if(block->z_flag) 
+        if(block->z_flag)
             settings->tool_table[pocket].offset.tran.z = PROGRAM_TO_USER_LEN(tz - block->z_number);
-        if(block->a_flag) 
+        if(block->a_flag)
             settings->tool_table[pocket].offset.a = PROGRAM_TO_USER_ANG(ta - block->a_number);
-        if(block->b_flag) 
+        if(block->b_flag)
             settings->tool_table[pocket].offset.b = PROGRAM_TO_USER_ANG(tb - block->b_number);
-        if(block->c_flag) 
+        if(block->c_flag)
             settings->tool_table[pocket].offset.c = PROGRAM_TO_USER_ANG(tc - block->c_number);
-        if(block->u_flag) 
+        if(block->u_flag)
             settings->tool_table[pocket].offset.u = PROGRAM_TO_USER_LEN(tu - block->u_number);
-        if(block->v_flag) 
+        if(block->v_flag)
             settings->tool_table[pocket].offset.v = PROGRAM_TO_USER_LEN(tv - block->v_number);
-        if(block->w_flag) 
+        if(block->w_flag)
             settings->tool_table[pocket].offset.w = PROGRAM_TO_USER_LEN(tw - block->w_number);
     }
 
@@ -3943,12 +3952,12 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
 
     write_and_update_state_tag(block);
     SET_TOOL_TABLE_ENTRY(pocket,
-                             settings->tool_table[pocket].toolno,
-                             settings->tool_table[pocket].offset,
-                             settings->tool_table[pocket].diameter,
-                             settings->tool_table[pocket].frontangle,
-                             settings->tool_table[pocket].backangle,
-                             settings->tool_table[pocket].orientation);
+                         settings->tool_table[pocket].toolno,
+                         settings->tool_table[pocket].offset,
+                         settings->tool_table[pocket].diameter,
+                         settings->tool_table[pocket].frontangle,
+                         settings->tool_table[pocket].backangle,
+                         settings->tool_table[pocket].orientation);
 
     //
     // On non-random tool changers we just updated the tool's "home pocket"
@@ -3959,7 +3968,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     // 0 (the spindle) directly when modifying the loaded tool.
     //
     if ((!settings->random_toolchanger) && (settings->current_pocket == pocket)) {
-       settings->tool_table[0] = settings->tool_table[pocket];
+        settings->tool_table[0] = settings->tool_table[pocket];
     }
 
     //
@@ -3973,7 +3982,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
             settings->parameters[5400] = settings->tool_table[0].toolno;
         } else {
             settings->parameters[5400] = -1;
-    } else {
+        } else {
         if (settings->tool_table[0].toolno > 0) {
             settings->parameters[5400] = settings->tool_table[0].toolno;
         } else {
@@ -3999,8 +4008,8 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     // information to pocket 0 of the tool table (which signifies the
     // spindle)
     if (   !_setup.random_toolchanger
-        && pocket == settings->current_pocket) {
-	write_and_update_state_tag(block);
+           && pocket == settings->current_pocket) {
+        write_and_update_state_tag(block);
         SET_TOOL_TABLE_ENTRY(0,
                              settings->tool_table[pocket].toolno,
                              settings->tool_table[pocket].offset,
@@ -4011,38 +4020,38 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     }
     if (FEATURE(LATHE_TOOLCHANGE)) {
         // G10 command doesn't automatically apply a G43 length offset to the newly measured tool
-		// we don't want to call a G43 in our python code for lathe, so we'll deal with applying the offset here.
-		// Tormach *dpr 4/30/13
-		// Don't apply the offset unless the P number is the same as the current tool *dpr 8/12/13
-		// Also, don't apply the offset if we're just setting a wear offset.  Instead, clear the wear offset register
-		// (which happens with a ZERO_EMC_POSE(tool_offset)) because we don't want to deal with the case
-		// where a user has T0204 active and edits wear offset register 4.  Too complicated, so we'll
-		// just say that G10 clears the wear offset application.  *dpr 2/6/14
-		if (((toolno - 10000) == settings->tool_table[0].toolno)){
-			EmcPose tool_offset;
-			ZERO_EMC_POSE(tool_offset);
-			tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
-			tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.y);
-			tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.z);
-			USE_TOOL_LENGTH_OFFSET(tool_offset);
-			double dx, dy;
+        // we don't want to call a G43 in our python code for lathe, so we'll deal with applying the offset here.
+        // Tormach *dpr 4/30/13
+        // Don't apply the offset unless the P number is the same as the current tool *dpr 8/12/13
+        // Also, don't apply the offset if we're just setting a wear offset.  Instead, clear the wear offset register
+        // (which happens with a ZERO_EMC_POSE(tool_offset)) because we don't want to deal with the case
+        // where a user has T0204 active and edits wear offset register 4.  Too complicated, so we'll
+        // just say that G10 clears the wear offset application.  *dpr 2/6/14
+        if (((toolno - 10000) == settings->tool_table[0].toolno)){
+            EmcPose tool_offset;
+            ZERO_EMC_POSE(tool_offset);
+            tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
+            tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.y);
+            tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.z);
+            USE_TOOL_LENGTH_OFFSET(tool_offset);
+            double dx, dy;
 
-			dx = settings->tool_offset.tran.x - tool_offset.tran.x;
-			dy = settings->tool_offset.tran.y - tool_offset.tran.y;
-			rotate(&dx, &dy, -settings->rotation_xy);
+            dx = settings->tool_offset.tran.x - tool_offset.tran.x;
+            dy = settings->tool_offset.tran.y - tool_offset.tran.y;
+            rotate(&dx, &dy, -settings->rotation_xy);
 
-			settings->current_x += dx;
-			settings->current_y += dy;
-			settings->current_z += settings->tool_offset.tran.z - tool_offset.tran.z;
-			settings->AA_current += settings->tool_offset.a - tool_offset.a;
-			settings->BB_current += settings->tool_offset.b - tool_offset.b;
-			settings->CC_current += settings->tool_offset.c - tool_offset.c;
-			settings->u_current += settings->tool_offset.u - tool_offset.u;
-			settings->v_current += settings->tool_offset.v - tool_offset.v;
-			settings->w_current += settings->tool_offset.w - tool_offset.w;
-			settings->tool_offset = tool_offset;
-		}		
-    } 
+            settings->current_x += dx;
+            settings->current_y += dy;
+            settings->current_z += settings->tool_offset.tran.z - tool_offset.tran.z;
+            settings->AA_current += settings->tool_offset.a - tool_offset.a;
+            settings->BB_current += settings->tool_offset.b - tool_offset.b;
+            settings->CC_current += settings->tool_offset.c - tool_offset.c;
+            settings->u_current += settings->tool_offset.u - tool_offset.u;
+            settings->v_current += settings->tool_offset.v - tool_offset.v;
+            settings->w_current += settings->tool_offset.w - tool_offset.w;
+            settings->tool_offset = tool_offset;
+        }
+    }
     return INTERP_OK;
 }
 

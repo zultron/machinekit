@@ -18,7 +18,11 @@
 // Interpreter internals - Python bindings
 // Michael Haberler 7/2011
 
-#include <boost/python.hpp>
+// (at least in boost 1.55, return_internal_reference needs a definition
+// of boost::python::detail::get which comes from detail/caller.hpp.
+// At first sniff it's a boost bug but what can you do...)
+#include <boost/python/detail/caller.hpp>
+#include <boost/python/return_internal_reference.hpp>
 namespace bp = boost::python;
 
 #include "rs274ngc.hh"
@@ -39,7 +43,7 @@ void export_Arrays()
     pp::register_array_1< double, ACTIVE_SETTINGS> ("ActiveSettingsArray");
     pp::register_array_1< block, MAX_NESTED_REMAPS,
 	bp::return_internal_reference< 1, bp::default_call_policies > > ("BlocksArray");
-    pp::register_array_1< double, RS274NGC_MAX_PARAMETERS > ("ParametersArray");
+    pp::register_array_1< double, interp_param_global::RS274NGC_MAX_PARAMETERS > ("ParametersArray");
     pp::register_array_1< CANON_TOOL_TABLE, CANON_POCKETS_MAX,
 	bp::return_internal_reference< 1, bp::default_call_policies > > ("ToolTableArray");
     pp::register_array_1< context, INTERP_SUB_ROUTINE_LEVELS,

@@ -36,7 +36,6 @@
 #include <rtapi_firmware.h>
 #include "rtapi_uspace.hh"
 
-#include <boost/foreach.hpp>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -259,7 +258,7 @@ void rtapi_pci_unregister_driver(struct rtapi_pci_driver *driver)
     if (!driver) return;
 
     WITH_ROOT;
-    BOOST_FOREACH(struct rtapi_pci_dev *dev, DEVICES(driver))
+    for(auto dev : DEVICES(driver))
     {
         driver->remove(dev);
         delete dev;
@@ -275,7 +274,7 @@ void rtapi__iomem *rtapi_pci_ioremap_bar(struct rtapi_pci_dev *dev, int bar)
 {
     WITH_ROOT;
     void *mmio;
-    char path[256];
+    char path[512];
 
     rtapi_print_msg(RTAPI_MSG_DBG, "RTAPI_PCI: Map BAR %i\n", bar);
 
@@ -338,7 +337,7 @@ int rtapi_pci_enable_device(struct rtapi_pci_dev *dev)
 {
     WITH_ROOT;
     FILE *stream;
-    char path[256];
+    char path[300];
     int i,r;
     unsigned long long L1, L2, L3;
 

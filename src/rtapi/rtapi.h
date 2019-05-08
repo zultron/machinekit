@@ -772,11 +772,11 @@ RTAPI_BEGIN_DECLS
 
 #if !defined(__KERNEL__)
 #define MODULE_INFO1(t, a, c) __attribute__((section(".modinfo"))) \
-    t rtapi_info_##a = c; EXPORT_SYMBOL(rtapi_info_##a);
+    t rtapi_info_##a = c; EXPORT_SYMBOL(rtapi_info_##a)
 #define MODULE_INFO2x(t, a, b, c) MODULE_INFO2(t,a,b,c)
 #define MODULE_INFO2(t, a, b, c) __attribute__((section(".modinfo"))) \
-    t rtapi_info_##a##_##b = c; EXPORT_SYMBOL(rtapi_info_##a##_##b);
-#define MODULE_PARM(v,t) MODULE_INFO2(const char*, type, v, t) MODULE_INFO2(void*, address, v, &v)
+    t rtapi_info_##a##_##b = c; EXPORT_SYMBOL(rtapi_info_##a##_##b)
+#define MODULE_PARM(v,t) MODULE_INFO2(const char*, type, v, t); MODULE_INFO2(void*, address, v, &v)
 #define MODULE_PARM_DESC(v,t) MODULE_INFO2(const char*, description, v, t)
 #define MODULE_LICENSE(s) MODULE_INFO1(const char*, license, s)
 #define MODULE_AUTHOR(s) MODULE_INFO1(const char*, author, s)
@@ -785,9 +785,9 @@ RTAPI_BEGIN_DECLS
 #define MODULE_DEVICE_TABLE(x,y) MODULE_INFO2(struct rtapi_pci_device_id*, device_table, x, y)
 #define MODULE_INFO(x,y) MODULE_INFO2x(char*, x, __LINE__, y)
 #define EXPORT_SYMBOL(x) __attribute__((section(".rtapi_export"))) \
-    char rtapi_exported_##x[] = #x;
+    char rtapi_exported_##x[] = #x
 #define EXPORT_SYMBOL_GPL(x) __attribute__((section(".rtapi_export"))) \
-    char rtapi_exported_##x[] = #x;
+    char rtapi_exported_##x[] = #x
 #else
 #ifndef LINUX_VERSION_CODE
 #include <linux/version.h>

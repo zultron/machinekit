@@ -938,10 +938,7 @@ static int emcTaskPlan(void)
 
 	    }			// switch (type)
 
-	default:
-	    // invalid mode
-	    break;
-
+      // invalid mode
 	}			// switch (mode)
 
 	break;			// case EMC_TASK_STATE_OFF,ESTOP,ESTOP_RESET
@@ -1541,7 +1538,7 @@ static int emcTaskPlan(void)
    */
 static int emcTaskCheckPreconditions(NMLmsg * cmd)
 {
-    if (0 == cmd) {
+  if (!cmd) {
 	return EMC_TASK_EXEC_DONE;
     }
 
@@ -1688,8 +1685,8 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 // puts command on interp list
 int emcTaskQueueCommand(NMLmsg * cmd)
 {
-    if (0 == cmd) {
-	return 0;
+    if (!cmd) {
+        return 0;
     }
 
     interp_list.append(cmd);
@@ -1702,9 +1699,9 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 {
     int retval = 0;
     int execRetval = 0;
-    state_tag_t *tag = 0;
+    state_tag_t *tag = nullptr;
 
-    if (0 == cmd) {
+    if (!cmd) {
         if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
             rcs_print("emcTaskIssueCommand() null command\n");
         }
