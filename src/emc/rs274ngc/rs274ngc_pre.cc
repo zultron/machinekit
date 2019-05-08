@@ -2072,9 +2072,9 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
     CHKS(wo.first < 0, _("Work offset index %d cannot be negative"), wo.first);
     size_t offset_base = EXTENDED_WORK_OFFSET_START + 20 * (size_t)wo.first;
 
-    // KLUDGE avoid writing out duplicate work offsets for G54-G59.3
     for (size_t k = 0; k < wo.second.shift.tf.size(); ++k) {
-      sprintf(line, "%lu\t%0.17g\n", offset_base + k, wo.second.shift.tf[k]);
+      // KLUDGE follow convention of one-indexed work offset parameters
+      sprintf(line, "%lu\t%0.17g\n", offset_base + k + 1, wo.second.shift.tf[k]);
       fputs(line, outfile);
     }
     sprintf(line, "%lu\t%0.17g\n", offset_base + R, wo.second.getXYRotationDeg());
