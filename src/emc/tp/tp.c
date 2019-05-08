@@ -1496,12 +1496,15 @@ STATIC int handleModeChange(TC_STRUCT *prev_tc, TC_STRUCT *tc)
 
     if ((prev_tc->canon_motion_type == EMC_MOTION_TYPE_TRAVERSE) ^
             (tc->canon_motion_type == EMC_MOTION_TYPE_TRAVERSE)) {
-        tp_debug_print("Blending disabled: can't blend between rapid and feed motions\n");
-        tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
+        tp_debug_print("Blending disabled: rapid / feed transition must follow exact path\n");
+        tcSetTermCond(prev_tc, tc, TC_TERM_COND_EXACT);
     }
     if (prev_tc->synchronized != TC_SYNC_POSITION &&
             tc->synchronized == TC_SYNC_POSITION) {
         tp_debug_print("Blending disabled: entering position-sync mode\n");
+        // NOTE: blending IS allowed when exiting position sync mode, so be
+        // careful of tolerances here to avoid making thicker threads
+        // (particularly if the lead-out is perpendicular)
         tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
     }
     return TP_ERR_OK;
