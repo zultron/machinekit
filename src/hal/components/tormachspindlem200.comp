@@ -1036,7 +1036,9 @@ float angle_offset;
                 orient_status = -.456789;//SLP return to 0 //lie it's all OK until as not error yet since orient hasn't finished
             }
 
-            if(iabs(enc_err) <= (orient_targetband/2)){ //if indexing feedback is good for ORIENT_TARGETBAND_TIME, _AND_ vfd_freq_cmd is stable too, call it done
+            if(iabs(enc_err) < orient_targetband) { //Yes, we want <, not <=. Assume orient_targetband = 8. Encoders are integral, so if <= can reach 8 + very nearly 1 = 9 rotations before we see it. When <8 then
+                                                    // value is 7 + nearly 1 
+            //if(iabs(enc_err) <= (orient_targetband/2)){ //if indexing feedback is good for ORIENT_TARGETBAND_TIME, _AND_ vfd_freq_cmd is stable too, call it done
                                                 //however, we don't calculate vfd_freq_cmd until much later. So the vfd_freq_cmd stablity isn't checked here yet
                                                 //and it can reset/restart orient_good_timer at very end of this comp when vfd_freq_cmd isn't stable
                 if (spindle_state == SPINDLE_STATE_LOCKED) 
@@ -1089,7 +1091,6 @@ float angle_offset;
                         //orienting_stuck = 0; //TODO: an option would be to exit the "stuck" mode, however we won't right now.  This means we will
                         // start boosting again in ORIENT_BOOST_PERIOD secs, rather than (ORIENT_STUCK_PREAMBLE_TIME + ORIENT_BOOST_PERIOD) secs
                         orienting_boost = 0.0; //movement seen, stop orienting_boost immediately so we don't over shoot.
-                 
                     }
                 }
                 vfd_rpm_cmd += orienting_boost; //add the boost, if any because we're stuck.
