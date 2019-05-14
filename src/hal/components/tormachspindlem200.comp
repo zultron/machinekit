@@ -367,6 +367,7 @@ function _ "Tormach Spindle HAL Component M200";
 #define _38_SPECIAL (0)
 #define TEST_TIME (8000)  //time in millisecs for one cycle of test.  vfd-freq-cmd pulses will be 1/4 this time.
 #define _38_SPECIAL_RPM (10.0)
+#define TEST_SPINDLE_LOCK (0)
 #define ENCODER_SEC (1.0)
 
 #define VFD_BIPOLAR_MODE (1)
@@ -588,6 +589,8 @@ FUNCTION(_) {
 
     vfd_rpm_cmd = 0; //Defensive programming as spindle won't move unless something else below sets it
 
+//  We need to place functions at top of FUNCTION(_) because they try to access component pins
+
 // it appears to work to put calcFeedback() within FUNCTION(_)
 // Wanted this:
 // calcFeedback(void) {
@@ -681,6 +684,96 @@ float angle_offset;
 
     return enc_feedback;
 }
+
+#if (_38_SPECIAL)
+
+void execute_impulse(void)
+{  
+
+// TODO:  there's indentation issues in this function ...
+    spindle_on_thur = BIT_TRUE;
+
+//  TODO, remove next two lines, allow 38 special (uncomment switch() below)  over riding normal orienting
+    last_fwd = BIT_TRUE;
+    last_rpm = 0.0;
+
+
+  switch(orient_total_ticks%TEST_TIME){
+        case 0:  //on forward
+            last_fwd = BIT_TRUE; //forward
+            last_rpm = _38_SPECIAL_RPM;
+            break;
+        case (TEST_TIME/4): //off forward
+            last_rpm = 0.0;
+            break;
+        case (TEST_TIME/4)+(TEST_TIME/8): // reverse during pause
+            last_fwd = BIT_FALSE; //reverse
+            break;
+            case (TEST_TIME/2): //go reverse
+            last_rpm = _38_SPECIAL_RPM;
+            break;
+        case (TEST_TIME/4)*3: //stop reverse
+            last_rpm = 0.0;
+            break;
+        case ((TEST_TIME/4)*3)+(TEST_TIME/8): // go foward
+            last_fwd = BIT_TRUE; //forward
+            break;
+        default:
+            break;
+    }
+
+
+    spindle_forward_thur = last_fwd;
+    vfd_rpm_cmd = last_rpm;
+    orient_total_ticks++;
+
+/* we probably don't care about PIDs in 38 special mode
+    if (orient_P2) {
+        pidP = pidP2in;
+        pidD = pidD2in;
+        pidI = pidI2in;
+    }
+    else {
+*/
+        pidP = pidP1in;
+        pidD = pidD1in;
+        pidI = pidI1in;
+//    }
+
+//no reason not to do this in 38 special mode
+
+    if(iabs(enc_err) <= (orient_targetband/2)){ //if indexing feedback is good for ORIENT_TARGETBAND_TIME, _AND_ vfd_freq_cmd is stable too, call it done
+                                                //however, we don't calculate vfd_freq_cmd until much later. So the vfd_freq_cmd stablity isn't checked here yet
+                                                //and it can reset/restart orient_good_timer at very end of this comp when vfd_freq_cmd isn't stable
+        if(spindle_state == SPINDLE_STATE_LOCKED)
+            orient_on_target = 1;   //confirm to ATC that we're still on target
+        if (spindle_state == SPINDLE_STATE_ORIENTING) {
+            orient_good_timer += fperiod;
+            if (orient_good_timer >= ORIENT_TARGETBAND_TIME) //subject to reset/restart at very end of this comp when vfd_freq_cmd isn't stable.
+                oriented = 1;
+            }
+            orient_status = 0.0;
+    }
+    else {
+        if (enc_err > 0) {
+            orient_status = 1.0;
+        }
+        else {
+            orient_status = -1.0;
+        }
+        orient_good_timer = 0.0;
+        orient_on_target = 0;
+//Used for debug                if (spindle_state == SPINDLE_STATE_LOCKED)
+//debug                    orient_to = 1; //abuse this pin to indicate holding error
+     }
+} 
+
+#endif  // (_38_SPECIAL) conditional compile
+
+// #############################################   Place callable functions that use component pins above this point 
+// #############################################   ACTUAL START of FUNCTION(_) 
+// #############################################   except for automatic variables and one previous and defensive  vfd_rpm_cmd = 0; statement  
+
 
 // spindle-type - for high speed use only low belt params
     //                for speeder compensate for tripled output speed
@@ -882,95 +975,26 @@ float angle_offset;
         else { //no errors detected. do orient PID
             vfd_mode = VFD_MODE_ORIENT;
 #if (_38_SPECIAL)
-            if(orient_angle == 38.0) { //do special orient
-                spindle_on_thur = BIT_TRUE;
-
-//              TODO, remove next two lines, allow 38 special (uncomment switch() below)  over riding normal orienting
-                last_fwd = BIT_TRUE;
-                last_rpm = 0.0;
-
-
-/*                switch(orient_total_ticks%TEST_TIME){
-                    case 0:  //on forward
-                        last_fwd = BIT_TRUE; //forward
-                        last_rpm = _38_SPECIAL_RPM;
-                        break;
-                    case (TEST_TIME/4): //off forward
-                        last_rpm = 0.0;
-                        break;
-                    case (TEST_TIME/4)+(TEST_TIME/8): // reverse during pause
-                        last_fwd = BIT_FALSE; //reverse
-                        break;
-                    case (TEST_TIME/2): //go reverse
-                        last_rpm = _38_SPECIAL_RPM;
-                        break;
-                    case (TEST_TIME/4)*3: //stop reverse
-                        last_rpm = 0.0;
-                        break;
-                    case ((TEST_TIME/4)*3)+(TEST_TIME/8): // go foward
-                        last_fwd = BIT_TRUE; //forward
-                        break;
-                    default:
-                        break;
-                }
-*/
-
-                spindle_forward_thur = last_fwd;
-                vfd_rpm_cmd = last_rpm;
-                orient_total_ticks++;
-
-/* we probably don't care about PIDs in 38 special mode
-            if (orient_P2) {
-                pidP = pidP2in;
-                pidD = pidD2in;
-                pidI = pidI2in;
+            if(orient_angle == 38.0)  { //do special orient
+                execute_impulse();
             }
-            else {
-*/
-                pidP = pidP1in;
-                pidD = pidD1in;
-                pidI = pidI1in;
-            }
-
-//no reason not to do this in 38 special mode
-
-            if(iabs(enc_err) <= (orient_targetband/2)){ //if indexing feedback is good for ORIENT_TARGETBAND_TIME, _AND_ vfd_freq_cmd is stable too, call it done
-                                                //however, we don't calculate vfd_freq_cmd until much later. So the vfd_freq_cmd stablity isn't checked here yet
-                                                //and it can reset/restart orient_good_timer at very end of this comp when vfd_freq_cmd isn't stable
-                if(spindle_state == SPINDLE_STATE_LOCKED) 
-                    orient_on_target = 1;   //confirm to ATC that we're still on target
-                if (spindle_state == SPINDLE_STATE_ORIENTING) {
-                    orient_good_timer += fperiod;
-                    if (orient_good_timer >= ORIENT_TARGETBAND_TIME) //subject to reset/restart at very end of this comp when vfd_freq_cmd isn't stable.
-                        oriented = 1;
-                }
-                orient_status = 0.0;
-            }
-            else {
-                if (enc_err > 0) {
-                    orient_status = 1.0;
-                }
-                else {
-                    orient_status = -1.0;
-                }
-                orient_good_timer = 0.0;
-                orient_on_target = 0;
-//Used for debug                if (spindle_state == SPINDLE_STATE_LOCKED)
-//debug                    orient_to = 1; //abuse this pin to indicate holding error
-            }
-        }  //TODO: YIKES an indentation issue!
-        else { //normal orient
+            else { //place for normal orient when 38_special is compiled in 
 #endif  //end of _38_SPECIAL, normal orient below here
+            //TODO: indent problems here
+
+            //########## NORMAL ORIENT STARTS HERE:
             orient_timer += fperiod;
 
             if (last_vfd_mode != VFD_MODE_ORIENT) //if we're waiting for spindle to stop from previous normal operation, then last_vfd_mode will still be "normal
                 spindle_on_thur = BIT_FALSE; //probably redundant, possible error condition, turn off spindle anyway as we're waiting for velocity
             else { //VFD should be in the VFD_MODE_ORIENT mode, AFAIK so check for errors
+#if (!(TEST_SPINDLE_LOCK)) 
                 if ((encoder_position > (orient_start + orient_max_encoder_steps)) || (encoder_position < (orient_start - orient_max_encoder_steps))) {
                     spindle_on_thur = BIT_FALSE; //error condition, turn off spindle!
                     orient_fault = ORIENT_ERR_MAX_ROTATION; //this flags linuxcnc to stop orient cycle
                 }
                 else //no error detected
+#endif //end TEST_SPINDLE_LOCK
                     spindle_on_thur = BIT_TRUE;  //always enable the spindle in orienting mode
             }
 
@@ -1007,7 +1031,8 @@ float angle_offset;
             orient_modulus = fbFilter(calcFeedback(orient_mode));
             enc_err = orient_target - encoder_position;
 
-            if(iabs(enc_err) < P2_transition) //was 65 for 1100
+            //don't switch to orient_P2 until we actually are orienting.  In other words, last_vfd_mode doesn't change until we stop decelerating from normal spindle mode.
+            if((last_vfd_mode == VFD_MODE_ORIENT) && (iabs(enc_err) < P2_transition)) //P2_transistion was magic # 65 for 1100
                 orient_P2 = 1; //turn on 2nd orient
 
             if (orient_P2) {
@@ -1100,7 +1125,7 @@ float angle_offset;
             }
 
 #if _38_SPECIAL
-        } //end normal orient else case when 38 special enabled
+        } //end normal orient else case when 38 special enabled (compiled in)
 #endif
         }
     }
@@ -1134,6 +1159,11 @@ float angle_offset;
     // compute frequency to send to VFD commanded speed input
     // freq_cmd = spindle_rpm /  pulley_ratio / 60 * motor_hz_per_cmd_hz
     vfd_freq_cmd = vfd_rpm2freq(vfd_rpm_cmd, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
+
+#if (TEST_SPINDLE_LOCK)    
+    if (spindle_state == SPINDLE_STATE_LOCKED) //SLP REMOVE -- DEBUG test to try to and move spindle when in lock mode to test locking timing
+        vfd_freq_cmd = 5140; //approx 100 RPM //6000 approx 715 RPM; //SLP REMOVE!
+#endif
 
 // no longer necessary with VFD_BIPOLAR_MODE operation, as vfd_rpm_cmd is signed now throughout code
 //    if (spindle_forward_thur == 0) //if reverse, flip sign of vfd_rpm_cmd ... this is a DEBUG operation, does nothing useful
