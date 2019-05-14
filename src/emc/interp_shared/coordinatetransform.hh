@@ -3,7 +3,6 @@
 
 #include <positionarray.hh>
 
-// TODO restore privacy / encapsulation after interp cleanup is done
 struct TransformBase
 {
     // Includes absolute offsets

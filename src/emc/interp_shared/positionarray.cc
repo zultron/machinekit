@@ -1,3 +1,15 @@
+/**
+ * @file positionarray.cc
+ * Helper functions for PositionArray type.
+ *
+ * @author Robert W. Ellenberg <rwe24g@gmail.com>
+ *
+ * @copyright Copyright 2019, Robert W. Ellenberg
+ *
+ * This source code is released for free distribution under the terms of the
+ * GNU General Public License (V2) as published by the Free Software Foundation.
+ */
+
 #include "positionarray.hh"
 #include <cmath>
 #include <algorithm>

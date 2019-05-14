@@ -1,3 +1,17 @@
+/**
+ * @file positionarray.hh
+ * Simple position array class to store a set of world axis positions in a std::array.
+ * A std::vector would be overkill for this purpose (and add failure modes like
+ * mismatching sizes). Think of this as a more flexible EmcPose.
+ *
+ * @author Robert W. Ellenberg <rwe24g@gmail.com>
+ *
+ * @copyright Copyright 2019, Robert W. Ellenberg
+ *
+ * This source code is released for free distribution under the terms of the
+ * GNU General Public License (V2) as published by the Free Software Foundation.
+ */
+
 #ifndef POSITIONARRAY_HH
 #define POSITIONARRAY_HH
 
