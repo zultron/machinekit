@@ -15,11 +15,22 @@ Resetting this pin to 0 implies that the offset value has been aknowledged and d
 pin out float velocity_out "Velocity output, usually directly connected to stepgen.";
 //pin out float position_out "The value of 'position_cmd' + 'position_offset'. Updated even when in velocity passthrough mode";
 pin out float position_fb_out "The value of 'position_fb' - 'position_offset'. Updated even when in velocity passthrough mode";
+pin out float prev_velocity_clip = 0.0 """Amount that the velocity_cmd_passthrough value was clipped (for axis limit reasons) on the previous iteration. 
+This value is added to position_offset next time the FEEDBACK function is run""";
 
-pin in float position_max =  1e20;
-pin in float position_min = -1e20;
+pin in float motor_offset = 0.0 "Offset from joint coordinates to motor coordinates";
+pin in float position_max =  1e20 "Maximum position the joint can move to. Note this is in *joint* coordinates, not motor coordinates. (hence the reason for motor-offset as an input)";
+pin in float position_min = -1e20 "Minimum position the joint can move to. Note this is in *joint* coordinates, not motor coordinates. (hence the reason for motor-offset as an input)";
+pin in float acceleration_limit = 1e20 "Limit to axis acceleration. Should be less than the stepgen limit.";
+pin in float velocity_limit = 1e20 "Limit to axis velocity. Should be less than the stepgen limit.";
+pin in bit apply_limits = 0 "Apply limits on velocity, accel, and position if true (even when enabled = False)";
 
-pin in bit enable = 0 """If True, velocity passthrough is enabled. If False, offset is held constant. 
+// Debugging pins
+pin out float safe_min_vel;
+pin out float safe_max_vel;
+pin out float calc_max_vel;
+
+pin in bit enable = 0 """If True, velocity control (with offset recorded) is enabled. If False, offset is held constant. 
 Any changes to 'position_cmd' while 'enable' is true are ignored and simply added to the offset value.""";
 
 function feedback;
@@ -32,17 +43,53 @@ FUNCTION(_) {
 
 }
 FUNCTION(feedback) {
+    // Adjust position_offset by the distance that the motor would have travelled if we hadn't clipped the commanded velocity
+    position_offset -= prev_velocity_clip * fperiod;
+    prev_velocity_clip = 0;
+
     if(enable != 0) {
         position_offset = position_fb - position_cmd;
     }
     position_fb_out = position_fb - position_offset;
 }
 FUNCTION(command) {
-    float safe_vel_cmd = velocity_cmd;
+    //get motor position in joint coordinates
+    float position_fb_joint = position_cmd - position_offset - motor_offset;
+    float safe_vel_cmd;
 
     if(enable != 0) {
-        velocity_out = safe_vel_cmd;
+        safe_vel_cmd = velocity_cmd;
     } else {
-        velocity_out = velocity_cmd_passthrough;
+        safe_vel_cmd = velocity_cmd_passthrough;
     }
+
+    if(apply_limits) {
+        // Safe max vel: Taking into account acceleration limits and current distance from the limit location, how fast can we be moving and still stop before the 
+        // joint limit?
+        safe_max_vel = sqrt(2 * acceleration_limit * fabs(position_max - position_fb_joint));
+        calc_max_vel = safe_max_vel;
+        // Constrain max vel to actual axis limits
+        safe_max_vel = fmin(safe_max_vel, velocity_limit);
+        // If joint has somehow escaped the limit
+        if ((position_max - position_fb_joint) <= 0) { safe_max_vel = 0; }
+
+        // Safe min vel: Taking into account acceleration limits, how fast (negative velocity) can we be moving and still stop before the 
+        // minimum joint limit?
+        safe_min_vel = -1 * sqrt(2 * acceleration_limit * fabs(position_fb_joint - position_min));
+        safe_min_vel = fmax(safe_min_vel, -1*velocity_limit);
+        if ((position_fb_joint - position_min) <= 0) { safe_min_vel = 0; }
+
+        safe_vel_cmd = fmin(fmax(safe_vel_cmd, safe_min_vel), safe_max_vel);    
+
+        // If component is not enabled, but the velocity_cmd_passthrough had to be limited (for physical axis contraint reasons)
+        // the offset needs to be adjusted to reflect that difference
+        if(enable == 0) {
+            if((velocity_cmd_passthrough > 0 && safe_vel_cmd < velocity_cmd_passthrough) || (velocity_cmd_passthrough < 0 && safe_vel_cmd > velocity_cmd_passthrough)) {
+                prev_velocity_clip = velocity_cmd_passthrough - safe_vel_cmd;
+            }
+        }
+    }
+
+
+    velocity_out = safe_vel_cmd;
 }
