@@ -78,6 +78,16 @@ const PositionArray & ShiftTransform::getOffset() const
     return tf;
 }
 
+PositionArray::value_type & ShiftTransform::operator[](PositionArrayIndex idx)
+{
+    return tf[idx];
+}
+
+PositionArray::value_type const & ShiftTransform::operator[](PositionArrayIndex idx) const
+{
+    return tf[idx];
+}
+
 void ShiftTransform::apply_fwd(PositionArray & p) const
 {
     p += tf;
@@ -144,6 +154,11 @@ void RotateShiftTransform::apply_inv_relative(PositionArray & p) const
 void RotateShiftTransform::setShift(const PositionArray & p)
 {
     shift = ShiftTransform(p);
+}
+
+double RotateShiftTransform::getXYRotationDeg() const
+{
+    return xy_rotation_rad * 180.0 / M_PI;
 }
 
 void RotateShiftTransform::setXYRotationDeg(double xy_rot_deg)

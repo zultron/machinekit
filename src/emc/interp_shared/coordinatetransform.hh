@@ -32,11 +32,12 @@ struct ShiftTransform : public TransformBase
     ShiftTransform(PositionArray const &pos);
 
     PositionArray const &getOffset() const;
+    PositionArray::value_type &operator[](PositionArrayIndex idx);
+    PositionArray::value_type const &operator[](PositionArrayIndex idx) const;
 
     // All 9 axes
     void apply_fwd(PositionArray &p) const;
     void apply_inv(PositionArray &p) const;
-
 };
 
 struct RotateShiftTransform : public TransformBase
