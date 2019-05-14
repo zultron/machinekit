@@ -488,7 +488,7 @@ static void send_g5x_msg(int index) {
 
     set_g5x_msg.g5x_index = index;
 
-    set_g5x_msg.origin = to_ext_pose(interpToMachineTransform.g5xOffset.getOffset());
+    set_g5x_msg.origin = to_ext_pose(interpToMachineTransform.g5xOffset.shift.tf);
 
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed_rpm);
@@ -503,7 +503,7 @@ static void send_g92_msg(void) {
        read-ahead time */
     EMC_TRAJ_SET_G92 set_g92_msg;
 
-    set_g92_msg.origin = to_ext_pose(interpToMachineTransform.g92Offset.getOffset());
+    set_g92_msg.origin = to_ext_pose(interpToMachineTransform.g92Offset.tf);
 
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed_rpm);
@@ -529,7 +529,7 @@ void SET_G5X_OFFSET(int index,
     // Convert to canon units (mm / deg)
     from_prog(pos);
 
-    interpToMachineTransform.g5xOffset.setShift(pos);
+    interpToMachineTransform.g5xOffset.shift.tf = pos;
 
     send_g5x_msg(index);
 }
@@ -2669,7 +2669,7 @@ void PROGRAM_END(bool reset)
 
 static inline double getToolOffsetByIndex(PositionArrayIndex idx)
 {
-    return interpToMachineTransform.toolOffset.getOffset()[idx];
+    return interpToMachineTransform.toolOffset.tf[idx];
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_XOFFSET()

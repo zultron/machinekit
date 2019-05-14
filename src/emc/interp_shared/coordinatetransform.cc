@@ -73,11 +73,6 @@ ShiftTransform::ShiftTransform(const PositionArray & pos) :
 {
 }
 
-const PositionArray & ShiftTransform::getOffset() const
-{
-    return tf;
-}
-
 PositionArray::value_type & ShiftTransform::operator[](PositionArrayIndex idx)
 {
     return tf[idx];
@@ -110,25 +105,6 @@ RotateShiftTransform::RotateShiftTransform(const PositionArray & pos, double xy_
 {
 }
 
-const PositionArray & RotateShiftTransform::getOffset() const
-{
-    return shift.getOffset();
-}
-
-double RotateShiftTransform::getXYRotationDeg() const
-{
-    return xy_rotation_rad * 180.0 / M_PI;
-}
-
-void RotateShiftTransform::rotate_xy(double &x, double &y) const {
-    rotate(x, y, xy_rotation_rad);
-}
-
-void RotateShiftTransform::unrotate_xy(double & x, double & y) const
-{
-    rotate(x, y, -xy_rotation_rad);
-}
-
 void RotateShiftTransform::apply_fwd(PositionArray & p) const
 {
     apply_fwd_relative(p);
@@ -151,10 +127,6 @@ void RotateShiftTransform::apply_inv_relative(PositionArray & p) const
     unrotate_xy(p[X], p[Y]);
 }
 
-void RotateShiftTransform::setShift(const PositionArray & p)
-{
-    shift = ShiftTransform(p);
-}
 
 double RotateShiftTransform::getXYRotationDeg() const
 {
@@ -164,6 +136,15 @@ double RotateShiftTransform::getXYRotationDeg() const
 void RotateShiftTransform::setXYRotationDeg(double xy_rot_deg)
 {
     xy_rotation_rad = xy_rot_deg * M_PI / 180.0;
+}
+
+void RotateShiftTransform::rotate_xy(double &x, double &y) const {
+    rotate(x, y, xy_rotation_rad);
+}
+
+void RotateShiftTransform::unrotate_xy(double & x, double & y) const
+{
+    rotate(x, y, -xy_rotation_rad);
 }
 
 void UnitsTransform::scale(PositionArray & p, double linear_in, double angular_in)

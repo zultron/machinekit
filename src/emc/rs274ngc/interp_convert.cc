@@ -1617,10 +1617,10 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   settings->work_offsets[origin] = settings->transform.g5xOffset;
 
   write_and_update_state_tag(nullptr);
+
+  // Extract transform parts in the order that canon / tests expect
   SET_G5X_OFFSET(origin, UNPACK_POSITION_ARRAY_REF(settings->transform.g5xOffset.shift.tf));
-
   SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
-
   SET_XY_ROTATION(settings->transform.g5xOffset.getXYRotationDeg());
   return INTERP_OK;
 }

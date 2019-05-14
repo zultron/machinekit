@@ -31,7 +31,6 @@ struct ShiftTransform : public TransformBase
     ShiftTransform();
     ShiftTransform(PositionArray const &pos);
 
-    PositionArray const &getOffset() const;
     PositionArray::value_type &operator[](PositionArrayIndex idx);
     PositionArray::value_type const &operator[](PositionArrayIndex idx) const;
 
@@ -49,16 +48,14 @@ struct RotateShiftTransform : public TransformBase
     RotateShiftTransform(PositionArray const &pos,
                          double xy_rot_rad);
 
-    const PositionArray &getOffset() const;
-    double getXYRotationDeg() const;
-
     void apply_fwd(PositionArray &p) const;
     void apply_inv(PositionArray &p) const;
 
     void apply_fwd_relative(PositionArray &p) const;
     void apply_inv_relative(PositionArray &p) const;
 
-    void setShift(PositionArray const &p);
+    double getXYRotationDeg() const;
+
     void setXYRotationDeg(double xy_rot_deg);
 
     void rotate_xy(double &x, double &y) const;
