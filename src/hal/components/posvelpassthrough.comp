@@ -54,7 +54,7 @@ FUNCTION(feedback) {
 }
 FUNCTION(command) {
     //get motor position in joint coordinates
-    float position_fb_joint = position_cmd - position_offset - motor_offset;
+    float position_fb_joint = position_cmd + position_offset - motor_offset;
     float safe_vel_cmd;
 
     if(enable != 0) {
