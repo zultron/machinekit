@@ -1,0 +1,78 @@
+component torchrelighter """Watches arcok signal from plasma source and applies feedhold to the motion module when torch goes out. Attempts to relight the torch and remove feedhold""";
+
+pin in bit arcok_in = 0;
+pin in bit torch_in = 0;
+
+pin in u32 relight_attempts = 3 """Configure the number of relight attempts to make before asserting arcok_out = False""";
+
+pin out bit arcok_out = 0 """If enable is False, simply passes through arkok-in. If torch relight is enabled, arcok_out remains True until torch relight has failed.""";
+pin out bit feed_inhibit_out = 0 """Feed is inhibited if enable is True and arkok-in is False""";
+pin out bit torch_out = 0 """If enable = False, this is a passthrough for torch-in. Otherwise, might be toggled to handle relight."""; 
+
+pin in bit enable = 0 """If True, torch relight is enabled. If False, arcok-in signal is simply passed directly through on the arkok-out pin with no interaction.
+Enable should be asserted after pierce has completed successfully and cutting is starting""";
+
+function _;
+license "GPL";
+;;
+#include "rtapi_math.h"
+
+enum torch_states {
+    DISABLED,
+    OFF,
+    ON,
+    LIGHTING,
+    COOLDOWN,
+    FAILED,
+} torch_state;
+
+float elapsed_timer = 0.0;
+int retries = 0;
+
+FUNCTION(_) {
+    // Global transition to the "DISABLED" state
+    // Can be hit from anywhere
+    if(enable == 0) {
+        torch_state = DISABLED;
+    }
+
+
+    switch(torch_state) {
+        case DISABLED:
+            torch_out = torch_in;
+            arcok_out = arcok_in;
+            feed_inhibit_out = 0;
+            retries = 0;
+
+            //Transititions out of DISABLED
+            if (enable && !torch_in) {
+                torch_state = OFF;
+            } else if (enable && torch_in && arcok_in) {
+                torch_state = ON;
+            } else if (enable && torch_in && !arcok_in) {
+                torch_state = LIGHTING;
+            }
+            break;
+        case OFF:
+            torch_out = 0;
+            arcok_out = 0;
+            feed_inhibit_out = false;
+            retries = 0;
+
+            //Transitions out of OFF
+            if(torch_in) {
+                torch_state = LIGHTING;
+            }
+            break;
+        case ON:
+            torch_out = 1;
+            break;
+        case LIGHTING:
+            break;
+        case COOLDOWN:
+            break;
+        case FAILED:
+            break;
+    }
+    
+}
