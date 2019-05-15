@@ -153,7 +153,7 @@ Interp::Interp()
 
     // alias to 'interpreter.this' for the sake of ';py, .... ' comments
     // besides 'this', eventually use proper instance names to handle
-	// several instances 
+	// several instances
     bp::scope(interp_module).attr("this") =  *_setup.pythis;
 
     // make "this" visible without importing interpreter explicitly
@@ -2622,20 +2622,21 @@ int Interp::init_tool_parameters()
 
 int Interp::default_tool_parameters()
 {
-  _setup.parameters[5400] =  0; // toolno
-  _setup.parameters[5401] =  0; // x offset
-  _setup.parameters[5402] =  0; // y offset RESERVED
-  _setup.parameters[5403] =  0; // z offset
-  _setup.parameters[5404] =  0; // a offset RESERVED
-  _setup.parameters[5405] =  0; // b offset RESERVED
-  _setup.parameters[5406] =  0; // c offset RESERVED
-  _setup.parameters[5407] =  0; // u offset RESERVED
-  _setup.parameters[5408] =  0; // v offset RESERVED
-  _setup.parameters[5409] =  0; // w offset RESERVED
-  _setup.parameters[5410] =  0; // diameter
-  _setup.parameters[5411] =  0; // frontangle
-  _setup.parameters[5412] =  0; // backangle
-  _setup.parameters[5413] =  0; // orientation
+  _setup.tool_table[0].toolno = 0;
+  _setup.tool_table[0].offset.tran.x = 0;
+  _setup.tool_table[0].offset.tran.y = 0;
+  _setup.tool_table[0].offset.tran.z = 0;
+  _setup.tool_table[0].offset.a = 0;
+  _setup.tool_table[0].offset.b = 0;
+  _setup.tool_table[0].offset.c = 0;
+  _setup.tool_table[0].offset.u = 0;
+  _setup.tool_table[0].offset.v = 0;
+  _setup.tool_table[0].offset.w = 0;
+  _setup.tool_table[0].diameter = 0;
+  _setup.tool_table[0].frontangle = 0;
+  _setup.tool_table[0].backangle = 0;
+  _setup.tool_table[0].orientation = 0;
+
   return 0;
 }
 
@@ -2646,8 +2647,8 @@ int Interp::set_tool_parameters()
 
   if ((! _setup.random_toolchanger) && (_setup.tool_table[0].toolno <= 0)) {
     default_tool_parameters();
-    return 0;
   }
+
   _setup.parameters[5400] = _setup.tool_table[0].toolno;
   _setup.parameters[5401] = _setup.tool_table[0].offset.tran.x;
   _setup.parameters[5402] = _setup.tool_table[0].offset.tran.y;
