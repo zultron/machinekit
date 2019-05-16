@@ -1,0 +1,35 @@
+component multi_latch "LinuxCNC HAL component providing a configurable number of resettable, latching inputs.";
+pin in bit in-##[16 : personality & 0xff];
+pin in bit reset = 0 """Set this pin to 1 to 'consume' the latched state and allow a new input to trigger the component. 
+Make sure to set it back to 0 once you observe 'latched' has gone back to 0;""";
+pin out bit latched = 0 """A value of 1 means that the component has triggered and no further inputs will be considered. Setting reset to 1 will clear this state.""";
+pin out u32 index "The index of the pin that triggered the latch."; 
+function _ nofp;
+description """
+Multi-input latching component. 
+
+Creates inputs with the form in-xx.
+
+This component latches on the *first* pin that goes high, ignoring other inputs until the reset pin is toggled. 
+The index of the latched pin is presented on 'index'.
+
+This can be useful for probing in multi-probe situations where you need to know the index of the probe
+that triggered (in a subroutine, for example).
+
+Personality can be a number from 1-16 to configure the number of input pins.
+""";
+license "GPL";
+;;
+FUNCTION(_) {
+    if(reset) {
+        latched = 0;
+    } else if(!latched){
+        int i;
+        for(i=0; i < (personality & 0xff); i++) {
+            if(in(i)) { 
+                latched = 1; 
+                index = i;
+            }   
+        }
+    }
+}
