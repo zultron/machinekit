@@ -95,7 +95,7 @@ FUNCTION(_) {
         case LIGHTING:
             torch_out = 1;
 
-            retries = += 1;
+            retries += 1;
             elapsed_timer += fperiod;
 
             if(torch_in && arcok_in) {
