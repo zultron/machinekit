@@ -4,9 +4,10 @@ pin in bit arcok_in = 0;
 pin in bit torch_in = 0;
 
 pin in u32 relight_attempts = 3 """Configure the number of relight attempts to make before asserting arcok_out = False""";
+pin in float cooldown = 1.0 "Time in seconds to cooldown between light atttempts"; 
 
-pin out bit arcok_out = 0 """If enable is False, simply passes through arkok-in. If torch relight is enabled, arcok_out remains True until torch relight has failed.""";
-pin out bit feed_inhibit_out = 0 """Feed is inhibited if enable is True and arkok-in is False""";
+//pin out bit arcok_out = 0 """If enable is False, simply passes through arkok-in. If torch relight is enabled, arcok_out remains True until torch relight has failed.""";
+//pin out bit feed_inhibit_out = 0 """Feed is inhibited if enable is True and arkok-in is False""";
 pin out bit torch_out = 0 """If enable = False, this is a passthrough for torch-in. Otherwise, might be toggled to handle relight."""; 
 
 pin in bit enable = 0 """If True, torch relight is enabled. If False, arcok-in signal is simply passed directly through on the arkok-out pin with no interaction.
@@ -40,9 +41,10 @@ FUNCTION(_) {
     switch(torch_state) {
         case DISABLED:
             torch_out = torch_in;
-            arcok_out = arcok_in;
-            feed_inhibit_out = 0;
+            //arcok_out = arcok_in;
+            //feed_inhibit_out = 0;
             retries = 0;
+            elapsed_timer = 0;
 
             //Transititions out of DISABLED
             if (enable && !torch_in) {
@@ -55,9 +57,10 @@ FUNCTION(_) {
             break;
         case OFF:
             torch_out = 0;
-            arcok_out = 0;
-            feed_inhibit_out = false;
+            //arcok_out = 0;
+            //feed_inhibit_out = false;
             retries = 0;
+            elapsed_timer = 0;
 
             //Transitions out of OFF
             if(torch_in) {
@@ -66,12 +69,52 @@ FUNCTION(_) {
             break;
         case ON:
             torch_out = 1;
-            break;
-        case LIGHTING:
+
+            retries = 0;
+            elapsed_timer = 0;
+
+            //Transitions out of ON
+            if(torch_in && !arcok_in) {
+                torch_state = COOLDOWN;
+            } else if (!torch_in) {
+                torch_state = OFF;
+            }
             break;
         case COOLDOWN:
+            torch_out = 0;
+
+            elapsed_timer += fperiod;
+
+            if(torch_in && elapsed_timer > cooldown) {
+                elapsed_timer = 0;
+                torch_state = LIGHTING;
+            } else if (!torch_in) {
+                torch_state = OFF;
+            }
+            break;
+        case LIGHTING:
+            torch_out = 1;
+
+            retries = += 1;
+            elapsed_timer += fperiod;
+
+            if(torch_in && arcok_in) {
+                torch_state = ON;
+            } else if(torch_in && elapsed_timer > cooldown && retries >= relight_attempts) {
+                torch_state = FAILED;
+            } else if(torch_in && elapsed_timer > cooldown) {
+                elapsed_timer = 0;
+                torch_state = COOLDOWN;
+            } else if (!torch_in) {
+                torch_state = OFF;
+            }
             break;
         case FAILED:
+            torch_out = 0;
+            
+            if (!torch_in) {
+                torch_state = OFF;
+            }
             break;
     }
     
