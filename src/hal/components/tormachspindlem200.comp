@@ -1379,7 +1379,8 @@ float encoder_spindle_speed;
             previous_vfd_mode = vfd_mode; //record last active VFD mode
             vfd_mode = desired_vfd_mode; //this is now the mode we are about to tell the VFD to do
         }
-        
+
+        orient_start = encoder_position; //we must keep resetting this throughout the deceleration, or ORIENT_ERR_MAX_ROTATION error will occur
         target_computed = 0; //force new orient target to be computed, as spindle is moving
         spindle_on_thur = 0; //over ride any previous "on" of this pin.  If was normal M3 S1000 "running", then this decels drive using "normal" VFD curves
         vfd_mode_switch_timer = VFD_MODE_SWITCH_DELAY + fperiod;    //start timer, or keep reloading while moving so timing begins from instant spindle stops and doesn't include decel time. 
