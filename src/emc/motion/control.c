@@ -307,30 +307,32 @@ static void process_probe_inputs(void) {
     emcmotStatus->probeVal = !!*(emcmot_hal_data->probe_input);
     if (emcmotStatus->probing) {
         /* check if the probe has been tripped */
-        if (!ignore_probe && (emcmotStatus->probeVal ^ probe_whenclears)) {
-            if (!emcmotStatus->probeTripped) {
-                /* remember the current position */
-                emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
-                emcmotStatus->probeTripped = 1;
-            }
+        if (!ignore_probe && (emcmotStatus->probeVal ^ probe_whenclears) && !emcmotStatus->probeTripped) {
+            /* remember the current position */
+            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
+            /* stop! */
+            //emcmotStatus->probing = 0;
+            emcmotStatus->probeTripped = 1;
             tpAbort(&emcmotDebug->tp);
-        /* check if the probe hasn't tripped, but the move finished */
+        /* If the move has finished, we set probing = 0 and check if the probe hasn't tripped */
         } else if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->tp) == 0) {
-            /* we are already stopped, but we need to remember the current 
-               position here, because it will still be queried */
-            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
             emcmotStatus->probing = 0;
 
+            /* we are already stopped, but we need to remember the current 
+               position here, because it will still be queried */
+            if(!emcmotStatus->probeTripped) {
+                emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
 
-            if (ignore_probe || probe_suppress || emcmotStatus->probeTripped) {
-                emcmotStatus->probeTripped = 0;
-                emcmotStatus->probe_type = 0;
-            } else if(probe_whenclears) {
-                reportError(_("G38.4 move finished without breaking contact."));
-                SET_MOTION_ERROR_FLAG(1);
-            } else {
-                reportError(_("G38.2 move finished without making contact."));
-                SET_MOTION_ERROR_FLAG(1);
+                if (ignore_probe || probe_suppress) {
+                    emcmotStatus->probeTripped = 0;
+                    emcmotStatus->probe_type = 0;
+                } else if(probe_whenclears) {
+                    reportError(_("G38.4 move finished without breaking contact."));
+                    SET_MOTION_ERROR_FLAG(1);
+                } else {
+                    reportError(_("G38.2 move finished without making contact."));
+                    SET_MOTION_ERROR_FLAG(1);
+                }
             }
         }
     } else if (!old_probeVal && emcmotStatus->probeVal) {
