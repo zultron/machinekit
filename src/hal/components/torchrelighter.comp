@@ -10,7 +10,7 @@ pin in float cooldown = 1.0 "Time in seconds to cooldown between light atttempts
 //pin out bit feed_inhibit_out = 0 """Feed is inhibited if enable is True and arkok-in is False""";
 pin out bit torch_out = 0 """If enable = False, this is a passthrough for torch-in. Otherwise, might be toggled to handle relight."""; 
 
-pin in bit enable = 0 """If True, torch relight is enabled. If False, arcok-in signal is simply passed directly through on the arkok-out pin with no interaction.
+pin in bit enable = 0 """If True, torch relight is enabled. If False, torch-out signal is simply passed directly through with no interaction.
 Enable should be asserted after pierce has completed successfully and cutting is starting""";
 
 function _;
