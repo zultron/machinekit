@@ -1822,8 +1822,8 @@ static void output_to_hal(void)
        to one of the debug parameters.  You can also comment out these lines
        and copy elsewhere if you want to observe an automatic variable that
        isn't in scope here. */
-    emcmot_hal_data->debug_bit_0 = joints[1].free_tp_active;
-    emcmot_hal_data->debug_bit_1 = emcmotStatus->enables_new & AF_ENABLED;
+    emcmot_hal_data->debug_bit_0 = emcmotStatus->probeTripped;
+    emcmot_hal_data->debug_bit_1 = emcmotStatus->probing;
     emcmot_hal_data->debug_float_0 = emcmotStatus->net_feed_scale;
     emcmot_hal_data->debug_float_1 = emcmotStatus->spindle_fb.position_rev;
     emcmot_hal_data->debug_float_2 = emcmotStatus->spindle_fb.velocity_rpm;
