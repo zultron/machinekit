@@ -311,14 +311,13 @@ static void process_probe_inputs(void) {
             /* remember the current position */
             emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
             /* stop! */
-            //emcmotStatus->probing = 0;
             emcmotStatus->probeTripped = 1;
             tpAbort(&emcmotDebug->tp);
         /* If the move has finished, we set probing = 0 and check if the probe hasn't tripped */
         } else if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->tp) == 0) {
             emcmotStatus->probing = 0;
 
-            /* we are already stopped, but we need to remember the current 
+            /* we are already stopped, but if the probe did not trip we need to remember the current 
                position here, because it will still be queried */
             if(!emcmotStatus->probeTripped) {
                 emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
