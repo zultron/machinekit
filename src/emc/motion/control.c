@@ -308,11 +308,11 @@ static void process_probe_inputs(void) {
     if (emcmotStatus->probing) {
         /* check if the probe has been tripped */
         if (!ignore_probe && (emcmotStatus->probeVal ^ probe_whenclears)) {
-            /* remember the current position */
-            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
-            /* stop! */
-            emcmotStatus->probing = 0;
-            emcmotStatus->probeTripped = 1;
+            if (!emcmotStatus->probeTripped) {
+                /* remember the current position */
+                emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
+                emcmotStatus->probeTripped = 1;
+            }
             tpAbort(&emcmotDebug->tp);
         /* check if the probe hasn't tripped, but the move finished */
         } else if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->tp) == 0) {
@@ -320,7 +320,9 @@ static void process_probe_inputs(void) {
                position here, because it will still be queried */
             emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
             emcmotStatus->probing = 0;
-            if (ignore_probe || probe_suppress) {
+
+
+            if (ignore_probe || probe_suppress || emcmotStatus->probeTripped) {
                 emcmotStatus->probeTripped = 0;
                 emcmotStatus->probe_type = 0;
             } else if(probe_whenclears) {
