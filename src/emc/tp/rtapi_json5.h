@@ -18,6 +18,7 @@
 #define print_json5_double(varname_) print_json5_double_(#varname_, (double)varname_)
 #define print_json5_string(varname_) print_json5_string_(#varname_, varname_)
 #define print_json5_long(varname_) print_json5_long_(#varname_, (long)varname_)
+#define print_json5_int(varname_) print_json5_int_(#varname_, (int)varname_)
 #define print_json5_unsigned(varname_) print_json5_unsigned_(#varname_, (unsigned)varname_)
 #define print_json5_PmCartesian(varname_) print_json5_PmCartesian_(#varname_, varname_)
 #define print_json5_EmcPose(varname_) print_json5_EmcPose_(#varname_, varname_)
@@ -37,9 +38,24 @@ static inline void print_json5_end_()
     rtapi_print("}\n");
 }
 
+static inline void print_json5_array_start_(const char *arr_name)
+{
+    rtapi_print("%s: [", arr_name ?: "NULL");
+}
+
+static inline void print_json5_array_end_()
+{
+    rtapi_print("]\n");
+}
+
 static inline void print_json5_object_start_(const char *fname)
 {
     rtapi_print("%s: {", fname ?: "NULL");
+}
+
+static inline void print_json5_bare_object_start_()
+{
+    rtapi_print("{");
 }
 
 static inline void print_json5_object_end_()

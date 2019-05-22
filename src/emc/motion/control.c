@@ -25,6 +25,7 @@
 #include "motion_debug.h"
 #include "config.h"
 #include "motion_types.h"
+#include "rtapi_json5.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
@@ -681,6 +682,40 @@ static void do_forward_kins(void)
     }
 }
 
+void reportJointFollowingError(int joint_num)
+{
+    emcmot_joint_t const *joint = joints + joint_num;
+
+    if (!GET_JOINT_ERROR_FLAG(joint)) {
+        /* report the error just this once */
+        reportError(_("joint %d following error %f greater than limit %f"), joint_num, joint->ferror, joint->ferror_limit);
+
+        // Now, print a dump of everything relevant to the console
+        print_json5_start_();
+        print_json5_string_("log_entry","JointFollowingError");
+        print_json5_array_start_("joint_ferror_data");
+        for (int j=0; j<num_joints; ++j) {
+            emcmot_joint_t const *jtmp = joints + j;
+            if ( !GET_JOINT_ACTIVE_FLAG(jtmp) || !GET_JOINT_ENABLE_FLAG(jtmp) ) {
+                continue;
+            }
+
+            print_json5_bare_object_start_();
+            print_json5_int_("joint_num", j);
+            print_json5_double_("ferror", jtmp->ferror);
+            print_json5_double_("ferror_limit", jtmp->ferror_limit);
+            print_json5_double_("min_ferror", jtmp->min_ferror);
+            print_json5_double_("pos_cmd", jtmp->pos_cmd);
+            print_json5_double_("pos_fb", jtmp->pos_fb);
+            print_json5_double_("vel_cmd", jtmp->vel_cmd);
+            print_json5_double_("ferr_high_mark", jtmp->ferror_high_mark);
+            print_json5_object_end_();
+        }
+        print_json5_array_end_();
+        print_json5_end_();
+    }
+}
+
 static void check_for_faults(void)
 {
     int joint_num;
@@ -747,12 +782,9 @@ static void check_for_faults(void)
 	    }
 	    /* check for excessive following error */
 	    if (GET_JOINT_FERROR_FLAG(joint)) {
-		if (!GET_JOINT_ERROR_FLAG(joint)) {
-		    /* report the error just this once */
-		    reportError(_("joint %d following error"), joint_num);
-		}
-		SET_JOINT_ERROR_FLAG(joint, 1);
-		emcmotDebug->enabling = 0;
+            reportJointFollowingError(joint_num);
+            SET_JOINT_ERROR_FLAG(joint, 1);
+            emcmotDebug->enabling = 0;
 	    }
 	/* end of if JOINT_ACTIVE_FLAG(joint) */
 	}
