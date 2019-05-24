@@ -4,7 +4,7 @@ pin in float velocity-cmd "Commanded speed";
 pin out float position-fb "Feedback position, in revolutions";
 pin out float velocity-fb "Feedback velocity in revolutions";
 pin io bit index-enable "Reset \\fBposition-fb\\fP to 0 at the next full rotation";
-pin in float time-constant "first-order time constant for spindle response";
+param rw float time-constant = 1.0 "first-order time constant for spindle response";
 param rw float scale = 1.0 
 """factor applied to \\fBvelocity-cmd\\fP.
 

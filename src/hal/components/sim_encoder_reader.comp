@@ -2,9 +2,9 @@ component sim_encoder_reader "Simulated high-frequency encoder reader";
 
 pin in float position-real-in "Current real position";
 pin in float velocity-real-in "Current real velocity";
-pin in float reader-frequency "Frequency of simulated encoder reader inner loop";
-pin in s32 hold-time "Maximum time between encoder pulses before zero velocity is declared, in loop ticks";
-pin in s32 encoder-ppr "Resolution of encoder";
+param rw float reader-frequency = 10000 "Frequency of simulated encoder reader inner loop";
+param rw s32 hold-time = 10 "Maximum time between encoder pulses before zero velocity is declared, in loop ticks";
+param rw s32 encoder-ppr = 64 "Resolution of encoder";
 
 pin out float encoder-position "Simulated encoder position";
 pin out float encoder-velocity "Estimated encoder velocity";
@@ -27,7 +27,8 @@ function _;
  */
 FUNCTION(_) {
    const double cutoff_time = (double)hold_time * fperiod;
-   const double dt_reader = 1.0 / reader_frequency;
+
+   const double dt_reader = 1.0 /(reader_frequency);
    const double p_real_counts = position_real_in * encoder_ppr;
    const double v_real_counts = velocity_real_in * encoder_ppr;
 
