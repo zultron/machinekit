@@ -23,8 +23,6 @@ pin out bit out "Simulated probe output";
 
 pin out float z_in_minus_offset "z-in with probe length applied";
 pin out float distance_between_centers "distance between object center and tip center";
-pin in  float z_vel "axis.2.joint-vel-cmd - non-zero if Z is moving";
-pin in  s32 motion_type "motion.motion-type";
 
 function _ fp;
 license "GPL";
@@ -80,10 +78,6 @@ FUNCTION(_) {
       // axis at (y, z)
       distance_between_centers = sqrt(pow(y - y_in, 2) + pow(z - z_in_minus_offset, 2));
 
-      // when probing in Z do not account for tip radius
-      if (z_vel != 0.0 && motion_type == 5) {
-        tip_radius = 0.0;
-      }
       // distance between centers must be less than or equal to the sum of the radii
       out = (enable &&
             (distance_between_centers + tip_radius <= w/2));
