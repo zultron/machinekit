@@ -946,7 +946,7 @@ float encoder_spindle_speed;
             else
                 orient_targetband = ORIENT_TARGETBAND;
             orient_on_target = 0;
-            orient_status = 0.0;
+            orient_status = -.456; 
             //if (motor_hz_per_cmd_hz == 0.0)
             //    hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
             //else
@@ -1024,6 +1024,7 @@ float encoder_spindle_speed;
             spindle_state = SPINDLE_STATE_NORMAL;
             orient_fault = 0; //clearing this here means orient_fault is only active for 1 ms!, but otherwise see above "never attempt another M19"
             orient_on_target = 0;
+            orient_status = -.4567;
             if (motor_hz_per_cmd_hz == 0.0)
                 hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
             else
@@ -1114,10 +1115,10 @@ float encoder_spindle_speed;
                 else
                     orient_status = 0.0;
             }
-            else { //presently setting to "invalid" number incase ATC code samples this at "wrong" time for this variable.  It'll generate a fault as ATC code is looking for it to be zero or not.
-                    //DEBUG statements in .ngc files are logging the return ... if we see this MAGIC NUMBER, then we know it was sampled at wrong time
-                orient_status = -.456789;//SLP return to 0 //lie it's all OK until as not error yet since orient hasn't finished
-            }
+//            else { //presently setting to "invalid" number incase ATC code samples this at "wrong" time for this variable.  It'll generate a fault as ATC code is looking for it to be zero or not.
+//                    //DEBUG statements in .ngc files are logging the return ... if we see this MAGIC NUMBER, then we know it was sampled at wrong time
+//                orient_status = -.456789;//SLP return to 0 //lie it's all OK until as not error yet since orient hasn't finished
+//            }
 
             if(iabs(enc_err) < orient_targetband) { //Yes, we want <, not <=. Assume orient_targetband = 8. Encoders are integral, so if <= can reach 8 + very nearly 1 = 9 rotations before we see it. When <8 then
                                                     // value is 7 + nearly 1 
