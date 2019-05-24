@@ -23,19 +23,23 @@ function _;
 
 FUNCTION(_) {
     const double alpha = fperiod / (time_constant + fperiod);
-    double old_position = position_fb;
-    double old_velocity = velocity_fb;
-    double new_velocity = velocity_cmd * alpha + velocity_fb * (1.0-alpha);
-    double new_position = position_fb + (new_velocity + old_velocity) * fperiod / 2.0;
+    double old_position_rev = position_fb;
+    double old_velocity_rps = velocity_fb;
 
-    if(index_enable && (floor(old_position) != floor(new_position))) {
+    double cmd_velocity_rps = velocity_cmd * scale; // Scale command to internal units
+    double cmd_delta = cmd_velocity_rps - old_velocity_rps;
+
+    double new_velocity_rps = cmd_delta * alpha + old_velocity_rps;
+    double new_position_rev = old_position_rev + (new_velocity_rps + old_velocity_rps) * fperiod / 2.0;
+
+    if(index_enable && (floor(old_position_rev) != floor(new_position_rev))) {
         index_enable = false;
         if(velocity_cmd < 0)
-            new_position -= ceil(new_position);
+            new_position_rev -= ceil(new_position_rev);
         else
-            new_position -= floor(new_position);
+            new_position_rev -= floor(new_position_rev);
     }
-    position_fb = new_position;
-    velocity_fb = new_velocity;
+    position_fb = new_position_rev;
+    velocity_fb = new_velocity_rps;
 }
 
