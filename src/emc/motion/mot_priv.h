@@ -97,6 +97,7 @@ typedef struct {
     hal_float_t *spindle_tracking_gain; //!< Controls position tracking accuracy from least to most aggressive [0.0-1.0]
     hal_float_t *pos_tracking_error;
     hal_s32_t *pos_tracking_mode;
+    hal_s32_t *pos_tracking_state;
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion maskable with g53 P1*/
     hal_bit_t *feed_inhibit;	/* RPI: set TRUE to stop motion (non maskable)*/

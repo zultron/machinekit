@@ -3097,6 +3097,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
 
     const double spindle_vel = emcmotStatus->spindle_fb.velocity_rpm / 60.0;
     if(tc->sync_accel) {
+        emcmotStatus->pos_tracking_state = POS_TRACKING_SYNC_ACCEL;
         // detect when velocities match, and move the target accordingly.
         // acceleration will abruptly stop and we will be on our new target.
         // FIX: this is driven by TP cycle time, not the segment cycle time
@@ -3116,6 +3117,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
             tc->target_vel = tc->maxvel;
         }
     } else {
+        emcmotStatus->pos_tracking_state = POS_TRACKING_ACTIVE;
         // Multiply by user feed rate to get equivalent desired position
         const double pos_desired = spindle_displacement * tc->uu_per_rev;
         double net_progress = tc->progress - tc->progress_at_sync;
@@ -3526,6 +3528,7 @@ STATIC int tpSteppingCheck(TP_STRUCT * const tp, TC_STRUCT * const tc, TC_STRUCT
  */
 tp_err_t updateSyncTargets(TP_STRUCT *tp, TC_STRUCT *tc, TC_STRUCT *nexttc)
 {
+    emcmotStatus->pos_tracking_state = POS_TRACKING_INACTIVE;
     switch (tc->synchronized) {
         case TC_SYNC_NONE:
             emcmotStatus->spindle_fb.synced = 0;

@@ -570,6 +570,12 @@ typedef enum {
     SPINDLE_FORWARD=1
 } spindle_direction_code_t;
 
+typedef enum {
+    POS_TRACKING_INACTIVE,
+    POS_TRACKING_SYNC_ACCEL,
+    POS_TRACKING_ACTIVE
+} position_tracking_state_t;
+
 /**
  * This structure contains only the "status" data associated with a joint.
  * "Status" data is that data that should be reported to user space on a
@@ -683,8 +689,9 @@ typedef enum {
 	spindle_fb_status spindle_fb;	/* Spindle feedback input to motion */
     double spindle_tracking_gain; // external control of position trakcing aggressiveness
     int pos_tracking_mode;
+    position_tracking_state_t pos_tracking_state;
     double pos_tracking_error;
-	
+
 	int synch_di[EMCMOT_MAX_DIO]; /* inputs to the motion controller, queried by g-code */
 	int synch_do[EMCMOT_MAX_DIO]; /* outputs to the motion controller, queried by g-code */
 	double analog_input[EMCMOT_MAX_AIO]; /* inputs to the motion controller, queried by g-code */
