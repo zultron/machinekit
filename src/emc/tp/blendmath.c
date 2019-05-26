@@ -114,7 +114,7 @@ double saturate(double x, double max) {
 /**
  * Apply bounds to a value x.
  */
-inline double bound(double x, double max, double min) {
+double bound(double x, double max, double min) {
     if ( x > max ) {
         return max;
     }

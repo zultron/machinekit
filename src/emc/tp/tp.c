@@ -3166,7 +3166,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
          * 2) "final" velocity = v_0
          * 3) max velocity / acceleration from motion segment
          */
-        const double gain = emcmotStatus->spindle_tracking_gain;
+        const double gain = bound(emcmotStatus->spindle_tracking_gain, 1, 0);
         double a_max = tcGetTangentialMaxAccel(tc) * gain;
         double v_max = tc->maxvel;
 
