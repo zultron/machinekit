@@ -3158,7 +3158,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
          *         |----| t      time
          *
          * To correct a position error x_err (shaded area above), we need to
-         * momentarily increase the velocity, then decrease back to the nonimal
+         * momentarily increase the velocity, then decrease back to the nominal
          * velocity.
          *
          * In effect, this is the trapezoidal velocity planning problem, if:
@@ -3170,6 +3170,12 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         double v_max = tc->maxvel;
 
         switch(emcmotStatus->pos_tracking_mode) {
+        case 3:
+        {
+            // Corrects 1/2 of position error in current cycle (and assumes the remaining position error will be corrected in the next)
+            tc->target_vel = 2.0 * v_final - tc->currentvel + pos_error / tc->cycle_time;
+            break;
+        }
         case 2:
         {
             double v_sq_alt = pmSq(v_final) + pos_error * a_max;
