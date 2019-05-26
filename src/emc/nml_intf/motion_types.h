@@ -25,4 +25,25 @@ typedef enum {
     EMC_MOTION_TYPE_INDEXROTARY = 6,
 } EMCMotionTypes;
 
+typedef enum {
+    SPINDLE_REVERSE=-1,
+    SPINDLE_STOPPED=0,
+    SPINDLE_FORWARD=1
+} spindle_direction_code_t;
+
+typedef enum {
+    POS_TRACKING_INACTIVE,
+    POS_TRACKING_SYNC_ACCEL,
+    POS_TRACKING_ACTIVE
+} position_tracking_state_t;
+
+typedef enum {
+    RIGIDTAP_INACTIVE,
+    RIGIDTAP_TAPPING,
+    RIGIDTAP_REVERSING,
+    RIGIDTAP_RETRACTION,
+    RIGIDTAP_FINAL_REVERSAL,
+    RIGIDTAP_FINAL_PLACEMENT
+} rigid_tap_state_t;
+
 #endif

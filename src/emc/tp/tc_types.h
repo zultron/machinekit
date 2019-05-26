@@ -20,6 +20,7 @@
 #include "emcpos.h"
 #include "emcmotcfg.h"
 #include "state_tag.h"
+#include "motion_types.h"
 
 #define BLEND_DIST_FRACTION 0.5
 /* values for endFlag */
@@ -88,10 +89,6 @@ typedef struct {
     PmCartesian uvw;
 } Arc9;
 
-typedef enum {
-    TAPPING, REVERSING, RETRACTION, FINAL_REVERSAL, FINAL_PLACEMENT
-} RIGIDTAP_STATE;
-
 typedef unsigned long long iomask_t; // 64 bits on both x86 and x86_64
 
 typedef struct {
@@ -115,7 +112,7 @@ typedef struct {
     PmCartesian abc;
     PmCartesian uvw;
     double reversal_target;
-    RIGIDTAP_STATE state;
+    rigid_tap_state_t state;
 } PmRigidTap;
 
 typedef struct {

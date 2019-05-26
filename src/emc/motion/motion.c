@@ -330,6 +330,7 @@ static int init_hal_io(void)
     if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->pos_tracking_mode), mot_comp_id, "motion.pos-tracking-mode")) < 0) goto error;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->pos_tracking_state), mot_comp_id, "motion.pos-tracking-state")) < 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->pos_tracking_error), mot_comp_id, "motion.pos-tracking-error")) < 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->rigid_tap_state), mot_comp_id, "motion.rigid-tap-state")) < 0) goto error;
 
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->adaptive_feed), mot_comp_id, "motion.adaptive-feed")) < 0) goto error;
     *(emcmot_hal_data->adaptive_feed) = 1.0;

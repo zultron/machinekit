@@ -2565,16 +2565,18 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT * const tp,
     static double old_spindle_pos = 0.0;
     double spindle_pos = emcmotStatus->spindle_fb.position_rev;
 
-    RIGIDTAP_STATE const initial_state = tc->coords.rigidtap.state;
+    rigid_tap_state_t const initial_state = tc->coords.rigidtap.state;
     switch (initial_state) {
-        case TAPPING:
+        case RIGIDTAP_INACTIVE:
+            return;
+        case RIGIDTAP_TAPPING:
             if (tc->progress >= tc->coords.rigidtap.reversal_target) {
                 // command reversal
                 cmdReverseSpindle();
-                tc->coords.rigidtap.state = REVERSING;
+                tc->coords.rigidtap.state = RIGIDTAP_REVERSING;
             }
             break;
-        case REVERSING:
+        case RIGIDTAP_REVERSING:
             if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
                 PmCartesian start, end;
                 PmCartLine *aux = &tc->coords.rigidtap.aux_xyz;
@@ -2593,17 +2595,17 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT * const tp,
                 tc->progress_at_sync = 0.0;
                 rtapi_print_msg(RTAPI_MSG_DBG, "new target = %f", tc->target);
 
-                tc->coords.rigidtap.state = RETRACTION;
+                tc->coords.rigidtap.state = RIGIDTAP_RETRACTION;
             }
             break;
-        case RETRACTION:
+        case RIGIDTAP_RETRACTION:
             if (tc->progress >= tc->coords.rigidtap.reversal_target) {
                 // Flip spindle direction again to start final reversal
                 cmdReverseSpindle();
-                tc->coords.rigidtap.state = FINAL_REVERSAL;
+                tc->coords.rigidtap.state = RIGIDTAP_FINAL_REVERSAL;
             }
             break;
-        case FINAL_REVERSAL:
+        case RIGIDTAP_FINAL_REVERSAL:
             if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
                 PmCartesian start, end;
                 PmCartLine *aux = &tc->coords.rigidtap.aux_xyz;
@@ -2618,16 +2620,17 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT * const tp,
                 tc->synchronized = 0;
                 tc->target_vel = tc->maxvel;
 
-                tc->coords.rigidtap.state = FINAL_PLACEMENT;
+                tc->coords.rigidtap.state = RIGIDTAP_FINAL_PLACEMENT;
             }
             break;
-        case FINAL_PLACEMENT:
+        case RIGIDTAP_FINAL_PLACEMENT:
             // this is a regular move now, it'll stop at target above.
             break;
     }
     old_spindle_pos = spindle_pos;
+    emcmotStatus->rigid_tap_state = tc->coords.rigidtap.state;
 #ifdef TC_DEBUG
-    RIGIDTAP_STATE current_state = tc->coords.rigidtap.state;
+    rigid_tap_state_t current_state = tc->coords.rigidtap.state;
     print_json5_log_start(tpUpdateRigidTapState, Run);
     print_json5_unsigned(current_state);
     print_json5_log_end();

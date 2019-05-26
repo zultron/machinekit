@@ -81,6 +81,7 @@ to another.
 #include "rtapi_limits.h"
 #include <stdarg.h>
 #include "state_tag.h"
+#include "motion_types.h"
 
 
 // define a special value to denote an invalid motion ID 
@@ -564,18 +565,6 @@ Suggestion: Split this in to an Error and a Status flag register..
 	double big_vel;		/* used for "debouncing" velocity */
     } emcmot_joint_t;
 
-typedef enum {
-    SPINDLE_REVERSE=-1,
-    SPINDLE_STOPPED=0,
-    SPINDLE_FORWARD=1
-} spindle_direction_code_t;
-
-typedef enum {
-    POS_TRACKING_INACTIVE,
-    POS_TRACKING_SYNC_ACCEL,
-    POS_TRACKING_ACTIVE
-} position_tracking_state_t;
-
 /**
  * This structure contains only the "status" data associated with a joint.
  * "Status" data is that data that should be reported to user space on a
@@ -690,6 +679,7 @@ typedef enum {
     double spindle_tracking_gain; // external control of position trakcing aggressiveness
     int pos_tracking_mode;
     position_tracking_state_t pos_tracking_state;
+    rigid_tap_state_t rigid_tap_state;
     double pos_tracking_error;
 
 	int synch_di[EMCMOT_MAX_DIO]; /* inputs to the motion controller, queried by g-code */
