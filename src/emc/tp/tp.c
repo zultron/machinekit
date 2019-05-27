@@ -2600,7 +2600,8 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT * const tp,
                 // NOTE: reset both progress and sync location:
                 // At the point of reversal, the spindle is already synchronized
                 tc->progress = 0.0;
-                tc->progress_at_sync = 0.0;
+                // KLUDGE remember existing tracking error to make sure the reversal follows as close to the same path as possible
+                tc->progress_at_sync = -emcmotStatus->pos_tracking_error;
                 rtapi_print_msg(RTAPI_MSG_DBG, "new target = %f", tc->target);
 
                 tc->coords.rigidtap.state = RIGIDTAP_RETRACTION;
