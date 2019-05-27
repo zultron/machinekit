@@ -38,6 +38,13 @@ typedef enum {
 } position_tracking_state_t;
 
 typedef enum {
+    POS_TRACK_DIRECT,
+    POS_TRACK_MODE_LEGACY,
+    POS_TRACK_MODE_PYTHAGOREAN,
+    POS_TRACK_MODE_TRAPEZOIDAL,
+} position_tracking_mode_t;
+
+typedef enum {
     RIGIDTAP_INACTIVE,
     RIGIDTAP_TAPPING,
     RIGIDTAP_REVERSING,

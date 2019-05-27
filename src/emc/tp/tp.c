@@ -3140,12 +3140,15 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         // track position (minimize pos_error).
         // This is the velocity we should be at when the position error is c0
         double v_final = spindle_vel * tc->uu_per_rev;
+        const double gain = bound(emcmotStatus->spindle_tracking_gain, 1, 0);
+        double a_max = tcGetTangentialMaxAccel(tc) * gain;
+        double v_max = tc->maxvel;
+
         /*
-         * Correct for position errors when tracking spindle motion.
-         * This approach assumes that if position error is 0, the correct
-         * velocity is just the nominal target velocity. If the position error
-         * is non-zero, however, then we need to correct it, but then return to
-         * the nominal velocity.
+         * In general, position tracking works by perturbing the
+         * velocity-synced feed up or down to correct for transient position
+         * errors.  If position error is 0 (e.g. a perfect spindle and
+         * encoder), then the behavior is identical to velocity-synced motion.
          *
          * velocity
          * |          v_p
@@ -3158,42 +3161,49 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
          *         |----| t      time
          *
          * To correct a position error x_err (shaded area above), we need to
-         * momentarily increase the velocity, then decrease back to the nominal
-         * velocity.
+         * momentarily increase the velocity to catch up, then drop back to the
+         * sync velocity.
          *
          * In effect, this is the trapezoidal velocity planning problem, if:
          * 1) remaining distance dx = x_err
          * 2) "final" velocity = v_0
          * 3) max velocity / acceleration from motion segment
          */
-        const double gain = bound(emcmotStatus->spindle_tracking_gain, 1, 0);
-        double a_max = tcGetTangentialMaxAccel(tc) * gain;
-        double v_max = tc->maxvel;
-
         switch(emcmotStatus->pos_tracking_mode) {
-        case 3:
+        case POS_TRACK_DIRECT:
+        default:
         {
-            // Corrects 1/2 of position error in current cycle (and assumes the remaining position error will be corrected in the next)
-            tc->target_vel = 2.0 * v_final - tc->currentvel + pos_error * gain / tc->cycle_time;
+            // "Direct" approach aggressively tries to correct for position
+            // error as quickly as possible. Acceleration limits are not
+            // applied here (because they are enforced later in the RunCycle
+            // sequence). This can corrects up to 1/2
+            // of the position error in the current cycle. The remaining
+            // position error will be corrected in the next cycle as the target
+            // velocity returns to the sync velocity.
+            tc->target_vel = 2.0 * v_final - tc->currentvel + pos_error * gain / tp->cycleTime;
             break;
         }
-        case 2:
+        case POS_TRACK_MODE_PYTHAGOREAN:
         {
+            // Experimental spindle tracking that adds correction terms using a pythagorean sum
             double v_sq_alt = pmSq(v_final) + pos_error * a_max;
             double v_target_alt = pmSqrt(fmax(v_sq_alt, 0.0));
             tc->target_vel = v_target_alt;
             break;
         }
-        case 1:
+        case POS_TRACK_MODE_LEGACY:
         {
+            // LinuxCNC 2.6 approach to spindle tracking (high jitter when
+            // position error is very small due to slope of sqrt for small
+            // values)
             double v_sq = a_max * pos_error;
             double v_target_stock = signum(v_sq) * pmSqrt(fabs(v_sq)) + v_final;
             tc->target_vel = v_target_stock;
             break;
         }
-        case 0:
-        default:
+        case POS_TRACK_MODE_TRAPEZOIDAL:
         {
+            // Use trapezoidal velocity calculation to find target velocity
             double v_target_trapz = fmin(findTrapezoidalDesiredVel(a_max, pos_error, v_final, tc->currentvel, tc->cycle_time), v_max);
             tc->target_vel = v_target_trapz;
             break;
