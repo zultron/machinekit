@@ -2534,6 +2534,14 @@ static inline double findSpindleDisplacement(
     return origin.direction * (new_pos - origin.position);
 }
 
+static inline double findSpindleVelocity(
+        double spindle_velocity,
+        spindle_origin_t origin
+        )
+{
+    return origin.direction * spindle_velocity;
+}
+
 /**
  * Helper function to compare commanded and actual spindle velocity.
  * If the signs of velocity don't match, then the spindle is reversing direction.
@@ -3070,8 +3078,8 @@ STATIC tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
  * Update requested velocity to follow the spindle's velocity (scaled by feed rate).
  */
 STATIC void tpSyncVelocityMode(TC_STRUCT * const tc, TC_STRUCT * const nexttc) {
-    double speed = emcmotStatus->spindle_fb.velocity_rpm;
-    double pos_error = fabs(speed) * tc->uu_per_rev;
+    double speed = fabs(emcmotStatus->spindle_fb.velocity_rpm);
+    double pos_error = speed * tc->uu_per_rev;
     // Account for movement due to parabolic blending with next segment
     if(nexttc) {
         pos_error -= nexttc->progress;
@@ -3096,7 +3104,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
     // Start with raw spindle position and our saved offset
     double spindle_pos = emcmotStatus->spindle_fb.position_rev;
 
-    spindle_origin_t spindle_origin = tp->spindle.origin;
+    const spindle_origin_t spindle_origin = tp->spindle.origin;
 
     // Note that this quantity should be non-negative under normal conditions.
     double spindle_displacement = findSpindleDisplacement(spindle_pos,
@@ -3104,7 +3112,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
 
     tc_debug_print("spindle_displacement %f, raw_pos %f, ", spindle_displacement, spindle_pos);
 
-    const double spindle_vel = emcmotStatus->spindle_fb.velocity_rpm / 60.0;
+    const double spindle_vel = findSpindleVelocity(emcmotStatus->spindle_fb.velocity_rpm, spindle_origin) / 60.0;
     if(tc->sync_accel) {
         emcmotStatus->pos_tracking_state = POS_TRACKING_SYNC_ACCEL;
         // detect when velocities match, and move the target accordingly.
