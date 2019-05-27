@@ -5,7 +5,8 @@ pin out float position-fb "Feedback position, in revolutions";
 pin out float velocity-fb "Feedback velocity in revolutions";
 pin io bit index-enable "Reset \\fBposition-fb\\fP to 0 at the next full rotation";
 param rw float time-constant = 1.0 "first-order time constant for spindle response";
-param rw float scale = 1.0 
+param rw float max-accel-rps2 = 60 "Limits rate of change of spindle velocity";
+param rw float scale = 1.0
 """factor applied to \\fBvelocity-cmd\\fP.
 
 The result of '\\fBvelocity-cmd\\fP * \\fBscale\\fP' be in revolutions per second.
@@ -20,6 +21,10 @@ function _;
 ;;
 #include <rtapi_math.h>
 
+double sign(double x)
+{
+    return x > 0 ? 1 : (x < 0 ? -1 : 0);
+}
 
 FUNCTION(_) {
     const double alpha = fperiod / (time_constant + fperiod);
@@ -28,7 +33,15 @@ FUNCTION(_) {
 
     double cmd_velocity_rps = velocity_cmd * scale; // Scale command to internal units
 
-    double new_velocity_rps = cmd_velocity_rps * alpha + old_velocity_rps * (1-alpha);
+    double cmd_delta = (cmd_velocity_rps - old_velocity_rps) * alpha;
+    double actual_delta = cmd_delta;
+    // 0 or negative max acceleration means ignore it
+    if (max_accel_rps2 > 0.0) {
+        actual_delta = sign(cmd_delta) * fmin(fabs(cmd_delta), max_accel_rps2 * fperiod);
+    }
+    double new_velocity_rps = old_velocity_rps + actual_delta;
+
+    // Do naive sum here (not trapezoidal) for backwards compatibility
     double new_position_rev = old_position_rev + new_velocity_rps * fperiod;
 
     if(index_enable && (floor(old_position_rev) != floor(new_position_rev))) {
