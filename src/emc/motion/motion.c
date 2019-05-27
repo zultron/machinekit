@@ -326,8 +326,9 @@ static int init_hal_io(void)
     *emcmot_hal_data->spindle_is_atspeed = 1;
 
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_tracking_gain), mot_comp_id, "motion.spindle-tracking-gain")) < 0) goto error;
-    *emcmot_hal_data->spindle_tracking_gain = 1.0;
+    *emcmot_hal_data->spindle_tracking_gain = 0.999;
     if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->pos_tracking_mode), mot_comp_id, "motion.pos-tracking-mode")) < 0) goto error;
+    *emcmot_hal_data->pos_tracking_mode = POS_TRACK_MODE_FLATTENED;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->pos_tracking_state), mot_comp_id, "motion.pos-tracking-state")) < 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->pos_tracking_error), mot_comp_id, "motion.pos-tracking-error")) < 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->pos_tracking_velocity), mot_comp_id, "motion.pos-tracking-velocity")) < 0) goto error;
