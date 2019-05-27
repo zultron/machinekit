@@ -284,4 +284,5 @@ EndCondition checkEndCondition(double cycleTime,
                                double v_f,
                                double a_max);
 
+double pseudo_sqrt(double x, double c);
 #endif

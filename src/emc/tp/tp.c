@@ -3184,28 +3184,9 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
          * 2) "final" velocity = v_0
          * 3) max velocity / acceleration from motion segment
          */
+
         switch(emcmotStatus->pos_tracking_mode) {
-        case POS_TRACK_DIRECT:
         default:
-        {
-            // "Direct" approach aggressively tries to correct for position
-            // error as quickly as possible. Acceleration limits are not
-            // applied here (because they are enforced later in the RunCycle
-            // sequence). This can corrects up to 1/2
-            // of the position error in the current cycle. The remaining
-            // position error will be corrected in the next cycle as the target
-            // velocity returns to the sync velocity.
-            tc->target_vel = 2.0 * v_final - tc->currentvel + pos_error * gain / tp->cycleTime;
-            break;
-        }
-        case POS_TRACK_MODE_PYTHAGOREAN:
-        {
-            // Experimental spindle tracking that adds correction terms using a pythagorean sum
-            double v_sq_alt = pmSq(v_final) + pos_error * a_max;
-            double v_target_alt = pmSqrt(fmax(v_sq_alt, 0.0));
-            tc->target_vel = v_target_alt;
-            break;
-        }
         case POS_TRACK_MODE_LEGACY:
         {
             // LinuxCNC 2.6 approach to spindle tracking (high jitter when
@@ -3216,11 +3197,32 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
             tc->target_vel = v_target_stock;
             break;
         }
+        case POS_TRACK_MODE_FLATTENED:
+        {
+            // Experimental spindle tracking that adds correction terms using a pythagorean sum
+            double v_sq = a_max * pos_error;
+            double v_target_flat = signum(v_sq) * pseudo_sqrt(fabs(v_sq), 1.0 - gain) + v_final;
+            tc->target_vel = v_target_flat;
+            break;
+        }
         case POS_TRACK_MODE_TRAPEZOIDAL:
         {
             // Use trapezoidal velocity calculation to find target velocity
             double v_target_trapz = fmin(findTrapezoidalDesiredVel(a_max, pos_error, v_final, tc->currentvel, tc->cycle_time), v_max);
             tc->target_vel = v_target_trapz;
+            break;
+        }
+        case POS_TRACK_DIRECT:
+        {
+            // "Direct" approach aggressively tries to correct for position
+            // error as quickly as possible. Acceleration limits are not
+            // applied here (because they are enforced later in the RunCycle
+            // sequence). This can corrects up to 1/2
+            // of the position error in the current cycle. The remaining
+            // position error will be corrected in the next cycle as the target
+            // velocity returns to the sync velocity.
+            double cutoff_vel = 2.0 * v_final - tc->currentvel + pos_error / tp->cycleTime;
+            tc->target_vel = cutoff_vel;
             break;
         }
         }
