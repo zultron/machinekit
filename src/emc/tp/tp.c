@@ -3166,14 +3166,15 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
          * 2) "final" velocity = v_0
          * 3) max velocity / acceleration from motion segment
          */
-        double a_max = tcGetTangentialMaxAccel(tc) * emcmotStatus->spindle_tracking_gain;
+        const double gain = emcmotStatus->spindle_tracking_gain;
+        double a_max = tcGetTangentialMaxAccel(tc) * gain;
         double v_max = tc->maxvel;
 
         switch(emcmotStatus->pos_tracking_mode) {
         case 3:
         {
             // Corrects 1/2 of position error in current cycle (and assumes the remaining position error will be corrected in the next)
-            tc->target_vel = 2.0 * v_final - tc->currentvel + pos_error / tc->cycle_time;
+            tc->target_vel = 2.0 * v_final - tc->currentvel + pos_error * gain / tc->cycle_time;
             break;
         }
         case 2:
