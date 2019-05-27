@@ -3094,6 +3094,20 @@ STATIC void tpSyncVelocityMode(TC_STRUCT * const tc, TC_STRUCT * const nexttc) {
     }
 }
 
+#if 0
+/**
+ * A function that looks like sqrt but is flatter, and does not have infinite slope at x = 0 for c > 0
+ * @pre c >= 0, x >= 0
+ * @return
+ */
+static inline double pseudo_sqrt_cexpr(double x, double c)
+{
+    const double den = (pmSqrt(c + 1) - pmSqrt(c));
+    const double b0 = -pmSqrt(c
+    const double b1 = 1;
+    return (b1 * pmSqrt(x+c) + b0) / den;
+}
+#endif
 
 /**
  * Run position mode synchronization.
@@ -3210,19 +3224,6 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
             // Use trapezoidal velocity calculation to find target velocity
             double v_target_trapz = fmin(findTrapezoidalDesiredVel(a_max, pos_error, v_final, tc->currentvel, tc->cycle_time), v_max);
             tc->target_vel = v_target_trapz;
-            break;
-        }
-        case POS_TRACK_DIRECT:
-        {
-            // "Direct" approach aggressively tries to correct for position
-            // error as quickly as possible. Acceleration limits are not
-            // applied here (because they are enforced later in the RunCycle
-            // sequence). This can corrects up to 1/2
-            // of the position error in the current cycle. The remaining
-            // position error will be corrected in the next cycle as the target
-            // velocity returns to the sync velocity.
-            double cutoff_vel = 2.0 * v_final - tc->currentvel + pos_error / tp->cycleTime;
-            tc->target_vel = cutoff_vel;
             break;
         }
         }

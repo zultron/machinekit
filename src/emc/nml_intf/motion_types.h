@@ -41,7 +41,6 @@ typedef enum {
     POS_TRACK_MODE_LEGACY,
     POS_TRACK_MODE_FLATTENED,
     POS_TRACK_MODE_TRAPEZOIDAL,
-    POS_TRACK_DIRECT,
 } position_tracking_mode_t;
 
 typedef enum {
