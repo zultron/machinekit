@@ -4,8 +4,8 @@ pin in float velocity-cmd "Commanded speed";
 pin out float position-fb "Feedback position, in revolutions";
 pin out float velocity-fb "Feedback velocity in revolutions";
 pin io bit index-enable "Reset \\fBposition-fb\\fP to 0 at the next full rotation";
-param rw float time-constant = 1.0 "first-order time constant for spindle response";
-param rw float max-accel-rps2 = 60 "Limits rate of change of spindle velocity";
+param rw float time-constant = 0.0 "first-order time constant for spindle response";
+param rw float max-accel-rps2 = 0 "Limits rate of change of spindle velocity";
 param rw float scale = 1.0
 """factor applied to \\fBvelocity-cmd\\fP.
 
@@ -27,6 +27,7 @@ double sign(double x)
 }
 
 FUNCTION(_) {
+    // 0 time constant implies no delay (e.g. stock sim_spindle behavior)
     const double alpha = fperiod / (time_constant + fperiod);
     double old_position_rev = position_fb;
     double old_velocity_rps = velocity_fb;
