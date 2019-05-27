@@ -98,6 +98,7 @@ typedef struct {
     hal_float_t *pos_tracking_error;
     hal_s32_t *pos_tracking_mode;
     hal_s32_t *pos_tracking_state;
+    hal_float_t *pos_tracking_velocity;
     hal_s32_t *rigid_tap_state;
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion maskable with g53 P1*/

@@ -3192,6 +3192,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
             break;
         }
         }
+        emcmotStatus->pos_tracking_velocity = tc->target_vel;
         emcmotStatus->pos_tracking_error = pos_error;
 
         tc_debug_print("in position sync, target_vel = %f, ideal_vel = %f, vel_err = %f\n", tc->target_vel, v_final, v_final - tc->target_vel);

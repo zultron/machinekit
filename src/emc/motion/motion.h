@@ -679,6 +679,7 @@ Suggestion: Split this in to an Error and a Status flag register..
     double spindle_tracking_gain; // external control of position trakcing aggressiveness
     int pos_tracking_mode;
     position_tracking_state_t pos_tracking_state;
+    double pos_tracking_velocity;
     rigid_tap_state_t rigid_tap_state;
     double pos_tracking_error;
 

@@ -1786,6 +1786,7 @@ static void output_to_hal(void)
 
     *(emcmot_hal_data->pos_tracking_error) = emcmotStatus->pos_tracking_error;
     *(emcmot_hal_data->pos_tracking_state) = emcmotStatus->pos_tracking_state;
+    *(emcmot_hal_data->pos_tracking_velocity) = emcmotStatus->pos_tracking_velocity;
     *(emcmot_hal_data->rigid_tap_state) = emcmotStatus->rigid_tap_state;
 
     *(emcmot_hal_data->program_line) = emcmotStatus->id;
