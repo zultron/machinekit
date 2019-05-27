@@ -2628,7 +2628,6 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT * const tp,
             break;
     }
     old_spindle_pos = spindle_pos;
-    emcmotStatus->rigid_tap_state = tc->coords.rigidtap.state;
 #ifdef TC_DEBUG
     rigid_tap_state_t current_state = tc->coords.rigidtap.state;
     print_json5_log_start(tpUpdateRigidTapState, Run);
@@ -2685,6 +2684,13 @@ STATIC int tpUpdateMovementStatus(TP_STRUCT * const tp,
     emcmotStatus->requested_vel = tc->reqvel;
     emcmotStatus->current_vel = tc->currentvel;
     emcmotStatus->waiting_on_spindle = tpIsWaitingOnSpindle(tp);
+
+    // KLUDGE Zero out any EMC status that doesn't apply
+    if (tc->synchronized != TC_SYNC_POSITION) {
+        emcmotStatus->pos_tracking_velocity = 0;
+        emcmotStatus->pos_tracking_error = 0;
+    }
+    emcmotStatus->rigid_tap_state = tc->motion_type == TC_RIGIDTAP ? tc->coords.rigidtap.state : RIGIDTAP_INACTIVE;
 
     emcPoseSub(&tc_pos, &tp->currentPos, &emcmotStatus->dtg);
     return TP_ERR_OK;
