@@ -1963,8 +1963,9 @@ EndCondition checkEndCondition(double cycleTime,
 
 double pseudo_sqrt(double x, double c)
 {
-    const double den = (pmSqrt(c + 1) - pmSqrt(c));
-    const double b0 = -pmSqrt(c);
+    const double sqrt_c = pmSqrt(c);
+    const double den = (pmSqrt(c + 1) - sqrt_c);
+    const double b0 = -sqrt_c;
     const double b1 = 1;
     return (b1 * pmSqrt(x+c) + b0) / den;
 }
