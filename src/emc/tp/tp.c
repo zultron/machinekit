@@ -3222,6 +3222,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         case POS_TRACK_MODE_TRAPEZOIDAL:
         {
             // Use trapezoidal velocity calculation to find target velocity
+            // NOTE: this tracking method is smoother but has larger average tracking errors; it's here mostly for compatibility
             double v_target_trapz = fmin(findTrapezoidalDesiredVel(a_max, pos_error, v_final, tc->currentvel, tc->cycle_time), v_max);
             tc->target_vel = v_target_trapz;
             break;
