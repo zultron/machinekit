@@ -32,10 +32,12 @@ typedef enum {
 } spindle_direction_code_t;
 
 typedef enum {
-    POS_TRACKING_INACTIVE,
-    POS_TRACKING_SYNC_ACCEL,
-    POS_TRACKING_ACTIVE
-} position_tracking_state_t;
+    SYNC_INACTIVE,
+    SYNC_ACCEL_RAMP,
+    SYNC_POSITION,
+    SYNC_FINAL_DECEL,
+    SYNC_VELOCITY,
+} spindle_sync_state_t;
 
 typedef enum {
     POS_TRACK_MODE_LEGACY,

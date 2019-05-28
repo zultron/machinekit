@@ -95,11 +95,11 @@ typedef struct {
     hal_float_t *spindle_revs;
     hal_bit_t *spindle_inhibit;	/* RPI: set TRUE to stop spindle (non maskable)*/
     hal_float_t *spindle_tracking_gain; //!< Controls position tracking accuracy from least to most aggressive [0.0-1.0]
-    hal_float_t *pos_tracking_error;
-    hal_s32_t *pos_tracking_mode;
-    hal_s32_t *pos_tracking_state;
-    hal_float_t *pos_tracking_velocity;
-    hal_s32_t *rigid_tap_state;
+    hal_float_t *pos_tracking_error; // Reports the position "error" term from position-synched motion (or 0 if it's not active)
+    hal_s32_t *pos_tracking_mode; // Position tracking "mode", controls which tracking algorithm to use
+    hal_s32_t *spindle_sync_state; // Internal state of position tracking controller
+    hal_float_t *pos_tracking_velocity; // target feed velocity according to position tracker used during tpRunCycle
+    hal_s32_t *rigid_tap_state; // Internal state of rigid tapping state machine
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion maskable with g53 P1*/
     hal_bit_t *feed_inhibit;	/* RPI: set TRUE to stop motion (non maskable)*/

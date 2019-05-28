@@ -181,6 +181,7 @@ extern "C" {
         EMCMOT_SET_MAX_FEED_OVERRIDE,
         EMCMOT_SETUP_ARC_BLENDS,
         EMCMOT_SETUP_CONSISTENCY_CHECKS,
+        EMCMOT_SET_MAX_POSITION_TRACKING_ERROR,
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */
@@ -272,9 +273,9 @@ typedef struct {
         double arcBlendTangentKinkRatio;
         double maxFeedScale;
 
-    consistency_check_config_t consistencyCheckConfig;
+        consistency_check_config_t consistencyCheckConfig;
 
-    struct state_tag_t tag;
+        struct state_tag_t tag;
     } emcmot_command_t;
 
 /*! \todo FIXME - these packed bits might be replaced with chars
@@ -678,7 +679,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 	spindle_fb_status spindle_fb;	/* Spindle feedback input to motion */
     double spindle_tracking_gain; // external control of position trakcing aggressiveness
     position_tracking_mode_t pos_tracking_mode;
-    position_tracking_state_t pos_tracking_state;
+    spindle_sync_state_t spindle_sync_state;
     double pos_tracking_velocity;
     rigid_tap_state_t rigid_tap_state;
     double pos_tracking_error;
@@ -787,6 +788,7 @@ Suggestion: Split this in to an Error and a Status flag register..
         double arcBlendTangentKinkRatio;
         double maxFeedScale;
     consistency_check_config_t consistencyCheckConfig;
+        double maxPositionTrackingError;
     } emcmot_config_t;
 
 /*********************************

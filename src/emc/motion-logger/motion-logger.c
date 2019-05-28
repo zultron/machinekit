@@ -627,9 +627,14 @@ int main(int argc, char* argv[]) {
                 break;
 
             case EMCMOT_SETUP_CONSISTENCY_CHECKS:
-                log_print("SETUP_CONSISTENCY_CHECKS enabled=%d, position_drift=%f\n",
+                log_print("SETUP_CONSISTENCY_CHECKS enabled=%d, position_drift=%0.6f\n",
                           c->consistencyCheckConfig.extraConsistencyChecks,
                           c->consistencyCheckConfig.maxPositionDriftError);
+                break;
+
+            case EMCMOT_SET_MAX_POSITION_TRACKING_ERROR:
+                log_print("SET_MAX_POSITION_TRACKING_ERROR max_position_error=%0.6f\n",
+                          c->maxLimit);
                 break;
 
             default:

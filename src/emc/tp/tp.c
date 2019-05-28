@@ -53,6 +53,8 @@ extern emcmot_status_t *emcmotStatus;
 extern emcmot_debug_t *emcmotDebug;
 extern emcmot_config_t *emcmotConfig;
 
+void clearPositionSyncErrors(void);
+
 /** static function primitives (ugly but less of a pain than moving code around)*/
 STATIC int tpComputeBlendVelocity(
         TC_STRUCT const *tc,
@@ -3068,6 +3070,7 @@ STATIC tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
 
     // Update the modal state displayed by the TP
     tp->execTag = tc->tag;
+    clearPositionSyncErrors();
 
     checkPositionMatch(tp, tc);
     return res;
@@ -3086,6 +3089,7 @@ STATIC void tpSyncVelocityMode(TC_STRUCT * const tc, TC_STRUCT * const nexttc) {
         pos_error -= nexttc->progress;
     }
     tc->target_vel = pos_error;
+    emcmotStatus->spindle_sync_state = SYNC_VELOCITY;
 
     if (nexttc && nexttc->synchronized) {
         //If the next move is synchronized too, then match it's
@@ -3109,6 +3113,36 @@ static inline double pseudo_sqrt_cexpr(double x, double c)
 }
 #endif
 
+static int pos_sync_error_reported = 0;
+void checkPositionSyncError(TP_STRUCT const *tp, TC_STRUCT const *tc)
+{
+    const double max_allowed_error = emcmotConfig->maxPositionTrackingError;
+    if (!pos_sync_error_reported
+            && emcmotStatus->spindle_sync_state == SYNC_POSITION
+            && fabs(emcmotStatus->pos_tracking_error) > max_allowed_error) {
+        rtapi_print_msg(RTAPI_MSG_ERR,"Spindle position tracking error exceeds limit of %f on line %d\n",
+                        max_allowed_error,
+                        tc->id);
+        print_json5_log_start(tpSyncPosition, Run);
+        print_json5_ll_("time_ticks", tp->time_elapsed_ticks);
+        print_json5_double_("current_vel", emcmotStatus->current_vel);
+        print_json5_double_("time", tp->time_elapsed_sec);
+        print_json5_double_("spindle_revs", emcmotStatus->spindle_fb.position_rev);
+        print_json5_double_("spindle_speed_rps", emcmotStatus->spindle_fb.velocity_rps);
+        print_json5_double_("spindle_speed_out", emcmotStatus->spindle_cmd.velocity_rpm_out);
+        print_json5_double_("spindle_tracking_gain", emcmotStatus->spindle_tracking_gain);
+        print_json5_long_("pos_tracking_mode", emcmotStatus->pos_tracking_mode);
+        print_json5_double_("pos_tracking_velocity", emcmotStatus->pos_tracking_velocity);
+        print_json5_double_("pos_tracking_error", emcmotStatus->pos_tracking_error);
+        print_json5_end_();
+        pos_sync_error_reported = 1;
+    }
+}
+void clearPositionSyncErrors()
+{
+    pos_sync_error_reported = 0;
+}
+
 /**
  * Run position mode synchronization.
  * Updates requested velocity for a trajectory segment to track the spindle's position.
@@ -3129,7 +3163,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
 
     const double spindle_vel_rps = findSpindleVelocity(emcmotStatus->spindle_fb.velocity_rps, spindle_origin);
     if(tc->sync_accel) {
-        emcmotStatus->pos_tracking_state = POS_TRACKING_SYNC_ACCEL;
+        emcmotStatus->spindle_sync_state = SYNC_ACCEL_RAMP;
         // detect when velocities match, and move the target accordingly.
         // acceleration will abruptly stop and we will be on our new target.
         // FIX: this is driven by TP cycle time, not the segment cycle time
@@ -3149,7 +3183,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
             tc->target_vel = tc->maxvel;
         }
     } else {
-        emcmotStatus->pos_tracking_state = POS_TRACKING_ACTIVE;
+        emcmotStatus->spindle_sync_state = tc->on_final_decel ? SYNC_FINAL_DECEL : SYNC_POSITION;
         // Multiply by user feed rate to get equivalent desired position
         const double pos_desired = spindle_displacement * tc->uu_per_rev;
         double net_progress = tc->progress - tc->progress_at_sync;
@@ -3568,7 +3602,7 @@ STATIC int tpSteppingCheck(TP_STRUCT * const tp, TC_STRUCT * const tc, TC_STRUCT
  */
 tp_err_t updateSyncTargets(TP_STRUCT *tp, TC_STRUCT *tc, TC_STRUCT *nexttc)
 {
-    emcmotStatus->pos_tracking_state = POS_TRACKING_INACTIVE;
+    emcmotStatus->spindle_sync_state = SYNC_INACTIVE;
     switch (tc->synchronized) {
         case TC_SYNC_NONE:
             emcmotStatus->spindle_fb.synced = 0;
@@ -3580,6 +3614,8 @@ tp_err_t updateSyncTargets(TP_STRUCT *tp, TC_STRUCT *tc, TC_STRUCT *nexttc)
         case TC_SYNC_POSITION:
             tc_debug_print("sync position\n");
             tpSyncPositionMode(tp, tc, nexttc);
+            checkPositionSyncError(tp, tc);
+
             return TP_ERR_OK;
     }
     return TP_ERR_INVALID;

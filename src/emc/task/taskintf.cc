@@ -1622,6 +1622,13 @@ int emcSetupConsistencyChecks(int consistency_checks,
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
+int emcSetMaxPosTrackingError(double max_pos_error)
+{
+    emcmotCommand.command = EMCMOT_SET_MAX_POSITION_TRACKING_ERROR;
+    emcmotCommand.maxLimit = max_pos_error;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
 int emcSetMaxFeedOverride(double maxFeedScale) {
     emcmotCommand.command = EMCMOT_SET_MAX_FEED_OVERRIDE;
     emcmotCommand.maxFeedScale = maxFeedScale;
