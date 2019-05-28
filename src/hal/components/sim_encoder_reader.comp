@@ -5,6 +5,7 @@ pin in float velocity-real-in "Current real velocity";
 param rw float reader-frequency = 10000 "Frequency of simulated encoder reader inner loop";
 param rw s32 hold-time = 10 "Maximum time between encoder pulses before zero velocity is declared, in loop ticks";
 param rw s32 encoder-ppr = 64 "Resolution of encoder";
+param rw s32 counter-mode = 0 "Use quadrature (false, default), or simple up / down counter (true)";
 
 pin out float encoder-position "Simulated encoder position";
 pin out float encoder-velocity "Estimated encoder velocity";
@@ -29,8 +30,9 @@ FUNCTION(_) {
    const double cutoff_time = (double)hold_time * fperiod;
 
    const double dt_reader = 1.0 /(reader_frequency);
-   const double p_real_counts = position_real_in * encoder_ppr;
-   const double v_real_counts = velocity_real_in * encoder_ppr;
+   const double cpr = encoder_ppr * (counter_mode ? 1.0 : 4.0);
+   const double p_real_counts = position_real_in * cpr;
+   const double v_real_counts = velocity_real_in * cpr;
 
    const long p_0 = (long)p_real_counts;
    long p_1 = p_0;
@@ -47,8 +49,8 @@ FUNCTION(_) {
    }
    double t_1 = t;
 
-   encoder_position = (double)p_0 / encoder_ppr;
+   encoder_position = (double)p_0 / cpr;
    // Velocity is non-zero only if we find at least one encoder tick
-   encoder_velocity = t_1 < 0 ? (double)(p_0 - p_1) / (t_0 - t_1) / encoder_ppr : 0;
+   encoder_velocity = t_1 < 0 ? (double)(p_0 - p_1) / (t_0 - t_1) / cpr : 0;
 }
 
