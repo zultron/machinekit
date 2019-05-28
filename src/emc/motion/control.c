@@ -307,28 +307,31 @@ static void process_probe_inputs(void) {
     emcmotStatus->probeVal = !!*(emcmot_hal_data->probe_input);
     if (emcmotStatus->probing) {
         /* check if the probe has been tripped */
-        if (!ignore_probe && (emcmotStatus->probeVal ^ probe_whenclears)) {
+        if (!ignore_probe && (emcmotStatus->probeVal ^ probe_whenclears) && !emcmotStatus->probeTripped) {
             /* remember the current position */
             emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
             /* stop! */
-            emcmotStatus->probing = 0;
             emcmotStatus->probeTripped = 1;
             tpAbort(&emcmotDebug->tp);
-        /* check if the probe hasn't tripped, but the move finished */
+        /* If the move has finished, we set probing = 0 and check if the probe hasn't tripped */
         } else if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->tp) == 0) {
-            /* we are already stopped, but we need to remember the current 
-               position here, because it will still be queried */
-            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
             emcmotStatus->probing = 0;
-            if (ignore_probe || probe_suppress) {
-                emcmotStatus->probeTripped = 0;
-                emcmotStatus->probe_type = 0;
-            } else if(probe_whenclears) {
-                reportError(_("G38.4 move finished without breaking contact."));
-                SET_MOTION_ERROR_FLAG(1);
-            } else {
-                reportError(_("G38.2 move finished without making contact."));
-                SET_MOTION_ERROR_FLAG(1);
+
+            /* we are already stopped, but if the probe did not trip we need to remember the current 
+               position here, because it will still be queried */
+            if(!emcmotStatus->probeTripped) {
+                emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
+
+                if (ignore_probe || probe_suppress) {
+                    emcmotStatus->probeTripped = 0;
+                    emcmotStatus->probe_type = 0;
+                } else if(probe_whenclears) {
+                    reportError(_("G38.4 move finished without breaking contact."));
+                    SET_MOTION_ERROR_FLAG(1);
+                } else {
+                    reportError(_("G38.2 move finished without making contact."));
+                    SET_MOTION_ERROR_FLAG(1);
+                }
             }
         }
     } else if (!old_probeVal && emcmotStatus->probeVal) {
@@ -1818,8 +1821,8 @@ static void output_to_hal(void)
        to one of the debug parameters.  You can also comment out these lines
        and copy elsewhere if you want to observe an automatic variable that
        isn't in scope here. */
-    emcmot_hal_data->debug_bit_0 = joints[1].free_tp_active;
-    emcmot_hal_data->debug_bit_1 = emcmotStatus->enables_new & AF_ENABLED;
+    emcmot_hal_data->debug_bit_0 = emcmotStatus->probeTripped;
+    emcmot_hal_data->debug_bit_1 = emcmotStatus->probing;
     emcmot_hal_data->debug_float_0 = emcmotStatus->net_feed_scale;
     emcmot_hal_data->debug_float_1 = emcmotStatus->spindle_fb.position_rev;
     emcmot_hal_data->debug_float_2 = emcmotStatus->spindle_fb.velocity_rpm;

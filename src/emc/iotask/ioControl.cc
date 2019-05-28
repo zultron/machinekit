@@ -92,6 +92,7 @@ struct iocontrol_str {
     hal_bit_t *coolant_flood;	/* coolant flood output pin */
     hal_bit_t *lube;		/* lube output pin */
     hal_bit_t *lube_level;	/* lube level input pin */
+    hal_float_t *tool_diameter; /* output, diameter of tool in spindle */
 
 
     // the following pins are needed for toolchanging
@@ -543,6 +544,16 @@ int iocontrol_hal_init(void)
 	hal_exit(comp_id);
 	return -1;
     }
+    // diameter of tool in spindle
+    retval = hal_pin_float_newf(HAL_OUT, &(iocontrol_data->tool_diameter), comp_id,
+                 "iocontrol.%d.tool-diameter", n);
+    if (retval < 0) {
+    rtapi_print_msg(RTAPI_MSG_ERR,
+            "IOCONTROL: ERROR: iocontrol %d pin tool_diameter export failed with err=%i\n",
+            n, retval);
+    hal_exit(comp_id);
+    return -1;
+    }
 
     hal_ready(comp_id);
 
@@ -569,6 +580,7 @@ void hal_init_pins(void)
     *(iocontrol_data->tool_prep_pocket)=0;	/* output, pin that holds the P word from the tool to be prepared, only valid when tool-prepare=TRUE */
     iocontrol_data->tool_prep_index=0;  	/* output, param that holds the internal index of the tool to be prepared, for debug */
     *(iocontrol_data->tool_change)=0;		/* output, notifies a tool-change should happen (emc should be in the tool-change position) */
+    *(iocontrol_data->tool_diameter)=0.0;   /* output, pin holds the diameter of tool in spindle */
 }
 
 
@@ -828,6 +840,7 @@ int main(int argc, char *argv[])
 	    emcioStatus.heartbeat++;
 	    emcioStatusBuffer->write(&emcioStatus);
 	}
+    *(iocontrol_data->tool_diameter) = emcioStatus.tool.toolTable[emcioStatus.tool.toolInSpindle].diameter;
 
 	/* read NML, run commands */
 	if (-1 == emcioCommandBuffer->read()) {

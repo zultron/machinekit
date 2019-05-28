@@ -21,7 +21,8 @@ pin in float probe_length "Probe length";
 pin in bit pocket "Pocket";
 pin out bit out "Simulated probe output";
 
-pin out float z_in_length "z-in with probe length applied";
+pin out float z_in_minus_offset "z-in with probe length applied";
+pin out float distance_between_centers "distance between object center and tip center";
 
 function _ fp;
 license "GPL";
@@ -29,10 +30,9 @@ license "GPL";
 
 #include "rtapi_math.h"
 FUNCTION(_) {
-  float distance_between_centers;
   float tip_radius = effective_tip_diameter / 2.0;
   float height = h;
-  z_in_length = z_in - probe_length;
+  z_in_minus_offset = z_in - probe_length;
 
   // if h is zero make equal to width
   if (h == 0.0) {
@@ -43,16 +43,16 @@ FUNCTION(_) {
     case 0: // rectangular
       if (pocket) {
         out = (enable &&
-              (x_in - tip_radius <= x - w/2      || x_in + tip_radius >= x + w/2)      ||
+              ((x_in - tip_radius <= x - w/2      || x_in + tip_radius >= x + w/2)      ||
               (y_in - tip_radius <= y - height/2 || y_in + tip_radius >= y + height/2) ||
-              z_in_length <= z);
+              z_in_minus_offset <= z));
       }
       else {
         // boss
         out = (enable &&
               (x_in + tip_radius >= x - w/2)      && (x_in - tip_radius <= x + w/2)      &&
               (y_in + tip_radius >= y - height/2) && (y_in - tip_radius <= y + height/2) &&
-              z_in_length <= z);
+              z_in_minus_offset <= z);
       }
       break;
 
@@ -62,19 +62,25 @@ FUNCTION(_) {
         // tip is outside pocket if distance between centers plus tip radius is greater than or equal to pocket radius
         out = (enable &&
               (distance_between_centers + tip_radius >= w/2) &&
-              z_in_length <= z);
+              z_in_minus_offset <= z);
       }
       else {
         // boss
         // distance between centers must be less than or equal to the sum of the radii
         out = (enable &&
-              (distance_between_centers <= (w + effective_tip_diameter)/2) &&
-              z_in_length <= z);
+              ((distance_between_centers + tip_radius) <= w/2) &&
+              z_in_minus_offset <= z);
+              // (distance_between_centers <= (w + tip_radius) &&
       }
       break;
 
     case 2: // cylinder oriented along X axis such as in a 4th axis
-      out = 0;
+      // axis at (y, z)
+      distance_between_centers = sqrt(pow(y - y_in, 2) + pow(z - z_in_minus_offset, 2));
+
+      // distance between centers must be less than or equal to the sum of the radii
+      out = (enable &&
+            (distance_between_centers + tip_radius <= w/2));
       break;
 
     default:
