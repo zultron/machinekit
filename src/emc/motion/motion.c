@@ -318,6 +318,7 @@ static int init_hal_io(void)
 
 
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_revs), mot_comp_id, "motion.spindle-revs")) < 0) goto error;
+    // KLUDGE spindle-speed-in is now officially in RPS units, but the actual pin name does not reflect this
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_speed_in), mot_comp_id, "motion.spindle-speed-in")) < 0) goto error;
     // Inspired by pid.c "dummysig" pins that estimate velocity internally
     emcmot_hal_data->spindle_speed_in_estimate = emcmot_hal_data->spindle_speed_in;

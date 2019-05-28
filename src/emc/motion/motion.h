@@ -611,7 +611,7 @@ Suggestion: Split this in to an Error and a Status flag register..
     
     typedef struct {
     double position_rev;
-    double velocity_rpm;
+    double velocity_rps;
     int index_enable;  /* hooked to a canon encoder index-enable */
     int synced;        /* we are doing spindle-synced motion */
     } spindle_fb_status;

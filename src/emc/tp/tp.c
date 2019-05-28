@@ -3079,7 +3079,7 @@ STATIC tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
  * Update requested velocity to follow the spindle's velocity (scaled by feed rate).
  */
 STATIC void tpSyncVelocityMode(TC_STRUCT * const tc, TC_STRUCT * const nexttc) {
-    double speed = fabs(emcmotStatus->spindle_fb.velocity_rpm);
+    double speed = fabs(emcmotStatus->spindle_fb.velocity_rps);
     double pos_error = speed * tc->uu_per_rev;
     // Account for movement due to parabolic blending with next segment
     if(nexttc) {
@@ -3127,14 +3127,14 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
 
     tc_debug_print("spindle_displacement %f, raw_pos %f, ", spindle_displacement, spindle_pos);
 
-    const double spindle_vel = findSpindleVelocity(emcmotStatus->spindle_fb.velocity_rpm, spindle_origin) / 60.0;
+    const double spindle_vel_rps = findSpindleVelocity(emcmotStatus->spindle_fb.velocity_rps, spindle_origin);
     if(tc->sync_accel) {
         emcmotStatus->pos_tracking_state = POS_TRACKING_SYNC_ACCEL;
         // detect when velocities match, and move the target accordingly.
         // acceleration will abruptly stop and we will be on our new target.
         // FIX: this is driven by TP cycle time, not the segment cycle time
         // Experiment: try syncing with averaged spindle speed
-        double target_vel = spindle_vel * tc->uu_per_rev;
+        double target_vel = spindle_vel_rps * tc->uu_per_rev;
         if(tc->currentvel >= target_vel) {
             tc_debug_print("Hit accel target in pos sync\n");
             // move target so as to drive pos_error to 0 next cycle
@@ -3168,7 +3168,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         // we have synced the beginning of the move as best we can -
         // track position (minimize pos_error).
         // This is the velocity we should be at when the position error is c0
-        double v_final = spindle_vel * tc->uu_per_rev;
+        double v_final = spindle_vel_rps * tc->uu_per_rev;
         const double gain = bound(emcmotStatus->spindle_tracking_gain, 1, 0);
         double a_max = tcGetTangentialMaxAccel(tc) * gain;
         double v_max = tc->maxvel;
