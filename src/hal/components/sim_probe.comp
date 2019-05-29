@@ -30,7 +30,10 @@ license "GPL";
 
 #include "rtapi_math.h"
 FUNCTION(_) {
-  float tip_radius = effective_tip_diameter / 2.0;
+  float tip_diameter = effective_tip_diameter;
+  // fudge in some tip error
+  //tip_diameter -= 0.004;
+  float tip_radius = tip_diameter / 2.0;
   float height = h;
   z_in_minus_offset = z_in - probe_length;
 
@@ -43,7 +46,7 @@ FUNCTION(_) {
     case 0: // rectangular
       if (pocket) {
         out = (enable &&
-              ((x_in - tip_radius <= x - w/2      || x_in + tip_radius >= x + w/2)      ||
+              ((x_in - tip_radius <= x - w/2     || x_in + tip_radius >= x + w/2)      ||
               (y_in - tip_radius <= y - height/2 || y_in + tip_radius >= y + height/2) ||
               z_in_minus_offset <= z));
       }
@@ -81,6 +84,14 @@ FUNCTION(_) {
       // distance between centers must be less than or equal to the sum of the radii
       out = (enable &&
             (distance_between_centers + tip_radius <= w/2));
+      break;
+
+    case 3: // ring gauge pocket for setting effective tip diameter
+      distance_between_centers = sqrt(pow(x - x_in, 2) + pow(y - y_in, 2));
+      // tip is outside pocket if distance between centers plus tip radius is greater than or equal to pocket radius
+      out = (enable &&
+            (distance_between_centers >= w/2) &&
+            z_in_minus_offset <= z);
       break;
 
     default:
