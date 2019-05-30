@@ -39,7 +39,7 @@ function _;
 license "GPL";
 ;;
 #include "rtapi_math.h"
-bool sameSign(int num1, int num2);
+bool sameSign(float num1, float num2);
 FUNCTION(_) {
 
 }
