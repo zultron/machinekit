@@ -14,9 +14,13 @@
 *   rate and have the same delay (which determines the amount of
 *   filtering).
 *
-*   There is one function for each group of filters, called
-*   'debounce.G', where G is the group number.  The function
-*   needs to be called from a realtime thread, which sets the
+*   Debounce filter groups can either be loaded using the traditional
+*   indexed syntax (debounce.0, debounce.1, etc) or 
+*   using names=groupname1,groupname2
+*
+*   There is one function for each group of filters, called either
+*   'debounce.G' (where G is the group number) or the name of the group itself.  
+*   The function needs to be called from a realtime thread, which sets the
 *   sample rate for all the filters in that group.
 *
 *   There is one parameter for each group, called 'debounce.G.delay'.
