@@ -166,6 +166,8 @@ pin in float hispeed_tol_above;     // what the rpm tolerance is above or equal 
 
 pin in float motor_hz_per_cmd_hz;
 pin in float vfd_rpm_feedback;
+pin in bit vfd_fault;   //gpio 053
+pin in bit vfd_24V;     //gpio 055
 
 //#if _38_SPECIAL  TODO: Condition won't work in this section of this .comp ... uncomment these lines to manually enable _38_SPECIAL
 //pin out bit last_fwd;
@@ -217,7 +219,7 @@ pin in bit boost_disable;       //set high to disable boost
 // not used
 //pin in s32 encoder_rawcounts;
 //pin in s32 encoder_rawlatched;
-
+pin out u32 orient_problem;         //TODO: REMOVE, debug only
 
 // Bi-directional:
 pin io bit zindex_enable;       //enables reset encoder counts, set from this comp, reset by hm2 encoder comp after z index is hit
@@ -374,12 +376,16 @@ function _ "Tormach Spindle HAL Component M200";
 #define ORIENT_TARGETBAND (8)  //within this range from orient target, we call it "done"
 #define ORIENT_TARGETBAND_TIME   (.200) //(.400) // 303mS was observed worst case where slow slopes could cause us to think orienting is "done" when PID is still homing in
                             //(.100) //must stay within ORIENT_TARGETBAND and have stable vfd_freq_cmd for this many secs to call orient "done"
+#define ORIENT_BAND_IGNORE (3)  //number of encoder counts, in addition to ORIENT_TARGETBAND, when we flag orient-status (used by ATC) with a non-zero.
+                                //in other words, the spindle brake engagement itself may move the spindle some.  And the spindle can move some due to the slop in the
+                                //PDB guide pins -- Matt & I measured 2 counts.  So we've added 50% with "3". We don't believe this to be a significant issue.
 
 #define ORIENT_LONG_ORIENT_TIME (1.0) //in secounds, time to wait before starting to figure out if we're stuck
 #define ORIENT_STUCK_PREAMBLE_TIME (.25) //TODO consider the VFD_RUN and VFD_CMD Delays (.25) //in seconds, time to wait before declaring we're stuck
 //#define ORIENT_BOOST_RPM (5.0)
 //#define ORIENT_MIN_BOOST_RPM (18.0) //need this to exceed the deadband and then some on the VFD
 #define ORIENT_BOOST_PERIOD (.1) //in secs
+#define ORIENT_MAX_BOOST (125) //TODO
 
 #define ERR_LIE (0)
 #define _38_SPECIAL (0)
@@ -390,8 +396,9 @@ function _ "Tormach Spindle HAL Component M200";
 
 #define VFD_BIPOLAR_MODE (1)
 #define VFD_BIPOLAR_FREQ_OFFSET (5003.127) //(5000.46) //(5000.575683)   //defines what freq from the ECM and into VFD is "0".  Below 5000 is reverse, above is forward
-#define VFD_MODE_SWITCH_DELAY (.600) //This is the delay the VFD needs as we switch between VFD modes using  mode0 and mode1 pins before we can enable the drive. (i.e. assert VFD "RUN" pin)
-                                    //Note we utilize 3/4 of this value for switching the vfd-mode0 and vfd-mode1 and 1/2 of this value for switching
+#define VFD_MODE_SWITCH_DELAY (1.00) //This is the delay the VFD needs as we switch between VFD modes using  mode0 and mode1 pins before we can enable the drive. (i.e. assert VFD "RUN" pin)
+                                    //Note at 3/4 of this value we actually switch the vfd-mode0 and vfd-mode1 
+                                    //ALSO NOTE that decreasing this delay is NOT RECOMMENDED without considering the time it takes to release the spindle-brake, M19 to M3 screeches can happen
 #define VFD_FREQ_CMD_TO_ENABLE_DELAY (.0320) //time that VFD enable will be delayed after vfd_freq_cmd changes from inactive vfd_freq_cmd=0 state to an active, non-zero vfd_freq_cmd command state
 #define MAGIC_VFD_FREQ_OFFSET (0) //(164.0) //(41.0)  //determined by the minimum freq below which the VFD stops turning the spindle  (when VFD is in *25 sensitivity mode)
                                   //so theoretically, this is present in normal spindle mode, but the freq is 41/25 = 1.64 Hz vfd-cmd-freq which is what RPM???
@@ -934,6 +941,7 @@ float encoder_spindle_speed;
         if(spindle_state!=SPINDLE_STATE_ORIENTING) { //if we just entered this state
             spindle_state = SPINDLE_STATE_ORIENTING;
             target_computed = 0;
+            orient_problem = 0;
             orient_to = 0;
             oriented = 0;
             orient_P2 = 0; //start at "PID 1" values
@@ -993,6 +1001,7 @@ float encoder_spindle_speed;
                 orient_P2 = 1; //switch to 2nd PID constants
                 if (!oriented) {
                     orient_to = 1;
+                    orient_problem |= 1;
                 //    orient_fault = ORIENT_ERR_TIME_OUT; //TODO does this mess up linuxcnc net M19???
                 }
             }
@@ -1019,6 +1028,7 @@ float encoder_spindle_speed;
         if(spindle_state != SPINDLE_STATE_NORMAL) { //if just entering normal spindle state
             if(spindle_state == SPINDLE_STATE_ORIENTING && !oriented) {
                 orient_to = 1;
+                orient_problem |= 2 ;
          //       orient_fault = ORIENT_ERR_TIME_OUT; setting this here goofs up linuxcnc such that it will never attempt another M19
             }
             spindle_state = SPINDLE_STATE_NORMAL;
@@ -1108,12 +1118,14 @@ float encoder_spindle_speed;
             //since orient_on_target is using tighter tolerance than orient_targetband, we
             //have to deal with orient_status separately
             if (spindle_state == SPINDLE_STATE_LOCKED) {
-                if (enc_err <= -1 * iabs(orient_targetband))
+                if (enc_err <= -1 * iabs(orient_targetband + ORIENT_BAND_IGNORE))
                     orient_status = (float)enc_err; //SLP DEBUG test to simply return enc_err restore this -1.0;
-                else if (enc_err >= iabs(orient_targetband))
+                else if (enc_err >= iabs(orient_targetband + ORIENT_BAND_IGNORE))
                     orient_status = (float)enc_err; //SLP restore this 1.0; (or maybe not)
                 else
                     orient_status = 0.0;
+                if (orient_status)
+                    orient_problem |= 4;
             }
 //            else { //presently setting to "invalid" number incase ATC code samples this at "wrong" time for this variable.  It'll generate a fault as ATC code is looking for it to be zero or not.
 //                    //DEBUG statements in .ngc files are logging the return ... if we see this MAGIC NUMBER, then we know it was sampled at wrong time
@@ -1130,8 +1142,10 @@ float encoder_spindle_speed;
                 if (spindle_state == SPINDLE_STATE_ORIENTING) {
                     orient_good_timer += fperiod;
                     if (orient_good_timer >= ORIENT_TARGETBAND_TIME) {
-                        if (finding_z_index)
+                        if (finding_z_index) {
                             orient_fault = ORIENT_ERR_NO_ZINDEX; //we tried and failed to find Z index pulse 
+                            orient_problem |= 8;
+                        }
                         else oriented = 1;
                     }
                 }
@@ -1180,7 +1194,16 @@ float encoder_spindle_speed;
                         orienting_boost = 0.0; //movement seen, stop orienting_boost immediately so we don't over shoot.
                     }
                 }
-                vfd_rpm_cmd += orienting_boost; //add the boost, if any because we're stuck.
+
+                if (orienting_boost){ //if we don't limit, we can cause over current faults from VFD
+                    if (iabs(orienting_boost) < ORIENT_MAX_BOOST)
+                        vfd_rpm_cmd += orienting_boost; //add the boost, if any because we're stuck.
+                    else {
+                        if (orienting_boost >= 0)
+                            vfd_rpm_cmd += ORIENT_MAX_BOOST;
+                        else vfd_rpm_cmd -= ORIENT_MAX_BOOST;
+                    } 
+                }
             }
             else {
                 orienting_boost = 0.0; //guarantee this is not being done since we're inside targetband and/or ORIENT_LONG_ORIENT_TIME hasn't happened yet
@@ -1458,6 +1481,12 @@ float encoder_spindle_speed;
         vfd_enable_inhibit_timer -= fperiod;
         spindle_on_thur = BIT_FALSE;  //inhibit VFD enable (RUN)
     }
+
+    if (!vfd_24V) //bad when not hi
+        orient_problem |= 0x10;
+    if (vfd_fault)
+        orient_problem |= 0x20;
+        
 
 }
 
