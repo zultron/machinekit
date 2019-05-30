@@ -111,7 +111,7 @@ FUNCTION(command) {
     velocity_out = safe_vel_cmd;
 }
 
-bool sameSign(int num1, int num2)
+bool sameSign(float num1, float num2)
 {
     return ((num1 >= 0 && num2 >= 0) || (num1 < 0 && num2 < 0));
 }
