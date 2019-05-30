@@ -88,12 +88,12 @@ FUNCTION(command) {
             // If there is an offset in the direction motion is being commanded,
             // further constrain the velocity to let that offset be wiped out
             // before motion begins
-            if (!sameSign(safe_vel_cmd, position_offset) && fabs(position_offset) > 0) {
+            if (sameSign(safe_vel_cmd, position_offset) && fabs(position_offset) > 0) {
                 //how much can we subtract from commanded velocity without overshooting the 
                 //intended amount of offset removal?
                 float safe_vel_subtraction = sqrt(2 * acceleration_limit * fabs(position_offset));
                 //don't subtract more offset then the commanded velocity
-                safe_vel_subtraction = fmin(safe_vel_subtraction, safe_vel_cmd);
+                safe_vel_subtraction = fmin(safe_vel_subtraction, fabs(safe_vel_cmd));
                 if(safe_vel_cmd < 0) {
                     safe_vel_subtraction *= -1;
                 }
