@@ -2157,7 +2157,7 @@ int Interp::read_parameter_setting(
                _setup.named_parameter_occurrence, param, value);
 
       dup = strstore(param); // no more need to free this
-      if(dup == 0)
+      if(!dup)
       {
           ERS(NCE_OUT_OF_MEMORY);
       }

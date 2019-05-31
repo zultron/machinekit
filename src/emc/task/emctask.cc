@@ -50,7 +50,7 @@ InterpBase *pinterp=0;
 setup_pointer _is = 0; // helper for gdb hardware watchpoints FIXME
 
 // Saved tag for restoring interp after abort
-static state_tag_t saved_tag = {0};
+static state_tag_t saved_tag = {};
 
 /*
   format string for user-defined programs, e.g., "programs/M1%02d" means

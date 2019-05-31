@@ -150,8 +150,8 @@ int Interp::read_named_parameter(
 				 bool check_exists)    //!< test for existence, not value
 {
     static char name[] = "read_named_parameter";
-    char paramNameBuf[LINELEN+1];
-    int exists;
+    char paramNameBuf[LINELEN+1]="";
+    int exists = false;
     double value;
     parameter_map_iterator pi;
 
