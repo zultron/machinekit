@@ -472,7 +472,7 @@ int emcTaskPlanInit()
 	inifile.Open(emc_inifile);
 	if((inistring = inifile.Find("INTERPRETER", "TASK"))) {
 	    pinterp = interp_from_shlib(inistring);
-	    fprintf(stderr, "interp_from_shlib() -> %p\n", pinterp);
+        fprintf(stderr, "interp_from_shlib() -> %p\n", (void*)pinterp);
 	}
         inifile.Close();
     }
