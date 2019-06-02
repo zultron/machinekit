@@ -67,12 +67,8 @@ setup_struct::setup_struct() :
     origin_index(0),
 
     parameters{0},
-    parameter_occurrence(0),
-    parameter_numbers{0},
-    parameter_values{0},
-    named_parameter_occurrence(0),
-    named_parameters{nullptr},
-    named_parameter_values{0},
+    new_parameters(),
+    new_named_parameters(),
     percent_flag(0),
     plane(CANON_PLANE_XY),
     probe_flag(0),
@@ -156,6 +152,10 @@ setup_struct::setup_struct() :
 
 {
   std::fill(parameters, parameters + interp_param_global::RS274NGC_MAX_PARAMETERS, 0);
+
+  // Prevent unnecessary reallocations
+  new_parameters.reserve(MAX_NAMED_PARAMETERS);
+  new_named_parameters.reserve(MAX_NAMED_PARAMETERS);
 }
     // not sure about sub_context:
     // a plain array of a struct with non-POD data?

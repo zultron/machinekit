@@ -2153,8 +2153,8 @@ int Interp::read_parameter_setting(
       *counter = (*counter + 1);
       CHP(read_real_value(line, counter, &value, parameters));
 
-      logDebug("setting up named param[%d]:|%s| value:%lf",
-               _setup.named_parameter_occurrence, param, value);
+      logDebug("setting up named param[%zu]:|%s| value:%lf",
+               _setup.new_named_parameters.size() + 1, param, value);
 
       dup = strstore(param); // no more need to free this
       if(!dup)
@@ -2162,12 +2162,10 @@ int Interp::read_parameter_setting(
           ERS(NCE_OUT_OF_MEMORY);
       }
       logDebug("%s |%s|", name,  dup);
-      _setup.named_parameters[_setup.named_parameter_occurrence] = dup;
+      _setup.new_named_parameters.emplace_back(dup, value);
 
-      _setup.named_parameter_values[_setup.named_parameter_occurrence] = value;
-      _setup.named_parameter_occurrence++;
-      logDebug("done setting up named param[%d]:|%s| value:%lf",
-               _setup.named_parameter_occurrence, param, value);
+      logDebug("done setting up named param[%zu]:|%s| value:%lf",
+               _setup.new_named_parameters.size(), param, value);
   }
   else
   {
@@ -2177,11 +2175,9 @@ int Interp::read_parameter_setting(
       CHKS((isreadonly(index)), NCE_PARAMETER_NUMBER_READONLY);
       CHKS((line[*counter] != '='),
           NCE_EQUAL_SIGN_MISSING_IN_PARAMETER_SETTING);
-      *counter = (*counter + 1);
+      ++(*counter);
       CHP(read_real_value(line, counter, &value, parameters));
-      _setup.parameter_numbers[_setup.parameter_occurrence] = index;
-      _setup.parameter_values[_setup.parameter_occurrence] = value;
-      _setup.parameter_occurrence++;
+      _setup.new_parameters.emplace_back(index, value);
   }
   return INTERP_OK;
 }
@@ -3155,7 +3151,7 @@ int Interp::read_text(
     CHP(close_and_downcase(line));
   }
 
-  _setup.parameter_occurrence = 0;      /* initialize parameter buffer */
+  _setup.new_parameters.clear();      /* initialize parameter buffer */
 
   if ((line[0] == 0) || ((line[0] == '/') && (GET_BLOCK_DELETE())))
     *length = 0;

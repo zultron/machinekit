@@ -355,7 +355,6 @@ This executes a previously parsed block.
 int Interp::_execute(const char *command)
 {
   int status;
-  int n;
   int MDImode = 0;
   block_pointer eblock = &EXECUTING_BLOCK(_setup);
   extern const char *call_statenames[];
@@ -425,22 +424,22 @@ int Interp::_execute(const char *command)
     return INTERP_OK;
   }
 
-  for (n = 0; n < _setup.parameter_occurrence; n++)
+  for (auto& param_pair : _setup.new_parameters)
   {  // copy parameter settings from parameter buffer into parameter table
-    _setup.parameters[_setup.parameter_numbers[n]]
-        = _setup.parameter_values[n];
+    _setup.parameters[param_pair.first] = param_pair.second;
   }
 
   // logDebug("_setup.named_parameter_occurrence = %d",
   //          _setup.named_parameter_occurrence);
-  for (n = 0; n < _setup.named_parameter_occurrence; n++)
+  for (auto const& param_pair : _setup.new_named_parameters)
   {  // copy parameter settings from parameter buffer into parameter table
 
-    logDebug("storing param:|%s|", _setup.named_parameters[n]);
-    CHP(store_named_param(&_setup, _setup.named_parameters[n],
-                          _setup.named_parameter_values[n]));
+    logDebug("storing param:|%s|", param_pair.first);
+    CHP(store_named_param(&_setup, param_pair.first, param_pair.second));
   }
-  _setup.named_parameter_occurrence = 0;
+
+  // TODO decide if these should be cleared here or before read starts (mostly for symmetry)
+  _setup.new_named_parameters.clear();
 
   if (_setup.line_length != 0) {        /* line not blank */
 

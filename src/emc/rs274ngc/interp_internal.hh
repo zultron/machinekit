@@ -30,6 +30,7 @@
 
 #include <coordinatetransform.hh>
 #include <unordered_map>
+#include <vector>
 
 #define _(s) gettext(s)
 
@@ -468,12 +469,8 @@ struct setup_struct
   int origin_index;             // active origin (1=G54 to 9=G59.3)
 
   double parameters[interp_param_global::RS274NGC_MAX_PARAMETERS];   // system parameters
-  int parameter_occurrence;     // parameter buffer index
-  int parameter_numbers[MAX_NAMED_PARAMETERS];    // parameter number buffer
-  double parameter_values[MAX_NAMED_PARAMETERS];  // parameter value buffer
-  int named_parameter_occurrence;
-  const char *named_parameters[MAX_NAMED_PARAMETERS];
-  double named_parameter_values[MAX_NAMED_PARAMETERS];
+  std::vector<std::pair<size_t, double>> new_parameters;
+  std::vector<std::pair<const char *, double>> new_named_parameters;
   bool percent_flag;          // true means first line was percent sign
   CANON_PLANE plane;            // active plane, XY-, YZ-, or XZ-plane
   // Queue-buster flags
