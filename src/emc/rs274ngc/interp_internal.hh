@@ -479,6 +479,7 @@ struct setup_struct
   bool orient_flag;           // flag indicating waiting for spindle orient done
   bool toolchange_flag;       // flag indicating we just had a tool change
   bool work_offset_modified_flag; // indicates a work offset / rotation value was changed (e.g. by G10)
+  bool have_new_reserved_parameters; // flags an incoming modification to a "reserved" parameter (e.g. coordinate offset)
 
   int input_index;		// channel queried
   bool input_digital;		// input queried was digital (false=analog)

@@ -24,6 +24,7 @@ enum {MAX_EXTENDED_WORK_CSYS = 500};
 // 31-5000 - G code user parameters. These parameters are global in the G code file, and available for general use. Volatile.
 enum InterpParameterIndex {
 // 5061-5069 - Coordinates of a G38 probe result (X, Y, Z, A, B, C, U, V & W). Coordinates are in the coordinate system in which the G38 took place. Volatile.
+    INTERP_MAX_USER_PARAMETER=5000,
     G38_X=5061,
     G38_Y,
     G38_Z,

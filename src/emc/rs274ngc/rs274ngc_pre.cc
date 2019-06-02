@@ -102,6 +102,9 @@ include an option for suppressing superfluous commands.
 #include "modal_state.hh"
 
 #include <unordered_set>
+#include <algorithm>
+#include <functional>
+using namespace std::placeholders;
 
 #include <interp_parameter_def.hh>
 
@@ -423,6 +426,14 @@ int Interp::_execute(const char *command)
     logDebug("skipping to: %s", _setup.skipping_o);
     return INTERP_OK;
   }
+
+  // Linear search, consider replacing with ordered map if this gets big
+  _setup.have_new_reserved_parameters = std::any_of(
+              _setup.new_parameters.begin(),
+              _setup.new_parameters.end(),
+              [](const std::pair<size_t, double> &prm){
+                return prm.first > 5000;
+              });
 
   for (auto& param_pair : _setup.new_parameters)
   {  // copy parameter settings from parameter buffer into parameter table

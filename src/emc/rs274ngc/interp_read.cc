@@ -3152,6 +3152,7 @@ int Interp::read_text(
   }
 
   _setup.new_parameters.clear();      /* initialize parameter buffer */
+  _setup.have_new_reserved_parameters = false;
 
   if ((line[0] == 0) || ((line[0] == '/') && (GET_BLOCK_DELETE())))
     *length = 0;

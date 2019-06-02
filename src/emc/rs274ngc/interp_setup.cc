@@ -76,6 +76,7 @@ setup_struct::setup_struct() :
     orient_flag(0),
     toolchange_flag(0),
     work_offset_modified_flag(false),
+    have_new_reserved_parameters(false),
     input_index(0),
     input_digital(0),
     cutter_comp_firstmove(0),
@@ -188,11 +189,12 @@ int setup_struct::get_toplevel_line_number() const
 
 void setup_struct::clear_queue_buster_flags()
 {
-    probe_flag = false;            // flag indicating probing done
-    input_flag = false;            // flag indicating waiting for input done
-    orient_flag = false;           // flag indicating waiting for spindle orient done
-    toolchange_flag = false;       // flag indicating we just had a tool change
-    work_offset_modified_flag = false; // indicates a work offset / rotation value was changed (e.g. by G10)
+    probe_flag = false;
+    input_flag = false;
+    orient_flag = false;
+    toolchange_flag = false;
+    work_offset_modified_flag = false;
+    have_new_reserved_parameters = false;
 }
 
 setup_struct::~setup_struct() {
