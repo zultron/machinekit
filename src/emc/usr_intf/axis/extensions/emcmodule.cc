@@ -431,6 +431,16 @@ static PyObject *pose(const EmcPose &p) {
     return res;
 }
 
+static PyObject *tupleFromRotateShiftTransform(const RotateShiftTransform &p) {
+    PyObject *res = PyTuple_New(10);
+
+    for (int i = 0; i <9; ++i) {
+        PyTuple_SET_ITEM(res, i, PyFloat_FromDouble(p.shift.tf[i]));
+    }
+    PyTuple_SET_ITEM(res, 9, PyFloat_FromDouble(p.getXYRotationDeg()));
+    return res;
+}
+
 static PyObject *Stat_g5x_index(pyStatChannel *s) {
     return PyInt_FromLong(s->status.task.g5x_index);
 }
@@ -440,13 +450,15 @@ static PyObject *Stat_g5x_offset(pyStatChannel *s) {
 }
 
 static PyObject *Stat_g5x_offsets(pyStatChannel *s) {
-    PyObject *res = PyTuple_New(10);
-    int i;
+    PyObject *res = PyDict_New();
+    if (!res) {return res;}
     // Set index 0 to the current offset so that we can write
     // `stat.g5x_offsets[stat.g5x_index]` in python
-    PyTuple_SET_ITEM(res, 0, pose(s->status.task.g5x_offset));
-    for (i=0; i<9; i++)
-	PyTuple_SET_ITEM(res, i+1, pose(s->status.task.g5x_offsets[i]));
+    PyDict_SetItem(res, PyInt_FromLong(0), pose(s->status.task.g5x_offset));
+
+    for (size_t i = 1; i < s->status.task.g5x_table.size(); ++i) {
+        PyDict_SetItem(res, PyInt_FromSize_t(i), tupleFromRotateShiftTransform(s->status.task.g5x_table[i]));
+    }
     return res;
 }
 

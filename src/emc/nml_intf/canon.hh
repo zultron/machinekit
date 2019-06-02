@@ -19,6 +19,8 @@
 #include "emcpos.h"
 #include "emctool.h"
 
+#include <coordinatetransform.hh>
+
 struct StateTag;
 /*
   This is the header file that all applications that use the
@@ -142,6 +144,12 @@ enum CANON_AXIS
 extern void INIT_CANON();
 
 /* Representation */
+
+extern void SET_G5X_TRANSFORM(int origin,
+                           double x, double y, double z,
+                           double a, double b, double c,
+                           double u, double v, double w,
+                           double xy_rotation_deg);
 
 extern void SET_G5X_TRANSFORM(int origin,
                            double x, double y, double z,
@@ -864,6 +872,7 @@ extern int GET_EXTERNAL_SELECTED_TOOL_SLOT();
 // Returns the CANON_TOOL_TABLE structure associated with the tool
 // in the given pocket
 extern CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket);
+extern RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin);
 
 // return the value of iocontrol's toolchanger-fault pin
 extern int GET_EXTERNAL_TC_FAULT();
@@ -894,7 +903,6 @@ extern double GET_EXTERNAL_ANALOG_INPUT(int index, double def);
 
 // Returns the mask of axes present in the system
 extern int GET_EXTERNAL_AXIS_MASK();
-
 
 #define PARAMETER_FILE_NAME_LENGTH 100
 

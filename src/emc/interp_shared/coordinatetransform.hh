@@ -46,7 +46,7 @@ struct RotateShiftTransform : public TransformBase
 
     RotateShiftTransform();
     RotateShiftTransform(PositionArray const &pos,
-                         double xy_rot_rad);
+                         double xy_rot_deg);
 
     void apply_fwd(PositionArray &p) const;
     void apply_inv(PositionArray &p) const;
@@ -106,5 +106,7 @@ struct LocalToMachineTransform : public TransformBase
 
     void rescaleAllTransforms(UnitsTransform const &to_new_units);
 };
+
+void convertAxisUnits(RotateShiftTransform &out, const UnitsTransform & units);
 
 #endif // COORDINATETRANSFORM_HH

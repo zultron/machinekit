@@ -69,25 +69,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.xo = self.yo = self.zo = self.ao = self.bo = self.co = self.uo = self.vo = self.wo = 0
         self.dwell_time = 0
         self.suppress = 0
-        self.g92_offset_x = 0.0
-        self.g92_offset_y = 0.0
-        self.g92_offset_z = 0.0
-        self.g92_offset_a = 0.0
-        self.g92_offset_b = 0.0
-        self.g92_offset_c = 0.0
-        self.g92_offset_u = 0.0
-        self.g92_offset_v = 0.0
-        self.g92_offset_w = 0.0
-        self.g5x_index = 1
-        self.g5x_offset_x = 0.0
-        self.g5x_offset_y = 0.0
-        self.g5x_offset_z = 0.0
-        self.g5x_offset_a = 0.0
-        self.g5x_offset_b = 0.0
-        self.g5x_offset_c = 0.0
-        self.g5x_offset_u = 0.0
-        self.g5x_offset_v = 0.0
-        self.g5x_offset_w = 0.0
+        Translated.__init__(self, 1)
         temp = inifile.find("DISPLAY", "GEOMETRY")
         self.is_rear_tp_lathe = bool(temp == "-XZ")
         self.is_foam = bool(inifile.find("DISPLAY", "FOAM"))

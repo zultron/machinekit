@@ -521,7 +521,7 @@ PositionArray getAxisWordsFromBlock(block_pointer b, const PositionArray &curren
  */
 RotateShiftTransform getAxisWordsFromBlock(block_pointer b, RotateShiftTransform const & current)
 {
-    RotateShiftTransform out(getAxisWordsFromBlock(b, current.shift.tf), 0.0);
-    out.setXYRotationDeg(b->r_flag ? b->r_number : current.getXYRotationDeg());
+    RotateShiftTransform out(getAxisWordsFromBlock(b, current.shift.tf),
+                             b->r_flag ? b->r_number : current.getXYRotationDeg());
     return out;
 }

@@ -441,7 +441,7 @@ SCENARIO("Applying a work offset")
       THEN("Interp execution fails with an error") {
         REQUIRE_INTERP_ERROR(test_interp.execute("G54.1 P-1"));
         REQUIRE_INTERP_ERROR(test_interp.convert_coordinate_system(G_54_1, -1, settings));
-        REQUIRE_INTERP_ERROR(test_interp.convert_coordinate_system(G_54_1, 100, settings));
+        REQUIRE_INTERP_ERROR(test_interp.convert_coordinate_system(G_54_1, 501, settings));
       }
     }
     WHEN("Valid extended offset is created, then later requested") {

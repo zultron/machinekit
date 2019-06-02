@@ -5,6 +5,8 @@
 #include <interp_fwd.hh>
 #include <canon.hh>
 #include <string>
+#include <coordinatetransform.hh>
+#include <interp_parameter_def.hh>
 
 struct StandaloneInterpInternals;
 class InterpBase;
@@ -24,7 +26,6 @@ struct StandaloneInterpInternals
   int _feed_mode;
   double _feed_rate;
   int _flood;
-  double _length_unit_factor;
   CANON_UNITS _length_unit_type;
   int _line_number;
   int _mist;
@@ -57,6 +58,8 @@ struct StandaloneInterpInternals
   CANON_DIRECTION _spindle_turning;
   int _pockets_max;
   CANON_TOOL_TABLE _tools[CANON_POCKETS_MAX];
+  std::array<RotateShiftTransform, interp_param_global::MAX_EXTENDED_WORK_CSYS> _g5x_table;
+  UnitsTransform programToUser;
   /* optional program stop */
   bool optional_program_stop;
   /* optional block delete */

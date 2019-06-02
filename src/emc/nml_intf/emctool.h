@@ -23,6 +23,12 @@
 #define CANON_POCKETS_MAX 1001	// max size of carousel handled
 #define CANON_TOOL_ENTRY_LEN 256	// how long each file line can be
 
+struct RotateShiftTransform;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct CANON_TOOL_TABLE {
     int toolno;
     EmcPose offset;
@@ -31,5 +37,9 @@ struct CANON_TOOL_TABLE {
     double backangle;
     int orientation;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -100,9 +100,10 @@ RotateShiftTransform::RotateShiftTransform() :
 {
 }
 
-RotateShiftTransform::RotateShiftTransform(const PositionArray & pos, double xy_rot_rad) :
-    shift(pos), xy_rotation_rad(xy_rot_rad)
+RotateShiftTransform::RotateShiftTransform(const PositionArray & pos, double xy_rot_deg) :
+    shift(pos)
 {
+    setXYRotationDeg(xy_rot_deg);
 }
 
 void RotateShiftTransform::apply_fwd(PositionArray & p) const
@@ -243,4 +244,13 @@ void LocalToMachineTransform::rescaleAllTransforms(const UnitsTransform & to_new
     to_new_units.apply_fwd(g92Offset.tf);
     to_new_units.apply_fwd(g5xOffset.shift.tf);
     to_new_units.apply_fwd(toolOffset.tf);
+}
+
+/**
+ * Applies unit conversion supplied to linear / angular axes.
+ * @note coordinate system rotation is always stored internally as radians, so this is NOT converted.
+ */
+void convertAxisUnits(RotateShiftTransform & out, const UnitsTransform & units)
+{
+    units.apply_fwd(out.shift.tf);
 }

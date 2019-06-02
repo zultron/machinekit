@@ -512,9 +512,9 @@ ShiftTransform Interp::getG92ActiveOffset(setup_pointer settings)
   }
 }
 
-int Interp::storeG92PersistentParms(const ShiftTransform & tool_offset, setup_pointer settings)
+int Interp::storeG92PersistentParms(const ShiftTransform & g92_offset, setup_pointer settings)
 {
-  PositionArray g92_in_user_units = convertsProgramToUser()(settings->transform.g92Offset.tf);
+  PositionArray g92_in_user_units = convertsProgramToUser()(g92_offset.tf);
 
   extract_axes(g92_in_user_units,
                settings->parameters[G92_X],
@@ -545,51 +545,59 @@ int Interp::store_tool_offset(setup_pointer settings, const ShiftTransform & too
   return INTERP_OK;
 }
 
+RotateShiftTransform Interp::find_work_offset_from_parameters(setup_pointer settings, int origin)
+{
+    const int prm_offset = getWorkOffsetParamIdx(origin, 1); // X starts at 1 in PRM table
+    // KLUDGE assumes contiguous parameters X,Y,Z,...,R
+    return RotateShiftTransform(toArray(settings->parameters + prm_offset,
+                                        settings->parameters + prm_offset + 9),
+                                settings->parameters[prm_offset + 9]);
+}
+
+int Interp::store_work_offset_to_parameters(setup_pointer settings, const RotateShiftTransform & work_offset, int origin)
+{
+    const size_t prm_offset = (size_t)getWorkOffsetParamBase(origin);
+
+    extract_axes(work_offset.shift.tf,
+                settings->parameters[1 + prm_offset],
+                settings->parameters[2 + prm_offset],
+                settings->parameters[3 + prm_offset],
+                settings->parameters[4 + prm_offset],
+                settings->parameters[5 + prm_offset],
+                settings->parameters[6 + prm_offset],
+                settings->parameters[7 + prm_offset],
+                settings->parameters[8 + prm_offset],
+                settings->parameters[9 + prm_offset]);
+
+    settings->parameters[10 + prm_offset] = work_offset.getXYRotationDeg(); // Rotation
+    return INTERP_OK;
+}
+
 /** Finds the specified work offset in program units. */
 int Interp::find_work_offset(int origin, RotateShiftTransform &work_offset)
 {
   if (origin <= 9) {
-    // Parameters take precedence
-    const size_t prm_offset = (size_t)origin * 20 + 5200;
-
-    PositionArray work_offset_user = toArray(
-          _setup.parameters[1 + prm_offset],
-          _setup.parameters[2 + prm_offset],
-          _setup.parameters[3 + prm_offset],
-          _setup.parameters[4 + prm_offset],
-          _setup.parameters[5 + prm_offset],
-          _setup.parameters[6 + prm_offset],
-          _setup.parameters[7 + prm_offset],
-          _setup.parameters[8 + prm_offset],
-          _setup.parameters[9 + prm_offset]);
-    RotateShiftTransform out(convertsUserToProgram().forward(work_offset_user), 0.0);
-    out.setXYRotationDeg(USER_TO_PROGRAM_ANG(_setup.parameters[10 + prm_offset])); // Rotation
-    work_offset = out;
+    work_offset = find_work_offset_from_parameters(&_setup, origin);
+    // FIXME ugly way to keep work offsets in sync with parameters
+    // eventually do this properly during the _read stage when parameters are updated
+    _setup.work_offsets_user[origin] = work_offset;
   } else {
-    work_offset = _setup.work_offsets[origin];
+    work_offset = _setup.work_offsets_user[origin];
   }
+
+  convertAxisUnits(work_offset, convertsUserToProgram());
   return INTERP_OK;
 }
 
 int Interp::store_work_offset(const RotateShiftTransform & work_offset, int origin)
 {
+  RotateShiftTransform work_offset_user = work_offset;
+  convertAxisUnits(work_offset_user, convertsProgramToUser());
+
   if (origin <= 9) {
-    const size_t prm_offset = (size_t)origin * 20 + 5200;
-
-    extract_axes(convertsProgramToUser().forward(work_offset.shift.tf),
-                _setup.parameters[1 + prm_offset],
-                _setup.parameters[2 + prm_offset],
-                _setup.parameters[3 + prm_offset],
-                _setup.parameters[4 + prm_offset],
-                _setup.parameters[5 + prm_offset],
-                _setup.parameters[6 + prm_offset],
-                _setup.parameters[7 + prm_offset],
-                _setup.parameters[8 + prm_offset],
-                _setup.parameters[9 + prm_offset]);
-
-    _setup.parameters[10 + prm_offset] = PROGRAM_TO_USER_ANG(work_offset.getXYRotationDeg()); // Rotation
+      store_work_offset_to_parameters(&_setup, work_offset_user, origin);
   }
-  _setup.work_offsets[origin] = work_offset;
+  _setup.work_offsets_user[origin] = work_offset_user;
   return INTERP_OK;
 }
 

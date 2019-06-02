@@ -236,7 +236,7 @@ error message.
 int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
 			  setup_pointer settings) //!< pointer to machine settings
 {
-  int status;
+  int status = 0;
 
   block->line_number = settings->sequence_number;
   /* The idea here is to only increment the stepping ID if we want to be able
@@ -310,7 +310,8 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
       }
   }
   CHP(convert_m(block, settings));
-  CHP(convert_g(block, settings));
+  CHP(convert_g(block, settings, settings->work_offset_modified_flag));
+
   /* convert m0, m1, m2, m30, m60, or (when main program loops disabled) m99 */
   if ((block->m_modes[4] != -1) && ONCE(STEP_MGROUP4)) {
       if (STEP_REMAPPED_IN_BLOCK(block, STEP_MGROUP4)) {
@@ -325,17 +326,14 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 	ERP(status);
     }
   }
-  if (settings->probe_flag)
-      return (INTERP_EXECUTE_FINISH);
 
-  if (settings->input_flag)
-      return (INTERP_EXECUTE_FINISH);
-
-  if (settings->toolchange_flag)
-      return (INTERP_EXECUTE_FINISH);
-
-  if (settings->orient_flag)
-      return (INTERP_EXECUTE_FINISH);
+  if (settings->probe_flag
+          || settings->input_flag
+          || settings->toolchange_flag
+          || settings->orient_flag
+          || settings->work_offset_modified_flag) {
+      return INTERP_EXECUTE_FINISH;
+  }
 
   return INTERP_OK;
 }

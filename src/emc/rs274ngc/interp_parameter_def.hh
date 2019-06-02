@@ -19,10 +19,6 @@
 namespace interp_param_global
 {
 
-enum RotationParameterIndex {
-    R=10
-};
-
 enum {MAX_EXTENDED_WORK_CSYS = 500};
 
 // 31-5000 - G code user parameters. These parameters are global in the G code file, and available for general use. Volatile.
@@ -216,9 +212,21 @@ enum InterpParameterIndex {
     EXTENDED_WORK_OFFSET_END=EXTENDED_WORK_OFFSET_START + MAX_EXTENDED_WORK_CSYS * 20,
 };
 
-static inline int getWorkOffsetIdx(int active_csys, int axis)
+/**
+ * @return parameter "base" index for the given coordinate system
+ */
+static inline int getWorkOffsetParamBase(int active_csys)
 {
-    return 5200 + axis + active_csys * 20;
+    return 5200 + active_csys * 20;
 }
+
+/**
+ * @return parameter index for the given coordinate system and one-indexed axis_num (X=1, Y=2, etc.)
+ */
+static inline int getWorkOffsetParamIdx(int active_csys, int axis_num)
+{
+    return getWorkOffsetParamBase(active_csys) + axis_num;
+}
+
 }
 #endif // INTERP_PARAMETER_DEF_H

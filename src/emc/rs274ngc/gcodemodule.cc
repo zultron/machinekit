@@ -311,17 +311,11 @@ void SET_G5X_TRANSFORM(int origin,
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line();
     if(interp_error) return;
-    PyObject *result =
-        callmethod(callback, "set_g5x_offset", "ifffffffff",
-                origin, x, y, z, a, b, c, u, v, w);
-    if(result == nullptr) interp_error ++;
-    Py_XDECREF(result);
-    maybe_new_line();
-    if(interp_error) return;
-    result =
-        callmethod(callback, "set_xy_rotation", "f", xy_rotation_deg);
-    if(result == nullptr) interp_error ++;
-    Py_XDECREF(result);
+    PyObject *result_offset =
+        callmethod(callback, "set_g5x_transform", "iffffffffff",
+                origin, x, y, z, a, b, c, u, v, w, xy_rotation_deg);
+    if(!result_offset) interp_error ++;
+    Py_XDECREF(result_offset);
 }
 
 void SET_G92_OFFSET(double x, double y, double z,
@@ -599,7 +593,9 @@ void GET_EXTERNAL_PARAMETER_FILE_NAME(char *name, int max_size) {
     memset(name, 0, max_size);
     strncpy(name, s, max_size - 1);
 }
+
 CANON_UNITS GET_EXTERNAL_LENGTH_UNIT_TYPE() { return CANON_UNITS_INCHES; }
+
 CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket) {
     CANON_TOOL_TABLE t = {-1,{{0,0,0},0,0,0,0,0,0},0,0,0,0};
     if(interp_error) return t;
@@ -612,6 +608,21 @@ CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket) {
             interp_error ++;
 
     Py_XDECREF(result);
+    return t;
+}
+
+RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin) {
+    RotateShiftTransform t = {};
+    double xy_rotation_deg = 0.0;
+    if(interp_error) return t;
+    PyObject *result =
+        callmethod(callback, "get_g5x_transform", "i", origin);
+    if(result == nullptr ||
+       !PyArg_ParseTuple(result, "dddddddddd", UNPACK_POSITION_ARRAY(t.shift.tf), &xy_rotation_deg))
+            interp_error ++;
+
+    Py_XDECREF(result);
+    t.setXYRotationDeg(xy_rotation_deg);
     return t;
 }
 

@@ -1590,7 +1590,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
     break;
   case G_54_1:
     origin = p_word;
-    CHKS(origin < 1, "Invalid work offset %d requested (must be between 1 and 500)", origin);
+    CHKS(origin < 1 || origin > MAX_EXTENDED_WORK_CSYS, "Invalid work offset %d requested (must be between 1 and %d)", origin, MAX_EXTENDED_WORK_CSYS);
     break;
   default:
     ERS(NCE_BUG_CODE_NOT_IN_RANGE_G54_TO_G593);
@@ -1614,16 +1614,26 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   CHP(find_work_offset(origin, settings->transform.g5xOffset));
 
   // FIXME force the extended work offsets to match parameters (user might have changed them underneath us)
-  settings->work_offsets[origin] = settings->transform.g5xOffset;
+  settings->work_offsets_user[origin] = settings->transform.g5xOffset;
 
   write_and_update_state_tag(nullptr);
 
   // Extract transform parts in the order that canon / tests expect
-  SET_G5X_TRANSFORM(origin,
-                    UNPACK_POSITION_ARRAY_REF(settings->transform.g5xOffset.shift.tf),
-                    settings->transform.g5xOffset.getXYRotationDeg());
+  send_current_g5x_transform();
   SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
   return INTERP_OK;
+}
+
+void Interp::send_current_g5x_transform()
+{
+  send_g5x_transform(_setup.origin_index, _setup.transform.g5xOffset);
+}
+
+void Interp::send_g5x_transform(int origin, const RotateShiftTransform & g5x_transform)
+{
+  SET_G5X_TRANSFORM(origin,
+                    UNPACK_POSITION_ARRAY_REF(g5x_transform.shift.tf),
+                    g5x_transform.getXYRotationDeg());
 }
 
 /****************************************************************************/
@@ -2153,7 +2163,8 @@ until most of the other modes are set.
 */
 
 int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS274/NGC instructions
-		      setup_pointer settings)    //!< pointer to machine settings
+              setup_pointer settings, //!< pointer to machine settings
+                      bool &queue_buster)
 {
     int status;
 
@@ -2212,7 +2223,7 @@ int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS27
 	CHP(status);
     }
     if ((block->g_modes[GM_MODAL_0] != -1) && ONCE(STEP_MODAL_0)) {
-      status = convert_modal_0(block->g_modes[GM_MODAL_0], block, settings);
+      status = convert_modal_0(block->g_modes[GM_MODAL_0], block, settings, queue_buster);
       CHP(status);
   }
     if ((block->motion_to_be != -1)  && ONCE(STEP_MOTION)){
@@ -2810,6 +2821,7 @@ int Interp::restore_from_tag(StateTag const &tag)
 	_setup.toolchange_flag = false;
 	_setup.probe_flag = false;
 	_setup.orient_flag = false;
+    _setup.work_offset_modified_flag = false;
 
     // Restore line number from tag
     _setup.sequence_number = tag.fields[GM_FIELD_LINE_NUMBER];
@@ -2840,7 +2852,7 @@ int Interp::restore_from_tag(StateTag const &tag)
         char *s;
         while ((s = strtok_r(last, "\n", &last)) != NULL) {
             int status = execute(s);
-            if (status != INTERP_OK) {
+            if (status > INTERP_MIN_ERROR) {
                 char currentError[LINELEN + 1];
                 strcpy(currentError, getSavedError());
                 logDebug("Interp::restore_from_tag - FAILED with status=%d ('%s') trying to execute line: %s", status, currentError, s);
@@ -3338,16 +3350,17 @@ G53) are executed elsewhere.
 
 */
 
-int Interp::convert_modal_0(int code,    //!< G code, must be from group 0                
+int Interp::convert_modal_0(int code,    //!< G code, must be from group 0
                            block_pointer block, //!< pointer to a block of RS274/NGC instructions
-                           setup_pointer settings)      //!< pointer to machine settings                 
+                           setup_pointer settings, //!< pointer to machine settings
+                           bool &queue_buster)
 {
-
   if (code == G_10) {
       if(block->l_number == 1 || block->l_number == 10 || block->l_number == 11)
           CHP(convert_setup_tool(block, settings));
       else
           CHP(convert_setup(block, settings));
+      queue_buster = true;
   } else if ((code == G_28) || (code == G_30)) {
     CHP(convert_home(code, block, settings));
   } else if ((code == G_28_1) || (code == G_30_1)) {
@@ -3888,20 +3901,19 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
   }
   store_work_offset(desired_csys.g5xOffset, p_int);
 
+  // KLUDGE always send a coordinate system update
+  send_g5x_transform(p_int, desired_csys.g5xOffset);
   write_and_update_state_tag(nullptr);
+
   if (p_int == settings->origin_index) {        /* system is currently used */
     settings->current = desired_csys.inverse_from_nose(pos_current_nose);
     settings->transform = desired_csys;
-
-    SET_G5X_TRANSFORM(p_int,
-                      UNPACK_POSITION_ARRAY_REF(desired_csys.g5xOffset.shift.tf),
-                      desired_csys.g5xOffset.getXYRotationDeg());
   } else {
-    // Queue message with non-current offset values
-    SEND_TAG_MSG();
+      // Restore the current offset in task / canon
 #ifdef DEBUG_EMC
-    enqueue_COMMENT("interpreter: setting coordinate system origin");
+      enqueue_COMMENT("interpreter: setting coordinate system origin");
 #endif
+      send_current_g5x_transform();
   }
   return INTERP_OK;
 }

@@ -259,7 +259,7 @@ static int feed_mode = 0;
 static int synched = 0;
 
 
-static inline UnitsTransform ConvertsCanonToMotionUnits()
+static inline UnitsTransform ConvertsCanonToUserUnits()
 {
     return UnitsTransform(GET_EXTERNAL_LENGTH_UNITS(), GET_EXTERNAL_ANGLE_UNITS());
 }
@@ -269,7 +269,7 @@ static inline UnitsTransform ConvertsProgramToCanonUnits()
     return UnitsTransform(getProgramLengthUnits(), getProgramAngularUnits());
 }
 
-static inline UnitsTransform ConvertsMotionToCanonUnits()
+static inline UnitsTransform ConvertsUserToCanonUnits()
 {
     return UnitsTransform(1.0 / GET_EXTERNAL_LENGTH_UNITS(), 1.0 / GET_EXTERNAL_ANGLE_UNITS());
 }
@@ -340,7 +340,7 @@ static PM_CARTESIAN to_ext_len(const PM_CARTESIAN & pos) {
 }
 
 static EmcPose to_ext_pose(PositionArray pos) {
-    const UnitsTransform canon_to_motion_units = ConvertsCanonToMotionUnits();
+    const UnitsTransform canon_to_motion_units = ConvertsCanonToUserUnits();
     canon_to_motion_units.apply_fwd(pos);
     return toEmcPose(pos);
 }
@@ -479,7 +479,7 @@ static double toExtVel(double vel) {
 
 static double toExtAcc(double acc) { return toExtVel(acc); }
 
-static void send_g5x_msg(int index) {
+static void send_g5x_msg(int index, RotateShiftTransform work_offset) {
     flush_segments();
 
     /* append it to interp list so it gets updated at the right time, not at
@@ -488,10 +488,12 @@ static void send_g5x_msg(int index) {
 
     set_g5x_msg.g5x_index = index;
 
-    set_g5x_msg.origin = interpToMachineTransform.g5xOffset;
-    // Convert to motion units
-    const UnitsTransform canon_to_motion_units = ConvertsCanonToMotionUnits();
-    canon_to_motion_units.apply_fwd(set_g5x_msg.origin.shift.tf);
+    convertAxisUnits(work_offset, ConvertsCanonToUserUnits());
+    std::copy(work_offset.shift.tf.begin(),
+              work_offset.shift.tf.end(),
+              set_g5x_msg.offset);
+
+    set_g5x_msg.xy_rotation_deg = work_offset.getXYRotationDeg();
 
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed_rpm);
@@ -520,14 +522,16 @@ void SET_G5X_TRANSFORM(int index,
                     double u, double v, double w,
                     double xy_rotation_deg)
 {
-    PositionArray pos = {x,y,z,a,b,c,u,v,w};
-    // Convert to canon units (mm / deg)
-    from_prog(pos);
+    // Send G5X message on to task in program units
+    PositionArray pos_prog = {x,y,z,a,b,c,u,v,w};
 
-    interpToMachineTransform.g5xOffset.shift.tf = pos;
+    // Convert to canon units (mm / deg) for internal usage
+    interpToMachineTransform.g5xOffset.shift.tf = ConvertsProgramToCanonUnits().forward(pos_prog);
     interpToMachineTransform.g5xOffset.setXYRotationDeg(xy_rotation_deg);
-    send_g5x_msg(index);
+
+    send_g5x_msg(index, interpToMachineTransform.g5xOffset);
 }
+
 
 void SET_G92_OFFSET(double x, double y, double z,
                     double a, double b, double c,
@@ -2819,10 +2823,21 @@ CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket)
     return retval;
 }
 
+RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin)
+{
+    RotateShiftTransform out = RotateShiftTransform();
+    if (origin < 0 || origin >= interp_param_global::MAX_EXTENDED_WORK_CSYS) {
+        return out;
+    }
+
+    out = emcStatus->task.g5x_table[origin];
+    return out;
+}
+
 PositionArray GET_EXTERNAL_POSITION()
 {
     // Get updated unit converters given current canon / motion settings
-    UnitsTransform machine_to_canon_units = ConvertsMotionToCanonUnits();
+    UnitsTransform machine_to_canon_units = ConvertsUserToCanonUnits();
     UnitsTransform canon_to_program_units = ConvertsCanonToProgramUnits();
 
     chained_points.clear();
@@ -2840,7 +2855,7 @@ PositionArray GET_EXTERNAL_PROBE_POSITION()
     static PositionArray last_probed_position;
 
     // Get updated unit converters given current canon / motion settings
-    UnitsTransform motion_to_canon_units = ConvertsMotionToCanonUnits();
+    UnitsTransform motion_to_canon_units = ConvertsUserToCanonUnits();
     UnitsTransform canon_to_program_units = ConvertsCanonToProgramUnits();
 
     flush_segments();

@@ -412,7 +412,7 @@ int emcFormat(NMLTYPE type, void *buffer, CMS * cms)
 	((EMC_TRAJ_SET_MOTION_ID *) buffer)->update(cms);
 	break;
     case EMC_TRAJ_SET_OFFSET_TYPE:
-	((EMC_TRAJ_SET_OFFSET *) buffer)->update(cms);
+    ((EMC_TRAJ_SET_OFFSET *) buffer)->update(cms);
 	break;
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
 	((EMC_TRAJ_SET_G5X_TRANSFORM *) buffer)->update(cms);
@@ -726,9 +726,9 @@ const char *emc_symbol_lookup(uint32_t type)
     case EMC_TRAJ_SET_MOTION_ID_TYPE:
 	return "EMC_TRAJ_SET_MOTION_ID";
     case EMC_TRAJ_SET_OFFSET_TYPE:
-	return "EMC_TRAJ_SET_OFFSET";
+    return "EMC_TRAJ_SET_TOOL_OFFSET";
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
-	return "EMC_TRAJ_SET_G5X";
+    return "EMC_TRAJ_SET_G5X_TRANSFORM";
     case EMC_TRAJ_SET_G92_TYPE:
 	return "EMC_TRAJ_SET_G92";
     case EMC_TRAJ_SET_ROTATION_TYPE:
@@ -2284,7 +2284,8 @@ void EMC_TRAJ_SET_G5X_TRANSFORM::update(CMS * cms)
 
     EMC_TRAJ_CMD_MSG::update(cms);
     cms->update(g5x_index);
-    RotateShiftTransform_update(cms, origin);
+    cms->update(offset, 9);
+    cms->update(xy_rotation_deg);
 
 }
 

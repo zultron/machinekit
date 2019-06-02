@@ -598,7 +598,7 @@ struct setup_struct
   PositionArray current;
   LocalToMachineTransform transform;
 
-  std::unordered_map<int, RotateShiftTransform> work_offsets;
+  WorkOffsetMap work_offsets_user; // Work offset table (interp's copy) in user axis units
 
   ModalState modal_state;
 
@@ -659,6 +659,7 @@ struct setup_struct
   bool input_flag;            // flag indicating waiting for input done
   bool orient_flag;           // flag indicating waiting for spindle orient done
   bool toolchange_flag;       // flag indicating we just had a tool change
+  bool work_offset_modified_flag; // indicates a work offset / rotation value was changed (e.g. by G10)
   int input_index;		// channel queried
   bool input_digital;		// input queried was digital (false=analog)
   bool cutter_comp_firstmove; // this is the first comp move

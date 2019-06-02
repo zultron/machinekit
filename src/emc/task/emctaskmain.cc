@@ -1980,7 +1980,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TRAJ_SET_OFFSET_TYPE:
 	// update tool offset
-	emcStatus->task.toolOffset = ((EMC_TRAJ_SET_OFFSET *) cmd)->offset;
+    emcStatus->task.toolOffset = ((EMC_TRAJ_SET_OFFSET *) cmd)->offset;
         retval = emcTrajSetOffset(emcStatus->task.toolOffset);
 	break;
 
@@ -1990,8 +1990,29 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         break;
 
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
-	// Status is updated elsewhere; nothing to do
-	retval = 0;
+    {
+	// struct-copy program origin
+        double const *offset = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->offset;
+        emcStatus->task.g5x_offset = {{
+                                          offset[X],
+                                          offset[Y],
+                                          offset[Z],
+                                      },
+                                      offset[A],
+                                      offset[B],
+                                      offset[C],
+                                      offset[U],
+                                      offset[V],
+                                      offset[W],
+                                     };
+        emcStatus->task.rotation_xy = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->xy_rotation_deg;
+        emcStatus->task.g5x_index = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->g5x_index;
+        emcStatus->task.g5x_table[(size_t)((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->g5x_index] =
+                RotateShiftTransform(toArray(((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->offset, 9),
+                                     ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->xy_rotation_deg
+                                     );
+    }
+    retval = 0;
 	break;
     case EMC_TRAJ_SET_G92_TYPE:
 	// struct-copy program origin

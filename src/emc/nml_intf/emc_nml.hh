@@ -22,7 +22,10 @@
 #include "canon.hh"		// CANON_TOOL_TABLE, CANON_UNITS
 #include "rs274ngc.hh"		// ACTIVE_G_CODES, etc
 
+#include <interp_parameter_def.hh>
+#include <array>
 #include <coordinatetransform.hh>
+
 // ------------------
 // CLASS DECLARATIONS
 // ------------------
@@ -35,7 +38,6 @@ class EMC_CMD_MSG:public RCS_CMD_MSG {
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
-    state_tag_t tag;
 };
 
 
@@ -852,7 +854,7 @@ class EMC_TRAJ_SET_SPINDLESYNC:public EMC_TRAJ_CMD_MSG {
 class EMC_TRAJ_SET_OFFSET:public EMC_TRAJ_CMD_MSG {
   public:
     EMC_TRAJ_SET_OFFSET():EMC_TRAJ_CMD_MSG(EMC_TRAJ_SET_OFFSET_TYPE,
-					   sizeof(EMC_TRAJ_SET_OFFSET)) {
+                       sizeof(EMC_TRAJ_SET_OFFSET)) {
     }
 
     // For internal NML/CMS use only.
@@ -870,7 +872,8 @@ class EMC_TRAJ_SET_G5X_TRANSFORM:public EMC_TRAJ_CMD_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
     int g5x_index;
-    RotateShiftTransform origin;
+    double offset[9];
+    double xy_rotation_deg;
 };
 
 class EMC_TRAJ_SET_G92:public EMC_TRAJ_CMD_MSG {
@@ -1450,7 +1453,6 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     char file[LINELEN];
     char command[LINELEN];
     EmcPose g5x_offset;		// in user units, currently active
-    EmcPose g5x_offsets[9];	// in user units
     int g5x_index;              // index of active g5x system
     EmcPose g92_offset;		// in user units, currently active
     double rotation_xy;
@@ -1465,6 +1467,7 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     int task_paused;		// non-zero means task is paused
     double delayLeft;           // delay time left of G4, M66..
     int queuedMDIcommands;      // current length of MDI input queue
+    std::array<RotateShiftTransform, interp_param_global::MAX_EXTENDED_WORK_CSYS> g5x_table; // in user units
 };
 
 // declarations for EMC_TOOL classes

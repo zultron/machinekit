@@ -115,22 +115,30 @@ void SET_G5X_TRANSFORM(int index,
                     double a, double b, double c,
                     double u, double v, double w,
                     double xy_rotation_deg) {
-  ECHO_WITH_ARGS("%d, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %0.4f, %.4f, %.4f",
-          index, x, y, z, a, b, c, u, v, w, xy_rotation_deg);
-  _sai._program_position_x = _sai._program_position_x + _sai._g5x_x - x;
-  _sai._program_position_y = _sai._program_position_y + _sai._g5x_y - y;
-  _sai._program_position_z = _sai._program_position_z + _sai._g5x_z - z;
-  _sai._program_position_a = _sai._program_position_a + _sai._g5x_a - a;/*AA*/
-  _sai._program_position_b = _sai._program_position_b + _sai._g5x_b - b;/*BB*/
-  _sai._program_position_c = _sai._program_position_c + _sai._g5x_c - c;/*CC*/
+    ECHO_WITH_ARGS("%d, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f" ,
+                   index, x, y, z, a, b, c, u, v, w, xy_rotation_deg);
+    _sai._program_position_x = _sai._program_position_x + _sai._g5x_x - x;
+    _sai._program_position_y = _sai._program_position_y + _sai._g5x_y - y;
+    _sai._program_position_z = _sai._program_position_z + _sai._g5x_z - z;
+    _sai._program_position_a = _sai._program_position_a + _sai._g5x_a - a;/*AA*/
+    _sai._program_position_b = _sai._program_position_b + _sai._g5x_b - b;/*BB*/
+    _sai._program_position_c = _sai._program_position_c + _sai._g5x_c - c;/*CC*/
 
-  _sai._g5x_x = x;
-  _sai._g5x_y = y;
-  _sai._g5x_z = z;
-  _sai._g5x_a = a;  /*AA*/
-  _sai._g5x_b = b;  /*BB*/
-  _sai._g5x_c = c;  /*CC*/
+    _sai._g5x_x = x;
+    _sai._g5x_y = y;
+    _sai._g5x_z = z;
+    _sai._g5x_a = a;  /*AA*/
+    _sai._g5x_b = b;  /*BB*/
+    _sai._g5x_c = c;  /*CC*/
+
+
+    _sai._g5x_table[index].shift.tf = {x,y,z,a,b,c,u,v,w};
+    _sai._g5x_table[index].setXYRotationDeg(xy_rotation_deg);
+
+    // Convert to user units (interp assumes user units in offset table)
+    convertAxisUnits(_sai._g5x_table[index], _sai.programToUser);
 }
+
 
 void SET_G92_OFFSET(double x, double y, double z,
                     double a, double b, double c,
@@ -160,7 +168,7 @@ void USE_LENGTH_UNITS(CANON_UNITS in_unit)
       if (_sai._length_unit_type == CANON_UNITS_MM)
         {
           _sai._length_unit_type = CANON_UNITS_INCHES;
-          _sai._length_unit_factor = 25.4;
+          _sai.programToUser.linear_fwd = 25.4;
 
           _sai._program_position_x /= 25.4;
           _sai._program_position_y /= 25.4;
@@ -181,7 +189,7 @@ void USE_LENGTH_UNITS(CANON_UNITS in_unit)
       if (_sai._length_unit_type == CANON_UNITS_INCHES)
         {
           _sai._length_unit_type = CANON_UNITS_MM;
-          _sai._length_unit_factor = 1.0;
+          _sai.programToUser.linear_fwd = 1.0;
 
           _sai._program_position_x *= 25.4;
           _sai._program_position_y *= 25.4;
@@ -912,6 +920,11 @@ extern CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket)
   return _sai._tools[pocket];
 }
 
+extern RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin)
+{
+  return _sai._g5x_table[(size_t)origin];
+}
+
 /* Returns the system traverse rate */
 double GET_EXTERNAL_TRAVERSE_RATE()
 {
@@ -1082,7 +1095,6 @@ StandaloneInterpInternals::StandaloneInterpInternals() :
   _feed_mode(0),
   _feed_rate(0.0),
   _flood(0),
-  _length_unit_factor(1), /* 1 for MM 25.4 for inch */
   _length_unit_type(CANON_UNITS_MM),
   _line_number(1),
   _mist(0),
@@ -1115,6 +1127,8 @@ StandaloneInterpInternals::StandaloneInterpInternals() :
   _spindle_turning(CANON_STOPPED),
   _pockets_max(CANON_POCKETS_MAX),
   _tools{},
+  _g5x_table(),
+  programToUser(1.0, 1.0),
   /* optional program stop */
   optional_program_stop(ON), //set enabled by default (previous EMC behaviour)
   /* optional block delete */

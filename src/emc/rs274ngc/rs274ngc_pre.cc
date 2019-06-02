@@ -104,6 +104,8 @@ include an option for suppressing superfluous commands.
 #include <unordered_set>
 
 #include <interp_parameter_def.hh>
+
+#include <stdio.h>
 using namespace interp_param_global;
 
 namespace bp = boost::python;
@@ -1150,9 +1152,13 @@ int Interp::init()
 
   write_and_update_state_tag(nullptr);
 
-  SET_G5X_TRANSFORM(_setup.origin_index,
-                    UNPACK_POSITION_ARRAY_REF(_setup.transform.g5xOffset.shift.tf),
-                    _setup.transform.g5xOffset.getXYRotationDeg());
+  for (auto const &t_pair : _setup.work_offsets_user) {
+      RotateShiftTransform work_offset_user = t_pair.second;
+      convertAxisUnits(work_offset_user, convertsUserToProgram());
+      send_g5x_transform(t_pair.first, work_offset_user);
+  }
+
+  send_current_g5x_transform();
 
   // Restore G92 offset if PERSISTENT_G92_OFFSET is set in .ini file.
   // This can't be done with the static _required_parameters[], where
@@ -1363,6 +1369,23 @@ int Interp::load_tool_table()
   set_tool_parameters();
   return INTERP_OK;
 }
+
+int Interp::load_work_offset_table()
+{
+  // Only ask for offsets that are currently defined
+  // NOTE "external" units are user units, so no conversions are necessary
+  // here since work_offset tables in task and interp are both in user units.
+  for (auto &active_offset : _setup.work_offsets_user) {
+    active_offset.second = GET_EXTERNAL_WORK_OFFSET(active_offset.first);
+  }
+
+  for (auto const &active_offset : _setup.work_offsets_user) {
+      store_work_offset_to_parameters(&_setup, active_offset.second, active_offset.first);
+  }
+
+  return INTERP_OK;
+}
+
 
 /***********************************************************************/
 
@@ -1917,10 +1940,10 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
       case U:
       case V:
       case W:
-        _setup.work_offsets[offset_number].shift.tf[index] = value;
+        _setup.work_offsets_user[offset_number].shift.tf[index] = value;
         break;
-      case R:
-        _setup.work_offsets[offset_number].setXYRotationDeg(value);
+      case 9:
+        _setup.work_offsets_user[offset_number].setXYRotationDeg(value);
         break;
       }
       break;
@@ -1947,6 +1970,9 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
   fclose(infile);
   for (; k < RS274NGC_MAX_PARAMETERS; k++) {
     _setup.parameters[k] = 0;
+  }
+  for (int origin = 1; origin <= 9; ++origin) {
+      _setup.work_offsets_user[origin] = find_work_offset_from_parameters(&_setup, origin);
   }
   return INTERP_OK;
 }
@@ -2061,16 +2087,12 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
     }
   }
 
-  // Purge "duplicate" work offsets that are already written out in parameters 5221 to 5390
-  const int duplicate_idx[] = {1,2,3,4,5,6,7,8,9};
-  for (auto idx : duplicate_idx)
-  {
-    _setup.work_offsets.erase(idx);
-  }
-
   // TODO write these out sparsely? e.g. don't write zero fields
-  for (auto const& wo : _setup.work_offsets) {
+  for (auto const& wo : _setup.work_offsets_user) {
     CHKS(wo.first < 0, _("Work offset index %d cannot be negative"), wo.first);
+    if (wo.first < 10) {
+        continue;
+    }
     size_t offset_base = EXTENDED_WORK_OFFSET_START + 20 * (size_t)wo.first;
 
     for (size_t k = 0; k < wo.second.shift.tf.size(); ++k) {
@@ -2078,7 +2100,7 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
       sprintf(line, "%lu\t%0.17g\n", offset_base + k + 1, wo.second.shift.tf[k]);
       fputs(line, outfile);
     }
-    sprintf(line, "%lu\t%0.17g\n", offset_base + R, wo.second.getXYRotationDeg());
+    sprintf(line, "%lu\t%0.17g\n", offset_base + 10, wo.second.getXYRotationDeg());
     fputs(line, outfile);
   }
 
@@ -2148,6 +2170,9 @@ int Interp::synch()
 
   load_tool_table();   /*  must set  _setup.tool_max first */
 
+  load_work_offset_table();
+
+  send_current_g5x_transform();
   //read_inputs(&_setup); // input/probe/toolchange
 
   write_settings(&_setup, _setup.modal_state);

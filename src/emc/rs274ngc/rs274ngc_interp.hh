@@ -48,6 +48,8 @@ public:
 // load a tool table
  int load_tool_table();
 
+ int load_work_offset_table();
+
 // open a file of NC code
  int open(const char *filename);
 
@@ -269,6 +271,10 @@ public:
 
  int convert_coordinate_system(int g_code, setup_pointer settings);
  int convert_coordinate_system(int g_code, int p_word, setup_pointer settings);
+
+ void send_current_g5x_transform();
+ static void send_g5x_transform(int origin, RotateShiftTransform const &g5x_transform);
+
  int convert_cutter_compensation(int g_code, block_pointer block,
                                        setup_pointer settings);
  int convert_cutter_compensation_off(setup_pointer settings);
@@ -322,7 +328,7 @@ public:
  int convert_dwell(setup_pointer settings, double time);
  int convert_feed_mode(int g_code, setup_pointer settings);
  int convert_feed_rate(block_pointer block, setup_pointer settings);
-    int convert_g(block_pointer block, setup_pointer settings);
+    int convert_g(block_pointer block, setup_pointer settings, bool & queue_buster);
  int convert_home(int move, block_pointer block,
                         setup_pointer settings);
  int convert_savehome(int move, block_pointer block,
@@ -330,7 +336,7 @@ public:
  int convert_length_units(int g_code, setup_pointer settings);
     int convert_m(block_pointer block, setup_pointer settings);
  int convert_modal_0(int code, block_pointer block,
-                           setup_pointer settings);
+                           setup_pointer settings, bool & queue_buster);
  int convert_motion(int motion, block_pointer block,
                           setup_pointer settings);
  int convert_probe(block_pointer block, int g_code, setup_pointer settings);
@@ -379,10 +385,12 @@ public:
 
  int clearPersistentG92Parameters(setup_pointer settings);
  ShiftTransform getG92ActiveOffset(setup_pointer settings);
- int storeG92PersistentParms(ShiftTransform const &tool_offset, setup_pointer settings);
+ int storeG92PersistentParms(ShiftTransform const &g92_offset, setup_pointer settings);
  int find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & work_offset);
  int store_tool_offset(setup_pointer settings, ShiftTransform const &tool_offset, int pocket);
- int find_work_offset(int origin, RotateShiftTransform & work_offset);
+ RotateShiftTransform find_work_offset_from_parameters(setup_pointer settings, int origin);
+ int store_work_offset_to_parameters(setup_pointer settings, RotateShiftTransform const &work_offset, int origin);
+ int find_work_offset(int origin, RotateShiftTransform & work_offset_user);
  int store_work_offset(RotateShiftTransform const &work_offset, int origin);
  int find_current_in_system(setup_pointer s, int system, PositionArray &out);
  int find_current_in_system_without_tlo(setup_pointer s, int system, PositionArray & out);

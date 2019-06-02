@@ -1396,6 +1396,8 @@ class DummyCanon:
     def comment(*args): pass
     def next_line(*args): pass
     def set_g5x_offset(*args): pass
+    def get_g5x_offset(*args):
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
     def set_g92_offset(*args): pass
     def set_xy_rotation(*args): pass
     def get_external_angular_units(self): return 1.0

@@ -79,6 +79,7 @@ setup_struct::setup_struct() :
     input_flag(0),
     orient_flag(0),
     toolchange_flag(0),
+    work_offset_modified_flag(false),
     input_index(0),
     input_digital(0),
     cutter_comp_firstmove(0),
