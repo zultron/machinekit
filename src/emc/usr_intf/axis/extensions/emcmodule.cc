@@ -318,6 +318,8 @@ static PyMemberDef Stat_members[] = {
     {(char*)"command", T_STRING_INPLACE, O(task.command), READONLY},
     {(char*)"program_units", T_INT, O(task.programUnits), READONLY},
     {(char*)"interpreter_errcode", T_INT, O(task.interpreter_errcode), READONLY},
+    {(char*)"program_ended_and_reset", T_BOOL, O(task.program_ended_and_reset), READONLY},
+    {(char*)"program_ended", T_BOOL, O(task.program_ended), READONLY},
     {(char*)"optional_stop", T_BOOL, O(task.optional_stop_state), READONLY},
     {(char*)"block_delete", T_BOOL, O(task.block_delete_state), READONLY},
     {(char*)"task_paused", T_INT, O(task.task_paused), READONLY},

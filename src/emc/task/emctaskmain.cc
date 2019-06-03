@@ -77,6 +77,7 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 #include "emcglb.h"		// EMC_INIFILE,NMLFILE, EMC_TASK_CYCLE_TIME
 #include "interp_return.hh"	// public interpreter return values
 #include "interp_internal.hh"	// interpreter private definitions
+#include "rs274ngc_interp.hh"   // the interpreter
 #include "rcs_print.hh"
 #include "timer.hh"
 #include "nml_oi.hh"
@@ -140,6 +141,9 @@ static double taskExecDelayTimeout = 0.0;
 
 // emcTaskIssueCommand issues command immediately
 static int emcTaskIssueCommand(NMLmsg * cmd);
+
+
+extern InterpBase *pinterp;
 
 // pending command to be sent out by emcTaskExecute()
 NMLmsg *emcTaskCommand = 0;
@@ -432,6 +436,7 @@ static EMC_TASK_PLAN_EXECUTE *execute_msg;
 static EMC_TASK_PLAN_OPEN *open_msg;
 static EMC_TASK_PLAN_SET_OPTIONAL_STOP *os_msg;
 static EMC_TASK_PLAN_SET_BLOCK_DELETE *bd_msg;
+static EMC_TASK_PLAN_END *end_msg;
 
 static EMC_AUX_INPUT_WAIT *emcAuxInputWaitMsg;
 static int emcAuxInputWaitType = 0;
@@ -2360,6 +2365,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	programStartLine = run_msg->line;
 	emcStatus->task.interpState = EMC_TASK_INTERP_READING;
 	emcStatus->task.task_paused = 0;
+        emcStatus->task.program_ended = 0;
+        emcStatus->task.program_ended_and_reset = 0;
 	retval = 0;
 	break;
 
@@ -2396,6 +2403,16 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TASK_PLAN_END_TYPE:
+        end_msg = (EMC_TASK_PLAN_END *) cmd;
+        if (end_msg->reset) {
+            emcStatus->task.program_ended_and_reset = 1;
+            emcStatus->task.currentLine = 0;
+            emcStatus->task.previousLine = 0;
+            
+            static_cast<Interp*>(pinterp)->_setup.sequence_number = 0;
+            interp_list.set_line_number(0);
+        }
+        emcStatus->task.program_ended = 1;
 	retval = 0;
 	break;
 

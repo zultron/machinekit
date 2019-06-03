@@ -2769,11 +2769,12 @@ void OPTIONAL_PROGRAM_STOP()
     tag_and_send(stopMsg);
 }
 
-void PROGRAM_END()
+void PROGRAM_END(bool reset)
 {
     flush_segments();
 
     EMC_TASK_PLAN_END endMsg;
+    endMsg.reset = reset;
 
 	interp_list.append(endMsg);
 }

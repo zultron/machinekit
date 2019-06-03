@@ -628,7 +628,7 @@ int Canterp::execute(const char *line) {
     }
 
     if (!strcmp(the_command_name, "PROGRAM_END")) {
-	PROGRAM_END();
+	PROGRAM_END(false);
 	return 0;
     }
 

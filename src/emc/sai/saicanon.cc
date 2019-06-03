@@ -771,8 +771,8 @@ bool GET_OPTIONAL_PROGRAM_STOP()
 void OPTIONAL_PROGRAM_STOP()
 {PRINT0("OPTIONAL_PROGRAM_STOP()\n");}
 
-void PROGRAM_END()
-{PRINT0("PROGRAM_END()\n");}
+void PROGRAM_END(bool reset)
+{PRINT1("PROGRAM_END(%d)\n", reset);}
 
 
 /*************************************************************************/
