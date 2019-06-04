@@ -439,7 +439,7 @@ static float hz_per_cmd_hz; //this is ratio of ECM freq to resultant VFD freq ou
 static float min_speed_freq_cmd;
 static float max_speed_freq_cmd;
 static unsigned int vfd_mode; //the currently active vfd_mode.  
-static unsigned int previous_vfd_mode = VFD_MODE_NONE; //we keep track of this so that we transistion vfd-freq-cmd 1/2 way through vfd_mode_switch_timer to avoid glitching VFD as it is switching modes.
+//static unsigned int previous_vfd_mode = VFD_MODE_NONE; //we keep track of this so that we transistion vfd-freq-cmd 1/2 way through vfd_mode_switch_timer to avoid glitching VFD as it is switching modes.
 static unsigned int desired_vfd_mode = VFD_MODE_NONE;   //used during vfd_mode changes, during period of time vfd_mode_switch_timer is active 
 static float vfd_mode_switch_timer = 0.0;   //this timer counts down. while active (>0.0) it means VFD "RUN" pin will not be asserted. Protects VFD from glitches when switching VFD modes
                                             //also see VFD_MODE_SWITCH_DELAY notes about how this is used at 75% and 50% of VFD_MODE_SWITCH_DELAY to switch vfd-mode# pins and vfd-freq-cmd, respectively.
@@ -943,6 +943,7 @@ float encoder_spindle_speed;
             target_computed = 0;
             orient_problem = 0;
             orient_to = 0;
+            orient_good_timer = 0;
             oriented = 0;
             orient_P2 = 0; //start at "PID 1" values
             orient_fault = 0; //clear last error, if any
@@ -1400,7 +1401,7 @@ float encoder_spindle_speed;
 
     if(vfd_mode != desired_vfd_mode) {
         if (is_spindle_stopped()) { //wait for any pending spindle motion to be "Zero" before switching modes
-            previous_vfd_mode = vfd_mode; //record last active VFD mode
+            //previous_vfd_mode = vfd_mode; //record last active VFD mode
             vfd_mode = desired_vfd_mode; //this is now the mode we are about to tell the VFD to do
         }
 
@@ -1412,13 +1413,14 @@ float encoder_spindle_speed;
         stuck_delay = ORIENT_LONG_ORIENT_TIME + VFD_MODE_SWITCH_DELAY; //VFD_MODE_SWITCH_DELAY must expire before deciding ORIENT_LONG_ORIENT_TIME has passed
     }
 
-    if (vfd_mode_switch_timer > 0.0) { //give VFD time to switch modes
+    if (vfd_mode_switch_timer > 0.0) { //give VFD time to switch modes.  Timer is active when above 0
         vfd_mode_switch_timer -= fperiod;
         spindle_on_thur = BIT_FALSE;    //over ride any previous "on" of this pin
         if ((spindle_state == SPINDLE_STATE_ORIENTING) || (spindle_state == SPINDLE_STATE_LOCKED)) {
             //none of these timers should be tallying during VFD RUN inhibit active, so reset them
             orienting_stuck_timer = 0.0;
             orienting_boost = 0.0;
+            orient_good_timer = 0.0;
         }
 
         //at VFD_FREQ_CMD_TO_ENABLE_DELAY of the way through the vfd_mode_switch_timer, we actually switch the mode pins to the VFD
@@ -1485,9 +1487,11 @@ float encoder_spindle_speed;
     if (!vfd_24V) //bad when not hi
         orient_problem |= 0x10;
     if (vfd_fault)
+    {
         orient_problem |= 0x20;
-        
-
+        spindle_on_thur = BIT_FALSE;
+           
+    }
 }
 
 
