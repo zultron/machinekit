@@ -600,6 +600,7 @@ typedef enum {
 	double min_ferror;	/* zero speed following error limit */
 	double max_ferror;	/* max speed following error limit */
 	double home_offset;	/* dir/dist from switch to home point */
+	int kb_jog_active;	/* non-zero during a keyboard jog */
     } emcmot_joint_status_t;
 
 
