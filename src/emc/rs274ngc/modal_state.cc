@@ -15,5 +15,6 @@
 
 ModalState::ModalState(): g_codes(ACTIVE_G_CODES,0),
     m_codes(ACTIVE_M_CODES,0),
-    settings(ACTIVE_SETTINGS,0.0)
+    settings(ACTIVE_SETTINGS,0.0),
+    work_offset_origin_index(1)
 {}

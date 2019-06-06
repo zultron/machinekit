@@ -477,6 +477,32 @@ int Interp::set_probe_data(setup_pointer settings)       //!< pointer to machine
   return INTERP_OK;
 }
 
+int Interp::lookup_work_offset_gcode_from_origin(int origin)
+{
+    switch (origin) {
+    case 1:
+        return G_54;
+    case 2:
+        return G_55;
+    case 3:
+        return G_56;
+    case 4:
+        return G_57;
+    case 5:
+        return G_58;
+    case 6:
+        return G_59;
+    case 7:
+        return G_59_1;
+    case 8:
+        return G_59_2;
+    case 9:
+        return G_59_3;
+    default:
+        return G_54_1;
+    }
+}
+
 int Interp::call_level(void) { return _setup.call_level; }
 
 PositionMask getUpdatedAxes(block_pointer b)

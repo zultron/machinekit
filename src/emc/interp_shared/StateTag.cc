@@ -35,7 +35,7 @@ int StateTag::is_valid(void) const
     }
 
     //TODO magic numbers
-    if (fields[GM_FIELD_ORIGIN] < 540) {
+    if (fields[GM_FIELD_WORK_OFFSET_NUMBER] < 1) {
         return false;
     }
 
@@ -68,6 +68,6 @@ void StateTag::fprint(FILE *stream)
 	    fields[GM_FIELD_MOTION_MODE]);
     fprintf(stream, "           plane %d; m_modes_4 %d; origin %d; toolchange %d\n",
 	    fields[GM_FIELD_PLANE], fields[GM_FIELD_M_MODES_4],
-	    fields[GM_FIELD_ORIGIN], fields[GM_FIELD_TOOLCHANGE]);
+        fields[GM_FIELD_WORK_OFFSET_NUMBER], fields[GM_FIELD_TOOLCHANGE]);
     fprintf(stream, "  flags: %s\n", flags.to_string().c_str());
 }

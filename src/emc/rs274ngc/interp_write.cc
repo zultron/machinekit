@@ -104,10 +104,7 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
   state.g_codes[G_CODE_DISTANCE_MODE] = (settings->distance_mode == MODE_ABSOLUTE) ? G_90 : G_91;
   state.g_codes[G_CODE_FEED_MODE] = (settings->feed_mode == INVERSE_TIME) ? G_93 :
 	    (settings->feed_mode == UNITS_PER_MINUTE) ? G_94 : G_95;
-  state.g_codes[G_CODE_ORIGIN] =
-    (settings->origin_index <
-     7) ? (530 + (10 * settings->origin_index)) : (584 +
-                                                   settings->origin_index);
+  state.g_codes[G_CODE_ORIGIN] = lookup_work_offset_gcode_from_origin(settings->origin_index);
   state.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = toolOffsetActive(settings) ? G_43 : G_49;
   state.g_codes[G_CODE_RETRACT_MODE] = (settings->retract_mode == OLD_Z) ? G_98 : G_99;
   state.g_codes[G_CODE_PATH_MODE] =
@@ -117,6 +114,7 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
     (settings->spindle_mode == CONSTANT_RPM) ? G_97 : G_96;
   state.g_codes[G_CODE_DISTANCE_MODE_IJK] = (settings->ijk_distance_mode == MODE_ABSOLUTE) ? G_90_1 : G_91_1;
   state.g_codes[G_CODE_LATHE_DIAMETER_MODE] = (settings->lathe_diameter_mode) ? G_7 : G_8;
+  state.work_offset_origin_index = settings->origin_index;
   return INTERP_OK;
 }
 
@@ -255,10 +253,7 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.flags[GM_FLAG_FEED_UPM] = (_setup.feed_mode == UNITS_PER_MINUTE);
 
 
-    state.fields[GM_FIELD_ORIGIN] =
-        (_setup.origin_index <
-         7) ? (530 + (10 * _setup.origin_index)) : (584 +
-             _setup.origin_index);
+    state.fields[GM_FIELD_WORK_OFFSET_NUMBER] = _setup.origin_index;
 
     state.flags[GM_FLAG_TOOL_OFFSETS_ON] = toolOffsetActive(&_setup);
     state.flags[GM_FLAG_RETRACT_OLDZ] = (_setup.retract_mode == OLD_Z);

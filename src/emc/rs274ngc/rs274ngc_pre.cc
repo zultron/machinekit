@@ -2258,8 +2258,6 @@ void Interp::active_settings(double *settings) //!< array of settings to copy in
   }
 }
 
-//TODO rename to read_state_tag?
-
 /**
  * Unpack state information from a motion line tag into TASK_STAT-style arrays of G/M Codes.
  * This method allows us to keep the existing infrastructure for g
@@ -2289,7 +2287,7 @@ int Interp::active_modes(int *g_codes,
 	tag.flags[GM_FLAG_DISTANCE_MODE] ? G_90 : G_91;
     g_codes[G_CODE_FEED_MODE] = tag.flags[GM_FLAG_FEED_INVERSE_TIME] ? G_93 :
         tag.flags[GM_FLAG_FEED_UPM] ? G_94 : G_95;
-    g_codes[G_CODE_ORIGIN] = tag.fields[GM_FIELD_ORIGIN];
+    g_codes[G_CODE_ORIGIN] = tag.fields[GM_FIELD_WORK_OFFSET_NUMBER];
     g_codes[G_CODE_TOOL_LENGTH_OFFSET] =
 	tag.flags[GM_FLAG_TOOL_OFFSETS_ON] ? G_43 : G_49;
     g_codes[G_CODE_RETRACT_MODE] =

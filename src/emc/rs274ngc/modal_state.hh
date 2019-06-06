@@ -20,5 +20,6 @@ struct ModalState {
     std::vector<int> g_codes;       // array of active G codes
     std::vector<int> m_codes;      // array of active M codes
     std::vector<double> settings;     // array of feed, speed, etc.
+    int work_offset_origin_index;
 };
 #endif
