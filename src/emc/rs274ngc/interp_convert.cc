@@ -2540,39 +2540,30 @@ int Interp::gen_g_codes(
     bool spindle_mode_restored = false;
 
     for (ii = 0; ii < ACTIVE_G_CODES; ii++) {
-	val = saved[ii];
-	if (val != current[ii]) {
+        val = saved[ii];
+        if (val != current[ii]) {
 
-	    switch (ii) {
-	    case 0:
-		// // sequence_number - no point in restoring
-		break;
-	    case 2: // FIXME - I dont understand this:
-		//   gez[2] = ((block == NULL) ? -1 : block->g_modes[0]);
-		break;
-	    case 12:  // mystery slot
-		break;
-	    case 5: // - length units
-		// this is treated before all others - see convert_m()
-		break;
-	    case 1: // - motion_mode
-		// restoring the motion mode is a real bad idea to start with
-		break;
+            switch ((ActiveGCodeIndex)ii) {
+            case G_CODE_SEQUENCE_NUMBER: // sequence_number - no point in restoring
+            case G_CODE_MODE_0: // TODO document why we don't restore mode 0
+            case G_CODE_unsupported: // unused
+            case G_CODE_UNITS: // - length units (handled separately)
+            case G_CODE_MOTION_MODE: // restoring the motion mode is a real bad idea to start with
+                break;
 
-	    case 13: // - spindle mode
+            case G_CODE_SPINDLE_MODE: // - spindle mode
                 spindle_mode_restored = true;
                 // purposeful fall through!!
 
-	    case 3: // - plane
-	    case 4: // - cutter compensation
-	    case 6: // - distance mode
-	    case 7: // - feed mode
-	    case 8: // - coordinate system
-	    case 9: // - tool offset (G43/G49)
-	    case 10: // - retract mode
-	    case 11: // - control mode    
-	    case 14: // - ijk distance mode
-	    case 15: // - lathe diameter mode
+            case G_CODE_PLANE: // - plane
+            case G_CODE_CUTTER_SIDE: // - cutter compensation
+            case G_CODE_DISTANCE_MODE: // - distance mode
+            case G_CODE_FEED_MODE: // - feed mode
+            case G_CODE_TOOL_LENGTH_OFFSET: // - tool offset (G43/G49)
+            case G_CODE_RETRACT_MODE: // - retract mode
+            case G_CODE_PATH_MODE: // - control mode
+            case G_CODE_DISTANCE_MODE_IJK: // - ijk distance mode
+            case G_CODE_LATHE_DIAMETER_MODE: // - lathe diameter mode
 		if (val != -1) { // FIXME not sure if this is correct!
 		    // if this was set in sub, and unset in caller, it will
 		    // not be reset
