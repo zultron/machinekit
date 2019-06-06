@@ -97,6 +97,7 @@ public:
     int active_modes(int g_codes[ACTIVE_G_CODES],
             int m_codes[ACTIVE_M_CODES],
             double settings[ACTIVE_SETTINGS],
+            int &work_offset_origin,
             StateTag const &tag);
     int restore_from_tag(StateTag const &tag);
 
@@ -741,6 +742,7 @@ int Canterp::restore_from_tag(StateTag const &tag) {return -1;}
 int Canterp::active_modes(int g_codes[ACTIVE_G_CODES],
         int m_codes[ACTIVE_M_CODES],
         double settings[ACTIVE_SETTINGS],
+        int &work_offset_origin,
         StateTag const &tag){ return -1;}
 
 void Canterp::set_loglevel(int level) {}

@@ -18,6 +18,7 @@
 #define RS274NGC_INTERP_H
 #include "rs274ngc.hh"
 #include "interp_internal.hh"
+#include <array>
 
 class Interp : public InterpBase {
 
@@ -92,6 +93,7 @@ public:
  int active_modes(int *g_codes,
          int *mcodes,
          double *settings,
+         int & work_offset_origin,
          StateTag const &tag);
 
 // copy the text of the error message whose number is error_code into the
@@ -490,13 +492,19 @@ public:
     int free_named_parameters(context_pointer frame);
  int save_settings(setup_pointer settings);
  int restore_settings(setup_pointer settings, int from_level);
- int gen_g_codes(std::vector<int> &current, std::vector<int> &saved,
-                 std::vector<double> &current_settings, std::vector<double> &saved_settings,
+ int gen_g_codes(ActiveGCodeArray & current,
+                 ActiveGCodeArray & saved,
+                 ActiveSettingsArray & current_settings,
+                 ActiveSettingsArray & saved_settings,
+                 int work_offset_origin,
                  std::string &cmd);
- int gen_m_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd);
+ int gen_m_codes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved, std::string &cmd);
  int restore_from_tag(StateTag const &tag);
  int gen_restore_cmd(ModalState &state,
         StateTag const &saved,
+        std::string &cmd);
+ int gen_restore_cmd(StateTag current_tag,
+        StateTag const &saved_tag,
         std::string &cmd);
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,

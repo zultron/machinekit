@@ -133,6 +133,7 @@ enum OCodes
 // G Codes are symbolic to be dialect-independent in source code
 enum GCodes
 {
+    G_INVALID = -1,
     G_0 = 0,
     G_1 = 10,
     G_2 = 20,

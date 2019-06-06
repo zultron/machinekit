@@ -71,3 +71,34 @@ void StateTag::fprint(FILE *stream)
         fields[GM_FIELD_WORK_OFFSET_NUMBER], fields[GM_FIELD_TOOLCHANGE]);
     fprintf(stream, "  flags: %s\n", flags.to_string().c_str());
 }
+
+GCodes StateTag::getActivePlane() const
+{
+    return (GCodes)fields[GM_FIELD_PLANE];
+}
+
+GCodes activePlaneFromCanon(CANON_PLANE plane)
+{
+    switch(plane) {
+        case CANON_PLANE_XY:
+            return G_17;
+        case CANON_PLANE_XZ:
+            return G_18;
+        case CANON_PLANE_YZ:
+            return G_19;
+        case CANON_PLANE_UV:
+            return G_17_1;
+        case CANON_PLANE_UW:
+            return G_18_1;
+        case CANON_PLANE_VW:
+            return G_19_1;
+    }
+    return G_INVALID;
+}
+
+int StateTag::setActivePlane(CANON_PLANE plane)
+{
+    fields[GM_FIELD_PLANE] = activePlaneFromCanon(plane);
+    return fields[GM_FIELD_PLANE] < 0;
+}
+

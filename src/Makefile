@@ -307,6 +307,7 @@ HEADERS := \
     emc/motion/state_tag.h \
     emc/motion/usrmotintf.h \
     emc/nml_intf/canon.hh \
+    emc/nml_intf/canon_enums.hh \
     emc/nml_intf/emctool.h \
     emc/nml_intf/emc.hh \
     emc/nml_intf/emc_nml.hh \
@@ -322,6 +323,7 @@ HEADERS := \
     emc/rs274ngc/interp_internal.hh \
     emc/rs274ngc/interp_fwd.hh \
     emc/rs274ngc/interp_base.hh \
+    emc/rs274ngc/interp_enums.hh \
     emc/rs274ngc/rs274ngc.hh \
     emc/rs274ngc/modal_state.hh \
     emc/rs274ngc/saicanon.hh \

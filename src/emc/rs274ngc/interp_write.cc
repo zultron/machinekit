@@ -221,30 +221,11 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.flags[GM_FLAG_RESTORABLE] = 1;
     state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[0]);
     state.fields[GM_FIELD_MOTION_MODE] = _setup.motion_mode;
-    switch(_setup.plane) {
-        case CANON_PLANE_XY:
-            state.fields[GM_FIELD_PLANE] = G_17;
-            break;
-        case CANON_PLANE_XZ:
-            state.fields[GM_FIELD_PLANE] = G_18;
-            break;
-        case CANON_PLANE_YZ:
-            state.fields[GM_FIELD_PLANE] = G_19;
-            break;
-        case CANON_PLANE_UV:
-            state.fields[GM_FIELD_PLANE] = G_17_1;
-            break;
-        case CANON_PLANE_UW:
-            state.fields[GM_FIELD_PLANE] = G_18_1;
-            break;
-        case CANON_PLANE_VW:
-            state.fields[GM_FIELD_PLANE] = G_19_1;
-            break;
-    }
+    state.setActivePlane(_setup.plane);
 
-  state.fields[GM_FIELD_CUTTER_COMP] =
-    (_setup.cutter_comp_side == RIGHT) ? G_42 :
-    (_setup.cutter_comp_side == LEFT) ? G_41 : G_40;
+    state.fields[GM_FIELD_CUTTER_COMP] =
+        (_setup.cutter_comp_side == RIGHT) ? G_42 :
+        (_setup.cutter_comp_side == LEFT) ? G_41 : G_40;
 
     state.flags[GM_FLAG_UNITS] = (_setup.length_units == CANON_UNITS_INCHES);
 

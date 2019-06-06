@@ -13,6 +13,7 @@
 #ifndef CANON_HH
 #define CANON_HH
 
+#include <canon_enums.hh>
 #include <stdio.h>		// FILE
 #include <vector>
 
@@ -42,11 +43,6 @@ struct StateTag;
   ZX-plane of the machine.
 */
 
-enum CanonBool {
-    OFF,
-    ON
-};
-
 struct CONTROL_POINT {          /* type for NURBS control points */
     double X,
     Y,
@@ -57,25 +53,6 @@ struct PLANE_POINT
 {
     double X,
     Y;
-};
-
-
-enum CANON_PLANE
-{
-    CANON_PLANE_XY = 1,
-    CANON_PLANE_YZ,
-    CANON_PLANE_XZ,
-    CANON_PLANE_UV,
-    CANON_PLANE_VW,
-    CANON_PLANE_UW,
-};
-
-enum CANON_UNITS
-{
-    CANON_UNITS_INVALID = 0,
-    CANON_UNITS_INCHES = 1,
-    CANON_UNITS_MM,
-    CANON_UNITS_CM,
 };
 
 // KLUDGE corresponds to canon units
@@ -95,48 +72,6 @@ static constexpr double mmPerUnit[] =
     10.0,
 };
 
-enum CANON_MOTION_MODE
-{
-    CANON_EXACT_STOP = 1,
-    CANON_EXACT_PATH,
-    CANON_CONTINUOUS,
-};
-
-enum CANON_SPEED_FEED_MODE {
-    CANON_SYNCHED = 1,
-    CANON_INDEPENDENT,
-};
-
-enum CANON_DIRECTION {
-    CANON_STOPPED = 1,
-    CANON_CLOCKWISE,
-    CANON_COUNTERCLOCKWISE,
-};
-
-enum CANON_FEED_REFERENCE {
-    CANON_WORKPIECE = 1,
-    CANON_XYZ,
-};
-
-enum CANON_SIDE
-{
-    CANON_SIDE_RIGHT = 1,
-    CANON_SIDE_LEFT,
-    CANON_SIDE_OFF,
-};
-
-enum CANON_AXIS
-{
-    CANON_AXIS_X = 1,
-    CANON_AXIS_Y,
-    CANON_AXIS_Z,
-    CANON_AXIS_A,
-    CANON_AXIS_B,
-    CANON_AXIS_C,
-    CANON_AXIS_U,
-    CANON_AXIS_V,
-    CANON_AXIS_W,
-};
 
 /* Initialization */
 

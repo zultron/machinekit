@@ -15,6 +15,8 @@
 #define STATETAG_HH
 
 #include <bitset>
+#include <interp_fwd.hh>
+#include <canon_enums.hh>
 
 // Bring in C struct for a state tag from motion
 extern "C" {
@@ -40,5 +42,8 @@ struct StateTag : public state_tag_t {
     int is_valid(void) const;
     state_tag_t get_state_tag() const;
     void fprint(FILE *stream);
+
+    GCodes getActivePlane() const;
+    int setActivePlane(CANON_PLANE plane);
 };
 #endif

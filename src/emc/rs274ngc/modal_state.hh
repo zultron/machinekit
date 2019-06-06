@@ -13,13 +13,15 @@
 
 #ifndef MODAL_STATE_HH
 #define MODAL_STATE_HH
-#include <vector>
+#include <array>
+#include <interp_fwd.hh>
+#include <interp_enums.hh>
 
 struct ModalState {
     ModalState();
-    std::vector<int> g_codes;       // array of active G codes
-    std::vector<int> m_codes;      // array of active M codes
-    std::vector<double> settings;     // array of feed, speed, etc.
+    ActiveGCodeArray g_codes;       // array of active G codes
+    ActiveMCodeArray m_codes;      // array of active M codes
+    ActiveSettingsArray settings;     // array of feed, speed, etc.
     int work_offset_origin_index;
 };
 #endif

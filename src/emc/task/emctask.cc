@@ -803,7 +803,8 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
     interp.active_modes(
 	(int*)&emcStatus->task.activeGCodes,
 	(int*)&emcStatus->task.activeMCodes,
-	(double*)&emcStatus->task.activeSettings,
+    (double*)&emcStatus->task.activeSettings,
+                emcStatus->task.g5x_index,
 	StateTag(*tag));
 
     // Add more emcStatus updates here

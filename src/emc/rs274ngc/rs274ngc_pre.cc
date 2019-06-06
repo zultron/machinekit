@@ -2266,6 +2266,7 @@ void Interp::active_settings(double *settings) //!< array of settings to copy in
 int Interp::active_modes(int *g_codes,
          int *m_codes,
          double *settings,
+         int &work_offset_origin,
          StateTag const &tag)
 {
     // Pre-checks on fields
@@ -2287,7 +2288,9 @@ int Interp::active_modes(int *g_codes,
 	tag.flags[GM_FLAG_DISTANCE_MODE] ? G_90 : G_91;
     g_codes[G_CODE_FEED_MODE] = tag.flags[GM_FLAG_FEED_INVERSE_TIME] ? G_93 :
         tag.flags[GM_FLAG_FEED_UPM] ? G_94 : G_95;
-    g_codes[G_CODE_ORIGIN] = tag.fields[GM_FIELD_WORK_OFFSET_NUMBER];
+    g_codes[G_CODE_ORIGIN] =
+            lookup_work_offset_gcode_from_origin(tag.fields[GM_FIELD_WORK_OFFSET_NUMBER]);
+    work_offset_origin = tag.fields[GM_FIELD_WORK_OFFSET_NUMBER];
     g_codes[G_CODE_TOOL_LENGTH_OFFSET] =
 	tag.flags[GM_FLAG_TOOL_OFFSETS_ON] ? G_43 : G_49;
     g_codes[G_CODE_RETRACT_MODE] =

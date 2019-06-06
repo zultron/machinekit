@@ -2519,6 +2519,24 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
     return INTERP_OK;
 }
 
+static int formatGCode(int val, std::string &cmd)
+{
+    char buf[LINELEN];
+    if (val != -1) { // FIXME not sure if this is correct!
+        // if this was set in sub, and unset in caller, it will
+        // not be reset
+        if (val % 10) {
+        snprintf(buf,sizeof(buf)," G%d.%d", val / 10, val % 10);
+        } else {
+        snprintf(buf,sizeof(buf)," G%d", val / 10);
+        }
+        cmd += buf;
+    } else {
+        return INTERP_ERROR;
+    }
+    return INTERP_OK;
+}
+
 
 /*
  * given two int arrays representing interpreter settings as stored in
@@ -2529,63 +2547,58 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
  *
  */
 int Interp::gen_g_codes(
-	std::vector<int> &current,
-	std::vector<int> &saved,
-	std::vector<double> &current_settings,
-	std::vector<double> &saved_settings,
+    ActiveGCodeArray &current,
+    ActiveGCodeArray &saved,
+    ActiveSettingsArray &current_settings,
+    ActiveSettingsArray &saved_settings,
+    int work_offset_origin,
 	std::string &cmd)
 {
-    int ii, val;
+    int val;
     char buf[LINELEN];
     bool spindle_mode_restored = false;
 
-    for (ii = 0; ii < ACTIVE_G_CODES; ii++) {
+    for (int ii = 0; ii < ACTIVE_G_CODES; ii++) {
         val = saved[ii];
-        if (val != current[ii]) {
+        if (val == current[ii]) {
+            continue;
+        }
 
-            switch ((ActiveGCodeIndex)ii) {
-            case G_CODE_SEQUENCE_NUMBER: // sequence_number - no point in restoring
-            case G_CODE_MODE_0: // TODO document why we don't restore mode 0
-            case G_CODE_unsupported: // unused
-            case G_CODE_UNITS: // - length units (handled separately)
-            case G_CODE_MOTION_MODE: // restoring the motion mode is a real bad idea to start with
-                break;
+        switch ((ActiveGCodeIndex)ii) {
+        case G_CODE_SEQUENCE_NUMBER: // sequence_number - no point in restoring
+        case G_CODE_MODE_0: // TODO document why we don't restore mode 0
+        case G_CODE_unsupported: // unused
+        case G_CODE_UNITS: // - length units (handled separately)
+        case G_CODE_MOTION_MODE: // restoring the motion mode is a real bad idea to start with
+            break;
 
-            case G_CODE_SPINDLE_MODE: // - spindle mode
-                spindle_mode_restored = true;
+        case G_CODE_ORIGIN: // Special case for P word
+            snprintf(buf, LINELEN, " G54.1 P%d", work_offset_origin);
+            cmd += buf;
+            break;
+
+        case G_CODE_SPINDLE_MODE: // - spindle mode
+            spindle_mode_restored = true;
 
             BOOST_FALLTHROUGH;
-            case G_CODE_PLANE: // - plane
-            case G_CODE_CUTTER_SIDE: // - cutter compensation
-            case G_CODE_DISTANCE_MODE: // - distance mode
-            case G_CODE_FEED_MODE: // - feed mode
-            case G_CODE_TOOL_LENGTH_OFFSET: // - tool offset (G43/G49)
-            case G_CODE_RETRACT_MODE: // - retract mode
-            case G_CODE_PATH_MODE: // - control mode
-            case G_CODE_DISTANCE_MODE_IJK: // - ijk distance mode
-            case G_CODE_LATHE_DIAMETER_MODE: // - lathe diameter mode
-		if (val != -1) { // FIXME not sure if this is correct!
-		    // if this was set in sub, and unset in caller, it will
-		    // not be reset
-		    if (val % 10) {
-			snprintf(buf,sizeof(buf)," G%d.%d", val / 10, val % 10);
-		    } else {
-			snprintf(buf,sizeof(buf)," G%d", val / 10);
-		    }
-		    cmd += buf;
-		} else {
-		    // so complain rather loudly
-		    MSG("------ gen_g_codes BUG: index %d = -1!!\n", ii);
-		}
-		break;
-	    }
-	}
+        case G_CODE_PLANE: // - plane
+        case G_CODE_CUTTER_SIDE: // - cutter compensation
+        case G_CODE_DISTANCE_MODE: // - distance mode
+        case G_CODE_FEED_MODE: // - feed mode
+        case G_CODE_TOOL_LENGTH_OFFSET: // - tool offset (G43/G49)
+        case G_CODE_RETRACT_MODE: // - retract mode
+        case G_CODE_PATH_MODE: // - control mode
+        case G_CODE_DISTANCE_MODE_IJK: // - ijk distance mode
+        case G_CODE_LATHE_DIAMETER_MODE: // - lathe diameter mode
+            CHKS(formatGCode(val, cmd), "gen_g_codes BUG: index %d = -1", ii);
+            break;
+        }
     }
 
     // If G96 spindle mode is present for constant surface speed, you must have an S word
     // also even if S appears to be the same between saved and current vectors.
 
-    for (ii = 0; ii < ACTIVE_SETTINGS; ii++) {
+    for (int ii = 0; ii < ACTIVE_SETTINGS; ii++) {
 	if ((saved_settings[ii] != current_settings[ii]) || (2 == ii && spindle_mode_restored)) {
 	    switch (ii) {
 	    case 0: break; // sequence_number - no point in restoring
@@ -2611,7 +2624,7 @@ int Interp::gen_g_codes(
  * use multiple lines here because M7 and M8 may not be on the same line since
  * they are in the same modal group.
  */
-int Interp::gen_m_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd)
+int Interp::gen_m_codes(ActiveMCodeArray const &current, ActiveMCodeArray const &saved, std::string &cmd)
 {
     int i,val;
     char buf[LINELEN];
@@ -2650,16 +2663,17 @@ int Interp::gen_m_codes(std::vector<int> &current, std::vector<int> &saved, std:
  * motion line, but does not restore M codes.
  */
 int Interp::gen_restore_cmd(ModalState &state,
-        StateTag const &saved,
+        StateTag const &saved_tag,
         std::string &cmd)
 {
     // A local copy of the saved settings, unpacked from a state tag
-    std::vector<int> saved_g(ACTIVE_G_CODES,0);
-    std::vector<int> saved_m(ACTIVE_M_CODES,0);
-    std::vector<double> saved_settings(ACTIVE_SETTINGS,0);
+    ActiveGCodeArray saved_g{};
+    ActiveMCodeArray saved_m{};
+    ActiveSettingsArray saved_settings{};
 
+    int saved_work_offset;
     //Extract saved state to local vectors
-    int res_unpack = active_modes(&saved_g[0], &saved_m[0], &saved_settings[0], saved);
+    int res_unpack = active_modes(&saved_g[0], &saved_m[0], &saved_settings[0], saved_work_offset, saved_tag);
     if (res_unpack != INTERP_OK) {
         return INTERP_ERROR;
     }
@@ -2680,13 +2694,13 @@ int Interp::gen_restore_cmd(ModalState &state,
 
     //M codes should not be restored during an abort
     int res_m = 0;
-    int res_g = gen_g_codes(state.m_codes, saved_g, state.settings, saved_settings, cmd);
+    int res_g = gen_g_codes(state.g_codes, saved_g, state.settings, saved_settings, state.work_offset_origin_index, cmd);
 
     // If G43 is present for lathes, you must have an H word
     if (FEATURE(LATHE_TOOLCHANGE)) {
         if (cmd.find("G43") != std::string::npos) {
             char buf[LINELEN];
-            snprintf(buf, sizeof(buf), " H%d", saved.fields[GM_FIELD_TOOL_NUMBER]);
+            snprintf(buf, sizeof(buf), " H%d", saved_tag.fields[GM_FIELD_TOOL_NUMBER]);
             cmd += buf;
         }
     }   
@@ -2695,6 +2709,55 @@ int Interp::gen_restore_cmd(ModalState &state,
         return INTERP_ERROR;
     }
     
+    return INTERP_OK;
+}
+
+int Interp::gen_restore_cmd(StateTag current_tag, StateTag const &saved_tag, std::string & cmd)
+{
+    // A local copy of the saved settings, unpacked from a state tag
+    std::array<int, ACTIVE_G_CODES> saved_g{};
+    std::array<int, ACTIVE_M_CODES> saved_m{};
+    std::array<double, ACTIVE_SETTINGS> saved_settings{};
+
+    std::array<int, ACTIVE_G_CODES> current_g{};
+    std::array<int, ACTIVE_M_CODES> current_m{};
+    std::array<double, ACTIVE_SETTINGS> current_settings{};
+
+    int saved_work_offset;
+    int current_work_offset;
+
+    //Extract saved state to local arrays
+    int res_unpack = active_modes(&saved_g[0], &saved_m[0], &saved_settings[0], saved_work_offset, saved_tag);
+    res_unpack |= active_modes(&current_g[0], &current_m[0], &current_settings[0], current_work_offset, current_tag);
+    if (res_unpack != INTERP_OK) {
+        return INTERP_ERROR;
+    }
+
+    // Force
+    current_tag.fields[GM_FIELD_CUTTER_COMP] = G_40;
+
+    //Mimic the order of restoration commands used elsewhere
+    if (current_tag.flags[GM_FLAG_UNITS] != saved_tag.flags[GM_FLAG_UNITS]) {
+        // Format G-code for unit
+    }
+
+    //M codes should not be restored during an abort
+    int res_m = 0;
+    int res_g = gen_g_codes(current_g, saved_g, current_settings, saved_settings, current_work_offset, cmd);
+
+    // If G43 is present for lathes, you must have an H word
+    if (FEATURE(LATHE_TOOLCHANGE)) {
+        if (cmd.find("G43") != std::string::npos) {
+            char buf[LINELEN];
+            snprintf(buf, sizeof(buf), " H%d", saved_tag.fields[GM_FIELD_TOOL_NUMBER]);
+            cmd += buf;
+        }
+    }
+
+    if (res_m || res_g) {
+        return INTERP_ERROR;
+    }
+
     return INTERP_OK;
 }
 
@@ -2757,7 +2820,7 @@ int Interp::restore_settings(setup_pointer settings,
     }
     gen_m_codes(settings->modal_state.m_codes, settings->sub_context[from_level].modal_state.m_codes,cmd);
     gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,
-                settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings, cmd);
+                settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings, _setup.origin_index, cmd);
 
     if (cmd.length() > 0) {
         // the sequence can be multiline, separated by nl
