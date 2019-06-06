@@ -114,49 +114,43 @@ EMC_MOTION_STAT_MSG(EMC_MOTION_STAT_TYPE, sizeof(EMC_MOTION_STAT))
 
 EMC_TASK_STAT::EMC_TASK_STAT():
     EMC_TASK_STAT_MSG(EMC_TASK_STAT_TYPE, sizeof(EMC_TASK_STAT)),
-    g5x_table()
+    mode(EMC_TASK_MODE_MANUAL),
+    state(EMC_TASK_STATE_ESTOP),
+    execState(EMC_TASK_EXEC_DONE),
+    interpState(EMC_TASK_INTERP_IDLE),
+    callLevel(0),
+    motionLine(0),
+    currentLine(0),
+    previousLine(0),
+    readLine(0),
+    stepping_id(0),
+    file(""),
+    command(""),
+    g5x_offset{},
+    g5x_index(0),
+    rotation_xy(0.0),
+    g92_offset{},
+    toolOffset{},
+    // active g / m code arrays filled in body
+    //
+    //
+    programUnits(CANON_UNITS_MM),
+    interpreter_errcode(0),
+    task_paused(0),
+    delayLeft(0.0),
+    queuedMDIcommands(0),
+    g5x_table(),
+    program_ended_and_reset(),
+    program_ended(),
+    optional_stop_state(OFF),
+    block_delete_state(OFF),
+    input_timeout(OFF),
+    orient_timeout(OFF),
+    orient_no_exec_error(OFF)
 {
-
-    mode = EMC_TASK_MODE_MANUAL;
-    state = EMC_TASK_STATE_ESTOP;
-    execState = EMC_TASK_EXEC_DONE;
-    interpState = EMC_TASK_INTERP_IDLE;
-    callLevel = 0;
-    motionLine = 0;
-    currentLine = 0;
-    previousLine = 0;
-    readLine = 0;
-    stepping_id = 0;
-    program_ended_and_reset = 0;
-    program_ended = 0;
-    optional_stop_state = OFF;
-    block_delete_state = OFF;
-    input_timeout = OFF;
-    orient_timeout = OFF;
-    orient_no_exec_error = OFF;
-    file[0] = 0;
-    command[0] = 0;
-
-    ZERO_EMC_POSE(g5x_offset);
-    g5x_index = 0;
-    ZERO_EMC_POSE(g92_offset);
-    ZERO_EMC_POSE(toolOffset);
-
-    rotation_xy = 0.0;
-
-    int t;
-    for (t = 0; t < ACTIVE_G_CODES; t++)
-	activeGCodes[t] = -1;
-    for (t = 0; t < ACTIVE_M_CODES; t++)
-	activeMCodes[t] = -1;
-    for (t = 0; t < ACTIVE_SETTINGS; t++)
-	activeSettings[t] = 0.0;
-
-    programUnits = CANON_UNITS_MM;
-    interpreter_errcode = 0;
-    task_paused = 0;
-    delayLeft = 0.0;
-    queuedMDIcommands = 0;
+    std::fill(activeGCodes, activeGCodes + ACTIVE_G_CODES, -1);
+    std::fill(activeMCodes, activeMCodes + ACTIVE_M_CODES, -1);
+    std::fill(activeSettings, activeSettings + ACTIVE_SETTINGS, 0.0);
 }
 
 EMC_TOOL_STAT::EMC_TOOL_STAT():

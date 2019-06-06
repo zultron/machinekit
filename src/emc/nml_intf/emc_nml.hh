@@ -1431,10 +1431,8 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
-
     enum EMC_TASK_MODE_ENUM mode;	// EMC_TASK_MODE_MANUAL, etc.
     enum EMC_TASK_STATE_ENUM state;	// EMC_TASK_STATE_ESTOP, etc.
-
     enum EMC_TASK_EXEC_ENUM execState;	// EMC_DONE,WAITING_FOR_MOTION, etc.
     enum EMC_TASK_INTERP_ENUM interpState;	// EMC_IDLE,READING,PAUSED,WAITING
     int callLevel;              // current subroutine level - 0 if not in a subroutine, > 0 otherwise
@@ -1443,6 +1441,23 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     int previousLine;		// previous line handled by task
     int readLine;		// line interpreter has read to
     int stepping_id;		// ID of block we are stepping on
+
+    char file[LINELEN];
+    char command[LINELEN];
+    EmcPose g5x_offset;		// in user units, currently active
+    int g5x_index;              // index of active g5x system
+    double rotation_xy;
+    EmcPose g92_offset;		// in user units, currently active
+    EmcPose toolOffset;		// tool offset, in general pose form
+    int activeGCodes[ACTIVE_G_CODES];
+    int activeMCodes[ACTIVE_M_CODES];
+    double activeSettings[ACTIVE_SETTINGS];
+    int programUnits;	// CANON_UNITS_INCHES, MM, CM
+    int interpreter_errcode;	// return value from rs274ngc function 
+    int task_paused;		// non-zero means task is paused
+    double delayLeft;           // delay time left of G4, M66..
+    int queuedMDIcommands;      // current length of MDI input queue
+    std::array<RotateShiftTransform, interp_param_global::MAX_EXTENDED_WORK_CSYS> g5x_table; // in user units
     bool program_ended_and_reset; // program executed an M30 to gracefully end and reset
     bool program_ended;           // program executed an M2 to gracefully end
     bool optional_stop_state;	// state of optional stop (== ON means we stop on M1)
@@ -1450,24 +1465,6 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     bool input_timeout;		// has a timeout happened on digital input
     bool orient_timeout;	// has a timeout happened on spindle orient
     bool orient_no_exec_error;	// set if M19 Q-word < 0 so g code can handle timeout
-    char file[LINELEN];
-    char command[LINELEN];
-    EmcPose g5x_offset;		// in user units, currently active
-    int g5x_index;              // index of active g5x system
-    EmcPose g92_offset;		// in user units, currently active
-    double rotation_xy;
-    EmcPose toolOffset;		// tool offset, in general pose form
-    int activeGCodes[ACTIVE_G_CODES];
-    int activeMCodes[ACTIVE_M_CODES];
-    double activeSettings[ACTIVE_SETTINGS];
-    int programUnits;	// CANON_UNITS_INCHES, MM, CM
-
-    int interpreter_errcode;	// return value from rs274ngc function 
-    // (only useful for new interpreter.)
-    int task_paused;		// non-zero means task is paused
-    double delayLeft;           // delay time left of G4, M66..
-    int queuedMDIcommands;      // current length of MDI input queue
-    std::array<RotateShiftTransform, interp_param_global::MAX_EXTENDED_WORK_CSYS> g5x_table; // in user units
 };
 
 // declarations for EMC_TOOL classes

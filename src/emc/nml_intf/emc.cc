@@ -1922,19 +1922,24 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(file, 256);
     cms->update(command, 256);
     EmcPose_update(cms, &g5x_offset);
+    cms->update(g5x_index);
+    cms->update(rotation_xy);
     EmcPose_update(cms, &g92_offset);
     EmcPose_update(cms, &toolOffset);
-    cms->update(g5x_index);
     cms->update(activeGCodes, ACTIVE_G_CODES);
     cms->update(activeMCodes, ACTIVE_M_CODES);
     cms->update(activeSettings, ACTIVE_SETTINGS);
     cms->update(programUnits);
+    cms->update(task_paused);
+    cms->update(delayLeft);
+    cms->update(queuedMDIcommands);
     cms->update(interpreter_errcode);
+    // TODO update g5x_table?
+    cms->update(optional_stop_state);
+    cms->update(block_delete_state);
     cms->update(input_timeout);
     cms->update(orient_timeout);
     cms->update(orient_no_exec_error);
-    cms->update(rotation_xy);
-
 }
 
 /*
