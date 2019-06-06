@@ -2618,33 +2618,26 @@ int Interp::gen_m_codes(std::vector<int> &current, std::vector<int> &saved, std:
     for (i = 0; i < ACTIVE_M_CODES; i++) {
 	val = saved[i];
 	if (val != current[i]) {
-	    switch (i) {
-	    case 0: /* 0 seq number  */
-		break;
-	    case 1: /* 1 stopping    */
-		// FIXME - is the next line needed at all?
-		// emz[1] = (block == NULL) ? -1 : block->m_modes[4];
-		break;
-	    case 3: /* 3 tool change */
-		// FIXME - dont know how to handle this.
-		// emz[3] =
-		//  (block == NULL) ? -1 : block->m_modes[6];
-		break;
-	    case 2: // spindle
-	    case 4: // mist
-	    case 5: // flood
-	    case 6: // speed/feed override
-	    case 7: // adaptive feed
-	    case 8: // feed hold
-		if (val != -1) {  // unsure..
-		    snprintf(buf,sizeof(buf),"M%d\n", val);
-		    cmd+=buf;
-		} else {
-		    MSG("------ gen_m_codes: index %d = -1!!\n",i);
-		}
-		break;
-	    }
-	}
+        switch ((ActiveMCodeIndex)i) {
+        case M_CODE_SEQUENCE_NUMBER:
+        case M_CODE_STOPPING:
+        case M_CODE_TOOLCHANGE:
+            break;
+        case M_CODE_SPINDLE:
+        case M_CODE_MIST:
+        case M_CODE_FLOOD:
+        case M_CODE_OVERRIDES:
+        case M_CODE_ADAPTIVE_FEED:
+        case M_CODE_FEED_HOLD:
+            if (val != -1) {  // unsure..
+                snprintf(buf,sizeof(buf),"M%d\n", val);
+                cmd+=buf;
+            } else {
+                MSG("------ gen_m_codes: index %d = -1!!\n",i);
+            }
+            break;
+        }
+    }
     }
     return INTERP_OK;
 }
