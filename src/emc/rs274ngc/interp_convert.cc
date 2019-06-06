@@ -2553,8 +2553,8 @@ int Interp::gen_g_codes(
 
             case G_CODE_SPINDLE_MODE: // - spindle mode
                 spindle_mode_restored = true;
-                // purposeful fall through!!
 
+            BOOST_FALLTHROUGH;
             case G_CODE_PLANE: // - plane
             case G_CODE_CUTTER_SIDE: // - cutter compensation
             case G_CODE_DISTANCE_MODE: // - distance mode
