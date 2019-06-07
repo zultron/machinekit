@@ -2687,9 +2687,7 @@ int Interp::gen_restore_cmd(ModalState &state,
 
     //Mimic the order of restoration commands used elsewhere
     if (state.g_codes[G_CODE_UNITS] != saved_g[G_CODE_UNITS]) {
-        char buf[LINELEN];
-        snprintf(buf,sizeof(buf), "G%d",saved_g[G_CODE_UNITS]/10);
-        CHKS(execute(buf) != INTERP_OK, _("gen_restore G20/G21 failed: '%s'"), cmd.c_str());
+        formatGCode(saved_g[G_CODE_UNITS], cmd);
     }
 
     //M codes should not be restored during an abort
@@ -2703,7 +2701,7 @@ int Interp::gen_restore_cmd(ModalState &state,
             snprintf(buf, sizeof(buf), " H%d", saved_tag.fields[GM_FIELD_TOOL_NUMBER]);
             cmd += buf;
         }
-    }   
+    }
 
     if (res_m || res_g) {
         return INTERP_ERROR;
