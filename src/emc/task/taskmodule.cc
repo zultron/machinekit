@@ -32,6 +32,7 @@
 #include "taskclass.hh"
 #include "initool.hh"
 #include "emcglb.h"		// EMC_INIFILE
+#include "emc_statics.hh"
 
 namespace bp = boost::python;
 
@@ -46,7 +47,6 @@ namespace pp = pyplusplus::containers::static_sized;
 #include "emc_nml.hh"
 
 extern void emctask_quit(int sig);
-extern EMC_STAT *emcStatus;
 typedef boost::shared_ptr< EMC_STAT > emcstatus_ptr;
 extern int return_int(const char *funcname, PyObject *retval);
 

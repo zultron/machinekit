@@ -53,18 +53,26 @@ subdir('src/emc/nml_intf')
 subdir('src/emc/interp_shared')
 subdir('src/emc/rs274ngc')
 subdir('src/emc/sai')
+subdir('src/emc/task')
 subdir('src/emc/pythonplugin')
 subdir('src/emc/tp')
 subdir('src/emc/kinematics')
 subdir('src/emc/motion')
 subdir('src/hal')
+subdir('src/emc/ini')
+subdir('src/libnml/buffer')
+subdir('src/libnml/cms')
+subdir('src/libnml/rcs')
 subdir('src/libnml/inifile')
+subdir('src/libnml/linklist')
 subdir('src/libnml/nml')
+subdir('src/libnml/os_intf')
 subdir('src/libnml/posemath')
 subdir('src/rtapi')
-
+subdir('unit_tests')
 subdir('unit_tests/tp')
 subdir('unit_tests/interp')
+subdir('unit_tests/mock')
 
 # Global library dependencies
 dl_dep = meson.get_compiler('cpp').find_library('dl', required : true)
@@ -74,8 +82,7 @@ m_dep = meson.get_compiler('cpp').find_library('m', required : true)
 src_root = 'src'
 tp_dir = join_paths(src_root, 'emc/tp')
 
-# FIXME avoid converting autotools configuration for now, eventually replace with native config
-
+##############################################################################
 # INI file library
 
 liblinuxcncini_inc = [
@@ -92,6 +99,7 @@ liblinuxcncini = shared_library('inifile',
 liblinuxcncini_dep = declare_dependency(include_directories : liblinuxcncini_inc,
     link_with : liblinuxcncini)
 
+##############################################################################
 # Python plugin
 
 libpyplugin = shared_library('pyplugin',
@@ -108,6 +116,8 @@ posemath_external_inc = ([
   rtapi_inc
 ])
 
+##############################################################################
+# Posemath (C & C++)
 
 libposemath = shared_library('posemath',
     posemath_srcs,
@@ -127,16 +137,120 @@ libposemath_cpp = shared_library('posemath_cpp',
 libposemath_cpp_dep = declare_dependency(include_directories : posemath_inc,
     link_with : libposemath_cpp)
 
+##############################################################################
+# NML Linked List
 
+nml_common_inc = [
+    buffer_inc,
+    cms_inc,
+    rcs_inc,
+    nml_inc,
+    os_intf_inc,
+]
+
+liblinklist_inc = [
+    linklist_inc,
+    nml_common_inc,
+]
+
+liblinklist = shared_library('linklist',
+    linklist_srcs,
+    include_directories : liblinklist_inc,
+    dependencies : [ libposemath_dep ]
+    )
+
+liblinklist_dep = declare_dependency(include_directories : linklist_inc,
+    link_with : liblinklist)
+
+##############################################################################
+# LibNML
+
+libnml_inc = [
+    nml_common_inc,
+    config_inc,
+    motion_inc,
+]
+
+libnml_srcs = [
+  buffer_srcs,
+  cms_srcs,
+  nml_srcs,
+  rcs_srcs,
+  timer_srcs,
+  shm_srcs,
+  os_intf_cpp_srcs,
+]
+
+
+libnml = shared_library('nml',
+    libnml_srcs,
+    include_directories : libnml_inc,
+    dependencies : [ libposemath_dep, liblinklist_dep, liblinuxcncini_dep ]
+    )
+
+libnml_dep = declare_dependency(include_directories : nml_common_inc,
+    link_with : libnml)
+
+###############################################################################
+# emc misc
+
+libemc_global = shared_library('emc_global',
+    emc_global_srcs,
+    include_directories : [ emc_global_inc, config_inc, motion_inc],
+    dependencies : [ libposemath_dep ]
+    )
+
+libemc_global_dep = declare_dependency(include_directories : emc_global_inc,
+    link_with : libemc_global)
+
+libemcpose = static_library('emcpose',
+  emcpose_srcs,
+  include_directories : [ emcpose_inc, posemath_inc, rtapi_inc ],
+  dependencies : [ libposemath_dep ]
+)
+
+libemcpose_dep = declare_dependency(include_directories : emcpose_inc,
+    link_with : libemcpose)
+
+libinterp_shared = shared_module('interp_shared',
+  interp_shared_srcs,
+  dependencies : [
+    libposemath_dep,
+    libemcpose_dep,
+    ],
+  include_directories : [interp_shared_inc, motion_inc]
+  )
+
+libinterp_shared_dep = declare_dependency(include_directories : interp_shared_inc,
+    link_with : libinterp_shared)
+
+##############################################################################
+# NML Interp List
+
+libnml_interp_list_inc = [
+    nml_common_inc,
+    nml_interp_list_inc,
+    config_inc,
+    motion_inc,
+    rs274ngc_inc,
+]
+
+# FIXME avoid converting autotools configuration for now, eventually replace with native config
+libnml_interp_list = shared_library('nml_interp_list',
+    nml_interp_list_srcs,
+    include_directories : libnml_interp_list_inc, 
+    dependencies : [ libposemath_dep, liblinklist_dep, libnml_dep, libemc_global_dep, libinterp_shared_dep, ]
+    )
+
+libnml_interp_list_dep = declare_dependency(include_directories : nml_interp_list_inc,
+    link_with : libnml_interp_list)
+
+##############################################################################
 # TP sub-set for unit testing only
 libtp_unit_test = shared_library('tp_unit_test',
     include_directories : [posemath_inc, posemath_external_inc],
     dependencies : [ m_dep ]
     )
-
-libposemath_dep = declare_dependency(include_directories : posemath_inc,
-    link_with : libposemath)
-
 
 unit_test_inc = include_directories([
   'unit_tests',
@@ -165,15 +279,6 @@ libulapi_dep = declare_dependency(include_directories : rtapi_inc,
     link_with : libulapi)
 
 # Define static libraries for easier linking with unit tests
-
-libemcpose = static_library('emcpose',
-  emcpose_srcs,
-  include_directories : [ emcpose_inc, posemath_inc, rtapi_inc ],
-  dependencies : [ libposemath_dep ]
-)
-
-libemcpose_dep = declare_dependency(include_directories : emcpose_inc,
-    link_with : libemcpose)
 
 liblinuxcnchal = library('linuxcnchal',
   hal_lib_srcs,
@@ -219,18 +324,6 @@ rs274ngc_external_inc = [
   posemath_inc,
 ]
 
-libinterp_shared = shared_module('interp_shared',
-  interp_shared_srcs,
-  dependencies : [
-    libposemath_dep,
-    libemcpose_dep,
-    ],
-  include_directories : [interp_shared_inc, motion_inc]
-  )
-
-libinterp_shared_dep = declare_dependency(include_directories : interp_shared_inc,
-    link_with : libinterp_shared)
-
 librs274ngc = shared_module('rs274ngc',
   rs274ngc_srcs,
   dependencies : [
@@ -256,17 +349,39 @@ libsaicanon = shared_module('saicanon',
 libsaicanon_dep = declare_dependency(include_directories : sai_inc,
     link_with : libsaicanon)
 
+
+libut_emccanon = shared_module('ut_emccanon',
+  [emccanon_srcs, mock_emctask_srcs ],
+  include_directories : [task_inc, rs274ngc_external_inc, motion_inc, kinematics_inc, rtapi_inc],
+  dependencies : [boost_dep, python2_dep, dl_dep, liblinuxcncini_dep, librs274ngc_dep, libinterp_shared_dep, libposemath_cpp_dep, libnml_interp_list_dep, libnml_dep, liblinuxcncini_dep]
+  )
+
+libut_emccanon_dep = declare_dependency(include_directories : task_inc,
+    link_with : libut_emccanon)
+
+libmock_stat_config = library('mock_stat_config',
+  [mock_stat_config_srcs],
+  include_directories : [mock_inc, config_inc, emc_global_inc, motion_inc],
+  dependencies : [libnml_dep, libposemath_dep, librs274ngc_dep, libinterp_shared_dep, libut_emccanon_dep, libnml_interp_list_dep]
+)
+
+libmock_stat_config_dep = declare_dependency(include_directories : [mock_inc],
+    link_with : libmock_stat_config)
+
 test_interp_ex = executable('test_interp',
     test_interp_srcs,
-    include_directories : [test_interp_inc, rs274ngc_external_inc, unit_test_inc],
+    include_directories : [test_interp_inc, rs274ngc_external_inc, unit_test_support_inc, nml_intf_inc],
     dependencies: [
         dl_dep,
         python2_dep,
         librs274ngc_dep,
         libpyplugin_dep,
         liblinuxcnchal_dep,
-        libsaicanon_dep,
+        libut_emccanon_dep,
         libinterp_shared_dep,
+        libmock_stat_config_dep,
+        libnml_dep,
+        libnml_interp_list_dep,
         ]
     )
 

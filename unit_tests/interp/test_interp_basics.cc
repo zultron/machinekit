@@ -4,9 +4,10 @@
 #include <rs274ngc_interp.hh>
 #include <interp_inspection.hh>
 #include <interp_return.hh>
-#include <saicanon.hh>
 #include <interp_parameter_def.hh>
 using namespace interp_param_global;
+
+int emc_debug = EMC_DEBUG_INTERP;
 
 TEST_CASE("Interp Basics")
 {
@@ -33,6 +34,7 @@ TEST_CASE("Interp Basics")
   SECTION("G52 without rotation")
   {
     // Assume all offsets and such start at zero
+    REQUIRE_INTERP_OK(test_interp.convert_length_units(G_21, settings));
     REQUIRE(settings->length_units == CANON_UNITS_MM);
     REQUIRE(settings->parameters[G92_X] == 0.0);
     REQUIRE(settings->parameters[G92_Y] == 0.0);

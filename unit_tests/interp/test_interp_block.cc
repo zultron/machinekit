@@ -4,7 +4,6 @@
 #include <rs274ngc_interp.hh>
 #include <interp_inspection.hh>
 #include <interp_return.hh>
-#include <saicanon.hh>
 
 #include <interp_parameter_def.hh>
 using namespace interp_param_global;

@@ -134,6 +134,9 @@ extern "C" {
 #define PRINT_SHARED_MEMORY_ACTIVITY    0x08000000
 #define PRINT_ALL_SOCKET_REQUESTS       0x10000000
 #define PRINT_EVERYTHING                0xFFFFFFFF	/* 4294967295 */
+
+extern long rcs_print_mode_flags;
+
 #ifdef __cplusplus
 enum RCS_PRINT_DESTINATION_TYPE {
 #else
