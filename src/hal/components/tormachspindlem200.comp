@@ -93,7 +93,9 @@ author "";
 // Bi-directional:
 //          zindex-enable           used to set spindle encoder's "index-enable" bit to align encoder counts to zero at next z-index
 //         orient-set-bt30           when set starts bt30 indexing mode
+     
 ///////////////////// End of orient additions
+//          spindle-fault           used to alert PP GUI to spindle and VFD faults
 
 //
 // HAL mappings:
@@ -201,6 +203,7 @@ pin in bit enc_door_switch_status;
 pin in float enc_door_open_max_rpm;
 pin in float vfd_feedback_factor;
 
+pin out u32 spindle_fault;   //used to alert PP GUI to spindle and VFD faults
 
 ///////////Spindle orienting additions
 // Inputs:
@@ -215,6 +218,7 @@ pin in float encoder_velocity;  // encoder input velocity in RPS
 pin in s32 orient_encoder_cpr;  // encoder counts per rev
 pin in bit spindle_lock;
 pin in bit boost_disable;       //set high to disable boost
+pin in bit vfd_handshake;       //Hand shake pulse from VFD to confirm VFD mode switch is done
 
 // not used
 //pin in s32 encoder_rawcounts;
@@ -308,6 +312,9 @@ pin out s32 last_enc_err;
 
 ///////////// end of spindle orienting additions
 
+pin out u32 vfd_acked_mode_switch; //SLP REMOVE and replace with internal variable below DEBUG ONLY
+pin out u32 vfd_handshake_cnt; // SLP REMOVE and replace with internal variable below DEBUG ONLY
+
 function _ "Tormach Spindle HAL Component M200";
 
 ;;
@@ -348,6 +355,20 @@ function _ "Tormach Spindle HAL Component M200";
 #define AT_SPEED_DEBOUNCE_SECS 0.100
 #define AT_SPEED_FORCE_DELAY_SECS 10.0  //This is the delay before forcing at-speed to be true, when at-speed-force is true
 
+/////// SPINDLE Errors.  KEEP in synce with python/constants.py
+#define SPINDLE_NO_FAULT (0)                    //M200 VFD is powered and has no detected faults.  Non m200 VFDs will always return this "OK"
+#define SPINDLE_OK_POSSIBLE_WIRING_ISSUE (1)    //expected temporary VFD Fault signal not seen during VFD power up.  Error effectivity is ignored.  VFD has power however you may have T41 and T42 wiring issue.
+#define SPINDLE_FAULT_NO_K2 (2)                 //24VDC from VFD is not present.  K2 has not be activated yet 
+#define SPINDLE_FAULT_NO_24V (3)                //24VDC from VFD is still not present after K2 presumably activated.  Check spindle door switch, mill circuit breakers, or VFD wiring
+#define SPINDLE_FAULT_NO_ZINDEX (4)             //orient attempted and Z index not found.  Check encoder 
+#define SPINDLE_FAULT_LOCK_WITHOUT_PRIOR_ORIENT (5) //This shouldn't happen. Linuxcnc state seems confused.
+#define SPINDLE_FAULT_ORIENT_MAX_ROTATION (6)   //orient failed due to excessive number of revolutions.  Check encoder
+#define SPINDLE_FAULT_BT30 (7)                  //spindle not stationary or not in correct mode for setting BT30A
+#define SPINDLE_FAULT_VFD_FAULT (8)             //VFD reported a fault.  Look for error code on VFD.
+#define SPINDLE_FAULT_VFD_RPM = (9)             //VFD motor speed feedback absent. Check VFD wiring.
+#define SPINDLE_FAULT_ORIENT_TO  (10)           //orient time out detected.  Linuxcnc already notified user about T.O., so only log it
+#define SPINDLE_FAULT_MODE_SWITCH  (11)		    //expected VFD Mode switch acknowledgment did not occur
+
 ///////// Orienting additions
 //zindexing_state Bit defines
 #define ISTATE_PAST     (0x10)  //set when we've completed HM2 encoder z index-enable once in past
@@ -368,6 +389,7 @@ function _ "Tormach Spindle HAL Component M200";
 #define ORIENT_ERR_TIME_OUT (-4)
 #define ORIENT_ERR_MAX_ROTATION (-5)  //orient took more than
 #define ORIENT_ERR_BT30 (-6) //spindle must be stationary and normal mode to set BT30 offset
+#define ORIENT_ERR_MODE_SWITCH (-7)  //VFD mode switch failed 
 
 #define ORIENT_MAX_REVS (1.5) //orient must happen within this limit of rotations.  Prevents issue where VFD not getting mode bits results in max spindle RPM run away.
                                 //Note in "no Z index" case orient, we may get up to double this value, if Z index is working
@@ -376,7 +398,7 @@ function _ "Tormach Spindle HAL Component M200";
 #define ORIENT_TARGETBAND (8)  //within this range from orient target, we call it "done"
 #define ORIENT_TARGETBAND_TIME   (.200) //(.400) // 303mS was observed worst case where slow slopes could cause us to think orienting is "done" when PID is still homing in
                             //(.100) //must stay within ORIENT_TARGETBAND and have stable vfd_freq_cmd for this many secs to call orient "done"
-#define ORIENT_BAND_IGNORE (3)  //number of encoder counts, in addition to ORIENT_TARGETBAND, when we flag orient-status (used by ATC) with a non-zero.
+#define ORIENT_BAND_IGNORE (3) //SLP SET BACK TO 75 locally//(3)  //number of encoder counts, in addition to ORIENT_TARGETBAND, when we flag orient-status (used by ATC) with a non-zero.
                                 //in other words, the spindle brake engagement itself may move the spindle some.  And the spindle can move some due to the slop in the
                                 //PDB guide pins -- Matt & I measured 2 counts.  So we've added 50% with "3". We don't believe this to be a significant issue.
 
@@ -396,10 +418,10 @@ function _ "Tormach Spindle HAL Component M200";
 
 #define VFD_BIPOLAR_MODE (1)
 #define VFD_BIPOLAR_FREQ_OFFSET (5003.127) //(5000.46) //(5000.575683)   //defines what freq from the ECM and into VFD is "0".  Below 5000 is reverse, above is forward
-#define VFD_MODE_SWITCH_DELAY (1.00) //This is the delay the VFD needs as we switch between VFD modes using  mode0 and mode1 pins before we can enable the drive. (i.e. assert VFD "RUN" pin)
+#define VFD_MODE_SWITCH_DELAY (3.00) //This is the delay the VFD needs as we switch between VFD modes using  mode0 and mode1 pins before we can enable the drive. (i.e. assert VFD "RUN" pin)
                                     //Note at 3/4 of this value we actually switch the vfd-mode0 and vfd-mode1 
                                     //ALSO NOTE that decreasing this delay is NOT RECOMMENDED without considering the time it takes to release the spindle-brake, M19 to M3 screeches can happen
-#define VFD_FREQ_CMD_TO_ENABLE_DELAY (.0320) //time that VFD enable will be delayed after vfd_freq_cmd changes from inactive vfd_freq_cmd=0 state to an active, non-zero vfd_freq_cmd command state
+#define VFD_FREQ_CMD_TO_ENABLE_DELAY (.150) //(.0320) //time that VFD enable will be delayed after vfd_freq_cmd changes from inactive vfd_freq_cmd=0 state to an active, non-zero vfd_freq_cmd command state
 #define MAGIC_VFD_FREQ_OFFSET (0) //(164.0) //(41.0)  //determined by the minimum freq below which the VFD stops turning the spindle  (when VFD is in *25 sensitivity mode)
                                   //so theoretically, this is present in normal spindle mode, but the freq is 41/25 = 1.64 Hz vfd-cmd-freq which is what RPM???
                                   //not presently using MAGIC_VFD_FREQ_OFFSET, probably BIPOLAR Mode VFD_BIPOLAR_FREQ_OFFSET and VFD_DEADBAND_HZ removes the need for (duplicate) MAGIC_VFD_FREQ_OFFSET
@@ -445,6 +467,14 @@ static float vfd_mode_switch_timer = 0.0;   //this timer counts down. while acti
                                             //also see VFD_MODE_SWITCH_DELAY notes about how this is used at 75% and 50% of VFD_MODE_SWITCH_DELAY to switch vfd-mode# pins and vfd-freq-cmd, respectively.
 static float stuck_delay; //Is either (ORIENT_LONG_ORIENT_TIME) OR (ORIENT_LONG_ORIENT_TIME + VFD_MODE_SWITCH_DELAY).  Time that must pass before we start yet another timer to decide if orienting_stuck should be set.
 
+#define VFD_HANDSHAKE_COUNTS (10) //we expect pulse to be 16 to 32 ms wide.  We count this many high samples of the vfd_handshake pin, both high & low
+//states of VFD mode switch acknowledgement
+#define VFD_ACK_WAITING (0) // we've seen neither edge of ACK pulse from VFD
+#define VFD_ACK_HIGH    (1) // we've seen the rising edge of ACK pulse from VFD
+#define VFD_ACKED       (2) // we've seen both rising and falling edges of ACK pulse from VFD
+//static unsigned int vfd_acked_mode_switch; //uses "VFD_ACK*" states to track states of VFD mode switch
+//static unsigned int vfd_handshake_cnt = VFD_ACK_WAITING; 
+ 
 #define FILTER_LENGTH (16)
 static signed int firstFlag = 0;
 static signed int fbsum;
@@ -939,6 +969,8 @@ float encoder_spindle_speed;
     // but doesn't to the heavy lifting of what the spindle_states mean
     if (orient_execute) {
         if(spindle_state!=SPINDLE_STATE_ORIENTING) { //if we just entered this state
+            vfd_acked_mode_switch = VFD_ACK_WAITING;
+            vfd_handshake_cnt = 0;
             spindle_state = SPINDLE_STATE_ORIENTING;
             target_computed = 0;
             orient_problem = 0;
@@ -1026,12 +1058,19 @@ float encoder_spindle_speed;
         }
     }
     else { //normal spindle operation
-        if(spindle_state != SPINDLE_STATE_NORMAL) { //if just entering normal spindle state
+        if (spindle_state != SPINDLE_STATE_NORMAL) { //if just entering normal spindle state
+            vfd_acked_mode_switch = VFD_ACK_WAITING;
+            vfd_handshake_cnt = 0;
             if(spindle_state == SPINDLE_STATE_ORIENTING && !oriented) {
                 orient_to = 1;
                 orient_problem |= 2 ;
          //       orient_fault = ORIENT_ERR_TIME_OUT; setting this here goofs up linuxcnc such that it will never attempt another M19
             }
+            if (spindle_state == SPINDLE_STATE_NONE) { //SLP TODO: POWER UP CASE for rapid turn and HSS
+                vfd_acked_mode_switch = VFD_ACKED; //lie for power up case
+                vfd_mode = desired_vfd_mode; //lie for power up case 
+            }
+
             spindle_state = SPINDLE_STATE_NORMAL;
             orient_fault = 0; //clearing this here means orient_fault is only active for 1 ms!, but otherwise see above "never attempt another M19"
             orient_on_target = 0;
@@ -1126,7 +1165,7 @@ float encoder_spindle_speed;
                 else
                     orient_status = 0.0;
                 if (orient_status)
-                    orient_problem |= 4;
+                    orient_problem |= 4;  //SLP remove for local debug with broken ATC & spindle
             }
 //            else { //presently setting to "invalid" number incase ATC code samples this at "wrong" time for this variable.  It'll generate a fault as ATC code is looking for it to be zero or not.
 //                    //DEBUG statements in .ngc files are logging the return ... if we see this MAGIC NUMBER, then we know it was sampled at wrong time
@@ -1413,7 +1452,8 @@ float encoder_spindle_speed;
         stuck_delay = ORIENT_LONG_ORIENT_TIME + VFD_MODE_SWITCH_DELAY; //VFD_MODE_SWITCH_DELAY must expire before deciding ORIENT_LONG_ORIENT_TIME has passed
     }
 
-    if (vfd_mode_switch_timer > 0.0) { //give VFD time to switch modes.  Timer is active when above 0
+//    if (vfd_mode_switch_timer > 0.0) { //give VFD time to switch modes.  Timer is active when above 0
+      if (vfd_acked_mode_switch != VFD_ACKED) {  
         vfd_mode_switch_timer -= fperiod;
         spindle_on_thur = BIT_FALSE;    //over ride any previous "on" of this pin
         if ((spindle_state == SPINDLE_STATE_ORIENTING) || (spindle_state == SPINDLE_STATE_LOCKED)) {
@@ -1447,8 +1487,30 @@ float encoder_spindle_speed;
                 vfd_mode1 = 1;
                 break;
             }
+
+            switch (vfd_acked_mode_switch) {
+            case VFD_ACK_WAITING:
+                if (vfd_handshake &&  (++vfd_handshake_cnt > VFD_HANDSHAKE_COUNTS)) //if vfd_handshake pin from VFD is active, count can check it
+                    vfd_acked_mode_switch = VFD_ACK_HIGH; // we've seen the rising edge of ACK pulse from VFD
+                break;
+            case VFD_ACK_HIGH:
+                if (!vfd_handshake && (--vfd_handshake_cnt <= 0)) //if vfd_handshake pin has returned inactive and count as decremented
+                    vfd_acked_mode_switch = VFD_ACKED; // we've seen the rising and falling edges of ACK pulse from VFD, mode switch is confirmed from VFD
+                break;
+            default:
+                break;
+            }
+        }
+    
+        if ((vfd_acked_mode_switch != VFD_ACKED) && (vfd_mode_switch_timer <= 0.0)) {//VFD never acknowledged mode switch in time 
+            spindle_fault = SPINDLE_FAULT_MODE_SWITCH; //report spindle fault to PP GUI
+            if (vfd_mode == VFD_MODE_ORIENT) {
+                orient_fault = ORIENT_ERR_MODE_SWITCH; //set specific orient-fault pin as linuxcnc is looking here to fault
+                vfd_mode = VFD_MODE_DEFAULT; //start over 
+            }
         }
     }
+    
 
     //these next two delays (vfd_hold_freq_cmd_timer and vfd_enable_inhibit_timer) avoid cooincident VFD RUN (a.k.a. spindle_on_thur) pin and vfd_freq_cmd changes so 
     //VFD's internal error detection isn't glitched.  
