@@ -793,10 +793,10 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
     saved_tag = *tag;
 
     //Check if the new segment marks a new macro-level motion
-    if (emcStatus->task.stepping_id != tag->fields[GM_FIELD_STEPPING_ID]) {
+    if (emcStatus->task.currentLine != tag->fields[GM_FIELD_LINE_NUMBER]) {
         emcStatus->task.previousLine = emcStatus->task.currentLine;
+        emcStatus->task.currentLine = tag->fields[GM_FIELD_LINE_NUMBER];
     }
-    emcStatus->task.currentLine = tag->fields[GM_FIELD_LINE_NUMBER];
     emcStatus->task.stepping_id = tag->fields[GM_FIELD_STEPPING_ID];
     emcStatus->task.programUnits = (
 	(tag->packed_flags & (1<<GM_FLAG_UNITS)) ?

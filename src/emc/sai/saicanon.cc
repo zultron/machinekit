@@ -653,8 +653,8 @@ bool GET_OPTIONAL_PROGRAM_STOP()
 void OPTIONAL_PROGRAM_STOP()
 {PRINT("OPTIONAL_PROGRAM_STOP()\n");}
 
-void PROGRAM_END()
-{PRINT("PROGRAM_END()\n");}
+void PROGRAM_END(bool reset)
+{PRINT("PROGRAM_END(%d)\n", reset);}
 
 
 /*************************************************************************/

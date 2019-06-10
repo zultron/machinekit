@@ -4638,9 +4638,13 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 	for (index=5210; index<=5219; index++)
 	    settings->parameters[index] = 0;
 
-    if (block->m_modes[4] == 30)
+    if (block->m_modes[4] == 30) {
       PALLET_SHUTTLE();
-    PROGRAM_END();
+      PROGRAM_END(true);  // reset after program end with m30
+    } else {
+      PROGRAM_END(false);
+    }
+
     if (_setup.percent_flag && _setup.file_pointer) {
       line = _setup.linetext;
       for (;;) {                /* check for ending percent sign and comment if missing */

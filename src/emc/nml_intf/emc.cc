@@ -2154,7 +2154,7 @@ void EMC_TASK_PLAN_END::update(CMS * cms)
 {
 
     EMC_TASK_CMD_MSG::update(cms);
-
+    cms->update(reset);
 }
 
 /*

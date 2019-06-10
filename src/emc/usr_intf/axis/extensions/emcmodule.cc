@@ -318,6 +318,8 @@ static PyMemberDef Stat_members[] = {
     {(char*)"command", T_STRING_INPLACE, O(task.command), READONLY},
     {(char*)"program_units", T_INT, O(task.programUnits), READONLY},
     {(char*)"interpreter_errcode", T_INT, O(task.interpreter_errcode), READONLY},
+    {(char*)"program_ended_and_reset", T_BOOL, O(task.program_ended_and_reset), READONLY},
+    {(char*)"program_ended", T_BOOL, O(task.program_ended), READONLY},
     {(char*)"optional_stop", T_BOOL, O(task.optional_stop_state), READONLY},
     {(char*)"block_delete", T_BOOL, O(task.block_delete_state), READONLY},
     {(char*)"task_paused", T_INT, O(task.task_paused), READONLY},
@@ -1948,7 +1950,22 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                                 op->x, op->y, op->z,
                                 oop->x, oop->y, oop->z);
             }
-            if(add_point) {
+
+            // If the motion type is just jogging around (0), but we aren't really
+            // jogging, then deduce that the sudden position change is because a tool offset
+            // has changed the position so skip adding the point as its just very confusing
+            // in the tool path history.
+            if ((add_point) && (status->motion.traj.motion_type == 0)) {
+                bool jog_active = false;
+                for (int ix = 0; ix < status->motion.traj.axes; ++ix) {
+                    if (status->motion.axis[ix].kb_jog_active)
+                        jog_active = true;
+                }           
+    			if (! jog_active)
+    				add_point = false;
+            }                        
+
+            if (add_point) {
                 // 1 or 2 points may be added, make room whenever
                 // fewer than 2 are left
                 bool changed_color = s->npts && c != op->c;
@@ -1992,9 +2009,12 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                     s->npts++;
                 }
             } else {
-                struct logger_point &np = s->p[s->npts-1];
-                np.x = x; np.y = y; np.z = z;
-                np.rx = rx; np.ry = ry; np.rz = rz;
+                // update position of last point so that next delta in position is less
+                if (s->npts > 0) {
+                    struct logger_point &np = s->p[s->npts-1];
+                    np.x = x; np.y = y; np.z = z;
+                    np.rx = rx; np.ry = ry; np.rz = rz;
+                }
             }
         }
         nanosleep(&ts, NULL);
