@@ -141,7 +141,7 @@ bool GET_BLOCK_DELETE(void) {}
 void OPTIONAL_PROGRAM_STOP() {}
 void SET_OPTIONAL_PROGRAM_STOP(bool state) {}
 bool GET_OPTIONAL_PROGRAM_STOP() {}
-void PROGRAM_END() {}
+void PROGRAM_END(bool reset) {}
 void PROGRAM_STOP() {}
 void SET_MOTION_OUTPUT_BIT(int index) {}
 void CLEAR_MOTION_OUTPUT_BIT(int index) {}

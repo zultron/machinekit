@@ -630,7 +630,7 @@ optional stops. */
 extern bool GET_OPTIONAL_PROGRAM_STOP();
 /* Command to get the internal reference of optional program stop. */
 
-extern void PROGRAM_END();
+extern void PROGRAM_END(bool reset);
 /* If a program is being read, stop executing the program and be prepared
 to accept a new program or to be shut down. */
 

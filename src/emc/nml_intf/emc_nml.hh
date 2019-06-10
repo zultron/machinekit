@@ -491,6 +491,7 @@ class EMC_AXIS_STAT:public EMC_AXIS_STAT_MSG {
     unsigned char minHardLimit;	// non-zero means min hard limit exceeded
     unsigned char maxHardLimit;	// non-zero means max hard limit exceeded
     unsigned char overrideLimits; // non-zero means limits are overridden
+    int kb_jog_active; // non-zero means kb jog active for this axis
 };
 
 // declarations for EMC_TRAJ classes
@@ -1338,6 +1339,8 @@ class EMC_TASK_PLAN_END:public EMC_TASK_CMD_MSG {
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
+   
+    bool reset;   // reset after program end
 };
 
 class EMC_TASK_PLAN_CLOSE:public EMC_TASK_CMD_MSG {
@@ -1436,6 +1439,8 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     int previousLine;		// previous line handled by task
     int readLine;		// line interpreter has read to
     int stepping_id;		// ID of block we are stepping on
+    bool program_ended_and_reset; // program executed an M30 to gracefully end and reset
+    bool program_ended;           // program executed an M2 to gracefully end
     bool optional_stop_state;	// state of optional stop (== ON means we stop on M1)
     bool block_delete_state;	// state of block delete (== ON means we ignore lines starting with "/")
     bool input_timeout;		// has a timeout happened on digital input

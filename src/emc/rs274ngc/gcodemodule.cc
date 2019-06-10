@@ -470,7 +470,7 @@ void SET_SPINDLE_SPEED(double rpm) {
 void ORIENT_SPINDLE(double d, int i) {}
 void WAIT_SPINDLE_ORIENT_COMPLETE(double timeout) {}
 void PROGRAM_STOP() {}
-void PROGRAM_END() {}
+void PROGRAM_END(bool reset) {}
 void FINISH() {}
 void PALLET_SHUTTLE() {}
 void SELECT_POCKET(int pocket, int tool) {}
