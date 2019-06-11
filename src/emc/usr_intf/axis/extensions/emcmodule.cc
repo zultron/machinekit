@@ -1798,16 +1798,46 @@ struct logger_point {
 
 #define NUMCOLORS (6)
 #define MAX_POINTS (10000)
+
+// We keep track of the live tool path by recording points every so often in an array and then
+// getting opengl to draw the array of points as line vertices.  We build each array of
+// points according to the tool number that is active.
+// When we notice a tool change has occurred, we mark the tool point list for the previous
+// tool as inactive.  That way if that same tool is changed to later on in the program,
+// we don't simply append another point to the array and draw a line segment that never
+// actually happened.
+//
+// So the single linked list of tool_point_list structures grows by one with every tool
+// change.  New active tool_point_list structures are always added to the head so the
+// active ones should be found first.
+
+typedef struct tag_tool_point_list {    
+    int tool;        // tool number that was current when these points were logged
+    bool active;     // if true, this is the point list that the tool should be adding to
+    int npts;        // number of logger_point structs at p that are valid
+    int alloc_pts;   // number of logger_point structs allocated from heap at p
+    struct logger_point* p;
+    struct tag_tool_point_list* next_list;
+} tool_point_list;
+
 typedef struct {
     PyObject_HEAD
-    int npts, mpts, lpts;
-    struct logger_point *p;
+
+    tool_point_list* tool_point_list_head;
+    PyObject *visible_tool_list;
+    int last_tool;
+
     struct color colors[NUMCOLORS];
-    bool exit, clear, changed;
+    bool exit;
+    bool clear;
+
     char *geometry;
     int is_xyuv;
-    double foam_z, foam_w;
+    double foam_z;
+    double foam_w;
+
     pyStatChannel *st;
+
 } pyPositionLogger;
 
 static const double epsilon = 1e-4; // 1-cos(1 deg) ~= 1e-4
@@ -1825,18 +1855,55 @@ static inline bool colinear(float xa, float ya, float za, float xb, float yb, fl
     return false;
 }
 
+// This mutex guards the tool_point_list integrity and the heap memory of each point list.
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
 static void LOCK() { pthread_mutex_lock(&mutex); }
 static void UNLOCK() { pthread_mutex_unlock(&mutex); }
+
+static tool_point_list* tool_point_list_new() {
+    tool_point_list* pl = (tool_point_list*) malloc(sizeof(tool_point_list));
+    if (pl) {
+        pl->tool = 0;
+        pl->npts = 0;
+        pl->alloc_pts = 0;
+        pl->p = (logger_point*) malloc(pl->alloc_pts);
+        pl->next_list = NULL;
+    }
+    return pl;
+}
+
+static tool_point_list* find_active_tool_point_list(pyPositionLogger *s, int target_tool) {
+
+    tool_point_list* ptmp = s->tool_point_list_head;
+    while (ptmp && !((ptmp->tool == target_tool) && (ptmp->active))) {
+        ptmp = ptmp->next_list;
+    }
+
+    if (! ptmp) {
+        // Never found an active one for the target tool, allocate a new one for this tool and store it at the head of the list
+        // since that is MRU.
+        ptmp = tool_point_list_new();
+        ptmp->tool = target_tool;
+        ptmp->active = true;
+        ptmp->next_list = s->tool_point_list_head;
+        s->tool_point_list_head = ptmp;
+    }
+
+    return ptmp;
+}
 
 static int Logger_init(pyPositionLogger *self, PyObject *a, PyObject *k) {
     char *geometry;
     struct color *c = self->colors;
-    self->p = (logger_point*)malloc(0);
-    self->npts = self->mpts = 0;
-    self->exit = self->clear = 0;
-    self->changed = 1;
+
+    self->last_tool = 0;
+    self->tool_point_list_head = find_active_tool_point_list(self, self->last_tool);
+    self->exit = false;
+    self->clear = false;
+
+    Py_INCREF(Py_None);
+    self->visible_tool_list = Py_None;
+
     self->st = 0;
     self->is_xyuv = 0;
     self->foam_z = 0;
@@ -1858,7 +1925,13 @@ static int Logger_init(pyPositionLogger *self, PyObject *a, PyObject *k) {
 }
 
 static void Logger_dealloc(pyPositionLogger *s) {
-    free(s->p);
+    Py_DECREF(s->visible_tool_list);
+    while (s->tool_point_list_head) {
+        tool_point_list* pldead = s->tool_point_list_head;
+        s->tool_point_list_head = s->tool_point_list_head->next_list;
+        free(pldead->p);
+        free(pldead);
+    }
     Py_XDECREF(s->st);
     free(s->geometry);
     PyObject_Del(s);
@@ -1889,28 +1962,51 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
 
     Py_INCREF(s->st);
 
-    s->exit = 0;
-    s->clear = 0;
-    s->npts = 0;
+    s->exit = false;
+    s->clear = true;
 
     Py_BEGIN_ALLOW_THREADS
-    while(!s->exit) {
-        if(s->clear) {
-            s->npts = 0;
-            s->lpts = 0;
-            s->clear = 0;
+    while (!s->exit) {
+
+        if (s->clear) {           
+            // Clear point lists for all tools.  We dealloc them all because there can be a lot of
+            // inactive tool point lists and trying to collapse them all together is more work than just
+            // starting fresh.
+            LOCK();
+            while (s->tool_point_list_head) {
+                tool_point_list* pldead = s->tool_point_list_head;
+                s->tool_point_list_head = s->tool_point_list_head->next_list;
+                free(pldead->p);
+                free(pldead);
+            }
+            s->tool_point_list_head = find_active_tool_point_list(s, s->last_tool);
+            UNLOCK();
+            s->clear = false;
         }
-        if(s->st->c->valid() && s->st->c->peek() == EMC_STAT_TYPE) {
+
+        if (s->st->c->valid() && s->st->c->peek() == EMC_STAT_TYPE) {
             EMC_STAT *status = static_cast<EMC_STAT*>(s->st->c->get_address());
-            int colornum = 2;
-            colornum = status->motion.traj.motion_type;
-            if(colornum < 0 || colornum > NUMCOLORS) colornum = 0;
+
+            int colornum = status->motion.traj.motion_type;
+            if (colornum < 0 || colornum > NUMCOLORS) colornum = 0;
             struct color c = s->colors[colornum];
-            struct logger_point *op = &s->p[s->npts-1];
-            struct logger_point *oop = &s->p[s->npts-2];
-            bool add_point = s->npts < 2 || c != op->c;
+
+            LOCK();
+            if (status->io.tool.toolInSpindle != s->last_tool) {
+                // a tool change occurred.  retire the tool point list for the last tool
+                // so that if it is used again later on, we don't draw lines where they never actually occurred.
+                tool_point_list* pl = find_active_tool_point_list(s, s->last_tool);
+                pl->active = false;
+            }
+            tool_point_list* pl = find_active_tool_point_list(s, status->io.tool.toolInSpindle);
+            UNLOCK();
+
+            struct logger_point *op = &pl->p[pl->npts-1];
+            struct logger_point *oop = &pl->p[pl->npts-2];
+            bool add_point = pl->npts < 2 || c != op->c;
             double x, y, z, rx, ry, rz;
-            if(s->is_xyuv) {
+
+            if (s->is_xyuv) {
                 x = status->motion.traj.position.tran.x - status->task.toolOffset.tran.x,
                 y = status->motion.traj.position.tran.y - status->task.toolOffset.tran.y,
                 z = s->foam_z;
@@ -1923,10 +2019,10 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                  */
                 add_point = add_point || (dist2(x, y, oop->x, oop->y) > .01)
                     || (dist2(rx, ry, oop->rx, oop->ry) > .01);
-                add_point = add_point || !colinear( x, y, z,
+                add_point = add_point || !colinear(x, y, z,
                                 op->x, op->y, op->z,
                                 oop->x, oop->y, oop->z);
-                add_point = add_point || !colinear( rx, ry, rz,
+                add_point = add_point || !colinear(rx, ry, rz,
                                 op->rx, op->ry, op->rz,
                                 oop->rx, oop->ry, oop->rz);
             } else {
@@ -1946,7 +2042,7 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                 x = p[0]; y = p[1]; z = p[2];
                 rx = pt[3]; ry = -pt[4]; rz = pt[5];
 
-                add_point = add_point || !colinear( x, y, z,
+                add_point = add_point || !colinear(x, y, z,
                                 op->x, op->y, op->z,
                                 oop->x, oop->y, oop->z);
             }
@@ -1955,67 +2051,71 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
             // jogging, then deduce that the sudden position change is because a tool offset
             // has changed the position so skip adding the point as its just very confusing
             // in the tool path history.
-            if ((add_point) && (status->motion.traj.motion_type == 0)) {
+
+            if ((add_point) && (pl->npts > 0) && (status->motion.traj.motion_type == 0)) {
                 bool jog_active = false;
                 for (int ix = 0; ix < status->motion.traj.axes; ++ix) {
                     if (status->motion.axis[ix].kb_jog_active)
                         jog_active = true;
                 }           
-    			if (! jog_active)
+    			if (! jog_active)  {
+                    // suppress the point recording
     				add_point = false;
+                }
             }                        
 
             if (add_point) {
                 // 1 or 2 points may be added, make room whenever
                 // fewer than 2 are left
-                bool changed_color = s->npts && c != op->c;
-                if(s->npts+2 > s->mpts) {
+                bool changed_color = pl->npts && c != op->c;
+
+                // Do we need to expand the allocated heap for the point list?
+                if(pl->npts+2 > pl->alloc_pts) {
                     LOCK();
-                    if(s->mpts >= MAX_POINTS) {
+                    if (pl->alloc_pts >= MAX_POINTS) {
+                        // We've reached max buffer size so start throwing away oldest
+                        // point history instead of growing buffer any further.
                         int adjust = MAX_POINTS / 10;
-                        if(adjust < 2) adjust = 2;
-                        s->npts -= adjust;
-                        memmove(s->p, s->p + adjust, 
-                                sizeof(struct logger_point) * s->npts);
+                        if (adjust < 2) adjust = 2;
+                        pl->npts -= adjust;
+                        memmove(pl->p, pl->p + adjust, 
+                                sizeof(struct logger_point) * pl->npts);
                     } else {
-                        s->mpts = 2 * s->mpts + 2;
-                        s->changed = 1;
-                        s->p = (struct logger_point*) realloc(s->p,
-                                    sizeof(struct logger_point) * s->mpts);
+                        // Double the buffer (grows it exponentially over time)
+                        pl->alloc_pts = 2 * pl->alloc_pts + 2;
+                        pl->p = (struct logger_point*) realloc(pl->p,
+                                    sizeof(struct logger_point) * pl->alloc_pts);
                     }
                     UNLOCK();
-                    op = &s->p[s->npts-1];
-                    oop = &s->p[s->npts-2];
-                }
-                if(changed_color) {
-                    {
-                    struct logger_point &np = s->p[s->npts];
+                    op = &pl->p[pl->npts-1];
+                    oop = &pl->p[pl->npts-2];
+                }                
+
+                if (changed_color) {
+                    // when changing color we need to record an extra point
+                    struct logger_point &np = pl->p[pl->npts];
                     np.x = op->x; np.y = op->y; np.z = op->z;
                     np.rx = rx; np.ry = ry; np.rz = rz;
                     np.c = np.c2 = c;
-                    }
-                    {
-                    struct logger_point &np = s->p[s->npts+1];
-                    np.x = x; np.y = y; np.z = z;
-                    np.rx = rx; np.ry = ry; np.rz = rz;
-                    np.c = np.c2 = c;
-                    }
-                    s->npts += 2;
-                } else {
-                    struct logger_point &np = s->p[s->npts];
-                    np.x = x; np.y = y; np.z = z;
-                    np.rx = rx; np.ry = ry; np.rz = rz;
-                    np.c = np.c2 = c;
-                    s->npts++;
-                }
+                    pl->npts++;
+                } 
+
+                struct logger_point &np = pl->p[pl->npts];
+                np.x = x; np.y = y; np.z = z;
+                np.rx = rx; np.ry = ry; np.rz = rz;
+                np.c = np.c2 = c;
+                pl->npts++;
+
             } else {
-                // update position of last point so that next delta in position is less
-                if (s->npts > 0) {
-                    struct logger_point &np = s->p[s->npts-1];
+                // update position of last recorded point so that next delta calc is less
+                if (pl->npts > 0) {
+                    struct logger_point &np = pl->p[pl->npts-1];
                     np.x = x; np.y = y; np.z = z;
                     np.rx = rx; np.ry = ry; np.rz = rz;
                 }
             }
+
+            s->last_tool = status->io.tool.toolInSpindle;
         }
         nanosleep(&ts, NULL);
     }
@@ -2037,34 +2137,49 @@ static PyObject* Logger_stop(pyPositionLogger *s, PyObject *o) {
     return Py_None;
 }
 
-static PyObject* Logger_call(pyPositionLogger *s, PyObject *o) {
-    if(!s->clear) {
+static PyObject* Logger_draw_live_plot(pyPositionLogger *s, PyObject *o) {
+    if (!s->clear) {
+
         LOCK();
-        if(s->is_xyuv) {
-            if(s->changed) {
-                glVertexPointer(3, GL_FLOAT,
-                        sizeof(struct logger_point)/2, &s->p->x);
-                glColorPointer(4, GL_UNSIGNED_BYTE,
-                        sizeof(struct logger_point)/2, &s->p->c);
-                glEnableClientState(GL_COLOR_ARRAY);
-                glEnableClientState(GL_VERTEX_ARRAY);
-                s->changed = 0;
+
+        tool_point_list* pl = s->tool_point_list_head;
+        while (pl) {
+            // Should we draw this tool's point list or not?
+            bool drawit = false;
+            if (s->visible_tool_list == Py_None) {
+                drawit = true;  // A visible tool list of None means draw all tools
+            } else {
+                for (Py_ssize_t ix = 0; ix < PyList_Size(s->visible_tool_list); ix++) {
+                    long visible_tool = PyInt_AsLong(PyList_GetItem(s->visible_tool_list, ix));
+                    if (pl->tool == visible_tool) {
+                        drawit = true;
+                        break;
+                    }
+                }
             }
-            s->lpts = s->npts;
-            glDrawArrays(GL_LINES, 0, 2*s->npts);
-        } else {
-            if(s->changed) {
-                glVertexPointer(3, GL_FLOAT,
-                        sizeof(struct logger_point), &s->p->x);
-                glColorPointer(4, GL_UNSIGNED_BYTE,
-                        sizeof(struct logger_point), &s->p->c);
-                glEnableClientState(GL_COLOR_ARRAY);
-                glEnableClientState(GL_VERTEX_ARRAY);
-                s->changed = 0;
+
+            if (drawit) {
+                if (s->is_xyuv) {
+                    glVertexPointer(3, GL_FLOAT,
+                            sizeof(struct logger_point)/2, &pl->p->x);
+                    glColorPointer(4, GL_UNSIGNED_BYTE,
+                            sizeof(struct logger_point)/2, &pl->p->c);
+                    glEnableClientState(GL_COLOR_ARRAY);
+                    glEnableClientState(GL_VERTEX_ARRAY);
+                    glDrawArrays(GL_LINES, 0, 2*pl->npts);
+                } else {
+                    glVertexPointer(3, GL_FLOAT,
+                            sizeof(struct logger_point), &pl->p->x);
+                    glColorPointer(4, GL_UNSIGNED_BYTE,
+                            sizeof(struct logger_point), &pl->p->c);
+                    glEnableClientState(GL_COLOR_ARRAY);
+                    glEnableClientState(GL_VERTEX_ARRAY);
+                    glDrawArrays(GL_LINE_STRIP, 0, pl->npts);
+                }
             }
-            s->lpts = s->npts;
-            glDrawArrays(GL_LINE_STRIP, 0, s->npts);
-        }
+            pl = pl->next_list;
+        }  
+
         UNLOCK();
     }
     Py_INCREF(Py_None);
@@ -2075,14 +2190,16 @@ static PyObject *Logger_last(pyPositionLogger *s, PyObject *o) {
     int flag=1;
     if(!PyArg_ParseTuple(o, "|i:emc.positionlogger.last", &flag)) return NULL;
     PyObject *result = NULL;
+
     LOCK();
-    int idx = flag ? s->lpts : s->npts;
-    if(!idx) {
+
+    tool_point_list* pl = find_active_tool_point_list(s, s->last_tool);
+    if (pl->npts == 0) {
         Py_INCREF(Py_None);
         result = Py_None;
     } else {
         result = PyTuple_New(6);
-        struct logger_point &p = s->p[idx-1];
+        struct logger_point &p = pl->p[pl->npts-1];
         PyTuple_SET_ITEM(result, 0, PyFloat_FromDouble(p.x));
         PyTuple_SET_ITEM(result, 1, PyFloat_FromDouble(p.y));
         PyTuple_SET_ITEM(result, 2, PyFloat_FromDouble(p.z));
@@ -2090,14 +2207,45 @@ static PyObject *Logger_last(pyPositionLogger *s, PyObject *o) {
         PyTuple_SET_ITEM(result, 4, PyFloat_FromDouble(p.ry));
         PyTuple_SET_ITEM(result, 5, PyFloat_FromDouble(p.rz));
     }
+
     UNLOCK();
+
     return result;
 }
 
-static PyMemberDef Logger_members[] = {
-    {(char*)"npts", T_INT, offsetof(pyPositionLogger, npts), READONLY},
-    {0, 0, 0, 0},
-};
+static PyObject *Logger_set_visible_tools(pyPositionLogger *s, PyObject *o) {
+    PyObject *li;
+    if (!PyArg_ParseTuple(o, "O:set_visible_tools", &li)) {
+        return NULL;
+    }
+
+    if ((li != Py_None) && (! PyList_Check(li))) {
+        PyErr_SetString(PyExc_TypeError, "set_visible_tools takes None or a list of tool numbers");
+        return NULL;
+    }
+
+    Py_DECREF(s->visible_tool_list);
+    Py_INCREF(li);
+    s->visible_tool_list = li;
+
+    Py_INCREF(Py_None);
+    PyObject *result = Py_None;
+    return result;   
+}
+
+static PyObject* Logger_get_npts(pyPositionLogger *s, PyObject *o) {
+
+    LOCK();
+    long total_npts = 0;
+    tool_point_list* ptmp = s->tool_point_list_head;
+    while (ptmp) {
+        total_npts += ptmp->npts;
+        ptmp = ptmp->next_list;
+    }
+    UNLOCK();
+
+    return PyLong_FromLong(total_npts);
+}
 
 static PyMethodDef Logger_methods[] = {
     {"start", (PyCFunction)Logger_start, METH_VARARGS,
@@ -2106,12 +2254,16 @@ static PyMethodDef Logger_methods[] = {
         "Clear the position logger"},
     {"stop", (PyCFunction)Logger_stop, METH_NOARGS,
         "Stop the position logger"},
-    {"call", (PyCFunction)Logger_call, METH_NOARGS,
+    {"draw_live_plot", (PyCFunction)Logger_draw_live_plot, METH_NOARGS,
         "Plot the backplot now"},
     {"set_depth", (PyCFunction)Logger_set_depth, METH_VARARGS,
         "set the Z and W depths for foam cutter"},
     {"last", (PyCFunction)Logger_last, METH_VARARGS,
         "Return the most recent point on the plot or None"},
+    {"set_visible_tools", (PyCFunction)Logger_set_visible_tools, METH_VARARGS,
+        "Set the list of tool numbers the live plot should filter its drawing on.  None means all tools are visible."},
+    {"get_npts", (PyCFunction)Logger_get_npts, METH_NOARGS,
+        "Get total number of points logged"},
     {NULL, NULL, 0, NULL},
 };
 
@@ -2146,7 +2298,7 @@ static PyTypeObject PositionLoggerType = {
     0,                      /*tp_iter*/
     0,                      /*tp_iternext*/
     Logger_methods,         /*tp_methods*/
-    Logger_members,         /*tp_members*/
+    0,                      /*tp_members*/
     0,                      /*tp_getset*/
     0,                      /*tp_base*/
     0,                      /*tp_dict*/

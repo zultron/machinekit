@@ -1412,7 +1412,7 @@ class GlCanonDraw:
             glPushMatrix()
             glTranslatef(0,0,.003)
 
-            self.lp.call()
+            self.lp.draw_live_plot()
 
             glPopMatrix()
             glMatrixMode(GL_MODELVIEW)

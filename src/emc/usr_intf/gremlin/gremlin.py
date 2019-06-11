@@ -274,7 +274,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             s.poll()
         except:
             return
-        fingerprint = (self.logger.npts, self.soft_limits(),
+        fingerprint = (self.logger.get_npts(), self.soft_limits(),
             s.actual_position, s.joint_actual_position,
             s.homed, s.g5x_offset, s.g92_offset, s.limit, s.tool_in_spindle,
             s.motion_mode, s.current_vel)
@@ -331,6 +331,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.stale_dlist('program_norapids')
             self.stale_dlist('select_rapids')
             self.stale_dlist('select_norapids')
+
+        if self.logger:
+            self.logger.set_visible_tools(tool_list)
+            self._redraw()
 
 
     def load(self,filename = None):
