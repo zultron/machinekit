@@ -8,6 +8,7 @@ pin out float out;
 pin out float out_vel;
 pin out bit stopped;
 pin out float out_acc;
+pin in bit match_vel=1;
 pin in bit load=0
     """When TRUE, immediately set \\fBout\\fB to \\fBin\\fR, ignoring maxv
 and maxa""";
@@ -102,16 +103,23 @@ FUNCTION(_) {
     stop_pos_max = out + S_GIVEN_VI_VF_T(max_vel, 0.0, stop_time_max);
     stop_pos_min = out + S_GIVEN_VI_VF_T(min_vel, 0.0, stop_time_min);
     //
-    // Shortest possible distance to match input velocity
-    // - time to match input velocity from this period; out runs 1 period behind
-    in_vel_time_max = rtapi_fabs(T_GIVEN_VI_VF_A(max_vel, in_vel, maxa)) - fperiod;
-    in_vel_time_min = rtapi_fabs(T_GIVEN_VI_VF_A(min_vel, in_vel, maxa)) - fperiod;
-    // - output position after velocity match
-    out_pos_max = max_pos + S_GIVEN_VI_VF_T(max_vel, in_vel, in_vel_time_max);
-    out_pos_min = min_pos + S_GIVEN_VI_VF_T(min_vel, in_vel, in_vel_time_min);
-    // - input position after velocity match
-    in_pos_max = in + in_vel * in_vel_time_max;
-    in_pos_min = in + in_vel * in_vel_time_min;
+    if (match_vel) {
+        // Shortest possible distance to match input velocity
+        // - time to match input velocity from this period; out runs 1 period behind
+        in_vel_time_max = rtapi_fabs(T_GIVEN_VI_VF_A(max_vel, in_vel, maxa)) - fperiod;
+        in_vel_time_min = rtapi_fabs(T_GIVEN_VI_VF_A(min_vel, in_vel, maxa)) - fperiod;
+        // - output position after velocity match
+        out_pos_max = max_pos + S_GIVEN_VI_VF_T(max_vel, in_vel, in_vel_time_max);
+        out_pos_min = min_pos + S_GIVEN_VI_VF_T(min_vel, in_vel, in_vel_time_min);
+        // - input position after velocity match
+        in_pos_max = in + in_vel * in_vel_time_max;
+        in_pos_min = in + in_vel * in_vel_time_min;
+    } else {
+        // Just head toward goal
+        out_pos_max = max_pos;
+        out_pos_min = min_pos;
+        in_pos_max = in_pos_min = in;
+    }
 
     // 2. Choose the current goal:  stop, input signal, max limit or min limit
     //
@@ -135,12 +143,12 @@ FUNCTION(_) {
 	goal_pos_min = goal_pos_max = goal_pos_cur = goal_pos_prev = max_;
     else if (stop_pos_min < min_ - EPSILON && !VALID_NEXT(min_))
 	goal_pos_min = goal_pos_max = goal_pos_cur = goal_pos_prev = min_;
-    // - if input is outside min/max limit but heading back in, is
-    //   there time to keep heading toward the limit before we need to
+    // - if using velocity and input is outside min/max limit but heading back
+    //   in, is there time to keep heading toward the limit before we need to
     //   start running to meet the input signal?
-    else if (in >= max_ && in_pos_max > out_pos_max)
+    else if (match_vel && in >= max_ && in_pos_max > out_pos_max)
 	goal_pos_min = goal_pos_max = goal_pos_cur = goal_pos_prev = max_;
-    else if (in <= min_ && in_pos_min < out_pos_min)
+    else if (match_vel && in <= min_ && in_pos_min < out_pos_min)
 	goal_pos_min = goal_pos_max = goal_pos_cur = goal_pos_prev = min_;
     //
     // Input signal:
