@@ -1,0 +1,94 @@
+setexact_for_test_suite_only
+
+loadrt threads name1=t period1=1000000
+
+# Input signal:  0 for 800 samples, then 160 for 800 samples
+# - comp
+loadrt siggen names=goal0,goal1,goal2
+# - high frequency portion
+setp goal0.amplitude -40
+setp goal0.offset 40
+setp goal0.frequency 3
+net g0pos <= goal0.cosine
+addf goal0.update t
+# - low frequency portion
+setp goal1.amplitude -40
+setp goal1.offset 40
+setp goal1.frequency 1
+net g1pos <= goal1.cosine
+addf goal1.update t
+# - "noise" portion
+net noise-lev goal2.amplitude
+net noise-lev goal2.offset
+setp goal2.frequency 100
+net g2pos <= goal2.sine
+addf goal2.update t
+# - input signal:  sum of the three portions
+newinst sumn goal pincount=3
+net g0pos => goal.in0
+net g1pos => goal.in1
+net g2pos => goal.in2
+net gpos <= goal.out
+addf goal.funct t
+# - scope:  sum of the high and low portions (for clean vel + acc curves)
+newinst sum2 goals
+net g0pos => goals.in0
+net g1pos => goals.in1
+net spos <= goals.out
+addf goals.funct t
+# - velocity and filtered acceleration
+newinst ddt gvel
+newinst lowpass gvelfilt
+newinst ddt gacc
+net spos => gvel.in
+net gvel <= gvel.out => gvelfilt.in
+net gvelfilt <= gvelfilt.out => gacc.in
+net velfilt-gain gvelfilt.gain
+net gacc <= gacc.out
+addf gvel t
+addf gvelfilt t
+addf gacc t
+
+# limit3 config
+# - comp and limits
+newinst limit3 limit3.0
+# setp limit3.0.maxv 1500.000000
+setp limit3.0.maxv 100000000
+net maxa => limit3.0.maxa
+net l3-match-vel limit3.0.match-vel
+net gpos => limit3.0.in
+addf limit3.0 t
+# - velocity and filtered acceleration
+newinst ddt l3vel
+newinst lowpass l3velfilt
+newinst ddt l3acc
+net l3pos <= limit3.0.out => l3vel.in
+net l3vel <= l3vel.out => l3velfilt.in
+net l3velfilt <= l3velfilt.out => l3acc.in
+net velfilt-gain l3velfilt.gain
+net l3acc <= l3acc.out
+addf l3vel t
+addf l3velfilt t
+addf l3acc t
+
+# jplan config
+# - comp and limits
+newinst jplan jplan
+# setp jplan.0.max-vel 1500.000000
+setp jplan.0.max-vel 100000000
+net maxa => jplan.0.max-acc
+setp jplan.0.enable 1
+net gpos => jplan.0.pos-cmd
+addf jplan.update t
+# - velocity and filtered acceleration
+newinst ddt jpvel
+newinst lowpass jpvelfilt
+newinst ddt jpacc
+net jppos <= jplan.0.curr-pos => jpvel.in
+net jpvel <= jpvel.out => jpvelfilt.in
+net jpvelfilt <= jpvelfilt.out => jpacc.in
+net velfilt-gain jpvelfilt.gain
+net jpacc <= jpacc.out
+addf jpvel t
+addf jpvelfilt t
+addf jpacc t

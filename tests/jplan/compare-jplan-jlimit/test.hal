@@ -1,0 +1,98 @@
+########################
+# Load test config
+source test-setup.hal
+
+########################
+# Acceleration limits
+#
+# These settings show the effects of different acceleration limits.
+#
+# In the Tormach robot configuration, ideally, ROS joint trajectories
+# should never exceed acceleration limits, but they may be tight.  In
+# the current configuration, however, acceleration limits are
+# violated.
+#
+# These settings show pathological error in jplan acceleration when
+# limits are tight or exceeded, resulting in significant following
+# error.
+
+# - limit exceeded (clipping)
+# sets maxa 15000
+
+# - limit tight
+sets maxa 20000
+
+# - limit loose
+# sets maxa 200000
+
+# - limit off (almost)
+# sets maxa 200000000
+
+
+
+########################
+# Noise
+#
+# These settings add in an optional high-frequency sine wave.
+#
+# There shouldn't be signal jitter in joint trajectory signals coming
+# from ROS.  However, the `limit3` comp may be used in situations
+# where inputs come from noisy sensor signals, which looks like
+# acceleration violations on a local scale.  The 'add noise' setting
+# is intended to introduce acceleration violations on a local scale to
+# show the effect on following error.
+#
+# The `limit3` comp tries to converge on the input signal with less
+# overshoot by trying to match not only position, but also velocity of
+# the input signal.  Adding 'noise' causes pathological following
+# errors in the `limit3` comp.  (The `jplan` comp only considers input
+# signal position, and is unaffected.)
+
+# - no noise
+sets velfilt-gain 1
+sets noise-lev 0
+
+# - add noise
+# sets velfilt-gain 0.02
+# sets noise-lev 5
+
+########################
+# Disable velocity matching in `limit3`
+#
+# A change in the `limit3` comp disables velocity matching to avoid
+# the above problem.  These settings demonstrate the effect.
+#
+# With velocity matching disabled, `limit3` follows well a commanded
+# signal with 'noise' added in.
+
+# - use velocity matching
+sets l3-match-vel 1
+
+# - disable velocity matching
+# sets l3-match-vel 0
+
+########################
+# Halscope or sampler
+#
+# Output of these settings can be directed to halsampler, which prints
+# pin values to the console, or halscope, which shows them
+# grahpically.
+
+# - use sampler
+# loadrt sampler cfg=fffffffff depth=1000
+# net gpos => sampler.0.pin.0
+# net l3pos => sampler.0.pin.1
+# net jppos => sampler.0.pin.2
+# net gvel => sampler.0.pin.3
+# net l3vel => sampler.0.pin.4
+# net jpvel => sampler.0.pin.5
+# net gacc => sampler.0.pin.6
+# net l3acc => sampler.0.pin.7
+# net jpacc => sampler.0.pin.8
+# addf sampler.0 t
+# start
+# loadusr -w halsampler -t -n 1000
+
+# - use halscope
+start
+loadusr -w halscope -i test.halscope
