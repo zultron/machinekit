@@ -5,3 +5,7 @@ test_interp_srcs = files([
   ])
 
 test_interp_inc = include_directories('.')
+
+interp_testing_util_srcs = files([
+  'interp_testing_util.cc',
+  ])

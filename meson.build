@@ -368,6 +368,15 @@ libmock_stat_config = library('mock_stat_config',
 libmock_stat_config_dep = declare_dependency(include_directories : [mock_inc],
     link_with : libmock_stat_config)
 
+libinterp_testing_util = library('interp_testing_util',
+  interp_testing_util_srcs,
+  include_directories : [test_interp_inc, nml_intf_inc, motion_inc, config_inc, unit_test_support_inc ],
+  dependencies : [librs274ngc_dep, libinterp_shared_dep, libposemath_dep, libnml_dep, python2_dep, libemc_global_dep, libmock_stat_config_dep]
+  )
+
+libinterp_testing_util_dep = declare_dependency(include_directories : test_interp_inc,
+    link_with : libinterp_testing_util)
+
 test_interp_ex = executable('test_interp',
     test_interp_srcs,
     include_directories : [test_interp_inc, rs274ngc_external_inc, unit_test_support_inc, nml_intf_inc],
@@ -379,6 +388,7 @@ test_interp_ex = executable('test_interp',
         liblinuxcnchal_dep,
         libut_emccanon_dep,
         libinterp_shared_dep,
+        libinterp_testing_util_dep,
         libmock_stat_config_dep,
         libnml_dep,
         libnml_interp_list_dep,

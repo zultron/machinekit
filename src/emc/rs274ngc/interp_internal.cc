@@ -541,3 +541,17 @@ RotateShiftTransform getAxisWordsFromBlock(block_pointer b, RotateShiftTransform
                              b->r_flag ? b->r_number : current.getXYRotationDeg());
     return out;
 }
+
+void append_stack_info(setup_struct & settings, const char * function_name, const char *file_name, int line)
+{
+    if (settings.stack_index >= STACK_LEN -1) {
+        return;
+    }
+
+    strncpy(settings.stack[settings.stack_index], function_name, STACK_ENTRY_LEN);
+    strncpy(settings.stack_file[settings.stack_index], file_name, STACK_ENTRY_LEN);
+    settings.stack_line[settings.stack_index] = line;
+    settings.stack[settings.stack_index][STACK_ENTRY_LEN-1] = '\0';
+    settings.stack_index++;
+    settings.stack[settings.stack_index][0] = '\0';
+}

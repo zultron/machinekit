@@ -1258,7 +1258,7 @@ int Interp::init()
   _setup.lathe_diameter_mode = false;
   _setup.parameters[DEBUG_LEVEL_FLAG] = 1.0; // enable (DEBUG, ) output
 
-  memcpy(_readers, default_readers, sizeof(default_readers));
+  std::copy(default_readers, default_readers + 256, _readers);
 
   long axis_mask = GET_EXTERNAL_AXIS_MASK();
   if(!(axis_mask & AXIS_MASK_X)) _readers[(int)'x'] = nullptr;

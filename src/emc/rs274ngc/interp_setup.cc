@@ -95,6 +95,7 @@ setup_struct::setup_struct() :
     speed_override(0),
     spindle_turning(CANON_STOPPED),
     stack{},
+    stack_line{},
     stack_index(0),
     pockets_max(0),
     tool_table{},

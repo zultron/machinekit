@@ -1172,7 +1172,7 @@ int Interp::read_one_item(
   CHKS(((letter < ' ') || (letter > 'z')),
 	_("Bad character '\\%03o' used"), (unsigned char)letter);
   function_pointer = _readers[(int) letter]; /* Find the function pointer in the array */
-  CHKS((function_pointer == 0),
+  CHKS((function_pointer == nullptr),
 	(!isprint(letter) || isspace(letter)) ?
 	    _("Bad character '\\%03o' used") : _("Bad character '%c' used"), letter);
   CHP((*this.*function_pointer)(line, counter, block, parameters)); /* Call the function */ 

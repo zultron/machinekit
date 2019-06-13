@@ -19,11 +19,15 @@ using Catch::Matchers::WithinAbs;
 extern InterpBase *pinterp;
 extern int emc_debug;
 
+int print_interp_error(Interp &interp, int retval);
+
+int execute(Interp &interp, const char *cmd);
+
 template <size_t N>
 int execute_lines(Interp &interp, const char* (&lines)[N] )
 {
   for (auto l : lines) {
-    int res = interp.execute(l);
+    int res = execute(interp, l);
     if (res != INTERP_OK) {
       return res;
     }
