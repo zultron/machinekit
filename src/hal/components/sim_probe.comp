@@ -45,17 +45,17 @@ FUNCTION(_) {
   switch (shape) {
     case 0: // rectangular
       if (pocket) {
-        out = (enable &&
-              ((x_in - tip_radius <= x - w/2     || x_in + tip_radius >= x + w/2)      ||
-              (y_in - tip_radius <= y - height/2 || y_in + tip_radius >= y + height/2) ||
-              z_in_minus_offset <= z));
+        out = enable &&
+              ((x_in - tip_radius <= x - w/2     || x_in + tip_radius >= x + w/2)       ||
+              (y_in - tip_radius <= y - height/2 || y_in + tip_radius >= y + height/2))
+              && (z_in_minus_offset <= z);
       }
       else {
         // boss
-        out = (enable &&
+        out = enable &&
               (x_in + tip_radius >= x - w/2)      && (x_in - tip_radius <= x + w/2)      &&
-              (y_in + tip_radius >= y - height/2) && (y_in - tip_radius <= y + height/2) &&
-              z_in_minus_offset <= z);
+              (y_in + tip_radius >= y - height/2) && (y_in - tip_radius <= y + height/2)
+              && (z_in_minus_offset <= z);
       }
       break;
 
