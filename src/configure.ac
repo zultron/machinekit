@@ -688,8 +688,8 @@ AC_ARG_ENABLE(dev,
 
 ##############################################################################
 # Subsection 2.3.1                                                           #
-# protobuf, zmq, websockets, json, uriparse, avahi-client packages           #
-# NML
+# CK, protobuf, zmq, websockets, json, uriparse, avahi-client packages       #
+# NML                                                                        #
 ##############################################################################
 
 PKG_CHECK_MODULES([ZMQ], [libzmq],
@@ -697,6 +697,20 @@ PKG_CHECK_MODULES([ZMQ], [libzmq],
         AC_DEFINE(HAVE_ZMQ, [], [zeroMQ library available])
 	USE_ZMQ=yes
     ],)
+
+PKG_CHECK_MODULES([CK], [ck >= 0.4.6],
+    [
+	AC_DEFINE(HAVE_CK, [], [concurrencykit.org support available])
+	# needed for kbuild:
+        CK_INCLUDE=`pkg-config --cflags-only-I ck`
+        USE_CK=yes
+	AC_MSG_RESULT([configuring to use ck])
+    ],
+    [
+        AC_MSG_RESULT([not using concurrencykit])
+        USE_CK=no
+    ])
+
 
 PKG_CHECK_MODULES([CZMQ], [libczmq > 4.0],
     [
