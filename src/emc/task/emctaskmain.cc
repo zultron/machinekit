@@ -613,7 +613,17 @@ interpret_again:
 			} else {
 			    // got a good line
 			    // record the line number and command
-			    emcStatus->task.readLine = emcTaskPlanLine();
+                emcStatus->task.readLine = emcTaskPlanLine();
+
+                // Check if the first real command should be read or not
+                if (emcTaskPlanLevel() == 0
+                        && emcStatus->task.readLine >= programStartLine
+                        && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
+                    // Next line will be the start line, and this is the first command, so immediately start reading
+                    // NOTE: we don't need to synch here only because this is the first command
+                    emcStatus->task.interpState = EMC_TASK_INTERP_READING;
+                    programStartLine = 0;
+                }
 
 			    emcTaskPlanCommand((char *) &emcStatus->task.
 					       command);
@@ -694,20 +704,21 @@ interpret_again:
 						       emcStatus->motion.traj.actualPosition.w);
 			    }
 
-			    if ((emcTaskPlanLevel() == 0) &&
-				(emcStatus->task.readLine + 1 ==
-                 programStartLine)) {
+                if (emcTaskPlanLevel() == 0
+                        && emcStatus->task.readLine + 1 >= programStartLine
+                        && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
+
+                    // Next line will be the start line, so force a synch and
                 emcStatus->task.interpState = EMC_TASK_INTERP_READING;
+                emcTaskPlanSynch();
 
-				emcTaskPlanSynch();
-
-				// reset programStartLine so we don't
-				// fall into our stepping routines if
-				// we happen to execute lines before
-				// the current point later (due to
-				// subroutines).
-				programStartLine = 0;
-			    }
+                // reset programStartLine so we don't
+                // fall into our stepping routines if
+                // we happen to execute lines before
+                // the current point later (due to
+                // subroutines).
+                programStartLine = 0;
+                }
 
                             if (count++ < emc_task_interp_max_len
                                     && (emcStatus->task.interpState == EMC_TASK_INTERP_READING || emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING)
@@ -2358,8 +2369,9 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	    emcTaskPlanOpen(emcStatus->task.file);
 	}
 	run_msg = (EMC_TASK_PLAN_RUN *) cmd;
-	programStartLine = run_msg->line;
-    emcStatus->task.interpState = (programStartLine > 0) ? EMC_TASK_INTERP_SEEKING : EMC_TASK_INTERP_READING;
+    programStartLine = run_msg->line;
+    // KLUDGE always start by seeking (will drop into reading if the first command is at the start line)
+    emcStatus->task.interpState = EMC_TASK_INTERP_SEEKING;
 	emcStatus->task.task_paused = 0;
         emcStatus->task.program_ended = 0;
         emcStatus->task.program_ended_and_reset = 0;
