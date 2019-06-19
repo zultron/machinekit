@@ -621,14 +621,8 @@ interpret_again:
 			    execRetval = INTERP_OK;
 			    // Tormach - set _task variable appropriately so that 
 			    // remap code can decide what to do in read-behind *dpr 12/15
-			    if (programStartLine < 0 ||
-				emcStatus->task.readLine <
-				programStartLine){
-					_task = -1;
-				}
-				else {
-					_task = 1;
-				}
+                _task = (programStartLine < 0 || emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) ? -1 : 1;
+
 			    execRetval = emcTaskPlanExecute(0);
 			    // line number may need update after
 			    // returns from subprograms in external
@@ -648,10 +642,12 @@ interpret_again:
 				// INTERP_EXECUTE_FINISH signifies
 				// that no more reading should be done until
 				// everything
-				// outstanding is completed
-				emcTaskPlanSetWait();
-				// and resynch interp WM
-				emcTaskQueueCommand(&taskPlanSynchCmd);
+                // outstanding is completed
+                    if (emcStatus->task.interpState == EMC_TASK_INTERP_READING) {
+                        emcTaskPlanSetWait();
+                        // and resynch interp WM
+                        emcTaskQueueCommand(&taskPlanSynchCmd);
+                    }
 			    } else if (execRetval != 0) {
 				// end of file
 				emcStatus->task.interpState =
@@ -666,9 +662,8 @@ interpret_again:
 			    // throw the results away if we're supposed to
 			    // read
 			    // through it
-			    if ((programStartLine < 0 ||
-				 emcStatus->task.readLine < programStartLine) &&
-				emcTaskPlanLevel() == 0) {
+                if (programStartLine < 0 ||
+                 emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
 				// we're stepping over lines, so check them
 				// for
 				// limits, etc. and clear then out
@@ -683,10 +678,9 @@ interpret_again:
 				}
 				// and clear it regardless
 				interp_list.clear();
-			    }
+                }
 
-			    if (emcStatus->task.readLine < programStartLine &&
-				emcTaskPlanLevel() == 0) {
+                if (emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
 			    
 				//update the position with our current position, as the other positions are only skipped through
 				CANON_UPDATE_END_POINT(emcStatus->motion.traj.actualPosition.tran.x,
@@ -702,7 +696,8 @@ interpret_again:
 
 			    if ((emcTaskPlanLevel() == 0) &&
 				(emcStatus->task.readLine + 1 ==
-				 programStartLine))  {
+                 programStartLine)) {
+                emcStatus->task.interpState = EMC_TASK_INTERP_READING;
 
 				emcTaskPlanSynch();
 
@@ -715,7 +710,7 @@ interpret_again:
 			    }
 
                             if (count++ < emc_task_interp_max_len
-                                    && emcStatus->task.interpState == EMC_TASK_INTERP_READING
+                                    && (emcStatus->task.interpState == EMC_TASK_INTERP_READING || emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING)
                                     && interp_list.len() <= emc_task_interp_max_len * 2/3) {
                                 goto interpret_again;
                             }
@@ -1170,7 +1165,8 @@ static int emcTaskPlan(void)
 		break;		// EMC_TASK_INTERP_IDLE
 
 	    case EMC_TASK_INTERP_READING:	// ON, AUTO, READING
-		switch (type) {
+        case EMC_TASK_INTERP_SEEKING:	// ON, AUTO, READING
+        switch (type) {
 		case 0:
 		case EMC_NULL_TYPE:
 		    // no command
@@ -2363,7 +2359,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	}
 	run_msg = (EMC_TASK_PLAN_RUN *) cmd;
 	programStartLine = run_msg->line;
-	emcStatus->task.interpState = EMC_TASK_INTERP_READING;
+    emcStatus->task.interpState = (programStartLine > 0) ? EMC_TASK_INTERP_SEEKING : EMC_TASK_INTERP_READING;
 	emcStatus->task.task_paused = 0;
         emcStatus->task.program_ended = 0;
         emcStatus->task.program_ended_and_reset = 0;

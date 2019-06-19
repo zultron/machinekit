@@ -1477,7 +1477,8 @@ static void slowLoop()
 
   switch (emcStatus->task.interpState) {
       case EMC_TASK_INTERP_READING:
-      case EMC_TASK_INTERP_WAITING: 
+      case EMC_TASK_INTERP_SEEKING:
+      case EMC_TASK_INTERP_WAITING:
         strcpy(status, widgetSetStr(STATUSWIDGET, "  Run", status));
         if (runStatus != rsRun)
           widgetSetStr(JOG_WIDGET, "Step", "");

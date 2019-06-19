@@ -946,6 +946,9 @@ static void printStatus()
         case EMC_TASK_INTERP_WAITING:
           sprintf(interp_string, "%s", "RUNNING ");
           break;
+        case EMC_TASK_INTERP_SEEKING:
+          sprintf(interp_string, "%s", "SEEKING ");
+          break;
         default:
           sprintf(interp_string, "%s", "?       ");
           break;

@@ -229,7 +229,8 @@ static void setQueueStatus(queueStatusType qs) {
 
 bool isIdle()
 {
-   return ((emcStatus->task.interpState != EMC_TASK_INTERP_READING) && 
+   return ((emcStatus->task.interpState != EMC_TASK_INTERP_READING) &&
+          (emcStatus->task.interpState != EMC_TASK_INTERP_SEEKING) &&
           (emcStatus->task.interpState != EMC_TASK_INTERP_WAITING) &&
           (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED));
 }

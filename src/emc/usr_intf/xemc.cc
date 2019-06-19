@@ -4065,6 +4065,7 @@ void timeoutCB(XtPointer clientdata, XtIntervalId *id)
 
   case EMC_TASK_INTERP_READING:
   case EMC_TASK_INTERP_WAITING:
+  case EMC_TASK_INTERP_SEEKING:
     strcpy(string, "Running");
     break;
 
