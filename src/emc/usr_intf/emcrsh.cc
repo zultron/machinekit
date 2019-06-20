@@ -1959,6 +1959,7 @@ static cmdResponseType getProgramStatus(char *s, connectionRecType *context)
   
   switch (emcStatus->task.interpState) {
       case EMC_TASK_INTERP_READING:
+      case EMC_TASK_INTERP_SEEKING:
       case EMC_TASK_INTERP_WAITING: sprintf(context->outBuf, pProgramStatus, "RUNNING"); break;
       case EMC_TASK_INTERP_PAUSED: sprintf(context->outBuf, pProgramStatus, "PAUSED"); break;
       default: sprintf(context->outBuf, pProgramStatus, "IDLE"); break;

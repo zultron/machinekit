@@ -2196,7 +2196,8 @@ static void modify_hal_pins()
     }
 
     *(halui_data->program_is_paused) = emcStatus->task.interpState == EMC_TASK_INTERP_PAUSED;
-    *(halui_data->program_is_running) = emcStatus->task.interpState == EMC_TASK_INTERP_READING || 
+    *(halui_data->program_is_running) = emcStatus->task.interpState == EMC_TASK_INTERP_READING ||
+                                        emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING ||
                                         emcStatus->task.interpState == EMC_TASK_INTERP_WAITING;
     *(halui_data->program_is_idle) = emcStatus->task.interpState == EMC_TASK_INTERP_IDLE;
     *(halui_data->program_os_is_on) = emcStatus->task.optional_stop_state;
