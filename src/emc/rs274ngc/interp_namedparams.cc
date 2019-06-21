@@ -89,6 +89,15 @@ enum predefined_named_parameters {
     NP_U,
     NP_V,
     NP_W,
+    NP_X_MACHINE,
+    NP_Y_MACHINE,
+    NP_Z_MACHINE,
+    NP_A_MACHINE,
+    NP_B_MACHINE,
+    NP_C_MACHINE,
+    NP_U_MACHINE,
+    NP_V_MACHINE,
+    NP_W_MACHINE,
     NP_PROBE_RESULT,
     NP_PROBE_X,
     NP_PROBE_Y,
@@ -672,41 +681,33 @@ int Interp::lookup_named_param(const char *nameBuf,
 	*value = _setup.selected_tool;
 	break;
 
-    case NP_X:  // current position
-	*value = _setup.current[X];
-	break;
+    // current interpreter position in local coordinates
+    case NP_X:
+    case NP_Y:
+    case NP_Z:
+    case NP_A:
+    case NP_B:
+    case NP_C:
+    case NP_U:
+    case NP_V:
+    case NP_W:
+        *value = _setup.current[cmd - NP_X];
+        break;
 
-    case NP_Y:  // current position
-	*value = _setup.current[Y];
-	break;
-
-    case NP_Z:  // current position
-	*value = _setup.current[Z];
-	break;
-
-    case NP_A:  // current position
-	*value = _setup.current[A];
-	break;
-
-    case NP_B:  // current position
-	*value = _setup.current[B];
-	break;
-
-    case NP_C:  // current position
-	*value = _setup.current[C];
-	break;
-
-    case NP_U:  // current position
-	*value = _setup.current[U];
-	break;
-
-    case NP_V:  // current position
-	*value = _setup.current[V];
-	break;
-
-    case NP_W:  // current position
-	*value = _setup.current[W];
-	break;
+    // current interpreter position in machine coordinates
+    case NP_X_MACHINE:
+    case NP_Y_MACHINE:
+    case NP_Z_MACHINE:
+    case NP_A_MACHINE:
+    case NP_B_MACHINE:
+    case NP_C_MACHINE:
+    case NP_U_MACHINE:
+    case NP_V_MACHINE:
+    case NP_W_MACHINE:
+        // WARNING: this is slow if you need to get all 9 values (since it repeats the transform every time)
+        // could optimize this if it's a bottleneck by providing a per-axis overload that skips the unnecessary transforms
+        *value = _setup.transform.forward(_setup.current)[cmd - NP_X_MACHINE];
+        break;
 
     case NP_PROBE_RESULT:  // expected probe trip completed
   *value = _setup.parameters[G38_TRIPPED];
@@ -899,6 +900,17 @@ int Interp::init_named_parameters()
   init_readonly_param("_u", NP_U, PA_USE_LOOKUP);
   init_readonly_param("_v", NP_V, PA_USE_LOOKUP);
   init_readonly_param("_w", NP_W, PA_USE_LOOKUP);
+
+  // current position in machine coordinates (derived from current position)
+  init_readonly_param("_x_machine", NP_X_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_y_machine", NP_Y_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_z_machine", NP_Z_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_a_machine", NP_A_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_b_machine", NP_B_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_c_machine", NP_C_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_u_machine", NP_U_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_v_machine", NP_V_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_w_machine", NP_W_MACHINE, PA_USE_LOOKUP);
 
   init_readonly_param("_probe_result", NP_PROBE_RESULT, PA_USE_LOOKUP);
   init_readonly_param("_probe_x", NP_PROBE_X, PA_USE_LOOKUP);
