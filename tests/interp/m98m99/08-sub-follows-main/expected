@@ -14,4 +14,4 @@
  N..... DWELL(0.1000)
  N..... FLOOD_OFF()
  N..... PALLET_SHUTTLE()
- N..... PROGRAM_END()
+ N..... PROGRAM_END(1)

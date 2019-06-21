@@ -154,7 +154,7 @@ Applying tool 302.000000
   112 N..... FLOOD_ON()
   113 N..... DWELL(0.1000)
   114 N..... FLOOD_OFF()
-  115 N..... PROGRAM_END()
+  115 N..... PROGRAM_END(0)
 executing
 G43 with no H-word unsupported
 G43

@@ -40,4 +40,4 @@ params():  ['a_new_local', '_a', '_a_global_set_in_test_dot_ngc', '_a_new_global
    20 N..... FLOOD_ON()
    21 N..... DWELL(0.1000)
    22 N..... FLOOD_OFF()
-   23 N..... PROGRAM_END()
+   23 N..... PROGRAM_END(0)

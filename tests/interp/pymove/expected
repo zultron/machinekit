@@ -19,4 +19,4 @@ executing
    18 N..... FLOOD_ON()
    19 N..... DWELL(0.1000)
    20 N..... FLOOD_OFF()
-   21 N..... PROGRAM_END()
+   21 N..... PROGRAM_END(0)
