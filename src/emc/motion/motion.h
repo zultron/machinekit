@@ -669,6 +669,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 
 	int probeTripped;	/* Has the probe signal changed since start
 				   of probe command? */
+    unsigned probeCount; /* Count of successful probes (will overflow) */
 	int probing;		/* Currently looking for a probe signal? */
         unsigned char probe_type;
 	EmcPose probedPos;	/* Axis positions stored as soon as possible

@@ -1039,6 +1039,7 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
 
     EmcPose probedPosition;	// last position where probe was tripped.
     bool probe_tripped;		// Has the probe been tripped since the last
+    unsigned probeCount; // Number of completed probe measurements (will overflow)
     // clear.
     bool waiting_on_spindle;    // Waiting for spindle on spindle-synched move
     double spindle_sync;		// Tormach - use as flag for feed/rev mode active

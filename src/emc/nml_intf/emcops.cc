@@ -80,6 +80,7 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
 
     ZERO_EMC_POSE(probedPosition);
     probe_tripped = OFF;
+    probeCount = 0;
     probing = OFF;
     probeval = 0;
     

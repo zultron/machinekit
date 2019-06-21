@@ -2852,10 +2852,28 @@ PositionArray GET_EXTERNAL_POSITION()
     return canon_to_program_units.forward(prog_position);
 }
 
+static inline void log_probed_position(PositionArray const &probe_position_out)
+{
+    if (!probefile) {return;}
+
+    // Count starts at zero on powerup
+    static unsigned last_probe_count=(unsigned)-1;
+    unsigned probe_count = emcStatus->motion.traj.probeCount;
+    if (last_probe_count == probe_count) {
+        canon_debug("Probe position %u already logged", last_probe_count);
+        return;
+    } else {
+        last_probe_count = probe_count;
+    }
+
+    fprintf(probefile, "%f %f %f %f %f %f %f %f %f\n",
+            probe_position_out[X], probe_position_out[Y], probe_position_out[Z],
+            probe_position_out[A], probe_position_out[B], probe_position_out[C],
+            probe_position_out[U], probe_position_out[V], probe_position_out[W]);
+}
+
 PositionArray GET_EXTERNAL_PROBE_POSITION()
 {
-    static PositionArray last_probed_position;
-
     // Get updated unit converters given current canon / motion settings
     UnitsTransform motion_to_canon_units = ConvertsUserToCanonUnits();
     UnitsTransform canon_to_program_units = ConvertsCanonToProgramUnits();
@@ -2869,15 +2887,8 @@ PositionArray GET_EXTERNAL_PROBE_POSITION()
     PositionArray prog_position = unoffset_and_unrotate_pos(pos_probe);
     PositionArray probe_position_out = canon_to_program_units.forward(prog_position);
 
-    if (probefile) {
-        if (last_probed_position != probe_position_out) {
-            fprintf(probefile, "%f %f %f %f %f %f %f %f %f\n",
-                    probe_position_out[X], probe_position_out[Y], probe_position_out[Z],
-                    probe_position_out[A], probe_position_out[B], probe_position_out[C],
-                    probe_position_out[U], probe_position_out[V], probe_position_out[W]);
-            last_probed_position = probe_position_out;
-        }
-    }
+    // Not re-entrant due to tracking of last probed position
+    log_probed_position(probe_position_out);
 
     return probe_position_out;
 }
