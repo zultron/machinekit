@@ -421,7 +421,7 @@ function _ "Tormach Spindle HAL Component M200";
 #define VFD_MODE_SWITCH_DELAY (3.00) //This is the delay the VFD needs as we switch between VFD modes using  mode0 and mode1 pins before we can enable the drive. (i.e. assert VFD "RUN" pin)
                                     //Note at 3/4 of this value we actually switch the vfd-mode0 and vfd-mode1 
                                     //ALSO NOTE that decreasing this delay is NOT RECOMMENDED without considering the time it takes to release the spindle-brake, M19 to M3 screeches can happen
-#define VFD_FREQ_CMD_TO_ENABLE_DELAY (.150) //(.0320) //time that VFD enable will be delayed after vfd_freq_cmd changes from inactive vfd_freq_cmd=0 state to an active, non-zero vfd_freq_cmd command state
+#define VFD_FREQ_CMD_TO_ENABLE_DELAY (.300) //(.150) //(.0320) //time that VFD enable will be delayed after vfd_freq_cmd changes from inactive vfd_freq_cmd=0 state to an active, non-zero vfd_freq_cmd command state
 #define MAGIC_VFD_FREQ_OFFSET (0) //(164.0) //(41.0)  //determined by the minimum freq below which the VFD stops turning the spindle  (when VFD is in *25 sensitivity mode)
                                   //so theoretically, this is present in normal spindle mode, but the freq is 41/25 = 1.64 Hz vfd-cmd-freq which is what RPM???
                                   //not presently using MAGIC_VFD_FREQ_OFFSET, probably BIPOLAR Mode VFD_BIPOLAR_FREQ_OFFSET and VFD_DEADBAND_HZ removes the need for (duplicate) MAGIC_VFD_FREQ_OFFSET
