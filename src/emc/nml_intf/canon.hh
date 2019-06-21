@@ -730,6 +730,8 @@ extern double GET_EXTERNAL_POSITION_V();
 // returns the current w-axis position
 extern double GET_EXTERNAL_POSITION_W();
 
+extern PositionArray GET_EXTERNAL_PROBE_POSITION();
+
 // Returns the machine A-axis position at the last probe trip.
 extern double GET_EXTERNAL_PROBE_POSITION_A();
 

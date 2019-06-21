@@ -830,6 +830,11 @@ double GET_EXTERNAL_PROBE_POSITION_W()
     return 0.;
 }
 
+PositionArray GET_EXTERNAL_PROBE_POSITION()
+{
+    return _sai._probe_position;
+}
+
 /* returns the a-axis position at the last probe trip. This is only valid
    once the probe command has executed to completion. */
 double GET_EXTERNAL_PROBE_POSITION_A()

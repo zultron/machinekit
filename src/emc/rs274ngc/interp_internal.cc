@@ -435,34 +435,36 @@ int Interp::set_probe_data(setup_pointer settings)       //!< pointer to machine
 {
   double a, b, c;
   refresh_actual_position(settings);
-  settings->parameters[G38_X] = GET_EXTERNAL_PROBE_POSITION_X();
-  settings->parameters[G38_Y] = GET_EXTERNAL_PROBE_POSITION_Y();
-  settings->parameters[G38_Z] = GET_EXTERNAL_PROBE_POSITION_Z();
+  PositionArray probe_pos = GET_EXTERNAL_PROBE_POSITION();
 
-  a = GET_EXTERNAL_PROBE_POSITION_A();
+  settings->parameters[G38_X] = probe_pos[X];
+  settings->parameters[G38_Y] = probe_pos[Y];
+  settings->parameters[G38_Z] = probe_pos[Z];
+
+  a = probe_pos[A];
   if(settings->a_axis_wrapped) {
       a = fmod(a, 360.0);
       if(a<0) a += 360.0;
   }
   settings->parameters[G38_A] = a;
 
-  b = GET_EXTERNAL_PROBE_POSITION_B();
+  b = probe_pos[B];
   if(settings->b_axis_wrapped) {
       b = fmod(b, 360.0);
       if(b<0) b += 360.0;
   }
   settings->parameters[G38_B] = b;
 
-  c = GET_EXTERNAL_PROBE_POSITION_C();
+  c = probe_pos[C];
   if(settings->c_axis_wrapped) {
       c = fmod(c, 360.0);
       if(c<0) c += 360.0;
   }
   settings->parameters[G38_C] = c;
 
-  settings->parameters[G38_U] = GET_EXTERNAL_PROBE_POSITION_U();
-  settings->parameters[G38_V] = GET_EXTERNAL_PROBE_POSITION_V();
-  settings->parameters[G38_W] = GET_EXTERNAL_PROBE_POSITION_W();
+  settings->parameters[G38_U] = probe_pos[U];
+  settings->parameters[G38_V] = probe_pos[V];
+  settings->parameters[G38_W] = probe_pos[W];
   settings->parameters[G38_TRIPPED] = (double) GET_EXTERNAL_PROBE_TRIPPED_VALUE();
 
   // was an undocumented feature?: settings->parameters[5067] = GET_EXTERNAL_PROBE_VALUE();

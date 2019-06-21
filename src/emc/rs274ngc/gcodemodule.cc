@@ -558,6 +558,7 @@ void RIGID_TAP(int line_number,
     Py_XDECREF(result);
 }
 double GET_EXTERNAL_MOTION_CONTROL_TOLERANCE() { return 0.1; }
+PositionArray GET_EXTERNAL_PROBE_POSITION() { return _pos; }
 double GET_EXTERNAL_PROBE_POSITION_X() { return _pos[X]; }
 double GET_EXTERNAL_PROBE_POSITION_Y() { return _pos[Y]; }
 double GET_EXTERNAL_PROBE_POSITION_Z() { return _pos[Z]; }

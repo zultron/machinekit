@@ -182,6 +182,7 @@ double GET_EXTERNAL_POSITION_Z() {return 0;}
 double GET_EXTERNAL_POSITION_U() {return 0;}
 double GET_EXTERNAL_POSITION_V() {return 0;}
 double GET_EXTERNAL_POSITION_W() {return 0;}
+PositionArray GET_EXTERNAL_PROBE_POSITION() {return PositionArray();}
 double GET_EXTERNAL_PROBE_POSITION_A() {return 0;}
 double GET_EXTERNAL_PROBE_POSITION_B() {return 0;}
 double GET_EXTERNAL_PROBE_POSITION_C() {return 0;}
