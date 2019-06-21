@@ -78,4 +78,19 @@ enum CANON_AXIS
     CANON_AXIS_W,
 };
 
+enum CANON_INPUT
+{
+    ANALOG_INPUT,
+    DIGITAL_INPUT,
+};
+
+enum CANON_WAIT_MODE
+{
+    WAIT_MODE_IMMEDIATE=0,
+    WAIT_MODE_RISE = 1,
+    WAIT_MODE_FALL = 2,
+    WAIT_MODE_HIGH = 3,
+    WAIT_MODE_LOW = 4,
+};
+
 #endif // CANON_ENUMS_HH

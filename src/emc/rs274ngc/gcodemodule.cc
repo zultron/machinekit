@@ -629,7 +629,7 @@ RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin) {
 int GET_EXTERNAL_DIGITAL_INPUT(int index, int def) { return def; }
 int GET_EXTERNAL_ORIENT_TIMEOUT() { return 0; }
 double GET_EXTERNAL_ANALOG_INPUT(int index, double def) { return def; }
-int WAIT(int index, int input_type, int wait_type, double timeout) { return 0;}
+int WAIT(int index, CANON_INPUT input_type, CANON_WAIT_MODE wait_type, double timeout) { return 0;}
 
 static void user_defined_function(int num, double arg1, double arg2) {
     if(interp_error) return;

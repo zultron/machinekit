@@ -151,10 +151,11 @@ void SET_AUX_OUTPUT_BIT(int index) {}
 void CLEAR_AUX_OUTPUT_BIT(int index) {}
 void SET_MOTION_OUTPUT_VALUE(int index, double value) {}
 void SET_AUX_OUTPUT_VALUE(int , double value) {}
-int WAIT(int ,
-         int ,
-         int ,
-         double ) {return 0;}
+int WAIT(int index,
+         CANON_INPUT input_type,
+         CANON_WAIT_MODE wait_type,
+         double timeout)
+{return 0;}
 int UNLOCK_ROTARY(int line_no, int axis) {return 0;}
 int LOCK_ROTARY(int line_no, int axis) {return 0;}
 double GET_EXTERNAL_FEED_RATE() {return 0;}

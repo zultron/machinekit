@@ -3035,7 +3035,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
         CHKS((settings->cutter_comp_side),
              (_("Cannot wait for digital input with cutter radius compensation on")));
 
-	int ret = WAIT(round_to_int(block->p_number), DIGITAL_INPUT, type, timeout);
+    int ret = WAIT(round_to_int(block->p_number), DIGITAL_INPUT, (CANON_WAIT_MODE)type, timeout);
 	//WAIT returns 0 on success, -1 for out of bounds
 	CHKS((ret == -1), NCE_DIGITAL_INPUT_INVALID_ON_M66);
 	if (ret == 0) {
@@ -3047,7 +3047,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
         CHKS((settings->cutter_comp_side),
              (_("Cannot wait for analog input with cutter radius compensation on")));
 
-	int ret = WAIT(round_to_int(block->e_number), ANALOG_INPUT, 0, 0); //WAIT returns 0 on success, -1 for out of bounds
+    int ret = WAIT(round_to_int(block->e_number), ANALOG_INPUT, WAIT_MODE_IMMEDIATE, 0); //WAIT returns 0 on success, -1 for out of bounds
 	CHKS((ret == -1), NCE_ANALOG_INPUT_INVALID_ON_M66);
 	if (ret == 0) {
 	    settings->input_flag = true;
