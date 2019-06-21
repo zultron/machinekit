@@ -546,6 +546,25 @@ void STRAIGHT_PROBE(int line_number,
     }
 }
 
+void STRAIGHT_PROBE_TO_LIMIT(int line_number,
+                    double x, double y, double z,
+                    double a, double b, double c,
+                    double u, double v, double w, unsigned char probe_type) {
+    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
+    _pos[A]=a; _pos[B]=b; _pos[C]=c;
+    _pos[U]=u; _pos[V]=v; _pos[W]=w;
+    if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
+    maybe_new_line(line_number);
+    if(interp_error) return;
+    if (_linecount < max_glcanon_lines) {
+        PyObject *result =
+            callmethod(callback, "straight_probe_to_limit", "ifffffffff",
+                    line_number, x, y, z, a, b, c, u, v, w);
+        if(result == nullptr) interp_error ++;
+        Py_XDECREF(result);
+    }
+}
+
 void RIGID_TAP(int line_number,
                double x, double y, double z) {
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; }

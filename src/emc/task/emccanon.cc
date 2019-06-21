@@ -50,6 +50,8 @@
 #include "coordinatetransform.hh"
 #include "units.h"
 
+#include <algorithm>
+
 //#define EMCCANON_DEBUG
 
 static constexpr double RIGID_TAP_LEADIN_SAFETY_FACTOR = 1.25;
@@ -1174,31 +1176,43 @@ void RIGID_TAP(int line_number, double x, double y, double z)
     // don't move the endpoint because after this move, we are back where we started
 }
 
+/**
+ * Based on the current position limits, this computes the maximum safe motion distance in the given direction.
+ * @note direction vector does not have to be normalized
+ */
+double find_max_safe_distance(PositionArray const &canon_origin, //!< Origin point in canon units and machine frame
+                              PositionArray direction) //!< direction vector in canon units and machine frame
+{
+    PositionArray max_distance_scale;
+    max_distance_scale.fill(INFINITY);
 
-/*
-  STRAIGHT_PROBE is exactly the same as STRAIGHT_FEED, except that it
-  uses a probe message instead of a linear move message.
-*/
+    for (size_t i = 0; i < 9; ++i) {
+        if (!axis_valid(i)) {continue;}
+        if (direction[i] > 0.0 ) {
+            max_distance_scale[i] = (FROM_EXT_LEN(emcStatus->motion.axis[i].maxPositionLimit) - canon_origin[i]) ;
+        } else if (direction[i] < 0.0 ) {
+            max_distance_scale[i] = (FROM_EXT_LEN(emcStatus->motion.axis[i].minPositionLimit) - canon_origin[i]);
+        }
+        max_distance_scale [i] /= direction[i];
+    }
+    // Iterator will be value because position array size is non-zero at compile time
+    return *std::min_element(max_distance_scale.begin(), max_distance_scale.end());
+}
 
-void STRAIGHT_PROBE(int line_number,
-                    double x, double y, double z, 
-                    double a, double b, double c,
-                    double u, double v, double w,
+void straight_probe_internal(int line_number,
+                    PositionArray goal_pos_canon,
                     unsigned char probe_type)
 {
     EMC_TRAJ_PROBE probeMsg;
 
-    from_prog(x,y,z,a,b,c,u,v,w);
-    rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
-
     flush_segments();
 
-    VelData veldata = getStraightVelocity(x, y, z, a, b, c, u, v, w);
+    VelData veldata = getStraightVelocity(goal_pos_canon);
     double ini_maxvel = veldata.vel;
 
     double vel = limitSpindleSpeedByActiveFeedRate(ini_maxvel);
 
-    AccelData accdata = getStraightAcceleration(x, y, z, a, b, c, u, v, w);
+    AccelData accdata = getStraightAcceleration(goal_pos_canon, 0);
     double acc = accdata.acc;
 
     probeMsg.vel = toExtVel(vel);
@@ -1209,12 +1223,47 @@ void STRAIGHT_PROBE(int line_number,
     probeMsg.type = EMC_MOTION_TYPE_PROBING;
     probeMsg.probe_type = probe_type;
 
-    probeMsg.pos = to_ext_pose(x,y,z,a,b,c,u,v,w);
+    probeMsg.pos = to_ext_pose(goal_pos_canon);
 
     if(vel && acc)  {
         tag_and_send(probeMsg);
     }
-    canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
+    canonUpdateEndPoint(goal_pos_canon);
+}
+
+/*
+  STRAIGHT_PROBE is exactly the same as STRAIGHT_FEED, except that it
+  uses a probe message instead of a linear move message.
+*/
+
+void STRAIGHT_PROBE(int line_number,
+                    double x, double y, double z,
+                    double a, double b, double c,
+                    double u, double v, double w,
+                    unsigned char probe_type)
+{
+    PositionArray probe_goal_canon{x,y,z,a,b,c,u,v,w};
+    from_prog(probe_goal_canon);
+    rotate_and_offset(probe_goal_canon);
+
+    straight_probe_internal(line_number, probe_goal_canon, probe_type);
+}
+
+void STRAIGHT_PROBE_TO_LIMIT(int line_number,
+                    double x, double y, double z,
+                    double a, double b, double c,
+                    double u, double v, double w,
+                    unsigned char probe_type)
+{
+    PositionArray direction{x,y,z,a,b,c,u,v,w};
+    from_prog(direction);
+    rotate_and_offset(direction);
+
+    direction -= canonEndPoint;
+    double max_dist = find_max_safe_distance(canonEndPoint, direction);
+    // KLUDGE scale it back to avoid tripping limit detection;
+    PositionArray near_limit_canon = canonEndPoint + direction * (max_dist * 0.999);
+    straight_probe_internal(line_number, near_limit_canon, probe_type);
 }
 
 /* Machining Attributes */

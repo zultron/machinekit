@@ -379,6 +379,11 @@ extern void STRAIGHT_PROBE(int lineno,
                            double a, double b, double c,
                            double u, double v, double w, unsigned char probe_type);
 
+extern void STRAIGHT_PROBE_TO_LIMIT(int lineno,
+                           double x, double y, double z,
+                           double a, double b, double c,
+                           double u, double v, double w, unsigned char probe_type);
+
 /* Perform a probing operation. This is a temporary addition to the
 canonical machining functions and its semantics are not defined.
 When the operation is finished, all axes should be back where they

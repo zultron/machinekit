@@ -441,6 +441,17 @@ void STRAIGHT_PROBE(int line_number,
   _sai._program_position[C] = c; /*CC*/
 }
 
+void STRAIGHT_PROBE_TO_LIMIT(int line_number,
+ double x, double y, double z
+ , double a /*AA*/
+ , double b /*BB*/
+ , double c /*CC*/
+ , double u, double v, double w, unsigned char probe_type
+)
+{
+  STRAIGHT_PROBE(line_number, x, y, z, a, b, c, u, v, w, probe_type);
+}
+
 
 void RIGID_TAP(int line_number, double x, double y, double z)
 {

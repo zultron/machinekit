@@ -90,6 +90,10 @@ void STRAIGHT_PROBE(int lineno,
                            double x, double y, double z,
                            double a, double b, double c,
                            double u, double v, double w, unsigned char probe_type) {}
+void STRAIGHT_PROBE_TO_LIMIT(int lineno,
+                           double x, double y, double z,
+                           double a, double b, double c,
+                           double u, double v, double w, unsigned char probe_type) {}
 void STOP() {}
 void DWELL(double seconds) {}
 void SET_SPINDLE_MODE(double) {}
