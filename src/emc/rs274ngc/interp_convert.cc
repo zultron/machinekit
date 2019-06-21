@@ -3587,7 +3587,9 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
        
   write_and_update_state_tag(block);
   TURN_PROBE_ON();
-  if (block->p_flag && block->p_number == 1) {
+  if (block->p_flag) {
+      CHKS(std::round(block->p_number) != 1.0,
+           _("P%f is invalid for probe moves, must be one of {0,1}"), block->p_number);
       STRAIGHT_PROBE_TO_LIMIT(block->line_number, end_x, end_y, end_z,
                      AA_end, BB_end, CC_end,
                      u_end, v_end, w_end, probe_type);
