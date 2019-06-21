@@ -163,7 +163,7 @@ static PyObject *callback;
 static int interp_error;
 static int last_sequence_number;
 static bool metric;
-static double _pos_x, _pos_y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w;
+static PositionArray _pos{};
 static EmcPose tool_offset;
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
@@ -221,12 +221,12 @@ void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points
     PLANE_POINT P1;
     while (u+umax/div < umax) {
         PLANE_POINT P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
-        STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+        STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos[Z], _pos[A], _pos[B], _pos[C], _pos[U], _pos[V], _pos[W]);
         u = u + umax/div;
     }
     P1.X = nurbs_control_points[n].X;
     P1.Y = nurbs_control_points[n].Y;
-    STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+    STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos[Z], _pos[A], _pos[B], _pos[C], _pos[U], _pos[V], _pos[W]);
     knot_vector.clear();
 }
 
@@ -264,9 +264,9 @@ void STRAIGHT_FEED(int line_number,
                    double x, double y, double z,
                    double a, double b, double c,
                    double u, double v, double w) {
-    _pos_x=x; _pos_y=y; _pos_z=z;
-    _pos_a=a; _pos_b=b; _pos_c=c;
-    _pos_u=u; _pos_v=v; _pos_w=w;
+    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
+    _pos[A]=a; _pos[B]=b; _pos[C]=c;
+    _pos[U]=u; _pos[V]=v; _pos[W]=w;
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -287,9 +287,9 @@ void STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
                        double a, double b, double c,
                        double u, double v, double w) {
-    _pos_x=x; _pos_y=y; _pos_z=z;
-    _pos_a=a; _pos_b=b; _pos_c=c;
-    _pos_u=u; _pos_v=v; _pos_w=w;
+    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
+    _pos[A]=a; _pos[B]=b; _pos[C]=c;
+    _pos[U]=u; _pos[V]=v; _pos[W]=w;
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -531,9 +531,9 @@ void STRAIGHT_PROBE(int line_number,
                     double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
-    _pos_x=x; _pos_y=y; _pos_z=z;
-    _pos_a=a; _pos_b=b; _pos_c=c;
-    _pos_u=u; _pos_v=v; _pos_w=w;
+    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
+    _pos[A]=a; _pos[B]=b; _pos[C]=c;
+    _pos[U]=u; _pos[V]=v; _pos[W]=w;
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -558,26 +558,27 @@ void RIGID_TAP(int line_number,
     Py_XDECREF(result);
 }
 double GET_EXTERNAL_MOTION_CONTROL_TOLERANCE() { return 0.1; }
-double GET_EXTERNAL_PROBE_POSITION_X() { return _pos_x; }
-double GET_EXTERNAL_PROBE_POSITION_Y() { return _pos_y; }
-double GET_EXTERNAL_PROBE_POSITION_Z() { return _pos_z; }
-double GET_EXTERNAL_PROBE_POSITION_A() { return _pos_a; }
-double GET_EXTERNAL_PROBE_POSITION_B() { return _pos_b; }
-double GET_EXTERNAL_PROBE_POSITION_C() { return _pos_c; }
-double GET_EXTERNAL_PROBE_POSITION_U() { return _pos_u; }
-double GET_EXTERNAL_PROBE_POSITION_V() { return _pos_v; }
-double GET_EXTERNAL_PROBE_POSITION_W() { return _pos_w; }
+double GET_EXTERNAL_PROBE_POSITION_X() { return _pos[X]; }
+double GET_EXTERNAL_PROBE_POSITION_Y() { return _pos[Y]; }
+double GET_EXTERNAL_PROBE_POSITION_Z() { return _pos[Z]; }
+double GET_EXTERNAL_PROBE_POSITION_A() { return _pos[A]; }
+double GET_EXTERNAL_PROBE_POSITION_B() { return _pos[B]; }
+double GET_EXTERNAL_PROBE_POSITION_C() { return _pos[C]; }
+double GET_EXTERNAL_PROBE_POSITION_U() { return _pos[U]; }
+double GET_EXTERNAL_PROBE_POSITION_V() { return _pos[V]; }
+double GET_EXTERNAL_PROBE_POSITION_W() { return _pos[W]; }
 double GET_EXTERNAL_PROBE_VALUE() { return 0.0; }
 int GET_EXTERNAL_PROBE_TRIPPED_VALUE() { return 0; }
-double GET_EXTERNAL_POSITION_X() { return _pos_x; }
-double GET_EXTERNAL_POSITION_Y() { return _pos_y; }
-double GET_EXTERNAL_POSITION_Z() { return _pos_z; }
-double GET_EXTERNAL_POSITION_A() { return _pos_a; }
-double GET_EXTERNAL_POSITION_B() { return _pos_b; }
-double GET_EXTERNAL_POSITION_C() { return _pos_c; }
-double GET_EXTERNAL_POSITION_U() { return _pos_u; }
-double GET_EXTERNAL_POSITION_V() { return _pos_v; }
-double GET_EXTERNAL_POSITION_W() { return _pos_w; }
+PositionArray GET_EXTERNAL_POSITION() { return _pos; }
+double GET_EXTERNAL_POSITION_X() { return _pos[X]; }
+double GET_EXTERNAL_POSITION_Y() { return _pos[Y]; }
+double GET_EXTERNAL_POSITION_Z() { return _pos[Z]; }
+double GET_EXTERNAL_POSITION_A() { return _pos[A]; }
+double GET_EXTERNAL_POSITION_B() { return _pos[B]; }
+double GET_EXTERNAL_POSITION_C() { return _pos[C]; }
+double GET_EXTERNAL_POSITION_U() { return _pos[U]; }
+double GET_EXTERNAL_POSITION_V() { return _pos[V]; }
+double GET_EXTERNAL_POSITION_W() { return _pos[W]; }
 void INIT_CANON() {}
 
 void SET_PARAMETER_FILE_NAME(const char *name)
@@ -794,8 +795,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     spindle_synched_motion = 0;
     spindle_speed_programmed = 0.0;
 
-    _pos_x = _pos_y = _pos_z = _pos_a = _pos_b = _pos_c = 0;
-    _pos_u = _pos_v = _pos_w = 0;
+    _pos.fill(0);
     _linecount=0;
 
     pinterp->init();

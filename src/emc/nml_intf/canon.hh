@@ -701,6 +701,8 @@ extern void SET_PARAMETER_FILE_NAME(const char *name);
 // returns the currently active plane
 extern CANON_PLANE GET_EXTERNAL_PLANE();
 
+extern PositionArray GET_EXTERNAL_POSITION();
+
 // returns the current a-axis position
 extern double GET_EXTERNAL_POSITION_A();
 

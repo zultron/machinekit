@@ -2153,16 +2153,8 @@ int Interp::synch(bool read_work_offsets)
   char file_name[LINELEN];
 
   _setup.control_mode = GET_EXTERNAL_MOTION_CONTROL_MODE();
-  _setup.current[A] = GET_EXTERNAL_POSITION_A();
-  _setup.current[B] = GET_EXTERNAL_POSITION_B();
-  _setup.current[C] = GET_EXTERNAL_POSITION_C();
+  _setup.current = GET_EXTERNAL_POSITION();
   _setup.current_pocket = GET_EXTERNAL_TOOL_SLOT();
-  _setup.current[X] = GET_EXTERNAL_POSITION_X();
-  _setup.current[Y] = GET_EXTERNAL_POSITION_Y();
-  _setup.current[Z] = GET_EXTERNAL_POSITION_Z();
-  _setup.current[U] = GET_EXTERNAL_POSITION_U();
-  _setup.current[V] = GET_EXTERNAL_POSITION_V();
-  _setup.current[W] = GET_EXTERNAL_POSITION_W();
   _setup.feed_rate = GET_EXTERNAL_FEED_RATE();
   _setup.flood = GET_EXTERNAL_FLOOD();
   _setup.length_units = GET_EXTERNAL_LENGTH_UNIT_TYPE();

@@ -117,12 +117,12 @@ void SET_G5X_TRANSFORM(int index,
                     double xy_rotation_deg) {
     ECHO_WITH_ARGS("%d, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f" ,
                    index, x, y, z, a, b, c, u, v, w, xy_rotation_deg);
-    _sai._program_position_x = _sai._program_position_x + _sai._g5x_x - x;
-    _sai._program_position_y = _sai._program_position_y + _sai._g5x_y - y;
-    _sai._program_position_z = _sai._program_position_z + _sai._g5x_z - z;
-    _sai._program_position_a = _sai._program_position_a + _sai._g5x_a - a;/*AA*/
-    _sai._program_position_b = _sai._program_position_b + _sai._g5x_b - b;/*BB*/
-    _sai._program_position_c = _sai._program_position_c + _sai._g5x_c - c;/*CC*/
+    _sai._program_position[X] = _sai._program_position[X] + _sai._g5x_x - x;
+    _sai._program_position[Y] = _sai._program_position[Y] + _sai._g5x_y - y;
+    _sai._program_position[Z] = _sai._program_position[Z] + _sai._g5x_z - z;
+    _sai._program_position[A] = _sai._program_position[A] + _sai._g5x_a - a;/*AA*/
+    _sai._program_position[B] = _sai._program_position[B] + _sai._g5x_b - b;/*BB*/
+    _sai._program_position[C] = _sai._program_position[C] + _sai._g5x_c - c;/*CC*/
 
     _sai._g5x_x = x;
     _sai._g5x_y = y;
@@ -145,12 +145,12 @@ void SET_G92_OFFSET(double x, double y, double z,
                     double u, double v, double w) {
   ECHO_WITH_ARGS("%.4f, %.4f, %.4f, %.4f, %.4f, %.4f",
                       x, y, z, a, b, c);
-  _sai._program_position_x = _sai._program_position_x + _sai._g92_x - x;
-  _sai._program_position_y = _sai._program_position_y + _sai._g92_y - y;
-  _sai._program_position_z = _sai._program_position_z + _sai._g92_z - z;
-  _sai._program_position_a = _sai._program_position_a + _sai._g92_a - a;/*AA*/
-  _sai._program_position_b = _sai._program_position_b + _sai._g92_b - b;/*BB*/
-  _sai._program_position_c = _sai._program_position_c + _sai._g92_c - c;/*CC*/
+  _sai._program_position[X] = _sai._program_position[X] + _sai._g92_x - x;
+  _sai._program_position[Y] = _sai._program_position[Y] + _sai._g92_y - y;
+  _sai._program_position[Z] = _sai._program_position[Z] + _sai._g92_z - z;
+  _sai._program_position[A] = _sai._program_position[A] + _sai._g92_a - a;/*AA*/
+  _sai._program_position[B] = _sai._program_position[B] + _sai._g92_b - b;/*BB*/
+  _sai._program_position[C] = _sai._program_position[C] + _sai._g92_c - c;/*CC*/
 
   _sai._g92_x = x;
   _sai._g92_y = y;
@@ -170,9 +170,9 @@ void USE_LENGTH_UNITS(CANON_UNITS in_unit)
           _sai._length_unit_type = CANON_UNITS_INCHES;
           _sai.programToUser.linear_fwd = 25.4;
 
-          _sai._program_position_x /= 25.4;
-          _sai._program_position_y /= 25.4;
-          _sai._program_position_z /= 25.4;
+          _sai._program_position[X] /= 25.4;
+          _sai._program_position[Y] /= 25.4;
+          _sai._program_position[Z] /= 25.4;
 
           _sai._g5x_x /= 25.4;
           _sai._g5x_y /= 25.4;
@@ -191,9 +191,9 @@ void USE_LENGTH_UNITS(CANON_UNITS in_unit)
           _sai._length_unit_type = CANON_UNITS_MM;
           _sai.programToUser.linear_fwd = 1.0;
 
-          _sai._program_position_x *= 25.4;
-          _sai._program_position_y *= 25.4;
-          _sai._program_position_z *= 25.4;
+          _sai._program_position[X] *= 25.4;
+          _sai._program_position[Y] *= 25.4;
+          _sai._program_position[Z] *= 25.4;
 
           _sai._g5x_x *= 25.4;
           _sai._g5x_y *= 25.4;
@@ -232,12 +232,12 @@ void STRAIGHT_TRAVERSE( int line_number,
          , b /*BB*/
          , c /*CC*/
          );
-  _sai._program_position_x = x;
-  _sai._program_position_y = y;
-  _sai._program_position_z = z;
-  _sai._program_position_a = a; /*AA*/
-  _sai._program_position_b = b; /*BB*/
-  _sai._program_position_c = c; /*CC*/
+  _sai._program_position[X] = x;
+  _sai._program_position[Y] = y;
+  _sai._program_position[Z] = z;
+  _sai._program_position[A] = a; /*AA*/
+  _sai._program_position[B] = b; /*BB*/
+  _sai._program_position[C] = c; /*CC*/
 }
 
 /* Machining Attributes */
@@ -321,8 +321,8 @@ std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k)
 {
   ECHO_WITH_ARGS("%lu, ...", (unsigned long)nurbs_control_points.size());
 
-  _sai._program_position_x = nurbs_control_points[nurbs_control_points.size()].X;
-  _sai._program_position_y = nurbs_control_points[nurbs_control_points.size()].Y;
+  _sai._program_position[X] = nurbs_control_points[nurbs_control_points.size()].X;
+  _sai._program_position[Y] = nurbs_control_points[nurbs_control_points.size()].Y;
 }
 
 void ARC_FEED(int line_number,
@@ -346,25 +346,25 @@ void ARC_FEED(int line_number,
          );
   if (_sai._active_plane == CANON_PLANE_XY)
     {
-      _sai._program_position_x = first_end;
-      _sai._program_position_y = second_end;
-      _sai._program_position_z = axis_end_point;
+      _sai._program_position[X] = first_end;
+      _sai._program_position[Y] = second_end;
+      _sai._program_position[Z] = axis_end_point;
     }
   else if (_sai._active_plane == CANON_PLANE_YZ)
     {
-      _sai._program_position_x = axis_end_point;
-      _sai._program_position_y = first_end;
-      _sai._program_position_z = second_end;
+      _sai._program_position[X] = axis_end_point;
+      _sai._program_position[Y] = first_end;
+      _sai._program_position[Z] = second_end;
     }
   else /* if (_active_plane == CANON_PLANE_XZ) */
     {
-      _sai._program_position_x = second_end;
-      _sai._program_position_y = axis_end_point;
-      _sai._program_position_z = first_end;
+      _sai._program_position[X] = second_end;
+      _sai._program_position[Y] = axis_end_point;
+      _sai._program_position[Z] = first_end;
     }
-  _sai._program_position_a = a; /*AA*/
-  _sai._program_position_b = b; /*BB*/
-  _sai._program_position_c = c; /*CC*/
+  _sai._program_position[A] = a; /*AA*/
+  _sai._program_position[B] = b; /*BB*/
+  _sai._program_position[C] = c; /*CC*/
 }
 
 void STRAIGHT_FEED(int line_number,
@@ -384,12 +384,12 @@ void STRAIGHT_FEED(int line_number,
          , b /*BB*/
          , c /*CC*/
          );
-  _sai._program_position_x = x;
-  _sai._program_position_y = y;
-  _sai._program_position_z = z;
-  _sai._program_position_a = a; /*AA*/
-  _sai._program_position_b = b; /*BB*/
-  _sai._program_position_c = c; /*CC*/
+  _sai._program_position[X] = x;
+  _sai._program_position[Y] = y;
+  _sai._program_position[Z] = z;
+  _sai._program_position[A] = a; /*AA*/
+  _sai._program_position[B] = b; /*BB*/
+  _sai._program_position[C] = c; /*CC*/
 }
 
 
@@ -409,9 +409,9 @@ void STRAIGHT_PROBE(int line_number,
   double dx, dy, dz;
   double backoff;
 
-  dx = (_sai._program_position_x - x);
-  dy = (_sai._program_position_y - y);
-  dz = (_sai._program_position_z - z);
+  dx = (_sai._program_position[X] - x);
+  dy = (_sai._program_position[Y] - y);
+  dz = (_sai._program_position[Z] - z);
   distance = sqrt((dx * dx) + (dy * dy) + (dz * dz));
 
   ECHO_WITH_ARGS("%.4f, %.4f, %.4f"
@@ -423,22 +423,22 @@ void STRAIGHT_PROBE(int line_number,
          , b /*BB*/
          , c /*CC*/
          );
-  _sai._probe_position_x = x;
-  _sai._probe_position_y = y;
-  _sai._probe_position_z = z;
-  _sai._probe_position_a = a; /*AA*/
-  _sai._probe_position_b = b; /*BB*/
-  _sai._probe_position_c = c; /*CC*/
+  _sai._probe_position[X] = x;
+  _sai._probe_position[Y] = y;
+  _sai._probe_position[Z] = z;
+  _sai._probe_position[A] = a; /*AA*/
+  _sai._probe_position[B] = b; /*BB*/
+  _sai._probe_position[C] = c; /*CC*/
   if (distance != 0)
     {
       backoff = ((_sai._length_unit_type == CANON_UNITS_MM) ? 0.254 : 0.01);
-      _sai._program_position_x = (x + (backoff * (dx / distance)));
-      _sai._program_position_y = (y + (backoff * (dy / distance)));
-      _sai._program_position_z = (z + (backoff * (dz / distance)));
+      _sai._program_position[X] = (x + (backoff * (dx / distance)));
+      _sai._program_position[Y] = (y + (backoff * (dy / distance)));
+      _sai._program_position[Z] = (z + (backoff * (dz / distance)));
     }
-  _sai._program_position_a = a; /*AA*/
-  _sai._program_position_b = b; /*BB*/
-  _sai._program_position_c = c; /*CC*/
+  _sai._program_position[A] = a; /*AA*/
+  _sai._program_position[B] = b; /*BB*/
+  _sai._program_position[C] = c; /*CC*/
 }
 
 
@@ -758,40 +758,45 @@ CANON_PLANE GET_EXTERNAL_PLANE()
   return _sai._active_plane;
 }
 
+PositionArray GET_EXTERNAL_POSITION()
+{
+    return _sai._program_position;
+}
+
 /* returns the current a-axis position */
 double GET_EXTERNAL_POSITION_A()
 {
-  return _sai._program_position_a;
+  return _sai._program_position[A];
 }
 
 /* returns the current b-axis position */
 double GET_EXTERNAL_POSITION_B()
 {
-  return _sai._program_position_b;
+  return _sai._program_position[B];
 }
 
 /* returns the current c-axis position */
 double GET_EXTERNAL_POSITION_C()
 {
-  return _sai._program_position_c;
+  return _sai._program_position[C];
 }
 
 /* returns the current x-axis position */
 double GET_EXTERNAL_POSITION_X()
 {
-  return _sai._program_position_x;
+  return _sai._program_position[X];
 }
 
 /* returns the current y-axis position */
 double GET_EXTERNAL_POSITION_Y()
 {
-  return _sai._program_position_y;
+  return _sai._program_position[Y];
 }
 
 /* returns the current z-axis position */
 double GET_EXTERNAL_POSITION_Z()
 {
-  return _sai._program_position_z;
+  return _sai._program_position[Z];
 }
 
 // XXX fix sai for uvw
@@ -829,42 +834,42 @@ double GET_EXTERNAL_PROBE_POSITION_W()
    once the probe command has executed to completion. */
 double GET_EXTERNAL_PROBE_POSITION_A()
 {
-  return _sai._probe_position_a;
+  return _sai._probe_position[A];
 }
 
 /* returns the b-axis position at the last probe trip. This is only valid
    once the probe command has executed to completion. */
 double GET_EXTERNAL_PROBE_POSITION_B()
 {
-  return _sai._probe_position_b;
+  return _sai._probe_position[B];
 }
 
 /* returns the c-axis position at the last probe trip. This is only valid
    once the probe command has executed to completion. */
 double GET_EXTERNAL_PROBE_POSITION_C()
 {
-  return _sai._probe_position_c;
+  return _sai._probe_position[C];
 }
 
 /* returns the x-axis position at the last probe trip. This is only valid
    once the probe command has executed to completion. */
 double GET_EXTERNAL_PROBE_POSITION_X()
 {
-  return _sai._probe_position_x;
+  return _sai._probe_position[X];
 }
 
 /* returns the y-axis position at the last probe trip. This is only valid
    once the probe command has executed to completion. */
 double GET_EXTERNAL_PROBE_POSITION_Y()
 {
-  return _sai._probe_position_y;
+  return _sai._probe_position[Y];
 }
 
 /* returns the z-axis position at the last probe trip. This is only valid
    once the probe command has executed to completion. */
 double GET_EXTERNAL_PROBE_POSITION_Z()
 {
-  return _sai._probe_position_z;
+  return _sai._probe_position[Z];
 }
 
 /* Returns the value for any analog non-contact probing. */
@@ -1099,12 +1104,7 @@ StandaloneInterpInternals::StandaloneInterpInternals() :
   _line_number(1),
   _mist(0),
   _motion_mode(CANON_CONTINUOUS),
-  _probe_position_a(0), /*AA*/
-  _probe_position_b(0), /*BB*/
-  _probe_position_c(0), /*CC*/
-  _probe_position_x(0),
-  _probe_position_y(0),
-  _probe_position_z(0),
+  _probe_position(),
   _g5x_x(0),
   _g5x_y(0.0),
   _g5x_z(0.0),
@@ -1117,12 +1117,7 @@ StandaloneInterpInternals::StandaloneInterpInternals() :
   _g92_a(0.0),
   _g92_b(0.0),
   _g92_c(0.0),
-  _program_position_a(0), /*AA*/
-  _program_position_b(0), /*BB*/
-  _program_position_c(0), /*CC*/
-  _program_position_x(0),
-  _program_position_y(0),
-  _program_position_z(0),
+  _program_position(),
   _spindle_speed(0),
   _spindle_turning(CANON_STOPPED),
   _pockets_max(CANON_POCKETS_MAX),
@@ -1142,4 +1137,7 @@ StandaloneInterpInternals::StandaloneInterpInternals() :
   _toolchanger_fault(false),
   _toolchanger_reason(0)
 {
+    // Not sure if this is necessary
+    _program_position.fill(0);
+    _probe_position.fill(0);
 }

@@ -410,15 +410,7 @@ int Interp::precedence(int an_operator)
 
 int Interp::refresh_actual_position(setup_pointer settings) 
 {
-  settings->current[X] = GET_EXTERNAL_POSITION_X();
-  settings->current[Y] = GET_EXTERNAL_POSITION_Y();
-  settings->current[Z] = GET_EXTERNAL_POSITION_Z();
-  settings->current[A] = GET_EXTERNAL_POSITION_A();
-  settings->current[B] = GET_EXTERNAL_POSITION_B();
-  settings->current[C] = GET_EXTERNAL_POSITION_C();
-  settings->current[U] = GET_EXTERNAL_POSITION_U();
-  settings->current[V] = GET_EXTERNAL_POSITION_V();
-  settings->current[W] = GET_EXTERNAL_POSITION_W();
+  settings->current = GET_EXTERNAL_POSITION();
 
   return INTERP_OK;
 }

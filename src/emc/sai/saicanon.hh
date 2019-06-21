@@ -30,12 +30,7 @@ struct StandaloneInterpInternals
   int _line_number;
   int _mist;
   CANON_MOTION_MODE _motion_mode;
-  double _probe_position_a;
-  double _probe_position_b;
-  double _probe_position_c;
-  double _probe_position_x;
-  double _probe_position_y;
-  double _probe_position_z;
+  PositionArray _probe_position;
   double _g5x_x;
   double _g5x_y;
   double _g5x_z;
@@ -48,12 +43,7 @@ struct StandaloneInterpInternals
   double _g92_a;
   double _g92_b;
   double _g92_c;
-  double _program_position_a;
-  double _program_position_b;
-  double _program_position_c;
-  double _program_position_x;
-  double _program_position_y;
-  double _program_position_z;
+  PositionArray _program_position;
   double _spindle_speed;
   CANON_DIRECTION _spindle_turning;
   int _pockets_max;
