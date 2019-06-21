@@ -17,15 +17,19 @@ source test-setup.hal
 # error.
 
 # - limit exceeded (clipping)
+#   screenshots/halscope-clipping-nonoise-velmatch.png
 # sets maxa 15000
 
 # - limit tight
+#   screenshots/halscope-tight-nonoise-velmatch.png
 sets maxa 20000
 
 # - limit loose
+#   screenshots/halscope-loose-nonoise-velmatch.png
 # sets maxa 200000
 
 # - limit off (almost)
+#   screenshots/halscope-nolimit-nonoise-velmatch.png
 # sets maxa 200000000
 
 
@@ -49,10 +53,12 @@ sets maxa 20000
 # signal position, and is unaffected.)
 
 # - no noise
+#   screenshots/halscope-tight-nonoise-velmatch.png
 sets velfilt-gain 1
 sets noise-lev 0
 
 # - add noise
+#   screenshots/halscope-tight-noise-velmatch.png
 # sets velfilt-gain 0.02
 # sets noise-lev 5
 
@@ -66,9 +72,11 @@ sets noise-lev 0
 # signal with 'noise' added in.
 
 # - use velocity matching
+#   screenshots/halscope-tight-nonoise-velmatch.png
 sets l3-match-vel 1
 
 # - disable velocity matching
+#   screenshots/halscope-tight-noise-novelmatch.png
 # sets l3-match-vel 0
 
 ########################
