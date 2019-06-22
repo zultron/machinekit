@@ -1153,6 +1153,10 @@ int Interp::init()
   write_and_update_state_tag(nullptr);
 
   for (auto const &t_pair : _setup.work_offsets_user) {
+      // Avoid redundant canon calls by sending the current transform separately
+      if (t_pair.first == _setup.origin_index) {
+          continue;
+      }
       RotateShiftTransform work_offset_user = t_pair.second;
       convertAxisUnits(work_offset_user, convertsUserToProgram());
       send_g5x_transform(t_pair.first, work_offset_user);
