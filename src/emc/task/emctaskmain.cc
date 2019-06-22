@@ -2521,20 +2521,18 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
    */
 static int emcTaskCheckPostconditions(NMLmsg * cmd)
 {
-    if (0 == cmd) {
-	return EMC_TASK_EXEC_DONE;
+    if (!cmd) {
+        return EMC_TASK_EXEC_DONE;
     }
 
     switch (cmd->type) {
     case EMC_OPERATOR_ERROR_TYPE:
     case EMC_OPERATOR_TEXT_TYPE:
     case EMC_OPERATOR_DISPLAY_TYPE:
-	return EMC_TASK_EXEC_DONE;
-	break;
+        return EMC_TASK_EXEC_DONE;
 
     case EMC_SYSTEM_CMD_TYPE:
-	return EMC_TASK_EXEC_WAITING_FOR_SYSTEM_CMD;
-	break;
+        return EMC_TASK_EXEC_WAITING_FOR_SYSTEM_CMD;
 
     case EMC_TRAJ_LINEAR_MOVE_TYPE:
     case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
@@ -2585,35 +2583,28 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
         return EMC_TASK_EXEC_DONE;
 
     case EMC_SPINDLE_WAIT_ORIENT_COMPLETE_TYPE:
-	return EMC_TASK_EXEC_WAITING_FOR_SPINDLE_ORIENTED;
-	break;
+        return EMC_TASK_EXEC_WAITING_FOR_SPINDLE_ORIENTED;
 
     case EMC_TRAJ_DELAY_TYPE:
     case EMC_AUX_INPUT_WAIT_TYPE:
-	return EMC_TASK_EXEC_WAITING_FOR_DELAY;
-	break;
+        return EMC_TASK_EXEC_WAITING_FOR_DELAY;
 
     case EMC_MOTION_SET_AOUT_TYPE:
     case EMC_MOTION_SET_DOUT_TYPE:
     case EMC_MOTION_ADAPTIVE_TYPE:
-	return EMC_TASK_EXEC_DONE;
-	break;
+        return EMC_TASK_EXEC_DONE;
 
     case EMC_EXEC_PLUGIN_CALL_TYPE:
     case EMC_IO_PLUGIN_CALL_TYPE:
-	return EMC_TASK_EXEC_DONE;
-	break;
+        return EMC_TASK_EXEC_DONE;
 
-    default:
-	// unrecognized command
-	if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
-	    rcs_print_error("postconditions: unrecognized command %d:%s\n",
-			    (int)cmd->type, emc_symbol_lookup(cmd->type));
-	}
-	return EMC_TASK_EXEC_DONE;
-	break;
     }
-    return EMC_TASK_EXEC_DONE; // unreached
+    // unrecognized command
+    if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
+        rcs_print_error("postconditions: unrecognized command %d:%s\n",
+                        (int)cmd->type, emc_symbol_lookup(cmd->type));
+    }
+    return EMC_TASK_EXEC_DONE;
 }
 
 /*
