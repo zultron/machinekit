@@ -302,16 +302,24 @@ void STRAIGHT_TRAVERSE(int line_number,
     }
 }
 
-void SET_G5X_OFFSET(int g5x_index,
-        double x, double y, double z,
-        double a, double b, double c,
-        double u, double v, double w) {
+void SET_G5X_TRANSFORM(int origin,
+                       double x, double y, double z,
+                       double a, double b, double c,
+                       double u, double v, double w,
+                       double xy_rotation_deg)
+{
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "set_g5x_offset", "ifffffffff",
-                g5x_index, x, y, z, a, b, c, u, v, w);
+                origin, x, y, z, a, b, c, u, v, w);
+    if(result == nullptr) interp_error ++;
+    Py_XDECREF(result);
+    maybe_new_line();
+    if(interp_error) return;
+    result =
+        callmethod(callback, "set_xy_rotation", "f", xy_rotation_deg);
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
 }
@@ -328,15 +336,6 @@ void SET_G92_OFFSET(double x, double y, double z,
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
 }
-
-void SET_XY_ROTATION(double t) {
-    maybe_new_line();
-    if(interp_error) return;
-    PyObject *result =
-        callmethod(callback, "set_xy_rotation", "f", t);
-    if(result == nullptr) interp_error ++;
-    Py_XDECREF(result);
-};
 
 void USE_LENGTH_UNITS(CANON_UNITS u) { metric = u == CANON_UNITS_MM; }
 

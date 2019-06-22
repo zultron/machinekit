@@ -110,17 +110,13 @@ void print_nc_line_number()
 
 /* Representation */
 
-void SET_XY_ROTATION(double t) {
-  ECHO_WITH_ARGS("%.4f", t);
-}
-
-void SET_G5X_OFFSET(int index,
+void SET_G5X_TRANSFORM(int index,
                     double x, double y, double z,
                     double a, double b, double c,
-                    double u, double v, double w) {
-
-  ECHO_WITH_ARGS("%d, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f",
-          index, x, y, z, a, b, c);
+                    double u, double v, double w,
+                    double xy_rotation_deg) {
+  ECHO_WITH_ARGS("%d, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %0.4f, %.4f, %.4f",
+          index, x, y, z, a, b, c, u, v, w, xy_rotation_deg);
   _sai._program_position_x = _sai._program_position_x + _sai._g5x_x - x;
   _sai._program_position_y = _sai._program_position_y + _sai._g5x_y - y;
   _sai._program_position_z = _sai._program_position_z + _sai._g5x_z - z;

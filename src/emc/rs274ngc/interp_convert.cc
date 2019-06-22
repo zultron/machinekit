@@ -1619,9 +1619,10 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   write_and_update_state_tag(nullptr);
 
   // Extract transform parts in the order that canon / tests expect
-  SET_G5X_OFFSET(origin, UNPACK_POSITION_ARRAY_REF(settings->transform.g5xOffset.shift.tf));
+  SET_G5X_TRANSFORM(origin,
+                    UNPACK_POSITION_ARRAY_REF(settings->transform.g5xOffset.shift.tf),
+                    settings->transform.g5xOffset.getXYRotationDeg());
   SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
-  SET_XY_ROTATION(settings->transform.g5xOffset.getXYRotationDeg());
   return INTERP_OK;
 }
 
@@ -3892,8 +3893,9 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
     settings->current = desired_csys.inverse_from_nose(pos_current_nose);
     settings->transform = desired_csys;
 
-    SET_G5X_OFFSET(p_int, UNPACK_POSITION_ARRAY_REF(desired_csys.g5xOffset.shift.tf));
-    SET_XY_ROTATION(desired_csys.g5xOffset.getXYRotationDeg());
+    SET_G5X_TRANSFORM(p_int,
+                      UNPACK_POSITION_ARRAY_REF(desired_csys.g5xOffset.shift.tf),
+                      desired_csys.g5xOffset.getXYRotationDeg());
   } else {
     // Queue message with non-current offset values
     SEND_TAG_MSG();

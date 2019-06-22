@@ -484,11 +484,14 @@ static void send_g5x_msg(int index) {
 
     /* append it to interp list so it gets updated at the right time, not at
        read-ahead time */
-    EMC_TRAJ_SET_G5X set_g5x_msg;
+    EMC_TRAJ_SET_G5X_TRANSFORM set_g5x_msg;
 
     set_g5x_msg.g5x_index = index;
 
-    set_g5x_msg.origin = to_ext_pose(interpToMachineTransform.g5xOffset.shift.tf);
+    set_g5x_msg.origin = interpToMachineTransform.g5xOffset;
+    // Convert to motion units
+    const UnitsTransform canon_to_motion_units = ConvertsCanonToMotionUnits();
+    canon_to_motion_units.apply_fwd(set_g5x_msg.origin.shift.tf);
 
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed_rpm);
@@ -511,26 +514,18 @@ static void send_g92_msg(void) {
     tag_and_send(set_g92_msg);
 }
 
-void SET_XY_ROTATION(double t) {
-    EMC_TRAJ_SET_ROTATION sr;
-    sr.rotation = t;
-	tag_and_send(sr);
-
-    interpToMachineTransform.g5xOffset.setXYRotationDeg(t);
-}
-
-void SET_G5X_OFFSET(int index,
+void SET_G5X_TRANSFORM(int index,
                     double x, double y, double z,
                     double a, double b, double c,
-                    double u, double v, double w)
+                    double u, double v, double w,
+                    double xy_rotation_deg)
 {
     PositionArray pos = {x,y,z,a,b,c,u,v,w};
-
     // Convert to canon units (mm / deg)
     from_prog(pos);
 
     interpToMachineTransform.g5xOffset.shift.tf = pos;
-
+    interpToMachineTransform.g5xOffset.setXYRotationDeg(xy_rotation_deg);
     send_g5x_msg(index);
 }
 

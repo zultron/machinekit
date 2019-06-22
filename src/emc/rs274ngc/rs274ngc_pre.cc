@@ -1150,7 +1150,9 @@ int Interp::init()
 
   write_and_update_state_tag(nullptr);
 
-  SET_G5X_OFFSET(_setup.origin_index, UNPACK_POSITION_ARRAY_REF(_setup.transform.g5xOffset.shift.tf));
+  SET_G5X_TRANSFORM(_setup.origin_index,
+                    UNPACK_POSITION_ARRAY_REF(_setup.transform.g5xOffset.shift.tf),
+                    _setup.transform.g5xOffset.getXYRotationDeg());
 
   // Restore G92 offset if PERSISTENT_G92_OFFSET is set in .ini file.
   // This can't be done with the static _required_parameters[], where
@@ -1164,7 +1166,6 @@ int Interp::init()
   _setup.transform.g92Offset = getG92ActiveOffset(&_setup);
 
   SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(_setup.transform.g92Offset.tf));
-  SET_XY_ROTATION(_setup.transform.g5xOffset.getXYRotationDeg());
   SET_FEED_REFERENCE(CANON_XYZ);
 //_setup.active_g_codes initialized below
 //_setup.active_m_codes initialized below

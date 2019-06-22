@@ -1586,7 +1586,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_OFFSET_TYPE:
 	// this applies the tool length offset variable after previous
 	// motions
-    case EMC_TRAJ_SET_G5X_TYPE:
+    case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
     case EMC_TRAJ_SET_G92_TYPE:
     case EMC_TRAJ_SET_ROTATION_TYPE:
 	// this applies the program origin after previous motions
@@ -1989,7 +1989,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         retval = 0;
         break;
 
-    case EMC_TRAJ_SET_G5X_TYPE:
+    case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
 	// Status is updated elsewhere; nothing to do
 	retval = 0;
 	break;
@@ -2515,7 +2515,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_TERM_COND_TYPE:
     case EMC_TRAJ_SET_SPINDLESYNC_TYPE:
     case EMC_TRAJ_SET_OFFSET_TYPE:
-    case EMC_TRAJ_SET_G5X_TYPE:
+    case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
     case EMC_TRAJ_SET_G92_TYPE:
     case EMC_TRAJ_SET_ROTATION_TYPE:
     case EMC_TRAJ_PROBE_TYPE:
@@ -2655,7 +2655,7 @@ static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd)
         case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
         case EMC_TRAJ_SET_TERM_COND_TYPE:
         case EMC_TRAJ_SET_OFFSET_TYPE:
-        case EMC_TRAJ_SET_G5X_TYPE:
+        case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
         case EMC_TRAJ_SET_HOME_TYPE:
         case EMC_TRAJ_SET_ROTATION_TYPE:
         case EMC_TRAJ_SET_G92_TYPE:

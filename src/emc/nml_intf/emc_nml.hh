@@ -22,6 +22,7 @@
 #include "canon.hh"		// CANON_TOOL_TABLE, CANON_UNITS
 #include "rs274ngc.hh"		// ACTIVE_G_CODES, etc
 
+#include <coordinatetransform.hh>
 // ------------------
 // CLASS DECLARATIONS
 // ------------------
@@ -860,16 +861,16 @@ class EMC_TRAJ_SET_OFFSET:public EMC_TRAJ_CMD_MSG {
     EmcPose offset;
 };
 
-class EMC_TRAJ_SET_G5X:public EMC_TRAJ_CMD_MSG {
+class EMC_TRAJ_SET_G5X_TRANSFORM:public EMC_TRAJ_CMD_MSG {
   public:
-    EMC_TRAJ_SET_G5X():EMC_TRAJ_CMD_MSG(EMC_TRAJ_SET_G5X_TYPE,
-					   sizeof(EMC_TRAJ_SET_G5X)) {
+    EMC_TRAJ_SET_G5X_TRANSFORM():EMC_TRAJ_CMD_MSG(EMC_TRAJ_SET_G5X_TRANSFORM_TYPE,
+                       sizeof(EMC_TRAJ_SET_G5X_TRANSFORM)) {
     }
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
     int g5x_index;
-    EmcPose origin;
+    RotateShiftTransform origin;
 };
 
 class EMC_TRAJ_SET_G92:public EMC_TRAJ_CMD_MSG {

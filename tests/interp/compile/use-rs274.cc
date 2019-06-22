@@ -43,14 +43,15 @@ struct _inittab builtin_modules[] = {
 // everything below here is stuff that needs a real implementation, not a dummy
 // one
 void INIT_CANON() {}
-void SET_G5X_OFFSET(int origin,
-                           double x, double y, double z,
-                           double a, double b, double c,
-                           double u, double v, double w) {}
+void SET_G5X_TRANSFORM(int ,
+                           double , double , double ,
+                           double , double , double ,
+                           double , double , double ,
+                           double ) {}
 void SET_G92_OFFSET(double x, double y, double z,
                            double a, double b, double c,
                            double u, double v, double w) {}
-void SET_XY_ROTATION(double t) {}
+
 void CANON_UPDATE_END_POINT(double x, double y, double z, 
 				   double a, double b, double c,
 				   double u, double v, double w) {}
