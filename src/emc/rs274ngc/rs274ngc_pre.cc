@@ -2178,7 +2178,7 @@ int Interp::synch(bool read_work_offsets)
 
   load_work_offset_table();
 
-  send_current_g5x_transform();
+  //send_current_g5x_transform();
   //read_inputs(&_setup); // input/probe/toolchange
 
   write_settings(&_setup, _setup.modal_state);
