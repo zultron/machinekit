@@ -904,6 +904,7 @@ int Interp::init()
   char *iniFileName;
   IniFile::ErrorCode r;
 
+  // NOTE: this clears the work offsets table completely (it's re-sent later in this function)
   INIT_CANON();
   // JFP: this init() is also called by via emcTaskPlanClose()
   // INIT_CANON() steps on cannon's currentToolOffset so it must get restored
@@ -1263,7 +1264,8 @@ int Interp::init()
   if(!(axis_mask & AXIS_MASK_V)) _readers[(int)'v'] = nullptr;
   if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = nullptr;
 
-  synch(); //synch first, then update the interface
+  // Don't bother reading work offsets since we just sent them
+  synch(false); //synch first, then update the interface
 
   write_g_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
   write_m_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
@@ -2135,7 +2137,7 @@ the controller.
 
 */
 
-int Interp::synch()
+int Interp::synch(bool read_work_offsets)
 {
 
   char file_name[LINELEN];

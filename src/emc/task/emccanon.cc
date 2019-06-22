@@ -2727,6 +2727,8 @@ void INIT_CANON()
     chained_points.clear();
 
     interpToMachineTransform = LocalToMachineTransform();
+    EMC_TRAJ_CLEAR_G5X_TABLE clear_g5x_table;
+    interp_list.append(clear_g5x_table);
 
     activePlane = CANON_PLANE_XY;
     canonUpdateEndPoint({});

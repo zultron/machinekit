@@ -552,7 +552,7 @@ int emcTaskPlanSetBlockDelete(bool state)
 
 int emcTaskPlanSynch()
 {
-    int retval = interp.synch();
+    int retval = interp.synch(true);
 
     if (emc_debug & EMC_DEBUG_INTERP) {
         rcs_print("emcTaskPlanSynch() returned %d\n", retval);
@@ -622,19 +622,17 @@ int emcTaskPlanExecute(const char *command)
 {
     int inpos = emcStatus->motion.traj.inpos;	// 1 if in position, 0 if not.
 
-    if (command != 0) {		// Command is 0 if in AUTO mode, non-null if in MDI mode.
-	// Don't sync if not in position.
-	if ((*command != 0) && (inpos)) {
-	    interp.synch();
-	}
+    if (command && (*command != '\0') && (inpos)) {
+        // Need to synch with an MDI call, once motion has reached its final position
+        interp.synch(true);
     }
     int retval = interp.execute(command);
-	print_interp_warning();
+    print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {
-	print_interp_error(retval);
+        print_interp_error(retval);
     }
-    if(command != 0) {
-	FINISH();
+    if(command) {
+        FINISH();
     }
 
     if (emc_debug & EMC_DEBUG_INTERP) {

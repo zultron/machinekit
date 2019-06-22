@@ -876,6 +876,16 @@ class EMC_TRAJ_SET_G5X_TRANSFORM:public EMC_TRAJ_CMD_MSG {
     double xy_rotation_deg;
 };
 
+class EMC_TRAJ_CLEAR_G5X_TABLE:public EMC_TRAJ_CMD_MSG {
+  public:
+    EMC_TRAJ_CLEAR_G5X_TABLE():EMC_TRAJ_CMD_MSG(EMC_TRAJ_CLEAR_G5X_TABLE_TYPE,
+                       sizeof(EMC_TRAJ_CLEAR_G5X_TABLE)) {
+    }
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+};
+
 class EMC_TRAJ_SET_G92:public EMC_TRAJ_CMD_MSG {
   public:
     EMC_TRAJ_SET_G92():EMC_TRAJ_CMD_MSG(EMC_TRAJ_SET_G92_TYPE,

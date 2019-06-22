@@ -1589,7 +1589,8 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
     case EMC_TRAJ_SET_G92_TYPE:
     case EMC_TRAJ_SET_ROTATION_TYPE:
-	// this applies the program origin after previous motions
+    case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
+    // this applies the program origin after previous motions
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION;
 	break;
 
@@ -2014,6 +2015,12 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     }
     retval = 0;
 	break;
+    case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
+    {
+        emcStatus->task.g5x_table.fill(RotateShiftTransform());
+    }
+    retval = 0;
+    break;
     case EMC_TRAJ_SET_G92_TYPE:
 	// struct-copy program origin
 	emcStatus->task.g92_offset = ((EMC_TRAJ_SET_G92 *) cmd)->origin;
@@ -2547,6 +2554,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_FO_ENABLE_TYPE:
     case EMC_TRAJ_SET_FH_ENABLE_TYPE:
     case EMC_TRAJ_SET_SO_ENABLE_TYPE:
+    case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
 	return EMC_TASK_EXEC_DONE;
 	break;
 
@@ -2677,6 +2685,7 @@ static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd)
         case EMC_TRAJ_SET_TERM_COND_TYPE:
         case EMC_TRAJ_SET_OFFSET_TYPE:
         case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
+        case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
         case EMC_TRAJ_SET_HOME_TYPE:
         case EMC_TRAJ_SET_ROTATION_TYPE:
         case EMC_TRAJ_SET_G92_TYPE:

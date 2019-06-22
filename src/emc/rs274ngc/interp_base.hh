@@ -39,7 +39,7 @@ public:
     virtual int execute() = 0;
     virtual int execute(const char *line) = 0;
     virtual int execute(const char *line, int line_number) = 0;
-    virtual int synch() = 0;
+    virtual int synch(bool read_work_offsets) = 0;
     virtual int exit() = 0;
     virtual int open(const char *filename) = 0;
     virtual int read() = 0;

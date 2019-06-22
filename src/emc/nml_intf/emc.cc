@@ -417,6 +417,9 @@ int emcFormat(NMLTYPE type, void *buffer, CMS * cms)
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
 	((EMC_TRAJ_SET_G5X_TRANSFORM *) buffer)->update(cms);
 	break;
+    case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
+    ((EMC_TRAJ_CLEAR_G5X_TABLE *) buffer)->update(cms);
+    break;
     case EMC_TRAJ_SET_G92_TYPE:
 	((EMC_TRAJ_SET_G92 *) buffer)->update(cms);
 	break;
@@ -729,6 +732,8 @@ const char *emc_symbol_lookup(uint32_t type)
     return "EMC_TRAJ_SET_TOOL_OFFSET";
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
     return "EMC_TRAJ_SET_G5X_TRANSFORM";
+    case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
+    return "EMC_TRAJ_CLEAR_G5X_TABLE";
     case EMC_TRAJ_SET_G92_TYPE:
 	return "EMC_TRAJ_SET_G92";
     case EMC_TRAJ_SET_ROTATION_TYPE:
@@ -2286,12 +2291,16 @@ void EMC_AXIS_SET_BACKLASH::update(CMS * cms)
 */
 void EMC_TRAJ_SET_G5X_TRANSFORM::update(CMS * cms)
 {
-
     EMC_TRAJ_CMD_MSG::update(cms);
     cms->update(g5x_index);
     cms->update(offset, 9);
     cms->update(xy_rotation_deg);
 
+}
+
+void EMC_TRAJ_CLEAR_G5X_TABLE::update(CMS * cms)
+{
+    EMC_TRAJ_CMD_MSG::update(cms);
 }
 
 void EMC_TRAJ_SET_G92::update(CMS * cms)

@@ -79,7 +79,7 @@ public:
     int execute();
     int execute(const char *line);
     int execute(const char *line, int line_number);
-    int synch();
+    int synch(bool read_work_offsets);
     int exit();
     int open(const char *filename);
     int read();
@@ -699,7 +699,7 @@ int Canterp::close() {
 }
 
 int Canterp::exit() { return 0; }
-int Canterp::synch() { return 0; }
+int Canterp::synch(bool read_work_offsets) { return 0; }
 int Canterp::reset() { return 0; }
 int Canterp::line() { return 0; }
 int Canterp::call_level() { return 0; }
