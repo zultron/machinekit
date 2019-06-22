@@ -97,21 +97,32 @@ HAVE_FLAVOR=false
 ## copy base templates into place
 
 ## situation at 20092018
+##
 ## python-gst1.0 backported to Jessie + Stretch
-## python-gtksourceview2 not available for Buster but is for Sid, meaning gladevcp widgets keep working.
-## python-pil and python-pil.imagegtk active for Sid replacing python-imaging and python-imaging-tk
-## however selecting python-imaging and python-imaging-tk in Stretch actually
-## results in python-pil and python-pil.imagegtk being installed, so will probably completely backport soon.
+##
+## python-gtksourceview2 not available for Buster but is for Sid,
+## meaning gladevcp widgets keep working.
+##
+## python-pil and python-pil.imagegtk active for Sid replacing
+## python-imaging and python-imaging-tk; however selecting
+## python-imaging and python-imaging-tk in Stretch actually results in
+## python-pil and python-pil.imagegtk being installed, so will
+## probably completely backport soon.
+##
+## 2019-06-21:
+## libck-dev too old in Jessie (and missing in i386 ?!?)  and absent
+## in Buster
 
 case "$DISTRO_CODENAME" in
     buster)
         : # Nothing
         ;;
-    stretch|jessie|sid)
+    jessie)
         DEPS+=", python-gtksourceview2"
         ;;
     *)
         DEPS+=", python-gtksourceview2"
+        BUILD_DEPS+=", libck-dev"
         ;;
 esac
 
