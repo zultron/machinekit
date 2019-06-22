@@ -2555,8 +2555,6 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_FH_ENABLE_TYPE:
     case EMC_TRAJ_SET_SO_ENABLE_TYPE:
     case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
-	return EMC_TASK_EXEC_DONE;
-	break;
 
     case EMC_TOOL_PREPARE_TYPE:
     case EMC_TOOL_LOAD_TYPE:
@@ -2576,8 +2574,6 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_LUBE_ON_TYPE:
     case EMC_LUBE_OFF_TYPE:
     case EMC_TASK_SET_TAG_TYPE:
-	return EMC_TASK_EXEC_DONE;
-	break;
 
     case EMC_TASK_PLAN_RUN_TYPE:
     case EMC_TASK_PLAN_PAUSE_TYPE:
@@ -2586,8 +2582,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TASK_PLAN_SYNCH_TYPE:
     case EMC_TASK_PLAN_EXECUTE_TYPE:
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
-	return EMC_TASK_EXEC_DONE;
-	break;
+        return EMC_TASK_EXEC_DONE;
 
     case EMC_SPINDLE_WAIT_ORIENT_COMPLETE_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_SPINDLE_ORIENTED;
