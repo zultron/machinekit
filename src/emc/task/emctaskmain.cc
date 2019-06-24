@@ -1569,7 +1569,6 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 	task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		   cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_TRAJ_LINEAR_MOVE_TYPE:
     case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
@@ -1581,7 +1580,6 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_FH_ENABLE_TYPE:
     case EMC_TRAJ_SET_SO_ENABLE_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_IO;
-	break;
 
     case EMC_TRAJ_SET_OFFSET_TYPE:
 	// this applies the tool length offset variable after previous
@@ -1592,7 +1590,6 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
     // this applies the program origin after previous motions
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION;
-	break;
 
     case EMC_TOOL_LOAD_TYPE:
     case EMC_TOOL_UNLOAD_TYPE:
@@ -1608,24 +1605,20 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_TOOL_PREPARE_TYPE:
     case EMC_LUBE_ON_TYPE:
     case EMC_LUBE_OFF_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_IO;
-	break;
 
     case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
     case EMC_TOOL_SET_OFFSET_TYPE:
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_TOOL_SET_NUMBER_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_IO;
-	break;
 
     case EMC_TASK_PLAN_PAUSE_TYPE:
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
@@ -1633,13 +1626,11 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_TASK_PLAN_END_TYPE:
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_TASK_PLAN_INIT_TYPE:
     case EMC_TASK_PLAN_RUN_TYPE:
@@ -1648,36 +1639,30 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_TRAJ_DELAY_TYPE:
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_MOTION_SET_AOUT_TYPE:
 	if (((EMC_MOTION_SET_AOUT *) cmd)->now) {
     	    return EMC_TASK_EXEC_WAITING_FOR_MOTION;
 	}
 	return EMC_TASK_EXEC_DONE;
-	break;
 
     case EMC_MOTION_SET_DOUT_TYPE:
 	if (((EMC_MOTION_SET_DOUT *) cmd)->now) {
     	    return EMC_TASK_EXEC_WAITING_FOR_MOTION;
 	}
 	return EMC_TASK_EXEC_DONE;
-	break;
 
     case EMC_MOTION_ADAPTIVE_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION;
-	break;
 
     case EMC_EXEC_PLUGIN_CALL_TYPE:
     case EMC_IO_PLUGIN_CALL_TYPE:
 	return EMC_TASK_EXEC_DONE;
-	break;
 
     case EMC_TASK_SET_TAG_TYPE:
     return EMC_TASK_EXEC_DONE;
@@ -1689,7 +1674,6 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 			    (int)cmd->type, emc_symbol_lookup(cmd->type));
 	}
 	return EMC_TASK_EXEC_ERROR;
-	break;
     }
 
     return EMC_TASK_EXEC_DONE;
