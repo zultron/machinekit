@@ -2592,6 +2592,8 @@ int Interp::gen_g_codes(
         case G_CODE_LATHE_DIAMETER_MODE: // - lathe diameter mode
             CHKS(formatGCode(val, cmd), "gen_g_codes BUG: index %d = -1", ii);
             break;
+        case ACTIVE_G_CODES: // Do nothing, not a real G-code
+            break;
         }
     }
 
@@ -2648,6 +2650,8 @@ int Interp::gen_m_codes(ActiveMCodeArray const &current, ActiveMCodeArray const 
             } else {
                 MSG("------ gen_m_codes: index %d = -1!!\n",i);
             }
+            break;
+        case ACTIVE_M_CODES: // Do nothing, not a real M-code
             break;
         }
     }
