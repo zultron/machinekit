@@ -1211,10 +1211,7 @@ int Interp::init()
 //_setup.parameter_values does not need initialization
 //_setup.percent_flag does not need initialization
 //_setup.plane set in Interp::synch
-  _setup.probe_flag = false;
-  _setup.toolchange_flag = false;
-  _setup.input_flag = false;
-  _setup.orient_flag = false;
+  _setup.clear_queue_buster_flags();
   _setup.input_index = -1;
   _setup.input_digital = false;
   _setup.program_x = 0.;   /* for cutter comp */
@@ -1541,6 +1538,9 @@ int Interp::read_inputs(setup_pointer settings)
   settings->parameters[TOOL_ORIENT_TIMEOUT] = GET_EXTERNAL_ORIENT_TIMEOUT();
   settings->orient_flag = false;
     }
+
+    // Offset-modified flag is always cleared at the start of a block
+    settings->work_offset_modified_flag = false;
 
     return INTERP_OK;
 }
@@ -2832,10 +2832,7 @@ int Interp::on_abort(int reason, const char *message)
 
     // clear in case set by an interrupted remapped procedure
     // if set, may cause a "Queue is not empty after tool change" error
-    _setup.toolchange_flag = false;
-    _setup.probe_flag = false;
-    _setup.input_flag = false;
-    _setup.orient_flag = false;
+    _setup.clear_queue_buster_flags();
 
     if (_setup.on_abort_command == nullptr) {
 	logDebug("Interp::on_abort:  No on_abort_command; returning");

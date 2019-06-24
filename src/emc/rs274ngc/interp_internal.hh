@@ -413,7 +413,8 @@ struct setup_struct
   setup_struct();
  ~setup_struct();
 
-  int get_toplevel_line_number();
+  int get_toplevel_line_number() const;
+  void clear_queue_buster_flags();
 
   PositionArray current;
   LocalToMachineTransform transform;
@@ -475,11 +476,13 @@ struct setup_struct
   double named_parameter_values[MAX_NAMED_PARAMETERS];
   bool percent_flag;          // true means first line was percent sign
   CANON_PLANE plane;            // active plane, XY-, YZ-, or XZ-plane
+  // Queue-buster flags
   bool probe_flag;            // flag indicating probing done
   bool input_flag;            // flag indicating waiting for input done
   bool orient_flag;           // flag indicating waiting for spindle orient done
   bool toolchange_flag;       // flag indicating we just had a tool change
   bool work_offset_modified_flag; // indicates a work offset / rotation value was changed (e.g. by G10)
+
   int input_index;		// channel queried
   bool input_digital;		// input queried was digital (false=analog)
   bool cutter_comp_firstmove; // this is the first comp move

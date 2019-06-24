@@ -2861,12 +2861,8 @@ int Interp::restore_from_tag(StateTag const &tag)
         return INTERP_ERROR;
     }
 
-	// clear queue buster sflags, otherwise the command won't be executed - Tormach *dpr 8/17/15
-	_setup.input_flag = false;
-	_setup.toolchange_flag = false;
-	_setup.probe_flag = false;
-	_setup.orient_flag = false;
-    _setup.work_offset_modified_flag = false;
+    // clear queue buster sflags, otherwise the command won't be executed - Tormach *dpr 8/17/15
+    _setup.clear_queue_buster_flags();
 
     // Restore line number from tag
     _setup.sequence_number = tag.fields[GM_FIELD_LINE_NUMBER];

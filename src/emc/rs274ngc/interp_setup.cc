@@ -159,7 +159,7 @@ setup_struct::setup_struct() :
 }
     // not sure about sub_context:
     // a plain array of a struct with non-POD data?
-int setup_struct::get_toplevel_line_number()
+int setup_struct::get_toplevel_line_number() const
 {
     bool in_remap = (remap_level > 0);
     bool in_subroutine = (call_level > 0 && remap_level == 0);
@@ -184,6 +184,15 @@ int setup_struct::get_toplevel_line_number()
     else {
         return sequence_number;
     }
+}
+
+void setup_struct::clear_queue_buster_flags()
+{
+    probe_flag = false;            // flag indicating probing done
+    input_flag = false;            // flag indicating waiting for input done
+    orient_flag = false;           // flag indicating waiting for spindle orient done
+    toolchange_flag = false;       // flag indicating we just had a tool change
+    work_offset_modified_flag = false; // indicates a work offset / rotation value was changed (e.g. by G10)
 }
 
 setup_struct::~setup_struct() {
