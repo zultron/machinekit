@@ -1329,7 +1329,7 @@ bool match_suffix_and_adv(char const (&match_str)[N],
         int *counter
         )
 {
-    constexpr size_t suf_len = N - 1;
+    constexpr size_t suf_len = N - 2; // skip NULL character and first character
     if (strncmp(line + *counter,
                 match_str + 1,
                 suf_len) == 0) {
@@ -1339,14 +1339,23 @@ bool match_suffix_and_adv(char const (&match_str)[N],
     return false;
 }
 
-// Specialize for short strings
+// Short strings with no suffix should not match (since the substring to match is effectively empty)
+template <size_t>
+bool match_suffix_and_adv(char const (&)[2],
+        const char *,
+        int *
+)
+{
+    return false;
+}
+
 template <size_t>
 bool match_suffix_and_adv(char const (&)[1],
         const char *,
         int *
 )
 {
-    return true;
+    return false;
 }
 
 /*! read_operation_unary
