@@ -33,6 +33,7 @@ LIBRS274SRCS := $(addprefix emc/rs274ngc/, \
 	pyarrays.cc \
 	interpmodule.cc \
 	rs274ngc_pre.cc \
+	StateTag.cc \
 	interp_inspection.cc)
 USERSRCS += $(LIBRS274SRCS)
 

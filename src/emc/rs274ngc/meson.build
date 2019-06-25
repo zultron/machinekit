@@ -26,6 +26,7 @@ rs274ngc_srcs = files([
     'pyblock.cc',
     'pyarrays.cc',
     'interp_inspection.cc',
+    'StateTag.cc',
 ])
 
 rs274ngc_inc = include_directories('.')
