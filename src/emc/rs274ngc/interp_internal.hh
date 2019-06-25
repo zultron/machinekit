@@ -197,31 +197,21 @@ struct block_struct
 {
   block_struct ();
 
-  bool a_flag;
   double a_number;
-  bool b_flag;
+
   double b_number;
-  bool c_flag;
   double c_number;
   char comment[256];
   double d_number_float;
-  bool d_flag;
-  bool e_flag;
   double e_number;
-  bool f_flag;
   double f_number;
 
   int g_modes[GM_MAX_MODAL_GROUPS];
-  bool h_flag;
   int h_number;
-  bool i_flag;
   double i_number;
-  bool j_flag;
   double j_number;
-  bool k_flag;
   double k_number;
   int l_number;
-  bool l_flag;
   int line_number;
   int saved_line_number;  // value of sequence_number when a remap was encountered
   int n_number;
@@ -230,27 +220,39 @@ struct block_struct
   int m_modes[11];
   int user_m;
   double p_number;
-  bool p_flag;
   double q_number;
+  double r_number;
+  double s_number;
+  int t_number;
+  double u_number;
+  double v_number;
+  double w_number;
+  double x_number;
+  double y_number;
+  double z_number;
+
+  bool a_flag;
+  bool b_flag;
+  bool c_flag;
+  bool d_flag;
+  bool e_flag;
+  bool f_flag;
+  bool h_flag;
+  bool i_flag;
+  bool j_flag;
+  bool k_flag;
+  bool l_flag;
+  bool p_flag;
   bool q_flag;
   bool r_flag;
-  double r_number;
   bool s_flag;
-  double s_number;
   bool t_flag;
-  int t_number;
   bool u_flag;
-  double u_number;
   bool v_flag;
-  double v_number;
   bool w_flag;
-  double w_number;
   bool x_flag;
-  double x_number;
   bool y_flag;
-  double y_number;
   bool z_flag;
-  double z_number;
 
   int radius_flag;
   double radius;
