@@ -166,6 +166,7 @@
 #define NCE_UNKNOWN_WORD_STARTING_WITH_R _("Unknown word starting with r")
 #define NCE_UNKNOWN_WORD_STARTING_WITH_S _("Unknown word starting with s")
 #define NCE_UNKNOWN_WORD_STARTING_WITH_T _("Unknown word starting with t")
+#define NCE_UNKNOWN_WORD_STARTING_WITH_U _("Unknown word starting with u")
 #define NCE_UNKNOWN_WORD_WHERE_UNARY_OPERATION_COULD_BE _("Unknown word where unary operation could be")
 #define NCE_X_AND_Y_WORDS_MISSING_FOR_ARC_IN_XY_PLANE _("X and y words missing for arc in xy plane")
 #define NCE_X_AND_Z_WORDS_MISSING_FOR_ARC_IN_XZ_PLANE _("X and z words missing for arc in xz plane")

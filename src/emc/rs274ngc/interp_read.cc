@@ -1323,6 +1323,35 @@ int Interp::read_operation(char *line,   //!< string: line of RS274/NGC code bei
 
 /****************************************************************************/
 
+/**
+ * Checks if the suffix (ignoring the first character since the switch already handles that) matches, and advances the line counter if it does.
+ */
+template <size_t N>
+bool match_suffix_and_adv(char const (&match_str)[N],
+        const char *line,
+        int *counter
+        )
+{
+    constexpr size_t suf_len = N - 1;
+    if (strncmp(line + *counter,
+                match_str + 1,
+                suf_len) == 0) {
+      *counter += suf_len;
+      return true;
+    }
+    return false;
+}
+
+// Specialize for short strings
+template <size_t>
+bool match_suffix_and_adv(char const (&)[1],
+        const char *,
+        int *
+)
+{
+    return true;
+}
+
 /*! read_operation_unary
 
 Returned Value: int
@@ -1353,7 +1382,6 @@ starting at the index given by the counter. Known operations are:
 abs, acos, asin, atan, cos, exp, fix, fup, ln, round, sin, sqrt, tan.
 
 */
-
 int Interp::read_operation_unary(char *line,     //!< string: line of RS274/NGC code being processed
                                 int *counter,   //!< pointer to a counter for position on the line 
                                 int *operation) //!< pointer to operation to be read               
@@ -1364,84 +1392,41 @@ int Interp::read_operation_unary(char *line,     //!< string: line of RS274/NGC 
   *counter = (*counter + 1);
   switch (c) {
   case 'a':
-    if ((line[*counter] == 'b') && (line[(*counter) + 1] == 's')) {
-      *operation = ABS;
-      *counter = (*counter + 2);
-    } else if (strncmp((line + *counter), "cos", 3) == 0) {
-      *operation = ACOS;
-      *counter = (*counter + 3);
-    } else if (strncmp((line + *counter), "sin", 3) == 0) {
-      *operation = ASIN;
-      *counter = (*counter + 3);
-    } else if (strncmp((line + *counter), "tan", 3) == 0) {
-      *operation = ATAN;
-      *counter = (*counter + 3);
-    } else
+      if (match_suffix_and_adv("abs", line, counter)) {*operation = ABS; break;}
+      if (match_suffix_and_adv("acos", line, counter)) {*operation = ACOS; break;}
+      if (match_suffix_and_adv("asin", line, counter)) {*operation = ASIN; break;}
+      if (match_suffix_and_adv("atan", line, counter)) {*operation = ATAN; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_A);
-    break;
   case 'c':
-    if ((line[*counter] == 'o') && (line[(*counter) + 1] == 's')) {
-      *operation = COS;
-      *counter = (*counter + 2);
-    } else
+      if (match_suffix_and_adv("cos", line, counter)) {*operation = COS; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_C);
-    break;
   case 'e':
-    if ((line[*counter] == 'x') && (line[(*counter) + 1] == 'p')) {
-      *operation = EXP;
-      *counter = (*counter + 2);
-    } else if (    (line[*counter]     == 'x')
-                && (line[*counter + 1] == 'i')
-                && (line[*counter + 2] == 's')
-                && (line[*counter + 3] == 't')
-                && (line[*counter + 4] == 's')
-             ) {
-      *counter = (*counter + 5);
-      *operation = EXISTS;
-    } else {
+      if (match_suffix_and_adv("exp", line, counter)) {*operation = EXP; break;}
+      if (match_suffix_and_adv("exists", line, counter)) {*operation = EXISTS; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_E);
-    }
-    break;
   case 'f':
-    if ((line[*counter] == 'i') && (line[(*counter) + 1] == 'x')) {
-      *operation = FIX;
-      *counter = (*counter + 2);
-    } else if ((line[*counter] == 'u') && (line[(*counter) + 1] == 'p')) {
-      *operation = FUP;
-      *counter = (*counter + 2);
-    } else
+      if (match_suffix_and_adv("fix", line, counter)) {*operation = FIX; break;}
+      if (match_suffix_and_adv("fup", line, counter)) {*operation = FUP; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_F);
     break;
   case 'l':
-    if (line[*counter] == 'n') {
-      *operation = LN;
-      *counter = (*counter + 1);
-    } else
+      if (match_suffix_and_adv("ln", line, counter)) {*operation = LN; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_L);
-    break;
   case 'r':
-    if (strncmp((line + *counter), "ound", 4) == 0) {
-      *operation = ROUND;
-      *counter = (*counter + 4);
-    } else
+      if (match_suffix_and_adv("round", line, counter)) {*operation = ROUND; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_R);
-    break;
   case 's':
-    if ((line[*counter] == 'i') && (line[(*counter) + 1] == 'n')) {
-      *operation = SIN;
-      *counter = (*counter + 2);
-    } else if (strncmp((line + *counter), "qrt", 3) == 0) {
-      *operation = SQRT;
-      *counter = (*counter + 3);
-    } else
+      if (match_suffix_and_adv("sin", line, counter)) {*operation = SIN; break;}
+      if (match_suffix_and_adv("sqrt", line, counter)) {*operation = SQRT; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_S);
-    break;
   case 't':
-    if ((line[*counter] == 'a') && (line[(*counter) + 1] == 'n')) {
-      *operation = TAN;
-      *counter = (*counter + 2);
-    } else
+      if (match_suffix_and_adv("tan", line, counter)) {*operation = TAN; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_T);
+  case 'u':
+      if (match_suffix_and_adv("u_inch", line, counter)) {*operation = U_INCH; break;}
+      if (match_suffix_and_adv("u_mm", line, counter)) {*operation = U_MM; break;}
+      if (match_suffix_and_adv("u_cm", line, counter)) {*operation = U_CM; break;}
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH_U);
     break;
   default:
     ERS(NCE_UNKNOWN_WORD_WHERE_UNARY_OPERATION_COULD_BE);

@@ -64,6 +64,7 @@ enum SPINDLE_MODE {
 
 enum UnaryOperations
 {
+    INVALID_OPERATION = 0,
     ABS = 1,
     ACOS = 2,
     ASIN = 3,
@@ -78,6 +79,9 @@ enum UnaryOperations
     SQRT = 12,
     TAN = 13,
     EXISTS = 14,
+    U_INCH,
+    U_MM,
+    U_CM,
 };
 
 

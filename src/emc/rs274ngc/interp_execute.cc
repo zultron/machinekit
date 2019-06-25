@@ -422,6 +422,45 @@ int Interp::execute_unary(double *double_ptr,    //!< pointer to the operand
   case TAN:
     *double_ptr = tan((*double_ptr * M_PIl) / 180.0);
     break;
+  case U_INCH:
+      switch (_setup.length_units) {
+      case CANON_UNITS_MM:
+          *double_ptr *= 25.4;
+          break;
+      case CANON_UNITS_CM:
+          *double_ptr *= 2.54;
+          break;
+      case CANON_UNITS_INCHES:
+      case CANON_UNITS_INVALID:
+          break;
+      }
+      break;
+  case U_MM:
+      switch (_setup.length_units) {
+      case CANON_UNITS_CM:
+          *double_ptr /= 10.0;
+          break;
+      case CANON_UNITS_INCHES:
+          *double_ptr /= 25.4;
+          break;
+      case CANON_UNITS_INVALID:
+      case CANON_UNITS_MM:
+          break;
+      }
+      break;
+  case U_CM:
+      switch (_setup.length_units) {
+      case CANON_UNITS_INCHES:
+          *double_ptr *= 2.4;
+          break;
+      case CANON_UNITS_MM:
+          *double_ptr *= 10.0;
+          break;
+      case CANON_UNITS_CM:
+      case CANON_UNITS_INVALID:
+          break;
+      }
+      break;
   default:
     ERS(NCE_BUG_UNKNOWN_OPERATION);
   }
