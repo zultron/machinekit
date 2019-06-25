@@ -415,7 +415,11 @@ int Interp::refresh_actual_position(setup_pointer settings)
   return INTERP_OK;
 }
 
-
+static inline void wrap_rotary_value(double &unwrapped_pos)
+{
+      unwrapped_pos = fmod(unwrapped_pos, 360.0);
+      if(unwrapped_pos<0) unwrapped_pos += 360.0;
+}
 
 /****************************************************************************/
 
@@ -433,38 +437,30 @@ Called by:  Interp::read
 
 int Interp::set_probe_data(setup_pointer settings)       //!< pointer to machine settings
 {
-  double a, b, c;
   refresh_actual_position(settings);
   PositionArray probe_pos = GET_EXTERNAL_PROBE_POSITION();
 
-  settings->parameters[G38_X] = probe_pos[X];
-  settings->parameters[G38_Y] = probe_pos[Y];
-  settings->parameters[G38_Z] = probe_pos[Z];
-
-  a = probe_pos[A];
   if(settings->a_axis_wrapped) {
-      a = fmod(a, 360.0);
-      if(a<0) a += 360.0;
+      wrap_rotary_value(probe_pos[A]);
   }
-  settings->parameters[G38_A] = a;
-
-  b = probe_pos[B];
   if(settings->b_axis_wrapped) {
-      b = fmod(b, 360.0);
-      if(b<0) b += 360.0;
+      wrap_rotary_value(probe_pos[B]);
   }
-  settings->parameters[G38_B] = b;
-
-  c = probe_pos[C];
   if(settings->c_axis_wrapped) {
-      c = fmod(c, 360.0);
-      if(c<0) c += 360.0;
+      wrap_rotary_value(probe_pos[C]);
   }
-  settings->parameters[G38_C] = c;
 
-  settings->parameters[G38_U] = probe_pos[U];
-  settings->parameters[G38_V] = probe_pos[V];
-  settings->parameters[G38_W] = probe_pos[W];
+  // Update parameter table with last probed position (in current coordinate system and program units)
+  extract_axes(probe_pos,
+               settings->parameters[G38_X],
+               settings->parameters[G38_Y],
+               settings->parameters[G38_Z],
+               settings->parameters[G38_A],
+               settings->parameters[G38_B],
+               settings->parameters[G38_C],
+               settings->parameters[G38_U],
+               settings->parameters[G38_V],
+               settings->parameters[G38_W]);
   settings->parameters[G38_TRIPPED] = (double) GET_EXTERNAL_PROBE_TRIPPED_VALUE();
 
   // was an undocumented feature?: settings->parameters[5067] = GET_EXTERNAL_PROBE_VALUE();
