@@ -606,3 +606,23 @@ SCENARIO("Applying a work offset while active")
   }
 }
 
+
+SCENARIO("Incremental mode and G10 work offsets")
+{
+  GIVEN("An example work offset")
+  {
+    DECL_INIT_TEST_INTERP();
+    REQUIRE_INTERP_OK(execute(test_interp,"g20"));
+    REQUIRE(settings->length_units == CANON_UNITS_INCHES);
+    REQUIRE_INTERP_OK(execute(test_interp, "G10 L2 P0 X5 Y5 Z5"));
+    WHEN("Incremental mode is active") {
+      REQUIRE_INTERP_OK(execute(test_interp, "G91"));
+      THEN("G10 treats the work offset for L2 as an absolute value (not relative to the current value)") {
+        REQUIRE_INTERP_OK(execute(test_interp, "G91 G10 L2 P0 X1 Y2 Z3"));
+        CHECK_FUZZ(currentWorkOffsetX(settings), 1.0);
+        CHECK_FUZZ(currentWorkOffsetY(settings), 2.0);
+        CHECK_FUZZ(currentWorkOffsetZ(settings), 3.0);
+      }
+    }
+  }
+}
