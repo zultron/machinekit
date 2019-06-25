@@ -324,7 +324,7 @@ int Interp::read_semicolon(char *line,     //!< string: line of RS274 code being
     CHKS((line[*counter] != ';'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
     (*counter) = strlen(line);
     // pass unmutilated line to convert_comment - FIXME access to _setup
-    if (( s = strchr(_setup.linetext,';')) != NULL)
+    if (( s = strchr(_setup.linetext,';')) != nullptr)
 	CHP(convert_comment(s+1, false));
     return INTERP_OK;
 }
@@ -784,12 +784,9 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
                       char *line,       //!< string: line of RS274/NGC code being processed
                       double *parameters)   //!< array of system parameters 
 {
-  int counter;
-  int m_number, m_counter;  // for checking m98/m99 as o-words
-  int length;
-
-  length = strlen(line);
-  counter = 0;
+  int counter = 0;
+  int m_number = 0, m_counter = 0;  // for checking m98/m99 as o-words
+  int length = strlen(line);
 
   if (line[counter] == '/')     /* skip the slash character if first */
     counter++;
@@ -1682,7 +1679,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   else if ((block->o_type == O_endsub) || (block->o_type == O_return) ||
 	   (block->o_type == M_99))
     {
-	if ((_setup.skipping_o != 0) &&
+    if ((_setup.skipping_o) &&
 	    (0 != strcmp(_setup.skipping_o, block->o_name))) {
 	    return INTERP_OK;
 	}
@@ -1710,7 +1707,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
     {
       // we need to NOT evaluate parameters if skipping
       // skipping never ends on a "call"
-      if(_setup.skipping_o != 0)
+      if(_setup.skipping_o)
       {
           block->o_type = O_none;
           return INTERP_OK;
@@ -1758,7 +1755,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   else if(block->o_type == O_while)
     {
       // TESTME !!!KL -- should not eval expressions if skipping ???
-      if((_setup.skipping_o != 0) &&
+      if((_setup.skipping_o) &&
 	 (0 != strcmp(_setup.skipping_o, block->o_name)))
       {
 	    return INTERP_OK;
@@ -1773,7 +1770,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   else if(block->o_type == O_repeat)
       {
           // TESTME !!!KL -- should not eval expressions if skipping ???
-          if((_setup.skipping_o != 0) &&
+          if((_setup.skipping_o) &&
 	     (0 != strcmp(_setup.skipping_o, block->o_name)))
           {
 	    return INTERP_OK;
@@ -1788,7 +1785,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   else if(block->o_type == O_if)
     {
       // TESTME !!!KL -- should not eval expressions if skipping ???
-      if((_setup.skipping_o != 0) &&
+      if((_setup.skipping_o) &&
 	 (0 != strcmp(_setup.skipping_o, block->o_name)))
       {
 	    return INTERP_OK;
@@ -1803,7 +1800,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   else if(block->o_type == O_elseif)
     {
       // TESTME !!!KL -- should not eval expressions if skipping ???
-      if((_setup.skipping_o != 0) &&
+      if((_setup.skipping_o) &&
 	 (0 != strcmp(_setup.skipping_o, block->o_name)))
       {
 	    return INTERP_OK;
@@ -3090,8 +3087,8 @@ int Interp::read_text(
 {
   int index;
 
-  if (command == NULL) {
-    if (fgets(raw_line, LINELEN, inport) == NULL) {
+  if (!command) {
+    if (!fgets(raw_line, LINELEN, inport)) {
       if(_setup.skipping_to_sub)
       {
         ERS(_("EOF in file:%s seeking o-word: o<%s> from line: %d"),
