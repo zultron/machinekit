@@ -89,6 +89,15 @@ enum predefined_named_parameters {
     NP_U,
     NP_V,
     NP_W,
+    NP_WORK_OFFSET_X,
+    NP_WORK_OFFSET_Y,
+    NP_WORK_OFFSET_Z,
+    NP_WORK_OFFSET_A,
+    NP_WORK_OFFSET_B,
+    NP_WORK_OFFSET_C,
+    NP_WORK_OFFSET_U,
+    NP_WORK_OFFSET_V,
+    NP_WORK_OFFSET_W,
     NP_X_MACHINE,
     NP_Y_MACHINE,
     NP_Z_MACHINE,
@@ -694,6 +703,19 @@ int Interp::lookup_named_param(const char *nameBuf,
         *value = _setup.current[cmd - NP_X];
         break;
 
+    // current interpreter position in local coordinates
+    case NP_WORK_OFFSET_X:
+    case NP_WORK_OFFSET_Y:
+    case NP_WORK_OFFSET_Z:
+    case NP_WORK_OFFSET_A:
+    case NP_WORK_OFFSET_B:
+    case NP_WORK_OFFSET_C:
+    case NP_WORK_OFFSET_U:
+    case NP_WORK_OFFSET_V:
+    case NP_WORK_OFFSET_W:
+        *value = _setup.transform.g5xOffset.shift.tf[cmd - NP_WORK_OFFSET_X];
+        break;
+
     // current interpreter position in machine coordinates
     case NP_X_MACHINE:
     case NP_Y_MACHINE:
@@ -726,7 +748,7 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_PROBE_A:  // probe a trip position
-  *value = _setup.parameters[5064];
+  *value = _setup.parameters[G38_A];
   break;
 
 	// o-word subs may optionally have an
@@ -900,6 +922,17 @@ int Interp::init_named_parameters()
   init_readonly_param("_u", NP_U, PA_USE_LOOKUP);
   init_readonly_param("_v", NP_V, PA_USE_LOOKUP);
   init_readonly_param("_w", NP_W, PA_USE_LOOKUP);
+
+  // Current G5X work offset
+  init_readonly_param("_work_offset_x", NP_WORK_OFFSET_X, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_y", NP_WORK_OFFSET_Y, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_z", NP_WORK_OFFSET_Z, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_a", NP_WORK_OFFSET_A, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_b", NP_WORK_OFFSET_B, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_c", NP_WORK_OFFSET_C, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_u", NP_WORK_OFFSET_U, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_v", NP_WORK_OFFSET_V, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_w", NP_WORK_OFFSET_W, PA_USE_LOOKUP);
 
   // current position in machine coordinates (derived from current position)
   init_readonly_param("_x_machine", NP_X_MACHINE, PA_USE_LOOKUP);
