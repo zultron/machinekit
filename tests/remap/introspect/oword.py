@@ -33,6 +33,12 @@ EMC_DEBUG_NAMEDPARAM        = 0x00010000
 EMC_DEBUG_GDBONSIGNAL       = 0x00020000
 
 
+def print_list(name, items):
+    print "{}: [".format(name)
+    for l in items:
+        print "\t{},".format(l)
+    print "]"
+
 def introspect(self,*args):
     print "debug: ", self.debugmask,"logging:",self.loggingLevel
     print "call_level=",self.call_level
@@ -73,8 +79,8 @@ def introspect(self,*args):
     self.params["a_new_local"] = 321.0
     self.params["_a_new_global"] = 456.0
 
-    print "locals: ",self.params.locals()
-    print "globals: ",self.params.globals()
-    print "params(): ",self.params()
-    return 2.71828
+    print_list("locals", self.params.locals())
+    print_list("globals", self.params.globals())
+    print_list("params", self.params())
 
+    return 2.71828
