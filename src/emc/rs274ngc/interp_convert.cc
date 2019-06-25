@@ -2538,20 +2538,23 @@ static int formatGCode(int val, std::string &cmd)
 }
 
 
-/*
+/**
  * given two int arrays representing interpreter settings as stored in
  * _setup.active_g_codes, construct a G-code sequence to synchronize their state.
  *
  * similarly do the same for F and S words, but they have some dependency on G codes so
  * do this all within a single contained method.
  *
+ * @note "Saved" here means state saved in a state tag, while current means the
+ * current state of interp. Both are necessary so that redundant G-codes aren't
+ * issued if the current state already matches the tag.
  */
 int Interp::gen_g_codes(
     ActiveGCodeArray &current,
     ActiveGCodeArray &saved,
     ActiveSettingsArray &current_settings,
     ActiveSettingsArray &saved_settings,
-    int work_offset_origin,
+    int work_offset_origin_tag,
 	std::string &cmd)
 {
     int val;
@@ -2573,7 +2576,7 @@ int Interp::gen_g_codes(
             break;
 
         case G_CODE_ORIGIN: // Special case for P word
-            snprintf(buf, LINELEN, " G54.1 P%d", work_offset_origin);
+            snprintf(buf, LINELEN, " G54.1 P%d", work_offset_origin_tag);
             cmd += buf;
             break;
 
@@ -2675,7 +2678,7 @@ int Interp::gen_restore_cmd(ModalState &state,
     ActiveMCodeArray saved_m{};
     ActiveSettingsArray saved_settings{};
 
-    int saved_work_offset;
+    int saved_work_offset = -1;
     //Extract saved state to local vectors
     int res_unpack = active_modes(&saved_g[0], &saved_m[0], &saved_settings[0], saved_work_offset, saved_tag);
     if (res_unpack != INTERP_OK) {
@@ -2696,7 +2699,7 @@ int Interp::gen_restore_cmd(ModalState &state,
 
     //M codes should not be restored during an abort
     int res_m = 0;
-    int res_g = gen_g_codes(state.g_codes, saved_g, state.settings, saved_settings, state.work_offset_origin_index, cmd);
+    int res_g = gen_g_codes(state.g_codes, saved_g, state.settings, saved_settings, saved_work_offset, cmd);
 
     // If G43 is present for lathes, you must have an H word
     if (FEATURE(LATHE_TOOLCHANGE)) {
