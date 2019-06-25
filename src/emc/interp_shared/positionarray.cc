@@ -188,7 +188,7 @@ PositionArray merge(const PositionArray & old_p, const PositionArray & new_p, co
     return out;
 }
 
-PositionArray toArray(double *arr_begin, size_t count)
+PositionArray toArray(double const *arr_begin, size_t count)
 {
     PositionArray out{};
     for (size_t k = 0; k < count; ++k) {
@@ -197,7 +197,7 @@ PositionArray toArray(double *arr_begin, size_t count)
     return out;
 }
 
-PositionArray toArray(double *arr_begin, double *arr_end)
+PositionArray toArray(double const *arr_begin, double const *arr_end)
 {
     PositionArray out;
     std::copy(arr_begin, arr_end, out.begin());

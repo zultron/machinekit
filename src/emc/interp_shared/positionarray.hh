@@ -78,11 +78,11 @@ PositionArray toArray(
         double _v,
         double _w);
 
-PositionArray toArray(double *arr_begin,
+PositionArray toArray(const double * arr_begin,
         size_t count);
 
-PositionArray toArray(double *arr_begin,
-        double *arr_end);
+PositionArray toArray(const double * arr_begin,
+        const double * arr_end);
 
 PositionArray toArray(EmcPose const &p);
 
