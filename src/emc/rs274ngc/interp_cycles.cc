@@ -589,8 +589,8 @@ static const char* plane_name(CANON_PLANE p) {
     case CANON_PLANE_UV: return "UV";
     case CANON_PLANE_VW: return "VW";
     case CANON_PLANE_UW: return "UW";
-    default:             return "invalid";
   }
+  return "invalid";
 }
 
 /****************************************************************************/
