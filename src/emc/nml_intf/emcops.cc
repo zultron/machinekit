@@ -55,16 +55,16 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
     axes = 1;
     axis_mask = 1;
     mode = EMC_TRAJ_MODE_FREE;
-    enabled = OFF;
-    inpos = ON;
+    enabled = false;
+    inpos = true;
     queue = 0;
     activeQueue = 0;
-    queueFull = OFF;
+    queueFull = false;
     id = 0;
     next_id = 0;
     completed_id = 0;
-    paused = OFF;
-    stopped = OFF;
+    paused = false;
+    stopped = false;
     scale = 0.0;
     rapid_scale = 0.0;
     spindle_scale = 0.0;
@@ -79,9 +79,9 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
     maxAcceleration = 1.0;
 
     ZERO_EMC_POSE(probedPosition);
-    probe_tripped = OFF;
+    probe_tripped = false;
     probeCount = 0;
-    probing = OFF;
+    probing = false;
     probeval = 0;
     
     ZERO_EMC_POSE(dtg);
@@ -89,10 +89,10 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
     kinematics_type = 0;
     motion_type = 0;
     current_vel = 0.0;
-    feed_override_enabled = OFF;
-    spindle_override_enabled = OFF;
-    adaptive_feed_enabled = OFF;
-    feed_hold_enabled = OFF;
+    feed_override_enabled = false;
+    spindle_override_enabled = false;
+    adaptive_feed_enabled = false;
+    feed_hold_enabled = false;
 }
 
 EMC_MOTION_STAT::EMC_MOTION_STAT():
@@ -143,11 +143,11 @@ EMC_TASK_STAT::EMC_TASK_STAT():
     g5x_table(),
     program_ended_and_reset(),
     program_ended(),
-    optional_stop_state(OFF),
-    block_delete_state(OFF),
-    input_timeout(OFF),
-    orient_timeout(OFF),
-    orient_no_exec_error(OFF)
+    optional_stop_state(false),
+    block_delete_state(false),
+    input_timeout(false),
+    orient_timeout(false),
+    orient_no_exec_error(false)
 {
     std::fill(activeGCodes, activeGCodes + ACTIVE_G_CODES, -1);
     std::fill(activeMCodes, activeMCodes + ACTIVE_M_CODES, -1);

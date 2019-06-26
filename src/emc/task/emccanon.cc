@@ -416,10 +416,10 @@ static double spindleSpeed_rpm = 0.0; // always positive
 static int preppedTool = 0;
 
 /* optional program stop */
-static bool optional_program_stop = ON; //set enabled by default (previous EMC behaviour)
+static bool optional_program_stop = true; //set enabled by default (previous EMC behaviour)
 
 /* optional block delete */
-static bool block_delete = ON; //set enabled by default (previous EMC behaviour)
+static bool block_delete = true; //set enabled by default (previous EMC behaviour)
 
 /*
   Feed rate is saved here; values are in mm/sec or deg/sec.

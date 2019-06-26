@@ -12,11 +12,6 @@
 #ifndef CANON_ENUMS_HH
 #define CANON_ENUMS_HH
 
-enum CanonBool {
-    OFF,
-    ON
-};
-
 enum CANON_PLANE
 {
     CANON_PLANE_XY = 1,

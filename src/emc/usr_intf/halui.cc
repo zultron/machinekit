@@ -1811,16 +1811,16 @@ static void check_hal_changes()
 	sendProgramPause();
 
     if (check_bit_changed(new_halui_data.program_os_on, old_halui_data.program_os_on) != 0)
-	sendSetOptionalStop(ON);
+	sendSetOptionalStop(true);
 
     if (check_bit_changed(new_halui_data.program_os_off, old_halui_data.program_os_off) != 0)
-	sendSetOptionalStop(OFF);
+	sendSetOptionalStop(false);
 
     if (check_bit_changed(new_halui_data.program_bd_on, old_halui_data.program_bd_on) != 0)
-	sendSetBlockDelete(ON);
+	sendSetBlockDelete(true);
 
     if (check_bit_changed(new_halui_data.program_bd_off, old_halui_data.program_bd_off) != 0)
-	sendSetBlockDelete(OFF);
+	sendSetBlockDelete(false);
 
     if (check_bit_changed(new_halui_data.program_resume, old_halui_data.program_resume) != 0)
 	sendProgramResume();

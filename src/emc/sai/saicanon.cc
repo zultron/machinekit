@@ -1141,9 +1141,9 @@ StandaloneInterpInternals::StandaloneInterpInternals() :
   _g5x_table(),
   programToUser(1.0, 1.0),
   /* optional program stop */
-  optional_program_stop(ON), //set enabled by default (previous EMC behaviour)
+  optional_program_stop(true), //set enabled by default (previous EMC behaviour)
   /* optional block delete */
-  block_delete(ON), //set enabled by default (previous EMC behaviour)
+  block_delete(true), //set enabled by default (previous EMC behaviour)
   motion_tolerance(0.),
   naivecam_tolerance(0.),
   /* Dummy status variables */

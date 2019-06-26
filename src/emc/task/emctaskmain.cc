@@ -2398,7 +2398,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
-	if (GET_OPTIONAL_PROGRAM_STOP() == ON) {
+	if (GET_OPTIONAL_PROGRAM_STOP() == true) {
 	    emcTrajPause();
 	    if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
 		interpResumeState = emcStatus->task.interpState;
