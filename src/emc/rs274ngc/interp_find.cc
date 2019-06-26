@@ -85,7 +85,23 @@ double Interp::find_arc_length(double x1,        //!< X-coordinate of start poin
   if (z2 == z1)
     return (radius * fabs(theta));
   else
-    return hypot((radius * theta), (z2 - z1));
+      return hypot((radius * theta), (z2 - z1));
+}
+
+DISTANCE_MODE Interp::get_distance_mode(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
+                                        setup_pointer settings //!< pointer to machine settings
+                                        ) const
+{
+    // block non-modal distance mode overrides modal distance mode
+    switch(block ? block->g_modes[0] : G_INVALID)
+    {
+    case G_91_2:
+        return MODE_INCREMENTAL;
+    case G_90_2:
+        return MODE_ABSOLUTE;
+    default:
+        return settings->distance_mode;
+    }
 }
 
 
@@ -252,7 +268,7 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         } else {
             *w_p = s->current[W];
         }
-    } else if (s->distance_mode == MODE_ABSOLUTE) {
+    } else if (get_distance_mode(block, s) == MODE_ABSOLUTE) {
 
         if(block->x_flag) {
             *px = block->x_number;

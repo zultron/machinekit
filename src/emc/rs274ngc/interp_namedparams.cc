@@ -574,11 +574,11 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_ABSOLUTE: // _absolute - distance mode
-	*value = (_setup.distance_mode == MODE_ABSOLUTE);
+    *value = (get_distance_mode(nullptr, &_setup) == MODE_ABSOLUTE);
 	break;
 
     case NP_INCREMENTAL: // _incremental - distance mode
-	*value = (_setup.distance_mode == MODE_INCREMENTAL);
+    *value = (get_distance_mode(nullptr, &_setup) == MODE_INCREMENTAL);
 	break;
 
     case NP_INVERSE_TIME: // _inverse_time - feed mode

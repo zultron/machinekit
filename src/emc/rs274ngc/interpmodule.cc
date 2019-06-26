@@ -652,7 +652,7 @@ static inline void set_debugmask(Interp &interp, int value)  {
     interp._setup.debugmask = value;
 }
 static inline int get_distance_mode (Interp &interp)  {
-    return interp._setup.distance_mode;
+    return interp.get_distance_mode(nullptr, &interp._setup);
 }
 static inline void set_distance_mode(Interp &interp, DISTANCE_MODE value)  {
     interp._setup.distance_mode = value;

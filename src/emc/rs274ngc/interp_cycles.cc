@@ -837,7 +837,7 @@ int Interp::convert_cycle_xy(int motion, //!< a g-code between G_81 and G_89, a 
       settings->cycle_il_flag = true;
   }
 
-  if (settings->distance_mode == MODE_ABSOLUTE) {
+  if (get_distance_mode(block, settings) == MODE_ABSOLUTE) {
     double radius, theta;
     aa_increment = 0.0;
     bb_increment = 0.0;
@@ -858,7 +858,7 @@ int Interp::convert_cycle_xy(int motion, //!< a g-code between G_81 and G_89, a 
         aa = block->x_flag ? block->x_number : settings->current[X];
         bb = block->y_flag ? block->y_number : settings->current[Y];
     }
-  } else if (settings->distance_mode == MODE_INCREMENTAL) {
+  } else if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
     if (block->x_flag) aa_increment = block->x_number;
     if (block->y_flag) bb_increment = block->y_number;
     if (block->radius_flag) radius_increment = block->radius;
@@ -947,7 +947,7 @@ int Interp::convert_cycle_xy(int motion, //!< a g-code between G_81 and G_89, a 
     settings->cycle_i = i;
     settings->cycle_j = j;
     settings->cycle_k = k;
-    if (settings->distance_mode == MODE_INCREMENTAL) {
+    if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
       k = (cc + k);             /* k always absolute in function call below */
     }
     CYCLE_MACRO(convert_cycle_g87(block, CANON_PLANE_XY, aa, (aa + i), bb,
@@ -1026,14 +1026,14 @@ int Interp::convert_cycle_uv(int motion, //!< a g-code between G_81 and G_89, a 
       settings->cycle_il_flag = true;
   }
 
-  if (settings->distance_mode == MODE_ABSOLUTE) {
+  if (get_distance_mode(block, settings) == MODE_ABSOLUTE) {
     aa_increment = 0.0;
     bb_increment = 0.0;
     r = block->r_number;
     cc = block->w_number;
     aa = block->u_flag ? block->u_number : settings->current[U];
     bb = block->v_flag ? block->v_number : settings->current[V];
-  } else if (settings->distance_mode == MODE_INCREMENTAL) {
+  } else if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
     if (block->u_flag) aa_increment = block->u_number;
     if (block->v_flag) bb_increment = block->v_number;
     r = (block->r_number + old_cc);
@@ -1118,7 +1118,7 @@ int Interp::convert_cycle_uv(int motion, //!< a g-code between G_81 and G_89, a 
     settings->cycle_i = i;
     settings->cycle_j = j;
     settings->cycle_k = k;
-    if (settings->distance_mode == MODE_INCREMENTAL) {
+    if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
       k = (cc + k);             /* k always absolute in function call below */
     }
     CYCLE_MACRO(convert_cycle_g87(block, CANON_PLANE_UV, aa, (aa + i), bb,
@@ -1243,14 +1243,14 @@ int Interp::convert_cycle_yz(int motion, //!< a g-code between G_81 and G_89, a 
       settings->cycle_il_flag = true;
   }
 
-  if (settings->distance_mode == MODE_ABSOLUTE) {
+  if (get_distance_mode(block, settings) == MODE_ABSOLUTE) {
     aa_increment = 0.0;
     bb_increment = 0.0;
     r = block->r_number;
     cc = block->x_number;
     aa = block->y_flag ? block->y_number : settings->current[Y];
     bb = block->z_flag ? block->z_number : settings->current[Z];
-  } else if (settings->distance_mode == MODE_INCREMENTAL) {
+  } else if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
     if (block->y_flag) aa_increment = block->y_number;
     if (block->z_flag) bb_increment = block->z_number;
     r = (block->r_number + old_cc);
@@ -1335,7 +1335,7 @@ int Interp::convert_cycle_yz(int motion, //!< a g-code between G_81 and G_89, a 
     settings->cycle_i = i;
     settings->cycle_j = j;
     settings->cycle_k = k;
-    if (settings->distance_mode == MODE_INCREMENTAL) {
+    if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
       i = (cc + i);             /* i always absolute in function call below */
     }
     CYCLE_MACRO(convert_cycle_g87(block, CANON_PLANE_YZ, aa, (aa + j), bb,
@@ -1412,14 +1412,14 @@ int Interp::convert_cycle_vw(int motion, //!< a g-code between G_81 and G_89, a 
       settings->cycle_il_flag = true;
   }
 
-  if (settings->distance_mode == MODE_ABSOLUTE) {
+  if (get_distance_mode(block, settings) == MODE_ABSOLUTE) {
     aa_increment = 0.0;
     bb_increment = 0.0;
     r = block->r_number;
     cc = block->u_number;
     aa = block->v_flag ? block->v_number : settings->current[V];
     bb = block->w_flag ? block->w_number : settings->current[W];
-  } else if (settings->distance_mode == MODE_INCREMENTAL) {
+  } else if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
     if (block->v_flag) aa_increment = block->v_number;
     if (block->w_flag) bb_increment = block->w_number;
     r = (block->r_number + old_cc);
@@ -1504,7 +1504,7 @@ int Interp::convert_cycle_vw(int motion, //!< a g-code between G_81 and G_89, a 
     settings->cycle_i = i;
     settings->cycle_j = j;
     settings->cycle_k = k;
-    if (settings->distance_mode == MODE_INCREMENTAL) {
+    if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
       i = (cc + i);             /* i always absolute in function call below */
     }
     CYCLE_MACRO(convert_cycle_g87(block, CANON_PLANE_VW, aa, (aa + j), bb,
@@ -1638,14 +1638,14 @@ int Interp::convert_cycle_zx(int motion, //!< a g-code between G_81 and G_89, a 
       settings->cycle_il_flag = true;
   }
 
-  if (settings->distance_mode == MODE_ABSOLUTE) {
+  if (get_distance_mode(block, settings) == MODE_ABSOLUTE) {
     aa_increment = 0.0;
     bb_increment = 0.0;
     r = block->r_number;
     cc = block->y_number;
     aa = block->z_flag ? block->z_number : settings->current[Z];
     bb = block->x_flag ? block->x_number : settings->current[X];
-  } else if (settings->distance_mode == MODE_INCREMENTAL) {
+  } else if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
     if (block->z_flag) aa_increment = block->z_number;
     if (block->x_flag) bb_increment = block->x_number;
     r = (block->r_number + old_cc);
@@ -1730,7 +1730,7 @@ int Interp::convert_cycle_zx(int motion, //!< a g-code between G_81 and G_89, a 
     settings->cycle_i = i;
     settings->cycle_j = j;
     settings->cycle_k = k;
-    if (settings->distance_mode == MODE_INCREMENTAL) {
+    if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
       j = (cc + j);             /* j always absolute in function call below */
     }
     CYCLE_MACRO(convert_cycle_g87(block, CANON_PLANE_XZ, aa, (aa + k), bb,
@@ -1806,14 +1806,14 @@ int Interp::convert_cycle_wu(int motion, //!< a g-code between G_81 and G_89, a 
       settings->cycle_il_flag = true;
   }
 
-  if (settings->distance_mode == MODE_ABSOLUTE) {
+  if (get_distance_mode(block, settings) == MODE_ABSOLUTE) {
     aa_increment = 0.0;
     bb_increment = 0.0;
     r = block->r_number;
     cc = block->v_number;
     aa = block->w_flag ? block->w_number : settings->current[W];
     bb = block->u_flag ? block->u_number : settings->current[U];
-  } else if (settings->distance_mode == MODE_INCREMENTAL) {
+  } else if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
     if (block->w_flag) aa_increment = block->w_number;
     if (block->u_flag) bb_increment = block->u_number;
     r = (block->r_number + old_cc);
@@ -1898,7 +1898,7 @@ int Interp::convert_cycle_wu(int motion, //!< a g-code between G_81 and G_89, a 
     settings->cycle_i = i;
     settings->cycle_j = j;
     settings->cycle_k = k;
-    if (settings->distance_mode == MODE_INCREMENTAL) {
+    if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
       j = (cc + j);             /* j always absolute in function call below */
     }
     CYCLE_MACRO(convert_cycle_g87(block, CANON_PLANE_UW, aa, (aa + k), bb,

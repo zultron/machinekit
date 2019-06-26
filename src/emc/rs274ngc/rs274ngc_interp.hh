@@ -384,6 +384,7 @@ public:
  double find_arc_length(double x1, double y1, double z1,
                               double center_x, double center_y, int turn,
                               double x2, double y2, double z2);
+ DISTANCE_MODE get_distance_mode(block_pointer block, setup_pointer settings) const;
 
  int clearPersistentG92Parameters(setup_pointer settings);
  ShiftTransform getG92ActiveOffset(setup_pointer settings);

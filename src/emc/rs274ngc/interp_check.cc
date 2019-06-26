@@ -107,7 +107,7 @@ int Interp::check_g_codes(block_pointer block,   //!< pointer to a block to be c
              NCE_MUST_USE_G0_OR_G1_WITH_G53);
         CHKS(((block->g_modes[3] == G_91) ||
              ((block->g_modes[3] != G_90) &&
-             (settings->distance_mode == MODE_INCREMENTAL))),
+             (get_distance_mode(nullptr, settings) == MODE_INCREMENTAL))),
                 NCE_CANNOT_USE_G53_INCREMENTAL);
         break;
     case G_INVALID: // no checks required if no non-modal codes specified
@@ -115,6 +115,8 @@ int Interp::check_g_codes(block_pointer block,   //!< pointer to a block to be c
     case G_30:
     case G_28_1:
     case G_30_1:
+    case G_90_2: // Non-modal absolute coordinates (just for current line)
+    case G_91_2: // Non-modal incremental coordinates (just for current line)
     case G_52:
     case G_92:
     case G_92_1:

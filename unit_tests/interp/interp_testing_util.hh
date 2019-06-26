@@ -15,6 +15,7 @@ using Catch::Matchers::WithinAbs;
 
 #define REQUIRE_INTERP_OK(val) REQUIRE(val < INTERP_MIN_ERROR)
 #define REQUIRE_INTERP_ERROR(val) REQUIRE(val >= INTERP_MIN_ERROR)
+#define CHECK_INTERP_ERROR(val) CHECK(val >= INTERP_MIN_ERROR)
 
 extern InterpBase *pinterp;
 extern int emc_debug;

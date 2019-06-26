@@ -3407,6 +3407,8 @@ int Interp::convert_modal_0(int code,    //!< G code, must be from group 0
     {
         case G_4:
         case G_53:
+        case G_90_2:
+        case G_91_2:
             // Handled elsewhere, do nothing
             break;
 

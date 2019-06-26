@@ -34,7 +34,7 @@
 #define NCE_BUG_CODE_NOT_G28_OR_G30 _("Bug code not g28 or g30")
 #define NCE_BUG_CODE_NOT_G2_OR_G3 _("Bug code not g2 or g3")
 #define NCE_BUG_CODE_NOT_G4_G10_G28_G30_G52_G53_OR_G92_SERIES \
-    _("Bug code not g4 g10 g28 g30 g52 g53 or g92 series")
+    _("Bug code not modal 0 (one of g4 g10 g28 g30 g52 g53 g90.2 g91.2 g92.x)")
 #define NCE_BUG_CODE_NOT_G61_G61_1_OR_G64 _("Bug code not g61 g61.1 or g64")
 #define NCE_BUG_CODE_NOT_G90_OR_G91 _("Bug code not g90 or g91")
 #define NCE_BUG_CODE_NOT_G98_OR_G99 _("Bug code not g98 or g99")
