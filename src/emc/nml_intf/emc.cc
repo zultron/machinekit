@@ -28,14 +28,46 @@
 #include "emcpos.h"
 #include "cms.hh"
 
+
+/**
+ * Generic templated wrapper for update() member function.
+ * This is designed to be specialized / overloaded with more specific versions of cms_update (see below).
+ * @overload
+ */
+template <typename T>
+void cms_update(CMS * cms, T &x)
+{
+    cms->update(x);
+}
+
+
+/**
+ * CMS updater for an array of arbitrary type (the appropriate updater template instance is resolved automatically).
+ * @overload
+ */
+template <typename T, size_t N>
+void cms_update(CMS * cms, std::array<T, N> &x)
+{
+    for (auto & entry : x) {
+        cms_update(cms, entry);
+    }
+}
+
+/**
+ * CMS updater for RotateShiftTransforms.
+ * @overload
+ */
+template <>
+void cms_update(CMS * cms, RotateShiftTransform &transform)
+{
+    cms_update(cms, transform.shift.tf);
+    cms->update(transform.xy_rotation_rad);
+}
+
 // Forward Function Prototypes
 void EmcPose_update(CMS * cms, EmcPose * x);
-void RotateShiftTransform_update(CMS * cms, RotateShiftTransform & transform);
 void CANON_TOOL_TABLE_update(CMS * cms, CANON_TOOL_TABLE * x);
 void PmCartesian_update(CMS * cms, PmCartesian * x);
-void initialize_PmCartesian(PmCartesian * x);
-void initialize_CANON_TOOL_TABLE(CANON_TOOL_TABLE * x);
-void initialize_EmcPose(EmcPose * x);
 
 /*
 *	NML/CMS Format function : emcFormat
@@ -1931,15 +1963,15 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(rotation_xy);
     EmcPose_update(cms, &g92_offset);
     EmcPose_update(cms, &toolOffset);
-    cms->update(activeGCodes, ACTIVE_G_CODES);
-    cms->update(activeMCodes, ACTIVE_M_CODES);
-    cms->update(activeSettings, ACTIVE_SETTINGS);
+    cms_update(cms, activeGCodes);
+    cms_update(cms, activeMCodes);
+    cms_update(cms, activeSettings);
     cms->update(programUnits);
     cms->update(task_paused);
     cms->update(delayLeft);
     cms->update(queuedMDIcommands);
     cms->update(interpreter_errcode);
-    // TODO update g5x_table?
+    cms_update(cms, g5x_table);
     cms->update(optional_stop_state);
     cms->update(block_delete_state);
     cms->update(input_timeout);
@@ -2566,13 +2598,6 @@ void EmcPose_update(CMS * cms, EmcPose * x)
     cms->update(x->w);
 }
 
-void RotateShiftTransform_update(CMS * cms, RotateShiftTransform &transform)
-{
-    for (auto pos : transform.shift.tf) {
-        cms->update(pos);
-    }
-    cms->update(transform.xy_rotation_rad);
-}
 
 /*
 *	NML/CMS Update function for EMC_MOTION_STAT

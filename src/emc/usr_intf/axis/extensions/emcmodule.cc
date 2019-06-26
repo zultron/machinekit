@@ -401,7 +401,7 @@ static PyMemberDef Stat_members[] = {
     {NULL}
 };
 
-static PyObject *int_array(int *arr, int sz) {
+static PyObject *int_array(int const *arr, int sz) {
     PyObject *res = PyTuple_New(sz);
     for(int i = 0; i < sz; i++) {
         PyTuple_SET_ITEM(res, i, PyInt_FromLong(arr[i]));
@@ -409,7 +409,7 @@ static PyObject *int_array(int *arr, int sz) {
     return res;
 }
 
-static PyObject *double_array(double *arr, int sz) {
+static PyObject *double_array(double const *arr, int sz) {
     PyObject *res = PyTuple_New(sz);
     for(int i = 0; i < sz; i++) {
         PyTuple_SET_ITEM(res, i, PyFloat_FromDouble(arr[i]));
@@ -505,15 +505,15 @@ static PyObject *Stat_probed(pyStatChannel *s) {
 }
 
 static PyObject *Stat_activegcodes(pyStatChannel *s) {
-    return int_array(s->status.task.activeGCodes, ACTIVE_G_CODES);
+    return int_array(s->status.task.activeGCodes.data(), ACTIVE_G_CODES);
 }
 
 static PyObject *Stat_activemcodes(pyStatChannel *s) {
-    return int_array(s->status.task.activeMCodes, ACTIVE_M_CODES);
+    return int_array(s->status.task.activeMCodes.data(), ACTIVE_M_CODES);
 }
 
 static PyObject *Stat_activesettings(pyStatChannel *s) {
-   return double_array(s->status.task.activeSettings, ACTIVE_SETTINGS);
+   return double_array(s->status.task.activeSettings.data(), ACTIVE_SETTINGS);
 }
 
 static PyObject *Stat_din(pyStatChannel *s) {

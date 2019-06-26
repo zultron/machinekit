@@ -1460,9 +1460,9 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     double rotation_xy;
     EmcPose g92_offset;		// in user units, currently active
     EmcPose toolOffset;		// tool offset, in general pose form
-    int activeGCodes[ACTIVE_G_CODES];
-    int activeMCodes[ACTIVE_M_CODES];
-    double activeSettings[ACTIVE_SETTINGS];
+    ActiveGCodeArray activeGCodes;
+    ActiveMCodeArray activeMCodes;
+    ActiveSettingsArray activeSettings;
     int programUnits;	// CANON_UNITS_INCHES, MM, CM
     int interpreter_errcode;	// return value from rs274ngc function 
     int task_paused;		// non-zero means task is paused

@@ -149,9 +149,9 @@ EMC_TASK_STAT::EMC_TASK_STAT():
     orient_timeout(false),
     orient_no_exec_error(false)
 {
-    std::fill(activeGCodes, activeGCodes + ACTIVE_G_CODES, -1);
-    std::fill(activeMCodes, activeMCodes + ACTIVE_M_CODES, -1);
-    std::fill(activeSettings, activeSettings + ACTIVE_SETTINGS, 0.0);
+    activeGCodes.fill(G_INVALID);
+    activeMCodes.fill(-1);
+    activeSettings.fill(0.0);
 }
 
 EMC_TOOL_STAT::EMC_TOOL_STAT():

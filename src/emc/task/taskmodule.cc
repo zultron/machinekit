@@ -173,11 +173,11 @@ typedef pp::array_1_t< EMC_AXIS_STAT, EMC_AXIS_MAX> axis_array, (*axis_w)( EMC_M
 typedef pp::array_1_t< int, EMC_MAX_DIO> synch_dio_array, (*synch_dio_w)( EMC_MOTION_STAT &m );
 typedef pp::array_1_t< double, EMC_MAX_AIO> analog_io_array, (*analog_io_w)( EMC_MOTION_STAT &m );
 
-typedef pp::array_1_t< int, ACTIVE_G_CODES> active_g_codes_array, (*active_g_codes_tw)( EMC_TASK_STAT &t );
-typedef pp::array_1_t< int, ACTIVE_M_CODES> active_m_codes_array, (*active_m_codes_tw)( EMC_TASK_STAT &t );
-typedef pp::array_1_t< double, ACTIVE_SETTINGS> active_settings_array, (*active_settings_tw)( EMC_TASK_STAT &t );
+typedef active_g_codes_array (*active_g_codes_tw)( EMC_TASK_STAT &t );
+typedef active_m_codes_array (*active_m_codes_tw)( EMC_TASK_STAT &t );
+typedef active_settings_array (*active_settings_tw)( EMC_TASK_STAT &t );
 
-typedef pp::array_1_t< CANON_TOOL_TABLE, CANON_POCKETS_MAX> tool_array, (*tool_w)( EMC_TOOL_STAT &t );
+typedef pp::array_1_t< const CANON_TOOL_TABLE, CANON_POCKETS_MAX> tool_array, (*tool_w)( EMC_TOOL_STAT const &t );
 
 static  tool_array tool_wrapper ( EMC_TOOL_STAT & t) {
     return tool_array(t.toolTable);
@@ -204,15 +204,15 @@ static  analog_io_array analog_output_wrapper ( EMC_MOTION_STAT & m) {
 }
 
 static  active_g_codes_array activeGCodes_wrapper (  EMC_TASK_STAT & m) {
-    return active_g_codes_array(m.activeGCodes);
+    return active_g_codes_array{m.activeGCodes.data()};
 }
 
 static  active_m_codes_array activeMCodes_wrapper ( EMC_TASK_STAT & m) {
-    return active_m_codes_array(m.activeMCodes);
+    return active_m_codes_array{m.activeMCodes.data()};
 }
 
 static  active_settings_array activeSettings_wrapper ( EMC_TASK_STAT & m) {
-    return active_settings_array(m.activeSettings);
+    return active_settings_array{m.activeSettings.data()};
 }
 
 static const char *get_file( EMC_TASK_STAT &t) { return t.file; }
