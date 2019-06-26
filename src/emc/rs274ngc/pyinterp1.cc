@@ -49,7 +49,7 @@ static  active_settings_array saved_settings_wrapper ( context &c) {
 static params_array saved_params_wrapper ( context &c) {
     return params_array(c.saved_params);
 }
-static bp::object remap_str( remap_struct &r) {
+static bp::object remap_str( remap_struct const &r) {
     return  bp::object("Remap(%s argspec=%s modal_group=%d prolog=%s ngc=%s python=%s epilog=%s) " %
 		       bp::make_tuple(r.name,r.argspec,r.modal_group,r.prolog_func,
 				      r.remap_ngc, r.remap_py, r.epilog_func));
