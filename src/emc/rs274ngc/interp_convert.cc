@@ -3403,26 +3403,42 @@ int Interp::convert_modal_0(int code,    //!< G code, must be from group 0
                            setup_pointer settings, //!< pointer to machine settings
                            bool &queue_buster)
 {
-  if (code == G_10) {
-      if(block->l_number == 1 || block->l_number == 10 || block->l_number == 11)
-          CHP(convert_setup_tool(block, settings));
-      else
-          CHP(convert_setup(block, settings));
-      queue_buster = true;
-  } else if ((code == G_28) || (code == G_30)) {
-    CHP(convert_home(code, block, settings));
-  } else if ((code == G_28_1) || (code == G_30_1)) {
-    CHP(convert_savehome(code, block, settings));
-  } else if ((code == G_52) ||
-	     (code == G_92) || (code == G_92_1) ||
-             (code == G_92_2) || (code == G_92_3)) {
-    CHP(convert_axis_offsets(code, block, settings));
-  } else if (code == G_5_3) {
-    CHP(convert_nurbs(code, block, settings));
-  } else if ((code == G_4) || (code == G_53));  /* handled elsewhere */
-  else
-    ERS(NCE_BUG_CODE_NOT_G4_G10_G28_G30_G52_G53_OR_G92_SERIES);
-  return INTERP_OK;
+    switch ((GCodes)code)
+    {
+        case G_4:
+        case G_53:
+            // Handled elsewhere, do nothing
+            break;
+
+        case G_10:
+            if(block->l_number == 1 || block->l_number == 10 || block->l_number == 11)
+                CHP(convert_setup_tool(block, settings));
+            else
+                CHP(convert_setup(block, settings));
+            queue_buster = true;
+            break;
+        case G_28:
+        case G_30:
+            CHP(convert_home(code, block, settings));
+            break;
+        case G_28_1:
+        case G_30_1:
+            CHP(convert_savehome(code, block, settings));
+            break;
+        case G_52:
+        case G_92: 
+        case G_92_1:
+        case G_92_2:
+        case G_92_3:
+            CHP(convert_axis_offsets(code, block, settings));
+            break;
+        case G_5_3:
+            CHP(convert_nurbs(code, block, settings));
+            break;
+        default:
+            ERS(NCE_BUG_CODE_NOT_G4_G10_G28_G30_G52_G53_OR_G92_SERIES);
+    }
+    return INTERP_OK;
 }
 
 /****************************************************************************/

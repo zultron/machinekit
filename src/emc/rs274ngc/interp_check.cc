@@ -79,40 +79,53 @@ more trouble than would be nice.
 int Interp::check_g_codes(block_pointer block,   //!< pointer to a block to be checked
                          setup_pointer settings)        //!< pointer to machine settings
 {
-  int mode0, mode1;
-  int p_int;
+    int mode0, mode1;
+    int p_int;
 
-  mode0 = block->g_modes[0];
-  mode1 = block->g_modes[1];
-  if (mode0 == -1) {
-  } else if (mode0 == G_4) {
-    CHKS((block->p_number == -1.0), NCE_DWELL_TIME_MISSING_WITH_G4);
-    CHKS((mode1 == G_2 || mode1 == G_3), _("G4 not allowed with G2 or G3 because they both use P"));
-  } else if (mode0 == G_10) {
-    (block->p_number >= 0) ? p_int = (int) (block->p_number +0.5) :p_int = (int) (block->p_number -0.5);
-    CHKS((block->l_number != 2 && block->l_number != 1 && block->l_number != 20 && block->l_number != 10 && block->l_number != 11), _("Line with G10 does not have L1, L10, L11, L2, or L20"));
-    CHKS((((block->p_number + 0.0001) - p_int) > 0.0002),  _("P value not an integer with G10"));
-    CHKS((((block->l_number == 2 || block->l_number == 20) && ((p_int < 0) || (p_int > interp_param_global::MAX_EXTENDED_WORK_CSYS)))), _("P value out of range (0-9) with G10 L%d"), block->l_number);
-    CHKS((((block->l_number == 1 || block->l_number == 10 || block->l_number == 11) && p_int < 1)), _("P value out of range with G10 L%d"), block->l_number);
-  } else if (mode0 == G_28) {
-  } else if (mode0 == G_30) {
-  } else if (mode0 == G_5_3) { 
-      CHKS(((mode1 != G_5_2) && (mode1 != -1)), _("Between G5.2 and G5.3 codes, only additional G5.2 codes are allowed."));
-  } else if (mode1 == G_5_2){
-  } else if (mode0 == G_28_1 || mode0 == G_30_1) {
-  } else if (mode0 == G_52) {
-  } else if (mode0 == G_53) {
-    CHKS(((block->motion_to_be != G_0) && (block->motion_to_be != G_1)),
-        NCE_MUST_USE_G0_OR_G1_WITH_G53);
-    CHKS(((block->g_modes[3] == G_91) ||
-         ((block->g_modes[3] != G_90) &&
-          (settings->distance_mode == MODE_INCREMENTAL))),
-        NCE_CANNOT_USE_G53_INCREMENTAL);
-  } else if (mode0 == G_92) {
-  } else if ((mode0 == G_92_1) || (mode0 == G_92_2) || (mode0 == G_92_3)) {
-  } else
-    ERS(NCE_BUG_BAD_G_CODE_MODAL_GROUP_0);
-  return INTERP_OK;
+    mode0 = block->g_modes[0];
+    mode1 = block->g_modes[1];
+
+    switch ((GCodes)mode0) {
+    case G_4:
+        CHKS((block->p_number == -1.0), NCE_DWELL_TIME_MISSING_WITH_G4);
+        CHKS((mode1 == G_2 || mode1 == G_3), _("G4 not allowed with G2 or G3 because they both use P"));
+        break;
+    case G_10:
+        (block->p_number >= 0) ? p_int = (int) (block->p_number +0.5) :p_int = (int) (block->p_number -0.5);
+        CHKS((block->l_number != 2 && block->l_number != 1 && block->l_number != 20 && block->l_number != 10 && block->l_number != 11), _("Line with G10 does not have L1, L10, L11, L2, or L20"));
+        CHKS((((block->p_number + 0.0001) - p_int) > 0.0002),  _("P value not an integer with G10"));
+        CHKS((((block->l_number == 2 || block->l_number == 20) && ((p_int < 0) || (p_int > interp_param_global::MAX_EXTENDED_WORK_CSYS)))), _("P value out of range (0-9) with G10 L%d"), block->l_number);
+        CHKS((((block->l_number == 1 || block->l_number == 10 || block->l_number == 11) && p_int < 1)), _("P value out of range with G10 L%d"), block->l_number);
+        break;
+    case G_5_3:
+        CHKS(((mode1 != G_5_2) && (mode1 != -1)), _("Between G5.2 and G5.3 codes, only additional G5.2 codes are allowed."));
+        break;
+    case G_53:
+        CHKS(!( block->motion_to_be == G_0
+             || block->motion_to_be == G_1
+             || block->motion_to_be == G_5_2),
+             NCE_MUST_USE_G0_OR_G1_WITH_G53);
+        CHKS(((block->g_modes[3] == G_91) ||
+             ((block->g_modes[3] != G_90) &&
+             (settings->distance_mode == MODE_INCREMENTAL))),
+                NCE_CANNOT_USE_G53_INCREMENTAL);
+        break;
+    case G_INVALID: // no checks required if no non-modal codes specified
+    case G_28:
+    case G_30:
+    case G_28_1:
+    case G_30_1:
+    case G_52:
+    case G_92:
+    case G_92_1:
+    case G_92_2:
+    case G_92_3:
+        // No other checks required
+        break;
+    default:
+        ERS(NCE_BUG_BAD_G_CODE_MODAL_GROUP_0);
+    }
+    return INTERP_OK;
 }
 
 /****************************************************************************/
