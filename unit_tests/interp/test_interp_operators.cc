@@ -13,18 +13,18 @@ TEST_CASE("Interp Unary Operators")
 
   SECTION("Convert input units to program mm")
   {
-    REQUIRE_INTERP_OK(test_interp.execute("G21"));
-    REQUIRE_INTERP_OK(test_interp.execute("#1=[U_INCH[1.0]]"));
+    REQUIRE_INTERP_OK(execute(test_interp,"G21"));
+    REQUIRE_INTERP_OK(execute(test_interp,"#1=[U_INCH[1.0]]"));
     CHECK_FUZZ(settings->parameters[1], 25.4);
-    REQUIRE_INTERP_OK(test_interp.execute("#2=[U_MM[25.4]]"));
+    REQUIRE_INTERP_OK(execute(test_interp,"#2=[U_MM[25.4]]"));
     CHECK_FUZZ(settings->parameters[2], 25.4);
   }
   SECTION("Convert input units to program inches")
   {
-    REQUIRE_INTERP_OK(test_interp.execute("G20"));
-    REQUIRE_INTERP_OK(test_interp.execute("#3=[U_INCH[1.0]]"));
+    REQUIRE_INTERP_OK(execute(test_interp,"G20"));
+    REQUIRE_INTERP_OK(execute(test_interp,"#3=[U_INCH[1.0]]"));
     CHECK_FUZZ(settings->parameters[3], 1.0);
-    REQUIRE_INTERP_OK(test_interp.execute("#4=[U_MM[25.4]]"));
+    REQUIRE_INTERP_OK(execute(test_interp,"#4=[U_MM[25.4]]"));
     CHECK_FUZZ(settings->parameters[4], 1.0);
   }
 }
