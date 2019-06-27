@@ -114,6 +114,7 @@ SCENARIO("Modal conflicts with P word")
       REQUIRE_INTERP_ERROR(test_interp.execute("G4 P2 G2"));
       REQUIRE_INTERP_ERROR(test_interp.execute("G4 P2 G3"));
       REQUIRE_INTERP_ERROR(execute(test_interp, "G4 G64 P2 G1 X0 Y0 F20"));
+      REQUIRE_INTERP_ERROR(execute(test_interp, "G64 P2 G82 X0 Y0 Z-1 R.1 F20"));
     }
   }
 }

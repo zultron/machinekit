@@ -206,7 +206,7 @@ struct block_struct
   double e_number;
   double f_number;
 
-  GCodes g_modes[GM_MAX_MODAL_GROUPS];
+  std::array<GCodes, GM_MAX_MODAL_GROUPS> g_modes;
   int h_number;
   double i_number;
   double j_number;
