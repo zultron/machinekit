@@ -22,6 +22,7 @@
 #include <boost/python/class.hpp>
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
 #include <map>
+#include <boost_pyenum_macros.hh>
 
 namespace bp = boost::python;
 
@@ -37,7 +38,7 @@ static const char *get_comment(block &b) { return b.comment; };
 static const char *get_o_name(block &b) { return b.o_name; };
 
 static  g_modes_array g_modes_wrapper ( block & b) {
-    return g_modes_array(b.g_modes);
+    return g_modes_array(b.g_modes.data());
 }
 
 static  m_modes_array m_modes_wrapper ( block & b) {
@@ -142,5 +143,7 @@ void export_Block()
 					  bp::with_custodian_and_ward_postcall< 0, 1 >()))
 
 	;
-
+    // TODO define enum values if they are useful for the python API
+    // This is just here so that all the types are defined and the G-codes array can be properly cast for direct access in python.
+    BOOST_PYENUM_(GCodes);
 }

@@ -79,13 +79,13 @@ more trouble than would be nice.
 int Interp::check_g_codes(block_pointer block,   //!< pointer to a block to be checked
                          setup_pointer settings)        //!< pointer to machine settings
 {
-    int mode0, mode1;
+    GCodes mode0, mode1;
     int p_int;
 
     mode0 = block->g_modes[0];
     mode1 = block->g_modes[1];
 
-    switch ((GCodes)mode0) {
+    switch (mode0) {
     case G_4:
         CHKS((block->p_number == -1.0), NCE_DWELL_TIME_MISSING_WITH_G4);
         CHKS((mode1 == G_2 || mode1 == G_3), _("G4 not allowed with G2 or G3 because they both use P"));
@@ -272,9 +272,7 @@ reading. This function checks for additional logical errors in codes.
 
 int Interp::check_other_codes(block_pointer block)       //!< pointer to a block of RS274/NGC instructions
 {
-  int motion;
-
-  motion = block->motion_to_be;
+  GCodes motion = block->motion_to_be;
 
   // bypass ALL checks, argspec takes care of that
   if (IS_USER_GCODE(motion)) {
@@ -348,7 +346,7 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
              || block->g_modes[0] == G_4
              || block->g_modes[12] == G_54_1
              || block->g_modes[13] == G_64
-             || is_p_allowed_for_gcode((GCodes)motion)
+             || is_p_allowed_for_gcode(motion)
              || block->m_modes[9] == 50
              || block->m_modes[9] == 51
              || block->m_modes[9] == 52

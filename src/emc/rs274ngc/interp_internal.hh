@@ -206,7 +206,7 @@ struct block_struct
   double e_number;
   double f_number;
 
-  int g_modes[GM_MAX_MODAL_GROUPS];
+  GCodes g_modes[GM_MAX_MODAL_GROUPS];
   int h_number;
   double i_number;
   double j_number;
@@ -215,7 +215,7 @@ struct block_struct
   int line_number;
   int saved_line_number;  // value of sequence_number when a remap was encountered
   int n_number;
-  int motion_to_be;
+  GCodes motion_to_be;
   int m_count;
   int m_modes[11];
   int user_m;
@@ -467,7 +467,7 @@ struct setup_struct
   int line_length;              // length of line last read
   char linetext[LINELEN];       // text of most recent line read
   bool mist;                  // whether mist coolant is on
-  int motion_mode;              // active G-code for motion
+  GCodes motion_mode;              // active G-code for motion
   int origin_index;             // active origin (1=G54 to 9=G59.3)
 
   double parameters[interp_param_global::RS274NGC_MAX_PARAMETERS];   // system parameters

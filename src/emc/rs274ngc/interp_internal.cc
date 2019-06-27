@@ -157,8 +157,8 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
   int ijk_flag;
   int polar_flag;
   int mode_zero_covets_axes;
-  int mode0;
-  int mode1;
+  GCodes mode0;
+  GCodes mode1;
 
   if(block->radius_flag || block->theta_flag) {
       // someday, tediously add polar support for other planes here:
@@ -275,7 +275,7 @@ int Interp::init_block(block_pointer block)      //!< pointer to a block to be i
   block->e_flag = false;
   block->f_flag = false;
   for (n = 0; n < 16; n++) {
-    block->g_modes[n] = -1;
+    block->g_modes[n] = G_INVALID;
   }
   block->h_flag = false;
   block->h_number = -1;
@@ -286,7 +286,7 @@ int Interp::init_block(block_pointer block)      //!< pointer to a block to be i
   block->l_flag = false;
   block->line_number = -1;
   block->n_number = -1;
-  block->motion_to_be = -1;
+  block->motion_to_be = G_INVALID;
   block->m_count = 0;
   for (n = 0; n < 11; n++) {
     block->m_modes[n] = -1;

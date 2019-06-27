@@ -623,7 +623,7 @@ See the documentation of convert_cycle_xy for most of the details.
 
 */
 
-int Interp::convert_cycle(int motion,    //!< a g-code between G_81 and G_89, a canned cycle
+int Interp::convert_cycle(GCodes motion,    //!< a g-code between G_81 and G_89, a canned cycle
                          block_pointer block,   //!< pointer to a block of RS274 instructions      
                          setup_pointer settings)        //!< pointer to machine settings                   
 {
@@ -669,7 +669,7 @@ int Interp::convert_cycle(int motion,    //!< a g-code between G_81 and G_89, a 
   }
 
     //KLUDGE ugly way to save / restore motion mode flag so that state tag displays correctly
-    int save_mode = settings->motion_mode;
+    GCodes save_mode = settings->motion_mode;
     settings->motion_mode = motion;
     write_and_update_state_tag(block);
     settings->motion_mode = save_mode;

@@ -538,10 +538,10 @@ int Interp::read_g(char *line,   //!< string: line of RS274/NGC code being proce
   CHP(read_real_value(line, counter, &value_read, parameters));
   g_id = value_read;
   value_read = (10.0 * value_read);
-  int value = (int) floor(value_read);
+  GCodes value = (GCodes) floor(value_read);
 
   if ((value_read - value) > 0.999)
-    value = (int) ceil(value_read);
+    value = (GCodes) ceil(value_read);
   else if ((value_read - value) > 0.001)
     ERS(NCE_G_CODE_OUT_OF_RANGE);
 

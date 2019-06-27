@@ -234,13 +234,13 @@ public:
  int check_m_codes(block_pointer block);
  int check_other_codes(block_pointer block);
  int close_and_downcase(char *line);
- int convert_nurbs(int move, block_pointer block, setup_pointer settings);
+ int convert_nurbs(GCodes move, block_pointer block, setup_pointer settings);
  int convert_spline(int move, block_pointer block, setup_pointer settings);
  int comp_get_current(setup_pointer settings, double *x, double *y, double *z);
  int comp_set_current(setup_pointer settings, double x, double y, double z);
  int comp_get_programmed(setup_pointer settings, double *x, double *y, double *z);
  int comp_set_programmed(setup_pointer settings, double x, double y, double z);
- int convert_arc(int move, block_pointer block, setup_pointer settings);
+ int convert_arc(GCodes move, block_pointer block, setup_pointer settings);
  int convert_arc2(int move, block_pointer block,
                   setup_pointer settings,
                   double *current1, double *current2, double *current3,
@@ -282,7 +282,7 @@ public:
  int convert_cutter_compensation_off(setup_pointer settings);
  int convert_cutter_compensation_on(int side, block_pointer block,
                                           setup_pointer settings);
- int convert_cycle(int motion, block_pointer block,
+ int convert_cycle(GCodes motion, block_pointer block,
                          setup_pointer settings);
  int convert_cycle_g81(block_pointer block, CANON_PLANE plane, double x, double y,
                              double clear_z, double bottom_z);
@@ -337,11 +337,11 @@ public:
                         setup_pointer settings);
  int convert_length_units(int g_code, setup_pointer settings);
     int convert_m(block_pointer block, setup_pointer settings);
- int convert_modal_0(int code, block_pointer block,
+ int convert_modal_0(GCodes code, block_pointer block,
                            setup_pointer settings, bool & queue_buster);
- int convert_motion(int motion, block_pointer block,
+ int convert_motion(GCodes motion, block_pointer block,
                           setup_pointer settings);
- int convert_probe(block_pointer block, int g_code, setup_pointer settings);
+ int convert_probe(block_pointer block, GCodes g_code, setup_pointer settings);
  int convert_retract_mode(int g_code, setup_pointer settings);
  int convert_setup(block_pointer block, setup_pointer settings);
  int convert_setup_tool(block_pointer block, setup_pointer settings);
@@ -349,7 +349,7 @@ public:
  int convert_speed(block_pointer block, setup_pointer settings);
      int convert_spindle_mode(block_pointer block, setup_pointer settings);
  int convert_stop(block_pointer block, setup_pointer settings);
- int convert_straight(int move, block_pointer block,
+ int convert_straight(GCodes move, block_pointer block,
                             setup_pointer settings);
  int convert_straight_comp1(int move, block_pointer block,
                             setup_pointer settings,

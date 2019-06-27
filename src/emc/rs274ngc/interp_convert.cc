@@ -131,7 +131,7 @@ int Interp::comp_set_programmed(setup_pointer settings, double x, double y, doub
 static unsigned int nurbs_order;
 static std::vector<CONTROL_POINT> nurbs_control_points;
 
-int Interp::convert_nurbs(int mode,
+int Interp::convert_nurbs(GCodes mode,
       block_pointer block,     //!< pointer to a block of RS274 instructions
       setup_pointer settings)  //!< pointer to machine settings
 {
@@ -195,7 +195,7 @@ int Interp::convert_nurbs(int mode,
 	//printf("hello\n");
 	nurbs_control_points.clear();
 	//printf("%d\n", 	nurbs_control_points.size());
-	settings->motion_mode = -1;
+    settings->motion_mode = G_INVALID;
     }
     return INTERP_OK;
 }
@@ -374,7 +374,7 @@ new longer or shorter original arc are taken at this feed.
 
 */
 
-int Interp::convert_arc(int move,        //!< either G_2 (cw arc) or G_3 (ccw arc)    
+int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw arc)
                        block_pointer block,     //!< pointer to a block of RS274 instructions
                        setup_pointer settings)  //!< pointer to machine settings             
 {
@@ -3398,12 +3398,12 @@ G53) are executed elsewhere.
 
 */
 
-int Interp::convert_modal_0(int code,    //!< G code, must be from group 0
+int Interp::convert_modal_0(GCodes code,    //!< G code, must be from group 0
                            block_pointer block, //!< pointer to a block of RS274/NGC instructions
                            setup_pointer settings, //!< pointer to machine settings
                            bool &queue_buster)
 {
-    switch ((GCodes)code)
+    switch (code)
     {
         case G_4:
         case G_53:
@@ -3466,7 +3466,7 @@ Called by: convert_g.
 
 */
 
-int Interp::convert_motion(int motion,   //!< g_code for a line, arc, canned cycle     
+int Interp::convert_motion(GCodes motion,   //!< g_code for a line, arc, canned cycle
                           block_pointer block,  //!< pointer to a block of RS274 instructions 
                           setup_pointer settings)       //!< pointer to machine settings              
 {
@@ -3563,7 +3563,7 @@ current position by calls to get_external_position_x, etc.
 */
 
 int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS274 instructions
-                          int g_code,
+                          GCodes g_code,
                           setup_pointer settings)        //!< pointer to machine settings             
 {
   double end_x;
@@ -4425,7 +4425,7 @@ the new longer or shorter straight move are taken at this feed.
 
 */
 
-int Interp::convert_straight(int move,   //!< either G_0 or G_1                       
+int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
                             block_pointer block,        //!< pointer to a block of RS274 instructions
                             setup_pointer settings)     //!< pointer to machine settings             
 {

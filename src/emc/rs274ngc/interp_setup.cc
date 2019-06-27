@@ -63,7 +63,7 @@ setup_struct::setup_struct() :
     line_length(0),
     linetext{},
     mist(0),
-    motion_mode(0),
+    motion_mode(G_INVALID),
     origin_index(0),
 
     parameters{0},

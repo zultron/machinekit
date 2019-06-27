@@ -691,7 +691,7 @@ static inline int get_motion_mode (Interp &interp)  {
     return interp._setup.motion_mode;
 }
 static inline void set_motion_mode(Interp &interp, int value)  {
-    interp._setup.motion_mode = value;
+    interp._setup.motion_mode = (GCodes)value;
 }
 static inline int get_origin_index (Interp &interp)  {
     return interp._setup.origin_index;
