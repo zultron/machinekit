@@ -234,6 +234,8 @@ block_struct::block_struct ()
       x_number(0),
       y_number(0),
       z_number(0),
+      radius(0.0),
+      theta(0.0),
 // Flags
       a_flag(false),
       b_flag(false),
@@ -257,9 +259,10 @@ block_struct::block_struct ()
       x_flag(false),
       y_flag(false),
       z_flag(false),
+      radius_flag(false),
+      theta_flag(false),
 
-      radius_flag(0), radius(0), theta_flag(0), theta(0),
-      offset(0), o_type(0), call_type(0), o_name(nullptr),
+      offset(0), o_type(O_none), call_type(-1), o_name(nullptr),
       params{}, param_cnt(0), breadcrumbs(),
       executing_remap(NULL), remappings(), phase(0), builtin_used(0) {
     g_modes.fill(G_INVALID);

@@ -187,6 +187,8 @@ struct block_struct
   double x_number;
   double y_number;
   double z_number;
+  double radius;
+  double theta;
 
   bool a_flag;
   bool b_flag;
@@ -210,11 +212,8 @@ struct block_struct
   bool x_flag;
   bool y_flag;
   bool z_flag;
-
-  int radius_flag;
-  double radius;
-  int theta_flag;
-  double theta;
+  bool radius_flag;
+  bool theta_flag;
 
   // control (o-word) stuff
   long     offset;   // start of line in file
