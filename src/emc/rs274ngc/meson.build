@@ -11,6 +11,7 @@ rs274ngc_srcs = files([
     'interp_internal.cc',
     'interp_inverse.cc',
     'interp_read.cc',
+    'interp_word_usage_check.cc',
     'interp_write.cc',
     'interp_o_word.cc',
     'modal_state.cc',

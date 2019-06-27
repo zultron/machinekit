@@ -25,20 +25,10 @@
 #include "rs274ngc_interp.hh"
 #include "interp_parameter_def.hh"
 
-#include <unordered_set>
-#include <algorithm>
-#include <numeric>
+#include "interp_word_usage_check.hh"
+
 /****************************************************************************/
 
-enum PWordPermission
-{
-    P_WORD_NOT_ALLOWED = -2,
-    P_WORD_CONFLICT = -1,
-    P_WORD_OK = 0,
-    P_WORD_IGNORED = 1,
-};
-
-static PWordPermission is_p_allowed_for_gcode(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be);
 
 /*! check_g_codes
 
@@ -98,9 +88,9 @@ int Interp::check_g_codes(block_pointer block,   //!< pointer to a block to be c
     mode0 = block->g_modes[GM_MODAL_0];
     mode1 = block->g_modes[1];
 
-    CHKS(is_p_allowed_for_gcode(block->g_modes, block->motion_to_be) == P_WORD_CONFLICT, _(" not allowed with modal commands that use P (G2, G3, G5.x, etc.)"));
     switch (mode0) {
     case G_4:
+        // NOTE: P word meaning conflicts are detected during read()
         CHKS((block->p_number == -1.0), NCE_DWELL_TIME_MISSING_WITH_G4);
         break;
     case G_10:
@@ -211,89 +201,6 @@ int Interp::check_m_codes(block_pointer block)   //!< pointer to a block to be c
 
 /****************************************************************************/
 
-enum PWordMeanings
-{
-    P_DWELL_TIME, // G4, G8x canned cycles
-    P_THREAD_PITCH, // G76
-    P_PROBE_TO_LIMIT, // G38
-    P_TURNS, // G2 and G3
-    P_SPLINE_X_OFFSET,
-    P_NURBS_WEIGHT,
-    P_WORK_OFFSET_INDEX,
-    MAX_PWORD_MEANINGS
-};
-
-
-static PWordPermission is_p_allowed_for_gcode(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_modes, GCodes motion_to_be)
-{
-    // Flag set to record what P word meanings are active based on the current settings and block
-    std::array<bool, MAX_PWORD_MEANINGS> active_p{};
-    bool unused_p = false;
-
-    switch (motion_to_be)
-    {
-    // Mode 1 commands that use
-    case G_2:
-    case G_3:
-        active_p[P_TURNS] = true;
-        break;
-    case G_5:
-        active_p[P_SPLINE_X_OFFSET] = true;
-        break;
-    case G_5_2:
-        active_p[P_NURBS_WEIGHT] = true;
-        break;
-    case G_38_2:
-    case G_38_3:
-    case G_38_4:
-    case G_38_5:
-    case G_38_6:
-        active_p[P_PROBE_TO_LIMIT] = true;
-        break;
-    case G_76:
-        active_p[P_THREAD_PITCH] = true;
-        break;
-    case G_81:
-    case G_82:
-        unused_p=true;
-        BOOST_FALLTHROUGH;
-    case G_83:
-    case G_86:
-    case G_88:
-    case G_89:
-        active_p[P_DWELL_TIME] = true;
-        break;
-    default:
-        break;
-    }
-
-    switch (g_modes[GM_MODAL_0])
-    {
-    // Mode 1 commands that use
-    case G_4:
-        active_p[P_DWELL_TIME] = true;
-        break;
-    case G_10:
-        active_p[P_WORK_OFFSET_INDEX] = true;
-        break;
-    default:
-        break;
-    }
-
-    int p_meanings = std::count(active_p.begin(),
-                                active_p.end(),
-                                true);
-
-    if (p_meanings > 1)
-    {
-        return P_WORD_CONFLICT;
-    } else if (p_meanings == 1) {
-        return unused_p ? P_WORD_IGNORED : P_WORD_OK;
-    } else {
-        return P_WORD_NOT_ALLOWED;
-    }
-
-}
 
 /*! check_other_codes
 
@@ -413,38 +320,36 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
 
   if (block->p_flag) {
       //Edited to allow P words even when they will be ignored. These are caught with the warnings below
-      const PWordPermission p_status = is_p_allowed_for_gcode(block->g_modes, block->motion_to_be);
-      CHKS(!(p_status == P_WORD_OK
-             || p_status == P_WORD_IGNORED
-             || block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 50
-             || block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 51
-             || block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 52
-             || block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 53
-             || block->m_modes[M_MODE_IO] == 62
-             || block->m_modes[M_MODE_IO] == 63
-             || block->m_modes[M_MODE_IO] == 64
-             || block->m_modes[M_MODE_IO] == 65
-             || block->m_modes[M_MODE_IO] == 66
-             || block->m_modes[M_MODE_SPINDLE] == 19
-             || block->user_m == 1
-             || block->o_type == M_98
-              ), _("P word with no G2 G3 G4 G10 G5 G5.2 G38.x G54.1 G64 G76 G82 G86 G88 G89"
-            " or M50 M51 M52 M53 M62 M63 M64 M65 M66 M98 "
-            "or user M code to use it"));
+      const WordUsageStatus p_status = is_p_allowed(block->g_modes, block->motion_to_be, block->m_modes, block->o_type);
+      switch (p_status)
+      {
+      case WORD_USAGE_OK:
+          break;
+      case WORD_IGNORED:
+          if (p_status == WORD_IGNORED) {
+              setWarning("Found P word with a G81 or G83 move, it will be ignored");
+          }
+          break;
+      case WORD_MEANING_CONFLICT:
+          ERS(_("P word has conflicting meanings"));
+      case WORD_NOT_ALLOWED:
+          ERS(_("P word with no G2 G3 G4 G10 G5 G5.2 G38.x G54.1 G64 G76 G82 G86 G88 G89"
+                " or M50 M51 M52 M53 M62 M63 M64 M65 M66 M98 "
+                "or user M code to use it"));
+      }
 
       int p_value = round_to_int(block->p_number);
       //Ugly way to throw a warning for this specific case
-      if (p_status == P_WORD_IGNORED) {
-          setWarning("Found P word with a G81 or G83 move, it will be ignored");
-      }
 
       CHKS(((motion == G_2 || motion == G_3 || (block->m_modes[M_MODE_SPINDLE] == 19)) &&
-	    fabs(p_value - block->p_number) > 0.001),
-	   _("P value not an integer with M19 G2 or G3"));
+        fabs(p_value - block->p_number) > 0.001),
+       _("P value %f is not an integer with M19 G2 or G3"), block->p_number);
       CHKS((block->m_modes[M_MODE_SPINDLE] == 19) && ((p_value > 2) || p_value < 0),
-	   _("P value must be 0,1,or 2 with M19"));
-      CHKS(((motion == G_2 || motion == G_3) && round_to_int(block->p_number) < 1),
-          _("P value should be 1 or greater with G2 or G3"));
+       _("P value %f must be 0, 1, or 2 with M19"), block->p_number);
+      CHKS(((motion == G_2 || motion == G_3) && p_value < 1),
+          _("P value %f must be 1 or greater with G2 or G3"), block->p_number);
+      CHKS(p_value < 0 || p_value > 1,
+           _("P value %f must be 0 or 1 for G38.x"), block->p_number);
   }
 
   if (block->q_number != -1.0) {
