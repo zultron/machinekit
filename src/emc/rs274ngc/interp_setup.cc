@@ -222,7 +222,7 @@ block_struct::block_struct ()
       n_number(0),
       motion_to_be(G_INVALID),
       m_count(0),
-      m_modes{},
+      m_modes(),
       p_number(0),
       q_number(0),
       r_number(0),
@@ -263,6 +263,7 @@ block_struct::block_struct ()
       params{}, param_cnt(0), breadcrumbs(),
       executing_remap(NULL), remappings(), phase(0), builtin_used(0) {
     g_modes.fill(G_INVALID);
+    m_modes.fill(-1);
 }
 
 void setup_struct::setXYRotationDeg(double rot_deg)

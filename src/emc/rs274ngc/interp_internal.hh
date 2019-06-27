@@ -75,27 +75,8 @@ inline int round_to_int(T x) {
 // max number of local variables saved (?)
 #define MAX_NAMED_PARAMETERS 50
 
-/**********************/
-/*      TYPEDEFS      */
-/**********************/
-
-/* distance_mode */
-enum DISTANCE_MODE
-{
-    MODE_ABSOLUTE,
-    MODE_INCREMENTAL,
-};
-
-/* retract_mode for cycles */
-enum RETRACT_MODE
-{
-    R_PLANE,
-    OLD_Z,
-};
-
 // string table - to get rid of strdup/free
 const char *strstore(const char *s);
-
 
 // Block execution phases in execution order
 // very carefully check code for sequencing when
@@ -134,30 +115,6 @@ enum phases  {
     MAX_STEPS
 };
 
-
-// Modal groups
-// also indices into g_modes
-// unused: 9,11
-enum ModalGroups
-{
-    GM_MODAL_0 = 0,
-    GM_MOTION = 1,
-    GM_SET_PLANE = 2,
-    GM_DISTANCE_MODE = 3,
-    GM_IJK_DISTANCE_MODE = 4,
-    GM_FEED_MODE = 5,
-    GM_LENGTH_UNITS = 6,
-    GM_CUTTER_COMP = 7,
-    GM_TOOL_LENGTH_OFFSET = 8,
-    // 9 unused
-    GM_RETRACT_MODE = 10,
-    // 11 unused
-    GM_COORD_SYSTEM = 12,
-    GM_CONTROL_MODE = 13,
-    GM_SPINDLE_MODE = 14,
-    GM_LATHE_DIAMETER_MODE = 15,
-    GM_MAX_MODAL_GROUPS
-};
 
 // the remap configuration descriptor
 struct remap_struct {
@@ -217,7 +174,7 @@ struct block_struct
   int n_number;
   GCodes motion_to_be;
   int m_count;
-  int m_modes[11];
+  std::array<int, M_MAX_MODAL_GROUPS> m_modes;
   int user_m;
   double p_number;
   double q_number;

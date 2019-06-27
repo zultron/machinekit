@@ -227,4 +227,58 @@ enum GCodes
     G_98 = 980,
     G_99 = 990,
 };
+
+/** distance_mode */
+enum DISTANCE_MODE
+{
+    MODE_ABSOLUTE,
+    MODE_INCREMENTAL,
+};
+
+/** retract_mode for cycles */
+enum RETRACT_MODE
+{
+    R_PLANE,
+    OLD_Z,
+};
+
+// Modal groups
+// also indices into g_modes
+// unused: 9,11
+enum GModalGroups
+{
+    GM_MODE_INVALID = -1,
+    GM_MODAL_0 = 0,
+    GM_MOTION = 1,
+    GM_SET_PLANE = 2,
+    GM_DISTANCE_MODE = 3,
+    GM_IJK_DISTANCE_MODE = 4,
+    GM_FEED_MODE = 5,
+    GM_LENGTH_UNITS = 6,
+    GM_CUTTER_COMP = 7,
+    GM_TOOL_LENGTH_OFFSET = 8,
+    // 9 unused
+    GM_RETRACT_MODE = 10,
+    // 11 unused
+    GM_COORD_SYSTEM = 12,
+    GM_CONTROL_MODE = 13,
+    GM_SPINDLE_MODE = 14,
+    GM_LATHE_DIAMETER_MODE = 15,
+    GM_MAX_MODAL_GROUPS
+};
+
+enum MModalGroups
+{
+    M_MODE_INVALID = -1,
+    // 0-3 unused (see documentation for _ems for details)
+    M_MODE_STOPPING = 4,
+    M_MODE_IO = 5,
+    M_MODE_TOOLCHANGE = 6,
+    M_MODE_SPINDLE = 7,
+    M_MODE_COOLANT = 8,
+    M_MODE_FEED_SPEED_OVERRIDE = 9,
+    M_MODE_USER = 10,
+    M_MAX_MODAL_GROUPS
+};
+
 #endif // INTERP_FWD_HH

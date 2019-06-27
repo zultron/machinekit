@@ -42,7 +42,7 @@ static  g_modes_array g_modes_wrapper ( block & b) {
 }
 
 static  m_modes_array m_modes_wrapper ( block & b) {
-    return m_modes_array(b.m_modes);
+    return m_modes_array(b.m_modes.data());
 }
 
 static params_array params_wrapper ( block & b) {
