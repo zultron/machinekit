@@ -262,7 +262,7 @@ block_struct::block_struct ()
       radius_flag(false),
       theta_flag(false),
 
-      offset(0), o_type(O_none), call_type(-1), o_name(nullptr),
+      offset(0), o_type(O_none), call_type(CT_NONE), o_name(nullptr),
       params{}, param_cnt(0), breadcrumbs(),
       executing_remap(NULL), remappings(), phase(0), builtin_used(0) {
     g_modes.fill(G_INVALID);
