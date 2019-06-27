@@ -93,7 +93,7 @@ DISTANCE_MODE Interp::get_distance_mode(block_pointer block,   //!< pointer to a
                                         ) const
 {
     // block non-modal distance mode overrides modal distance mode
-    switch(block ? block->g_modes[0] : G_INVALID)
+    switch(block ? block->g_modes[GM_MODAL_0] : G_INVALID)
     {
     case G_91_2:
         return MODE_INCREMENTAL;
@@ -183,7 +183,7 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
     middle = !s->cutter_comp_firstmove;
     comp = (s->cutter_comp_side);
 
-    if (block->g_modes[0] == G_53) {      /* distance mode is absolute in this case */
+    if (block->g_modes[GM_MODAL_0] == G_53) {      /* distance mode is absolute in this case */
 #ifdef DEBUG_EMC
         COMMENT("interpreter: offsets temporarily suspended");
 #endif

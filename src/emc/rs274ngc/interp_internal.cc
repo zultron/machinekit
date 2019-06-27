@@ -143,7 +143,7 @@ Called by: parse_line
 If there is a g-code for motion in the block (in g_modes[1]),
 set motion_to_be to that. Otherwise, if there is an axis value in the
 block and no g-code to use it (any such would be from group 0 in
-g_modes[0]), set motion_to_be to be the last motion saved (in
+g_modes[GM_MODAL_0]), set motion_to_be to be the last motion saved (in
 settings->motion mode).
 
 This also make the checks described above.
@@ -176,7 +176,7 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
   polar_flag = (block->radius_flag) || (block->theta_flag);
   ijk_flag = ((block->i_flag) || (block->j_flag) ||
               (block->k_flag));
-  mode0 = block->g_modes[0];
+  mode0 = block->g_modes[GM_MODAL_0];
   mode1 = block->g_modes[1];
   mode_zero_covets_axes =
     ((mode0 == G_10) || (mode0 == G_28) || (mode0 == G_30)
@@ -202,13 +202,13 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
   } else if (mode_zero_covets_axes) {   /* other 3 can get by without axes but not G92 */
     CHKS((polar_flag && mode0 == G_92), _("Polar coordinates can only be used for motion"));
     CHKS(((!axis_flag) &&
-	  (block->g_modes[0] == G_52 || block->g_modes[0] == G_92)),
+      (block->g_modes[GM_MODAL_0] == G_52 || block->g_modes[GM_MODAL_0] == G_92)),
 	 NCE_ALL_AXES_MISSING_WITH_G52_OR_G92);
   } else if (axis_flag || polar_flag) {
     CHKS(((settings->motion_mode == -1)
-         || (settings->motion_mode == G_80)) && (block->g_modes[8] != G_43_1),
+         || (settings->motion_mode == G_80)) && (block->g_modes[GM_TOOL_LENGTH_OFFSET] != G_43_1),
         NCE_CANNOT_USE_AXIS_VALUES_WITHOUT_A_G_CODE_THAT_USES_THEM);
-    if (block->g_modes[8] != G_43_1) {
+    if (block->g_modes[GM_TOOL_LENGTH_OFFSET] != G_43_1) {
        block->motion_to_be = settings->motion_mode;
     }
   } else if (!axis_flag && !polar_flag && ijk_flag && (settings->motion_mode == G_2 || settings->motion_mode == G_3)) {

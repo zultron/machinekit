@@ -76,7 +76,7 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
 {
   state.g_codes[G_CODE_SEQUENCE_NUMBER] = settings->sequence_number;
   state.g_codes[G_CODE_MOTION_MODE] = settings->motion_mode;
-  state.g_codes[G_CODE_MODE_0] = ((block == NULL) ? -1 : block->g_modes[0]);
+  state.g_codes[G_CODE_MODE_0] = ((block == NULL) ? -1 : block->g_modes[GM_MODAL_0]);
   switch(settings->plane) {
   case CANON_PLANE_XY:
       state.g_codes[G_CODE_PLANE] = G_17;
@@ -140,12 +140,12 @@ int Interp::write_m_codes(block_pointer block,   //!< pointer to a block of RS27
   state.m_codes[M_CODE_SEQUENCE_NUMBER] =   /* 0 seq number */
       settings->sequence_number;
   state.m_codes[M_CODE_STOPPING] =			/* 1 stopping */
-      (block == NULL) ? -1 : block->m_modes[4];
+      (block == NULL) ? -1 : block->m_modes[M_MODE_STOPPING];
   state.m_codes[M_CODE_SPINDLE] =			/* 2 spindle */
       (settings->spindle_turning == CANON_STOPPED) ? 5 :
       (settings->spindle_turning == CANON_CLOCKWISE) ? 3 : 4;
   state.m_codes[M_CODE_TOOLCHANGE] =			/* 3 tool change */
-      (block == NULL) ? -1 : block->m_modes[6];
+      (block == NULL) ? -1 : block->m_modes[M_MODE_TOOLCHANGE];
   state.m_codes[M_CODE_MIST] =				/* 4 mist */
       (settings->mist) ? 7 : (settings->flood) ? -1 : 9;
   state.m_codes[M_CODE_FLOOD] =				/* 5 flood */
@@ -219,7 +219,7 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.flags[GM_FLAG_EXTERNAL_FILE] = external_sub;
     // Tormach - change so that all tags are restorable.  This may change in future
     state.flags[GM_FLAG_RESTORABLE] = 1;
-    state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[0]);
+    state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[GM_MODAL_0]);
     state.fields[GM_FIELD_MOTION_MODE] = _setup.motion_mode;
     state.setActivePlane(_setup.plane);
 
@@ -244,12 +244,12 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.flags[GM_FLAG_IJK_ABS] = (_setup.ijk_distance_mode == MODE_ABSOLUTE);
     state.flags[GM_FLAG_DIAMETER_MODE] = (_setup.lathe_diameter_mode);
 
-    state.fields[GM_FIELD_M_MODES_4] = (block == NULL) ? -1 : block->m_modes[4];
+    state.fields[GM_FIELD_M_MODES_4] = (block == NULL) ? -1 : block->m_modes[M_MODE_STOPPING];
 
     state.flags[GM_FLAG_SPINDLE_ON] = !(_setup.spindle_turning != CANON_STOPPED);
     state.flags[GM_FLAG_SPINDLE_CW] = (_setup.spindle_turning == CANON_CLOCKWISE);
 
-    state.fields[GM_FIELD_TOOLCHANGE] = (block == NULL) ? -1 : block->m_modes[6];
+    state.fields[GM_FIELD_TOOLCHANGE] = (block == NULL) ? -1 : block->m_modes[M_MODE_TOOLCHANGE];
 
     state.fields[GM_FIELD_POCKET_NUMBER] = (_setup.current_pocket);
     state.fields[GM_FIELD_TOOL_NUMBER] = (_setup.tool_table[_setup.current_pocket].toolno);

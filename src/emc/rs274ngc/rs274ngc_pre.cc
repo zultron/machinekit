@@ -744,11 +744,11 @@ int Interp::find_remappings(block_pointer block, setup_pointer settings)
     }
     // User defined M-Codes in group 5
     if (IS_USER_MCODE(block,settings,5) &&
-	!(((block->m_modes[5] == 62) && remap_in_progress("M62")) ||
-	  ((block->m_modes[5] == 63) && remap_in_progress("M63")) ||
-	  ((block->m_modes[5] == 64) && remap_in_progress("M64")) ||
-	  ((block->m_modes[5] == 65) && remap_in_progress("M65")) ||
-	  ((block->m_modes[5] == 66) && remap_in_progress("M66"))))
+	!(((block->m_modes[M_MODE_IO] == 62) && remap_in_progress("M62")) ||
+	  ((block->m_modes[M_MODE_IO] == 63) && remap_in_progress("M63")) ||
+	  ((block->m_modes[M_MODE_IO] == 64) && remap_in_progress("M64")) ||
+	  ((block->m_modes[M_MODE_IO] == 65) && remap_in_progress("M65")) ||
+	  ((block->m_modes[M_MODE_IO] == 66) && remap_in_progress("M66"))))
 	// non-recursive behavior
 	block->remappings.insert(STEP_M_5);
 
@@ -757,8 +757,8 @@ int Interp::find_remappings(block_pointer block, setup_pointer settings)
     // it's an M6 or M61 and a remap is in progress
     // (recursion case)
     if (IS_USER_MCODE(block,settings,6) &&
-	!(((block->m_modes[6] == 6) && remap_in_progress("M6")) ||
-	  ((block->m_modes[6] == 61) && remap_in_progress("M61")))) {
+	!(((block->m_modes[M_MODE_TOOLCHANGE] == 6) && remap_in_progress("M6")) ||
+	  ((block->m_modes[M_MODE_TOOLCHANGE] == 61) && remap_in_progress("M61")))) {
 	block->remappings.insert(STEP_M_6); // then call the remap procedure
     } // else we get the builtin behaviour
 
@@ -766,9 +766,9 @@ int Interp::find_remappings(block_pointer block, setup_pointer settings)
     // added recursion detection here so a remap of spindle control can check for
     // safety conditions and then call the real action.
     if (IS_USER_MCODE(block,settings,7)) {
-      if (!(((block->m_modes[7] == 3) && remap_in_progress("M3")) ||
-            ((block->m_modes[7] == 4) && remap_in_progress("M4")) ||
-            ((block->m_modes[7] == 5) && remap_in_progress("M5")))) {
+      if (!(((block->m_modes[M_MODE_SPINDLE] == 3) && remap_in_progress("M3")) ||
+            ((block->m_modes[M_MODE_SPINDLE] == 4) && remap_in_progress("M4")) ||
+            ((block->m_modes[M_MODE_SPINDLE] == 5) && remap_in_progress("M5")))) {
         logRemap("M3-M4-M5 and remap not in progress so inserting step");
         block->remappings.insert(STEP_M_7);
       } else {

@@ -313,9 +313,9 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
   CHP(convert_g(block, settings, settings->work_offset_modified_flag));
 
   /* convert m0, m1, m2, m30, m60, or (when main program loops disabled) m99 */
-  if ((block->m_modes[4] != -1) && ONCE(STEP_MGROUP4)) {
+  if ((block->m_modes[M_MODE_STOPPING] != -1) && ONCE(STEP_MGROUP4)) {
       if (STEP_REMAPPED_IN_BLOCK(block, STEP_MGROUP4)) {
-	  status = convert_remapped_code(block,settings,STEP_MGROUP4,'M',block->m_modes[4]);
+      status = convert_remapped_code(block,settings,STEP_MGROUP4,'M',block->m_modes[M_MODE_STOPPING]);
       } else {
 	  status = convert_stop(block, settings);
       }

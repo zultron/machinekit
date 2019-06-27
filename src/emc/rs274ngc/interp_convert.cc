@@ -1792,12 +1792,12 @@ int Interp::convert_cutter_compensation_on(int side,     //!< side of path cutte
       NCE_RADIUS_COMP_ONLY_IN_XY_OR_XZ);
   CHKS((settings->cutter_comp_side),
       NCE_CANNOT_TURN_CUTTER_RADIUS_COMP_ON_WHEN_ON);
-  if(block->g_modes[7] == G_41_1 || block->g_modes[7] == G_42_1) {
+  if(block->g_modes[GM_CUTTER_COMP] == G_41_1 || block->g_modes[GM_CUTTER_COMP] == G_42_1) {
       CHKS((!block->d_flag),
-              _("G%d.1 with no D word"), block->g_modes[7]/10 );
+              _("G%d.1 with no D word"), block->g_modes[GM_CUTTER_COMP]/10 );
       radius = block->d_number_float / 2;
       if(block->l_number != -1) {
-          CHKS((settings->plane != CANON_PLANE_XZ), _("G%d.1 with L word, but plane is not G18"), block->g_modes[7]/10);
+          CHKS((settings->plane != CANON_PLANE_XZ), _("G%d.1 with L word, but plane is not G18"), block->g_modes[GM_CUTTER_COMP]/10);
           orientation = block->l_number;
       } else {
           orientation = 0;
@@ -1809,13 +1809,13 @@ int Interp::convert_cutter_compensation_on(int side,     //!< side of path cutte
           int tool;
           CHKS(!is_near_int(&tool, block->d_number_float),
                   _("G%d requires D word to be a whole number"),
-                   block->g_modes[7]/10);
+                   block->g_modes[GM_CUTTER_COMP]/10);
           CHKS((tool < 0), NCE_NEGATIVE_D_WORD_TOOL_RADIUS_INDEX_USED);
           CHP((find_tool_pocket(settings, tool, &pocket_number)));
       }
       radius = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].diameter) / 2.0;
       orientation = settings->tool_table[pocket_number].orientation;
-      CHKS((settings->plane != CANON_PLANE_XZ && orientation != 0 && orientation != 9), _("G%d with lathe tool, but plane is not G18"), block->g_modes[7]/10);
+      CHKS((settings->plane != CANON_PLANE_XZ && orientation != 0 && orientation != 9), _("G%d with lathe tool, but plane is not G18"), block->g_modes[GM_CUTTER_COMP]/10);
   }
   if (radius < 0.0) { /* switch side & make radius positive if radius negative */
     radius = -radius;
@@ -2966,34 +2966,34 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
       STEP_REMAPPED_IN_BLOCK(block, STEP_M_5) &&
       ONCE_M(5))  {
       return convert_remapped_code(block, settings, STEP_M_5, 'm',
-				   block->m_modes[5]);
+                   block->m_modes[M_MODE_IO]);
   }
   write_and_update_state_tag(block);
-  if ((block->m_modes[5] == 62) && ONCE_M(5)) {
+  if ((block->m_modes[M_MODE_IO] == 62) && ONCE_M(5)) {
       CHKS((settings->cutter_comp_side),
            (_("Cannot set motion output with cutter radius compensation on")));  // XXX
       CHKS((!block->p_flag), _("No valid P word with M62"));
       //write_and_update_state_tag(block);
       SET_MOTION_OUTPUT_BIT(round_to_int(block->p_number));
-  } else if ((block->m_modes[5] == 63) && ONCE_M(5)) {
+  } else if ((block->m_modes[M_MODE_IO] == 63) && ONCE_M(5)) {
       CHKS((settings->cutter_comp_side),
            (_("Cannot set motion digital output with cutter radius compensation on")));  // XXX
       CHKS((!block->p_flag), _("No valid P word with M63"));
       //write_and_update_state_tag(block);
       CLEAR_MOTION_OUTPUT_BIT(round_to_int(block->p_number));
-  } else if ((block->m_modes[5] == 64) && ONCE_M(5)){
+  } else if ((block->m_modes[M_MODE_IO] == 64) && ONCE_M(5)){
       CHKS((settings->cutter_comp_side),
            (_("Cannot set auxiliary digital output with cutter radius compensation on")));  // XXX
       CHKS((!block->p_flag), _("No valid P word with M64"));
       //write_and_update_state_tag(block);
       SET_AUX_OUTPUT_BIT(round_to_int(block->p_number));
-  } else if ((block->m_modes[5] == 65) && ONCE_M(5)) {
+  } else if ((block->m_modes[M_MODE_IO] == 65) && ONCE_M(5)) {
       CHKS((settings->cutter_comp_side),
            (_("Cannot set auxiliary digital output with cutter radius compensation on")));  // XXX
       CHKS((!block->p_flag), _("No valid P word with M65"));
       //write_and_update_state_tag(block);
       CLEAR_AUX_OUTPUT_BIT(round_to_int(block->p_number));
-  } else if ((block->m_modes[5] == 66) && ONCE_M(5)){
+  } else if ((block->m_modes[M_MODE_IO] == 66) && ONCE_M(5)){
 
     //P-word = digital channel
     //E-word = analog channel
@@ -3058,7 +3058,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 	    settings->input_digital = false;
 	}
     } 
-  } else if ((block->m_modes[5] == 67) && ONCE_M(5)) {
+  } else if ((block->m_modes[M_MODE_IO] == 67) && ONCE_M(5)) {
 
     //E-word = analog channel
     //Q-word = analog value
@@ -3066,7 +3066,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
            (_("Cannot set motion analog output with cutter radius compensation on")));  // XXX
       CHKS((!block->e_flag) || (round_to_int(block->e_number) < 0), (_("Invalid analog index with M67")));
       SET_MOTION_OUTPUT_VALUE(round_to_int(block->e_number), block->q_number);
-  } else if ((block->m_modes[5] == 68)  && ONCE_M(5)) {
+  } else if ((block->m_modes[M_MODE_IO] == 68)  && ONCE_M(5)) {
     //E-word = analog channel
     //Q-word = analog value
       CHKS((settings->cutter_comp_side),
@@ -3075,17 +3075,17 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
       SET_AUX_OUTPUT_VALUE(round_to_int(block->e_number), block->q_number);
   }
 
-  if ((block->m_modes[6] != -1)  && ONCE_M(6)){
+  if ((block->m_modes[M_MODE_TOOLCHANGE] != -1)  && ONCE_M(6)){
       int toolno;
       bool remapped_in_block = STEP_REMAPPED_IN_BLOCK(block, STEP_M_6);
 
-      switch (block->m_modes[6]) {
+      switch (block->m_modes[M_MODE_TOOLCHANGE]) {
       case 6:
       	  if (IS_USER_MCODE(block,settings,6) && remapped_in_block) {
       		  return convert_remapped_code(block,settings,
       					       STEP_M_6,
       					       'm',
-      					       block->m_modes[6]);  
+                               block->m_modes[M_MODE_TOOLCHANGE]);
 	  } else {
 	      // the code was used in its very remap procedure -
 	      // the 'recursion case'; record the fact
@@ -3097,7 +3097,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
       case 61:
 	  if (IS_USER_MCODE(block,settings,6) && remapped_in_block) {
 	      return convert_remapped_code(block, settings, STEP_M_6,'m',
-					   block->m_modes[6]);
+                       block->m_modes[M_MODE_TOOLCHANGE]);
 	  } else {
 	      CONTROLLING_BLOCK(*settings).builtin_used = !remapped_in_block;
 	      toolno = round_to_int(block->q_number);
@@ -3118,7 +3118,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
       default:
 	  if (IS_USER_MCODE(block,settings,6)) {
 	      return convert_remapped_code(block, settings, STEP_M_6,'m',
-					   block->m_modes[6]);
+                       block->m_modes[M_MODE_TOOLCHANGE]);
 	  }
       }
   }
@@ -3156,13 +3156,13 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
   //#endif
   
  
-  if ((block->m_modes[7] != -1) && ONCE_M(7)) {
+  if ((block->m_modes[M_MODE_SPINDLE] != -1) && ONCE_M(7)) {
   
       bool remapped_in_block = STEP_REMAPPED_IN_BLOCK(block, STEP_M_7);
   
       if (IS_USER_MCODE(block,settings,7) && remapped_in_block) {
         logRemap("M3-M4-M5 remap conversion running");
-        return convert_remapped_code(block, settings, STEP_M_7, 'm', block->m_modes[7]);
+        return convert_remapped_code(block, settings, STEP_M_7, 'm', block->m_modes[M_MODE_SPINDLE]);
       } else {
           // the code was used in its very remap procedure
           // the 'recursion case'; record the fact and keep going.
@@ -3170,19 +3170,19 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
         CONTROLLING_BLOCK(*settings).builtin_used = !remapped_in_block;
       }
   
-      if (block->m_modes[7] == 3) {
+      if (block->m_modes[M_MODE_SPINDLE] == 3) {
         settings->spindle_turning = CANON_CLOCKWISE;
         write_and_update_state_tag(block);
         enqueue_START_SPINDLE_CLOCKWISE();
-      } else if (block->m_modes[7] == 4) {
+      } else if (block->m_modes[M_MODE_SPINDLE] == 4) {
         settings->spindle_turning = CANON_COUNTERCLOCKWISE;
         write_and_update_state_tag(block);
         enqueue_START_SPINDLE_COUNTERCLOCKWISE();
-      } else if (block->m_modes[7] == 5) {
+      } else if (block->m_modes[M_MODE_SPINDLE] == 5) {
         settings->spindle_turning = CANON_STOPPED;
         write_and_update_state_tag(block);
         enqueue_STOP_SPINDLE_TURNING();
-      } else if (block->m_modes[7] == 19) {
+      } else if (block->m_modes[M_MODE_SPINDLE] == 19) {
           settings->spindle_turning = CANON_STOPPED;
           if (block->r_flag || block->p_flag || block->q_flag) {
               settings->orient_flag = true;
@@ -3199,7 +3199,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
   	       enqueue_WAIT_ORIENT_SPINDLE_COMPLETE(block->q_number);
   	     }
           }
-      } else if ((block->m_modes[7] == 70) || (block->m_modes[7] == 73)) {
+      } else if ((block->m_modes[M_MODE_SPINDLE] == 70) || (block->m_modes[M_MODE_SPINDLE] == 73)) {
        // save state in current stack frame. We borrow the o-word call stack
        // and extend it to hold modes & settings.
        save_settings(&_setup);
@@ -3208,18 +3208,18 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
        _setup.sub_context[_setup.call_level].context_status |= CONTEXT_VALID;
   
        // mark as auto-restore context
-       if (block->m_modes[7] == 73) {
+       if (block->m_modes[M_MODE_SPINDLE] == 73) {
   	 if (_setup.call_level == 0) {
   	     MSG("Warning - M73 at top level: nothing to return to; storing context anyway\n");
   	 } else {
   	     _setup.sub_context[_setup.call_level].context_status |= CONTEXT_RESTORE_ON_RETURN;
   	 }
        }
-    } else if (block->m_modes[7] == 71) {
+    } else if (block->m_modes[M_MODE_SPINDLE] == 71) {
         // M72 - invalidate context at current level
         _setup.sub_context[_setup.call_level].context_status &= ~CONTEXT_VALID;
   
-    } else if (block->m_modes[7] == 72) {
+    } else if (block->m_modes[M_MODE_SPINDLE] == 72) {
   
         // restore state from current stack frame.
         CHKS((!(_setup.sub_context[_setup.call_level].context_status & CONTEXT_VALID)),
@@ -3231,16 +3231,16 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 
   if (IS_USER_MCODE(block,settings,8) && ONCE_M(8)) {
      return convert_remapped_code(block, settings, STEP_M_8, 'm',
-				   block->m_modes[8]);
-  } else if ((block->m_modes[8] == 7) && ONCE_M(8)){
+                   block->m_modes[M_MODE_COOLANT]);
+  } else if ((block->m_modes[M_MODE_COOLANT] == 7) && ONCE_M(8)){
       settings->mist = true;
       write_and_update_state_tag(block);
       enqueue_MIST_ON();
-  } else if ((block->m_modes[8] == 8) && ONCE_M(8)) {
+  } else if ((block->m_modes[M_MODE_COOLANT] == 8) && ONCE_M(8)) {
       settings->flood = true;
       write_and_update_state_tag(block);
       enqueue_FLOOD_ON();
-  } else if ((block->m_modes[8] == 9) && ONCE_M(8)) {
+  } else if ((block->m_modes[M_MODE_COOLANT] == 9) && ONCE_M(8)) {
       settings->flood = false;
       settings->mist = false;
       write_and_update_state_tag(block);
@@ -3266,8 +3266,8 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 */
 if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
      return convert_remapped_code(block, settings, STEP_M_9, 'm',
-				   block->m_modes[9]);
- } else if ((block->m_modes[9] == 48)  && ONCE_M(9)){
+                   block->m_modes[M_MODE_FEED_SPEED_OVERRIDE]);
+ } else if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 48)  && ONCE_M(9)){
     CHKS((settings->cutter_comp_side),
          (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
     settings->feed_override = true;
@@ -3275,7 +3275,7 @@ if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
     write_and_update_state_tag(block);
     ENABLE_FEED_OVERRIDE();
     ENABLE_SPEED_OVERRIDE();
- } else if ((block->m_modes[9] == 49)  && ONCE_M(9)){
+ } else if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 49)  && ONCE_M(9)){
     CHKS((settings->cutter_comp_side),
          (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
     settings->feed_override = false;
@@ -3285,7 +3285,7 @@ if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
     DISABLE_SPEED_OVERRIDE();
   }
 
-if ((block->m_modes[9] == 50)  && ONCE_M(9)){
+if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 50)  && ONCE_M(9)){
     if (block->p_number != 0) {
         CHKS((settings->cutter_comp_side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
@@ -3301,7 +3301,7 @@ if ((block->m_modes[9] == 50)  && ONCE_M(9)){
     }
   }
 
-if ((block->m_modes[9] == 51)  && ONCE_M(9)){
+if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 51)  && ONCE_M(9)){
 
     if (block->p_number != 0) {
         CHKS((settings->cutter_comp_side),
@@ -3318,7 +3318,7 @@ if ((block->m_modes[9] == 51)  && ONCE_M(9)){
     }
   }
   
-if ((block->m_modes[9] == 52)  && ONCE_M(9)){
+if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 52)  && ONCE_M(9)){
     if (block->p_number != 0) {
         CHKS((settings->cutter_comp_side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
@@ -3334,7 +3334,7 @@ if ((block->m_modes[9] == 52)  && ONCE_M(9)){
     }
   }
   
-if ((block->m_modes[9] == 53)  && ONCE_M(9)){
+if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 53)  && ONCE_M(9)){
     if (block->p_number != 0) {
         CHKS((settings->cutter_comp_side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
@@ -3352,18 +3352,18 @@ if ((block->m_modes[9] == 53)  && ONCE_M(9)){
 
 if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
     return convert_remapped_code(block,settings,STEP_M_10,'m',
-				   block->m_modes[10]);
+                   block->m_modes[M_MODE_USER]);
 
- } else if ((block->m_modes[10] == 998) && ONCE_M(10)){
+ } else if ((block->m_modes[M_MODE_USER] == 998) && ONCE_M(10)){
 	 // Tormach only
 	 if (FEATURE(LATHE_TOOLCHANGE)){
 		 CHKS(1, NCE_UNKNOWN_M_CODE_USED,998);
 	 } else {
 		CHP(convert_home(G_30, block, settings));
 	}
- } else if ((block->m_modes[10] != -1)  && ONCE_M(10)){
+ } else if ((block->m_modes[M_MODE_USER] != -1)  && ONCE_M(10)){
      /* user-defined M codes */
-    int index = block->m_modes[10];
+    int index = block->m_modes[M_MODE_USER];
     if (USER_DEFINED_FUNCTION[index - 100] == 0) {
       CHKS(1, NCE_UNKNOWN_M_CODE_USED,index);
     }
@@ -4078,7 +4078,7 @@ int Interp::convert_speed(block_pointer block,   //!< pointer to a block of RS27
 
 int Interp::convert_spindle_mode(block_pointer block, setup_pointer settings)
 {
-    if(block->g_modes[14] == G_97) {
+    if(block->g_modes[GM_SPINDLE_MODE] == G_97) {
         settings->spindle_mode = CONSTANT_RPM;
 	write_and_update_state_tag(block);
 	enqueue_SET_SPINDLE_MODE(0);
@@ -4186,28 +4186,28 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 
   // M99 as subroutine return is handled in interp_o_word.cc
   // convert_control_functions()
-  CHKS((block->m_modes[4] == 99 && settings->call_level > 0),
+  CHKS((block->m_modes[M_MODE_STOPPING] == 99 && settings->call_level > 0),
 	   (_("Bug:  Reached convert_stop() from M99 as subprogram return")));
 
-  if (block->m_modes[4] == 0) {
+  if (block->m_modes[M_MODE_STOPPING] == 0) {
       write_and_update_state_tag(block);
       PROGRAM_STOP();
-  } else if (block->m_modes[4] == 60) {
+  } else if (block->m_modes[M_MODE_STOPPING] == 60) {
       write_and_update_state_tag(block);
       PALLET_SHUTTLE();
       PROGRAM_STOP();
-  } else if (block->m_modes[4] == 1) {
+  } else if (block->m_modes[M_MODE_STOPPING] == 1) {
       write_and_update_state_tag(block);
       OPTIONAL_PROGRAM_STOP();
-  } else if (block->m_modes[4] == 99 && _setup.loop_on_main_m99) {
+  } else if (block->m_modes[M_MODE_STOPPING] == 99 && _setup.loop_on_main_m99) {
       // Fanuc-style M99 main program endless loop
 
       logDebug("M99 main program endless loop");
       loop_to_beginning(settings);  // return control to beginning of file
       FINISH();  // Output any final linked segments
       return INTERP_EXECUTE_FINISH;  // tell task to issue any queued commands
-  } else if ((block->m_modes[4] == 2) || (block->m_modes[4] == 30) ||
-	     (block->m_modes[4] == 99 && !_setup.loop_on_main_m99)
+  } else if ((block->m_modes[M_MODE_STOPPING] == 2) || (block->m_modes[M_MODE_STOPPING] == 30) ||
+         (block->m_modes[M_MODE_STOPPING] == 99 && !_setup.loop_on_main_m99)
 	     ) {   /* reset stuff here */
 /*1*/
 /* Tormach edits - M30 should behave like Fanuc/Haas, and not clear G5x, G95, G17 settings */
@@ -4339,7 +4339,7 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
       // Clear G92/G52 offset
       clearPersistentG92Parameters(settings);
 
-    if (block->m_modes[4] == 30) {
+    if (block->m_modes[M_MODE_STOPPING] == 30) {
       PALLET_SHUTTLE();
       PROGRAM_END(true);  // reset after program end with m30
     } else {
@@ -4472,7 +4472,7 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
   if ((settings->cutter_comp_side) &&    /* ! "== true" */
       (settings->cutter_comp_radius > 0.0)) {   /* radius always is >= 0 */
 
-    CHKS((block->g_modes[0] == G_53),
+    CHKS((block->g_modes[GM_MODAL_0] == G_53),
         NCE_CANNOT_USE_G53_WITH_CUTTER_RADIUS_COMP);
 
     if(settings->plane == CANON_PLANE_XZ) {
