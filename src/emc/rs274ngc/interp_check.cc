@@ -326,9 +326,7 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
       case WORD_USAGE_OK:
           break;
       case WORD_IGNORED:
-          if (p_status == WORD_IGNORED) {
-              setWarning("Found P word with a G81 or G83 move, it will be ignored");
-          }
+          setWarning("Found P word with a G81 or G83 move, it will be ignored");
           break;
       case WORD_MEANING_CONFLICT:
           ERS(_("P word has conflicting meanings"));
@@ -339,7 +337,6 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
       }
 
       int p_value = round_to_int(block->p_number);
-      //Ugly way to throw a warning for this specific case
 
       CHKS(((motion == G_2 || motion == G_3 || (block->m_modes[M_MODE_SPINDLE] == 19)) &&
         fabs(p_value - block->p_number) > 0.001),
@@ -353,21 +350,35 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   }
 
   if (block->q_number != -1.0) {
-      CHKS((motion != G_83) && (motion != G_73) && (motion != G_5) && (block->user_m != 1) && (motion != G_76) &&
-       (block->m_modes[M_MODE_IO] != 66) && (block->m_modes[M_MODE_IO] != 67) && (block->m_modes[M_MODE_IO] != 68) &&
-       (block->g_modes[GM_MODAL_0] != G_10) && (block->m_modes[M_MODE_TOOLCHANGE] != 61) && (block->g_modes[GM_CONTROL_MODE] != G_64) &&
-       (block->m_modes[M_MODE_SPINDLE] != 19),
-	   _("Q word with no G5, G10, G64, G73, G76, G83, M19, M66, M67, M68 or user M code that uses it"));
+      const WordUsageStatus q_status = is_q_allowed(block->g_modes, block->motion_to_be, block->m_modes);
+      switch (q_status)
+      {
+      case WORD_USAGE_OK:
+      case WORD_IGNORED:
+          // No Q warnings currently
+          break;
+      case WORD_MEANING_CONFLICT:
+          ERS(_("Q word has conflicting meanings"));
+      case WORD_NOT_ALLOWED:
+          ERS(_("Q word with no G5, G10, G64, G73, G76, G83, M19, M66, M67, M68 or user M code that uses it"));
+      }
   }
 
   if (block->r_flag) {
-    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_76) &&
-         ((motion < G_81) || (motion > G_89)) && (motion != G_73) && 
-         (block->g_modes[GM_CUTTER_COMP] != G_41_1) && (block->g_modes[GM_CUTTER_COMP] != G_42_1) &&
-         (block->g_modes[GM_MODAL_0] != G_10) && (block->m_modes[M_MODE_SPINDLE] != 19) ),
-        NCE_R_WORD_WITH_NO_G_CODE_THAT_USES_IT);
-    CHKS((block->m_modes[M_MODE_SPINDLE] == 19) && ((block->r_number > 360.0) || (block->r_number < 0.0)),
-	   _("R value must be within 0..360 with M19"));
+      const WordUsageStatus r_status = is_r_allowed(block->g_modes, block->motion_to_be, block->m_modes);
+      switch (r_status)
+      {
+      case WORD_USAGE_OK:
+      case WORD_IGNORED:
+          // No R warnings currently
+          break;
+      case WORD_MEANING_CONFLICT:
+          ERS(_("R word has conflicting meanings"));
+      case WORD_NOT_ALLOWED:
+          ERS(NCE_R_WORD_WITH_NO_G_CODE_THAT_USES_IT);
+      }
+      CHKS((block->m_modes[M_MODE_SPINDLE] == 19) && ((block->r_number > 360.0) || (block->r_number < 0.0)),
+           _("R value must be within 0..360 with M19"));
   }
 
   if (!block->s_flag) {

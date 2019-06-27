@@ -3,6 +3,20 @@
 #include <algorithm>
 
 
+template <typename T, size_t N>
+WordUsageStatus count_usages(std::array<T, N> const &active_usages, bool have_unused_word)
+{
+    int usage_count = std::count(active_usages.begin(),
+                                active_usages.end(),
+                                true);
+    if (usage_count > 1)
+    {
+        return WORD_MEANING_CONFLICT;
+    } else if (usage_count == 1) {
+        return have_unused_word ? WORD_IGNORED : WORD_USAGE_OK;
+    }
+    return WORD_NOT_ALLOWED;
+}
 WordUsageStatus is_p_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_modes,
                              GCodes motion_to_be,
                              std::array<int, M_MAX_MODAL_GROUPS> const &m_modes,
@@ -85,16 +99,97 @@ WordUsageStatus is_p_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_mo
     active_p[P_USER_MCODE] = m_modes[M_MODE_USER] > 0;
     active_p[P_SUBROUTINE_NUMBER] = o_type == M_98;
 
-    int p_meanings = std::count(active_p.begin(),
-                                active_p.end(),
-                                true);
+    return count_usages(active_p, unused_p);
+}
 
-    if (p_meanings > 1)
+/**
+ * Looks for meaning conflicts between Q words in a G-code line based on the active modes from a block.
+ */
+WordUsageStatus is_q_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes)
+{
+    std::array<bool, MAX_QWORD_MEANINGS> active_q{};
+    switch (motion_to_be)
     {
-        return WORD_MEANING_CONFLICT;
-    } else if (p_meanings == 1) {
-        return unused_p ? WORD_IGNORED : WORD_USAGE_OK;
+    case G_5:
+        active_q[Q_SPLINE_Y_OFFSET] = true;
+        break;
+    case G_73:
+    case G_83:
+        active_q[Q_PECK_DISTANCE] = true;
+        break;
+    case G_76:
+        active_q[Q_COMPOUND_SLIDE_ANGLE] = true;
+        break;
+    default:
+        break;
     }
 
-    return WORD_NOT_ALLOWED;
+    switch (g_modes[GM_MODAL_0]) {
+    case G_10:
+        active_q[Q_TOOL_ORIENTATION] = true;
+        break;
+    case G_64:
+        active_q[Q_NAIVE_CAM_TOLERANCE] = true;
+        break;
+    default:
+        break;
+    }
+
+    switch (m_modes[M_MODE_IO])
+    {
+    case 66:
+        active_q[Q_TIMEOUT] = true;
+        break;
+    case 67:
+    case 68:
+        active_q[Q_ANALOG_VALUE] = true;
+        break;
+    }
+
+    if (m_modes[M_MODE_TOOLCHANGE] == 61) { active_q[Q_TOOL_NUMBER] = true;}
+    if (m_modes[M_MODE_SPINDLE] == 19) { active_q[Q_TIMEOUT] = true;}
+    if (m_modes[M_MODE_USER] >= 100) { active_q[Q_USER] = true;}
+
+    return count_usages(active_q, false);
+}
+
+WordUsageStatus is_r_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes)
+{
+    std::array<bool, MAX_RWORD_MEANINGS> active_r{};
+    switch (motion_to_be)
+    {
+    case G_2:
+    case G_3:
+        active_r[R_RADIUS] = true;
+        break;
+    case G_76:
+        active_r[R_DEPTH_DEGRESSION] = true;
+        break;
+    case G_73:
+    case G_81:
+    case G_82:
+    case G_83:
+    case G_84:
+    case G_85:
+    case G_86:
+    case G_87:
+    case G_88:
+    case G_89:
+        active_r[R_RETRACT_HEIGHT] = true;
+        break;
+    default:
+        break;
+    }
+
+    switch (g_modes[GM_MODAL_0]) {
+    case G_10:
+        active_r[R_TOOL_RADIUS] = true;
+        break;
+    default:
+        break;
+    }
+
+    if (m_modes[M_MODE_SPINDLE] == 19) { active_r[R_ORIENT_POSITION] = true;}
+
+    return count_usages(active_r, false);
 }
