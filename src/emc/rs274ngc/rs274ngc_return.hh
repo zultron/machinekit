@@ -145,7 +145,6 @@
 #define NCE_Q_WORD_WITH_NO_GCODE_THAT_USES_IT _("Q word with no G5, G10, G64, G73, G76, G83, M19, M66, M67, M68 or user M code that uses it")
 #define NCE_Q_WORD_MISSING_WITH_G73 _("Q word missing with g73")
 #define NCE_Q_WORD_MISSING_WITH_G83 _("Q word missing with g83")
-#define NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING _("Queue is not empty after probing")
 // R word
 #define NCE_R_CLEARANCE_PLANE_UNSPECIFIED_IN_CYCLE _("R clearance plane unspecified in cycle")
 #define NCE_R_I_J_K_WORDS_ALL_MISSING_FOR_ARC _("R i j k words all missing for arc")
@@ -221,6 +220,9 @@
 #define NCE_NAMED_PARAMETER_NOT_TERMINATED _("Named parameter not terminated")
 #define NCE_OUT_OF_MEMORY _("Out of memory")
 #define NCE_S_WORD_MISSING_WITH_G96 _("S word missing with G96")
+
+// Queue Errors
+#define NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING _("Queue is not empty after probing")
 #define NCE_QUEUE_IS_NOT_EMPTY_AFTER_INPUT _("Queue is not empty after external input")
 #define NCE_QUEUE_IS_NOT_EMPTY_AFTER_ORIENT _("Queue is not empty after spindle orient")
 #define NCE_ANALOG_INPUT_WITH_WAIT_NOT_IMMEDIATE _("Can't select analog input with wait type != immediate return")
