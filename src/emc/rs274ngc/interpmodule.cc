@@ -688,7 +688,7 @@ static inline void set_loggingLevel(Interp &interp, int value)  {
     interp._setup.loggingLevel = value;
 }
 static inline int get_motion_mode (Interp &interp)  {
-    return interp._setup.motion_mode;
+    return (int)interp._setup.motion_mode;
 }
 static inline void set_motion_mode(Interp &interp, int value)  {
     interp._setup.motion_mode = (GCodes)value;
