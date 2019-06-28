@@ -135,15 +135,11 @@ WordUsageStatus is_q_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_m
         break;
     }
 
-    switch (g_modes[GM_MODAL_0]) {
-    case G_10:
+    if (g_modes[GM_MODAL_0] == G_10) {
         active_q[Q_TOOL_ORIENTATION] = true;
-        break;
-    case G_64:
+    }
+    if (g_modes[GM_CONTROL_MODE] == G_64) {
         active_q[Q_NAIVE_CAM_TOLERANCE] = true;
-        break;
-    default:
-        break;
     }
 
     switch (m_modes[M_MODE_IO])
