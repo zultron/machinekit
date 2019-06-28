@@ -172,6 +172,7 @@ static uint32_t _linecount = 0;
 static int spindle_synched_motion = 0;
 static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
+static double css_max_speed_programmed = 0.0;
 
 static std::unique_ptr<InterpBase> pinterp;
 
@@ -273,7 +274,7 @@ void STRAIGHT_FEED(int line_number,
 	PyObject *result = spindle_synched_motion ?
 	    callmethod(callback, "straight_feed_synched", "ifffffffffff",
 		       line_number, x, y, z, a, b, c, u, v, w,
-		       spindle_speed_programmed,
+               css_max_speed_programmed ?: spindle_speed_programmed,
 		       spindle_synched_feed_per_revolution/(metric?25.4:1.0)) :
 	    callmethod(callback, "straight_feed", "ifffffffff",
 		       line_number, x, y, z, a, b, c, u, v, w);
@@ -462,7 +463,10 @@ void STOP_SPEED_FEED_SYNCH() {
 }
 void START_SPINDLE_COUNTERCLOCKWISE() {}
 void START_SPINDLE_CLOCKWISE() {}
-void SET_SPINDLE_MODE(double) {}
+void SET_SPINDLE_MODE(double css_max) {
+    css_max_speed_programmed = css_max;
+}
+
 void STOP_SPINDLE_TURNING() {}
 void SET_SPINDLE_SPEED(double rpm) {
     spindle_speed_programmed = rpm;
