@@ -22,6 +22,7 @@ enum PWordMeanings
     P_SPLINE_X_OFFSET,
     P_NURBS_WEIGHT,
     P_OFFSET_INDEX,
+    P_BLEND_TOLERANCE, // G64
     P_OVERRIDE_ACTIVE,
     P_IO_PIN,
     P_USER_MCODE,

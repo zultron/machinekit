@@ -64,6 +64,14 @@ WordUsageStatus is_p_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_mo
         break;
     }
 
+    if (g_modes[GM_COORD_SYSTEM] == G_54_1) {
+        active_p[P_OFFSET_INDEX] = true;
+    }
+
+    if (g_modes[GM_CONTROL_MODE] == G_64) {
+        active_p[P_BLEND_TOLERANCE] = true;
+    }
+
     switch (g_modes[GM_MODAL_0])
     {
     // Mode 1 commands that use

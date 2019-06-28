@@ -621,19 +621,16 @@ int Interp::init_remap_sets()
 {
     int i;
 
-    for (i = 0; i < 1000; i++) {
-	// paranoid & unelegant, but intent is clear ;)
-	_setup.m_remappable[i] = 0;
-	_setup.g_remappable[i] = 0;
-    }
+    _setup.m_remappable.reset();
+    _setup.g_remappable.reset();
 
     // all unallocated M-codes > 199 are freely remappable
-    for (i = 200; i < 1000; i++) _setup.m_remappable[i] = 1;
+    for (i = 200; i < 1000; i++) _setup.m_remappable.set(i);
 
     // in the range 1..99 unused M-codes are remappable
     for (i = 1; i < 100; i++) {
 	if (!M_BUILTIN(i))
-	    _setup.m_remappable[i] = 1;
+        _setup.m_remappable.set(i);
     }
 
     // the exception list of allocated M-codes which are manually overriden in the code
