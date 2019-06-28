@@ -18,6 +18,7 @@
 #define RS274NGC_INTERP_H
 #include "rs274ngc.hh"
 #include "interp_internal.hh"
+#include "interp_return.hh"
 #include <array>
 
 class Interp : public InterpBase {
@@ -100,6 +101,7 @@ public:
 // error_text array, but stop at max_size if the text is longer.
  char *error_text(int error_code, char *error_text,
                                 size_t max_size);
+ std::string error_text(int error_code=INTERP_ERROR);
 
  char *warning_text(char *error_text,
                                 size_t max_size);

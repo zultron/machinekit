@@ -2440,6 +2440,12 @@ char * Interp::error_text(int error_code,        //!< code number of error
     return error_text;
 }
 
+std::string Interp::error_text(int error_code)
+{
+    char buf[2048]={'\n'};
+    return std::string(error_text(error_code, buf, 2048));
+}
+
 char * Interp::warning_text(char *warning_text,      //!< char array to copy error text into
                          size_t max_size)  //!< maximum number of characters to copy
 {
