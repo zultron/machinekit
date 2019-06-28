@@ -329,24 +329,22 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
           setWarning("Found P word with a G81 or G83 move, it will be ignored");
           break;
       case WORD_MEANING_CONFLICT:
-          ERS(_("P word has conflicting meanings"));
+          ERS(NCE_P_WORD_CONFLICTING_MEANINGS);
       case WORD_NOT_ALLOWED:
-          ERS(_("P word with no G2 G3 G4 G10 G5 G5.2 G38.x G54.1 G64 G76 G82 G86 G88 G89"
-                " or M50 M51 M52 M53 M62 M63 M64 M65 M66 M98 "
-                "or user M code to use it"));
+          ERS(NCE_P_WORD_WITH_NO_GCODE_THAT_USES_IT);
       }
 
       int p_value = round_to_int(block->p_number);
 
       CHKS(((motion == G_2 || motion == G_3 || (block->m_modes[M_MODE_SPINDLE] == 19)) &&
         fabs(p_value - block->p_number) > 0.001),
-       _("P value %f is not an integer with M19 G2 or G3"), block->p_number);
+           "P%f error: %s", block->p_number, NCE_P_WORD_NOT_INTEGER);
       CHKS((block->m_modes[M_MODE_SPINDLE] == 19) && ((p_value > 2) || p_value < 0),
-       _("P value %f must be 0, 1, or 2 with M19"), block->p_number);
+           "P%f error: %s", block->p_number, NCE_P_WORD_INVALID_M19);
       CHKS(((motion == G_2 || motion == G_3) && p_value < 1),
-          _("P value %f must be 1 or greater with G2 or G3"), block->p_number);
-      CHKS(p_value < 0 || p_value > 1,
-           _("P value %f must be 0 or 1 for G38.x"), block->p_number);
+           "P%f error: %s", block->p_number, NCE_P_WORD_INVALID_G2_G3);
+      CHKS((motion >= G_38_2 && motion <= G_38_6) && (p_value < 0 || p_value > 1),
+           "P%f error: %s", block->p_number, NCE_P_WORD_INVALID_PROBING);
   }
 
   if (block->q_number != -1.0) {
@@ -358,9 +356,9 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
           // No Q warnings currently
           break;
       case WORD_MEANING_CONFLICT:
-          ERS(_("Q word has conflicting meanings"));
+          ERS(NCE_Q_WORD_CONFLICTING_MEANINGS);
       case WORD_NOT_ALLOWED:
-          ERS(_("Q word with no G5, G10, G64, G73, G76, G83, M19, M66, M67, M68 or user M code that uses it"));
+          ERS(NCE_Q_WORD_WITH_NO_GCODE_THAT_USES_IT);
       }
   }
 
@@ -373,12 +371,12 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
           // No R warnings currently
           break;
       case WORD_MEANING_CONFLICT:
-          ERS(_("R word has conflicting meanings"));
+          ERS(NCE_R_WORD_CONFLICTING_MEANINGS);
       case WORD_NOT_ALLOWED:
           ERS(NCE_R_WORD_WITH_NO_G_CODE_THAT_USES_IT);
       }
       CHKS((block->m_modes[M_MODE_SPINDLE] == 19) && ((block->r_number > 360.0) || (block->r_number < 0.0)),
-           _("R value must be within 0..360 with M19"));
+           NCE_R_VALUE_OUT_OF_RANGE_M19);
   }
 
   if (!block->s_flag) {

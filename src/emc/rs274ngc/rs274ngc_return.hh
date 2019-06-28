@@ -69,6 +69,11 @@
 #define NCE_CANNOT_USE_TWO_G_CODES_THAT_BOTH_USE_AXIS_VALUES _("Cannot use two g codes that both use axis values")
 #define NCE_COMMAND_TOO_LONG _("Command too long")
 #define NCE_CURRENT_POINT_SAME_AS_END_POINT_OF_ARC _("Current point same as end point of arc")
+
+#define NCE_P_WORD_CONFLICTING_MEANINGS _("P word has conflicting meanings in line")
+#define NCE_Q_WORD_CONFLICTING_MEANINGS _("Q word has conflicting meanings in line")
+#define NCE_R_WORD_CONFLICTING_MEANINGS _("R word has conflicting meanings in line")
+
 #define NCE_DWELL_TIME_MISSING_WITH_G4 _("Dwell time missing with g4")
 #define NCE_DWELL_TIME_P_WORD_MISSING_WITH_G82 _("Dwell time p word missing with g82")
 #define NCE_DWELL_TIME_P_WORD_MISSING_WITH_G86 _("Dwell time p word missing with g86")
@@ -128,14 +133,26 @@
 #define NCE_PARAMETER_FILE_OUT_OF_ORDER _("Parameter file out of order")
 #define NCE_PARAMETER_NUMBER_OUT_OF_RANGE _("Parameter number out of range")
 #define NCE_PARAMETER_NUMBER_READONLY _("Parameter is readonly")
+// P word
+#define NCE_P_WORD_WITH_NO_GCODE_THAT_USES_IT _("P word with no G2 G3 G4 G10 G5 G5.2 G38.x G54.1 G64 G76 G82 G86 G88 G89 or M50 M51 M52 M53 M62 M63 M64 M65 M66 M98")
+#define NCE_P_WORD_NOT_INTEGER _("P is not an integer with M19 G2 or G3")
+#define NCE_P_WORD_INVALID_M19 _("P must be 0, 1, or 2 with M19")
+#define NCE_P_WORD_INVALID_G2_G3 _("P must be 1 or greater with G2 or G3")
+#define NCE_P_WORD_INVALID_PROBING _("If specified, P must be 0 or 1 for G38.x")
+// Q word
+#define NCE_Q_WORD_WITH_NO_GCODE_THAT_USES_IT _("Q word with no G5, G10, G64, G73, G76, G83, M19, M66, M67, M68 or user M code that uses it")
+#define NCE_Q_WORD_MISSING_WITH_G73 _("Q word missing with g73")
 #define NCE_Q_WORD_MISSING_WITH_G83 _("Q word missing with g83")
 #define NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING _("Queue is not empty after probing")
+// R word
 #define NCE_R_CLEARANCE_PLANE_UNSPECIFIED_IN_CYCLE _("R clearance plane unspecified in cycle")
 #define NCE_R_I_J_K_WORDS_ALL_MISSING_FOR_ARC _("R i j k words all missing for arc")
 #define NCE_R_LESS_THAN_X_IN_CYCLE_IN_YZ_PLANE _("R less than x in cycle in yz plane")
 #define NCE_R_LESS_THAN_Y_IN_CYCLE_IN_XZ_PLANE _("R less than y in cycle in xz plane")
 #define NCE_R_LESS_THAN_Z_IN_CYCLE_IN_XY_PLANE _("R less than z in cycle in xy plane")
 #define NCE_R_WORD_WITH_NO_G_CODE_THAT_USES_IT _("R word with no g code that uses it")
+#define NCE_R_VALUE_OUT_OF_RANGE_M19 _("R value must be within 0..360 with M19")
+
 #define NCE_SLASH_MISSING_AFTER_FIRST_ATAN_ARGUMENT _("Slash missing after first atan argument")
 #define NCE_SPINDLE_NOT_TURNING_CLOCKWISE_IN_G84 _("Spindle not turning clockwise in g84")
 #define NCE_SPINDLE_NOT_TURNING_IN_G86 _("Spindle not turning in g86")
@@ -208,7 +225,6 @@
 #define NCE_ZERO_TIMEOUT_WITH_WAIT_NOT_IMMEDIATE _("Zero timeout with wait type != immediate return")
 #define NCE_BOTH_DIGITAL_AND_ANALOG_INPUT_SELECTED _("Invalid to select both a digital and an analog input with M66")
 #define NCE_INVALID_OR_MISSING_P_AND_E_WORDS_FOR_WAIT_INPUT _("Need to have either a valid P or a valid E word with M66")
-#define NCE_Q_WORD_MISSING_WITH_G73 _("Q word missing with g73")
 #define NCE_DIGITAL_INPUT_INVALID_ON_M66 _("Digital input selected out of bounds")
 #define NCE_ANALOG_INPUT_INVALID_ON_M66 _("Analog input selected out of bounds")
 #define NCE_W_VALUE_UNSPECIFIED_IN_UV_PLANE_CANNED_CYCLE _("W value unspecified in UV plane canned cycle")
