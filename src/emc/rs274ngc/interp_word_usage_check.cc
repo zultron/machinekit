@@ -85,6 +85,9 @@ WordUsageStatus is_p_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_mo
         break;
     }
 
+    if (m_modes[M_MODE_SPINDLE] == 19) {
+        active_p[P_ORIENT_DIRECTION] = true;
+    }
     switch (m_modes[M_MODE_FEED_SPEED_OVERRIDE])
     {
     case 50:
