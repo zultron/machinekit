@@ -75,7 +75,7 @@ static  parameters_array parameters_wrapper ( Interp & inst) {
 }
 
 static  tool_table_array tool_table_wrapper ( Interp & inst) {
-    return tool_table_array(inst._setup.tool_table);
+    return tool_table_array(inst._setup.tool_table.data());
 }
 
 static  sub_context_array sub_context_wrapper ( Interp & inst) {

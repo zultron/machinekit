@@ -98,7 +98,7 @@ setup_struct::setup_struct() :
     stack_line{},
     stack_index(0),
     pockets_max(0),
-    tool_table{},
+    tool_table(),
     traverse_rate (0.0),
     orient_offset (0.0),
 
@@ -154,6 +154,7 @@ setup_struct::setup_struct() :
 
 {
   std::fill(parameters, parameters + interp_param_global::RS274NGC_MAX_PARAMETERS, 0);
+  tool_table.fill(CANON_TOOL_TABLE());
 
   // Prevent unnecessary reallocations
   new_parameters.reserve(MAX_NAMED_PARAMETERS);
