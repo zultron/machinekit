@@ -68,6 +68,7 @@ typedef enum {
 #ifdef __cplusplus
 #include <array>
 
+// Has to be int because CMS can't handle enums currently...
 typedef std::array<int, ACTIVE_G_CODES> ActiveGCodeArray;
 typedef std::array<int, ACTIVE_M_CODES> ActiveMCodeArray;
 typedef std::array<double, ACTIVE_SETTINGS> ActiveSettingsArray;
