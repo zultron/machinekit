@@ -1,7 +1,7 @@
 #include "interp_testing_util.hh"
 
 
-int print_interp_error(Interp & interp, int retval)
+int print_interp_error(Interp & interp, int retval, const char* src_file, int line)
 {
     int index = 0;
     if (retval == 0) {
@@ -23,12 +23,20 @@ int print_interp_error(Interp & interp, int retval)
             }
             fprintf(stderr,"%s:%d: from: %s\n", interp._setup.stack_file[index], interp._setup.stack_line[index], interp_stack_buf);
         }
+        if (line > 0) {
+            fprintf(stderr,"%s:%d: from G-code: %s\n", src_file, line, interp._setup.blocktext);
+        }
         fprintf(stderr,"\n");
     }
     return retval;
 }
 
+int execute_(Interp & interp, const char * cmd, const char * src_file, int line)
+{
+    return print_interp_error(interp, interp.execute(cmd), src_file, line);
+}
+
 int execute(Interp & interp, const char * cmd)
 {
-    return print_interp_error(interp, interp.execute(cmd));
+    return execute_(interp, cmd, "", -1);
 }

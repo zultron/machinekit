@@ -1,9 +1,12 @@
 #include "catch.hpp"
 
+using Catch::Matchers::Contains;
+
 #include <interp_testing_util.hh> // For core interp stuff and extra REQUIRE macros/ setup
 #include <rs274ngc_interp.hh>
 #include <interp_inspection.hh>
 #include <interp_return.hh>
+#include <rs274ngc_return.hh>
 
 #include <interp_parameter_def.hh>
 using namespace interp_param_global;
@@ -103,4 +106,48 @@ SCENARIO("Movement commands")
       REQUIRE_FUZZ(eblock.r_number, 1);
     }
   }
+}
+
+SCENARIO("Conflicting meanings for G-code words")
+{
+    DECL_INIT_TEST_INTERP();
+    GIVEN("A default interpreter")
+    {
+        REQUIRE_INTERP_EXEC_OK(test_interp, "G90 G20");
+        REQUIRE_INTERP_EXEC_OK(test_interp, "G0 X0 Y0 Z0");
+        REQUIRE_INTERP_EXEC_OK(test_interp, "G91.1 F1");
+        THEN("G2 and G3 are not compatible with G4 due to P words") {
+            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G4 G2 X1 R1 F1 P1");
+            REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
+            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G4 G3 X1 R1 F1 P1");
+            REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
+        }
+        THEN("G4 and G64 are not compatible (P word)") {
+            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G4 G64 P2");
+            REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
+        }
+        THEN("G10 and G64 are not compatible (P word)") {
+            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G10 L2 G64 P2 X2");
+            REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
+        }
+        THEN("G64 and G82 are not compatible (P word)") {
+            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G64 G82 X2 Z-1 R1 P2");
+            REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
+        }
+        THEN("G64 and G82 are not compatible (P word)") {
+            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G4 M100 P2 Q1 R4");
+            REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
+        }
+    }
+}
+
+SCENARIO("Multiple G-codes can't use the same axis words")
+{
+    DECL_INIT_TEST_INTERP();
+    GIVEN("A default interpreter")
+    {
+        THEN("G10 and G82 are not compatible (P word)") {
+            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G10 L2 G82 X2 Z-1 R1 P2");
+        }
+    }
 }

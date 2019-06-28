@@ -10,6 +10,8 @@
 using Catch::Matchers::WithinAbs;
 #define INTERP_FUZZ 1e-10
 
+#define INTERP_EXECUTE(interp__, cmd__) execute_(interp__, cmd__, __FILE__, __LINE__)
+
 #define REQUIRE_FUZZ(got, expected) REQUIRE_THAT(got, WithinAbs(expected, INTERP_FUZZ))
 #define CHECK_FUZZ(got, expected) CHECK_THAT(got, WithinAbs(expected, INTERP_FUZZ))
 
@@ -17,11 +19,15 @@ using Catch::Matchers::WithinAbs;
 #define REQUIRE_INTERP_ERROR(val) REQUIRE(val >= INTERP_MIN_ERROR)
 #define CHECK_INTERP_ERROR(val) CHECK(val >= INTERP_MIN_ERROR)
 
+#define REQUIRE_INTERP_EXEC_OK(i, cmd) REQUIRE_INTERP_OK(INTERP_EXECUTE(i, cmd))
+#define REQUIRE_INTERP_EXEC_ERROR(i, cmd) REQUIRE_INTERP_ERROR(INTERP_EXECUTE(i, cmd))
+
 extern InterpBase *pinterp;
 extern int emc_debug;
 
 int print_interp_error(Interp &interp, int retval);
 
+int execute_(Interp &interp, const char *cmd, const char *src_file, int line);
 int execute(Interp &interp, const char *cmd);
 
 template <size_t N>
