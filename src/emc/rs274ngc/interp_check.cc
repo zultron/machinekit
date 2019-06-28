@@ -313,9 +313,7 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
          (block->g_modes[GM_CUTTER_COMP] != G_42) && (block->g_modes[GM_CUTTER_COMP] != G_42_1) &&
      (block->m_modes[M_MODE_IO] != 66) &&
 	 (block->o_type != M_98)  // m98 repeat
-	 ),
-         _("L word with no G10, cutter compensation, canned cycle, "
-	   "digital/analog input, M98 or NURBS code"));
+     ), NCE_L_WORD_WITH_NO_GCODES);
   }
 
   if (block->p_flag) {

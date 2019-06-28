@@ -133,6 +133,8 @@
 #define NCE_PARAMETER_FILE_OUT_OF_ORDER _("Parameter file out of order")
 #define NCE_PARAMETER_NUMBER_OUT_OF_RANGE _("Parameter number out of range")
 #define NCE_PARAMETER_NUMBER_READONLY _("Parameter is readonly")
+// L word
+#define NCE_L_WORD_WITH_NO_GCODES _("L word with no G10, cutter compensation, canned cycle, digital/analog input, M98 or NURBS code")
 // P word
 #define NCE_P_WORD_WITH_NO_GCODE_THAT_USES_IT _("P word with no G2 G3 G4 G10 G5 G5.2 G38.x G54.1 G64 G76 G82 G86 G88 G89 or M50 M51 M52 M53 M62 M63 M64 M65 M66 M98")
 #define NCE_P_WORD_NOT_INTEGER _("P is not an integer with M19 G2 or G3")
