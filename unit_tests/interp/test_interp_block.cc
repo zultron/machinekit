@@ -122,6 +122,12 @@ SCENARIO("Conflicting meanings for G-code words")
             REQUIRE_INTERP_EXEC_ERROR(test_interp, "G4 G3 X1 R1 F1 P1");
             REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
         }
+        THEN("G64 and G2/G3 are not compatible") {
+            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G64 G2 X1 R1 F1 P1");
+            REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
+            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G64 G3 X1 R1 F1 P1");
+            REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
+        }
         THEN("G4 and G64 are not compatible (P word)") {
             REQUIRE_INTERP_EXEC_ERROR(test_interp, "G4 G64 P2");
             REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
