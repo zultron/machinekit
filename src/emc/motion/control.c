@@ -21,6 +21,7 @@
 #include "mot_priv.h"
 #include "rtapi_math.h"
 #include "tp.h"
+#include "blendmath.h"
 #include "tc.h"
 #include "motion_debug.h"
 #include "config.h"
@@ -1860,6 +1861,27 @@ static void compute_screw_comp(void)
     }
 }
 
+static double scaled_spindle_cmd_velocity_rpm(spindle_cmd_status const *spindle_cmd,
+                                       double net_spindle_scale,
+                                       EmcPose const *carte_pos_cmd)
+{
+    if(spindle_cmd->css_factor) {
+        // Spindle speed proportional to X distance
+        double denom = fabs(spindle_cmd->xoffset - carte_pos_cmd->tran.x);
+        // cut off at maximumminum
+        double speed = denom > 0 ? spindle_cmd->css_factor / denom : spindle_cmd->velocity_rpm_out;
+        speed *= net_spindle_scale;
+
+        // cap speed to G96 D...
+        double maxpositive= fabs(spindle_cmd->velocity_rpm_out);
+        sat_inplace(&speed, maxpositive);
+
+        return speed;
+    } else {
+        return spindle_cmd->velocity_rpm_out * net_spindle_scale;
+    }
+}
+
 /*! \todo FIXME - once the HAL refactor is done so that metadata isn't stored
    in shared memory, I want to seriously consider moving some of the
    structures into the HAL memory block.  This will eliminate most of
@@ -1881,28 +1903,11 @@ static void output_to_hal(void)
     *(emcmot_hal_data->teleop_mode) = GET_MOTION_TELEOP_FLAG();
     *(emcmot_hal_data->coord_error) = GET_MOTION_ERROR_FLAG();
     *(emcmot_hal_data->on_soft_limit) = emcmotStatus->on_soft_limit;
-    if(emcmotStatus->spindle_cmd.css_factor) {
-	double denom = fabs(emcmotStatus->spindle_cmd.xoffset - emcmotStatus->carte_pos_cmd.tran.x);
-	double speed;
-        double maxpositive;
-        if(denom > 0) speed = emcmotStatus->spindle_cmd.css_factor / denom;
-    else speed = emcmotStatus->spindle_cmd.velocity_rpm_out;
+    *(emcmot_hal_data->spindle_speed_out) = scaled_spindle_cmd_velocity_rpm(&emcmotStatus->spindle_cmd,
+                                                    emcmotStatus->net_spindle_scale,
+                                                    &emcmotStatus->carte_pos_cmd);
+    *(emcmot_hal_data->spindle_speed_out_rps) = *(emcmot_hal_data->spindle_speed_out) / 60.0;
 
-	speed = speed * emcmotStatus->net_spindle_scale;
-
-        maxpositive = fabs(emcmotStatus->spindle_cmd.velocity_rpm_out);
-        // cap speed to G96 D...
-        if(speed < -maxpositive)
-            speed = -maxpositive;
-        if(speed > maxpositive)
-            speed = maxpositive;
-
-	*(emcmot_hal_data->spindle_speed_out) = speed;
-	*(emcmot_hal_data->spindle_speed_out_rps) = speed/60.;
-    } else {
-    *(emcmot_hal_data->spindle_speed_out) = emcmotStatus->spindle_cmd.velocity_rpm_out * emcmotStatus->net_spindle_scale;
-    *(emcmot_hal_data->spindle_speed_out_rps) = emcmotStatus->spindle_cmd.velocity_rpm_out * emcmotStatus->net_spindle_scale / 60.;
-    }
 	*(emcmot_hal_data->spindle_speed_out_abs) = fabs(*(emcmot_hal_data->spindle_speed_out));
 	*(emcmot_hal_data->spindle_speed_out_rps_abs) = fabs(*(emcmot_hal_data->spindle_speed_out_rps));
     *(emcmot_hal_data->spindle_speed_cmd_rps) = emcmotStatus->spindle_cmd.velocity_rpm_out / 60.;
