@@ -1882,19 +1882,34 @@ static double scaled_spindle_cmd_velocity_rpm(spindle_cmd_status const *spindle_
     }
 }
 
+/** Handshake between emcmotStatus and HAL to do index-seek enable. */
+void do_spindle_encoder_handshake(int* const fb_index_enable, hal_bit_t * const hal_spindle_index_enable)
+{
+    static int old_motion_index=0, old_hal_index=0;
+
+    if(*fb_index_enable && !old_motion_index) {
+        *hal_spindle_index_enable = 1;
+    }
+
+    if(!*hal_spindle_index_enable && old_hal_index) {
+        *fb_index_enable = 0;
+    }
+
+    old_motion_index = *fb_index_enable;
+    old_hal_index = *hal_spindle_index_enable;
+}
+
 /*! \todo FIXME - once the HAL refactor is done so that metadata isn't stored
    in shared memory, I want to seriously consider moving some of the
    structures into the HAL memory block.  This will eliminate most of
    this useless copying, and make nearly everything accessible to
    halscope and halmeter for debugging.
 */
-
 static void output_to_hal(void)
 {
-    int joint_num;
-    emcmot_joint_t *joint;
-    joint_hal_t *joint_data;
-    static int old_motion_index=0, old_hal_index=0;
+    int joint_num = 0;
+    emcmot_joint_t *joint = NULL;
+    joint_hal_t *joint_data = NULL;
 
     /* output machine info to HAL for scoping, etc */
     *(emcmot_hal_data->motion_enabled) = GET_MOTION_ENABLE_FLAG();
@@ -1922,6 +1937,10 @@ static void output_to_hal(void)
     *(emcmot_hal_data->rigid_tap_state) = emcmotStatus->rigid_tap_state;
     *(emcmot_hal_data->rigid_tap_overshoot) = emcmotStatus->rigid_tap_overshoot;
     *(emcmot_hal_data->rigid_tap_reversal_vel_rps) = emcmotStatus->rigid_tap_reversal_vel_rps;
+
+    /* two way handshaking for the spindle encoder */
+    do_spindle_encoder_handshake(&emcmotStatus->spindle_fb.index_enable,
+                                 emcmot_hal_data->spindle_index_enable);
 
     *(emcmot_hal_data->program_line) = emcmotStatus->id;
     *(emcmot_hal_data->motion_type) = emcmotStatus->motionType;
@@ -1969,18 +1988,6 @@ static void output_to_hal(void)
     emcmot_hal_data->debug_float_3 = emcmotStatus->net_spindle_scale;
     emcmot_hal_data->debug_s32_0 = emcmotStatus->overrideLimitMask;
     emcmot_hal_data->debug_s32_1 = emcmotStatus->tcqlen;
-
-    /* two way handshaking for the spindle encoder */
-    if(emcmotStatus->spindle_fb.index_enable && !old_motion_index) {
-        *emcmot_hal_data->spindle_index_enable = 1;
-    }
-
-    if(!*emcmot_hal_data->spindle_index_enable && old_hal_index) {
-        emcmotStatus->spindle_fb.index_enable = 0;
-    }
-
-    old_motion_index = emcmotStatus->spindle_fb.index_enable;
-    old_hal_index = *emcmot_hal_data->spindle_index_enable;
 
     *(emcmot_hal_data->tooloffset_x) = emcmotStatus->tool_offset.tran.x;
     *(emcmot_hal_data->tooloffset_y) = emcmotStatus->tool_offset.tran.y;
