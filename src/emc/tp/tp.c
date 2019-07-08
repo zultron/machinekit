@@ -1336,8 +1336,11 @@ int handlePrevTermCondition(TC_STRUCT *prev_tc, TC_STRUCT *tc)
 
     switch (tc->motion_type) {
     case TC_RIGIDTAP:
+        if (prev_tc && prev_tc->motion_type != TC_RIGIDTAP) {
+            tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
+        }
+        // Rigidtap motions are always exact-path to allow pecking
         tcSetTermCond(tc, NULL, TC_TERM_COND_EXACT);
-        tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
         break;
     case TC_LINEAR:
     case TC_CIRCULAR:
@@ -2422,7 +2425,8 @@ static inline void reverseRigidTapMotion(TC_STRUCT * const tc,
  */
 void tpUpdateRigidTapState(
     TP_STRUCT * const tp,
-    TC_STRUCT * const tc)
+    TC_STRUCT * const tc,
+    TC_STRUCT * const nexttc)
 {
     static double old_spindle_pos = 0.0;
     double spindle_pos = emcmotStatus->spindle_fb.position_rev;
@@ -2464,10 +2468,13 @@ void tpUpdateRigidTapState(
             if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
                 reverseRigidTapMotion(tc, &tp->spindle.origin, spindle_pos);
                 tc->coords.rigidtap.state = RIGIDTAP_FINAL_PLACEMENT;
-
-                // Cancel synchronized motion and return to start position at rapid speed
-                tc->synchronized = TC_SYNC_NONE;
-                tc->target_vel = tc->maxvel_geom;
+                if (!nexttc
+                        || nexttc->motion_type != TC_RIGIDTAP
+                        || tc->term_cond != TC_TERM_COND_TANGENT) {
+                    // Stop synchronized motion if not peck tapping
+                    tc->synchronized = 0;
+                    tc->target_vel = tc->maxvel_geom;
+                }
             }
             break;
         case RIGIDTAP_FINAL_PLACEMENT:
@@ -3521,7 +3528,7 @@ int tpRunCycleInternal(TP_STRUCT * const tp)
 
     // Preprocess rigid tap move (handles threading direction reversals)
     if (tc->motion_type == TC_RIGIDTAP) {
-        tpUpdateRigidTapState(tp, tc);
+        tpUpdateRigidTapState(tp, tc, nexttc);
     }
 
     // If synchronized with spindle, calculate requested velocity to track spindle motion

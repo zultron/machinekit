@@ -107,8 +107,10 @@ int tpCalculateRampAccel(TP_STRUCT const * const tp,
                          double * const acc,
                          double * const vel_desired);
 
-void tpUpdateRigidTapState(TP_STRUCT * const tp,
-                           TC_STRUCT * const tc);
+void tpUpdateRigidTapState(
+    TP_STRUCT * const tp,
+    TC_STRUCT * const tc,
+    TC_STRUCT * const nexttc);
 
 int tpUpdateMovementStatus(TP_STRUCT * const tp,
                            TC_STRUCT const * const tc,
