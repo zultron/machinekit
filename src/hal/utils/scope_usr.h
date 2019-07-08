@@ -38,6 +38,7 @@
 
 /* import the shared declarations */
 #include "scope_shm.h"
+#include <gtk/gtk.h>
 
 /***********************************************************************
 *                         TYPEDEFS AND DEFINES                         *
@@ -270,6 +271,8 @@ void write_vert_config(FILE *fp);
 void write_trig_config(FILE *fp);
 void write_log_file (char *filename);
 void write_sample(FILE *fp, char *label, scope_data_t *dptr, hal_type_t type);
+void write_sample_csv(FILE *fp, scope_data_t *dptr, hal_type_t type);
+void write_column_headers(FILE *fp, char *label, scope_data_t *dptr, hal_type_t type);
 
 /* the following functions set various parameters, they are normally
    called by the GUI, but can also be called by code reading a file
