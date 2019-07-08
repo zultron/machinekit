@@ -1762,6 +1762,9 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
         tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
         tcSetKinkProperties(prev_tc, tc, v_max_tangent, acc_scale_max);
         return TC_INTERSECT_TANGENT;
+    } else if (tc->term_cond == TC_TERM_COND_EXACT){
+        tp_debug_print(" Corner too sharp for exact-path, forcing exact stop ");
+        return TC_INTERSECT_INCOMPATIBLE;
     }
 
     tcSetKinkProperties(prev_tc, tc, v_max_tangent * kink_ratio / acc_scale_max, kink_ratio);
