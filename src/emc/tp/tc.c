@@ -154,7 +154,7 @@ int tcGetStartAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const ou
     switch (tc->motion_type) {
         case TC_LINEAR:
         case TC_RIGIDTAP:
-            *out=tc->coords.line.xyz.uVec;
+            *out = tc->coords.rigidtap.nominal_xyz.uVec;
             break;
         case TC_CIRCULAR:
             tcCircleStartAccelUnitVector(tc,out);
@@ -178,7 +178,8 @@ int tcGetEndAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out)
         *out = tc->coords.line.xyz.uVec;
         return 0;
     case TC_RIGIDTAP:
-        return pmCartScalMult(&tc->coords.line.xyz.uVec, -1.0, out);
+        *out = tc->coords.rigidtap.nominal_xyz.uVec;
+        return 0;
     case TC_CIRCULAR:
         return tcCircleEndAccelUnitVector(tc,out);
     case TC_SPHERICAL:
@@ -276,7 +277,7 @@ int tcGetStartTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const 
             *out=tc->coords.line.xyz.uVec;
             return 0;
         case TC_RIGIDTAP:
-            *out=tc->coords.rigidtap.xyz.uVec;
+            *out = tc->coords.rigidtap.nominal_xyz.uVec;
             return 0;
         case TC_CIRCULAR:
             return pmCircleTangentVector(&tc->coords.circle.xyz, 0.0, out);
@@ -298,7 +299,7 @@ int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const ou
             return 0;
         case TC_RIGIDTAP:
             // Final placement move goes back to the start point in the same direction
-            *out = tc->coords.rigidtap.xyz.uVec;
+            *out = tc->coords.rigidtap.nominal_xyz.uVec;
             return 0;
         case TC_CIRCULAR:
             return pmCircleTangentVector(&tc->coords.circle.xyz,
@@ -317,7 +318,7 @@ int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmCartes
             *out = tc->coords.line.xyz.uVec;
             return TP_ERR_OK;
         case TC_RIGIDTAP:
-            *out = tc->coords.rigidtap.xyz.uVec;
+            *out = tc->coords.rigidtap.nominal_xyz.uVec;
             return TP_ERR_OK;
         case TC_CIRCULAR:
         {
@@ -367,7 +368,7 @@ int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const pos)
 
     switch (tc->motion_type){
         case TC_RIGIDTAP:
-            xyz = tc->coords.rigidtap.xyz.start;
+            xyz = tc->coords.rigidtap.nominal_xyz.start;
             abc = tc->coords.rigidtap.abc;
             uvw = tc->coords.rigidtap.uvw;
             break;
@@ -412,11 +413,7 @@ int tcGetPosReal(TC_STRUCT const * const tc, double progress, EmcPose * const po
 
     switch (tc->motion_type){
         case TC_RIGIDTAP:
-            if(tc->coords.rigidtap.state > RIGIDTAP_REVERSING) {
-                pmCartLinePoint(&tc->coords.rigidtap.aux_xyz, progress, &xyz);
-            } else {
-                pmCartLinePoint(&tc->coords.rigidtap.xyz, progress, &xyz);
-            }
+            pmCartLinePoint(&tc->coords.rigidtap.actual_xyz, progress, &xyz);
             // no rotary move allowed while tapping
             abc = tc->coords.rigidtap.abc;
             uvw = tc->coords.rigidtap.uvw;
@@ -797,17 +794,18 @@ int pmRigidTapInit(PmRigidTap * const tap,
     emcPoseGetXYZ(end, &end_xyz);
 
     // Setup XYZ motion
-    pmCartLineInit(&tap->xyz, &start_xyz, &end_xyz);
+    pmCartLineInit(&tap->nominal_xyz, &start_xyz, &end_xyz);
+    tap->actual_xyz = tap->nominal_xyz;
 
     // Copy over fixed ABC and UVW points
     tap->abc = abc;
     tap->uvw = uvw;
 
     // Setup initial tap state
-    tap->reversal_target = tap->xyz.tmag;
+    tap->reversal_target = tap->nominal_xyz.tmag;
     tap->state = RIGIDTAP_TAPPING;
-    return TP_ERR_OK;
 
+    return TP_ERR_OK;
 }
 
 /** Returns true if segment has ONLY rotary motion, false otherwise. */
