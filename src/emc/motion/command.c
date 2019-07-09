@@ -398,6 +398,19 @@ STATIC int is_feed_type(int motion_type)
   emcmotCommandHandler() is called each main cycle to read the
   shared memory buffer
   */
+char doSpindleAtSpeedHandshake()
+{
+    char issue_atspeed = 0;
+    if(emcmotStatus->atspeed_next_feed && is_feed_type(emcmotCommand->motion_type) ) {
+        issue_atspeed = 1;
+        emcmotStatus->atspeed_next_feed = 0;
+    }
+    if(!is_feed_type(emcmotCommand->motion_type) && emcmotStatus->spindle_cmd.css_factor) {
+        emcmotStatus->atspeed_next_feed = 1;
+    }
+    return issue_atspeed;
+}
+
 void emcmotCommandHandler(void *arg, long period)
 {
     int joint_num;
@@ -926,13 +939,7 @@ check_stuff ( "before command_handler()" );
 		SET_MOTION_ERROR_FLAG(1);
 		break;
 	    }
-            if(emcmotStatus->atspeed_next_feed && is_feed_type(emcmotCommand->motion_type) ) {
-                issue_atspeed = 1;
-                emcmotStatus->atspeed_next_feed = 0;
-            }
-            if(!is_feed_type(emcmotCommand->motion_type) && emcmotStatus->spindle_cmd.css_factor) {
-                emcmotStatus->atspeed_next_feed = 1;
-            }
+            issue_atspeed = doSpindleAtSpeedHandshake();
 	    /* append it to the emcmotDebug->tp */
 	    tpSetId(&emcmotDebug->tp, emcmotCommand->id);
         int res_addline = tpAddLine(&emcmotDebug->tp, emcmotCommand->pos, emcmotCommand->motion_type, 
@@ -988,10 +995,7 @@ check_stuff ( "before command_handler()" );
 		SET_MOTION_ERROR_FLAG(1);
 		break;
 	    }
-            if(emcmotStatus->atspeed_next_feed) {
-                issue_atspeed = 1;
-                emcmotStatus->atspeed_next_feed = 0;
-            }
+            issue_atspeed = doSpindleAtSpeedHandshake();
 	    /* append it to the emcmotDebug->tp */
 	    tpSetId(&emcmotDebug->tp, emcmotCommand->id);
 	    int res_addcircle = tpAddCircle(&emcmotDebug->tp, emcmotCommand->pos,
