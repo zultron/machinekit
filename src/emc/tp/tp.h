@@ -47,17 +47,18 @@ int tpAddRigidTap(TP_STRUCT * const tp,
         unsigned char enables,
         struct state_tag_t tag);
 
-int tpAddLine(TP_STRUCT * const tp,
-        EmcPose end,
-        int canon_motion_type,
-        double vel,
-        double ini_maxvel,
-        double acc,
-        unsigned char enables,
-        char atspeed,
-        int indexrotary,
-        int pure_angular,
-        struct state_tag_t tag);
+int tpAddLine(
+    TP_STRUCT * const tp,
+    EmcPose end,
+    int canon_motion_type,
+    double vel,
+    double ini_maxvel,
+    double acc,
+    unsigned char enables,
+    char atspeed,
+    int indexrotary,
+    int pure_angular,
+    struct state_tag_t tag);
 
 int tpAddCircle(TP_STRUCT * const tp,
         EmcPose end,

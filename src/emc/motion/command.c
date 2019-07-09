@@ -385,13 +385,13 @@ STATIC int is_feed_type(int motion_type)
     case EMC_MOTION_TYPE_FEED:
     case EMC_MOTION_TYPE_PROBING:
         return 1;
-    default:
-        rtapi_print_msg(RTAPI_MSG_ERR, "Internal error: unhandled motion type %d\n", motion_type);
     case EMC_MOTION_TYPE_TOOLCHANGE:
     case EMC_MOTION_TYPE_TRAVERSE:
     case EMC_MOTION_TYPE_INDEXROTARY:
         return 0;
     }
+    rtapi_print_msg(RTAPI_MSG_ERR, "Internal error: unhandled motion type %d\n", motion_type);
+    return 1;
 }
 
 /*
@@ -409,6 +409,30 @@ char doSpindleAtSpeedHandshake()
         emcmotStatus->atspeed_next_feed = 1;
     }
     return issue_atspeed;
+}
+
+tp_err_t addSegmentOrReportError(tp_err_t res_add, int issue_atspeed, const char *move_type)
+{
+    SET_MOTION_ERROR_FLAG(0);
+    if (res_add < 0) {
+        reportError(_("can't add %s at line %d, error code %d"),
+                    move_type,
+                    emcmotCommand->id,
+                    res_add);
+        emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
+        tpAbort(&emcmotDebug->tp);
+        SET_MOTION_ERROR_FLAG(1);
+    } else if (res_add > 0) {
+        if (issue_atspeed) {
+            emcmotStatus->atspeed_next_feed = 1;
+        }
+    } else {
+        /* set flag that indicates all joints need rehoming, if any joint is
+         * moved in joint mode, for machines with no forward kinematics */
+        rehomeAll = 1;
+        do_firstmove_step(&emcmotCommand->tag);
+    }
+    return res_add;
 }
 
 void emcmotCommandHandler(void *arg, long period)
@@ -940,37 +964,21 @@ check_stuff ( "before command_handler()" );
 		break;
 	    }
             issue_atspeed = doSpindleAtSpeedHandshake();
-	    /* append it to the emcmotDebug->tp */
-	    tpSetId(&emcmotDebug->tp, emcmotCommand->id);
-        int res_addline = tpAddLine(&emcmotDebug->tp, emcmotCommand->pos, emcmotCommand->motion_type, 
-                                emcmotCommand->vel, emcmotCommand->ini_maxvel, 
-                                emcmotCommand->acc, emcmotStatus->enables_new, issue_atspeed,
-                                emcmotCommand->turn,
-                                emcmotCommand->pure_angular,
-                                emcmotCommand->tag);
-        //KLUDGE ignore zero length line
-        if (res_addline < 0) {
-            reportError(_("can't add linear move at line %d, error code %d"),
-                    emcmotCommand->id, res_addline);
-            emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
-            tpAbort(&emcmotDebug->tp);
-            SET_MOTION_ERROR_FLAG(1);
-            break;
-        } else if (res_addline != 0) {
-            //TODO make this hand-shake more explicit
-            //KLUDGE Non fatal error, need to restore state so that the next
-            //line properly handles at_speed
-            if (issue_atspeed) {
-                emcmotStatus->atspeed_next_feed = 1;
-            }
-        } else {
-        do_firstmove_step(&emcmotCommand->tag);
-		SET_MOTION_ERROR_FLAG(0);
-		/* set flag that indicates all joints need rehoming, if any
-		   joint is moved in joint mode, for machines with no forward
-		   kins */
-		rehomeAll = 1;
-	    }
+            /* append it to the emcmotDebug->tp */
+            tpSetId(&emcmotDebug->tp, emcmotCommand->id);
+            int res_addline = tpAddLine(
+                &emcmotDebug->tp,
+                emcmotCommand->pos,
+                emcmotCommand->motion_type,
+                emcmotCommand->vel,
+                emcmotCommand->ini_maxvel,
+                emcmotCommand->acc,
+                emcmotStatus->enables_new,
+                issue_atspeed,
+                emcmotCommand->turn,
+                emcmotCommand->pure_angular,
+                emcmotCommand->tag);
+            addSegmentOrReportError(res_addline, issue_atspeed, "linear");
 	    break;
 
 	case EMCMOT_SET_CIRCLE:
@@ -1005,29 +1013,7 @@ check_stuff ( "before command_handler()" );
                 emcmotCommand->acc, emcmotCommand->acc_normal,
                 emcmotStatus->enables_new, issue_atspeed,
                 emcmotCommand->tag);
-        if (res_addcircle < 0) {
-            reportError(_("can't add circular move at line %d, error code %d"),
-                    emcmotCommand->id, res_addcircle);
-		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
-		tpAbort(&emcmotDebug->tp);
-		SET_MOTION_ERROR_FLAG(1);
-		break;
-        } else if (res_addcircle != 0) {
-            //FIXME! This is a band-aid for a single issue, but there may be
-            //other consequences of non-fatal errors from AddXXX functions. We
-            //either need to fix the root cause (subtle position error after
-            //homing), or have a full restore here.
-            if (issue_atspeed) {
-                emcmotStatus->atspeed_next_feed = 1;
-            }
-        } else {
-		SET_MOTION_ERROR_FLAG(0);
-		/* set flag that indicates all joints need rehoming, if any
-		   joint is moved in joint mode, for machines with no forward
-		   kins */
-		rehomeAll = 1;
-        do_firstmove_step(&emcmotCommand->tag);
-	    }
+            addSegmentOrReportError(res_addcircle, issue_atspeed, "circular");
 	    break;
 
 	case EMCMOT_SET_VEL:
@@ -1453,28 +1439,26 @@ check_stuff ( "before command_handler()" );
 		}
             }
 
-	    /* append it to the emcmotDebug->tp */
-	    tpSetId(&emcmotDebug->tp, emcmotCommand->id);
-	    if (-1 == tpAddLine(&emcmotDebug->tp, emcmotCommand->pos,
-				emcmotCommand->motion_type, emcmotCommand->vel,
-				emcmotCommand->ini_maxvel, emcmotCommand->acc,
-				emcmotStatus->enables_new, 0, -1,
-				emcmotCommand->pure_angular,
-				emcmotCommand->tag)) {
-		reportError(_("can't add probe/setter move"));
-		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
-		tpAbort(&emcmotDebug->tp);
-		SET_MOTION_ERROR_FLAG(1);
-		break;
-	    } else {
-		emcmotStatus->probing = 1;
+        /* append it to the emcmotDebug->tp */
+            tpSetId(&emcmotDebug->tp, emcmotCommand->id);
+            int res_probe = tpAddLine(
+                &emcmotDebug->tp,
+                emcmotCommand->pos,
+                emcmotCommand->motion_type,
+                emcmotCommand->vel,
+                emcmotCommand->ini_maxvel,
+                emcmotCommand->acc,
+                emcmotStatus->enables_new,
+                0,
+                -1,
+                emcmotCommand->pure_angular,
+                emcmotCommand->tag);
+            if (addSegmentOrReportError(res_probe, 0, "probe/setter") == 0) {
+                emcmotStatus->probing = 1;
                 emcmotStatus->probe_type = emcmotCommand->probe_type;
-		SET_MOTION_ERROR_FLAG(0);
-		/* set flag that indicates all joints need rehoming, if any
-		   joint is moved in joint mode, for machines with no forward
-		   kins */
-		rehomeAll = 1;
-        do_firstmove_step(&emcmotCommand->tag);
+                /* set flag that indicates all joints need rehoming, if any
+           joint is moved in joint mode, for machines with no forward
+           kins */
 	    }
 	    break;
 
@@ -1511,17 +1495,7 @@ check_stuff ( "before command_handler()" );
 					   emcmotCommand->acc,
 					   emcmotStatus->enables_new,
 					   emcmotCommand->tag);
-        if (res_addtap < 0) {
-            emcmotStatus->atspeed_next_feed = 0; /* rigid tap always waits for spindle to be at-speed */
-            reportError(_("can't add rigid tap move at line %d, error code %d"),
-                    emcmotCommand->id, res_addtap);
-		tpAbort(&emcmotDebug->tp);
-		SET_MOTION_ERROR_FLAG(1);
-		break;
-	    } else {
-		SET_MOTION_ERROR_FLAG(0);
-        do_firstmove_step(&emcmotCommand->tag);
-	    }
+            addSegmentOrReportError(res_addtap, issue_atspeed, "rigid tap");
 	    break;
 
 	case EMCMOT_SET_TELEOP_VECTOR:
