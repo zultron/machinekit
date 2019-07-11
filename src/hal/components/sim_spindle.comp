@@ -12,6 +12,7 @@ param rw float scale = 1.0
 The result of '\\fBvelocity-cmd\\fP * \\fBscale\\fP' be in revolutions per second.
 For example, if \\fBvelocity-cmd\\fP is in revolutions/minute, \\fBscale\\fP should be set to 1/60 or 0.016666667.
 """;
+param rw float max-velocity = 0.0 "Maximum spindle velocity in revolutions / second";
 
 
 license "GPL";
@@ -32,7 +33,9 @@ FUNCTION(_) {
     double old_position_rev = position_fb;
     double old_velocity_rps = velocity_fb;
 
-    double cmd_velocity_rps = velocity_cmd * scale; // Scale command to internal units
+    double velocity_cmd_limited = max_velocity > 0 ? fmax(fmin(velocity_cmd, max_velocity), -max_velocity) : velocity_cmd;
+
+    double cmd_velocity_rps = velocity_cmd_limited * scale; // Scale command to internal units
 
     double cmd_delta = (cmd_velocity_rps - old_velocity_rps) * alpha;
     double actual_delta = cmd_delta;
@@ -47,7 +50,7 @@ FUNCTION(_) {
 
     if(index_enable && (floor(old_position_rev) != floor(new_position_rev))) {
         index_enable = false;
-        if(velocity_cmd < 0)
+        if(velocity_cmd_limited < 0)
             new_position_rev -= ceil(new_position_rev);
         else
             new_position_rev -= floor(new_position_rev);
