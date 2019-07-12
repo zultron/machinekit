@@ -409,6 +409,8 @@ static void process_inputs(void)
     emcmotStatus->spindle_fb.velocity_rps = *emcmot_hal_data->spindle_speed_in;
     emcmotStatus->spindle_is_atspeed = *emcmot_hal_data->spindle_is_atspeed;
     // Minimum gain is zero (no position error correction), maximum gain is 1 (correct at maximum acceleration)
+    // TODO make this permanent once we establish the best value
+    emcmotStatus->spindle_tracking_lookahead_steps = fmax(*emcmot_hal_data->debug_gain_0, 0.0);
     emcmotStatus->pos_tracking_mode = *emcmot_hal_data->pos_tracking_mode;
 
     /* compute net feed and spindle scale factors */

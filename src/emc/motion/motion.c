@@ -487,6 +487,18 @@ static int init_hal_io(void)
 	return retval;
     }
 
+    retval = hal_pin_float_new("motion.debug-gain-0", HAL_IN,
+                 &(emcmot_hal_data->debug_gain_0),
+                 mot_comp_id);
+    if (retval != 0)
+    return retval;
+
+    retval = hal_pin_float_new("motion.debug-gain-1", HAL_IN,
+                 &(emcmot_hal_data->debug_gain_1),
+                 mot_comp_id);
+    if (retval != 0)
+    return retval;
+
     retval =
 	hal_param_s32_new("motion.debug-s32-0", HAL_RO, &(emcmot_hal_data->debug_s32_0),
 	mot_comp_id);
@@ -622,6 +634,8 @@ static int init_hal_io(void)
     emcmot_hal_data->debug_float_1 = 0.0;
     emcmot_hal_data->debug_float_2 = 0.0;
     emcmot_hal_data->debug_float_3 = 0.0;
+    *emcmot_hal_data->debug_gain_0 = 2.0;
+    *emcmot_hal_data->debug_gain_1 = 0.0;
 
     emcmot_hal_data->last_period = 0;
 
