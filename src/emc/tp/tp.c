@@ -381,6 +381,12 @@ int tpClearDIOs(TP_STRUCT * const tp) {
     return TP_ERR_OK;
 }
 
+static void clearPosTrackingStatus()
+{
+    emcmotStatus->pos_tracking_error = 0;
+    emcmotStatus->pos_tracking_velocity = 0;
+}
+
 /**
  *    "Soft initialize" the trajectory planner tp.
  *    This is a "soft" initialization in that TP_STRUCT configuration
@@ -419,8 +425,7 @@ int tpClear(TP_STRUCT * const tp)
     emcmotStatus->current_vel = 0.0;
     emcmotStatus->requested_vel = 0.0;
     emcmotStatus->distance_to_go = 0.0;
-    emcmotStatus->waiting_on_spindle = 0;
-    emcmotStatus->pos_tracking_error = 0;
+    clearPosTrackingStatus();
     ZERO_EMC_POSE(emcmotStatus->dtg);
     SET_MOTION_INPOS_FLAG(1);
 
@@ -2698,8 +2703,7 @@ STATIC int tpUpdateMovementStatus(TP_STRUCT * const tp,
 
     // KLUDGE Zero out any EMC status that doesn't apply
     if (tc->synchronized != TC_SYNC_POSITION) {
-        emcmotStatus->pos_tracking_velocity = 0;
-        emcmotStatus->pos_tracking_error = 0;
+        clearPosTrackingStatus();
     }
     emcmotStatus->rigid_tap_state = tc->motion_type == TC_RIGIDTAP ? tc->coords.rigidtap.state : RIGIDTAP_INACTIVE;
 
@@ -3603,6 +3607,9 @@ STATIC int tpSteppingCheck(TP_STRUCT * const tp, TC_STRUCT * const tc, TC_STRUCT
 tp_err_t updateSyncTargets(TP_STRUCT *tp, TC_STRUCT *tc, TC_STRUCT *nexttc)
 {
     emcmotStatus->spindle_sync_state = SYNC_INACTIVE;
+    // Clear old tracking status (will be updated in the appopriate handler)
+    clearPosTrackingStatus();
+
     switch (tc->synchronized) {
         case TC_SYNC_NONE:
             emcmotStatus->spindle_fb.synced = 0;
