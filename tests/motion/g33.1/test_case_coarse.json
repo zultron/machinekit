@@ -1,0 +1,10 @@
+{
+    "spindle_speed_rps": 10.0,
+    "pitch": 0.125,
+    "z_distance": 2.0,
+    "z_axis_max_vel": 4.0,
+    "z_axis_max_accel": 50.0,
+    "servo_loop_freq": 1000.0,
+    "max_tracking_error": 0.002,
+    "max_sync_delay": 100
+}
