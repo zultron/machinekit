@@ -94,17 +94,27 @@ def check_abs_deviation(samples, constants):
     spindle_pos = samples[:, 1]
     z_axis_pos = samples[:, 4]
 
+    spindle_start = np.argwhere(spindle_pos > 0)[0].item()
+
     z_axis_nominal_feed = constants["pitch"] * constants["spindle_speed_rps"]
-    sync_offset_est = int(z_axis_nominal_feed / constants["z_axis_max_accel"] * constants["servo_loop_freq"]) + 100
+    sync_offset_expected = int(z_axis_nominal_feed / constants["z_axis_max_accel"] * constants["servo_loop_freq"])
+    sync_idx_expected = spindle_start + sync_offset_expected
     # Find when sync starts in rigid tap state
-    sync_offset = np.argwhere(samples[:, 6] == 2)[0].item()
-    start_row = np.argwhere(spindle_pos > 0)[0].item() + sync_offset
-    print >> sys.stderr, "Expected sync offset at ", sync_offset, " actual sync offset at ", sync_offset_est
-    if abs(sync_offset-sync_offset) > 100:
-        print >> sys.stderr, "Failed to sync in time"
+    sync_idx = np.argwhere(samples[:, 6] == 2)[0].item()
+
+    sync_pos = samples[sync_idx, 4]
+    endpoint = -constants["z_distance"]
+    if sync_pos < endpoint:
+        print >> sys.stderr, "Failed: position sync starts at position %f, after the endpoint %f)" % (sync_pos, endpoint)
         return True
 
-    max_abs_dev = check_tapping_accuracy(spindle_pos, z_axis_pos, start_row, constants)
+    max_sync_delay = constants.get("max_sync_delay", 1)
+    if abs(sync_idx - sync_idx_expected) > max_sync_delay:
+        print >> sys.stderr, "Failed: position sync started at %d), not within %d steps of expected (%d)" % (
+            sync_idx, max_sync_delay, sync_idx_expected)
+        return True
+
+    max_abs_dev = check_tapping_accuracy(spindle_pos, z_axis_pos, sync_idx, constants)
     print >> sys.stderr, "Got maximum position deviation: ", max_abs_dev
     return max_abs_dev > constants["max_tracking_error"] and not constants.get("expect_deviation_violation", False)
 
