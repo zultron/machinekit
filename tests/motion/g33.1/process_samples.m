@@ -9,15 +9,9 @@ for k = 1:length(sample_files)
   constants = loadjson([prefix, '.json']);
 
   z_feed_nominal = constants.spindle_speed_rps * constants.pitch;
-
-  idx = 1;
-
-  spindle_dpos=diff(d(:,2));
-  idx=find(spindle_dpos < -1,1);
-  est_sync_point = -z_feed_nominal / constants.z_axis_max_accel * 0.5;
-  idx=find(d(:,7) > 1, 1);
-  idx_end=find(d(:,2) > d(idx,2),1,'last');
-
+  
+  idx=find(d(:,7) == 2, 1, 'first');
+  idx_end=find(d(:,7) == 2,1,'last');
 
   t_sync=d(idx:idx_end, 1);
   spindle_pos = d(idx:idx_end,2);
@@ -33,7 +27,14 @@ for k = 1:length(sample_files)
   X = [ones(size(spindle_pos)) spindle_pos];
   theta = (pinv(X'*X))*X'*z_pos;
 
-  z_fit = theta(1) + theta(2)*spindle_pos;
+  if isfield(constants, 'spindle_direction') && constants.spindle_direction == 'ccw'
+    spindle_dir = -1
+  else
+    constants.spindle_direction = 'cw'
+    spindle_dir = 1
+  endif
+  
+  z_fit = theta(1) - constants.pitch * spindle_pos * spindle_dir;
 
   meas_err = z_pos-z_fit;
   motion_err = d(idx:idx_end, 6);
@@ -41,8 +42,8 @@ for k = 1:length(sample_files)
   hold on
   clf
   plot(t_sync, meas_err, t_sync, motion_err, '.');
-  title(sprintf('Spindle tracking error pitch %0.3f in, %d RPM. distance %0.3f in',...
-     constants.pitch, constants.spindle_speed_rps * 60, constants.z_distance),'interpreter','none')
+  title(sprintf('Spindle tracking error pitch %0.3f in, %d RPM. distance %0.3f in, %s',...
+     constants.pitch, constants.spindle_speed_rps * 60, constants.z_distance, constants.spindle_direction),'interpreter','none')
   xlabel('Time, ms')
   ylabel('Deviation, in')
   grid on

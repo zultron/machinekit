@@ -1,6 +1,6 @@
 # Sampler config
 
-loadrt sampler depth=2000 cfg=fffffs
+loadrt sampler depth=1600 cfg=fffffsb
 
 addf sampler.0              servo-thread
 
@@ -10,3 +10,4 @@ net Ypos => sampler.0.pin.2
 net Zpos => sampler.0.pin.3
 net pos-tracking-error motion.pos-tracking-error => sampler.0.pin.4
 net pos-tracking-state motion.pos-tracking-state => sampler.0.pin.5
+net spindle-index-enable sampler.0.pin.6

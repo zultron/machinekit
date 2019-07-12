@@ -10,6 +10,14 @@ import re
 # String helpers
 
 
+def get_spindle_direction(constants):
+    return -1.0 if 'ccw' == constants.get('spindle_direction', 'cw') else 1.0
+
+
+def get_spindle_mcode(constants):
+    return 'M4' if get_spindle_direction(constants) < 0 else 'M3'
+
+
 def get_sample_file_name(test_name):
     return 'test_case_{}.samples'.format(test_name)
 
@@ -22,17 +30,15 @@ def get_test_name_from_case_file(test_file_name):
     return None
 
 
-def load_samples_after_sync(samples_file, skip_missing=False):
+def load_test_case(test_name):
+    with open('test_case_{}.json'.format(test_name), 'r') as f:
+        return json.load(f)
+
+
+def load_samples_after_sync(samples_file):
     samples=[]
     with open(samples_file, 'r') as csvfile:
         sample_reader = csv.reader(csvfile, delimiter=' ', quoting=csv.QUOTE_NONNUMERIC)
-        start_pos_check = -1.0;
-        for row in sample_reader:
-            if start_pos_check is not None and row[1] >= start_pos_check:
-                start_pos_check = row[1] - 0.001 # Avoid drop-out due to coarse encoders
-                samples.append([0 for x in row if not isinstance(x, str)])
-                continue
-            break;
 
         for row in sample_reader:
             samples.append([x for x in row if not isinstance(x, str)])
@@ -40,14 +46,10 @@ def load_samples_after_sync(samples_file, skip_missing=False):
     return np.array(samples)
 
 
-def load_test_case(test_name):
-    with open('test_case_{}.json'.format(test_name), 'r') as f:
-        return json.load(f)
-
-
 def check_all(test_name):
-    samples = load_samples_after_sync(get_sample_file_name(test_name))
     constants = load_test_case(test_name)
+
+    samples = load_samples_after_sync(get_sample_file_name(test_name))
 
     exceeds_abs_dev = check_abs_deviation(samples, constants)
 
@@ -58,10 +60,11 @@ def check_all(test_name):
 
 
 def check_abs_deviation(samples, constants):
-    spindle_pos = samples[:, 1]
+    spindle_pos = samples[:, 1] * get_spindle_direction(constants)
     z_axis_pos = samples[:, 4]
 
-    spindle_start = np.argwhere(spindle_pos > 0)[0].item()
+    # Find the last point where index-enable is high (it's the next one
+    spindle_start = np.argwhere(samples[:, 7] == 1)[-1].item() + 1
 
     z_axis_nominal_feed = constants["pitch"] * constants["spindle_speed_rps"]
     sync_offset_expected = int(z_axis_nominal_feed / constants["z_axis_max_accel"] * constants["servo_loop_freq"])

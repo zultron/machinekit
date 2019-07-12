@@ -35,7 +35,7 @@ p_read = Popen([
 ])
 
 print >> sys.stderr, "start spindle"
-c.mdi('S%d M3' % (constants["spindle_speed_rps"]*60.))
+c.mdi('S%d %s' % (constants["spindle_speed_rps"]*60., g33_checks.get_spindle_mcode(constants)))
 c.wait_complete(10)
 print >> sys.stderr, "tap move"
 c.mdi('G33.1 Z-{} K{}'.format(constants["z_distance"], constants["pitch"]))

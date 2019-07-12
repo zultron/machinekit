@@ -3180,7 +3180,8 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         if(tc->currentvel >= target_vel) {
             tc_debug_print("Hit accel target in pos sync\n");
             // move target so as to drive pos_error to 0 next cycle
-            tp->spindle.origin.position = spindle_pos_raw;
+            // NOTE: lookahead distance is in actual spindle direction, not aligned direction used for sync calculations
+            tp->spindle.origin.position = spindle_pos_raw + emcmotStatus->spindle_fb.velocity_rps * lookahead_steps * tp->cycleTime;
             tc->progress_at_sync = tc->progress;
             tc_debug_print("Spindle offset %f\n", tp->spindle.origin.position);
             tc->sync_accel = 0;
