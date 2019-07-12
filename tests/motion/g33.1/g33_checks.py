@@ -84,6 +84,10 @@ def check_abs_deviation(samples, constants):
     # Find when sync starts in rigid tap state
     sync_offset = np.argwhere(samples[:, 6] == 2)[0].item()
     start_row = np.argwhere(spindle_pos > 0)[0].item() + sync_offset
+    print >> sys.stderr, "Expected sync offset at ", sync_offset, " actual sync offset at ", sync_offset_est
+    if abs(sync_offset-sync_offset) > 100:
+        print >> sys.stderr, "Failed to sync in time"
+        return True
 
     max_abs_dev = check_tapping_accuracy(spindle_pos, z_axis_pos, start_row, constants)
     print >> sys.stderr, "Got maximum position deviation: ", max_abs_dev
