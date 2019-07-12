@@ -22,7 +22,7 @@ def get_test_name_from_case_file(test_file_name):
     return None
 
 
-def load_samples_after_sync(samples_file):
+def load_samples_after_sync(samples_file, skip_missing=False):
     samples=[]
     with open(samples_file, 'r') as csvfile:
         sample_reader = csv.reader(csvfile, delimiter=' ', quoting=csv.QUOTE_NONNUMERIC)
@@ -38,39 +38,6 @@ def load_samples_after_sync(samples_file):
             samples.append([x for x in row if not isinstance(x, str)])
 
     return np.array(samples)
-
-
-def check_tapping_accuracy(spindle_pos, axis_pos, sync_row, constants):
-    """
-    NOTE: assumes that initial position is 0 revs and 0 axis displacement, and that the retract height is 0.
-    This ignores any data corresponding to when Z is positive.
-    Make sure to subtract away the start position before running this.
-    """
-
-    cutoff = constants["max_tracking_error"]
-    spindle_pos_with_offset = spindle_pos - spindle_pos[sync_row]
-    axis_pos_with_offset = axis_pos - axis_pos[sync_row]
-
-    spindle_pos_with_offset[0:sync_row] = 0
-    axis_pos_with_offset[0:sync_row] = 0
-
-    expected_axis_pos = np.array(spindle_pos_with_offset) * -constants["pitch"]
-    
-    trimmed_actual = np.where(expected_axis_pos <= 0, axis_pos_with_offset, 0)
-    trimmed_expected = np.where(expected_axis_pos <= 0, expected_axis_pos, 0)
-
-    abs_deviation = np.abs(trimmed_expected - trimmed_actual)
-
-    log_lines = ['id\tdev\tspindle\tactual\texpected']
-    for n, d in enumerate(zip(abs_deviation, spindle_pos_with_offset, axis_pos_with_offset, expected_axis_pos)):
-        if d[0] > cutoff:
-            log_lines.append('{}\t{:4}\t{:4}\t{:4}\t{:4}'.format(n, *d))
-
-    if len(log_lines) > 1:
-        for l in log_lines:
-            print >>sys.stderr, l
-
-    return np.max(abs_deviation)
 
 
 def load_test_case(test_name):
@@ -100,7 +67,9 @@ def check_abs_deviation(samples, constants):
     sync_offset_expected = int(z_axis_nominal_feed / constants["z_axis_max_accel"] * constants["servo_loop_freq"])
     sync_idx_expected = spindle_start + sync_offset_expected
     # Find when sync starts in rigid tap state
-    sync_idx = np.argwhere(samples[:, 6] == 2)[0].item()
+    pos_sync_active_range = np.argwhere(samples[:, 6] == 2)
+    sync_idx = pos_sync_active_range[0].item()
+    end_sync_idx = pos_sync_active_range[-1].item()
 
     sync_pos = samples[sync_idx, 4]
     endpoint = -constants["z_distance"]
@@ -114,8 +83,16 @@ def check_abs_deviation(samples, constants):
             sync_idx, max_sync_delay, sync_idx_expected)
         return True
 
-    max_abs_dev = check_tapping_accuracy(spindle_pos, z_axis_pos, sync_idx, constants)
-    print >> sys.stderr, "Got maximum position deviation: ", max_abs_dev
+    spindle_pos_active = spindle_pos[sync_idx:end_sync_idx]
+    z_axis_pos_active = z_axis_pos[sync_idx:end_sync_idx]
+
+    p = np.poly1d(np.polyfit(spindle_pos_active, z_axis_pos_active, 1))
+
+    z_axis_expected = p(spindle_pos_active)
+
+    max_abs_dev = np.max(np.abs(z_axis_expected - z_axis_pos_active))
+
+    print >> sys.stderr, "Maximum position deviation is: ", max_abs_dev
     return max_abs_dev > constants["max_tracking_error"] and not constants.get("expect_deviation_violation", False)
 
 
@@ -150,7 +127,11 @@ def find_test_cases():
 if __name__ == '__main__':
 
     for test_name in find_test_cases():
+        sf = get_sample_file_name(test_name)
         print >> sys.stderr, "Checking results of test ", test_name
+        if not os.path.exists(sf):
+            print >> sys.stderr, "No samples found for", test_name
+            continue
         exceeds_limits = check_all(test_name)
         if exceeds_limits:
             sys.exit(1)
