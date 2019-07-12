@@ -49,6 +49,8 @@
 
 //#define EMCCANON_DEBUG
 
+static constexpr double RIGID_TAP_LEADIN_SAFETY_FACTOR = 1.25;
+
 //Simple compile-time debug macro
 #ifdef EMCCANON_DEBUG
 #define canon_debug(...) fprintf(stderr,__VA_ARGS__)
@@ -1245,37 +1247,46 @@ void STRAIGHT_FEED(int line_number,
 void RIGID_TAP(int line_number, double x, double y, double z)
 {
     double ini_maxvel,acc;
-    EMC_TRAJ_RIGID_TAP rigidTapMsg;
     double unused=0;
 
     from_prog(x,y,z,unused,unused,unused,unused,unused,unused);
     rotate_and_offset_pos(x,y,z,unused,unused,unused,unused,unused,unused);
 
-    VelData veldata = getStraightVelocity(x, y, z,
-                              canonEndPoint.a, canonEndPoint.b, canonEndPoint.c, 
-                              canonEndPoint.u, canonEndPoint.v, canonEndPoint.w);
+    CANON_POSITION bottom = CANON_POSITION(x, y, z,
+                                          canonEndPoint.a, canonEndPoint.b, canonEndPoint.c,
+                                          canonEndPoint.u, canonEndPoint.v, canonEndPoint.w);
+
+    VelData veldata = getStraightVelocity(bottom);
 
     ini_maxvel = veldata.vel;
 
     limitSpindleSpeedByActiveFeedRate(ini_maxvel);
 
-    AccelData accdata = getStraightAcceleration(x, y, z,
-                                  canonEndPoint.a, canonEndPoint.b, canonEndPoint.c,
-                                  canonEndPoint.u, canonEndPoint.v, canonEndPoint.w);
+    AccelData accdata = getStraightAcceleration(bottom, 0);
     acc = accdata.acc;
-    
-    rigidTapMsg.pos = to_ext_pose(x,y,z,
-                                 canonEndPoint.a, canonEndPoint.b, canonEndPoint.c,
-                                 canonEndPoint.u, canonEndPoint.v, canonEndPoint.w);
 
-    rigidTapMsg.vel = toExtVel(ini_maxvel);
-    rigidTapMsg.ini_maxvel = toExtVel(ini_maxvel);
-    rigidTapMsg.acc = toExtAcc(acc);
 
-    flush_segments();
+    double depth = mag((bottom-canonEndPoint).xyz());
+    double safe_lead = ini_maxvel * ini_maxvel / (2.0 * acc) * RIGID_TAP_LEADIN_SAFETY_FACTOR;
 
-    if(ini_maxvel && acc)  {
-        tag_and_send(rigidTapMsg);
+    if (safe_lead > depth) {
+        CANON_ERROR("Rigid tap move at line %d is too short for spindle synchronization", line_number);
+        return;
+    }
+
+    {
+        EMC_TRAJ_RIGID_TAP rigidTapMsg;
+        rigidTapMsg.pos = to_ext_pose(bottom);
+
+        rigidTapMsg.vel = toExtVel(ini_maxvel);
+        rigidTapMsg.ini_maxvel = toExtVel(ini_maxvel);
+        rigidTapMsg.acc = toExtAcc(acc);
+
+        flush_segments();
+
+        if(ini_maxvel && acc)  {
+            tag_and_send(rigidTapMsg);
+        }
     }
 
     // don't move the endpoint because after this move, we are back where we started
