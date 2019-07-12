@@ -86,7 +86,14 @@ def check_abs_deviation(samples, constants):
     spindle_pos_active = spindle_pos[sync_idx:end_sync_idx]
     z_axis_pos_active = z_axis_pos[sync_idx:end_sync_idx]
 
-    p = np.poly1d(np.polyfit(spindle_pos_active, z_axis_pos_active, 1))
+    p_bestfit = np.polyfit(spindle_pos_active, z_axis_pos_active, 1)
+    print >> sys.stderr, "Linear fit for spindle / axis motion: ", np.poly1d(p_bestfit)
+
+    # Force the slope to match the pitch to check for effective deviation from the ideal path
+    p_from_pitch = p_bestfit
+    p_from_pitch[0] = -constants["pitch"]
+
+    p = np.poly1d(p_from_pitch)
 
     z_axis_expected = p(spindle_pos_active)
 
@@ -128,7 +135,7 @@ if __name__ == '__main__':
 
     for test_name in find_test_cases():
         sf = get_sample_file_name(test_name)
-        print >> sys.stderr, "Checking results of test ", test_name
+        print >> sys.stderr, "Checking results of test", test_name
         if not os.path.exists(sf):
             print >> sys.stderr, "No samples found for", test_name
             continue
