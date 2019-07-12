@@ -1,12 +1,12 @@
-sample_files = glob('*_samples');
+sample_files = glob('test_case_*.samples');
 
 close all
 for k = 1:length(sample_files)
   prefix = sample_files{k};
   % Poor-mans rstrip
   prefix = prefix(1:end-8)
-  d=importdata([prefix, '_samples']);
-  constants = loadjson([prefix, '_constants.json']);
+  d=importdata([prefix, '.samples']);
+  constants = loadjson([prefix, '.json']);
 
   z_feed_nominal = constants.spindle_speed_rps * constants.pitch;
 
@@ -37,10 +37,18 @@ for k = 1:length(sample_files)
 
   meas_err = z_pos-z_fit;
   motion_err = d(idx:idx_end, 6);
-  plot(t_sync, z_pos-z_fit,t_sync, motion_err, '--');
-  title(sprintf('Spindle tracking error estimates - %s', prefix),'interpreter','none')
+  
+  hold on
+  clf
+  plot(t_sync, z_pos-z_fit)
+  %plot(t_sync, motion_err, '--.');
+  title(sprintf('Spindle tracking error pitch %0.3f in, %d RPM. distance %0.3f in',...
+     constants.pitch, constants.spindle_speed_rps * 60, constants.z_distance),'interpreter','none')
   xlabel('Time, ms')
   ylabel('Deviation, in')
-  legend('deviation from linear fit','motion.pos-tracking-error')
   grid on
+  line([t_sync(1),t_sync(end)],[1 1]*constants.max_tracking_error,'Color','g','linestyle','--')
+  line([t_sync(1),t_sync(end)],[1 1]*-constants.max_tracking_error,'Color','g','linestyle','--')
+  legend('deviation from linear fit','allowed limits')
+  hold off
 end

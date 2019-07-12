@@ -1,7 +1,19 @@
-In a spindle-synched G33 move, it is possible to specify a feed per
-revolution and spindle speed that requires linear motion exceeding
-axis velocity limits.  This test sets up this kind of condition and
-measures actual pitch during the motion, failing if pitch is not
-within an epsilon value.
+G33.1 Path Accuracy Testing
 
-[1]: https://github.com/LinuxCNC/linuxcnc/issues/167
+To prove that spindle-synchronized motion is theoretically correct, we need to measure the actual output position from motion, and compare it with the spindle position as measured from a simulated encoder.
+
+The top-level test is a python file that looks for test cases in the form:
+
+test_case*.json
+
+For each case, it loads a linuxcnc instance that runs a rigid tap cycle with the specified constants. Relevant data is logged to a sample file using sampler / halsampler:
+* spindle position
+* axis positions
+* spindle sync state
+
+Post-processing functions are defined in g33_checks.py, and check for deviation from the ideal synchronized path, and failure to sync up in the required time:
+1) Find the the sync point (when position sync starts), and subtract the initial position from remaining data (spindle and axis positions) to get spindle / axis displacement
+2) Spindle displacement and axis displacement should have a nearly perfect linear relationship, with the slope of the line matching the thread pitch. The test finds the worst-case deviations from the ideal threading path, and fails the test if it exceeds the specified threshold
+
+See the individual test case checks for more details.
+

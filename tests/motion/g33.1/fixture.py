@@ -6,7 +6,7 @@ from subprocess import Popen
 
 import g33_checks
 
-# Initialization
+# Initialize linuxcnc backend for MDI mode
 c = linuxcnc.command()
 s = linuxcnc.stat()
 s.poll()
@@ -17,24 +17,29 @@ c.wait_complete()
 c.mode(linuxcnc.MODE_MDI)
 c.wait_complete()
 
+# Read in the current test case (passed to the fixture via sys args)
 test_name = sys.argv[3]
-constants = g33_checks.load_constants(test_name)
+constants = g33_checks.load_test_case(test_name)
 print >> sys.stderr, "Got constants: ", constants
 
-# Spindle: set speed and start
-sample_file = '{}_samples'.format(test_name)
+if constants.get("skip", False):
+    sys.exit(0)
+
+# Start halsampler asynchronously to make sure that the entire test is captured
+sample_file = g33_checks.get_sample_file_name(test_name)
 print >> sys.stderr, "Starting halsampler writing to ", sample_file
 p_read = Popen([
     'halsampler',
     '-t',
     sample_file,
 ])
+
 print >> sys.stderr, "start spindle"
 c.mdi('S%d M3' % (constants["spindle_speed_rps"]*60.))
-c.wait_complete()
+c.wait_complete(10)
 print >> sys.stderr, "tap move"
 c.mdi('G33.1 Z-{} K{}'.format(constants["z_distance"], constants["pitch"]))
-c.wait_complete()
+c.wait_complete(100)
 c.mdi('G4 P0.01')
 c.wait_complete()
 p_read.terminate()

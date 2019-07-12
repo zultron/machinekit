@@ -6,6 +6,21 @@ import numpy as np
 import json
 import os
 
+import re
+# String helpers
+
+
+def get_sample_file_name(test_name):
+    return 'test_case_{}.samples'.format(test_name)
+
+
+def get_test_name_from_case_file(test_file_name):
+    m = re.match(r'^test_case_(.+)\.json', test_file_name)
+    if m is not None:
+        return m.groups()[0]
+
+    return None
+
 
 def load_samples_after_sync(samples_file):
     samples=[]
@@ -58,14 +73,14 @@ def check_tapping_accuracy(spindle_pos, axis_pos, sync_row, constants):
     return np.max(abs_deviation)
 
 
-def load_constants(test_name):
-    with open('{}_constants.json'.format(test_name), 'r') as f:
+def load_test_case(test_name):
+    with open('test_case_{}.json'.format(test_name), 'r') as f:
         return json.load(f)
 
 
 def check_all(test_name):
-    samples = load_samples_after_sync('{}_samples'.format(test_name))
-    constants = load_constants(test_name)
+    samples = load_samples_after_sync(get_sample_file_name(test_name))
+    constants = load_test_case(test_name)
 
     exceeds_abs_dev = check_abs_deviation(samples, constants)
 
@@ -116,8 +131,9 @@ def find_test_cases():
     cases = []
     for _, _, files in os.walk('.'):
         for f in files:
-            if '.json' in f:
-                cases.append(f.rsplit('_constants.json')[0])
+            t = get_test_name_from_case_file(f)
+            if t is not None:
+                cases.append(t)
     return cases
 
 

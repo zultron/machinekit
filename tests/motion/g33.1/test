@@ -9,14 +9,14 @@ import os
 import glob
 
 # Get a list of all the file paths that ends with .txt from in specified directory
-old_sample_files = glob.glob('*_samples')
+old_sample_files = glob.glob('test_case_*.samples')
 
 for f in old_sample_files:
     os.remove(f)
 
 for t in g33_checks.find_test_cases():
-    print >>sys.stderr, "Running test case ", t
+    print >>sys.stderr, "Running test case", t
     p = subprocess.Popen(['linuxcnc', '-r', 'test.ini', t])
     p.wait()
-    if (p.returncode != 0):
+    if p.returncode != 0:
         sys.exit(p.returncode)
