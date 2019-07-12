@@ -87,7 +87,7 @@ def check_abs_deviation(samples, constants):
 
     max_abs_dev = check_tapping_accuracy(spindle_pos, z_axis_pos, start_row, constants)
     print >> sys.stderr, "Got maximum position deviation: ", max_abs_dev
-    return max_abs_dev > constants["max_tracking_error"]
+    return max_abs_dev > constants["max_tracking_error"] and not constants.get("expect_deviation_violation", False)
 
 
 def check_overrun(axis_pos, nominal_endpt, allowed_overshoot):
