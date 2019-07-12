@@ -26,7 +26,8 @@ def load_samples_after_sync(samples_file):
 
 def check_tapping_accuracy(spindle_pos, axis_pos, sync_row, constants):
     """
-    NOTE: assumes that initial position is 0 revs and 0 axis displacement, and that the retract height is 0 (ignore data if Z is positive)
+    NOTE: assumes that initial position is 0 revs and 0 axis displacement, and that the retract height is 0.
+    This ignores any data corresponding to when Z is positive.
     Make sure to subtract away the start position before running this.
     """
 
@@ -37,17 +38,21 @@ def check_tapping_accuracy(spindle_pos, axis_pos, sync_row, constants):
     spindle_pos_with_offset[0:sync_row] = 0
     axis_pos_with_offset[0:sync_row] = 0
 
-    expected_axis_pos = np.array(spindle_pos_with_offset) * -expected_pitch
+    expected_axis_pos = np.array(spindle_pos_with_offset) * -constants["pitch"]
     
     trimmed_actual = np.where(expected_axis_pos <= 0, axis_pos_with_offset, 0)
     trimmed_expected = np.where(expected_axis_pos <= 0, expected_axis_pos, 0)
 
     abs_deviation = np.abs(trimmed_expected - trimmed_actual)
 
-    print >> sys.stderr, 'id\tdev\tspindle\tactual\texpected'
-    for n,d in enumerate(zip(abs_deviation, spindle_pos_with_offset, axis_pos_with_offset, expected_axis_pos)):
+    log_lines = ['id\tdev\tspindle\tactual\texpected']
+    for n, d in enumerate(zip(abs_deviation, spindle_pos_with_offset, axis_pos_with_offset, expected_axis_pos)):
         if d[0] > cutoff:
-            print >> sys.stderr, '{}\t{:4}\t{:4}\t{:4}\t{:4}'.format(n, *d)
+            log_lines.append('{}\t{:4}\t{:4}\t{:4}\t{:4}'.format(n, *d))
+
+    if len(log_lines) > 1:
+        for l in log_lines:
+            print >>sys.stderr, l
 
     return np.max(abs_deviation)
 
@@ -64,7 +69,10 @@ def do_check():
     spindle_pos = samples[:, 1]
     z_axis_pos = samples[:, 4]
 
-    sync_offset = int(constants["z_axis_feed"] / constants["z_axis_max_accel"] * constants["servo_loop_freq"]) + 100
+    z_axis_nominal_feed = constants["pitch"] * constants["spindle_speed_rps"]
+    sync_offset_est = int(z_axis_nominal_feed / constants["z_axis_max_accel"] * constants["servo_loop_freq"]) + 100
+    # Find when sync starts in rigid tap state
+    sync_offset = np.argwhere(samples[:, 6] == 2)[0].item()
     start_row = np.argwhere(spindle_pos > 0)[0].item() + sync_offset
 
     max_abs_dev = check_tapping_accuracy(spindle_pos, z_axis_pos, start_row, constants)
@@ -73,5 +81,7 @@ def do_check():
 
 
 if __name__ == '__main__':
-    sys.exit(do_check())
+    exceeds_limits = do_check()
+    if exceeds_limits:
+        sys.exit(1)
 

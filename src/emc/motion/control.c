@@ -1785,7 +1785,7 @@ static void output_to_hal(void)
     *(emcmot_hal_data->spindle_brake) = (emcmotStatus->spindle_cmd.brake != 0) ? 1 : 0;
 
     *(emcmot_hal_data->pos_tracking_error) = emcmotStatus->pos_tracking_error;
-    *(emcmot_hal_data->spindle_sync_state) = emcmotStatus->spindle_sync_state;
+    *(emcmot_hal_data->pos_tracking_state) = emcmotStatus->spindle_sync_state;
     *(emcmot_hal_data->pos_tracking_velocity) = emcmotStatus->pos_tracking_velocity;
     *(emcmot_hal_data->rigid_tap_state) = emcmotStatus->rigid_tap_state;
 
