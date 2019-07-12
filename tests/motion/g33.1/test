@@ -15,6 +15,7 @@ for f in old_sample_files:
     os.remove(f)
 
 for t in g33_checks.find_test_cases():
+    print >>sys.stderr, "Running test case ", t
     p = subprocess.Popen(['linuxcnc', '-r', 'test.ini', t])
     p.wait()
     if (p.returncode != 0):

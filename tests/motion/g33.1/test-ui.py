@@ -22,11 +22,12 @@ constants = g33_checks.load_constants(test_name)
 print >> sys.stderr, "Got constants: ", constants
 
 # Spindle: set speed and start
-print >> sys.stderr, "Starting halsampler..."
+sample_file = '{}_samples'.format(test_name)
+print >> sys.stderr, "Starting halsampler writing to ", sample_file
 p_read = Popen([
     'halsampler',
     '-t',
-    '{}_samples'.format(test_name),
+    sample_file,
 ])
 print >> sys.stderr, "start spindle"
 c.mdi('S%d M3' % (constants["spindle_speed_rps"]*60.))
