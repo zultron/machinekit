@@ -40,15 +40,16 @@ for k = 1:length(sample_files)
   
   hold on
   clf
-  plot(t_sync, z_pos-z_fit)
-  %plot(t_sync, motion_err, '--.');
+  plot(t_sync, meas_err, t_sync, motion_err, '.');
   title(sprintf('Spindle tracking error pitch %0.3f in, %d RPM. distance %0.3f in',...
      constants.pitch, constants.spindle_speed_rps * 60, constants.z_distance),'interpreter','none')
   xlabel('Time, ms')
   ylabel('Deviation, in')
   grid on
+  line([t_sync(1),t_sync(end)],[1 1]*max(meas_err),'Color','r','linestyle','--')
   line([t_sync(1),t_sync(end)],[1 1]*constants.max_tracking_error,'Color','g','linestyle','--')
+  line([t_sync(1),t_sync(end)],[1 1]*min(meas_err),'Color','r','linestyle','--')
   line([t_sync(1),t_sync(end)],[1 1]*-constants.max_tracking_error,'Color','g','linestyle','--')
-  legend('deviation from linear fit','allowed limits')
+  legend('deviation from linear fit','motion.pos-tracking-error', 'min / max measured error', 'allowed deviation')
   hold off
 end
