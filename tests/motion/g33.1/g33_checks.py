@@ -4,6 +4,7 @@ import sys
 import csv
 import numpy as np
 import json
+import os
 
 
 def load_samples_after_sync(samples_file):
@@ -57,15 +58,24 @@ def check_tapping_accuracy(spindle_pos, axis_pos, sync_row, constants):
     return np.max(abs_deviation)
 
 
-def load_constants():
-    with open('constants.json','r') as f:
+def load_constants(test_name):
+    with open('{}_constants.json'.format(test_name), 'r') as f:
         return json.load(f)
 
 
-def do_check():
-    samples = load_samples_after_sync('samples')
-    constants = load_constants()
+def check_all(test_name):
+    samples = load_samples_after_sync('{}_samples'.format(test_name))
+    constants = load_constants(test_name)
 
+    exceeds_abs_dev = check_abs_deviation(samples, constants)
+
+    z_endpt = -constants["z_distance"]
+    exceeds_overrun = check_overrun(samples[:, 4], z_endpt, 10. * constants["pitch"])
+
+    return exceeds_abs_dev or exceeds_overrun
+
+
+def check_abs_deviation(samples, constants):
     spindle_pos = samples[:, 1]
     z_axis_pos = samples[:, 4]
 
@@ -80,8 +90,40 @@ def do_check():
     return max_abs_dev > constants["max_tracking_error"]
 
 
+def check_overrun(axis_pos, nominal_endpt, allowed_overshoot):
+    min_pos = np.min(np.array(axis_pos))
+    max_pos = np.max(np.array(axis_pos))
+
+    print >> sys.stderr, "min axis position: ", min_pos
+    print >> sys.stderr, "max axis position: ", max_pos
+
+    if min_pos < nominal_endpt - allowed_overshoot:
+        print >> sys.stderr, "Overrun detected at bottom of hole"
+        return True
+
+    if max_pos > allowed_overshoot:
+        print >> sys.stderr, "Overrun detected at retract"
+        return True
+
+    return False
+
+
+def find_test_cases():
+    cases = []
+    for _, _, files in os.walk('.'):
+        for f in files:
+            if '.json' in f:
+                cases.append(f.rsplit('_constants.json')[0])
+    return cases
+
+
 if __name__ == '__main__':
-    exceeds_limits = do_check()
-    if exceeds_limits:
-        sys.exit(1)
+
+    for test_name in find_test_cases():
+        print >> sys.stderr, "Checking results of test ", test_name
+        exceeds_limits = check_all(test_name)
+        if exceeds_limits:
+            sys.exit(1)
+
+
 
