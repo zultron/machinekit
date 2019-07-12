@@ -677,7 +677,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 
 	spindle_cmd_status spindle_cmd;	/* Spindle command output from motion */
 	spindle_fb_status spindle_fb;	/* Spindle feedback input to motion */
-    double spindle_tracking_gain; // external control of position trakcing aggressiveness
+
     position_tracking_mode_t pos_tracking_mode;
     spindle_sync_state_t spindle_sync_state;
     double pos_tracking_velocity;

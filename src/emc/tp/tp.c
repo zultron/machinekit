@@ -3134,7 +3134,6 @@ void checkPositionSyncError(TP_STRUCT const *tp, TC_STRUCT const *tc)
         print_json5_double_("spindle_revs", emcmotStatus->spindle_fb.position_rev);
         print_json5_double_("spindle_speed_rps", emcmotStatus->spindle_fb.velocity_rps);
         print_json5_double_("spindle_speed_out", emcmotStatus->spindle_cmd.velocity_rpm_out);
-        print_json5_double_("spindle_tracking_gain", emcmotStatus->spindle_tracking_gain);
         print_json5_long_("pos_tracking_mode", emcmotStatus->pos_tracking_mode);
         print_json5_double_("pos_tracking_velocity", emcmotStatus->pos_tracking_velocity);
         print_json5_double_("pos_tracking_error", emcmotStatus->pos_tracking_error);
@@ -3207,8 +3206,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         // track position (minimize pos_error).
         // This is the velocity we should be at when the position error is c0
         double v_final = spindle_vel_rps * tc->uu_per_rev;
-        const double gain = bound(emcmotStatus->spindle_tracking_gain, 1, 0);
-        double a_max = tcGetTangentialMaxAccel(tc) * gain;
+        double a_max = tcGetTangentialMaxAccel(tc);
         double v_max = tc->maxvel;
 
         /*
@@ -3253,7 +3251,7 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         {
             // Experimental spindle tracking that adds correction terms using a pythagorean sum
             double v_sq = a_max * pos_error;
-            double v_target_flat = signum(v_sq) * pseudo_sqrt(fabs(v_sq), 1.0 - gain) + v_final;
+            double v_target_flat = signum(v_sq) * pseudo_sqrt(fabs(v_sq)) + v_final;
             tc->target_vel = v_target_flat;
             break;
         }

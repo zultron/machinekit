@@ -1961,11 +1961,11 @@ EndCondition checkEndCondition(double cycleTime,
     return out;
 }
 
-double pseudo_sqrt(double x, double c)
+double pseudo_sqrt(double x)
 {
-    const double sqrt_c = pmSqrt(c);
-    const double den = (pmSqrt(c + 1) - sqrt_c);
+    const double sqrt_c = sqrt(PSEUDO_SQRT_EPSILON);
+    const double den = (sqrt(PSEUDO_SQRT_EPSILON + 1) - sqrt_c);
     const double b0 = -sqrt_c;
     const double b1 = 1;
-    return (b1 * pmSqrt(x+c) + b0) / den;
+    return (b1 * pmSqrt(x + PSEUDO_SQRT_EPSILON) + b0) / den;
 }

@@ -94,7 +94,6 @@ typedef struct {
     hal_bit_t *spindle_is_atspeed;
     hal_float_t *spindle_revs;
     hal_bit_t *spindle_inhibit;	/* RPI: set TRUE to stop spindle (non maskable)*/
-    hal_float_t *spindle_tracking_gain; //!< Controls position tracking accuracy from least to most aggressive [0.0-1.0]
     hal_float_t *pos_tracking_error; // Reports the position "error" term from position-synched motion (or 0 if it's not active)
     hal_s32_t *pos_tracking_mode; // Position tracking "mode", controls which tracking algorithm to use
     hal_s32_t *pos_tracking_state; // Internal state of position tracking controller
