@@ -81,9 +81,11 @@ export PYTHONPATH
 else
 include $(BASEPWD)/Makefile.inc
 endif
+ifdef HAVE_INTERNAL_HAL
 ifeq ($(RTPREFIX),)
 $(error Makefile.inc must specify RTPREFIX and other variables)
 endif
+endif # HAVE_INTERNAL_HAL
 
 cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
 	     > /dev/null 2>&1; then echo "$(1)"; fi ;)
@@ -93,7 +95,7 @@ ifeq ($(origin KERNELRELEASE),undefined)
 # The "modules" target is the gateway to the kernel module build.
 default: userspace modules
 ifeq ($(RUN_IN_PLACE),yes)
-ifneq ($(BUILD_SYS),uspace)
+ifeq "$(filter-out uspace ext-hal,$(BUILD_SYS))" ""
 	@if [ -f ../bin/linuxcnc_module_helper ]; then if ! [ `id -u` = 0 -a -O ../bin/linuxcnc_module_helper -a -u ../bin/linuxcnc_module_helper ]; then $(VECHO) "You now need to run 'sudo make setuid' in order to run in place."; fi; fi
 else
 	@if [ -f ../bin/rtapi_app ]; then if ! [ `id -u` = 0 -a -O  ../bin/rtapi_app -a -u ../bin/rtapi_app ]; then $(VECHO) "You now need to run 'sudo make setuid' in order to run in place with access to hardware."; fi; fi
@@ -115,6 +117,20 @@ SUBDIRS := \
     libnml/linklist libnml/cms libnml/rcs libnml/inifile libnml/os_intf \
     libnml/nml libnml/buffer libnml/posemath libnml \
     \
+    emc/usr_intf/axis emc/usr_intf/touchy emc/usr_intf/stepconf emc/usr_intf/pncconf \
+    emc/usr_intf/gremlin emc/usr_intf/gscreen emc/usr_intf/pyui emc/usr_intf/qtvcp \
+    emc/usr_intf/gmoccapy \
+    emc/usr_intf emc/nml_intf emc/task emc/iotask emc/kinematics emc/tp emc/canterp \
+    emc/motion emc/ini emc/rs274ngc emc/sai emc emc/pythonplugin \
+    emc/motion-logger \
+    \
+    po \
+    \
+    ../docs/src ../docs/src/source-highlight \
+
+ifdef HAVE_INTERNAL_HAL
+SUBDIRS += \
+    \
     rtapi/examples/timer rtapi/examples/semaphore rtapi/examples/shmem \
     rtapi/examples/extint rtapi/examples/fifo rtapi/examples rtapi \
     \
@@ -124,22 +140,11 @@ SUBDIRS := \
     hal/user_comps/vfdb_vfd hal/user_comps/wj200_vfd \
     hal/user_comps/huanyang-vfd \
     \
-    emc/usr_intf/axis emc/usr_intf/touchy emc/usr_intf/stepconf emc/usr_intf/pncconf \
-    emc/usr_intf/gremlin emc/usr_intf/gscreen emc/usr_intf/pyui emc/usr_intf/qtvcp \
-    emc/usr_intf/gmoccapy \
-    emc/usr_intf emc/nml_intf emc/task emc/iotask emc/kinematics emc/tp emc/canterp \
-    emc/motion emc/ini emc/rs274ngc emc/sai emc emc/pythonplugin \
-    emc/motion-logger \
-    \
     module_helper \
-    \
-    po \
-    \
-    ../docs/src ../docs/src/source-highlight \
-
-
 
 ULAPISRCS := rtapi/$(RTPREFIX)_ulapi.c
+
+endif # HAVE_INTERNAL_HAL
 
 # Each item in INCLUDES is transformed into a -I directive later on
 # The top directory is always included
@@ -197,12 +202,13 @@ OPT := -Os
 DEBUG := $(DEBUG) -g -Wall
 CFLAGS := $(OPT) $(DEBUG)
 ULCFLAGS += $(INCLUDE) $(EXTRA_DEBUG) \
-	-DULAPI -std=gnu99 -fgnu89-inline $(INTEGER_OVERFLOW_FLAGS)
+	-DULAPI $(HAL_CFLAGS) -std=gnu99 -fgnu89-inline $(INTEGER_OVERFLOW_FLAGS)
 CXXFLAGS += $(OPT) $(DEBUG)
-override CXXFLAGS += $(INCLUDE) $(EXTRA_DEBUG) -DULAPI -Woverloaded-virtual
+override CXXFLAGS += $(INCLUDE) $(EXTRA_DEBUG) -DULAPI $(HAL_CFLAGS) \
+	-Woverloaded-virtual
 
 ifeq ($(RUN_IN_PLACE),yes)
-LDFLAGS := -L$(LIB_DIR) -Wl,-rpath,$(LIB_DIR) $(LIBTIRPC_LIBS)
+LDFLAGS := -L$(LIB_DIR) -Wl,-rpath,$(LIB_DIR) $(LIBTIRPC_LIBS) $(HAL_LIBS)
 else
 LDFLAGS := -Wl,-rpath-link,../lib $(LIBTIRPC_LIBS)
 endif
@@ -252,9 +258,9 @@ config.h: config.h.in config.status
 	@./config.status -q --header=$@
 
 INFILES = \
-        ../scripts/linuxcnc ../scripts/realtime \
-	../scripts/haltcl ../scripts/rtapi.conf Makefile.inc Makefile.modinc \
-	../tcl/linuxcnc.tcl ../scripts/halrun ../scripts/rip-environment \
+        ../scripts/linuxcnc \
+	../scripts/haltcl Makefile.inc \
+	../tcl/linuxcnc.tcl ../scripts/rip-environment \
 	../scripts/linuxcncmkdesktop \
 	 ../lib/python/nf.py \
 	../share/desktop-directories/cnc.directory ../share/menus/CNC.menu \
@@ -262,6 +268,16 @@ INFILES = \
 	../share/applications/linuxcnc-latency.desktop \
 	../scripts/linuxcnc_var \
 	../scripts/halcmd_twopass \
+
+ifdef HAVE_INTERNAL_HAL
+INFILES += \
+	../scripts/realtime \
+	../scripts/rtapi.conf \
+	Makefile.modinc \
+	../scripts/halrun \
+
+endif # HAVE_INTERNAL_HAL
+
 
 $(INFILES): %: %.in config.status
 	@./config.status --file=$@
@@ -311,9 +327,6 @@ HEADERS := \
     emc/rs274ngc/interp_internal.hh \
     emc/rs274ngc/interp_base.hh \
     emc/rs274ngc/rs274ngc.hh \
-    hal/hal.h \
-    hal/hal_parport.h \
-    hal/drivers/mesa-hostmot2/hostmot2-serial.h \
     libnml/buffer/locmem.hh \
     libnml/buffer/memsem.hh \
     libnml/buffer/phantom.hh \
@@ -360,6 +373,12 @@ HEADERS := \
     libnml/rcs/rcs_exit.hh \
     libnml/rcs/rcs_print.hh \
     libnml/rcs/rcsversion.h \
+
+ifdef HAVE_INTERNAL_HAL
+HEADERS += \
+    hal/hal.h \
+    hal/hal_parport.h \
+    hal/drivers/mesa-hostmot2/hostmot2-serial.h \
     rtapi/rtapi.h \
     rtapi/rtapi_app.h \
     rtapi/rtapi_atomic.h \
@@ -382,7 +401,9 @@ HEADERS := \
     rtapi/rtapi_stdint.h \
     rtapi/rtapi_ctype.h \
     rtapi/rtapi_errno.h \
-    rtapi/rtapi_string.h
+    rtapi/rtapi_string.h \
+
+endif # HAVE_INTERNAL_HAL
 
 # the "headers" target installs all the header files in ../include
 .PHONY: headers
@@ -481,9 +502,12 @@ clean: depclean modclean
 	-rm -rf objects
 	-rm -f $(TARGETS)
 	-rm -f $(GENERATED_MANPAGES)
+ifdef HAVE_INTERNAL_HAL
 	-rm -f ../rtlib/*.$(MODULE_EXT)
 	-rm -f hal/components/conv_*.comp
+endif # HAVE_INTERNAL_HAL
 
+ifdef HAVE_INTERNAL_HAL
 # So that nothing is built as root, this rule does not depend on the touched
 # files (Note that files in depends/ might be rebuilt, and there's little that
 # can be done about it)
@@ -499,6 +523,7 @@ else
 endif
 	chown root ../bin/linuxcnc_module_helper
 	chmod 4750 ../bin/linuxcnc_module_helper
+endif # HAVE_INTERNAL_HAL
 
 # These rules allows a header file from this directory to be installed into
 # ../include.  A pair of rules like these will exist in the Submakefile
@@ -508,15 +533,21 @@ $(patsubst %,../include/%,$(wildcard *.h)): ../include/%.h: %.h
 $(patsubst %,../include/%,$(wildcard *.hh)): ../include/%.hh: %.hh
 	$(Q)-cp $^ $@
 
-DIR=install -d -m 0755 -o root
-FILE=install -m 0644 -o root
+ifeq ($(RUN_IN_PLACE),yes)
+INSTALL_OWNER =
+else
+INSTALL_OWNER = -o root
+endif
+DIR=install -d -m 0755 $(INSTALL_OWNER)
+FILE=install -m 0644 $(INSTALL_OWNER)
 TREE=cp -dR
 CONFIGFILE=install -m 0644
-EXE=install -m 0755 -o root
-SETUID=install -m 4755 -o root
+EXE=install -m 0755 $(INSTALL_OWNER)
+SETUID=install -m 4755 $(INSTALL_OWNER)
 GLOB=$(wildcard $(1))
 
 ifeq ($(RUN_IN_PLACE),yes)
+ifdef HAVE_INTERNAL_HAL
 define ERROR_MESSAGE
 You configured run-in-place, but are trying to install.
 For an installable version, run configure without --enable-run-in-place
@@ -524,6 +555,12 @@ and rebuild
 endef
 install:
 	$(error $(ERROR_MESSAGE))
+else # ! HAVE_INTERNAL_HAL
+# Install modules in external HAL modules directory
+install:
+	$(FILE) ../rtlib/*$(MODULE_EXT) $(HAL_MODULES_DIR)
+
+endif # ! HAVE_INTERNAL_HAL
 
 MENUS = ../share/menus/CNC.menu \
     ../share/desktop-directories/cnc.directory \
@@ -587,8 +624,6 @@ install-kernel-indep: install-dirs
 	$(FILE) $(filter-out %/skeleton.3rtapi, $(wildcard ../docs/man/man3/*.3rtapi)) $(DESTDIR)$(mandir)/man3
 	$(FILE) $(filter-out %/skeleton.9, $(wildcard ../docs/man/man9/*.9)) $(DESTDIR)$(mandir)/man9
 	$(FILE) objects/*.msg $(DESTDIR)$(tcldir)/msgs
-	$(EXE) ../scripts/realtime $(DESTDIR)$(initd_dir)
-	$(EXE) ../scripts/halrun $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/halcmd_twopass $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/haltcl $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/simulate_probe $(DESTDIR)$(bindir)
@@ -596,6 +631,11 @@ install-kernel-indep: install-dirs
 	$(FILE) ../docs/UPDATING $(DESTDIR)$(docsdir)/UPDATING
 	$(FILE) ../*.png ../*.gif $(DESTDIR)$(datadir)/linuxcnc
 	$(FILE) ../lib/hallib/*   $(DESTDIR)$(datadir)/linuxcnc/hallib
+ifdef HAVE_INTERNAL_HAL
+	$(EXE) ../scripts/realtime $(DESTDIR)$(initd_dir)
+	$(EXE) ../scripts/halrun $(DESTDIR)$(bindir)
+	$(EXE) ../scripts/latency-test $(DESTDIR)$(bindir)
+endif # HAVE_INTERNAL_HAL
 
 	# install all the sample configs, including subdirs (tar is required on debian systems, and common on others)
 	$(DIR) $(DESTDIR)$(sampleconfsdir)
@@ -606,7 +646,6 @@ install-kernel-indep: install-dirs
 	$(EXE) ../scripts/linuxcnc_info $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/linuxcnc_var $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/monitor-xhc-hb04 $(DESTDIR)$(bindir)
-	$(EXE) ../scripts/latency-test $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/latency-plot $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/latency-histogram $(DESTDIR)$(bindir)
 	$(EXE) ../scripts/moveoff_gui $(DESTDIR)$(bindir)
@@ -626,9 +665,11 @@ install-kernel-indep: install-dirs
 	$(TREE) $(NC_FILES) $(DESTDIR)$(ncfilesdir)
 	$(EXE) ../nc_files/M101 $(DESTDIR)$(ncfilesdir)
 	$(FILE) ../tcl/TkLinuxCNC $(DESTDIR)/etc/X11/app-defaults
-	$(FILE) Makefile.modinc $(DESTDIR)$(datadir)/linuxcnc
 	$(EXE) $(TCL) $(DESTDIR)$(tcldir)
+ifdef HAVE_INTERNAL_HAL
 	$(FILE) ../tcl/hal.so $(DESTDIR)$(tcldir)
+	$(FILE) Makefile.modinc $(DESTDIR)$(datadir)/linuxcnc
+endif # HAVE_INTERNAL_HAL
 	$(FILE) ../tcl/linuxcnc.so $(DESTDIR)$(tcldir)
 	$(FILE) ../tcl/pkgIndex.tcl $(DESTDIR)$(tcldir)
 	$(EXE) $(TCL_BIN) $(DESTDIR)$(tcldir)/bin
@@ -692,8 +733,10 @@ install-python: install-dirs
 	$(EXE) ../bin/stepconf $(DESTDIR)$(bindir)
 	$(EXE) ../bin/pncconf $(DESTDIR)$(bindir)
 	$(EXE) ../bin/pyui $(DESTDIR)$(bindir)
+ifdef HAVE_INTERNAL_HAL
 	$(EXE) ../bin/hal_input $(DESTDIR)$(bindir)
 	$(EXE) ../bin/mitsub_vfd $(DESTDIR)$(bindir)
+endif # HAVE_INTERNAL_HAL
 	$(EXE) ../bin/pyvcp $(DESTDIR)$(bindir)
 	$(EXE) ../bin/gladevcp $(DESTDIR)$(bindir)
 	$(EXE) ../bin/axis $(DESTDIR)$(bindir)
@@ -723,10 +766,12 @@ install-python: install-dirs
 	$(FILE) ../share/gmoccapy/images/*.png ../share/gmoccapy/images/*.gif ../share/gmoccapy/images/*.svg $(DESTDIR)$(datadir)/gmoccapy/images
 
 install-kernel-dep:
-	$(DIR)	$(DESTDIR)$(moduledir)/linuxcnc \
-		$(DESTDIR)$(bindir) \
-		$(DESTDIR)$(sysconfdir)/linuxcnc
+	$(DIR)	$(DESTDIR)$(bindir) \
+		$(DESTDIR)$(sysconfdir)/linuxcnc \
+		$(DESTDIR)$(EMC2_RTLIB_DIR)
 	$(FILE) ../rtlib/*$(MODULE_EXT) $(DESTDIR)$(EMC2_RTLIB_DIR)
+ifdef HAVE_INTERNAL_HAL
+	$(DIR)	$(DESTDIR)$(moduledir)/linuxcnc
 	$(SETUID) ../bin/linuxcnc_module_helper $(DESTDIR)$(bindir)
 ifneq "$(BUILD_SYS)" "uspace"
 	$(FILE) Module.symvers $(DESTDIR)$(EMC2_RTLIB_DIR)
@@ -736,6 +781,7 @@ else
 	$(SETUID) ../bin/rtapi_app $(DESTDIR)$(bindir)
 endif
 	$(FILE) ../scripts/rtapi.conf $(DESTDIR)$(sysconfdir)/linuxcnc
+endif # HAVE_INTERNAL_HAL
 endif # RUN_IN_PLACE
 
 CONF=../configs
@@ -753,7 +799,9 @@ endif
 # "kbuild" system.  $(BASEPWD) is used here, instead of relative paths, because
 # that's what kbuild seems to require
 
-EXTRA_CFLAGS += $(filter-out -ffast-math,$(RTFLAGS)) -D__MODULE__ -I$(BASEPWD)/../include -I$(BASEPWD) -I$(BASEPWD)/libnml/linklist \
+EXTRA_CFLAGS += $(filter-out -ffast-math,$(RTFLAGS)) -D__MODULE__ \
+	$(HAL_CFLAGS) \
+	-I$(BASEPWD)/../include -I$(BASEPWD) -I$(BASEPWD)/libnml/linklist \
 	-I$(BASEPWD)/libnml/cms -I$(BASEPWD)/libnml/rcs -I$(BASEPWD)/libnml/inifile \
 	-I$(BASEPWD)/libnml/os_intf -I$(BASEPWD)/libnml/nml -I$(BASEPWD)/libnml/buffer \
 	-I$(BASEPWD)/libnml/posemath -I$(BASEPWD)/rtapi -I$(BASEPWD)/hal \
@@ -784,11 +832,12 @@ endif
 # find a way around it.
 
 # Subdirectory:  rtapi
-ifneq ($(BUILD_SYS),uspace)
+ifeq "$(filter uspace ext-hal,$(BUILD_SYS))" ""
 obj-$(CONFIG_RTAPI) += rtapi.o
 rtapi-objs := rtapi/$(RTPREFIX)_rtapi.o
 endif
 
+ifdef HAVE_INTERNAL_HAL
 # Subdirectory: rtapi/examples (unneeded?)
 
 # Subdirectory: hal/components
@@ -922,6 +971,7 @@ hm2_test-objs :=			  \
 setsserial-objs :=			  \
     hal/drivers/mesa-hostmot2/setsserial.o  \
     $(MATHSTUB)
+endif # HAVE_INTERNAL_HAL
 
 obj-$(CONFIG_CLASSICLADDER_RT) += classicladder_rt.o
 classicladder_rt-objs := hal/classicladder/module_hal.o $(MATHSTUB)
@@ -937,11 +987,13 @@ ifdef SEQUENTIAL_SUPPORT
 classicladder_rt-objs += hal/classicladder/calc_sequential_rt.o
 endif
 
+ifdef HAVE_INTERNAL_HAL
 obj-m += scope_rt.o
 scope_rt-objs := hal/utils/scope_rt.o $(MATHSTUB)
 
 obj-m += hal_lib.o
 hal_lib-objs := hal/hal_lib.o $(MATHSTUB)
+endif # HAVE_INTERNAL_HAL
 
 obj-m += trivkins.o
 trivkins-objs := emc/kinematics/trivkins.o
@@ -1019,7 +1071,7 @@ motmod-objs += libnml/posemath/_posemath.o
 motmod-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 TORTOBJS = $(foreach file,$($(patsubst %.o,%,$(1))-objs), objects/rt$(file))
-ifeq ($(BUILD_SYS),uspace)
+ifeq "$(filter-out uspace ext-hal,$(BUILD_SYS))" ""
 EXTRA_CFLAGS += -fPIC -Os
 RTOBJS := $(sort $(foreach mod,$(obj-m),$(call TORTOBJS,$(mod))))
 
@@ -1044,7 +1096,7 @@ $(sort $(RTOBJS)) : objects/rt%.o : %.c
 		$(EXTRA_CFLAGS) \
 		-MP -MD -MF "${@:.o=.d}" -MT "$@" \
 		$< -o $@
-endif
+endif  # BUILD_SYS = uspace
 
 ifeq ($(BUILD_SYS),normal)
 modules: $(patsubst %,../rtlib/%,$(obj-m))
@@ -1061,8 +1113,8 @@ $(sort $(RTOBJS)) : objects/rt%.o : %.c
 		$< -o $@
 endif
 
-ifneq "$(filter normal uspace,$(BUILD_SYS))" ""
-ifneq "$(BUILD_SYS)" "uspace"
+ifneq "$(filter normal uspace ext-hal,$(BUILD_SYS))" ""
+ifeq "$(filter-out uspace ext-hal,$(BUILD_SYS))" ""
 ../rtlib/rtapi$(MODULE_EXT): $(addprefix objects/rt,$(rtapi-objs))
 endif
 ../rtlib/classicladder_rt$(MODULE_EXT): $(addprefix objects/rt,$(classicladder_rt-objs))
