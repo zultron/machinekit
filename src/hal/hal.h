@@ -257,6 +257,7 @@ extern char* hal_comp_name(int comp_id);
 */
 typedef enum {
     HAL_TYPE_UNSPECIFIED = -1,
+    HAL_TYPE_UNINITIALIZED = 0,
     HAL_BIT = 1,
     HAL_FLOAT = 2,
     HAL_S32 = 3,
@@ -299,6 +300,16 @@ typedef volatile rtapi_s32 hal_s32_t;
 typedef double real_t __attribute__((aligned(8)));
 typedef rtapi_u64 ireal_t __attribute__((aligned(8))); // integral type as wide as real_t / hal_float_t
 #define hal_float_t volatile real_t
+
+/** HAL "data union" structure
+ ** This structure may hold any type of hal data
+*/
+typedef union {
+    hal_bit_t b;
+    hal_s32_t s;
+    hal_u32_t u;
+    hal_float_t f;
+} hal_data_u;
 
 /***********************************************************************
 *                      "LOCKING" FUNCTIONS                             *
@@ -588,6 +599,42 @@ extern int hal_param_alias(const char *pin_name, const char *alias);
     it returns a negative error code.
 */
 extern int hal_param_set(const char *name, hal_type_t type, void *value_addr);
+
+/***********************************************************************
+*                 PIN/SIG/PARAM GETTER FUNCTIONS                       *
+************************************************************************/
+
+/** 'hal_get_pin_value_by_name()' gets the value of any arbitrary HAL pin by
+ * pin name.
+ *
+ * The 'type' and 'data' args are pointers to the returned values.  The function
+ * returns 0 if successful, or -1 on error.  If 'connected' is non-NULL, its
+ * value will be true if a signal is connected.
+ */
+
+extern int hal_get_pin_value_by_name(
+    const char *name, hal_type_t *type, hal_data_u **data, bool *connected);
+
+/** 'hal_get_signal_value_by_name()' returns the value of any arbitrary HAL
+ * signal by signal name.
+ *
+ * The 'type' and 'data' args are pointers to the returned values.  The function
+ * returns 0 if successful, or -1 on error.  If 'has_writers' is non-NULL, its
+ * value will be true if the signal has writers.
+ */
+
+extern int hal_get_signal_value_by_name(
+    const char *name, hal_type_t *type, hal_data_u **data, bool *has_writers);
+
+/** 'hal_get_param_value_by_name()' returns the value of any arbitrary HAL
+ * parameter by parameter name.
+ *
+ * The 'type' and 'data' args are pointers to the returned values.  The function
+ * returns 0 if successful, or -1 on error.
+ */
+
+extern int hal_get_param_value_by_name(
+    const char *name, hal_type_t *type, hal_data_u **data);
 
 /***********************************************************************
 *                   EXECUTION RELATED FUNCTIONS                        *

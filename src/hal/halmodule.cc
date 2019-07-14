@@ -317,6 +317,7 @@ static PyObject *pyhal_read_common(halitem *item) {
             case HAL_S32: return to_python(*(item->u->pin.s32));
             case HAL_FLOAT: return to_python(*(item->u->pin.f));
             case HAL_TYPE_UNSPECIFIED: /* fallthrough */ ;
+            case HAL_TYPE_UNINITIALIZED: /* fallthrough */ ;
         }
     } else {
         switch(item->type) {
@@ -325,6 +326,7 @@ static PyObject *pyhal_read_common(halitem *item) {
             case HAL_S32: return to_python(item->u->param.s32);
             case HAL_FLOAT: return to_python(item->u->param.f);
             case HAL_TYPE_UNSPECIFIED: /* fallthrough */ ;
+            case HAL_TYPE_UNINITIALIZED: /* fallthrough */ ;
         }
     }
     PyErr_Format(pyhal_error_type, "Invalid item type %d", item->type);
@@ -1004,6 +1006,7 @@ PyObject *get_value(PyObject *self, PyObject *args) {
             case HAL_S32: return Py_BuildValue("l",  (long)*(hal_s32_t *)d_ptr);
             case HAL_FLOAT: return Py_BuildValue("f",  (double)*(hal_float_t *)d_ptr);
             case HAL_TYPE_UNSPECIFIED: /* fallthrough */ ;
+            case HAL_TYPE_UNINITIALIZED: /* fallthrough */ ;
         }
     }
     /* not found, search pin list for name */
@@ -1026,6 +1029,7 @@ PyObject *get_value(PyObject *self, PyObject *args) {
             case HAL_S32: return Py_BuildValue("l",  (long)*(hal_s32_t *)d_ptr);
             case HAL_FLOAT: return Py_BuildValue("f",  (double)*(hal_float_t *)d_ptr);
             case HAL_TYPE_UNSPECIFIED: /* fallthrough */ ;
+            case HAL_TYPE_UNINITIALIZED: /* fallthrough */ ;
         }
     }
     sig = halpr_find_sig_by_name(name);
@@ -1041,6 +1045,7 @@ PyObject *get_value(PyObject *self, PyObject *args) {
             case HAL_S32: return Py_BuildValue("l",  (long)*(hal_s32_t *)d_ptr);
             case HAL_FLOAT: return Py_BuildValue("f",  (double)*(hal_float_t *)d_ptr);
             case HAL_TYPE_UNSPECIFIED: /* fallthrough */ ;
+            case HAL_TYPE_UNINITIALIZED: /* fallthrough */ ;
         }
     }
     /* error if here */
