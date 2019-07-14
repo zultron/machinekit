@@ -190,10 +190,13 @@ INCLUDE += $(LIBTIRPC_CFLAGS)
 
 # Compilation options.	Perhaps some of these should come from Makefile.inc? (CXXFLAGS now does)
 INTEGER_OVERFLOW_FLAGS := -fwrapv
-OPT := -Os $(INTEGER_OVERFLOW_FLAGS)
+OPT := -Os
 DEBUG := $(DEBUG) -g -Wall
-CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) $(EXTRA_DEBUG) -DULAPI -std=gnu99 -fgnu89-inline
-CXXFLAGS := $(INCLUDE) $(CXXFLAGS)   $(EXTRA_DEBUG) -DULAPI $(DEBUG) $(OPT) -Woverloaded-virtual
+CFLAGS := $(OPT) $(DEBUG)
+ULCFLAGS += $(INCLUDE) $(EXTRA_DEBUG) \
+	-DULAPI -std=gnu99 -fgnu89-inline $(INTEGER_OVERFLOW_FLAGS)
+CXXFLAGS += $(OPT) $(DEBUG)
+override CXXFLAGS += $(INCLUDE) $(EXTRA_DEBUG) -DULAPI -Woverloaded-virtual
 
 ifeq ($(RUN_IN_PLACE),yes)
 LDFLAGS := -L$(LIB_DIR) -Wl,-rpath,$(LIB_DIR) $(LIBTIRPC_LIBS)
@@ -206,7 +209,7 @@ $(sort $(CUSEROBJS)) : objects/%.o: %.c
 	$(ECHO) Compiling $<
 	@mkdir -p $(dir $@)
 	@rm -f $@
-	$(Q)$(CC) -c $(CFLAGS) $(EXTRAFLAGS) \
+	$(Q)$(CC) -c $(ULCFLAGS) $(EXTRAFLAGS) \
 		-MP -MD -MF "${@:.o=.d}" -MT "$@" \
 		$< -o $@
 
@@ -221,7 +224,7 @@ $(sort $(CXXUSEROBJS)) : objects/%.o: %.cc
 # Rules to make .i (preprocessed) files
 $(sort $(patsubst %.c,%.i,$(CUSERSRCS))): %.i: %.c
 	$(ECHO) Preprocessing $< to $@
-	$(Q)$(CC) -dD $(CFLAGS) $(EXTRAFLAGS) -E $< -o $@
+	$(Q)$(CC) -dD $(ULCFLAGS) $(EXTRAFLAGS) -E $< -o $@
 
 $(sort $(patsubst %.cc,%.ii,$(CXXUSERSRCS))): %.ii: %.cc
 	$(ECHO) Preprocessing $< to $@
@@ -1034,7 +1037,7 @@ $(sort $(RTOBJS)) : objects/rt%.o : %.c
 	$(ECHO) Compiling realtime $<
 	@rm -f $@
 	@mkdir -p $(dir $@)
-	$(Q)$(CC) -c $(OPT) $(DEBUG) $(EXTRA_DEBUG) -DRTAPI -I../include \
+	$(Q)$(CC) -c $(CFLAGS) $(EXTRA_DEBUG) -DRTAPI -I../include \
 		$(EXTRA_CFLAGS) \
 		-MP -MD -MF "${@:.o=.d}" -MT "$@" \
 		$< -o $@
