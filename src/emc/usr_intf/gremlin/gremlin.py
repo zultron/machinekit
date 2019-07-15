@@ -56,6 +56,7 @@ import os
 import sys
 
 import thread
+import traceback
 
 
 class DummyProgress:
@@ -300,7 +301,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.font_charwidth = width
         rs274.glcanon.GlCanonDraw.realize(self)
 
-        if s.file: self.load()
+        if s.file:
+            self.load()
 
     def set_current_view(self):
         if self.current_view not in ['p', 'x', 'y', 'y2', 'z', 'z2']:
@@ -337,34 +339,26 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self._redraw()
 
     def get_active_g_code_string(self):
-        gcodes = self.stat.gcodes()
-        cmd_list = []
-
-        # Lathe diameter mode
-        cmd_list.append("G{}".format(int(gcodes[15])/10))
-
-        # Arc / cutter comp plane
-        cmd_list.append("G{}".format(int(gcodes[3])/10))
-
-        # Units
-        cmd_list.append("G{}".format(int(gcodes[5])/10))
-
-        # Blend mode TODO include tolerance
-        blend_mode = gcodes[5]
-        blend_str = "G{}".format(int(blend_mode)/10)
-        blend_suffix = blend_mode % 10
-        if blend_suffix:
-            blend_str += ".{}".format(blend_suffix)
-        cmd_list.append(blend_suffix)
-
-        # Distance mode
-        cmd_list.append("G{}".format(int(gcodes[6])/10))
-
-        # IJK Distance mode
-        cmd_list.append("G{}.1".format(int(gcodes[14])/10))
+        """
+        Most active G-codes don't matter for preview, but the ones that affect path geometry do, such as distance mode,
+        cut plane, cutter comp, etc. This method pulls the relevant active G-codes from emctask to initialize
+        the preview interpreter.
+        :return: A string (delimited by '\n') of G-codes to execute
+        """
+        gcodes = self.stat.gcodes
+        print "get_active_g_codes: ", gcodes
+        cmd_list = [
+            "G{}".format(int(gcodes[linuxcnc.G_CODE_UNITS])/10),  # Must be first before applying any other modes
+            "G{}".format(int(gcodes[linuxcnc.G_CODE_LATHE_DIAMETER_MODE])/10),
+            "G{}".format(int(gcodes[linuxcnc.G_CODE_PLANE])/10),
+            "G{}".format(int(gcodes[linuxcnc.G_CODE_CUTTER_SIDE])/10),
+            "G{}".format(int(gcodes[6])/10),
+            "G{}.1".format(int(gcodes[14])/10),
+        ]
+        print cmd_list
         return '\n'.join(cmd_list)
 
-    def load(self,filename = None):
+    def load(self, filename=None):
         s = self.stat
         s.poll()
         if not filename and s.file:
@@ -389,8 +383,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
                 shutil.copy(parameter, temp_parameter)
             self.canon.parameter_file = temp_parameter
 
-            unitcode = "G%d" % (20 + (s.program_units == 1))
             initcode = self.get_active_g_code_string() or self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
+            unitcode = "G{}".format(20 + (s.program_units == linuxcnc.UNITS_MM))
             result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode)
 
             #Handle extents violation (copied from AXIS)
