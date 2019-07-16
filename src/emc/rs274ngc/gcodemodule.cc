@@ -803,6 +803,37 @@ static PyObject *get_work_offsets_used(PyObject *self, PyObject *args) {
     return offsets;
 }
 
+// KLUDGE provide a place to attach a debugger for the RETURN_ON_INTERP_ERROR macro.
+// The err_count value is meaningless, except that a change means somebody threw an error.
+static unsigned err_dbg_count=0;
+static void count_err()
+{
+    err_dbg_count++;
+}
+
+#define RETURN_ON_INTERP_ERROR(call__) do { \
+    int result = call__; \
+    switch(result) { \
+    case INTERP_OK: \
+    case INTERP_EXECUTE_FINISH: \
+        break; \
+    default: \
+        count_err(); \
+        return result; \
+    } \
+    } while (0); \
+
+int execute_lines(InterpBase *interp, const char *multiline_cmd)
+{
+    std::stringstream cmd(multiline_cmd);
+    std::string s;
+    while (std::getline(cmd, s, '\n')) {
+        RETURN_ON_INTERP_ERROR(interp->read(s.c_str()));
+        RETURN_ON_INTERP_ERROR(interp->execute());
+    }
+    return INTERP_OK;
+}
+
 #define RESULT_OK (result == INTERP_OK || result == INTERP_EXECUTE_FINISH)
 static PyObject *parse_file(PyObject *self, PyObject *args) {
     char *f;
@@ -843,14 +874,12 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
 
     int result = INTERP_OK;
     if(unitcode) {
-        result = pinterp->read(unitcode);
+        result = execute_lines(pinterp, unitcode);
         if(!RESULT_OK) goto out_error;
-        result = pinterp->execute();
     }
-    if(initcode && RESULT_OK) {
-        result = pinterp->read(initcode);
+    if(initcode) {
+        result = execute_lines(pinterp, initcode);
         if(!RESULT_OK) goto out_error;
-        result = pinterp->execute();
     }
     while(!interp_error && RESULT_OK) {
         error_line_offset = 1;
@@ -864,6 +893,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
         error_line_offset = 0;
         result = pinterp->execute();
     }
+
 out_error:
     if(pinterp) pinterp->close();
     if(interp_error) {
