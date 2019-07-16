@@ -336,6 +336,33 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.logger.set_visible_tools(tool_list)
             self._redraw()
 
+    def get_active_g_code_string(self):
+        gcodes = self.stat.gcodes()
+        cmd_list = []
+
+        # Lathe diameter mode
+        cmd_list.append("G{}".format(int(gcodes[15])/10))
+
+        # Arc / cutter comp plane
+        cmd_list.append("G{}".format(int(gcodes[3])/10))
+
+        # Units
+        cmd_list.append("G{}".format(int(gcodes[5])/10))
+
+        # Blend mode TODO include tolerance
+        blend_mode = gcodes[5]
+        blend_str = "G{}".format(int(blend_mode)/10)
+        blend_suffix = blend_mode % 10
+        if blend_suffix:
+            blend_str += ".{}".format(blend_suffix)
+        cmd_list.append(blend_suffix)
+
+        # Distance mode
+        cmd_list.append("G{}".format(int(gcodes[6])/10))
+
+        # IJK Distance mode
+        cmd_list.append("G{}.1".format(int(gcodes[14])/10))
+        return '\n'.join(cmd_list)
 
     def load(self,filename = None):
         s = self.stat
@@ -362,8 +389,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
                 shutil.copy(parameter, temp_parameter)
             self.canon.parameter_file = temp_parameter
 
-            unitcode = "G%d" % (20 + (s.linear_units == 1))
-            initcode = self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
+            unitcode = "G%d" % (20 + (s.program_units == 1))
+            initcode = self.get_active_g_code_string() or self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
             result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode)
 
             #Handle extents violation (copied from AXIS)
