@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
+cat stderr | grep "Failed"
 exit 0

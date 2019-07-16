@@ -86,6 +86,8 @@ def check_abs_deviation(samples, constants):
             sync_idx, max_sync_delay, sync_idx_expected)
         return True
 
+    print >> sys.stderr, "Passed: spindle sync starts within expected limits"
+
     spindle_pos_active = spindle_pos[sync_idx:end_sync_idx]
     z_axis_pos_active = z_axis_pos[sync_idx:end_sync_idx]
 
@@ -102,8 +104,10 @@ def check_abs_deviation(samples, constants):
 
     max_abs_dev = np.max(np.abs(z_axis_expected - z_axis_pos_active))
 
-    print >> sys.stderr, "Maximum position deviation is: ", max_abs_dev
-    return max_abs_dev > constants["max_tracking_error"] and not constants.get("expect_deviation_violation", False)
+    deviation_failure = max_abs_dev > constants["max_tracking_error"] and not constants.get("expect_deviation_violation", False)
+
+    print >> sys.stderr, "{}: Maximum position deviation is: {} ".format("Passed" if not deviation_failure else "Failed", max_abs_dev)
+    return deviation_failure
 
 
 def check_overrun(axis_pos, nominal_endpt, allowed_overshoot):
@@ -114,13 +118,14 @@ def check_overrun(axis_pos, nominal_endpt, allowed_overshoot):
     print >> sys.stderr, "max axis position: ", max_pos
 
     if min_pos < nominal_endpt - allowed_overshoot:
-        print >> sys.stderr, "Overrun detected at bottom of hole"
+        print >> sys.stderr, "Failed: Overrun detected at bottom of hole"
         return True
 
     if max_pos > allowed_overshoot:
-        print >> sys.stderr, "Overrun detected at retract"
+        print >> sys.stderr, "Failed: Overrun detected at retract"
         return True
 
+    print >> sys.stderr, "Passed: no overrun detected"
     return False
 
 
