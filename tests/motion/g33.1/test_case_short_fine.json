@@ -1,5 +1,5 @@
 {
-    "spindle_speed_rps": 10.0,
+    "spindle_speed_rps": 8.666666666,
     "pitch": 0.041666666666,
     "z_distance": 0.5,
     "z_axis_max_vel": 4.0,
