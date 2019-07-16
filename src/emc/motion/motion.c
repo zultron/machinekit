@@ -634,7 +634,7 @@ static int init_hal_io(void)
     emcmot_hal_data->debug_float_1 = 0.0;
     emcmot_hal_data->debug_float_2 = 0.0;
     emcmot_hal_data->debug_float_3 = 0.0;
-    *emcmot_hal_data->debug_gain_0 = 2.0;
+    *emcmot_hal_data->debug_gain_0 = 0.0;
     *emcmot_hal_data->debug_gain_1 = 0.0;
 
     emcmot_hal_data->last_period = 0;
