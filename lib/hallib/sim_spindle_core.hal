@@ -1,14 +1,10 @@
-# simulated spindle encoder (for spindle-synced moves)
+# simulated massiv spindle (with magical position / velocity sensor)
 loadrt sim_spindle names=sim_spindle
-loadrt sim_encoder_reader names=sim_spindle_encoder
 loadrt near count=1
 
 setp sim_spindle.time-constant 0.1 # How long it takes to reach 63% of commanded speed
 setp sim_spindle.max-accel-rps2 100 # Limits spindle speed rate of change
 setp sim_spindle.max-velocity 100.0 # Limit maximum spindle velocity to 6000 RPM
-
-setp sim_spindle_encoder.encoder-ppr 512
-setp sim_spindle_encoder.reader-frequency 100000
 
 # Connect inputs to search for / zero position at index
 net spindle-index-enable motion.spindle-index-enable <=> sim_spindle.index-enable
@@ -17,11 +13,8 @@ net spindle-index-enable motion.spindle-index-enable <=> sim_spindle.index-enabl
 net spindle-speed-raw-rps motion.spindle-speed-out-rps sim_spindle.velocity-cmd near.0.in1
 
 # Connect spindle to encoder reader
-net spindle-velocity-real sim_spindle.velocity-fb sim_spindle_encoder.velocity-real-in near.0.in2
-net spindle-position-real sim_spindle.position-fb sim_spindle_encoder.position-real-in
-
-net spindle-position-measured sim_spindle_encoder.encoder-position motion.spindle-revs
-net spindle-velocity-measured_rps sim_spindle_encoder.encoder-velocity motion.spindle-speed-in
+net spindle-velocity-real sim_spindle.velocity-fb near.0.in2
+net spindle-position-real sim_spindle.position-fb
 
 net spindle-at-speed near.0.out motion.spindle-at-speed
 
@@ -31,4 +24,3 @@ net spindle-at-speed near.0.out motion.spindle-at-speed
 
 addf near.0 servo-thread
 addf sim_spindle servo-thread
-addf sim_spindle_encoder servo-thread

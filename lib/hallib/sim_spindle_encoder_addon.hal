@@ -1,0 +1,16 @@
+# Requires sim_spindle.hal
+
+# simulated spindle encoder (for spindle-synced moves)
+loadrt sim_encoder_reader names=sim_spindle_encoder
+
+setp sim_spindle_encoder.encoder-ppr 512
+setp sim_spindle_encoder.reader-frequency 100000
+
+# Connect spindle to encoder reader
+net spindle-velocity-real sim_spindle_encoder.velocity-real-in
+net spindle-position-real sim_spindle_encoder.position-real-in
+
+net spindle-position-measured sim_spindle_encoder.encoder-position motion.spindle-revs
+net spindle-velocity-measured_rps sim_spindle_encoder.encoder-velocity motion.spindle-speed-in
+
+addf sim_spindle_encoder servo-thread

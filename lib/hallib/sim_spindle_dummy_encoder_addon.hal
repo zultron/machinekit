@@ -1,0 +1,5 @@
+# Requires sim_spindle_core.hal
+
+# Assume a perfect encoder and pass "real" values directly to motion
+net spindle-velocity-real motion.spindle-speed-in # In RPS
+net spindle-position-real motion.spindle-revs # Revolutions
