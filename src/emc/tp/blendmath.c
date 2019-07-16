@@ -114,7 +114,7 @@ double saturate(double x, double max) {
 /**
  * Apply bounds to a value x.
  */
-inline double bound(double x, double max, double min) {
+double bound(double x, double max, double min) {
     if ( x > max ) {
         return max;
     }
@@ -1959,4 +1959,13 @@ EndCondition checkEndCondition(double cycleTime,
 
     out.dt = dt;
     return out;
+}
+
+double pseudo_sqrt(double x)
+{
+    const double sqrt_c = sqrt(PSEUDO_SQRT_EPSILON);
+    const double den = (sqrt(PSEUDO_SQRT_EPSILON + 1) - sqrt_c);
+    const double b0 = -sqrt_c;
+    const double b1 = 1;
+    return (b1 * pmSqrt(x + PSEUDO_SQRT_EPSILON) + b0) / den;
 }

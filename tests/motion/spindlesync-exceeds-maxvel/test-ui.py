@@ -15,7 +15,7 @@ max_pitch = float(z_axis_maxvel) / float(spindle_speed) * 2
 # Set up component
 h = hal.component("python-ui")
 # - Monitor spindle and Z axis speed for debugging
-h.newpin("spindle-speed", hal.HAL_FLOAT, hal.HAL_IN)
+h.newpin("spindle-speed-rps", hal.HAL_FLOAT, hal.HAL_IN)
 h.newpin("Zvel", hal.HAL_FLOAT, hal.HAL_IN)
 # - Estimated pitch
 h.newpin("pitch", hal.HAL_FLOAT, hal.HAL_IN)
@@ -45,7 +45,7 @@ timeout = 5
 avg_sum = 0; avg_count = 0
 while timeout > 0:
     if abs(h['pitch']) > 0.001:
-        rps = h['spindle-speed']/60
+        rps = h['spindle-speed-rps']
         ips = - h['Zvel']
         pitch = ips/rps
         print "spindle velocity, revs/second: %.3f" % rps

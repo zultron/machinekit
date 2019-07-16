@@ -53,6 +53,8 @@ extern emcmot_status_t *emcmotStatus;
 extern emcmot_debug_t *emcmotDebug;
 extern emcmot_config_t *emcmotConfig;
 
+void clearPositionSyncErrors(void);
+
 /** static function primitives (ugly but less of a pain than moving code around)*/
 STATIC int tpComputeBlendVelocity(
         TC_STRUCT const *tc,
@@ -379,6 +381,12 @@ int tpClearDIOs(TP_STRUCT * const tp) {
     return TP_ERR_OK;
 }
 
+static void clearPosTrackingStatus()
+{
+    emcmotStatus->pos_tracking_error = 0;
+    emcmotStatus->pos_tracking_velocity = 0;
+}
+
 /**
  *    "Soft initialize" the trajectory planner tp.
  *    This is a "soft" initialization in that TP_STRUCT configuration
@@ -417,8 +425,7 @@ int tpClear(TP_STRUCT * const tp)
     emcmotStatus->current_vel = 0.0;
     emcmotStatus->requested_vel = 0.0;
     emcmotStatus->distance_to_go = 0.0;
-    emcmotStatus->waiting_on_spindle = 0;
-    emcmotStatus->pos_tracking_error = 0;
+    clearPosTrackingStatus();
     ZERO_EMC_POSE(emcmotStatus->dtg);
     SET_MOTION_INPOS_FLAG(1);
 
@@ -2534,6 +2541,14 @@ static inline double findSpindleDisplacement(
     return origin.direction * (new_pos - origin.position);
 }
 
+static inline double findSpindleVelocity(
+        double spindle_velocity,
+        spindle_origin_t origin
+        )
+{
+    return origin.direction * spindle_velocity;
+}
+
 /**
  * Helper function to compare commanded and actual spindle velocity.
  * If the signs of velocity don't match, then the spindle is reversing direction.
@@ -2565,16 +2580,18 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT * const tp,
     static double old_spindle_pos = 0.0;
     double spindle_pos = emcmotStatus->spindle_fb.position_rev;
 
-    RIGIDTAP_STATE const initial_state = tc->coords.rigidtap.state;
+    rigid_tap_state_t const initial_state = tc->coords.rigidtap.state;
     switch (initial_state) {
-        case TAPPING:
+        case RIGIDTAP_INACTIVE:
+            return;
+        case RIGIDTAP_TAPPING:
             if (tc->progress >= tc->coords.rigidtap.reversal_target) {
                 // command reversal
                 cmdReverseSpindle();
-                tc->coords.rigidtap.state = REVERSING;
+                tc->coords.rigidtap.state = RIGIDTAP_REVERSING;
             }
             break;
-        case REVERSING:
+        case RIGIDTAP_REVERSING:
             if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
                 PmCartesian start, end;
                 PmCartLine *aux = &tc->coords.rigidtap.aux_xyz;
@@ -2590,20 +2607,21 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT * const tp,
                 // NOTE: reset both progress and sync location:
                 // At the point of reversal, the spindle is already synchronized
                 tc->progress = 0.0;
-                tc->progress_at_sync = 0.0;
+                // KLUDGE remember existing tracking error to make sure the reversal follows as close to the same path as possible
+                tc->progress_at_sync = -emcmotStatus->pos_tracking_error;
                 rtapi_print_msg(RTAPI_MSG_DBG, "new target = %f", tc->target);
 
-                tc->coords.rigidtap.state = RETRACTION;
+                tc->coords.rigidtap.state = RIGIDTAP_RETRACTION;
             }
             break;
-        case RETRACTION:
+        case RIGIDTAP_RETRACTION:
             if (tc->progress >= tc->coords.rigidtap.reversal_target) {
                 // Flip spindle direction again to start final reversal
                 cmdReverseSpindle();
-                tc->coords.rigidtap.state = FINAL_REVERSAL;
+                tc->coords.rigidtap.state = RIGIDTAP_FINAL_REVERSAL;
             }
             break;
-        case FINAL_REVERSAL:
+        case RIGIDTAP_FINAL_REVERSAL:
             if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
                 PmCartesian start, end;
                 PmCartLine *aux = &tc->coords.rigidtap.aux_xyz;
@@ -2618,16 +2636,16 @@ STATIC void tpUpdateRigidTapState(TP_STRUCT * const tp,
                 tc->synchronized = 0;
                 tc->target_vel = tc->maxvel;
 
-                tc->coords.rigidtap.state = FINAL_PLACEMENT;
+                tc->coords.rigidtap.state = RIGIDTAP_FINAL_PLACEMENT;
             }
             break;
-        case FINAL_PLACEMENT:
+        case RIGIDTAP_FINAL_PLACEMENT:
             // this is a regular move now, it'll stop at target above.
             break;
     }
     old_spindle_pos = spindle_pos;
 #ifdef TC_DEBUG
-    RIGIDTAP_STATE current_state = tc->coords.rigidtap.state;
+    rigid_tap_state_t current_state = tc->coords.rigidtap.state;
     print_json5_log_start(tpUpdateRigidTapState, Run);
     print_json5_unsigned(current_state);
     print_json5_log_end();
@@ -2682,6 +2700,12 @@ STATIC int tpUpdateMovementStatus(TP_STRUCT * const tp,
     emcmotStatus->requested_vel = tc->reqvel;
     emcmotStatus->current_vel = tc->currentvel;
     emcmotStatus->waiting_on_spindle = tpIsWaitingOnSpindle(tp);
+
+    // KLUDGE Zero out any EMC status that doesn't apply
+    if (tc->synchronized != TC_SYNC_POSITION) {
+        clearPosTrackingStatus();
+    }
+    emcmotStatus->rigid_tap_state = tc->motion_type == TC_RIGIDTAP ? tc->coords.rigidtap.state : RIGIDTAP_INACTIVE;
 
     emcPoseSub(&tc_pos, &tp->currentPos, &emcmotStatus->dtg);
     return TP_ERR_OK;
@@ -3050,6 +3074,7 @@ STATIC tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
 
     // Update the modal state displayed by the TP
     tp->execTag = tc->tag;
+    clearPositionSyncErrors();
 
     checkPositionMatch(tp, tc);
     return res;
@@ -3061,13 +3086,14 @@ STATIC tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
  * Update requested velocity to follow the spindle's velocity (scaled by feed rate).
  */
 STATIC void tpSyncVelocityMode(TC_STRUCT * const tc, TC_STRUCT * const nexttc) {
-    double speed = emcmotStatus->spindle_fb.velocity_rpm;
-    double pos_error = fabs(speed) * tc->uu_per_rev;
+    double speed = fabs(emcmotStatus->spindle_fb.velocity_rps);
+    double pos_error = speed * tc->uu_per_rev;
     // Account for movement due to parabolic blending with next segment
     if(nexttc) {
         pos_error -= nexttc->progress;
     }
     tc->target_vel = pos_error;
+    emcmotStatus->spindle_sync_state = SYNC_VELOCITY;
 
     if (nexttc && nexttc->synchronized) {
         //If the next move is synchronized too, then match it's
@@ -3076,6 +3102,50 @@ STATIC void tpSyncVelocityMode(TC_STRUCT * const tc, TC_STRUCT * const nexttc) {
     }
 }
 
+#if 0
+/**
+ * A function that looks like sqrt but is flatter, and does not have infinite slope at x = 0 for c > 0
+ * @pre c >= 0, x >= 0
+ * @return
+ */
+static inline double pseudo_sqrt_cexpr(double x, double c)
+{
+    const double den = (pmSqrt(c + 1) - pmSqrt(c));
+    const double b0 = -pmSqrt(c
+    const double b1 = 1;
+    return (b1 * pmSqrt(x+c) + b0) / den;
+}
+#endif
+
+static int pos_sync_error_reported = 0;
+void checkPositionSyncError(TP_STRUCT const *tp, TC_STRUCT const *tc)
+{
+    const double max_allowed_error = emcmotConfig->maxPositionTrackingError;
+    if (!pos_sync_error_reported
+            && emcmotStatus->spindle_sync_state == SYNC_POSITION
+            && fabs(emcmotStatus->pos_tracking_error) > max_allowed_error) {
+        rtapi_print_msg(RTAPI_MSG_ERR,"Spindle position tracking error exceeds limit of %f on line %d\n",
+                        max_allowed_error,
+                        tc->id);
+        print_json5_log_start(tpSyncPosition, Run);
+        print_json5_ll_("time_ticks", tp->time_elapsed_ticks);
+        print_json5_double_("current_vel", emcmotStatus->current_vel);
+        print_json5_double_("time", tp->time_elapsed_sec);
+        print_json5_double_("spindle_revs", emcmotStatus->spindle_fb.position_rev);
+        print_json5_double_("spindle_speed_rps", emcmotStatus->spindle_fb.velocity_rps);
+        print_json5_double_("spindle_speed_out", emcmotStatus->spindle_cmd.velocity_rpm_out);
+        print_json5_double_("spindle_tracking_lookahead_steps", emcmotStatus->spindle_tracking_lookahead_steps);
+        print_json5_long_("pos_tracking_mode", emcmotStatus->pos_tracking_mode);
+        print_json5_double_("pos_tracking_velocity", emcmotStatus->pos_tracking_velocity);
+        print_json5_double_("pos_tracking_error", emcmotStatus->pos_tracking_error);
+        print_json5_end_();
+        pos_sync_error_reported = 1;
+    }
+}
+void clearPositionSyncErrors()
+{
+    pos_sync_error_reported = 0;
+}
 
 /**
  * Run position mode synchronization.
@@ -3085,27 +3155,33 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         TC_STRUCT * const nexttc ) {
 
     // Start with raw spindle position and our saved offset
-    double spindle_pos = emcmotStatus->spindle_fb.position_rev;
+    double spindle_pos_raw = emcmotStatus->spindle_fb.position_rev;
 
-    spindle_origin_t spindle_origin = tp->spindle.origin;
+    const spindle_origin_t spindle_origin = tp->spindle.origin;
 
     // Note that this quantity should be non-negative under normal conditions.
-    double spindle_displacement = findSpindleDisplacement(spindle_pos,
+    double spindle_displacement = findSpindleDisplacement(spindle_pos_raw,
                                                spindle_origin);
 
-    tc_debug_print("spindle_displacement %f, raw_pos %f, ", spindle_displacement, spindle_pos);
+    tc_debug_print("spindle_displacement %f, raw_pos %f, ", spindle_displacement, spindle_pos_raw);
 
-    const double spindle_vel = emcmotStatus->spindle_fb.velocity_rpm / 60.0;
+    const double spindle_vel_rps = findSpindleVelocity(emcmotStatus->spindle_fb.velocity_rps, spindle_origin);
+    // Estimate spindle position delta (2 steps seems to minimize physical position error
+    const double lookahead_steps = bound(emcmotStatus->spindle_tracking_lookahead_steps, 100.0, 0);
+    const double spindle_lookahead_delta = spindle_vel_rps * tp->cycleTime * lookahead_steps;
+
     if(tc->sync_accel) {
+        emcmotStatus->spindle_sync_state = SYNC_ACCEL_RAMP;
         // detect when velocities match, and move the target accordingly.
         // acceleration will abruptly stop and we will be on our new target.
         // FIX: this is driven by TP cycle time, not the segment cycle time
         // Experiment: try syncing with averaged spindle speed
-        double target_vel = spindle_vel * tc->uu_per_rev;
+        double target_vel = spindle_vel_rps * tc->uu_per_rev;
         if(tc->currentvel >= target_vel) {
             tc_debug_print("Hit accel target in pos sync\n");
             // move target so as to drive pos_error to 0 next cycle
-            tp->spindle.origin.position = spindle_pos;
+            // NOTE: lookahead distance is in actual spindle direction, not aligned direction used for sync calculations
+            tp->spindle.origin.position = spindle_pos_raw + emcmotStatus->spindle_fb.velocity_rps * lookahead_steps * tp->cycleTime;
             tc->progress_at_sync = tc->progress;
             tc_debug_print("Spindle offset %f\n", tp->spindle.origin.position);
             tc->sync_accel = 0;
@@ -3116,8 +3192,9 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
             tc->target_vel = tc->maxvel;
         }
     } else {
+        emcmotStatus->spindle_sync_state = tc->on_final_decel ? SYNC_FINAL_DECEL : SYNC_POSITION;
         // Multiply by user feed rate to get equivalent desired position
-        const double pos_desired = spindle_displacement * tc->uu_per_rev;
+        const double pos_desired = (spindle_displacement + spindle_lookahead_delta) * tc->uu_per_rev;
         double net_progress = tc->progress - tc->progress_at_sync;
 
         if(nexttc) {
@@ -3134,13 +3211,15 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         // we have synced the beginning of the move as best we can -
         // track position (minimize pos_error).
         // This is the velocity we should be at when the position error is c0
-        double v_final = spindle_vel * tc->uu_per_rev;
+        double v_final = spindle_vel_rps * tc->uu_per_rev;
+        double a_max = tcGetTangentialMaxAccel(tc);
+        double v_max = tc->maxvel;
+
         /*
-         * Correct for position errors when tracking spindle motion.
-         * This approach assumes that if position error is 0, the correct
-         * velocity is just the nominal target velocity. If the position error
-         * is non-zero, however, then we need to correct it, but then return to
-         * the nominal velocity.
+         * In general, position tracking works by perturbing the
+         * velocity-synced feed up or down to correct for transient position
+         * errors.  If position error is 0 (e.g. a perfect spindle and
+         * encoder), then the behavior is identical to velocity-synced motion.
          *
          * velocity
          * |          v_p
@@ -3153,40 +3232,45 @@ STATIC void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
          *         |----| t      time
          *
          * To correct a position error x_err (shaded area above), we need to
-         * momentarily increase the velocity, then decrease back to the nonimal
-         * velocity.
+         * momentarily increase the velocity to catch up, then drop back to the
+         * sync velocity.
          *
          * In effect, this is the trapezoidal velocity planning problem, if:
          * 1) remaining distance dx = x_err
          * 2) "final" velocity = v_0
          * 3) max velocity / acceleration from motion segment
          */
-        double a_max = tcGetTangentialMaxAccel(tc) * emcmotStatus->spindle_tracking_gain;
-        double v_max = tc->maxvel;
 
         switch(emcmotStatus->pos_tracking_mode) {
-        case 2:
+        default:
+        case POS_TRACK_MODE_LEGACY:
         {
-            double v_sq_alt = pmSq(v_final) + pos_error * a_max;
-            double v_target_alt = pmSqrt(fmax(v_sq_alt, 0.0));
-            tc->target_vel = v_target_alt;
-            break;
-        }
-        case 1:
-        {
+            // LinuxCNC 2.6 approach to spindle tracking (high jitter when
+            // position error is very small due to slope of sqrt for small
+            // values)
             double v_sq = a_max * pos_error;
             double v_target_stock = signum(v_sq) * pmSqrt(fabs(v_sq)) + v_final;
             tc->target_vel = v_target_stock;
             break;
         }
-        case 0:
-        default:
+        case POS_TRACK_MODE_FLATTENED:
         {
+            // Experimental spindle tracking that adds correction terms using a pythagorean sum
+            double v_sq = a_max * pos_error;
+            double v_target_flat = signum(v_sq) * pseudo_sqrt(fabs(v_sq)) + v_final;
+            tc->target_vel = v_target_flat;
+            break;
+        }
+        case POS_TRACK_MODE_TRAPEZOIDAL:
+        {
+            // Use trapezoidal velocity calculation to find target velocity
+            // NOTE: this tracking method is smoother but has larger average tracking errors; it's here mostly for compatibility
             double v_target_trapz = fmin(findTrapezoidalDesiredVel(a_max, pos_error, v_final, tc->currentvel, tc->cycle_time), v_max);
             tc->target_vel = v_target_trapz;
             break;
         }
         }
+        emcmotStatus->pos_tracking_velocity = tc->target_vel;
         emcmotStatus->pos_tracking_error = pos_error;
 
         tc_debug_print("in position sync, target_vel = %f, ideal_vel = %f, vel_err = %f\n", tc->target_vel, v_final, v_final - tc->target_vel);
@@ -3526,6 +3610,10 @@ STATIC int tpSteppingCheck(TP_STRUCT * const tp, TC_STRUCT * const tc, TC_STRUCT
  */
 tp_err_t updateSyncTargets(TP_STRUCT *tp, TC_STRUCT *tc, TC_STRUCT *nexttc)
 {
+    emcmotStatus->spindle_sync_state = SYNC_INACTIVE;
+    // Clear old tracking status (will be updated in the appopriate handler)
+    clearPosTrackingStatus();
+
     switch (tc->synchronized) {
         case TC_SYNC_NONE:
             emcmotStatus->spindle_fb.synced = 0;
@@ -3537,6 +3625,8 @@ tp_err_t updateSyncTargets(TP_STRUCT *tp, TC_STRUCT *tc, TC_STRUCT *nexttc)
         case TC_SYNC_POSITION:
             tc_debug_print("sync position\n");
             tpSyncPositionMode(tp, tc, nexttc);
+            checkPositionSyncError(tp, tc);
+
             return TP_ERR_OK;
     }
     return TP_ERR_INVALID;

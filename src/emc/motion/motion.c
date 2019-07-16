@@ -318,6 +318,7 @@ static int init_hal_io(void)
 
 
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_revs), mot_comp_id, "motion.spindle-revs")) < 0) goto error;
+    // KLUDGE spindle-speed-in is now officially in RPS units, but the actual pin name does not reflect this
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_speed_in), mot_comp_id, "motion.spindle-speed-in")) < 0) goto error;
     // Inspired by pid.c "dummysig" pins that estimate velocity internally
     emcmot_hal_data->spindle_speed_in_estimate = emcmot_hal_data->spindle_speed_in;
@@ -325,10 +326,12 @@ static int init_hal_io(void)
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->spindle_is_atspeed), mot_comp_id, "motion.spindle-at-speed")) < 0) goto error;
     *emcmot_hal_data->spindle_is_atspeed = 1;
 
-    if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_tracking_gain), mot_comp_id, "motion.spindle-tracking-gain")) < 0) goto error;
-    *emcmot_hal_data->spindle_tracking_gain = 1.0;
     if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->pos_tracking_mode), mot_comp_id, "motion.pos-tracking-mode")) < 0) goto error;
+    *emcmot_hal_data->pos_tracking_mode = POS_TRACK_MODE_FLATTENED;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->pos_tracking_state), mot_comp_id, "motion.pos-tracking-state")) < 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->pos_tracking_error), mot_comp_id, "motion.pos-tracking-error")) < 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->pos_tracking_velocity), mot_comp_id, "motion.pos-tracking-velocity")) < 0) goto error;
+    if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->rigid_tap_state), mot_comp_id, "motion.rigid-tap-state")) < 0) goto error;
 
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->adaptive_feed), mot_comp_id, "motion.adaptive-feed")) < 0) goto error;
     *(emcmot_hal_data->adaptive_feed) = 1.0;
@@ -484,6 +487,18 @@ static int init_hal_io(void)
 	return retval;
     }
 
+    retval = hal_pin_float_new("motion.debug-gain-0", HAL_IN,
+                 &(emcmot_hal_data->debug_gain_0),
+                 mot_comp_id);
+    if (retval != 0)
+    return retval;
+
+    retval = hal_pin_float_new("motion.debug-gain-1", HAL_IN,
+                 &(emcmot_hal_data->debug_gain_1),
+                 mot_comp_id);
+    if (retval != 0)
+    return retval;
+
     retval =
 	hal_param_s32_new("motion.debug-s32-0", HAL_RO, &(emcmot_hal_data->debug_s32_0),
 	mot_comp_id);
@@ -619,6 +634,8 @@ static int init_hal_io(void)
     emcmot_hal_data->debug_float_1 = 0.0;
     emcmot_hal_data->debug_float_2 = 0.0;
     emcmot_hal_data->debug_float_3 = 0.0;
+    *emcmot_hal_data->debug_gain_0 = 0.0;
+    *emcmot_hal_data->debug_gain_1 = 0.0;
 
     emcmot_hal_data->last_period = 0;
 

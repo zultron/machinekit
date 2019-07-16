@@ -406,11 +406,12 @@ static void process_inputs(void)
     emcmotStatus->spindle_fb.position_rev = *emcmot_hal_data->spindle_revs;
     *emcmot_hal_data->spindle_speed_in_estimate = backward_difference(emcmotStatus->spindle_fb.position_rev,
                                                                       prev_revs,
-                                                                      emcmotConfig->trajCycleTime) * 60.0;
-    emcmotStatus->spindle_fb.velocity_rpm = *emcmot_hal_data->spindle_speed_in;
+                                                                      emcmotConfig->trajCycleTime);
+    emcmotStatus->spindle_fb.velocity_rps = *emcmot_hal_data->spindle_speed_in;
     emcmotStatus->spindle_is_atspeed = *emcmot_hal_data->spindle_is_atspeed;
     // Minimum gain is zero (no position error correction), maximum gain is 1 (correct at maximum acceleration)
-    emcmotStatus->spindle_tracking_gain = fmax(fmin(*emcmot_hal_data->spindle_tracking_gain, 1.0), 0.0);
+    // TODO make this permanent once we establish the best value
+    emcmotStatus->spindle_tracking_lookahead_steps = fmax(*emcmot_hal_data->debug_gain_0, 0.0);
     emcmotStatus->pos_tracking_mode = *emcmot_hal_data->pos_tracking_mode;
 
     /* compute net feed and spindle scale factors */
@@ -1817,6 +1818,9 @@ static void output_to_hal(void)
     *(emcmot_hal_data->spindle_brake) = (emcmotStatus->spindle_cmd.brake != 0) ? 1 : 0;
 
     *(emcmot_hal_data->pos_tracking_error) = emcmotStatus->pos_tracking_error;
+    *(emcmot_hal_data->pos_tracking_state) = emcmotStatus->spindle_sync_state;
+    *(emcmot_hal_data->pos_tracking_velocity) = emcmotStatus->pos_tracking_velocity;
+    *(emcmot_hal_data->rigid_tap_state) = emcmotStatus->rigid_tap_state;
 
     *(emcmot_hal_data->program_line) = emcmotStatus->id;
     *(emcmot_hal_data->motion_type) = emcmotStatus->motionType;
@@ -1857,7 +1861,7 @@ static void output_to_hal(void)
     emcmot_hal_data->debug_bit_1 = emcmotStatus->probing;
     emcmot_hal_data->debug_float_0 = emcmotStatus->net_feed_scale;
     emcmot_hal_data->debug_float_1 = emcmotStatus->spindle_fb.position_rev;
-    emcmot_hal_data->debug_float_2 = emcmotStatus->spindle_fb.velocity_rpm;
+    emcmot_hal_data->debug_float_2 = emcmotStatus->spindle_fb.velocity_rps;
     emcmot_hal_data->debug_float_3 = emcmotStatus->net_spindle_scale;
     emcmot_hal_data->debug_s32_0 = emcmotStatus->overrideLimitMask;
     emcmot_hal_data->debug_s32_1 = emcmotStatus->tcqlen;

@@ -2,13 +2,18 @@ component sim_spindle "Simulated spindle with index pulse";
 
 pin in float velocity-cmd "Commanded speed";
 pin out float position-fb "Feedback position, in revolutions";
+pin out float velocity-fb "Feedback velocity in revolutions";
 pin io bit index-enable "Reset \\fBposition-fb\\fP to 0 at the next full rotation";
-param rw float scale = 1.0 
+param rw float time-constant = 0.0 "first-order time constant for spindle response";
+param rw float max-accel-rps2 = 0 "Limits rate of change of spindle velocity";
+param rw float scale = 1.0
 """factor applied to \\fBvelocity-cmd\\fP.
 
 The result of '\\fBvelocity-cmd\\fP * \\fBscale\\fP' be in revolutions per second.
 For example, if \\fBvelocity-cmd\\fP is in revolutions/minute, \\fBscale\\fP should be set to 1/60 or 0.016666667.
 """;
+param rw float max-velocity = 0.0 "Maximum spindle velocity in revolutions / second";
+
 
 license "GPL";
 
@@ -17,18 +22,40 @@ function _;
 ;;
 #include <rtapi_math.h>
 
+double sign(double x)
+{
+    return x > 0 ? 1 : (x < 0 ? -1 : 0);
+}
 
 FUNCTION(_) {
-   double old_position = position_fb;
-   double new_position = position_fb + velocity_cmd * fperiod * scale;
+    // 0 time constant implies no delay (e.g. stock sim_spindle behavior)
+    const double alpha = fperiod / (time_constant + fperiod);
+    double old_position_rev = position_fb;
+    double old_velocity_rps = velocity_fb;
 
-   if(index_enable && (floor(old_position) != floor(new_position))) {
-       index_enable = false;
-       if(velocity_cmd < 0)
-           new_position = new_position - ceil(new_position);
-       else
-           new_position = new_position - floor(new_position);
-   }
-   position_fb = new_position;
+    double velocity_cmd_limited = max_velocity > 0 ? fmax(fmin(velocity_cmd, max_velocity), -max_velocity) : velocity_cmd;
+
+    double cmd_velocity_rps = velocity_cmd_limited * scale; // Scale command to internal units
+
+    double cmd_delta = (cmd_velocity_rps - old_velocity_rps) * alpha;
+    double actual_delta = cmd_delta;
+    // 0 or negative max acceleration means ignore it
+    if (max_accel_rps2 > 0.0) {
+        actual_delta = sign(cmd_delta) * fmin(fabs(cmd_delta), max_accel_rps2 * fperiod);
+    }
+    double new_velocity_rps = old_velocity_rps + actual_delta;
+
+    // Do naive sum here (not trapezoidal) for backwards compatibility
+    double new_position_rev = old_position_rev + new_velocity_rps * fperiod;
+
+    if(index_enable && (floor(old_position_rev) != floor(new_position_rev))) {
+        index_enable = false;
+        if(velocity_cmd_limited < 0)
+            new_position_rev -= ceil(new_position_rev);
+        else
+            new_position_rev -= floor(new_position_rev);
+    }
+    position_fb = new_position_rev;
+    velocity_fb = new_velocity_rps;
 }
 

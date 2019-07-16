@@ -94,9 +94,11 @@ typedef struct {
     hal_bit_t *spindle_is_atspeed;
     hal_float_t *spindle_revs;
     hal_bit_t *spindle_inhibit;	/* RPI: set TRUE to stop spindle (non maskable)*/
-    hal_float_t *spindle_tracking_gain; //!< Controls position tracking accuracy from least to most aggressive [0.0-1.0]
-    hal_float_t *pos_tracking_error;
-    hal_s32_t *pos_tracking_mode;
+    hal_float_t *pos_tracking_error; //!< Reports the position "error" term from position-synched motion (not the true spindle tracking error, just the control input)
+    hal_s32_t *pos_tracking_mode; // Position tracking "mode", controls which tracking algorithm to use
+    hal_s32_t *pos_tracking_state; // Internal state of position tracking controller
+    hal_float_t *pos_tracking_velocity; // target feed velocity according to position tracker used during tpRunCycle
+    hal_s32_t *rigid_tap_state; // Internal state of rigid tapping state machine
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion maskable with g53 P1*/
     hal_bit_t *feed_inhibit;	/* RPI: set TRUE to stop motion (non maskable)*/
@@ -125,6 +127,8 @@ typedef struct {
     hal_float_t debug_float_1;	/* RPA: generic param, for debugging */
     hal_float_t debug_float_2;	/* RPA: generic param, for debugging */
     hal_float_t debug_float_3;	/* RPA: generic param, for debugging */
+    hal_float_t *debug_gain_0;	/* WPI: generic param, for debugging */
+    hal_float_t *debug_gain_1;	/* WPI: generic param, for debugging */
     hal_s32_t debug_s32_0;	/* RPA: generic param, for debugging */
     hal_s32_t debug_s32_1;	/* RPA: generic param, for debugging */
     
@@ -158,8 +162,8 @@ typedef struct {
     hal_float_t *spindle_speed_out_abs;	/* spindle speed output absolute*/
     hal_float_t *spindle_speed_out_rps_abs;	/* spindle speed output absolute*/
     hal_float_t *spindle_speed_cmd_rps;	/* spindle speed command without SO applied */
-    hal_float_t *spindle_speed_in;	/* spindle speed measured */
-    hal_float_t *spindle_speed_in_estimate;	/* spindle speed measured */
+    hal_float_t *spindle_speed_in;	/* spindle speed measured in rps from external source such as a high-frequency encoder reader*/
+    hal_float_t *spindle_speed_in_estimate;	/* spindle speed estimated internally (used if spindle_speed_in is not connected) */
 
     // spindle orient
     hal_float_t *spindle_orient_angle;	/* out: desired spindle angle, degrees */

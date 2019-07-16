@@ -206,7 +206,12 @@ static int loadTraj(EmcIniFile *trajInifile)
         trajInifile->Find(&extraConsistencyChecks, "EXTRA_CONSISTENCY_CHECKS", "TRAJ");
         trajInifile->Find(&maxPositionDriftError, "MAX_POSITION_DRIFT_ERROR", "TRAJ");
 
-        emcSetupConsistencyChecks(extraConsistencyChecks, maxPositionDriftError);
+        if (0 != emcSetupConsistencyChecks(extraConsistencyChecks, maxPositionDriftError)) {
+            if (emc_debug & EMC_DEBUG_CONFIG) {
+                rcs_print("bad return value from emcSetupConsistencyChecks\n");
+            }
+            return -1;
+        }
 
         double maxFeedScale = 1.0;
         trajInifile->Find(&maxFeedScale, "MAX_FEED_OVERRIDE", "DISPLAY");
@@ -216,7 +221,16 @@ static int loadTraj(EmcIniFile *trajInifile)
                 rcs_print("bad return value from emcSetMaxFeedOverride\n");
             }
             return -1;
-        } 
+        }
+
+        double maxPosTrackingError = INFINITY;
+        trajInifile->Find(&maxPosTrackingError, "MAX_POSITION_TRACKING_ERROR", "TRAJ");
+        if (0 != emcSetMaxPosTrackingError(maxPosTrackingError)) {
+            if (emc_debug & EMC_DEBUG_CONFIG) {
+                rcs_print("bad return value from emcSetMaxPosTrackingError\n");
+            }
+            return -1;
+        }
     }
 
     catch(EmcIniFile::Exception &e){

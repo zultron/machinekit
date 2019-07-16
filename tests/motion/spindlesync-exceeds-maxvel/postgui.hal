@@ -1,13 +1,14 @@
 net Zvel => python-ui.Zvel
-net spindle-rpm-est => python-ui.spindle-speed
+net spindle-velocity-real => python-ui.spindle-speed-rps
 net running halui.program.is-running => python-ui.running
 
+setp sim_spindle.time-constant 0.0 # How long it takes to reach 63% of commanded speed
 # pitch = feed per rev
 #    spr = 1/rps
 loadrt invert count=1
 addf invert.0 servo-thread
 setp invert.0.deadband 0.001
-net spindle-rps-raw => invert.0.in
+net spindle-velocity-real => invert.0.in
 #    pitch
 loadrt mult2 count=1
 addf mult2.0 servo-thread

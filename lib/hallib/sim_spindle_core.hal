@@ -1,0 +1,26 @@
+# simulated massiv spindle (with magical position / velocity sensor)
+loadrt sim_spindle names=sim_spindle
+loadrt near count=1
+
+setp sim_spindle.time-constant 0.1 # How long it takes to reach 63% of commanded speed
+setp sim_spindle.max-accel-rps2 100 # Limits spindle speed rate of change
+setp sim_spindle.max-velocity 100.0 # Limit maximum spindle velocity to 6000 RPM
+
+# Connect inputs to search for / zero position at index
+net spindle-index-enable motion.spindle-index-enable <=> sim_spindle.index-enable
+
+# Command goes directly to spindle and at-speed sensor
+net spindle-speed-raw-rps motion.spindle-speed-out-rps sim_spindle.velocity-cmd near.0.in1
+
+# Connect spindle to encoder reader
+net spindle-velocity-real sim_spindle.velocity-fb near.0.in2
+net spindle-position-real sim_spindle.position-fb
+
+net spindle-at-speed near.0.out motion.spindle-at-speed
+
+# at-speed detection
+setp near.0.difference 0.5 #RPS
+net spindle-at-speed near.0.out motion.spindle-at-speed
+
+addf near.0 servo-thread
+addf sim_spindle servo-thread

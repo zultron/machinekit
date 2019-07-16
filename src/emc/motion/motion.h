@@ -81,6 +81,7 @@ to another.
 #include "rtapi_limits.h"
 #include <stdarg.h>
 #include "state_tag.h"
+#include "motion_types.h"
 
 
 // define a special value to denote an invalid motion ID 
@@ -180,6 +181,7 @@ extern "C" {
         EMCMOT_SET_MAX_FEED_OVERRIDE,
         EMCMOT_SETUP_ARC_BLENDS,
         EMCMOT_SETUP_CONSISTENCY_CHECKS,
+        EMCMOT_SET_MAX_POSITION_TRACKING_ERROR,
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */
@@ -271,9 +273,9 @@ typedef struct {
         double arcBlendTangentKinkRatio;
         double maxFeedScale;
 
-    consistency_check_config_t consistencyCheckConfig;
+        consistency_check_config_t consistencyCheckConfig;
 
-    struct state_tag_t tag;
+        struct state_tag_t tag;
     } emcmot_command_t;
 
 /*! \todo FIXME - these packed bits might be replaced with chars
@@ -564,12 +566,6 @@ Suggestion: Split this in to an Error and a Status flag register..
 	double big_vel;		/* used for "debouncing" velocity */
     } emcmot_joint_t;
 
-typedef enum {
-    SPINDLE_REVERSE=-1,
-    SPINDLE_STOPPED=0,
-    SPINDLE_FORWARD=1
-} spindle_direction_code_t;
-
 /**
  * This structure contains only the "status" data associated with a joint.
  * "Status" data is that data that should be reported to user space on a
@@ -616,7 +612,7 @@ typedef enum {
     
     typedef struct {
     double position_rev;
-    double velocity_rpm;
+    double velocity_rps;
     int index_enable;  /* hooked to a canon encoder index-enable */
     int synced;        /* we are doing spindle-synced motion */
     } spindle_fb_status;
@@ -681,10 +677,14 @@ typedef enum {
 
 	spindle_cmd_status spindle_cmd;	/* Spindle command output from motion */
 	spindle_fb_status spindle_fb;	/* Spindle feedback input to motion */
-    double spindle_tracking_gain; // external control of position trakcing aggressiveness
-    int pos_tracking_mode;
+    double spindle_tracking_lookahead_steps; // external control of position trakcing aggressiveness
+
+    position_tracking_mode_t pos_tracking_mode;
+    spindle_sync_state_t spindle_sync_state;
+    double pos_tracking_velocity;
+    rigid_tap_state_t rigid_tap_state;
     double pos_tracking_error;
-	
+
 	int synch_di[EMCMOT_MAX_DIO]; /* inputs to the motion controller, queried by g-code */
 	int synch_do[EMCMOT_MAX_DIO]; /* outputs to the motion controller, queried by g-code */
 	double analog_input[EMCMOT_MAX_AIO]; /* inputs to the motion controller, queried by g-code */
@@ -789,6 +789,7 @@ typedef enum {
         double arcBlendTangentKinkRatio;
         double maxFeedScale;
     consistency_check_config_t consistencyCheckConfig;
+        double maxPositionTrackingError;
     } emcmot_config_t;
 
 /*********************************

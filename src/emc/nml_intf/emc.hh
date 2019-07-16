@@ -234,6 +234,8 @@ int emcSetupArcBlends(int arcBlendEnable,
 
 int emcSetupConsistencyChecks(int consistency_checks, double max_position_drift_error);
 
+int emcSetMaxPosTrackingError(double max_pos_error);
+
 extern int emcUpdate(EMC_STAT * stat);
 
 #endif				// #ifndef EMC_HH

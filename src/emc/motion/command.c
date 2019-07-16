@@ -1717,6 +1717,10 @@ check_stuff ( "before command_handler()" );
         emcmotConfig->consistencyCheckConfig = emcmotCommand->consistencyCheckConfig;
         break;
 
+    case EMCMOT_SET_MAX_POSITION_TRACKING_ERROR:
+        emcmotConfig->maxPositionTrackingError = emcmotCommand->maxLimit;
+        break;
+
     default:
         rtapi_print_msg(RTAPI_MSG_DBG, "UNKNOWN");
         reportError(_("unrecognized command %d"), emcmotCommand->command);

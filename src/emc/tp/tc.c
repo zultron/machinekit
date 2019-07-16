@@ -376,7 +376,7 @@ int tcGetPosReal(TC_STRUCT const * const tc, int of_point, EmcPose * const pos)
 
     switch (tc->motion_type){
         case TC_RIGIDTAP:
-            if(tc->coords.rigidtap.state > REVERSING) {
+            if(tc->coords.rigidtap.state > RIGIDTAP_REVERSING) {
                 pmCartLinePoint(&tc->coords.rigidtap.aux_xyz, progress, &xyz);
             } else {
                 pmCartLinePoint(&tc->coords.rigidtap.xyz, progress, &xyz);
@@ -844,7 +844,7 @@ int pmRigidTapInit(PmRigidTap * const tap,
 
     // Setup initial tap state
     tap->reversal_target = tap->xyz.tmag;
-    tap->state = TAPPING;
+    tap->state = RIGIDTAP_TAPPING;
     return TP_ERR_OK;
 
 }

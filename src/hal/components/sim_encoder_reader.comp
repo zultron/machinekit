@@ -1,0 +1,56 @@
+component sim_encoder_reader "Simulated high-frequency encoder reader";
+
+pin in float position-real-in "Current real position";
+pin in float velocity-real-in "Current real velocity";
+param rw float reader-frequency = 10000 "Frequency of simulated encoder reader inner loop";
+param rw s32 hold-time = 10 "Maximum time between encoder pulses before zero velocity is declared, in loop ticks";
+param rw s32 encoder-ppr = 64 "Resolution of encoder";
+param rw s32 counter-mode = 0 "Use quadrature (false, default), or simple up / down counter (true)";
+
+pin out float encoder-position "Simulated encoder position";
+pin out float encoder-velocity "Estimated encoder velocity";
+
+description 
+"""
+Computes an estimated velocity and position based on the "real" input signals provided.
+""";
+
+license "GPL";
+
+function _;
+
+;;
+#include <rtapi_math.h>
+
+/**
+ * Estimate "real" position / velocity using the provided real values of current position / velocity.
+ * @note this is good enough for spindles (which tend to have enough mass to avoid high-frequency changes in RPM)
+ */
+FUNCTION(_) {
+   const double cutoff_time = (double)hold_time * fperiod;
+
+   const double dt_reader = 1.0 /(reader_frequency);
+   const double cpr = encoder_ppr * (counter_mode ? 1.0 : 4.0);
+   const double p_real_counts = position_real_in * cpr;
+   const double v_real_counts = velocity_real_in * cpr;
+
+   const long p_0 = (long)p_real_counts;
+   long p_1 = p_0;
+   const double t_0 = 0;
+   double t = 0;
+   // Loop backwards in time to find the oldest rising edge of an encoder
+   for (t = 0; t > -cutoff_time; t -= dt_reader)
+   {
+        const double p_est = p_real_counts + t * v_real_counts;
+        p_1 = (long)p_est;
+        if (t < -fperiod && p_1 != p_0) {
+            break;
+        }
+   }
+   double t_1 = t;
+
+   encoder_position = (double)p_0 / cpr;
+   // Velocity is non-zero only if we find at least one encoder tick
+   encoder_velocity = t_1 < 0 ? (double)(p_0 - p_1) / (t_0 - t_1) / cpr : 0;
+}
+
