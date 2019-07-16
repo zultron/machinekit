@@ -338,6 +338,12 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.logger.set_visible_tools(tool_list)
             self._redraw()
 
+    @staticmethod
+    def gcode_to_str(g_code):
+        suffix = int(g_code) % 10
+        base = int(g_code)/10
+        return "G{}.{}".format(base, suffix) if suffix else "G{}".format(base)
+
     def get_active_g_code_string(self):
         """
         Most active G-codes don't matter for preview, but the ones that affect path geometry do, such as distance mode,
@@ -346,16 +352,26 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         :return: A string (delimited by '\n') of G-codes to execute
         """
         gcodes = self.stat.gcodes
-        print "get_active_g_codes: ", gcodes
+
+        # NOTE: ignoring the following active G-codes since they don't affect preview, or are handled elsewhere
+        # G_CODE_MOTION_MODE
+        # G_CODE_MODE_0
+        # G_CODE_FEED_MODE
+        # G_CODE_ORIGIN
+        # G_CODE_TOOL_LENGTH_OFFSET
+        # G_CODE_SPINDLE_MODE
+
         cmd_list = [
-            "G{}".format(int(gcodes[linuxcnc.G_CODE_UNITS])/10),  # Must be first before applying any other modes
-            "G{}".format(int(gcodes[linuxcnc.G_CODE_LATHE_DIAMETER_MODE])/10),
-            "G{}".format(int(gcodes[linuxcnc.G_CODE_PLANE])/10),
-            "G{}".format(int(gcodes[linuxcnc.G_CODE_CUTTER_SIDE])/10),
-            "G{}".format(int(gcodes[6])/10),
-            "G{}.1".format(int(gcodes[14])/10),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_UNITS]),  # Must be first before applying any other modes
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_PATH_MODE]),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_LATHE_DIAMETER_MODE]),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_PLANE]),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_CUTTER_SIDE]),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE]),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE_IJK]),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_RETRACT_MODE]),
         ]
-        print cmd_list
+        print "Active G-codes at redraw:", cmd_list
         return '\n'.join(cmd_list)
 
     def load(self, filename=None):
