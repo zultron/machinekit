@@ -2,16 +2,17 @@
 
 import sys
 import os
+import glob
 import subprocess
 import g33_checks
-
-import os
-import glob
 
 # Get a list of all the file paths that ends with .txt from in specified directory
 old_sample_files = glob.glob('test_case_*.samples')
 
 for f in old_sample_files:
+    os.remove(f)
+
+for f in glob.glob('test_results'):
     os.remove(f)
 
 for t in g33_checks.find_test_cases():

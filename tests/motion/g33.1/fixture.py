@@ -20,9 +20,10 @@ c.wait_complete()
 # Read in the current test case (passed to the fixture via sys args)
 test_name = sys.argv[3]
 constants = g33_checks.load_test_case(test_name)
-print >> sys.stderr, "Got constants: ", constants
+print >> sys.stderr, "Test {} configuration: {}".format(test_name,constants)
 
 if constants.get("skip", False):
+    print >> sys.stderr, "Test {} skipped".format(test_name)
     sys.exit(0)
 
 # Start halsampler asynchronously to make sure that the entire test is captured
@@ -50,5 +51,5 @@ c.wait_complete()
 failed = g33_checks.check_all(test_name)
 
 if failed:
-    sys.exit(1)
+    print >> sys.stderr, "Test {} failed".format(test_name)
 
