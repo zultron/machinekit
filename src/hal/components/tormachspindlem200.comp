@@ -83,6 +83,7 @@ author "";
 //   
 //          forward_in              input from linuxcnc motion entity, used when not in index mode for feed thur
 //          spindle-lock            from linuxcnc motion.spidle-lock
+//          zindex-test             execute zindex testing
 // Outputs:
 //          orient-modulus          feedback to pid block used control indexing of spindle
 //          oriented                feedback to linuxcnc that index is within range.  Connect to motion.spindle-is-oriented
@@ -219,6 +220,11 @@ pin in s32 orient_encoder_cpr;  // encoder counts per rev
 pin in bit spindle_lock;
 pin in bit boost_disable;       //set high to disable boost
 pin in bit vfd_handshake;       //Hand shake pulse from VFD to confirm VFD mode switch is done
+pin in bit zindex_test;         //execute Z index testing.  Run spindle at 10K RPM, readout to spindle RPM DRO should be 10K
+//TODO: Hide these after debugging
+pin out float zindex_test_timer; //one sec timer
+pin out bit zindex_test_flag;
+pin out u32 zindex_test_count; //counts of zindex in last sec
 
 // not used
 //pin in s32 encoder_rawcounts;
@@ -237,6 +243,7 @@ pin out s32 finding_z_index;    //this echoes orient_mode input, and flags contr
 pin out bit oriented;           // feedback to linuxcnc that we've completed orientation/indexing
 pin out float orient_timer;     //total time for this orient to happen (or last one took)
 pin out float orient_good_timer;     // used to timeout "in position" (orienting complete)
+pin out float spindle_lock_timer; //used to record how long spindle lock active, for brake cylinder filling
 pin out s32 orient_fault;           //feedback to linuxcnc what error  occurred
 pin out float orient_modulus;   // feedback to pid block used to control indexing
 pin out u32 spindle_state;      // Normal, orienting, and spindle locked
@@ -281,7 +288,9 @@ pin out s32 orient_targetband; //within this many encoder counts of target, we c
 pin in u32 orient_targetband_override;  // PP can set range in +/- encoder counts where we consider the spindle orientation is done
 
 
-pin out float orient_status; // 0 -> oriented within tolerance, -1 or 1 direction of error if not oriented  TODO: rename this??
+pin out float orient_drift; // 0: oriented within drift tolerance
+                            // DRIFT_INVALID (-1): brake cylinder ORIENT_BRAKE_ACTUATION_TIME hasn't yet expired, 
+                            // any_other_value: means "Fault" i.e. orient drift >= (ORIENT_TARGETBAND + ORIENT_BAND_IGNORE)
 pin out bit orienting_stuck;  //goes hi when we detect spindle is not responding
 pin out float orienting_stuck_timer;  //time since last movement seen on encoder during orient
 pin out float orienting_boost; //RPM boost value increases ORIENT_BOOST_RPM every ORIENT_BOOST_PERIOD when active
@@ -398,9 +407,10 @@ function _ "Tormach Spindle HAL Component M200";
 #define ORIENT_TARGETBAND (8)  //within this range from orient target, we call it "done"
 #define ORIENT_TARGETBAND_TIME   (.200) //(.400) // 303mS was observed worst case where slow slopes could cause us to think orienting is "done" when PID is still homing in
                             //(.100) //must stay within ORIENT_TARGETBAND and have stable vfd_freq_cmd for this many secs to call orient "done"
-#define ORIENT_BAND_IGNORE (3) //SLP SET BACK TO 75 locally//(3)  //number of encoder counts, in addition to ORIENT_TARGETBAND, when we flag orient-status (used by ATC) with a non-zero.
+#define ORIENT_BAND_IGNORE (5) //SLP SET BACK TO 75 locally//(3)  //number of encoder counts, in addition to ORIENT_TARGETBAND, when we flag orient-status (used by ATC) with a non-zero.
                                 //in other words, the spindle brake engagement itself may move the spindle some.  And the spindle can move some due to the slop in the
                                 //PDB guide pins -- Matt & I measured 2 counts.  So we've added 50% with "3". We don't believe this to be a significant issue.
+                                //as of July 2019, normal operation has seen values as high as 15 and we're OK with that.  with (8), we're experimenting to see if we
 
 #define ORIENT_LONG_ORIENT_TIME (1.0) //in secounds, time to wait before starting to figure out if we're stuck
 #define ORIENT_STUCK_PREAMBLE_TIME (.25) //TODO consider the VFD_RUN and VFD_CMD Delays (.25) //in seconds, time to wait before declaring we're stuck
@@ -408,6 +418,13 @@ function _ "Tormach Spindle HAL Component M200";
 //#define ORIENT_MIN_BOOST_RPM (18.0) //need this to exceed the deadband and then some on the VFD
 #define ORIENT_BOOST_PERIOD (.1) //in secs
 #define ORIENT_MAX_BOOST (125) //TODO
+#define DRIFT_INVALID (-1.0)  // KEEP THIS IN Sync with trayin.ngc!!!!!!!
+#define ORIENT_BRAKE_ACTUATION_TIME (2.5)   // (secs) time after orient completes until we don't report DRIFT_INVALID out orient-drift pin
+                                            // see our confluence wiki about max 2 sec delay of brake cylinder
+                                            // it is also dependent on present .5 sec delay of zbotatc.py delay between ATC_SPDL_LK_SOLENOID and ATC_DRAW_BAR_SOLENOID.
+                                            // Note: ATC_SPDL_LK_SOLENOID activatition only closes bypass around brake pressure limiting device.  Brake cylinder filling begins 
+                                            // when ATC_DRAW_BAR_SOLENOID is called.
+
 
 #define ERR_LIE (0)
 #define _38_SPECIAL (0)
@@ -421,7 +438,7 @@ function _ "Tormach Spindle HAL Component M200";
 #define VFD_MODE_SWITCH_DELAY (3.00) //This is the delay the VFD needs as we switch between VFD modes using  mode0 and mode1 pins before we can enable the drive. (i.e. assert VFD "RUN" pin)
                                     //Note at 3/4 of this value we actually switch the vfd-mode0 and vfd-mode1 
                                     //ALSO NOTE that decreasing this delay is NOT RECOMMENDED without considering the time it takes to release the spindle-brake, M19 to M3 screeches can happen
-#define VFD_FREQ_CMD_TO_ENABLE_DELAY (.300) //(.150) //(.0320) //time that VFD enable will be delayed after vfd_freq_cmd changes from inactive vfd_freq_cmd=0 state to an active, non-zero vfd_freq_cmd command state
+#define VFD_FREQ_CMD_TO_ENABLE_DELAY (.400) //OMG.  jul11_19_33_45_orientfailure.log caused VFD fault and 300 wasn't enought //(.300) //(.150) //(.0320) //time that VFD enable will be delayed after vfd_freq_cmd changes from inactive vfd_freq_cmd=0 state to an active, non-zero vfd_freq_cmd command state
 #define MAGIC_VFD_FREQ_OFFSET (0) //(164.0) //(41.0)  //determined by the minimum freq below which the VFD stops turning the spindle  (when VFD is in *25 sensitivity mode)
                                   //so theoretically, this is present in normal spindle mode, but the freq is 41/25 = 1.64 Hz vfd-cmd-freq which is what RPM???
                                   //not presently using MAGIC_VFD_FREQ_OFFSET, probably BIPOLAR Mode VFD_BIPOLAR_FREQ_OFFSET and VFD_DEADBAND_HZ removes the need for (duplicate) MAGIC_VFD_FREQ_OFFSET
@@ -843,14 +860,14 @@ void execute_impulse(void)
             if (orient_good_timer >= ORIENT_TARGETBAND_TIME) //subject to reset/restart at very end of this comp when vfd_freq_cmd isn't stable.
                 oriented = 1;
             }
-            orient_status = 0.0;
+            orient_drift = 0.0;
     }
     else {
         if (enc_err > 0) {
-            orient_status = 1.0;
+            orient_drift = 1.0;
         }
         else {
-            orient_status = -1.0;
+            orient_drift = -1.0;
         }
         orient_good_timer = 0.0;
         orient_on_target = 0;
@@ -955,15 +972,20 @@ float encoder_spindle_speed;
 
     //note if orient_execute isn't hooked up, we assume it is going to be "0", which means this comp will behave in
     //the normal mode which doesn't index
-
-    if (!(zindex_state & ISTATE_PAST) && !(zindex_state & ISTATE_WAITING)) {
-        //system("halcmd sets spindle-orient-enable 1"); //command z index to happen
-        zindex_enable = 1;
-        zindex_state = ISTATE_WAITING;
+    if (!(zindex_test)) {
+        if  (!(zindex_state & ISTATE_PAST) && !(zindex_state & ISTATE_WAITING)) {
+            //system("halcmd sets spindle-orient-enable 1"); //command z index to happen
+            zindex_enable = 1;
+            zindex_state = ISTATE_WAITING;
+        }
+        else if ((zindex_state & ISTATE_WAITING) && (zindex_enable == 0)) {
+           zindex_state = ISTATE_PAST | ISTATE_DONE;
+        }
     }
-    else if ((zindex_state & ISTATE_WAITING) && (zindex_enable == 0)) {
-        zindex_state = ISTATE_PAST | ISTATE_DONE;
+    else {
+        zindex_state = ISTATE_NONE;
     }
+    
 
     // THIS SECTION figures out spinde_state and clears and initializes other state variables,
     // but doesn't to the heavy lifting of what the spindle_states mean
@@ -985,7 +1007,7 @@ float encoder_spindle_speed;
             else
                 orient_targetband = ORIENT_TARGETBAND;
             orient_on_target = 0;
-            orient_status = -.456; 
+            orient_drift = DRIFT_INVALID; 
             //if (motor_hz_per_cmd_hz == 0.0)
             //    hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
             //else
@@ -1029,6 +1051,7 @@ float encoder_spindle_speed;
             }
             else {
                 spindle_state = SPINDLE_STATE_LOCKED; //move to this state even if error
+                spindle_lock_timer = 0.0;
                 orient_P2 = 1; //switch to 2nd PID constants
                 if (!oriented) {
                     orient_to = 1;
@@ -1038,6 +1061,7 @@ float encoder_spindle_speed;
             }
         }
         oriented = 0;
+        spindle_lock_timer += fperiod;
     }
     else if (orient_set_bt30){
         if ((spindle_state != SPINDLE_STATE_NORMAL) || !is_spindle_stopped() )
@@ -1073,7 +1097,7 @@ float encoder_spindle_speed;
             spindle_state = SPINDLE_STATE_NORMAL; //important we do this here, as we just checked previous spindle state conditions
             orient_fault = 0; //clearing this here means orient_fault is only active for 1 ms!, but otherwise see above "never attempt another M19"
             orient_on_target = 0;
-            orient_status = -.4567;
+            orient_drift = DRIFT_INVALID;
             if (motor_hz_per_cmd_hz == 0.0)
                 hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
             else
@@ -1155,21 +1179,17 @@ float encoder_spindle_speed;
             }
 
             //since orient_on_target is using tighter tolerance than orient_targetband, we
-            //have to deal with orient_status separately
-            if (spindle_state == SPINDLE_STATE_LOCKED) {
-                if (enc_err <= -1 * iabs(orient_targetband + ORIENT_BAND_IGNORE))
-                    orient_status = (float)enc_err; //SLP DEBUG test to simply return enc_err restore this -1.0;
-                else if (enc_err >= iabs(orient_targetband + ORIENT_BAND_IGNORE))
-                    orient_status = (float)enc_err; //SLP restore this 1.0; (or maybe not)
-                else
-                    orient_status = 0.0;
-                if (orient_status)
+            //have to deal with orient_drift separately
+            if ((spindle_state == SPINDLE_STATE_LOCKED) && (spindle_lock_timer >= ORIENT_BRAKE_ACTUATION_TIME)) {
+               if (orient_drift == DRIFT_INVALID) //only true very first time after ORIENT_BRAKE_ACTUATION_TIME passes
+                        orient_drift = 0.0; // orient drift is within acceptable limits, report "all OK" to ATC
+                 if (iabs(enc_err) >= iabs(orient_targetband + ORIENT_BAND_IGNORE)) 
+                    if (fabs(orient_drift) < fabs((float)enc_err)) //preserve largest value for reporting to log files by ATC ngc code
+                        orient_drift = (float)enc_err;
+                if (orient_drift != 0.0)
                     orient_problem |= 4;  //SLP remove for local debug with broken ATC & spindle
             }
-//            else { //presently setting to "invalid" number incase ATC code samples this at "wrong" time for this variable.  It'll generate a fault as ATC code is looking for it to be zero or not.
-//                    //DEBUG statements in .ngc files are logging the return ... if we see this MAGIC NUMBER, then we know it was sampled at wrong time
-//                orient_status = -.456789;//SLP return to 0 //lie it's all OK until as not error yet since orient hasn't finished
-//            }
+            else orient_drift = DRIFT_INVALID;
 
             if(iabs(enc_err) < orient_targetband) { //Yes, we want <, not <=. Assume orient_targetband = 8. Encoders are integral, so if <= can reach 8 + very nearly 1 = 9 rotations before we see it. When <8 then
                                                     // value is 7 + nearly 1 
@@ -1353,7 +1373,7 @@ float encoder_spindle_speed;
         speed_alarm = BIT_FALSE;
     }
     else if (spindle_on && (iabs(vfd_rpm_cmd) > 0.0)) {
-        if (at_speed == BIT_FALSE) {
+        if (at_speed == BIT_FALSE && !zindex_test) {
             if (at_speed_force == BIT_TRUE) {
                 at_speed_force_timer += fperiod;
                 if (at_speed_force_timer > AT_SPEED_FORCE_DELAY_SECS) {
@@ -1394,6 +1414,32 @@ float encoder_spindle_speed;
             }
         }
         // in at-speed state - speed-out follows speed-in
+        else if (zindex_test) {
+            //zindex_state = ISTATE_NONE; already done way above in zindex_state handler code
+            //if(zindex_enable == BIT_FALSE && (iabs(encoder_position) >= 10)) { //iabs(orient_encoder_cpr)) { counts up to 32K??????!!!!
+            //at 10KRPM, it's only 6 ms per rev, so that's 341.3 encoder steps.  So we do 512 encoder_position detection to set zindex_enable
+            if((zindex_test_flag == 0) && (iabs(encoder_position) >= 512)) {
+            // TODO:            if(zindex_enable == BIT_FALSE) { //detected z index  always false!!!!, so 1000 times/sec is counted
+                zindex_enable = BIT_TRUE; //set it again
+                zindex_test_flag = 1;
+                zindex_test_count++;
+            }
+            else if ((zindex_test_flag == 1) && (iabs(encoder_position) < 512)){
+                zindex_test_flag = 0;
+            }
+
+            
+
+            if(zindex_test_timer > 0.0) //if timer running, bump it down
+                zindex_test_timer -= fperiod;
+
+            if(zindex_test_timer <= 0.0) { //if timer times out (or never yet run)
+                zindex_test_timer = 1.0; //sample each sec
+                speed_out = zindex_test_count * 60;
+                zindex_test_count = 0;
+            }
+            at_speed = BIT_FALSE;
+        }
         else {
             speed_out = iabs(vfd_rpm_cmd);
             // uncomment next line for debugging or to display feedback RPM in UI
@@ -1406,6 +1452,7 @@ float encoder_spindle_speed;
         speed_out = 0.0;
         speed_alarm = BIT_FALSE;
         vfd_freq_cmd = 0.0;
+        zindex_test_flag = 0; // reset this flag for when one starts and stops encoder zindex testing, so it will restart
     }
 
     if (disable) { //do this last  TODO: This may fault the drive, but do we care???
