@@ -22,5 +22,5 @@ net spindle-at-speed near.0.out motion.spindle-at-speed
 setp near.0.difference 0.5 #RPS
 net spindle-at-speed near.0.out motion.spindle-at-speed
 
-addf near.0 servo-thread
-addf sim_spindle servo-thread
+addf sim_spindle servo-thread 1
+addf near.0 servo-thread 2

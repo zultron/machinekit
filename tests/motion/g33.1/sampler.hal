@@ -5,7 +5,7 @@ loadrt sampler depth=1600 cfg=fffffsb
 addf sampler.0              servo-thread
 
 # KLUDGE workaround for the hypothesized extra timestep lag in sim config
-setp motion.debug-gain-0 2.0
+setp motion.debug-gain-0 1.0
 
 net spindle-position-measured => sampler.0.pin.0
 net spindle-velocity-measured_rps => sampler.0.pin.1
