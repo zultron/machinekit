@@ -43,7 +43,8 @@ def load_samples_after_sync(samples_file):
         for row in sample_reader:
             samples.append([x for x in row if not isinstance(x, str)])
 
-    return np.array(samples)
+    # KLUDGE throw out the last sampled point in case it's clobbered when halsampler was killed
+    return np.array(samples[:-1])
 
 
 def check_all(test_name):
