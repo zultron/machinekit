@@ -42,6 +42,7 @@ Depends: g++, @KERNEL_HEADERS@,
     python (>= @PYTHON_VERSION@), python (<< @PYTHON_VERSION_NEXT@),
     ${python:Depends}, ${misc:Depends},
     @MAIN_PACKAGE_NAME@ (= ${binary:Version}),
+    udev,
     yapps2-runtime
 Section: libs
 Description: PC based motion controller for real-time Linux
