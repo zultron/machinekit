@@ -5,6 +5,8 @@ linuxcnc (1:2.8.0~pre1) rosa; urgency=low
   * New G52 local coordinate system offset
   * New support for multiple spindles up to 9
 
+ -- John Thornton <jthornton@gnipsel.com>  Thu, 6 Jun 2019 14:50:43 -0500
+
 linuxcnc (1:2.7.14) unstable; urgency=medium
 
   * docs: improve motion.requested-vel description
