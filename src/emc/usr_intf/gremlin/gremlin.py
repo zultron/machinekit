@@ -605,11 +605,11 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
     # These are for external controlling of the view
 
-    def zoom_in(self):
-        self.zoomin()
+    def zoom_in(self, ratio=1.1):
+        self.zoomin(ratio)
 
-    def zoom_out(self):
-        self.zoomout()
+    def zoom_out(self, ratio=1.1):
+        self.zoomout(ratio)
 
     def start_continuous_zoom(self, y):
         self.startZoom(y)

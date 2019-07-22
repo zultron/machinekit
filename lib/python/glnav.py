@@ -303,12 +303,12 @@ class GlNavBase:
         self.distance = data
         self._redraw()
 
-    def zoomin(self):
-        self.distance = self.distance / 1.1
+    def zoomin(self, ratio=1.1):
+        self.distance = self.distance / ratio
         self._redraw()
 
-    def zoomout(self):
-        self.distance = self.distance * 1.1
+    def zoomout(self, ratio=1.1):
+        self.distance = self.distance * ratio
         self._redraw()
 
     def startZoom(self, y):
