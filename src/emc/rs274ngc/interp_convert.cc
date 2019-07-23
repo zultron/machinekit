@@ -1590,7 +1590,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
     break;
   case G_54_1:
     origin = p_word;
-    CHKS(origin < 1 || origin > MAX_EXTENDED_WORK_CSYS, "Invalid work offset %d requested (must be between 1 and %d)", origin, MAX_EXTENDED_WORK_CSYS);
+    CHKS(!is_valid_work_offset_index(origin), "Invalid work offset %d requested (must be between 1 and %d)", origin, MAX_EXTENDED_WORK_CSYS);
     break;
   default:
     ERS(NCE_BUG_CODE_NOT_IN_RANGE_G54_TO_G593);

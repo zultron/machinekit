@@ -2877,7 +2877,7 @@ CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket)
 RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin)
 {
     RotateShiftTransform out = RotateShiftTransform();
-    if (origin < 0 || origin >= interp_param_global::MAX_EXTENDED_WORK_CSYS) {
+    if (!interp_param_global::is_valid_work_offset_index(origin)) {
         return out;
     }
 
