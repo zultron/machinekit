@@ -152,5 +152,3 @@ if __name__ == '__main__':
         if exceeds_limits:
             sys.exit(1)
 
-
-

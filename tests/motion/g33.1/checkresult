@@ -9,12 +9,12 @@ def check_results(raw_output, dest_file):
     with open(dest_file,'w') as r:
 
         if not os.path.exists(raw_output):
-            r.write('Failed: no test output found\n')
+            r.write('Failed: no test output found in file %s\n' % raw_output)
             return -1
 
         failure_count = 0
         results=[]
-        with open('stderr') as f:
+        with open(raw_output) as f:
             for l in f.readlines():
                 for s in ("Passed", "Test"):
                     if s in l:
@@ -29,5 +29,8 @@ def check_results(raw_output, dest_file):
 
 
 if __name__ == '__main__':
-    sys.exit(check_results('stderr', 'test_results'))
+    out_name = sys.argv[1] or './test_results'
+    out_dir = os.path.dirname(out_name)
+    err_count = check_results(os.path.join(out_dir,'stderr'), out_name)
+    sys.exit(err_count)
 
