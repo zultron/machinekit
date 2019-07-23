@@ -550,6 +550,9 @@ struct setup_struct
 
     void setXYRotationDeg(double rot_deg);
 
+    // during open/close we keep track of all the work offsets the interpreter sees
+    // by origin index in this set.
+    std::set<int> work_offsets_used;
 };
 
 // the externally visible singleton instance

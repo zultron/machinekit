@@ -1503,8 +1503,21 @@ int Interp::open(const char *filename) //!< string: the name of the input NC-pro
     }
     strcpy(_setup.filename, filename);
     reset();
+
+    // As we're about to parse a new file, clear out the work offsets that were used by last file.
+    _setup.work_offsets_used.clear();
+
     return INTERP_OK;
 }
+
+
+std::set<int> Interp::get_work_offsets_used()
+{
+   // after an open() and close() cycle, the interp knows which offsets were used by the
+   // program so this provides acess to that state.
+   return _setup.work_offsets_used;
+}
+
 
 int Interp::read_inputs(setup_pointer settings)
 {

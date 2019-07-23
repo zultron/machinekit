@@ -445,6 +445,7 @@ class GlCanonDraw:
         self.select_buffer_size = 100
         self.cached_tool = -1
         self.initialised = 0
+        self._work_offsets_used = []
 
     def realize(self):
         self.hershey = hershey.Hershey()
@@ -1964,9 +1965,17 @@ class GlCanonDraw:
         if self.canon: self.canon.draw(0, False)
         glEndList()
 
+    def get_work_offsets_used(self):
+        return self._work_offsets_used
+
     def load_preview(self, f, canon, unitcode, initcode, interpname=""):
         self.set_canon(canon)
         result, seq, warnings = gcode.parse(f, canon, unitcode, initcode, interpname)
+
+        # this is only valid right after a gcode.parse() as it will continue to change if the 
+        # underlying interp is reset or reused for other files.  It gets cleared when a new file is
+        # opened underneath.
+        self._work_offsets_used = gcode.get_work_offsets_used()
 
         if result <= gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)

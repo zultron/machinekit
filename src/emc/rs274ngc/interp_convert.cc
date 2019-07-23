@@ -1631,6 +1631,9 @@ void Interp::send_current_g5x_transform()
 
 void Interp::send_g5x_transform(int origin, const RotateShiftTransform & g5x_transform)
 {
+  // Keep track of which work offset origins we've seen during parsing
+  _setup.work_offsets_used.insert(origin);
+
   SET_G5X_TRANSFORM(origin,
                     UNPACK_POSITION_ARRAY_REF(g5x_transform.shift.tf),
                     g5x_transform.getXYRotationDeg());

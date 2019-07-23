@@ -55,6 +55,10 @@ public:
 // open a file of NC code
  int open(const char *filename);
 
+// after an open() and close() cycle, the interp knows which offsets were used by the
+// program so this provides acess to that state.
+ std::set<int> get_work_offsets_used();
+
 // read the mdi or the next line of the open NC code file
  int read(const char *mdi);
  int read();
@@ -277,7 +281,7 @@ public:
  int convert_coordinate_system(int g_code, int p_word, setup_pointer settings);
 
  void send_current_g5x_transform();
- static void send_g5x_transform(int origin, RotateShiftTransform const &g5x_transform);
+ void send_g5x_transform(int origin, RotateShiftTransform const &g5x_transform);
 
  int convert_cutter_compensation(int g_code, block_pointer block,
                                        setup_pointer settings);

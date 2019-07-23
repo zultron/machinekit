@@ -787,6 +787,22 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode) { motion_mode = mode; }
 CANON_MOTION_MODE GET_EXTERNAL_MOTION_CONTROL_MODE() { return motion_mode; }
 void SET_NAIVECAM_TOLERANCE(double tolerance) { }
 
+static PyObject *get_work_offsets_used(PyObject *self, PyObject *args) {
+
+    // call pinterp to snag the set of work offset indexes and build a new list to 
+    // give back to python land
+    std::set<int> used_offsets = reinterpret_cast<Interp*>(pinterp.get())->get_work_offsets_used();
+
+    PyObject* offsets = PyTuple_New(used_offsets.size());
+    int ix = 0;
+    for (auto offset : used_offsets)
+    {
+       PyTuple_SetItem(offsets, ix, PyInt_FromLong(offset));
+       ++ix;
+    }   
+    return offsets;
+}
+
 #define RESULT_OK (result == INTERP_OK || result == INTERP_EXECUTE_FINISH)
 static PyObject *parse_file(PyObject *self, PyObject *args) {
     char *f;
@@ -1132,6 +1148,8 @@ static PyMethodDef gcode_methods[] = {
         "Convert an arc to straight segments"},
     {"max_glcanon_lines", (PyCFunction)get_set_max_glcanon_lines, METH_VARARGS,
      "Get maximum number of lines to preview; pass integer argument to set"},
+    {"get_work_offsets_used", (PyCFunction)get_work_offsets_used, METH_VARARGS,
+     "Get set of work offset integers used by last parsed gcode file"},
     {}
 };
 
