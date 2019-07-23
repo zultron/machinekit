@@ -41,6 +41,8 @@ limiticon = array.array('B',
 class GLCanon(Translated, ArcsToSegmentsMixin):
     lineno = -1
     def __init__(self, colors, geometry, inifile):
+        ArcsToSegmentsMixin.__init__(self)
+        
         # traverse, feed, and arcfeeds are dictionaries where
         # the key is the tool number and the value is the list of tuples cut using that tool
         # this makes it super fast to draw only those lines which are desired based on a subset of
