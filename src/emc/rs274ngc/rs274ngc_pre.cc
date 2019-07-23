@@ -1152,7 +1152,7 @@ int Interp::init()
     strcpy(filename, RS274NGC_PARAMETER_FILE_NAME_DEFAULT);
   CHP(restore_parameters(filename));
   _setup.origin_index = (int) (_setup.parameters[ACTIVE_WORK_CSYS] + 0.0001);
-  if(_setup.origin_index < 1 || _setup.origin_index > MAX_EXTENDED_WORK_CSYS) {
+  if(!is_valid_work_offset_index(_setup.origin_index)) {
     _setup.origin_index = 1;
     _setup.parameters[ACTIVE_WORK_CSYS] = 1.0;
   }

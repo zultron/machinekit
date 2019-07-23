@@ -21,6 +21,8 @@ namespace interp_param_global
 
 enum {MAX_EXTENDED_WORK_CSYS = 500};
 
+inline bool is_valid_work_offset_index(int idx) {return idx > 0 && idx <= MAX_EXTENDED_WORK_CSYS;}
+
 // 31-5000 - G code user parameters. These parameters are global in the G code file, and available for general use. Volatile.
 enum InterpParameterIndex {
 // 5061-5069 - Coordinates of a G38 probe result (X, Y, Z, A, B, C, U, V & W). Coordinates are in the coordinate system in which the G38 took place. Volatile.
