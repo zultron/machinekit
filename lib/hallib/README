@@ -32,7 +32,12 @@ locking_indexer.hal        simulate locking rotary using timedelay comp
 moveoff_external.hal       Simulate external control connections for
                              a moveoff component
 servo_sim.hal              simulate servo (pid) xyz using lowpass comp
-sim_spindle_encoder.hal    simulate spindle with lowpass filter
+sim_spindle_encoder.hal    simulate spindle and encoder (backends to sim component files below)
+
+sim_spindle_core.hal       simulate a spindle with mass
+sim_spindle_dummy_encoder_addon.hal  simulate a "perfect" encoder that reports the exact spindle position / velocity
+sim_spindle_encoder_addon.hal simulate an encoder / reader that produces a velocity estimate
+
 simulated-gantry-home.hal  simulate gantry home switches (4 joints)
 simulated_home.hal         simulate xyz home switches
 simulated_limits.hal       simulate xyz limit switches
