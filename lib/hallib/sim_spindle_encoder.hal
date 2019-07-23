@@ -1,0 +1,2 @@
+source $(HALLIB_DIR)/sim_spindle_core.hal
+source $(HALLIB_DIR)/sim_spindle_encoder_addon.hal
