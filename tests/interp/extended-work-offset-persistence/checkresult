@@ -1,3 +1,26 @@
-# Handled in test
-diff offsets-stock.var offsets-stock.var.template
-diff offsets-extended.var offsets-extended.var.template
+#!/usr/bin/env python
+
+import sys
+import os
+import subprocess
+
+def get_test_path_from_args():
+    out_name = sys.argv[1] if len(sys.argv) > 1 else None
+    return os.path.dirname(out_name or './')
+
+def check_result_against_template(filename, basepath):
+    full_file = os.path.join(basepath, filename);
+    p=subprocess.Popen(['diff',full_file, full_file+'.template'])
+    p.wait()
+    return p.returncode
+
+
+if __name__ == '__main__':
+
+    basepath = get_test_path_from_args()
+    stock_err = check_result_against_template('offsets-stock.var', basepath)
+    extended_err = check_result_against_template('offsets-extended.var', basepath)
+
+    if stock_err or extended_err:
+        sys.exit(1)
+
