@@ -1144,17 +1144,17 @@ void RIGID_TAP(int line_number, double x, double y, double z)
 
     ini_maxvel = veldata.vel;
 
-    limitSpindleSpeedByActiveFeedRate(ini_maxvel);
+    double nominal_vel = limitSpindleSpeedByActiveFeedRate(ini_maxvel);
 
     AccelData accdata = getStraightAcceleration(bottom, 0);
     acc = accdata.acc;
 
 
     double depth = mag(xyz(bottom) - xyz(canonEndPoint));
-    double safe_lead = ini_maxvel * ini_maxvel / (2.0 * acc) * RIGID_TAP_LEADIN_SAFETY_FACTOR;
+    double safe_lead = nominal_vel * nominal_vel / (2.0 * acc) * RIGID_TAP_LEADIN_SAFETY_FACTOR;
 
     if (safe_lead > depth) {
-        CANON_ERROR("Rigid tap move at line %d is too short for spindle synchronization", line_number);
+        CANON_ERROR("Rigid tap move at line %d length %f is too short for spindle synchronization (need at least %f)", line_number, depth, safe_lead);
         return;
     }
 
@@ -1162,7 +1162,7 @@ void RIGID_TAP(int line_number, double x, double y, double z)
         EMC_TRAJ_RIGID_TAP rigidTapMsg;
         rigidTapMsg.pos = to_ext_pose(bottom);
 
-        rigidTapMsg.vel = toExtVel(ini_maxvel);
+        rigidTapMsg.vel = toExtVel(nominal_vel); // NOTE: for reference ONLY, the actual feed is identified at runtime using uu/rev and real spindle speed
         rigidTapMsg.ini_maxvel = toExtVel(ini_maxvel);
         rigidTapMsg.acc = toExtAcc(acc);
 
