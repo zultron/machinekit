@@ -33,17 +33,22 @@ if __name__ == '__main__':
         test_files.extend(find_test_nc_files(f, True))
 
     e = LinuxcncControl()
-
+    e.log('startup', 'info', 'start')
     e.do_startup(need_home=True)
+    e.log('startup', 'info', 'end')
 
     error_list = []
     for f in test_files:
-        e.log(f, 'info', 'loading program')
+        e.log(f, 'info', 'start')
         e.set_mode(linuxcnc.MODE_AUTO)
         e.open_program(f)
         e.set_mode(linuxcnc.MODE_AUTO)
         e.run_full_program()
-        if not e.wait_on_program(f):
+        state_ok = e.wait_on_program(f)
+        e.log(f, 'info', 'end')
+
+        if not state_ok:
+            # KLUDGE force the test fixture back into a known good state
             e.do_startup(need_home=False)
 
     # KLUDGE just in case any others creep in
