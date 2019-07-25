@@ -25,7 +25,6 @@
 #include "canon.hh"
 #include "config.h"		// LINELEN
 #include <sstream>
-#include <memory>
 
 int _task = 0; // control preview behaviour when remapping
 
@@ -174,7 +173,7 @@ static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
 static double css_max_speed_programmed = 0.0;
 
-static std::unique_ptr<InterpBase> pinterp;
+static InterpBase *pinterp;
 
 #define callmethod(o, m, f, ...) PyObject_CallMethod((o), const_cast<char*>(m), const_cast<char*>(f), ## __VA_ARGS__)
 
@@ -791,7 +790,7 @@ static PyObject *get_work_offsets_used(PyObject *self, PyObject *args) {
 
     // call pinterp to snag the set of work offset indexes and build a new list to 
     // give back to python land
-    std::set<int> used_offsets = reinterpret_cast<Interp*>(pinterp.get())->get_work_offsets_used();
+    std::set<int> used_offsets = reinterpret_cast<Interp*>(pinterp)->get_work_offsets_used();
 
     PyObject* offsets = PyTuple_New(used_offsets.size());
     int ix = 0;
@@ -813,12 +812,14 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     if(!PyArg_ParseTuple(args, "sO|sss", &f, &callback, &unitcode, &initcode, &interpname))
         return nullptr;
 
-    if(interpname && *interpname) {
-        pinterp.reset(interp_from_shlib(interpname));
+    if(pinterp) {
+        delete pinterp;
+        pinterp = 0;
     }
-    if(!pinterp) {
-        pinterp.reset(new Interp());
-    }
+    if(interpname && *interpname)
+        pinterp = interp_from_shlib(interpname);
+    if(!pinterp)
+        pinterp = new Interp;
 
     for(int i=0; i<USER_DEFINED_FUNCTION_NUM; i++)
         USER_DEFINED_FUNCTION[i] = user_defined_function;
@@ -882,10 +883,10 @@ out_error:
     if (_linecount > max_glcanon_lines) {
         std::stringstream preview_cutoff_warning;
         preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use the context menu of the g-code window on the Main tab to load all preview lines.  Or use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
-        PyList_Append(reinterpret_cast<Interp*>(pinterp.get())->warning_list, PyString_FromString(preview_cutoff_warning.str().c_str()));
+        PyList_Append(reinterpret_cast<Interp*>(pinterp)->warning_list, PyString_FromString(preview_cutoff_warning.str().c_str()));
     }
 
-    PyTuple_SetItem(retval, 2, reinterpret_cast<Interp*>(pinterp.get())->warning_list);
+    PyTuple_SetItem(retval, 2, reinterpret_cast<Interp*>(pinterp)->warning_list);
 
     return retval;
 }
