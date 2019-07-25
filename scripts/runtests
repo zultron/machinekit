@@ -28,8 +28,7 @@ XFAIL=0
 VERBOSE=0
 
 clean () {
-    find $* \( -name "stderr" -or -name "result" -or -name "*.rdb" \)
-	-print0 | xargs -0 rm -f
+    find $* \( -name "stderr" -or -name "result" -or -name "*.rdb" \) -print0 | xargs -0 rm -f
 }
 
 run_shell_script () {
