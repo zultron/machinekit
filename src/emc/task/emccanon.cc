@@ -2361,7 +2361,7 @@ void CHANGE_TOOL_NUMBER(int pocket_number)
 {
     EMC_TOOL_SET_NUMBER emc_tool_set_number_msg;
     
-    emc_tool_set_number_msg.tool = pocket_number;
+    emc_tool_set_number_msg.pocket = pocket_number;
 
 	tag_and_send(emc_tool_set_number_msg);
 }

@@ -1031,7 +1031,7 @@ int main(int argc, char *argv[])
 	    {
 		int pocket_number;
 		
-		pocket_number = ((EMC_TOOL_SET_NUMBER *) emcioCommand)->tool;
+        pocket_number = ((EMC_TOOL_SET_NUMBER *) emcioCommand)->pocket;
 		rtapi_print_msg(RTAPI_MSG_DBG, "EMC_TOOL_SET_NUMBER old_loaded_tool=%d new_pocket_number=%d new_tool=%d\n", emcioStatus.tool.toolInSpindle, pocket_number, emcioStatus.tool.toolTable[pocket_number].toolno);
                 load_tool(pocket_number);
 		emcioStatus.tool.toolInSpindle = emcioStatus.tool.toolTable[pocket_number].toolno;
