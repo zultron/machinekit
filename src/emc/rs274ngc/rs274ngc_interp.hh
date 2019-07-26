@@ -336,7 +336,7 @@ public:
  int convert_dwell(setup_pointer settings, double time);
  int convert_feed_mode(int g_code, setup_pointer settings);
  int convert_feed_rate(block_pointer block, setup_pointer settings);
-    int convert_g(block_pointer block, setup_pointer settings, bool & queue_buster);
+    int convert_g(block_pointer block, setup_pointer settings);
  int convert_home(int move, block_pointer block,
                         setup_pointer settings);
  int convert_savehome(int move, block_pointer block,
@@ -344,7 +344,7 @@ public:
  int convert_length_units(int g_code, setup_pointer settings);
     int convert_m(block_pointer block, setup_pointer settings);
  int convert_modal_0(GCodes code, block_pointer block,
-                           setup_pointer settings, bool & queue_buster);
+                           setup_pointer settings);
  int convert_motion(GCodes motion, block_pointer block,
                           setup_pointer settings);
  int convert_probe(block_pointer block, GCodes g_code, setup_pointer settings);

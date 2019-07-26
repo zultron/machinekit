@@ -2166,8 +2166,8 @@ until most of the other modes are set.
 */
 
 int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS274/NGC instructions
-              setup_pointer settings, //!< pointer to machine settings
-                      bool &queue_buster)
+              setup_pointer settings //!< pointer to machine settings
+              )
 {
     int status;
 
@@ -2226,7 +2226,7 @@ int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS27
 	CHP(status);
     }
     if ((block->g_modes[GM_MODAL_0] != -1) && ONCE(STEP_MODAL_0)) {
-      status = convert_modal_0(block->g_modes[GM_MODAL_0], block, settings, queue_buster);
+      status = convert_modal_0(block->g_modes[GM_MODAL_0], block, settings);
       CHP(status);
   }
     if ((block->motion_to_be != -1)  && ONCE(STEP_MOTION)){
@@ -3403,8 +3403,8 @@ G53) are executed elsewhere.
 
 int Interp::convert_modal_0(GCodes code,    //!< G code, must be from group 0
                            block_pointer block, //!< pointer to a block of RS274/NGC instructions
-                           setup_pointer settings, //!< pointer to machine settings
-                           bool &queue_buster)
+                           setup_pointer settings //!< pointer to machine settings
+                           )
 {
     switch (code)
     {
@@ -3420,7 +3420,8 @@ int Interp::convert_modal_0(GCodes code,    //!< G code, must be from group 0
                 CHP(convert_setup_tool(block, settings));
             else
                 CHP(convert_setup(block, settings));
-            queue_buster = true;
+            // Any change to work / tool offsets means the queue should be flushed to prevent interp / task mismatches
+            settings->work_offset_modified_flag = true;
             break;
         case G_28:
         case G_30:

@@ -310,7 +310,7 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
       }
   }
   CHP(convert_m(block, settings));
-  CHP(convert_g(block, settings, settings->work_offset_modified_flag));
+  CHP(convert_g(block, settings));
 
   /* convert m0, m1, m2, m30, m60, or (when main program loops disabled) m99 */
   if ((block->m_modes[M_MODE_STOPPING] != -1) && ONCE(STEP_MGROUP4)) {
