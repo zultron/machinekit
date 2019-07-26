@@ -711,6 +711,24 @@ static void do_hal_exit(void) {
     hal_exit(comp_id);
 }
 
+int find_tool_pocket(CANON_TOOL_TABLE const tool_table[], int toolno, bool random_toolchanger, int *pocket)
+{
+    if(!random_toolchanger && toolno == 0) {
+        *pocket = 0;
+        return 0;
+    }
+    *pocket = -1;
+
+    // FIXME this is doing the same thing as in interp, but it seems wrong (what do we do about multiple matches?)
+    for(int i=0; i<CANON_POCKETS_MAX; i++) {
+        if(tool_table[i].toolno == toolno) {
+            *pocket = i;
+        }
+    }
+
+    return *pocket < 0 ? -1 : 0;
+}
+
 
 /********************************************************************
 *
@@ -839,8 +857,15 @@ int main(int argc, char *argv[])
 		emcioCommand->serial_number;
 	    emcioStatus.heartbeat++;
 	    emcioStatusBuffer->write(&emcioStatus);
-	}
-    *(iocontrol_data->tool_diameter) = emcioStatus.tool.toolTable[emcioStatus.tool.toolInSpindle].diameter;
+    }
+    int pocket = -1;
+
+    if (0 != find_tool_pocket(emcioStatus.tool.toolTable, emcioStatus.tool.toolInSpindle, random_toolchanger, &pocket)) {
+        rcs_print_error("Invalid pocket number for tool in spindle %d\n", emcioStatus.tool.toolInSpindle);
+        *(iocontrol_data->tool_diameter) = 0;
+    } else {
+        *(iocontrol_data->tool_diameter) = emcioStatus.tool.toolTable[pocket].diameter;
+    }
 
 	/* read NML, run commands */
 	if (-1 == emcioCommandBuffer->read()) {
