@@ -1,0 +1,73 @@
+component pwmrampup "Ramp value-out from zero to value-in when enabled";
+pin in float value_in;
+pin in bit enable_in;
+
+pin out float value_out;
+pin out bit enable_out;
+
+pin out float prev_out;
+
+// this is used to avoid "instant on" of spindle drive analog voltage driven by PWM output
+// xsTECH router spindle BLDC drive appears to sometimes not like instant 0 to 40% to 75% impulse and gets stuck
+
+// the falling edge of enable-in immediately sets the output to 0.0 and holds it there while enable-in is 0
+// the rising edge of enable-in ramps value-out from 0.0 to whatever the "value-in" value is
+// typically, the PWM value is set from the commanded spindle speed then enable-in is set true
+
+param rw float maxv =  1e20;
+param rw float min_ = -1e20;
+param rw float max_ =  1e20;
+param r bit last_enable_in;
+variable int first_run = 1;
+variable int do_limiting = 1;
+
+function _ "pwmrampup";
+license "GPL";
+;;
+
+// from limit2.comp
+#ifndef clamp
+static inline double clamp(double v, double sub, double sup) {
+    if(v < sub) return sub;
+    if(v > sup) return sup;
+    return v;
+}
+#endif
+
+FUNCTION(_) {
+    int new_enable_in = enable_in;
+    if (!first_run) {
+        int rising_edge  =  new_enable_in && !last_enable_in;
+        int falling_edge = !new_enable_in &&  last_enable_in;
+
+        if (rising_edge) {
+            // set output to zero and up ramp to value_in
+            prev_out = 0.0;
+            do_limiting = 1;
+        }
+        if (falling_edge) {
+            // immediately set output to zero and do not rate limit change
+            do_limiting = 0;
+        }
+    } else {
+        first_run = 0;
+    }
+    last_enable_in = new_enable_in;
+
+    double tmp = value_in;
+    double maxdelta = maxv * fperiod;
+    tmp = clamp(tmp, min_, max_);
+    if (do_limiting) {
+        // rate limit change
+        tmp = clamp(tmp, prev_out - maxdelta, prev_out + maxdelta);
+    }
+
+    if (new_enable_in) {
+        prev_out = tmp;
+        value_out = tmp;
+    }
+    else {
+        // when not enabled keep value_out at 0.0
+        value_out = 0.0;
+    }
+}
