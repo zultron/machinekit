@@ -681,11 +681,11 @@ int Task::emcToolSetOffset(int pocket, int toolno, EmcPose offset, double diamet
     return 0;
 }
 
-int Task::emcToolSetNumber(int number)
+int Task::emcToolSetNumber(int pocket_number)
 {
     EMC_TOOL_SET_NUMBER toolSetNumberMsg;
 
-    toolSetNumberMsg.tool = number;
+    toolSetNumberMsg.pocket = pocket_number;
 
     sendCommand(&toolSetNumberMsg);
 

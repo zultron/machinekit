@@ -49,7 +49,7 @@ public:
     int emcToolLoad();
     int emcToolLoadToolTable(const char *file);
     int emcToolUnload();
-    int emcToolSetNumber(int number);
+    int emcToolSetNumber(int pocket_number);
     int emcIoUpdate(EMC_IO_STAT * stat);
 
     int emcIoPluginCall(int len, const char *msg);

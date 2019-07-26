@@ -1432,7 +1432,7 @@ void EMC_TOOL_SET_NUMBER::update(CMS * cms)
 {
 
     EMC_TOOL_CMD_MSG::update(cms);
-    cms->update(tool);
+    cms->update(pocket);
 }
 
 /*

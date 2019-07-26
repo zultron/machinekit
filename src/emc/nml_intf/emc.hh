@@ -160,7 +160,7 @@ extern int emcToolUnload();
 extern int emcToolLoadToolTable(const char *file);
 extern int emcToolSetOffset(int pocket, int toolno, EmcPose offset, double diameter,
                             double frontangle, double backangle, int orientation);
-extern int emcToolSetNumber(int number);
+extern int emcToolSetNumber(int pocket_number);
 extern int emcToolStartChange();
 
 extern int emcToolSetToolTableFile(const char *file);

@@ -1581,7 +1581,7 @@ class EMC_TOOL_SET_NUMBER:public EMC_TOOL_CMD_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    int tool; //number to use for currently loaded tool
+    int pocket; //number to use for currently loaded tool (actually the pocket number)
 };
 
 class EMC_TOOL_START_CHANGE:public EMC_TOOL_CMD_MSG {

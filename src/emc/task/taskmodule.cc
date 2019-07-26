@@ -126,7 +126,7 @@ struct TaskWrap : public Task, public bp::wrapper<Task> {
     EXPAND(emcToolLoad)
     EXPAND1(emcToolLoadToolTable, const char *, file)
     EXPAND(emcToolUnload)
-    EXPAND1(emcToolSetNumber,int,number)
+    EXPAND1(emcToolSetNumber,int,pocket_number)
 
     int emcIoPluginCall(int len,const char *msg) {
 	if (bp::override f = this->get_override("emcIoPluginCall")) {
