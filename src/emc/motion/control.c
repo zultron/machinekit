@@ -313,6 +313,7 @@ static void process_probe_inputs(void) {
             emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
             /* stop! */
             emcmotStatus->probeTripped = 1;
+            ++emcmotStatus->probeCount;
             tpAbort(&emcmotDebug->tp);
         /* If the move has finished, we set probing = 0 and check if the probe hasn't tripped */
         } else if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->tp) == 0) {

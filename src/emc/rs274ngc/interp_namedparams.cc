@@ -39,6 +39,8 @@ namespace bp = boost::python;
 #include "interp_internal.hh"
 #include "rs274ngc_interp.hh"
 #include "inifile.hh"
+#include "interp_parameter_def.hh"
+using namespace interp_param_global;
 
 // for HAL pin variables
 #include "hal.h"
@@ -87,6 +89,24 @@ enum predefined_named_parameters {
     NP_U,
     NP_V,
     NP_W,
+    NP_WORK_OFFSET_X,
+    NP_WORK_OFFSET_Y,
+    NP_WORK_OFFSET_Z,
+    NP_WORK_OFFSET_A,
+    NP_WORK_OFFSET_B,
+    NP_WORK_OFFSET_C,
+    NP_WORK_OFFSET_U,
+    NP_WORK_OFFSET_V,
+    NP_WORK_OFFSET_W,
+    NP_X_MACHINE,
+    NP_Y_MACHINE,
+    NP_Z_MACHINE,
+    NP_A_MACHINE,
+    NP_B_MACHINE,
+    NP_C_MACHINE,
+    NP_U_MACHINE,
+    NP_V_MACHINE,
+    NP_W_MACHINE,
     NP_PROBE_RESULT,
     NP_PROBE_X,
     NP_PROBE_Y,
@@ -148,8 +168,8 @@ int Interp::read_named_parameter(
 				 bool check_exists)    //!< test for existence, not value
 {
     static char name[] = "read_named_parameter";
-    char paramNameBuf[LINELEN+1];
-    int exists;
+    char paramNameBuf[LINELEN+1]="";
+    int exists = false;
     double value;
     parameter_map_iterator pi;
 
@@ -554,11 +574,11 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_ABSOLUTE: // _absolute - distance mode
-	*value = (_setup.distance_mode == MODE_ABSOLUTE);
+    *value = (get_distance_mode(nullptr, &_setup) == MODE_ABSOLUTE);
 	break;
 
     case NP_INCREMENTAL: // _incremental - distance mode
-	*value = (_setup.distance_mode == MODE_INCREMENTAL);
+    *value = (get_distance_mode(nullptr, &_setup) == MODE_INCREMENTAL);
 	break;
 
     case NP_INVERSE_TIME: // _inverse_time - feed mode
@@ -580,9 +600,7 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_TOOL_OFFSET: // _tool_offset
-	*value =  (_setup.tool_offset.tran.x || _setup.tool_offset.tran.y || _setup.tool_offset.tran.z ||
-		   _setup.tool_offset.a || _setup.tool_offset.b || _setup.tool_offset.c ||
-		   _setup.tool_offset.u || _setup.tool_offset.v || _setup.tool_offset.w) ;
+    *value =  toolOffsetActive(&_setup);
 	break;
 
     case NP_RETRACT_R_PLANE: // _retract_r_plane - G98
@@ -672,60 +690,65 @@ int Interp::lookup_named_param(const char *nameBuf,
 	*value = _setup.selected_tool;
 	break;
 
-    case NP_X:  // current position
-	*value = _setup.current_x;
-	break;
+    // current interpreter position in local coordinates
+    case NP_X:
+    case NP_Y:
+    case NP_Z:
+    case NP_A:
+    case NP_B:
+    case NP_C:
+    case NP_U:
+    case NP_V:
+    case NP_W:
+        *value = _setup.current[cmd - NP_X];
+        break;
 
-    case NP_Y:  // current position
-	*value = _setup.current_y;
-	break;
+    // current interpreter position in local coordinates
+    case NP_WORK_OFFSET_X:
+    case NP_WORK_OFFSET_Y:
+    case NP_WORK_OFFSET_Z:
+    case NP_WORK_OFFSET_A:
+    case NP_WORK_OFFSET_B:
+    case NP_WORK_OFFSET_C:
+    case NP_WORK_OFFSET_U:
+    case NP_WORK_OFFSET_V:
+    case NP_WORK_OFFSET_W:
+        *value = _setup.transform.g5xOffset.shift.tf[cmd - NP_WORK_OFFSET_X];
+        break;
 
-    case NP_Z:  // current position
-	*value = _setup.current_z;
-	break;
-
-    case NP_A:  // current position
-	*value = _setup.AA_current;
-	break;
-
-    case NP_B:  // current position
-	*value = _setup.BB_current;
-	break;
-
-    case NP_C:  // current position
-	*value = _setup.CC_current;
-	break;
-
-    case NP_U:  // current position
-	*value = _setup.u_current;
-	break;
-
-    case NP_V:  // current position
-	*value = _setup.v_current;
-	break;
-
-    case NP_W:  // current position
-	*value = _setup.w_current;
-	break;
+    // current interpreter position in machine coordinates
+    case NP_X_MACHINE:
+    case NP_Y_MACHINE:
+    case NP_Z_MACHINE:
+    case NP_A_MACHINE:
+    case NP_B_MACHINE:
+    case NP_C_MACHINE:
+    case NP_U_MACHINE:
+    case NP_V_MACHINE:
+    case NP_W_MACHINE:
+        // WARNING: this is slow if you need to get all 9 values (since it repeats the transform every time)
+        // could optimize this if it's a bottleneck by providing a per-axis overload that skips the unnecessary transforms
+        *value = _setup.transform.forward(_setup.current)[cmd - NP_X_MACHINE];
+        break;
 
     case NP_PROBE_RESULT:  // expected probe trip completed
-	*value = _setup.parameters[5070];
+  *value = _setup.parameters[G38_TRIPPED];
 	break;
 
     case NP_PROBE_X:  // probe x trip position
-	*value = _setup.parameters[5061];
+  *value = _setup.parameters[G38_X];
 	break;
 
     case NP_PROBE_Y:  // probe y trip position
-	*value = _setup.parameters[5062];
+  *value = _setup.parameters[G38_Y];
 	break;
 
     case NP_PROBE_Z:  // probe z trip position
-	*value = _setup.parameters[5063];
+  *value = _setup.parameters[G38_Z];
 	break;
 
     case NP_PROBE_A:  // probe a trip position
-  *value = _setup.parameters[5064];
+  *value = _setup.parameters[G38_A];
   break;
 
 	// o-word subs may optionally have an
@@ -899,6 +922,28 @@ int Interp::init_named_parameters()
   init_readonly_param("_u", NP_U, PA_USE_LOOKUP);
   init_readonly_param("_v", NP_V, PA_USE_LOOKUP);
   init_readonly_param("_w", NP_W, PA_USE_LOOKUP);
+
+  // Current G5X work offset
+  init_readonly_param("_work_offset_x", NP_WORK_OFFSET_X, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_y", NP_WORK_OFFSET_Y, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_z", NP_WORK_OFFSET_Z, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_a", NP_WORK_OFFSET_A, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_b", NP_WORK_OFFSET_B, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_c", NP_WORK_OFFSET_C, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_u", NP_WORK_OFFSET_U, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_v", NP_WORK_OFFSET_V, PA_USE_LOOKUP);
+  init_readonly_param("_work_offset_w", NP_WORK_OFFSET_W, PA_USE_LOOKUP);
+
+  // current position in machine coordinates (derived from current position)
+  init_readonly_param("_x_machine", NP_X_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_y_machine", NP_Y_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_z_machine", NP_Z_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_a_machine", NP_A_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_b_machine", NP_B_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_c_machine", NP_C_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_u_machine", NP_U_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_v_machine", NP_V_MACHINE, PA_USE_LOOKUP);
+  init_readonly_param("_w_machine", NP_W_MACHINE, PA_USE_LOOKUP);
 
   init_readonly_param("_probe_result", NP_PROBE_RESULT, PA_USE_LOOKUP);
   init_readonly_param("_probe_x", NP_PROBE_X, PA_USE_LOOKUP);

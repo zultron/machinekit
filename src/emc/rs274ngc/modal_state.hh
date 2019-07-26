@@ -13,41 +13,15 @@
 
 #ifndef MODAL_STATE_HH
 #define MODAL_STATE_HH
-#include <vector>
-#include <deque>
-#include <bitset>
-#include <stdio.h>
-
-// Bring in C struct for a state tag from motion
-extern "C" {
-#include "state_tag.h"
-}
+#include <array>
+#include <interp_fwd.hh>
+#include <interp_enums.hh>
 
 struct ModalState {
     ModalState();
-    std::vector<int> g_codes;       // array of active G codes
-    std::vector<int> m_codes;      // array of active M codes
-    std::vector<double> settings;     // array of feed, speed, etc.
-};
-
-/**
- * C++ version of state_tag_t structure to stuff interp state info in a motion message.
- * Previously, this information was stored only in the interpreter, and as
- * vectors of g codes, m codes, and settings. Considering that the write_XXX
- * and gen_XXX functions had to jump through hoops to translate from a settings
- * struct, the extra packing here isn't much more complex to deal with, and
- * will cost much less space in an NML message.
- *
- * Using this class means we can work with a bitset instead of raw bitmasking
- * operations. Also, because we're inheriting from the C struct, copy /
- * assignment is valid.
- */
-struct StateTag : public state_tag_t {
-    StateTag();
-    StateTag(state_tag_t const &basetag);
-    std::bitset<64> flags;
-    int is_valid(void) const;
-    state_tag_t get_state_tag() const;
-    void fprint(FILE *stream);
+    ActiveGCodeArray g_codes;       // array of active G codes
+    ActiveMCodeArray m_codes;      // array of active M codes
+    ActiveSettingsArray settings;     // array of feed, speed, etc.
+    int work_offset_origin_index;
 };
 #endif

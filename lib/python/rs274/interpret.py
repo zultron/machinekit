@@ -16,14 +16,32 @@
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 import math, gcode
 
+
 class Translated:
-    g92_offset_x = g92_offset_y = g92_offset_z = 0
-    g92_offset_a = g92_offset_b = g92_offset_c = 0
-    g92_offset_u = g92_offset_v = g92_offset_w = 0
-    g5x_offset_x = g5x_offset_y = g5x_offset_z = 0
-    g5x_offset_a = g5x_offset_b = g5x_offset_c = 0
-    g5x_offset_u = g5x_offset_v = g5x_offset_w = 0
-    rotation_xy = 0
+    def __init__(self, g5x_index):
+        self.g92_offset_x = 0.0
+        self.g92_offset_y = 0.0
+        self.g92_offset_z = 0.0
+        self.g92_offset_a = 0.0
+        self.g92_offset_b = 0.0
+        self.g92_offset_c = 0.0
+        self.g92_offset_u = 0.0
+        self.g92_offset_v = 0.0
+        self.g92_offset_w = 0.0
+        self.g5x_index = 0
+        self.g5x_offset_x = 0.0
+        self.g5x_offset_y = 0.0
+        self.g5x_offset_z = 0.0
+        self.g5x_offset_a = 0.0
+        self.g5x_offset_b = 0.0
+        self.g5x_offset_c = 0.0
+        self.g5x_offset_u = 0.0
+        self.g5x_offset_v = 0.0
+        self.g5x_offset_w = 0.0
+        self.rotation_xy = 0.0
+        self.rotation_sin = 0.0
+        self.rotation_cos = 1.0
+        self.g5x_table = {}
 
     def rotate_and_translate(self, x,y,z,a,b,c,u,v,w):
         x += self.g92_offset_x
@@ -53,11 +71,15 @@ class Translated:
 
         return [x, y, z, a, b, c, u, v, w]
 
-    def straight_traverse(self, *args):
-        self.straight_traverse_translated(*self.rotate_and_translate(*args))
-    def straight_feed(self, *args):
-        self.straight_feed_translated(*self.rotate_and_translate(*args))
-    def set_g5x_offset(self, index, x, y, z, a, b, c, u=None, v=None, w=None):
+    def update_cached_rotations(self, theta_deg):
+        self.rotation_xy = theta_deg
+        theta_rad = math.radians(theta_deg)
+        self.rotation_sin = math.sin(theta_rad)
+        self.rotation_cos = math.cos(theta_rad)
+
+    def set_g5x_transform(self, index, x, y, z, a, b, c, u, v, w, theta_deg):
+        # Maintain a local table of offsets set from the program
+        self.g5x_table[index] = (x, y, z, a, b, c, u, v, w, theta_deg)
         self.g5x_index = index
         self.g5x_offset_x = x
         self.g5x_offset_y = y
@@ -68,6 +90,14 @@ class Translated:
         self.g5x_offset_u = u
         self.g5x_offset_v = v
         self.g5x_offset_w = w
+        self.update_cached_rotations(theta_deg)
+
+    def get_g5x_transform(self, origin):
+        """
+        Used for preview, retrieves the g5x work offset table (not from emc status!)
+        """
+        return self.g5x_table.get(origin, (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
+
     def set_g92_offset(self, x, y, z, a, b, c, u=None, v=None, w=None):
         self.g92_offset_x = x
         self.g92_offset_y = y
@@ -78,15 +108,13 @@ class Translated:
         self.g92_offset_u = u
         self.g92_offset_v = v
         self.g92_offset_w = w
-    def set_xy_rotation(self, theta):
-        self.rotation_xy = theta
-        t = math.radians(theta)
-        self.rotation_sin = math.sin(t)
-        self.rotation_cos = math.cos(t)
+
 
 class ArcsToSegmentsMixin:
-    plane = 1
-    arcdivision = 64
+    def __init__(self):
+        self.plane = 1
+        self.arcdivision = 64
+        self.lo = None
 
     def set_plane(self, plane):
         self.plane = plane
@@ -97,8 +125,8 @@ class ArcsToSegmentsMixin:
         self.straight_arcsegments(lineno, segs)
 
 class PrintCanon:
-    def set_g5x_offset(self, *args):
-        print "set_g5x_offset", args
+    def set_g5x_transform(self, *args):
+        print "set_g5x_transform", args
 
     def set_g92_offset(self, *args):
         print "set_g92_offset", args
@@ -130,6 +158,7 @@ class PrintCanon:
 
     def arc_feed(self, *args):
         print "arc_feed %.4g %.4g  %.4g %.4g %.4g  %.4g  %.4g %.4g %.4g" % args
+
 
 class StatMixin:
     def __init__(self, s, r):

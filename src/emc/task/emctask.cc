@@ -50,7 +50,7 @@ InterpBase *pinterp=0;
 setup_pointer _is = 0; // helper for gdb hardware watchpoints FIXME
 
 // Saved tag for restoring interp after abort
-static state_tag_t saved_tag = {0};
+static state_tag_t saved_tag = {};
 
 /*
   format string for user-defined programs, e.g., "programs/M1%02d" means
@@ -472,7 +472,7 @@ int emcTaskPlanInit()
 	inifile.Open(emc_inifile);
 	if((inistring = inifile.Find("INTERPRETER", "TASK"))) {
 	    pinterp = interp_from_shlib(inistring);
-	    fprintf(stderr, "interp_from_shlib() -> %p\n", pinterp);
+        fprintf(stderr, "interp_from_shlib() -> %p\n", (void*)pinterp);
 	}
         inifile.Close();
     }
@@ -552,7 +552,7 @@ int emcTaskPlanSetBlockDelete(bool state)
 
 int emcTaskPlanSynch()
 {
-    int retval = interp.synch();
+    int retval = interp.synch(true);
 
     if (emc_debug & EMC_DEBUG_INTERP) {
         rcs_print("emcTaskPlanSynch() returned %d\n", retval);
@@ -622,19 +622,17 @@ int emcTaskPlanExecute(const char *command)
 {
     int inpos = emcStatus->motion.traj.inpos;	// 1 if in position, 0 if not.
 
-    if (command != 0) {		// Command is 0 if in AUTO mode, non-null if in MDI mode.
-	// Don't sync if not in position.
-	if ((*command != 0) && (inpos)) {
-	    interp.synch();
-	}
+    if (command && (*command != '\0') && (inpos)) {
+        // Need to synch with an MDI call, once motion has reached its final position
+        interp.synch(true);
     }
     int retval = interp.execute(command);
-	print_interp_warning();
+    print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {
-	print_interp_error(retval);
+        print_interp_error(retval);
     }
-    if(command != 0) {
-	FINISH();
+    if(command) {
+        FINISH();
     }
 
     if (emc_debug & EMC_DEBUG_INTERP) {
@@ -780,8 +778,6 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
 
 int emcStatusUpdateFromTag(state_tag_t const * const tag)
 {
-    volatile int offset;
-
     if (!tag || !StateTag(*tag).is_valid()) {
 	if (emc_debug & EMC_DEBUG_STATUS)
 	    rcs_print(
@@ -805,24 +801,9 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
     interp.active_modes(
 	(int*)&emcStatus->task.activeGCodes,
 	(int*)&emcStatus->task.activeMCodes,
-	(double*)&emcStatus->task.activeSettings,
+    (double*)&emcStatus->task.activeSettings,
+                emcStatus->task.g5x_index,
 	StateTag(*tag));
-
-    // G5x offsets
-    // - current offset index, 1-9
-    emcStatus->task.g5x_index =
-	((tag->fields[GM_FIELD_ORIGIN] <= 590) ?
-	 (tag->fields[GM_FIELD_ORIGIN]/10 - 53) :   // 1...6
-	 (tag->fields[GM_FIELD_ORIGIN] - 590 + 6)); // 7...9
-    // - current offset
-    EMC_POSE_FROM_ARRAY(
-	emcStatus->task.g5x_offset,
-	tag->offsets + (emcStatus->task.g5x_index-1)*9);
-    // - other offsets
-    for (offset=0; offset<9; offset++)
-	EMC_POSE_FROM_ARRAY(
-	    emcStatus->task.g5x_offsets[offset],
-	    tag->offsets + offset*9);
 
     // Add more emcStatus updates here
 

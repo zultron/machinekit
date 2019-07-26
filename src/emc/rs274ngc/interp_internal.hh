@@ -28,6 +28,9 @@
 #include "interp_parameter_def.hh"
 #include "interp_fwd.hh"
 
+#include <coordinatetransform.hh>
+#include <unordered_map>
+#include <vector>
 
 #define _(s) gettext(s)
 
@@ -59,185 +62,6 @@ inline int round_to_int(T x) {
 // max number of m codes on one line
 #define MAX_EMS  4
 
-// feed_mode
-enum FEED_MODE {
-    UNITS_PER_MINUTE=0,
-    INVERSE_TIME=1,
-    UNITS_PER_REVOLUTION=2
-};
-
-// cutter radius compensation mode, 0 or false means none
-// not using CANON_SIDE since interpreter handles cutter radius comp
-enum CUTTER_COMP_DIRECTION {
-    RIGHT = 1,
-    LEFT = 2,
-};
-
-// spindle control modes
-enum SPINDLE_MODE {
-    CONSTANT_RPM,
-    CONSTANT_SURFACE
-};
-
-// unary operations
-// These are not enums because the "&" operator is used in
-// reading the operation names and is illegal with an enum
-
-enum UnaryOperations
-{
-    ABS = 1,
-    ACOS = 2,
-    ASIN = 3,
-    ATAN = 4,
-    COS = 5,
-    EXP = 6,
-    FIX = 7,
-    FUP = 8,
-    LN = 9,
-    ROUND = 10,
-    SIN = 11,
-    SQRT = 12,
-    TAN = 13,
-    EXISTS = 14,
-};
-
-
-// binary operations
-enum BinaryOperations
-{
-    NO_OPERATION = 0,
-    DIVIDED_BY = 1,
-    MODULO = 2,
-    POWER = 3,
-    TIMES = 4,
-    AND2 = 5,
-    EXCLUSIVE_OR = 6,
-    MINUS = 7,
-    NON_EXCLUSIVE_OR = 8,
-    PLUS = 9,
-    RIGHT_BRACKET = 10,
-    /* relational operators (are binary operators)*/
-    LT = 11,
-    EQ = 12,
-    NE = 13,
-    LE = 14,
-    GE = 15,
-    GT = 16,
-    RELATIONAL_OP_FIRST = 11,
-    RELATIONAL_OP_LAST = 16,
-};
-
-// O code
-enum OCodes
-{
-    O_none = 0,
-    O_sub = 1,
-    O_endsub = 2,
-    O_call = 3,
-    O_do = 4,
-    O_while = 5,
-    O_if = 6,
-    O_elseif = 7,
-    O_else = 8,
-    O_endif = 9,
-    O_break = 10,
-    O_continue = 11,
-    O_endwhile = 12,
-    O_return = 13,
-    O_repeat = 14,
-    O_endrepeat = 15,
-    M_98 = 16,
-    M_99 = 17,
-    O_ = 18,
-};
-
-// G Codes are symbolic to be dialect-independent in source code
-enum GCodes
-{
-    G_0 = 0,
-    G_1 = 10,
-    G_2 = 20,
-    G_3 = 30,
-    G_4 = 40,
-    G_5 = 50,
-    G_5_1 = 51,
-    G_5_2 = 52,
-    G_5_3 = 53,
-    G_7 = 70,
-    G_8 = 80,
-    G_10 = 100,
-    G_17 = 170,
-    G_17_1 = 171,
-    G_18 = 180,
-    G_18_1 = 181,
-    G_19 = 190,
-    G_19_1 = 191,
-    G_20 = 200,
-    G_21 = 210,
-    G_28 = 280,
-    G_28_1 = 281,
-    G_30 = 300,
-    G_30_1 = 301,
-    G_33 = 330,
-    G_33_1 = 331,
-    G_38_2 = 382,
-    G_38_3 = 383,
-    G_38_4 = 384,
-    G_38_5 = 385,
-    G_38_6 = 386,
-    G_40 = 400,
-    G_41 = 410,
-    G_41_1 = 411,
-    G_42 = 420,
-    G_42_1 = 421,
-    G_43 = 430,
-    G_43_1 = 431,
-    G_43_2 = 432,
-    G_49 = 490,
-    G_50 = 500,
-    G_51 = 510,
-    G_52 = 520,
-    G_53 = 530,
-    G_54 = 540,
-    G_55 = 550,
-    G_56 = 560,
-    G_57 = 570,
-    G_58 = 580,
-    G_59 = 590,
-    G_59_1 = 591,
-    G_59_2 = 592,
-    G_59_3 = 593,
-    G_61 = 610,
-    G_61_1 = 611,
-    G_64 = 640,
-    G_73 = 730,
-    G_76 = 760,
-    G_80 = 800,
-    G_81 = 810,
-    G_82 = 820,
-    G_83 = 830,
-    G_84 = 840,
-    G_85 = 850,
-    G_86 = 860,
-    G_87 = 870,
-    G_88 = 880,
-    G_89 = 890,
-    G_90 = 900,
-    G_90_1 = 901,
-    G_91 = 910,
-    G_91_1 = 911,
-    G_92 = 920,
-    G_92_1 = 921,
-    G_92_2 = 922,
-    G_92_3 = 923,
-    G_93 = 930,
-    G_94 = 940,
-    G_95 = 950,
-    G_96 = 960,
-    G_97 = 970,
-    G_98 = 980,
-    G_99 = 990,
-};
 
 // name of parameter file for saving/restoring interpreter variables
 #define RS274NGC_PARAMETER_FILE_NAME_DEFAULT "rs274ngc.var"
@@ -251,27 +75,8 @@ enum GCodes
 // max number of local variables saved (?)
 #define MAX_NAMED_PARAMETERS 50
 
-/**********************/
-/*      TYPEDEFS      */
-/**********************/
-
-/* distance_mode */
-enum DISTANCE_MODE
-{
-    MODE_ABSOLUTE,
-    MODE_INCREMENTAL,
-};
-
-/* retract_mode for cycles */
-enum RETRACT_MODE
-{
-    R_PLANE,
-    OLD_Z,
-};
-
 // string table - to get rid of strdup/free
 const char *strstore(const char *s);
-
 
 // Block execution phases in execution order
 // very carefully check code for sequencing when
@@ -311,30 +116,6 @@ enum phases  {
 };
 
 
-// Modal groups
-// also indices into g_modes
-// unused: 9,11
-enum ModalGroups
-{
-    GM_MODAL_0 = 0,
-    GM_MOTION = 1,
-    GM_SET_PLANE = 2,
-    GM_DISTANCE_MODE = 3,
-    GM_IJK_DISTANCE_MODE = 4,
-    GM_FEED_MODE = 5,
-    GM_LENGTH_UNITS = 6,
-    GM_CUTTER_COMP = 7,
-    GM_TOOL_LENGTH_OFFSET = 8,
-    // 9 unused
-    GM_RETRACT_MODE = 10,
-    // 11 unused
-    GM_COORD_SYSTEM = 12,
-    GM_CONTROL_MODE = 13,
-    GM_SPINDLE_MODE = 14,
-    GM_LATHE_DIAMETER_MODE = 15,
-    GM_MAX_MODAL_GROUPS
-};
-
 // the remap configuration descriptor
 struct remap_struct {
     const char *name;
@@ -373,65 +154,66 @@ struct block_struct
 {
   block_struct ();
 
-  bool a_flag;
   double a_number;
-  bool b_flag;
+
   double b_number;
-  bool c_flag;
   double c_number;
   char comment[256];
   double d_number_float;
-  bool d_flag;
-  bool e_flag;
   double e_number;
-  bool f_flag;
   double f_number;
 
-  int g_modes[GM_MAX_MODAL_GROUPS];
-  bool h_flag;
+  std::array<GCodes, GM_MAX_MODAL_GROUPS> g_modes;
   int h_number;
-  bool i_flag;
   double i_number;
-  bool j_flag;
   double j_number;
-  bool k_flag;
   double k_number;
   int l_number;
-  bool l_flag;
   int line_number;
   int saved_line_number;  // value of sequence_number when a remap was encountered
   int n_number;
-  int motion_to_be;
+  GCodes motion_to_be;
   int m_count;
-  int m_modes[11];
+  std::array<int, M_MAX_MODAL_GROUPS> m_modes;
   int user_m;
   double p_number;
-  bool p_flag;
   double q_number;
+  double r_number;
+  double s_number;
+  int t_number;
+  double u_number;
+  double v_number;
+  double w_number;
+  double x_number;
+  double y_number;
+  double z_number;
+  double radius;
+  double theta;
+
+  bool a_flag;
+  bool b_flag;
+  bool c_flag;
+  bool d_flag;
+  bool e_flag;
+  bool f_flag;
+  bool h_flag;
+  bool i_flag;
+  bool j_flag;
+  bool k_flag;
+  bool l_flag;
+  bool p_flag;
   bool q_flag;
   bool r_flag;
-  double r_number;
   bool s_flag;
-  double s_number;
   bool t_flag;
-  int t_number;
   bool u_flag;
-  double u_number;
   bool v_flag;
-  double v_number;
   bool w_flag;
-  double w_number;
   bool x_flag;
-  double x_number;
   bool y_flag;
-  double y_number;
   bool z_flag;
-  double z_number;
-
-  int radius_flag;
-  double radius;
-  int theta_flag;
-  double theta;
+  bool radius_flag;
+  bool theta_flag;
 
   // control (o-word) stuff
   long     offset;   // start of line in file
@@ -473,6 +255,7 @@ struct block_struct
     // right thing depending on wether the builtin was used or not.
     bool builtin_used; 
 };
+
 
 // indicates which type of Python handler yielded, and needs reexecution
 // post sync/read_inputs
@@ -582,34 +365,25 @@ and is not represented here
 #define STACK_ENTRY_LEN 80
 #define MAX_SUB_DIRS 10
 
+using WorkOffsetMap = std::unordered_map<int, RotateShiftTransform>;
+
 struct setup_struct
 {
   setup_struct();
  ~setup_struct();
 
-  int get_toplevel_line_number();
+  int get_toplevel_line_number() const;
+  void clear_queue_buster_flags();
 
-  double AA_axis_offset;        // A-axis g92 offset
-  double AA_current;            // current A-axis position
-  double AA_origin_offset;      // A-axis origin offset
-  double BB_axis_offset;        // B-axis g92offset
-  double BB_current;            // current B-axis position
-  double BB_origin_offset;      // B-axis origin offset
-  double CC_axis_offset;        // C-axis g92offset
-  double CC_current;            // current C-axis position
-  double CC_origin_offset;      // C-axis origin offset
+  PositionArray current;
+  LocalToMachineTransform transform;
 
-  double u_axis_offset, u_current, u_origin_offset;
-  double v_axis_offset, v_current, v_origin_offset;
-  double w_axis_offset, w_current, w_origin_offset;
+  WorkOffsetMap work_offsets_user; // Work offset table (interp's copy) in user axis units
 
   ModalState modal_state;
 
   bool arc_not_allowed;       // we just exited cutter compensation, so we error if the next move isn't straight
-  double axis_offset_x;         // X-axis g92 offset
-  double axis_offset_y;         // Y-axis g92 offset
-  double axis_offset_z;         // Z-axis g92 offset
-  // block block1;                 // parsed next block
+
   // stack of controlling blocks for remap execution
   block blocks[MAX_NESTED_REMAPS];
   // index into blocks, points to currently controlling block
@@ -621,9 +395,7 @@ struct setup_struct
   char blocktext[LINELEN];   // linetext downcased, white space gone
   CANON_MOTION_MODE control_mode;       // exact path or cutting mode
   int current_pocket;             // carousel slot number of current tool
-  double current_x;             // current X-axis position
-  double current_y;             // current Y-axis position
-  double current_z;             // current Z-axis position
+
   double cutter_comp_radius;    // current cutter compensation radius
   int cutter_comp_orientation;  // current cutter compensation tool orientation
   int cutter_comp_side;         // current cutter compensation side
@@ -651,25 +423,22 @@ struct setup_struct
   int line_length;              // length of line last read
   char linetext[LINELEN];       // text of most recent line read
   bool mist;                  // whether mist coolant is on
-  int motion_mode;              // active G-code for motion
+  GCodes motion_mode;              // active G-code for motion
   int origin_index;             // active origin (1=G54 to 9=G59.3)
-  double origin_offset_x;       // g5x offset x
-  double origin_offset_y;       // g5x offset y
-  double origin_offset_z;       // g5x offset z
-  double rotation_xy;         // rotation of coordinate system around Z, in degrees
+
   double parameters[interp_param_global::RS274NGC_MAX_PARAMETERS];   // system parameters
-  int parameter_occurrence;     // parameter buffer index
-  int parameter_numbers[MAX_NAMED_PARAMETERS];    // parameter number buffer
-  double parameter_values[MAX_NAMED_PARAMETERS];  // parameter value buffer
-  int named_parameter_occurrence;
-  const char *named_parameters[MAX_NAMED_PARAMETERS];
-  double named_parameter_values[MAX_NAMED_PARAMETERS];
+  std::vector<std::pair<size_t, double>> new_parameters;
+  std::vector<std::pair<const char *, double>> new_named_parameters;
   bool percent_flag;          // true means first line was percent sign
   CANON_PLANE plane;            // active plane, XY-, YZ-, or XZ-plane
+  // Queue-buster flags
   bool probe_flag;            // flag indicating probing done
   bool input_flag;            // flag indicating waiting for input done
   bool orient_flag;           // flag indicating waiting for spindle orient done
   bool toolchange_flag;       // flag indicating we just had a tool change
+  bool work_offset_modified_flag; // indicates a work offset / rotation value was changed (e.g. by G10)
+  bool have_new_reserved_parameters; // flags an incoming modification to a "reserved" parameter (e.g. coordinate offset)
+
   int input_index;		// channel queried
   bool input_digital;		// input queried was digital (false=analog)
   bool cutter_comp_firstmove; // this is the first comp move
@@ -688,10 +457,12 @@ struct setup_struct
   bool speed_override;        // whether speed override is enabled
   CANON_DIRECTION spindle_turning;      // direction spindle is turning
   char stack[STACK_LEN][STACK_ENTRY_LEN];      // stack of calls for error reporting
+  char stack_file[STACK_LEN][STACK_ENTRY_LEN]; // file where error occurred
+  int stack_line[STACK_LEN];      // line where error occurred
   int stack_index;              // index into the stack
-  EmcPose tool_offset;          // tool length offset
+
   int pockets_max;                 // number of pockets in carousel (including pocket 0, the spindle)
-  CANON_TOOL_TABLE tool_table[CANON_POCKETS_MAX];      // index is pocket number
+  std::array<CANON_TOOL_TABLE, CANON_POCKETS_MAX> tool_table;      // index is pocket number
   double traverse_rate;         // rate for traverse motions
   double orient_offset;         // added to M19 R word, from [RS274NGC]ORIENT_OFFSET
 
@@ -777,6 +548,11 @@ struct setup_struct
     std::bitset<1000>  m_remappable;
     std::bitset<1000>  g_remappable;
 
+    void setXYRotationDeg(double rot_deg);
+
+    // during open/close we keep track of all the work offsets the interpreter sees
+    // by origin index in this set.
+    std::set<int> work_offsets_used;
 };
 
 // the externally visible singleton instance
@@ -804,16 +580,14 @@ macros totally crash-proof. If the function call stack is deeper than
 
 */
 
+void append_stack_info(setup_struct &settings, const char *function_name, const char * file_name, int line);
 
 // Just set an error string using printf-style formats, do NOT return
 #define ERM(fmt, ...)                                      \
     do {                                                   \
         setError (fmt, ## __VA_ARGS__);                    \
         _setup.stack_index = 0;                            \
-        strncpy(_setup.stack[_setup.stack_index], __PRETTY_FUNCTION__, STACK_ENTRY_LEN); \
-        _setup.stack[_setup.stack_index][STACK_ENTRY_LEN-1] = 0; \
-        _setup.stack_index++; \
-        _setup.stack[_setup.stack_index][0] = 0;           \
+        append_stack_info(_setup, __PRETTY_FUNCTION__, __FILE__, __LINE__); \
     } while(0)
 
 // Set an error string using printf-style formats and return
@@ -821,10 +595,7 @@ macros totally crash-proof. If the function call stack is deeper than
     do {                                                   \
         setError (fmt, ## __VA_ARGS__);                    \
         _setup.stack_index = 0;                            \
-        strncpy(_setup.stack[_setup.stack_index], __PRETTY_FUNCTION__, STACK_ENTRY_LEN); \
-        _setup.stack[_setup.stack_index][STACK_ENTRY_LEN-1] = 0; \
-        _setup.stack_index++; \
-        _setup.stack[_setup.stack_index][0] = 0;           \
+        append_stack_info(_setup, __PRETTY_FUNCTION__, __FILE__, __LINE__); \
         return INTERP_ERROR;                               \
     } while(0)
 
@@ -832,26 +603,19 @@ macros totally crash-proof. If the function call stack is deeper than
 #define ERN(error_code)                                    \
     do {                                                   \
         _setup.stack_index = 0;                            \
-        strncpy(_setup.stack[_setup.stack_index], __PRETTY_FUNCTION__, STACK_ENTRY_LEN); \
-        _setup.stack[_setup.stack_index][STACK_ENTRY_LEN-1] = 0; \
-        _setup.stack_index++; \
-        _setup.stack[_setup.stack_index][0] = 0;           \
+        append_stack_info(_setup, __PRETTY_FUNCTION__, __FILE__, __LINE__); \
         return error_code;                                 \
     } while(0)
 
 
+#define ERP(error_code) ERP_LINE(error_code, __LINE__)
+
 // Propagate an error up the stack
-#define ERP(error_code)                                        \
+#define ERP_LINE(error_code, __line)                                   \
     do {                                                       \
-        if (_setup.stack_index < STACK_LEN - 1) {                         \
-            strncpy(_setup.stack[_setup.stack_index], __PRETTY_FUNCTION__, STACK_ENTRY_LEN); \
-            _setup.stack[_setup.stack_index][STACK_ENTRY_LEN-1] = 0;    \
-            _setup.stack_index++;                                       \
-            _setup.stack[_setup.stack_index][0] = 0;           \
-        }                                                      \
+        append_stack_info(_setup, __PRETTY_FUNCTION__, __FILE__, __line); \
         return error_code;                                     \
     } while(0)
-
 
 // If the condition is true, set an error string as with ERS
 #define CHKS(bad, fmt, ...)                                    \
@@ -876,7 +640,7 @@ macros totally crash-proof. If the function call stack is deeper than
     do {                                                           \
 	int CHP__status = (call);                                  \
         if (CHP__status != INTERP_OK) {                            \
-	    ERP(CHP__status);                                      \
+        ERP_LINE(CHP__status, __LINE__);                                \
         }                                                          \
     } while(0)
 
@@ -938,5 +702,8 @@ macros totally crash-proof. If the function call stack is deeper than
        CHP(call); \
      }
 
+PositionMask getUpdatedAxes(block_pointer b);
+PositionArray getAxisWordsFromBlock(block_pointer b, PositionArray const &current);
+RotateShiftTransform getAxisWordsFromBlock(block_pointer b, RotateShiftTransform const &current);
 
 #endif // INTERP_INTERNAL_HH

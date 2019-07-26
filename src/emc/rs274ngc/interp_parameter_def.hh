@@ -15,11 +15,18 @@
 #ifndef INTERP_PARAMETER_DEF_H
 #define INTERP_PARAMETER_DEF_H
 
+#include <positionarray.hh>
 namespace interp_param_global
 {
+
+enum {MAX_EXTENDED_WORK_CSYS = 500};
+
+inline bool is_valid_work_offset_index(int idx) {return idx > 0 && idx <= MAX_EXTENDED_WORK_CSYS;}
+
 // 31-5000 - G code user parameters. These parameters are global in the G code file, and available for general use. Volatile.
 enum InterpParameterIndex {
 // 5061-5069 - Coordinates of a G38 probe result (X, Y, Z, A, B, C, U, V & W). Coordinates are in the coordinate system in which the G38 took place. Volatile.
+    INTERP_MAX_USER_PARAMETER=5000,
     G38_X=5061,
     G38_Y,
     G38_Z,
@@ -186,6 +193,7 @@ enum InterpParameterIndex {
     TOOL_BACK_ANGLE=5412,
 // 5413 - Tool Orientation. Volatile.
     TOOL_ORIENTATION=5413,
+    TOOL_ORIENT_TIMEOUT=5414,
 // 5420-5428 - Current relative position in the active coordinate system including all offsets and in the current program units for X, Y, Z, A, B, C, U, V & W, volatile.
     RELATIVE_POSITION_X=5420,
     RELATIVE_POSITION_Y,
@@ -202,7 +210,26 @@ enum InterpParameterIndex {
     TOOLCHANGER_FAULT=5600,
 // 5601 - Toolchanger fault code. Used with the iocontrol-v2 component. Reflects the value of the toolchanger-reason HAL pin if a fault occurred. Volatile.
     TOOLCHANGER_FAULT_CODE=5601,
-    RS274NGC_MAX_PARAMETERS=5602
+    RS274NGC_MAX_PARAMETERS=5602,
+    EXTENDED_WORK_OFFSET_START=10000,
+    EXTENDED_WORK_OFFSET_END=EXTENDED_WORK_OFFSET_START + MAX_EXTENDED_WORK_CSYS * 20,
 };
+
+/**
+ * @return parameter "base" index for the given coordinate system
+ */
+static inline int getWorkOffsetParamBase(int active_csys)
+{
+    return 5200 + active_csys * 20;
+}
+
+/**
+ * @return parameter index for the given coordinate system and one-indexed axis_num (X=1, Y=2, etc.)
+ */
+static inline int getWorkOffsetParamIdx(int active_csys, int axis_num)
+{
+    return getWorkOffsetParamBase(active_csys) + axis_num;
+}
+
 }
 #endif // INTERP_PARAMETER_DEF_H

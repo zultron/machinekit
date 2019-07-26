@@ -236,7 +236,7 @@ error message.
 int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
 			  setup_pointer settings) //!< pointer to machine settings
 {
-  int status;
+  int status = 0;
 
   block->line_number = settings->sequence_number;
   /* The idea here is to only increment the stepping ID if we want to be able
@@ -311,10 +311,11 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
   }
   CHP(convert_m(block, settings));
   CHP(convert_g(block, settings));
+
   /* convert m0, m1, m2, m30, m60, or (when main program loops disabled) m99 */
-  if ((block->m_modes[4] != -1) && ONCE(STEP_MGROUP4)) {
+  if ((block->m_modes[M_MODE_STOPPING] != -1) && ONCE(STEP_MGROUP4)) {
       if (STEP_REMAPPED_IN_BLOCK(block, STEP_MGROUP4)) {
-	  status = convert_remapped_code(block,settings,STEP_MGROUP4,'M',block->m_modes[4]);
+      status = convert_remapped_code(block,settings,STEP_MGROUP4,'M',block->m_modes[M_MODE_STOPPING]);
       } else {
 	  status = convert_stop(block, settings);
       }
@@ -325,17 +326,14 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
 	ERP(status);
     }
   }
-  if (settings->probe_flag)
-      return (INTERP_EXECUTE_FINISH);
 
-  if (settings->input_flag)
-      return (INTERP_EXECUTE_FINISH);
-
-  if (settings->toolchange_flag)
-      return (INTERP_EXECUTE_FINISH);
-
-  if (settings->orient_flag)
-      return (INTERP_EXECUTE_FINISH);
+  if (settings->probe_flag
+          || settings->input_flag
+          || settings->toolchange_flag
+          || settings->orient_flag
+          || settings->work_offset_modified_flag) {
+      return INTERP_EXECUTE_FINISH;
+  }
 
   return INTERP_OK;
 }
@@ -424,6 +422,45 @@ int Interp::execute_unary(double *double_ptr,    //!< pointer to the operand
   case TAN:
     *double_ptr = tan((*double_ptr * M_PIl) / 180.0);
     break;
+  case U_INCH:
+      switch (_setup.length_units) {
+      case CANON_UNITS_MM:
+          *double_ptr *= 25.4;
+          break;
+      case CANON_UNITS_CM:
+          *double_ptr *= 2.54;
+          break;
+      case CANON_UNITS_INCHES:
+      case CANON_UNITS_INVALID:
+          break;
+      }
+      break;
+  case U_MM:
+      switch (_setup.length_units) {
+      case CANON_UNITS_CM:
+          *double_ptr /= 10.0;
+          break;
+      case CANON_UNITS_INCHES:
+          *double_ptr /= 25.4;
+          break;
+      case CANON_UNITS_INVALID:
+      case CANON_UNITS_MM:
+          break;
+      }
+      break;
+  case U_CM:
+      switch (_setup.length_units) {
+      case CANON_UNITS_INCHES:
+          *double_ptr *= 2.4;
+          break;
+      case CANON_UNITS_MM:
+          *double_ptr *= 10.0;
+          break;
+      case CANON_UNITS_CM:
+      case CANON_UNITS_INVALID:
+          break;
+      }
+      break;
   default:
     ERS(NCE_BUG_UNKNOWN_OPERATION);
   }

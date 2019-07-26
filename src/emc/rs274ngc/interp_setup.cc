@@ -24,35 +24,12 @@
 #pragma GCC diagnostic error "-Wmissing-field-initializers"
 
 setup_struct::setup_struct() :
-    AA_axis_offset(0.0),
-    AA_current(0.0),
-    AA_origin_offset(0.0),
-    BB_axis_offset(0.0),
-    BB_current(0.0),
-    BB_origin_offset(0.0),
-    CC_axis_offset(0.0),
-    CC_current(0.0),
-    CC_origin_offset(0.0),
-
-    u_axis_offset(0.0),
-    u_current(0.0),
-    u_origin_offset(0.0),
-
-    v_axis_offset(0.0),
-    v_current(0.0),
-    v_origin_offset(0.0),
-
-    w_axis_offset(0.0),
-    w_current(0.0),
-    w_origin_offset(0.0),
+    current(),
+    transform(),
 
     modal_state(),
 
     arc_not_allowed(0),
-
-    axis_offset_x(0.0),
-    axis_offset_y(0.0),
-    axis_offset_z(0.0),
 
     blocks{},
     remap_level(0),
@@ -60,9 +37,6 @@ setup_struct::setup_struct() :
     control_mode(CANON_EXACT_STOP),
     current_pocket(0),
 
-    current_x (0.0),
-    current_y (0.0),
-    current_z (0.0),
     cutter_comp_radius (0.0),
     cutter_comp_orientation(0),
     cutter_comp_side(0),
@@ -89,26 +63,20 @@ setup_struct::setup_struct() :
     line_length(0),
     linetext{},
     mist(0),
-    motion_mode(0),
+    motion_mode(G_INVALID),
     origin_index(0),
-    origin_offset_x (0.0),
-    origin_offset_y (0.0),
-    origin_offset_z (0.0),
-    rotation_xy (0.0),
 
     parameters{0},
-    parameter_occurrence(0),
-    parameter_numbers{0},
-    parameter_values{0},
-    named_parameter_occurrence(0),
-    named_parameters{nullptr},
-    named_parameter_values{0},
+    new_parameters(),
+    new_named_parameters(),
     percent_flag(0),
     plane(CANON_PLANE_XY),
     probe_flag(0),
     input_flag(0),
     orient_flag(0),
     toolchange_flag(0),
+    work_offset_modified_flag(false),
+    have_new_reserved_parameters(false),
     input_index(0),
     input_digital(0),
     cutter_comp_firstmove(0),
@@ -127,10 +95,10 @@ setup_struct::setup_struct() :
     speed_override(0),
     spindle_turning(CANON_STOPPED),
     stack{},
+    stack_line{},
     stack_index(0),
-    tool_offset{{0,0,0},0,0,0,0,0,0},
     pockets_max(0),
-    tool_table{},
+    tool_table(),
     traverse_rate (0.0),
     orient_offset (0.0),
 
@@ -186,10 +154,15 @@ setup_struct::setup_struct() :
 
 {
   std::fill(parameters, parameters + interp_param_global::RS274NGC_MAX_PARAMETERS, 0);
+  tool_table.fill(CANON_TOOL_TABLE());
+
+  // Prevent unnecessary reallocations
+  new_parameters.reserve(MAX_NAMED_PARAMETERS);
+  new_named_parameters.reserve(MAX_NAMED_PARAMETERS);
 }
     // not sure about sub_context:
     // a plain array of a struct with non-POD data?
-int setup_struct::get_toplevel_line_number()
+int setup_struct::get_toplevel_line_number() const
 {
     bool in_remap = (remap_level > 0);
     bool in_subroutine = (call_level > 0 && remap_level == 0);
@@ -216,28 +189,88 @@ int setup_struct::get_toplevel_line_number()
     }
 }
 
+void setup_struct::clear_queue_buster_flags()
+{
+    probe_flag = false;
+    input_flag = false;
+    orient_flag = false;
+    toolchange_flag = false;
+    work_offset_modified_flag = false;
+    have_new_reserved_parameters = false;
+}
+
 setup_struct::~setup_struct() {
     assert(!pythis || Py_IsInitialized());
     if(pythis) delete pythis;
 }
 
 block_struct::block_struct ()
-    : a_flag(0), a_number(0), b_flag(0), b_number(0),
-      c_flag(0), c_number(0), comment{}, d_number_float(0), d_flag(0),
-      e_flag(0), e_number(0), f_flag(0), f_number(0),
-    g_modes{}, h_flag(0), h_number(0), i_flag(0), i_number(0),
-    j_flag(0), j_number(0), k_flag(0), k_number(0),
-    l_number(0), l_flag(0), line_number(0), saved_line_number(0),
-    n_number(0), motion_to_be(0), m_count(0), m_modes{},
-    p_number(0), p_flag(0), q_number(0), q_flag(0),
-    r_flag(0), r_number(0), s_flag(0), s_number(0),
-    t_flag(0), t_number(0), u_flag(0), u_number(0),
-    v_flag(0), v_number(0), w_flag(0), w_number(0),
-    x_flag(0), x_number(0), y_flag(0), y_number(0),
-    z_flag(0), z_number(0),
+    : a_number(0),
+      b_number(0),
+      c_number(0),
+      comment{},
+      d_number_float(0),
+      e_number(0),
+      f_number(0),
+      g_modes(),
+      h_number(0),
+      i_number(0),
+      j_number(0),
+      k_number(0),
+      l_number(0),
+      line_number(0),
+      saved_line_number(0),
+      n_number(0),
+      motion_to_be(G_INVALID),
+      m_count(0),
+      m_modes(),
+      p_number(0),
+      q_number(0),
+      r_number(0),
+      s_number(0),
+      t_number(0),
+      u_number(0),
+      v_number(0),
+      w_number(0),
+      x_number(0),
+      y_number(0),
+      z_number(0),
+      radius(0.0),
+      theta(0.0),
+// Flags
+      a_flag(false),
+      b_flag(false),
+      c_flag(false),
+      d_flag(false),
+      e_flag(false),
+      f_flag(false),
+      h_flag(false),
+      i_flag(false),
+      j_flag(false),
+      k_flag(false),
+      l_flag(false),
+      p_flag(false),
+      q_flag(false),
+      r_flag(false),
+      s_flag(false),
+      t_flag(false),
+      u_flag(false),
+      v_flag(false),
+      w_flag(false),
+      x_flag(false),
+      y_flag(false),
+      z_flag(false),
+      radius_flag(false),
+      theta_flag(false),
 
-    radius_flag(0), radius(0), theta_flag(0), theta(0),
-    offset(0), o_type(0), call_type(0), o_name(NULL),
-    params{}, param_cnt(0), breadcrumbs(),
-    executing_remap(NULL), remappings(), phase(0), builtin_used(0) {
-    }
+      offset(0), o_type(O_none), call_type(CT_NONE), o_name(nullptr),
+      params{}, param_cnt(0), breadcrumbs(),
+      executing_remap(NULL), remappings(), phase(0), builtin_used(0) {
+    g_modes.fill(G_INVALID);
+    m_modes.fill(-1);
+}
+
+void setup_struct::setXYRotationDeg(double rot_deg)
+{
+    transform.g5xOffset.setXYRotationDeg(rot_deg);
+}

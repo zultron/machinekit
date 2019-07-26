@@ -15,11 +15,9 @@
 #ifndef EMC_STATICS_HH
 #define EMC_STATICS_HH
 
-#include "config.h"
-#include "emcglb.h"		// EMC_AXIS_MAX
-#include "nml_type.hh"
-#include "motion_types.h"
-#include "emc_types.hh"
+class EMC_STAT;
+class EMC_IO_STAT;
+class EMC_MOTION_STAT;
 
 // --------------
 // EMC VOCABULARY

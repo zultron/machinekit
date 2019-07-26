@@ -4,7 +4,6 @@
 #include <python_plugin.hh>
 #include <rs274ngc_interp.hh>
 #include <stdio.h>
-#include <saicanon.hh>
 
 int _task = 1; // Dummy this out, not used in unit test
 InterpBase *pinterp;
@@ -16,7 +15,6 @@ struct _inittab builtin_modules[] = {
 
 int main (int argc, char * argv[]) {
     // KLUDGE just to satisfy saicanon dependencies, not used in tests
-    _outfile = fopen("test_interp_canon.log", "w");
     PythonPlugin::instantiate(builtin_modules);
     return Catch::Session().run( argc, argv );
 }

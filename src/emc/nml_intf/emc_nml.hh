@@ -22,6 +22,10 @@
 #include "canon.hh"		// CANON_TOOL_TABLE, CANON_UNITS
 #include "rs274ngc.hh"		// ACTIVE_G_CODES, etc
 
+#include <interp_parameter_def.hh>
+#include <array>
+#include <coordinatetransform.hh>
+
 // ------------------
 // CLASS DECLARATIONS
 // ------------------
@@ -34,7 +38,6 @@ class EMC_CMD_MSG:public RCS_CMD_MSG {
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
-    state_tag_t tag;
 };
 
 
@@ -441,7 +444,7 @@ class EMC_AXIS_LOAD_COMP:public EMC_AXIS_CMD_MSG {
     void update(CMS * cms);
 
     char file[LINELEN];
-    int type; // type of the comp file. type==0 means nom, forw, rev triplets
+    int comp_file_type; // type of the comp file. type==0 means nom, forw, rev triplets
               // type != 0 means nom, forw_trim, rev_trim triplets
 };
 
@@ -795,7 +798,7 @@ class EMC_TRAJ_LINEAR_MOVE:public EMC_TRAJ_CMD_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    int type;
+    int emc_motion_type;
     EmcPose end;		// end point
     double vel, ini_maxvel, acc;
     int feed_mode;
@@ -817,7 +820,7 @@ class EMC_TRAJ_CIRCULAR_MOVE:public EMC_TRAJ_CMD_MSG {
     PM_CARTESIAN center;
     PM_CARTESIAN normal;
     int turn;
-    int type;
+    int emc_motion_type;
     double vel, ini_maxvel, acc, acc_normal;
     int feed_mode;
 };
@@ -851,7 +854,7 @@ class EMC_TRAJ_SET_SPINDLESYNC:public EMC_TRAJ_CMD_MSG {
 class EMC_TRAJ_SET_OFFSET:public EMC_TRAJ_CMD_MSG {
   public:
     EMC_TRAJ_SET_OFFSET():EMC_TRAJ_CMD_MSG(EMC_TRAJ_SET_OFFSET_TYPE,
-					   sizeof(EMC_TRAJ_SET_OFFSET)) {
+                       sizeof(EMC_TRAJ_SET_OFFSET)) {
     }
 
     // For internal NML/CMS use only.
@@ -860,16 +863,27 @@ class EMC_TRAJ_SET_OFFSET:public EMC_TRAJ_CMD_MSG {
     EmcPose offset;
 };
 
-class EMC_TRAJ_SET_G5X:public EMC_TRAJ_CMD_MSG {
+class EMC_TRAJ_SET_G5X_TRANSFORM:public EMC_TRAJ_CMD_MSG {
   public:
-    EMC_TRAJ_SET_G5X():EMC_TRAJ_CMD_MSG(EMC_TRAJ_SET_G5X_TYPE,
-					   sizeof(EMC_TRAJ_SET_G5X)) {
+    EMC_TRAJ_SET_G5X_TRANSFORM():EMC_TRAJ_CMD_MSG(EMC_TRAJ_SET_G5X_TRANSFORM_TYPE,
+                       sizeof(EMC_TRAJ_SET_G5X_TRANSFORM)) {
     }
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
     int g5x_index;
-    EmcPose origin;
+    double offset[9];
+    double xy_rotation_deg;
+};
+
+class EMC_TRAJ_CLEAR_G5X_TABLE:public EMC_TRAJ_CMD_MSG {
+  public:
+    EMC_TRAJ_CLEAR_G5X_TABLE():EMC_TRAJ_CMD_MSG(EMC_TRAJ_CLEAR_G5X_TABLE_TYPE,
+                       sizeof(EMC_TRAJ_CLEAR_G5X_TABLE)) {
+    }
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
 };
 
 class EMC_TRAJ_SET_G92:public EMC_TRAJ_CMD_MSG {
@@ -1025,6 +1039,7 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
 
     EmcPose probedPosition;	// last position where probe was tripped.
     bool probe_tripped;		// Has the probe been tripped since the last
+    unsigned probeCount; // Number of completed probe measurements (will overflow)
     // clear.
     bool waiting_on_spindle;    // Waiting for spindle on spindle-synched move
     double spindle_sync;		// Tormach - use as flag for feed/rev mode active
@@ -1427,10 +1442,8 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
-
     enum EMC_TASK_MODE_ENUM mode;	// EMC_TASK_MODE_MANUAL, etc.
     enum EMC_TASK_STATE_ENUM state;	// EMC_TASK_STATE_ESTOP, etc.
-
     enum EMC_TASK_EXEC_ENUM execState;	// EMC_DONE,WAITING_FOR_MOTION, etc.
     enum EMC_TASK_INTERP_ENUM interpState;	// EMC_IDLE,READING,PAUSED,WAITING
     int callLevel;              // current subroutine level - 0 if not in a subroutine, > 0 otherwise
@@ -1439,6 +1452,23 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     int previousLine;		// previous line handled by task
     int readLine;		// line interpreter has read to
     int stepping_id;		// ID of block we are stepping on
+
+    char file[LINELEN];
+    char command[LINELEN];
+    EmcPose g5x_offset;		// in user units, currently active
+    int g5x_index;              // index of active g5x system
+    double rotation_xy;
+    EmcPose g92_offset;		// in user units, currently active
+    EmcPose toolOffset;		// tool offset, in general pose form
+    ActiveGCodeArray activeGCodes;
+    ActiveMCodeArray activeMCodes;
+    ActiveSettingsArray activeSettings;
+    int programUnits;	// CANON_UNITS_INCHES, MM, CM
+    int interpreter_errcode;	// return value from rs274ngc function 
+    int task_paused;		// non-zero means task is paused
+    double delayLeft;           // delay time left of G4, M66..
+    int queuedMDIcommands;      // current length of MDI input queue
+    std::array<RotateShiftTransform, interp_param_global::MAX_EXTENDED_WORK_CSYS+1> g5x_table; // in user units, stored by 1-indexed work offset number
     bool program_ended_and_reset; // program executed an M30 to gracefully end and reset
     bool program_ended;           // program executed an M2 to gracefully end
     bool optional_stop_state;	// state of optional stop (== ON means we stop on M1)
@@ -1446,24 +1476,6 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     bool input_timeout;		// has a timeout happened on digital input
     bool orient_timeout;	// has a timeout happened on spindle orient
     bool orient_no_exec_error;	// set if M19 Q-word < 0 so g code can handle timeout
-    char file[LINELEN];
-    char command[LINELEN];
-    EmcPose g5x_offset;		// in user units, currently active
-    EmcPose g5x_offsets[9];	// in user units
-    int g5x_index;              // index of active g5x system
-    EmcPose g92_offset;		// in user units, currently active
-    double rotation_xy;
-    EmcPose toolOffset;		// tool offset, in general pose form
-    int activeGCodes[ACTIVE_G_CODES];
-    int activeMCodes[ACTIVE_M_CODES];
-    double activeSettings[ACTIVE_SETTINGS];
-    int programUnits;	// CANON_UNITS_INCHES, MM, CM
-
-    int interpreter_errcode;	// return value from rs274ngc function 
-    // (only useful for new interpreter.)
-    int task_paused;		// non-zero means task is paused
-    double delayLeft;           // delay time left of G4, M66..
-    int queuedMDIcommands;      // current length of MDI input queue
 };
 
 // declarations for EMC_TOOL classes

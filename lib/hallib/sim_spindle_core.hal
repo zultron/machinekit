@@ -4,7 +4,7 @@ loadrt near count=1
 
 setp sim_spindle.time-constant 0.1 # How long it takes to reach 63% of commanded speed
 setp sim_spindle.max-accel-rps2 100 # Limits spindle speed rate of change
-setp sim_spindle.max-velocity 100.0 # Limit maximum spindle velocity to 6000 RPM
+setp sim_spindle.max-velocity 500.0 # Limit maximum spindle velocity to 30000 RPM
 
 # Connect inputs to search for / zero position at index
 net spindle-index-enable motion.spindle-index-enable <=> sim_spindle.index-enable

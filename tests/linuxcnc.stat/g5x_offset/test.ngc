@@ -1,7 +1,7 @@
 %
 
-; Set values for all offsets
-#1 = 1  ; Offset index
+; Set values for all offsets except G54 / G55 which are in the PRM file
+#1 = 3  ; Offset index
 O1 while [ #1 LE 9 ]
     G10 L2 P[#1] X[#1 + 0.1] Y[#1 + 0.2] Z[#1 + 0.3]
     #1 = [ #1 + 1 ]
@@ -38,9 +38,14 @@ M00
 ; abort in middle
 G59 G20 G10 L2 P5 X0.1 Y0.1 Z0.1
 G0 X20 F0.01
+G54
+G0 X21 F0.01
+G56
+G0 X22 F0.01
 
 ; Program should never reach here; change everything
 G55 G21 G10 L2 P2 X10 Y10 Z10
+G59.1 G21 G10 L2 P7 X12.7 Y12.7 Z12.7
 M3
 
 %

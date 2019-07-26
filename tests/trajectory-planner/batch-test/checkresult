@@ -1,3 +1,45 @@
-#!/usr/bin/env bash
-# Passthrough since the batch test catches errors as it reports them
-exit 0
+#!/usr/bin/env python
+import os
+import sys
+import datetime
+import re
+from collections import defaultdict
+
+def find_log_timestamps(log_file):
+    times=defaultdict(dict)
+    # Assumes all file names are unique
+    with open(log_file) as err_log:
+        for l in err_log.readlines():
+            dt_str = l.split('|')[0].rstrip()
+            try:
+                t = datetime.datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S.%f")
+                msg = l.split('|')[1].rstrip()
+            except ValueError:
+                # Ignore log lines without strings
+                continue
+            fname = msg.split(':')[0]
+            for field in ('start', 'end'):
+                if field in msg:
+                    times[fname][field] = t
+    return times
+
+def sort_by_start(t_data):
+    return t_data[1]
+
+def get_test_path():
+    out_name = (sys.argv[1] if len(sys.argv) > 1 else None) or './stderr'
+    return os.path.dirname(out_name)
+
+if __name__ == '__main__':
+    out_file = os.path.join(get_test_path(), 'stderr')
+    test_times = find_log_timestamps(out_file)
+    results = [(f, t.get("start", None), t.get("end", None)) for f,t in test_times.iteritems()]
+    results.sort(key=sort_by_start)
+
+    with open(os.path.join(get_test_path(), 'program_times.log'), 'w') as out:
+        for r in results:
+            f = r[0]
+            start = r[1]
+            end = r[2]
+            dt = (end-start).total_seconds() if start and end else "unknown"
+            out.write("{}: total_time: {}, start: {}, end: {}\n".format(f, dt, start, end))

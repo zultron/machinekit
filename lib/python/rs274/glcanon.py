@@ -41,6 +41,8 @@ limiticon = array.array('B',
 class GLCanon(Translated, ArcsToSegmentsMixin):
     lineno = -1
     def __init__(self, colors, geometry, inifile):
+        ArcsToSegmentsMixin.__init__(self)
+        
         # traverse, feed, and arcfeeds are dictionaries where
         # the key is the tool number and the value is the list of tuples cut using that tool
         # this makes it super fast to draw only those lines which are desired based on a subset of
@@ -69,25 +71,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.xo = self.yo = self.zo = self.ao = self.bo = self.co = self.uo = self.vo = self.wo = 0
         self.dwell_time = 0
         self.suppress = 0
-        self.g92_offset_x = 0.0
-        self.g92_offset_y = 0.0
-        self.g92_offset_z = 0.0
-        self.g92_offset_a = 0.0
-        self.g92_offset_b = 0.0
-        self.g92_offset_c = 0.0
-        self.g92_offset_u = 0.0
-        self.g92_offset_v = 0.0
-        self.g92_offset_w = 0.0
-        self.g5x_index = 1
-        self.g5x_offset_x = 0.0
-        self.g5x_offset_y = 0.0
-        self.g5x_offset_z = 0.0
-        self.g5x_offset_a = 0.0
-        self.g5x_offset_b = 0.0
-        self.g5x_offset_c = 0.0
-        self.g5x_offset_u = 0.0
-        self.g5x_offset_v = 0.0
-        self.g5x_offset_w = 0.0
+        Translated.__init__(self, 1)
         temp = inifile.find("DISPLAY", "GEOMETRY")
         self.is_rear_tp_lathe = bool(temp == "-XZ")
         self.is_foam = bool(inifile.find("DISPLAY", "FOAM"))
@@ -271,6 +255,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
     # confusing, but I guess this is an alias for straight_feed above
     straight_probe = straight_feed
+    # KLUDGE will complain if the endpoint is not within limits even though it doesn't matter
+    straight_probe_to_limits = straight_feed
 
     def straight_feed_synched(self, lineno, x,y,z, a,b,c, u,v,w, s, fpr):
         """For spindle-synched straight feeds, also collect data needed to
@@ -459,6 +445,7 @@ class GlCanonDraw:
         self.select_buffer_size = 100
         self.cached_tool = -1
         self.initialised = 0
+        self._work_offsets_used = []
 
     def realize(self):
         self.hershey = hershey.Hershey()
@@ -1978,9 +1965,17 @@ class GlCanonDraw:
         if self.canon: self.canon.draw(0, False)
         glEndList()
 
+    def get_work_offsets_used(self):
+        return self._work_offsets_used
+
     def load_preview(self, f, canon, unitcode, initcode, interpname=""):
         self.set_canon(canon)
         result, seq, warnings = gcode.parse(f, canon, unitcode, initcode, interpname)
+
+        # this is only valid right after a gcode.parse() as it will continue to change if the 
+        # underlying interp is reset or reused for other files.  It gets cleared when a new file is
+        # opened underneath.
+        self._work_offsets_used = gcode.get_work_offsets_used()
 
         if result <= gcode.MIN_ERROR:
             self.canon.progress.nextphase(1)

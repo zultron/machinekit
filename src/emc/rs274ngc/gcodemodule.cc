@@ -25,7 +25,6 @@
 #include "canon.hh"
 #include "config.h"		// LINELEN
 #include <sstream>
-#include <memory>
 
 int _task = 0; // control preview behaviour when remapping
 
@@ -163,7 +162,7 @@ static PyObject *callback;
 static int interp_error;
 static int last_sequence_number;
 static bool metric;
-static double _pos_x, _pos_y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w;
+static PositionArray _pos{};
 static EmcPose tool_offset;
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
@@ -174,7 +173,7 @@ static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
 static double css_max_speed_programmed = 0.0;
 
-static std::unique_ptr<InterpBase> pinterp;
+static InterpBase *pinterp;
 
 #define callmethod(o, m, f, ...) PyObject_CallMethod((o), const_cast<char*>(m), const_cast<char*>(f), ## __VA_ARGS__)
 
@@ -221,12 +220,12 @@ void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points
     PLANE_POINT P1;
     while (u+umax/div < umax) {
         PLANE_POINT P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
-        STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+        STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos[Z], _pos[A], _pos[B], _pos[C], _pos[U], _pos[V], _pos[W]);
         u = u + umax/div;
     }
     P1.X = nurbs_control_points[n].X;
     P1.Y = nurbs_control_points[n].Y;
-    STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos_z, _pos_a, _pos_b, _pos_c, _pos_u, _pos_v, _pos_w);
+    STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos[Z], _pos[A], _pos[B], _pos[C], _pos[U], _pos[V], _pos[W]);
     knot_vector.clear();
 }
 
@@ -264,9 +263,9 @@ void STRAIGHT_FEED(int line_number,
                    double x, double y, double z,
                    double a, double b, double c,
                    double u, double v, double w) {
-    _pos_x=x; _pos_y=y; _pos_z=z;
-    _pos_a=a; _pos_b=b; _pos_c=c;
-    _pos_u=u; _pos_v=v; _pos_w=w;
+    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
+    _pos[A]=a; _pos[B]=b; _pos[C]=c;
+    _pos[U]=u; _pos[V]=v; _pos[W]=w;
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -287,9 +286,9 @@ void STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
                        double a, double b, double c,
                        double u, double v, double w) {
-    _pos_x=x; _pos_y=y; _pos_z=z;
-    _pos_a=a; _pos_b=b; _pos_c=c;
-    _pos_u=u; _pos_v=v; _pos_w=w;
+    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
+    _pos[A]=a; _pos[B]=b; _pos[C]=c;
+    _pos[U]=u; _pos[V]=v; _pos[W]=w;
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -302,18 +301,20 @@ void STRAIGHT_TRAVERSE(int line_number,
     }
 }
 
-void SET_G5X_OFFSET(int g5x_index,
-        double x, double y, double z,
-        double a, double b, double c,
-        double u, double v, double w) {
+void SET_G5X_TRANSFORM(int origin,
+                       double x, double y, double z,
+                       double a, double b, double c,
+                       double u, double v, double w,
+                       double xy_rotation_deg)
+{
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line();
     if(interp_error) return;
-    PyObject *result =
-        callmethod(callback, "set_g5x_offset", "ifffffffff",
-                g5x_index, x, y, z, a, b, c, u, v, w);
-    if(result == nullptr) interp_error ++;
-    Py_XDECREF(result);
+    PyObject *result_offset =
+        callmethod(callback, "set_g5x_transform", "iffffffffff",
+                origin, x, y, z, a, b, c, u, v, w, xy_rotation_deg);
+    if(!result_offset) interp_error ++;
+    Py_XDECREF(result_offset);
 }
 
 void SET_G92_OFFSET(double x, double y, double z,
@@ -328,15 +329,6 @@ void SET_G92_OFFSET(double x, double y, double z,
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
 }
-
-void SET_XY_ROTATION(double t) {
-    maybe_new_line();
-    if(interp_error) return;
-    PyObject *result =
-        callmethod(callback, "set_xy_rotation", "f", t);
-    if(result == nullptr) interp_error ++;
-    Py_XDECREF(result);
-};
 
 void USE_LENGTH_UNITS(CANON_UNITS u) { metric = u == CANON_UNITS_MM; }
 
@@ -538,15 +530,34 @@ void STRAIGHT_PROBE(int line_number,
                     double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
-    _pos_x=x; _pos_y=y; _pos_z=z;
-    _pos_a=a; _pos_b=b; _pos_c=c;
-    _pos_u=u; _pos_v=v; _pos_w=w;
+    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
+    _pos[A]=a; _pos[B]=b; _pos[C]=c;
+    _pos[U]=u; _pos[V]=v; _pos[W]=w;
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
         PyObject *result =
             callmethod(callback, "straight_probe", "ifffffffff",
+                    line_number, x, y, z, a, b, c, u, v, w);
+        if(result == nullptr) interp_error ++;
+        Py_XDECREF(result);
+    }
+}
+
+void STRAIGHT_PROBE_TO_LIMIT(int line_number,
+                    double x, double y, double z,
+                    double a, double b, double c,
+                    double u, double v, double w, unsigned char probe_type) {
+    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
+    _pos[A]=a; _pos[B]=b; _pos[C]=c;
+    _pos[U]=u; _pos[V]=v; _pos[W]=w;
+    if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
+    maybe_new_line(line_number);
+    if(interp_error) return;
+    if (_linecount < max_glcanon_lines) {
+        PyObject *result =
+            callmethod(callback, "straight_probe_to_limit", "ifffffffff",
                     line_number, x, y, z, a, b, c, u, v, w);
         if(result == nullptr) interp_error ++;
         Py_XDECREF(result);
@@ -565,26 +576,28 @@ void RIGID_TAP(int line_number,
     Py_XDECREF(result);
 }
 double GET_EXTERNAL_MOTION_CONTROL_TOLERANCE() { return 0.1; }
-double GET_EXTERNAL_PROBE_POSITION_X() { return _pos_x; }
-double GET_EXTERNAL_PROBE_POSITION_Y() { return _pos_y; }
-double GET_EXTERNAL_PROBE_POSITION_Z() { return _pos_z; }
-double GET_EXTERNAL_PROBE_POSITION_A() { return _pos_a; }
-double GET_EXTERNAL_PROBE_POSITION_B() { return _pos_b; }
-double GET_EXTERNAL_PROBE_POSITION_C() { return _pos_c; }
-double GET_EXTERNAL_PROBE_POSITION_U() { return _pos_u; }
-double GET_EXTERNAL_PROBE_POSITION_V() { return _pos_v; }
-double GET_EXTERNAL_PROBE_POSITION_W() { return _pos_w; }
+PositionArray GET_EXTERNAL_PROBE_POSITION() { return _pos; }
+double GET_EXTERNAL_PROBE_POSITION_X() { return _pos[X]; }
+double GET_EXTERNAL_PROBE_POSITION_Y() { return _pos[Y]; }
+double GET_EXTERNAL_PROBE_POSITION_Z() { return _pos[Z]; }
+double GET_EXTERNAL_PROBE_POSITION_A() { return _pos[A]; }
+double GET_EXTERNAL_PROBE_POSITION_B() { return _pos[B]; }
+double GET_EXTERNAL_PROBE_POSITION_C() { return _pos[C]; }
+double GET_EXTERNAL_PROBE_POSITION_U() { return _pos[U]; }
+double GET_EXTERNAL_PROBE_POSITION_V() { return _pos[V]; }
+double GET_EXTERNAL_PROBE_POSITION_W() { return _pos[W]; }
 double GET_EXTERNAL_PROBE_VALUE() { return 0.0; }
 int GET_EXTERNAL_PROBE_TRIPPED_VALUE() { return 0; }
-double GET_EXTERNAL_POSITION_X() { return _pos_x; }
-double GET_EXTERNAL_POSITION_Y() { return _pos_y; }
-double GET_EXTERNAL_POSITION_Z() { return _pos_z; }
-double GET_EXTERNAL_POSITION_A() { return _pos_a; }
-double GET_EXTERNAL_POSITION_B() { return _pos_b; }
-double GET_EXTERNAL_POSITION_C() { return _pos_c; }
-double GET_EXTERNAL_POSITION_U() { return _pos_u; }
-double GET_EXTERNAL_POSITION_V() { return _pos_v; }
-double GET_EXTERNAL_POSITION_W() { return _pos_w; }
+PositionArray GET_EXTERNAL_POSITION() { return _pos; }
+double GET_EXTERNAL_POSITION_X() { return _pos[X]; }
+double GET_EXTERNAL_POSITION_Y() { return _pos[Y]; }
+double GET_EXTERNAL_POSITION_Z() { return _pos[Z]; }
+double GET_EXTERNAL_POSITION_A() { return _pos[A]; }
+double GET_EXTERNAL_POSITION_B() { return _pos[B]; }
+double GET_EXTERNAL_POSITION_C() { return _pos[C]; }
+double GET_EXTERNAL_POSITION_U() { return _pos[U]; }
+double GET_EXTERNAL_POSITION_V() { return _pos[V]; }
+double GET_EXTERNAL_POSITION_W() { return _pos[W]; }
 void INIT_CANON() {}
 
 void SET_PARAMETER_FILE_NAME(const char *name)
@@ -600,7 +613,9 @@ void GET_EXTERNAL_PARAMETER_FILE_NAME(char *name, int max_size) {
     memset(name, 0, max_size);
     strncpy(name, s, max_size - 1);
 }
+
 CANON_UNITS GET_EXTERNAL_LENGTH_UNIT_TYPE() { return CANON_UNITS_INCHES; }
+
 CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket) {
     CANON_TOOL_TABLE t = {-1,{{0,0,0},0,0,0,0,0,0},0,0,0,0};
     if(interp_error) return t;
@@ -616,10 +631,25 @@ CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket) {
     return t;
 }
 
+RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin) {
+    RotateShiftTransform t = {};
+    double xy_rotation_deg = 0.0;
+    if(interp_error) return t;
+    PyObject *result =
+        callmethod(callback, "get_g5x_transform", "i", origin);
+    if(result == nullptr ||
+       !PyArg_ParseTuple(result, "dddddddddd", UNPACK_POSITION_ARRAY(t.shift.tf), &xy_rotation_deg))
+            interp_error ++;
+
+    Py_XDECREF(result);
+    t.setXYRotationDeg(xy_rotation_deg);
+    return t;
+}
+
 int GET_EXTERNAL_DIGITAL_INPUT(int index, int def) { return def; }
 int GET_EXTERNAL_ORIENT_TIMEOUT() { return 0; }
 double GET_EXTERNAL_ANALOG_INPUT(int index, double def) { return def; }
-int WAIT(int index, int input_type, int wait_type, double timeout) { return 0;}
+int WAIT(int index, CANON_INPUT input_type, CANON_WAIT_MODE wait_type, double timeout) { return 0;}
 
 static void user_defined_function(int num, double arg1, double arg2) {
     if(interp_error) return;
@@ -756,6 +786,22 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode) { motion_mode = mode; }
 CANON_MOTION_MODE GET_EXTERNAL_MOTION_CONTROL_MODE() { return motion_mode; }
 void SET_NAIVECAM_TOLERANCE(double tolerance) { }
 
+static PyObject *get_work_offsets_used(PyObject *self, PyObject *args) {
+
+    // call pinterp to snag the set of work offset indexes and build a new list to 
+    // give back to python land
+    std::set<int> used_offsets = reinterpret_cast<Interp*>(pinterp)->get_work_offsets_used();
+
+    PyObject* offsets = PyTuple_New(used_offsets.size());
+    int ix = 0;
+    for (auto offset : used_offsets)
+    {
+       PyTuple_SetItem(offsets, ix, PyInt_FromLong(offset));
+       ++ix;
+    }   
+    return offsets;
+}
+
 #define RESULT_OK (result == INTERP_OK || result == INTERP_EXECUTE_FINISH)
 static PyObject *parse_file(PyObject *self, PyObject *args) {
     char *f;
@@ -766,12 +812,14 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     if(!PyArg_ParseTuple(args, "sO|sss", &f, &callback, &unitcode, &initcode, &interpname))
         return nullptr;
 
-    if(interpname && *interpname) {
-        pinterp.reset(interp_from_shlib(interpname));
+    if(pinterp) {
+        delete pinterp;
+        pinterp = 0;
     }
-    if(!pinterp) {
-        pinterp.reset(new Interp());
-    }
+    if(interpname && *interpname)
+        pinterp = interp_from_shlib(interpname);
+    if(!pinterp)
+        pinterp = new Interp;
 
     for(int i=0; i<USER_DEFINED_FUNCTION_NUM; i++)
         USER_DEFINED_FUNCTION[i] = user_defined_function;
@@ -784,8 +832,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     spindle_synched_motion = 0;
     spindle_speed_programmed = 0.0;
 
-    _pos_x = _pos_y = _pos_z = _pos_a = _pos_b = _pos_c = 0;
-    _pos_u = _pos_v = _pos_w = 0;
+    _pos.fill(0);
     _linecount=0;
 
     pinterp->init();
@@ -836,10 +883,10 @@ out_error:
     if (_linecount > max_glcanon_lines) {
         std::stringstream preview_cutoff_warning;
         preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use the context menu of the g-code window on the Main tab to load all preview lines.  Or use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
-        PyList_Append(reinterpret_cast<Interp*>(pinterp.get())->warning_list, PyString_FromString(preview_cutoff_warning.str().c_str()));
+        PyList_Append(reinterpret_cast<Interp*>(pinterp)->warning_list, PyString_FromString(preview_cutoff_warning.str().c_str()));
     }
 
-    PyTuple_SetItem(retval, 2, reinterpret_cast<Interp*>(pinterp.get())->warning_list);
+    PyTuple_SetItem(retval, 2, reinterpret_cast<Interp*>(pinterp)->warning_list);
 
     return retval;
 }
@@ -1102,6 +1149,8 @@ static PyMethodDef gcode_methods[] = {
         "Convert an arc to straight segments"},
     {"max_glcanon_lines", (PyCFunction)get_set_max_glcanon_lines, METH_VARARGS,
      "Get maximum number of lines to preview; pass integer argument to set"},
+    {"get_work_offsets_used", (PyCFunction)get_work_offsets_used, METH_VARARGS,
+     "Get set of work offset integers used by last parsed gcode file"},
     {}
 };
 

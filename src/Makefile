@@ -125,6 +125,7 @@ SUBDIRS := \
     emc/usr_intf emc/nml_intf emc/task emc/iotask emc/kinematics emc/tp emc/canterp \
     emc/motion emc/ini emc/rs274ngc emc/sai emc emc/pythonplugin \
     emc/motion-logger \
+    emc/interp_shared \
     \
     module_helper \
     \
@@ -306,7 +307,7 @@ HEADERS := \
     emc/motion/state_tag.h \
     emc/motion/usrmotintf.h \
     emc/nml_intf/canon.hh \
-    emc/nml_intf/canon_position.hh \
+    emc/nml_intf/canon_enums.hh \
     emc/nml_intf/emctool.h \
     emc/nml_intf/emc.hh \
     emc/nml_intf/emc_nml.hh \
@@ -318,12 +319,17 @@ HEADERS := \
     emc/nml_intf/interpl.hh \
     emc/nml_intf/motion_types.h \
     emc/nml_intf/debugflags.h \
+    emc/rs274ngc/interp_parameter_def.hh \
     emc/rs274ngc/interp_internal.hh \
     emc/rs274ngc/interp_fwd.hh \
     emc/rs274ngc/interp_base.hh \
+    emc/rs274ngc/interp_enums.hh \
     emc/rs274ngc/rs274ngc.hh \
     emc/rs274ngc/modal_state.hh \
     emc/rs274ngc/saicanon.hh \
+    emc/rs274ngc/StateTag.hh \
+    emc/interp_shared/coordinatetransform.hh \
+    emc/interp_shared/positionarray.hh \
     hal/hal.h \
     hal/hal_parport.h \
     libnml/buffer/locmem.hh \

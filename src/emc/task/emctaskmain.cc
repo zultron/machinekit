@@ -1569,7 +1569,6 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 	task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		   cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_TRAJ_LINEAR_MOVE_TYPE:
     case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
@@ -1581,17 +1580,16 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_FH_ENABLE_TYPE:
     case EMC_TRAJ_SET_SO_ENABLE_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_IO;
-	break;
 
     case EMC_TRAJ_SET_OFFSET_TYPE:
 	// this applies the tool length offset variable after previous
 	// motions
-    case EMC_TRAJ_SET_G5X_TYPE:
+    case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
     case EMC_TRAJ_SET_G92_TYPE:
     case EMC_TRAJ_SET_ROTATION_TYPE:
-	// this applies the program origin after previous motions
+    case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
+    // this applies the program origin after previous motions
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION;
-	break;
 
     case EMC_TOOL_LOAD_TYPE:
     case EMC_TOOL_UNLOAD_TYPE:
@@ -1607,24 +1605,20 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_TOOL_PREPARE_TYPE:
     case EMC_LUBE_ON_TYPE:
     case EMC_LUBE_OFF_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_IO;
-	break;
 
     case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
     case EMC_TOOL_SET_OFFSET_TYPE:
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_TOOL_SET_NUMBER_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_IO;
-	break;
 
     case EMC_TASK_PLAN_PAUSE_TYPE:
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
@@ -1632,13 +1626,11 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_TASK_PLAN_END_TYPE:
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_TASK_PLAN_INIT_TYPE:
     case EMC_TASK_PLAN_RUN_TYPE:
@@ -1647,36 +1639,30 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_TRAJ_DELAY_TYPE:
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
-	break;
 
     case EMC_MOTION_SET_AOUT_TYPE:
 	if (((EMC_MOTION_SET_AOUT *) cmd)->now) {
     	    return EMC_TASK_EXEC_WAITING_FOR_MOTION;
 	}
 	return EMC_TASK_EXEC_DONE;
-	break;
 
     case EMC_MOTION_SET_DOUT_TYPE:
 	if (((EMC_MOTION_SET_DOUT *) cmd)->now) {
     	    return EMC_TASK_EXEC_WAITING_FOR_MOTION;
 	}
 	return EMC_TASK_EXEC_DONE;
-	break;
 
     case EMC_MOTION_ADAPTIVE_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION;
-	break;
 
     case EMC_EXEC_PLUGIN_CALL_TYPE:
     case EMC_IO_PLUGIN_CALL_TYPE:
 	return EMC_TASK_EXEC_DONE;
-	break;
 
     case EMC_TASK_SET_TAG_TYPE:
     return EMC_TASK_EXEC_DONE;
@@ -1688,7 +1674,6 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 			    (int)cmd->type, emc_symbol_lookup(cmd->type));
 	}
 	return EMC_TASK_EXEC_ERROR;
-	break;
     }
 
     return EMC_TASK_EXEC_DONE;
@@ -1878,7 +1863,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	axis_load_comp_msg = (EMC_AXIS_LOAD_COMP *) cmd;
 	retval = emcAxisLoadComp(axis_load_comp_msg->axis,
 				 axis_load_comp_msg->file,
-				 axis_load_comp_msg->type);
+				 axis_load_comp_msg->comp_file_type);
 	break;
 
 	// traj commands
@@ -1931,7 +1916,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TRAJ_LINEAR_MOVE_TYPE:
 	emcTrajLinearMoveMsg = (EMC_TRAJ_LINEAR_MOVE *) cmd;
         retval = emcTrajLinearMove(emcTrajLinearMoveMsg->end,
-                                   emcTrajLinearMoveMsg->type, emcTrajLinearMoveMsg->vel,
+                                   emcTrajLinearMoveMsg->emc_motion_type, emcTrajLinearMoveMsg->vel,
                                    emcTrajLinearMoveMsg->ini_maxvel, emcTrajLinearMoveMsg->acc,
                                    emcTrajLinearMoveMsg->indexrotary, emcTrajLinearMoveMsg->pure_angular);
 	break;
@@ -1940,7 +1925,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	emcTrajCircularMoveMsg = (EMC_TRAJ_CIRCULAR_MOVE *) cmd;
         retval = emcTrajCircularMove(emcTrajCircularMoveMsg->end,
                 emcTrajCircularMoveMsg->center, emcTrajCircularMoveMsg->normal,
-                emcTrajCircularMoveMsg->turn, emcTrajCircularMoveMsg->type,
+                emcTrajCircularMoveMsg->turn, emcTrajCircularMoveMsg->emc_motion_type,
                 emcTrajCircularMoveMsg->vel,
                 emcTrajCircularMoveMsg->ini_maxvel,
                 emcTrajCircularMoveMsg->acc,
@@ -1980,7 +1965,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TRAJ_SET_OFFSET_TYPE:
 	// update tool offset
-	emcStatus->task.toolOffset = ((EMC_TRAJ_SET_OFFSET *) cmd)->offset;
+    emcStatus->task.toolOffset = ((EMC_TRAJ_SET_OFFSET *) cmd)->offset;
         retval = emcTrajSetOffset(emcStatus->task.toolOffset);
 	break;
 
@@ -1989,10 +1974,37 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         retval = 0;
         break;
 
-    case EMC_TRAJ_SET_G5X_TYPE:
-	// Status is updated elsewhere; nothing to do
-	retval = 0;
+    case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
+    {
+	// struct-copy program origin
+        double const *offset = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->offset;
+        emcStatus->task.g5x_offset = {{
+                                          offset[X],
+                                          offset[Y],
+                                          offset[Z],
+                                      },
+                                      offset[A],
+                                      offset[B],
+                                      offset[C],
+                                      offset[U],
+                                      offset[V],
+                                      offset[W],
+                                     };
+        emcStatus->task.rotation_xy = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->xy_rotation_deg;
+        emcStatus->task.g5x_index = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->g5x_index;
+        emcStatus->task.g5x_table[(size_t)((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->g5x_index] =
+                RotateShiftTransform(toArray(((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->offset, 9),
+                                     ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->xy_rotation_deg
+                                     );
+    }
+    retval = 0;
 	break;
+    case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
+    {
+        emcStatus->task.g5x_table.fill(RotateShiftTransform());
+    }
+    retval = 0;
+    break;
     case EMC_TRAJ_SET_G92_TYPE:
 	// struct-copy program origin
 	emcStatus->task.g92_offset = ((EMC_TRAJ_SET_G92 *) cmd)->origin;
@@ -2386,7 +2398,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
-	if (GET_OPTIONAL_PROGRAM_STOP() == ON) {
+	if (GET_OPTIONAL_PROGRAM_STOP() == true) {
 	    emcTrajPause();
 	    if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
 		interpResumeState = emcStatus->task.interpState;
@@ -2493,20 +2505,18 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
    */
 static int emcTaskCheckPostconditions(NMLmsg * cmd)
 {
-    if (0 == cmd) {
-	return EMC_TASK_EXEC_DONE;
+    if (!cmd) {
+        return EMC_TASK_EXEC_DONE;
     }
 
     switch (cmd->type) {
     case EMC_OPERATOR_ERROR_TYPE:
     case EMC_OPERATOR_TEXT_TYPE:
     case EMC_OPERATOR_DISPLAY_TYPE:
-	return EMC_TASK_EXEC_DONE;
-	break;
+        return EMC_TASK_EXEC_DONE;
 
     case EMC_SYSTEM_CMD_TYPE:
-	return EMC_TASK_EXEC_WAITING_FOR_SYSTEM_CMD;
-	break;
+        return EMC_TASK_EXEC_WAITING_FOR_SYSTEM_CMD;
 
     case EMC_TRAJ_LINEAR_MOVE_TYPE:
     case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
@@ -2515,7 +2525,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_TERM_COND_TYPE:
     case EMC_TRAJ_SET_SPINDLESYNC_TYPE:
     case EMC_TRAJ_SET_OFFSET_TYPE:
-    case EMC_TRAJ_SET_G5X_TYPE:
+    case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
     case EMC_TRAJ_SET_G92_TYPE:
     case EMC_TRAJ_SET_ROTATION_TYPE:
     case EMC_TRAJ_PROBE_TYPE:
@@ -2526,8 +2536,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_FO_ENABLE_TYPE:
     case EMC_TRAJ_SET_FH_ENABLE_TYPE:
     case EMC_TRAJ_SET_SO_ENABLE_TYPE:
-	return EMC_TASK_EXEC_DONE;
-	break;
+    case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
 
     case EMC_TOOL_PREPARE_TYPE:
     case EMC_TOOL_LOAD_TYPE:
@@ -2547,8 +2556,6 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_LUBE_ON_TYPE:
     case EMC_LUBE_OFF_TYPE:
     case EMC_TASK_SET_TAG_TYPE:
-	return EMC_TASK_EXEC_DONE;
-	break;
 
     case EMC_TASK_PLAN_RUN_TYPE:
     case EMC_TASK_PLAN_PAUSE_TYPE:
@@ -2557,39 +2564,31 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TASK_PLAN_SYNCH_TYPE:
     case EMC_TASK_PLAN_EXECUTE_TYPE:
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
-	return EMC_TASK_EXEC_DONE;
-	break;
+        return EMC_TASK_EXEC_DONE;
 
     case EMC_SPINDLE_WAIT_ORIENT_COMPLETE_TYPE:
-	return EMC_TASK_EXEC_WAITING_FOR_SPINDLE_ORIENTED;
-	break;
+        return EMC_TASK_EXEC_WAITING_FOR_SPINDLE_ORIENTED;
 
     case EMC_TRAJ_DELAY_TYPE:
     case EMC_AUX_INPUT_WAIT_TYPE:
-	return EMC_TASK_EXEC_WAITING_FOR_DELAY;
-	break;
+        return EMC_TASK_EXEC_WAITING_FOR_DELAY;
 
     case EMC_MOTION_SET_AOUT_TYPE:
     case EMC_MOTION_SET_DOUT_TYPE:
     case EMC_MOTION_ADAPTIVE_TYPE:
-	return EMC_TASK_EXEC_DONE;
-	break;
+        return EMC_TASK_EXEC_DONE;
 
     case EMC_EXEC_PLUGIN_CALL_TYPE:
     case EMC_IO_PLUGIN_CALL_TYPE:
-	return EMC_TASK_EXEC_DONE;
-	break;
+        return EMC_TASK_EXEC_DONE;
 
-    default:
-	// unrecognized command
-	if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
-	    rcs_print_error("postconditions: unrecognized command %d:%s\n",
-			    (int)cmd->type, emc_symbol_lookup(cmd->type));
-	}
-	return EMC_TASK_EXEC_DONE;
-	break;
     }
-    return EMC_TASK_EXEC_DONE; // unreached
+    // unrecognized command
+    if (emc_debug & EMC_DEBUG_TASK_ISSUE) {
+        rcs_print_error("postconditions: unrecognized command %d:%s\n",
+                        (int)cmd->type, emc_symbol_lookup(cmd->type));
+    }
+    return EMC_TASK_EXEC_DONE;
 }
 
 /*
@@ -2655,7 +2654,8 @@ static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd)
         case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
         case EMC_TRAJ_SET_TERM_COND_TYPE:
         case EMC_TRAJ_SET_OFFSET_TYPE:
-        case EMC_TRAJ_SET_G5X_TYPE:
+        case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
+        case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
         case EMC_TRAJ_SET_HOME_TYPE:
         case EMC_TRAJ_SET_ROTATION_TYPE:
         case EMC_TRAJ_SET_G92_TYPE:

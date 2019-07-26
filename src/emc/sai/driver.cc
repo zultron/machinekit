@@ -113,7 +113,7 @@ void report_error( /* ARGUMENTS                            */
           ((interp_error_text_buf[0] == 0) ? "Unknown error, bad error code" : interp_error_text_buf));
   line_text(interp_error_text_buf, LINELEN);
   fprintf(stderr, "%s\n", interp_error_text_buf);
-  if (print_stack == ON)
+  if (print_stack == true)
     {
       for (k = 0; ; k++)
         {
@@ -192,7 +192,7 @@ int interpret_from_keyboard(  /* ARGUMENTS                 */
 	    if (*line)
 		add_history(line);
 	    status = interp_read(line);
-	    if ((status == INTERP_EXECUTE_FINISH) && (block_delete == ON));
+	    if ((status == INTERP_EXECUTE_FINISH) && (block_delete == true));
 	    else if (status == INTERP_ENDFILE);
 	    else if ((status != INTERP_EXECUTE_FINISH) &&
 		     (status != INTERP_OK))
@@ -254,7 +254,7 @@ int interpret_from_file( /* ARGUMENTS                  */
   for(; ;)
     {
       status = interp_read();
-      if ((status == INTERP_EXECUTE_FINISH) && (block_delete == ON))
+      if ((status == INTERP_EXECUTE_FINISH) && (block_delete == true))
         continue;
       else if (status == INTERP_ENDFILE)
         break;
@@ -422,7 +422,7 @@ int adjust_error_handling(
       fprintf(stderr, "enter a number:\n");
       fprintf(stderr, "1 = done with error handling\n");
       fprintf(stderr, "2 = %sprint stack on error\n",
-              ((*print_stack == ON) ? "do not " : ""));
+              ((*print_stack == true) ? "do not " : ""));
       if (args == 3)
         {
           if (*do_next == 0) /* 0 means continue */
@@ -452,7 +452,7 @@ int adjust_error_handling(
       if (choice == 1)
         break;
       else if (choice == 2)
-        *print_stack = ((*print_stack == OFF) ? ON : OFF);
+        *print_stack = ((*print_stack == false) ? true : false);
       else if ((choice == 3) && (args == 3))
         *do_next = ((*do_next == 0) ? 2 : 0);
       else if ((choice == 3) && (args == 2))
@@ -551,8 +551,8 @@ int main (int argc, char ** argv)
   std::string interp;
 
   do_next = 2;  /* 2=stop */
-  block_delete = OFF;
-  print_stack = OFF;
+  block_delete = false;
+  print_stack = false;
   tool_flag = 0;
   SET_PARAMETER_FILE_NAME(default_name);
   _outfile = stdout; /* may be reset below */
@@ -566,8 +566,8 @@ int main (int argc, char ** argv)
           case 'p': interp = optarg; break;
           case 't': read_tool_file(optarg); tool_flag=1; break;
           case 'v': SET_PARAMETER_FILE_NAME(optarg); break;
-          case 'b': block_delete = (block_delete == OFF) ? ON : OFF; break;
-          case 's': print_stack = (print_stack == OFF) ? ON : OFF; break;
+          case 'b': block_delete = !block_delete ; break;
+          case 's': print_stack = !print_stack; break;
           case 'n': do_next = atoi(optarg); break;
           case 'l': log_level = atoi(optarg); break;
           case 'g': go_flag = !go_flag; break;
@@ -613,7 +613,7 @@ usage:
       fprintf(stderr, "2 = choose parameter file ...\n");
       fprintf(stderr, "3 = read tool file ...\n");
       fprintf(stderr, "4 = turn block delete switch %s\n",
-              ((block_delete == OFF) ? "ON" : "OFF"));
+              ((block_delete == false) ? "ON" : "OFF"));
       fprintf(stderr, "5 = adjust error handling...\n");
       fprintf(stderr, "enter choice => ");
       if (!fgets(buffer, 80, stdin))
@@ -634,7 +634,7 @@ usage:
           tool_flag = 1;
         }
       else if (choice == 4)
-        block_delete = ((block_delete == OFF) ? ON : OFF);
+        block_delete = !block_delete;
       else if (choice == 5)
         adjust_error_handling(argc, &print_stack, &do_next);
     }

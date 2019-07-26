@@ -55,16 +55,16 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
     axes = 1;
     axis_mask = 1;
     mode = EMC_TRAJ_MODE_FREE;
-    enabled = OFF;
-    inpos = ON;
+    enabled = false;
+    inpos = true;
     queue = 0;
     activeQueue = 0;
-    queueFull = OFF;
+    queueFull = false;
     id = 0;
     next_id = 0;
     completed_id = 0;
-    paused = OFF;
-    stopped = OFF;
+    paused = false;
+    stopped = false;
     scale = 0.0;
     rapid_scale = 0.0;
     spindle_scale = 0.0;
@@ -79,8 +79,9 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
     maxAcceleration = 1.0;
 
     ZERO_EMC_POSE(probedPosition);
-    probe_tripped = OFF;
-    probing = OFF;
+    probe_tripped = false;
+    probeCount = 0;
+    probing = false;
     probeval = 0;
     
     ZERO_EMC_POSE(dtg);
@@ -88,10 +89,10 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
     kinematics_type = 0;
     motion_type = 0;
     current_vel = 0.0;
-    feed_override_enabled = OFF;
-    spindle_override_enabled = OFF;
-    adaptive_feed_enabled = OFF;
-    feed_hold_enabled = OFF;
+    feed_override_enabled = false;
+    spindle_override_enabled = false;
+    adaptive_feed_enabled = false;
+    feed_hold_enabled = false;
 }
 
 EMC_MOTION_STAT::EMC_MOTION_STAT():
@@ -113,49 +114,44 @@ EMC_MOTION_STAT_MSG(EMC_MOTION_STAT_TYPE, sizeof(EMC_MOTION_STAT))
 };
 
 EMC_TASK_STAT::EMC_TASK_STAT():
-EMC_TASK_STAT_MSG(EMC_TASK_STAT_TYPE, sizeof(EMC_TASK_STAT))
+    EMC_TASK_STAT_MSG(EMC_TASK_STAT_TYPE, sizeof(EMC_TASK_STAT)),
+    mode(EMC_TASK_MODE_MANUAL),
+    state(EMC_TASK_STATE_ESTOP),
+    execState(EMC_TASK_EXEC_DONE),
+    interpState(EMC_TASK_INTERP_IDLE),
+    callLevel(0),
+    motionLine(0),
+    currentLine(0),
+    previousLine(0),
+    readLine(0),
+    stepping_id(0),
+    file(),
+    command(),
+    g5x_offset{},
+    g5x_index(0),
+    rotation_xy(0.0),
+    g92_offset{},
+    toolOffset{},
+    // active g / m code arrays filled in body
+    //
+    //
+    programUnits(CANON_UNITS_MM),
+    interpreter_errcode(0),
+    task_paused(0),
+    delayLeft(0.0),
+    queuedMDIcommands(0),
+    g5x_table(),
+    program_ended_and_reset(),
+    program_ended(),
+    optional_stop_state(false),
+    block_delete_state(false),
+    input_timeout(false),
+    orient_timeout(false),
+    orient_no_exec_error(false)
 {
-
-    mode = EMC_TASK_MODE_MANUAL;
-    state = EMC_TASK_STATE_ESTOP;
-    execState = EMC_TASK_EXEC_DONE;
-    interpState = EMC_TASK_INTERP_IDLE;
-    callLevel = 0;
-    motionLine = 0;
-    currentLine = 0;
-    previousLine = 0;
-    readLine = 0;
-    stepping_id = 0;
-    program_ended_and_reset = 0;
-    program_ended = 0;
-    optional_stop_state = OFF;
-    block_delete_state = OFF;
-    input_timeout = OFF;
-    orient_timeout = OFF;
-    orient_no_exec_error = OFF;
-    file[0] = 0;
-    command[0] = 0;
-
-    ZERO_EMC_POSE(g5x_offset);
-    g5x_index = 0;
-    ZERO_EMC_POSE(g92_offset);
-    ZERO_EMC_POSE(toolOffset);
-
-    rotation_xy = 0.0;
-
-    int t;
-    for (t = 0; t < ACTIVE_G_CODES; t++)
-	activeGCodes[t] = -1;
-    for (t = 0; t < ACTIVE_M_CODES; t++)
-	activeMCodes[t] = -1;
-    for (t = 0; t < ACTIVE_SETTINGS; t++)
-	activeSettings[t] = 0.0;
-
-    programUnits = CANON_UNITS_MM;
-    interpreter_errcode = 0;
-    task_paused = 0;
-    delayLeft = 0.0;
-    queuedMDIcommands = 0;
+    activeGCodes.fill(G_INVALID);
+    activeMCodes.fill(-1);
+    activeSettings.fill(0.0);
 }
 
 EMC_TOOL_STAT::EMC_TOOL_STAT():
@@ -227,6 +223,6 @@ EMC_TOOL_STAT EMC_TOOL_STAT::operator =(EMC_TOOL_STAT s)
     return s;
 }
 
-EMC_STAT::EMC_STAT():EMC_STAT_MSG(EMC_STAT_TYPE, sizeof(EMC_STAT))
+EMC_STAT::EMC_STAT() : EMC_STAT_MSG(EMC_STAT_TYPE, sizeof(EMC_STAT)), task(), motion(), io(), debug(0)
 {
 }

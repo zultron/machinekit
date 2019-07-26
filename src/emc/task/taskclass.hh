@@ -19,7 +19,6 @@
 #define TASKCLASS_HH
 
 #include "emc_types.hh"
-#include "initool.hh"
 #include "tool_parse.h"
 #include "inifile.hh"
 #include "cmd_msg.hh"

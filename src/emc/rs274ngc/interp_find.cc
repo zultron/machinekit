@@ -27,6 +27,10 @@
 #include "interp_internal.hh"
 #include "rs274ngc_interp.hh"
 #include "units.h"
+#include "interp_parameter_def.hh"
+#include "rotary_axis_util.hh"
+
+using namespace interp_param_global;
 
 /****************************************************************************/
 
@@ -81,7 +85,23 @@ double Interp::find_arc_length(double x1,        //!< X-coordinate of start poin
   if (z2 == z1)
     return (radius * fabs(theta));
   else
-    return hypot((radius * theta), (z2 - z1));
+      return hypot((radius * theta), (z2 - z1));
+}
+
+DISTANCE_MODE Interp::get_distance_mode(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
+                                        setup_pointer settings //!< pointer to machine settings
+                                        ) const
+{
+    // block non-modal distance mode overrides modal distance mode
+    switch(block ? block->g_modes[GM_MODAL_0] : G_INVALID)
+    {
+    case G_91_2:
+        return MODE_INCREMENTAL;
+    case G_90_2:
+        return MODE_ABSOLUTE;
+    default:
+        return settings->distance_mode;
+    }
 }
 
 
@@ -163,103 +183,105 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
     middle = !s->cutter_comp_firstmove;
     comp = (s->cutter_comp_side);
 
-    if (block->g_modes[0] == G_53) {      /* distance mode is absolute in this case */
+    if (block->g_modes[GM_MODAL_0] == G_53) {      /* distance mode is absolute in this case */
 #ifdef DEBUG_EMC
         COMMENT("interpreter: offsets temporarily suspended");
 #endif
         CHKS((block->radius_flag || block->theta_flag), _("Cannot use polar coordinates with G53"));
 
-        double cx = s->current_x;
-        double cy = s->current_y;
-        rotate(&cx, &cy, s->rotation_xy);
+        double cx = s->current[X];
+        double cy = s->current[Y];
+        rotate(&cx, &cy, s->transform.g5xOffset.getXYRotationDeg()); //FIXME transform
 
+
+        // TODO replace with compact transforms API
         if(block->x_flag) {
-            *px = block->x_number - s->origin_offset_x - s->axis_offset_x - s->tool_offset.tran.x;
+            *px = block->x_number - s->transform.g5xOffset.shift[X] - s->transform.g92Offset[X] - s->transform.toolOffset[X];
         } else {
             *px = cx;
         }
 
         if(block->y_flag) {
-            *py = block->y_number - s->origin_offset_y - s->axis_offset_y - s->tool_offset.tran.y;
+            *py = block->y_number - s->transform.g5xOffset.shift[Y] - s->transform.g92Offset[Y] - s->transform.toolOffset[Y];
         } else {
             *py = cy;
         }
 
-        rotate(px, py, -s->rotation_xy);
+        rotate(px, py, -s->transform.g5xOffset.getXYRotationDeg()); // FIXME transform
 
         if(block->z_flag) {
-            *pz = block->z_number - s->origin_offset_z - s->axis_offset_z - s->tool_offset.tran.z;
+            *pz = block->z_number - s->transform.g5xOffset.shift[Z] - s->transform.g92Offset[Z] - s->transform.toolOffset[Z];
         } else {
-            *pz = s->current_z;
+            *pz = s->current[Z];
         }
 
         if(block->a_flag) {
             if(s->a_axis_wrapped) {
                 CHP(unwrap_rotary(AA_p, block->a_number, 
-                                  block->a_number - s->AA_origin_offset - s->AA_axis_offset - s->tool_offset.a,
-                                  s->AA_current, 'A'));
+                                  block->a_number - s->transform.g5xOffset.shift[A] - s->transform.g92Offset[A] - s->transform.toolOffset[A],
+                                  s->current[A], 'A'));
             } else {
-                *AA_p = block->a_number - s->AA_origin_offset - s->AA_axis_offset;
+                *AA_p = block->a_number - s->transform.g5xOffset.shift[A] - s->transform.g92Offset[A];
             }
         } else {
-            *AA_p = s->AA_current;
+            *AA_p = s->current[A];
         }
 
         if(block->b_flag) {
             if(s->b_axis_wrapped) {
                 CHP(unwrap_rotary(BB_p, block->b_number, 
-                                  block->b_number - s->BB_origin_offset - s->BB_axis_offset - s->tool_offset.b,
-                                  s->BB_current, 'B'));
+                                  block->b_number - s->transform.g5xOffset.shift[B] - s->transform.g92Offset[B] - s->transform.toolOffset[B],
+                                  s->current[B], 'B'));
             } else {
-                *BB_p = block->b_number - s->BB_origin_offset - s->BB_axis_offset;
+                *BB_p = block->b_number - s->transform.g5xOffset.shift[B] - s->transform.g92Offset[B];
             }
         } else {
-            *BB_p = s->BB_current;
+            *BB_p = s->current[B];
         }
 
         if(block->c_flag) {
             if(s->c_axis_wrapped) {
                 CHP(unwrap_rotary(CC_p, block->c_number, 
-                                  block->c_number - s->CC_origin_offset - s->CC_axis_offset - s->tool_offset.c,
-                                  s->CC_current, 'C'));
+                                  block->c_number - s->transform.g5xOffset.shift[C] - s->transform.g92Offset[C] - s->transform.toolOffset[C],
+                                  s->current[C], 'C'));
             } else {
-                *CC_p = block->c_number - s->CC_origin_offset - s->CC_axis_offset;
+                *CC_p = block->c_number - s->transform.g5xOffset.shift[C] - s->transform.g92Offset[C];
             }
         } else {
-            *CC_p = s->CC_current;
+            *CC_p = s->current[C];
         }
 
         if(block->u_flag) {
-            *u_p = block->u_number - s->u_origin_offset - s->u_axis_offset - s->tool_offset.u;
+            *u_p = block->u_number - s->transform.g5xOffset.shift[U] - s->transform.g92Offset[U] - s->transform.toolOffset[U];
         } else {
-            *u_p = s->u_current;
+            *u_p = s->current[U];
         }
 
         if(block->v_flag) {
-            *v_p = block->v_number - s->v_origin_offset - s->v_axis_offset - s->tool_offset.v;
+            *v_p = block->v_number - s->transform.g5xOffset.shift[V] - s->transform.g92Offset[V] - s->transform.toolOffset[V];
         } else {
-            *v_p = s->v_current;
+            *v_p = s->current[V];
         }
 
         if(block->w_flag) {
-            *w_p = block->w_number - s->w_origin_offset - s->w_axis_offset - s->tool_offset.w;
+            *w_p = block->w_number - s->transform.g5xOffset.shift[W] - s->transform.g92Offset[W] - s->transform.toolOffset[W];
         } else {
-            *w_p = s->w_current;
+            *w_p = s->current[W];
         }
-    } else if (s->distance_mode == MODE_ABSOLUTE) {
+    } else if (get_distance_mode(block, s) == MODE_ABSOLUTE) {
 
         if(block->x_flag) {
             *px = block->x_number;
         } else {
             // both cutter comp planes affect X ...
-            *px = (comp && middle) ? s->program_x : s->current_x;
+            *px = (comp && middle) ? s->program_x : s->current[X];
         }
 
         if(block->y_flag) {
             *py = block->y_number;
         } else {
             // but only XY affects Y ...
-            *py = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y : s->current_y;
+            *py = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y : s->current[Y];
         }
 
         if(block->radius_flag && block->theta_flag) {
@@ -285,51 +307,51 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
             *pz = block->z_number;
         } else {
             // and only XZ affects Z.
-            *pz = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z : s->current_z;
+            *pz = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z : s->current[Z];
         }
 
         if(block->a_flag) {
             if(s->a_axis_wrapped) {
-                CHP(unwrap_rotary(AA_p, block->a_number, block->a_number, s->AA_current, 'A'));
+                CHP(unwrap_rotary(AA_p, block->a_number, block->a_number, s->current[A], 'A'));
             } else {
                 *AA_p = block->a_number;
             }
         } else {
-            *AA_p = s->AA_current;
+            *AA_p = s->current[A];
         }
 
         if(block->b_flag) {
             if(s->b_axis_wrapped) {
-                CHP(unwrap_rotary(BB_p, block->b_number, block->b_number, s->BB_current, 'B'));
+                CHP(unwrap_rotary(BB_p, block->b_number, block->b_number, s->current[B], 'B'));
             } else {
                 *BB_p = block->b_number;
             }
         } else {
-            *BB_p = s->BB_current;
+            *BB_p = s->current[B];
         }
 
         if(block->c_flag) {
             if(s->c_axis_wrapped) {
-                CHP(unwrap_rotary(CC_p, block->c_number, block->c_number, s->CC_current, 'C'));
+                CHP(unwrap_rotary(CC_p, block->c_number, block->c_number, s->current[C], 'C'));
             } else {
                 *CC_p = block->c_number;
             }
         } else {
-            *CC_p = s->CC_current;
+            *CC_p = s->current[C];
         }
 
-        *u_p = (block->u_flag) ? block->u_number : s->u_current;
-        *v_p = (block->v_flag) ? block->v_number : s->v_current;
-        *w_p = (block->w_flag) ? block->w_number : s->w_current;
+        *u_p = (block->u_flag) ? block->u_number : s->current[U];
+        *v_p = (block->v_flag) ? block->v_number : s->current[V];
+        *w_p = (block->w_flag) ? block->w_number : s->current[W];
 
     } else {                      /* mode is MODE_INCREMENTAL */
 
         // both cutter comp planes affect X ...
-        *px = (comp && middle) ? s->program_x: s->current_x;
+        *px = (comp && middle) ? s->program_x: s->current[X];
         if(block->x_flag) *px += block->x_number;
 
         // but only XY affects Y ...
-        *py = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y: s->current_y;
+        *py = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y: s->current[Y];
         if(block->y_flag) *py += block->y_number;
 
         if(block->radius_flag) {
@@ -353,28 +375,33 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
         }
 
         // and only XZ affects Z.
-        *pz = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z: s->current_z;
+        *pz = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z: s->current[Z];
         if(block->z_flag) *pz += block->z_number;
 
-        *AA_p = s->AA_current;
+        *AA_p = s->current[A];
         if(block->a_flag) *AA_p += block->a_number;
 
-        *BB_p = s->BB_current;
+        *BB_p = s->current[B];
         if(block->b_flag) *BB_p += block->b_number;
 
-        *CC_p = s->CC_current;
+        *CC_p = s->current[C];
         if(block->c_flag) *CC_p += block->c_number;
 
-        *u_p = s->u_current;
+        *u_p = s->current[U];
         if(block->u_flag) *u_p += block->u_number;
 
-        *v_p = s->v_current;
+        *v_p = s->current[V];
         if(block->v_flag) *v_p += block->v_number;
 
-        *w_p = s->w_current;
+        *w_p = s->current[W];
         if(block->w_flag) *w_p += block->w_number;
     }
     return INTERP_OK;
+}
+
+static bool angle_too_big(double absolute_ax_position) {
+    bool outside_limits = absolute_ax_position < -360.0 || absolute_ax_position > 360.0;
+    return !outside_limits;
 }
 
 /****************************************************************************/
@@ -419,184 +446,199 @@ int Interp::find_relative(double x1,     //!< absolute x position
                           double *w_2,
                           setup_pointer settings)        //!< pointer to machine settings
 {
-  *x2 = x1 - settings->origin_offset_x - settings->axis_offset_x - settings->tool_offset.tran.x;
-  *y2 = y1 - settings->origin_offset_y - settings->axis_offset_y - settings->tool_offset.tran.y;
-  rotate(x2, y2, -settings->rotation_xy);
-  *z2 = z1 - settings->origin_offset_z - settings->axis_offset_z - settings->tool_offset.tran.z;
+  *x2 = x1 - settings->transform.g5xOffset.shift[X] - settings->transform.g92Offset[X] - settings->transform.toolOffset[X];
+  *y2 = y1 - settings->transform.g5xOffset.shift[Y] - settings->transform.g92Offset[Y] - settings->transform.toolOffset[Y];
+  rotate(x2, y2, -settings->transform.g5xOffset.getXYRotationDeg()); // FIXME transform
+  *z2 = z1 - settings->transform.g5xOffset.shift[Z] - settings->transform.g92Offset[Z] - settings->transform.toolOffset[Z];
 
   if(settings->a_axis_wrapped) {
       CHP(unwrap_rotary(AA_2, AA_1,
-                        AA_1 - settings->AA_origin_offset - settings->AA_axis_offset - settings->tool_offset.a,
-                        settings->AA_current, 'A'));
+                        AA_1 - settings->transform.g5xOffset.shift[A] - settings->transform.g92Offset[A] - settings->transform.toolOffset[A],
+                        settings->current[A], 'A'));
   } else {
-      *AA_2 = AA_1 - settings->AA_origin_offset - settings->AA_axis_offset;
+      *AA_2 = AA_1 - settings->transform.g5xOffset.shift[A] - settings->transform.g92Offset[A];
   }
 
   if(settings->b_axis_wrapped) {
       CHP(unwrap_rotary(BB_2, BB_1,
-                        BB_1 - settings->BB_origin_offset - settings->BB_axis_offset - settings->tool_offset.b,
-                        settings->BB_current, 'B'));
+                        BB_1 - settings->transform.g5xOffset.shift[B] - settings->transform.g92Offset[B] - settings->transform.toolOffset[B],
+                        settings->current[B], 'B'));
   } else {
-      *BB_2 = BB_1 - settings->BB_origin_offset - settings->BB_axis_offset;
+      *BB_2 = BB_1 - settings->transform.g5xOffset.shift[B] - settings->transform.g92Offset[B];
   }
 
   if(settings->c_axis_wrapped) {
       CHP(unwrap_rotary(CC_2, CC_1,
-                        CC_1 - settings->CC_origin_offset - settings->CC_axis_offset - settings->tool_offset.c,
-                        settings->CC_current, 'C'));
+                        CC_1 - settings->transform.g5xOffset.shift[C] - settings->transform.g92Offset[C] - settings->transform.toolOffset[C],
+                        settings->current[C], 'C'));
   } else {
-      *CC_2 = CC_1 - settings->CC_origin_offset - settings->CC_axis_offset;
+      *CC_2 = CC_1 - settings->transform.g5xOffset.shift[C] - settings->transform.g92Offset[C];
   }
 
-  *u_2 = u_1 - settings->u_origin_offset - settings->u_axis_offset - settings->tool_offset.u;
-  *v_2 = v_1 - settings->v_origin_offset - settings->v_axis_offset - settings->tool_offset.v;
-  *w_2 = w_1 - settings->w_origin_offset - settings->w_axis_offset - settings->tool_offset.w;
+  *u_2 = u_1 - settings->transform.g5xOffset.shift[U] - settings->transform.g92Offset[U] - settings->transform.toolOffset[U];
+  *v_2 = v_1 - settings->transform.g5xOffset.shift[V] - settings->transform.g92Offset[V] - settings->transform.toolOffset[V];
+  *w_2 = w_1 - settings->transform.g5xOffset.shift[W] - settings->transform.g92Offset[W] - settings->transform.toolOffset[W];
   return INTERP_OK;
 }
 
-// find what the current coordinates would be if we were in a different system
+int Interp::find_relative(setup_pointer s, const PositionArray &command_local, PositionArray &relative_local)
+{
+    PositionArray command_global = s->transform.inverse(command_local);
+    CHKS(s->a_axis_wrapped && angle_too_big(command_global[A]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), command_global[A], 'A');
+    CHKS(s->b_axis_wrapped && angle_too_big(command_global[B]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), command_global[B], 'B');
+    CHKS(s->c_axis_wrapped && angle_too_big(command_global[C]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), command_global[C], 'C');
+    UnwrapsRotaryAxes unwrap(s->a_axis_wrapped, s->b_axis_wrapped, s->c_axis_wrapped);
+    relative_local = unwrap(command_global, command_local, s->current);
+    return INTERP_OK;
+}
 
-int Interp::find_current_in_system(setup_pointer s, int system,
-                                   double *x, double *y, double *z,
-                                   double *a, double *b, double *c,
-                                   double *u, double *v, double *w) {
-    double *p = s->parameters;
+int Interp::clearPersistentG92Parameters(setup_pointer settings)
+{
+  static constexpr InterpParameterIndex to_clear[] = {
+    G92_APPLIED,
+    G92_X,
+    G92_Y,
+    G92_Z,
+    G92_A,
+    G92_B,
+    G92_C,
+    G92_U,
+    G92_V,
+    G92_W,
+  };
 
-    *x = s->current_x;
-    *y = s->current_y;
-    *z = s->current_z;
-    *a = s->AA_current;
-    *b = s->BB_current;
-    *c = s->CC_current;
-    *u = s->u_current;
-    *v = s->v_current;
-    *w = s->w_current;
+  for (auto prm : to_clear) {
+    settings->parameters[prm] = 0.0;
+  }
+  return INTERP_OK;
+}
 
-    *x += s->axis_offset_x;
-    *y += s->axis_offset_y;
-    *z += s->axis_offset_z;
-    *a += s->AA_axis_offset;
-    *b += s->BB_axis_offset;
-    *c += s->CC_axis_offset;
-    *u += s->u_axis_offset;
-    *v += s->v_axis_offset;
-    *w += s->w_axis_offset;
+/**
+ * Based on the current parameters, return the active offset (or zeros if it's inactive)
+ * @warning only returns non-zero values if an offset is currently active in the parameter table.
+ */
+ShiftTransform Interp::getG92ActiveOffset(setup_pointer settings)
+{
+  if (settings->parameters[G92_APPLIED] != 0.0) {
+    double *axis_offset_begin = settings->parameters + G92_X;
+    const UnitsTransform user_to_program = convertsUserToProgram();
+    return user_to_program.forward(toArray(axis_offset_begin, 9));
+  } else {
+    return ShiftTransform();
+  }
+}
 
-    rotate(x, y, s->rotation_xy);
+int Interp::storeG92PersistentParms(const ShiftTransform & g92_offset, setup_pointer settings)
+{
+  PositionArray g92_in_user_units = convertsProgramToUser()(g92_offset.tf);
 
-    *x += s->origin_offset_x;
-    *y += s->origin_offset_y;
-    *z += s->origin_offset_z;
-    *a += s->AA_origin_offset;
-    *b += s->BB_origin_offset;
-    *c += s->CC_origin_offset;
-    *u += s->u_origin_offset;
-    *v += s->v_origin_offset;
-    *w += s->w_origin_offset;
-
-    *x -= USER_TO_PROGRAM_LEN(p[5201 + system * 20]);
-    *y -= USER_TO_PROGRAM_LEN(p[5202 + system * 20]);
-    *z -= USER_TO_PROGRAM_LEN(p[5203 + system * 20]);
-    *a -= USER_TO_PROGRAM_ANG(p[5204 + system * 20]);
-    *b -= USER_TO_PROGRAM_ANG(p[5205 + system * 20]);
-    *c -= USER_TO_PROGRAM_ANG(p[5206 + system * 20]);
-    *u -= USER_TO_PROGRAM_LEN(p[5207 + system * 20]);
-    *v -= USER_TO_PROGRAM_LEN(p[5208 + system * 20]);
-    *w -= USER_TO_PROGRAM_LEN(p[5209 + system * 20]);
-
-    rotate(x, y, -p[5210 + system * 20]);
-
-    if (p[5210]) {
-        *x -= USER_TO_PROGRAM_LEN(p[5211]);
-        *y -= USER_TO_PROGRAM_LEN(p[5212]);
-        *z -= USER_TO_PROGRAM_LEN(p[5213]);
-        *a -= USER_TO_PROGRAM_ANG(p[5214]);
-        *b -= USER_TO_PROGRAM_ANG(p[5215]);
-        *c -= USER_TO_PROGRAM_ANG(p[5216]);
-        *u -= USER_TO_PROGRAM_LEN(p[5217]);
-        *v -= USER_TO_PROGRAM_LEN(p[5218]);
-        *w -= USER_TO_PROGRAM_LEN(p[5219]);
-    }
-
+  extract_axes(g92_in_user_units,
+               settings->parameters[G92_X],
+               settings->parameters[G92_Y],
+               settings->parameters[G92_Z],
+               settings->parameters[G92_A],
+               settings->parameters[G92_B],
+               settings->parameters[G92_C],
+               settings->parameters[G92_U],
+               settings->parameters[G92_V],
+               settings->parameters[G92_W]
+               );
     return INTERP_OK;
 }
 
 
-// find what the current coordinates would be if we were in a different system,
-// if TLO were unapplied
+int Interp::find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & work_offset)
+{
+  CHKS(pocket < 0 || pocket >= CANON_POCKETS_MAX, _("Invalid tool pocket number %d (must be between %d and %d"), pocket, 0, CANON_POCKETS_MAX);
+  work_offset = convertsUserToProgram()(toArray(settings->tool_table[pocket].offset));
+  return INTERP_OK;
+}
 
-int Interp::find_current_in_system_without_tlo(setup_pointer s, int system,
-                                   double *x, double *y, double *z,
-                                   double *a, double *b, double *c,
-                                   double *u, double *v, double *w) {
-    double *p = s->parameters;
+int Interp::store_tool_offset(setup_pointer settings, const ShiftTransform & tool_offset, int pocket)
+{
+  CHKS(pocket < 0 || pocket >= CANON_POCKETS_MAX, _("Invalid tool pocket number %d (must be between %d and %d"), pocket, 0, CANON_POCKETS_MAX);
+  settings->tool_table[pocket].offset = toEmcPose(convertsProgramToUser()(tool_offset.tf));
+  return INTERP_OK;
+}
 
-    *x = s->current_x;
-    *y = s->current_y;
-    *z = s->current_z;
-    *a = s->AA_current;
-    *b = s->BB_current;
-    *c = s->CC_current;
-    *u = s->u_current;
-    *v = s->v_current;
-    *w = s->w_current;
+RotateShiftTransform Interp::find_work_offset_from_parameters(setup_pointer settings, int origin)
+{
+    const int prm_offset = getWorkOffsetParamIdx(origin, 1); // X starts at 1 in PRM table
+    // KLUDGE assumes contiguous parameters X,Y,Z,...,R
+    return RotateShiftTransform(toArray(settings->parameters + prm_offset,
+                                        settings->parameters + prm_offset + 9),
+                                settings->parameters[prm_offset + 9]);
+}
 
-    *x += s->axis_offset_x;
-    *y += s->axis_offset_y;
-    *z += s->axis_offset_z;
-    *a += s->AA_axis_offset;
-    *b += s->BB_axis_offset;
-    *c += s->CC_axis_offset;
-    *u += s->u_axis_offset;
-    *v += s->v_axis_offset;
-    *w += s->w_axis_offset;
+int Interp::store_work_offset_to_parameters(setup_pointer settings, const RotateShiftTransform & work_offset, int origin)
+{
+    const size_t prm_offset = (size_t)getWorkOffsetParamBase(origin);
 
-    rotate(x, y, s->rotation_xy);
+    extract_axes(work_offset.shift.tf,
+                settings->parameters[1 + prm_offset],
+                settings->parameters[2 + prm_offset],
+                settings->parameters[3 + prm_offset],
+                settings->parameters[4 + prm_offset],
+                settings->parameters[5 + prm_offset],
+                settings->parameters[6 + prm_offset],
+                settings->parameters[7 + prm_offset],
+                settings->parameters[8 + prm_offset],
+                settings->parameters[9 + prm_offset]);
 
-    *x += s->origin_offset_x;
-    *y += s->origin_offset_y;
-    *z += s->origin_offset_z;
-    *a += s->AA_origin_offset;
-    *b += s->BB_origin_offset;
-    *c += s->CC_origin_offset;
-    *u += s->u_origin_offset;
-    *v += s->v_origin_offset;
-    *w += s->w_origin_offset;
+    settings->parameters[10 + prm_offset] = work_offset.getXYRotationDeg(); // Rotation
+    return INTERP_OK;
+}
 
-    *x += s->tool_offset.tran.x;
-    *y += s->tool_offset.tran.y;
-    *z += s->tool_offset.tran.z;
-    *a += s->tool_offset.a;
-    *b += s->tool_offset.b;
-    *c += s->tool_offset.c;
-    *u += s->tool_offset.u;
-    *v += s->tool_offset.v;
-    *w += s->tool_offset.w;
+/** Finds the specified work offset in program units. */
+int Interp::find_work_offset(int origin, RotateShiftTransform &work_offset)
+{
+  if (origin <= 9) {
+    work_offset = find_work_offset_from_parameters(&_setup, origin);
+    // FIXME ugly way to keep work offsets in sync with parameters
+    // eventually do this properly during the _read stage when parameters are updated
+    _setup.work_offsets_user[origin] = work_offset;
+  } else {
+    work_offset = _setup.work_offsets_user[origin];
+  }
 
-    *x -= USER_TO_PROGRAM_LEN(p[5201 + system * 20]);
-    *y -= USER_TO_PROGRAM_LEN(p[5202 + system * 20]);
-    *z -= USER_TO_PROGRAM_LEN(p[5203 + system * 20]);
-    *a -= USER_TO_PROGRAM_ANG(p[5204 + system * 20]);
-    *b -= USER_TO_PROGRAM_ANG(p[5205 + system * 20]);
-    *c -= USER_TO_PROGRAM_ANG(p[5206 + system * 20]);
-    *u -= USER_TO_PROGRAM_LEN(p[5207 + system * 20]);
-    *v -= USER_TO_PROGRAM_LEN(p[5208 + system * 20]);
-    *w -= USER_TO_PROGRAM_LEN(p[5209 + system * 20]);
+  convertAxisUnits(work_offset, convertsUserToProgram());
+  return INTERP_OK;
+}
 
-    rotate(x, y, -p[5210 + system * 20]);
+int Interp::store_work_offset(const RotateShiftTransform & work_offset, int origin)
+{
+  RotateShiftTransform work_offset_user = work_offset;
+  convertAxisUnits(work_offset_user, convertsProgramToUser());
 
-    if (p[5210]) {
-        *x -= USER_TO_PROGRAM_LEN(p[5211]);
-        *y -= USER_TO_PROGRAM_LEN(p[5212]);
-        *z -= USER_TO_PROGRAM_LEN(p[5213]);
-        *a -= USER_TO_PROGRAM_ANG(p[5214]);
-        *b -= USER_TO_PROGRAM_ANG(p[5215]);
-        *c -= USER_TO_PROGRAM_ANG(p[5216]);
-        *u -= USER_TO_PROGRAM_LEN(p[5217]);
-        *v -= USER_TO_PROGRAM_LEN(p[5218]);
-        *w -= USER_TO_PROGRAM_LEN(p[5219]);
-    }
+  if (origin <= 9) {
+      store_work_offset_to_parameters(&_setup, work_offset_user, origin);
+  }
+  _setup.work_offsets_user[origin] = work_offset_user;
+  return INTERP_OK;
+}
 
+/** Find what current coordinates would be if the specified coordinate system was active. */
+int Interp::find_current_in_system(setup_pointer s, int system, PositionArray &out) {
+    // Tool offset is not changed by switching work offsets, so we don't have to transform fully into tool tip coordinates, just spindle nose coordinates
+    PositionArray pos_nose = s->transform.forward_to_nose(s->current);
+    LocalToMachineTransform tmp = s->transform;
+    CHP(find_work_offset(system, tmp.g5xOffset));
+
+    out = tmp.inverse_from_nose(pos_nose);
+    return INTERP_OK;
+}
+
+/**
+ * Find what current coordinates would be if the specified coordinate system was active, and tool offsets were not applied.
+ * Think of this as spindle-nose coordinates rather than tool-tip coordinates.
+ */
+int Interp::find_current_in_system_without_tlo(setup_pointer s, int system, PositionArray &out)
+{
+    PositionArray pos = s->transform.forward(s->current);
+    LocalToMachineTransform tmp = s->transform;
+    CHP(find_work_offset(system, tmp.g5xOffset));
+    // NOTE: this is where the "tool offsets not applied" part happens.
+    out = tmp.inverse_from_nose(pos);
     return INTERP_OK;
 }
 

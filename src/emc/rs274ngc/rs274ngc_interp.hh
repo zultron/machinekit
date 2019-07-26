@@ -18,6 +18,8 @@
 #define RS274NGC_INTERP_H
 #include "rs274ngc.hh"
 #include "interp_internal.hh"
+#include "interp_return.hh"
+#include <array>
 
 class Interp : public InterpBase {
 
@@ -48,8 +50,14 @@ public:
 // load a tool table
  int load_tool_table();
 
+ int load_work_offset_table();
+
 // open a file of NC code
  int open(const char *filename);
+
+// after an open() and close() cycle, the interp knows which offsets were used by the
+// program so this provides acess to that state.
+ std::set<int> get_work_offsets_used();
 
 // read the mdi or the next line of the open NC code file
  int read(const char *mdi);
@@ -66,7 +74,7 @@ public:
                                     const double parameters[]);
 
 // synchronize your internal model with the external world
- int synch();
+ int synch(bool read_work_offsets);
 
 /* Interface functions to call to get information from the interpreter.
    If a function has a return value, the return value contains the information.
@@ -90,12 +98,14 @@ public:
  int active_modes(int *g_codes,
          int *mcodes,
          double *settings,
+         int & work_offset_origin,
          StateTag const &tag);
 
 // copy the text of the error message whose number is error_code into the
 // error_text array, but stop at max_size if the text is longer.
  char *error_text(int error_code, char *error_text,
                                 size_t max_size);
+ std::string error_text(int error_code=INTERP_ERROR);
 
  char *warning_text(char *error_text,
                                 size_t max_size);
@@ -134,6 +144,9 @@ public:
 
  char *file(char *buf, size_t len) { file_name(buf, len); return buf; }
 
+private:
+ void copy_tool0_parameters();
+public:
  int init_tool_parameters();
  int default_tool_parameters();
  int set_tool_parameters();
@@ -227,13 +240,13 @@ public:
  int check_m_codes(block_pointer block);
  int check_other_codes(block_pointer block);
  int close_and_downcase(char *line);
- int convert_nurbs(int move, block_pointer block, setup_pointer settings);
+ int convert_nurbs(GCodes move, block_pointer block, setup_pointer settings);
  int convert_spline(int move, block_pointer block, setup_pointer settings);
  int comp_get_current(setup_pointer settings, double *x, double *y, double *z);
  int comp_set_current(setup_pointer settings, double x, double y, double z);
  int comp_get_programmed(setup_pointer settings, double *x, double *y, double *z);
  int comp_set_programmed(setup_pointer settings, double x, double y, double z);
- int convert_arc(int move, block_pointer block, setup_pointer settings);
+ int convert_arc(GCodes move, block_pointer block, setup_pointer settings);
  int convert_arc2(int move, block_pointer block,
                   setup_pointer settings,
                   double *current1, double *current2, double *current3,
@@ -265,12 +278,17 @@ public:
  int convert_adaptive_mode(int g_code, setup_pointer settings);
 
  int convert_coordinate_system(int g_code, setup_pointer settings);
+ int convert_coordinate_system(int g_code, int p_word, setup_pointer settings);
+
+ void send_current_g5x_transform();
+ void send_g5x_transform(int origin, RotateShiftTransform const &g5x_transform);
+
  int convert_cutter_compensation(int g_code, block_pointer block,
                                        setup_pointer settings);
  int convert_cutter_compensation_off(setup_pointer settings);
  int convert_cutter_compensation_on(int side, block_pointer block,
                                           setup_pointer settings);
- int convert_cycle(int motion, block_pointer block,
+ int convert_cycle(GCodes motion, block_pointer block,
                          setup_pointer settings);
  int convert_cycle_g81(block_pointer block, CANON_PLANE plane, double x, double y,
                              double clear_z, double bottom_z);
@@ -325,11 +343,11 @@ public:
                         setup_pointer settings);
  int convert_length_units(int g_code, setup_pointer settings);
     int convert_m(block_pointer block, setup_pointer settings);
- int convert_modal_0(int code, block_pointer block,
+ int convert_modal_0(GCodes code, block_pointer block,
                            setup_pointer settings);
- int convert_motion(int motion, block_pointer block,
+ int convert_motion(GCodes motion, block_pointer block,
                           setup_pointer settings);
- int convert_probe(block_pointer block, int g_code, setup_pointer settings);
+ int convert_probe(block_pointer block, GCodes g_code, setup_pointer settings);
  int convert_retract_mode(int g_code, setup_pointer settings);
  int convert_setup(block_pointer block, setup_pointer settings);
  int convert_setup_tool(block_pointer block, setup_pointer settings);
@@ -337,7 +355,7 @@ public:
  int convert_speed(block_pointer block, setup_pointer settings);
      int convert_spindle_mode(block_pointer block, setup_pointer settings);
  int convert_stop(block_pointer block, setup_pointer settings);
- int convert_straight(int move, block_pointer block,
+ int convert_straight(GCodes move, block_pointer block,
                             setup_pointer settings);
  int convert_straight_comp1(int move, block_pointer block,
                             setup_pointer settings,
@@ -372,12 +390,19 @@ public:
  double find_arc_length(double x1, double y1, double z1,
                               double center_x, double center_y, int turn,
                               double x2, double y2, double z2);
- int find_current_in_system(setup_pointer s, int system, double *x, double *y, double *z,
-                            double *a, double *b, double *c,
-                            double *u, double *v, double *w);
- int find_current_in_system_without_tlo(setup_pointer s, int system, double *x, double *y, double *z,
-                            double *a, double *b, double *c,
-                            double *u, double *v, double *w);
+ DISTANCE_MODE get_distance_mode(block_pointer block, setup_pointer settings) const;
+
+ int clearPersistentG92Parameters(setup_pointer settings);
+ ShiftTransform getG92ActiveOffset(setup_pointer settings);
+ int storeG92PersistentParms(ShiftTransform const &g92_offset, setup_pointer settings);
+ int find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & work_offset);
+ int store_tool_offset(setup_pointer settings, ShiftTransform const &tool_offset, int pocket);
+ RotateShiftTransform find_work_offset_from_parameters(setup_pointer settings, int origin);
+ int store_work_offset_to_parameters(setup_pointer settings, RotateShiftTransform const &work_offset, int origin);
+ int find_work_offset(int origin, RotateShiftTransform & work_offset_user);
+ int store_work_offset(RotateShiftTransform const &work_offset, int origin);
+ int find_current_in_system(setup_pointer s, int system, PositionArray &out);
+ int find_current_in_system_without_tlo(setup_pointer s, int system, PositionArray & out);
  int find_ends(block_pointer block, setup_pointer settings,
                double *px, double *py, double *pz,
                double *AA_p, double *BB_p, double *CC_p,
@@ -389,6 +414,9 @@ public:
                    double *AA_2, double *BB_2, double *CC_2,
                    double *u_2, double *v_2, double *w_2,
                    setup_pointer settings);
+ int find_relative(setup_pointer s,
+               PositionArray const &current_local,
+               PositionArray &out);
  double find_straight_length(double x2, double y2, double z2,
                              double AA_2, double BB_2, double CC_2,
                              double u_w, double v_2, double w_2,
@@ -471,13 +499,19 @@ public:
     int free_named_parameters(context_pointer frame);
  int save_settings(setup_pointer settings);
  int restore_settings(setup_pointer settings, int from_level);
- int gen_g_codes(std::vector<int> &current, std::vector<int> &saved,
-                 std::vector<double> &current_settings, std::vector<double> &saved_settings,
+ int gen_g_codes(ActiveGCodeArray & current,
+                 ActiveGCodeArray & saved,
+                 ActiveSettingsArray & current_settings,
+                 ActiveSettingsArray & saved_settings,
+                 int work_offset_origin,
                  std::string &cmd);
- int gen_m_codes(std::vector<int> &current, std::vector<int> &saved, std::string &cmd);
+ int gen_m_codes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved, std::string &cmd);
  int restore_from_tag(StateTag const &tag);
  int gen_restore_cmd(ModalState &state,
         StateTag const &saved,
+        std::string &cmd);
+ int gen_restore_cmd(StateTag current_tag,
+        StateTag const &saved_tag,
         std::string &cmd);
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
@@ -522,6 +556,7 @@ public:
  int refresh_actual_position(setup_pointer settings);
  void rotate(double *x, double *y, double t);
  int set_probe_data(setup_pointer settings);
+ static int lookup_work_offset_gcode_from_origin(int origin);
  int write_g_codes(block_pointer block, setup_pointer settings, ModalState &state);
  int write_m_codes(block_pointer block, setup_pointer settings, ModalState &state);
  int write_settings(setup_pointer settings, ModalState &state);
@@ -672,37 +707,53 @@ int read_inputs(setup_pointer settings);
     int unwind_call(int status, const char *file, int line, const char *function);
 
 
- int convert_straight_indexer(int, block*, setup*);
- int issue_straight_index(int, double, int, setup*);
+    int convert_straight_indexer(int, block*, setup*);
+    int issue_straight_index(int, double, int, setup*);
 
- void doLog(unsigned int flags, const char *file, int line,
-	    const char *fmt, ...) __attribute__((format(printf,5,6)));
+    void doLog(unsigned int flags, const char *file, int line,
+               const char *fmt, ...) __attribute__((format(printf,5,6)));
 
- const char *interp_status(int status);
+    const char *interp_status(int status);
 
     //technically this violates encapsulation rules but is needed for
     // the Python introspection module
 
- FILE *log_file;
+    FILE *log_file;
 
-/* Internal arrays */
- static const int _gees[];
- static const int _ems[];
- static const int _required_parameters[];
- static const int _readonly_parameters[];
- static const int _n_readonly_parameters;
- read_function_pointer _readers[256];
- static const read_function_pointer default_readers[256];
+    /* Internal arrays */
+    static const int _gees[];
+    static const int _ems[];
+    static const int _required_parameters[];
+    static const int _readonly_parameters[];
+    static const int _n_readonly_parameters;
+    read_function_pointer _readers[256];
+    static const read_function_pointer default_readers[256];
 
- setup _setup;
- PyObject* warning_list;
+    setup _setup;
+    PyObject* warning_list;
 
- char warning_text_buf[LINELEN];
- enum {
-     AXIS_MASK_X =   1, AXIS_MASK_Y =   2, AXIS_MASK_Z =   4,
-     AXIS_MASK_A =   8, AXIS_MASK_B =  16, AXIS_MASK_C =  32,
-     AXIS_MASK_U =  64, AXIS_MASK_V = 128, AXIS_MASK_W = 256,
- };
+    char warning_text_buf[LINELEN];
+    enum {
+        AXIS_MASK_X =   1, AXIS_MASK_Y =   2, AXIS_MASK_Z =   4,
+        AXIS_MASK_A =   8, AXIS_MASK_B =  16, AXIS_MASK_C =  32,
+        AXIS_MASK_U =  64, AXIS_MASK_V = 128, AXIS_MASK_W = 256,
+    };
+
+    double getProgLenUnits() const;
+    static double getProgAngUnits();
+    double TO_PROG_LEN(double mm) const;
+    double FROM_PROG_LEN(double) const;
+    double TO_PROG_ANG(double) const;
+    double FROM_PROG_ANG(double) const;
+
+    double USER_TO_PROGRAM_LEN(double u) const;
+    double PROGRAM_TO_USER_LEN(double p) const;
+    double USER_TO_PROGRAM_ANG(double u) const;
+    double PROGRAM_TO_USER_ANG(double p) const;
+    UnitsTransform convertsUserToProgram() const;
+    UnitsTransform convertsProgramToUser() const;
 };
+
+bool toolOffsetActive(setup_pointer s);
 
 #endif

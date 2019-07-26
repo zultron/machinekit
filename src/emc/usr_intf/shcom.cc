@@ -1222,7 +1222,7 @@ int sendAxisLoadComp(int axis, const char *file, int type)
     EMC_AXIS_LOAD_COMP emc_axis_load_comp_msg;
 
     strcpy(emc_axis_load_comp_msg.file, file);
-    emc_axis_load_comp_msg.type = type;
+    emc_axis_load_comp_msg.comp_file_type = type;
     emcCommandSend(emc_axis_load_comp_msg);
     if (emcWaitType == EMC_WAIT_RECEIVED) {
 	return emcCommandWaitReceived();

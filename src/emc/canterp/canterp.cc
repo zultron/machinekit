@@ -79,7 +79,7 @@ public:
     int execute();
     int execute(const char *line);
     int execute(const char *line, int line_number);
-    int synch();
+    int synch(bool read_work_offsets);
     int exit();
     int open(const char *filename);
     int read();
@@ -97,6 +97,7 @@ public:
     int active_modes(int g_codes[ACTIVE_G_CODES],
             int m_codes[ACTIVE_M_CODES],
             double settings[ACTIVE_SETTINGS],
+            int &work_offset_origin,
             StateTag const &tag);
     int restore_from_tag(StateTag const &tag);
 
@@ -698,7 +699,7 @@ int Canterp::close() {
 }
 
 int Canterp::exit() { return 0; }
-int Canterp::synch() { return 0; }
+int Canterp::synch(bool read_work_offsets) { return 0; }
 int Canterp::reset() { return 0; }
 int Canterp::line() { return 0; }
 int Canterp::call_level() { return 0; }
@@ -741,6 +742,7 @@ int Canterp::restore_from_tag(StateTag const &tag) {return -1;}
 int Canterp::active_modes(int g_codes[ACTIVE_G_CODES],
         int m_codes[ACTIVE_M_CODES],
         double settings[ACTIVE_SETTINGS],
+        int &work_offset_origin,
         StateTag const &tag){ return -1;}
 
 void Canterp::set_loglevel(int level) {}

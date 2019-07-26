@@ -324,7 +324,7 @@ int Interp::read_semicolon(char *line,     //!< string: line of RS274 code being
     CHKS((line[*counter] != ';'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
     (*counter) = strlen(line);
     // pass unmutilated line to convert_comment - FIXME access to _setup
-    if (( s = strchr(_setup.linetext,';')) != NULL)
+    if (( s = strchr(_setup.linetext,';')) != nullptr)
 	CHP(convert_comment(s+1, false));
     return INTERP_OK;
 }
@@ -531,7 +531,6 @@ int Interp::read_g(char *line,   //!< string: line of RS274/NGC code being proce
 {
   double value_read;
   double g_id;
-  int value;
   int mode;
 
   CHKS((line[*counter] != 'g'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -539,10 +538,10 @@ int Interp::read_g(char *line,   //!< string: line of RS274/NGC code being proce
   CHP(read_real_value(line, counter, &value_read, parameters));
   g_id = value_read;
   value_read = (10.0 * value_read);
-  value = (int) floor(value_read);
+  GCodes value = (GCodes) floor(value_read);
 
   if ((value_read - value) > 0.999)
-    value = (int) ceil(value_read);
+    value = (GCodes) ceil(value_read);
   else if ((value_read - value) > 0.001)
     ERS(NCE_G_CODE_OUT_OF_RANGE);
 
@@ -785,12 +784,9 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
                       char *line,       //!< string: line of RS274/NGC code being processed
                       double *parameters)   //!< array of system parameters 
 {
-  int counter;
-  int m_number, m_counter;  // for checking m98/m99 as o-words
-  int length;
-
-  length = strlen(line);
-  counter = 0;
+  int counter = 0;
+  int m_number = 0, m_counter = 0;  // for checking m98/m99 as o-words
+  int length = strlen(line);
 
   if (line[counter] == '/')     /* skip the slash character if first */
     counter++;
@@ -1173,7 +1169,7 @@ int Interp::read_one_item(
   CHKS(((letter < ' ') || (letter > 'z')),
 	_("Bad character '\\%03o' used"), (unsigned char)letter);
   function_pointer = _readers[(int) letter]; /* Find the function pointer in the array */
-  CHKS((function_pointer == 0),
+  CHKS((function_pointer == nullptr),
 	(!isprint(letter) || isspace(letter)) ?
 	    _("Bad character '\\%03o' used") : _("Bad character '%c' used"), letter);
   CHP((*this.*function_pointer)(line, counter, block, parameters)); /* Call the function */ 
@@ -1324,6 +1320,44 @@ int Interp::read_operation(char *line,   //!< string: line of RS274/NGC code bei
 
 /****************************************************************************/
 
+/**
+ * Checks if the suffix (ignoring the first character since the switch already handles that) matches, and advances the line counter if it does.
+ */
+template <size_t N>
+bool match_suffix_and_adv(char const (&match_str)[N],
+        const char *line,
+        int *counter
+        )
+{
+    constexpr size_t suf_len = N - 2; // skip NULL character and first character
+    if (strncmp(line + *counter,
+                match_str + 1,
+                suf_len) == 0) {
+      *counter += suf_len;
+      return true;
+    }
+    return false;
+}
+
+// Short strings with no suffix should not match (since the substring to match is effectively empty)
+template <size_t>
+bool match_suffix_and_adv(char const (&)[2],
+        const char *,
+        int *
+)
+{
+    return false;
+}
+
+template <size_t>
+bool match_suffix_and_adv(char const (&)[1],
+        const char *,
+        int *
+)
+{
+    return false;
+}
+
 /*! read_operation_unary
 
 Returned Value: int
@@ -1354,7 +1388,6 @@ starting at the index given by the counter. Known operations are:
 abs, acos, asin, atan, cos, exp, fix, fup, ln, round, sin, sqrt, tan.
 
 */
-
 int Interp::read_operation_unary(char *line,     //!< string: line of RS274/NGC code being processed
                                 int *counter,   //!< pointer to a counter for position on the line 
                                 int *operation) //!< pointer to operation to be read               
@@ -1365,84 +1398,41 @@ int Interp::read_operation_unary(char *line,     //!< string: line of RS274/NGC 
   *counter = (*counter + 1);
   switch (c) {
   case 'a':
-    if ((line[*counter] == 'b') && (line[(*counter) + 1] == 's')) {
-      *operation = ABS;
-      *counter = (*counter + 2);
-    } else if (strncmp((line + *counter), "cos", 3) == 0) {
-      *operation = ACOS;
-      *counter = (*counter + 3);
-    } else if (strncmp((line + *counter), "sin", 3) == 0) {
-      *operation = ASIN;
-      *counter = (*counter + 3);
-    } else if (strncmp((line + *counter), "tan", 3) == 0) {
-      *operation = ATAN;
-      *counter = (*counter + 3);
-    } else
+      if (match_suffix_and_adv("abs", line, counter)) {*operation = ABS; break;}
+      if (match_suffix_and_adv("acos", line, counter)) {*operation = ACOS; break;}
+      if (match_suffix_and_adv("asin", line, counter)) {*operation = ASIN; break;}
+      if (match_suffix_and_adv("atan", line, counter)) {*operation = ATAN; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_A);
-    break;
   case 'c':
-    if ((line[*counter] == 'o') && (line[(*counter) + 1] == 's')) {
-      *operation = COS;
-      *counter = (*counter + 2);
-    } else
+      if (match_suffix_and_adv("cos", line, counter)) {*operation = COS; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_C);
-    break;
   case 'e':
-    if ((line[*counter] == 'x') && (line[(*counter) + 1] == 'p')) {
-      *operation = EXP;
-      *counter = (*counter + 2);
-    } else if (    (line[*counter]     == 'x')
-                && (line[*counter + 1] == 'i')
-                && (line[*counter + 2] == 's')
-                && (line[*counter + 3] == 't')
-                && (line[*counter + 4] == 's')
-             ) {
-      *counter = (*counter + 5);
-      *operation = EXISTS;
-    } else {
+      if (match_suffix_and_adv("exp", line, counter)) {*operation = EXP; break;}
+      if (match_suffix_and_adv("exists", line, counter)) {*operation = EXISTS; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_E);
-    }
-    break;
   case 'f':
-    if ((line[*counter] == 'i') && (line[(*counter) + 1] == 'x')) {
-      *operation = FIX;
-      *counter = (*counter + 2);
-    } else if ((line[*counter] == 'u') && (line[(*counter) + 1] == 'p')) {
-      *operation = FUP;
-      *counter = (*counter + 2);
-    } else
+      if (match_suffix_and_adv("fix", line, counter)) {*operation = FIX; break;}
+      if (match_suffix_and_adv("fup", line, counter)) {*operation = FUP; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_F);
     break;
   case 'l':
-    if (line[*counter] == 'n') {
-      *operation = LN;
-      *counter = (*counter + 1);
-    } else
+      if (match_suffix_and_adv("ln", line, counter)) {*operation = LN; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_L);
-    break;
   case 'r':
-    if (strncmp((line + *counter), "ound", 4) == 0) {
-      *operation = ROUND;
-      *counter = (*counter + 4);
-    } else
+      if (match_suffix_and_adv("round", line, counter)) {*operation = ROUND; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_R);
-    break;
   case 's':
-    if ((line[*counter] == 'i') && (line[(*counter) + 1] == 'n')) {
-      *operation = SIN;
-      *counter = (*counter + 2);
-    } else if (strncmp((line + *counter), "qrt", 3) == 0) {
-      *operation = SQRT;
-      *counter = (*counter + 3);
-    } else
+      if (match_suffix_and_adv("sin", line, counter)) {*operation = SIN; break;}
+      if (match_suffix_and_adv("sqrt", line, counter)) {*operation = SQRT; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_S);
-    break;
   case 't':
-    if ((line[*counter] == 'a') && (line[(*counter) + 1] == 'n')) {
-      *operation = TAN;
-      *counter = (*counter + 2);
-    } else
+      if (match_suffix_and_adv("tan", line, counter)) {*operation = TAN; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_T);
+  case 'u':
+      if (match_suffix_and_adv("u_inch", line, counter)) {*operation = U_INCH; break;}
+      if (match_suffix_and_adv("u_mm", line, counter)) {*operation = U_MM; break;}
+      if (match_suffix_and_adv("u_cm", line, counter)) {*operation = U_CM; break;}
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH_U);
     break;
   default:
     ERS(NCE_UNKNOWN_WORD_WHERE_UNARY_OPERATION_COULD_BE);
@@ -1698,7 +1688,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   else if ((block->o_type == O_endsub) || (block->o_type == O_return) ||
 	   (block->o_type == M_99))
     {
-	if ((_setup.skipping_o != 0) &&
+    if ((_setup.skipping_o) &&
 	    (0 != strcmp(_setup.skipping_o, block->o_name))) {
 	    return INTERP_OK;
 	}
@@ -1726,7 +1716,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
     {
       // we need to NOT evaluate parameters if skipping
       // skipping never ends on a "call"
-      if(_setup.skipping_o != 0)
+      if(_setup.skipping_o)
       {
           block->o_type = O_none;
           return INTERP_OK;
@@ -1774,7 +1764,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   else if(block->o_type == O_while)
     {
       // TESTME !!!KL -- should not eval expressions if skipping ???
-      if((_setup.skipping_o != 0) &&
+      if((_setup.skipping_o) &&
 	 (0 != strcmp(_setup.skipping_o, block->o_name)))
       {
 	    return INTERP_OK;
@@ -1789,7 +1779,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   else if(block->o_type == O_repeat)
       {
           // TESTME !!!KL -- should not eval expressions if skipping ???
-          if((_setup.skipping_o != 0) &&
+          if((_setup.skipping_o) &&
 	     (0 != strcmp(_setup.skipping_o, block->o_name)))
           {
 	    return INTERP_OK;
@@ -1804,7 +1794,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   else if(block->o_type == O_if)
     {
       // TESTME !!!KL -- should not eval expressions if skipping ???
-      if((_setup.skipping_o != 0) &&
+      if((_setup.skipping_o) &&
 	 (0 != strcmp(_setup.skipping_o, block->o_name)))
       {
 	    return INTERP_OK;
@@ -1819,7 +1809,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
   else if(block->o_type == O_elseif)
     {
       // TESTME !!!KL -- should not eval expressions if skipping ???
-      if((_setup.skipping_o != 0) &&
+      if((_setup.skipping_o) &&
 	 (0 != strcmp(_setup.skipping_o, block->o_name)))
       {
 	    return INTERP_OK;
@@ -2154,21 +2144,19 @@ int Interp::read_parameter_setting(
       *counter = (*counter + 1);
       CHP(read_real_value(line, counter, &value, parameters));
 
-      logDebug("setting up named param[%d]:|%s| value:%lf",
-               _setup.named_parameter_occurrence, param, value);
+      logDebug("setting up named param[%zu]:|%s| value:%lf",
+               _setup.new_named_parameters.size() + 1, param, value);
 
       dup = strstore(param); // no more need to free this
-      if(dup == 0)
+      if(!dup)
       {
           ERS(NCE_OUT_OF_MEMORY);
       }
       logDebug("%s |%s|", name,  dup);
-      _setup.named_parameters[_setup.named_parameter_occurrence] = dup;
+      _setup.new_named_parameters.emplace_back(dup, value);
 
-      _setup.named_parameter_values[_setup.named_parameter_occurrence] = value;
-      _setup.named_parameter_occurrence++;
-      logDebug("done setting up named param[%d]:|%s| value:%lf",
-               _setup.named_parameter_occurrence, param, value);
+      logDebug("done setting up named param[%zu]:|%s| value:%lf",
+               _setup.new_named_parameters.size(), param, value);
   }
   else
   {
@@ -2178,11 +2166,9 @@ int Interp::read_parameter_setting(
       CHKS((isreadonly(index)), NCE_PARAMETER_NUMBER_READONLY);
       CHKS((line[*counter] != '='),
           NCE_EQUAL_SIGN_MISSING_IN_PARAMETER_SETTING);
-      *counter = (*counter + 1);
+      ++(*counter);
       CHP(read_real_value(line, counter, &value, parameters));
-      _setup.parameter_numbers[_setup.parameter_occurrence] = index;
-      _setup.parameter_values[_setup.parameter_occurrence] = value;
-      _setup.parameter_occurrence++;
+      _setup.new_parameters.emplace_back(index, value);
   }
   return INTERP_OK;
 }
@@ -3110,8 +3096,8 @@ int Interp::read_text(
 {
   int index;
 
-  if (command == NULL) {
-    if (fgets(raw_line, LINELEN, inport) == NULL) {
+  if (!command) {
+    if (!fgets(raw_line, LINELEN, inport)) {
       if(_setup.skipping_to_sub)
       {
         ERS(_("EOF in file:%s seeking o-word: o<%s> from line: %d"),
@@ -3156,7 +3142,8 @@ int Interp::read_text(
     CHP(close_and_downcase(line));
   }
 
-  _setup.parameter_occurrence = 0;      /* initialize parameter buffer */
+  _setup.new_parameters.clear();      /* initialize parameter buffer */
+  _setup.have_new_reserved_parameters = false;
 
   if ((line[0] == 0) || ((line[0] == '/') && (GET_BLOCK_DELETE())))
     *length = 0;

@@ -561,7 +561,8 @@ void usrmotPrintEmcmotStatus(emcmot_status_t *s, int which)
 	printf("probing: %d\n", s->probing);
 	printf("probed pos:      \t%f\t%f\t%f\n",
 	    s->probedPos.tran.x, s->probedPos.tran.y, s->probedPos.tran.z);
-	break;
+    printf("probe count: %u\n", s->probeCount);
+    break;
 
     case 2:
 	/* print motion and axis flags */

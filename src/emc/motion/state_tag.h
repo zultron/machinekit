@@ -12,10 +12,8 @@
 * Copyright (c) 2015 All rights reserved
 ********************************************************************/
 
-
 #ifndef STATE_TAG_H
 #define STATE_TAG_H
-
 
 /**
  * Enum to define bit names for StateTag's flags register.
@@ -66,7 +64,7 @@ typedef enum {
     GM_FIELD_MOTION_MODE,
     GM_FIELD_PLANE,
     GM_FIELD_M_MODES_4,
-    GM_FIELD_ORIGIN,
+    GM_FIELD_WORK_OFFSET_NUMBER,
     GM_FIELD_TOOLCHANGE,
     GM_FIELD_TOOL_NUMBER,
     GM_FIELD_POCKET_NUMBER,
@@ -99,10 +97,6 @@ struct state_tag_t {
      * pure C struct).
      */
     unsigned long int packed_flags;
-
-    // For updating g5x offsets in task when they don't affect the
-    // current offset.  9 axis * 9 work offsets
-    double offsets[9 * 9];  
 };
 
 // Utility functions for motion / tp

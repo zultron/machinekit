@@ -54,7 +54,8 @@ def do_unit_checks(s):
     offsets_map = dict(enumerate(
         ['cur'] +
         [ i*10 + 540 for i in range(6)] +
-        [ i+591 for i in range(3) ]))
+        [ i+591 for i in range(3) ] +
+        [ i*20 + 10001 for i in range(10,500)]))
     # - Header
     print "CHECK %s at line %d:  offset %d/%s" % \
         ("Paused" if (s.interp_state==linuxcnc.INTERP_PAUSED) else "Not paused",
@@ -64,7 +65,8 @@ def do_unit_checks(s):
     # - Active modes
     print "CHECK gcodes:  %s" % (s.gcodes,)
     # - Current + all offsets in both user and program units
-    for i, o in [(0, s.g5x_offset)] + list(enumerate(s.g5x_offsets)):
+    standard_offsets = [ (k, s.g5x_offsets[k]) for k in range(10)]
+    for i, o in [(0, s.g5x_offset)] + standard_offsets:
         print "CHECK offset %d/%s:  X%.2f Y%.2f Z%.2f" % \
             tuple([i, offsets_map[i]] + list(o[:3]))
     # - Sanity checks
@@ -75,6 +77,7 @@ def do_unit_checks(s):
 def wait_for_pause():
     done = False
     while True:
+        sys.stderr.write("waiting for pause\n")
         # Wait for program to reach either paused or idle state
         timeout=0.5 # seconds
         while timeout > 0.0:
@@ -83,7 +86,9 @@ def wait_for_pause():
                 break
             timeout -= 0.1
             time.sleep(0.1)
+            sys.stderr.write("waiting for timeout\n")
         else:
+            sys.stderr.write("do unit checks\n")
             # Timeout:  last case is long motion where we're expected
             # to abort
             print "CHECK hit timeout (expected during motion); aborting"
@@ -98,11 +103,13 @@ def wait_for_pause():
             return
 
         # Print unit checks and resume program
+        sys.stderr.write("do unit checks\n")
         do_unit_checks(s)
         c.auto(linuxcnc.AUTO_RESUME)
         c.wait_complete()
 
 # Start program
+sys.stderr.write("starting program\n")
 c.mode(linuxcnc.MODE_AUTO)
 c.program_open('test.ngc')
 c.auto(linuxcnc.AUTO_RUN, 1)

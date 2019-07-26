@@ -287,7 +287,7 @@ static PyObject *poll(pyStatChannel *s, PyObject *o) {
     if(!check_stat(s->c)) return NULL;
     if(s->c->peek() == EMC_STAT_TYPE) {
         EMC_STAT *emcStatus = static_cast<EMC_STAT*>(s->c->get_address());
-        memcpy(&s->status, emcStatus, sizeof(EMC_STAT));
+        s->status = *emcStatus;
     }
     Py_INCREF(Py_None);
     return Py_None;
@@ -401,7 +401,7 @@ static PyMemberDef Stat_members[] = {
     {NULL}
 };
 
-static PyObject *int_array(int *arr, int sz) {
+static PyObject *int_array(int const *arr, int sz) {
     PyObject *res = PyTuple_New(sz);
     for(int i = 0; i < sz; i++) {
         PyTuple_SET_ITEM(res, i, PyInt_FromLong(arr[i]));
@@ -409,7 +409,7 @@ static PyObject *int_array(int *arr, int sz) {
     return res;
 }
 
-static PyObject *double_array(double *arr, int sz) {
+static PyObject *double_array(double const *arr, int sz) {
     PyObject *res = PyTuple_New(sz);
     for(int i = 0; i < sz; i++) {
         PyTuple_SET_ITEM(res, i, PyFloat_FromDouble(arr[i]));
@@ -431,6 +431,16 @@ static PyObject *pose(const EmcPose &p) {
     return res;
 }
 
+static PyObject *tupleFromRotateShiftTransform(const RotateShiftTransform &p) {
+    PyObject *res = PyTuple_New(10);
+
+    for (int i = 0; i <9; ++i) {
+        PyTuple_SET_ITEM(res, i, PyFloat_FromDouble(p.shift.tf[i]));
+    }
+    PyTuple_SET_ITEM(res, 9, PyFloat_FromDouble(p.getXYRotationDeg()));
+    return res;
+}
+
 static PyObject *Stat_g5x_index(pyStatChannel *s) {
     return PyInt_FromLong(s->status.task.g5x_index);
 }
@@ -440,13 +450,15 @@ static PyObject *Stat_g5x_offset(pyStatChannel *s) {
 }
 
 static PyObject *Stat_g5x_offsets(pyStatChannel *s) {
-    PyObject *res = PyTuple_New(10);
-    int i;
+    PyObject *res = PyDict_New();
+    if (!res) {return res;}
     // Set index 0 to the current offset so that we can write
     // `stat.g5x_offsets[stat.g5x_index]` in python
-    PyTuple_SET_ITEM(res, 0, pose(s->status.task.g5x_offset));
-    for (i=0; i<9; i++)
-	PyTuple_SET_ITEM(res, i+1, pose(s->status.task.g5x_offsets[i]));
+    PyDict_SetItem(res, PyInt_FromLong(0), pose(s->status.task.g5x_offset));
+
+    for (size_t i = 1; i < s->status.task.g5x_table.size(); ++i) {
+        PyDict_SetItem(res, PyInt_FromSize_t(i), tupleFromRotateShiftTransform(s->status.task.g5x_table[i]));
+    }
     return res;
 }
 
@@ -493,15 +505,15 @@ static PyObject *Stat_probed(pyStatChannel *s) {
 }
 
 static PyObject *Stat_activegcodes(pyStatChannel *s) {
-    return int_array(s->status.task.activeGCodes, ACTIVE_G_CODES);
+    return int_array(s->status.task.activeGCodes.data(), ACTIVE_G_CODES);
 }
 
 static PyObject *Stat_activemcodes(pyStatChannel *s) {
-    return int_array(s->status.task.activeMCodes, ACTIVE_M_CODES);
+    return int_array(s->status.task.activeMCodes.data(), ACTIVE_M_CODES);
 }
 
 static PyObject *Stat_activesettings(pyStatChannel *s) {
-   return double_array(s->status.task.activeSettings, ACTIVE_SETTINGS);
+   return double_array(s->status.task.activeSettings.data(), ACTIVE_SETTINGS);
 }
 
 static PyObject *Stat_din(pyStatChannel *s) {

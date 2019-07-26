@@ -35,3 +35,5 @@ genserkins_srcs  = files('genserkins.c')
 pumakins_srcs  = files('pumakins.c')
 
 scarakins_srcs  = files('scarakins.c')
+
+interpolation_srcs  = files('cubic.c')

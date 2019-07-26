@@ -39,7 +39,9 @@ typedef int rcs_sem_t;
 #define rcs_sem_t_defined
 
 #include "_sem.h"
+#ifdef DEBUG
 #include "_timer.h"		/* etime() */
+#endif
 #include "rcs_print.hh"
 
 #define SEM_TAKE (-1)		/* decrement sembuf.sem_op */

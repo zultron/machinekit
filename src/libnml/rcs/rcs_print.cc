@@ -30,24 +30,21 @@ extern "C" {
 #endif
 #include "rcs_print.hh"
 #include "linklist.hh"
-#ifndef _TIMER_H
-extern "C" double etime(void);
-#endif
 
-LinkedList *rcs_print_list = NULL;
-char **rcs_lines_table = NULL;
-void (*rcs_print_notify) () = NULL;
-RCS_PRINT_DESTINATION_TYPE rcs_print_destination = RCS_PRINT_TO_STDOUT;
+static LinkedList *rcs_print_list = NULL;
+static char **rcs_lines_table = NULL;
+static void (*rcs_print_notify) () = NULL;
+static RCS_PRINT_DESTINATION_TYPE rcs_print_destination = RCS_PRINT_TO_STDOUT;
 
 int max_rcs_errors_to_print = 30;
 int rcs_errors_printed = 0;
 
 long rcs_print_mode_flags = PRINT_RCS_ERRORS;
-FILE *rcs_print_file_stream = NULL;
-char rcs_print_file_name[80] = "rcs_out.txt";
+static FILE *rcs_print_file_stream = NULL;
+static char rcs_print_file_name[80] = "rcs_out.txt";
 
 char last_error_bufs[4][100];
-int error_bufs_initialized = 0;
+static int error_bufs_initialized = 0;
 int last_error_buf_filled = 0;
 
 void set_rcs_print_destination(RCS_PRINT_DESTINATION_TYPE _dest)
@@ -480,22 +477,6 @@ int print_rcs_error_new(const char *_fmt, ...)
 }
 
 #endif
-
-int rcs_print_debug(long flag_to_check, const char *_fmt, ...)
-{
-    int retval = 0;
-    int pid = 0;
-    va_list args;
-    va_start(args, _fmt);
-
-    if (flag_to_check & rcs_print_mode_flags) {
-	pid = getpid();
-	rcs_print("(time=%f,pid=%d): ", etime(), pid);
-	retval = rcs_vprint(_fmt, args, 0);
-    }
-    va_end(args);
-    return (retval);
-}
 
 void set_rcs_print_flag(long flag_to_set)
 {

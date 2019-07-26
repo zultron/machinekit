@@ -23,6 +23,8 @@
 #include "rs274ngc_return.hh"
 #include "interp_internal.hh"	// interpreter private definitions
 #include "rs274ngc_interp.hh"
+#include "interp_parameter_def.hh"
+using namespace interp_param_global;
 
 /****************************************************************************/
 
@@ -141,7 +143,7 @@ Called by: parse_line
 If there is a g-code for motion in the block (in g_modes[1]),
 set motion_to_be to that. Otherwise, if there is an axis value in the
 block and no g-code to use it (any such would be from group 0 in
-g_modes[0]), set motion_to_be to be the last motion saved (in
+g_modes[GM_MODAL_0]), set motion_to_be to be the last motion saved (in
 settings->motion mode).
 
 This also make the checks described above.
@@ -155,8 +157,8 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
   int ijk_flag;
   int polar_flag;
   int mode_zero_covets_axes;
-  int mode0;
-  int mode1;
+  GCodes mode0;
+  GCodes mode1;
 
   if(block->radius_flag || block->theta_flag) {
       // someday, tediously add polar support for other planes here:
@@ -174,7 +176,7 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
   polar_flag = (block->radius_flag) || (block->theta_flag);
   ijk_flag = ((block->i_flag) || (block->j_flag) ||
               (block->k_flag));
-  mode0 = block->g_modes[0];
+  mode0 = block->g_modes[GM_MODAL_0];
   mode1 = block->g_modes[1];
   mode_zero_covets_axes =
     ((mode0 == G_10) || (mode0 == G_28) || (mode0 == G_30)
@@ -200,13 +202,13 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
   } else if (mode_zero_covets_axes) {   /* other 3 can get by without axes but not G92 */
     CHKS((polar_flag && mode0 == G_92), _("Polar coordinates can only be used for motion"));
     CHKS(((!axis_flag) &&
-	  (block->g_modes[0] == G_52 || block->g_modes[0] == G_92)),
+      (block->g_modes[GM_MODAL_0] == G_52 || block->g_modes[GM_MODAL_0] == G_92)),
 	 NCE_ALL_AXES_MISSING_WITH_G52_OR_G92);
   } else if (axis_flag || polar_flag) {
     CHKS(((settings->motion_mode == -1)
-         || (settings->motion_mode == G_80)) && (block->g_modes[8] != G_43_1),
+         || (settings->motion_mode == G_80)) && (block->g_modes[GM_TOOL_LENGTH_OFFSET] != G_43_1),
         NCE_CANNOT_USE_AXIS_VALUES_WITHOUT_A_G_CODE_THAT_USES_THEM);
-    if (block->g_modes[8] != G_43_1) {
+    if (block->g_modes[GM_TOOL_LENGTH_OFFSET] != G_43_1) {
        block->motion_to_be = settings->motion_mode;
     }
   } else if (!axis_flag && !polar_flag && ijk_flag && (settings->motion_mode == G_2 || settings->motion_mode == G_3)) {
@@ -273,7 +275,7 @@ int Interp::init_block(block_pointer block)      //!< pointer to a block to be i
   block->e_flag = false;
   block->f_flag = false;
   for (n = 0; n < 16; n++) {
-    block->g_modes[n] = -1;
+    block->g_modes[n] = G_INVALID;
   }
   block->h_flag = false;
   block->h_number = -1;
@@ -284,7 +286,7 @@ int Interp::init_block(block_pointer block)      //!< pointer to a block to be i
   block->l_flag = false;
   block->line_number = -1;
   block->n_number = -1;
-  block->motion_to_be = -1;
+  block->motion_to_be = G_INVALID;
   block->m_count = 0;
   for (n = 0; n < 11; n++) {
     block->m_modes[n] = -1;
@@ -408,20 +410,16 @@ int Interp::precedence(int an_operator)
 
 int Interp::refresh_actual_position(setup_pointer settings) 
 {
-  settings->current_x = GET_EXTERNAL_POSITION_X();
-  settings->current_y = GET_EXTERNAL_POSITION_Y();
-  settings->current_z = GET_EXTERNAL_POSITION_Z();
-  settings->AA_current = GET_EXTERNAL_POSITION_A();
-  settings->BB_current = GET_EXTERNAL_POSITION_B();
-  settings->CC_current = GET_EXTERNAL_POSITION_C();
-  settings->u_current = GET_EXTERNAL_POSITION_U();
-  settings->v_current = GET_EXTERNAL_POSITION_V();
-  settings->w_current = GET_EXTERNAL_POSITION_W();
+  settings->current = GET_EXTERNAL_POSITION();
 
   return INTERP_OK;
 }
 
-
+static inline void wrap_rotary_value(double &unwrapped_pos)
+{
+      unwrapped_pos = fmod(unwrapped_pos, 360.0);
+      if(unwrapped_pos<0) unwrapped_pos += 360.0;
+}
 
 /****************************************************************************/
 
@@ -439,40 +437,121 @@ Called by:  Interp::read
 
 int Interp::set_probe_data(setup_pointer settings)       //!< pointer to machine settings
 {
-  double a, b, c;
   refresh_actual_position(settings);
-  settings->parameters[5061] = GET_EXTERNAL_PROBE_POSITION_X();
-  settings->parameters[5062] = GET_EXTERNAL_PROBE_POSITION_Y();
-  settings->parameters[5063] = GET_EXTERNAL_PROBE_POSITION_Z();
+  PositionArray probe_pos = GET_EXTERNAL_PROBE_POSITION();
 
-  a = GET_EXTERNAL_PROBE_POSITION_A();
   if(settings->a_axis_wrapped) {
-      a = fmod(a, 360.0);
-      if(a<0) a += 360.0;
+      wrap_rotary_value(probe_pos[A]);
   }
-  settings->parameters[5064] = a;
-
-  b = GET_EXTERNAL_PROBE_POSITION_B();
   if(settings->b_axis_wrapped) {
-      b = fmod(b, 360.0);
-      if(b<0) b += 360.0;
+      wrap_rotary_value(probe_pos[B]);
   }
-  settings->parameters[5065] = b;
-
-  c = GET_EXTERNAL_PROBE_POSITION_C();
   if(settings->c_axis_wrapped) {
-      c = fmod(c, 360.0);
-      if(c<0) c += 360.0;
+      wrap_rotary_value(probe_pos[C]);
   }
-  settings->parameters[5066] = c;
 
-  settings->parameters[5067] = GET_EXTERNAL_PROBE_POSITION_U();
-  settings->parameters[5068] = GET_EXTERNAL_PROBE_POSITION_V();
-  settings->parameters[5069] = GET_EXTERNAL_PROBE_POSITION_W();
-  settings->parameters[5070] = (double) GET_EXTERNAL_PROBE_TRIPPED_VALUE();
+  // Update parameter table with last probed position (in current coordinate system and program units)
+  extract_axes(probe_pos,
+               settings->parameters[G38_X],
+               settings->parameters[G38_Y],
+               settings->parameters[G38_Z],
+               settings->parameters[G38_A],
+               settings->parameters[G38_B],
+               settings->parameters[G38_C],
+               settings->parameters[G38_U],
+               settings->parameters[G38_V],
+               settings->parameters[G38_W]);
+  settings->parameters[G38_TRIPPED] = (double) GET_EXTERNAL_PROBE_TRIPPED_VALUE();
 
   // was an undocumented feature?: settings->parameters[5067] = GET_EXTERNAL_PROBE_VALUE();
   return INTERP_OK;
 }
 
+int Interp::lookup_work_offset_gcode_from_origin(int origin)
+{
+    switch (origin) {
+    case 1:
+        return G_54;
+    case 2:
+        return G_55;
+    case 3:
+        return G_56;
+    case 4:
+        return G_57;
+    case 5:
+        return G_58;
+    case 6:
+        return G_59;
+    case 7:
+        return G_59_1;
+    case 8:
+        return G_59_2;
+    case 9:
+        return G_59_3;
+    default:
+        return G_54_1;
+    }
+}
+
 int Interp::call_level(void) { return _setup.call_level; }
+
+PositionMask getUpdatedAxes(block_pointer b)
+{
+    PositionMask axes_updated;
+    axes_updated[X] = b->x_flag;
+    axes_updated[Y] = b->y_flag;
+    axes_updated[Z] = b->z_flag;
+    axes_updated[A] = b->a_flag;
+    axes_updated[B] = b->b_flag;
+    axes_updated[C] = b->c_flag;
+    axes_updated[U] = b->u_flag;
+    axes_updated[V] = b->v_flag;
+    axes_updated[W] = b->w_flag;
+
+    return axes_updated;
+}
+
+/**
+ * Given a G-code block and a baseline position, return a copy that's updated with any active axis commands.
+ */
+PositionArray getAxisWordsFromBlock(block_pointer b, const PositionArray &current)
+{
+    PositionArray out;
+
+    out[X] = b->x_flag ? b->x_number : current[X];
+    out[Y] = b->y_flag ? b->y_number : current[Y];
+    out[Z] = b->z_flag ? b->z_number : current[Z];
+
+    out[A] = b->a_flag ? b->a_number : current[A];
+    out[B] = b->b_flag ? b->b_number : current[B];
+    out[C] = b->c_flag ? b->c_number : current[C];
+
+    out[U] = b->u_flag ? b->u_number : current[U];
+    out[V] = b->v_flag ? b->v_number : current[V];
+    out[W] = b->w_flag ? b->w_number : current[W];
+    return out;
+}
+
+/**
+ * @overload for G5x transforms
+ */
+RotateShiftTransform getAxisWordsFromBlock(block_pointer b, RotateShiftTransform const & current)
+{
+    RotateShiftTransform out(getAxisWordsFromBlock(b, current.shift.tf),
+                             b->r_flag ? b->r_number : current.getXYRotationDeg());
+    return out;
+}
+
+void append_stack_info(setup_struct & settings, const char * function_name, const char *file_name, int line)
+{
+    if (settings.stack_index >= STACK_LEN -1) {
+        return;
+    }
+
+    strncpy(settings.stack[settings.stack_index], function_name, STACK_ENTRY_LEN);
+    strncpy(settings.stack_file[settings.stack_index], file_name, STACK_ENTRY_LEN);
+    settings.stack_line[settings.stack_index] = line;
+    settings.stack[settings.stack_index][STACK_ENTRY_LEN-1] = '\0';
+    settings.stack_index++;
+    settings.stack[settings.stack_index][0] = '\0';
+}

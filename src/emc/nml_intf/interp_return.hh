@@ -22,7 +22,7 @@
 enum InterpReturn {
     INTERP_OK = 0,
     INTERP_EXIT = 1,
-    INTERP_EXECUTE_FINISH = 2,
+    INTERP_EXECUTE_FINISH = 2, // used w/ queue busters to tell interp / task to process everything outstanding before continuing
     INTERP_ENDFILE = 3,
     INTERP_FILE_NOT_OPEN = 4,
     INTERP_ERROR = 5,

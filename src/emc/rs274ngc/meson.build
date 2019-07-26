@@ -11,6 +11,7 @@ rs274ngc_srcs = files([
     'interp_internal.cc',
     'interp_inverse.cc',
     'interp_read.cc',
+    'interp_word_usage_check.cc',
     'interp_write.cc',
     'interp_o_word.cc',
     'modal_state.cc',
@@ -25,7 +26,9 @@ rs274ngc_srcs = files([
     'pyinterp1.cc',
     'pyblock.cc',
     'pyarrays.cc',
+    'StateTag.cc',
     'interp_inspection.cc',
+    'StateTag.cc',
 ])
 
 rs274ngc_inc = include_directories('.')

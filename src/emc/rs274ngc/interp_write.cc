@@ -76,7 +76,7 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
 {
   state.g_codes[G_CODE_SEQUENCE_NUMBER] = settings->sequence_number;
   state.g_codes[G_CODE_MOTION_MODE] = settings->motion_mode;
-  state.g_codes[G_CODE_MODE_0] = ((block == NULL) ? -1 : block->g_modes[0]);
+  state.g_codes[G_CODE_MODE_0] = ((block == NULL) ? -1 : block->g_modes[GM_MODAL_0]);
   switch(settings->plane) {
   case CANON_PLANE_XY:
       state.g_codes[G_CODE_PLANE] = G_17;
@@ -104,13 +104,8 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
   state.g_codes[G_CODE_DISTANCE_MODE] = (settings->distance_mode == MODE_ABSOLUTE) ? G_90 : G_91;
   state.g_codes[G_CODE_FEED_MODE] = (settings->feed_mode == INVERSE_TIME) ? G_93 :
 	    (settings->feed_mode == UNITS_PER_MINUTE) ? G_94 : G_95;
-  state.g_codes[G_CODE_ORIGIN] =
-    (settings->origin_index <
-     7) ? (530 + (10 * settings->origin_index)) : (584 +
-                                                   settings->origin_index);
-  state.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = (settings->tool_offset.tran.x || settings->tool_offset.tran.y || settings->tool_offset.tran.z ||
-            settings->tool_offset.a || settings->tool_offset.b || settings->tool_offset.c ||
-            settings->tool_offset.u || settings->tool_offset.v || settings->tool_offset.w) ? G_43 : G_49;
+  state.g_codes[G_CODE_ORIGIN] = lookup_work_offset_gcode_from_origin(settings->origin_index);
+  state.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = toolOffsetActive(settings) ? G_43 : G_49;
   state.g_codes[G_CODE_RETRACT_MODE] = (settings->retract_mode == OLD_Z) ? G_98 : G_99;
   state.g_codes[G_CODE_PATH_MODE] =
     (settings->control_mode == CANON_CONTINUOUS) ? G_64 :
@@ -119,6 +114,7 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
     (settings->spindle_mode == CONSTANT_RPM) ? G_97 : G_96;
   state.g_codes[G_CODE_DISTANCE_MODE_IJK] = (settings->ijk_distance_mode == MODE_ABSOLUTE) ? G_90_1 : G_91_1;
   state.g_codes[G_CODE_LATHE_DIAMETER_MODE] = (settings->lathe_diameter_mode) ? G_7 : G_8;
+  state.work_offset_origin_index = settings->origin_index;
   return INTERP_OK;
 }
 
@@ -144,12 +140,12 @@ int Interp::write_m_codes(block_pointer block,   //!< pointer to a block of RS27
   state.m_codes[M_CODE_SEQUENCE_NUMBER] =   /* 0 seq number */
       settings->sequence_number;
   state.m_codes[M_CODE_STOPPING] =			/* 1 stopping */
-      (block == NULL) ? -1 : block->m_modes[4];
+      (block == NULL) ? -1 : block->m_modes[M_MODE_STOPPING];
   state.m_codes[M_CODE_SPINDLE] =			/* 2 spindle */
       (settings->spindle_turning == CANON_STOPPED) ? 5 :
       (settings->spindle_turning == CANON_CLOCKWISE) ? 3 : 4;
   state.m_codes[M_CODE_TOOLCHANGE] =			/* 3 tool change */
-      (block == NULL) ? -1 : block->m_modes[6];
+      (block == NULL) ? -1 : block->m_modes[M_MODE_TOOLCHANGE];
   state.m_codes[M_CODE_MIST] =				/* 4 mist */
       (settings->mist) ? 7 : (settings->flood) ? -1 : 9;
   state.m_codes[M_CODE_FLOOD] =				/* 5 flood */
@@ -205,7 +201,6 @@ int Interp::write_settings(setup_pointer settings,     //!< pointer to machine s
 
 int Interp::write_and_update_state_tag(block_pointer block)
 {
-    int offset, axis;
     StateTag state;
 
     if (_setup.skipping_to_sub) {
@@ -224,32 +219,13 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.flags[GM_FLAG_EXTERNAL_FILE] = external_sub;
     // Tormach - change so that all tags are restorable.  This may change in future
     state.flags[GM_FLAG_RESTORABLE] = 1;
-    state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[0]);
+    state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[GM_MODAL_0]);
     state.fields[GM_FIELD_MOTION_MODE] = _setup.motion_mode;
-    switch(_setup.plane) {
-        case CANON_PLANE_XY:
-            state.fields[GM_FIELD_PLANE] = G_17;
-            break;
-        case CANON_PLANE_XZ:
-            state.fields[GM_FIELD_PLANE] = G_18;
-            break;
-        case CANON_PLANE_YZ:
-            state.fields[GM_FIELD_PLANE] = G_19;
-            break;
-        case CANON_PLANE_UV:
-            state.fields[GM_FIELD_PLANE] = G_17_1;
-            break;
-        case CANON_PLANE_UW:
-            state.fields[GM_FIELD_PLANE] = G_18_1;
-            break;
-        case CANON_PLANE_VW:
-            state.fields[GM_FIELD_PLANE] = G_19_1;
-            break;
-    }
+    state.setActivePlane(_setup.plane);
 
-  state.fields[GM_FIELD_CUTTER_COMP] =
-    (_setup.cutter_comp_side == RIGHT) ? G_42 :
-    (_setup.cutter_comp_side == LEFT) ? G_41 : G_40;
+    state.fields[GM_FIELD_CUTTER_COMP] =
+        (_setup.cutter_comp_side == RIGHT) ? G_42 :
+        (_setup.cutter_comp_side == LEFT) ? G_41 : G_40;
 
     state.flags[GM_FLAG_UNITS] = (_setup.length_units == CANON_UNITS_INCHES);
 
@@ -258,14 +234,9 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.flags[GM_FLAG_FEED_UPM] = (_setup.feed_mode == UNITS_PER_MINUTE);
 
 
-    state.fields[GM_FIELD_ORIGIN] =
-        (_setup.origin_index <
-         7) ? (530 + (10 * _setup.origin_index)) : (584 +
-             _setup.origin_index);
+    state.fields[GM_FIELD_WORK_OFFSET_NUMBER] = _setup.origin_index;
 
-    state.flags[GM_FLAG_TOOL_OFFSETS_ON] = (_setup.tool_offset.tran.x || _setup.tool_offset.tran.y || _setup.tool_offset.tran.z ||
-            _setup.tool_offset.a || _setup.tool_offset.b || _setup.tool_offset.c ||
-            _setup.tool_offset.u || _setup.tool_offset.v || _setup.tool_offset.w);
+    state.flags[GM_FLAG_TOOL_OFFSETS_ON] = toolOffsetActive(&_setup);
     state.flags[GM_FLAG_RETRACT_OLDZ] = (_setup.retract_mode == OLD_Z);
     state.flags[GM_FLAG_BLEND] = (_setup.control_mode == CANON_CONTINUOUS);
     state.flags[GM_FLAG_EXACT_STOP] = (_setup.control_mode == CANON_EXACT_STOP);
@@ -273,12 +244,12 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.flags[GM_FLAG_IJK_ABS] = (_setup.ijk_distance_mode == MODE_ABSOLUTE);
     state.flags[GM_FLAG_DIAMETER_MODE] = (_setup.lathe_diameter_mode);
 
-    state.fields[GM_FIELD_M_MODES_4] = (block == NULL) ? -1 : block->m_modes[4];
+    state.fields[GM_FIELD_M_MODES_4] = (block == NULL) ? -1 : block->m_modes[M_MODE_STOPPING];
 
     state.flags[GM_FLAG_SPINDLE_ON] = !(_setup.spindle_turning != CANON_STOPPED);
     state.flags[GM_FLAG_SPINDLE_CW] = (_setup.spindle_turning == CANON_CLOCKWISE);
 
-    state.fields[GM_FIELD_TOOLCHANGE] = (block == NULL) ? -1 : block->m_modes[6];
+    state.fields[GM_FIELD_TOOLCHANGE] = (block == NULL) ? -1 : block->m_modes[M_MODE_TOOLCHANGE];
 
     state.fields[GM_FIELD_POCKET_NUMBER] = (_setup.current_pocket);
     state.fields[GM_FIELD_TOOL_NUMBER] = (_setup.tool_table[_setup.current_pocket].toolno);
@@ -296,15 +267,8 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.feed = _setup.feed_rate;        /* 1 feed rate       */
     state.speed = _setup.speed;    /* 2 spindle speed   */
 
-    for (offset=0; offset<9; offset++)
-	for (axis=0; axis<9; axis++)
-	    state.offsets[offset*9+axis] =
-		_setup.parameters[5221 + offset*20 + axis];
-
     UPDATE_TAG(state);
     return 0;
 }
-    
-
 /****************************************************************************/
 

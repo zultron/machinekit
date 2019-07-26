@@ -20,7 +20,9 @@
 #include "nml_type.hh"
 #include "motion_types.h"
 #include "emc_types.hh"
-#include "modal_state.hh"
+extern "C" {
+#include "state_tag.h"
+}
 #include <stdint.h>
 
 // --------------

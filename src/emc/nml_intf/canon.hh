@@ -13,13 +13,16 @@
 #ifndef CANON_HH
 #define CANON_HH
 
+#include <canon_enums.hh>
 #include <stdio.h>		// FILE
 #include <vector>
 
 #include "emcpos.h"
 #include "emctool.h"
-#include "modal_state.hh"
 
+#include <coordinatetransform.hh>
+
+struct StateTag;
 /*
   This is the header file that all applications that use the
   canonical commands for three- to nine-axis machining should include.
@@ -40,11 +43,6 @@
   ZX-plane of the machine.
 */
 
-enum CanonBool {
-    OFF,
-    ON
-};
-
 struct CONTROL_POINT {          /* type for NURBS control points */
     double X,
     Y,
@@ -57,66 +55,23 @@ struct PLANE_POINT
     Y;
 };
 
-
-enum CANON_PLANE
+// KLUDGE corresponds to canon units
+static constexpr double UnitsPerMM[] =
 {
-    CANON_PLANE_XY = 1,
-    CANON_PLANE_YZ,
-    CANON_PLANE_XZ,
-    CANON_PLANE_UV,
-    CANON_PLANE_VW,
-    CANON_PLANE_UW,
+    1.0, // Default to mm for invalid case
+    1.0/25.4,
+    1.0,
+    0.1,
 };
 
-enum CANON_UNITS
+static constexpr double mmPerUnit[] =
 {
-    CANON_UNITS_INCHES = 1,
-    CANON_UNITS_MM,
-    CANON_UNITS_CM,
+    1.0, // Default to mm for invalid case
+    25.4,
+    1.0,
+    10.0,
 };
 
-enum CANON_MOTION_MODE
-{
-    CANON_EXACT_STOP = 1,
-    CANON_EXACT_PATH,
-    CANON_CONTINUOUS,
-};
-
-enum CANON_SPEED_FEED_MODE {
-    CANON_SYNCHED = 1,
-    CANON_INDEPENDENT,
-};
-
-enum CANON_DIRECTION {
-    CANON_STOPPED = 1,
-    CANON_CLOCKWISE,
-    CANON_COUNTERCLOCKWISE,
-};
-
-enum CANON_FEED_REFERENCE {
-    CANON_WORKPIECE = 1,
-    CANON_XYZ,
-};
-
-enum CANON_SIDE
-{
-    CANON_SIDE_RIGHT = 1,
-    CANON_SIDE_LEFT,
-    CANON_SIDE_OFF,
-};
-
-enum CANON_AXIS
-{
-    CANON_AXIS_X = 1,
-    CANON_AXIS_Y,
-    CANON_AXIS_Z,
-    CANON_AXIS_A,
-    CANON_AXIS_B,
-    CANON_AXIS_C,
-    CANON_AXIS_U,
-    CANON_AXIS_V,
-    CANON_AXIS_W,
-};
 
 /* Initialization */
 
@@ -125,16 +80,21 @@ extern void INIT_CANON();
 
 /* Representation */
 
-extern void SET_G5X_OFFSET(int origin,
+extern void SET_G5X_TRANSFORM(int origin,
                            double x, double y, double z,
                            double a, double b, double c,
-                           double u, double v, double w);
+                           double u, double v, double w,
+                           double xy_rotation_deg);
+
+extern void SET_G5X_TRANSFORM(int origin,
+                           double x, double y, double z,
+                           double a, double b, double c,
+                           double u, double v, double w,
+                           double xy_rotation_deg);
 
 extern void SET_G92_OFFSET(double x, double y, double z,
                            double a, double b, double c,
                            double u, double v, double w);
-
-extern void SET_XY_ROTATION(double t);
 
 /* Offset the origin to the point with absolute coordinates x, y, z,
 a, b, and c. Values of x, y, z, a, b, and c are real numbers. The units
@@ -419,6 +379,11 @@ extern void STRAIGHT_PROBE(int lineno,
                            double a, double b, double c,
                            double u, double v, double w, unsigned char probe_type);
 
+extern void STRAIGHT_PROBE_TO_LIMIT(int lineno,
+                           double x, double y, double z,
+                           double a, double b, double c,
+                           double u, double v, double w, unsigned char probe_type);
+
 /* Perform a probing operation. This is a temporary addition to the
 canonical machining functions and its semantics are not defined.
 When the operation is finished, all axes should be back where they
@@ -653,18 +618,9 @@ extern void SET_AUX_OUTPUT_VALUE(int index, double value);
 
 /* Commands to wait for, query input bits and analog values */
 
-#define DIGITAL_INPUT 1
-#define ANALOG_INPUT 0
-
-#define WAIT_MODE_IMMEDIATE	0
-#define WAIT_MODE_RISE 		1
-#define WAIT_MODE_FALL		2
-#define WAIT_MODE_HIGH		3
-#define WAIT_MODE_LOW		4
-
 extern int WAIT(int index, /* index of the motion exported input */
-		int input_type, /* 1=DIGITAL_INPUT or 0=ANALOG_INPUT */
-	        int wait_type, /* 0 - immediate, 1 - rise, 2 - fall, 3 - be high, 4 - be low */
+        CANON_INPUT input_type, /* 1=DIGITAL_INPUT or 0=ANALOG_INPUT */
+            CANON_WAIT_MODE wait_type, /* 0 - immediate, 1 - rise, 2 - fall, 3 - be high, 4 - be low */
 		double timeout); /* time to wait [in seconds], if the input didn't change the value -1 is returned */
 /* WAIT - program execution is stopped until the input selected by index 
    changed to the needed state (specified by wait_type).
@@ -750,6 +706,8 @@ extern void SET_PARAMETER_FILE_NAME(const char *name);
 // returns the currently active plane
 extern CANON_PLANE GET_EXTERNAL_PLANE();
 
+extern PositionArray GET_EXTERNAL_POSITION();
+
 // returns the current a-axis position
 extern double GET_EXTERNAL_POSITION_A();
 
@@ -776,6 +734,8 @@ extern double GET_EXTERNAL_POSITION_V();
 
 // returns the current w-axis position
 extern double GET_EXTERNAL_POSITION_W();
+
+extern PositionArray GET_EXTERNAL_PROBE_POSITION();
 
 // Returns the machine A-axis position at the last probe trip.
 extern double GET_EXTERNAL_PROBE_POSITION_A();
@@ -847,6 +807,7 @@ extern int GET_EXTERNAL_SELECTED_TOOL_SLOT();
 // Returns the CANON_TOOL_TABLE structure associated with the tool
 // in the given pocket
 extern CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket);
+extern RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin);
 
 // return the value of iocontrol's toolchanger-fault pin
 extern int GET_EXTERNAL_TC_FAULT();
@@ -877,7 +838,6 @@ extern double GET_EXTERNAL_ANALOG_INPUT(int index, double def);
 
 // Returns the mask of axes present in the system
 extern int GET_EXTERNAL_AXIS_MASK();
-
 
 #define PARAMETER_FILE_NAME_LENGTH 100
 

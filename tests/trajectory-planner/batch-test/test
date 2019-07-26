@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+cp position.blank position.txt
+linuxcnc -r batch-test.ini
+exit $?
