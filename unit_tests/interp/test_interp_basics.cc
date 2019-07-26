@@ -5,6 +5,7 @@
 #include <interp_inspection.hh>
 #include <interp_return.hh>
 #include <interp_parameter_def.hh>
+#include <sstream>
 using namespace interp_param_global;
 
 int emc_debug = EMC_DEBUG_INTERP;
@@ -625,4 +626,18 @@ SCENARIO("Incremental mode and G10 work offsets")
       }
     }
   }
+}
+
+
+SCENARIO("Ensure valid P word range is enforced for G10)")
+{
+    DECL_INIT_TEST_INTERP();
+    REQUIRE_INTERP_OK(execute(test_interp,"g20"));
+
+    // 0 is valid, implies current work offset
+    for (int k=0; k<=500; ++k) {
+        std::ostringstream oss;
+        oss << "G10 L2 P" << k << " X1.0";
+        CHECK_INTERP_OK(execute(test_interp,oss.str().c_str()));
+    }
 }
