@@ -361,8 +361,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         # G_CODE_TOOL_LENGTH_OFFSET
         # G_CODE_SPINDLE_MODE
 
-        cmd_list = [
+        cmd_list = ((
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_UNITS]),  # Must be first before applying any other modes
+        ),(
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_PATH_MODE]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_LATHE_DIAMETER_MODE]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_PLANE]),
@@ -370,9 +371,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE_IJK]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_RETRACT_MODE]),
-        ]
+        ))
         print "Active G-codes at redraw:", cmd_list
-        return '\n'.join(cmd_list)
+        return '\n'.join((' '.join(sub_l) for sub_l in cmd_list))
 
     def load(self, filename=None):
         s = self.stat
