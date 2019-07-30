@@ -291,6 +291,11 @@ pin in u32 orient_targetband_override;  // PP can set range in +/- encoder count
 pin out float orient_drift; // 0: oriented within drift tolerance
                             // DRIFT_INVALID (-1): brake cylinder ORIENT_BRAKE_ACTUATION_TIME hasn't yet expired, 
                             // any_other_value: means "Fault" i.e. orient drift >= (ORIENT_TARGETBAND + ORIENT_BAND_IGNORE)
+
+//TODO: remove drift_test stuff for shipping
+pin in bit orient_drift_test;  //when set, orient_drift will lie every DRIFT_TEST_LOOP orients that the drift check after ATC tray in is bad.  Allows for ATC re-orient testing. 
+pin out u32 orient_drift_test_cnt;
+
 pin out bit orienting_stuck;  //goes hi when we detect spindle is not responding
 pin out float orienting_stuck_timer;  //time since last movement seen on encoder during orient
 pin out float orienting_boost; //RPM boost value increases ORIENT_BOOST_RPM every ORIENT_BOOST_PERIOD when active
@@ -426,7 +431,9 @@ function _ "Tormach Spindle HAL Component M200";
                                             // when ATC_DRAW_BAR_SOLENOID is called.
 
 
-#define ERR_LIE (0)
+#define DRIFT_TEST_LOOP (5)      //every 5 orient-drift check, say it's bad even though if it isn't.. code coverage for re-orient testing of ATC
+#define DRIFT_TEST_VALUE (666)   //report this drift lie, which is very high, but also clearly a magic value unlikely as a real drift value.
+#define DRIFT_TEST_TIME (.5)    //we start drift lie(ing) while tray is on its way in so next drift check by ATC code sees a bad drift value.  (It takes about 1 sec for tray to come in)
 #define _38_SPECIAL (0)
 #define TEST_TIME (8000)  //time in millisecs for one cycle of test.  vfd-freq-cmd pulses will be 1/4 this time.
 #define _38_SPECIAL_RPM (10.0)
@@ -1036,7 +1043,7 @@ float encoder_spindle_speed;
             orient_start = encoder_position; //record whence we came for ORIENT_ERR_MAX_ROTATION check so we don't false on error
                                              //if spindle is decell'ing from previous operation, this is overwritten again when VFD mode switch happens
             orient_max_encoder_steps = (signed int)((float)iabs(orient_encoder_cpr) * ORIENT_MAX_REVS);
-                
+            ++orient_drift_test_cnt;
 #if (_38_SPECIAL)
             orient_total_ticks = 0;
 #endif
@@ -1181,13 +1188,25 @@ float encoder_spindle_speed;
             //since orient_on_target is using tighter tolerance than orient_targetband, we
             //have to deal with orient_drift separately
             if ((spindle_state == SPINDLE_STATE_LOCKED) && (spindle_lock_timer >= ORIENT_BRAKE_ACTUATION_TIME)) {
-               if (orient_drift == DRIFT_INVALID) //only true very first time after ORIENT_BRAKE_ACTUATION_TIME passes
-                        orient_drift = 0.0; // orient drift is within acceptable limits, report "all OK" to ATC
-                 if (iabs(enc_err) >= iabs(orient_targetband + ORIENT_BAND_IGNORE)) 
+                if (orient_drift == DRIFT_INVALID) //only true very first time after ORIENT_BRAKE_ACTUATION_TIME passes
+                   orient_drift = 0.0; // orient drift is within acceptable limits, report "all OK" to ATC
+                if (iabs(enc_err) >= iabs(orient_targetband + ORIENT_BAND_IGNORE)) {
                     if (fabs(orient_drift) < fabs((float)enc_err)) //preserve largest value for reporting to log files by ATC ngc code
                         orient_drift = (float)enc_err;
+                }
                 if (orient_drift != 0.0)
                     orient_problem |= 4;  //SLP remove for local debug with broken ATC & spindle
+                else {
+                    if (orient_drift_test && (spindle_lock_timer >= (ORIENT_BRAKE_ACTUATION_TIME + DRIFT_TEST_TIME))) {
+                        if (orient_drift_test_cnt >= DRIFT_TEST_LOOP) {
+                            orient_drift_test_cnt = 0;
+                            orient_problem |= 4;  //SLP remove for local debug with broken ATC & spindle
+                            if(enc_err >= 0)
+                                orient_drift = DRIFT_TEST_VALUE;
+                            else orient_drift = -(DRIFT_TEST_VALUE);
+                        }
+                    }
+                }
             }
             else orient_drift = DRIFT_INVALID;
 
