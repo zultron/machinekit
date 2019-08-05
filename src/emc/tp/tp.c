@@ -3068,6 +3068,7 @@ STATIC tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
 
         tp->spindle.origin.position = 0.0;
         tp->spindle.origin.direction = signum(emcmotStatus->spindle_cmd.velocity_rpm_out);
+        emcmotStatus->spindle_sync_state = SYNC_SEEK_INDEX;
         rtapi_print_msg(RTAPI_MSG_DBG, "Waiting on sync...\n");
         res = TP_ERR_WAITING;
     }
