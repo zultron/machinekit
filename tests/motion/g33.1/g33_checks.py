@@ -9,6 +9,8 @@ import os
 import re
 # String helpers
 
+# KLUDGE copied from motion_types.h
+SYNC_POSITION = 4
 
 def get_spindle_direction(constants):
     return -1.0 if 'ccw' == constants.get('spindle_direction', 'cw') else 1.0
@@ -71,7 +73,7 @@ def check_abs_deviation(samples, constants):
     sync_offset_expected = int(z_axis_nominal_feed / constants["z_axis_max_accel"] * constants["servo_loop_freq"])
     sync_idx_expected = spindle_start + sync_offset_expected
     # Find when sync starts in rigid tap state
-    pos_sync_active_range = np.argwhere(samples[:, 6] == 2)
+    pos_sync_active_range = np.argwhere(samples[:, 6] == SYNC_POSITION)
     sync_idx = pos_sync_active_range[0].item()
     end_sync_idx = pos_sync_active_range[-1].item()
 

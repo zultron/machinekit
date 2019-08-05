@@ -1,4 +1,5 @@
 sample_files = glob('test_case_*.samples');
+SYNC_POSITION=4;
 
 close all
 for k = 1:length(sample_files)
@@ -10,8 +11,8 @@ for k = 1:length(sample_files)
 
   z_feed_nominal = constants.spindle_speed_rps * constants.pitch;
   
-  idx=find(d(:,7) == 2, 1, 'first');
-  idx_end=find(d(:,7) == 2,1,'last');
+  idx=find(d(:,7) == SYNC_POSITION, 1, 'first');
+  idx_end=find(d(:,7) == SYNC_POSITION,1,'last');
 
   t_sync=d(idx:idx_end, 1);
   spindle_pos = d(idx:idx_end,2);

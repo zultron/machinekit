@@ -33,10 +33,11 @@ typedef enum {
 
 typedef enum {
     SYNC_INACTIVE,
+    SYNC_VELOCITY,
+    SYNC_SEEK_INDEX,
     SYNC_ACCEL_RAMP,
     SYNC_POSITION,
     SYNC_FINAL_DECEL,
-    SYNC_VELOCITY,
 } spindle_sync_state_t;
 
 typedef enum {
