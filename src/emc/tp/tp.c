@@ -98,7 +98,7 @@ typedef struct {
     char axes[9];
 } AxisMaskString;
 
-inline AxisMaskString axisBitMaskToString(unsigned failed_axes)
+AxisMaskString axisBitMaskToString(unsigned failed_axes)
 {
     AxisMaskString axis_str = {{"XYZABCUVW"}};
     for (int i = 0; i < 9;++i) {

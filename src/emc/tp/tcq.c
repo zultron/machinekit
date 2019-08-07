@@ -49,10 +49,8 @@ int tcqCreate(TC_QUEUE_STRUCT * const tcq, int _size, TC_STRUCT * const tcSpace)
 	return -1;
     } else {
 	tcq->queue = tcSpace;
-	tcq->size = _size;
-	tcq->_len = 0;
-	tcq->start = tcq->end = 0;
-	tcq->allFull = 0;
+    tcq->size = _size;
+    tcqInit(tcq);
 
 	if (0 == tcq->queue) {
 	    return -1;

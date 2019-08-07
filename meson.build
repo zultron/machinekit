@@ -259,8 +259,6 @@ unit_test_inc = include_directories([
 
 tp_unit_test_inc = [
   config_inc,
-  posemath_inc,
-  tp_inc,
   kinematics_inc,
   motion_inc,
   rtapi_inc,
@@ -288,27 +286,85 @@ liblinuxcnchal = library('linuxcnchal',
 liblinuxcnchal_dep = declare_dependency(include_directories : hal_inc,
     link_with : liblinuxcnchal)
 
-libtp = static_library('tp', 
-  tp_srcs,
-  include_directories : [ tp_inc, motion_inc, kinematics_inc], 
-  dependencies : [libposemath_dep, libemcpose_dep, libulapi_dep, liblinuxcnchal_dep]
+# Motion Mocks
+
+libmock_motion_global = library('mock_motion_global',
+  [mock_motion_global_srcs],
+  include_directories : [
+    mock_inc,
+    kinematics_inc,
+    motion_inc,
+    tp_inc,
+    hal_inc,
+  ],
+  dependencies : [
+    libemcpose_dep,
+    libposemath_dep,
+    libulapi_dep,
+  ]
 )
 
-libtp_dep = declare_dependency(include_directories : tp_inc,
-    link_with : libtp)
+libmock_motion_global_dep = declare_dependency(include_directories : [mock_inc, motion_inc],
+    link_with : libmock_motion_global)
 
+libmock_motion_command = library('mock_motion_command',
+  [mock_motion_command_srcs],
+  include_directories : [
+    mock_inc,
+    kinematics_inc,
+    motion_inc,
+    hal_inc,
+  ],
+  dependencies : [
+    libemcpose_dep,
+    libposemath_dep,
+    libulapi_dep,
+  ]
+)
+
+libmock_motion_command_dep = declare_dependency(include_directories : [mock_inc, motion_inc],
+    link_with : libmock_motion_command)
+
+# TP helper mocks
+
+libmock_standalone_tp = library('mock_standalone_tp',
+  [mock_standalone_tp_srcs, tp_srcs],
+  include_directories : [tp_inc, mock_inc, kinematics_inc],
+  dependencies : [
+    m_dep,
+    libposemath_dep,
+    libmock_motion_global_dep,
+    libmock_motion_command_dep,
+    libemcpose_dep,
+    libulapi_dep,
+    libemc_global_dep,
+    liblinuxcnchal_dep,
+  ]
+)
+
+libmock_standalone_tp_dep = declare_dependency(include_directories : [mock_inc, tp_inc],
+    link_with : libmock_standalone_tp)
+
+# KLUDGE has to match the list of files in tp unit test source folder
 tp_test_files = [
   'test_blendmath',
   'test_joint_util',
   'test_spherical_arc',
-  'test_posemath'
-  ]
+  'test_posemath',
+  'test_tp_create_segments',
+  'test_tcqueue',
+]
 
 foreach n : tp_test_files
   
 test(n, executable(n,
   join_paths('unit_tests/tp', n+'.c'),
-  dependencies : [m_dep, libposemath_dep, libtp_dep],
+  dependencies : [
+    m_dep,
+    libposemath_dep,
+    libmock_motion_global_dep,
+    libmock_standalone_tp_dep
+  ],
   include_directories : [ tp_unit_test_inc, unit_test_inc ],
   ))
 
@@ -358,6 +414,9 @@ libut_emccanon = shared_module('ut_emccanon',
 
 libut_emccanon_dep = declare_dependency(include_directories : task_inc,
     link_with : libut_emccanon)
+
+###########################################################################
+# Mocks
 
 libmock_stat_config = library('mock_stat_config',
   [mock_stat_config_srcs],

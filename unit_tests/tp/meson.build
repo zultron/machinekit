@@ -3,4 +3,6 @@ tp_test_srcs = files([
   'test_joint_util.c',
   'test_spherical_arc.c',
   'test_posemath.c',
+  'test_tp_create_segments.c',
+  'test_tcqueue.c',
 ])
