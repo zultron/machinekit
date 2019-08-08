@@ -46,9 +46,8 @@ the hal, so that halscope can monitor it.
 
 This file should ONLY contain structures and declarations for
 type (1) items - those that are shared with higher level code.
-
-Type (2) items should be declared in mot_priv.h, along
-with type (3) items.
+Type (2) items should be declared in mot_priv.h
+Type (3) should be declared in motion_hal.h
 
 In the interest of retaining my sanity, I'm not gonna attempt
 to move everything to its proper location yet....
@@ -496,7 +495,7 @@ Suggestion: Split this in to an Error and a Status flag register..
    which is located in shared memory.
 
 */
-    typedef struct {
+    typedef struct emcmot_joint_t {
 
 	/* configuration info - changes rarely */
 	int type;		/* 0 = linear, 1 = rotary */

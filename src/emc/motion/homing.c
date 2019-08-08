@@ -13,8 +13,8 @@
 
 #include "rtapi.h"
 #include "hal.h"
-#include "motion.h"
 #include "mot_priv.h"
+#include "motion.h"
 #include "rtapi_math.h"
 
 // Mark strings for translation, but defer translation to userspace

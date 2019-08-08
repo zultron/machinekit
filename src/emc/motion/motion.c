@@ -68,7 +68,7 @@ RTAPI_MP_INT(num_aio, "number of analog inputs/outputs");
 emcmot_hal_data_t *emcmot_hal_data = 0;
 
 /* pointer to joint data */
-emcmot_joint_t *joints = 0;
+struct emcmot_joint_t *joints = 0;
 
 #ifndef STRUCTS_IN_SHMEM
 /* allocate array for joint data */

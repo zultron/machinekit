@@ -66,6 +66,7 @@
 #include "motion_struct.h"
 #include "emcmotglb.h"
 #include "mot_priv.h"
+#include "motion.h"
 #include "rtapi_math.h"
 #include "motion_types.h"
 
@@ -236,7 +237,7 @@ STATIC int jog_ok(int joint_num, double vel)
    position by +/- the full range of travel.  Once homed, they
    are absolute.
 */
-void refresh_jog_limits(emcmot_joint_t *joint)
+void refresh_jog_limits(struct emcmot_joint_t *joint)
 {
     double range;
 
