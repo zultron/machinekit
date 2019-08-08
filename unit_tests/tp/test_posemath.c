@@ -316,6 +316,41 @@ TEST test_pmCircleInit_helix()
 }
 
 
+TEST test_pmCirclePoint_helix_spiral()
+{
+    PmCircle c;
+    // Assume center is zero for ease of writing the test
+    const PmCartesian center = {1.0, 2.0, 3.0};
+
+    PmCartesian start = {1,0, 0};
+    PmCartesian end = {0.0,-1.2,0.4};
+    pmCartCartAddEq(&start, &center);
+    pmCartCartAddEq(&end, &center);
+
+    PmCartesian normal = {0,0,1};
+    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+
+    {
+        PmCartesian p0 = {0};
+        pmCirclePoint(&c, 0.0, &p0);
+        PmCartesian expect_p0 = {2.0, 2.0, 3.0};
+        ASSERT_PMCARTESIAN_EQ(expect_p0, p0);
+    }{
+        PmCartesian p1 = {0};
+        pmCirclePoint(&c, M_PI_2, &p1);
+        PmCartesian expect_p1 = {1.0, 2.0 + 1.0 + 0.2/3, 3 + 0.4/3};
+        ASSERT_PMCARTESIAN_EQ(expect_p1, p1);
+    }{
+        PmCartesian p2 = {0};
+        pmCirclePoint(&c, M_PI, &p2);
+        PmCartesian expect_p2 = {1.0-1.0-0.2*2./3, 2.0, 3 + 0.4*2.0/3};
+        ASSERT_PMCARTESIAN_EQ(expect_p2, p2);
+    }
+
+    PASS();
+}
+
+
 TEST test_pmCircleStretch()
 {
     PmCircle c;
@@ -358,6 +393,7 @@ SUITE(pm_circle) {
     RUN_TEST(test_pmCircleInit_spiral_short);
     RUN_TEST(test_pmCircleInit_spiral_long);
     RUN_TEST(test_pmCircleInit_helix);
+    RUN_TEST(test_pmCirclePoint_helix_spiral);
     RUN_TEST(test_pmCircleStretch);
 }
 
