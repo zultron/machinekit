@@ -88,7 +88,8 @@ author "";
 //          orient-modulus          feedback to pid block used control indexing of spindle
 //          oriented                feedback to linuxcnc that index is within range.  Connect to motion.spindle-is-oriented
 //          orient-fault            feedback to linuxcnc for fault code.  Connect to motion.spindle-orient-fault
-//          spindle-on-thur         feedthrough of forward-in when not indexing, set by this comp when indexing mode
+//          spindle_run         feedthrough of forward-in when not indexing, set by this comp when indexing mode
+//          vfd-pwr-on              output to turn on K2 contactor
 //          spindle-forward-thur    feedthrough of spindle-on when not indexing, set by this comp when indexing mode
 //          orient-status           0 -> oriented, -1 or 1 error direction if not oriented
 // Bi-directional:
@@ -97,7 +98,6 @@ author "";
      
 ///////////////////// End of orient additions
 //          spindle-fault           used to alert PP GUI to spindle and VFD faults
-
 //
 // HAL mappings:
 //
@@ -204,7 +204,13 @@ pin in bit enc_door_switch_status;
 pin in float enc_door_open_max_rpm;
 pin in float vfd_feedback_factor;
 
-pin out u32 spindle_fault;   //used to alert PP GUI to spindle and VFD faults
+pin out u32 spindle_fault;  //used to alert PP GUI to spindle and VFD faults
+pin in bit pp_reset_ok;     //input from HAL estop latch.  When high, we are not estopped and PP is out of reset.
+                            //this will not go hi when estop_button_in goes high and user pressed PP reset button.
+                            //this goes low immediately if estop_button_in goes low (user pressed physical estop)
+pin in bit estop_button_in; //actual ESTOP switch circuit.  When low, estop is active and machine DC bus is off.  
+                            //When hi that means physical reset button of EStop circuit has been pressed and is lit, and we're go
+
 
 ///////////Spindle orienting additions
 // Inputs:
@@ -258,8 +264,14 @@ pin out bit vfd_mode0;          //ECM v1.5 J1 pins to VFD
 pin out bit vfd_mode1;
 
 pin out bit spindle_forward_thur;   // goes to spindle J1 "DIR" I/O
-pin out bit spindle_on_thur; // connect to m200 run pin (pass through from spindle_on when not in indexing mode) a.k.a. VFD RUN or VFD enable 
-pin out bit spindle_on_thur_last; //last state of spindle_on_thur pin, used for inhibiting cooincident vfd_freq_cmd and spindle_on_thur changes 
+pin out bit spindle_run; // connect to m200 run pin (pass through from spindle_on when not in indexing mode) a.k.a. VFD RUN or VFD enable 
+pin out bit spindle_run_last; //last state of spindle_run pin, used for inhibiting cooincident vfd_freq_cmd and spindle_run changes 
+pin out bit vfd_pwr_on;     //turns on K2 contactor for VFD.  Connect to vfd-pulse HAL component in 'ecm1.hal
+pin out u32 vfd_power_state; //what the VFD power state is TODO: HIDE
+pin out u32 look_for_fault_glitch; // TODO HIDE  = VFG_FIRST_PASS;
+pin out u32 must_wait_for_stop_cmd; // TODO HIDE = 0;
+
+pin out float vfd_pwr_on_timer; 
 pin out bit target_computed; //set when we know where we're going for "new" M19 command
 
 
@@ -369,19 +381,25 @@ function _ "Tormach Spindle HAL Component M200";
 #define AT_SPEED_DEBOUNCE_SECS 0.100
 #define AT_SPEED_FORCE_DELAY_SECS 10.0  //This is the delay before forcing at-speed to be true, when at-speed-force is true
 
-/////// SPINDLE Errors.  KEEP in synce with python/constants.py
+/////// SPINDLE Errors as reported on 'm200.spindle-error pin  KEEP in sync with python/constants.py
+// ORDER HERE MATTERS!  Higher priority or rare errors are ranked with higher values
+// if a lower ranked error is present, it may be over written before the PP UI sees it
 #define SPINDLE_NO_FAULT (0)                    //M200 VFD is powered and has no detected faults.  Non m200 VFDs will always return this "OK"
 #define SPINDLE_OK_POSSIBLE_WIRING_ISSUE (1)    //expected temporary VFD Fault signal not seen during VFD power up.  Error effectivity is ignored.  VFD has power however you may have T41 and T42 wiring issue.
-#define SPINDLE_FAULT_NO_K2 (2)                 //24VDC from VFD is not present.  K2 has not be activated yet 
-#define SPINDLE_FAULT_NO_24V (3)                //24VDC from VFD is still not present after K2 presumably activated.  Check spindle door switch, mill circuit breakers, or VFD wiring
-#define SPINDLE_FAULT_NO_ZINDEX (4)             //orient attempted and Z index not found.  Check encoder 
-#define SPINDLE_FAULT_LOCK_WITHOUT_PRIOR_ORIENT (5) //This shouldn't happen. Linuxcnc state seems confused.
+#define SPINDLE_FAULT_NO_K2 (2)                 //24VDC from VFD is not present.  K2 has not been activated yet 
+#define SPINDLE_FAULT_BT30 (3)                  //spindle not stationary or not in correct mode for setting BT30A
+#define SPINDLE_FAULT_BT30_Z_INDEX (4)          //set BT30 attempted before z index was seen
+#define SPINDLE_FAULT_ORIENT_TO  (5)            //orient time out detected.  Linuxcnc already notified user about T.O., so only log it
 #define SPINDLE_FAULT_ORIENT_MAX_ROTATION (6)   //orient failed due to excessive number of revolutions.  Check encoder
-#define SPINDLE_FAULT_BT30 (7)                  //spindle not stationary or not in correct mode for setting BT30A
-#define SPINDLE_FAULT_VFD_FAULT (8)             //VFD reported a fault.  Look for error code on VFD.
-#define SPINDLE_FAULT_VFD_RPM = (9)             //VFD motor speed feedback absent. Check VFD wiring.
-#define SPINDLE_FAULT_ORIENT_TO  (10)           //orient time out detected.  Linuxcnc already notified user about T.O., so only log it
-#define SPINDLE_FAULT_MODE_SWITCH  (11)		    //expected VFD Mode switch acknowledgment did not occur
+#define SPINDLE_FAULT_NO_ZINDEX (7)             //orient attempted and Z index not found.  Check encoder
+#define SPINDLE_FAULT_NO_ENCODER (8)            //M19 or spindle sync mode was requested yet machine has no encoder or incorrect machine type selected
+#define SPINDLE_FAULT_VFD_RPM  (9)              //VFD motor speed feedback absent. Check VFD wiring.
+#define SPINDLE_FAULT_MODE_SWITCH  (10)         //expected VFD Mode switch acknowledgment did not occur.  Is machine configured right, do you have VFDmx, wiring errors
+#define SPINDLE_FAULT_VFD (11)                  //VFD reported a fault.  Look for error code on VFD.
+#define SPINDLE_FAULT_NO_PWR (12)               //24VDC from VFD is still not present after K2 presumably activated.  Check spindle door switch, mill circuit breakers, or VFD wiring
+#define SPINDLE_FAULT_LOST_PWR (13)             //VFD lost power. It had it
+#define SPINDLE_FAULT_LOCK_WITHOUT_PRIOR_ORIENT (12) //This shouldn't happen. Linuxcnc state seems confused
+
 
 ///////// Orienting additions
 //zindexing_state Bit defines
@@ -397,13 +415,15 @@ function _ "Tormach Spindle HAL Component M200";
 #define ORIENT_CW (1)
 #define ORIENT_CCW (2)
 
-#define ORIENT_ERR_MULTIPLE_COMMANDS (-1)
-#define ORIENT_ERR_NO_ZINDEX (-2)
-#define ORIENT_ERR_LOCK_WITHOUT_PRIOR_ORIENT (-3)
-#define ORIENT_ERR_TIME_OUT (-4)
-#define ORIENT_ERR_MAX_ROTATION (-5)  //orient took more than
-#define ORIENT_ERR_BT30 (-6) //spindle must be stationary and normal mode to set BT30 offset
+#define ORIENT_ERR_MULTIPLE_COMMANDS (-1) //software error, shouldn't happen
+#define ORIENT_ERR_NO_ZINDEX (-2) //encoder z index could not be found. Check encoder alignment or wiring
+#define ORIENT_ERR_LOCK_WITHOUT_PRIOR_ORIENT (-3) //software error, shouldn't happen
+#define ORIENT_ERR_MAX_ROTATION (-5)  //abnormal orient rotation detected.  Check encoder alignment or wiring
 #define ORIENT_ERR_MODE_SWITCH (-7)  //VFD mode switch failed 
+#define ORIENT_ERR_NO_PWR (-8) //VFD lost power or did not power on
+#define ORIENT_ERR_NO_ENCODER (-9) //machine configuration doesn't include encoder
+// deprecated #define ORIENT_ERR_TIME_OUT (-4)
+
 
 #define ORIENT_MAX_REVS (1.5) //orient must happen within this limit of rotations.  Prevents issue where VFD not getting mode bits results in max spindle RPM run away.
                                 //Note in "no Z index" case orient, we may get up to double this value, if Z index is working
@@ -421,7 +441,7 @@ function _ "Tormach Spindle HAL Component M200";
 #define ORIENT_STUCK_PREAMBLE_TIME (.25) //TODO consider the VFD_RUN and VFD_CMD Delays (.25) //in seconds, time to wait before declaring we're stuck
 //#define ORIENT_BOOST_RPM (5.0)
 //#define ORIENT_MIN_BOOST_RPM (18.0) //need this to exceed the deadband and then some on the VFD
-#define ORIENT_BOOST_PERIOD (.1) //in secs
+#define ORIENT_BOOST_PERIOD (.05) //in secs.  Was .1, 25ms is too fast, can oscillate
 #define ORIENT_MAX_BOOST (125) //TODO
 #define DRIFT_INVALID (-1.0)  // KEEP THIS IN Sync with trayin.ngc!!!!!!!
 #define ORIENT_BRAKE_ACTUATION_TIME (2.5)   // (secs) time after orient completes until we don't report DRIFT_INVALID out orient-drift pin
@@ -646,64 +666,153 @@ float setValue(float x, float def_val)  {
     return def_val;
 }
 
+#define VFD_PWR_OFF         (0)     //we start here, assuming PWR OFF.  If PWR ON, we exit 
+#define VFD_PWR_ON          (1)     //VFD is on and no faults
+#define VFD_PWR_UP_WAIT     (2)     //VFD state is/was off, waiting to see power 
+#define VFD_PWR_ERR         (3)     //VFD faulted, don't care if on or off, wait here until "command" to rotate is seen
+#define VFD_PWR_SANE_WAIT   (4)     //VFD is on.  Waiting for it to fully become sane so we can switch mode from "normal" (e.g. to orient)
+//TODO? #define VFD_PWR_ESTOP       (5)     //user estopped, expect VFD power to drop ... using VFD_PWR_ERR state presently, after issuing SPINDLE_FAULT_NO_K2
 
+#define VFD_PWR_ON_PERIOD   (6.0) //secs to wait for power on
+#define VFD_PWR_SANE_PERIOD (2.0) //secs to wait for VFD to be sane after power is on so we can switch to orient mode
 
-/*
-FIXME:   can't put this here; we can't reference global variables.  Example: encoder_position.
-we get compiler nonsense about encoder_position not defined.  Same issue with any variables.
-So this functin has been placed below, in the FUNCTION(_)
-signed int calcFeedback(void)
+//TODO: in shipping product ???  hide this as a pin and make it internal variable
+//static int vfd_power_state = VFD_OFF;
+#define PHYSICAL_ESTOP (!(estop_button_in))
+
+//Handles VFD Power Sequencing and most of spindle-fault pin reporting
+void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
 {
-.... encoder_position undefined compile time error
+
+//"VFG_"  = Vfd Fault Glitch
+#define VFG_FIRST_PASS  (0) //PP just started, first pass
+#define VFG_LOOK_FOR    (1) //When PP started, VFD power was off, so we expect to see
+#define VFG_SEEN        (2) //seen or already powered on when PP started
+
+//static int look_for_fault_glitch = VFG_FIRST_PASS; 
+//static int must_wait_for_stop_cmd = 0;
+
+    switch (vfd_power_state) {
+        default:
+        case VFD_PWR_OFF: //we always start here when PP starts
+
+            if(look_for_fault_glitch == VFG_FIRST_PASS && vfd_24V)
+                look_for_fault_glitch = VFG_SEEN; //VFD on before PP started
+            else look_for_fault_glitch = VFG_LOOK_FOR; //VFD off when PP started, expect VFG
+                
+            if (spindle_on || orient_execute) {
+                if (!vfd_24V) { //if VFD is not already on
+                    vfd_pwr_on = 1; //fire oneshot to K2
+                    vfd_pwr_on_timer = VFD_PWR_ON_PERIOD;
+                    vfd_power_state = VFD_PWR_UP_WAIT;
+                    spindle_fault = SPINDLE_FAULT_NO_K2;
+                }
+            }
+            if (vfd_24V) {
+                //spindle_fault = SPINDLE_NO_FAULT; //spindle_fault pin is only cleared exiting VFD_PWR_ERR
+                vfd_power_state = VFD_PWR_ON;
+            }
+            break;
+        case VFD_PWR_ON:
+            vfd_pwr_on = 0; //no need to keep on, K2 is latch, plus resets for next power on attempt when/if needed
+            if(!vfd_24V) { //just lost power
+                if (PHYSICAL_ESTOP) {
+                    spindle_fault = SPINDLE_FAULT_NO_K2;
+                    vfd_power_state = VFD_PWR_ERR;
+                    must_wait_for_stop_cmd = 1;
+                }
+                else { //we lost power when we should not have
+                    spindle_fault = SPINDLE_FAULT_LOST_PWR; //had power and now we don't. 
+                    vfd_power_state = VFD_PWR_ERR;
+                }
+                if (spindle_lock || orient_execute || spindle_on) //if spindle was commanded to move
+                    must_wait_for_stop_cmd = 1;                
+                if (spindle_lock || orient_execute) {
+                    orient_problem |= 0x10; //TODO: check for orient or spindle lock??
+                    orient_fault = ORIENT_ERR_NO_PWR;
+                }
+            }
+            if (vfd_pwr_on_timer > 0.0) 
+                vfd_pwr_on_timer -= deltaT;
+                
+            if (vfd_fault) {
+                if (vfd_pwr_on_timer <= 0.0) { //if timer expired then fault is real, otherwise power on glitch
+                    spindle_fault = SPINDLE_FAULT_VFD;
+                    vfd_power_state = VFD_PWR_ERR;
+                    if (spindle_lock || orient_execute || spindle_on) //if spindle was commanded to move
+                        must_wait_for_stop_cmd = 1;
+                    if(spindle_lock || orient_execute)
+                        orient_problem |= 0x20;
+                }
+                else look_for_fault_glitch = VFG_SEEN; //we saw a fault line glitch during power up
+            }
+            if (look_for_fault_glitch == VFG_LOOK_FOR && vfd_pwr_on_timer <= 0.0) { //if we expected but didn't see it
+                look_for_fault_glitch = VFG_SEEN; //didn't see it, but lie any so we quit looking
+                spindle_fault = SPINDLE_OK_POSSIBLE_WIRING_ISSUE; //over writes SPINDLE_NO_FAULT
+            }
+            break;
+        case VFD_PWR_UP_WAIT:
+            vfd_pwr_on_timer -= deltaT; //.001; //fperiod; TODO
+            if(vfd_24V) { //power just turned on
+                vfd_pwr_on = 0; //no need to keep this on as K2 should be latched
+                if (orient_execute) //when orienting we need to wait even longer to switch to orient mode after VFD is sane
+                    vfd_power_state = VFD_PWR_SANE_WAIT;
+                else 
+                    vfd_power_state = VFD_PWR_ON; //no wait, we assume all will be OK and we enable the drive right away to rotate. 
+                                                //at-speed pin deals with whatever delay the VFD has from power up to spindle rotating 
+                vfd_pwr_on_timer = VFD_PWR_SANE_PERIOD; //reload timer for VFD_PWR_SANE_WAIT state wait period
+                spindle_fault = SPINDLE_NO_FAULT;
+            }
+            else if(vfd_pwr_on_timer <= 0.0) {  //check for time out
+                spindle_fault = SPINDLE_FAULT_NO_PWR; //we waited for VFD_PWR_ON_PERIOD and no power
+                vfd_power_state = VFD_PWR_ERR;
+                if (spindle_lock || orient_execute || spindle_on) //if spindle was commanded to move
+                    must_wait_for_stop_cmd = 1;
+                if(orient_execute || spindle_lock)
+                    orient_fault = ORIENT_ERR_NO_PWR;
+            }
+            break;
+        case VFD_PWR_SANE_WAIT: //simply wait for VFD to become sane so we can mode switch it
+            vfd_pwr_on_timer -= deltaT;  //fperiod  TODO: how to use fperiod inside this function call????
+            if(vfd_pwr_on_timer < 0.0) {
+                vfd_power_state = VFD_PWR_ON;
+            }
+            if(!vfd_24V) {
+                vfd_power_state = VFD_PWR_ERR;
+                if (spindle_lock || orient_execute || spindle_on) //if spindle was commanded to move
+                    must_wait_for_stop_cmd = 1;
+            }
+            break; 
+
+        case VFD_PWR_ERR: //the only purpose this state has is to hold the present error state on the m200.spindle_fault pin until user does something to turn on spindle/VFD
+            vfd_pwr_on = 0; //if K2 is latched, then spindle could be on
+            if (must_wait_for_stop_cmd && !spindle_on && !orient_execute)  //look for stop spindle "command"
+                must_wait_for_stop_cmd = 0;  //spindle commanded to stop, (or wasn't moving anyway)
+            if (!must_wait_for_stop_cmd && (spindle_on || orient_execute)) { //the user commanded spindle to rotate (and orient_execute comes after spindle_lock, skip lock check)
+                vfd_power_state = VFD_PWR_OFF;
+                spindle_fault = SPINDLE_NO_FAULT; //clear the error we've been sitting on
+            }
+            break;
+    }
 }
-*/
 
-FUNCTION(_) {
-    float speeder_ratio;
-    float pulley_ratio;
-//    float hz_per_cmd_hz;
-//    float min_speed_freq_cmd;
-//    float max_speed_freq_cmd;
-    float tolerance;
-    float vfd_feedback_ratio;
-//    signed int enc_err;
-    static float cw_boost_min = 0;
-    static float cw_boost_step = 0;
-    static float ccw_boost_min = 0;
-    static float ccw_boost_step = 0;
+// The VFDPowerExec handles the spindle_fault pin reporting during power ups or VFD fault conditions
+// so it has precidence over the spindle_fault pin.   If VFDPowerExec() is not power up sequencing
+// other callers are allowed to write to the spindle_fault pin, if they have a higher priority
+// fault to report
+void _SpindleFaultSet(struct __comp_state const *__comp_inst, unsigned int the_fault) { //TODO: u32 doesn't work here
+    if ((vfd_power_state == VFD_PWR_ON || vfd_power_state == VFD_PWR_OFF || vfd_power_state == VFD_PWR_ERR) && the_fault > spindle_fault)
+        spindle_fault = the_fault;
+}
 
-    vfd_rpm_cmd = 0; //Defensive programming as spindle won't move unless something else below sets it
 
-//  We need to place functions at top of FUNCTION(_) because they try to access component pins
 
-// it appears to work to put calcFeedback() within FUNCTION(_)
-// Wanted this:
-// calcFeedback(void) {
-//    ....
-//    }
-// FUNCTION(_)
-//{
-//....
-//    calcFeedback();
-//....
-//}
-// We got this:
-// FUNCTION(_)
-//{
-// calcFeedback(void) {
-//    ....  (no worries, doesn't get called at entry to FUNCTION(_)
-//    }
-//....
-//    calcFeedback();
-//....
-//}
-// It looks screwy, but it works.
-
-signed int calcFeedback(signed int orient_direction)
+signed int _calcFeedback(struct __comp_state const *__comp_inst, signed int orient_direction)
 {
 signed int enc_feedback; //what PID gets for feedback
 signed int curMod; //modulus of the current position
 signed int desiredMod; //modulus of the target position
+//TODO: signed int zeroMod; //modulus of z index position
 signed int modulusErr; //diff between curMod nad desiredMod
 signed int angle_counts;
 float angle_offset;
@@ -721,6 +830,8 @@ float angle_offset;
         angle_counts = normalizedMod(angle_counts, orient_encoder_cpr);
 
         desiredMod = normalizedMod(angle_counts + bt30_offset, orient_encoder_cpr);
+
+        //TODO: zeroMod = desiredMod - bt30_offset; 
 
         //note the resultant sign of modulusErr is for the PID feedback.
         //We want the current position, relative to desired.
@@ -800,13 +911,37 @@ float angle_offset;
     return enc_feedback;
 }
 
+FUNCTION(_) {
+//macro'tized so we can forget about the comp_state pointer
+#define VFDPowerExec(our_value) (_VFDPowerExec(__comp_inst, our_value))
+#define SpindleFaultSet(the_x) (_SpindleFaultSet(__comp_inst, the_x))
+#define calcFeedback(our_dir) (_calcFeedback(__comp_inst, our_dir))
+
+
+    float speeder_ratio;
+    float pulley_ratio;
+//    float hz_per_cmd_hz;
+//    float min_speed_freq_cmd;
+//    float max_speed_freq_cmd;
+    float tolerance;
+    float vfd_feedback_ratio;
+//    signed int enc_err;
+    static float cw_boost_min = 0;
+    static float cw_boost_step = 0;
+    static float ccw_boost_min = 0;
+    static float ccw_boost_step = 0;
+
+    vfd_rpm_cmd = 0; //Defensive programming as spindle won't move unless something else below sets it
+
+//  We need to place functions at top of FUNCTION(_) because they try to access component pins
+
 #if (_38_SPECIAL)
 
 void execute_impulse(void)
 {  
 
 // TODO:  there's indentation issues in this function ...
-    spindle_on_thur = BIT_TRUE;
+    spindle_run = BIT_TRUE;
 
 //  TODO, remove next two lines, allow 38 special (uncomment switch() below)  over riding normal orienting
     last_fwd = BIT_TRUE;
@@ -891,7 +1026,7 @@ float encoder_spindle_speed;
 
         // look at both VFD feedback and encoder when you have encoder and it doesn't work
 
-        if(orient_encoder_cpr != 1.0 && orient_encoder_cpr != 0.0) 
+        if (orient_encoder_cpr != 1.0 && orient_encoder_cpr != 0.0)
             encoder_spindle_speed = fabs(encoder_velocity); //we have an encoder, read velocity from it
         else
             encoder_spindle_speed = 0.0; //no encoder, speed from encoder is zero
@@ -1044,6 +1179,11 @@ float encoder_spindle_speed;
                                              //if spindle is decell'ing from previous operation, this is overwritten again when VFD mode switch happens
             orient_max_encoder_steps = (signed int)((float)iabs(orient_encoder_cpr) * ORIENT_MAX_REVS);
             ++orient_drift_test_cnt;
+            if (orient_encoder_cpr == 0 || orient_encoder_cpr == 1) {  //orient requested on machine that doesn't have spindle encoder
+                orient_fault = ORIENT_ERR_NO_ENCODER;
+                SpindleFaultSet(SPINDLE_FAULT_NO_ENCODER);
+            }
+    
 #if (_38_SPECIAL)
             orient_total_ticks = 0;
 #endif
@@ -1053,10 +1193,11 @@ float encoder_spindle_speed;
         if(spindle_state!=SPINDLE_STATE_LOCKED) { //if just entered this state
             if(spindle_state!=SPINDLE_STATE_ORIENTING) { //must enter from orient state
                 orient_fault = ORIENT_ERR_LOCK_WITHOUT_PRIOR_ORIENT; //flag the error
+                SpindleFaultSet(SPINDLE_FAULT_LOCK_WITHOUT_PRIOR_ORIENT);
                 spindle_state = SPINDLE_STATE_NORMAL; // moving to "normal" is only SPINDLE_STATE that makes sense, even though we have an error
-                spindle_on_thur = BIT_FALSE;  //redundant stop spindle
+                spindle_run = BIT_FALSE;  //redundant stop spindle
             }
-            else {
+            else { //TODO: REVIEW -- Can we even find ourselves here???
                 spindle_state = SPINDLE_STATE_LOCKED; //move to this state even if error
                 spindle_lock_timer = 0.0;
                 orient_P2 = 1; //switch to 2nd PID constants
@@ -1064,6 +1205,7 @@ float encoder_spindle_speed;
                     orient_to = 1;
                     orient_problem |= 1;
                 //    orient_fault = ORIENT_ERR_TIME_OUT; //TODO does this mess up linuxcnc net M19???
+                    SpindleFaultSet(SPINDLE_FAULT_ORIENT_TO); //TODO: and then is it really a Time out if we do end up here??
                 }
             }
         }
@@ -1071,16 +1213,16 @@ float encoder_spindle_speed;
         spindle_lock_timer += fperiod;
     }
     else if (orient_set_bt30){
-        if ((spindle_state != SPINDLE_STATE_NORMAL) || !is_spindle_stopped() )
-            orient_fault = ORIENT_ERR_BT30;
+        if ((spindle_state != SPINDLE_STATE_NORMAL) || !is_spindle_stopped() || spindle_on || spindle_run) 
+            SpindleFaultSet(SPINDLE_FAULT_BT30);
         //errors or not, we clear all these before finishing the bt30 set operation
         orient_set_bt30 = 0;   // the user looks at this to go low to know it completed, and can look at fault code to see if err
         orient_fault = 0;
         oriented = 0;
         vfd_rpm_cmd = 0.0;
-        spindle_on_thur = BIT_FALSE; //never enable spindle for bt30 setting
+        spindle_run = BIT_FALSE; //never enable spindle for bt30 setting (checked above only set an error flag)
         if (zindex_state != (ISTATE_PAST | ISTATE_DONE)) {
-            orient_fault = ORIENT_ERR_NO_ZINDEX; //we've yet to see an encoder z index -- error out
+            SpindleFaultSet(SPINDLE_FAULT_BT30_Z_INDEX); //we've yet to see an encoder z index -- error out
         }
         else { //we're in orient_set_bt30 mode, no errors detected
             bt30_offset = normalizedMod(encoder_position,orient_encoder_cpr);
@@ -1099,6 +1241,7 @@ float encoder_spindle_speed;
                 orient_to = 1; //Debug pin only
                 orient_problem |= 2; //Debug pin only
             //  orient_fault = ORIENT_ERR_TIME_OUT; setting this here goofs up linuxcnc such that it will never attempt another M19
+                SpindleFaultSet(SPINDLE_FAULT_ORIENT_TO); //TODO: May not be necessary to report as GUI already tells user
             }
 
             spindle_state = SPINDLE_STATE_NORMAL; //important we do this here, as we just checked previous spindle state conditions
@@ -1121,6 +1264,7 @@ float encoder_spindle_speed;
     if(spindle_state == SPINDLE_STATE_ORIENTING || spindle_state == SPINDLE_STATE_LOCKED) {
         if (orient_set_bt30){
             orient_fault = ORIENT_ERR_MULTIPLE_COMMANDS;
+            SpindleFaultSet(SPINDLE_FAULT_BT30);
         }
         else { //no errors detected. do orient PID
             desired_vfd_mode = VFD_MODE_ORIENT;
@@ -1143,16 +1287,17 @@ float encoder_spindle_speed;
             }
 
             if (vfd_mode != VFD_MODE_ORIENT) //if we're waiting for spindle to stop from previous normal operation, then vfd_mode will still be "normal"
-                spindle_on_thur = BIT_FALSE; //probably redundant, possible error condition, turn off spindle anyway as we're waiting for spindle to stop from previous operation
+                spindle_run = BIT_FALSE; //probably redundant, possible error condition, turn off spindle anyway as we're waiting for spindle to stop from previous operation
             else { //VFD should be in the VFD_MODE_ORIENT mode, AFAIK so check for errors
 #if (!(TEST_SPINDLE_LOCK)) 
                 if ((encoder_position > (orient_start + orient_max_encoder_steps)) || (encoder_position < (orient_start - orient_max_encoder_steps))) {
-                    spindle_on_thur = BIT_FALSE; //error condition, turn off spindle!
+                    spindle_run = BIT_FALSE; //error condition, turn off spindle!
                     orient_fault = ORIENT_ERR_MAX_ROTATION; //this flags linuxcnc to stop orient cycle
+                    SpindleFaultSet(SPINDLE_FAULT_ORIENT_MAX_ROTATION); 
                 }
                 else //no error detected
 #endif //end TEST_SPINDLE_LOCK
-                    spindle_on_thur = BIT_TRUE;  //always enable the spindle in orienting mode
+                    spindle_run = BIT_TRUE;  //always enable the spindle in orienting mode
             }
 
 #if (VFD_BIPOLAR_MODE)
@@ -1221,10 +1366,14 @@ float encoder_spindle_speed;
                     orient_good_timer += fperiod;
                     if (orient_good_timer >= ORIENT_TARGETBAND_TIME) {
                         if (finding_z_index) {
-                            orient_fault = ORIENT_ERR_NO_ZINDEX; //we tried and failed to find Z index pulse 
+                            orient_fault = ORIENT_ERR_NO_ZINDEX; //we tried and failed to find Z index pulse
+                            SpindleFaultSet(SPINDLE_FAULT_NO_ZINDEX);
                             orient_problem |= 8;
                         }
-                        else oriented = 1;
+                        else {   
+                            if (vfd_handshake_state == VFD_ACKED) //if spindle already oriented prior to M19 call, don't claim "orient done" until VFD is in orient mode
+                                oriented = 1;
+                        }
                     }
                 }
             }
@@ -1294,7 +1443,7 @@ float encoder_spindle_speed;
     }
     else { //normal spindle operation, no orienting or bt30 setting active
         vfd_rpm_cmd = fabs(speed_in);
-        spindle_on_thur = spindle_on; //pass thur in this mode
+        spindle_run = spindle_on; //pass thur in this mode
         spindle_forward_thur = forward_in; //pass thur in this mode
 
         if (vfd_rpm_cmd < min_speed) {
@@ -1477,7 +1626,7 @@ float encoder_spindle_speed;
     if (disable) { //do this last  TODO: This may fault the drive, but do we care???
         // no spindle motion allowed
         vfd_freq_cmd = 0.0;
-        spindle_on_thur = 0;
+        spindle_run = 0;
         speed_out = 0.0;
     }
 
@@ -1503,8 +1652,11 @@ float encoder_spindle_speed;
         speed_out_rps = feedback_spindle_rpm/60; // encoder_velocity;  //feed thur of velocity
             // we are filtering rps into feedback_spindle_rpm above, so use it, not raw encoder_velocity i.e. "feedback_spindle_rpm = fabs(vFilter(encoder_velocity)) * 60;"
 
+    VFDPowerExec(fperiod); 
+
+
     if(vfd_mode != desired_vfd_mode) {
-        if (is_spindle_stopped()) { //wait for any pending spindle motion to be "Zero" before switching modes
+        if (is_spindle_stopped() && vfd_power_state == VFD_PWR_ON) { //we must have spindle stopped AND VFD on before switching modes
             //previous_vfd_mode = vfd_mode; //record last active VFD mode
             vfd_mode = desired_vfd_mode; //this is now the mode we are about to tell the VFD to do
             vfd_handshake_state = VFD_ACK_WAITING; //start waiting for ACK from VFD
@@ -1513,7 +1665,7 @@ float encoder_spindle_speed;
 
         orient_start = encoder_position; //we must keep resetting this throughout the deceleration, or ORIENT_ERR_MAX_ROTATION error will occur
         target_computed = 0; //force new orient target to be computed, as spindle is moving
-        spindle_on_thur = 0; //over ride any previous "on" of this pin.  If was normal M3 S1000 "running", then this decels drive using "normal" VFD curves
+        spindle_run = 0; //over ride any previous "on" of this pin.  If was normal M3 S1000 "running", then this decels drive using "normal" VFD curves
         vfd_mode_switch_timer = VFD_MODE_SWITCH_DELAY + fperiod;    //start timer, or keep reloading while moving so timing begins from instant spindle stops and doesn't include decel time. 
                                                                     //+fperiod makes sense else time will be VFD_MODE_SWITCH_DELAY - fperiod.
         stuck_delay = ORIENT_LONG_ORIENT_TIME + VFD_MODE_SWITCH_DELAY; //VFD_MODE_SWITCH_DELAY must expire before deciding ORIENT_LONG_ORIENT_TIME has passed
@@ -1522,7 +1674,7 @@ float encoder_spindle_speed;
 //    if (vfd_mode_switch_timer > 0.0) { //give VFD time to switch modes.  Timer is active when above 0
     if (vfd_handshake_state != VFD_ACKED) {  //if we are switching VFD modes
         vfd_mode_switch_timer -= fperiod;
-        spindle_on_thur = BIT_FALSE;    //over ride any previous "on" of this pin
+        spindle_run = BIT_FALSE;    //over ride any previous "on" of this pin
         if ((spindle_state == SPINDLE_STATE_ORIENTING) || (spindle_state == SPINDLE_STATE_LOCKED)) {
             //none of these timers should be tallying during VFD RUN inhibit active, so reset them
             orienting_stuck_timer = 0.0;
@@ -1570,23 +1722,24 @@ float encoder_spindle_speed;
         }
     
         if ((vfd_handshake_state != VFD_ACKED) && (vfd_mode_switch_timer <= 0.0)) {//VFD never acknowledged mode switch in time 
-            spindle_fault = SPINDLE_FAULT_MODE_SWITCH; //report spindle fault to PP GUI
+            SpindleFaultSet(SPINDLE_FAULT_MODE_SWITCH); //report spindle fault to PP GUI
             if (vfd_mode == VFD_MODE_ORIENT) {
                 orient_fault = ORIENT_ERR_MODE_SWITCH; //set specific orient-fault pin as linuxcnc is looking here to fault
+                SpindleFaultSet(SPINDLE_FAULT_MODE_SWITCH);
                 vfd_mode = VFD_MODE_DEFAULT; //start over 
             }
         }
     }
     
 
-    //these next two delays (vfd_hold_freq_cmd_timer and vfd_enable_inhibit_timer) avoid cooincident VFD RUN (a.k.a. spindle_on_thur) pin and vfd_freq_cmd changes so 
+    //these next two delays (vfd_hold_freq_cmd_timer and vfd_enable_inhibit_timer) avoid cooincident VFD RUN (a.k.a. spindle_run) pin and vfd_freq_cmd changes so 
     //VFD's internal error detection isn't glitched.  
 
-    //When spindle_on_thur is turning off, the vfd_freq_cmd is held at a nominial minimum RPM command 
+    //When spindle_run is turning off, the vfd_freq_cmd is held at a nominial minimum RPM command 
     //that makes sense to the VFD based on the last VFD mode.  For transistion from normal spindle mode, "0" can't be used
     // so VFD_UNIPOLAR_MIN_FREQ is as close as we can get without faulting the VFD
 
-    if (spindle_on_thur_last == BIT_TRUE && spindle_on_thur == BIT_FALSE) { // spindle on to off edge detection
+    if (spindle_run_last == BIT_TRUE && spindle_run == BIT_FALSE) { // spindle on to off edge detection
         vfd_hold_freq_cmd_timer = VFD_FREQ_CMD_TO_ENABLE_DELAY;  //start timer to inhibit vfd_freq_cmd change
     }
 
@@ -1599,28 +1752,23 @@ float encoder_spindle_speed;
             vfd_freq_cmd = VFD_UNIPOLAR_MIN_FREQ;
     }
     else 
-        last_active_spindle_state = spindle_state; //determines what vfd_freq_cmd to hold when spindle_on_thur goes inactive.  See vfd_hold_freq_cmd_timer.
+        last_active_spindle_state = spindle_state; //determines what vfd_freq_cmd to hold when spindle_run goes inactive.  See vfd_hold_freq_cmd_timer.
 
-    //When spindle_on_thur is turning on, allow possible vfd_freq_cmd change to be detected by VFD before allowing VFD RUN to be enabled. Add a delay to the VFD RUN 
-    if(spindle_on_thur_last == BIT_FALSE && spindle_on_thur == BIT_TRUE) { //spindle off to on edge detection
+    //When spindle_run is turning on, allow possible vfd_freq_cmd change to be detected by VFD before allowing VFD RUN to be enabled. Add a delay to the VFD RUN 
+    if(spindle_run_last == BIT_FALSE && spindle_run == BIT_TRUE) { //spindle off to on edge detection
         vfd_enable_inhibit_timer = VFD_FREQ_CMD_TO_ENABLE_DELAY + fperiod; //start timer to avoid glitching VFD with simultaneous RUN and vfd-freq-cmd transistions
     }
 
-    spindle_on_thur_last = spindle_on_thur; //save new state before we possibly clobber it with BIT_FALSE below
+    spindle_run_last = spindle_run; //save new state before we possibly clobber it with BIT_FALSE below
 
     if(vfd_enable_inhibit_timer > 0.0) {
         vfd_enable_inhibit_timer -= fperiod;
-        spindle_on_thur = BIT_FALSE;  //inhibit VFD enable (RUN)
+        spindle_run = BIT_FALSE;  //inhibit VFD enable (RUN)
     }
 
-    if (!vfd_24V) //bad when not hi
-        orient_problem |= 0x10;
-    if (vfd_fault)
-    {
-        orient_problem |= 0x20;
-        spindle_on_thur = BIT_FALSE;
-           
-    }
+    if(vfd_power_state != VFD_PWR_ON) //keep spindle_run off until VFD is stable
+        spindle_run = BIT_FALSE;
+
 }
 
 
