@@ -31,20 +31,6 @@
 GREATEST_MAIN_DEFS();
 
 #include "mock_rtapi.inc"
-EmcPose newXYZ(double x, double y, double z, EmcPose last)
-{
-    EmcPose out = last;
-    PmCartesian t = {x,y,z};
-    out.tran = t;
-    return out;
-}
-
-struct state_tag_t line_tag(int line_no)
-{
-    struct state_tag_t out;
-    out.fields[GM_FIELD_LINE_NUMBER] = line_no;
-    return out;
-}
 
 TEST test_mock_tp_init() {
     CREATE_MOCK_TP();

@@ -17,6 +17,7 @@
 #include "mot_priv.h"
 #include "mock_motion_global.h"
 #include "string.h"
+#include "state_tag.h"
 
 TC_STRUCT tcq_space[1000];
 
@@ -45,3 +46,17 @@ void deleteMockTP(TP_STRUCT ** tp)
     }
 }
 
+struct state_tag_t line_tag(int line_no)
+{
+    struct state_tag_t out;
+    out.fields[GM_FIELD_LINE_NUMBER] = line_no;
+    return out;
+}
+
+EmcPose newXYZ(double x, double y, double z, EmcPose last)
+{
+    EmcPose out = last;
+    PmCartesian t = {x,y,z};
+    out.tran = t;
+    return out;
+}

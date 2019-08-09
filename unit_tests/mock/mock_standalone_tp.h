@@ -10,5 +10,7 @@ void resetMockTP(TP_STRUCT * tp, double cycle_time);
 TP_STRUCT *newMockTP(double cycle_time, double a_max);
 void deleteMockTP(TP_STRUCT **tp);
 TP_STRUCT *getMockTP();
+struct state_tag_t line_tag(int line_no);
 
+EmcPose newXYZ(double x, double y, double z, EmcPose last);
 #endif // MOCK_STANDALONE_TP_H
