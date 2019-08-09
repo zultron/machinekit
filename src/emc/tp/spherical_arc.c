@@ -15,7 +15,7 @@
 #include "spherical_arc.h"
 #include "tp_types.h"
 #include "rtapi_math.h"
-
+#include "tp_enums.h"
 #include "tp_debug.h"
 
 int arcInitFromPoints(SphericalArc * const arc, PmCartesian const * const start,

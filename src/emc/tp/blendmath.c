@@ -19,6 +19,7 @@
 #include "spherical_arc.h"
 #include "blendmath.h"
 #include "tp_debug.h"
+#include "tp_enums.h"
 
 /** @section utilityfuncs Utility functions */
 

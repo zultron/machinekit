@@ -17,6 +17,7 @@
 #include "posemath.h"
 #include "tc_types.h"
 #include "tp_types.h"
+#include "tp_enums.h"
 #include "tcq.h"
 
 int tpCreate(TP_STRUCT * const tp, int _queueSize, TC_STRUCT * const tcSpace);
@@ -71,7 +72,7 @@ int tpAddCircle(TP_STRUCT * const tp,
         char atspeed,
         struct state_tag_t tag);
 
-int tpRunCycle(TP_STRUCT * const tp, long period);
+tp_err_t tpRunCycle(TP_STRUCT * const tp, long period);
 int tpPause(TP_STRUCT * const tp);
 int tpResume(TP_STRUCT * const tp);
 int tpAbort(TP_STRUCT * const tp);

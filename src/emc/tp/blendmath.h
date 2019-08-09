@@ -20,14 +20,6 @@
 #define BLEND_ACC_RATIO_NORMAL (pmSqrt(1.0 - pmSq(BLEND_ACC_RATIO_TANGENTIAL)))
 #define BLEND_KINK_FACTOR 0.25
 
-typedef enum {
-    BLEND_NONE,
-    BLEND_LINE_LINE,
-    BLEND_LINE_ARC,
-    BLEND_ARC_LINE,
-    BLEND_ARC_ARC,
-} blend_type_t;
-
 /**
  * 3D Input geometry for a spherical blend arc. 
  * This structure contains all of the basic geometry in 3D for a blend arc.

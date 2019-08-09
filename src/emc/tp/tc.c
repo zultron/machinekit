@@ -26,7 +26,7 @@
 
 //Debug output
 #include "tp_debug.h"
-
+#include "tp_enums.h"
 
 double tcGetMaxTargetVel(TC_STRUCT const * const tc,
         double max_scale)
