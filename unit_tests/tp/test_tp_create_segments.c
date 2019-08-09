@@ -119,11 +119,83 @@ TEST test_create_two_blended_lines() {
     PASS();
 }
 
+/**
+ * Prove that two circular segments in XY plane are
+ */
+TEST test_create_tangent_arcs() {
+    CREATE_MOCK_TP();
+    tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
+
+    EmcPose pt0 = {0};
+    EmcPose pt1 = newXYZ(1,1,0,pt0);
+    EmcPose pt2 = newXYZ(2,0,0,pt1);
+    PmCartesian center1 = {1,0,0};
+    PmCartesian center2 = {1,0,0};
+    PmCartesian normal = {0,0,-1};
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddCircle(tp, pt1, center1, normal, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt2, center2, normal, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, 0, line_tag(1));
+
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EQ(2, tcqLen(&tp->queue));
+
+    TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
+    TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
+    ASSERT(prev_tc);
+    ASSERT(this_tc);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
+
+    PmCartesian const exp_tan_vec = {1,0,0};
+    PmCartesian got_prev_tan;
+    tcGetEndTangentUnitVector(prev_tc, &got_prev_tan);
+    ASSERT_PMCARTESIAN_IN_RANGE(exp_tan_vec, got_prev_tan, TP_POS_EPSILON);
+    PmCartesian got_this_tan;
+    tcGetStartTangentUnitVector(this_tc, &got_this_tan);
+    ASSERT_PMCARTESIAN_IN_RANGE(exp_tan_vec, got_this_tan, TP_POS_EPSILON);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+TEST test_slightly_convex_arcs() {
+    CREATE_MOCK_TP();
+    tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
+
+    EmcPose const pt0 = {0};
+    EmcPose const pt1 = newXYZ(1,1,0,pt0);
+    EmcPose const pt2 = newXYZ(2,0,0,pt1);
+    double const dc = 0.001;
+    // Displace slightly along 45 deg lines
+    PmCartesian center1 = {1 - dc, dc,0};
+    PmCartesian center2 = {1 + dc, dc,0};
+    PmCartesian const normal = {0,0,-1};
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddCircle(tp, pt1, center1, normal, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt2, center2, normal, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, 0, line_tag(1));
+
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EQ(3, tcqLen(&tp->queue));
+
+    TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
+    TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
+    ASSERT(prev_tc);
+    ASSERT(this_tc);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();      /* command-line arguments, initialization. */
     RUN_TEST(test_mock_tp_init);
     RUN_TEST(test_create_single_line);
     RUN_TEST(test_create_two_exact_lines);
     RUN_TEST(test_create_two_blended_lines);
+    RUN_TEST(test_create_tangent_arcs);
+    RUN_TEST(test_slightly_convex_arcs);
     GREATEST_MAIN_END();        /* display results */
 }
