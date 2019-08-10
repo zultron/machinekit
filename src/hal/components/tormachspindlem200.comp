@@ -205,12 +205,13 @@ pin in float enc_door_open_max_rpm;
 pin in float vfd_feedback_factor;
 
 pin out u32 spindle_fault;  //used to alert PP GUI to spindle and VFD faults
-pin in bit pp_reset_ok;     //input from HAL estop latch.  When high, we are not estopped and PP is out of reset.
+pin in bit pp_reset_ok;     //input from HAL estop latch.  When high, we are not estopped and PP is out of reset.  SLP REMOVE:  not using it
                             //this will not go hi when estop_button_in goes high and user pressed PP reset button.
                             //this goes low immediately if estop_button_in goes low (user pressed physical estop)
 pin in bit estop_button_in; //actual ESTOP switch circuit.  When low, estop is active and machine DC bus is off.  
                             //When hi that means physical reset button of EStop circuit has been pressed and is lit, and we're go
-
+pin out bit estop_fault;    //ESTOP machine when VFD faults when spindle-on is being commanded
+pin in bit pp-estop_fault;  //Software ESTOP from PP
 
 ///////////Spindle orienting additions
 // Inputs:
@@ -692,12 +693,25 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
 //static int look_for_fault_glitch = VFG_FIRST_PASS; 
 //static int must_wait_for_stop_cmd = 0;
 
+    if (pp_estop_fault || PHYSICAL_ESTOP ) {
+        vfd_power_state = VFD_PWR_ERR; //we don't care what vfd_power_state was, immediately park at VFD_PWR_ERR until user commands spindle on
+        must_wait_for_stop_cmd = 1; //demand 1 ms of "off before on" latching state.  It'll be over before user releases the physical "GO" button next to ESTOP button.
+        estop_fault = BIT_TRUE;  
+        //we don't set any spindle.fault errors before parking in VFD_PWR_ERR state.
+        //if it was pp_estop_fault, it was a software error from PP: the VFD power is likely not going off
+        //if it was a PHYSICAL_ESTOP, then VFD is going to loose power and a message about the VFD loosing power or faulting is fairly useless or at least redundant.  
+    } 
+    else { 
+        estop_fault = BIT_FALSE; //so PP can reset HAL ESTOP latch
+    }
+        
+
     switch (vfd_power_state) {
         default:
         case VFD_PWR_OFF: //we always start here when PP starts
 
             if(look_for_fault_glitch == VFG_FIRST_PASS && vfd_24V)
-                look_for_fault_glitch = VFG_SEEN; //VFD on before PP started
+                look_for_fault_glitch = VFG_SEEN; //VFD on before PP started, We can only look for the glitch if PP turns on VFD, so we assume it's OK.  We'll see it next time maybe.
             else look_for_fault_glitch = VFG_LOOK_FOR; //VFD off when PP started, expect VFG
                 
             if (spindle_on || orient_execute) {
@@ -709,8 +723,7 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
                 }
             }
             if (vfd_24V) {
-                //spindle_fault = SPINDLE_NO_FAULT; //spindle_fault pin is only cleared exiting VFD_PWR_ERR
-                vfd_power_state = VFD_PWR_ON;
+                vfd_power_state = VFD_PWR_UP_WAIT;
             }
             break;
         case VFD_PWR_ON:
@@ -739,10 +752,12 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
                 if (vfd_pwr_on_timer <= 0.0) { //if timer expired then fault is real, otherwise power on glitch
                     spindle_fault = SPINDLE_FAULT_VFD;
                     vfd_power_state = VFD_PWR_ERR;
-                    if (spindle_lock || orient_execute || spindle_on) //if spindle was commanded to move
+                    if (spindle_lock || orient_execute || spindle_on) { //if spindle was commanded to move TODO: do we fault in spindle_lock mode?
+                        estop_fault = BIT_TRUE; //this is a big deal, vfd faulted while running -- ESTOP PP otherwise, it doesn't know
                         must_wait_for_stop_cmd = 1;
-                    if(spindle_lock || orient_execute)
-                        orient_problem |= 0x20;
+                        if(spindle_lock || orient_execute)
+                            orient_problem |= 0x20;
+                    }
                 }
                 else look_for_fault_glitch = VFG_SEEN; //we saw a fault line glitch during power up
             }
@@ -754,7 +769,6 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
         case VFD_PWR_UP_WAIT:
             vfd_pwr_on_timer -= deltaT; //.001; //fperiod; TODO
             if(vfd_24V) { //power just turned on
-                vfd_pwr_on = 0; //no need to keep this on as K2 should be latched
                 if (orient_execute) //when orienting we need to wait even longer to switch to orient mode after VFD is sane
                     vfd_power_state = VFD_PWR_SANE_WAIT;
                 else 
@@ -1766,8 +1780,8 @@ float encoder_spindle_speed;
         spindle_run = BIT_FALSE;  //inhibit VFD enable (RUN)
     }
 
-    if(vfd_power_state != VFD_PWR_ON) //keep spindle_run off until VFD is stable
-        spindle_run = BIT_FALSE;
+    if((vfd_power_state != VFD_PWR_ON) || pp_estop_fault || PHYSICAL_ESTOP || estop_fault)  //keep spindle_run off until VFD, PP, m200.comp, and ESTOP button are all "GO"
+        spindle_run = BIT_FALSE;                                                            //or'ing all these are most certainly redundant but defensive programming.
 
 }
 
