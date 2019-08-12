@@ -393,13 +393,14 @@ function _ "Tormach Spindle HAL Component M200";
 #define SPINDLE_FAULT_ORIENT_TO  (5)            //orient time out detected.  Linuxcnc already notified user about T.O., so only log it
 #define SPINDLE_FAULT_ORIENT_MAX_ROTATION (6)   //orient failed due to excessive number of revolutions.  Check encoder
 #define SPINDLE_FAULT_NO_ZINDEX (7)             //orient attempted and Z index not found.  Check encoder
-#define SPINDLE_FAULT_NO_ENCODER (8)            //M19 or spindle sync mode was requested yet machine has no encoder or incorrect machine type selected
-#define SPINDLE_FAULT_VFD_RPM  (9)              //VFD motor speed feedback absent. Check VFD wiring.
-#define SPINDLE_FAULT_MODE_SWITCH  (10)         //expected VFD Mode switch acknowledgment did not occur.  Is machine configured right, do you have VFDmx, wiring errors
-#define SPINDLE_FAULT_VFD (11)                  //VFD reported a fault.  Look for error code on VFD.
-#define SPINDLE_FAULT_NO_PWR (12)               //24VDC from VFD is still not present after K2 presumably activated.  Check spindle door switch, mill circuit breakers, or VFD wiring
-#define SPINDLE_FAULT_LOST_PWR (13)             //VFD lost power. It had it
-#define SPINDLE_FAULT_LOCK_WITHOUT_PRIOR_ORIENT (12) //This shouldn't happen. Linuxcnc state seems confused
+#define SPINDLE_FAULT_VFD_FAULT_M5 (8)          //VFD signaled fault while not being commanded to move; may be spindle door opening
+#define SPINDLE_FAULT_LOST_PWR (9)              //VFD lost power. It had it; may be spindle door opening
+#define SPINDLE_FAULT_NO_ENCODER (10)           //M19 or spindle sync mode was requested yet machine has no encoder or incorrect machine type selected
+#define SPINDLE_FAULT_VFD_RPM  (11)             //VFD motor speed feedback absent. Check VFD wiring.
+#define SPINDLE_FAULT_MODE_SWITCH  (12)         //expected VFD Mode switch acknowledgment did not occur.  Is machine configured right, do you have VFDmx, wiring errors
+#define SPINDLE_FAULT_VFD (13)                  //VFD reported a fault during rotation. Look for error code on VFD.
+#define SPINDLE_FAULT_NO_PWR (14)               //24VDC from VFD is still not present after K2 presumably activated.  Check spindle door switch, mill circuit breakers, or VFD wiring
+#define SPINDLE_FAULT_LOCK_WITHOUT_PRIOR_ORIENT (15) //This shouldn't happen. Linuxcnc state seems confused
 
 
 ///////// Orienting additions
@@ -738,7 +739,7 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
                     spindle_fault = SPINDLE_FAULT_LOST_PWR; //had power and now we don't. 
                     vfd_power_state = VFD_PWR_ERR;
                 }
-                if (spindle_lock || orient_execute || spindle_on) //if spindle was commanded to move
+                if (spindle_lock || orient_execute || spindle_on) //if spindle is being commanded to move
                     must_wait_for_stop_cmd = 1;                
                 if (spindle_lock || orient_execute) {
                     orient_problem |= 0x10; //TODO: check for orient or spindle lock??
@@ -750,11 +751,13 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
                 
             if (vfd_fault) {
                 if (vfd_pwr_on_timer <= 0.0) { //if timer expired then fault is real, otherwise power on glitch
-                    spindle_fault = SPINDLE_FAULT_VFD;
+                    spindle_fault = SPINDLE_FAULT_VFD_FAULT_M5;
                     vfd_power_state = VFD_PWR_ERR;
                     if (spindle_lock || orient_execute || spindle_on) { //if spindle was commanded to move TODO: do we fault in spindle_lock mode?
                         estop_fault = BIT_TRUE; //this is a big deal, vfd faulted while running -- ESTOP PP otherwise, it doesn't know
                         must_wait_for_stop_cmd = 1;
+                        spindle_fault = SPINDLE_FAULT_VFD;
+                        vfd_power_state = VFD_PWR_ERR;
                         if(spindle_lock || orient_execute)
                             orient_problem |= 0x20;
                     }
