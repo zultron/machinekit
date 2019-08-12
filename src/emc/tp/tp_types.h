@@ -78,10 +78,6 @@ typedef struct {
     int queueSize;
     double cycleTime;
 
-    double vMax;		/* vel for subsequent moves */
-    double ini_maxvel;          /* max velocity allowed by machine
-                                   constraints (ini file) for
-                                   subsequent moves */
     double vLimit;		/* absolute upper limit on all linear vels */
     double vLimitAng;		/* absolute upper limit on all angular vels */
 

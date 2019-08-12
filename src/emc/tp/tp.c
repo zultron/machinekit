@@ -417,7 +417,6 @@ int tpInit(TP_STRUCT * const tp)
     //Velocity limits
     tp->vLimit = 0.0;
     tp->vLimitAng = 0.0;
-    tp->ini_maxvel = 0.0;
     //Angular limits
     tp->wMax = 0.0;
     tp->wDotMax = 0.0;
@@ -428,9 +427,6 @@ int tpInit(TP_STRUCT * const tp)
 
     ZERO_EMC_POSE(tp->currentPos);
     ZERO_EMC_POSE(tp->currentVel);
-
-    PmCartesian vel_bound = getXYZVelBounds();
-    tp->vMax = findMinNonZero(&vel_bound);
 
     return tpClear(tp);
 }
@@ -445,26 +441,6 @@ int tpSetCycleTime(TP_STRUCT * const tp, double secs)
     }
 
     tp->cycleTime = secs;
-
-    return TP_ERR_OK;
-}
-
-/**
- * Set requested velocity and absolute maximum velocity (bounded by machine).
- * This is called before adding lines or circles, specifying vMax (the velocity
- * requested by the F word) and ini_maxvel, the max velocity possible before
- * meeting a machine constraint caused by an AXIS's max velocity.  (the TP is
- * allowed to go up to this high when feed override >100% is requested)  These
- * settings apply to subsequent moves until changed.
- */
-int tpSetVmax(TP_STRUCT * const tp, double vMax, double ini_maxvel)
-{
-    if (0 == tp || vMax <= 0.0 || ini_maxvel <= 0.0) {
-        return TP_ERR_FAIL;
-    }
-
-    tp->vMax = vMax;
-    tp->ini_maxvel = ini_maxvel;
 
     return TP_ERR_OK;
 }
