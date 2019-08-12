@@ -98,8 +98,6 @@ typedef struct {
                                    distance of the programmed path during
                                    blends */
     tc_spindle_sync_t synchronized;       // spindle sync required for this move
-    int velocity_mode; 	        /* TRUE if spindle sync is in velocity mode,
-				   FALSE if in position mode */
     double uu_per_rev;          /* user units per spindle revolution */
 
 
