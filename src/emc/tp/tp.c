@@ -417,9 +417,6 @@ int tpInit(TP_STRUCT * const tp)
     //Velocity limits
     tp->vLimit = 0.0;
     tp->vLimitAng = 0.0;
-    //Angular limits
-    tp->wMax = 0.0;
-    tp->wDotMax = 0.0;
 
     resetSpindleOrigin(&tp->spindle.origin);
     tp->spindle.waiting_for_index = MOTION_INVALID_ID;

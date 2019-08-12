@@ -81,8 +81,6 @@ typedef struct {
     double vLimit;		/* absolute upper limit on all linear vels */
     double vLimitAng;		/* absolute upper limit on all angular vels */
 
-    double wMax;		/* rotational velocity max */
-    double wDotMax;		/* rotational accelleration max */
     int nextId;
     int execId;
     struct state_tag_t execTag; /* state tag corresponding to running motion */
