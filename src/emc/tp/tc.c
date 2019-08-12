@@ -176,24 +176,20 @@ int tcGetStartAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const ou
  * Get the acceleration direction unit vector for blend velocity calculations.
  * This calculates the direction of acceleration at the end of a segment.
  */
-int tcGetEndAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out) {
-
+int tcGetEndAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out)
+{
     switch (tc->motion_type) {
-        case TC_LINEAR:
-            *out=tc->coords.line.xyz.uVec;
-            break;
-        case TC_RIGIDTAP:
-            pmCartScalMult(&tc->coords.line.xyz.uVec, -1.0, out);
-            break;
-        case TC_CIRCULAR:
-            tcCircleEndAccelUnitVector(tc,out);
-            break;
-       case TC_SPHERICAL:
-            return -1;
-       default:
-            return -1;
+    case TC_LINEAR:
+        *out = tc->coords.line.xyz.uVec;
+        return 0;
+    case TC_RIGIDTAP:
+        return pmCartScalMult(&tc->coords.line.xyz.uVec, -1.0, out);
+    case TC_CIRCULAR:
+        return tcCircleEndAccelUnitVector(tc,out);
+    case TC_SPHERICAL:
+        break;
     }
-    return 0;
+    return -1;
 }
 
 int tcGetIntersectionPoint(TC_STRUCT const * const prev_tc,
