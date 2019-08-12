@@ -333,39 +333,25 @@ int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const ou
  */
 
 int tcGetPos(TC_STRUCT const * const tc, EmcPose * const out) {
-    tcGetPosReal(tc, TC_GET_PROGRESS, out);
+    tcGetPosReal(tc, tc->progress, out);
     return 0;
 }
 
 int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const out) {
-    tcGetPosReal(tc, TC_GET_STARTPOINT, out);
+    tcGetPosReal(tc, 0.0, out);
     return 0;
 }
 
 int tcGetEndpoint(TC_STRUCT const * const tc, EmcPose * const out) {
-    tcGetPosReal(tc, TC_GET_ENDPOINT, out);
+    tcGetPosReal(tc, tc->target, out);
     return 0;
 }
 
-int tcGetPosReal(TC_STRUCT const * const tc, int of_point, EmcPose * const pos)
+int tcGetPosReal(TC_STRUCT const * const tc, double progress, EmcPose * const pos)
 {
     PmCartesian xyz;
     PmCartesian abc;
     PmCartesian uvw;
-    double progress=0.0;
-
-    switch (of_point) {
-        case TC_GET_PROGRESS:
-            progress = tc->progress;
-            break;
-        case TC_GET_ENDPOINT:
-            progress = tc->target;
-            break;
-        case TC_GET_STARTPOINT:
-            progress = 0.0;
-            break;
-    }
-
 
     // Used for arc-length to angle conversion with spiral segments
     double angle = 0.0;
