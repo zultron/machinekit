@@ -1067,6 +1067,29 @@ int pmCartPlaneProj(PmCartesian const * const v, PmCartesian const * const norma
     return pmErrno = r1 || r2 ? PM_NORM_ERR : 0;
 }
 
+int pmCartCartOrthonormal(
+    PmCartesian const * const a_hat,
+    PmCartesian const * const b_hat,
+    PmCartesian * const u,
+    PmCartesian * const v)
+{
+    *v = *b_hat;
+
+    // Find component of a in direction of b
+    // NOTE assumes both a and b are already unit
+    double dot;
+    pmCartCartDot(a_hat, b_hat, &dot);
+
+    //Build the component in the opposite direction of b
+    pmCartScalMult(b_hat, -dot, u);
+
+    // Subtract component of a in direction of b (by adding opposite)
+    pmCartCartAddEq(u, a_hat);
+    pmCartUnitEq(u);
+
+    return 0;
+}
+
 /* angle-axis functions */
 
 int pmQuatAxisAngleMult(PmQuaternion const * const q, PmAxis axis, double angle,

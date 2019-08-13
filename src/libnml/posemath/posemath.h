@@ -889,6 +889,11 @@ extern "C" {
     extern int pmCartCartProj(PmCartesian const * const, PmCartesian const * const, PmCartesian * const);
     extern int pmCartPlaneProj(PmCartesian const * const v, PmCartesian const * const normal,
 	PmCartesian * vout);
+    extern int pmCartCartOrthonormal(
+        PmCartesian const * const a,
+        PmCartesian const * const b,
+        PmCartesian * const u,
+        PmCartesian * const v);
 
 /* rotation functions */
 

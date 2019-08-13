@@ -525,6 +525,26 @@ TEST test_pmCartLinePoint()
     PASS();
 }
 
+TEST test_pmCartCartOrthonormal()
+{
+    PmCartesian a = {1,1,0};
+    PmCartesian b = {0,1,0};
+
+    PmCartesian a_hat, b_hat;
+
+    pmCartUnit(&a, &a_hat);
+    pmCartUnit(&b, &b_hat);
+
+    PmCartesian u, v;
+    pmCartCartOrthonormal(&a_hat, &b_hat, &u, &v);
+
+    PmCartesian u_exp = {1,0,0};
+    ASSERT_PMCARTESIAN_IN_RANGE(u_exp, u, 1e-6);
+    PmCartesian v_exp = {0,1,0};
+    ASSERT_PMCARTESIAN_IN_RANGE(v_exp, v, 1e-6);
+    PASS();
+}
+
 SUITE(pm_line) {
     RUN_TEST(test_pmCartLineInit_simple);
     RUN_TEST(test_pmCartLineInit_ex1);
@@ -539,5 +559,6 @@ int main(int argc, char **argv) {
     RUN_SUITE(pm_cart_basics);
     RUN_SUITE(pm_circle);
     RUN_SUITE(pm_line);
+    RUN_TEST(test_pmCartCartOrthonormal);
     GREATEST_MAIN_END();
 }
