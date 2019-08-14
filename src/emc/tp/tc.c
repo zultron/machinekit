@@ -499,7 +499,7 @@ int tcIsBlending(TC_STRUCT * const tc) {
 }
 
 int tcFindBlendTolerance(TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc, double * const T_blend, double * const nominal_tolerance)
+        TC_STRUCT const * const tc, double * const T_blend)
 {
     const double tolerance_ratio = 0.25;
     double T1 = prev_tc->tolerance;
@@ -511,10 +511,10 @@ int tcFindBlendTolerance(TC_STRUCT const * const prev_tc,
     if (T2 <= 0) {
         T2 = tc->nominal_length * tolerance_ratio;
     }
-    *nominal_tolerance = fmin(T1,T2);
+    double nominal_tolerance = fmin(T1,T2);
     //Blend tolerance is the limit of what we can reach by blending alone,
     //consuming half a segment or less (parabolic equivalent)
-    double blend_tolerance = fmin(fmin(*nominal_tolerance, 
+    double blend_tolerance = fmin(fmin(nominal_tolerance,
                 prev_tc->nominal_length * tolerance_ratio),
             tc->nominal_length * tolerance_ratio);
     *T_blend = blend_tolerance;

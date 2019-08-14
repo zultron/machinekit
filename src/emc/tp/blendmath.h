@@ -77,6 +77,11 @@ typedef struct {
     double R_plan;      /* planned radius for blend arc */
     double d_plan;      /* distance along each line to arc endpoints */
 
+    double v_max1;      /* ini_maxvel for each segment */
+    double v_max2;
+
+    double v_max_planar; /* maximum possible velocity in blend plane */
+    double v_max_altitude;      /* overall maximum possible velocity during blend segment */
     double v_goal;      /* desired velocity at max feed override */
     double v_plan;      /* planned max velocity at max feed override */
     double v_actual;    /* velocity at feedscale = 1.0 */
@@ -195,39 +200,44 @@ int blendGeom3Init(BlendGeom3 * const geom,
 
 int blendParamKinematics(BlendGeom3 * const geom,
         BlendParameters * const param,
-        TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc,
         PmCartesian const * const acc_bound,
-        PmCartesian const * const vel_bound,
-        double maxFeedScale);
+        PmCartesian const * const vel_bound);
 
-int blendInit3FromLineLine(BlendGeom3 * const geom, BlendParameters * const param,
-        TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc,
-        PmCartesian const * const acc_bound,
-        PmCartesian const * const vel_bound,
-        double maxFeedScale);
+int blendInit3FromLineLine(
+    BlendGeom3 * const geom,
+    BlendParameters * const param,
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    PmCartesian const * const acc_bound,
+    PmCartesian const * const vel_bound,
+    double maxFeedScale);
 
-int blendInit3FromLineArc(BlendGeom3 * const geom, BlendParameters * const param,
-        TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc,
-        PmCartesian const * const acc_bound,
-        PmCartesian const * const vel_bound,
-        double maxFeedScale);
+int blendInit3FromLineArc(
+    BlendGeom3 * const geom,
+    BlendParameters * const param,
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    PmCartesian const * const acc_bound,
+    PmCartesian const * const vel_bound,
+    double maxFeedScale);
 
-int blendInit3FromArcLine(BlendGeom3 * const geom, BlendParameters * const param,
-        TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc,
-        PmCartesian const * const acc_bound,
-        PmCartesian const * const vel_bound,
-        double maxFeedScale);
+int blendInit3FromArcLine(
+    BlendGeom3 * const geom,
+    BlendParameters * const param,
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    PmCartesian const * const acc_bound,
+    PmCartesian const * const vel_bound,
+    double maxFeedScale);
 
-int blendInit3FromArcArc(BlendGeom3 * const geom, BlendParameters * const param,
-        TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc,
-        PmCartesian const * const acc_bound,
-        PmCartesian const * const vel_bound,
-        double maxFeedScale);
+int blendInit3FromArcArc(
+    BlendGeom3 * const geom,
+    BlendParameters * const param,
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    PmCartesian const * const acc_bound,
+    PmCartesian const * const vel_bound,
+    double maxFeedScale);
 
 int blendArcArcPostProcess(BlendPoints3 * const points, BlendPoints3 const * const points_in,
         BlendParameters * const param, BlendGeom3 const * const geom,

@@ -875,6 +875,7 @@ extern "C" {
     extern int pmCartScalDivEq(PmCartesian * const, double);
     extern int pmCartUnitEq(PmCartesian * const);
     extern int pmCartNegEq(PmCartesian * const);
+    extern int pmCartCartDirection(PmCartesian const * const to, PmCartesian const * const, PmCartesian * const);
 /*! \todo Another #if 0 */
 #if 0
     extern int pmCartNorm(PmCartesian const * const v, PmCartesian * const vout);

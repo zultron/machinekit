@@ -905,6 +905,15 @@ int pmCartNegEq(PmCartesian * const v1)
     return pmErrno = 0;
 }
 
+int pmCartCartDirection(
+    PmCartesian const * const to,
+    PmCartesian const * const from,
+    PmCartesian * const u)
+{
+    pmCartCartSub(to, from, u);
+    return pmCartUnitEq(u);
+}
+
 int pmCartInv(PmCartesian const * const v1, PmCartesian * const vout)
 {
     if (v1 != vout) {

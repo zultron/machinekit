@@ -655,20 +655,53 @@ int blendGeom3Init(BlendGeom3 * const geom,
  * @param vel_bound maximum X, Y, Z machine velocity
  * @param maxFeedScale maximum allowed feed override (set in INI)
  */
+void blendInitTolerance(
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    BlendParameters * const param)
+{
+    tcFindBlendTolerance(prev_tc, tc, &param->tolerance);
+}
+
+void limitVMaxByAltitude(
+    BlendGeom3 const * const geom,
+    BlendParameters * const param)
+{
+    // Clip the angle at a reasonable value (less than 90 deg), to prevent div by zero
+    double phi_effective = fmin(param->phi, PM_PI * 0.49);
+
+    // Copy over maximum velocities, clipping velocity to place altitude within base
+    double Cp = cos(phi_effective);
+    double v_effective1 = fmin(param->v_max1, param->v_max2 / Cp);
+    double v_effective2 = fmin(param->v_max2, param->v_max1 / Cp);
+
+    tp_debug_print("v_max1 = %f, v_max2 = %f\n", v_effective1, v_effective2);
+
+    // Get "altitude"
+    double v_area = v_effective1 * v_effective2 / 2.0 * sin(param->phi);
+    tp_debug_print("phi = %f\n", param->phi);
+    tp_debug_print("v_area = %f\n", v_area);
+
+    // Get "base" of triangle
+    PmCartesian tmp1, tmp2, diff;
+    pmCartScalMult(&geom->u1, v_effective1, &tmp1);
+    pmCartScalMult(&geom->u2, v_effective2, &tmp2);
+    pmCartCartSub(&tmp2, &tmp1, &diff);
+    double base;
+    pmCartMag(&diff, &base);
+    tp_debug_print("v_base = %f\n", base);
+
+    param->v_max_altitude = 2.0 * v_area / base;
+}
+
 int blendParamKinematics(BlendGeom3 * const geom,
         BlendParameters * const param,
-        TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc,
         PmCartesian const * const acc_bound,
-        PmCartesian const * const vel_bound,
-        double maxFeedScale)
+        PmCartesian const * const vel_bound)
 {
 
     // KLUDGE: common operations, but not exactly kinematics
     param->phi = (PM_PI - param->theta * 2.0);
-
-    double nominal_tolerance;
-    tcFindBlendTolerance(prev_tc, tc, &param->tolerance, &nominal_tolerance);
 
     PmCartesian u, v, uv_plane_envelope_sq;
     pmCartCartOrthonormal(&geom->u_tan1, &geom->u_tan2, &u, &v);
@@ -681,6 +714,31 @@ int blendParamKinematics(BlendGeom3 * const geom,
     tp_debug_print("a_max = %f, a_n_max = %f\n", param->a_max,
             param->a_n_max);
 
+    // Calculate the maximum planar velocity
+    //FIXME sloppy handling of return value
+    res_dia |= findMaxValueOnPlane(&uv_plane_envelope_sq, vel_bound, &param->v_max_planar);
+    tp_debug_print("v_planar_max = %f\n", param->v_max_planar);
+
+    // WARNING: assumes that we start from a valid v_max (either 0 or from the 'altitude' check)
+    double v_max = fmax(param->v_max_planar, param->v_max_altitude);
+
+    tp_debug_print("v_max = %f\n", v_max);
+    param->v_goal = fmin(param->v_goal, v_max);
+
+    tp_debug_print("v_goal = %f", param->v_goal);
+
+    return res_dia;
+}
+
+int blendParamInitVelocities(
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    double maxFeedScale,
+    BlendParameters * const param)
+{
+    // KLUDGE: common operations, but not exactly kinematics
+    param->phi = (PM_PI - param->theta * 2.0);
+
     // Find the nominal velocity for the blend segment with no overrides
     double v_req_prev = tcGetMaxTargetVel(prev_tc, 1.0);
     double v_req_this = tcGetMaxTargetVel(tc, 1.0);
@@ -691,51 +749,10 @@ int blendParamKinematics(BlendGeom3 * const geom,
     param->v_goal = fmax(tcGetMaxTargetVel(prev_tc, maxFeedScale),
             tcGetMaxTargetVel(tc, maxFeedScale));
 
-    // Calculate the maximum planar velocity
-    double v_planar_max;
-    //FIXME sloppy handling of return value
-    res_dia |= findMaxValueOnPlane(&uv_plane_envelope_sq, vel_bound, &v_planar_max);
-    tp_debug_print("v_planar_max = %f\n", v_planar_max);
-
-    // Clip the angle at a reasonable value (less than 90 deg), to prevent div by zero
-    double phi_effective = fmin(param->phi, PM_PI * 0.49);
-
     // Copy over maximum velocities, clipping velocity to place altitude within base
-    double v_max1 = fmin(prev_tc->maxvel, tc->maxvel / cos(phi_effective));
-    double v_max2 = fmin(tc->maxvel, prev_tc->maxvel / cos(phi_effective));
-
-    tp_debug_print("v_max1 = %f, v_max2 = %f\n", v_max1, v_max2);
-
-    // Get "altitude"
-    double v_area = v_max1 * v_max2 / 2.0 * sin(param->phi);
-    tp_debug_print("phi = %f\n", param->phi);
-    tp_debug_print("v_area = %f\n", v_area);
-
-    // Get "base" of triangle
-    PmCartesian tmp1, tmp2, diff;
-    pmCartScalMult(&geom->u1, v_max1, &tmp1);
-    pmCartScalMult(&geom->u2, v_max2, &tmp2);
-    pmCartCartSub(&tmp2, &tmp1, &diff);
-    double base;
-    pmCartMag(&diff, &base);
-    tp_debug_print("v_base = %f\n", base);
-
-    double v_max_alt = 2.0 * v_area / base;
-
-    // Can't do altitude-based velocity calculation if we have arcs
-    if (prev_tc->motion_type != TC_LINEAR || tc->motion_type != TC_LINEAR) {
-        v_max_alt = 0.0;
-    }
-
-    tp_debug_print("v_max_alt = %f\n", v_max_alt);
-    double v_max = fmax(v_max_alt, v_planar_max);
-
-    tp_debug_print("v_max = %f\n", v_max);
-    param->v_goal = fmin(param->v_goal, v_max);
-
-    tp_debug_print("v_goal = %f, max scale = %f\n", param->v_goal, maxFeedScale);
-
-    return res_dia;
+    param->v_max1 = prev_tc->maxvel;
+    param->v_max2 = tc->maxvel;
+    return 0;
 }
 
 /**
@@ -752,12 +769,14 @@ int blendParamKinematics(BlendGeom3 * const geom,
  * @param vel_bound maximum X, Y, Z machine velocity
  * @param maxFeedScale maximum allowed feed override (set in INI)
  */
-int blendInit3FromLineArc(BlendGeom3 * const geom, BlendParameters * const param,
-        TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc,
-        PmCartesian const * const acc_bound,
-        PmCartesian const * const vel_bound,
-        double maxFeedScale)
+int blendInit3FromLineArc(
+    BlendGeom3 * const geom,
+    BlendParameters * const param,
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    PmCartesian const * const acc_bound,
+    PmCartesian const * const vel_bound,
+    double maxFeedScale)
 {
 
     if (tc->motion_type != TC_CIRCULAR || prev_tc->motion_type != TC_LINEAR) {
@@ -828,23 +847,25 @@ int blendInit3FromLineArc(BlendGeom3 * const geom, BlendParameters * const param
     tp_debug_print("L1 = %f, L2 = %f\n", param->L1, param->L2);
 
     // Setup common parameters
+    int res_ini_vel = blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
+    blendInitTolerance(prev_tc, tc, param);
+
     int res_kin = blendParamKinematics(geom,
             param,
-            prev_tc,
-            tc,
             acc_bound,
-            vel_bound,
-            maxFeedScale);
+            vel_bound);
 
-    return res_kin;
+    return res_kin | res_ini_vel;
 }
 
-int blendInit3FromArcLine(BlendGeom3 * const geom, BlendParameters * const param,
-        TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc,
-        PmCartesian const * const acc_bound,
-        PmCartesian const * const vel_bound,
-        double maxFeedScale)
+int blendInit3FromArcLine(
+    BlendGeom3 * const geom,
+    BlendParameters * const param,
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    PmCartesian const * const acc_bound,
+    PmCartesian const * const vel_bound,
+    double maxFeedScale)
 {
 
     if (tc->motion_type != TC_LINEAR || prev_tc->motion_type != TC_CIRCULAR) {
@@ -912,16 +933,15 @@ int blendInit3FromArcLine(BlendGeom3 * const geom, BlendParameters * const param
     }
     tp_debug_print("L1 = %f, L2 = %f\n", param->L1, param->L2);
 
-    // Setup common parameters
+    int res_ini_vel = blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
+    blendInitTolerance(prev_tc, tc, param);
+
     int res_kin = blendParamKinematics(geom,
             param,
-            prev_tc,
-            tc,
             acc_bound,
-            vel_bound,
-            maxFeedScale);
+            vel_bound);
 
-    return res_kin;
+    return res_kin | res_ini_vel;
 }
 
 
@@ -1056,15 +1076,15 @@ int blendInit3FromArcArc(BlendGeom3 * const geom, BlendParameters * const param,
     tp_debug_print("phi2_max = %f\n",param->phi2_max);
 
     // Setup common parameters
+    int res_ini_vel = blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
+    blendInitTolerance(prev_tc, tc, param);
+
     int res_kin = blendParamKinematics(geom,
             param,
-            prev_tc,
-            tc,
             acc_bound,
-            vel_bound,
-            maxFeedScale);
+            vel_bound);
 
-    return res_kin;
+    return res_kin | res_ini_vel;
 }
 
 /**
@@ -1111,15 +1131,16 @@ int blendInit3FromLineLine(BlendGeom3 * const geom, BlendParameters * const para
     tp_debug_print("L1 = %f, L2 = %f\n", param->L1, param->L2);
 
     // Setup common parameters
+    int res_ini_vel = blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
+    blendInitTolerance(prev_tc, tc, param);
+
+    limitVMaxByAltitude(geom, param);
     int res_kin = blendParamKinematics(geom,
             param,
-            prev_tc,
-            tc,
             acc_bound,
-            vel_bound,
-            maxFeedScale);
+            vel_bound);
 
-    return res_kin;
+    return res_kin | res_ini_vel;
 }
 
 
