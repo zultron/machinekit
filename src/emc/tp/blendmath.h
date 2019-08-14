@@ -42,15 +42,6 @@ typedef struct {
 
 } BlendGeom3;
 
-/**
- * 9D Input geometry for a spherical blend arc.
- */
-#ifdef BLEND_9D
-typedef struct {
-//Not implemented yet
-} BlendGeom9;
-#endif 
-
 
 /**
  * Blend arc parameters (abstracted).
@@ -108,14 +99,6 @@ typedef struct {
     double trim1;               /* length (line) or angle (arc) to cut from prev_tc */
     double trim2;               /* length (line) or angle (arc) to cut from tc */
 } BlendPoints3;
-
-
-
-#ifdef BLEND_9D
-typedef struct {
-//Not implemented yet
-} BlendPoints9;
-#endif
 
 double findMaxTangentAngle(double v, double acc, double cycle_time);
 
