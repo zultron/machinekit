@@ -4,7 +4,7 @@
 int print_interp_error(Interp & interp, int retval, const char* src_file, int line)
 {
     int index = 0;
-    if (retval == 0) {
+    if (retval <= INTERP_MIN_ERROR) {
         return retval;
     }
 
@@ -26,7 +26,7 @@ int print_interp_error(Interp & interp, int retval, const char* src_file, int li
         if (line > 0) {
             fprintf(stderr,"%s:%d: from G-code: %s\n", src_file, line, interp._setup.blocktext);
         }
-        fprintf(stderr,"\n");
+        fprintf(stderr,"---\n");
     }
     return retval;
 }

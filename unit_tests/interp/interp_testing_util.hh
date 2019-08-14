@@ -53,6 +53,6 @@ int execute_lines_or_err(Interp &interp, const char* (&lines)[N] )
     pinterp = &test_interp; \
     setup_struct * const settings = &test_interp._setup; \
     test_interp.init(); \
-    settings->tool_table[0].toolno = 1
+    settings->tool_table[0].toolno = 1 \
 
 #endif // INTERP_TESTING_UTIL_HH
