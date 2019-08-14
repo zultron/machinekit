@@ -300,6 +300,27 @@ int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const ou
     return 0;
 }
 
+int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmCartesian * const out) {
+
+    switch (tc->motion_type) {
+        case TC_LINEAR:
+            *out = tc->coords.line.xyz.uVec;
+            break;
+        case TC_RIGIDTAP:
+            *out = tc->coords.rigidtap.xyz.uVec;
+            break;
+        case TC_CIRCULAR:
+            pmCircleTangentVector(&tc->coords.circle.xyz,
+                                  progress / tc->target * tc->coords.circle.xyz.angle,
+                                  out);
+            break;
+        default:
+            rtapi_print_msg(RTAPI_MSG_ERR, "Invalid motion type %d!\n",tc->motion_type);
+            return -1;
+    }
+    return 0;
+}
+
 /*! tcGetPos() function
  *
  * \brief This function calculates the machine position along the motion's path.

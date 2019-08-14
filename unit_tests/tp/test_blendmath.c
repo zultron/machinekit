@@ -667,6 +667,21 @@ TEST test_quadratic_formula_basic()
     PASS();
 }
 
+TEST test_find_blend_points_and_tangents()
+{
+    PASS();
+}
+
+TEST test_find_blend_intermediate_segments()
+{
+    PASS();
+}
+
+SUITE(biarc_optimization) {
+    RUN_TEST(test_find_blend_points_and_tangents);
+    RUN_TEST(test_find_blend_intermediate_segments);
+}
+
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();      /* command-line arguments, initialization. */
     RUN_SUITE(blendmath);
@@ -675,5 +690,6 @@ int main(int argc, char **argv) {
     RUN_SUITE(circle_funcs);
     RUN_SUITE(geom_funcs);
     RUN_TEST(test_quadratic_formula_basic);
+    RUN_SUITE(biarc_optimization);
     GREATEST_MAIN_END();        /* display results */
 }

@@ -21,6 +21,15 @@
 #include "tp_debug.h"
 #include "tp_enums.h"
 
+// Inspired by interp
+#define CHP(callee__) \
+do { \
+    tp_err_t res = (callee__); \
+    if (res != TP_ERR_OK) { \
+        return res; \
+    } \
+} while (0)
+
 static const double NEAR_INFINITY=1e300;
 
 /** @section utilityfuncs Utility functions */
@@ -714,7 +723,6 @@ int blendParamKinematics(BlendGeom3 * const geom,
             param->a_n_max);
 
     // Calculate the maximum planar velocity
-    //FIXME sloppy handling of return value
     res_dia |= findMaxValueOnPlane(&uv_plane_envelope_sq, vel_bound, &param->v_max_planar);
     tp_debug_print("v_planar_max = %f\n", param->v_max_planar);
 
@@ -2031,4 +2039,204 @@ double pseudo_sqrt(double x)
     const double b0 = -sqrt_c;
     const double b1 = 1;
     return (b1 * pmSqrt(x + PSEUDO_SQRT_EPSILON) + b0) / den;
+}
+
+double clamp(double upper, double lower, double margin, double value)
+{
+    double d = upper - lower;
+    double u = upper - d * margin;
+    double l = lower + d * margin;
+    return fmin(fmax(value, l), u);
+}
+
+tp_err_t find_blend_points_and_tangents(
+    double Rb,
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    blend_boundary_t * const out)
+{
+    double s1 = prev_tc->target - Rb;
+    double s2 = Rb;
+
+    //TODO check errs
+    EmcPose P1, P2;
+    tcGetPosReal(prev_tc, s1, &P1);
+    tcGetPosReal(tc, s2, &P2);
+
+    tcGetTangentUnitVector(prev_tc, s1, &out->u1);
+    tcGetTangentUnitVector(tc, s2, &out->u2);
+    out->P1 = P1.tran;
+    out->P2 = P2.tran;
+
+    return TP_ERR_OK;
+}
+
+tp_err_t find_blend_intermediate_segments(
+    blend_boundary_t const * const blend_params,
+    blend_intermediate_points_t * const bp_out)
+{
+    // A coefficient
+    PmCartesian du12;
+    pmCartCartAdd(&blend_params->u1, &blend_params->u2, &du12);
+    double A=0;
+    pmCartMagSq(&du12, &A);
+    A -= 4;
+
+    PmCartesian dP12;
+    pmCartCartSub(&blend_params->P1, &blend_params->P2, &dP12);
+    double B;
+    pmCartCartDot(&dP12, &du12, &B);
+    B *= 2.;
+
+    double C;
+
+    pmCartMagSq(&dP12, &C);
+
+    int res_qf = quadraticFormula(A, B, C, &bp_out->d, NULL);
+    if (res_qf || bp_out->d < 0) {
+        return -1;
+    }
+
+    pmCartScalMult(&blend_params->u1, bp_out->d, &bp_out->Pb1);
+    pmCartCartAddEq(&bp_out->Pb1, &blend_params->P1);
+
+    pmCartScalMult(&blend_params->u2, -bp_out->d, &bp_out->Pb2);
+    pmCartCartAddEq(&bp_out->Pb2, &blend_params->P2);
+
+    pmCartCartDirection(&bp_out->Pb2, &bp_out->Pb1, &bp_out->u_mid);
+    return TP_ERR_OK;
+}
+
+static inline double find_max_blend_length(TC_STRUCT const * const tc)
+{
+    double l_from_length = fmin(tc->target, tc->nominal_length);
+    if (tc->motion_type == TC_CIRCULAR) {
+        double phi_max = fmin(tc->coords.circle.xyz.angle * 2.0 / 3.0, PM_PI / 2.0);
+        return fmin(phi_max * tc->coords.circle.xyz.radius, l_from_length);
+    }
+    return l_from_length;
+}
+
+double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc)
+{
+
+    double l_prev = find_max_blend_length(prev_tc);
+    double l_this = find_max_blend_length(tc);
+    return fmin(l_prev, l_this);
+}
+
+tp_err_t find_blend_size_from_intermediates(
+    blend_boundary_t const * const blend_boundary,
+    blend_intermediate_points_t const * const intermediates,
+    BlendParameters * const param)
+{
+    // KLUDGE assume d is correct (will check exact length later)
+    findIntersectionAngle(&blend_boundary->u1, &intermediates->u_mid, &param->theta);
+
+    // TODO optimize out the tangent calculation if necessary
+    // Find radius from the limiting length (assume length is actually symmetrical
+    double R_geom = tan(param->theta) * intermediates->d;
+
+    // Find maximum velocity allowed by accel and radius
+    // KLUDGE ignore all the typical restrictions because we want to match
+    // the planned blend size as closely as possible to the requested max vel.
+    param->v_plan = pmSqrt(param->a_n_max * R_geom);
+
+    return TP_ERR_OK;
+}
+
+double guess_blend_region_size(double Rb, double *Rb_max, double *Rb_min, double v_goal, double v_plan_last)
+{
+    // Bisection method with faster refinement
+    double Rb_guess = pmSq(v_goal) / pmSq(v_plan_last) * Rb;
+
+    Rb_guess = clamp(*Rb_max, *Rb_min, 0.25, Rb_guess);
+
+    if (v_plan_last < v_goal) {
+        *Rb_min = fmax(Rb, *Rb_min);
+    } else {
+        *Rb_max = fmin(Rb, *Rb_max);
+    }
+    return Rb_guess;
+}
+
+/**
+ * Find the optimal Rb to get the smallest blend that can meet the feed rate requirements.
+ * Choose initial Rb = Rb_max
+ * Find blend start / end points and tangent vectors, within Rb of intersection P with procedure find_blend_points_and_tangents
+ * Find blend segment lengths d, L and intermediate points with procedure find_blend_intermediate_segments
+ * Calculate blend kinematics for the two blends.
+ * Find blend radii and arc lengths given P1, P2, Pb1, Pb2
+ * Compute max velocity on blend arcs from geometry
+ * Check blend performance:
+ * Verify distance from blend midpoint to original intersection P < tolerance
+ * Check if requested velocity is reached (if not, need bigger arc)
+ * Check if blend radii are larger than they need to be (e.g. worst-case normal acceleration < a_t_max)
+ * Refine solution as necessary:
+ * Guess a new Rb based on heuristic function of Rb, Rb_max, v_plan with procedure guess_blend_region_size
+ * Stop after N iterations or until Rb converges
+ */
+tp_err_t optimize_biarc_blend_size(
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    blend_boundary_t * const bb_out,
+    blend_intermediate_points_t * const bp_out,
+    double maxFeedScale,
+    PmCartesian const * const vel_bound,
+    PmCartesian const * const acc_bound,
+    BlendGeom3 * const geom,
+    BlendParameters * const param)
+{
+    if (!prev_tc || !tc || !bp_out) {
+        return TP_ERR_MISSING_INPUT;
+    }
+
+    // Initial solver values for Rb range using somewhat dumb (but cheap) values
+    double Rb_max = find_max_blend_region(prev_tc, tc);
+    double Rb_min = 0;
+    // KLUDGE just do average as first guess since we don't know anything about performance yet
+    double Rb = (Rb_max + Rb_min) / 2.0;
+    static const double solver_vel_ratio_tol = 0.01; // 1% is pretty good
+    static const double solver_radius_tol = 0.001; // Just need rough convergence here
+    static const unsigned MAX_ITERATIONS = 50;
+
+
+    blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
+    blendInitTolerance(prev_tc, tc, param);
+
+    for (unsigned iter = 0; iter < MAX_ITERATIONS; ++iter)
+    {
+        // Find blend start / end points and tangent vectors, within Rb of intersection P with procedure find_blend_points_and_tangents
+        find_blend_points_and_tangents(Rb, prev_tc, tc, bb_out);
+        // Find blend segment lengths d, L and intermediate points with procedure find_blend_intermediate_segments
+        find_blend_intermediate_segments(bb_out, bp_out);
+
+        geom->u_tan1 = bb_out->u1;
+        geom->u_tan2 = bp_out->u_mid;
+        param->L1 = bp_out->d;
+        param->L2 = bp_out->d;
+
+        CHP(blendParamKinematics(
+            geom,
+            param,
+            acc_bound,
+            vel_bound));
+
+        CHP(find_blend_size_from_intermediates(
+            bb_out,
+            bp_out,
+            param));
+
+        Rb = guess_blend_region_size(Rb, &Rb_max, &Rb_min, param->v_goal, param->v_plan);
+        // Check blend performance:
+        // Verify distance from blend midpoint to original intersection P < tolerance
+        // Check if requested velocity is reached (if not, need bigger arc)
+        // Check if blend radii are larger than they need to be (e.g. worst-case normal acceleration < a_t_max)
+        // Refine solution as necessary:
+        // Guess a new Rb based on heuristic function of Rb, Rb_max, v_plan with procedure guess_blend_region_size
+        if (Rb_max - Rb_min < solver_radius_tol || fabs((param->v_plan + TP_POS_EPSILON) / (param->v_goal + TP_POS_EPSILON)) < solver_vel_ratio_tol ) {
+            return TP_ERR_OK;
+        }
+    }
+    return TP_ERR_FAIL;
 }

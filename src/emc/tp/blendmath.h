@@ -15,6 +15,7 @@
 
 #include "posemath.h"
 #include "tc_types.h"
+#include "tp_enums.h"
 
 #define BLEND_ACC_RATIO_TANGENTIAL 0.5
 #define BLEND_ACC_RATIO_NORMAL (pmSqrt(1.0 - pmSq(BLEND_ACC_RATIO_TANGENTIAL)))
@@ -284,4 +285,50 @@ EndCondition checkEndCondition(double cycleTime,
 
 #define PSEUDO_SQRT_EPSILON 0.001
 double pseudo_sqrt(double x);
+
+typedef struct
+{
+    PmCartesian P1;
+    PmCartesian u1;
+    PmCartesian P2;
+    PmCartesian u2;
+} blend_boundary_t;
+
+typedef struct
+{
+    PmCartesian Pb1;
+    PmCartesian Pb2;
+    PmCartesian u_mid;
+    double d; // Note: length of intermediate segment is 2d
+} blend_intermediate_points_t;
+
+// API for biarc blends
+tp_err_t find_blend_points_and_tangents(
+    double Rb,
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    blend_boundary_t * const out);
+
+tp_err_t find_blend_intermediate_segments(
+    blend_boundary_t const * const blend_params,
+    blend_intermediate_points_t * const bp_out);
+
+double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc);
+
+tp_err_t find_blend_size_from_intermediates(
+    blend_boundary_t const * const blend_boundary,
+    blend_intermediate_points_t const * const intermediates,
+    BlendParameters * const param);
+
+double guess_blend_region_size(double Rb, double *Rb_max, double *Rb_min, double v_goal, double v_plan_last);
+
+tp_err_t optimize_biarc_blend_size(TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc, blend_boundary_t * const bb_out,
+    blend_intermediate_points_t * const bp_out,
+    double maxFeedScale,
+    PmCartesian const * const vel_bound,
+    PmCartesian const * const acc_bound,
+    BlendGeom3 * const geom,
+    BlendParameters * const param);
+
 #endif

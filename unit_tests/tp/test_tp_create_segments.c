@@ -188,6 +188,150 @@ TEST test_slightly_convex_arcs() {
     PASS();
 }
 
+TEST test_find_blend_points_and_tangents()
+{
+    // Create arc segments
+    CREATE_MOCK_TP();
+    tpSetTermCond(tp, TC_TERM_COND_STOP, 0.0);
+
+    // Unit radius to make angle -> arc length conversion easy
+    EmcPose const pt0 = {0};
+    EmcPose const pt1 = newXYZ(2,0,0,pt0);
+    EmcPose const pt2 = newXYZ(2,2,0,pt1);
+
+    PmCartesian center1 = {1, 0, 0};
+    PmCartesian center2 = {2, 1, 0};
+    PmCartesian const normal1 = {0,1,0};
+    PmCartesian const normal2 = {0,0,1};
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddCircle(tp, pt1, center1, normal1, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 15.0, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 15.0, 0, 0, 0, line_tag(2));
+
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EQ(2, tcqLen(&tp->queue));
+
+    TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
+    TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
+    ASSERT(prev_tc);
+    ASSERT(this_tc);
+
+    blend_boundary_t bb = {0};
+    double const s_b = M_PI / 6;
+
+    find_blend_points_and_tangents(s_b, prev_tc, this_tc, &bb);
+
+    // Verify that the positions and tangents make sense
+    PmCartesian const exp_P1 = {1. + cos(s_b), 0, sin(s_b)};
+    ASSERT_PMCARTESIAN_IN_RANGE(exp_P1, bb.P1, CART_FUZZ);
+    PmCartesian const exp_P2 = {2. + sin(s_b), 1-cos(s_b), 0};
+    ASSERT_PMCARTESIAN_IN_RANGE(exp_P2, bb.P2, CART_FUZZ);
+
+    PmCartesian const exp_u1 = {sin(s_b), 0, -cos(s_b)};
+    ASSERT_PMCARTESIAN_IN_RANGE(exp_u1, bb.u1, CART_FUZZ);
+    PmCartesian const exp_u2 = {cos(s_b), sin(s_b), 0};
+    ASSERT_PMCARTESIAN_IN_RANGE(exp_u2, bb.u2, CART_FUZZ);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+TEST test_find_blend_intermediates()
+{
+    // Create arc segments
+    CREATE_MOCK_TP();
+    tpSetTermCond(tp, TC_TERM_COND_STOP, 0.0);
+
+    // Unit radius to make angle -> arc length conversion easy
+    EmcPose const pt0 = {0};
+    EmcPose const pt1 = newXYZ(2,0,0,pt0);
+    EmcPose const pt2 = newXYZ(4,0,0,pt1);
+
+    PmCartesian center1 = {1, 0, 0};
+    PmCartesian center2 = {3, 0, 0};
+    PmCartesian const normal1 = {0,0,1};
+    PmCartesian const normal2 = {0,0,1};
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddCircle(tp, pt1, center1, normal1, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 15.0, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 15.0, 0, 0, 0, line_tag(2));
+
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EQ(2, tcqLen(&tp->queue));
+
+    TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
+    TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
+    ASSERT(prev_tc);
+    ASSERT(this_tc);
+
+    blend_boundary_t bb = {0};
+    double const s_b = M_PI / 4;
+
+    find_blend_points_and_tangents(s_b, prev_tc, this_tc, &bb);
+
+    blend_intermediate_points_t bp_out;
+    find_blend_intermediate_segments(&bb, &bp_out);
+
+    PmCartesian exp_u_mid = {1,0,0};
+    ASSERT_PMCARTESIAN_IN_RANGE(exp_u_mid, bp_out.u_mid, CART_FUZZ);
+    ASSERT_IN_RANGE(0.17157287525380996, bp_out.d, TP_POS_EPSILON);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+TEST test_optimize_biarc_blend_size()
+{
+    // Create arc segments
+    CREATE_MOCK_TP();
+    tpSetTermCond(tp, TC_TERM_COND_STOP, 0.0);
+
+    // Unit radius to make angle -> arc length conversion easy
+    EmcPose const pt0 = {0};
+    EmcPose const pt1 = newXYZ(2,0,0,pt0);
+    EmcPose const pt2 = newXYZ(4,0,0,pt1);
+
+    PmCartesian center1 = {1, 0, 0};
+    PmCartesian center2 = {3, 0, 0};
+    PmCartesian const normal1 = {0,0,1};
+    PmCartesian const normal2 = {0,0,1};
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddCircle(tp, pt1, center1, normal1, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 15.0, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 15.0, 0, 0, 0, line_tag(2));
+
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EQ(2, tcqLen(&tp->queue));
+
+    TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
+    TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
+    ASSERT(prev_tc);
+    ASSERT(this_tc);
+
+    PmCartesian vel_bound = getXYZVelBounds();
+    PmCartesian acc_bound = getXYZAccelBounds();
+
+    blend_boundary_t bb = {0};
+    blend_intermediate_points_t bp = {0};
+    BlendGeom3 geom = {0};
+    BlendParameters param = {0};
+    optimize_biarc_blend_size(
+        prev_tc,
+        this_tc,
+        &bb,
+        &bp,
+        1.0,
+        &vel_bound,
+        &acc_bound,
+        &geom,
+        &param);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+
+
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();      /* command-line arguments, initialization. */
     RUN_TEST(test_mock_tp_init);
@@ -196,5 +340,8 @@ int main(int argc, char **argv) {
     RUN_TEST(test_create_two_blended_lines);
     RUN_TEST(test_create_tangent_arcs);
     RUN_TEST(test_slightly_convex_arcs);
+    RUN_TEST(test_find_blend_points_and_tangents);
+    RUN_TEST(test_find_blend_intermediates);
+    RUN_TEST(test_optimize_biarc_blend_size);
     GREATEST_MAIN_END();        /* display results */
 }
