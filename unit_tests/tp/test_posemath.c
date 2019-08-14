@@ -525,6 +525,20 @@ TEST test_pmCartLinePoint()
     PASS();
 }
 
+static enum greatest_test_res check_pmCartCartOrthonormal_valid(PmCartesian u, PmCartesian v)
+{
+    double m1;
+    pmCartMagSq(&u, &m1);
+    ASSERT_IN_RANGE(1.0, m1, CART_FUZZ);
+    double m2;
+    pmCartMagSq(&v, &m2);
+    ASSERT_IN_RANGE(1.0, m2, CART_FUZZ);
+    double d;
+    pmCartCartDot(&u, &v, &d);
+    ASSERT_IN_RANGE(0, d, CART_FUZZ);
+    PASS();
+}
+
 TEST test_pmCartCartOrthonormal()
 {
     PmCartesian a = {1,1,0};
@@ -542,6 +556,7 @@ TEST test_pmCartCartOrthonormal()
     ASSERT_PMCARTESIAN_IN_RANGE(u_exp, u, 1e-6);
     PmCartesian v_exp = {0,1,0};
     ASSERT_PMCARTESIAN_IN_RANGE(v_exp, v, 1e-6);
+    CHECK_CALL(check_pmCartCartOrthonormal_valid(u, v));
     PASS();
 }
 

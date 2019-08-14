@@ -53,7 +53,7 @@ TEST test_findAccelScale()
     PASS();
 }
 
-TEST test_findMaxValueOnPlane()
+TEST test_findMaxValueOnPlane_basic()
 {
     PmCartesian const bounds_easy = {10.0, 10.0, 10.0};
     PmCartesian const l1 = {1,0,0};
@@ -69,6 +69,47 @@ TEST test_findMaxValueOnPlane()
     findMaxValueOnPlane(&uv_harmonic_sq, &bounds_easy, &b_max);
 
     ASSERT_FLOAT_EQ(10.0, b_max);
+    PASS();
+}
+
+TEST test_findMaxValueOnPlane_missing_y()
+{
+    PmCartesian const bounds_easy = {10.0, 0.0, 20.0};
+    PmCartesian const l1 = {1,0,3};
+    PmCartesian const l2 = {-1,0,-5};
+
+    PmCartesian u1, u2, u, v, uv_harmonic_sq;
+    pmCartUnit(&l1, &u1);
+    pmCartUnit(&l2, &u2);
+    pmCartCartOrthonormal(&u1, &u2, &u, &v);
+    pmCartCartHarmonicAddSq(&u, &v, &uv_harmonic_sq);
+
+    double b_max;
+    findMaxValueOnPlane(&uv_harmonic_sq, &bounds_easy, &b_max);
+
+    ASSERT_IN_RANGE(10.0, b_max, TP_POS_EPSILON);
+    PASS();
+}
+
+TEST test_findMaxValueOnPlane_tilted()
+{
+    PmCartesian const bounds_easy = {10.0, 10.0, 10.0};
+    PmCartesian const l1 = {1,1,1};
+    PmCartesian const l_ref = {1,1,0};
+    PmCartesian l2;
+    pmCartCartCross(&l1, &l_ref, &l2);
+
+    PmCartesian u1, u2, u, v, uv_harmonic_sq;
+    pmCartUnit(&l1, &u1);
+    pmCartUnit(&l2, &u2);
+    pmCartCartOrthonormal(&u1, &u2, &u, &v);
+    pmCartCartHarmonicAddSq(&u, &v, &uv_harmonic_sq);
+
+
+    double b_max;
+    findMaxValueOnPlane(&uv_harmonic_sq, &bounds_easy, &b_max);
+
+    ASSERT_IN_RANGE(10.954451150103, b_max, TP_POS_EPSILON);
     PASS();
 }
 
@@ -120,7 +161,9 @@ SUITE(blendmath) {
     RUN_TEST(test_findMaxTangentAngle);
     RUN_TEST(test_findKinkAccel);
     RUN_TEST(test_findAccelScale);
-    RUN_TEST(test_findMaxValueOnPlane);
+    RUN_TEST(test_findMaxValueOnPlane_basic);
+    RUN_TEST(test_findMaxValueOnPlane_missing_y);
+    RUN_TEST(test_findMaxValueOnPlane_tilted);
     RUN_TEST(pmCartCartParallel_numerical);
     RUN_TEST(pmCartCartAntiParallel_numerical);
 }
