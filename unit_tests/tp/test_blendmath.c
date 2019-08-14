@@ -7,6 +7,7 @@
 #include "joint_util.h"
 #include "motion_debug.h"
 #include "tc.h"
+#include "greatest_compare.h"
 
 /* Expand to all the definitions that need to be in
    the test runner's main file. */
@@ -569,7 +570,7 @@ TEST test_pmCircle9Init()
     PmCartesian normal = {0, 0, 1};
 
     ASSERT_FALSE(pmCircle9Init(&c, &start, &end, &center, &normal, 0));
-    ASSERT_PMCARTESIAN_IN_RANGE(c.xyz.center, center, V_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(c.xyz.center, center, CART_FUZZ);
     ASSERT_FLOAT_EQ(c.xyz.radius, 1.0);
     ASSERT_IN_RANGE(c.xyz.spiral, 0.0, TP_POS_EPSILON);
 

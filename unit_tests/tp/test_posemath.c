@@ -3,14 +3,13 @@
 #include "rtapi.h"
 #include "math.h"
 #include "motion_debug.h"
+#include "greatest_compare.h"
 
 /* Expand to all the definitions that need to be in
    the test runner's main file. */
 GREATEST_MAIN_DEFS();
 
 #include "mock_rtapi.inc"
-
-#define ASSERT_PMCARTESIAN_EQ(EXP, GOT) ASSERT_PMCARTESIAN_IN_RANGE(EXP, GOT, V_FUZZ)
 
 TEST test_pmCartCartCompare_self()
 {
@@ -121,23 +120,23 @@ TEST test_PmCartesian_arithmetic()
 
     PmCartesian pmsum;
     ASSERT_EQ(PM_OK, pmCartCartAdd(&v1, &v2, &pmsum));
-    ASSERT_PMCARTESIAN_EQ(sum, pmsum);
+    ASSERT_PMCARTESIAN_IN_RANGE(sum, pmsum, CART_FUZZ);
 
     PmCartesian pm_diff;
     ASSERT_EQ(PM_OK, pmCartCartSub(&v2, &v1, &pm_diff));
-    ASSERT_PMCARTESIAN_EQ(diff, pm_diff);
+    ASSERT_PMCARTESIAN_IN_RANGE(diff, pm_diff, CART_FUZZ);
 
     PmCartesian pm_mult_k;
     ASSERT_EQ(PM_OK, pmCartScalMult(&v1, k, &pm_mult_k));
-    ASSERT_PMCARTESIAN_EQ(v1_mult_k, pm_mult_k);
+    ASSERT_PMCARTESIAN_IN_RANGE(v1_mult_k, pm_mult_k, CART_FUZZ);
 
     PmCartesian pm_div_k;
     ASSERT_EQ(PM_OK, pmCartScalDiv(&v1, k, &pm_div_k));
-    ASSERT_PMCARTESIAN_EQ(v1_div_k, pm_div_k);
+    ASSERT_PMCARTESIAN_IN_RANGE(v1_div_k, pm_div_k, CART_FUZZ);
 
     PmCartesian pm_neg;
     ASSERT_EQ(PM_OK, pmCartNeg(&v1, &pm_neg));
-    ASSERT_PMCARTESIAN_EQ(v1_neg, pm_neg);
+    ASSERT_PMCARTESIAN_IN_RANGE(v1_neg, pm_neg, CART_FUZZ);
 
     double pm_dot=0.0;
     pmCartCartDot(&v1, &v2, &pm_dot);
@@ -145,15 +144,15 @@ TEST test_PmCartesian_arithmetic()
 
     PmCartesian pm_cross;
     pmCartCartCross(&v1, &v2, &pm_cross);
-    ASSERT_PMCARTESIAN_EQ(pm_cross, cross);
+    ASSERT_PMCARTESIAN_IN_RANGE(pm_cross, cross, CART_FUZZ);
 
     PmCartesian pm_elem_mult;
     pmCartCartMult(&v1, &v2, &pm_elem_mult);
-    ASSERT_PMCARTESIAN_EQ(pm_elem_mult, elem_mult);
+    ASSERT_PMCARTESIAN_IN_RANGE(pm_elem_mult, elem_mult, CART_FUZZ);
 
     PmCartesian pm_elem_div;
     pmCartCartDiv(&v1, &v2, &pm_elem_div);
-    ASSERT_PMCARTESIAN_EQ(pm_elem_div, elem_div);
+    ASSERT_PMCARTESIAN_IN_RANGE(pm_elem_div, elem_div, CART_FUZZ);
 
     PASS();
 }
@@ -181,7 +180,7 @@ TEST test_pmCartUnit()
     // Show that the self-modifying version is the same output
     PmCartesian ueq = v1;
     ASSERT_FALSE(pmCartUnitEq(&ueq));
-    ASSERT_PMCARTESIAN_EQ(ueq, pm_u1);
+    ASSERT_PMCARTESIAN_IN_RANGE(ueq, pm_u1, CART_FUZZ);
     PASS();
 }
 
@@ -296,7 +295,7 @@ TEST test_pmCircleInit_helix()
     PmCartesian const expect_rHelix = {0,0,0.4};
 
     ASSERT_IN_RANGE(2.0 * M_PI, c.angle, CART_FUZZ);
-    ASSERT_PMCARTESIAN_EQ(expect_rHelix, c.rHelix);
+    ASSERT_PMCARTESIAN_IN_RANGE(expect_rHelix, c.rHelix, CART_FUZZ);
     const double expect_radius = 1.0;
 
     // Radius should be constant for an ideal helix
@@ -334,17 +333,17 @@ TEST test_pmCirclePoint_helix_spiral()
         PmCartesian p0 = {0};
         pmCirclePoint(&c, 0.0, &p0);
         PmCartesian expect_p0 = {2.0, 2.0, 3.0};
-        ASSERT_PMCARTESIAN_EQ(expect_p0, p0);
+        ASSERT_PMCARTESIAN_IN_RANGE(expect_p0, p0, CART_FUZZ);
     }{
         PmCartesian p1 = {0};
         pmCirclePoint(&c, M_PI_2, &p1);
         PmCartesian expect_p1 = {1.0, 2.0 + 1.0 + 0.2/3, 3 + 0.4/3};
-        ASSERT_PMCARTESIAN_EQ(expect_p1, p1);
+        ASSERT_PMCARTESIAN_IN_RANGE(expect_p1, p1, CART_FUZZ);
     }{
         PmCartesian p2 = {0};
         pmCirclePoint(&c, M_PI, &p2);
         PmCartesian expect_p2 = {1.0-1.0-0.2*2./3, 2.0, 3 + 0.4*2.0/3};
-        ASSERT_PMCARTESIAN_EQ(expect_p2, p2);
+        ASSERT_PMCARTESIAN_IN_RANGE(expect_p2, p2, CART_FUZZ);
     }
 
     PASS();
@@ -375,7 +374,7 @@ TEST test_pmCircleStretch()
     PmCartesian sample_end_stretch;
     pmCirclePoint(&c, M_PI / 8.0, &sample_end_stretch);
 
-    ASSERT_PMCARTESIAN_EQ(sample_before, sample_end_stretch);
+    ASSERT_PMCARTESIAN_IN_RANGE(sample_before, sample_end_stretch, CART_FUZZ);
 
     // Stretch to extend past the starting point
     pmCircleStretch(&c, M_PI * 5.0/4.0, 1);
@@ -383,7 +382,7 @@ TEST test_pmCircleStretch()
     PmCartesian sample_start_stretch;
     pmCirclePoint(&c, M_PI / 8.0 + M_PI_4, &sample_start_stretch);
 
-    ASSERT_PMCARTESIAN_EQ(sample_before, sample_start_stretch);
+    ASSERT_PMCARTESIAN_IN_RANGE(sample_before, sample_start_stretch, CART_FUZZ);
     PASS();
 }
 
@@ -406,8 +405,8 @@ TEST test_pmCartLineInit_simple()
     pmCartLineInit(&tst, &start, &end);
 
     ASSERT_FLOAT_EQ(tst.tmag, sqrt(1 + 4 + 9));
-    ASSERT_PMCARTESIAN_EQ(start, tst.start);
-    ASSERT_PMCARTESIAN_EQ(end, tst.end);
+    ASSERT_PMCARTESIAN_IN_RANGE(start, tst.start, CART_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(end, tst.end, CART_FUZZ);
     PASS();
 }
 
@@ -428,8 +427,8 @@ TEST test_pmCartLineInit_ex1()
     pmCartLineInit(&tst, &start, &end);
 
     ASSERT_FLOAT_EQ(tst.tmag, mag);
-    ASSERT_PMCARTESIAN_EQ(start, tst.start);
-    ASSERT_PMCARTESIAN_EQ(end, tst.end);
+    ASSERT_PMCARTESIAN_IN_RANGE(start, tst.start, CART_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(end, tst.end, CART_FUZZ);
     PASS();
 }
 
@@ -450,8 +449,8 @@ TEST test_pmCartLineInit_ex2()
     pmCartLineInit(&tst, &start, &end);
 
     ASSERT_FLOAT_EQ(tst.tmag, mag);
-    ASSERT_PMCARTESIAN_EQ(start, tst.start);
-    ASSERT_PMCARTESIAN_EQ(end, tst.end);
+    ASSERT_PMCARTESIAN_IN_RANGE(start, tst.start, CART_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(end, tst.end, CART_FUZZ);
     PASS();
 }
 
@@ -474,8 +473,8 @@ TEST test_pmCartLineInit_small_belowfuzz()
     // Store the actual magnitude
     ASSERT_FLOAT_EQ(tst.tmag, mag);
     ASSERT(tst.tmag_zero > 0);
-    ASSERT_PMCARTESIAN_EQ(start, tst.start);
-    ASSERT_PMCARTESIAN_EQ(end, tst.end);
+    ASSERT_PMCARTESIAN_IN_RANGE(start, tst.start, CART_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(end, tst.end, CART_FUZZ);
     PASS();
 }
 
@@ -495,8 +494,8 @@ TEST test_pmCartLineInit_small_abovefuzz()
 
     ASSERT(tst.tmag > 0.0);
     ASSERT(tst.tmag_zero == 0);
-    ASSERT_PMCARTESIAN_EQ(start, tst.start);
-    ASSERT_PMCARTESIAN_EQ(end, tst.end);
+    ASSERT_PMCARTESIAN_IN_RANGE(start, tst.start, CART_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(end, tst.end, CART_FUZZ);
     PASS();
 }
 
@@ -520,8 +519,8 @@ TEST test_pmCartLinePoint()
 
     ASSERT(tst.tmag > 0.0);
     ASSERT(tst.tmag_zero == 0);
-    ASSERT_PMCARTESIAN_EQ(start, tst.start);
-    ASSERT_PMCARTESIAN_EQ(end, tst.end);
+    ASSERT_PMCARTESIAN_IN_RANGE(start, tst.start, CART_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(end, tst.end, CART_FUZZ);
     PASS();
 }
 
@@ -553,9 +552,9 @@ TEST test_pmCartCartOrthonormal()
     pmCartCartOrthonormal(&a_hat, &b_hat, &u, &v);
 
     PmCartesian u_exp = {1,0,0};
-    ASSERT_PMCARTESIAN_IN_RANGE(u_exp, u, 1e-6);
+    ASSERT_PMCARTESIAN_IN_RANGE(u_exp, u, CART_FUZZ);
     PmCartesian v_exp = {0,1,0};
-    ASSERT_PMCARTESIAN_IN_RANGE(v_exp, v, 1e-6);
+    ASSERT_PMCARTESIAN_IN_RANGE(v_exp, v, CART_FUZZ);
     CHECK_CALL(check_pmCartCartOrthonormal_valid(u, v));
     PASS();
 }

@@ -11,13 +11,13 @@
 #include "mock_standalone_tp.h"
 #include "state_tag.h"
 #include "mot_priv.h"
+#include "greatest_compare.h"
 
 /* Expand to all the definitions that need to be in
    the test runner's main file. */
 GREATEST_MAIN_DEFS();
 
 #include "mock_rtapi.inc"
-#include "greatest_util.inc"
 EmcPose newXYZ(double x, double y, double z, EmcPose last)
 {
     EmcPose out = last;
@@ -134,8 +134,8 @@ TEST test_create_tangent_arcs() {
     PmCartesian normal = {0,0,-1};
 
     // Ask for impossibly high velocity to force the arc to maximum size
-    tpAddCircle(tp, pt1, center1, normal, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, 0, line_tag(1));
-    tpAddCircle(tp, pt2, center2, normal, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt1, center1, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt2, center2, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(2));
 
     ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
     ASSERT_EQ(2, tcqLen(&tp->queue));
@@ -149,10 +149,10 @@ TEST test_create_tangent_arcs() {
     PmCartesian const exp_tan_vec = {1,0,0};
     PmCartesian got_prev_tan;
     tcGetEndTangentUnitVector(prev_tc, &got_prev_tan);
-    ASSERT_PMCARTESIAN_IN_RANGE(exp_tan_vec, got_prev_tan, TP_POS_EPSILON);
+    ASSERT_PMCARTESIAN_IN_RANGE(exp_tan_vec, got_prev_tan, CART_FUZZ);
     PmCartesian got_this_tan;
     tcGetStartTangentUnitVector(this_tc, &got_this_tan);
-    ASSERT_PMCARTESIAN_IN_RANGE(exp_tan_vec, got_this_tan, TP_POS_EPSILON);
+    ASSERT_PMCARTESIAN_IN_RANGE(exp_tan_vec, got_this_tan, CART_FUZZ);
 
     deleteMockTP(&tp);
     PASS();
@@ -172,8 +172,8 @@ TEST test_slightly_convex_arcs() {
     PmCartesian const normal = {0,0,-1};
 
     // Ask for impossibly high velocity to force the arc to maximum size
-    tpAddCircle(tp, pt1, center1, normal, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, 0, line_tag(1));
-    tpAddCircle(tp, pt2, center2, normal, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt1, center1, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt2, center2, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(2));
 
     ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
     ASSERT_EQ(3, tcqLen(&tp->queue));
@@ -187,7 +187,6 @@ TEST test_slightly_convex_arcs() {
     deleteMockTP(&tp);
     PASS();
 }
-
 
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();      /* command-line arguments, initialization. */
