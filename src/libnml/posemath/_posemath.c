@@ -1090,6 +1090,29 @@ int pmCartCartOrthonormal(
     return 0;
 }
 
+/**
+ * Performs "harmonic" addition elementwise on the vector and returns the square of the result.
+ * out(i) = arg_max(cos(theta_i) * a(i) + sin(theta_i) * b(i))
+ *
+ * According to the harmonic addition theorem, this is equivalent to
+ * out(i) = arg_max(c(i) * cos(theta_i + d_i)), where d_i is a phase angle, and c(i)^2 = a(i)^2+b(i)^2
+ *
+ * Therfore, the square of the harmonic addition out(i)^2 = a(i)^2 + b(i)^2.
+ *
+ * Returning the square term saves 3 square root operations (which can sometimes be avoided depending on the final calculation).
+ */
+int pmCartCartHarmonicAddSq(
+    PmCartesian const * const a,
+    PmCartesian const * const b,
+    PmCartesian * const out)
+{
+    out->x = pmSq(a->x) + pmSq(b->x);
+    out->y = pmSq(a->y) + pmSq(b->y);
+    out->z = pmSq(a->z) + pmSq(b->z);
+    return 0;
+}
+
+
 /* angle-axis functions */
 
 int pmQuatAxisAngleMult(PmQuaternion const * const q, PmAxis axis, double angle,

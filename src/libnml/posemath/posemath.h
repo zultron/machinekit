@@ -894,6 +894,10 @@ extern "C" {
         PmCartesian const * const b,
         PmCartesian * const u,
         PmCartesian * const v);
+    extern int pmCartCartHarmonicAddSq(
+        PmCartesian const * const a,
+        PmCartesian const * const b,
+        PmCartesian * const out);
 
 /* rotation functions */
 
