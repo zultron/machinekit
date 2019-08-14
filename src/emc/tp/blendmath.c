@@ -21,6 +21,8 @@
 #include "tp_debug.h"
 #include "tp_enums.h"
 
+static const double NEAR_INFINITY=1e300;
+
 /** @section utilityfuncs Utility functions */
 
 /**
@@ -521,6 +523,43 @@ int findAccelScale(PmCartesian const * const acc,
     return TP_ERR_OK;
 }
 
+// KLUDGE this is a messy workaround for named fields in PmCartesian
+static inline void minBoundRatioIfNonzero(double s, double b, double *m2)
+{
+    if (s > 0.0 && b > 0.0) {
+        //Have to square b here since the scale is also squared
+        *m2 = fmin(*m2, pmSq(b) / s);
+    }
+}
+
+/**
+ * Finds the maximum allowed value of the bounded quantity on the given plane.
+ *
+ * @param plane_envelope_sq is the square of the maximal value of the ith component of a unit
+ * vector rotated through the plane. This basically specifies the largest
+ * possible contribution of each axis to a direction in the plane. We use squared values here
+ * because they are easier to compute, and require only one square root at the end.
+ * @param bounds Specifies the per-axis maximum value (e.g. acceleration, velocity)
+ * @param max_planar_value maximum length of a vector in the plane that is always within limits
+ * @return -1 on error, 0 if completed successfully
+ */
+int findMaxValueOnPlane(PmCartesian const * plane_envelope_sq,
+        PmCartesian const * bounds,
+        double * max_planar_value)
+{
+    if (!plane_envelope_sq || !bounds || !max_planar_value) {
+        return -1;
+    }
+    double m2 = NEAR_INFINITY;
+
+    minBoundRatioIfNonzero(plane_envelope_sq->x, bounds->x, &m2);
+    minBoundRatioIfNonzero(plane_envelope_sq->y, bounds->y, &m2);
+    minBoundRatioIfNonzero(plane_envelope_sq->z, bounds->z, &m2);
+
+    // One square root at the end to get the actual max accel
+    *max_planar_value = pmSqrt(m2);
+    return 0;
+}
 
 
 
@@ -628,8 +667,11 @@ int blendParamKinematics(BlendGeom3 * const geom,
     double nominal_tolerance;
     tcFindBlendTolerance(prev_tc, tc, &param->tolerance, &nominal_tolerance);
 
-    // Calculate max acceleration based on plane containing lines
-    int res_dia = calculateInscribedRadius(&geom->binormal, acc_bound, &param->a_max);
+    PmCartesian u, v, uv_plane_envelope_sq;
+    pmCartCartOrthonormal(&geom->u_tan1, &geom->u_tan2, &u, &v);
+    pmCartCartHarmonicAddSq(&u, &v, &uv_plane_envelope_sq);
+
+    int res_dia = findMaxValueOnPlane(&uv_plane_envelope_sq, acc_bound, &param->a_max);
 
     // Store max normal acceleration
     param->a_n_max = param->a_max * BLEND_ACC_RATIO_NORMAL;
@@ -649,7 +691,7 @@ int blendParamKinematics(BlendGeom3 * const geom,
     // Calculate the maximum planar velocity
     double v_planar_max;
     //FIXME sloppy handling of return value
-    res_dia |= calculateInscribedRadius(&geom->binormal, vel_bound, &v_planar_max);
+    res_dia |= findMaxValueOnPlane(&uv_plane_envelope_sq, vel_bound, &v_planar_max);
     tp_debug_print("v_planar_max = %f\n", v_planar_max);
 
     // Clip the angle at a reasonable value (less than 90 deg), to prevent div by zero

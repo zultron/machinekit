@@ -142,6 +142,10 @@ int findAccelScale(PmCartesian const * const acc,
         PmCartesian const * const bounds,
         PmCartesian * const scale);
 
+int findMaxValueOnPlane(PmCartesian const * plane_envelope_sq,
+        PmCartesian const * bounds,
+        double * max_planar_value);
+
 double findTrapezoidalDesiredVel(double a_max,
                               double dx,
                               double v_final,
