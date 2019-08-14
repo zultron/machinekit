@@ -124,7 +124,6 @@ TEST test_findMaxValueOnPlane_tilted()
     pmCartCartOrthonormal(&u1, &u2, &u, &v);
     pmCartCartHarmonicAddSq(&u, &v, &uv_harmonic_sq);
 
-
     double b_max;
     findMaxValueOnPlane(&uv_harmonic_sq, &bounds_easy, &b_max);
 
@@ -643,6 +642,30 @@ SUITE(geom_funcs)
     RUN_TEST(test_calculateInscribedRadius);
 }
 
+static int checkQF(double A, double B, double C, double exp_R0, double exp_R1, double tol)
+{
+    double r0=0, r1=0;
+
+    ASSERT(0 == quadraticFormula(A, B, C, &r0, &r1));
+    ASSERT_IN_RANGE(exp_R0, r0, tol);
+    ASSERT_IN_RANGE(exp_R1, r1, tol);
+    PASS();
+}
+
+TEST test_quadratic_formula_basic()
+{
+    // Simple cases
+    // 0 = Ax^2 + Bx + C
+    CHECK_CALL(checkQF(1, -4, 4, 2, 2, DOUBLE_FUZZ));
+    CHECK_CALL(checkQF(1, 4, 4, -2, -2, DOUBLE_FUZZ));
+    // Expect the most-positive root first
+    CHECK_CALL(checkQF(1, 1, -6, 2, -3, DOUBLE_FUZZ));
+    // Expect small roots to be calculated precisely
+    CHECK_CALL(checkQF(1, 1.0000000000000001, 1e-16, -1e-16, -1, DOUBLE_FUZZ));
+
+    PASS();
+}
+
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();      /* command-line arguments, initialization. */
     RUN_SUITE(blendmath);
@@ -650,5 +673,6 @@ int main(int argc, char **argv) {
     RUN_SUITE(tc_functions);
     RUN_SUITE(circle_funcs);
     RUN_SUITE(geom_funcs);
+    RUN_TEST(test_quadratic_formula_basic);
     GREATEST_MAIN_END();        /* display results */
 }

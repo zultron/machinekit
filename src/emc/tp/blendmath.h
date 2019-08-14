@@ -146,6 +146,13 @@ int findMaxValueOnPlane(PmCartesian const * plane_envelope_sq,
         PmCartesian const * bounds,
         double * max_planar_value);
 
+int quadraticFormula(
+    double A,
+    double B,
+    double C,
+    double * const root0,
+    double * const root1);
+
 double findTrapezoidalDesiredVel(double a_max,
                               double dx,
                               double v_final,

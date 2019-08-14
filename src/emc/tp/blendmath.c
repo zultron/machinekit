@@ -561,12 +561,15 @@ int findMaxValueOnPlane(PmCartesian const * plane_envelope_sq,
     return 0;
 }
 
-
-
 /** Find real roots of a quadratic equation in standard form. */
 int quadraticFormula(double A, double B, double C, double * const root0,
         double * const root1)
 {
+    if (A < 0.0) {
+        A *=-1;
+        B *=-1;
+        C *=-1;
+    }
     double disc = pmSq(B) - 4.0 * A * C;
     if (disc < 0) {
         tp_debug_print("discriminant %.12g < 0, A=%.12g, B=%.12g,C=%.12g\n", disc, A, B, C);
