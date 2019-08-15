@@ -2145,18 +2145,29 @@ tp_err_t find_blend_size_from_intermediates(
     return TP_ERR_OK;
 }
 
-double guess_blend_region_size(double Rb, double *Rb_max, double *Rb_min, double v_goal, double v_plan_last)
+double guess_blend_region_size_bisect(double Rb, double *Rb_max, double *Rb_min, double v_goal, double v_plan_last)
 {
-    // Bisection method with faster refinement
-    double Rb_guess = pmSq(v_goal) / pmSq(v_plan_last) * Rb;
-
-    Rb_guess = clamp(*Rb_max, *Rb_min, 0.25, Rb_guess);
-
     if (v_plan_last < v_goal) {
-        *Rb_min = fmax(Rb, *Rb_min);
+        *Rb_min = Rb;
     } else {
-        *Rb_max = fmin(Rb, *Rb_max);
+        *Rb_max = Rb;
     }
+    // Bisection method with faster refinement
+    double Rb_guess = (*Rb_max + *Rb_min)/2.;
+    return Rb_guess;
+}
+
+double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, double v_goal, double v_plan_last)
+{
+    if (v_plan_last < v_goal) {
+        *Rb_min = Rb;
+    } else {
+        *Rb_max = Rb;
+    }
+    // Bisection method with faster refinement
+    double R_ratio = pmSq(v_goal) / pmSq(v_plan_last);
+
+    double Rb_guess = clamp(*Rb_max, *Rb_min, 0.25, R_ratio * Rb);
     return Rb_guess;
 }
 
@@ -2196,10 +2207,8 @@ tp_err_t optimize_biarc_blend_size(
     double Rb_min = 0;
     // KLUDGE just do average as first guess since we don't know anything about performance yet
     double Rb = (Rb_max + Rb_min) / 2.0;
-    static const double solver_vel_ratio_tol = 0.01; // 1% is pretty good
-    static const double solver_radius_tol = 0.001; // Just need rough convergence here
-    static const unsigned MAX_ITERATIONS = 50;
-
+    static const double solver_vel_ratio_tol = 0.05; // 5% is pretty good
+    static const unsigned MAX_ITERATIONS = 5;
 
     blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
     blendInitTolerance(prev_tc, tc, param);
@@ -2227,14 +2236,15 @@ tp_err_t optimize_biarc_blend_size(
             bp_out,
             param));
 
-        Rb = guess_blend_region_size(Rb, &Rb_max, &Rb_min, param->v_goal, param->v_plan);
+        Rb = guess_blend_region_size_bisect(Rb, &Rb_max, &Rb_min, param->v_goal, param->v_plan);
         // Check blend performance:
         // Verify distance from blend midpoint to original intersection P < tolerance
         // Check if requested velocity is reached (if not, need bigger arc)
         // Check if blend radii are larger than they need to be (e.g. worst-case normal acceleration < a_t_max)
         // Refine solution as necessary:
         // Guess a new Rb based on heuristic function of Rb, Rb_max, v_plan with procedure guess_blend_region_size
-        if (Rb_max - Rb_min < solver_radius_tol || fabs((param->v_plan + TP_POS_EPSILON) / (param->v_goal + TP_POS_EPSILON)) < solver_vel_ratio_tol ) {
+        double vel_err = (param->v_plan - (param->v_goal + TP_POS_EPSILON)) / (param->v_goal + TP_POS_EPSILON);
+        if (fabs(vel_err) < solver_vel_ratio_tol) {
             return TP_ERR_OK;
         }
     }

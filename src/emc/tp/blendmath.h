@@ -320,7 +320,8 @@ tp_err_t find_blend_size_from_intermediates(
     blend_intermediate_points_t const * const intermediates,
     BlendParameters * const param);
 
-double guess_blend_region_size(double Rb, double *Rb_max, double *Rb_min, double v_goal, double v_plan_last);
+double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, double v_goal, double v_plan_last);
+double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, double v_goal, double v_plan_last);
 
 tp_err_t optimize_biarc_blend_size(TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc, blend_boundary_t * const bb_out,
