@@ -2257,6 +2257,7 @@ tp_err_t optimize_biarc_blend_size(
         pmCartCartDisp(&bp_out->P_mid, &P.tran, &T);
         if (T > param->tolerance) {
             Rb_max = Rb;
+            Rb = Rb * param->tolerance / (T+0.0001);
             continue;
         }
 

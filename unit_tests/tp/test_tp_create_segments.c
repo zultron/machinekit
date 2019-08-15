@@ -284,7 +284,7 @@ TEST test_optimize_biarc_blend_size()
 {
     // Create arc segments
     CREATE_MOCK_TP();
-    tpSetTermCond(tp, TC_TERM_COND_STOP, 0.0);
+    tpSetTermCond(tp, TC_TERM_COND_STOP, 0.005);
 
     // Unit radius to make angle -> arc length conversion easy
     EmcPose const pt0 = {0};
