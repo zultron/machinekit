@@ -321,10 +321,34 @@ static TP_STRUCT *setup_two_xy_unit_circles_exact(double v_req, double blend_tol
     return tp;
 }
 
+static TP_STRUCT *setup_two_xy_unit_circles_exact_perp_corner(double v_req, double blend_tolerance)
+{
+    CREATE_MOCK_TP();
+    tpSetTermCond(tp, TC_TERM_COND_STOP, blend_tolerance);
+    // KLUDGE guess at safe tangential acceleration value
+    double a_t_max = 20.0 * BLEND_ACC_RATIO_TANGENTIAL;
+
+    // Unit radius to make angle -> arc length conversion easy
+    EmcPose const pt0 = {0};
+    EmcPose const pt1 = newXYZ(2,0,0,pt0);
+    EmcPose const pt2 = newXYZ(2,2,0,pt1);
+
+    PmCartesian center1 = {1, 0, 0};
+    PmCartesian center2 = {2, 1, 0};
+    PmCartesian const normal1 = {0,0,1};
+    PmCartesian const normal2 = {0,0,1};
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddCircle(tp, pt1, center1, normal1, 0, EMC_MOTION_TYPE_FEED, v_req, 2.0, a_t_max, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, v_req, 2.0, a_t_max, 0, 0, 0, line_tag(2));
+
+    return tp;
+}
+
 TEST test_optimize_biarc_blend_size()
 {
     static const double BLEND_TOLERANCE = 0.005;
-    TP_STRUCT *tp =setup_two_xy_unit_circles_exact(1.0, BLEND_TOLERANCE);
+    TP_STRUCT *tp =setup_two_xy_unit_circles_exact_perp_corner(1.0, BLEND_TOLERANCE);
     ASSERT(tp);
 
     TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);

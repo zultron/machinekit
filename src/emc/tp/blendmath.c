@@ -2202,6 +2202,34 @@ static inline double guess_blend_region_size_slope(double Rb, double *Rb_max, do
 #endif
 
 /**
+ * Given an overall tolerance limit and the tangent vectors at the
+ * intersection, find an approximate blend region size that puts the midpoint
+ * of the intermediate line within tolerance of the intersection point.
+ *
+ * @note this assumes that the areas to blend are straight-ish (i.e. the error
+ * introduced by circular segments is minimal). This assumes a linear
+ * approximation about the intersection point, but better approximations are
+ * possible.
+ */
+double find_blend_region_from_tolerance(
+    PmCartesian const * const u_tan1,
+    PmCartesian const * const u_tan2,
+    double tolerance)
+{
+    double dot;
+    pmCartCartDot(u_tan1, u_tan2, &dot);
+    double cos_2theta = -dot;
+
+    // avoids acos, sin, cos, but not sure if this is actually faster
+    double sin_theta = pmSqrt((1. - cos_2theta) / 2);
+    double cos_theta = pmSqrt((1. + cos_2theta) / 2);
+
+    double d_est = sin_theta / cos_theta * tolerance;
+
+    return tolerance / cos_theta + d_est;
+}
+
+/**
  * Find the optimal Rb to get the smallest blend that can meet the feed rate requirements.
  * Choose initial Rb = Rb_max
  * Find blend start / end points and tangent vectors, within Rb of intersection P with procedure find_blend_points_and_tangents
@@ -2232,21 +2260,31 @@ tp_err_t optimize_biarc_blend_size(
         return TP_ERR_MISSING_INPUT;
     }
 
+    // Find net tolerance that's actually usable (so that we're
+    // not passing 0.0 around if tolerance is not specified)
+    blendInitTolerance(prev_tc, tc, param);
+
+    // Crude estimate of initial tolerance based on blend shape at intersection
+    PmCartesian u_tan1, u_tan2;
+    tcGetEndTangentUnitVector(prev_tc, &u_tan1);
+    tcGetStartTangentUnitVector(tc, &u_tan2);
+
+    double Rb_init = find_blend_region_from_tolerance(&u_tan1, &u_tan2, param->tolerance);
+
     // Initial solver values for Rb range using somewhat dumb (but cheap) values
     double Rb_max = find_max_blend_region(prev_tc, tc);
-    double Rb_min = 0;
-    // KLUDGE just do average as first guess since we don't know anything about performance yet
-    double Rb = (Rb_max + Rb_min) / 2.0;
+    double Rb_min = TP_POS_EPSILON;
+    // Restrict initial guess to be within real boundaries
+    double Rb = bound(Rb_init, Rb_max, Rb_min);
     const unsigned MAX_ITERATIONS = config->max_iterations;
 
     blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
-    blendInitTolerance(prev_tc, tc, param);
 
     double s1_max = prev_tc->target - Rb_max;
     double s2_max = Rb_max;
-    PmCartesian u_tan1, u_tan2;
-    tcGetTangentUnitVector(prev_tc, s1_max, &u_tan1);
-    tcGetTangentUnitVector(tc, s2_max, &u_tan2);
+    PmCartesian u1, u2;
+    tcGetTangentUnitVector(prev_tc, s1_max, &u1);
+    tcGetTangentUnitVector(tc, s2_max, &u2);
 
     findVMaxByAltitude(
         &u1,
@@ -2256,8 +2294,8 @@ tp_err_t optimize_biarc_blend_size(
     // Approximate the blend kinematics using the initial guess
     // Actual limits will be enforced later
     CHP(blendParamKinematics(
-        &u_tan1,
-        &u_tan2,
+        &u1,
+        &u2,
         param,
         acc_bound,
         vel_bound));
