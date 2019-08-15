@@ -284,7 +284,8 @@ TEST test_optimize_biarc_blend_size()
 {
     // Create arc segments
     CREATE_MOCK_TP();
-    tpSetTermCond(tp, TC_TERM_COND_STOP, 0.005);
+    static const double BLEND_TOLERANCE = 0.005;
+    tpSetTermCond(tp, TC_TERM_COND_STOP, BLEND_TOLERANCE);
 
     // Unit radius to make angle -> arc length conversion easy
     EmcPose const pt0 = {0};
@@ -315,16 +316,23 @@ TEST test_optimize_biarc_blend_size()
     blend_intermediate_points_t bp = {0};
     BlendGeom3 geom = {0};
     BlendParameters param = {0};
-    optimize_biarc_blend_size(
-        prev_tc,
-        this_tc,
-        &bb,
-        &bp,
-        1.0,
-        &vel_bound,
-        &acc_bound,
-        &geom,
-        &param);
+    ASSERT_EQ(
+        0,
+        optimize_biarc_blend_size(
+            prev_tc,
+            this_tc,
+            &bb,
+            &bp,
+            1.0,
+            &vel_bound,
+            &acc_bound,
+            &geom,
+            &param));
+
+    // Verify that the midpoint is within tolerance
+    double T;
+    pmCartCartDisp(&bp.P_mid, &pt1.tran, &T);
+    ASSERT(T < BLEND_TOLERANCE);
 
     deleteMockTP(&tp);
     PASS();

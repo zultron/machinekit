@@ -299,6 +299,14 @@ typedef struct
     PmCartesian u2;
 } blend_boundary_t;
 
+typedef enum
+{
+    BIARC_EXCEEDED_MAX_ITERATIONS=-1,
+    BIARC_NOT_SOLVED,
+    BIARC_MATCHED_VGOAL,
+    BIARC_REACHED_TOLERANCE,
+} BlendSolverResults;
+
 typedef struct
 {
     PmCartesian Pb1;
@@ -306,6 +314,8 @@ typedef struct
     PmCartesian u_mid;
     PmCartesian P_mid;
     double d; // Note: length of intermediate segment is 2d
+    int iterations;
+    BlendSolverResults result;
 } blend_intermediate_points_t;
 
 // API for biarc blends

@@ -2220,7 +2220,7 @@ tp_err_t optimize_biarc_blend_size(
     // KLUDGE just do average as first guess since we don't know anything about performance yet
     double Rb = (Rb_max + Rb_min) / 2.0;
     static const double solver_radius_rel_tol = 0.02; // 2% is pretty good
-    static const double solver_radius_abs_tol = 0.001;
+    static const double solver_blend_tolerance_abs_tol = 0.001;
     static const unsigned MAX_ITERATIONS = 10;
 
     blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
@@ -2246,7 +2246,7 @@ tp_err_t optimize_biarc_blend_size(
     EmcPose P;
     tcGetStartpoint(tc, &P);
 
-    for (unsigned iter = 0; iter < MAX_ITERATIONS; ++iter)
+    for (bp_out->iterations = 0; bp_out->iterations < MAX_ITERATIONS; ++bp_out->iterations)
     {
         // Find blend start / end points and tangent vectors, within Rb of intersection P with procedure find_blend_points_and_tangents
         find_blend_points_and_tangents(Rb, prev_tc, tc, bb_out);
@@ -2257,7 +2257,7 @@ tp_err_t optimize_biarc_blend_size(
         pmCartCartDisp(&bp_out->P_mid, &P.tran, &T);
         if (T > param->tolerance) {
             Rb_max = Rb;
-            Rb = Rb * param->tolerance / (T+0.0001);
+            Rb = fmax(Rb * param->tolerance / (T+0.0001), Rb_min);
             continue;
         }
 
@@ -2278,10 +2278,17 @@ tp_err_t optimize_biarc_blend_size(
         double err = (R_plan - (R_goal + TP_POS_EPSILON)) / (R_goal + TP_POS_EPSILON);
         double tol_err = param->tolerance - T;
         if ((fabs(err) < solver_radius_rel_tol
-            || fabs(R_goal - R_plan) < solver_radius_abs_tol)
-            || ( err < 0.0 && tol_err >= 0 && tol_err < solver_radius_abs_tol)) {
+             || fabs(R_goal - R_plan) < solver_blend_tolerance_abs_tol))
+            {
+            bp_out->result = BIARC_MATCHED_VGOAL;
             return TP_ERR_OK;
         }
+        // KLUDGE absolute tolerance not all that useful here
+        if ( err < 0.0 && tol_err >= 0 && tol_err < solver_blend_tolerance_abs_tol) {
+            bp_out->result = BIARC_REACHED_TOLERANCE;
+                return TP_ERR_OK;
+        }
     }
+    bp_out->result = BIARC_EXCEEDED_MAX_ITERATIONS;
     return TP_ERR_FAIL;
 }
