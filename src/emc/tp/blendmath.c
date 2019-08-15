@@ -686,8 +686,9 @@ void blendInitTolerance(
     tcFindBlendTolerance(prev_tc, tc, &param->tolerance);
 }
 
-void limitVMaxByAltitude(
-    BlendGeom3 const * const geom,
+void findVMaxByAltitude(
+    PmCartesian const * const u1,
+    PmCartesian const * const u2,
     BlendParameters * const param)
 {
     // Clip the angle at a reasonable value (less than 90 deg), to prevent div by zero
@@ -707,8 +708,8 @@ void limitVMaxByAltitude(
 
     // Get "base" of triangle
     PmCartesian tmp1, tmp2, diff;
-    pmCartScalMult(&geom->u1, v_effective1, &tmp1);
-    pmCartScalMult(&geom->u2, v_effective2, &tmp2);
+    pmCartScalMult(u1, v_effective1, &tmp1);
+    pmCartScalMult(u2, v_effective2, &tmp2);
     pmCartCartSub(&tmp2, &tmp1, &diff);
     double base;
     pmCartMag(&diff, &base);
@@ -1161,7 +1162,11 @@ int blendInit3FromLineLine(BlendGeom3 * const geom, BlendParameters * const para
     int res_ini_vel = blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
     blendInitTolerance(prev_tc, tc, param);
 
-    limitVMaxByAltitude(geom, param);
+    findVMaxByAltitude(
+        &geom->u1,
+        &geom->u2,
+        param);
+
     int res_kin = blendParamKinematics(
         &geom->u_tan1,
         &geom->u_tan2,
@@ -2243,6 +2248,10 @@ tp_err_t optimize_biarc_blend_size(
     tcGetTangentUnitVector(prev_tc, s1_max, &u_tan1);
     tcGetTangentUnitVector(tc, s2_max, &u_tan2);
 
+    findVMaxByAltitude(
+        &u1,
+        &u2,
+        param);
     //TODO do altitude calculation too?
     // Approximate the blend kinematics using the initial guess
     // Actual limits will be enforced later
