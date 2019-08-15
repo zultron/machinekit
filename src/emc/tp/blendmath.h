@@ -124,6 +124,11 @@ int checkTangentAngle(PmCircle const * const circ, SphericalArc const * const ar
 int findIntersectionAngle(PmCartesian const * const u1,
         PmCartesian const * const u2, double * const theta);
 
+int findIntersectionTanAngle(
+    PmCartesian const * const u1,
+    PmCartesian const * const u2,
+    double * const tan_theta);
+
 double pmCartMin(PmCartesian const * const in);
 
 int calculateInscribedRadius(PmCartesian const * const normal,
@@ -315,13 +320,12 @@ tp_err_t find_blend_intermediate_segments(
 
 double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc);
 
-tp_err_t find_blend_size_from_intermediates(
-    blend_boundary_t const * const blend_boundary,
+tp_err_t find_blend_size_from_intermediates(blend_boundary_t const * const blend_boundary,
     blend_intermediate_points_t const * const intermediates,
-    BlendParameters * const param);
+    double *R_geom);
 
-double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, double v_goal, double v_plan_last);
-double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, double v_goal, double v_plan_last);
+double guess_blend_region_size_bisect(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last);
+double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last);
 
 tp_err_t optimize_biarc_blend_size(TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc, blend_boundary_t * const bb_out,

@@ -401,6 +401,20 @@ int findIntersectionAngle(PmCartesian const * const u1,
     return TP_ERR_OK;
 }
 
+int findIntersectionTanAngle(
+    PmCartesian const * const u1,
+    PmCartesian const * const u2,
+    double * const tan_theta)
+{
+    double dot;
+    pmCartCartDot(u1, u2, &dot);
+
+    double cos_theta = -dot;
+
+    *tan_theta = pmSqrt((1. - cos_theta) / (1. + cos_theta));
+    return TP_ERR_OK;
+}
+
 
 /** Calculate the minimum of the three values in a PmCartesian. */
 double pmCartMin(PmCartesian const * const in)
@@ -2128,26 +2142,22 @@ double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * 
 tp_err_t find_blend_size_from_intermediates(
     blend_boundary_t const * const blend_boundary,
     blend_intermediate_points_t const * const intermediates,
-    BlendParameters * const param)
+    double *R_geom)
 {
     // KLUDGE assume d is correct (will check exact length later)
-    findIntersectionAngle(&blend_boundary->u1, &intermediates->u_mid, &param->theta);
+    double tan_theta;
+    findIntersectionTanAngle(&blend_boundary->u1, &intermediates->u_mid, &tan_theta);
 
     // TODO optimize out the tangent calculation if necessary
     // Find radius from the limiting length (assume length is actually symmetrical
-    double R_geom = tan(param->theta) * intermediates->d;
-
-    // Find maximum velocity allowed by accel and radius
-    // KLUDGE ignore all the typical restrictions because we want to match
-    // the planned blend size as closely as possible to the requested max vel.
-    param->v_plan = pmSqrt(param->a_n_max * R_geom);
+    *R_geom = tan_theta * intermediates->d;
 
     return TP_ERR_OK;
 }
 
-double guess_blend_region_size_bisect(double Rb, double *Rb_max, double *Rb_min, double v_goal, double v_plan_last)
+double guess_blend_region_size_bisect(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last)
 {
-    if (v_plan_last < v_goal) {
+    if (R_plan_last < R_goal) {
         *Rb_min = Rb;
     } else {
         *Rb_max = Rb;
@@ -2157,15 +2167,15 @@ double guess_blend_region_size_bisect(double Rb, double *Rb_max, double *Rb_min,
     return Rb_guess;
 }
 
-double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, double v_goal, double v_plan_last)
+double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last)
 {
-    if (v_plan_last < v_goal) {
+    if (R_plan_last < R_goal) {
         *Rb_min = Rb;
     } else {
         *Rb_max = Rb;
     }
     // Bisection method with faster refinement
-    double R_ratio = pmSq(v_goal) / pmSq(v_plan_last);
+    double R_ratio = R_goal / R_plan_last;
 
     double Rb_guess = clamp(*Rb_max, *Rb_min, 0.25, R_ratio * Rb);
     return Rb_guess;
@@ -2207,11 +2217,28 @@ tp_err_t optimize_biarc_blend_size(
     double Rb_min = 0;
     // KLUDGE just do average as first guess since we don't know anything about performance yet
     double Rb = (Rb_max + Rb_min) / 2.0;
-    static const double solver_vel_ratio_tol = 0.05; // 5% is pretty good
-    static const unsigned MAX_ITERATIONS = 5;
+    static const double solver_radius_rel_tol = 0.02; // 2% is pretty good
+    static const double solver_radius_abs_tol = 0.001;
+    static const unsigned MAX_ITERATIONS = 10;
 
     blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
+    // Bias the solution to be oversize
+    param->v_goal *= (1.0+solver_radius_rel_tol);
     blendInitTolerance(prev_tc, tc, param);
+
+    double s1_max = prev_tc->target - Rb_max;
+    double s2_max = Rb_max;
+
+    tcGetTangentUnitVector(prev_tc, s1_max, &geom->u_tan1);
+    tcGetTangentUnitVector(tc, s2_max, &geom->u_tan2);
+
+    // Approximate the blend kinematics using the initial guess
+    // Actual limits will be enforced later
+    CHP(blendParamKinematics(
+        geom,
+        param,
+        acc_bound,
+        vel_bound));
 
     for (unsigned iter = 0; iter < MAX_ITERATIONS; ++iter)
     {
@@ -2220,31 +2247,24 @@ tp_err_t optimize_biarc_blend_size(
         // Find blend segment lengths d, L and intermediate points with procedure find_blend_intermediate_segments
         find_blend_intermediate_segments(bb_out, bp_out);
 
-        geom->u_tan1 = bb_out->u1;
-        geom->u_tan2 = bp_out->u_mid;
-        param->L1 = bp_out->d;
-        param->L2 = bp_out->d;
-
-        CHP(blendParamKinematics(
-            geom,
-            param,
-            acc_bound,
-            vel_bound));
-
+        double R_plan;
         CHP(find_blend_size_from_intermediates(
             bb_out,
             bp_out,
-            param));
+            &R_plan));
 
-        Rb = guess_blend_region_size_bisect(Rb, &Rb_max, &Rb_min, param->v_goal, param->v_plan);
+        double R_goal = pmSq(param->v_goal) / param->a_n_max;
+        Rb = guess_blend_region_size_bisect(Rb, &Rb_max, &Rb_min, R_goal, R_plan);
         // Check blend performance:
         // Verify distance from blend midpoint to original intersection P < tolerance
         // Check if requested velocity is reached (if not, need bigger arc)
         // Check if blend radii are larger than they need to be (e.g. worst-case normal acceleration < a_t_max)
         // Refine solution as necessary:
         // Guess a new Rb based on heuristic function of Rb, Rb_max, v_plan with procedure guess_blend_region_size
-        double vel_err = (param->v_plan - (param->v_goal + TP_POS_EPSILON)) / (param->v_goal + TP_POS_EPSILON);
-        if (fabs(vel_err) < solver_vel_ratio_tol) {
+        double err = (R_plan - (R_goal + TP_POS_EPSILON)) / (R_goal + TP_POS_EPSILON);
+        double tol_err = param->tolerance - T;
+        if ((fabs(err) < solver_radius_rel_tol
+            || fabs(R_goal - R_plan) < solver_radius_abs_tol)) {
             return TP_ERR_OK;
         }
     }
