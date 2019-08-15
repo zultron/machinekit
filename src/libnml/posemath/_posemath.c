@@ -1926,7 +1926,7 @@ int pmCircleInit(PmCircle * const circle,
   */
 int pmCirclePoint(PmCircle const * const circle, double angle, PmCartesian * const point)
 {
-    PmCartesian par, perp;
+    PmCartesian perp;
     double scale;
 
 #ifdef PM_DEBUG
@@ -1940,11 +1940,11 @@ int pmCirclePoint(PmCircle const * const circle, double angle, PmCartesian * con
 #endif
 
     /* compute components rel to center */
-    pmCartScalMult(&circle->rTan, cos(angle), &par);
+    pmCartScalMult(&circle->rTan, cos(angle), point);
     pmCartScalMult(&circle->rPerp, sin(angle), &perp);
 
     /* add to get radius vector rel to center */
-    pmCartCartAdd(&par, &perp, point);
+    pmCartCartAddEq(point, &perp);
 
     /* get scale for spiral, helix interpolation */
     if (circle->angle == 0.0) {
@@ -1956,16 +1956,15 @@ int pmCirclePoint(PmCircle const * const circle, double angle, PmCartesian * con
     scale = angle / circle->angle;
 
     /* add scaled vector in radial dir for spiral */
-    pmCartUnit(point, &par);
-    pmCartScalMult(&par, scale * circle->spiral, &par);
-    pmCartCartAdd(point, &par, point);
+    double spiral_scale = circle->spiral * scale / circle->radius;
+    pmCartScalMultEq(point, (1.0 + spiral_scale));
 
     /* add scaled vector in helix dir */
     pmCartScalMult(&circle->rHelix, scale, &perp);
-    pmCartCartAdd(point, &perp, point);
+    pmCartCartAddEq(point, &perp);
 
     /* add to center vector for final result */
-    pmCartCartAdd(&circle->center, point, point);
+    pmCartCartAddEq(point, &circle->center);
 
     return pmErrno = 0;
 }
@@ -1998,4 +1997,11 @@ int pmCircleStretch(PmCircle * const circ, double new_angle, int from_end)
     circ->angle = new_angle;
 
     return 0;
+}
+
+int pmCircleStartPoint(PmCircle const * const circle, PmCartesian * const point)
+{
+    pmCartCartAdd(&circle->rTan, &circle->center, point);
+
+    return pmErrno = 0;
 }

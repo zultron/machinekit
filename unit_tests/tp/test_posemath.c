@@ -332,17 +332,20 @@ TEST test_pmCirclePoint_helix_spiral()
     {
         PmCartesian p0 = {0};
         pmCirclePoint(&c, 0.0, &p0);
-        PmCartesian expect_p0 = {2.0, 2.0, 3.0};
+        PmCartesian const expect_p0 = {2.0, 2.0, 3.0};
         ASSERT_PMCARTESIAN_IN_RANGE(expect_p0, p0, CART_FUZZ);
+        PmCartesian start_quick;
+        pmCircleStartPoint(&c, &start_quick);
+        ASSERT_PMCARTESIAN_IN_RANGE(expect_p0, start_quick, CART_FUZZ);
     }{
         PmCartesian p1 = {0};
         pmCirclePoint(&c, M_PI_2, &p1);
-        PmCartesian expect_p1 = {1.0, 2.0 + 1.0 + 0.2/3, 3 + 0.4/3};
+        PmCartesian const expect_p1 = {1.0, 2.0 + 1.0 + 0.2/3, 3 + 0.4/3};
         ASSERT_PMCARTESIAN_IN_RANGE(expect_p1, p1, CART_FUZZ);
     }{
         PmCartesian p2 = {0};
         pmCirclePoint(&c, M_PI, &p2);
-        PmCartesian expect_p2 = {1.0-1.0-0.2*2./3, 2.0, 3 + 0.4*2.0/3};
+        PmCartesian const expect_p2 = {1.0-1.0-0.2*2./3, 2.0, 3 + 0.4*2.0/3};
         ASSERT_PMCARTESIAN_IN_RANGE(expect_p2, p2, CART_FUZZ);
     }
 

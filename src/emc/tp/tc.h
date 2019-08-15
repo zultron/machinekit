@@ -32,7 +32,7 @@ double tcGetTangentialMaxAccel(TC_STRUCT const * const tc);
 int tcSetKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc, double kink_vel, double accel_reduction);
 int tcInitKinkProperties(TC_STRUCT *tc);
 int tcGetEndpoint(TC_STRUCT const * const tc, EmcPose * const out);
-int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const out);
+int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const pos);
 int tcGetPos(TC_STRUCT const * const tc,  EmcPose * const out);
 int tcGetPosReal(TC_STRUCT const * const tc, double progress,  EmcPose * const out);
 int tcGetEndAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out);

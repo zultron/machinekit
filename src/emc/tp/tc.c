@@ -320,8 +320,39 @@ int tcGetPos(TC_STRUCT const * const tc, EmcPose * const out) {
     return 0;
 }
 
-int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const out) {
-    tcGetPosReal(tc, 0.0, out);
+int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const pos)
+{
+    PmCartesian xyz;
+    PmCartesian abc;
+    PmCartesian uvw;
+
+    switch (tc->motion_type){
+        case TC_RIGIDTAP:
+            xyz = tc->coords.rigidtap.xyz.start;
+            abc = tc->coords.rigidtap.abc;
+            uvw = tc->coords.rigidtap.uvw;
+            break;
+        case TC_LINEAR:
+            xyz = tc->coords.line.xyz.start;
+            abc = tc->coords.line.abc.start;
+            uvw = tc->coords.line.uvw.start;
+            break;
+        case TC_CIRCULAR:
+            pmCircleStartPoint(&tc->coords.circle.xyz, &xyz);
+            abc = tc->coords.circle.abc.start;
+            uvw = tc->coords.circle.uvw.start;
+            break;
+        case TC_SPHERICAL:
+            arcPoint(&tc->coords.arc.xyz,
+                    0,
+                    &xyz);
+            abc = tc->coords.arc.abc;
+            uvw = tc->coords.arc.uvw;
+            break;
+    }
+
+    pmCartesianToEmcPose(&xyz, &abc, &uvw, pos);
+
     return 0;
 }
 
