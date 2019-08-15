@@ -468,6 +468,7 @@ void WAIT_SPINDLE_ORIENT_COMPLETE(double timeout) {}
 void PROGRAM_STOP() {}
 void PROGRAM_END(bool reset) {}
 void FINISH() {}
+void ON_RESET() {}
 void PALLET_SHUTTLE() {}
 void SELECT_POCKET(int pocket, int tool) {}
 void UPDATE_TAG(StateTag &tag) {}
