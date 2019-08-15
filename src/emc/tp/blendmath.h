@@ -189,7 +189,7 @@ int blendGeom3Init(BlendGeom3 * const geom,
         TC_STRUCT const * const prev_tc,
         TC_STRUCT const * const tc);
 
-int blendParamKinematics(BlendGeom3 * const geom,
+int blendParamKinematics(const PmCartesian * const u_tan1, const PmCartesian * const u_tan2,
         BlendParameters * const param,
         PmCartesian const * const acc_bound,
         PmCartesian const * const vel_bound);
@@ -291,6 +291,16 @@ EndCondition checkEndCondition(double cycleTime,
 #define PSEUDO_SQRT_EPSILON 0.001
 double pseudo_sqrt(double x);
 
+// BiArc blend stuff
+
+typedef struct
+{
+    unsigned max_iterations;
+    double velocity_rel_tolerance;
+    double velocity_abs_tolerance;
+    double deviation_abs_tolerance;
+} biarc_solver_config_t;
+
 typedef struct
 {
     PmCartesian P1;
@@ -301,6 +311,7 @@ typedef struct
 
 typedef enum
 {
+    BIARC_DIVERGED=-2, // should never happen
     BIARC_EXCEEDED_MAX_ITERATIONS=-1,
     BIARC_NOT_SOLVED,
     BIARC_MATCHED_VGOAL,
@@ -314,7 +325,7 @@ typedef struct
     PmCartesian u_mid;
     PmCartesian P_mid;
     double d; // Note: length of intermediate segment is 2d
-    int iterations;
+    unsigned iterations;
     BlendSolverResults result;
 } blend_intermediate_points_t;
 
@@ -335,16 +346,12 @@ tp_err_t find_blend_size_from_intermediates(blend_boundary_t const * const blend
     blend_intermediate_points_t const * const intermediates,
     double *R_geom);
 
-double guess_blend_region_size_bisect(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last);
-double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last);
-
 tp_err_t optimize_biarc_blend_size(TC_STRUCT const * const prev_tc,
-    TC_STRUCT const * const tc, blend_boundary_t * const bb_out,
-    blend_intermediate_points_t * const bp_out,
+    TC_STRUCT const * const tc, const biarc_solver_config_t * const config,
     double maxFeedScale,
     PmCartesian const * const vel_bound,
-    PmCartesian const * const acc_bound,
-    BlendGeom3 * const geom,
+    PmCartesian const * const acc_bound, blend_boundary_t * const bb_out,
+    blend_intermediate_points_t * const bp_out,
     BlendParameters * const param);
 
 #endif

@@ -1,3 +1,16 @@
+/**
+ * @file test_tp_create_segments.c
+ * 
+ * Unit tests for higher-level functions in TP around creating / modifying motion segments.
+ *
+ * @author Robert W. Ellenberg <rwe24g@gmail.com>
+ *
+ * @copyright Copyright 2019, Robert W. Ellenberg
+ *
+ * This source code is released for free distribution under the terms of the
+ * GNU General Public License (V2) as published by the Free Software Foundation.
+ */
+
 #include "tp_debug.h"
 #include "greatest.h"
 #include "blendmath.h"
@@ -280,12 +293,16 @@ TEST test_find_blend_intermediates()
     PASS();
 }
 
-TEST test_optimize_biarc_blend_size()
+
+/**
+ * Create a mock TP and preload it with two unit-radius circles in a "W" shape curve.
+ */
+static TP_STRUCT *setup_two_xy_unit_circles_exact(double v_req, double blend_tolerance)
 {
-    // Create arc segments
     CREATE_MOCK_TP();
-    static const double BLEND_TOLERANCE = 0.005;
-    tpSetTermCond(tp, TC_TERM_COND_STOP, BLEND_TOLERANCE);
+    tpSetTermCond(tp, TC_TERM_COND_STOP, blend_tolerance);
+    // KLUDGE guess at safe tangential acceleration value
+    double a_t_max = 20.0 * BLEND_ACC_RATIO_TANGENTIAL;
 
     // Unit radius to make angle -> arc length conversion easy
     EmcPose const pt0 = {0};
@@ -298,11 +315,17 @@ TEST test_optimize_biarc_blend_size()
     PmCartesian const normal2 = {0,0,1};
 
     // Ask for impossibly high velocity to force the arc to maximum size
-    tpAddCircle(tp, pt1, center1, normal1, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 15.0, 0, 0, 0, line_tag(1));
-    tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 15.0, 0, 0, 0, line_tag(2));
+    tpAddCircle(tp, pt1, center1, normal1, 0, EMC_MOTION_TYPE_FEED, v_req, 2.0, a_t_max, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, v_req, 2.0, a_t_max, 0, 0, 0, line_tag(2));
 
-    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
-    ASSERT_EQ(2, tcqLen(&tp->queue));
+    return tp;
+}
+
+TEST test_optimize_biarc_blend_size()
+{
+    static const double BLEND_TOLERANCE = 0.005;
+    TP_STRUCT *tp =setup_two_xy_unit_circles_exact(1.0, BLEND_TOLERANCE);
+    ASSERT(tp);
 
     TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
     TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
@@ -314,24 +337,32 @@ TEST test_optimize_biarc_blend_size()
 
     blend_boundary_t bb = {0};
     blend_intermediate_points_t bp = {0};
-    BlendGeom3 geom = {0};
     BlendParameters param = {0};
-    ASSERT_EQ(
-        0,
-        optimize_biarc_blend_size(
-            prev_tc,
-            this_tc,
-            &bb,
-            &bp,
-            1.0,
-            &vel_bound,
-            &acc_bound,
-            &geom,
-            &param));
+    biarc_solver_config_t cfg = {
+        10,
+        0.02,
+        0.001,
+        0.0001,
+    };
+    tp_err_t res_opt = optimize_biarc_blend_size(
+        prev_tc,
+        this_tc,
+        &cfg,
+        1.0,
+        &vel_bound,
+        &acc_bound,
+        &bb,
+        &bp,
+        &param);
 
+    ASSERT_EQ(TP_ERR_OK, res_opt);
+    ASSERT_EQ(BIARC_REACHED_TOLERANCE, bp.result);
+    ASSERT(bp.iterations < 10);
     // Verify that the midpoint is within tolerance
     double T;
-    pmCartCartDisp(&bp.P_mid, &pt1.tran, &T);
+    EmcPose P;
+    tcGetStartpoint(this_tc, &P);
+    pmCartCartDisp(&bp.P_mid, &P.tran, &T);
     ASSERT(T < BLEND_TOLERANCE);
 
     deleteMockTP(&tp);

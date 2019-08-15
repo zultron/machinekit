@@ -717,16 +717,18 @@ void limitVMaxByAltitude(
     param->v_max_altitude = 2.0 * v_area / base;
 }
 
-int blendParamKinematics(BlendGeom3 * const geom,
-        BlendParameters * const param,
-        PmCartesian const * const acc_bound,
-        PmCartesian const * const vel_bound)
+int blendParamKinematics(
+    PmCartesian const * const u_tan1,
+    PmCartesian const * const u_tan2,
+    BlendParameters * const param,
+    PmCartesian const * const acc_bound,
+    PmCartesian const * const vel_bound)
 {
     // KLUDGE: common operations, but not exactly kinematics
     param->phi = (PM_PI - param->theta * 2.0);
 
     PmCartesian u, v, uv_plane_envelope_sq;
-    pmCartCartOrthonormal(&geom->u_tan1, &geom->u_tan2, &u, &v);
+    pmCartCartOrthonormal(u_tan1, u_tan2, &u, &v);
     pmCartCartHarmonicAddSq(&u, &v, &uv_plane_envelope_sq);
 
     int res_dia = findMaxValueOnPlane(&uv_plane_envelope_sq, acc_bound, &param->a_max);
@@ -869,7 +871,9 @@ int blendInit3FromLineArc(
     int res_ini_vel = blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
     blendInitTolerance(prev_tc, tc, param);
 
-    int res_kin = blendParamKinematics(geom,
+    int res_kin = blendParamKinematics(
+            &geom->u_tan1,
+            &geom->u_tan2,
             param,
             acc_bound,
             vel_bound);
@@ -955,10 +959,12 @@ int blendInit3FromArcLine(
     int res_ini_vel = blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
     blendInitTolerance(prev_tc, tc, param);
 
-    int res_kin = blendParamKinematics(geom,
-            param,
-            acc_bound,
-            vel_bound);
+    int res_kin = blendParamKinematics(
+        &geom->u_tan1,
+        &geom->u_tan2,
+        param,
+        acc_bound,
+        vel_bound);
 
     return res_kin | res_ini_vel;
 }
@@ -1098,10 +1104,12 @@ int blendInit3FromArcArc(BlendGeom3 * const geom, BlendParameters * const param,
     int res_ini_vel = blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
     blendInitTolerance(prev_tc, tc, param);
 
-    int res_kin = blendParamKinematics(geom,
-            param,
-            acc_bound,
-            vel_bound);
+    int res_kin = blendParamKinematics(
+        &geom->u_tan1,
+        &geom->u_tan2,
+        param,
+        acc_bound,
+        vel_bound);
 
     return res_kin | res_ini_vel;
 }
@@ -1154,10 +1162,12 @@ int blendInit3FromLineLine(BlendGeom3 * const geom, BlendParameters * const para
     blendInitTolerance(prev_tc, tc, param);
 
     limitVMaxByAltitude(geom, param);
-    int res_kin = blendParamKinematics(geom,
-            param,
-            acc_bound,
-            vel_bound);
+    int res_kin = blendParamKinematics(
+        &geom->u_tan1,
+        &geom->u_tan2,
+        param,
+        acc_bound,
+        vel_bound);
 
     return res_kin | res_ini_vel;
 }
@@ -2157,7 +2167,7 @@ tp_err_t find_blend_size_from_intermediates(
     return TP_ERR_OK;
 }
 
-double guess_blend_region_size_bisect(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last)
+static inline double guess_blend_region_size_bisect(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last)
 {
     if (R_plan_last < R_goal) {
         *Rb_min = Rb;
@@ -2169,7 +2179,8 @@ double guess_blend_region_size_bisect(double Rb, double *Rb_max, double *Rb_min,
     return Rb_guess;
 }
 
-double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last)
+#if 0
+static inline double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last)
 {
     if (R_plan_last < R_goal) {
         *Rb_min = Rb;
@@ -2182,6 +2193,7 @@ double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, 
     double Rb_guess = clamp(*Rb_max, *Rb_min, 0.25, R_ratio * Rb);
     return Rb_guess;
 }
+#endif
 
 /**
  * Find the optimal Rb to get the smallest blend that can meet the feed rate requirements.
@@ -2202,12 +2214,12 @@ double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, 
 tp_err_t optimize_biarc_blend_size(
     TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc,
-    blend_boundary_t * const bb_out,
-    blend_intermediate_points_t * const bp_out,
+    biarc_solver_config_t const * const config,
     double maxFeedScale,
     PmCartesian const * const vel_bound,
     PmCartesian const * const acc_bound,
-    BlendGeom3 * const geom,
+    blend_boundary_t * const bb_out,
+    blend_intermediate_points_t * const bp_out,
     BlendParameters * const param)
 {
     if (!prev_tc || !tc || !bp_out) {
@@ -2219,32 +2231,35 @@ tp_err_t optimize_biarc_blend_size(
     double Rb_min = 0;
     // KLUDGE just do average as first guess since we don't know anything about performance yet
     double Rb = (Rb_max + Rb_min) / 2.0;
-    static const double solver_radius_rel_tol = 0.02; // 2% is pretty good
-    static const double solver_blend_tolerance_abs_tol = 0.001;
-    static const unsigned MAX_ITERATIONS = 10;
+    const unsigned MAX_ITERATIONS = config->max_iterations;
 
     blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
-    // Bias the solution to be oversize
-    param->v_goal *= (1.0+solver_radius_rel_tol);
     blendInitTolerance(prev_tc, tc, param);
 
     double s1_max = prev_tc->target - Rb_max;
     double s2_max = Rb_max;
+    PmCartesian u_tan1, u_tan2;
+    tcGetTangentUnitVector(prev_tc, s1_max, &u_tan1);
+    tcGetTangentUnitVector(tc, s2_max, &u_tan2);
 
-    tcGetTangentUnitVector(prev_tc, s1_max, &geom->u_tan1);
-    tcGetTangentUnitVector(tc, s2_max, &geom->u_tan2);
-
+    //TODO do altitude calculation too?
     // Approximate the blend kinematics using the initial guess
     // Actual limits will be enforced later
     CHP(blendParamKinematics(
-        geom,
+        &u_tan1,
+        &u_tan2,
         param,
         acc_bound,
         vel_bound));
 
-    // Intersection
+    double R_goal = pmSq(param->v_goal) / param->a_n_max;
+    // Scale up solver tolerance to have the same net effect on velocity
+    const double solver_radius_rel_tol = config->velocity_rel_tolerance * R_goal / param->v_goal;
+    const double solver_radius_abs_tol = pmSq(config->velocity_abs_tolerance) / param->a_n_max; // 2% is pretty good
+
+    // Intersection is at start of next segment, so use startpoint method since it's much faster
     EmcPose P;
-    tcGetStartpoint(tc, &P);
+    CHP(tcGetStartpoint(tc, &P));
 
     for (bp_out->iterations = 0; bp_out->iterations < MAX_ITERATIONS; ++bp_out->iterations)
     {
@@ -2253,6 +2268,7 @@ tp_err_t optimize_biarc_blend_size(
         // Find blend segment lengths d, L and intermediate points with procedure find_blend_intermediate_segments
         find_blend_intermediate_segments(bb_out, bp_out);
 
+        // Verify distance from blend midpoint to original intersection P < tolerance
         double T;
         pmCartCartDisp(&bp_out->P_mid, &P.tran, &T);
         if (T > param->tolerance) {
@@ -2267,26 +2283,22 @@ tp_err_t optimize_biarc_blend_size(
             bp_out,
             &R_plan));
 
-        double R_goal = pmSq(param->v_goal) / param->a_n_max;
+        // Check if requested velocity is reached, or if blend radius is oversized, and guess a new Rb
         Rb = guess_blend_region_size_bisect(Rb, &Rb_max, &Rb_min, R_goal, R_plan);
-        // Check blend performance:
-        // Verify distance from blend midpoint to original intersection P < tolerance
-        // Check if requested velocity is reached (if not, need bigger arc)
-        // Check if blend radii are larger than they need to be (e.g. worst-case normal acceleration < a_t_max)
-        // Refine solution as necessary:
-        // Guess a new Rb based on heuristic function of Rb, Rb_max, v_plan with procedure guess_blend_region_size
-        double err = (R_plan - (R_goal + TP_POS_EPSILON)) / (R_goal + TP_POS_EPSILON);
-        double tol_err = param->tolerance - T;
+
+        // Check for solution convergence based on specified tolerances
+        const double err = (R_plan - (R_goal + TP_POS_EPSILON)) / (R_goal + TP_POS_EPSILON);
+        const double tol_err = param->tolerance - T;
+        // KLUDGE allow it to converge at max tolerance if we can't reach requested velocity / radius
         if ((fabs(err) < solver_radius_rel_tol
-             || fabs(R_goal - R_plan) < solver_blend_tolerance_abs_tol))
-            {
+             || fabs(R_goal - R_plan) < solver_radius_abs_tol))
+        {
             bp_out->result = BIARC_MATCHED_VGOAL;
             return TP_ERR_OK;
         }
-        // KLUDGE absolute tolerance not all that useful here
-        if ( err < 0.0 && tol_err >= 0 && tol_err < solver_blend_tolerance_abs_tol) {
+        if ( err < 0.0 && tol_err >= 0 && tol_err < config->deviation_abs_tolerance) {
             bp_out->result = BIARC_REACHED_TOLERANCE;
-                return TP_ERR_OK;
+            return TP_ERR_OK;
         }
     }
     bp_out->result = BIARC_EXCEEDED_MAX_ITERATIONS;

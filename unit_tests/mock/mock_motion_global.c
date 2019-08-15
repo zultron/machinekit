@@ -47,7 +47,7 @@ void init_motion_globals()
     emcmot_joint_t mock_j={0};
     mock_j.max_pos_limit = 20;
     mock_j.min_pos_limit = -20;
-    mock_j.vel_limit = 1.0;
+    mock_j.vel_limit = 2.0;
     mock_j.acc_limit = 20.0;
 
     for (int i = 0; i < 4; ++i) {
