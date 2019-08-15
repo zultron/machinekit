@@ -2118,6 +2118,8 @@ tp_err_t find_blend_intermediate_segments(
     pmCartCartAddEq(&bp_out->Pb2, &blend_params->P2);
 
     pmCartCartDirection(&bp_out->Pb2, &bp_out->Pb1, &bp_out->u_mid);
+    pmCartScalMult(&bp_out->u_mid, bp_out->d, &bp_out->P_mid);
+    pmCartCartAddEq(&bp_out->P_mid, &bp_out->Pb1);
     return TP_ERR_OK;
 }
 
@@ -2240,12 +2242,23 @@ tp_err_t optimize_biarc_blend_size(
         acc_bound,
         vel_bound));
 
+    // Intersection
+    EmcPose P;
+    tcGetStartpoint(tc, &P);
+
     for (unsigned iter = 0; iter < MAX_ITERATIONS; ++iter)
     {
         // Find blend start / end points and tangent vectors, within Rb of intersection P with procedure find_blend_points_and_tangents
         find_blend_points_and_tangents(Rb, prev_tc, tc, bb_out);
         // Find blend segment lengths d, L and intermediate points with procedure find_blend_intermediate_segments
         find_blend_intermediate_segments(bb_out, bp_out);
+
+        double T;
+        pmCartCartDisp(&bp_out->P_mid, &P.tran, &T);
+        if (T > param->tolerance) {
+            Rb_max = Rb;
+            continue;
+        }
 
         double R_plan;
         CHP(find_blend_size_from_intermediates(
@@ -2264,7 +2277,8 @@ tp_err_t optimize_biarc_blend_size(
         double err = (R_plan - (R_goal + TP_POS_EPSILON)) / (R_goal + TP_POS_EPSILON);
         double tol_err = param->tolerance - T;
         if ((fabs(err) < solver_radius_rel_tol
-            || fabs(R_goal - R_plan) < solver_radius_abs_tol)) {
+            || fabs(R_goal - R_plan) < solver_radius_abs_tol)
+            || ( err < 0.0 && tol_err >= 0 && tol_err < solver_radius_abs_tol)) {
             return TP_ERR_OK;
         }
     }

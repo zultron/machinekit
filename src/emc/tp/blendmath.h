@@ -304,6 +304,7 @@ typedef struct
     PmCartesian Pb1;
     PmCartesian Pb2;
     PmCartesian u_mid;
+    PmCartesian P_mid;
     double d; // Note: length of intermediate segment is 2d
 } blend_intermediate_points_t;
 
