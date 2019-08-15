@@ -121,13 +121,11 @@ int sat_inplace(double * const x, double max);
 
 int checkTangentAngle(PmCircle const * const circ, SphericalArc const * const arc, BlendGeom3 const * const geom, BlendParameters const * const param, double cycle_time, int at_end);
 
-int findIntersectionAngle(PmCartesian const * const u1,
-        PmCartesian const * const u2, double * const theta);
+double findIntersectionAngle(PmCartesian const * const u1,
+        PmCartesian const * const u2);
 
-int findIntersectionTanAngle(
-    PmCartesian const * const u1,
-    PmCartesian const * const u2,
-    double * const tan_theta);
+double findIntersectionTanAngle(PmCartesian const * const u1,
+    PmCartesian const * const u2);
 
 double pmCartMin(PmCartesian const * const in);
 
@@ -307,6 +305,7 @@ typedef struct
     PmCartesian u1;
     PmCartesian P2;
     PmCartesian u2;
+    double Rb;
 } blend_boundary_t;
 
 typedef enum
@@ -330,6 +329,17 @@ typedef struct
 } blend_intermediate_points_t;
 
 // API for biarc blends
+
+double find_blend_region_from_tolerance(
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    double tolerance);
+
+double find_blend_region_from_tolerance_simple(
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    double tolerance);
+
 tp_err_t find_blend_points_and_tangents(
     double Rb,
     TC_STRUCT const * const prev_tc,

@@ -379,40 +379,27 @@ int pmUnitCartsColinear(PmCartesian const * const u1,
  * direction, then the intersection angle is PI/2. This is based on the
  * simple_tp formulation for tolerances.
  */
-int findIntersectionAngle(PmCartesian const * const u1,
-        PmCartesian const * const u2, double * const theta)
+double findIntersectionAngle(PmCartesian const * const u1,
+        PmCartesian const * const u2)
 {
     double dot;
     pmCartCartDot(u1, u2, &dot);
 
-    if (dot > 1.0 || dot < -1.0) {
-        tp_debug_print("dot product %.16g outside domain of acos! u1 = %.16g %.16g %.16g, u2 = %.16g %.16g %.16g\n",
-                dot,
-                u1->x,
-                u1->y,
-                u1->z,
-                u2->x,
-                u2->y,
-                u2->z);
-        sat_inplace(&dot,1.0);
-    }
+    sat_inplace(&dot,1.0);
 
-    *theta = acos(-dot)/2.0;
-    return TP_ERR_OK;
+    return acos(-dot)/2.0;
 }
 
-int findIntersectionTanAngle(
+double findIntersectionTanAngle(
     PmCartesian const * const u1,
-    PmCartesian const * const u2,
-    double * const tan_theta)
+    PmCartesian const * const u2)
 {
     double dot;
     pmCartCartDot(u1, u2, &dot);
 
     double cos_theta = -dot;
 
-    *tan_theta = pmSqrt((1. - cos_theta) / (1. + cos_theta));
-    return TP_ERR_OK;
+    return pmSqrt((1. - cos_theta) / (1. + cos_theta));
 }
 
 
@@ -645,9 +632,8 @@ int blendGeom3Init(BlendGeom3 * const geom,
             geom->P.z);
 
     // Find angle between tangent vectors
-    int res_angle = findIntersectionAngle(&geom->u_tan1,
-            &geom->u_tan2,
-            &geom->theta_tan);
+    geom->theta_tan = findIntersectionAngle(&geom->u_tan1,
+            &geom->u_tan2);
 
     // Test for intersection angle errors
     if(PM_PI / 2.0 - geom->theta_tan < TP_ANGLE_EPSILON) {
@@ -664,8 +650,7 @@ int blendGeom3Init(BlendGeom3 * const geom,
 
     return res_u1 |
         res_u2 |
-        res_intersect |
-        res_angle;
+        res_intersect;
 }
 
 
@@ -2070,11 +2055,17 @@ double pseudo_sqrt(double x)
     return (b1 * pmSqrt(x + PSEUDO_SQRT_EPSILON) + b0) / den;
 }
 
-double clamp(double upper, double lower, double margin, double value)
+
+/**
+ * Force a value to be within the range specified, with that range shrunk by the relative margin.
+ * Example: If rel_margin is 0.1, upper = 2, lower = 1, value must be within [1.05,1.95]
+ * @pre result is undefined if rel_margin exceeds [0,1], or lower > upper
+ */
+double clamp(double upper, double lower, double rel_margin, double value)
 {
-    double d = upper - lower;
-    double u = upper - d * margin;
-    double l = lower + d * margin;
+    double m = (upper - lower) * rel_margin / 2.0;
+    double u = upper - m;
+    double l = lower + m;
     return fmin(fmax(value, l), u);
 }
 
@@ -2163,8 +2154,7 @@ tp_err_t find_blend_size_from_intermediates(
     double *R_geom)
 {
     // KLUDGE assume d is correct (will check exact length later)
-    double tan_theta;
-    findIntersectionTanAngle(&blend_boundary->u1, &intermediates->u_mid, &tan_theta);
+    double tan_theta = findIntersectionTanAngle(&blend_boundary->u1, &intermediates->u_mid);
 
     // TODO optimize out the tangent calculation if necessary
     // Find radius from the limiting length (assume length is actually symmetrical
@@ -2185,7 +2175,6 @@ static inline double guess_blend_region_size_bisect(double Rb, double *Rb_max, d
     return Rb_guess;
 }
 
-#if 0
 static inline double guess_blend_region_size_slope(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last)
 {
     if (R_plan_last < R_goal) {
@@ -2193,13 +2182,12 @@ static inline double guess_blend_region_size_slope(double Rb, double *Rb_max, do
     } else {
         *Rb_max = Rb;
     }
-    // Bisection method with faster refinement
-    double R_ratio = R_goal / R_plan_last;
+    // Refine aggressively at first, then get finer as the minimum radius increases.
+    double R_ratio = (R_goal + *Rb_min) / (R_plan_last + *Rb_min);
 
-    double Rb_guess = clamp(*Rb_max, *Rb_min, 0.25, R_ratio * Rb);
+    double Rb_guess = clamp(*Rb_max, *Rb_min, 0.1, R_ratio * Rb);
     return Rb_guess;
 }
-#endif
 
 /**
  * Given an overall tolerance limit and the tangent vectors at the
@@ -2212,12 +2200,65 @@ static inline double guess_blend_region_size_slope(double Rb, double *Rb_max, do
  * possible.
  */
 double find_blend_region_from_tolerance(
-    PmCartesian const * const u_tan1,
-    PmCartesian const * const u_tan2,
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
     double tolerance)
 {
+    PmCartesian u_tan1, u_tan2;
+    // Start by assuming that the blend tangents will be at least 1 tolereance
+    // distance away (should always be true because part of the blend will move
+    // along the tangential direction until it hits the intermediate segment).
+    double s1 = fmax(0, prev_tc->target - tolerance);
+    double s2 = fmin(tc->target / 2.0, tolerance);
+    tcGetTangentUnitVector(prev_tc, s1, &u_tan1);
+    tcGetTangentUnitVector(tc, s2, &u_tan2);
+
+    double eta1 = 0, eta2 = 0;
+    if (prev_tc->motion_type == TC_CIRCULAR) {
+        eta1 = (prev_tc->target - s1) / prev_tc->coords.circle.xyz.radius;
+    }
+    if (tc->motion_type == TC_CIRCULAR) {
+        eta2 = s2 / tc->coords.circle.xyz.radius;
+    }
+
+    double theta = findIntersectionAngle(&u_tan1, &u_tan2);
+
+    // TODO optimize
+    double eta = (eta1 + eta2) / 2.0;
+    const double theta2_guess = theta + eta;
+    double F = 0, theta2 = 0;
+    if (theta2_guess < M_PI_2) {
+        // "Normal" case where the effective tangent vectors point towards the intersection
+        theta2 = theta2_guess;
+        F = (sin(eta) + cos(theta))/(sin(theta2) + 1);
+    } else {
+        // Flipped case, where tangent vectors point away from the intersection
+        // If theta2 > pi/2, then the tolerance region "flips" so that the triangles are opposite
+        // Redefine theta2 to have the same sense as theta in the flipped triangle
+        theta2 = M_PI - theta2_guess;
+
+        F = sin(theta) / (1 + sin(theta2)) * cos(theta2) + cos(theta);
+    }
+    double Rb = tolerance / F;
+    double Rb_max = sin(theta)/sin(theta2) * Rb;
+
+    return Rb_max;
+}
+
+double find_blend_region_from_tolerance_simple(
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    double tolerance)
+{
+    PmCartesian u_tan1, u_tan2;
+    // Start by assuming that the blend tangents will be at least 1 tolereance
+    // distance away (should always be true because part of the blend will move
+    // along the tangential direction until it hits the intermediate segment).
+    tcGetEndTangentUnitVector(prev_tc,  &u_tan1);
+    tcGetStartTangentUnitVector(tc, &u_tan2);
+
     double dot;
-    pmCartCartDot(u_tan1, u_tan2, &dot);
+    pmCartCartDot(&u_tan1, &u_tan2, &dot);
     double cos_2theta = -dot;
 
     // avoids acos, sin, cos, but not sure if this is actually faster
@@ -2264,18 +2305,13 @@ tp_err_t optimize_biarc_blend_size(
     // not passing 0.0 around if tolerance is not specified)
     blendInitTolerance(prev_tc, tc, param);
 
-    // Crude estimate of initial tolerance based on blend shape at intersection
-    PmCartesian u_tan1, u_tan2;
-    tcGetEndTangentUnitVector(prev_tc, &u_tan1);
-    tcGetStartTangentUnitVector(tc, &u_tan2);
-
-    double Rb_init = find_blend_region_from_tolerance(&u_tan1, &u_tan2, param->tolerance);
+    double Rb_init = find_blend_region_from_tolerance(prev_tc, tc, param->tolerance);
 
     // Initial solver values for Rb range using somewhat dumb (but cheap) values
     double Rb_max = find_max_blend_region(prev_tc, tc);
     double Rb_min = TP_POS_EPSILON;
     // Restrict initial guess to be within real boundaries
-    double Rb = bound(Rb_init, Rb_max, Rb_min);
+    bb_out->Rb = bound(Rb_init, Rb_max, Rb_min);
     const unsigned MAX_ITERATIONS = config->max_iterations;
 
     blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
@@ -2309,10 +2345,10 @@ tp_err_t optimize_biarc_blend_size(
     EmcPose P;
     CHP(tcGetStartpoint(tc, &P));
 
-    for (bp_out->iterations = 0; bp_out->iterations < MAX_ITERATIONS; ++bp_out->iterations)
+    for (bp_out->iterations = 1; bp_out->iterations < MAX_ITERATIONS; ++bp_out->iterations)
     {
         // Find blend start / end points and tangent vectors, within Rb of intersection P with procedure find_blend_points_and_tangents
-        find_blend_points_and_tangents(Rb, prev_tc, tc, bb_out);
+        find_blend_points_and_tangents(bb_out->Rb, prev_tc, tc, bb_out);
         // Find blend segment lengths d, L and intermediate points with procedure find_blend_intermediate_segments
         find_blend_intermediate_segments(bb_out, bp_out);
 
@@ -2320,8 +2356,8 @@ tp_err_t optimize_biarc_blend_size(
         double T;
         pmCartCartDisp(&bp_out->P_mid, &P.tran, &T);
         if (T > param->tolerance) {
-            Rb_max = Rb;
-            Rb = fmax(Rb * param->tolerance / (T+0.0001), Rb_min);
+            Rb_max = bb_out->Rb;
+            bb_out->Rb = fmax(bb_out->Rb * param->tolerance / (T+0.0001), Rb_min);
             continue;
         }
 
@@ -2331,15 +2367,13 @@ tp_err_t optimize_biarc_blend_size(
             bp_out,
             &R_plan));
 
-        // Check if requested velocity is reached, or if blend radius is oversized, and guess a new Rb
-        Rb = guess_blend_region_size_bisect(Rb, &Rb_max, &Rb_min, R_goal, R_plan);
-
         // Check for solution convergence based on specified tolerances
-        const double err = (R_plan - (R_goal + TP_POS_EPSILON)) / (R_goal + TP_POS_EPSILON);
+        const double err = (R_plan - R_goal) / (R_goal + TP_POS_EPSILON);
         const double tol_err = param->tolerance - T;
+        const double radius_err = fabs(R_goal - R_plan);
         // KLUDGE allow it to converge at max tolerance if we can't reach requested velocity / radius
         if ((fabs(err) < solver_radius_rel_tol
-             || fabs(R_goal - R_plan) < solver_radius_abs_tol))
+             || radius_err < solver_radius_abs_tol))
         {
             bp_out->result = BIARC_MATCHED_VGOAL;
             return TP_ERR_OK;
@@ -2348,6 +2382,8 @@ tp_err_t optimize_biarc_blend_size(
             bp_out->result = BIARC_REACHED_TOLERANCE;
             return TP_ERR_OK;
         }
+        // Refine Rb if solution has not converged
+        bb_out->Rb = guess_blend_region_size_slope(bb_out->Rb, &Rb_max, &Rb_min, R_goal, R_plan);
     }
     bp_out->result = BIARC_EXCEEDED_MAX_ITERATIONS;
     return TP_ERR_FAIL;

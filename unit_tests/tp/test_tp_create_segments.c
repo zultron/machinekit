@@ -368,6 +368,7 @@ TEST test_optimize_biarc_blend_size()
         0.001,
         0.0001,
     };
+
     tp_err_t res_opt = optimize_biarc_blend_size(
         prev_tc,
         this_tc,
@@ -381,13 +382,13 @@ TEST test_optimize_biarc_blend_size()
 
     ASSERT_EQ(TP_ERR_OK, res_opt);
     ASSERT_EQ(BIARC_REACHED_TOLERANCE, bp.result);
-    ASSERT(bp.iterations < 10);
     // Verify that the midpoint is within tolerance
     double T;
     EmcPose P;
     tcGetStartpoint(this_tc, &P);
     pmCartCartDisp(&bp.P_mid, &P.tran, &T);
     ASSERT(T < BLEND_TOLERANCE);
+    ASSERT(bp.iterations < 10);
 
     deleteMockTP(&tp);
     PASS();

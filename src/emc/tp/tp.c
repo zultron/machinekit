@@ -2236,7 +2236,6 @@ int tpComputeBlendVelocity(
     *v_blend_this = fmin(v_reachable_this, t_blend * acc_this);
     *v_blend_next = fmin(v_reachable_next, t_blend * acc_next);
 
-    double theta;
 
     PmCartesian v1={0}, v2={0};
 
@@ -2247,7 +2246,7 @@ int tpComputeBlendVelocity(
         rtapi_print_msg(RTAPI_MSG_WARN, "Got bad unit vectors in parabolic blend velocity calculation\n");
         return TP_ERR_FAIL;
     }
-    findIntersectionAngle(&v1, &v2, &theta);
+    double theta = findIntersectionAngle(&v1, &v2);
 
     double cos_theta = cos(theta);
 
