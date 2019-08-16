@@ -17,13 +17,19 @@
 #include "mot_priv.h"
 #include "mock_motion_global.h"
 
+void resetMockTP(TP_STRUCT *tp, double cycle_time)
+{
+    tpClear(tp);
+    tpSetCycleTime(tp, cycle_time);
+}
+
 TP_STRUCT *newMockTP(unsigned queue_size, double cycle_time)
 {
     init_motion_globals();
     TP_STRUCT *tp = malloc(sizeof(TP_STRUCT));
     TC_STRUCT *tcq_space = malloc(sizeof(TC_STRUCT) * queue_size);
     tpCreate(tp, queue_size, tcq_space);
-    tpSetCycleTime(tp, cycle_time);
+    resetMockTP(tp, cycle_time);
     return tp;
 }
 
@@ -35,5 +41,4 @@ void deleteMockTP(TP_STRUCT ** tp)
         *tp=NULL;
     }
 }
-
 
