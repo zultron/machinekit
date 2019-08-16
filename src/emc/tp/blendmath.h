@@ -315,7 +315,17 @@ typedef enum
     BIARC_NOT_SOLVED,
     BIARC_MATCHED_VGOAL,
     BIARC_REACHED_TOLERANCE,
+    BIARC_REACHED_MIN_SIZE_CUTOFF,
+    BIARC_CONVERGED,
 } BlendSolverResults;
+
+typedef struct
+{
+    double tolerance_upper;
+    double length_cutoff_lower;
+    double vel_lower;
+    double vel_upper;
+} blend_solver_constraint_t;
 
 typedef struct
 {
@@ -326,6 +336,9 @@ typedef struct
     double d; // Note: length of intermediate segment is 2d
     unsigned iterations;
     BlendSolverResults result;
+    double tol_err;
+    double radius_err;
+    double R_plan;
 } blend_intermediate_points_t;
 
 // API for biarc blends

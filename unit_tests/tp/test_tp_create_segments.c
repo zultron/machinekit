@@ -345,7 +345,7 @@ static TP_STRUCT *setup_two_xy_unit_circles_exact_perp_corner(double v_req, doub
 
 TEST test_optimize_biarc_blend_size()
 {
-    static const double BLEND_TOLERANCE = 0.05;
+    static const double BLEND_TOLERANCE = 0.005;
     TP_STRUCT *tp =setup_two_xy_unit_circles_exact_perp_corner(1.0, BLEND_TOLERANCE);
     ASSERT(tp);
 
@@ -405,12 +405,13 @@ TEST test_biarc_optimizer_performance()
 
 
     static const CenterNormal cases[]={
-        {{1,0,0},{0,0,1}},
         {{1,0,0},{0,0,-1}},
+        {{1,0,0},{0,0,1}},
         {{1,0,0},{0,1,0}},
         {{1,0,0},{0,-1,0}},
         };
 
+    printf("\nCircle biarc blend tests\n");
     for (unsigned i=0; i < (sizeof(cases)/sizeof (CenterNormal)); ++i) {
         resetMockTP(tp, 0.001);
         setup_two_xy_unit_circles(tp, 1.0, BLEND_TOLERANCE, cases[i].center, cases[i].normal);
@@ -427,7 +428,7 @@ TEST test_biarc_optimizer_performance()
         blend_intermediate_points_t bp = {0};
         BlendParameters param = {0};
         biarc_solver_config_t cfg = {
-            10,
+            100,
             0.02,
             0.001,
             0.0001,
@@ -445,15 +446,24 @@ TEST test_biarc_optimizer_performance()
             &param);
 
         ASSERT_EQ(TP_ERR_OK, res_opt);
-        ASSERT_EQ(BIARC_REACHED_TOLERANCE, bp.result);
         // Verify that the midpoint is within tolerance
         double T;
         EmcPose P;
         tcGetStartpoint(this_tc, &P);
         pmCartCartDisp(&bp.P_mid, &P.tran, &T);
         ASSERT(T < BLEND_TOLERANCE);
-        ASSERT(bp.iterations < 10);
-
+        ASSERT(bp.iterations < 100);
+        printf(" Center %f %f %f, Normal %f %f %f, iterations %d, tolerance %f, region size %f, v_plan %f\n",
+               cases[i].center.x,
+               cases[i].center.y,
+               cases[i].center.z,
+               cases[i].normal.x,
+               cases[i].normal.y,
+               cases[i].normal.z,
+               bp.iterations,
+               T,
+               bb.Rb,
+               pmSqrt(param.a_n_max * bp.R_plan));
     }
 
     deleteMockTP(&tp);
@@ -472,5 +482,6 @@ int main(int argc, char **argv) {
     RUN_TEST(test_find_blend_points_and_tangents);
     RUN_TEST(test_find_blend_intermediates);
     RUN_TEST(test_optimize_biarc_blend_size);
+    RUN_TEST(test_biarc_optimizer_performance);
     GREATEST_MAIN_END();        /* display results */
 }
