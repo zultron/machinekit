@@ -295,30 +295,28 @@ TEST test_find_blend_intermediates()
 
 
 /**
- * Create a mock TP and preload it with two unit-radius circles in a "W" shape curve.
+ * Populate a TP with two circles, the first one's endpoint is at 0,0,0.
+ * Choose a normal2 that works for center2.
  */
-static TP_STRUCT *setup_two_xy_unit_circles_exact(double v_req, double blend_tolerance)
+static void setup_two_xy_unit_circles(TP_STRUCT *tp, double v_req, double blend_tolerance, PmCartesian center2, PmCartesian normal2)
 {
-    CREATE_MOCK_TP();
     tpSetTermCond(tp, TC_TERM_COND_STOP, blend_tolerance);
     // KLUDGE guess at safe tangential acceleration value
     double a_t_max = 20.0 * BLEND_ACC_RATIO_TANGENTIAL;
 
     // Unit radius to make angle -> arc length conversion easy
-    EmcPose const pt0 = {0};
-    EmcPose const pt1 = newXYZ(2,0,0,pt0);
-    EmcPose const pt2 = newXYZ(4,0,0,pt1);
+    EmcPose const pt0 = {{-2,0,0},0,0,0,0,0,0};
+    EmcPose const pt1 = newXYZ(0,0,0,pt0);
+    EmcPose pt2 = pt1;
 
     PmCartesian center1 = {1, 0, 0};
-    PmCartesian center2 = {3, 0, 0};
+    // Simple 180 deg arc
+    pmCartScalMult(&center2, 2, &pt2.tran);
     PmCartesian const normal1 = {0,0,1};
-    PmCartesian const normal2 = {0,0,1};
 
     // Ask for impossibly high velocity to force the arc to maximum size
     tpAddCircle(tp, pt1, center1, normal1, 0, EMC_MOTION_TYPE_FEED, v_req, 2.0, a_t_max, 0, 0, 0, line_tag(1));
     tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, v_req, 2.0, a_t_max, 0, 0, 0, line_tag(2));
-
-    return tp;
 }
 
 static TP_STRUCT *setup_two_xy_unit_circles_exact_perp_corner(double v_req, double blend_tolerance)
@@ -329,12 +327,12 @@ static TP_STRUCT *setup_two_xy_unit_circles_exact_perp_corner(double v_req, doub
     double a_t_max = 20.0 * BLEND_ACC_RATIO_TANGENTIAL;
 
     // Unit radius to make angle -> arc length conversion easy
-    EmcPose const pt0 = {0};
-    EmcPose const pt1 = newXYZ(2,0,0,pt0);
-    EmcPose const pt2 = newXYZ(2,2,0,pt1);
+    EmcPose const pt0 = {{-2,0,0},0,0,0,0,0,0};
+    EmcPose const pt1 = newXYZ(0,0,0,pt0);
+    EmcPose const pt2 = newXYZ(0,2,0,pt1);
 
-    PmCartesian center1 = {1, 0, 0};
-    PmCartesian center2 = {2, 1, 0};
+    PmCartesian center1 = {-1, 0, 0};
+    PmCartesian center2 = {0, 1, 0};
     PmCartesian const normal1 = {0,0,1};
     PmCartesian const normal2 = {0,0,1};
 
@@ -347,7 +345,7 @@ static TP_STRUCT *setup_two_xy_unit_circles_exact_perp_corner(double v_req, doub
 
 TEST test_optimize_biarc_blend_size()
 {
-    static const double BLEND_TOLERANCE = 0.005;
+    static const double BLEND_TOLERANCE = 0.05;
     TP_STRUCT *tp =setup_two_xy_unit_circles_exact_perp_corner(1.0, BLEND_TOLERANCE);
     ASSERT(tp);
 
@@ -394,6 +392,73 @@ TEST test_optimize_biarc_blend_size()
     PASS();
 }
 
+typedef struct {
+    PmCartesian center;
+    PmCartesian normal;
+} CenterNormal;
+
+TEST test_biarc_optimizer_performance()
+{
+    CREATE_MOCK_TP();
+    ASSERT(tp);
+    static const double BLEND_TOLERANCE = 0.05;
+
+
+    static const CenterNormal cases[]={
+        {{1,0,0},{0,0,1}},
+        {{1,0,0},{0,0,-1}},
+        {{1,0,0},{0,1,0}},
+        {{1,0,0},{0,-1,0}},
+        };
+
+    for (unsigned i=0; i < (sizeof(cases)/sizeof (CenterNormal)); ++i) {
+        resetMockTP(tp, 0.001);
+        setup_two_xy_unit_circles(tp, 1.0, BLEND_TOLERANCE, cases[i].center, cases[i].normal);
+
+        TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
+        TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
+        ASSERT(prev_tc);
+        ASSERT(this_tc);
+
+        PmCartesian vel_bound = getXYZVelBounds();
+        PmCartesian acc_bound = getXYZAccelBounds();
+
+        blend_boundary_t bb = {0};
+        blend_intermediate_points_t bp = {0};
+        BlendParameters param = {0};
+        biarc_solver_config_t cfg = {
+            10,
+            0.02,
+            0.001,
+            0.0001,
+            };
+
+        tp_err_t res_opt = optimize_biarc_blend_size(
+            prev_tc,
+            this_tc,
+            &cfg,
+            1.0,
+            &vel_bound,
+            &acc_bound,
+            &bb,
+            &bp,
+            &param);
+
+        ASSERT_EQ(TP_ERR_OK, res_opt);
+        ASSERT_EQ(BIARC_REACHED_TOLERANCE, bp.result);
+        // Verify that the midpoint is within tolerance
+        double T;
+        EmcPose P;
+        tcGetStartpoint(this_tc, &P);
+        pmCartCartDisp(&bp.P_mid, &P.tran, &T);
+        ASSERT(T < BLEND_TOLERANCE);
+        ASSERT(bp.iterations < 10);
+
+    }
+
+    deleteMockTP(&tp);
+    PASS();
+}
 
 
 int main(int argc, char **argv) {
