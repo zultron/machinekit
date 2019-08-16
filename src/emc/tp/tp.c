@@ -374,7 +374,6 @@ int tpClear(TP_STRUCT * const tp)
 {
     tcqInit(&tp->queue);
     tp->tc_completed=NULL;
-    tp->queueSize = 0;
     tp->goalPos = tp->currentPos;
     ZERO_EMC_POSE(tp->currentVel);
     tp->time_elapsed_sec = 0.0;
