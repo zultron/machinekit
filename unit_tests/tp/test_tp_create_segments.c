@@ -412,6 +412,18 @@ TEST test_biarc_optimizer_performance()
         {{1,0,0},{0,0,1}},
         {{1,0,0},{0,1,0}},
         {{1,0,0},{0,-1,0}},
+        {{0,0,1},{-1,0,0}},
+        {{0,0,1},{1,0,0}},
+        {{0,0,1},{0,1,0}},
+        {{0,0,1},{0,-1,0}},
+        {{0,1,1},{0,0,-1}},
+        {{0,1,1},{0,0,1}},
+        {{1,0,1},{0,1,0}},
+        {{1,0,1},{0,-1,0}},
+        {{0,.1,.1},{0,0,-1}},
+        {{0,.1,.1},{0,0,1}},
+        {{.1,0,.1},{0,1,0}},
+        {{.1,0,.1},{0,-1,0}},
         };
 
     printf("\nCircle biarc blend tests\n");
@@ -484,7 +496,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_slightly_convex_arcs);
     RUN_TEST(test_find_blend_points_and_tangents);
     RUN_TEST(test_find_blend_intermediates);
-    RUN_TEST(test_optimize_biarc_blend_size);
     RUN_TEST(test_biarc_optimizer_performance);
+    RUN_TEST(test_optimize_biarc_blend_size);
     GREATEST_MAIN_END();        /* display results */
 }
