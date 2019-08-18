@@ -298,7 +298,7 @@ TEST test_find_blend_intermediates()
  * Populate a TP with two circles, the first one's endpoint is at 0,0,0.
  * Choose a normal2 that works for center2.
  */
-static void setup_two_xy_unit_circles(TP_STRUCT *tp, double v_req, double blend_tolerance, PmCartesian center2, PmCartesian normal2)
+static greatest_test_res setup_two_xy_unit_circles(TP_STRUCT *tp, double v_req, double blend_tolerance, PmCartesian center2, PmCartesian normal2)
 {
     tpSetTermCond(tp, TC_TERM_COND_STOP, blend_tolerance);
     // KLUDGE guess at safe tangential acceleration value
@@ -318,6 +318,8 @@ static void setup_two_xy_unit_circles(TP_STRUCT *tp, double v_req, double blend_
     // Ask for impossibly high velocity to force the arc to maximum size
     tpAddCircle(tp, pt1, center1, normal1, 0, EMC_MOTION_TYPE_FEED, v_req, 2.0, a_t_max, 0, 0, 0, line_tag(1));
     tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, v_req, 2.0, a_t_max, 0, 0, 0, line_tag(2));
+    ASSERT_EQ(2, tcqLen(&tp->queue));
+    return GREATEST_TEST_RES_PASS;
 }
 
 static TP_STRUCT *setup_two_xy_unit_circles_exact_perp_corner(double v_req, double blend_tolerance)
@@ -415,7 +417,7 @@ TEST test_biarc_optimizer_performance()
     printf("\nCircle biarc blend tests\n");
     for (unsigned i=0; i < (sizeof(cases)/sizeof (CenterNormal)); ++i) {
         resetMockTP(tp, 0.001);
-        setup_two_xy_unit_circles(tp, 1.0, BLEND_TOLERANCE, cases[i].center, cases[i].normal);
+        CHECK_CALL(setup_two_xy_unit_circles(tp, 1.0, BLEND_TOLERANCE, cases[i].center, cases[i].normal));
 
         TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
         TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
