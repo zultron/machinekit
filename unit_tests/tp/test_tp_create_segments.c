@@ -309,11 +309,12 @@ static void setup_two_xy_unit_circles(TP_STRUCT *tp, double v_req, double blend_
     EmcPose const pt1 = newXYZ(0,0,0,pt0);
     EmcPose pt2 = pt1;
 
-    PmCartesian center1 = {1, 0, 0};
+    PmCartesian center1 = {-1, 0, 0};
     // Simple 180 deg arc
     pmCartScalMult(&center2, 2, &pt2.tran);
     PmCartesian const normal1 = {0,0,1};
 
+    tpSetPos(tp, &pt0);
     // Ask for impossibly high velocity to force the arc to maximum size
     tpAddCircle(tp, pt1, center1, normal1, 0, EMC_MOTION_TYPE_FEED, v_req, 2.0, a_t_max, 0, 0, 0, line_tag(1));
     tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, v_req, 2.0, a_t_max, 0, 0, 0, line_tag(2));
