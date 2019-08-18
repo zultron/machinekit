@@ -1111,11 +1111,14 @@ int pmCartPlaneProj(PmCartesian const * const v, PmCartesian const * const norma
     return pmErrno = r1 || r2 ? PM_NORM_ERR : 0;
 }
 
+/**
+ * Finds an in-plane orthonormal basis for two unit vectors based on a simplified Gram-Schmidt method.
+ */
 int pmCartCartOrthonormal(
-    PmCartesian const * const a_hat,
-    PmCartesian const * const b_hat,
-    PmCartesian * const u,
-    PmCartesian * const v)
+    PmCartesian const * const a_hat, //!< First unit vector
+    PmCartesian const * const b_hat, //!< Second unit vector, not colinear with a_hat
+    PmCartesian * const u, //!< [out] first orthonormal vector
+    PmCartesian * const v) //!< [out] second orthonormal vector (in direction of b_hat)
 {
     *v = *b_hat;
 
@@ -1131,7 +1134,12 @@ int pmCartCartOrthonormal(
     pmCartCartAddEq(u, a_hat);
     pmCartUnitEq(u);
 
-    return 0;
+    // Avoid undefined behavior when vectors are colinear
+    double dot_range = 1.0 - fabs(dot);
+    if ( dot_range < CART_FUZZ) {
+        pmErrno = PM_ERR;
+    }
+    return pmErrno;
 }
 
 /**
