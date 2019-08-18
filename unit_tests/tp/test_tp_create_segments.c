@@ -462,7 +462,7 @@ TEST test_biarc_optimizer_performance()
                cases[i].normal.z,
                bp.iterations,
                T,
-               bb.Rb,
+               bp.Rb,
                pmSqrt(param.a_n_max * bp.R_plan));
     }
 

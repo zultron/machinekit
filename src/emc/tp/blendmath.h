@@ -305,7 +305,6 @@ typedef struct
     PmCartesian u1;
     PmCartesian P2;
     PmCartesian u2;
-    double Rb;
 } blend_boundary_t;
 
 typedef enum
@@ -333,6 +332,7 @@ typedef struct
     PmCartesian Pb2;
     PmCartesian u_mid;
     PmCartesian P_mid;
+    double Rb;
     double d; // Note: length of intermediate segment is 2d
     unsigned iterations;
     BlendSolverResults result;

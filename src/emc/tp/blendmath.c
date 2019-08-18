@@ -2381,7 +2381,7 @@ tp_err_t optimize_biarc_blend_size(
     constraints.vel_lower = TP_POS_EPSILON;
     // Restrict initial guess to be within real boundaries
 
-    bb_out->Rb = bound_from_constraints(Rb_init, &constraints);
+    bp_out->Rb = bound_from_constraints(Rb_init, &constraints);
 
     // Intersection is at start of next segment, so use startpoint method since it's much faster
     EmcPose P;
@@ -2390,7 +2390,7 @@ tp_err_t optimize_biarc_blend_size(
     for (bp_out->iterations = 1; bp_out->iterations < MAX_ITERATIONS; ++bp_out->iterations)
     {
         // Find blend start / end points and tangent vectors, within Rb of intersection P with procedure find_blend_points_and_tangents
-        find_blend_points_and_tangents(bb_out->Rb, prev_tc, tc, bb_out);
+        find_blend_points_and_tangents(bp_out->Rb, prev_tc, tc, bb_out);
         // Find blend segment lengths d, L and intermediate points with procedure find_blend_intermediate_segments
         find_blend_intermediate_segments(bb_out, bp_out);
 
@@ -2399,9 +2399,9 @@ tp_err_t optimize_biarc_blend_size(
         pmCartCartDisp(&bp_out->P_mid, &P.tran, &T);
         bp_out->tol_err = param->tolerance - T;
         if (bp_out->tol_err < 0) {
-            constraints.tolerance_upper = bb_out->Rb;
+            constraints.tolerance_upper = bp_out->Rb;
             // Hit tolerance upper limit
-            bb_out->Rb = fmax(bb_out->Rb * param->tolerance / (T+0.0001), get_lower_constraint(&constraints));
+            bp_out->Rb = fmax(bp_out->Rb * param->tolerance / (T+0.0001), get_lower_constraint(&constraints));
             continue;
         }
 
@@ -2419,7 +2419,7 @@ tp_err_t optimize_biarc_blend_size(
         {
             bp_out->result = BIARC_MATCHED_VGOAL;
             return TP_ERR_OK;
-        } else if ( bp_out->radius_err < 0.0 && bp_out->tol_err >= 0 && bp_out->tol_err < config->deviation_abs_tolerance) {
+        } else if (bp_out->radius_err < 0.0 && bp_out->tol_err >= 0 && bp_out->tol_err < config->deviation_abs_tolerance) {
             bp_out->result = BIARC_REACHED_TOLERANCE;
             return TP_ERR_OK;
         } else if (get_effective_range(&constraints) < config->deviation_abs_tolerance && bp_out->tol_err >= 0) {
@@ -2427,7 +2427,7 @@ tp_err_t optimize_biarc_blend_size(
             return TP_ERR_OK;
         }
         // Refine Rb if solution has not converged
-        bb_out->Rb = guess_blend_region_size_slope(&constraints, bb_out->Rb, R_goal, bp_out->R_plan, bp_out->tol_err);
+        bp_out->Rb = guess_blend_region_size_slope(&constraints, bp_out->Rb, R_goal, bp_out->R_plan, bp_out->tol_err);
     }
     bp_out->result = BIARC_EXCEEDED_MAX_ITERATIONS;
     return TP_ERR_FAIL;
