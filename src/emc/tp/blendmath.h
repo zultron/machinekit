@@ -289,6 +289,14 @@ EndCondition checkEndCondition(double cycleTime,
 #define PSEUDO_SQRT_EPSILON 0.001
 double pseudo_sqrt(double x);
 
+int find_blend_vel_accel_planar_limits(
+    PmCartesian const * const u_tan1,
+    PmCartesian const * const u_tan2,
+    PmCartesian const * const acc_bound,
+    PmCartesian const * const vel_bound,
+    double *a_max_planar,
+    double *v_max_planar);
+
 // BiArc blend stuff
 
 typedef struct

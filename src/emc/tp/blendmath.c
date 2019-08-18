@@ -703,6 +703,11 @@ void findVMaxByAltitude(
     param->v_max_altitude = 2.0 * v_area / base;
 }
 
+static inline double normalAccelFromMax(double a_max)
+{
+    return a_max * BLEND_ACC_RATIO_NORMAL;
+}
+
 int blendParamKinematics(
     PmCartesian const * const u_tan1,
     PmCartesian const * const u_tan2,
@@ -713,30 +718,23 @@ int blendParamKinematics(
     // KLUDGE: common operations, but not exactly kinematics
     param->phi = (PM_PI - param->theta * 2.0);
 
-    PmCartesian u, v, uv_plane_envelope_sq;
-    pmCartCartOrthonormal(u_tan1, u_tan2, &u, &v);
-    pmCartCartHarmonicAddSq(&u, &v, &uv_plane_envelope_sq);
-
-    int res_dia = findMaxValueOnPlane(&uv_plane_envelope_sq, acc_bound, &param->a_max);
+    int res_limits = find_blend_vel_accel_planar_limits(
+        u_tan1,
+        u_tan2,
+        acc_bound,
+        vel_bound,
+        &param->a_max,
+        &param->v_max_planar);
 
     // Store max normal acceleration
-    param->a_n_max = param->a_max * BLEND_ACC_RATIO_NORMAL;
-    tp_debug_print("a_max = %f, a_n_max = %f\n", param->a_max,
-            param->a_n_max);
-
-    // Calculate the maximum planar velocity
-    res_dia |= findMaxValueOnPlane(&uv_plane_envelope_sq, vel_bound, &param->v_max_planar);
-    tp_debug_print("v_planar_max = %f\n", param->v_max_planar);
+    param->a_n_max = normalAccelFromMax(param->a_max);
 
     // WARNING: assumes that we start from a valid v_max (either 0 or from the 'altitude' check)
     double v_max = fmax(param->v_max_planar, param->v_max_altitude);
 
-    tp_debug_print("v_max = %f\n", v_max);
     param->v_goal = fmin(param->v_goal, v_max);
 
-    tp_debug_print("v_goal = %f", param->v_goal);
-
-    return res_dia;
+    return res_limits;
 }
 
 int blendParamInitVelocities(
@@ -2006,7 +2004,6 @@ EndCondition checkEndCondition(double cycleTime,
         }
     }
 
-
     // Assuming a full timestep:
     double dv = v_f - currentvel;
     double a_f = dv / fmax(dt, TP_TIME_EPSILON);
@@ -2054,7 +2051,6 @@ double pseudo_sqrt(double x)
     const double b1 = 1;
     return (b1 * pmSqrt(x + PSEUDO_SQRT_EPSILON) + b0) / den;
 }
-
 
 /**
  * Force a value to be within the range specified, with that range shrunk by the relative margin.
@@ -2192,7 +2188,6 @@ static inline double bound_from_constraints(double Rb, blend_solver_constraints_
     return bound(Rb, Rb_max, Rb_min);
 }
 
-
 static inline double guess_blend_region_size_bisect(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last)
 {
     if (R_plan_last < R_goal) {
@@ -2303,6 +2298,27 @@ double find_blend_region_from_tolerance_simple(
     double d_est = sin_theta / cos_theta * tolerance;
 
     return tolerance / cos_theta + d_est;
+}
+
+int find_blend_vel_accel_planar_limits(
+    PmCartesian const * const u_tan1,
+    PmCartesian const * const u_tan2,
+    PmCartesian const * const acc_bound,
+    PmCartesian const * const vel_bound,
+    double *a_max_planar,
+    double *v_max_planar)
+{
+    // Find an orthonormal basis and "envelope" vector for the plane that represents
+    // the worst-case contribution of each axis to the overall velocity / acceleration
+    PmCartesian u, v, uv_plane_envelope_sq;
+    pmCartCartOrthonormal(u_tan1, u_tan2, &u, &v);
+    pmCartCartHarmonicAddSq(&u, &v, &uv_plane_envelope_sq);
+
+    // Reuse the envelope vector (this is why accel and vel are calculated together)
+    int res_dia = findMaxValueOnPlane(&uv_plane_envelope_sq, acc_bound, a_max_planar);
+    res_dia |= findMaxValueOnPlane(&uv_plane_envelope_sq, vel_bound, v_max_planar);
+
+    return res_dia;
 }
 
 /**
