@@ -282,7 +282,7 @@ TEST test_find_blend_intermediates()
 
     find_blend_points_and_tangents(s_b, prev_tc, this_tc, &bb);
 
-    blend_intermediate_points_t bp_out;
+    blend_control_points_t bp_out;
     find_blend_intermediate_segments(&bb, &bp_out);
 
     PmCartesian exp_u_mid = {1,0,0};
@@ -360,36 +360,35 @@ TEST test_optimize_biarc_blend_size()
     PmCartesian vel_bound = getXYZVelBounds();
     PmCartesian acc_bound = getXYZAccelBounds();
 
-    blend_boundary_t bb = {0};
-    blend_intermediate_points_t bp = {0};
     BlendParameters param = {0};
     biarc_solver_config_t cfg = {
         10,
         0.02,
         0.001,
         0.0001,
+        1.0, // Ignore feed override scale for now
     };
+
+    biarc_solver_results_t biarc_results = {0};
 
     tp_err_t res_opt = optimize_biarc_blend_size(
         prev_tc,
         this_tc,
         &cfg,
-        1.0,
         &vel_bound,
         &acc_bound,
-        &bb,
-        &bp,
+        &biarc_results,
         &param);
 
     ASSERT_EQ(TP_ERR_OK, res_opt);
-    ASSERT_EQ(BIARC_REACHED_TOLERANCE, bp.result);
+    ASSERT_EQ(BIARC_REACHED_TOLERANCE, biarc_results.result);
     // Verify that the midpoint is within tolerance
     double T;
     EmcPose P;
     tcGetStartpoint(this_tc, &P);
-    pmCartCartDisp(&bp.P_mid, &P.tran, &T);
+    pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
     ASSERT(T < BLEND_TOLERANCE);
-    ASSERT(bp.iterations < 10);
+    ASSERT(biarc_results.iterations < 10);
 
     deleteMockTP(&tp);
     PASS();
@@ -405,7 +404,6 @@ TEST test_biarc_optimizer_performance()
     CREATE_MOCK_TP();
     ASSERT(tp);
     static const double BLEND_TOLERANCE = 0.05;
-
 
     static const CenterNormal cases[]={
         {{1,0,0},{0,0,-1}},
@@ -439,25 +437,23 @@ TEST test_biarc_optimizer_performance()
         PmCartesian vel_bound = getXYZVelBounds();
         PmCartesian acc_bound = getXYZAccelBounds();
 
-        blend_boundary_t bb = {0};
-        blend_intermediate_points_t bp = {0};
         BlendParameters param = {0};
         biarc_solver_config_t cfg = {
             100,
             0.02,
             0.001,
             0.0001,
+            1.0, // Ignore feed override scale for now
             };
+        biarc_solver_results_t biarc_results = {0};
 
         tp_err_t res_opt = optimize_biarc_blend_size(
             prev_tc,
             this_tc,
             &cfg,
-            1.0,
             &vel_bound,
             &acc_bound,
-            &bb,
-            &bp,
+            &biarc_results,
             &param);
 
         ASSERT_EQ(TP_ERR_OK, res_opt);
@@ -465,9 +461,9 @@ TEST test_biarc_optimizer_performance()
         double T;
         EmcPose P;
         tcGetStartpoint(this_tc, &P);
-        pmCartCartDisp(&bp.P_mid, &P.tran, &T);
+        pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
         ASSERT(T < BLEND_TOLERANCE);
-        ASSERT(bp.iterations < 100);
+        ASSERT(biarc_results.iterations < 100);
         printf(" Center %f %f %f, Normal %f %f %f, iterations %d, tolerance %f, region size %f, v_plan %f\n",
                cases[i].center.x,
                cases[i].center.y,
@@ -475,10 +471,10 @@ TEST test_biarc_optimizer_performance()
                cases[i].normal.x,
                cases[i].normal.y,
                cases[i].normal.z,
-               bp.iterations,
+               biarc_results.iterations,
                T,
-               bp.Rb,
-               pmSqrt(param.a_n_max * bp.R_plan));
+               biarc_results.Rb,
+               pmSqrt(param.a_n_max * biarc_results.R_plan));
     }
 
     deleteMockTP(&tp);

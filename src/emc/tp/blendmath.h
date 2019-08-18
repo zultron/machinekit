@@ -297,6 +297,7 @@ typedef struct
     double velocity_rel_tolerance;
     double velocity_abs_tolerance;
     double deviation_abs_tolerance;
+    double feed_override_allowance;
 } biarc_solver_config_t;
 
 typedef struct
@@ -316,7 +317,7 @@ typedef enum
     BIARC_REACHED_TOLERANCE,
     BIARC_REACHED_MIN_SIZE_CUTOFF,
     BIARC_CONVERGED,
-} BlendSolverResults;
+} BiarcSolverResults;
 
 typedef struct
 {
@@ -324,7 +325,7 @@ typedef struct
     double length_cutoff_lower;
     double vel_lower;
     double vel_upper;
-} blend_solver_constraint_t;
+} blend_solver_constraints_t;
 
 typedef struct
 {
@@ -332,14 +333,22 @@ typedef struct
     PmCartesian Pb2;
     PmCartesian u_mid;
     PmCartesian P_mid;
-    double Rb;
-    double d; // Note: length of intermediate segment is 2d
-    unsigned iterations;
-    BlendSolverResults result;
+    double d; //!< Length of intermediate blend segment
+} blend_control_points_t;
+
+typedef struct
+{
+    double Rb; //!< size of blend region (i.e. distance to go along motion segments from intersection to blend boundary points)
+    blend_boundary_t boundary; //!< Points / tangents at the boundary between segment / blend
+    blend_control_points_t control_pts; //!< control points for the biarc spline approximation
+    blend_solver_constraints_t constraints; //!< blend solver internals (upper / lower bounds on Rb)
+    unsigned iterations; //!< solver iterations
+    BiarcSolverResults result;
     double tol_err;
     double radius_err;
     double R_plan;
-} blend_intermediate_points_t;
+} biarc_solver_results_t;
+
 
 // API for biarc blends
 
@@ -359,22 +368,21 @@ tp_err_t find_blend_points_and_tangents(
     TC_STRUCT const * const tc,
     blend_boundary_t * const out);
 
-tp_err_t find_blend_intermediate_segments(
-    blend_boundary_t const * const blend_params,
-    blend_intermediate_points_t * const bp_out);
+tp_err_t find_blend_intermediate_segments(blend_boundary_t const * const blend_params,
+    blend_control_points_t * const control_pts);
 
 double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc);
 
 tp_err_t find_blend_size_from_intermediates(blend_boundary_t const * const blend_boundary,
-    blend_intermediate_points_t const * const intermediates,
+    blend_control_points_t const * const intermediates,
     double *R_geom);
 
 tp_err_t optimize_biarc_blend_size(TC_STRUCT const * const prev_tc,
-    TC_STRUCT const * const tc, const biarc_solver_config_t * const config,
-    double maxFeedScale,
+    TC_STRUCT const * const tc,
+    const biarc_solver_config_t * const config,
     PmCartesian const * const vel_bound,
-    PmCartesian const * const acc_bound, blend_boundary_t * const bb_out,
-    blend_intermediate_points_t * const bp_out,
+    PmCartesian const * const acc_bound,
+    biarc_solver_results_t * const biarc_results,
     BlendParameters * const param);
 
 #endif

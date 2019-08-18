@@ -2093,7 +2093,7 @@ tp_err_t find_blend_points_and_tangents(
 
 tp_err_t find_blend_intermediate_segments(
     blend_boundary_t const * const blend_params,
-    blend_intermediate_points_t * const bp_out)
+    blend_control_points_t * const control_pts)
 {
     // A coefficient
     PmCartesian du12;
@@ -2112,20 +2112,20 @@ tp_err_t find_blend_intermediate_segments(
 
     pmCartMagSq(&dP12, &C);
 
-    int res_qf = quadraticFormula(A, B, C, &bp_out->d, NULL);
-    if (res_qf || bp_out->d < 0) {
+    int res_qf = quadraticFormula(A, B, C, &control_pts->d, NULL);
+    if (res_qf || control_pts->d < 0) {
         return -1;
     }
 
-    pmCartScalMult(&blend_params->u1, bp_out->d, &bp_out->Pb1);
-    pmCartCartAddEq(&bp_out->Pb1, &blend_params->P1);
+    pmCartScalMult(&blend_params->u1, control_pts->d, &control_pts->Pb1);
+    pmCartCartAddEq(&control_pts->Pb1, &blend_params->P1);
 
-    pmCartScalMult(&blend_params->u2, -bp_out->d, &bp_out->Pb2);
-    pmCartCartAddEq(&bp_out->Pb2, &blend_params->P2);
+    pmCartScalMult(&blend_params->u2, -control_pts->d, &control_pts->Pb2);
+    pmCartCartAddEq(&control_pts->Pb2, &blend_params->P2);
 
-    pmCartCartDirection(&bp_out->Pb2, &bp_out->Pb1, &bp_out->u_mid);
-    pmCartScalMult(&bp_out->u_mid, bp_out->d, &bp_out->P_mid);
-    pmCartCartAddEq(&bp_out->P_mid, &bp_out->Pb1);
+    pmCartCartDirection(&control_pts->Pb2, &control_pts->Pb1, &control_pts->u_mid);
+    pmCartScalMult(&control_pts->u_mid, control_pts->d, &control_pts->P_mid);
+    pmCartCartAddEq(&control_pts->P_mid, &control_pts->Pb1);
     return TP_ERR_OK;
 }
 
@@ -2150,7 +2150,7 @@ double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * 
 
 tp_err_t find_blend_size_from_intermediates(
     blend_boundary_t const * const blend_boundary,
-    blend_intermediate_points_t const * const intermediates,
+    blend_control_points_t const * const intermediates,
     double *R_geom)
 {
     // KLUDGE assume d is correct (will check exact length later)
@@ -2163,29 +2163,29 @@ tp_err_t find_blend_size_from_intermediates(
     return TP_ERR_OK;
 }
 
-static inline double get_upper_constraint(blend_solver_constraint_t const * const constraints)
+static inline double get_upper_constraint(blend_solver_constraints_t const * const constraints)
 {
     return fmin(constraints->tolerance_upper, constraints->vel_upper);
 }
 
-static inline double get_lower_constraint(blend_solver_constraint_t const * const constraints)
+static inline double get_lower_constraint(blend_solver_constraints_t const * const constraints)
 {
     return fmin(constraints->tolerance_upper, fmax(constraints->vel_lower, constraints->length_cutoff_lower));
 }
-static inline void get_effective_bounds(blend_solver_constraint_t const * const constraints, double *Rb_max, double *Rb_min)
+static inline void get_effective_bounds(blend_solver_constraints_t const * const constraints, double *Rb_max, double *Rb_min)
 {
     *Rb_max = get_upper_constraint(constraints);
     *Rb_min = get_lower_constraint(constraints);
 }
 
-static inline double get_effective_range(blend_solver_constraint_t const * const constraints)
+static inline double get_effective_range(blend_solver_constraints_t const * const constraints)
 {
     double Rb_min, Rb_max;
     get_effective_bounds(constraints, &Rb_max, &Rb_min);
     return Rb_max - Rb_min;
 }
 
-static inline double bound_from_constraints(double Rb, blend_solver_constraint_t const * const constraints)
+static inline double bound_from_constraints(double Rb, blend_solver_constraints_t const * const constraints)
 {
     double Rb_min, Rb_max;
     get_effective_bounds(constraints, &Rb_max, &Rb_min);
@@ -2206,7 +2206,7 @@ static inline double guess_blend_region_size_bisect(double Rb, double *Rb_max, d
 }
 
 static inline double guess_blend_region_size_slope(
-    blend_solver_constraint_t * const constraints,
+    blend_solver_constraints_t * const constraints,
     double Rb, double R_goal, double R_plan_last, double tol_err)
 {
     if (R_plan_last < R_goal && tol_err >= 0) {
@@ -2325,14 +2325,12 @@ tp_err_t optimize_biarc_blend_size(
     TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc,
     biarc_solver_config_t const * const config,
-    double maxFeedScale,
     PmCartesian const * const vel_bound,
     PmCartesian const * const acc_bound,
-    blend_boundary_t * const bb_out,
-    blend_intermediate_points_t * const bp_out,
+    biarc_solver_results_t * const biarc_results,
     BlendParameters * const param)
 {
-    if (!prev_tc || !tc || !bp_out) {
+    if (!prev_tc || !tc || !biarc_results) {
         return TP_ERR_MISSING_INPUT;
     }
 
@@ -2344,14 +2342,14 @@ tp_err_t optimize_biarc_blend_size(
 
     double Rb_init = find_blend_region_from_tolerance(prev_tc, tc, param->tolerance);
 
-    blend_solver_constraint_t constraints;
+    blend_solver_constraints_t constraints;
 
     // Initial solver values for Rb range using somewhat dumb (but cheap) values
     constraints.vel_upper = find_max_blend_region(prev_tc, tc);
     constraints.tolerance_upper = constraints.vel_upper;
     const unsigned MAX_ITERATIONS = config->max_iterations;
 
-    blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
+    blendParamInitVelocities(prev_tc, tc, config->feed_override_allowance, param);
 
     double s1_max = prev_tc->target - constraints.tolerance_upper;
     double s2_max = constraints.tolerance_upper;
@@ -2381,54 +2379,54 @@ tp_err_t optimize_biarc_blend_size(
     constraints.vel_lower = TP_POS_EPSILON;
     // Restrict initial guess to be within real boundaries
 
-    bp_out->Rb = bound_from_constraints(Rb_init, &constraints);
+    biarc_results->Rb = bound_from_constraints(Rb_init, &constraints);
 
     // Intersection is at start of next segment, so use startpoint method since it's much faster
     EmcPose P;
     CHP(tcGetStartpoint(tc, &P));
 
-    for (bp_out->iterations = 1; bp_out->iterations < MAX_ITERATIONS; ++bp_out->iterations)
+    for (biarc_results->iterations = 1; biarc_results->iterations < MAX_ITERATIONS; ++biarc_results->iterations)
     {
         // Find blend start / end points and tangent vectors, within Rb of intersection P with procedure find_blend_points_and_tangents
-        find_blend_points_and_tangents(bp_out->Rb, prev_tc, tc, bb_out);
+        find_blend_points_and_tangents(biarc_results->Rb, prev_tc, tc, &biarc_results->boundary);
         // Find blend segment lengths d, L and intermediate points with procedure find_blend_intermediate_segments
-        find_blend_intermediate_segments(bb_out, bp_out);
+        find_blend_intermediate_segments(&biarc_results->boundary, &biarc_results->control_pts);
 
         // Verify distance from blend midpoint to original intersection P < tolerance
         double T;
-        pmCartCartDisp(&bp_out->P_mid, &P.tran, &T);
-        bp_out->tol_err = param->tolerance - T;
-        if (bp_out->tol_err < 0) {
-            constraints.tolerance_upper = bp_out->Rb;
+        pmCartCartDisp(&biarc_results->control_pts.P_mid, &P.tran, &T);
+        biarc_results->tol_err = param->tolerance - T;
+        if (biarc_results->tol_err < 0) {
+            constraints.tolerance_upper = biarc_results->Rb;
             // Hit tolerance upper limit
-            bp_out->Rb = fmax(bp_out->Rb * param->tolerance / (T+0.0001), get_lower_constraint(&constraints));
+            biarc_results->Rb = fmax(biarc_results->Rb * param->tolerance / (T+0.0001), get_lower_constraint(&constraints));
             continue;
         }
 
         CHP(find_blend_size_from_intermediates(
-            bb_out,
-            bp_out,
-            &bp_out->R_plan));
+            &biarc_results->boundary,
+            &biarc_results->control_pts,
+            &biarc_results->R_plan));
 
         // Check for solution convergence based on specified tolerances
-        bp_out->radius_err = (bp_out->R_plan - R_goal) / (R_goal + TP_POS_EPSILON);
-        const double radius_err = fabs(R_goal - bp_out->R_plan);
+        biarc_results->radius_err = (biarc_results->R_plan - R_goal) / (R_goal + TP_POS_EPSILON);
+        const double radius_err = fabs(R_goal - biarc_results->R_plan);
 
-        if ((fabs(bp_out->radius_err) < solver_radius_rel_tol
+        if ((fabs(biarc_results->radius_err) < solver_radius_rel_tol
              || radius_err < solver_radius_abs_tol))
         {
-            bp_out->result = BIARC_MATCHED_VGOAL;
+            biarc_results->result = BIARC_MATCHED_VGOAL;
             return TP_ERR_OK;
-        } else if (bp_out->radius_err < 0.0 && bp_out->tol_err >= 0 && bp_out->tol_err < config->deviation_abs_tolerance) {
-            bp_out->result = BIARC_REACHED_TOLERANCE;
+        } else if (biarc_results->radius_err < 0.0 && biarc_results->tol_err >= 0 && biarc_results->tol_err < config->deviation_abs_tolerance) {
+            biarc_results->result = BIARC_REACHED_TOLERANCE;
             return TP_ERR_OK;
-        } else if (get_effective_range(&constraints) < config->deviation_abs_tolerance && bp_out->tol_err >= 0) {
-            bp_out->result = BIARC_CONVERGED;
+        } else if (get_effective_range(&constraints) < config->deviation_abs_tolerance && biarc_results->tol_err >= 0) {
+            biarc_results->result = BIARC_CONVERGED;
             return TP_ERR_OK;
         }
         // Refine Rb if solution has not converged
-        bp_out->Rb = guess_blend_region_size_slope(&constraints, bp_out->Rb, R_goal, bp_out->R_plan, bp_out->tol_err);
+        biarc_results->Rb = guess_blend_region_size_slope(&constraints, biarc_results->Rb, R_goal, biarc_results->R_plan, biarc_results->tol_err);
     }
-    bp_out->result = BIARC_EXCEEDED_MAX_ITERATIONS;
+    biarc_results->result = BIARC_EXCEEDED_MAX_ITERATIONS;
     return TP_ERR_FAIL;
 }
