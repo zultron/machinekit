@@ -653,24 +653,6 @@ int blendGeom3Init(BlendGeom3 * const geom,
         res_intersect;
 }
 
-
-/**
- * Initialize common fields in parameters structure.
- *
- * @param geom Stores simplified geometry used to calculate blend params.
- * @param param Abstracted parameters for blending calculations
- * @param acc_bound maximum X, Y, Z machine acceleration
- * @param vel_bound maximum X, Y, Z machine velocity
- * @param maxFeedScale maximum allowed feed override (set in INI)
- */
-void blendInitTolerance(
-    TC_STRUCT const * const prev_tc,
-    TC_STRUCT const * const tc,
-    BlendParameters * const param)
-{
-    tcFindBlendTolerance(prev_tc, tc, &param->tolerance);
-}
-
 void findVMaxByAltitude(
     PmCartesian const * const u1,
     PmCartesian const * const u2,
@@ -853,7 +835,7 @@ int blendInit3FromLineArc(
 
     // Setup common parameters
     int res_ini_vel = blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
-    blendInitTolerance(prev_tc, tc, param);
+    tcFindBlendTolerance(prev_tc, tc, &param->tolerance);
 
     int res_kin = blendParamKinematics(
             &geom->u_tan1,
@@ -941,7 +923,7 @@ int blendInit3FromArcLine(
     tp_debug_print("L1 = %f, L2 = %f\n", param->L1, param->L2);
 
     int res_ini_vel = blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
-    blendInitTolerance(prev_tc, tc, param);
+    tcFindBlendTolerance(prev_tc, tc, &param->tolerance);
 
     int res_kin = blendParamKinematics(
         &geom->u_tan1,
@@ -1086,7 +1068,7 @@ int blendInit3FromArcArc(BlendGeom3 * const geom, BlendParameters * const param,
 
     // Setup common parameters
     int res_ini_vel = blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
-    blendInitTolerance(prev_tc, tc, param);
+    tcFindBlendTolerance(prev_tc, tc, &param->tolerance);
 
     int res_kin = blendParamKinematics(
         &geom->u_tan1,
@@ -1143,7 +1125,7 @@ int blendInit3FromLineLine(BlendGeom3 * const geom, BlendParameters * const para
 
     // Setup common parameters
     int res_ini_vel = blendParamInitVelocities(prev_tc, tc, maxFeedScale, param);
-    blendInitTolerance(prev_tc, tc, param);
+    tcFindBlendTolerance(prev_tc, tc, &param->tolerance);
 
     findVMaxByAltitude(
         &geom->u1,
@@ -2354,7 +2336,7 @@ tp_err_t optimize_biarc_blend_size(
     static const double cycle_time = 0.001;
     // Find net tolerance that's actually usable (so that we're
     // not passing 0.0 around if tolerance is not specified)
-    blendInitTolerance(prev_tc, tc, param);
+    tcFindBlendTolerance(prev_tc, tc, &param->tolerance);
 
     double Rb_init = find_blend_region_from_tolerance(prev_tc, tc, param->tolerance);
 
