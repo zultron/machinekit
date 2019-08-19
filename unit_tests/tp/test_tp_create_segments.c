@@ -293,6 +293,79 @@ TEST test_find_blend_intermediates()
     PASS();
 }
 
+static greatest_test_res setup_initial_line(TP_STRUCT *tp, double v_req, double blend_tolerance)
+{
+    tpSetTermCond(tp, TC_TERM_COND_STOP, blend_tolerance);
+    double const v_max = 2.0;
+
+    // Unit radius to make angle -> arc length conversion easy
+    EmcPose const pt0 = {{-2,0,0},0,0,0,0,0,0};
+    EmcPose const pt1 = newXYZ(0,0,0,pt0);
+
+    tpSetPos(tp, &pt0);
+    tpSetId(tp, 1);
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, v_req, v_max, joints[0].acc_limit, 0, 0, 0, 0, line_tag(1));
+
+    ASSERT_EQ(1, tcqLen(&tp->queue));
+    return GREATEST_TEST_RES_PASS;
+}
+
+static greatest_test_res setup_initial_circle(TP_STRUCT *tp, double v_req, double blend_tolerance)
+{
+    tpSetTermCond(tp, TC_TERM_COND_STOP, blend_tolerance);
+    // KLUDGE guess at safe tangential acceleration value
+    double const a_t_max = 20.0 * BLEND_ACC_RATIO_TANGENTIAL;
+    double const a_n_max = 20.0 * BLEND_ACC_RATIO_NORMAL;
+    double const v_max = 2.0;
+
+    // Unit radius to make angle -> arc length conversion easy
+    EmcPose const pt0 = {{-2,0,0},0,0,0,0,0,0};
+    EmcPose const pt1 = newXYZ(0,0,0,pt0);
+
+    PmCartesian center1 = {-1, 0, 0};
+    PmCartesian const normal1 = {0,0,1};
+
+    tpSetPos(tp, &pt0);
+    tpSetId(tp, 1);
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddCircle(tp, pt1, center1, normal1, 0, EMC_MOTION_TYPE_FEED, v_req, v_max, a_t_max, a_n_max, 0, 0, line_tag(1));
+
+    TC_STRUCT const * tc = tcqItem(&tp->queue, 0);
+    ASSERT(tc);
+    ASSERT_FLOAT_EQ(v_max, tc->maxvel);
+
+    ASSERT_EQ(1, tcqLen(&tp->queue));
+    return GREATEST_TEST_RES_PASS;
+}
+
+
+static greatest_test_res add_circle_from_center_normal(TP_STRUCT *tp, double v_req, double blend_tolerance, PmCartesian center2, PmCartesian normal2, int test_id)
+{
+    tpSetTermCond(tp, TC_TERM_COND_STOP, blend_tolerance);
+    // KLUDGE guess at safe tangential acceleration value
+    double const a_t_max = 20.0 * BLEND_ACC_RATIO_TANGENTIAL;
+    double const a_n_max = 20.0 * BLEND_ACC_RATIO_NORMAL;
+    double const v_max = 2.0;
+
+    // Unit radius to make angle -> arc length conversion easy
+    EmcPose const pt1 = {0};
+    EmcPose pt2 = pt1;
+    pmCartScalMult(&center2, 2.0, &pt2.tran);
+
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tp->goalPos, TP_POS_EPSILON);
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, v_req, v_max, a_t_max, a_n_max, 0, 0, line_tag(2*test_id + 11));
+
+    TC_STRUCT const * tc = tcqItem(&tp->queue, 0);
+    ASSERT(tc);
+    ASSERT_FLOAT_EQ(v_max, tc->maxvel);
+
+    ASSERT_EQ(2, tcqLen(&tp->queue));
+    return GREATEST_TEST_RES_PASS;
+}
+
 
 /**
  * Populate a TP with two circles, the first one's endpoint is at 0,0,0.
@@ -398,6 +471,7 @@ TEST test_biarc_optimizer_performance()
     CREATE_MOCK_TP();
     ASSERT(tp);
     static const double BLEND_TOLERANCE = 0.05;
+    static const double v_req = 1.0;
 
     static const CenterNormal cases[]={
         {{1,0,0},{0,0,-1}},
@@ -416,63 +490,74 @@ TEST test_biarc_optimizer_performance()
         {{0,.1,.1},{0,0,1}},
         {{.1,0,.1},{0,1,0}},
         {{.1,0,.1},{0,-1,0}},
+        {{1,0,0.5},{0,0,1}},
         };
 
     printf("\nCircle biarc blend tests\n");
-    for (unsigned i=0; i < (sizeof(cases)/sizeof (CenterNormal)); ++i) {
-        resetMockTP(tp, 0.001);
+    for (int j=0; j<2; ++j) {
+        for (unsigned i=0; i < (sizeof(cases)/sizeof (CenterNormal)); ++i) {
+            resetMockTP(tp, 0.001);
+            switch (j) {
+            case 0:
+                CHECK_CALL(setup_initial_line(tp, v_req, BLEND_TOLERANCE));
+                break;
+            case 1:
+                CHECK_CALL(setup_initial_circle(tp, v_req, BLEND_TOLERANCE));
+                break;
+            }
 
-        ASSERT_EQ(0, tcqLen(&tp->queue));
-        CHECK_CALL(setup_two_xy_unit_circles(tp, 1.0, BLEND_TOLERANCE, cases[i].center, cases[i].normal, (int)i));
+            ASSERT_EQ(1, tcqLen(&tp->queue));
+            CHECK_CALL(add_circle_from_center_normal(tp, 1.0, BLEND_TOLERANCE, cases[i].center, cases[i].normal, (int)i));
 
-        TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
-        TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
-        ASSERT(prev_tc);
-        ASSERT(this_tc);
+            TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
+            TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
+            ASSERT(prev_tc);
+            ASSERT(this_tc);
 
-        PmCartesian vel_bound = getXYZVelBounds();
-        PmCartesian acc_bound = getXYZAccelBounds();
+            PmCartesian vel_bound = getXYZVelBounds();
+            PmCartesian acc_bound = getXYZAccelBounds();
 
-        BlendParameters param = {0};
-        biarc_solver_config_t cfg = {
-            100,
-            0.02,
-            0.001,
-            0.0001,
-            1.0, // Ignore feed override scale for now
+            BlendParameters param = {0};
+            biarc_solver_config_t cfg = {
+                100,
+                0.02,
+                0.001,
+                0.0001,
+                1.0, // Ignore feed override scale for now
             };
-        biarc_solver_results_t biarc_results = {0};
+            biarc_solver_results_t biarc_results = {0};
 
-        tp_err_t res_opt = optimize_biarc_blend_size(
-            prev_tc,
-            this_tc,
-            &cfg,
-            &vel_bound,
-            &acc_bound,
-            &biarc_results,
-            &param);
+            tp_err_t res_opt = optimize_biarc_blend_size(
+                prev_tc,
+                this_tc,
+                &cfg,
+                &vel_bound,
+                &acc_bound,
+                &biarc_results,
+                &param);
 
-        ASSERT_EQ(TP_ERR_OK, res_opt);
-        // Verify that the midpoint is within tolerance
-        double T;
-        EmcPose P;
-        tcGetStartpoint(this_tc, &P);
-        pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
-        ASSERT(T < BLEND_TOLERANCE);
-        ASSERT(biarc_results.iterations < 100);
-        printf(" Center %f %f %f, Normal %f %f %f, iterations %d, tolerance %f, region size %f, v_plan %f, status %d\n",
-               cases[i].center.x,
-               cases[i].center.y,
-               cases[i].center.z,
-               cases[i].normal.x,
-               cases[i].normal.y,
-               cases[i].normal.z,
-               biarc_results.iterations,
-               T,
-               biarc_results.Rb,
-               pmSqrt(param.a_n_max * biarc_results.R_plan),
-               biarc_results.result);
-        ASSERT(biarc_results.R_plan > 0.0);
+            ASSERT_EQ(TP_ERR_OK, res_opt);
+            // Verify that the midpoint is within tolerance
+            double T;
+            EmcPose P;
+            tcGetStartpoint(this_tc, &P);
+            pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
+            ASSERT(T < BLEND_TOLERANCE);
+            ASSERT(biarc_results.iterations < 100);
+            printf(" Center %f %f %f, Normal %f %f %f, iterations %d, tolerance %f, region size %f, v_plan %f, status %d\n",
+                   cases[i].center.x,
+                   cases[i].center.y,
+                   cases[i].center.z,
+                   cases[i].normal.x,
+                   cases[i].normal.y,
+                   cases[i].normal.z,
+                   biarc_results.iterations,
+                   T,
+                   biarc_results.Rb,
+                   pmSqrt(param.a_n_max * biarc_results.R_plan),
+                   biarc_results.result);
+            ASSERT(biarc_results.R_plan > 0.0);
+        }
     }
 
     deleteMockTP(&tp);
