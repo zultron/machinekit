@@ -16,6 +16,9 @@
 #include "stdlib.h"
 #include "mot_priv.h"
 #include "mock_motion_global.h"
+#include "string.h"
+
+TC_STRUCT tcq_space[1000];
 
 void resetMockTP(TP_STRUCT *tp, double cycle_time)
 {
@@ -23,12 +26,12 @@ void resetMockTP(TP_STRUCT *tp, double cycle_time)
     tpSetCycleTime(tp, cycle_time);
 }
 
-TP_STRUCT *newMockTP(unsigned queue_size, double cycle_time)
+TP_STRUCT *newMockTP(double cycle_time)
 {
     init_motion_globals();
     TP_STRUCT *tp = malloc(sizeof(TP_STRUCT));
-    TC_STRUCT *tcq_space = malloc(sizeof(TC_STRUCT) * queue_size);
-    tpCreate(tp, queue_size, tcq_space);
+    memset(tcq_space, 0, sizeof(tcq_space));
+    tpCreate(tp, 1000, tcq_space);
     resetMockTP(tp, cycle_time);
     return tp;
 }
