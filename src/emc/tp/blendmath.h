@@ -318,7 +318,8 @@ typedef struct
 
 typedef enum
 {
-    BIARC_DIVERGED=-2, // should never happen
+    BIARC_DEGENERATE_SEGMENTS=-3,
+    BIARC_DIVERGED=-2,
     BIARC_EXCEEDED_MAX_ITERATIONS=-1,
     BIARC_NOT_SOLVED,
     BIARC_MATCHED_VGOAL,
@@ -376,7 +377,7 @@ tp_err_t find_blend_points_and_tangents(
     TC_STRUCT const * const tc,
     blend_boundary_t * const out);
 
-tp_err_t find_blend_intermediate_segments(blend_boundary_t const * const blend_params,
+int find_blend_intermediate_segments(blend_boundary_t const * const blend_params,
     blend_control_points_t * const control_pts);
 
 double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc);

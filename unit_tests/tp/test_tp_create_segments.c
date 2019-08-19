@@ -460,7 +460,7 @@ TEST test_biarc_optimizer_performance()
         pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
         ASSERT(T < BLEND_TOLERANCE);
         ASSERT(biarc_results.iterations < 100);
-        printf(" Center %f %f %f, Normal %f %f %f, iterations %d, tolerance %f, region size %f, v_plan %f\n",
+        printf(" Center %f %f %f, Normal %f %f %f, iterations %d, tolerance %f, region size %f, v_plan %f, status %d\n",
                cases[i].center.x,
                cases[i].center.y,
                cases[i].center.z,
@@ -470,7 +470,9 @@ TEST test_biarc_optimizer_performance()
                biarc_results.iterations,
                T,
                biarc_results.Rb,
-               pmSqrt(param.a_n_max * biarc_results.R_plan));
+               pmSqrt(param.a_n_max * biarc_results.R_plan),
+               biarc_results.result);
+        ASSERT(biarc_results.R_plan > 0.0);
     }
 
     deleteMockTP(&tp);

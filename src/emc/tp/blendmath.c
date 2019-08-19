@@ -2073,30 +2073,52 @@ tp_err_t find_blend_points_and_tangents(
     return TP_ERR_OK;
 }
 
-tp_err_t find_blend_intermediate_segments(
+int find_blend_intermediate_segments(
     blend_boundary_t const * const blend_params,
     blend_control_points_t * const control_pts)
 {
     // A coefficient
     PmCartesian du12;
     pmCartCartAdd(&blend_params->u1, &blend_params->u2, &du12);
-    double A=0;
-    pmCartMagSq(&du12, &A);
-    A -= 4;
 
     PmCartesian dP12;
     pmCartCartSub(&blend_params->P1, &blend_params->P2, &dP12);
+
+    // Find B / C first since A could be zero if u1 / u2 are colinear
     double B;
     pmCartCartDot(&dP12, &du12, &B);
     B *= 2.;
 
     double C;
-
     pmCartMagSq(&dP12, &C);
 
-    int res_qf = quadraticFormula(A, B, C, &control_pts->d, NULL);
-    if (res_qf || control_pts->d < 0) {
-        return -1;
+    double A;
+    pmCartMagSq(&du12, &A);
+    A -= 4;
+
+    // true iff u1 / u2 are nearly parallel or anti-parallel
+    if (fabs(A) < 1e-12)
+    {
+        if (fabs(B) < TP_POS_EPSILON) {
+            // u vectors are perpendicular to displacement vector between P1/P2
+            double dot;
+            pmCartCartDot(&blend_params->u1, &blend_params->u2, &dot);
+            if (dot > 0) {
+                // u1 and -u2 are in opposite directions, no biarc solution exists
+                return -2;
+            } else {
+                // u1 and -u2 are in the same direction, assume "rectangular" solution
+                control_pts->d = pmSqrt(C)/2.0;
+            }
+        } else {
+            control_pts->d = -C/B;
+        }
+    } else {
+        double other;
+        int res_qf = quadraticFormula(A, B, C, &control_pts->d, &other);
+        if (res_qf || control_pts->d < 0) {
+            return -1;
+        }
     }
 
     pmCartScalMult(&blend_params->u1, control_pts->d, &control_pts->Pb1);
@@ -2108,7 +2130,12 @@ tp_err_t find_blend_intermediate_segments(
     pmCartCartDirection(&control_pts->Pb2, &control_pts->Pb1, &control_pts->u_mid);
     pmCartScalMult(&control_pts->u_mid, control_pts->d, &control_pts->P_mid);
     pmCartCartAddEq(&control_pts->P_mid, &control_pts->Pb1);
-    return TP_ERR_OK;
+
+    if (control_pts->d > 0) {
+        return 0;
+    } else {
+        return -3;
+    }
 }
 
 static inline double find_max_blend_length(TC_STRUCT const * const tc)
@@ -2124,7 +2151,6 @@ static inline double find_max_blend_length(TC_STRUCT const * const tc)
 
 double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc)
 {
-
     double l_prev = find_max_blend_length(prev_tc);
     double l_this = find_max_blend_length(tc);
     return fmin(l_prev, l_this);
@@ -2392,7 +2418,11 @@ tp_err_t optimize_biarc_blend_size(
         // Find blend start / end points and tangent vectors, within Rb of intersection P with procedure find_blend_points_and_tangents
         find_blend_points_and_tangents(biarc_results->Rb, prev_tc, tc, &biarc_results->boundary);
         // Find blend segment lengths d, L and intermediate points with procedure find_blend_intermediate_segments
-        find_blend_intermediate_segments(&biarc_results->boundary, &biarc_results->control_pts);
+        if (TP_ERR_OK != find_blend_intermediate_segments(&biarc_results->boundary, &biarc_results->control_pts))
+        {
+            biarc_results->result = BIARC_DEGENERATE_SEGMENTS;
+            return TP_ERR_FAIL;
+        }
 
         // Verify distance from blend midpoint to original intersection P < tolerance
         double T;
