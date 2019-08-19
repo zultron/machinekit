@@ -658,6 +658,10 @@ void findVMaxByAltitude(
     PmCartesian const * const u2,
     BlendParameters * const param)
 {
+    if (fabs(param->phi) < TP_ANGLE_EPSILON) {
+        param->v_max_altitude = fmin(param->v_max1, param->v_max2);
+        return;
+    }
     // Clip the angle at a reasonable value (less than 90 deg), to prevent div by zero
     double phi_effective = fmin(param->phi, PM_PI * 0.49);
 
