@@ -3,6 +3,7 @@
  N..... SET_G5X_TRANSFORM(1, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
  N..... SET_G92_OFFSET(0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
  N..... SET_FEED_REFERENCE(CANON_XYZ)
+ N..... ON_RESET()
  N..... MESSAGE(" pre divide-by-zero")
  N..... MESSAGE(" pre divide-by-zero")
  N..... STOP_SPINDLE_TURNING()
@@ -13,3 +14,4 @@
  N..... DWELL(0.1000)
  N..... FLOOD_OFF()
  N..... PROGRAM_END(0)
+ N..... ON_RESET()

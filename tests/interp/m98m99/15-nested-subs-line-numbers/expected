@@ -4,6 +4,7 @@ M98 sub test
  N..... SET_G5X_TRANSFORM(1, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
  N..... SET_G92_OFFSET(0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
  N..... SET_FEED_REFERENCE(CANON_XYZ)
+ N..... ON_RESET()
  N..... COMMENT("A nested Fanuc subroutine example ")
  MAIN BEGIN LINE 5.000000 [exp. 5]: 1=0.000000
  N..... COMMENT("interpreter: distance mode changed to incremental")
@@ -69,6 +70,7 @@ M98 sub test
  N..... FLOOD_OFF()
  N..... PALLET_SHUTTLE()
  N..... PROGRAM_END(1)
+ N..... ON_RESET()
 
 
 
@@ -79,6 +81,7 @@ RS274ngc sub test
  N..... SET_G5X_TRANSFORM(1, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
  N..... SET_G92_OFFSET(0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
  N..... SET_FEED_REFERENCE(CANON_XYZ)
+ N..... ON_RESET()
  N..... COMMENT("A nested rs274ngc subroutine example ")
  MAIN BEGIN LINE 5.000000 [exp. 5]: 1=0.000000
  N..... COMMENT("interpreter: distance mode changed to incremental")
@@ -101,3 +104,4 @@ RS274ngc sub test
  N..... FLOOD_OFF()
  N..... PALLET_SHUTTLE()
  N..... PROGRAM_END(1)
+ N..... ON_RESET()
