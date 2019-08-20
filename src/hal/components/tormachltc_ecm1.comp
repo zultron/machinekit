@@ -200,97 +200,100 @@ FUNCTION(_) {
 // preprocessed typedefs like our input bit "in_position_tool_#" so we just
 // are calling this "routine" at the top of "FUNCTION()" and leaving what
 // would have been a return value in the variable "active_position"
-//unsigned int decoded_turret_position(void) {
 
-    if (position_fb_type == POSITION_FEEDBACK_1HOT)
-    {
-        // check if more than one tool position sensor is active
-        in_position_count = 0;
+    active_position = POSITION_INVALID;
 
-        active_position = POSITION_INVALID;
+    // Only start looking at position sensor pins if we've been actually initialized
+    // to a specific changer type
+    if (tool_changer_type == TOOL_CHANGER_TYPE_TURRET) {
 
-        // we check all 1 hot inputs, ignoring those not hooked up (e.g. 4 position 8L turret)
-        // magic numbers 1 through 8 numbers here are obvious
-        if ((turret_positions >= 1) && (in_position_tool_1 == POSITION_ACTIVE)) {
-            in_position_count++;
-            active_position = 1;
-        }
-        if ((turret_positions >= 2) && (in_position_tool_2 == POSITION_ACTIVE)) {
-            in_position_count++;
-            active_position = 2;
-        }
-        if ((turret_positions >= 3) && (in_position_tool_3 == POSITION_ACTIVE)) {
-            in_position_count++;
-            active_position = 3;
-        }
-        if ((turret_positions >= 4) && (in_position_tool_4 == POSITION_ACTIVE)) {
-            in_position_count++;
-            active_position = 4;
-        }
-        if ((turret_positions >= 5) && (in_position_tool_5 == POSITION_ACTIVE)) {
-            in_position_count++;
-            active_position = 5;
-        }
-        if ((turret_positions >= 6) && (in_position_tool_6 == POSITION_ACTIVE)) {
-            in_position_count++;
-            active_position = 6;
-        }
-        if ((turret_positions >= 7) && (in_position_tool_7 == POSITION_ACTIVE)) {
-            in_position_count++;
-            active_position = 7;
-        }
-        if ((turret_positions >= 8) && (in_position_tool_8 == POSITION_ACTIVE)) {
-            in_position_count++;
-            active_position = 8;
-        }
-        if (in_position_count > 1) {
-            active_position = POSITION_INVALID;
-        // hardware fault if more than 1 sensor is active
-            if (in_position_tool_1 == POSITION_ACTIVE) {
-                error_msg("position sensor 1 active");
-            }
-            if (in_position_tool_2 == POSITION_ACTIVE) {
-                error_msg("position sensor 2 active");
-            }
-            if (in_position_tool_3 == POSITION_ACTIVE) {
-                error_msg("position sensor 3 active");
-            }
-            if (in_position_tool_4 == POSITION_ACTIVE) {
-                error_msg("position sensor 4 active");
-            }
-            if (in_position_tool_5 == POSITION_ACTIVE) {
-                error_msg("position sensor 5 active");
-            }
-            if (in_position_tool_6 == POSITION_ACTIVE) {
-                error_msg("position sensor 6 active");
-            }
-            if (in_position_tool_7 == POSITION_ACTIVE) {
-                error_msg("position sensor 7 active");
-            }
-            if (in_position_tool_8 == POSITION_ACTIVE) {
-                error_msg("position sensor 8 active");
-            }
-            error_msg("more than one active tool position sensor");
-            atc_state = ATC_STATE_WAIT_FOR_CLEAR;
-            turret_error = TURRET_ERROR_MULTIPLE_ACTIVE_POSITION_SENSORS;
-        }
-        //invalid config
-        if (turret_positions > POSITION_FEEDBACK_MAX_1HOTS){
-            error_msg("invalid turret configuration");
-            turret_error = TURRET_TOO_MANY_1HOTS;
-            turret_run = TURRET_STOPPED;
-            atc_state = ATC_STATE_WAIT_FOR_CMD;
-        }
+	    if (position_fb_type == POSITION_FEEDBACK_1HOT) {
 
-    } // end of if (position_fb_type == POSITION_FEEDBACK_1HOT)
-    else
-    {
-        //TODO: implement binary position_fb_type here, and keep this catchall for invalid feedback types
-        error_msg("invalid turret feedback type");
-        turret_error = TURRET_UNKNOWN_TYPE;
-        turret_run = TURRET_STOPPED;
-        atc_state = ATC_STATE_WAIT_FOR_CMD;
-    }
+	        // check if more than one tool position sensor is active
+	        in_position_count = 0;
+
+	        // we check all 1 hot inputs, ignoring those not hooked up (e.g. 4 position 8L turret)
+	        // magic numbers 1 through 8 numbers here are obvious
+	        if ((turret_positions >= 1) && (in_position_tool_1 == POSITION_ACTIVE)) {
+	            in_position_count++;
+	            active_position = 1;
+	        }
+	        if ((turret_positions >= 2) && (in_position_tool_2 == POSITION_ACTIVE)) {
+	            in_position_count++;
+	            active_position = 2;
+	        }
+	        if ((turret_positions >= 3) && (in_position_tool_3 == POSITION_ACTIVE)) {
+	            in_position_count++;
+	            active_position = 3;
+	        }
+	        if ((turret_positions >= 4) && (in_position_tool_4 == POSITION_ACTIVE)) {
+	            in_position_count++;
+	            active_position = 4;
+	        }
+	        if ((turret_positions >= 5) && (in_position_tool_5 == POSITION_ACTIVE)) {
+	            in_position_count++;
+	            active_position = 5;
+	        }
+	        if ((turret_positions >= 6) && (in_position_tool_6 == POSITION_ACTIVE)) {
+	            in_position_count++;
+	            active_position = 6;
+	        }
+	        if ((turret_positions >= 7) && (in_position_tool_7 == POSITION_ACTIVE)) {
+	            in_position_count++;
+	            active_position = 7;
+	        }
+	        if ((turret_positions >= 8) && (in_position_tool_8 == POSITION_ACTIVE)) {
+	            in_position_count++;
+	            active_position = 8;
+	        }
+	        if (in_position_count > 1) {
+	            active_position = POSITION_INVALID;
+	        // hardware fault if more than 1 sensor is active
+	            if (in_position_tool_1 == POSITION_ACTIVE) {
+	                error_msg("position sensor 1 active");
+	            }
+	            if (in_position_tool_2 == POSITION_ACTIVE) {
+	                error_msg("position sensor 2 active");
+	            }
+	            if (in_position_tool_3 == POSITION_ACTIVE) {
+	                error_msg("position sensor 3 active");
+	            }
+	            if (in_position_tool_4 == POSITION_ACTIVE) {
+	                error_msg("position sensor 4 active");
+	            }
+	            if (in_position_tool_5 == POSITION_ACTIVE) {
+	                error_msg("position sensor 5 active");
+	            }
+	            if (in_position_tool_6 == POSITION_ACTIVE) {
+	                error_msg("position sensor 6 active");
+	            }
+	            if (in_position_tool_7 == POSITION_ACTIVE) {
+	                error_msg("position sensor 7 active");
+	            }
+	            if (in_position_tool_8 == POSITION_ACTIVE) {
+	                error_msg("position sensor 8 active");
+	            }
+	            error_msg("more than one active tool position sensor");
+	            atc_state = ATC_STATE_WAIT_FOR_CLEAR;
+	            turret_error = TURRET_ERROR_MULTIPLE_ACTIVE_POSITION_SENSORS;
+	        }
+	        //invalid config
+	        if (turret_positions > POSITION_FEEDBACK_MAX_1HOTS) {
+	            error_msg("invalid turret configuration");
+	            turret_error = TURRET_TOO_MANY_1HOTS;
+	            turret_run = TURRET_STOPPED;
+	            atc_state = ATC_STATE_WAIT_FOR_CMD;
+	        }
+
+	    } // end of if (position_fb_type == POSITION_FEEDBACK_1HOT)
+	    else {
+	        //TODO: implement binary position_fb_type here, and keep this catchall for invalid feedback types
+	        error_msg("invalid turret feedback type");
+	        turret_error = TURRET_UNKNOWN_TYPE;
+	        turret_run = TURRET_STOPPED;
+	        atc_state = ATC_STATE_WAIT_FOR_CMD;
+	    }
+	}
 
     debug_messages = 0;
 
@@ -485,6 +488,3 @@ FUNCTION(_) {
         }
     }
 }
-
-
-
