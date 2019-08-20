@@ -56,6 +56,7 @@ import os
 import sys
 
 import thread
+import traceback
 
 
 class DummyProgress:
@@ -300,7 +301,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.font_charwidth = width
         rs274.glcanon.GlCanonDraw.realize(self)
 
-        if s.file: self.load()
+        if s.file:
+            self.load()
 
     def set_current_view(self):
         if self.current_view not in ['p', 'x', 'y', 'y2', 'z', 'z2']:
@@ -336,8 +338,44 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.logger.set_visible_tools(tool_list)
             self._redraw()
 
+    @staticmethod
+    def gcode_to_str(g_code):
+        suffix = int(g_code) % 10
+        base = int(g_code)/10
+        return "G{}.{}".format(base, suffix) if suffix else "G{}".format(base)
 
-    def load(self,filename = None):
+    def get_active_g_code_string(self):
+        """
+        Most active G-codes don't matter for preview, but the ones that affect path geometry do, such as distance mode,
+        cut plane, cutter comp, etc. This method pulls the relevant active G-codes from emctask to initialize
+        the preview interpreter.
+        :return: A string (delimited by '\n') of G-codes to execute
+        """
+        gcodes = self.stat.gcodes
+
+        # NOTE: ignoring the following active G-codes since they don't affect preview, or are handled elsewhere
+        # G_CODE_MOTION_MODE
+        # G_CODE_MODE_0
+        # G_CODE_FEED_MODE
+        # G_CODE_ORIGIN
+        # G_CODE_TOOL_LENGTH_OFFSET
+        # G_CODE_SPINDLE_MODE
+
+        cmd_list = ((
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_UNITS]),  # Must be first before applying any other modes
+        ),(
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_PATH_MODE]),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_LATHE_DIAMETER_MODE]),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_PLANE]),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_CUTTER_SIDE]),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE]),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE_IJK]),
+            self.gcode_to_str(gcodes[linuxcnc.G_CODE_RETRACT_MODE]),
+        ))
+        print "Active G-codes at redraw:", cmd_list
+        return '\n'.join((' '.join(sub_l) for sub_l in cmd_list))
+
+    def load(self, filename=None):
         s = self.stat
         s.poll()
         if not filename and s.file:
@@ -362,8 +400,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
                 shutil.copy(parameter, temp_parameter)
             self.canon.parameter_file = temp_parameter
 
-            unitcode = "G%d" % (20 + (s.linear_units == 1))
-            initcode = self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
+            initcode = self.get_active_g_code_string() or self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
+            unitcode = "G{}".format(20 + (s.program_units == linuxcnc.UNITS_MM))
             result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode)
 
             #Handle extents violation (copied from AXIS)
