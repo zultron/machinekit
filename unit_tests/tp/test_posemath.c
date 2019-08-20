@@ -577,8 +577,8 @@ static enum greatest_test_res check_pmCartCartOrthonormal_valid(PmCartesian u, P
 
 TEST test_pmCartCartOrthonormal()
 {
-    PmCartesian a = {1,1,0};
-    PmCartesian b = {0,1,0};
+    PmCartesian const a = {1,0,0};
+    PmCartesian const b = {1,1,0};
 
     PmCartesian a_hat, b_hat;
 
@@ -593,6 +593,23 @@ TEST test_pmCartCartOrthonormal()
     PmCartesian v_exp = {0,1,0};
     ASSERT_PMCARTESIAN_IN_RANGE(v_exp, v, CART_FUZZ);
     CHECK_CALL(check_pmCartCartOrthonormal_valid(u, v));
+
+    PmCartesian a_close = a;
+    a_close.x+=CART_FUZZ;
+    PmCartesian a_close_hat;
+    pmCartUnit(&a_close, &a_close_hat);
+
+    // Verify graceful handling of colinear vectors (only need 1 basis vector, 2nd vector is negligible length)
+    pmCartCartOrthonormal(&a_hat, &a_hat, &u, &v);
+    double mag = -1;
+    pmCartMag(&v, &mag);
+    ASSERT_IN_RANGE(0, mag, CART_FUZZ);
+
+    double mag2 = -1;
+    pmCartCartOrthonormal(&a_close_hat, &a_hat, &u, &v);
+    pmCartMag(&v, &mag2);
+    ASSERT_IN_RANGE(0, mag2, CART_FUZZ);
+
     PASS();
 }
 

@@ -1115,12 +1115,12 @@ int pmCartPlaneProj(PmCartesian const * const v, PmCartesian const * const norma
  * Finds an in-plane orthonormal basis for two unit vectors based on a simplified Gram-Schmidt method.
  */
 int pmCartCartOrthonormal(
-    PmCartesian const * const a_hat, //!< First unit vector
-    PmCartesian const * const b_hat, //!< Second unit vector, not colinear with a_hat
-    PmCartesian * const u, //!< [out] first orthonormal vector
-    PmCartesian * const v) //!< [out] second orthonormal vector (in direction of b_hat)
+    PmCartesian const * const a_hat, //!< First unit vector (becomes first basis vector)
+    PmCartesian const * const b_hat, //!< Second unit vector
+    PmCartesian * const u, //!< [out] first orthonormal vector in direction of a_hat
+    PmCartesian * const v) //!< [out] second orthonormal vector
 {
-    *v = *b_hat;
+    *u = *a_hat;
 
     // Find component of a in direction of b
     // NOTE assumes both a and b are already unit
@@ -1128,16 +1128,19 @@ int pmCartCartOrthonormal(
     pmCartCartDot(a_hat, b_hat, &dot);
 
     //Build the component in the opposite direction of b
-    pmCartScalMult(b_hat, -dot, u);
+    pmCartScalMult(a_hat, -dot, v);
 
     // Subtract component of a in direction of b (by adding opposite)
-    pmCartCartAddEq(u, a_hat);
-    pmCartUnitEq(u);
+    pmCartCartAddEq(v, b_hat);
 
-    // Avoid undefined behavior when vectors are colinear
     double dot_range = 1.0 - fabs(dot);
-    if ( dot_range < CART_FUZZ) {
-        pmErrno = PM_ERR;
+    if ( dot_range > CART_FUZZ) {
+        // Only unitize vector if is has a nonzero magnitude, otherwise leave it zero
+        // This is correct-ish since colinear vectors don't span a plane, so we
+        // only need one vector as a basis. Leaving the second vector small or
+        // zero-lenth will be well-behaved for algorithms that anticipate this
+        // possibility.
+        pmCartUnitEq(v);
     }
     return pmErrno;
 }
