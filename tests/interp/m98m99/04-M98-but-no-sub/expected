@@ -3,4 +3,7 @@
     3 N..... SET_G5X_TRANSFORM(1, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
     4 N..... SET_G92_OFFSET(0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
     5 N..... SET_FEED_REFERENCE(CANON_XYZ)
-    6 N..... COMMENT("M98 call non-existant sub ")
+    6 N..... ON_RESET()
+    7 N..... COMMENT("M98 call non-existant sub ")
+    8 N..... ON_RESET()
+    9 N..... ON_RESET()

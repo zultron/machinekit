@@ -312,7 +312,7 @@ Called By: external programs
 
 int Interp::close()
 {
-    logOword("close()");
+    logOword("Interp::close()");
     // be "lazy" only if we're not aborting a call in progress
     // in which case we need to reset() the call stack
     // this does not reset the filename properly
@@ -1880,7 +1880,10 @@ int Interp::reset()
     _setup.line_length = 0;
     // reset stepping ID so we don't grow indefinitely
     _setup.stepping_id = 0;
-
+    
+    // drop any queued points in canon
+    ON_RESET();
+    
     unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__);
     warning_list = PyList_New(0);
     return INTERP_OK;
@@ -2856,7 +2859,7 @@ int Interp::on_abort(int reason, const char *message)
     _setup.clear_queue_buster_flags();
 
     if (_setup.on_abort_command == nullptr) {
-	logDebug("Interp::on_abort:  No on_abort_command; returning");
+        logDebug("Interp::on_abort:  No on_abort_command; returning");
         return -1;
     }
 

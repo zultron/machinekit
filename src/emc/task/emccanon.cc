@@ -949,6 +949,10 @@ struct TaggedPoint : PositionArray {
 
 static std::vector<TaggedPoint> chained_points;
 
+static void drop_segments(void) {
+    chained_points.clear();
+}
+
 static void flush_segments(void) {
     if(chained_points.empty()) return;
 
@@ -989,7 +993,7 @@ static void flush_segments(void) {
     }
     canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
 
-    chained_points.clear();
+    drop_segments();
 }
 
 static void get_last_pos(double &lx, double &ly, double &lz) {
@@ -1069,6 +1073,11 @@ see_segment(int line_number,
 void FINISH() {
     flush_segments();
 }
+
+void ON_RESET() {
+    drop_segments();
+}
+
 
 void STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
@@ -2891,7 +2900,7 @@ PositionArray GET_EXTERNAL_POSITION()
     UnitsTransform machine_to_canon_units = ConvertsUserToCanonUnits();
     UnitsTransform canon_to_program_units = ConvertsCanonToProgramUnits();
 
-    chained_points.clear();
+    drop_segments();
 
     canonEndPoint = machine_to_canon_units.forward(toArray(emcStatus->motion.traj.position));
 

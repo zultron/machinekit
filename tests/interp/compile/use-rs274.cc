@@ -227,6 +227,7 @@ int GET_EXTERNAL_ORIENT_TIMEOUT() {return 0;}
 double GET_EXTERNAL_ANALOG_INPUT(int index, double def) {return 0;}
 int GET_EXTERNAL_AXIS_MASK() {return 0;}
 void FINISH(void) {}
+void ON_RESET(void) {}
 void CANON_ERROR(const char *fmt, ...) {}
 void PLUGIN_CALL(int len, const char *call) {}
 void IO_PLUGIN_CALL(int len, const char *call) {}
