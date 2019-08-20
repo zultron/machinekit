@@ -255,7 +255,8 @@ int checkTangentAngle(PmCircle const * const circ, SphericalArc const * const ar
 {
     // Debug Information to diagnose tangent issues
     PmCartesian u_circ, u_arc;
-    arcTangent(arc, &u_arc, at_end);
+    double t = at_end ? 1.0 : 0.0;
+    arcTangent(arc, t, &u_arc);
 
     if (at_end) {
         pmCircleTangentVector(circ, 0, &u_circ);
@@ -271,7 +272,7 @@ int checkTangentAngle(PmCircle const * const circ, SphericalArc const * const ar
     double blend_angle = acos(saturate(dot,1.0));
 
     // Check against the maximum allowed tangent angle for the given velocity and acceleration
-    double angle_max = findMaxTangentAngle(param->v_plan, param->a_max, cycle_time);
+    double angle_max = findMaxTangentAngle(param->v_plan, param->a_max_planar, cycle_time);
 
     tp_debug_print("tangent angle = %f, max = %f\n",
             blend_angle,
@@ -709,11 +710,11 @@ int blendParamKinematics(
         u_tan2,
         acc_bound,
         vel_bound,
-        &param->a_max,
+        &param->a_max_planar,
         &param->v_max_planar);
 
     // Store max normal acceleration
-    param->a_n_max = normalAccelFromMax(param->a_max);
+    param->a_n_max = normalAccelFromMax(param->a_max_planar);
 
     // WARNING: assumes that we start from a valid v_max (either 0 or from the 'altitude' check)
     double v_max = fmax(param->v_max_planar, param->v_max_altitude);
@@ -1207,7 +1208,7 @@ int blendComputeParameters(BlendParameters * const param)
      * velocity, much lower than the actual curvature limit, which can be used
      * to calculate an equivalent blend radius.
      * */
-    double a_parabolic = param->a_max * 0.5;
+    double a_parabolic = param->a_max_planar * 0.5;
     double v_triangle = pmSqrt(2.0 * a_parabolic  * d_geom);
     double t_blend = fmin(v_triangle, param->v_plan) / (a_parabolic);
     double s_blend = t_blend * param->v_plan;

@@ -187,16 +187,15 @@ int checkRayIntersectsArc(PmCartesian const * const center,
     return convex;
 }
 
-int arcTangent(SphericalArc const * const arc, PmCartesian * const tan, int at_end)
+int arcTangent(SphericalArc const * const arc, double const t, PmCartesian * const out)
 {
-    if (!arc || !tan) {
+    if (!arc || !out) {
         return TP_ERR_MISSING_INPUT;
     }
 
     // This section implements the derivative of the SLERP formula to get a
     // local tangent vector.
     const double theta = arc->angle;
-    const double t = (double)at_end;
     const double k = theta / arc->Sangle;
     const double k0 = -cos( (1.0 - t) * theta);
     const double k1 = cos( t * theta);
@@ -206,10 +205,10 @@ int arcTangent(SphericalArc const * const arc, PmCartesian * const tan, int at_e
     // Ugly sequence to build up tangent vector from components of the derivative
     pmCartScalMult(&arc->rStart, k * k0, &dp0);
     pmCartScalMult(&arc->rEnd, k * k1, &dp1);
-    pmCartCartAdd(&dp0, &dp1, tan);
+    pmCartCartAdd(&dp0, &dp1, out);
 
     // tangential vector complete, now normalize
-    pmCartUnitEq(tan);
+    pmCartUnitEq(out);
 
     return TP_ERR_OK;
 }

@@ -62,5 +62,5 @@ int arcFromLines(SphericalArc * const arc, PmCartLine const * const line1,
 int checkRayIntersectsArc(PmCartesian const * const center,
         PmCartesian const * const P, PmCartesian const * const u_ray, int reverse_dir);
 
-int arcTangent(SphericalArc const * const arc, PmCartesian * const tan, int at_end);
+int arcTangent(SphericalArc const * const arc, const double t, PmCartesian * const out);
 #endif

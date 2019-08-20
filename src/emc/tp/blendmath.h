@@ -63,7 +63,7 @@ typedef struct {
     double L1;          /* Available part of line 1 to blend over */
     double L2;          /* Available part of line 2 to blend over */
 
-    double a_max;       /* max acceleration allowed for blend */
+    double a_max_planar;       /* max acceleration allowed for blend */
 
     /* These fields are considered "output", and may be refactored into a
      * separate structure in the future */
