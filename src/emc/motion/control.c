@@ -1033,7 +1033,8 @@ static void handle_jogwheels(void)
 	if ( *(joint_data->jog_vel_mode) ) {
         double v = joint->vel_limit;
 	    /* compute stopping distance at max speed */
-	    stop_dist = v * v / ( 2.0 * joint->acc_limit);
+      /* multiply by 2 to give some slop and prevent jerky jogging */
+	    stop_dist = (v * v / ( 2.0 * joint->acc_limit)) * 2;
 	    /* if commanded position leads the actual position by more
 	       than stopping distance, discard excess command */
 	    if ( pos > joint->pos_cmd + stop_dist ) {
