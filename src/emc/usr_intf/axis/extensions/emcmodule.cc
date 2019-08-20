@@ -2059,22 +2059,6 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                                 oop->x, oop->y, oop->z);
             }
 
-            // If the motion type is just jogging around (0), but we aren't really
-            // jogging, then deduce that the sudden position change is because a tool offset
-            // has changed the position so skip adding the point as its just very confusing
-            // in the tool path history.
-
-            if ((add_point) && (pl->npts > 0) && (status->motion.traj.motion_type == 0)) {
-                bool jog_active = false;
-                for (int ix = 0; ix < status->motion.traj.axes; ++ix) {
-                    if (status->motion.axis[ix].kb_jog_active)
-                        jog_active = true;
-                }           
-    			if (! jog_active)  {
-                    // suppress the point recording
-    				add_point = false;
-                }
-            }                        
 
             if (add_point) {
                 // 1 or 2 points may be added, make room whenever
