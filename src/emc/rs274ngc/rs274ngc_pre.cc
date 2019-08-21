@@ -1962,7 +1962,8 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
       // Work offsets
       int offset_number = (variable - EXTENDED_WORK_OFFSET_START ) / 20;
       int offset_base = EXTENDED_WORK_OFFSET_START + 20 * offset_number;
-      int index = offset_number - offset_base;
+      // zero-indexed displacement from the initial value
+      int index = variable - offset_base - 1;
       switch (index) {
       case X:
       case Y:
@@ -1979,7 +1980,6 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
         _setup.work_offsets_user[offset_number].setXYRotationDeg(value);
         break;
       }
-      break;
     } else if (variable < RS274NGC_MAX_PARAMETERS) {
       // Ensure that no required parameters are skipped
       for (; k < RS274NGC_MAX_PARAMETERS; k++) {
