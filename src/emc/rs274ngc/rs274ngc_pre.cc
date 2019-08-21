@@ -852,10 +852,9 @@ int Interp::exit()
   char file_name[LINELEN];
 
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  CHP(save_parameters(((file_name[0] ==
-                             0) ?
+  CHP(save_parameters(((file_name[0] == 0) ?
                             RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
-                           file_name), _setup.parameters));
+                            file_name), _setup.parameters));
   reset();
 
   // interpreter shutdown Python hook
@@ -1272,7 +1271,7 @@ int Interp::init()
   if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = nullptr;
 
   // Don't bother reading work offsets since we just sent them
-  synch(); //synch first, then update the interface
+  CHP(synch()); //synch first, then update the interface
 
   write_g_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
   write_m_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
@@ -1954,7 +1953,7 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
     }
 
     CHKS((variable <= 0),
-         NCE_PARAMETER_NUMBER_OUT_OF_RANGE);
+         _("Parameter number out of range: %d"), variable);
 
     // KLUDGE handle work offsets stored as fake parameters
     if (variable >=  EXTENDED_WORK_OFFSET_START && variable < EXTENDED_WORK_OFFSET_END) {
@@ -2087,7 +2086,7 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
     if (sscanf(line, "%d %lf", &variable, &value) == 2) {
       CHKS(((variable <= 0)
            || (variable >= RS274NGC_MAX_PARAMETERS)),
-          NCE_PARAMETER_NUMBER_OUT_OF_RANGE);
+         _("Parameter number out of range: %d"), variable);
       for (; k < RS274NGC_MAX_PARAMETERS; k++) {
         if (k > variable) {
           fclose(infile);
@@ -2186,10 +2185,10 @@ int Interp::synch()
   _setup.feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
 
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  save_parameters(((file_name[0] ==
+  CHP(save_parameters(((file_name[0] ==
                              0) ?
                             RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
-                            file_name), _setup.parameters);
+                           file_name), _setup.parameters));
 
   load_tool_table();   /*  must set  _setup.tool_max first */
 

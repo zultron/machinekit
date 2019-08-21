@@ -558,6 +558,9 @@ int emcTaskPlanSynch()
         rcs_print("emcTaskPlanSynch() returned %d\n", retval);
     }
 
+    if (retval > INTERP_MIN_ERROR) {
+        print_interp_error(retval);
+    }
     return retval;
 }
 
@@ -579,10 +582,10 @@ int emcTaskPlanOpen(const char *file)
     }
 
     int retval = interp.open(file);
-	print_interp_warning();
+    print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {
-	print_interp_error(retval);
-	return retval;
+        print_interp_error(retval);
+        return retval;
     }
     taskplanopen = 1;
 
@@ -624,7 +627,11 @@ int emcTaskPlanExecute(const char *command)
 
     if (command && (*command != '\0') && (inpos)) {
         // Need to synch with an MDI call, once motion has reached its final position
-        interp.synch();
+        int retval_sync = interp.synch();
+        if (retval_sync > INTERP_MIN_ERROR) {
+            print_interp_error(retval_sync);
+        }
+        //FIXME the standard behavior now is to keep going here but this seems wrong
     }
     int retval = interp.execute(command);
     print_interp_warning();
