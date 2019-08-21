@@ -74,7 +74,7 @@ public:
                                     const double parameters[]);
 
 // synchronize your internal model with the external world
- int synch(bool read_work_offsets);
+ int synch();
 
 /* Interface functions to call to get information from the interpreter.
    If a function has a return value, the return value contains the information.

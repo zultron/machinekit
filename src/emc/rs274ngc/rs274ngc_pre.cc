@@ -852,10 +852,10 @@ int Interp::exit()
   char file_name[LINELEN];
 
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  save_parameters(((file_name[0] ==
+  CHP(save_parameters(((file_name[0] ==
                              0) ?
                             RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
-                            file_name), _setup.parameters);
+                           file_name), _setup.parameters));
   reset();
 
   // interpreter shutdown Python hook
@@ -1272,7 +1272,7 @@ int Interp::init()
   if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = nullptr;
 
   // Don't bother reading work offsets since we just sent them
-  synch(false); //synch first, then update the interface
+  synch(); //synch first, then update the interface
 
   write_g_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
   write_m_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
@@ -2056,7 +2056,6 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   int k;
   int fd;
 
-
   if(access(filename, F_OK)==0)
   {
     // rename as .bak
@@ -2163,7 +2162,7 @@ the controller.
 
 */
 
-int Interp::synch(bool read_work_offsets)
+int Interp::synch()
 {
 
   char file_name[LINELEN];

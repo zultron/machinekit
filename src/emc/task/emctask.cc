@@ -552,7 +552,7 @@ int emcTaskPlanSetBlockDelete(bool state)
 
 int emcTaskPlanSynch()
 {
-    int retval = interp.synch(true);
+    int retval = interp.synch();
 
     if (emc_debug & EMC_DEBUG_INTERP) {
         rcs_print("emcTaskPlanSynch() returned %d\n", retval);
@@ -624,7 +624,7 @@ int emcTaskPlanExecute(const char *command)
 
     if (command && (*command != '\0') && (inpos)) {
         // Need to synch with an MDI call, once motion has reached its final position
-        interp.synch(true);
+        interp.synch();
     }
     int retval = interp.execute(command);
     print_interp_warning();
