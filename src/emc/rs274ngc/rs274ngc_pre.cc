@@ -2084,6 +2084,10 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
     }
     // try for a variable-value match
     if (sscanf(line, "%d %lf", &variable, &value) == 2) {
+      if (variable >= EXTENDED_WORK_OFFSET_START && variable < EXTENDED_WORK_OFFSET_END) {
+          // Don't care about extended work offsets here since they are exported separately
+          continue;
+      }
       CHKS(((variable <= 0)
            || (variable >= RS274NGC_MAX_PARAMETERS)),
          _("Parameter number out of range: %d"), variable);
