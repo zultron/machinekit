@@ -1952,8 +1952,10 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
       continue;
     }
 
-    CHKS((variable <= 0),
-         _("Parameter number out of range: %d"), variable);
+    if (variable <= 0) {
+        fclose(infile);
+        ERS(_("Parameter number out of range: %d"), variable);
+    }
 
     // KLUDGE handle work offsets stored as fake parameters
     if (variable >=  EXTENDED_WORK_OFFSET_START && variable < EXTENDED_WORK_OFFSET_END) {
@@ -2045,8 +2047,8 @@ complain, but does write it in the output file.
 int Interp::save_parameters(const char *filename,      //!< name of file to write
                              const double parameters[]) //!< parameters to save
 {
-  FILE *infile;
-  FILE *outfile;
+  FILE *infile = nullptr;
+  FILE *outfile = nullptr;
   char line[PATH_MAX];
   int variable;
   double value;
@@ -2073,7 +2075,10 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   }
   // open original for writing
   outfile = fopen(filename, "w");
-  CHKS((outfile == nullptr), NCE_CANNOT_OPEN_VARIABLE_FILE);
+  if (!outfile) {
+      fclose(infile);
+      ERS(NCE_CANNOT_OPEN_VARIABLE_FILE);
+  }
 
   k = 0;
   index = 0;
@@ -2088,9 +2093,12 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
           // Don't care about extended work offsets here since they are exported separately
           continue;
       }
-      CHKS(((variable <= 0)
-           || (variable >= RS274NGC_MAX_PARAMETERS)),
-         _("Parameter number out of range: %d"), variable);
+      if ((variable <= 0)
+           || (variable >= RS274NGC_MAX_PARAMETERS)) {
+        fclose(infile);
+        fclose(outfile);
+        ERS(_("Parameter number out of range: %d"), variable);
+      }
       for (; k < RS274NGC_MAX_PARAMETERS; k++) {
         if (k > variable) {
           fclose(infile);
@@ -2123,7 +2131,10 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
 
   // TODO write these out sparsely? e.g. don't write zero fields
   for (auto const& wo : _setup.work_offsets_user) {
-    CHKS(wo.first < 0, _("Work offset index %d cannot be negative"), wo.first);
+    if (wo.first < 0) {
+      fclose(outfile);
+      ERS(NCE_PARAMETER_FILE_OUT_OF_ORDER);
+    }
     if (wo.first < 10) {
         continue;
     }
