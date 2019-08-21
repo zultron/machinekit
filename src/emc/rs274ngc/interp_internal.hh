@@ -365,7 +365,7 @@ and is not represented here
 #define STACK_ENTRY_LEN 80
 #define MAX_SUB_DIRS 10
 
-using WorkOffsetMap = std::unordered_map<int, RotateShiftTransform>;
+using WorkOffsetMap = std::map<int, RotateShiftTransform>;
 
 struct setup_struct
 {
