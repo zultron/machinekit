@@ -641,3 +641,44 @@ SCENARIO("Ensure valid P word range is enforced for G10)")
         CHECK_INTERP_OK(execute(test_interp,oss.str().c_str()));
     }
 }
+
+
+SCENARIO("Load and save parameters")
+{
+    DECL_INIT_TEST_INTERP();
+    GIVEN("A default interpreter with work offsets")
+    {
+        static const char *make_offsets[] = {
+            "G10 L2 P1 X1.2 Y2.3 Z3.4 A4.5",
+            "G10 L2 P2 X5.6 Y6.7 Z7.8 A8.9",
+            "G10 L2 P10 X9.0 Y0.1 Z1.2 A2.3",
+            "G10 L2 P20 X3.4 Y4.5 Z5.6 A6.7",
+            "G10 L2 P500 X7.8 Y8.9 Z9.0 A0.1",
+            };
+
+        REQUIRE_INTERP_OK(execute_lines(test_interp, make_offsets));
+        WorkOffsetMap wo_saved = settings->work_offsets_user;
+        ParameterArray params = settings->parameters;
+
+        THEN("Work offsets should write out to a parameter file cleanlu") {
+            REQUIRE_FALSE(test_interp.save_parameters("test.var", settings->parameters));
+            // Manually clear out parameters / work offsets to test restore
+            settings->parameters.fill(0);
+            settings->work_offsets_user.clear();
+            settings->work_offsets_used.clear();
+
+            REQUIRE_FALSE(test_interp.restore_parameters("test.var"));
+
+            for (auto p : wo_saved) {
+                for (size_t i=0; i < 9; ++i) {
+                    CHECK_FUZZ(p.second.shift.tf[i], wo_saved[p.first].shift.tf[i]);
+                }
+                CHECK_FUZZ(p.second.getXYRotationDeg(), wo_saved[p.first].getXYRotationDeg());
+            }
+            for (size_t i= G28_X; i < TOOL_ORIENTATION; ++i) {
+                CHECK_FUZZ(settings->parameters[i], params[i]);
+            }
+
+        }
+    }
+}
