@@ -82,6 +82,7 @@ enum UnaryOperations
     U_INCH,
     U_MM,
     U_CM,
+    U_TPI,
 };
 
 

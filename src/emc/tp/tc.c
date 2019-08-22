@@ -307,7 +307,8 @@ int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const ou
             *out=tc->coords.line.xyz.uVec;
             break;
         case TC_RIGIDTAP:
-            pmCartScalMult(&tc->coords.rigidtap.xyz.uVec, -1.0, out);
+            // Final placement move goes back to the start point in the same direction
+            *out = tc->coords.rigidtap.xyz.uVec;
             break;
         case TC_CIRCULAR:
             pmCircleTangentVector(&tc->coords.circle.xyz,

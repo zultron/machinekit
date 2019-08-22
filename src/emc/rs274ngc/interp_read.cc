@@ -1432,6 +1432,7 @@ int Interp::read_operation_unary(char *line,     //!< string: line of RS274/NGC 
       if (match_suffix_and_adv("u_inch", line, counter)) {*operation = U_INCH; break;}
       if (match_suffix_and_adv("u_mm", line, counter)) {*operation = U_MM; break;}
       if (match_suffix_and_adv("u_cm", line, counter)) {*operation = U_CM; break;}
+      if (match_suffix_and_adv("u_tpi", line, counter)) {*operation = U_TPI; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH_U);
     break;
   default:

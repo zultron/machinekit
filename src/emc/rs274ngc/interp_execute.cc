@@ -461,6 +461,21 @@ int Interp::execute_unary(double *double_ptr,    //!< pointer to the operand
           break;
       }
       break;
+  case U_TPI:
+      switch (_setup.length_units) {
+      case CANON_UNITS_INCHES:
+          *double_ptr = 1. / *double_ptr;
+          break;
+      case CANON_UNITS_MM:
+          *double_ptr = (1. / *double_ptr) * 25.4;
+          break;
+      case CANON_UNITS_CM:
+          *double_ptr = (1. / *double_ptr) * 2.54;
+          break;
+      case CANON_UNITS_INVALID:
+          break;
+      }
+      break;
   default:
     ERS(NCE_BUG_UNKNOWN_OPERATION);
   }

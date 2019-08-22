@@ -27,6 +27,15 @@ TEST_CASE("Interp Unary Operators")
     REQUIRE_INTERP_OK(execute(test_interp,"#4=[U_MM[25.4]]"));
     CHECK_FUZZ(settings->parameters[4], 1.0);
   }
+  SECTION("Convert input in threads per inch to program units")
+  {
+    REQUIRE_INTERP_OK(execute(test_interp,"G20"));
+    REQUIRE_INTERP_OK(execute(test_interp,"#5=[U_TPI[10.]]"));
+    CHECK_FUZZ(settings->parameters[5], 0.1);
+    REQUIRE_INTERP_OK(execute(test_interp,"G21"));
+    REQUIRE_INTERP_OK(execute(test_interp,"#6=[U_TPI[20]]"));
+    CHECK_FUZZ(settings->parameters[6], 25.4/20.);
+  }
 }
 
 SCENARIO("Interp Non-modal incremental words G90.2 and G91.2")
