@@ -14,26 +14,30 @@ TEST_CASE("Interp Unary Operators")
   SECTION("Convert input units to program mm")
   {
     REQUIRE_INTERP_OK(execute(test_interp,"G21"));
-    REQUIRE_INTERP_OK(execute(test_interp,"#1=[U_INCH[1.0]]"));
+    REQUIRE_INTERP_OK(execute(test_interp,"#1=U_INCH[1.0]"));
     CHECK_FUZZ(settings->parameters[1], 25.4);
-    REQUIRE_INTERP_OK(execute(test_interp,"#2=[U_MM[25.4]]"));
+    REQUIRE_INTERP_OK(execute(test_interp,"#2=U_MM[25.4]"));
     CHECK_FUZZ(settings->parameters[2], 25.4);
+    REQUIRE_INTERP_OK(execute(test_interp,"G0 X[U_INCH[5.]]"));
+    CHECK_FUZZ(currentX(settings), 5*25.4);
   }
   SECTION("Convert input units to program inches")
   {
     REQUIRE_INTERP_OK(execute(test_interp,"G20"));
-    REQUIRE_INTERP_OK(execute(test_interp,"#3=[U_INCH[1.0]]"));
+    REQUIRE_INTERP_OK(execute(test_interp,"#3=U_INCH[1.0]"));
     CHECK_FUZZ(settings->parameters[3], 1.0);
-    REQUIRE_INTERP_OK(execute(test_interp,"#4=[U_MM[25.4]]"));
+    REQUIRE_INTERP_OK(execute(test_interp,"#4=U_MM[25.4]"));
     CHECK_FUZZ(settings->parameters[4], 1.0);
+    REQUIRE_INTERP_OK(execute(test_interp,"G0 X[U_MM[5.]]"));
+    CHECK_FUZZ(currentX(settings), 5/25.4);
   }
   SECTION("Convert input in threads per inch to program units")
   {
     REQUIRE_INTERP_OK(execute(test_interp,"G20"));
-    REQUIRE_INTERP_OK(execute(test_interp,"#5=[U_TPI[10.]]"));
+    REQUIRE_INTERP_OK(execute(test_interp,"#5=U_TPI[10.]"));
     CHECK_FUZZ(settings->parameters[5], 0.1);
     REQUIRE_INTERP_OK(execute(test_interp,"G21"));
-    REQUIRE_INTERP_OK(execute(test_interp,"#6=[U_TPI[20]]"));
+    REQUIRE_INTERP_OK(execute(test_interp,"#6=U_TPI[20]"));
     CHECK_FUZZ(settings->parameters[6], 25.4/20.);
   }
 }
