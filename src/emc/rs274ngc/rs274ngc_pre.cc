@@ -852,10 +852,9 @@ int Interp::exit()
   char file_name[LINELEN];
 
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  save_parameters(((file_name[0] ==
-                             0) ?
+  CHP(save_parameters(((file_name[0] == 0) ?
                             RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
-                            file_name), _setup.parameters);
+                            file_name), _setup.parameters));
   reset();
 
   // interpreter shutdown Python hook
@@ -1272,7 +1271,7 @@ int Interp::init()
   if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = nullptr;
 
   // Don't bother reading work offsets since we just sent them
-  synch(false); //synch first, then update the interface
+  CHP(synch()); //synch first, then update the interface
 
   write_g_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
   write_m_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
@@ -1953,15 +1952,18 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
       continue;
     }
 
-    CHKS((variable <= 0),
-         NCE_PARAMETER_NUMBER_OUT_OF_RANGE);
+    if (variable <= 0) {
+        fclose(infile);
+        ERS(_("Parameter number out of range: %d"), variable);
+    }
 
     // KLUDGE handle work offsets stored as fake parameters
     if (variable >=  EXTENDED_WORK_OFFSET_START && variable < EXTENDED_WORK_OFFSET_END) {
       // Work offsets
       int offset_number = (variable - EXTENDED_WORK_OFFSET_START ) / 20;
       int offset_base = EXTENDED_WORK_OFFSET_START + 20 * offset_number;
-      int index = offset_number - offset_base;
+      // zero-indexed displacement from the initial value
+      int index = variable - offset_base - 1;
       switch (index) {
       case X:
       case Y:
@@ -1978,7 +1980,6 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
         _setup.work_offsets_user[offset_number].setXYRotationDeg(value);
         break;
       }
-      break;
     } else if (variable < RS274NGC_MAX_PARAMETERS) {
       // Ensure that no required parameters are skipped
       for (; k < RS274NGC_MAX_PARAMETERS; k++) {
@@ -2046,8 +2047,8 @@ complain, but does write it in the output file.
 int Interp::save_parameters(const char *filename,      //!< name of file to write
                              const double parameters[]) //!< parameters to save
 {
-  FILE *infile;
-  FILE *outfile;
+  FILE *infile = nullptr;
+  FILE *outfile = nullptr;
   char line[PATH_MAX];
   int variable;
   double value;
@@ -2055,7 +2056,6 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   int index;                    // index into _required_parameters
   int k;
   int fd;
-
 
   if(access(filename, F_OK)==0)
   {
@@ -2075,7 +2075,10 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   }
   // open original for writing
   outfile = fopen(filename, "w");
-  CHKS((outfile == nullptr), NCE_CANNOT_OPEN_VARIABLE_FILE);
+  if (!outfile) {
+      fclose(infile);
+      ERS(NCE_CANNOT_OPEN_VARIABLE_FILE);
+  }
 
   k = 0;
   index = 0;
@@ -2086,9 +2089,16 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
     }
     // try for a variable-value match
     if (sscanf(line, "%d %lf", &variable, &value) == 2) {
-      CHKS(((variable <= 0)
-           || (variable >= RS274NGC_MAX_PARAMETERS)),
-          NCE_PARAMETER_NUMBER_OUT_OF_RANGE);
+      if (variable >= EXTENDED_WORK_OFFSET_START && variable < EXTENDED_WORK_OFFSET_END) {
+          // Don't care about extended work offsets here since they are exported separately
+          continue;
+      }
+      if ((variable <= 0)
+           || (variable >= RS274NGC_MAX_PARAMETERS)) {
+        fclose(infile);
+        fclose(outfile);
+        ERS(_("Parameter number out of range: %d"), variable);
+      }
       for (; k < RS274NGC_MAX_PARAMETERS; k++) {
         if (k > variable) {
           fclose(infile);
@@ -2121,7 +2131,10 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
 
   // TODO write these out sparsely? e.g. don't write zero fields
   for (auto const& wo : _setup.work_offsets_user) {
-    CHKS(wo.first < 0, _("Work offset index %d cannot be negative"), wo.first);
+    if (wo.first < 0) {
+      fclose(outfile);
+      ERS(NCE_PARAMETER_FILE_OUT_OF_ORDER);
+    }
     if (wo.first < 10) {
         continue;
     }
@@ -2163,7 +2176,7 @@ the controller.
 
 */
 
-int Interp::synch(bool read_work_offsets)
+int Interp::synch()
 {
 
   char file_name[LINELEN];
@@ -2187,10 +2200,10 @@ int Interp::synch(bool read_work_offsets)
   _setup.feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
 
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  save_parameters(((file_name[0] ==
+  CHP(save_parameters(((file_name[0] ==
                              0) ?
                             RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
-                            file_name), _setup.parameters);
+                           file_name), _setup.parameters));
 
   load_tool_table();   /*  must set  _setup.tool_max first */
 

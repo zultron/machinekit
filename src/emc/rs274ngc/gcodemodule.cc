@@ -867,12 +867,13 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     _pos.fill(0);
     _linecount=0;
 
-    pinterp->init();
-    pinterp->open(f);
+    int result = pinterp->init();
+    if(!RESULT_OK) goto out_error;
+    result = pinterp->open(f);
+    if(!RESULT_OK) goto out_error;
 
     maybe_new_line();
 
-    int result = INTERP_OK;
     if(unitcode) {
         result = execute_lines(pinterp, unitcode);
         if(!RESULT_OK) goto out_error;
