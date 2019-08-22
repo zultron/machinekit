@@ -153,7 +153,7 @@ setup_struct::setup_struct() :
     g_remappable()
 
 {
-  std::fill(parameters, parameters + interp_param_global::RS274NGC_MAX_PARAMETERS, 0);
+  parameters.fill(0);
   tool_table.fill(CANON_TOOL_TABLE());
 
   // Prevent unnecessary reallocations

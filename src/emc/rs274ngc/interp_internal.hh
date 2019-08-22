@@ -366,6 +366,7 @@ and is not represented here
 #define MAX_SUB_DIRS 10
 
 using WorkOffsetMap = std::map<int, RotateShiftTransform>;
+using ParameterArray = std::array<double, interp_param_global::RS274NGC_MAX_PARAMETERS>;
 
 struct setup_struct
 {
@@ -426,7 +427,7 @@ struct setup_struct
   GCodes motion_mode;              // active G-code for motion
   int origin_index;             // active origin (1=G54 to 9=G59.3)
 
-  double parameters[interp_param_global::RS274NGC_MAX_PARAMETERS];   // system parameters
+  ParameterArray parameters;   // system parameters
   std::vector<std::pair<size_t, double>> new_parameters;
   std::vector<std::pair<const char *, double>> new_named_parameters;
   bool percent_flag;          // true means first line was percent sign

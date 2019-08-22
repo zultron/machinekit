@@ -2044,8 +2044,9 @@ If a required parameter is missing from the input file, this does not
 complain, but does write it in the output file.
 
 */
-int Interp::save_parameters(const char *filename,      //!< name of file to write
-                             const double parameters[]) //!< parameters to save
+int Interp::save_parameters(
+    const char *filename,      //!< name of file to write
+    ParameterArray const &parameters) //!< parameters to save
 {
   FILE *infile = nullptr;
   FILE *outfile = nullptr;

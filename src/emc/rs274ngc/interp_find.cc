@@ -520,7 +520,7 @@ int Interp::clearPersistentG92Parameters(setup_pointer settings)
 ShiftTransform Interp::getG92ActiveOffset(setup_pointer settings)
 {
   if (settings->parameters[G92_APPLIED] != 0.0) {
-    double *axis_offset_begin = settings->parameters + G92_X;
+    double *axis_offset_begin = &settings->parameters[G92_X];
     const UnitsTransform user_to_program = convertsUserToProgram();
     return user_to_program.forward(toArray(axis_offset_begin, 9));
   } else {
@@ -565,8 +565,8 @@ RotateShiftTransform Interp::find_work_offset_from_parameters(setup_pointer sett
 {
     const int prm_offset = getWorkOffsetParamIdx(origin, 1); // X starts at 1 in PRM table
     // KLUDGE assumes contiguous parameters X,Y,Z,...,R
-    return RotateShiftTransform(toArray(settings->parameters + prm_offset,
-                                        settings->parameters + prm_offset + 9),
+    return RotateShiftTransform(toArray(&settings->parameters[prm_offset],
+                                        &settings->parameters[prm_offset + 9]),
                                 settings->parameters[prm_offset + 9]);
 }
 

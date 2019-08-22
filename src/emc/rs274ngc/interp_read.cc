@@ -71,9 +71,9 @@ AXIS_ERROR flag is not defined, nothing is done.
 */
 
 int Interp::read_a(char *line,   //!< string: line of RS274/NGC code being processed
-                  int *counter, //!< pointer to a counter for position on the line 
-                  block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  int *counter, //!< pointer to a counter for position on the line
+                  block_pointer block,  //!< pointer to a block being filled from the line
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -125,7 +125,7 @@ although using degrees (not radians) is specified.
 int Interp::read_atan(char *line,        //!< string: line of RS274/NGC code being processed
                      int *counter,      //!< pointer to a counter for position on line     
                      double *double_ptr,        //!< pointer to double to be read                  
-                     double *parameters)        //!< array of system parameters                    
+                     ParameterArray &parameters)        //!< array of system parameters
 {
   double argument2;
 
@@ -181,7 +181,7 @@ AXIS_ERROR flag is not defined, nothing is done.
 int Interp::read_b(char *line,   //!< string: line of RS274/NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -236,7 +236,7 @@ AXIS_ERROR flag is not defined, nothing is done.
 int Interp::read_c(char *line,   //!< string: line of RS274/NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -286,7 +286,7 @@ present only so that this will have the same argument list as the other
 int Interp::read_comment(char *line,     //!< string: line of RS274 code being processed   
                         int *counter,   //!< pointer to a counter for position on the line
                         block_pointer block,    //!< pointer to a block being filled from the line
-                        double *parameters)     //!< array of system parameters                   
+                        ParameterArray &parameters)     //!< array of system parameters
 {
     int n;
 
@@ -318,7 +318,7 @@ int Interp::read_comment(char *line,     //!< string: line of RS274 code being p
 int Interp::read_semicolon(char *line,     //!< string: line of RS274 code being processed   
                            int *counter,   //!< pointer to a counter for position on the line
                            block_pointer block,    //!< pointer to a block being filled from the line
-                           double *parameters)     //!< array of system parameters                   
+                           ParameterArray &parameters)     //!< array of system parameters
 {
     char *s;
     CHKS((line[*counter] != ';'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -363,7 +363,7 @@ is made here, and the parameters argument is also needed.
 int Interp::read_d(char *line,   //!< string: line of RS274 code being processed   
                   int *counter, //!< pointer to a counter for position on the line
                   block_pointer block,  //!< pointer to a block being filled from the line
-                  double *parameters)   //!< array of system parameters                   
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -409,7 +409,7 @@ Infeed/Outfeed angle specification with G76
 int Interp::read_e(char *line,   //!< string: line of RS274/NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -458,7 +458,7 @@ a feed rate.
 int Interp::read_f(char *line,   //!< string: line of RS274 code being processed   
                   int *counter, //!< pointer to a counter for position on the line
                   block_pointer block,  //!< pointer to a block being filled from the line
-                  double *parameters)   //!< array of system parameters                   
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -527,7 +527,7 @@ mode. If this happens, the G80 is simply ignored.
 int Interp::read_g(char *line,   //!< string: line of RS274/NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value_read;
   double g_id;
@@ -607,7 +607,7 @@ offset).
 int Interp::read_h(char *line,   //!< string: line of RS274/NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   int value;
 
@@ -657,7 +657,7 @@ may be involved.
 int Interp::read_i(char *line,   //!< string: line of RS274 code being processed    
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -749,7 +749,7 @@ close to an integer, then returning the integer it is close to.
 int Interp::read_integer_value(char *line,       //!< string: line of RS274/NGC code being processed
                               int *counter,     //!< pointer to a counter for position on the line 
                               int *integer_ptr, //!< pointer to the value being read               
-                              double *parameters)       //!< array of system parameters                    
+                              ParameterArray &parameters)       //!< array of system parameters
 {
   double float_value;
 
@@ -782,7 +782,7 @@ Called by: parse_line
 
 int Interp::read_items(block_pointer block,      //!< pointer to a block being filled from the line 
                       char *line,       //!< string: line of RS274/NGC code being processed
-                      double *parameters)   //!< array of system parameters 
+                      ParameterArray &parameters)   //!< array of system parameters
 {
   int counter = 0;
   int m_number = 0, m_counter = 0;  // for checking m98/m99 as o-words
@@ -874,7 +874,7 @@ involved.
 int Interp::read_j(char *line,   //!< string: line of RS274 code being processed    
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -923,7 +923,7 @@ involved.
 int Interp::read_k(char *line,   //!< string: line of RS274 code being processed    
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -970,7 +970,7 @@ L codes are used for:
 int Interp::read_l(char *line,   //!< string: line of RS274/NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   int value;
 
@@ -1072,7 +1072,7 @@ is needed here, and the parameters argument is also needed.
 int Interp::read_m(char *line,   //!< string: line of RS274 code being processed   
                   int *counter, //!< pointer to a counter for position on the line
                   block_pointer block,  //!< pointer to a block being filled from the line
-                  double *parameters)   //!< array of system parameters                   
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   int value;
   int mode;
@@ -1160,7 +1160,7 @@ int Interp::read_one_item(
     char *line,    //!< string: line of RS274/NGC code being processed
     int *counter,  //!< pointer to a counter for position on the line 
     block_pointer block,   //!< pointer to a block being filled from the line 
-    double * parameters) /* array of system parameters  */
+    ParameterArray &parameters) /* array of system parameters  */
 {
   read_function_pointer function_pointer;
   char letter;
@@ -1499,7 +1499,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
  char * line,         /* string: line of RS274/NGC code being processed */
  int * counter,       /* pointer to a counter for position on the line  */
  block_pointer block, /* pointer to a block being filled from the line  */
- double * parameters) /* array of system parameters                     */
+ ParameterArray &parameters) /* array of system parameters                     */
 {
   static char name[] = "read_o";
   double value;
@@ -1898,7 +1898,7 @@ P codes are used for:
 int Interp::read_p(char *line,   //!< string: line of RS274/NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -2001,7 +2001,7 @@ int Interp::read_parameter(
     char *line,   //!< string: line of RS274/NGC code being processed
     int *counter, //!< pointer to a counter for position on the line 
     double *double_ptr,   //!< pointer to double to be read                  
-    double *parameters,   //!< array of system parameters
+    ParameterArray &parameters,   //!< array of system parameters
     bool check_exists)    //!< test for existence, not value
 {
   int index;
@@ -2040,7 +2040,7 @@ int Interp::read_bracketed_parameter(
     char *line,   //!< string: line of RS274/NGC code being processed
     int *counter, //!< pointer to a counter for position on the line
     double *double_ptr,   //!< pointer to double to be read
-    double *parameters,   //!< array of system parameters
+    ParameterArray &parameters,   //!< array of system parameters
     bool check_exists)    //!< test for existence, not value
 {
   CHKS((line[*counter] != '['), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -2124,7 +2124,7 @@ int Interp::read_parameter_setting(
     char *line,   //!< string: line of RS274/NGC code being processed
     int *counter, //!< pointer to a counter for position on the line 
     block_pointer block,  //!< pointer to a block being filled from the line 
-    double *parameters)   //!< array of system parameters
+    ParameterArray &parameters)   //!< array of system parameters
 {
   static char name[] = "read_parameter_setting";
   int index;
@@ -2245,7 +2245,7 @@ int Interp::read_named_parameter_setting(
     char *line,   //!< string: line of RS274/NGC code being processed
     int *counter, //!< pointer to a counter for position on the line 
     char **param,  //!< pointer to the char * to be returned 
-    double *parameters)   //!< array of system parameters
+    ParameterArray &parameters)   //!< array of system parameters
 {
   static char name[] = "read_named_parameter_setting";
   int status;
@@ -2304,7 +2304,7 @@ be positive.
 int Interp::read_q(char *line,   //!< string: line of RS274/NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -2358,7 +2358,7 @@ may be involved.
 int Interp::read_r(char *line,   //!< string: line of RS274 code being processed   
                   int *counter, //!< pointer to a counter for position on the line
                   block_pointer block,  //!< pointer to a block being filled from the line
-                  double *parameters)   //!< array of system parameters                   
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -2573,7 +2573,7 @@ when read_rest_bop1 returns.
 int Interp::read_real_expression(char *line,     //!< string: line of RS274/NGC code being processed
                                 int *counter,   //!< pointer to a counter for position on the line 
                                 double *value,  //!< pointer to double to be read                  
-                                double *parameters)     //!< array of system parameters                    
+                                ParameterArray &parameters)     //!< array of system parameters
 {
   static char name[] = "read_real_expression";
   int next_operation;
@@ -2624,7 +2624,7 @@ power).
 int Interp::read_real_expression(char *line,     //!< string: line of RS274/NGC code being processed
                                 int *counter,   //!< pointer to a counter for position on the line 
                                 double *value,  //!< pointer to double to be computed              
-                                double *parameters)     //!< array of system parameters                    
+                                ParameterArray &parameters)     //!< array of system parameters
 {
   double values[MAX_STACK];
   int operators[MAX_STACK];
@@ -2774,7 +2774,7 @@ other readers, depending upon the first character.
 int Interp::read_real_value(char *line,  //!< string: line of RS274/NGC code being processed
                            int *counter,        //!< pointer to a counter for position on the line 
                            double *double_ptr,  //!< pointer to double to be read                  
-                           double *parameters)  //!< array of system parameters                    
+                           ParameterArray &parameters)  //!< array of system parameters
 {
   char c, c1;
 
@@ -2850,7 +2850,7 @@ int Interp::read_rest_bop1(char *line,   //!< string: line of RS274/NGC code bei
                           int *counter, //!< pointer to a counter for position on the line 
                           double *value,        //!< pointer to double to be calculated            
                           int *last_operation,  //!< last operation read, reset to next operation  
-                          double *parameters)   //!< array of system parameters                    
+                          ParameterArray &parameters)   //!< array of system parameters
 {
   static char name[] = "read_rest_bop1";
   double next_value;
@@ -2905,7 +2905,7 @@ int Interp::read_rest_bop2(char *line,   //!< string: line of RS274/NGC code bei
                           int *counter, //!< pointer to a counter for position on the line 
                           double *value,        //!< pointer to double to be calculated            
                           int last_operation,   //!< last operation read                           
-                          double *parameters)   //!< array of system parameters                    
+                          ParameterArray &parameters)   //!< array of system parameters
 {
   static char name[] = "read_rest_bop2";
   double next_value;
@@ -2961,7 +2961,7 @@ may be involved.
 int Interp::read_s(char *line,   //!< string: line of RS274NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line
                   block_pointer block,  //!< pointer to a block being filled from the line
-                  double *parameters)   //!< array of system parameters                   
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -3009,7 +3009,7 @@ may be involved.
 int Interp::read_t(char *line,   //!< string: line of RS274/NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   int value;
 
@@ -3186,7 +3186,7 @@ handled specially because it is followed by two arguments.
 int Interp::read_unary(char *line,       //!< string: line of RS274/NGC code being processed
                       int *counter,     //!< pointer to a counter for position on the line 
                       double *double_ptr,       //!< pointer to double to be read                  
-                      double *parameters)       //!< array of system parameters                    
+                      ParameterArray &parameters)       //!< array of system parameters
 {
   int operation;
 
@@ -3212,7 +3212,7 @@ int Interp::read_unary(char *line,       //!< string: line of RS274/NGC code bei
 int Interp::read_u(char *line,   //!< string: line of RS274/NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -3228,7 +3228,7 @@ int Interp::read_u(char *line,   //!< string: line of RS274/NGC code being proce
 int Interp::read_v(char *line,   //!< string: line of RS274/NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -3244,7 +3244,7 @@ int Interp::read_v(char *line,   //!< string: line of RS274/NGC code being proce
 int Interp::read_w(char *line,   //!< string: line of RS274/NGC code being processed
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -3294,7 +3294,7 @@ may be involved.
 int Interp::read_x(char *line,   //!< string: line of RS274 code being processed    
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -3314,7 +3314,7 @@ int Interp::read_x(char *line,   //!< string: line of RS274 code being processed
 }
 
 int Interp::read_atsign(char *line, int *counter, block_pointer block,
-                        double *parameters) {
+                        ParameterArray &parameters) {
     CHKS((line[*counter] != '@'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
     (*counter)++;
     CHP(read_real_value(line, counter, &block->radius, parameters));
@@ -3323,7 +3323,7 @@ int Interp::read_atsign(char *line, int *counter, block_pointer block,
 }
 
 int Interp::read_carat(char *line, int *counter, block_pointer block,
-                       double *parameters) {
+                       ParameterArray &parameters) {
     CHKS((line[*counter] != '^'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
     (*counter)++;
     CHP(read_real_value(line, counter, &block->theta, parameters));
@@ -3369,7 +3369,7 @@ may be involved.
 int Interp::read_y(char *line,   //!< string: line of RS274 code being processed    
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 
@@ -3418,7 +3418,7 @@ may be involved.
 int Interp::read_z(char *line,   //!< string: line of RS274 code being processed    
                   int *counter, //!< pointer to a counter for position on the line 
                   block_pointer block,  //!< pointer to a block being filled from the line 
-                  double *parameters)   //!< array of system parameters                    
+                  ParameterArray &parameters)   //!< array of system parameters
 {
   double value;
 

@@ -70,8 +70,9 @@ public:
  int restore_parameters(const char *filename);
 
 // save interpreter variables to file
- int save_parameters(const char *filename,
-                                    const double parameters[]);
+ int save_parameters(
+     const char *filename,
+     ParameterArray const &parameters);
 
 // synchronize your internal model with the external world
  int synch();
@@ -441,56 +442,56 @@ public:
  int precedence(int an_operator);
  int _read(const char *command);
  int read_a(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_atan(char *line, int *counter, double *double_ptr,
-                     double *parameters);
+                     ParameterArray &parameters);
  int read_atsign(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_b(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_c(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_carat(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_comment(char *line, int *counter, block_pointer block,
-                        double *parameters);
+                        ParameterArray &parameters);
  int read_semicolon(char *line, int *counter, block_pointer block,
-                        double *parameters);
+                        ParameterArray &parameters);
  int read_d(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_e(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_f(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_g(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_h(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_i(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_integer_unsigned(char *line, int *counter, int *integer_ptr);
  int read_integer_value(char *line, int *counter, int *integer_ptr,
-                              double *parameters);
- int read_items(block_pointer block, char *line, double *parameters);
+                              ParameterArray &parameters);
+ int read_items(block_pointer block, char *line, ParameterArray &parameters);
  int read_j(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_k(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_l(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_n_number(char *line, int *counter, block_pointer block);
  int read_m(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_o(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
 
 
  int read_one_item(char *line, int *counter, block_pointer block,
-                   double *parameters);
+                   ParameterArray &parameters);
  int read_operation(char *line, int *counter, int *operation);
  int read_operation_unary(char *line, int *counter, int *operation);
  int read_p(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
 
 
 
@@ -515,44 +516,44 @@ public:
         std::string &cmd);
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
-                          double *parameters, bool check_exists);
+                          ParameterArray &parameters, bool check_exists);
  int read_parameter(char *line, int *counter, double *double_ptr,
-                          double *parameters, bool check_exists);
+                          ParameterArray &parameters, bool check_exists);
  int read_parameter_setting(char *line, int *counter,
-                                  block_pointer block, double *parameters);
+                                  block_pointer block, ParameterArray &parameters);
  int read_bracketed_parameter(char *line, int *counter, double *double_ptr,
-                          double *parameters, bool check_exists);
+                          ParameterArray &parameters, bool check_exists);
  int read_named_parameter_setting(char *line, int *counter,
-                                  char **param, double *parameters);
+                                  char **param, ParameterArray &parameters);
  int read_q(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_r(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_real_expression(char *line, int *counter,
-                                double *hold2, double *parameters);
+                                double *hold2, ParameterArray &parameters);
  int read_real_number(char *line, int *counter, double *double_ptr);
  int read_real_value(char *line, int *counter, double *double_ptr,
-                           double *parameters);
+                           ParameterArray &parameters);
  int read_s(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_t(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_text(const char *command, FILE * inport, char *raw_line,
                      char *line, int *length);
  int read_unary(char *line, int *counter, double *double_ptr,
-                      double *parameters);
+                      ParameterArray &parameters);
  int read_u(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_v(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_w(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_x(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_y(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int read_z(char *line, int *counter, block_pointer block,
-                  double *parameters);
+                  ParameterArray &parameters);
  int refresh_actual_position(setup_pointer settings);
  void rotate(double *x, double *y, double t);
  int set_probe_data(setup_pointer settings);
