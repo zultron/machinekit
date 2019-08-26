@@ -230,6 +230,7 @@ const int Interp::_required_parameters[] = {
  5384, 5385, 5386, /* A, B, & C */
  5387, 5388, 5389, /* U, V, & W */
  5390,
+ 5650,5651,5652,5653,
  RS274NGC_MAX_PARAMETERS
 };
 

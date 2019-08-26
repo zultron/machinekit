@@ -4208,6 +4208,10 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 
       logDebug("M99 main program endless loop");
       loop_to_beginning(settings);  // return control to beginning of file
+
+      settings->parameters[M99_CYCLE_COUNTER_A] += 1;
+      settings->parameters[M99_CYCLE_COUNTER_B] += 1;
+
       FINISH();  // Output any final linked segments
       return INTERP_EXECUTE_FINISH;  // tell task to issue any queued commands
   } else if ((block->m_modes[M_MODE_STOPPING] == 2) || (block->m_modes[M_MODE_STOPPING] == 30) ||
@@ -4346,6 +4350,10 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
     if (block->m_modes[M_MODE_STOPPING] == 30) {
       PALLET_SHUTTLE();
       PROGRAM_END(true);  // reset after program end with m30
+
+      settings->parameters[M30_CYCLE_COUNTER_A] += 1;
+      settings->parameters[M30_CYCLE_COUNTER_B] += 1;
+
     } else {
       PROGRAM_END(false);
     }
