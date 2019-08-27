@@ -805,18 +805,31 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
 	(tag->packed_flags & (1<<GM_FLAG_UNITS)) ?
 	CANON_UNITS_INCHES : CANON_UNITS_MM );
     // Set emcStatus gcodes, mcodes arrays
+    int new_origin = -1;
     interp.active_modes(
-	(int*)&emcStatus->task.activeGCodes,
-	(int*)&emcStatus->task.activeMCodes,
-    (double*)&emcStatus->task.activeSettings,
-                emcStatus->task.g5x_index,
-	StateTag(*tag));
+        emcStatus->task.activeGCodes.data(),
+        emcStatus->task.activeMCodes.data(),
+        emcStatus->task.activeSettings.data(),
+                new_origin,
+    StateTag(*tag));
 
     // Add more emcStatus updates here
-
-    return 0;
+    return emcStatusUpdateWorkOffset(new_origin);
 }
 
+int emcStatusUpdateWorkOffset(int new_origin, bool force)
+{
+    if (new_origin < 0) {
+        // Bad origin
+        return -1;
+    }
+    if (force || emcStatus->task.g5x_index != new_origin) {
+        emcStatus->task.g5x_index = new_origin;
+        emcStatus->task.g5x_offset = toEmcPose(emcStatus->task.g5x_table[new_origin].shift.tf);
+        emcStatus->task.rotation_xy = emcStatus->task.g5x_table[new_origin].getXYRotationDeg();
+    }
+    return 0;
+}
 
 int emcAbortCleanup(int reason, const char *message)
 {
