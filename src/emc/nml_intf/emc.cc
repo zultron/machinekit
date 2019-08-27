@@ -1958,9 +1958,7 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(stepping_id);
     cms->update(file, 256);
     cms->update(command, 256);
-    EmcPose_update(cms, &g5x_offset);
     cms->update(g5x_index);
-    cms->update(rotation_xy);
     EmcPose_update(cms, &g92_offset);
     EmcPose_update(cms, &toolOffset);
     cms_update(cms, activeGCodes);
