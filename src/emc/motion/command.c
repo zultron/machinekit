@@ -1487,6 +1487,7 @@ check_stuff ( "before command_handler()" );
 		break;
 	    }
 
+            issue_atspeed = doSpindleAtSpeedHandshake();
 	    /* append it to the emcmotDebug->tp */
 	    tpSetId(&emcmotDebug->tp, emcmotCommand->id);
 	    int res_addtap = tpAddRigidTap(&emcmotDebug->tp, emcmotCommand->pos,
@@ -1494,6 +1495,7 @@ check_stuff ( "before command_handler()" );
 					   emcmotCommand->ini_maxvel,
 					   emcmotCommand->acc,
 					   emcmotStatus->enables_new,
+                       issue_atspeed,
 					   emcmotCommand->tag);
             addSegmentOrReportError(res_addtap, issue_atspeed, "rigid tap");
 	    break;

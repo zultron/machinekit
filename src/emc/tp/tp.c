@@ -1457,6 +1457,7 @@ int tpAddRigidTap(TP_STRUCT * const tp,
         double ini_maxvel,
         double acc,
         unsigned char enables,
+        char atspeed,
         struct state_tag_t tag) {
     if (tpErrorCheck(tp)) {
         return TP_ERR_FAIL;
@@ -1482,7 +1483,7 @@ int tpAddRigidTap(TP_STRUCT * const tp,
             0,
             tp->cycleTime,
             enables,
-            1);
+            atspeed);
 
     // Setup any synced IO for this move
     tpSetupSyncedIO(tp, &tc);

@@ -45,6 +45,7 @@ int tpAddRigidTap(TP_STRUCT * const tp,
         double ini_maxvel,
         double acc,
         unsigned char enables,
+        char atspeed,
         struct state_tag_t tag);
 
 int tpAddLine(
