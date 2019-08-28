@@ -1970,32 +1970,17 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TRAJ_SET_ROTATION_TYPE:
-        emcStatus->task.rotation_xy = ((EMC_TRAJ_SET_ROTATION *) cmd)->rotation;
-        retval = 0;
+        rcs_print_error("%s command is no longer valid\n", emc_symbol_lookup(cmd->type) ?: "");
+        retval = -1;
         break;
 
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
     {
-	// struct-copy program origin
         double const *offset = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->offset;
-        emcStatus->task.g5x_offset = {{
-                                          offset[X],
-                                          offset[Y],
-                                          offset[Z],
-                                      },
-                                      offset[A],
-                                      offset[B],
-                                      offset[C],
-                                      offset[U],
-                                      offset[V],
-                                      offset[W],
-                                     };
-        emcStatus->task.rotation_xy = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->xy_rotation_deg;
-        emcStatus->task.g5x_index = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->g5x_index;
-        emcStatus->task.g5x_table[(size_t)((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->g5x_index] =
-                RotateShiftTransform(toArray(((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->offset, 9),
-                                     ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->xy_rotation_deg
-                                     );
+        int new_index = (size_t)((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->g5x_index;
+        double xy_rotation_deg = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->xy_rotation_deg;
+        emcStatus->task.g5x_table[new_index] = RotateShiftTransform(toArray(offset, 9), xy_rotation_deg);
+        retval = emcStatusUpdateWorkOffset(new_index, true);
     }
     retval = 0;
 	break;

@@ -58,6 +58,6 @@ int emcTaskPlanCommand(char *cmd);
 
 int emcTaskUpdate(EMC_TASK_STAT * stat);
 int emcStatusUpdateFromTag(state_tag_t const * const tag);
-
+int emcStatusUpdateWorkOffset(int new_origin, bool force=false);
 #endif
 
