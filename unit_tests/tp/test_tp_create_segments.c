@@ -365,6 +365,8 @@ static greatest_test_res add_circle_from_center_normal(TP_STRUCT *tp, double v_r
     EmcPose pt2 = pt1;
     pmCartScalMult(&center2, 2.0, &pt2.tran);
 
+    // Allow caller to specify non-unit normals
+    pmCartUnitEq(&normal2);
     ASSERT_EMCPOSE_IN_RANGE(pt1, tp->goalPos, TP_POS_EPSILON);
 
     // Ask for impossibly high velocity to force the arc to maximum size
@@ -446,6 +448,8 @@ TEST test_optimize_biarc_blend_size()
         0.001,
         0.0001,
         1.0, // Ignore feed override scale for now
+        0.01,
+        0.00001,
     };
 
     biarc_solver_results_t biarc_results = {0};
@@ -467,7 +471,7 @@ TEST test_optimize_biarc_blend_size()
     EmcPose P;
     tcGetStartpoint(this_tc, &P);
     pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
-    ASSERT(T < BLEND_TOLERANCE);
+    ASSERT(T < BLEND_TOLERANCE + cfg.deviation_abs_tolerance);
     ASSERT(biarc_results.iterations < 10);
 
     deleteMockTP(&tp);
@@ -484,13 +488,14 @@ TEST test_biarc_optimizer_performance()
 {
     CREATE_MOCK_TP_ACC(8.0);
     ASSERT(tp);
-    static const double BLEND_TOLERANCE = 0.005;
+    static const double BLEND_TOLERANCE = 0.01;
     static const double v_req = 1.0;
 
     static const CenterNormal cases[]={
-        {{-1,0.001,0},{0,0,1}},
-        {{1,0,0},{0,0,-1}},
+        //{{-1,0.001,0},{0,0,1}},
+        //{{1,0,0},{0,0,-1}},
         {{1,0,0},{0,0,1}},
+        {{1,0.001,0},{0,0,1}},
         {{1,0,0},{0,1,0}},
         {{1,0,0},{0,-1,0}},
         {{0,0,1},{-1,0,0}},
@@ -506,10 +511,11 @@ TEST test_biarc_optimizer_performance()
         {{.1,0,.1},{0,1,0}},
         {{.1,0,.1},{0,-1,0}},
         {{1,0,0.5},{0,0,1}},
+        {{1,1,1},{0,0,1}},
         };
 
     printf("\nCircle biarc blend tests\n");
-    printf("%9s,%9s,%9s,%9s,%9s,%9s,%9s,%6s,%9s,%9s,%9s,%9s,%9s,%14s,\n",
+    printf("%9s,%9s,%9s,%9s,%9s,%9s,%9s,%6s,%9s,%9s,%9s,%9s,%9s,%9s,%14s,\n",
             "type",
             "C_x",
             "C_y",
@@ -522,6 +528,7 @@ TEST test_biarc_optimizer_performance()
             "R_plan",
             "v_plan",
             "blend_d",
+            "theta",
             "iters",
             "status");
     for (int j=0; j<2; ++j) {
@@ -552,8 +559,10 @@ TEST test_biarc_optimizer_performance()
                 100,
                 0.02,
                 0.001,
-                0.0001,
+                0.000001,
                 1.0, // Ignore feed override scale for now
+                0.01,
+                0.0000001
             };
             biarc_solver_results_t biarc_results = {0};
 
@@ -587,15 +596,19 @@ TEST test_biarc_optimizer_performance()
                 &param,
                 tp->cycleTime);
 
-            ASSERT_EQ(TP_ERR_OK, res_opt);
             // Verify that the midpoint is within tolerance
             double T;
             EmcPose P;
             tcGetStartpoint(this_tc, &P);
             pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
-            ASSERT(T < BLEND_TOLERANCE);
-            ASSERT(biarc_results.iterations < 100);
-            printf("%9s,%9f,%9f,%9f,%9f,%9f,%9f,%9f,%9f,%9f,%9f,%9f,%6d,%14s,\n",
+            double v_plan = pmSqrt(param.a_n_max * biarc_results.R_plan);
+
+            PmCartesian u1, u2;
+            tcGetEndTangentUnitVector(prev_tc, &u1);
+            tcGetStartTangentUnitVector(this_tc, &u2);
+            param.theta = findIntersectionAngle(&u1, &u2);
+
+            printf("%9s,%9f,%9f,%9f,%9f,%9f,%9f,%9g,%9f,%9f,%9f,%9f,%9f,%6d,%14s,\n",
                    j ? " arc-arc" : "line-arc",
                    cases[i].center.x,
                    cases[i].center.y,
@@ -606,11 +619,17 @@ TEST test_biarc_optimizer_performance()
                    T,
                    biarc_results.Rb,
                    biarc_results.R_plan,
-                   pmSqrt(param.a_n_max * biarc_results.R_plan),
+                   v_plan,
                    biarc_results.control_pts.d,
+                   param.theta * 180./M_PI,
                    biarc_results.iterations,
                    biarc_result_to_str(biarc_results.result));
             ASSERT(biarc_results.R_plan > 0.0);
+            if (biarc_results.result != BIARC_MIN_LENGTH_LIMITED) {
+                ASSERT(T <= (BLEND_TOLERANCE + cfg.deviation_abs_tolerance));
+                ASSERT(v_plan > 0.95 || T > BLEND_TOLERANCE * 0.95);
+            }
+            ASSERT(biarc_results.iterations < 100);
         }
     }
 

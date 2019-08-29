@@ -317,6 +317,8 @@ typedef struct
     double velocity_abs_tolerance;
     double deviation_abs_tolerance;
     double feed_override_allowance;
+    double velocity_cutoff;
+    double convergence_tolerance;
 } biarc_solver_config_t;
 
 typedef struct
@@ -337,14 +339,20 @@ typedef enum
     BIARC_REACHED_TOLERANCE,
     BIARC_REACHED_MIN_SIZE_CUTOFF,
     BIARC_CONVERGED,
+    BIARC_MIN_LENGTH_LIMITED,
 } BiarcSolverResults;
+
+typedef struct {
+    double Rb;
+    double R_plan;
+    double T_plan;
+} RegionResult;
 
 typedef struct
 {
-    double tolerance_upper;
-    double length_cutoff_lower;
-    double vel_lower;
-    double vel_upper;
+    RegionResult upper;
+    RegionResult lower;
+    double R_peak;
 } blend_solver_constraints_t;
 
 typedef struct
@@ -365,10 +373,12 @@ typedef struct
     unsigned iterations; //!< solver iterations
     BiarcSolverResults result;
     double tol_err;
-    double radius_err;
+    double radius_rel_err;
+    double radius_abs_err;
     double R_geom;
     double arc_len_est;
     double R_plan;
+    double T_plan;
 } biarc_solver_results_t;
 
 
