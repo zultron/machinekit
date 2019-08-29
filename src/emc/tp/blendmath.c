@@ -2158,14 +2158,22 @@ double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * 
 tp_err_t find_blend_size_from_intermediates(
     blend_boundary_t const * const blend_boundary,
     blend_control_points_t const * const intermediates,
-    double *R_geom)
+    double *R_geom,
+    double *arc_len_est)
 {
-    // KLUDGE assume d is correct (will check exact length later)
-    double tan_theta = findIntersectionTanAngle(&blend_boundary->u1, &intermediates->u_mid);
+    double dot;
+    pmCartCartDot(&blend_boundary->u1, &intermediates->u_mid, &dot);
+
+    double cos_2theta = fmax(-dot, -1.0 + 1.0e-15);
+
+    double sin_theta_approx = pmSqrt((1. - cos_2theta) / 2);
+    double cos_theta_approx = pmSqrt((1. + cos_2theta) / 2);
+    double tan_theta_approx = sin_theta_approx / fmax(cos_theta_approx, TP_ANGLE_EPSILON);
 
     // TODO optimize out the tangent calculation if necessary
     // Find radius from the limiting length (assume length is actually symmetrical
-    *R_geom = tan_theta * intermediates->d;
+    *R_geom = tan_theta_approx * intermediates->d;
+    *arc_len_est = 2.0 * intermediates->d * sin_theta_approx;
 
     return TP_ERR_OK;
 }
@@ -2437,10 +2445,12 @@ tp_err_t optimize_biarc_blend_size(
         CHP(find_blend_size_from_intermediates(
             &biarc_results->boundary,
             &biarc_results->control_pts,
-            &biarc_results->R_geom));
+            &biarc_results->R_geom,
+            &biarc_results->arc_len_est
+            ));
 
         // Cheat by expressing max radius in terms of v_max even though it's not strictly the limiting factor
-        double guess_v_max_length = 2. * biarc_results->control_pts.d / cycle_time;
+        double guess_v_max_length = biarc_results->arc_len_est / cycle_time;
         double guess_R_effective_max = pmSq(guess_v_max_length) / param->a_n_max;
 
         biarc_results->R_plan = fmin(biarc_results->R_geom, guess_R_effective_max);
@@ -2553,10 +2563,11 @@ tp_err_t scan_blend_properties(
         CHP(find_blend_size_from_intermediates(
             &biarc_results->boundary,
             &biarc_results->control_pts,
-            &biarc_results->R_geom));
+            &biarc_results->R_geom,
+            &biarc_results->arc_len_est));
 
         // Cheat by expressing max radius in terms of v_max even though it's not strictly the limiting factor
-        double guess_v_max_length = 2. * biarc_results->control_pts.d / cycle_time;
+        double guess_v_max_length = biarc_results->arc_len_est / cycle_time;
         double guess_R_effective_max = pmSq(guess_v_max_length) / param->a_n_max;
 
         biarc_results->R_plan = fmin(biarc_results->R_geom, guess_R_effective_max);

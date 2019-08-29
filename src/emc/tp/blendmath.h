@@ -367,6 +367,7 @@ typedef struct
     double tol_err;
     double radius_err;
     double R_geom;
+    double arc_len_est;
     double R_plan;
 } biarc_solver_results_t;
 
@@ -396,7 +397,7 @@ double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * 
 
 tp_err_t find_blend_size_from_intermediates(blend_boundary_t const * const blend_boundary,
     blend_control_points_t const * const intermediates,
-    double *R_geom);
+    double *R_geom, double * arc_len_est);
 
 tp_err_t optimize_biarc_blend_size(TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc,
