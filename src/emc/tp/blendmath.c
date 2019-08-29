@@ -2468,3 +2468,112 @@ tp_err_t optimize_biarc_blend_size(
     biarc_results->result = BIARC_EXCEEDED_MAX_ITERATIONS;
     return TP_ERR_FAIL;
 }
+
+#ifdef UNIT_TEST
+#include <stdio.h>
+#endif
+
+tp_err_t scan_blend_properties(
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    biarc_solver_config_t const * const config,
+    PmCartesian const * const vel_bound,
+    PmCartesian const * const acc_bound,
+    biarc_solver_results_t * const biarc_results,
+    BlendParameters * const param,
+    double resolution)
+{
+    if (!prev_tc || !tc || !biarc_results) {
+        return TP_ERR_MISSING_INPUT;
+    }
+
+    //FIXME
+    static const double cycle_time = 0.001;
+    // Find net tolerance that's actually usable (so that we're
+    // not passing 0.0 around if tolerance is not specified)
+    tcFindBlendTolerance(prev_tc, tc, &param->tolerance);
+
+    blend_solver_constraints_t constraints;
+
+    // Initial solver values for Rb range using somewhat dumb (but cheap) values
+    constraints.vel_upper = find_max_blend_region(prev_tc, tc);
+    constraints.tolerance_upper = constraints.vel_upper;
+
+    blendParamInitVelocities(prev_tc, tc, config->feed_override_allowance, param);
+
+    double s1_max = prev_tc->target - constraints.tolerance_upper;
+    double s2_max = constraints.tolerance_upper;
+    PmCartesian u1, u2;
+    tcGetTangentUnitVector(prev_tc, s1_max, &u1);
+    tcGetTangentUnitVector(tc, s2_max, &u2);
+
+    findVMaxByAltitude(
+        &u1,
+        &u2,
+        param);
+    //TODO do altitude calculation too?
+    // Approximate the blend kinematics using the initial guess
+    // Actual limits will be enforced later
+    CHP(blendParamKinematics(
+        &u1,
+        &u2,
+        param,
+        acc_bound,
+        vel_bound));
+
+    // Intersection is at start of next segment, so use startpoint method since it's much faster
+    EmcPose P;
+    CHP(tcGetStartpoint(tc, &P));
+
+#ifdef UNIT_TEST
+    printf("|f,%12s,%12s,%12s,%12s,%12s,%12s\n",
+           "Rb",
+           "tol_dev",
+           "R_geom",
+           "R_plan",
+           "v_plan",
+           "d");
+#endif
+    const unsigned MAX_ITERATIONS = (unsigned)((double)constraints.vel_upper / resolution);
+    for (biarc_results->iterations = 1; biarc_results->iterations < MAX_ITERATIONS; ++biarc_results->iterations)
+    {
+        biarc_results->Rb = (double)biarc_results->iterations * resolution;
+        // Find blend start / end points and tangent vectors, within Rb of intersection P with procedure find_blend_points_and_tangents
+        find_blend_points_and_tangents(biarc_results->Rb, prev_tc, tc, &biarc_results->boundary);
+        // Find blend segment lengths d, L and intermediate points with procedure find_blend_intermediate_segments
+        int failed = 0;
+        double T;
+        if (TP_ERR_OK != find_blend_intermediate_segments(&biarc_results->boundary, &biarc_results->control_pts))
+        {
+            failed = 1;
+            T=-1;
+        } else {
+
+        // Verify distance from blend midpoint to original intersection P < tolerance
+        pmCartCartDisp(&biarc_results->control_pts.P_mid, &P.tran, &T);
+
+        CHP(find_blend_size_from_intermediates(
+            &biarc_results->boundary,
+            &biarc_results->control_pts,
+            &biarc_results->R_geom));
+
+        // Cheat by expressing max radius in terms of v_max even though it's not strictly the limiting factor
+        double guess_v_max_length = 2. * biarc_results->control_pts.d / cycle_time;
+        double guess_R_effective_max = pmSq(guess_v_max_length) / param->a_n_max;
+
+        biarc_results->R_plan = fmin(biarc_results->R_geom, guess_R_effective_max);
+        }
+#ifdef UNIT_TEST
+            printf("|%d,%12f,%12f,%12f,%12f,%12f,%12f\n",
+               failed,
+               biarc_results->Rb,
+               T,
+               biarc_results->R_geom,
+               biarc_results->R_plan,
+               pmSqrt(param->a_n_max * biarc_results->R_plan),
+               biarc_results->control_pts.d);
+#endif
+    }
+    biarc_results->result = BIARC_EXCEEDED_MAX_ITERATIONS;
+    return TP_ERR_FAIL;
+}

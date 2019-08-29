@@ -26,9 +26,9 @@ void resetMockTP(TP_STRUCT *tp, double cycle_time)
     tpSetCycleTime(tp, cycle_time);
 }
 
-TP_STRUCT *newMockTP(double cycle_time)
+TP_STRUCT *newMockTP(double cycle_time, double a_max)
 {
-    init_motion_globals();
+    init_motion_globals(a_max);
     TP_STRUCT *tp = malloc(sizeof(TP_STRUCT));
     memset(tcq_space, 0, sizeof(tcq_space));
     tpCreate(tp, 1000, tcq_space);

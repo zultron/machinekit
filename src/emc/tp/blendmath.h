@@ -297,7 +297,18 @@ int find_blend_vel_accel_planar_limits(
     double *a_max_planar,
     double *v_max_planar);
 
-// BiArc blend stuff
+void findVMaxByAltitude(
+    PmCartesian const * const u1,
+    PmCartesian const * const u2,
+    BlendParameters * const param);
+
+int blendParamInitVelocities(
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    double maxFeedScale,
+    BlendParameters * const param);
+
+// BiArc blend types
 
 typedef struct
 {
@@ -394,5 +405,14 @@ tp_err_t optimize_biarc_blend_size(TC_STRUCT const * const prev_tc,
     PmCartesian const * const acc_bound,
     biarc_solver_results_t * const biarc_results,
     BlendParameters * const param);
+
+// For testing only
+tp_err_t scan_blend_properties(TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const tc,
+    biarc_solver_config_t const * const config,
+    PmCartesian const * const vel_bound,
+    PmCartesian const * const acc_bound,
+    biarc_solver_results_t * const biarc_results,
+    BlendParameters * const param, double resolution);
 
 #endif

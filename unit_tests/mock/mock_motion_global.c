@@ -23,7 +23,7 @@ struct emcmot_error_t *emcmotError = NULL;	/* unused for RT_FIFO */
 
 struct emcmot_joint_t *joints = NULL;
 
-void init_motion_globals()
+void init_motion_globals(double a_max)
 {
     s = EMPTY_SHM;
     emcmotStruct = &s;
