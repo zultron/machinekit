@@ -935,7 +935,10 @@ void _VFDModeRequest(struct __comp_state const *__comp_inst, int themode)
         return;
     }
 
-    desired_vfd_mode = themode;
+    if (!((orient_execute || spindle_lock) && themode == VFD_MODE_DEFAULT)) //TODO: there's a issue with _VFDModeRequest() setting desired_vfd_mode at top of every loop of m200.comp
+                                                //and we only set desired_vfd_mode = VFD_MODE_ORIENT once when orient starts
+                                                //so don't overwrite desired_vfd_mode
+        desired_vfd_mode = themode;
 }
 
 signed int _calcFeedback(struct __comp_state const *__comp_inst, signed int orient_direction)
