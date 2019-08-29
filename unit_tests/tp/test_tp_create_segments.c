@@ -299,13 +299,19 @@ static greatest_test_res setup_initial_line(TP_STRUCT *tp, double v_req, double 
     double const v_max = 2.0;
 
     // Unit radius to make angle -> arc length conversion easy
-    EmcPose const pt0 = {{-2,0,0},0,0,0,0,0,0};
+    EmcPose const pt0 = {{0,-2,0},0,0,0,0,0,0};
     EmcPose const pt1 = newXYZ(0,0,0,pt0);
 
     tpSetPos(tp, &pt0);
     tpSetId(tp, 1);
     // Ask for impossibly high velocity to force the arc to maximum size
     tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, v_req, v_max, a_max, 0, 0, 0, 0, line_tag(1));
+
+    TC_STRUCT const * tc = tcqItem(&tp->queue, 0);
+    PmCartesian const u_exp = {0,1,0};
+    PmCartesian u_act;
+    tcGetEndTangentUnitVector(tc, &u_act);
+    ASSERT_PMCARTESIAN_IN_RANGE(u_exp, u_act, TP_POS_EPSILON);
 
     ASSERT_EQ(1, tcqLen(&tp->queue));
     return GREATEST_TEST_RES_PASS;
