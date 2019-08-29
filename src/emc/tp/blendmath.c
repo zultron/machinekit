@@ -2439,8 +2439,13 @@ tp_err_t optimize_biarc_blend_size(
         CHP(find_blend_size_from_intermediates(
             &biarc_results->boundary,
             &biarc_results->control_pts,
-            &biarc_results->R_plan));
+            &biarc_results->R_geom));
 
+        // Cheat by expressing max radius in terms of v_max even though it's not strictly the limiting factor
+        double guess_v_max_length = 2. * biarc_results->control_pts.d / cycle_time;
+        double guess_R_effective_max = pmSq(guess_v_max_length) / param->a_n_max;
+
+        biarc_results->R_plan = fmin(biarc_results->R_geom, guess_R_effective_max);
         // Check for solution convergence based on specified tolerances
         biarc_results->radius_err = (biarc_results->R_plan - R_goal) / (R_goal + TP_POS_EPSILON);
         const double radius_err = fabs(R_goal - biarc_results->R_plan);

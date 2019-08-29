@@ -355,6 +355,7 @@ typedef struct
     BiarcSolverResults result;
     double tol_err;
     double radius_err;
+    double R_geom;
     double R_plan;
 } biarc_solver_results_t;
 
