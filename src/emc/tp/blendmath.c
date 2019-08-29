@@ -497,8 +497,6 @@ int calculateInscribedRadius(PmCartesian const * const normal,
     return TP_ERR_OK;
 }
 
-
-
 int findAccelScale(PmCartesian const * const acc,
         PmCartesian const * const bounds,
         PmCartesian * const scale)
@@ -2187,6 +2185,7 @@ static inline double get_lower_constraint(blend_solver_constraints_t const * con
 {
     return fmin(constraints->tolerance_upper, fmax(constraints->vel_lower, constraints->length_cutoff_lower));
 }
+
 static inline void get_effective_bounds(blend_solver_constraints_t const * const constraints, double *Rb_max, double *Rb_min)
 {
     *Rb_max = get_upper_constraint(constraints);
@@ -2363,14 +2362,13 @@ tp_err_t optimize_biarc_blend_size(
     PmCartesian const * const vel_bound,
     PmCartesian const * const acc_bound,
     biarc_solver_results_t * const biarc_results,
-    BlendParameters * const param)
+    BlendParameters * const param,
+    double cycle_time)
 {
     if (!prev_tc || !tc || !biarc_results) {
         return TP_ERR_MISSING_INPUT;
     }
 
-    //FIXME
-    static const double cycle_time = 0.001;
     // Find net tolerance that's actually usable (so that we're
     // not passing 0.0 around if tolerance is not specified)
     tcFindBlendTolerance(prev_tc, tc, &param->tolerance);
@@ -2396,7 +2394,6 @@ tp_err_t optimize_biarc_blend_size(
         &u1,
         &u2,
         param);
-    //TODO do altitude calculation too?
     // Approximate the blend kinematics using the initial guess
     // Actual limits will be enforced later
     CHP(blendParamKinematics(
@@ -2489,14 +2486,14 @@ tp_err_t scan_blend_properties(
     PmCartesian const * const acc_bound,
     biarc_solver_results_t * const biarc_results,
     BlendParameters * const param,
-    double resolution)
+    double cycle_time,
+    double resolution
+    )
 {
     if (!prev_tc || !tc || !biarc_results) {
         return TP_ERR_MISSING_INPUT;
     }
 
-    //FIXME
-    static const double cycle_time = 0.001;
     // Find net tolerance that's actually usable (so that we're
     // not passing 0.0 around if tolerance is not specified)
     tcFindBlendTolerance(prev_tc, tc, &param->tolerance);

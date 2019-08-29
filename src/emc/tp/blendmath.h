@@ -405,15 +405,19 @@ tp_err_t optimize_biarc_blend_size(TC_STRUCT const * const prev_tc,
     PmCartesian const * const vel_bound,
     PmCartesian const * const acc_bound,
     biarc_solver_results_t * const biarc_results,
-    BlendParameters * const param);
+    BlendParameters * const param,
+    double cycle_time);
 
 // For testing only
-tp_err_t scan_blend_properties(TC_STRUCT const * const prev_tc,
+tp_err_t scan_blend_properties(
+    TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc,
     biarc_solver_config_t const * const config,
     PmCartesian const * const vel_bound,
     PmCartesian const * const acc_bound,
     biarc_solver_results_t * const biarc_results,
-    BlendParameters * const param, double resolution);
+    BlendParameters * const param,
+    double cycle_time,
+    double resolution);
 
 #endif

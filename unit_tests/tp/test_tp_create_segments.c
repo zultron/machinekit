@@ -451,7 +451,8 @@ TEST test_optimize_biarc_blend_size()
         &vel_bound,
         &acc_bound,
         &biarc_results,
-        &param);
+        &param,
+        tp->cycleTime);
 
     ASSERT_EQ(TP_ERR_OK, res_opt);
     ASSERT_EQ(BIARC_REACHED_TOLERANCE, biarc_results.result);
@@ -550,6 +551,7 @@ TEST test_biarc_optimizer_performance()
                 &acc_bound,
                 &biarc_results,
                 &param,
+                tp->cycleTime,
                 0.0001);
 
             tp_err_t res_opt = optimize_biarc_blend_size(
@@ -559,7 +561,8 @@ TEST test_biarc_optimizer_performance()
                 &vel_bound,
                 &acc_bound,
                 &biarc_results,
-                &param);
+                &param,
+                tp->cycleTime);
 
             ASSERT_EQ(TP_ERR_OK, res_opt);
             // Verify that the midpoint is within tolerance
