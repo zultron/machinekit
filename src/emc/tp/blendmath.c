@@ -398,18 +398,16 @@ double findIntersectionTanAngle(
     double dot;
     pmCartCartDot(u1, u2, &dot);
 
-    double cos_theta = -dot;
+    double cos_2theta = -dot;
 
-    return pmSqrt((1. - cos_theta) / (1. + cos_theta));
+    return pmSqrt((1. - cos_2theta) / (1. + cos_2theta));
 }
-
 
 /** Calculate the minimum of the three values in a PmCartesian. */
 double pmCartMin(PmCartesian const * const in)
 {
     return fmin(fmin(in->x,in->y),in->z);
 }
-
 
 /**
  * Calculate the diameter of a circle incscribed on a central cross section of a 3D
