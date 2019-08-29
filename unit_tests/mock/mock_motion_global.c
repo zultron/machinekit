@@ -48,7 +48,7 @@ void init_motion_globals(double a_max)
     mock_j.max_pos_limit = 20;
     mock_j.min_pos_limit = -20;
     mock_j.vel_limit = 2.0;
-    mock_j.acc_limit = 20.0;
+    mock_j.acc_limit = a_max;
 
     for (int i = 0; i < 4; ++i) {
         joints[i] = mock_j;

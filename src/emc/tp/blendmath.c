@@ -2531,6 +2531,7 @@ tp_err_t scan_blend_properties(
     CHP(tcGetStartpoint(tc, &P));
 
 #ifdef UNIT_TEST
+    printf(">a_n_max %f\n", param->a_n_max);
     printf("|f,%12s,%12s,%12s,%12s,%12s,%12s\n",
            "Rb",
            "tol_dev",

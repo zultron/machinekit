@@ -536,6 +536,7 @@ TEST test_biarc_optimizer_performance()
             };
             biarc_solver_results_t biarc_results = {0};
 
+#ifdef DO_BIARC_SCAN
             printf(">Center %f %f %f, Normal %f %f %f\n",
                    cases[i].center.x,
                    cases[i].center.y,
@@ -543,7 +544,7 @@ TEST test_biarc_optimizer_performance()
                    cases[i].normal.x,
                    cases[i].normal.y,
                    cases[i].normal.z);
-            tp_err_t res_scan = scan_blend_properties(
+            scan_blend_properties(
                 prev_tc,
                 this_tc,
                 &cfg,
@@ -553,6 +554,7 @@ TEST test_biarc_optimizer_performance()
                 &param,
                 tp->cycleTime,
                 0.0001);
+#endif
 
             tp_err_t res_opt = optimize_biarc_blend_size(
                 prev_tc,
