@@ -2140,7 +2140,7 @@ static inline double find_max_blend_length(TC_STRUCT const * const tc)
     double l_from_length = fmin(tc->target, tc->nominal_length);
     if (tc->motion_type == TC_CIRCULAR) {
         // FIXME use arc length fit for spiral?
-        double phi_max = PM_PI / 6.0;
+        double phi_max = PM_PI / 3.0;
         return fmin(phi_max * tc->coords.circle.xyz.radius, l_from_length);
     }
     return l_from_length;
