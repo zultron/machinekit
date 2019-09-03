@@ -755,9 +755,11 @@ TEST test_biarc_optimizer_exercise()
     CREATE_MOCK_TP_ACC(8.0);
     ASSERT(tp);
 
-    CHECK_CALL(solve_blend_series(tp, "/home/rellenberg/octave/biarc_blends/aa-short-small-helix.csv", 30000, 0.05, 1.0, 8.0, .1, .1, true));
-    CHECK_CALL(solve_blend_series(tp, "/home/rellenberg/octave/biarc_blends/aa-tall-helix.csv", 60000, 0.05, 1.0, 8.0, 0.5, 2.0, true));
-    CHECK_CALL(solve_blend_series(tp, "/home/rellenberg/octave/biarc_blends/aa-semicircle.csv", 30000, 0.05, 1.0, 8.0, 1, 0, true));
+    CHECK_CALL(solve_blend_series(tp, "/home/rellenberg/octave/biarc_blends/arc-arc-short-small-helix.csv", 30000, 0.05, 1.0, 8.0, .1, .1, true));
+    CHECK_CALL(solve_blend_series(tp, "/home/rellenberg/octave/biarc_blends/arc-arc-tall-helix.csv", 30000, 0.05, 1.0, 8.0, 0.5, 2.0, true));
+    CHECK_CALL(solve_blend_series(tp, "/home/rellenberg/octave/biarc_blends/arc-arc-semicircle.csv", 30000, 0.05, 1.0, 8.0, 1, 0, true));
+    CHECK_CALL(solve_blend_series(tp, "/home/rellenberg/octave/biarc_blends/arc-arc-semicircle-tight.csv", 30000, 0.002, 1.0, 8.0, 1, 0, true));
+    CHECK_CALL(solve_blend_series(tp, "/home/rellenberg/octave/biarc_blends/arc-arc-semicircle-loose.csv", 30000, 0.1, 1.0, 8.0, 1, 0, true));
 
     deleteMockTP(&tp);
     PASS();
