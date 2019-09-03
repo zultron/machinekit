@@ -117,12 +117,6 @@ TCIntersectType tpSetupTangent(
     TC_STRUCT * const prev_tc,
     TC_STRUCT * const tc);
 
-bool tpCreateBlendIfPossible(
-    TP_STRUCT *tp,
-    TC_STRUCT *prev_tc,
-    TC_STRUCT *tc,
-    TC_STRUCT *blend_tc);
-
 int tcUpdateDistFromAccel(TC_STRUCT * const tc, double acc, double vel_desired);
 
 void tpDebugCycleInfo(TP_STRUCT const * const tp,

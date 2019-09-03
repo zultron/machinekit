@@ -1912,27 +1912,31 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
     }
 }
 
+static TC_STRUCT blend_tc1 = {0};
+static TC_STRUCT blend_tc2 = {0};
+
 bool tpCreateBlendIfPossible(
         TP_STRUCT *tp,
         TC_STRUCT *prev_tc,
-        TC_STRUCT *tc,
-        TC_STRUCT *blend_tc)
+        TC_STRUCT *tc)
 {
     tp_err_t res_create = TP_ERR_FAIL;
     blend_type_t blend_requested = tpCheckBlendArcType(tp, prev_tc, tc);
 
+    memset(&blend_tc1, 0, sizeof(TC_STRUCT));
+    memset(&blend_tc2, 0, sizeof(TC_STRUCT));
     switch (blend_requested) {
         case BLEND_LINE_LINE:
-            res_create = tpCreateLineLineBlend(tp, prev_tc, tc, blend_tc);
+            res_create = tpCreateLineLineBlend(tp, prev_tc, tc, &blend_tc1);
             break;
         case BLEND_LINE_ARC:
-            res_create = tpCreateLineArcBlend(tp, prev_tc, tc, blend_tc);
+            res_create = tpCreateLineArcBlend(tp, prev_tc, tc, &blend_tc1);
             break;
         case BLEND_ARC_LINE:
-            res_create = tpCreateArcLineBlend(tp, prev_tc, tc, blend_tc);
+            res_create = tpCreateArcLineBlend(tp, prev_tc, tc, &blend_tc1);
             break;
         case BLEND_ARC_ARC:
-            res_create = tpCreateArcArcBlend(tp, prev_tc, tc, blend_tc);
+            res_create = tpCreateArcArcBlend(tp, prev_tc, tc, &blend_tc1);
             break;
         case BLEND_NONE:
             break;
@@ -1940,7 +1944,6 @@ bool tpCreateBlendIfPossible(
 
     return res_create == TP_ERR_OK;
 }
-
 
 /**
  * Handle creating a blend arc when a new line segment is about to enter the queue.
@@ -1983,13 +1986,11 @@ tc_blend_type_t tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc) {
             break;
     }
 
-    TC_STRUCT blend_tc = {0};
-
-    bool arc_blend_ok = tpCreateBlendIfPossible(tp, prev_tc, tc, &blend_tc);
+    bool arc_blend_ok = tpCreateBlendIfPossible(tp, prev_tc, tc);
 
     if (arc_blend_ok) {
         //Need to do this here since the length changed
-        tpAddSegmentToQueue(tp, &blend_tc, false);
+        tpAddSegmentToQueue(tp, &blend_tc1, false);
         return ARC_BLEND;
     } else {
         // If blend arc creation failed early on, catch it here and find the best blend
