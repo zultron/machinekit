@@ -352,7 +352,7 @@ static greatest_test_res setup_initial_circle(TP_STRUCT *tp, double v_req, doubl
 }
 
 
-static greatest_test_res add_circle_from_center_normal(TP_STRUCT *tp, double v_req, double a_max, double blend_tolerance, PmCartesian center2, PmCartesian normal2, int test_id)
+static greatest_test_res add_circle_from_center_normal(TP_STRUCT *tp, double v_req, double a_max, double blend_tolerance, PmCartesian center2, PmCartesian normal2, int turns)
 {
     tpSetTermCond(tp, TC_TERM_COND_STOP, blend_tolerance);
     // KLUDGE guess at safe tangential acceleration value
@@ -370,7 +370,7 @@ static greatest_test_res add_circle_from_center_normal(TP_STRUCT *tp, double v_r
     ASSERT_EMCPOSE_IN_RANGE(pt1, tp->goalPos, TP_POS_EPSILON);
 
     // Ask for impossibly high velocity to force the arc to maximum size
-    tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, v_req, v_max, a_t_max, a_n_max, 0, 0, line_tag(2*test_id + 11));
+    tpAddCircle(tp, pt2, center2, normal2, turns, EMC_MOTION_TYPE_FEED, v_req, v_max, a_t_max, a_n_max, 0, 0, line_tag(2));
 
     TC_STRUCT const * tc = tcqItem(&tp->queue, 0);
     ASSERT(tc);
@@ -484,6 +484,7 @@ TEST test_optimize_biarc_blend_size()
 typedef struct {
     PmCartesian center;
     PmCartesian normal;
+    long turns;
 } CenterNormal;
 
 TEST test_biarc_optimizer_performance()
@@ -561,7 +562,7 @@ TEST test_biarc_optimizer_performance()
             }
 
             ASSERT_EQ(1, tcqLen(&tp->queue));
-            CHECK_CALL(add_circle_from_center_normal(tp, 1.0, 8.0, BLEND_TOLERANCE, cases[i].center, cases[i].normal, (int)i));
+            CHECK_CALL(add_circle_from_center_normal(tp, 1.0, 8.0, BLEND_TOLERANCE, cases[i].center, cases[i].normal, cases[i].turns));
 
             TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
             TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
@@ -635,7 +636,9 @@ TEST test_biarc_optimizer_performance()
             ASSERT(biarc_results.R_plan > 0.0);
             if (biarc_results.result != BIARC_MIN_LENGTH_LIMITED) {
                 ASSERT(T <= (BLEND_TOLERANCE + cfg.deviation_abs_tolerance));
-                ASSERT(v_plan > 0.95 || T > BLEND_TOLERANCE * 0.95 || biarc_results.result == BIARC_CONVERGED);
+                double real_tol = 0;
+                tcFindBlendTolerance(prev_tc, this_tc, &real_tol);
+                ASSERT(fabs(v_plan - v_req) / v_req < cfg.velocity_rel_tolerance  || fabs(T - real_tol) < cfg.deviation_abs_tolerance  || biarc_results.result == BIARC_CONVERGED);
             }
             ASSERT(biarc_results.iterations < 100);
         }
@@ -685,12 +688,12 @@ static greatest_test_res solve_blend_series(
             CHECK_CALL(setup_initial_circle(tp, v_req, a_max, BLEND_TOLERANCE));
             break;
         }
+        ASSERT_EQ(1, tcqLen(&tp->queue));
 
         double theta = (double)i/I_MAX * 2.0*M_PI;
-        PmCartesian center2 = {R*cos(theta),R*sin(theta),h};
+        PmCartesian center2 = {R * cos(theta), R * sin(theta), h};
         PmCartesian normal2 = {0,0,1};
-        ASSERT_EQ(1, tcqLen(&tp->queue));
-        CHECK_CALL(add_circle_from_center_normal(tp, v_req, a_max, BLEND_TOLERANCE, center2, normal2, (int)i));
+        CHECK_CALL(add_circle_from_center_normal(tp, v_req, a_max, BLEND_TOLERANCE, center2, normal2, 1));
 
         TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
         TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
