@@ -2208,24 +2208,6 @@ static inline double guess_interpolated_region_size(
     }
 }
 
-static inline double bound_from_constraints(double Rb, blend_solver_constraints_t const * const constraints)
-{
-    return bound(Rb, constraints->upper.Rb, constraints->lower.Rb);
-}
-
-static inline double guess_blend_region_size_bisect(double Rb, double *Rb_max, double *Rb_min, double R_goal, double R_plan_last)
-{
-    if (R_plan_last < R_goal) {
-        *Rb_min = Rb;
-    } else {
-        *Rb_max = Rb;
-    }
-    // Bisection method with faster refinement
-    double Rb_guess = (*Rb_max + *Rb_min)/2.;
-    return Rb_guess;
-}
-
-
 static inline double guess_blend_region_size_slope(
     blend_solver_constraints_t * const constraints,
     double Rb,
@@ -2390,7 +2372,7 @@ tp_err_t optimize_biarc_blend_size(
     double Rb_init = find_max_blend_region(prev_tc, tc);
 
     // Initial solver values for Rb range using somewhat dumb (but cheap) values
-    biarc_results->constraints.upper.Rb = Rb_init;
+    biarc_results->Rb = biarc_results->constraints.upper.Rb = Rb_init;
     biarc_results->constraints.upper.R_plan = 0; // To be filled in at first pass through solver
     biarc_results->constraints.lower = zero_region_result;
 
@@ -2421,9 +2403,6 @@ tp_err_t optimize_biarc_blend_size(
     // Scale up solver tolerance to have the same net effect on velocity
     const double solver_radius_rel_tol = config->velocity_rel_tolerance * R_goal / param->v_goal;
     const double solver_radius_abs_tol = pmSq(config->velocity_abs_tolerance) / param->a_n_max; // 2% is pretty good
-    // Restrict initial guess to be within real boundaries
-
-    biarc_results->Rb = bound_from_constraints(Rb_init, &biarc_results->constraints);
 
     // Intersection is at start of next segment, so use startpoint method since it's much faster
     EmcPose P;
