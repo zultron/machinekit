@@ -788,24 +788,6 @@ int tcClampVelocityByLength(TC_STRUCT * const tc)
     return TP_ERR_OK;
 }
 
-/**
- * compute the total arc length of a circle segment
- */
-int tcUpdateTargetFromCircle(TC_STRUCT * const tc)
-{
-    if (!tc || tc->motion_type !=TC_CIRCULAR) {
-        return TP_ERR_FAIL;
-    }
-
-    double h2;
-    pmCartMagSq(&tc->coords.circle.xyz.rHelix, &h2);
-    double helical_length = pmSqrt(pmSq(tc->coords.circle.fit.total_planar_length) + h2);
-
-    tc->target = helical_length;
-    return TP_ERR_OK;
-}
-
-
 
 int pmRigidTapInit(PmRigidTap * const tap,
         EmcPose const * const start,
