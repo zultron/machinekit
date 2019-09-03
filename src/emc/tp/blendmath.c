@@ -2201,7 +2201,7 @@ static inline double guess_interpolated_region_size(
     double dT_goal = T_goal - constraints->lower.T_plan;
     double Rb_interp_T = constraints->lower.Rb + dRb * (dT_goal / fmax(dT_plan, TP_POS_EPSILON));
 
-    if (constraints->lower.count > 2 || constraints->upper.count > 2) {
+    if (constraints->lower.count > 3 || constraints->upper.count > 3) {
         return (constraints->upper.Rb + constraints->lower.Rb) / 2.;
     } else {
         return clamp(constraints->upper.Rb, constraints->lower.Rb, 0.1, fmin(Rb_interp_R, Rb_interp_T));
