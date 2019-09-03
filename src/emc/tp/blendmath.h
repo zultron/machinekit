@@ -337,7 +337,6 @@ typedef enum
     BIARC_NOT_SOLVED,
     BIARC_REACHED_V_GOAL,
     BIARC_REACHED_TOLERANCE,
-    BIARC_REACHED_MIN_SIZE_CUTOFF,
     BIARC_CONVERGED,
     BIARC_MIN_LENGTH_LIMITED,
 } BiarcSolverResults;
@@ -346,13 +345,13 @@ typedef struct {
     double Rb;
     double R_plan;
     double T_plan;
+    int count;
 } RegionResult;
 
 typedef struct
 {
     RegionResult upper;
     RegionResult lower;
-    double R_peak;
 } blend_solver_constraints_t;
 
 typedef struct

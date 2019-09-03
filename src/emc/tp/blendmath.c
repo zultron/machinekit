@@ -2197,8 +2197,11 @@ static inline double guess_interpolated_region_size(
     double dT_goal = T_goal - constraints->lower.T_plan;
     double Rb_interp_T = constraints->lower.Rb + dRb * (dT_goal / fmax(dT_plan, TP_POS_EPSILON));
 
-    double Rb_clamped = clamp(constraints->upper.Rb, constraints->lower.Rb, .1, fmin(Rb_interp_R, Rb_interp_T));
-    return Rb_clamped;
+    if (constraints->lower.count > 2 || constraints->upper.count > 2) {
+        return (constraints->upper.Rb + constraints->lower.Rb) / 2.;
+    } else {
+        return clamp(constraints->upper.Rb, constraints->lower.Rb, 0.1, fmin(Rb_interp_R, Rb_interp_T));
+    }
 }
 
 static inline double bound_from_constraints(double Rb, blend_solver_constraints_t const * const constraints)
@@ -2230,13 +2233,15 @@ static inline double guess_blend_region_size_slope(
     RegionResult *r = NULL;
     if (R_plan_last < R_goal && T < T_goal) {
         r = &constraints->lower;
+        constraints->upper.count = 0;
     } else {
         r = &constraints->upper;
+        constraints->lower.count = 0;
     }
     r->Rb = Rb;
     r->R_plan= R_plan_last;
     r->T_plan = T;
-    constraints->R_peak = fmax(constraints->R_peak, R_plan_last);
+    ++r->count;
 
     return guess_interpolated_region_size(constraints, R_goal, T_goal);
 }
@@ -2378,14 +2383,13 @@ tp_err_t optimize_biarc_blend_size(
     tcFindBlendTolerance(prev_tc, tc, &param->tolerance);
 
     //double Rb_init = find_blend_region_from_tolerance(prev_tc, tc, param->tolerance);
+    double Rb_init = find_max_blend_region(prev_tc, tc);
 
     // Initial solver values for Rb range using somewhat dumb (but cheap) values
-    biarc_results->constraints.upper.Rb = find_max_blend_region(prev_tc, tc);
-    biarc_results->constraints.upper.R_plan = 0;
+    biarc_results->constraints.upper.Rb = Rb_init;
+    biarc_results->constraints.upper.R_plan = 0; // To be filled in at first pass through solver
     biarc_results->constraints.lower = zero_region_result;
 
-    // Need to start at upper bound to populate the radius
-    double Rb_init = biarc_results->constraints.upper.Rb;
     const unsigned MAX_ITERATIONS = config->max_iterations;
 
     blendParamInitVelocities(prev_tc, tc, config->feed_override_allowance, param);
@@ -2413,7 +2417,6 @@ tp_err_t optimize_biarc_blend_size(
     // Scale up solver tolerance to have the same net effect on velocity
     const double solver_radius_rel_tol = config->velocity_rel_tolerance * R_goal / param->v_goal;
     const double solver_radius_abs_tol = pmSq(config->velocity_abs_tolerance) / param->a_n_max; // 2% is pretty good
-    biarc_results->constraints.R_peak = 0;
     // Restrict initial guess to be within real boundaries
 
     biarc_results->Rb = bound_from_constraints(Rb_init, &biarc_results->constraints);
@@ -2469,9 +2472,13 @@ tp_err_t optimize_biarc_blend_size(
                 biarc_results->result = BIARC_CONVERGED;
                 return TP_ERR_OK;
             }
-        } else if (pmSqrt(biarc_results->R_plan*param->a_n_max) < config->velocity_cutoff) {
-            biarc_results->result = BIARC_MIN_LENGTH_LIMITED;
-            return TP_ERR_FAIL;
+        } else {
+            double R_bound = fmax(biarc_results->constraints.upper.R_plan, biarc_results->constraints.lower.R_plan);
+            double v_bound = pmSqrt(R_bound * param->a_n_max);
+            if (biarc_results->iterations > 1 && v_bound < config->velocity_cutoff) {
+                biarc_results->result = BIARC_MIN_LENGTH_LIMITED;
+                return TP_ERR_FAIL;
+            }
         }
         // Refine Rb if solution has not converged
         biarc_results->Rb = guess_blend_region_size_slope(&biarc_results->constraints, biarc_results->Rb, R_goal, biarc_results->R_plan, param->tolerance, biarc_results->T_plan);
@@ -2607,8 +2614,6 @@ const char * biarc_result_to_str(BiarcSolverResults r)
         return "reached_v_goal";
     case BIARC_REACHED_TOLERANCE:
         return "reached_tol";
-    case BIARC_REACHED_MIN_SIZE_CUTOFF:
-        return "reached_min_size";
     case BIARC_CONVERGED:
         return "converged";
     case BIARC_MIN_LENGTH_LIMITED:
