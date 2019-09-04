@@ -171,6 +171,25 @@ TEST test_create_tangent_arcs() {
     PASS();
 }
 
+static greatest_test_res check_blend_tangency(TP_STRUCT * const tp, int current_idx)
+{
+    for (int k = 0; k < 3; ++k) {
+        TC_STRUCT const * prev_tc = tcqItem(&tp->queue, current_idx - k -1);
+        TC_STRUCT const * next_tc = tcqItem(&tp->queue, current_idx - k);
+        ASSERT(prev_tc);
+        ASSERT(next_tc);
+        ASSERT_EQ_FMT(TC_TERM_COND_TANGENT, prev_tc->term_cond,"%d");
+
+        PmCartesian u_1, u_2;
+
+        tcGetEndTangentUnitVector(prev_tc, &u_1);
+        tcGetStartTangentUnitVector(next_tc, &u_2);
+
+        ASSERT_PMCARTESIAN_IN_RANGE(u_1, u_2, 1e-7);
+    }
+    return GREATEST_TEST_RES_PASS;
+}
+
 TEST test_slightly_convex_arcs() {
     CREATE_MOCK_TP();
     tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
@@ -190,16 +209,28 @@ TEST test_slightly_convex_arcs() {
 
     ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
 
-    TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
-    TC_STRUCT const * blend_tc1 = tcqItem(&tp->queue, 1);
-    TC_STRUCT const * blend_tc2 = tcqItem(&tp->queue, 2);
-    TC_STRUCT const * this_tc = tcqItem(&tp->queue, 3);
-    ASSERT(prev_tc);
-    ASSERT(blend_tc1);
-    ASSERT(blend_tc2);
-    ASSERT(this_tc);
-    ASSERT_EQ(4, tcqLen(&tp->queue));
-    ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
+    CHECK_CALL(check_blend_tangency(tp, 3));
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+TEST test_line_arc_in_plane() {
+    CREATE_MOCK_TP();
+    tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
+
+    EmcPose const pt0 = {0};
+    EmcPose const pt1 = newXYZ(2,0,0,pt0);
+    EmcPose const pt2 = newXYZ(2,2,0,pt1);
+    PmCartesian center1 = {2+pmSqrt(2),1,0};
+    PmCartesian const normal = {0,0,-1};
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 8.0, 0, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt2, center1, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 8.0, 0, 0, 0, line_tag(2));
+
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    CHECK_CALL(check_blend_tangency(tp, 3));
 
     deleteMockTP(&tp);
     PASS();
@@ -774,8 +805,9 @@ int main(int argc, char **argv) {
     RUN_TEST(test_mock_tp_init);
     RUN_TEST(test_create_single_line);
     RUN_TEST(test_create_two_exact_lines);
-    RUN_TEST(test_create_two_blended_lines);
     RUN_TEST(test_create_tangent_arcs);
+    RUN_TEST(test_create_two_blended_lines);
+    RUN_TEST(test_line_arc_in_plane);
     RUN_TEST(test_slightly_convex_arcs);
     RUN_TEST(test_find_blend_points_and_tangents);
     RUN_TEST(test_find_blend_intermediates);
