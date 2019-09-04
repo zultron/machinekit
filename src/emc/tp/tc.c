@@ -262,18 +262,17 @@ int tcGetStartTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const 
     switch (tc->motion_type) {
         case TC_LINEAR:
             *out=tc->coords.line.xyz.uVec;
-            break;
+            return 0;
         case TC_RIGIDTAP:
             *out=tc->coords.rigidtap.xyz.uVec;
-            break;
+            return 0;
         case TC_CIRCULAR:
-            pmCircleTangentVector(&tc->coords.circle.xyz, 0.0, out);
-            break;
-        default:
-            rtapi_print_msg(RTAPI_MSG_ERR, "Invalid motion type %d!\n",tc->motion_type);
-            return -1;
+            return pmCircleTangentVector(&tc->coords.circle.xyz, 0.0, out);
+        case TC_SPHERICAL:
+            return arcTangent(&tc->coords.arc.xyz, 0, out);
     }
-    return 0;
+    rtapi_print_msg(RTAPI_MSG_ERR, "Invalid motion type %d!\n",tc->motion_type);
+    return -1;
 }
 
 /**
@@ -284,20 +283,19 @@ int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const ou
     switch (tc->motion_type) {
         case TC_LINEAR:
             *out=tc->coords.line.xyz.uVec;
-            break;
+            return 0;
         case TC_RIGIDTAP:
             // Final placement move goes back to the start point in the same direction
             *out = tc->coords.rigidtap.xyz.uVec;
-            break;
+            return 0;
         case TC_CIRCULAR:
-            pmCircleTangentVector(&tc->coords.circle.xyz,
+            return pmCircleTangentVector(&tc->coords.circle.xyz,
                     tc->coords.circle.xyz.angle, out);
-            break;
-        default:
-            rtapi_print_msg(RTAPI_MSG_ERR, "Invalid motion type %d!\n",tc->motion_type);
-            return -1;
+        case TC_SPHERICAL:
+            return arcTangent(&tc->coords.arc.xyz, 1.0, out);
     }
-    return 0;
+    rtapi_print_msg(RTAPI_MSG_ERR, "Invalid motion type %d!\n",tc->motion_type);
+    return -1;
 }
 
 int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmCartesian * const out) {
