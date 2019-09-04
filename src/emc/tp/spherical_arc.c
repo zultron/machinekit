@@ -18,9 +18,11 @@
 #include "tp_enums.h"
 #include "tp_debug.h"
 
-int arcInitFromPoints(SphericalArc * const arc, PmCartesian const * const start,
-        PmCartesian const * const end,
-        PmCartesian const * const center)
+int arcInitFromPoints(
+    SphericalArc * const arc,
+    PmCartesian const * const start,
+    PmCartesian const * const end,
+    PmCartesian const * const center)
 {
 #ifdef ARC_PEDANTIC
     if (!start || !end || !center) {

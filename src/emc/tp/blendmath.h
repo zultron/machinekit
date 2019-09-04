@@ -101,6 +101,7 @@ typedef struct {
     PmCartesian arc_center;     /* center point for blend arc */
     double trim1;               /* length (line) or angle (arc) to cut from prev_tc */
     double trim2;               /* length (line) or angle (arc) to cut from tc */
+    tc_motion_type_t motion_type;
 } BlendPoints3;
 
 double findMaxTangentAngle(double v, double acc, double cycle_time);
@@ -327,6 +328,8 @@ typedef struct
     PmCartesian u1;
     PmCartesian P2;
     PmCartesian u2;
+    double s1;
+    double s2;
 } blend_boundary_t;
 
 typedef enum
@@ -430,5 +433,13 @@ tp_err_t scan_blend_properties(
     BlendParameters * const param,
     double cycle_time,
     double resolution);
+
+int blend_find_arcpoints3(
+    BlendPoints3 * const points,
+    biarc_solver_results_t const * const);
+
+tp_err_t blend_biarc_postprocess(biarc_solver_results_t const * const biarc_results,
+    BlendPoints3 * const points1,
+    BlendPoints3 * const points2);
 
 #endif

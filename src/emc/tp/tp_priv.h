@@ -2,11 +2,9 @@
 #define TP_PRIV_H
 
 #include "tp_enums.h"
+#include "tc_types.h"
 
-struct TC_STRUCT;
 struct TP_STRUCT;
-struct spindle_origin_t;
-struct PmCartLine;
 
 typedef struct {
     char axes[9];
@@ -44,6 +42,8 @@ double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc)
 int tpIsWaitingOnSpindle(TP_STRUCT const * const tp);
 
 int tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc);
+
+tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const this_tc);
 
 int tcRotaryMotionCheck(TC_STRUCT const * const tc);
 
@@ -217,7 +217,8 @@ int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
                            TC_STRUCT * const blend_tc,
                            double vel,
                            double ini_maxvel,
-                           double acc);
+                           double acc,
+                           tc_motion_type_t motion_type);
 
 int tcSetLineXYZ(TC_STRUCT * const tc, PmCartLine const * const line);
 

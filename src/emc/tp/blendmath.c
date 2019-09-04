@@ -2054,16 +2054,16 @@ tp_err_t find_blend_points_and_tangents(
     TC_STRUCT const * const tc,
     blend_boundary_t * const out)
 {
-    double s1 = prev_tc->target - Rb;
-    double s2 = Rb;
+    out->s1 = prev_tc->target - Rb;
+    out->s2 = Rb;
 
     //TODO check errs
     EmcPose P1, P2;
-    tcGetPosReal(prev_tc, s1, &P1);
-    tcGetPosReal(tc, s2, &P2);
+    tcGetPosReal(prev_tc, out->s1, &P1);
+    tcGetPosReal(tc, out->s2, &P2);
 
-    tcGetTangentUnitVector(prev_tc, s1, &out->u1);
-    tcGetTangentUnitVector(tc, s2, &out->u2);
+    tcGetTangentUnitVector(prev_tc, out->s1, &out->u1);
+    tcGetTangentUnitVector(tc, out->s2, &out->u2);
     out->P1 = P1.tran;
     out->P2 = P2.tran;
 
@@ -2137,7 +2137,6 @@ int find_blend_intermediate_segments(
 
 static inline double find_max_blend_length(TC_STRUCT const * const tc)
 {
-    double l_from_length = fmin(tc->target, tc->nominal_length);
     if (tc->motion_type == TC_CIRCULAR) {
         // FIXME use arc length fit for spiral?
         double phi_max = PM_PI / 3.0;
@@ -2145,9 +2144,11 @@ static inline double find_max_blend_length(TC_STRUCT const * const tc)
         pmCartMagSq(&tc->coords.circle.xyz.rHelix, &h2);
         double total_arc_length = pmSqrt(h2 + pmSq(tc->coords.circle.fit.total_planar_length));
         double l_from_angle = phi_max / tc->coords.circle.xyz.angle * total_arc_length;
+        double l_from_length = fmin(tc->target, tc->nominal_length / 3.0);
         return fmin(l_from_angle, l_from_length);
+    } else {
+        return fmin(tc->target, tc->nominal_length/2.);
     }
-    return l_from_length;
 }
 
 double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc)
@@ -2603,4 +2604,61 @@ const char * biarc_result_to_str(BiarcSolverResults r)
         return "hit_min_len";
     }
     return "";
+}
+
+tp_err_t blend_biarc_postprocess(
+    biarc_solver_results_t const * const biarc_results,
+    BlendPoints3 * const points1,
+    BlendPoints3 * const points2)
+{
+    {
+        double theta1 = findIntersectionAngle(
+            &biarc_results->boundary.u1,
+            &biarc_results->control_pts.u_mid);
+
+        if (M_PI_2 - theta1 < TP_ANGLE_EPSILON) {
+            points1->motion_type = TC_LINEAR;
+        } else {
+            points1->motion_type = TC_SPHERICAL;
+            PmCartesian normal1;
+            pmCartCartSub(
+                &biarc_results->control_pts.u_mid,
+                &biarc_results->boundary.u1,
+                &normal1);
+            pmCartUnitEq(&normal1);
+
+            double center_dist1 = biarc_results->R_plan / sin(theta1);
+
+            pmCartScalMult(&normal1, center_dist1, &points1->arc_center);
+            pmCartCartAddEq(&points1->arc_center, &biarc_results->control_pts.Pb1);
+        }
+
+        points1->arc_start = biarc_results->boundary.P1;
+        points1->arc_end = biarc_results->control_pts.P_mid;
+    }
+    {
+        double theta2 = findIntersectionAngle(
+            &biarc_results->control_pts.u_mid,
+            &biarc_results->boundary.u2);
+
+        if (M_PI_2 - theta2 < TP_ANGLE_EPSILON) {
+            points2->motion_type = TC_LINEAR;
+        } else {
+            points2->motion_type = TC_SPHERICAL;
+            PmCartesian normal2;
+            pmCartCartSub(
+                &biarc_results->boundary.u2,
+                &biarc_results->control_pts.u_mid,
+                &normal2);
+            pmCartUnitEq(&normal2);
+
+            double center_dist2 = biarc_results->R_plan / sin(theta2);
+
+            pmCartScalMult(&normal2, center_dist2, &points2->arc_center);
+            pmCartCartAddEq(&points2->arc_center, &biarc_results->control_pts.Pb2);
+        }
+        points2->arc_start = biarc_results->control_pts.P_mid;
+        points2->arc_end = biarc_results->boundary.P2;
+    }
+    return TP_ERR_OK;
 }

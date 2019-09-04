@@ -2021,25 +2021,19 @@ int pmCircleStretch(PmCircle * const circ, double new_angle, int from_end)
         return PM_ERR;
     }
 
-    double mag = 0;
-    pmCartMagSq(&circ->rHelix, &mag);
-    if ( mag > 1e-6 ) {
-        //Can't handle helices
-        return PM_ERR;
-    }
-    //TODO handle spiral?
     if (from_end) {
-        //Not implemented yet, way more reprocessing...
+        // Need some extra juggling if we're creating a new start point
         PmCartesian new_start;
         double start_angle = circ->angle - new_angle;
         pmCirclePoint(circ, start_angle, &new_start);
         pmCartCartSub(&new_start, &circ->center, &circ->rTan);
         pmCartCartCross(&circ->normal, &circ->rTan, &circ->rPerp);
         pmCartMag(&circ->rTan, &circ->radius);
-    } 
-    //Reduce the spiral proportionally
-    circ->spiral *= (new_angle / circ->angle);
-    // Easy to grow / shrink from start
+    }
+    // Reduce the spiral / helical components proportionally
+    double angle_ratio = (new_angle / circ->angle);
+    circ->spiral *= angle_ratio;
+    pmCartScalMultEq(&circ->rHelix, angle_ratio);
     circ->angle = new_angle;
 
     return 0;

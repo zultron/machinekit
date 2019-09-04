@@ -189,12 +189,16 @@ TEST test_slightly_convex_arcs() {
     tpAddCircle(tp, pt2, center2, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(2));
 
     ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
-    ASSERT_EQ(3, tcqLen(&tp->queue));
 
     TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
-    TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
+    TC_STRUCT const * blend_tc1 = tcqItem(&tp->queue, 1);
+    TC_STRUCT const * blend_tc2 = tcqItem(&tp->queue, 2);
+    TC_STRUCT const * this_tc = tcqItem(&tp->queue, 3);
     ASSERT(prev_tc);
+    ASSERT(blend_tc1);
+    ASSERT(blend_tc2);
     ASSERT(this_tc);
+    ASSERT_EQ(4, tcqLen(&tp->queue));
     ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
 
     deleteMockTP(&tp);

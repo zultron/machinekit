@@ -33,6 +33,14 @@
 #define EMC_TRAJ_TERM_COND_EXACT 1
 #define EMC_TRAJ_TERM_COND_BLEND 2
 
+#define CHP(mycall__) \
+do {\
+    tp_err_t res = mycall__; \
+    if (res != TP_ERR_OK) { \
+        return res; \
+    } \
+} while (0)
+
 /**
  * @section tpdebugflags TP debugging flags
  * Enable / disable various debugging functions here.
@@ -53,6 +61,9 @@
 extern emcmot_status_t *emcmotStatus;
 extern emcmot_debug_t *emcmotDebug;
 extern emcmot_config_t *emcmotConfig;
+
+static TC_STRUCT blend_tc1 = {0};
+static TC_STRUCT blend_tc2 = {0};
 
 void clearPositionSyncErrors(void);
 
@@ -697,12 +708,14 @@ double tpCalculateOptimizationInitialVel(TP_STRUCT const * const tp, TC_STRUCT *
  * initialize a blend arc. This function does not handle connecting the
  * segments together, however.
  */
-int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
-        TC_STRUCT const * const prev_tc,
-        TC_STRUCT* const blend_tc,
-        double vel,
-        double ini_maxvel,
-        double acc) {
+int tpInitBlendArcFromPrev(
+    TP_STRUCT const * const tp,
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT* const blend_tc,
+    double vel,
+    double ini_maxvel,
+    double acc,
+    tc_motion_type_t motion_type) {
 
 #ifdef TP_SHOW_BLENDS
     int canon_motion_type = EMC_MOTION_TYPE_ARC;
@@ -710,8 +723,14 @@ int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
     int canon_motion_type = prev_tc->canon_motion_type;
 #endif
 
+    //TODO optimize this away
+    EmcPose end;
+    tcGetEndpoint(prev_tc, &end);
+    emcPoseGetABC(&end, &blend_tc->coords.arc.abc);
+    emcPoseGetUVW(&end, &blend_tc->coords.arc.uvw);
+
     tcInit(blend_tc,
-            TC_SPHERICAL,
+            motion_type,
             canon_motion_type,
             tp->cycleTime,
             prev_tc->enables,
@@ -733,7 +752,17 @@ int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
     blend_tc->syncdio = prev_tc->syncdio; //enqueue the list of DIOs that need toggling
 
     // find "helix" length for target
-    double length = arcLength(&blend_tc->coords.arc.xyz);
+    double length;
+    switch (motion_type) {
+    case TC_LINEAR:
+        length = blend_tc->coords.line.xyz.tmag;
+        break;
+    case TC_SPHERICAL:
+        length = arcLength(&blend_tc->coords.arc.xyz);
+        break;
+    default:
+        return TP_ERR_FAIL;
+    }
     tp_info_print("blend tc length = %f\n",length);
     blend_tc->target = length;
     blend_tc->nominal_length = length;
@@ -857,8 +886,173 @@ tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
     return best_blend;
 }
 
+static const biarc_solver_config_t biarc_cfg_ = {
+    15,
+    0.02,
+    0.001,
+    0.000001,
+    1.5,
+    0.001,
+    0.0000001,
+};
 
-tp_err_t tpCreateLineArcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const tc, TC_STRUCT * const blend_tc)
+
+static inline int arcInitFromBlendPoints3(
+    SphericalArc * const arc,
+    BlendPoints3 const * const points)
+{
+    return arcInitFromPoints(
+        arc,
+        &points->arc_start,
+        &points->arc_end,
+        &points->arc_center);
+}
+
+static inline tp_err_t initBlendSegmentFromPoints(
+    TC_STRUCT * const blend_tc,
+    TP_STRUCT const * const tp,
+    TC_STRUCT const * const prev_tc,
+    BlendPoints3 const *points,
+    BlendParameters * const param)
+{
+    blend_tc->motion_type = points->motion_type;
+
+    switch (points->motion_type) {
+    case TC_LINEAR:
+        pmCartLineInit(&blend_tc->coords.line.xyz, &points->arc_start, &points->arc_end);
+        break;
+    case TC_SPHERICAL:
+        if (arcInitFromBlendPoints3(&blend_tc->coords.arc.xyz, points) != 0) {
+            return TP_ERR_FAIL;
+        }
+        double v_max = pmSqrt(blend_tc->coords.arc.xyz.radius * param->a_n_max);
+        param->v_plan = fmin(v_max, param->v_plan);
+        param->v_req = fmin(v_max, param->v_req);
+        break;
+    default:
+        return TP_ERR_FAIL;
+    }
+    return tpInitBlendArcFromPrev(
+        tp,
+        prev_tc,
+        blend_tc,
+        param->v_req,
+        param->v_plan,
+        param->a_max_planar,
+        blend_tc->motion_type);
+}
+
+tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const this_tc)
+{
+    tp_debug_print("-- Starting LineArc blend arc --\n");
+
+    PmCartesian vel_bound = getXYZVelBounds();
+    PmCartesian acc_bound = getXYZAccelBounds();
+
+    biarc_solver_results_t biarc_results = {0};
+    BlendParameters param = {0};
+    if (TP_ERR_OK != optimize_biarc_blend_size(
+            prev_tc,
+            this_tc,
+            &biarc_cfg_,
+            &vel_bound,
+            &acc_bound,
+            &biarc_results,
+            &param,
+            tp->cycleTime))
+    {
+        return TP_ERR_FAIL;
+    }
+
+    BlendPoints3 points1, points2;
+    CHP(blend_biarc_postprocess(&biarc_results, &points1, &points2));
+
+    param.v_plan = pmSqrt(biarc_results.R_plan * param.a_n_max);
+    CHP(initBlendSegmentFromPoints(&blend_tc1, tp, prev_tc, &points1, &param));
+    CHP(initBlendSegmentFromPoints(&blend_tc2, tp, &blend_tc1, &points2, &param));
+
+    // KLUDGE
+    points1.trim1 = points1.trim2 = points2.trim1 = points2.trim2 = biarc_results.control_pts.d;
+
+    switch (prev_tc->motion_type) {
+    case TC_LINEAR:
+        blendCheckConsume(&param, &points1, prev_tc, emcmotConfig->arcBlendGapCycles);
+        if (param.consume) {
+            if (blend_tc1.motion_type == TC_SPHERICAL) {
+                blend_tc1.coords.arc.xyz.line_length = param.line_length;
+                // KLUDGE copy over the tangents
+                blend_tc1.coords.arc.xyz.uTan = biarc_results.boundary.u1;
+            } else if (blend_tc1.motion_type == TC_LINEAR) {
+                pmCartLineInit(&blend_tc1.coords.line.xyz, &prev_tc->coords.line.xyz.start, &points1.arc_end);
+            } else {
+                return TP_ERR_FAIL;
+            }
+            if (tcqPopBack(&tp->queue)) {
+                return TP_ERR_FAIL;
+            }
+        } else {
+            PmCartLine prev_line;
+            prev_line = prev_tc->coords.line.xyz;
+            double new_len = biarc_results.boundary.s1;
+            pmCartLineStretch(&prev_line, new_len, 0);
+            tcSetLineXYZ(prev_tc, &prev_line);
+            tcSetTermCond(prev_tc, &blend_tc1, TC_TERM_COND_TANGENT);
+        }
+        break;
+    case TC_CIRCULAR:
+    {
+        PmCircle prev_circle = prev_tc->coords.circle.xyz;
+        double blend_angle;
+        pmCircleAngleFromProgress(&prev_circle,
+                                  &prev_tc->coords.circle.fit,
+                                  biarc_results.boundary.s1,
+                                  &blend_angle);
+        pmCircleStretch(&prev_circle, blend_angle, 0);
+        tcSetCircleXYZ(prev_tc, &prev_circle);
+        tcSetTermCond(prev_tc, &blend_tc1, TC_TERM_COND_TANGENT);
+        break;
+    }
+    default:
+        return TP_ERR_FAIL;
+    }
+
+    switch (this_tc->motion_type) {
+    case TC_LINEAR:
+    {
+        PmCartLine this_line = this_tc->coords.line.xyz;
+        double new_len = this_line.tmag - biarc_results.boundary.s2;
+        pmCartLineStretch(&this_line, new_len, 1);
+        tcSetLineXYZ(this_tc, &this_line);
+        break;
+    }
+    case TC_CIRCULAR:
+    {
+        PmCircle this_circle = this_tc->coords.circle.xyz;
+        double blend_angle;
+        pmCircleAngleFromProgress(&this_circle,
+                                  &this_tc->coords.circle.fit,
+                                  biarc_results.boundary.s2,
+                                  &blend_angle);
+        double new_angle = this_circle.angle - blend_angle;
+        pmCircleStretch(&this_circle, new_angle, 1);
+        tcSetCircleXYZ(this_tc, &this_circle);
+        break;
+    }
+    default:
+        return TP_ERR_FAIL;
+    }
+
+    tcSetTermCond(&blend_tc1, &blend_tc2, TC_TERM_COND_TANGENT);
+    tcSetTermCond(&blend_tc2, this_tc, TC_TERM_COND_TANGENT);
+
+    return TP_ERR_OK;
+}
+
+tp_err_t tpCreateLineArcBlend(
+    TP_STRUCT * const tp,
+    TC_STRUCT * const prev_tc,
+    TC_STRUCT * const tc,
+    TC_STRUCT * const blend_tc)
 {
     tp_debug_print("-- Starting LineArc blend arc --\n");
 
@@ -973,7 +1167,7 @@ tp_err_t tpCreateLineArcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, T
 
     //set the max velocity to v_plan, since we'll violate constraints otherwise.
     tpInitBlendArcFromPrev(tp, prev_tc, blend_tc, param.v_req,
-            param.v_plan, param.a_max_planar);
+            param.v_plan, param.a_max_planar, TC_SPHERICAL);
 
     int res_tangent = checkTangentAngle(&circ2_temp,
             &blend_tc->coords.arc.xyz,
@@ -1126,7 +1320,7 @@ tp_err_t tpCreateArcLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, T
 
     //set the max velocity to v_plan, since we'll violate constraints otherwise.
     tpInitBlendArcFromPrev(tp, prev_tc, blend_tc, param.v_req,
-            param.v_plan, param.a_max_planar);
+            param.v_plan, param.a_max_planar, TC_SPHERICAL);
 
     int res_tangent = checkTangentAngle(&circ1_temp, &blend_tc->coords.arc.xyz, &geom, &param, tp->cycleTime, false);
     if (res_tangent) {
@@ -1286,7 +1480,7 @@ tp_err_t tpCreateArcArcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC
 
     //set the max velocity to v_plan, since we'll violate constraints otherwise.
     tpInitBlendArcFromPrev(tp, prev_tc, blend_tc, param.v_req,
-            param.v_plan, param.a_max_planar);
+            param.v_plan, param.a_max_planar, TC_SPHERICAL);
 
     int res_tangent1 = checkTangentAngle(&circ1_temp, &blend_tc->coords.arc.xyz, &geom, &param, tp->cycleTime, false);
     int res_tangent2 = checkTangentAngle(&circ2_temp, &blend_tc->coords.arc.xyz, &geom, &param, tp->cycleTime, true);
@@ -1358,7 +1552,7 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
 
     //set the max velocity to v_plan, since we'll violate constraints otherwise.
     tpInitBlendArcFromPrev(tp, prev_tc, blend_tc, param.v_req,
-            param.v_plan, param.a_max_planar);
+            param.v_plan, param.a_max_planar, TC_SPHERICAL);
 
     tp_debug_print("blend_tc target_vel = %g\n", blend_tc->target_vel);
 
@@ -1912,37 +2106,27 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
     }
 }
 
-static TC_STRUCT blend_tc1 = {0};
-static TC_STRUCT blend_tc2 = {0};
-
-bool tpCreateBlendIfPossible(
+int tpCreateBlendIfPossible(
         TP_STRUCT *tp,
         TC_STRUCT *prev_tc,
         TC_STRUCT *tc)
 {
-    tp_err_t res_create = TP_ERR_FAIL;
     blend_type_t blend_requested = tpCheckBlendArcType(tp, prev_tc, tc);
 
     memset(&blend_tc1, 0, sizeof(TC_STRUCT));
-    memset(&blend_tc2, 0, sizeof(TC_STRUCT));
     switch (blend_requested) {
         case BLEND_LINE_LINE:
-            res_create = tpCreateLineLineBlend(tp, prev_tc, tc, &blend_tc1);
-            break;
+            return tpCreateLineLineBlend(tp, prev_tc, tc, &blend_tc1) == TP_ERR_OK ? 1 : 0;
         case BLEND_LINE_ARC:
-            res_create = tpCreateLineArcBlend(tp, prev_tc, tc, &blend_tc1);
-            break;
         case BLEND_ARC_LINE:
-            res_create = tpCreateArcLineBlend(tp, prev_tc, tc, &blend_tc1);
-            break;
         case BLEND_ARC_ARC:
-            res_create = tpCreateArcArcBlend(tp, prev_tc, tc, &blend_tc1);
-            break;
+            memset(&blend_tc2, 0, sizeof(TC_STRUCT));
+            return tpCreateBiarcBlend(tp, prev_tc, tc) == TP_ERR_OK ? 2 : 0;
         case BLEND_NONE:
             break;
     }
 
-    return res_create == TP_ERR_OK;
+    return 0;
 }
 
 /**
@@ -1986,16 +2170,24 @@ tc_blend_type_t tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc) {
             break;
     }
 
-    bool arc_blend_ok = tpCreateBlendIfPossible(tp, prev_tc, tc);
+    int blends_added = tpCreateBlendIfPossible(tp, prev_tc, tc);
 
-    if (arc_blend_ok) {
-        //Need to do this here since the length changed
-        tpAddSegmentToQueue(tp, &blend_tc1, false);
-        return ARC_BLEND;
-    } else {
-        // If blend arc creation failed early on, catch it here and find the best blend
+    switch (blends_added) {
+    default:
+    case 0:
         return tpChooseBestBlend(tp, prev_tc, tc, NULL);
+    case 1:
+
+        return tpAddSegmentToQueue(tp, &blend_tc1, false);
+    case 2:
+    {
+
+        int res1 = tpAddSegmentToQueue(tp, &blend_tc1, false);
+        int res2 = tpAddSegmentToQueue(tp, &blend_tc2, false);
+        return res1 | res2;
     }
+    }
+
 }
 
 //TODO final setup steps as separate functions
