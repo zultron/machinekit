@@ -2627,7 +2627,7 @@ tp_err_t blend_biarc_postprocess(
                 &normal1);
             pmCartUnitEq(&normal1);
 
-            double center_dist1 = biarc_results->R_plan / sin(theta1);
+            double center_dist1 = biarc_results->control_pts.d / cos(theta1);
 
             pmCartScalMult(&normal1, center_dist1, &points1->arc_center);
             pmCartCartAddEq(&points1->arc_center, &biarc_results->control_pts.Pb1);
@@ -2652,7 +2652,7 @@ tp_err_t blend_biarc_postprocess(
                 &normal2);
             pmCartUnitEq(&normal2);
 
-            double center_dist2 = biarc_results->R_plan / sin(theta2);
+            double center_dist2 = biarc_results->control_pts.d / cos(theta2);
 
             pmCartScalMult(&normal2, center_dist2, &points2->arc_center);
             pmCartCartAddEq(&points2->arc_center, &biarc_results->control_pts.Pb2);
