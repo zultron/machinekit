@@ -786,18 +786,17 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
             if(look_for_fault_glitch == VFG_FIRST_PASS && vfd_24V)
                 look_for_fault_glitch = VFG_SEEN; //VFD on before PP started, We can only look for the glitch if PP turns on VFD, so we assume it's OK.  We'll see it next time maybe.
             else look_for_fault_glitch = VFG_LOOK_FOR; //VFD off when PP started, expect VFG
-                
+            vfd_pwr_on_timer = VFD_PWR_ON_PERIOD; //just keep loading/restarting this timer it gets used once we exit this state.    
+
             if (spindle_on || orient_execute) {
                 if (!vfd_24V) { //if VFD is not already on
                     vfd_pwr_on = 1; //fire oneshot to K2
-                    vfd_pwr_on_timer = VFD_PWR_ON_PERIOD;
                     vfd_power_state = VFD_PWR_UP_WAIT;
                     spindle_fault = SPINDLE_FAULT_NO_K2;
                 }
             }
-            if (vfd_24V) {
+            if (vfd_24V) { //the 2 known ways this happens is 1) VFD was on when PP started, or 2) user manually pushed K2 contactor in to power on VFD
                 vfd_power_state = VFD_PWR_UP_WAIT;
-                vfd_pwr_on_timer = VFD_PWR_ON_PERIOD; //probably doesn't get used in this case
             }
             break;
         case VFD_PWR_ON:
@@ -850,11 +849,11 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
             break;
         case VFD_PWR_UP_WAIT:
             vfd_pwr_on_timer -= deltaT; //.001; //fperiod; TODO
-            if(vfd_24V) { //power just turned on
+            if(vfd_24V) { //power just turned on, or was on
                 // if we must switch VFD mode immediately at power up, wait for VFD to become sane before doing vfd mode switch
                 // there are 3 cases of needing a mode switch right after power up
                 if (orient_execute || spindle_type == SPINDLE_TYPE_HISPEED || spindle_type == SPINDLE_TYPE_RAPID_TURN)
-                    vfd_power_state = VFD_PWR_SANE_WAIT;
+                    vfd_power_state = VFD_PWR_SANE_WAIT; //must wait for sanity as we don't really know how long VFD has been on
                 else 
                     vfd_power_state = VFD_PWR_ON; //no wait, we assume all will be OK and we enable the drive right away to rotate. 
                                                 //at-speed pin deals with whatever delay the VFD has from power up to spindle rotating 
@@ -867,18 +866,22 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
                 if (spindle_lock || orient_execute || spindle_on) //if spindle was commanded to move
                     must_wait_for_stop_cmd = 1;
                 if(orient_execute || spindle_lock)
-                    orient_fault = ORIENT_ERR_NO_PWR;
+                    orient_fault = ORIENT_ERR_NO_PWR; //flag linuxcnc that something happened.
             }
             break;
         case VFD_PWR_SANE_WAIT: //simply wait for VFD to become sane so we can mode switch it
             vfd_pwr_on_timer -= deltaT;  //fperiod  TODO: how to use fperiod inside this function call????
-            if(vfd_pwr_on_timer < 0.0) {
-                vfd_power_state = VFD_PWR_ON;
+            if(vfd_24) { //confirm we still have power
+                if(vfd_pwr_on_timer < 0.0) { 
+                    vfd_power_state = VFD_PWR_ON; //we waited for sanity.  Hopefully we have it.
+                }
             }
-            if(!vfd_24V) {
+            else { // we lost power
                 vfd_power_state = VFD_PWR_ERR;
-                if (spindle_lock || orient_execute || spindle_on) //if spindle was commanded to move
+                if (spindle_lock || orient_execute || spindle_on) { //if spindle was commanded to move
+                    orient_fault = ORIENT_ERR_NO_PWR;
                     must_wait_for_stop_cmd = 1;
+                }
             }
             break; 
 
