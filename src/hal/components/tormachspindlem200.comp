@@ -402,12 +402,13 @@ function _ "Tormach Spindle HAL Component M200";
 #define SPINDLE_FAULT_VFD_FAULT_M5 (8)          //VFD signaled fault while not being commanded to move; may be spindle door opening
 #define SPINDLE_FAULT_LOST_PWR (9)              //VFD lost power. It had it; may be spindle door opening
 #define SPINDLE_FAULT_NO_ENCODER (10)           //M19 or spindle sync mode was requested yet machine has no encoder or incorrect machine type selected
-#define SPINDLE_FAULT_VFD_RPM  (11)             //VFD motor speed feedback absent. Check VFD wiring.
-#define SPINDLE_FAULT_MODE_SWITCH  (12)         //expected VFD Mode switch acknowledgment did not occur.  Is machine configured right, do you have VFDmx, wiring errors
-#define SPINDLE_FAULT_VFD (13)                  //VFD reported a fault during rotation. Look for error code on VFD.
-#define SPINDLE_FAULT_NO_PWR (14)               //24VDC from VFD is still not present after K2 presumably activated.  Check spindle door switch, mill circuit breakers, or VFD wiring
-#define SPINDLE_FAULT_LOCK_WITHOUT_PRIOR_ORIENT (15) //This shouldn't happen. Linuxcnc state seems confused
-
+#define SPINDLE_FAULT_VFD_DOESNT_SUPPORT (11)   //This machine's VFD does not support M19 or automatic VFD mode switching.
+#define SPINDLE_FAULT_SPINDLE_TYPE (12)         //Orient mode requested with spindle type that doesnt support it
+#define SPINDLE_FAULT_VFD_RPM  (13)             //VFD motor speed feedback absent. Check VFD wiring.
+#define SPINDLE_FAULT_MODE_SWITCH  (14)         //expected VFD Mode switch acknowledgment did not occur.  Is machine configured right, do you have VFDmx, wiring errors
+#define SPINDLE_FAULT_VFD (15)                  //VFD reported a fault during rotation. Look for error code on VFD.
+#define SPINDLE_FAULT_NO_PWR (16)               //24VDC from VFD is still not present after K2 presumably activated.  Check spindle door switch, mill circuit breakers, or VFD wiring
+#define SPINDLE_FAULT_LOCK_WITHOUT_PRIOR_ORIENT (17) //This shouldn't happen. Linuxcnc state seems confused
 
 ///////// Orienting additions
 //zindexing_state Bit defines
@@ -430,6 +431,8 @@ function _ "Tormach Spindle HAL Component M200";
 #define ORIENT_ERR_MODE_SWITCH (-7)  //VFD mode switch failed 
 #define ORIENT_ERR_NO_PWR (-8) //VFD lost power or did not power on
 #define ORIENT_ERR_NO_ENCODER (-9) //machine configuration doesn't include encoder
+#define ORIENT_ERR_WRONG_VFD (-10) //VFD is incapable of mode switching to orient
+#define ORIENT_ERR_SPINDLE_TYPE (-11) //Spindle type is HSS or RapidTurn and orient mode requested
 // deprecated #define ORIENT_ERR_TIME_OUT (-4)
 
 
@@ -823,13 +826,19 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
                 if (vfd_pwr_on_timer <= 0.0) { //if timer expired then fault is real, otherwise power on glitch
                     spindle_fault = SPINDLE_FAULT_VFD_FAULT_M5;
                     vfd_power_state = VFD_PWR_ERR;
-                    if (spindle_lock || orient_execute || spindle_on) { //if spindle was commanded to move TODO: do we fault in spindle_lock mode?
+                    if (orient_execute || spindle_on) { //if spindle was commanded to move
                         estop_fault = BIT_TRUE; //this is a big deal, vfd faulted while running -- ESTOP PP otherwise, it doesn't know
                         must_wait_for_stop_cmd = 1;
                         spindle_fault = SPINDLE_FAULT_VFD;
                         vfd_power_state = VFD_PWR_ERR;
                         if(spindle_lock || orient_execute)
                             orient_problem |= 0x20;
+                    }
+                    else if (spindle_lock) {
+                        must_wait_for_stop_cmd = 1;
+                        spindle_fault = SPINDLE_FAULT_VFD_FAULT_M5; 
+                        vfd_power_state = VFD_PWR_ERR;
+                        orient_problem |= 0x20;
                     }
                 }
                 else look_for_fault_glitch = VFG_SEEN; //we saw a fault line glitch during power up
@@ -929,10 +938,26 @@ int _VFDCapHandler(struct __comp_state const *__comp_inst, int ack)
 //This sets the desired_vfd_mode variable on exit and handles error handling for limited orient case caller
 void _VFDModeRequest(struct __comp_state const *__comp_inst, int themode)
 {
-    if((themode == VFD_MODE_ORIENT) && !have_encoder()) {  //orient requested on machine that doesn't have spindle encoder
-        orient_fault = ORIENT_ERR_NO_ENCODER;
-        _SpindleFaultSet(__comp_inst, SPINDLE_FAULT_NO_ENCODER);
-        return;
+    if(themode == VFD_MODE_ORIENT) {
+        if(spindle_type != SPINDLE_TYPE_STANDARD) {
+            orient_fault = ORIENT_ERR_SPINDLE_TYPE;
+            _SpindleFaultSet(__comp_inst, SPINDLE_FAULT_SPINDLE_TYPE);
+            desired_vfd_mode = VFD_MODE_DEFAULT;
+            return;
+        }
+        if (!have_encoder()) {  //orient requested on machine that doesn't have spindle encoder
+            orient_fault = ORIENT_ERR_NO_ENCODER;
+            _SpindleFaultSet(__comp_inst, SPINDLE_FAULT_NO_ENCODER); 
+            desired_vfd_mode = VFD_MODE_DEFAULT;
+            return;
+        }
+        if (vfd_cap == VFD_CAP_NO_MODE_SW) {
+            orient_fault =  ORIENT_ERR_WRONG_VFD;
+            _SpindleFaultSet(__comp_inst, SPINDLE_FAULT_VFD_DOESNT_SUPPORT);
+            desired_vfd_mode = VFD_MODE_DEFAULT;
+            return;
+        }
+        //TODO: M19 and spindle_type == HSS or RapidTurn??
     }
 
     if (!((orient_execute || spindle_lock) && themode == VFD_MODE_DEFAULT)) //TODO: there's a issue with _VFDModeRequest() setting desired_vfd_mode at top of every loop of m200.comp
@@ -1805,9 +1830,9 @@ FUNCTION(_) {
         spindle_run = 0; //over ride any previous "on" of this pin.  If was normal M3 S1000 "running", then this decels drive using "normal" VFD curves
 
         if (vfd_mode == desired_vfd_mode) { //if we did just set vfd_mode to desired_vfd_mode, we must set vfd_mode_switch_timer to something other than present VFD_MODE_SWITCH_FOREVER value
-            if (desired_vfd_mode == VFD_MODE_ORIENT) 
+            if (desired_vfd_mode == VFD_MODE_ORIENT) { 
                 vfd_mode_switch_timer = VFD_MODE_SWITCH_DELAY + fperiod;    //start timer, or keep reloading while moving so timing begins from instant spindle stops and doesn't include decel time. 
-                                                                            //+fperiod makes sense else time will be VFD_MODE_SWITCH_DELAY - fperiod.
+            }                                                               //+fperiod makes sense else time will be VFD_MODE_SWITCH_DELAY - fperiod.
             else {
                 if (vfd_cap == VFD_CAP_NO_MODE_SW) {
                     vfd_mode_switch_timer = 0.0; //no need to wait, already determined VFD can't do mode switching.  this jumps us through vfd_handshake_state(s) immediately
