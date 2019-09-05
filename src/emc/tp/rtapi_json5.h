@@ -177,6 +177,38 @@ static inline void print_json5_SpiralArcLengthFit_(const char *fname, SpiralArcL
     print_json5_object_end_();
 }
 
+static inline void print_json5_blend_boundary_t(const char *fname, blend_boundary_t const * const r)
+{
+    print_json5_object_start_(fname);
+    print_json5_PmCartesian_field(r, P1);
+    print_json5_PmCartesian_field(r, P2);
+    print_json5_PmCartesian_field(r, u1);
+    print_json5_PmCartesian_field(r, u2);
+    print_json5_double_field(r, s1);
+    print_json5_double_field(r, s2);
+    print_json5_object_end_();
+}
+
+static inline void print_json5_blend_control_points_t(const char *fname, blend_control_points_t const * const c)
+{
+    print_json5_object_start_(fname);
+    print_json5_PmCartesian_field(c, Pb1);
+    print_json5_PmCartesian_field(c, Pb2);
+    print_json5_PmCartesian_field(c, u_mid);
+    print_json5_PmCartesian_field(c, P_mid);
+    print_json5_double_field(c, d);
+    print_json5_object_end_();
+}
+
+static inline void print_json5_biarc_solver_result(const char *fname, biarc_solver_results_t const * const r)
+{
+    print_json5_object_start_(fname);
+    print_json5_double_field(r, R_plan);
+    print_json5_double_field(r, T_plan);
+    print_json5_double_field(r, arc_len_est);
+    print_json5_object_end_();
+}
+
 static inline void print_json5_SphericalArc(const char *fname, SphericalArc const * const arc) {
     print_json5_object_start_(fname);
     print_json5_PmCartesian_field(arc, start);

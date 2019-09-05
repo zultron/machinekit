@@ -38,8 +38,18 @@ def parse_log(logname):
             except Exception as e:
                 print('Ignoring exception ', e)
 
+    blend_id = extract_field1(logs, 'tpCreateBiarcBlend', 'id')
+    blend1_reqvel = extract_field2(logs, 'tpCreateBiarcBlend', 'blend1', 'reqvel')
+    blend2_reqvel = extract_field2(logs, 'tpCreateBiarcBlend', 'blend2', 'reqvel')
+    segment_reqvel = extract_field1(logs, 'tpCreateBiarcBlend', 'reqvel')
+
     blend1_size = np.array([e['blend1']['target'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
     blend2_size = np.array([e['blend2']['target'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
+    blend1_type = np.array([e['blend1']['motion_type'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
+    blend2_type = np.array([e['blend2']['motion_type'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
+    blend1_maxvel = np.array([e['blend1']['maxvel'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
+    blend2_maxvel = np.array([e['blend2']['maxvel'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
+    segment_maxvel = extract_field1(logs, 'tpCreateBiarcBlend', 'maxvel')
 
     axis_pos = np.array([e.get('axis_pos', None) for e in logs if e.get('log_entry', None) == 'tpRunCycle'])
     axis_vel = np.array([e.get('axis_vel', None) for e in logs if e.get('log_entry', None) == 'tpRunCycle'])
@@ -85,13 +95,35 @@ def parse_log(logname):
 
     if len(blend1_size) and len(blend2_size):
         plt.figure(5)
-        print(blend2_size)
-        plt.plot(blend1_size, label='blend1')
-        plt.plot(blend2_size, label='blend2')
-        plt.xlabel('Segment index')
+        plt.plot(blend_id, blend1_size, label='blend1')
+        plt.plot(blend_id, blend2_size, label='blend2')
+        plt.xlabel('Segment ID')
         plt.grid(True)
         plt.legend()
         plt.title('Blend segment sizes')
+
+    if len(blend1_type) and len(blend2_type):
+        plt.figure(6)
+        plt.plot(blend_id, blend1_type, label='blend1')
+        plt.plot(blend_id, blend2_type, label='blend2')
+        plt.xlabel('Segment ID')
+        plt.grid(True)
+        plt.legend()
+        plt.title('Blend segment types')
+
+    if len(blend1_maxvel) and len(blend2_maxvel):
+        plt.figure(7)
+        plt.plot(blend_id, blend1_maxvel, label='blend1_max')
+        plt.plot(blend_id, blend2_maxvel, label='blend2_max')
+        plt.plot(blend_id, segment_maxvel, label='maxvel_segments')
+        plt.plot(blend_id, blend1_reqvel, label='blend1_req')
+        plt.plot(blend_id, blend2_reqvel, label='blend2_req')
+        plt.plot(blend_id, segment_reqvel, label='reqvel_segments')
+        plt.xlabel('Segment ID')
+        plt.grid(True)
+        plt.legend()
+        plt.title('Blend segment maxvels')
+
     segment_id = extract_field1(logs, 'tpActivateSegment', 'id')
     target_vel = extract_field1(logs, 'tpActivateSegment', 'target_vel')
     finalvel = extract_field1(logs, 'tpActivateSegment', 'finalvel')
@@ -100,20 +132,20 @@ def parse_log(logname):
     motion_type = extract_field1(logs, 'tpActivateSegment', 'motion_type')
     blend_mode = extract_field1(logs, 'tpActivateSegment', 'blend_mode')
 
+    if len(segment_id):
+        plt.figure(8)
+        plt.plot(segment_id, target_vel, label='target_vel')
+        plt.plot(segment_id, finalvel, label='finalvel')
 
-    plt.figure(8)
-    plt.plot(segment_id, target_vel, label='target_vel')
-    plt.plot(segment_id, finalvel, label='finalvel')
+        nonblend_seg_ids = np.where(motion_type!=4)[0]
 
-    nonblend_seg_ids = np.where(motion_type!=4)[0]
-
-    plt.plot(segment_id[nonblend_seg_ids], kink_vel[nonblend_seg_ids], '*',label='kink_vel')
-    plt.plot(segment_id[nonblend_seg_ids], parabolic_equiv_vel[nonblend_seg_ids], '+',label='parabolic_equiv_vel')
-    plt.plot(segment_id[nonblend_seg_ids], blend_mode[nonblend_seg_ids], '.',label='blend_mode')
-    plt.xlabel('Segment ID')
-    plt.grid(True)
-    plt.legend()
-    plt.title('Final optimization results for velocities at segment activation')
+        plt.plot(segment_id[nonblend_seg_ids], kink_vel[nonblend_seg_ids], '*',label='kink_vel')
+        plt.plot(segment_id[nonblend_seg_ids], parabolic_equiv_vel[nonblend_seg_ids], '+',label='parabolic_equiv_vel')
+        plt.plot(segment_id[nonblend_seg_ids], blend_mode[nonblend_seg_ids], '.',label='blend_mode')
+        plt.xlabel('Segment ID')
+        plt.grid(True)
+        plt.legend()
+        plt.title('Final optimization results for velocities at segment activation')
 
     plt.show()
 
