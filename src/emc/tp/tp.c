@@ -942,6 +942,24 @@ static inline tp_err_t initBlendSegmentFromPoints(
         blend_tc->motion_type);
 }
 
+static inline void print_json5_biarc_solver_result(biarc_solver_results_t const * const r)
+{
+    print_json5_bare_object_start_();
+    print_json5_object_end_();
+}
+
+static inline void print_json5_TC_STRUCT_kinematics(TC_STRUCT const * const tc)
+{
+    print_json5_bare_object_start_();
+    print_json5_double_field(tc, maxvel);
+    print_json5_double_field(tc, maxaccel);
+    print_json5_double_field(tc, acc_normal_max);
+    print_json5_double_field(tc, acc_ratio_tan);
+    print_json5_double_field(tc, reqvel);
+    print_json5_double_field(tc, target);
+    print_json5_object_end_();
+}
+
 tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const this_tc)
 {
     tp_debug_print("-- Starting LineArc blend arc --\n");
@@ -1044,6 +1062,15 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
 
     tcSetTermCond(&blend_tc1, &blend_tc2, TC_TERM_COND_TANGENT);
     tcSetTermCond(&blend_tc2, this_tc, TC_TERM_COND_TANGENT);
+
+#ifdef TP_DEBUG
+    print_json5_log_start(tpCreateBiarcBlend, Command);
+    print_json5_fieldname_("blend1");
+    print_json5_TC_STRUCT_kinematics(&blend_tc1);
+    print_json5_fieldname_("blend2");
+    print_json5_TC_STRUCT_kinematics(&blend_tc2);
+    print_json5_end_();
+#endif
 
     return TP_ERR_OK;
 }

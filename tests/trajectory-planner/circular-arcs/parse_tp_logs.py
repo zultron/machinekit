@@ -38,6 +38,9 @@ def parse_log(logname):
             except Exception as e:
                 print('Ignoring exception ', e)
 
+    blend1_size = np.array([e['blend1']['target'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
+    blend2_size = np.array([e['blend2']['target'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
+
     axis_pos = np.array([e.get('axis_pos', None) for e in logs if e.get('log_entry', None) == 'tpRunCycle'])
     axis_vel = np.array([e.get('axis_vel', None) for e in logs if e.get('log_entry', None) == 'tpRunCycle'])
     axis_accel = np.array([e.get('axis_accel', None) for e in logs if e.get('log_entry', None) == 'tpRunCycle'])
@@ -80,6 +83,15 @@ def parse_log(logname):
         plt.grid(True)
         plt.title('XYZ velocity vs relative time, ms')
 
+    if len(blend1_size) and len(blend2_size):
+        plt.figure(5)
+        print(blend2_size)
+        plt.plot(blend1_size, label='blend1')
+        plt.plot(blend2_size, label='blend2')
+        plt.xlabel('Segment index')
+        plt.grid(True)
+        plt.legend()
+        plt.title('Blend segment sizes')
     segment_id = extract_field1(logs, 'tpActivateSegment', 'id')
     target_vel = extract_field1(logs, 'tpActivateSegment', 'target_vel')
     finalvel = extract_field1(logs, 'tpActivateSegment', 'finalvel')
