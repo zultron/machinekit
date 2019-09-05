@@ -77,21 +77,6 @@ tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
                                   TC_STRUCT * const tc,
                                   TC_STRUCT * const blend_tc);
 
-tp_err_t tpCreateLineArcBlend(TP_STRUCT * const tp,
-                              TC_STRUCT * const prev_tc,
-                              TC_STRUCT * const tc,
-                              TC_STRUCT * const blend_tc);
-
-tp_err_t tpCreateArcLineBlend(TP_STRUCT * const tp,
-                              TC_STRUCT * const prev_tc,
-                              TC_STRUCT * const tc,
-                              TC_STRUCT * const blend_tc);
-
-tp_err_t tpCreateArcArcBlend(TP_STRUCT * const tp,
-                             TC_STRUCT * const prev_tc,
-                             TC_STRUCT * const tc,
-                             TC_STRUCT * const blend_tc);
-
 tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp,
                                TC_STRUCT * const prev_tc,
                                TC_STRUCT * const tc,
