@@ -361,6 +361,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         # G_CODE_TOOL_LENGTH_OFFSET
         # G_CODE_SPINDLE_MODE
 
+        g92_offset = self.stat.g92_offset;
+
         cmd_list = ((
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_UNITS]),  # Must be first before applying any other modes
         ),(
@@ -371,6 +373,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE_IJK]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_RETRACT_MODE]),
+        ),(
+            "G52 X{} Y{} Z{} A{}".format(*g92_offset)
         ))
         print "Active G-codes at redraw:", cmd_list
         return '\n'.join((' '.join(sub_l) for sub_l in cmd_list))
