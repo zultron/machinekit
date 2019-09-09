@@ -24,7 +24,7 @@
 //FIXME replace these with better names?
 #define tp_debug_print(...) rtapi_print(__VA_ARGS__)
 #define tp_debug_only(funcname,...) funcname(__VA_ARGS__)
-#elif defined(UNIT_TEST)
+#elif defined(UNIT_TEST_VERBOSE)
 #include <stdio.h>
 #define tp_debug_print(...) printf(__VA_ARGS__)
 #define tp_debug_only(funcname,...) funcname(__VA_ARGS__)
