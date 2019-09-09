@@ -705,7 +705,7 @@ void reportJointFollowingError(int joint_num)
                 continue;
             }
 
-            print_json5_bare_object_start_();
+            print_json5_object_start_(NULL);
             print_json5_int_("joint_num", j);
             print_json5_double_("ferror", jtmp->ferror);
             print_json5_double_("ferror_limit", jtmp->ferror_limit);

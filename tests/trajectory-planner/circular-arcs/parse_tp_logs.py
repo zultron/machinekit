@@ -18,6 +18,13 @@ axes={
     'W': 8,
 }
 
+def extract_field1(logs, log_entry, field1):
+    return np.array([e.get(field1, None) for e in logs if e.get('log_entry', None) == log_entry])
+
+
+def extract_field2(logs, log_entry, field1, field2):
+    return np.array([e.get(field1, {}).get(field2, None) for e in logs if e.get('log_entry', None) == log_entry])
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print(sys.stderr, 'No logfile specified')
@@ -46,27 +53,46 @@ if __name__ == '__main__':
     plt_axis = 'X'
     idx = axes[plt_axis]
 
-    plt.figure(1)
-    plt.plot(times * 1000.0, axis_pos[:, idx])
-    plt.grid(True)
-    plt.title('{} Axis position vs time, ms'.format(plt_axis))
+    if len(axis_pos):
+        plt.figure(1)
+        plt.plot(times * 1000.0, axis_pos[:, idx])
+        plt.grid(True)
+        plt.title('{} Axis position vs time, ms'.format(plt_axis))
 
-    plt.figure(2)
-    plt.plot(times * 1000.0, axis_vel[:, idx])
-    plt.grid(True)
-    plt.title('{} velocity vs time, ms'.format(plt_axis))
+    if len(axis_vel):
+        plt.figure(2)
+        plt.plot(times * 1000.0, axis_vel[:, idx])
+        plt.grid(True)
+        plt.title('{} velocity vs time, ms'.format(plt_axis))
 
-    plt.figure(3)
-    plt.plot(times * 1000.0, axis_accel[:, idx])
-    plt.grid(True)
-    plt.title('{} Axis acceleration vs time, ms'.format(plt_axis))
+    if len(axis_accel):
+        plt.figure(3)
+        plt.plot(times * 1000.0, axis_accel[:, idx])
+        plt.grid(True)
+        plt.title('{} Axis acceleration vs time, ms'.format(plt_axis))
 
-    plt.figure(4)
-    plt.plot(times * 1000.0, np.sqrt(np.sum(np.square(axis_vel[:, 0:2]), 1)))
+    if len(axis_vel):
+        plt.figure(4)
+        plt.plot(times * 1000.0, np.sqrt(np.sum(np.square(axis_vel[:, 0:2]), 1)))
+        plt.grid(True)
+        plt.title('XYZ velocity vs time, ms')
+
+
+    segment_id = extract_field1(logs, 'tpActivateSegment', 'id')
+    target_vel = extract_field1(logs, 'tpActivateSegment', 'target_vel')
+    finalvel = extract_field1(logs, 'tpActivateSegment', 'finalvel')
+    kink_vel = extract_field1(logs, 'tpActivateSegment', 'kink_vel')
+    # TODO print parabolic cutoff?
+
+    plt.figure(8)
+    plt.plot(segment_id, target_vel, label='target_vel')
+    plt.plot(segment_id, finalvel, label='finalvel')
+    plt.plot(segment_id, kink_vel, '-*',label='kink_vel')
+    plt.xlabel('Segment ID')
     plt.grid(True)
-    plt.title('XYZ velocity vs time, ms')
+    plt.legend()
+    plt.title('Final optimization results for velocities at segment activation')
 
     plt.show()
-
 
 

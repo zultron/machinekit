@@ -20,10 +20,22 @@
 #define print_json5_long(varname_) print_json5_long_(#varname_, (long)varname_)
 #define print_json5_int(varname_) print_json5_int_(#varname_, (int)varname_)
 #define print_json5_unsigned(varname_) print_json5_unsigned_(#varname_, (unsigned)varname_)
+
+#define print_json5_double_field(base_, varname_) print_json5_double_(#varname_, (base_)->varname_)
+#define print_json5_string_field(base_, varname_) print_json5_string_(#varname_, (base_)->varname_ ?:"NULL")
+#define print_json5_int_field(base_, varname_) print_json5_int_(#varname_, (base_)->varname_)
+#define print_json5_unsigned_field(base_, varname_) print_json5_unsigned_(#varname_, (base_)->varname_)
+#define print_json5_long_field(base_, varname_) print_json5_long_(#varname_, (base_)->varname_)
+
 #define print_json5_PmCartesian(varname_) print_json5_PmCartesian_(#varname_, varname_)
 #define print_json5_EmcPose(varname_) print_json5_EmcPose_(#varname_, varname_)
 #define print_json5_PmCartLine(varname_) print_json5_PmCartLine_( #varname_, varname_)
 #define print_json5_PmCircle(varname_) print_json5_PmCircle_(#varname_, varname_)
+
+#define print_json5_PmCartesian_field(base_, varname_) print_json5_PmCartesian_(#varname_, (base_)->varname_)
+#define print_json5_EmcPose_field(base_, varname_) print_json5_EmcPose_(#varname_, (base_)->varname_)
+#define print_json5_PmCartLine_field(base_, varname_) print_json5_PmCartLine_( #varname_, (base_)->varname_)
+#define print_json5_PmCircle_field(base_, varname_) print_json5_PmCircle_(#varname_, (base_)->varname_)
 
 // Hacky way to do realtime-logging of
 // KLUDGE shove these in the header to avoid linking issues
@@ -38,9 +50,19 @@ static inline void print_json5_end_()
     rtapi_print("}\n");
 }
 
+static inline void print_json5_fieldname_(const char *fname)
+{
+    rtapi_print("%s: ", fname ?: "NULL");
+}
+
 static inline void print_json5_array_start_(const char *arr_name)
 {
-    rtapi_print("%s: [", arr_name ?: "NULL");
+    if (arr_name) {
+        rtapi_print("%s: [", arr_name);
+    } else {
+
+        rtapi_print("[");
+    }
 }
 
 static inline void print_json5_array_end_()
@@ -50,12 +72,11 @@ static inline void print_json5_array_end_()
 
 static inline void print_json5_object_start_(const char *fname)
 {
-    rtapi_print("%s: {", fname ?: "NULL");
-}
-
-static inline void print_json5_bare_object_start_()
-{
-    rtapi_print("{");
+    if (fname) {
+        rtapi_print("%s: {", fname);
+    } else {
+        rtapi_print("{");
+    }
 }
 
 static inline void print_json5_object_end_()
@@ -146,14 +167,44 @@ static inline void print_json5_PmCircle_(const char *name, PmCircle circle)
     print_json5_object_end_();
 }
 
-static inline void print_json5_SpiralArcLengthFit_(const char *name, SpiralArcLengthFit fit)
+static inline void print_json5_SpiralArcLengthFit_(const char *fname, SpiralArcLengthFit fit)
 {
-    print_json5_object_start_(name);
+    print_json5_object_start_(fname);
     print_json5_double_("b0", fit.b0);
     print_json5_double_("b1", fit.b1);
     print_json5_double_("total_planar_length", fit.total_planar_length);
     print_json5_long_("spiral_in", fit.spiral_in);
     print_json5_object_end_();
 }
+
+static inline void print_json5_SphericalArc(const char *fname, SphericalArc const * const arc) {
+    print_json5_object_start_(fname);
+    print_json5_PmCartesian_field(arc, start);
+    print_json5_PmCartesian_field(arc, end);
+    print_json5_PmCartesian_field(arc, center);
+    print_json5_PmCartesian_field(arc, rStart);
+    print_json5_PmCartesian_field(arc, rEnd);
+    print_json5_PmCartesian_field(arc, uTan);
+    print_json5_double_field(arc, radius);
+    print_json5_double_field(arc, spiral);
+    print_json5_double_field(arc, angle);
+    print_json5_double_field(arc, Sangle);
+    print_json5_double_field(arc, line_length);
+    print_json5_object_end_();
+}
+
+static inline void print_json5_TC_STRUCT_kinematics(const char *fname, TC_STRUCT const * const tc)
+{
+    print_json5_object_start_(fname);
+    print_json5_double_field(tc, maxvel);
+    print_json5_double_field(tc, maxaccel);
+    print_json5_double_field(tc, acc_normal_max);
+    print_json5_double_field(tc, acc_ratio_tan);
+    print_json5_double_field(tc, reqvel);
+    print_json5_double_field(tc, target);
+    print_json5_int_field(tc, motion_type);
+    print_json5_object_end_();
+}
+
 
 #endif // RTAPI_JSON5_H

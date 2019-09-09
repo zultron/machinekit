@@ -853,7 +853,7 @@ tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
     }
 
 #ifdef TP_DEBUG
-    print_json5_log_start(CheckBlendPerformance,Command);
+    print_json5_log_start(tpChooseBestBlend,Command);
     print_json5_double(perf_parabolic);
     print_json5_double(perf_tangent);
     print_json5_double(perf_arc_blend);
@@ -2874,36 +2874,35 @@ inline int tpIsWaitingOnSpindle(TP_STRUCT const * const tp)
 
 void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
 {
-    if (!emcmotConfig->consistencyCheckConfig.extraConsistencyChecks || tc->is_blending){
-        return;
-    }
-
-    EmcPose tp_position_error;
-    ZERO_EMC_POSE(tp_position_error);
-    tcGetPos(tc, &tp_position_error);
-    emcPoseSelfSub(&tp_position_error, &tp->currentPos);
-
-    unsigned position_mismatch_axes = findAbsThresholdViolations(tp_position_error, emcmotConfig->consistencyCheckConfig.maxPositionDriftError);
-    reportTPAxisError(tp, position_mismatch_axes, "Motion start position difference exceeds threshold");
-
 #ifdef TP_DEBUG
-    int need_print = true;
+    unsigned need_print = (unsigned)-1;
 #else
-    int need_print = position_mismatch_axes != 0;
+    unsigned need_print = 0;
 #endif
+    if (emcmotConfig->consistencyCheckConfig.extraConsistencyChecks && !tc->is_blending){
+        EmcPose tp_position_error;
+        ZERO_EMC_POSE(tp_position_error);
+        tcGetPos(tc, &tp_position_error);
+        emcPoseSelfSub(&tp_position_error, &tp->currentPos);
+
+        unsigned position_mismatch_axes = findAbsThresholdViolations(tp_position_error, emcmotConfig->consistencyCheckConfig.maxPositionDriftError);
+        need_print |= position_mismatch_axes;
+        reportTPAxisError(tp, position_mismatch_axes, "Motion start position difference exceeds threshold");
+    }
 
     // Log a bunch of TP internal state if required by debug level or position error
     if (need_print) {
-        print_json5_log_start(ActivateSegment,Run);
+        print_json5_log_start(tpActivateSegment,Run);
         print_json5_ll_("time_ticks", tp->time_elapsed_ticks);
         print_json5_int_("id", tc->id);
         // Position settings
-        print_json5_double_("target", tc->target);
-        print_json5_double_("progress", tc->progress);
+        print_json5_double_field(tc, target);
+        print_json5_double_field(tc, progress);
         // Velocity settings
-        print_json5_double_("reqvel", tc->reqvel);
-        print_json5_double_("target_vel", tc->target_vel);
-        print_json5_double_("finalvel", tc->finalvel);
+        print_json5_double_field(tc, reqvel);
+        print_json5_double_field(tc, target_vel);
+        print_json5_double_field(tc, finalvel);
+        print_json5_double_field(tc, kink_vel);
         // Acceleration settings
         print_json5_double_("accel_scale", tcGetAccelScale(tc));
         print_json5_double_("acc_overall", tcGetOverallMaxAccel(tc));
@@ -2911,6 +2910,13 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
         print_json5_bool_("accel_ramp", tc->accel_mode);
         print_json5_bool_("blend_prev", tc->blend_prev);
         print_json5_string_("sync_mode", tcSyncModeAsString(tc->synchronized));
+
+        print_json5_int_field(tc, finalized);
+        print_json5_int_field(tc, term_cond);
+        print_json5_int_field(tc, id);
+        print_json5_int_field(tc, atspeed);
+        print_json5_int_field(tc, motion_type);
+
         print_json5_log_end();
     }
 }
