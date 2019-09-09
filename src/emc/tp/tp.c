@@ -33,14 +33,6 @@
 #define EMC_TRAJ_TERM_COND_EXACT 1
 #define EMC_TRAJ_TERM_COND_BLEND 2
 
-#define CHP(mycall__) \
-do {\
-    tp_err_t res = mycall__; \
-    if (res != TP_ERR_OK) { \
-        return res; \
-    } \
-} while (0)
-
 /**
  * @section tpdebugflags TP debugging flags
  * Enable / disable various debugging functions here.
@@ -51,6 +43,15 @@ do {\
  */
 
 #include "tp_debug.h"
+
+#define CHP(mycall__) \
+do {\
+    tp_err_t res = mycall__; \
+    if (res != TP_ERR_OK) { \
+        tp_debug_print("%s failed at %s:%d\n", #mycall__, __FUNCTION__, __LINE__); \
+        return res; \
+    } \
+} while (0)
 
 // FIXME: turn off this feature, which causes blends between rapids to
 // use the feed override instead of the rapid override
