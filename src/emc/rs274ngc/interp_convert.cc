@@ -1091,10 +1091,8 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
   UnitsTransform program_to_user_units = convertsProgramToUser();
 
   if ((g_code == G_52) || (g_code == G_92)) {
-    // FIXME these cases preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
     if (g_code == G_52) {
       // Command represents new offsets, copy them in directly, and apply the difference to the current position
-      // FIXME this preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
       PositionArray cmd_axis_values = getAxisWordsFromBlock(block, settings->transform.g92Offset.tf);
       settings->current += (settings->transform.g92Offset.tf - cmd_axis_values);
       settings->transform.g92Offset.tf = cmd_axis_values;
