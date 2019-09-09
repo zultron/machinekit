@@ -962,6 +962,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
             &param,
             tp->cycleTime))
     {
+        tp_debug_print("Failed to optimize biarc blend, aborting\n");
         return TP_ERR_FAIL;
     }
 

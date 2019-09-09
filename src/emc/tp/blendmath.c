@@ -2460,6 +2460,7 @@ tp_err_t optimize_biarc_blend_size(
             double R_bound = fmax(biarc_results->constraints.upper.R_plan, biarc_results->constraints.lower.R_plan);
             double v_bound = pmSqrt(R_bound * param->a_n_max);
             if (biarc_results->iterations > 1 && v_bound < config->velocity_cutoff) {
+                tp_debug_print("biarc failed: min length\n");
                 biarc_results->result = BIARC_MIN_LENGTH_LIMITED;
                 return TP_ERR_FAIL;
             }
@@ -2468,6 +2469,7 @@ tp_err_t optimize_biarc_blend_size(
         biarc_results->Rb = guess_blend_region_size_slope(&biarc_results->constraints, biarc_results->Rb, R_goal, biarc_results->R_plan, param->tolerance, biarc_results->T_plan);
     }
     biarc_results->result = BIARC_EXCEEDED_MAX_ITERATIONS;
+    tp_debug_print("biarc failed: iterations\n");
     return TP_ERR_FAIL;
 }
 
