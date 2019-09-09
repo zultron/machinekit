@@ -467,6 +467,26 @@ int Interp::set_probe_data(setup_pointer settings)       //!< pointer to machine
   return INTERP_OK;
 }
 
+int Interp::formatGCode(GCodes g, std::string &cmd)
+{
+    if (g < 0 || g > 999) {
+        return INTERP_ERROR;
+    }
+
+    char buf[50];
+    int base_g = g / 10;
+    int sub_g = g - base_g*10;
+    if (sub_g) {
+        snprintf(buf, sizeof(buf), "G%d.%d", base_g, sub_g);
+    } else {
+        snprintf(buf, sizeof(buf), "G%d", base_g);
+    }
+
+    cmd += buf;
+
+    return INTERP_OK;
+}
+
 int Interp::lookup_work_offset_gcode_from_origin(int origin)
 {
     switch (origin) {

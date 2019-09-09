@@ -558,6 +558,7 @@ public:
  int refresh_actual_position(setup_pointer settings);
  void rotate(double *x, double *y, double t);
  int set_probe_data(setup_pointer settings);
+ static int formatGCode(GCodes g, std::string &cmd);
  static int lookup_work_offset_gcode_from_origin(int origin);
  int write_g_codes(block_pointer block, setup_pointer settings, ModalState &state);
  int write_m_codes(block_pointer block, setup_pointer settings, ModalState &state);
