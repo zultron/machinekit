@@ -969,7 +969,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     BlendPoints3 points1, points2;
     CHP(blend_biarc_postprocess(&biarc_results, &points1, &points2));
 
-    param.v_plan = pmSqrt(biarc_results.R_plan * param.a_n_max);
+    param.v_plan = pmSqrt(biarc_results.solution.R_plan * param.a_n_max);
     CHP(initBlendSegmentFromPoints(&blend_tc1, tp, prev_tc, &points1, &param));
     CHP(initBlendSegmentFromPoints(&blend_tc2, tp, &blend_tc1, &points2, &param));
 
@@ -1050,6 +1050,8 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
 #ifdef TP_DEBUG
     print_json5_log_start(tpCreateBiarcBlend, Command);
     print_json5_long_("id", tp->nextId);
+    print_json5_biarc_solution_t("solution", &biarc_results.solution);
+    print_json5_string_("result", biarc_result_to_str(biarc_results.result));
     print_json5_TC_STRUCT_kinematics("blend1", &blend_tc1);
     print_json5_TC_STRUCT_kinematics("blend2", &blend_tc2);
     print_json5_double_("maxvel", fmin(prev_tc->maxvel, this_tc->maxvel));

@@ -200,12 +200,24 @@ static inline void print_json5_blend_control_points_t(const char *fname, blend_c
     print_json5_object_end_();
 }
 
-static inline void print_json5_biarc_solver_result(const char *fname, biarc_solver_results_t const * const r)
+static inline void print_json5_biarc_solution_errors_t(const char *fname, biarc_solution_errors_t const * const r)
 {
     print_json5_object_start_(fname);
+    print_json5_double_field(r, deviation);
+    print_json5_double_field(r, radius_rel);
+    print_json5_double_field(r, radius_abs);
+    print_json5_object_end_();
+}
+
+static inline void print_json5_biarc_solution_t(const char *fname, biarc_solution_t const * const r)
+{
+    print_json5_object_start_(fname);
+    print_json5_double_field(r, Rb);
+    print_json5_double_field(r, R_geom);
+    print_json5_double_field(r, arc_len_est);
     print_json5_double_field(r, R_plan);
     print_json5_double_field(r, T_plan);
-    print_json5_double_field(r, arc_len_est);
+    print_json5_biarc_solution_errors_t("err", &r->err);
     print_json5_object_end_();
 }
 

@@ -20,6 +20,8 @@
 #include "blendmath.h"
 #include "tp_debug.h"
 #include "tp_enums.h"
+#include "stdlib.h"
+#include "math_util.h"
 
 // Inspired by interp
 #define CHP(callee__) \
@@ -2181,7 +2183,7 @@ tp_err_t find_blend_size_from_intermediates(
     return TP_ERR_OK;
 }
 
-static const RegionResult zero_region_result = {0,0,0};
+static const biarc_solution_t zero_region_result = {0,0,0};
 
 static inline double get_effective_range(blend_solver_constraints_t const * const constraints)
 {
@@ -2202,33 +2204,33 @@ static inline double guess_interpolated_region_size(
     double dT_goal = T_goal - constraints->lower.T_plan;
     double Rb_interp_T = constraints->lower.Rb + dRb * (dT_goal / fmax(dT_plan, TP_POS_EPSILON));
 
-    if (constraints->lower.count > 3 || constraints->upper.count > 3) {
+    if (abs(constraints->bias_count) > 3 ) {
         return (constraints->upper.Rb + constraints->lower.Rb) / 2.;
     } else {
         return clamp(constraints->upper.Rb, constraints->lower.Rb, 0.1, fmin(Rb_interp_R, Rb_interp_T));
     }
 }
 
+
 static inline double guess_blend_region_size_slope(
     blend_solver_constraints_t * const constraints,
-    double Rb,
+    biarc_solution_t const * const solution,
+    biarc_solution_errors_t const * const err,
     double R_goal,
-    double R_plan_last,
-    double T_goal,
-    double T)
+    double T_goal)
 {
-    RegionResult *r = NULL;
-    if (R_plan_last < R_goal && T < T_goal) {
+    biarc_solution_t *r = NULL;
+    if (solution->R_plan < R_goal && solution->T_plan < T_goal) {
         r = &constraints->lower;
-        constraints->upper.count = 0;
+        constraints->bias_count = constraints->bias_count > 0 ? -1 : constraints->bias_count - 1;
     } else {
         r = &constraints->upper;
-        constraints->lower.count = 0;
+        constraints->bias_count = constraints->bias_count < 0 ? 1 : constraints->bias_count + 1;
     }
-    r->Rb = Rb;
-    r->R_plan= R_plan_last;
-    r->T_plan = T;
-    ++r->count;
+    r->Rb = solution->Rb;
+    r->R_plan= solution->R_plan;
+    r->T_plan = solution->T_plan;
+    r->err = *err;
 
     return guess_interpolated_region_size(constraints, R_goal, T_goal);
 }
@@ -2335,6 +2337,20 @@ int find_blend_vel_accel_planar_limits(
     return res_dia;
 }
 
+void find_biarc_solution_error(
+    double blend_tolerance,
+    double R_goal,
+    double R_plan,
+    double T_plan,
+    biarc_solution_errors_t * const err)
+{
+    err->deviation = blend_tolerance - T_plan;
+
+    // Check for solution convergence based on specified tolerances
+    err->radius_rel = (R_plan - R_goal + TP_POS_EPSILON) / (R_goal + TP_POS_EPSILON);
+    err->radius_abs = R_plan - R_goal;
+}
+
 /**
  * Find the optimal Rb to get the smallest blend that can meet the feed rate requirements.
  * Choose initial Rb = Rb_max
@@ -2373,7 +2389,7 @@ tp_err_t optimize_biarc_blend_size(
     double Rb_init = find_max_blend_region(prev_tc, tc);
 
     // Initial solver values for Rb range using somewhat dumb (but cheap) values
-    biarc_results->Rb = biarc_results->constraints.upper.Rb = Rb_init;
+    biarc_results->solution.Rb = biarc_results->constraints.upper.Rb = Rb_init;
     biarc_results->constraints.upper.R_plan = 0; // To be filled in at first pass through solver
     biarc_results->constraints.lower = zero_region_result;
 
@@ -2412,7 +2428,7 @@ tp_err_t optimize_biarc_blend_size(
     for (biarc_results->iterations = 1; biarc_results->iterations < MAX_ITERATIONS; ++biarc_results->iterations)
     {
         // Find blend start / end points and tangent vectors, within Rb of intersection P with procedure find_blend_points_and_tangents
-        find_blend_points_and_tangents(biarc_results->Rb, prev_tc, tc, &biarc_results->boundary);
+        find_blend_points_and_tangents(biarc_results->solution.Rb, prev_tc, tc, &biarc_results->boundary);
         // Find blend segment lengths d, L and intermediate points with procedure find_blend_intermediate_segments
         if (TP_ERR_OK != find_blend_intermediate_segments(&biarc_results->boundary, &biarc_results->control_pts))
         {
@@ -2421,35 +2437,38 @@ tp_err_t optimize_biarc_blend_size(
         }
 
         // Verify distance from blend midpoint to original intersection P < tolerance
-        pmCartCartDisp(&biarc_results->control_pts.P_mid, &P.tran, &biarc_results->T_plan);
-        biarc_results->tol_err = param->tolerance - biarc_results->T_plan;
+        pmCartCartDisp(&biarc_results->control_pts.P_mid, &P.tran, &biarc_results->solution.T_plan);
 
         CHP(find_blend_size_from_intermediates(
             &biarc_results->boundary,
             &biarc_results->control_pts,
-            &biarc_results->R_geom,
-            &biarc_results->arc_len_est
+            &biarc_results->solution.R_geom,
+            &biarc_results->solution.arc_len_est
             ));
 
         // Cheat by expressing max radius in terms of v_max even though it's not strictly the limiting factor
-        double guess_v_max_length = biarc_results->arc_len_est / cycle_time;
+        double guess_v_max_length = biarc_results->solution.arc_len_est / cycle_time;
         double guess_R_effective_max = pmSq(guess_v_max_length) / param->a_n_max;
 
         // THis clamping throws off the slope-based update. Need to do slopes based on R_geom, or somehow compensate for it
-        biarc_results->R_plan = fmin(biarc_results->R_geom, guess_R_effective_max);
+        biarc_results->solution.R_plan = fmin(biarc_results->solution.R_geom, guess_R_effective_max);
         // Check for solution convergence based on specified tolerances
-        biarc_results->radius_rel_err = (biarc_results->R_plan - R_goal) / (R_goal + TP_POS_EPSILON);
-        biarc_results->radius_abs_err = R_goal - biarc_results->R_plan;
+        find_biarc_solution_error(
+            param->tolerance,
+            R_goal,
+            biarc_results->solution.R_plan,
+            biarc_results->solution.T_plan,
+            &biarc_results->solution.err);
 
         // Need an ok tolerance or we're not done
-        if (biarc_results->tol_err >= -config->deviation_abs_tolerance) {
+        if (biarc_results->solution.err.deviation >= -config->deviation_abs_tolerance) {
             // Check if we're close to the goal "radius", i.e. we've met the blend target velocity limit
-            if ((fabs(biarc_results->radius_rel_err) < solver_radius_rel_tol
-                 || fabs(biarc_results->radius_abs_err) < solver_radius_abs_tol))
+            if ((fabs(biarc_results->solution.err.radius_rel) < solver_radius_rel_tol
+                 || fabs(biarc_results->solution.err.radius_abs) < solver_radius_abs_tol))
             {
                 biarc_results->result = BIARC_REACHED_V_GOAL;
                 return TP_ERR_OK;
-            } else if (biarc_results->radius_rel_err < 0.0 && biarc_results->tol_err < config->deviation_abs_tolerance) {
+            } else if (biarc_results->solution.err.radius_rel < 0.0 && biarc_results->solution.err.deviation < config->deviation_abs_tolerance) {
                 biarc_results->result = BIARC_REACHED_TOLERANCE;
                 return TP_ERR_OK;
             } else if (get_effective_range(&biarc_results->constraints) < config->convergence_tolerance) {
@@ -2460,17 +2479,30 @@ tp_err_t optimize_biarc_blend_size(
             double R_bound = fmax(biarc_results->constraints.upper.R_plan, biarc_results->constraints.lower.R_plan);
             double v_bound = pmSqrt(R_bound * param->a_n_max);
             if (biarc_results->iterations > 1 && v_bound < config->velocity_cutoff) {
-                tp_debug_print("biarc failed: min length\n");
                 biarc_results->result = BIARC_MIN_LENGTH_LIMITED;
                 return TP_ERR_FAIL;
             }
         }
         // Refine Rb if solution has not converged
-        biarc_results->Rb = guess_blend_region_size_slope(&biarc_results->constraints, biarc_results->Rb, R_goal, biarc_results->R_plan, param->tolerance, biarc_results->T_plan);
+        biarc_results->solution.Rb = guess_blend_region_size_slope(
+            &biarc_results->constraints,
+            &biarc_results->solution,
+            &biarc_results->solution.err,
+            R_goal,
+            param->tolerance);
     }
-    biarc_results->result = BIARC_EXCEEDED_MAX_ITERATIONS;
-    tp_debug_print("biarc failed: iterations\n");
-    return TP_ERR_FAIL;
+
+    // Ran out of iterations, try the best solution we have
+
+    biarc_results->solution = biarc_results->constraints.lower;
+
+    if (biarc_results->solution.err.deviation >= -config->deviation_abs_tolerance) {
+        biarc_results->result = BIARC_EXCEEDED_MAX_ITERATIONS;
+        return TP_ERR_OK;
+    } else {
+        biarc_results->result = BIARC_FAILED_TO_CONVERGE;
+        return TP_ERR_FAIL;
+    }
 }
 
 #ifdef UNIT_TEST
@@ -2590,7 +2622,7 @@ const char * biarc_result_to_str(BiarcSolverResults r)
     switch (r) {
     case BIARC_DEGENERATE_SEGMENTS:
         return "degenerate";
-    case BIARC_DIVERGED:
+    case BIARC_FAILED_TO_CONVERGE:
         return "diverged";
     case BIARC_EXCEEDED_MAX_ITERATIONS:
         return "max_iterations";

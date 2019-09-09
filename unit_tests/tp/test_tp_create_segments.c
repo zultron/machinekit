@@ -645,7 +645,7 @@ TEST test_biarc_optimizer_performance()
             EmcPose P;
             tcGetStartpoint(this_tc, &P);
             pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
-            double v_plan = pmSqrt(param.a_n_max * biarc_results.R_plan);
+            double v_plan = pmSqrt(param.a_n_max * biarc_results.solution.R_plan);
 
             PmCartesian u1, u2;
             tcGetEndTangentUnitVector(prev_tc, &u1);
@@ -661,14 +661,14 @@ TEST test_biarc_optimizer_performance()
                    cases[i].normal.y,
                    cases[i].normal.z,
                    T,
-                   biarc_results.Rb,
-                   biarc_results.R_plan,
+                   biarc_results.solution.Rb,
+                   biarc_results.solution.R_plan,
                    v_plan,
                    biarc_results.control_pts.d,
                    param.theta * 180./M_PI,
                    biarc_results.iterations,
                    biarc_result_to_str(biarc_results.result));
-            ASSERT(biarc_results.R_plan > 0.0);
+            ASSERT(biarc_results.solution.R_plan > 0.0);
             if (biarc_results.result != BIARC_MIN_LENGTH_LIMITED) {
                 ASSERT(T <= (BLEND_TOLERANCE + cfg.deviation_abs_tolerance));
                 double real_tol = 0;
@@ -756,7 +756,7 @@ static greatest_test_res solve_blend_series(
         EmcPose P;
         tcGetStartpoint(this_tc, &P);
         pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
-        double v_plan = pmSqrt(param.a_n_max * biarc_results.R_plan);
+        double v_plan = pmSqrt(param.a_n_max * biarc_results.solution.R_plan);
 
         PmCartesian u1, u2;
         tcGetEndTangentUnitVector(prev_tc, &u1);
@@ -773,8 +773,8 @@ static greatest_test_res solve_blend_series(
                 normal2.y,
                 normal2.z,
                 T,
-                biarc_results.Rb,
-                biarc_results.R_plan,
+                biarc_results.solution.Rb,
+                biarc_results.solution.R_plan,
                 v_plan,
                 biarc_results.control_pts.d,
                 param.theta * 180./M_PI,

@@ -335,7 +335,7 @@ typedef struct
 typedef enum
 {
     BIARC_DEGENERATE_SEGMENTS=-3,
-    BIARC_DIVERGED=-2,
+    BIARC_FAILED_TO_CONVERGE=-2,
     BIARC_EXCEEDED_MAX_ITERATIONS=-1,
     BIARC_NOT_SOLVED,
     BIARC_REACHED_V_GOAL,
@@ -344,17 +344,27 @@ typedef enum
     BIARC_MIN_LENGTH_LIMITED,
 } BiarcSolverResults;
 
+typedef struct
+{
+    double deviation;
+    double radius_rel;
+    double radius_abs;
+} biarc_solution_errors_t;
+
 typedef struct {
-    double Rb;
-    double R_plan;
-    double T_plan;
-    int count;
-} RegionResult;
+    double Rb; //!< size of blend region (i.e. distance to go along motion segments from intersection to blend boundary points)
+    double R_geom; //!< Estimated blend radius based on geometry
+    double arc_len_est; //!< Estimated arc length of first blend
+    double R_plan; //!< Effective blend "radius" for a max blend velocity, based on both arc length and geometry .
+    double T_plan; //!< Blend tolerance (deviation from intersection point) for Rb
+    biarc_solution_errors_t err; //!< error terms from tolerance / velocity goals
+} biarc_solution_t;
 
 typedef struct
 {
-    RegionResult upper;
-    RegionResult lower;
+    biarc_solution_t upper;
+    biarc_solution_t lower;
+    int bias_count; //!< KLUDGE track number of times the solution has been on the same side of the upper / lower divide
 } blend_solver_constraints_t;
 
 typedef struct
@@ -368,19 +378,12 @@ typedef struct
 
 typedef struct
 {
-    double Rb; //!< size of blend region (i.e. distance to go along motion segments from intersection to blend boundary points)
     blend_boundary_t boundary; //!< Points / tangents at the boundary between segment / blend
     blend_control_points_t control_pts; //!< control points for the biarc spline approximation
     blend_solver_constraints_t constraints; //!< blend solver internals (upper / lower bounds on Rb)
     unsigned iterations; //!< solver iterations
     BiarcSolverResults result;
-    double tol_err;
-    double radius_rel_err;
-    double radius_abs_err;
-    double R_geom;
-    double arc_len_est;
-    double R_plan;
-    double T_plan;
+    biarc_solution_t solution;
 } biarc_solver_results_t;
 
 
