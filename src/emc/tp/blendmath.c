@@ -699,7 +699,6 @@ int blendParamKinematics(BlendGeom3 * const geom,
         PmCartesian const * const acc_bound,
         PmCartesian const * const vel_bound)
 {
-
     // KLUDGE: common operations, but not exactly kinematics
     param->phi = (PM_PI - param->theta * 2.0);
 
@@ -736,8 +735,9 @@ int blendParamInitVelocities(
     double maxFeedScale,
     BlendParameters * const param)
 {
-    // KLUDGE: common operations, but not exactly kinematics
-    param->phi = (PM_PI - param->theta * 2.0);
+    // Copy over maximum velocities
+    param->v_max1 = prev_tc->maxvel;
+    param->v_max2 = tc->maxvel;
 
     // Find the nominal velocity for the blend segment with no overrides
     double v_req_prev = tcGetMaxTargetVel(prev_tc, 1.0);
@@ -749,9 +749,6 @@ int blendParamInitVelocities(
     param->v_goal = fmax(tcGetMaxTargetVel(prev_tc, maxFeedScale),
             tcGetMaxTargetVel(tc, maxFeedScale));
 
-    // Copy over maximum velocities, clipping velocity to place altitude within base
-    param->v_max1 = prev_tc->maxvel;
-    param->v_max2 = tc->maxvel;
     return 0;
 }
 

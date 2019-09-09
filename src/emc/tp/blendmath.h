@@ -52,10 +52,16 @@ typedef struct {
  * 9 dimensional lines). 
  */
 typedef struct {
+    double v_max1;      /* ini_maxvel for each segment */
+    double v_max2;
+    double v_req;       /* requsted velocity for the blend arc */
+    double v_goal;      /* desired velocity at max feed override */
+
     double tolerance;   /* Net blend tolerance (min of line 1 and 2) */
+
     double L1;          /* Available part of line 1 to blend over */
     double L2;          /* Available part of line 2 to blend over */
-    double v_req;       /* requsted velocity for the blend arc */
+
     double a_max;       /* max acceleration allowed for blend */
 
     /* These fields are considered "output", and may be refactored into a
@@ -68,12 +74,8 @@ typedef struct {
     double R_plan;      /* planned radius for blend arc */
     double d_plan;      /* distance along each line to arc endpoints */
 
-    double v_max1;      /* ini_maxvel for each segment */
-    double v_max2;
-
     double v_max_planar; /* maximum possible velocity in blend plane */
     double v_max_altitude;      /* overall maximum possible velocity during blend segment */
-    double v_goal;      /* desired velocity at max feed override */
     double v_plan;      /* planned max velocity at max feed override */
     double v_actual;    /* velocity at feedscale = 1.0 */
     double s_arc;       /* arc length */
