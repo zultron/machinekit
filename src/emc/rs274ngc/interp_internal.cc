@@ -513,6 +513,17 @@ int Interp::lookup_work_offset_gcode_from_origin(int origin)
     }
 }
 
+std::string Interp::lookup_work_offset_gcode_string_from_origin(int origin)
+{
+    auto g = (GCodes)lookup_work_offset_gcode_from_origin(origin);
+    std::string g_str;
+    formatGCode(g, g_str);
+    if (origin > 9 && origin <= MAX_EXTENDED_WORK_CSYS) {
+        g_str += " P" + std::to_string(origin);
+    }
+    return g_str;
+}
+
 int Interp::call_level(void) { return _setup.call_level; }
 
 PositionMask getUpdatedAxes(block_pointer b)

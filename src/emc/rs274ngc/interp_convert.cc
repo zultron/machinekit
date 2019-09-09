@@ -1614,6 +1614,10 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   // FIXME force the extended work offsets to match parameters (user might have changed them underneath us)
   settings->work_offsets_user[origin] = settings->transform.g5xOffset;
 
+  if (!isNonzero(settings->transform.g5xOffset.shift.tf)) {
+      setWarning("Work offset %s is all zeros (effectively G53)\n", lookup_work_offset_gcode_string_from_origin(origin).c_str());
+  }
+
   write_and_update_state_tag(nullptr);
 
   // Extract transform parts in the order that canon / tests expect
