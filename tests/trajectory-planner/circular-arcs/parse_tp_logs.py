@@ -25,13 +25,10 @@ def extract_field1(logs, log_entry, field1):
 def extract_field2(logs, log_entry, field1, field2):
     return np.array([e.get(field1, {}).get(field2, None) for e in logs if e.get('log_entry', None) == log_entry])
 
-if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print(sys.stderr, 'No logfile specified')
-        exit(1)
 
+def parse_log(logname):
     logs = []
-    with open(sys.argv[1], 'r') as log_file:
+    with open(logname, 'r') as log_file:
         for l in log_file.readlines():
             # Try to filter out obviously non-JSON lines
             if re.search('{', l) is None or re.search('}', l) is None:
@@ -52,6 +49,7 @@ if __name__ == '__main__':
 
     plt_axis = 'X'
     idx = axes[plt_axis]
+    plt.close()
 
     if len(axis_pos):
         plt.figure(1)
@@ -94,5 +92,12 @@ if __name__ == '__main__':
     plt.title('Final optimization results for velocities at segment activation')
 
     plt.show()
+
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print(sys.stderr, 'No logfile specified')
+        exit(1)
+    parse_logs(sys.argv[1])
 
 
