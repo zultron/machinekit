@@ -44,12 +44,11 @@ typedef enum {
     TC_SYNC_POSITION
 } tc_spindle_sync_t;
 
-#define TC_GET_PROGRESS 0
-#define TC_GET_STARTPOINT 1
-#define TC_GET_ENDPOINT 2
 
-#define TC_OPTIM_UNTOUCHED 0
-#define TC_OPTIM_AT_MAX 1
+typedef enum {
+    TC_OPTIM_UNTOUCHED,
+    TC_OPTIM_AT_MAX,
+} TCOptimizationLevel;
 
 typedef enum {
     TC_ACCEL_TRAPZ,
@@ -171,7 +170,7 @@ typedef struct {
     int atspeed;           // wait for the spindle to be at-speed before starting this move
     syncdio_t syncdio;      // synched DIO's for this move. what to turn on/off
     int indexrotary;        // which rotary axis to unlock to make this move, -1 for none
-    int optimization_state;             // At peak velocity during blends)
+    TCOptimizationLevel optimization_state;             // At peak velocity during blends)
     int on_final_decel;
     int blend_prev;
     int accel_mode;
