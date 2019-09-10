@@ -51,6 +51,7 @@ def parse_log(logname):
     idx = axes[plt_axis]
     plt.close()
 
+
     if len(axis_pos):
         plt.figure(1)
         plt.plot(times * 1000.0, axis_pos[:, idx])
@@ -71,7 +72,7 @@ def parse_log(logname):
 
     if len(axis_vel):
         xyz_vel = np.sqrt(np.sum(np.square(axis_vel[:, 0:2]), 1))
-        nz_ind = np.nonzero(xyz_vel)[0]
+        nz_ind = np.where(xyz_vel>=0.000001)[0]
         times_ms = (times - times[nz_ind[0]]) * 1000.0;
         print("total run time = {} ms".format(times_ms[nz_ind[-1]]))
         plt.figure(4)
@@ -83,12 +84,20 @@ def parse_log(logname):
     target_vel = extract_field1(logs, 'tpActivateSegment', 'target_vel')
     finalvel = extract_field1(logs, 'tpActivateSegment', 'finalvel')
     kink_vel = extract_field1(logs, 'tpActivateSegment', 'kink_vel')
-    # TODO print parabolic cutoff?
+    parabolic_equiv_vel = extract_field1(logs, 'tpActivateSegment', 'parabolic_equiv_vel')
+    motion_type = extract_field1(logs, 'tpActivateSegment', 'motion_type')
+    blend_mode = extract_field1(logs, 'tpActivateSegment', 'blend_mode')
+
 
     plt.figure(8)
     plt.plot(segment_id, target_vel, label='target_vel')
     plt.plot(segment_id, finalvel, label='finalvel')
-    plt.plot(segment_id, kink_vel, '-*',label='kink_vel')
+
+    nonblend_seg_ids = np.where(motion_type!=4)[0]
+
+    plt.plot(segment_id[nonblend_seg_ids], kink_vel[nonblend_seg_ids], '*',label='kink_vel')
+    plt.plot(segment_id[nonblend_seg_ids], parabolic_equiv_vel[nonblend_seg_ids], '+',label='parabolic_equiv_vel')
+    plt.plot(segment_id[nonblend_seg_ids], blend_mode[nonblend_seg_ids], '.',label='blend_mode')
     plt.xlabel('Segment ID')
     plt.grid(True)
     plt.legend()
