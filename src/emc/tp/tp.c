@@ -1963,11 +1963,11 @@ tc_blend_type_t tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc) {
     // 1 timestep's worth of distance in prev_tc
     if ( !prev_tc) {
         tp_debug_print(" queue empty\n");
-        return NO_BLEND;
+        return tpChooseBestBlend(tp, prev_tc, tc, NULL);
     }
     if (prev_tc->progress > prev_tc->target / 2.0) {
         tp_debug_print(" prev_tc progress (%f) is too large, aborting blend arc\n", prev_tc->progress);
-        return NO_BLEND;
+        return tpChooseBestBlend(tp, prev_tc, tc, NULL);
     }
 
     // Check for tangency between segments and handle any errors
@@ -1987,20 +1987,16 @@ tc_blend_type_t tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc) {
 
     TC_STRUCT blend_tc = {0};
 
-    tc_blend_type_t blend_used = NO_BLEND;
-
     bool arc_blend_ok = tpCreateBlendIfPossible(tp, prev_tc, tc, &blend_tc);
 
     if (arc_blend_ok) {
         //Need to do this here since the length changed
-        blend_used = ARC_BLEND;
         tpAddSegmentToQueue(tp, &blend_tc, false);
+        return ARC_BLEND;
     } else {
         // If blend arc creation failed early on, catch it here and find the best blend
-        blend_used = tpChooseBestBlend(tp, prev_tc, tc, NULL) ;
+        return tpChooseBestBlend(tp, prev_tc, tc, NULL);
     }
-
-    return blend_used;
 }
 
 //TODO final setup steps as separate functions
