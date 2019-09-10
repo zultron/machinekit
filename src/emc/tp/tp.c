@@ -821,19 +821,15 @@ tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
         break;
     }
 
-    // Compute performance measures ("perf_xxx") for each method. This is
-    // basically the blend velocity. However, because parabolic blends require
-    // halving the acceleration of both blended segments, they in effect slow
-    // down the next and previous blends as well. We model this loss by scaling
-    // the blend velocity down to find an "equivalent" velocity.
-    double perf_parabolic = estimateParabolicBlendPerformance(tp, prev_tc, tc) / 2.0;
-    prev_tc->parabolic_equiv_vel = perf_parabolic;
-    double perf_tangent = prev_tc->kink_vel;
-    double perf_arc_blend = blend_tc ? blend_tc->maxvel : 0.0;
 
     // KLUDGE Order the performance measurements so that they match the enum values
-    double perf[3] = {perf_parabolic, perf_tangent, perf_arc_blend};
-    tc_blend_type_t best_blend = find_max_element(perf, 3);
+    double perf[] = {
+        prev_tc->parabolic_equiv_vel,
+        prev_tc->kink_vel,
+        blend_tc ? blend_tc->maxvel : 0.0,
+    };
+
+    tc_blend_type_t best_blend = find_max_element(perf, sizeof (perf)/sizeof (double));
 
     switch (best_blend) {
         case PARABOLIC_BLEND: // parabolic
@@ -853,9 +849,9 @@ tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
 
 #ifdef TP_DEBUG
     print_json5_log_start(tpChooseBestBlend,Command);
-    print_json5_double(perf_parabolic);
-    print_json5_double(perf_tangent);
-    print_json5_double(perf_arc_blend);
+    print_json5_double_("perf_parabolic", perf[PARABOLIC_BLEND]);
+    print_json5_double_("perf_tangent", perf[TANGENT_SEGMENTS_BLEND]);
+    print_json5_double_("perf_arc_blend", perf[ARC_BLEND]);
     print_json5_string_("best_blend", blendTypeAsString(best_blend));
     print_json5_log_end();
 #endif
@@ -1515,6 +1511,15 @@ int tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
 
     // Prevent blends for specific mode changes (where blending isn't possible anyway)
     handleModeChange(prev_tc, tc);
+
+    if (prev_tc) {
+        // Estimate performance for parabolic blend. Because parabolic blends require
+        // halving the acceleration of both blended segments, they in effect slow
+        // down the next and previous blends as well. We model this loss by scaling
+        // the blend velocity down.
+        // NOTE: it's crude guess because short segments are affected relatively more than long ones.
+        prev_tc->parabolic_equiv_vel = estimateParabolicBlendPerformance(tp, prev_tc, tc) / 2.0;
+    }
 
     if (emcmotConfig->arcBlendEnable){
         tpHandleBlendArc(tp, tc);

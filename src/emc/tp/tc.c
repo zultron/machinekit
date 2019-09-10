@@ -90,20 +90,12 @@ double tcGetTangentialMaxAccel(TC_STRUCT const * const tc)
 
 int tcSetKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc, double kink_vel, double accel_reduction)
 {
+  // NOTE: use_kink field is not set until later, if we choose tangent blending without an arc connector
   prev_tc->kink_vel = kink_vel;
   prev_tc->kink_accel_reduce = fmax(accel_reduction, prev_tc->kink_accel_reduce);
   tc->kink_accel_reduce_prev = fmax(accel_reduction, tc->kink_accel_reduce_prev);
 
   return 0;
-}
-
-int tcInitKinkProperties(TC_STRUCT *tc)
-{
-    tc->use_kink = 0;
-    tc->kink_vel = -1.0;
-    tc->kink_accel_reduce = 0.0;
-    tc->kink_accel_reduce_prev = 0.0;
-    return 0;
 }
 
 int tcCircleStartAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out)
@@ -622,8 +614,6 @@ int tcSetupMotion(TC_STRUCT * const tc,
     tc->reqvel = vel;
     // Initial guess at target velocity is just the requested velocity
     tc->target_vel = vel;
-    // To be filled in by tangent calculation, negative = invalid (KLUDGE)
-    tcInitKinkProperties(tc);
 
     return TP_ERR_OK;
 }
