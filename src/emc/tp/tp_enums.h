@@ -35,6 +35,12 @@ typedef enum {
 } blend_type_t;
 
 typedef enum {
+    TC_INTERSECT_TANGENT,
+    TC_INTERSECT_NONTANGENT,
+    TC_INTERSECT_INCOMPATIBLE,
+} TCIntersectType;
+
+typedef enum {
     UPDATE_NORMAL,
     UPDATE_PARABOLIC_BLEND,
     UPDATE_SPLIT

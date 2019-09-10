@@ -112,7 +112,7 @@ int tpComputeOptimalVelocity(
     TC_STRUCT * const tc,
     TC_STRUCT * const prev1_tc);
 
-int tpSetupTangent(
+TCIntersectType tpSetupTangent(
     TP_STRUCT const * const tp,
     TC_STRUCT * const prev_tc,
     TC_STRUCT * const tc);

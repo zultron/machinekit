@@ -1803,27 +1803,27 @@ int tpRunOptimization(TP_STRUCT * const tp) {
  * segment as tangent, and limit the current segment's velocity by the sampling
  * rate.
  */
-int tpSetupTangent(TP_STRUCT const * const tp,
+TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
         TC_STRUCT * const prev_tc, TC_STRUCT * const tc) {
     if (!tc || !prev_tc) {
         tp_debug_print("missing tc or prev tc in tangent check\n");
-        return TP_ERR_FAIL;
+        return TC_INTERSECT_INCOMPATIBLE;
     }
     //If we have ABCUVW movement, then don't check for tangency
     if (tcRotaryMotionCheck(tc) || tcRotaryMotionCheck(prev_tc)) {
         tp_debug_print("found rotary axis motion\n");
-        return TP_ERR_FAIL;
+        return TC_INTERSECT_INCOMPATIBLE;
     }
 
     if (emcmotConfig->arcBlendOptDepth < 2) {
         tp_debug_print("Optimization depth %d too low for tangent optimization\n",
                 emcmotConfig->arcBlendOptDepth);
-        return TP_ERR_FAIL;
+        return TC_INTERSECT_INCOMPATIBLE;
     }
 
     if (prev_tc->term_cond == TC_TERM_COND_STOP) {
         tp_debug_print("Found exact stop condition\n");
-        return TP_ERR_FAIL;
+        return TC_INTERSECT_INCOMPATIBLE;
     }
 
     PmCartesian prev_tan, this_tan;
@@ -1845,7 +1845,7 @@ int tpSetupTangent(TP_STRUCT const * const tp,
     {
         tp_debug_print("Found sharp corner\n");
         tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
-        return TP_ERR_FAIL;
+        return TC_INTERSECT_INCOMPATIBLE;
     }
 
     // Calculate instantaneous acceleration required for change in direction
@@ -1897,7 +1897,7 @@ int tpSetupTangent(TP_STRUCT const * const tp,
         tp_debug_print(" Kink acceleration within %g, using tangent blend\n", kink_ratio);
         tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
         tcSetKinkProperties(prev_tc, tc, v_max, acc_scale_max);
-        return TP_ERR_OK;
+        return TC_INTERSECT_TANGENT;
     } else {
         tcSetKinkProperties(prev_tc, tc, v_max * kink_ratio / acc_scale_max, kink_ratio);
         tp_debug_print("Kink acceleration scale %f above %f, kink vel = %f, blend arc may be faster\n",
@@ -1905,7 +1905,7 @@ int tpSetupTangent(TP_STRUCT const * const tp,
                 kink_ratio,
                 prev_tc->kink_vel);
         // NOTE: acceleration will be reduced later if tangent blend is used
-        return TP_ERR_NO_ACTION;
+        return TC_INTERSECT_NONTANGENT;
     }
 }
 
@@ -1967,16 +1967,16 @@ tc_blend_type_t tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc) {
 
     // Check for tangency between segments and handle any errors
     // TODO possibly refactor this into a macro?
-    int res_tan = tpSetupTangent(tp, prev_tc, tc);
+    TCIntersectType res_tan = tpSetupTangent(tp, prev_tc, tc);
     switch (res_tan) {
-        // Abort blend arc creation in these cases
-        case TP_ERR_FAIL:
-            tp_debug_print(" tpSetupTangent failed, aborting blend arc\n");
-        case TP_ERR_OK:
-            return res_tan;
-        case TP_ERR_NO_ACTION:
-        default:
-            //Continue with creation
+        // Abort blend arc creation if it's completely tangent
+        case TC_INTERSECT_INCOMPATIBLE:
+            tpChooseBestBlend(tp, prev_tc, tc, NULL);
+            return TP_ERR_FAIL;
+        case TC_INTERSECT_TANGENT:
+            tpChooseBestBlend(tp, prev_tc, tc, NULL);
+            return TP_ERR_OK;
+        case TC_INTERSECT_NONTANGENT:
             break;
     }
 
