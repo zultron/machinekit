@@ -91,7 +91,6 @@ double tcGetTangentialMaxAccel(TC_STRUCT const * const tc)
 int tcSetKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc, double kink_vel, double accel_reduction)
 {
   prev_tc->kink_vel = kink_vel;
-  //
   prev_tc->kink_accel_reduce = fmax(accel_reduction, prev_tc->kink_accel_reduce);
   tc->kink_accel_reduce_prev = fmax(accel_reduction, tc->kink_accel_reduce_prev);
 
@@ -100,20 +99,12 @@ int tcSetKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc, double kink_vel, doub
 
 int tcInitKinkProperties(TC_STRUCT *tc)
 {
+    tc->use_kink = 0;
     tc->kink_vel = -1.0;
     tc->kink_accel_reduce = 0.0;
     tc->kink_accel_reduce_prev = 0.0;
     return 0;
 }
-
-int tcRemoveKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc)
-{
-    prev_tc->kink_vel = -1.0;
-    prev_tc->kink_accel_reduce = 0.0;
-    tc->kink_accel_reduce_prev = 0.0;
-    return 0;
-}
-
 
 int tcCircleStartAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out)
 {

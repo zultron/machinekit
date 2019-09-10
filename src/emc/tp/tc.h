@@ -31,7 +31,6 @@ double tcGetTangentialMaxAccel(TC_STRUCT const * const tc);
 
 int tcSetKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc, double kink_vel, double accel_reduction);
 int tcInitKinkProperties(TC_STRUCT *tc);
-int tcRemoveKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc);
 int tcGetEndpoint(TC_STRUCT const * const tc, EmcPose * const out);
 int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const out);
 int tcGetPos(TC_STRUCT const * const tc,  EmcPose * const out);

@@ -827,6 +827,7 @@ tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
     // down the next and previous blends as well. We model this loss by scaling
     // the blend velocity down to find an "equivalent" velocity.
     double perf_parabolic = estimateParabolicBlendPerformance(tp, prev_tc, tc) / 2.0;
+    prev_tc->parabolic_equiv_vel = perf_parabolic;
     double perf_tangent = prev_tc->kink_vel;
     double perf_arc_blend = blend_tc ? blend_tc->maxvel : 0.0;
 
@@ -836,18 +837,16 @@ tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
 
     switch (best_blend) {
         case PARABOLIC_BLEND: // parabolic
-            tcRemoveKinkProperties(prev_tc, tc);
             tcSetTermCond(prev_tc, tc, TC_TERM_COND_PARABOLIC);
             break;
         case TANGENT_SEGMENTS_BLEND: // tangent
             // NOTE: acceleration / velocity reduction is done dynamically in functions that access TC_STRUCT properties
             tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
+            prev_tc->use_kink = 1;
             break;
         case ARC_BLEND: // arc blend
-            tcRemoveKinkProperties(prev_tc, tc);
             break;
         case NO_BLEND:
-            tcRemoveKinkProperties(prev_tc, tc);
             tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
             break;
     }
@@ -1632,6 +1631,14 @@ blend_type_t tpCheckBlendArcType(TP_STRUCT const * const tp,
     }
 }
 
+static double applyKinkVelLimit(TC_STRUCT const * const tc, double vel_in)
+{
+    if (tc->use_kink && tc->kink_vel >= 0  && tc->term_cond == TC_TERM_COND_TANGENT) {
+        // Only care about kink_vel with tangent segments that have not been arc blended
+        return fmin(vel_in, tc->kink_vel);
+    }
+    return vel_in;
+}
 
 /**
  * Based on the nth and (n-1)th segment, find a safe final velocity for the (n-1)th segment.
@@ -1650,11 +1657,7 @@ int tpComputeOptimalVelocity(TP_STRUCT const * const tp, TC_STRUCT * const tc, T
     // Find the reachable velocity of prev1_tc, moving forwards in time
 
     double vf_limit_this = tc->maxvel;
-    double vf_limit_prev = prev1_tc->maxvel;
-    if (prev1_tc->kink_vel >=0  && prev1_tc->term_cond == TC_TERM_COND_TANGENT) {
-        // Only care about kink_vel with tangent segments
-        vf_limit_prev = fmin(vf_limit_prev, prev1_tc->kink_vel);
-    }
+    double vf_limit_prev = applyKinkVelLimit(prev1_tc, prev1_tc->maxvel);
     //Limit the PREVIOUS velocity by how much we can overshoot into
     double vf_limit = fmin(vf_limit_this, vf_limit_prev);
 
@@ -1770,10 +1773,10 @@ int tpRunOptimization(TP_STRUCT * const tp) {
             prev1_tc->finalvel = fmin(prev1_tc->maxvel, tpCalculateOptimizationInitialVel(tp,tc));
 
             // Fixes acceleration violations when last segment is not finalized, and previous segment is tangent.
-            if (prev1_tc->kink_vel >=0  && prev1_tc->term_cond == TC_TERM_COND_TANGENT) {
-              prev1_tc->finalvel = fmin(prev1_tc->finalvel, prev1_tc->kink_vel);
-            }
+
             tc->finalvel = 0.0;
+            prev1_tc->finalvel = applyKinkVelLimit(prev1_tc, prev1_tc->finalvel);
+
         } else {
             tpComputeOptimalVelocity(tp, tc, prev1_tc);
         }
@@ -2903,6 +2906,8 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
         print_json5_double_field(tc, target_vel);
         print_json5_double_field(tc, finalvel);
         print_json5_double_field(tc, kink_vel);
+        print_json5_int_field(tc, use_kink);
+        print_json5_double_field(tc, parabolic_equiv_vel);
         // Acceleration settings
         print_json5_double_("accel_scale", tcGetAccelScale(tc));
         print_json5_double_("acc_overall", tcGetOverallMaxAccel(tc));
