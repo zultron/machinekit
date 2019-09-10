@@ -2908,6 +2908,13 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
         print_json5_double_field(tc, kink_vel);
         print_json5_int_field(tc, use_kink);
         print_json5_double_field(tc, parabolic_equiv_vel);
+        int blend_mode = 0;
+        if (tc->term_cond == TC_TERM_COND_PARABOLIC) {
+            blend_mode = 2;
+        } else if (tc->term_cond == TC_TERM_COND_TANGENT) {
+            blend_mode = tc->use_kink ? 3 : 4;
+        }
+        print_json5_int(blend_mode);
         // Acceleration settings
         print_json5_double_("accel_scale", tcGetAccelScale(tc));
         print_json5_double_("acc_overall", tcGetOverallMaxAccel(tc));
