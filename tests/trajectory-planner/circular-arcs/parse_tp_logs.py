@@ -70,11 +70,14 @@ def parse_log(logname):
         plt.title('{} Axis acceleration vs time, ms'.format(plt_axis))
 
     if len(axis_vel):
+        xyz_vel = np.sqrt(np.sum(np.square(axis_vel[:, 0:2]), 1))
+        nz_ind = np.nonzero(xyz_vel)[0]
+        times_ms = (times - times[nz_ind[0]]) * 1000.0;
+        print("total run time = {} ms".format(times_ms[nz_ind[-1]]))
         plt.figure(4)
-        plt.plot(times * 1000.0, np.sqrt(np.sum(np.square(axis_vel[:, 0:2]), 1)))
+        plt.plot(times_ms, xyz_vel)
         plt.grid(True)
-        plt.title('XYZ velocity vs time, ms')
-
+        plt.title('XYZ velocity vs relative time, ms')
 
     segment_id = extract_field1(logs, 'tpActivateSegment', 'id')
     target_vel = extract_field1(logs, 'tpActivateSegment', 'target_vel')
