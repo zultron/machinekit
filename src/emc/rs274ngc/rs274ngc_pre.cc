@@ -2087,7 +2087,7 @@ int Interp::save_parameters(
   outfile = fopen(filename, "w");
   if (!outfile) {
       fclose(infile);
-      ERS(NCE_CANNOT_OPEN_VARIABLE_FILE);
+      ERS(_("Cannot open variable file %s for writing"), filename);
   }
 
   k = 0;
