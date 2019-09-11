@@ -23,6 +23,15 @@ def find_log_timestamps(log_file):
                     times[fname][field] = t
     return times
 
+def find_errors(log_file):
+    errors=[]
+    # Assumes all file names are unique
+    with open(log_file) as err_log:
+        for l in err_log.readlines():
+            if "error:" in l:
+                errors.append(l)
+    return errors
+
 def sort_by_start(t_data):
     return t_data[1]
 
@@ -43,3 +52,10 @@ if __name__ == '__main__':
             end = r[2]
             dt = (end-start).total_seconds() if start and end else "unknown"
             out.write("{}: total_time: {}, start: {}, end: {}\n".format(f, dt, start, end))
+
+    errors = find_errors(out_file)
+
+    if len(errors):
+        print >>sys.stderr, "Found one or more TP errors"
+        sys.exit(1)
+
