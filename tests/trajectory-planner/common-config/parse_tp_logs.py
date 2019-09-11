@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import pyjson5
+import json
 
 import sys
 import re
@@ -18,6 +19,7 @@ axes={
     'W': 8,
 }
 
+
 def extract_field1(logs, log_entry, field1):
     return np.array([e.get(field1, None) for e in logs if e.get('log_entry', None) == log_entry])
 
@@ -28,6 +30,7 @@ def extract_field2(logs, log_entry, field1, field2):
 
 def parse_log(logname):
     logs = []
+    json_str=[]
     with open(logname, 'r') as log_file:
         for l in log_file.readlines():
             # Try to filter out obviously non-JSON lines
@@ -35,8 +38,11 @@ def parse_log(logname):
                 continue
             try:
                 logs.append(pyjson5.decode(l))
+                json_str.append(pyjson5.encode(logs[-1]))
             except Exception as e:
                 print('Ignoring exception ', e)
+    with open(logname + '.txt', 'w') as json_out:
+        json_out.writelines('\n'.join(json_str))
 
     blend_id = extract_field1(logs, 'tpCreateBiarcBlend', 'id')
     blend1_reqvel = extract_field2(logs, 'tpCreateBiarcBlend', 'blend1', 'reqvel')
@@ -154,6 +160,6 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print(sys.stderr, 'No logfile specified')
         exit(1)
-    parse_logs(sys.argv[1])
+    parse_log(sys.argv[1])
 
 
