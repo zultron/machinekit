@@ -911,7 +911,7 @@ int blendComputeParameters(BlendParameters * const param)
 
 /** Check if the previous line segment will be consumed based on the blend arc parameters. */
 int blendCheckConsume(BlendParameters * const param,
-        BlendPoints3 const * const points,
+        double L_prev,
         TC_STRUCT const * const prev_tc, int gap_cycles)
 {
     //Initialize values
@@ -926,7 +926,6 @@ int blendCheckConsume(BlendParameters * const param,
     }
 
     //Check for segment length limits
-    double L_prev = prev_tc->target - points->trim1;
     double prev_seg_time = L_prev / param->v_plan;
 
     bool can_consume = tcCanConsume(prev_tc);

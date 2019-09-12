@@ -986,7 +986,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
 
     switch (prev_tc->motion_type) {
     case TC_LINEAR:
-        blendCheckConsume(&param, &points1, prev_tc, emcmotConfig->arcBlendGapCycles);
+        blendCheckConsume(&param, biarc_results.solution.boundary.s1, prev_tc, emcmotConfig->arcBlendGapCycles);
         if (param.consume) {
             if (blend_tc1.motion_type == TC_SPHERICAL) {
                 blend_tc1.coords.arc.xyz.line_length = param.line_length;
@@ -1123,7 +1123,8 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
 
     blendFindPoints3(&points, &geom, &param);
 
-    blendCheckConsume(&param, &points, prev_tc, emcmotConfig->arcBlendGapCycles);
+    double L_prev = prev_tc->target - points.trim1;
+    blendCheckConsume(&param, L_prev, prev_tc, emcmotConfig->arcBlendGapCycles);
 
     // Set up actual blend arc here
     int res_arc = arcFromBlendPoints3(&blend_tc->coords.arc.xyz, &points, &geom, &param);
