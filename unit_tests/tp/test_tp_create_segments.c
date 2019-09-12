@@ -328,13 +328,13 @@ TEST test_find_blend_intermediates()
     PASS();
 }
 
-static greatest_test_res setup_initial_line(TP_STRUCT *tp, double v_req, double a_max, double blend_tolerance)
+static greatest_test_res setup_initial_line(TP_STRUCT *tp, double v_req, double a_max, double length, double blend_tolerance)
 {
     tpSetTermCond(tp, TC_TERM_COND_STOP, blend_tolerance);
     double const v_max = 2.0;
 
     // Unit radius to make angle -> arc length conversion easy
-    EmcPose const pt0 = {{0,-2,0},0,0,0,0,0,0};
+    EmcPose const pt0 = {{0,-length,0},0,0,0,0,0,0};
     EmcPose const pt1 = newXYZ(0,0,0,pt0);
 
     tpSetPos(tp, &pt0);
@@ -520,6 +520,7 @@ typedef struct {
     PmCartesian center;
     PmCartesian normal;
     long turns;
+    long init_line_len;
 } CenterNormal;
 
 TEST test_biarc_optimizer_performance()
@@ -530,41 +531,42 @@ TEST test_biarc_optimizer_performance()
     static const double v_req = 1.0;
 
     static const CenterNormal cases[]={
-        {{0.100000, 0.000293, 0.100000}, {0.000000, 0.000000, 1.000000}},
-        {{0.084656,-0.053229, 0.100000}, {0.000000, 0.000000, 1.000000}},
-        {{0.505793,-0.862655, 0.000000}, {0.000000, 0.000000, 1.000000}},
-        {{-1,0.001,0},{0,0,1}},
-        {{1,0,0},{0,0,-1}},
-        {{1,0,0},{0,0,1}},
-        {{.5,0,0},{0,0,1}},
-        {{.1,0,0},{0,0,1}},
-        {{.01,0,0},{0,0,1}},
-        {{1,-0.1,0},{0,0,1}},
-        {{1,-0.01,0},{0,0,1}},
-        {{1,-0.001,0},{0,0,1}},
-        {{1,-0.0001,0},{0,0,1}},
-        {{1, 0.00000,0},{0,0,1}},
-        {{1, 0.0001,0},{0,0,1}},
-        {{1, 0.001,0},{0,0,1}},
-        {{1, 0.01,0},{0,0,1}},
-        {{1, 0.1,0},{0,0,1}},
-        {{1,1,0},{0,0,1}},
-        {{1,0,0},{0,1,0}},
-        {{1,0,0},{0,-1,0}},
-        {{0,0,1},{-1,0,0}},
-        {{0,0,1},{1,0,0}},
-        {{0,0,1},{0,1,0}},
-        {{0,0,1},{0,-1,0}},
-        {{0,1,1},{0,0,-1}},
-        {{0,1,1},{0,0,1}},
-        {{1,0,1},{0,1,0}},
-        {{1,0,1},{0,-1,0}},
-        {{0,.1,.1},{0,0,-1}},
-        {{0,.1,.1},{0,0,1}},
-        {{.1,0,.1},{0,1,0}},
-        {{.1,0,.1},{0,-1,0}},
-        {{1,0,0.5},{0,0,1}},
-        {{1,1,1},{0,0,1}},
+        {{0, 1, 0}, {0, 0, 1}, 0, 0.002},
+        {{0.100000, 0.000293, 0.100000}, {0.000000, 0.000000, 1.000000},0,2.0},
+        {{0.084656,-0.053229, 0.100000}, {0.000000, 0.000000, 1.000000},0,2.0},
+        {{0.505793,-0.862655, 0.000000}, {0.000000, 0.000000, 1.000000},0,2.0},
+        {{-1, 0.001, 0}, {0, 0, 1}, 0, 2.0},
+        {{1, 0, 0}, {0, 0, -1}, 0, 2.0},
+        {{1, 0, 0}, {0, 0, 1}, 0, 2.0},
+        {{.5, 0, 0}, {0, 0, 1}, 0, 2.0},
+        {{.1, 0, 0}, {0, 0, 1}, 0, 2.0},
+        {{.01, 0, 0}, {0, 0, 1}, 0, 2.0},
+        {{1, -0.1, 0}, {0, 0, 1}, 0, 2.0},
+        {{1, -0.01, 0}, {0, 0, 1}, 0, 2.0},
+        {{1, -0.001, 0}, {0, 0, 1}, 0, 2.0},
+        {{1, -0.0001, 0}, {0, 0, 1}, 0, 2.0},
+        {{1,  0.00000, 0}, {0, 0, 1}, 0, 2.0},
+        {{1,  0.0001, 0}, {0, 0, 1}, 0, 2.0},
+        {{1,  0.001, 0}, {0, 0, 1}, 0, 2.0},
+        {{1,  0.01, 0}, {0, 0, 1}, 0, 2.0},
+        {{1,  0.1, 0}, {0, 0, 1}, 0, 2.0},
+        {{1, 1, 0}, {0, 0, 1}, 0, 2.0},
+        {{1, 0, 0}, {0, 1, 0}, 0, 2.0},
+        {{1, 0, 0}, {0, -1, 0}, 0, 2.0},
+        {{0, 0, 1}, {-1, 0, 0}, 0, 2.0},
+        {{0, 0, 1}, {1, 0, 0}, 0, 2.0},
+        {{0, 0, 1}, {0, 1, 0}, 0, 2.0},
+        {{0, 0, 1}, {0, -1, 0}, 0, 2.0},
+        {{0, 1, 1}, {0, 0, -1}, 0, 2.0},
+        {{0, 1, 1}, {0, 0, 1}, 0, 2.0},
+        {{1, 0, 1}, {0, 1, 0}, 0, 2.0},
+        {{1, 0, 1}, {0, -1, 0}, 0, 2.0},
+        {{0, .1, .1}, {0, 0, -1}, 0, 2.0},
+        {{0, .1, .1}, {0, 0, 1}, 0, 2.0},
+        {{.1, 0, .1}, {0, 1, 0}, 0, 2.0},
+        {{.1, 0, .1}, {0, -1, 0}, 0, 2.0},
+        {{1, 0, 0.5}, {0, 0, 1}, 0, 2.0},
+        {{1, 1, 1}, {0, 0, 1}, 0, 2.0},
         };
 
     printf("\nCircle biarc blend tests\n");
@@ -589,7 +591,7 @@ TEST test_biarc_optimizer_performance()
             resetMockTP(tp, 0.001);
             switch (j) {
             case 0:
-                CHECK_CALL(setup_initial_line(tp, v_req, 8.0, BLEND_TOLERANCE));
+                CHECK_CALL(setup_initial_line(tp, v_req, 8.0, cases[i].init_line_len, BLEND_TOLERANCE));
                 break;
             case 1:
                 CHECK_CALL(setup_initial_circle(tp, v_req, 8.0, BLEND_TOLERANCE));
@@ -717,7 +719,7 @@ static greatest_test_res solve_blend_series(
         resetMockTP(tp, 0.001);
         switch (use_init_arc) {
         case 0:
-            CHECK_CALL(setup_initial_line(tp, v_req, a_max, BLEND_TOLERANCE));
+            CHECK_CALL(setup_initial_line(tp, v_req, a_max, 2.0, BLEND_TOLERANCE));
             break;
         case 1:
             CHECK_CALL(setup_initial_circle(tp, v_req, a_max, BLEND_TOLERANCE));
