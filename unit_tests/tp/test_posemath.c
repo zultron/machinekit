@@ -406,6 +406,67 @@ TEST test_pmCircleStretch()
     PASS();
 }
 
+TEST test_pmCircleStretchTangent_begin()
+{
+    PmCircle c;
+    PmCartesian center = {0.0, 0.0, 0.0};
+
+    const double start_radius = 1.0;
+    const double final_radius = 1.0;
+    const double theta1 = 0;
+    const double theta2 = M_PI_2;
+
+    PmCartesian start = {start_radius * cos(theta1), start_radius * sin(theta1), 0.0};
+    PmCartesian end = {final_radius * cos(theta2), final_radius * sin(theta2), 1.0};
+    PmCartesian normal = {0,0,1};
+
+    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+
+    PmCartesian u_before;
+    pmCircleTangentVector(&c, M_PI * 3.0 / 8.0, &u_before);
+
+    ASSERT_FALSE(pmCircleStretch(&c, M_PI * 3.0 / 8.0, 0));
+
+    PmCartesian u_after;
+    ASSERT_FALSE(pmCircleTangentVector(&c, M_PI * 3.0 / 8.0 , &u_after));
+
+    ASSERT_PMCARTESIAN_IN_RANGE(u_before, u_after, CART_FUZZ);
+    PASS();
+}
+
+TEST test_pmCircleStretchTangent_end()
+{
+    PmCircle c;
+    PmCartesian center = {0.0, 0.0, 0.0};
+
+    const double start_radius = 1.0;
+    const double final_radius = 0.1;
+    const double theta1 = 0;
+    const double theta2 = M_PI_2;
+
+    PmCartesian start = {start_radius * cos(theta1), start_radius * sin(theta1), 0.0};
+    PmCartesian end = {final_radius * cos(theta2), final_radius * sin(theta2), 1.0};
+    PmCartesian normal = {0,0,1};
+
+    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+
+    PmCartesian u_before;
+    pmCircleTangentVector(&c, M_PI / 8.0, &u_before);
+    PmCartesian p_before;
+    pmCirclePoint(&c, M_PI / 8.0, &p_before);
+
+    // Stretch to extend past the starting point
+    ASSERT_FALSE(pmCircleStretch(&c, M_PI * 3.0 / 8.0, 1));
+
+    PmCartesian u_after;
+    ASSERT_FALSE(pmCircleTangentVector(&c, 0, &u_after));
+    PmCartesian p_after;
+    ASSERT_FALSE(pmCirclePoint(&c, 0, &p_after));
+
+    ASSERT_PMCARTESIAN_IN_RANGE(u_before, u_after, CART_FUZZ);
+    PASS();
+}
+
 SUITE(pm_circle) {
     RUN_TEST(test_pmCircleInit_simple);
     RUN_TEST(test_pmCircleInit);
@@ -628,5 +689,7 @@ int main(int argc, char **argv) {
     RUN_SUITE(pm_circle);
     RUN_SUITE(pm_line);
     RUN_TEST(test_pmCartCartOrthonormal);
+    RUN_TEST(test_pmCircleStretchTangent_begin);
+    RUN_TEST(test_pmCircleStretchTangent_end);
     GREATEST_MAIN_END();
 }
