@@ -974,7 +974,10 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     CHP(initBlendSegmentFromPoints(&blend_tc2, tp, &blend_tc1, &points2, &param));
 
     // KLUDGE
-    points1.trim1 = points1.trim2 = points2.trim1 = points2.trim2 = biarc_results.control_pts.d;
+    points1.trim1 = points1.trim2 = points2.trim1 = points2.trim2 = biarc_results.solution.control_pts.d;
+
+    blend_tc1.coords.arc.xyz.uTan = biarc_results.solution.boundary.u1;
+    blend_tc2.coords.arc.xyz.uTan = biarc_results.solution.control_pts.u_mid;
 
     switch (prev_tc->motion_type) {
     case TC_LINEAR:
@@ -983,8 +986,8 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
             if (blend_tc1.motion_type == TC_SPHERICAL) {
                 blend_tc1.coords.arc.xyz.line_length = param.line_length;
                 // KLUDGE copy over the tangents
-                blend_tc1.coords.arc.xyz.uTan = biarc_results.boundary.u1;
             } else if (blend_tc1.motion_type == TC_LINEAR) {
+                // Start at the consumed segment's starting point and extend to the end point of the blend
                 pmCartLineInit(&blend_tc1.coords.line.xyz, &prev_tc->coords.line.xyz.start, &points1.arc_end);
             } else {
                 return TP_ERR_FAIL;
@@ -995,7 +998,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         } else {
             PmCartLine prev_line;
             prev_line = prev_tc->coords.line.xyz;
-            double new_len = biarc_results.boundary.s1;
+            double new_len = biarc_results.solution.boundary.s1;
             pmCartLineStretch(&prev_line, new_len, 0);
             tcSetLineXYZ(prev_tc, &prev_line);
             tcSetTermCond(prev_tc, &blend_tc1, TC_TERM_COND_TANGENT);
@@ -1007,7 +1010,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         double blend_angle;
         pmCircleAngleFromProgress(&prev_circle,
                                   &prev_tc->coords.circle.fit,
-                                  biarc_results.boundary.s1,
+                                  biarc_results.solution.boundary.s1,
                                   &blend_angle);
         pmCircleStretch(&prev_circle, blend_angle, 0);
         tcSetCircleXYZ(prev_tc, &prev_circle);
@@ -1022,7 +1025,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     case TC_LINEAR:
     {
         PmCartLine this_line = this_tc->coords.line.xyz;
-        double new_len = this_line.tmag - biarc_results.boundary.s2;
+        double new_len = this_line.tmag - biarc_results.solution.boundary.s2;
         pmCartLineStretch(&this_line, new_len, 1);
         tcSetLineXYZ(this_tc, &this_line);
         break;
@@ -1033,7 +1036,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         double blend_angle;
         pmCircleAngleFromProgress(&this_circle,
                                   &this_tc->coords.circle.fit,
-                                  biarc_results.boundary.s2,
+                                  biarc_results.solution.boundary.s2,
                                   &blend_angle);
         double new_angle = this_circle.angle - blend_angle;
         pmCircleStretch(&this_circle, new_angle, 1);

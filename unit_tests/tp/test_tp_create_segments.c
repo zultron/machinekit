@@ -317,7 +317,7 @@ TEST test_find_blend_intermediates()
 
     find_blend_points_and_tangents(s_b, prev_tc, this_tc, &bb);
 
-    blend_control_points_t bp_out;
+    biarc_control_points_t bp_out;
     find_blend_intermediate_segments(&bb, &bp_out);
 
     PmCartesian exp_u_mid = {1,0,0};
@@ -507,7 +507,7 @@ TEST test_optimize_biarc_blend_size()
     double T;
     EmcPose P;
     tcGetStartpoint(this_tc, &P);
-    pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
+    pmCartCartDisp(&biarc_results.solution.control_pts.P_mid, &P.tran, &T);
     ASSERT(T < BLEND_TOLERANCE + cfg.deviation_abs_tolerance);
     ASSERT(biarc_results.iterations < 10);
 
@@ -644,7 +644,7 @@ TEST test_biarc_optimizer_performance()
             double T;
             EmcPose P;
             tcGetStartpoint(this_tc, &P);
-            pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
+            pmCartCartDisp(&biarc_results.solution.control_pts.P_mid, &P.tran, &T);
             double v_plan = pmSqrt(param.a_n_max * biarc_results.solution.R_plan);
 
             PmCartesian u1, u2;
@@ -664,7 +664,7 @@ TEST test_biarc_optimizer_performance()
                    biarc_results.solution.Rb,
                    biarc_results.solution.R_plan,
                    v_plan,
-                   biarc_results.control_pts.d,
+                   biarc_results.solution.control_pts.d,
                    param.theta * 180./M_PI,
                    biarc_results.iterations,
                    biarc_result_to_str(biarc_results.result));
@@ -755,7 +755,7 @@ static greatest_test_res solve_blend_series(
         double T;
         EmcPose P;
         tcGetStartpoint(this_tc, &P);
-        pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
+        pmCartCartDisp(&biarc_results.solution.control_pts.P_mid, &P.tran, &T);
         double v_plan = pmSqrt(param.a_n_max * biarc_results.solution.R_plan);
 
         PmCartesian u1, u2;
@@ -776,7 +776,7 @@ static greatest_test_res solve_blend_series(
                 biarc_results.solution.Rb,
                 biarc_results.solution.R_plan,
                 v_plan,
-                biarc_results.control_pts.d,
+                biarc_results.solution.control_pts.d,
                 param.theta * 180./M_PI,
                 biarc_results.iterations,
                 biarc_results.result);

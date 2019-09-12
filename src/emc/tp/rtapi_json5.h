@@ -189,7 +189,7 @@ static inline void print_json5_blend_boundary_t(const char *fname, blend_boundar
     print_json5_object_end_();
 }
 
-static inline void print_json5_blend_control_points_t(const char *fname, blend_control_points_t const * const c)
+static inline void print_json5_biarc_control_points_t(const char *fname, biarc_control_points_t const * const c)
 {
     print_json5_object_start_(fname);
     print_json5_PmCartesian_field(c, Pb1);

@@ -1431,7 +1431,7 @@ tp_err_t find_blend_points_and_tangents(
 
 int find_blend_intermediate_segments(
     blend_boundary_t const * const blend_params,
-    blend_control_points_t * const control_pts)
+    biarc_control_points_t * const control_pts)
 {
     // A coefficient
     PmCartesian du12;
@@ -1519,7 +1519,7 @@ double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * 
 
 tp_err_t find_blend_size_from_intermediates(
     blend_boundary_t const * const blend_boundary,
-    blend_control_points_t const * const intermediates,
+    biarc_control_points_t const * const intermediates,
     double *R_geom,
     double *arc_len_est)
 {
@@ -1572,22 +1572,16 @@ static inline double guess_interpolated_region_size(
 static inline double guess_blend_region_size_slope(
     blend_solver_constraints_t * const constraints,
     biarc_solution_t const * const solution,
-    biarc_solution_errors_t const * const err,
     double R_goal,
     double T_goal)
 {
-    biarc_solution_t *r = NULL;
     if (solution->R_plan < R_goal && solution->T_plan < T_goal) {
-        r = &constraints->lower;
+        constraints->lower = *solution;
         constraints->bias_count = constraints->bias_count > 0 ? -1 : constraints->bias_count - 1;
     } else {
-        r = &constraints->upper;
         constraints->bias_count = constraints->bias_count < 0 ? 1 : constraints->bias_count + 1;
+        constraints->upper = *solution;
     }
-    r->Rb = solution->Rb;
-    r->R_plan= solution->R_plan;
-    r->T_plan = solution->T_plan;
-    r->err = *err;
 
     return guess_interpolated_region_size(constraints, R_goal, T_goal);
 }
@@ -1785,20 +1779,20 @@ tp_err_t optimize_biarc_blend_size(
     for (biarc_results->iterations = 1; biarc_results->iterations < MAX_ITERATIONS; ++biarc_results->iterations)
     {
         // Find blend start / end points and tangent vectors, within Rb of intersection P with procedure find_blend_points_and_tangents
-        find_blend_points_and_tangents(biarc_results->solution.Rb, prev_tc, tc, &biarc_results->boundary);
+        find_blend_points_and_tangents(biarc_results->solution.Rb, prev_tc, tc, &biarc_results->solution.boundary);
         // Find blend segment lengths d, L and intermediate points with procedure find_blend_intermediate_segments
-        if (TP_ERR_OK != find_blend_intermediate_segments(&biarc_results->boundary, &biarc_results->control_pts))
+        if (TP_ERR_OK != find_blend_intermediate_segments(&biarc_results->solution.boundary, &biarc_results->solution.control_pts))
         {
             biarc_results->result = BIARC_DEGENERATE_SEGMENTS;
             return TP_ERR_FAIL;
         }
 
         // Verify distance from blend midpoint to original intersection P < tolerance
-        pmCartCartDisp(&biarc_results->control_pts.P_mid, &P.tran, &biarc_results->solution.T_plan);
+        pmCartCartDisp(&biarc_results->solution.control_pts.P_mid, &P.tran, &biarc_results->solution.T_plan);
 
         CHP(find_blend_size_from_intermediates(
-            &biarc_results->boundary,
-            &biarc_results->control_pts,
+            &biarc_results->solution.boundary,
+            &biarc_results->solution.control_pts,
             &biarc_results->solution.R_geom,
             &biarc_results->solution.arc_len_est
             ));
@@ -1844,7 +1838,6 @@ tp_err_t optimize_biarc_blend_size(
         biarc_results->solution.Rb = guess_blend_region_size_slope(
             &biarc_results->constraints,
             &biarc_results->solution,
-            &biarc_results->solution.err,
             R_goal,
             param->tolerance);
     }
@@ -2004,8 +1997,8 @@ tp_err_t blend_biarc_postprocess(
 {
     {
         double theta1 = findIntersectionAngle(
-            &biarc_results->boundary.u1,
-            &biarc_results->control_pts.u_mid);
+            &biarc_results->solution.boundary.u1,
+            &biarc_results->solution.control_pts.u_mid);
 
         if (M_PI_2 - theta1 < TP_ANGLE_EPSILON) {
             points1->motion_type = TC_LINEAR;
@@ -2013,24 +2006,24 @@ tp_err_t blend_biarc_postprocess(
             points1->motion_type = TC_SPHERICAL;
             PmCartesian normal1;
             pmCartCartSub(
-                &biarc_results->control_pts.u_mid,
-                &biarc_results->boundary.u1,
+                &biarc_results->solution.control_pts.u_mid,
+                &biarc_results->solution.boundary.u1,
                 &normal1);
             pmCartUnitEq(&normal1);
 
-            double center_dist1 = biarc_results->control_pts.d / cos(theta1);
+            double center_dist1 = biarc_results->solution.control_pts.d / cos(theta1);
 
             pmCartScalMult(&normal1, center_dist1, &points1->arc_center);
-            pmCartCartAddEq(&points1->arc_center, &biarc_results->control_pts.Pb1);
+            pmCartCartAddEq(&points1->arc_center, &biarc_results->solution.control_pts.Pb1);
         }
 
-        points1->arc_start = biarc_results->boundary.P1;
-        points1->arc_end = biarc_results->control_pts.P_mid;
+        points1->arc_start = biarc_results->solution.boundary.P1;
+        points1->arc_end = biarc_results->solution.control_pts.P_mid;
     }
     {
         double theta2 = findIntersectionAngle(
-            &biarc_results->control_pts.u_mid,
-            &biarc_results->boundary.u2);
+            &biarc_results->solution.control_pts.u_mid,
+            &biarc_results->solution.boundary.u2);
 
         if (M_PI_2 - theta2 < TP_ANGLE_EPSILON) {
             points2->motion_type = TC_LINEAR;
@@ -2038,18 +2031,18 @@ tp_err_t blend_biarc_postprocess(
             points2->motion_type = TC_SPHERICAL;
             PmCartesian normal2;
             pmCartCartSub(
-                &biarc_results->boundary.u2,
-                &biarc_results->control_pts.u_mid,
+                &biarc_results->solution.boundary.u2,
+                &biarc_results->solution.control_pts.u_mid,
                 &normal2);
             pmCartUnitEq(&normal2);
 
-            double center_dist2 = biarc_results->control_pts.d / cos(theta2);
+            double center_dist2 = biarc_results->solution.control_pts.d / cos(theta2);
 
             pmCartScalMult(&normal2, center_dist2, &points2->arc_center);
-            pmCartCartAddEq(&points2->arc_center, &biarc_results->control_pts.Pb2);
+            pmCartCartAddEq(&points2->arc_center, &biarc_results->solution.control_pts.Pb2);
         }
-        points2->arc_start = biarc_results->control_pts.P_mid;
-        points2->arc_end = biarc_results->boundary.P2;
+        points2->arc_start = biarc_results->solution.control_pts.P_mid;
+        points2->arc_end = biarc_results->solution.boundary.P2;
     }
     return TP_ERR_OK;
 }
