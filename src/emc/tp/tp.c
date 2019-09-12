@@ -950,6 +950,13 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     double this_len = this_tc->target;
     int prev_can_consume = tcCanConsume(prev_tc);
     int this_can_consume = tcCanConsume(this_tc);
+
+    double maxvel = fmin(prev_tc->maxvel, this_tc->maxvel);
+    double reqvel = fmin(prev_tc->reqvel, this_tc->reqvel);
+    tc_motion_type_t prev_motion_type = prev_tc->motion_type;
+    tc_motion_type_t this_motion_type = this_tc->motion_type;
+    PmCartesian u1_stretch={0}, u2_stretch={0};
+    EmcPose p1_stretch={0}, p2_stretch={0};
 #endif
 
     PmCartesian vel_bound = getXYZVelBounds();
@@ -977,9 +984,6 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     param.v_plan = pmSqrt(biarc_results.solution.R_plan * param.a_n_max);
     CHP(initBlendSegmentFromPoints(&blend_tc1, tp, prev_tc, &points1, &param));
     CHP(initBlendSegmentFromPoints(&blend_tc2, tp, &blend_tc1, &points2, &param));
-
-    // KLUDGE
-    points1.trim1 = points1.trim2 = points2.trim1 = points2.trim2 = biarc_results.solution.control_pts.d;
 
     blend_tc1.coords.arc.xyz.uTan = biarc_results.solution.boundary.u1;
     blend_tc2.coords.arc.xyz.uTan = biarc_results.solution.control_pts.u_mid;
@@ -1056,32 +1060,67 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     tcSetTermCond(&blend_tc2, this_tc, TC_TERM_COND_TANGENT);
 
 #ifdef TP_DEBUG
-    PmCartesian u1_stretch, u2_stretch;
-    tcGetEndTangentUnitVector(prev_tc, &u1_stretch);
-    tcGetStartTangentUnitVector(this_tc, &u2_stretch);
-    EmcPose p1_stretch, p2_stretch;
-    tcGetEndpoint(prev_tc, &p1_stretch);
-    tcGetStartpoint(this_tc, &p2_stretch);
     print_json5_log_start(tpCreateBiarcBlend, Command);
+    if (param.consume) {
+        TC_STRUCT const * const prev1_tc=tcqLast(&tp->queue);
+        if (prev1_tc) {
+            tcGetEndTangentUnitVector(prev1_tc, &u1_stretch);
+            tcGetEndpoint(prev1_tc, &p1_stretch);
+        }
+    } else {
+        tcGetEndTangentUnitVector(prev_tc, &u1_stretch);
+        tcGetEndpoint(prev_tc, &p1_stretch);
+    }
+    tcGetStartTangentUnitVector(this_tc, &u2_stretch);
+    tcGetStartpoint(this_tc, &p2_stretch);
     print_json5_double(prev_len);
     print_json5_double(this_len);
     print_json5_int(prev_can_consume);
     print_json5_int(this_can_consume);
-    print_json5_int_("prev_motion_type",prev_tc->motion_type);
-    print_json5_int_("this_motion_type",this_tc->motion_type);
+    print_json5_double_("param_line_length", param.line_length);
+    print_json5_double_("line_length1", blend_tc1.coords.arc.xyz.line_length);
+    print_json5_double_("line_length2", blend_tc2.coords.arc.xyz.line_length);
+    print_json5_int(prev_motion_type);
+    print_json5_int(this_motion_type);
     print_json5_long_("id", tp->nextId);
     print_json5_biarc_solution_t("solution", &biarc_results.solution);
     print_json5_PmCartesian(u1_stretch);
     print_json5_PmCartesian(u2_stretch);
     print_json5_PmCartesian_("p1_stretch", p1_stretch.tran);
     print_json5_PmCartesian_("p2_stretch", p2_stretch.tran);
+    EmcPose p11_blend;
+    tcGetStartpoint(&blend_tc1, &p11_blend);
+    EmcPose p12_blend;
+    tcGetEndpoint(&blend_tc1, &p12_blend);
+    EmcPose p21_blend;
+    tcGetStartpoint(&blend_tc2, &p21_blend);
+    EmcPose p22_blend;
+    tcGetEndpoint(&blend_tc2, &p22_blend);
+    print_json5_PmCartesian_("p11_blend", p11_blend.tran);
+    print_json5_PmCartesian_("p12_blend", p12_blend.tran);
+    print_json5_PmCartesian_("p21_blend", p21_blend.tran);
+    print_json5_PmCartesian_("p22_blend", p22_blend.tran);
+    PmCartesian p1_diff, p_mid_diff, p2_diff;
+    pmCartCartSub(&p1_stretch.tran, &p11_blend.tran, &p1_diff);
+    pmCartCartSub(&p12_blend.tran, &p21_blend.tran, &p_mid_diff);
+    pmCartCartSub(&p2_stretch.tran, &p21_blend.tran, &p2_diff);
+    PmCartesian p1_end_diff, p2_end_diff;
+    pmCartCartSub(&p12_blend.tran, &blend_tc1.coords.arc.xyz.end, &p1_end_diff);
+    pmCartCartSub(&p22_blend.tran, &blend_tc2.coords.arc.xyz.end, &p2_end_diff);
+    print_json5_PmCartesian_("p1_stretch", p1_stretch.tran);
+    print_json5_PmCartesian_("p2_stretch", p2_stretch.tran);
+    print_json5_PmCartesian_("p1_diff", p1_diff);
+    print_json5_PmCartesian_("p_mid_diff", p_mid_diff);
+    print_json5_PmCartesian_("p2_diff", p2_diff);
+    print_json5_PmCartesian_("p1_end_diff", p1_end_diff);
+    print_json5_PmCartesian_("p2_end_diff", p2_end_diff);
     print_json5_biarc_control_points_t("control_pts", &biarc_results.solution.control_pts);
     print_json5_blend_boundary_t("boundary", &biarc_results.solution.boundary);
     print_json5_string_("result", biarc_result_to_str(biarc_results.result));
     print_json5_TC_STRUCT_kinematics("blend1", &blend_tc1);
     print_json5_TC_STRUCT_kinematics("blend2", &blend_tc2);
-    print_json5_double_("maxvel", fmin(prev_tc->maxvel, this_tc->maxvel));
-    print_json5_double_("reqvel", fmin(prev_tc->reqvel, this_tc->reqvel));
+    print_json5_double(maxvel);
+    print_json5_double(reqvel);
     print_json5_bool_("consume", param.consume);
     print_json5_end_();
 #endif

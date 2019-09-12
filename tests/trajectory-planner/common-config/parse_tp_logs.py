@@ -28,6 +28,13 @@ def extract_field2(logs, log_entry, field1, field2):
     return np.array([e.get(field1, {}).get(field2, None) for e in logs if e.get('log_entry', None) == log_entry])
 
 
+def extract_field1_all(logs, field1):
+    return np.array([f for f in (e.get(field1, None) for e in logs) if f is not None])
+
+
+def extract_field2(logs, log_entry, field1, field2):
+    return np.array([e.get(field1, {}).get(field2, None) for e in logs if e.get('log_entry', None) == log_entry])
+
 def parse_log(logname):
     logs = []
     json_str=[]
@@ -43,6 +50,10 @@ def parse_log(logname):
                 print('Ignoring exception ', e)
     with open(logname + '.txt', 'w') as json_out:
         json_out.writelines('\n'.join(json_str))
+    return logs
+
+def plot_biarc(logs_raw):
+    logs = [l for l in logs_raw if l.get('log_entry', None) == 'tpCreateBiarcBlend']
 
     blend_id = extract_field1(logs, 'tpCreateBiarcBlend', 'id')
     blend1_reqvel = extract_field2(logs, 'tpCreateBiarcBlend', 'blend1', 'reqvel')
@@ -56,7 +67,49 @@ def parse_log(logname):
     blend1_maxvel = np.array([e['blend1']['maxvel'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
     blend2_maxvel = np.array([e['blend2']['maxvel'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
     segment_maxvel = extract_field1(logs, 'tpCreateBiarcBlend', 'maxvel')
+    consume = extract_field1(logs, 'tpCreateBiarcBlend', 'consume')
 
+    p1_diff = extract_field1(logs, 'tpCreateBiarcBlend', 'p1_diff')
+    p_mid_diff = extract_field1(logs, 'tpCreateBiarcBlend', 'p_mid_diff')
+    p2_diff = extract_field1(logs, 'tpCreateBiarcBlend', 'p2_diff')
+    param_line_length = extract_field1(logs, 'tpCreateBiarcBlend', 'param_line_length')
+    for d in zip(blend_id, p1_diff, p_mid_diff, p2_diff, consume, param_line_length):
+        if (d[1] != 0).any() or (d[2] != 0).any() or (d[3] != 0).any():
+            print(d)
+
+    if len(blend1_size) and len(blend2_size):
+        plt.figure(5)
+        plt.plot(blend_id, blend1_size, label='blend1')
+        plt.plot(blend_id, blend2_size, label='blend2')
+        plt.xlabel('Segment ID')
+        plt.grid(True)
+        plt.legend()
+        plt.title('Blend segment sizes')
+
+    if len(blend1_type) and len(blend2_type):
+        plt.figure(6)
+        plt.plot(blend_id, blend1_type, label='blend1')
+        plt.plot(blend_id, blend2_type, label='blend2')
+        plt.xlabel('Segment ID')
+        plt.grid(True)
+        plt.legend()
+        plt.title('Blend segment types')
+
+    if len(blend1_maxvel) and len(blend2_maxvel):
+        plt.figure(7)
+        plt.plot(blend_id, blend1_maxvel, label='blend1_max')
+        plt.plot(blend_id, blend2_maxvel, label='blend2_max')
+        plt.plot(blend_id, segment_maxvel, label='maxvel_segments')
+        plt.plot(blend_id, blend1_reqvel, label='blend1_req')
+        plt.plot(blend_id, blend2_reqvel, label='blend2_req')
+        plt.plot(blend_id, segment_reqvel, label='reqvel_segments')
+        plt.xlabel('Segment ID')
+        plt.grid(True)
+        plt.legend()
+        plt.title('Blend segment maxvels')
+
+
+def plot_axis(logs):
     axis_pos = np.array([e.get('axis_pos', None) for e in logs if e.get('log_entry', None) == 'tpRunCycle'])
     axis_vel = np.array([e.get('axis_vel', None) for e in logs if e.get('log_entry', None) == 'tpRunCycle'])
     axis_accel = np.array([e.get('axis_accel', None) for e in logs if e.get('log_entry', None) == 'tpRunCycle'])
@@ -98,44 +151,17 @@ def parse_log(logname):
         plt.grid(True)
         plt.title('XYZ velocity vs relative time, ms')
 
-    if len(blend1_size) and len(blend2_size):
-        plt.figure(5)
-        plt.plot(blend_id, blend1_size, label='blend1')
-        plt.plot(blend_id, blend2_size, label='blend2')
-        plt.xlabel('Segment ID')
-        plt.grid(True)
-        plt.legend()
-        plt.title('Blend segment sizes')
 
-    if len(blend1_type) and len(blend2_type):
-        plt.figure(6)
-        plt.plot(blend_id, blend1_type, label='blend1')
-        plt.plot(blend_id, blend2_type, label='blend2')
-        plt.xlabel('Segment ID')
-        plt.grid(True)
-        plt.legend()
-        plt.title('Blend segment types')
-
-    if len(blend1_maxvel) and len(blend2_maxvel):
-        plt.figure(7)
-        plt.plot(blend_id, blend1_maxvel, label='blend1_max')
-        plt.plot(blend_id, blend2_maxvel, label='blend2_max')
-        plt.plot(blend_id, segment_maxvel, label='maxvel_segments')
-        plt.plot(blend_id, blend1_reqvel, label='blend1_req')
-        plt.plot(blend_id, blend2_reqvel, label='blend2_req')
-        plt.plot(blend_id, segment_reqvel, label='reqvel_segments')
-        plt.xlabel('Segment ID')
-        plt.grid(True)
-        plt.legend()
-        plt.title('Blend segment maxvels')
-
-    segment_id = extract_field1(logs, 'tpActivateSegment', 'id')
-    target_vel = extract_field1(logs, 'tpActivateSegment', 'target_vel')
-    finalvel = extract_field1(logs, 'tpActivateSegment', 'finalvel')
-    kink_vel = extract_field1(logs, 'tpActivateSegment', 'kink_vel')
-    parabolic_equiv_vel = extract_field1(logs, 'tpActivateSegment', 'parabolic_equiv_vel')
-    motion_type = extract_field1(logs, 'tpActivateSegment', 'motion_type')
-    blend_mode = extract_field1(logs, 'tpActivateSegment', 'blend_mode')
+def plot_activations(logs_raw):
+    logs = [l for l in logs_raw if l.get('log_entry', None) == 'tpActivateSegment']
+    segment_id = extract_field1_all(logs, 'id')
+    target_vel = extract_field1_all(logs, 'target_vel')
+    finalvel = extract_field1_all(logs, 'finalvel')
+    kink_vel = extract_field1_all(logs, 'kink_vel')
+    parabolic_equiv_vel = extract_field1_all(logs, 'parabolic_equiv_vel')
+    motion_type = extract_field1_all(logs, 'motion_type')
+    blend_mode = extract_field1_all(logs, 'blend_mode')
+    tp_position_error = extract_field1_all(logs, 'tp_position_error')
 
     if len(segment_id):
         plt.figure(8)
@@ -165,13 +191,21 @@ def parse_log(logname):
         plt.legend()
         plt.title('Position error')
 
-    plt.show()
 
+def plot_all(logfile):
+    logs = parse_log(logfile)
+    plot_axis(logs)
+    plot_activations(logs)
+    plot_biarc(logs)
+    plt.show()
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print(sys.stderr, 'No logfile specified')
         exit(1)
-    parse_log(sys.argv[1])
+    logs = parse_log(sys.argv[1])
+    plot_biarc(logs)
+    plot_activations(logs)
+    plt.show()
 
 
