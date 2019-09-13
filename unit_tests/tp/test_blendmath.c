@@ -427,11 +427,12 @@ TEST test_pmCircleTangentVector_unitcircle()
  * Uses the derivative to produce the unit vector at the given theta.
  * From https://math.stackexchange.com/questions/1078185/differentiate-archimedess-spiral
  */
-static PmCartesian idealXYSpiralUnitVec(double a, double r0, double theta)
+static PmCartesian idealXYSpiralUnitVec(double a, double r0, double theta, double dz)
 {
     PmCartesian out = {0};
     out.x = a*cos(theta) - (r0+a*theta)*sin(theta);
     out.y = a*sin(theta) + (r0+a*theta)*cos(theta);
+    out.z = dz * theta;
     pmCartUnitEq(&out);
     return out;
 }
@@ -439,21 +440,23 @@ static PmCartesian idealXYSpiralUnitVec(double a, double r0, double theta)
 TEST test_pmCircleTangentVector_spiralout()
 {
     PmCircle c;
-    PmCartesian start = {1,0, 0};
-    PmCartesian end = {1.0 + M_PI_2,0,0};
+    const double expect_r0 = 1.0;
+    PmCartesian start = {expect_r0,0, 0};
+    PmCartesian end = {expect_r0 + M_PI_2,0,0};
     PmCartesian center = {0,0,0};
     PmCartesian normal = {0,0,1};
     pmCircleInit(&c, &start, &end, &center, &normal, 0);
 
     // a = (r1-r0)/theta = (pi/2) / (2pi) = 1/4
     double expect_spiral_a = 0.25;
-    ASSERT_FLOAT_EQ(c.angle, 2.0 * M_PI);
+    ASSERT_FLOAT_EQ(2.0 * M_PI, c.angle);
+    ASSERT_FLOAT_EQ(expect_spiral_a, c.spiral / c.angle);
 
     {
         PmCartesian utan_start;
         const double angle = 0.0;
         ASSERT_FALSE(pmCircleTangentVector(&c, angle, &utan_start));
-        PmCartesian const expect_utan_start = idealXYSpiralUnitVec(expect_spiral_a, 1.0, angle);
+        PmCartesian const expect_utan_start = idealXYSpiralUnitVec(expect_spiral_a, expect_r0, angle, 0);
         ASSERT_PMCARTESIAN_IN_RANGE(utan_start, expect_utan_start, CART_FUZZ);
     }
 
@@ -461,7 +464,7 @@ TEST test_pmCircleTangentVector_spiralout()
         PmCartesian utan_30deg;
         const double angle = M_PI / 6.0;
         ASSERT_FALSE(pmCircleTangentVector(&c, angle, &utan_30deg));
-        PmCartesian const expect_utan_30deg = idealXYSpiralUnitVec(expect_spiral_a, 1.0, angle);
+        PmCartesian const expect_utan_30deg = idealXYSpiralUnitVec(expect_spiral_a, expect_r0, angle, 0);
         ASSERT_PMCARTESIAN_IN_RANGE(utan_30deg, expect_utan_30deg, CART_FUZZ);
     }
 
@@ -469,12 +472,55 @@ TEST test_pmCircleTangentVector_spiralout()
         PmCartesian utan_end;
         const double angle = M_PI / 6.0;
         ASSERT_FALSE(pmCircleTangentVector(&c, angle, &utan_end));
-        PmCartesian const expect_utan_end = idealXYSpiralUnitVec(expect_spiral_a, 1.0, angle);
+        PmCartesian const expect_utan_end = idealXYSpiralUnitVec(expect_spiral_a, expect_r0, angle, 0);
         ASSERT_PMCARTESIAN_IN_RANGE(utan_end, expect_utan_end, CART_FUZZ);
     }
 
     PASS();
 }
+
+TEST test_pmCircleTangentVector_spiralin()
+{
+    PmCircle c;
+    const double expect_r0 = 2.0;
+    PmCartesian start = {expect_r0, 0, 0};
+    PmCartesian end = {expect_r0 - M_PI_2,0,0};
+    PmCartesian center = {0,0,0};
+    PmCartesian normal = {0,0,1};
+    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+
+    // a = (r1-r0)/theta = (pi/2) / (2pi) = 1/4
+    double expect_spiral_a = -0.25;
+    ASSERT_FLOAT_EQ(2.0 * M_PI, c.angle);
+    ASSERT_FLOAT_EQ(expect_spiral_a, c.spiral / c.angle);
+
+    {
+        PmCartesian utan_start;
+        const double angle = 0.0;
+        ASSERT_FALSE(pmCircleTangentVector(&c, angle, &utan_start));
+        PmCartesian const expect_utan_start = idealXYSpiralUnitVec(expect_spiral_a, expect_r0, angle, 0);
+        ASSERT_PMCARTESIAN_IN_RANGE(utan_start, expect_utan_start, CART_FUZZ);
+    }
+
+    {
+        PmCartesian utan_30deg;
+        const double angle = M_PI / 6.0;
+        ASSERT_FALSE(pmCircleTangentVector(&c, angle, &utan_30deg));
+        PmCartesian const expect_utan_30deg = idealXYSpiralUnitVec(expect_spiral_a, expect_r0, angle, 0);
+        ASSERT_PMCARTESIAN_IN_RANGE(utan_30deg, expect_utan_30deg, CART_FUZZ);
+    }
+
+    {
+        PmCartesian utan_end;
+        const double angle = M_PI / 6.0;
+        ASSERT_FALSE(pmCircleTangentVector(&c, angle, &utan_end));
+        PmCartesian const expect_utan_end = idealXYSpiralUnitVec(expect_spiral_a, expect_r0, angle, 0);
+        ASSERT_PMCARTESIAN_IN_RANGE(utan_end, expect_utan_end, CART_FUZZ);
+    }
+
+    PASS();
+}
+
 
 TEST test_findSpiralArcLengthFit_spiralout()
 {
@@ -606,6 +652,7 @@ SUITE(circle_funcs)
 {
     RUN_TEST(test_pmCircleTangentVector_unitcircle);
     RUN_TEST(test_pmCircleTangentVector_spiralout);
+    RUN_TEST(test_pmCircleTangentVector_spiralin);
     RUN_TEST(test_findSpiralArcLengthFit_spiralout);
     RUN_TEST(test_findSpiralArcLengthFit_spiralin);
     RUN_TEST(test_findSpiralArcLengthFit_exact);

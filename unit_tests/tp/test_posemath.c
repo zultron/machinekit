@@ -381,6 +381,8 @@ TEST test_pmCircleStretch()
 
     PmCartesian start = {nominal_radius * cos(theta1), nominal_radius * sin(theta1), 0.0};
     PmCartesian end = {nominal_radius * cos(theta2), nominal_radius * sin(theta2), 0.0};
+    pmCartCartAddEq(&start, &center);
+    pmCartCartAddEq(&end, &center);
     PmCartesian normal = {0,0,1};
 
     pmCircleInit(&c, &start, &end, &center, &normal, 0);
@@ -418,6 +420,8 @@ TEST test_pmCircleStretchTangent_begin()
 
     PmCartesian start = {start_radius * cos(theta1), start_radius * sin(theta1), 0.0};
     PmCartesian end = {final_radius * cos(theta2), final_radius * sin(theta2), 1.0};
+    pmCartCartAddEq(&start, &center);
+    pmCartCartAddEq(&end, &center);
     PmCartesian normal = {0,0,1};
 
     pmCircleInit(&c, &start, &end, &center, &normal, 0);
@@ -440,12 +444,14 @@ TEST test_pmCircleStretchTangent_end()
     PmCartesian center = {0.0, 0.0, 0.0};
 
     const double start_radius = 1.0;
-    const double final_radius = 0.1;
+    const double final_radius = 1.0;
     const double theta1 = 0;
     const double theta2 = M_PI_2;
 
     PmCartesian start = {start_radius * cos(theta1), start_radius * sin(theta1), 0.0};
     PmCartesian end = {final_radius * cos(theta2), final_radius * sin(theta2), 1.0};
+    pmCartCartAddEq(&start, &center);
+    pmCartCartAddEq(&end, &center);
     PmCartesian normal = {0,0,1};
 
     pmCircleInit(&c, &start, &end, &center, &normal, 0);
@@ -463,9 +469,130 @@ TEST test_pmCircleStretchTangent_end()
     PmCartesian p_after;
     ASSERT_FALSE(pmCirclePoint(&c, 0, &p_after));
 
+    ASSERT_PMCARTESIAN_IN_RANGE(p_before, p_after, CART_FUZZ);
     ASSERT_PMCARTESIAN_IN_RANGE(u_before, u_after, CART_FUZZ);
     PASS();
 }
+
+TEST test_pmCircleSpiralStretchTangent_begin()
+{
+    PmCircle c;
+    PmCartesian center = {0.0, 0.0, 0.0};
+
+    const double start_radius = 1.0;
+    const double final_radius = 1.2;
+    const double theta1 = 0;
+    const double theta2 = M_PI_2;
+
+    PmCartesian start = {start_radius * cos(theta1), start_radius * sin(theta1), 0.0};
+    PmCartesian end = {final_radius * cos(theta2), final_radius * sin(theta2), 1.0};
+    pmCartCartAddEq(&start, &center);
+    pmCartCartAddEq(&end, &center);
+    PmCartesian normal = {0,0,1};
+
+    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+
+    PmCartesian u_before;
+    pmCircleTangentVector(&c, M_PI * 3.0 / 8.0, &u_before);
+
+    ASSERT_FALSE(pmCircleStretch(&c, M_PI * 3.0 / 8.0, 0));
+
+    PmCartesian u_after;
+    ASSERT_FALSE(pmCircleTangentVector(&c, M_PI * 3.0 / 8.0 , &u_after));
+
+    ASSERT_PMCARTESIAN_IN_RANGE(u_before, u_after, CART_FUZZ);
+    PASS();
+}
+
+TEST test_pmCircleSpiralStretchTangent_end()
+{
+    PmCircle c;
+    PmCartesian center = {0.0, 0.0, 0.0};
+
+    const double start_radius = 1.0;
+    const double final_radius = 0.2;
+    const double theta1 = 0;
+    const double theta2 = M_PI_2;
+
+    PmCartesian start = {start_radius * cos(theta1), start_radius * sin(theta1), 0.0};
+    PmCartesian end = {final_radius * cos(theta2), final_radius * sin(theta2), 0.0};
+    pmCartCartAddEq(&start, &center);
+    pmCartCartAddEq(&end, &center);
+    PmCartesian normal = {0,0,1};
+
+    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+
+    PmCartesian u_before;
+    pmCircleTangentVector(&c, M_PI / 8.0, &u_before);
+    PmCartesian p_before;
+    pmCirclePoint(&c, M_PI / 8.0, &p_before);
+
+    // Stretch to extend past the starting point
+    ASSERT_FALSE(pmCircleStretch(&c, M_PI * 3.0 / 8.0, 1));
+
+    PmCartesian u_after;
+    ASSERT_FALSE(pmCircleTangentVector(&c, 0, &u_after));
+    PmCartesian p_after;
+    ASSERT_FALSE(pmCirclePoint(&c, 0, &p_after));
+
+    ASSERT_PMCARTESIAN_IN_RANGE(p_before, p_after, CART_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(u_before, u_after, CART_FUZZ);
+    PASS();
+}
+
+TEST test_pmCircleHelicalSpiralStretchTangent_end()
+{
+    PmCircle c;
+    PmCartesian center = {1.0, 2.0, 3.0};
+
+    const double start_radius = 1.0;
+    const double final_radius = .5;
+    const double theta1 = 0;
+    const double theta2 = M_PI_2;
+
+    PmCartesian start = {start_radius * cos(theta1), start_radius * sin(theta1), 0.0};
+    PmCartesian end = {final_radius * cos(theta2), final_radius * sin(theta2), 2.0};
+    pmCartCartAddEq(&start, &center);
+    pmCartCartAddEq(&end, &center);
+    PmCartesian normal = {0,0,1};
+
+    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+
+    PmCartesian u_before;
+    pmCircleTangentVector(&c, M_PI / 8.0, &u_before);
+    PmCartesian p_before;
+    pmCirclePoint(&c, M_PI / 8.0, &p_before);
+
+    // Stretch to extend past the starting point
+    ASSERT_FALSE(pmCircleStretch(&c, M_PI * 3.0 / 8.0, 1));
+
+    PmCartesian u_after;
+    ASSERT_FALSE(pmCircleTangentVector(&c, 0, &u_after));
+    PmCartesian p_after;
+    ASSERT_FALSE(pmCirclePoint(&c, 0, &p_after));
+
+    ASSERT_PMCARTESIAN_IN_RANGE(p_before, p_after, CART_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(u_before, u_after, CART_FUZZ);
+
+    PmCartesian u_before2;
+    pmCircleTangentVector(&c, M_PI / 8.0, &u_before2);
+    PmCartesian p_before2;
+    pmCirclePoint(&c, M_PI / 8.0, &p_before2);
+
+    // Stretch to extend past the starting point
+    ASSERT_FALSE(pmCircleStretch(&c, M_PI * 2.0 / 8.0, 1));
+
+    PmCartesian u_after2;
+    ASSERT_FALSE(pmCircleTangentVector(&c, 0, &u_after2));
+    PmCartesian p_after2;
+    ASSERT_FALSE(pmCirclePoint(&c, 0, &p_after2));
+
+    ASSERT_PMCARTESIAN_IN_RANGE(p_before2, p_after2, CART_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(u_before2, u_after2, CART_FUZZ);
+
+    PASS();
+}
+
 
 SUITE(pm_circle) {
     RUN_TEST(test_pmCircleInit_simple);
@@ -691,5 +818,8 @@ int main(int argc, char **argv) {
     RUN_TEST(test_pmCartCartOrthonormal);
     RUN_TEST(test_pmCircleStretchTangent_begin);
     RUN_TEST(test_pmCircleStretchTangent_end);
+    RUN_TEST(test_pmCircleSpiralStretchTangent_begin);
+    RUN_TEST(test_pmCircleSpiralStretchTangent_end);
+    RUN_TEST(test_pmCircleHelicalSpiralStretchTangent_end);
     GREATEST_MAIN_END();
 }
