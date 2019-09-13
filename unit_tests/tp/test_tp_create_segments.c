@@ -171,21 +171,27 @@ TEST test_create_tangent_arcs() {
     PASS();
 }
 
-static greatest_test_res check_blend_tangency(TP_STRUCT * const tp, int current_idx)
+static greatest_test_res check_blend_C1_continuity(TP_STRUCT * const tp, int current_idx)
 {
-    for (int k = 0; k < 3; ++k) {
+    ASSERT(current_idx < tcqLen(&tp->queue));
+    for (int k = 0; k < current_idx; ++k) {
         TC_STRUCT const * prev_tc = tcqItem(&tp->queue, current_idx - k -1);
         TC_STRUCT const * next_tc = tcqItem(&tp->queue, current_idx - k);
         ASSERT(prev_tc);
         ASSERT(next_tc);
-        ASSERT_EQ_FMT(TC_TERM_COND_TANGENT, prev_tc->term_cond,"%d");
 
-        PmCartesian u_1, u_2;
+        if(prev_tc->term_cond == TC_TERM_COND_TANGENT) {
+            PmCartesian u_1, u_2;
+            tcGetEndTangentUnitVector(prev_tc, &u_1);
+            tcGetStartTangentUnitVector(next_tc, &u_2);
 
-        tcGetEndTangentUnitVector(prev_tc, &u_1);
-        tcGetStartTangentUnitVector(next_tc, &u_2);
+            ASSERT_PMCARTESIAN_IN_RANGE(u_1, u_2, 1e-7);
+        }
 
-        ASSERT_PMCARTESIAN_IN_RANGE(u_1, u_2, 1e-7);
+        EmcPose p_1, p_2;
+        tcGetEndpoint(prev_tc, &p_1);
+        tcGetStartpoint(next_tc, &p_2);
+        ASSERT_EMCPOSE_IN_RANGE(p_1, p_2, 1e-12);
     }
     return GREATEST_TEST_RES_PASS;
 }
@@ -209,7 +215,7 @@ TEST test_slightly_convex_arcs() {
 
     ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
 
-    CHECK_CALL(check_blend_tangency(tp, 3));
+    CHECK_CALL(check_blend_C1_continuity(tp, 3));
 
     deleteMockTP(&tp);
     PASS();
@@ -230,7 +236,7 @@ TEST test_line_arc_in_plane() {
     tpAddCircle(tp, pt2, center1, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 8.0, 0, 0, 0, line_tag(2));
 
     ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
-    CHECK_CALL(check_blend_tangency(tp, 3));
+    CHECK_CALL(check_blend_C1_continuity(tp, 3));
 
     deleteMockTP(&tp);
     PASS();
@@ -892,6 +898,7 @@ TEST test_biarc_blend_consume_line()
             pmCartScalMult(&cases[i].center, 2., &expected_xyz);
 
             ASSERT_PMCARTESIAN_IN_RANGE(expected_xyz, tp->goalPos.tran, 1e-06);
+            CHECK_CALL(check_blend_C1_continuity(tp, tcqLen(&tp->queue)-1));
         }
     }
 
