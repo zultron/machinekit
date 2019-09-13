@@ -1108,6 +1108,8 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     tcGetStartpoint(this_tc, &p2_stretch);
     print_json5_double(prev_len);
     print_json5_double(this_len);
+    print_json5_double_("prev_len_new", prev_tc->target);
+    print_json5_double_("this_len_new", this_tc->target);
     print_json5_int(prev_can_consume);
     print_json5_int(this_can_consume);
     print_json5_double_("param_line_length", param.line_length);
@@ -1116,8 +1118,8 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_int(prev_motion_type);
     print_json5_int(this_motion_type);
     print_json5_long_long_("id", this_tc->id);
-    print_json5_long_long_("id1", blend_tc1.unique_id);
-    print_json5_long_long_("id2", blend_tc2.unique_id);
+    print_json5_long_long_("unique_id1", blend_tc1.unique_id);
+    print_json5_long_long_("unique_id2", blend_tc2.unique_id);
     print_json5_biarc_solution_t("solution", &biarc_results.solution);
     print_json5_PmCartesian(u1_stretch);
     print_json5_PmCartesian(u2_stretch);
@@ -1135,31 +1137,28 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_PmCartesian_("p12_blend", p12_blend.tran);
     print_json5_PmCartesian_("p21_blend", p21_blend.tran);
     print_json5_PmCartesian_("p22_blend", p22_blend.tran);
-    PmCartesian p1_diff, p_mid_diff, p2_diff;
-    pmCartCartSub(&p1_stretch.tran, &p11_blend.tran, &p1_diff);
-    pmCartCartSub(&p12_blend.tran, &p21_blend.tran, &p_mid_diff);
-    pmCartCartSub(&p2_stretch.tran, &p22_blend.tran, &p2_diff);
-    PmCartesian p1_end_diff, p2_end_diff;
-    pmCartCartSub(&p12_blend.tran, &blend_tc1.coords.arc.xyz.end, &p1_end_diff);
-    pmCartCartSub(&p22_blend.tran, &blend_tc2.coords.arc.xyz.end, &p2_end_diff);
     print_json5_PmCartesian_("p1_stretch", p1_stretch.tran);
     print_json5_PmCartesian_("p2_stretch", p2_stretch.tran);
-    print_json5_PmCartesian_("p1_diff", p1_diff);
-    print_json5_PmCartesian_("p_mid_diff", p_mid_diff);
-    print_json5_PmCartesian_("p2_diff", p2_diff);
-    print_json5_PmCartesian_("p1_end_diff", p1_end_diff);
-    print_json5_PmCartesian_("p2_end_diff", p2_end_diff);
     print_json5_biarc_control_points_t("control_pts", &biarc_results.solution.control_pts);
     print_json5_blend_boundary_t("boundary", &biarc_results.solution.boundary);
     print_json5_string_("result", biarc_result_to_str(biarc_results.result));
     print_json5_TC_STRUCT_kinematics("blend1", &blend_tc1);
     print_json5_TC_STRUCT_kinematics("blend2", &blend_tc2);
+    ContinuityCheck c1 = calc_C1_continuity(prev_tc, &blend_tc1);
+    print_json5_PmCartesian_("u1_diff", c1.u_diff);
+    print_json5_PmCartesian_("p1_diff", c1.p_diff.tran);
+    ContinuityCheck cmid = calc_C1_continuity(&blend_tc1, &blend_tc2);
+    print_json5_PmCartesian_("u_mid_diff", cmid.u_diff);
+    print_json5_PmCartesian_("p_mid_diff", cmid.p_diff.tran);
     ContinuityCheck c2 = calc_C1_continuity(&blend_tc2, this_tc);
-    print_json5_PmCartesian_("u2_end_diff", c2.u_diff);
-    print_json5_double_("u2_end_diff_dot", c2.dot);
+    print_json5_PmCartesian_("u2_diff", c2.u_diff);
+    print_json5_double_("u2_diff_dot", c2.dot);
+    print_json5_PmCartesian_("p2_diff", c2.p_diff.tran);
     print_json5_double(maxvel);
     print_json5_double(reqvel);
     print_json5_bool_("consume", param.consume);
+    print_json5_SphericalArc("arc1", &blend_tc1.coords.arc.xyz);
+    print_json5_SphericalArc("arc2", &blend_tc2.coords.arc.xyz);
     print_json5_end_();
 #endif
 
@@ -2232,7 +2231,9 @@ void tpDebugCycleInfo(TP_STRUCT const * const tp, TC_STRUCT const * const tc, TC
     /* Debug Output */
     print_json5_log_start(tc_state, Run);
     print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
-    print_json5_double_("id", tc->id);
+    print_json5_int_field(tc, id);
+    print_json5_long_long_field(tc, unique_id);
+    print_json5_string_("motion_type", tcMotionTypeAsString(tc->motion_type));
     print_json5_double(v_target);
     print_json5_double(v_final);
     print_json5_double(v_max);
@@ -2247,7 +2248,6 @@ void tpDebugCycleInfo(TP_STRUCT const * const tp, TC_STRUCT const * const tc, TC
     print_json5_bool_("need_split", tc->splitting);
     print_json5_bool_("is_blending", tc->is_blending);
     print_json5_long_("canon_type", tc->canon_motion_type);
-    print_json5_string_("motion_type", tcMotionTypeAsString(tc->motion_type));
     print_json5_string_("accel_mode",accel_mode ? "ramp" : "trapezoidal");
     print_json5_string_("cycle", cycleModeToString(cycle));
     print_json5_end_();
@@ -2767,13 +2767,17 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
         print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
         print_json5_int_field(tc, id);
         print_json5_long_long_field(tc, unique_id);
-        print_json5_string_("motion_type", tcMotionTypeAsString(tc->motion_type));
+        print_json5_string_("motion_type_name", tcMotionTypeAsString(tc->motion_type));
+        print_json5_int_("motion_type", tc->motion_type);
 
         // Position settings
 
         print_json5_EmcPose(tp_position_error);
         print_json5_double_field(tc, target);
         print_json5_double_field(tc, progress);
+        if (tc->motion_type == TC_SPHERICAL) {
+            print_json5_double_field(&tc->coords.arc.xyz, line_length);
+        }
         // Velocity settings
         print_json5_double_field(tc, reqvel);
         print_json5_double_field(tc, target_vel);

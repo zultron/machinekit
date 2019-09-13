@@ -116,6 +116,7 @@ def plot_axis(logs_raw):
     axis_vel = extract_field1_all(logs, 'axis_vel')
     axis_accel = extract_field1_all(logs, 'axis_accel')
     times = extract_field1_all(logs, 'time')
+    current_vel = extract_field1_all(logs, 'current_vel')
 
     np.savetxt('axis_pos.csv', axis_pos, delimiter=',')
     np.savetxt('axis_vel.csv', axis_vel, delimiter=',')
@@ -151,15 +152,18 @@ def plot_axis(logs_raw):
         plt.title('Axis acceleration vs time, ms')
 
     if len(axis_vel):
-        xyz_vel = np.sqrt(np.sum(np.square(axis_vel[:, 0:2]), 1))
+        xyz_vel = np.sqrt(np.sum(np.square(axis_vel[:, 0:3]), 1))
         nz_ind = np.where(xyz_vel>=0.000001)[0]
-        times_ms = (times - times[nz_ind[0]]) * 1000.0;
-        print("total run time = {} ms".format(times_ms[nz_ind[-1]]))
+        #times_ms = (times - times[nz_ind[0]]) * 1000.0;
+        times_ms = times * 1000.
+        print("total run time = {} ms".format(times_ms[nz_ind[-1]]-times_ms[nz_ind[0]]))
         plt.figure(4)
-        plt.plot(times_ms, xyz_vel)
+        plt.plot(times_ms, xyz_vel, label='XYZ measured velocity')
+        plt.plot(times_ms, current_vel, label='TP path velocity')
         plt.grid(True)
         plt.xlabel('time, ms')
-        plt.title('XYZ velocity vs relative time, ms')
+        plt.title('XYZ velocity vs time, ms')
+        plt.legend()
 
 
 def plot_activations(logs_raw):
@@ -172,6 +176,7 @@ def plot_activations(logs_raw):
     motion_type = extract_field1_all(logs, 'motion_type')
     blend_mode = extract_field1_all(logs, 'blend_mode')
     tp_position_error = extract_field1_all(logs, 'tp_position_error')
+    target = extract_field1_all(logs, 'target')
 
     if len(segment_id):
         plt.figure(8)
@@ -200,6 +205,14 @@ def plot_activations(logs_raw):
         plt.grid(True)
         plt.legend()
         plt.title('Position error')
+
+        plt.figure(10)
+        plt.plot(segment_id, target, label='target')
+
+        plt.xlabel('Segment ID')
+        plt.grid(True)
+        plt.legend()
+        plt.title('Target')
 
 
 def plot_all(logfile):

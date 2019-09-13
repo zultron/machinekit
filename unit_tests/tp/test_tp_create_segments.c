@@ -185,7 +185,7 @@ static greatest_test_res check_blend_C1_continuity(TP_STRUCT * const tp, int cur
         PmCartesian exp_u_diff = {0};
         if(prev_tc->term_cond == TC_TERM_COND_TANGENT) {
             ASSERT_PMCARTESIAN_IN_RANGE(exp_u_diff, c1.u_diff, 1e-7);
-            ASSERT_IN_RANGE(0, c1.dot, 1e-7);
+            ASSERT_IN_RANGE(1, c1.dot, 1e-7);
         }
         EmcPose exp_p_diff = {0};
 
