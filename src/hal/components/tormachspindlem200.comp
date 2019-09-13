@@ -311,6 +311,8 @@ pin out float orient_drift; // 0: oriented within drift tolerance
                             // DRIFT_INVALID (-1): brake cylinder ORIENT_BRAKE_ACTUATION_TIME hasn't yet expired, 
                             // any_other_value: means "Fault" i.e. orient drift >= (ORIENT_TARGETBAND + ORIENT_BAND_IGNORE)
 
+pin in float tray_in_time;  //the time from tray in command to sensor report
+
 //TODO: remove drift_test stuff for shipping
 pin in bit orient_drift_test;  //when set, orient_drift will lie every DRIFT_TEST_LOOP orients that the drift check after ATC tray in is bad.  Allows for ATC re-orient testing. 
 pin out u32 orient_drift_test_cnt;
@@ -1204,6 +1206,10 @@ FUNCTION(_) {
 
     vfd_rpm_cmd = 0; //Defensive programming as spindle won't move unless something else below sets it
 
+    if (tray_in_time == 0.0) 
+        tray_in_time = .8;  //.8 secs TODO: make dynamic by measuring with help from ATC feedback
+
+
 // spindle-type - for high speed use only low belt params
     //                for speeder compensate for tripled output speed
     //                for standard pay attention to belt position
@@ -1492,7 +1498,7 @@ FUNCTION(_) {
 
             //since orient_on_target is using tighter tolerance than orient_targetband, we
             //have to deal with orient_drift separately
-            if ((spindle_state == SPINDLE_STATE_LOCKED) && (spindle_lock_timer >= ORIENT_BRAKE_ACTUATION_TIME)) {
+            if ((spindle_state == SPINDLE_STATE_LOCKED) && (spindle_lock_timer >= (ORIENT_BRAKE_ACTUATION_TIME - tray_in_time))) {
                 if (orient_drift == DRIFT_INVALID) //only true very first time after ORIENT_BRAKE_ACTUATION_TIME passes
                    orient_drift = 0.0; // orient drift is within acceptable limits, report "all OK" to ATC
                 if (iabs(enc_err) >= iabs(orient_targetband + ORIENT_BAND_IGNORE)) {
