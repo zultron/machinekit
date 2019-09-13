@@ -1120,7 +1120,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     PmCartesian p1_diff, p_mid_diff, p2_diff;
     pmCartCartSub(&p1_stretch.tran, &p11_blend.tran, &p1_diff);
     pmCartCartSub(&p12_blend.tran, &p21_blend.tran, &p_mid_diff);
-    pmCartCartSub(&p2_stretch.tran, &p21_blend.tran, &p2_diff);
+    pmCartCartSub(&p2_stretch.tran, &p22_blend.tran, &p2_diff);
     PmCartesian p1_end_diff, p2_end_diff;
     pmCartCartSub(&p12_blend.tran, &blend_tc1.coords.arc.xyz.end, &p1_end_diff);
     pmCartCartSub(&p22_blend.tran, &blend_tc2.coords.arc.xyz.end, &p2_end_diff);
@@ -1136,6 +1136,9 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_string_("result", biarc_result_to_str(biarc_results.result));
     print_json5_TC_STRUCT_kinematics("blend1", &blend_tc1);
     print_json5_TC_STRUCT_kinematics("blend2", &blend_tc2);
+    ContinuityCheck c2 = calc_C1_continuity(&blend_tc2, this_tc);
+    print_json5_PmCartesian_("u2_end_diff", c2.u_diff);
+    print_json5_double_("u2_end_diff_dot", c2.dot);
     print_json5_double(maxvel);
     print_json5_double(reqvel);
     print_json5_bool_("consume", param.consume);

@@ -22,6 +22,7 @@
 #include "tp_enums.h"
 #include "stdlib.h"
 #include "math_util.h"
+#include "emcpose.h"
 
 // Inspired by interp
 #define CHP(callee__) \
@@ -2045,4 +2046,26 @@ tp_err_t blend_biarc_postprocess(
         points2->arc_end = biarc_results->solution.boundary.P2;
     }
     return TP_ERR_OK;
+}
+
+ContinuityCheck calc_C1_continuity(
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const next_tc)
+{
+    ContinuityCheck out = {0};
+    if(prev_tc->term_cond == TC_TERM_COND_TANGENT) {
+        PmCartesian u_1, u_2;
+        tcGetEndTangentUnitVector(prev_tc, &u_1);
+        tcGetStartTangentUnitVector(next_tc, &u_2);
+        pmCartCartSub(&u_2, &u_1, &out.u_diff);
+        pmCartCartDot(&u_1, &u_2, &out.dot);
+    }
+
+    EmcPose p_1, p_2;
+    tcGetEndpoint(prev_tc, &p_1);
+    tcGetStartpoint(next_tc, &p_2);
+
+    emcPoseSub(&p_2, &p_1, &out.p_diff);
+
+    return out;
 }

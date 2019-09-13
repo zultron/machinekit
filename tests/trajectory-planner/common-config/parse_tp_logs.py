@@ -32,8 +32,9 @@ def extract_field1_all(logs, field1):
     return np.array([f for f in (e.get(field1, None) for e in logs) if f is not None])
 
 
-def extract_field2(logs, log_entry, field1, field2):
-    return np.array([e.get(field1, {}).get(field2, None) for e in logs if e.get('log_entry', None) == log_entry])
+def extract_field2_all(logs, field1, field2):
+    return np.array([f for f in (e.get(field1, {}).get(field2, None) for e in logs) if f is not None])
+
 
 def parse_log(logname):
     logs = []
@@ -55,24 +56,24 @@ def parse_log(logname):
 def plot_biarc(logs_raw):
     logs = [l for l in logs_raw if l.get('log_entry', None) == 'tpCreateBiarcBlend']
 
-    blend_id = extract_field1(logs, 'tpCreateBiarcBlend', 'id')
-    blend1_reqvel = extract_field2(logs, 'tpCreateBiarcBlend', 'blend1', 'reqvel')
-    blend2_reqvel = extract_field2(logs, 'tpCreateBiarcBlend', 'blend2', 'reqvel')
-    segment_reqvel = extract_field1(logs, 'tpCreateBiarcBlend', 'reqvel')
+    blend_id = extract_field1_all(logs, 'id')
+    blend1_reqvel = extract_field2_all(logs, 'blend1', 'reqvel')
+    blend2_reqvel = extract_field2_all(logs, 'blend2', 'reqvel')
+    segment_reqvel = extract_field1_all(logs, 'reqvel')
 
-    blend1_size = np.array([e['blend1']['target'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
-    blend2_size = np.array([e['blend2']['target'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
-    blend1_type = np.array([e['blend1']['motion_type'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
-    blend2_type = np.array([e['blend2']['motion_type'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
-    blend1_maxvel = np.array([e['blend1']['maxvel'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
-    blend2_maxvel = np.array([e['blend2']['maxvel'] for e in logs if e.get('log_entry', None) == 'tpCreateBiarcBlend'])
-    segment_maxvel = extract_field1(logs, 'tpCreateBiarcBlend', 'maxvel')
-    consume = extract_field1(logs, 'tpCreateBiarcBlend', 'consume')
+    blend1_size = extract_field2_all(logs, 'blend1', 'target')
+    blend2_size = extract_field2_all(logs, 'blend2','target')
+    blend1_type = extract_field2_all(logs, 'blend1','motion_type')
+    blend2_type = extract_field2_all(logs, 'blend2','motion_type')
+    blend1_maxvel = extract_field2_all(logs, 'blend1','maxvel')
+    blend2_maxvel = extract_field2_all(logs, 'blend2','maxvel')
+    segment_maxvel = extract_field1_all(logs, 'maxvel')
+    consume = extract_field1_all(logs, 'consume')
 
-    p1_diff = extract_field1(logs, 'tpCreateBiarcBlend', 'p1_diff')
-    p_mid_diff = extract_field1(logs, 'tpCreateBiarcBlend', 'p_mid_diff')
-    p2_diff = extract_field1(logs, 'tpCreateBiarcBlend', 'p2_diff')
-    param_line_length = extract_field1(logs, 'tpCreateBiarcBlend', 'param_line_length')
+    p1_diff = extract_field1_all(logs, 'p1_diff')
+    p_mid_diff = extract_field1_all(logs, 'p_mid_diff')
+    p2_diff = extract_field1_all(logs, 'p2_diff')
+    param_line_length = extract_field1_all(logs, 'param_line_length')
     for d in zip(blend_id, p1_diff, p_mid_diff, p2_diff, consume, param_line_length):
         if (d[1] != 0).any() or (d[2] != 0).any() or (d[3] != 0).any():
             print(d)
@@ -109,11 +110,12 @@ def plot_biarc(logs_raw):
         plt.title('Blend segment maxvels')
 
 
-def plot_axis(logs):
-    axis_pos = np.array([e.get('axis_pos', None) for e in logs if e.get('log_entry', None) == 'tpRunCycle'])
-    axis_vel = np.array([e.get('axis_vel', None) for e in logs if e.get('log_entry', None) == 'tpRunCycle'])
-    axis_accel = np.array([e.get('axis_accel', None) for e in logs if e.get('log_entry', None) == 'tpRunCycle'])
-    times = np.array([e.get('time', None) for e in logs if e.get('log_entry', None) == 'tpRunCycle'])
+def plot_axis(logs_raw):
+    logs = [l for l in logs_raw if l.get('log_entry', None) == 'tpRunCycle']
+    axis_pos = extract_field1_all(logs, 'axis_pos')
+    axis_vel = extract_field1_all(logs, 'axis_vel')
+    axis_accel = extract_field1_all(logs, 'axis_accel')
+    times = extract_field1_all(logs, 'time')
 
     np.savetxt('axis_pos.csv', axis_pos, delimiter=',')
     np.savetxt('axis_vel.csv', axis_vel, delimiter=',')
@@ -204,6 +206,7 @@ if __name__ == '__main__':
         print(sys.stderr, 'No logfile specified')
         exit(1)
     logs = parse_log(sys.argv[1])
+    plot_axis(logs)
     plot_biarc(logs)
     plot_activations(logs)
     plt.show()

@@ -180,18 +180,16 @@ static greatest_test_res check_blend_C1_continuity(TP_STRUCT * const tp, int cur
         ASSERT(prev_tc);
         ASSERT(next_tc);
 
+        ContinuityCheck c1 = calc_C1_continuity(prev_tc, next_tc);
+
+        PmCartesian exp_u_diff = {0};
         if(prev_tc->term_cond == TC_TERM_COND_TANGENT) {
-            PmCartesian u_1, u_2;
-            tcGetEndTangentUnitVector(prev_tc, &u_1);
-            tcGetStartTangentUnitVector(next_tc, &u_2);
-
-            ASSERT_PMCARTESIAN_IN_RANGE(u_1, u_2, 1e-7);
+            ASSERT_PMCARTESIAN_IN_RANGE(exp_u_diff, c1.u_diff, 1e-7);
+            ASSERT_IN_RANGE(0, c1.dot, 1e-7);
         }
+        EmcPose exp_p_diff = {0};
 
-        EmcPose p_1, p_2;
-        tcGetEndpoint(prev_tc, &p_1);
-        tcGetStartpoint(next_tc, &p_2);
-        ASSERT_EMCPOSE_IN_RANGE(p_1, p_2, 1e-12);
+        ASSERT_EMCPOSE_IN_RANGE(exp_p_diff, c1.p_diff, 1e-12);
     }
     return GREATEST_TEST_RES_PASS;
 }

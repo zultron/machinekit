@@ -348,6 +348,13 @@ typedef struct
     biarc_solution_t solution;
 } biarc_solver_results_t;
 
+typedef struct
+{
+    EmcPose p_diff;
+    PmCartesian u_diff;
+    double dot;
+} ContinuityCheck;
+
 
 // API for biarc blends
 
@@ -406,5 +413,9 @@ int blend_find_arcpoints3(
 tp_err_t blend_biarc_postprocess(biarc_solver_results_t const * const biarc_results,
     BlendPoints3 * const points1,
     BlendPoints3 * const points2);
+
+ContinuityCheck calc_C1_continuity(
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const next_tc);
 
 #endif
