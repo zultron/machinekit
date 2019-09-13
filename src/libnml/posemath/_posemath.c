@@ -1848,7 +1848,7 @@ int pmCircleInit(PmCircle * const circle,
 #ifdef PM_DEBUG
     if (0 == circle) {
 #ifdef PM_PRINT_ERROR
-        pmPrintError("error: pmCircleInit cirle pointer is null\n");
+        pmPrintError("error: pmCircleInit circle pointer is null\n");
 #endif
         return pmErrno = PM_ERR;
     }
