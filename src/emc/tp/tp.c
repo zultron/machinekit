@@ -934,14 +934,7 @@ static inline tp_err_t initBlendSegmentFromPoints(
     default:
         return TP_ERR_FAIL;
     }
-    return tpInitBlendArcFromPrev(
-        tp,
-        prev_tc,
-        blend_tc,
-        param->v_req,
-        param->v_plan,
-        param->a_max_planar,
-        blend_tc->motion_type);
+    return TP_ERR_OK;
 }
 
 tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const this_tc)
@@ -1055,11 +1048,27 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         break;
     }
     default:
+        // WARNING: getting here should be impossible if preconditions are met (this is an unrecoverable state)
+        rtapi_print_msg(RTAPI_MSG_ERR, "Biarc Blend error encountered after previous segment is already modified");
         return TP_ERR_FAIL;
     }
 
-    tcSetTermCond(&blend_tc1, &blend_tc2, TC_TERM_COND_TANGENT);
-    tcSetTermCond(&blend_tc2, this_tc, TC_TERM_COND_TANGENT);
+    CHP(tpInitBlendArcFromPrev(
+        tp,
+        prev_tc,
+        &blend_tc1,
+        param.v_req,
+        param.v_plan,
+        param.a_max_planar,
+        blend_tc1.motion_type));
+    CHP(tpInitBlendArcFromPrev(
+        tp,
+        prev_tc,
+        &blend_tc2,
+        param.v_req,
+        param.v_plan,
+        param.a_max_planar,
+        blend_tc2.motion_type));
 
 #ifdef TP_DEBUG
     print_json5_log_start(tpCreateBiarcBlend, Command);
