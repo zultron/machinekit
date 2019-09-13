@@ -2026,8 +2026,15 @@ int pmCircleStretch(PmCircle * const circ, double new_angle, int from_end)
         PmCartesian new_start;
         double start_angle = circ->angle - new_angle;
         pmCirclePoint(circ, start_angle, &new_start);
-        pmCartCartSub(&new_start, &circ->center, &circ->rTan);
-        pmCartCartCross(&circ->normal, &circ->rTan, &circ->rPerp);
+        PmCartesian tmp;
+        pmCartCartSub(&new_start, &circ->center, &tmp);
+        // Need to find new components perpendicular to circle normal, and to each other
+        pmCartCartCross(&circ->normal, &tmp, &circ->rPerp);
+        pmCartCartCross(&circ->rPerp, &circ->normal, &circ->rTan);
+        // Center is displaced if there is a helical component
+        pmCartCartSubEq(&tmp, &circ->rTan);
+        pmCartCartAddEq(&circ->center, &tmp);
+        // New initial radius in case there is non-zero spiral component
         pmCartMag(&circ->rTan, &circ->radius);
     }
     // Reduce the spiral / helical components proportionally
