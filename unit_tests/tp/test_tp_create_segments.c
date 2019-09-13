@@ -108,7 +108,7 @@ TEST test_create_two_exact_lines() {
 TEST test_create_two_blended_lines() {
     CREATE_MOCK_TP();
 
-    EmcPose pt0 = {0};
+    EmcPose pt0 = {};
 
     EmcPose pt1 = newXYZ(1,0,0,pt0);
     tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
@@ -139,7 +139,7 @@ TEST test_create_tangent_arcs() {
     CREATE_MOCK_TP();
     tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
 
-    EmcPose pt0 = {0};
+    EmcPose pt0 = {};
     EmcPose pt1 = newXYZ(1,1,0,pt0);
     EmcPose pt2 = newXYZ(2,0,0,pt1);
     PmCartesian center1 = {1,0,0};
@@ -194,7 +194,7 @@ TEST test_slightly_convex_arcs() {
     CREATE_MOCK_TP();
     tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
 
-    EmcPose const pt0 = {0};
+    EmcPose const pt0 = {};
     EmcPose const pt1 = newXYZ(1,1,0,pt0);
     EmcPose const pt2 = newXYZ(2,0,0,pt1);
     double const dc = 0.001;
@@ -219,7 +219,7 @@ TEST test_line_arc_in_plane() {
     CREATE_MOCK_TP();
     tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
 
-    EmcPose const pt0 = {0};
+    EmcPose const pt0 = {};
     EmcPose const pt1 = newXYZ(2,0,0,pt0);
     EmcPose const pt2 = newXYZ(2,2,0,pt1);
     PmCartesian center1 = {2+pmSqrt(2),1,0};
@@ -243,7 +243,7 @@ TEST test_find_blend_points_and_tangents()
     tpSetTermCond(tp, TC_TERM_COND_STOP, 0.0);
 
     // Unit radius to make angle -> arc length conversion easy
-    EmcPose const pt0 = {0};
+    EmcPose const pt0 = {};
     EmcPose const pt1 = newXYZ(2,0,0,pt0);
     EmcPose const pt2 = newXYZ(2,2,0,pt1);
 
@@ -264,7 +264,7 @@ TEST test_find_blend_points_and_tangents()
     ASSERT(prev_tc);
     ASSERT(this_tc);
 
-    blend_boundary_t bb = {0};
+    blend_boundary_t bb = {};
     double const s_b = M_PI / 6;
 
     find_blend_points_and_tangents(s_b, prev_tc, this_tc, &bb);
@@ -291,7 +291,7 @@ TEST test_find_blend_intermediates()
     tpSetTermCond(tp, TC_TERM_COND_STOP, 0.0);
 
     // Unit radius to make angle -> arc length conversion easy
-    EmcPose const pt0 = {0};
+    EmcPose const pt0 = {};
     EmcPose const pt1 = newXYZ(2,0,0,pt0);
     EmcPose const pt2 = newXYZ(4,0,0,pt1);
 
@@ -312,7 +312,7 @@ TEST test_find_blend_intermediates()
     ASSERT(prev_tc);
     ASSERT(this_tc);
 
-    blend_boundary_t bb = {0};
+    blend_boundary_t bb = {};
     double const s_b = M_PI / 4;
 
     find_blend_points_and_tangents(s_b, prev_tc, this_tc, &bb);
@@ -340,7 +340,8 @@ static greatest_test_res setup_initial_line(TP_STRUCT *tp, double v_req, double 
     tpSetPos(tp, &pt0);
     tpSetId(tp, 1);
     // Ask for impossibly high velocity to force the arc to maximum size
-    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, v_req, v_max, a_max, 0, 0, 0, 0, line_tag(1));
+    ASSERT_EQ(TP_ERR_OK, tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, v_req, v_max, a_max, 0, 0, 0, 0, line_tag(1)));
+    ASSERT_EQ(1, tcqLen(& tp->queue));
 
     TC_STRUCT const * tc = tcqItem(&tp->queue, 0);
     PmCartesian const u_exp = {0,1,0};
@@ -348,7 +349,6 @@ static greatest_test_res setup_initial_line(TP_STRUCT *tp, double v_req, double 
     tcGetEndTangentUnitVector(tc, &u_act);
     ASSERT_PMCARTESIAN_IN_RANGE(u_exp, u_act, TP_POS_EPSILON);
 
-    ASSERT_EQ(1, tcqLen(&tp->queue));
     return GREATEST_TEST_RES_PASS;
 }
 
@@ -396,7 +396,7 @@ static greatest_test_res add_circle_from_center_normal(TP_STRUCT *tp, double v_r
     double const v_max = 2.0;
 
     // Unit radius to make angle -> arc length conversion easy
-    EmcPose const pt1 = {0};
+    EmcPose const pt1 = {};
     EmcPose pt2 = pt1;
     pmCartScalMult(&center2, 2.0, &pt2.tran);
 
@@ -409,9 +409,9 @@ static greatest_test_res add_circle_from_center_normal(TP_STRUCT *tp, double v_r
 
     TC_STRUCT const * tc = tcqItem(&tp->queue, 0);
     ASSERT(tc);
-    ASSERT_FLOAT_EQ(v_max, tc->maxvel);
+    //ASSERT_FLOAT_EQ(v_max, tc->maxvel);
 
-    ASSERT_EQ(2, tcqLen(&tp->queue));
+    //ASSERT_EQ(2, tcqLen(&tp->queue));
     return GREATEST_TEST_RES_PASS;
 }
 
@@ -487,9 +487,9 @@ TEST test_optimize_biarc_blend_size()
     PmCartesian vel_bound = getXYZVelBounds();
     PmCartesian acc_bound = getXYZAccelBounds();
 
-    BlendParameters param = {0};
+    BlendParameters param = {};
 
-    biarc_solver_results_t biarc_results = {0};
+    biarc_solver_results_t biarc_results = {};
 
     tp_err_t res_opt = optimize_biarc_blend_size(
         prev_tc,
@@ -520,7 +520,7 @@ typedef struct {
     PmCartesian center;
     PmCartesian normal;
     long turns;
-    long init_line_len;
+    double init_line_len;
 } CenterNormal;
 
 TEST test_biarc_optimizer_performance()
@@ -606,11 +606,14 @@ TEST test_biarc_optimizer_performance()
             ASSERT(prev_tc);
             ASSERT(this_tc);
 
+            ASSERT_FLOAT_EQ(2.0, this_tc->maxvel);
+            ASSERT_EQ(2, tcqLen(&tp->queue));
+
             PmCartesian vel_bound = getXYZVelBounds();
             PmCartesian acc_bound = getXYZAccelBounds();
 
-            BlendParameters param = {0};
-            biarc_solver_results_t biarc_results = {0};
+            BlendParameters param = {};
+            biarc_solver_results_t biarc_results = {};
 
 #ifdef DO_BIARC_SCAN
             printf(">Center %f %f %f, Normal %f %f %f\n",
@@ -736,12 +739,15 @@ static greatest_test_res solve_blend_series(
         TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
         ASSERT(prev_tc);
         ASSERT(this_tc);
+        ASSERT_FLOAT_EQ(2.0, this_tc->maxvel);
+        ASSERT_EQ(2, tcqLen(&tp->queue));
+
 
         PmCartesian vel_bound = getXYZVelBounds();
         PmCartesian acc_bound = getXYZAccelBounds();
 
-        BlendParameters param = {0};
-        biarc_solver_results_t biarc_results = {0};
+        BlendParameters param = {};
+        biarc_solver_results_t biarc_results = {};
 
         optimize_biarc_blend_size(
             prev_tc,
@@ -802,6 +808,98 @@ TEST test_biarc_optimizer_exercise()
     PASS();
 }
 
+TEST test_biarc_blend_consume_line()
+{
+    CREATE_MOCK_TP_ACC(8.0);
+    ASSERT(tp);
+    tp->termCond = 2;
+    static const double BLEND_TOLERANCE = 0.05;
+    static const double v_req = 1.0;
+
+    static const CenterNormal cases[]={
+        {{0, 1, 0}, {0, 0, 1}, 0, 0.002},
+        {{0.100000, 0.000293, 0.100000}, {0.000000, 0.000000, 1.000000},0,0.001},
+        {{0.084656,-0.053229, 0.100000}, {0.000000, 0.000000, 1.000000},0,0.002},
+        {{0.505793,-0.862655, 0.000000}, {0.000000, 0.000000, 1.000000},0,0.002},
+        {{-1, 0.001, 0}, {0, 0, 1}, 0, 0.002},
+        {{1, 0, 0}, {0, 0, -1}, 0, 0.002},
+        {{1, 0, 0}, {0, 0, 1}, 0, 0.002},
+        {{.5, 0, 0}, {0, 0, 1}, 0, 0.002},
+        {{.1, 0, 0}, {0, 0, 1}, 0, 0.002},
+        {{.01, 0, 0}, {0, 0, 1}, 0, 0.002},
+        {{1, -0.1, 0}, {0, 0, 1}, 0, 0.002},
+        {{1, -0.01, 0}, {0, 0, 1}, 0, 0.002},
+        {{1, -0.001, 0}, {0, 0, 1}, 0, 0.002},
+        {{1, -0.0001, 0}, {0, 0, 1}, 0, 0.002},
+        {{1,  0.00000, 0}, {0, 0, 1}, 0, 0.002},
+        {{1,  0.0001, 0}, {0, 0, 1}, 0, 0.002},
+        {{1,  0.001, 0}, {0, 0, 1}, 0, 0.002},
+        {{1,  0.01, 0}, {0, 0, 1}, 0, 0.002},
+        {{1,  0.1, 0}, {0, 0, 1}, 0, 0.002},
+        {{1, 1, 0}, {0, 0, 1}, 0, 0.002},
+        {{1, 0, 0}, {0, 1, 0}, 0, 0.002},
+        {{1, 0, 0}, {0, -1, 0}, 0, 0.002},
+        {{0, 0, 1}, {-1, 0, 0}, 0, 0.002},
+        {{0, 0, 1}, {1, 0, 0}, 0, 0.002},
+        {{0, 0, 1}, {0, 1, 0}, 0, 0.002},
+        {{0, 0, 1}, {0, -1, 0}, 0, 0.002},
+        {{0, 1, 1}, {0, 0, -1}, 0, 0.002},
+        {{0, 1, 1}, {0, 0, 1}, 0, 0.002},
+        {{1, 0, 1}, {0, 1, 0}, 0, 0.002},
+        {{1, 0, 1}, {0, -1, 0}, 0, 0.002},
+        {{0, .1, .1}, {0, 0, -1}, 0, 0.002},
+        {{0, .1, .1}, {0, 0, 1}, 0, 0.002},
+        {{.1, 0, .1}, {0, 1, 0}, 0, 0.002},
+        {{.1, 0, .1}, {0, -1, 0}, 0, 0.002},
+        {{1, 0, 0.5}, {0, 0, 1}, 0, 0.002},
+        {{1, 1, 1}, {0, 0, 1}, 0, 0.002},
+        };
+
+    printf("\nCircle biarc blend tests\n");
+    printf("%9s,%9s,%9s,%9s,%9s,%9s,%9s,\n",
+            "type",
+            "C_x",
+            "C_y",
+            "C_z",
+            "N_x",
+            "N_y",
+            "N_z");
+    for (int j=0; j<2; ++j) {
+        for (unsigned i=0; i < (sizeof(cases)/sizeof (CenterNormal)); ++i) {
+            resetMockTP(tp, 0.001);
+            switch (j) {
+            case 0:
+                CHECK_CALL(setup_initial_line(tp, v_req, 8.0, cases[i].init_line_len, BLEND_TOLERANCE));
+                break;
+            case 1:
+                CHECK_CALL(setup_initial_circle(tp, v_req, 8.0, BLEND_TOLERANCE));
+                break;
+            }
+
+            ASSERT_EQ(1, tcqLen(&tp->queue));
+            CHECK_CALL(add_circle_from_center_normal(tp, 1.0, 8.0, BLEND_TOLERANCE, cases[i].center, cases[i].normal, cases[i].turns));
+
+            printf("%9s,%9f,%9f,%9f,%9f,%9f,%9f\n",
+                   j ? " arc-arc" : "line-arc",
+                   cases[i].center.x,
+                   cases[i].center.y,
+                   cases[i].center.z,
+                   cases[i].normal.x,
+                   cases[i].normal.y,
+                   cases[i].normal.z
+                   );
+            PmCartesian expected_xyz;
+            pmCartScalMult(&cases[i].center, 2., &expected_xyz);
+
+            ASSERT_PMCARTESIAN_IN_RANGE(expected_xyz, tp->goalPos.tran, 1e-06);
+        }
+    }
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();      /* command-line arguments, initialization. */
     RUN_TEST(test_mock_tp_init);
@@ -816,5 +914,6 @@ int main(int argc, char **argv) {
     RUN_TEST(test_biarc_optimizer_performance);
     RUN_TEST(test_biarc_optimizer_exercise);
     RUN_TEST(test_optimize_biarc_blend_size);
+    RUN_TEST(test_biarc_blend_consume_line);
     GREATEST_MAIN_END();        /* display results */
 }

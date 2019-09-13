@@ -947,8 +947,8 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     double reqvel = fmin(prev_tc->reqvel, this_tc->reqvel);
     tc_motion_type_t prev_motion_type = prev_tc->motion_type;
     tc_motion_type_t this_motion_type = this_tc->motion_type;
-    PmCartesian u1_stretch={0}, u2_stretch={0};
-    EmcPose p1_stretch={0}, p2_stretch={0};
+    PmCartesian u1_stretch={}, u2_stretch={};
+    EmcPose p1_stretch={}, p2_stretch={};
 #endif
 
     PmCartesian vel_bound = getXYZVelBounds();
