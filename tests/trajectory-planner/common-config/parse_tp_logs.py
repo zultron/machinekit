@@ -7,17 +7,17 @@ import re
 from matplotlib import pyplot as plt
 import numpy as np
 
-axes={
-    'X': 0,
-    'Y': 1,
-    'Z': 2,
-    'A': 3,
-    'B': 4,
-    'C': 5,
-    'U': 6,
-    'V': 7,
-    'W': 8,
-}
+axes = [
+    'X',
+    'Y',
+    'Z',
+    'A',
+    'B',
+    'C',
+    'U',
+    'V',
+    'W',
+]
 
 
 def extract_field1(logs, log_entry, field1):
@@ -121,27 +121,34 @@ def plot_axis(logs_raw):
     np.savetxt('axis_vel.csv', axis_vel, delimiter=',')
     np.savetxt('axis_accel.csv', axis_accel, delimiter=',')
 
-    plt_axis = 'X'
-    idx = axes[plt_axis]
     plt.close()
 
     if len(axis_pos):
         plt.figure(1)
-        plt.plot(times * 1000.0, axis_pos[:, idx])
+        for idx in range(4):
+            plt.plot(times * 1000.0, axis_pos[:, idx], label=f'{axes[idx]} position')
         plt.grid(True)
-        plt.title('{} Axis position vs time, ms'.format(plt_axis))
+        plt.legend()
+        plt.xlabel('time, ms')
+        plt.title('Axis position vs time, ms')
 
     if len(axis_vel):
         plt.figure(2)
-        plt.plot(times * 1000.0, axis_vel[:, idx])
+        for idx in range(4):
+            plt.plot(times * 1000.0, axis_vel[:, idx], label=f'{axes[idx]} velocity')
         plt.grid(True)
-        plt.title('{} velocity vs time, ms'.format(plt_axis))
+        plt.legend()
+        plt.xlabel('time, ms')
+        plt.title('Axis velocity vs time, ms')
 
     if len(axis_accel):
         plt.figure(3)
-        plt.plot(times * 1000.0, axis_accel[:, idx])
+        for idx in range(4):
+            plt.plot(times * 1000.0, axis_accel[:, idx], label=f'{axes[idx]} acceleration')
         plt.grid(True)
-        plt.title('{} Axis acceleration vs time, ms'.format(plt_axis))
+        plt.legend()
+        plt.xlabel('time, ms')
+        plt.title('Axis acceleration vs time, ms')
 
     if len(axis_vel):
         xyz_vel = np.sqrt(np.sum(np.square(axis_vel[:, 0:2]), 1))
@@ -151,6 +158,7 @@ def plot_axis(logs_raw):
         plt.figure(4)
         plt.plot(times_ms, xyz_vel)
         plt.grid(True)
+        plt.xlabel('time, ms')
         plt.title('XYZ velocity vs relative time, ms')
 
 
