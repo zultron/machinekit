@@ -35,7 +35,7 @@ int tpUpdateCycle(TP_STRUCT * const tp,
 
 int tpRunOptimization(TP_STRUCT * const tp);
 
-int tpAddSegmentToQueue(TP_STRUCT * const tp, TC_STRUCT * const tc, int inc_id);
+int tpAddSegmentToQueue(TP_STRUCT * const tp, TC_STRUCT * const tc);
 
 double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc);
 

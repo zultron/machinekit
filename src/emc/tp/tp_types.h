@@ -83,6 +83,7 @@ typedef struct {
 
     int nextId;
     int execId;
+    tc_unique_id_t nextUniqueId;
     struct state_tag_t execTag; /* state tag corresponding to running motion */
     int nextexecId;
     tc_term_cond_t termCond;

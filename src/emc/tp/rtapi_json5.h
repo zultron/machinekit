@@ -26,6 +26,7 @@
 #define print_json5_int_field(base_, varname_) print_json5_int_(#varname_, (base_)->varname_)
 #define print_json5_unsigned_field(base_, varname_) print_json5_unsigned_(#varname_, (base_)->varname_)
 #define print_json5_long_field(base_, varname_) print_json5_long_(#varname_, (base_)->varname_)
+#define print_json5_long_long_field(base_, varname_) print_json5_long_long_(#varname_, (base_)->varname_)
 
 #define print_json5_PmCartesian(varname_) print_json5_PmCartesian_(#varname_, varname_)
 #define print_json5_EmcPose(varname_) print_json5_EmcPose_(#varname_, varname_)
@@ -104,7 +105,7 @@ static inline void print_json5_long_(const char *varname, long value)
     rtapi_print("%s: %ld, ", varname ?: "NO_NAME", value);
 }
 
-static inline void print_json5_ll_(const char *varname, long long value)
+static inline void print_json5_long_long_(const char *varname, long long value)
 {
     rtapi_print("%s: %lld, ", varname ?: "NO_NAME", value);
 }

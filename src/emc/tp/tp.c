@@ -342,6 +342,7 @@ int tpCreate(TP_STRUCT * const tp, int _queueSize, TC_STRUCT * const tcSpace)
         return TP_ERR_FAIL;
     }
 
+    tp->nextUniqueId = 0;
     /* init the rest of our data */
     return tpInit(tp);
 }
@@ -500,9 +501,24 @@ int tpSetId(TP_STRUCT * const tp, int id)
     return TP_ERR_OK;
 }
 
+tc_unique_id_t tpGetNextUniqueId(TP_STRUCT * const tp)
+{
+    return tp->nextUniqueId++;
+}
+
+void tcSetId(TP_STRUCT * const tp, TC_STRUCT * const tc)
+{
+    // KLUDGE always number the possible blend arcs sequentially
+    blend_tc1.unique_id = tpGetNextUniqueId(tp);
+    blend_tc2.unique_id = tpGetNextUniqueId(tp);
+    tc->unique_id = tpGetNextUniqueId(tp);
+    blend_tc1.id = blend_tc2.id = tc->id = tp->nextId;
+}
+
+
 /** Returns the id of the last motion that is currently
   executing.*/
-int tpGetExecId(TP_STRUCT * const tp)
+int tpGetExecId(const TP_STRUCT * const tp)
 {
     if (0 == tp) {
         return TP_ERR_FAIL;
@@ -511,7 +527,7 @@ int tpGetExecId(TP_STRUCT * const tp)
     return tp->execId;
 }
 
-int tpGetCompletedId(TP_STRUCT * const tp)
+int tpGetCompletedId(const TP_STRUCT * const tp)
 {
     if (!tp || !tp->tc_completed) {
         return 0;
@@ -546,7 +562,7 @@ struct state_tag_t tpGetExecTag(TP_STRUCT * const tp)
 }
 
 
-int tpGetNextExecId(TP_STRUCT * const tp)
+int tpGetNextExecId(const TP_STRUCT * const tp)
 {
     if (0 == tp) {
         return TP_ERR_FAIL;
@@ -1099,7 +1115,9 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_double_("line_length2", blend_tc2.coords.arc.xyz.line_length);
     print_json5_int(prev_motion_type);
     print_json5_int(this_motion_type);
-    print_json5_long_("id", tp->nextId);
+    print_json5_long_long_("id", this_tc->id);
+    print_json5_long_long_("id1", blend_tc1.unique_id);
+    print_json5_long_long_("id2", blend_tc2.unique_id);
     print_json5_biarc_solution_t("solution", &biarc_results.solution);
     print_json5_PmCartesian(u1_stretch);
     print_json5_PmCartesian(u2_stretch);
@@ -1238,15 +1256,11 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
  * Returns an error code if the queue operation fails, otherwise adds a new
  * segment to the queue and updates the end point of the trajectory planner.
  */
-int tpAddSegmentToQueue(TP_STRUCT * const tp, TC_STRUCT * const tc, int inc_id) {
+int tpAddSegmentToQueue(TP_STRUCT * const tp, TC_STRUCT * const tc) {
 
-    tc->id = tp->nextId;
     if (tcqPut(&tp->queue, tc) == -1) {
         rtapi_print_msg(RTAPI_MSG_ERR, "tcqPut failed.\n");
         return TP_ERR_FAIL;
-    }
-    if (inc_id) {
-        tp->nextId++;
     }
 
     // Store end of current move as new final goal of TP
@@ -1259,7 +1273,8 @@ int tpAddSegmentToQueue(TP_STRUCT * const tp, TC_STRUCT * const tc, int inc_id) 
     //Fixing issue with duplicate id's?
 #ifdef TP_DEBUG
     print_json5_log_start(Enqueue, Command);
-    print_json5_long_("id", tc->id);
+    print_json5_int_field(tc, id);
+    print_json5_long_long_field(tc, unique_id);
     print_json5_string_("motion_type", tcMotionTypeAsString(tc->motion_type));
     print_json5_double_("target", tc->target);
     print_json5_string_("term_cond", tcTermCondAsString(tc->term_cond));
@@ -1372,13 +1387,18 @@ int tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
     // happen after all other steps that affect the terminal condition
     tcFinalizeLength(prev_tc);
 
-    int retval = tpAddSegmentToQueue(tp, tc, true);
+    int retval = tpAddSegmentToQueue(tp, tc);
     //Run speed optimization (will abort safely if there are no tangent segments)
     tpRunOptimization(tp);
 
     return retval;
 }
 
+void clearBlendStructs()
+{
+    memset(&blend_tc1, 0, sizeof(TC_STRUCT));
+    memset(&blend_tc2, 0, sizeof(TC_STRUCT));
+}
 
 /**
  * Adds a rigid tap cycle to the motion queue.
@@ -1402,7 +1422,9 @@ int tpAddRigidTap(TP_STRUCT * const tp,
     }
 
     TC_STRUCT tc = {0};
+    clearBlendStructs();
 
+    tcSetId(tp, &tc);
     /* Initialize rigid tap move.
      * NOTE: rigid tapping does not have a canonical type.
      * NOTE: always need atspeed since this is a synchronized movement.
@@ -1763,14 +1785,12 @@ int tpCreateBlendIfPossible(
 {
     blend_type_t blend_requested = tpCheckBlendArcType(tp, prev_tc, tc);
 
-    memset(&blend_tc1, 0, sizeof(TC_STRUCT));
     switch (blend_requested) {
         case BLEND_LINE_LINE:
             return tpCreateLineLineBlend(tp, prev_tc, tc, &blend_tc1) == TP_ERR_OK ? 1 : 0;
         case BLEND_LINE_ARC:
         case BLEND_ARC_LINE:
         case BLEND_ARC_ARC:
-            memset(&blend_tc2, 0, sizeof(TC_STRUCT));
             return tpCreateBiarcBlend(tp, prev_tc, tc) == TP_ERR_OK ? 2 : 0;
         case BLEND_NONE:
             break;
@@ -1828,12 +1848,11 @@ tc_blend_type_t tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc) {
         return tpChooseBestBlend(tp, prev_tc, tc, NULL);
     case 1:
 
-        return tpAddSegmentToQueue(tp, &blend_tc1, false);
+        return tpAddSegmentToQueue(tp, &blend_tc1);
     case 2:
     {
-
-        int res1 = tpAddSegmentToQueue(tp, &blend_tc1, false);
-        int res2 = tpAddSegmentToQueue(tp, &blend_tc2, false);
+        int res1 = tpAddSegmentToQueue(tp, &blend_tc1);
+        int res2 = tpAddSegmentToQueue(tp, &blend_tc2);
         return res1 | res2;
     }
     }
@@ -1863,11 +1882,17 @@ int tpAddLine(TP_STRUCT * const tp,
     if (tpErrorCheck(tp) < 0) {
         return TP_ERR_FAIL;
     }
+    // Initialize new tc struct for the line segment
+    TC_STRUCT tc = {0};
+
+    clearBlendStructs();
+    tcSetId(tp, &tc);
+
 #ifdef TP_DEBUG
     {
         // macros use the variable name, need a plain name to please the JSON5 parser
         print_json5_log_start(tpAddLine, Command);
-        print_json5_long_("id", tp->nextId);
+        print_json5_int_("id", tc.id);
         print_json5_EmcPose_("goal", tp->goalPos);
         print_json5_EmcPose(end);
         print_json5_double(vel);
@@ -1884,8 +1909,8 @@ int tpAddLine(TP_STRUCT * const tp,
     }
 #endif
 
-    // Initialize new tc struct for the line segment
-    TC_STRUCT tc = {0};
+
+
     tcInit(&tc,
             TC_LINEAR,
             canon_motion_type,
@@ -1954,14 +1979,18 @@ int tpAddCircle(TP_STRUCT * const tp,
         return TP_ERR_FAIL;
     }
 
+    TC_STRUCT tc = {0};
+
+    clearBlendStructs();
+
+    tcSetId(tp, &tc);
+
 #ifdef TP_DEBUG
     {
         // macros use the variable name, need a plain name to please the JSON5 parser
-        long nextId = tp->nextId;
-        EmcPose goal = tp->goalPos;
         print_json5_log_start(tpAddCircle, Command);
-        print_json5_long(nextId);
-        print_json5_EmcPose(goal);
+        print_json5_int_field(&tc, id);
+        print_json5_EmcPose_("goal", tp->goalPos);
         print_json5_PmCartesian(center);
         print_json5_PmCartesian(normal);
         print_json5_long(turn);
@@ -1979,7 +2008,6 @@ int tpAddCircle(TP_STRUCT * const tp,
     }
 #endif
 
-    TC_STRUCT tc = {0};
 
     tcInit(&tc,
             TC_CIRCULAR,
@@ -2203,7 +2231,7 @@ void tpDebugCycleInfo(TP_STRUCT const * const tp, TC_STRUCT const * const tc, TC
 
     /* Debug Output */
     print_json5_log_start(tc_state, Run);
-    print_json5_ll_("time_ticks", tp->time_elapsed_ticks);
+    print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
     print_json5_double_("id", tc->id);
     print_json5_double(v_target);
     print_json5_double(v_final);
@@ -2736,8 +2764,11 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
     // Log a bunch of TP internal state if required by debug level or position error
     if (need_print) {
         print_json5_log_start(tpActivateSegment,Run);
-        print_json5_ll_("time_ticks", tp->time_elapsed_ticks);
-        print_json5_int_("id", tc->id);
+        print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
+        print_json5_int_field(tc, id);
+        print_json5_long_long_field(tc, unique_id);
+        print_json5_string_("motion_type", tcMotionTypeAsString(tc->motion_type));
+
         // Position settings
 
         print_json5_EmcPose(tp_position_error);
@@ -2769,7 +2800,6 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
         print_json5_int_field(tc, term_cond);
         print_json5_int_field(tc, id);
         print_json5_int_field(tc, atspeed);
-        print_json5_int_field(tc, motion_type);
 
         print_json5_log_end();
     }
@@ -2908,7 +2938,7 @@ void checkPositionSyncError(TP_STRUCT const *tp, TC_STRUCT const *tc)
                         max_allowed_error,
                         tc->id);
         print_json5_log_start(tpSyncPosition, Run);
-        print_json5_ll_("time_ticks", tp->time_elapsed_ticks);
+        print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
         print_json5_double_("current_vel", emcmotStatus->current_vel);
         print_json5_double_("time", tp->time_elapsed_sec);
         print_json5_double_("spindle_revs", emcmotStatus->spindle_fb.position_rev);
@@ -3223,7 +3253,8 @@ int tpCheckEndCondition(TP_STRUCT const * const tp, TC_STRUCT * const tc, TC_STR
 #ifdef TC_DEBUG
     {
         print_json5_log_start(checkEndCondition, Run);
-        print_json5_long_("id", tc->id);
+        print_json5_int_field(tc, id);
+        print_json5_long_long_field(tc, unique_id);
         print_json5_double_("v_final", ec.v_f);
         print_json5_double_("t_remaining", ec.dt);
         print_json5_double_("dt_used", dt);
@@ -3253,7 +3284,8 @@ int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
 #ifdef TC_DEBUG
     /* Debug Output */
     print_json5_log_start(tc_splitting, Run);
-    print_json5_double_("id", tc->id);
+    print_json5_int_field(tc, id);
+    print_json5_long_long_field(tc, unique_id);
     print_json5_double_("target", tc->target);
     print_json5_double_("progress", tc->progress);
     print_json5_double_("v_terminal", tc->term_vel);
@@ -3531,7 +3563,7 @@ int tpRunCycle(TP_STRUCT *tp, long period)
                     accel_error_mask | vel_error_mask | pos_limit_error_mask)
                 ) {
             print_json5_log_start(tpRunCycle, Run);
-            print_json5_ll_("time_ticks", tp->time_elapsed_ticks);
+            print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
             print_json5_EmcPose(axis_pos);
             print_json5_EmcPose(axis_vel);
             print_json5_EmcPose(axis_accel);

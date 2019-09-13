@@ -22,6 +22,8 @@
 #include "state_tag.h"
 #include "motion_types.h"
 
+typedef unsigned long long tc_unique_id_t;
+
 #define BLEND_DIST_FRACTION 0.5
 /* values for endFlag */
 typedef enum {
@@ -141,6 +143,7 @@ typedef struct {
     double acc_normal_max;         // Max acceleration allowed in normal direction (worst-case for the whole curve)
     
     int id;                 // segment's serial number
+    tc_unique_id_t unique_id;  //!< "Unique" identifier for a motion command that's not related to source line
     struct state_tag_t tag; /* state tag corresponding to running motion */
 
     union {                 // describes the segment's start and end positions

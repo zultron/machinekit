@@ -450,12 +450,10 @@ int tcGetPosReal(TC_STRUCT const * const tc, double progress, EmcPose * const po
 int tcSetTermCond(TC_STRUCT *tc, TC_STRUCT *nexttc, tc_term_cond_t term_cond)
 {
     if (tc) {
-        tp_debug_print("setting term condition %d on tc id %d, type %d\n", term_cond, tc->id, tc->motion_type);
         tc->term_cond = term_cond;
     }
     if (nexttc) {
         nexttc->blend_prev = (tc && term_cond == TC_TERM_COND_PARABOLIC);
-        tp_debug_print("set blend_prev flag %d on tc id %d, type %d\n", nexttc->blend_prev, nexttc->id, nexttc->motion_type);
     }
     return 0;
 }
@@ -573,7 +571,7 @@ int tcFlagEarlyStop(TC_STRUCT * const tc,
     if(tc->synchronized != TC_SYNC_POSITION && nexttc->synchronized == TC_SYNC_POSITION) {
         // we'll have to wait for spindle sync; might as well
         // stop at the right place (don't blend)
-        tp_debug_print("waiting on spindle sync for tc %d\n", tc->id);
+        tp_debug_print("waiting on spindle sync for tc id %d, unique_id %llu\n", tc->id, tc->unique_id);
         tcSetTermCond(tc, nexttc, TC_TERM_COND_STOP);
     }
 
@@ -581,7 +579,7 @@ int tcFlagEarlyStop(TC_STRUCT * const tc,
         // we'll have to wait for the spindle to be at-speed; might as well
         // stop at the right place (don't blend), like above
         // FIXME change the values so that 0 is exact stop mode
-        tp_debug_print("waiting on spindle atspeed for tc %d\n", tc->id);
+        tp_debug_print("waiting on spindle atspeed for tc %d, unique_id %llu\n", tc->id, tc->unique_id);
         tcSetTermCond(tc, nexttc, TC_TERM_COND_STOP);
     }
 
@@ -633,8 +631,6 @@ int tcInit(TC_STRUCT * const tc,
     /** Segment settings passed down from interpreter*/
     tc->enables = enables;
     tc->cycle_time = cycle_time;
-
-    tc->id = -1; //ID to be set when added to queue (may change before due to blend arcs)
 
     /** Segment settings (given values later during setup / optimization) */
     tc->indexrotary = -1;
@@ -792,7 +788,8 @@ int tcFinalizeLength(TC_STRUCT * const tc)
 
 #ifdef TP_DEBUG
     print_json5_log_start(tpFinalizeLength, Lookahead);
-    print_json5_int_("id", tc->id);
+    print_json5_int_field(tc, id);
+    print_json5_long_long_field(tc, unique_id);
     print_json5_string_("motion_type", tcMotionTypeAsString((tc_motion_type_t)tc->motion_type));
     print_json5_double(maxvel_old);
     print_json5_double_("maxvel", tc->maxvel);

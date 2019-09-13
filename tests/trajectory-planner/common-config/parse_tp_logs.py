@@ -164,7 +164,7 @@ def plot_axis(logs_raw):
 
 def plot_activations(logs_raw):
     logs = [l for l in logs_raw if l.get('log_entry', None) == 'tpActivateSegment']
-    segment_id = extract_field1_all(logs, 'id')
+    segment_id = extract_field1_all(logs, 'unique_id')
     target_vel = extract_field1_all(logs, 'target_vel')
     finalvel = extract_field1_all(logs, 'finalvel')
     kink_vel = extract_field1_all(logs, 'kink_vel')
