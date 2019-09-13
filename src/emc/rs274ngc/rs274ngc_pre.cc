@@ -2343,7 +2343,7 @@ int Interp::active_modes(int *g_codes,
     g_codes[G_CODE_RETRACT_MODE] =
 	tag.flags[GM_FLAG_RETRACT_OLDZ] ? G_98 : G_99;
     g_codes[G_CODE_PATH_MODE] =
-        tag.flags[GM_FLAG_BLEND] ? G_64 :
+        tag.flags[GM_FLAG_CONTINUOUS_PATH] ? G_64 :
         tag.flags[GM_FLAG_EXACT_STOP] ? G_61 : G_61_1;
     g_codes[G_CODE_SPINDLE_MODE] = tag.flags[GM_FLAG_CSS_MODE] ? G_97 : G_96;
     g_codes[G_CODE_DISTANCE_MODE_IJK] =
