@@ -751,9 +751,6 @@ int tpInitBlendArcFromPrev(
             ini_maxvel,
             acc);
 
-    // Skip syncdio setup since this blend extends the previous line
-    blend_tc->syncdio = prev_tc->syncdio; //enqueue the list of DIOs that need toggling
-
     // find "helix" length for target
     double length;
     switch (motion_type) {
@@ -1070,6 +1067,15 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         param.a_max_planar,
         blend_tc2.motion_type));
 
+    // First arc carries over the same DIO's as the previous segment
+    blend_tc1.syncdio = prev_tc->syncdio;
+    // The DIO's only change if the previous segment is consumed
+    blend_tc1.syncdio.anychanged &= param.consume;
+    // Second arc should follow DIO's of the following segment (since the midpoint is the closest to the ideal endpoint)
+    blend_tc2.syncdio = this_tc->syncdio;
+    // DIOs have already changed by the time the next segment starts, so ignore changes here
+    this_tc->syncdio.anychanged = 0;
+
 #ifdef TP_DEBUG
     print_json5_log_start(tpCreateBiarcBlend, Command);
     if (param.consume) {
@@ -1191,6 +1197,9 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
     tpInitBlendArcFromPrev(tp, prev_tc, blend_tc, param.v_req,
             param.v_plan, param.a_max_planar, TC_SPHERICAL);
 
+    // Skip syncdio setup since this blend extends the previous segment
+    blend_tc->syncdio = prev_tc->syncdio;
+
     tp_debug_print("blend_tc target_vel = %g\n", blend_tc->target_vel);
 
     if (tpChooseBestBlend(tp, prev_tc, tc, blend_tc) != ARC_BLEND) {
@@ -1212,6 +1221,8 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
         //to "connect" to the next line
         retval = tcConnectBlendArc(NULL, tc, &points.arc_start, &points.arc_end);
     } else {
+        // Carries over the same DIO's as from the previous segment, so there is no change when it enters the blend
+        blend_tc->syncdio.anychanged = 0;
         //TODO refactor connect function to stretch lines and check for bad stretching
         tp_debug_print("keeping previous line\n");
         retval = tcConnectBlendArc(prev_tc, tc, &points.arc_start, &points.arc_end);
