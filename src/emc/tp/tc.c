@@ -220,36 +220,31 @@ int pmCircleTangentVector(PmCircle const * const circle,
         double angle_in, PmCartesian * const out)
 {
 
-    PmCartesian startpoint;
-    PmCartesian radius;
-    PmCartesian uTan, dHelix, dRadial;
-
-    // Get vector in radial direction
-    pmCirclePoint(circle, angle_in, &startpoint);
-    pmCartCartSub(&startpoint, &circle->center, &radius);
-
-    /* Find local tangent vector using planar normal. Assuming a differential
-     * angle dtheta, the tangential component of the tangent vector is r *
-     * dtheta. Since we're normalizing the vector anyway, assume dtheta = 1.
-     */
-    pmCartCartCross(&circle->normal, &radius, &uTan);
-
-    /* the binormal component of the tangent vector is (dz / dtheta) * dtheta.
-     */
-    double dz = 1.0 / circle->angle;
-    pmCartScalMult(&circle->rHelix, dz, &dHelix);
-
-    pmCartCartAddEq(&uTan, &dHelix);
-
-    /* The normal component is (dr / dtheta) * dtheta.
-     */
+    // Cheat: "rHelix" already has helical height built in
+    double cheat_dz = 1.0 / circle->angle;
     double dr = circle->spiral / circle->angle;
-    pmCartUnit(&radius, &dRadial);
-    pmCartScalMultEq(&dRadial, dr);
-    pmCartCartAddEq(&uTan, &dRadial);
+    PmCartesian par, perp, uRadial, dTangential;
+
+    pmCartScalMult(&circle->rTan, cos(angle_in)/circle->radius, &par);
+    pmCartScalMult(&circle->rPerp, sin(angle_in)/circle->radius, &perp);
+
+    pmCartCartAdd(&par, &perp, &uRadial);
+
+    pmCartScalMult(&circle->rTan, -sin(angle_in)/circle->radius, &par);
+    pmCartScalMult(&circle->rPerp, cos(angle_in)/circle->radius, &perp);
+
+    pmCartCartAdd(&par, &perp, &dTangential);
+
+    pmCartScalMult(&dTangential, circle->radius + dr * angle_in, out);
+    PmCartesian tmp;
+    pmCartScalMult(&uRadial, dr, &tmp);
+    pmCartCartAddEq(out, &tmp);
+
+    pmCartScalMult(&circle->rHelix, cheat_dz, &tmp);
+    pmCartCartAddEq(out, &tmp);
 
     //Normalize final output vector
-    pmCartUnit(&uTan, out);
+    pmCartUnitEq(out);
     return 0;
 }
 
