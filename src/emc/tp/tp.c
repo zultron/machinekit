@@ -919,45 +919,6 @@ static const biarc_solver_config_t biarc_cfg_ = {
     0.0000001,
 };
 
-
-static inline int arcInitFromBlendPoints3(
-    SphericalArc * const arc,
-    BlendPoints3 const * const points)
-{
-    return arcInitFromPoints(
-        arc,
-        &points->arc_start,
-        &points->arc_end,
-        &points->arc_center);
-}
-
-static inline tp_err_t initBlendSegmentFromPoints(
-    TC_STRUCT * const blend_tc,
-    TP_STRUCT const * const tp,
-    TC_STRUCT const * const prev_tc,
-    BlendPoints3 const *points,
-    BlendParameters * const param)
-{
-    blend_tc->motion_type = points->motion_type;
-
-    switch (points->motion_type) {
-    case TC_LINEAR:
-        pmCartLineInit(&blend_tc->coords.line.xyz, &points->arc_start, &points->arc_end);
-        break;
-    case TC_SPHERICAL:
-        if (arcInitFromBlendPoints3(&blend_tc->coords.arc.xyz, points) != 0) {
-            return TP_ERR_FAIL;
-        }
-        double v_max = pmSqrt(blend_tc->coords.arc.xyz.radius * param->a_n_max);
-        param->v_plan = fmin(v_max, param->v_plan);
-        param->v_req = fmin(v_max, param->v_req);
-        break;
-    default:
-        return TP_ERR_FAIL;
-    }
-    return TP_ERR_OK;
-}
-
 tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const this_tc)
 {
     tp_debug_print("-- Starting BiArc blend --\n");
@@ -979,67 +940,77 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     PmCartesian acc_bound = getXYZAccelBounds();
 
     biarc_solver_results_t biarc_results = {0};
-    BlendParameters param = {0};
-    if (TP_ERR_OK != optimize_biarc_blend_size(
-            prev_tc,
-            this_tc,
-            &biarc_cfg_,
-            &vel_bound,
-            &acc_bound,
-            &biarc_results,
-            &param,
-            tp->cycleTime))
-    {
-        tp_debug_print("Failed to optimize biarc blend, aborting\n");
-        return TP_ERR_FAIL;
+    BlendParameters param_guess = {0};
+    BlendControls controls = {0};
+    CHP(optimize_biarc_blend_size(
+        prev_tc,
+        this_tc,
+        &biarc_cfg_,
+        &vel_bound,
+        &acc_bound,
+        &biarc_results,
+        &controls,
+        &param_guess,
+        tp->cycleTime));
+
+    biarc_control_points_t const * const control_pts = &biarc_results.solution.control_pts;
+    blend_boundary_t const * const boundary = &biarc_results.solution.boundary;
+
+    BlendPoints3 points1 = {0}, points2 = {0};
+    BlendParameters param1 = {0}, param2 = {0};
+
+    CHP(find_biarc_points_from_solution(
+        &boundary->u1,
+        &control_pts->u_mid,
+        &boundary->P1,
+        &control_pts->P_mid,
+        &control_pts->Pb1,
+        control_pts->d,
+        &acc_bound,
+        &vel_bound,
+        &controls,
+        &points1,
+        &param1));
+
+    // Check if previous segment can be consumed
+    blendCheckConsume(&param1, boundary->s1, prev_tc, emcmotConfig->arcBlendGapCycles);
+    if (param1.consume && blend_tc1.motion_type == TC_LINEAR) {
+        // KLUDGE force the start point to be the previous line's starting point since it's going to be consumed
+        points1.arc_start = prev_tc->coords.line.xyz.start;
     }
+    CHP(initBlendSegmentFromPoints(&blend_tc1, &points1, &param1));
 
-    BlendPoints3 points1, points2;
-    CHP(blend_biarc_postprocess(&biarc_results, &points1, &points2));
+    CHP(find_biarc_points_from_solution(
+        &control_pts->u_mid,
+        &boundary->u2,
+        &control_pts->P_mid,
+        &boundary->P2,
+        &control_pts->Pb2,
+        control_pts->d,
+        &acc_bound,
+        &vel_bound,
+        &controls,
+        &points2,
+        &param2));
+    CHP(initBlendSegmentFromPoints(&blend_tc2, &points2, &param2));
 
-    param.v_plan = pmSqrt(biarc_results.solution.R_plan * param.a_n_max);
-    CHP(initBlendSegmentFromPoints(&blend_tc1, tp, prev_tc, &points1, &param));
-    CHP(initBlendSegmentFromPoints(&blend_tc2, tp, &blend_tc1, &points2, &param));
-
-    blend_tc1.coords.arc.xyz.uTan = biarc_results.solution.boundary.u1;
-    blend_tc2.coords.arc.xyz.uTan = biarc_results.solution.control_pts.u_mid;
+    union {PmCartLine line; PmCircle circle;} prev_geom={0}, this_geom={0};
 
     switch (prev_tc->motion_type) {
     case TC_LINEAR:
-        blendCheckConsume(&param, biarc_results.solution.boundary.s1, prev_tc, emcmotConfig->arcBlendGapCycles);
-        if (param.consume) {
-            if (blend_tc1.motion_type == TC_SPHERICAL) {
-                blend_tc1.coords.arc.xyz.line_length = param.line_length;
-                // KLUDGE copy over the tangents
-            } else if (blend_tc1.motion_type == TC_LINEAR) {
-                // Start at the consumed segment's starting point and extend to the end point of the blend
-                pmCartLineInit(&blend_tc1.coords.line.xyz, &prev_tc->coords.line.xyz.start, &points1.arc_end);
-            } else {
-                return TP_ERR_FAIL;
-            }
-            if (tcqPopBack(&tp->queue)) {
-                return TP_ERR_FAIL;
-            }
-        } else {
-            PmCartLine prev_line;
-            prev_line = prev_tc->coords.line.xyz;
-            double new_len = biarc_results.solution.boundary.s1;
-            pmCartLineStretch(&prev_line, new_len, 0);
-            tcSetLineXYZ(prev_tc, &prev_line);
-            tcSetTermCond(prev_tc, &blend_tc1, TC_TERM_COND_TANGENT);
-        }
+        prev_geom.line = prev_tc->coords.line.xyz;
+        double new_len = boundary->s1;
+        pmCartLineStretch(&prev_geom.line, new_len, 0);
         break;
     case TC_CIRCULAR:
     {
-        PmCircle prev_circle = prev_tc->coords.circle.xyz;
+        prev_geom.circle = prev_tc->coords.circle.xyz;
         double blend_angle;
-        pmCircleAngleFromProgress(&prev_circle,
+        pmCircleAngleFromProgress(&prev_geom.circle,
                                   &prev_tc->coords.circle.fit,
-                                  biarc_results.solution.boundary.s1,
+                                  boundary->s1,
                                   &blend_angle);
-        pmCircleStretch(&prev_circle, blend_angle, 0);
-        tcSetCircleXYZ(prev_tc, &prev_circle);
-        tcSetTermCond(prev_tc, &blend_tc1, TC_TERM_COND_TANGENT);
+        pmCircleStretch(&prev_geom.circle, blend_angle, 0);
         break;
     }
     default:
@@ -1049,28 +1020,24 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     switch (this_tc->motion_type) {
     case TC_LINEAR:
     {
-        PmCartLine this_line = this_tc->coords.line.xyz;
-        double new_len = this_line.tmag - biarc_results.solution.boundary.s2;
-        pmCartLineStretch(&this_line, new_len, 1);
-        tcSetLineXYZ(this_tc, &this_line);
+        this_geom.line = this_tc->coords.line.xyz;
+        double new_len = this_geom.line.tmag - biarc_results.solution.boundary.s2;
+        pmCartLineStretch(&this_geom.line, new_len, 1);
         break;
     }
     case TC_CIRCULAR:
     {
-        PmCircle this_circle = this_tc->coords.circle.xyz;
+        this_geom.circle = this_tc->coords.circle.xyz;
         double blend_angle;
-        pmCircleAngleFromProgress(&this_circle,
+        pmCircleAngleFromProgress(&this_geom.circle,
                                   &this_tc->coords.circle.fit,
                                   biarc_results.solution.boundary.s2,
                                   &blend_angle);
-        double new_angle = this_circle.angle - blend_angle;
-        pmCircleStretch(&this_circle, new_angle, 1);
-        tcSetCircleXYZ(this_tc, &this_circle);
+        double new_angle = this_geom.circle.angle - blend_angle;
+        pmCircleStretch(&this_geom.circle, new_angle, 1);
         break;
     }
     default:
-        // WARNING: getting here should be impossible if preconditions are met (this is an unrecoverable state)
-        rtapi_print_msg(RTAPI_MSG_ERR, "Biarc Blend error encountered after previous segment is already modified");
         return TP_ERR_FAIL;
     }
 
@@ -1078,36 +1045,54 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         tp,
         prev_tc,
         &blend_tc1,
-        param.v_req,
-        param.v_plan,
-        param.a_max_planar,
+        controls.v_req,
+        param1.v_plan,
+        param1.a_max_planar,
         blend_tc1.motion_type));
     CHP(tpInitBlendArcFromPrev(
         tp,
         prev_tc,
         &blend_tc2,
-        param.v_req,
-        param.v_plan,
-        param.a_max_planar,
+        controls.v_req,
+        param2.v_plan,
+        param2.a_max_planar,
         blend_tc2.motion_type));
+
+    // Passed all the pre-checks, ready to commit to changing the line segments
+    if (prev_tc->motion_type == TC_LINEAR) {
+        tcSetLineXYZ(prev_tc, &prev_geom.line);
+    } else if (prev_tc->motion_type == TC_CIRCULAR) {
+        tcSetCircleXYZ(prev_tc, &prev_geom.circle);
+    }
+
+    if (this_tc->motion_type == TC_LINEAR) {
+        tcSetLineXYZ(this_tc, &this_geom.line);
+    } else if (this_tc->motion_type == TC_CIRCULAR) {
+        tcSetCircleXYZ(this_tc, &this_geom.circle);
+    }
+
+    // Update end conditions
+    tcSetTermCond(prev_tc, &blend_tc1, TC_TERM_COND_TANGENT);
+    tcSetTermCond(&blend_tc1, &blend_tc2, TC_TERM_COND_TANGENT);
+    tcSetTermCond(&blend_tc2, this_tc, TC_TERM_COND_TANGENT);
 
     // First arc carries over the same DIO's as the previous segment
     blend_tc1.syncdio = prev_tc->syncdio;
     // The DIO's only change if the previous segment is consumed
-    blend_tc1.syncdio.anychanged &= param.consume;
+    blend_tc1.syncdio.anychanged &= param1.consume;
     // Second arc should follow DIO's of the following segment (since the midpoint is the closest to the ideal endpoint)
     blend_tc2.syncdio = this_tc->syncdio;
     // DIOs have already changed by the time the next segment starts, so ignore changes here
     this_tc->syncdio.anychanged = 0;
 
+    // Ensure enables switch at the midpoint of the biarc
+    blend_tc2.enables = this_tc->enables;
+
 #ifdef TP_DEBUG
     print_json5_log_start(tpCreateBiarcBlend);
-    if (param.consume) {
-        TC_STRUCT const * const prev1_tc=tcqLast(&tp->queue);
-        if (prev1_tc) {
-            tcGetEndTangentUnitVector(prev1_tc, &u1_stretch);
-            tcGetEndpoint(prev1_tc, &p1_stretch);
-        }
+    if (param1.consume) {
+        tcGetStartTangentUnitVector(prev_tc, &u1_stretch);
+        tcGetStartpoint(prev_tc, &p1_stretch);
     } else {
         tcGetEndTangentUnitVector(prev_tc, &u1_stretch);
         tcGetEndpoint(prev_tc, &p1_stretch);
@@ -1120,7 +1105,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_double_("this_len_new", this_tc->target);
     print_json5_int(prev_can_consume);
     print_json5_int(this_can_consume);
-    print_json5_double_("param_line_length", param.line_length);
+    print_json5_double_("param_line_length", param1.line_length);
     print_json5_double_("line_length1", blend_tc1.coords.arc.xyz.line_length);
     print_json5_double_("line_length2", blend_tc2.coords.arc.xyz.line_length);
     print_json5_int(prev_motion_type);
@@ -1132,7 +1117,6 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_PmCartesian(u1_stretch);
     print_json5_PmCartesian(u2_stretch);
     print_json5_PmCartesian_("p1_stretch", p1_stretch.tran);
-    print_json5_PmCartesian_("p2_stretch", p2_stretch.tran);
     EmcPose p11_blend;
     tcGetStartpoint(&blend_tc1, &p11_blend);
     EmcPose p12_blend;
@@ -1145,7 +1129,6 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_PmCartesian_("p12_blend", p12_blend.tran);
     print_json5_PmCartesian_("p21_blend", p21_blend.tran);
     print_json5_PmCartesian_("p22_blend", p22_blend.tran);
-    print_json5_PmCartesian_("p1_stretch", p1_stretch.tran);
     print_json5_PmCartesian_("p2_stretch", p2_stretch.tran);
     print_json5_biarc_control_points_t("control_pts", &biarc_results.solution.control_pts);
     print_json5_blend_boundary_t("boundary", &biarc_results.solution.boundary);
@@ -1164,11 +1147,16 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_PmCartesian_("p2_diff", c2.p_diff.tran);
     print_json5_double(maxvel);
     print_json5_double(reqvel);
-    print_json5_bool_("consume", param.consume);
+    print_json5_bool_("consume", param1.consume);
     print_json5_SphericalArc("arc1", &blend_tc1.coords.arc.xyz);
     print_json5_SphericalArc("arc2", &blend_tc2.coords.arc.xyz);
     print_json5_end_();
 #endif
+    if (param1.consume) {
+        if (tcqPopBack(&tp->queue)) {
+            return TP_ERR_FAIL;
+        }
+    }
 
     return TP_ERR_OK;
 }
@@ -1183,46 +1171,49 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
     PmCartesian acc_bound = getXYZAccelBounds();
 
     // Setup blend data structures
-    BlendGeom3 geom;
-    BlendParameters param;
-    BlendPoints3 points;
+    BlendGeom3 geom = {0};
+    BlendControls controls = {0};
+    BlendParameters param = {0};
+    BlendPoints3 points = {0};
 
-    int res_init = blendInit3FromLineLine(&geom, &param,
-            prev_tc,
-            tc,
-            &acc_bound,
-            &vel_bound,
-            getMaxBlendFeedScale(prev_tc, tc));
+    CHP(blendInitControls(
+        &controls,
+        prev_tc,
+        tc,
+        getMaxBlendFeedScale(prev_tc, tc)));
 
-    if (res_init != TP_ERR_OK) {
-        tp_debug_print("blend init failed with code %d, aborting blend arc\n",
-                res_init);
-        return res_init;
-    }
+    CHP(blendInit3FromLineLine(
+        &geom,
+        &param,
+        prev_tc,
+        tc));
 
-    int res_blend = blendComputeParameters(&param);
-    if (res_blend != TP_ERR_OK) {
-        return res_blend;
-    }
+    CHP(blendParamKinematics(
+        &geom.u1,
+        &geom.u2,
+        &acc_bound,
+        &vel_bound,
+        &controls,
+        &param
+        ));
 
-    blendFindPoints3(&points, &geom, &param);
+    CHP(blendComputeParameters(&param, &controls));
 
-    double L_prev = prev_tc->target - points.trim1;
+    CHP(blendFindPoints3(&points, &geom, &param));
+
+    double L_prev = prev_tc->target - param.d_plan;
     blendCheckConsume(&param, L_prev, prev_tc, emcmotConfig->arcBlendGapCycles);
+    points.u_tan = geom.u1;
+    points.motion_type = TC_SPHERICAL;
 
-    // Set up actual blend arc here
-    int res_arc = arcFromBlendPoints3(&blend_tc->coords.arc.xyz, &points, &geom, &param);
-    if (res_arc < 0) {
-        return TP_ERR_FAIL;
-    }
-
-    // Note that previous restrictions don't allow ABC or UVW movement, so the
-    // end and start points should be identical
-    blend_tc->coords.arc.abc = prev_tc->coords.line.abc.end;
-    blend_tc->coords.arc.uvw = prev_tc->coords.line.uvw.end;
+    // Create the arc from the processed points
+    CHP(initBlendSegmentFromPoints(
+        blend_tc,
+        &points,
+        &param));
 
     //set the max velocity to v_plan, since we'll violate constraints otherwise.
-    tpInitBlendArcFromPrev(tp, prev_tc, blend_tc, param.v_req,
+    tpInitBlendArcFromPrev(tp, prev_tc, blend_tc, controls.v_req,
             param.v_plan, param.a_max_planar, TC_SPHERICAL);
 
     // Skip syncdio setup since this blend extends the previous segment

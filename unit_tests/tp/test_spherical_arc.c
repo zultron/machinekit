@@ -19,8 +19,9 @@ TEST arcInitFromPoints_simple() {
     PmCartesian start = {1,2,0};
     PmCartesian end = {2,3,0};
     PmCartesian center = {1,3,0};
+    PmCartesian uTan = {0,0,0};
 
-    int res = arcInitFromPoints(&arc, &start, &end, &center);
+    int res = arcInitFromPoints(&arc, &start, &end, &center, &uTan, 0);
     ASSERT_FALSE(res);
 
     ASSERT_PMCARTESIAN_IN_RANGE(arc.end, end, CART_FUZZ);

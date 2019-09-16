@@ -42,11 +42,10 @@ typedef struct {
 } SphericalArc;
 
 
-int arcInitFromPoints(
-    SphericalArc * const arc,
+int arcInitFromPoints(SphericalArc * const arc,
     PmCartesian const * const start,
     PmCartesian const * const end,
-    PmCartesian const * const center);
+    PmCartesian const * const center, const PmCartesian * const uTan, double prev_line_length);
 
 int arcPoint(SphericalArc const * const arc, double angle_in, PmCartesian * const out);
 

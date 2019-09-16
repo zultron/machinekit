@@ -13,7 +13,6 @@
 
 #include "posemath.h"
 #include "spherical_arc.h"
-#include "tp_types.h"
 #include "rtapi_math.h"
 #include "tp_enums.h"
 #include "tp_debug.h"
@@ -22,7 +21,9 @@ int arcInitFromPoints(
     SphericalArc * const arc,
     PmCartesian const * const start,
     PmCartesian const * const end,
-    PmCartesian const * const center)
+    PmCartesian const * const center,
+    PmCartesian const * const uTan,
+    double prev_line_length)
 {
 #ifdef ARC_PEDANTIC
     if (!start || !end || !center) {
@@ -32,6 +33,12 @@ int arcInitFromPoints(
         return TP_ERR_MISSING_OUTPUT;
     }
 #endif
+
+    arc->uTan = *uTan;
+    arc->line_length = prev_line_length;
+    if (arc->line_length < 0) {
+        return TP_ERR_INVALID;
+    }
 
     // Store the start, end, and center
     arc->start = *start;

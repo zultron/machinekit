@@ -492,6 +492,7 @@ TEST test_optimize_biarc_blend_size()
     PmCartesian acc_bound = getXYZAccelBounds();
 
     BlendParameters param = {};
+    BlendControls controls = {};
 
     biarc_solver_results_t biarc_results = {};
 
@@ -502,6 +503,7 @@ TEST test_optimize_biarc_blend_size()
         &vel_bound,
         &acc_bound,
         &biarc_results,
+        &controls,
         &param,
         tp->cycleTime);
 
@@ -617,6 +619,8 @@ TEST test_biarc_optimizer_performance()
             PmCartesian acc_bound = getXYZAccelBounds();
 
             BlendParameters param = {};
+            BlendControls controls = {};
+
             biarc_solver_results_t biarc_results = {};
 
 #ifdef DO_BIARC_SCAN
@@ -639,6 +643,7 @@ TEST test_biarc_optimizer_performance()
                 0.0001);
 #endif
 
+
             optimize_biarc_blend_size(
                 prev_tc,
                 this_tc,
@@ -646,6 +651,7 @@ TEST test_biarc_optimizer_performance()
                 &vel_bound,
                 &acc_bound,
                 &biarc_results,
+                &controls,
                 &param,
                 tp->cycleTime);
 
@@ -751,6 +757,7 @@ static greatest_test_res solve_blend_series(
         PmCartesian acc_bound = getXYZAccelBounds();
 
         BlendParameters param = {};
+        BlendControls controls = {};
         biarc_solver_results_t biarc_results = {};
 
         optimize_biarc_blend_size(
@@ -760,6 +767,7 @@ static greatest_test_res solve_blend_series(
             &vel_bound,
             &acc_bound,
             &biarc_results,
+            &controls,
             &param,
             tp->cycleTime);
 
