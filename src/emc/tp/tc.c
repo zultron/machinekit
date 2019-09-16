@@ -217,34 +217,36 @@ int tcCanConsume(TC_STRUCT const * const tc)
  * tangent to the helical arc. This is called by wrapper functions for the case of a circular or helical arc.
  */
 int pmCircleTangentVector(PmCircle const * const circle,
-        double angle_in, PmCartesian * const out)
+        double angle_in, PmCartesian * const u_tan_out)
 {
 
     // Cheat: "rHelix" already has helical height built in
     double cheat_dz = 1.0 / circle->angle;
     double dr = circle->spiral / circle->angle;
-    PmCartesian par, perp, uRadial, dTangential;
+    PmCartesian tmp, uRadial, uTangential;
 
-    pmCartScalMult(&circle->rTan, cos(angle_in)/circle->radius, &par);
-    pmCartScalMult(&circle->rPerp, sin(angle_in)/circle->radius, &perp);
+    const double Cangle_by_r = cos(angle_in) / circle->radius;
+    const double Sangle_by_r = sin(angle_in) / circle->radius;
 
-    pmCartCartAdd(&par, &perp, &uRadial);
+    pmCartScalMult(&circle->rTan, Cangle_by_r, &uRadial);
+    pmCartScalMult(&circle->rPerp, Sangle_by_r, &tmp);
+    pmCartCartAddEq(&uRadial, &tmp);
 
-    pmCartScalMult(&circle->rTan, -sin(angle_in)/circle->radius, &par);
-    pmCartScalMult(&circle->rPerp, cos(angle_in)/circle->radius, &perp);
+    pmCartScalMult(&circle->rTan, -Sangle_by_r, &uTangential);
+    pmCartScalMult(&circle->rPerp, Cangle_by_r, &tmp);
+    pmCartCartAddEq(&uTangential, &tmp);
 
-    pmCartCartAdd(&par, &perp, &dTangential);
-
-    pmCartScalMult(&dTangential, circle->radius + dr * angle_in, out);
-    PmCartesian tmp;
+    // Add spiral component (scaled by radius)
+    pmCartScalMult(&uTangential, circle->radius + dr * angle_in, u_tan_out);
     pmCartScalMult(&uRadial, dr, &tmp);
-    pmCartCartAddEq(out, &tmp);
+    pmCartCartAddEq(u_tan_out, &tmp);
 
+    // Add helical component (scaled by radius)
     pmCartScalMult(&circle->rHelix, cheat_dz, &tmp);
-    pmCartCartAddEq(out, &tmp);
+    pmCartCartAddEq(u_tan_out, &tmp);
 
-    //Normalize final output vector
-    pmCartUnitEq(out);
+    // Normalize to get a unit vector in tangent direction
+    pmCartUnitEq(u_tan_out);
     return 0;
 }
 
