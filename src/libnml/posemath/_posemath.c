@@ -870,6 +870,21 @@ int pmCartCartSub(PmCartesian const * const v1, PmCartesian const * const v2,
 
     return pmErrno = 0;
 }
+int pmCartScalAdd(PmCartesian const * v, double d, PmCartesian *vout)
+{
+    vout->x = v->x + d;
+    vout->y = v->y + d;
+    vout->z = v->z + d;
+    return pmErrno = 0;
+}
+
+int pmCartScalSub(PmCartesian const * v, double d, PmCartesian *vout)
+{
+    vout->x = v->x - d;
+    vout->y = v->y - d;
+    vout->z = v->z - d;
+    return pmErrno = 0;
+}
 
 int pmCartScalMult(PmCartesian const * const v1, double d, PmCartesian * const vout)
 {
@@ -978,6 +993,26 @@ int pmCartCartSubEq(PmCartesian * const v, PmCartesian const * const v_sub)
     v->x -= v_sub->x;
     v->y -= v_sub->y;
     v->z -= v_sub->z;
+
+    return pmErrno = 0;
+}
+
+int pmCartScalAddEq(PmCartesian * v, double d)
+{
+
+    v->x += d;
+    v->y += d;
+    v->z += d;
+
+    return pmErrno = 0;
+}
+
+int pmCartScalSubEq(PmCartesian * const v, double d)
+{
+
+    v->x -= d;
+    v->y -= d;
+    v->z -= d;
 
     return pmErrno = 0;
 }

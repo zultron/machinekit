@@ -186,13 +186,29 @@ TEST test_pmCartUnit()
 
 TEST test_pmCartAbs()
 {
-    PmCartesian mixed = {-0.1, 2.0, -5.0};
+    PmCartesian const p_mixed = {-0.1, 2.0, -5.0};
+    PmCartesian const exp_abs = {0.1, 2.0, 5.0};
 
     PmCartesian pm_abs;
-    ASSERT_FALSE(pmCartAbs(&mixed, &pm_abs));
+    ASSERT_FALSE(pmCartAbs(&p_mixed, &pm_abs));
     ASSERT(pm_abs.x >= 0.0);
     ASSERT(pm_abs.y >= 0.0);
     ASSERT(pm_abs.z >= 0.0);
+    ASSERT_PMCARTESIAN_IN_RANGE(exp_abs, pm_abs, CART_FUZZ);
+    PASS();
+}
+
+TEST test_pmCartScalAddSub()
+{
+    PmCartesian const p_start = {-0.1, 2.0, -5.0};
+    double const d = 2.5;
+    PmCartesian const exp_add = {2.4, 4.5, -2.5};
+
+    PmCartesian p_add, p_sub;
+    ASSERT_FALSE(pmCartScalAdd(&p_start, d, &p_add));
+    ASSERT_PMCARTESIAN_IN_RANGE(exp_add, p_add, CART_FUZZ);
+    ASSERT_FALSE(pmCartScalSub(&p_add, d, &p_sub));
+    ASSERT_PMCARTESIAN_IN_RANGE(p_start, p_sub, CART_FUZZ);
     PASS();
 }
 
@@ -206,6 +222,7 @@ SUITE(pm_cart_basics)
     RUN_TEST(test_PmCartesian_arithmetic);
     RUN_TEST(test_pmCartUnit);
     RUN_TEST(test_pmCartAbs);
+    RUN_TEST(test_pmCartScalAddSub);
 }
 
 TEST test_pmCircleInit_simple()
