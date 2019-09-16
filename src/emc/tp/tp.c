@@ -415,6 +415,14 @@ int tpClear(TP_STRUCT * const tp)
     ZERO_EMC_POSE(emcmotStatus->dtg);
     SET_MOTION_INPOS_FLAG(1);
 
+#ifdef TP_DEBUG
+    PmCartesian axis_vel_limit = getXYZVelBounds();
+    PmCartesian axis_accel_limit = getXYZAccelBounds();
+    print_json5_log_start(tpClear);
+    print_json5_PmCartesian(axis_vel_limit);
+    print_json5_PmCartesian(axis_accel_limit);
+    print_json5_log_end();
+#endif
     return tpClearDIOs(tp);
 }
 
