@@ -111,6 +111,7 @@ def plot_biarc(logs_raw):
 
 
 def plot_axis(logs_raw):
+    accel_limit = extract_field1(logs_raw, 'tpClear', 'axis_accel_limit')
     logs = [l for l in logs_raw if l.get('log_entry', None) == 'tpRunCycle']
     axis_pos = extract_field1_all(logs, 'axis_pos')
     axis_vel = extract_field1_all(logs, 'axis_vel')
@@ -122,7 +123,8 @@ def plot_axis(logs_raw):
     np.savetxt('axis_vel.csv', axis_vel, delimiter=',')
     np.savetxt('axis_accel.csv', axis_accel, delimiter=',')
 
-    plt.close()
+    xyz_vel = np.sqrt(np.sum(np.square(axis_vel[:, 0:3]), 1))
+    nz_ind = np.where(xyz_vel>=0.000001)[0]
 
     if len(axis_pos):
         plt.figure(1)
@@ -135,7 +137,7 @@ def plot_axis(logs_raw):
 
     if len(axis_vel):
         plt.figure(2)
-        for idx in range(4):
+        for idx in range(3):
             plt.plot(times * 1000.0, axis_vel[:, idx], label=f'{axes[idx]} velocity')
         plt.grid(True)
         plt.legend()
@@ -144,16 +146,26 @@ def plot_axis(logs_raw):
 
     if len(axis_accel):
         plt.figure(3)
-        for idx in range(4):
-            plt.plot(times * 1000.0, axis_accel[:, idx], label=f'{axes[idx]} acceleration')
+        times_ms = times * 1000.0
+        for idx in range(3):
+            a_max = accel_limit[-1][idx]
+            acc = axis_accel[:,idx]
+            violations = np.where(abs(acc) > a_max*1.001)[0]
+            a_upper = np.array([1,1]) * a_max
+            a_lower = np.array([1,1]) - a_max
+            t_lim = times_ms[[nz_ind[0],nz_ind[-1]]]
+
+            p = plt.plot(times_ms, acc, label=f'{axes[idx]} acceleration')
+            plt.plot(times_ms[violations], acc[violations], '*', color=p[0].get_color(), label=f'{axes[idx]} accel violations')
+            plt.plot(t_lim, a_upper, '--', color=p[0].get_color(), label=f'{axes[idx]} accel limit')
+            plt.plot(t_lim, a_lower, '--', color=p[0].get_color())
+
         plt.grid(True)
         plt.legend()
         plt.xlabel('time, ms')
         plt.title('Axis acceleration vs time, ms')
 
     if len(axis_vel):
-        xyz_vel = np.sqrt(np.sum(np.square(axis_vel[:, 0:3]), 1))
-        nz_ind = np.where(xyz_vel>=0.000001)[0]
         #times_ms = (times - times[nz_ind[0]]) * 1000.0;
         times_ms = times * 1000.
         print("total run time = {} ms".format(times_ms[nz_ind[-1]]-times_ms[nz_ind[0]]))
@@ -227,6 +239,7 @@ if __name__ == '__main__':
         print(sys.stderr, 'No logfile specified')
         exit(1)
     logs = parse_log(sys.argv[1])
+    plt.close()
     plot_axis(logs)
     plot_biarc(logs)
     plot_activations(logs)
