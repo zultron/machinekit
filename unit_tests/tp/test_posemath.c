@@ -449,6 +449,13 @@ TEST test_pmCartLineInit_ex1()
     ASSERT_FLOAT_EQ(tst.tmag, mag);
     ASSERT_PMCARTESIAN_IN_RANGE(start, tst.start, CART_FUZZ);
     ASSERT_PMCARTESIAN_IN_RANGE(end, tst.end, CART_FUZZ);
+
+    const PmCartesian expect_uvec = {
+        0.70316592718610194,
+        -0.22483269241087719,
+        0.6745427631127513
+    };
+    ASSERT_PMCARTESIAN_EQ(expect_uvec, tst.uVec);
     PASS();
 }
 
@@ -466,11 +473,18 @@ TEST test_pmCartLineInit_ex2()
         0.7079824705329727,
     };
     const double mag = 2.1483103983640843;
+    const PmCartesian expect_uvec = {
+        -0.42905572072792919,
+        0.89308409963649593,
+        0.1353217627992882
+    };
+
     pmCartLineInit(&tst, &start, &end);
 
     ASSERT_FLOAT_EQ(tst.tmag, mag);
     ASSERT_PMCARTESIAN_IN_RANGE(start, tst.start, CART_FUZZ);
     ASSERT_PMCARTESIAN_IN_RANGE(end, tst.end, CART_FUZZ);
+    ASSERT_PMCARTESIAN_EQ(expect_uvec, tst.uVec);
     PASS();
 }
 
@@ -532,15 +546,18 @@ TEST test_pmCartLinePoint()
         -2.6867637044820922,
         -3.6444762156871819,
     };
+    const double s = 1.4828560169111997;
+    const PmCartesian expect_point = {1.0816167547670967, -0.62179323474589543, -0.81110661700091891};
 
     pmCartLineInit(&tst, &start, &end);
     PmCartesian point = {0,0,0};
-    pmCartLinePoint(&tst, 1.4828560169111997, &point);
+    pmCartLinePoint(&tst, s, &point);
 
     ASSERT(tst.tmag > 0.0);
     ASSERT(tst.tmag_zero == 0);
     ASSERT_PMCARTESIAN_IN_RANGE(start, tst.start, CART_FUZZ);
     ASSERT_PMCARTESIAN_IN_RANGE(end, tst.end, CART_FUZZ);
+    ASSERT_PMCARTESIAN_EQ(expect_point, point);
     PASS();
 }
 

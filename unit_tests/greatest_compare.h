@@ -38,4 +38,5 @@ do { \
     ASSERT_IN_RANGEm(msg, exp.z, got.z, tol); \
 } while (0)
 
+#define ASSERT_PMCARTESIAN_EQ(EXP, GOT) ASSERT_PMCARTESIAN_IN_RANGE(EXP, GOT, CART_FUZZ)
 #endif // GREATEST_COMPARE_H
