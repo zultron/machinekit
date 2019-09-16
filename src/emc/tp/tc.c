@@ -689,7 +689,7 @@ int pmLine9Init(PmLine9 * const line9,
     int uvw_fail = pmCartLineInit(&line9->uvw, &start_uvw, &end_uvw);
 
 #ifdef TP_DEBUG
-    print_json5_log_start(pmLine9Init, Command);
+    print_json5_log_start(pmLine9Init);
     print_json5_PmCartLine_("xyz", line9->xyz);
     print_json5_PmCartLine_("abc", line9->abc);
     print_json5_PmCartLine_("uvw", line9->abc);
@@ -784,7 +784,7 @@ int tcFinalizeLength(TC_STRUCT * const tc)
     tcUpdateCircleAccRatio(tc);
 
 #ifdef TP_DEBUG
-    print_json5_log_start(tpFinalizeLength, Lookahead);
+    print_json5_log_start(tpFinalizeLength);
     print_json5_int_field(tc, id);
     print_json5_long_long_field(tc, unique_id);
     print_json5_string_("motion_type", tcMotionTypeAsString((tc_motion_type_t)tc->motion_type));

@@ -710,7 +710,7 @@ double tpCalculateOptimizationInitialVel(TP_STRUCT const * const tp, TC_STRUCT *
     double max_vel = tpGetMaxTargetVel(tp, tc);
     double optim_init_vel = fmin(triangle_vel, max_vel);
 #ifdef TP_DEBUG
-    print_json5_log_start(tpCalculateOptimizationInitialVel, Command);
+    print_json5_log_start(tpCalculateOptimizationInitialVel);
     print_json5_double(triangle_vel);
     print_json5_double(optim_init_vel);
     print_json5_log_end();
@@ -890,7 +890,7 @@ tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
     }
 
 #ifdef TP_DEBUG
-    print_json5_log_start(tpChooseBestBlend,Command);
+    print_json5_log_start(tpChooseBestBlend);
     print_json5_double_("perf_parabolic", perf[PARABOLIC_BLEND]);
     print_json5_double_("perf_tangent", perf[TANGENT_SEGMENTS_BLEND]);
     print_json5_double_("perf_arc_blend", perf[ARC_BLEND]);
@@ -1093,7 +1093,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     this_tc->syncdio.anychanged = 0;
 
 #ifdef TP_DEBUG
-    print_json5_log_start(tpCreateBiarcBlend, Command);
+    print_json5_log_start(tpCreateBiarcBlend);
     if (param.consume) {
         TC_STRUCT const * const prev1_tc=tcqLast(&tp->queue);
         if (prev1_tc) {
@@ -1271,7 +1271,7 @@ int tpAddSegmentToQueue(TP_STRUCT * const tp, TC_STRUCT * const tc) {
     tp->depth = tcqLen(&tp->queue);
     //Fixing issue with duplicate id's?
 #ifdef TP_DEBUG
-    print_json5_log_start(Enqueue, Command);
+    print_json5_log_start(Enqueue);
     print_json5_int_field(tc, id);
     print_json5_long_long_field(tc, unique_id);
     print_json5_string_("motion_type", tcMotionTypeAsString(tc->motion_type));
@@ -1890,7 +1890,7 @@ int tpAddLine(TP_STRUCT * const tp,
 #ifdef TP_DEBUG
     {
         // macros use the variable name, need a plain name to please the JSON5 parser
-        print_json5_log_start(tpAddLine, Command);
+        print_json5_log_start(tpAddLine);
         print_json5_int_("id", tc.id);
         print_json5_EmcPose_("goal", tp->goalPos);
         print_json5_EmcPose(end);
@@ -1987,7 +1987,7 @@ int tpAddCircle(TP_STRUCT * const tp,
 #ifdef TP_DEBUG
     {
         // macros use the variable name, need a plain name to please the JSON5 parser
-        print_json5_log_start(tpAddCircle, Command);
+        print_json5_log_start(tpAddCircle);
         print_json5_int_field(&tc, id);
         print_json5_EmcPose_("goal", tp->goalPos);
         print_json5_PmCartesian(center);
@@ -2229,7 +2229,7 @@ void tpDebugCycleInfo(TP_STRUCT const * const tp, TC_STRUCT const * const tc, TC
     const double v_max = tpGetMaxTargetVel(tp, tc);
 
     /* Debug Output */
-    print_json5_log_start(tc_state, Run);
+    print_json5_log_start(tc_state);
     print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
     print_json5_int_field(tc, id);
     print_json5_long_long_field(tc, unique_id);
@@ -2476,7 +2476,7 @@ void tpUpdateRigidTapState(TP_STRUCT * const tp,
     old_spindle_pos = spindle_pos;
 #ifdef TC_DEBUG
     rigid_tap_state_t current_state = tc->coords.rigidtap.state;
-    print_json5_log_start(tpUpdateRigidTapState, Run);
+    print_json5_log_start(tpUpdateRigidTapState);
     print_json5_unsigned(current_state);
     print_json5_log_end();
 #endif
@@ -2763,7 +2763,7 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
 
     // Log a bunch of TP internal state if required by debug level or position error
     if (need_print) {
-        print_json5_log_start(tpActivateSegment,Run);
+        print_json5_log_start(tpActivateSegment);
         print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
         print_json5_int_field(tc, id);
         print_json5_long_long_field(tc, unique_id);
@@ -2941,7 +2941,7 @@ void checkPositionSyncError(TP_STRUCT const *tp, TC_STRUCT const *tc)
         rtapi_print_msg(RTAPI_MSG_ERR,"Spindle position tracking error exceeds limit of %f on line %d\n",
                         max_allowed_error,
                         tc->id);
-        print_json5_log_start(tpSyncPosition, Run);
+        print_json5_log_start(tpSyncPosition);
         print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
         print_json5_double_("current_vel", emcmotStatus->current_vel);
         print_json5_double_("time", tp->time_elapsed_sec);
@@ -3256,7 +3256,7 @@ int tpCheckEndCondition(TP_STRUCT const * const tp, TC_STRUCT * const tc, TC_STR
     }
 #ifdef TC_DEBUG
     {
-        print_json5_log_start(checkEndCondition, Run);
+        print_json5_log_start(checkEndCondition);
         print_json5_int_field(tc, id);
         print_json5_long_long_field(tc, unique_id);
         print_json5_double_("v_final", ec.v_f);
@@ -3287,7 +3287,7 @@ int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
 
 #ifdef TC_DEBUG
     /* Debug Output */
-    print_json5_log_start(tc_splitting, Run);
+    print_json5_log_start(tcHandleSplitCycle);
     print_json5_int_field(tc, id);
     print_json5_long_long_field(tc, unique_id);
     print_json5_double_("target", tc->target);
@@ -3566,7 +3566,7 @@ int tpRunCycle(TP_STRUCT *tp, long period)
         if (debug_mask || (
                     accel_error_mask | vel_error_mask | pos_limit_error_mask)
                 ) {
-            print_json5_log_start(tpRunCycle, Run);
+            print_json5_log_start(tpRunCycle);
             print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
             print_json5_EmcPose(axis_pos);
             print_json5_EmcPose(axis_vel);

@@ -33,10 +33,9 @@
 #define tp_debug_only(funcname,...)
 #endif
 
-#define print_json5_log_start(fname_, level_) do { \
+#define print_json5_log_start(fname_) do { \
     print_json5_start_(); \
     print_json5_string_("log_entry", #fname_); \
-    print_json5_string_("log_level", #level_); \
 } while (0)
 
 #define print_json5_log_end() print_json5_end_()

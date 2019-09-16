@@ -324,7 +324,7 @@ int pmCartCartParallel(PmCartesian const * const u1,
     }
 
 #if defined(TP_DEBUG) && defined(TP_PEDANTIC)
-    print_json5_log_start(pmCartCartParallel, Check);
+    print_json5_log_start(pmCartCartParallel);
     print_json5_double(d_diff);
     print_json5_end_();
 #endif
@@ -350,7 +350,7 @@ int pmCartCartAntiParallel(PmCartesian const * const u1,
     }
 
 #if defined(TP_DEBUG) && defined(TP_PEDANTIC)
-    print_json5_log_start(pmCartCartAntiParallel, Check);
+    print_json5_log_start(pmCartCartAntiParallel);
     print_json5_double(d_sum);
     print_json5_end_();
 #endif
@@ -1064,7 +1064,7 @@ PmCircleLimits pmCircleActualMaxVel(PmCircle const * circle,
     }
 
 #ifdef TP_DEBUG
-    print_json5_log_start(pmCircleActualMaxVel, Check);
+    print_json5_log_start(pmCircleActualMaxVel);
     print_json5_double_("angle", circle->angle);
     print_json5_double_("nominal_radius", circle->radius);
     double r_spiral = spiralEffectiveRadius(circle);
@@ -1150,7 +1150,7 @@ static void printSpiralArcLengthFit(SpiralArcLengthFit const * const fit,
                                     double spiral_coef)
 {
 #ifdef TP_DEBUG
-    print_json5_log_start(SpiralFit, Command);
+    print_json5_log_start(SpiralFit);
     print_json5_double(min_radius);
     print_json5_double(total_angle);
     print_json5_double(spiral_coef);
