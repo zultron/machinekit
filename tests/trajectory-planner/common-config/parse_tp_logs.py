@@ -70,7 +70,6 @@ def parse_log(logname):
     idx = axes[plt_axis]
     plt.close()
 
-
     if len(axis_pos):
         plt.figure(1)
         plt.plot(times * 1000.0, axis_pos[:, idx])
@@ -152,6 +151,19 @@ def parse_log(logname):
         plt.grid(True)
         plt.legend()
         plt.title('Final optimization results for velocities at segment activation')
+
+    tp_position_error = extract_field1(logs, 'tpActivateSegment', 'tp_position_error')
+
+    if len(segment_id):
+        plt.figure(9)
+        plt.plot(segment_id, tp_position_error[:, 0], label='X position error')
+        plt.plot(segment_id, tp_position_error[:, 1], label='Y position error')
+        plt.plot(segment_id, tp_position_error[:, 2], label='Z position error')
+
+        plt.xlabel('Segment ID')
+        plt.grid(True)
+        plt.legend()
+        plt.title('Position error')
 
     plt.show()
 

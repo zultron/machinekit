@@ -2642,9 +2642,8 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
 #else
     unsigned need_print = 0;
 #endif
+    EmcPose tp_position_error={0};
     if (emcmotConfig->consistencyCheckConfig.extraConsistencyChecks && !tc->is_blending){
-        EmcPose tp_position_error;
-        ZERO_EMC_POSE(tp_position_error);
         tcGetPos(tc, &tp_position_error);
         emcPoseSelfSub(&tp_position_error, &tp->currentPos);
 
@@ -2659,6 +2658,8 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
         print_json5_ll_("time_ticks", tp->time_elapsed_ticks);
         print_json5_int_("id", tc->id);
         // Position settings
+
+        print_json5_EmcPose(tp_position_error);
         print_json5_double_field(tc, target);
         print_json5_double_field(tc, progress);
         // Velocity settings
