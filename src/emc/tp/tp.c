@@ -564,6 +564,19 @@ int tpGetCompletedId(TP_STRUCT * const tp)
     return tp->tc_completed->id;
 }
 
+int tpGetQueuedId(TP_STRUCT const * const tp)
+{
+    if (!tp) {
+        return 0;
+    }
+
+    TC_STRUCT const * const tc_last = tcqLast(&tp->queue);
+    if (!tc_last) {
+        return 0;
+    }
+    return tc_last->id;
+}
+
 struct state_tag_t tpGetExecTag(TP_STRUCT * const tp)
 {
     if (0 == tp) {

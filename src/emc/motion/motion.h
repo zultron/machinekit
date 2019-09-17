@@ -702,7 +702,8 @@ Suggestion: Split this in to an Error and a Status flag register..
 	int id;			/* id for executing motion */
 	int next_id;			/* id for executing motion */
 	int completed_id;			/* id for executing motion */
-	int depth;		/* motion queue depth */
+    int queued_id;			/* id for executing motion */
+    int depth;		/* motion queue depth */
 	int activeDepth;	/* depth of active blend elements */
 	int queueFull;		/* Flag to indicate the tc queue is full */
 	int paused;		/* Flag to signal motion paused */

@@ -29,6 +29,7 @@ int tpSetVlimit(TP_STRUCT * const tp, double vLimit, double vLimitAng);
 int tpSetId(TP_STRUCT * const tp, int id);
 int tpGetExecId(TP_STRUCT * const tp);
 int tpGetCompletedId(TP_STRUCT * const tp);
+int tpGetQueuedId(TP_STRUCT const * const tp);
 struct state_tag_t tpGetExecTag(TP_STRUCT * const tp);
 int tpGetNextExecId(TP_STRUCT * const tp);
 int tpSetTermCond(TP_STRUCT * const tp, tc_term_cond_t cond, double tolerance);
