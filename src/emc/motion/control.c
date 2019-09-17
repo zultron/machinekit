@@ -1829,6 +1829,8 @@ static void output_to_hal(void)
     *(emcmot_hal_data->next_program_line) = emcmotStatus->next_id;
     *(emcmot_hal_data->completed_program_line) = emcmotStatus->completed_id;
     *(emcmot_hal_data->queued_program_line) = emcmotStatus->queued_id;
+    *(emcmot_hal_data->mot_command) = emcmotStatus->commandEcho;
+    *(emcmot_hal_data->mot_command_count) = emcmotStatus->commandNumEcho;
 
     *(emcmot_hal_data->distance_to_go) = emcmotStatus->distance_to_go;
     if(GET_MOTION_COORD_FLAG()) {
