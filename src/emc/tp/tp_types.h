@@ -54,8 +54,9 @@
 typedef struct {
     spindle_origin_t origin; //!< initial position of spindle during synchronization (direction-aware)
 
-     int waiting_for_index;
-     int waiting_for_atspeed;
+    double trigger_revs;
+    int waiting_for_index;
+    int waiting_for_atspeed;
 } tp_spindle_t;
 
 /**

@@ -38,6 +38,7 @@ typedef enum {
     SYNC_ACCEL_RAMP,
     SYNC_POSITION,
     SYNC_FINAL_DECEL,
+    SYNC_TRIGGER_WAIT,
 } spindle_sync_state_t;
 
 typedef enum {
