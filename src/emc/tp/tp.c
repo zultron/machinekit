@@ -2731,7 +2731,7 @@ tp_err_t tpCheckAtSpeed(TP_STRUCT * const tp, TC_STRUCT * const tc)
             /* passed index, start the move */
             emcmotStatus->spindle_fb.synced = 1;
             tp->spindle.waiting_for_index = MOTION_INVALID_ID;
-            tc->sync_accel = 1;
+            emcmotStatus->spindle_sync_state = SYNC_ACCEL_RAMP;
         }
     }
 
@@ -2982,8 +2982,7 @@ void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
     const double lookahead_steps = bound(emcmotStatus->spindle_tracking_lookahead_steps, 100.0, 0);
     const double spindle_lookahead_delta = spindle_vel_rps * tp->cycleTime * lookahead_steps;
 
-    if(tc->sync_accel) {
-        emcmotStatus->spindle_sync_state = SYNC_ACCEL_RAMP;
+    if(emcmotStatus->spindle_sync_state == SYNC_ACCEL_RAMP) {
         // detect when velocities match, and move the target accordingly.
         // acceleration will abruptly stop and we will be on our new target.
         // FIX: this is driven by TP cycle time, not the segment cycle time
@@ -2996,7 +2995,7 @@ void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
             tp->spindle.origin.position = spindle_pos_raw + emcmotStatus->spindle_fb.velocity_rps * lookahead_steps * tp->cycleTime;
             tc->progress_sync_offset = tc->progress;
             tc_debug_print("Spindle offset %f\n", tp->spindle.origin.position);
-            tc->sync_accel = 0;
+            emcmotStatus->spindle_sync_state = SYNC_POSITION;
             tc->target_vel = target_vel;
         } else {
             tc_debug_print("accelerating in pos_sync\n");
