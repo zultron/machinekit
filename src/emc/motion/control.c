@@ -1862,27 +1862,6 @@ static void compute_screw_comp(void)
     }
 }
 
-static double scaled_spindle_cmd_velocity_rpm(spindle_cmd_status const *spindle_cmd,
-                                       double net_spindle_scale,
-                                       EmcPose const *carte_pos_cmd)
-{
-    if(spindle_cmd->css_factor) {
-        // Spindle speed proportional to X distance
-        double denom = fabs(spindle_cmd->xoffset - carte_pos_cmd->tran.x);
-        // cut off at maximumminum
-        double speed = denom > 0 ? spindle_cmd->css_factor / denom : spindle_cmd->velocity_rpm_out;
-        speed *= net_spindle_scale;
-
-        // cap speed to G96 D...
-        double maxpositive= fabs(spindle_cmd->velocity_rpm_out);
-        sat_inplace(&speed, maxpositive);
-
-        return speed;
-    } else {
-        return spindle_cmd->velocity_rpm_out * net_spindle_scale;
-    }
-}
-
 /** Handshake between emcmotStatus and HAL to do index-seek enable. */
 void do_spindle_encoder_handshake(int* const fb_index_enable, hal_bit_t * const hal_spindle_index_enable)
 {
@@ -1919,15 +1898,13 @@ static void output_to_hal(void)
     *(emcmot_hal_data->teleop_mode) = GET_MOTION_TELEOP_FLAG();
     *(emcmot_hal_data->coord_error) = GET_MOTION_ERROR_FLAG();
     *(emcmot_hal_data->on_soft_limit) = emcmotStatus->on_soft_limit;
-    *(emcmot_hal_data->spindle_speed_out) = scaled_spindle_cmd_velocity_rpm(&emcmotStatus->spindle_cmd,
-                                                    emcmotStatus->net_spindle_scale,
-                                                    &emcmotStatus->carte_pos_cmd);
+    *(emcmot_hal_data->spindle_speed_out) = get_spindle_speed_out_rpm(emcmotStatus);
     *(emcmot_hal_data->spindle_speed_out_rps) = *(emcmot_hal_data->spindle_speed_out) / 60.0;
 
 	*(emcmot_hal_data->spindle_speed_out_abs) = fabs(*(emcmot_hal_data->spindle_speed_out));
 	*(emcmot_hal_data->spindle_speed_out_rps_abs) = fabs(*(emcmot_hal_data->spindle_speed_out_rps));
     *(emcmot_hal_data->spindle_speed_cmd_rps) = emcmotStatus->spindle_cmd.velocity_rpm_out / 60.;
-    *(emcmot_hal_data->spindle_on) = ((emcmotStatus->spindle_cmd.velocity_rpm_out * emcmotStatus->net_spindle_scale) != 0) ? 1 : 0;
+    *(emcmot_hal_data->spindle_on) = is_spindle_on(emcmotStatus);
     *(emcmot_hal_data->spindle_forward) = (*emcmot_hal_data->spindle_speed_out > 0) ? 1 : 0;
     *(emcmot_hal_data->spindle_reverse) = (*emcmot_hal_data->spindle_speed_out < 0) ? 1 : 0;
     *(emcmot_hal_data->spindle_brake) = (emcmotStatus->spindle_cmd.brake != 0) ? 1 : 0;

@@ -333,7 +333,7 @@ libmock_motion_command_dep = declare_dependency(include_directories : [mock_inc,
 # TP helper mocks
 
 libmock_standalone_tp = library('mock_standalone_tp',
-  [mock_standalone_tp_srcs, tp_srcs],
+  [mock_standalone_tp_srcs, tp_srcs, motion_shared_srcs],
   include_directories : [tp_inc, mock_inc, kinematics_inc],
   dependencies : [
     m_dep,

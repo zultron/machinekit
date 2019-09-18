@@ -16,6 +16,7 @@
 
 #include "motion_hal.h"
 #include "kinematics.h"
+#include "motion_shared.h"
 
 struct emcmot_joint_t;
 /***********************************************************************
@@ -56,16 +57,6 @@ extern KINEMATICS_INVERSE_FLAGS iflags;
 /* these variables have the servo cycle time and 1/cycle time */
 extern double servo_period;
 extern double servo_freq;
-
-
-/* Struct pointers */
-extern struct emcmot_struct_t *emcmotStruct;
-extern struct emcmot_command_t *emcmotCommand;
-extern struct emcmot_status_t *emcmotStatus;
-extern struct emcmot_config_t *emcmotConfig;
-extern struct emcmot_debug_t *emcmotDebug;
-extern struct emcmot_internal_t *emcmotInternal;
-extern struct emcmot_error_t *emcmotError;
 
 /***********************************************************************
 *                    PUBLIC FUNCTION PROTOTYPES                        *

@@ -25,6 +25,7 @@
 #include "joint_util.h"
 #include "string.h"
 #include "tp_priv.h"
+#include "motion_shared.h"
 
 //KLUDGE Don't include all of emc.hh here, just hand-copy the TERM COND
 //definitions until we can break the emc constants out into a separate file.
@@ -75,10 +76,6 @@ do {\
 #undef TP_SHOW_BLENDS
 
 #define TP_OPTIMIZATION_LAZY
-
-extern emcmot_status_t *emcmotStatus;
-extern emcmot_debug_t *emcmotDebug;
-extern emcmot_config_t *emcmotConfig;
 
 static TC_STRUCT blend_tc1 = {0};
 static TC_STRUCT blend_tc2 = {0};
@@ -329,7 +326,7 @@ void setSpindleOrigin(spindle_origin_t *origin, double position)
         return;
     }
     origin->position = position;
-    origin->direction = signum(emcmotStatus->spindle_cmd.velocity_rpm_out);
+    origin->direction = get_spindle_command_direction(emcmotStatus);
 }
 
 /**
@@ -2690,7 +2687,7 @@ tp_err_t tpHandleAbort(TP_STRUCT * const tp, TC_STRUCT * const tc,
 void setSpindleTrigger(TP_STRUCT * const tp, TC_STRUCT * const tc)
 {
     const double spindle_vel_rps = findSpindleVelocity(
-        emcmotStatus->spindle_cmd.velocity_rpm_out * emcmotStatus->net_spindle_scale / 60.,
+        get_spindle_speed_out_rpm(emcmotStatus) / 60.0,
         tp->spindle.origin);
 
     // WARNING: this assumes that max acceleration is constant over the segment to estimate the position error
@@ -2699,7 +2696,7 @@ void setSpindleTrigger(TP_STRUCT * const tp, TC_STRUCT * const tc)
     double accel_revs_est = fabs(tc->uu_per_rev * pmSq(spindle_vel_rps) / (2.0 * a_max));
     // Advance the spindle origin by at least enough
     double spindle_offset_turns = ceil(accel_revs_est + 0.25);
-    setSpindleOrigin(&tp->spindle.origin, spindle_offset_turns * signum(emcmotStatus->spindle_cmd.velocity_rpm_out));
+    setSpindleOrigin(&tp->spindle.origin, spindle_offset_turns * get_spindle_command_direction(emcmotStatus));
     tc->progress_sync_offset = 0;
 
     // Setup spindle trigger conditions
@@ -2962,8 +2959,9 @@ void checkPositionSyncError(TP_STRUCT const *tp, TC_STRUCT const *tc)
         print_json5_double_("current_vel", emcmotStatus->current_vel);
         print_json5_double_("time", tp->time_elapsed_sec);
         print_json5_double_("spindle_revs", emcmotStatus->spindle_fb.position_rev);
-        print_json5_double_("spindle_speed_rps", emcmotStatus->spindle_fb.velocity_rps);
-        print_json5_double_("spindle_speed_out", emcmotStatus->spindle_cmd.velocity_rpm_out);
+        print_json5_double_("spindle_speed_rps", get_spindle_speed_out_rpm(emcmotStatus) / 60.);
+        print_json5_double_("spindle_speed_out", get_spindle_speed_out_rpm(emcmotStatus));
+        print_json5_double_("spindle_speed_cmd_rpm", emcmotStatus->spindle_cmd.velocity_rpm_out);
         print_json5_double_("spindle_tracking_lookahead_steps", emcmotStatus->spindle_tracking_lookahead_steps);
         print_json5_long_("pos_tracking_mode", emcmotStatus->pos_tracking_mode);
         print_json5_double_("pos_tracking_velocity", emcmotStatus->pos_tracking_velocity);
