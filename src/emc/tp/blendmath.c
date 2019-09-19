@@ -930,10 +930,10 @@ int blendCheckConsume(BlendParameters * const param,
     double prev_seg_time = L_prev / param->v_plan;
 
     bool can_consume = tcCanConsume(prev_tc);
-    param->consume = (prev_seg_time < gap_cycles * prev_tc->cycle_time && can_consume);
+    double consume_time = fmax(gap_cycles, 1.0) * prev_tc->cycle_time;
+
+    param->consume = ((prev_seg_time <= consume_time) && can_consume);
     if (param->consume) {
-        tp_debug_print("consuming prev line, L_prev = %g\n",
-                L_prev);
         param->line_length = L_prev;
     }
     return 0;
@@ -1506,7 +1506,8 @@ static inline double find_max_blend_length(TC_STRUCT const * const tc)
         double l_from_length = fmin(tc->target, tc->nominal_length / 3.0);
         return fmin(l_from_angle, l_from_length);
     } else {
-        return fmin(tc->target, tc->nominal_length/2.);
+        double cutoff_length = tcCanConsume(tc) ? tc->nominal_length / 2.0 : tc->nominal_length / 3.0;
+        return fmin(tc->target, cutoff_length);
     }
 }
 

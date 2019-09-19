@@ -764,7 +764,6 @@ int tpInitBlendArcFromPrev(
     default:
         return TP_ERR_FAIL;
     }
-    tp_info_print("blend tc length = %f\n",length);
     blend_tc->target = length;
     blend_tc->nominal_length = length;
 
@@ -946,6 +945,12 @@ static inline tp_err_t initBlendSegmentFromPoints(
 tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const this_tc)
 {
     tp_debug_print("-- Starting BiArc blend --\n");
+#ifdef TP_DEBUG
+    double prev_len = prev_tc->target;
+    double this_len = this_tc->target;
+    int prev_can_consume = tcCanConsume(prev_tc);
+    int this_can_consume = tcCanConsume(this_tc);
+#endif
 
     PmCartesian vel_bound = getXYZVelBounds();
     PmCartesian acc_bound = getXYZAccelBounds();
