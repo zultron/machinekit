@@ -2228,7 +2228,7 @@ static inline double guess_blend_region_size_slope(
     double T)
 {
     RegionResult *r = NULL;
-    if (R_plan_last < R_goal && R_plan_last < constraints->R_peak && T < T_goal) {
+    if (R_plan_last < R_goal && T < T_goal) {
         r = &constraints->lower;
     } else {
         r = &constraints->upper;
