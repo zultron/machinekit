@@ -112,11 +112,9 @@ int arcPoint(SphericalArc const * const arc, double progress, PmCartesian * cons
     return TP_ERR_OK;
 }
 
-int arcLength(SphericalArc const * const arc, double * const length)
+double arcLength(SphericalArc const * const arc)
 {
-    *length = arc->radius * arc->angle + arc->line_length;
-    tp_debug_print("arc length = %g\n", *length);
-    return TP_ERR_OK;
+    return arc->radius * arc->angle + arc->line_length;
 }
 
 int arcFromLines(SphericalArc * const arc, PmCartLine const * const line1,

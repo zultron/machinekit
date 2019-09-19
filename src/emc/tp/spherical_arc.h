@@ -53,7 +53,7 @@ int arcPoint(SphericalArc const * const arc, double angle_in, PmCartesian * cons
 
 int arcNormalizedSlerp(SphericalArc const * const arc, double t, PmCartesian * const out);
 
-int arcLength(SphericalArc const * const arc, double * const length);
+double arcLength(SphericalArc const * const arc);
 
 int arcFromLines(SphericalArc * const arc, PmCartLine const * const line1,
         PmCartLine const * const line2, double radius,

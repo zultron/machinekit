@@ -733,8 +733,7 @@ int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
     blend_tc->syncdio = prev_tc->syncdio; //enqueue the list of DIOs that need toggling
 
     // find "helix" length for target
-    double length;
-    arcLength(&blend_tc->coords.arc.xyz, &length);
+    double length = arcLength(&blend_tc->coords.arc.xyz);
     tp_info_print("blend tc length = %f\n",length);
     blend_tc->target = length;
     blend_tc->nominal_length = length;
