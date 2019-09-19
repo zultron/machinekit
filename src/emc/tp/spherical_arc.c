@@ -117,45 +117,6 @@ double arcLength(SphericalArc const * const arc)
     return arc->radius * arc->angle + arc->line_length;
 }
 
-int arcFromLines(SphericalArc * const arc, PmCartLine const * const line1,
-        PmCartLine const * const line2, double radius,
-        double blend_dist, double center_dist, PmCartesian * const start, PmCartesian * const end, int consume) {
-
-    PmCartesian center, normal;
-
-    // Pointer to middle point of line segment pair
-    PmCartesian const * const middle = &line1->end;
-    //TODO assert line1 end = line2 start?
-
-    //Calculate the normal direction of the arc from the difference
-    //between the unit vectors
-    pmCartCartSub(&line2->uVec, &line1->uVec, &normal);
-    pmCartUnitEq(&normal);
-    pmCartScalMultEq(&normal, center_dist);
-    pmCartCartAdd(middle, &normal, &center);
-
-    // Start point is blend_dist away from middle point in the
-    // negative direction of line1
-    pmCartScalMult(&line1->uVec, -blend_dist, start);
-    pmCartCartAdd(start, middle, start);
-
-    // End point is blend_dist away from middle point in the positive
-    // direction of line2
-    pmCartScalMult(&line2->uVec, blend_dist, end);
-    pmCartCartAddEq(end, middle);
-
-    //Handle line portion of line-arc
-    arc->uTan = line1->uVec;
-    if (consume) {
-        arc->line_length = line1->tmag - blend_dist;
-    } else {
-        arc->line_length = 0;
-    }
-
-    return arcInitFromPoints(arc, start, end, &center);
-}
-
-
 /**
  * Tests if a ray from the specified point / direction intersects the circle with the given center.
  *

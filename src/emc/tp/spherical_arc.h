@@ -45,19 +45,9 @@ typedef struct {
 int arcInitFromPoints(SphericalArc * const arc, PmCartesian const * const start,
         PmCartesian const * const end, PmCartesian const * const center);
 
-int arcInitFromVectors(SphericalArc * const arc, PmCartesian const * const vec0,
-        PmCartesian const * const vec1,
-        PmCartesian const * const center);
-
 int arcPoint(SphericalArc const * const arc, double angle_in, PmCartesian * const out);
 
-int arcNormalizedSlerp(SphericalArc const * const arc, double t, PmCartesian * const out);
-
 double arcLength(SphericalArc const * const arc);
-
-int arcFromLines(SphericalArc * const arc, PmCartLine const * const line1,
-        PmCartLine const * const line2, double radius,
-        double blend_dist, double center_dist, PmCartesian * const start, PmCartesian * const end, int consume);
 
 int checkRayIntersectsArc(PmCartesian const * const center,
         PmCartesian const * const P, PmCartesian const * const u_ray, int reverse_dir);
