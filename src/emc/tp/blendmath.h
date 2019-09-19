@@ -374,6 +374,8 @@ typedef struct
 
 // API for biarc blends
 
+const char * biarc_result_to_str(BiarcSolverResults r);
+
 double find_blend_region_from_tolerance(
     TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc,

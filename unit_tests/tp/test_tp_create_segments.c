@@ -503,6 +503,21 @@ TEST test_biarc_optimizer_performance()
         };
 
     printf("\nCircle biarc blend tests\n");
+    printf("%9s,%9s,%9s,%9s,%9s,%9s,%9s,%6s,%9s,%9s,%9s,%9s,%9s,%14s,\n",
+            "type",
+            "C_x",
+            "C_y",
+            "C_z",
+            "N_x",
+            "N_y",
+            "N_z",
+            "tolerance",
+            "R_b",
+            "R_plan",
+            "v_plan",
+            "blend_d",
+            "iters",
+            "status");
     for (int j=0; j<2; ++j) {
         for (unsigned i=0; i < (sizeof(cases)/sizeof (CenterNormal)); ++i) {
             resetMockTP(tp, 0.001);
@@ -574,19 +589,21 @@ TEST test_biarc_optimizer_performance()
             pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
             ASSERT(T < BLEND_TOLERANCE);
             ASSERT(biarc_results.iterations < 100);
-            printf(" Center %f %f %f, Normal %f %f %f, iterations %d, tolerance %f, region size %f, v_plan %f, d %f, status %d\n",
+            printf("%9s,%9f,%9f,%9f,%9f,%9f,%9f,%9f,%9f,%9f,%9f,%9f,%6d,%14s,\n",
+                   j ? " arc-arc" : "line-arc",
                    cases[i].center.x,
                    cases[i].center.y,
                    cases[i].center.z,
                    cases[i].normal.x,
                    cases[i].normal.y,
                    cases[i].normal.z,
-                   biarc_results.iterations,
                    T,
                    biarc_results.Rb,
+                   biarc_results.R_plan,
                    pmSqrt(param.a_n_max * biarc_results.R_plan),
                    biarc_results.control_pts.d,
-                   biarc_results.result);
+                   biarc_results.iterations,
+                   biarc_result_to_str(biarc_results.result));
             ASSERT(biarc_results.R_plan > 0.0);
         }
     }

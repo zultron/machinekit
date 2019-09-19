@@ -2584,3 +2584,25 @@ tp_err_t scan_blend_properties(
     biarc_results->result = BIARC_EXCEEDED_MAX_ITERATIONS;
     return TP_ERR_FAIL;
 }
+
+const char * biarc_result_to_str(BiarcSolverResults r)
+{
+    switch (r) {
+    case BIARC_DEGENERATE_SEGMENTS:
+        return "degenerate";
+    case BIARC_DIVERGED:
+        return "diverged";
+    case BIARC_EXCEEDED_MAX_ITERATIONS:
+        return "max_iterations";
+    case BIARC_NOT_SOLVED:
+        return "not_solved";
+    case BIARC_REACHED_V_GOAL:
+        return "reached_v_goal";
+    case BIARC_REACHED_TOLERANCE:
+        return "reached_tol";
+    case BIARC_REACHED_MIN_SIZE_CUTOFF:
+        return "reached_min_size";
+    case BIARC_CONVERGED:
+        return "converged";
+    }
+}
