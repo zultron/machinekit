@@ -113,6 +113,7 @@ static void quit(int sig)
 int main(int argc, char **argv)
 {
     int n, channel, retval, size, tag;
+    char delim=' ';
     long int samples;
     unsigned long this_sample;
     char *cp, *cp2;
@@ -141,6 +142,16 @@ int main(int argc, char **argv)
             channel = strtol(cp, &cp2, 10);
             if (( *cp2 ) || ( channel < 0 ) || ( channel >= MAX_SAMPLERS )) {
                 fprintf(stderr,"ERROR: invalid channel number '%s'\n", cp );
+                exit(1);
+            }
+            break;
+        case 'd':
+            if (( *(++cp) == '\0' ) && ( ++n < argc )) {
+                cp = argv[n];
+            }
+            delim = *cp;
+            if (!isprint(delim)) {
+                fprintf(stderr,"ERROR: invalid delimiter '%c'\n", delim );
                 exit(1);
             }
             break;
@@ -258,30 +269,31 @@ int main(int argc, char **argv)
             fifo->last_sample = this_sample;
         }
         if ( tag ) {
-            printf ( "%ld ", this_sample );
+            printf ( "%ld%c", this_sample, delim);
         }
         for ( n = 0 ; n < fifo->num_pins ; n++ ) {
             switch ( fifo->type[n] ) {
             case HAL_FLOAT:
-                printf ( "%f ", buf[n].f);
+                printf ( "%f", buf[n].f);
                 break;
             case HAL_BIT:
                 if ( buf[n].b ) {
-                    printf ( "1 " );
+                    printf ( "1");
                 } else {
-                    printf ( "0 " );
+                    printf ( "0");
                 }
                 break;
             case HAL_U32:
-                printf ( "%lu ", (unsigned long)buf[n].u);
+                printf ( "%lu", (unsigned long)buf[n].u);
                 break;
             case HAL_S32:
-                printf ( "%ld ", (long)buf[n].s);
+                printf ( "%ld", (long)buf[n].s);
                 break;
             default:
                 /* better not happen */
                 goto out;
             }
+            printf("%c", delim);
         }
         printf ( "\n" );
         if ( samples > 0 ) {
