@@ -2458,7 +2458,7 @@ tp_err_t optimize_biarc_blend_size(
         if ((fabs(biarc_results->radius_err) < solver_radius_rel_tol
              || radius_err < solver_radius_abs_tol))
         {
-            biarc_results->result = BIARC_MATCHED_VGOAL;
+            biarc_results->result = BIARC_REACHED_V_GOAL;
             return TP_ERR_OK;
         } else if (biarc_results->radius_err < 0.0 && biarc_results->tol_err >= 0 && biarc_results->tol_err < config->deviation_abs_tolerance) {
             biarc_results->result = BIARC_REACHED_TOLERANCE;
