@@ -1597,20 +1597,17 @@ int emcMotionUpdate(EMC_MOTION_STAT * stat)
     return (r1 == 0 && r2 == 0) ? 0 : -1;
 }
 
-int emcSetupArcBlends(int arcBlendEnable,
-        int arcBlendFallbackEnable,
-        int arcBlendOptDepth,
-        int arcBlendGapCycles,
-        double arcBlendRampFreq,
-        double arcBlendTangentKinkRatio) {
-
+int emcSetupArcBlends(tp_arc_blend_config_t arc_blend_cfg)
+{
     emcmotCommand.command = EMCMOT_SETUP_ARC_BLENDS;
-    emcmotCommand.arcBlendEnable = arcBlendEnable;
-    emcmotCommand.arcBlendFallbackEnable = arcBlendFallbackEnable;
-    emcmotCommand.arcBlendOptDepth = arcBlendOptDepth;
-    emcmotCommand.arcBlendGapCycles = arcBlendGapCycles;
-    emcmotCommand.arcBlendRampFreq = arcBlendRampFreq;
-    emcmotCommand.arcBlendTangentKinkRatio = arcBlendTangentKinkRatio;
+    emcmotCommand.arc_blend_cfg = arc_blend_cfg;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
+int emcSetupBiArcSolverCfg(biarc_solver_config_t biarc_solver_cfg)
+{
+    emcmotCommand.command = EMCMOT_SETUP_BIARC_SOLVER_CFG;
+    emcmotCommand.biarc_solver_cfg = biarc_solver_cfg;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 

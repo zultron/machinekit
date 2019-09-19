@@ -254,18 +254,6 @@ tp_err_t initBlendSegmentFromPoints(
     BlendParameters * const param);
 
 // BiArc blend types
-
-typedef struct
-{
-    unsigned max_iterations;
-    double velocity_rel_tolerance;
-    double velocity_abs_tolerance;
-    double deviation_abs_tolerance;
-    double feed_override_allowance;
-    double velocity_cutoff;
-    double convergence_tolerance;
-} biarc_solver_config_t;
-
 typedef struct
 {
     PmCartesian P1;

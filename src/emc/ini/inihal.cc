@@ -245,13 +245,15 @@ int check_ini_hal_items()
         UPDATE(traj_arc_blend_gap_cycles);
         UPDATE(traj_arc_blend_ramp_freq);
         UPDATE(traj_arc_blend_tangent_kink_ratio);
-        if (0 != emcSetupArcBlends(old_inihal_data.traj_arc_blend_enable
-                                  ,old_inihal_data.traj_arc_blend_fallback_enable
-                                  ,old_inihal_data.traj_arc_blend_optimization_depth
-                                  ,old_inihal_data.traj_arc_blend_gap_cycles
-                                  ,old_inihal_data.traj_arc_blend_ramp_freq
-                                  ,old_inihal_data.traj_arc_blend_tangent_kink_ratio
-                                  )) {
+        tp_arc_blend_config_t cfg = {
+            old_inihal_data.traj_arc_blend_enable,
+            old_inihal_data.traj_arc_blend_fallback_enable,
+            old_inihal_data.traj_arc_blend_optimization_depth,
+            (int)old_inihal_data.traj_arc_blend_gap_cycles,
+            old_inihal_data.traj_arc_blend_ramp_freq,
+            old_inihal_data.traj_arc_blend_tangent_kink_ratio,
+        };
+        if (0 != emcSetupArcBlends(cfg)) {
             if (emc_debug & EMC_DEBUG_CONFIG) {
                 rcs_print("bad return value from emcSetupArcBlends\n");
             }

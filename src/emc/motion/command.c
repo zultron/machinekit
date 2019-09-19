@@ -1704,12 +1704,7 @@ check_stuff ( "before command_handler()" );
         break;
 
     case EMCMOT_SETUP_ARC_BLENDS:
-        emcmotConfig->arcBlendEnable = emcmotCommand->arcBlendEnable;
-        emcmotConfig->arcBlendFallbackEnable = emcmotCommand->arcBlendFallbackEnable;
-        emcmotConfig->arcBlendOptDepth = emcmotCommand->arcBlendOptDepth;
-        emcmotConfig->arcBlendGapCycles = emcmotCommand->arcBlendGapCycles;
-        emcmotConfig->arcBlendRampFreq = emcmotCommand->arcBlendRampFreq;
-        emcmotConfig->arcBlendTangentKinkRatio = emcmotCommand->arcBlendTangentKinkRatio;
+        emcmotConfig->arc_blend_cfg = emcmotCommand->arc_blend_cfg;
         break;
 
     case EMCMOT_SETUP_CONSISTENCY_CHECKS:
@@ -1718,6 +1713,10 @@ check_stuff ( "before command_handler()" );
 
     case EMCMOT_SET_MAX_POSITION_TRACKING_ERROR:
         emcmotConfig->maxPositionTrackingError = emcmotCommand->maxLimit;
+        break;
+
+    case EMCMOT_SETUP_BIARC_SOLVER_CFG:
+        emcmotConfig->biarc_solver_cfg = emcmotCommand->biarc_solver_cfg;
         break;
 
     default:

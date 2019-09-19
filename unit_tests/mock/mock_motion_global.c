@@ -34,10 +34,10 @@ void init_motion_globals(double a_max)
     emcmotInternal = &emcmotStruct->internal;
     emcmotStatus = &emcmotStruct->status;
 
-    emcmotConfig->arcBlendEnable = 1;
-    emcmotConfig->arcBlendOptDepth = 100;
-    emcmotConfig->arcBlendGapCycles = 5;
-    emcmotConfig->arcBlendRampFreq = 100;
+    emcmotConfig->arc_blend_cfg.enable = 1;
+    emcmotConfig->arc_blend_cfg.optimization_depth = 100;
+    emcmotConfig->arc_blend_cfg.gap_cycles = 5;
+    emcmotConfig->arc_blend_cfg.ramp_frequency = 100;
     emcmotConfig->maxFeedScale = 2.0;
 
     joints = emcmotDebug->joints;

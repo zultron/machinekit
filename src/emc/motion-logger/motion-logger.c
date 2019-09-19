@@ -263,6 +263,349 @@ void log_print(const char *fmt, ...) {
 }
 
 
+void log_print_emcmot_cmd(emcmot_command_t *c)
+{
+    switch (c->command) {
+    case EMCMOT_ABORT:
+        log_print("ABORT\n");
+        return;
+
+    case EMCMOT_AXIS_ABORT:
+        log_print("AXIS_ABORT joint=%d\n", c->axis);
+        return;
+
+    case EMCMOT_ENABLE:
+        log_print("ENABLE\n");
+        SET_MOTION_ENABLE_FLAG(1);
+        update_motion_state();
+        return;
+
+    case EMCMOT_DISABLE:
+        log_print("DISABLE\n");
+        SET_MOTION_ENABLE_FLAG(0);
+        update_motion_state();
+        return;
+
+    case EMCMOT_ENABLE_AMPLIFIER:
+        log_print("ENABLE_AMPLIFIER\n");
+        return;
+
+    case EMCMOT_DISABLE_AMPLIFIER:
+        log_print("DISABLE_AMPLIFIER\n");
+        return;
+
+    case EMCMOT_ENABLE_WATCHDOG:
+        log_print("ENABLE_WATCHDOG\n");
+        return;
+
+    case EMCMOT_DISABLE_WATCHDOG:
+        log_print("DISABLE_WATCHDOG\n");
+        return;
+
+    case EMCMOT_ACTIVATE_JOINT:
+        log_print("ACTIVATE_JOINT joint=%d\n", c->axis);
+        return;
+
+    case EMCMOT_DEACTIVATE_JOINT:
+        log_print("DEACTIVATE_JOINT joint=%d\n", c->axis);
+        return;
+
+    case EMCMOT_PAUSE:
+        log_print("PAUSE\n");
+        return;
+
+    case EMCMOT_RESUME:
+        log_print("RESUME\n");
+        return;
+
+    case EMCMOT_STEP:
+        log_print("STEP\n");
+        return;
+
+    case EMCMOT_FREE:
+        log_print("FREE\n");
+        SET_MOTION_COORD_FLAG(0);
+        SET_MOTION_TELEOP_FLAG(0);
+        update_motion_state();
+        return;
+
+    case EMCMOT_COORD:
+        log_print("COORD\n");
+        SET_MOTION_COORD_FLAG(1);
+        SET_MOTION_TELEOP_FLAG(0);
+        SET_MOTION_ERROR_FLAG(0);
+        update_motion_state();
+        return;
+
+    case EMCMOT_TELEOP:
+        log_print("TELEOP\n");
+        SET_MOTION_TELEOP_FLAG(1);
+        SET_MOTION_ERROR_FLAG(0);
+        update_motion_state();
+        return;
+
+    case EMCMOT_SPINDLE_SCALE:
+        log_print("SPINDLE_SCALE\n");
+        return;
+
+    case EMCMOT_SS_ENABLE:
+        log_print("SS_ENABLE\n");
+        return;
+
+    case EMCMOT_FEED_SCALE:
+        log_print("FEED_SCALE\n");
+        return;
+
+    case EMCMOT_RAPID_SCALE:
+        log_print("RAPID_SCALE\n");
+        return;
+
+    case EMCMOT_FS_ENABLE:
+        log_print("FS_ENABLE\n");
+        return;
+
+    case EMCMOT_FH_ENABLE:
+        log_print("FH_ENABLE\n");
+        return;
+
+    case EMCMOT_AF_ENABLE:
+        log_print("AF_ENABLE\n");
+        return;
+
+    case EMCMOT_OVERRIDE_LIMITS:
+        log_print("OVERRIDE_LIMITS\n");
+        return;
+
+    case EMCMOT_HOME:
+        log_print("HOME joint=%d\n", c->axis);
+        if (c->axis < 0) {
+            for (int j = 0; j < num_joints; j ++) {
+                mark_joint_homed(j);
+            }
+        } else {
+            mark_joint_homed(c->axis);
+        }
+        return;
+
+    case EMCMOT_UNHOME:
+        log_print("UNHOME joint=%d\n", c->axis);
+        return;
+
+    case EMCMOT_JOG_CONT:
+        log_print("JOG_CONT\n");
+        return;
+
+    case EMCMOT_JOG_INCR:
+        log_print("JOG_INCR\n");
+        return;
+
+    case EMCMOT_JOG_ABS:
+        log_print("JOG_ABS\n");
+        return;
+
+    case EMCMOT_SET_LINE:
+        log_print(
+            "SET_LINE x=%.6f, y=%.6f, z=%.6f, a=%.6f, b=%.6f, c=%.6f, u=%.6f, v=%.6f, w=%.6f, id=%d, motion_type=%d, vel=%.6f, ini_maxvel=%.6f, acc=%.6f, turn=%d\n",
+            c->pos.tran.x, c->pos.tran.y, c->pos.tran.z,
+            c->pos.a, c->pos.b, c->pos.c,
+            c->pos.u, c->pos.v, c->pos.w,
+            c->id, c->motion_type,
+            c->vel, c->ini_maxvel,
+            c->acc, c->turn
+            );
+        return;
+
+    case EMCMOT_SET_CIRCLE:
+        log_print("SET_CIRCLE:\n");
+        log_print(
+            "    pos: x=%.6f, y=%.6f, z=%.6f, a=%.6f, b=%.6f, c=%.6f, u=%.6f, v=%.6f, w=%.6f\n",
+            c->pos.tran.x, c->pos.tran.y, c->pos.tran.z,
+            c->pos.a, c->pos.b, c->pos.c,
+            c->pos.u, c->pos.v, c->pos.w
+            );
+        log_print("    center: x=%.6f, y=%.6f, z=%.6f\n", c->center.x, c->center.y, c->center.z);
+        log_print("    normal: x=%.6f, y=%.6f, z=%.6f\n", c->normal.x, c->normal.y, c->normal.z);
+        log_print("    id=%d, motion_type=%d, vel=%.6f, ini_maxvel=%.6f, acc=%.6f, turn=%d\n",
+                  c->id, c->motion_type,
+                  c->vel, c->ini_maxvel,
+                  c->acc, c->turn
+                  );
+        return;
+
+    case EMCMOT_SET_TELEOP_VECTOR:
+        log_print("SET_TELEOP_VECTOR\n");
+        return;
+
+    case EMCMOT_CLEAR_PROBE_FLAGS:
+        log_print("CLEAR_PROBE_FLAGS\n");
+        return;
+
+    case EMCMOT_PROBE:
+        log_print("PROBE\n");
+        return;
+
+    case EMCMOT_RIGID_TAP:
+        log_print("RIGID_TAP\n");
+        return;
+
+    case EMCMOT_SET_POSITION_LIMITS:
+        log_print(
+            "SET_POSITION_LIMITS joint=%d, min=%.6f, max=%.6f\n",
+            c->axis, c->minLimit, c->maxLimit
+            );
+        joints[c->axis].max_pos_limit = c->maxLimit;
+        joints[c->axis].min_pos_limit = c->minLimit;
+        return;
+
+    case EMCMOT_SET_BACKLASH:
+        log_print("SET_BACKLASH joint=%d, backlash=%.6f\n", c->axis, c->backlash);
+        return;
+
+    case EMCMOT_SET_MIN_FERROR:
+        log_print("SET_MIN_FERROR joint=%d, minFerror=%.6f\n", c->axis, c->minFerror);
+        return;
+
+    case EMCMOT_SET_MAX_FERROR:
+        log_print("SET_MAX_FERROR joint=%d, maxFerror=%.6f\n", c->axis, c->maxFerror);
+        return;
+
+    case EMCMOT_SET_VEL:
+        log_print("SET_VEL vel=%.6f, ini_maxvel=%.6f\n", c->vel, c->ini_maxvel);
+        return;
+
+    case EMCMOT_SET_VEL_LIMIT:
+        log_print("SET_VEL_LIMIT vel=%.6f\n", c->vel);
+        return;
+
+    case EMCMOT_SET_JOINT_VEL_LIMIT:
+        log_print("SET_JOINT_VEL_LIMIT joint=%d, vel=%.6f\n", c->axis, c->vel);
+        return;
+
+    case EMCMOT_SET_JOINT_ACC_LIMIT:
+        log_print("SET_JOINT_ACC_LIMIT joint=%d, acc=%.6f\n", c->axis, c->acc);
+        return;
+
+    case EMCMOT_SET_ACC:
+        log_print("SET_ACC acc=%.6f\n", c->acc);
+        return;
+
+    case EMCMOT_SET_TERM_COND:
+        log_print("SET_TERM_COND termCond=%d, tolerance=%.6f\n", c->termCond, c->tolerance);
+        return;
+
+    case EMCMOT_SET_NUM_AXES:
+        log_print("SET_NUM_AXES %d\n", c->axis);
+        num_joints = c->axis;
+        return;
+
+    case EMCMOT_SET_WORLD_HOME:
+        log_print(
+            "SET_WORLD_HOME x=%.6f, y=%.6f, z=%.6f, a=%.6f, b=%.6f, c=%.6f, u=%.6f, v=%.6f, w=%.6f\n",
+            c->pos.tran.x, c->pos.tran.y, c->pos.tran.z,
+            c->pos.a, c->pos.b, c->pos.c,
+            c->pos.u, c->pos.v, c->pos.w
+            );
+        return;
+
+    case EMCMOT_SET_HOMING_PARAMS:
+        log_print(
+            "SET_HOMING_PARAMS joint=%d, offset=%.6f home=%.6f, final_vel=%.6f, search_vel=%.6f, latch_vel=%.6f, flags=0x%08x, sequence=%d, volatile=%d\n",
+            c->axis, c->offset, c->home, c->home_final_vel,
+            c->search_vel, c->latch_vel, c->flags,
+            c->home_sequence, c->volatile_home
+            );
+        return;
+
+    case EMCMOT_SET_DEBUG:
+        log_print("SET_DEBUG\n");
+        return;
+
+    case EMCMOT_SET_DOUT:
+        log_print("SET_DOUT\n");
+        return;
+
+    case EMCMOT_SET_AOUT:
+        log_print("SET_AOUT\n");
+        return;
+
+    case EMCMOT_SET_SPINDLESYNC:
+        log_print("SET_SPINDLESYNC sync=%06f, flags=0x%08x\n", c->spindlesync, c->flags);
+        return;
+
+    case EMCMOT_SPINDLE_ON:
+        log_print("SPINDLE_ON speed=%f, css_factor=%f, xoffset=%f\n",
+                  c->spindle_speed, c->css_factor, c->css_xoffset);
+        emcmotStatus->spindle_cmd.velocity_rpm_out = c->spindle_speed;
+        return;
+
+    case EMCMOT_SPINDLE_OFF:
+        log_print("SPINDLE_OFF\n");
+        emcmotStatus->spindle_cmd.velocity_rpm_out = 0;
+        return;
+
+    case EMCMOT_SPINDLE_INCREASE:
+        log_print("SPINDLE_INCREASE\n");
+        return;
+
+    case EMCMOT_SPINDLE_DECREASE:
+        log_print("SPINDLE_DECREASE\n");
+        return;
+
+    case EMCMOT_SPINDLE_BRAKE_ENGAGE:
+        log_print("SPINDLE_BRAKE_ENGAGE\n");
+        return;
+
+    case EMCMOT_SPINDLE_BRAKE_RELEASE:
+        log_print("SPINDLE_BRAKE_RELEASE\n");
+        return;
+
+    case EMCMOT_SPINDLE_ORIENT:
+        log_print("SPINDLE_ORIENT\n");
+        return;
+
+    case EMCMOT_SET_MOTOR_OFFSET:
+        log_print("SET_MOTOR_OFFSET\n");
+        return;
+
+    case EMCMOT_SET_JOINT_COMP:
+        log_print("SET_JOINT_COMP\n");
+        return;
+
+    case EMCMOT_SET_OFFSET:
+        log_print(
+            "SET_OFFSET x=%.6f, y=%.6f, z=%.6f, a=%.6f, b=%.6f, c=%.6f u=%.6f, v=%.6f, w=%.6f\n",
+            c->tool_offset.tran.x, c->tool_offset.tran.y, c->tool_offset.tran.z,
+            c->tool_offset.a, c->tool_offset.b, c->tool_offset.c,
+            c->tool_offset.u, c->tool_offset.v, c->tool_offset.w
+            );
+        return;
+
+    case EMCMOT_SET_MAX_FEED_OVERRIDE:
+        log_print("SET_MAX_FEED_OVERRIDE %.6f\n", c->maxFeedScale);
+        return;
+
+    case EMCMOT_SETUP_ARC_BLENDS:
+        log_print("SETUP_ARC_BLENDS\n");
+        return;
+
+    case EMCMOT_SETUP_CONSISTENCY_CHECKS:
+        log_print("SETUP_CONSISTENCY_CHECKS enabled=%d, position_drift=%0.6f\n",
+                  c->consistencyCheckConfig.extraConsistencyChecks,
+                  c->consistencyCheckConfig.maxPositionDriftError);
+        return;
+
+    case EMCMOT_SET_MAX_POSITION_TRACKING_ERROR:
+        log_print("SET_MAX_POSITION_TRACKING_ERROR max_position_error=%0.6f\n",
+                  c->maxLimit);
+        return;
+
+    case EMCMOT_SETUP_BIARC_SOLVER_CFG:
+        log_print("SETUP_BIARC_SOLVER_CFG\n");
+        return;
+    }
+    log_print("ERROR: unknown command %d\n", c->command);
+}
+
 int main(int argc, char* argv[]) {
     if (argc == 1) {
         logfile = stdout;
@@ -303,344 +646,7 @@ int main(int argc, char* argv[]) {
 
         emcmotStatus->head++;
 
-        switch (c->command) {
-            case EMCMOT_ABORT:
-                log_print("ABORT\n");
-                break;
-
-            case EMCMOT_AXIS_ABORT:
-                log_print("AXIS_ABORT joint=%d\n", c->axis);
-                break;
-
-            case EMCMOT_ENABLE:
-                log_print("ENABLE\n");
-                SET_MOTION_ENABLE_FLAG(1);
-                update_motion_state();
-                break;
-
-            case EMCMOT_DISABLE:
-                log_print("DISABLE\n");
-                SET_MOTION_ENABLE_FLAG(0);
-                update_motion_state();
-                break;
-
-            case EMCMOT_ENABLE_AMPLIFIER:
-                log_print("ENABLE_AMPLIFIER\n");
-                break;
-
-            case EMCMOT_DISABLE_AMPLIFIER:
-                log_print("DISABLE_AMPLIFIER\n");
-                break;
-
-            case EMCMOT_ENABLE_WATCHDOG:
-                log_print("ENABLE_WATCHDOG\n");
-                break;
-
-            case EMCMOT_DISABLE_WATCHDOG:
-                log_print("DISABLE_WATCHDOG\n");
-                break;
-
-            case EMCMOT_ACTIVATE_JOINT:
-                log_print("ACTIVATE_JOINT joint=%d\n", c->axis);
-                break;
-
-            case EMCMOT_DEACTIVATE_JOINT:
-                log_print("DEACTIVATE_JOINT joint=%d\n", c->axis);
-                break;
-
-            case EMCMOT_PAUSE:
-                log_print("PAUSE\n");
-                break;
-
-            case EMCMOT_RESUME:
-                log_print("RESUME\n");
-                break;
-
-            case EMCMOT_STEP:
-                log_print("STEP\n");
-                break;
-
-            case EMCMOT_FREE:
-                log_print("FREE\n");
-                SET_MOTION_COORD_FLAG(0);
-                SET_MOTION_TELEOP_FLAG(0);
-                update_motion_state();
-                break;
-
-            case EMCMOT_COORD:
-                log_print("COORD\n");
-                SET_MOTION_COORD_FLAG(1);
-                SET_MOTION_TELEOP_FLAG(0);
-                SET_MOTION_ERROR_FLAG(0);
-                update_motion_state();
-                break;
-
-            case EMCMOT_TELEOP:
-                log_print("TELEOP\n");
-                SET_MOTION_TELEOP_FLAG(1);
-                SET_MOTION_ERROR_FLAG(0);
-                update_motion_state();
-                break;
-
-            case EMCMOT_SPINDLE_SCALE:
-                log_print("SPINDLE_SCALE\n");
-                break;
-
-            case EMCMOT_SS_ENABLE:
-                log_print("SS_ENABLE\n");
-                break;
-
-            case EMCMOT_FEED_SCALE:
-                log_print("FEED_SCALE\n");
-                break;
-
-            case EMCMOT_RAPID_SCALE:
-                log_print("RAPID_SCALE\n");
-                break;
-
-            case EMCMOT_FS_ENABLE:
-                log_print("FS_ENABLE\n");
-                break;
-
-            case EMCMOT_FH_ENABLE:
-                log_print("FH_ENABLE\n");
-                break;
-
-            case EMCMOT_AF_ENABLE:
-                log_print("AF_ENABLE\n");
-                break;
-
-            case EMCMOT_OVERRIDE_LIMITS:
-                log_print("OVERRIDE_LIMITS\n");
-                break;
-
-            case EMCMOT_HOME:
-                log_print("HOME joint=%d\n", c->axis);
-                if (c->axis < 0) {
-                    for (int j = 0; j < num_joints; j ++) {
-                        mark_joint_homed(j);
-                    }
-                } else {
-                    mark_joint_homed(c->axis);
-                }
-                break;
-
-            case EMCMOT_UNHOME:
-                log_print("UNHOME joint=%d\n", c->axis);
-                break;
-
-            case EMCMOT_JOG_CONT:
-                log_print("JOG_CONT\n");
-                break;
-
-            case EMCMOT_JOG_INCR:
-                log_print("JOG_INCR\n");
-                break;
-
-            case EMCMOT_JOG_ABS:
-                log_print("JOG_ABS\n");
-                break;
-
-            case EMCMOT_SET_LINE:
-                log_print(
-                    "SET_LINE x=%.6f, y=%.6f, z=%.6f, a=%.6f, b=%.6f, c=%.6f, u=%.6f, v=%.6f, w=%.6f, id=%d, motion_type=%d, vel=%.6f, ini_maxvel=%.6f, acc=%.6f, turn=%d\n",
-                    c->pos.tran.x, c->pos.tran.y, c->pos.tran.z,
-                    c->pos.a, c->pos.b, c->pos.c,
-                    c->pos.u, c->pos.v, c->pos.w,
-                    c->id, c->motion_type,
-                    c->vel, c->ini_maxvel,
-                    c->acc, c->turn
-                );
-                break;
-
-            case EMCMOT_SET_CIRCLE:
-                log_print("SET_CIRCLE:\n");
-                log_print(
-                    "    pos: x=%.6f, y=%.6f, z=%.6f, a=%.6f, b=%.6f, c=%.6f, u=%.6f, v=%.6f, w=%.6f\n",
-                    c->pos.tran.x, c->pos.tran.y, c->pos.tran.z,
-                    c->pos.a, c->pos.b, c->pos.c,
-                    c->pos.u, c->pos.v, c->pos.w
-                );
-                log_print("    center: x=%.6f, y=%.6f, z=%.6f\n", c->center.x, c->center.y, c->center.z);
-                log_print("    normal: x=%.6f, y=%.6f, z=%.6f\n", c->normal.x, c->normal.y, c->normal.z);
-                log_print("    id=%d, motion_type=%d, vel=%.6f, ini_maxvel=%.6f, acc=%.6f, turn=%d\n",
-                    c->id, c->motion_type,
-                    c->vel, c->ini_maxvel,
-                    c->acc, c->turn
-                );
-                break;
-
-            case EMCMOT_SET_TELEOP_VECTOR:
-                log_print("SET_TELEOP_VECTOR\n");
-                break;
-
-            case EMCMOT_CLEAR_PROBE_FLAGS:
-                log_print("CLEAR_PROBE_FLAGS\n");
-                break;
-
-            case EMCMOT_PROBE:
-                log_print("PROBE\n");
-                break;
-
-            case EMCMOT_RIGID_TAP:
-                log_print("RIGID_TAP\n");
-                break;
-
-            case EMCMOT_SET_POSITION_LIMITS:
-                log_print(
-                    "SET_POSITION_LIMITS joint=%d, min=%.6f, max=%.6f\n",
-                    c->axis, c->minLimit, c->maxLimit
-                );
-                joints[c->axis].max_pos_limit = c->maxLimit;
-                joints[c->axis].min_pos_limit = c->minLimit;
-                break;
-
-            case EMCMOT_SET_BACKLASH:
-                log_print("SET_BACKLASH joint=%d, backlash=%.6f\n", c->axis, c->backlash);
-                break;
-
-            case EMCMOT_SET_MIN_FERROR:
-                log_print("SET_MIN_FERROR joint=%d, minFerror=%.6f\n", c->axis, c->minFerror);
-                break;
-
-            case EMCMOT_SET_MAX_FERROR:
-                log_print("SET_MAX_FERROR joint=%d, maxFerror=%.6f\n", c->axis, c->maxFerror);
-                break;
-
-            case EMCMOT_SET_VEL:
-                log_print("SET_VEL vel=%.6f, ini_maxvel=%.6f\n", c->vel, c->ini_maxvel);
-                break;
-
-            case EMCMOT_SET_VEL_LIMIT:
-                log_print("SET_VEL_LIMIT vel=%.6f\n", c->vel);
-                break;
-
-            case EMCMOT_SET_JOINT_VEL_LIMIT:
-                log_print("SET_JOINT_VEL_LIMIT joint=%d, vel=%.6f\n", c->axis, c->vel);
-                break;
-
-            case EMCMOT_SET_JOINT_ACC_LIMIT:
-                log_print("SET_JOINT_ACC_LIMIT joint=%d, acc=%.6f\n", c->axis, c->acc);
-                break;
-
-            case EMCMOT_SET_ACC:
-                log_print("SET_ACC acc=%.6f\n", c->acc);
-                break;
-
-            case EMCMOT_SET_TERM_COND:
-                log_print("SET_TERM_COND termCond=%d, tolerance=%.6f\n", c->termCond, c->tolerance);
-                break;
-
-            case EMCMOT_SET_NUM_AXES:
-                log_print("SET_NUM_AXES %d\n", c->axis);
-                num_joints = c->axis;
-                break;
-
-            case EMCMOT_SET_WORLD_HOME:
-                log_print(
-                    "SET_WORLD_HOME x=%.6f, y=%.6f, z=%.6f, a=%.6f, b=%.6f, c=%.6f, u=%.6f, v=%.6f, w=%.6f\n",
-                    c->pos.tran.x, c->pos.tran.y, c->pos.tran.z,
-                    c->pos.a, c->pos.b, c->pos.c,
-                    c->pos.u, c->pos.v, c->pos.w
-                );
-                break;
-
-            case EMCMOT_SET_HOMING_PARAMS:
-                log_print(
-                    "SET_HOMING_PARAMS joint=%d, offset=%.6f home=%.6f, final_vel=%.6f, search_vel=%.6f, latch_vel=%.6f, flags=0x%08x, sequence=%d, volatile=%d\n",
-                    c->axis, c->offset, c->home, c->home_final_vel,
-                    c->search_vel, c->latch_vel, c->flags,
-                    c->home_sequence, c->volatile_home
-                );
-                break;
-
-            case EMCMOT_SET_DEBUG:
-                log_print("SET_DEBUG\n");
-                break;
-
-            case EMCMOT_SET_DOUT:
-                log_print("SET_DOUT\n");
-                break;
-
-            case EMCMOT_SET_AOUT:
-                log_print("SET_AOUT\n");
-                break;
-
-            case EMCMOT_SET_SPINDLESYNC:
-                log_print("SET_SPINDLESYNC sync=%06f, flags=0x%08x\n", c->spindlesync, c->flags);
-                break;
-
-            case EMCMOT_SPINDLE_ON:
-                log_print("SPINDLE_ON speed=%f, css_factor=%f, xoffset=%f\n",
-                          c->spindle_speed, c->css_factor, c->css_xoffset);
-                emcmotStatus->spindle_cmd.velocity_rpm_out = c->spindle_speed;
-                break;
-
-            case EMCMOT_SPINDLE_OFF:
-                log_print("SPINDLE_OFF\n");
-                emcmotStatus->spindle_cmd.velocity_rpm_out = 0;
-                break;
-
-            case EMCMOT_SPINDLE_INCREASE:
-                log_print("SPINDLE_INCREASE\n");
-                break;
-
-            case EMCMOT_SPINDLE_DECREASE:
-                log_print("SPINDLE_DECREASE\n");
-                break;
-
-            case EMCMOT_SPINDLE_BRAKE_ENGAGE:
-                log_print("SPINDLE_BRAKE_ENGAGE\n");
-                break;
-
-            case EMCMOT_SPINDLE_BRAKE_RELEASE:
-                log_print("SPINDLE_BRAKE_RELEASE\n");
-                break;
-
-            case EMCMOT_SPINDLE_ORIENT:
-                log_print("SPINDLE_ORIENT\n");
-                break;
-
-            case EMCMOT_SET_MOTOR_OFFSET:
-                log_print("SET_MOTOR_OFFSET\n");
-                break;
-
-            case EMCMOT_SET_JOINT_COMP:
-                log_print("SET_JOINT_COMP\n");
-                break;
-
-            case EMCMOT_SET_OFFSET:
-                log_print(
-                    "SET_OFFSET x=%.6f, y=%.6f, z=%.6f, a=%.6f, b=%.6f, c=%.6f u=%.6f, v=%.6f, w=%.6f\n",
-                    c->tool_offset.tran.x, c->tool_offset.tran.y, c->tool_offset.tran.z,
-                    c->tool_offset.a, c->tool_offset.b, c->tool_offset.c,
-                    c->tool_offset.u, c->tool_offset.v, c->tool_offset.w
-                );
-                break;
-
-            case EMCMOT_SET_MAX_FEED_OVERRIDE:
-                log_print("SET_MAX_FEED_OVERRIDE %.6f\n", c->maxFeedScale);
-                break;
-
-            case EMCMOT_SETUP_ARC_BLENDS:
-                log_print("SETUP_ARC_BLENDS\n");
-                break;
-
-            case EMCMOT_SETUP_CONSISTENCY_CHECKS:
-                log_print("SETUP_CONSISTENCY_CHECKS enabled=%d, position_drift=%0.6f\n",
-                          c->consistencyCheckConfig.extraConsistencyChecks,
-                          c->consistencyCheckConfig.maxPositionDriftError);
-                break;
-
-            case EMCMOT_SET_MAX_POSITION_TRACKING_ERROR:
-                log_print("SET_MAX_POSITION_TRACKING_ERROR max_position_error=%0.6f\n",
-                          c->maxLimit);
-                break;
-
-            default:
-                log_print("ERROR: unknown command %d\n", c->command);
-                break;
-        }
+        log_print_emcmot_cmd(c);
 
         update_joint_status();
 

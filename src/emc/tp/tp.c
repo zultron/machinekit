@@ -161,7 +161,7 @@ double tpGetTangentKinkRatio(void) {
     const double max_ratio = 0.7071;
     const double min_ratio = 0.001;
 
-    return fmax(fmin(emcmotConfig->arcBlendTangentKinkRatio,max_ratio),min_ratio);
+    return fmax(fmin(emcmotConfig->arc_blend_cfg.tangent_kink_ratio,max_ratio),min_ratio);
 }
 
 
@@ -909,16 +909,6 @@ tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
     return best_blend;
 }
 
-static const biarc_solver_config_t biarc_cfg_ = {
-    15,
-    0.02,
-    0.001,
-    0.000001,
-    1.5,
-    0.001,
-    0.0000001,
-};
-
 tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const this_tc)
 {
     tp_debug_print("-- Starting BiArc blend --\n");
@@ -945,7 +935,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     CHP(optimize_biarc_blend_size(
         prev_tc,
         this_tc,
-        &biarc_cfg_,
+        &emcmotCommand->biarc_solver_cfg,
         &vel_bound,
         &acc_bound,
         &biarc_results,
@@ -973,7 +963,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         &param1));
 
     // Check if previous segment can be consumed
-    blendCheckConsume(&param1, boundary->s1, prev_tc, emcmotConfig->arcBlendGapCycles);
+    blendCheckConsume(&param1, boundary->s1, prev_tc, emcmotConfig->arc_blend_cfg.gap_cycles);
     if (param1.consume && blend_tc1.motion_type == TC_LINEAR) {
         // KLUDGE force the start point to be the previous line's starting point since it's going to be consumed
         points1.arc_start = prev_tc->coords.line.xyz.start;
@@ -1202,7 +1192,7 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
     CHP(blendFindPoints3(&points, &geom, &param));
 
     double L_prev = prev_tc->target - param.d_plan;
-    blendCheckConsume(&param, L_prev, prev_tc, emcmotConfig->arcBlendGapCycles);
+    blendCheckConsume(&param, L_prev, prev_tc, emcmotConfig->arc_blend_cfg.gap_cycles);
     points.u_tan = geom.u1;
     points.motion_type = TC_SPHERICAL;
 
@@ -1376,7 +1366,7 @@ int tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
         prev_tc->parabolic_equiv_vel = estimateParabolicBlendPerformance(tp, prev_tc, tc) / 2.0;
     }
 
-    if (emcmotConfig->arcBlendEnable){
+    if (emcmotConfig->arc_blend_cfg.enable){
         tpHandleBlendArc(tp, tc);
         tcUpdateArcLengthFit(tc);
     }
@@ -1577,7 +1567,7 @@ int tpRunOptimization(TP_STRUCT * const tp) {
      * the front. We can't do anything with the very last element because its
      * length may change if a new line is added to the queue.*/
 
-    for (x = 1; x < emcmotConfig->arcBlendOptDepth + 2; ++x) {
+    for (x = 1; x < emcmotConfig->arc_blend_cfg.optimization_depth + 2; ++x) {
         tp_info_print("==== Optimization step %d ====\n",x);
 
         // Update the pointers to the trajectory segments in use
@@ -1682,9 +1672,9 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
         return TC_INTERSECT_INCOMPATIBLE;
     }
 
-    if (emcmotConfig->arcBlendOptDepth < 2) {
+    if (emcmotConfig->arc_blend_cfg.optimization_depth < 2) {
         tp_debug_print("Optimization depth %d too low for tangent optimization\n",
-                emcmotConfig->arcBlendOptDepth);
+                emcmotConfig->arc_blend_cfg.optimization_depth);
         return TC_INTERSECT_INCOMPATIBLE;
     }
 
@@ -2831,7 +2821,7 @@ tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
      * of a trapezoidal motion. This leads to fewer jerk spikes, at a slight
      * performance cost.
      * */
-    double cutoff_time = 1.0 / (fmax(emcmotConfig->arcBlendRampFreq, TP_TIME_EPSILON));
+    double cutoff_time = 1.0 / (fmax(emcmotConfig->arc_blend_cfg.ramp_frequency, TP_TIME_EPSILON));
 
     double length = tc->target - tc->progress;
     // Given what velocities we can actually reach, estimate the total time for the segment under ramp conditions
