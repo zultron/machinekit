@@ -1,8 +1,8 @@
 /********************************************************************
 * Description:  sampler_usr.c
 *               User space part of "sampler", a HAL component that
-*		can be used to sample data from HAL pins and write
-*		it to a file at a specific realtime sample rate.
+*                can be used to sample data from HAL pins and write
+*                it to a file at a specific realtime sample rate.
 *
 * Author: John Kasunich <jmkasunich at sourceforge dot net>
 * License: GPL Version 2
@@ -70,7 +70,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "rtapi.h"		/* RTAPI realtime OS API */
+#include "rtapi.h"                /* RTAPI realtime OS API */
 #include "hal.h"                /* HAL public API decls */
 #include "streamer.h"
 #include "rtapi_atomic.h"
@@ -83,11 +83,11 @@
 *                         GLOBAL VARIABLES                             *
 ************************************************************************/
 
-int comp_id = -1;	/* -1 means hal_init() not called yet */
+int comp_id = -1;        /* -1 means hal_init() not called yet */
 int shmem_id = -1;
-int exitval = 1;	/* program return code - 1 means error */
-int ignore_sig = 0;	/* used to flag critical regions */
-char comp_name[HAL_NAME_LEN+1];	/* name for this instance of sampler */
+int exitval = 1;        /* program return code - 1 means error */
+int ignore_sig = 0;        /* used to flag critical regions */
+char comp_name[HAL_NAME_LEN+1];        /* name for this instance of sampler */
 
 /***********************************************************************
 *                            MAIN PROGRAM                              *
@@ -97,13 +97,13 @@ char comp_name[HAL_NAME_LEN+1];	/* name for this instance of sampler */
 static void quit(int sig)
 {
     if ( ignore_sig ) {
-	return;
+        return;
     }
     if ( shmem_id >= 0 ) {
-	rtapi_shmem_delete(shmem_id, comp_id);
+        rtapi_shmem_delete(shmem_id, comp_id);
     }
     if ( comp_id >= 0 ) {
-	hal_exit(comp_id);
+        hal_exit(comp_id);
     }
     exit(exitval);
 }
@@ -129,50 +129,50 @@ int main(int argc, char **argv)
     samples = -1;  /* -1 means run forever */
     /* FIXME - if I wasn't so lazy I'd learn how to use getopt() here */
     for ( n = 1 ; n < argc ; n++ ) {
-	cp = argv[n];
-	if ( *cp != '-' ) {
-	    break;
-	}
-	switch ( *(++cp) ) {
-	case 'c':
-	    if (( *(++cp) == '\0' ) && ( ++n < argc )) { 
-		cp = argv[n];
-	    }
-	    channel = strtol(cp, &cp2, 10);
-	    if (( *cp2 ) || ( channel < 0 ) || ( channel >= MAX_SAMPLERS )) {
-		fprintf(stderr,"ERROR: invalid channel number '%s'\n", cp );
-		exit(1);
-	    }
-	    break;
-	case 'n':
-	    if (( *(++cp) == '\0' ) && ( ++n < argc )) { 
-		cp = argv[n];
-	    }
-	    samples = strtol(cp, &cp2, 10);
-	    if (( *cp2 ) || ( samples < 0 )) {
-		fprintf(stderr, "ERROR: invalid sample count '%s'\n", cp );
-		exit(1);
-	    }
-	    break;
-	case 't':
-	    tag = 1;
-	    break;
-	default:
-	    fprintf(stderr,"ERROR: unknown option '%s'\n", cp );
-	    exit(1);
-	    break;
-	}
+        cp = argv[n];
+        if ( *cp != '-' ) {
+            break;
+        }
+        switch ( *(++cp) ) {
+        case 'c':
+            if (( *(++cp) == '\0' ) && ( ++n < argc )) {
+                cp = argv[n];
+            }
+            channel = strtol(cp, &cp2, 10);
+            if (( *cp2 ) || ( channel < 0 ) || ( channel >= MAX_SAMPLERS )) {
+                fprintf(stderr,"ERROR: invalid channel number '%s'\n", cp );
+                exit(1);
+            }
+            break;
+        case 'n':
+            if (( *(++cp) == '\0' ) && ( ++n < argc )) {
+                cp = argv[n];
+            }
+            samples = strtol(cp, &cp2, 10);
+            if (( *cp2 ) || ( samples < 0 )) {
+                fprintf(stderr, "ERROR: invalid sample count '%s'\n", cp );
+                exit(1);
+            }
+            break;
+        case 't':
+            tag = 1;
+            break;
+        default:
+            fprintf(stderr,"ERROR: unknown option '%s'\n", cp );
+            exit(1);
+            break;
+        }
     }
     if(n < argc) {
-	int fd;
-	if(argc > n+1) {
-	    fprintf(stderr, "ERROR: At most one filename may be specified\n");
-	    exit(1);
-	}
-	// make stdout be the named file
-	fd = open(argv[n], O_WRONLY | O_CREAT, 0666);
-	close(1);
-	dup2(fd, 1);
+        int fd;
+        if(argc > n+1) {
+            fprintf(stderr, "ERROR: At most one filename may be specified\n");
+            exit(1);
+        }
+        // make stdout be the named file
+        fd = open(argv[n], O_WRONLY | O_CREAT, 0666);
+        close(1);
+        dup2(fd, 1);
     }
     /* register signal handlers - if the process is killed
        we need to call hal_exit() to free the shared memory */
@@ -188,26 +188,26 @@ int main(int argc, char **argv)
     ignore_sig = 0;
     /* check result */
     if (comp_id < 0) {
-	fprintf(stderr, "ERROR: hal_init() failed: %d\n", comp_id );
-	goto out;
+        fprintf(stderr, "ERROR: hal_init() failed: %d\n", comp_id );
+        goto out;
     }
     hal_ready(comp_id);
     /* open shmem for user/RT comms (fifo) */
     /* initial size is unknown, assume only the fifo structure */
     shmem_id = rtapi_shmem_new(SAMPLER_SHMEM_KEY+channel, comp_id, sizeof(fifo_t));
     if ( shmem_id < 0 ) {
-	fprintf(stderr, "ERROR: couldn't allocate user/RT shared memory\n");
-	goto out;
+        fprintf(stderr, "ERROR: couldn't allocate user/RT shared memory\n");
+        goto out;
     }
     retval = rtapi_shmem_getptr(shmem_id, &shmem_ptr);
     if ( retval < 0 ) {
-	fprintf(stderr, "ERROR: couldn't map user/RT shared memory\n");
-	goto out;
+        fprintf(stderr, "ERROR: couldn't map user/RT shared memory\n");
+        goto out;
     }
     fifo = shmem_ptr;
     if ( fifo->magic != FIFO_MAGIC_NUM ) {
-	fprintf(stderr, "ERROR: channel %d realtime part is not loaded\n", channel );
-	goto out;
+        fprintf(stderr, "ERROR: channel %d realtime part is not loaded\n", channel );
+        goto out;
     }
     /* now use data in fifo structure to calculate proper shmem size */
     size = sizeof(fifo_t) + (1+fifo->num_pins) * fifo->depth * sizeof(shmem_data_t);
@@ -215,78 +215,78 @@ int main(int argc, char **argv)
     rtapi_shmem_delete(shmem_id, comp_id);
     shmem_id = rtapi_shmem_new(SAMPLER_SHMEM_KEY+channel, comp_id, size);
     if ( shmem_id < 0 ) {
-	fprintf(stderr, "ERROR: couldn't re-allocate user/RT shared memory\n");
-	goto out;
+        fprintf(stderr, "ERROR: couldn't re-allocate user/RT shared memory\n");
+        goto out;
     }
     retval = rtapi_shmem_getptr(shmem_id, &shmem_ptr);
     if ( retval < 0 ) {
-	fprintf(stderr, "ERROR: couldn't re-map user/RT shared memory\n");
-	goto out;
+        fprintf(stderr, "ERROR: couldn't re-map user/RT shared memory\n");
+        goto out;
     }
     fifo = shmem_ptr;
     data = fifo->data;
     while ( samples != 0 ) {
-	while ( atomic_load_explicit(&fifo->in, memory_order_acquire) == fifo->out ) {
+        while ( atomic_load_explicit(&fifo->in, memory_order_acquire) == fifo->out ) {
             /* fifo empty, sleep for 10mS */
-	    delay.tv_sec = 0;
-	    delay.tv_nsec = 10000000;
-	    nanosleep(&delay,NULL);
-	}
-	/* make pointer to fifo entry */
+            delay.tv_sec = 0;
+            delay.tv_nsec = 10000000;
+            nanosleep(&delay,NULL);
+        }
+        /* make pointer to fifo entry */
         tmpout = atomic_load_explicit(&fifo->out, memory_order_acquire);
-	newout = tmpout + 1;
-	if ( newout >= fifo->depth ) {
-	    newout = 0;
-	}
-	dptr = &data[tmpout * (fifo->num_pins+1)];
-	/* read data from shmem into buffer */
-	for ( n = 0 ; n < fifo->num_pins ; n++ ) {
-	    buf[n] = *(dptr++);
-	}
-	/* and read sample number */
-	this_sample = dptr->u;
-	if ( atomic_load_explicit(&fifo->out, memory_order_acquire) != tmpout ) {
-	    /* the sample was overwritten while we were reading it */
-	    /* so ignore it */
-	    continue;
-	} else {
-	    /* update 'out' for next sample */
+        newout = tmpout + 1;
+        if ( newout >= fifo->depth ) {
+            newout = 0;
+        }
+        dptr = &data[tmpout * (fifo->num_pins+1)];
+        /* read data from shmem into buffer */
+        for ( n = 0 ; n < fifo->num_pins ; n++ ) {
+            buf[n] = *(dptr++);
+        }
+        /* and read sample number */
+        this_sample = dptr->u;
+        if ( atomic_load_explicit(&fifo->out, memory_order_acquire) != tmpout ) {
+            /* the sample was overwritten while we were reading it */
+            /* so ignore it */
+            continue;
+        } else {
+            /* update 'out' for next sample */
             atomic_store_explicit(&fifo->out, newout, memory_order_release);
-	}
-	if ( this_sample != ++(fifo->last_sample) ) {
-	    printf ( "overrun\n" );
-	    fifo->last_sample = this_sample;
-	}
-	if ( tag ) {
-	    printf ( "%ld ", this_sample );
-	}
-	for ( n = 0 ; n < fifo->num_pins ; n++ ) {
-	    switch ( fifo->type[n] ) {
-	    case HAL_FLOAT:
-		printf ( "%f ", buf[n].f);
-		break;
-	    case HAL_BIT:
-		if ( buf[n].b ) {
-		    printf ( "1 " );
-		} else {
-		    printf ( "0 " );
-		}
-		break;
-	    case HAL_U32:
-		printf ( "%lu ", (unsigned long)buf[n].u);
-		break;
-	    case HAL_S32:
-		printf ( "%ld ", (long)buf[n].s);
-		break;
-	    default:
-		/* better not happen */
-		goto out;
-	    }
-	}
-	printf ( "\n" );
-	if ( samples > 0 ) {
-	    samples--;
-	}
+        }
+        if ( this_sample != ++(fifo->last_sample) ) {
+            printf ( "overrun\n" );
+            fifo->last_sample = this_sample;
+        }
+        if ( tag ) {
+            printf ( "%ld ", this_sample );
+        }
+        for ( n = 0 ; n < fifo->num_pins ; n++ ) {
+            switch ( fifo->type[n] ) {
+            case HAL_FLOAT:
+                printf ( "%f ", buf[n].f);
+                break;
+            case HAL_BIT:
+                if ( buf[n].b ) {
+                    printf ( "1 " );
+                } else {
+                    printf ( "0 " );
+                }
+                break;
+            case HAL_U32:
+                printf ( "%lu ", (unsigned long)buf[n].u);
+                break;
+            case HAL_S32:
+                printf ( "%ld ", (long)buf[n].s);
+                break;
+            default:
+                /* better not happen */
+                goto out;
+            }
+        }
+        printf ( "\n" );
+        if ( samples > 0 ) {
+            samples--;
+        }
     }
     /* run was succesfull */
     exitval = 0;
@@ -294,10 +294,10 @@ int main(int argc, char **argv)
 out:
     ignore_sig = 1;
     if ( shmem_id >= 0 ) {
-	rtapi_shmem_delete(shmem_id, comp_id);
+        rtapi_shmem_delete(shmem_id, comp_id);
     }
     if ( comp_id >= 0 ) {
-	hal_exit(comp_id);
+        hal_exit(comp_id);
     }
     return exitval;
 }
