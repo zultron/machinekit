@@ -1051,14 +1051,22 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     tcSetTermCond(&blend_tc2, this_tc, TC_TERM_COND_TANGENT);
 
 #ifdef TP_DEBUG
+    PmCartesian u1_stretch, u2_stretch;
+    tcGetEndTangentUnitVector(prev_tc, &u1_stretch);
+    tcGetStartTangentUnitVector(this_tc, &u2_stretch);
     print_json5_log_start(tpCreateBiarcBlend, Command);
     print_json5_long_("id", tp->nextId);
     print_json5_biarc_solution_t("solution", &biarc_results.solution);
+    print_json5_PmCartesian(u1_stretch);
+    print_json5_PmCartesian(u2_stretch);
+    print_json5_biarc_control_points_t("control_pts", &biarc_results.solution.control_pts);
+    print_json5_blend_boundary_t("boundary", &biarc_results.solution.boundary);
     print_json5_string_("result", biarc_result_to_str(biarc_results.result));
     print_json5_TC_STRUCT_kinematics("blend1", &blend_tc1);
     print_json5_TC_STRUCT_kinematics("blend2", &blend_tc2);
     print_json5_double_("maxvel", fmin(prev_tc->maxvel, this_tc->maxvel));
     print_json5_double_("reqvel", fmin(prev_tc->reqvel, this_tc->reqvel));
+    print_json5_bool_("consume", param.consume);
     print_json5_end_();
 #endif
 
