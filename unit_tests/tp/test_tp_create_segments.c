@@ -421,6 +421,17 @@ static greatest_test_res setup_two_xy_unit_circles(TP_STRUCT *tp, double v_req, 
     return GREATEST_TEST_RES_PASS;
 }
 
+
+static const biarc_solver_config_t cfg = {
+    20,
+    0.02,
+    0.001,
+    0.000001,
+    1.0, // Ignore feed override scale for now
+    0.001,
+    0.0000001,
+};
+
 TEST test_optimize_biarc_blend_size()
 {
     static const double BLEND_TOLERANCE = 0.005;
@@ -442,15 +453,6 @@ TEST test_optimize_biarc_blend_size()
     PmCartesian acc_bound = getXYZAccelBounds();
 
     BlendParameters param = {0};
-    biarc_solver_config_t cfg = {
-        10,
-        0.02,
-        0.001,
-        0.0001,
-        1.0, // Ignore feed override scale for now
-        0.01,
-        0.00001,
-    };
 
     biarc_solver_results_t biarc_results = {0};
 
@@ -488,14 +490,29 @@ TEST test_biarc_optimizer_performance()
 {
     CREATE_MOCK_TP_ACC(8.0);
     ASSERT(tp);
-    static const double BLEND_TOLERANCE = 0.01;
+    static const double BLEND_TOLERANCE = 0.05;
     static const double v_req = 1.0;
 
     static const CenterNormal cases[]={
-        //{{-1,0.001,0},{0,0,1}},
-        //{{1,0,0},{0,0,-1}},
+        {{0.100000, 0.000293, 0.100000}, {0.000000, 0.000000, 1.000000}},
+        {{0.084656,-0.053229, 0.100000}, {0.000000, 0.000000, 1.000000}},
+        {{0.505793,-0.862655, 0.000000}, {0.000000, 0.000000, 1.000000}},
+        {{-1,0.001,0},{0,0,1}},
+        {{1,0,0},{0,0,-1}},
         {{1,0,0},{0,0,1}},
-        {{1,0.001,0},{0,0,1}},
+        {{.5,0,0},{0,0,1}},
+        {{.1,0,0},{0,0,1}},
+        {{.01,0,0},{0,0,1}},
+        {{1,-0.1,0},{0,0,1}},
+        {{1,-0.01,0},{0,0,1}},
+        {{1,-0.001,0},{0,0,1}},
+        {{1,-0.0001,0},{0,0,1}},
+        {{1, 0.00000,0},{0,0,1}},
+        {{1, 0.0001,0},{0,0,1}},
+        {{1, 0.001,0},{0,0,1}},
+        {{1, 0.01,0},{0,0,1}},
+        {{1, 0.1,0},{0,0,1}},
+        {{1,1,0},{0,0,1}},
         {{1,0,0},{0,1,0}},
         {{1,0,0},{0,-1,0}},
         {{0,0,1},{-1,0,0}},
@@ -555,15 +572,6 @@ TEST test_biarc_optimizer_performance()
             PmCartesian acc_bound = getXYZAccelBounds();
 
             BlendParameters param = {0};
-            biarc_solver_config_t cfg = {
-                100,
-                0.02,
-                0.001,
-                0.000001,
-                1.0, // Ignore feed override scale for now
-                0.01,
-                0.0000001
-            };
             biarc_solver_results_t biarc_results = {0};
 
 #ifdef DO_BIARC_SCAN
@@ -586,7 +594,7 @@ TEST test_biarc_optimizer_performance()
                 0.0001);
 #endif
 
-            tp_err_t res_opt = optimize_biarc_blend_size(
+            optimize_biarc_blend_size(
                 prev_tc,
                 this_tc,
                 &cfg,
@@ -627,7 +635,7 @@ TEST test_biarc_optimizer_performance()
             ASSERT(biarc_results.R_plan > 0.0);
             if (biarc_results.result != BIARC_MIN_LENGTH_LIMITED) {
                 ASSERT(T <= (BLEND_TOLERANCE + cfg.deviation_abs_tolerance));
-                ASSERT(v_plan > 0.95 || T > BLEND_TOLERANCE * 0.95);
+                ASSERT(v_plan > 0.95 || T > BLEND_TOLERANCE * 0.95 || biarc_results.result == BIARC_CONVERGED);
             }
             ASSERT(biarc_results.iterations < 100);
         }
@@ -637,6 +645,120 @@ TEST test_biarc_optimizer_performance()
     PASS();
 }
 
+static greatest_test_res solve_blend_series(
+    TP_STRUCT *tp,
+    const char *out_name,
+    unsigned I_MAX,
+    double BLEND_TOLERANCE,
+    double v_req,
+    double a_max,
+    double R,
+    double h,
+    int use_init_arc)
+{
+    FILE *f = fopen(out_name,"w");
+    ASSERT(f);
+    fprintf(f, "%12s,%9s,%9s,%9s,%9s,%9s,%9s,%9s,%6s,%9s,%9s,%9s,%9s,%9s,%6s,%6s,\n",
+            "seg_angle",
+            "radius",
+            "C_x",
+            "C_y",
+            "C_z",
+            "N_x",
+            "N_y",
+            "N_z",
+            "tolerance",
+            "R_b",
+            "R_plan",
+            "v_plan",
+            "blend_d",
+            "theta",
+            "iters",
+            "status");
+    for (unsigned i=0; i < I_MAX; ++i) {
+        resetMockTP(tp, 0.001);
+        switch (use_init_arc) {
+        case 0:
+            CHECK_CALL(setup_initial_line(tp, v_req, a_max, BLEND_TOLERANCE));
+            break;
+        case 1:
+            CHECK_CALL(setup_initial_circle(tp, v_req, a_max, BLEND_TOLERANCE));
+            break;
+        }
+
+        double theta = (double)i/I_MAX * 2.0*M_PI;
+        PmCartesian center2 = {R*cos(theta),R*sin(theta),h};
+        PmCartesian normal2 = {0,0,1};
+        ASSERT_EQ(1, tcqLen(&tp->queue));
+        CHECK_CALL(add_circle_from_center_normal(tp, v_req, a_max, BLEND_TOLERANCE, center2, normal2, (int)i));
+
+        TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
+        TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
+        ASSERT(prev_tc);
+        ASSERT(this_tc);
+
+        PmCartesian vel_bound = getXYZVelBounds();
+        PmCartesian acc_bound = getXYZAccelBounds();
+
+        BlendParameters param = {0};
+        biarc_solver_results_t biarc_results = {0};
+
+        optimize_biarc_blend_size(
+            prev_tc,
+            this_tc,
+            &cfg,
+            &vel_bound,
+            &acc_bound,
+            &biarc_results,
+            &param,
+            tp->cycleTime);
+
+        // Verify that the midpoint is within tolerance
+        double T;
+        EmcPose P;
+        tcGetStartpoint(this_tc, &P);
+        pmCartCartDisp(&biarc_results.control_pts.P_mid, &P.tran, &T);
+        double v_plan = pmSqrt(param.a_n_max * biarc_results.R_plan);
+
+        PmCartesian u1, u2;
+        tcGetEndTangentUnitVector(prev_tc, &u1);
+        tcGetStartTangentUnitVector(this_tc, &u2);
+        param.theta = findIntersectionAngle(&u1, &u2);
+
+        fprintf(f, "%12f,%9f,%9f,%9f,%9f,%9f,%9f,%9f,%9g,%9f,%9f,%9f,%9f,%9f,%6d,%6d,\n",
+                theta * 180./M_PI,
+                R,
+                center2.x,
+                center2.y,
+                center2.z,
+                normal2.x,
+                normal2.y,
+                normal2.z,
+                T,
+                biarc_results.Rb,
+                biarc_results.R_plan,
+                v_plan,
+                biarc_results.control_pts.d,
+                param.theta * 180./M_PI,
+                biarc_results.iterations,
+                biarc_results.result);
+    }
+    fclose(f);
+    return GREATEST_TEST_RES_PASS;
+}
+
+TEST test_biarc_optimizer_exercise()
+{
+    CREATE_MOCK_TP_ACC(8.0);
+    ASSERT(tp);
+
+    CHECK_CALL(solve_blend_series(tp, "/home/rellenberg/octave/biarc_blends/aa-short-small-helix.csv", 30000, 0.05, 1.0, 8.0, .1, .1, true));
+    CHECK_CALL(solve_blend_series(tp, "/home/rellenberg/octave/biarc_blends/aa-tall-helix.csv", 60000, 0.05, 1.0, 8.0, 0.5, 2.0, true));
+    CHECK_CALL(solve_blend_series(tp, "/home/rellenberg/octave/biarc_blends/aa-semicircle.csv", 30000, 0.05, 1.0, 8.0, 1, 0, true));
+
+    deleteMockTP(&tp);
+    PASS();
+}
 
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();      /* command-line arguments, initialization. */
@@ -649,6 +771,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_find_blend_points_and_tangents);
     RUN_TEST(test_find_blend_intermediates);
     RUN_TEST(test_biarc_optimizer_performance);
+    RUN_TEST(test_biarc_optimizer_exercise);
     RUN_TEST(test_optimize_biarc_blend_size);
     GREATEST_MAIN_END();        /* display results */
 }
