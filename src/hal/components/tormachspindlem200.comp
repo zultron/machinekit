@@ -508,8 +508,8 @@ function _ "Tormach Spindle HAL Component M200";
                                   //not presently using MAGIC_VFD_FREQ_OFFSET, probably BIPOLAR Mode VFD_BIPOLAR_FREQ_OFFSET and VFD_DEADBAND_HZ removes the need for (duplicate) MAGIC_VFD_FREQ_OFFSET
 #define VFD_DEADBAND_HZ (14.769)  // this is the value of which we need to exceed (subject to the VFD_BIPOLAR_FREQ_OFFSET) to get outside the VFD_DEADBAND of .03% presently programmed Mar 8th.
 #define VFD_UNIPOLAR_MIN_FREQ (30) // this is the equivilent of about 250 RPM on 1100 or about 125 RPM on the 770  See notes about the vfd_enable_inhibit_timer and vfd_hold_freq_cmd_timer timers. 
-#define VFD_BIPOLAR_MAX_FREQ (10000 - (2 * 100))  // Keep in sync with VFD internal operation, which is only using 100
-#define VFD_BIPOLAR_MIN_FREQ (2 * 100) //
+#define VFD_BIPOLAR_MAX_FREQ (10000 - (5 * 100))  // Keep in sync with VFD internal operation, which is only using 100
+#define VFD_BIPOLAR_MIN_FREQ (5 * 100) //   Turns out it's maybe closer to 200 internal in the VFD, so we more than double that value
 
 /////////////// end orienting additions
 
