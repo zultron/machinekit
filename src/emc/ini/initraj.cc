@@ -225,7 +225,7 @@ static int loadTraj(EmcIniFile &trajInifile)
             ));
 
         CHP(emcSetMaxFeedOverride(
-            ini_traj_find("MAX_FEED_OVERRIDE", 100.0)
+            ini_traj_find("MAX_FEED_OVERRIDE", 1.0)
             ));
 
         CHP(emcSetMaxPosTrackingError(
