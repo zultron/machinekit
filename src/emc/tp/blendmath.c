@@ -1356,7 +1356,7 @@ int find_blend_intermediate_segments(
     }
 }
 
-static inline double find_max_blend_length(TC_STRUCT const * const tc)
+static inline double find_max_blend_length(TC_STRUCT const * const tc, bool allow_consumption)
 {
     if (tc->motion_type == TC_CIRCULAR) {
         // FIXME use arc length fit for spiral?
@@ -1368,15 +1368,15 @@ static inline double find_max_blend_length(TC_STRUCT const * const tc)
         double l_from_length = fmin(tc->target, tc->nominal_length / 3.0);
         return fmin(l_from_angle, l_from_length);
     } else {
-        double cutoff_length = tcCanConsume(tc) ? tc->nominal_length / 2.0 : tc->nominal_length / 3.0;
+        double cutoff_length = allow_consumption ? tc->nominal_length / 2.0 : tc->nominal_length / 3.0;
         return fmin(tc->target, cutoff_length);
     }
 }
 
 double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc)
 {
-    double l_prev = find_max_blend_length(prev_tc);
-    double l_this = find_max_blend_length(tc);
+    double l_prev = find_max_blend_length(prev_tc, tcCanConsume(prev_tc));
+    double l_this = find_max_blend_length(tc, true);
     return fmin(l_prev, l_this);
 }
 
