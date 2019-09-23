@@ -53,4 +53,12 @@ void init_motion_globals(double a_max)
     for (int i = 0; i < 4; ++i) {
         joints[i] = mock_j;
     }
+
+    emcmotConfig->biarc_solver_cfg.max_iterations = 15;
+    emcmotConfig->biarc_solver_cfg.velocity_cutoff = 0.001;
+    emcmotConfig->biarc_solver_cfg.convergence_tolerance = 0.000001;
+    emcmotConfig->biarc_solver_cfg.velocity_abs_tolerance = 0.0001;
+    emcmotConfig->biarc_solver_cfg.velocity_rel_tolerance = 0.02;
+    emcmotConfig->biarc_solver_cfg.deviation_abs_tolerance = 0.00001;
+    emcmotConfig->biarc_solver_cfg.feed_override_allowance = 1.0;
 }

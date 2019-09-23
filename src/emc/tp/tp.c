@@ -935,7 +935,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     CHP(optimize_biarc_blend_size(
         prev_tc,
         this_tc,
-        &emcmotCommand->biarc_solver_cfg,
+        &emcmotConfig->biarc_solver_cfg,
         &vel_bound,
         &acc_bound,
         &biarc_results,
