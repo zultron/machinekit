@@ -32,7 +32,7 @@ do { \
     PmCartesian got = GOT; \
     double tol = TOL; \
     char msg[4096]={0}; \
-    sprintf(msg, "expected %s: {%f, %f, %f}, got %s: {%f, %f, %f}", #EXP, exp.x, exp.y, exp.z, #GOT, got.x, got.y, got.z); \
+    sprintf(msg, "expected %s: {%g, %g, %g}, got %s: {%g, %g, %g}", #EXP, exp.x, exp.y, exp.z, #GOT, got.x, got.y, got.z); \
     ASSERT_IN_RANGEm(msg, exp.x, got.x, tol); \
     ASSERT_IN_RANGEm(msg, exp.y, got.y, tol); \
     ASSERT_IN_RANGEm(msg, exp.z, got.z, tol); \

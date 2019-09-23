@@ -1871,7 +1871,7 @@ int find_biarc_points_from_solution(
         u1,
         u2);
 
-    if (fabs(M_PI_2 - param->theta) < TP_ANGLE_EPSILON) {
+    if (fabs(M_PI_2 - param->theta) < 1e-6) {
         points->motion_type = TC_LINEAR;
     } else {
         points->motion_type = TC_SPHERICAL;
