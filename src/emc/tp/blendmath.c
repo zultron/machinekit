@@ -791,32 +791,22 @@ int blendComputeParameters(BlendParameters * const param, BlendControls const * 
 }
 
 
-/** Check if the previous line segment will be consumed based on the blend arc parameters. */
-int blendCheckConsume(BlendParameters * const param,
-        double L_prev,
-        TC_STRUCT const * const prev_tc, int gap_cycles)
+/**
+ * Check if the previous line segment will be consumed based on the blend arc parameters.
+ * @pre assumes non-null arguments
+ */
+int blendCheckConsume(
+    BlendParameters * const param,
+    double L_prev,
+    TC_STRUCT const * const prev_tc,
+    int gap_cycles)
 {
-    //Initialize values
-    param->consume = 0;
-    param->line_length = 0;
-    if (!prev_tc) {
-        return -1;
-    }
-
-    if (prev_tc->motion_type != TC_LINEAR) {
-        return 0;
-    }
-
-    //Check for segment length limits
     double prev_seg_time = L_prev / param->v_plan;
-
-    bool can_consume = tcCanConsume(prev_tc);
     double consume_time = fmax(gap_cycles, 1.0) * prev_tc->cycle_time;
 
-    param->consume = ((prev_seg_time <= consume_time) && can_consume);
-    if (param->consume) {
-        param->line_length = L_prev;
-    }
+    param->is_consumable = tcCanConsume(prev_tc);
+    param->consume = ((prev_seg_time <= consume_time) && param->is_consumable);
+    param->line_length = param->consume ? L_prev : 0.0;
     return 0;
 }
 
@@ -1356,8 +1346,11 @@ int find_blend_intermediate_segments(
     }
 }
 
-static inline double find_max_blend_length(TC_STRUCT const * const tc, bool allow_consumption)
+static inline double find_max_blend_length(TC_STRUCT const * const tc, double v_goal, bool allow_consumption)
 {
+    double min_remainder = allow_consumption ? 0.0 : v_goal * tc->cycle_time / 2.0;
+    double usable_length = fmax(tc->nominal_length / 2.0 - min_remainder, tc->nominal_length / 3.0);
+
     if (tc->motion_type == TC_CIRCULAR) {
         // FIXME use arc length fit for spiral?
         double phi_max = PM_PI / 3.0;
@@ -1365,18 +1358,17 @@ static inline double find_max_blend_length(TC_STRUCT const * const tc, bool allo
         pmCartMagSq(&tc->coords.circle.xyz.rHelix, &h2);
         double total_arc_length = pmSqrt(h2 + pmSq(tc->coords.circle.fit.total_planar_length));
         double l_from_angle = phi_max / tc->coords.circle.xyz.angle * total_arc_length;
-        double l_from_length = fmin(tc->target, tc->nominal_length / 3.0);
+        double l_from_length = fmin(tc->target, usable_length);
         return fmin(l_from_angle, l_from_length);
     } else {
-        double cutoff_length = allow_consumption ? tc->nominal_length / 2.0 : tc->nominal_length / 3.0;
-        return fmin(tc->target, cutoff_length);
+        return fmin(tc->target, usable_length);
     }
 }
 
-double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc)
+double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc, double v_goal)
 {
-    double l_prev = find_max_blend_length(prev_tc, tcCanConsume(prev_tc));
-    double l_this = find_max_blend_length(tc, true);
+    double l_prev = find_max_blend_length(prev_tc, v_goal, tcCanConsume(prev_tc));
+    double l_this = find_max_blend_length(tc, v_goal, true);
     return fmin(l_prev, l_this);
 }
 
@@ -1595,13 +1587,14 @@ tp_err_t optimize_biarc_blend_size(
     if (!prev_tc || !tc || !biarc_results) {
         return TP_ERR_MISSING_INPUT;
     }
+    blendParamInitVelocities(prev_tc, tc, config->feed_override_allowance, controls);
 
     // Find net tolerance that's actually usable (so that we're
     // not passing 0.0 around if tolerance is not specified)
     tcFindBlendTolerance(prev_tc, tc, &controls->tolerance);
 
     //double Rb_init = find_blend_region_from_tolerance(prev_tc, tc, param->tolerance);
-    double Rb_init = find_max_blend_region(prev_tc, tc);
+    double Rb_init = find_max_blend_region(prev_tc, tc, controls->v_goal);
 
     // Initial solver values for Rb range using somewhat dumb (but cheap) values
     biarc_results->solution.Rb = biarc_results->constraints.upper.Rb = Rb_init;
@@ -1609,8 +1602,6 @@ tp_err_t optimize_biarc_blend_size(
     biarc_results->constraints.lower = zero_region_result;
 
     const unsigned MAX_ITERATIONS = config->max_iterations;
-
-    blendParamInitVelocities(prev_tc, tc, config->feed_override_allowance, controls);
 
     double s1_max = prev_tc->target - biarc_results->constraints.upper.Rb;
     double s2_max = biarc_results->constraints.upper.Rb;

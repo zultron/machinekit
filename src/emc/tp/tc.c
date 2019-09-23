@@ -202,13 +202,16 @@ int tcCanConsume(TC_STRUCT const * const tc)
         return false;
     }
 
+    if (tc->motion_type != TC_LINEAR) {
+        return false;
+    }
+
     if (tc->syncdio.anychanged || tc->blend_prev || tc->atspeed) {
         //TODO add other conditions here (for any segment that should not be consumed by blending
         return false;
     }
 
     return true;
-
 }
 
 /**

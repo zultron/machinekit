@@ -71,6 +71,7 @@ typedef struct {
     double v_plan;      /* planned max velocity at max feed override */
     double v_actual;    /* velocity at feedscale = 1.0 */
     double s_arc;       /* arc length */
+    int is_consumable;        /* Consume the previous segment */
     int consume;        /* Consume the previous segment */
     double line_length;
 } BlendParameters;
@@ -350,7 +351,7 @@ tp_err_t find_blend_points_and_tangents(
 int find_blend_intermediate_segments(blend_boundary_t const * const blend_params,
     biarc_control_points_t * const control_pts);
 
-double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc);
+double find_max_blend_region(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc, double v_goal);
 
 tp_err_t find_blend_size_from_intermediates(blend_boundary_t const * const blend_boundary,
     biarc_control_points_t const * const intermediates,
