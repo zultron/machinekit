@@ -184,7 +184,8 @@ static greatest_test_res check_blend_C1_continuity(TP_STRUCT * const tp, int cur
 
         PmCartesian exp_u_diff = {0};
         if(prev_tc->term_cond == TC_TERM_COND_TANGENT) {
-            ASSERT_PMCARTESIAN_IN_RANGE(exp_u_diff, c1.u_diff, 1e-7);
+            // KLUDGE not really a hard line, this applies only when the blend arc degenerates into a line
+            ASSERT_PMCARTESIAN_IN_RANGE(exp_u_diff, c1.u_diff, TP_ANGLE_EPSILON);
             ASSERT_IN_RANGE(1, c1.dot, 1e-7);
         }
         EmcPose exp_p_diff = {0};
@@ -201,7 +202,7 @@ TEST test_slightly_convex_arcs() {
     EmcPose const pt0 = {};
     EmcPose const pt1 = newXYZ(1,1,0,pt0);
     EmcPose const pt2 = newXYZ(2,0,0,pt1);
-    double const dc = 0.001;
+    double const dc = 0.002;
     // Displace slightly along 45 deg lines
     PmCartesian center1 = {1 - dc, dc,0};
     PmCartesian center2 = {1 + dc, dc,0};
@@ -212,6 +213,37 @@ TEST test_slightly_convex_arcs() {
     tpAddCircle(tp, pt2, center2, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(2));
 
     ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+
+    CHECK_CALL(check_blend_C1_continuity(tp, 3));
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+TEST test_convex_arcs_lineblend() {
+    CREATE_MOCK_TP();
+    tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
+
+    EmcPose const pt0 = {};
+    EmcPose const pt1 = newXYZ(1,1,0,pt0);
+    EmcPose const pt2 = newXYZ(2,0,0,pt1);
+    double const dc = 0.001; // specially tuned to force the blends to be line segments
+    // Displace slightly along 45 deg lines
+    PmCartesian center1 = {1 - dc, dc,0};
+    PmCartesian center2 = {1 + dc, dc,0};
+    PmCartesian const normal = {0,0,-1};
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddCircle(tp, pt1, center1, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(1));
+    tpAddCircle(tp, pt2, center2, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(2));
+
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+
+    TC_STRUCT const * const blend_tc1 = tcqItem(&tp->queue, 1);
+    TC_STRUCT const * const blend_tc2 = tcqItem(&tp->queue, 2);
+
+    ASSERT_EQ_FMT(TC_LINEAR, blend_tc1->motion_type, "%d");
+    ASSERT_EQ_FMT(TC_LINEAR, blend_tc2->motion_type, "%d");
 
     CHECK_CALL(check_blend_C1_continuity(tp, 3));
 
@@ -920,6 +952,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_create_two_exact_lines);
     RUN_TEST(test_create_tangent_arcs);
     RUN_TEST(test_create_two_blended_lines);
+    RUN_TEST(test_convex_arcs_lineblend);
     RUN_TEST(test_line_arc_in_plane);
     RUN_TEST(test_slightly_convex_arcs);
     RUN_TEST(test_find_blend_points_and_tangents);
