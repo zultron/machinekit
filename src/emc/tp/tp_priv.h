@@ -41,7 +41,7 @@ double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc)
 
 int tpIsWaitingOnSpindle(TP_STRUCT const * const tp);
 
-int tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc);
+tc_blend_type_t tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc);
 
 tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const this_tc);
 
