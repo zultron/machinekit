@@ -242,8 +242,15 @@ static int loadTraj(EmcIniFile &trajInifile)
             ini_biarc_find("VELOCITY_CUTOFF", 0.001),
             ini_biarc_find("CONVERGENCE_TOLERANCE", 1e-8),
         };
-        emcSetupBiArcSolverCfg(biarc_solver_cfg);
-
+        CHP(emcSetupBiArcSolverCfg(biarc_solver_cfg));
+        old_inihal_data.traj_biarc_max_iterations = biarc_solver_cfg.max_iterations;
+        old_inihal_data.traj_biarc_max_iterations = biarc_solver_cfg.max_iterations;
+        old_inihal_data.traj_biarc_velocity_rel_tolerance = biarc_solver_cfg.velocity_rel_tolerance;
+        old_inihal_data.traj_biarc_velocity_abs_tolerance = biarc_solver_cfg.velocity_abs_tolerance;
+        old_inihal_data.traj_biarc_deviation_abs_tolerance = biarc_solver_cfg.deviation_abs_tolerance;
+        old_inihal_data.traj_biarc_feed_override_allowance = biarc_solver_cfg.feed_override_allowance;
+        old_inihal_data.traj_biarc_velocity_cutoff = biarc_solver_cfg.velocity_cutoff;
+        old_inihal_data.traj_biarc_convergence_tolerance = biarc_solver_cfg.convergence_tolerance;
     }
 
     catch(EmcIniFile::Exception &e){
