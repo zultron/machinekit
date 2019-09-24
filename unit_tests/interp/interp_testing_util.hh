@@ -6,6 +6,7 @@
 #include <interp_return.hh>
 #include <catch.hpp>
 #include <mock_xyza_config.hh>
+#include <cstdio>
 
 using Catch::Matchers::WithinAbs;
 #define INTERP_FUZZ 1e-10
@@ -46,10 +47,12 @@ int execute_lines(Interp &interp, const char* (&lines)[N] )
 // Do a bunch of setup / assignments to force reinitialize SAI internals enough that sections won't step on each other
 #define DECL_INIT_TEST_INTERP() \
     setup_xyza_config(); \
+    SET_PARAMETER_FILE_NAME("unit_test.var"); \
+    std::remove("unit_test.var"); \
     Interp test_interp = Interp(); \
     pinterp = &test_interp; \
     setup_struct * const settings = &test_interp._setup; \
     test_interp.init(); \
-    settings->tool_table[0].toolno = 1; \
+    settings->tool_table[0].toolno = 1
 
 #endif // INTERP_TESTING_UTIL_HH

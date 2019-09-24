@@ -4,6 +4,7 @@
 
 void setup_xyza_config()
 {
+    *emcStatus = EMC_STAT();
     EMC_AXIS_STAT dummy_linear;
     dummy_linear.axisType = EMC_AXIS_LINEAR;
     dummy_linear.homed = true;
