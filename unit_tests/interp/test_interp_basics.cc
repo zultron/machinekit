@@ -643,6 +643,24 @@ SCENARIO("Ensure valid P word range is enforced for G10)")
     }
 }
 
+static void check_work_offsets(WorkOffsetMap const &expected, WorkOffsetMap const &got)
+{
+    for (auto p : expected) {
+        auto it = got.find(p.first);
+        CHECK(it != got.end());
+        for (size_t i=0; i < 9; ++i) {
+            CHECK_FUZZ(it->second.shift.tf[i], p.second.shift.tf[i]);
+        }
+        CHECK_FUZZ(it->second.getXYRotationDeg(), p.second.getXYRotationDeg());
+    }
+}
+
+static void check_parameters(ParameterArray const &expected, ParameterArray const &got)
+{
+    for (size_t i= G28_X; i < TOOL_NUMBER; ++i) {
+        CHECK_FUZZ(expected[i], got[i]);
+    }
+}
 
 SCENARIO("Load and save parameters")
 {
@@ -659,26 +677,20 @@ SCENARIO("Load and save parameters")
             };
 
         REQUIRE_INTERP_OK(execute_lines_or_err(test_interp, make_offsets));
-        WorkOffsetMap wo_saved = settings->work_offsets_user;
-        ParameterArray params = settings->parameters;
+        WorkOffsetMap exp_work_offsets = settings->work_offsets_user;
+        ParameterArray exp_params = settings->parameters;
         std::remove(prm_file_name);
 
         THEN("Restoring from a missing / empty parameter file should not affect existing offsets?") {
             REQUIRE_FALSE(test_interp.restore_parameters(prm_file_name));
 
-            for (auto p : wo_saved) {
-                for (size_t i=0; i < 9; ++i) {
-                    CHECK_FUZZ(p.second.shift.tf[i], wo_saved[p.first].shift.tf[i]);
-                }
-                CHECK_FUZZ(p.second.getXYRotationDeg(), wo_saved[p.first].getXYRotationDeg());
-            }
-            for (size_t i= G28_X; i < TOOL_ORIENTATION; ++i) {
-                CHECK_FUZZ(settings->parameters[i], params[i]);
-            }
+            check_work_offsets(exp_work_offsets, settings->work_offsets_user);
+            check_parameters(exp_params, settings->parameters);
         }
 
         THEN("Work offsets should write out to a parameter file cleanly") {
             REQUIRE_FALSE(test_interp.save_parameters(prm_file_name, settings->parameters));
+
             // Manually clear out parameters / work offsets to test restore
             settings->parameters.fill(0);
             settings->work_offsets_user.clear();
@@ -686,16 +698,8 @@ SCENARIO("Load and save parameters")
 
             REQUIRE_FALSE(test_interp.restore_parameters(prm_file_name));
 
-            for (auto p : wo_saved) {
-                for (size_t i=0; i < 9; ++i) {
-                    CHECK_FUZZ(p.second.shift.tf[i], wo_saved[p.first].shift.tf[i]);
-                }
-                CHECK_FUZZ(p.second.getXYRotationDeg(), wo_saved[p.first].getXYRotationDeg());
-            }
-            for (size_t i= G28_X; i < TOOL_ORIENTATION; ++i) {
-                CHECK_FUZZ(settings->parameters[i], params[i]);
-            }
-
+            check_work_offsets(exp_work_offsets, settings->work_offsets_user);
+            check_parameters(exp_params, settings->parameters);
         }
     }
 }
