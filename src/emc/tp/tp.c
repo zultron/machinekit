@@ -1328,24 +1328,7 @@ int tpSetupSyncedIO(TP_STRUCT * const tp, TC_STRUCT * const tc) {
     }
 }
 
-int tcUpdateArcLengthFit(TC_STRUCT * const tc)
-{
-    if (!tc) {return -1;}
-
-    switch (tc->motion_type) {
-    case TC_CIRCULAR:
-        findSpiralArcLengthFit(&tc->coords.circle.xyz, &tc->coords.circle.fit);
-        break;
-    case TC_LINEAR:
-    case TC_RIGIDTAP:
-    case TC_SPHERICAL:
-        // No update necessary
-        break;
-    }
-    return 0;
-}
-
-int tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
+tp_err_t tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
 {
     //TODO refactor this into its own function
     TC_STRUCT *prev_tc;
@@ -1366,20 +1349,17 @@ int tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
         prev_tc->parabolic_equiv_vel = estimateParabolicBlendPerformance(tp, prev_tc, tc) / 2.0;
     }
 
-    if (emcmotConfig->arc_blend_cfg.enable){
-        tpHandleBlendArc(tp, tc);
-        tcUpdateArcLengthFit(tc);
-    }
+    CHP(tpSetupSegmentBlend(tp, prev_tc, tc));
     tcFlagEarlyStop(prev_tc, tc);
     // KLUDGE order is important here, the parabolic blend check has to
     // happen after all other steps that affect the terminal condition
     tcFinalizeLength(prev_tc);
 
-    int retval = tpAddSegmentToQueue(tp, tc);
+    CHP(tpAddSegmentToQueue(tp, tc));
     //Run speed optimization (will abort safely if there are no tangent segments)
     tpRunOptimization(tp);
 
-    return retval;
+    return TP_ERR_OK;
 }
 
 void clearBlendStructs()
@@ -1444,48 +1424,6 @@ int tpAddRigidTap(TP_STRUCT * const tp,
     tc.target = pmRigidTapTarget(&tc.coords.rigidtap, tp->uu_per_rev);
 
     return tpFinalizeAndEnqueue(tp, &tc);
-}
-
-blend_type_t tpCheckBlendArcType(TP_STRUCT const * const tp,
-        TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc) {
-
-    if (!prev_tc || !tc) {
-        tp_debug_print("prev_tc or tc doesn't exist\n");
-        return BLEND_NONE;
-    }
-
-    //If exact stop, we don't compute the arc
-    if (prev_tc->term_cond != TC_TERM_COND_PARABOLIC) {
-        tp_debug_print("Wrong term cond = %u\n", prev_tc->term_cond);
-        return BLEND_NONE;
-    }
-
-    //If we have any rotary axis motion, then don't create a blend arc
-    if (tcRotaryMotionCheck(tc) || tcRotaryMotionCheck(prev_tc)) {
-        tp_debug_print("One of the segments has rotary motion, aborting blend arc\n");
-        return BLEND_NONE;
-    }
-
-    if (tc->finalized || prev_tc->finalized) {
-        tp_debug_print("Can't create blend when segment lengths are finalized\n");
-        return BLEND_NONE;
-    }
-
-    tp_debug_print("Motion types: prev_tc = %u, tc = %u\n",
-            prev_tc->motion_type,tc->motion_type);
-    //If not linear blends, we can't easily compute an arc
-    if ((prev_tc->motion_type == TC_LINEAR) && (tc->motion_type == TC_LINEAR)) {
-        return BLEND_LINE_LINE;
-    } else if (prev_tc->motion_type == TC_LINEAR && tc->motion_type == TC_CIRCULAR) {
-        return BLEND_LINE_ARC;
-    } else if (prev_tc->motion_type == TC_CIRCULAR && tc->motion_type == TC_LINEAR) {
-        return BLEND_ARC_LINE;
-    } else if (prev_tc->motion_type == TC_CIRCULAR && tc->motion_type == TC_CIRCULAR) {
-        return BLEND_ARC_ARC;
-    } else {
-        return BLEND_NONE;
-    }
 }
 
 static double applyKinkVelLimit(TC_STRUCT const * const tc, double vel_in)
@@ -1683,14 +1621,16 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
         return TC_INTERSECT_INCOMPATIBLE;
     }
 
+    // TODO see if this can go after the tangent check
+    if (prev_tc->progress > prev_tc->target / 2.0) {
+        tp_debug_print(" prev_tc progress (%f) is too large, aborting blend arc\n", prev_tc->progress);
+        return TC_INTERSECT_INCOMPATIBLE;
+    }
+
     PmCartesian prev_tan, this_tan;
 
-    int res_endtan = tcGetEndTangentUnitVector(prev_tc, &prev_tan);
-    int res_starttan = tcGetStartTangentUnitVector(tc, &this_tan);
-    if (res_endtan || res_starttan) {
-        tp_debug_print("Got %d and %d from tangent vector calc\n",
-                res_endtan, res_starttan);
-    }
+    CHP(tcGetEndTangentUnitVector(prev_tc, &prev_tan));
+    CHP(tcGetStartTangentUnitVector(tc, &this_tan));
 
     tp_debug_print("prev tangent vector: %f %f %f\n", prev_tan.x, prev_tan.y, prev_tan.z);
     tp_debug_print("this tangent vector: %f %f %f\n", this_tan.x, this_tan.y, this_tan.z);
@@ -1755,15 +1695,26 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
         tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
         tcSetKinkProperties(prev_tc, tc, v_max, acc_scale_max);
         return TC_INTERSECT_TANGENT;
-    } else {
-        tcSetKinkProperties(prev_tc, tc, v_max * kink_ratio / acc_scale_max, kink_ratio);
-        tp_debug_print("Kink acceleration scale %f above %f, kink vel = %f, blend arc may be faster\n",
-                acc_scale_max,
-                kink_ratio,
-                prev_tc->kink_vel);
-        // NOTE: acceleration will be reduced later if tangent blend is used
-        return TC_INTERSECT_NONTANGENT;
     }
+
+    tcSetKinkProperties(prev_tc, tc, v_max * kink_ratio / acc_scale_max, kink_ratio);
+    tp_debug_print("Kink acceleration scale %f above %f, kink vel = %f, blend arc may be faster\n",
+                   acc_scale_max,
+                   kink_ratio,
+                   prev_tc->kink_vel);
+
+    if (!emcmotConfig->arc_blend_cfg.enable) {
+        tp_debug_print("Arc blending disabled\n");
+        return  TC_INTERSECT_INCOMPATIBLE;
+    }
+
+    if (tc->finalized || prev_tc->finalized) {
+        tp_debug_print("Can't create blend when segment lengths are finalized\n");
+        return TC_INTERSECT_INCOMPATIBLE;
+    }
+
+    // NOTE: acceleration will be reduced later if tangent blend is used
+    return TC_INTERSECT_NONTANGENT;
 }
 
 int tpCreateBlendIfPossible(
@@ -1771,20 +1722,11 @@ int tpCreateBlendIfPossible(
         TC_STRUCT *prev_tc,
         TC_STRUCT *tc)
 {
-    blend_type_t blend_requested = tpCheckBlendArcType(tp, prev_tc, tc);
-
-    switch (blend_requested) {
-        case BLEND_LINE_LINE:
-            return tpCreateLineLineBlend(tp, prev_tc, tc, &blend_tc1) == TP_ERR_OK ? 1 : 0;
-        case BLEND_LINE_ARC:
-        case BLEND_ARC_LINE:
-        case BLEND_ARC_ARC:
-            return tpCreateBiarcBlend(tp, prev_tc, tc) == TP_ERR_OK ? 2 : 0;
-        case BLEND_NONE:
-            break;
+    if (prev_tc->motion_type == TC_LINEAR && tc->motion_type == TC_LINEAR) {
+        return tpCreateLineLineBlend(tp, prev_tc, tc, &blend_tc1) == TP_ERR_OK ? 1 : 0;
+    } else {
+        return tpCreateBiarcBlend(tp, prev_tc, tc) == TP_ERR_OK ? 2 : 0;
     }
-
-    return 0;
 }
 
 /**
@@ -1793,58 +1735,34 @@ int tpCreateBlendIfPossible(
  * blend arc. Essentially all of the blend arc functions are called through
  * here to isolate the process.
  */
-tc_blend_type_t tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc) {
+int tpSetupSegmentBlend(
+    TP_STRUCT * const tp,
+    TC_STRUCT * const prev_tc,
+    TC_STRUCT * const tc) {
 
     tp_debug_print("*****************************************\n** Handle Blend Arc **\n");
 
-    TC_STRUCT *prev_tc;
-    prev_tc = tcqLast(&tp->queue);
-
-    //If the previous segment has already started, then don't create a blend
-    //arc for the next pair.
-    // TODO May be able to lift this restriction if we can ensure that we leave
-    // 1 timestep's worth of distance in prev_tc
-    if ( !prev_tc) {
-        tp_debug_print(" queue empty\n");
-        return tpChooseBestBlend(tp, prev_tc, tc, NULL);
-    }
-    if (prev_tc->progress > prev_tc->target / 2.0) {
-        tp_debug_print(" prev_tc progress (%f) is too large, aborting blend arc\n", prev_tc->progress);
-        return tpChooseBestBlend(tp, prev_tc, tc, NULL);
-    }
-
-    // Check for tangency between segments and handle any errors
-    // TODO possibly refactor this into a macro?
+    // Check the intersection type and handle tangency if the two segments are very nearly tangent
     TCIntersectType res_tan = tpSetupTangent(tp, prev_tc, tc);
-    switch (res_tan) {
-        // Abort blend arc creation if it's completely tangent
-        case TC_INTERSECT_INCOMPATIBLE:
-            tpChooseBestBlend(tp, prev_tc, tc, NULL);
-            return TP_ERR_FAIL;
-        case TC_INTERSECT_TANGENT:
-            tpChooseBestBlend(tp, prev_tc, tc, NULL);
-            return TP_ERR_OK;
-        case TC_INTERSECT_NONTANGENT:
-            break;
-    }
 
-    int blends_added = tpCreateBlendIfPossible(tp, prev_tc, tc);
+    int blends_added = 0;
+    if (res_tan == TC_INTERSECT_NONTANGENT) {
+        blends_added = tpCreateBlendIfPossible(tp, prev_tc, tc);
+    }
 
     switch (blends_added) {
-    default:
     case 0:
-        return tpChooseBestBlend(tp, prev_tc, tc, NULL);
+        tpChooseBestBlend(tp, prev_tc, tc, NULL);
+        return TP_ERR_OK;
     case 1:
-
-        return tpAddSegmentToQueue(tp, &blend_tc1);
+        CHP(tpAddSegmentToQueue(tp, &blend_tc1));
+        return TP_ERR_OK;
     case 2:
-    {
-        int res1 = tpAddSegmentToQueue(tp, &blend_tc1);
-        int res2 = tpAddSegmentToQueue(tp, &blend_tc2);
-        return res1 | res2;
+        CHP(tpAddSegmentToQueue(tp, &blend_tc1));
+        CHP(tpAddSegmentToQueue(tp, &blend_tc2));
+        return TP_ERR_OK;
     }
-    }
-
+    return TP_ERR_FAIL;
 }
 
 //TODO final setup steps as separate functions

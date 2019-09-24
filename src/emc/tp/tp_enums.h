@@ -28,17 +28,9 @@ typedef enum {
 } tp_err_t;
 
 typedef enum {
-    BLEND_NONE,
-    BLEND_LINE_LINE,
-    BLEND_LINE_ARC,
-    BLEND_ARC_LINE,
-    BLEND_ARC_ARC,
-} blend_type_t;
-
-typedef enum {
+    TC_INTERSECT_INCOMPATIBLE=-1,
     TC_INTERSECT_TANGENT,
     TC_INTERSECT_NONTANGENT,
-    TC_INTERSECT_INCOMPATIBLE,
 } TCIntersectType;
 
 typedef enum {

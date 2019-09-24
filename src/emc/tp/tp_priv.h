@@ -41,7 +41,7 @@ double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc)
 
 int tpIsWaitingOnSpindle(TP_STRUCT const * const tp);
 
-tc_blend_type_t tpHandleBlendArc(TP_STRUCT * const tp, TC_STRUCT * const tc);
+int tpSetupSegmentBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const tc);
 
 tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const this_tc);
 
@@ -85,12 +85,8 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp,
 int handlePrevTermCondition(TC_STRUCT *prev_tc, TC_STRUCT *tc);
 int handleModeChange(TC_STRUCT *prev_tc, TC_STRUCT *tc);
 int tpSetupSyncedIO(TP_STRUCT * const tp, TC_STRUCT * const tc);
-int tcUpdateArcLengthFit(TC_STRUCT * const tc);
-int tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc);
 
-blend_type_t tpCheckBlendArcType(TP_STRUCT const * const tp,
-                                 TC_STRUCT const * const prev_tc,
-                                 TC_STRUCT const * const tc);
+tp_err_t tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc);
 
 int tpComputeOptimalVelocity(
     TP_STRUCT const * const tp,
