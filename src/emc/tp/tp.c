@@ -44,14 +44,17 @@
 
 #include "tp_debug.h"
 
-#define CHP(mycall__) \
+#define CH_ERR(expect__, mycall__) \
 do {\
-    tp_err_t res = mycall__; \
-    if (res != TP_ERR_OK) { \
-        tp_debug_print("%s failed at %s:%d\n", #mycall__, __FUNCTION__, __LINE__); \
+    int expt = expect__; \
+    int res = mycall__; \
+    if (expt != res) { \
+        tp_debug_print("%s failed with %d at %s:%d\n", #mycall__, expt, __FUNCTION__, __LINE__); \
         return res; \
     } \
 } while (0)
+
+#define CHP(mycall__) CH_ERR(TP_ERR_OK, mycall__)
 
 // FIXME: turn off this feature, which causes blends between rapids to
 // use the feed override instead of the rapid override
