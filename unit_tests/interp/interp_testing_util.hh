@@ -33,13 +33,13 @@ int execute_(Interp &interp, const char *cmd, const char *src_file, int line);
 int execute(Interp &interp, const char *cmd);
 
 template <size_t N>
-int execute_lines(Interp &interp, const char* (&lines)[N] )
+int execute_lines_or_err(Interp &interp, const char* (&lines)[N] )
 {
   for (auto l : lines) {
-    int res = execute(interp, l);
-    if (res != INTERP_OK) {
-      return res;
-    }
+      auto res = (InterpReturn) execute(interp, l);
+      if (isInterpError(res)) {
+          return res;
+      }
   }
   return INTERP_OK;
 }

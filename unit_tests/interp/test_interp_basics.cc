@@ -128,7 +128,7 @@ TEST_CASE("G10 init")
     "g10 l1 p1 x0 y0 z0",
     "t1 m6 g43",
   };
-  execute_lines(test_interp, test_setup);
+  REQUIRE_INTERP_OK(execute_lines_or_err(test_interp, test_setup));
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 0.0);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], 0.0);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
@@ -171,7 +171,7 @@ TEST_CASE("G10 L10 ")
       "g10 l1 p1 x0 y0 z0",
       "t1 m6 g43",
   };
-  REQUIRE_INTERP_OK(execute_lines(test_interp, test_setup));
+  REQUIRE_INTERP_OK(execute_lines_or_err(test_interp, test_setup));
 
   REQUIRE_INTERP_OK(execute(test_interp,"g0 x.1 y.2 z.3"));
   REQUIRE_INTERP_OK(execute(test_interp,"g10 l10 p1 x1"));
@@ -199,7 +199,7 @@ SECTION("G10 L10 tool offsets relative to position + 45 deg rotation")
       "g10 l1 p1 x0 y0 z0",
       "t1 m6 g43",
   };
-  REQUIRE(execute_lines(test_interp, test_setup));
+  REQUIRE_INTERP_OK(execute_lines_or_err(test_interp, test_setup));
 
   REQUIRE_INTERP_OK(execute(test_interp,"g0 x0 y0 z0"));
   REQUIRE_INTERP_OK(execute(test_interp,"g10 l10 p1 x1"));
@@ -658,7 +658,7 @@ SCENARIO("Load and save parameters")
             "G10 L2 P500 X7.8 Y8.9 Z9.0 A0.1",
             };
 
-        REQUIRE_INTERP_OK(execute_lines(test_interp, make_offsets));
+        REQUIRE_INTERP_OK(execute_lines_or_err(test_interp, make_offsets));
         WorkOffsetMap wo_saved = settings->work_offsets_user;
         ParameterArray params = settings->parameters;
         std::remove(prm_file_name);
