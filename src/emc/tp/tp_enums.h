@@ -8,6 +8,7 @@
  * the future.
  */
 typedef enum {
+    TP_ERR_UNRECOVERABLE = -10,
     TP_ERR_INVALID = -9,
     TP_ERR_INPUT_TYPE = -8,
     TP_ERR_TOLERANCE = -7,

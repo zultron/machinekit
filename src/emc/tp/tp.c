@@ -1144,7 +1144,9 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
 #endif
     if (param1.consume) {
         if (tcqPopBack(&tp->queue)) {
-            return TP_ERR_FAIL;
+            //This is unrecoverable since we've already changed the line. Something is wrong if we get here...
+            rtapi_print_msg(RTAPI_MSG_ERR, "Fatal: tcqPopBack failed on segment %d (unrecoverable)\n", this_tc->id);
+            return TP_ERR_UNRECOVERABLE;
         }
     }
 
@@ -1154,7 +1156,6 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
 tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
         TC_STRUCT * const tc, TC_STRUCT * const blend_tc)
 {
-
     tp_debug_print("-- Starting LineLine blend arc --\n");
 
     PmCartesian vel_bound = getXYZVelBounds();
@@ -1215,28 +1216,24 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
         return TP_ERR_NO_ACTION;
     }
 
-    int retval = TP_ERR_FAIL;
-
-    //TODO refactor to pass consume to connect function
     if (param.consume) {
         //Since we're consuming the previous segment, pop the last line off of the queue
-        retval = tcqPopBack(&tp->queue);
-        if (retval) {
+        if (tcqPopBack(&tp->queue)) {
             //This is unrecoverable since we've already changed the line. Something is wrong if we get here...
-            rtapi_print_msg(RTAPI_MSG_ERR, "PopBack failed\n");
-            return TP_ERR_FAIL;
+            rtapi_print_msg(RTAPI_MSG_ERR, "Fatal: tcqPopBack failed on segment %d (unrecoverable)\n", tc->id);
+            return TP_ERR_UNRECOVERABLE;
         }
         //Since the blend arc meets the end of the previous line, we only need
         //to "connect" to the next line
-        retval = tcConnectBlendArc(NULL, tc, &points.arc_start, &points.arc_end);
+        CHP(tcConnectBlendArc(NULL, tc, &points.arc_start, &points.arc_end));
     } else {
         // Carries over the same DIO's as from the previous segment, so there is no change when it enters the blend
         blend_tc->syncdio.anychanged = 0;
         //TODO refactor connect function to stretch lines and check for bad stretching
         tp_debug_print("keeping previous line\n");
-        retval = tcConnectBlendArc(prev_tc, tc, &points.arc_start, &points.arc_end);
+        CHP(tcConnectBlendArc(prev_tc, tc, &points.arc_start, &points.arc_end));
     }
-    return retval;
+    return TP_ERR_OK;
 }
 
 /**
