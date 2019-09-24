@@ -6,6 +6,7 @@
 #include <interp_return.hh>
 #include <interp_parameter_def.hh>
 #include <sstream>
+#include <cstdio>
 using namespace interp_param_global;
 
 int emc_debug = EMC_DEBUG_INTERP;
@@ -648,6 +649,7 @@ SCENARIO("Load and save parameters")
     DECL_INIT_TEST_INTERP();
     GIVEN("A default interpreter with work offsets")
     {
+        static const char * const prm_file_name = "test.var";
         static const char *make_offsets[] = {
             "G10 L2 P1 X1.2 Y2.3 Z3.4 A4.5",
             "G10 L2 P2 X5.6 Y6.7 Z7.8 A8.9",
@@ -659,15 +661,30 @@ SCENARIO("Load and save parameters")
         REQUIRE_INTERP_OK(execute_lines(test_interp, make_offsets));
         WorkOffsetMap wo_saved = settings->work_offsets_user;
         ParameterArray params = settings->parameters;
+        std::remove(prm_file_name);
 
-        THEN("Work offsets should write out to a parameter file cleanlu") {
-            REQUIRE_FALSE(test_interp.save_parameters("test.var", settings->parameters));
+        THEN("Restoring from a missing / empty parameter file should not affect existing offsets?") {
+            REQUIRE_FALSE(test_interp.restore_parameters(prm_file_name));
+
+            for (auto p : wo_saved) {
+                for (size_t i=0; i < 9; ++i) {
+                    CHECK_FUZZ(p.second.shift.tf[i], wo_saved[p.first].shift.tf[i]);
+                }
+                CHECK_FUZZ(p.second.getXYRotationDeg(), wo_saved[p.first].getXYRotationDeg());
+            }
+            for (size_t i= G28_X; i < TOOL_ORIENTATION; ++i) {
+                CHECK_FUZZ(settings->parameters[i], params[i]);
+            }
+        }
+
+        THEN("Work offsets should write out to a parameter file cleanly") {
+            REQUIRE_FALSE(test_interp.save_parameters(prm_file_name, settings->parameters));
             // Manually clear out parameters / work offsets to test restore
             settings->parameters.fill(0);
             settings->work_offsets_user.clear();
             settings->work_offsets_used.clear();
 
-            REQUIRE_FALSE(test_interp.restore_parameters("test.var"));
+            REQUIRE_FALSE(test_interp.restore_parameters(prm_file_name));
 
             for (auto p : wo_saved) {
                 for (size_t i=0; i < 9; ++i) {
