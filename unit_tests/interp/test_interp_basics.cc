@@ -668,6 +668,10 @@ SCENARIO("Load and save parameters")
     GIVEN("A default interpreter with work offsets")
     {
         static const char * const prm_file_name = "test.var";
+        static const char * const dummy_file_name = "dummy.var";
+        REQUIRE_FALSE(test_interp.save_parameters(dummy_file_name, settings->parameters));
+        WorkOffsetMap empty_work_offsets = settings->work_offsets_user;
+        ParameterArray empty_params = settings->parameters;
         static const char *make_offsets[] = {
             "G10 L2 P1 X1.2 Y2.3 Z3.4 A4.5",
             "G10 L2 P2 X5.6 Y6.7 Z7.8 A8.9",
@@ -686,6 +690,13 @@ SCENARIO("Load and save parameters")
 
             check_work_offsets(exp_work_offsets, settings->work_offsets_user);
             check_parameters(exp_params, settings->parameters);
+        }
+
+        THEN("Work offsets should be overwritten if restored from a previous version") {
+            REQUIRE_FALSE(test_interp.restore_parameters(dummy_file_name));
+
+            check_work_offsets(empty_work_offsets, settings->work_offsets_user);
+            check_parameters(empty_params, settings->parameters);
         }
 
         THEN("Work offsets should write out to a parameter file cleanly") {
