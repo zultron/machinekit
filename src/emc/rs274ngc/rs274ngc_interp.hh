@@ -50,7 +50,7 @@ public:
 // load a tool table
  int load_tool_table();
 
- int load_work_offset_table();
+ int synch_work_offsets_from_task();
 
 // open a file of NC code
  int open(const char *filename);

@@ -1637,6 +1637,7 @@ void Interp::send_g5x_transform(int origin, const RotateShiftTransform & g5x_tra
   SET_G5X_TRANSFORM(origin,
                     UNPACK_POSITION_ARRAY_REF(g5x_transform.shift.tf),
                     g5x_transform.getXYRotationDeg());
+  _setup.work_offsets_to_synch.push_back(origin);
 }
 
 /****************************************************************************/

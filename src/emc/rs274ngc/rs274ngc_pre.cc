@@ -1174,6 +1174,8 @@ int Interp::init()
   }
 
   send_current_g5x_transform();
+  // Don't need to synch anything back since the parameter file is the ground truth
+  _setup.work_offsets_to_synch.clear();
 
   // Restore G92 offset if PERSISTENT_G92_OFFSET is set in .ini file.
   // This can't be done with the static _required_parameters[], where
@@ -1386,14 +1388,15 @@ int Interp::load_tool_table()
   return INTERP_OK;
 }
 
-int Interp::load_work_offset_table()
+int Interp::synch_work_offsets_from_task()
 {
   // Only ask for offsets that are currently defined
   // NOTE "external" units are user units, so no conversions are necessary
   // here since work_offset tables in task and interp are both in user units.
-  for (auto &active_offset : _setup.work_offsets_user) {
-      store_work_offset(GET_EXTERNAL_WORK_OFFSET(active_offset.first), active_offset.first);
+  for (auto origin_to_synch : _setup.work_offsets_to_synch) {
+      store_work_offset(GET_EXTERNAL_WORK_OFFSET(origin_to_synch), origin_to_synch);
   }
+  _setup.work_offsets_to_synch.clear();
 
   return INTERP_OK;
 }
@@ -2208,7 +2211,7 @@ int Interp::synch()
 
   load_tool_table();   /*  must set  _setup.tool_max first */
 
-  load_work_offset_table();
+  synch_work_offsets_from_task();
 
   //send_current_g5x_transform();
   //read_inputs(&_setup); // input/probe/toolchange

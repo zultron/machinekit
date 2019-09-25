@@ -31,6 +31,7 @@
 #include <coordinatetransform.hh>
 #include <vector>
 #include <work_offset_structs.hh>
+#include <boost/circular_buffer.hpp>
 
 #define _(s) gettext(s)
 
@@ -379,6 +380,7 @@ struct setup_struct
   LocalToMachineTransform transform;
 
   WorkOffsetMap work_offsets_user; // Work offset table (interp's copy) in user axis units
+  boost::circular_buffer<int> work_offsets_to_synch;
 
   ModalState modal_state;
 

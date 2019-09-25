@@ -26,7 +26,10 @@
 setup_struct::setup_struct() :
     current(),
     transform(),
-
+    work_offsets_user(),
+    // Only 2 work offsets should be able to be updated between synchs
+    // (one via G5x, one via G10 L2 P###). Allowing a 3rd is a harmless safety factor.
+    work_offsets_to_synch(3),
     modal_state(),
 
     arc_not_allowed(0),
