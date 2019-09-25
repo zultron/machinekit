@@ -401,7 +401,8 @@ public:
  RotateShiftTransform find_work_offset_from_parameters(setup_pointer settings, int origin);
  int store_work_offset_to_parameters(setup_pointer settings, RotateShiftTransform const &work_offset, int origin);
  int find_work_offset(int origin, RotateShiftTransform & work_offset_user);
- int store_work_offset(RotateShiftTransform const &work_offset, int origin);
+ int store_work_offset_from_prog(RotateShiftTransform const &work_offset_prog, int origin);
+ int store_work_offset(RotateShiftTransform const &work_offset_user, int origin);
  int find_current_in_system(setup_pointer s, int system, PositionArray &out);
  int find_current_in_system_without_tlo(setup_pointer s, int system, PositionArray & out);
  int find_ends(block_pointer block, setup_pointer settings,

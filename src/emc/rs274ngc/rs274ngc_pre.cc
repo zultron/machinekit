@@ -1388,11 +1388,7 @@ int Interp::load_work_offset_table()
   // NOTE "external" units are user units, so no conversions are necessary
   // here since work_offset tables in task and interp are both in user units.
   for (auto &active_offset : _setup.work_offsets_user) {
-    active_offset.second = GET_EXTERNAL_WORK_OFFSET(active_offset.first);
-  }
-
-  for (auto const &active_offset : _setup.work_offsets_user) {
-      store_work_offset_to_parameters(&_setup, active_offset.second, active_offset.first);
+      store_work_offset(GET_EXTERNAL_WORK_OFFSET(active_offset.first), active_offset.first);
   }
 
   return INTERP_OK;

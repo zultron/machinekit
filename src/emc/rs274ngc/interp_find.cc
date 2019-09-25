@@ -572,6 +572,9 @@ RotateShiftTransform Interp::find_work_offset_from_parameters(setup_pointer sett
 
 int Interp::store_work_offset_to_parameters(setup_pointer settings, const RotateShiftTransform & work_offset, int origin)
 {
+    if (origin < 1 || origin >9) {
+        return INTERP_ERROR;
+    }
     const size_t prm_offset = (size_t)getWorkOffsetParamBase(origin);
 
     extract_axes(work_offset.shift.tf,
@@ -605,16 +608,18 @@ int Interp::find_work_offset(int origin, RotateShiftTransform &work_offset)
   return INTERP_OK;
 }
 
-int Interp::store_work_offset(const RotateShiftTransform & work_offset, int origin)
+int Interp::store_work_offset_from_prog(const RotateShiftTransform & work_offset_prog, int origin)
 {
-  RotateShiftTransform work_offset_user = work_offset;
+  RotateShiftTransform work_offset_user = work_offset_prog;
   convertAxisUnits(work_offset_user, convertsProgramToUser());
 
-  if (origin <= 9) {
-      store_work_offset_to_parameters(&_setup, work_offset_user, origin);
-  }
+  return store_work_offset(work_offset_user, origin);
+}
+
+int Interp::store_work_offset(RotateShiftTransform const &work_offset_user, int origin)
+{
   _setup.work_offsets_user[origin] = work_offset_user;
-  return INTERP_OK;
+  return store_work_offset_to_parameters(&_setup, work_offset_user, origin);
 }
 
 /** Find what current coordinates would be if the specified coordinate system was active. */
