@@ -20,7 +20,7 @@
 #include "emcpos.h"
 #include "emctool.h"
 
-#include <coordinatetransform.hh>
+#include <work_offset_structs.hh>
 
 struct StateTag;
 /*

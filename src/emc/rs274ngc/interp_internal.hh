@@ -29,8 +29,8 @@
 #include "interp_fwd.hh"
 
 #include <coordinatetransform.hh>
-#include <unordered_map>
 #include <vector>
+#include <work_offset_structs.hh>
 
 #define _(s) gettext(s)
 
@@ -365,7 +365,6 @@ and is not represented here
 #define STACK_ENTRY_LEN 80
 #define MAX_SUB_DIRS 10
 
-using WorkOffsetMap = std::map<int, RotateShiftTransform>;
 using ParameterArray = std::array<double, interp_param_global::RS274NGC_MAX_PARAMETERS>;
 
 struct setup_struct
