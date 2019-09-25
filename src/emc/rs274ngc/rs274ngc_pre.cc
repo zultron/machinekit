@@ -1149,7 +1149,8 @@ int Interp::init()
   GET_EXTERNAL_PARAMETER_FILE_NAME(filename, LINELEN);
   if (filename[0] == 0)
     strcpy(filename, RS274NGC_PARAMETER_FILE_NAME_DEFAULT);
-  CHP(restore_parameters(filename));
+  int res_restore_param = restore_parameters(filename);
+
   _setup.origin_index = (int) (_setup.parameters[ACTIVE_WORK_CSYS] + 0.0001);
   if(!is_valid_work_offset_index(_setup.origin_index)) {
     _setup.origin_index = 1;
@@ -1158,7 +1159,7 @@ int Interp::init()
   _setup.plane = GET_EXTERNAL_PLANE();
 
   int origin = _setup.origin_index;
-  CHP(find_work_offset(origin, _setup.transform.g5xOffset));
+  find_work_offset(origin, _setup.transform.g5xOffset);
 
   write_and_update_state_tag(nullptr);
 
@@ -1271,7 +1272,7 @@ int Interp::init()
   if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = nullptr;
 
   // Don't bother reading work offsets since we just sent them
-  CHP(synch()); //synch first, then update the interface
+  int res_synch = synch(); //synch first, then update the interface
 
   write_g_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
   write_m_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
@@ -1329,6 +1330,9 @@ int Interp::init()
   }
   _setup.init_once = 0;
 
+  if (res_restore_param || res_synch) {
+      return INTERP_ERROR;
+  }
   return INTERP_OK;
 }
 
