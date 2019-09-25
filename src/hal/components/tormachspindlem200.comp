@@ -311,7 +311,7 @@ pin in u32 orient_targetband_override;  // PP can set range in +/- encoder count
 pin out float orient_drift; // 0: oriented within drift tolerance
                             // DRIFT_INVALID (-1): brake cylinder ORIENT_BRAKE_ACTUATION_TIME hasn't yet expired, 
                             // any_other_value: means "Fault" i.e. orient drift >= (ORIENT_TARGETBAND + ORIENT_BAND_IGNORE)
-
+pin out float orient_raw;   //raw orient_drift, with the "hide below threshold" function
 pin in float tray_in_time;  //the time from tray in command to sensor report
 
 //TODO: remove drift_test stuff for shipping
@@ -1345,7 +1345,8 @@ FUNCTION(_) {
             else
                 orient_targetband = ORIENT_TARGETBAND;
             orient_on_target = 0;
-            orient_drift = DRIFT_INVALID; 
+            orient_drift = DRIFT_INVALID;
+            orient_raw = 0; 
             //if (motor_hz_per_cmd_hz == 0.0)
             //    hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
             //else
@@ -1442,6 +1443,7 @@ FUNCTION(_) {
             orient_fault = 0; //clearing this here means orient_fault is only active for 1 ms!, but otherwise see above "never attempt another M19"
             orient_on_target = 0;
             orient_drift = DRIFT_INVALID;
+            orient_raw = enc_err;
             if (motor_hz_per_cmd_hz == 0.0)
                 hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
             else
@@ -1530,8 +1532,10 @@ FUNCTION(_) {
             //since orient_on_target is using tighter tolerance than orient_targetband, we
             //have to deal with orient_drift separately
             if ((spindle_state == SPINDLE_STATE_LOCKED) && (spindle_lock_timer >= (ORIENT_BRAKE_ACTUATION_TIME - _tray_in_time))) { //over lap time with tray in
-                if (orient_drift == DRIFT_INVALID) //only true very first time after ORIENT_BRAKE_ACTUATION_TIME passes
+                if (orient_drift == DRIFT_INVALID) { //only true very first time after ORIENT_BRAKE_ACTUATION_TIME passes
                    orient_drift = 0.0; // orient drift is within acceptable limits, report "all OK" to ATC
+                   orient_raw = 0.0; //reset this high/low watermark level  
+                }
                 if (iabs(enc_err) >= iabs(orient_targetband + ORIENT_BAND_IGNORE)) {
                     if (fabs(orient_drift) < fabs((float)enc_err)) //preserve largest value for reporting to log files by ATC ngc code
                         orient_drift = (float)enc_err;
@@ -1551,6 +1555,13 @@ FUNCTION(_) {
                 }
             }
             else orient_drift = DRIFT_INVALID;
+
+            if(orient_drift == DRIFT_INVALID)  //just have orient_raw mirror enc error 
+                orient_raw = (float)enc_err; //makes no sense to keep high/low water marks, and presumably we're not reading this in ngc code anyway yet
+            else {
+                if(fabs((float)enc_err) > fabs(orient_raw)) //new high (or low) watermark? 
+                    orient_raw = (float)enc_err;
+            }
 
             if(iabs(enc_err) < orient_targetband) { //Yes, we want <, not <=. Assume orient_targetband = 8. Encoders are integral, so if <= can reach 8 + very nearly 1 = 9 rotations before we see it. When <8 then
                                                     // value is 7 + nearly 1 
