@@ -2001,7 +2001,7 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
     _setup.parameters[k] = 0;
   }
   for (int origin = 1; origin <= 9; ++origin) {
-      _setup.work_offsets_user[origin] = find_work_offset_from_parameters(&_setup, origin);
+    CHP(find_work_offset_from_parameters(&_setup, origin, _setup.work_offsets_user[origin]));
   }
   return INTERP_OK;
 }

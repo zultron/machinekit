@@ -561,13 +561,18 @@ int Interp::store_tool_offset(setup_pointer settings, const ShiftTransform & too
   return INTERP_OK;
 }
 
-RotateShiftTransform Interp::find_work_offset_from_parameters(setup_pointer settings, int origin)
+InterpReturn Interp::find_work_offset_from_parameters(setup_pointer settings, int origin, RotateShiftTransform &out)
 {
+    if (origin < 1 || origin >9) {
+        return INTERP_ERROR;
+    }
     const int prm_offset = getWorkOffsetParamIdx(origin, 1); // X starts at 1 in PRM table
     // KLUDGE assumes contiguous parameters X,Y,Z,...,R
-    return RotateShiftTransform(toArray(&settings->parameters[prm_offset],
-                                        &settings->parameters[prm_offset + 9]),
-                                settings->parameters[prm_offset + 9]);
+    out = RotateShiftTransform(
+        toArray(&settings->parameters.at(prm_offset),
+                &settings->parameters[prm_offset + 9]),
+        settings->parameters.at(prm_offset + 9));
+    return INTERP_OK;
 }
 
 int Interp::store_work_offset_to_parameters(setup_pointer settings, const RotateShiftTransform & work_offset, int origin)
@@ -595,14 +600,9 @@ int Interp::store_work_offset_to_parameters(setup_pointer settings, const Rotate
 /** Finds the specified work offset in program units. */
 int Interp::find_work_offset(int origin, RotateShiftTransform &work_offset)
 {
-  if (origin <= 9) {
-    work_offset = find_work_offset_from_parameters(&_setup, origin);
-    // FIXME ugly way to keep work offsets in sync with parameters
-    // eventually do this properly during the _read stage when parameters are updated
-    _setup.work_offsets_user[origin] = work_offset;
-  } else {
-    work_offset = _setup.work_offsets_user[origin];
-  }
+  // Force an update from the parameters in case they changed underneath us during g-code read
+  find_work_offset_from_parameters(&_setup, origin, _setup.work_offsets_user[origin]);
+  work_offset = _setup.work_offsets_user[origin];
 
   convertAxisUnits(work_offset, convertsUserToProgram());
   return INTERP_OK;
