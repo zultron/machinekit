@@ -575,15 +575,15 @@ int Interp::store_work_offset_to_parameters(setup_pointer settings, const Rotate
     const size_t prm_offset = (size_t)getWorkOffsetParamBase(origin);
 
     extract_axes(work_offset.shift.tf,
-                settings->parameters[1 + prm_offset],
-                settings->parameters[2 + prm_offset],
-                settings->parameters[3 + prm_offset],
-                settings->parameters[4 + prm_offset],
-                settings->parameters[5 + prm_offset],
-                settings->parameters[6 + prm_offset],
-                settings->parameters[7 + prm_offset],
-                settings->parameters[8 + prm_offset],
-                settings->parameters[9 + prm_offset]);
+                 settings->parameters.at(1 + prm_offset),
+                 settings->parameters[2 + prm_offset],
+                 settings->parameters[3 + prm_offset],
+                 settings->parameters[4 + prm_offset],
+                 settings->parameters[5 + prm_offset],
+                 settings->parameters[6 + prm_offset],
+                 settings->parameters[7 + prm_offset],
+                 settings->parameters[8 + prm_offset],
+                 settings->parameters.at(9 + prm_offset));
 
     settings->parameters[10 + prm_offset] = work_offset.getXYRotationDeg(); // Rotation
     return INTERP_OK;
