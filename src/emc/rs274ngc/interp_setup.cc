@@ -20,6 +20,8 @@
 #include <string.h>
 #include "rs274ngc_interp.hh"
 #include <boost/python/object.hpp>
+#include <algorithm>
+#include "work_offset_structs.hh"
 
 #pragma GCC diagnostic error "-Wmissing-field-initializers"
 
@@ -200,6 +202,15 @@ void setup_struct::clear_queue_buster_flags()
     toolchange_flag = false;
     work_offset_modified_flag = false;
     have_new_reserved_parameters = false;
+}
+
+void setup_struct::trim_work_offset_map()
+{
+    auto pred = [](WorkOffsetMap::value_type const &el)
+    {
+        return !isNonzero(el.second);
+    };
+    erase_if(work_offsets_user, pred);
 }
 
 setup_struct::~setup_struct() {

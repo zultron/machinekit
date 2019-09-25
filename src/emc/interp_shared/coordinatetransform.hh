@@ -109,4 +109,5 @@ struct LocalToMachineTransform : public TransformBase
 
 void convertAxisUnits(RotateShiftTransform &out, const UnitsTransform & units);
 
+bool isNonzero(RotateShiftTransform const &r);
 #endif // COORDINATETRANSFORM_HH

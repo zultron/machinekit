@@ -618,7 +618,11 @@ int Interp::store_work_offset_from_prog(const RotateShiftTransform & work_offset
 
 int Interp::store_work_offset(RotateShiftTransform const &work_offset_user, int origin)
 {
-  _setup.work_offsets_user[origin] = work_offset_user;
+    if (isNonzero(work_offset_user)) {
+      _setup.work_offsets_user[origin] = work_offset_user;
+    } else {
+      _setup.work_offsets_user.erase(origin);
+    }
   return store_work_offset_to_parameters(&_setup, work_offset_user, origin);
 }
 
