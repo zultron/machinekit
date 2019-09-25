@@ -647,7 +647,9 @@ static void check_work_offsets(WorkOffsetMap const &expected, WorkOffsetMap cons
 {
     for (auto p : expected) {
         auto it = got.find(p.first);
-        CHECK(it != got.end());
+        bool found = (it != got.end());
+        CHECK(found);
+        if (!found) {continue;}
         for (size_t i=0; i < 9; ++i) {
             CHECK_FUZZ(it->second.shift.tf[i], p.second.shift.tf[i]);
         }
@@ -664,14 +666,23 @@ static void check_parameters(ParameterArray const &expected, ParameterArray cons
 
 SCENARIO("Load and save parameters")
 {
+    static const char * const prm_file_name = "unit_test.var";
+    std::remove("unit_test.var");
     DECL_INIT_TEST_INTERP();
     GIVEN("A default interpreter with work offsets")
     {
-        static const char * const prm_file_name = "test.var";
         static const char * const dummy_file_name = "dummy.var";
         REQUIRE_FALSE(test_interp.save_parameters(dummy_file_name, settings->parameters));
         WorkOffsetMap empty_work_offsets = settings->work_offsets_user;
-        ParameterArray empty_params = settings->parameters;
+
+        CHECK(empty_work_offsets.size() == 1);
+
+        THEN("A synch directly after init should have no effect") {
+            WorkOffsetMap exp_work_offsets = settings->work_offsets_user;
+            REQUIRE_INTERP_OK(test_interp.synch_work_offsets_from_task());
+            check_work_offsets(exp_work_offsets, settings->work_offsets_user);
+        }
+
         static const char *make_offsets[] = {
             "G10 L2 P1 X1.2 Y2.3 Z3.4 A4.5",
             "G10 L2 P2 X5.6 Y6.7 Z7.8 A8.9",
@@ -681,22 +692,21 @@ SCENARIO("Load and save parameters")
             };
 
         REQUIRE_INTERP_OK(execute_lines_or_err(test_interp, make_offsets));
+
         WorkOffsetMap exp_work_offsets = settings->work_offsets_user;
         ParameterArray exp_params = settings->parameters;
-        std::remove(prm_file_name);
 
         THEN("Restoring from a missing / empty parameter file should not affect existing offsets?") {
+            std::remove(prm_file_name);
             REQUIRE_FALSE(test_interp.restore_parameters(prm_file_name));
 
             check_work_offsets(exp_work_offsets, settings->work_offsets_user);
             check_parameters(exp_params, settings->parameters);
         }
 
-        THEN("Work offsets should be overwritten if restored from a previous version") {
+        THEN("Work offsets should be cleared out if 'restored' from an all-zeros prm file") {
             REQUIRE_FALSE(test_interp.restore_parameters(dummy_file_name));
-
-            check_work_offsets(empty_work_offsets, settings->work_offsets_user);
-            check_parameters(empty_params, settings->parameters);
+            CHECK(settings->work_offsets_user.size() == 0);
         }
 
         THEN("Work offsets should write out to a parameter file cleanly") {
