@@ -28,7 +28,7 @@ XFAIL=0
 VERBOSE=0
 
 clean () {
-    find $* \( -name "stderr" -or -name "result" -or -name "*.rdb" \) -print0 | xargs -0 rm -f
+    find $* \( -name "stderr" -or -name "result" -or -name "*.rdb" -or -name "*.tmp.var" -or -name "*.tmp.var.bak" \) -print0 | xargs -0 rm -f
 }
 
 run_shell_script () {
@@ -145,7 +145,7 @@ run_tests () {
 		XFAIL=$(($XFAIL+1))
 		echo "*** $testdir: XFAIL: $reason"
 		if [ $NOCLEAN -eq 0 ]; then
-		    rm -f $testdir/stderr $testdir/result $testdir/*.rdb
+		    clean $testdir
 		fi
 	    else
 		FAIL=$(($FAIL+1))
@@ -158,7 +158,7 @@ run_tests () {
 		echo "*** $testdir: XPASS: Passed, but was expected to fail"
 	    else
 		if [ $NOCLEAN -eq 0 ]; then
-		    rm -f $testdir/stderr $testdir/result $testdir/*.rdb
+		    clean $testdir
 		fi
 	    fi
 	fi
