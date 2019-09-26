@@ -817,17 +817,13 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
     return emcStatusUpdateWorkOffset(new_origin);
 }
 
-int emcStatusUpdateWorkOffset(int new_origin, bool force)
+int emcStatusUpdateWorkOffset(int new_origin)
 {
-    if (new_origin < 0) {
+    if (new_origin < 0 || new_origin > (int)emcStatus->task.g5x_table.size()) {
         // Bad origin
         return -1;
     }
-    if (force || emcStatus->task.g5x_index != new_origin) {
-        emcStatus->task.g5x_index = new_origin;
-        emcStatus->task.g5x_offset = toEmcPose(emcStatus->task.g5x_table[new_origin].shift.tf);
-        emcStatus->task.rotation_xy = emcStatus->task.g5x_table[new_origin].getXYRotationDeg();
-    }
+    emcStatus->task.g5x_index = new_origin;
     return 0;
 }
 

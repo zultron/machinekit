@@ -543,7 +543,7 @@ int main (int argc, char ** argv)
   int gees[ACTIVE_G_CODES];
   int ems[ACTIVE_M_CODES];
   double sets[ACTIVE_SETTINGS];
-  char default_name[] = "/etc/emc2/sample-configs/sim/sim.var";
+  char default_name[] = "sai.tmp.var";
   int print_stack;
   int go_flag;
   char *inifile = NULL;

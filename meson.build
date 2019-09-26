@@ -184,7 +184,11 @@ libnml_srcs = [
 
 libnml = shared_library('nml',
     libnml_srcs,
-    include_directories : libnml_inc,
+    include_directories : [
+      libnml_inc,
+      interp_shared_inc,
+      rs274ngc_inc,
+      ],
     dependencies : [ libposemath_dep, liblinklist_dep, liblinuxcncini_dep ]
     )
 

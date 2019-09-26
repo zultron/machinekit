@@ -1,5 +1,4 @@
 #!/bin/bash
 
-rm -f sim.var
-cp sim.var.template sim.var
+cp sim.var.template param.tmp.var
 linuxcnc -r test.ini | grep ^CHECK

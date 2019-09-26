@@ -12,12 +12,12 @@ using Catch::Matchers::Contains;
 using namespace interp_param_global;
 
 /** Reads and parses a G-code command (and checks for errors along the way). */
-static block_struct read_and_parse_command(Interp &interp, const char *command)
+static block_struct read_and_parse_command(Interp &test_interp, const char *command)
 {
   char rawline[1024]="";
   char blocktext[1024]="";
   int line_length = 0;
-  REQUIRE_INTERP_OK(interp.read_text(
+  REQUIRE_INTERP_OK(test_interp, read_text(
                       command,
                       nullptr,
                       rawline,
@@ -30,8 +30,8 @@ static block_struct read_and_parse_command(Interp &interp, const char *command)
   }
 
   block_struct eblock{};
-  REQUIRE_INTERP_OK(interp.init_block(&eblock));
-  REQUIRE_INTERP_OK(interp.read_items(&eblock, blocktext, interp._setup.parameters));
+  REQUIRE_INTERP_OK(test_interp, init_block(&eblock));
+  REQUIRE_INTERP_OK(test_interp, read_items(&eblock, blocktext, test_interp._setup.parameters));
   return eblock;
 }
 
@@ -113,35 +113,35 @@ SCENARIO("Conflicting meanings for G-code words")
     DECL_INIT_TEST_INTERP();
     GIVEN("A default interpreter")
     {
-        REQUIRE_INTERP_EXEC_OK(test_interp, "G90 G20");
-        REQUIRE_INTERP_EXEC_OK(test_interp, "G0 X0 Y0 Z0");
-        REQUIRE_INTERP_EXEC_OK(test_interp, "G91.1 F1");
+        REQUIRE_INTERP_OK(test_interp, _execute("G90 G20"));
+        REQUIRE_INTERP_OK(test_interp, _execute("G0 X0 Y0 Z0"));
+        REQUIRE_INTERP_OK(test_interp, _execute("G91.1 F1"));
         THEN("G2 and G3 are not compatible with G4 due to P words") {
-            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G4 G2 X1 R1 F1 P1");
+            REQUIRE_INTERP_ERROR(test_interp, _execute("G4 G2 X1 R1 F1 P1"));
             REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
-            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G4 G3 X1 R1 F1 P1");
+            REQUIRE_INTERP_ERROR(test_interp, _execute("G4 G3 X1 R1 F1 P1"));
             REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
         }
         THEN("G64 and G2/G3 are not compatible") {
-            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G64 G2 X1 R1 F1 P1");
+            REQUIRE_INTERP_ERROR(test_interp, _execute("G64 G2 X1 R1 F1 P1"));
             REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
-            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G64 G3 X1 R1 F1 P1");
+            REQUIRE_INTERP_ERROR(test_interp, _execute("G64 G3 X1 R1 F1 P1"));
             REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
         }
         THEN("G4 and G64 are not compatible (P word)") {
-            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G4 G64 P2");
+            REQUIRE_INTERP_ERROR(test_interp, _execute("G4 G64 P2"));
             REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
         }
         THEN("G10 and G64 are not compatible (P word)") {
-            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G10 L2 G64 P2 X2");
+            REQUIRE_INTERP_ERROR(test_interp, _execute("G10 L2 G64 P2 X2"));
             REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
         }
         THEN("G64 and G82 are not compatible (P word)") {
-            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G64 G82 X2 Z-1 R1 P2");
+            REQUIRE_INTERP_ERROR(test_interp, _execute("G64 G82 X2 Z-1 R1 P2"));
             REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
         }
         THEN("G64 and G82 are not compatible (P word)") {
-            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G4 M100 P2 Q1 R4");
+            REQUIRE_INTERP_ERROR(test_interp, _execute("G4 M100 P2 Q1 R4"));
             REQUIRE_THAT(test_interp.error_text(), Contains(NCE_P_WORD_CONFLICTING_MEANINGS));
         }
     }
@@ -153,7 +153,8 @@ SCENARIO("Multiple G-codes can't use the same axis words")
     GIVEN("A default interpreter")
     {
         THEN("G10 and G82 are not compatible (P word)") {
-            REQUIRE_INTERP_EXEC_ERROR(test_interp, "G10 L2 G82 X2 Z-1 R1 P2");
+            REQUIRE_INTERP_ERROR(test_interp, _execute("G10 L2 G82 X2 Z-1 R1 P2"));
         }
     }
 }
+

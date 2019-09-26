@@ -20,7 +20,7 @@
 #include "emcpos.h"
 #include "emctool.h"
 
-#include <coordinatetransform.hh>
+#include <work_offset_structs.hh>
 
 struct StateTag;
 /*
@@ -79,12 +79,6 @@ static constexpr double mmPerUnit[] =
 extern void INIT_CANON();
 
 /* Representation */
-
-extern void SET_G5X_TRANSFORM(int origin,
-                           double x, double y, double z,
-                           double a, double b, double c,
-                           double u, double v, double w,
-                           double xy_rotation_deg);
 
 extern void SET_G5X_TRANSFORM(int origin,
                            double x, double y, double z,

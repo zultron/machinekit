@@ -1980,7 +1980,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         int new_index = (size_t)((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->g5x_index;
         double xy_rotation_deg = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->xy_rotation_deg;
         emcStatus->task.g5x_table[new_index] = RotateShiftTransform(toArray(offset, 9), xy_rotation_deg);
-        retval = emcStatusUpdateWorkOffset(new_index, true);
+        retval = emcStatusUpdateWorkOffset(new_index);
     }
     retval = 0;
 	break;

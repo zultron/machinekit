@@ -6,6 +6,7 @@ LIBEMCSRCS := \
     emc/nml_intf/emcpose.c \
     emc/nml_intf/emcargs.cc \
     emc/nml_intf/emcops.cc \
+    emc/nml_intf/interp_return.cc \
     emc/ini/emcIniFile.cc \
     emc/ini/iniaxis.cc \
     emc/ini/initool.cc \
@@ -19,7 +20,7 @@ $(call TOOBJSDEPS, $(LIBEMCSRCS)) : EXTRAFLAGS=-fPIC
 
 TARGETS += ../lib/liblinuxcnc.a
 
-../lib/liblinuxcnc.a: $(call TOOBJS,$(LIBEMCSRCS))
+../lib/liblinuxcnc.a: $(call TOOBJS,$(LIBEMCSRCS)) ../lib/libinterp_shared.a
 	$(ECHO) Linking $(notdir $@)
 	@mkdir -p ../lib
 	@rm -f $@

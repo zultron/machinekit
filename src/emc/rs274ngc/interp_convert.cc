@@ -1637,6 +1637,7 @@ void Interp::send_g5x_transform(int origin, const RotateShiftTransform & g5x_tra
   SET_G5X_TRANSFORM(origin,
                     UNPACK_POSITION_ARRAY_REF(g5x_transform.shift.tf),
                     g5x_transform.getXYRotationDeg());
+  _setup.work_offsets_to_synch.push_back(origin);
 }
 
 /****************************************************************************/
@@ -3976,7 +3977,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
     // L2 means directly edit the work offset of the specified CSYS
     desired_csys.g5xOffset = getAxisWordsFromBlock(block, desired_csys.g5xOffset);
   }
-  store_work_offset(desired_csys.g5xOffset, p_int);
+  store_work_offset_from_prog(desired_csys.g5xOffset, p_int);
 
   // KLUDGE always send a coordinate system update
   send_g5x_transform(p_int, desired_csys.g5xOffset);

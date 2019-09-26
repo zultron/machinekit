@@ -26,10 +26,11 @@
 #include "emc_types.hh"
 #include "debugflags.h"
 #include "interp_fwd.hh"
+#include "interp_parameter_def.hh"
 
 // Declare class so that we can use it in the typedef.
 class Interp;
-typedef int (Interp::*read_function_pointer) (char *, int *, block_pointer, double *);
+typedef int (Interp::*read_function_pointer) (char *, int *, block_pointer, std::array<double, interp_param_global::RS274NGC_MAX_PARAMETERS> &);
 
 #define DBG(level,fmt,args...)                  \
     do {                                        \

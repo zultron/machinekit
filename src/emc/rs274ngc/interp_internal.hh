@@ -29,8 +29,9 @@
 #include "interp_fwd.hh"
 
 #include <coordinatetransform.hh>
-#include <unordered_map>
 #include <vector>
+#include <work_offset_structs.hh>
+#include <boost/circular_buffer.hpp>
 
 #define _(s) gettext(s)
 
@@ -365,7 +366,7 @@ and is not represented here
 #define STACK_ENTRY_LEN 80
 #define MAX_SUB_DIRS 10
 
-using WorkOffsetMap = std::map<int, RotateShiftTransform>;
+using ParameterArray = std::array<double, interp_param_global::RS274NGC_MAX_PARAMETERS>;
 
 struct setup_struct
 {
@@ -379,6 +380,7 @@ struct setup_struct
   LocalToMachineTransform transform;
 
   WorkOffsetMap work_offsets_user; // Work offset table (interp's copy) in user axis units
+  boost::circular_buffer<int> work_offsets_to_synch;
 
   ModalState modal_state;
 
@@ -426,7 +428,7 @@ struct setup_struct
   GCodes motion_mode;              // active G-code for motion
   int origin_index;             // active origin (1=G54 to 9=G59.3)
 
-  double parameters[interp_param_global::RS274NGC_MAX_PARAMETERS];   // system parameters
+  ParameterArray parameters;   // system parameters
   std::vector<std::pair<size_t, double>> new_parameters;
   std::vector<std::pair<const char *, double>> new_named_parameters;
   bool percent_flag;          // true means first line was percent sign
