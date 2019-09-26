@@ -2010,8 +2010,12 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
   for (int origin = 1; origin <= 9; ++origin) {
     find_work_offset_from_parameters(&_setup, origin, _setup.work_offsets_user[origin]);
   }
-  // Only need to leave non-zero work offsets in the map after a parameter restore
-  _setup.trim_work_offset_map();
+
+  auto pred = [](WorkOffsetMap::value_type const &el)
+  {
+      return !isNonzero(el.second);
+  };
+  erase_if(_setup.work_offsets_user, pred);
   return INTERP_OK;
 }
 

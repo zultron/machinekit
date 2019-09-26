@@ -204,15 +204,6 @@ void setup_struct::clear_queue_buster_flags()
     have_new_reserved_parameters = false;
 }
 
-void setup_struct::trim_work_offset_map()
-{
-    auto pred = [](WorkOffsetMap::value_type const &el)
-    {
-        return !isNonzero(el.second);
-    };
-    erase_if(work_offsets_user, pred);
-}
-
 setup_struct::~setup_struct() {
     assert(!pythis || Py_IsInitialized());
     if(pythis) delete pythis;
