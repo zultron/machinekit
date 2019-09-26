@@ -10,7 +10,7 @@ def get_test_path_from_args():
 
 def check_result_against_template(filename, basepath):
     full_file = os.path.join(basepath, filename);
-    p=subprocess.Popen(['diff',full_file, full_file+'.template'])
+    p=subprocess.Popen(['diff',full_file, full_file[:-7]+'var.template'])
     p.wait()
     return p.returncode
 
@@ -18,8 +18,8 @@ def check_result_against_template(filename, basepath):
 if __name__ == '__main__':
 
     basepath = get_test_path_from_args()
-    stock_err = check_result_against_template('offsets-stock.var', basepath)
-    extended_err = check_result_against_template('offsets-extended.var', basepath)
+    stock_err = check_result_against_template('offsets-stock.tmp.var', basepath)
+    extended_err = check_result_against_template('offsets-extended.tmp.var', basepath)
 
     if stock_err or extended_err:
         sys.exit(1)
