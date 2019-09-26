@@ -1091,10 +1091,8 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
   UnitsTransform program_to_user_units = convertsProgramToUser();
 
   if ((g_code == G_52) || (g_code == G_92)) {
-    // FIXME these cases preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
     if (g_code == G_52) {
       // Command represents new offsets, copy them in directly, and apply the difference to the current position
-      // FIXME this preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
       PositionArray cmd_axis_values = getAxisWordsFromBlock(block, settings->transform.g92Offset.tf);
       settings->current += (settings->transform.g92Offset.tf - cmd_axis_values);
       settings->transform.g92Offset.tf = cmd_axis_values;
@@ -1615,6 +1613,10 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
 
   // FIXME force the extended work offsets to match parameters (user might have changed them underneath us)
   settings->work_offsets_user[origin] = settings->transform.g5xOffset;
+
+  if (!isNonzero(settings->transform.g5xOffset)) {
+      setWarning("Work offset %s is all zeros (effectively G53)\n", lookup_work_offset_gcode_string_from_origin(origin).c_str());
+  }
 
   write_and_update_state_tag(nullptr);
 
@@ -2523,25 +2525,6 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
     return INTERP_OK;
 }
 
-static int formatGCode(int val, std::string &cmd)
-{
-    char buf[LINELEN];
-    if (val != -1) { // FIXME not sure if this is correct!
-        // if this was set in sub, and unset in caller, it will
-        // not be reset
-        if (val % 10) {
-        snprintf(buf,sizeof(buf)," G%d.%d", val / 10, val % 10);
-        } else {
-        snprintf(buf,sizeof(buf)," G%d", val / 10);
-        }
-        cmd += buf;
-    } else {
-        return INTERP_ERROR;
-    }
-    return INTERP_OK;
-}
-
-
 /**
  * given two int arrays representing interpreter settings as stored in
  * _setup.active_g_codes, construct a G-code sequence to synchronize their state.
@@ -2597,7 +2580,7 @@ int Interp::gen_g_codes(
         case G_CODE_PATH_MODE: // - control mode
         case G_CODE_DISTANCE_MODE_IJK: // - ijk distance mode
         case G_CODE_LATHE_DIAMETER_MODE: // - lathe diameter mode
-            CHKS(formatGCode(val, cmd), "gen_g_codes BUG: index %d = -1", ii);
+            CHKS(formatGCode((GCodes)val, cmd), "gen_g_codes BUG: index %d = -1", ii);
             break;
         case ACTIVE_G_CODES: // Do nothing, not a real G-code
             break;
@@ -2698,7 +2681,7 @@ int Interp::gen_restore_cmd(ModalState &state,
 
     //Mimic the order of restoration commands used elsewhere
     if (state.g_codes[G_CODE_UNITS] != saved_g[G_CODE_UNITS]) {
-        formatGCode(saved_g[G_CODE_UNITS], cmd);
+        formatGCode((GCodes)saved_g[G_CODE_UNITS], cmd);
     }
 
     //M codes should not be restored during an abort
