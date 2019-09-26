@@ -852,9 +852,9 @@ int Interp::exit()
   char file_name[LINELEN];
 
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  CHP(save_parameters(((file_name[0] == 0) ?
+  save_parameters(((file_name[0] == 0) ?
                             RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
-                            file_name), _setup.parameters));
+                            file_name), _setup.parameters);
   reset();
 
   // interpreter shutdown Python hook
@@ -2209,22 +2209,22 @@ int Interp::synch()
   _setup.adaptive_feed = GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
   _setup.feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
 
+  // Restore any work offsets that were changed during readahead but not reached by motion yet.
+  synch_work_offsets_from_task();
+
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  CHP(save_parameters(((file_name[0] ==
-                             0) ?
+  int res_save = save_parameters((file_name[0] == 0) ?
                             RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
-                           file_name), _setup.parameters));
+                           file_name, _setup.parameters);
 
   load_tool_table();   /*  must set  _setup.tool_max first */
-
-  synch_work_offsets_from_task();
 
   //send_current_g5x_transform();
   //read_inputs(&_setup); // input/probe/toolchange
 
   write_settings(&_setup, _setup.modal_state);
 
-  return INTERP_OK;
+  return res_save;
 }
 
 /***********************************************************************/
