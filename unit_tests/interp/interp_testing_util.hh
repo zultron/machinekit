@@ -11,32 +11,27 @@
 using Catch::Matchers::WithinAbs;
 #define INTERP_FUZZ 1e-10
 
-#define INTERP_EXECUTE(interp__, cmd__) execute_(interp__, cmd__, __FILE__, __LINE__)
-
 #define REQUIRE_FUZZ(got, expected) REQUIRE_THAT(got, WithinAbs(expected, INTERP_FUZZ))
 #define CHECK_FUZZ(got, expected) CHECK_THAT(got, WithinAbs(expected, INTERP_FUZZ))
 
-#define REQUIRE_INTERP_OK(val) REQUIRE(val < INTERP_MIN_ERROR)
-#define CHECK_INTERP_OK(val) CHECK(val < INTERP_MIN_ERROR)
-#define REQUIRE_INTERP_ERROR(val) REQUIRE(val >= INTERP_MIN_ERROR)
-#define CHECK_INTERP_ERROR(val) CHECK(val >= INTERP_MIN_ERROR)
+#define REQUIRE_INTERP_OK(interp, call__) REQUIRE(print_interp_error((interp), (interp).call__, __FILE__, __LINE__) < INTERP_MIN_ERROR)
+#define CHECK_INTERP_OK(interp, call__) REQUIRE(print_interp_error((interp), (interp).call__, __FILE__, __LINE__) < INTERP_MIN_ERROR)
+#define REQUIRE_INTERP_ERROR(interp, call__) REQUIRE(print_interp_error((interp), (interp).call__, __FILE__, __LINE__) >= INTERP_MIN_ERROR)
+#define CHECK_INTERP_ERROR(interp, call__) REQUIRE(print_interp_error((interp), (interp).call__, __FILE__, __LINE__) >= INTERP_MIN_ERROR)
 
-#define REQUIRE_INTERP_EXEC_OK(i, cmd) REQUIRE_INTERP_OK(INTERP_EXECUTE(i, cmd))
-#define REQUIRE_INTERP_EXEC_ERROR(i, cmd) REQUIRE_INTERP_ERROR(INTERP_EXECUTE(i, cmd))
+#define REQUIRE_INTERP_EXEC_LINES_OK(interp, lines) REQUIRE(execute_lines_or_err(interp, lines, __FILE__, __LINE__) < INTERP_MIN_ERROR)
 
 extern InterpBase *pinterp;
 extern int emc_debug;
 
 int print_interp_error(Interp &interp, int retval);
-
-int execute_(Interp &interp, const char *cmd, const char *src_file, int line);
-int execute(Interp &interp, const char *cmd);
+int print_interp_error(Interp & interp, int retval, const char* src_file, int line);
 
 template <size_t N>
-int execute_lines_or_err(Interp &interp, const char* (&lines)[N] )
+int execute_lines_or_err(Interp &interp, const char* (&lines)[N], const char *src_file, int line)
 {
   for (auto l : lines) {
-      auto res = (InterpReturn) execute(interp, l);
+      auto res = (InterpReturn) print_interp_error(interp, interp._execute(l), src_file, line);
       if (isInterpError(res)) {
           return res;
       }
