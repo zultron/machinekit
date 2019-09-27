@@ -72,9 +72,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.dwell_time = 0
         self.suppress = 0
         Translated.__init__(self, 1)
-        temp = inifile.find("DISPLAY", "GEOMETRY")
-        self.is_rear_tp_lathe = bool(temp == "-XZ")
-        self.is_foam = bool(inifile.find("DISPLAY", "FOAM"))
+        self.rear_tp_lathe_option = bool(inifile.find("DISPLAY", "GEOMETRY") == "-XZ")
+        self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
         self.foam_z = 0
         self.foam_w = 1.5
         self.notify = 0
@@ -82,6 +81,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.highlight_line = None
         self.visible_tools = None
         self.current_tool = 0
+        self.inifile = inifile
 
     def comment(self, arg):
         if arg.startswith("AXIS,"):
@@ -107,7 +107,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         return linuxcnc.draw_lines(geometry or self.geometry, lines, for_selection)
 
     def colored_lines(self, color, lines, for_selection):
-        if self.is_foam:
+        if self.foam_option:
             if not for_selection:
                 self.color_with_alpha(color + "_xy")
             glPushMatrix()
@@ -142,7 +142,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             all_traverse.extend(self.traverse[tool])
 
         self.min_extents, self.max_extents, self.min_extents_notool, self.max_extents_notool = gcode.calc_extents(all_arcfeeds, all_feeds, all_traverse)
-        if self.is_foam:
+        if self.foam_option:
             min_z = min(self.foam_z, self.foam_w)
             max_z = max(self.foam_z, self.foam_w)
             self.min_extents = self.min_extents[0], self.min_extents[1], min_z
@@ -533,7 +533,7 @@ class GlCanonDraw:
         highlight = self.dlist('highlight')
         glNewList(highlight, GL_COMPILE)
         if line is not None and self.canon is not None:
-            if self.is_foam():
+            if self.foam_option:
                 glPushMatrix()
                 glTranslatef(0, 0, self.get_foam_z())
                 x, y, z = self.canon.highlight(line, "XY")
@@ -654,7 +654,7 @@ class GlCanonDraw:
 
         # x dimension
         if view != x and g.max_extents[x] > g.min_extents[x]:
-            if self.is_rear_tp_lathe:
+            if self.rear_tp_lathe_option:
                 x_dir = -1
             else:
                 x_dir = 1
@@ -683,7 +683,7 @@ class GlCanonDraw:
 
         # z dimension
         if view != z and g.max_extents[z] > g.min_extents[z]:
-            if self.is_rear_tp_lathe:
+            if self.rear_tp_lathe_option:
                 x_dir = -1
             else:
                 x_dir = 1
@@ -707,7 +707,7 @@ class GlCanonDraw:
         else:
             offset = 0, 0, 0
 
-        if self.is_rear_tp_lathe:
+        if self.rear_tp_lathe_option:
             x_dir = -1
         else:
             x_dir = 1
@@ -811,7 +811,7 @@ class GlCanonDraw:
             bbox = self.color_limit(g.min_extents_notool[x] < machine_limit_min[x])
             glPushMatrix()
 
-            if self.is_rear_tp_lathe:
+            if self.rear_tp_lathe_option:
                 f = dfmt % ((g.min_extents[x] - offset[x]) * dimscale * 2)
             else:
                 f = fmt % ((g.min_extents[x] - offset[x]) * dimscale)
@@ -828,7 +828,7 @@ class GlCanonDraw:
             bbox = self.color_limit(g.max_extents_notool[x] > machine_limit_max[x])
             glPushMatrix()
 
-            if self.is_rear_tp_lathe:
+            if self.rear_tp_lathe_option:
                 f = dfmt % ((g.max_extents[x] - offset[x]) * dimscale * 2)
             else:
                 f = fmt % ((g.max_extents[x] - offset[x]) * dimscale)
@@ -1227,7 +1227,7 @@ class GlCanonDraw:
 
                 glTranslatef(*g92_offset)
 
-            if self.is_foam():
+            if self.foam_option:
                 glTranslatef(0, 0, self.get_foam_z())
                 glCallList(alist)
                 uwalist = self.dlist(('axes_uw', self.get_view()), gen=lambda n: self.draw_axes(n, 'UVW'))
@@ -1413,7 +1413,7 @@ class GlCanonDraw:
             if pos is None: pos = [0] * 6
             rx, ry, rz = pos[3:6]
             pos = self.to_internal_units(pos[:3])
-            if self.is_foam():
+            if self.foam_option:
                 glEnable(GL_COLOR_MATERIAL)
                 glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
                 glPushMatrix()
