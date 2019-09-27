@@ -59,6 +59,15 @@ import thread
 import traceback
 
 
+def make_active_axis_word_str(position, mask):
+    axes="XYZABCUVW"
+    pos_words=[]
+    for ax in range(9):
+        if (1 << ax) & mask:
+            pos_words.append("{}{}".format(axes[ax], position[ax]))
+    return ' '.join(pos_words)
+
+
 class DummyProgress:
     def nextphase(self, unused): pass
     def progress(self): pass
@@ -361,11 +370,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         # G_CODE_TOOL_LENGTH_OFFSET
         # G_CODE_SPINDLE_MODE
 
-        g92_offset = self.stat.g92_offset;
-
         cmd_list = ((
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_UNITS]),  # Must be first before applying any other modes
-        ),(
+        ), (
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_PATH_MODE]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_LATHE_DIAMETER_MODE]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_PLANE]),
@@ -373,10 +380,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE_IJK]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_RETRACT_MODE]),
-        ),(
-            "G52 X{} Y{} Z{} A{}".format(*g92_offset)
+        ), (
+            "G52 " + make_active_axis_word_str(self.stat.g92_offset, self.stat.axis_mask)
         ))
-        print "Active G-codes at redraw:", cmd_list
+        print("Active G-codes at redraw:", cmd_list)
         return '\n'.join((' '.join(sub_l) for sub_l in cmd_list))
 
     def load(self, filename=None):
