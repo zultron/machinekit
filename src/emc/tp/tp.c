@@ -232,7 +232,7 @@ double getMaxBlendFeedScale(TC_STRUCT const * prev_tc, TC_STRUCT const * tc)
             (prev_tc && prev_tc->synchronized == TC_SYNC_POSITION)) {
         return 1.0;
     } else {
-        return emcmotConfig->maxFeedScale;
+        return fmin(emcmotConfig->biarc_solver_cfg.feed_override_allowance, emcmotConfig->maxFeedScale);
     }
 }
 
