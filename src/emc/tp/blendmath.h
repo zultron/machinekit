@@ -246,7 +246,7 @@ void findVMaxByAltitude(PmCartesian const * const u1,
 
 int blendParamInitVelocities(TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc,
-    double maxFeedScale,
+    double override_allowance,
     BlendControls * const controls);
 
 tp_err_t initBlendSegmentFromPoints(

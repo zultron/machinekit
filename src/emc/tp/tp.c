@@ -81,9 +81,7 @@ int tpComputeBlendVelocity(
         double *v_blend_next,
         double *v_blend_net);
 
-double estimateParabolicBlendPerformance(
-        TP_STRUCT const *tp,
-        TC_STRUCT const *tc,
+double estimateParabolicBlendPerformance(TC_STRUCT const *tc,
         TC_STRUCT const *nexttc);
 
 int tpUpdateCycle(TP_STRUCT * const tp,
@@ -172,7 +170,7 @@ double tpGetTangentKinkRatio(void) {
  * Get a segment's feed scale based on the current planner state and emcmotStatus.
  * @note depends on emcmotStatus for system information.
  */
-double tpGetFeedScale(TP_STRUCT const * const tp,
+double tpGetRealFeedScale(TP_STRUCT const * const tp,
         TC_STRUCT const * const tc) {
     if (!tc) {
         return 0.0;
@@ -196,7 +194,6 @@ double tpGetFeedScale(TP_STRUCT const * const tp,
     }
 }
 
-
 /**
  * Get target velocity for a tc based on the trajectory planner state.
  * This gives the requested velocity, capped by the segments maximum velocity.
@@ -212,17 +209,7 @@ double tpGetRealTargetVel(TP_STRUCT const * const tp,
     /*tc_debug_print("Initial v_target = %f\n",v_target);*/
 
     // Get the maximum allowed target velocity, and make sure we're below it
-    return fmin(v_target * tpGetFeedScale(tp,tc), tpGetMaxTargetVel(tp, tc));
-}
-
-double getMaxFeedScale(TC_STRUCT const * tc)
-{
-    //All reasons to disable feed override go here
-    if (tc && tc->synchronized == TC_SYNC_POSITION ) {
-        return 1.0;
-    } else {
-        return emcmotConfig->maxFeedScale;
-    }
+    return fmin(v_target * tpGetRealFeedScale(tp,tc), tpGetRealMaxTargetVel(tp, tc));
 }
 
 double getMaxBlendFeedScale(TC_STRUCT const * prev_tc, TC_STRUCT const * tc)
@@ -240,9 +227,13 @@ double getMaxBlendFeedScale(TC_STRUCT const * prev_tc, TC_STRUCT const * tc)
  * Get the worst-case target velocity for a segment based on the trajectory planner state.
  * Note that this factors in the user-specified velocity limit.
  */
-double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc)
+double tpGetRealMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc)
 {
-    double max_scale = getMaxFeedScale(tc);
+    if (!tc) {
+        return 0.0;
+    }
+
+    double max_scale = (tc->synchronized == TC_SYNC_POSITION) ? 1.0 : emcmotConfig->maxFeedScale;
     if (tc->is_blending) {
         //KLUDGE: Don't allow feed override to keep blending from overruning max velocity
         max_scale = fmin(max_scale, 1.0);
@@ -258,7 +249,6 @@ double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc)
      * limit here.
      */
     if ((tc->synchronized != TC_SYNC_POSITION)){
-        /*tc_debug_print("Cartesian velocity limit active\n");*/
         v_max_target = fmin(v_max_target,
 			    tcPureRotaryCheck(tc) ? tp->vLimitAng : tp->vLimit);
     }
@@ -714,14 +704,14 @@ double tpCalculateTriangleVel(TC_STRUCT const *tc) {
 /**
  * Calculate the angle between two unit cartesian vectors.
  */
-double tpCalculateOptimizationInitialVel(TP_STRUCT const * const tp, TC_STRUCT * const tc)
+double calculateOptimizationInitialVel(TC_STRUCT * const tc)
 {
     double acc_scaled = tcGetTangentialMaxAccel(tc);
     double triangle_vel = findVPeak(acc_scaled, tc->target);
-    double max_vel = tpGetMaxTargetVel(tp, tc);
+    double max_vel = tcGetPlanMaxTargetVel(tc, emcmotConfig->maxFeedScale);
     double optim_init_vel = fmin(triangle_vel, max_vel);
 #ifdef TP_DEBUG
-    print_json5_log_start(tpCalculateOptimizationInitialVel);
+    print_json5_log_start(calculateOptimizationInitialVel);
     print_json5_double(triangle_vel);
     print_json5_double(optim_init_vel);
     print_json5_log_end();
@@ -1346,7 +1336,7 @@ tp_err_t tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
         // down the next and previous blends as well. We model this loss by scaling
         // the blend velocity down.
         // NOTE: it's crude guess because short segments are affected relatively more than long ones.
-        prev_tc->parabolic_equiv_vel = estimateParabolicBlendPerformance(tp, prev_tc, tc) / 2.0;
+        prev_tc->parabolic_equiv_vel = estimateParabolicBlendPerformance(prev_tc, tc) / 2.0;
     }
 
     CHP(tpSetupSegmentBlend(tp, prev_tc, tc));
@@ -1565,7 +1555,7 @@ int tpRunOptimization(TP_STRUCT * const tp) {
             tp_debug_print("Segment %d, type %d not finalized, continuing\n",tc->id,tc->motion_type);
             // use worst-case final velocity that allows for up to 1/2 of a segment to be consumed.
 
-            prev1_tc->finalvel = fmin(prev1_tc->maxvel, tpCalculateOptimizationInitialVel(tp,tc));
+            prev1_tc->finalvel = fmin(prev1_tc->maxvel, calculateOptimizationInitialVel(tc));
 
             // Fixes acceleration violations when last segment is not finalized, and previous segment is tangent.
 
@@ -1647,16 +1637,16 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
 
     // Calculate instantaneous acceleration required for change in direction
     // from v1 to v2, assuming constant speed
-    double v_max1 = tcGetMaxTargetVel(prev_tc, getMaxFeedScale(prev_tc));
-    double v_max2 = tcGetMaxTargetVel(tc, getMaxFeedScale(tc));
+    double v_max1 = tcGetPlanMaxTargetVel(prev_tc, emcmotConfig->maxFeedScale);
+    double v_max2 = tcGetPlanMaxTargetVel(tc, emcmotConfig->maxFeedScale);
     // Note that this is a minimum since the velocity at the intersection must
     // be the slower of the two segments not to violate constraints.
-    double v_max = fmin(v_max1, v_max2);
-    tp_debug_print("tangent v_max = %f\n",v_max);
+    double v_max_tangent = fmin(v_max1, v_max2);
+    tp_debug_print("tangent v_max = %f\n",v_max_tangent);
 
     // Account for acceleration past final velocity during a split cycle
     // (e.g. next segment starts accelerating again so the average velocity is higher at the end of the split cycle)
-    double a_inst = v_max / tp->cycleTime + tc->maxaccel;
+    double a_inst = v_max_tangent / tp->cycleTime + tc->maxaccel;
     // Set up worst-case final velocity
     // Compute the actual magnitude of acceleration required given the tangent directions
     // Do this by assuming that we decelerate to a stop on the previous segment,
@@ -1693,11 +1683,11 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
     if (acc_scale_max < kink_ratio) {
         tp_debug_print(" Kink acceleration within %g, using tangent blend\n", kink_ratio);
         tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
-        tcSetKinkProperties(prev_tc, tc, v_max, acc_scale_max);
+        tcSetKinkProperties(prev_tc, tc, v_max_tangent, acc_scale_max);
         return TC_INTERSECT_TANGENT;
     }
 
-    tcSetKinkProperties(prev_tc, tc, v_max * kink_ratio / acc_scale_max, kink_ratio);
+    tcSetKinkProperties(prev_tc, tc, v_max_tangent * kink_ratio / acc_scale_max, kink_ratio);
     tp_debug_print("Kink acceleration scale %f above %f, kink vel = %f, blend arc may be faster\n",
                    acc_scale_max,
                    kink_ratio,
@@ -2063,15 +2053,14 @@ int tpComputeBlendVelocity(
 }
 
 double estimateParabolicBlendPerformance(
-        TP_STRUCT const *tp,
         TC_STRUCT const *tc,
         TC_STRUCT const *nexttc)
 {
     double v_this = 0.0, v_next = 0.0;
 
     // Use maximum possible target velocity to get best-case performance
-    double target_vel_this = tpGetMaxTargetVel(tp, tc);
-    double target_vel_next = tpGetMaxTargetVel(tp, nexttc);
+    double target_vel_this = tcGetPlanMaxTargetVel(tc, emcmotConfig->maxFeedScale);
+    double target_vel_next = tcGetPlanMaxTargetVel(nexttc, emcmotConfig->maxFeedScale);
 
     double v_net = 0.0;
     tpComputeBlendVelocity(tc, nexttc, target_vel_this, target_vel_next, &v_this, &v_next, &v_net);
@@ -2133,7 +2122,7 @@ void tpDebugCycleInfo(TP_STRUCT const * const tp, TC_STRUCT const * const tc, TC
     const double v_target = tpGetRealTargetVel(tp, tc);
     // Store a copy of final velocity
     const double v_final = tpGetRealFinalVel(tp, tc, nexttc);
-    const double v_max = tpGetMaxTargetVel(tp, tc);
+    const double v_max = tpGetRealMaxTargetVel(tp, tc);
 
     /* Debug Output */
     print_json5_log_start(tc_state);
@@ -2148,7 +2137,7 @@ void tpDebugCycleInfo(TP_STRUCT const * const tp, TC_STRUCT const * const tc, TC
     print_json5_double_("progress", tc->progress);
     print_json5_double_("v_current", tc->currentvel);
     print_json5_double_("a_current", acc);
-    print_json5_double_("feed_scale", tpGetFeedScale(tp, tc));
+    print_json5_double_("feed_scale", tpGetRealFeedScale(tp, tc));
     print_json5_double_("dt", tc->cycle_time);
     print_json5_string_("term_cond", tcTermCondAsString((tc_term_cond_t)tc->term_cond));
     print_json5_bool_("final_decel", tc->on_final_decel);
@@ -2462,7 +2451,7 @@ void tpUpdateBlend(TP_STRUCT * const tp, TC_STRUCT * const tc,
     }
     double save_vel = nexttc->target_vel;
 
-    if (tpGetFeedScale(tp, nexttc) > TP_VEL_EPSILON) {
+    if (tpGetRealFeedScale(tp, nexttc) > TP_VEL_EPSILON) {
         double dv = tc->vel_at_blend_start - tc->currentvel;
         double vel_start = fmax(tc->vel_at_blend_start, TP_VEL_EPSILON);
         // Clip the ratio at 1 and 0

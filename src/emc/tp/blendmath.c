@@ -622,7 +622,7 @@ tp_err_t initBlendSegmentFromPoints(
 int blendParamInitVelocities(
     TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc,
-    double maxFeedScale,
+    double override_allowance,
     BlendControls * const controls)
 {
     // Copy over maximum velocities
@@ -630,14 +630,14 @@ int blendParamInitVelocities(
     controls->v_max2 = tc->maxvel;
 
     // Find the nominal velocity for the blend segment with no overrides
-    double v_req_prev = tcGetMaxTargetVel(prev_tc, 1.0);
-    double v_req_this = tcGetMaxTargetVel(tc, 1.0);
+    double v_req_prev = tcGetPlanMaxTargetVel(prev_tc, 1.0);
+    double v_req_this = tcGetPlanMaxTargetVel(tc, 1.0);
     tp_debug_print("vr_prev = %f, vr_this = %f\n", v_req_prev, v_req_this);
     controls->v_req = fmax(v_req_prev, v_req_this);
 
     // Find the worst-case velocity we should reach for either segment
-    controls->v_goal = fmax(tcGetMaxTargetVel(prev_tc, maxFeedScale),
-            tcGetMaxTargetVel(tc, maxFeedScale));
+    controls->v_goal = fmax(tcGetPlanMaxTargetVel(prev_tc, override_allowance),
+            tcGetPlanMaxTargetVel(tc, override_allowance));
 
     return 0;
 }

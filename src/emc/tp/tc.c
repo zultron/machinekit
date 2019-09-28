@@ -28,22 +28,27 @@
 #include "tp_debug.h"
 #include "tp_enums.h"
 
-double tcGetMaxTargetVel(TC_STRUCT const * const tc,
-        double max_scale)
+/**
+ * Planning-time maximum velocity for the given segment.
+ * This function ignores runtime conditions like if a segment is on final deceleration, actively blending, etc.
+ */
+double tcGetPlanMaxTargetVel(
+    TC_STRUCT const * const tc,
+    double override_allowance)
 {
     double v_max_target = tc->maxvel;
 
     switch (tc->synchronized) {
         case TC_SYNC_NONE:
             // Get maximum reachable velocity from max feed override
-            v_max_target = tc->reqvel * max_scale;
+            v_max_target = tc->reqvel * override_allowance;
             break;
 
         case TC_SYNC_VELOCITY: //Fallthrough
-            max_scale = 1.0;
         case TC_SYNC_POSITION:
+            override_allowance = 1.0;
             // Assume no spindle override during blend target
-            v_max_target = tc->uu_per_rev * tc->tag.speed * max_scale;
+            v_max_target = tc->uu_per_rev * tc->tag.speed * override_allowance;
             break;
     }
 

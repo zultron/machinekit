@@ -22,8 +22,8 @@
 #include "tc_types.h"
 #include "tp_types.h"
 
-double tcGetMaxTargetVel(TC_STRUCT const * const tc,
-        double max_scale);
+double tcGetPlanMaxTargetVel(TC_STRUCT const * const tc,
+        double override_allowance);
 
 double tcGetAccelScale(TC_STRUCT const * tc);
 double tcGetOverallMaxAccel(TC_STRUCT const * tc);

@@ -3,8 +3,7 @@
 
 #include "tp_enums.h"
 #include "tc_types.h"
-
-struct TP_STRUCT;
+#include "tp_types.h"
 
 typedef struct {
     char axes[9];
@@ -20,7 +19,6 @@ int tpComputeBlendVelocity(
         double *v_blend_net);
 
 double estimateParabolicBlendPerformance(
-        TP_STRUCT const *tp,
         TC_STRUCT const *tc,
         TC_STRUCT const *nexttc);
 
@@ -37,8 +35,6 @@ int tpRunOptimization(TP_STRUCT * const tp);
 
 int tpAddSegmentToQueue(TP_STRUCT * const tp, TC_STRUCT * const tc);
 
-double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc);
-
 int tpIsWaitingOnSpindle(TP_STRUCT const * const tp);
 
 int tpSetupSegmentBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const tc);
@@ -49,17 +45,15 @@ int tcRotaryMotionCheck(TC_STRUCT const * const tc);
 
 double tpGetTangentKinkRatio(void);
 
-double tpGetFeedScale(TP_STRUCT const * const tp,
+double tpGetRealFeedScale(TP_STRUCT const * const tp,
                       TC_STRUCT const * const tc);
 
 double tpGetRealTargetVel(TP_STRUCT const * const tp,
                           TC_STRUCT const * const tc);
 
-double getMaxFeedScale(TC_STRUCT const * tc);
-
 double getMaxBlendFeedScale(TC_STRUCT const * prev_tc, TC_STRUCT const * tc);
 
-double tpGetMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc);
+double tpGetRealMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const tc);
 
 double tpGetRealFinalVel(TP_STRUCT const * const tp,
                          TC_STRUCT const * const tc, TC_STRUCT const * const nexttc);
@@ -70,7 +64,7 @@ void setSpindleOrigin(spindle_origin_t *origin, double position);
 
 double tpCalculateTriangleVel(TC_STRUCT const *tc);
 
-double tpCalculateOptimizationInitialVel(TP_STRUCT const * const tp, TC_STRUCT * const tc);
+double calculateOptimizationInitialVel(TC_STRUCT * const tc);
 
 tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
                                   TC_STRUCT * const prev_tc,
