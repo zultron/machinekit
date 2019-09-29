@@ -520,7 +520,7 @@ void findVMaxByAltitude(
     BlendParameters * const param)
 {
     if (fabs(param->phi) < TP_ANGLE_EPSILON) {
-        param->v_max_altitude = fmin(controls->v_max1, controls->v_max2);
+        param->v_max_altitude = fmin(controls->v_max_geom1, controls->v_max_geom2);
         return;
     }
     // Clip the angle at a reasonable value (less than 90 deg), to prevent div by zero
@@ -528,8 +528,8 @@ void findVMaxByAltitude(
 
     // Copy over maximum velocities, clipping velocity to place altitude within base
     double Cp = cos(phi_effective);
-    double v_effective1 = fmin(controls->v_max1, controls->v_max2 / Cp);
-    double v_effective2 = fmin(controls->v_max2, controls->v_max1 / Cp);
+    double v_effective1 = fmin(controls->v_max_geom1, controls->v_max_geom2 / Cp);
+    double v_effective2 = fmin(controls->v_max_geom2, controls->v_max_geom1 / Cp);
 
     tp_debug_print("v_max1 = %f, v_max2 = %f\n", v_effective1, v_effective2);
 
@@ -625,9 +625,9 @@ int blendParamInitVelocities(
     double override_allowance,
     BlendControls * const controls)
 {
-    // Copy over maximum velocities
-    controls->v_max1 = prev_tc->maxvel;
-    controls->v_max2 = tc->maxvel;
+    // Copy over geometric maximum velocities
+    controls->v_max_geom1 = prev_tc->maxvel;
+    controls->v_max_geom2 = tc->maxvel;
 
     // Find the nominal velocity for the blend segment with no overrides
     double v_req_prev = tcGetPlanMaxTargetVel(prev_tc, 1.0);

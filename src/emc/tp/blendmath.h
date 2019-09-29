@@ -43,8 +43,8 @@ typedef struct {
  * 9 dimensional lines). 
  */
 typedef struct {
-    double v_max1;      /* ini_maxvel for each segment */
-    double v_max2;
+    double v_max_geom1;      /* ini_maxvel for each segment */
+    double v_max_geom2;
     double v_req;       /* requsted velocity for the blend arc */
     double v_goal;      /* desired velocity at max feed override */
 
