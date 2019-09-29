@@ -837,6 +837,11 @@ const char *blendTypeAsString(tc_blend_type_t c)
     return "";
 }
 
+bool arcBlendFaster(TC_STRUCT const * const prev_tc, double expected_v_max)
+{
+    return fmax(prev_tc->parabolic_equiv_vel, prev_tc->kink_vel) < expected_v_max;
+}
+
 /**
  * Compare performance of blend arc and equivalent tangent speed.
  * If we can go faster by assuming the segments are already tangent (and
@@ -844,10 +849,10 @@ const char *blendTypeAsString(tc_blend_type_t c)
  * mostly useful for some odd arc-to-arc cases where the blend arc becomes very
  * short (and therefore slow).
  */
-tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
+tc_blend_type_t tpChooseBestBlend(
         TC_STRUCT * const prev_tc,
         TC_STRUCT * const tc,
-        TC_STRUCT * const blend_tc)
+        double arc_blend_maxvel)
 {
     if (!tc || !prev_tc) {
         return NO_BLEND;
@@ -869,7 +874,7 @@ tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
     double perf[] = {
         prev_tc->parabolic_equiv_vel,
         prev_tc->kink_vel,
-        blend_tc ? blend_tc->maxvel : 0.0,
+        arc_blend_maxvel,
     };
 
     tc_blend_type_t best_blend = find_max_element(perf, sizeof (perf)/sizeof (double));
@@ -938,6 +943,12 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
 
     biarc_control_points_t const * const control_pts = &biarc_results.solution.control_pts;
     blend_boundary_t const * const boundary = &biarc_results.solution.boundary;
+
+    // Don't bother if another solution is better
+    double v_plan_optimizer = pmSqrt(biarc_results.solution.R_plan * param_guess.a_n_max);
+    if (!arcBlendFaster(prev_tc, v_plan_optimizer)) {
+        return TP_ERR_NO_ACTION;
+    }
 
     BlendPoints3 points1 = {0}, points2 = {0};
     BlendParameters param1 = {0}, param2 = {0};
@@ -1205,7 +1216,7 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
 
     tp_debug_print("blend_tc target_vel = %g\n", blend_tc->target_vel);
 
-    if (tpChooseBestBlend(tp, prev_tc, tc, blend_tc) != ARC_BLEND) {
+    if (!arcBlendFaster(prev_tc, blend_tc->maxvel)) {
         return TP_ERR_NO_ACTION;
     }
 
@@ -1742,7 +1753,7 @@ int tpSetupSegmentBlend(
 
     switch (blends_added) {
     case 0:
-        tpChooseBestBlend(tp, prev_tc, tc, NULL);
+        tpChooseBestBlend(prev_tc, tc, 0.0);
         return TP_ERR_OK;
     case 1:
         CHP(tpAddSegmentToQueue(tp, &blend_tc1));

@@ -4,6 +4,7 @@
 #include "tp_enums.h"
 #include "tc_types.h"
 #include "tp_types.h"
+#include "stdbool.h"
 
 typedef struct {
     char axes[9];
@@ -66,10 +67,11 @@ double tpCalculateTriangleVel(TC_STRUCT const *tc);
 
 double calculateOptimizationInitialVel(TC_STRUCT * const tc);
 
-tc_blend_type_t tpChooseBestBlend(TP_STRUCT const * const tp,
-                                  TC_STRUCT * const prev_tc,
+bool arcBlendFaster(TC_STRUCT const * const prev_tc, double expected_v_max);
+
+tc_blend_type_t tpChooseBestBlend(TC_STRUCT * const prev_tc,
                                   TC_STRUCT * const tc,
-                                  TC_STRUCT * const blend_tc);
+                                  double arc_blend_maxvel);
 
 tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp,
                                TC_STRUCT * const prev_tc,
