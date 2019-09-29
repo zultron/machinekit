@@ -238,6 +238,10 @@ double tpGetRealMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const
         //KLUDGE: Don't allow feed override to keep blending from overruning max velocity
         max_scale = fmin(max_scale, 1.0);
     }
+
+    double sample_maxvel = tc->target / (tc->cycle_time * TP_MIN_SEGMENT_CYCLES);
+    double v_max = fmin(tc->maxvel_geom, sample_maxvel);
+
     // Get maximum reachable velocity from max feed override
     double v_max_target = tc->target_vel * max_scale;
 
@@ -254,7 +258,7 @@ double tpGetRealMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const
     }
 
     // Apply maximum segment velocity limit (must always be respected)
-    return fmin(v_max_target, tc->maxvel);
+    return fmin(v_max_target, v_max);
 }
 
 
@@ -704,12 +708,14 @@ double tpCalculateTriangleVel(TC_STRUCT const *tc) {
 /**
  * Calculate the angle between two unit cartesian vectors.
  */
-double calculateOptimizationInitialVel(TC_STRUCT * const tc)
+double calculateOptimizationInitialVel(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc)
 {
     double acc_scaled = tcGetTangentialMaxAccel(tc);
     double triangle_vel = findVPeak(acc_scaled, tc->target);
-    double max_vel = tcGetPlanMaxTargetVel(tc, emcmotConfig->maxFeedScale);
-    double optim_init_vel = fmin(triangle_vel, max_vel);
+    double v_max_this = tcGetPlanMaxTargetVel(tc, emcmotConfig->maxFeedScale);
+    double v_max_prev = tcGetPlanMaxTargetVel(prev_tc, emcmotConfig->maxFeedScale);
+    double optim_init_vel = fmin(fmin(triangle_vel, v_max_this), v_max_prev);
+
 #ifdef TP_DEBUG
     print_json5_log_start(calculateOptimizationInitialVel);
     print_json5_double(triangle_vel);
@@ -785,7 +791,7 @@ int tpInitBlendArcFromPrev(
 
     //NOTE: blend arc radius and everything else is finalized, so set this to 1.
     //In the future, radius may be adjustable.
-    tcFinalizeLength(blend_tc);
+    tcFinalizeLength(blend_tc, emcmotConfig->maxFeedScale);
 
     return TP_ERR_OK;
 }
@@ -1218,7 +1224,7 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
 
     tp_debug_print("blend_tc target_vel = %g\n", blend_tc->target_vel);
 
-    if (!arcBlendFaster(prev_tc, blend_tc->maxvel)) {
+    if (!arcBlendFaster(prev_tc, blend_tc->maxvel_geom)) {
         return TP_ERR_NO_ACTION;
     }
 
@@ -1356,7 +1362,7 @@ tp_err_t tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
     tcFlagEarlyStop(prev_tc, tc);
     // KLUDGE order is important here, the parabolic blend check has to
     // happen after all other steps that affect the terminal condition
-    tcFinalizeLength(prev_tc);
+    tcFinalizeLength(prev_tc, emcmotConfig->maxFeedScale);
 
     CHP(tpAddSegmentToQueue(tp, tc));
     //Run speed optimization (will abort safely if there are no tangent segments)
@@ -1445,7 +1451,7 @@ static double applyKinkVelLimit(TC_STRUCT const * const tc, double vel_in)
  * acceleration) will speed up and slow down to reach their target velocity,
  * creating "humps" in the velocity profile.
  */
-int tpComputeOptimalVelocity(TP_STRUCT const * const tp, TC_STRUCT * const tc, TC_STRUCT * const prev1_tc) {
+int tpComputeOptimalVelocity(TC_STRUCT * const tc, TC_STRUCT * const prev1_tc) {
     //Calculate the maximum starting velocity vs_back of segment tc, given the
     //trajectory parameters
     double acc_this = tcGetTangentialMaxAccel(tc);
@@ -1454,8 +1460,9 @@ int tpComputeOptimalVelocity(TP_STRUCT const * const tp, TC_STRUCT * const tc, T
     double vs_back = pmSqrt(pmSq(tc->finalvel) + 2.0 * acc_this * tc->target);
     // Find the reachable velocity of prev1_tc, moving forwards in time
 
-    double vf_limit_this = tc->maxvel;
-    double vf_limit_prev = applyKinkVelLimit(prev1_tc, prev1_tc->maxvel);
+    double vf_limit_this = tcGetPlanMaxTargetVel(tc, emcmotConfig->maxFeedScale);
+    double v_max_prev = tcGetPlanMaxTargetVel(prev1_tc, emcmotConfig->maxFeedScale);
+    double vf_limit_prev = applyKinkVelLimit(prev1_tc, v_max_prev);
     //Limit the PREVIOUS velocity by how much we can overshoot into
     double vf_limit = fmin(vf_limit_this, vf_limit_prev);
 
@@ -1468,10 +1475,6 @@ int tpComputeOptimalVelocity(TP_STRUCT const * const tp, TC_STRUCT * const tc, T
 
     //Limit tc's target velocity to avoid creating "humps" in the velocity profile
     prev1_tc->finalvel = vs_back;
-
-    //Reduce max velocity to match sample rate
-    double sample_maxvel = tc->target / (tp->cycleTime * TP_MIN_SEGMENT_CYCLES);
-    tc->maxvel = fmin(tc->maxvel, sample_maxvel);
 
     tp_info_print(" prev1_tc-> fv = %f, tc->fv = %f\n",
             prev1_tc->finalvel, tc->finalvel);
@@ -1568,7 +1571,7 @@ int tpRunOptimization(TP_STRUCT * const tp) {
             tp_debug_print("Segment %d, type %d not finalized, continuing\n",tc->id,tc->motion_type);
             // use worst-case final velocity that allows for up to 1/2 of a segment to be consumed.
 
-            prev1_tc->finalvel = fmin(prev1_tc->maxvel, calculateOptimizationInitialVel(tc));
+            prev1_tc->finalvel = calculateOptimizationInitialVel(prev1_tc, tc);
 
             // Fixes acceleration violations when last segment is not finalized, and previous segment is tangent.
 
@@ -1576,7 +1579,7 @@ int tpRunOptimization(TP_STRUCT * const tp) {
             prev1_tc->finalvel = applyKinkVelLimit(prev1_tc, prev1_tc->finalvel);
 
         } else {
-            tpComputeOptimalVelocity(tp, tc, prev1_tc);
+            tpComputeOptimalVelocity(tc, prev1_tc);
         }
 
         tc->active_depth = x - 2 - hit_peaks;
@@ -1851,7 +1854,6 @@ int tpAddLine(TP_STRUCT * const tp,
         return TP_ERR_ZERO_LENGTH;
     }
     tc.nominal_length = tc.target;
-    tcClampVelocityByLength(&tc);
 
     // For linear move, set rotary axis settings 
     tc.indexrotary = indexrotary;
@@ -1956,9 +1958,6 @@ int tpAddCircle(TP_STRUCT * const tp,
             vel,
             ini_maxvel,
             acc);
-
-    //Reduce max velocity to match sample rate
-    tcClampVelocityByLength(&tc);
 
     return tpFinalizeAndEnqueue(tp, &tc);
 }
@@ -2373,7 +2372,7 @@ void tpUpdateRigidTapState(TP_STRUCT * const tp,
                 tc->progress = 0.0;
                 //No longer need spindle sync at this point
                 tc->synchronized = 0;
-                tc->target_vel = tc->maxvel;
+                tc->target_vel = tc->maxvel_geom;
 
                 tc->coords.rigidtap.state = RIGIDTAP_FINAL_PLACEMENT;
             }
@@ -2913,7 +2912,7 @@ void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         } else {
             tc_debug_print("accelerating in pos_sync\n");
             // beginning of move and we are behind: accel as fast as we can
-            tc->target_vel = tc->maxvel;
+            tc->target_vel = tc->maxvel_geom;
         }
     } else {
         emcmotStatus->spindle_sync_state = tc->on_final_decel ? SYNC_FINAL_DECEL : SYNC_POSITION;
@@ -2937,7 +2936,6 @@ void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         // This is the velocity we should be at when the position error is c0
         double v_final = spindle_vel_rps * tc->uu_per_rev;
         double a_max = tcGetTangentialMaxAccel(tc);
-        double v_max = tc->maxvel;
 
         /*
          * In general, position tracking works by perturbing the
@@ -2987,6 +2985,7 @@ void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         }
         case POS_TRACK_MODE_TRAPEZOIDAL:
         {
+            double v_max = tc->maxvel_geom;
             // Use trapezoidal velocity calculation to find target velocity
             // NOTE: this tracking method is smoother but has larger average tracking errors; it's here mostly for compatibility
             double v_target_trapz = fmin(findTrapezoidalDesiredVel(a_max, pos_error, v_final, tc->currentvel, tc->cycle_time), v_max);

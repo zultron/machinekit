@@ -23,7 +23,7 @@
 #include "tp_types.h"
 
 double tcGetPlanMaxTargetVel(TC_STRUCT const * const tc,
-        double override_allowance);
+        double max_feed_scale);
 
 double tcGetAccelScale(TC_STRUCT const * tc);
 double tcGetOverallMaxAccel(TC_STRUCT const * tc);
@@ -101,9 +101,9 @@ int tcSetupMotion(TC_STRUCT * const tc,
 
 int tcSetupState(TC_STRUCT * const tc, TP_STRUCT const * const tp);
 
-int tcUpdateCircleAccRatio(TC_STRUCT * tc);
+int tcUpdateCircleAccRatio(TC_STRUCT * tc, double v_max);
 
-int tcFinalizeLength(TC_STRUCT * const tc);
+int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override);
 
 int tcClampVelocityByLength(TC_STRUCT * const tc);
 

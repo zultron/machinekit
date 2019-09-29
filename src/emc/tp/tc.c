@@ -34,28 +34,28 @@
  */
 double tcGetPlanMaxTargetVel(
     TC_STRUCT const * const tc,
-    double override_allowance)
+    double max_feed_scale)
 {
-    double sample_maxvel = tc->target / tc->cycle_time;
-    double maxvel = fmin(tc->maxvel, sample_maxvel);
-    double v_max_target = maxvel;
+    double sample_maxvel = tc->target / (tc->cycle_time * TP_MIN_SEGMENT_CYCLES);
+    double v_max = fmin(tc->maxvel_geom, sample_maxvel);
+    double v_max_target = v_max;
 
     switch (tc->synchronized) {
         case TC_SYNC_NONE:
             // Get maximum reachable velocity from max feed override
-            v_max_target = tc->reqvel * override_allowance;
+            v_max_target = tc->reqvel * max_feed_scale;
             break;
 
         case TC_SYNC_VELOCITY: //Fallthrough
         case TC_SYNC_POSITION:
-            override_allowance = 1.0;
             // Assume no spindle override during blend target
-            v_max_target = tc->uu_per_rev * tc->tag.speed * override_allowance;
+            // max feed override here is variability of the spindle speed, rather than a user feed override
+            v_max_target = tc->uu_per_rev * tc->tag.speed * max_feed_scale;
             break;
     }
 
     // Clip maximum velocity by the segment's own maximum velocity
-    return fmin(v_max_target, maxvel);
+    return fmin(v_max_target, v_max);
 }
 
 double tcGetAccelScale(const TC_STRUCT *tc)
@@ -662,7 +662,7 @@ int tcSetupMotion(TC_STRUCT * const tc,
 
     tc->maxaccel = acc;
 
-    tc->maxvel = ini_maxvel;
+    tc->maxvel_geom = ini_maxvel;
 
     tc->reqvel = vel;
     // Initial guess at target velocity is just the requested velocity
@@ -753,13 +753,13 @@ double pmCircle9Target(PmCircle9 const * const circ9)
     return helical_length;
 }
 
-int tcUpdateCircleAccRatio(TC_STRUCT * tc)
+int tcUpdateCircleAccRatio(TC_STRUCT * tc, double v_max)
 {
     if (tc->motion_type == TC_CIRCULAR) {
         PmCircleLimits limits = pmCircleActualMaxVel(&tc->coords.circle.xyz,
-                             tc->maxvel,
+                             v_max,
                              tc->acc_normal_max * tcGetAccelScale(tc));
-        tc->maxvel = limits.v_max;
+        tc->maxvel_geom = limits.v_max;
         tc->acc_ratio_tan = limits.acc_ratio;
         return 0;
     }
@@ -774,7 +774,7 @@ int tcUpdateCircleAccRatio(TC_STRUCT * tc)
  * trust that the length will be the same, and so can use the length in the
  * velocity optimization.
  */
-int tcFinalizeLength(TC_STRUCT * const tc)
+int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override)
 {
     //Apply velocity corrections
     if (!tc) {
@@ -786,12 +786,10 @@ int tcFinalizeLength(TC_STRUCT * const tc)
         return TP_ERR_NO_ACTION;
     }
 #ifdef TP_DEBUG
-    double maxvel_old = tc->maxvel;
+    double maxvel_old = tc->maxvel_geom;
 #endif
 
-    tcClampVelocityByLength(tc);
-
-    tcUpdateCircleAccRatio(tc);
+    tcUpdateCircleAccRatio(tc, tcGetPlanMaxTargetVel(tc, max_feed_override));
 
 #ifdef TP_DEBUG
     print_json5_log_start(tpFinalizeLength);
@@ -799,7 +797,7 @@ int tcFinalizeLength(TC_STRUCT * const tc)
     print_json5_long_long_field(tc, unique_id);
     print_json5_string_("motion_type", tcMotionTypeAsString((tc_motion_type_t)tc->motion_type));
     print_json5_double(maxvel_old);
-    print_json5_double_("maxvel", tc->maxvel);
+    print_json5_double_("maxvel", tc->maxvel_geom);
     print_json5_double_("acc_ratio_tan", tc->acc_ratio_tan);
     print_json5_log_end();
 #endif
@@ -819,7 +817,7 @@ int tcClampVelocityByLength(TC_STRUCT * const tc)
     //Reduce max velocity to match sample rate
     //Assume that cycle time is valid here
     double sample_maxvel = tc->target / tc->cycle_time;
-    tc->maxvel = fmin(tc->maxvel, sample_maxvel);
+    tc->maxvel_geom = fmin(tc->maxvel_geom, sample_maxvel);
     return TP_ERR_OK;
 }
 

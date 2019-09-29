@@ -241,7 +241,7 @@ static inline void print_json5_SphericalArc(const char *fname, SphericalArc cons
 static inline void print_json5_TC_STRUCT_kinematics(const char *fname, TC_STRUCT const * const tc)
 {
     print_json5_object_start_(fname);
-    print_json5_double_field(tc, maxvel);
+    print_json5_double_("maxvel", tc->maxvel_geom);
     print_json5_double_field(tc, maxaccel);
     print_json5_double_field(tc, acc_normal_max);
     print_json5_double_field(tc, acc_ratio_tan);

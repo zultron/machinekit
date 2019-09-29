@@ -411,7 +411,7 @@ static greatest_test_res setup_initial_circle(TP_STRUCT *tp, double v_req, doubl
 
     TC_STRUCT const * tc = tcqItem(&tp->queue, 0);
     ASSERT(tc);
-    ASSERT_FLOAT_EQ(v_max, tc->maxvel);
+    ASSERT_FLOAT_EQ(v_max, tc->maxvel_geom);
 
     PmCartesian const u_exp = {0,1,0};
     PmCartesian u_act;
@@ -482,11 +482,11 @@ static greatest_test_res setup_two_xy_unit_circles(TP_STRUCT *tp, double v_req, 
 
     TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
     ASSERT(prev_tc);
-    ASSERT_FLOAT_EQ(v_max, prev_tc->maxvel);
+    ASSERT_FLOAT_EQ(v_max, prev_tc->maxvel_geom);
 
     TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
     ASSERT(this_tc);
-    ASSERT_FLOAT_EQ(v_max, this_tc->maxvel);
+    ASSERT_FLOAT_EQ(v_max, this_tc->maxvel_geom);
 
     ASSERT_EQ(2, tcqLen(&tp->queue));
     return GREATEST_TEST_RES_PASS;
@@ -644,7 +644,7 @@ TEST test_biarc_optimizer_performance()
             ASSERT(prev_tc);
             ASSERT(this_tc);
 
-            ASSERT_FLOAT_EQ(2.0, this_tc->maxvel);
+            ASSERT_FLOAT_EQ(2.0, this_tc->maxvel_geom);
             ASSERT_EQ(2, tcqLen(&tp->queue));
 
             PmCartesian vel_bound = getXYZVelBounds();
@@ -781,7 +781,7 @@ static greatest_test_res solve_blend_series(
         TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
         ASSERT(prev_tc);
         ASSERT(this_tc);
-        ASSERT_FLOAT_EQ(2.0, this_tc->maxvel);
+        ASSERT_FLOAT_EQ(2.0, this_tc->maxvel_geom);
         ASSERT_EQ(2, tcqLen(&tp->queue));
 
 

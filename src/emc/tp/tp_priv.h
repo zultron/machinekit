@@ -65,7 +65,7 @@ void setSpindleOrigin(spindle_origin_t *origin, double position);
 
 double tpCalculateTriangleVel(TC_STRUCT const *tc);
 
-double calculateOptimizationInitialVel(TC_STRUCT * const tc);
+double calculateOptimizationInitialVel(const TC_STRUCT * const prev_tc, const TC_STRUCT * const tc);
 
 bool arcBlendFaster(TC_STRUCT const * const prev_tc, double expected_v_max);
 
@@ -84,9 +84,7 @@ int tpSetupSyncedIO(TP_STRUCT * const tp, TC_STRUCT * const tc);
 
 tp_err_t tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc);
 
-int tpComputeOptimalVelocity(
-    TP_STRUCT const * const tp,
-    TC_STRUCT * const tc,
+int tpComputeOptimalVelocity(TC_STRUCT * const tc,
     TC_STRUCT * const prev1_tc);
 
 TCIntersectType tpSetupTangent(

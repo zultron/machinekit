@@ -127,7 +127,7 @@ typedef struct {
     //Velocity
     double reqvel;          // vel requested by F word, calc'd by task
     double target_vel;      // velocity to actually track, limited by other factors
-    double maxvel;          // max possible vel (feed override stops here)
+    double maxvel_geom;     // max possible vel from segment geometry (feed override stops here)
     double currentvel;      // keep track of current step (vel * cycle_time)
     double finalvel;        // velocity to aim for at end of segment
     double term_vel;        // actual velocity at termination of segment

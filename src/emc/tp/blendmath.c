@@ -626,8 +626,8 @@ int blendParamInitVelocities(
     BlendControls * const controls)
 {
     // Copy over geometric maximum velocities
-    controls->v_max_geom1 = prev_tc->maxvel;
-    controls->v_max_geom2 = tc->maxvel;
+    controls->v_max_geom1 = prev_tc->maxvel_geom;
+    controls->v_max_geom2 = tc->maxvel_geom;
 
     // Find the nominal velocity for the blend segment with no overrides
     double v_req_prev = tcGetPlanMaxTargetVel(prev_tc, 1.0);
