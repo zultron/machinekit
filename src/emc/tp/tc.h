@@ -62,9 +62,6 @@ int tcFindBlendTolerance(TC_STRUCT const * const prev_tc,
 int pmCircleTangentVector(PmCircle const * const circle,
         double angle_in, PmCartesian * const out);
 
-int tcFlagEarlyStop(TC_STRUCT * const tc,
-        TC_STRUCT * const nexttc);
-
 double pmLine9Target(PmLine9 * const line9, int pure_angular);
 
 int pmLine9Init(PmLine9 * const line9,

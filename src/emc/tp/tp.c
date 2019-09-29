@@ -1309,19 +1309,30 @@ int handleModeChange(TC_STRUCT *prev_tc, TC_STRUCT *tc)
         return TP_ERR_FAIL;
     }
 
+    // Can't blend across feed / rapid transitions
     if ((prev_tc->canon_motion_type == EMC_MOTION_TYPE_TRAVERSE) ^
             (tc->canon_motion_type == EMC_MOTION_TYPE_TRAVERSE)) {
         tp_debug_print("Blending disabled: rapid / feed transition must follow exact path\n");
         tcSetTermCond(prev_tc, tc, TC_TERM_COND_EXACT);
     }
+
     if (prev_tc->synchronized != TC_SYNC_POSITION &&
             tc->synchronized == TC_SYNC_POSITION) {
         tp_debug_print("Blending disabled: entering position-sync mode\n");
         // NOTE: blending IS allowed when exiting position sync mode, so be
         // careful of tolerances here to avoid making thicker threads
         // (particularly if the lead-out is perpendicular)
-        tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
+        return tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
     }
+
+    if(tc->atspeed) {
+        // Need to wait for spindle before starting tc, so it's not safe to
+        // allow any blending from the previous to current segment
+        tp_debug_print("Blending disabled: waiting on spindle atspeed for tc %d, unique_id %llu",
+                       tc->id, tc->unique_id);
+        return tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
+    }
+
     return TP_ERR_OK;
 }
 
@@ -1358,7 +1369,6 @@ tp_err_t tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
     }
 
     CHP(tpSetupSegmentBlend(tp, prev_tc, tc));
-    tcFlagEarlyStop(prev_tc, tc);
     // KLUDGE order is important here, the parabolic blend check has to
     // happen after all other steps that affect the terminal condition
     tcFinalizeLength(prev_tc, emcmotConfig->maxFeedScale);

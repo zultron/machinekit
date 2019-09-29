@@ -565,39 +565,6 @@ int tcFindBlendTolerance(TC_STRUCT const * const prev_tc,
 }
 
 
-/**
- * Check for early stop conditions.
- * If a variety of conditions are true, then we can't do blending as we expect.
- * This function checks for any conditions that force us to stop on the current
- * segment. This is different from pausing or aborting, which can happen any
- * time.
- */
-int tcFlagEarlyStop(TC_STRUCT * const tc,
-        TC_STRUCT * const nexttc)
-{
-
-    if (!tc || !nexttc) {
-        return TP_ERR_NO_ACTION;
-    }
-
-    if(tc->synchronized != TC_SYNC_POSITION && nexttc->synchronized == TC_SYNC_POSITION) {
-        // we'll have to wait for spindle sync; might as well
-        // stop at the right place (don't blend)
-        tp_debug_print("waiting on spindle sync for tc id %d, unique_id %llu\n", tc->id, tc->unique_id);
-        tcSetTermCond(tc, nexttc, TC_TERM_COND_STOP);
-    }
-
-    if(nexttc->atspeed) {
-        // we'll have to wait for the spindle to be at-speed; might as well
-        // stop at the right place (don't blend), like above
-        // FIXME change the values so that 0 is exact stop mode
-        tp_debug_print("waiting on spindle atspeed for tc %d, unique_id %llu\n", tc->id, tc->unique_id);
-        tcSetTermCond(tc, nexttc, TC_TERM_COND_STOP);
-    }
-
-    return TP_ERR_OK;
-}
-
 double pmLine9Target(PmLine9 * const line9, int pure_angular)
 {
     if (pure_angular && !line9->abc.tmag_zero) {
