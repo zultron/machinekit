@@ -1359,7 +1359,7 @@ tp_err_t tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
     // Prevent blends for specific mode changes (where blending isn't possible anyway)
     handleModeChange(prev_tc, tc);
 
-    if (prev_tc) {
+    if (prev_tc && prev_tc->term_cond > TC_TERM_COND_EXACT) {
         // Estimate performance for parabolic blend. Because parabolic blends require
         // halving the acceleration of both blended segments, they in effect slow
         // down the next and previous blends as well. We model this loss by scaling
