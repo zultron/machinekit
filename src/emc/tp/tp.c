@@ -239,8 +239,7 @@ double tpGetRealMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const
         max_scale = fmin(max_scale, 1.0);
     }
 
-    double sample_maxvel = tc->target / (tc->cycle_time * TP_MIN_SEGMENT_CYCLES);
-    double v_max = fmin(tc->maxvel_geom, sample_maxvel);
+    double v_max = tcGetMaxVelFromLength(tc);
 
     // Get maximum reachable velocity from max feed override
     double v_max_target = tc->target_vel * max_scale;

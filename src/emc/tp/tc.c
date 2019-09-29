@@ -28,6 +28,12 @@
 #include "tp_debug.h"
 #include "tp_enums.h"
 
+double tcGetMaxVelFromLength(TC_STRUCT const * const tc)
+{
+    double sample_maxvel = tc->target / (tc->cycle_time * TP_MIN_SEGMENT_CYCLES);
+    return fmin(tc->maxvel_geom, sample_maxvel);
+}
+
 /**
  * Planning-time maximum velocity for the given segment.
  * This function ignores runtime conditions like if a segment is on final deceleration, actively blending, etc.
@@ -36,8 +42,7 @@ double tcGetPlanMaxTargetVel(
     TC_STRUCT const * const tc,
     double max_feed_scale)
 {
-    double sample_maxvel = tc->target / (tc->cycle_time * TP_MIN_SEGMENT_CYCLES);
-    double v_max = fmin(tc->maxvel_geom, sample_maxvel);
+    double v_max = tcGetMaxVelFromLength(tc);
     double v_max_target = v_max;
 
     switch (tc->synchronized) {
@@ -805,22 +810,6 @@ int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override)
     tc->finalized = 1;
     return TP_ERR_OK;
 }
-
-
-int tcClampVelocityByLength(TC_STRUCT * const tc)
-{
-    //Apply velocity corrections
-    if (!tc) {
-        return TP_ERR_FAIL;
-    }
-
-    //Reduce max velocity to match sample rate
-    //Assume that cycle time is valid here
-    double sample_maxvel = tc->target / tc->cycle_time;
-    tc->maxvel_geom = fmin(tc->maxvel_geom, sample_maxvel);
-    return TP_ERR_OK;
-}
-
 
 int pmRigidTapInit(PmRigidTap * const tap,
         EmcPose const * const start,
