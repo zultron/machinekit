@@ -916,7 +916,9 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     int prev_can_consume = tcCanConsume(prev_tc);
     int this_can_consume = tcCanConsume(this_tc);
 
-    double maxvel = fmin(prev_tc->maxvel, this_tc->maxvel);
+    double maxvel = fmin(
+        tcGetPlanMaxTargetVel(prev_tc, emcmotConfig->biarc_solver_cfg.feed_override_allowance),
+        tcGetPlanMaxTargetVel(this_tc, emcmotConfig->biarc_solver_cfg.feed_override_allowance));
     double reqvel = fmin(prev_tc->reqvel, this_tc->reqvel);
     tc_motion_type_t prev_motion_type = prev_tc->motion_type;
     tc_motion_type_t this_motion_type = this_tc->motion_type;
