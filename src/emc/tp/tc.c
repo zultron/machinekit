@@ -36,7 +36,9 @@ double tcGetPlanMaxTargetVel(
     TC_STRUCT const * const tc,
     double override_allowance)
 {
-    double v_max_target = tc->maxvel;
+    double sample_maxvel = tc->target / tc->cycle_time;
+    double maxvel = fmin(tc->maxvel, sample_maxvel);
+    double v_max_target = maxvel;
 
     switch (tc->synchronized) {
         case TC_SYNC_NONE:
@@ -53,7 +55,7 @@ double tcGetPlanMaxTargetVel(
     }
 
     // Clip maximum velocity by the segment's own maximum velocity
-    return fmin(v_max_target, tc->maxvel);
+    return fmin(v_max_target, maxvel);
 }
 
 double tcGetAccelScale(const TC_STRUCT *tc)
