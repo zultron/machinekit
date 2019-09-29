@@ -198,7 +198,7 @@ static int loadTraj(EmcIniFile &trajInifile)
 
         tp_arc_blend_config_t arc_blend_cfg = {
             ini_traj_find("ARC_BLEND_ENABLE", 1),
-            ini_traj_find("ARC_BLEND_FALLBACK_ENABLE", 0),
+            ini_traj_find("ARC_BLEND_FALLBACK_ENABLE", 1),
             ini_traj_find("ARC_BLEND_OPTIMIZATION_DEPTH", 50),
             ini_traj_find("ARC_BLEND_GAP_CYCLES", 4),
             ini_traj_find("ARC_BLEND_RAMP_FREQ", 100.0),
