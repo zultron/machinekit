@@ -14,10 +14,10 @@ def find_test_cases():
 if __name__ == '__main__':
 
     # Get a list of all the file paths that ends with .txt from in specified directory
-    for f in glob.glob('test_case_*.samples'):
+    for f in glob.glob('stdout_*.log'):
         os.remove(f)
 
-    for f in glob.glob('test_results*'):
+    for f in glob.glob('stdout_*.log.txt'):
         os.remove(f)
 
     for t in find_test_cases():
