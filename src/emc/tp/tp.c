@@ -1563,10 +1563,10 @@ int tpRunOptimization(TP_STRUCT * const tp) {
             //Assume worst case that we have a stop at this point. This may cause a
             //slight hiccup, but the alternative is a sudden hard stop.
             tp_debug_print("Found atspeed at id %d\n",tc->id);
-            tc->finalvel = 0.0;
-        }
-
-        if (!tc->finalized) {
+            prev1_tc->finalvel = 0.0;
+        } else if (tc->finalized) {
+            tpComputeOptimalVelocity(tc, prev1_tc);
+        } else {
             tp_debug_print("Segment %d, type %d not finalized, continuing\n",tc->id,tc->motion_type);
             // use worst-case final velocity that allows for up to 1/2 of a segment to be consumed.
 
@@ -1577,8 +1577,6 @@ int tpRunOptimization(TP_STRUCT * const tp) {
             tc->finalvel = 0.0;
             prev1_tc->finalvel = applyKinkVelLimit(prev1_tc, prev1_tc->finalvel);
 
-        } else {
-            tpComputeOptimalVelocity(tc, prev1_tc);
         }
 
         tc->active_depth = x - 2 - hit_peaks;
