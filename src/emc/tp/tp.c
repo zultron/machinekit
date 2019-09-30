@@ -118,9 +118,10 @@ void reportTPAxisError(TP_STRUCT const *tp, unsigned failed_axes, const char *ms
     if (failed_axes)
     {
         AxisMaskString failed_axes_str = axisBitMaskToString(failed_axes);
-        rtapi_print_msg(RTAPI_MSG_ERR, "%s, axes [%s] at %g sec\n",
+        rtapi_print_msg(RTAPI_MSG_ERR, "%s, axes [%s], line %d, %g sec\n",
                         msg_prefix ?: "unknown error",
                         failed_axes_str.axes,
+                        tp->execTag.fields[GM_FIELD_LINE_NUMBER],
                         tp->time_elapsed_sec);
     }
 }
