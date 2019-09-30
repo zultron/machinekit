@@ -26,17 +26,19 @@ do { \
 } while (0)
 
 // KLUDGE string is generated every time even if there are no errors
-#define ASSERT_PMCARTESIAN_IN_RANGE(EXP, GOT, TOL) \
+#define ASSERT_PMCARTESIAN_IN_RANGEm(MSG, EXP, GOT, TOL) \
 do { \
     PmCartesian exp = EXP; \
     PmCartesian got = GOT; \
     double tol = TOL; \
     char msg[4096]={0}; \
-    sprintf(msg, "expected %s: {%g, %g, %g}, got %s: {%g, %g, %g}", #EXP, exp.x, exp.y, exp.z, #GOT, got.x, got.y, got.z); \
+    sprintf(msg, "%s%sexpected %s: {%g, %g, %g}, got %s: {%g, %g, %g}", MSG, MSG ? ": " : "", #EXP, exp.x, exp.y, exp.z, #GOT, got.x, got.y, got.z); \
     ASSERT_IN_RANGEm(msg, exp.x, got.x, tol); \
     ASSERT_IN_RANGEm(msg, exp.y, got.y, tol); \
     ASSERT_IN_RANGEm(msg, exp.z, got.z, tol); \
 } while (0)
 
 #define ASSERT_PMCARTESIAN_EQ(EXP, GOT) ASSERT_PMCARTESIAN_IN_RANGE(EXP, GOT, CART_FUZZ)
+#define ASSERT_PMCARTESIAN_IN_RANGE(EXP, GOT, TOL) ASSERT_PMCARTESIAN_IN_RANGEm("", EXP, GOT, TOL)
+
 #endif // GREATEST_COMPARE_H
