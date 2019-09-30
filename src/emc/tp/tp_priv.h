@@ -67,7 +67,7 @@ double tpCalculateTriangleVel(TC_STRUCT const *tc);
 
 double calculateOptimizationInitialVel(const TC_STRUCT * const prev_tc, const TC_STRUCT * const tc);
 
-bool arcBlendFaster(TC_STRUCT const * const prev_tc, double expected_v_max);
+bool isArcBlendFaster(TC_STRUCT const * const prev_tc, double expected_v_max);
 
 tc_blend_type_t tpChooseBestBlend(TC_STRUCT * const prev_tc,
                                   TC_STRUCT * const tc,

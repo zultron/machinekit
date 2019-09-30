@@ -845,7 +845,7 @@ const char *blendTypeAsString(tc_blend_type_t c)
     return "";
 }
 
-bool arcBlendFaster(TC_STRUCT const * const prev_tc, double expected_v_max)
+bool isArcBlendFaster(TC_STRUCT const * const prev_tc, double expected_v_max)
 {
     return fmax(prev_tc->parabolic_equiv_vel, prev_tc->kink_vel) < expected_v_max;
 }
@@ -956,7 +956,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
 
     // Don't bother if another solution is better
     double v_plan_optimizer = pmSqrt(biarc_results.solution.R_plan * param_guess.a_n_max);
-    if (emcmotConfig->arc_blend_cfg.allow_fallback && !arcBlendFaster(prev_tc, v_plan_optimizer)) {
+    if (emcmotConfig->arc_blend_cfg.allow_fallback && !isArcBlendFaster(prev_tc, v_plan_optimizer)) {
         return TP_ERR_NO_ACTION;
     }
 
@@ -1226,7 +1226,7 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
 
     tp_debug_print("blend_tc target_vel = %g\n", blend_tc->target_vel);
 
-    if (emcmotConfig->arc_blend_cfg.allow_fallback && !arcBlendFaster(prev_tc, blend_tc->maxvel_geom)) {
+    if (emcmotConfig->arc_blend_cfg.allow_fallback && !isArcBlendFaster(prev_tc, blend_tc->maxvel_geom)) {
         return TP_ERR_NO_ACTION;
     }
 
