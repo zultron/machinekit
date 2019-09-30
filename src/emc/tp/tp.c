@@ -1854,27 +1854,6 @@ int tpAddLine(TP_STRUCT * const tp,
     clearBlendStructs();
     tcSetId(tp, &tc, tag);
 
-#ifdef TP_DEBUG
-    {
-        // macros use the variable name, need a plain name to please the JSON5 parser
-        print_json5_log_start(tpAddLine);
-        print_json5_tc_id_data_(&tc);
-        print_json5_EmcPose_("goal", tp->goalPos);
-        print_json5_EmcPose(end);
-        print_json5_double(vel);
-        print_json5_double(ini_maxvel);
-        print_json5_double(acc);
-        print_json5_unsigned(enables);
-        print_json5_long(indexrotary);
-        print_json5_long(atspeed);
-        print_json5_long(canon_motion_type);
-        EmcPose delta = tp->goalPos;
-        emcPoseSub(&end, &tp->goalPos, &delta);
-        print_json5_EmcPose(delta);
-        print_json5_log_end();
-    }
-#endif
-
     tcInit(&tc,
             TC_LINEAR,
             canon_motion_type,
@@ -1900,16 +1879,38 @@ int tpAddLine(TP_STRUCT * const tp,
             &tp->goalPos,
             &end);
     tc.target = pmLine9Target(&tc.coords.line, pure_angular);
+    tc.nominal_length = tc.target;
+    tc.indexrotary = indexrotary;
+
+#ifdef TP_DEBUG
+    {
+        // macros use the variable name, need a plain name to please the JSON5 parser
+        print_json5_log_start(tpAddLine);
+        print_json5_tc_id_data_(&tc);
+        print_json5_EmcPose_("goal", tp->goalPos);
+        print_json5_EmcPose(end);
+        print_json5_double(vel);
+        print_json5_double(ini_maxvel);
+        print_json5_double(acc);
+        print_json5_unsigned(enables);
+        print_json5_long(indexrotary);
+        print_json5_long(atspeed);
+        print_json5_long(canon_motion_type);
+        EmcPose delta = tp->goalPos;
+        emcPoseSub(&end, &tp->goalPos, &delta);
+        print_json5_EmcPose(delta);
+        print_json5_PmCartLine_("xyz_line", tc.coords.line.xyz);
+        print_json5_log_end();
+
+    }
+#endif
+
     if (tc.target < TP_POS_EPSILON) {
         rtapi_print_msg(RTAPI_MSG_DBG,"failed to create line id %d, zero-length segment\n",tp->nextId);
         return TP_ERR_ZERO_LENGTH;
+    } else {
+        return tpFinalizeAndEnqueue(tp, &tc);
     }
-    tc.nominal_length = tc.target;
-
-    // For linear move, set rotary axis settings 
-    tc.indexrotary = indexrotary;
-
-    return tpFinalizeAndEnqueue(tp, &tc);
 }
 
 
@@ -1947,30 +1948,6 @@ int tpAddCircle(TP_STRUCT * const tp,
 
     tcSetId(tp, &tc, tag);
 
-#ifdef TP_DEBUG
-    {
-        // macros use the variable name, need a plain name to please the JSON5 parser
-        print_json5_log_start(tpAddCircle);
-        print_json5_tc_id_data_(&tc);
-        print_json5_EmcPose_("goal", tp->goalPos);
-        print_json5_PmCartesian(center);
-        print_json5_PmCartesian(normal);
-        print_json5_long(turn);
-        print_json5_double(vel);
-        print_json5_double(ini_maxvel);
-        print_json5_double(acc);
-        print_json5_double(acc_normal);
-        print_json5_unsigned(enables);
-        print_json5_long(atspeed);
-        print_json5_long(canon_motion_type);
-        EmcPose delta = tp->goalPos;
-        emcPoseSub(&end, &tp->goalPos, &delta);
-        print_json5_EmcPose(delta);
-        print_json5_log_end();
-    }
-#endif
-
-
     tcInit(&tc,
             TC_CIRCULAR,
             canon_motion_type,
@@ -1996,20 +1973,45 @@ int tpAddCircle(TP_STRUCT * const tp,
 
     tc.acc_normal_max = acc_normal;
 
-    // Update tc target with existing circular segment
-    tc.target = pmCircle9Target(&tc.coords.circle);
-    if (tc.target < TP_POS_EPSILON) {
-        return TP_ERR_ZERO_LENGTH;
-    }
-    tc.nominal_length = tc.target;
-
     // Copy in motion parameters
     tcSetupMotion(&tc,
             vel,
             ini_maxvel,
             acc);
 
-    return tpFinalizeAndEnqueue(tp, &tc);
+    // Update tc target with existing circular segment
+    tc.target = pmCircle9Target(&tc.coords.circle);
+    tc.nominal_length = tc.target;
+
+#ifdef TP_DEBUG
+    {
+        // macros use the variable name, need a plain name to please the JSON5 parser
+        print_json5_log_start(tpAddCircle);
+        print_json5_tc_id_data_(&tc);
+        print_json5_EmcPose_("goal", tp->goalPos);
+        print_json5_PmCartesian(center);
+        print_json5_PmCartesian(normal);
+        print_json5_long(turn);
+        print_json5_double(vel);
+        print_json5_double(ini_maxvel);
+        print_json5_double(acc);
+        print_json5_double(acc_normal);
+        print_json5_unsigned(enables);
+        print_json5_long(atspeed);
+        print_json5_long(canon_motion_type);
+        EmcPose delta = tp->goalPos;
+        emcPoseSub(&end, &tp->goalPos, &delta);
+        print_json5_EmcPose(delta);
+        print_json5_PmCircle_("xyz_circle", tc.coords.circle.xyz);
+        print_json5_log_end();
+    }
+#endif
+
+    if (tc.target < TP_POS_EPSILON) {
+        return TP_ERR_ZERO_LENGTH;
+    } else {
+        return tpFinalizeAndEnqueue(tp, &tc);
+    }
 }
 
 
