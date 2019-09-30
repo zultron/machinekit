@@ -1222,10 +1222,7 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
     PmCartesian acc_bound = getXYZAccelBounds();
 
     // Setup blend data structures
-    BlendGeom3 geom = {0};
     BlendControls controls = {0};
-    BlendParameters param = {0};
-    BlendPoints3 points = {0};
 
     CHP(blendInitControls(
         &controls,
@@ -1233,6 +1230,8 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
         tc,
         getMaxBlendFeedScale(prev_tc, tc)));
 
+    BlendGeom3 geom = {0};
+    BlendParameters param = {0};
     CHP(blendInit3FromLineLine(
         &geom,
         &param,
@@ -1250,6 +1249,7 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
 
     CHP(blendComputeParameters(&param, &controls));
 
+    BlendPoints3 points = {0};
     CHP(blendFindPoints3(&points, &geom, &param));
 
     double L_prev = prev_tc->target - param.d_plan;

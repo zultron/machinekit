@@ -124,8 +124,16 @@ TEST test_create_two_blended_lines() {
     ASSERT_EQ(3, tcqLen(&tp->queue));
 
     // check blend properties here
+    TC_STRUCT const *prev_tc = tcqItem(&tp->queue, 0);
+    ASSERT(prev_tc);
     TC_STRUCT const *blend_tc = tcqItem(&tp->queue, 1);
+    ASSERT(blend_tc);
+    TC_STRUCT const *this_tc = tcqItem(&tp->queue, 2);
+    ASSERT(this_tc);
     ASSERT_EQ(TC_SPHERICAL, blend_tc->motion_type);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc->term_cond);
+
     ASSERT_IN_RANGE(0.5, blend_tc->coords.arc.xyz.radius, TP_POS_EPSILON);
 
     deleteMockTP(&tp);

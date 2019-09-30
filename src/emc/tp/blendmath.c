@@ -607,7 +607,7 @@ tp_err_t initBlendSegmentFromPoints(
             &points->u_tan,
             param->line_length);
         if (res_arc != 0) {
-            return TP_ERR_FAIL;
+            return res_arc;
         }
         double v_max = pmSqrt(blend_tc->coords.arc.xyz.radius * param->a_n_max);
         param->v_plan = fmin(v_max, param->v_plan);
