@@ -512,7 +512,7 @@ TEST test_pmCircleSpiralStretchTangent_end()
     const double start_radius = 1.0;
     const double final_radius = 0.2;
     const double theta1 = 0;
-    const double theta2 = M_PI_2;
+    const double theta2 = M_PI / 4;
 
     PmCartesian start = {start_radius * cos(theta1), start_radius * sin(theta1), 0.0};
     PmCartesian end = {final_radius * cos(theta2), final_radius * sin(theta2), 0.0};
@@ -523,12 +523,12 @@ TEST test_pmCircleSpiralStretchTangent_end()
     pmCircleInit(&c, &start, &end, &center, &normal, 0);
 
     PmCartesian u_before;
-    pmCircleTangentVector(&c, M_PI / 8.0, &u_before);
+    pmCircleTangentVector(&c, M_PI / 32.0, &u_before);
     PmCartesian p_before;
-    pmCirclePoint(&c, M_PI / 8.0, &p_before);
+    pmCirclePoint(&c, M_PI / 32.0, &p_before);
 
     // Stretch to extend past the starting point
-    ASSERT_FALSE(pmCircleStretch(&c, M_PI * 3.0 / 8.0, 1));
+    ASSERT_FALSE(pmCircleStretch(&c, M_PI * 7/32.0, 1));
 
     PmCartesian u_after;
     ASSERT_FALSE(pmCircleTangentVector(&c, 0, &u_after));
@@ -589,6 +589,61 @@ TEST test_pmCircleHelicalSpiralStretchTangent_end()
 
     ASSERT_PMCARTESIAN_IN_RANGE(p_before2, p_after2, CART_FUZZ);
     ASSERT_PMCARTESIAN_IN_RANGE(u_before2, u_after2, CART_FUZZ);
+
+    PASS();
+}
+
+greatest_test_res checkC1StretchContinuity(PmCircle const c_orig, int const steps)
+{
+    ASSERT(c_orig.angle > 0);
+    double total_angle_delta = c_orig.angle * 0.999;
+    double angle_delta = total_angle_delta / steps;
+    for (int k = 0; k < steps; ++k) {
+        PmCircle c = c_orig;
+        double compare_angle = angle_delta * k;
+
+        // Start by getting the tangent vector / position from the original segment
+        PmCartesian u_before;
+        pmCircleTangentVector(&c_orig, compare_angle, &u_before);
+        PmCartesian p_before;
+        pmCirclePoint(&c_orig, compare_angle, &p_before);
+
+        char context[4096];
+        sprintf(context, "checkC1StretchContinuity, step %d, compare_angle %g", k, compare_angle);
+        // Stretch to extend past the starting point
+        ASSERTm(context, pmCircleStretch(&c, c_orig.angle - compare_angle, 1) == 0);
+
+        PmCartesian u_after;
+        ASSERTm(context, pmCircleTangentVector(&c, 0, &u_after) == 0);
+        PmCartesian p_after;
+        ASSERTm(context, pmCirclePoint(&c, 0, &p_after) == 0);
+
+        ASSERT_PMCARTESIAN_IN_RANGE(p_before, p_after, CART_FUZZ);
+        ASSERT_PMCARTESIAN_IN_RANGE(u_before, u_after, CART_FUZZ);
+    }
+
+    PASS();
+}
+
+TEST test_pmCircleSpiralStretch_scan_end()
+{
+    PmCircle c_orig;
+    PmCartesian center = {1.0, 2.0, 3.0};
+
+    const double start_radius = 0.02;
+    const double final_radius = 0.03;
+
+    const double theta1 = M_PI_2 * -0.3;
+    const double theta2 = theta1 + 0.05;
+
+    PmCartesian start = {start_radius * cos(theta1),0, start_radius * sin(theta1)};
+    PmCartesian end = {final_radius * cos(theta2),0, final_radius * sin(theta2)};
+    pmCartCartAddEq(&start, &center);
+    pmCartCartAddEq(&end, &center);
+    PmCartesian normal = {0,-1,0};
+
+    pmCircleInit(&c_orig, &start, &end, &center, &normal, 0);
+    CHECK_CALL(checkC1StretchContinuity(c_orig, 1000));
 
     PASS();
 }
@@ -821,5 +876,6 @@ int main(int argc, char **argv) {
     RUN_TEST(test_pmCircleSpiralStretchTangent_begin);
     RUN_TEST(test_pmCircleSpiralStretchTangent_end);
     RUN_TEST(test_pmCircleHelicalSpiralStretchTangent_end);
+    RUN_TEST(test_pmCircleSpiralStretch_scan_end);
     GREATEST_MAIN_END();
 }
