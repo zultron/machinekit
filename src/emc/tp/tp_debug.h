@@ -49,7 +49,7 @@
 #define tp_debug_json_EmcPose(varname_) tp_debug_only(print_json5_EmcPose, varname_)
 #define tp_debug_json_PmCartLine(name_, value_) tp_debug_only(print_json5_PmCartLine_, name_, value_)
 #define tp_debug_json_PmCircle(name_, value_) tp_debug_only(print_json5_PmCircle_, name_, value_)
-#define tp_debug_json_log_start(fname_, level) tp_debug_only(print_json5_log_start, fname_, level)
+#define tp_debug_json_log_start(fname_) tp_debug_only(print_json5_log_start, fname_)
 #define tp_debug_json_log_end() tp_debug_only(print_json5_end_)
 
 /** Use for profiling to make static function names visible */

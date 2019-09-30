@@ -1611,12 +1611,10 @@ int emcSetupBiArcSolverCfg(biarc_solver_config_t biarc_solver_cfg)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcSetupConsistencyChecks(int consistency_checks,
-                              double max_position_drift_error)
+int emcSetupConsistencyChecks(consistency_check_config_t consistency_check_cfg)
 {
     emcmotCommand.command = EMCMOT_SETUP_CONSISTENCY_CHECKS;
-    emcmotCommand.consistencyCheckConfig.extraConsistencyChecks = consistency_checks;
-    emcmotCommand.consistencyCheckConfig.maxPositionDriftError = max_position_drift_error;
+    emcmotCommand.consistencyCheckConfig = consistency_check_cfg;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 

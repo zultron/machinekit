@@ -230,7 +230,7 @@ int emcSetupArcBlends(tp_arc_blend_config_t arc_blend_cfg);
 
 int emcSetupBiArcSolverCfg(biarc_solver_config_t cfg);
 
-int emcSetupConsistencyChecks(int consistency_checks, double max_position_drift_error);
+int emcSetupConsistencyChecks(consistency_check_config_t consistency_check_cfg);
 
 int emcSetMaxPosTrackingError(double max_pos_error);
 

@@ -219,9 +219,13 @@ static int loadTraj(EmcIniFile &trajInifile)
         old_inihal_data.traj_arc_blend_tangent_kink_ratio = arc_blend_cfg.tangent_kink_ratio;
         //TODO update inihal
 
+        consistency_check_config_t consistency_check_cfg = {
+            (unsigned)ini_traj_find("EXTRA_CONSISTENCY_CHECKS", 0),
+            ini_traj_find("MAX_POSITION_DRIFT_ERROR", 0.0001),
+            ini_traj_find("CONTINUITY_ANGLE_LIMIT_DEG", 0.00005) * M_PI / 180.,
+        };
         CHP(emcSetupConsistencyChecks(
-            ini_traj_find("EXTRA_CONSISTENCY_CHECKS", 0),
-            ini_traj_find("MAX_POSITION_DRIFT_ERROR", 0.0001)
+            consistency_check_cfg
             ));
 
         CHP(emcSetMaxFeedOverride(

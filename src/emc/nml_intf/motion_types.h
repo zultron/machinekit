@@ -76,4 +76,24 @@ typedef struct
     double convergence_tolerance;
 } biarc_solver_config_t;
 
+/* termination conditions for queued motions */
+typedef enum {
+    EMCMOT_TERM_COND_STOP = 1,
+    EMCMOT_TERM_COND_BLEND = 2,
+    EMCMOT_TERM_COND_TANGENT = 3,
+} EmcMotionTermCond;
+
+typedef enum {
+    CCHECK_AXIS_LIMITS = 1,
+    CCHECK_C0_CONTINUITY = 2,
+    CCHECK_C1_CONTINUITY = 4,
+} ConsistencyCheckMask;
+
+typedef struct {
+    // Consistency checking within TP
+    unsigned extraConsistencyChecks;
+    double maxPositionDriftError;
+    double continuityAngleLimit_rad;
+} consistency_check_config_t;
+
 #endif

@@ -44,6 +44,18 @@
 
 #include "tp_debug.h"
 
+#ifdef TP_DEBUG
+static const bool _tp_debug = true;
+#else
+static const bool _tp_debug = false;
+#endif
+
+#ifdef TC_DEBUG
+static const bool _tc_debug = true;
+#else
+static const bool _tc_debug = false;
+#endif
+
 #define CH_ERR(expect__, mycall__) \
 do {\
     int expt = expect__; \
@@ -111,6 +123,11 @@ void reportTPAxisError(TP_STRUCT const *tp, unsigned failed_axes, const char *ms
                         failed_axes_str.axes,
                         tp->time_elapsed_sec);
     }
+}
+
+static bool needConsistencyCheck(ConsistencyCheckMask mask)
+{
+    return emcmotConfig->consistencyCheckConfig.extraConsistencyChecks & mask;
 }
 
 /**
@@ -915,6 +932,40 @@ tc_blend_type_t tpChooseBestBlend(
     return best_blend;
 }
 
+bool checkBiarcContinuity(
+    TC_STRUCT const * const prev_tc,
+    TC_STRUCT const * const this_tc)
+{
+    ContinuityCheck c1 = calc_C1_continuity(prev_tc, &blend_tc1);
+    ContinuityCheck cmid = calc_C1_continuity(&blend_tc1, &blend_tc2);
+    ContinuityCheck c2 = calc_C1_continuity(&blend_tc2, this_tc);
+    double const min_dot_limit = 1.0 - emcmotConfig->consistencyCheckConfig.continuityAngleLimit_rad;
+    bool c1_error = c1.dot < min_dot_limit
+                    || cmid.dot < min_dot_limit
+                    || c2.dot < min_dot_limit;
+
+    if (c1_error) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "BiArc blend C1 continuity exceeds limits at line %d\n", prev_tc->tag.fields[GM_FIELD_LINE_NUMBER]);
+    }
+    if (_tp_debug || c1_error)
+    {
+        print_json5_log_start(checkBiarcContinuity);
+        print_json5_string_("b1_motion_type", tcMotionTypeAsString(prev_tc->motion_type));
+        print_json5_string_("b2_motion_type", tcMotionTypeAsString(this_tc->motion_type));
+        print_json5_PmCartesian_("u1_diff", c1.u_diff);
+        print_json5_PmCartesian_("p1_diff", c1.p_diff.tran);
+        print_json5_double_("u1_diff_dot", c1.dot);
+        print_json5_PmCartesian_("u_mid_diff", cmid.u_diff);
+        print_json5_PmCartesian_("p_mid_diff", cmid.p_diff.tran);
+        print_json5_double_("u_mid_diff_dot", cmid.dot);
+        print_json5_PmCartesian_("u2_diff", c2.u_diff);
+        print_json5_double_("u2_diff_dot", c2.dot);
+        print_json5_PmCartesian_("p2_diff", c2.p_diff.tran);
+        print_json5_log_end();
+    }
+    return !c1_error;
+}
+
 tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const this_tc)
 {
     tp_debug_print("-- Starting BiArc blend --\n");
@@ -1092,8 +1143,12 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     // Ensure enables switch at the midpoint of the biarc
     blend_tc2.enables = this_tc->enables;
 
+    if (_tp_debug || needConsistencyCheck(CCHECK_C1_CONTINUITY)) {
+        checkBiarcContinuity(prev_tc, this_tc);
+    }
+
 #ifdef TP_DEBUG
-    print_json5_log_start(tpCreateBiarcBlend);
+    tp_debug_json_log_start(tpCreateBiarcBlend);
     if (param1.consume) {
         tcGetStartTangentUnitVector(prev_tc, &u1_stretch);
         tcGetStartpoint(prev_tc, &p1_stretch);
@@ -1139,16 +1194,6 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_string_("result", biarc_result_to_str(biarc_results.result));
     print_json5_TC_STRUCT_kinematics("blend1", &blend_tc1);
     print_json5_TC_STRUCT_kinematics("blend2", &blend_tc2);
-    ContinuityCheck c1 = calc_C1_continuity(prev_tc, &blend_tc1);
-    print_json5_PmCartesian_("u1_diff", c1.u_diff);
-    print_json5_PmCartesian_("p1_diff", c1.p_diff.tran);
-    ContinuityCheck cmid = calc_C1_continuity(&blend_tc1, &blend_tc2);
-    print_json5_PmCartesian_("u_mid_diff", cmid.u_diff);
-    print_json5_PmCartesian_("p_mid_diff", cmid.p_diff.tran);
-    ContinuityCheck c2 = calc_C1_continuity(&blend_tc2, this_tc);
-    print_json5_PmCartesian_("u2_diff", c2.u_diff);
-    print_json5_double_("u2_diff_dot", c2.dot);
-    print_json5_PmCartesian_("p2_diff", c2.p_diff.tran);
     print_json5_double(maxvel);
     print_json5_double(reqvel);
     print_json5_bool_("consume", param1.consume);
@@ -1156,6 +1201,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_SphericalArc("arc2", &blend_tc2.coords.arc.xyz);
     print_json5_end_();
 #endif
+
     if (param1.consume) {
         if (tcqPopBack(&tp->queue)) {
             //This is unrecoverable since we've already changed the line. Something is wrong if we get here...
@@ -2657,13 +2703,9 @@ inline int tpIsWaitingOnSpindle(TP_STRUCT const * const tp)
 
 void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
 {
-#ifdef TP_DEBUG
-    unsigned need_print = (unsigned)-1;
-#else
-    unsigned need_print = 0;
-#endif
+    unsigned need_print = _tp_debug;
     EmcPose tp_position_error={0};
-    if (emcmotConfig->consistencyCheckConfig.extraConsistencyChecks && !tc->is_blending){
+    if (needConsistencyCheck(CCHECK_C0_CONTINUITY) && !tc->is_blending){
         tcGetPos(tc, &tp_position_error);
         emcPoseSelfSub(&tp_position_error, &tp->currentPos);
 
@@ -3443,7 +3485,7 @@ int tpRunCycle(TP_STRUCT *tp, long period)
 
     int res = tpRunCycleInternal(tp);
 
-    if (emcmotConfig->consistencyCheckConfig.extraConsistencyChecks) {
+    if (needConsistencyCheck(CCHECK_AXIS_LIMITS)) {
         // After update (even a no-op), update pos / vel / accel
         EmcPose const axis_vel_old = tp->currentVel;
         EmcPose const axis_pos = tp->currentPos;
@@ -3465,13 +3507,7 @@ int tpRunCycle(TP_STRUCT *tp, long period)
         reportTPAxisError(tp, vel_error_mask, "Velocity limit exceeded");
         reportTPAxisError(tp, pos_limit_error_mask, "Position limits exceeded");
 
-#ifdef TC_DEBUG
-        unsigned debug_mask = (unsigned)(-1);
-#else
-        unsigned debug_mask = 0;
-#endif
-
-        if (debug_mask || (
+        if (_tc_debug || (
                     accel_error_mask | vel_error_mask | pos_limit_error_mask)
                 ) {
             print_json5_log_start(tpRunCycle);

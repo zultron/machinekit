@@ -56,7 +56,8 @@ def parse_log(logname):
 def plot_biarc(logs_raw):
     logs = [l for l in logs_raw if l.get('log_entry', None) == 'tpCreateBiarcBlend']
 
-    blend_id = extract_field1_all(logs, 'id')
+    blend_id1 = extract_field1_all(logs, 'unique_id1')
+    blend_id2 = extract_field1_all(logs, 'unique_id2')
     blend1_reqvel = extract_field2_all(logs, 'blend1', 'reqvel')
     blend2_reqvel = extract_field2_all(logs, 'blend2', 'reqvel')
     segment_reqvel = extract_field1_all(logs, 'reqvel')
@@ -70,18 +71,10 @@ def plot_biarc(logs_raw):
     segment_maxvel = extract_field1_all(logs, 'maxvel')
     consume = extract_field1_all(logs, 'consume')
 
-    p1_diff = extract_field1_all(logs, 'p1_diff')
-    p_mid_diff = extract_field1_all(logs, 'p_mid_diff')
-    p2_diff = extract_field1_all(logs, 'p2_diff')
-    param_line_length = extract_field1_all(logs, 'param_line_length')
-    for d in zip(blend_id, p1_diff, p_mid_diff, p2_diff, consume, param_line_length):
-        if (d[1] != 0).any() or (d[2] != 0).any() or (d[3] != 0).any():
-            print(d)
-
     if len(blend1_size) and len(blend2_size):
         plt.figure(5)
-        plt.plot(blend_id, blend1_size, label='blend1')
-        plt.plot(blend_id, blend2_size, label='blend2')
+        plt.plot(blend_id1, blend1_size, label='blend1')
+        plt.plot(blend_id2, blend2_size, label='blend2')
         plt.xlabel('Segment ID')
         plt.grid(True)
         plt.legend()
@@ -89,8 +82,8 @@ def plot_biarc(logs_raw):
 
     if len(blend1_type) and len(blend2_type):
         plt.figure(6)
-        plt.plot(blend_id, blend1_type, label='blend1')
-        plt.plot(blend_id, blend2_type, label='blend2')
+        plt.plot(blend_id1, blend1_type, label='blend1')
+        plt.plot(blend_id2, blend2_type, label='blend2')
         plt.xlabel('Segment ID')
         plt.grid(True)
         plt.legend()
@@ -98,12 +91,12 @@ def plot_biarc(logs_raw):
 
     if len(blend1_maxvel) and len(blend2_maxvel):
         plt.figure(7)
-        plt.plot(blend_id, blend1_maxvel, label='blend1_max')
-        plt.plot(blend_id, blend2_maxvel, label='blend2_max')
-        plt.plot(blend_id, segment_maxvel, label='maxvel_segments')
-        plt.plot(blend_id, blend1_reqvel, label='blend1_req')
-        plt.plot(blend_id, blend2_reqvel, label='blend2_req')
-        plt.plot(blend_id, segment_reqvel, label='reqvel_segments')
+        plt.plot(blend_id1, blend1_maxvel, label='blend1_max')
+        plt.plot(blend_id2, blend2_maxvel, label='blend2_max')
+        plt.plot(blend_id1, segment_maxvel, label='maxvel_segments')
+        plt.plot(blend_id1, blend1_reqvel, label='blend1_req')
+        plt.plot(blend_id2, blend2_reqvel, label='blend2_req')
+        plt.plot(blend_id1, segment_reqvel, label='reqvel_segments')
         plt.xlabel('Segment ID')
         plt.grid(True)
         plt.legend()
@@ -152,7 +145,7 @@ def plot_axis(logs_raw):
             acc = axis_accel[:,idx]
             violations = np.where(abs(acc) > a_max*1.001)[0]
             a_upper = np.array([1,1]) * a_max
-            a_lower = np.array([1,1]) - a_max
+            a_lower = np.array([1,1]) * -a_max
             t_lim = times_ms[[nz_ind[0],nz_ind[-1]]]
 
             p = plt.plot(times_ms, acc, label=f'{axes[idx]} acceleration')
@@ -177,6 +170,21 @@ def plot_axis(logs_raw):
         plt.title('XYZ velocity vs time, ms')
         plt.legend()
 
+def plot_checks(logs_raw):
+    logs = [l for l in logs_raw if l.get('log_entry', None) == 'checkBiarcContinuity']
+
+    prev_id = extract_field1_all(logs, 'prev_unique_id')
+    blend1_udiff = extract_field1_all(logs, 'u1_diff')
+    blend2_udiff = extract_field1_all(logs, 'u2_diff')
+
+    if len(prev_id):
+        plt.figure(11)
+        plt.plot(prev_id, blend1_udiff, label='blend1')
+        plt.plot(prev_id, blend2_udiff, label='blend2')
+        plt.xlabel('Segment ID')
+        plt.grid(True)
+        plt.legend()
+        plt.title('Blend unit vector diff')
 
 def plot_activations(logs_raw):
     logs = [l for l in logs_raw if l.get('log_entry', None) == 'tpActivateSegment']
@@ -243,6 +251,7 @@ if __name__ == '__main__':
     plot_axis(logs)
     plot_biarc(logs)
     plot_activations(logs)
+    plot_checks(logs)
     plt.show()
 
 
