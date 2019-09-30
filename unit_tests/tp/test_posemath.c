@@ -628,19 +628,11 @@ greatest_test_res checkC1StretchContinuity(PmCircle const c_orig, int const step
 TEST test_pmCircleSpiralStretch_scan_end()
 {
     PmCircle c_orig;
-    PmCartesian center = {1.0, 2.0, 3.0};
 
-    const double start_radius = 0.02;
-    const double final_radius = 0.03;
-
-    const double theta1 = M_PI_2 * -0.3;
-    const double theta2 = theta1 + 0.05;
-
-    PmCartesian start = {start_radius * cos(theta1),0, start_radius * sin(theta1)};
-    PmCartesian end = {final_radius * cos(theta2),0, final_radius * sin(theta2)};
-    pmCartCartAddEq(&start, &center);
-    pmCartCartAddEq(&end, &center);
-    PmCartesian normal = {0,-1,0};
+    PmCartesian start = {-0.74400000000000044, 5.8419999999999996, -0.17159999999999997};
+    PmCartesian center = {-0.74430000000000041, 5.8419999999999996, -0.16319999999999998};
+    PmCartesian normal = {0, 1, 0};
+    PmCartesian end = {-0.73600000000000065, 5.8419999999999996, -0.1638};
 
     pmCircleInit(&c_orig, &start, &end, &center, &normal, 0);
     CHECK_CALL(checkC1StretchContinuity(c_orig, 1000));
