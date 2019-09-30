@@ -765,8 +765,7 @@ int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override)
 
 #ifdef TP_DEBUG
     print_json5_log_start(tpFinalizeLength);
-    print_json5_int_field(tc, id);
-    print_json5_long_long_field(tc, unique_id);
+    print_json5_tc_id_data_(tc);
     print_json5_string_("motion_type", tcMotionTypeAsString((tc_motion_type_t)tc->motion_type));
     print_json5_double(maxvel_old);
     print_json5_double_("maxvel", tc->maxvel_geom);

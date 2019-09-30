@@ -510,13 +510,16 @@ tc_unique_id_t tpGetNextUniqueId(TP_STRUCT * const tp)
     return tp->nextUniqueId++;
 }
 
-void tcSetId(TP_STRUCT * const tp, TC_STRUCT * const tc)
+void tcSetId(TP_STRUCT * const tp, TC_STRUCT * const tc, struct state_tag_t tag)
 {
     // KLUDGE always number the possible blend arcs sequentially
     blend_tc1.unique_id = tpGetNextUniqueId(tp);
     blend_tc2.unique_id = tpGetNextUniqueId(tp);
     tc->unique_id = tpGetNextUniqueId(tp);
     blend_tc1.id = blend_tc2.id = tc->id = tp->nextId;
+    tc->tag = tag;
+    blend_tc1.tag = tag;
+    blend_tc2.tag = tag;
 }
 
 
@@ -1111,7 +1114,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_double_("line_length2", blend_tc2.coords.arc.xyz.line_length);
     print_json5_int(prev_motion_type);
     print_json5_int(this_motion_type);
-    print_json5_long_long_("id", this_tc->id);
+    print_json5_long_long_("src_line", this_tc->tag.fields[GM_FIELD_LINE_NUMBER]);
     print_json5_long_long_("unique_id1", blend_tc1.unique_id);
     print_json5_long_long_("unique_id2", blend_tc2.unique_id);
     print_json5_biarc_solution_t("solution", &biarc_results.solution);
@@ -1269,8 +1272,7 @@ int tpAddSegmentToQueue(TP_STRUCT * const tp, TC_STRUCT * const tc) {
     //Fixing issue with duplicate id's?
 #ifdef TP_DEBUG
     print_json5_log_start(Enqueue);
-    print_json5_int_field(tc, id);
-    print_json5_long_long_field(tc, unique_id);
+    print_json5_tc_id_data_(tc);
     print_json5_string_("motion_type", tcMotionTypeAsString(tc->motion_type));
     print_json5_double_("target", tc->target);
     print_json5_string_("term_cond", tcTermCondAsString(tc->term_cond));
@@ -1321,14 +1323,14 @@ int handleModeChange(TC_STRUCT *prev_tc, TC_STRUCT *tc)
         tp_debug_print("Blending disabled: entering position-sync mode\n");
         // NOTE: blending IS allowed when exiting position sync mode, so be
         // careful of tolerances here to avoid making thicker threads
-        // (particularly if the lead-out is perpendicular)
+        // (particularly if ;the lead-out is perpendicular)
         return tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
     }
 
     if(tc->atspeed) {
         // Need to wait for spindle before starting tc, so it's not safe to
         // allow any blending from the previous to current segment
-        tp_debug_print("Blending disabled: waiting on spindle atspeed for tc %d, unique_id %llu",
+        tp_debug_print("Blending disabled: waiting on spindle atspeed for tc %d, unique_id %llu\n",
                        tc->id, tc->unique_id);
         return tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
     }
@@ -1410,7 +1412,7 @@ int tpAddRigidTap(TP_STRUCT * const tp,
     TC_STRUCT tc = {0};
     clearBlendStructs();
 
-    tcSetId(tp, &tc);
+    tcSetId(tp, &tc, tag);
     /* Initialize rigid tap move.
      * NOTE: rigid tapping does not have a canonical type.
      * NOTE: always need atspeed since this is a synchronized movement.
@@ -1421,7 +1423,6 @@ int tpAddRigidTap(TP_STRUCT * const tp,
             tp->cycleTime,
             enables,
             1);
-    tc.tag = tag;
 
     // Setup any synced IO for this move
     tpSetupSyncedIO(tp, &tc);
@@ -1572,12 +1573,12 @@ int tpRunOptimization(TP_STRUCT * const tp) {
         if (tc->atspeed) {
             //Assume worst case that we have a stop at this point. This may cause a
             //slight hiccup, but the alternative is a sudden hard stop.
-            tp_debug_print("Found atspeed at id %d\n",tc->id);
+            tp_debug_print("Found atspeed at segment %lld\n", tc->unique_id);
             prev1_tc->finalvel = 0.0;
         } else if (tc->finalized) {
             tpComputeOptimalVelocity(tc, prev1_tc);
         } else {
-            tp_debug_print("Segment %d, type %d not finalized, continuing\n",tc->id,tc->motion_type);
+            tp_debug_print("Segment %lld, type %d not finalized, continuing\n", tc->unique_id, tc->motion_type);
             // use worst-case final velocity that allows for up to 1/2 of a segment to be consumed.
 
             prev1_tc->finalvel = calculateOptimizationInitialVel(prev1_tc, tc);
@@ -1805,13 +1806,13 @@ int tpAddLine(TP_STRUCT * const tp,
     TC_STRUCT tc = {0};
 
     clearBlendStructs();
-    tcSetId(tp, &tc);
+    tcSetId(tp, &tc, tag);
 
 #ifdef TP_DEBUG
     {
         // macros use the variable name, need a plain name to please the JSON5 parser
         print_json5_log_start(tpAddLine);
-        print_json5_int_("id", tc.id);
+        print_json5_tc_id_data_(&tc);
         print_json5_EmcPose_("goal", tp->goalPos);
         print_json5_EmcPose(end);
         print_json5_double(vel);
@@ -1828,15 +1829,12 @@ int tpAddLine(TP_STRUCT * const tp,
     }
 #endif
 
-
-
     tcInit(&tc,
             TC_LINEAR,
             canon_motion_type,
             tp->cycleTime,
             enables,
             atspeed);
-    tc.tag = tag;
 
     // Setup any synced IO for this move
     tpSetupSyncedIO(tp, &tc);
@@ -1901,13 +1899,13 @@ int tpAddCircle(TP_STRUCT * const tp,
 
     clearBlendStructs();
 
-    tcSetId(tp, &tc);
+    tcSetId(tp, &tc, tag);
 
 #ifdef TP_DEBUG
     {
         // macros use the variable name, need a plain name to please the JSON5 parser
         print_json5_log_start(tpAddCircle);
-        print_json5_int_field(&tc, id);
+        print_json5_tc_id_data_(&tc);
         print_json5_EmcPose_("goal", tp->goalPos);
         print_json5_PmCartesian(center);
         print_json5_PmCartesian(normal);
@@ -1933,7 +1931,6 @@ int tpAddCircle(TP_STRUCT * const tp,
             tp->cycleTime,
             enables,
             atspeed);
-    tc.tag = tag;
     // Setup any synced IO for this move
     tpSetupSyncedIO(tp, &tc);
 
@@ -2146,8 +2143,7 @@ void tpDebugCycleInfo(TP_STRUCT const * const tp, TC_STRUCT const * const tc, TC
     /* Debug Output */
     print_json5_log_start(tc_state);
     print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
-    print_json5_int_field(tc, id);
-    print_json5_long_long_field(tc, unique_id);
+    print_json5_tc_id_data_(tc);
     print_json5_string_("motion_type", tcMotionTypeAsString(tc->motion_type));
     print_json5_double(v_target);
     print_json5_double(v_final);
@@ -2559,7 +2555,7 @@ int tpCompleteSegment(TP_STRUCT * const tp,
     // done with this move
     tp->tc_completed = tc;
     tcqRemove(&tp->queue, 1);
-    tp_debug_print("Finished tc id %d\n", tc->id);
+    tp_debug_print("Finished segment %lld\n", tc->unique_id);
 
     return TP_ERR_OK;
 }
@@ -2680,8 +2676,7 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
     if (need_print) {
         print_json5_log_start(tpActivateSegment);
         print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
-        print_json5_int_field(tc, id);
-        print_json5_long_long_field(tc, unique_id);
+        print_json5_tc_id_data_(tc);
         print_json5_string_("motion_type_name", tcMotionTypeAsString(tc->motion_type));
         print_json5_int_("motion_type", tc->motion_type);
 
@@ -3128,10 +3123,10 @@ int tpUpdateInitialStatus(TP_STRUCT const * const tp) {
 int tcSetSplitCycle(TC_STRUCT * const tc, double split_time,
         double v_f)
 {
-    tc_pdebug_print("split time for id %d is %.16g\n", tc->id, split_time);
+    tc_pdebug_print("split time for segment %lld is %.16g\n", tc->unique_id, split_time);
     if (tc->splitting != 0 && split_time > 0.0) {
-        rtapi_print_msg(RTAPI_MSG_ERR,"already splitting on id %d with cycle time %.16g, dx = %.16g, split time %.12g\n",
-                tc->id,
+        rtapi_print_msg(RTAPI_MSG_ERR,"already splitting on segment %lld with cycle time %.16g, dx = %.16g, split time %.12g\n",
+                tc->unique_id,
                 tc->cycle_time,
                 tc->target-tc->progress,
                 split_time);
@@ -3172,8 +3167,7 @@ int tpCheckEndCondition(TP_STRUCT const * const tp, TC_STRUCT * const tc, TC_STR
 #ifdef TC_DEBUG
     {
         print_json5_log_start(checkEndCondition);
-        print_json5_int_field(tc, id);
-        print_json5_long_long_field(tc, unique_id);
+        print_json5_tc_id_data_(tc);
         print_json5_double_("v_final", ec.v_f);
         print_json5_double_("t_remaining", ec.dt);
         print_json5_double_("dt_used", dt);
@@ -3203,8 +3197,7 @@ int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
 #ifdef TC_DEBUG
     /* Debug Output */
     print_json5_log_start(tcHandleSplitCycle);
-    print_json5_int_field(tc, id);
-    print_json5_long_long_field(tc, unique_id);
+    print_json5_tc_id_data_(tc);
     print_json5_double_("target", tc->target);
     print_json5_double_("progress", tc->progress);
     print_json5_double_("v_terminal", tc->term_vel);

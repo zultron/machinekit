@@ -28,7 +28,7 @@ int tpSetCycleTime(TP_STRUCT * const tp, double secs);
 int tpSetVlimit(TP_STRUCT * const tp, double vLimit, double vLimitAng);
 int tpSetId(TP_STRUCT * const tp, int id);
 tc_unique_id_t tpGetNextUniqueId(TP_STRUCT * const tp);
-void tcSetId(TP_STRUCT * const tp, TC_STRUCT * const tc);
+void tcSetId(TP_STRUCT * const tp, TC_STRUCT * const tc, struct state_tag_t tag);
 int tpGetExecId(TP_STRUCT const * const tp);
 int tpGetCompletedId(TP_STRUCT const * const tp);
 int tpGetQueuedId(TP_STRUCT const * const tp);

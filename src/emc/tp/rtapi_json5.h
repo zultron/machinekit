@@ -121,6 +121,14 @@ static inline void print_json5_string_(const char *field_name, const char *value
     rtapi_print("%s: \"%s\", ", field_name ?: "NULL", value ?: "NULL");
 }
 
+static inline void print_json5_tc_id_data_(TC_STRUCT const * const tc)
+{
+    print_json5_int_("src_line", tc->tag.fields[GM_FIELD_LINE_NUMBER]);
+    print_json5_int_field(tc, id);
+    print_json5_long_long_field(tc, unique_id);
+}
+
+
 static inline void print_json5_PmCartesian_(const char *varname, PmCartesian value)
 {
 
