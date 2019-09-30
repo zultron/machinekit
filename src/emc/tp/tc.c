@@ -315,20 +315,28 @@ int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmCartes
     switch (tc->motion_type) {
         case TC_LINEAR:
             *out = tc->coords.line.xyz.uVec;
-            break;
+            return TP_ERR_OK;
         case TC_RIGIDTAP:
             *out = tc->coords.rigidtap.xyz.uVec;
-            break;
+            return TP_ERR_OK;
         case TC_CIRCULAR:
-            pmCircleTangentVector(&tc->coords.circle.xyz,
-                                  progress / tc->target * tc->coords.circle.xyz.angle,
-                                  out);
-            break;
+        {
+            double angle=0;
+            pmCircleAngleFromProgress(
+                &tc->coords.circle.xyz,
+                &tc->coords.circle.fit,
+                progress,
+                &angle);
+            pmCircleTangentVector(
+                &tc->coords.circle.xyz,
+                angle,
+                out);
+            return TP_ERR_OK;
+        }
         default:
             rtapi_print_msg(RTAPI_MSG_ERR, "Invalid motion type %d!\n",tc->motion_type);
             return -1;
     }
-    return 0;
 }
 
 /*! tcGetPos() function
