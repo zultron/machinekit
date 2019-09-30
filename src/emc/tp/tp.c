@@ -1887,7 +1887,7 @@ int tpAddLine(TP_STRUCT * const tp,
         // macros use the variable name, need a plain name to please the JSON5 parser
         print_json5_log_start(tpAddLine);
         print_json5_tc_id_data_(&tc);
-        print_json5_EmcPose_("goal", tp->goalPos);
+        print_json5_EmcPose_("start", tp->goalPos);
         print_json5_EmcPose(end);
         print_json5_double(vel);
         print_json5_double(ini_maxvel);
@@ -1901,7 +1901,6 @@ int tpAddLine(TP_STRUCT * const tp,
         print_json5_EmcPose(delta);
         print_json5_PmCartLine_("xyz_line", tc.coords.line.xyz);
         print_json5_log_end();
-
     }
 #endif
 
@@ -1988,7 +1987,8 @@ int tpAddCircle(TP_STRUCT * const tp,
         // macros use the variable name, need a plain name to please the JSON5 parser
         print_json5_log_start(tpAddCircle);
         print_json5_tc_id_data_(&tc);
-        print_json5_EmcPose_("goal", tp->goalPos);
+        print_json5_EmcPose_("start", tp->goalPos);
+        print_json5_EmcPose(end);
         print_json5_PmCartesian(center);
         print_json5_PmCartesian(normal);
         print_json5_long(turn);
