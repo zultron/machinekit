@@ -61,7 +61,7 @@ do {\
     int expt = expect__; \
     int res = mycall__; \
     if (expt != res) { \
-        tp_debug_print("%s failed with %d at %s:%d\n", #mycall__, expt, __FUNCTION__, __LINE__); \
+        tp_debug_print("%s failed with %d (expect %d) at %s:%d\n", #mycall__, res, expt, __FUNCTION__, __LINE__); \
         return res; \
     } \
 } while (0)
