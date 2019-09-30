@@ -23,10 +23,10 @@ if __name__ == '__main__':
     for t in find_test_cases():
         print >>sys.stderr, "Running test case", t
         with open(os.path.join(os.path.dirname(t),'stdout_' + os.path.basename(t) + '.log'), 'w') as f_out:
-            f_out.write('{{start_collection:{}}}'.format(t))
+            f_out.write('{{start_collection: "{}"}}\n'.format(t))
             shutil.copyfile('position.blank','position.txt')
             p = subprocess.Popen(['linuxcnc', '-r', 'data-collection.ini', t], stdout=f_out)
             p.wait()
-            f_out.write('{{end_collection:{}}}'.format(t))
+            f_out.write('{{end_collection: "{}"}}\n'.format(t))
         if p.returncode != 0:
             sys.exit(p.returncode)
