@@ -129,8 +129,6 @@ setup_struct::setup_struct() :
     log_file{},
     program_prefix{},
     subroutines{},
-    use_lazy_close(0),
-    lazy_closing(0),
     wizard_root{},
     tool_change_at_g30(0),
     tool_change_quill_up(0),
