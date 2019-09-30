@@ -945,11 +945,12 @@ bool checkBiarcContinuity(
                     || c2.dot < min_dot_limit;
 
     if (c1_error) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "BiArc blend C1 continuity exceeds limits at line %d\n", prev_tc->tag.fields[GM_FIELD_LINE_NUMBER]);
+        rtapi_print_msg(RTAPI_MSG_ERR, "BiArc blend C1 continuity exceeds limits at line %d, unique_id %lld\n", prev_tc->tag.fields[GM_FIELD_LINE_NUMBER], prev_tc->unique_id);
     }
     if (_tp_debug || c1_error)
     {
         print_json5_log_start(checkBiarcContinuity);
+        print_json5_long_long_("prev_unique_id", prev_tc->unique_id);
         print_json5_string_("b1_motion_type", tcMotionTypeAsString(prev_tc->motion_type));
         print_json5_string_("b2_motion_type", tcMotionTypeAsString(this_tc->motion_type));
         print_json5_PmCartesian_("u1_diff", c1.u_diff);
@@ -968,7 +969,6 @@ bool checkBiarcContinuity(
 
 tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_STRUCT * const this_tc)
 {
-    tp_debug_print("-- Starting BiArc blend --\n");
 #ifdef TP_DEBUG
     double prev_len = prev_tc->target;
     double this_len = this_tc->target;
