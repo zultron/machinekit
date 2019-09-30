@@ -34,11 +34,12 @@ int arcInitFromPoints(
     }
 #endif
 
-    arc->uTan = *uTan;
-    arc->line_length = prev_line_length;
-    if (arc->line_length < 0) {
+    if (prev_line_length < -1e-17) {
         return TP_ERR_INVALID;
     }
+
+    arc->uTan = *uTan;
+    arc->line_length = fmax(prev_line_length, 0.0);
 
     // Store the start, end, and center
     arc->start = *start;
