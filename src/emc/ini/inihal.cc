@@ -271,30 +271,29 @@ int check_ini_hal_items()
     }
 
     if (   CHANGED(traj_biarc_max_iterations)
-        || CHANGED(traj_biarc_velocity_cutoff)
         || CHANGED(traj_biarc_convergence_tolerance)
         || CHANGED(traj_biarc_velocity_abs_tolerance)
         || CHANGED(traj_biarc_velocity_rel_tolerance)
-        || CHANGED(traj_biarc_deviation_abs_tolerance)
         || CHANGED(traj_biarc_feed_override_allowance)
+        || CHANGED(traj_biarc_deviation_abs_tolerance)
+        || CHANGED(traj_biarc_velocity_cutoff)
        ) {
 
         UPDATE(traj_biarc_max_iterations);
-        UPDATE(traj_biarc_velocity_cutoff);
         UPDATE(traj_biarc_convergence_tolerance);
         UPDATE(traj_biarc_velocity_abs_tolerance);
         UPDATE(traj_biarc_velocity_rel_tolerance);
-        UPDATE(traj_biarc_deviation_abs_tolerance);
         UPDATE(traj_biarc_feed_override_allowance);
-        biarc_solver_config_t cfg = {
-            OLD(traj_biarc_max_iterations),
-            OLD(traj_biarc_velocity_cutoff),
-            OLD(traj_biarc_convergence_tolerance),
-            OLD(traj_biarc_velocity_abs_tolerance),
-            OLD(traj_biarc_velocity_rel_tolerance),
-            OLD(traj_biarc_deviation_abs_tolerance),
-            OLD(traj_biarc_feed_override_allowance),
-        };
+        UPDATE(traj_biarc_velocity_cutoff);
+        UPDATE(traj_biarc_deviation_abs_tolerance);
+        biarc_solver_config_t cfg{};
+        cfg.max_iterations = OLD(traj_biarc_max_iterations);
+        cfg.convergence_tolerance = OLD(traj_biarc_convergence_tolerance);
+        cfg.velocity_abs_tolerance = OLD(traj_biarc_velocity_abs_tolerance);
+        cfg.velocity_rel_tolerance = OLD(traj_biarc_velocity_rel_tolerance);
+        cfg.feed_override_allowance = OLD(traj_biarc_feed_override_allowance);
+        cfg.velocity_cutoff = OLD(traj_biarc_velocity_cutoff);
+        cfg.deviation_abs_tolerance = OLD(traj_biarc_deviation_abs_tolerance);
         RETURN_ON_ERROR(emcSetupBiArcSolverCfg(cfg));
     }
 

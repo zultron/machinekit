@@ -248,7 +248,6 @@ static int loadTraj(EmcIniFile &trajInifile)
         };
         CHP(emcSetupBiArcSolverCfg(biarc_solver_cfg));
         old_inihal_data.traj_biarc_max_iterations = biarc_solver_cfg.max_iterations;
-        old_inihal_data.traj_biarc_max_iterations = biarc_solver_cfg.max_iterations;
         old_inihal_data.traj_biarc_velocity_rel_tolerance = biarc_solver_cfg.velocity_rel_tolerance;
         old_inihal_data.traj_biarc_velocity_abs_tolerance = biarc_solver_cfg.velocity_abs_tolerance;
         old_inihal_data.traj_biarc_deviation_abs_tolerance = biarc_solver_cfg.deviation_abs_tolerance;
