@@ -238,8 +238,8 @@ static int loadTraj(EmcIniFile &trajInifile)
 
         FindsIniFieldOrDefault ini_biarc_find(trajInifile, "TRAJ_BIARC_SOLVER");
         biarc_solver_config_t biarc_solver_cfg = {
-            (unsigned)ini_biarc_find("MAX_ITERATIONS", 15 ),
-            ini_biarc_find("VELOCITY_REL_TOLERANCE", 0.02),
+            (unsigned)ini_biarc_find("MAX_ITERATIONS", 20),
+            ini_biarc_find("VELOCITY_REL_TOLERANCE", 0.01),
             ini_biarc_find("VELOCITY_ABS_TOLERANCE", 0.001),
             ini_biarc_find("DEVIATION_ABS_TOLERANCE", 0.000001),
             ini_biarc_find("FEED_OVERRIDE_ALLOWANCE", 1.5),
