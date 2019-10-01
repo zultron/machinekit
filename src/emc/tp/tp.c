@@ -197,10 +197,8 @@ double tpGetRealFeedScale(TP_STRUCT const * const tp,
     bool pausing = tp->pausing && (tc->synchronized == TC_SYNC_NONE || tc->synchronized == TC_SYNC_VELOCITY);
     bool aborting = tp->aborting;
     if (pausing)  {
-        tc_debug_print("pausing\n");
         return 0.0;
     } else if (aborting) {
-        tc_debug_print("aborting\n");
         return 0.0;
     } else if (tc->synchronized == TC_SYNC_POSITION ) {
         return 1.0;
@@ -1192,6 +1190,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_PmCartesian_("p2_stretch", p2_stretch.tran);
     print_json5_biarc_control_points_t("control_pts", &biarc_results.solution.control_pts);
     print_json5_blend_boundary_t("boundary", &biarc_results.solution.boundary);
+    print_json5_int_("iterations", biarc_results.iterations);
     print_json5_string_("result", biarc_result_to_str(biarc_results.result));
     print_json5_TC_STRUCT_kinematics("blend1", &blend_tc1);
     print_json5_TC_STRUCT_kinematics("blend2", &blend_tc2);
