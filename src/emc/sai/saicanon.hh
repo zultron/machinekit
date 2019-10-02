@@ -14,7 +14,6 @@ class InterpBase;
 extern StandaloneInterpInternals _sai;
 extern InterpBase *pinterp;
 extern FILE *_outfile;
-extern char _parameter_file_name[PARAMETER_FILE_NAME_LENGTH];
 
 struct StandaloneInterpInternals
 {

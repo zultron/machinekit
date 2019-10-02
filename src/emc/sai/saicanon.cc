@@ -43,7 +43,7 @@
 
 StandaloneInterpInternals _sai = StandaloneInterpInternals();
 
-char               _parameter_file_name[PARAMETER_FILE_NAME_LENGTH];
+static char               _parameter_file_name[PARAMETER_FILE_NAME_LENGTH];
 
 /* where to print */
 FILE * _outfile=nullptr;      /* where to print, set in main */
