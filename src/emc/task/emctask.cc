@@ -588,6 +588,16 @@ int emcTaskPlanFinishLineSeek(AutoRunSettings const &run_settings, ExpandedModal
     return res_interp;
 }
 
+int emcTaskPlanSynchExport(const char *export_file)
+{
+    auto rs274_interp = dynamic_cast<Interp*>(pinterp);
+    if (!rs274_interp) {
+        return 0;
+    }
+    setup_struct tmp = rs274_interp->_setup;
+    CALL_AND_RETURN(rs274_interp->synch_and_export(&tmp, export_file));
+}
+
 void emcTaskPlanExit()
 {
     if (pinterp) {

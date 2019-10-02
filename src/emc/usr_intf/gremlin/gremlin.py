@@ -395,7 +395,14 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def set_leadin_type(self, leadin_type):
         self.leadin_type = leadin_type
 
-    def load(self, filename=None, suppress_errors=False, working_dir=None, start_line=None, leadin_type=None):
+
+    def get_tmp_file_path(self):
+        td = tempfile.mkdtemp()
+        parameter_raw = self.inifile.find("RS274NGC", "PARAMETER_FILE")
+        parameter = os.path.expanduser(parameter_raw)
+        return os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
+
+    def load(self, filename=None, suppress_errors=False, working_dir=None, start_line=None, leadin_type=None, temp_parameter_file_name=None):
         # suppress_errors arg was added to help situation where we need to have gremlin
         # redraw the current file - which is a reload of the file.  In this case the operator
         # has already seen the errors with the file and we want to avoid continuing to
@@ -425,12 +432,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
             self.canon = StatCanon(self.colors, self.geometry, self.lathe_option, s, random, self.inifile)
-            parameter = self.inifile.find("RS274NGC", "PARAMETER_FILE")
-            parameter = os.path.expanduser(parameter)
-            temp_parameter = os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
-            if parameter:
-                shutil.copy(parameter, temp_parameter)
-            self.canon.parameter_file = temp_parameter
+            self.canon.parameter_file = temp_parameter_file_name
 
             initcode = self.get_active_g_code_string() or self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
             unitcode = "G{}".format(20 + (s.program_units == linuxcnc.UNITS_MM))

@@ -2597,54 +2597,55 @@ int Interp::save_all_parameters(
  */
 int Interp::synch()
 {
-
-  char file_name[LINELEN];
-
-  _setup.control_mode = GET_EXTERNAL_MOTION_CONTROL_MODE();
-  _setup.current = GET_EXTERNAL_POSITION();
-  _setup.current_pocket = GET_EXTERNAL_TOOL_SLOT();
-  _setup.feed_rate = GET_EXTERNAL_FEED_RATE();
-  _setup.flood = GET_EXTERNAL_FLOOD();
-  // FIXME this is effectively a no-op, since canon units track interp's units.
-  // If they aren't the same, it would massively break some assumptions in Interp.
-  // Many fields like current position, offsets, feed rate, etc. are in program units
-  _setup.length_units = GET_EXTERNAL_LENGTH_UNIT_TYPE();
-
-  _setup.mist = GET_EXTERNAL_MIST();
-  _setup.plane = GET_EXTERNAL_PLANE();
-  _setup.selected_pocket = GET_EXTERNAL_SELECTED_TOOL_SLOT();
-  _setup.speed = GET_EXTERNAL_SPEED();
-  _setup.spindle_turning = GET_EXTERNAL_SPINDLE();
-  _setup.pockets_max = GET_EXTERNAL_POCKETS_MAX();
-  _setup.traverse_rate = GET_EXTERNAL_TRAVERSE_RATE();
-  _setup.feed_override = GET_EXTERNAL_FEED_OVERRIDE_ENABLE();
-  _setup.speed_override = GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE();
-  _setup.allow_adaptive_feed = GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
-  _setup.allow_feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
-  auto counters = GET_EXTERNAL_PART_COUNTS();
-  std::copy(
-      counters.begin(),
-      counters.end(),
-      _setup.parameters.begin() + M30_CYCLE_COUNTER_A
-      );
-
-  // Restore any work offsets that were changed during readahead but not reached by motion yet.
-  synch_work_offsets_from_task(&_setup);
-
+  int res_synch_external = synch_external_state(&_setup);
+  char file_name[LINELEN]="";
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  int res_save = save_nv_parameters((file_name[0] == 0) ?
-                            RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
-                           file_name, _setup.parameters);
+  int save_param = save_nv_parameters((file_name[0] == 0) ?
+                                                RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
+                                                file_name, _setup.parameters);
 
   load_tool_table();   /*  must set  _setup.tool_max first */
 
-  //send_current_g5x_transform();
-  //read_inputs(&_setup); // input/probe/toolchange
-
   write_settings(&_setup, _setup.modal_state);
 
-  return res_save;
+  return res_synch_external | save_param;
 }
+
+int Interp::synch_external_state(setup_pointer settings) const
+{
+    settings->control_mode = GET_EXTERNAL_MOTION_CONTROL_MODE();
+    settings->current = GET_EXTERNAL_POSITION();
+    settings->current_pocket = GET_EXTERNAL_TOOL_SLOT();
+    settings->feed_rate = GET_EXTERNAL_FEED_RATE();
+    settings->flood = GET_EXTERNAL_FLOOD();
+    // FIXME this is effectively a no-op, since canon units track interp's units.
+    // If they aren't the same, it would massively break some assumptions in Interp.
+    // Many fields like current position, offsets, feed rate, etc. are in program units
+    settings->length_units = GET_EXTERNAL_LENGTH_UNIT_TYPE();
+
+    settings->mist = GET_EXTERNAL_MIST();
+    settings->plane = GET_EXTERNAL_PLANE();
+    settings->selected_pocket = GET_EXTERNAL_SELECTED_TOOL_SLOT();
+    settings->speed = GET_EXTERNAL_SPEED();
+    settings->spindle_turning = GET_EXTERNAL_SPINDLE();
+    settings->pockets_max = GET_EXTERNAL_POCKETS_MAX();
+    settings->traverse_rate = GET_EXTERNAL_TRAVERSE_RATE();
+    settings->feed_override = GET_EXTERNAL_FEED_OVERRIDE_ENABLE();
+    settings->speed_override = GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE();
+    settings->allow_adaptive_feed = GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
+    settings->allow_feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
+    auto counters = GET_EXTERNAL_PART_COUNTS();
+    std::copy(
+        counters.begin(),
+        counters.end(),
+        settings->parameters.begin() + M30_CYCLE_COUNTER_A
+        );
+
+    // Restore any work offsets that were changed during readahead but not reached by motion yet.
+    synch_work_offsets_from_task(settings);
+    return INTERP_OK;
+}
+
 
 /**
  * Pseudo-callback called when interp is about to start readahead.
@@ -2738,6 +2739,14 @@ int Interp::cbAfterSeekReadTransition(
     }
     // TODO make sure the return point is right
     return INTERP_OK;
+}
+
+int Interp::synch_and_export(setup_pointer settings, const char * export_file_name) const
+{
+    setup tmp(*settings);
+    int res_synch = synch_external_state(&tmp);
+    int res_save = save_all_parameters(&tmp, export_file_name);
+    return res_synch | res_save;
 }
 
 /***********************************************************************/

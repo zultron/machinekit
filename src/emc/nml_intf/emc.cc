@@ -654,6 +654,8 @@ const char *emc_symbol_lookup(uint32_t type)
 	return "EMC_TASK_PLAN_STEP";
     case EMC_TASK_PLAN_SYNCH_TYPE:
 	return "EMC_TASK_PLAN_SYNCH";
+    case EMC_TASK_PLAN_SYNCH_EXPORT_TYPE:
+    return "EMC_TASK_PLAN_SYNCH_EXPORT";
     case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 	return "EMC_TASK_PLAN_SET_OPTIONAL_STOP";
     case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
@@ -1041,6 +1043,12 @@ void EMC_TASK_PLAN_SYNCH::update(CMS * cms)
 
     EMC_TASK_CMD_MSG::update(cms);
 
+}
+
+void EMC_TASK_PLAN_SYNCH_EXPORT::update(CMS * cms)
+{
+    EMC_TASK_CMD_MSG::update(cms);
+    cms->update(export_file, sizeof(export_file));
 }
 
 /*

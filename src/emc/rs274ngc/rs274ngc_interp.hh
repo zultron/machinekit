@@ -128,6 +128,7 @@ public:
  int cbBeforeSeekReadTransition(const AutoRunSettings & start_settings, const ExpandedModalState & run_initial_state, ExpandedModalState & seek_state);
  int cbAfterSeekReadTransition(const ExpandedModalState & to_restore,
      const AutoRunSettings & start_settings, const ExpandedModalState & run_initial_state);
+ int synch_and_export(setup_pointer settings, const char *export_file_name) const;
 
 /* Interface functions to call to get information from the interpreter.
    If a function has a return value, the return value contains the information.
@@ -848,6 +849,8 @@ int read_inputs(setup_pointer settings);
     int gen_toolOffset(GCodeGenerator & generator, GCodes tool_offset_mode, int tool_offset_number);
 
     FILE * try_load_subroutine_from_path(const char * basename, const char * sub_directory, char * file_path);
+
+    int synch_external_state(setup_pointer settings) const;
 
 protected:
     bool error_has_context;
