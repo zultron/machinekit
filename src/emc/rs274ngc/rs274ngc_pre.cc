@@ -222,6 +222,7 @@ static char savedError[ERROR_TEXT_LEN];
 Interp::Interp()
     : log_file(stderr),
       _setup(setup_struct()),
+    pythis(),
     warning_list(),
     last_cmd_src(),
     gcode_context_stack()
@@ -246,12 +247,12 @@ Interp::Interp()
     // since interp.init() may be called repeatedly this would create a new
     // wrapper instance on every init(), abandoning the old one and all user attributes
     // tacked onto it, so make sure this is done exactly once
-    _setup.pythis = new boost::python::object(boost::cref(*this));
+    pythis = new boost::python::object(boost::cref(*this));
 
     // alias to 'interpreter.this' for the sake of ';py, .... ' comments
     // besides 'this', eventually use proper instance names to handle
 	// several instances
-    bp::scope(interp_module).attr("this") =  *_setup.pythis;
+    bp::scope(interp_module).attr("this") =  *pythis;
 
     // make "this" visible without importing interpreter explicitly
     bp::object retval;
@@ -282,6 +283,8 @@ Interp::~Interp() {
             fclose(log_file);
         log_file = nullptr;
     }
+    assert(!pythis || Py_IsInitialized());
+    if(pythis) delete pythis;
 
     // Be sure to close the file as there may be a lazy close pending and we would
     // leak a file handle otherwise.
@@ -938,7 +941,7 @@ int Interp::exit()
       bp::object retval, tupleargs, kwargs;
       bp::list plist;
 
-      plist.append(*_setup.pythis); // self
+      plist.append(*pythis); // self
       tupleargs = bp::tuple(plist);
       kwargs = bp::dict();
 
@@ -1491,7 +1494,7 @@ int Interp::init()
       bp::object retval, tupleargs, kwargs;
       bp::list plist;
 
-      plist.append(*_setup.pythis); // self
+      plist.append(*pythis); // self
       tupleargs = bp::tuple(plist);
       kwargs = bp::dict();
 

@@ -794,6 +794,8 @@ int read_inputs(setup_pointer settings);
     static const std::array<read_function_pointer, 256> default_readers;
 
     setup _setup;
+    boost::python::object *pythis;  // boost::cref to 'this'
+
     std::vector <std::string> warning_list;
     CommandSource last_cmd_src;
 
