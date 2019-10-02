@@ -181,6 +181,7 @@ extern "C" {
         EMCMOT_SETUP_ARC_BLENDS,
         EMCMOT_SETUP_CONSISTENCY_CHECKS,
         EMCMOT_SET_MAX_POSITION_TRACKING_ERROR,
+        EMCMOT_SETUP_BIARC_SOLVER_CFG,
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */
@@ -193,16 +194,6 @@ extern "C" {
 	EMCMOT_COMMAND_BAD_EXEC	/* error trying to initiate */
     } cmd_status_t;
 
-/* termination conditions for queued motions */
-#define EMCMOT_TERM_COND_STOP 1
-#define EMCMOT_TERM_COND_BLEND 2
-#define EMCMOT_TERM_COND_TANGENT 3
-
-typedef struct {
-    // Consistency checking within TP
-    int extraConsistencyChecks;
-    double maxPositionDriftError;
-} consistency_check_config_t;
 /*********************************
        COMMAND STRUCTURE
 *********************************/
@@ -210,7 +201,7 @@ typedef struct {
 /* This is the command structure.  There is one of these in shared
    memory, and all commands from higher level code come thru it.
 */
-    typedef struct emcmot_command_t {
+typedef struct emcmot_command_t {
 	unsigned char head;	/* flag count for mutex detect */
 	cmd_code_t command;	/* command code (enum) */
 	int commandNum;		/* increment this for new command */
@@ -263,19 +254,15 @@ typedef struct {
 	double  orientation;    /* angle for spindle orient */
 	char    direction;      /* CANON_DIRECTION flag for spindle orient */
 	double  timeout;        /* of wait for spindle orient to complete */
-	unsigned char tail;	/* flag count for mutex detect */
-        int arcBlendOptDepth;
-        int arcBlendEnable;
-        int arcBlendFallbackEnable;
-        int arcBlendGapCycles;
-        double arcBlendRampFreq;
-        double arcBlendTangentKinkRatio;
-        double maxFeedScale;
+    unsigned char tail;	/* flag count for mutex detect */
+    tp_arc_blend_config_t arc_blend_cfg;
+    double maxFeedScale;
+    biarc_solver_config_t biarc_solver_cfg;
 
-        consistency_check_config_t consistencyCheckConfig;
+    consistency_check_config_t consistencyCheckConfig;
 
-        struct state_tag_t tag;
-    } emcmot_command_t;
+    struct state_tag_t tag;
+} emcmot_command_t;
 
 /*! \todo FIXME - these packed bits might be replaced with chars
    memory is cheap, and being able to access them without those
@@ -702,7 +689,8 @@ Suggestion: Split this in to an Error and a Status flag register..
 	int id;			/* id for executing motion */
 	int next_id;			/* id for executing motion */
 	int completed_id;			/* id for executing motion */
-	int depth;		/* motion queue depth */
+    int queued_id;			/* id for executing motion */
+    int depth;		/* motion queue depth */
 	int activeDepth;	/* depth of active blend elements */
 	int queueFull;		/* Flag to indicate the tc queue is full */
 	int paused;		/* Flag to signal motion paused */
@@ -780,17 +768,14 @@ Suggestion: Split this in to an Error and a Status flag register..
 	double limitVelAng;	/* scalar upper limit on angular vel */
 	KINEMATICS_TYPE kinematics_type;
 	int debug;		/* copy of DEBUG, from .ini file */
-	unsigned char tail;	/* flag count for mutex detect */
-        int arcBlendOptDepth;
-        int arcBlendEnable;
-        int arcBlendFallbackEnable;
-        int arcBlendGapCycles;
-        double arcBlendRampFreq;
-        double arcBlendTangentKinkRatio;
-        double maxFeedScale;
+    unsigned char tail;	/* flag count for mutex detect */
+
+    tp_arc_blend_config_t arc_blend_cfg;
+    double maxFeedScale;
+    biarc_solver_config_t biarc_solver_cfg;
     consistency_check_config_t consistencyCheckConfig;
-        double maxPositionTrackingError;
-    } emcmot_config_t;
+    double maxPositionTrackingError;
+} emcmot_config_t;
 
 /*********************************
       INTERNAL STRUCTURE

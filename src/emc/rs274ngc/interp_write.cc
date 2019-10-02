@@ -238,7 +238,7 @@ int Interp::write_and_update_state_tag(block_pointer block)
 
     state.flags[GM_FLAG_TOOL_OFFSETS_ON] = toolOffsetActive(&_setup);
     state.flags[GM_FLAG_RETRACT_OLDZ] = (_setup.retract_mode == OLD_Z);
-    state.flags[GM_FLAG_BLEND] = (_setup.control_mode == CANON_CONTINUOUS);
+    state.flags[GM_FLAG_CONTINUOUS_PATH] = (_setup.control_mode == CANON_CONTINUOUS);
     state.flags[GM_FLAG_EXACT_STOP] = (_setup.control_mode == CANON_EXACT_STOP);
     state.flags[GM_FLAG_CSS_MODE] = (_setup.spindle_mode == CONSTANT_RPM);
     state.flags[GM_FLAG_IJK_ABS] = (_setup.ijk_distance_mode == MODE_ABSOLUTE);

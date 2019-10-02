@@ -705,7 +705,7 @@ void reportJointFollowingError(int joint_num)
                 continue;
             }
 
-            print_json5_bare_object_start_();
+            print_json5_object_start_(NULL);
             print_json5_int_("joint_num", j);
             print_json5_double_("ferror", jtmp->ferror);
             print_json5_double_("ferror_limit", jtmp->ferror_limit);
@@ -1263,7 +1263,7 @@ static void get_pos_cmds(long period)
 	while (cubicNeedNextPoint(&(joints[0].cubic))) {
 	    /* they're empty, pull next point(s) off Cartesian planner */
 	    /* run coordinated trajectory planning cycle */
-        int res_cycle = tpRunCycle(&emcmotDebug->tp, period);
+        tp_err_t res_cycle = tpRunCycle(&emcmotDebug->tp, period);
         emcmotStatus->stopped = (TP_ERR_STOPPED == res_cycle);
 	    /* gt new commanded traj pos */
 	    tpGetPos(&emcmotDebug->tp, &emcmotStatus->carte_pos_cmd);
@@ -1828,6 +1828,9 @@ static void output_to_hal(void)
     *(emcmot_hal_data->motion_type) = emcmotStatus->motionType;
     *(emcmot_hal_data->next_program_line) = emcmotStatus->next_id;
     *(emcmot_hal_data->completed_program_line) = emcmotStatus->completed_id;
+    *(emcmot_hal_data->queued_program_line) = emcmotStatus->queued_id;
+    *(emcmot_hal_data->mot_command) = emcmotStatus->commandEcho;
+    *(emcmot_hal_data->mot_command_count) = emcmotStatus->commandNumEcho;
 
     *(emcmot_hal_data->distance_to_go) = emcmotStatus->distance_to_go;
     if(GET_MOTION_COORD_FLAG()) {
@@ -1998,6 +2001,7 @@ static void update_status(void)
     emcmotStatus->tag = tpGetExecTag(&emcmotDebug->tp);
     emcmotStatus->next_id = tpGetNextExecId(&emcmotDebug->tp);
     emcmotStatus->completed_id = tpGetCompletedId(&emcmotDebug->tp);
+    emcmotStatus->queued_id = tpGetQueuedId(&emcmotDebug->tp);
     emcmotStatus->motionType = tpGetMotionType(&emcmotDebug->tp);
     emcmotStatus->queueFull = tcqFull(&emcmotDebug->tp.queue);
 

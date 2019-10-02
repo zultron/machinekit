@@ -357,12 +357,13 @@ tp_test_files = [
   'test_posemath',
   'test_tp_create_segments',
   'test_tcqueue',
+  'test_tp_priv',
 ]
 
 foreach n : tp_test_files
   
 test(n, executable(n,
-  join_paths('unit_tests/tp', n+'.c'),
+  [join_paths('unit_tests/tp', n+'.c'), greatest_helper_srcs],
   dependencies : [
     m_dep,
     libposemath_dep,

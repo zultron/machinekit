@@ -345,8 +345,21 @@ def soft_limits():
         to_internal_units([fudge(ax[i]['min_position_limit']) for i in range(3)]),
         to_internal_units([fudge(ax[i]['max_position_limit']) for i in range(3)]))
 
+
 class MyOpengl(GlCanonDraw, Opengl):
+
+    def is_rear_tool_post_lathe(self):
+        return self.is_rear_tool_post_lathe
+
     def __init__(self, *args, **kw):
+
+        # KLUDGE bandaid for gremlin / glcanon divergence
+        global inifile
+        self.inifile = inifile
+        self.rear_tp_lathe_option = bool(inifile.find("DISPLAY", "GEOMETRY") == "-XZ")
+        self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
+        # TODO refactor the previous flags / methods into a proper mixin or separate class
+
         self.after_id = None
         self.motion_after = None
         self.perspective = False
@@ -422,7 +435,6 @@ class MyOpengl(GlCanonDraw, Opengl):
     def get_show_commanded(self): return vars.display_type.get()
     def get_show_rapids(self): return vars.show_rapids.get()
     def get_geometry(self): return geometry
-    def is_foam(self): return foam
     def get_num_joints(self): return num_joints
     def get_program_alpha(self): return vars.program_alpha.get()
 
@@ -745,7 +757,7 @@ class LivePlotter:
 
         limits = soft_limits()
 
-        if (self.logger.npts != self.lastpts
+        if (self.logger.get_npts() != self.lastpts
                 or limits != o.last_limits
                 or self.stat.actual_position != o.last_position
                 or self.stat.joint_actual_position != o.last_joint_position
@@ -771,7 +783,7 @@ class LivePlotter:
             o.last_tool = self.stat.tool_table[0]
             o.last_joint_position = self.stat.joint_actual_position
             self.last_speed = speed
-            self.lastpts = self.logger.npts
+            self.lastpts = self.logger.get_npts()
 
         root_window.update_idletasks()
         vupdate(vars.exec_state, self.stat.exec_state)
@@ -973,7 +985,7 @@ class Progress:
 
 class AxisCanon(GLCanon, StatMixin):
     def __init__(self, widget, text, linecount, progress, arcdivision):
-        GLCanon.__init__(self, widget.colors, geometry, foam)
+        GLCanon.__init__(self, widget.colors, geometry, inifile)
         StatMixin.__init__(self, s, random_toolchanger)
         self.text = text
         self.linecount = linecount

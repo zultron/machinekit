@@ -22,8 +22,9 @@
 #include "tc_types.h"
 #include "tp_types.h"
 
-double tcGetMaxTargetVel(TC_STRUCT const * const tc,
-        double max_scale);
+double tcGetMaxVelFromLength(TC_STRUCT const * const tc);
+double tcGetPlanMaxTargetVel(TC_STRUCT const * const tc,
+        double max_feed_scale);
 
 double tcGetAccelScale(TC_STRUCT const * tc);
 double tcGetOverallMaxAccel(TC_STRUCT const * tc);
@@ -31,15 +32,15 @@ double tcGetTangentialMaxAccel(TC_STRUCT const * const tc);
 
 int tcSetKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc, double kink_vel, double accel_reduction);
 int tcInitKinkProperties(TC_STRUCT *tc);
-int tcRemoveKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc);
 int tcGetEndpoint(TC_STRUCT const * const tc, EmcPose * const out);
-int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const out);
+int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const pos);
 int tcGetPos(TC_STRUCT const * const tc,  EmcPose * const out);
-int tcGetPosReal(TC_STRUCT const * const tc, int of_endpoint,  EmcPose * const out);
+int tcGetPosReal(TC_STRUCT const * const tc, double progress,  EmcPose * const out);
 int tcGetEndAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out);
 int tcGetStartAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out);
-int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const out);
 int tcGetStartTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const out);
+int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const out);
+int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmCartesian * const out);
 
 int tcGetIntersectionPoint(TC_STRUCT const * const prev_tc,
         TC_STRUCT const * const tc, PmCartesian * const point);
@@ -56,13 +57,10 @@ int tcIsBlending(TC_STRUCT * const tc);
 
 
 int tcFindBlendTolerance(TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc, double * const T_blend, double * const nominal_tolerance);
+        TC_STRUCT const * const tc, double * const T_blend);
 
 int pmCircleTangentVector(PmCircle const * const circle,
         double angle_in, PmCartesian * const out);
-
-int tcFlagEarlyStop(TC_STRUCT * const tc,
-        TC_STRUCT * const nexttc);
 
 double pmLine9Target(PmLine9 * const line9, int pure_angular);
 
@@ -101,11 +99,9 @@ int tcSetupMotion(TC_STRUCT * const tc,
 
 int tcSetupState(TC_STRUCT * const tc, TP_STRUCT const * const tp);
 
-int tcUpdateCircleAccRatio(TC_STRUCT * tc);
+int tcUpdateCircleAccRatio(TC_STRUCT * tc, double v_max);
 
-int tcFinalizeLength(TC_STRUCT * const tc);
-
-int tcClampVelocityByLength(TC_STRUCT * const tc);
+int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override);
 
 int tcPureRotaryCheck(TC_STRUCT const * const tc);
 

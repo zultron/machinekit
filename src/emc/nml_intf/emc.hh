@@ -226,17 +226,15 @@ extern int emcInit();
 extern int emcHalt();
 extern int emcAbort();
 
-int emcSetMaxFeedOverride(double maxFeedScale);
-int emcSetupArcBlends(int arcBlendEnable,
-        int arcBlendFallbackEnable,
-        int arcBlendOptDepth,
-        int arcBlendGapCycles,
-        double arcBlendRampFreq,
-        double arcBlendTangentKinkRatio);
+int emcSetupArcBlends(tp_arc_blend_config_t arc_blend_cfg);
 
-int emcSetupConsistencyChecks(int consistency_checks, double max_position_drift_error);
+int emcSetupBiArcSolverCfg(biarc_solver_config_t cfg);
+
+int emcSetupConsistencyChecks(consistency_check_config_t consistency_check_cfg);
 
 int emcSetMaxPosTrackingError(double max_pos_error);
+
+int emcSetMaxFeedOverride(double maxFeedScale);
 
 extern int emcUpdate(EMC_STAT * stat);
 

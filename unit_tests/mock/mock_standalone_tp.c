@@ -16,14 +16,24 @@
 #include "stdlib.h"
 #include "mot_priv.h"
 #include "mock_motion_global.h"
+#include "string.h"
+#include "state_tag.h"
 
-TP_STRUCT *newMockTP(unsigned queue_size, double cycle_time)
+TC_STRUCT tcq_space[1000];
+
+void resetMockTP(TP_STRUCT *tp, double cycle_time)
 {
-    init_motion_globals();
-    TP_STRUCT *tp = malloc(sizeof(TP_STRUCT));
-    TC_STRUCT *tcq_space = malloc(sizeof(TC_STRUCT) * queue_size);
-    tpCreate(tp, queue_size, tcq_space);
+    tpClear(tp);
     tpSetCycleTime(tp, cycle_time);
+}
+
+TP_STRUCT *newMockTP(double cycle_time, double a_max)
+{
+    init_motion_globals(a_max);
+    TP_STRUCT *tp = malloc(sizeof(TP_STRUCT));
+    memset(tcq_space, 0, sizeof(tcq_space));
+    tpCreate(tp, 1000, tcq_space);
+    resetMockTP(tp, cycle_time);
     return tp;
 }
 
@@ -36,4 +46,17 @@ void deleteMockTP(TP_STRUCT ** tp)
     }
 }
 
+struct state_tag_t line_tag(int line_no)
+{
+    struct state_tag_t out;
+    out.fields[GM_FIELD_LINE_NUMBER] = line_no;
+    return out;
+}
 
+EmcPose newXYZ(double x, double y, double z, EmcPose last)
+{
+    EmcPose out = last;
+    PmCartesian t = {x,y,z};
+    out.tran = t;
+    return out;
+}

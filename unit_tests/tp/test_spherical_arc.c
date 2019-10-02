@@ -6,6 +6,7 @@
 #include "math.h"
 #include "rtapi.h"
 #include "motion_debug.h"
+#include "greatest_compare.h"
 
 /* Expand to all the definitions that need to be in
    the test runner's main file. */
@@ -18,13 +19,14 @@ TEST arcInitFromPoints_simple() {
     PmCartesian start = {1,2,0};
     PmCartesian end = {2,3,0};
     PmCartesian center = {1,3,0};
+    PmCartesian uTan = {0,0,0};
 
-    int res = arcInitFromPoints(&arc, &start, &end, &center);
+    int res = arcInitFromPoints(&arc, &start, &end, &center, &uTan, 0);
     ASSERT_FALSE(res);
 
-    ASSERT_PMCARTESIAN_IN_RANGE(arc.end, end, V_FUZZ);
-    ASSERT_PMCARTESIAN_IN_RANGE(arc.start, start, V_FUZZ);
-    ASSERT_PMCARTESIAN_IN_RANGE(arc.center, center, V_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(arc.end, end, CART_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(arc.start, start, CART_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(arc.center, center, CART_FUZZ);
 
     double mag;
     pmCartMag(&arc.rStart, &mag);
@@ -39,7 +41,7 @@ TEST arcInitFromPoints_simple() {
 
     PmCartesian pt={0};
     arcPoint(&arc, 0, &pt);
-    ASSERT_PMCARTESIAN_IN_RANGE(arc.center, center, V_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(arc.center, center, CART_FUZZ);
 
     PASS();
 }
@@ -55,7 +57,7 @@ TEST test_rayIntersectsArc() {
     int reverse_dir = 0;
 
     ASSERT(checkRayIntersectsArc(&center, &P, &uVec, reverse_dir));
-    center.x*=-1.0;;
+    center.x*=-1.0;
     ASSERT_FALSE(checkRayIntersectsArc(&center, &P, &uVec, reverse_dir));
     PASS();
 }

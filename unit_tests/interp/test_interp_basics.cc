@@ -704,10 +704,13 @@ SCENARIO("Load and save parameters")
             check_parameters(exp_params, settings->parameters);
         }
 
+// Don't need to enforce this currently because we only restore parameters at init time when interp is empty anyway
+#if 0
         THEN("Work offsets should be cleared out if 'restored' from an all-zeros prm file") {
             REQUIRE_INTERP_OK(test_interp, restore_parameters(dummy_file_name));
             CHECK(settings->work_offsets_user.size() == 0);
         }
+#endif
 
         THEN("Work offsets should write out to a parameter file cleanly") {
             REQUIRE_INTERP_OK(test_interp, save_parameters(prm_file_name, settings->parameters));
