@@ -1853,11 +1853,7 @@ int tpCreateBlendIfPossible(
         TC_STRUCT *prev_tc,
         TC_STRUCT *tc)
 {
-    if (prev_tc->motion_type == TC_LINEAR && tc->motion_type == TC_LINEAR) {
-        return tpCreateLineLineBlend(tp, prev_tc, tc, &blend_tc1) == TP_ERR_OK ? 1 : 0;
-    } else {
-        return tpCreateBiarcBlend(tp, prev_tc, tc) == TP_ERR_OK ? 2 : 0;
-    }
+    return tpCreateBiarcBlend(tp, prev_tc, tc) == TP_ERR_OK ? 2 : 0;
 }
 
 /**

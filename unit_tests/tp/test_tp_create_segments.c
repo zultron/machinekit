@@ -107,20 +107,24 @@ TEST test_create_two_blended_lines() {
     EmcPose pt2 = newXYZ(1,1,0,pt1);
     tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, 0, line_tag(2));
     ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
-    ASSERT_EQ(3, tcqLen(&tp->queue));
+    ASSERT_EQ(4, tcqLen(&tp->queue));
 
     // check blend properties here
     TC_STRUCT const *prev_tc = tcqItem(&tp->queue, 0);
     ASSERT(prev_tc);
-    TC_STRUCT const *blend_tc = tcqItem(&tp->queue, 1);
-    ASSERT(blend_tc);
-    TC_STRUCT const *this_tc = tcqItem(&tp->queue, 2);
+    TC_STRUCT const *blend_tc1 = tcqItem(&tp->queue, 1);
+    ASSERT(blend_tc1);
+    TC_STRUCT const *blend_tc2 = tcqItem(&tp->queue, 2);
+    ASSERT(blend_tc2);
+    TC_STRUCT const *this_tc = tcqItem(&tp->queue, 3);
     ASSERT(this_tc);
-    ASSERT_EQ(TC_SPHERICAL, blend_tc->motion_type);
+    ASSERT_EQ(TC_SPHERICAL, blend_tc1->motion_type);
     ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
-    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc1->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc2->term_cond);
 
-    ASSERT_IN_RANGE(0.5, blend_tc->coords.arc.xyz.radius, TP_POS_EPSILON);
+    ASSERT_IN_RANGE(0.5, blend_tc1->coords.arc.xyz.radius, TP_POS_EPSILON);
+    ASSERT_IN_RANGE(0.5, blend_tc2->coords.arc.xyz.radius, TP_POS_EPSILON);
 
     deleteMockTP(&tp);
     PASS();
