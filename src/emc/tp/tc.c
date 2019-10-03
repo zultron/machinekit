@@ -67,16 +67,9 @@ double tcGetAccelScale(const TC_STRUCT *tc)
 {
     // Handle any acceleration reduction due to an approximate-tangent "blend" with the previous or next segment
     double a_scale = (1.0 - fmax(tc->kink_accel_reduce, tc->kink_accel_reduce_prev));
-
-    // Parabolic blending conditions: If the next segment or previous segment
-    // has a parabolic blend with this one, acceleration is scaled down by 1/2
-    // so that the sum of the two does not exceed the maximum.
-    if (tc->blend_prev || TC_TERM_COND_PARABOLIC == tc->term_cond) {
-        a_scale *= 0.5;
-    }
-
     return a_scale;
 }
+
 double tcGetOverallMaxAccel(const TC_STRUCT *tc)
 {
     return tc->maxaccel * tcGetAccelScale(tc);
@@ -110,85 +103,6 @@ int tcSetKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc, double kink_vel, doub
   return 0;
 }
 
-int tcCircleStartAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out)
-{
-    PmCartesian startpoint;
-    PmCartesian radius;
-    PmCartesian tan, perp;
-
-    pmCirclePoint(&tc->coords.circle.xyz, 0.0, &startpoint);
-    pmCartCartSub(&startpoint, &tc->coords.circle.xyz.center, &radius);
-    pmCartCartCross(&tc->coords.circle.xyz.normal, &radius, &tan);
-    pmCartUnitEq(&tan);
-    //The unit vector's actual direction is adjusted by the normal
-    //acceleration here. This unit vector is NOT simply the tangent
-    //direction.
-    pmCartCartSub(&tc->coords.circle.xyz.center, &startpoint, &perp);
-    pmCartUnitEq(&perp);
-
-    pmCartScalMult(&tan, tcGetOverallMaxAccel(tc), &tan);
-    pmCartScalMultEq(&perp, pmSq(0.5 * tc->reqvel)/tc->coords.circle.xyz.radius);
-    pmCartCartAdd(&tan, &perp, out);
-    pmCartUnitEq(out);
-    return 0;
-}
-
-int tcCircleEndAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out)
-{
-    PmCartesian endpoint;
-    PmCartesian radius;
-
-    pmCirclePoint(&tc->coords.circle.xyz, tc->coords.circle.xyz.angle, &endpoint);
-    pmCartCartSub(&endpoint, &tc->coords.circle.xyz.center, &radius);
-    pmCartCartCross(&tc->coords.circle.xyz.normal, &radius, out);
-    pmCartUnitEq(out);
-    return 0;
-}
-
-/**
- * Get the acceleration direction unit vector for blend velocity calculations.
- * This calculates the direction of acceleration at the start of a segment.
- */
-int tcGetStartAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out) {
-
-    switch (tc->motion_type) {
-        case TC_LINEAR:
-        case TC_RIGIDTAP:
-            *out = tc->coords.rigidtap.nominal_xyz.uVec;
-            break;
-        case TC_CIRCULAR:
-            tcCircleStartAccelUnitVector(tc,out);
-            break;
-        case TC_SPHERICAL:
-            return -1;
-        default:
-            return -1;
-    }
-    return 0;
-}
-
-/**
- * Get the acceleration direction unit vector for blend velocity calculations.
- * This calculates the direction of acceleration at the end of a segment.
- */
-int tcGetEndAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out)
-{
-    switch (tc->motion_type) {
-    case TC_LINEAR:
-        *out = tc->coords.line.xyz.uVec;
-        return 0;
-    case TC_RIGIDTAP:
-        *out = tc->coords.rigidtap.nominal_xyz.uVec;
-        return 0;
-    case TC_CIRCULAR:
-        return tcCircleEndAccelUnitVector(tc,out);
-    case TC_SPHERICAL:
-    case TC_DWELL:
-        break;
-    }
-    return -1;
-}
-
 /**
  * Check if a segment can be consumed without disrupting motion or synced IO.
  */
@@ -202,7 +116,7 @@ int tcCanConsume(TC_STRUCT const * const tc)
         return false;
     }
 
-    if (tc->syncdio.anychanged || tc->blend_prev || tc->atspeed) {
+    if (tc->syncdio.anychanged || tc->atspeed) {
         //TODO add other conditions here (for any segment that should not be consumed by blending
         return false;
     }
@@ -480,35 +394,14 @@ int tcGetPosReal(TC_STRUCT const * const tc, double progress, EmcPose * const po
  * Set the terminal condition (i.e. blend or stop) for the given motion segment.
  * Also sets flags on the next segment relevant to blending (e.g. parabolic blend sets the blend_prev flag).
  */
-int tcSetTermCond(TC_STRUCT *tc, TC_STRUCT *nexttc, tc_term_cond_t term_cond)
+int tcSetTermCond(TC_STRUCT *tc, tc_term_cond_t term_cond)
 {
-    if (tc) {
-        tc->term_cond = term_cond;
+    if (!tc) {
+        return -1;
     }
-    if (nexttc) {
-        nexttc->blend_prev = (tc && term_cond == TC_TERM_COND_PARABOLIC);
-    }
+
+    tc->term_cond = term_cond;
     return 0;
-}
-
-/**
- * Check if the current segment is actively blending.
- * Checks if a blend should start based on acceleration and velocity criteria.
- * Also saves this status so that the blend continues until the segment is
- * done.
- */
-int tcIsBlending(TC_STRUCT * const tc) {
-    //FIXME Disabling blends for rigid tap cycle until changes can be verified.
-    int is_blending_next = (tc->term_cond == TC_TERM_COND_PARABOLIC ) &&
-        tc->on_final_decel && (tc->currentvel < tc->blend_vel) &&
-        tc->motion_type != TC_RIGIDTAP;
-
-    //Latch up the blending_next status here, so that even if the prev conditions
-    //aren't necessarily true we still blend to completion once the blend
-    //starts.
-    tc->blending_next |= is_blending_next;
-
-    return tc->blending_next;
 }
 
 int tcFindBlendTolerance(TC_STRUCT const * const prev_tc,
@@ -591,7 +484,6 @@ int tcInit(TC_STRUCT * const tc,
     return TP_ERR_OK;
 }
 
-
 /**
  * Set kinematic properties for a trajectory segment.
  */
@@ -612,7 +504,6 @@ int tcSetupMotion(TC_STRUCT * const tc,
 
     return TP_ERR_OK;
 }
-
 
 int tcSetupState(TC_STRUCT * const tc, TP_STRUCT const * const tp)
 {
@@ -733,6 +624,11 @@ int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override)
 
     tcUpdateCircleAccRatio(tc, tcGetPlanMaxTargetVel(tc, max_feed_override));
 
+    if (tc->term_cond == TC_TERM_COND_PARABOLIC) {
+        tcSetTermCond(tc, TC_TERM_COND_EXACT);
+    }
+    tc->finalized = 1;
+
 #ifdef TP_DEBUG
     print_json5_log_start(tpFinalizeLength);
     print_json5_tc_id_data_(tc);
@@ -813,18 +709,6 @@ int tcSetCircleXYZ(TC_STRUCT * const tc, PmCircle const * const circ)
     // compute the new total arc length using the fit and store as new
     // target distance
     tc->target = pmCircle9Target(&tc->coords.circle);
-
-    return TP_ERR_OK;
-}
-
-int tcClearFlags(TC_STRUCT * const tc)
-{
-    if (!tc) {
-        return TP_ERR_MISSING_INPUT;
-    }
-
-    //KLUDGE this will need to be updated manually if any other flags are added.
-    tc->is_blending = false;
 
     return TP_ERR_OK;
 }

@@ -35,8 +35,6 @@ int tcGetEndpoint(TC_STRUCT const * const tc, EmcPose * const out);
 int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const pos);
 int tcGetPos(TC_STRUCT const * const tc,  EmcPose * const out);
 int tcGetPosReal(TC_STRUCT const * const tc, double progress,  EmcPose * const out);
-int tcGetEndAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out);
-int tcGetStartAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out);
 int tcGetStartTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const out);
 int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const out);
 int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmCartesian * const out);
@@ -46,9 +44,7 @@ double tcGetTarget(TC_STRUCT const * const tc, int direction);
 
 int tcCanConsume(TC_STRUCT const * const tc);
 
-int tcSetTermCond(TC_STRUCT * tc, TC_STRUCT * nexttc, tc_term_cond_t term_cond);
-
-int tcIsBlending(TC_STRUCT * const tc);
+int tcSetTermCond(TC_STRUCT * tc, tc_term_cond_t term_cond);
 
 int tcFindBlendTolerance(TC_STRUCT const * const prev_tc,
         TC_STRUCT const * const tc, double * const T_blend);
@@ -99,8 +95,6 @@ int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override);
 int tcPureRotaryCheck(TC_STRUCT const * const tc);
 
 int tcSetCircleXYZ(TC_STRUCT * const tc, PmCircle const * const circ);
-
-int tcClearFlags(TC_STRUCT * const tc);
 
 const char *tcTermCondAsString(tc_term_cond_t c);
 const char *tcMotionTypeAsString(tc_motion_type_t c);

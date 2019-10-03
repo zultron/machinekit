@@ -174,20 +174,16 @@ typedef struct {
     tc_term_cond_t term_cond;          // gcode requests continuous feed at the end of
                             // this segment (g64 mode)
 
-    int blending_next;      // segment is being blended into following segment
-    double blend_vel;       // velocity below which we should start blending
     double tolerance;       // during the blend at the end of this move,
                             // stay within this distance from the path.
     tc_spindle_sync_t synchronized;       // spindle sync state
     double uu_per_rev;      // for sync, user units per rev (e.g. 0.0625 for 16tpi)
-    double vel_at_blend_start;
     unsigned char enables;  // Feed scale, etc, enable bits for this move
     int atspeed;           // wait for the spindle to be at-speed before starting this move
     syncdio_t syncdio;      // synched DIO's for this move. what to turn on/off
     int indexrotary;        // which rotary axis to unlock to make this move, -1 for none
     TCOptimizationLevel optimization_state;             // At peak velocity during blends)
     int on_final_decel;
-    int blend_prev;
     int accel_mode;
     int splitting;          // the segment is less than 1 cycle time
                             // away from the end.
@@ -197,8 +193,6 @@ typedef struct {
                             * speed) */
     int finalized;
 
-    // Temporary status flags (reset each cycle)
-    int is_blending;
 } TC_STRUCT;
 
 #endif				/* TC_TYPES_H */

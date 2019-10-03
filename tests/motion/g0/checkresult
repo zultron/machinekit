@@ -41,7 +41,7 @@ max_acceleration_ips2 = float(Popen(
 
 # max acceleration in inches per second per servo-thread cycle
 # the factor of half at the end is because emc2 reserves half the acceleration for blending
-max_acceleration_ipspc = (max_acceleration_ips2 / cycles_per_second) * 0.5
+max_acceleration_ipspc = (max_acceleration_ips2 / cycles_per_second)
 
 # max velocity in inches per second
 max_velocity_ips = float(Popen(

@@ -93,9 +93,6 @@ int tpComputeBlendVelocity(
         double *v_blend_next,
         double *v_blend_net);
 
-double estimateParabolicBlendPerformance(TC_STRUCT const *tc,
-        TC_STRUCT const *nexttc);
-
 int tpUpdateCycle(TP_STRUCT * const tp,
         TC_STRUCT * const tc,
         TC_STRUCT const * const nexttc,
@@ -212,9 +209,6 @@ double tpGetRealAbsFeedScale(TP_STRUCT const * const tp,
         return 0.0;
     } else if (tc->synchronized == TC_SYNC_POSITION ) {
         return 1.0;
-    } else if (tc->is_blending) {
-        //KLUDGE: Don't allow feed override to keep blending from overruning max velocity
-        return fmin(net_feed_scale, 1.0);
     } else {
         return net_feed_scale;
     }
@@ -261,10 +255,6 @@ double tpGetRealMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const
     }
 
     double max_scale = (tc->synchronized == TC_SYNC_POSITION) ? 1.0 : emcmotConfig->maxFeedScale;
-    if (tc->is_blending) {
-        //KLUDGE: Don't allow feed override to keep blending from overruning max velocity
-        max_scale = fmin(max_scale, 1.0);
-    }
 
     double v_max = tcGetMaxVelFromLength(tc);
 
@@ -901,19 +891,18 @@ tc_blend_type_t tpChooseBestBlend(
 
     switch  (prev_tc->term_cond)
     {
-    case TC_TERM_COND_EXACT:
     case TC_TERM_COND_STOP:
-    // Can't blend segments that are explicitly disallowed
+    case TC_TERM_COND_EXACT:
+        // Can't blend segments that are explicitly disallowed
         return NO_BLEND;
     case TC_TERM_COND_PARABOLIC:
     case TC_TERM_COND_TANGENT:
         break;
     }
 
-
     // KLUDGE Order the performance measurements so that they match the enum values
     double perf[] = {
-        prev_tc->parabolic_equiv_vel,
+        0.0, // No parabolic blends anymore
         prev_tc->kink_vel,
         arc_blend_maxvel,
     };
@@ -921,18 +910,16 @@ tc_blend_type_t tpChooseBestBlend(
     tc_blend_type_t best_blend = find_max_element(perf, sizeof (perf)/sizeof (double));
 
     switch (best_blend) {
-        case PARABOLIC_BLEND: // parabolic
-            tcSetTermCond(prev_tc, tc, TC_TERM_COND_PARABOLIC);
-            break;
         case TANGENT_SEGMENTS_BLEND: // tangent
             // NOTE: acceleration / velocity reduction is done dynamically in functions that access TC_STRUCT properties
-            tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
+            tcSetTermCond(prev_tc, TC_TERM_COND_TANGENT);
             prev_tc->use_kink = 1;
             break;
         case ARC_BLEND: // arc blend
             break;
         case NO_BLEND:
-            tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
+        case PARABOLIC_BLEND:
+            tcSetTermCond(prev_tc, TC_TERM_COND_STOP);
             break;
     }
 
@@ -1143,9 +1130,9 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     }
 
     // Update end conditions
-    tcSetTermCond(prev_tc, &blend_tc1, TC_TERM_COND_TANGENT);
-    tcSetTermCond(&blend_tc1, &blend_tc2, TC_TERM_COND_TANGENT);
-    tcSetTermCond(&blend_tc2, this_tc, TC_TERM_COND_TANGENT);
+    tcSetTermCond(prev_tc, TC_TERM_COND_TANGENT);
+    tcSetTermCond(&blend_tc1,TC_TERM_COND_TANGENT);
+    tcSetTermCond(&blend_tc2, TC_TERM_COND_TANGENT);
 
     // First arc carries over the same DIO's as the previous segment
     blend_tc1.syncdio = prev_tc->syncdio;
@@ -1271,17 +1258,17 @@ int handlePrevTermCondition(TC_STRUCT *prev_tc, TC_STRUCT *tc)
     switch (tc->motion_type) {
     case TC_RIGIDTAP:
         if (prev_tc && prev_tc->motion_type != TC_RIGIDTAP) {
-            tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
+            tcSetTermCond(prev_tc, TC_TERM_COND_STOP);
         }
         // Rigidtap motions are always exact-path to allow pecking
-        tcSetTermCond(tc, NULL, TC_TERM_COND_EXACT);
+        tcSetTermCond(tc, TC_TERM_COND_EXACT);
         break;
     case TC_LINEAR:
     case TC_CIRCULAR:
     case TC_SPHERICAL:
     {
         tc_term_cond_t prev_term = prev_tc ? prev_tc->term_cond : TC_TERM_COND_STOP;
-        tcSetTermCond(prev_tc, tc, prev_term);
+        tcSetTermCond(prev_tc, prev_term);
     }
         break;
     case TC_DWELL:
@@ -1302,10 +1289,10 @@ int handleModeChange(TC_STRUCT *prev_tc, TC_STRUCT *tc)
     if ((prev_tc->canon_motion_type == EMC_MOTION_TYPE_TRAVERSE) ^
             (tc->canon_motion_type == EMC_MOTION_TYPE_TRAVERSE)) {
         tp_debug_print("Blending disabled: rapid / feed transition must follow exact path\n");
-        tcSetTermCond(prev_tc, tc, TC_TERM_COND_EXACT);
+        tcSetTermCond(prev_tc, TC_TERM_COND_EXACT);
         if (tc->canon_motion_type == EMC_MOTION_TYPE_TRAVERSE) {
             // Force retraction moves to follow exact path (to avoid gouging after a hole retraction)
-            tcSetTermCond(tc, NULL, TC_TERM_COND_EXACT);
+            tcSetTermCond(tc, TC_TERM_COND_EXACT);
         }
     }
 
@@ -1315,7 +1302,7 @@ int handleModeChange(TC_STRUCT *prev_tc, TC_STRUCT *tc)
         // NOTE: blending IS allowed when exiting position sync mode, so be
         // careful of tolerances here to avoid making thicker threads
         // (particularly if ;the lead-out is perpendicular)
-        return tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
+        return tcSetTermCond(prev_tc, TC_TERM_COND_STOP);
     }
 
     if(tc->atspeed) {
@@ -1323,7 +1310,7 @@ int handleModeChange(TC_STRUCT *prev_tc, TC_STRUCT *tc)
         // allow any blending from the previous to current segment
         tp_debug_print("Blending disabled: waiting on spindle atspeed for tc %d, unique_id %llu\n",
                        tc->id, tc->unique_id);
-        return tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
+        return tcSetTermCond(prev_tc, TC_TERM_COND_STOP);
     }
 
     return TP_ERR_OK;
@@ -1351,15 +1338,6 @@ tp_err_t tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
 
     // Prevent blends for specific mode changes (where blending isn't possible anyway)
     handleModeChange(prev_tc, tc);
-
-    if (prev_tc && prev_tc->term_cond > TC_TERM_COND_EXACT) {
-        // Estimate performance for parabolic blend. Because parabolic blends require
-        // halving the acceleration of both blended segments, they in effect slow
-        // down the next and previous blends as well. We model this loss by scaling
-        // the blend velocity down.
-        // NOTE: it's crude guess because short segments are affected relatively more than long ones.
-        prev_tc->parabolic_equiv_vel = estimateParabolicBlendPerformance(prev_tc, tc) / 2.0;
-    }
 
     CHP(tpSetupSegmentBlend(tp, prev_tc, tc));
     // KLUDGE order is important here, the parabolic blend check has to
@@ -1588,7 +1566,7 @@ int tpRunOptimization(TP_STRUCT * const tp) {
         }
 
         //Somewhat pedantic check for other conditions that would make blending unsafe
-        if (prev1_tc->splitting || prev1_tc->blending_next) {
+        if (prev1_tc->splitting) {
             tp_debug_print("segment %d is already blending, cannot optimize safely!\n",
                     ind-1);
             return TP_ERR_OK;
@@ -1684,7 +1662,7 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
     if (pmCartCartAntiParallel(&prev_tan, &this_tan, SHARP_CORNER_EPSILON))
     {
         tp_debug_print("Found sharp corner\n");
-        tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
+        tcSetTermCond(prev_tc, TC_TERM_COND_STOP);
         return TC_INTERSECT_INCOMPATIBLE;
     }
 
@@ -1736,7 +1714,7 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
 
     if (acc_scale_max < kink_ratio) {
         tp_debug_print(" Kink acceleration within %g, using tangent blend\n", kink_ratio);
-        tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
+        tcSetTermCond(prev_tc, TC_TERM_COND_TANGENT);
         tcSetKinkProperties(prev_tc, tc, v_max_tangent, acc_scale_max);
         return TC_INTERSECT_TANGENT;
     } else {
@@ -1857,7 +1835,7 @@ int tpAddLine(
 
     // Copy over state data from the trajectory planner
     tcSetupState(&tc, tp);
-    tcSetTermCond(&tc, NULL, tp->termCond);
+    tcSetTermCond(&tc, tp->termCond);
 
     // Copy in motion parameters
     tcSetupMotion(&tc,
@@ -1949,7 +1927,7 @@ int tpAddCircle(TP_STRUCT * const tp,
 
     // Copy over state data from the trajectory planner
     tcSetupState(&tc, tp);
-    tcSetTermCond(&tc, NULL, tp->termCond);
+    tcSetTermCond(&tc, tp->termCond);
 
     // Setup circle geometry
     int res_init = pmCircle9Init(&tc.coords.circle,
@@ -2004,127 +1982,6 @@ int tpAddCircle(TP_STRUCT * const tp,
         return tpFinalizeAndEnqueue(tp, &tc);
     }
 }
-
-
-/**
- * Adjusts blend velocity and acceleration to safe limits.
- * If we are blending between tc and nexttc, then we need to figure out what a
- * safe blend velocity is based on the known trajectory parameters. This
- * function updates the TC_STRUCT data with a safe blend velocity.
- *
- * @note This function will compute the parabolic blend start / end velocities
- * regardless of the current terminal condition (useful for planning).
- */
-int tpComputeBlendVelocity(
-        TC_STRUCT const *tc,
-        TC_STRUCT const *nexttc,
-        double target_vel_this,
-        double target_vel_next,
-        double *v_blend_this,
-        double *v_blend_next,
-        double *v_blend_net)
-{
-    /* Pre-checks for valid pointers */
-    if (!nexttc || !tc || !v_blend_this || !v_blend_next ) {
-        return TP_ERR_FAIL;
-    }
-
-    double acc_this = tcGetTangentialMaxAccel(tc);
-    double acc_next = tcGetTangentialMaxAccel(nexttc);
-
-    double v_reachable_this = fmin(tpCalculateTriangleVel(tc), target_vel_this);
-    double v_reachable_next = fmin(tpCalculateTriangleVel(nexttc), target_vel_next);
-
-    /* Compute the maximum allowed blend time for each segment.
-     * This corresponds to the minimum acceleration that will just barely reach
-     * max velocity as we are 1/2 done the segment.
-     */
-
-    double t_max_this = tc->target / v_reachable_this;
-    double t_max_next = nexttc->target / v_reachable_next;
-    double t_max_reachable = fmin(t_max_this, t_max_next);
-
-    // How long the blend phase would be at maximum acceleration
-    double t_min_blend_this = v_reachable_this / acc_this;
-    double t_min_blend_next = v_reachable_next / acc_next;
-
-    double t_max_blend = fmax(t_min_blend_this, t_min_blend_next);
-    // The longest blend time we can get that's still within the 1/2 segment restriction
-    double t_blend = fmin(t_max_reachable, t_max_blend);
-
-    // Now, use this blend time to find the best acceleration / velocity for each segment
-    *v_blend_this = fmin(v_reachable_this, t_blend * acc_this);
-    *v_blend_next = fmin(v_reachable_next, t_blend * acc_next);
-
-
-    PmCartesian v1={0}, v2={0};
-
-    int res1 = tcGetEndAccelUnitVector(tc, &v1);
-    int res2 = tcGetStartAccelUnitVector(nexttc, &v2);
-
-    if (res1 || res2) {
-        rtapi_print_msg(RTAPI_MSG_WARN, "Got bad unit vectors in parabolic blend velocity calculation\n");
-        return TP_ERR_FAIL;
-    }
-    double theta = findIntersectionAngle(&v1, &v2);
-
-    double cos_theta = cos(theta);
-
-    if (tc->tolerance > 0) {
-        /* see diagram blend.fig.  T (blend tolerance) is given, theta
-         * is calculated from dot(s1, s2)
-         *
-         * blend criteria: we are decelerating at the end of segment s1
-         * and we pass distance d from the end.
-         * find the corresponding velocity v when passing d.
-         *
-         * in the drawing note d = 2T/cos(theta)
-         *
-         * when v1 is decelerating at a to stop, v = at, t = v/a
-         * so required d = .5 a (v/a)^2
-         *
-         * equate the two expressions for d and solve for v
-         */
-        double tblend_vel;
-        /* Minimum value of cos(theta) to prevent numerical instability */
-        const double min_cos_theta = cos(PM_PI / 2.0 - TP_MIN_ARC_ANGLE);
-        if (cos_theta > min_cos_theta) {
-            tblend_vel = 2.0 * pmSqrt(acc_this * tc->tolerance / cos_theta);
-            *v_blend_this = fmin(*v_blend_this, tblend_vel);
-            *v_blend_next = fmin(*v_blend_next, tblend_vel);
-        }
-    }
-    if (v_blend_net) {
-        /*
-         * Find net velocity in the direction tangent to the blend.
-         * When theta ~ 0, net velocity in tangent direction is very small.
-         * When the segments are nearly tangent (theta ~ pi/2), the blend
-         * velocity is almost entirely in the tangent direction.
-         */
-        *v_blend_net = sin(theta) * (*v_blend_this + *v_blend_next) / 2.0;
-    }
-
-    return TP_ERR_OK;
-}
-
-double estimateParabolicBlendPerformance(
-        TC_STRUCT const *tc,
-        TC_STRUCT const *nexttc)
-{
-    double v_this = 0.0, v_next = 0.0;
-
-    // Use maximum possible target velocity to get best-case performance
-    double target_vel_this = tcGetPlanMaxTargetVel(tc, emcmotConfig->maxFeedScale);
-    double target_vel_next = tcGetPlanMaxTargetVel(nexttc, emcmotConfig->maxFeedScale);
-
-    double v_net = 0.0;
-    if (tpComputeBlendVelocity(tc, nexttc, target_vel_this, target_vel_next, &v_this, &v_next, &v_net) != TP_ERR_OK) {
-        return 0.0;
-    }
-    return v_net;
-}
-
-
 
 /**
  * Calculate distance update from velocity and acceleration.
@@ -2202,7 +2059,6 @@ void tpDebugCycleInfo(TP_STRUCT const * const tp, TC_STRUCT const * const tc, TC
     print_json5_string_("term_cond", tcTermCondAsString((tc_term_cond_t)tc->term_cond));
     print_json5_bool_("final_decel", tc->on_final_decel);
     print_json5_bool_("need_split", tc->splitting);
-    print_json5_bool_("is_blending", tc->is_blending);
     print_json5_long_("canon_type", tc->canon_motion_type);
     print_json5_string_("accel_mode",accel_mode ? "ramp" : "trapezoidal");
     print_json5_string_("cycle", cycleModeToString(cycle));
@@ -2263,10 +2119,6 @@ int tpCalculateRampAccel(TP_STRUCT const * const tp,
 {
     // displacement remaining in this segment
     double dx = tcGetDistanceToGo(tc, tp->reverse_run);
-
-    if (!tc->blending_next) {
-        tc->vel_at_blend_start = tc->currentvel;
-    }
 
     double vel_final = tpGetRealFinalVel(tp, tc, nexttc);
 
@@ -2538,41 +2390,6 @@ int tpUpdateMovementStatus(TP_STRUCT * const tp,
     emcPoseSub(&tc_pos, &tp->currentPos, &emcmotStatus->dtg);
     return TP_ERR_OK;
 }
-
-
-/**
- * Do a parabolic blend by updating the nexttc.
- * Perform the actual blending process by updating the target velocity for the
- * next segment, then running a cycle update.
- */
-void tpUpdateBlend(TP_STRUCT * const tp, TC_STRUCT * const tc,
-        TC_STRUCT * const nexttc) {
-
-    if (!nexttc) {
-        return;
-    }
-    double save_vel = nexttc->target_vel;
-
-    if (tpGetRealAbsFeedScale(tp, nexttc) > TP_VEL_EPSILON) {
-        double dv = tc->vel_at_blend_start - tc->currentvel;
-        double vel_start = fmax(tc->vel_at_blend_start, TP_VEL_EPSILON);
-        // Clip the ratio at 1 and 0
-        double blend_progress = fmax(fmin(dv / vel_start, 1.0), 0.0);
-        double blend_scale = tc->vel_at_blend_start / tc->blend_vel;
-        nexttc->target_vel = blend_progress * nexttc->blend_vel * blend_scale;
-        // Mark the segment as blending so we handle the new target velocity properly
-        nexttc->is_blending = true;
-    } else {
-        // Drive the target velocity to zero since we're stopping
-        nexttc->target_vel = 0.0;
-    }
-
-    tpUpdateCycle(tp, nexttc, NULL, UPDATE_PARABOLIC_BLEND);
-    //Restore the original target velocity
-    nexttc->target_vel = save_vel;
-}
-
-
 /**
  * Cleanup if tc is not valid (empty queue).
  * If the program ends, or we hit QUEUE STARVATION, do a soft reset on the trajectory planner.
@@ -2643,7 +2460,6 @@ int tpCompleteSegment(TP_STRUCT * const tp,
     //TODO stuff into helper function?
     tc->active = 0;
     tc->remove = 0;
-    tc->is_blending = 0;
     tc->splitting = 0;
     tc->cycle_time = tp->cycleTime;
     //Velocities are by definition zero for a non-active segment
@@ -2778,7 +2594,7 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
 {
     unsigned need_print = _tp_debug;
     EmcPose tp_position_error = {};
-    if (needConsistencyCheck(CCHECK_C0_CONTINUITY) && !tc->is_blending){
+    if (needConsistencyCheck(CCHECK_C0_CONTINUITY)){
         tcGetPos(tc, &tp_position_error);
         emcPoseSelfSub(&tp_position_error, &tp->currentPos);
 
@@ -2822,7 +2638,6 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
         print_json5_double_("acc_overall", tcGetOverallMaxAccel(tc));
         print_json5_double_("acc_tangential", tcGetTangentialMaxAccel(tc));
         print_json5_bool_("accel_ramp", tc->accel_mode);
-        print_json5_bool_("blend_prev", tc->blend_prev);
         print_json5_string_("sync_mode", tcSyncModeAsString(tc->synchronized));
 
         print_json5_int_field(tc, finalized);
@@ -2896,7 +2711,6 @@ tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
     tc->active = 1;
     //Do not change initial velocity here, since tangent blending already sets this up
     tp->motionType = tc->canon_motion_type;
-    tc->blending_next = 0;
     tc->on_final_decel = 0;
 
     tp_err_t res = TP_ERR_OK;
@@ -3144,36 +2958,7 @@ void tpSyncPositionMode(
 }
 
 /**
- * Perform parabolic blending if needed between segments and handle status updates.
- * This isolates most of the parabolic blend stuff to make the code path
- * between tangent and parabolic blends easier to follow.
- */
-int tpDoParabolicBlending(TP_STRUCT * const tp, TC_STRUCT * const tc,
-        TC_STRUCT * const nexttc) {
-
-    tpUpdateBlend(tp,tc,nexttc);
-
-    /* Status updates */
-    //Decide which segment we're in depending on which is moving faster
-    if(tc->currentvel > nexttc->currentvel) {
-        tpUpdateMovementStatus(tp, tc, nexttc);
-    } else {
-        tpToggleDIOs(nexttc);
-        TC_STRUCT *next2tc = tp->reverse_run ? NULL : tcqItem(&tp->queue, 2);
-        tpUpdateMovementStatus(tp, nexttc, next2tc);
-    }
-#ifdef TP_SHOW_BLENDS
-    // hack to show blends in axis
-    tp->motionType = 0;
-#endif
-
-    //Update velocity status based on both tc and nexttc
-    emcmotStatus->current_vel = tc->currentvel + nexttc->currentvel;
-
-    return TP_ERR_OK;
-}
-
-/**
+        TC_STRUCT *next2tc = tcqItem(&tp->queue, 2);
  * Do a complete update on one segment.
  * Handles the majority of updates on a single segment for the current cycle.
  */
@@ -3187,11 +2972,6 @@ int tpUpdateCycle(TP_STRUCT * const tp,
 
     //Store the current position due to this TC
     tcGetPos(tc, &before);
-
-    // Update the start velocity if we're not blending yet
-    if (!tc->blending_next) {
-        tc->vel_at_blend_start = tc->currentvel;
-    }
 
     // Run cycle update with stored cycle time
     int res_accel = 1;
@@ -3359,20 +3139,20 @@ int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
 
     // Handle various cases of updates for split cycles
     //  Tangent: next segment gets a partial update for the remaining cycle time
-    //  Parabolic: next segment updates with full cycle time (since both current / next are active at the same time)
     //  Exact: NO motion in next segment here since current segment must stop completely
     switch (tc->term_cond) {
         case TC_TERM_COND_TANGENT:
             nexttc->cycle_time = tp->cycleTime - tc->cycle_time;
             nexttc->currentvel = tc->term_vel;
-            // Intentional fallthrough
-        case TC_TERM_COND_PARABOLIC:
         {
             // TODO allow access to next segment when reverse blending is implemented
             TC_STRUCT *next2tc = tp->reverse_run ? NULL : tcqItem(&tp->queue, 2);
             tpUpdateCycle(tp, nexttc, next2tc, UPDATE_SPLIT);
-        }
-            break;
+         }
+         break;
+        case TC_TERM_COND_PARABOLIC:
+            tp_debug_json5_log_end("can't split with parabolic blends");
+            return -1;
         case TC_TERM_COND_STOP:
         case TC_TERM_COND_EXACT:
             break;
@@ -3411,29 +3191,9 @@ int tpHandleRegularCycle(TP_STRUCT * const tp,
     tc->cycle_time = tp->cycleTime;
     tpUpdateCycle(tp, tc, nexttc, UPDATE_NORMAL);
 
-    /* Parabolic blending */
-
-    double v_this = 0.0, v_next = 0.0;
-
-    // cap the blend velocity at the current requested speed (factoring in feed override)
-    double target_vel_this = tpGetRealAbsTargetVel(tp, tc);
-    double target_vel_next = tpGetRealAbsTargetVel(tp, nexttc);
-
-    if (tc->term_cond == TC_TERM_COND_PARABOLIC) {
-        tpComputeBlendVelocity(tc, nexttc, target_vel_this, target_vel_next, &v_this, &v_next, NULL);
-        tc->blend_vel = v_this;
-        if (nexttc) {
-            nexttc->blend_vel = v_next;
-        }
-    }
-
-    if (nexttc && tcIsBlending(tc)) {
-        tpDoParabolicBlending(tp, tc, nexttc);
-    } else {
-        //Update status for a normal step
-        tpToggleDIOs(tc);
-        tpUpdateMovementStatus(tp, tc, nexttc);
-    }
+    //Update status for a normal step
+    tpToggleDIOs(tc);
+    tpUpdateMovementStatus(tp, tc, nexttc);
     return TP_ERR_OK;
 }
 
@@ -3453,11 +3213,6 @@ int tpSteppingCheck(TP_STRUCT * const tp, TC_STRUCT * const tc, TC_STRUCT * cons
         return TP_ERR_NO_ACTION;
     }
 
-    // We're looking for parabolic blends coming up that would mess with stepping
-    // Also, by checking against final decel, we won't clobber a blend already happening
-    if (tc->term_cond == TC_TERM_COND_PARABOLIC && emcmotDebug->stepping && !tc->blending_next) {
-        tcSetTermCond(tc, nexttc, TC_TERM_COND_STOP);
-    }
     return TP_ERR_OK;
 }
 /**
@@ -3545,8 +3300,6 @@ int tpRunCycleInternal(TP_STRUCT * const tp)
 
     tpSteppingCheck(tp, tc, nexttc);
 
-    tcClearFlags(tc);
-    tcClearFlags(nexttc);
     // Update the current tc
     if (tc->splitting) {
         tpHandleSplitCycle(tp, tc, nexttc);

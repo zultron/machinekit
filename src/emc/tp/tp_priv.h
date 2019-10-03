@@ -116,10 +116,6 @@ int tpUpdateMovementStatus(TP_STRUCT * const tp,
                            TC_STRUCT const * const tc,
                            TC_STRUCT const * const nexttc);
 
-void tpUpdateBlend(TP_STRUCT * const tp,
-                   TC_STRUCT * const tc,
-                   TC_STRUCT * const nexttc);
-
 void tpHandleEmptyQueue(TP_STRUCT * const tp);
 
 void tpSetRotaryUnlock(int axis, int unlock);
