@@ -386,7 +386,11 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         print("Active G-codes at redraw:", cmd_list)
         return '\n'.join((' '.join(sub_l) for sub_l in cmd_list))
 
-    def load(self, filename=None):
+    def load(self, filename=None, suppress_errors=False):
+        # suppress_errors arg was added to help situation where we need to have gremlin
+        # redraw the current file - which is a reload of the file.  In this case the operator
+        # has already seen the errors with the file and we want to avoid continuing to
+        # yell at them just because of some action needed that drives a redraw.
         s = self.stat
         s.poll()
         if not filename and s.file:
@@ -446,7 +450,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
                         dict(rpm_set=rpm, rpm_max=max_fpm/fpr, line_no=line_no,
                              pitch=max_fpm/rpm))
 
-            if result > gcode.MIN_ERROR:
+            if result > gcode.MIN_ERROR and not suppress_errors:
                 self.report_gcode_error(result, seq, filename)
 
             self._tools_used = self.canon.get_tools_used()
