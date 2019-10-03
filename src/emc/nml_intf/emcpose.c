@@ -158,6 +158,20 @@ int pmCartesianToEmcPose(PmCartesian const * const xyz,
     return EMCPOSE_ERR_OK;
 }
 
+// TODO optimize
+int emcPoseToPmVector(EmcPose const * const pose, PmVector * const v)
+{
+    PmCartesian p1,p2,p3;
+    emcPoseToPmCartesian(pose, &p1, &p2, &p3);
+    return CartToVec(&p1, &p2, &p3, v);
+}
+
+int pmVectorToEmcPose(PmVector const * const v, EmcPose * const pose)
+{
+    PmCartesian p1,p2,p3;
+    VecToCart(v, &p1, &p2, &p3);
+    return pmCartesianToEmcPose(&p1, &p2, &p3, pose);
+}
 
 int emcPoseSetXYZ(PmCartesian const * const xyz, EmcPose * const pose)
 {
