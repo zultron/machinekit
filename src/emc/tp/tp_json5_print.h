@@ -8,11 +8,13 @@
 #include "blendmath_types.h"
 
 #define print_json5_PmCartesian(varname_) print_json5_PmCartesian_(#varname_, varname_)
+#define print_json5_PmVector(varname_) print_json5_PmVector_(#varname_, varname_)
 #define print_json5_EmcPose(varname_) print_json5_EmcPose_(#varname_, varname_)
 #define print_json5_PmCartLine(varname_) print_json5_PmCartLine_( #varname_, varname_)
 #define print_json5_PmCircle(varname_) print_json5_PmCircle_(#varname_, varname_)
 
 #define print_json5_PmCartesian_field(base_, varname_) print_json5_PmCartesian_(#varname_, (base_)->varname_)
+#define print_json5_PmVector_field(base_, varname_) print_json5_PmVector_(#varname_, (base_)->varname_)
 #define print_json5_EmcPose_field(base_, varname_) print_json5_EmcPose_(#varname_, (base_)->varname_)
 #define print_json5_PmCartLine_field(base_, varname_) print_json5_PmCartLine_( #varname_, (base_)->varname_)
 #define print_json5_PmCircle_field(base_, varname_) print_json5_PmCircle_(#varname_, (base_)->varname_)
@@ -30,6 +32,22 @@ static inline void print_json5_PmCartesian_(const char *varname, PmCartesian val
 {
 
     rtapi_print("%s: [%0.17g, %0.17g, %0.17g], ", varname ?: "NO_NAME", value.x, value.y, value.z);
+}
+
+static inline void print_json5_PmVector_(const char *varname, PmVector value)
+{
+    rtapi_print("%s: [%0.17g, %0.17g, %0.17g, %0.17g, %0.17g, %0.17g, %0.17g, %0.17g, %0.17g], ",
+                    varname,
+                    value.ax[0],
+                    value.ax[1],
+                    value.ax[2],
+                    value.ax[3],
+                    value.ax[4],
+                    value.ax[5],
+                    value.ax[6],
+                    value.ax[7],
+                    value.ax[8]
+                );
 }
 
 static inline void print_json5_EmcPose_(const char *varname, EmcPose value)
