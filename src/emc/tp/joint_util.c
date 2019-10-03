@@ -1,6 +1,7 @@
 #include "joint_util.h"
 #include "motion_debug.h"
 #include "rtapi_math.h"
+#include "pm_vector.h"
 
 extern emcmot_debug_t *emcmotDebug;
 
@@ -19,6 +20,24 @@ PmCartesian getXYZVelBounds() {
         emcmotDebug->joints[1].vel_limit,
         emcmotDebug->joints[2].vel_limit,
     };
+    return vel_bound;
+}
+
+PmVector getAccelBounds()
+{
+    PmVector acc_bound={0};
+    for (int i = 0; i < PM_VECTOR_SIZE; ++i) {
+        acc_bound.ax[i] = emcmotDebug->joints[i].acc_limit;
+    }
+    return acc_bound;
+}
+
+PmVector getVelBounds()
+{
+    PmVector vel_bound={0};
+    for (int i = 0; i < PM_VECTOR_SIZE; ++i) {
+        vel_bound.ax[i] = emcmotDebug->joints[i].vel_limit;
+    }
     return vel_bound;
 }
 

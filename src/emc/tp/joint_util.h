@@ -3,10 +3,17 @@
 
 #include <posemath.h>
 #include <emcpos.h>
+#include "pm_vector.h"
 
 PmCartesian getXYZAccelBounds();
-
 PmCartesian getXYZVelBounds();
+
+PmVector getAccelBounds();
+PmVector getVelBounds();
+
+unsigned jointAccelViolation(int joint_idx, double acc);
+unsigned jointVelocityViolation(int joint_idx, double v_actual);
+unsigned jointPositionViolation(int joint_idx, double position);
 
 unsigned findAccelViolations(EmcPose axis_accel);
 unsigned findVelocityViolations(EmcPose axis_vel);
