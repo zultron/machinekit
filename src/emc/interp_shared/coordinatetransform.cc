@@ -254,3 +254,8 @@ void convertAxisUnits(RotateShiftTransform & out, const UnitsTransform & units)
 {
     units.apply_fwd(out.shift.tf);
 }
+
+bool isNonzero(const RotateShiftTransform & r)
+{
+    return isNonzero(r.shift.tf) || r.xy_rotation_rad != 0.0;
+}

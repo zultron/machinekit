@@ -48,7 +48,7 @@ struct StandaloneInterpInternals
   CANON_DIRECTION _spindle_turning;
   int _pockets_max;
   CANON_TOOL_TABLE _tools[CANON_POCKETS_MAX];
-  std::array<RotateShiftTransform, interp_param_global::MAX_EXTENDED_WORK_CSYS+1> _g5x_table; // Stored according to 1-indexed work offset number
+  WorkOffsetTable _g5x_table; // Stored according to 1-indexed work offset number
   UnitsTransform programToUser;
   /* optional program stop */
   bool optional_program_stop;

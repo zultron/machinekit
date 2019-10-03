@@ -127,9 +127,7 @@ EMC_TASK_STAT::EMC_TASK_STAT():
     stepping_id(0),
     file(),
     command(),
-    g5x_offset{},
     g5x_index(0),
-    rotation_xy(0.0),
     g92_offset{},
     toolOffset{},
     // active g / m code arrays filled in body
@@ -152,6 +150,16 @@ EMC_TASK_STAT::EMC_TASK_STAT():
     activeGCodes.fill(G_INVALID);
     activeMCodes.fill(-1);
     activeSettings.fill(0.0);
+}
+
+PositionArray const & EMC_TASK_STAT::g5x_offset() const
+{
+    return g5x_table[g5x_index].shift.tf;
+}
+
+double EMC_TASK_STAT::rotation_xy() const
+{
+    return g5x_table[g5x_index].getXYRotationDeg();
 }
 
 EMC_TOOL_STAT::EMC_TOOL_STAT():

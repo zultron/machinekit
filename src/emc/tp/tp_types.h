@@ -47,31 +47,6 @@
 #define TP_BIG_NUM 1e10
 
 /**
- * TP return codes.
- * This enum is a catch-all for useful return statuses from TP
- * internal functions. This may be replaced with a better system in
- * the future.
- */
-typedef enum {
-    TP_ERR_INVALID = -9,
-    TP_ERR_INPUT_TYPE = -8,
-    TP_ERR_TOLERANCE = -7,
-    TP_ERR_RADIUS_TOO_SMALL = -6,
-    TP_ERR_GEOM = -5,
-    TP_ERR_RANGE = -4,
-    TP_ERR_MISSING_OUTPUT = -3,
-    TP_ERR_MISSING_INPUT = -2,
-    TP_ERR_FAIL = -1,
-    TP_ERR_OK = 0,
-    TP_ERR_NO_ACTION,
-    TP_ERR_SLOWING,
-    TP_ERR_STOPPED,
-    TP_ERR_WAITING,
-    TP_ERR_ZERO_LENGTH,
-    TP_ERR_LAST
-} tp_err_t;
-
-/**
  * Persistant data for spindle status within tpRunCycle.
  * This structure encapsulates some static variables to simplify refactoring of
  * synchronized motion code.
@@ -103,17 +78,12 @@ typedef struct {
     int queueSize;
     double cycleTime;
 
-    double vMax;		/* vel for subsequent moves */
-    double ini_maxvel;          /* max velocity allowed by machine
-                                   constraints (ini file) for
-                                   subsequent moves */
     double vLimit;		/* absolute upper limit on all linear vels */
     double vLimitAng;		/* absolute upper limit on all angular vels */
 
-    double wMax;		/* rotational velocity max */
-    double wDotMax;		/* rotational accelleration max */
     int nextId;
     int execId;
+    tc_unique_id_t nextUniqueId;
     struct state_tag_t execTag; /* state tag corresponding to running motion */
     int nextexecId;
     tc_term_cond_t termCond;
@@ -127,8 +97,6 @@ typedef struct {
                                    distance of the programmed path during
                                    blends */
     tc_spindle_sync_t synchronized;       // spindle sync required for this move
-    int velocity_mode; 	        /* TRUE if spindle sync is in velocity mode,
-				   FALSE if in position mode */
     double uu_per_rev;          /* user units per spindle revolution */
 
 
@@ -139,18 +107,5 @@ typedef struct {
     long long time_at_wait; // Time when TP started to wait for spindle
 
 } TP_STRUCT;
-
-
-/**
- * Describes blend modes used in the trajectory planner.
- * @note these values are used as array indices, so make sure valid options
- * start at 0 and increase by one.
- */
-typedef enum {
-    NO_BLEND = -1,
-    PARABOLIC_BLEND,
-    TANGENT_SEGMENTS_BLEND,
-    ARC_BLEND
-} tc_blend_type_t;
 
 #endif				/* TP_TYPES_H */

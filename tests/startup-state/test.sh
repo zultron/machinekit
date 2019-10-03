@@ -1,6 +1,5 @@
 #!/bin/bash
 
-rm -f sim.var
-cp sim.var.baseline sim.var
+cp sim.var.baseline param.tmp.var
 linuxcnc -r test.ini
 

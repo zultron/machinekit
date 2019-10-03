@@ -467,6 +467,26 @@ int Interp::set_probe_data(setup_pointer settings)       //!< pointer to machine
   return INTERP_OK;
 }
 
+int Interp::formatGCode(GCodes g, std::string &cmd)
+{
+    if (g < 0 || g > 999) {
+        return INTERP_ERROR;
+    }
+
+    char buf[50];
+    int base_g = g / 10;
+    int sub_g = g - base_g*10;
+    if (sub_g) {
+        snprintf(buf, sizeof(buf), "G%d.%d", base_g, sub_g);
+    } else {
+        snprintf(buf, sizeof(buf), "G%d", base_g);
+    }
+
+    cmd += buf;
+
+    return INTERP_OK;
+}
+
 int Interp::lookup_work_offset_gcode_from_origin(int origin)
 {
     switch (origin) {
@@ -491,6 +511,17 @@ int Interp::lookup_work_offset_gcode_from_origin(int origin)
     default:
         return G_54_1;
     }
+}
+
+std::string Interp::lookup_work_offset_gcode_string_from_origin(int origin)
+{
+    auto g = (GCodes)lookup_work_offset_gcode_from_origin(origin);
+    std::string g_str;
+    formatGCode(g, g_str);
+    if (origin > 9 && origin <= MAX_EXTENDED_WORK_CSYS) {
+        g_str += " P" + std::to_string(origin);
+    }
+    return g_str;
 }
 
 int Interp::call_level(void) { return _setup.call_level; }

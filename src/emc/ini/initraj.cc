@@ -29,6 +29,35 @@
 
 extern value_inihal_data old_inihal_data;
 
+// Follow interp convention to return on error
+#define CHP(call__) \
+do { \
+    if (call__) { \
+        if (emc_debug & EMC_DEBUG_CONFIG) { \
+            rcs_print("%s: %d: bad return value from %s\n", __FUNCTION__, __LINE__, #call__); \
+        } \
+        return -1; \
+    } \
+} while (0)
+
+struct FindsIniFieldOrDefault
+{
+    EmcIniFile &inifile;
+    const char *section;
+    FindsIniFieldOrDefault(EmcIniFile &inifile_in, const char *section_in) : inifile(inifile_in), section(section_in) {}
+
+    template <typename T>
+    T operator()(const char *section_name, const char *field_name, T def_value) const {
+        T val = def_value;
+        inifile.Find(&val, field_name, section_name);
+        return val;
+    }
+    template <typename T>
+    T operator()(const char *field_name, T def_value) const {
+        return (*this)(section, field_name, def_value);
+    }
+};
+
 /*
   loadTraj()
 
@@ -56,8 +85,9 @@ extern value_inihal_data old_inihal_data;
   emcTrajSetHome(EmcPose home);
   */
 
-static int loadTraj(EmcIniFile *trajInifile)
+static int loadTraj(EmcIniFile &trajInifile)
 {
+    FindsIniFieldOrDefault ini_traj_find(trajInifile, "TRAJ");
     const char *inistring;
     EmcLinearUnits linearUnits;
     EmcAngularUnits angularUnits;
@@ -71,26 +101,26 @@ static int loadTraj(EmcIniFile *trajInifile)
     EmcPose homePose = { {0.0, 0.0, 0.0}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
     double d;
 
-    trajInifile->EnableExceptions(EmcIniFile::ERR_CONVERSION);
+    trajInifile.EnableExceptions(EmcIniFile::ERR_CONVERSION);
 
-    try{
-	int axes = 0;
-	int axismask = 0;
-	const char *coord = trajInifile->Find("COORDINATES", "TRAJ");
-	if(coord) {
-	    if(strchr(coord, 'x') || strchr(coord, 'X')) axismask |= 1;
-	    if(strchr(coord, 'y') || strchr(coord, 'Y')) axismask |= 2;
-	    if(strchr(coord, 'z') || strchr(coord, 'Z')) axismask |= 4;
-	    if(strchr(coord, 'a') || strchr(coord, 'A')) axismask |= 8;
-	    if(strchr(coord, 'b') || strchr(coord, 'B')) axismask |= 16;
-	    if(strchr(coord, 'c') || strchr(coord, 'C')) axismask |= 32;
-	    if(strchr(coord, 'u') || strchr(coord, 'U')) axismask |= 64;
-	    if(strchr(coord, 'v') || strchr(coord, 'V')) axismask |= 128;
-	    if(strchr(coord, 'w') || strchr(coord, 'W')) axismask |= 256;
-	} else {
-	    axismask = 1 | 2 | 4;		// default: XYZ machine
-	}
-	trajInifile->Find(&axes, "AXES", "TRAJ");
+    try {
+        int axes = 0;
+        int axismask = 0;
+        const char *coord = trajInifile.Find("COORDINATES", "TRAJ");
+        if(coord) {
+            if(strchr(coord, 'x') || strchr(coord, 'X')) axismask |= 1;
+            if(strchr(coord, 'y') || strchr(coord, 'Y')) axismask |= 2;
+            if(strchr(coord, 'z') || strchr(coord, 'Z')) axismask |= 4;
+            if(strchr(coord, 'a') || strchr(coord, 'A')) axismask |= 8;
+            if(strchr(coord, 'b') || strchr(coord, 'B')) axismask |= 16;
+            if(strchr(coord, 'c') || strchr(coord, 'C')) axismask |= 32;
+            if(strchr(coord, 'u') || strchr(coord, 'U')) axismask |= 64;
+            if(strchr(coord, 'v') || strchr(coord, 'V')) axismask |= 128;
+            if(strchr(coord, 'w') || strchr(coord, 'W')) axismask |= 256;
+        } else {
+            axismask = 1 | 2 | 4;		// default: XYZ machine
+        }
+        trajInifile.Find(&axes, "AXES", "TRAJ");
 
         if (0 != emcTrajSetAxes(axes, axismask)) {
             if (emc_debug & EMC_DEBUG_CONFIG) {
@@ -100,9 +130,9 @@ static int loadTraj(EmcIniFile *trajInifile)
         }
 
         linearUnits = 0;
-        trajInifile->FindLinearUnits(&linearUnits, "LINEAR_UNITS", "TRAJ");
+        trajInifile.FindLinearUnits(&linearUnits, "LINEAR_UNITS", "TRAJ");
         angularUnits = 0;
-        trajInifile->FindAngularUnits(&angularUnits, "ANGULAR_UNITS", "TRAJ");
+        trajInifile.FindAngularUnits(&angularUnits, "ANGULAR_UNITS", "TRAJ");
 
         if (0 != emcTrajSetUnits(linearUnits, angularUnits)) {
             if (emc_debug & EMC_DEBUG_CONFIG) {
@@ -112,7 +142,7 @@ static int loadTraj(EmcIniFile *trajInifile)
         }
 
         vel = 1.0;
-        trajInifile->Find(&vel, "DEFAULT_VELOCITY", "TRAJ");
+        trajInifile.Find(&vel, "DEFAULT_VELOCITY", "TRAJ");
 
         // set the corresponding global
         traj_default_velocity = vel;
@@ -128,8 +158,8 @@ static int loadTraj(EmcIniFile *trajInifile)
 
         vel = 1e99; // by default, use AXIS limit
         vela = 1e99;
-        trajInifile->Find(&vel, "MAX_VELOCITY", "TRAJ");
-        trajInifile->Find(&vela, "MAX_ANGULAR_VELOCITY", "TRAJ");
+        trajInifile.Find(&vel, "MAX_VELOCITY", "TRAJ");
+        trajInifile.Find(&vela, "MAX_ANGULAR_VELOCITY", "TRAJ");
 
         // set the corresponding global
         traj_max_velocity = vel;
@@ -145,7 +175,7 @@ static int loadTraj(EmcIniFile *trajInifile)
         }
 
         acc = 1e99; // let the axis values apply
-        trajInifile->Find(&acc, "DEFAULT_ACCELERATION", "TRAJ");
+        trajInifile.Find(&acc, "DEFAULT_ACCELERATION", "TRAJ");
 
         if (0 != emcTrajSetAcceleration(acc)) {
             if (emc_debug & EMC_DEBUG_CONFIG) {
@@ -156,7 +186,7 @@ static int loadTraj(EmcIniFile *trajInifile)
         old_inihal_data.traj_default_acceleration = acc;
 
         acc = 1e99; // let the axis values apply
-        trajInifile->Find(&acc, "MAX_ACCELERATION", "TRAJ");
+        trajInifile.Find(&acc, "MAX_ACCELERATION", "TRAJ");
 
         if (0 != emcTrajSetMaxAcceleration(acc)) {
             if (emc_debug & EMC_DEBUG_CONFIG) {
@@ -166,71 +196,64 @@ static int loadTraj(EmcIniFile *trajInifile)
         }
         old_inihal_data.traj_max_acceleration = acc;
 
-        int arcBlendEnable = 1;
-        int arcBlendFallbackEnable = 0;
-        int arcBlendOptDepth = 50;
-        int arcBlendGapCycles = 4;
-        double arcBlendRampFreq = 100.0;
-        double arcBlendTangentKinkRatio = 0.1;
+        tp_arc_blend_config_t arc_blend_cfg = {
+            ini_traj_find("ARC_BLEND_ENABLE", 1),
+            ini_traj_find("ARC_BLEND_FALLBACK_ENABLE", 1),
+            ini_traj_find("ARC_BLEND_OPTIMIZATION_DEPTH", 50),
+            ini_traj_find("ARC_BLEND_GAP_CYCLES", 4),
+            ini_traj_find("ARC_BLEND_RAMP_FREQ", 100.0),
+            ini_traj_find("ARC_BLEND_RAMP_FREQ", 0.1),
+        };
 
-        trajInifile->Find(&arcBlendEnable, "ARC_BLEND_ENABLE", "TRAJ");
-        trajInifile->Find(&arcBlendFallbackEnable, "ARC_BLEND_FALLBACK_ENABLE", "TRAJ");
-        trajInifile->Find(&arcBlendOptDepth, "ARC_BLEND_OPTIMIZATION_DEPTH", "TRAJ");
-        trajInifile->Find(&arcBlendGapCycles, "ARC_BLEND_GAP_CYCLES", "TRAJ");
-        trajInifile->Find(&arcBlendRampFreq, "ARC_BLEND_RAMP_FREQ", "TRAJ");
-        trajInifile->Find(&arcBlendTangentKinkRatio, "ARC_BLEND_KINK_RATIO", "TRAJ");
-
-        if (0 != emcSetupArcBlends(arcBlendEnable, arcBlendFallbackEnable,
-                    arcBlendOptDepth, arcBlendGapCycles, arcBlendRampFreq, arcBlendTangentKinkRatio)) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("bad return value from emcSetupArcBlends\n");
-            }
-            return -1;
-        } 
+        CHP(emcSetupArcBlends(arc_blend_cfg));
 
         // Store default blend tolerance in emc globals
-        trajInifile->Find(&traj_default_tolerance, "DEFAULT_TOLERANCE", "TRAJ");
-        trajInifile->Find(&traj_default_naivecam_tolerance, "DEFAULT_NAIVECAM_TOLERANCE", "TRAJ");
+        trajInifile.Find(&traj_default_tolerance, "DEFAULT_TOLERANCE", "TRAJ");
+        trajInifile.Find(&traj_default_naivecam_tolerance, "DEFAULT_NAIVECAM_TOLERANCE", "TRAJ");
 
-        old_inihal_data.traj_arc_blend_enable = arcBlendEnable;
-        old_inihal_data.traj_arc_blend_fallback_enable = arcBlendFallbackEnable;
-        old_inihal_data.traj_arc_blend_optimization_depth = arcBlendOptDepth;
-        old_inihal_data.traj_arc_blend_gap_cycles = arcBlendGapCycles;
-        old_inihal_data.traj_arc_blend_ramp_freq = arcBlendRampFreq;
-        old_inihal_data.traj_arc_blend_tangent_kink_ratio = arcBlendTangentKinkRatio;
+        old_inihal_data.traj_arc_blend_enable = arc_blend_cfg.enable;
+        old_inihal_data.traj_arc_blend_fallback_enable = arc_blend_cfg.allow_fallback;
+        old_inihal_data.traj_arc_blend_optimization_depth = arc_blend_cfg.optimization_depth;
+        old_inihal_data.traj_arc_blend_gap_cycles = arc_blend_cfg.gap_cycles;
+        old_inihal_data.traj_arc_blend_ramp_freq = arc_blend_cfg.ramp_frequency;
+        old_inihal_data.traj_arc_blend_tangent_kink_ratio = arc_blend_cfg.tangent_kink_ratio;
         //TODO update inihal
 
-        int extraConsistencyChecks = 0;
-        double maxPositionDriftError = 0.0001;
+        consistency_check_config_t consistency_check_cfg = {
+            (unsigned)ini_traj_find("EXTRA_CONSISTENCY_CHECKS", 0),
+            ini_traj_find("MAX_POSITION_DRIFT_ERROR", 0.0001),
+            ini_traj_find("CONTINUITY_ANGLE_LIMIT_DEG", 0.00005) * M_PI / 180.,
+        };
+        CHP(emcSetupConsistencyChecks(
+            consistency_check_cfg
+            ));
 
-        trajInifile->Find(&extraConsistencyChecks, "EXTRA_CONSISTENCY_CHECKS", "TRAJ");
-        trajInifile->Find(&maxPositionDriftError, "MAX_POSITION_DRIFT_ERROR", "TRAJ");
+        CHP(emcSetMaxFeedOverride(
+            ini_traj_find("MAX_FEED_OVERRIDE", 1.0)
+            ));
 
-        if (0 != emcSetupConsistencyChecks(extraConsistencyChecks, maxPositionDriftError)) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("bad return value from emcSetupConsistencyChecks\n");
-            }
-            return -1;
-        }
+        CHP(emcSetMaxPosTrackingError(
+            ini_traj_find("MAX_POSITION_TRACKING_ERROR", (double)INFINITY)
+            ));
 
-        double maxFeedScale = 1.0;
-        trajInifile->Find(&maxFeedScale, "MAX_FEED_OVERRIDE", "DISPLAY");
-
-        if (0 != emcSetMaxFeedOverride(maxFeedScale)) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("bad return value from emcSetMaxFeedOverride\n");
-            }
-            return -1;
-        }
-
-        double maxPosTrackingError = INFINITY;
-        trajInifile->Find(&maxPosTrackingError, "MAX_POSITION_TRACKING_ERROR", "TRAJ");
-        if (0 != emcSetMaxPosTrackingError(maxPosTrackingError)) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("bad return value from emcSetMaxPosTrackingError\n");
-            }
-            return -1;
-        }
+        FindsIniFieldOrDefault ini_biarc_find(trajInifile, "TRAJ_BIARC_SOLVER");
+        biarc_solver_config_t biarc_solver_cfg = {
+            (unsigned)ini_biarc_find("MAX_ITERATIONS", 20),
+            ini_biarc_find("VELOCITY_REL_TOLERANCE", 0.01),
+            ini_biarc_find("VELOCITY_ABS_TOLERANCE", 0.001),
+            ini_biarc_find("DEVIATION_ABS_TOLERANCE", 0.000001),
+            ini_biarc_find("FEED_OVERRIDE_ALLOWANCE", 1.5),
+            ini_biarc_find("VELOCITY_CUTOFF", 0.001),
+            ini_biarc_find("CONVERGENCE_TOLERANCE", 1e-8),
+        };
+        CHP(emcSetupBiArcSolverCfg(biarc_solver_cfg));
+        old_inihal_data.traj_biarc_max_iterations = biarc_solver_cfg.max_iterations;
+        old_inihal_data.traj_biarc_velocity_rel_tolerance = biarc_solver_cfg.velocity_rel_tolerance;
+        old_inihal_data.traj_biarc_velocity_abs_tolerance = biarc_solver_cfg.velocity_abs_tolerance;
+        old_inihal_data.traj_biarc_deviation_abs_tolerance = biarc_solver_cfg.deviation_abs_tolerance;
+        old_inihal_data.traj_biarc_feed_override_allowance = biarc_solver_cfg.feed_override_allowance;
+        old_inihal_data.traj_biarc_velocity_cutoff = biarc_solver_cfg.velocity_cutoff;
+        old_inihal_data.traj_biarc_convergence_tolerance = biarc_solver_cfg.convergence_tolerance;
     }
 
     catch(EmcIniFile::Exception &e){
@@ -240,7 +263,7 @@ static int loadTraj(EmcIniFile *trajInifile)
 
     // set coordinateMark[] to hold 1's for each coordinate present,
     // so that home position can be interpreted properly
-    if ((inistring = trajInifile->Find("COORDINATES", "TRAJ")) != NULL) {
+    if ((inistring = trajInifile.Find("COORDINATES", "TRAJ")) != NULL) {
         len = strlen(inistring);
         // there's an entry in ini file, so clear all the marks out first
         // so that defaults don't apply at all
@@ -264,7 +287,7 @@ static int loadTraj(EmcIniFile *trajInifile)
         }
     }
 
-    if (NULL != (inistring = trajInifile->Find("HOME", "TRAJ"))) {
+    if (NULL != (inistring = trajInifile.Find("HOME", "TRAJ"))) {
 	// found it, now interpret it according to coordinateMark[]
 	strcpy(homes, inistring);
 	len = 0;
@@ -326,13 +349,11 @@ int iniTraj(const char *filename)
 {
     EmcIniFile trajInifile;
 
-    if (trajInifile.Open(filename) == false) {
-	return -1;
+    if (!trajInifile.Open(filename)) {
+        return -1;
     }
     // load trajectory values
-    if (0 != loadTraj(&trajInifile)) {
-	return -1;
-    }
+    CHP(loadTraj(trajInifile));
 
     return 0;
 }

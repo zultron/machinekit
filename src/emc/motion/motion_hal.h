@@ -103,6 +103,9 @@ typedef struct {
     hal_s32_t *motion_type;	/* RPA: type (feed/rapid) of currently commanded motion */
     hal_s32_t *next_program_line;    /* program line next to execute */
     hal_s32_t *completed_program_line;    /* program line most recently completed */
+    hal_s32_t *queued_program_line;    /* program line most recently queued*/
+    hal_s32_t *mot_command;       /* command being processed in the current update*/
+    hal_s32_t *mot_command_count; /* count of total commands executed by motion (will overflow)*/
     hal_float_t *current_vel;   /* RPI: velocity magnitude in machine units */
     hal_float_t *requested_vel;   /* RPI: requested velocity magnitude in machine units / second */
     hal_float_t *gcode_feed;      /* RPI: gcode F-word velocity magnitude in machine units */

@@ -1103,6 +1103,7 @@ void IO_PLUGIN_CALL(int len, const char *call)
 }
 
 void UPDATE_TAG(StateTag &tag){
+    _sai._line_number = tag.fields[GM_FIELD_LINE_NUMBER];
     //Do nothing
 }
 

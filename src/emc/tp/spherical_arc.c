@@ -13,14 +13,17 @@
 
 #include "posemath.h"
 #include "spherical_arc.h"
-#include "tp_types.h"
 #include "rtapi_math.h"
-
+#include "tp_enums.h"
 #include "tp_debug.h"
 
-int arcInitFromPoints(SphericalArc * const arc, PmCartesian const * const start,
-        PmCartesian const * const end,
-        PmCartesian const * const center)
+int arcInitFromPoints(
+    SphericalArc * const arc,
+    PmCartesian const * const start,
+    PmCartesian const * const end,
+    PmCartesian const * const center,
+    PmCartesian const * const uTan,
+    double prev_line_length)
 {
 #ifdef ARC_PEDANTIC
     if (!start || !end || !center) {
@@ -30,6 +33,13 @@ int arcInitFromPoints(SphericalArc * const arc, PmCartesian const * const start,
         return TP_ERR_MISSING_OUTPUT;
     }
 #endif
+
+    if (prev_line_length < -1e-17) {
+        return TP_ERR_INVALID;
+    }
+
+    arc->uTan = *uTan;
+    arc->line_length = fmax(prev_line_length, 0.0);
 
     // Store the start, end, and center
     arc->start = *start;
@@ -112,56 +122,10 @@ int arcPoint(SphericalArc const * const arc, double progress, PmCartesian * cons
     return TP_ERR_OK;
 }
 
-int arcLength(SphericalArc const * const arc, double * const length)
+double arcLength(SphericalArc const * const arc)
 {
-    *length = arc->radius * arc->angle + arc->line_length;
-    tp_debug_print("arc length = %g\n", *length);
-    return TP_ERR_OK;
+    return arc->radius * arc->angle + arc->line_length;
 }
-
-int arcFromLines(SphericalArc * const arc, PmCartLine const * const line1,
-        PmCartLine const * const line2, double radius,
-        double blend_dist, double center_dist, PmCartesian * const start, PmCartesian * const end, int consume) {
-
-    PmCartesian center, normal, binormal;
-
-    // Pointer to middle point of line segment pair
-    PmCartesian const * const middle = &line1->end;
-    //TODO assert line1 end = line2 start?
-
-    //Calculate the normal direction of the arc from the difference
-    //between the unit vectors
-    pmCartCartSub(&line2->uVec, &line1->uVec, &normal);
-    pmCartUnitEq(&normal);
-    pmCartScalMultEq(&normal, center_dist);
-    pmCartCartAdd(middle, &normal, &center);
-
-    //Calculate the binormal (vector perpendicular to the plane of the
-    //arc)
-    pmCartCartCross(&line1->uVec, &line2->uVec, &binormal);
-    pmCartUnitEq(&binormal);
-
-    // Start point is blend_dist away from middle point in the
-    // negative direction of line1
-    pmCartScalMult(&line1->uVec, -blend_dist, start);
-    pmCartCartAdd(start, middle, start);
-
-    // End point is blend_dist away from middle point in the positive
-    // direction of line2
-    pmCartScalMult(&line2->uVec, blend_dist, end);
-    pmCartCartAddEq(end, middle);
-
-    //Handle line portion of line-arc
-    arc->uTan = line1->uVec;
-    if (consume) {
-        arc->line_length = line1->tmag - blend_dist;
-    } else {
-        arc->line_length = 0;
-    }
-
-    return arcInitFromPoints(arc, start, end, &center);
-}
-
 
 /**
  * Tests if a ray from the specified point / direction intersects the circle with the given center.
@@ -192,28 +156,28 @@ int checkRayIntersectsArc(PmCartesian const * const center,
     return convex;
 }
 
-int arcTangent(SphericalArc const * const arc, PmCartesian * const tan, int at_end)
+int arcTangent(SphericalArc const * const arc, double const t, PmCartesian * const out)
 {
-    PmCartesian r_perp;
-    PmCartesian r_tan;
-
-    if (at_end) {
-        r_perp = arc->rEnd;
-    } else {
-        r_perp = arc->rStart;
+    if (!arc || !out) {
+        return TP_ERR_MISSING_INPUT;
     }
 
-    pmCartCartCross(&arc->binormal, &r_perp, &r_tan);
-    //Get spiral component
-    double dr = arc->spiral / arc->angle;
+    // This section implements the derivative of the SLERP formula to get a
+    // local tangent vector.
+    const double theta = arc->angle;
+    const double k = theta / arc->Sangle;
+    const double k0 = -cos( (1.0 - t) * theta);
+    const double k1 = cos( t * theta);
 
-    //Get perpendicular component due to spiral
-    PmCartesian d_perp;
-    pmCartUnit(&r_perp, &d_perp);
-    pmCartScalMultEq(&d_perp, dr);
-    //TODO error checks
-    pmCartCartAdd(&d_perp, &r_tan, tan);
-    pmCartUnitEq(tan);
+    PmCartesian dp0,dp1;
+
+    // Ugly sequence to build up tangent vector from components of the derivative
+    pmCartScalMult(&arc->rStart, k * k0, &dp0);
+    pmCartScalMult(&arc->rEnd, k * k1, &dp1);
+    pmCartCartAdd(&dp0, &dp1, out);
+
+    // tangential vector complete, now normalize
+    pmCartUnitEq(out);
 
     return TP_ERR_OK;
 }

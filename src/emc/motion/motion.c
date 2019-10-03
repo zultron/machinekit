@@ -446,6 +446,24 @@ static int init_hal_io(void)
     if (retval != 0) {
 	return retval;
     }
+    retval =
+    hal_pin_s32_new("motion.queued-program-line", HAL_OUT, &(emcmot_hal_data->queued_program_line),
+    mot_comp_id);
+    if (retval != 0) {
+    return retval;
+    }
+    retval =
+    hal_pin_s32_new("motion.mot-command", HAL_OUT, &(emcmot_hal_data->mot_command),
+    mot_comp_id);
+    if (retval != 0) {
+    return retval;
+    }
+    retval =
+    hal_pin_s32_new("motion.mot-command-count", HAL_OUT, &(emcmot_hal_data->mot_command_count),
+    mot_comp_id);
+    if (retval != 0) {
+    return retval;
+    }
     /* export debug parameters */
     /* these can be used to view any internal variable, simply change a line
        in control.c:output_to_hal() and recompile */
@@ -1099,12 +1117,11 @@ static int init_comm_buffers(void)
 
     tpSetCycleTime(&emcmotDebug->tp, emcmotConfig->trajCycleTime);
     int res_pos = tpSetPos(&emcmotDebug->tp, &emcmotStatus->carte_pos_cmd);
-    int res_vel = tpSetVmax(&emcmotDebug->tp, emcmotStatus->vel, emcmotStatus->vel);
 
     emcmotStatus->tail = 0;
 
     rtapi_print_msg(RTAPI_MSG_INFO, "MOTION: init_comm_buffers() complete\n");
-    return res_pos | res_vel;
+    return res_pos;
 }
 
 /* init_threads() creates realtime threads, exports functions to

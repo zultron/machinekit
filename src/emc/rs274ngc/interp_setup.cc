@@ -20,13 +20,18 @@
 #include <string.h>
 #include "rs274ngc_interp.hh"
 #include <boost/python/object.hpp>
+#include <algorithm>
+#include "work_offset_structs.hh"
 
 #pragma GCC diagnostic error "-Wmissing-field-initializers"
 
 setup_struct::setup_struct() :
     current(),
     transform(),
-
+    work_offsets_user(),
+    // Only 2 work offsets should be able to be updated between synchs
+    // (one via G5x, one via G10 L2 P###). Allowing a 3rd is a harmless safety factor.
+    work_offsets_to_synch(3),
     modal_state(),
 
     arc_not_allowed(0),
@@ -153,7 +158,7 @@ setup_struct::setup_struct() :
     g_remappable()
 
 {
-  std::fill(parameters, parameters + interp_param_global::RS274NGC_MAX_PARAMETERS, 0);
+  parameters.fill(0);
   tool_table.fill(CANON_TOOL_TABLE());
 
   // Prevent unnecessary reallocations

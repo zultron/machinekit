@@ -55,4 +55,45 @@ typedef enum {
     RIGIDTAP_FINAL_PLACEMENT
 } rigid_tap_state_t;
 
+typedef struct
+{
+    int enable;
+    int allow_fallback;
+    int optimization_depth;
+    int gap_cycles;
+    double ramp_frequency;
+    double tangent_kink_ratio;
+} tp_arc_blend_config_t;
+
+typedef struct
+{
+    unsigned max_iterations;
+    double velocity_rel_tolerance;
+    double velocity_abs_tolerance;
+    double deviation_abs_tolerance;
+    double feed_override_allowance;
+    double velocity_cutoff;
+    double convergence_tolerance;
+} biarc_solver_config_t;
+
+/* termination conditions for queued motions */
+typedef enum {
+    EMCMOT_TERM_COND_STOP = 1,
+    EMCMOT_TERM_COND_BLEND = 2,
+    EMCMOT_TERM_COND_TANGENT = 3,
+} EmcMotionTermCond;
+
+typedef enum {
+    CCHECK_AXIS_LIMITS = 1,
+    CCHECK_C0_CONTINUITY = 2,
+    CCHECK_C1_CONTINUITY = 4,
+} ConsistencyCheckMask;
+
+typedef struct {
+    // Consistency checking within TP
+    unsigned extraConsistencyChecks;
+    double maxPositionDriftError;
+    double continuityAngleLimit_rad;
+} consistency_check_config_t;
+
 #endif

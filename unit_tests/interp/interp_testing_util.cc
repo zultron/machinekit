@@ -4,7 +4,7 @@
 int print_interp_error(Interp & interp, int retval, const char* src_file, int line)
 {
     int index = 0;
-    if (retval == 0) {
+    if (retval <= INTERP_MIN_ERROR) {
         return retval;
     }
 
@@ -25,18 +25,10 @@ int print_interp_error(Interp & interp, int retval, const char* src_file, int li
         }
         if (line > 0) {
             fprintf(stderr,"%s:%d: from G-code: %s\n", src_file, line, interp._setup.blocktext);
+        } else {
+            fprintf(stderr,"%s:%d: no source\n", src_file, line);
         }
-        fprintf(stderr,"\n");
+        fprintf(stderr,"---\n");
     }
     return retval;
-}
-
-int execute_(Interp & interp, const char * cmd, const char * src_file, int line)
-{
-    return print_interp_error(interp, interp.execute(cmd), src_file, line);
-}
-
-int execute(Interp & interp, const char * cmd)
-{
-    return execute_(interp, cmd, "", -1);
 }

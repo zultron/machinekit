@@ -7,6 +7,7 @@
 #include "joint_util.h"
 #include "motion_debug.h"
 #include "tc.h"
+#include "greatest_compare.h"
 
 /* Expand to all the definitions that need to be in
    the test runner's main file. */
@@ -50,6 +51,84 @@ TEST test_findAccelScale()
     ASSERT_FLOAT_EQ(40, scale_out.x);
     ASSERT_FLOAT_EQ(0, scale_out.y);
     ASSERT_FLOAT_EQ(1/20.0, scale_out.z);
+    PASS();
+}
+
+TEST test_findMaxValueOnPlane_basic()
+{
+    PmCartesian const bounds_easy = {10.0, 10.0, 10.0};
+    PmCartesian const l1 = {1,0,0};
+    PmCartesian const l2 = {-1,-1,0};
+
+    PmCartesian u1, u2, u, v, uv_harmonic_sq;
+    pmCartUnit(&l1, &u1);
+    pmCartUnit(&l2, &u2);
+    pmCartCartOrthonormal(&u1, &u2, &u, &v);
+    pmCartCartHarmonicAddSq(&u, &v, &uv_harmonic_sq);
+
+    double b_max;
+    findMaxValueOnPlane(&uv_harmonic_sq, &bounds_easy, &b_max);
+
+    ASSERT_FLOAT_EQ(10.0, b_max);
+    PASS();
+}
+
+TEST test_findMaxValueOnPlane_missing_y()
+{
+    PmCartesian const bounds_easy = {10.0, 0.0, 20.0};
+    PmCartesian const l1 = {1,0,3};
+    PmCartesian const l2 = {-1,0,-5};
+
+    PmCartesian u1, u2, u, v, uv_harmonic_sq;
+    pmCartUnit(&l1, &u1);
+    pmCartUnit(&l2, &u2);
+    pmCartCartOrthonormal(&u1, &u2, &u, &v);
+    pmCartCartHarmonicAddSq(&u, &v, &uv_harmonic_sq);
+
+    double b_max;
+    findMaxValueOnPlane(&uv_harmonic_sq, &bounds_easy, &b_max);
+
+    ASSERT_IN_RANGE(10.0, b_max, TP_POS_EPSILON);
+    PASS();
+}
+
+TEST test_findMaxValueOnPlane_slow_z()
+{
+    PmCartesian const bounds_easy = {10.0, 10.0, 1.0};
+    PmCartesian const l1 = {1,1,0.1};
+    PmCartesian const l2 = {1,-1,-0.1};
+
+    PmCartesian u1, u2, u, v, uv_harmonic_sq;
+    pmCartUnit(&l1, &u1);
+    pmCartUnit(&l2, &u2);
+    pmCartCartOrthonormal(&u1, &u2, &u, &v);
+    pmCartCartHarmonicAddSq(&u, &v, &uv_harmonic_sq);
+
+    double b_max;
+    findMaxValueOnPlane(&uv_harmonic_sq, &bounds_easy, &b_max);
+
+    ASSERT_IN_RANGE(10.0, b_max, TP_POS_EPSILON);
+    PASS();
+}
+
+TEST test_findMaxValueOnPlane_tilted()
+{
+    PmCartesian const bounds_easy = {10.0, 10.0, 10.0};
+    PmCartesian const l1 = {1,1,1};
+    PmCartesian const l_ref = {1,1,0};
+    PmCartesian l2;
+    pmCartCartCross(&l1, &l_ref, &l2);
+
+    PmCartesian u1, u2, u, v, uv_harmonic_sq;
+    pmCartUnit(&l1, &u1);
+    pmCartUnit(&l2, &u2);
+    pmCartCartOrthonormal(&u1, &u2, &u, &v);
+    pmCartCartHarmonicAddSq(&u, &v, &uv_harmonic_sq);
+
+    double b_max;
+    findMaxValueOnPlane(&uv_harmonic_sq, &bounds_easy, &b_max);
+
+    ASSERT_IN_RANGE(10.954451150103, b_max, TP_POS_EPSILON);
     PASS();
 }
 
@@ -101,6 +180,10 @@ SUITE(blendmath) {
     RUN_TEST(test_findMaxTangentAngle);
     RUN_TEST(test_findKinkAccel);
     RUN_TEST(test_findAccelScale);
+    RUN_TEST(test_findMaxValueOnPlane_basic);
+    RUN_TEST(test_findMaxValueOnPlane_missing_y);
+    RUN_TEST(test_findMaxValueOnPlane_slow_z);
+    RUN_TEST(test_findMaxValueOnPlane_tilted);
     RUN_TEST(pmCartCartParallel_numerical);
     RUN_TEST(pmCartCartAntiParallel_numerical);
 }
@@ -344,11 +427,12 @@ TEST test_pmCircleTangentVector_unitcircle()
  * Uses the derivative to produce the unit vector at the given theta.
  * From https://math.stackexchange.com/questions/1078185/differentiate-archimedess-spiral
  */
-static PmCartesian idealXYSpiralUnitVec(double a, double r0, double theta)
+static PmCartesian idealXYSpiralUnitVec(double a, double r0, double theta, double dz)
 {
     PmCartesian out = {0};
     out.x = a*cos(theta) - (r0+a*theta)*sin(theta);
     out.y = a*sin(theta) + (r0+a*theta)*cos(theta);
+    out.z = dz * theta;
     pmCartUnitEq(&out);
     return out;
 }
@@ -356,21 +440,23 @@ static PmCartesian idealXYSpiralUnitVec(double a, double r0, double theta)
 TEST test_pmCircleTangentVector_spiralout()
 {
     PmCircle c;
-    PmCartesian start = {1,0, 0};
-    PmCartesian end = {1.0 + M_PI_2,0,0};
+    const double expect_r0 = 1.0;
+    PmCartesian start = {expect_r0,0, 0};
+    PmCartesian end = {expect_r0 + M_PI_2,0,0};
     PmCartesian center = {0,0,0};
     PmCartesian normal = {0,0,1};
     pmCircleInit(&c, &start, &end, &center, &normal, 0);
 
     // a = (r1-r0)/theta = (pi/2) / (2pi) = 1/4
     double expect_spiral_a = 0.25;
-    ASSERT_FLOAT_EQ(c.angle, 2.0 * M_PI);
+    ASSERT_FLOAT_EQ(2.0 * M_PI, c.angle);
+    ASSERT_FLOAT_EQ(expect_spiral_a, c.spiral / c.angle);
 
     {
         PmCartesian utan_start;
         const double angle = 0.0;
         ASSERT_FALSE(pmCircleTangentVector(&c, angle, &utan_start));
-        PmCartesian const expect_utan_start = idealXYSpiralUnitVec(expect_spiral_a, 1.0, angle);
+        PmCartesian const expect_utan_start = idealXYSpiralUnitVec(expect_spiral_a, expect_r0, angle, 0);
         ASSERT_PMCARTESIAN_IN_RANGE(utan_start, expect_utan_start, CART_FUZZ);
     }
 
@@ -378,7 +464,7 @@ TEST test_pmCircleTangentVector_spiralout()
         PmCartesian utan_30deg;
         const double angle = M_PI / 6.0;
         ASSERT_FALSE(pmCircleTangentVector(&c, angle, &utan_30deg));
-        PmCartesian const expect_utan_30deg = idealXYSpiralUnitVec(expect_spiral_a, 1.0, angle);
+        PmCartesian const expect_utan_30deg = idealXYSpiralUnitVec(expect_spiral_a, expect_r0, angle, 0);
         ASSERT_PMCARTESIAN_IN_RANGE(utan_30deg, expect_utan_30deg, CART_FUZZ);
     }
 
@@ -386,12 +472,55 @@ TEST test_pmCircleTangentVector_spiralout()
         PmCartesian utan_end;
         const double angle = M_PI / 6.0;
         ASSERT_FALSE(pmCircleTangentVector(&c, angle, &utan_end));
-        PmCartesian const expect_utan_end = idealXYSpiralUnitVec(expect_spiral_a, 1.0, angle);
+        PmCartesian const expect_utan_end = idealXYSpiralUnitVec(expect_spiral_a, expect_r0, angle, 0);
         ASSERT_PMCARTESIAN_IN_RANGE(utan_end, expect_utan_end, CART_FUZZ);
     }
 
     PASS();
 }
+
+TEST test_pmCircleTangentVector_spiralin()
+{
+    PmCircle c;
+    const double expect_r0 = 2.0;
+    PmCartesian start = {expect_r0, 0, 0};
+    PmCartesian end = {expect_r0 - M_PI_2,0,0};
+    PmCartesian center = {0,0,0};
+    PmCartesian normal = {0,0,1};
+    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+
+    // a = (r1-r0)/theta = (pi/2) / (2pi) = 1/4
+    double expect_spiral_a = -0.25;
+    ASSERT_FLOAT_EQ(2.0 * M_PI, c.angle);
+    ASSERT_FLOAT_EQ(expect_spiral_a, c.spiral / c.angle);
+
+    {
+        PmCartesian utan_start;
+        const double angle = 0.0;
+        ASSERT_FALSE(pmCircleTangentVector(&c, angle, &utan_start));
+        PmCartesian const expect_utan_start = idealXYSpiralUnitVec(expect_spiral_a, expect_r0, angle, 0);
+        ASSERT_PMCARTESIAN_IN_RANGE(utan_start, expect_utan_start, CART_FUZZ);
+    }
+
+    {
+        PmCartesian utan_30deg;
+        const double angle = M_PI / 6.0;
+        ASSERT_FALSE(pmCircleTangentVector(&c, angle, &utan_30deg));
+        PmCartesian const expect_utan_30deg = idealXYSpiralUnitVec(expect_spiral_a, expect_r0, angle, 0);
+        ASSERT_PMCARTESIAN_IN_RANGE(utan_30deg, expect_utan_30deg, CART_FUZZ);
+    }
+
+    {
+        PmCartesian utan_end;
+        const double angle = M_PI / 6.0;
+        ASSERT_FALSE(pmCircleTangentVector(&c, angle, &utan_end));
+        PmCartesian const expect_utan_end = idealXYSpiralUnitVec(expect_spiral_a, expect_r0, angle, 0);
+        ASSERT_PMCARTESIAN_IN_RANGE(utan_end, expect_utan_end, CART_FUZZ);
+    }
+
+    PASS();
+}
+
 
 TEST test_findSpiralArcLengthFit_spiralout()
 {
@@ -487,7 +616,7 @@ TEST test_pmCircle9Init()
     PmCartesian normal = {0, 0, 1};
 
     ASSERT_FALSE(pmCircle9Init(&c, &start, &end, &center, &normal, 0));
-    ASSERT_PMCARTESIAN_IN_RANGE(c.xyz.center, center, V_FUZZ);
+    ASSERT_PMCARTESIAN_IN_RANGE(c.xyz.center, center, CART_FUZZ);
     ASSERT_FLOAT_EQ(c.xyz.radius, 1.0);
     ASSERT_IN_RANGE(c.xyz.spiral, 0.0, TP_POS_EPSILON);
 
@@ -523,6 +652,7 @@ SUITE(circle_funcs)
 {
     RUN_TEST(test_pmCircleTangentVector_unitcircle);
     RUN_TEST(test_pmCircleTangentVector_spiralout);
+    RUN_TEST(test_pmCircleTangentVector_spiralin);
     RUN_TEST(test_findSpiralArcLengthFit_spiralout);
     RUN_TEST(test_findSpiralArcLengthFit_spiralin);
     RUN_TEST(test_findSpiralArcLengthFit_exact);
@@ -560,6 +690,45 @@ SUITE(geom_funcs)
     RUN_TEST(test_calculateInscribedRadius);
 }
 
+static int checkQF(double A, double B, double C, double exp_R0, double exp_R1, double tol)
+{
+    double r0=0, r1=0;
+
+    ASSERT(0 == quadraticFormula(A, B, C, &r0, &r1));
+    ASSERT_IN_RANGE(exp_R0, r0, tol);
+    ASSERT_IN_RANGE(exp_R1, r1, tol);
+    PASS();
+}
+
+TEST test_quadratic_formula_basic()
+{
+    // Simple cases
+    // 0 = Ax^2 + Bx + C
+    CHECK_CALL(checkQF(1, -4, 4, 2, 2, DOUBLE_FUZZ));
+    CHECK_CALL(checkQF(1, 4, 4, -2, -2, DOUBLE_FUZZ));
+    // Expect the most-positive root first
+    CHECK_CALL(checkQF(1, 1, -6, 2, -3, DOUBLE_FUZZ));
+    // Expect small roots to be calculated precisely
+    CHECK_CALL(checkQF(1, 1.0000000000000001, 1e-16, -1e-16, -1, DOUBLE_FUZZ));
+
+    PASS();
+}
+
+TEST test_find_blend_points_and_tangents()
+{
+    PASS();
+}
+
+TEST test_find_blend_intermediate_segments()
+{
+    PASS();
+}
+
+SUITE(biarc_optimization) {
+    RUN_TEST(test_find_blend_points_and_tangents);
+    RUN_TEST(test_find_blend_intermediate_segments);
+}
+
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();      /* command-line arguments, initialization. */
     RUN_SUITE(blendmath);
@@ -567,5 +736,7 @@ int main(int argc, char **argv) {
     RUN_SUITE(tc_functions);
     RUN_SUITE(circle_funcs);
     RUN_SUITE(geom_funcs);
+    RUN_TEST(test_quadratic_formula_basic);
+    RUN_SUITE(biarc_optimization);
     GREATEST_MAIN_END();        /* display results */
 }

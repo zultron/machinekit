@@ -1439,6 +1439,8 @@ class EMC_TASK_STAT_MSG:public RCS_STAT_MSG {
 class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
   public:
     EMC_TASK_STAT();
+    const PositionArray & g5x_offset() const;
+    double rotation_xy() const;
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
@@ -1455,9 +1457,7 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
 
     char file[LINELEN];
     char command[LINELEN];
-    EmcPose g5x_offset;		// in user units, currently active
     int g5x_index;              // index of active g5x system
-    double rotation_xy;
     EmcPose g92_offset;		// in user units, currently active
     EmcPose toolOffset;		// tool offset, in general pose form
     ActiveGCodeArray activeGCodes;
@@ -1468,7 +1468,7 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     int task_paused;		// non-zero means task is paused
     double delayLeft;           // delay time left of G4, M66..
     int queuedMDIcommands;      // current length of MDI input queue
-    std::array<RotateShiftTransform, interp_param_global::MAX_EXTENDED_WORK_CSYS+1> g5x_table; // in user units, stored by 1-indexed work offset number
+    WorkOffsetTable g5x_table; // in user units, stored by 1-indexed work offset number
     bool program_ended_and_reset; // program executed an M30 to gracefully end and reset
     bool program_ended;           // program executed an M2 to gracefully end
     bool optional_stop_state;	// state of optional stop (== ON means we stop on M1)

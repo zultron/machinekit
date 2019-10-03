@@ -6,6 +6,7 @@
 #include <interp_return.hh>
 #include <interp_parameter_def.hh>
 #include <sstream>
+#include <cstdio>
 using namespace interp_param_global;
 
 int emc_debug = EMC_DEBUG_INTERP;
@@ -22,27 +23,27 @@ TEST_CASE("Interp Basics")
 
   SECTION("Change Units")
   {
-    REQUIRE_INTERP_OK(test_interp.convert_length_units(G_21, settings));
+    REQUIRE_INTERP_OK(test_interp, convert_length_units(G_21, settings));
     REQUIRE(settings->length_units == CANON_UNITS_MM);
     // Magically jump 1 inch
     currentX(settings) = 25.4;
-    REQUIRE_INTERP_OK(test_interp.convert_length_units(G_20, settings));
+    REQUIRE_INTERP_OK(test_interp, convert_length_units(G_20, settings));
     REQUIRE(settings->length_units == CANON_UNITS_INCHES);
     CHECK_FUZZ(currentX(settings), 1.0);
-    REQUIRE_INTERP_OK(test_interp.convert_length_units(G_21, settings));
+    REQUIRE_INTERP_OK(test_interp, convert_length_units(G_21, settings));
   }
 
   SECTION("G52 without rotation")
   {
     // Assume all offsets and such start at zero
-    REQUIRE_INTERP_OK(test_interp.convert_length_units(G_21, settings));
+    REQUIRE_INTERP_OK(test_interp, convert_length_units(G_21, settings));
     REQUIRE(settings->length_units == CANON_UNITS_MM);
     REQUIRE(settings->parameters[G92_X] == 0.0);
     REQUIRE(settings->parameters[G92_Y] == 0.0);
-    REQUIRE_INTERP_OK(execute(test_interp,"G52 X25.4 Y0"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G52 X25.4 Y0"));
     CHECK_FUZZ(settings->parameters[G92_X], 1.0);
     CHECK_FUZZ(settings->parameters[G92_Y], 0.0);
-    REQUIRE_INTERP_OK(execute(test_interp,"G52 Y25.4"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G52 Y25.4"));
     CHECK_FUZZ(settings->parameters[G92_X], 1.0);
     CHECK_FUZZ(settings->parameters[G92_Y], 1.0);
   }
@@ -50,15 +51,15 @@ TEST_CASE("Interp Basics")
   SECTION("G92 X and G5x Rotation")
   {
     // Assume all offsets and such start at zero
-    REQUIRE_INTERP_OK(execute(test_interp,"G20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G20"));
     REQUIRE(settings->length_units == CANON_UNITS_INCHES);
-    REQUIRE_INTERP_OK(execute(test_interp,"G92.1"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G92.1"));
     REQUIRE(settings->parameters[G92_X] == 0.0);
-    REQUIRE_INTERP_OK(execute(test_interp,"G52 X1 Y0"));
-    REQUIRE_INTERP_OK(execute(test_interp,"G10 L2 P0 X1 Y0 Z0 R0"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G52 X1 Y0"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G10 L2 P0 X1 Y0 Z0 R0"));
     CHECK_FUZZ(currentX(settings), -2.0);
     // Corrected behavior applying rotation between G92 and G5x
-    REQUIRE_INTERP_OK(execute(test_interp,"G10 L2 P0 X1 Y0 Z0 R90"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G10 L2 P0 X1 Y0 Z0 R90"));
     CHECK_FUZZ(currentX(settings), -1.0);
     CHECK_FUZZ(currentY(settings), 1.0);
   }
@@ -66,11 +67,11 @@ TEST_CASE("Interp Basics")
   SECTION("G92 off-axis behavior with rotation")
   {
     // Assume all offsets and such start at zero
-    REQUIRE_INTERP_OK(execute(test_interp,"G20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G20"));
     REQUIRE(settings->length_units == CANON_UNITS_INCHES);
-    REQUIRE_INTERP_OK(execute(test_interp,"G92.1"));
-    REQUIRE_INTERP_OK(execute(test_interp,"G52 X1 Y0"));
-    REQUIRE_INTERP_OK(execute(test_interp,"G10 L2 P0 X1 Y2 Z3 A4 B5 C6 R90"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G92.1"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G52 X1 Y0"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G10 L2 P0 X1 Y2 Z3 A4 B5 C6 R90"));
     CHECK_FUZZ(currentX(settings), -3.0);
     CHECK_FUZZ(currentY(settings), 1.0);
     // Should not be affected by rotation
@@ -82,7 +83,7 @@ TEST_CASE("Interp Basics")
 
   SECTION("G55 without rotation")
   {
-    REQUIRE_INTERP_OK(execute(test_interp,"G20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G20"));
     CHECK_FUZZ(currentX(settings), 0.0);
     CHECK_FUZZ(currentY(settings), 0.0);
     CHECK_FUZZ(currentZ(settings), 0.0);
@@ -94,7 +95,7 @@ TEST_CASE("Interp Basics")
     test_interp._setup.parameters[G55_X] = 2;
     test_interp._setup.parameters[G55_Y] = 3;
     test_interp._setup.parameters[G55_Z] = 1;
-    REQUIRE_INTERP_OK(test_interp.convert_coordinate_system(G_55, settings));
+    REQUIRE_INTERP_OK(test_interp, convert_coordinate_system(G_55, settings));
     CHECK_FUZZ(currentX(settings), -1.0);
     CHECK_FUZZ(currentY(settings), -2.0);
     CHECK_FUZZ(currentZ(settings), 0.0);
@@ -102,14 +103,14 @@ TEST_CASE("Interp Basics")
 
   SECTION("G55 with rotation")
   {
-    REQUIRE_INTERP_OK(execute(test_interp,"G20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G20"));
     currentX(settings) = 0.0;
     // KLUDGE hack in parameters directly to avoid depending on other functions
     test_interp._setup.parameters[G55_X] = 2;
     test_interp._setup.parameters[G55_Y] = 3;
     test_interp._setup.parameters[G55_Z] = 1;
     test_interp._setup.parameters[G55_R] = 90;
-    REQUIRE_INTERP_OK(test_interp.convert_coordinate_system(G_55, settings));
+    REQUIRE_INTERP_OK(test_interp, convert_coordinate_system(G_55, settings));
     CHECK_FUZZ(currentX(settings), -3.0);
     CHECK_FUZZ(currentY(settings), 2.0);
     CHECK_FUZZ(currentZ(settings), -1.0);
@@ -127,7 +128,7 @@ TEST_CASE("G10 init")
     "g10 l1 p1 x0 y0 z0",
     "t1 m6 g43",
   };
-  execute_lines(test_interp, test_setup);
+  REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 0.0);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], 0.0);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
@@ -136,23 +137,23 @@ TEST_CASE("G10 init")
   {
     // 2-pass loop ensures that tool offsets persist regardless of G43 / G49 state
     for (int k = 0; k < 2; ++k) {
-      REQUIRE_INTERP_OK(execute(test_interp,"g10 l1 p1 x0 y0 z0 "));
-      REQUIRE_INTERP_OK(execute(test_interp,"g10 l1 p1 x1"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g10 l1 p1 x0 y0 z0 "));
+      REQUIRE_INTERP_OK(test_interp, _execute("g10 l1 p1 x1"));
       CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 1.0);
       CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], 0.0);
       CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
 
-      REQUIRE_INTERP_OK(execute(test_interp,"g10 l1 p1 y2"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g10 l1 p1 y2"));
       CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 1.0);
       CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], 2.0);
       CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
 
-      REQUIRE_INTERP_OK(execute(test_interp,"g10 l1 p1 z3"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g10 l1 p1 z3"));
       CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 1.0);
       CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], 2.0);
       CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 3.0);
 
-      REQUIRE_INTERP_OK(execute(test_interp,"g49"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g49"));
     }
   }
 }
@@ -170,19 +171,19 @@ TEST_CASE("G10 L10 ")
       "g10 l1 p1 x0 y0 z0",
       "t1 m6 g43",
   };
-  REQUIRE_INTERP_OK(execute_lines(test_interp, test_setup));
+  REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
 
-  REQUIRE_INTERP_OK(execute(test_interp,"g0 x.1 y.2 z.3"));
-  REQUIRE_INTERP_OK(execute(test_interp,"g10 l10 p1 x1"));
+  REQUIRE_INTERP_OK(test_interp, _execute("g0 x.1 y.2 z.3"));
+  REQUIRE_INTERP_OK(test_interp, _execute("g10 l10 p1 x1"));
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -0.9);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], 0.0);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
-  REQUIRE_INTERP_OK(execute(test_interp,"g10 l10 p1 y2"));
+  REQUIRE_INTERP_OK(test_interp, _execute("g10 l10 p1 y2"));
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -0.9);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -1.8);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
 
-  REQUIRE_INTERP_OK(execute(test_interp,"g10 l10 p1 z3"));
+  REQUIRE_INTERP_OK(test_interp, _execute("g10 l10 p1 z3"));
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -0.9);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -1.8);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], -2.7);
@@ -198,25 +199,25 @@ SECTION("G10 L10 tool offsets relative to position + 45 deg rotation")
       "g10 l1 p1 x0 y0 z0",
       "t1 m6 g43",
   };
-  REQUIRE(execute_lines(test_interp, test_setup));
+  REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
 
-  REQUIRE_INTERP_OK(execute(test_interp,"g0 x0 y0 z0"));
-  REQUIRE_INTERP_OK(execute(test_interp,"g10 l10 p1 x1"));
-  REQUIRE_INTERP_OK(execute(test_interp,"g43"));
+  REQUIRE_INTERP_OK(test_interp, _execute("g0 x0 y0 z0"));
+  REQUIRE_INTERP_OK(test_interp, _execute("g10 l10 p1 x1"));
+  REQUIRE_INTERP_OK(test_interp, _execute("g43"));
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -sqrt(2.0)/2.0);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -sqrt(2.0)/2.0);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
   CHECK_FUZZ(currentX(settings), 1.0);
   CHECK_FUZZ(currentY(settings), 0.0);
 
-  REQUIRE_INTERP_OK(execute(test_interp,"g10 l10 p1 y1"));
-  REQUIRE_INTERP_OK(execute(test_interp,"g43"));
+  REQUIRE_INTERP_OK(test_interp, _execute("g10 l10 p1 y1"));
+  REQUIRE_INTERP_OK(test_interp, _execute("g43"));
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 0.0);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -sqrt(2));
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
   CHECK_FUZZ(currentX(settings), 1.0);
   CHECK_FUZZ(currentY(settings), 1.0);
-  REQUIRE_INTERP_OK(execute(test_interp,"g49"));
+  REQUIRE_INTERP_OK(test_interp, _execute("g49"));
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 0.0);
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -sqrt(2));
   CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
@@ -230,7 +231,7 @@ SCENARIO("Call G10 with G92 active (based on runtest g10-with-g92)")
   GIVEN("No G92 offsets applied")
   {
     DECL_INIT_TEST_INTERP();
-    REQUIRE_INTERP_OK(execute(test_interp,"g20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g20"));
     REQUIRE(settings->length_units == CANON_UNITS_INCHES);
     WHEN("No offsets are applied") {
       THEN("Both current position and current offset should be zero") {
@@ -247,7 +248,7 @@ SCENARIO("Call G10 with G92 active (based on runtest g10-with-g92)")
     }
     WHEN("Work offsets are specified via G10 L2 for the active coordinate system")
     {
-      REQUIRE_INTERP_OK(execute(test_interp,"g10 l2 p0 x7 y8 z9 a10 b11 c12"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g10 l2 p0 x7 y8 z9 a10 b11 c12"));
       THEN ("New offset values are stored and immediately applied")
       {
         CHECK_FUZZ(settings->origin_index, 1); // Confirm it's G54
@@ -274,8 +275,8 @@ SCENARIO("Call G10 with G92 active (based on runtest g10-with-g92)")
     }
     WHEN("Work offsets are specified via G10 L2 for inactive coordinate systems")
     {
-      REQUIRE_INTERP_OK(execute(test_interp,"G54"));
-      REQUIRE_INTERP_OK(execute(test_interp,"g10 l2 p2 x7 y8 z9 a10 b11 c12"));
+      REQUIRE_INTERP_OK(test_interp, _execute("G54"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g10 l2 p2 x7 y8 z9 a10 b11 c12"));
       CHECK_FUZZ(settings->origin_index, 1); // Confirm it's G54
       THEN("Work offset parameters are updated but the current offset is not (nor is the current position)") {
         CHECK_FUZZ(settings->parameters[G55_X], 7);
@@ -302,7 +303,7 @@ SCENARIO("Call G10 with G92 active (based on runtest g10-with-g92)")
     }
     WHEN("Work offsets are specified via G10 L2 for the active coordinate system")
     {
-      REQUIRE_INTERP_OK(execute(test_interp,"g10 l2 p0 x7 y8 z9 a10 b11 c12"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g10 l2 p0 x7 y8 z9 a10 b11 c12"));
       THEN ("New offset values are stored and immediately applied")
       {
         CHECK_FUZZ(settings->origin_index, 1); // Confirm it's G54
@@ -332,9 +333,9 @@ SCENARIO("Call G10 with G92 active (based on runtest g10-with-g92)")
   GIVEN("G92 offsets active")
   {
     DECL_INIT_TEST_INTERP();
-    REQUIRE_INTERP_OK(execute(test_interp,"g20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g20"));
     REQUIRE(settings->length_units == CANON_UNITS_INCHES);
-    REQUIRE_INTERP_OK(execute(test_interp,"g92 x3 y4 z5"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g92 x3 y4 z5"));
     constexpr double axis_offset_x = -3;
     constexpr double axis_offset_y = -4;
 
@@ -357,7 +358,7 @@ SCENARIO("Call G10 with G92 active (based on runtest g10-with-g92)")
       constexpr double work_offset_x = 7;
       constexpr double work_offset_y = 8;
 
-      REQUIRE_INTERP_OK(execute(test_interp,"g10 l2 p0 x7 y8 z9 a10 b11 c12 R45"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g10 l2 p0 x7 y8 z9 a10 b11 c12 R45"));
       THEN ("Current position will be rotated in X/Y")
       {
         CHECK_FUZZ(settings->origin_index, 1); // Confirm it's G54
@@ -395,9 +396,9 @@ SCENARIO("Save / restore of G92 parameters")
   GIVEN("Active G92 Offsets")
   {
     DECL_INIT_TEST_INTERP();
-    REQUIRE_INTERP_OK(execute(test_interp,"g20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g20"));
     REQUIRE(settings->length_units == CANON_UNITS_INCHES);
-    REQUIRE_INTERP_OK(execute(test_interp,"g92 x3 y4 z5"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g92 x3 y4 z5"));
     constexpr double axis_offset_x = -3;
     constexpr double axis_offset_y = -4;
     constexpr double axis_offset_z = -5;
@@ -406,7 +407,7 @@ SCENARIO("Save / restore of G92 parameters")
     CHECK_FUZZ(settings->parameters[G92_Z], axis_offset_z);
 
     WHEN("Offsets are disabled with G92.2") {
-      REQUIRE_INTERP_OK(execute(test_interp,"g92.2"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g92.2"));
       THEN("Current position changes but internal offset parameters are unaffected") {
         CHECK_FUZZ(currentX(settings), 0);
         CHECK_FUZZ(currentY(settings), 0);
@@ -417,7 +418,7 @@ SCENARIO("Save / restore of G92 parameters")
         CHECK_FUZZ(settings->parameters[G92_Z], axis_offset_z);
 
         WHEN("Offsets are re-enabled with G92.3") {
-          REQUIRE_INTERP_OK(execute(test_interp,"g92.3"));
+          REQUIRE_INTERP_OK(test_interp, _execute("g92.3"));
           THEN("Original position and offsets are restored") {
             CHECK_FUZZ(currentX(settings), -axis_offset_x);
             CHECK_FUZZ(currentY(settings), -axis_offset_y);
@@ -438,21 +439,21 @@ SCENARIO("Applying a work offset")
   GIVEN("No work offsets are defined (defaults)")
   {
     DECL_INIT_TEST_INTERP();
-    REQUIRE_INTERP_OK(execute(test_interp,"g20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g20"));
     REQUIRE(settings->length_units == CANON_UNITS_INCHES);
     WHEN("Invalid offset requested") {
       THEN("Interp execution fails with an error") {
-        REQUIRE_INTERP_ERROR(execute(test_interp,"G54.1 P-1"));
-        REQUIRE_INTERP_ERROR(test_interp.convert_coordinate_system(G_54_1, -1, settings));
-        REQUIRE_INTERP_ERROR(test_interp.convert_coordinate_system(G_54_1, 501, settings));
+        REQUIRE_INTERP_ERROR(test_interp, _execute("G54.1 P-1"));
+        REQUIRE_INTERP_ERROR(test_interp, convert_coordinate_system(G_54_1, -1, settings));
+        REQUIRE_INTERP_ERROR(test_interp, convert_coordinate_system(G_54_1, 501, settings));
       }
     }
     WHEN("Valid extended offset is created, then later requested") {
       const double work_offset_x = 33;
       const double work_offset_y = 44;
       THEN("Interp applies work offset as with the original 9") {
-        REQUIRE_INTERP_OK(execute(test_interp,"G10 L2 P50 X33 Y44"));
-        REQUIRE_INTERP_OK(execute(test_interp,"G54.1 P50"));
+        REQUIRE_INTERP_OK(test_interp, _execute("G10 L2 P50 X33 Y44"));
+        REQUIRE_INTERP_OK(test_interp, _execute("G54.1 P50"));
 
         CHECK_FUZZ(currentWorkOffsetX(settings), work_offset_x);
         CHECK_FUZZ(currentWorkOffsetY(settings), work_offset_y);
@@ -467,8 +468,8 @@ SCENARIO("Convert G20 / G21 ")
   GIVEN("Starting in G20")
   {
     DECL_INIT_TEST_INTERP();
-    REQUIRE_INTERP_OK(execute(test_interp,"g20"));
-    REQUIRE_INTERP_OK(execute(test_interp,"g0 x1 y2 z3 a4 b5 c6"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g0 x1 y2 z3 a4 b5 c6"));
 
     CHECK_FUZZ(currentX(settings), 1);
     CHECK_FUZZ(currentY(settings), 2);
@@ -478,7 +479,7 @@ SCENARIO("Convert G20 / G21 ")
     CHECK_FUZZ(currentC(settings), 6);
     REQUIRE(settings->length_units == CANON_UNITS_INCHES);
     WHEN("Convert current position to mm") {
-      REQUIRE_INTERP_OK(execute(test_interp,"g21"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g21"));
       REQUIRE(settings->length_units == CANON_UNITS_MM);
       THEN("urrent position should be in new program units") {
         CHECK_FUZZ(currentX(settings), 1 * 25.4);
@@ -489,7 +490,7 @@ SCENARIO("Convert G20 / G21 ")
         CHECK_FUZZ(currentC(settings), 6);
       }
       WHEN("Convert to back to inches") {
-        REQUIRE_INTERP_OK(execute(test_interp,"g20"));
+        REQUIRE_INTERP_OK(test_interp, _execute("g20"));
         REQUIRE(settings->length_units == CANON_UNITS_INCHES);
         THEN("current position returns to inch value") {
           CHECK_FUZZ(currentX(settings), 1);
@@ -503,10 +504,10 @@ SCENARIO("Convert G20 / G21 ")
     }
 
     WHEN("Switch to G21") {
-      REQUIRE_INTERP_OK(execute(test_interp,"g10 L2 P1 X1 Y2 Z3 A4 B5 C6"));
-      REQUIRE_INTERP_OK(execute(test_interp,"g54"));
-      REQUIRE_INTERP_OK(execute(test_interp,"g0 x0.5 y0.5"));
-      REQUIRE_INTERP_OK(execute(test_interp,"g21"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g10 L2 P1 X1 Y2 Z3 A4 B5 C6"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g54"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g0 x0.5 y0.5"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g21"));
       REQUIRE(settings->length_units == CANON_UNITS_MM);
       THEN("Current work offset in mm") {
         CHECK_FUZZ(currentWorkOffsetX(settings), 1 * 25.4);
@@ -517,7 +518,7 @@ SCENARIO("Convert G20 / G21 ")
         CHECK_FUZZ(currentWorkOffsetC(settings), 6);
       }
       WHEN("Switch to back to G20") {
-        REQUIRE_INTERP_OK(execute(test_interp,"g20"));
+        REQUIRE_INTERP_OK(test_interp, _execute("g20"));
         REQUIRE(settings->length_units == CANON_UNITS_INCHES);
         THEN("current work offset returns to inches") {
           CHECK_FUZZ(currentWorkOffsetX(settings), 1);
@@ -534,8 +535,8 @@ SCENARIO("Convert G20 / G21 ")
   GIVEN("Starting in with an axis offset")
   {
     DECL_INIT_TEST_INTERP();
-    REQUIRE_INTERP_OK(execute(test_interp,"g20"));
-    REQUIRE_INTERP_OK(execute(test_interp,"g92 x1 y2 z3 a4 b5 c6"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g92 x1 y2 z3 a4 b5 c6"));
 
     THEN("Initial axis offsets should be in inches") {
       CHECK_FUZZ(currentAxisOffsetX(settings), -1);
@@ -546,7 +547,7 @@ SCENARIO("Convert G20 / G21 ")
       CHECK_FUZZ(currentAxisOffsetC(settings), -6);
     }
     WHEN("Switch to G21") {
-      REQUIRE_INTERP_OK(execute(test_interp,"g21"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g21"));
       REQUIRE(settings->length_units == CANON_UNITS_MM);
       THEN("Axis offsets in mm") {
         CHECK_FUZZ(currentAxisOffsetX(settings), -1 * 25.4);
@@ -557,7 +558,7 @@ SCENARIO("Convert G20 / G21 ")
         CHECK_FUZZ(currentAxisOffsetC(settings), -6);
       }
       WHEN("Switch to back to G20") {
-        REQUIRE_INTERP_OK(execute(test_interp,"g20"));
+        REQUIRE_INTERP_OK(test_interp, _execute("g20"));
         REQUIRE(settings->length_units == CANON_UNITS_INCHES);
         THEN("Axis offsets in inches again") {
           CHECK_FUZZ(currentAxisOffsetX(settings), -1);
@@ -577,17 +578,17 @@ SCENARIO("Applying a work offset while active")
   GIVEN("A 45 deg rotated coordinate system with no offsets")
   {
     DECL_INIT_TEST_INTERP();
-    REQUIRE_INTERP_OK(execute(test_interp,"g20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g20"));
     REQUIRE(settings->length_units == CANON_UNITS_INCHES);
-    REQUIRE_INTERP_OK(execute(test_interp,"g54"));
-    REQUIRE_INTERP_OK(execute(test_interp,"g10 l2 p1 x0 y0 z0 r45"));
-    REQUIRE_INTERP_OK(execute(test_interp,"g0 g53 x0 y0 z0"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g54"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g10 l2 p1 x0 y0 z0 r45"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g0 g53 x0 y0 z0"));
     REQUIRE(currentX(settings) == 0.0);
     REQUIRE(currentY(settings) == 0.0);
     REQUIRE(currentZ(settings) == 0.0);
 
     WHEN("Request L20 for an X offset") {
-      REQUIRE_INTERP_OK(execute(test_interp,"g10 l20 p1 x-1"));
+      REQUIRE_INTERP_OK(test_interp, _execute("g10 l20 p1 x-1"));
       THEN("Actual work offsets are rotated") {
           CHECK_FUZZ(currentWorkOffsetX(settings), sqrt(2)/2);
           CHECK_FUZZ(currentWorkOffsetY(settings), sqrt(2)/2);
@@ -595,8 +596,8 @@ SCENARIO("Applying a work offset while active")
       }
 
       WHEN("Move to X0 and request a Y offset") {
-        REQUIRE_INTERP_OK(execute(test_interp,"g0 x0"));
-        REQUIRE_INTERP_OK(execute(test_interp,"g10 l20 p1 y-1"));
+        REQUIRE_INTERP_OK(test_interp, _execute("g0 x0"));
+        REQUIRE_INTERP_OK(test_interp, _execute("g10 l20 p1 y-1"));
         THEN("Actual work offsets are rotated") {
           CHECK_FUZZ(currentWorkOffsetX(settings), 0.0);
           CHECK_FUZZ(currentWorkOffsetY(settings), sqrt(2));
@@ -613,13 +614,13 @@ SCENARIO("Incremental mode and G10 work offsets")
   GIVEN("An example work offset")
   {
     DECL_INIT_TEST_INTERP();
-    REQUIRE_INTERP_OK(execute(test_interp,"g20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g20"));
     REQUIRE(settings->length_units == CANON_UNITS_INCHES);
-    REQUIRE_INTERP_OK(execute(test_interp, "G10 L2 P0 X5 Y5 Z5"));
+    REQUIRE_INTERP_OK(test_interp, _execute("G10 L2 P0 X5 Y5 Z5"));
     WHEN("Incremental mode is active") {
-      REQUIRE_INTERP_OK(execute(test_interp, "G91"));
+      REQUIRE_INTERP_OK(test_interp, _execute("G91"));
       THEN("G10 treats the work offset for L2 as an absolute value (not relative to the current value)") {
-        REQUIRE_INTERP_OK(execute(test_interp, "G91 G10 L2 P0 X1 Y2 Z3"));
+        REQUIRE_INTERP_OK(test_interp, _execute("G91 G10 L2 P0 X1 Y2 Z3"));
         CHECK_FUZZ(currentWorkOffsetX(settings), 1.0);
         CHECK_FUZZ(currentWorkOffsetY(settings), 2.0);
         CHECK_FUZZ(currentWorkOffsetZ(settings), 3.0);
@@ -632,12 +633,97 @@ SCENARIO("Incremental mode and G10 work offsets")
 SCENARIO("Ensure valid P word range is enforced for G10)")
 {
     DECL_INIT_TEST_INTERP();
-    REQUIRE_INTERP_OK(execute(test_interp,"g20"));
+    REQUIRE_INTERP_OK(test_interp, _execute("g20"));
 
     // 0 is valid, implies current work offset
     for (int k=0; k<=500; ++k) {
         std::ostringstream oss;
         oss << "G10 L2 P" << k << " X1.0";
-        CHECK_INTERP_OK(execute(test_interp,oss.str().c_str()));
+        CHECK_INTERP_OK(test_interp, _execute(oss.str().c_str()));
+    }
+}
+
+static void check_work_offsets(WorkOffsetMap const &expected, WorkOffsetMap const &got)
+{
+    for (auto p : expected) {
+        auto it = got.find(p.first);
+        bool found = (it != got.end());
+        CHECK(found);
+        if (!found) {continue;}
+        for (size_t i=0; i < 9; ++i) {
+            CHECK_FUZZ(it->second.shift.tf[i], p.second.shift.tf[i]);
+        }
+        CHECK_FUZZ(it->second.getXYRotationDeg(), p.second.getXYRotationDeg());
+    }
+}
+
+static void check_parameters(ParameterArray const &expected, ParameterArray const &got)
+{
+    for (size_t i= G28_X; i < TOOL_NUMBER; ++i) {
+        CHECK_FUZZ(expected[i], got[i]);
+    }
+}
+
+SCENARIO("Load and save parameters")
+{
+    static const char * const prm_file_name = "unit_test.var";
+    std::remove("unit_test.var");
+    DECL_INIT_TEST_INTERP();
+    GIVEN("A default interpreter with work offsets")
+    {
+        static const char * const dummy_file_name = "dummy.var";
+        REQUIRE_INTERP_OK(test_interp, save_parameters(dummy_file_name, settings->parameters));
+        WorkOffsetMap empty_work_offsets = settings->work_offsets_user;
+
+        CHECK(empty_work_offsets.size() == 1);
+
+        THEN("A synch directly after init should have no effect") {
+            WorkOffsetMap exp_work_offsets = settings->work_offsets_user;
+            REQUIRE_INTERP_OK(test_interp, synch_work_offsets_from_task());
+            check_work_offsets(exp_work_offsets, settings->work_offsets_user);
+        }
+
+        static const char *make_offsets[] = {
+            "G10 L2 P1 X1.2 Y2.3 Z3.4 A4.5",
+            "G10 L2 P2 X5.6 Y6.7 Z7.8 A8.9",
+            "G10 L2 P10 X9.0 Y0.1 Z1.2 A2.3",
+            "G10 L2 P20 X3.4 Y4.5 Z5.6 A6.7",
+            "G10 L2 P500 X7.8 Y8.9 Z9.0 A0.1",
+            };
+
+        REQUIRE_INTERP_EXEC_LINES_OK(test_interp, make_offsets);
+
+        WorkOffsetMap exp_work_offsets = settings->work_offsets_user;
+        ParameterArray exp_params = settings->parameters;
+
+        THEN("Restoring from a missing / empty parameter file should not affect existing offsets?") {
+            std::remove(prm_file_name);
+            REQUIRE_INTERP_OK(test_interp, restore_parameters(prm_file_name));
+
+            check_work_offsets(exp_work_offsets, settings->work_offsets_user);
+            check_parameters(exp_params, settings->parameters);
+        }
+
+// Don't need to enforce this currently because we only restore parameters at init time when interp is empty anyway
+#if 0
+        THEN("Work offsets should be cleared out if 'restored' from an all-zeros prm file") {
+            REQUIRE_INTERP_OK(test_interp, restore_parameters(dummy_file_name));
+            CHECK(settings->work_offsets_user.size() == 0);
+        }
+#endif
+
+        THEN("Work offsets should write out to a parameter file cleanly") {
+            REQUIRE_INTERP_OK(test_interp, save_parameters(prm_file_name, settings->parameters));
+
+            // Manually clear out parameters / work offsets to test restore
+            settings->parameters.fill(0);
+            settings->work_offsets_user.clear();
+            settings->work_offsets_used.clear();
+
+            REQUIRE_INTERP_OK(test_interp, restore_parameters(prm_file_name));
+
+            check_work_offsets(exp_work_offsets, settings->work_offsets_user);
+            check_parameters(exp_params, settings->parameters);
+        }
     }
 }

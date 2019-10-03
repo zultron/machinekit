@@ -311,7 +311,7 @@ pin in u32 orient_targetband_override;  // PP can set range in +/- encoder count
 pin out float orient_drift; // 0: oriented within drift tolerance
                             // DRIFT_INVALID (-1): brake cylinder ORIENT_BRAKE_ACTUATION_TIME hasn't yet expired, 
                             // any_other_value: means "Fault" i.e. orient drift >= (ORIENT_TARGETBAND + ORIENT_BAND_IGNORE)
-
+pin out float orient_raw;   //raw orient_drift, with the "hide below threshold" function
 pin in float tray_in_time;  //the time from tray in command to sensor report
 
 //TODO: remove drift_test stuff for shipping
@@ -765,11 +765,14 @@ if (vfd_cap == VFD_CAP_NO_MODE_SW) //note orient case handled above
 #define VFD_PWR_ON          (3)     //VFD is on and no faults
 #define VFD_PWR_ERR         (4)     //VFD faulted, don't care if on or off, wait here until "command" to rotate is seen
 
-#define VFD_PWR_ON_PERIOD   (6.0) //secs to wait for power on
+#define VFD_PWR_ON_PERIOD   (2.0) //secs to wait for power on (actual is ~450ms)
 #define VFD_PWR_SANE_PERIOD (2.0) //secs to wait for VFD to be sane after power is on so we can switch to orient mode
+#define VFD_PWR_FADE_PERIOD (6.0) //secs from a VFD fault to when vfd_24V drops, assuming the fault was from spindle door opening, actual is like 5 secs
 
 //TODO: in shipping product ???  hide this as a pin and make it internal variable
 //static int vfd_power_state = VFD_OFF;
+static int vfd_fault_cnt = 0;
+#define MAX_VFD_FAULT_COUNT (1000) //approx 1 sec of VFD fault present, and normal power on glitch of VFD fault pin is 100ms(?), so doesn't trigger vfd_fault_cnt > MAX_VFD_FAULT_COUNT check
 #define PHYSICAL_ESTOP (!(estop_button_in))
 
 //Handles VFD Power Sequencing and most of spindle-fault pin reporting
@@ -791,6 +794,7 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
         default:
         case VFD_PWR_OFF: //we always start here when PP starts
             spindle_fault = SPINDLE_OK; //default to this to clear errors
+            vfd_fault_cnt = 0;
             must_wait_for_stop_cmd = 1; //reset this flag 
             look_for_fault_glitch = VFG_SEEN; //assume VFD was on before PP started, gets changed later in VFD_PWR_UP_WAIT if need be 
 
@@ -813,7 +817,14 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
         case VFD_PWR_UP_WAIT: //if VFD already on when PP starts, we exit this very quickly
             vfd_pwr_on_timer -= deltaT;
             spindle_fault = SPINDLE_FAULT_NO_K2; //default to signal we're waiting for VFD to power on, could be overwritten immediately
-            if(vfd_24V && !vfd_fault) { //power just turned on, or was on when PP started
+            if (vfd_fault)
+                vfd_fault_cnt++;
+            if (vfd_fault_cnt > MAX_VFD_FAULT_COUNT) { //we've seen VFD fault pin high for over 1 sec, no need to wait for vfd_pwr_on_timer to time out before declaring a spindle fault
+                spindle_fault = SPINDLE_FAULT_VFD_PRIOR_FAULT; 
+                vfd_power_state = VFD_PWR_ERR;
+                vfd_pwr_on_timer = VFD_PWR_FADE_PERIOD;
+            }
+            else if(vfd_24V && !vfd_fault) { //power just turned on, or was on when PP started
                 spindle_fault = SPINDLE_OK; //looks good so far 
                 // if we must switch VFD mode immediately at power up, wait for VFD to become sane before doing vfd mode switch
                 // there are 3 cases of needing a mode switch right after power up
@@ -827,11 +838,14 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
                 vfd_pwr_on_timer = VFD_PWR_SANE_PERIOD; //reload timer for VFD_PWR_SANE_WAIT state wait period
             }
             else if(vfd_pwr_on_timer <= 0.0) {  //check for time out
-                if (vfd_fault)
-                    spindle_fault = SPINDLE_FAULT_VFD_PRIOR_FAULT; //don't care if we have power, as we have a higher priority vfd_fault
-                else 
+                if (vfd_fault) //if vfd_fault just happened, as vfd_fault_cnt handled the static long term vfd_fault case above
+                    spindle_fault = SPINDLE_FAULT_VFD_PRIOR_FAULT; //vfd_24V check is 2nd, vfd_fault is higher priority and power is OK if vfd_fault is high
+                else
                     spindle_fault = SPINDLE_FAULT_NO_PWR; //we waited for VFD_PWR_ON_PERIOD and no power
                 vfd_power_state = VFD_PWR_ERR;
+                if (!vfd_24V)
+                    vfd_pwr_on_timer = 0.0;
+                else vfd_pwr_on_timer = VFD_PWR_FADE_PERIOD; //in case user just opened spindle door, let VFD power die completely before restarting
                 if(orient_execute || spindle_lock)
                     orient_fault = ORIENT_ERR_NO_PWR; //flag linuxcnc that something happened.
             }
@@ -846,6 +860,7 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
             }
             else { // we lost power
                 vfd_power_state = VFD_PWR_ERR;
+                vfd_pwr_on_timer = 0.0; // power is out, no need for VFD_PWR_FADE_PERIOD
                 spindle_fault = SPINDLE_FAULT_LOST_PWR;
                 if (spindle_lock || orient_execute || spindle_on) { //if spindle was commanded to move
                     orient_fault = ORIENT_ERR_NO_PWR;
@@ -870,6 +885,9 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
             //so realistically the only way ever see vfd_24V drop first is rare loose wire or other VFD malfunction
             if(!vfd_24V || vfd_fault) { //just lost power
                 vfd_power_state = VFD_PWR_ERR;
+                if (vfd_fault) //if fault was "mains power lost" because of spindle door open, we must wait for VFD power to completely "fade" before trying to restart
+                    vfd_pwr_on_timer = VFD_PWR_FADE_PERIOD; //other wise a quick user FWD button push means we fail to pulse K2 contactor from VFD_PWR_OFF state, causing yet another spindle-fault
+                else vfd_pwr_on_timer = 0.0; //if vfd_24V off went low, we can retrigger the K2 pulse immediately from VFD_PWR_OFF state
                 if (PHYSICAL_ESTOP) {
                     spindle_fault = SPINDLE_FAULT_NO_K2; //K2 will or did drop, if "vfd_fault" more than likely a "lost mains power"
                     estop_fault = BIT_TRUE; //most likely redundant, but hit it anyway
@@ -912,11 +930,12 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
 
         case VFD_PWR_ERR: //the only purpose this state has is to hold the present error state on the m200.spindle_fault pin until user does something to turn on spindle/VFD
             vfd_pwr_on = 0; //if K2 is latched, then spindle could be on
+            vfd_pwr_on_timer -= deltaT; //using this timer to allow VFD to completely power off after spindle door opening before trying to power it on again.
+                                        //user mostly will never see this delay anyway, but was previously possible to quickly open & close spindle door, reset PP, and press "FWD" button and get a spindle-fault
             if (must_wait_for_stop_cmd && !spindle_on && !orient_execute && !spindle_lock)  //if looking for stop spindle "command", then all 3 possible movement commands must be off (false)
                 must_wait_for_stop_cmd = 0;  //we've confirmed PP no longer commanding motion and can leave this state
-            if (!must_wait_for_stop_cmd && (spindle_on || orient_execute))  //the user commanded spindle on. DON'T check spindle_lock as orient_execute MUST come 1st)
+            if (!must_wait_for_stop_cmd && (spindle_on || orient_execute) && vfd_pwr_on_timer <= 0.0)  //the user commanded spindle on. DON'T check spindle_lock as orient_execute MUST come 1st)
                 vfd_power_state = VFD_PWR_OFF; //start over
-           
             break;
     }
 }
@@ -1345,7 +1364,8 @@ FUNCTION(_) {
             else
                 orient_targetband = ORIENT_TARGETBAND;
             orient_on_target = 0;
-            orient_drift = DRIFT_INVALID; 
+            orient_drift = DRIFT_INVALID;
+            orient_raw = 0; 
             //if (motor_hz_per_cmd_hz == 0.0)
             //    hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
             //else
@@ -1442,6 +1462,7 @@ FUNCTION(_) {
             orient_fault = 0; //clearing this here means orient_fault is only active for 1 ms!, but otherwise see above "never attempt another M19"
             orient_on_target = 0;
             orient_drift = DRIFT_INVALID;
+            orient_raw = enc_err;
             if (motor_hz_per_cmd_hz == 0.0)
                 hz_per_cmd_hz = HZ_PER_HZ_DEFAULT;
             else
@@ -1530,8 +1551,10 @@ FUNCTION(_) {
             //since orient_on_target is using tighter tolerance than orient_targetband, we
             //have to deal with orient_drift separately
             if ((spindle_state == SPINDLE_STATE_LOCKED) && (spindle_lock_timer >= (ORIENT_BRAKE_ACTUATION_TIME - _tray_in_time))) { //over lap time with tray in
-                if (orient_drift == DRIFT_INVALID) //only true very first time after ORIENT_BRAKE_ACTUATION_TIME passes
+                if (orient_drift == DRIFT_INVALID) { //only true very first time after ORIENT_BRAKE_ACTUATION_TIME passes
                    orient_drift = 0.0; // orient drift is within acceptable limits, report "all OK" to ATC
+                   orient_raw = 0.0; //reset this high/low watermark level  
+                }
                 if (iabs(enc_err) >= iabs(orient_targetband + ORIENT_BAND_IGNORE)) {
                     if (fabs(orient_drift) < fabs((float)enc_err)) //preserve largest value for reporting to log files by ATC ngc code
                         orient_drift = (float)enc_err;
@@ -1551,6 +1574,13 @@ FUNCTION(_) {
                 }
             }
             else orient_drift = DRIFT_INVALID;
+
+            if(orient_drift == DRIFT_INVALID)  //just have orient_raw mirror enc error 
+                orient_raw = (float)enc_err; //makes no sense to keep high/low water marks, and presumably we're not reading this in ngc code anyway yet
+            else {
+                if(fabs((float)enc_err) > fabs(orient_raw)) //new high (or low) watermark? 
+                    orient_raw = (float)enc_err;
+            }
 
             if(iabs(enc_err) < orient_targetband) { //Yes, we want <, not <=. Assume orient_targetband = 8. Encoders are integral, so if <= can reach 8 + very nearly 1 = 9 rotations before we see it. When <8 then
                                                     // value is 7 + nearly 1 

@@ -852,9 +852,9 @@ int Interp::exit()
   char file_name[LINELEN];
 
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  CHP(save_parameters(((file_name[0] == 0) ?
+  save_parameters(((file_name[0] == 0) ?
                             RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
-                            file_name), _setup.parameters));
+                            file_name), _setup.parameters);
   reset();
 
   // interpreter shutdown Python hook
@@ -1149,7 +1149,8 @@ int Interp::init()
   GET_EXTERNAL_PARAMETER_FILE_NAME(filename, LINELEN);
   if (filename[0] == 0)
     strcpy(filename, RS274NGC_PARAMETER_FILE_NAME_DEFAULT);
-  CHP(restore_parameters(filename));
+  int res_restore_param = restore_parameters(filename);
+
   _setup.origin_index = (int) (_setup.parameters[ACTIVE_WORK_CSYS] + 0.0001);
   if(!is_valid_work_offset_index(_setup.origin_index)) {
     _setup.origin_index = 1;
@@ -1158,7 +1159,7 @@ int Interp::init()
   _setup.plane = GET_EXTERNAL_PLANE();
 
   int origin = _setup.origin_index;
-  CHP(find_work_offset(origin, _setup.transform.g5xOffset));
+  find_work_offset(origin, _setup.transform.g5xOffset);
 
   write_and_update_state_tag(nullptr);
 
@@ -1173,6 +1174,8 @@ int Interp::init()
   }
 
   send_current_g5x_transform();
+  // Don't need to synch anything back since the parameter file is the ground truth
+  _setup.work_offsets_to_synch.clear();
 
   // Restore G92 offset if PERSISTENT_G92_OFFSET is set in .ini file.
   // This can't be done with the static _required_parameters[], where
@@ -1271,7 +1274,7 @@ int Interp::init()
   if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = nullptr;
 
   // Don't bother reading work offsets since we just sent them
-  CHP(synch()); //synch first, then update the interface
+  int res_synch = synch(); //synch first, then update the interface
 
   write_g_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
   write_m_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
@@ -1329,6 +1332,9 @@ int Interp::init()
   }
   _setup.init_once = 0;
 
+  if (res_restore_param || res_synch) {
+      return INTERP_ERROR;
+  }
   return INTERP_OK;
 }
 
@@ -1382,18 +1388,15 @@ int Interp::load_tool_table()
   return INTERP_OK;
 }
 
-int Interp::load_work_offset_table()
+int Interp::synch_work_offsets_from_task()
 {
   // Only ask for offsets that are currently defined
   // NOTE "external" units are user units, so no conversions are necessary
   // here since work_offset tables in task and interp are both in user units.
-  for (auto &active_offset : _setup.work_offsets_user) {
-    active_offset.second = GET_EXTERNAL_WORK_OFFSET(active_offset.first);
+  for (auto origin_to_synch : _setup.work_offsets_to_synch) {
+      store_work_offset(GET_EXTERNAL_WORK_OFFSET(origin_to_synch), origin_to_synch);
   }
-
-  for (auto const &active_offset : _setup.work_offsets_user) {
-      store_work_offset_to_parameters(&_setup, active_offset.second, active_offset.first);
-  }
+  _setup.work_offsets_to_synch.clear();
 
   return INTERP_OK;
 }
@@ -2005,8 +2008,14 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
     _setup.parameters[k] = 0;
   }
   for (int origin = 1; origin <= 9; ++origin) {
-      _setup.work_offsets_user[origin] = find_work_offset_from_parameters(&_setup, origin);
+    find_work_offset_from_parameters(&_setup, origin, _setup.work_offsets_user[origin]);
   }
+
+  auto pred = [](WorkOffsetMap::value_type const &el)
+  {
+      return !isNonzero(el.second);
+  };
+  erase_if(_setup.work_offsets_user, pred);
   return INTERP_OK;
 }
 
@@ -2044,8 +2053,9 @@ If a required parameter is missing from the input file, this does not
 complain, but does write it in the output file.
 
 */
-int Interp::save_parameters(const char *filename,      //!< name of file to write
-                             const double parameters[]) //!< parameters to save
+int Interp::save_parameters(
+    const char *filename,      //!< name of file to write
+    ParameterArray const &parameters) //!< parameters to save
 {
   FILE *infile = nullptr;
   FILE *outfile = nullptr;
@@ -2077,7 +2087,7 @@ int Interp::save_parameters(const char *filename,      //!< name of file to writ
   outfile = fopen(filename, "w");
   if (!outfile) {
       fclose(infile);
-      ERS(NCE_CANNOT_OPEN_VARIABLE_FILE);
+      ERS(_("Cannot open variable file %s for writing"), filename);
   }
 
   k = 0;
@@ -2199,22 +2209,22 @@ int Interp::synch()
   _setup.adaptive_feed = GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
   _setup.feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
 
+  // Restore any work offsets that were changed during readahead but not reached by motion yet.
+  synch_work_offsets_from_task();
+
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  CHP(save_parameters(((file_name[0] ==
-                             0) ?
+  int res_save = save_parameters((file_name[0] == 0) ?
                             RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
-                           file_name), _setup.parameters));
+                           file_name, _setup.parameters);
 
   load_tool_table();   /*  must set  _setup.tool_max first */
-
-  load_work_offset_table();
 
   //send_current_g5x_transform();
   //read_inputs(&_setup); // input/probe/toolchange
 
   write_settings(&_setup, _setup.modal_state);
 
-  return INTERP_OK;
+  return res_save;
 }
 
 /***********************************************************************/
@@ -2333,7 +2343,7 @@ int Interp::active_modes(int *g_codes,
     g_codes[G_CODE_RETRACT_MODE] =
 	tag.flags[GM_FLAG_RETRACT_OLDZ] ? G_98 : G_99;
     g_codes[G_CODE_PATH_MODE] =
-        tag.flags[GM_FLAG_BLEND] ? G_64 :
+        tag.flags[GM_FLAG_CONTINUOUS_PATH] ? G_64 :
         tag.flags[GM_FLAG_EXACT_STOP] ? G_61 : G_61_1;
     g_codes[G_CODE_SPINDLE_MODE] = tag.flags[GM_FLAG_CSS_MODE] ? G_97 : G_96;
     g_codes[G_CODE_DISTANCE_MODE_IJK] =

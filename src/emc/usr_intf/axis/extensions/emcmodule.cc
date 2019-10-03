@@ -326,7 +326,6 @@ static PyMemberDef Stat_members[] = {
     {(char*)"input_timeout", T_BOOL, O(task.input_timeout), READONLY},
     {(char*)"orient_timeout", T_BOOL, O(task.orient_timeout), READONLY},
     {(char*)"orient_no_exec_error", T_BOOL, O(task.orient_no_exec_error), READONLY},
-    {(char*)"rotation_xy", T_DOUBLE, O(task.rotation_xy), READONLY},
     {(char*)"delay_left", T_DOUBLE, O(task.delayLeft), READONLY},
     {(char*)"queued_mdi_commands", T_INT, O(task.queuedMDIcommands), READONLY},
 
@@ -446,7 +445,17 @@ static PyObject *Stat_g5x_index(pyStatChannel *s) {
 }
 
 static PyObject *Stat_g5x_offset(pyStatChannel *s) {
-    return pose(s->status.task.g5x_offset);
+    PyObject *res = PyTuple_New(9);
+
+    PositionArray const &p = s->status.task.g5x_offset();
+    for (int i = 0; i <9; ++i) {
+        PyTuple_SET_ITEM(res, i, PyFloat_FromDouble(p[i]));
+    }
+    return res;
+}
+
+static PyObject *Stat_rotation_xy(pyStatChannel *s) {
+    return PyFloat_FromDouble(s->status.task.rotation_xy());
 }
 
 static PyObject *Stat_g5x_offsets(pyStatChannel *s) {
@@ -454,7 +463,7 @@ static PyObject *Stat_g5x_offsets(pyStatChannel *s) {
     if (!res) {return res;}
     // Set index 0 to the current offset so that we can write
     // `stat.g5x_offsets[stat.g5x_index]` in python
-    PyDict_SetItem(res, PyInt_FromLong(0), pose(s->status.task.g5x_offset));
+    PyDict_SetItem(res, PyInt_FromLong(0), tupleFromRotateShiftTransform(s->status.task.g5x_table[s->status.task.g5x_index]));
 
     for (size_t i = 1; i < s->status.task.g5x_table.size(); ++i) {
         PyDict_SetItem(res, PyInt_FromSize_t(i), tupleFromRotateShiftTransform(s->status.task.g5x_table[i]));
@@ -673,6 +682,7 @@ static PyGetSetDef Stat_getsetlist[] = {
     {(char*)"limit", (getter)Stat_limit},
     {(char*)"mcodes", (getter)Stat_activemcodes},
     {(char*)"g5x_offset", (getter)Stat_g5x_offset},
+    {(char*)"rotation_xy", (getter)Stat_rotation_xy},
     {(char*)"g5x_offsets", (getter)Stat_g5x_offsets},
     {(char*)"g5x_index", (getter)Stat_g5x_index},
     {(char*)"g92_offset", (getter)Stat_g92_offset},

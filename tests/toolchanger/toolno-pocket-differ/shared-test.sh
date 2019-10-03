@@ -1,8 +1,6 @@
 #!/bin/bash
 set -x
 
-rm -f sim.var
-
 # reset the tool table to a known starting configuration
 rm -f simpockets.tbl
 cp ../../simpockets.tbl.original simpockets.tbl

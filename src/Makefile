@@ -298,6 +298,7 @@ HEADERS := \
     emc/tp/tc_types.h \
     emc/tp/tcq.h \
     emc/tp/tp.h \
+    emc/tp/tp_enums.h \
     emc/tp/tp_types.h \
     emc/tp/spherical_arc.h \
     emc/tp/blendmath.h \
@@ -328,6 +329,7 @@ HEADERS := \
     emc/rs274ngc/modal_state.hh \
     emc/rs274ngc/saicanon.hh \
     emc/rs274ngc/StateTag.hh \
+    emc/rs274ngc/work_offset_structs.hh \
     emc/interp_shared/coordinatetransform.hh \
     emc/interp_shared/positionarray.hh \
     hal/hal.h \
