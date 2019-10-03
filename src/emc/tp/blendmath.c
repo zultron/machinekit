@@ -174,18 +174,6 @@ double findIntersectionAngle(PmCartesian const * const u1,
     return acos(-dot)/2.0;
 }
 
-double findIntersectionTanAngle(
-    PmCartesian const * const u1,
-    PmCartesian const * const u2)
-{
-    double dot;
-    pmCartCartDot(u1, u2, &dot);
-
-    double cos_2theta = -dot;
-
-    return pmSqrt((1. - cos_2theta) / (1. + cos_2theta));
-}
-
 /** Calculate the minimum of the three values in a PmCartesian. */
 double pmCartMin(PmCartesian const * const in)
 {
@@ -279,7 +267,6 @@ int calculateInscribedRadius(PmCartesian const * const normal,
 
     return TP_ERR_OK;
 }
-
 int findAccelScale(PmCartesian const * const acc,
         PmCartesian const * const bounds,
         PmCartesian * const scale)

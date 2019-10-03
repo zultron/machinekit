@@ -277,4 +277,5 @@ static inline void print_json5_SpiralArcLengthFit(
     print_json5_object_end_();
 }
 
+
 #endif // RTAPI_JSON5_H
