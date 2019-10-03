@@ -665,6 +665,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 	int on_soft_limit;	/* non-zero if any joint is on soft limit */
 
 	int probeVal;		/* debounced value of probe input */
+	int setterVal;		/* value of tool setter input */
 
 	int probeTripped;	/* Has the probe signal changed since start
 				   of probe command? */

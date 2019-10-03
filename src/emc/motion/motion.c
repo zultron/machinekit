@@ -291,6 +291,8 @@ static int init_hal_io(void)
 
     /* export machine wide hal pins */
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->probe_input), mot_comp_id, "motion.probe-input")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->setter_input), mot_comp_id, "motion.setter-input")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->discrete_setter_input), mot_comp_id, "motion.discrete-setter-input")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->spindle_index_enable), mot_comp_id, "motion.spindle-index-enable")) < 0) goto error;
 
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_on), mot_comp_id, "motion.spindle-on")) < 0) goto error;
@@ -602,6 +604,8 @@ static int init_hal_io(void)
 
     /* initialize machine wide pins and parameters */
     *(emcmot_hal_data->probe_input) = 0;
+    *(emcmot_hal_data->setter_input) = 0;
+    *(emcmot_hal_data->discrete_setter_input) = 0;
     /* default value of enable is TRUE, so simple machines
        can leave it disconnected */
     *(emcmot_hal_data->enable) = 1;

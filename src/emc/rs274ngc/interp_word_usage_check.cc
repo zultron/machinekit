@@ -124,6 +124,13 @@ WordUsageStatus is_q_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_m
     case G_5:
         active_q[Q_SPLINE_Y_OFFSET] = true;
         break;
+    case G_38_2:
+    case G_38_3:
+    case G_38_4:
+    case G_38_5:
+    case G_38_6:
+        active_q[Q_DISCRETE_SETTER_INPUT] = true;
+        break;
     case G_73:
     case G_83:
         active_q[Q_PECK_DISTANCE] = true;

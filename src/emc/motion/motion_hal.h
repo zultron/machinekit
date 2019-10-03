@@ -76,6 +76,8 @@ typedef struct {
 
 typedef struct {
     hal_bit_t *probe_input;	/* RPI: probe switch input */
+    hal_bit_t *setter_input;
+    hal_bit_t *discrete_setter_input;
     hal_bit_t *enable;		/* RPI: motion inhibit input */
     hal_bit_t *spindle_index_enable;
     hal_bit_t *spindle_is_atspeed;

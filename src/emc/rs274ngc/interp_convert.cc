@@ -3583,10 +3583,12 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
   /* probe_type: 
      ~1 = error if probe operation is unsuccessful (ngc default)
      |1 = suppress error, report in # instead
-     ~2 = move until probe trips (ngc default)
-     |2 = move until probe clears
-     ~4 = move normally
-     |4 = move unconditionally - don't care if probe trips */
+     ~2 = move until probe/setter trips (ngc default)
+     |2 = move until probe/setter clears
+     ~4 = move normally - abort if probe/setter trips G38.6
+     |4 = move unconditionally - don't care if probe/setter trips
+     |8 = this is a tool setter probe
+  */
 
   unsigned char probe_type = g_code - G_38_2;
 
@@ -3609,6 +3611,16 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
        
   write_and_update_state_tag(block);
   TURN_PROBE_ON();
+  if (block->q_flag) {
+      double q_number = std::round(block->q_number);
+      CHKS((q_number < 0.0 || q_number > 1.0),
+           _("Q%f is invalid for probe moves, must be one of {0,1}"), block->q_number);
+      if (q_number == 1.0) {
+        /* tell motion this is a tool setter probe */
+        probe_type |= 8;
+      }
+  }
+
   if (block->p_flag) {
       CHKS(std::round(block->p_number) != 1.0,
            _("P%f is invalid for probe moves, must be one of {0,1}"), block->p_number);

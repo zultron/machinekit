@@ -1416,15 +1416,31 @@ check_stuff ( "before command_handler()" );
                 // if suppress errors = off...
 
                 int probeval = !!*(emcmot_hal_data->probe_input);
+                if ((emcmotCommand->probe_type & 8) && (!!*(emcmot_hal_data->discrete_setter_input))) {
+               	    // tool setter probe and has discrete input
+               	    probeval = !!*(emcmot_hal_data->setter_input);
+               	}
                 int probe_whenclears = !!(emcmotCommand->probe_type & 2);
-				int ignore_probe   = !!(emcmotCommand->probe_type & 4);
-				if (!ignore_probe){
-					if (probeval != probe_whenclears) {
-						// the probe is already in the state we're seeking.
-						if(probe_whenclears) 
-							reportError(_("Probe is already clear when starting G38.4 or G38.5 move"));
-						else
-							reportError(_("Probe is already tripped when starting G38.2 or G38.3 move"));
+		int ignore_probe   = !!(emcmotCommand->probe_type & 4);
+
+		if (!ignore_probe){
+		    if (probeval != probe_whenclears) {
+			// the probe is already in the state we're seeking.
+			if (probe_whenclears) {
+			    if (emcmotCommand->probe_type & 8) {
+				    reportError(_("Tool setter is already clear when starting G38.4 or G38.5 move"));
+			    }
+			    else {
+				    reportError(_("Probe is already clear when starting G38.4 or G38.5 move"));	
+			    }
+			}
+			else {
+			    if (emcmotCommand->probe_type & 8) {
+				    reportError(_("Tool setter is already tripped when starting G38.2 or G38.3 move"));
+			    }
+			    else {
+				    reportError(_("Probe is already tripped when starting G38.2 or G38.3 move"));
+			    }
 
 						emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
 						tpAbort(&emcmotDebug->tp);
@@ -1442,7 +1458,7 @@ check_stuff ( "before command_handler()" );
 				emcmotStatus->enables_new, 0, -1,
 				emcmotCommand->pure_angular,
 				emcmotCommand->tag)) {
-		reportError(_("can't add probe move"));
+		reportError(_("can't add probe/setter move"));
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
 		tpAbort(&emcmotDebug->tp);
 		SET_MOTION_ERROR_FLAG(1);

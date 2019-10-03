@@ -291,101 +291,187 @@ check_stuff ( "after update_status()" );
    prototypes"
 */
 
+
+void stop_motion_unexpected_trip(int setter_changed) {
+  int abort_type = 0;
+
+  for (int i = 0; i < num_joints; i++) {
+    emcmot_joint_t *joint = &joints[i];
+
+    if (!GET_JOINT_ACTIVE_FLAG(joint)) {
+      /* if joint is not active, skip it */
+      continue;
+    }
+
+    // abort any homing
+    if (GET_JOINT_HOMING_FLAG(joint)) {
+      joint->home_state = HOME_ABORT;
+      if (!abort_type) abort_type = 1;
+    }
+
+    // abort any jogs
+    if (joint->free_tp_enable == 1) {
+      joint->free_tp_enable = 0;
+      // since homing uses free_tp, this protection of aborted
+      // is needed so the user gets the correct error.
+      if (!abort_type) abort_type = 2;
+    }
+
+    // abort any active motion on joint
+    if (!GET_MOTION_INPOS_FLAG()) {
+      tpAbort(&emcmotDebug->tp);
+      if (!abort_type) abort_type = 3;
+      SET_MOTION_ERROR_FLAG(1);
+    }
+  }
+
+  char *err_src = "Probe";
+  if (setter_changed)
+    err_src = "Tool setter";
+
+  // abort_type == 0 if no axes are active, be quiet
+  if (abort_type == 1) {
+    reportError("%s input changed during homing motion.", err_src);
+  } else if (abort_type == 2) {
+    reportError("%s input changed during a jog.", err_src);
+  } else if (abort_type == 3) {
+    reportError("%s input changed during motion.", err_src);
+  }
+}
+
+
 static void process_probe_inputs(void) {
     static int old_probeVal = 0;
+    static int old_setterVal = 0;
     unsigned char probe_type = emcmotStatus->probe_type;
 
     // don't error
-    char probe_suppress = probe_type & 1;
+    char probe_suppress_error = probe_type & 1;
 
     // trigger when the probe clears, instead of the usual case of triggering when it trips
     char probe_whenclears = !!(probe_type & 2);
     
-    // alow a g38.6 move - ignore all inputs so we can back off a tripped point and ignore any bounce. Tormach *dpr 4/2/15
-    char ignore_probe  = !!(probe_type & 4);
+    // g38.6 move - ignore all inputs so we can back off a tripped point and ignore any bounce. Tormach *dpr 4/2/15
+    char ignore_expected_input = !!(probe_type & 4);
 
-    /* read probe input */
+    // check if this is a tool setter probe operation - G38.x Q1
+    char tool_setter_probe = !!(probe_type & 8);
+
+    // read tool setter HAL pin
+    emcmotStatus->setterVal = !!*(emcmot_hal_data->setter_input);
+    // read HAL pin that says if the setter input is real
+    int setterHasPin = !!*(emcmot_hal_data->discrete_setter_input);
+
+    /* read probe HAL pin */
     emcmotStatus->probeVal = !!*(emcmot_hal_data->probe_input);
+
+    // rising edge on inputs
+    //int probe_tripped = !old_probeVal && emcmotStatus->probeVal;
+    //int setter_tripped = setterHasPin && !old_setterVal && emcmotStatus->setterVal;
+
+    // rising or falling edge on inputs
+    int probe_changed = old_probeVal != emcmotStatus->probeVal;
+    int setter_changed = setterHasPin && (old_setterVal != emcmotStatus->setterVal);
+
     if (emcmotStatus->probing) {
-        /* check if the probe has been tripped */
-        if (!ignore_probe && (emcmotStatus->probeVal ^ probe_whenclears) && !emcmotStatus->probeTripped) {
+      // probe or tool setter move in preogess
+      int probe_success = 0;
+
+      // always check for change on the unexpected input
+      if (tool_setter_probe) {
+        // expecting tool setter trip, error if probe changed
+        if (setterHasPin && probe_changed) {
+          // discrete setter pin present and probe changed during tool setter move, stop
+          stop_motion_unexpected_trip(!probe_changed);
+          reportError(_("Probe input changed while expecting tool setter trip."));
+          SET_MOTION_ERROR_FLAG(1);
+          emcmotStatus->probing = 0;
+        }
+      }
+      else {
+        // expecting probe trip, error if tool setter changed
+        if (setter_changed) {
+          // setter changed during probe move, stop
+          stop_motion_unexpected_trip(setter_changed);
+          reportError(_("Tool setter input changed while expecting probe trip."));
+          SET_MOTION_ERROR_FLAG(1);
+          emcmotStatus->probing = 0;
+        }
+      }
+
+      if (!ignore_expected_input) {
+        // non-G38.6 move - check for trip
+        if (tool_setter_probe) {
+          // check tool setter input
+          // default to use probe input
+          int setterVal = emcmotStatus->probeVal;
+          if (setterHasPin) {
+            // discrete setter input present so use it instead of probe input
+            setterVal = emcmotStatus->setterVal;
+          }
+          if ((setterVal ^ probe_whenclears) && !emcmotStatus->probeTripped) {
             /* remember the current position */
             emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
             /* stop! */
             emcmotStatus->probeTripped = 1;
             ++emcmotStatus->probeCount;
             tpAbort(&emcmotDebug->tp);
-        /* If the move has finished, we set probing = 0 and check if the probe hasn't tripped */
-        } else if (GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->tp) == 0) {
+            probe_success = 1;
             emcmotStatus->probing = 0;
-
-            /* we are already stopped, but if the probe did not trip we need to remember the current 
-               position here, because it will still be queried */
-            if(!emcmotStatus->probeTripped) {
-                emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
-
-                if (ignore_probe || probe_suppress) {
-                    emcmotStatus->probeTripped = 0;
-                    emcmotStatus->probe_type = 0;
-                } else if(probe_whenclears) {
-                    reportError(_("G38.4 move finished without breaking contact."));
-                    SET_MOTION_ERROR_FLAG(1);
-                } else {
-                    reportError(_("G38.2 move finished without making contact."));
-                    SET_MOTION_ERROR_FLAG(1);
-                }
-            }
+            //rtapi_print("Tool setter trip at G53 X: %f, Y: %f, Z: %f", emcmotStatus->probedPos.tran.x, emcmotStatus->probedPos.tran.y, emcmotStatus->probedPos.tran.z);
+          }
         }
-    } else if (!old_probeVal && emcmotStatus->probeVal) {
-        // not probing, but we have a rising edge on the probe.
-        // this could be expensive if we don't stop.
-        int i;
-        int aborted = 0;
-
-        for(i=0; i<num_joints; i++) {
-            emcmot_joint_t *joint = &joints[i];
-
-            if (!GET_JOINT_ACTIVE_FLAG(joint)) {
-                /* if joint is not active, skip it */
-                continue;
-            }
-
-            // abort any homing
-            if(GET_JOINT_HOMING_FLAG(joint)) {
-                joint->home_state = HOME_ABORT;
-                aborted=1;
-            }
-
-            // abort any jogs
-            if(joint->free_tp_enable == 1) {
-                joint->free_tp_enable = 0;
-                // since homing uses free_tp, this protection of aborted
-                // is needed so the user gets the correct error.
-                if(!aborted) aborted=2;
-            }
-
-            // abort any active motion on joint
-            if(!GET_MOTION_INPOS_FLAG()) {
-                tpAbort(&emcmotDebug->tp);
-                if(!aborted) aborted=3;
-                SET_MOTION_ERROR_FLAG(1);
-            }
+        else {
+          // check probe input
+          if ((emcmotStatus->probeVal ^ probe_whenclears) && !emcmotStatus->probeTripped) {
+            /* remember the current position */
+            emcmotStatus->probedPos = emcmotStatus->carte_pos_fb; 
+            /* stop! */
+            emcmotStatus->probeTripped = 1;
+            ++emcmotStatus->probeCount;
+            tpAbort(&emcmotDebug->tp);
+            probe_success = 1;
+            emcmotStatus->probing = 0;
+            //rtapi_print("Probe trip at G53 X: %f, Y: %f, Z: %f", emcmotStatus->probedPos.tran.x, emcmotStatus->probedPos.tran.y, emcmotStatus->probedPos.tran.z);
+          }
         }
+      } // !ignore_probe
 
-        if(aborted == 1) {
-            reportError(_("Probe tripped during homing motion."));
-        }
+      if (!probe_success && GET_MOTION_INPOS_FLAG() && tpQueueDepth(&emcmotDebug->tp) == 0) {
+        /* no probe or setter trip and the move has finished, set probing = 0 and check if the probe or setter has not tripped */
+        emcmotStatus->probing = 0;
 
-        if(aborted == 2) {
-            reportError(_("Probe tripped during a jog."));
-        }
+        /* we are already stopped, but if the probe did not trip we need to remember the current 
+        position here, because it will still be queried */
+        if (!emcmotStatus->probeTripped) {
+          emcmotStatus->probedPos = emcmotStatus->carte_pos_fb;
 
-        if(aborted == 3) {
-            reportError(_("Probe tripped during non-probe motion."));
+          if (ignore_expected_input || probe_suppress_error) {
+            emcmotStatus->probeTripped = 0;
+            emcmotStatus->probe_type = 0;
+          }
+          else if (probe_whenclears) {
+            reportError(_("G38.4 move finished without breaking contact."));
+            SET_MOTION_ERROR_FLAG(1);
+          }
+          else {
+            reportError(_("G38.2 move finished without making contact."));
+            SET_MOTION_ERROR_FLAG(1);
+          }
         }
+      }
+    } else {
+      // not probing or tool setting
+      if (probe_changed || setter_changed) {
+        // saw an edge on the probe or tool setter input, stop
+        stop_motion_unexpected_trip(setter_changed);
+      }
     }
+
     old_probeVal = emcmotStatus->probeVal;
+    old_setterVal = emcmotStatus->setterVal;
 }
+
 
 // TODO generalize to higher order diff with an array
 static double backward_difference(double curr, double prev, double dt)
