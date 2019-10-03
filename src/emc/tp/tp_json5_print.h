@@ -91,6 +91,16 @@ static inline void print_json5_PmCircle_(const char *name, PmCircle circle)
     print_json5_object_end_();
 }
 
+static inline void print_json5_PmLine9_(const char *name, PmLine9 value)
+{
+    //TODO
+}
+
+static inline void print_json5_PmCircle9_(const char *name, PmCircle9 value)
+{
+    //TODO
+}
+
 static inline void print_json5_SpiralArcLengthFit_(const char *fname, SpiralArcLengthFit fit)
 {
     print_json5_object_start_(fname);
@@ -104,10 +114,10 @@ static inline void print_json5_SpiralArcLengthFit_(const char *fname, SpiralArcL
 static inline void print_json5_blend_boundary_t(const char *fname, blend_boundary_t const * const r)
 {
     print_json5_object_start_(fname);
-    print_json5_PmCartesian_field(r, P1);
-    print_json5_PmCartesian_field(r, P2);
-    print_json5_PmCartesian_field(r, u1);
-    print_json5_PmCartesian_field(r, u2);
+    print_json5_PmVector_field(r, P1);
+    print_json5_PmVector_field(r, P2);
+    print_json5_PmVector_field(r, u1);
+    print_json5_PmVector_field(r, u2);
     print_json5_double_field(r, s1);
     print_json5_double_field(r, s2);
     print_json5_object_end_();
@@ -116,10 +126,10 @@ static inline void print_json5_blend_boundary_t(const char *fname, blend_boundar
 static inline void print_json5_biarc_control_points_t(const char *fname, biarc_control_points_t const * const c)
 {
     print_json5_object_start_(fname);
-    print_json5_PmCartesian_field(c, Pb1);
-    print_json5_PmCartesian_field(c, Pb2);
-    print_json5_PmCartesian_field(c, u_mid);
-    print_json5_PmCartesian_field(c, P_mid);
+    print_json5_PmVector_field(c, Pb1);
+    print_json5_PmVector_field(c, Pb2);
+    print_json5_PmVector_field(c, u_mid);
+    print_json5_PmVector_field(c, P_mid);
     print_json5_double_field(c, d);
     print_json5_object_end_();
 }
@@ -145,14 +155,14 @@ static inline void print_json5_biarc_solution_t(const char *fname, biarc_solutio
     print_json5_object_end_();
 }
 
-static inline void print_json5_SphericalArc(const char *fname, SphericalArc const * const arc) {
+static inline void print_json5_SphericalArc9(const char *fname, SphericalArc9 const * const arc) {
     print_json5_object_start_(fname);
-    print_json5_PmCartesian_field(arc, start);
-    print_json5_PmCartesian_field(arc, end);
-    print_json5_PmCartesian_field(arc, center);
-    print_json5_PmCartesian_field(arc, rStart);
-    print_json5_PmCartesian_field(arc, rEnd);
-    print_json5_PmCartesian_field(arc, uTan);
+    print_json5_PmVector_field(arc, start);
+    print_json5_PmVector_field(arc, end);
+    print_json5_PmVector_field(arc, center);
+    print_json5_PmVector_field(arc, rStart);
+    print_json5_PmVector_field(arc, rEnd);
+    print_json5_PmVector_field(arc, uTan);
     print_json5_double_field(arc, radius);
     print_json5_double_field(arc, spiral);
     print_json5_double_field(arc, angle);

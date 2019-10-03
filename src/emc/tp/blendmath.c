@@ -46,20 +46,19 @@ static const double NEAR_INFINITY=1e300;
  * direction, then the intersection angle is PI/2. This is based on the
  * simple_tp formulation for tolerances.
  */
-double findIntersectionAngle(PmCartesian const * const u1,
-        PmCartesian const * const u2)
+double findIntersectionAngle(PmVector const * const u1,
+        PmVector const * const u2)
 {
-    double dot;
-    pmCartCartDot(u1, u2, &dot);
+    double dot = VecVecDot(u1, u2);
 
     sat_inplace(&dot,1.0);
 
     return acos(-dot)/2.0;
 }
 
-int findAccelScale(PmCartesian const * const acc,
-        PmCartesian const * const bounds,
-        PmCartesian * const scale)
+int findAccelScale(PmVector const * const acc,
+        PmVector const * const bounds,
+        PmVector * const scale)
 {
     if (!acc || !bounds ) {
         return TP_ERR_MISSING_INPUT;
@@ -69,28 +68,15 @@ int findAccelScale(PmCartesian const * const acc,
         return TP_ERR_MISSING_OUTPUT;
     }
 
-    // Find the scale of acceleration vs. machine accel bounds
-    if (bounds->x != 0) {
-    scale->x = fabs(acc->x / bounds->x);
-    } else {
-        scale->x = 0;
-    }
-    if (bounds->y != 0) {
-    scale->y = fabs(acc->y / bounds->y);
-    } else {
-        scale->y = 0;
-    }
-
-    if (bounds->z != 0) {
-    scale->z = fabs(acc->z / bounds->z);
-    } else {
-        scale->z = 0;
+    for (int i=0; i < PM_VECTOR_SIZE; ++i) {
+        double b = bounds->ax[i];
+        scale->ax[i] = b ? fabs(acc->ax[i] / b) : 0.0;
     }
 
     return TP_ERR_OK;
 }
 
-// KLUDGE this is a messy workaround for named fields in PmCartesian
+// KLUDGE this is a messy workaround for named fields in PmVector
 static inline void minBoundRatioIfNonzero(double s, double b, double *m2)
 {
     if (s > 0.0 && b > 0.0) {
@@ -110,8 +96,8 @@ static inline void minBoundRatioIfNonzero(double s, double b, double *m2)
  * @param max_planar_value maximum length of a vector in the plane that is always within limits
  * @return -1 on error, 0 if completed successfully
  */
-int findMaxValueOnPlane(PmCartesian const * plane_envelope_sq,
-        PmCartesian const * bounds,
+int findMaxValueOnPlane(PmVector const * plane_envelope_sq,
+        PmVector const * bounds,
         double * max_planar_value)
 {
     if (!plane_envelope_sq || !bounds || !max_planar_value) {
@@ -119,9 +105,9 @@ int findMaxValueOnPlane(PmCartesian const * plane_envelope_sq,
     }
     double m2 = NEAR_INFINITY;
 
-    minBoundRatioIfNonzero(plane_envelope_sq->x, bounds->x, &m2);
-    minBoundRatioIfNonzero(plane_envelope_sq->y, bounds->y, &m2);
-    minBoundRatioIfNonzero(plane_envelope_sq->z, bounds->z, &m2);
+    for (int i = 0; i < PM_VECTOR_SIZE; ++i) {
+        minBoundRatioIfNonzero(plane_envelope_sq->ax[i], bounds->ax[i], &m2);
+    }
 
     // One square root at the end to get the actual max accel
     *max_planar_value = pmSqrt(m2);
@@ -157,8 +143,8 @@ int quadraticFormula(double A, double B, double C, double * const root0,
  */
 
 void findVMaxByAltitude(
-    PmCartesian const * const u1,
-    PmCartesian const * const u2,
+    PmVector const * const u1,
+    PmVector const * const u2,
     BlendControls const * const controls,
     BlendParameters * const param)
 {
@@ -182,12 +168,11 @@ void findVMaxByAltitude(
     tp_debug_print("v_area = %f\n", v_area);
 
     // Get "base" of triangle
-    PmCartesian tmp1, tmp2, diff;
-    pmCartScalMult(u1, v_effective1, &tmp1);
-    pmCartScalMult(u2, v_effective2, &tmp2);
-    pmCartCartSub(&tmp2, &tmp1, &diff);
-    double base;
-    pmCartMag(&diff, &base);
+    PmVector tmp1, tmp2, diff;
+    VecScalMult(u1, v_effective1, &tmp1);
+    VecScalMult(u2, v_effective2, &tmp2);
+    VecVecSub(&tmp2, &tmp1, &diff);
+    double base = VecMag(&diff);
     tp_debug_print("v_base = %f\n", base);
 
     param->v_max_altitude = 2.0 * v_area / base;
@@ -199,10 +184,10 @@ static inline double normalAccelFromMax(double a_max)
 }
 
 int find_blend_parameters(
-    PmCartesian const * const u_tan1,
-    PmCartesian const * const u_tan2,
-    PmCartesian const * const acc_bound,
-    PmCartesian const * const vel_bound,
+    PmVector const * const u_tan1,
+    PmVector const * const u_tan2,
+    PmVector const * const acc_bound,
+    PmVector const * const vel_bound,
     BlendControls const * const controls,
     BlendParameters * const param)
 {
@@ -231,19 +216,19 @@ int find_blend_parameters(
 
 tp_err_t init_blend_segment_from_points(
     TC_STRUCT * const blend_tc,
-    BlendPoints3 const *points,
+    BlendPoints const *points,
     BlendParameters * const param)
 {
     blend_tc->motion_type = points->motion_type;
 
     switch (points->motion_type) {
     case TC_LINEAR:
-        pmCartLineInit(&blend_tc->coords.line.xyz, &points->arc_start, &points->arc_end);
+        pmLine9Init(&blend_tc->coords.line, &points->arc_start, &points->arc_end, false);
         break;
     case TC_SPHERICAL:
     {
-        int res_arc = arcInitFromPoints(
-            &blend_tc->coords.arc.xyz,
+        int res_arc = arc9InitFromPoints(
+            &blend_tc->coords.arc,
             &points->arc_start,
             &points->arc_end,
             &points->arc_center,
@@ -252,7 +237,7 @@ tp_err_t init_blend_segment_from_points(
         if (res_arc != 0) {
             return res_arc;
         }
-        double v_max = pmSqrt(blend_tc->coords.arc.xyz.radius * param->a_n_max);
+        double v_max = pmSqrt(blend_tc->coords.arc.radius * param->a_n_max);
         param->v_plan = fmin(v_max, param->v_plan);
     }
         break;
@@ -304,233 +289,7 @@ int blendCheckConsume(
     return 0;
 }
 
-PmCircleLimits pmCircleActualMaxVel(PmCircle const * circle,
-        double v_max,
-        double a_max)
-{
-    double a_n_max_cutoff = BLEND_ACC_RATIO_NORMAL * a_max;
-
-    // For debugging only
-    double eff_radius = pmCircleEffectiveMinRadius(circle);
-
-    // Find the acceleration necessary to reach the maximum velocity
-    double a_n_vmax = pmSq(v_max) / fmax(eff_radius, DOUBLE_FUZZ);
-    // Find the maximum velocity that still obeys our desired tangential / total acceleration ratio
-    double v_max_cutoff = pmSqrt(a_n_max_cutoff * eff_radius);
-
-    double v_max_actual = v_max;
-    double acc_ratio_tan = BLEND_ACC_RATIO_TANGENTIAL;
-
-    if (a_n_vmax > a_n_max_cutoff) {
-        v_max_actual = v_max_cutoff;
-    } else {
-        acc_ratio_tan = pmSqrt(1.0 - pmSq(a_n_vmax / a_max));
-    }
-
-#ifdef TP_DEBUG
-    print_json5_log_start(pmCircleActualMaxVel);
-    print_json5_double_("angle", circle->angle);
-    print_json5_double_("nominal_radius", circle->radius);
-    double r_spiral = spiralEffectiveRadius(circle);
-    print_json5_double_("spiral_radius", r_spiral);
-    print_json5_double(eff_radius);
-    print_json5_double(v_max);
-    print_json5_double(v_max_cutoff);
-    print_json5_double(a_max);
-    print_json5_double(a_n_max_cutoff);
-    print_json5_double(a_n_vmax);
-    print_json5_double(acc_ratio_tan);
-    print_json5_log_end();
-#endif
-
-    PmCircleLimits limits = {
-        v_max_actual,
-        acc_ratio_tan
-    };
-
-    return limits;
-}
-
-
 /** @section spiralfuncs Functions to approximate spiral arc length */
-
-/**
- * Intermediate function to find the angle for a parameter from 0..1 along the
- * spiral arc.
- */
-static int pmCircleAngleFromParam(PmCircle const * const circle,
-        SpiralArcLengthFit const * const fit,
-        double t,
-        double * const angle)
-{
-    if (fit->spiral_in) {
-        t = 1.0 - t;
-    }
-    //TODO error or cleanup input to prevent param outside 0..1
-    double s_in = t * fit->total_planar_length;
-
-    // Quadratic formula to invert arc length -> angle
-
-    double A = fit->b0;
-    double B = fit->b1;
-    double C = -s_in;
-
-    double disc = pmSq(B) - 4.0 * A * C ;
-    if (disc < 0) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "discriminant %f is negative in angle calculation\n",disc);
-        return TP_ERR_FAIL;
-    }
-
-    /*
-     * Stability of inverting the arc-length relationship.
-     * Since the b1 coefficient is analogous to arc radius, we can be
-     * reasonably assured that it will be large enough not to cause numerical
-     * errors. If this is not the case, then the arc itself is degenerate (very
-     * small radius), and this condition should be caught well before here.
-     *
-     * Since an arc with a very small spiral coefficient will have a small b0
-     * coefficient in the fit, we use the Citardauq Formula to ensure that the
-     * positive root does not lose precision due to subtracting near-similar values.
-     *
-     * For more information, see:
-     * http://people.csail.mit.edu/bkph/articles/Quadratics.pdf
-     */
-
-    double angle_out = (2.0 * C) / ( -B - pmSqrt(disc));
-
-    if (fit->spiral_in) {
-        // Spiral fit assumes that we're spiraling out, so
-        // parameterize from opposite end
-        angle_out = circle->angle - angle_out;
-    }
-
-    *angle = angle_out;
-    return TP_ERR_OK;
-}
-
-/**
- * Approximate the arc length function of a general spiral.
- *
- * The closed-form arc length of a general archimedean spiral is rather
- * computationally messy to work with. 
- * See http://mathworld.wolfram.com/ArchimedesSpiral.html for the actual form.
- *
- * The simplification here is made possible by a few assumptions:
- *  1) That the spiral starts with a nonzero radius
- *  2) The spiral coefficient (i.e. change in radius / angle) is not too large
- *  3) The spiral coefficient has some minimum magnitude ("perfect" circles are handled as a special case)
- *
- * The 2nd-order fit below works by matching slope at the start and end of the
- * arc length vs. angle curve. This completely specifies the 2nd order fit.
- * Also, this fit predicts a total arc length >= the true arc length, which
- * means the true speed along the curve will be the same or slower than the
- * nominal speed.
- */
-int findSpiralArcLengthFit(PmCircle const * const circle,
-        SpiralArcLengthFit * const fit)
-{
-    // Additional data for arc length approximation
-    double spiral_coef = circle->spiral / circle->angle;
-    double min_radius = circle->radius;
-
-    if (circle->spiral < 0.0) {
-        // Treat as positive spiral, parameterized in opposite
-        // direction
-        spiral_coef*=-1.0;
-        // Treat final radius as starting radius for fit, so we add the
-        // negative spiral term to get the minimum radius
-        //
-        min_radius+=circle->spiral;
-        fit->spiral_in = true;
-    } else {
-        fit->spiral_in = false;
-    }
-
-    //Compute the slope of the arc length vs. angle curve at the start and end of the segment
-    double slope_start = pmSqrt(pmSq(min_radius) + pmSq(spiral_coef));
-    double slope_end = pmSqrt(pmSq(min_radius + spiral_coef * circle->angle) + pmSq(spiral_coef));
-
-    fit->b0 = (slope_end - slope_start) / (2.0 * circle->angle);
-    fit->b1 = slope_start;
-
-    fit->total_planar_length = fit->b0 * pmSq(circle->angle) + fit->b1 * circle->angle;
-#ifdef TP_DEBUG
-    print_json5_SpiralArcLengthFit("SpiralArcLengthFit", fit, min_radius, circle->angle, spiral_coef);
-#endif
-
-    // Check against start and end angle
-    double angle_end_chk = 0.0;
-    int res_angle = pmCircleAngleFromParam(circle, fit, 1.0, &angle_end_chk);
-    if (res_angle != TP_ERR_OK) {
-        //TODO better error message
-        rtapi_print_msg(RTAPI_MSG_ERR,
-                "Spiral fit failed\n");
-        return TP_ERR_FAIL;
-    }
-
-    // Check fit against angle
-    double fit_err = angle_end_chk - circle->angle;
-    if (fabs(fit_err) > TP_ANGLE_EPSILON) {
-        rtapi_print_msg(RTAPI_MSG_ERR,
-                "Spiral fit angle difference is %e, maximum allowed is %e\n",
-                fit_err,
-                TP_ANGLE_EPSILON);
-        return TP_ERR_FAIL;
-    }
-
-    return TP_ERR_OK;
-}
-
-
-/**
- * Compute the angle around a circular segment from the total progress along
- * the curve.
- */
-int pmCircleAngleFromProgress(PmCircle const * const circle,
-        SpiralArcLengthFit const * const fit,
-        double progress,
-        double * const angle)
-{
-    double h2;
-    pmCartMagSq(&circle->rHelix, &h2);
-    double s_end = pmSqrt(pmSq(fit->total_planar_length) + h2);
-    // Parameterize by total progress along helix
-    double t = progress / s_end;
-    return pmCircleAngleFromParam(circle, fit, t, angle);
-}
-
-double spiralEffectiveRadius(PmCircle const * circle)
-{
-    double dr = circle->spiral / circle->angle;
-
-    // Exact representation of spiral arc length flattened into
-    double n_inner = pmSq(dr) + pmSq(circle->radius);
-    double den = n_inner+pmSq(dr);
-    double num = pmSqrt(pmCb(n_inner));
-    double r_spiral = num / den;
-
-    return r_spiral;
-}
-
-
-/**
- * Find the effective minimum radius for acceleration calculations.
- * The radius of curvature of a spiral is larger than the circle of the same
- * radius.
- */
-double pmCircleEffectiveMinRadius(PmCircle const * circle)
-{
-    double h2;
-    pmCartMagSq(&circle->rHelix, &h2);
-    double dh2 = h2 / pmSq(circle->angle);
-
-    double r_spiral = spiralEffectiveRadius(circle);
-
-    // Curvature of helix, assuming that helical motion is independent of plane motion
-    double effective_radius = dh2 / r_spiral + r_spiral;
-
-    return effective_radius;
-}
 
 double findTrapezoidalDesiredVel(double a_max,
                                  double dx,
@@ -662,15 +421,11 @@ tp_err_t find_blend_points_and_tangents(
     out->s1 = prev_tc->target - Rb;
     out->s2 = Rb;
 
-    //TODO check errs
-    EmcPose P1, P2;
-    tcGetPosReal(prev_tc, out->s1, &P1);
-    tcGetPosReal(tc, out->s2, &P2);
+    tcGetPosReal(prev_tc, out->s1, &out->P1);
+    tcGetPosReal(tc, out->s2, &out->P2);
 
     tcGetTangentUnitVector(prev_tc, out->s1, &out->u1);
     tcGetTangentUnitVector(tc, out->s2, &out->u2);
-    out->P1 = P1.tran;
-    out->P2 = P2.tran;
 
     return TP_ERR_OK;
 }
@@ -680,22 +435,19 @@ int find_blend_intermediate_segments(
     biarc_control_points_t * const control_pts)
 {
     // A coefficient
-    PmCartesian du12;
-    pmCartCartAdd(&blend_params->u1, &blend_params->u2, &du12);
+    PmVector du12;
+    VecVecAdd(&blend_params->u1, &blend_params->u2, &du12);
 
-    PmCartesian dP12;
-    pmCartCartSub(&blend_params->P1, &blend_params->P2, &dP12);
+    PmVector dP12;
+    VecVecSub(&blend_params->P1, &blend_params->P2, &dP12);
 
     // Find B / C first since A could be zero if u1 / u2 are colinear
-    double B;
-    pmCartCartDot(&dP12, &du12, &B);
+    double B = VecVecDot(&dP12, &du12);
     B *= 2.;
 
-    double C;
-    pmCartMagSq(&dP12, &C);
+    double C =VecMagSq(&dP12);
 
-    double A;
-    pmCartMagSq(&du12, &A);
+    double A = VecMagSq(&du12);
     A -= 4;
 
     // true iff u1 / u2 are nearly parallel or anti-parallel
@@ -703,8 +455,7 @@ int find_blend_intermediate_segments(
     {
         if (fabs(B) < TP_POS_EPSILON) {
             // u vectors are perpendicular to displacement vector between P1/P2
-            double dot;
-            pmCartCartDot(&blend_params->u1, &blend_params->u2, &dot);
+            double dot = VecVecDot(&blend_params->u1, &blend_params->u2);
             if (dot > 0) {
                 // u1 and -u2 are in opposite directions, no biarc solution exists
                 return -2;
@@ -723,15 +474,15 @@ int find_blend_intermediate_segments(
         }
     }
 
-    pmCartScalMult(&blend_params->u1, control_pts->d, &control_pts->Pb1);
-    pmCartCartAddEq(&control_pts->Pb1, &blend_params->P1);
+    VecScalMult(&blend_params->u1, control_pts->d, &control_pts->Pb1);
+    VecVecAddEq(&control_pts->Pb1, &blend_params->P1);
 
-    pmCartScalMult(&blend_params->u2, -control_pts->d, &control_pts->Pb2);
-    pmCartCartAddEq(&control_pts->Pb2, &blend_params->P2);
+    VecScalMult(&blend_params->u2, -control_pts->d, &control_pts->Pb2);
+    VecVecAddEq(&control_pts->Pb2, &blend_params->P2);
 
-    pmCartCartDirection(&control_pts->Pb2, &control_pts->Pb1, &control_pts->u_mid);
-    pmCartScalMult(&control_pts->u_mid, control_pts->d, &control_pts->P_mid);
-    pmCartCartAddEq(&control_pts->P_mid, &control_pts->Pb1);
+    VecVecDirection(&control_pts->Pb2, &control_pts->Pb1, &control_pts->u_mid);
+    VecScalMult(&control_pts->u_mid, control_pts->d, &control_pts->P_mid);
+    VecVecAddEq(&control_pts->P_mid, &control_pts->Pb1);
 
     if (control_pts->d > 0) {
         return 0;
@@ -772,8 +523,7 @@ tp_err_t find_blend_size_from_intermediates(
     double *R_geom,
     double *arc_len_est)
 {
-    double dot;
-    pmCartCartDot(&blend_boundary->u1, &intermediates->u_mid, &dot);
+    double dot = VecVecDot(&blend_boundary->u1, &intermediates->u_mid);
 
     double cos_2theta = fmax(-dot, -1.0 + 1.0e-15);
 
@@ -850,7 +600,7 @@ double find_blend_region_from_tolerance(
     TC_STRUCT const * const tc,
     double tolerance)
 {
-    PmCartesian u_tan1, u_tan2;
+    PmVector u_tan1, u_tan2;
     // Start by assuming that the blend tangents will be at least 1 tolereance
     // distance away (should always be true because part of the blend will move
     // along the tangential direction until it hits the intermediate segment).
@@ -896,15 +646,14 @@ double find_blend_region_from_tolerance_simple(
     TC_STRUCT const * const tc,
     double tolerance)
 {
-    PmCartesian u_tan1, u_tan2;
+    PmVector u_tan1, u_tan2;
     // Start by assuming that the blend tangents will be at least 1 tolereance
     // distance away (should always be true because part of the blend will move
     // along the tangential direction until it hits the intermediate segment).
     tcGetEndTangentUnitVector(prev_tc,  &u_tan1);
     tcGetStartTangentUnitVector(tc, &u_tan2);
 
-    double dot;
-    pmCartCartDot(&u_tan1, &u_tan2, &dot);
+    double dot = VecVecDot(&u_tan1, &u_tan2);
     double cos_2theta = -dot;
 
     // avoids acos, sin, cos, but not sure if this is actually faster
@@ -917,18 +666,18 @@ double find_blend_region_from_tolerance_simple(
 }
 
 int find_blend_vel_accel_planar_limits(
-    PmCartesian const * const u_tan1,
-    PmCartesian const * const u_tan2,
-    PmCartesian const * const acc_bound,
-    PmCartesian const * const vel_bound,
+    PmVector const * const u_tan1,
+    PmVector const * const u_tan2,
+    PmVector const * const acc_bound,
+    PmVector const * const vel_bound,
     double *a_max_planar,
     double *v_max_planar)
 {
     // Find an orthonormal basis and "envelope" vector for the plane that represents
     // the worst-case contribution of each axis to the overall velocity / acceleration
-    PmCartesian u, v, uv_plane_envelope_sq;
-    pmCartCartOrthonormal(u_tan1, u_tan2, &u, &v);
-    pmCartCartHarmonicAddSq(&u, &v, &uv_plane_envelope_sq);
+    PmVector u, v, uv_plane_envelope_sq;
+    VecVecOrthonormal(u_tan1, u_tan2, &u, &v);
+    VecVecHarmonicAddSq(&u, &v, &uv_plane_envelope_sq);
 
     // Reuse the envelope vector (this is why accel and vel are calculated together)
     int res_dia = findMaxValueOnPlane(&uv_plane_envelope_sq, acc_bound, a_max_planar);
@@ -971,8 +720,8 @@ tp_err_t optimize_biarc_blend_size(
     TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc,
     biarc_solver_config_t const * const config,
-    PmCartesian const * const vel_bound,
-    PmCartesian const * const acc_bound,
+    PmVector const * const vel_bound,
+    PmVector const * const acc_bound,
     biarc_solver_results_t * const biarc_results,
     BlendControls * const controls,
     BlendParameters * const param,
@@ -999,7 +748,7 @@ tp_err_t optimize_biarc_blend_size(
 
     double s1_max = prev_tc->target - biarc_results->constraints.upper.Rb;
     double s2_max = biarc_results->constraints.upper.Rb;
-    PmCartesian u1, u2;
+    PmVector u1, u2;
     tcGetTangentUnitVector(prev_tc, s1_max, &u1);
     tcGetTangentUnitVector(tc, s2_max, &u2);
 
@@ -1023,7 +772,7 @@ tp_err_t optimize_biarc_blend_size(
     const double solver_radius_abs_tol = pmSq(config->velocity_abs_tolerance) / param->a_n_max; // 2% is pretty good
 
     // Intersection is at start of next segment, so use startpoint method since it's much faster
-    EmcPose P;
+    PmVector P;
     CHP(tcGetStartpoint(tc, &P));
 
     for (biarc_results->iterations = 1; biarc_results->iterations < MAX_ITERATIONS; ++biarc_results->iterations)
@@ -1038,7 +787,7 @@ tp_err_t optimize_biarc_blend_size(
         }
 
         // Verify distance from blend midpoint to original intersection P < tolerance
-        pmCartCartDisp(&biarc_results->solution.control_pts.P_mid, &P.tran, &biarc_results->solution.T_plan);
+        biarc_results->solution.T_plan = VecVecDisp(&biarc_results->solution.control_pts.P_mid, &P);
 
         CHP(find_blend_size_from_intermediates(
             &biarc_results->solution.boundary,
@@ -1113,8 +862,8 @@ tp_err_t scan_blend_properties(
     TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc,
     biarc_solver_config_t const * const config,
-    PmCartesian const * const vel_bound,
-    PmCartesian const * const acc_bound,
+    PmVector const * const vel_bound,
+    PmVector const * const acc_bound,
     biarc_solver_results_t * const biarc_results,
     BlendParameters * const param,
     double cycle_time,
@@ -1139,7 +888,7 @@ tp_err_t scan_blend_properties(
 
     double s1_max = prev_tc->target - constraints.tolerance_upper;
     double s2_max = constraints.tolerance_upper;
-    PmCartesian u1, u2;
+    PmVector u1, u2;
     tcGetTangentUnitVector(prev_tc, s1_max, &u1);
     tcGetTangentUnitVector(tc, s2_max, &u2);
 
@@ -1187,7 +936,7 @@ tp_err_t scan_blend_properties(
         } else {
 
         // Verify distance from blend midpoint to original intersection P < tolerance
-        pmCartCartDisp(&biarc_results->control_pts.P_mid, &P.tran, &T);
+        VecVecDisp(&biarc_results->control_pts.P_mid, &P.tran, &T);
 
         CHP(find_blend_size_from_intermediates(
             &biarc_results->boundary,
@@ -1241,16 +990,16 @@ const char * biarc_result_to_str(BiarcSolverResults r)
 }
 
 int find_biarc_points_from_solution(
-    PmCartesian const * const u1,
-    PmCartesian const * const u2,
-    PmCartesian const * const P1,
-    PmCartesian const * const P2,
-    PmCartesian const * const P,
+    PmVector const * const u1,
+    PmVector const * const u2,
+    PmVector const * const P1,
+    PmVector const * const P2,
+    PmVector const * const P,
     double d,
-    PmCartesian const * const acc_bound,
-    PmCartesian const * const vel_bound,
+    PmVector const * const acc_bound,
+    PmVector const * const vel_bound,
     BlendControls const * const controls,
-    BlendPoints3 * const points,
+    BlendPoints * const points,
     BlendParameters *const param)
 {
     CHP(find_blend_parameters(
@@ -1271,19 +1020,19 @@ int find_biarc_points_from_solution(
         param->v_plan = fmin(controls->v_goal, v_max);
     } else {
         points->motion_type = TC_SPHERICAL;
-        PmCartesian u_normal;
-        pmCartCartSub(
+        PmVector u_normal;
+        VecVecSub(
             u2,
             u1,
             &u_normal);
-        pmCartUnitEq(&u_normal);
+        VecUnitEq(&u_normal);
 
         double center_dist = d / cos(param->theta);
         param->R_plan = d * tan(param->theta);
         param->v_plan = pmSqrt(param->R_plan * param->a_n_max);
 
-        pmCartScalMult(&u_normal, center_dist, &points->arc_center);
-        pmCartCartAddEq(&points->arc_center, P);
+        VecScalMult(&u_normal, center_dist, &points->arc_center);
+        VecVecAddEq(&points->arc_center, P);
     }
 
     points->arc_start = *P1;
@@ -1298,17 +1047,17 @@ ContinuityCheck calc_C1_continuity(
     TC_STRUCT const * const next_tc)
 {
     ContinuityCheck out = {};
-    PmCartesian u_1, u_2;
+    PmVector u_1, u_2;
     tcGetEndTangentUnitVector(prev_tc, &u_1);
     tcGetStartTangentUnitVector(next_tc, &u_2);
-    pmCartCartSub(&u_2, &u_1, &out.u_diff);
-    pmCartCartDot(&u_1, &u_2, &out.dot);
+    VecVecSub(&u_2, &u_1, &out.u_diff);
+    out.dot = VecVecDot(&u_1, &u_2);
 
-    EmcPose p_1, p_2;
+    PmVector p_1, p_2;
     tcGetEndpoint(prev_tc, &p_1);
     tcGetStartpoint(next_tc, &p_2);
 
-    emcPoseSub(&p_2, &p_1, &out.p_diff);
+    VecVecSub(&p_2, &p_1, &out.p_diff);
 
     return out;
 }

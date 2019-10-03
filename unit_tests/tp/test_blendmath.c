@@ -18,29 +18,29 @@ GREATEST_MAIN_DEFS();
 
 TEST test_findAccelScale()
 {
-    PmCartesian bounds = {5.0, 0.0, 20.0};
-    PmCartesian acc = {200.0, 100.0, -1.0};
+    PmVector bounds = {{5.0, 0.0, 20.0, 0}};
+    PmVector acc = {{200.0, 100.0, -1.0}};
 
-    PmCartesian scale_out;
+    PmVector scale_out;
     findAccelScale(&acc, &bounds, &scale_out);
 
-    ASSERT_FLOAT_EQ(40, scale_out.x);
-    ASSERT_FLOAT_EQ(0, scale_out.y);
-    ASSERT_FLOAT_EQ(1/20.0, scale_out.z);
+    ASSERT_FLOAT_EQ(40, scale_out.ax[0]);
+    ASSERT_FLOAT_EQ(0, scale_out.ax[1]);
+    ASSERT_FLOAT_EQ(1/20.0, scale_out.ax[2]);
     PASS();
 }
 
 TEST test_findMaxValueOnPlane_basic()
 {
-    PmCartesian const bounds_easy = {10.0, 10.0, 10.0};
-    PmCartesian const l1 = {1,0,0};
-    PmCartesian const l2 = {-1,-1,0};
+    PmVector const bounds_easy = {{10.0, 10.0, 10.0}};
+    PmVector const l1 = {{1,0,0}};
+    PmVector const l2 = {{-1,-1,0}};
 
-    PmCartesian u1, u2, u, v, uv_harmonic_sq;
-    pmCartUnit(&l1, &u1);
-    pmCartUnit(&l2, &u2);
-    pmCartCartOrthonormal(&u1, &u2, &u, &v);
-    pmCartCartHarmonicAddSq(&u, &v, &uv_harmonic_sq);
+    PmVector u1, u2, u, v, uv_harmonic_sq;
+    VecUnit(&l1, &u1);
+    VecUnit(&l2, &u2);
+    VecVecOrthonormal(&u1, &u2, &u, &v);
+    VecVecHarmonicAddSq(&u, &v, &uv_harmonic_sq);
 
     double b_max;
     findMaxValueOnPlane(&uv_harmonic_sq, &bounds_easy, &b_max);
@@ -51,15 +51,15 @@ TEST test_findMaxValueOnPlane_basic()
 
 TEST test_findMaxValueOnPlane_missing_y()
 {
-    PmCartesian const bounds_easy = {10.0, 0.0, 20.0};
-    PmCartesian const l1 = {1,0,3};
-    PmCartesian const l2 = {-1,0,-5};
+    PmVector const bounds_easy = {{10.0, 0.0, 20.0}};
+    PmVector const l1 = {{1,0,3}};
+    PmVector const l2 = {{-1,0,-5}};
 
-    PmCartesian u1, u2, u, v, uv_harmonic_sq;
-    pmCartUnit(&l1, &u1);
-    pmCartUnit(&l2, &u2);
-    pmCartCartOrthonormal(&u1, &u2, &u, &v);
-    pmCartCartHarmonicAddSq(&u, &v, &uv_harmonic_sq);
+    PmVector u1, u2, u, v, uv_harmonic_sq;
+    VecUnit(&l1, &u1);
+    VecUnit(&l2, &u2);
+    VecVecOrthonormal(&u1, &u2, &u, &v);
+    VecVecHarmonicAddSq(&u, &v, &uv_harmonic_sq);
 
     double b_max;
     findMaxValueOnPlane(&uv_harmonic_sq, &bounds_easy, &b_max);
@@ -70,15 +70,15 @@ TEST test_findMaxValueOnPlane_missing_y()
 
 TEST test_findMaxValueOnPlane_slow_z()
 {
-    PmCartesian const bounds_easy = {10.0, 10.0, 1.0};
-    PmCartesian const l1 = {1,1,0.1};
-    PmCartesian const l2 = {1,-1,-0.1};
+    PmVector const bounds_easy = {{10.0, 10.0, 1.0}};
+    PmVector const l1 = {{1,1,0.1}};
+    PmVector const l2 = {{1,-1,-0.1}};
 
-    PmCartesian u1, u2, u, v, uv_harmonic_sq;
-    pmCartUnit(&l1, &u1);
-    pmCartUnit(&l2, &u2);
-    pmCartCartOrthonormal(&u1, &u2, &u, &v);
-    pmCartCartHarmonicAddSq(&u, &v, &uv_harmonic_sq);
+    PmVector u1, u2, u, v, uv_harmonic_sq;
+    VecUnit(&l1, &u1);
+    VecUnit(&l2, &u2);
+    VecVecOrthonormal(&u1, &u2, &u, &v);
+    VecVecHarmonicAddSq(&u, &v, &uv_harmonic_sq);
 
     double b_max;
     findMaxValueOnPlane(&uv_harmonic_sq, &bounds_easy, &b_max);
@@ -89,17 +89,15 @@ TEST test_findMaxValueOnPlane_slow_z()
 
 TEST test_findMaxValueOnPlane_tilted()
 {
-    PmCartesian const bounds_easy = {10.0, 10.0, 10.0};
-    PmCartesian const l1 = {1,1,1};
-    PmCartesian const l_ref = {1,1,0};
-    PmCartesian l2;
-    pmCartCartCross(&l1, &l_ref, &l2);
+    PmVector const bounds_easy = {{10.0, 10.0, 10.0}};
+    PmVector const l1 = {{1,1,1}};
+    PmVector const l2 = {{-1,1,0}};
 
-    PmCartesian u1, u2, u, v, uv_harmonic_sq;
-    pmCartUnit(&l1, &u1);
-    pmCartUnit(&l2, &u2);
-    pmCartCartOrthonormal(&u1, &u2, &u, &v);
-    pmCartCartHarmonicAddSq(&u, &v, &uv_harmonic_sq);
+    PmVector u1, u2, u, v, uv_harmonic_sq;
+    VecUnit(&l1, &u1);
+    VecUnit(&l2, &u2);
+    VecVecOrthonormal(&u1, &u2, &u, &v);
+    VecVecHarmonicAddSq(&u, &v, &uv_harmonic_sq);
 
     double b_max;
     findMaxValueOnPlane(&uv_harmonic_sq, &bounds_easy, &b_max);
@@ -499,7 +497,7 @@ TEST test_findSpiralArcLengthFit_spiralout()
     c.radius = 1;
 
     SpiralArcLengthFit f;
-    findSpiralArcLengthFit(&c, &f);
+    findSpiralArcLengthFit(&c, &f, 1e-6);
 
     ASSERT_FALSE(f.spiral_in);
     ASSERT(f.total_planar_length > c.radius * c.angle);
@@ -520,7 +518,7 @@ TEST test_findSpiralArcLengthFit_spiralin()
     c.radius = 1;
 
     SpiralArcLengthFit f;
-    findSpiralArcLengthFit(&c, &f);
+    findSpiralArcLengthFit(&c, &f, 1e-6);
 
     ASSERT(f.spiral_in);
     ASSERT(f.total_planar_length < c.radius * c.angle);
@@ -542,7 +540,7 @@ TEST test_findSpiralArcLengthFit_exact()
     c.radius = 1;
 
     SpiralArcLengthFit f;
-    findSpiralArcLengthFit(&c, &f);
+    findSpiralArcLengthFit(&c, &f, 1e-6);
 
     ASSERT_FALSE(f.spiral_in);
     ASSERT_FLOAT_EQ(c.radius * c.angle, f.total_planar_length);
@@ -575,8 +573,8 @@ TEST test_pmCircle9Init()
 {
     PmCircle9 c;
 
-    EmcPose start = {{1.0, 2.0, 3.0}, 4, 5, 6, 7, 8, 9};
-    EmcPose end = {{3.0, 2.0, 4.0}, 5, 4, 3, 2, 1, 0};
+    PmVector start = {{1.0, 2.0, 3.0, 4, 5, 6, 7, 8, 9}};
+    PmVector end = {{3.0, 2.0, 4.0, 5, 4, 3, 2, 1, 0}};
     PmCartesian center = {2.0, 2.0, 3.0};
     PmCartesian normal = {0, 0, 1};
 
@@ -585,7 +583,7 @@ TEST test_pmCircle9Init()
     ASSERT_FLOAT_EQ(c.xyz.radius, 1.0);
     ASSERT_IN_RANGE(c.xyz.spiral, 0.0, TP_POS_EPSILON);
 
-    double target = pmCircle9Target(&c);
+    double target = pmCircle9Length(&c);
     double expected_target = sqrt(pmSq(M_PI*1.0) + pmSq(1.0));
     ASSERT_IN_RANGE(expected_target, target, TP_POS_EPSILON);
     PASS();
@@ -594,17 +592,17 @@ TEST test_pmCircle9Init()
 TEST test_pmCircle9Target()
 {
     PmCircle9 c;
-    EmcPose start = {{1.0, 2.0, 3.0},0,0,0,0,0,0};
-    EmcPose end = start;
-    end.tran.x = 3.5;
-    end.tran.z = 7.0;
+    PmVector start = {{1.0, 2.0, 3.0,0,0,0,0,0,0}};
+    PmVector end = start;
+    end.ax[0] = 3.5;
+    end.ax[2] = 7.0;
     PmCartesian center = {2.0, 2.0, 3.0};
 
     PmCartesian normal = {0, 0, 1};
 
     ASSERT_FALSE(pmCircle9Init(&c, &start, &end, &center, &normal, 0));
 
-    double target = pmCircle9Target(&c);
+    double target = pmCircle9Length(&c);
     // KLUDGE get known good value from current code (assumes spiral fit is close enough)
     // FIXME likely to break with small changes in fit strategy
     double expected_target = 5.628631592039345;

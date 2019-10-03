@@ -2,6 +2,7 @@
 #define BLENDMATH_TYPES_H
 
 #include "posemath.h"
+#include "pm_vector.h"
 #include "tc_types.h"
 
 #define BLEND_ACC_RATIO_TANGENTIAL 0.5
@@ -60,17 +61,12 @@ typedef struct {
  * Stores the three points representing a simple 3D spherical arc.
  */
 typedef struct {
-    PmCartesian arc_start;      /* start point for blend arc */
-    PmCartesian arc_end;        /* end point for blend arc */
-    PmCartesian arc_center;     /* center point for blend arc */
-    PmCartesian u_tan;
+    PmVector arc_start;      /* start point for blend arc */
+    PmVector arc_end;        /* end point for blend arc */
+    PmVector arc_center;     /* center point for blend arc */
+    PmVector u_tan;
     tc_motion_type_t motion_type;
-} BlendPoints3;
-
-typedef struct {
-    double v_max;
-    double acc_ratio;
-} PmCircleLimits;
+} BlendPoints;
 
 // Start by mimicing the current structure for minimal changes
 typedef struct {
@@ -82,20 +78,20 @@ typedef struct {
 
 typedef struct
 {
-    PmCartesian P1;
-    PmCartesian u1;
-    PmCartesian P2;
-    PmCartesian u2;
+    PmVector P1;
+    PmVector u1;
+    PmVector P2;
+    PmVector u2;
     double s1;
     double s2;
 } blend_boundary_t;
 
 typedef struct
 {
-    PmCartesian Pb1;
-    PmCartesian Pb2;
-    PmCartesian u_mid;
-    PmCartesian P_mid;
+    PmVector Pb1;
+    PmVector Pb2;
+    PmVector u_mid;
+    PmVector P_mid;
     double d; //!< Length of intermediate blend segment
 } biarc_control_points_t;
 
@@ -147,8 +143,8 @@ typedef struct
 
 typedef struct
 {
-    EmcPose p_diff;
-    PmCartesian u_diff;
+    PmVector p_diff;
+    PmVector u_diff;
     double dot;
 } ContinuityCheck;
 

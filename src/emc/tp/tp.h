@@ -36,7 +36,7 @@ struct state_tag_t tpGetExecTag(TP_STRUCT * const tp);
 int tpGetNextExecId(TP_STRUCT const * const tp);
 int tpSetTermCond(TP_STRUCT * const tp, tc_term_cond_t cond, double tolerance);
 int tpSetPos(TP_STRUCT * const tp, EmcPose const * const pos);
-int tpAddCurrentPos(TP_STRUCT * const tp, EmcPose const * const disp);
+int tpAddCurrentPos(TP_STRUCT * const tp, const PmVector * const disp);
 int tpSetCurrentPos(TP_STRUCT * const tp, EmcPose const * const pos);
 
 int tpAddRigidTap(TP_STRUCT * const tp,
@@ -87,6 +87,7 @@ int tpPause(TP_STRUCT * const tp);
 int tpResume(TP_STRUCT * const tp);
 int tpAbort(TP_STRUCT * const tp);
 int tpGetPos(TP_STRUCT const  * const tp, EmcPose * const pos);
+EmcPose tpGetGoalPos(TP_STRUCT const  * const tp);
 int tpIsDone(TP_STRUCT * const tp);
 int tpQueueDepth(TP_STRUCT * const tp);
 int tpActiveDepth(TP_STRUCT * const tp);

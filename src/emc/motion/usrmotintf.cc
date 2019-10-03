@@ -252,10 +252,12 @@ void printTPstruct(TP_STRUCT * tp)
     printf("execId=%d\n", tp->execId);
     printf("termCond=%d\n", tp->termCond);
     printf("currentPos :");
-    printEmcPose(&tp->currentPos);
+    //TODO
+    //printEmcPose(&tp->currentPos);
     printf("\n");
     printf("goalPos :");
-    printEmcPose(&tp->goalPos);
+    //TODO
+    //printEmcPose(&tp->goalPos);
     printf("\n");
     printf("done=%d\n", tp->done);
     printf("depth=%d\n", tp->depth);

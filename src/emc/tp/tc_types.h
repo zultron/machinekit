@@ -15,12 +15,14 @@
 #ifndef TC_TYPES_H
 #define TC_TYPES_H
 
-#include "spherical_arc.h"
+#include "spherical_arc9.h"
 #include "posemath.h"
 #include "emcpos.h"
 #include "emcmotcfg.h"
 #include "state_tag.h"
 #include "motion_types.h"
+#include "pm_circle9.h"
+#include "pm_line9.h"
 
 typedef unsigned long long tc_unique_id_t;
 
@@ -62,38 +64,7 @@ typedef enum {
     TC_ACCEL_RAMP,
 } TCAccelMode;
 
-/**
- * Spiral arc length approximation by quadratic fit.
- */
-typedef struct {
-    double b0;                  /* 2nd order coefficient */
-    double b1;                  /* 1st order coefficient */
-    double total_planar_length; /* total arc length in plane */
-    int spiral_in;              /* flag indicating spiral is inward,
-                                   rather than outward */
-} SpiralArcLengthFit;
-
-
 /* structure for individual trajectory elements */
-
-typedef struct {
-    PmCartLine xyz;
-    PmCartLine abc;
-    PmCartLine uvw;
-} PmLine9;
-
-typedef struct {
-    PmCircle xyz;
-    PmCartLine abc;
-    PmCartLine uvw;
-    SpiralArcLengthFit fit;
-} PmCircle9;
-
-typedef struct {
-    SphericalArc xyz;
-    PmCartesian abc;
-    PmCartesian uvw;
-} Arc9;
 
 typedef struct {
     EmcPose dwell_pos;
@@ -162,7 +133,7 @@ typedef struct {
         PmLine9 line;
         PmCircle9 circle;
         PmRigidTap rigidtap;
-        Arc9 arc;
+        SphericalArc9 arc;
         TPDwell dwell;
     } coords;
 

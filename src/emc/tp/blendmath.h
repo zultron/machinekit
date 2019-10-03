@@ -17,16 +17,17 @@
 #include "tc_types.h"
 #include "tp_enums.h"
 #include "blendmath_types.h"
+#include "pm_vector.h"
 
-double findIntersectionAngle(PmCartesian const * const u1,
-        PmCartesian const * const u2);
+double findIntersectionAngle(PmVector const * const u1,
+        PmVector const * const u2);
 
-int findAccelScale(PmCartesian const * const acc,
-        PmCartesian const * const bounds,
-        PmCartesian * const scale);
+int findAccelScale(PmVector const * const acc,
+        PmVector const * const bounds,
+        PmVector * const scale);
 
-int findMaxValueOnPlane(PmCartesian const * plane_envelope_sq,
-        PmCartesian const * bounds,
+int findMaxValueOnPlane(PmVector const * plane_envelope_sq,
+        PmVector const * bounds,
         double * max_planar_value);
 
 int quadraticFormula(
@@ -47,25 +48,12 @@ int blendCheckConsume(BlendParameters * const param,
         TC_STRUCT const * const prev_tc, int gap_cycles);
 
 int find_blend_parameters(
-    const PmCartesian * const u_tan1,
-    const PmCartesian * const u_tan2,
-    PmCartesian const * const acc_bound,
-    PmCartesian const * const vel_bound,
+    const PmVector * const u_tan1,
+    const PmVector * const u_tan2,
+    PmVector const * const acc_bound,
+    PmVector const * const vel_bound,
     const BlendControls * const controls,
     BlendParameters * const param);
-
-PmCircleLimits pmCircleActualMaxVel(const PmCircle *circle,
-        double v_max_nominal,
-        double a_max_nominal);
-
-int findSpiralArcLengthFit(PmCircle const * const circle,
-        SpiralArcLengthFit * const fit);
-int pmCircleAngleFromProgress(PmCircle const * const circle,
-        SpiralArcLengthFit const * const fit,
-        double progress,
-        double * const angle);
-double pmCircleEffectiveMinRadius(const PmCircle *circle);
-double spiralEffectiveRadius(PmCircle const * circle);
 
 EndCondition checkEndCondition(double cycleTime,
                                double dtg,
@@ -77,15 +65,15 @@ EndCondition checkEndCondition(double cycleTime,
 double pseudo_sqrt(double x);
 
 int find_blend_vel_accel_planar_limits(
-    PmCartesian const * const u_tan1,
-    PmCartesian const * const u_tan2,
-    PmCartesian const * const acc_bound,
-    PmCartesian const * const vel_bound,
+    PmVector const * const u_tan1,
+    PmVector const * const u_tan2,
+    PmVector const * const acc_bound,
+    PmVector const * const vel_bound,
     double *a_max_planar,
     double *v_max_planar);
 
-void findVMaxByAltitude(PmCartesian const * const u1,
-    PmCartesian const * const u2, const BlendControls * const controls,
+void findVMaxByAltitude(PmVector const * const u1,
+    PmVector const * const u2, const BlendControls * const controls,
     BlendParameters * const param);
 
 int blendParamInitVelocities(TC_STRUCT const * const prev_tc,
@@ -95,7 +83,7 @@ int blendParamInitVelocities(TC_STRUCT const * const prev_tc,
 
 tp_err_t init_blend_segment_from_points(
     TC_STRUCT * const blend_tc,
-    BlendPoints3 const *points,
+    BlendPoints const *points,
     BlendParameters * const param);
 
 // API for biarc blends
@@ -130,8 +118,8 @@ tp_err_t find_blend_size_from_intermediates(blend_boundary_t const * const blend
 tp_err_t optimize_biarc_blend_size(TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc,
     const biarc_solver_config_t * const config,
-    PmCartesian const * const vel_bound,
-    PmCartesian const * const acc_bound,
+    PmVector const * const vel_bound,
+    PmVector const * const acc_bound,
     biarc_solver_results_t * const biarc_results, BlendControls * const controls,
     BlendParameters * const param,
     double cycle_time);
@@ -141,26 +129,26 @@ tp_err_t scan_blend_properties(
     TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const tc,
     biarc_solver_config_t const * const config,
-    PmCartesian const * const vel_bound,
-    PmCartesian const * const acc_bound,
+    PmVector const * const vel_bound,
+    PmVector const * const acc_bound,
     biarc_solver_results_t * const biarc_results,
     BlendParameters * const param,
     double cycle_time,
     double resolution);
 
 int blend_find_arcpoints3(
-    BlendPoints3 * const points,
+    BlendPoints * const points,
     biarc_solver_results_t const * const);
 
-int find_biarc_points_from_solution(PmCartesian const * const u1,
-    PmCartesian const * const u2,
-    PmCartesian const * const P1,
-    PmCartesian const * const P2,
-    PmCartesian const * const P,
+int find_biarc_points_from_solution(PmVector const * const u1,
+    PmVector const * const u2,
+    PmVector const * const P1,
+    PmVector const * const P2,
+    PmVector const * const P,
     double d,
-    PmCartesian const * const acc_bound,
-    PmCartesian const * const vel_bound, const BlendControls * const controls,
-    BlendPoints3 * const points,
+    PmVector const * const acc_bound,
+    PmVector const * const vel_bound, const BlendControls * const controls,
+    BlendPoints * const points,
     BlendParameters *const param);
 
 ContinuityCheck calc_C1_continuity(

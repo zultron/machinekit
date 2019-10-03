@@ -15,9 +15,9 @@ unsigned jointAccelViolation(int joint_idx, double acc);
 unsigned jointVelocityViolation(int joint_idx, double v_actual);
 unsigned jointPositionViolation(int joint_idx, double position);
 
-unsigned findAccelViolations(EmcPose axis_accel);
-unsigned findVelocityViolations(EmcPose axis_vel);
-unsigned findPositionLimitViolations(EmcPose axis_pos);
+unsigned findAccelViolations(PmVector axis_accel);
+unsigned findVelocityViolations(PmVector axis_vel);
+unsigned findPositionViolations(PmVector axis_pos);
 
 /**
  * Finds the smallest non-zero component in a non-negative "bounds" vector.

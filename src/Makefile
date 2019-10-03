@@ -297,6 +297,8 @@ HEADERS := \
     emc/kinematics/genhexkins.h \
     emc/kinematics/genserkins.h \
     emc/kinematics/pumakins.h \
+    emc/tp/pm_line9.h \
+    emc/tp/pm_circle9.h \
     emc/tp/tc.h \
     emc/tp/tc_types.h \
     emc/tp/tcq.h \
@@ -323,6 +325,7 @@ HEADERS := \
     emc/nml_intf/emccfg.h \
     emc/nml_intf/emcglb.h \
     emc/nml_intf/emcpos.h \
+    emc/nml_intf/emcpose.h \
     emc/nml_intf/interp_return.hh \
     emc/nml_intf/interpl.hh \
     emc/nml_intf/motion_types.h \
@@ -991,6 +994,8 @@ motmod-objs += emc/tp/spherical_arc9.o
 motmod-objs += emc/tp/blendmath.o
 motmod-objs += emc/tp/joint_util.o
 motmod-objs += emc/tp/math_util.o
+motmod-objs += emc/tp/pm_circle9.o
+motmod-objs += emc/tp/pm_line9.o
 motmod-objs += emc/motion/motion.o
 motmod-objs += emc/motion/motion_shared.o
 motmod-objs += emc/motion/command.o

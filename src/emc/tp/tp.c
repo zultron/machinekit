@@ -134,48 +134,11 @@ static bool needConsistencyCheck(ConsistencyCheckMask mask)
 }
 
 /**
- * @section tpcheck Internal state check functions.
- * These functions compartmentalize some of the messy state checks.
- * Hopefully this makes changes easier to track as much of the churn will be on small functions.
- */
-
-/**
- * Returns true if there is motion along ABC or UVW axes, false otherwise.
- */
-int tcRotaryMotionCheck(TC_STRUCT const * const tc) {
-    switch (tc->motion_type) {
-        //Note lack of break statements due to every path returning
-        case TC_RIGIDTAP:
-            return false;
-        case TC_LINEAR:
-            if (tc->coords.line.abc.tmag_zero && tc->coords.line.uvw.tmag_zero) {
-                return false;
-            } else {
-                return true;
-            }
-        case TC_CIRCULAR:
-            if (tc->coords.circle.abc.tmag_zero && tc->coords.circle.uvw.tmag_zero) {
-                return false;
-            } else {
-                return true;
-            }
-        case TC_SPHERICAL:
-            return true;
-        case TC_DWELL:
-            return false;
-    }
-    return false;
-}
-
-
-/**
  * @section tpgetset Internal Get/Set functions
  * @brief Calculation / status functions for commonly used values.
  * These functions return the "actual" values of things like a trajectory
  * segment's feed override, while taking into account the status of tp itself.
  */
-
-
 
 /**
  * Wrapper to bounds-check the tangent kink ratio from HAL.
@@ -400,7 +363,7 @@ int tpClear(TP_STRUCT * const tp)
     tcqInit(&tp->queue);
     tp->tc_completed=NULL;
     tp->goalPos = tp->currentPos;
-    ZERO_EMC_POSE(tp->currentVel);
+    tp->currentVel = PmVector_zero;
     tp->time_elapsed_sec = 0.0;
     tp->time_elapsed_ticks = 0;
     // Clear out status ID's
@@ -457,8 +420,8 @@ int tpInit(TP_STRUCT * const tp)
 
     tp->reverse_run = TC_DIR_FORWARD;
 
-    ZERO_EMC_POSE(tp->currentPos);
-    ZERO_EMC_POSE(tp->currentVel);
+    tp->currentPos = PmVector_zero;
+    tp->currentVel = PmVector_zero;
 
     // Only set up TP defaults for tolerance once (after that, it must match what interp / task specifies)
     tp->termCond = TC_TERM_COND_PARABOLIC;
@@ -644,7 +607,7 @@ int tpSetPos(TP_STRUCT * const tp, EmcPose const * const pos)
         return TP_ERR_FAIL;
     }
 
-    tp->goalPos = *pos;
+    emcPoseToPmVector(pos, &tp->goalPos);
     return TP_ERR_OK;
 }
 
@@ -661,7 +624,7 @@ int tpSetCurrentPos(TP_STRUCT * const tp, EmcPose const * const pos)
     }
 
     if (emcPoseValid(pos)) {
-        tp->currentPos = *pos;
+        emcPoseToPmVector(pos, &tp->currentPos);
         return TP_ERR_OK;
     } else {
         rtapi_print_msg(RTAPI_MSG_ERR, "Tried to set invalid pose in tpSetCurrentPos on id %d!"
@@ -674,27 +637,25 @@ int tpSetCurrentPos(TP_STRUCT * const tp, EmcPose const * const pos)
     }
 }
 
-
-int tpAddCurrentPos(TP_STRUCT * const tp, EmcPose const * const disp)
+int tpAddCurrentPos(TP_STRUCT * const tp, PmVector const * const disp)
 {
     if (!tp || !disp) {
         return TP_ERR_MISSING_INPUT;
     }
 
-    if (emcPoseValid(disp)) {
-        emcPoseSelfAdd(&tp->currentPos, disp);
+    if (!VecHasNAN(disp)) {
+        VecVecAddEq(&tp->currentPos, disp);
         return TP_ERR_OK;
     } else {
         rtapi_print_msg(RTAPI_MSG_ERR, "Tried to set invalid pose in tpAddCurrentPos on id %d!"
                 "disp is %.12g, %.12g, %.12g\n",
                 tp->execId,
-                disp->tran.x,
-                disp->tran.y,
-                disp->tran.z);
+                disp->ax[0],
+                disp->ax[1],
+                disp->ax[2]);
         return TP_ERR_INVALID;
     }
 }
-
 
 /**
  * Check for valid tp before queueing additional moves.
@@ -772,12 +733,6 @@ int tpInitBlendArcFromPrev(
     int canon_motion_type = prev_tc->canon_motion_type;
 #endif
 
-    //TODO optimize this away
-    EmcPose end;
-    tcGetEndpoint(prev_tc, &end);
-    emcPoseGetABC(&end, &blend_tc->coords.arc.abc);
-    emcPoseGetUVW(&end, &blend_tc->coords.arc.uvw);
-
     tcInit(blend_tc,
             motion_type,
             canon_motion_type,
@@ -803,10 +758,10 @@ int tpInitBlendArcFromPrev(
     double length;
     switch (motion_type) {
     case TC_LINEAR:
-        length = blend_tc->coords.line.xyz.tmag;
+        length = blend_tc->coords.line.tmag;
         break;
     case TC_SPHERICAL:
-        length = arcLength(&blend_tc->coords.arc.xyz);
+        length = arc9Length(&blend_tc->coords.arc);
         break;
     default:
         return TP_ERR_FAIL;
@@ -821,6 +776,8 @@ int tpInitBlendArcFromPrev(
     return TP_ERR_OK;
 }
 
+#if 0
+//TODO
 int tcSetLineXYZ(TC_STRUCT * const tc, PmCartLine const * const line)
 {
 
@@ -833,10 +790,11 @@ int tcSetLineXYZ(TC_STRUCT * const tc, PmCartLine const * const line)
         return TP_ERR_FAIL;
     }
 
-    tc->coords.line.xyz = *line;
+    tc->coords.line = *line;
     tc->target = line->tmag;
     return TP_ERR_OK;
 }
+#endif
 
 int find_max_element(double arr[], int sz)
 {
@@ -956,15 +914,15 @@ bool checkBiarcContinuity(
         print_json5_long_long_("prev_unique_id", prev_tc->unique_id);
         print_json5_string_("b1_motion_type", tcMotionTypeAsString(prev_tc->motion_type));
         print_json5_string_("b2_motion_type", tcMotionTypeAsString(this_tc->motion_type));
-        print_json5_PmCartesian_("u1_diff", c1.u_diff);
-        print_json5_PmCartesian_("p1_diff", c1.p_diff.tran);
+        print_json5_PmVector_("u1_diff", c1.u_diff);
+        print_json5_PmVector_("p1_diff", c1.p_diff);
         print_json5_double_("u1_diff_dot", c1.dot);
-        print_json5_PmCartesian_("u_mid_diff", cmid.u_diff);
-        print_json5_PmCartesian_("p_mid_diff", cmid.p_diff.tran);
+        print_json5_PmVector_("u_mid_diff", cmid.u_diff);
+        print_json5_PmVector_("p_mid_diff", cmid.p_diff);
         print_json5_double_("u_mid_diff_dot", cmid.dot);
-        print_json5_PmCartesian_("u2_diff", c2.u_diff);
+        print_json5_PmVector_("u2_diff", c2.u_diff);
         print_json5_double_("u2_diff_dot", c2.dot);
-        print_json5_PmCartesian_("p2_diff", c2.p_diff.tran);
+        print_json5_PmVector_("p2_diff", c2.p_diff);
         print_json5_log_end();
     }
     return !c1_error;
@@ -984,14 +942,16 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     double reqvel = fmin(prev_tc->reqvel, this_tc->reqvel);
     tc_motion_type_t prev_motion_type = prev_tc->motion_type;
     tc_motion_type_t this_motion_type = this_tc->motion_type;
-    PmCartesian u1_stretch={}, u2_stretch={};
-    EmcPose p1_stretch={}, p2_stretch={};
+    PmVector u1_stretch={}, u2_stretch={};
+    PmVector p1_stretch={}, p2_stretch={};
 #endif
 
-    PmCartesian vel_bound = getXYZVelBounds();
-    PmCartesian acc_bound = getXYZAccelBounds();
+    PmVector vel_bound = getVelBounds();
+    PmVector acc_bound = getAccelBounds();
 
-    biarc_solver_results_t biarc_results = {};
+    static biarc_solver_results_t biarc_results = {};
+    memset(&biarc_results, 0, sizeof(biarc_solver_results_t));
+
     BlendParameters param_guess = {0};
     BlendControls controls = {0};
     CHP(optimize_biarc_blend_size(
@@ -1008,7 +968,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     biarc_control_points_t const * const control_pts = &biarc_results.solution.control_pts;
     blend_boundary_t const * const boundary = &biarc_results.solution.boundary;
 
-    BlendPoints3 points1 = {}, points2 = {};
+    BlendPoints points1 = {}, points2 = {};
     BlendParameters param1 = {}, param2 = {};
 
     CHP(find_biarc_points_from_solution(
@@ -1028,7 +988,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     blendCheckConsume(&param1, boundary->s1, prev_tc, emcmotConfig->arc_blend_cfg.gap_cycles);
     if (param1.consume && blend_tc1.motion_type == TC_LINEAR) {
         // KLUDGE force the start point to be the previous line's starting point since it's going to be consumed
-        points1.arc_start = prev_tc->coords.line.xyz.start;
+        points1.arc_start = prev_tc->coords.line.start;
     }
     CHP(init_blend_segment_from_points(&blend_tc1, &points1, &param1));
 
@@ -1052,23 +1012,18 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         return TP_ERR_NO_ACTION;
     }
 
-    union {PmCartLine line; PmCircle circle;} prev_geom={}, this_geom={};
+    union {PmLine9 line9; PmCircle9 circle9;} prev_geom={}, this_geom={};
 
     switch (prev_tc->motion_type) {
     case TC_LINEAR:
-        prev_geom.line = prev_tc->coords.line.xyz;
+        prev_geom.line9 = prev_tc->coords.line;
         double new_len = boundary->s1;
-        pmCartLineStretch(&prev_geom.line, new_len, 0);
+        pmLine9Stretch(&prev_geom.line9, new_len, 0);
         break;
     case TC_CIRCULAR:
     {
-        prev_geom.circle = prev_tc->coords.circle.xyz;
-        double blend_angle;
-        pmCircleAngleFromProgress(&prev_geom.circle,
-                                  &prev_tc->coords.circle.fit,
-                                  boundary->s1,
-                                  &blend_angle);
-        pmCircleStretch(&prev_geom.circle, blend_angle, 0);
+        prev_geom.circle9 = prev_tc->coords.circle;
+        pmCircle9Stretch(&prev_geom.circle9, boundary->s1, 0);
         break;
     }
     default:
@@ -1077,22 +1032,14 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
 
     switch (this_tc->motion_type) {
     case TC_LINEAR:
-    {
-        this_geom.line = this_tc->coords.line.xyz;
-        double new_len = this_geom.line.tmag - biarc_results.solution.boundary.s2;
-        pmCartLineStretch(&this_geom.line, new_len, 1);
+        this_geom.line9 = this_tc->coords.line;
+        double new_len = boundary->s2;
+        pmLine9Stretch(&this_geom.line9, new_len, 1);
         break;
-    }
     case TC_CIRCULAR:
     {
-        this_geom.circle = this_tc->coords.circle.xyz;
-        double blend_angle;
-        pmCircleAngleFromProgress(&this_geom.circle,
-                                  &this_tc->coords.circle.fit,
-                                  biarc_results.solution.boundary.s2,
-                                  &blend_angle);
-        double new_angle = this_geom.circle.angle - blend_angle;
-        pmCircleStretch(&this_geom.circle, new_angle, 1);
+        this_geom.circle9 = this_tc->coords.circle;
+        pmCircle9Stretch(&this_geom.circle9, boundary->s2, 1);
         break;
     }
     default:
@@ -1118,15 +1065,15 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
 
     // Passed all the pre-checks, ready to commit to changing the line segments
     if (prev_tc->motion_type == TC_LINEAR) {
-        tcSetLineXYZ(prev_tc, &prev_geom.line);
+        tcSetLine9(prev_tc, &prev_geom.line9);
     } else if (prev_tc->motion_type == TC_CIRCULAR) {
-        tcSetCircleXYZ(prev_tc, &prev_geom.circle);
+        tcSetCircle9(prev_tc, &prev_geom.circle9);
     }
 
     if (this_tc->motion_type == TC_LINEAR) {
-        tcSetLineXYZ(this_tc, &this_geom.line);
+        tcSetLine9(this_tc, &this_geom.line9);
     } else if (this_tc->motion_type == TC_CIRCULAR) {
-        tcSetCircleXYZ(this_tc, &this_geom.circle);
+        tcSetCircle9(this_tc, &this_geom.circle9);
     }
 
     // Update end conditions
@@ -1168,30 +1115,30 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_int(prev_can_consume);
     print_json5_int(this_can_consume);
     print_json5_double_("param_line_length", param1.line_length);
-    print_json5_double_("line_length1", blend_tc1.coords.arc.xyz.line_length);
-    print_json5_double_("line_length2", blend_tc2.coords.arc.xyz.line_length);
+    print_json5_double_("line_length1", blend_tc1.coords.arc.line_length);
+    print_json5_double_("line_length2", blend_tc2.coords.arc.line_length);
     print_json5_int(prev_motion_type);
     print_json5_int(this_motion_type);
     print_json5_long_long_("src_line", this_tc->tag.fields[GM_FIELD_LINE_NUMBER]);
     print_json5_long_long_("unique_id1", blend_tc1.unique_id);
     print_json5_long_long_("unique_id2", blend_tc2.unique_id);
     print_json5_biarc_solution_t("solution", &biarc_results.solution);
-    print_json5_PmCartesian(u1_stretch);
-    print_json5_PmCartesian(u2_stretch);
-    print_json5_PmCartesian_("p1_stretch", p1_stretch.tran);
-    EmcPose p11_blend;
+    print_json5_PmVector(u1_stretch);
+    print_json5_PmVector(u2_stretch);
+    print_json5_PmVector_("p1_stretch", p1_stretch);
+    PmVector p11_blend;
     tcGetStartpoint(&blend_tc1, &p11_blend);
-    EmcPose p12_blend;
+    PmVector p12_blend;
     tcGetEndpoint(&blend_tc1, &p12_blend);
-    EmcPose p21_blend;
+    PmVector p21_blend;
     tcGetStartpoint(&blend_tc2, &p21_blend);
-    EmcPose p22_blend;
+    PmVector p22_blend;
     tcGetEndpoint(&blend_tc2, &p22_blend);
-    print_json5_PmCartesian_("p11_blend", p11_blend.tran);
-    print_json5_PmCartesian_("p12_blend", p12_blend.tran);
-    print_json5_PmCartesian_("p21_blend", p21_blend.tran);
-    print_json5_PmCartesian_("p22_blend", p22_blend.tran);
-    print_json5_PmCartesian_("p2_stretch", p2_stretch.tran);
+    print_json5_PmVector_("p11_blend", p11_blend);
+    print_json5_PmVector_("p12_blend", p12_blend);
+    print_json5_PmVector_("p21_blend", p21_blend);
+    print_json5_PmVector_("p22_blend", p22_blend);
+    print_json5_PmVector_("p2_stretch", p2_stretch);
     print_json5_biarc_control_points_t("control_pts", &biarc_results.solution.control_pts);
     print_json5_blend_boundary_t("boundary", &biarc_results.solution.boundary);
     print_json5_int_("iterations", biarc_results.iterations);
@@ -1201,8 +1148,8 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     print_json5_double(maxvel);
     print_json5_double(reqvel);
     print_json5_bool_("consume", param1.consume);
-    print_json5_SphericalArc("arc1", &blend_tc1.coords.arc.xyz);
-    print_json5_SphericalArc("arc2", &blend_tc2.coords.arc.xyz);
+    print_json5_SphericalArc9("arc1", &blend_tc1.coords.arc);
+    print_json5_SphericalArc9("arc2", &blend_tc2.coords.arc);
     print_json5_end_();
 #endif
 
@@ -1369,7 +1316,7 @@ static void addRigidTapOverrun(TC_STRUCT * const tc, double revolutions, double 
  */
 int tpAddRigidTap(
     TP_STRUCT * const tp,
-    EmcPose end,
+    EmcPose end_p,
     double tap_uu_per_rev,
     double retract_uu_per_rev,
     double ini_maxvel,
@@ -1381,6 +1328,9 @@ int tpAddRigidTap(
     if (tpErrorCheck(tp)) {
         return TP_ERR_FAIL;
     }
+
+    PmVector end;
+    emcPoseToPmVector(&end_p, &end);
 
     tp_info_print("== AddRigidTap ==\n");
 
@@ -1420,10 +1370,11 @@ int tpAddRigidTap(
     tc.coords.rigidtap.retract_uu_per_rev = retract_uu_per_rev;
 
     // Setup rigid tap geometry
-    pmRigidTapInit(&tc.coords.rigidtap,
-            &tp->goalPos,
-            &end,
-            scale);
+    CHP(pmRigidTapInit(
+        &tc.coords.rigidtap,
+        &tp->goalPos,
+        &end,
+        scale));
 
     addRigidTapOverrun(&tc, RIGIDTAP_MAX_OVERSHOOT_REVS, tc.coords.rigidtap.tap_uu_per_rev);
 
@@ -1625,12 +1576,6 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
         tp_debug_print("missing tc or prev tc in tangent check\n");
         return TC_INTERSECT_INCOMPATIBLE;
     }
-    //If we have ABCUVW movement, then don't check for tangency
-    if (tcRotaryMotionCheck(tc) || tcRotaryMotionCheck(prev_tc)) {
-        tp_debug_print("found rotary axis motion\n");
-        return TC_INTERSECT_INCOMPATIBLE;
-    }
-
     if (emcmotConfig->arc_blend_cfg.optimization_depth < 2) {
         tp_debug_print("Optimization depth %d too low for tangent optimization\n",
                 emcmotConfig->arc_blend_cfg.optimization_depth);
@@ -1647,19 +1592,21 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
         tp_debug_print(" prev_tc progress (%f) is too large, aborting blend arc\n", prev_tc->progress);
         return TC_INTERSECT_INCOMPATIBLE;
     }
-
-    PmCartesian prev_tan, this_tan;
+    PmVector prev_tan, this_tan;
 
     CHP(tcGetEndTangentUnitVector(prev_tc, &prev_tan));
     CHP(tcGetStartTangentUnitVector(tc, &this_tan));
 
-    tp_debug_print("prev tangent vector: %f %f %f\n", prev_tan.x, prev_tan.y, prev_tan.z);
-    tp_debug_print("this tangent vector: %f %f %f\n", this_tan.x, this_tan.y, this_tan.z);
+    tp_debug_print("prev tangent vector:\n");
+    //VecPrint(&prev_tan);
+    tp_debug_print("this tangent vector:\n");
+    //VecPrint(&this_tan);
 
     // Assume small angle approximation here
     const double SHARP_CORNER_DEG = 2.0;
     const double SHARP_CORNER_EPSILON = pmSq(PM_PI * ( SHARP_CORNER_DEG / 180.0));
-    if (pmCartCartAntiParallel(&prev_tan, &this_tan, SHARP_CORNER_EPSILON))
+
+    if (VecVecUnitAntiParallel(&prev_tan, &this_tan, SHARP_CORNER_EPSILON))
     {
         tp_debug_print("Found sharp corner\n");
         tcSetTermCond(prev_tc, TC_TERM_COND_STOP);
@@ -1678,32 +1625,27 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
     // Account for acceleration past final velocity during a split cycle
     // (e.g. next segment starts accelerating again so the average velocity is higher at the end of the split cycle)
     double a_inst = v_max_tangent / tp->cycleTime + tc->maxaccel;
+
     // Set up worst-case final velocity
     // Compute the actual magnitude of acceleration required given the tangent directions
     // Do this by assuming that we decelerate to a stop on the previous segment,
     // and simultaneously accelerate up to the maximum speed on the next one.
-    PmCartesian acc1, acc2, acc_diff;
-    pmCartScalMult(&prev_tan, a_inst, &acc1);
-    pmCartScalMult(&this_tan, a_inst, &acc2);
-    pmCartCartSub(&acc2,&acc1,&acc_diff);
+    PmVector acc1, acc2, acc_diff;
+    VecScalMult(&prev_tan, a_inst, &acc1);
+    VecScalMult(&this_tan, a_inst, &acc2);
+    VecVecSub(&acc2, &acc1, &acc_diff);
 
-    PmCartesian acc_bound = getXYZAccelBounds();
+    tp_debug_print("acc_diff:\n");
+    //TODO
+    //VecPrint(&acc_diff);
 
-    PmCartesian acc_scale;
-    findAccelScale(&acc_diff,&acc_bound,&acc_scale);
-    tp_debug_print("acc_diff: %f %f %f\n",
-            acc_diff.x,
-            acc_diff.y,
-            acc_diff.z);
-    tp_debug_print("acc_scale: %f %f %f\n",
-            acc_scale.x,
-            acc_scale.y,
-            acc_scale.z);
+    PmVector acc_bound;
+    getAccelBounds(&acc_bound);
 
-    //FIXME this ratio is arbitrary, should be more easily tunable
-    double acc_scale_max;
-    pmCartAbsMax(&acc_scale, &acc_scale_max);
-    //KLUDGE lumping a few calculations together here
+    PmVector acc_scales;
+    findAccelScale(&acc_diff, &acc_bound, &acc_scales);
+    double acc_scale_max = VecAbsMax(&acc_scales);
+
     if (prev_tc->motion_type == TC_CIRCULAR || tc->motion_type == TC_CIRCULAR) {
         acc_scale_max /= BLEND_ACC_RATIO_TANGENTIAL;
     }
@@ -1793,8 +1735,6 @@ int tpSetupSegmentBlend(
     return TP_ERR_FAIL;
 }
 
-//TODO final setup steps as separate functions
-//
 /**
  * Add a straight line to the tc queue.
  * end of the previous move to the new end specified here at the
@@ -1802,7 +1742,7 @@ int tpSetupSegmentBlend(
  */
 int tpAddLine(
     TP_STRUCT * const tp,
-    EmcPose end,
+    EmcPose end_p,
     int canon_motion_type,
     double vel,
     double ini_maxvel,
@@ -1813,7 +1753,8 @@ int tpAddLine(
     int pure_angular,
     struct state_tag_t tag)
 {
-
+    PmVector end;
+    emcPoseToPmVector(&end_p, &end);
     if (tpErrorCheck(tp) < 0) {
         return TP_ERR_FAIL;
     }
@@ -1844,10 +1785,12 @@ int tpAddLine(
             acc);
 
     // Setup line geometry
-    pmLine9Init(&tc.coords.line,
-            &tp->goalPos,
-            &end);
-    tc.target = pmLine9Target(&tc.coords.line, pure_angular);
+    pmLine9Init(
+        &tc.coords.line,
+        &tp->goalPos,
+        &end,
+        false);
+    tc.target = pmLine9Length(&tc.coords.line);
     tc.nominal_length = tc.target;
     tc.indexrotary = indexrotary;
 
@@ -1856,8 +1799,8 @@ int tpAddLine(
         // macros use the variable name, need a plain name to please the JSON5 parser
         print_json5_log_start(tpAddLine);
         print_json5_tc_id_data_(&tc);
-        print_json5_EmcPose_("start", tp->goalPos);
-        print_json5_EmcPose(end);
+        print_json5_PmVector_("start", tp->goalPos);
+        print_json5_PmVector(end);
         print_json5_double(vel);
         print_json5_double(ini_maxvel);
         print_json5_double(acc);
@@ -1865,10 +1808,10 @@ int tpAddLine(
         print_json5_long(indexrotary);
         print_json5_long(atspeed);
         print_json5_long(canon_motion_type);
-        EmcPose delta = tp->goalPos;
-        emcPoseSub(&end, &tp->goalPos, &delta);
-        print_json5_EmcPose(delta);
-        print_json5_PmCartLine_("xyz_line", tc.coords.line.xyz);
+        PmVector delta = tp->goalPos;
+        VecVecSub(&end, &tp->goalPos, &delta);
+        print_json5_PmVector(delta);
+        print_json5_PmLine9_("line", tc.coords.line);
         print_json5_log_end();
     }
 #endif
@@ -1893,7 +1836,7 @@ int tpAddLine(
  * xyz so the target is always the circle/arc/helical length.
  */
 int tpAddCircle(TP_STRUCT * const tp,
-        EmcPose end,
+        EmcPose end_p,
         PmCartesian center,
         PmCartesian normal,
         int turn,
@@ -1909,6 +1852,8 @@ int tpAddCircle(TP_STRUCT * const tp,
     if (tpErrorCheck(tp)<0) {
         return TP_ERR_FAIL;
     }
+    PmVector end;
+    emcPoseToPmVector(&end_p, &end);
 
     TC_STRUCT tc = {0};
 
@@ -1948,7 +1893,7 @@ int tpAddCircle(TP_STRUCT * const tp,
             acc);
 
     // Update tc target with existing circular segment
-    tc.target = pmCircle9Target(&tc.coords.circle);
+    tc.target = pmCircle9Length(&tc.coords.circle);
     tc.nominal_length = tc.target;
 
 #ifdef TP_DEBUG
@@ -1956,8 +1901,8 @@ int tpAddCircle(TP_STRUCT * const tp,
         // macros use the variable name, need a plain name to please the JSON5 parser
         print_json5_log_start(tpAddCircle);
         print_json5_tc_id_data_(&tc);
-        print_json5_EmcPose_("start", tp->goalPos);
-        print_json5_EmcPose(end);
+        print_json5_PmVector_("start", tp->goalPos);
+        print_json5_PmVector(end);
         print_json5_PmCartesian(center);
         print_json5_PmCartesian(normal);
         print_json5_long(turn);
@@ -1968,9 +1913,9 @@ int tpAddCircle(TP_STRUCT * const tp,
         print_json5_unsigned(enables);
         print_json5_long(atspeed);
         print_json5_long(canon_motion_type);
-        EmcPose delta = tp->goalPos;
-        emcPoseSub(&end, &tp->goalPos, &delta);
-        print_json5_EmcPose(delta);
+        PmVector delta = tp->goalPos;
+        VecVecSub(&end, &tp->goalPos, &delta);
+        print_json5_PmVector(delta);
         print_json5_PmCircle_("xyz_circle", tc.coords.circle.xyz);
         print_json5_log_end();
     }
@@ -2359,7 +2304,7 @@ int tpUpdateMovementStatus(TP_STRUCT * const tp,
         return TP_ERR_STOPPED;
     }
 
-    EmcPose tc_pos;
+    PmVector tc_pos;
     tcGetEndpoint(tc, &tc_pos);
 
     tp->motionType = tc->canon_motion_type;
@@ -2377,7 +2322,6 @@ int tpUpdateMovementStatus(TP_STRUCT * const tp,
     }
 
     emcmotStatus->requested_vel = tc->reqvel;
-    emcmotStatus->current_vel = tc->currentvel;
     emcmotStatus->dwell_time_remaining = (tc->motion_type == TC_DWELL) ? tc->coords.dwell.remaining_time : 0.0;
     emcmotStatus->waiting_on_spindle = tpIsWaitingOnSpindle(tp);
 
@@ -2387,7 +2331,9 @@ int tpUpdateMovementStatus(TP_STRUCT * const tp,
     }
     emcmotStatus->rigid_tap_state = tc->motion_type == TC_RIGIDTAP ? tc->coords.rigidtap.state : RIGIDTAP_INACTIVE;
 
-    emcPoseSub(&tc_pos, &tp->currentPos, &emcmotStatus->dtg);
+    PmVector dtg;
+    VecVecSub(&tc_pos, &tp->currentPos, &dtg);
+    pmVectorToEmcPose(&dtg, &emcmotStatus->dtg);
     return TP_ERR_OK;
 }
 /**
@@ -2593,10 +2539,10 @@ inline int tpIsWaitingOnSpindle(TP_STRUCT const * const tp)
 void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
 {
     unsigned need_print = _tp_debug;
-    EmcPose tp_position_error = {};
+    PmVector tp_position_error={};
     if (needConsistencyCheck(CCHECK_C0_CONTINUITY)){
         tcGetPos(tc, &tp_position_error);
-        emcPoseSelfSub(&tp_position_error, &tp->currentPos);
+        VecVecSubEq(&tp_position_error, &tp->currentPos);
 
         unsigned position_mismatch_axes = findAbsThresholdViolations(tp_position_error, emcmotConfig->consistencyCheckConfig.maxPositionDriftError);
         need_print |= position_mismatch_axes;
@@ -2613,11 +2559,11 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
 
         // Position settings
 
-        print_json5_EmcPose(tp_position_error);
+        print_json5_PmVector(tp_position_error);
         print_json5_double_field(tc, target);
         print_json5_double_field(tc, progress);
         if (tc->motion_type == TC_SPHERICAL) {
-            print_json5_double_field(&tc->coords.arc.xyz, line_length);
+            print_json5_double_field(&tc->coords.arc, line_length);
         }
         // Velocity settings
         print_json5_double_field(tc, reqvel);
@@ -2968,7 +2914,7 @@ int tpUpdateCycle(TP_STRUCT * const tp,
     UpdateCycleMode cycle_mode)
 {
     //placeholders for position for this update
-    EmcPose before;
+    PmVector before;
 
     //Store the current position due to this TC
     tcGetPos(tc, &before);
@@ -2995,14 +2941,25 @@ int tpUpdateCycle(TP_STRUCT * const tp,
     //Check if we're near the end of the cycle and set appropriate changes
     tpCheckEndCondition(tp, tc, nexttc);
 
-    EmcPose displacement;
+    PmVector displacement;
 
     // Calculate displacement
     tcGetPos(tc, &displacement);
-    emcPoseSelfSub(&displacement, &before);
+    VecVecSubEq(&displacement, &before);
 
     //Store displacement (checking for valid pose)
     int res_set = tpAddCurrentPos(tp, &displacement);
+
+    // Compute current velocity along XYZ axes only. This extra calculation is
+    // necessary because "velocity" within the TP now includes UVW components.
+    // Therefore, we can't directly use the TP segment velocity.
+    // TODO make output velocity selectable via external flags
+    double current_vel;
+    PmCartesian xyz;
+    VecToCart(&displacement, &xyz, NULL, NULL);
+    pmCartMag(&xyz, &current_vel);
+    current_vel /= tp->cycleTime;
+    emcmotStatus->current_vel = current_vel;
 
     return res_set;
 }
@@ -3105,7 +3062,7 @@ int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
     }
 
     //Pose data to calculate movement due to finishing current TC
-    EmcPose before;
+    PmVector before;
     tcGetPos(tc, &before);
 
 #ifdef TC_DEBUG
@@ -3122,9 +3079,9 @@ int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
     //Shortcut tc update by assuming we arrive at end
     tc->progress = tcGetTarget(tc,tp->reverse_run);
     //Get displacement from prev. position
-    EmcPose displacement;
+    PmVector displacement;
     tcGetPos(tc, &displacement);
-    emcPoseSelfSub(&displacement, &before);
+    VecVecSubEq(&displacement, &before);
 
     // Update tp's position (checking for valid pose)
     tpAddCurrentPos(tp, &displacement);
@@ -3151,7 +3108,7 @@ int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
          }
          break;
         case TC_TERM_COND_PARABOLIC:
-            tp_debug_json5_log_end("can't split with parabolic blends");
+            tp_debug_print("can't split with parabolic blends");
             return -1;
         case TC_TERM_COND_STOP:
         case TC_TERM_COND_EXACT:
@@ -3322,27 +3279,27 @@ int tpRunCycle(TP_STRUCT *tp)
     // TP measurements are stored for error checks
     tp->time_elapsed_sec+=tp->cycleTime;
     ++tp->time_elapsed_ticks;
-    EmcPose const axis_pos_old = tp->currentPos;
+    PmVector const axis_pos_old = tp->currentPos;
 
     int res = tpRunCycleInternal(tp);
 
     if (needConsistencyCheck(CCHECK_AXIS_LIMITS)) {
         // After update (even a no-op), update pos / vel / accel
-        EmcPose const axis_vel_old = tp->currentVel;
-        EmcPose const axis_pos = tp->currentPos;
+        PmVector const axis_vel_old = tp->currentVel;
+        PmVector const axis_pos = tp->currentPos;
 
-        EmcPose axis_vel;
-        emcPoseSub(&axis_pos, &axis_pos_old, &axis_vel);
-        emcPoseMultScalar(&axis_vel, 1.0 / tp->cycleTime);
+        PmVector axis_vel;
+        VecVecSub(&axis_pos, &axis_pos_old, &axis_vel);
+        VecScalMultEq(&axis_vel, 1.0 / tp->cycleTime);
         tp->currentVel = axis_vel;
 
-        EmcPose axis_accel;
-        emcPoseSub(&axis_vel, &axis_vel_old, &axis_accel);
-        emcPoseMultScalar(&axis_accel, 1.0 / tp->cycleTime);
+        PmVector axis_accel;
+        VecVecSub(&axis_vel, &axis_vel_old, &axis_accel);
+        VecScalMultEq(&axis_accel, 1.0 / tp->cycleTime);
 
         unsigned accel_error_mask = findAccelViolations(axis_accel);
         unsigned vel_error_mask = findVelocityViolations(axis_vel);
-        unsigned pos_limit_error_mask = findPositionLimitViolations(axis_pos);
+        unsigned pos_limit_error_mask = findPositionViolations(axis_pos);
 
         reportTPAxisError(tp, accel_error_mask, "Acceleration limit exceeded");
         reportTPAxisError(tp, vel_error_mask, "Velocity limit exceeded");
@@ -3353,9 +3310,9 @@ int tpRunCycle(TP_STRUCT *tp)
                 ) {
             print_json5_log_start(tpRunCycle);
             print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
-            print_json5_EmcPose(axis_pos);
-            print_json5_EmcPose(axis_vel);
-            print_json5_EmcPose(axis_accel);
+            print_json5_PmVector(axis_pos);
+            print_json5_PmVector(axis_vel);
+            print_json5_PmVector(axis_accel);
             double current_vel = emcmotStatus->current_vel;
             print_json5_double(current_vel);
             print_json5_double_("time", tp->time_elapsed_sec);
@@ -3424,10 +3381,20 @@ int tpGetPos(TP_STRUCT const * const tp, EmcPose * const pos)
         ZERO_EMC_POSE((*pos));
         return TP_ERR_FAIL;
     } else {
-        *pos = tp->currentPos;
+        pmVectorToEmcPose(&tp->currentPos, pos);
     }
 
     return TP_ERR_OK;
+}
+
+EmcPose tpGetGoalPos(TP_STRUCT const  * const tp)
+{
+    EmcPose out={0};
+    if (!tp) {
+        pmVectorToEmcPose(&tp->goalPos, &out);
+    }
+
+    return out;
 }
 
 int tpIsDone(TP_STRUCT * const tp)

@@ -30,8 +30,8 @@ static void emc_globals_teardown(void *arg) {
 
 TEST findAccelViolations_basic()
 {
-    const EmcPose bad_accel = {{10.01,5.01,2.01},0,0,0,0,0,0};
-    const EmcPose good_accel = {{10,5,2},0,0,0,0,0,0};
+    const PmVector bad_accel = {{10.01,5.01,2.01,0,0,0,0,0,0}};
+    const PmVector good_accel = {{10,5,2,0,0,0,0,0,0}};
     unsigned bad_axes = findAccelViolations(bad_accel);
 
     ASSERT_EQ(bad_axes, 1 | (1<<1) | (1<<2));
@@ -43,7 +43,7 @@ TEST findAccelViolations_basic()
 
 TEST findAccelViolations_single()
 {
-    const EmcPose accel = {{10.0,5.01,2.0},0,0,0,0,0,0};
+    const PmVector accel = {{10.0,5.01,2.0,0,0,0,0,0,0}};
 
     unsigned bad_axes = findAccelViolations(accel);
     ASSERT_EQ(bad_axes, (1<<1));

@@ -25,6 +25,25 @@ do { \
     ASSERT_IN_RANGE(exp.w, got.w, tol); \
 } while (0)
 
+#define ASSERT_PMVECTOR_IN_RANGE(EXP, GOT, TOL) \
+do { \
+    PmVector exp = EXP; \
+    PmVector got = GOT; \
+    double tol = TOL; \
+    char msg[4096]={0}; \
+    sprintf(msg, "expected %s: {{%g, %g, %g}, %g, %g, %g, %g, %g, %g}, got %s: {{%g, %g, %g}, %g, %g, %g, %g, %g, %g}", #EXP, exp.ax[0], exp.ax[1], exp.ax[2], exp.ax[3], exp.ax[4], exp.ax[5], exp.ax[6], exp.ax[7], exp.ax[8],\
+        #GOT, got.ax[0], got.ax[1], got.ax[2], got.ax[3], got.ax[4], got.ax[5], got.ax[6], got.ax[7], got.ax[8]); \
+    ASSERT_IN_RANGE(exp.ax[0], got.ax[0], tol); \
+    ASSERT_IN_RANGE(exp.ax[1], got.ax[1], tol); \
+    ASSERT_IN_RANGE(exp.ax[2], got.ax[2], tol); \
+    ASSERT_IN_RANGE(exp.ax[3], got.ax[3], tol); \
+    ASSERT_IN_RANGE(exp.ax[4], got.ax[4], tol); \
+    ASSERT_IN_RANGE(exp.ax[5], got.ax[5], tol); \
+    ASSERT_IN_RANGE(exp.ax[6], got.ax[6], tol); \
+    ASSERT_IN_RANGE(exp.ax[7], got.ax[7], tol); \
+    ASSERT_IN_RANGE(exp.ax[8], got.ax[8], tol); \
+} while (0)
+
 // KLUDGE string is generated every time even if there are no errors
 #define ASSERT_PMCARTESIAN_IN_RANGEm(MSG, EXP, GOT, TOL) \
 do { \

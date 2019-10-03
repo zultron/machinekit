@@ -193,8 +193,6 @@ int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
                            double acc,
                            tc_motion_type_t motion_type);
 
-int tcSetLineXYZ(TC_STRUCT * const tc, PmCartLine const * const line);
-
 int find_max_element(double arr[], int sz);
 
 #endif // TP_PRIV_H

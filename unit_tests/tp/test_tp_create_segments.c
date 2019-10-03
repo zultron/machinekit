@@ -56,9 +56,9 @@ TEST test_create_single_line() {
 
     tpSetTermCond(tp, TC_TERM_COND_STOP, 0.0);
 
-    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 10.0, 0, 0, 0, 0, line_tag(1));
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 10.0, 0, 0, 0,  line_tag(1));
     ASSERT_EQ(1, tcqLen(&tp->queue));
-    ASSERT_EMCPOSE_IN_RANGE(pt1, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
 
     deleteMockTP(&tp);
     PASS();
@@ -78,14 +78,14 @@ TEST test_create_two_exact_lines() {
 
     tpSetTermCond(tp, TC_TERM_COND_STOP, 0.0);
 
-    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 10.0, 0, 0, 0, 0, line_tag(1));
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 10.0, 0, 0, 0, line_tag(1));
     ASSERT_EQ(1, tcqLen(&tp->queue));
-    ASSERT_EMCPOSE_IN_RANGE(pt1, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
 
     EmcPose pt2 = newXYZ(1,4,9,pt1);
-    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 10.0, 0, 0, 0, 0, line_tag(2));
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 10.0, 0, 0, 0, line_tag(2));
     ASSERT_EQ(2, tcqLen(&tp->queue));
-    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
 
     deleteMockTP(&tp);
     PASS();
@@ -100,13 +100,13 @@ TEST test_create_two_blended_lines() {
     tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
 
     // Ask for impossibly high velocity to force the arc to maximum size
-    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, 0, line_tag(1));
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(1));
     ASSERT_EQ(1, tcqLen(&tp->queue));
-    ASSERT_EMCPOSE_IN_RANGE(pt1, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
 
     EmcPose pt2 = newXYZ(1,1,0,pt1);
-    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, 0, line_tag(2));
-    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(2));
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
     ASSERT_EQ(4, tcqLen(&tp->queue));
 
     // check blend properties here
@@ -123,8 +123,8 @@ TEST test_create_two_blended_lines() {
     ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc1->term_cond);
     ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc2->term_cond);
 
-    ASSERT_IN_RANGE(0.5, blend_tc1->coords.arc.xyz.radius, TP_POS_EPSILON);
-    ASSERT_IN_RANGE(0.5, blend_tc2->coords.arc.xyz.radius, TP_POS_EPSILON);
+    ASSERT_IN_RANGE(0.5, blend_tc1->coords.arc.radius, TP_POS_EPSILON);
+    ASSERT_IN_RANGE(0.5, blend_tc2->coords.arc.radius, TP_POS_EPSILON);
 
     deleteMockTP(&tp);
     PASS();
@@ -148,7 +148,7 @@ TEST test_create_tangent_arcs() {
     tpAddCircle(tp, pt1, center1, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(1));
     tpAddCircle(tp, pt2, center2, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(2));
 
-    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
     ASSERT_EQ(2, tcqLen(&tp->queue));
 
     TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
@@ -157,13 +157,13 @@ TEST test_create_tangent_arcs() {
     ASSERT(this_tc);
     ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
 
-    PmCartesian const exp_tan_vec = {1,0,0};
-    PmCartesian got_prev_tan;
+    PmVector const exp_tan_vec = {{1,0,0}};
+    PmVector got_prev_tan;
     tcGetEndTangentUnitVector(prev_tc, &got_prev_tan);
-    ASSERT_PMCARTESIAN_IN_RANGE(exp_tan_vec, got_prev_tan, CART_FUZZ);
-    PmCartesian got_this_tan;
+    ASSERT_PMVECTOR_IN_RANGE(exp_tan_vec, got_prev_tan, CART_FUZZ);
+    PmVector got_this_tan;
     tcGetStartTangentUnitVector(this_tc, &got_this_tan);
-    ASSERT_PMCARTESIAN_IN_RANGE(exp_tan_vec, got_this_tan, CART_FUZZ);
+    ASSERT_PMVECTOR_IN_RANGE(exp_tan_vec, got_this_tan, CART_FUZZ);
 
     deleteMockTP(&tp);
     PASS();
@@ -180,15 +180,15 @@ static greatest_test_res check_blend_C1_continuity(TP_STRUCT * const tp, int cur
 
         ContinuityCheck c1 = calc_C1_continuity(prev_tc, next_tc);
 
-        PmCartesian exp_u_diff = {0};
+        PmVector exp_u_diff = {0};
         if(prev_tc->term_cond == TC_TERM_COND_TANGENT) {
             // KLUDGE not really a hard line, this applies only when the blend arc degenerates into a line
-            ASSERT_PMCARTESIAN_IN_RANGE(exp_u_diff, c1.u_diff, TP_ANGLE_EPSILON);
+            ASSERT_PMVECTOR_IN_RANGE(exp_u_diff, c1.u_diff, TP_ANGLE_EPSILON);
             ASSERT_IN_RANGE(1, c1.dot, 1e-7);
         }
-        EmcPose exp_p_diff = {0};
+        PmVector exp_p_diff = {0};
 
-        ASSERT_EMCPOSE_IN_RANGE(exp_p_diff, c1.p_diff, 1e-12);
+        ASSERT_PMVECTOR_IN_RANGE(exp_p_diff, c1.p_diff, 1e-12);
     }
     return GREATEST_TEST_RES_PASS;
 }
@@ -210,7 +210,7 @@ TEST test_slightly_convex_arcs() {
     tpAddCircle(tp, pt1, center1, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(1));
     tpAddCircle(tp, pt2, center2, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(2));
 
-    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
 
     CHECK_CALL(check_blend_C1_continuity(tp, 3));
 
@@ -235,7 +235,7 @@ TEST test_convex_arcs_lineblend() {
     tpAddCircle(tp, pt1, center1, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(1));
     tpAddCircle(tp, pt2, center2, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(2));
 
-    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
 
     TC_STRUCT const * const blend_tc1 = tcqItem(&tp->queue, 1);
     TC_STRUCT const * const blend_tc2 = tcqItem(&tp->queue, 2);
@@ -260,10 +260,10 @@ TEST test_line_arc_in_plane() {
     PmCartesian const normal = {0,0,-1};
 
     // Ask for impossibly high velocity to force the arc to maximum size
-    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 8.0, 0, 0, 0, 0, line_tag(1));
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 8.0, 0, 0, 0, line_tag(1));
     tpAddCircle(tp, pt2, center1, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 8.0, 0, 0, 0, line_tag(2));
 
-    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
     CHECK_CALL(check_blend_C1_continuity(tp, 3));
 
     deleteMockTP(&tp);
@@ -290,7 +290,7 @@ TEST test_find_blend_points_and_tangents()
     tpAddCircle(tp, pt1, center1, normal1, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 15.0, 0, 0, 0, line_tag(1));
     tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 15.0, 0, 0, 0, line_tag(2));
 
-    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
     ASSERT_EQ(2, tcqLen(&tp->queue));
 
     TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
@@ -304,15 +304,15 @@ TEST test_find_blend_points_and_tangents()
     find_blend_points_and_tangents(s_b, prev_tc, this_tc, &bb);
 
     // Verify that the positions and tangents make sense
-    PmCartesian const exp_P1 = {1. + cos(s_b), 0, sin(s_b)};
-    ASSERT_PMCARTESIAN_IN_RANGE(exp_P1, bb.P1, CART_FUZZ);
-    PmCartesian const exp_P2 = {2. + sin(s_b), 1-cos(s_b), 0};
-    ASSERT_PMCARTESIAN_IN_RANGE(exp_P2, bb.P2, CART_FUZZ);
+    PmVector const exp_P1 = {{1. + cos(s_b), 0, sin(s_b)}};
+    ASSERT_PMVECTOR_IN_RANGE(exp_P1, bb.P1, CART_FUZZ);
+    PmVector const exp_P2 = {{2. + sin(s_b), 1-cos(s_b), 0}};
+    ASSERT_PMVECTOR_IN_RANGE(exp_P2, bb.P2, CART_FUZZ);
 
-    PmCartesian const exp_u1 = {sin(s_b), 0, -cos(s_b)};
-    ASSERT_PMCARTESIAN_IN_RANGE(exp_u1, bb.u1, CART_FUZZ);
-    PmCartesian const exp_u2 = {cos(s_b), sin(s_b), 0};
-    ASSERT_PMCARTESIAN_IN_RANGE(exp_u2, bb.u2, CART_FUZZ);
+    PmVector const exp_u1 = {{sin(s_b), 0, -cos(s_b)}};
+    ASSERT_PMVECTOR_IN_RANGE(exp_u1, bb.u1, CART_FUZZ);
+    PmVector const exp_u2 = {{cos(s_b), sin(s_b), 0}};
+    ASSERT_PMVECTOR_IN_RANGE(exp_u2, bb.u2, CART_FUZZ);
 
     deleteMockTP(&tp);
     PASS();
@@ -338,7 +338,7 @@ TEST test_find_blend_intermediates()
     tpAddCircle(tp, pt1, center1, normal1, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 15.0, 0, 0, 0, line_tag(1));
     tpAddCircle(tp, pt2, center2, normal2, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 15.0, 0, 0, 0, line_tag(2));
 
-    ASSERT_EMCPOSE_IN_RANGE(pt2, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
     ASSERT_EQ(2, tcqLen(&tp->queue));
 
     TC_STRUCT const * prev_tc = tcqItem(&tp->queue, 0);
@@ -354,8 +354,8 @@ TEST test_find_blend_intermediates()
     biarc_control_points_t bp_out;
     find_blend_intermediate_segments(&bb, &bp_out);
 
-    PmCartesian exp_u_mid = {1,0,0};
-    ASSERT_PMCARTESIAN_IN_RANGE(exp_u_mid, bp_out.u_mid, CART_FUZZ);
+    PmVector exp_u_mid = {{1,0,0}};
+    ASSERT_PMVECTOR_IN_RANGE(exp_u_mid, bp_out.u_mid, CART_FUZZ);
     ASSERT_IN_RANGE(0.17157287525380996, bp_out.d, TP_POS_EPSILON);
 
     deleteMockTP(&tp);
@@ -374,14 +374,14 @@ static greatest_test_res setup_initial_line(TP_STRUCT *tp, double v_req, double 
     tpSetPos(tp, &pt0);
     tpSetId(tp, 1);
     // Ask for impossibly high velocity to force the arc to maximum size
-    ASSERT_EQ(TP_ERR_OK, tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, v_req, v_max, a_max, 0, 0, 0, 0, line_tag(1)));
+    ASSERT_EQ(TP_ERR_OK, tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, v_req, v_max, a_max, 0, 0, 0, line_tag(1)));
     ASSERT_EQ(1, tcqLen(& tp->queue));
 
     TC_STRUCT const * tc = tcqItem(&tp->queue, 0);
-    PmCartesian const u_exp = {0,1,0};
-    PmCartesian u_act;
+    PmVector const u_exp = {{0,1,0}};
+    PmVector u_act;
     tcGetEndTangentUnitVector(tc, &u_act);
-    ASSERT_PMCARTESIAN_IN_RANGE(u_exp, u_act, TP_POS_EPSILON);
+    ASSERT_PMVECTOR_IN_RANGE(u_exp, u_act, TP_POS_EPSILON);
 
     return GREATEST_TEST_RES_PASS;
 }
@@ -411,10 +411,10 @@ static greatest_test_res setup_initial_circle(TP_STRUCT *tp, double v_req, doubl
     ASSERT(tc);
     ASSERT_FLOAT_EQ(v_max, tc->maxvel_geom);
 
-    PmCartesian const u_exp = {0,1,0};
-    PmCartesian u_act;
+    PmVector const u_exp = {{0,1,0}};
+    PmVector u_act;
     tcGetEndTangentUnitVector(tc, &u_act);
-    ASSERT_PMCARTESIAN_IN_RANGE(u_exp, u_act, TP_POS_EPSILON);
+    ASSERT_PMVECTOR_IN_RANGE(u_exp, u_act, TP_POS_EPSILON);
 
     ASSERT_EQ(1, tcqLen(&tp->queue));
     return GREATEST_TEST_RES_PASS;
@@ -436,7 +436,7 @@ static greatest_test_res add_circle_from_center_normal(TP_STRUCT *tp, double v_r
 
     // Allow caller to specify non-unit normals
     pmCartUnitEq(&normal2);
-    ASSERT_EMCPOSE_IN_RANGE(pt1, tp->goalPos, TP_POS_EPSILON);
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
 
     // Ask for impossibly high velocity to force the arc to maximum size
     tpAddCircle(tp, pt2, center2, normal2, turns, EMC_MOTION_TYPE_FEED, v_req, v_max, a_t_max, a_n_max, 0, 0, line_tag(2));
@@ -518,8 +518,8 @@ TEST test_optimize_biarc_blend_size()
     ASSERT(prev_tc);
     ASSERT(this_tc);
 
-    PmCartesian vel_bound = getXYZVelBounds();
-    PmCartesian acc_bound = getXYZAccelBounds();
+    PmVector vel_bound = getVelBounds();
+    PmVector acc_bound = getAccelBounds();
 
     BlendParameters param = {};
     BlendControls controls = {};
@@ -540,10 +540,9 @@ TEST test_optimize_biarc_blend_size()
     ASSERT_EQ(TP_ERR_OK, res_opt);
     ASSERT_EQ(BIARC_REACHED_TOLERANCE, biarc_results.result);
     // Verify that the midpoint is within tolerance
-    double T;
-    EmcPose P;
+    PmVector P;
     tcGetStartpoint(this_tc, &P);
-    pmCartCartDisp(&biarc_results.solution.control_pts.P_mid, &P.tran, &T);
+    double T = VecVecDisp(&biarc_results.solution.control_pts.P_mid, &P);
     ASSERT(T < BLEND_TOLERANCE + cfg.deviation_abs_tolerance);
     ASSERT(biarc_results.iterations < 10);
 
@@ -645,8 +644,8 @@ TEST test_biarc_optimizer_performance()
             ASSERT_FLOAT_EQ(2.0, this_tc->maxvel_geom);
             ASSERT_EQ(2, tcqLen(&tp->queue));
 
-            PmCartesian vel_bound = getXYZVelBounds();
-            PmCartesian acc_bound = getXYZAccelBounds();
+            PmVector vel_bound = getVelBounds();
+            PmVector acc_bound = getAccelBounds();
 
             BlendParameters param = {};
             BlendControls controls = {};
@@ -686,13 +685,12 @@ TEST test_biarc_optimizer_performance()
                 tp->cycleTime);
 
             // Verify that the midpoint is within tolerance
-            double T;
-            EmcPose P;
+            PmVector P;
             tcGetStartpoint(this_tc, &P);
-            pmCartCartDisp(&biarc_results.solution.control_pts.P_mid, &P.tran, &T);
+            double T = VecVecDisp(&biarc_results.solution.control_pts.P_mid, &P);
             double v_plan = pmSqrt(param.a_n_max * biarc_results.solution.R_plan);
 
-            PmCartesian u1, u2;
+            PmVector u1, u2;
             tcGetEndTangentUnitVector(prev_tc, &u1);
             tcGetStartTangentUnitVector(this_tc, &u2);
             param.theta = findIntersectionAngle(&u1, &u2);
@@ -782,9 +780,8 @@ static greatest_test_res solve_blend_series(
         ASSERT_FLOAT_EQ(2.0, this_tc->maxvel_geom);
         ASSERT_EQ(2, tcqLen(&tp->queue));
 
-
-        PmCartesian vel_bound = getXYZVelBounds();
-        PmCartesian acc_bound = getXYZAccelBounds();
+        PmVector vel_bound = getVelBounds();
+        PmVector acc_bound = getAccelBounds();
 
         BlendParameters param = {};
         BlendControls controls = {};
@@ -802,13 +799,12 @@ static greatest_test_res solve_blend_series(
             tp->cycleTime);
 
         // Verify that the midpoint is within tolerance
-        double T;
-        EmcPose P;
+        PmVector P;
         tcGetStartpoint(this_tc, &P);
-        pmCartCartDisp(&biarc_results.solution.control_pts.P_mid, &P.tran, &T);
+        double T = VecVecDisp(&biarc_results.solution.control_pts.P_mid, &P);
         double v_plan = pmSqrt(param.a_n_max * biarc_results.solution.R_plan);
 
-        PmCartesian u1, u2;
+        PmVector u1, u2;
         tcGetEndTangentUnitVector(prev_tc, &u1);
         tcGetStartTangentUnitVector(this_tc, &u2);
         param.theta = findIntersectionAngle(&u1, &u2);
@@ -933,7 +929,7 @@ TEST test_biarc_blend_consume_line()
             PmCartesian expected_xyz;
             pmCartScalMult(&cases[i].center, 2., &expected_xyz);
 
-            ASSERT_PMCARTESIAN_IN_RANGE(expected_xyz, tp->goalPos.tran, 1e-06);
+            ASSERT_PMCARTESIAN_IN_RANGE(expected_xyz, tpGetGoalPos(tp).tran, 1e-06);
             CHECK_CALL(check_blend_C1_continuity(tp, tcqLen(&tp->queue)-1));
         }
     }

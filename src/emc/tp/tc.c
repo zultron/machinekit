@@ -22,6 +22,7 @@
 #include "tc.h"
 #include "tp_types.h"
 #include "spherical_arc.h"
+#include "spherical_arc9.h"
 #include "motion_types.h"
 
 //Debug output
@@ -125,120 +126,51 @@ int tcCanConsume(TC_STRUCT const * const tc)
 }
 
 /**
- * Find the geometric tangent vector to a helical arc.
- * Unlike the acceleration vector, the result of this calculation is a vector
- * tangent to the helical arc. This is called by wrapper functions for the case of a circular or helical arc.
- */
-int pmCircleTangentVector(PmCircle const * const circle,
-        double angle_in, PmCartesian * const u_tan_out)
-{
-
-    // Cheat: "rHelix" already has helical height built in
-    double cheat_dz = 1.0 / circle->angle;
-    double dr = circle->spiral / circle->angle;
-    PmCartesian tmp, uRadial, uTangential;
-
-    const double Cangle_by_r = cos(angle_in) / circle->radius;
-    const double Sangle_by_r = sin(angle_in) / circle->radius;
-
-    pmCartScalMult(&circle->rTan, Cangle_by_r, &uRadial);
-    pmCartScalMult(&circle->rPerp, Sangle_by_r, &tmp);
-    pmCartCartAddEq(&uRadial, &tmp);
-
-    pmCartScalMult(&circle->rTan, -Sangle_by_r, &uTangential);
-    pmCartScalMult(&circle->rPerp, Cangle_by_r, &tmp);
-    pmCartCartAddEq(&uTangential, &tmp);
-
-    // Add spiral component (scaled by radius)
-    pmCartScalMult(&uTangential, circle->radius + dr * angle_in, u_tan_out);
-    pmCartScalMult(&uRadial, dr, &tmp);
-    pmCartCartAddEq(u_tan_out, &tmp);
-
-    // Add helical component (scaled by radius)
-    pmCartScalMult(&circle->rHelix, cheat_dz, &tmp);
-    pmCartCartAddEq(u_tan_out, &tmp);
-
-    // Normalize to get a unit vector in tangent direction
-    pmCartUnitEq(u_tan_out);
-    return 0;
-}
-
-
-/**
  * Calulate the unit tangent vector at the start of a move for any segment.
  */
-int tcGetStartTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const out) {
-
-    switch (tc->motion_type) {
-        case TC_LINEAR:
-            *out=tc->coords.line.xyz.uVec;
-            return 0;
-        case TC_RIGIDTAP:
-            *out = tc->coords.rigidtap.nominal_xyz.uVec;
-            return 0;
-        case TC_CIRCULAR:
-            return pmCircleTangentVector(&tc->coords.circle.xyz, 0.0, out);
-        case TC_SPHERICAL:
-            return arcTangent(&tc->coords.arc.xyz, 0, out);
-        case TC_DWELL:
-            return -1;
-    }
-    rtapi_print_msg(RTAPI_MSG_ERR, "Invalid motion type %d!\n",tc->motion_type);
-    return -1;
+int tcGetStartTangentUnitVector(TC_STRUCT const * const tc, PmVector * const out)
+{
+    // TODO Optimize
+    return tcGetTangentUnitVector(tc, 0, out);
 }
 
 /**
- * Calulate the unit tangent vector at the end of a move for any segment.
+ * Calculate the unit tangent vector at the end of a move for any segment.
  */
-int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const out) {
+int tcGetEndTangentUnitVector(
+    TC_STRUCT const * const tc,
+    PmVector * const out) {
 
+    // TODO Optimize
+    return tcGetTangentUnitVector(tc, tc->target, out);
+}
+
+int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmVector * const out) {
+    static const PmCartesian zero={0,0,0};
     switch (tc->motion_type) {
         case TC_LINEAR:
-            *out=tc->coords.line.xyz.uVec;
+            *out = tc->coords.line.uVec;
             return 0;
         case TC_RIGIDTAP:
-            // Final placement move goes back to the start point in the same direction
-            *out = tc->coords.rigidtap.nominal_xyz.uVec;
-            return 0;
-        case TC_CIRCULAR:
-            return pmCircleTangentVector(&tc->coords.circle.xyz,
-                    tc->coords.circle.xyz.angle, out);
-        case TC_SPHERICAL:
-            return arcTangent(&tc->coords.arc.xyz, 1.0, out);
+            // Augment with zero vector, no re-scaling necessary
+            return CartToVec(&tc->coords.rigidtap.nominal_xyz.uVec, &zero, &zero, out);
         case TC_DWELL:
             return -1;
+        case TC_CIRCULAR:
+        {
+            return pmCircle9TangentVector(
+                &tc->coords.circle,
+                progress,
+                out);
+        }
+        case TC_SPHERICAL:
+        {
+            double t = progress / tc->target;
+            return arc9Tangent(&tc->coords.arc, t, out);
+        }
     }
     rtapi_print_msg(RTAPI_MSG_ERR, "Invalid motion type %d!\n",tc->motion_type);
     return -1;
-}
-
-int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmCartesian * const out) {
-
-    switch (tc->motion_type) {
-        case TC_LINEAR:
-            *out = tc->coords.line.xyz.uVec;
-            return TP_ERR_OK;
-        case TC_RIGIDTAP:
-            *out = tc->coords.rigidtap.nominal_xyz.uVec;
-            return TP_ERR_OK;
-        case TC_CIRCULAR:
-        {
-            double angle=0;
-            pmCircleAngleFromProgress(
-                &tc->coords.circle.xyz,
-                &tc->coords.circle.fit,
-                progress,
-                &angle);
-            pmCircleTangentVector(
-                &tc->coords.circle.xyz,
-                angle,
-                out);
-            return TP_ERR_OK;
-        }
-        default:
-            rtapi_print_msg(RTAPI_MSG_ERR, "Invalid motion type %d!\n",tc->motion_type);
-            return -1;
-    }
 }
 
 /**
@@ -276,15 +208,15 @@ double tcGetTarget(TC_STRUCT const * const tc, int direction)
  *
  * @param    tc    the current TC that is being planned
  *
- * @return	 EmcPose   returns a position (\ref EmcPose = datatype carrying XYZABC information
+ * @return	 PmVector   returns a position (\ref PmVector = datatype carrying XYZABC information
  */
 
-int tcGetPos(TC_STRUCT const * const tc, EmcPose * const out) {
+int tcGetPos(TC_STRUCT const * const tc, PmVector * const out) {
     tcGetPosReal(tc, tc->progress, out);
     return 0;
 }
 
-int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const pos)
+int tcGetStartpoint(TC_STRUCT const * const tc, PmVector * const pos)
 {
     PmCartesian xyz;
     PmCartesian abc;
@@ -295,48 +227,36 @@ int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const pos)
             xyz = tc->coords.rigidtap.nominal_xyz.start;
             abc = tc->coords.rigidtap.abc;
             uvw = tc->coords.rigidtap.uvw;
-            break;
+            return CartToVec(&xyz, &abc, &uvw, pos);
         case TC_LINEAR:
-            xyz = tc->coords.line.xyz.start;
-            abc = tc->coords.line.abc.start;
-            uvw = tc->coords.line.uvw.start;
-            break;
+            *pos = tc->coords.line.start;
+            return 0;
         case TC_CIRCULAR:
             pmCircleStartPoint(&tc->coords.circle.xyz, &xyz);
-            abc = tc->coords.circle.abc.start;
-            uvw = tc->coords.circle.uvw.start;
-            break;
+            VecToCart(&tc->coords.circle.abcuvw.start, NULL, &abc, &uvw);
+            return CartToVec(&xyz, &abc, &uvw, pos);
         case TC_SPHERICAL:
-            arcPoint(&tc->coords.arc.xyz,
+            return arc9Point(&tc->coords.arc,
                     0,
-                    &xyz);
-            abc = tc->coords.arc.abc;
-            uvw = tc->coords.arc.uvw;
-            break;
+                    pos);
         case TC_DWELL:
             *pos = tc->coords.dwell.dwell_pos;
             return TP_ERR_OK;
     }
 
-    pmCartesianToEmcPose(&xyz, &abc, &uvw, pos);
-
-    return TP_ERR_OK;
+    return -1;
 }
 
-int tcGetEndpoint(TC_STRUCT const * const tc, EmcPose * const out) {
+int tcGetEndpoint(TC_STRUCT const * const tc, PmVector * const out) {
     tcGetPosReal(tc, tc->target, out);
     return 0;
 }
 
-int tcGetPosReal(TC_STRUCT const * const tc, double progress, EmcPose * const pos)
+int tcGetPosReal(TC_STRUCT const * const tc, double progress, PmVector * const pos)
 {
     PmCartesian xyz;
     PmCartesian abc;
     PmCartesian uvw;
-
-    // Used for arc-length to angle conversion with spiral segments
-    double angle = 0.0;
-    int res_fit = TP_ERR_OK;
 
     switch (tc->motion_type){
         case TC_RIGIDTAP:
@@ -344,49 +264,20 @@ int tcGetPosReal(TC_STRUCT const * const tc, double progress, EmcPose * const po
             // no rotary move allowed while tapping
             abc = tc->coords.rigidtap.abc;
             uvw = tc->coords.rigidtap.uvw;
-            break;
+            return CartToVec(&xyz, &abc, &uvw, pos);
         case TC_LINEAR:
-            pmCartLinePoint(&tc->coords.line.xyz,
-                    progress * tc->coords.line.xyz.tmag / tc->target,
-                    &xyz);
-            pmCartLinePoint(&tc->coords.line.uvw,
-                    progress * tc->coords.line.uvw.tmag / tc->target,
-                    &uvw);
-            pmCartLinePoint(&tc->coords.line.abc,
-                    progress * tc->coords.line.abc.tmag / tc->target,
-                    &abc);
-            break;
+            return pmLine9Point(&tc->coords.line, progress, pos);
         case TC_CIRCULAR:
-            res_fit = pmCircleAngleFromProgress(&tc->coords.circle.xyz,
-                    &tc->coords.circle.fit,
-                    progress, &angle);
-            pmCirclePoint(&tc->coords.circle.xyz,
-                    angle,
-                    &xyz);
-            pmCartLinePoint(&tc->coords.circle.abc,
-                    progress * tc->coords.circle.abc.tmag / tc->target,
-                    &abc);
-            pmCartLinePoint(&tc->coords.circle.uvw,
-                    progress * tc->coords.circle.uvw.tmag / tc->target,
-                    &uvw);
-            break;
+            return pmCircle9Point(&tc->coords.circle, progress, pos);
         case TC_SPHERICAL:
-            arcPoint(&tc->coords.arc.xyz,
+            return arc9Point(&tc->coords.arc,
                     progress,
-                    &xyz);
-            abc = tc->coords.arc.abc;
-            uvw = tc->coords.arc.uvw;
-            break;
+                    pos);
         case TC_DWELL:
             *pos = tc->coords.dwell.dwell_pos;
             return TP_ERR_OK;
     }
-
-    if (res_fit == TP_ERR_OK) {
-        // Don't touch pos unless we know the value is good
-        pmCartesianToEmcPose(&xyz, &abc, &uvw, pos);
-    }
-    return res_fit;
+    return -1;
 }
 
 
@@ -426,30 +317,6 @@ int tcFindBlendTolerance(TC_STRUCT const * const prev_tc,
     *T_blend = blend_tolerance;
     return 0;
 }
-
-
-double pmLine9Target(PmLine9 * const line9, int pure_angular)
-{
-    if (pure_angular && !line9->abc.tmag_zero) {
-        return line9->abc.tmag;
-    } else if (!line9->xyz.tmag_zero) {
-        return line9->xyz.tmag;
-    } else if (!line9->uvw.tmag_zero) {
-        return line9->uvw.tmag;
-    } else if (!line9->abc.tmag_zero) {
-        return line9->abc.tmag;
-    } else {
-        rtapi_print_msg(RTAPI_MSG_DBG,"line can't have zero length! xyz start = %.12e,%.12e,%.12e, end = %.12e,%.12e,%.12e\n",
-                line9->xyz.start.x,
-                line9->xyz.start.y,
-                line9->xyz.start.z,
-                line9->xyz.end.x,
-                line9->xyz.end.y,
-                line9->xyz.end.z);
-        return 0.0;
-    }
-}
-
 
 /**
  * Initialize a new trajectory segment with common parameters.
@@ -513,79 +380,6 @@ int tcSetupState(TC_STRUCT * const tc, TP_STRUCT const * const tp)
     return TP_ERR_OK;
 }
 
-int pmLine9Init(PmLine9 * const line9,
-        EmcPose const * const start,
-        EmcPose const * const end)
-{
-    // Scratch variables
-    PmCartesian start_xyz, end_xyz;
-    PmCartesian start_uvw, end_uvw;
-    PmCartesian start_abc, end_abc;
-
-    // Convert endpoint to cartesian representation
-    emcPoseToPmCartesian(start, &start_xyz, &start_abc, &start_uvw);
-    emcPoseToPmCartesian(end, &end_xyz, &end_abc, &end_uvw);
-
-    // Initialize cartesian line members
-    int xyz_fail = pmCartLineInit(&line9->xyz, &start_xyz, &end_xyz);
-    int abc_fail = pmCartLineInit(&line9->abc, &start_abc, &end_abc);
-    int uvw_fail = pmCartLineInit(&line9->uvw, &start_uvw, &end_uvw);
-
-#ifdef TP_DEBUG
-    print_json5_log_start(pmLine9Init);
-    print_json5_PmCartLine_("xyz", line9->xyz);
-    print_json5_PmCartLine_("abc", line9->abc);
-    print_json5_PmCartLine_("uvw", line9->abc);
-    print_json5_end_();
-#endif
-
-    if (xyz_fail || abc_fail || uvw_fail) {
-        rtapi_print_msg(RTAPI_MSG_ERR,"Failed to initialize Line9, err codes %d, %d, %d\n",
-                xyz_fail,abc_fail,uvw_fail);
-        return TP_ERR_FAIL;
-    }
-    return TP_ERR_OK;
-}
-
-int pmCircle9Init(PmCircle9 * const circ9,
-        EmcPose const * const start,
-        EmcPose const * const end,
-        PmCartesian const * const center,
-        PmCartesian const * const normal,
-        int turn)
-{
-    PmCartesian start_xyz, end_xyz;
-    PmCartesian start_uvw, end_uvw;
-    PmCartesian start_abc, end_abc;
-
-    emcPoseToPmCartesian(start, &start_xyz, &start_abc, &start_uvw);
-    emcPoseToPmCartesian(end, &end_xyz, &end_abc, &end_uvw);
-
-    int xyz_fail = pmCircleInit(&circ9->xyz, &start_xyz, &end_xyz, center, normal, turn);
-    //Initialize line parts of Circle9
-    int abc_fail = pmCartLineInit(&circ9->abc, &start_abc, &end_abc);
-    int uvw_fail = pmCartLineInit(&circ9->uvw, &start_uvw, &end_uvw);
-
-    int res_fit = findSpiralArcLengthFit(&circ9->xyz,&circ9->fit);
-
-    if (xyz_fail || abc_fail || uvw_fail || res_fit) {
-        rtapi_print_msg(RTAPI_MSG_ERR,"Failed to initialize Circle9, err codes %d, %d, %d, %d\n",
-                xyz_fail, abc_fail, uvw_fail, res_fit);
-        return TP_ERR_FAIL;
-    }
-    return TP_ERR_OK;
-}
-
-double pmCircle9Target(PmCircle9 const * const circ9)
-{
-
-    double h2;
-    pmCartMagSq(&circ9->xyz.rHelix, &h2);
-    double helical_length = pmSqrt(pmSq(circ9->fit.total_planar_length) + h2);
-
-    return helical_length;
-}
-
 int tcUpdateCircleAccRatio(TC_STRUCT * tc, double v_max)
 {
     if (tc->motion_type == TC_CIRCULAR) {
@@ -644,41 +438,41 @@ int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override)
 }
 
 int pmRigidTapInit(PmRigidTap * const tap,
-        EmcPose const * const start,
-        EmcPose const * const end,
+        PmVector const * const start,
+        PmVector const * const end,
         double reversal_scale)
 {
     PmCartesian start_xyz, end_xyz;
     PmCartesian abc, uvw;
 
     //Slightly more allocation this way, but much easier to read
-    emcPoseToPmCartesian(start, &start_xyz, &abc, &uvw);
-    emcPoseGetXYZ(end, &end_xyz);
+    VecToCart(start, &start_xyz, &tap->abc, &tap->uvw);
+    VecToCart(end, &end_xyz, &abc, &uvw);
 
     // Setup XYZ motion
     pmCartLineInit(&tap->nominal_xyz, &start_xyz, &end_xyz);
     tap->actual_xyz = tap->nominal_xyz;
-
-    // Copy over fixed ABC and UVW points
-    tap->abc = abc;
-    tap->uvw = uvw;
 
     // Setup initial tap state
     tap->reversal_target = tap->nominal_xyz.tmag;
     tap->reversal_scale = reversal_scale;
     tap->state = RIGIDTAP_TAPPING;
 
+    if (!pmCartCartCompare(&tap->abc, &abc) || !pmCartCartCompare(&tap->uvw, &uvw)) {
+        return TP_ERR_RANGE;
+    }
     return TP_ERR_OK;
+
 }
 
 /** Returns true if segment has ONLY rotary motion, false otherwise. */
 int tcPureRotaryCheck(TC_STRUCT const * const tc)
 {
     return (tc->motion_type == TC_LINEAR) &&
-        (tc->coords.line.xyz.tmag_zero) &&
-        (tc->coords.line.uvw.tmag_zero);
+           pmLine9LinearAxisLength(&tc->coords.line) == 0;
 }
-
+#if 0
+// TODO replace with 9D
 /**
  * Given a PmCircle and a circular segment, copy the circle in as the XYZ portion of the segment, then update the motion parameters.
  * NOTE: does not yet support ABC or UVW motion!
@@ -688,10 +482,6 @@ int tcSetCircleXYZ(TC_STRUCT * const tc, PmCircle const * const circ)
 
     //Update targets with new arc length
     if (!circ || tc->motion_type != TC_CIRCULAR) {
-        return TP_ERR_FAIL;
-    }
-    if (!tc->coords.circle.abc.tmag_zero || !tc->coords.circle.uvw.tmag_zero) {
-        rtapi_print_msg(RTAPI_MSG_ERR, "SetCircleXYZ does not supportABC or UVW motion\n");
         return TP_ERR_FAIL;
     }
 
@@ -704,14 +494,15 @@ int tcSetCircleXYZ(TC_STRUCT * const tc, PmCircle const * const circ)
 
     tc->coords.circle.xyz = *circ;
     // Update the arc length fit to this new segment
-    findSpiralArcLengthFit(&tc->coords.circle.xyz, &tc->coords.circle.fit);
+    findSpiralArcLengthFit(&tc->coords.circle.xyz, &tc->coords.circle.fit, TP_ANGLE_EPSILON);
 
     // compute the new total arc length using the fit and store as new
     // target distance
-    tc->target = pmCircle9Target(&tc->coords.circle);
+    tc->target = pmCircle9Length(&tc->coords.circle);
 
     return TP_ERR_OK;
 }
+#endif
 
 // Helper functions to convert enums to pretty-print for debug output
 
@@ -761,4 +552,20 @@ const char *tcSyncModeAsString(tc_spindle_sync_t c)
             return "sync_position";
     }
     return "NONE";
+}
+
+int tcSetLine9(TC_STRUCT * const tc, PmLine9 const * const line9)
+{
+    if (tc->motion_type != TC_LINEAR) { return -1; }
+    tc->coords.line = *line9;
+    tc->target = pmLine9Length(line9);
+    return 0;
+}
+
+int tcSetCircle9(TC_STRUCT * const tc, PmCircle9 const * const circle9)
+{
+    if (tc->motion_type != TC_CIRCULAR) { return -1; }
+    tc->coords.circle = *circle9;
+    tc->target = pmCircle9Length(circle9);
+    return 0;
 }
