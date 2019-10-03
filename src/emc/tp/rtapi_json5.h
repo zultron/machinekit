@@ -259,5 +259,22 @@ static inline void print_json5_TC_STRUCT_kinematics(const char *fname, TC_STRUCT
     print_json5_object_end_();
 }
 
+static inline void print_json5_SpiralArcLengthFit(
+    const char *fname,
+    SpiralArcLengthFit const * const fit,
+    double min_radius,
+    double total_angle,
+    double spiral_coef)
+{
+    print_json5_object_start_(fname);
+    print_json5_double(min_radius);
+    print_json5_double(total_angle);
+    print_json5_double(spiral_coef);
+    print_json5_double_("b0", fit->b0);
+    print_json5_double_("b1", fit->b1);
+    print_json5_double_("total_planar_length", fit->total_planar_length);
+    print_json5_bool_("spiral_in", fit->spiral_in);
+    print_json5_object_end_();
+}
 
 #endif // RTAPI_JSON5_H

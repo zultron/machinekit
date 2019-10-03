@@ -909,24 +909,6 @@ static int pmCircleAngleFromParam(PmCircle const * const circle,
     return TP_ERR_OK;
 }
 
-static void printSpiralArcLengthFit(SpiralArcLengthFit const * const fit,
-                                    double min_radius,
-                                    double total_angle,
-                                    double spiral_coef)
-{
-#ifdef TP_DEBUG
-    print_json5_log_start(SpiralFit);
-    print_json5_double(min_radius);
-    print_json5_double(total_angle);
-    print_json5_double(spiral_coef);
-    print_json5_double_("b0", fit->b0);
-    print_json5_double_("b1", fit->b1);
-    print_json5_double_("total_planar_length", fit->total_planar_length);
-    print_json5_bool_("spiral_in", fit->spiral_in);
-    print_json5_log_end();
-#endif
-}
-
 /**
  * Approximate the arc length function of a general spiral.
  *
@@ -973,7 +955,9 @@ int findSpiralArcLengthFit(PmCircle const * const circle,
     fit->b1 = slope_start;
 
     fit->total_planar_length = fit->b0 * pmSq(circle->angle) + fit->b1 * circle->angle;
-    printSpiralArcLengthFit(fit, min_radius, circle->angle, spiral_coef);
+#ifdef TP_DEBUG
+    print_json5_SpiralArcLengthFit("SpiralArcLengthFit", fit, min_radius, circle->angle, spiral_coef);
+#endif
 
     // Check against start and end angle
     double angle_end_chk = 0.0;
