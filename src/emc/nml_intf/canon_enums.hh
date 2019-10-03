@@ -91,4 +91,12 @@ enum CANON_WAIT_MODE
     WAIT_MODE_LOW = 4,
 };
 
+enum CanonFeedAxisReferenceType
+{
+    CANON_FEED_NONE,
+    CANON_FEED_XYZ,
+    CANON_FEED_UVW,
+    CANON_FEED_ABC,
+};
+
 #endif // CANON_ENUMS_HH

@@ -978,7 +978,6 @@ check_stuff ( "before command_handler()" );
                 emcmotStatus->enables_new,
                 issue_atspeed,
                 emcmotCommand->turn,
-                emcmotCommand->pure_angular,
                 emcmotCommand->tag);
             addSegmentOrReportError(res_addline, issue_atspeed, "linear");
 	    break;
@@ -1467,7 +1466,6 @@ check_stuff ( "before command_handler()" );
                 emcmotStatus->enables_new,
                 0,
                 -1,
-                emcmotCommand->pure_angular,
                 emcmotCommand->tag);
             if (addSegmentOrReportError(res_probe, 0, "probe/setter") == 0) {
                 emcmotStatus->probing = 1;

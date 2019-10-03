@@ -1750,7 +1750,6 @@ int tpAddLine(
     unsigned char enables,
     char atspeed,
     int indexrotary,
-    int pure_angular,
     struct state_tag_t tag)
 {
     PmVector end;

@@ -121,10 +121,26 @@ extern int emcTrajForward();
 extern int emcTrajStep();
 extern int emcTrajResume();
 extern int emcTrajDelay(double delay);
-extern int emcTrajLinearMove(EmcPose end, int type, double vel,
-                             double ini_maxvel, double acc, int indexrotary, int pure_angular);
-extern int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center, PM_CARTESIAN
-        normal, int turn, int type, double vel, double ini_maxvel, double acc, double acc_normal);
+
+extern int emcTrajLinearMove(
+    EmcPose end,
+    int type,
+    double vel,
+    double ini_maxvel,
+    double acc,
+    int indexrotary);
+
+extern int emcTrajCircularMove(
+    EmcPose end,
+    PM_CARTESIAN center,
+    PM_CARTESIAN normal,
+    int turn,
+    int type,
+    double vel,
+    double ini_maxvel,
+    double acc,
+    double acc_normal);
+
 extern int emcTrajSetTermCond(int cond, double tolerance);
 extern int emcTrajSetSpindleSync(double feed_per_revolution, bool wait_for_index);
 extern int emcTrajSetOffset(EmcPose tool_offset);
@@ -132,8 +148,15 @@ extern int emcTrajSetOrigin(EmcPose origin);
 extern int emcTrajSetRotation(double rotation);
 extern int emcTrajSetHome(EmcPose home);
 extern int emcTrajClearProbeTrippedFlag();
-extern int emcTrajProbe(EmcPose pos, int type, double vel, 
-                        double ini_maxvel, double acc, int pure_angular, unsigned char probe_type);
+
+extern int emcTrajProbe(
+    EmcPose pos,
+    int type,
+    double vel,
+    double ini_maxvel,
+    double acc,
+    unsigned char probe_type);
+
 extern int emcAuxInputWait(int index, int input_type, int wait_type, int timeout);
 extern int emcTrajRigidTap(EMC_TRAJ_RIGID_TAP const &cmd);
 extern int emcTrajDwell(double time_sec);

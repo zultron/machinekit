@@ -27,6 +27,7 @@
 #include "emcglb.h"		// A bunch of global values used across canon and interp
 #include "inihal.hh"
 #include "ini_macros.hh"
+#include <float.h>
 
 #include <string>
 extern value_inihal_data old_inihal_data;
