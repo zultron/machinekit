@@ -383,6 +383,7 @@ HEADERS := \
     libnml/posemath/gotypes.h \
     libnml/posemath/gomath.h \
     libnml/posemath/sincos.h \
+    libnml/posemath/pm_vector.h \
     libnml/rcs/rcs.hh \
     libnml/rcs/rcs_exit.hh \
     libnml/rcs/rcs_print.hh \
@@ -999,6 +1000,7 @@ motmod-objs += emc/motion/state_tag.o
 motmod-objs += emc/motion/dbuf.o
 motmod-objs += emc/nml_intf/emcpose.o
 motmod-objs += libnml/posemath/_posemath.o
+motmod-objs += libnml/posemath/pm_vector.o
 motmod-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 TORTOBJS = $(foreach file,$($(patsubst %.o,%,$(1))-objs), objects/rt$(file))
