@@ -57,4 +57,13 @@ int VecVecHarmonicAddSq(
     PmVector const * const v,
     PmVector * const scales);
 
+int VecVecUnitParallel(PmVector const * const u,
+    PmVector const * const v,
+    double threshold_sq);
+
+int VecVecUnitAntiParallel(
+    PmVector const * const u,
+    PmVector const * const v,
+    double threshold);
+
 #endif

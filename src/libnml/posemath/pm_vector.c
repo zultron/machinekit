@@ -1,15 +1,16 @@
-/********************************************************************
-* Description: pm_vector.c
-*  Vector structs and functions (generalizes PmCartesian)
-*
-*   Derived from a work by Fred Proctor & Will Shackleford
-*
-* Author: Robert W. Ellenberg
-* License: GPL Version 2
-* System: Linux
-*
-* Copyright (c) 2015 All rights reserved.
-********************************************************************/
+/**
+ * @file pm_vector.c
+ * 
+ * API for PmVector (N-dimensional, compile-time sized vector object similar to PmCartesian)
+ *
+*  Derived from work by Fred Proctor & Will Shackleford (PmCartesian API)
+ * @author Robert W. Ellenberg <rwe24g@gmail.com>
+ *
+ * @copyright Copyright 2019, Robert W. Ellenberg
+ *
+ * This source code is released for free distribution under the terms of the
+ * GNU General Public License (V2) as published by the Free Software Foundation.
+ */
 
 #include "posemath.h"
 #include "pm_vector.h"
@@ -270,3 +271,38 @@ int VecVecHarmonicAddSq(PmVector const * const u,
     return 0;
 }
 
+/**
+ * Check if two UNIT vectors are parallel to within a numerical threshold.
+ * In this case, parallel means the magnitude of their difference is below the specified threshold.
+ */
+int VecVecUnitParallel(
+        PmVector const * const u, //!< first vector to compare
+        PmVector const * const v, //!< second vector to compare
+        double threshold_sq //!< square of the magnitude threshold
+        )
+{
+    if (!u || !v) {
+        return -1;
+    }
+    PmVector u_diff;
+    VecVecSub(u, v, &u_diff);
+    return VecMagSq(&u_diff) < threshold_sq;
+}
+
+/**
+ * Check if two UNIT vectors are anti-parallel to within a numerical threshold.
+ * In this case, parallel means the magnitude of their sum is below the specified threshold.
+ */
+int VecVecUnitAntiParallel(
+        PmVector const * const u, //!< first vector
+        PmVector const * const v, //!< second vector
+        double threshold_sq //!< square of the magnitude threshold
+        )
+{
+    if (!u || !v) {
+        return -1;
+    }
+    PmVector u_sum;
+    VecVecAdd(u, v, &u_sum);
+    return VecMagSq(&u_sum) < threshold_sq;
+}
