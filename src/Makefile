@@ -304,6 +304,7 @@ HEADERS := \
     emc/tp/tp_enums.h \
     emc/tp/tp_types.h \
     emc/tp/spherical_arc.h \
+    emc/tp/spherical_arc9.h \
     emc/tp/blendmath.h \
     emc/tp/math_util.h \
     emc/motion/emcmotcfg.h \
@@ -985,6 +986,7 @@ motmod-objs += emc/tp/tc.o
 motmod-objs += emc/tp/tcq.o
 motmod-objs += emc/tp/tp.o
 motmod-objs += emc/tp/spherical_arc.o
+motmod-objs += emc/tp/spherical_arc9.o
 motmod-objs += emc/tp/blendmath.o
 motmod-objs += emc/tp/joint_util.o
 motmod-objs += emc/tp/math_util.o
