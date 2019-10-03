@@ -17,6 +17,7 @@
 #include "posemath.h"
 #include "emcpos.h"
 #include "rtapi_json5.h"
+#include "tp_json5_print.h"
 
 /** TP debug stuff */
 #ifdef TP_DEBUG
