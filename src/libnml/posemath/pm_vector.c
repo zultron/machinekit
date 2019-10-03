@@ -15,208 +15,214 @@
 #include "pm_vector.h"
 #include "rtapi_math.h"
 
-int VecVecAdd(Vector6 const * v1, Vector6 const * v2, Vector6 * out)
+// For internal use only
+typedef enum {
+    X,
+    Y,
+    Z,
+    A,
+    B,
+    C,
+    U,
+    V,
+    W,
+} PmVectorAxes;
+
+int VecVecCopy(const PmVector v1, PmVector out)
+{
+    int i;
+    for (i = 0; i < PM_VECTOR_SIZE; ++i) {
+        out[i] = v1[i];
+    }
+    return 0;
+}
+
+int VecVecAdd(PmVector const v1, PmVector const v2, PmVector out)
+{
+    int i;
+    for (i = 0; i < PM_VECTOR_SIZE; ++i) {
+        out[i] = v1[i] + v2[i];
+    }
+    return 0;
+}
+
+
+int VecVecAddEq(PmVector v1, PmVector const v2)
+{
+    int i;
+    for (i = 0; i < PM_VECTOR_SIZE; ++i) {
+        v1[i] += v2[i];
+    }
+    return 0;
+}
+
+
+int VecVecSub(PmVector const v1, PmVector const v2, PmVector out)
 {
     if (!v1 || !v2 || !out) {
         return -1;
     }
-
     int i;
-    for (i = 0; i < VECTOR_SIZE; ++i) {
-        out->ax[i] = v1->ax[i] + v2->ax[i];
+    for (i = 0; i < PM_VECTOR_SIZE; ++i) {
+        out[i] = v1[i] - v2[i];
     }
     return 0;
 }
 
-
-int VecVecAddEq(Vector6 * v1, Vector6 const * v2)
-{
-    if (!v1 || !v2) {
-        return -1;
-    }
-
-    int i;
-    for (i = 0; i < VECTOR_SIZE; ++i) {
-        v1->ax[i] += v2->ax[i];
-    }
-    return 0;
-}
-
-
-int VecVecSub(Vector6 const * v1, Vector6 const * v2, Vector6 * out)
-{
-    if (!v1 || !v2 || !out) {
-        return -1;
-    }
-    int i;
-    for (i = 0; i < VECTOR_SIZE; ++i) {
-        out->ax[i] = v1->ax[i] - v2->ax[i];
-    }
-    return 0;
-}
-
-int VecScalMult(Vector6 const * v1, double s, Vector6 * out)
+int VecScalMult(PmVector const v1, double s, PmVector out)
 {
     if (!v1 || !out) {
         return -1;
     }
     int i;
-    for (i = 0; i < VECTOR_SIZE; ++i) {
-        out->ax[i] = v1->ax[i]*s;
+    for (i = 0; i < PM_VECTOR_SIZE; ++i) {
+        out[i] = v1[i]*s;
     }
     return 0;
 }
 
-int VecVecDot(Vector6 const * v1, Vector6 const * v2, double * out)
+double VecVecDot(PmVector const v1, PmVector const v2)
 {
-    if (!v1 || !v2 || !out) {
+    if (!v1 || !v2) {
+        return NAN;
+    }
+    double dot = 0.0;
+    for (int i = 0; i < PM_VECTOR_SIZE; ++i) {
+        dot += v1[i] * v2[i];
+    }
+    return dot;
+}
+
+double VecMagSq(PmVector const v1)
+{
+    return VecVecDot(v1,v1);
+}
+
+double VecMag(PmVector const v1)
+{
+    double mag_sq = VecMagSq(v1);
+    return pmSqrt(mag_sq);
+}
+
+int VecUnit(PmVector const v1, PmVector out)
+{
+    return VecVecCopy(v1, out) || VecUnitEq(out);
+}
+
+int VecUnitEq(PmVector v1)
+{
+    double mag = VecMag(v1);
+    //FIXME hard-coded cutoff
+    if (fabs(mag) < 1e-9)
         return -1;
-    }
-    int i;
-    *out = 0.0;
-    for (i = 0; i < VECTOR_SIZE; ++i) {
-       *out += v1->ax[i] * v2->ax[i];
-    }
-    return 0;
-}
-
-int VecMagSq(Vector6 const * v1, double * out)
-{
-    return VecVecDot(v1,v1,out);
-}
-
-int VecMag(Vector6 const * v1, double * out)
-{
-    int res_mag = VecMagSq(v1, out);
-    if (res_mag)
-        return res_mag;
-
-    *out = pmSqrt(*out);
-    return 0;
-}
-
-int VecUnit(Vector6 const * v1, Vector6 * out)
-{
-    double mag = 0.0;
-    int res_mag = VecMag(v1, &mag);
-    //FIXME hard-coded cutoff
-    if (res_mag || fabs(mag) < 1e-9) 
-        return res_mag;
-
-    VecScalMult(v1, 1.0 / mag, out);
-    return 0;
-}
-
-int VecUnitEq(Vector6 * v1)
-{
-    double mag = 0.0;
-    int res_mag = VecMag(v1, &mag);
-    //FIXME hard-coded cutoff
-    if (res_mag || fabs(mag) < 1e-9) 
-        return res_mag;
 
     VecScalMult(v1, 1.0 / mag, v1);
     return 0;
 }
 
-int VecMin(Vector6 const * v1, double * m)
+double VecMin(PmVector const v1)
 {
-    if (!v1 || !m) {
-        return -1;
+    if (!v1) {
+        return NAN;
     }
 
     int i;
-    double m_temp = v1->ax[0];
-    for (i = 0; i < VECTOR_SIZE; ++i) {
-       m_temp = fmin(v1->ax[i], m_temp);
+    double v_min = v1[0];
+    for (i = 0; i < PM_VECTOR_SIZE; ++i) {
+        v_min = fmin(v1[i], v_min);
     }
-    *m = m_temp;
-    return 0;
+    return v_min;
 }
 
 
-int VecMax(Vector6 const * v1, double * m)
+double VecMax(PmVector const v1)
 {
-    if (!v1 || !m) {
-        return -1;
+    if (!v1) {
+        return NAN;
     }
 
     int i;
-    double m_temp = v1->ax[0];
-    for (i = 0; i < VECTOR_SIZE; ++i) {
-       m_temp = fmax(v1->ax[i], m_temp);
+    double v_max = v1[0];
+    for (i = 0; i < PM_VECTOR_SIZE; ++i) {
+        v_max = fmax(v1[i], v_max);
     }
-    *m = m_temp;
-    return 0;
+    return v_max;
 }
 
-int CartToVec(PmCartesian const * p1, PmCartesian const * p2, Vector6 * out)
+int CartToVec(
+    PmCartesian const * p_xyz,
+    PmCartesian const * p_abc,
+    PmCartesian const * p_uvw,
+    PmVector out)
 {
-    if (!p1 || !p2 || !out) {
+    if (!p_xyz || !p_uvw || !p_abc || !out) {
         return -1;
     }
 
     // Copy out elements into our array
-    out->ax[0] = p1->x;
-    out->ax[1] = p1->y;
-    out->ax[2] = p1->z;
+    out[X] = p_xyz->x;
+    out[Y] = p_xyz->y;
+    out[Z] = p_xyz->z;
 
-    out->ax[3] = p2->x;
-    out->ax[4] = p2->y;
-    out->ax[5] = p2->z;
+    out[A] = p_abc->x;
+    out[B] = p_abc->y;
+    out[C] = p_abc->z;
+
+    out[U] = p_uvw->x;
+    out[V] = p_uvw->y;
+    out[W] = p_uvw->z;
 
     return 0;
 
 }
 
-int VecToCart(Vector6 const * vec, PmCartesian * p1, PmCartesian * p2)
+int VecToCart(
+    PmVector const vec,
+    PmCartesian * p_xyz,
+    PmCartesian * p_abc,
+    PmCartesian * p_uvw)
 {
     if (!vec) {
         return -1;
     }
 
-    if (p1) {
-    p1->x = vec->ax[0];
-    p1->y = vec->ax[1];
-    p1->z = vec->ax[2];
+    if (p_xyz) {
+        p_xyz->x = vec[X];
+        p_xyz->y = vec[Y];
+        p_xyz->z = vec[Z];
     }
 
-    if (p2) {
-    p2->x = vec->ax[3];
-    p2->y = vec->ax[4];
-    p2->z = vec->ax[5];
+    if (p_abc) {
+        p_abc->x = vec[A];
+        p_abc->y = vec[B];
+        p_abc->z = vec[C];
+    }
+
+    if (p_uvw) {
+        p_uvw->x = vec[U];
+        p_uvw->y = vec[V];
+        p_uvw->z = vec[W];
     }
 
     return 0;
 }
 
-void VecPrint(Vector6 const * const vec)
+int VecVecOrthonormalBasis(
+    PmVector const a,
+    PmVector const b,
+    PmVector u,
+    PmVector v)
 {
-#ifdef TP_DEBUG_PRINT
-    int i;
-    for (i = 0; i < 6; ++i) {
-        rtapi_print("   %d: %f\n", i, vec->ax[i]);
-    }
-#endif
-}
-
-int VecVecOrthonormalBasis(Vector6 const * const a,
-        Vector6 const * const b,
-        Vector6 * const u,
-        Vector6 * const v)
-{
-    //TODO error check
-    // Find component of a in direction of b
+    // Find component of b in direction of a
     // NOTE assumes both a and b are already unit
-    double dot;
-    VecVecDot(a, b, &dot);
+    double dot = VecVecDot(a, b);
 
-    //Build the component in the direction of b
+    //Build the component in the direction of a
     VecScalMult(b, -dot, v);
 
-    *u = *b;
+    VecVecCopy(a, u);
     // Subtract component of a in direction of b
-    VecVecAddEq(v, a);
+    VecVecAddEq(v, b);
     VecUnitEq(v);
 
     return 0;
@@ -234,17 +240,17 @@ int VecVecOrthonormalBasis(Vector6 const * const a,
  *
  * Returning the square term saves 3 square root operations (which can sometimes be avoided depending on the final calculation).
  */
-int VecVecHarmonicAddSq(Vector6 const * const u,
-        Vector6 const * const v,
-        Vector6 * scales)
+int VecVecHarmonicAddSq(PmVector const u,
+                        PmVector const v,
+                        PmVector scales)
 {
     if (!u || !v || !scales) {
         return -1;
     }
 
     int i;
-    for (i = 0; i < 6; ++i) {
-        scales->ax[i] = pmSq(u->ax[i]) + pmSq(v->ax[i]);
+    for (i = 0; i < PM_VECTOR_SIZE; ++i) {
+        scales[i] = pmSq(u[i]) + pmSq(v[i]);
     }
     return 0;
 }

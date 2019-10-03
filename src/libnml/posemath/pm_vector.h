@@ -14,37 +14,44 @@
 #define PM_VECTOR_H
 #include "posemath.h"
 
-#define VECTOR_SIZE 6
+enum {PM_VECTOR_SIZE=9};
 
-typedef struct {
-    double ax[6];
-} Vector6;
+// WARNING this is an array under the hood!
+typedef double PmVector [PM_VECTOR_SIZE];
 
-int VecVecAdd(Vector6 const * v1, Vector6 const * v2, Vector6 * out);
-int VecVecAddEq(Vector6 * v1, Vector6 const * v2);
+int VecVecCopy(PmVector const v1, PmVector out);
+int VecVecAdd(PmVector const v1, PmVector const v2, PmVector out);
+int VecVecAddEq(PmVector v1, PmVector const v2);
 
-int VecVecSub(Vector6 const * v1, Vector6 const * v2, Vector6 * out);
-int VecScalMult(Vector6 const * v1, double s, Vector6 * out);
-int VecVecDot(Vector6 const * v1, Vector6 const * v2, double * out);
-int VecMag(Vector6 const * v1, double * out);
-int VecMagSq(Vector6 const * v1, double * out);
-int VecUnit(Vector6 const * v1, Vector6 * out);
-int VecUnitEq(Vector6 * v1);
-int VecMin(Vector6 const * v1, double * m);
-int VecMax(Vector6 const * v1, double * m);
+int VecVecSub(PmVector const  v1, PmVector const v2, PmVector out);
+int VecScalMult(PmVector const  v1, double s, PmVector out);
+double VecVecDot(PmVector const v1, PmVector const v2);
+double VecMag(PmVector const v1);
+double VecMagSq(PmVector const v1);
+int VecUnit(PmVector const v1, PmVector out);
+int VecUnitEq(PmVector v1);
+double VecMin(PmVector const v1);
+double VecMax(PmVector const v1);
 
-int CartToVec(PmCartesian const * p1, PmCartesian const * p2, Vector6 * out);
-int VecToCart(Vector6 const * vec, PmCartesian * p1, PmCartesian * p2);
+int CartToVec(
+    PmCartesian const * const p_xyz,
+    PmCartesian const * p_abc,
+    PmCartesian const * const puvw,
+    PmVector out);
+int VecToCart(
+    PmVector const vec,
+    PmCartesian * p_xyz,
+    PmCartesian * p_abc,
+    PmCartesian * p_uvw);
 
-void VecPrint(Vector6 const * const vec);
+int VecVecOrthonormalBasis(
+    PmVector const a,
+    PmVector const b,
+    PmVector u,
+    PmVector v);
 
-int VecVecOrthonormalBasis(Vector6 const * const a,
-        Vector6 const * const b,
-        Vector6 * const u,
-        Vector6 * const v);
-
-int VecVecHarmonicAddSq(Vector6 const * const u,
-        Vector6 const * const v,
-        Vector6 * scales);
+int VecVecHarmonicAddSq(PmVector const u,
+        PmVector const v,
+        PmVector scales);
 
 #endif

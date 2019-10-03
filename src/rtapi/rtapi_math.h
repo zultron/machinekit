@@ -70,6 +70,17 @@ extern __inline double fmax(double __y, double __x) {
 extern __inline double fmin(double __y, double __x) {
     return __y < __x || __builtin_isnan(__x) ? __y : __x;
 }
+
+// Copied from math.h
+# if __GNUC_PREREQ (3, 3)
+#  define NAN (__builtin_nanf (""))
+# else
+/* This will raise an "invalid" exception outside static initializers,
+   but is the best that can be done in ISO C while remaining a
+   constant expression.  */
+#  define NAN (0.0f / 0.0f)
+# endif
+
 #endif
 
 #else
