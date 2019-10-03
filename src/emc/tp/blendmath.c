@@ -87,58 +87,6 @@ static int pmCirclePrint(PmCircle const * const circ) {
  */
 
 /**
- * Checks if two UNIT vectors are parallel to the given angle tolerance (in radians).
- * @warning tol depends on the small angle approximation and will not be
- * accurate for angles larger than about 10 deg. This function is meant for
- * small tolerances!
- */
-int pmCartCartParallel(PmCartesian const * const u1,
-                       PmCartesian const * const u2,
-                       double tol)
-{
-    double d_diff;
-    {
-        PmCartesian u_diff;
-        pmCartCartSub(u1, u2, &u_diff);
-        pmCartMagSq(&u_diff, &d_diff);
-    }
-
-#if defined(TP_DEBUG) && defined(TP_PEDANTIC)
-    print_json5_log_start(pmCartCartParallel);
-    print_json5_double(d_diff);
-    print_json5_end_();
-#endif
-
-    return d_diff < tol;
-}
-
-/**
- * Checks if two UNIT vectors are anti-parallel to the given angle tolerance (in radians).
- * @warning tol depends on the small angle approximation and will not be
- * accurate for angles larger than about 10 deg. This function is meant for
- * small tolerances!
- */
-int pmCartCartAntiParallel(PmCartesian const * const u1,
-                           PmCartesian const * const u2,
-                           double tol)
-{
-    double d_sum;
-    {
-        PmCartesian u_sum;
-        pmCartCartAdd(u1, u2, &u_sum);
-        pmCartMagSq(&u_sum, &d_sum);
-    }
-
-#if defined(TP_DEBUG) && defined(TP_PEDANTIC)
-    print_json5_log_start(pmCartCartAntiParallel);
-    print_json5_double(d_sum);
-    print_json5_end_();
-#endif
-
-    return d_sum < tol;
-}
-
-/**
  * Somewhat redundant function to calculate the segment intersection angle.
  * The intersection angle is half of the supplement of the "divergence" angle
  * between unit vectors. If two unit vectors are pointing in the same

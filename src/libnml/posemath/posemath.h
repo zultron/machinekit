@@ -890,6 +890,14 @@ extern "C" {
 #define pmCartNorm(a,b,c,d,e)  bad{a.b.c.d.e}
 #endif
 
+    extern int pmCartCartParallel(PmCartesian const * const u1,
+        PmCartesian const * const u2,
+        double tol);
+
+    extern int pmCartCartAntiParallel(PmCartesian const * const u1,
+        PmCartesian const * const u2,
+        double tol);
+
     extern int pmCartIsNorm(PmCartesian const * const v);
     extern int pmCartInv(PmCartesian const * const, PmCartesian * const);
     extern int pmCartInvEq(PmCartesian * const);
