@@ -1440,12 +1440,13 @@ check_stuff ( "before command_handler()" );
 				    reportError(_("Probe is already tripped when starting G38.2 or G38.3 move"));
 			    }
 
-						emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
-						tpAbort(&emcmotDebug->tp);
-						SET_MOTION_ERROR_FLAG(1);
-						break;
-					}
-				}	
+			    emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
+			    tpAbort(&emcmotDebug->tp);
+			    SET_MOTION_ERROR_FLAG(1);
+			    break;
+			}
+		    }
+		}
             }
 
 	    /* append it to the emcmotDebug->tp */
