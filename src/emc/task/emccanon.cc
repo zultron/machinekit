@@ -86,30 +86,6 @@ void UPDATE_TAG(StateTag &tag) {
     _tag = tag;
 }
 
-#ifndef MIN
-#define MIN(a,b) ((a)<(b)?(a):(b))
-#endif
-
-#ifndef MIN3
-#define MIN3(a,b,c) (MIN(MIN((a),(b)),(c)))
-#endif
-
-#ifndef MAX
-#define MAX(a,b) ((a)>(b)?(a):(b))
-#endif
-
-#ifndef MAX3
-#define MAX3(a,b,c) (MAX(MAX((a),(b)),(c)))
-#endif
-
-#ifndef MAX4
-#define MAX4(a,b,c,d) (MAX(MAX((a),(b)),MAX((c),(d))))
-#endif
-
-#ifndef MAX9
-#define MAX9(a,b,c,d,e,f,g,h,i) (MAX3((MAX3(a,b,c)),(MAX3(d,e,f)),(MAX3(g,h,i))))
-#endif
-
 /* Certain axes are periodic.  Hardcode this for now */
 #define IS_PERIODIC(axisnum) \
     ((axisnum) == 3 || (axisnum) == 4 || (axisnum) == 5)
@@ -713,9 +689,9 @@ static AccelData getStraightAcceleration(
 	tz = dz? (dz / FROM_EXT_LEN(axis_max_acceleration[2])): 0.0;
 	tu = du? (du / FROM_EXT_LEN(axis_max_acceleration[6])): 0.0;
 	tv = dv? (dv / FROM_EXT_LEN(axis_max_acceleration[7])): 0.0;
-	tw = dw? (dw / FROM_EXT_LEN(axis_max_acceleration[8])): 0.0;
-        out.tmax = MAX3(tx, ty ,tz);
-        out.tmax = MAX4(tu, tv, tw, out.tmax);
+    tw = dw? (dw / FROM_EXT_LEN(axis_max_acceleration[8])): 0.0;
+    out.tmax = std::max({tx, ty ,tz});
+    out.tmax = std::max({tu, tv, tw, out.tmax});
 
         if(dx || dy || dz)
             out.dtot = sqrt(dx * dx + dy * dy + dz * dz);
@@ -730,8 +706,8 @@ static AccelData getStraightAcceleration(
     else if (!cartesian_move && angular_move) {
 	ta = da? (da / FROM_EXT_ANG(axis_max_acceleration[3])): 0.0;
 	tb = db? (db / FROM_EXT_ANG(axis_max_acceleration[4])): 0.0;
-	tc = dc? (dc / FROM_EXT_ANG(axis_max_acceleration[5])): 0.0;
-        out.tmax = MAX3(ta, tb, tc);
+    tc = dc? (dc / FROM_EXT_ANG(axis_max_acceleration[5])): 0.0;
+    out.tmax = std::max({ta, tb, tc});
 
 	out.dtot = sqrt(da * da + db * db + dc * dc);
 	if (out.tmax > 0.0) {
@@ -748,10 +724,10 @@ static AccelData getStraightAcceleration(
 	tc = dc? (dc / FROM_EXT_ANG(axis_max_acceleration[5])): 0.0;
 	tu = du? (du / FROM_EXT_LEN(axis_max_acceleration[6])): 0.0;
 	tv = dv? (dv / FROM_EXT_LEN(axis_max_acceleration[7])): 0.0;
-	tw = dw? (dw / FROM_EXT_LEN(axis_max_acceleration[8])): 0.0;
-        out.tmax = MAX9(tx, ty, tz,
-                    ta, tb, tc,
-                    tu, tv, tw);
+    tw = dw? (dw / FROM_EXT_LEN(axis_max_acceleration[8])): 0.0;
+    out.tmax = std::max({tx, ty, tz,
+                         ta, tb, tc,
+                         tu, tv, tw});
 
     if(debug_velacc)
         printf("getStraightAcceleration t^2 tx %g ty %g tz %g ta %g tb %g tc %g tu %g tv %g tw %g\n", 
@@ -854,8 +830,8 @@ static VelData getStraightVelocity(double x, double y, double z,
         tu = du? fabs(du / FROM_EXT_LEN(axis_max_velocity[6])): 0.0;
         tv = dv? fabs(dv / FROM_EXT_LEN(axis_max_velocity[7])): 0.0;
         tw = dw? fabs(dw / FROM_EXT_LEN(axis_max_velocity[8])): 0.0;
-        out.tmax = MAX3(tx, ty ,tz);
-        out.tmax = MAX4(tu, tv, tw, out.tmax);
+        out.tmax = std::max({tx, ty ,tz});
+        out.tmax = std::max({tu, tv, tw, out.tmax});
 
         if(dx || dy || dz)
             out.dtot = sqrt(dx * dx + dy * dy + dz * dz);
@@ -873,7 +849,7 @@ static VelData getStraightVelocity(double x, double y, double z,
         ta = da? fabs(da / FROM_EXT_ANG(axis_max_velocity[3])):0.0;
         tb = db? fabs(db / FROM_EXT_ANG(axis_max_velocity[4])):0.0;
         tc = dc? fabs(dc / FROM_EXT_ANG(axis_max_velocity[5])):0.0;
-        out.tmax = MAX3(ta, tb, tc);
+        out.tmax = std::max({ta, tb, tc});
 
         out.dtot = sqrt(da * da + db * db + dc * dc);
         if (out.tmax <= 0.0) {
@@ -893,9 +869,11 @@ static VelData getStraightVelocity(double x, double y, double z,
         tu = du? fabs(du / FROM_EXT_LEN(axis_max_velocity[6])): 0.0;
         tv = dv? fabs(dv / FROM_EXT_LEN(axis_max_velocity[7])): 0.0;
         tw = dw? fabs(dw / FROM_EXT_LEN(axis_max_velocity[8])): 0.0;
-        out.tmax = MAX9(tx, ty, tz,
-                ta, tb, tc,
-                tu, tv, tw);
+        out.tmax = std::max({
+            tx, ty, tz,
+            ta, tb, tc,
+            tu, tv, tw
+        });
 
         if(debug_velacc)
             printf("getStraightVelocity times tx %g ty %g tz %g ta %g tb %g tc %g tu %g tv %g tw %g\n",
@@ -1405,10 +1383,6 @@ static double chord_deviation(double sx, double sy, double ex, double ey, double
 
 /* Spline and NURBS additional functions; */
 
-static double max(double a, double b) {
-    if(a < b) return b;
-    return a;
-}
 static void unit(double *x, double *y) {
     double h = hypot(*x, *y);
     if(h != 0) { *x/=h; *y/=h; }
@@ -1452,7 +1426,7 @@ biarc(int lineno, double p0x, double p0y, double tsx, double tsy,
 
     if(beta1 > 0 && beta2 > 0)
       return 0;
-    double beta = max(beta1, beta2);
+    double beta = std::max(beta1, beta2);
     double alpha = beta * r;
     double ab = alpha + beta;
     double p1x = p0x + alpha * tsx, p1y = p0y + alpha * tsy,
@@ -1832,8 +1806,8 @@ void ARC_FEED(int line_number,
     // Get planar acceleration bounds
     double a1 = FROM_EXT_LEN(axis_max_acceleration[axis1]);
     double a2 = FROM_EXT_LEN(axis_max_acceleration[axis2]);
-    double v_max_axes = MIN(v1, v2);
-    double a_max_axes = MIN(a1, a2);
+    double v_max_axes = std::min(v1, v2);
+    double a_max_axes = std::min(a1, a2);
 
     if(interpToMachineTransform.rotationActive() && activePlane != CANON_PLANE_XY) {
         // also consider the third plane's constraint, which may get
@@ -1843,8 +1817,8 @@ void ARC_FEED(int line_number,
         if (axis_valid(axis3)) {
             double v3 = FROM_EXT_LEN(axis_max_velocity[axis3]);
             double a3 = FROM_EXT_LEN(axis_max_acceleration[axis3]);
-            v_max_axes = MIN(v3, v_max_axes);
-            a_max_axes = MIN(a3, a_max_axes);
+            v_max_axes = std::min(v3, v_max_axes);
+            a_max_axes = std::min(a3, a_max_axes);
         }
     }
 
@@ -1857,7 +1831,7 @@ void ARC_FEED(int line_number,
     canon_debug("v_max_radial = %f\n", v_max_radial);
 
     // Restrict our maximum velocity in-plane if need be
-    double v_max_planar = MIN(v_max_radial, v_max_axes);
+    double v_max_planar = std::min(v_max_radial, v_max_axes);
     canon_debug("v_max_planar = %f\n", v_max_planar);
 
     // Find the equivalent maximum velocity for a linear displacement
