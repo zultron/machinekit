@@ -33,6 +33,7 @@ int pmLine9Init(
 
     VecVecSub(&line9->end, &line9->start, &line9->uVec);
     line9->tmag = VecMag(&line9->uVec);
+    VecUnitEq(&line9->uVec);
     return 0;
 }
 

@@ -25,6 +25,9 @@ int pmCircle9Init(
     int abcuvw_fail = pmLine9Init(&circ9->abcuvw, start, end, true);
 
     int res_fit = findSpiralArcLengthFit(&circ9->xyz, &circ9->fit, 1e-6);
+    double h_sq;
+    pmCartMagSq(&circ9->xyz.rHelix, &h_sq);
+    circ9->path_length_sq = pmSq(circ9->fit.total_planar_length) + h_sq + pmSq(circ9->abcuvw.tmag);
 
     if (xyz_fail || abcuvw_fail || res_fit) {
         rtapi_print_msg(RTAPI_MSG_ERR,"Failed to initialize Circle9, err codes %d, %d, %d\n",
@@ -317,7 +320,15 @@ int pmCircleAngleFromProgress(PmCircle const * const circle,
 
 int pmCircle9Point(PmCircle9 const * const circ9, double progress, PmVector * const point)
 {
-    //TODO
+    double xyz_ratio = pmSqrt(1 - pmSq(circ9->abcuvw.tmag)/circ9->path_length_sq );
+    double other_ratio = pmSqrt(1 - pmSq(xyz_ratio));
+    double xyz_progress = progress * xyz_ratio;
+    double angle = 0;
+    pmCircleAngleFromProgress(&circ9->xyz, &circ9->fit, xyz_progress, &angle);
+    PmCartesian xyz;
+    pmCirclePoint(&circ9->xyz, angle, &xyz);
+    pmLine9Point(&circ9->abcuvw, other_ratio * progress, point);
+    VecSetXYZ(&xyz, point);
     return 0;
 }
 

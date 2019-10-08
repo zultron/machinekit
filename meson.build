@@ -357,6 +357,8 @@ tp_test_files = [
   'test_spherical_arc',
   'test_posemath',
   'test_pm_vector',
+  'test_pm_line9',
+  'test_pm_circle9',
   'test_tp_create_segments',
   'test_tcqueue',
   'test_tp_priv',

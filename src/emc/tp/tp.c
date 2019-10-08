@@ -3389,7 +3389,7 @@ int tpGetPos(TP_STRUCT const * const tp, EmcPose * const pos)
 EmcPose tpGetGoalPos(TP_STRUCT const  * const tp)
 {
     EmcPose out={0};
-    if (!tp) {
+    if (tp) {
         pmVectorToEmcPose(&tp->goalPos, &out);
     }
 

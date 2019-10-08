@@ -13,7 +13,8 @@ typedef struct {
 
 int pmLine9Init(PmLine9 * const line9,
     PmVector const * const start,
-    PmVector const * const end, bool ignore_xyz);
+    PmVector const * const end,
+                bool ignore_xyz);
 
 double pmLine9Length(const PmLine9 * const line9);
 

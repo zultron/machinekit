@@ -324,7 +324,6 @@ int VecVecOrthonormal(
     return 0;
 }
 
-
 /**
  * Performs "harmonic" addition elementwise on the vector and returns the square of the result.
  * out(i) = arg_max(cos(theta_i) * a(i) + sin(theta_i) * b(i))

@@ -573,8 +573,11 @@ TEST test_pmCircle9Init()
 {
     PmCircle9 c;
 
-    PmVector start = {{1.0, 2.0, 3.0, 4, 5, 6, 7, 8, 9}};
-    PmVector end = {{3.0, 2.0, 4.0, 5, 4, 3, 2, 1, 0}};
+    PmVector start          = {{1.0, 2.0, 3.0, 4, 5, 6, 7, 8, 9}};
+    PmVector end            = {{3.0, 2.0, 4.0, 5, 4, 3, 2, 1, 0}};
+    const PmVector exp_diff = {{0.0, 0.0, 1.0, 1, -1, -3, -5, -7, -9}};
+    const double exp_straight_disp = VecMag(&exp_diff);
+
     PmCartesian center = {2.0, 2.0, 3.0};
     PmCartesian normal = {0, 0, 1};
 
@@ -584,7 +587,7 @@ TEST test_pmCircle9Init()
     ASSERT_IN_RANGE(c.xyz.spiral, 0.0, TP_POS_EPSILON);
 
     double target = pmCircle9Length(&c);
-    double expected_target = sqrt(pmSq(M_PI*1.0) + pmSq(1.0));
+    double expected_target = sqrt(pmSq(M_PI*1.0) + pmSq(exp_straight_disp));
     ASSERT_IN_RANGE(expected_target, target, TP_POS_EPSILON);
     PASS();
 }

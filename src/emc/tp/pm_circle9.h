@@ -20,6 +20,7 @@ typedef struct {
     PmCircle xyz;
     PmLine9 abcuvw;
     SpiralArcLengthFit fit;
+    double path_length_sq;
 } PmCircle9;
 
 typedef struct {
