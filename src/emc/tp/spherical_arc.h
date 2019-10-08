@@ -18,9 +18,6 @@
 #define ARC_POS_EPSILON 1e-12
 #define ARC_MIN_RADIUS 1e-12
 #define ARC_MIN_ANGLE 1e-6
-//FIXME relate this to cornering acceleration?
-#define ARC_ABS_ERR 5e-4
-#define ARC_REL_ERR 5e-4
 
 typedef struct {
     // Three defining points for the arc
@@ -41,7 +38,6 @@ typedef struct {
     double line_length;
 } SphericalArc;
 
-
 int arcInitFromPoints(SphericalArc * const arc,
     PmCartesian const * const start,
     PmCartesian const * const end,
@@ -50,9 +46,6 @@ int arcInitFromPoints(SphericalArc * const arc,
 int arcPoint(SphericalArc const * const arc, double angle_in, PmCartesian * const out);
 
 double arcLength(SphericalArc const * const arc);
-
-int checkRayIntersectsArc(PmCartesian const * const center,
-        PmCartesian const * const P, PmCartesian const * const u_ray, int reverse_dir);
 
 int arcTangent(SphericalArc const * const arc, const double t, PmCartesian * const out);
 #endif

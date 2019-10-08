@@ -46,25 +46,8 @@ TEST arcInitFromPoints_simple() {
     PASS();
 }
 
-/**
- * Tests the orientation of a line-arc intersection
- * @return
- */
-TEST test_rayIntersectsArc() {
-    PmCartesian center = {DOUBLE_FUZZ,1,0};
-    PmCartesian P = {0,0,0};
-    PmCartesian uVec = {1,0,0};
-    int reverse_dir = 0;
-
-    ASSERT(checkRayIntersectsArc(&center, &P, &uVec, reverse_dir));
-    center.x*=-1.0;
-    ASSERT_FALSE(checkRayIntersectsArc(&center, &P, &uVec, reverse_dir));
-    PASS();
-}
-
 SUITE(arc_shape) {
     RUN_TEST(arcInitFromPoints_simple);
-    RUN_TEST(test_rayIntersectsArc);
 }
 
 int main(int argc, char **argv) {

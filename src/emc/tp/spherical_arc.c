@@ -127,35 +127,6 @@ double arcLength(SphericalArc const * const arc)
     return arc->radius * arc->angle + arc->line_length;
 }
 
-/**
- * Tests if a ray from the specified point / direction intersects the circle with the given center.
- *
- * @note that the circle is assumed to be coindicent with P (so the radius is || P - center ||).
- *
- * For blending, this is used to determine if a given segment forms a convex or
- * concave intersection with another segment. "Convex" means that the tangent
- * vector of the other segment (at P) is in the interior of the circle
- * containing this segment. For an arc-arc intersection, there are actually 4 possibilities:
- *
- * convex-convex (each arc's tangent vector is in the other's interior)
- * concave-convex
- * convex-concave
- * concave-concave
- */
-int checkRayIntersectsArc(PmCartesian const * const center,
-                          PmCartesian const * const P,
-                          PmCartesian const * const u_ray,
-                          int reverse_dir)
-{
-    double dot;
-    PmCartesian r_CP;
-    pmCartCartSub(P, center, &r_CP);
-    pmCartCartDot(&r_CP, u_ray, &dot);
-
-    int convex = (reverse_dir != 0) ^ (dot < 0);
-    return convex;
-}
-
 int arcTangent(SphericalArc const * const arc, double const t, PmCartesian * const out)
 {
     if (!arc || !out) {
