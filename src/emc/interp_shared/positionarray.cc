@@ -108,6 +108,21 @@ PositionArray operator*(const PositionArray & b, double d)
     return out *= d;
 }
 
+PositionArray operator*(PositionArray const & b, PositionArray const & other)
+{
+    PositionArray out = b;
+    return out *= other;
+}
+
+PositionArray & operator*=(PositionArray & b, const PositionArray & other)
+{
+    for (size_t k=0; k <b.size(); ++k) {
+        b[k] *= other[k];
+    }
+    return b;
+}
+
+
 PositionArray & operator/=(PositionArray & b, double d)
 {
     for (size_t k=0; k <b.size(); ++k) {
@@ -241,4 +256,13 @@ PositionArray & min_inplace(PositionArray & p0, const PositionArray & p1)
         p0[i] = std::min(p0[i], p1[i]);
     }
     return p0;
+}
+
+void apply_abs_mask(PositionArray & p, const PositionArray & min_mask)
+{
+    for (size_t i=0; i < p.size(); ++i) {
+        if (p[i] < min_mask[i]) {
+            p[i] = 0;
+        }
+    }
 }

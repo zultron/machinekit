@@ -67,7 +67,7 @@ typedef enum {
 /* structure for individual trajectory elements */
 
 typedef struct {
-    EmcPose dwell_pos;
+    PmVector dwell_pos;
     double dwell_time;
     double remaining_time;
 } TPDwell;

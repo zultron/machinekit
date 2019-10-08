@@ -1220,7 +1220,7 @@ int handlePrevTermCondition(TC_STRUCT *prev_tc, TC_STRUCT *tc)
         break;
     case TC_DWELL:
         // Previous motion must do an exact stop at the dwell point since that's the whole point
-        tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
+        tcSetTermCond(tc, TC_TERM_COND_STOP);
         return TP_ERR_OK;
     }
     return TP_ERR_OK;
