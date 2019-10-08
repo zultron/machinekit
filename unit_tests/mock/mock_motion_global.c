@@ -41,6 +41,9 @@ void init_motion_globals(double a_max)
     emcmotConfig->arc_blend_cfg.ramp_frequency = 100;
     emcmotConfig->maxFeedScale = 2.0;
 
+    emcmotConfig->min_displacement_cfg.min_linear_displacement = 1e-7;
+    emcmotConfig->min_displacement_cfg.min_angular_displacement = 1e-7;
+
     joints = emcmotDebug->joints;
 
     // assume an XYZ machine

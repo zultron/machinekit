@@ -1655,3 +1655,11 @@ int emcSetMaxFeedOverride(double maxFeedScale) {
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
+int emcSetMinDisplacement(min_displacement_config_t cfg)
+{
+    emcmotCommand.command = EMCMOT_SET_MIN_DISPLACEMENT;
+    emcmotCommand.min_displacement_cfg = cfg;
+    emc_traj_min_linear_displacement_user = cfg.min_linear_displacement;
+    emc_traj_min_angular_displacement_user = cfg.min_angular_displacement;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}

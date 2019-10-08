@@ -78,6 +78,12 @@ typedef struct
     double convergence_tolerance;
 } biarc_solver_config_t;
 
+typedef struct
+{
+    double min_linear_displacement;
+    double min_angular_displacement;
+} min_displacement_config_t;
+
 /* termination conditions for queued motions */
 typedef enum {
     EMCMOT_TERM_COND_STOP = 1,

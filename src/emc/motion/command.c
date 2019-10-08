@@ -1740,6 +1740,10 @@ check_stuff ( "before command_handler()" );
 
     case EMCMOT_SET_DWELL:
         tpAddDwell(&emcmotDebug->tp, emcmotCommand->timeout, emcmotCommand->tag);
+		break;
+
+    case EMCMOT_SET_MIN_DISPLACEMENT:
+        emcmotConfig->min_displacement_cfg = emcmotCommand->min_displacement_cfg;
         break;
 
     default:

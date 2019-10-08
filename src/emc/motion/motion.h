@@ -185,6 +185,7 @@ extern "C" {
         EMCMOT_SET_MAX_POSITION_TRACKING_ERROR,
         EMCMOT_SETUP_BIARC_SOLVER_CFG,
         EMCMOT_SET_DWELL,
+        EMCMOT_SET_MIN_DISPLACEMENT,
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */
@@ -266,6 +267,7 @@ typedef struct emcmot_command_t {
     biarc_solver_config_t biarc_solver_cfg;
 
     consistency_check_config_t consistencyCheckConfig;
+    min_displacement_config_t min_displacement_cfg;
 
     struct state_tag_t tag;
 } emcmot_command_t;
@@ -787,6 +789,7 @@ Suggestion: Split this in to an Error and a Status flag register..
     double maxFeedScale;
     biarc_solver_config_t biarc_solver_cfg;
     consistency_check_config_t consistencyCheckConfig;
+    min_displacement_config_t min_displacement_cfg;
     double maxPositionTrackingError;
 } emcmot_config_t;
 

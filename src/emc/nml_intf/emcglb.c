@@ -55,6 +55,8 @@ int emc_traj_axes = 0;
 unsigned emc_traj_axis_mask = 0;
 double emc_traj_linear_units_per_mm = 1.0;
 double emc_traj_angular_units_per_deg = 1.0;
+double emc_traj_min_linear_displacement_user = 1e-7;
+double emc_traj_min_angular_displacement_user = 1e-7;
 
 void emcInitGlobals()
 {

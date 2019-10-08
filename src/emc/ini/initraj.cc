@@ -215,6 +215,13 @@ static int loadTraj(EmcIniFile &trajInifile)
         old_inihal_data.traj_biarc_feed_override_allowance = biarc_solver_cfg.feed_override_allowance;
         old_inihal_data.traj_biarc_velocity_cutoff = biarc_solver_cfg.velocity_cutoff;
         old_inihal_data.traj_biarc_convergence_tolerance = biarc_solver_cfg.convergence_tolerance;
+
+        min_displacement_config_t min_displacement_cfg = {
+            fmax(ini_traj_find("MIN_LINEAR_DISPLACEMENT", 1e-7), 0),
+            fmax(ini_traj_find("MIN_ANGULAR_DISPLACEMENT", 1e-7), 0),
+        };
+        CHP(emcSetMinDisplacement(min_displacement_cfg));
+
     }
 
     catch(EmcIniFile::Exception &e){

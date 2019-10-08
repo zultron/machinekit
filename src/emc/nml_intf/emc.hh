@@ -242,6 +242,8 @@ int emcSetMaxPosTrackingError(double max_pos_error);
 
 int emcSetMaxFeedOverride(double maxFeedScale);
 
+int emcSetMinDisplacement(min_displacement_config_t cfg);
+
 extern int emcUpdate(EMC_STAT * stat);
 
 #endif				// #ifndef EMC_HH

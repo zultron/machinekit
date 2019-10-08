@@ -77,6 +77,9 @@ extern "C" {
     extern double emc_traj_linear_units_per_mm;
     extern double emc_traj_angular_units_per_deg;
 
+    extern double emc_traj_min_linear_displacement_user;
+    extern double emc_traj_min_angular_displacement_user;
+
     extern int emcGetArgs(int argc, char *argv[]);
     extern void emcInitGlobals();
 
