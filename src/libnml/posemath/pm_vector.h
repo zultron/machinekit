@@ -46,7 +46,7 @@ int VecToCart(
     PmCartesian * p_abc,
     PmCartesian * p_uvw);
 
-int VecVecOrthonormalBasis(
+int VecVecOrthonormal(
     PmVector const * const a,
     PmVector const * const b,
     PmVector * const u,
