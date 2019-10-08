@@ -1747,7 +1747,8 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
             acc_scale.z);
 
     //FIXME this ratio is arbitrary, should be more easily tunable
-    double acc_scale_max = pmCartAbsMax(&acc_scale);
+    double acc_scale_max;
+    pmCartAbsMax(&acc_scale, &acc_scale_max);
     //KLUDGE lumping a few calculations together here
     if (prev_tc->motion_type == TC_CIRCULAR || tc->motion_type == TC_CIRCULAR) {
         acc_scale_max /= BLEND_ACC_RATIO_TANGENTIAL;

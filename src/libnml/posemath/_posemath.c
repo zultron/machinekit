@@ -977,6 +977,12 @@ int pmCartAbs(PmCartesian const * const v, PmCartesian * const vout)
     return pmErrno = 0;
 }
 
+int pmCartAbsMax(PmCartesian const * const v, double * out)
+{
+    *out = fmax(fmax(fabs(v->x),fabs(v->y)),fabs(v->z));
+    return pmErrno = 0;
+}
+
 /* Compound assign operator equivalent functions. These are to prevent issues with passing the same variable as both input (const) and output */
 
 int pmCartCartAddEq(PmCartesian * const v, PmCartesian const * const v_add)

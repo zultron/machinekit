@@ -871,6 +871,7 @@ extern "C" {
     extern int pmCartNeg(PmCartesian const * const, PmCartesian * const);
     extern int pmCartUnit(PmCartesian const * const, PmCartesian * const);
     extern int pmCartAbs(PmCartesian const * const, PmCartesian * const);
+    extern int pmCartAbsMax(PmCartesian const * const v, double * out);
     // Equivalent of compound operators like +=, -=, etc. Basically, these functions work directly on the first PmCartesian
     extern int pmCartCartAddEq(PmCartesian * const, PmCartesian const * const);
     extern int pmCartCartSubEq(PmCartesian * const, PmCartesian const * const);
