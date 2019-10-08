@@ -155,10 +155,13 @@ int blendGeom3Init(BlendGeom3 * const geom,
         TC_STRUCT const * const prev_tc,
         TC_STRUCT const * const tc);
 
-int blendParamKinematics(const PmCartesian * const u_tan1, const PmCartesian * const u_tan2,
-        PmCartesian const * const acc_bound,
-        PmCartesian const * const vel_bound, const BlendControls * const controls,
-        BlendParameters * const param);
+int find_blend_parameters(
+    const PmCartesian * const u_tan1,
+    const PmCartesian * const u_tan2,
+    PmCartesian const * const acc_bound,
+    PmCartesian const * const vel_bound,
+    const BlendControls * const controls,
+    BlendParameters * const param);
 
 int blendInitControls(
     BlendControls * const controls,
@@ -232,7 +235,7 @@ int blendParamInitVelocities(TC_STRUCT const * const prev_tc,
     double override_allowance,
     BlendControls * const controls);
 
-tp_err_t initBlendSegmentFromPoints(
+tp_err_t init_blend_segment_from_points(
     TC_STRUCT * const blend_tc,
     BlendPoints3 const *points,
     BlendParameters * const param);

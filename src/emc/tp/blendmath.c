@@ -437,7 +437,7 @@ static inline double normalAccelFromMax(double a_max)
     return a_max * BLEND_ACC_RATIO_NORMAL;
 }
 
-int blendParamKinematics(
+int find_blend_parameters(
     PmCartesian const * const u_tan1,
     PmCartesian const * const u_tan2,
     PmCartesian const * const acc_bound,
@@ -468,7 +468,7 @@ int blendParamKinematics(
     return res_limits;
 }
 
-tp_err_t initBlendSegmentFromPoints(
+tp_err_t init_blend_segment_from_points(
     TC_STRUCT * const blend_tc,
     BlendPoints3 const *points,
     BlendParameters * const param)
@@ -1471,7 +1471,7 @@ tp_err_t optimize_biarc_blend_size(
 
     // Approximate the blend kinematics using the initial guess
     // Actual limits will be enforced later
-    CHP(blendParamKinematics(
+    CHP(find_blend_parameters(
         &u1,
         &u2,
         acc_bound,
@@ -1719,7 +1719,7 @@ int find_biarc_points_from_solution(
     BlendPoints3 * const points,
     BlendParameters *const param)
 {
-    CHP(blendParamKinematics(
+    CHP(find_blend_parameters(
         u1,
         u2,
         acc_bound,

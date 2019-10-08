@@ -1028,7 +1028,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         // KLUDGE force the start point to be the previous line's starting point since it's going to be consumed
         points1.arc_start = prev_tc->coords.line.xyz.start;
     }
-    CHP(initBlendSegmentFromPoints(&blend_tc1, &points1, &param1));
+    CHP(init_blend_segment_from_points(&blend_tc1, &points1, &param1));
 
     CHP(find_biarc_points_from_solution(
         &control_pts->u_mid,
@@ -1042,7 +1042,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         &controls,
         &points2,
         &param2));
-    CHP(initBlendSegmentFromPoints(&blend_tc2, &points2, &param2));
+    CHP(init_blend_segment_from_points(&blend_tc2, &points2, &param2));
 
     // Don't bother if another solution is better
     double expected_v_max = fmin(param1.v_plan, param2.v_plan);
@@ -1240,7 +1240,7 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
         prev_tc,
         tc));
 
-    CHP(blendParamKinematics(
+    CHP(find_blend_parameters(
         &geom.u1,
         &geom.u2,
         &acc_bound,
@@ -1260,7 +1260,7 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
     points.motion_type = TC_SPHERICAL;
 
     // Create the arc from the processed points
-    CHP(initBlendSegmentFromPoints(
+    CHP(init_blend_segment_from_points(
         blend_tc,
         &points,
         &param));
