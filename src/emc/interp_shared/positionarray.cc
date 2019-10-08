@@ -13,7 +13,7 @@
 #include "positionarray.hh"
 #include <cmath>
 #include <algorithm>
-#include <emcpose.h>
+#include <emcpos.h>
 #include <algorithm>
 
 

@@ -15,6 +15,7 @@
 #include "posemath.h"
 #include "pm_vector.h"
 #include "rtapi_math.h"
+#include "string.h"
 
 // For internal use only
 typedef enum {
@@ -30,6 +31,13 @@ typedef enum {
 } PmVectorAxes;
 
 static const double PM_MIN_VECTOR_MAG = 1e-9;
+const PmVector PmVector_zero = {0};
+
+int VecCopyFrom(PmVector * const v, const PmVector * const from)
+{
+    memcpy(v, from, sizeof(PmVector));
+    return 0;
+}
 
 int VecVecAdd(PmVector const * const v1, PmVector const * const v2, PmVector * const out)
 {
@@ -109,6 +117,15 @@ double VecVecDot(PmVector const * const v1, PmVector const * const v2)
     return dot;
 }
 
+int VecVecDirection(
+    PmVector const * const to,
+    PmVector const * const from,
+    PmVector * const u)
+{
+    VecVecSub(to, from, u);
+    return VecUnitEq(u);
+}
+
 double VecMagSq(PmVector const * const v1)
 {
     return VecVecDot(v1,v1);
@@ -118,6 +135,17 @@ double VecMag(PmVector const * const v1)
 {
     double mag_sq = VecMagSq(v1);
     return pmSqrt(mag_sq);
+}
+
+double VecVecDisp(PmVector const * const v1, PmVector const * const v2)
+{
+    int i;
+    double d_sq = 0;
+    for (i = 0; i < PM_VECTOR_SIZE; ++i) {
+        d_sq += pmSq(v2->ax[i]-v1->ax[i]);
+    }
+
+    return pmSqrt(d_sq);
 }
 
 int VecUnit(PmVector const * const v1, PmVector * const out)
@@ -159,8 +187,22 @@ double VecMax(PmVector const * const v1)
 
     int i;
     double v_max = v1->ax[0];
-    for (i = 0; i < PM_VECTOR_SIZE; ++i) {
+    for (i = 1; i < PM_VECTOR_SIZE; ++i) {
         v_max = fmax(v1->ax[i], v_max);
+    }
+    return v_max;
+}
+
+double VecAbsMax(const PmVector * const v1)
+{
+    if (!v1) {
+        return NAN;
+    }
+
+    int i;
+    double v_max = fabs(v1->ax[0]);
+    for (i = 1; i < PM_VECTOR_SIZE; ++i) {
+        v_max = fmax(fabs(v1->ax[i]), v_max);
     }
     return v_max;
 }
@@ -171,25 +213,49 @@ int CartToVec(
     PmCartesian const * p_uvw,
     PmVector * const out)
 {
-    if (!p_xyz || !p_uvw || !p_abc || !out) {
-        return -1;
+    *out = PmVector_zero;
+    if (p_xyz) {
+        // Copy out elements into our array
+        out->ax[X] = p_xyz->x;
+        out->ax[Y] = p_xyz->y;
+        out->ax[Z] = p_xyz->z;
     }
 
-    // Copy out elements into our array
-    out->ax[X] = p_xyz->x;
-    out->ax[Y] = p_xyz->y;
-    out->ax[Z] = p_xyz->z;
+    if (p_abc) {
+        out->ax[A] = p_abc->x;
+        out->ax[B] = p_abc->y;
+        out->ax[C] = p_abc->z;
+    }
 
-    out->ax[A] = p_abc->x;
-    out->ax[B] = p_abc->y;
-    out->ax[C] = p_abc->z;
-
-    out->ax[U] = p_uvw->x;
-    out->ax[V] = p_uvw->y;
-    out->ax[W] = p_uvw->z;
+    if (p_uvw) {
+        out->ax[U] = p_uvw->x;
+        out->ax[V] = p_uvw->y;
+        out->ax[W] = p_uvw->z;
+    }
 
     return 0;
+}
 
+int VecSetXYZ(const PmCartesian * const p_xyz, PmVector * const out)
+{
+    if (p_xyz) {
+        // Copy out elements into our array
+        out->ax[X] = p_xyz->x;
+        out->ax[Y] = p_xyz->y;
+        out->ax[Z] = p_xyz->z;
+    }
+    return 0;
+}
+
+int VecSetABC(const PmCartesian * const p_abc, PmVector * const out)
+{
+    if (p_abc) {
+        // Copy out elements into our array
+        out->ax[X] = p_abc->x;
+        out->ax[Y] = p_abc->y;
+        out->ax[Z] = p_abc->z;
+    }
+    return 0;
 }
 
 int VecToCart(
@@ -305,4 +371,14 @@ int VecVecUnitAntiParallel(
     PmVector u_sum;
     VecVecAdd(u, v, &u_sum);
     return VecMagSq(&u_sum) < threshold_sq;
+}
+
+bool VecHasNAN(const PmVector * const v)
+{
+    int i;
+    bool has_nan = false;
+    for (i = 0; i < PM_VECTOR_SIZE; ++i) {
+        has_nan |= isnan(v->ax[i]);
+    }
+    return has_nan;
 }
