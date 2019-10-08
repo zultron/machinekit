@@ -252,6 +252,13 @@ Interp::~Interp() {
             fclose(log_file);
         log_file = nullptr;
     }
+
+    // Be sure to close the file as there may be a lazy close pending and we would
+    // leak a file handle otherwise.
+    if (_setup.file_pointer != nullptr) {
+        fclose(_setup.file_pointer);
+        _setup.file_pointer = nullptr;
+    }
 }
 
 void Interp::doLog(unsigned int flags, const char *file, int line,
@@ -313,6 +320,11 @@ Called By: external programs
 int Interp::close()
 {
     logOword("Interp::close()");
+
+    // Testing finds that if you try to remove the lazy close mechanism that
+    // issuing MDI calls to subs through the python linuxcnc.command interface
+    // results in the original interp program file being closed.
+
     // be "lazy" only if we're not aborting a call in progress
     // in which case we need to reset() the call stack
     // this does not reset the filename properly
