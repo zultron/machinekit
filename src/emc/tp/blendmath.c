@@ -897,7 +897,7 @@ int findSpiralArcLengthFit(PmCircle const * const circle,
     double spiral_coef = circle->spiral / circle->angle;
     double min_radius = circle->radius;
 
-    if (fsign(circle->spiral) < 0.0) {
+    if (circle->spiral < 0.0) {
         // Treat as positive spiral, parameterized in opposite
         // direction
         spiral_coef*=-1.0;
