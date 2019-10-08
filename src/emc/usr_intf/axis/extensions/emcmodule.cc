@@ -463,10 +463,19 @@ static PyObject *Stat_g5x_offsets(pyStatChannel *s) {
     if (!res) {return res;}
     // Set index 0 to the current offset so that we can write
     // `stat.g5x_offsets[stat.g5x_index]` in python
-    PyDict_SetItem(res, PyInt_FromLong(0), tupleFromRotateShiftTransform(s->status.task.g5x_table[s->status.task.g5x_index]));
+    PyObject *k0 = PyInt_FromLong(0);
+    PyObject *v0 = tupleFromRotateShiftTransform(s->status.task.g5x_table[s->status.task.g5x_index]);
+    PyDict_SetItem(res, k0, v0);
+    Py_XDECREF(k0);
+    Py_XDECREF(v0);
 
     for (size_t i = 1; i < s->status.task.g5x_table.size(); ++i) {
-        PyDict_SetItem(res, PyInt_FromSize_t(i), tupleFromRotateShiftTransform(s->status.task.g5x_table[i]));
+        PyObject *key = PyInt_FromSize_t(i);
+        PyObject *val = tupleFromRotateShiftTransform(s->status.task.g5x_table[i]);
+
+        PyDict_SetItem(res, key, val);
+        Py_XDECREF(key);
+        Py_XDECREF(val);
     }
     return res;
 }
@@ -574,6 +583,7 @@ static void dict_add(PyObject *d, const char *name, double v) {
     PyDict_SetItemString(d, name, o = PyFloat_FromDouble(v));
     Py_XDECREF(o);
 }
+
 #define F(x) F2(#x, x)
 #define F2(y,x) dict_add(res, y, s->status.motion.axis[axisno].x)
 static PyObject *Stat_axis_one(pyStatChannel *s, int axisno) {
