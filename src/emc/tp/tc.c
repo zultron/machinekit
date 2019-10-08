@@ -189,24 +189,6 @@ int tcGetEndAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out)
     return -1;
 }
 
-int tcGetIntersectionPoint(TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc, PmCartesian * const point)
-{
-    // TODO NULL pointer check?
-    // Get intersection point from geometry
-    if (tc->motion_type == TC_LINEAR) {
-        *point = tc->coords.line.xyz.start;
-    } else if (prev_tc->motion_type == TC_LINEAR) {
-        *point = prev_tc->coords.line.xyz.end;
-    } else if (tc->motion_type == TC_CIRCULAR){
-        pmCirclePoint(&tc->coords.circle.xyz, 0.0, point);
-    } else {
-        return TP_ERR_FAIL;
-    }
-    return TP_ERR_OK;
-}
-
-
 /**
  * Check if a segment can be consumed without disrupting motion or synced IO.
  */
@@ -508,57 +490,6 @@ int tcSetTermCond(TC_STRUCT *tc, TC_STRUCT *nexttc, tc_term_cond_t term_cond)
     }
     return 0;
 }
-
-
-/**
- * Connect a blend arc to the two line segments it blends.
- * Starting with two adjacent line segments, this function shortens each
- * segment to connect them with the newly created blend arc. The "previous"
- * segment gets a new end point, while the next segment gets a new start point.
- * After the operation is complete the result is a set of 3 connected segments
- * (line-arc-line).
- */
-int tcConnectBlendArc(TC_STRUCT * const prev_tc, TC_STRUCT * const tc,
-        PmCartesian const * const circ_start,
-        PmCartesian const * const circ_end) {
-
-    /* Only shift XYZ for now*/
-    if (prev_tc) {
-        tp_debug_print("connect: keep prev_tc\n");
-        //Have prev line, need to shorten it
-        pmCartLineInit(&prev_tc->coords.line.xyz,
-                &prev_tc->coords.line.xyz.start, circ_start);
-        tp_debug_print("Old target = %f\n", prev_tc->target);
-        prev_tc->target = prev_tc->coords.line.xyz.tmag;
-        tp_debug_print("Target = %f\n",prev_tc->target);
-        //Setup tangent blending constraints
-        tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
-        tp_debug_print(" L1 end  : %f %f %f\n",prev_tc->coords.line.xyz.end.x,
-                prev_tc->coords.line.xyz.end.y,
-                prev_tc->coords.line.xyz.end.z);
-
-    } else {
-        tp_debug_print("connect: consume prev_tc\n");
-    }
-
-    //Shorten next line
-    pmCartLineInit(&tc->coords.line.xyz, circ_end, &tc->coords.line.xyz.end);
-
-    tp_info_print(" L2: old target = %f\n", tc->target);
-    tc->target = tc->coords.line.xyz.tmag;
-    tp_info_print(" L2: new target = %f\n", tc->target);
-    tp_debug_print(" L2 start  : %f %f %f\n",tc->coords.line.xyz.start.x,
-            tc->coords.line.xyz.start.y,
-            tc->coords.line.xyz.start.z);
-
-    tcSetTermCond(prev_tc, tc, TC_TERM_COND_TANGENT);
-
-    tp_info_print("       Q1: %f %f %f\n",circ_start->x,circ_start->y,circ_start->z);
-    tp_info_print("       Q2: %f %f %f\n",circ_end->x,circ_end->y,circ_end->z);
-
-    return 0;
-}
-
 
 /**
  * Check if the current segment is actively blending.

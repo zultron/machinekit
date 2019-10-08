@@ -31,7 +31,6 @@ double tcGetOverallMaxAccel(TC_STRUCT const * tc);
 double tcGetTangentialMaxAccel(TC_STRUCT const * const tc);
 
 int tcSetKinkProperties(TC_STRUCT *prev_tc, TC_STRUCT *tc, double kink_vel, double accel_reduction);
-int tcInitKinkProperties(TC_STRUCT *tc);
 int tcGetEndpoint(TC_STRUCT const * const tc, EmcPose * const out);
 int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const pos);
 int tcGetPos(TC_STRUCT const * const tc,  EmcPose * const out);
@@ -45,19 +44,11 @@ int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmCartes
 double tcGetDistanceToGo(TC_STRUCT const * const tc, int direction);
 double tcGetTarget(TC_STRUCT const * const tc, int direction);
 
-int tcGetIntersectionPoint(TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc, PmCartesian * const point);
-
 int tcCanConsume(TC_STRUCT const * const tc);
 
 int tcSetTermCond(TC_STRUCT * tc, TC_STRUCT * nexttc, tc_term_cond_t term_cond);
 
-int tcConnectBlendArc(TC_STRUCT * const prev_tc, TC_STRUCT * const tc,
-        PmCartesian const * const circ_start,
-        PmCartesian const * const circ_end);
-
 int tcIsBlending(TC_STRUCT * const tc);
-
 
 int tcFindBlendTolerance(TC_STRUCT const * const prev_tc,
         TC_STRUCT const * const tc, double * const T_blend);

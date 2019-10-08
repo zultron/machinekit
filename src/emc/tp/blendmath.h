@@ -22,19 +22,6 @@
 #define BLEND_KINK_FACTOR 0.25
 
 /**
- * 3D Input geometry for a spherical blend arc. 
- * This structure contains all of the basic geometry in 3D for a blend arc.
- */
-typedef struct {
-    PmCartesian u1;         /* Tangent unit vector at intersection point for segment 1 / 2*/
-    PmCartesian u2;
-    PmCartesian P;          /* Intersection point */
-    PmCartesian normal;     /* normal unit vector to plane containing lines */
-    double theta;
-} BlendGeom3;
-
-
-/**
  * Blend arc parameters (abstracted).
  * This structure holds blend arc parameters that have been abstracted from the
  * physical geometry. This data is used to find the maximum radius given the
@@ -88,20 +75,8 @@ typedef struct {
     tc_motion_type_t motion_type;
 } BlendPoints3;
 
-double findMaxTangentAngle(double v, double acc, double cycle_time);
-
-double findKinkAccel(double kink_angle, double v_plan, double cycle_time);
-
 double findIntersectionAngle(PmCartesian const * const u1,
         PmCartesian const * const u2);
-
-double findIntersectionTanAngle(PmCartesian const * const u1,
-    PmCartesian const * const u2);
-
-double pmCartMin(PmCartesian const * const in);
-
-int calculateInscribedRadius(PmCartesian const * const normal,
-        PmCartesian const * const bounds, double * const radius);
 
 int findAccelScale(PmCartesian const * const acc,
         PmCartesian const * const bounds,
@@ -124,28 +99,9 @@ double findTrapezoidalDesiredVel(double a_max,
                               double currentvel,
                               double cycle_time);
 
-int pmCircLineCoplanar(PmCircle const * const circ,
-        PmCartLine const * const line, double tol);
-
-int blendCoplanarCheck(PmCartesian const * const normal,
-        PmCartesian const * const u1_tan,
-        PmCartesian const * const u2_tan,
-        double tol);
-
-int blendCalculateNormals3(BlendGeom3 * const geom);
-
-int blendComputeParameters(BlendParameters * const param, const BlendControls * const controls);
-
 int blendCheckConsume(BlendParameters * const param,
         double L_prev,
         TC_STRUCT const * const prev_tc, int gap_cycles);
-
-int blendFindPoints3(BlendPoints3 * const points, BlendGeom3 const * const geom,
-        BlendParameters const * const param);
-
-int blendGeom3Init(BlendGeom3 * const geom,
-        TC_STRUCT const * const prev_tc,
-        TC_STRUCT const * const tc);
 
 int find_blend_parameters(
     const PmCartesian * const u_tan1,
@@ -154,22 +110,6 @@ int find_blend_parameters(
     PmCartesian const * const vel_bound,
     const BlendControls * const controls,
     BlendParameters * const param);
-
-int blendInitControls(
-    BlendControls * const controls,
-    TC_STRUCT const * const prev_tc,
-    TC_STRUCT const * const tc,
-    double maxFeedScale);
-
-int blendInit3FromLineLine(
-    BlendGeom3 * const geom,
-    BlendParameters * const param,
-    TC_STRUCT const * const prev_tc,
-    TC_STRUCT const * const tc);
-
-int blendGeom3Print(BlendGeom3 const * const geom);
-int blendParamPrint(BlendParameters const * const param);
-int blendPoints3Print(BlendPoints3 const * const points);
 
 typedef struct {
     double v_max;
@@ -188,11 +128,6 @@ int pmCircleAngleFromProgress(PmCircle const * const circle,
         double * const angle);
 double pmCircleEffectiveMinRadius(const PmCircle *circle);
 double spiralEffectiveRadius(PmCircle const * circle);
-
-static inline double findVPeak(double a_t_max, double distance)
-{
-    return pmSqrt(a_t_max * distance);
-}
 
 // Start by mimicing the current structure for minimal changes
 typedef struct {

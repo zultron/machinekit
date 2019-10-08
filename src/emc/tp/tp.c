@@ -83,6 +83,7 @@ static TC_STRUCT blend_tc2 = {0};
 void clearPositionSyncErrors(void);
 
 /** static function primitives (ugly but less of a pain than moving code around)*/
+
 int tpComputeBlendVelocity(
         TC_STRUCT const *tc,
         TC_STRUCT const *nexttc,
@@ -99,6 +100,11 @@ int tpUpdateCycle(TP_STRUCT * const tp,
         TC_STRUCT * const tc,
         TC_STRUCT const * const nexttc,
         UpdateCycleMode cycle_mode);
+
+static inline double findVPeak(double a_t_max, double distance)
+{
+    return pmSqrt(a_t_max * distance);
+}
 
 AxisMaskString axisBitMaskToString(unsigned failed_axes)
 {
@@ -1221,89 +1227,6 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         }
     }
 
-    return TP_ERR_OK;
-}
-
-tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
-        TC_STRUCT * const tc, TC_STRUCT * const blend_tc)
-{
-    tp_debug_print("-- Starting LineLine blend arc --\n");
-
-    PmCartesian vel_bound = getXYZVelBounds();
-    PmCartesian acc_bound = getXYZAccelBounds();
-
-    // Setup blend data structures
-    BlendControls controls = {0};
-
-    CHP(blendInitControls(
-        &controls,
-        prev_tc,
-        tc,
-        getMaxBlendFeedScale(prev_tc, tc)));
-
-    BlendGeom3 geom = {};
-    BlendParameters param = {0};
-    CHP(blendInit3FromLineLine(
-        &geom,
-        &param,
-        prev_tc,
-        tc));
-
-    CHP(find_blend_parameters(
-        &geom.u1,
-        &geom.u2,
-        &acc_bound,
-        &vel_bound,
-        &controls,
-        &param
-        ));
-
-    CHP(blendComputeParameters(&param, &controls));
-
-    BlendPoints3 points = {};
-    CHP(blendFindPoints3(&points, &geom, &param));
-
-    double L_prev = prev_tc->target - param.d_plan;
-    blendCheckConsume(&param, L_prev, prev_tc, emcmotConfig->arc_blend_cfg.gap_cycles);
-    points.u_tan = geom.u1;
-    points.motion_type = TC_SPHERICAL;
-
-    // Create the arc from the processed points
-    CHP(init_blend_segment_from_points(
-        blend_tc,
-        &points,
-        &param));
-
-    //set the max velocity to v_plan, since we'll violate constraints otherwise.
-    tpInitBlendArcFromPrev(tp, prev_tc, blend_tc, controls.v_req,
-            param.v_plan, param.a_max_planar, TC_SPHERICAL);
-
-    // Skip syncdio setup since this blend extends the previous segment
-    blend_tc->syncdio = prev_tc->syncdio;
-
-    tp_debug_print("blend_tc target_vel = %g\n", blend_tc->target_vel);
-
-    if (emcmotConfig->arc_blend_cfg.allow_fallback && !isArcBlendFaster(prev_tc, blend_tc->maxvel_geom)) {
-        return TP_ERR_NO_ACTION;
-    }
-
-    if (param.consume) {
-        //Since we're consuming the previous segment, pop the last line off of the queue
-        if (tcqPopBack(&tp->queue)) {
-            //This is unrecoverable since we've already changed the line. Something is wrong if we get here...
-            rtapi_print_msg(RTAPI_MSG_ERR, "Fatal: tcqPopBack failed on segment %d (unrecoverable)\n", tc->id);
-            return TP_ERR_UNRECOVERABLE;
-        }
-        //Since the blend arc meets the end of the previous line, we only need
-        //to "connect" to the next line
-        CHP(tcConnectBlendArc(NULL, tc, &points.arc_start, &points.arc_end));
-    } else {
-        // Carries over the same DIO's as from the previous segment, so there is no change when it enters the blend
-        blend_tc->syncdio.anychanged = 0;
-        //TODO refactor connect function to stretch lines and check for bad stretching
-        tp_debug_print("keeping previous line\n");
-        CHP(tcConnectBlendArc(prev_tc, tc, &points.arc_start, &points.arc_end));
-    }
     return TP_ERR_OK;
 }
 
