@@ -447,6 +447,21 @@ int Interp::_execute(const char *command)
                 return prm.first > 5000;
               });
 
+  for (auto& prm : _setup.new_parameters)
+  {
+      const char *warning = nullptr;
+      if (prm.first > G59_3_R) {
+          warning = "parameters above 5390 are read-only";
+      } else if (prm.first >= G38_X && prm.first <= G38_TRIPPED) {
+          warning = "reserved for probing results.";
+      } else if (prm.first == ACTIVE_WORK_CSYS) {
+          warning = "reserved for the current active work offset.";
+      }
+      if (warning) {
+          setWarning("unsupported parameter assignment #%lu = %g: %s", prm.first, prm.second, warning);
+      }
+  }
+
   for (auto& param_pair : _setup.new_parameters)
   {  // copy parameter settings from parameter buffer into parameter table
     _setup.parameters[param_pair.first] = param_pair.second;
