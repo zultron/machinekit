@@ -51,6 +51,11 @@ unsigned char have_tool_change_position = 0;	/* default is 'not there' */
 
 int taskplanopen = 0;
 
+int emc_traj_axes = 0;
+unsigned emc_traj_axis_mask = 0;
+double emc_traj_linear_units_per_mm = 1.0;
+double emc_traj_angular_units_per_deg = 1.0;
+
 void emcInitGlobals()
 {
     int t;
