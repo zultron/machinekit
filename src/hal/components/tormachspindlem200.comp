@@ -1986,9 +1986,16 @@ FUNCTION(_) {
         spindle_run = BIT_FALSE;  //inhibit VFD enable (RUN)
     }
 
-    if((vfd_power_state != VFD_PWR_ON) || pp_estop_fault || PHYSICAL_ESTOP || estop_fault)  //keep spindle_run off until VFD, PP, m200.comp, and ESTOP button are all "GO"
+    if((vfd_power_state != VFD_PWR_ON) || pp_estop_fault || PHYSICAL_ESTOP || estop_fault)  { //keep spindle_run off until VFD, PP, m200.comp, and ESTOP button are all "GO"
         spindle_run = BIT_FALSE;                                                            //or'ing all these are most certainly redundant but defensive programming.
-
+        if (last_active_spindle_state == SPINDLE_STATE_ORIENTING || last_active_spindle_state == SPINDLE_STATE_LOCKED) //we can't even get here without new VFD, so not checking vfd_cap
+            vfd_freq_cmd = VFD_BIPOLAR_FREQ_OFFSET;
+        else
+            if (vfd_cap == VFD_CAP_NO_MODE_SW)
+                vfd_freq_cmd = 0.0; //old style VFD, just hit it with 0 RPM 
+            else 
+                vfd_freq_cmd = VFD_UNIPOLAR_MIN_FREQ; //newer VFD (or we don't know, so must assume) can not have 0 freq input without faulting
+    }
 }
 
 
