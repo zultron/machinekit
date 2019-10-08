@@ -706,9 +706,7 @@ static double distance_to_segment(PM_CARTESIAN const & P0,
  * Check if we can skip over intermediate points.
  */
 static bool
-linkable(double x, double y, double z, 
-         double a, double b, double c, 
-         double u, double v, double w) {
+linkable(PositionArray const &goal_pos_canon) {
     if (chained_points.empty() || chained_points.size() > 100) {
         return false;
     }
@@ -716,45 +714,37 @@ linkable(double x, double y, double z,
     if(canonMotionMode != CANON_CONTINUOUS || canonNaivecamTolerance == 0)
         return false;
 
+    static const std::array<PositionArrayIndex, 6> nontangent_axes{A,B,C,U,V,W};
+
     //If ABCUVW motion, then the tangent calculation fails?
-    if(a != pos[A]) return false;
-    if(b != pos[B]) return false;
-    if(c != pos[C]) return false;
-    if(u != pos[U]) return false;
-    if(v != pos[V]) return false;
-    if(w != pos[W]) return false;
-    if(x==canonEndPoint[X] && y==canonEndPoint[Y] && z==canonEndPoint[Z] && u==canonEndPoint[U] && v==canonEndPoint[V] && w==canonEndPoint[W] ) return false;
+    for (auto i : nontangent_axes) {
+        if(goal_pos_canon[i] != pos[i]) return false;
+    }
+
+    if(goal_pos_canon == canonEndPoint) return false;
 
     // start and end points of "merged" segment.
-    PM_CARTESIAN P0(canonEndPoint[X], canonEndPoint[Y], canonEndPoint[Z]);
-    PM_CARTESIAN P1(x,y,z);
+    PM_CARTESIAN P0=xyz(canonEndPoint);
+    PM_CARTESIAN P1=xyz(goal_pos_canon);
 
-    PM_CARTESIAN U0(canonEndPoint[U], canonEndPoint[V], canonEndPoint[W]);
-    PM_CARTESIAN U1(u,v,w);
-    
     for(std::vector<TaggedPoint>::iterator it = chained_points.begin();
             it != chained_points.end(); it++) {
         PM_CARTESIAN P_test((*it)[X], (*it)[Y], (*it)[Z]);
-        PM_CARTESIAN U_test((*it)[U], (*it)[V], (*it)[W]);
         double D_xyz = distance_to_segment(P0, P1, P_test);
-        double D_uvw = distance_to_segment(U0, U1, U_test);
         debug_canon_var(D_xyz);
-        debug_canon_var(D_uvw);
-        if( D_xyz > canonNaivecamTolerance || D_uvw > canonNaivecamTolerance) return false;
+        if( D_xyz > canonNaivecamTolerance) return false;
     }
     return true;
 }
 
 static void
-see_segment(int line_number,
+see_segment(
         StateTag const &tag,
-	    double x, double y, double z, 
-            double a, double b, double c,
-            double u, double v, double w) {
-    if(!chained_points.empty() && !linkable(x, y, z, a, b, c, u, v, w)) {
+        PositionArray goal_pos_canon) {
+    if(!chained_points.empty() && !linkable(goal_pos_canon)) {
         flush_segments();
     }
-    TaggedPoint pos({x, y, z, a, b, c, u, v, w}, tag);
+    TaggedPoint pos(goal_pos_canon, tag);
     canon_debug("Adding line %d to chained points\n", line_number);
     chained_points.push_back(pos);
 }
@@ -830,9 +820,10 @@ void STRAIGHT_FEED(int line_number,
 
     canon_debug("STRAIGHT_FEED x %g y %g z %g a %g b %g c %g u %g v %g w %g\n",
             x, y, z, a, b, c, u, v, w);
-    from_prog(x,y,z,a,b,c,u,v,w);
-    rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
-    see_segment(line_number, _tag, x, y, z, a, b, c, u, v, w);
+    PositionArray goal_pos_canon{x,y,z,a,b,c,u,v,w};
+    from_prog(goal_pos_canon);
+    rotate_and_offset(goal_pos_canon);
+    see_segment(_tag, goal_pos_canon);
 }
 
 
@@ -1338,19 +1329,23 @@ void ARC_FEED(int line_number,
             w = FROM_PROG_LEN(w);
 
             rotate_and_offset_pos(unused, unused, unused, a, b, c, u, v, w);
-            see_segment(line_number, _tag, mx, my,
-                        (lz + ae)/2, 
-                        (canonEndPoint[A] + a)/2, 
-                        (canonEndPoint[B] + b)/2, 
-                        (canonEndPoint[C] + c)/2, 
-                        (canonEndPoint[U] + u)/2, 
-                        (canonEndPoint[V] + v)/2, 
-                        (canonEndPoint[W] + w)/2);
-            see_segment(line_number, _tag, fe, se, ae, a, b, c, u, v, w);
+            see_segment(_tag,
+                        {
+                            mx,
+                            my,
+                            (lz + ae)/2,
+                            (canonEndPoint[A] + a)/2,
+                            (canonEndPoint[B] + b)/2,
+                            (canonEndPoint[C] + c)/2,
+                            (canonEndPoint[U] + u)/2,
+                            (canonEndPoint[V] + v)/2,
+                            (canonEndPoint[W] + w)/2
+                        });
+            see_segment(_tag,
+                        {fe, se, ae, a, b, c, u, v, w});
             return;
         }
     }
-
 
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = feed_mode;
@@ -1363,7 +1358,6 @@ void ARC_FEED(int line_number,
     PM_CARTESIAN normal_cart(0.0,0.0,1.0);
     PM_CARTESIAN plane_x(1.0,0.0,0.0);
     PM_CARTESIAN plane_y(0.0,1.0,0.0);
-
 
     canon_debug("start = %f %f %f\n",
             canonEndPoint[X],
