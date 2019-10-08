@@ -41,6 +41,8 @@ double VecVecDisp(PmVector const * const v1, PmVector const * const v2);
 
 int VecUnit(PmVector const * const v1, PmVector * const out);
 int VecUnitEq(PmVector * const v1);
+int VecAbs(PmVector const * const v1, PmVector * const out);
+
 int VecVecDirection(
     PmVector const * const to,
     PmVector const * const from,

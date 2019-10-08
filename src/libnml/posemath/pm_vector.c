@@ -117,15 +117,6 @@ double VecVecDot(PmVector const * const v1, PmVector const * const v2)
     return dot;
 }
 
-int VecVecDirection(
-    PmVector const * const to,
-    PmVector const * const from,
-    PmVector * const u)
-{
-    VecVecSub(to, from, u);
-    return VecUnitEq(u);
-}
-
 double VecMagSq(PmVector const * const v1)
 {
     return VecVecDot(v1,v1);
@@ -162,6 +153,29 @@ int VecUnitEq(PmVector * const v1)
 
     VecScalMult(v1, 1.0 / mag, v1);
     return 0;
+}
+
+
+int VecAbs(const PmVector * const v1, PmVector * const out)
+{
+    if (!v1 || !out) {
+        return -1;
+    }
+
+    int i;
+    for (i = 0; i < PM_VECTOR_SIZE; ++i) {
+        out->ax[i] = fabs(v1->ax[i]);
+    }
+    return 0;
+}
+
+int VecVecDirection(
+    PmVector const * const to,
+    PmVector const * const from,
+    PmVector * const u)
+{
+    VecVecSub(to, from, u);
+    return VecUnitEq(u);
 }
 
 double VecMin(PmVector const * const v1)
@@ -295,16 +309,16 @@ int VecVecOrthonormal(
     PmVector * const u,
     PmVector * const v)
 {
+    *u = *a;
+
     // Find component of b in direction of a
     // NOTE assumes both a and b are already unit
     double dot = VecVecDot(a, b);
-
     //Build the component in the direction of a
-    VecScalMult(b, -dot, v);
-
-    *u = *a;
-    // Subtract component of a in direction of b
+    VecScalMult(u, -dot, v);
     VecVecAddEq(v, b);
+
+    // Subtract component of a in direction of b
     VecUnitEq(v);
 
     return 0;
