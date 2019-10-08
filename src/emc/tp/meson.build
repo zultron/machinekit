@@ -5,5 +5,6 @@ tp_srcs = files([
     'tc.c',
     'tcq.c',
     'tp.c',
+    'math_util.c',
 ])
 tp_inc = include_directories(['.'])

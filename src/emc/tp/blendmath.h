@@ -92,18 +92,6 @@ double findMaxTangentAngle(double v, double acc, double cycle_time);
 
 double findKinkAccel(double kink_angle, double v_plan, double cycle_time);
 
-double fsign(double f);
-
-int clip_min(double * const x, double min);
-
-int clip_max(double * const x, double max);
-
-double saturate(double x, double max);
-
-double bound(double x, double max, double min);
-
-int sat_inplace(double * const x, double max);
-
 double findIntersectionAngle(PmCartesian const * const u1,
         PmCartesian const * const u2);
 

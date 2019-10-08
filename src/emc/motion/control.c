@@ -27,6 +27,7 @@
 #include "config.h"
 #include "motion_types.h"
 #include "rtapi_json5.h"
+#include "math_util.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
