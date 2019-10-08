@@ -124,9 +124,6 @@ double findTrapezoidalDesiredVel(double a_max,
                               double currentvel,
                               double cycle_time);
 
-int pmUnitCartsColinear(PmCartesian const * const u1,
-        PmCartesian const * const u2);
-
 int pmCartCartParallel(PmCartesian const * const u1,
         PmCartesian const * const u2,
         double tol);

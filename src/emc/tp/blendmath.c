@@ -138,24 +138,6 @@ int pmCartCartAntiParallel(PmCartesian const * const u1,
     return d_sum < tol;
 }
 
-
-/**
- * Check if two cartesian vectors are parallel or anti-parallel
- * The input tolerance specifies what the maximum angle between the
- * lines containing two vectors is. Note that vectors pointing in
- * opposite directions are still considered parallel, since their
- * containing lines are parallel.
- * @param u1 input unit vector 1
- * @param u2 input unit vector 2
- * @pre BOTH u1 and u2 must be unit vectors or calculation may be skewed.
- */
-int pmUnitCartsColinear(PmCartesian const * const u1,
-        PmCartesian const * const u2)
-{
-    return pmCartCartParallel(u1, u2, TP_ANGLE_EPSILON_SQ) || pmCartCartAntiParallel(u1, u2, TP_ANGLE_EPSILON_SQ);
-}
-
-
 /**
  * Somewhat redundant function to calculate the segment intersection angle.
  * The intersection angle is half of the supplement of the "divergence" angle
