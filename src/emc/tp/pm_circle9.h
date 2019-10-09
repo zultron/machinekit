@@ -20,13 +20,16 @@ typedef struct {
     PmCircle xyz;
     PmLine9 abcuvw;
     SpiralArcLengthFit fit;
-    double path_length_sq;
+    double xyz_ratio;
+    double abcuvw_ratio;
 } PmCircle9;
 
 typedef struct {
     double v_max;
     double acc_ratio;
 } PmCircleLimits;
+
+void updateLengthRatio(PmCircle9 * const circ9);
 
 int pmCircle9Init(
     PmCircle9 * const circ9,
@@ -37,6 +40,10 @@ int pmCircle9Init(
     int turn);
 
 double pmCircle9Length(PmCircle9 const * const circ9);
+
+int pmCircle9Point(PmCircle9 const * const circ9, double progress, PmVector * const point);
+
+int pmCircle9Cut(PmCircle9 * const circ, double new_pt_progress, SegmentToKeepType keep_pt);
 
 int pmCircle9TangentVector(PmCircle9 const * const circ9, double progress, PmVector * const out);
 
@@ -68,8 +75,5 @@ int pmCircleAngleFromProgress(
     SpiralArcLengthFit const * const fit,
     double progress,
     double * const angle);
-
-int pmCircle9Point(PmCircle9 const * const circ9, double progress, PmVector * const point);
-int pmCircle9Stretch(PmCircle9 * const circ, double new_total_len, bool from_end);
 
 #endif // PM_CIRCLE9_H

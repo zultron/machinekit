@@ -11,6 +11,7 @@
  * GNU General Public License (V2) as published by the Free Software Foundation.
  */
 
+#define TP_DEBUG
 #include "tp_debug.h"
 #include "greatest.h"
 #include "blendmath.h"
@@ -155,7 +156,7 @@ TEST test_create_tangent_arcs() {
     TC_STRUCT const * this_tc = tcqItem(&tp->queue, 1);
     ASSERT(prev_tc);
     ASSERT(this_tc);
-    ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
+    ASSERT_EQ_FMT(TC_TERM_COND_TANGENT, prev_tc->term_cond, "%d");
 
     PmVector const exp_tan_vec = {{1,0,0}};
     PmVector got_prev_tan;
@@ -173,6 +174,7 @@ static greatest_test_res check_blend_C1_continuity(TP_STRUCT * const tp, int cur
 {
     ASSERT(current_idx < tcqLen(&tp->queue));
     for (int k = 0; k < current_idx; ++k) {
+        // Walk backwards from end
         TC_STRUCT const * prev_tc = tcqItem(&tp->queue, current_idx - k -1);
         TC_STRUCT const * next_tc = tcqItem(&tp->queue, current_idx - k);
         ASSERT(prev_tc);
@@ -233,6 +235,7 @@ TEST test_convex_arcs_lineblend() {
 
     // Ask for impossibly high velocity to force the arc to maximum size
     tpAddCircle(tp, pt1, center1, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(1));
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
     tpAddCircle(tp, pt2, center2, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 19.0, 0, 0, 0, line_tag(2));
 
     ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
@@ -346,17 +349,17 @@ TEST test_find_blend_intermediates()
     ASSERT(prev_tc);
     ASSERT(this_tc);
 
-    blend_boundary_t bb = {};
+    blend_boundary_t boundary = {};
     double const s_b = M_PI / 4;
 
-    find_blend_points_and_tangents(s_b, prev_tc, this_tc, &bb);
+    ASSERT_RETVAL(0, find_blend_points_and_tangents(s_b, prev_tc, this_tc, &boundary));
 
-    biarc_control_points_t bp_out;
-    find_blend_intermediate_segments(&bb, &bp_out);
+    biarc_control_points_t control_pts = {0};
+    ASSERT_RETVAL(0, find_blend_intermediate_segments(&boundary, &control_pts));
 
     PmVector exp_u_mid = {{1,0,0}};
-    ASSERT_PMVECTOR_IN_RANGE(exp_u_mid, bp_out.u_mid, CART_FUZZ);
-    ASSERT_IN_RANGE(0.17157287525380996, bp_out.d, TP_POS_EPSILON);
+    ASSERT_PMVECTOR_IN_RANGE(exp_u_mid, control_pts.u_mid, CART_FUZZ);
+    ASSERT_IN_RANGE(0.17157287525380996, control_pts.d, TP_POS_EPSILON);
 
     deleteMockTP(&tp);
     PASS();
@@ -944,8 +947,8 @@ int main(int argc, char **argv) {
     RUN_TEST(test_mock_tp_init);
     RUN_TEST(test_create_single_line);
     RUN_TEST(test_create_two_exact_lines);
-    RUN_TEST(test_create_tangent_arcs);
     RUN_TEST(test_create_two_blended_lines);
+    RUN_TEST(test_create_tangent_arcs);
     RUN_TEST(test_convex_arcs_lineblend);
     RUN_TEST(test_line_arc_in_plane);
     RUN_TEST(test_slightly_convex_arcs);

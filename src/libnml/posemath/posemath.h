@@ -646,7 +646,8 @@ extern "C" {
 	PmCartesian rPerp;
 	PmCartesian rHelix;
 	double radius;
-	double angle;
+    double height;
+    double angle;
 	double spiral;
 
     } PmCircle;
@@ -981,7 +982,7 @@ extern "C" {
             PmCartesian const * const center, PmCartesian const * const normal, int turn);
 
     extern int pmCirclePoint(PmCircle const * const circle, double angle, PmCartesian * const point);
-    extern int pmCircleStretch(PmCircle * const circ, double new_angle, int from_end);
+    extern int pmCircleCut(PmCircle * const circ, double new_angle, int keep_end_pt);
     extern int pmCircleStartPoint(PmCircle const * const circle, PmCartesian * const point);
 
 /* slicky macros for item-by-item copying between C and C++ structs */

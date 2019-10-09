@@ -1,5 +1,6 @@
 #include "tp_debug.h"
 #include "spherical_arc.h"
+#include "spherical_arc9.h"
 #include "greatest.h"
 #include "blendmath.h"
 #include "tp_types.h"
@@ -46,12 +47,35 @@ TEST arcInitFromPoints_simple() {
     PASS();
 }
 
-SUITE(arc_shape) {
-    RUN_TEST(arcInitFromPoints_simple);
+
+TEST test_arc9InitFromPoints() {
+    //TODO
+    PASS();
 }
+
+TEST test_arc9Point() {
+    //TODO
+    PASS();
+}
+
+TEST test_arc9Length() {
+    //TODO
+    PASS();
+}
+
+TEST test_arc9Tangent()
+{
+    //TODO
+    PASS();
+}
+
 
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();
-    RUN_SUITE(arc_shape);
+    RUN_TEST(arcInitFromPoints_simple);
+    RUN_TEST(test_arc9InitFromPoints);
+    RUN_TEST(test_arc9Point);
+    RUN_TEST(test_arc9Length);
+    RUN_TEST(test_arc9Tangent);
     GREATEST_MAIN_END();
 }

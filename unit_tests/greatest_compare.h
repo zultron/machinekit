@@ -5,6 +5,8 @@
 #include "emcpos.h"
 #include "posemath.h"
 
+#define ASSERT_RETVAL(EXP, GOT)  GREATEST_ASSERT_EQ_FMT(EXP, GOT, "%d")
+
 // KLUDGE string is generated every time even if there are no errors
 #define ASSERT_EMCPOSE_IN_RANGE(EXP, GOT, TOL) \
 do { \

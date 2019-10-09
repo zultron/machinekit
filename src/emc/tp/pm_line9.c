@@ -71,17 +71,24 @@ int pmLine9Point(const PmLine9 * const line9, double progress, PmVector * const 
         ||    VecVecAddEq(point, &line9->start);
 }
 
-int pmLine9Stretch(PmLine9 * const line9, double new_len, int from_end)
+int pmLine9Cut(PmLine9 * const line9, double cut_pt_progress, SegmentToKeepType keep_pt)
 {
-    // Use short-circuit evaluation to prevent error propagation
-    if (from_end) {
-        return
-            VecScalMult(&line9->uVec, -new_len, &line9->start)
-            || VecVecAddEq(&line9->start, &line9->end);
-    } else {
-        return
-            VecScalMult(&line9->uVec, new_len, &line9->end)
-            || VecVecAddEq(&line9->end, &line9->start);
+    switch (keep_pt) {
+    case KEEP_END_PT:
+    {
+        PmVector tmp;
+        VecScalMult(&line9->uVec, cut_pt_progress, &tmp);
+        VecVecAddEq(&line9->start, &tmp);
+        line9->tmag -= cut_pt_progress;
+        return 0;
     }
+    case KEEP_START_PT:
+        VecScalMult(&line9->uVec, cut_pt_progress, &line9->end);
+        VecVecAddEq(&line9->end, &line9->start);
+        line9->tmag = cut_pt_progress;
+        return 0;
+    }
+
+    return -1;
 }
 

@@ -1018,12 +1018,12 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     case TC_LINEAR:
         prev_geom.line9 = prev_tc->coords.line;
         double new_len = boundary->s1;
-        pmLine9Stretch(&prev_geom.line9, new_len, 0);
+        pmLine9Cut(&prev_geom.line9, new_len, 0);
         break;
     case TC_CIRCULAR:
     {
         prev_geom.circle9 = prev_tc->coords.circle;
-        pmCircle9Stretch(&prev_geom.circle9, boundary->s1, 0);
+        pmCircle9Cut(&prev_geom.circle9, boundary->s1, 0);
         break;
     }
     default:
@@ -1034,12 +1034,12 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     case TC_LINEAR:
         this_geom.line9 = this_tc->coords.line;
         double new_len = boundary->s2;
-        pmLine9Stretch(&this_geom.line9, new_len, 1);
+        pmLine9Cut(&this_geom.line9, new_len, 1);
         break;
     case TC_CIRCULAR:
     {
         this_geom.circle9 = this_tc->coords.circle;
-        pmCircle9Stretch(&this_geom.circle9, boundary->s2, 1);
+        pmCircle9Cut(&this_geom.circle9, boundary->s2, 1);
         break;
     }
     default:
@@ -1638,8 +1638,7 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
     tp_debug_json5_PmVector(acc2);
     tp_debug_json5_PmVector(acc_diff);
 
-    PmVector acc_bound;
-    getAccelBounds(&acc_bound);
+    PmVector acc_bound = getAccelBounds();
 
     PmVector acc_scales;
     findAccelScale(&acc_diff, &acc_bound, &acc_scales);
@@ -1695,14 +1694,6 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
     return TC_INTERSECT_NONTANGENT;
 }
 
-int tpCreateBlendIfPossible(
-        TP_STRUCT *tp,
-        TC_STRUCT *prev_tc,
-        TC_STRUCT *tc)
-{
-    return tpCreateBiarcBlend(tp, prev_tc, tc) == TP_ERR_OK ? 2 : 0;
-}
-
 /**
  * Handle creating a blend arc when a new line segment is about to enter the queue.
  * This function handles the checks, setup, and calculations for creating a new
@@ -1719,7 +1710,7 @@ int tpSetupSegmentBlend(
 
     int blends_added = 0;
     if (res_tan == TC_INTERSECT_NONTANGENT) {
-        blends_added = tpCreateBlendIfPossible(tp, prev_tc, tc);
+        blends_added = tpCreateBiarcBlend(tp, prev_tc, tc) == TP_ERR_OK ? 2 : 0;
     }
 
     switch (blends_added) {

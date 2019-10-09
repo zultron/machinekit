@@ -498,9 +498,7 @@ static inline double find_max_blend_length(TC_STRUCT const * const tc, double v_
     if (tc->motion_type == TC_CIRCULAR) {
         // FIXME use arc length fit for spiral?
         double phi_max = PM_PI / 3.0;
-        double h2=0;
-        pmCartMagSq(&tc->coords.circle.xyz.rHelix, &h2);
-        double total_arc_length = pmSqrt(h2 + pmSq(tc->coords.circle.fit.total_planar_length));
+        double total_arc_length = pmSqrt(pmSq(tc->coords.circle.xyz.height) + pmSq(tc->coords.circle.fit.total_planar_length));
         double l_from_angle = phi_max / tc->coords.circle.xyz.angle * total_arc_length;
         double l_from_length = fmin(tc->target, usable_length);
         return fmin(l_from_angle, l_from_length);
@@ -1013,7 +1011,9 @@ int find_biarc_points_from_solution(
         u1,
         u2);
 
-    if (fabs(M_PI_2 - param->theta) < 1e-6) {
+    double straightness_margin = M_PI_2 - param->theta;
+
+    if (fabs(straightness_margin) < 1e-6) {
         points->motion_type = TC_LINEAR;
         double v_max = fmax(param->v_max_planar, param->v_max_altitude);
         param->v_plan = fmin(controls->v_goal, v_max);

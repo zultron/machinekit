@@ -39,10 +39,51 @@ TEST test_pmLine9Point()
     PASS();
 }
 
+TEST test_pmLine9Stretch_start()
+{
+    PmLine9 line9;
+    PmVector start = {0};
+    PmVector end = {{1,2,3,4,5,6,7,8,9}};
+    ASSERT_FALSE(pmLine9Init(&line9, &start, &end, false));
+
+    double cut_len = 0.375;
+    PmVector cut_pt={0};
+    pmLine9Point(&line9, cut_len, &cut_pt);
+
+    PmLine9 line9_cut = line9;
+    pmLine9Cut(&line9_cut, cut_len, KEEP_START_PT);
+    PmVector cut_end;
+    pmLine9Point(&line9_cut, cut_len, &cut_end);
+    ASSERT_PMVECTOR_IN_RANGE(cut_pt, cut_end, 1e-15);
+
+    PASS();
+}
+
+TEST test_pmLine9Stretch_end()
+{
+    PmLine9 line9;
+    PmVector start = {0};
+    PmVector end = {{1,2,3,4,5,6,7,8,9}};
+    ASSERT_FALSE(pmLine9Init(&line9, &start, &end, false));
+
+    double cut_len = 0.875;
+    PmVector cut_pt={0};
+    pmLine9Point(&line9, cut_len, &cut_pt);
+
+    PmLine9 line9_cut = line9;
+    pmLine9Cut(&line9_cut, cut_len, KEEP_END_PT);
+    PmVector cut_start;
+    pmLine9Point(&line9_cut, 0, &cut_start);
+    ASSERT_PMVECTOR_IN_RANGE(cut_pt, cut_start, 1e-15);
+
+    PASS();
+}
 
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();
     RUN_TEST(test_pmLine9Init);
     RUN_TEST(test_pmLine9Point);
+    RUN_TEST(test_pmLine9Stretch_start);
+    RUN_TEST(test_pmLine9Stretch_end);
     GREATEST_MAIN_END();
 }

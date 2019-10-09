@@ -3,6 +3,16 @@
 #include "blendmath_types.h"
 #include "rtapi_bool.h"
 #include "rtapi_math.h"
+#include "math_util.h"
+
+static inline double sq(double x) {return x*x;}
+
+void updateLengthRatio(PmCircle9 * const circ9)
+{
+    double l = pmCircle9Length(circ9);
+    circ9->abcuvw_ratio = circ9->abcuvw.tmag / l;
+    circ9->xyz_ratio = hypot2(circ9->fit.total_planar_length, circ9->xyz.height) / l;
+}
 
 int pmCircle9Init(
     PmCircle9 * const circ9,
@@ -25,9 +35,8 @@ int pmCircle9Init(
     int abcuvw_fail = pmLine9Init(&circ9->abcuvw, start, end, true);
 
     int res_fit = findSpiralArcLengthFit(&circ9->xyz, &circ9->fit, 1e-6);
-    double h_sq;
-    pmCartMagSq(&circ9->xyz.rHelix, &h_sq);
-    circ9->path_length_sq = pmSq(circ9->fit.total_planar_length) + h_sq + pmSq(circ9->abcuvw.tmag);
+
+    updateLengthRatio(circ9);
 
     if (xyz_fail || abcuvw_fail || res_fit) {
         rtapi_print_msg(RTAPI_MSG_ERR,"Failed to initialize Circle9, err codes %d, %d, %d\n",
@@ -40,10 +49,36 @@ int pmCircle9Init(
 
 double pmCircle9Length(PmCircle9 const * const circ9)
 {
-    double h2;
-    pmCartMagSq(&circ9->xyz.rHelix, &h2);
-    double abcuvw_length = circ9->abcuvw.tmag;
-    return pmSqrt(pmSq(circ9->fit.total_planar_length) + h2 + pmSq(abcuvw_length));
+    return hypot3(circ9->fit.total_planar_length, circ9->xyz.height, circ9->abcuvw.tmag);
+}
+
+int pmCircle9Point(PmCircle9 const * const circ9, double progress, PmVector * const point)
+{
+    double xyz_progress = progress * circ9->xyz_ratio;
+    double angle = 0;
+    pmCircleAngleFromProgress(&circ9->xyz, &circ9->fit, xyz_progress, &angle);
+    PmCartesian xyz;
+    pmCirclePoint(&circ9->xyz, angle, &xyz);
+    pmLine9Point(&circ9->abcuvw, circ9->abcuvw_ratio * progress, point);
+    VecSetXYZ(&xyz, point);
+    return 0;
+}
+
+int pmCircle9Cut(PmCircle9 * const circ9, double cut_progress, SegmentToKeepType keep_pt)
+{
+    double xyz_new_pt_progress = cut_progress * circ9->xyz_ratio;
+    double abcuvw_cut_progress = cut_progress * circ9->abcuvw_ratio;
+
+    int res_other_stretch = pmLine9Cut(&circ9->abcuvw, abcuvw_cut_progress, keep_pt);
+    double cut_angle;
+    pmCircleAngleFromProgress(&circ9->xyz, &circ9->fit, xyz_new_pt_progress, &cut_angle);
+
+    int res_stretch = pmCircleCut(&circ9->xyz, cut_angle, keep_pt);
+    int res_fit = findSpiralArcLengthFit(&circ9->xyz, &circ9->fit, 1e-6);
+
+    updateLengthRatio(circ9);
+
+    return res_fit | res_stretch | res_other_stretch;
 }
 
 int pmCircle9TangentVector(PmCircle9 const * const circ9, double progress, PmVector * const out)
@@ -51,22 +86,15 @@ int pmCircle9TangentVector(PmCircle9 const * const circ9, double progress, PmVec
     // Scale each portion of the motion by it's total displacement to get the 9D tangent vector
     PmCircle const *circle = &circ9->xyz;
 
-    double h2;
-    pmCartMagSq(&circ9->xyz.rHelix, &h2);
-    double abcuvw_length = circ9->abcuvw.tmag;
-    double helical_length_xyz = pmSqrt(pmSq(circ9->fit.total_planar_length) + h2);
-    double total_length = pmSqrt(pmSq(circ9->fit.total_planar_length) + h2 + pmSq(abcuvw_length));
-
-    double progress_xyz = progress / total_length * helical_length_xyz;
+    double progress_xyz = progress * circ9->xyz_ratio;
     double angle_in=0;
     pmCircleAngleFromProgress(circle, &circ9->fit, progress_xyz, &angle_in);
 
     PmCartesian xyz;
     pmCircleTangentVector(circle, angle_in, &xyz);
-    pmCartScalMultEq(&xyz, helical_length_xyz);
+    pmCartScalMultEq(&xyz, circ9->xyz_ratio);
 
-    *out = circ9->abcuvw.uVec;
-    VecScalMultEq(out, abcuvw_length);
+    VecScalMult(&circ9->abcuvw.uVec, circ9->abcuvw_ratio, out);
     VecSetXYZ(&xyz, out);
     VecUnitEq(out);
     return 0;
@@ -123,9 +151,9 @@ PmCircleLimits pmCircleActualMaxVel(
     double eff_radius = pmCircleEffectiveMinRadius(circle);
 
     // Find the acceleration necessary to reach the maximum velocity
-    double a_n_vmax = pmSq(v_max) / fmax(eff_radius, DOUBLE_FUZZ);
+    double a_n_vmax = sq(v_max) / fmax(eff_radius, DOUBLE_FUZZ);
     // Find the maximum velocity that still obeys our desired tangential / total acceleration ratio
-    double v_max_cutoff = pmSqrt(a_n_max_cutoff * eff_radius);
+    double v_max_cutoff = sqrt(a_n_max_cutoff * eff_radius);
 
     double v_max_actual = v_max;
     double acc_ratio_tan = BLEND_ACC_RATIO_TANGENTIAL;
@@ -133,7 +161,7 @@ PmCircleLimits pmCircleActualMaxVel(
     if (a_n_vmax > a_n_max_cutoff) {
         v_max_actual = v_max_cutoff;
     } else {
-        acc_ratio_tan = pmSqrt(1.0 - pmSq(a_n_vmax / a_max));
+        acc_ratio_tan = sqrt(1.0 - sq(a_n_vmax / a_max));
     }
 
     PmCircleLimits limits = {
@@ -185,13 +213,13 @@ int findSpiralArcLengthFit(
     }
 
     //Compute the slope of the arc length vs. angle curve at the start and end of the segment
-    double slope_start = pmSqrt(pmSq(min_radius) + pmSq(spiral_coef));
-    double slope_end = pmSqrt(pmSq(min_radius + spiral_coef * circle->angle) + pmSq(spiral_coef));
+    double slope_start = hypot2(min_radius, spiral_coef);
+    double slope_end = hypot2(min_radius + spiral_coef * circle->angle, spiral_coef);
 
     fit->b0 = (slope_end - slope_start) / (2.0 * circle->angle);
     fit->b1 = slope_start;
 
-    fit->total_planar_length = fit->b0 * pmSq(circle->angle) + fit->b1 * circle->angle;
+    fit->total_planar_length = fit->b0 * sq(circle->angle) + fit->b1 * circle->angle;
 
     // Check against start and end angle
     double angle_end_chk = 0.0;
@@ -221,9 +249,9 @@ double spiralEffectiveRadius(PmCircle const * circle)
     double dr = circle->spiral / circle->angle;
 
     // Exact representation of spiral arc length flattened into
-    double n_inner = pmSq(dr) + pmSq(circle->radius);
-    double den = n_inner+pmSq(dr);
-    double num = pmSqrt(pmCb(n_inner));
+    double n_inner = sq(dr) + sq(circle->radius);
+    double den = n_inner+sq(dr);
+    double num = sqrt(pmCb(n_inner));
     double r_spiral = num / den;
 
     return r_spiral;
@@ -236,9 +264,7 @@ double spiralEffectiveRadius(PmCircle const * circle)
  */
 double pmCircleEffectiveMinRadius(PmCircle const * circle)
 {
-    double h2;
-    pmCartMagSq(&circle->rHelix, &h2);
-    double dh2 = h2 / pmSq(circle->angle);
+    double dh2 = sq(circle->height / circle->angle);
 
     double r_spiral = spiralEffectiveRadius(circle);
 
@@ -269,7 +295,7 @@ int pmCircleAngleFromParam(PmCircle const * const circle,
     double B = fit->b1;
     double C = -s_in;
 
-    double disc = pmSq(B) - 4.0 * A * C ;
+    double disc = sq(B) - 4.0 * A * C ;
     if (disc < 0) {
         return -1;
     }
@@ -289,7 +315,7 @@ int pmCircleAngleFromParam(PmCircle const * const circle,
      * http://people.csail.mit.edu/bkph/articles/Quadratics.pdf
      */
 
-    double angle_out = (2.0 * C) / ( -B - pmSqrt(disc));
+    double angle_out = (2.0 * C) / ( -B - sqrt(disc));
 
     if (fit->spiral_in) {
         // Spiral fit assumes that we're spiraling out, so
@@ -310,59 +336,9 @@ int pmCircleAngleFromProgress(PmCircle const * const circle,
         double progress,
         double * const angle)
 {
-    double h2;
-    pmCartMagSq(&circle->rHelix, &h2);
-    double s_end = pmSqrt(pmSq(fit->total_planar_length) + h2);
+    double s_end = hypot2(fit->total_planar_length, circle->height);
     // Parameterize by total progress along helix
     double t = progress / s_end;
     return pmCircleAngleFromParam(circle, fit, t, angle);
-}
-
-int pmCircle9Point(PmCircle9 const * const circ9, double progress, PmVector * const point)
-{
-    double xyz_ratio = pmSqrt(1 - pmSq(circ9->abcuvw.tmag)/circ9->path_length_sq );
-    double other_ratio = pmSqrt(1 - pmSq(xyz_ratio));
-    double xyz_progress = progress * xyz_ratio;
-    double angle = 0;
-    pmCircleAngleFromProgress(&circ9->xyz, &circ9->fit, xyz_progress, &angle);
-    PmCartesian xyz;
-    pmCirclePoint(&circ9->xyz, angle, &xyz);
-    pmLine9Point(&circ9->abcuvw, other_ratio * progress, point);
-    VecSetXYZ(&xyz, point);
-    return 0;
-}
-
-int pmCircle9Stretch(PmCircle9 * const circ, double new_total_len, bool from_end)
-{
-    //TODO
-#if 0
-
-    if (!circ || new_angle <= DOUBLE_FUZZ) {
-        return PM_ERR;
-    }
-
-    if (from_end) {
-        // Need some extra juggling if we're creating a new start point
-        PmCartesian new_start;
-        double start_angle = circ->angle - new_angle;
-        pmCirclePoint(circ, start_angle, &new_start);
-        PmCartesian tmp;
-        pmCartCartSub(&new_start, &circ->center, &tmp);
-        // Need to find new components perpendicular to circle normal, and to each other
-        pmCartCartCross(&circ->normal, &tmp, &circ->rPerp);
-        pmCartCartCross(&circ->rPerp, &circ->normal, &circ->rTan);
-        // Center is displaced if there is a helical component
-        pmCartCartSubEq(&tmp, &circ->rTan);
-        pmCartCartAddEq(&circ->center, &tmp);
-        // New initial radius in case there is non-zero spiral component
-        pmCartMag(&circ->rTan, &circ->radius);
-    }
-    // Reduce the spiral / helical components proportionally
-    double angle_ratio = (new_angle / circ->angle);
-    circ->spiral *= angle_ratio;
-    pmCartScalMultEq(&circ->rHelix, angle_ratio);
-    circ->angle = new_angle;
-#endif
-    return 0;
 }
 

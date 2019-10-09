@@ -1937,6 +1937,7 @@ int pmCircleInit(PmCircle * const circle,
     pmCartCartSub(&circle->rHelix, &rEnd, &circle->rHelix);
     pmCartUnit(&rEnd, &rEnd);
     pmCartScalMult(&rEnd, circle->radius, &rEnd);
+    pmCartMag(&circle->rHelix, &circle->height);
 
     /* Patch for error spiral end same as spiral center */
     pmCartMag(&rEnd, &d);
@@ -2061,17 +2062,20 @@ int pmCirclePoint(PmCircle const * const circle, double angle, PmCartesian * con
     return pmErrno = 0;
 }
 
-int pmCircleStretch(PmCircle * const circ, double new_angle, int from_end)
+int pmCircleCut(PmCircle * const circ, double cut_angle, int keep_end_pt)
 {
-    if (!circ || new_angle <= DOUBLE_FUZZ) {
-        return PM_ERR;
+    if (!circ) {
+        return pmErrno = PM_ERR;
+    }
+    double new_angle = keep_end_pt ? (circ->angle - cut_angle) : cut_angle;
+    if (new_angle < DOUBLE_FUZZ) {
+        return pmErrno = PM_NORM_ERR;
     }
 
-    if (from_end) {
+    if (keep_end_pt) {
         // Need some extra juggling if we're creating a new start point
         PmCartesian new_start;
-        double start_angle = circ->angle - new_angle;
-        pmCirclePoint(circ, start_angle, &new_start);
+        pmCirclePoint(circ, cut_angle, &new_start);
         PmCartesian tmp;
         pmCartCartSub(&new_start, &circ->center, &tmp);
         // Need to find new components perpendicular to circle normal, and to each other
@@ -2087,6 +2091,7 @@ int pmCircleStretch(PmCircle * const circ, double new_angle, int from_end)
     double angle_ratio = (new_angle / circ->angle);
     circ->spiral *= angle_ratio;
     pmCartScalMultEq(&circ->rHelix, angle_ratio);
+    circ->height *= angle_ratio;
     circ->angle = new_angle;
 
     return 0;

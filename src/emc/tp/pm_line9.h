@@ -2,7 +2,6 @@
 #define PM_LINE9_H
 
 #include "pm_vector.h"
-#include "rtapi_bool.h"
 
 typedef struct {
     PmVector start;
@@ -10,6 +9,11 @@ typedef struct {
     PmVector uVec;
     double tmag;
 } PmLine9;
+
+typedef enum {
+    KEEP_START_PT,
+    KEEP_END_PT,
+} SegmentToKeepType;
 
 int pmLine9Init(PmLine9 * const line9,
     PmVector const * const start,
@@ -24,6 +28,6 @@ double pmLine9LinearAxisLength(PmLine9 const * const line9);
 
 int pmLine9Point(PmLine9 const * const line9, double progress, PmVector * const point);
 
-int pmLine9Stretch(PmLine9 * const line, double new_len, int from_end);
+int pmLine9Cut(PmLine9 * const line, double cut_pt_progress, SegmentToKeepType keep_pt);
 
 #endif // PM_LINE9_H
