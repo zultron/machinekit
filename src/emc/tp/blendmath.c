@@ -260,7 +260,6 @@ int blendParamInitVelocities(
     // Find the nominal velocity for the blend segment with no overrides
     double v_req_prev = tcGetPlanMaxTargetVel(prev_tc, 1.0);
     double v_req_this = tcGetPlanMaxTargetVel(tc, 1.0);
-    tp_debug_print("vr_prev = %f, vr_this = %f\n", v_req_prev, v_req_this);
     controls->v_req = fmax(v_req_prev, v_req_this);
 
     // Find the worst-case velocity we should reach for either segment

@@ -408,10 +408,12 @@ int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override)
         return TP_ERR_FAIL;
     }
 
+    tp_debug_json5_log_start(tcFinalizeLength);
     if (tc->finalized) {
-        tp_debug_print("tc %d already finalized\n", tc->id);
+        tp_debug_json5_log_end("tc %d already finalized", tc->id);
         return TP_ERR_NO_ACTION;
     }
+
 #ifdef TP_DEBUG
     double maxvel_old = tc->maxvel_geom;
 #endif
@@ -424,16 +426,15 @@ int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override)
     tc->finalized = 1;
 
 #ifdef TP_DEBUG
-    print_json5_log_start(tpFinalizeLength);
     print_json5_tc_id_data_(tc);
     print_json5_string_("motion_type", tcMotionTypeAsString((tc_motion_type_t)tc->motion_type));
+    print_json5_string_("term_cond", tcTermCondAsString((tc_term_cond_t)tc->term_cond));
     print_json5_double(maxvel_old);
     print_json5_double_("maxvel", tc->maxvel_geom);
     print_json5_double_("acc_ratio_tan", tc->acc_ratio_tan);
-    print_json5_log_end();
 #endif
 
-    tc->finalized = 1;
+    tp_debug_json5_log_end("tc %llu finalized", tc->unique_id);
     return TP_ERR_OK;
 }
 

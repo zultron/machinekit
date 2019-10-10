@@ -1098,7 +1098,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     }
 
 #ifdef TP_DEBUG
-    tp_debug_json_log_start(tpCreateBiarcBlend);
+    tp_debug_json5_log_start(tpCreateBiarcBlend);
     if (param1.consume) {
         tcGetStartTangentUnitVector(prev_tc, &u1_stretch);
         tcGetStartpoint(prev_tc, &p1_stretch);
@@ -1572,24 +1572,25 @@ int tpRunOptimization(TP_STRUCT * const tp) {
  */
 TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
         TC_STRUCT * const prev_tc, TC_STRUCT * const tc) {
+    tp_debug_json5_log_start(tpSetupTangent);
     if (!tc || !prev_tc) {
-        tp_debug_print("missing tc or prev tc in tangent check\n");
+        tp_debug_json5_log_end("missing tc or prev tc in tangent check");
         return TC_INTERSECT_INCOMPATIBLE;
     }
     if (emcmotConfig->arc_blend_cfg.optimization_depth < 2) {
-        tp_debug_print("Optimization depth %d too low for tangent optimization\n",
+        tp_debug_json5_log_end("Optimization depth %d too low for tangent optimization",
                 emcmotConfig->arc_blend_cfg.optimization_depth);
         return TC_INTERSECT_INCOMPATIBLE;
     }
 
     if (prev_tc->term_cond == TC_TERM_COND_STOP) {
-        tp_debug_print("Found exact stop condition\n");
+        tp_debug_json5_log_end("Found exact stop condition");
         return TC_INTERSECT_INCOMPATIBLE;
     }
 
     // TODO see if this can go after the tangent check
     if (prev_tc->progress > prev_tc->target / 2.0) {
-        tp_debug_print(" prev_tc progress (%f) is too large, aborting blend arc\n", prev_tc->progress);
+        tp_debug_json5_log_end(" prev_tc progress (%f) is too large, aborting blend arc\n", prev_tc->progress);
         return TC_INTERSECT_INCOMPATIBLE;
     }
     PmVector prev_tan, this_tan;
@@ -1597,10 +1598,8 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
     CHP(tcGetEndTangentUnitVector(prev_tc, &prev_tan));
     CHP(tcGetStartTangentUnitVector(tc, &this_tan));
 
-    tp_debug_print("prev tangent vector:\n");
-    //VecPrint(&prev_tan);
-    tp_debug_print("this tangent vector:\n");
-    //VecPrint(&this_tan);
+    tp_debug_json5_PmVector(prev_tan);
+    tp_debug_json5_PmVector(this_tan);
 
     // Assume small angle approximation here
     const double SHARP_CORNER_DEG = 2.0;
@@ -1608,7 +1607,7 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
 
     if (VecVecUnitAntiParallel(&prev_tan, &this_tan, SHARP_CORNER_EPSILON))
     {
-        tp_debug_print("Found sharp corner\n");
+        tp_debug_json5_log_end("Found sharp corner");
         tcSetTermCond(prev_tc, TC_TERM_COND_STOP);
         return TC_INTERSECT_INCOMPATIBLE;
     }
@@ -1620,7 +1619,7 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
     // Note that this is a minimum since the velocity at the intersection must
     // be the slower of the two segments not to violate constraints.
     double v_max_tangent = fmin(v_max1, v_max2);
-    tp_debug_print("tangent v_max = %f\n",v_max_tangent);
+    tp_debug_json5_double(v_max_tangent);
 
     // Account for acceleration past final velocity during a split cycle
     // (e.g. next segment starts accelerating again so the average velocity is higher at the end of the split cycle)
@@ -1635,9 +1634,9 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
     VecScalMult(&this_tan, a_inst, &acc2);
     VecVecSub(&acc2, &acc1, &acc_diff);
 
-    tp_debug_print("acc_diff:\n");
-    //TODO
-    //VecPrint(&acc_diff);
+    tp_debug_json5_PmVector(acc1);
+    tp_debug_json5_PmVector(acc2);
+    tp_debug_json5_PmVector(acc_diff);
 
     PmVector acc_bound;
     getAccelBounds(&acc_bound);
@@ -1649,13 +1648,16 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
     if (prev_tc->motion_type == TC_CIRCULAR || tc->motion_type == TC_CIRCULAR) {
         acc_scale_max /= BLEND_ACC_RATIO_TANGENTIAL;
     }
+    tp_debug_json5_double(acc_scale_max);
 
     // Controls the tradeoff between reduction of final velocity, and reduction of allowed segment acceleration
     // TODO: this should ideally depend on some function of segment length and acceleration for better optimization
     const double kink_ratio = tpGetTangentKinkRatio();
 
+    tp_debug_json5_double(kink_ratio);
+
     if (acc_scale_max < kink_ratio) {
-        tp_debug_print(" Kink acceleration within %g, using tangent blend\n", kink_ratio);
+        tp_debug_json5_log_end(" Kink acceleration within %g, using tangent blend", kink_ratio);
         tcSetTermCond(prev_tc, TC_TERM_COND_TANGENT);
         tcSetKinkProperties(prev_tc, tc, v_max_tangent, acc_scale_max);
         return TC_INTERSECT_TANGENT;
@@ -1672,20 +1674,22 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
     }
 
     tcSetKinkProperties(prev_tc, tc, v_max_tangent * kink_ratio / acc_scale_max, kink_ratio);
-    tp_debug_print("Kink acceleration scale %f above %f, kink vel = %f, blend arc may be faster\n",
-                   acc_scale_max,
-                   kink_ratio,
-                   prev_tc->kink_vel);
+
+#ifdef TP_DEBUG
+    print_json5_double_field(prev_tc, kink_vel);
+#endif
 
     if (!emcmotConfig->arc_blend_cfg.enable) {
-        tp_debug_print("Arc blending disabled\n");
+        tp_debug_json5_log_end("Arc blending disabled");
         return  TC_INTERSECT_INCOMPATIBLE;
     }
 
     if (tc->finalized || prev_tc->finalized) {
-        tp_debug_print("Can't create blend when segment lengths are finalized\n");
+        tp_debug_json5_log_end("Can't create blend when segment lengths are finalized");
         return TC_INTERSECT_INCOMPATIBLE;
     }
+
+    tp_debug_json5_log_end("Nontangent intersection needs blend");
 
     // NOTE: acceleration will be reduced later if tangent blend is used
     return TC_INTERSECT_NONTANGENT;
@@ -1709,8 +1713,6 @@ int tpSetupSegmentBlend(
     TP_STRUCT * const tp,
     TC_STRUCT * const prev_tc,
     TC_STRUCT * const tc) {
-
-    tp_debug_print("*****************************************\n** Handle Blend Arc **\n");
 
     // Check the intersection type and handle tangency if the two segments are very nearly tangent
     TCIntersectType res_tan = tpSetupTangent(tp, prev_tc, tc);
@@ -2898,7 +2900,7 @@ void tpSyncPositionMode(
     }
 #ifdef TC_DEBUG
     print_json5_double_("target_vel", tc->target_vel);
-    tp_debug_json_log_end();
+    tp_debug_json5_log_end("sync position updated");
 #endif
 }
 

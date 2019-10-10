@@ -42,16 +42,22 @@
 #define print_json5_log_end() print_json5_end_()
 
 // Another layer of macro wrappers to conditionally compile debug-only statements
-#define tp_debug_json_double(varname_) tp_debug_only(print_json5_double, varname_)
-#define tp_debug_json_string(varname_) tp_debug_only(print_json5_string, varname_)
-#define tp_debug_json_long(varname_) tp_debug_only(print_json5_long, varname_)
-#define tp_debug_json_unsigned(varname_) tp_debug_only(print_json5_unsigned, varname_)
-#define tp_debug_json_PmCartesian(varname_) tp_debug_only(print_json5_PmCartesian, varname_)
-#define tp_debug_json_EmcPose(varname_) tp_debug_only(print_json5_EmcPose, varname_)
-#define tp_debug_json_PmCartLine(name_, value_) tp_debug_only(print_json5_PmCartLine_, name_, value_)
-#define tp_debug_json_PmCircle(name_, value_) tp_debug_only(print_json5_PmCircle_, name_, value_)
-#define tp_debug_json_log_start(fname_) tp_debug_only(print_json5_log_start, fname_)
-#define tp_debug_json_log_end() tp_debug_only(print_json5_end_)
+#define tp_debug_json5_double(varname_) tp_debug_only(print_json5_double, varname_)
+#define tp_debug_json5_string(varname_) tp_debug_only(print_json5_string, varname_)
+#define tp_debug_json5_long(varname_) tp_debug_only(print_json5_long, varname_)
+#define tp_debug_json5_unsigned(varname_) tp_debug_only(print_json5_unsigned, varname_)
+#define tp_debug_json5_PmCartesian(varname_) tp_debug_only(print_json5_PmCartesian, varname_)
+#define tp_debug_json5_PmVector(varname_) tp_debug_only(print_json5_PmVector, varname_)
+#define tp_debug_json5_EmcPose(varname_) tp_debug_only(print_json5_EmcPose, varname_)
+#define tp_debug_json5_PmCartLine(name_, value_) tp_debug_only(print_json5_PmCartLine_, name_, value_)
+#define tp_debug_json5_PmCircle(name_, value_) tp_debug_only(print_json5_PmCircle_, name_, value_)
+#define tp_debug_json5_log_start(fname_) tp_debug_only(print_json5_log_start, fname_)
+#define tp_debug_json5_log_end(...) do { \
+    tp_debug_print("reason: \""); \
+    tp_debug_print(__VA_ARGS__); \
+    tp_debug_print("\""); \
+    tp_debug_only(print_json5_end_); \
+} while (0)
 
 /** Use for profiling to make static function names visible */
 #ifdef TP_PROFILE
