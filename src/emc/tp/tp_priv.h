@@ -169,6 +169,11 @@ int tpDoParabolicBlending(TP_STRUCT * const tp,
 
 int tpUpdateInitialStatus(TP_STRUCT const * const tp);
 
+int tpUpdateCycle(TP_STRUCT * const tp,
+        TC_STRUCT * const tc,
+        TC_STRUCT const * const nexttc,
+        UpdateCycleMode cycle_mode);
+
 int tcSetSplitCycle(TC_STRUCT * const tc,
                     double split_time,
                     double v_f);

@@ -93,11 +93,6 @@ int tpComputeBlendVelocity(
         double *v_blend_next,
         double *v_blend_net);
 
-int tpUpdateCycle(TP_STRUCT * const tp,
-        TC_STRUCT * const tc,
-        TC_STRUCT const * const nexttc,
-        UpdateCycleMode cycle_mode);
-
 static inline double findVPeak(double a_t_max, double distance)
 {
     return pmSqrt(a_t_max * distance);
@@ -1978,8 +1973,7 @@ void tpDebugCycleInfo(TP_STRUCT const * const tp, TC_STRUCT const * const tc, TC
     const double v_final = tpGetRealFinalVel(tp, tc, nexttc);
     const double v_max = tpGetRealMaxTargetVel(tp, tc);
 
-    /* Debug Output */
-    print_json5_log_start(tc_state);
+    /* Debug Output (inserted into caller's output)*/
     print_json5_long_long_("time_ticks", tp->time_elapsed_ticks);
     print_json5_tc_id_data_(tc);
     print_json5_string_("motion_type", tcMotionTypeAsString(tc->motion_type));
@@ -1999,7 +1993,6 @@ void tpDebugCycleInfo(TP_STRUCT const * const tp, TC_STRUCT const * const tc, TC
     print_json5_long_("canon_type", tc->canon_motion_type);
     print_json5_string_("accel_mode",accel_mode ? "ramp" : "trapezoidal");
     print_json5_string_("cycle", cycleModeToString(cycle));
-    print_json5_end_();
 #endif
 }
 
@@ -2315,6 +2308,7 @@ int tpUpdateMovementStatus(TP_STRUCT * const tp,
 
     emcmotStatus->requested_vel = tc->reqvel;
     emcmotStatus->dwell_time_remaining = (tc->motion_type == TC_DWELL) ? tc->coords.dwell.remaining_time : 0.0;
+    emcmotStatus->current_vel = tc->currentvel;
     emcmotStatus->waiting_on_spindle = tpIsWaitingOnSpindle(tp);
 
     // KLUDGE Zero out any EMC status that doesn't apply
@@ -2941,18 +2935,6 @@ int tpUpdateCycle(TP_STRUCT * const tp,
 
     //Store displacement (checking for valid pose)
     int res_set = tpAddCurrentPos(tp, &displacement);
-
-    // Compute current velocity along XYZ axes only. This extra calculation is
-    // necessary because "velocity" within the TP now includes UVW components.
-    // Therefore, we can't directly use the TP segment velocity.
-    // TODO make output velocity selectable via external flags
-    double current_vel;
-    PmCartesian xyz;
-    VecToCart(&displacement, &xyz, NULL, NULL);
-    pmCartMag(&xyz, &current_vel);
-    current_vel /= tp->cycleTime;
-    emcmotStatus->current_vel = current_vel;
-
     return res_set;
 }
 
@@ -2980,7 +2962,6 @@ int tpUpdateInitialStatus(TP_STRUCT const * const tp) {
 int tcSetSplitCycle(TC_STRUCT * const tc, double split_time,
         double v_f)
 {
-    tc_pdebug_print("split time for segment %lld is %.16g\n", tc->unique_id, split_time);
     if (tc->splitting != 0 && split_time > 0.0) {
         rtapi_print_msg(RTAPI_MSG_ERR,"already splitting on segment %lld with cycle time %.16g, dx = %.16g, split time %.12g\n",
                 tc->unique_id,
@@ -3031,14 +3012,14 @@ int tpCheckEndCondition(TP_STRUCT const * const tp, TC_STRUCT * const tc, TC_STR
     }
 #ifdef TC_DEBUG
     {
-        print_json5_log_start(checkEndCondition);
+        print_json5_object_start_("tpCheckEndCondition");
         print_json5_tc_id_data_(tc);
         print_json5_double_("v_final", ec.v_f);
         print_json5_double_("t_remaining", ec.dt);
         print_json5_double_("dt_used", dt);
         print_json5_bool_("remove", tc->remove);
         print_json5_bool_("need_split", splitting);
-        print_json5_end_();
+        print_json5_object_end_();
     }
 #endif
 
@@ -3137,6 +3118,7 @@ int tpHandleRegularCycle(TP_STRUCT * const tp,
         //Don't need to update since this segment is flagged for removal
         return TP_ERR_NO_ACTION;
     }
+    tp_debug_json5_log_start(tpHandleRegularCycle);
     //Run with full cycle time
     tc->cycle_time = tp->cycleTime;
     tpUpdateCycle(tp, tc, nexttc, UPDATE_NORMAL);
@@ -3144,6 +3126,7 @@ int tpHandleRegularCycle(TP_STRUCT * const tp,
     //Update status for a normal step
     tpToggleDIOs(tc);
     tpUpdateMovementStatus(tp, tc, nexttc);
+    tp_debug_json5_log_end("cycle done");
     return TP_ERR_OK;
 }
 
