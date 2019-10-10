@@ -28,7 +28,7 @@ XFAIL=0
 VERBOSE=0
 
 clean () {
-    find $* \( -name "stderr" -or -name "result" -or -name "*.rdb" -or -name "*.tmp.var" -or -name "*.tmp.var.bak" -or -name "*.tmp.tbl" \) -print0 | xargs -0 rm -f
+    find $* \( -name "stderr" -or -name "result" -or -name "*.rdb" -or -name "*.tmp.var" -or -name "*.tmp.var.bak" -or -name "*.tmp.tbl" -or -name "*.tmp.txt" \) -print0 | xargs -0 rm -f
     find $* \( -name "restore_start_line_state.ngc" \) -print0 | xargs -0 rm -f
 }
 
