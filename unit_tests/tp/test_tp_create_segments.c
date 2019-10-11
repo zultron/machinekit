@@ -33,6 +33,9 @@ GREATEST_MAIN_DEFS();
 
 #include "mock_rtapi.inc"
 
+
+static const EmcPose pt0 = {};
+
 TEST test_mock_tp_init() {
     CREATE_MOCK_TP();
     ASSERT(tp);
@@ -95,8 +98,6 @@ TEST test_create_two_exact_lines() {
 TEST test_create_two_blended_lines() {
     CREATE_MOCK_TP();
 
-    EmcPose pt0 = {};
-
     EmcPose pt1 = newXYZ(1,0,0,pt0);
     tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
 
@@ -133,8 +134,6 @@ TEST test_create_two_blended_lines() {
 
 TEST test_create_two_blended_lines_dios() {
     CREATE_MOCK_TP_ACC(5.0);
-
-    EmcPose pt0 = {};
 
     EmcPose pt1 = newXYZ(1,0,0,pt0);
     tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
@@ -186,6 +185,80 @@ TEST test_create_two_blended_lines_dios() {
     // Since digital IO's are present, we can't consume the previous segment, so the radius must be less than the theoretical maximum
     ASSERT(0.5 > blend_tc1->coords.arc.radius + TP_POS_EPSILON);
     ASSERT(0.5 > blend_tc2->coords.arc.radius + TP_POS_EPSILON);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+TEST test_create_two_blended_lines_rotary() {
+    CREATE_MOCK_TP();
+
+    EmcPose pt1 = newXYZ(1,0,0,pt0);
+    tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(1));
+    ASSERT_EQ(1, tcqLen(&tp->queue));
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
+
+    EmcPose pt2 = {{1,0,0},1,0,0,0,0,0};
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(2));
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
+    ASSERT_EQ(4, tcqLen(&tp->queue));
+
+    // check blend properties here
+    TC_STRUCT const *prev_tc = tcqItem(&tp->queue, 0);
+    ASSERT(prev_tc);
+    TC_STRUCT const *blend_tc1 = tcqItem(&tp->queue, 1);
+    ASSERT(blend_tc1);
+    TC_STRUCT const *blend_tc2 = tcqItem(&tp->queue, 2);
+    ASSERT(blend_tc2);
+    TC_STRUCT const *this_tc = tcqItem(&tp->queue, 3);
+    ASSERT(this_tc);
+    ASSERT_EQ(TC_SPHERICAL, blend_tc1->motion_type);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc1->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc2->term_cond);
+
+    ASSERT_IN_RANGE(0.5, blend_tc1->coords.arc.radius, TP_POS_EPSILON);
+    ASSERT_IN_RANGE(0.5, blend_tc2->coords.arc.radius, TP_POS_EPSILON);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+TEST test_create_two_blended_lines_all() {
+    CREATE_MOCK_TP();
+
+    EmcPose pt1 = {{0,.5,0},.5,0,.5,0,.5,0};
+    tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(1));
+    ASSERT_EQ(1, tcqLen(&tp->queue));
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
+
+    EmcPose pt2 = {{0,.5,.5},.5,.5,.5,.5,.5,.5};
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(2));
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
+    ASSERT_EQ(4, tcqLen(&tp->queue));
+
+    // check blend properties here
+    TC_STRUCT const *prev_tc = tcqItem(&tp->queue, 0);
+    ASSERT(prev_tc);
+    TC_STRUCT const *blend_tc1 = tcqItem(&tp->queue, 1);
+    ASSERT(blend_tc1);
+    TC_STRUCT const *blend_tc2 = tcqItem(&tp->queue, 2);
+    ASSERT(blend_tc2);
+    TC_STRUCT const *this_tc = tcqItem(&tp->queue, 3);
+    ASSERT(this_tc);
+    ASSERT_EQ(TC_SPHERICAL, blend_tc1->motion_type);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc1->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc2->term_cond);
+
+    ASSERT_IN_RANGE(0.5, blend_tc1->coords.arc.radius, TP_POS_EPSILON);
+    ASSERT_IN_RANGE(0.5, blend_tc2->coords.arc.radius, TP_POS_EPSILON);
 
     deleteMockTP(&tp);
     PASS();
@@ -414,7 +487,7 @@ TEST test_find_blend_intermediates()
 
     ASSERT_RETVAL(0, find_blend_points_and_tangents(s_b, prev_tc, this_tc, &boundary));
 
-    biarc_control_points_t control_pts = {0};
+    biarc_control_points_t control_pts = {};
     ASSERT_RETVAL(0, find_blend_intermediate_segments(&boundary, &control_pts));
 
     PmVector exp_u_mid = {{1,0,0}};
@@ -1009,6 +1082,8 @@ int main(int argc, char **argv) {
     RUN_TEST(test_create_two_exact_lines);
     RUN_TEST(test_create_two_blended_lines);
     RUN_TEST(test_create_two_blended_lines_dios);
+    RUN_TEST(test_create_two_blended_lines_rotary);
+    RUN_TEST(test_create_two_blended_lines_all);
     RUN_TEST(test_create_tangent_arcs);
     RUN_TEST(test_convex_arcs_lineblend);
     RUN_TEST(test_line_arc_in_plane);
