@@ -1046,7 +1046,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         prev_tc,
         &blend_tc1,
         controls.v_req,
-        param1.v_plan,
+        fmin(param1.v_plan, fmax(param1.v_max_planar, param1.v_max_altitude)),
         param1.a_max_planar,
         blend_tc1.motion_type));
     CHP(tpInitBlendArcFromPrev(
@@ -1054,7 +1054,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         prev_tc,
         &blend_tc2,
         controls.v_req,
-        param2.v_plan,
+        fmin(param2.v_plan, fmax(param2.v_max_planar, param2.v_max_altitude)),
         param2.a_max_planar,
         blend_tc2.motion_type));
 

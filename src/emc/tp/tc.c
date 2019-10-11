@@ -380,11 +380,12 @@ int tcSetupState(TC_STRUCT * const tc, TP_STRUCT const * const tp)
     return TP_ERR_OK;
 }
 
-int tcUpdateCircleAccRatio(TC_STRUCT * tc, double v_max)
+int tcUpdateCircleAccRatio(TC_STRUCT * tc, double v_max_path)
 {
     if (tc->motion_type == TC_CIRCULAR) {
+        double v_max3 = v_max_path * tc->coords.circle.xyz_ratio * v_max_path;
         PmCircleLimits limits = pmCircleActualMaxVel(&tc->coords.circle.xyz,
-                             v_max,
+                             v_max3,
                              tc->acc_normal_max * tcGetAccelScale(tc));
         tc->maxvel_geom = limits.v_max;
         tc->acc_ratio_tan = limits.acc_ratio;

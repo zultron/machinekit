@@ -54,8 +54,8 @@ int pmCircleTangentVector(
 
 PmCircleLimits pmCircleActualMaxVel(
     PmCircle const * const circle,
-    double v_max_nominal,
-    double a_max_nominal);
+    double v_max3,
+    double a_max3);
 
 int findSpiralArcLengthFit(PmCircle const * const circle,
     SpiralArcLengthFit * const fit, double angle_tolerance);
