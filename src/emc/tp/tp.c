@@ -3048,7 +3048,9 @@ int tpCheckEndCondition(TP_STRUCT const * const tp, TC_STRUCT * const tc, TC_STR
 int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
         TC_STRUCT * const nexttc)
 {
+    tp_debug_json5_log_start(tpHandleSplitCycle);
     if (tc->remove) {
+        tp_debug_json5_log_end("segment flagged for removal");
         //Don't need to update since this segment is flagged for removal
         return TP_ERR_NO_ACTION;
     }
@@ -3057,15 +3059,13 @@ int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
     PmVector before;
     tcGetPos(tc, &before);
 
-#ifdef TC_DEBUG
+#ifdef TP_DEBUG
     /* Debug Output */
-    print_json5_log_start(tcHandleSplitCycle);
     print_json5_tc_id_data_(tc);
     print_json5_double_("target", tc->target);
     print_json5_double_("progress", tc->progress);
     print_json5_double_("v_terminal", tc->term_vel);
     print_json5_double_("dt", tc->cycle_time);
-    print_json5_end_();
 #endif
 
     //Shortcut tc update by assuming we arrive at end
@@ -3082,7 +3082,7 @@ int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
     tc->remove = 1;
 
     if (!nexttc) {
-        tp_debug_print("no nexttc in split cycle\n");
+        tp_debug_json5_log_end("no nexttc in split cycle");
         return TP_ERR_OK;
     }
 
@@ -3122,6 +3122,7 @@ int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
         tpUpdateMovementStatus(tp, nexttc, next2tc);
     }
 
+    tp_debug_json5_log_end("splitting with next segment");
     return TP_ERR_OK;
 }
 
