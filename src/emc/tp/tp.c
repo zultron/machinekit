@@ -27,13 +27,6 @@
 #include "tp_priv.h"
 #include "motion_shared.h"
 
-//KLUDGE Don't include all of emc.hh here, just hand-copy the TERM COND
-//definitions until we can break the emc constants out into a separate file.
-//#include "emc.hh"
-#define EMC_TRAJ_TERM_COND_STOP  0
-#define EMC_TRAJ_TERM_COND_EXACT 1
-#define EMC_TRAJ_TERM_COND_BLEND 2
-
 static const double RIGIDTAP_MAX_OVERSHOOT_REVS = 10.0;
 
 /**
@@ -686,9 +679,6 @@ double tpCalculateTriangleVel(TC_STRUCT const *tc) {
 }
 
 
-/**
- * Calculate the angle between two unit cartesian vectors.
- */
 double calculateOptimizationInitialVel(TC_STRUCT const * const prev_tc, TC_STRUCT const * const tc)
 {
     double acc_scaled = tcGetTangentialMaxAccel(tc);
