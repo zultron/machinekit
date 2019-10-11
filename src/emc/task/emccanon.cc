@@ -1602,11 +1602,10 @@ void ARC_FEED(int line_number,
 
     // Now, compute actual XYZ max velocity from this min time and the total arc length
     double t_max = fmax(t_max_motion, t_max_spiral);
-    const double t_max_inv = 1.0 / t_max;
     // NOTE: overrides the "straight" XYZ velocity in veldata
-    double v_xyz_path = TO_EXT_LEN(total_xyz_length * t_max_inv);
+    double v_xyz_path = TO_EXT_LEN(total_xyz_length / t_max);
     double total_length_path = hypot3(TO_EXT_LEN(total_xyz_length), disp_data.d_uvw, disp_data.d_abc);
-    double v_max_path = total_length_path * t_max_inv;
+    double v_max_path = total_length_path / t_max;
     debug_canon_var(v_max);
 
     // COMPUTE ACCELERATION
