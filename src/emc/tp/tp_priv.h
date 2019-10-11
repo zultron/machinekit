@@ -191,7 +191,7 @@ int tpSteppingCheck(TP_STRUCT * const tp,
                     TC_STRUCT * const tc,
                     TC_STRUCT * const nexttc);
 
-int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
+int tpInitBlendArcFromAdjacent(TP_STRUCT const * const tp,
                            TC_STRUCT const * const prev_tc,
                            TC_STRUCT * const blend_tc,
                            double vel,

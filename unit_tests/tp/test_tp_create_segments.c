@@ -131,6 +131,66 @@ TEST test_create_two_blended_lines() {
     PASS();
 }
 
+TEST test_create_two_blended_lines_dios() {
+    CREATE_MOCK_TP_ACC(5.0);
+
+    EmcPose pt0 = {};
+
+    EmcPose pt1 = newXYZ(1,0,0,pt0);
+    tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
+
+    const double a_out2 = 1.234;
+    const double a_out3 = 2.345;
+
+    tpSetDout(tp, 0, 1, 0);
+    tpSetAout(tp, 2, a_out2, 0);
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(1));
+    ASSERT_EQ(1, tcqLen(&tp->queue));
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
+    tpSetDout(tp, 0, 0, 0);
+    tpSetDout(tp, 1, 1, 0);
+    tpSetAout(tp, 2, 0, 0);
+    tpSetAout(tp, 3, a_out3, 0);
+    EmcPose pt2 = newXYZ(1,1,0,pt1);
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(2));
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
+    ASSERT_EQ(4, tcqLen(&tp->queue));
+
+    // check blend properties here
+    TC_STRUCT const *prev_tc = tcqItem(&tp->queue, 0);
+    ASSERT(prev_tc);
+    TC_STRUCT const *blend_tc1 = tcqItem(&tp->queue, 1);
+    ASSERT(blend_tc1);
+    TC_STRUCT const *blend_tc2 = tcqItem(&tp->queue, 2);
+    ASSERT(blend_tc2);
+    TC_STRUCT const *this_tc = tcqItem(&tp->queue, 3);
+    ASSERT(this_tc);
+    ASSERT_EQ(TC_SPHERICAL, blend_tc1->motion_type);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc1->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc2->term_cond);
+
+    // Ensure that DIOs and AIOs switch at the right place
+    ASSERT(blend_tc1->syncdio.dios[0]);
+    ASSERT(blend_tc2->syncdio.dios[1]);
+
+    ASSERT_FLOAT_EQ(a_out2, blend_tc1->syncdio.aios[2]);
+    ASSERT_FLOAT_EQ(a_out3, blend_tc2->syncdio.aios[3]);
+
+    ASSERT(prev_tc->syncdio.anychanged);
+    ASSERT_FALSE(blend_tc1->syncdio.anychanged);
+    ASSERT(blend_tc2->syncdio.anychanged);
+    ASSERT_FALSE(this_tc->syncdio.anychanged);
+
+    // Since digital IO's are present, we can't consume the previous segment, so the radius must be less than the theoretical maximum
+    ASSERT(0.5 > blend_tc1->coords.arc.radius + TP_POS_EPSILON);
+    ASSERT(0.5 > blend_tc2->coords.arc.radius + TP_POS_EPSILON);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
 /**
  * Prove that two circular segments in XY plane are
  */
@@ -948,6 +1008,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_create_single_line);
     RUN_TEST(test_create_two_exact_lines);
     RUN_TEST(test_create_two_blended_lines);
+    RUN_TEST(test_create_two_blended_lines_dios);
     RUN_TEST(test_create_tangent_arcs);
     RUN_TEST(test_convex_arcs_lineblend);
     RUN_TEST(test_line_arc_in_plane);
