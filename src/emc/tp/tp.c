@@ -1661,6 +1661,10 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
             break;
         }
     }
+    if (prev_tc->term_cond == TC_TERM_COND_EXACT) {
+        tp_debug_json5_log_end("Found exact path condition with non-tangent intersection");
+        return  TC_INTERSECT_INCOMPATIBLE;
+    }
 
     tcSetKinkProperties(prev_tc, tc, v_max_tangent * kink_ratio / acc_scale_max, kink_ratio);
 
