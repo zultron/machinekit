@@ -88,6 +88,7 @@ typedef struct {
     hal_s32_t *pos_tracking_state; // Internal state of position tracking controller
     hal_float_t *pos_tracking_velocity; // target feed velocity according to position tracker used during tpRunCycle
     hal_s32_t *rigid_tap_state; // Internal state of rigid tapping state machine
+    hal_float_t *rigid_tap_overshoot; // Reports how much the rigid tapping cycle overshot it's reversal target (negative means it didn't reach the target)
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion maskable with g53 P1*/
     hal_bit_t *feed_inhibit;	/* RPI: set TRUE to stop motion (non maskable)*/
@@ -147,6 +148,9 @@ typedef struct {
 
     // simple output for brake
     hal_bit_t *spindle_brake;	/* spindle brake output */
+
+    hal_float_t *spindle_max_acceleration_rps2; // Allows spindle to tell motion how fast it can decelerate
+    hal_float_t *spindle_cmd_latency_sec; // Allows spindle to tell motion how fast it can decelerate
 
     // output of a prescribed speed (to hook-up to a velocity controller)
     hal_float_t *spindle_speed_out;	/* spindle speed output */

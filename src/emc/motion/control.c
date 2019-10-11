@@ -501,6 +501,9 @@ static void process_inputs(void)
     emcmotStatus->spindle_tracking_lookahead_steps = fmax(*emcmot_hal_data->debug_gain_0, 0.0);
     emcmotStatus->pos_tracking_mode = *emcmot_hal_data->pos_tracking_mode;
 
+    emcmotStatus->spindle_max_acceleration_rps2 = *(emcmot_hal_data->spindle_max_acceleration_rps2);
+    emcmotStatus->spindle_cmd_latency_sec = *(emcmot_hal_data->spindle_cmd_latency_sec);
+
     /* compute net feed and spindle scale factors */
     if ( emcmotStatus->motion_state == EMCMOT_MOTION_COORD ) {
 	/* use the enables that were queued with the current move */
@@ -1909,6 +1912,7 @@ static void output_to_hal(void)
     *(emcmot_hal_data->pos_tracking_state) = emcmotStatus->spindle_sync_state;
     *(emcmot_hal_data->pos_tracking_velocity) = emcmotStatus->pos_tracking_velocity;
     *(emcmot_hal_data->rigid_tap_state) = emcmotStatus->rigid_tap_state;
+    *(emcmot_hal_data->rigid_tap_overshoot) = emcmotStatus->rigid_tap_overshoot;
 
     *(emcmot_hal_data->program_line) = emcmotStatus->id;
     *(emcmot_hal_data->motion_type) = emcmotStatus->motionType;

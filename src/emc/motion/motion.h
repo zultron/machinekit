@@ -671,7 +671,10 @@ Suggestion: Split this in to an Error and a Status flag register..
     spindle_sync_state_t spindle_sync_state;
     double pos_tracking_velocity;
     rigid_tap_state_t rigid_tap_state;
+    double rigid_tap_overshoot;
     double pos_tracking_error;
+    double spindle_max_acceleration_rps2;
+    double spindle_cmd_latency_sec;
 
 	int synch_di[EMCMOT_MAX_DIO]; /* inputs to the motion controller, queried by g-code */
 	int synch_do[EMCMOT_MAX_DIO]; /* outputs to the motion controller, queried by g-code */
