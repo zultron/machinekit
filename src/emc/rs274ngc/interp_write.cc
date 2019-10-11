@@ -256,6 +256,7 @@ StateTag make_state_tag(setup_struct const &s, block_pointer block)
 
     state.fields[GM_FIELD_POCKET_NUMBER] = (s.current_pocket);
     state.fields[GM_FIELD_TOOL_OFFSET_NUMBER] = s.tool_offset_number;
+    state.fields[GM_FIELD_FEED_AXES] = 0; // NOTE: GM_FIELD_FEED_AXES is populated in canon
 
     state.flags[GM_FLAG_MIST] = (s.mist) ;
     state.flags[GM_FLAG_FLOOD] = (s.flood);

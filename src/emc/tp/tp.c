@@ -539,7 +539,7 @@ int tpGetQueuedId(TP_STRUCT const * const tp)
     return tc_last->id;
 }
 
-struct state_tag_t tpGetExecTag(TP_STRUCT * const tp)
+struct state_tag_t tpGetExecTag(TP_STRUCT const * const tp)
 {
     if (0 == tp) {
         struct state_tag_t empty = {0};
@@ -3248,6 +3248,26 @@ int tpRunCycleInternal(TP_STRUCT * const tp)
     return TP_ERR_OK;
 }
 
+static double tpGetCurrentVel(TP_STRUCT const * const tp, PmVector const * const v_current)
+{
+    PmCartesian xyz, abc, uvw;
+    VecToCart(v_current, &xyz, &abc, &uvw);
+    double v_out = 0.0;
+    switch (tpGetExecTag(tp).fields[GM_FIELD_FEED_AXES]) {
+    case 0:
+        break;
+    case 1:
+        pmCartMag(&xyz, &v_out);
+        break;
+    case 2:
+        pmCartMag(&uvw, &v_out);
+        break;
+    case 3:
+        pmCartMag(&abc, &v_out);
+        break;
+    }
+    return v_out;
+}
 
 int tpRunCycle(TP_STRUCT *tp)
 {
@@ -3259,16 +3279,18 @@ int tpRunCycle(TP_STRUCT *tp)
 
     int res = tpRunCycleInternal(tp);
 
+    // After update (even a no-op), update pos / vel / accel
+    PmVector const axis_vel_old = tp->currentVel;
+    PmVector const axis_pos = tp->currentPos;
+
+    PmVector axis_vel;
+    VecVecSub(&axis_pos, &axis_pos_old, &axis_vel);
+    VecScalMultEq(&axis_vel, 1.0 / tp->cycleTime);
+    tp->currentVel = axis_vel;
+
+    emcmotStatus->current_vel = tpGetCurrentVel(tp, &tp->currentVel);
+
     if (needConsistencyCheck(CCHECK_AXIS_LIMITS)) {
-        // After update (even a no-op), update pos / vel / accel
-        PmVector const axis_vel_old = tp->currentVel;
-        PmVector const axis_pos = tp->currentPos;
-
-        PmVector axis_vel;
-        VecVecSub(&axis_pos, &axis_pos_old, &axis_vel);
-        VecScalMultEq(&axis_vel, 1.0 / tp->cycleTime);
-        tp->currentVel = axis_vel;
-
         PmVector axis_accel;
         VecVecSub(&axis_vel, &axis_vel_old, &axis_accel);
         VecScalMultEq(&axis_accel, 1.0 / tp->cycleTime);

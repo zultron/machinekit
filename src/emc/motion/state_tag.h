@@ -70,6 +70,7 @@ typedef enum {
     GM_FIELD_TOOLCHANGE,
     GM_FIELD_TOOL_OFFSET_NUMBER,
     GM_FIELD_POCKET_NUMBER,
+    GM_FIELD_FEED_AXES, // uses CanonFeedAxesType
     GM_FIELD_MAX_FIELDS
 } StateField;
 

@@ -32,7 +32,7 @@ void tcSetId(TP_STRUCT * const tp, TC_STRUCT * const tc, struct state_tag_t tag)
 int tpGetExecId(TP_STRUCT const * const tp);
 int tpGetCompletedId(TP_STRUCT const * const tp);
 int tpGetQueuedId(TP_STRUCT const * const tp);
-struct state_tag_t tpGetExecTag(TP_STRUCT * const tp);
+struct state_tag_t tpGetExecTag(const TP_STRUCT * const tp);
 int tpGetNextExecId(TP_STRUCT const * const tp);
 int tpSetTermCond(TP_STRUCT * const tp, tc_term_cond_t cond, double tolerance);
 int tpSetPos(TP_STRUCT * const tp, EmcPose const * const pos);

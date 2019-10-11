@@ -62,8 +62,6 @@ int tcInit(TC_STRUCT * const tc,
         unsigned char enables,
         char atspeed);
 
-int tcSetupFromTP(TC_STRUCT * const tc, TP_STRUCT const * const tp);
-
 int tcSetupMotion(TC_STRUCT * const tc,
         double vel,
         double ini_maxvel,

@@ -351,7 +351,10 @@ void CANON_UPDATE_END_POINT(double x, double y, double z,
 
 static DisplacementData getStraightDisplacement(PositionArray const &p_goal_ext)
 {
-    return getStraightDisplacement(ConvertsCanonToUserUnits().forward(canonEndPoint), p_goal_ext);
+    DisplacementData disp_data = getStraightDisplacement(ConvertsCanonToUserUnits().forward(canonEndPoint), p_goal_ext);
+    // KLUDGE stuff the feed mode into the tag so motion knows how to interpret path velocity
+    _tag.fields[GM_FIELD_FEED_AXES] = disp_data.feed_axes;
+    return disp_data;
 }
 
 /* motion control mode is used to signify blended v. stop-at-end moves.
