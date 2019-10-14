@@ -116,9 +116,6 @@ def plot_axis(logs_raw):
     np.savetxt('axis_vel.csv', axis_vel, delimiter=',')
     np.savetxt('axis_accel.csv', axis_accel, delimiter=',')
 
-    xyz_vel = np.sqrt(np.sum(np.square(axis_vel[:, 0:3]), 1))
-    nz_ind = np.where(xyz_vel>=0.000001)[0]
-
     if len(axis_pos):
         plt.figure(1)
         for idx in range(4):
@@ -127,6 +124,12 @@ def plot_axis(logs_raw):
         plt.legend()
         plt.xlabel('time, ms')
         plt.title('Axis position vs time, ms')
+
+    if not len(axis_vel):
+        return
+
+    xyz_vel = np.sqrt(np.sum(np.square(axis_vel[:, 0:3]), 1))
+    nz_ind = np.where(xyz_vel>=0.000001)[0]
 
     if len(axis_vel):
         plt.figure(2)
@@ -235,6 +238,18 @@ def plot_activations(logs_raw):
         plt.title('Target')
 
 
+def plot_sync(logs_raw):
+    logs = [l for l in logs_raw if l.get('log_entry', None) == 'tpSyncPositionMode']
+    pos_error = extract_field1_all(logs, 'pos_error')
+
+    if len(pos_error):
+        plt.figure()
+        plt.plot(pos_error, label='pos_error')
+        plt.xlabel('time, ms')
+        plt.grid(True)
+        plt.legend()
+        plt.title('Position error in sync')
+
 def plot_all(logfile):
     logs = parse_log(logfile)
     plot_axis(logs)
@@ -252,6 +267,7 @@ if __name__ == '__main__':
     plot_biarc(logs)
     plot_activations(logs)
     plot_checks(logs)
+    plot_sync(logs)
     plt.show()
 
 
