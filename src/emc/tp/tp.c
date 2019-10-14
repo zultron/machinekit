@@ -2601,7 +2601,7 @@ int tpCompleteSegment(TP_STRUCT * const tp,
     // spindle position so the next synced move can be in
     // the right place.
     if(tc->synchronized != TC_SYNC_NONE) {
-        tp->spindle.origin.position += (tc->target - tc->progress_at_sync) / tc->uu_per_rev;
+        tp->spindle.origin.position += (tc->target - tc->progress_at_sync) * tp->spindle.origin.direction / tc->uu_per_rev;
     } else {
         tp->spindle.origin.position = 0.0;
     }
