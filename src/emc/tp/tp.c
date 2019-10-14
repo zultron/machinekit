@@ -2980,12 +2980,14 @@ void clearPositionSyncErrors()
  * Run position mode synchronization.
  * Updates requested velocity for a trajectory segment to track the spindle's position.
  */
-void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
-        TC_STRUCT * const nexttc ) {
+void tpSyncPositionMode(
+    TP_STRUCT * const tp,
+    TC_STRUCT * const tc,
+    TC_STRUCT * const nexttc )
+{
 
     // Start with raw spindle position and our saved offset
     double spindle_pos_raw = emcmotStatus->spindle_fb.position_rev;
-
 
     const double spindle_vel_rps = findSpindleVelocity(emcmotStatus->spindle_fb.velocity_rps, tp->spindle.origin);
     // Estimate spindle position delta (2 steps seems to minimize physical position error
@@ -2996,8 +2998,6 @@ void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
     double spindle_displacement_measured = findSpindleDisplacement(spindle_pos_raw,
                                                           tp->spindle.origin);
     double spindle_displacement = spindle_displacement_measured + spindle_lookahead_delta;
-
-    tc_debug_print("spindle_displacement %f, lookahead_delta %f, raw_pos %f, ", spindle_displacement, spindle_lookahead_delta, spindle_pos_raw);
 
     double v_final = spindle_vel_rps * tc->uu_per_rev;
 
@@ -3011,12 +3011,20 @@ void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         net_progress += nexttc->progress;
     }
     const double pos_error = pos_desired - net_progress;
-    tc_debug_print("pos_desired %f, net_progress %f, pos_error %f\n",
-                   pos_desired,
-                   net_progress,
-                   pos_error);
 
     double a_max = tcGetTangentialMaxAccel(tc);
+
+#ifdef TC_DEBUG
+    print_json5_log_start(tpSyncPositionMode);
+    const double vel_error_before = v_final - tc->target_vel;
+    print_json5_double(vel_error_before);
+    print_json5_double(pos_error);
+    print_json5_double(spindle_displacement);
+    print_json5_double(spindle_lookahead_delta);
+    print_json5_double(spindle_pos_raw);
+    print_json5_double(pos_desired);
+    print_json5_double(net_progress);
+#endif
 
     switch (emcmotStatus->spindle_sync_state) {
     case SYNC_INACTIVE:
@@ -3102,10 +3110,6 @@ void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         }
         }
     }
-
-
-        tc_debug_print("in position sync, target_vel = %f, ideal_vel = %f, vel_err = %f\n", tc->target_vel, v_final, v_final - tc->target_vel);
-    }
     emcmotStatus->pos_tracking_velocity = tc->target_vel;
     emcmotStatus->pos_tracking_error = pos_error;
 
@@ -3119,6 +3123,10 @@ void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         //requested velocity to the current move
         nexttc->target_vel = tc->target_vel;
     }
+#ifdef TC_DEBUG
+    print_json5_double_("target_vel", tc->target_vel);
+    tp_debug_json_log_end();
+#endif
 }
 
 
