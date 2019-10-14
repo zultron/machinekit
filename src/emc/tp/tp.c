@@ -3468,11 +3468,9 @@ tp_err_t updateSyncTargets(TP_STRUCT *tp, TC_STRUCT *tc, TC_STRUCT *nexttc)
             emcmotStatus->spindle_fb.synced = 0;
             return TP_ERR_OK;
         case TC_SYNC_VELOCITY:
-            tc_debug_print("sync velocity\n");
             tpSyncVelocityMode(tc, nexttc);
             return TP_ERR_OK;
         case TC_SYNC_POSITION:
-            tc_debug_print("sync position\n");
             tpSyncPositionMode(tp, tc, nexttc);
             checkPositionSyncError(tp, tc);
 
