@@ -73,6 +73,7 @@ subdir('unit_tests')
 subdir('unit_tests/tp')
 subdir('unit_tests/interp')
 subdir('unit_tests/interp_shared')
+subdir('unit_tests/emccanon')
 subdir('unit_tests/mock')
 
 # Global library dependencies
@@ -395,6 +396,7 @@ librs274ngc = shared_module('rs274ngc',
     boost_dep, 
     python2_dep, 
     liblinuxcncini_dep, 
+    liblinuxcnchal_dep,
     libpyplugin_dep,
     libposemath_cpp_dep,
     libinterp_shared_dep,
@@ -427,9 +429,27 @@ libut_emccanon_dep = declare_dependency(include_directories : task_inc,
 ###########################################################################
 # Mocks
 
+common_mock_inc = [
+  mock_inc,
+  config_inc,
+  emc_global_inc,
+  motion_inc,
+]
+
+libmock_emcglb = library('mock_emcglb',
+  [mock_emcglb_srcs],
+  include_directories : [
+    common_mock_inc,
+    posemath_inc,
+  ]
+)
+
+libmock_emcglb_dep = declare_dependency(include_directories : [mock_inc],
+    link_with : libmock_emcglb)
+
 libmock_stat_config = library('mock_stat_config',
   [mock_stat_config_srcs],
-  include_directories : [mock_inc, config_inc, emc_global_inc, motion_inc],
+  include_directories : common_mock_inc,
   dependencies : [libnml_dep, libposemath_dep, librs274ngc_dep, libinterp_shared_dep, libut_emccanon_dep, libnml_interp_list_dep]
 )
 
@@ -480,3 +500,30 @@ test_interp_shared_ex = executable('test_interp_shared',
     )
 
 test('test_interp_shared', test_interp_shared_ex)
+
+test_emccanon_ex = executable('test_emccanon',
+    test_emccanon_srcs,
+    include_directories : [
+      test_emccanon_inc,
+      rs274ngc_external_inc,
+      unit_test_support_inc,
+      nml_intf_inc,
+      rs274ngc_inc,
+      ],
+    dependencies: [
+        dl_dep,
+        python2_dep,
+        libpyplugin_dep,
+        liblinuxcnchal_dep,
+        libut_emccanon_dep,
+        libinterp_shared_dep,
+        libmock_stat_config_dep,
+        libmock_emcglb_dep,
+        libnml_dep,
+        libnml_interp_list_dep,
+        libinterp_testing_util_dep,
+        ]
+    )
+
+
+

@@ -19,3 +19,7 @@ mock_motion_global_srcs = files([
 mock_motion_command_srcs = files([
     'mock_motion_command.c',
 ])
+
+mock_emcglb_srcs = files([
+    'mock_emcglb.cc',
+])
