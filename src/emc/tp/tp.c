@@ -2812,7 +2812,7 @@ tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
     if (segment_time < cutoff_time &&
             tc->canon_motion_type != EMC_MOTION_TYPE_TRAVERSE &&
             tc->term_cond == TC_TERM_COND_TANGENT &&
-            tc->motion_type != TC_RIGIDTAP)
+            !tc->synchronized)
     {
         tc->accel_mode = TC_ACCEL_RAMP;
     }
