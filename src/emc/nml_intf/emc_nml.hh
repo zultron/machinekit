@@ -1476,6 +1476,8 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     bool input_timeout;		// has a timeout happened on digital input
     bool orient_timeout;	// has a timeout happened on spindle orient
     bool orient_no_exec_error;	// set if M19 Q-word < 0 so g code can handle timeout
+    double motionTolerance;
+    double naivecamTolerance;
 };
 
 // declarations for EMC_TOOL classes

@@ -238,7 +238,12 @@ extern void SET_FEED_MODE(int mode);
 
 extern void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance);
 
+extern double GET_MOTION_TOLERANCE();
+
 extern void SET_NAIVECAM_TOLERANCE(double tolerance);
+
+extern double GET_NAIVECAM_TOLERANCE();
+
 
 /*
 

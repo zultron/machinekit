@@ -326,6 +326,8 @@ static PyMemberDef Stat_members[] = {
     {(char*)"input_timeout", T_BOOL, O(task.input_timeout), READONLY},
     {(char*)"orient_timeout", T_BOOL, O(task.orient_timeout), READONLY},
     {(char*)"orient_no_exec_error", T_BOOL, O(task.orient_no_exec_error), READONLY},
+    {(char*)"motion_tolerance", T_DOUBLE, O(task.motionTolerance), READONLY},
+    {(char*)"naivecam_tolerance", T_DOUBLE, O(task.naivecamTolerance), READONLY},
     {(char*)"delay_left", T_DOUBLE, O(task.delayLeft), READONLY},
     {(char*)"queued_mdi_commands", T_INT, O(task.queuedMDIcommands), READONLY},
 

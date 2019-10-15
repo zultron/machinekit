@@ -1975,6 +1975,8 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(input_timeout);
     cms->update(orient_timeout);
     cms->update(orient_no_exec_error);
+    cms->update(motionTolerance);
+    cms->update(naivecamTolerance);
 }
 
 /*
