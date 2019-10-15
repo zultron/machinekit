@@ -59,8 +59,6 @@ double tpGetRealMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const
 double tpGetRealFinalVel(TP_STRUCT const * const tp,
                          TC_STRUCT const * const tc, TC_STRUCT const * const nexttc);
 
-void resetSpindleOrigin(spindle_origin_t *origin);
-
 void setSpindleOrigin(spindle_origin_t *origin, double position);
 
 double tpCalculateTriangleVel(TC_STRUCT const *tc);

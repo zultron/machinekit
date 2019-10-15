@@ -303,16 +303,6 @@ double tpGetRealFinalVel(TP_STRUCT const * const tp,
     return finalvel;
 }
 
-void resetSpindleOrigin(spindle_origin_t *origin)
-{
-    if (!origin) {
-        return;
-    }
-    origin->direction = 0.0;
-    origin->position = 0.0;
-}
-
-
 /**
  * Set up a spindle origin based on the current spindle COMMANDED direction and the given position.
  *
@@ -326,6 +316,15 @@ void setSpindleOrigin(spindle_origin_t *origin, double position)
         return;
     }
     origin->position = position;
+    origin->direction = get_spindle_command_direction(emcmotStatus);
+}
+
+void updateSpindlePositionFromProgress(spindle_origin_t *origin, TC_STRUCT const * const tc)
+{
+    if (!origin || !tc) {
+        return;
+    }
+    origin->position += tc->progress * origin->direction / tc->uu_per_rev;
     origin->direction = get_spindle_command_direction(emcmotStatus);
 }
 
@@ -449,7 +448,7 @@ int tpInit(TP_STRUCT * const tp)
     tp->vLimit = 0.0;
     tp->vLimitAng = 0.0;
 
-    resetSpindleOrigin(&tp->spindle.origin);
+    setSpindleOrigin(&tp->spindle.origin, 0.0);
     tp->spindle.trigger_revs = 0;
     tp->spindle.waiting_for_index = MOTION_INVALID_ID;
     tp->spindle.waiting_for_atspeed = MOTION_INVALID_ID;
@@ -2404,7 +2403,7 @@ static inline void reverseRigidTapMotion(TC_STRUCT * const tc,
     PmCartLine *actual_xyz = &tc->coords.rigidtap.actual_xyz;
 
     // Set a new spindle origin at the approximate reversal point, and keep the current tracking error as the new offset
-    setSpindleOrigin(spindle_origin, spindle_pos_at_reversal);
+    updateSpindlePositionFromProgress(spindle_origin, tc);
 
     pmCartLinePoint(&tc->coords.rigidtap.actual_xyz, tc->progress, &start);
     end = tc->coords.rigidtap.nominal_xyz.start;
@@ -2415,7 +2414,6 @@ static inline void reverseRigidTapMotion(TC_STRUCT * const tc,
     // store the current position tracking error (in user units) as the sync offset
     // This way any accumulated error is not forgotten during the retraction
     tc->progress = 0.0;
-    tc->progress_sync_offset = -emcmotStatus->pos_tracking_error;
 }
 
 /**
@@ -2634,9 +2632,9 @@ int tpCompleteSegment(TP_STRUCT * const tp,
     // spindle position so the next synced move can be in
     // the right place.
     if(tc->synchronized != TC_SYNC_NONE) {
-        tp->spindle.origin.position += (tc->target - tc->progress_sync_offset) * tp->spindle.origin.direction / tc->uu_per_rev;
+        updateSpindlePositionFromProgress(&tp->spindle.origin, tc);
     } else {
-        tp->spindle.origin.position = 0.0;
+        setSpindleOrigin(&tp->spindle.origin, 0.0);
     }
 
     if(tc->indexrotary != -1) {
@@ -2694,18 +2692,15 @@ tp_err_t tpHandleAbort(TP_STRUCT * const tp, TC_STRUCT * const tc,
 
 void setSpindleTrigger(TP_STRUCT * const tp, TC_STRUCT * const tc)
 {
-    const double spindle_vel_rps = findSpindleVelocity(
-        get_spindle_speed_out_rpm(emcmotStatus) / 60.0,
-        tp->spindle.origin);
+    const double spindle_vel_rps_raw = get_spindle_speed_out_rpm(emcmotStatus) / 60.0;
 
     // WARNING: this assumes that max acceleration is constant over the segment to estimate the position error
     // This won't be true in the future if we switch to s-curve planning
     double a_max = tcGetTangentialMaxAccel(tc);
-    double accel_revs_est = fabs(tc->uu_per_rev * pmSq(spindle_vel_rps) / (2.0 * a_max));
+    double accel_revs_est = fabs(tc->uu_per_rev * pmSq(spindle_vel_rps_raw) / (2.0 * a_max));
     // Advance the spindle origin by at least enough
     double spindle_offset_turns = ceil(accel_revs_est + 0.25);
     setSpindleOrigin(&tp->spindle.origin, spindle_offset_turns * get_spindle_command_direction(emcmotStatus));
-    tc->progress_sync_offset = 0;
 
     // Setup spindle trigger conditions
     tp->spindle.trigger_revs = -accel_revs_est;
@@ -3011,7 +3006,7 @@ void tpSyncPositionMode(
 
     // Multiply by user feed rate to get equivalent desired position
     const double pos_desired = (spindle_displacement) * tc->uu_per_rev;
-    double net_progress = tc->progress - tc->progress_sync_offset;
+    double net_progress = tc->progress;
 
     if(nexttc) {
         // If we're in a parabolic blend, the next segment will be active too,
