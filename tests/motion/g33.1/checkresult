@@ -6,12 +6,11 @@ import subprocess
 
 
 def check_results(raw_output, dest_file):
-    with open(dest_file,'w') as r:
+    results=[]
+    if not os.path.exists(raw_output):
+        results.append('Failed: no test output found in file %s\n' % raw_output)
 
-        if not os.path.exists(raw_output):
-            r.write('Failed: no test output found in file %s\n' % raw_output)
-            return -1
-
+    else:
         failure_count = 0
         results=[]
         with open(raw_output) as f:
@@ -24,8 +23,13 @@ def check_results(raw_output, dest_file):
                     failure_count += 1
                     results.append(l)
 
+    with open(dest_file,'w') as r:
         r.writelines(results)
-        return failure_count
+    for row in results:
+        if "failed" in row:
+            print row
+
+    return failure_count
 
 
 if __name__ == '__main__':

@@ -39,7 +39,13 @@ print >> sys.stderr, "start spindle"
 c.mdi('S%d %s' % (constants["spindle_speed_rps"]*60., g33_checks.get_spindle_mcode(constants)))
 c.wait_complete(10)
 print >> sys.stderr, "tap move"
-c.mdi('G33.1 Z-{} K{}'.format(constants["z_distance"], constants["pitch"]))
+cmd_word = 'G33.1' if constants.get("rigid_tap", True) else 'G33'
+z_pecks = max(int(constants.get("z_pecks",1)),1)
+z_delta = constants["z_distance"] / float(z_pecks)
+for peck in range(z_pecks):
+    cmd = '{} Z-{} K{}'.format(cmd_word, z_delta * peck, constants["pitch"])
+    print >>sys.stderr, cmd
+    c.mdi(cmd)
 c.wait_complete(100)
 c.mdi('G4 P0.01')
 c.wait_complete()
