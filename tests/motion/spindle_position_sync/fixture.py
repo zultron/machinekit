@@ -35,6 +35,8 @@ p_read = Popen([
     sample_file,
 ])
 
+c.mdi('M150 P{}'.format(constants.get("eccentricity", 0.0)))
+c.wait_complete(10)
 c.mdi('G0 X0 Y0 Z0')
 c.wait_complete(10)
 spindle_cmd = 'S%d %s' % (constants["spindle_speed_rps"]*60., g33_checks.get_spindle_mcode(constants))
