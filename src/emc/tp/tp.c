@@ -2473,6 +2473,7 @@ void tpUpdateRigidTapState(
                     // Stop synchronized motion if not peck tapping
                     tc->synchronized = 0;
                     tc->target_vel = tc->maxvel_geom;
+                    tc->canon_motion_type = EMC_MOTION_TYPE_TRAVERSE;
                 }
             }
             break;
