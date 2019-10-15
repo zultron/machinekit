@@ -33,8 +33,14 @@ def get_test_name_from_case_file(test_file_name):
 
 
 def load_test_case(test_name):
+    
+    with open('defaults.json'.format(test_name), 'r') as f:
+        c= json.load(f)
+    
     with open('test_case_{}.json'.format(test_name), 'r') as f:
-        return json.load(f)
+        c.update(json.load(f))
+
+    return c
 
 
 def load_samples_after_sync(samples_file):
