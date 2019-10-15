@@ -42,7 +42,7 @@ print >> sys.stderr, "tap move"
 cmd_word = 'G33.1' if constants.get("rigid_tap", True) else 'G33'
 z_pecks = max(int(constants.get("z_pecks",1)),1)
 z_delta = constants["z_distance"] / float(z_pecks)
-for peck in range(z_pecks):
+for peck in range(1,z_pecks+1):
     cmd = '{} Z-{} K{}'.format(cmd_word, z_delta * peck, constants["pitch"])
     print >>sys.stderr, cmd
     c.mdi(cmd)
