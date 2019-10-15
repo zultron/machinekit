@@ -43,8 +43,8 @@ for k = 1:length(sample_files)
   hold on
   clf
   plot(t_sync, meas_err, t_sync, motion_err, '.');
-  title(sprintf('Spindle tracking error pitch %0.3f in, %d RPM. distance %0.3f in, %s',...
-     constants.pitch, constants.spindle_speed_rps * 60, constants.z_distance, constants.spindle_direction),'interpreter','none')
+  title(sprintf('Spindle tracking error, pitch %0.3f in, %d RPM. distance %0.3f in, %s, %s',...
+     constants.pitch, constants.spindle_speed_rps * 60, constants.z_distance, constants.spindle_direction, prefix(11:end)),'interpreter','none')
   xlabel('Time, ms')
   ylabel('Deviation, in')
   grid on
