@@ -35,17 +35,20 @@ p_read = Popen([
     sample_file,
 ])
 
-print >> sys.stderr, "start spindle"
-c.mdi('S%d %s' % (constants["spindle_speed_rps"]*60., g33_checks.get_spindle_mcode(constants)))
+c.mdi('G0 X0 Y0 Z0')
 c.wait_complete(10)
-print >> sys.stderr, "tap move"
-cmd_word = 'G33.1' if constants.get("rigid_tap", True) else 'G33'
-z_pecks = max(int(constants.get("z_pecks",1)),1)
-z_delta = constants["z_distance"] / float(z_pecks)
-for peck in range(1,z_pecks+1):
-    cmd = '{} Z-{} K{}'.format(cmd_word, z_delta * peck, constants["pitch"])
-    print >>sys.stderr, cmd
-    c.mdi(cmd)
+spindle_cmd = 'S%d %s' % (constants["spindle_speed_rps"]*60., g33_checks.get_spindle_mcode(constants))
+print >> sys.stderr, spindle_cmd
+c.mdi(spindle_cmd)
+c.wait_complete(10)
+cmd_str='o<{}> call [{}] [{}] [{}]'.format(
+    "rigid_tap_sub" if constants.get("rigid_tap", True) else "spindle_sync_sub",
+    constants.get("z_depth",-1.0),
+    constants.get("z_pecks", 1.0),
+    constants.get("pitch", 0.1),
+)
+print >> sys.stderr, cmd_str
+c.mdi(cmd_str)
 c.wait_complete(100)
 c.mdi('G4 P0.01')
 c.wait_complete()

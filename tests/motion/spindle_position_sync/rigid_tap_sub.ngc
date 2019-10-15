@@ -1,0 +1,10 @@
+o<rigid_tap_sub> sub
+G91
+(PRINT,THIS IS A SUB)
+o<101> repeat [#2]
+#<z_next>=[#1/#2]
+G33.1 Z#<z_next> K#3
+o<101> endrepeat
+G90
+o<rigid_tap_sub> endsub
+M2

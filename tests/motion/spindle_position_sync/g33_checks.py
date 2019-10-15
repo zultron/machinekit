@@ -56,7 +56,7 @@ def check_all(test_name):
 
     exceeds_abs_dev = check_abs_deviation(samples, constants)
 
-    z_endpt = -constants["z_distance"]
+    z_endpt = constants["z_depth"]
     exceeds_overrun = check_overrun(samples[:, 4], z_endpt, 10. * constants["pitch"])
 
     return exceeds_abs_dev or exceeds_overrun
@@ -78,7 +78,7 @@ def check_abs_deviation(samples, constants):
     end_sync_idx = pos_sync_active_range[-1].item()
 
     sync_pos = samples[sync_idx, 4]
-    endpoint = -constants["z_distance"]
+    endpoint = constants["z_depth"]
     if sync_pos < endpoint:
         print >> sys.stderr, "Failed: position sync starts at position %f, after the endpoint %f)" % (sync_pos, endpoint)
         return True
@@ -119,13 +119,13 @@ def check_overrun(axis_pos, nominal_endpt, allowed_overshoot):
 
     print >> sys.stderr, "min axis position: ", min_pos
     print >> sys.stderr, "max axis position: ", max_pos
-
-    if min_pos < nominal_endpt - allowed_overshoot:
-        print >> sys.stderr, "Failed: Overrun detected at bottom of hole"
+    allowed_min = nominal_endpt - allowed_overshoot
+    if min_pos < allowed_min:
+        print >> sys.stderr, "Failed: Overrun detected at bottom of hole, min_pos {} exceeds limit of {}".format(min_pos, allowed_min)
         return True
 
     if max_pos > allowed_overshoot:
-        print >> sys.stderr, "Failed: Overrun detected at retract"
+        print >> sys.stderr, "Failed: Overrun detected at retract, max_pos {} exceeds limit of {}".format(max_pos, allowed_overshoot)
         return True
 
     print >> sys.stderr, "Passed: no overrun detected"
