@@ -1105,6 +1105,7 @@ int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc)
     emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
+    emcmotCommand.motion_type = EMC_MOTION_TYPE_RIGIDTAP;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }

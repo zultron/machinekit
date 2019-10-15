@@ -381,6 +381,7 @@ void emcmotAioWrite(int index, double value)
 STATIC int is_feed_type(int motion_type)
 {
     switch(motion_type) {
+    case EMC_MOTION_TYPE_RIGIDTAP:
     case EMC_MOTION_TYPE_ARC:
     case EMC_MOTION_TYPE_FEED:
     case EMC_MOTION_TYPE_PROBING:

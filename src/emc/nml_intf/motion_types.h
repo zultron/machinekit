@@ -17,6 +17,7 @@
 #define MOTION_TYPES_H
 
 typedef enum {
+    EMC_MOTION_TYPE_RIGIDTAP = 0, //KLUDGE same as jog for now for backwards compatibility, eventually give this its own color
     EMC_MOTION_TYPE_TRAVERSE = 1,
     EMC_MOTION_TYPE_FEED = 2,
     EMC_MOTION_TYPE_ARC = 3,
