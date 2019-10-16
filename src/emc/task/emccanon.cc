@@ -1311,6 +1311,11 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
 	tag_and_send(setTermCondMsg);
 }
 
+double GET_MOTION_TOLERANCE()
+{
+    return TO_PROG_LEN(canonMotionTolerance);
+}
+
 void SET_NAIVECAM_TOLERANCE(double tolerance)
 {
     const double new_tol_mm = tolerance < 0.0 ? FROM_EXT_LEN(traj_default_naivecam_tolerance) : FROM_PROG_LEN(tolerance);
@@ -1318,6 +1323,11 @@ void SET_NAIVECAM_TOLERANCE(double tolerance)
         fprintf(stderr,"Setting naivecam tolerance to %f mm\n", canonNaivecamTolerance);
     }
     canonNaivecamTolerance = new_tol_mm;
+}
+
+double GET_NAIVECAM_TOLERANCE()
+{
+    return TO_PROG_LEN(canonNaivecamTolerance);
 }
 
 void SELECT_PLANE(CANON_PLANE in_plane)

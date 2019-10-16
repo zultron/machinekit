@@ -778,6 +778,9 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     //update state of block delete
     stat->block_delete_state = GET_BLOCK_DELETE();
 
+    stat->motionTolerance = GET_MOTION_TOLERANCE();
+    stat->naivecamTolerance = GET_NAIVECAM_TOLERANCE();
+
     stat->heartbeat++;
 
     return 0;

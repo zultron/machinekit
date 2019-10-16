@@ -810,16 +810,6 @@ int pmRigidTapInit(PmRigidTap * const tap,
 
 }
 
-double pmRigidTapTarget(PmRigidTap * const tap, double uu_per_rev)
-{
-    // allow 10 turns of the spindle to stop - we don't want to just go on forever
-    double overrun = 10. * uu_per_rev;
-    double target = tap->xyz.tmag + overrun;
-    tp_debug_print("initial tmag = %.12g, added %.12g for overrun, target = %.12g\n",
-            tap->xyz.tmag, overrun,target);
-    return target;
-}
-
 /** Returns true if segment has ONLY rotary motion, false otherwise. */
 int tcPureRotaryCheck(TC_STRUCT const * const tc)
 {
@@ -827,7 +817,6 @@ int tcPureRotaryCheck(TC_STRUCT const * const tc)
         (tc->coords.line.xyz.tmag_zero) &&
         (tc->coords.line.uvw.tmag_zero);
 }
-
 
 /**
  * Given a PmCircle and a circular segment, copy the circle in as the XYZ portion of the segment, then update the motion parameters.

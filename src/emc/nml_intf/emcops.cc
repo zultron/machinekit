@@ -146,7 +146,9 @@ EMC_TASK_STAT::EMC_TASK_STAT():
     block_delete_state(false),
     input_timeout(false),
     orient_timeout(false),
-    orient_no_exec_error(false)
+    orient_no_exec_error(false),
+    motionTolerance(0.0),
+    naivecamTolerance(0.0)
 {
     activeGCodes.fill(G_INVALID);
     activeMCodes.fill(-1);

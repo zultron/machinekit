@@ -192,12 +192,14 @@ pin in float hispeed-min;
 pin in float hispeed-max;
 
 pin in float speeder_factor;
+pin in float vfd_max_acceleration_rps;
 
 pin out bit speed_alarm;
 pin out float vfd_freq_cmd;
 pin out float vfd_rpm_cmd;
 pin out float feedback_motor_rpm;
 pin out float feedback_spindle_rpm;
+pin out float spindle_max_acceleration_rps;
 
 pin in bit enc_door_switch_configured;
 pin in bit enc_door_switch_status;
@@ -1303,6 +1305,7 @@ FUNCTION(_) {
         step_tol_below = setValue(lowbelt_tol_below,DEF_LOWBELT_TOL_BELOW);
         step_tol_above = setValue(lowbelt_tol_above,DEF_LOWBELT_TOL_ABOVE);
     }
+    spindle_max_acceleration_rps = vfd_max_acceleration_rps * pulley_ratio;
 
     // test for speeder spindle type
     if (spindle_type == SPINDLE_TYPE_SPEEDER) {
@@ -1311,6 +1314,7 @@ FUNCTION(_) {
         step_speed = step_speed * speeder_ratio;
         step_tol_below = step_tol_below * speeder_ratio;
         step_tol_above = step_tol_above * speeder_ratio;
+        spindle_max_acceleration_rps = vfd_max_acceleration_rps * speeder_ratio;
     }
 
     // test for high speed spindle type
@@ -1322,7 +1326,9 @@ FUNCTION(_) {
         step_speed = setValue(hispeed_step_rpm,DEF_HISPEED_STEP_RPM);
         step_tol_below = setValue(hispeed_tol_below,DEF_HISPEED_TOL_BELOW);
         step_tol_above = setValue(hispeed_tol_above,DEF_HISPEED_TOL_ABOVE);
+        spindle_max_acceleration_rps = 0.0; //Can't do rigid tapping with high-speed spindle, so don't bother
     }
+    // KLUDGE: ignore torque for now and assume VFD acceleration is exactly commanded
 
     // range check and clamp speed-in between min and max (0.0 is OK for stopped)
     speed_alarm = BIT_FALSE;
@@ -1986,9 +1992,16 @@ FUNCTION(_) {
         spindle_run = BIT_FALSE;  //inhibit VFD enable (RUN)
     }
 
-    if((vfd_power_state != VFD_PWR_ON) || pp_estop_fault || PHYSICAL_ESTOP || estop_fault)  //keep spindle_run off until VFD, PP, m200.comp, and ESTOP button are all "GO"
+    if((vfd_power_state != VFD_PWR_ON) || pp_estop_fault || PHYSICAL_ESTOP || estop_fault)  { //keep spindle_run off until VFD, PP, m200.comp, and ESTOP button are all "GO"
         spindle_run = BIT_FALSE;                                                            //or'ing all these are most certainly redundant but defensive programming.
-
+        if (last_active_spindle_state == SPINDLE_STATE_ORIENTING || last_active_spindle_state == SPINDLE_STATE_LOCKED) //we can't even get here without new VFD, so not checking vfd_cap
+            vfd_freq_cmd = VFD_BIPOLAR_FREQ_OFFSET;
+        else
+            if (vfd_cap == VFD_CAP_NO_MODE_SW)
+                vfd_freq_cmd = 0.0; //old style VFD, just hit it with 0 RPM 
+            else 
+                vfd_freq_cmd = VFD_UNIPOLAR_MIN_FREQ; //newer VFD (or we don't know, so must assume) can not have 0 freq input without faulting
+    }
 }
 
 

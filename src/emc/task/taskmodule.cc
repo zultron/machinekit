@@ -456,6 +456,8 @@ BOOST_PYTHON_MODULE(emctask) {
 	.def_readwrite("input_timeout", &EMC_TASK_STAT::input_timeout)
 	.def_readwrite("orient_timeout", &EMC_TASK_STAT::orient_timeout)
 	.def_readwrite("orient_no_exec_error", &EMC_TASK_STAT::orient_no_exec_error)
+    .def_readonly("motion_tolerance", &EMC_TASK_STAT::motionTolerance)
+    .def_readonly("naivecam_tolerance", &EMC_TASK_STAT::naivecamTolerance)
 
 	//  read-only
 	.add_property("file",  &get_file)

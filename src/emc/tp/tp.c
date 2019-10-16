@@ -33,6 +33,8 @@
 #define EMC_TRAJ_TERM_COND_EXACT 1
 #define EMC_TRAJ_TERM_COND_BLEND 2
 
+static const double RIGIDTAP_MAX_OVERSHOOT_REVS = 10.0;
+
 /**
  * @section tpdebugflags TP debugging flags
  * Enable / disable various debugging functions here.
@@ -1486,7 +1488,8 @@ int tpAddRigidTap(TP_STRUCT * const tp,
     pmRigidTapInit(&tc.coords.rigidtap,
             &tp->goalPos,
             &end);
-    tc.target = pmRigidTapTarget(&tc.coords.rigidtap, tp->uu_per_rev);
+
+    tc.target = tc.coords.rigidtap.xyz.tmag + RIGIDTAP_MAX_OVERSHOOT_REVS * tp->uu_per_rev;
 
     return tpFinalizeAndEnqueue(tp, &tc);
 }
@@ -2369,12 +2372,18 @@ void tpUpdateRigidTapState(TP_STRUCT * const tp,
     static double old_spindle_pos = 0.0;
     double spindle_pos = emcmotStatus->spindle_fb.position_rev;
 
+    double cmd_latency_dist = tc->currentvel * emcmotStatus->spindle_cmd_latency_sec;
+    double decel_distance = emcmotStatus->spindle_max_acceleration_rps2 > 0.0 ? pmSq(tc->currentvel) / (2.0 * tc->uu_per_rev * emcmotStatus->spindle_max_acceleration_rps2) : 0.0;
+    double reversal_target = bound(tc->coords.rigidtap.reversal_target - cmd_latency_dist - decel_distance,
+                                   tc->coords.rigidtap.reversal_target,
+                                   0.0);
+
     rigid_tap_state_t const initial_state = tc->coords.rigidtap.state;
     switch (initial_state) {
         case RIGIDTAP_INACTIVE:
             return;
         case RIGIDTAP_TAPPING:
-            if (tc->progress >= tc->coords.rigidtap.reversal_target) {
+            if (tc->progress >= reversal_target) {
                 // command reversal
                 cmdReverseSpindle();
                 tc->coords.rigidtap.state = RIGIDTAP_REVERSING;
@@ -2382,6 +2391,7 @@ void tpUpdateRigidTapState(TP_STRUCT * const tp,
             break;
         case RIGIDTAP_REVERSING:
             if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
+                emcmotStatus->rigid_tap_overshoot = tc->progress - tc->coords.rigidtap.reversal_target;
                 PmCartesian start, end;
                 PmCartLine *aux = &tc->coords.rigidtap.aux_xyz;
                 // we've stopped, so set a new target at the original position
@@ -2392,7 +2402,7 @@ void tpUpdateRigidTapState(TP_STRUCT * const tp,
                 pmCartLineInit(aux, &start, &end);
                 rtapi_print_msg(RTAPI_MSG_DBG, "old target = %f", tc->target);
                 tc->coords.rigidtap.reversal_target = aux->tmag;
-                tc->target = aux->tmag + 10. * tc->uu_per_rev;
+                tc->target = aux->tmag + RIGIDTAP_MAX_OVERSHOOT_REVS * tc->uu_per_rev;
                 // NOTE: reset both progress and sync location:
                 // At the point of reversal, the spindle is already synchronized
                 tc->progress = 0.0;
