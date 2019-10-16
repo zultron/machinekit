@@ -2400,6 +2400,7 @@ void EMC_TRAJ_STAT::update(CMS * cms)
     cms->update(spindle_sync);
     cms->update(probing);
     cms->update(probeval);
+    cms->update(setterval);
     cms->update(kinematics_type);
     cms->update(motion_type);
     cms->update(tag);

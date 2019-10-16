@@ -1047,6 +1047,7 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
     bool probing;		// Are we currently looking for a probe
     // signal.
     int probeval;		// Current value of probe input.
+    int setterval;       // Current value of tool setter input.
     int kinematics_type;	// identity=1,serial=2,parallel=3,custom=4
     int motion_type;
     double distance_to_go;         // in current move

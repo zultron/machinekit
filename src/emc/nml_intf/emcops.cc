@@ -83,6 +83,7 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
     probeCount = 0;
     probing = false;
     probeval = 0;
+    setterval = 0;
     
     ZERO_EMC_POSE(dtg);
     distance_to_go = 0.0;

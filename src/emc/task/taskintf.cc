@@ -1196,6 +1196,7 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
     stat->probedPosition = emcmotStatus.probedPos;
 
     stat->probeval = emcmotStatus.probeVal;
+    stat->setterval = emcmotStatus.setterVal;
     stat->probing = emcmotStatus.probing;
     stat->probe_tripped = emcmotStatus.probeTripped;
     stat->probeCount = emcmotStatus.probeCount;

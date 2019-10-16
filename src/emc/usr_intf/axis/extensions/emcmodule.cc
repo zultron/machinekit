@@ -364,6 +364,7 @@ static PyMemberDef Stat_members[] = {
     {(char*)"uu_per_rev", T_DOUBLE, O(motion.traj.uu_per_rev), READONLY},
     {(char*)"probing", T_BOOL, O(motion.traj.probing), READONLY},
     {(char*)"probe_val", T_INT, O(motion.traj.probeval), READONLY},
+    {(char*)"setter_val", T_INT, O(motion.traj.setterval), READONLY},
     {(char*)"kinematics_type", T_INT, O(motion.traj.kinematics_type), READONLY},
     {(char*)"motion_type", T_INT, O(motion.traj.motion_type), READONLY},
     {(char*)"distance_to_go", T_DOUBLE, O(motion.traj.distance_to_go), READONLY},

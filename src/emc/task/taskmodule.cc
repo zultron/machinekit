@@ -363,6 +363,7 @@ BOOST_PYTHON_MODULE(emctask) {
 	.def_readwrite("probe_tripped", &EMC_TRAJ_STAT::probe_tripped )
 	.def_readwrite("probing", &EMC_TRAJ_STAT::probing )
 	.def_readwrite("probeval", &EMC_TRAJ_STAT::probeval )
+	.def_readwrite("setterval", &EMC_TRAJ_STAT::setterval )
 	.def_readwrite("kinematics_type", &EMC_TRAJ_STAT::kinematics_type )
 	.def_readwrite("motion_type", &EMC_TRAJ_STAT::motion_type )
 	.def_readwrite("distance_to_go", &EMC_TRAJ_STAT::distance_to_go )
