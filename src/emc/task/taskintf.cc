@@ -1089,24 +1089,25 @@ int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double ac
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc, double scale)
+int emcTrajRigidTap(EMC_TRAJ_RIGID_TAP const &cmd)
 {
 #ifdef ISNAN_TRAP
-    if (std::isnan(pos.tran.x) || std::isnan(pos.tran.y) || std::isnan(pos.tran.z)) {
+    if (std::isnan(cmd.pos.tran.x) || std::isnan(cmd.pos.tran.y) || std::isnan(cmd.pos.tran.z)) {
 	printf("std::isnan error in emcTrajRigidTap()\n");
 	return 0;		// ignore it for now, just don't send it
     }
 #endif
 
     emcmotCommand.command = EMCMOT_RIGID_TAP;
-    emcmotCommand.pos.tran = pos.tran;
+    emcmotCommand.pos.tran = cmd.pos.tran;
     emcmotCommand.id = localEmcTrajTag.fields[GM_FIELD_STEPPING_ID];
     emcmotCommand.tag = localEmcTrajTag;
-    emcmotCommand.vel = vel;
-    emcmotCommand.ini_maxvel = ini_maxvel;
-    emcmotCommand.acc = acc;
+    emcmotCommand.tap_uu_per_rev = cmd.tap_uu_per_rev;
+    emcmotCommand.retract_uu_per_rev = cmd.retract_uu_per_rev;
+    emcmotCommand.ini_maxvel = cmd.ini_maxvel;
+    emcmotCommand.acc = cmd.acc;
     emcmotCommand.motion_type = EMC_MOTION_TYPE_RIGIDTAP;
-    emcmotCommand.scale = scale;
+    emcmotCommand.scale = cmd.scale;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }

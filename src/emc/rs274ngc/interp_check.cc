@@ -317,10 +317,18 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
         _("I word with no G2, G3, G5, G5.1, G10, G33.1, G76, or G87 to use it"));
   }
 
-  if (block->j_flag) {    /* could still be useless if xz_plane arc */
-    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_5) && (motion != G_5_1) && 
-          (motion != G_76) && (motion != G_87) && (block->g_modes[GM_MODAL_0] != G_10)),
-        _("J word with no G2, G3, G5, G5.1, G10, G76 or G87 to use it"));
+  if (block->j_flag) {
+      //Edited to allow P words even when they will be ignored. These are caught with the warnings below
+      const WordUsageStatus j_status = is_j_allowed(block->g_modes, block->motion_to_be);
+      switch (j_status)
+      {
+      case WORD_MEANING_CONFLICT:
+          ERS("J word has conflicting meanings in line");
+      case WORD_NOT_ALLOWED:
+          ERS("J word specified, but line has no G-code that uses it");
+      default:
+          break;
+      }
   }
 
   if (block->k_flag) {    /* could still be useless if xy_plane arc */

@@ -41,7 +41,8 @@ int tpSetCurrentPos(TP_STRUCT * const tp, EmcPose const * const pos);
 
 int tpAddRigidTap(TP_STRUCT * const tp,
         EmcPose end,
-        double vel,
+        double tap_uu_per_rev,
+        double retract_uu_per_rev,
         double ini_maxvel,
         double acc,
         unsigned char enables,

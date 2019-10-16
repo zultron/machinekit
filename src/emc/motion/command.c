@@ -1492,8 +1492,9 @@ check_stuff ( "before command_handler()" );
 	    /* append it to the emcmotDebug->tp */
 	    tpSetId(&emcmotDebug->tp, emcmotCommand->id);
 	    int res_addtap = tpAddRigidTap(&emcmotDebug->tp, emcmotCommand->pos,
-					   emcmotCommand->vel,
-					   emcmotCommand->ini_maxvel,
+                       emcmotCommand->tap_uu_per_rev,
+                       emcmotCommand->retract_uu_per_rev,
+                       emcmotCommand->ini_maxvel,
 					   emcmotCommand->acc,
 					   emcmotStatus->enables_new,
                        issue_atspeed,

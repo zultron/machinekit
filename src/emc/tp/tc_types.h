@@ -113,6 +113,8 @@ typedef struct {
     PmCartesian uvw;
     double reversal_target;
     double reversal_scale;
+    double tap_uu_per_rev;
+    double retract_uu_per_rev;
     rigid_tap_state_t state;
 } PmRigidTap;
 

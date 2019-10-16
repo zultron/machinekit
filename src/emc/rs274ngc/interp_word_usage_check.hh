@@ -12,6 +12,15 @@ enum WordUsageStatus
     WORD_IGNORED = 1,
 };
 
+enum JWordMeanings
+{
+    J_ARC_CENTER, // G2 / G3
+    J_SPLINE_OFFSET, // G5
+    J_THREAD_PITCH_SCALE, // G33.1 Rigid tapping pitch scale
+    J_INITIAL_CUT_DEPTH, // G76
+    J_BACK_ANGLE, // G10 L1 / L10
+    MAX_JWORD_MEANINGS
+};
 
 enum PWordMeanings
 {
@@ -56,6 +65,10 @@ enum RWordMeanings
     R_USER, // M-codes
     MAX_RWORD_MEANINGS
 };
+
+WordUsageStatus is_j_allowed(
+    std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_modes,
+    GCodes motion_to_be);
 
 WordUsageStatus is_p_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes, int o_type);
 

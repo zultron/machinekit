@@ -20,6 +20,7 @@
 #include "nml_type.hh"
 #include "motion_types.h"
 #include "emc_types.hh"
+#include "emc_nml.hh"
 extern "C" {
 #include "state_tag.h"
 }
@@ -132,7 +133,7 @@ extern int emcTrajClearProbeTrippedFlag();
 extern int emcTrajProbe(EmcPose pos, int type, double vel, 
                         double ini_maxvel, double acc, int pure_angular, unsigned char probe_type);
 extern int emcAuxInputWait(int index, int input_type, int wait_type, int timeout);
-extern int emcTrajRigidTap(EmcPose pos, double vel, double ini_maxvel, double acc, double mult);
+extern int emcTrajRigidTap(EMC_TRAJ_RIGID_TAP const &cmd);
 
 extern int emcTrajUpdate(EMC_TRAJ_STAT * stat);
 

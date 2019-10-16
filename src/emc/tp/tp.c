@@ -1450,15 +1450,17 @@ static void addRigidTapOverrun(TC_STRUCT * const tc, double revolutions)
 /**
  * Adds a rigid tap cycle to the motion queue.
  */
-int tpAddRigidTap(TP_STRUCT * const tp,
-        EmcPose end,
-        double vel,
-        double ini_maxvel,
-        double acc,
-        unsigned char enables,
-        char atspeed,
-        double scale,
-        struct state_tag_t tag) {
+int tpAddRigidTap(
+    TP_STRUCT * const tp,
+    EmcPose end,
+    double tap_uu_per_rev,
+    double retract_uu_per_rev,
+    double ini_maxvel,
+    double acc,
+    unsigned char enables,
+    char atspeed,
+    double scale,
+    struct state_tag_t tag) {
     if (tpErrorCheck(tp)) {
         return TP_ERR_FAIL;
     }
@@ -1493,9 +1495,12 @@ int tpAddRigidTap(TP_STRUCT * const tp,
 
     // Copy in motion parameters
     tcSetupMotion(&tc,
-            vel,
+            ini_maxvel,
             ini_maxvel,
             acc);
+
+    tc.coords.rigidtap.tap_uu_per_rev = tap_uu_per_rev;
+    tc.coords.rigidtap.retract_uu_per_rev = retract_uu_per_rev;
 
     // Setup rigid tap geometry
     pmRigidTapInit(&tc.coords.rigidtap,
@@ -2440,6 +2445,7 @@ void tpUpdateRigidTapState(
         case RIGIDTAP_INACTIVE:
             return;
         case RIGIDTAP_TAPPING:
+            tc->uu_per_rev = tc->coords.rigidtap.tap_uu_per_rev;
             if (tc->progress >= reversal_target) {
                 // command reversal to stop / reverse at the bottom of the hole
                 emcmotStatus->rigid_tap_reversal_vel_rps = emcmotStatus->spindle_fb.velocity_rps;
@@ -2453,6 +2459,7 @@ void tpUpdateRigidTapState(
                 reverseRigidTapMotion(tc, &tp->spindle.origin, spindle_pos);
                 addRigidTapOverrun(tc, RIGIDTAP_MAX_OVERSHOOT_REVS);
                 tc->coords.rigidtap.state = RIGIDTAP_RETRACTION;
+                tc->uu_per_rev = tc->coords.rigidtap.retract_uu_per_rev;
             }
             break;
         case RIGIDTAP_RETRACTION:
@@ -2465,6 +2472,7 @@ void tpUpdateRigidTapState(
         case RIGIDTAP_FINAL_REVERSAL:
             if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
                 reverseRigidTapMotion(tc, &tp->spindle.origin, spindle_pos);
+                tc->uu_per_rev = tc->coords.rigidtap.tap_uu_per_rev;
                 tc->coords.rigidtap.state = RIGIDTAP_FINAL_PLACEMENT;
                 if (!nexttc
                         || nexttc->motion_type != TC_RIGIDTAP

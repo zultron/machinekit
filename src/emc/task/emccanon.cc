@@ -1115,8 +1115,14 @@ void STRAIGHT_FEED(int line_number,
 }
 
 
-void RIGID_TAP(int line_number, double x, double y, double z, double scale)
-{
+void RIGID_TAP(int line_number,
+    double x,
+    double y,
+    double z,
+    double spindle_retract_speed_scale,
+    double tap_pitch,
+    double retract_pitch
+){
     double ini_maxvel,acc;
     double unused=0;
 
@@ -1131,11 +1137,14 @@ void RIGID_TAP(int line_number, double x, double y, double z, double scale)
 
     ini_maxvel = veldata.vel;
 
-    double nominal_vel = limitSpindleSpeedByActiveFeedRate(ini_maxvel);
+    const double nominal_tap_vel = FROM_PROG_LEN(tap_pitch) * spindleSpeed_rpm / 60.0;
+    const double nominal_retract_vel = FROM_PROG_LEN(retract_pitch) * spindleSpeed_rpm / 60.0;
+    double nominal_vel = fmax(nominal_tap_vel, nominal_retract_vel);
+    // Limit spindle speed during rigid tapping
+    limitSpindleSpeedFromVel(nominal_vel, ini_maxvel);
 
     AccelData accdata = getStraightAcceleration(bottom, 0);
     acc = accdata.acc;
-
 
     double depth = mag(xyz(bottom) - xyz(canonEndPoint));
     double safe_lead = nominal_vel * nominal_vel / (2.0 * acc) * RIGID_TAP_LEADIN_SAFETY_FACTOR;
@@ -1148,11 +1157,11 @@ void RIGID_TAP(int line_number, double x, double y, double z, double scale)
     {
         EMC_TRAJ_RIGID_TAP rigidTapMsg;
         rigidTapMsg.pos = to_ext_pose(bottom);
-
-        rigidTapMsg.vel = toExtVel(nominal_vel); // NOTE: for reference ONLY, the actual feed is identified at runtime using uu/rev and real spindle speed
+        rigidTapMsg.tap_uu_per_rev = TO_EXT_LEN(FROM_PROG_LEN(tap_pitch));
+        rigidTapMsg.retract_uu_per_rev = TO_EXT_LEN(FROM_PROG_LEN(retract_pitch));
         rigidTapMsg.ini_maxvel = toExtVel(ini_maxvel);
         rigidTapMsg.acc = toExtAcc(acc);
-        rigidTapMsg.scale = scale;
+        rigidTapMsg.scale = spindle_retract_speed_scale;
         flush_segments();
 
         if(ini_maxvel && acc)  {

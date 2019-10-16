@@ -212,8 +212,10 @@ typedef struct emcmot_command_t {
 	PmCartesian center;	/* center for circle */
 	PmCartesian normal;	/* normal vec for circle */
 	int turn;		/* turns for circle or which rotary to unlock for a line */
-	double vel;		/* max linear velocity */
-	double vela;		/* max angular velocity */
+    double vel;		/* max linear velocity */
+    double tap_uu_per_rev;
+    double retract_uu_per_rev;
+    double vela;		/* max angular velocity */
         double ini_maxvel;      /* max velocity allowed by machine
                                    constraints (the ini file) */
         int pure_angular;       // Canon decided this move should be treated as an angular move (may have small XYZUVW motion anyway)

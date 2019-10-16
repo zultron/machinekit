@@ -4471,14 +4471,17 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
            (settings->spindle_turning != CANON_COUNTERCLOCKWISE)),
           _("Spindle not turning in G33.1"));
     START_SPEED_FEED_SYNCH(block->k_number, 0);
-    double scale = 1;
+    double spindle_retract_speed_scale = 1;
     if(block->i_flag){
-        scale = block->i_number;
-        if(scale < 1){
-            scale = 1;
-        }
+        spindle_retract_speed_scale = fmax(block->i_number, 1.0);
     }
-    RIGID_TAP(block->line_number, end_x, end_y, end_z, scale);
+    double tap_pitch = block->k_number;
+    double retract_pitch = block->k_number;
+    if(block->j_flag){
+        tap_pitch *= block->j_number;
+    }
+    CHKS(tap_pitch <= 0.0, "Thread pitch must be greater than 0.0 for rigid tapping");
+    RIGID_TAP(block->line_number, end_x, end_y, end_z, spindle_retract_speed_scale, tap_pitch, retract_pitch);
     STOP_SPEED_FEED_SYNCH();
     // after the RIGID_TAP cycle we'll be in the same spot
   } else if (move == G_76) {

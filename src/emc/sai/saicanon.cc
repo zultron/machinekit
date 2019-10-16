@@ -465,9 +465,14 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
   STRAIGHT_PROBE(line_number, x, y, z, a, b, c, u, v, w, probe_type);
 }
 
-
-void RIGID_TAP(int line_number, double x, double y, double z, double mult)
-{
+void RIGID_TAP(int line_number,
+    double x,
+    double y,
+    double z,
+    double spindle_retract_speed_scale,
+    double tap_pitch,
+    double retract_pitch
+){
     ECHO_WITH_ARGS("%.4f, %.4f, %.4f", x, y, z);
 }
 

@@ -17,6 +17,46 @@ WordUsageStatus count_usages(std::array<T, N> const &active_usages, bool have_un
     }
     return WORD_NOT_ALLOWED;
 }
+
+WordUsageStatus is_j_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_modes,
+                             GCodes motion_to_be
+                             )
+{
+    std::array<bool, MAX_JWORD_MEANINGS> active_j{};
+    // Flag set to record what P word meanings are active based on the current settings and block
+    bool unused_p = false;
+
+    switch (motion_to_be)
+    {
+    // Mode 1 commands that use
+    case G_2:
+    case G_3:
+        active_j[J_ARC_CENTER] = true;
+        break;
+    case G_5:
+    case G_5_1:
+        active_j[J_SPLINE_OFFSET] = true;
+        break;
+    case G_33_1:
+        active_j[J_THREAD_PITCH_SCALE] = true;
+        break;
+    default:
+        break;
+    }
+
+    switch (g_modes[GM_MODAL_0])
+    {
+    // Mode 1 commands that use
+    case G_10:
+        active_j[J_BACK_ANGLE] = true;
+        break;
+    default:
+        break;
+    }
+
+    return count_usages(active_j, unused_p);
+}
+
 WordUsageStatus is_p_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_modes,
                              GCodes motion_to_be,
                              std::array<int, M_MAX_MODAL_GROUPS> const &m_modes,
