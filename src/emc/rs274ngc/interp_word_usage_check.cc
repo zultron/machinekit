@@ -1,7 +1,18 @@
 #include "interp_word_usage_check.hh"
 #include "boost/config.hpp"
 #include <algorithm>
+#include <map>
 
+static const std::map<GCodes, int> j_word_map{
+    {G_2, J_ARC_CENTER},
+    {G_3, J_ARC_CENTER},
+    {G_3, J_ARC_CENTER},
+    {G_5, J_SPLINE_OFFSET},
+    {G_5_1, J_SPLINE_OFFSET},
+    {G_10, J_BACK_ANGLE},
+    {G_33_1, J_THREAD_PITCH_SCALE},
+    {G_76, J_INITIAL_CUT_DEPTH},
+};
 
 template <typename T, size_t N>
 WordUsageStatus count_usages(std::array<T, N> const &active_usages, bool have_unused_word)
@@ -18,43 +29,26 @@ WordUsageStatus count_usages(std::array<T, N> const &active_usages, bool have_un
     return WORD_NOT_ALLOWED;
 }
 
+template <typename ArrayType>
+bool find_motion_mode(GCodes mode, std::map<GCodes, int> const &usage_map, ArrayType &found_array)
+{
+    auto it = usage_map.find(mode);
+    if (it != usage_map.end()) {
+        return found_array[it->second] = true;
+    }
+    return false;
+}
+
 WordUsageStatus is_j_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_modes,
                              GCodes motion_to_be
                              )
 {
     std::array<bool, MAX_JWORD_MEANINGS> active_j{};
     // Flag set to record what P word meanings are active based on the current settings and block
-    bool unused_p = false;
+    find_motion_mode(motion_to_be, j_word_map, active_j);
+    find_motion_mode(g_modes[GM_MODAL_0], j_word_map, active_j);
 
-    switch (motion_to_be)
-    {
-    // Mode 1 commands that use
-    case G_2:
-    case G_3:
-        active_j[J_ARC_CENTER] = true;
-        break;
-    case G_5:
-    case G_5_1:
-        active_j[J_SPLINE_OFFSET] = true;
-        break;
-    case G_33_1:
-        active_j[J_THREAD_PITCH_SCALE] = true;
-        break;
-    default:
-        break;
-    }
-
-    switch (g_modes[GM_MODAL_0])
-    {
-    // Mode 1 commands that use
-    case G_10:
-        active_j[J_BACK_ANGLE] = true;
-        break;
-    default:
-        break;
-    }
-
-    return count_usages(active_j, unused_p);
+    return count_usages(active_j, false);
 }
 
 WordUsageStatus is_p_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_modes,
