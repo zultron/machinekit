@@ -4477,7 +4477,9 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
     }
     double tap_pitch = block->k_number;
     double retract_pitch = block->k_number;
+    static const double max_pitch_ratio = 0.1;
     if(block->j_flag){
+        CHKS(fabs(block->j_number-1.0) > max_pitch_ratio, "Rigid tap pitch for tap / retract must be within %g%%", max_pitch_ratio);
         tap_pitch *= block->j_number;
     }
     CHKS(tap_pitch <= 0.0, "Thread pitch must be greater than 0.0 for rigid tapping");
