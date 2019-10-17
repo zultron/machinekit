@@ -1479,6 +1479,8 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     bool orient_no_exec_error;	// set if M19 Q-word < 0 so g code can handle timeout
     double motionTolerance;
     double naivecamTolerance;
+    int parts_counter_m30[2];
+    int parts_counter_m99[2];
 };
 
 // declarations for EMC_TOOL classes

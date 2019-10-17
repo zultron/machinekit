@@ -153,6 +153,10 @@ EMC_TASK_STAT::EMC_TASK_STAT():
     activeGCodes.fill(G_INVALID);
     activeMCodes.fill(-1);
     activeSettings.fill(0.0);
+    parts_counter_m30[0] = 0;
+    parts_counter_m30[1] = 0;
+    parts_counter_m99[0] = 0;
+    parts_counter_m99[1] = 0;
 }
 
 PositionArray const & EMC_TASK_STAT::g5x_offset() const

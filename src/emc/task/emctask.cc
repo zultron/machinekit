@@ -36,6 +36,8 @@
 #include "python_plugin.hh"
 #include "taskclass.hh"
 #include "modal_state.hh"
+#include "interp_parameter_def.hh"
+using namespace interp_param_global;
 
 #define USER_DEFINED_FUNCTION_MAX_DIRS 5
 #define MAX_M_DIRS (USER_DEFINED_FUNCTION_MAX_DIRS+1)
@@ -780,6 +782,11 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
 
     stat->motionTolerance = GET_MOTION_TOLERANCE();
     stat->naivecamTolerance = GET_NAIVECAM_TOLERANCE();
+
+    stat->parts_counter_m30[0] = interp._setup.parameters[M30_CYCLE_COUNTER_A];
+    stat->parts_counter_m30[1] = interp._setup.parameters[M30_CYCLE_COUNTER_B];
+    stat->parts_counter_m99[0] = interp._setup.parameters[M99_CYCLE_COUNTER_A];
+    stat->parts_counter_m99[1] = interp._setup.parameters[M99_CYCLE_COUNTER_B];
 
     stat->heartbeat++;
 
