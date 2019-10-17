@@ -2537,10 +2537,10 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
  * issued if the current state already matches the tag.
  */
 int Interp::gen_g_codes(
-    ActiveGCodeArray &current,
-    ActiveGCodeArray &saved,
-    ActiveSettingsArray &current_settings,
-    ActiveSettingsArray &saved_settings,
+    ActiveGCodeArray const &current,
+    ActiveGCodeArray const &saved,
+    ActiveSettingsArray const &current_settings,
+    ActiveSettingsArray const &saved_settings,
     int work_offset_origin_tag,
 	std::string &cmd)
 {
@@ -2656,7 +2656,7 @@ int Interp::gen_m_codes(ActiveMCodeArray const &current, ActiveMCodeArray const 
  * modal state in the interpreter to the equivalent state at the most recent
  * motion line, but does not restore M codes.
  */
-int Interp::gen_restore_cmd(ModalState &state,
+int Interp::gen_restore_cmd(ModalState const &state,
         StateTag const &saved_tag,
         std::string &cmd)
 {
@@ -2678,15 +2678,21 @@ int Interp::gen_restore_cmd(ModalState &state,
      */
     // Force cancellation of tool compensation
     saved_g[G_CODE_CUTTER_SIDE] = G_40;
+    ActiveGCodeArray current_g = state.g_codes;
+
+    // KLUDGE force restoration of any modal state that isn't fully expressed by just the mode (e.g. tool number, offset number)
+    current_g[G_CODE_TOOL_LENGTH_OFFSET] = -1;
+    current_g[G_CODE_ORIGIN] = -1;
 
     //Mimic the order of restoration commands used elsewhere
     if (state.g_codes[G_CODE_UNITS] != saved_g[G_CODE_UNITS]) {
         formatGCode((GCodes)saved_g[G_CODE_UNITS], cmd);
     }
 
+
     //M codes should not be restored during an abort
     int res_m = 0;
-    int res_g = gen_g_codes(state.g_codes, saved_g, state.settings, saved_settings, saved_work_offset, cmd);
+    int res_g = gen_g_codes(current_g, saved_g, state.settings, saved_settings, saved_work_offset, cmd);
 
     // If G43 is present for lathes, you must have an H word
     if (FEATURE(LATHE_TOOLCHANGE)) {
@@ -2703,56 +2709,6 @@ int Interp::gen_restore_cmd(ModalState &state,
     
     return INTERP_OK;
 }
-
-int Interp::gen_restore_cmd(StateTag current_tag, StateTag const &saved_tag, std::string & cmd)
-{
-    // A local copy of the saved settings, unpacked from a state tag
-    std::array<int, ACTIVE_G_CODES> saved_g{};
-    std::array<int, ACTIVE_M_CODES> saved_m{};
-    std::array<double, ACTIVE_SETTINGS> saved_settings{};
-
-    std::array<int, ACTIVE_G_CODES> current_g{};
-    std::array<int, ACTIVE_M_CODES> current_m{};
-    std::array<double, ACTIVE_SETTINGS> current_settings{};
-
-    int saved_work_offset;
-    int current_work_offset;
-
-    //Extract saved state to local arrays
-    int res_unpack = active_modes(&saved_g[0], &saved_m[0], &saved_settings[0], saved_work_offset, saved_tag);
-    res_unpack |= active_modes(&current_g[0], &current_m[0], &current_settings[0], current_work_offset, current_tag);
-    if (res_unpack != INTERP_OK) {
-        return INTERP_ERROR;
-    }
-
-    // Force
-    current_tag.fields[GM_FIELD_CUTTER_COMP] = G_40;
-
-    //Mimic the order of restoration commands used elsewhere
-    if (current_tag.flags[GM_FLAG_UNITS] != saved_tag.flags[GM_FLAG_UNITS]) {
-        // Format G-code for unit
-    }
-
-    //M codes should not be restored during an abort
-    int res_m = 0;
-    int res_g = gen_g_codes(current_g, saved_g, current_settings, saved_settings, current_work_offset, cmd);
-
-    // If G43 is present for lathes, you must have an H word
-    if (FEATURE(LATHE_TOOLCHANGE)) {
-        if (cmd.find("G43") != std::string::npos) {
-            char buf[LINELEN];
-            snprintf(buf, sizeof(buf), " H%d", saved_tag.fields[GM_FIELD_TOOL_NUMBER]);
-            cmd += buf;
-        }
-    }
-
-    if (res_m || res_g) {
-        return INTERP_ERROR;
-    }
-
-    return INTERP_OK;
-}
-
 
 int Interp::save_settings(setup_pointer settings)
 {

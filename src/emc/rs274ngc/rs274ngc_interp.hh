@@ -501,19 +501,16 @@ public:
     int free_named_parameters(context_pointer frame);
  int save_settings(setup_pointer settings);
  int restore_settings(setup_pointer settings, int from_level);
- int gen_g_codes(ActiveGCodeArray & current,
-                 ActiveGCodeArray & saved,
-                 ActiveSettingsArray & current_settings,
-                 ActiveSettingsArray & saved_settings,
+ int gen_g_codes(ActiveGCodeArray const & current,
+                 ActiveGCodeArray const & saved,
+                 ActiveSettingsArray const & current_settings,
+                 ActiveSettingsArray const & saved_settings,
                  int work_offset_origin,
                  std::string &cmd);
  int gen_m_codes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved, std::string &cmd);
  int restore_from_tag(StateTag const &tag);
- int gen_restore_cmd(ModalState &state,
+ int gen_restore_cmd(const ModalState & state,
         StateTag const &saved,
-        std::string &cmd);
- int gen_restore_cmd(StateTag current_tag,
-        StateTag const &saved_tag,
         std::string &cmd);
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
