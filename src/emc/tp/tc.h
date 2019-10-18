@@ -42,6 +42,9 @@ int tcGetStartTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const 
 int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const out);
 int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmCartesian * const out);
 
+double tcGetDistanceToGo(TC_STRUCT const * const tc, int direction);
+double tcGetTarget(TC_STRUCT const * const tc, int direction);
+
 int tcGetIntersectionPoint(TC_STRUCT const * const prev_tc,
         TC_STRUCT const * const tc, PmCartesian * const point);
 

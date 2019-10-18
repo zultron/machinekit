@@ -90,7 +90,7 @@ TCIntersectType tpSetupTangent(
     TC_STRUCT * const prev_tc,
     TC_STRUCT * const tc);
 
-int tcUpdateDistFromAccel(TC_STRUCT * const tc, double acc, double vel_desired);
+int tcUpdateDistFromAccel(TC_STRUCT * const tc, double acc, double vel_desired, int reverse_run);
 
 void tpDebugCycleInfo(TP_STRUCT const * const tp,
                       TC_STRUCT const * const tc,
@@ -125,7 +125,7 @@ void tpSetRotaryUnlock(int axis, int unlock);
 int tpGetRotaryIsUnlocked(int axis);
 
 int tpCompleteSegment(TP_STRUCT * const tp,
-                      TC_STRUCT const * const tc);
+                      TC_STRUCT * const tc);
 
 tp_err_t tpHandleAbort(TP_STRUCT * const tp,
                        TC_STRUCT * const tc,

@@ -314,6 +314,14 @@ void log_print_emcmot_cmd(emcmot_command_t *c)
         log_print("PAUSE\n");
         return;
 
+    case EMCMOT_REVERSE:
+        log_print("REVERSE\n");
+        return;
+
+    case EMCMOT_FORWARD:
+        log_print("FORWARD\n");
+        return;
+
     case EMCMOT_RESUME:
         log_print("RESUME\n");
         return;

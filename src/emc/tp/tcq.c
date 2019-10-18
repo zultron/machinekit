@@ -100,6 +100,7 @@ int tcqInit(TC_QUEUE_STRUCT * const tcq)
 
     tcq->_len = 0;
     tcq->start = tcq->end = 0;
+    tcq->rend = 0;
     tcq->allFull = 0;
 
     return 0;
@@ -168,6 +169,35 @@ int tcqPopBack(TC_QUEUE_STRUCT * const tcq)
     return 0;
 }
 
+#define TCQ_REVERSE_MARGIN 20
+
+int tcqPop(TC_QUEUE_STRUCT * const tcq)
+{
+
+    if (tcqCheck(tcq)) {
+        return -1;
+    }
+
+    if (tcq->_len < 1 && !tcq->allFull) {	
+        return -1;
+    }
+
+    /* update start ptr and reset allFull flag and len */
+    tcq->start = (tcq->start + 1) % tcq->size;
+    tcq->allFull = 0;
+    tcq->_len--;
+
+    if (tcq->_rlen < TCQ_REVERSE_MARGIN) {
+        //If we're not overwriting the history yet, then we have another segment added to the reverse history
+        tcq->_rlen++;
+    } else {
+        //If we're run out of spare reverse history, then advance rend
+        tcq->rend = (tcq->rend + 1) % tcq->size;
+    }
+
+    return 0;
+}
+
 /*! tcqRemove() function
  *
  * \brief removes n items from the queue
@@ -199,6 +229,29 @@ int tcqRemove(TC_QUEUE_STRUCT * const tcq, int n)
     tcq->start = (tcq->start + n) % tcq->size;
     tcq->allFull = 0;
     tcq->_len -= n;
+
+    return 0;
+}
+
+/**
+ * Step backward into the reverse history.
+ */
+int tcqBackStep(TC_QUEUE_STRUCT * const tcq)
+{
+    if (tcqCheck(tcq)) {
+        return -1;
+    }
+
+    // start == end means that queue is empty
+
+    int rempty = (tcq->start == tcq->rend);
+    if ( rempty && !tcq->allFull) {	
+        return -1;
+    }
+    /* update start ptr and reset allFull flag and len */
+    tcq->start = (tcq->start - 1 + tcq->size) % tcq->size;
+    tcq->_len++;
+    tcq->_rlen--;
 
     return 0;
 }
@@ -241,7 +294,7 @@ TC_STRUCT * tcqItem(TC_QUEUE_STRUCT const * const tcq, int n)
  * \def TC_QUEUE_MARGIN
  * sets up a margin at the end of the queue, to reduce effects of race conditions
  */
-#define TC_QUEUE_MARGIN 20
+#define TC_QUEUE_MARGIN (TCQ_REVERSE_MARGIN+20)
 
 /*! tcqFull() function
  *

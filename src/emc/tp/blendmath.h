@@ -201,8 +201,7 @@ typedef struct {
 } EndCondition;
 
 EndCondition checkEndCondition(double cycleTime,
-                               double progress,
-                               double target,
+                               double dtg,
                                double currentvel,
                                double v_f,
                                double a_max);

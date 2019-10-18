@@ -46,6 +46,10 @@ typedef enum {
     TC_SYNC_POSITION
 } tc_spindle_sync_t;
 
+typedef enum {
+    TC_DIR_FORWARD = 0,
+    TC_DIR_REVERSE
+} tc_direction_t;
 
 typedef enum {
     TC_OPTIM_UNTOUCHED,

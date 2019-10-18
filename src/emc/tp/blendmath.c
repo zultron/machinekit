@@ -971,13 +971,11 @@ double findTrapezoidalDesiredVel(double a_max,
 }
 
 EndCondition checkEndCondition(double cycleTime,
-                               double progress,
-                               double target,
+                               double dtg,
                                double currentvel,
                                double v_f,
                                double a_max)
 {
-    double dx = target - progress;
     // Start with safe defaults (segment will not end next cycle
     EndCondition out = {
         v_f,
@@ -998,9 +996,9 @@ EndCondition checkEndCondition(double cycleTime,
     double dt = TP_TIME_EPSILON / 2.0;
     if (v_avg > TP_VEL_EPSILON) {
         //Get dt from distance and velocity (avoid div by zero)
-        dt = fmax(dt, dx / v_avg);
+        dt = fmax(dt, dtg / v_avg);
     } else {
-        if ( dx > (v_avg * cycleTime) && dx > TP_POS_EPSILON) {
+        if ( dtg > (v_avg * cycleTime) && dtg > TP_POS_EPSILON) {
             tc_pdebug_print(" below velocity threshold, assuming far from end\n");
             return out;
         }
@@ -1018,10 +1016,10 @@ EndCondition checkEndCondition(double cycleTime,
 
     //Need to recalculate vf and above
     if (recalc) {
-        double disc = pmSq(currentvel / a) + 2.0 / a * dx;
+        double disc = pmSq(currentvel / a) + 2.0 / a * dtg;
         if (disc < 0) {
             //Should mean that dx is too big, i.e. we're not close enough
-            tc_pdebug_print(" dx = %f, too large, not at end yet\n",dx);
+            tc_pdebug_print(" dx = %f, too large, not at end yet\n",dtg);
             return out;
         }
 

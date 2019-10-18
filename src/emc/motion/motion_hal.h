@@ -91,6 +91,7 @@ typedef struct {
     hal_float_t *rigid_tap_overshoot; // Reports how much the rigid tapping cycle overshot it's reversal target (negative means it didn't reach the target)
     hal_float_t *rigid_tap_reversal_vel_rps; // Reports how much the rigid tapping cycle overshot it's reversal target (negative means it didn't reach the target)
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
+    hal_bit_t *tp_reverse;
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion maskable with g53 P1*/
     hal_bit_t *feed_inhibit;	/* RPI: set TRUE to stop motion (non maskable)*/
     hal_bit_t *motion_enabled;	/* RPI: motion enable for all joints */

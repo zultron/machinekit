@@ -530,11 +530,26 @@ static void process_inputs(void)
     if ( enables & AF_ENABLED ) {
 	/* read and clamp (0.0 to 1.0) adaptive feed HAL pin */
 	tmp = *emcmot_hal_data->adaptive_feed;
+
+    // Clip range to +/- 1.0
 	if ( tmp > 1.0 ) {
 	    tmp = 1.0;
-	} else if ( tmp < 0.0 ) {
+	} else if (tmp < -1.0) {
+        tmp = -1.0;
+    }
+
+    // Handle case of negative adaptive feed
+    if ( tmp < 0.0 && emcmotDebug->tp.reverse_run == TC_DIR_FORWARD) {
+        // User commands feed in reverse direction, but we're not running in reverse yet
+        tpSetRunDir(&emcmotDebug->tp, TC_DIR_REVERSE);
 	    tmp = 0.0;
-	}
+	} else if (tmp > 0.0 && emcmotDebug->tp.reverse_run == TC_DIR_REVERSE ) {
+        // User commands feed in forward direction, but we're running in reverse
+        tpSetRunDir(&emcmotDebug->tp, TC_DIR_FORWARD);
+	    tmp = 0.0;
+    }
+    //Otherwise, if direction and sign match, we're ok
+
 	scale *= tmp;
     }
     if ( enables & FH_ENABLED ) {
@@ -1921,6 +1936,7 @@ static void output_to_hal(void)
                                  emcmot_hal_data->spindle_index_enable);
 
     *(emcmot_hal_data->program_line) = emcmotStatus->id;
+    *(emcmot_hal_data->tp_reverse) = emcmotStatus->reverse_run;
     *(emcmot_hal_data->motion_type) = emcmotStatus->motionType;
     *(emcmot_hal_data->next_program_line) = emcmotStatus->next_id;
     *(emcmot_hal_data->completed_program_line) = emcmotStatus->completed_id;
@@ -2087,6 +2103,7 @@ static void update_status(void)
     emcmotStatus->next_id = tpGetNextExecId(&emcmotDebug->tp);
     emcmotStatus->completed_id = tpGetCompletedId(&emcmotDebug->tp);
     emcmotStatus->queued_id = tpGetQueuedId(&emcmotDebug->tp);
+    emcmotStatus->reverse_run = emcmotDebug->tp.reverse_run;
     emcmotStatus->motionType = tpGetMotionType(&emcmotDebug->tp);
     emcmotStatus->queueFull = tcqFull(&emcmotDebug->tp.queue);
 
