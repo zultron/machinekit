@@ -3240,7 +3240,7 @@ int tpDoParabolicBlending(TP_STRUCT * const tp, TC_STRUCT * const tc,
         tpUpdateMovementStatus(tp, tc, nexttc);
     } else {
         tpToggleDIOs(nexttc);
-        TC_STRUCT *next2tc = tcqItem(&tp->queue, 2);
+        TC_STRUCT *next2tc = tp->reverse_run ? NULL : tcqItem(&tp->queue, 2);
         tpUpdateMovementStatus(tp, nexttc, next2tc);
     }
 #ifdef TP_SHOW_BLENDS
@@ -3449,7 +3449,8 @@ int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
             // Intentional fallthrough
         case TC_TERM_COND_PARABOLIC:
         {
-            TC_STRUCT *next2tc = tcqItem(&tp->queue, 2);
+            // TODO allow access to next segment when reverse blending is implemented
+            TC_STRUCT *next2tc = tp->reverse_run ? NULL : tcqItem(&tp->queue, 2);
             tpUpdateCycle(tp, nexttc, next2tc, UPDATE_SPLIT);
         }
             break;
@@ -3468,8 +3469,8 @@ int tpHandleSplitCycle(TP_STRUCT * const tp, TC_STRUCT * const tc,
         tpUpdateMovementStatus(tp, tc, nexttc);
     } else {
         tpToggleDIOs(nexttc);
-        int queue_dir_step = tp->reverse_run ? -1 : 1;
-        TC_STRUCT *next2tc = tcqItem(&tp->queue, 2 * queue_dir_step);
+        // TODO allow access to next segment when reverse blending is implemented
+        TC_STRUCT *next2tc = tp->reverse_run ? NULL : tcqItem(&tp->queue, 2);
         tpUpdateMovementStatus(tp, nexttc, next2tc);
     }
 
@@ -3574,16 +3575,16 @@ tp_err_t updateSyncTargets(TP_STRUCT *tp, TC_STRUCT *tc, TC_STRUCT *nexttc)
 int tpRunCycleInternal(TP_STRUCT * const tp)
 {
     //Pointers to current and next trajectory component
-    TC_STRUCT *tc;
-    TC_STRUCT *nexttc;
+    TC_STRUCT *tc = NULL;
+    TC_STRUCT *nexttc = NULL;
 
     /* Get pointers to current and relevant future segments. It's ok here if
      * future segments don't exist (NULL pointers) as we check for this later).
      */
 
-    int queue_dir_step = tp->reverse_run ? -1 : 1;
     tc = tcqItem(&tp->queue, 0);
-    nexttc = tcqItem(&tp->queue, queue_dir_step * 1);
+    // TODO allow access to next segment when reverse blending is implemented
+    nexttc = tp->reverse_run ? NULL : tcqItem(&tp->queue, 1);
 
     //Set GUI status to "zero" state
     tpUpdateInitialStatus(tp);
