@@ -1077,19 +1077,15 @@ check_stuff ( "before command_handler()" );
 	case EMCMOT_REVERSE:
 	    /* run motion in reverse*/
 	    /* only allowed during a pause */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "REVERSE");
-        if (!tpIsMoving(&emcmotDebug->tp)) {
-            tpSetRunDir(&emcmotDebug->tp, TC_DIR_REVERSE);
-        }
+        rtapi_print_msg(RTAPI_MSG_DBG, "REVERSE");
+        tpSetRunDir(&emcmotDebug->tp, TC_DIR_REVERSE);
 	    break;
 
 	case EMCMOT_FORWARD:
 	    /* run motion in reverse*/
 	    /* only allowed during a pause */
-	    rtapi_print_msg(RTAPI_MSG_DBG, "FORWARD");
-        if (!tpIsMoving(&emcmotDebug->tp)) {
-            tpSetRunDir(&emcmotDebug->tp, TC_DIR_FORWARD);
-        }
+        rtapi_print_msg(RTAPI_MSG_DBG, "FORWARD");
+        tpSetRunDir(&emcmotDebug->tp, TC_DIR_FORWARD);
 	    break;
 
 	case EMCMOT_RESUME:

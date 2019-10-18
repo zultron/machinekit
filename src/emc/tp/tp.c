@@ -3743,15 +3743,18 @@ int tpSetDout(TP_STRUCT * const tp, int index, unsigned char start, unsigned cha
 
 int tpSetRunDir(TP_STRUCT * const tp, tc_direction_t dir)
 {
+    if (tpIsMoving(tp)) {
+        return TP_ERR_FAIL;
+    }
+
     switch (dir) {
         case TC_DIR_FORWARD:
         case TC_DIR_REVERSE:
             tp->reverse_run = dir;
             return TP_ERR_OK;
-        default:
-            rtapi_print_msg(RTAPI_MSG_ERR,"Invalid direction flag in SetRunDir");
-            return TP_ERR_FAIL;
     }
+    rtapi_print_msg(RTAPI_MSG_ERR,"Invalid direction flag in SetRunDir");
+    return TP_ERR_FAIL;
 }
 
 int tpIsMoving(TP_STRUCT const * const tp)
