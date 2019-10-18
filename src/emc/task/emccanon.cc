@@ -349,11 +349,15 @@ void CANON_UPDATE_END_POINT(double x, double y, double z,
     canonUpdateEndPoint(end_point);
 }
 
-static DisplacementData getStraightDisplacement(PositionArray const &p_goal_ext)
+static void tagFeedAxes(DisplacementData const &disp_data, StateTag &tag)
+{
+    tag.fields[GM_FIELD_FEED_AXES] = disp_data.feed_axes;
+}
+
+static DisplacementData getCanonStraightDisplacement(PositionArray const &p_goal_ext, StateTag &tag)
 {
     DisplacementData disp_data = getStraightDisplacement(ConvertsCanonToUserUnits().forward(canonEndPoint), p_goal_ext);
-    // KLUDGE stuff the feed mode into the tag so motion knows how to interpret path velocity
-    _tag.fields[GM_FIELD_FEED_AXES] = disp_data.feed_axes;
+    tagFeedAxes(disp_data, tag);
     return disp_data;
 }
 
@@ -604,7 +608,8 @@ static void flush_segments(void) {
 
     PositionArray p_goal_ext = ConvertsCanonToUserUnits().forward(goal_pos_canon);
 
-    DisplacementData disp_data = getStraightDisplacement(p_goal_ext);
+    DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, chained_points.back().tag);
+
     VelData vel_data = getStraightVelocity(disp_data);
     AccelData acc_data = getStraightAcceleration(disp_data);
 
@@ -772,7 +777,7 @@ static int straight_traverse_internal(
 
     PositionArray p_goal_ext = ConvertsCanonToUserUnits().forward(goal_pos_canon);
 
-    DisplacementData disp_data = getStraightDisplacement(p_goal_ext);
+    DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
         return 1;
@@ -852,7 +857,7 @@ void RIGID_TAP(int line_number,
 
     PositionArray p_goal_ext = ConvertsCanonToUserUnits().forward(bottom);
 
-    DisplacementData disp_data = getStraightDisplacement(p_goal_ext);
+    DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
         return;
@@ -924,7 +929,7 @@ void straight_probe_internal(int line_number,
 
     PositionArray p_goal_ext = ConvertsCanonToUserUnits().forward(goal_pos_canon);
 
-    DisplacementData disp_data = getStraightDisplacement(p_goal_ext);
+    DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
         return;
@@ -1573,7 +1578,7 @@ void ARC_FEED(int line_number,
     canon_debug("v_max_planar = %f\n", v_max_planar);
 
     PositionArray p_goal_ext = ConvertsCanonToUserUnits().forward(endpt);
-    DisplacementData disp_data = getStraightDisplacement(p_goal_ext);
+    DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
         return;
