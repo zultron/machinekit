@@ -189,11 +189,14 @@ double tpGetTangentKinkRatio(void) {
  * Get a segment's feed scale based on the current planner state and emcmotStatus.
  * @note depends on emcmotStatus for system information.
  */
-double tpGetRealFeedScale(TP_STRUCT const * const tp,
+double tpGetRealAbsFeedScale(TP_STRUCT const * const tp,
         TC_STRUCT const * const tc) {
     if (!tc) {
         return 0.0;
     }
+
+    double net_feed_scale = fabs(emcmotStatus->net_feed_scale);
+
     //All reasons to disable feed override go here
     bool pausing = tp->pausing && (tc->synchronized == TC_SYNC_NONE || tc->synchronized == TC_SYNC_VELOCITY);
     bool aborting = tp->aborting;
@@ -205,17 +208,18 @@ double tpGetRealFeedScale(TP_STRUCT const * const tp,
         return 1.0;
     } else if (tc->is_blending) {
         //KLUDGE: Don't allow feed override to keep blending from overruning max velocity
-        return fmin(emcmotStatus->net_feed_scale, 1.0);
+        return fmin(net_feed_scale, 1.0);
     } else {
-        return emcmotStatus->net_feed_scale;
+        return net_feed_scale;
     }
 }
 
 /**
  * Get target velocity for a tc based on the trajectory planner state.
  * This gives the requested velocity, capped by the segments maximum velocity.
+ * @note returns the magnitude of velocity (reverse run is handled at a higher level)
  */
-double tpGetRealTargetVel(TP_STRUCT const * const tp,
+double tpGetRealAbsTargetVel(TP_STRUCT const * const tp,
         TC_STRUCT const * const tc) {
 
     if (!tc) {
@@ -226,7 +230,7 @@ double tpGetRealTargetVel(TP_STRUCT const * const tp,
     /*tc_debug_print("Initial v_target = %f\n",v_target);*/
 
     // Get the maximum allowed target velocity, and make sure we're below it
-    return fmin(v_target * tpGetRealFeedScale(tp,tc), tpGetRealMaxTargetVel(tp, tc));
+    return fmin(v_target * tpGetRealAbsFeedScale(tp,tc), tpGetRealMaxTargetVel(tp, tc));
 }
 
 double getMaxBlendFeedScale(TC_STRUCT const * prev_tc, TC_STRUCT const * tc)
@@ -293,10 +297,10 @@ double tpGetRealFinalVel(TP_STRUCT const * const tp,
     } 
     
     // Get target velocities for this segment and next segment
-    double v_target_this = tpGetRealTargetVel(tp, tc);
+    double v_target_this = tpGetRealAbsTargetVel(tp, tc);
     double v_target_next = 0.0;
     if (nexttc) {
-        v_target_next = tpGetRealTargetVel(tp, nexttc);
+        v_target_next = tpGetRealAbsTargetVel(tp, nexttc);
     }
 
     // Limit final velocity to minimum of this and next target velocities
@@ -2256,7 +2260,7 @@ const char *cycleModeToString(UpdateCycleMode mode)
 void tpDebugCycleInfo(TP_STRUCT const * const tp, TC_STRUCT const * const tc, TC_STRUCT const * const nexttc, double acc, int accel_mode, UpdateCycleMode cycle) {
 #ifdef TC_DEBUG
     // Find maximum allowed velocity from feed and machine limits
-    const double v_target = tpGetRealTargetVel(tp, tc);
+    const double v_target = tpGetRealAbsTargetVel(tp, tc);
     // Store a copy of final velocity
     const double v_final = tpGetRealFinalVel(tp, tc, nexttc);
     const double v_max = tpGetRealMaxTargetVel(tp, tc);
@@ -2273,7 +2277,7 @@ void tpDebugCycleInfo(TP_STRUCT const * const tp, TC_STRUCT const * const tc, TC
     print_json5_double_("distance_to_go", tcGetDistanceToGo(tc, tp->reverse_run));
     print_json5_double_("v_current", tc->currentvel);
     print_json5_double_("a_current", acc);
-    print_json5_double_("feed_scale", tpGetRealFeedScale(tp, tc));
+    print_json5_double_("feed_scale", tpGetRealAbsFeedScale(tp, tc));
     print_json5_double_("dt", tc->cycle_time);
     print_json5_bool_("reverse_run", tp->reverse_run);
     print_json5_string_("term_cond", tcTermCondAsString((tc_term_cond_t)tc->term_cond));
@@ -2300,7 +2304,7 @@ void tpCalculateTrapezoidalAccel(TP_STRUCT const * const tp, TC_STRUCT * const t
         double * const acc, double * const vel_desired)
 {
     // Find maximum allowed velocity from feed and machine limits
-    double tc_target_vel = tpGetRealTargetVel(tp, tc);
+    double tc_target_vel = tpGetRealAbsTargetVel(tp, tc);
     // Store a copy of final velocity
     double tc_finalvel = tpGetRealFinalVel(tp, tc, nexttc);
 
@@ -2630,7 +2634,7 @@ void tpUpdateBlend(TP_STRUCT * const tp, TC_STRUCT * const tc,
     }
     double save_vel = nexttc->target_vel;
 
-    if (tpGetRealFeedScale(tp, nexttc) > TP_VEL_EPSILON) {
+    if (tpGetRealAbsFeedScale(tp, nexttc) > TP_VEL_EPSILON) {
         double dv = tc->vel_at_blend_start - tc->currentvel;
         double vel_start = fmax(tc->vel_at_blend_start, TP_VEL_EPSILON);
         // Clip the ratio at 1 and 0
@@ -2942,7 +2946,7 @@ tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
 
     double length = tcGetDistanceToGo(tc, tp->reverse_run);
     // Given what velocities we can actually reach, estimate the total time for the segment under ramp conditions
-    double segment_time = 2.0 * length / (tc->currentvel + fmin(tc->finalvel,tpGetRealTargetVel(tp,tc)));
+    double segment_time = 2.0 * length / (tc->currentvel + fmin(tc->finalvel,tpGetRealAbsTargetVel(tp,tc)));
 
     if (segment_time < cutoff_time &&
             tc->canon_motion_type != EMC_MOTION_TYPE_TRAVERSE &&
@@ -3492,8 +3496,8 @@ int tpHandleRegularCycle(TP_STRUCT * const tp,
     double v_this = 0.0, v_next = 0.0;
 
     // cap the blend velocity at the current requested speed (factoring in feed override)
-    double target_vel_this = tpGetRealTargetVel(tp, tc);
-    double target_vel_next = tpGetRealTargetVel(tp, nexttc);
+    double target_vel_this = tpGetRealAbsTargetVel(tp, tc);
+    double target_vel_next = tpGetRealAbsTargetVel(tp, nexttc);
 
     if (tc->term_cond == TC_TERM_COND_PARABOLIC) {
         tpComputeBlendVelocity(tc, nexttc, target_vel_this, target_vel_next, &v_this, &v_next, NULL);

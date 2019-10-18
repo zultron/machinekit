@@ -46,10 +46,10 @@ int tcRotaryMotionCheck(TC_STRUCT const * const tc);
 
 double tpGetTangentKinkRatio(void);
 
-double tpGetRealFeedScale(TP_STRUCT const * const tp,
+double tpGetRealAbsFeedScale(TP_STRUCT const * const tp,
                       TC_STRUCT const * const tc);
 
-double tpGetRealTargetVel(TP_STRUCT const * const tp,
+double tpGetRealAbsTargetVel(TP_STRUCT const * const tp,
                           TC_STRUCT const * const tc);
 
 double getMaxBlendFeedScale(TC_STRUCT const * prev_tc, TC_STRUCT const * tc);
