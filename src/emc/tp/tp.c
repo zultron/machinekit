@@ -2308,7 +2308,6 @@ int tpUpdateMovementStatus(TP_STRUCT * const tp,
 
     emcmotStatus->requested_vel = tc->reqvel;
     emcmotStatus->dwell_time_remaining = (tc->motion_type == TC_DWELL) ? tc->coords.dwell.remaining_time : 0.0;
-    emcmotStatus->current_vel = tc->currentvel;
     emcmotStatus->waiting_on_spindle = tpIsWaitingOnSpindle(tp);
 
     // KLUDGE Zero out any EMC status that doesn't apply
@@ -2542,6 +2541,7 @@ void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
         print_json5_tc_id_data_(tc);
         print_json5_string_("motion_type_name", tcMotionTypeAsString(tc->motion_type));
         print_json5_int_("motion_type", tc->motion_type);
+        print_json5_int_("active_axes", tc->tag.fields[GM_FIELD_FEED_AXES]);
 
         // Position settings
 
@@ -3248,7 +3248,7 @@ int tpRunCycleInternal(TP_STRUCT * const tp)
     return TP_ERR_OK;
 }
 
-static double tpGetCurrentVel(TP_STRUCT const * const tp, PmVector const * const v_current)
+double tpGetCurrentVel(TP_STRUCT const * const tp, PmVector const * const v_current)
 {
     PmCartesian xyz, abc, uvw;
     VecToCart(v_current, &xyz, &abc, &uvw);
