@@ -1177,6 +1177,12 @@ int Interp::init()
   if (filename[0] == 0)
     strcpy(filename, RS274NGC_PARAMETER_FILE_NAME_DEFAULT);
   int res_restore_param = restore_parameters(filename);
+  UPDATE_PART_COUNTS(
+      _setup.parameters[M30_CYCLE_COUNTER_A],
+      _setup.parameters[M30_CYCLE_COUNTER_B],
+      _setup.parameters[M99_CYCLE_COUNTER_A],
+      _setup.parameters[M99_CYCLE_COUNTER_B]
+      );
 
   _setup.origin_index = (int) (_setup.parameters[ACTIVE_WORK_CSYS] + 0.0001);
   if(!is_valid_work_offset_index(_setup.origin_index)) {
@@ -1300,7 +1306,7 @@ int Interp::init()
   if(!(axis_mask & AXIS_MASK_V)) _readers[(int)'v'] = nullptr;
   if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = nullptr;
 
-  // Don't bother reading work offsets since we just sent them
+  // WARNING send any initial values to task before this point (interp->task->interp round trip stops here)
   int res_synch = synch(); //synch first, then update the interface
 
   write_g_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
@@ -2235,6 +2241,12 @@ int Interp::synch()
   _setup.speed_override = GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE();
   _setup.adaptive_feed = GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
   _setup.feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
+  auto counters = GET_EXTERNAL_PART_COUNTS();
+  std::copy(
+      counters.begin(),
+      counters.end(),
+      _setup.parameters.begin() + M30_CYCLE_COUNTER_A
+      );
 
   // Restore any work offsets that were changed during readahead but not reached by motion yet.
   synch_work_offsets_from_task();

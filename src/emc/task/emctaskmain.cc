@@ -437,6 +437,7 @@ static EMC_TASK_PLAN_OPEN *open_msg;
 static EMC_TASK_PLAN_SET_OPTIONAL_STOP *os_msg;
 static EMC_TASK_PLAN_SET_BLOCK_DELETE *bd_msg;
 static EMC_TASK_PLAN_END *end_msg;
+static EMC_TASK_PLAN_UPDATE_PART_COUNTS *update_part_counts_msg;
 
 static EMC_AUX_INPUT_WAIT *emcAuxInputWaitMsg;
 static int emcAuxInputWaitType = 0;
@@ -1018,7 +1019,7 @@ static int emcTaskPlan(void)
 	    case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 	    case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
 	    case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
-	    case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
+        case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
 	    case EMC_TRAJ_PROBE_TYPE:
 	    case EMC_AUX_INPUT_WAIT_TYPE:
 	    case EMC_MOTION_SET_DOUT_TYPE:
@@ -1628,6 +1629,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
 
     case EMC_TASK_PLAN_END_TYPE:
+    case EMC_TASK_PLAN_UPDATE_PART_COUNTS_TYPE:
             task_debug("In preconditions waiting due to msg of type: %d=%s\n",
 		       cmd->type, emcSymbolLookup(cmd->type));
 	return EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO;
@@ -2410,13 +2412,22 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
             emcStatus->task.program_ended_and_reset = 1;
             emcStatus->task.currentLine = 0;
             emcStatus->task.previousLine = 0;
-            
+
             static_cast<Interp*>(pinterp)->_setup.sequence_number = 0;
             interp_list.set_line_number(0);
         }
         emcStatus->task.program_ended = 1;
 	retval = 0;
-	break;
+    break;
+
+     case EMC_TASK_PLAN_UPDATE_PART_COUNTS_TYPE:
+        update_part_counts_msg = (EMC_TASK_PLAN_UPDATE_PART_COUNTS *) cmd;
+        std::copy(
+            update_part_counts_msg->part_counters,
+            update_part_counts_msg->part_counters + MAX_PART_COUNTERS,
+            emcStatus->task.part_counters);
+    retval = 0;
+    break;
 
     case EMC_TASK_PLAN_INIT_TYPE:
 	retval = emcTaskPlanInit();
@@ -2545,6 +2556,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TASK_PLAN_RUN_TYPE:
     case EMC_TASK_PLAN_PAUSE_TYPE:
     case EMC_TASK_PLAN_END_TYPE:
+    case EMC_TASK_PLAN_UPDATE_PART_COUNTS_TYPE:
     case EMC_TASK_PLAN_INIT_TYPE:
     case EMC_TASK_PLAN_SYNCH_TYPE:
     case EMC_TASK_PLAN_EXECUTE_TYPE:

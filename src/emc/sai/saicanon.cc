@@ -653,6 +653,11 @@ void UNCLAMP_AXIS(CANON_AXIS axis)
 void PROGRAM_STOP()
 {PRINT("PROGRAM_STOP()\n");}
 
+void UPDATE_PART_COUNTS(int, int, int, int)
+{
+}
+PartCountArray GET_EXTERNAL_PART_COUNTS() {return PartCountArray();}
+
 void SET_BLOCK_DELETE(bool state)
 {_sai.block_delete = state;} //state == ON, means we don't interpret lines starting with "/"
 

@@ -149,6 +149,7 @@ void SET_OPTIONAL_PROGRAM_STOP(bool state) {}
 bool GET_OPTIONAL_PROGRAM_STOP() {return false;}
 void PROGRAM_END(bool reset) {}
 void PROGRAM_STOP() {}
+void UPDATE_PART_COUNTS(int, int, int, int) {}
 void SET_MOTION_OUTPUT_BIT(int index) {}
 void CLEAR_MOTION_OUTPUT_BIT(int index) {}
 void SET_AUX_OUTPUT_BIT(int index) {}

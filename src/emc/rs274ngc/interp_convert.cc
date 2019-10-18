@@ -4165,6 +4165,12 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
       settings->parameters[M99_CYCLE_COUNTER_B] += 1;
 
       FINISH();  // Output any final linked segments
+      UPDATE_PART_COUNTS(
+        settings->parameters[M30_CYCLE_COUNTER_A],
+        settings->parameters[M30_CYCLE_COUNTER_B],
+        settings->parameters[M99_CYCLE_COUNTER_A],
+        settings->parameters[M99_CYCLE_COUNTER_B]
+        );
       return INTERP_EXECUTE_FINISH;  // tell task to issue any queued commands
   } else if ((block->m_modes[M_MODE_STOPPING] == 2) || (block->m_modes[M_MODE_STOPPING] == 30) ||
          (block->m_modes[M_MODE_STOPPING] == 99 && !_setup.loop_on_main_m99)
@@ -4299,16 +4305,21 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
       // Clear G92/G52 offset
       clearPersistentG92Parameters(settings);
 
+    bool rewind = false;
     if (block->m_modes[M_MODE_STOPPING] == 30) {
       PALLET_SHUTTLE();
-      PROGRAM_END(true);  // reset after program end with m30
-
       settings->parameters[M30_CYCLE_COUNTER_A] += 1;
       settings->parameters[M30_CYCLE_COUNTER_B] += 1;
-
-    } else {
-      PROGRAM_END(false);
+      rewind = true;
     }
+    PROGRAM_END(
+        rewind);  // reset after program end with m30
+    UPDATE_PART_COUNTS(
+        settings->parameters[M30_CYCLE_COUNTER_A],
+        settings->parameters[M30_CYCLE_COUNTER_B],
+        settings->parameters[M99_CYCLE_COUNTER_A],
+        settings->parameters[M99_CYCLE_COUNTER_B]
+        );
 
     if (_setup.percent_flag && _setup.file_pointer) {
       line = _setup.linetext;
