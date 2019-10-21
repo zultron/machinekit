@@ -208,7 +208,7 @@ OPT := -Os
 endif
 
 OPT := $(OPT) $(INTEGER_OVERFLOW_FLAGS)
-DEBUG := -g -Wall
+DEBUG := -g -Wall -Werror
 CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) $(EXTRA_DEBUG) -DULAPI -std=gnu99 -fgnu89-inline
 CXXFLAGS := $(INCLUDE) $(CXXFLAGS)   $(EXTRA_DEBUG) -DULAPI $(DEBUG) $(OPT)
 
