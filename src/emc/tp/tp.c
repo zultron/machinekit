@@ -1364,6 +1364,10 @@ int handleModeChange(TC_STRUCT *prev_tc, TC_STRUCT *tc)
             (tc->canon_motion_type == EMC_MOTION_TYPE_TRAVERSE)) {
         tp_debug_print("Blending disabled: rapid / feed transition must follow exact path\n");
         tcSetTermCond(prev_tc, tc, TC_TERM_COND_EXACT);
+        if (tc->canon_motion_type == EMC_MOTION_TYPE_TRAVERSE) {
+            // Force retraction moves to follow exact path (to avoid gouging after a hole retraction)
+            tcSetTermCond(tc, NULL, TC_TERM_COND_EXACT);
+        }
     }
 
     if (prev_tc->synchronized != TC_SYNC_POSITION &&
