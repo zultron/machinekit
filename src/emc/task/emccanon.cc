@@ -2707,7 +2707,7 @@ void UPDATE_PART_COUNTS(int m30_a, int m30_b, int m99_a, int m99_b)
 std::array<int, MAX_PART_COUNTERS> GET_EXTERNAL_PART_COUNTS()
 {
     std::array<int, MAX_PART_COUNTERS> out;
-    std::copy(emcStatus->task.part_counters, emcStatus->task.part_counters + 4, out.begin());
+    std::copy(emcStatus->task.part_counters, emcStatus->task.part_counters + MAX_PART_COUNTERS, out.begin());
     return out;
 }
 
