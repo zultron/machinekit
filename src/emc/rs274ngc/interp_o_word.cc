@@ -538,7 +538,9 @@ void Interp::loop_to_beginning(setup_pointer settings)
 	     settings->filename);
 
     // scroll back to beginning of file/first block
-    fseek(settings->file_pointer, 0, SEEK_SET);
+    if (settings->file_pointer) {
+        fseek(settings->file_pointer, 0, SEEK_SET);
+    }
     settings->sequence_number = 0;
 }
 
