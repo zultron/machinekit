@@ -52,9 +52,9 @@ cmd_str='o<{}> call [{}] [{}] [{}] [{}]'.format(
 )
 print >> sys.stderr, cmd_str
 c.mdi(cmd_str)
-c.wait_complete(100)
+c.wait_complete(1000)
 c.mdi('G4 P0.01')
-c.wait_complete()
+c.wait_complete(1000)
 p_read.terminate()
 p_read.wait()
 print >> sys.stderr, "halsampler done with code %d" % p_read.returncode

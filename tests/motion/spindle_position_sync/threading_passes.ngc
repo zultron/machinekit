@@ -1,0 +1,27 @@
+o<threading_passes> sub
+(Explicitly enable infinite blend tolerance to test pull-out constraint)
+G64 P0.0 Q0.0
+G0 X.2 Y0 Z0
+M3 S600
+o<thread_pass> call [-.1] [-2] [#3]
+S750
+o<thread_pass> call [-.2] [-2] [#3]
+S900
+o<thread_pass> call [-.3] [-2] [#3]
+S1200
+o<thread_pass> call [-.4] [-2] [#3]
+S1800
+o<thread_pass> call [-.5] [-2] [#3]
+M5
+o<threading_passes> endsub
+M2
+
+o<thread_pass> sub 
+(PRINT,In threading pass with depth #1)
+G0 X#1
+G33 Z#2 K#3
+G0 X0.1 (Should be exact-path)
+G91.2 Z.1 X.1 (Should be blended aggressively)
+Z-.1
+G91.2 Z.1 X-0.1
+o<thread_pass> endsub

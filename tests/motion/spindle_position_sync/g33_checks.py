@@ -10,7 +10,10 @@ import re
 # String helpers
 
 # KLUDGE copied from motion_types.h
+SYNC_SEEK_INDEX = 2
+SYNC_ACCEL_RAMP = 3
 SYNC_POSITION = 4
+SYNC_TRIGGER_WAIT = 6
 
 def get_spindle_direction(constants):
     return -1.0 if 'ccw' == constants.get('spindle_direction', 'cw') else 1.0
@@ -68,37 +71,52 @@ def check_all(test_name):
     return exceeds_abs_dev or exceeds_overrun
 
 
+def find_transitions(states, s0, s1):
+    return np.where((states == s1) * (np.roll(states, 1) == s0))[0]
+
+
+def find_rising_edge(states, s):
+    return np.where((states == s) * (np.roll(states, 1) != s))[0]
+
+
+def find_falling_edge(states, s):
+    return np.where((states != s) * (np.roll(states, 1) == s))[0]
+
+
+def find_state(states, s):
+    return np.where(states == s)[0]
+
+
 def check_abs_deviation(samples, constants):
     spindle_pos = samples[:, 1] * get_spindle_direction(constants)
     z_axis_pos = samples[:, 4]
 
-    # Find the last point where index-enable is high (it's the next one
-    spindle_start = np.argwhere(samples[:, 7] == 1)[-1].item() + 1
-
     z_axis_nominal_feed = constants["pitch"] * constants["spindle_speed_rps"]
-    sync_offset_expected = int(z_axis_nominal_feed / constants["z_axis_max_accel"] * constants["servo_loop_freq"])
-    sync_idx_expected = spindle_start + sync_offset_expected
     # Find when sync starts in rigid tap state
-    pos_sync_active_range = np.argwhere(samples[:, 6] == SYNC_POSITION)
-    sync_idx = pos_sync_active_range[0].item()
-    end_sync_idx = pos_sync_active_range[-1].item()
+    index_seek_start_idx = find_rising_edge(samples[:, 6], SYNC_SEEK_INDEX)
+    sync_start_idx = find_rising_edge(samples[:, 6], SYNC_ACCEL_RAMP)
+    sync_end_idx = find_falling_edge(samples[:, 6], SYNC_ACCEL_RAMP)
 
-    sync_pos = samples[sync_idx, 4]
-    endpoint = constants["z_depth"]
-    if sync_pos < endpoint:
-        print >> sys.stderr, "Failed: position sync starts at position %f, after the endpoint %f)" % (sync_pos, endpoint)
-        return True
+    for s, e in zip(sync_start_idx, sync_end_idx):
+        sync_pos = samples[e, 4]
+        endpoint = constants["z_depth"]
+        if sync_pos < endpoint:
+            print >> sys.stderr, "Failed: position sync starts at position %f, after the endpoint %f)" % (sync_pos, endpoint)
+            return True
 
     max_sync_delay = constants.get("max_sync_delay", 1)
-    if abs(sync_idx - sync_idx_expected) > max_sync_delay:
-        print >> sys.stderr, "Failed: position sync started at %d), not within %d steps of expected (%d)" % (
-            sync_idx, max_sync_delay, sync_idx_expected)
-        return True
+    for e, s in zip(index_seek_start_idx, sync_start_idx):
+        if e-s > max_sync_delay:
+            print >> sys.stderr, "Failed: position sync started at %d), not within %d steps of expected (%d)" % (
+                e, max_sync_delay, s)
+            return True
 
     print >> sys.stderr, "Passed: spindle sync starts within expected limits"
 
-    spindle_pos_active = spindle_pos[sync_idx:end_sync_idx]
-    z_axis_pos_active = z_axis_pos[sync_idx:end_sync_idx]
+    pos_sync_active_range = find_state(samples[:, 6], SYNC_POSITION)
+    spindle_pos_active = spindle_pos[pos_sync_active_range]
+    z_axis_pos_active = z_axis_pos[pos_sync_active_range]
+    print >> sys.stderr, np.size(pos_sync_active_range)
 
     p_bestfit = np.polyfit(spindle_pos_active, z_axis_pos_active, 1)
     print >> sys.stderr, "Linear fit for spindle / axis motion: ", np.poly1d(p_bestfit)
