@@ -44,7 +44,7 @@ print >> sys.stderr, spindle_cmd
 c.mdi(spindle_cmd)
 c.wait_complete(10)
 cmd_str='o<{}> call [{}] [{}] [{}] [{}]'.format(
-    "rigid_tap_sub" if constants.get("rigid_tap", True) else "spindle_sync_sub",
+    constants.get("test_subroutine","rigid_tap_sub"),
     constants.get("z_depth",-1.0),
     constants.get("z_pecks", 1.0),
     constants.get("pitch", 0.1),
