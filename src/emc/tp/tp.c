@@ -989,7 +989,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     PmCartesian vel_bound = getXYZVelBounds();
     PmCartesian acc_bound = getXYZAccelBounds();
 
-    biarc_solver_results_t biarc_results = {0};
+    biarc_solver_results_t biarc_results = {};
     BlendParameters param_guess = {0};
     BlendControls controls = {0};
     CHP(optimize_biarc_blend_size(
@@ -1012,8 +1012,8 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         return TP_ERR_NO_ACTION;
     }
 
-    BlendPoints3 points1 = {0}, points2 = {0};
-    BlendParameters param1 = {0}, param2 = {0};
+    BlendPoints3 points1 = {}, points2 = {};
+    BlendParameters param1 = {}, param2 = {};
 
     CHP(find_biarc_points_from_solution(
         &boundary->u1,
@@ -1050,7 +1050,7 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         &param2));
     CHP(initBlendSegmentFromPoints(&blend_tc2, &points2, &param2));
 
-    union {PmCartLine line; PmCircle circle;} prev_geom={0}, this_geom={0};
+    union {PmCartLine line; PmCircle circle;} prev_geom={}, this_geom={};
 
     switch (prev_tc->motion_type) {
     case TC_LINEAR:
@@ -1232,7 +1232,7 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
         tc,
         getMaxBlendFeedScale(prev_tc, tc)));
 
-    BlendGeom3 geom = {0};
+    BlendGeom3 geom = {};
     BlendParameters param = {0};
     CHP(blendInit3FromLineLine(
         &geom,
@@ -1251,7 +1251,7 @@ tp_err_t tpCreateLineLineBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc,
 
     CHP(blendComputeParameters(&param, &controls));
 
-    BlendPoints3 points = {0};
+    BlendPoints3 points = {};
     CHP(blendFindPoints3(&points, &geom, &param));
 
     double L_prev = prev_tc->target - param.d_plan;
@@ -2723,7 +2723,7 @@ inline int tpIsWaitingOnSpindle(TP_STRUCT const * const tp)
 void checkPositionMatch(TP_STRUCT const *tp, TC_STRUCT const *tc)
 {
     unsigned need_print = _tp_debug;
-    EmcPose tp_position_error={0};
+    EmcPose tp_position_error = {};
     if (needConsistencyCheck(CCHECK_C0_CONTINUITY) && !tc->is_blending){
         tcGetPos(tc, &tp_position_error);
         emcPoseSelfSub(&tp_position_error, &tp->currentPos);
