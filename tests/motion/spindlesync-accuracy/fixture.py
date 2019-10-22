@@ -35,14 +35,26 @@ p_read = Popen([
     sample_file,
 ])
 
-print >> sys.stderr, "start spindle"
-c.mdi('S%d %s' % (constants["spindle_speed_rps"]*60., g33_checks.get_spindle_mcode(constants)))
+c.mdi('M150 P{}'.format(constants.get("eccentricity", 0.0)))
 c.wait_complete(10)
-print >> sys.stderr, "tap move"
-c.mdi('G33.1 Z-{} K{}'.format(constants["z_distance"], constants["pitch"]))
-c.wait_complete(100)
+c.mdi('G0 X0 Y0 Z0')
+c.wait_complete(10)
+spindle_cmd = 'S%d %s' % (constants["spindle_speed_rps"]*60., g33_checks.get_spindle_mcode(constants))
+print >> sys.stderr, spindle_cmd
+c.mdi(spindle_cmd)
+c.wait_complete(10)
+cmd_str='o<{}> call [{}] [{}] [{}] [{}]'.format(
+    constants.get("test_subroutine","rigid_tap_sub"),
+    constants.get("z_depth",-1.0),
+    constants.get("z_pecks", 1.0),
+    constants.get("pitch", 0.1),
+    constants.get("retract_scale", 1.0),
+)
+print >> sys.stderr, cmd_str
+c.mdi(cmd_str)
+c.wait_complete(1000)
 c.mdi('G4 P0.01')
-c.wait_complete()
+c.wait_complete(1000)
 p_read.terminate()
 p_read.wait()
 print >> sys.stderr, "halsampler done with code %d" % p_read.returncode

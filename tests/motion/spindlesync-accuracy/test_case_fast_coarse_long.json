@@ -1,7 +1,7 @@
 {
     "spindle_speed_rps": 15.0,
     "pitch": 0.2,
-    "z_distance": 5.0,
+    "z_depth": -5.0,
     "z_axis_max_vel": 4.0,
     "z_axis_max_accel": 50.0,
     "servo_loop_freq": 1000.0,
