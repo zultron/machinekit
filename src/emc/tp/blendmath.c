@@ -85,12 +85,6 @@ double fsign(double f)
     }
 }
 
-/** negate a value (or not) based on a bool parameter */
-static inline double negate(double f, int neg)
-{
-    return (neg) ? -f : f;
-}
-
 /** Clip the input at the specified minimum (in place). */
 int clip_min(double * const x, double min) {
     if ( *x < min ) {
@@ -1901,7 +1895,7 @@ ContinuityCheck calc_C1_continuity(
     TC_STRUCT const * const prev_tc,
     TC_STRUCT const * const next_tc)
 {
-    ContinuityCheck out = {0};
+    ContinuityCheck out = {};
     PmCartesian u_1, u_2;
     tcGetEndTangentUnitVector(prev_tc, &u_1);
     tcGetStartTangentUnitVector(next_tc, &u_2);
