@@ -2601,7 +2601,7 @@ int tpCompleteSegment(TP_STRUCT * const tp,
     // spindle position so the next synced move can be in
     // the right place.
     if(tc->synchronized != TC_SYNC_NONE) {
-        tp->spindle.origin.position += (tc->target - tc->progress_at_sync) / tc->uu_per_rev;
+        tp->spindle.origin.position += (tc->target - tc->progress_at_sync) * tp->spindle.origin.direction / tc->uu_per_rev;
     } else {
         tp->spindle.origin.position = 0.0;
     }
@@ -2812,7 +2812,7 @@ tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
     if (segment_time < cutoff_time &&
             tc->canon_motion_type != EMC_MOTION_TYPE_TRAVERSE &&
             tc->term_cond == TC_TERM_COND_TANGENT &&
-            tc->motion_type != TC_RIGIDTAP)
+            !tc->synchronized)
     {
         tc->accel_mode = TC_ACCEL_RAMP;
     }
@@ -2978,7 +2978,6 @@ void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
             tc->target_vel = tc->maxvel_geom;
         }
     } else {
-        emcmotStatus->spindle_sync_state = tc->on_final_decel ? SYNC_FINAL_DECEL : SYNC_POSITION;
         // Multiply by user feed rate to get equivalent desired position
         const double pos_desired = (spindle_displacement + spindle_lookahead_delta) * tc->uu_per_rev;
         double net_progress = tc->progress - tc->progress_at_sync;
@@ -2999,6 +2998,15 @@ void tpSyncPositionMode(TP_STRUCT * const tp, TC_STRUCT * const tc,
         // This is the velocity we should be at when the position error is c0
         double v_final = spindle_vel_rps * tc->uu_per_rev;
         double a_max = tcGetTangentialMaxAccel(tc);
+
+        double dx = tc->target - tc->progress;
+        double dx_cutoff = pmSq(v_final * 1.05) / (2.0 * a_max);
+        if (dx < dx_cutoff && tc->term_cond != TC_TERM_COND_TANGENT)
+        {
+            emcmotStatus->spindle_sync_state = SYNC_FINAL_DECEL;
+        } else {
+            emcmotStatus->spindle_sync_state = SYNC_POSITION;
+        }
 
         /*
          * In general, position tracking works by perturbing the
