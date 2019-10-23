@@ -1812,7 +1812,7 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 
   for(; _setup.call_level > 0; _setup.call_level--) {
     int i;
-    context * sub = _setup.sub_context + _setup.call_level - 1;
+    context * sub = &_setup.sub_context[_setup.call_level - 1];
     free_named_parameters(&_setup.sub_context[_setup.call_level]);
     if(sub->subName) {
       logDebug("unwind_call leaving sub '%s'", sub->subName);

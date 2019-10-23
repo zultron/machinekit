@@ -79,7 +79,7 @@ static  tool_table_array tool_table_wrapper ( Interp & inst) {
 }
 
 static  sub_context_array sub_context_wrapper ( Interp & inst) {
-    return sub_context_array(inst._setup.sub_context);
+    return sub_context_array(inst._setup.sub_context.data());
 }
 
 

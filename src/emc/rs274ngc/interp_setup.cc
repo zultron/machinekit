@@ -120,7 +120,7 @@ setup_struct::setup_struct() :
     return_value (0.0),
     value_returned(0),
     call_level(0),
-    sub_context{},
+    sub_context(),
     call_state(0),
     adaptive_feed(0),
     feed_hold(0),
@@ -160,6 +160,7 @@ setup_struct::setup_struct() :
 {
   parameters.fill(0);
   tool_table.fill(CANON_TOOL_TABLE());
+  sub_context.fill(context{});
 
   // Prevent unnecessary reallocations
   new_parameters.reserve(MAX_NAMED_PARAMETERS);

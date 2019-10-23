@@ -481,7 +481,7 @@ struct setup_struct
   double return_value;               // optional return value for "return", "endsub"
   int value_returned;                // the last NGC procedure did/did not return a value
   int call_level;                    // current subroutine level
-  context sub_context[INTERP_SUB_ROUTINE_LEVELS];
+  std::array<context, INTERP_SUB_ROUTINE_LEVELS> sub_context;
   int call_state;                  //  enum call_states - inidicate Py handler reexecution
   offset_map_type offset_map;      // store label x name, file, line
 
