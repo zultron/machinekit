@@ -22,6 +22,14 @@
 
 #include <work_offset_structs.hh>
 
+enum PartsCounterTypes {
+    COUNTER_M_30_A,
+    COUNTER_M_30_B,
+    COUNTER_M_99_A,
+    COUNTER_M_99_B,
+    MAX_PART_COUNTERS
+};
+
 struct StateTag;
 /*
   This is the header file that all applications that use the
@@ -605,6 +613,10 @@ program. If commands are being executed with a stop after each one
 already (such as when the interpreter is being used with keyboard
 input), this command has no effect. */
 
+extern void UPDATE_PART_COUNTS(int m30_a, int m30_b, int m99_a, int m99_b);
+
+using PartCountArray = std::array<int, MAX_PART_COUNTERS>;
+extern PartCountArray GET_EXTERNAL_PART_COUNTS();
 
 /* Commands to set/reset output bits and analog values */
 extern void SET_MOTION_OUTPUT_BIT(int index);

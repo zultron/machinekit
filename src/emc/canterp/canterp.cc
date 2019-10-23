@@ -623,13 +623,18 @@ int Canterp::execute(const char *line) {
 	return 0;
     }
 
+    if (!strcmp(the_command_name, "UPDATE_PART_COUNTS")) {
+    UPDATE_PART_COUNTS(0,0,0,0);
+    return 0;
+    }
+
     if (!strcmp(the_command_name, "OPTIONAL_PROGRAM_STOP")) {
 	OPTIONAL_PROGRAM_STOP();
 	return 0;
     }
 
     if (!strcmp(the_command_name, "PROGRAM_END")) {
-	PROGRAM_END(false);
+    PROGRAM_END(false);
 	return 0;
     }
 

@@ -2694,6 +2694,23 @@ void PROGRAM_STOP()
     tag_and_send(pauseMsg);
 }
 
+void UPDATE_PART_COUNTS(int m30_a, int m30_b, int m99_a, int m99_b)
+{
+    EMC_TASK_PLAN_UPDATE_PART_COUNTS part_count_msg;
+    part_count_msg.part_counters[COUNTER_M_30_A] = m30_a;
+    part_count_msg.part_counters[COUNTER_M_30_B] = m30_b;
+    part_count_msg.part_counters[COUNTER_M_99_A] = m99_a;
+    part_count_msg.part_counters[COUNTER_M_99_B] = m99_b;
+    tag_and_send(part_count_msg);
+}
+
+std::array<int, MAX_PART_COUNTERS> GET_EXTERNAL_PART_COUNTS()
+{
+    std::array<int, MAX_PART_COUNTERS> out;
+    std::copy(emcStatus->task.part_counters, emcStatus->task.part_counters + MAX_PART_COUNTERS, out.begin());
+    return out;
+}
+
 void SET_BLOCK_DELETE(bool state)
 {
     block_delete = state; //state == ON, means we don't interpret lines starting with "/"

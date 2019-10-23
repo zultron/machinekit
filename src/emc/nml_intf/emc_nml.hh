@@ -1355,7 +1355,7 @@ class EMC_TASK_PLAN_END:public EMC_TASK_CMD_MSG {
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
-   
+
     bool reset;   // reset after program end
 };
 
@@ -1423,6 +1423,16 @@ class EMC_TASK_PLAN_OPTIONAL_STOP:public EMC_TASK_CMD_MSG {
     void update(CMS * cms);
 };
 
+class EMC_TASK_PLAN_UPDATE_PART_COUNTS:public EMC_TASK_CMD_MSG {
+  public:
+    EMC_TASK_PLAN_UPDATE_PART_COUNTS():EMC_TASK_CMD_MSG(EMC_TASK_PLAN_UPDATE_PART_COUNTS_TYPE,
+                       sizeof(EMC_TASK_PLAN_UPDATE_PART_COUNTS)) {
+    }
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+    int part_counters[MAX_PART_COUNTERS];
+};
 
 // EMC_TASK status base class
 class EMC_TASK_STAT_MSG:public RCS_STAT_MSG {
@@ -1436,6 +1446,7 @@ class EMC_TASK_STAT_MSG:public RCS_STAT_MSG {
 
     uint32_t heartbeat;
 };
+
 
 class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
   public:
@@ -1479,8 +1490,7 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     bool orient_no_exec_error;	// set if M19 Q-word < 0 so g code can handle timeout
     double motionTolerance;
     double naivecamTolerance;
-    int parts_counter_m30[2];
-    int parts_counter_m99[2];
+    int part_counters[MAX_PART_COUNTERS];
 };
 
 // declarations for EMC_TOOL classes
