@@ -350,12 +350,15 @@ public:
                           setup_pointer settings);
  int convert_probe(block_pointer block, GCodes g_code, setup_pointer settings);
  int convert_retract_mode(int g_code, setup_pointer settings);
+ int convert_part_count(block_pointer block, setup_pointer settings);
  int convert_setup(block_pointer block, setup_pointer settings);
  int convert_setup_tool(block_pointer block, setup_pointer settings);
  int convert_set_plane(int g_code, setup_pointer settings);
  int convert_speed(block_pointer block, setup_pointer settings);
-     int convert_spindle_mode(block_pointer block, setup_pointer settings);
+ int convert_spindle_mode(block_pointer block, setup_pointer settings);
  int convert_stop(block_pointer block, setup_pointer settings);
+ int increment_part_counter(setup_pointer settings, size_t counter_id);
+ int update_part_counter(setup_pointer settings, size_t counter_id, int part_count);
  int convert_straight(GCodes move, block_pointer block,
                             setup_pointer settings);
  int convert_straight_comp1(int move, block_pointer block,
@@ -753,6 +756,8 @@ int read_inputs(setup_pointer settings);
     double PROGRAM_TO_USER_ANG(double p) const;
     UnitsTransform convertsUserToProgram() const;
     UnitsTransform convertsProgramToUser() const;
+    int convert_g10(block_pointer block, setup_pointer settings);
+    InterpReturn check_g10(block_pointer block);
 };
 
 bool toolOffsetActive(setup_pointer s);

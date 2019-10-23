@@ -335,8 +335,8 @@ int emcFormat(NMLTYPE type, void *buffer, CMS * cms)
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 	((EMC_TASK_PLAN_OPTIONAL_STOP *) buffer)->update(cms);
 	break;
-    case EMC_TASK_PLAN_UPDATE_PART_COUNTS_TYPE:
-    ((EMC_TASK_PLAN_UPDATE_PART_COUNTS *) buffer)->update(cms);
+    case EMC_TASK_PLAN_UPDATE_PART_COUNT_TYPE:
+    ((EMC_TASK_PLAN_UPDATE_PART_COUNT *) buffer)->update(cms);
     break;
     case EMC_TASK_SET_MODE_TYPE:
 	((EMC_TASK_SET_MODE *) buffer)->update(cms);
@@ -691,7 +691,7 @@ const char *emc_symbol_lookup(uint32_t type)
 	return "EMC_TASK_PLAN_SET_BLOCK_DELETE";
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 	return "EMC_TASK_PLAN_OPTIONAL_STOP";
-    case EMC_TASK_PLAN_UPDATE_PART_COUNTS_TYPE:
+    case EMC_TASK_PLAN_UPDATE_PART_COUNT_TYPE:
     return "EMC_TASK_PLAN_UPDATE_PART_COUNTS";
     case EMC_TASK_SET_MODE_TYPE:
 	return "EMC_TASK_SET_MODE";
@@ -2822,10 +2822,11 @@ void EMC_TASK_PLAN_OPTIONAL_STOP::update(CMS * cms)
 
 }
 
-void EMC_TASK_PLAN_UPDATE_PART_COUNTS::update(CMS * cms)
+void EMC_TASK_PLAN_UPDATE_PART_COUNT::update(CMS * cms)
 {
     EMC_TASK_CMD_MSG::update(cms);
-    cms->update(part_counters, MAX_PART_COUNTERS);
+    cms->update(counter_id);
+    cms->update(part_count);
 }
 
 /*

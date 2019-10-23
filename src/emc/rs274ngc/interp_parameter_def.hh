@@ -211,11 +211,13 @@ enum InterpParameterIndex {
 // 5601 - Toolchanger fault code. Used with the iocontrol-v2 component. Reflects the value of the toolchanger-reason HAL pin if a fault occurred. Volatile.
     TOOLCHANGER_FAULT_CODE=5601,
 // 5650 - Cycle counters that are persistent, often used as part counters
-    M30_CYCLE_COUNTER_A=5650,
+    MIN_CYCLE_COUNTER_PARAM=5650,
+    M30_CYCLE_COUNTER_A=MIN_CYCLE_COUNTER_PARAM,
     M30_CYCLE_COUNTER_B=5651,
     M99_CYCLE_COUNTER_A=5652,
     M99_CYCLE_COUNTER_B=5653,
-    RS274NGC_MAX_PARAMETERS=5654,
+    MAX_CYCLE_COUNTER_PARAM,
+    RS274NGC_MAX_PARAMETERS=MAX_CYCLE_COUNTER_PARAM,
     EXTENDED_WORK_OFFSET_START=10000,
     EXTENDED_WORK_OFFSET_END=EXTENDED_WORK_OFFSET_START + (MAX_EXTENDED_WORK_CSYS+1) * 20,
 };

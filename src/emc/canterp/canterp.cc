@@ -624,7 +624,7 @@ int Canterp::execute(const char *line) {
     }
 
     if (!strcmp(the_command_name, "UPDATE_PART_COUNTS")) {
-    UPDATE_PART_COUNTS(0,0,0,0);
+    UPDATE_PART_COUNT(0,0);
     return 0;
     }
 

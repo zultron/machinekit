@@ -3315,6 +3315,32 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
   return INTERP_OK;
 }
 
+int Interp::convert_g10(block_pointer block, setup_pointer settings)
+{
+    CHKS(!block->l_flag, _("G10 is missing L word"));
+    switch (block->l_number) {
+    case 1:
+    case 10:
+    case 11:
+        CHP(convert_setup_tool(block, settings));
+        // Any change to work / tool offsets means the queue should be flushed to prevent interp / task mismatches
+        settings->work_offset_modified_flag = true;
+        break;
+    case 2:
+    case 20:
+        CHP(convert_setup(block, settings));
+        settings->work_offset_modified_flag = true;
+        break;
+    case 99:
+        CHP(convert_part_count(block, settings));
+        break;
+    default:
+        ERS("Invalid L word %d in G10 block", block->l_number);
+    }
+
+    return INTERP_OK;
+}
+
 /****************************************************************************/
 
 /*! convert_modal_0
@@ -3340,7 +3366,6 @@ modal group 0), it is executed. The other two in modal group 0 (G4 and
 G53) are executed elsewhere.
 
 */
-
 int Interp::convert_modal_0(GCodes code,    //!< G code, must be from group 0
                            block_pointer block, //!< pointer to a block of RS274/NGC instructions
                            setup_pointer settings //!< pointer to machine settings
@@ -3356,12 +3381,7 @@ int Interp::convert_modal_0(GCodes code,    //!< G code, must be from group 0
             break;
 
         case G_10:
-            if(block->l_number == 1 || block->l_number == 10 || block->l_number == 11)
-                CHP(convert_setup_tool(block, settings));
-            else
-                CHP(convert_setup(block, settings));
-            // Any change to work / tool offsets means the queue should be flushed to prevent interp / task mismatches
-            settings->work_offset_modified_flag = true;
+            CHP(convert_g10(block, settings));
             break;
         case G_28:
         case G_30:
@@ -3834,6 +3854,27 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     return INTERP_OK;
 }
 
+/**
+ * Manually update a part counter either with an increment, or a provided value (via the Q word)
+ */
+int Interp::convert_part_count(
+    block_pointer block,   //!< pointer to a block of RS274/NGC instructions
+    setup_pointer settings)        //!< pointer to machine settings
+{
+    CHKS(!block->p_flag, _("G10 L99 requires a P word to specify the cycle counter"));
+
+    // Assumes an integer value
+    size_t counter_id = std::round(block->p_number);
+
+    if (block->q_flag) {
+        int q_value = (int)std::round(block->q_number);
+        CHP(update_part_counter(settings, counter_id, q_value));
+    } else {
+        CHP(increment_part_counter(settings, counter_id));
+    }
+    return INTERP_OK;
+}
+
 /****************************************************************************/
 
 /*! convert_setup
@@ -4161,16 +4202,9 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
       logDebug("M99 main program endless loop");
       loop_to_beginning(settings);  // return control to beginning of file
 
-      settings->parameters[M99_CYCLE_COUNTER_A] += 1;
-      settings->parameters[M99_CYCLE_COUNTER_B] += 1;
-
       FINISH();  // Output any final linked segments
-      UPDATE_PART_COUNTS(
-        settings->parameters[M30_CYCLE_COUNTER_A],
-        settings->parameters[M30_CYCLE_COUNTER_B],
-        settings->parameters[M99_CYCLE_COUNTER_A],
-        settings->parameters[M99_CYCLE_COUNTER_B]
-        );
+      increment_part_counter(settings, COUNTER_M_99_A);
+      increment_part_counter(settings, COUNTER_M_99_B);
       return INTERP_EXECUTE_FINISH;  // tell task to issue any queued commands
   } else if ((block->m_modes[M_MODE_STOPPING] == 2) || (block->m_modes[M_MODE_STOPPING] == 30) ||
          (block->m_modes[M_MODE_STOPPING] == 99 && !_setup.loop_on_main_m99)
@@ -4305,21 +4339,14 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
       // Clear G92/G52 offset
       clearPersistentG92Parameters(settings);
 
-    bool rewind = false;
-    if (block->m_modes[M_MODE_STOPPING] == 30) {
+    if (bool rewind = (block->m_modes[M_MODE_STOPPING] == 30)){
       PALLET_SHUTTLE();
-      settings->parameters[M30_CYCLE_COUNTER_A] += 1;
-      settings->parameters[M30_CYCLE_COUNTER_B] += 1;
-      rewind = true;
+      PROGRAM_END(rewind);  // reset after program end with m30
+      increment_part_counter(settings, COUNTER_M_30_A);
+      increment_part_counter(settings, COUNTER_M_30_B);
+    } else {
+      PROGRAM_END(rewind);
     }
-    PROGRAM_END(
-        rewind);  // reset after program end with m30
-    UPDATE_PART_COUNTS(
-        settings->parameters[M30_CYCLE_COUNTER_A],
-        settings->parameters[M30_CYCLE_COUNTER_B],
-        settings->parameters[M99_CYCLE_COUNTER_A],
-        settings->parameters[M99_CYCLE_COUNTER_B]
-        );
 
     if (_setup.percent_flag && _setup.file_pointer) {
       line = _setup.linetext;
@@ -4348,6 +4375,25 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
   } else
     ERS(NCE_BUG_CODE_NOT_M0_M1_M2_M30_M60_M99);
   return INTERP_OK;
+}
+
+int Interp::increment_part_counter(setup_pointer settings, size_t counter_id)
+{
+    size_t param_idx = counter_id + MIN_CYCLE_COUNTER_PARAM;
+    CHKS(param_idx < MIN_CYCLE_COUNTER_PARAM || param_idx >= MAX_CYCLE_COUNTER_PARAM,
+         _("%s: Invalid counter ID %ld"), settings->linetext, (long)counter_id);
+    CHP(update_part_counter(settings, counter_id, settings->parameters[param_idx] + 1));
+    return INTERP_OK;
+}
+
+int Interp::update_part_counter(setup_pointer settings, size_t counter_id, int part_count)
+{
+    size_t param_idx = counter_id + MIN_CYCLE_COUNTER_PARAM;
+    CHKS(param_idx < MIN_CYCLE_COUNTER_PARAM || param_idx >= MAX_CYCLE_COUNTER_PARAM,
+         _("%s: Invalid counter ID %ld"), settings->linetext, (long)counter_id);
+    settings->parameters[param_idx] = part_count;
+    UPDATE_PART_COUNT(counter_id, part_count);
+    return INTERP_OK;
 }
 
 /*************************************************************************** */

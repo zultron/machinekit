@@ -2694,13 +2694,11 @@ void PROGRAM_STOP()
     tag_and_send(pauseMsg);
 }
 
-void UPDATE_PART_COUNTS(int m30_a, int m30_b, int m99_a, int m99_b)
+void UPDATE_PART_COUNT(size_t counter_id, int part_count)
 {
-    EMC_TASK_PLAN_UPDATE_PART_COUNTS part_count_msg;
-    part_count_msg.part_counters[COUNTER_M_30_A] = m30_a;
-    part_count_msg.part_counters[COUNTER_M_30_B] = m30_b;
-    part_count_msg.part_counters[COUNTER_M_99_A] = m99_a;
-    part_count_msg.part_counters[COUNTER_M_99_B] = m99_b;
+    EMC_TASK_PLAN_UPDATE_PART_COUNT part_count_msg;
+    part_count_msg.counter_id = counter_id;
+    part_count_msg.part_count = part_count;
     tag_and_send(part_count_msg);
 }
 

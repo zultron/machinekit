@@ -1177,12 +1177,9 @@ int Interp::init()
   if (filename[0] == 0)
     strcpy(filename, RS274NGC_PARAMETER_FILE_NAME_DEFAULT);
   int res_restore_param = restore_parameters(filename);
-  UPDATE_PART_COUNTS(
-      _setup.parameters[M30_CYCLE_COUNTER_A],
-      _setup.parameters[M30_CYCLE_COUNTER_B],
-      _setup.parameters[M99_CYCLE_COUNTER_A],
-      _setup.parameters[M99_CYCLE_COUNTER_B]
-      );
+  for (size_t idx = COUNTER_M_30_A; idx <= COUNTER_M_99_B; ++idx) {
+      UPDATE_PART_COUNT(idx, _setup.parameters[MIN_CYCLE_COUNTER_PARAM + idx]);
+  }
 
   _setup.origin_index = (int) (_setup.parameters[ACTIVE_WORK_CSYS] + 0.0001);
   if(!is_valid_work_offset_index(_setup.origin_index)) {

@@ -613,7 +613,7 @@ program. If commands are being executed with a stop after each one
 already (such as when the interpreter is being used with keyboard
 input), this command has no effect. */
 
-extern void UPDATE_PART_COUNTS(int m30_a, int m30_b, int m99_a, int m99_b);
+extern void UPDATE_PART_COUNT(size_t counter_id, int part_count);
 
 using PartCountArray = std::array<int, MAX_PART_COUNTERS>;
 extern PartCountArray GET_EXTERNAL_PART_COUNTS();

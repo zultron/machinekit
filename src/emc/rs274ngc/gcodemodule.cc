@@ -466,7 +466,7 @@ void SET_SPINDLE_SPEED(double rpm) {
 void ORIENT_SPINDLE(double d, int i) {}
 void WAIT_SPINDLE_ORIENT_COMPLETE(double timeout) {}
 void PROGRAM_STOP() {}
-void UPDATE_PART_COUNTS(int, int, int, int) {}
+void UPDATE_PART_COUNT(size_t, int) {}
 PartCountArray GET_EXTERNAL_PART_COUNTS() {return PartCountArray{};}
 void PROGRAM_END(bool reset) {}
 void FINISH() {}

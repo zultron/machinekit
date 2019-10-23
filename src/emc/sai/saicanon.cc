@@ -653,9 +653,9 @@ void UNCLAMP_AXIS(CANON_AXIS axis)
 void PROGRAM_STOP()
 {PRINT("PROGRAM_STOP()\n");}
 
-void UPDATE_PART_COUNTS(int, int, int, int)
-{
-}
+void UPDATE_PART_COUNT(size_t, int)
+{}
+
 PartCountArray GET_EXTERNAL_PART_COUNTS() {return PartCountArray();}
 
 void SET_BLOCK_DELETE(bool state)
