@@ -64,6 +64,7 @@
 #include "mot_priv.h"
 #include "rtapi_math.h"
 #include "motion_types.h"
+#include "kinematics.h"
 
 #include "tp_debug.h"
 

@@ -25,6 +25,7 @@
 #include "motion_debug.h"
 #include "config.h"
 #include "motion_types.h"
+#include "kinematics.h"
 
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)

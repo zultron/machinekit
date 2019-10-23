@@ -72,10 +72,6 @@ typedef unsigned long int KINEMATICS_FORWARD_FLAGS;
 typedef unsigned long int KINEMATICS_INVERSE_FLAGS;
 
 
-// these methods used to be exported through symbol resolution, and now
-// go through function pointers in the kins vtable:
-#ifdef LEGACY_KINS_API
-
 /* the forward kinematics take joint values and determine world coordinates,
    given forward kinematics flags to resolve any ambiguities. The inverse
    flags are set to indicate their value appropriate to the joint values
@@ -106,8 +102,6 @@ extern int kinematicsHome(struct EmcPose * world,
 			  KINEMATICS_INVERSE_FLAGS * iflags);
 
 extern KINEMATICS_TYPE kinematicsType(void);
-
-#endif
 
 typedef int (*vtk_kinematicsForward_t)(const double *joint,
 				     struct EmcPose * world,
