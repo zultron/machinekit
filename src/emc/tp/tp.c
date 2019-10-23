@@ -2399,6 +2399,7 @@ void tpUpdateRigidTapState(TP_STRUCT * const tp,
         case RIGIDTAP_TAPPING:
             if (tc->progress >= reversal_target) {
                 // command reversal
+                emcmotStatus->rigid_tap_reversal_vel_rps = emcmotStatus->spindle_fb.velocity_rps;
                 cmdReverseSpindle();
                 tc->coords.rigidtap.state = RIGIDTAP_REVERSING;
             }

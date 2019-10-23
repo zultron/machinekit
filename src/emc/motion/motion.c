@@ -339,6 +339,9 @@ static int init_hal_io(void)
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->pos_tracking_velocity), mot_comp_id, "motion.pos-tracking-velocity")) < 0) goto error;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->rigid_tap_state), mot_comp_id, "motion.rigid-tap-state")) < 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->rigid_tap_overshoot), mot_comp_id, "motion.rigid-tap-overshoot")) < 0) goto error;
+    *emcmot_hal_data->rigid_tap_overshoot = 0.0;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->rigid_tap_reversal_vel_rps), mot_comp_id, "motion.rigid-tap-reversal-vel-rps")) < 0) goto error;
+    *emcmot_hal_data->rigid_tap_reversal_vel_rps = 0.0;
 
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->adaptive_feed), mot_comp_id, "motion.adaptive-feed")) < 0) goto error;
     *(emcmot_hal_data->adaptive_feed) = 1.0;

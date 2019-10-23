@@ -672,6 +672,7 @@ Suggestion: Split this in to an Error and a Status flag register..
     double pos_tracking_velocity;
     rigid_tap_state_t rigid_tap_state;
     double rigid_tap_overshoot;
+    double rigid_tap_reversal_vel_rps;
     double pos_tracking_error;
     double spindle_max_acceleration_rps2;
     double spindle_cmd_latency_sec;

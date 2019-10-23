@@ -1913,6 +1913,7 @@ static void output_to_hal(void)
     *(emcmot_hal_data->pos_tracking_velocity) = emcmotStatus->pos_tracking_velocity;
     *(emcmot_hal_data->rigid_tap_state) = emcmotStatus->rigid_tap_state;
     *(emcmot_hal_data->rigid_tap_overshoot) = emcmotStatus->rigid_tap_overshoot;
+    *(emcmot_hal_data->rigid_tap_reversal_vel_rps) = emcmotStatus->rigid_tap_reversal_vel_rps;
 
     *(emcmot_hal_data->program_line) = emcmotStatus->id;
     *(emcmot_hal_data->motion_type) = emcmotStatus->motionType;
