@@ -200,6 +200,7 @@ pin out float vfd_rpm_cmd;
 pin out float feedback_motor_rpm;
 pin out float feedback_spindle_rpm;
 pin out float spindle_max_acceleration_rps;
+pin out float spindle_pulley_ratio;
 
 pin in bit enc_door_switch_configured;
 pin in bit enc_door_switch_status;
@@ -1237,7 +1238,6 @@ FUNCTION(_) {
 #define is_spindle_stopped() (_is_spindle_stopped(__comp_inst))
 
     float speeder_ratio;
-    float pulley_ratio;
 //TODO: doing   SLP
 //    float hz_per_cmd_hz;
 //    float min_speed_freq_cmd;
@@ -1290,7 +1290,7 @@ FUNCTION(_) {
     // set min and max speed from belt position
     // we default or assume hi belt except when HI speed spindle
     if (belt_position != BELT_POSITION_LOW) { //default HI belt unknowns, too
-        pulley_ratio =  highbelt_ratio;
+        spindle_pulley_ratio =  highbelt_ratio;
         min_speed = setValue(highbelt_min_rpm, DEF_HIGHBELT_MIN_RPM);
         max_speed = setValue(highbelt_max_rpm, DEF_HIGHBELT_MAX_RPM);
         step_speed = setValue(highbelt_step_rpm, DEF_HIGHBELT_STEP_RPM);
@@ -1298,14 +1298,14 @@ FUNCTION(_) {
         step_tol_above = setValue(highbelt_tol_above, DEF_HIGHBELT_TOL_ABOVE);
     }
     else { //low belt case
-        pulley_ratio = lowbelt_ratio;
+        spindle_pulley_ratio = lowbelt_ratio;
         min_speed = setValue(lowbelt_min_rpm,DEF_LOWBELT_MIN_RPM);
         max_speed = setValue(lowbelt_max_rpm,DEF_LOWBELT_MAX_RPM);
         step_speed = setValue(lowbelt_step_rpm,DEF_LOWBELT_STEP_RPM);
         step_tol_below = setValue(lowbelt_tol_below,DEF_LOWBELT_TOL_BELOW);
         step_tol_above = setValue(lowbelt_tol_above,DEF_LOWBELT_TOL_ABOVE);
     }
-    spindle_max_acceleration_rps = vfd_max_acceleration_rps * pulley_ratio;
+    spindle_max_acceleration_rps = vfd_max_acceleration_rps * spindle_pulley_ratio;
 
     // test for speeder spindle type
     if (spindle_type == SPINDLE_TYPE_SPEEDER) {
@@ -1319,7 +1319,7 @@ FUNCTION(_) {
 
     // test for high speed spindle type
     if (spindle_type == SPINDLE_TYPE_HISPEED) {
-        pulley_ratio = 1.0;
+        spindle_pulley_ratio = 1.0;
         // use high speed spindle min and max
         min_speed = setValue(hispeed_min,DEF_HISPEED_MIN_RPM);
         max_speed = setValue(hispeed_max,DEF_HISPEED_MAX_RPM);
@@ -1379,7 +1379,7 @@ FUNCTION(_) {
             // TODO: external over ride for ORIENT_HZ_PER_HZ_DEFAULT?, per the above commented out code??
             hz_per_cmd_hz = ORIENT_HZ_PER_HZ_DEFAULT;
             min_speed_freq_cmd = 0.0;
-            max_speed_freq_cmd = VFD_BIPOLAR_FREQ_OFFSET;  //vfd_rpm2freq(max_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
+            max_speed_freq_cmd = VFD_BIPOLAR_FREQ_OFFSET;  //vfd_rpm2freq(max_speed, spindle_pulley_ratio, hz_per_cmd_hz, speeder_ratio);
             if (boost_disable) {
                 cw_boost_min = cw_boost_step = ccw_boost_min = ccw_boost_step = 0;
             }
@@ -1475,8 +1475,8 @@ FUNCTION(_) {
                 hz_per_cmd_hz = motor_hz_per_cmd_hz; //use eternal value
 
             // calculate clamps for vfd_freq_cmd to acceptable ranges once
-            min_speed_freq_cmd = vfd_rpm2freq(min_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
-            max_speed_freq_cmd = vfd_rpm2freq(max_speed, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
+            min_speed_freq_cmd = vfd_rpm2freq(min_speed, spindle_pulley_ratio, hz_per_cmd_hz, speeder_ratio);
+            max_speed_freq_cmd = vfd_rpm2freq(max_speed, spindle_pulley_ratio, hz_per_cmd_hz, speeder_ratio);
         }
     }
 
@@ -1702,8 +1702,8 @@ FUNCTION(_) {
 
     // compute frequency to send to VFD commanded speed input.
     // this is always computed for all states of VFD
-    // freq_cmd = spindle_rpm /  pulley_ratio / 60 * motor_hz_per_cmd_hz
-    vfd_freq_cmd = vfd_rpm2freq(vfd_rpm_cmd, pulley_ratio, hz_per_cmd_hz, speeder_ratio);
+    // freq_cmd = spindle_rpm /  spindle_pulley_ratio / 60 * motor_hz_per_cmd_hz
+    vfd_freq_cmd = vfd_rpm2freq(vfd_rpm_cmd, spindle_pulley_ratio, hz_per_cmd_hz, speeder_ratio);
 
 #if (TEST_SPINDLE_LOCK)   
     // DEBUG test to try to and move spindle when in lock mode to test locking timing 
@@ -1749,7 +1749,7 @@ FUNCTION(_) {
     //this pin, in which case it's going to be 0 here.  Our base HAL files set ENCODER_SCALE "1" to indicate no encoder.
     //a specific ini that then doesn't define ENCODER_SCALE at all means it will be "1" here
     if(orient_encoder_cpr == 1.0 || orient_encoder_cpr == 0.0) //if no spindle encoder
-    	feedback_spindle_rpm = feedback_motor_rpm * pulley_ratio; // use VFD's feedback, which isn't so accurate
+        feedback_spindle_rpm = feedback_motor_rpm * spindle_pulley_ratio; // use VFD's feedback, which isn't so accurate
     else { //TODO:
         //use the encoder and TODO add verify VFD motor speed feedback is working and/or alert wrong belt ratios, etc
     	//feedback_spindle_rpm = fabs(vFilter((double)encoder_velocity)) * (double)60.0;
