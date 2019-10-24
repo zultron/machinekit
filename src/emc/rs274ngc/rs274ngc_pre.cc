@@ -188,7 +188,7 @@ UnitsTransform Interp::convertsProgramToUser() const
 
 extern struct _inittab builtin_modules[];
 int trace;
-static char savedError[LINELEN+1];
+static char savedError[MAX_ERROR_MSG_LEN+1];
 
 Interp::Interp()
     : log_file(stderr),
@@ -1807,6 +1807,9 @@ int Interp::read(const char *command)
 // falling back to toplevel in a controlled way. Idempotent.
 int Interp::unwind_call(int status, const char *file, int line, const char *function)
 {
+  // Walks the subroutine call levels and appends caller / callee information
+  add_error_call_context();
+
   logDebug("unwind_call: call_level=%d status=%s from %s %s:%d",
            _setup.call_level, interp_status(status), function, file, line);
 
@@ -1859,6 +1862,38 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
   _setup.mdi_interrupt = false;
 
   qc_reset();
+  return INTERP_OK;
+}
+
+int Interp::add_error_call_context()
+{
+  std::ostringstream context_msg;
+  context_msg << getSavedError() << "\n";
+
+  std::string caller_linetext = _setup.linetext;
+  std::string caller_filename = _setup.filename;
+
+  for (int level = _setup.call_level; level >= 0; --level)
+  {
+      context const &sub = _setup.sub_context[level];
+      int callee_line = sub.sequence_number ?: _setup.sequence_number;
+      context_msg << "  in " << caller_filename;
+      if (sub.subName && sub.subName[0]) {
+          context_msg << " (o<" << sub.subName << ">)";
+      }
+      context_msg
+          << ": line " << callee_line
+          << ": " << caller_linetext
+          << "\n";
+      caller_linetext = sub.linetext;
+      // File return location is off by one
+      if (level > 0) {
+          caller_filename = _setup.sub_context[level-1].filename;
+      }
+  }
+
+  context_msg.flush();
+  setSavedError(context_msg.str().c_str());
   return INTERP_OK;
 }
 
@@ -2427,7 +2462,7 @@ void Interp::setError(const char *fmt, ...)
 
     va_start(ap, fmt);
 
-    vsnprintf(savedError, LINELEN, fmt, ap);
+    vsnprintf(savedError, MAX_ERROR_MSG_LEN, fmt, ap);
     //printf("Got a saved error");
 
     va_end(ap);
@@ -2454,7 +2489,7 @@ void Interp::setWarning(const char *fmt, ...)
     va_end(ap);
 }
 
-const char *Interp::getSavedError()
+const char *Interp::getSavedError() const
 {
     return savedError;
 }
@@ -2463,7 +2498,7 @@ const char *Interp::getSavedError()
 int Interp::setSavedError(const char *msg)
 {
     savedError[0] = '\0';
-    strncpy(savedError, msg, LINELEN);
+    strncpy(savedError, msg, MAX_ERROR_MSG_LEN);
     return INTERP_OK;
 }
 
@@ -2517,8 +2552,8 @@ char * Interp::error_text(int error_code,        //!< code number of error
 
 std::string Interp::error_text(int error_code)
 {
-    char buf[2048]={'\n'};
-    return std::string(error_text(error_code, buf, 2048));
+    char buf[MAX_ERROR_MSG_LEN+1]={'\n'};
+    return std::string(error_text(error_code, buf, MAX_ERROR_MSG_LEN));
 }
 
 char * Interp::warning_text(char *warning_text,      //!< char array to copy error text into

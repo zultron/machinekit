@@ -415,10 +415,10 @@ static int determineState()
 
 static int waitFlag = 0;
 
-static char interp_error_text_buf[LINELEN];
+static char interp_error_text_buf[MAX_ERROR_MSG_LEN+1];
 // Don't need this buffer if we don't throw run-time warnings
 //static char interp_warning_text_buf[LINELEN];
-static char interp_stack_buf[LINELEN];
+static char interp_stack_buf[LINELEN+1];
 
 static void print_interp_error(int retval)
 {
@@ -432,7 +432,7 @@ static void print_interp_error(int retval)
     }
 
     interp_error_text_buf[0] = 0;
-    interp.error_text(retval, interp_error_text_buf, LINELEN);
+    interp.error_text(retval, interp_error_text_buf, MAX_ERROR_MSG_LEN);
     if (0 != interp_error_text_buf[0]) {
 	rcs_print_error("interp_error: %s\n", interp_error_text_buf);
     }

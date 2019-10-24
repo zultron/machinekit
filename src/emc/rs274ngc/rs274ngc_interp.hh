@@ -21,6 +21,8 @@
 #include "interp_return.hh"
 #include <array>
 
+#define MAX_ERROR_MSG_LEN 10000
+
 class Interp : public InterpBase {
 
 public:
@@ -703,13 +705,13 @@ int read_inputs(setup_pointer settings);
     int py_reload();
     FILE *find_ngc_file(setup_pointer settings,const char *basename, char *foundhere = NULL);
 
-    const char *getSavedError();
+    const char *getSavedError() const;
     // set error message text without going through printf format interpretation
     int setSavedError(const char *msg); 
     int clearWarning();
 
     int unwind_call(int status, const char *file, int line, const char *function);
-
+    int add_error_call_context();
 
     int convert_straight_indexer(int, block*, setup*);
     int issue_straight_index(int, double, int, setup*);
