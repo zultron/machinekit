@@ -534,6 +534,7 @@ struct setup_struct
 #define FEATURE_NO_DOWNCASE_OWORD    0x00000010
 #define FEATURE_OWORD_WARNONLY       0x00000020
 #define FEATURE_LATHE_TOOLCHANGE     0x00000040
+#define FEATURE_EXTENDED_ERROR_MESSAGES 0x00001024
 
     boost::python::object *pythis;  // boost::cref to 'this'
     const char *on_abort_command;

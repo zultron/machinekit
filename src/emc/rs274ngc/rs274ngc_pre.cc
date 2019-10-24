@@ -1808,7 +1808,9 @@ int Interp::read(const char *command)
 int Interp::unwind_call(int status, const char *file, int line, const char *function)
 {
   // Walks the subroutine call levels and appends caller / callee information
-  add_error_call_context();
+  if (FEATURE(EXTENDED_ERROR_MESSAGES)) {
+    add_error_call_context();
+  }
 
   logDebug("unwind_call: call_level=%d status=%s from %s %s:%d",
            _setup.call_level, interp_status(status), function, file, line);
