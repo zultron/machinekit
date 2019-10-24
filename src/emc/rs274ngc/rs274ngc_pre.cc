@@ -986,7 +986,9 @@ int Interp::init()
       inifile.Find(&_setup.b_axis_wrapped, "WRAPPED_ROTARY", "AXIS_4");
       inifile.Find(&_setup.c_axis_wrapped, "WRAPPED_ROTARY", "AXIS_5");
       inifile.Find(&_setup.random_toolchanger, "RANDOM_TOOLCHANGER", "EMCIO");
-      inifile.Find(&_setup.feature_set, "FEATURES", "RS274NGC");
+      int feature_set;
+      inifile.Find(&feature_set, "FEATURES", "RS274NGC");
+      _setup.feature_set = feature_set;
 
       inifile.Find(&_setup.a_indexer, "LOCKING_INDEXER", "AXIS_3");
       inifile.Find(&_setup.b_indexer, "LOCKING_INDEXER", "AXIS_4");

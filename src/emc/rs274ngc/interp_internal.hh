@@ -510,7 +510,7 @@ struct setup_struct
 
   bool lathe_diameter_mode;       //Lathe diameter mode (g07/G08)
   bool mdi_interrupt;
-  int feature_set; 
+  std::bitset<64> feature_set;
 
   /* Control single-stepping wrt subroutines and remapped code. true
    * implies that we want to treat the move as a single block, false
@@ -525,7 +525,7 @@ struct setup_struct
     // control to skip to beginning of file
     bool loop_on_main_m99;
 
-#define FEATURE(x) (_setup.feature_set & FEATURE_ ## x)
+#define FEATURE(x) (_setup.feature_set[FEATURE_ ## x])
 #define FEATURE_RETAIN_G43           0x00000001
 #define FEATURE_OWORD_N_ARGS         0x00000002
 #define FEATURE_INI_VARS             0x00000004
