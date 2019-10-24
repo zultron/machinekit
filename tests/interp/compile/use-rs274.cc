@@ -150,6 +150,7 @@ bool GET_OPTIONAL_PROGRAM_STOP() {return false;}
 void PROGRAM_END(bool reset) {}
 void PROGRAM_STOP() {}
 void UPDATE_PART_COUNT(size_t, int) {}
+extern PartCountArray GET_EXTERNAL_PART_COUNTS() {return PartCountArray();}
 void SET_MOTION_OUTPUT_BIT(int index) {}
 void CLEAR_MOTION_OUTPUT_BIT(int index) {}
 void SET_AUX_OUTPUT_BIT(int index) {}
