@@ -205,6 +205,24 @@ void setup_struct::clear_queue_buster_flags()
     have_new_reserved_parameters = false;
 }
 
+bool setup_struct::hasFeature(Features f) const
+{
+    switch (f) {
+    case FEATURE_RETAIN_G43:
+    case FEATURE_OWORD_N_ARGS:
+    case FEATURE_INI_VARS:
+    case FEATURE_HAL_PIN_VARS:
+    case FEATURE_NO_DOWNCASE_OWORD:
+    case FEATURE_OWORD_WARNONLY:
+    case FEATURE_LATHE_TOOLCHANGE:
+    case FEATURE_EXTENDED_ERROR_MESSAGES:
+        return feature_set[(int)f];
+    case MAX_FEATURES:
+        return false;
+    }
+    return false;
+}
+
 setup_struct::~setup_struct() {
     assert(!pythis || Py_IsInitialized());
     if(pythis) delete pythis;
@@ -274,6 +292,30 @@ block_struct::block_struct ()
       executing_remap(NULL), remappings(), phase(0), builtin_used(0) {
     g_modes.fill(G_INVALID);
     m_modes.fill(-1);
+}
+
+const char * GetFeatureStr(Features f) {
+    switch (f) {
+    case FEATURE_RETAIN_G43:
+        return "FEATURE_RETAIN_G43";
+    case FEATURE_OWORD_N_ARGS:
+        return "FEATURE_OWORD_N_ARGS";
+    case FEATURE_INI_VARS:
+        return "FEATURE_INI_VARS";
+    case FEATURE_HAL_PIN_VARS:
+        return "FEATURE_HAL_PIN_VARS";
+    case FEATURE_NO_DOWNCASE_OWORD:
+        return "FEATURE_NO_DOWNCASE_OWORD";
+    case FEATURE_OWORD_WARNONLY:
+        return "FEATURE_OWORD_WARNONLY";
+    case FEATURE_LATHE_TOOLCHANGE:
+        return "FEATURE_LATHE_TOOLCHANGE";
+    case FEATURE_EXTENDED_ERROR_MESSAGES:
+        return "FEATURE_EXTENDED_ERROR_MESSAGES";
+    case MAX_FEATURES:
+        return "";
+    }
+    return "";
 }
 
 void setup_struct::setXYRotationDeg(double rot_deg)

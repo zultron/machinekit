@@ -908,6 +908,28 @@ int Interp::exit()
 
 void Interp::set_loglevel(int level) { _setup.loggingLevel = level; }
 
+struct FindsIniFeature
+{
+    IniFile &inifile;
+    const char *section;
+    FindsIniFeature(IniFile &inifile_in, const char *section_in) : inifile(inifile_in), section(section_in) {}
+
+    template <typename T>
+    T operator()(const char *section_name, Features feature, T def_value) const {
+        T val = def_value;
+        const char * f_name = GetFeatureStr(feature);
+        if (!f_name || !f_name[0]) {
+            return val;
+        }
+        inifile.Find(&val, f_name, section_name);
+        return val;
+    }
+    template <typename T>
+    T operator()(Features f, T def_value) const {
+        return (*this)(section, f, def_value);
+    }
+};
+
 
 /***********************************************************************/
 
@@ -986,9 +1008,23 @@ int Interp::init()
       inifile.Find(&_setup.b_axis_wrapped, "WRAPPED_ROTARY", "AXIS_4");
       inifile.Find(&_setup.c_axis_wrapped, "WRAPPED_ROTARY", "AXIS_5");
       inifile.Find(&_setup.random_toolchanger, "RANDOM_TOOLCHANGER", "EMCIO");
+
+      // Legacy featureset with bit mask
       int feature_set;
       inifile.Find(&feature_set, "FEATURES", "RS274NGC");
       _setup.feature_set = feature_set;
+
+      // Can also specify features directly
+      FeatureSet indiv_features{};
+      FindsIniFeature find_features(inifile, "RS274NGC");
+      for (int i=0; i < MAX_FEATURES; ++i) {
+          // NOTE: ignores any integers that don't correspond with a feature
+          if (find_features((Features)i, 0)) {
+              indiv_features.set(i);
+          }
+      }
+      // A feature is active if either the legacy or the individual features are specified
+      _setup.feature_set |= indiv_features;
 
       inifile.Find(&_setup.a_indexer, "LOCKING_INDEXER", "AXIS_3");
       inifile.Find(&_setup.b_indexer, "LOCKING_INDEXER", "AXIS_4");
@@ -1810,7 +1846,7 @@ int Interp::read(const char *command)
 int Interp::unwind_call(int status, const char *file, int line, const char *function)
 {
   // Walks the subroutine call levels and appends caller / callee information
-  if (FEATURE(EXTENDED_ERROR_MESSAGES)) {
+  if (_setup.hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES)) {
     add_error_call_context();
   }
 
@@ -2929,7 +2965,7 @@ int Interp::on_abort(int reason, const char *message)
     // it will be lost after stopping and revert to T02. Something to look at in the future.
     // Tormach - *dpr 4/30/13, ammended 7/2/13, 8/3/17 PDH
 
-    if (FEATURE(LATHE_TOOLCHANGE)) {
+    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         tool =  _setup.tool_table[0].toolno;
 
         //find the geo offset tool pocket number from the tool number plus 10000

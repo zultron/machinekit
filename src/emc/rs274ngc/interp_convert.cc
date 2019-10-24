@@ -30,6 +30,7 @@
 #include "interp_queue.hh"
 #include "interp_parameter_def.hh"
 #include <rotary_axis_util.hh>
+#include "interp_internal.hh"
 
 #include "units.h"
 #define TOOL_INSIDE_ARC(side, turn) (((side)==LEFT&&(turn)>0)||((side)==RIGHT&&(turn)<0))
@@ -1197,7 +1198,7 @@ int Interp::convert_param_comment(char *comment, char *expanded, int len)
                     {
 		        // if tolower is a macro, may need this int
 		        int c = *comment++;
-			if (FEATURE(NO_DOWNCASE_OWORD))
+            if (_setup.hasFeature(FEATURE_NO_DOWNCASE_OWORD))
 			    param[i] = c;
 			else
 			    param[i] = tolower(c);
@@ -1963,8 +1964,8 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
                   block_pointer block,           //!< pointer to current block
                   setup_pointer settings)        //!< pointer to machine settings
 {
-	if (g_code == G_7) {
-    		if (FEATURE(LATHE_TOOLCHANGE)) {
+    if (g_code == G_7) {
+        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
    	 		if (!settings->lathe_diameter_mode) {
       				if(block->x_flag){
        		 			block->x_number /= 2; //Apply scaling now
@@ -1984,7 +1985,7 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
 		ERS("G7 - diameter mode - not allowed in mill");
  }
  	else if (g_code == G_8) {
-		if (FEATURE(LATHE_TOOLCHANGE)) {
+        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
 			ERS("BUG: G8 - radius mode - not allowed.");	
 			return INTERP_OK;
 		}
@@ -2695,7 +2696,7 @@ int Interp::gen_restore_cmd(ModalState const &state,
     int res_g = gen_g_codes(current_g, saved_g, state.settings, saved_settings, saved_work_offset, cmd);
 
     // If G43 is present for lathes, you must have an H word
-    if (FEATURE(LATHE_TOOLCHANGE)) {
+    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         if (cmd.find("G43") != std::string::npos) {
             char buf[LINELEN];
             snprintf(buf, sizeof(buf), " H%d", saved_tag.fields[GM_FIELD_TOOL_NUMBER]);
@@ -3068,7 +3069,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 
   // needs more testing.. once? test tool_change_flag!
   //#ifdef DEBATABLE
-  if (FEATURE(RETAIN_G43)) {
+  if (_setup.hasFeature(FEATURE_RETAIN_G43)) {
     // I consider this useful, so make it configurable.
     // Turn it on optionally . -mah
 
@@ -3299,7 +3300,7 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
 
  } else if ((block->m_modes[M_MODE_USER] == 998) && ONCE_M(10)){
 	 // Tormach only
-	 if (FEATURE(LATHE_TOOLCHANGE)){
+     if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)){
 		 CHKS(1, NCE_UNKNOWN_M_CODE_USED,998);
 	 } else {
 		CHP(convert_home(G_30, block, settings));
@@ -3817,7 +3818,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
                              settings->tool_table[pocket].backangle,
                              settings->tool_table[pocket].orientation);
     }
-    if (FEATURE(LATHE_TOOLCHANGE)) {
+    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         // G10 command doesn't automatically apply a G43 length offset to the newly measured tool
         // we don't want to call a G43 in our python code for lathe, so we'll deal with applying the offset here.
         // Tormach *dpr 4/30/13
@@ -5407,7 +5408,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     } else if (g_code == G_43) {
         logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
                  block->h_flag,block->h_number,settings->toolchange_flag,settings->current_pocket);
-        if (FEATURE(LATHE_TOOLCHANGE)) {
+        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
             if (block->h_number < 100) { //Future change required for using tools greater than 99
                 geo_offset_register = block->h_number + 10000;
             } else if (block->h_number < 10000) {
@@ -5420,7 +5421,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
 
         if (block->h_flag) {
             CHP((find_tool_pocket(settings, geo_offset_register, &pocket_number)));
-        } else if (FEATURE(LATHE_TOOLCHANGE)) {
+        } else if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
             ERS("G43 with no H-word unsupported");
         } else if (settings->toolchange_flag) {
             // Tool change is in progress, so the "current tool" is in its
@@ -5445,7 +5446,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
         tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.x);
         tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.y);
         tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.z);        
-        if (FEATURE(LATHE_TOOLCHANGE)) {
+        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
 	       // Apply wear offsets
 	       if (wear_offset_register) {
 	           CHP((find_tool_pocket(
