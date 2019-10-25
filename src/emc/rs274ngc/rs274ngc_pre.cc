@@ -186,6 +186,17 @@ UnitsTransform Interp::convertsProgramToUser() const
                 getProgAngUnits() * GET_EXTERNAL_ANGLE_UNITS());
 }
 
+GCodeContext::GCodeContext(
+    std::string line_text,
+    int line,
+    std::string file_path,
+    std::string sub_name) :
+    line_text(line_text),
+    line(line),
+    file_path(file_path),
+    sub_name(sub_name)
+{}
+
 extern struct _inittab builtin_modules[];
 int trace;
 static char savedError[ERROR_TEXT_LEN];
@@ -2608,6 +2619,41 @@ void Interp::setWarning(const char *fmt, ...)
 const char *Interp::getSavedError() const
 {
     return savedError;
+}
+
+GCodeContextStack Interp::getErrorContext() const
+{
+    return getContext(getSavedError(), GCODE_ERROR);
+}
+
+GCodeContextStack Interp::getContext(std::string message, ErrorLevel level) const
+{
+    GCodeContextStack c{};
+    c.msg_text = message;
+    c.level = level;
+
+    std::string caller_linetext = _setup.linetext;
+    std::string caller_filename = _setup.filename;
+
+    for (int level = _setup.call_level; level >= 0; --level)
+    {
+        context const &sub = _setup.sub_context[level];
+        int callee_line = sub.sequence_number ?: _setup.sequence_number;
+
+        c.context_lines.emplace_back(
+            caller_linetext,
+            callee_line,
+            caller_filename,
+            sub.subName ?: ""
+            );
+
+        caller_linetext = sub.linetext;
+        // File return location is off by one
+        if (level > 0) {
+            caller_filename = _setup.sub_context[level-1].filename;
+        }
+    }
+    return c;
 }
 
 // set error message text without going through printf format interpretation

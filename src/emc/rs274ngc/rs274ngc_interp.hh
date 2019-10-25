@@ -21,6 +21,40 @@
 #include "interp_return.hh"
 #include <array>
 
+/**
+ * Stores information about a single line of G-code (where it came from, line number, etc.).
+ * This is designed for error messages / diagnostics, so it's not
+ * necessarily an exhaustive list of state for the G-code line.
+ */
+struct GCodeContext
+{
+    GCodeContext() = default;
+    GCodeContext(
+        std::string line_text,
+        int line,
+        std::string file_path,
+        std::string sub_name);
+
+    std::string line_text;
+    int line;
+    std::string file_path;
+    std::string sub_name;
+};
+
+enum ErrorLevel
+{
+    GCODE_ERROR,
+    GCODE_WARNING,
+};
+
+struct GCodeContextStack
+{
+    std::vector<GCodeContext> context_lines;
+    std::string msg_text;
+    int location_in_line; // First character of error
+    ErrorLevel level;
+};
+
 class Interp : public InterpBase {
 
 public:
@@ -712,6 +746,8 @@ int read_inputs(setup_pointer settings);
     FILE *find_ngc_file(setup_pointer settings,const char *basename, char *foundhere = nullptr);
 
     const char *getSavedError() const;
+    GCodeContextStack getErrorContext() const;
+    GCodeContextStack getContext(std::string message, ErrorLevel level) const;
     // set error message text without going through printf format interpretation
     int setSavedError(const char *msg);
     int clearSavedError();
