@@ -2595,16 +2595,6 @@ std::string Interp::error_text(int error_code)
     return std::string(error_text(error_code, buf, MAX_ERROR_MSG_LEN));
 }
 
-char * Interp::warning_text(char *warning_text,      //!< char array to copy error text into
-                         size_t max_size)  //!< maximum number of characters to copy
-{
-    strncpy(warning_text, warning_text_buf, max_size);
-    warning_text[max_size-1] = 0;
-    //printf("warning max size = %d\n",max_size);
-    //printf(savedWarning);
-    return warning_text;
-}
-
 /***********************************************************************/
 
 /*! Interp::file_name

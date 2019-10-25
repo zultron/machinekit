@@ -110,9 +110,6 @@ public:
                                 size_t max_size);
  std::string error_text(int error_code=INTERP_ERROR);
 
- char *warning_text(char *error_text,
-                                size_t max_size);
-
  void setError(const char *fmt, ...) __attribute__((format(printf,2,3)));
 
  void setWarning(const char *fmt, ...) __attribute__((format(printf,2,3)));

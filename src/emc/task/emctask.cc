@@ -453,19 +453,6 @@ static void print_interp_error(int retval)
     }
 }
 
-static void print_interp_warning()
-{
-    //No longer needed since we have load-time warnings (also not hardened against uninitialized values according to valgrind)
-#if 0
-    Interp* local_pinterp = (Interp*)pinterp;
-    //interp_warning_text_buf[0] = 0;
-    if (local_pinterp->warning_text_buf[0] != 0) {
-        local_pinterp->warning_text(interp_warning_text_buf, LINELEN);
-        emcOperatorText(0, "%s", interp_warning_text_buf);
-    }
-#endif
-}
-
 int emcTaskPlanInit()
 {
     if(!pinterp) {
@@ -489,7 +476,6 @@ int emcTaskPlanInit()
     waitFlag = 0;
 
     int retval = interp.init();
-	print_interp_warning();
 	// In task, enable M99 main program endless looping
 	interp.set_loop_on_main_m99(true);
     if (retval > INTERP_MIN_ERROR) {  // I'd think this should be fatal.
@@ -584,7 +570,6 @@ int emcTaskPlanOpen(const char *file)
     }
 
     int retval = interp.open(file);
-    print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {
         print_interp_error(retval);
         return retval;
@@ -602,7 +587,6 @@ int emcTaskPlanOpen(const char *file)
 int emcTaskPlanRead()
 {
     int retval = interp.read();
-	print_interp_warning();
     if (retval == INTERP_FILE_NOT_OPEN) {
 	if (emcStatus->task.file[0] != 0) {
 	    retval = interp.open(emcStatus->task.file);
@@ -636,7 +620,6 @@ int emcTaskPlanExecute(const char *command)
         //FIXME the standard behavior now is to keep going here but this seems wrong
     }
     int retval = interp.execute(command);
-    print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {
         print_interp_error(retval);
     }
@@ -654,7 +637,6 @@ int emcTaskPlanExecute(const char *command)
 int emcTaskPlanExecute(const char *command, int line_number)
 {
     int retval = interp.execute(command, line_number);
-	print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {
 	print_interp_error(retval);
     }
@@ -673,7 +655,6 @@ int emcTaskPlanExecute(const char *command, int line_number)
 int emcTaskPlanClose()
 {
     int retval = interp.close();
-	print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {
 	print_interp_error(retval);
     }
@@ -685,7 +666,6 @@ int emcTaskPlanClose()
 int emcTaskPlanReset()
 {
     int retval = interp.reset();
-	print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {
 	print_interp_error(retval);
     }
@@ -835,7 +815,6 @@ int emcStatusUpdateWorkOffset(int new_origin)
 int emcAbortCleanup(int reason, const char *message)
 {
     int status = interp.on_abort(reason,message);
-	print_interp_warning();
     if (status > INTERP_MIN_ERROR)
 	print_interp_error(status);
     return status;
