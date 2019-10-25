@@ -720,6 +720,7 @@ int read_inputs(setup_pointer settings);
                const char *fmt, ...) __attribute__((format(printf,5,6)));
 
     const char *interp_status(int status);
+    std::vector<std::string> const &getWarnings() const {return warning_list;}
 
     //technically this violates encapsulation rules but is needed for
     // the Python introspection module
@@ -736,7 +737,7 @@ int read_inputs(setup_pointer settings);
     static const read_function_pointer default_readers[256];
 
     setup _setup;
-    PyObject* warning_list;
+    std::vector <std::string> warning_list;
 
     char warning_text_buf[LINELEN];
     enum {

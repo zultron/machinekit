@@ -192,7 +192,8 @@ static char savedError[MAX_ERROR_MSG_LEN+1];
 
 Interp::Interp()
     : log_file(stderr),
-      _setup(setup_struct())
+      _setup(setup_struct()),
+    warning_list()
 {
 
   init_remap_sets();
@@ -236,8 +237,6 @@ Interp::Interp()
     Error("PYTHON: exception during 'this' export:\n%s\n",exception_msg.c_str());
   }
 #endif
-
-  this->warning_list = PyList_New(0);
 
 }
 
@@ -1992,7 +1991,7 @@ int Interp::reset()
     ON_RESET();
     
     unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__);
-    warning_list = PyList_New(0);
+    warning_list.clear();
     return INTERP_OK;
 }
 
@@ -2524,7 +2523,7 @@ void Interp::setWarning(const char *fmt, ...)
     sprintf(line_number_buf, "Line %d: ",this->_setup.sequence_number);
     msg.insert(0,line_number_buf);
 
-    PyList_Append(this->warning_list,PyString_FromString(msg.c_str()));
+    warning_list.push_back(msg);
 
     va_end(ap);
 }
