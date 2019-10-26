@@ -49,20 +49,6 @@ PositionArray TransformBase::operator()(const PositionArray & p) const
   return forward(p);
 }
 
-PositionArray TransformBase::forward_relative(const PositionArray & p) const
-{
-    PositionArray tmp(p);
-    apply_fwd_relative(tmp);
-    return tmp;
-}
-
-PositionArray TransformBase::inverse_relative(const PositionArray & p) const
-{
-    PositionArray tmp(p);
-    apply_inv_relative(tmp);
-    return tmp;
-}
-
 ShiftTransform::ShiftTransform() :
     tf()
 {
@@ -93,12 +79,6 @@ void ShiftTransform::apply_inv(PositionArray & p) const
     p -= tf;
 }
 
-
-RotateShiftTransform::RotateShiftTransform() :
-    shift(),
-    xy_rotation_rad()
-{
-}
 
 RotateShiftTransform::RotateShiftTransform(const PositionArray & pos, double xy_rot_deg) :
     shift(pos)
@@ -197,17 +177,6 @@ void LocalToMachineTransform::apply_inv(PositionArray & p) const
     toolOffset.apply_inv(p);
     g5xOffset.apply_inv(p);
     g92Offset.apply_inv(p);
-}
-
-// Only g5x has rotation (and nothing has scale)
-void LocalToMachineTransform::apply_fwd_relative(PositionArray & p) const
-{
-    g5xOffset.apply_fwd_relative(p);
-}
-
-void LocalToMachineTransform::apply_inv_relative(PositionArray & p) const
-{
-    g5xOffset.apply_inv_relative(p);
 }
 
 /**
