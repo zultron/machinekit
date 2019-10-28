@@ -91,6 +91,12 @@ void extract_axes(PositionArray const &p,
     _w = p[W];
 }
 
+void extract_axes(const PositionArray & p, double * _x, double * _y, double * _z, double * _a, double * _b, double * _c, double * _u, double * _v, double * _w)
+{
+    // FIXME no null checks here! be sure you know what you're doing!!
+    extract_axes(p, *_x, *_y, *_z, *_a, *_b, *_c, *_u, *_v, *_w);
+}
+
 PositionArray operator+(const PositionArray & b, const PositionArray & o)
 {
     PositionArray out = b;
