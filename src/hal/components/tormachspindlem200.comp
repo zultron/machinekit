@@ -207,7 +207,7 @@ pin in float enc_door_open_max_rpm;
 pin in float vfd_feedback_factor;
 
 pin out u32 spindle_fault;  //used to alert PP GUI to spindle and VFD faults
-pin in bit pp_reset_ok;     //input from HAL estop latch.  When high, we are not estopped and PP is out of reset.  SLP REMOVE:  not using it
+pin in bit pp_reset_ok;     //input from HAL estop latch.  When high, we are not estopped and PP is out of reset.  TODO REMOVE:  not using it
                             //this will not go hi when estop_button_in goes high and user pressed PP reset button.
                             //this goes low immediately if estop_button_in goes low (user pressed physical estop)
 pin in bit estop_button_in; //actual ESTOP switch circuit.  When low, estop is active and machine DC bus is off.  
@@ -350,8 +350,8 @@ pin out s32 last_enc_err;
 
 ///////////// end of spindle orienting additions
 
-pin out u32 vfd_handshake_state; //SLP REMOVE and replace with internal variable below DEBUG ONLY
-pin out u32 vfd_handshake_cnt; // SLP REMOVE and replace with internal variable below DEBUG ONLY
+pin out u32 vfd_handshake_state; //TODO REMOVE and replace with internal variable below DEBUG ONLY
+pin out u32 vfd_handshake_cnt; // TODO REMOVE and replace with internal variable below DEBUG ONLY
 
 function _ "Tormach Spindle HAL Component M200";
 
@@ -534,7 +534,7 @@ function _ "Tormach Spindle HAL Component M200";
 
 //These are the two vfd-mode# pins encoding.  vfd-mode0 is LSBit, vfd-mode1 is MSBit.  m200 VFD "par" files must be kept in sync!
 //Do not confuse with SPINDLE_TYPE_??? in constants.py
-#define VFD_MODE_NONE 0   //"NONE" isn't used except during first pass of code, and if vfd_mode is a pin, then it'll start at 0. SLP3 
+#define VFD_MODE_NONE 0   //"NONE" isn't used except during first pass of code, and if vfd_mode is a pin, then it'll start at 0. 
 #define VFD_MODE_RAPIDTURN 1
 #define VFD_MODE_HISPEED 2
 #define VFD_MODE_ORIENT 3
@@ -789,7 +789,7 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
 //static int look_for_fault_glitch = VFG_FIRST_PASS; 
 //static int must_wait_for_stop_cmd = 0;
 
-    if (!pp_estop_fault && !PHYSICAL_ESTOP ) // SLP check what pp_estop_fault is driven by, as we could be locked out here!
+    if (!pp_estop_fault && !PHYSICAL_ESTOP ) // TODO check what pp_estop_fault is driven by, as we could be locked out here!
         estop_fault = BIT_FALSE; 
 
     switch (vfd_power_state) {
@@ -1238,7 +1238,7 @@ FUNCTION(_) {
 
     float speeder_ratio;
     float pulley_ratio;
-//TODO: doing   SLP
+// TODO: do we want to keep these as pins, or make them private per code below
 //    float hz_per_cmd_hz;
 //    float min_speed_freq_cmd;
 //    float max_speed_freq_cmd;
@@ -1566,12 +1566,12 @@ FUNCTION(_) {
                         orient_drift = (float)enc_err;
                 }
                 if (orient_drift != 0.0)
-                    orient_problem |= 4;  //SLP remove for local debug with broken ATC & spindle
+                    orient_problem |= 4;  //TODO:  orient_problem is devo debug only: make private and not public pin
                 else {
                     if (orient_drift_test && (spindle_lock_timer >= (ORIENT_BRAKE_ACTUATION_TIME + DRIFT_TEST_TIME))) {
                         if (orient_drift_test_cnt >= DRIFT_TEST_LOOP) {
                             orient_drift_test_cnt = 0;
-                            orient_problem |= 4;  //SLP remove for local debug with broken ATC & spindle
+                            orient_problem |= 4;  //TODO remove for local debug with broken ATC & spindle
                             if(enc_err >= 0)
                                 orient_drift = DRIFT_TEST_VALUE;
                             else orient_drift = -(DRIFT_TEST_VALUE);
