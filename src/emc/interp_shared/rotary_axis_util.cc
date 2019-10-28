@@ -81,15 +81,15 @@ PositionArray WrapsRotaryAxes::operator()(const PositionArray &current) const
 
 PositionArray UnwrapsRotaryAxes::operator()(const PositionArray &direction, const PositionArray &command, const PositionArray &current) const
 {
-    PositionArray p = current;
+    PositionArray p = command;
     if(a_axis_wrapped) {
-        p[A] = unwrap_rotary(direction[A], command[A], p[A]);
+        p[A] = unwrap_rotary(direction[A], command[A], current[A]);
     }
     if(b_axis_wrapped) {
-        p[B] = unwrap_rotary(direction[B], command[B], p[B]);
+        p[B] = unwrap_rotary(direction[B], command[B], current[B]);
     }
     if(c_axis_wrapped) {
-        p[C] = unwrap_rotary(direction[C], command[C], p[C]);
+        p[C] = unwrap_rotary(direction[C], command[C], current[C]);
     }
     return p;
 }

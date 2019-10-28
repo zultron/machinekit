@@ -434,7 +434,7 @@ public:
  int clearPersistentG92Parameters(setup_pointer settings);
  ShiftTransform getG92ActiveOffset(setup_pointer settings);
  int storeG92PersistentParms(ShiftTransform const &g92_offset, setup_pointer settings);
- int find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & work_offset);
+ int find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & tool_offset);
  int store_tool_offset(setup_pointer settings, ShiftTransform const &tool_offset, int pocket);
  int canon_use_tool_offset(ShiftTransform const &tool_offset);
  InterpReturn find_work_offset_from_parameters(setup_pointer settings, int origin, RotateShiftTransform & out);
@@ -448,6 +448,8 @@ public:
                double *px, double *py, double *pz,
                double *AA_p, double *BB_p, double *CC_p,
                double *u_p, double *v_p, double *w_p);
+ int find_ends(block_pointer block, setup_pointer settings,
+               PositionArray &cmd_local_pos);
  int find_relative(double x1, double y1, double z1,
                    double AA_1, double BB_1, double CC_1,
                    double u_1, double v_1, double w_1,
@@ -456,8 +458,8 @@ public:
                    double *u_2, double *v_2, double *w_2,
                    setup_pointer settings);
  int find_relative(setup_pointer s,
-               PositionArray const &current_local,
-               PositionArray &out);
+               PositionArray const &command_abs,
+               PositionArray &cmd_local);
  double find_straight_length(double x2, double y2, double z2,
                              double AA_2, double BB_2, double CC_2,
                              double u_w, double v_2, double w_2,

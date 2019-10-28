@@ -125,6 +125,10 @@ int Interp::unwrap_rotary(double *r, double sign_of, double commanded, double cu
     return INTERP_OK;
 }
     
+static bool angle_too_big(double absolute_ax_position) {
+    bool outside_limits = absolute_ax_position < -360.0 || absolute_ax_position > 360.0;
+    return !outside_limits;
+}
 
 /****************************************************************************/
 
@@ -175,233 +179,89 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
                       double *AA_p,      //!< pointer to end_a                      
                       double *BB_p,      //!< pointer to end_b                      
                       double *CC_p,      //!< pointer to end_c                      
-                      double *u_p, double *v_p, double *w_p)
+                      double *u_p,
+                      double *v_p,
+                      double *w_p)
 {
-    int middle;
-    int comp;
-
-    middle = !s->cutter_comp_firstmove;
-    comp = (s->cutter_comp_side);
-
-    if (block->g_modes[GM_MODAL_0] == G_53) {      /* distance mode is absolute in this case */
-#ifdef DEBUG_EMC
-        COMMENT("interpreter: offsets temporarily suspended");
-#endif
-        CHKS((block->radius_flag || block->theta_flag), _("Cannot use polar coordinates with G53"));
-
-        double cx = s->current[X];
-        double cy = s->current[Y];
-        rotate(&cx, &cy, s->transform.g5xOffset.getXYRotationDeg()); //FIXME transform
-
-
-        // TODO replace with compact transforms API
-        if(block->x_flag) {
-            *px = block->x_number - s->transform.g5xOffset.shift[X] - s->transform.g92Offset[X] - s->transform.toolOffset[X];
-        } else {
-            *px = cx;
-        }
-
-        if(block->y_flag) {
-            *py = block->y_number - s->transform.g5xOffset.shift[Y] - s->transform.g92Offset[Y] - s->transform.toolOffset[Y];
-        } else {
-            *py = cy;
-        }
-
-        rotate(px, py, -s->transform.g5xOffset.getXYRotationDeg()); // FIXME transform
-
-        if(block->z_flag) {
-            *pz = block->z_number - s->transform.g5xOffset.shift[Z] - s->transform.g92Offset[Z] - s->transform.toolOffset[Z];
-        } else {
-            *pz = s->current[Z];
-        }
-
-        if(block->a_flag) {
-            if(s->a_axis_wrapped) {
-                CHP(unwrap_rotary(AA_p, block->a_number, 
-                                  block->a_number - s->transform.g5xOffset.shift[A] - s->transform.g92Offset[A] - s->transform.toolOffset[A],
-                                  s->current[A], 'A'));
-            } else {
-                *AA_p = block->a_number - s->transform.g5xOffset.shift[A] - s->transform.g92Offset[A];
-            }
-        } else {
-            *AA_p = s->current[A];
-        }
-
-        if(block->b_flag) {
-            if(s->b_axis_wrapped) {
-                CHP(unwrap_rotary(BB_p, block->b_number, 
-                                  block->b_number - s->transform.g5xOffset.shift[B] - s->transform.g92Offset[B] - s->transform.toolOffset[B],
-                                  s->current[B], 'B'));
-            } else {
-                *BB_p = block->b_number - s->transform.g5xOffset.shift[B] - s->transform.g92Offset[B];
-            }
-        } else {
-            *BB_p = s->current[B];
-        }
-
-        if(block->c_flag) {
-            if(s->c_axis_wrapped) {
-                CHP(unwrap_rotary(CC_p, block->c_number, 
-                                  block->c_number - s->transform.g5xOffset.shift[C] - s->transform.g92Offset[C] - s->transform.toolOffset[C],
-                                  s->current[C], 'C'));
-            } else {
-                *CC_p = block->c_number - s->transform.g5xOffset.shift[C] - s->transform.g92Offset[C];
-            }
-        } else {
-            *CC_p = s->current[C];
-        }
-
-        if(block->u_flag) {
-            *u_p = block->u_number - s->transform.g5xOffset.shift[U] - s->transform.g92Offset[U] - s->transform.toolOffset[U];
-        } else {
-            *u_p = s->current[U];
-        }
-
-        if(block->v_flag) {
-            *v_p = block->v_number - s->transform.g5xOffset.shift[V] - s->transform.g92Offset[V] - s->transform.toolOffset[V];
-        } else {
-            *v_p = s->current[V];
-        }
-
-        if(block->w_flag) {
-            *w_p = block->w_number - s->transform.g5xOffset.shift[W] - s->transform.g92Offset[W] - s->transform.toolOffset[W];
-        } else {
-            *w_p = s->current[W];
-        }
-    } else if (get_distance_mode(block, s) == MODE_ABSOLUTE) {
-
-        if(block->x_flag) {
-            *px = block->x_number;
-        } else {
-            // both cutter comp planes affect X ...
-            *px = (comp && middle) ? s->program_x : s->current[X];
-        }
-
-        if(block->y_flag) {
-            *py = block->y_number;
-        } else {
-            // but only XY affects Y ...
-            *py = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y : s->current[Y];
-        }
-
-        if(block->radius_flag && block->theta_flag) {
-            CHKS((block->x_flag || block->y_flag), _("Cannot specify X or Y words with polar coordinate"));
-            *px = block->radius * cos(D2R(block->theta));
-            *py = block->radius * sin(D2R(block->theta));
-        } else if(block->radius_flag) {
-            double theta;
-            CHKS((block->x_flag || block->y_flag), _("Cannot specify X or Y words with polar coordinate"));
-            CHKS((*py == 0 && *px == 0), _("Must specify angle in polar coordinate if at the origin"));
-            theta = atan2(*py, *px);
-            *px = block->radius * cos(theta);
-            *py = block->radius * sin(theta);
-        } else  if(block->theta_flag) {
-            double radius;
-            CHKS((block->x_flag || block->y_flag), _("Cannot specify X or Y words with polar coordinate"));
-            radius = hypot(*py, *px);
-            *px = radius * cos(D2R(block->theta));
-            *py = radius * sin(D2R(block->theta));
-        }
-
-        if(block->z_flag) {
-            *pz = block->z_number;
-        } else {
-            // and only XZ affects Z.
-            *pz = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z : s->current[Z];
-        }
-
-        if(block->a_flag) {
-            if(s->a_axis_wrapped) {
-                CHP(unwrap_rotary(AA_p, block->a_number, block->a_number, s->current[A], 'A'));
-            } else {
-                *AA_p = block->a_number;
-            }
-        } else {
-            *AA_p = s->current[A];
-        }
-
-        if(block->b_flag) {
-            if(s->b_axis_wrapped) {
-                CHP(unwrap_rotary(BB_p, block->b_number, block->b_number, s->current[B], 'B'));
-            } else {
-                *BB_p = block->b_number;
-            }
-        } else {
-            *BB_p = s->current[B];
-        }
-
-        if(block->c_flag) {
-            if(s->c_axis_wrapped) {
-                CHP(unwrap_rotary(CC_p, block->c_number, block->c_number, s->current[C], 'C'));
-            } else {
-                *CC_p = block->c_number;
-            }
-        } else {
-            *CC_p = s->current[C];
-        }
-
-        *u_p = (block->u_flag) ? block->u_number : s->current[U];
-        *v_p = (block->v_flag) ? block->v_number : s->current[V];
-        *w_p = (block->w_flag) ? block->w_number : s->current[W];
-
-    } else {                      /* mode is MODE_INCREMENTAL */
-
-        // both cutter comp planes affect X ...
-        *px = (comp && middle) ? s->program_x: s->current[X];
-        if(block->x_flag) *px += block->x_number;
-
-        // but only XY affects Y ...
-        *py = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y: s->current[Y];
-        if(block->y_flag) *py += block->y_number;
-
-        if(block->radius_flag) {
-            double radius, theta;
-            CHKS((block->x_flag || block->y_flag), _("Cannot specify X or Y words with polar coordinate"));
-            CHKS((*py == 0 && *px == 0), _("Incremental motion with polar coordinates is indeterminate when at the origin"));
-            theta = atan2(*py, *px);
-            radius = hypot(*py, *px) + block->radius;
-            *px = radius * cos(theta);
-            *py = radius * sin(theta);
-        }
-
-        if(block->theta_flag) {
-            double radius, theta;
-            CHKS((block->x_flag || block->y_flag), _("Cannot specify X or Y words with polar coordinate"));
-            CHKS((*py == 0 && *px == 0), _("G91 motion with polar coordinates is indeterminate when at the origin"));
-            theta = atan2(*py, *px) + D2R(block->theta);
-            radius = hypot(*py, *px);
-            *px = radius * cos(theta);
-            *py = radius * sin(theta);
-        }
-
-        // and only XZ affects Z.
-        *pz = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z: s->current[Z];
-        if(block->z_flag) *pz += block->z_number;
-
-        *AA_p = s->current[A];
-        if(block->a_flag) *AA_p += block->a_number;
-
-        *BB_p = s->current[B];
-        if(block->b_flag) *BB_p += block->b_number;
-
-        *CC_p = s->current[C];
-        if(block->c_flag) *CC_p += block->c_number;
-
-        *u_p = s->current[U];
-        if(block->u_flag) *u_p += block->u_number;
-
-        *v_p = s->current[V];
-        if(block->v_flag) *v_p += block->v_number;
-
-        *w_p = s->current[W];
-        if(block->w_flag) *w_p += block->w_number;
-    }
+    PositionArray cmd_local;
+    CHP(find_ends(block, s, cmd_local));
+    extract_axes(cmd_local,
+                 px,
+                 py,
+                 pz,
+                 AA_p,
+                 BB_p,
+                 CC_p,
+                 u_p,
+                 v_p,
+                 w_p);
     return INTERP_OK;
 }
 
-static bool angle_too_big(double absolute_ax_position) {
-    bool outside_limits = absolute_ax_position < -360.0 || absolute_ax_position > 360.0;
-    return !outside_limits;
+int Interp::find_ends(block_pointer block, setup_pointer s, PositionArray & cmd_local_pos)
+{
+    CHKS((block->radius_flag || block->theta_flag) && (block->x_flag || block->y_flag),
+         _("Cannot specify X or Y words with polar coordinate"));
+
+    if (block->g_modes[GM_MODAL_0] == G_53) {      /* distance mode is absolute in this case */
+        const PositionArray machine_abs = s->transform.forward_to_tip(s->current);
+        const PositionArray cmd_abs = getAxisWordsFromBlock(block, machine_abs);
+        find_relative(s, cmd_abs, cmd_local_pos);
+        return INTERP_OK;
+    }
+
+    PositionArray current = s->current;
+
+    // If tool compensation is active, then the program_[xyz] fields have the actual current position that interp needs
+    bool middle = !s->cutter_comp_firstmove;
+    int comp = (s->cutter_comp_side);
+    current[X] = (comp && middle) ? s->program_x : s->current[X];
+    current[Y] = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y : s->current[Y];
+    current[Z] = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z : s->current[Z];
+
+    auto distance_mode = get_distance_mode(block, s);
+    switch(distance_mode) {
+    case MODE_ABSOLUTE:
+        cmd_local_pos = getAxisWordsFromBlock(block, current);
+
+        if(block->radius_flag || block->theta_flag) {
+            double radius = block->radius_flag ? block->radius : hypot(current[Y], current[X]);
+            double theta = block->theta_flag ? D2R(block->theta) : atan2(current[Y], current[X]);
+            cmd_local_pos[X] = radius * cos(theta);
+            cmd_local_pos[Y] = radius * sin(theta);
+        }
+
+        if(block->a_flag && s->a_axis_wrapped) {
+            CHP(unwrap_rotary(&cmd_local_pos[A], block->a_number, block->a_number, current[A], 'A'));
+        }
+
+        if(block->b_flag && s->b_axis_wrapped) {
+            CHP(unwrap_rotary(&cmd_local_pos[B], block->b_number, block->b_number, current[B], 'B'));
+        }
+
+        if(block->c_flag && s->c_axis_wrapped) {
+            CHP(unwrap_rotary(&cmd_local_pos[C], block->c_number, block->c_number, current[C], 'C'));
+        }
+        return INTERP_OK;
+    case MODE_INCREMENTAL:
+        cmd_local_pos = getAxisWordsFromBlock(block, PositionArray());
+        cmd_local_pos += current;
+
+        if(block->radius_flag || block->theta_flag) {
+            CHKS((cmd_local_pos[Y] == 0 && cmd_local_pos[X] == 0), _("Incremental motion with polar coordinates is indeterminate when at the origin"));
+
+            double radius_0 = hypot(cmd_local_pos[Y], cmd_local_pos[X]);
+            double theta_0 = atan2(cmd_local_pos[Y], cmd_local_pos[X]);
+
+            double radius = radius_0 + (block->radius_flag ? block->radius : 0);
+            double theta = theta_0 + (block->theta_flag ? block->theta : 0);
+
+            cmd_local_pos[X] = radius * cos(theta);
+            cmd_local_pos[Y] = radius * sin(theta);
+        }
+        return INTERP_OK;
+    }
+    ERS(_("Invalid distance mode %d"), distance_mode);
 }
 
 /****************************************************************************/
@@ -446,49 +306,42 @@ int Interp::find_relative(double x1,     //!< absolute x position
                           double *w_2,
                           setup_pointer settings)        //!< pointer to machine settings
 {
-  *x2 = x1 - settings->transform.g5xOffset.shift[X] - settings->transform.g92Offset[X] - settings->transform.toolOffset[X];
-  *y2 = y1 - settings->transform.g5xOffset.shift[Y] - settings->transform.g92Offset[Y] - settings->transform.toolOffset[Y];
-  rotate(x2, y2, -settings->transform.g5xOffset.getXYRotationDeg()); // FIXME transform
-  *z2 = z1 - settings->transform.g5xOffset.shift[Z] - settings->transform.g92Offset[Z] - settings->transform.toolOffset[Z];
+    PositionArray cmd_abs;
+    assign(cmd_abs,
+            x1,
+            y1,
+            z1,
+            AA_1,
+            BB_1,
+            CC_1,
+            u_1,
+            v_1,
+            w_1);
+    PositionArray cmd_local;
+    find_relative(settings, cmd_abs, cmd_local);
+    extract_axes(cmd_local,
+            x2,
+            y2,
+            z2,
+            AA_2,
+            BB_2,
+            CC_2,
+            u_2,
+            v_2,
+            w_2);
 
-  if(settings->a_axis_wrapped) {
-      CHP(unwrap_rotary(AA_2, AA_1,
-                        AA_1 - settings->transform.g5xOffset.shift[A] - settings->transform.g92Offset[A] - settings->transform.toolOffset[A],
-                        settings->current[A], 'A'));
-  } else {
-      *AA_2 = AA_1 - settings->transform.g5xOffset.shift[A] - settings->transform.g92Offset[A];
-  }
-
-  if(settings->b_axis_wrapped) {
-      CHP(unwrap_rotary(BB_2, BB_1,
-                        BB_1 - settings->transform.g5xOffset.shift[B] - settings->transform.g92Offset[B] - settings->transform.toolOffset[B],
-                        settings->current[B], 'B'));
-  } else {
-      *BB_2 = BB_1 - settings->transform.g5xOffset.shift[B] - settings->transform.g92Offset[B];
-  }
-
-  if(settings->c_axis_wrapped) {
-      CHP(unwrap_rotary(CC_2, CC_1,
-                        CC_1 - settings->transform.g5xOffset.shift[C] - settings->transform.g92Offset[C] - settings->transform.toolOffset[C],
-                        settings->current[C], 'C'));
-  } else {
-      *CC_2 = CC_1 - settings->transform.g5xOffset.shift[C] - settings->transform.g92Offset[C];
-  }
-
-  *u_2 = u_1 - settings->transform.g5xOffset.shift[U] - settings->transform.g92Offset[U] - settings->transform.toolOffset[U];
-  *v_2 = v_1 - settings->transform.g5xOffset.shift[V] - settings->transform.g92Offset[V] - settings->transform.toolOffset[V];
-  *w_2 = w_1 - settings->transform.g5xOffset.shift[W] - settings->transform.g92Offset[W] - settings->transform.toolOffset[W];
   return INTERP_OK;
 }
 
-int Interp::find_relative(setup_pointer s, const PositionArray &command_local, PositionArray &relative_local)
+int Interp::find_relative(setup_pointer s, const PositionArray &cmd_abs, PositionArray &cmd_local)
 {
-    PositionArray command_global = s->transform.inverse(command_local);
-    CHKS(s->a_axis_wrapped && angle_too_big(command_global[A]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), command_global[A], 'A');
-    CHKS(s->b_axis_wrapped && angle_too_big(command_global[B]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), command_global[B], 'B');
-    CHKS(s->c_axis_wrapped && angle_too_big(command_global[C]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), command_global[C], 'C');
+    cmd_local = s->transform.inverse_from_tip(cmd_abs);
+    CHKS(s->a_axis_wrapped && angle_too_big(cmd_abs[A]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), cmd_abs[A], 'A');
+    CHKS(s->b_axis_wrapped && angle_too_big(cmd_abs[B]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), cmd_abs[B], 'B');
+    CHKS(s->c_axis_wrapped && angle_too_big(cmd_abs[C]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), cmd_abs[C], 'C');
+
     UnwrapsRotaryAxes unwrap(s->a_axis_wrapped, s->b_axis_wrapped, s->c_axis_wrapped);
-    relative_local = unwrap(command_global, command_local, s->current);
+    cmd_local = unwrap(cmd_abs, cmd_local, s->current);
     return INTERP_OK;
 }
 
@@ -547,10 +400,10 @@ int Interp::storeG92PersistentParms(const ShiftTransform & g92_offset, setup_poi
 }
 
 
-int Interp::find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & work_offset)
+int Interp::find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & tool_offset)
 {
   CHKS(pocket < 0 || pocket >= CANON_POCKETS_MAX, _("Invalid tool pocket number %d (must be between %d and %d"), pocket, 0, CANON_POCKETS_MAX);
-  work_offset = convertsUserToProgram()(toArray(settings->tool_table[pocket].offset));
+  tool_offset = convertsUserToProgram()(toArray(settings->tool_table[pocket].offset));
   return INTERP_OK;
 }
 
