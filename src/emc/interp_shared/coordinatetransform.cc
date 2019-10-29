@@ -192,7 +192,17 @@ PositionArray LocalToMachineTransform::forward_to_nose(const PositionArray & loc
  */
 PositionArray LocalToMachineTransform::inverse_from_nose(const PositionArray & nose) const
 {
-     return g92Offset.inverse(g5xOffset.inverse(nose));
+    return g92Offset.inverse(g5xOffset.inverse(nose));
+}
+
+PositionArray LocalToMachineTransform::swap_tool_offset(PositionArray & current_local_pos, const ShiftTransform & new_tool_offset)
+{
+    // Go forward to real machine coordinates with the current tool offset
+    PositionArray machine_pos = forward(current_local_pos);
+    // Swap out the tool offset
+    toolOffset = new_tool_offset;
+    // Apply inverse transform to get back to the current position with the new tool offset applied
+    return inverse(machine_pos);
 }
 
 double LocalToMachineTransform::findAxisoffset(size_t axis_id)

@@ -86,6 +86,8 @@ struct LocalToMachineTransform : public TransformBase
     virtual PositionArray forward_to_tip(PositionArray const &p) const {return forward(p);}
     virtual PositionArray inverse_from_tip(PositionArray const &p) const {return inverse(p);}
 
+    PositionArray swap_tool_offset(PositionArray &current_local_pos, ShiftTransform const &new_tool_offset);
+
     double findAxisoffset(size_t axis_id);
 
     bool rotationActive() const;
