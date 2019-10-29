@@ -195,7 +195,7 @@ PositionArray LocalToMachineTransform::inverse_from_nose(const PositionArray & n
     return g92Offset.inverse(g5xOffset.inverse(nose));
 }
 
-PositionArray LocalToMachineTransform::swap_tool_offset(PositionArray & current_local_pos, const ShiftTransform & new_tool_offset)
+PositionArray LocalToMachineTransform::swap_tool_offset(const PositionArray & current_local_pos, const ShiftTransform & new_tool_offset)
 {
     // Go forward to real machine coordinates with the current tool offset
     PositionArray machine_pos = forward(current_local_pos);
@@ -203,6 +203,26 @@ PositionArray LocalToMachineTransform::swap_tool_offset(PositionArray & current_
     toolOffset = new_tool_offset;
     // Apply inverse transform to get back to the current position with the new tool offset applied
     return inverse(machine_pos);
+}
+
+PositionArray LocalToMachineTransform::swap_g5x_offset(const PositionArray & current_local_pos, const RotateShiftTransform & new_g5x_offset)
+{
+    // Go forward to real machine coordinates with the current g5x offset
+    PositionArray nose_pos = forward_to_nose(current_local_pos);
+    // Swap out the g5x offset
+    g5xOffset = new_g5x_offset;
+    // Apply inverse transform to get back to the current position with the new g5x offset applied
+    return inverse_from_nose(nose_pos);
+}
+
+
+/**
+ * Adds the new tool offset to the active offset, and returns an updated local position.
+ */
+PositionArray LocalToMachineTransform::add_tool_offset(const PositionArray & current_local_pos, const ShiftTransform & new_tool_offset)
+{
+    ShiftTransform combined_tool_offset(new_tool_offset.tf + toolOffset.tf);
+    return swap_tool_offset(current_local_pos, combined_tool_offset);
 }
 
 double LocalToMachineTransform::findAxisoffset(size_t axis_id)
