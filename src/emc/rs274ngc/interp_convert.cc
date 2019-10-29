@@ -5316,6 +5316,74 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
 
 /****************************************************************************/
 
+
+int Interp::find_g43_tool_offset(
+    block_pointer block,      //!< pointer to a block of RS274/NGC instructions
+    setup_pointer settings,
+    ShiftTransform &new_tool_offset)
+{
+    logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
+             block->h_flag,block->h_number,settings->toolchange_flag,settings->current_pocket);
+
+    int geo_offset_register = 0;
+    int wear_offset_register = 0;
+    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+        if (block->h_number < 100) { //Future change required for using tools greater than 99
+            geo_offset_register = block->h_number + 10000;
+        } else if (block->h_number < 10000) {
+            geo_offset_register = floor(block->h_number/100) + 10000;
+            wear_offset_register = block->h_number % 100;
+        }
+    } else {
+        geo_offset_register = block->h_number;
+        wear_offset_register = 0;
+    }
+
+    int pocket_number;
+    if (block->h_flag) {
+        CHP((find_tool_pocket(settings, geo_offset_register, &pocket_number)));
+    } else if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+        ERS("G43 with no H-word unsupported");
+    } else if (settings->toolchange_flag) {
+        // Tool change is in progress, so the "current tool" is in its
+        // original pocket still.
+        pocket_number = settings->current_pocket;
+    } else {
+        // Tool change is done so the current tool is in pocket 0 (aka the
+        // spindle).
+        pocket_number = 0;
+    }
+
+    logDebug("convert_tool_length_offset: using index=%d spindle_toolno=%d pocket_toolno=%d",
+             pocket_number, settings->tool_table[0].toolno,settings->tool_table[settings->current_pocket].toolno);
+
+    CHP(find_tool_offset(settings, pocket_number, new_tool_offset));
+    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+        // Apply wear offsets
+        if (wear_offset_register) {
+            int wear_pocket_number;
+            CHP((find_tool_pocket(
+                settings, wear_offset_register, &wear_pocket_number)));
+            new_tool_offset[X] += USER_TO_PROGRAM_LEN(
+                settings->tool_table[wear_pocket_number].offset.tran.x);
+            new_tool_offset[Y] += USER_TO_PROGRAM_LEN(
+                settings->tool_table[wear_pocket_number].offset.tran.y);
+            new_tool_offset[Z] += USER_TO_PROGRAM_LEN(
+                settings->tool_table[wear_pocket_number].offset.tran.z);
+            logDebug("convert_tool_length_offset: "
+                     "added offsets from wear pocket number %d", wear_pocket_number);
+
+            // store which wear offset is currently applied in the .w field (not using a w axis on the lathe, are we?)
+            // the USE_TOOL_LENGTH offset in cannon sets the status.task.toolOffset struct in machine time, and the GUI gets it in machine time
+            // so we can tell which offset is really in use
+            new_tool_offset[W] = wear_offset_register;
+        }
+    }
+    return INTERP_OK;
+}
+
+
+
 /*! convert_tool_length_offset
 
 Returned Value: int
@@ -5347,133 +5415,38 @@ integer when it was read, so that check does not need to be repeated.
 
 int Interp::convert_tool_length_offset(int g_code,       //!< g_code being executed (must be G_43 or G_49)
                                       block_pointer block,      //!< pointer to a block of RS274/NGC instructions
-                                      setup_pointer settings)   //!< pointer to machine settings                 
+                                      setup_pointer settings)   //!< pointer to machine settings
 {
-    int pocket_number, wear_pocket_number;
-    int geo_offset_register = 0;
-    int wear_offset_register = 0;
-    EmcPose tool_offset;
-    ZERO_EMC_POSE(tool_offset);
-
     CHKS((settings->cutter_comp_side),
          (_("Cannot change tool offset with cutter radius compensation on")));
 
     if (g_code == G_49) {
-        pocket_number = 0;
-
+        // Clear tool offsets, no lookup needed
+        settings->current = settings->transform.swap_tool_offset(settings->current, ShiftTransform{});
     } else if (g_code == G_43) {
-        logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
-                 block->h_flag,block->h_number,settings->toolchange_flag,settings->current_pocket);
-        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
-            if (block->h_number < 100) { //Future change required for using tools greater than 99
-                geo_offset_register = block->h_number + 10000;
-            } else if (block->h_number < 10000) {
-                geo_offset_register = floor(block->h_number/100) + 10000;
-                wear_offset_register = block->h_number % 100;
-            }
-        } else {
-            geo_offset_register = block->h_number;
-        }        
-
-        if (block->h_flag) {
-            CHP((find_tool_pocket(settings, geo_offset_register, &pocket_number)));
-        } else if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
-            ERS("G43 with no H-word unsupported");
-        } else if (settings->toolchange_flag) {
-            // Tool change is in progress, so the "current tool" is in its
-            // original pocket still.
-            pocket_number = settings->current_pocket;
-        } else {
-            // Tool change is done so the current tool is in pocket 0 (aka the
-            // spindle).
-            pocket_number = 0;
-        }
-
-        logDebug("convert_tool_length_offset: using index=%d spindle_toolno=%d pocket_toolno=%d",
-	             pocket_number, settings->tool_table[0].toolno,settings->tool_table[settings->current_pocket].toolno);
-
-        tool_offset.b = USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.b);
-        tool_offset.a = USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.a);
-        tool_offset.c = USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.c);
-        tool_offset.u = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.u);
-        tool_offset.v = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.v);
-        tool_offset.w = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.w);
-
-        tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.x);
-        tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.y);
-        tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.z);        
-        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
-	       // Apply wear offsets
-	       if (wear_offset_register) {
-	           CHP((find_tool_pocket(
-		           settings, wear_offset_register, &wear_pocket_number)));
-                tool_offset.tran.x += USER_TO_PROGRAM_LEN(
-                settings->tool_table[wear_pocket_number].offset.tran.x);
-                tool_offset.tran.y += USER_TO_PROGRAM_LEN(
-                settings->tool_table[wear_pocket_number].offset.tran.y);
-                tool_offset.tran.z += USER_TO_PROGRAM_LEN(
-                settings->tool_table[wear_pocket_number].offset.tran.z);
-                logDebug("convert_tool_length_offset: "
-                         "added offsets from wear pocket number %d", wear_pocket_number);                
- 
-                // store which wear offset is currently applied in the .w field (not using a w axis on the lathe, are we?)
-                // the USE_TOOL_LENGTH offset in cannon sets the status.task.toolOffset struct in machine time, and the GUI gets it in machine time
-                // so we can tell which offset is really in use     
-                tool_offset.w = wear_offset_register;
-	       }
-        }
-
+        ShiftTransform new_tool_offset{};
+        CHP(find_g43_tool_offset(block, settings, new_tool_offset));
+        settings->current = settings->transform.swap_tool_offset(settings->current, new_tool_offset);
     } else if (g_code == G_43_1) {
-        tool_offset = toEmcPose(settings->transform.toolOffset.tf);
-        pocket_number = -1;
-        if(block->x_flag) tool_offset.tran.x = block->x_number;
-        if(block->y_flag) tool_offset.tran.y = block->y_number;
-        if(block->z_flag) tool_offset.tran.z = block->z_number;
-        if(block->a_flag) tool_offset.a = block->a_number;
-        if(block->b_flag) tool_offset.b = block->b_number;
-        if(block->c_flag) tool_offset.c = block->c_number;
-        if(block->u_flag) tool_offset.u = block->u_number;
-        if(block->v_flag) tool_offset.v = block->v_number;
-        if(block->w_flag) tool_offset.w = block->w_number;
-
+        ShiftTransform modified_tool_offset(getAxisWordsFromBlock(block, settings->transform.toolOffset));
+        settings->current = settings->transform.swap_tool_offset(settings->current, modified_tool_offset);
     } else if (g_code == G_43_2) {
+        ShiftTransform additional_tool_offset{};
         CHKS((!block->h_flag), (_("G43.2: H-word missing")));
-        CHP((find_tool_pocket(settings, block->h_number, &pocket_number)));
-        tool_offset = toEmcPose(settings->transform.toolOffset.tf);
-        tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.x);
-        tool_offset.tran.y += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.y);
-        tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.z);
-        tool_offset.a += USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.a);
-        tool_offset.b += USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.b);
-        tool_offset.c += USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.c);
-        tool_offset.u += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.u);
-        tool_offset.v += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.v);
-        tool_offset.w += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.w);
+        int pocket_number_g43_2;
+        CHP((find_tool_pocket(settings, block->h_number, &pocket_number_g43_2)));
+        find_tool_offset(settings, pocket_number_g43_2, additional_tool_offset);
+        settings->current = settings->transform.add_tool_offset(settings->current, additional_tool_offset);
     } else {
         ERS("BUG: Code not G43, G43.1, G43.2, or G49");
     }
 
+    // Update current tool offset and current interp position (local) if successful
+    // Send updated tool offset to canon
     write_and_update_state_tag(block);
-    USE_TOOL_LENGTH_OFFSET(tool_offset);
+    canon_use_tool_offset(settings->transform.toolOffset);
 
-    double dx, dy;
-  dx = settings->transform.toolOffset[X] - tool_offset.tran.x;
-  dy = settings->transform.toolOffset[Y] - tool_offset.tran.y;
-
-  rotate(&dx, &dy, -settings->transform.g5xOffset.getXYRotationDeg());
-
-  settings->current[X] += dx;
-  settings->current[Y] += dy;
-  settings->current[Z] += settings->transform.toolOffset[Z] - tool_offset.tran.z;
-  settings->current[A] += settings->transform.toolOffset[A] - tool_offset.a;
-  settings->current[B] += settings->transform.toolOffset[B] - tool_offset.b;
-  settings->current[C] += settings->transform.toolOffset[C] - tool_offset.c;
-  settings->current[U] += settings->transform.toolOffset[U] - tool_offset.u;
-  settings->current[V] += settings->transform.toolOffset[V] - tool_offset.v;
-  settings->current[W] += settings->transform.toolOffset[W] - tool_offset.w;
-
-  settings->transform.toolOffset.tf = toArray(tool_offset);
-  return INTERP_OK;
+    return INTERP_OK;
 }
 
 /****************************************************************************/

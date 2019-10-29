@@ -795,6 +795,7 @@ int read_inputs(setup_pointer settings);
     double PROGRAM_TO_USER_ANG(double p) const;
     UnitsTransform convertsUserToProgram() const;
     UnitsTransform convertsProgramToUser() const;
+
     int convert_g10(block_pointer block, setup_pointer settings);
     InterpReturn check_g10(block_pointer block);
 
@@ -810,6 +811,12 @@ int read_inputs(setup_pointer settings);
     void push_gcode_context(setup_pointer settings, const char *caller);
     void update_gcode_context(const setup_pointer settings);
     void update_gcode_context_py_remap_name(const remap_pointer remap);
+
+    int find_g43_tool_offset(block_pointer block, setup_pointer settings, ShiftTransform & new_tool_offset);
+
+protected:
+    bool error_has_context;
+
 };
 
 bool toolOffsetActive(setup_pointer s);

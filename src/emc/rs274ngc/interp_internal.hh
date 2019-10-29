@@ -697,5 +697,6 @@ void append_stack_info(setup_struct &settings, const char *function_name, const 
 PositionMask getUpdatedAxes(block_pointer b);
 PositionArray getAxisWordsFromBlock(block_pointer b, PositionArray const &current);
 RotateShiftTransform getAxisWordsFromBlock(block_pointer b, RotateShiftTransform const &current);
+ShiftTransform getAxisWordsFromBlock(block_pointer b, ShiftTransform const &current);
 
 #endif // INTERP_INTERNAL_HH

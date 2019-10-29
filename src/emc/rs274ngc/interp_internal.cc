@@ -578,6 +578,11 @@ RotateShiftTransform getAxisWordsFromBlock(block_pointer b, RotateShiftTransform
     return out;
 }
 
+ShiftTransform getAxisWordsFromBlock(block_pointer b, ShiftTransform const & current)
+{
+    return ShiftTransform(getAxisWordsFromBlock(b, current.tf));
+}
+
 void append_stack_info(setup_struct & settings, const char * function_name, const char *file_name, int line)
 {
     if (settings.stack_index >= STACK_LEN -1) {
