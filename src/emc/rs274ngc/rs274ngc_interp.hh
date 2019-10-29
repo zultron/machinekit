@@ -436,6 +436,7 @@ public:
  int storeG92PersistentParms(ShiftTransform const &g92_offset, setup_pointer settings);
  int find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & work_offset);
  int store_tool_offset(setup_pointer settings, ShiftTransform const &tool_offset, int pocket);
+ int canon_use_tool_offset(ShiftTransform const &tool_offset);
  InterpReturn find_work_offset_from_parameters(setup_pointer settings, int origin, RotateShiftTransform & out);
  int store_work_offset_to_parameters(setup_pointer settings, RotateShiftTransform const &work_offset, int origin);
  int find_work_offset(int origin, RotateShiftTransform & work_offset_user);

@@ -561,6 +561,12 @@ int Interp::store_tool_offset(setup_pointer settings, const ShiftTransform & too
   return INTERP_OK;
 }
 
+int Interp::canon_use_tool_offset(const ShiftTransform & tool_offset)
+{
+    USE_TOOL_LENGTH_OFFSET(toEmcPose(tool_offset.tf));
+    return INTERP_OK;
+}
+
 InterpReturn Interp::find_work_offset_from_parameters(setup_pointer settings, int origin, RotateShiftTransform &out)
 {
     if (origin < 1 || origin >9) {

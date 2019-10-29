@@ -3653,19 +3653,6 @@ int Interp::convert_retract_mode(int g_code,     //!< g_code being executed (mus
 // G10 L10 P[tool number] R[radius] X[x offset] Z[z offset] Q[orientation]
 
 int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
-    int pocket = -1, toolno;
-    int q;
-    PositionArray t_pos;
-
-    int direct = block->l_number == 1;
-
-    // TODO same overhaul as setup (w/ unrotate etc.)
-    is_near_int(&toolno, block->p_number);
-
-    CHP((find_tool_pocket(settings, toolno, &pocket)));
-
-    settings->tool_table[pocket].toolno = toolno;
-
     CHKS(!(block->x_flag || block->y_flag || block->z_flag ||
            block->a_flag || block->b_flag || block->c_flag ||
            block->u_flag || block->v_flag || block->w_flag ||
@@ -3673,7 +3660,14 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
            block->j_flag),
          _("G10 L1 without offsets has no effect"));
 
-    if(direct) {
+    int pocket = -1, toolno;
+    // TODO same overhaul as setup (w/ unrotate etc.)
+    is_near_int(&toolno, block->p_number);
+    CHP((find_tool_pocket(settings, toolno, &pocket)));
+
+    settings->tool_table[pocket].toolno = toolno;
+
+    if(block->l_number == 1) {
        ShiftTransform tool_offset;
        CHP(find_tool_offset(settings, pocket, tool_offset));
        tool_offset.tf = getAxisWordsFromBlock(block, tool_offset.tf);
@@ -3684,76 +3678,44 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
         int to_fixture = block->l_number == 11;
         int destination_system = to_fixture? 9 : settings->origin_index; // maybe 9 (g59.3) should be user configurable?
 
-        find_current_in_system_without_tlo(settings, destination_system, t_pos);
+        LocalToMachineTransform working_csys = settings->transform;
 
-        if ( to_fixture) {
-            // For G10L11, we don't want to move the origin of the
-            // fixture according to G92.  Since find_current_in_system
-            // did this for us already, undo it.
-          settings->transform.g92Offset.apply_fwd(t_pos);
+        ShiftTransform tool_offset_from_table;
+        find_tool_offset(settings, pocket, tool_offset_from_table);
+        PositionArray current = working_csys.swap_tool_offset(settings->current, tool_offset_from_table);
+
+        // Find machine position (making sure to use the tool offset from the table
+        // that will be applied on the next G43, not whatever is currently applied)
+        PositionArray machine_pos = working_csys.forward(current);
+        // Use the nominal tool offset for the current tool (in case it hasn't been applied yet)
+
+
+        if (to_fixture) {
+            // The coordinate system we're specifying for L11 is
+            // with the specified fixture (default to G59.3) and no G92 offset.
+            // First, remove the G92 offset for L11, and clear it out:
+            working_csys.g92Offset.apply_fwd(current);
+            working_csys.g92Offset = ShiftTransform{};
+
+            // Next, find the equivalent position in fixture coordinates:
+            RotateShiftTransform fixture;
+            CHP(find_work_offset(destination_system, fixture));
+            current = working_csys.swap_g5x_offset(current, fixture);
         }
 
-        const double rotation_xy_deg = settings->transform.g5xOffset.getXYRotationDeg();
-        if(block->x_flag && block->y_flag) {
-            t_pos[X] -= block->x_number;
-            t_pos[Y] -= block->y_number;
-            rotate(&t_pos[X], &t_pos[Y], rotation_xy_deg);
-            settings->tool_table[pocket].offset.tran.x = PROGRAM_TO_USER_LEN(t_pos[X]);
-            settings->tool_table[pocket].offset.tran.y = PROGRAM_TO_USER_LEN(t_pos[Y]);
-        } else if(block->x_flag) {
-            // keep the component of the tool table's current setting that points
-            // along our possibly-rotated Y axis
-            double ox, oy;
-            ox = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
-            oy = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.y);
-            rotate(&ox, &oy, -rotation_xy_deg);
-            ox = 0;
-            rotate(&ox, &oy, rotation_xy_deg);
+        const PositionArray goal_local = getAxisWordsFromBlock(block, current);
 
+        const PositionArray goal_nose = working_csys.forward_to_nose(goal_local);
 
-            t_pos[X] -= block->x_number;
-            t_pos[Y] = 0;
-            rotate(&t_pos[X], &t_pos[Y], rotation_xy_deg);
-
-            settings->tool_table[pocket].offset.tran.x = PROGRAM_TO_USER_LEN(t_pos[X] + ox);
-            settings->tool_table[pocket].offset.tran.y = PROGRAM_TO_USER_LEN(t_pos[Y] + oy);
-        } else if(block->y_flag) {
-            double ox, oy;
-            ox = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
-            oy = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.y);
-            rotate(&ox, &oy, -rotation_xy_deg);
-            oy = 0;
-            rotate(&ox, &oy, rotation_xy_deg);
-
-            t_pos[Y] -= block->y_number;
-            t_pos[X] = 0;
-
-            rotate(&t_pos[X], &t_pos[Y], rotation_xy_deg);
-            settings->tool_table[pocket].offset.tran.x = PROGRAM_TO_USER_LEN(t_pos[X] + ox);
-            settings->tool_table[pocket].offset.tran.y = PROGRAM_TO_USER_LEN(t_pos[Y] + oy);
-        }
-
-
-        if(block->z_flag)
-            settings->tool_table[pocket].offset.tran.z = PROGRAM_TO_USER_LEN(t_pos[Z] - block->z_number);
-        if(block->a_flag)
-            settings->tool_table[pocket].offset.a = PROGRAM_TO_USER_ANG(t_pos[A] - block->a_number);
-        if(block->b_flag)
-            settings->tool_table[pocket].offset.b = PROGRAM_TO_USER_ANG(t_pos[B] - block->b_number);
-        if(block->c_flag)
-            settings->tool_table[pocket].offset.c = PROGRAM_TO_USER_ANG(t_pos[C] - block->c_number);
-        if(block->u_flag)
-            settings->tool_table[pocket].offset.u = PROGRAM_TO_USER_LEN(t_pos[U] - block->u_number);
-        if(block->v_flag)
-            settings->tool_table[pocket].offset.v = PROGRAM_TO_USER_LEN(t_pos[V] - block->v_number);
-        if(block->w_flag)
-            settings->tool_table[pocket].offset.w = PROGRAM_TO_USER_LEN(t_pos[W] - block->w_number);
+        const PositionArray new_tool_offset = machine_pos - goal_nose;
+        store_tool_offset(settings, ShiftTransform(new_tool_offset), pocket);
     }
 
     if(block->r_flag) settings->tool_table[pocket].diameter = PROGRAM_TO_USER_LEN(block->r_number) * 2.;
     if(block->i_flag) settings->tool_table[pocket].frontangle = block->i_number;
     if(block->j_flag) settings->tool_table[pocket].backangle = block->j_number;
     if(block->q_number != -1.0) {
+        int q;
         CHKS((!is_near_int(&q, block->q_number)), _("Q number in G10 is not an integer"));
         CHKS((q > 9), _("Invalid tool orientation"));
         settings->tool_table[pocket].orientation = q;
@@ -3799,19 +3761,21 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
         }
     }
 
-    settings->parameters[TOOL_OFFSET_X] = settings->tool_table[0].offset.tran.x;
-    settings->parameters[TOOL_OFFSET_Y] = settings->tool_table[0].offset.tran.y;
-    settings->parameters[TOOL_OFFSET_Z] = settings->tool_table[0].offset.tran.z;
-    settings->parameters[TOOL_OFFSET_A] = settings->tool_table[0].offset.a;
-    settings->parameters[TOOL_OFFSET_B] = settings->tool_table[0].offset.b;
-    settings->parameters[TOOL_OFFSET_C] = settings->tool_table[0].offset.c;
-    settings->parameters[TOOL_OFFSET_U] = settings->tool_table[0].offset.u;
-    settings->parameters[TOOL_OFFSET_V] = settings->tool_table[0].offset.v;
-    settings->parameters[TOOL_OFFSET_W] = settings->tool_table[0].offset.w;
-    settings->parameters[TOOL_DIAMETER] = settings->tool_table[0].diameter;
-    settings->parameters[TOOL_FRONT_ANGLE] = settings->tool_table[0].frontangle;
-    settings->parameters[TOOL_BACK_ANGLE] = settings->tool_table[0].backangle;
-    settings->parameters[TOOL_ORIENTATION] = settings->tool_table[0].orientation;
+    CANON_TOOL_TABLE const &active_tool = settings->tool_table[0];
+    // Update parameters with new tool offset value
+    settings->parameters[TOOL_OFFSET_X] = active_tool.offset.tran.x;
+    settings->parameters[TOOL_OFFSET_Y] = active_tool.offset.tran.y;
+    settings->parameters[TOOL_OFFSET_Z] = active_tool.offset.tran.z;
+    settings->parameters[TOOL_OFFSET_A] = active_tool.offset.a;
+    settings->parameters[TOOL_OFFSET_B] = active_tool.offset.b;
+    settings->parameters[TOOL_OFFSET_C] = active_tool.offset.c;
+    settings->parameters[TOOL_OFFSET_U] = active_tool.offset.u;
+    settings->parameters[TOOL_OFFSET_V] = active_tool.offset.v;
+    settings->parameters[TOOL_OFFSET_W] = active_tool.offset.w;
+    settings->parameters[TOOL_DIAMETER] = active_tool.diameter;
+    settings->parameters[TOOL_FRONT_ANGLE] = active_tool.frontangle;
+    settings->parameters[TOOL_BACK_ANGLE] = active_tool.backangle;
+    settings->parameters[TOOL_ORIENTATION] = active_tool.orientation;
 
     // if the modified tool is currently in the spindle, then copy its
     // information to pocket 0 of the tool table (which signifies the
@@ -3837,28 +3801,11 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
         // where a user has T0204 active and edits wear offset register 4.  Too complicated, so we'll
         // just say that G10 clears the wear offset application.  *dpr 2/6/14
         if (((toolno - 10000) == settings->tool_table[0].toolno)){
-            EmcPose tool_offset;
-            ZERO_EMC_POSE(tool_offset);
-            tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
-            tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.y);
-            tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.z);
-            USE_TOOL_LENGTH_OFFSET(tool_offset);
-            double dx, dy;
 
-            dx = settings->transform.toolOffset[X] - tool_offset.tran.x;
-            dy = settings->transform.toolOffset[Y] - tool_offset.tran.y;
-            rotate(&dx, &dy, -settings->transform.g5xOffset.getXYRotationDeg()); //FIXME
-
-            settings->current[X] += dx;
-            settings->current[Y] += dy;
-            settings->current[Z] += settings->transform.toolOffset[Z] - tool_offset.tran.z;
-            settings->current[A] += settings->transform.toolOffset[A] - tool_offset.a;
-            settings->current[B] += settings->transform.toolOffset[B] - tool_offset.b;
-            settings->current[C] += settings->transform.toolOffset[C] - tool_offset.c;
-            settings->current[U] += settings->transform.toolOffset[U] - tool_offset.u;
-            settings->current[V] += settings->transform.toolOffset[V] - tool_offset.v;
-            settings->current[W] += settings->transform.toolOffset[W] - tool_offset.w;
-            settings->transform.toolOffset.tf = toArray(tool_offset);
+            ShiftTransform tool_offset;
+            find_tool_offset(settings, pocket, tool_offset);
+            settings->current = settings->transform.swap_tool_offset(settings->current, tool_offset);
+            canon_use_tool_offset(tool_offset);
         }
     }
     return INTERP_OK;
