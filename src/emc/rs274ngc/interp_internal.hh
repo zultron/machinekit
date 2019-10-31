@@ -483,8 +483,8 @@ struct setup_struct
   int call_state;                  //  enum call_states - inidicate Py handler reexecution
   offset_map_type offset_map;      // store label x name, file, line
 
-  bool adaptive_feed;              // adaptive feed is enabled
-  bool feed_hold;                  // feed hold is enabled
+  bool allow_adaptive_feed;              // adaptive feed is enabled
+  bool allow_feed_hold;                  // feed hold is enabled
   int loggingLevel;                  // 0 means logging is off
   int debugmask;                     // from ini  EMC/DEBUG
   char log_file[PATH_MAX];

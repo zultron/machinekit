@@ -3275,13 +3275,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 52)  && ONCE_M(9)){
     if (block->p_number != 0) {
         CHKS((settings->cutter_comp_side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
-	settings->adaptive_feed = true;
+    settings->allow_adaptive_feed = true;
 	write_and_update_state_tag(block);
 	ENABLE_ADAPTIVE_FEED();
     } else {
         CHKS((settings->cutter_comp_side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
-	settings->adaptive_feed = false;
+    settings->allow_adaptive_feed = false;
 	write_and_update_state_tag(block);
 	DISABLE_ADAPTIVE_FEED();
     }
@@ -3291,13 +3291,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 53)  && ONCE_M(9)){
     if (block->p_number != 0) {
         CHKS((settings->cutter_comp_side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
-	settings->feed_hold = true;
+    settings->allow_feed_hold = true;
 	write_and_update_state_tag(block);
 	ENABLE_FEED_HOLD();
     } else {
         CHKS((settings->cutter_comp_side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
-	settings->feed_hold = false;
+    settings->allow_feed_hold = false;
 	write_and_update_state_tag(block);
 	DISABLE_FEED_HOLD();
     }

@@ -663,11 +663,11 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_ADAPTIVE_FEED: // adaptive feed
-	*value = _setup.adaptive_feed;
+    *value = _setup.allow_adaptive_feed;
 	break;
 
     case NP_FEED_HOLD: // feed hold
-	*value = _setup.feed_hold;
+    *value = _setup.allow_feed_hold;
 	break;
 
 	// from active_settings:

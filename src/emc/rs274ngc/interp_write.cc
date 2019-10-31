@@ -161,10 +161,10 @@ int Interp::write_m_codes(block_pointer block,   //!< pointer to a block of RS27
       state.m_codes[M_CODE_OVERRIDES] = 49;
   
   state.m_codes[M_CODE_ADAPTIVE_FEED] =			/* 7 adaptive feed */
-      (settings->adaptive_feed) ? 52 : -1;
+      (settings->allow_adaptive_feed) ? 52 : -1;
 
   state.m_codes[M_CODE_FEED_HOLD] =			/* 8 feed hold */
-      (settings->feed_hold) ? 53 : -1;
+      (settings->allow_feed_hold) ? 53 : -1;
 
   return INTERP_OK;
 }
@@ -260,9 +260,9 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.flags[GM_FLAG_FEED_OVERRIDE] = _setup.feed_override;
     state.flags[GM_FLAG_SPEED_OVERRIDE] = _setup.speed_override;
 
-    state.flags[GM_FLAG_ADAPTIVE_FEED] = (_setup.adaptive_feed);
+    state.flags[GM_FLAG_ADAPTIVE_FEED] = (_setup.allow_adaptive_feed);
 
-    state.flags[GM_FLAG_FEED_HOLD] =  (_setup.feed_hold);
+    state.flags[GM_FLAG_FEED_HOLD] =  (_setup.allow_feed_hold);
 
     state.feed = _setup.feed_rate;        /* 1 feed rate       */
     state.speed = _setup.speed;    /* 2 spindle speed   */

@@ -2408,8 +2408,8 @@ int Interp::synch()
   _setup.traverse_rate = GET_EXTERNAL_TRAVERSE_RATE();
   _setup.feed_override = GET_EXTERNAL_FEED_OVERRIDE_ENABLE();
   _setup.speed_override = GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE();
-  _setup.adaptive_feed = GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
-  _setup.feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
+  _setup.allow_adaptive_feed = GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
+  _setup.allow_feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
   auto counters = GET_EXTERNAL_PART_COUNTS();
   std::copy(
       counters.begin(),
