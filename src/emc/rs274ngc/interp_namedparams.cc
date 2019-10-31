@@ -99,6 +99,15 @@ enum predefined_named_parameters {
     NP_WORK_OFFSET_U,
     NP_WORK_OFFSET_V,
     NP_WORK_OFFSET_W,
+    NP_TOOL_OFFSET_X,
+    NP_TOOL_OFFSET_Y,
+    NP_TOOL_OFFSET_Z,
+    NP_TOOL_OFFSET_A,
+    NP_TOOL_OFFSET_B,
+    NP_TOOL_OFFSET_C,
+    NP_TOOL_OFFSET_U,
+    NP_TOOL_OFFSET_V,
+    NP_TOOL_OFFSET_W,
     NP_X_MACHINE,
     NP_Y_MACHINE,
     NP_Z_MACHINE,
@@ -721,6 +730,18 @@ int Interp::lookup_named_param(const char *nameBuf,
         *value = _setup.transform.g5xOffset.shift.tf[cmd - NP_WORK_OFFSET_X];
         break;
 
+    case NP_TOOL_OFFSET_X:
+    case NP_TOOL_OFFSET_Y:
+    case NP_TOOL_OFFSET_Z:
+    case NP_TOOL_OFFSET_A:
+    case NP_TOOL_OFFSET_B:
+    case NP_TOOL_OFFSET_C:
+    case NP_TOOL_OFFSET_U:
+    case NP_TOOL_OFFSET_V:
+    case NP_TOOL_OFFSET_W:
+        *value = _setup.transform.toolOffset.tf[cmd - NP_TOOL_OFFSET_X];
+        break;
+
     // current interpreter position in machine coordinates
     case NP_X_MACHINE:
     case NP_Y_MACHINE:
@@ -940,6 +961,16 @@ int Interp::init_named_parameters()
   init_readonly_param("_work_offset_u", NP_WORK_OFFSET_U, PA_USE_LOOKUP);
   init_readonly_param("_work_offset_v", NP_WORK_OFFSET_V, PA_USE_LOOKUP);
   init_readonly_param("_work_offset_w", NP_WORK_OFFSET_W, PA_USE_LOOKUP);
+
+  init_readonly_param("_tool_offset_x", NP_TOOL_OFFSET_X, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_y", NP_TOOL_OFFSET_Y, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_z", NP_TOOL_OFFSET_Z, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_a", NP_TOOL_OFFSET_A, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_b", NP_TOOL_OFFSET_B, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_c", NP_TOOL_OFFSET_C, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_u", NP_TOOL_OFFSET_U, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_v", NP_TOOL_OFFSET_V, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_w", NP_TOOL_OFFSET_W, PA_USE_LOOKUP);
 
   // current position in machine coordinates (derived from current position)
   init_readonly_param("_x_machine", NP_X_MACHINE, PA_USE_LOOKUP);
