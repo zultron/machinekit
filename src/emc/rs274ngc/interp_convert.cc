@@ -5430,6 +5430,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     } else if (g_code == G_43_1) {
         ShiftTransform modified_tool_offset(getAxisWordsFromBlock(block, settings->transform.toolOffset));
         settings->current = settings->transform.swap_tool_offset(settings->current, modified_tool_offset);
+        settings->work_offset_modified_flag = true;
     } else if (g_code == G_43_2) {
         ShiftTransform additional_tool_offset{};
         CHKS((!block->h_flag), (_("G43.2: H-word missing")));
@@ -5437,6 +5438,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
         CHP((find_tool_pocket(settings, block->h_number, &pocket_number_g43_2)));
         find_tool_offset(settings, pocket_number_g43_2, additional_tool_offset);
         settings->current = settings->transform.add_tool_offset(settings->current, additional_tool_offset);
+        settings->work_offset_modified_flag = true;
     } else {
         ERS("BUG: Code not G43, G43.1, G43.2, or G49");
     }
