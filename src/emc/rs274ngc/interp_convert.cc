@@ -5427,6 +5427,10 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
         ShiftTransform new_tool_offset{};
         CHP(find_g43_tool_offset(block, settings, new_tool_offset));
         settings->current = settings->transform.swap_tool_offset(settings->current, new_tool_offset);
+        if (settings->tool_offset_mode == G_43_1 || settings->tool_offset_mode == G_43_2) {
+            // Need queue-buster because we're switching from a custom to a table offset
+            settings->work_offset_modified_flag = true;
+        }
     } else if (g_code == G_43_1) {
         ShiftTransform modified_tool_offset(getAxisWordsFromBlock(block, settings->transform.toolOffset));
         settings->current = settings->transform.swap_tool_offset(settings->current, modified_tool_offset);
@@ -5443,6 +5447,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
         ERS("BUG: Code not G43, G43.1, G43.2, or G49");
     }
 
+    settings->tool_offset_mode = (GCodes)g_code;
     // Update current tool offset and current interp position (local) if successful
     // Send updated tool offset to canon
     write_and_update_state_tag(block);

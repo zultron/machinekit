@@ -92,6 +92,7 @@ setup_struct::setup_struct() :
     random_toolchanger(0),
     selected_pocket(0),
     selected_tool(0),
+    tool_offset_mode(G_49),
     sequence_number(0),
     stepping_id(0),
     speed (0.0),

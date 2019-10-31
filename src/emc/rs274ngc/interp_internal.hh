@@ -449,6 +449,7 @@ struct setup_struct
   int random_toolchanger;       // tool changer swaps pockets, and pocket 0 is the spindle instead of "no tool"
   int selected_pocket;          // tool slot selected but not active
     int selected_tool;          // start switchover to pocket-agnostic interp
+    GCodes tool_offset_mode;
   int sequence_number;          // sequence number of line last read
   int stepping_id;              // tag value used to control stepping
   double speed;                 // current spindle speed in rpm or SxM
