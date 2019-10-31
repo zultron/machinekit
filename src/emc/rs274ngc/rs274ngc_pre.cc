@@ -2560,7 +2560,7 @@ int Interp::active_modes(int *g_codes,
 	tag.flags[GM_FLAG_DIAMETER_MODE] ? G_7 : G_8;
     //TODO remove redundant line number?
     m_codes[M_CODE_SEQUENCE_NUMBER] = tag.fields[GM_FIELD_LINE_NUMBER];
-    m_codes[M_CODE_STOPPING] = tag.fields[GM_FIELD_M_MODES_4];
+    m_codes[M_CODE_STOPPING] = tag.fields[GM_FIELD_M_MODE_STOPPING];
     m_codes[M_CODE_SPINDLE] = !tag.flags[GM_FLAG_SPINDLE_ON] ? 5 :
         tag.flags[GM_FLAG_SPINDLE_CW] ? 3 : 4;
     m_codes[M_CODE_TOOLCHANGE] = tag.fields[GM_FIELD_TOOLCHANGE];

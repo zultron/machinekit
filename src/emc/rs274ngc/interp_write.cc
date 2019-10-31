@@ -244,7 +244,7 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.flags[GM_FLAG_IJK_ABS] = (_setup.ijk_distance_mode == MODE_ABSOLUTE);
     state.flags[GM_FLAG_DIAMETER_MODE] = (_setup.lathe_diameter_mode);
 
-    state.fields[GM_FIELD_M_MODES_4] = (block == NULL) ? -1 : block->m_modes[M_MODE_STOPPING];
+    state.fields[GM_FIELD_M_MODE_STOPPING] = (block == NULL) ? -1 : block->m_modes[M_MODE_STOPPING];
 
     state.flags[GM_FLAG_SPINDLE_ON] = !(_setup.spindle_turning != CANON_STOPPED);
     state.flags[GM_FLAG_SPINDLE_CW] = (_setup.spindle_turning == CANON_CLOCKWISE);

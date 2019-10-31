@@ -67,7 +67,7 @@ void StateTag::fprint(FILE *stream)
 	    fields[GM_FIELD_G_MODE_0], fields[GM_FIELD_CUTTER_COMP],
 	    fields[GM_FIELD_MOTION_MODE]);
     fprintf(stream, "           plane %d; m_modes_4 %d; origin %d; toolchange %d\n",
-	    fields[GM_FIELD_PLANE], fields[GM_FIELD_M_MODES_4],
+        fields[GM_FIELD_PLANE], fields[GM_FIELD_M_MODE_STOPPING],
         fields[GM_FIELD_WORK_OFFSET_NUMBER], fields[GM_FIELD_TOOLCHANGE]);
     fprintf(stream, "  flags: %s\n", flags.to_string().c_str());
 }
