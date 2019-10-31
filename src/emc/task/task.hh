@@ -20,6 +20,8 @@
 // global command pointer
 extern NMLmsg *emcTaskCommand;
 
+extern InterpBase *pinterp;
+
 extern int stepping;
 extern int steppingWait;
 extern int emcTaskQueueCommand(NMLmsg *cmd);

@@ -856,14 +856,14 @@ SCENARIO("G43 behavior")
     {
         THEN("Calling G43 should apply just the specified tool offset")
         {
-            REQUIRE_INTERP_OK(test_interp, execute_or_unwind("g43 h1"));
+            REQUIRE_INTERP_OK(test_interp, execute("g43 h1"));
             CHECK_FUZZ(settings->transform.toolOffset.tf[X], 0.1);
             CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 0.2);
             CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 0.3);
 
             THEN("Calling G43.1 should override just the specified tool offset")
             {
-                REQUIRE_INTERP_OK(test_interp, execute_or_unwind("g43.1 Z13.0"));
+                REQUIRE_INTERP_OK(test_interp, execute("g43.1 Z13.0"));
                 CHECK_FUZZ(settings->transform.toolOffset.tf[X], 0.1);
                 CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 0.2);
                 CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 13.0);
@@ -871,13 +871,13 @@ SCENARIO("G43 behavior")
 
             THEN("Calling G43.2 should add two tool offsets together")
             {
-                REQUIRE_INTERP_OK(test_interp, execute_or_unwind("g43.2 H2"));
+                REQUIRE_INTERP_OK(test_interp, execute("g43.2 H2"));
                 CHECK_FUZZ(settings->transform.toolOffset.tf[X], 1.1);
                 CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 2.2);
                 CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 3.3);
             }
 
-            REQUIRE_INTERP_OK(test_interp, execute_or_unwind("g43 h2"));
+            REQUIRE_INTERP_OK(test_interp, execute("g43 h2"));
             CHECK_FUZZ(settings->transform.toolOffset.tf[X], 1.0);
             CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 2.0);
             CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 3.0);

@@ -142,9 +142,6 @@ static double taskExecDelayTimeout = 0.0;
 // emcTaskIssueCommand issues command immediately
 static int emcTaskIssueCommand(NMLmsg * cmd);
 
-
-extern InterpBase *pinterp;
-
 // pending command to be sent out by emcTaskExecute()
 NMLmsg *emcTaskCommand = 0;
 
