@@ -831,3 +831,56 @@ SCENARIO("Load and save parameters")
         }
     }
 }
+
+SCENARIO("G43 behavior")
+{
+    DECL_INIT_TEST_INTERP();
+
+    const char *test_setup[] = {
+        "g20 g90",
+        "g10 l1 p3 x0 y0 z0",
+        "m6 t3 g43",
+        "g10 l2 p1 x0 y0 z0",
+        "g10 l1 p1 x.1 y.2 z.3",
+        "g10 l1 p2 x1.0 y2.0 z3.0",
+        "g92.2",
+        "g54",
+        "G49",
+        };
+    REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
+    CHECK_FUZZ(settings->transform.toolOffset.tf[X], 0.0);
+    CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 0.0);
+    CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 0.0);
+
+    GIVEN("No offsets applied")
+    {
+        THEN("Calling G43 should apply just the specified tool offset")
+        {
+            REQUIRE_INTERP_OK(test_interp, execute_or_unwind("g43 h1"));
+            CHECK_FUZZ(settings->transform.toolOffset.tf[X], 0.1);
+            CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 0.2);
+            CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 0.3);
+
+            THEN("Calling G43.1 should override just the specified tool offset")
+            {
+                REQUIRE_INTERP_OK(test_interp, execute_or_unwind("g43.1 Z13.0"));
+                CHECK_FUZZ(settings->transform.toolOffset.tf[X], 0.1);
+                CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 0.2);
+                CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 13.0);
+            }
+
+            THEN("Calling G43.2 should add two tool offsets together")
+            {
+                REQUIRE_INTERP_OK(test_interp, execute_or_unwind("g43.2 H2"));
+                CHECK_FUZZ(settings->transform.toolOffset.tf[X], 1.1);
+                CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 2.2);
+                CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 3.3);
+            }
+
+            REQUIRE_INTERP_OK(test_interp, execute_or_unwind("g43 h2"));
+            CHECK_FUZZ(settings->transform.toolOffset.tf[X], 1.0);
+            CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 2.0);
+            CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 3.0);
+        }
+    }
+}
