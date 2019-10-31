@@ -1670,8 +1670,9 @@ int Interp::read_inputs(setup_pointer settings)
   settings->orient_flag = false;
     }
 
-    // Offset-modified flag is always cleared at the start of a block
+    // Offset-modified flags are always cleared at the start of a block
     settings->work_offset_modified_flag = false;
+    settings->tool_offset_modified_flag = false;
 
     return INTERP_OK;
 }

@@ -81,6 +81,7 @@ setup_struct::setup_struct() :
     orient_flag(0),
     toolchange_flag(0),
     work_offset_modified_flag(false),
+    tool_offset_modified_flag(false),
     have_new_reserved_parameters(false),
     input_index(0),
     input_digital(0),
@@ -204,6 +205,7 @@ void setup_struct::clear_queue_buster_flags()
     orient_flag = false;
     toolchange_flag = false;
     work_offset_modified_flag = false;
+    tool_offset_modified_flag = false;
     have_new_reserved_parameters = false;
 }
 

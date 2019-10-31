@@ -331,7 +331,8 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
           || settings->input_flag
           || settings->toolchange_flag
           || settings->orient_flag
-          || settings->work_offset_modified_flag) {
+          || settings->work_offset_modified_flag
+          || settings->tool_offset_modified_flag) {
       return INTERP_EXECUTE_FINISH;
   }
 
