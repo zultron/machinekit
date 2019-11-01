@@ -430,6 +430,7 @@ struct setup_struct
   bool feed_override;         // whether feed override is enabled
   double feed_rate;             // feed rate in current units/min
   char filename[PATH_MAX];      // name of currently open NC code file
+  std::string working_dir;
   FILE *file_pointer;           // file pointer for open NC code file
   bool flood;                 // whether flood coolant is on
   CANON_UNITS length_units;     // millimeters or inches

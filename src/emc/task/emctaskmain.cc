@@ -2263,8 +2263,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	// interpreter commands
 
     case EMC_TASK_PLAN_OPEN_TYPE:
-	open_msg = (EMC_TASK_PLAN_OPEN *) cmd;
-	retval = emcTaskPlanOpen(open_msg->file);
+    open_msg = (EMC_TASK_PLAN_OPEN *) cmd;
+    retval = emcTaskPlanOpen(open_msg->file, open_msg->working_dir);
 	if (retval > INTERP_MIN_ERROR) {
 	    retval = -1;
 	}
@@ -2386,8 +2386,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         }
 	stepping = 0;
 	steppingWait = 0;
-	if (!taskplanopen && emcStatus->task.file[0] != 0) {
-	    emcTaskPlanOpen(emcStatus->task.file);
+    if (!taskplanopen && emcStatus->task.file[0] != 0) {
+        emcTaskPlanOpen(emcStatus->task.file, emcStatus->task.working_dir);
 	}
 	run_msg = (EMC_TASK_PLAN_RUN *) cmd;
     run_settings = run_msg->run_settings;

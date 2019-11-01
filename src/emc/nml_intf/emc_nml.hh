@@ -1293,14 +1293,17 @@ class EMC_TASK_SET_STATE:public EMC_TASK_CMD_MSG {
 
 class EMC_TASK_PLAN_OPEN:public EMC_TASK_CMD_MSG {
   public:
-    EMC_TASK_PLAN_OPEN():EMC_TASK_CMD_MSG(EMC_TASK_PLAN_OPEN_TYPE,
-					  sizeof(EMC_TASK_PLAN_OPEN)) {
-    }
+    EMC_TASK_PLAN_OPEN() : EMC_TASK_CMD_MSG(EMC_TASK_PLAN_OPEN_TYPE,
+                      sizeof(EMC_TASK_PLAN_OPEN)),
+          file{},
+          working_dir{}
+    {}
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
     char file[LINELEN];
+    char working_dir[LINELEN]; //!< optionally specify the working directory if not the original file path
 };
 
 class EMC_TASK_PLAN_RUN:public EMC_TASK_CMD_MSG {
@@ -1492,6 +1495,7 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     int stepping_id;		// ID of block we are stepping on
 
     char file[LINELEN];
+    char working_dir[LINELEN];
     char command[LINELEN];
     int g5x_index;              // index of active g5x system
     EmcPose g92_offset;		// in user units, currently active

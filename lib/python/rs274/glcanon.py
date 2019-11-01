@@ -23,6 +23,7 @@ import hershey
 import linuxcnc
 import array
 import gcode
+import os
 
 def minmax(*args):
     return min(*args), max(*args)
@@ -1968,9 +1969,10 @@ class GlCanonDraw:
     def get_work_offsets_used(self):
         return self._work_offsets_used
 
-    def load_preview(self, f, canon, unitcode, initcode, interpname=""):
+    def load_preview(self, f, canon, unitcode, initcode, interpname=None, working_dir=None):
         self.set_canon(canon)
-        result, seq, warnings = gcode.parse(f, canon, unitcode, initcode, interpname)
+        print working_dir
+        result, seq, warnings = gcode.parse(f, canon, unitcode, initcode, interpname or "", working_dir or "")
 
         # this is only valid right after a gcode.parse() as it will continue to change if the 
         # underlying interp is reset or reused for other files.  It gets cleared when a new file is

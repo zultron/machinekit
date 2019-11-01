@@ -1627,7 +1627,7 @@ file.
 
 */
 
-int Interp::open(const char *filename) //!< string: the name of the input NC-program file
+int Interp::open(const char *filename, const char *working_dir) //!< string: the name of the input NC-program file
 {
     char *line;
     int index;
@@ -1639,6 +1639,9 @@ int Interp::open(const char *filename) //!< string: the name of the input NC-pro
         close();
         _setup.use_lazy_close = 1;
         _setup.lazy_closing = 0;
+    }
+    if (working_dir) {
+        _setup.working_dir=working_dir;
     }
 
     CHKS((_setup.file_pointer), NCE_A_FILE_IS_ALREADY_OPEN);
@@ -3301,21 +3304,24 @@ FILE *Interp::find_ngc_file(
     const char *basename, //!< Specified the stem of the NGC filename to find (i.e. no extension)
     char *foundhere //!< Assumed to be at least PATH_MAX (if not null), populated with the NGC file name if found
 ){
-    // First, look at the current program path and see if subroutines are in the same directory
-    std::string current_loaded_program_path(get_path_basename(settings->filename));
+    // First, look at the current program path / working directory and see if subroutines are there
+    std::string current_loaded_program_path = _setup.working_dir.empty()
+                                                  ? get_path_basename(_setup.filename)
+                                                  : _setup.working_dir;
     if (FILE *newFP = try_load_subroutine_from_path(basename, current_loaded_program_path.c_str(), foundhere)) {
         return newFP;
     }
 
+    // Then, try looking in the subroutine path (in order)
     for (auto const & sub_dir : settings->subroutines) {
         if (FILE* f_from_searchpath = try_load_subroutine_from_path(basename, sub_dir, foundhere)) {
             return f_from_searchpath;
         }
     }
 
+    // Finally, search the "wizard" tree
     FILE *newFP=nullptr;
     char newFileName[PATH_MAX+1];
-    // if not found, search the wizard tree
     if (settings->wizard_root) {
         int ret;
         char tmpFileName[PATH_MAX+1];

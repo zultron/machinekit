@@ -96,7 +96,7 @@ public:
  int synch_work_offsets_from_task();
 
 // open a file of NC code
- int open(const char *filename);
+ int open(const char *filename, const char *working_dir);
 
 // after an open() and close() cycle, the interp knows which offsets were used by the
 // program so this provides acess to that state.

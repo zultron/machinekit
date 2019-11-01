@@ -51,7 +51,7 @@ int emcTaskPlanFinishLineSeek(AutoRunSettings const &run_settings, ExpandedModal
 int emcTaskPlanSetOptionalStop(bool state);
 int emcTaskPlanSetBlockDelete(bool state);
 void emcTaskPlanExit();
-int emcTaskPlanOpen(const char *file);
+int emcTaskPlanOpen(const char *file, const char * working_dir);
 int emcTaskPlanRead();
 int emcTaskPlanExecute();
 int emcTaskPlanExecute(const char *command, CommandSource cmd_src); //used in case of MDI to pass the pseudo line number to interp

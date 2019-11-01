@@ -216,6 +216,7 @@ static  active_settings_array activeSettings_wrapper ( EMC_TASK_STAT & m) {
 }
 
 static const char *get_file( EMC_TASK_STAT &t) { return t.file; }
+static const char *get_working_dir( EMC_TASK_STAT &t) { return t.working_dir; }
 static const char *get_command( EMC_TASK_STAT &t) { return t.command; }
 
 static EmcPose get_g5x_offset(EMC_TASK_STAT const &t) {
@@ -447,7 +448,8 @@ BOOST_PYTHON_MODULE(emctask) {
 
 	//  read-only
 	.add_property("file",  &get_file)
-	.add_property("command",   &get_command)
+    .add_property("working_dir",  &get_working_dir)
+    .add_property("command",   &get_command)
 
     .add_property("g5x_offset", &get_g5x_offset)
     .add_property("rotation_xy", &get_rotation_xy)

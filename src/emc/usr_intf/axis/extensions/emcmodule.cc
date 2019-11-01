@@ -315,6 +315,7 @@ static PyMemberDef Stat_members[] = {
     {(char*)"current_line", T_INT, O(task.currentLine), READONLY},
     {(char*)"previous_line", T_INT, O(task.previousLine), READONLY},
     {(char*)"file", T_STRING_INPLACE, O(task.file), READONLY},
+    {(char*)"working_dir", T_STRING_INPLACE, O(task.working_dir), READONLY},
     {(char*)"command", T_STRING_INPLACE, O(task.command), READONLY},
     {(char*)"program_units", T_INT, O(task.programUnits), READONLY},
     {(char*)"interpreter_errcode", T_INT, O(task.interpreter_errcode), READONLY},
@@ -1137,16 +1138,20 @@ static PyObject *reset_interpreter(pyCommandChannel *s, PyObject *o) {
 }
 
 static PyObject *program_open(pyCommandChannel *s, PyObject *o) {
-    EMC_TASK_PLAN_OPEN m;
-    char *file;
-    int len;
+    EMC_TASK_PLAN_OPEN m{};
+    char *file = nullptr;
+    char *working_dir = nullptr;
+    int len = 0;
 
-    if(!PyArg_ParseTuple(o, "s#", &file, &len)) return NULL;
+    if(!PyArg_ParseTuple(o, "s#|s", &file, &len, &working_dir)) return nullptr;
     if(unsigned(len) > sizeof(m.file) - 1) {
         PyErr_Format(PyExc_ValueError, "File name limited to %zu characters", sizeof(m.file) - 1);
-        return NULL;
+        return nullptr;
     }
     strcpy(m.file, file);
+    if (working_dir) {
+        strcpy(m.working_dir, working_dir);
+    }
     emcSendCommand(s, m);
     Py_INCREF(Py_None);
     return Py_None;

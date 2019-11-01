@@ -386,17 +386,21 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         print("Active G-codes at redraw:", cmd_list)
         return '\n'.join((' '.join(sub_l) for sub_l in cmd_list))
 
-    def load(self, filename=None, suppress_errors=False):
+    def load(self, filename=None, suppress_errors=False, working_dir=None):
         # suppress_errors arg was added to help situation where we need to have gremlin
         # redraw the current file - which is a reload of the file.  In this case the operator
         # has already seen the errors with the file and we want to avoid continuing to
         # yell at them just because of some action needed that drives a redraw.
         s = self.stat
         s.poll()
-        if not filename and s.file:
-            filename = s.file
-        elif not filename and not s.file:
+        filename = filename or s.file
+
+        print s.file
+        print s.working_dir
+        if not filename:
             return
+
+        working_dir = working_dir or s.working_dir
 
         td = tempfile.mkdtemp()
         self._current_file = filename
@@ -417,7 +421,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
             initcode = self.get_active_g_code_string() or self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
             unitcode = "G{}".format(20 + (s.program_units == linuxcnc.UNITS_MM))
-            result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode)
+            result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode, None, working_dir)
 
             #Handle extents violation (copied from AXIS)
             machine_limit_min, machine_limit_max = self.canon.get_soft_limits()

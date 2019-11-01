@@ -588,7 +588,7 @@ void emcTaskPlanExit()
     }
 }
 
-int emcTaskPlanOpen(const char *file)
+int emcTaskPlanOpen(const char *file, const char *working_dir)
 {
     if (emcStatus != 0) {
         emcStatus->task.motionLine = 0;
@@ -598,7 +598,7 @@ int emcTaskPlanOpen(const char *file)
         emcStatus->task.stepping_id = 0;
     }
 
-    int retval = pinterp->open(file);
+    int retval = pinterp->open(file, working_dir);
     if (retval > INTERP_MIN_ERROR) {
         print_interp_error(retval);
         return retval;
@@ -617,8 +617,8 @@ int emcTaskPlanRead()
 {
     int retval = pinterp->read();
     if (retval == INTERP_FILE_NOT_OPEN) {
-	if (emcStatus->task.file[0] != 0) {
-	    retval = pinterp->open(emcStatus->task.file);
+    if (emcStatus->task.file[0] != 0) {
+        retval = pinterp->open(emcStatus->task.file, emcStatus->task.working_dir);
 	    if (retval > INTERP_MIN_ERROR) {
 		print_interp_error(retval);
 	    }
@@ -749,6 +749,7 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
 
     char buf[LINELEN];
     strcpy(stat->file, pinterp->file(buf, LINELEN));
+    strcpy(stat->working_dir, interp._setup.working_dir.c_str());
     // command set in main
 
     if (emcStatus->task.interpState == EMC_TASK_INTERP_IDLE) {

@@ -79,7 +79,7 @@ public:
     int execute(const char *line, CommandSource cmd_src, int line_number);
     int synch();
     int exit();
-    int open(const char *filename);
+    int open(const char *filename, const char *working_dir);
     int read();
     int read(const char *line, CommandSource cmd_src);
     int close();
@@ -685,7 +685,7 @@ int Canterp::execute() {
     return execute(nullptr, CommandSource::PROGRAM);
 }
 
-int Canterp::open(const char *newfilename) {
+int Canterp::open(const char *newfilename, const char * working_dir) {
     if(f) fclose(f);
     f = fopen(newfilename, "r");
     if(f) snprintf(filename, sizeof(filename), "%s", newfilename);
