@@ -3301,6 +3301,12 @@ FILE *Interp::find_ngc_file(
     const char *basename, //!< Specified the stem of the NGC filename to find (i.e. no extension)
     char *foundhere //!< Assumed to be at least PATH_MAX (if not null), populated with the NGC file name if found
 ){
+    // First, look at the current program path and see if subroutines are in the same directory
+    std::string current_loaded_program_path(get_path_basename(settings->filename));
+    if (FILE *newFP = try_load_subroutine_from_path(basename, current_loaded_program_path.c_str(), foundhere)) {
+        return newFP;
+    }
+
     for (auto const & sub_dir : settings->subroutines) {
         if (FILE* f_from_searchpath = try_load_subroutine_from_path(basename, sub_dir, foundhere)) {
             return f_from_searchpath;
