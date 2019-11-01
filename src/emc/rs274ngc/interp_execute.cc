@@ -301,7 +301,7 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
       if (STEP_REMAPPED_IN_BLOCK(block, STEP_PREPARE)) {
 	  return (convert_remapped_code(block,settings,STEP_PREPARE,'T'));
       } else {
-		if (FEATURE(LATHE_TOOLCHANGE)) {
+        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
 			CHP(convert_lathe_tool_change(block, settings));
 		}
 		else {

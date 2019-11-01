@@ -68,7 +68,6 @@ class Canterp : public InterpBase {
 public:
     Canterp () : f(0) {}
     char *error_text(int errcode, char *buf, size_t buflen);
-    char *warning_text(char *buf, size_t buflen);
     char *stack_name(int index, char *buf, size_t buflen);
     char *line_text(char *buf, size_t buflen);
     char *file_name(char *buf, size_t buflen);
@@ -111,10 +110,6 @@ char *Canterp::error_text(int errcode, char *buf, size_t buflen) {
     if(errcode < INTERP_MIN_ERROR) snprintf(buf, buflen, "OK %d", errcode);
     else snprintf(buf, buflen, "ERROR %d", errcode);
     return buf;
-}
-
-char *Canterp::warning_text(char *warning_text, size_t max_size) {
-    return 0;
 }
 
 char *Canterp::stack_name(int index, char *buf, size_t buflen) {

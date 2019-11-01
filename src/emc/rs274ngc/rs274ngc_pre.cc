@@ -188,11 +188,12 @@ UnitsTransform Interp::convertsProgramToUser() const
 
 extern struct _inittab builtin_modules[];
 int trace;
-static char savedError[LINELEN+1];
+static char savedError[MAX_ERROR_MSG_LEN+1];
 
 Interp::Interp()
     : log_file(stderr),
-      _setup(setup_struct())
+      _setup(setup_struct()),
+    warning_list()
 {
 
   init_remap_sets();
@@ -236,8 +237,6 @@ Interp::Interp()
     Error("PYTHON: exception during 'this' export:\n%s\n",exception_msg.c_str());
   }
 #endif
-
-  this->warning_list = PyList_New(0);
 
 }
 
@@ -908,6 +907,28 @@ int Interp::exit()
 
 void Interp::set_loglevel(int level) { _setup.loggingLevel = level; }
 
+struct FindsIniFeature
+{
+    IniFile &inifile;
+    const char *section;
+    FindsIniFeature(IniFile &inifile_in, const char *section_in) : inifile(inifile_in), section(section_in) {}
+
+    template <typename T>
+    T operator()(const char *section_name, Features feature, T def_value) const {
+        T val = def_value;
+        const char * f_name = GetFeatureStr(feature);
+        if (!f_name || !f_name[0]) {
+            return val;
+        }
+        inifile.Find(&val, f_name, section_name);
+        return val;
+    }
+    template <typename T>
+    T operator()(Features f, T def_value) const {
+        return (*this)(section, f, def_value);
+    }
+};
+
 
 /***********************************************************************/
 
@@ -986,7 +1007,24 @@ int Interp::init()
       inifile.Find(&_setup.b_axis_wrapped, "WRAPPED_ROTARY", "AXIS_4");
       inifile.Find(&_setup.c_axis_wrapped, "WRAPPED_ROTARY", "AXIS_5");
       inifile.Find(&_setup.random_toolchanger, "RANDOM_TOOLCHANGER", "EMCIO");
-      inifile.Find(&_setup.feature_set, "FEATURES", "RS274NGC");
+
+      // Legacy featureset with bit mask
+      int feature_set;
+      inifile.Find(&feature_set, "FEATURES", "RS274NGC");
+      _setup.feature_set = feature_set;
+
+      // Can also specify features directly
+      FindsIniFeature find_features(inifile, "RS274NGC");
+      for (int i=0; i < MAX_FEATURES; ++i) {
+          // NOTE: ignores any integers that don't correspond with a feature
+          int enabled= find_features((Features)i, -1);
+          switch(enabled) {
+          case 0:
+          case 1:
+              _setup.feature_set.set(i, enabled);
+              break;
+          }
+      }
 
       inifile.Find(&_setup.a_indexer, "LOCKING_INDEXER", "AXIS_3");
       inifile.Find(&_setup.b_indexer, "LOCKING_INDEXER", "AXIS_4");
@@ -1807,12 +1845,17 @@ int Interp::read(const char *command)
 // falling back to toplevel in a controlled way. Idempotent.
 int Interp::unwind_call(int status, const char *file, int line, const char *function)
 {
+  // Walks the subroutine call levels and appends caller / callee information
+  if (_setup.hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES)) {
+    add_error_call_context();
+  }
+
   logDebug("unwind_call: call_level=%d status=%s from %s %s:%d",
            _setup.call_level, interp_status(status), function, file, line);
 
   for(; _setup.call_level > 0; _setup.call_level--) {
     int i;
-    context * sub = _setup.sub_context + _setup.call_level - 1;
+    context * sub = &_setup.sub_context[_setup.call_level - 1];
     free_named_parameters(&_setup.sub_context[_setup.call_level]);
     if(sub->subName) {
       logDebug("unwind_call leaving sub '%s'", sub->subName);
@@ -1859,6 +1902,38 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
   _setup.mdi_interrupt = false;
 
   qc_reset();
+  return INTERP_OK;
+}
+
+int Interp::add_error_call_context()
+{
+  std::ostringstream context_msg;
+  context_msg << getSavedError() << "\n";
+
+  std::string caller_linetext = _setup.linetext;
+  std::string caller_filename = _setup.filename;
+
+  for (int level = _setup.call_level; level >= 0; --level)
+  {
+      context const &sub = _setup.sub_context[level];
+      int callee_line = sub.sequence_number ?: _setup.sequence_number;
+      context_msg << "  in " << caller_filename;
+      if (sub.subName && sub.subName[0]) {
+          context_msg << " (o<" << sub.subName << ">)";
+      }
+      context_msg
+          << ": line " << callee_line
+          << ": " << caller_linetext
+          << "\n";
+      caller_linetext = sub.linetext;
+      // File return location is off by one
+      if (level > 0) {
+          caller_filename = _setup.sub_context[level-1].filename;
+      }
+  }
+
+  context_msg.flush();
+  setSavedError(context_msg.str().c_str());
   return INTERP_OK;
 }
 
@@ -1917,7 +1992,7 @@ int Interp::reset()
     ON_RESET();
     
     unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__);
-    warning_list = PyList_New(0);
+    warning_list.clear();
     return INTERP_OK;
 }
 
@@ -2427,7 +2502,7 @@ void Interp::setError(const char *fmt, ...)
 
     va_start(ap, fmt);
 
-    vsnprintf(savedError, LINELEN, fmt, ap);
+    vsnprintf(savedError, MAX_ERROR_MSG_LEN, fmt, ap);
     //printf("Got a saved error");
 
     va_end(ap);
@@ -2449,12 +2524,12 @@ void Interp::setWarning(const char *fmt, ...)
     sprintf(line_number_buf, "Line %d: ",this->_setup.sequence_number);
     msg.insert(0,line_number_buf);
 
-    PyList_Append(this->warning_list,PyString_FromString(msg.c_str()));
+    warning_list.push_back(msg);
 
     va_end(ap);
 }
 
-const char *Interp::getSavedError()
+const char *Interp::getSavedError() const
 {
     return savedError;
 }
@@ -2463,7 +2538,7 @@ const char *Interp::getSavedError()
 int Interp::setSavedError(const char *msg)
 {
     savedError[0] = '\0';
-    strncpy(savedError, msg, LINELEN);
+    strncpy(savedError, msg, MAX_ERROR_MSG_LEN);
     return INTERP_OK;
 }
 
@@ -2517,18 +2592,8 @@ char * Interp::error_text(int error_code,        //!< code number of error
 
 std::string Interp::error_text(int error_code)
 {
-    char buf[2048]={'\n'};
-    return std::string(error_text(error_code, buf, 2048));
-}
-
-char * Interp::warning_text(char *warning_text,      //!< char array to copy error text into
-                         size_t max_size)  //!< maximum number of characters to copy
-{
-    strncpy(warning_text, warning_text_buf, max_size);
-    warning_text[max_size-1] = 0;
-    //printf("warning max size = %d\n",max_size);
-    //printf(savedWarning);
-    return warning_text;
+    char buf[MAX_ERROR_MSG_LEN+1]={'\n'};
+    return std::string(error_text(error_code, buf, MAX_ERROR_MSG_LEN));
 }
 
 /***********************************************************************/
@@ -2890,7 +2955,7 @@ int Interp::on_abort(int reason, const char *message)
     // it will be lost after stopping and revert to T02. Something to look at in the future.
     // Tormach - *dpr 4/30/13, ammended 7/2/13, 8/3/17 PDH
 
-    if (FEATURE(LATHE_TOOLCHANGE)) {
+    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         tool =  _setup.tool_table[0].toolno;
 
         //find the geo offset tool pocket number from the tool number plus 10000
@@ -3023,7 +3088,7 @@ const char *strstore(const char *s)
 }
 
 context_struct::context_struct()
-  : position(0), sequence_number(0), filename(""), subName(""),
+    : position(0), sequence_number(0), filename(""), subName(""), linetext(""),
     m98_loop_counter(-1), context_status(0), modal_state(), call_type(0)
 {
 }

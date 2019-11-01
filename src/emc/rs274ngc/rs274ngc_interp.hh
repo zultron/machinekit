@@ -21,6 +21,8 @@
 #include "interp_return.hh"
 #include <array>
 
+#define MAX_ERROR_MSG_LEN 10000
+
 class Interp : public InterpBase {
 
 public:
@@ -107,9 +109,6 @@ public:
  char *error_text(int error_code, char *error_text,
                                 size_t max_size);
  std::string error_text(int error_code=INTERP_ERROR);
-
- char *warning_text(char *error_text,
-                                size_t max_size);
 
  void setError(const char *fmt, ...) __attribute__((format(printf,2,3)));
 
@@ -703,13 +702,13 @@ int read_inputs(setup_pointer settings);
     int py_reload();
     FILE *find_ngc_file(setup_pointer settings,const char *basename, char *foundhere = NULL);
 
-    const char *getSavedError();
+    const char *getSavedError() const;
     // set error message text without going through printf format interpretation
     int setSavedError(const char *msg); 
     int clearWarning();
 
     int unwind_call(int status, const char *file, int line, const char *function);
-
+    int add_error_call_context();
 
     int convert_straight_indexer(int, block*, setup*);
     int issue_straight_index(int, double, int, setup*);
@@ -718,6 +717,7 @@ int read_inputs(setup_pointer settings);
                const char *fmt, ...) __attribute__((format(printf,5,6)));
 
     const char *interp_status(int status);
+    std::vector<std::string> const &getWarnings() const {return warning_list;}
 
     //technically this violates encapsulation rules but is needed for
     // the Python introspection module
@@ -734,7 +734,7 @@ int read_inputs(setup_pointer settings);
     static const read_function_pointer default_readers[256];
 
     setup _setup;
-    PyObject* warning_list;
+    std::vector <std::string> warning_list;
 
     char warning_text_buf[LINELEN];
     enum {

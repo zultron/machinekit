@@ -225,7 +225,6 @@ IniFile::Find(int *result, StrIntPair *pPair,
     return(ERR_CONVERSION);
 }
 
-
 IniFile::ErrorCode
 IniFile::Find(double *result, StrDoublePair *pPair,
      const char *tag, const char *section, int num, int *lineno)

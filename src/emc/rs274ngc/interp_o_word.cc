@@ -256,7 +256,7 @@ int Interp::execute_call(setup_pointer settings,
 		    eblock->params[i];
 	    }
 
-	if (FEATURE(OWORD_N_ARGS)) {
+    if (_setup.hasFeature(FEATURE_OWORD_N_ARGS)) {
 	    // let any  Oword sub know the number of parameters
 	    CHP(add_named_param("n_args", PA_READONLY));
 	    CHP(store_named_param(settings, "n_args",
@@ -688,6 +688,7 @@ int Interp::enter_context(setup_pointer settings, block_pointer block)
     // mark frame for finishing remap
     frame->context_status = (block->call_type  == CT_REMAP) ? REMAP_FRAME : 0;
     frame->subName = block->o_name;
+    frame->linetext = settings->linetext;
     frame->pystuff.impl->py_returned_int = 0;
     frame->pystuff.impl->py_returned_double = 0.0;
     frame->pystuff.impl->py_return_type = -1;
