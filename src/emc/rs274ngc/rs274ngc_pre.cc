@@ -1190,6 +1190,12 @@ int Interp::init()
       logDebug("_setup.program_prefix:%s:", _setup.program_prefix);
 
 
+      // Set up search path for subroutines by inserting additional prefixes
+      _setup.subroutines.clear();
+      if (_setup.program_prefix) {
+          _setup.subroutines.push_back(strstore(_setup.program_prefix));
+      }
+
       if(nullptr != (inistring = inifile.Find("SUBROUTINE_PATH", "RS274NGC")))
       {
         // found it
@@ -1197,9 +1203,6 @@ int Interp::init()
         char* nextdir;
         char tmpdirs[PATH_MAX+1];
 
-        for (dct=0; dct < MAX_SUB_DIRS; dct++) {
-          _setup.subroutines[dct] = nullptr;
-        }
 
         strcpy(tmpdirs,inistring);
         nextdir = strtok(tmpdirs,":");  // first token
@@ -1213,10 +1216,9 @@ int Interp::init()
           if (realpath(expandnextdir, tmp_path) == nullptr){
             //realpath didn't find the directory
             logDebug("realpath failed to find subroutines[%d]:%s:",dct,nextdir);
-            _setup.subroutines[dct] = nullptr;
           } else {
-            _setup.subroutines[dct] = strstore(tmp_path);
-            logDebug("program prefix[%d]:%s",dct,_setup.subroutines[dct]);
+              _setup.subroutines.push_back(strstore(tmp_path));
+              logDebug("program prefix[%d]:%s",dct,_setup.subroutines.back());
             dct++;
           }
           if (dct >= MAX_SUB_DIRS) {
@@ -3259,81 +3261,81 @@ int Interp::on_abort(int reason, const char *message)
     return status;
 }
 
-// spun out from interp_o_word so we can use it to test ngc file accessibility during
-// config file parsing (REMAP... ngc=<basename>)
-// in each directory first look for basename.ngc and if not there then try basename.nc
-FILE *Interp::find_ngc_file(setup_pointer settings,const char *basename, char *foundhere )
+static constexpr const std::array<const char *, 2> _gcode_file_extensions =
 {
-    FILE *newFP;
-    char tmpFileName[PATH_MAX+1];
+    "ngc",
+    "nc",
+};
+
+FILE* Interp::try_load_subroutine_from_path(const char *basename, const char *sub_directory, char *file_path)
+{
+    char try_file[PATH_MAX+1];
+    for (auto extension : _gcode_file_extensions) {
+        sprintf(try_file, "%s/%s.%s", sub_directory, basename, extension);
+        if (FILE* f = fopen(try_file, "r")) {
+            if (file_path) {
+                strcpy(file_path, try_file);
+            }
+            return f;
+        }
+    }
+    if (file_path) {
+        file_path[0]='\0';
+    }
+    return nullptr;
+}
+
+std::string get_path_basename(const std::string &full_path)
+{
+    size_t found = full_path.find_last_of("/");
+    return full_path.substr(0,found);
+}
+
+/**
+ * Finds the NGC file with the given base name (and any of the allowed extensions).
+ * @note file extensions are searched in the order specified in the _gcode_file_extensions array.
+ * @return an open file handle if it's found, or nullptr
+ */
+FILE *Interp::find_ngc_file(
+    setup_pointer settings,
+    const char *basename, //!< Specified the stem of the NGC filename to find (i.e. no extension)
+    char *foundhere //!< Assumed to be at least PATH_MAX (if not null), populated with the NGC file name if found
+){
+    for (auto const & sub_dir : settings->subroutines) {
+        if (FILE* f_from_searchpath = try_load_subroutine_from_path(basename, sub_dir, foundhere)) {
+            return f_from_searchpath;
+        }
+    }
+
+    FILE *newFP=nullptr;
     char newFileName[PATH_MAX+1];
-    char foundPlace[PATH_MAX+1];
-    int  dct;
-
-    // look for a new file
-    // look for .ngc extension first
-    sprintf(tmpFileName, "%s.ngc", basename);
-
-    // find subroutine by search: program_prefix, subroutines, wizard_root
-    // use first file found
-
-    // first look in the program_prefix place
-    sprintf(newFileName, "%s/%s", settings->program_prefix, tmpFileName);
-    newFP = fopen(newFileName, "r");
-    if (!newFP) {
-        // .ngc not found try .nc extension
-        sprintf(tmpFileName, "%s.nc", basename);
-        newFP = fopen(newFileName, "r");
-    }
-
-    // then look in the subroutines place
-    if (!newFP) {
-	for (dct = 0; dct < MAX_SUB_DIRS; dct++) {
-	    if (!settings->subroutines[dct])
-		continue;
-	    // try .ngc first
-	    sprintf(tmpFileName, "%s.ngc", basename);
-	    sprintf(newFileName, "%s/%s", settings->subroutines[dct], tmpFileName);
-	    newFP = fopen(newFileName, "r");
-	    if (newFP) {
-		// logOword("fopen: |%s|", newFileName);
-		break; // use first occurrence in dir search
-	    }
-	    // .ngc not found try .nc extension
-            sprintf(tmpFileName, "%s.nc", basename);
-            sprintf(newFileName, "%s/%s", settings->subroutines[dct], tmpFileName);
-            newFP = fopen(newFileName, "r");
-	    if (newFP) {
-		// logOword("fopen: |%s|", newFileName);
-		break; // use first occurrence in dir search
-	    }
-	}
-    }
     // if not found, search the wizard tree
-    if (!newFP) {
-	int ret;
-	// look for .ngc extension first
-	sprintf(tmpFileName, "%s.ngc", basename);
-	ret = findFile(settings->wizard_root, tmpFileName, foundPlace);
+    if (settings->wizard_root) {
+        int ret;
+        char tmpFileName[PATH_MAX+1];
+        char foundPlace[PATH_MAX+1];
+        // look for .ngc extension first
+        sprintf(tmpFileName, "%s.ngc", basename);
+        ret = findFile(settings->wizard_root, tmpFileName, foundPlace);
 
-	if (INTERP_OK == ret) {
-	    sprintf(newFileName, "%s/%s", foundPlace, tmpFileName);
-	    newFP = fopen(newFileName, "r");
-	}
-	else {
-	    // .ngc not found try .nc extension
-	    sprintf(tmpFileName, "%s.nc", basename);
-	    ret = findFile(settings->wizard_root, tmpFileName, foundPlace);
-	    if (INTERP_OK == ret) {
-	        // create the long name
+        if (INTERP_OK == ret) {
+            sprintf(newFileName, "%s/%s", foundPlace, tmpFileName);
+            newFP = fopen(newFileName, "r");
+        }
+        else {
+            // .ngc not found try .nc extension
+            sprintf(tmpFileName, "%s.nc", basename);
+            ret = findFile(settings->wizard_root, tmpFileName, foundPlace);
+            if (INTERP_OK == ret) {
+                // create the long name
                 sprintf(newFileName, "%s/%s", foundPlace, tmpFileName);
                 newFP = fopen(newFileName, "r");
-	    }
-	}
+            }
+        }
     }
 
     if (foundhere && newFP)
-       strcpy(foundhere, newFileName);
+        strcpy(foundhere, newFileName);
 
     return newFP;
 }

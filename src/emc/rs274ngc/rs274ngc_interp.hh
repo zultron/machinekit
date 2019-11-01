@@ -839,6 +839,8 @@ int read_inputs(setup_pointer settings);
 
     int gen_toolOffset(GCodeGenerator & generator, GCodes tool_offset_mode, int tool_offset_number);
 
+    FILE * try_load_subroutine_from_path(const char * basename, const char * sub_directory, char * file_path);
+
 protected:
     bool error_has_context;
 

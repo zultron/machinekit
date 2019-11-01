@@ -496,7 +496,7 @@ struct setup_struct
   int debugmask;                     // from ini  EMC/DEBUG
   char log_file[PATH_MAX];
   char program_prefix[PATH_MAX];            // program directory
-  const char *subroutines[MAX_SUB_DIRS];  // subroutines directories
+  std::vector<const char *> subroutines;
   int use_lazy_close;                // wait until next open before closing
                                      // the input file
   int lazy_closing;                  // close has been called
