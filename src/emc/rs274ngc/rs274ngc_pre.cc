@@ -1014,16 +1014,17 @@ int Interp::init()
       _setup.feature_set = feature_set;
 
       // Can also specify features directly
-      FeatureSet indiv_features{};
       FindsIniFeature find_features(inifile, "RS274NGC");
       for (int i=0; i < MAX_FEATURES; ++i) {
           // NOTE: ignores any integers that don't correspond with a feature
-          if (find_features((Features)i, 0)) {
-              indiv_features.set(i);
+          int enabled= find_features((Features)i, -1);
+          switch(enabled) {
+          case 0:
+          case 1:
+              _setup.feature_set.set(i, enabled);
+              break;
           }
       }
-      // A feature is active if either the legacy or the individual features are specified
-      _setup.feature_set |= indiv_features;
 
       inifile.Find(&_setup.a_indexer, "LOCKING_INDEXER", "AXIS_3");
       inifile.Find(&_setup.b_indexer, "LOCKING_INDEXER", "AXIS_4");
