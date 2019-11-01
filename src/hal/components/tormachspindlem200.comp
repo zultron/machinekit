@@ -766,7 +766,9 @@ if (vfd_cap == VFD_CAP_NO_MODE_SW) //note orient case handled above
 #define VFD_PWR_ERR         (4)     //VFD faulted, don't care if on or off, wait here until "command" to rotate is seen
 
 #define VFD_PWR_ON_PERIOD   (6.0) //secs to wait for power on
-#define VFD_PWR_SANE_PERIOD (2.0) //secs to wait for VFD to be sane after power is on so we can switch to orient mode
+#define VFD_PWR_SANE_PERIOD (3.0) //secs to wait for VFD to be sane after power is on so we can switch to orient mode
+                                //Note this used to be 2 secs, however if SD Card is in VFD, the VFD glitches twice, the last glitch
+                                //ending at about 2.45 secs, so we have a .5 sec margin
 
 //TODO: in shipping product ???  hide this as a pin and make it internal variable
 //static int vfd_power_state = VFD_OFF;
@@ -818,12 +820,14 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
                 // if we must switch VFD mode immediately at power up, wait for VFD to become sane before doing vfd mode switch
                 // there are 3 cases of needing a mode switch right after power up
                 // also keeping track via vfd_pwr_on if we just actuated K2, which makes for a 4th case of needing to wait in SANE state
-                if (orient_execute || spindle_type == SPINDLE_TYPE_HISPEED || spindle_type == SPINDLE_TYPE_RAPID_TURN || vfd_pwr_on) {
-                    vfd_power_state = VFD_PWR_SANE_WAIT; //must wait for sanity as we don't really know how long VFD has been on
-                }
-                else 
-                    vfd_power_state = VFD_PWR_ON; //no wait, we assume all will be OK and we enable the drive right away to rotate.
+                //if (orient_execute || spindle_type == SPINDLE_TYPE_HISPEED || spindle_type == SPINDLE_TYPE_RAPID_TURN || vfd_pwr_on) {
+                //    vfd_power_state = VFD_PWR_SANE_WAIT; //must wait for sanity as we don't really know how long VFD has been on
+                //}
+                //else 
+                //    vfd_power_state = VFD_PWR_ON; //no wait, we assume all will be OK and we enable the drive right away to rotate.
                                                 //at-speed pin deals with whatever delay the VFD has from power up to spindle rotating
+                vfd_power_state = VFD_PWR_SANE_WAIT; //always do sanity wait, as if SD card is installed, we need to wait VFD_PWR_SANE_PERIOD
+                //even "normal" spindle mode.  See notes by #define VFD_PWR_SANE_PERIOD
                 vfd_pwr_on_timer = VFD_PWR_SANE_PERIOD; //reload timer for VFD_PWR_SANE_WAIT state wait period
             }
             else if(vfd_pwr_on_timer <= 0.0) {  //check for time out
