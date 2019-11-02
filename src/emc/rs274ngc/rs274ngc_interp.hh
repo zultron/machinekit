@@ -814,6 +814,7 @@ int read_inputs(setup_pointer settings);
     void update_gcode_context(const setup_pointer settings);
     void update_gcode_context_py_remap_name(const remap_pointer remap);
 
+    bool hasFeature(Features f) const;
     int find_g43_tool_offset(block_pointer block, setup_pointer settings, ShiftTransform & new_tool_offset);
 
 protected:

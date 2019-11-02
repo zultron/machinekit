@@ -617,7 +617,7 @@ double Interp::find_turn(double x1,      //!< X-coordinate of start point
 
 int Interp::find_tool_pocket(setup_pointer settings, int toolno, int *pocket)
 {
-    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+    if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
 		if (toolno > 99 && toolno < 10000) { //Future change required for using tools greater than 99
 			toolno = floor(toolno / 100);
 		}

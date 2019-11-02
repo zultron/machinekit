@@ -230,7 +230,7 @@ block &setup_struct::updateControllingBlock()
     return getControllingBlock();
 }
 
-bool setup_struct::hasFeature(Features f) const
+bool setup_struct::checkFeatureFlag(Features f) const
 {
     switch (f) {
     case FEATURE_RETAIN_G43:

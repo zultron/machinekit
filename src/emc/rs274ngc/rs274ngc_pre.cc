@@ -1888,7 +1888,7 @@ int Interp::read(const char * command)
 // falling back to toplevel in a controlled way. Idempotent.
 int Interp::unwind_call(int status, const char *file, int line, const char *function, CommandSource cmd_src)
 {
-    if (_setup.hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
+    if (hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
     // Walks the subroutine call levels and appends caller / callee information
     add_error_call_context(cmd_src);
   }
@@ -3065,7 +3065,7 @@ int Interp::on_abort(int reason, const char *message)
     // it will be lost after stopping and revert to T02. Something to look at in the future.
     // Tormach - *dpr 4/30/13, ammended 7/2/13, 8/3/17 PDH
 
-    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+    if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         tool =  _setup.tool_table[0].toolno;
 
         //find the geo offset tool pocket number from the tool number plus 10000

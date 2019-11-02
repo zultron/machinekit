@@ -524,7 +524,7 @@ struct setup_struct
     // control to skip to beginning of file
     bool loop_on_main_m99;
 
-    bool hasFeature(Features f) const;
+    bool checkFeatureFlag(Features f) const;
 
     boost::python::object *pythis;  // boost::cref to 'this'
     const char *on_abort_command;
@@ -642,7 +642,7 @@ void append_stack_info(setup_struct &settings, const char *function_name, const 
 // oword warnings 
 #define OERR(fmt, ...)                                      \
     do {						    \
-    if (_setup.hasFeature(FEATURE_OWORD_WARNONLY))			    \
+    if (hasFeature(FEATURE_OWORD_WARNONLY))			    \
 	    fprintf(stderr,fmt, ## __VA_ARGS__);	    \
 	else						    \
 	    ERS(fmt, ## __VA_ARGS__);			    \

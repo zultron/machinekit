@@ -103,6 +103,11 @@ InterpReturn Interp::check_g10(block_pointer block)
     return INTERP_OK;
 }
 
+bool Interp::hasFeature(Features f) const
+{
+    return _setup.checkFeatureFlag(f);
+}
+
 int Interp::check_g_codes(block_pointer block,   //!< pointer to a block to be checked
                          setup_pointer settings)        //!< pointer to machine settings
 {

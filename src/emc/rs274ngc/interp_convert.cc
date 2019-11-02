@@ -1198,7 +1198,7 @@ int Interp::convert_param_comment(char *comment, char *expanded, int len)
                     {
 		        // if tolower is a macro, may need this int
 		        int c = *comment++;
-            if (_setup.hasFeature(FEATURE_NO_DOWNCASE_OWORD))
+            if (hasFeature(FEATURE_NO_DOWNCASE_OWORD))
 			    param[i] = c;
 			else
 			    param[i] = tolower(c);
@@ -1966,7 +1966,7 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
                   setup_pointer settings)        //!< pointer to machine settings
 {
     if (g_code == G_7) {
-        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+        if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
    	 		if (!settings->lathe_diameter_mode) {
       				if(block->x_flag){
        		 			block->x_number /= 2; //Apply scaling now
@@ -1986,7 +1986,7 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
 		ERS("G7 - diameter mode - not allowed in mill");
  }
  	else if (g_code == G_8) {
-        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+        if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
 			ERS("BUG: G8 - radius mode - not allowed.");	
 			return INTERP_OK;
 		}
@@ -2697,7 +2697,7 @@ int Interp::gen_restore_cmd(ModalState const &state,
     int res_g = gen_g_codes(current_g, saved_g, state.settings, saved_settings, saved_work_offset, cmd);
 
     // If G43 is present for lathes, you must have an H word
-    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+    if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         if (cmd.find("G43") != std::string::npos) {
             char buf[LINELEN];
             snprintf(buf, sizeof(buf), " H%d", saved_tag.fields[GM_FIELD_TOOL_NUMBER]);
@@ -3078,7 +3078,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 
   // needs more testing.. once? test tool_change_flag!
   //#ifdef DEBATABLE
-  if (_setup.hasFeature(FEATURE_RETAIN_G43)) {
+  if (hasFeature(FEATURE_RETAIN_G43)) {
     // I consider this useful, so make it configurable.
     // Turn it on optionally . -mah
 
@@ -3309,7 +3309,7 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
 
  } else if ((block->m_modes[M_MODE_USER] == 998) && ONCE_M(10)){
 	 // Tormach only
-     if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)){
+     if (hasFeature(FEATURE_LATHE_TOOLCHANGE)){
 		 CHKS(1, NCE_UNKNOWN_M_CODE_USED,998);
 	 } else {
 		CHP(convert_home(G_30, block, settings));
@@ -3791,7 +3791,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
                              settings->tool_table[pocket].backangle,
                              settings->tool_table[pocket].orientation);
     }
-    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+    if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         // G10 command doesn't automatically apply a G43 length offset to the newly measured tool
         // we don't want to call a G43 in our python code for lathe, so we'll deal with applying the offset here.
         // Tormach *dpr 4/30/13
@@ -5327,7 +5327,7 @@ int Interp::find_g43_tool_offset(
 
     int geo_offset_register = 0;
     int wear_offset_register = 0;
-    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+    if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         if (block->h_number < 100) { //Future change required for using tools greater than 99
             geo_offset_register = block->h_number + 10000;
         } else if (block->h_number < 10000) {
@@ -5342,7 +5342,7 @@ int Interp::find_g43_tool_offset(
     int pocket_number;
     if (block->h_flag) {
         CHP((find_tool_pocket(settings, geo_offset_register, &pocket_number)));
-    } else if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+    } else if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         ERS("G43 with no H-word unsupported");
     } else if (settings->toolchange_flag) {
         // Tool change is in progress, so the "current tool" is in its
@@ -5358,7 +5358,7 @@ int Interp::find_g43_tool_offset(
              pocket_number, settings->tool_table[0].toolno,settings->tool_table[settings->current_pocket].toolno);
 
     CHP(find_tool_offset(settings, pocket_number, new_tool_offset));
-    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+    if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         // Apply wear offsets
         if (wear_offset_register) {
             int wear_pocket_number;

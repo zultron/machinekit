@@ -361,7 +361,7 @@ int Interp::find_named_param(
   if (pi == frame->named_params.end()) { // not found
       int exists = 0;
       double inivalue;
-      if (_setup.hasFeature(FEATURE_INI_VARS) && (strncasecmp(nameBuf,"_ini[",5) == 0)) {
+      if (hasFeature(FEATURE_INI_VARS) && (strncasecmp(nameBuf,"_ini[",5) == 0)) {
 	 fetch_ini_param(nameBuf, &exists, &inivalue);
 	  if (exists) {
 	      logNP("parameter '%s' retrieved from INI: %f",nameBuf,inivalue);
@@ -374,7 +374,7 @@ int Interp::find_named_param(
 	      return INTERP_OK;
 	  } 
       }
-      if (_setup.hasFeature(FEATURE_HAL_PIN_VARS) && (strncasecmp(nameBuf,"_hal[",5) == 0)) {
+      if (hasFeature(FEATURE_HAL_PIN_VARS) && (strncasecmp(nameBuf,"_hal[",5) == 0)) {
 	  fetch_hal_param(nameBuf, &exists, &inivalue);
 	  if (exists) {
 	      logNP("parameter '%s' retrieved from HAL: %f",nameBuf,inivalue);

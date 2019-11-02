@@ -257,7 +257,7 @@ int Interp::execute_call(setup_pointer settings,
 		    eblock->params[i];
 	    }
 
-    if (_setup.hasFeature(FEATURE_OWORD_N_ARGS)) {
+    if (hasFeature(FEATURE_OWORD_N_ARGS)) {
 	    // let any  Oword sub know the number of parameters
 	    CHP(add_named_param("n_args", PA_READONLY));
 	    CHP(store_named_param(settings, "n_args",
