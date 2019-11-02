@@ -199,10 +199,8 @@ int Interp::write_settings(setup_pointer settings,     //!< pointer to machine s
   return INTERP_OK;
 }
 
-int Interp::write_and_update_state_tag(block_pointer block)
+int Interp::write_state_tag(block_pointer block, StateTag &state)
 {
-    StateTag state;
-
     if (_setup.skipping_to_sub) {
 	logDebug("write_and_update_state_tag:  not tagging block while skipping");
 	return 0;
@@ -266,9 +264,17 @@ int Interp::write_and_update_state_tag(block_pointer block)
 
     state.feed = _setup.feed_rate;        /* 1 feed rate       */
     state.speed = _setup.speed;    /* 2 spindle speed   */
+    return 0;
+}
 
+int Interp::write_and_update_state_tag(block_pointer block)
+{
+    StateTag state;
+    write_state_tag(block, state);
     UPDATE_TAG(state);
     return 0;
 }
+
+
 /****************************************************************************/
 
