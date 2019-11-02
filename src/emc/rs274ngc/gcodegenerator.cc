@@ -75,6 +75,17 @@ void GCodeGenerator::addToolOffset(int tool_number)
     cmd_list.emplace_back(buf);
 }
 
+void GCodeGenerator::addToolChange(int tool_number)
+{
+    char buf[LINELEN];
+    if (has_feature(features, FEATURE_LATHE_TOOLCHANGE)) {
+        snprintf(buf, LINELEN, "T%d", tool_number);
+    } else {
+        snprintf(buf, LINELEN, "M6 T%d", tool_number);
+    }
+    cmd_list.emplace_back(buf);
+}
+
 int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState & saved)
 {
     // Always restore work offset number using extended work offset format (since modal state is not fully captured in the G5x mode)
@@ -202,12 +213,12 @@ int GCodeGenerator::gen_modalStateRestore(ModalState & current, const ModalState
 {
     if (current.g_codes[G_CODE_UNITS] !=
         saved.g_codes[G_CODE_UNITS]) {
+        start_next_line();
         auto g_unit = (GCodes)saved.g_codes[G_CODE_UNITS];
         formatGCode(g_unit, cmd_list.back());
     }
     // Each M code needs to execute on its own line to avoid conflicts
     addModalStateMCodes(current.m_codes, saved.m_codes);
-    start_next_line();
     // G code commands currently all execute in a single line (may change in the future if there are conflicts)
     addModalStateGCodes(current, saved);
     return 0;

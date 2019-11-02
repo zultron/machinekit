@@ -550,6 +550,24 @@ int emcTaskPlanSynch()
     return retval;
 }
 
+int emcTaskPlanSynchAndRestore()
+{
+    Interp *rs274_interp = dynamic_cast<Interp*>(pinterp);
+    if (!rs274_interp) {
+        return -1;
+    }
+    int retval = rs274_interp->synch_and_restore();
+
+    if (emc_debug & EMC_DEBUG_INTERP) {
+        rcs_print("emcTaskPlanSynch() returned %d\n", retval);
+    }
+
+    if (retval > INTERP_MIN_ERROR) {
+        print_interp_error(retval);
+    }
+    return retval;
+}
+
 void emcTaskPlanExit()
 {
     if (pinterp) {

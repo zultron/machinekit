@@ -32,6 +32,7 @@ public:
 
     void addWorkOffset(int work_offset_number);
     void addToolOffset(int tool_number);
+    void addToolChange(int tool_number);
     int addModalStateGCodes(ModalState &current, const ModalState & saved);
     int addModalStateMCodes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved);
     int addLinearFeedMove(PositionArray const &goal, double feed);

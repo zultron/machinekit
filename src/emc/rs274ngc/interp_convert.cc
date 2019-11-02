@@ -2601,8 +2601,12 @@ int Interp::execute_gcode_sequence(RestoreCommandList const &cmd_list, int calle
 
         if (status != INTERP_OK) {
             std::string currentError(getSavedError());
-            CHKS(status, _("M%d: %s failed executing: '%s': %s"),
-                 caller_m_code,
+            char buf[40]="";
+            if (caller_m_code >= 0) {
+                snprintf(buf, 40, "M%d: ", caller_m_code);
+            }
+            CHKS(status, _("%s%s failed executing: '%s': %s"),
+                 buf,
                  caller_name,
                  cmd_str.c_str(),
                  currentError.c_str());
@@ -2680,25 +2684,30 @@ int Interp::create_full_restore_sequence(RestoreCommandList & restore_cmd_list)
 {
     GCodeGenerator generator(_setup.feature_set);
 
+// Don't restore work / tool offset values (but parameter values will be changed...)
+#if 0
     // Send all work offsets that may have been changed during seek
     // The worst case is that all "used" work offsets have changed (via G10),
     // but often they will just be activated (e.g. G5x) without changing the offset values.
-    for (auto const &w : _setup.work_offsets_used) {
-        generator.addWorkOffset(w);
+    for (auto const &origin : _setup.work_offsets_used) {
+        generator.addWorkOffset(origin);
     }
 
     // Send any tool table values to IO that have changed
-    for (auto const &w : _setup.tool_offsets_changed) {
-        generator.addWorkOffset(w);
+    for (auto const &toolno : _setup.tool_offsets_changed) {
+        generator.addToolOffset(toolno);
     }
+#endif
+
+    generator.addToolChange(_setup.getCurrentToolNumber());
 
     // Capture current modal state
     CHP(write_modal_state(nullptr, &_setup));
     ModalState &to_restore = _setup.modal_state;
     ModalState dummy{}; // TODO pull this from task / motion via synch()?
     generator.gen_modalStateRestore(dummy, to_restore);
-    restore_cmd_list = generator.getCommandSequence();
     generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
+    restore_cmd_list = generator.getCommandSequence();
     return 0;
 }
 

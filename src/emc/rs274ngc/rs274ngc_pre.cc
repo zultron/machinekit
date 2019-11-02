@@ -2431,6 +2431,15 @@ int Interp::synch()
   return res_save;
 }
 
+int Interp::synch_and_restore()
+{
+    RestoreCommandList l;
+    CHP(create_full_restore_sequence(l));
+    CHP(synch());
+    CHP(execute_gcode_sequence(l, -1, __FUNCTION__));
+    return INTERP_OK;
+}
+
 /***********************************************************************/
 /***********************************************************************/
 

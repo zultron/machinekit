@@ -707,7 +707,7 @@ interpret_again:
 
                     // Next line will be the start line, so force a synch and
                 emcStatus->task.interpState = EMC_TASK_INTERP_READING;
-                emcTaskPlanSynch();
+                emcTaskPlanSynchAndRestore();
 
                 // reset programStartLine so we don't
                 // fall into our stepping routines if
