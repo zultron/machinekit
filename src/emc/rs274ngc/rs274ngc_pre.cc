@@ -1009,7 +1009,7 @@ int Interp::init()
       inifile.Find(&_setup.random_toolchanger, "RANDOM_TOOLCHANGER", "EMCIO");
 
       // Legacy featureset with bit mask
-      int feature_set;
+      int feature_set=0;
       inifile.Find(&feature_set, "FEATURES", "RS274NGC");
       _setup.feature_set = feature_set;
 

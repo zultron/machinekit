@@ -216,7 +216,7 @@ bool setup_struct::hasFeature(Features f) const
     case FEATURE_OWORD_WARNONLY:
     case FEATURE_LATHE_TOOLCHANGE:
     case FEATURE_EXTENDED_ERROR_MESSAGES:
-        return feature_set[(int)f];
+        return feature_set.test((int)f);
     case MAX_FEATURES:
         return false;
     }
