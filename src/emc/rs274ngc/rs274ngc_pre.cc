@@ -1924,8 +1924,12 @@ int Interp::add_error_call_context()
       if (sub.subName && sub.subName[0]) {
           context_msg << " (o<" << sub.subName << ">)";
       }
+      if (callee_line > 0) {
+          context_msg
+              << ": line " << callee_line;
+      }
+
       context_msg
-          << ": line " << callee_line
           << ": " << caller_linetext
           << "\n";
       caller_linetext = sub.linetext;
