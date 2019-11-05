@@ -1911,7 +1911,7 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 int Interp::add_error_call_context(const char *command_arg)
 {
   std::ostringstream context_msg;
-  context_msg << getSavedError() << "\n";
+  context_msg << getSavedError();
 
   std::string caller_linetext = _setup.linetext;
   std::string caller_filename = command_arg ? "MDI" : _setup.filename;
@@ -1920,7 +1920,7 @@ int Interp::add_error_call_context(const char *command_arg)
   {
       context const &sub = _setup.sub_context[level];
       int callee_line = sub.sequence_number ?: _setup.sequence_number;
-      context_msg << "  in " << caller_filename;
+      context_msg << "\n  in " << caller_filename;
       if (sub.subName && sub.subName[0]) {
           context_msg << " (o<" << sub.subName << ">)";
       }
@@ -1930,8 +1930,7 @@ int Interp::add_error_call_context(const char *command_arg)
       }
 
       context_msg
-          << ": " << caller_linetext
-          << "\n";
+          << ": " << caller_linetext;
       caller_linetext = sub.linetext;
       // File return location is off by one
       if (level > 0) {
