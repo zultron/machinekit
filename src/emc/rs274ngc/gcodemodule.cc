@@ -813,8 +813,8 @@ static void count_err()
     err_dbg_count++;
 }
 
-#define RETURN_ON_INTERP_ERROR(call__) do { \
-    int result = call__; \
+#define RETURN_ON_INTERP_ERROR(interp_call) do { \
+    int result = interp_call; \
     switch(result) { \
     case INTERP_OK: \
     case INTERP_EXECUTE_FINISH: \
@@ -823,7 +823,7 @@ static void count_err()
         count_err(); \
         return result; \
     } \
-    } while (0); \
+    } while (0) \
 
 int execute_lines(InterpBase *interp, const char *multiline_cmd)
 {
