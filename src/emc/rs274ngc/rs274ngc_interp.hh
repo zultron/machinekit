@@ -708,11 +708,12 @@ int read_inputs(setup_pointer settings);
 
     const char *getSavedError() const;
     // set error message text without going through printf format interpretation
-    int setSavedError(const char *msg); 
+    int setSavedError(const char *msg);
+    int clearSavedError();
     int clearWarning();
 
-    int unwind_call(int status, const char *file, int line, const char *function);
-    int add_error_call_context();
+    int unwind_call(int status, const char *file, int line, const char *function, const char * command);
+    int add_error_call_context(const char * command_arg);
 
     int convert_straight_indexer(int, block*, setup*);
     int issue_straight_index(int, double, int, setup*);

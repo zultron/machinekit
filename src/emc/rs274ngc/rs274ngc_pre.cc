@@ -636,7 +636,7 @@ int Interp::execute(const char *command)
 {
     int status;
     if ((status = execute_impl(command)) > INTERP_MIN_ERROR) {
-        unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
+        unwind_call(status, __FILE__,__LINE__,__FUNCTION__, command);
     }
     return status;
 }
@@ -654,7 +654,7 @@ int Interp::execute(const char *command, int line_number)
         _setup.sequence_number = line_number;
     status = Interp::execute(command);
     if (status > INTERP_MIN_ERROR) {
-	unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
+        unwind_call(status, __FILE__,__LINE__,__FUNCTION__, command);
 	logDebug("<-- execute(): error returned, clearing remap and call stack");
     }
     if ((_setup.call_level == 0) &&
@@ -1839,18 +1839,18 @@ int Interp::read(const char *command)
 {
     int status;
     if ((status = read_impl(command)) > INTERP_MIN_ERROR) {
-      unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
+      unwind_call(status, __FILE__,__LINE__,__FUNCTION__, command);
     }
     return status;
 }
 
 // Reset interpreter state and  terminate a call in progress by
 // falling back to toplevel in a controlled way. Idempotent.
-int Interp::unwind_call(int status, const char *file, int line, const char *function)
+int Interp::unwind_call(int status, const char *file, int line, const char *function, const char *command)
 {
-  // Walks the subroutine call levels and appends caller / callee information
-  if (_setup.hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES)) {
-    add_error_call_context();
+    if (_setup.hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
+    // Walks the subroutine call levels and appends caller / callee information
+    add_error_call_context(command);
   }
 
   logDebug("unwind_call: call_level=%d status=%s from %s %s:%d",
@@ -1908,13 +1908,13 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
   return INTERP_OK;
 }
 
-int Interp::add_error_call_context()
+int Interp::add_error_call_context(const char *command_arg)
 {
   std::ostringstream context_msg;
   context_msg << getSavedError() << "\n";
 
   std::string caller_linetext = _setup.linetext;
-  std::string caller_filename = _setup.filename;
+  std::string caller_filename = command_arg ? "MDI" : _setup.filename;
 
   for (int level = _setup.call_level; level >= 0; --level)
   {
@@ -1997,8 +1997,8 @@ int Interp::reset()
     
     // drop any queued points in canon
     ON_RESET();
-    
-    unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__);
+
+    unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__, nullptr);
     warning_list.clear();
     return INTERP_OK;
 }
@@ -2544,8 +2544,14 @@ const char *Interp::getSavedError() const
 // set error message text without going through printf format interpretation
 int Interp::setSavedError(const char *msg)
 {
-    savedError[0] = '\0';
+    clearSavedError();
     strncpy(savedError, msg, MAX_ERROR_MSG_LEN);
+    return INTERP_OK;
+}
+
+int Interp::clearSavedError()
+{
+    savedError[0] = '\0';
     return INTERP_OK;
 }
 
