@@ -2761,11 +2761,10 @@ int Interp::restore_settings(setup_pointer settings,
     // so restoring feed later on is interpreted in the correct context
 
     if (settings->modal_state.g_codes[G_CODE_UNITS] !=
-	settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]) {
+        settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]) {
         char buf[LINELEN];
-        snprintf(buf, sizeof(buf), "G%d",
-		 settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]/10);
-        CHKS(execute(buf, CommandSource::MODAL_STATE_RESTORE) != INTERP_OK, _("M7x: restore_settings G20/G21 failed: '%s'"), cmd.c_str());
+        snprintf(buf, sizeof(buf), "G%d\n",
+                 settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]/10);
     }
     gen_m_codes(settings->modal_state.m_codes, settings->sub_context[from_level].modal_state.m_codes,cmd);
     gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,
@@ -2779,7 +2778,7 @@ int Interp::restore_settings(setup_pointer settings,
         char *last = cmd_buf;
         char *s;
         while ((s = strtok_r(last, "\n", &last)) != NULL) {
-            int status = execute(s, CommandSource::MODAL_STATE_RESTORE);
+            int status = execute_impl(s, CommandSource::MODAL_STATE_RESTORE);
             if (status != INTERP_OK) {
                 char currentError[LINELEN+1];
                 strcpy(currentError,getSavedError());
@@ -2843,7 +2842,7 @@ int Interp::restore_from_tag(StateTag const &tag)
         char *last = buf;
         char *s;
         while ((s = strtok_r(last, "\n", &last)) != NULL) {
-            int status = execute(s, CommandSource::ABORT_CLEANUP);
+            int status = execute_impl(s, CommandSource::ABORT_CLEANUP);
             if (status > INTERP_MIN_ERROR) {
                 char currentError[LINELEN + 1];
                 strcpy(currentError, getSavedError());
