@@ -384,7 +384,9 @@ public:
  int cycle_traverse(block_pointer block, CANON_PLANE plane, double end1, double end2,
                           double end3);
  int enhance_block(block_pointer block, setup_pointer settings);
- int _execute(const char *command = 0);
+protected:
+ int execute_impl(const char *command = nullptr);
+public:
  int execute_binary(double *left, int operation, double *right);
  int execute_binary1(double *left, int operation, double *right);
  int execute_binary2(double *left, int operation, double *right);
@@ -443,7 +445,9 @@ public:
  int parse_line(char *line, block_pointer block,
                       setup_pointer settings);
  int precedence(int an_operator);
- int _read(const char *command);
+protected:
+ int read_impl(const char *command);
+public:
  int read_a(char *line, int *counter, block_pointer block,
                   ParameterArray &parameters);
  int read_atan(char *line, int *counter, double *double_ptr,

@@ -364,9 +364,12 @@ Called By: external programs
 
 This executes a previously parsed block.
 
+@note XXX_internal methods do NOT unwind the call stack. Make sure to call the
+public method unless you know what you're doing.
+
 */
 
-int Interp::_execute(const char *command)
+int Interp::execute_impl(const char *command)
 {
   int status;
   int MDImode = 0;
@@ -632,7 +635,7 @@ int Interp::_execute(const char *command)
 int Interp::execute(const char *command)
 {
     int status;
-    if ((status = _execute(command)) > INTERP_MIN_ERROR) {
+    if ((status = execute_impl(command)) > INTERP_MIN_ERROR) {
         unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
     }
     return status;
@@ -1669,7 +1672,7 @@ zero, this parses the line into the _setup.block1.
 
 */
 
-int Interp::_read(const char *command)  //!< may be NULL or a string to read
+int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
 {
   static char name[] = "Interp::read";
   int read_status;
@@ -1835,7 +1838,7 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
 int Interp::read(const char *command)
 {
     int status;
-    if ((status = _read(command)) > INTERP_MIN_ERROR) {
+    if ((status = read_impl(command)) > INTERP_MIN_ERROR) {
       unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
     }
     return status;
