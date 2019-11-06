@@ -813,8 +813,8 @@ static void count_err()
     err_dbg_count++;
 }
 
-#define RETURN_ON_INTERP_ERROR(call__) do { \
-    int result = call__; \
+#define RETURN_ON_INTERP_ERROR(interp_call) do { \
+    int result = interp_call; \
     switch(result) { \
     case INTERP_OK: \
     case INTERP_EXECUTE_FINISH: \
@@ -823,15 +823,14 @@ static void count_err()
         count_err(); \
         return result; \
     } \
-    } while (0); \
+    } while (0) \
 
-int execute_lines(InterpBase *interp, const char *multiline_cmd)
+int execute_lines(InterpBase *interp, const char *multiline_cmd, CommandSource cmd_src)
 {
     std::stringstream cmd(multiline_cmd);
     std::string s;
     while (std::getline(cmd, s, '\n')) {
-        RETURN_ON_INTERP_ERROR(interp->read(s.c_str()));
-        RETURN_ON_INTERP_ERROR(interp->execute());
+        RETURN_ON_INTERP_ERROR(interp->execute(s.c_str(), cmd_src));
     }
     return INTERP_OK;
 }
@@ -886,11 +885,11 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     maybe_new_line();
 
     if(unitcode) {
-        result = execute_lines(pinterp, unitcode);
+        result = execute_lines(pinterp, unitcode, CommandSource::INIT);
         if(!RESULT_OK) goto out_error;
     }
     if(initcode) {
-        result = execute_lines(pinterp, initcode);
+        result = execute_lines(pinterp, initcode, CommandSource::INIT);
         if(!RESULT_OK) goto out_error;
     }
     while(!interp_error && RESULT_OK) {

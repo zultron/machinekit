@@ -1315,6 +1315,7 @@ class EMC_TASK_PLAN_EXECUTE:public EMC_TASK_CMD_MSG {
     void update(CMS * cms);
 
     char command[LINELEN];
+    int cmd_src;
 };
 
 class EMC_TASK_PLAN_PAUSE:public EMC_TASK_CMD_MSG {

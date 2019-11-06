@@ -37,10 +37,12 @@ public:
  int close();
  
 // execute a line of NC code
- int execute(const char *command);
  int execute();
 
- int execute(const char *command, int line_no); //used for MDI calls to specify the pseudo MDI line number
+ /** Provide an explicit source of the G-code command (for logging purposes) */
+ int execute(const char *command, CommandSource cmd_src=CommandSource::PROGRAM);
+
+ int execute(const char *command, CommandSource cmd_src, int line_number);
 
 // stop running
  int exit();
@@ -62,7 +64,7 @@ public:
  std::set<int> get_work_offsets_used();
 
 // read the mdi or the next line of the open NC code file
- int read(const char *mdi);
+ int read(const char *mdi, CommandSource cmd_src);
  int read();
 
 // reset yourself
@@ -384,7 +386,9 @@ public:
  int cycle_traverse(block_pointer block, CANON_PLANE plane, double end1, double end2,
                           double end3);
  int enhance_block(block_pointer block, setup_pointer settings);
- int _execute(const char *command = 0);
+protected:
+ int execute_impl(const char *command, CommandSource cmd_src);
+public:
  int execute_binary(double *left, int operation, double *right);
  int execute_binary1(double *left, int operation, double *right);
  int execute_binary2(double *left, int operation, double *right);
@@ -443,7 +447,9 @@ public:
  int parse_line(char *line, block_pointer block,
                       setup_pointer settings);
  int precedence(int an_operator);
- int _read(const char *command);
+protected:
+ int read_impl(const char *command);
+public:
  int read_a(char *line, int *counter, block_pointer block,
                   ParameterArray &parameters);
  int read_atan(char *line, int *counter, double *double_ptr,
@@ -502,7 +508,7 @@ public:
     int init_readonly_param(const char *nameBuf, double value, int attr);
     int free_named_parameters(context_pointer frame);
  int save_settings(setup_pointer settings);
- int restore_settings(setup_pointer settings, int from_level);
+ int restore_settings(setup_pointer settings, int from_level, int m_code);
  int gen_g_codes(ActiveGCodeArray const & current,
                  ActiveGCodeArray const & saved,
                  ActiveSettingsArray const & current_settings,
@@ -700,15 +706,17 @@ int read_inputs(setup_pointer settings);
 	       int calltype);
     int py_execute(const char *cmd, bool as_file = false); // for (py, ....) comments
     int py_reload();
-    FILE *find_ngc_file(setup_pointer settings,const char *basename, char *foundhere = NULL);
+    FILE *find_ngc_file(setup_pointer settings,const char *basename, char *foundhere = nullptr);
 
     const char *getSavedError() const;
     // set error message text without going through printf format interpretation
-    int setSavedError(const char *msg); 
+    int setSavedError(const char *msg);
+    int clearSavedError();
     int clearWarning();
 
-    int unwind_call(int status, const char *file, int line, const char *function);
-    int add_error_call_context();
+    int unwind_call(int status, const char *file, int line, const char *function, CommandSource cmd_src);
+    std::string get_command_location(CommandSource cmd_src);
+    int add_error_call_context(std::string caller_filename);
 
     int convert_straight_indexer(int, block*, setup*);
     int issue_straight_index(int, double, int, setup*);
@@ -758,6 +766,9 @@ int read_inputs(setup_pointer settings);
     UnitsTransform convertsProgramToUser() const;
     int convert_g10(block_pointer block, setup_pointer settings);
     InterpReturn check_g10(block_pointer block);
+
+protected:
+    bool error_has_context;
 };
 
 bool toolOffsetActive(setup_pointer s);

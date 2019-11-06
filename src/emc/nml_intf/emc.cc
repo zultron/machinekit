@@ -2716,7 +2716,7 @@ void EMC_TASK_PLAN_EXECUTE::update(CMS * cms)
 
     EMC_TASK_CMD_MSG::update(cms);
     cms->update(command, 256);
-
+    cms->update(cmd_src);
 }
 
 /*

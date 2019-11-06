@@ -24,6 +24,17 @@
 #include <modal_state.hh>
 #include <StateTag.hh>
 
+enum class CommandSource
+{
+    PROGRAM,
+    REMAP,
+    MDI,
+    MODAL_STATE_RESTORE,
+    ABORT_CLEANUP,
+    INIT,
+    PREAMBLE,
+};
+
 class InterpBase {
 public:
     virtual ~InterpBase();
@@ -36,13 +47,13 @@ public:
     virtual int ini_load(const char *inifile) = 0;
     virtual int init() = 0;
     virtual int execute() = 0;
-    virtual int execute(const char *line) = 0;
-    virtual int execute(const char *line, int line_number) = 0;
+    virtual int execute(const char *line, CommandSource cmd_src) = 0;
+    virtual int execute(const char *line, CommandSource cmd_src, int line_number) = 0;
     virtual int synch() = 0;
     virtual int exit() = 0;
     virtual int open(const char *filename) = 0;
     virtual int read() = 0;
-    virtual int read(const char *line) = 0;
+    virtual int read(const char *line, CommandSource cmd_src) = 0;
     virtual int close() = 0;
     virtual int reset() = 0;
     virtual int line() = 0;

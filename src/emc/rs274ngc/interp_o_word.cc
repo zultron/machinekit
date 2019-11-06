@@ -720,7 +720,7 @@ int Interp::leave_context(setup_pointer settings, bool restore)
 
     	// NB: this means an M71 invalidate context will prevent an
     	// auto-restore on return/endsub
-    	CHP(restore_settings(settings, settings->call_level + 1));
+        CHP(restore_settings(settings, settings->call_level + 1, 73));
     }
     return INTERP_OK;
 }

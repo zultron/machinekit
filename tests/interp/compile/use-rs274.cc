@@ -22,7 +22,7 @@
 int main() {
     InterpBase *b = makeInterp();
     b->init();
-    b->read("(this is a comment)");
+    b->read("(this is a comment)", CommandSource::PROGRAM);
     b->execute();
     return 0;
 }

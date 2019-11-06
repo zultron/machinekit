@@ -193,7 +193,8 @@ static char savedError[MAX_ERROR_MSG_LEN+1];
 Interp::Interp()
     : log_file(stderr),
       _setup(setup_struct()),
-    warning_list()
+    warning_list(),
+    error_has_context(false)
 {
 
   init_remap_sets();
@@ -364,10 +365,15 @@ Called By: external programs
 
 This executes a previously parsed block.
 
+@note XXX_internal methods do NOT unwind the call stack. Make sure to call the
+public method unless you know what you're doing.
+
 */
 
-int Interp::_execute(const char *command)
+int Interp::execute_impl(const char *command, CommandSource cmd_src)
 {
+  // KLUDGE assumes that we wouldn't be starting here if an error was not yet handled
+  clearSavedError();
   int status;
   int MDImode = 0;
   block_pointer eblock = &EXECUTING_BLOCK(_setup);
@@ -377,7 +383,7 @@ int Interp::_execute(const char *command)
 
   if (nullptr != command) {
     MDImode = 1;
-    status = read(command);
+    status = read(command, cmd_src);
     if (status != INTERP_OK) {
 	// if (status > INTERP_MIN_ERROR) 
       //     _setup.remap_level = 0;
@@ -414,7 +420,7 @@ int Interp::_execute(const char *command)
     logDebug("MDImode = %d", MDImode);
     while(MDImode && _setup.call_level) // we are still in a subroutine
     {
-      status = read(nullptr);  // reads from current file and calls parse
+      status = read();  // reads from current file and calls parse
       if (status > INTERP_MIN_ERROR)
         CHP(status);
       status = execute();  // special handling for mdi errors
@@ -574,7 +580,7 @@ int Interp::_execute(const char *command)
             }
             status = INTERP_OK;
             while(MDImode && _setup.call_level) { // we are still in a subroutine
-        CHP(read(nullptr));  // reads from current file and calls parse
+        CHP(read());  // reads from current file and calls parse
               status = execute();  // special handling for mdi errors
               if (status == INTERP_EXECUTE_FINISH)
                 _setup.mdi_interrupt = true;
@@ -590,7 +596,7 @@ int Interp::_execute(const char *command)
           }
         } else {
           // this should get the osub going
-          status = execute(nullptr);
+          status = execute();
           CHP(status);
           // when this is done, blocks[0] will be executed as per standard case
           // on endsub/return and g_codes/m_codes/settings recorded there.
@@ -629,36 +635,35 @@ int Interp::_execute(const char *command)
   return status;
 }
 
-int Interp::execute(const char *command)
+int Interp::execute()
 {
-    int status;
-    if ((status = _execute(command)) > INTERP_MIN_ERROR) {
-        unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
+    return Interp::execute(nullptr, CommandSource::PROGRAM);
+}
+
+int Interp::execute(const char *command, CommandSource cmd_src)
+{
+    int status = Interp::execute_impl(command, cmd_src);
+    if (status > INTERP_MIN_ERROR) {
+        unwind_call(status, __FILE__,__LINE__,__FUNCTION__, cmd_src);
     }
     return status;
 }
 
-int Interp::execute()
+int Interp::execute(const char *command, CommandSource cmd_src, int line_number)
 {
-  return Interp::execute(nullptr);
-}
-
-int Interp::execute(const char *command, int line_number)
-{
-    int status;
-
-    if(command && line_number)
+    if(command && line_number) {
         _setup.sequence_number = line_number;
-    status = Interp::execute(command);
+    }
+    int status = Interp::execute_impl(command, cmd_src);
     if (status > INTERP_MIN_ERROR) {
-	unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
-	logDebug("<-- execute(): error returned, clearing remap and call stack");
+        unwind_call(status, __FILE__,__LINE__,__FUNCTION__, cmd_src);
+        logDebug("<-- execute(): error returned, clearing remap and call stack");
     }
     if ((_setup.call_level == 0) &&
-	(status == INTERP_EXECUTE_FINISH) &&
-	(_setup.mdi_interrupt)) {
-	logDebug(" execute() clearing mdi_interrupt");
-	_setup.mdi_interrupt = false;  // seems to work ok! FIXME mah is this needed?
+        (status == INTERP_EXECUTE_FINISH) &&
+        (_setup.mdi_interrupt)) {
+        logDebug(" execute() clearing mdi_interrupt");
+        _setup.mdi_interrupt = false;  // seems to work ok! FIXME mah is this needed?
     }
     return status;
 }
@@ -699,7 +704,7 @@ int Interp::remap_finished(int phase)
 
 	    if (status < 0) {
 		// a remap was parsed, get the block going
-    return execute(nullptr);
+    return execute();
 	    } else
 		return status;
 	} else {
@@ -1669,7 +1674,7 @@ zero, this parses the line into the _setup.block1.
 
 */
 
-int Interp::_read(const char *command)  //!< may be NULL or a string to read
+int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
 {
   static char name[] = "Interp::read";
   int read_status;
@@ -1832,22 +1837,22 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
   return read_status;
 }
 
-int Interp::read(const char *command)
+int Interp::read(const char *command, CommandSource cmd_src)
 {
     int status;
-    if ((status = _read(command)) > INTERP_MIN_ERROR) {
-      unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
+    if ((status = read_impl(command)) > INTERP_MIN_ERROR) {
+      unwind_call(status, __FILE__,__LINE__,__FUNCTION__, cmd_src);
     }
     return status;
 }
 
 // Reset interpreter state and  terminate a call in progress by
 // falling back to toplevel in a controlled way. Idempotent.
-int Interp::unwind_call(int status, const char *file, int line, const char *function)
+int Interp::unwind_call(int status, const char *file, int line, const char *function, CommandSource cmd_src)
 {
-  // Walks the subroutine call levels and appends caller / callee information
-  if (_setup.hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES)) {
-    add_error_call_context();
+    if (_setup.hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
+    // Walks the subroutine call levels and appends caller / callee information
+    add_error_call_context(get_command_location(cmd_src));
   }
 
   logDebug("unwind_call: call_level=%d status=%s from %s %s:%d",
@@ -1905,26 +1910,53 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
   return INTERP_OK;
 }
 
-int Interp::add_error_call_context()
+std::string Interp::get_command_location(CommandSource cmd_src)
 {
+    switch (cmd_src) {
+    case CommandSource::PROGRAM:
+    case CommandSource::REMAP:
+        return _setup.filename;
+    case CommandSource::MDI:
+        return "MDI";
+    case CommandSource::MODAL_STATE_RESTORE:
+        return "restore";
+    case CommandSource::ABORT_CLEANUP:
+        return "abort";
+    case CommandSource::INIT:
+        return "init";
+    case CommandSource::PREAMBLE:
+        return "preamble";
+    }
+    return "";
+}
+
+int Interp::add_error_call_context(std::string caller_filename)
+{
+  if (error_has_context) {
+    // No-op if we've already added context (guards against redundant adds)
+    return INTERP_OK;
+  }
   std::ostringstream context_msg;
-  context_msg << getSavedError() << "\n";
+  context_msg << getSavedError();
 
   std::string caller_linetext = _setup.linetext;
-  std::string caller_filename = _setup.filename;
 
   for (int level = _setup.call_level; level >= 0; --level)
   {
       context const &sub = _setup.sub_context[level];
-      int callee_line = sub.sequence_number ?: _setup.sequence_number;
-      context_msg << "  in " << caller_filename;
+      // KLUDGE the top of the stack is always interp's sequence number
+      int callee_line = (level == _setup.call_level) ? _setup.sequence_number : sub.sequence_number;
+      context_msg << "\n  in " << caller_filename;
       if (sub.subName && sub.subName[0]) {
           context_msg << " (o<" << sub.subName << ">)";
       }
+      if (callee_line > 0) {
+          context_msg
+              << ": line " << callee_line;
+      }
+
       context_msg
-          << ": line " << callee_line
-          << ": " << caller_linetext
-          << "\n";
+          << ": " << caller_linetext;
       caller_linetext = sub.linetext;
       // File return location is off by one
       if (level > 0) {
@@ -1934,11 +1966,12 @@ int Interp::add_error_call_context()
 
   context_msg.flush();
   setSavedError(context_msg.str().c_str());
+  error_has_context = true;
   return INTERP_OK;
 }
 
 int Interp::read() {
-  return read(0);
+    return read(nullptr, CommandSource::PROGRAM);
 }
 /***********************************************************************/
 
@@ -1990,8 +2023,8 @@ int Interp::reset()
     
     // drop any queued points in canon
     ON_RESET();
-    
-    unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__);
+
+    unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__, CommandSource::INIT);
     warning_list.clear();
     return INTERP_OK;
 }
@@ -2537,8 +2570,15 @@ const char *Interp::getSavedError() const
 // set error message text without going through printf format interpretation
 int Interp::setSavedError(const char *msg)
 {
-    savedError[0] = '\0';
+    clearSavedError();
     strncpy(savedError, msg, MAX_ERROR_MSG_LEN);
+    return INTERP_OK;
+}
+
+int Interp::clearSavedError()
+{
+    savedError[0] = '\0';
+    error_has_context = false;
     return INTERP_OK;
 }
 
@@ -2990,7 +3030,7 @@ int Interp::on_abort(int reason, const char *message)
     char cmd[LINELEN];
 
     snprintf(cmd,sizeof(cmd), "%s [%d]",_setup.on_abort_command, reason);
-    int status = execute(cmd);
+    int status = execute(cmd, CommandSource::ABORT_CLEANUP);
 
     ERP(status);
     return status;

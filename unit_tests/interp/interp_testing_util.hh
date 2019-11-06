@@ -14,10 +14,10 @@ using Catch::Matchers::WithinAbs;
 #define REQUIRE_FUZZ(got, expected) REQUIRE_THAT(got, WithinAbs(expected, INTERP_FUZZ))
 #define CHECK_FUZZ(got, expected) CHECK_THAT(got, WithinAbs(expected, INTERP_FUZZ))
 
-#define REQUIRE_INTERP_OK(interp, call__) REQUIRE(print_interp_error((interp), (interp).call__, __FILE__, __LINE__) < INTERP_MIN_ERROR)
-#define CHECK_INTERP_OK(interp, call__) REQUIRE(print_interp_error((interp), (interp).call__, __FILE__, __LINE__) < INTERP_MIN_ERROR)
-#define REQUIRE_INTERP_ERROR(interp, call__) REQUIRE(print_interp_error((interp), (interp).call__, __FILE__, __LINE__) >= INTERP_MIN_ERROR)
-#define CHECK_INTERP_ERROR(interp, call__) REQUIRE(print_interp_error((interp), (interp).call__, __FILE__, __LINE__) >= INTERP_MIN_ERROR)
+#define REQUIRE_INTERP_OK(interp, interp_call) REQUIRE(print_interp_error((interp), (interp).interp_call, __FILE__, __LINE__) < INTERP_MIN_ERROR)
+#define CHECK_INTERP_OK(interp, interp_call) REQUIRE(print_interp_error((interp), (interp).interp_call, __FILE__, __LINE__) < INTERP_MIN_ERROR)
+#define REQUIRE_INTERP_ERROR(interp, interp_call) REQUIRE(print_interp_error((interp), (interp).interp_call, __FILE__, __LINE__) >= INTERP_MIN_ERROR)
+#define CHECK_INTERP_ERROR(interp, interp_call) REQUIRE(print_interp_error((interp), (interp).interp_call, __FILE__, __LINE__) >= INTERP_MIN_ERROR)
 
 #define REQUIRE_INTERP_EXEC_LINES_OK(interp, lines) REQUIRE(execute_lines_or_err(interp, lines, __FILE__, __LINE__) < INTERP_MIN_ERROR)
 
@@ -31,7 +31,7 @@ template <size_t N>
 int execute_lines_or_err(Interp &interp, const char* (&lines)[N], const char *src_file, int line)
 {
   for (auto l : lines) {
-      auto res = (InterpReturn) print_interp_error(interp, interp._execute(l), src_file, line);
+      auto res = (InterpReturn) print_interp_error(interp, interp.execute(l), src_file, line);
       if (isInterpError(res)) {
           return res;
       }

@@ -76,13 +76,13 @@ public:
     int ini_load(const char *inifile);
     int init();
     int execute();
-    int execute(const char *line);
-    int execute(const char *line, int line_number);
+    int execute(const char *line, CommandSource cmd_src);
+    int execute(const char *line, CommandSource cmd_src, int line_number);
     int synch();
     int exit();
     int open(const char *filename);
     int read();
-    int read(const char *line);
+    int read(const char *line, CommandSource cmd_src);
     int close();
     int reset();
     int line();
@@ -243,7 +243,7 @@ static int canterp_parse(char *buffer)
     return 0;
 }
 
-int Canterp::read(const char *line) {
+int Canterp::read(const char *line, CommandSource cmd_src) {
     return canterp_parse((char *) line);
 }
 
@@ -254,7 +254,7 @@ int Canterp::read() {
     return canterp_parse(buf);
 }
 
-int Canterp::execute(const char *line) {
+int Canterp::execute(const char *line, CommandSource cmd_src) {
     int retval;
     double d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11;
     int i1, ln=-1;
@@ -679,12 +679,12 @@ int Canterp::execute(const char *line) {
     return INTERP_ERROR;
 }
 
-int Canterp::execute(const char *line, int line_number) {
-    return execute(line);
+int Canterp::execute(const char *line, CommandSource cmd_src, int line_number) {
+    return execute(line, cmd_src);
 }
 
 int Canterp::execute() {
-    return execute(0);
+    return execute(nullptr, CommandSource::PROGRAM);
 }
 
 int Canterp::open(const char *newfilename) {

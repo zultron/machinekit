@@ -634,7 +634,7 @@ interpret_again:
 			    // remap code can decide what to do in read-behind *dpr 12/15
                 _task = (programStartLine < 0 || emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) ? -1 : 1;
 
-			    execRetval = emcTaskPlanExecute(0);
+                execRetval = emcTaskPlanExecute();
 			    // line number may need update after
 			    // returns from subprograms in external
 			    // files
@@ -804,6 +804,7 @@ static void mdi_execute_hook(void)
 
     EMC_TASK_PLAN_EXECUTE msg;
     msg.command[0] = (char) 0xff;
+    msg.cmd_src = (int)CommandSource::MDI;
 
     interp_list.append(msg);
 }
@@ -2281,76 +2282,77 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	// track interpState also during MDI - it might be an oword sub call
 	emcStatus->task.interpState = EMC_TASK_INTERP_READING;
 
-	if (execute_msg->command[0] != 0) {
-	    char * command = execute_msg->command;
-	    if (command[0] == (char) 0xff) {
-		// Empty command recieved. Consider it is NULL
-		command = NULL;
-	    } else {
-		// record initial MDI command
-		strcpy(emcStatus->task.command, execute_msg->command);
-	    }
+    if (execute_msg->command[0] != 0) {
+        char * command = execute_msg->command;
+        if (command[0] == (char) 0xff) {
+            // Empty command recieved. Consider it is NULL
+            command = nullptr;
+        } else {
+            // record initial MDI command
+            strcpy(emcStatus->task.command, execute_msg->command);
+        }
 
-	    int level = emcTaskPlanLevel();
-	    if (emcStatus->task.mode == EMC_TASK_MODE_MDI) {
-		if (mdi_execute_level < 0)
-		    mdi_execute_level = level;
-	    }
+        int level = emcTaskPlanLevel();
+        if (emcStatus->task.mode == EMC_TASK_MODE_MDI) {
+            if (mdi_execute_level < 0)
+                mdi_execute_level = level;
+        }
 
-	    execRetval = emcTaskPlanExecute(command, 0);
+        auto cmd_src = (CommandSource)execute_msg->cmd_src;
+        execRetval = emcTaskPlanExecute(command, cmd_src);
 
-	    level = emcTaskPlanLevel();
+        level = emcTaskPlanLevel();
 
-	    if (emcStatus->task.mode == EMC_TASK_MODE_MDI) {
-		if (mdi_execute_level == level) {
-		    mdi_execute_level = -1;
-		} else if (level > 0) {
-		    // Still insude call. Need another execute(0) call
-		    // but only if we didnt encounter an error
-		    if (execRetval == INTERP_ERROR) {
-			mdi_execute_next = 0;
-		    } else {
-			mdi_execute_next = 1;
-		    }
-		}
-	    }
-	    switch (execRetval) {
+        if (emcStatus->task.mode == EMC_TASK_MODE_MDI) {
+            if (mdi_execute_level == level) {
+                mdi_execute_level = -1;
+            } else if (level > 0) {
+                // Still insude call. Need another execute(0) call
+                // but only if we didnt encounter an error
+                if (execRetval == INTERP_ERROR) {
+                    mdi_execute_next = 0;
+                } else {
+                    mdi_execute_next = 1;
+                }
+            }
+        }
+        switch (execRetval) {
 
-	    case INTERP_EXECUTE_FINISH:
-		// Flag MDI wait
-		mdi_execute_wait = 1;
-		// need to flush execution, so signify no more reading
-		// until all is done
-		emcTaskPlanSetWait();
-		// and resynch the interpreter WM
-		emcTaskQueueCommand(&taskPlanSynchCmd);
-		// it's success, so retval really is 0
-		retval = 0;
-		break;
+        case INTERP_EXECUTE_FINISH:
+            // Flag MDI wait
+            mdi_execute_wait = 1;
+            // need to flush execution, so signify no more reading
+            // until all is done
+            emcTaskPlanSetWait();
+            // and resynch the interpreter WM
+            emcTaskQueueCommand(&taskPlanSynchCmd);
+            // it's success, so retval really is 0
+            retval = 0;
+            break;
 
-	    case INTERP_ERROR:
-		// emcStatus->task.interpState =  EMC_TASK_INTERP_WAITING;
-		// abort everything
-		emcTaskAbort();
-		task_methods->emcIoAbort(EMC_ABORT_INTERPRETER_ERROR_MDI);
-		emcSpindleAbort(); 
-		mdi_execute_abort(); // sets emcStatus->task.interpState to  EMC_TASK_INTERP_IDLE
-		emcAbortCleanup(EMC_ABORT_INTERPRETER_ERROR_MDI, "interpreter error during MDI");
-		retval = -1;
-		break;
+        case INTERP_ERROR:
+            // emcStatus->task.interpState =  EMC_TASK_INTERP_WAITING;
+            // abort everything
+            emcTaskAbort();
+            task_methods->emcIoAbort(EMC_ABORT_INTERPRETER_ERROR_MDI);
+            emcSpindleAbort();
+            mdi_execute_abort(); // sets emcStatus->task.interpState to  EMC_TASK_INTERP_IDLE
+            emcAbortCleanup(EMC_ABORT_INTERPRETER_ERROR_MDI, "interpreter error during MDI");
+            retval = -1;
+            break;
 
-	    case INTERP_EXIT:
-	    case INTERP_ENDFILE:
-	    case INTERP_FILE_NOT_OPEN:
-		// this caused the error msg on M2 in MDI mode - execRetval == INTERP_EXIT which is would be ok (I think). mah
-		retval = -1;
-		break;
+        case INTERP_EXIT:
+        case INTERP_ENDFILE:
+        case INTERP_FILE_NOT_OPEN:
+            // this caused the error msg on M2 in MDI mode - execRetval == INTERP_EXIT which is would be ok (I think). mah
+            retval = -1;
+            break;
 
-	    default:
-		// other codes are OK
-		retval = 0;
-	    }
-	}
+        default:
+            // other codes are OK
+            retval = 0;
+        }
+    }
 	break;
 
     case EMC_TASK_PLAN_RUN_TYPE:

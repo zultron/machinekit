@@ -481,10 +481,10 @@ int emcTaskPlanInit()
     if (retval > INTERP_MIN_ERROR) {  // I'd think this should be fatal.
 	print_interp_error(retval);
     } else {
-	if (0 != rs274ngc_startup_code[0]) {
-	    retval = interp.execute(rs274ngc_startup_code);
+    if (0 != rs274ngc_startup_code[0]) {
+        retval = interp.execute(rs274ngc_startup_code, CommandSource::INIT);
 	    while (retval == INTERP_EXECUTE_FINISH) {
-		retval = interp.execute(0);
+        retval = interp.execute();
 	    }
 	    if (retval > INTERP_MIN_ERROR) {
 		print_interp_error(retval);
@@ -607,7 +607,12 @@ int emcTaskPlanRead()
     return retval;
 }
 
-int emcTaskPlanExecute(const char *command)
+int emcTaskPlanExecute()
+{
+    return emcTaskPlanExecute(nullptr, CommandSource::PROGRAM);
+}
+
+int emcTaskPlanExecute(const char *command, CommandSource cmd_src)
 {
     int inpos = emcStatus->motion.traj.inpos;	// 1 if in position, 0 if not.
 
@@ -619,7 +624,7 @@ int emcTaskPlanExecute(const char *command)
         }
         //FIXME the standard behavior now is to keep going here but this seems wrong
     }
-    int retval = interp.execute(command);
+    int retval = interp.execute(command, cmd_src);
     if (retval > INTERP_MIN_ERROR) {
         print_interp_error(retval);
     }
@@ -628,26 +633,8 @@ int emcTaskPlanExecute(const char *command)
     }
 
     if (emc_debug & EMC_DEBUG_INTERP) {
-        rcs_print("emcTaskPlanExecute(0) return %d\n", retval);
+        rcs_print("emcTaskPlanExecute() return %d\n", retval);
     }
-
-    return retval;
-}
-
-int emcTaskPlanExecute(const char *command, int line_number)
-{
-    int retval = interp.execute(command, line_number);
-    if (retval > INTERP_MIN_ERROR) {
-	print_interp_error(retval);
-    }
-    if(command != 0) { // this means MDI
-	FINISH();
-    }
-
-    if (emc_debug & EMC_DEBUG_INTERP) {
-        rcs_print("emcTaskPlanExecute(%s) returned %d\n", command, retval);
-    }
-
 
     return retval;
 }
