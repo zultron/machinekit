@@ -371,6 +371,7 @@ struct setup_struct
 
   int get_toplevel_line_number() const;
   void clear_queue_buster_flags();
+  int getCurrentToolNumber() const;
 
   PositionArray current;
   LocalToMachineTransform transform;

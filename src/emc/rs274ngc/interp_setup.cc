@@ -230,6 +230,11 @@ block &setup_struct::updateControllingBlock()
     return getControllingBlock();
 }
 
+int setup_struct::getCurrentToolNumber() const
+{
+    return tool_table[current_pocket].toolno;
+}
+
 bool setup_struct::checkFeatureFlag(Features f) const
 {
     switch (f) {

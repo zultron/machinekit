@@ -2716,9 +2716,7 @@ int Interp::save_settings(setup_pointer settings)
 {
       // the state is sprinkled all over _setup
       // collate state in _setup.active_* arrays
-      write_g_codes((block_pointer) NULL, settings, settings->modal_state);
-      write_m_codes((block_pointer) NULL, settings, settings->modal_state);
-      write_settings(settings, settings->modal_state);
+      write_modal_state(nullptr, settings);
 
       // save in the current call frame
       settings->sub_context[settings->call_level].modal_state = settings->modal_state;
@@ -2727,6 +2725,18 @@ int Interp::save_settings(setup_pointer settings)
       // context_struct might need to be extended too.
 
       return INTERP_OK;
+}
+
+int Interp::write_modal_state(block_pointer block, setup_pointer settings)
+{
+    // TODO check errors (these tend to be safe though)
+    write_g_codes(block, settings, settings->modal_state);
+    write_m_codes(block, settings, settings->modal_state);
+    write_settings(settings, settings->modal_state);
+    settings->modal_state.work_offset_origin_index = settings->origin_index;
+    settings->modal_state.tool_number = settings->getCurrentToolNumber();
+
+    return INTERP_OK;
 }
 
 /* restore global settings/gcodes/mcodes to current call level from a valid context
@@ -2750,9 +2760,7 @@ int Interp::restore_settings(
     CHKS((settings->call_level < 0), (_("BUG: restore to level %d !?")),settings->call_level);
 
     // linearize state
-    write_g_codes((block_pointer) NULL, settings, settings->modal_state);
-    write_m_codes((block_pointer) NULL, settings, settings->modal_state);
-    write_settings(settings, settings->modal_state);
+    write_modal_state(nullptr, settings);
 
     std::string cmd("");
 
@@ -2828,9 +2836,7 @@ int Interp::restore_from_tag(StateTag const &tag)
     _setup.sequence_number = tag.fields[GM_FIELD_LINE_NUMBER];
 
     // linearize state
-    write_g_codes((block_pointer) NULL, &_setup, _setup.modal_state);
-    write_m_codes((block_pointer) NULL, &_setup, _setup.modal_state);
-    write_settings(&_setup, _setup.modal_state);
+    write_modal_state(nullptr, &_setup);
 
     std::string cmd;
 
@@ -2860,9 +2866,7 @@ int Interp::restore_from_tag(StateTag const &tag)
                 CHKS(status, _("Failed to restore interp state on abort '%s': %s"), s, currentError);
             }
         }
-        write_g_codes((block_pointer) NULL, &_setup, _setup.modal_state);
-        write_m_codes((block_pointer) NULL, &_setup, _setup.modal_state);
-        write_settings(&_setup, _setup.modal_state);
+        write_modal_state(nullptr, &_setup);
     }
 
     return INTERP_OK;

@@ -12,9 +12,3 @@
 ********************************************************************/
 #include "modal_state.hh"
 #include "interp_base.hh"
-
-ModalState::ModalState(): g_codes{},
-    m_codes{},
-    settings{},
-    work_offset_origin_index(1)
-{}

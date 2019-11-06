@@ -817,6 +817,7 @@ int read_inputs(setup_pointer settings);
 
     bool hasFeature(Features f) const;
     int find_g43_tool_offset(block_pointer block, setup_pointer settings, ShiftTransform & new_tool_offset);
+    int write_modal_state(block_pointer block, setup_pointer settings);
 
 protected:
     bool error_has_context;

@@ -617,9 +617,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
             _setup.mdi_interrupt = false;
             // at this point the MDI execution of a remapped block is complete.
             logRemap("MDI remap execution complete status=%s\n",interp_status(status));
-            write_g_codes(eblock, &_setup, _setup.modal_state);
-            write_m_codes(eblock, &_setup, _setup.modal_state);
-            write_settings(&_setup, _setup.modal_state);
+            write_modal_state(eblock, &_setup);
             return INTERP_OK;
           }
         } else {
@@ -639,9 +637,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
       // standard case: unremapped block execution
       status = execute_block(eblock, &_setup);
 
-      write_g_codes(eblock, &_setup, _setup.modal_state);
-      write_m_codes(eblock, &_setup, _setup.modal_state);
-      write_settings(&_setup, _setup.modal_state);
+      write_modal_state(eblock, &_setup);
 
       if ((status == INTERP_EXIT) &&
           (remap_level() > 0) &&
@@ -1382,9 +1378,7 @@ int Interp::init()
   // WARNING send any initial values to task before this point (interp->task->interp round trip stops here)
   int res_synch = synch(); //synch first, then update the interface
 
-  write_g_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
-  write_m_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
-  write_settings(&_setup, _setup.modal_state);
+  write_modal_state(nullptr, &_setup);
 
   init_tool_parameters();
   // Synch rest of settings to external world

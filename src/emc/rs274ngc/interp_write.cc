@@ -250,7 +250,7 @@ int Interp::write_state_tag(block_pointer block, StateTag &state)
     state.fields[GM_FIELD_TOOLCHANGE] = (block == NULL) ? -1 : block->m_modes[M_MODE_TOOLCHANGE];
 
     state.fields[GM_FIELD_POCKET_NUMBER] = (_setup.current_pocket);
-    state.fields[GM_FIELD_TOOL_NUMBER] = (_setup.tool_table[_setup.current_pocket].toolno);
+    state.fields[GM_FIELD_TOOL_NUMBER] = _setup.getCurrentToolNumber();
 
     state.flags[GM_FLAG_MIST] = (_setup.mist) ;
     state.flags[GM_FLAG_FLOOD] = (_setup.flood);

@@ -18,10 +18,11 @@
 #include <interp_enums.hh>
 
 struct ModalState {
-    ModalState();
+    ModalState() = default;
     ActiveGCodeArray g_codes;       // array of active G codes
     ActiveMCodeArray m_codes;      // array of active M codes
     ActiveSettingsArray settings;     // array of feed, speed, etc.
     int work_offset_origin_index;
+    int tool_number;
 };
 #endif
