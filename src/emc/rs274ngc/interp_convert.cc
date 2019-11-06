@@ -2737,8 +2737,10 @@ int Interp::save_settings(setup_pointer settings)
  *       issue this like so - after call_level has been decremented:
  *       restore_settings(settings->call_level + 1)
  */
-int Interp::restore_settings(setup_pointer settings,
-			    int from_level)    //!< call level of context to restore from
+int Interp::restore_settings(
+    setup_pointer settings,
+    int from_level,
+    int m_code)    //!< call level of context to restore from
 {
 
     CHKS((from_level < settings->call_level),
@@ -2789,7 +2791,7 @@ int Interp::restore_settings(setup_pointer settings,
             if (status != INTERP_OK) {
                 char currentError[LINELEN+1];
                 strcpy(currentError,getSavedError());
-                CHKS(status, _("M7x: restore_settings failed executing: '%s': %s"), s, currentError);
+                CHKS(status, _("M%d: restore_settings failed executing: '%s': %s"), m_code, s, currentError);
             }
         }
     // Write updated state back to local storage
@@ -3174,7 +3176,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
         // restore state from current stack frame.
         CHKS((!(_setup.sub_context[_setup.call_level].context_status & CONTEXT_VALID)),
              (_("Cannot restore context from invalid stack frame - missing M70/M73?")));
-        CHP(restore_settings(&_setup, _setup.call_level));
+        CHP(restore_settings(&_setup, _setup.call_level, 72));
     }
   }
 

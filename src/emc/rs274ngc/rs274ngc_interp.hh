@@ -508,7 +508,7 @@ public:
     int init_readonly_param(const char *nameBuf, double value, int attr);
     int free_named_parameters(context_pointer frame);
  int save_settings(setup_pointer settings);
- int restore_settings(setup_pointer settings, int from_level);
+ int restore_settings(setup_pointer settings, int from_level, int m_code);
  int gen_g_codes(ActiveGCodeArray const & current,
                  ActiveGCodeArray const & saved,
                  ActiveSettingsArray const & current_settings,
