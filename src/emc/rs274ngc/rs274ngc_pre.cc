@@ -1944,7 +1944,8 @@ int Interp::add_error_call_context(std::string caller_filename)
   for (int level = _setup.call_level; level >= 0; --level)
   {
       context const &sub = _setup.sub_context[level];
-      int callee_line = sub.sequence_number ?: _setup.sequence_number;
+      // KLUDGE the top of the stack is always interp's sequence number
+      int callee_line = (level == _setup.call_level) ? _setup.sequence_number : sub.sequence_number;
       context_msg << "\n  in " << caller_filename;
       if (sub.subName && sub.subName[0]) {
           context_msg << " (o<" << sub.subName << ">)";
