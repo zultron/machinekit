@@ -193,7 +193,8 @@ static char savedError[MAX_ERROR_MSG_LEN+1];
 Interp::Interp()
     : log_file(stderr),
       _setup(setup_struct()),
-    warning_list()
+    warning_list(),
+    error_has_context(false)
 {
 
   init_remap_sets();
@@ -371,6 +372,8 @@ public method unless you know what you're doing.
 
 int Interp::execute_impl(const char *command)
 {
+  // KLUDGE assumes that we wouldn't be starting here if an error was not yet handled
+  clearSavedError();
   int status;
   int MDImode = 0;
   block_pointer eblock = &EXECUTING_BLOCK(_setup);
@@ -1910,6 +1913,10 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 
 int Interp::add_error_call_context(const char *command_arg)
 {
+  if (error_has_context) {
+    // No-op if we've already added context (guards against redundant adds)
+    return INTERP_OK;
+  }
   std::ostringstream context_msg;
   context_msg << getSavedError();
 
@@ -1940,6 +1947,7 @@ int Interp::add_error_call_context(const char *command_arg)
 
   context_msg.flush();
   setSavedError(context_msg.str().c_str());
+  error_has_context = true;
   return INTERP_OK;
 }
 
@@ -2551,6 +2559,7 @@ int Interp::setSavedError(const char *msg)
 int Interp::clearSavedError()
 {
     savedError[0] = '\0';
+    error_has_context = false;
     return INTERP_OK;
 }
 
