@@ -190,8 +190,8 @@ int interpret_from_keyboard(  /* ARGUMENTS                 */
 		return 0;
 	    }
 	    if (*line)
-		add_history(line);
-	    status = interp_read(line);
+        add_history(line);
+        status = interp_read(line, CommandSource::MDI);
 	    if ((status == INTERP_EXECUTE_FINISH) && (block_delete == true));
 	    else if (status == INTERP_ENDFILE);
 	    else if ((status != INTERP_EXECUTE_FINISH) &&

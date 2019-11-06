@@ -37,10 +37,12 @@ public:
  int close();
  
 // execute a line of NC code
- int execute(const char *command);
  int execute();
 
- int execute(const char *command, int line_no); //used for MDI calls to specify the pseudo MDI line number
+ /** Provide an explicit source of the G-code command (for logging purposes) */
+ int execute(const char *command, CommandSource cmd_src);
+
+ int execute(const char *command, CommandSource cmd_src, int line_number);
 
 // stop running
  int exit();
@@ -62,7 +64,7 @@ public:
  std::set<int> get_work_offsets_used();
 
 // read the mdi or the next line of the open NC code file
- int read(const char *mdi);
+ int read(const char *mdi, CommandSource cmd_src);
  int read();
 
 // reset yourself
@@ -385,7 +387,7 @@ public:
                           double end3);
  int enhance_block(block_pointer block, setup_pointer settings);
 protected:
- int execute_impl(const char *command = nullptr);
+ int execute_impl(const char *command, CommandSource cmd_src);
 public:
  int execute_binary(double *left, int operation, double *right);
  int execute_binary1(double *left, int operation, double *right);
@@ -712,8 +714,9 @@ int read_inputs(setup_pointer settings);
     int clearSavedError();
     int clearWarning();
 
-    int unwind_call(int status, const char *file, int line, const char *function, const char * command);
-    int add_error_call_context(const char * command_arg);
+    int unwind_call(int status, const char *file, int line, const char *function, CommandSource cmd_src);
+    std::string get_command_location(CommandSource cmd_src);
+    int add_error_call_context(std::string caller_filename);
 
     int convert_straight_indexer(int, block*, setup*);
     int issue_straight_index(int, double, int, setup*);
@@ -763,6 +766,7 @@ int read_inputs(setup_pointer settings);
     UnitsTransform convertsProgramToUser() const;
     int convert_g10(block_pointer block, setup_pointer settings);
     InterpReturn check_g10(block_pointer block);
+
 protected:
     bool error_has_context;
 };

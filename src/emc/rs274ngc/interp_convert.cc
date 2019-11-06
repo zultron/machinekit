@@ -2765,7 +2765,7 @@ int Interp::restore_settings(setup_pointer settings,
         char buf[LINELEN];
         snprintf(buf, sizeof(buf), "G%d",
 		 settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]/10);
-        CHKS(execute(buf) != INTERP_OK, _("M7x: restore_settings G20/G21 failed: '%s'"), cmd.c_str());
+        CHKS(execute(buf, CommandSource::MODAL_STATE_RESTORE) != INTERP_OK, _("M7x: restore_settings G20/G21 failed: '%s'"), cmd.c_str());
     }
     gen_m_codes(settings->modal_state.m_codes, settings->sub_context[from_level].modal_state.m_codes,cmd);
     gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,
@@ -2779,7 +2779,7 @@ int Interp::restore_settings(setup_pointer settings,
         char *last = cmd_buf;
         char *s;
         while ((s = strtok_r(last, "\n", &last)) != NULL) {
-            int status = execute(s);
+            int status = execute(s, CommandSource::MODAL_STATE_RESTORE);
             if (status != INTERP_OK) {
                 char currentError[LINELEN+1];
                 strcpy(currentError,getSavedError());
@@ -2843,7 +2843,7 @@ int Interp::restore_from_tag(StateTag const &tag)
         char *last = buf;
         char *s;
         while ((s = strtok_r(last, "\n", &last)) != NULL) {
-            int status = execute(s);
+            int status = execute(s, CommandSource::ABORT_CLEANUP);
             if (status > INTERP_MIN_ERROR) {
                 char currentError[LINELEN + 1];
                 strcpy(currentError, getSavedError());
@@ -4371,7 +4371,7 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
         }
       }
     }
-    unwind_call(INTERP_EXIT, __FILE__,__LINE__,__FUNCTION__, nullptr);
+    unwind_call(INTERP_EXIT, __FILE__,__LINE__,__FUNCTION__, CommandSource::INIT);
     return INTERP_EXIT;
   } else
     ERS(NCE_BUG_CODE_NOT_M0_M1_M2_M30_M60_M99);

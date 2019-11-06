@@ -929,6 +929,7 @@ static PyObject *mdi(pyCommandChannel *s, PyObject *o) {
         return NULL;
     }
     strcpy(m.command, cmd);
+    m.cmd_src = (int)CommandSource::MDI;
     emcSendCommand(s, m);
     Py_INCREF(Py_None);
     return Py_None;
