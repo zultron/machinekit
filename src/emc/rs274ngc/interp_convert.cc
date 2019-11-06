@@ -2770,6 +2770,12 @@ int Interp::restore_settings(setup_pointer settings,
     gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,
                 settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings, _setup.origin_index, cmd);
 
+    // KLUDGE stash the caller line here
+    std::string old_linetext = _setup.linetext;
+    if (cmd.empty()) {
+        return INTERP_OK;
+    }
+
     if (cmd.length() > 0) {
         // the sequence can be multiline, separated by nl
         // so split and execute each line
@@ -2779,6 +2785,7 @@ int Interp::restore_settings(setup_pointer settings,
         char *s;
         while ((s = strtok_r(last, "\n", &last)) != NULL) {
             int status = execute_impl(s, CommandSource::MODAL_STATE_RESTORE);
+            strncpy(_setup.linetext, old_linetext.c_str(), sizeof(_setup.linetext)-1);
             if (status != INTERP_OK) {
                 char currentError[LINELEN+1];
                 strcpy(currentError,getSavedError());
