@@ -40,7 +40,7 @@ public:
  int execute();
 
  /** Provide an explicit source of the G-code command (for logging purposes) */
- int execute(const char *command, CommandSource cmd_src);
+ int execute(const char *command, CommandSource cmd_src=CommandSource::PROGRAM);
 
  int execute(const char *command, CommandSource cmd_src, int line_number);
 
@@ -706,7 +706,7 @@ int read_inputs(setup_pointer settings);
 	       int calltype);
     int py_execute(const char *cmd, bool as_file = false); // for (py, ....) comments
     int py_reload();
-    FILE *find_ngc_file(setup_pointer settings,const char *basename, char *foundhere = NULL);
+    FILE *find_ngc_file(setup_pointer settings,const char *basename, char *foundhere = nullptr);
 
     const char *getSavedError() const;
     // set error message text without going through printf format interpretation
