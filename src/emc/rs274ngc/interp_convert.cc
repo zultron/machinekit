@@ -2771,7 +2771,7 @@ int Interp::restore_settings(
     }
     gen_m_codes(settings->modal_state.m_codes, settings->sub_context[from_level].modal_state.m_codes,cmd);
     gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,
-                settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings, _setup.origin_index, cmd);
+                settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings, settings->sub_context[from_level].modal_state.work_offset_origin_index, cmd);
 
     // KLUDGE stash the caller line here
     std::string old_linetext = _setup.linetext;
