@@ -9,22 +9,26 @@ o<print_debug> sub
 o<print_debug> endsub
 
 o1000 sub
+(begin sub)
 o1001 if [#1 GT 0]
       M70 (save context)
 o1001 endif
-G90 G18 G91.1
+G90 G18 G91.1 G49
 G0 X5 Y20
 G54.1 P20
 G0 X1 Y2
 o1002 if [#1 GT 0]
       M72 (restore context)
 o1002 endif
+(end sub)
 o1000 endsub
 
 G20 
 G90 G90.1 G19 G55 
 G53 G0 X0 Y0 Z0
 G91 (relative)
+G10 L1 P1 X1 Z2
+G43 H1
 g0 x10 y10
 g0 x10 y10
 o1000 call [1.0]

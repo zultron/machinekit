@@ -1,0 +1,37 @@
+%
+(Program to test M70 save/M72 restore context)
+(M. Haberler)
+
+o<print_debug> sub
+(debug, tool offset active = #<_tool_offset>)
+o<print_debug> endsub
+
+o1000 sub
+(begin sub)
+o1001 if [#1 GT 0]
+      M70 (save context)
+o1001 endif
+G49
+/G43 H0101 (Add wear offsets)
+G49
+G0 X5 Z1
+o1002 if [#1 GT 0]
+      M72 (restore context)
+o1002 endif
+o1000 endsub
+
+G90 G54 G20
+G49
+T01 (Just geometry offsets for tool 1)
+G53 G0 X0 Y0 Z0
+G0 X2 Z1
+G0 X3 Z0
+o1000 call [1.0]
+(expect restored context here)
+o<print_debug> call
+G0 X-5 Z1
+T01 (Just geometry offsets for tool 1)
+o1000 call [0.0]
+(expect to keep state from o1000 sub)
+o<print_debug> call
+%
