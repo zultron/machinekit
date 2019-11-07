@@ -15,14 +15,14 @@ license "GPL";
 
 // Input Pins
 pin in bit input "Input pin to stretch";
-pin in s32 milliseconds "How long should any input pin transition be stretched?";
+pin in s32 stretch_period_milliseconds "How long should any input pin transition be stretched?";
 
 // Output Pins
-pin out bit output "Echos the value of the input, but any transition is a minimum of milliseconds";
-pin out float stretchremaining "Remaining milliseconds output pin will be stretched";
+pin out bit output "Echos the value of the input, but any transition is a minimum of stretch_period_milliseconds";
 
 // Global Variables
 variable float remaining_milliseconds = 0;
+
 function _;
 
 ;;
@@ -35,13 +35,15 @@ FUNCTION(_) {
         // stretch timer not running
         if (input != output) {
           output = input;
-          remaining_milliseconds = milliseconds;  // start timer
+          remaining_milliseconds = stretch_period_milliseconds;  // start timer
         }
     } else {
-        // killing time until we can update the output pin
+        // timer running
         // period is in nanoseconds
         remaining_milliseconds -= (period * 0.000001);
-    }
 
-    stretchremaining = remaining_milliseconds;
+        if (input == output) {
+            remaining_milliseconds = stretch_period_milliseconds;
+        }
+    }
 }
