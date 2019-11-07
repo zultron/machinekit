@@ -1935,9 +1935,7 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(g5x_index);
     EmcPose_update(cms, &g92_offset);
     EmcPose_update(cms, &toolOffset);
-    cms->update(activeGCodes);
-    cms->update(activeMCodes);
-    cms->update(activeSettings);
+    cms->update(modalState);
     cms->update(programUnits);
     cms->update(task_paused);
     cms->update(delayLeft);

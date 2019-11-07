@@ -2539,11 +2539,8 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
  * issued if the current state already matches the tag.
  */
 int Interp::gen_g_codes(
-    ActiveGCodeArray const &current,
-    ActiveGCodeArray const &saved,
-    ActiveSettingsArray const &current_settings,
-    ActiveSettingsArray const &saved_settings,
-    int work_offset_origin_tag,
+    ModalState const &current,
+    ModalState const &saved,
 	std::string &cmd)
 {
     int val;
@@ -2551,8 +2548,8 @@ int Interp::gen_g_codes(
     bool spindle_mode_restored = false;
 
     for (int ii = 0; ii < ACTIVE_G_CODES; ii++) {
-        val = saved[ii];
-        if (val == current[ii]) {
+        val = saved.g_codes[ii];
+        if (val == current.g_codes[ii]) {
             continue;
         }
 
@@ -2565,8 +2562,17 @@ int Interp::gen_g_codes(
             break;
 
         case G_CODE_ORIGIN: // Special case for P word
-            snprintf(buf, LINELEN, " G54.1 P%d", work_offset_origin_tag);
+            snprintf(buf, LINELEN, " G54.1 P%d", saved.work_offset_number);
             cmd += buf;
+            break;
+
+        case G_CODE_TOOL_LENGTH_OFFSET: // - tool offset (G43/G49)
+            CHKS(formatGCode((GCodes)val, cmd), "gen_g_codes BUG: index %d = -1", ii);
+            if (hasFeature(FEATURE_LATHE_TOOLCHANGE) && val == G_43) {
+                char buf[LINELEN];
+                snprintf(buf, sizeof(buf), "H%d", saved.tool_offset_number);
+                cmd += buf;
+            }
             break;
 
         case G_CODE_SPINDLE_MODE: // - spindle mode
@@ -2577,7 +2583,6 @@ int Interp::gen_g_codes(
         case G_CODE_CUTTER_SIDE: // - cutter compensation
         case G_CODE_DISTANCE_MODE: // - distance mode
         case G_CODE_FEED_MODE: // - feed mode
-        case G_CODE_TOOL_LENGTH_OFFSET: // - tool offset (G43/G49)
         case G_CODE_RETRACT_MODE: // - retract mode
         case G_CODE_PATH_MODE: // - control mode
         case G_CODE_DISTANCE_MODE_IJK: // - ijk distance mode
@@ -2593,15 +2598,15 @@ int Interp::gen_g_codes(
     // also even if S appears to be the same between saved and current vectors.
 
     for (int ii = 0; ii < ACTIVE_SETTINGS; ii++) {
-	if ((saved_settings[ii] != current_settings[ii]) || (2 == ii && spindle_mode_restored)) {
+    if ((saved.settings[ii] != current.settings[ii]) || (2 == ii && spindle_mode_restored)) {
 	    switch (ii) {
 	    case 0: break; // sequence_number - no point in restoring
 	    case 1:
-		snprintf(buf,sizeof(buf)," F%.1f", saved_settings[ii]);
+        snprintf(buf,sizeof(buf)," F%.1f", saved.settings[ii]);
 		cmd+=buf;
 		break;
 	    case 2:
-		snprintf(buf,sizeof(buf)," S%.0f", saved_settings[ii]);
+        snprintf(buf,sizeof(buf)," S%.0f", saved.settings[ii]);
 		cmd+=buf;
 		break;
 	    }
@@ -2658,18 +2663,17 @@ int Interp::gen_m_codes(ActiveMCodeArray const &current, ActiveMCodeArray const 
  * modal state in the interpreter to the equivalent state at the most recent
  * motion line, but does not restore M codes.
  */
-int Interp::gen_restore_cmd(ModalState const &state,
+int Interp::gen_restore_cmd(ModalState current,
         StateTag const &saved_tag,
         std::string &cmd)
 {
     // A local copy of the saved settings, unpacked from a state tag
-    ActiveGCodeArray saved_g{};
-    ActiveMCodeArray saved_m{};
-    ActiveSettingsArray saved_settings{};
+    ModalState saved{};
 
-    int saved_work_offset = -1;
     //Extract saved state to local vectors
-    int res_unpack = active_modes(&saved_g[0], &saved_m[0], &saved_settings[0], saved_work_offset, saved_tag);
+    int res_unpack = active_modes(
+        saved,
+        saved_tag);
     if (res_unpack != INTERP_OK) {
         return INTERP_ERROR;
     }
@@ -2679,31 +2683,20 @@ int Interp::gen_restore_cmd(ModalState const &state,
      * write_XXX functions.
      */
     // Force cancellation of tool compensation
-    saved_g[G_CODE_CUTTER_SIDE] = G_40;
-    ActiveGCodeArray current_g = state.g_codes;
+    saved.g_codes[G_CODE_CUTTER_SIDE] = G_40;
 
     // KLUDGE force restoration of any modal state that isn't fully expressed by just the mode (e.g. tool number, offset number)
-    current_g[G_CODE_TOOL_LENGTH_OFFSET] = -1;
-    current_g[G_CODE_ORIGIN] = -1;
+    current.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = -1;
+    current.g_codes[G_CODE_ORIGIN] = -1;
 
     //Mimic the order of restoration commands used elsewhere
-    if (state.g_codes[G_CODE_UNITS] != saved_g[G_CODE_UNITS]) {
-        formatGCode((GCodes)saved_g[G_CODE_UNITS], cmd);
+    if (current.g_codes[G_CODE_UNITS] != saved.g_codes[G_CODE_UNITS]) {
+        formatGCode((GCodes)saved.g_codes[G_CODE_UNITS], cmd);
     }
-
 
     //M codes should not be restored during an abort
     int res_m = 0;
-    int res_g = gen_g_codes(current_g, saved_g, state.settings, saved_settings, saved_work_offset, cmd);
-
-    // If G43 is present for lathes, you must have an H word
-    if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
-        if (cmd.find("G43") != std::string::npos) {
-            char buf[LINELEN];
-            snprintf(buf, sizeof(buf), " H%d", saved_tag.fields[GM_FIELD_TOOL_NUMBER]);
-            cmd += buf;
-        }
-    }
+    int res_g = gen_g_codes(current, saved, cmd);
 
     if (res_m || res_g) {
         return INTERP_ERROR;
@@ -2729,12 +2722,11 @@ int Interp::save_settings(setup_pointer settings)
 
 int Interp::write_modal_state(block_pointer block, setup_pointer settings)
 {
-    // TODO check errors (these tend to be safe though)
-    write_g_codes(block, settings, settings->modal_state);
-    write_m_codes(block, settings, settings->modal_state);
-    write_settings(settings, settings->modal_state);
-    settings->modal_state.work_offset_origin_index = settings->origin_index;
-    settings->modal_state.tool_number = settings->getCurrentToolNumber();
+    CHP(write_g_codes(block, settings, settings->modal_state));
+    CHP(write_m_codes(block, settings, settings->modal_state));
+    CHP(write_settings(settings, settings->modal_state));
+    settings->modal_state.work_offset_number = settings->origin_index;
+    settings->modal_state.tool_offset_number = settings->getCurrentToolNumber();
 
     return INTERP_OK;
 }
@@ -2765,23 +2757,30 @@ int Interp::restore_settings(
     CHKS((from_level < 0), (_("BUG: restore from level %d !?")),from_level);
     CHKS((settings->call_level < 0), (_("BUG: restore to level %d !?")),settings->call_level);
 
-    // linearize state
+    // capture current modal state from interpreter
     write_modal_state(nullptr, settings);
 
     ModalState &current = settings->modal_state;
     ModalState const &saved = settings->sub_context[from_level].modal_state;
+
     restore_settings_impl(current, saved, caller_m_code);
+    // Re-capture modal state now that interpreter has been restored.
+    // This prevents mismatched modal state in case of incomplete restoration.
     write_modal_state(nullptr, settings);
     return INTERP_OK;
 }
 
-int Interp::restore_settings_impl(ModalState & current, const ModalState & saved, int caller_m_code)
-{
+/**
+ * Construct gcode from the state difference and execute this assures
+ * appropriate canon commands are generated if needed - just restoring interp
+ * variables is not enough.
+ */
+int Interp::restore_settings_impl(
+        ModalState & current, //!< "current" modal state in the interpreter
+        const ModalState & saved, //!< modal state to restore the interpreter to.
+        int caller_m_code //!< M-code triggering this restore (mostly for error context)
+){
     RestoreCommandList cmd_list({""});
-
-    // construct gcode from the state difference and execute
-    // this assures appropriate canon commands are generated if needed -
-    // just restoring interp variables is not enough
 
     // G20/G21 switching is special - it is executed beforehand
     // so restoring feed later on is interpreted in the correct context
@@ -2796,8 +2795,7 @@ int Interp::restore_settings_impl(ModalState & current, const ModalState & saved
     gen_m_codes(current.m_codes, saved.m_codes, cmd_list);
     add_command_break(cmd_list);
     // G code commands currently all execute in a single line (may change in the future if there are conflicts)
-    gen_g_codes(current.g_codes, saved.g_codes,
-                current.settings, saved.settings, saved.work_offset_origin_index, cmd_list.back());
+    gen_g_codes(current, saved, cmd_list.back());
 
     // KLUDGE stash the caller line here to restore it after the state restore commands (for error context)
     std::string old_linetext = _setup.linetext;

@@ -133,11 +133,8 @@ public:
  void active_settings(double *settings, long int line);
 
  // Update the state vectors from a state tag
- int active_modes(int *g_codes,
-         int *mcodes,
-         double *settings,
-         int & work_offset_origin,
-         StateTag const &tag);
+ int active_modes(ModalState & active_state,
+     StateTag const &tag);
 
 // copy the text of the error message whose number is error_code into the
 // error_text array, but stop at max_size if the text is longer.
@@ -547,15 +544,11 @@ public:
  int save_settings(setup_pointer settings);
  int restore_settings(setup_pointer settings, int from_level, int caller_m_code);
  int restore_settings_impl(ModalState & current, ModalState const &saved, int caller_m_code);
- int gen_g_codes(ActiveGCodeArray const & current,
-                 ActiveGCodeArray const & saved,
-                 ActiveSettingsArray const & current_settings,
-                 ActiveSettingsArray const & saved_settings,
-                 int work_offset_origin,
+ int gen_g_codes(const ModalState & current, const ModalState & saved,
                  std::string &cmd);
  int gen_m_codes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved, RestoreCommandList & cmd);
  int restore_from_tag(StateTag const &tag);
- int gen_restore_cmd(const ModalState & state,
+ int gen_restore_cmd(ModalState state,
         StateTag const &saved,
         std::string &cmd);
  int read_name(char *line, int *counter, char *nameBuf);

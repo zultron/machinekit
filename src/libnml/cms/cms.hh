@@ -27,6 +27,7 @@ extern "C" {
 #endif
 #include "cms_cfg.hh"		/* CMS_CONFIG_LINELEN */
 #include "state_tag.h"
+#include "modal_state.hh"
 #include <array>
 
 class PHYSMEM_HANDLE;
@@ -335,6 +336,7 @@ class CMS {
     }
 
     CMS_STATUS update(RotateShiftTransform &transform);
+    CMS_STATUS update(ModalState &state);
 
     /* comm protocol parameters shared by all protocols */
     int fatal_error_occurred;

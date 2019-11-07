@@ -1304,8 +1304,8 @@ static int sendProgramStep()
 static int sendSpindleForward()
 {
     EMC_SPINDLE_ON emc_spindle_on_msg;
-    if (emcStatus->task.activeSettings[2] != 0) {
-	emc_spindle_on_msg.speed = fabs(emcStatus->task.activeSettings[2]);
+    if (emcStatus->task.modalState.settings[2] != 0) {
+	emc_spindle_on_msg.speed = fabs(emcStatus->task.modalState.settings[2]);
     } else {
 	emc_spindle_on_msg.speed = +1;
     }
@@ -1315,9 +1315,9 @@ static int sendSpindleForward()
 static int sendSpindleReverse()
 {
     EMC_SPINDLE_ON emc_spindle_on_msg;
-    if (emcStatus->task.activeSettings[2] != 0) {
+    if (emcStatus->task.modalState.settings[2] != 0) {
 	emc_spindle_on_msg.speed =
-	    -1 * fabs(emcStatus->task.activeSettings[2]);
+	    -1 * fabs(emcStatus->task.modalState.settings[2]);
     } else {
 	emc_spindle_on_msg.speed = -1;
     }

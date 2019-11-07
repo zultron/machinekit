@@ -530,15 +530,15 @@ static PyObject *Stat_probed(pyStatChannel *s) {
 }
 
 static PyObject *Stat_activegcodes(pyStatChannel *s) {
-    return int_array(s->status.task.activeGCodes.data(), ACTIVE_G_CODES);
+    return int_array(s->status.task.modalState.g_codes.data(), ACTIVE_G_CODES);
 }
 
 static PyObject *Stat_activemcodes(pyStatChannel *s) {
-    return int_array(s->status.task.activeMCodes.data(), ACTIVE_M_CODES);
+    return int_array(s->status.task.modalState.m_codes.data(), ACTIVE_M_CODES);
 }
 
 static PyObject *Stat_activesettings(pyStatChannel *s) {
-   return double_array(s->status.task.activeSettings.data(), ACTIVE_SETTINGS);
+   return double_array(s->status.task.modalState.settings.data(), ACTIVE_SETTINGS);
 }
 
 static PyObject *Stat_din(pyStatChannel *s) {

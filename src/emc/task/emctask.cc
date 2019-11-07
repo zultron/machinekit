@@ -722,9 +722,9 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
 
     if (emcStatus->task.interpState == EMC_TASK_INTERP_IDLE) {
     	// When the machine is idle, update from interp
-        pinterp->active_g_codes(&stat->activeGCodes[0]);
-        pinterp->active_m_codes(&stat->activeMCodes[0]);
-        pinterp->active_settings(&stat->activeSettings[0]);
+        pinterp->active_g_codes(&stat->modalState.g_codes[0]);
+        pinterp->active_m_codes(&stat->modalState.m_codes[0]);
+        pinterp->active_settings(&stat->modalState.settings[0]);
     } else if (emcStatus->motion.traj.queue &&
 	       (emcStatus->task.stepping_id !=
 		emcStatus->motion.traj.tag.fields[GM_FIELD_STEPPING_ID])) {
@@ -775,16 +775,12 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
 	(tag->packed_flags & (1<<GM_FLAG_UNITS)) ?
 	CANON_UNITS_INCHES : CANON_UNITS_MM );
     // Set emcStatus gcodes, mcodes arrays
-    int new_origin = -1;
     pinterp->active_modes(
-        emcStatus->task.activeGCodes.data(),
-        emcStatus->task.activeMCodes.data(),
-        emcStatus->task.activeSettings.data(),
-                new_origin,
-    StateTag(*tag));
+        emcStatus->task.modalState,
+        StateTag(*tag));
 
     // Add more emcStatus updates here
-    return emcStatusUpdateWorkOffset(new_origin);
+    return emcStatusUpdateWorkOffset(emcStatus->task.modalState.work_offset_number);
 }
 
 int emcStatusUpdateWorkOffset(int new_origin)

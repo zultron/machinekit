@@ -1494,9 +1494,7 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     int g5x_index;              // index of active g5x system
     EmcPose g92_offset;		// in user units, currently active
     EmcPose toolOffset;		// tool offset, in general pose form
-    ActiveGCodeArray activeGCodes;
-    ActiveMCodeArray activeMCodes;
-    ActiveSettingsArray activeSettings;
+    ModalState modalState;
     int programUnits;	// CANON_UNITS_INCHES, MM, CM
     int interpreter_errcode;	// return value from rs274ngc function 
     int task_paused;		// non-zero means task is paused

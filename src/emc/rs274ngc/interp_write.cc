@@ -114,7 +114,7 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
     (settings->spindle_mode == CONSTANT_RPM) ? G_97 : G_96;
   state.g_codes[G_CODE_DISTANCE_MODE_IJK] = (settings->ijk_distance_mode == MODE_ABSOLUTE) ? G_90_1 : G_91_1;
   state.g_codes[G_CODE_LATHE_DIAMETER_MODE] = (settings->lathe_diameter_mode) ? G_7 : G_8;
-  state.work_offset_origin_index = settings->origin_index;
+  state.work_offset_number = settings->origin_index;
   return INTERP_OK;
 }
 

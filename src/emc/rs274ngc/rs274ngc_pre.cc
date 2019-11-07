@@ -2513,16 +2513,16 @@ void Interp::active_settings(double *settings) //!< array of settings to copy in
  * This method allows us to keep the existing infrastructure for g
  * code status / state storage intact.
  */
-int Interp::active_modes(int *g_codes,
-         int *m_codes,
-         double *settings,
-         int &work_offset_origin,
-         StateTag const &tag)
+int Interp::active_modes(ModalState &active_state,
+     StateTag const &tag)
 {
     // Pre-checks on fields
     if (!tag.is_valid()) {
         return INTERP_ERROR;
     }
+    ActiveGCodeArray &g_codes = active_state.g_codes;
+    ActiveMCodeArray &m_codes = active_state.m_codes;
+    ActiveSettingsArray &settings = active_state.settings;
 
     // Extract as-is field values directly into appropriate array
     // position
@@ -2540,7 +2540,7 @@ int Interp::active_modes(int *g_codes,
         tag.flags[GM_FLAG_FEED_UPM] ? G_94 : G_95;
     g_codes[G_CODE_ORIGIN] =
             lookup_work_offset_gcode_from_origin(tag.fields[GM_FIELD_WORK_OFFSET_NUMBER]);
-    work_offset_origin = tag.fields[GM_FIELD_WORK_OFFSET_NUMBER];
+    active_state.work_offset_number = tag.fields[GM_FIELD_WORK_OFFSET_NUMBER];
     g_codes[G_CODE_TOOL_LENGTH_OFFSET] =
 	tag.flags[GM_FLAG_TOOL_OFFSETS_ON] ? G_43 : G_49;
     g_codes[G_CODE_RETRACT_MODE] =
@@ -2584,6 +2584,7 @@ int Interp::active_modes(int *g_codes,
     settings[1] = tag.feed;
     settings[2] = tag.speed;
 
+    active_state.tool_offset_number = tag.fields[GM_FIELD_TOOL_NUMBER];
     return INTERP_OK;
 }
 

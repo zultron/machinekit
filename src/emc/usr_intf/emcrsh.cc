@@ -1976,15 +1976,15 @@ static cmdResponseType getProgramCodes(char *s, connectionRecType *context)
   buf[0] = 0;
   strcpy(context->outBuf, pProgramCodes);
   for (i=1; i<ACTIVE_G_CODES; i++) {
-      code = emcStatus->task.activeGCodes[i];
+      code = emcStatus->task.modalState.g_codes[i];
       if (code == -1) continue;
       if (code % 10) sprintf(buf, "G%.1f ", (double) code / 10.0);
       else sprintf(buf, "G%d ", code / 10);
       strcat(context->outBuf, buf);
     }
-  sprintf(buf, "F%.0f ", emcStatus->task.activeSettings[1]);
+  sprintf(buf, "F%.0f ", emcStatus->task.modalState.settings[1]);
   strcat(context->outBuf, buf);
-  sprintf(buf, "S%.0f", fabs(emcStatus->task.activeSettings[2]));
+  sprintf(buf, "S%.0f", fabs(emcStatus->task.modalState.settings[2]));
   strcat(context->outBuf, buf);
   return rtNoError;
 }

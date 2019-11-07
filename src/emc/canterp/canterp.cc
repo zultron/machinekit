@@ -94,11 +94,8 @@ public:
     void active_g_codes(int active_gcodes[ACTIVE_G_CODES]);
     void active_m_codes(int active_mcodes[ACTIVE_M_CODES]);
     void active_settings(double active_settings[ACTIVE_SETTINGS]);
-    int active_modes(int g_codes[ACTIVE_G_CODES],
-            int m_codes[ACTIVE_M_CODES],
-            double settings[ACTIVE_SETTINGS],
-            int &work_offset_origin,
-            StateTag const &tag);
+    int active_modes(ModalState &active_state,
+        StateTag const &tag);
     int restore_from_tag(StateTag const &tag);
 
     void set_loglevel(int level);
@@ -748,11 +745,9 @@ void Canterp::active_settings(double sets[]) { std::fill(sets, sets + ACTIVE_SET
 //NOT necessary for canterp
 int Canterp::restore_from_tag(StateTag const &tag) {return -1;}
 
-int Canterp::active_modes(int g_codes[ACTIVE_G_CODES],
-        int m_codes[ACTIVE_M_CODES],
-        double settings[ACTIVE_SETTINGS],
-        int &work_offset_origin,
-        StateTag const &tag){ return -1;}
+int Canterp::active_modes(
+    ModalState &active_state,
+    StateTag const &tag) {return -1;}
 
 void Canterp::set_loglevel(int level) {}
 void Canterp::set_loop_on_main_m99(bool state) {}

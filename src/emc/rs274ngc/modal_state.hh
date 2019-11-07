@@ -22,7 +22,7 @@ struct ModalState {
     ActiveGCodeArray g_codes;       // array of active G codes
     ActiveMCodeArray m_codes;      // array of active M codes
     ActiveSettingsArray settings;     // array of feed, speed, etc.
-    int work_offset_origin_index;
-    int tool_number;
+    int work_offset_number;
+    int tool_offset_number;
 };
 #endif

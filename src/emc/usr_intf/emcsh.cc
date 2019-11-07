@@ -2218,7 +2218,7 @@ static int emc_program_codes(ClientData clientdata,
     // fill in the active G codes
     codes_string[0] = 0;
     for (t = 1; t < ACTIVE_G_CODES; t++) {
-	code = emcStatus->task.activeGCodes[t];
+    code = emcStatus->task.modalState.g_codes[t];
 	if (code == -1) {
 	    continue;
 	}
@@ -2232,7 +2232,7 @@ static int emc_program_codes(ClientData clientdata,
 
     // fill in the active M codes, settings too
     for (t = 1; t < ACTIVE_M_CODES; t++) {
-	code = emcStatus->task.activeMCodes[t];
+    code = emcStatus->task.modalState.m_codes[t];
 	if (code == -1) {
 	    continue;
 	}
@@ -2241,9 +2241,9 @@ static int emc_program_codes(ClientData clientdata,
     }
 
     // fill in F and S codes also
-    sprintf(string, "F%.0f ", emcStatus->task.activeSettings[1]);
+    sprintf(string, "F%.0f ", emcStatus->task.modalState.settings[1]);
     strcat(codes_string, string);
-    sprintf(string, "S%.0f", fabs(emcStatus->task.activeSettings[2]));
+    sprintf(string, "S%.0f", fabs(emcStatus->task.modalState.settings[2]));
     strcat(codes_string, string);
 
     setresult(interp,codes_string);
