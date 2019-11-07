@@ -15,6 +15,7 @@ license "GPL";
 
 // Input Pins
 pin in bit input "Input pin to stretch";
+pin in bit input_value_to_stretch "Should 1 or 0 be stretched?";
 pin in s32 stretch_period_milliseconds "How long should any input pin transition be stretched?";
 
 // Output Pins
@@ -31,19 +32,15 @@ function _;
 
 FUNCTION(_) {
 
-    if (remaining_milliseconds <= 0) {
-        // stretch timer not running
-        if (input != output) {
-          output = input;
-          remaining_milliseconds = stretch_period_milliseconds;  // start timer
-        }
+    if (input == input_value_to_stretch) {
+        output = input;
+        remaining_milliseconds = stretch_period_milliseconds;  // start or restart timer
     } else {
         // timer running
-        // period is in nanoseconds
-        remaining_milliseconds -= (period * 0.000001);
-
-        if (input == output) {
-            remaining_milliseconds = stretch_period_milliseconds;
+        remaining_milliseconds -= (period * 0.000001);  // period is in nanoseconds
+        if (remaining_milliseconds <= 0) {
+            // timer expired so stretch is over
+            output = input;
         }
     }
 }
