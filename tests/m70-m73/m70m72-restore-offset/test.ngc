@@ -27,19 +27,19 @@ G20
 G90 G90.1 G19 G55 
 G53 G0 X0 Y0 Z0
 G91 (relative)
-G10 L1 P1 X1 Z2
 G43 H1
 g0 x10 y10
 g0 x10 y10
 o1000 call [1.0]
-(expect restored context here)
+(expect restored context here, but no tool offset for tool 0)
 o<print_debug> call
 g0 X-5 Y-20
 o1000 call [0.0]
 G91 (relative)
+M6 T1 G43 H1
 g0 x10 y10
 g0 x10 y10
-o1000 call [0.0]
-(expect to keep state from o1000 sub)
+o1000 call [1.0]
+(expect restored context here, with tool offset for tool 1)
 o<print_debug> call
 %
