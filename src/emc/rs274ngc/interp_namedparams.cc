@@ -59,6 +59,7 @@ enum predefined_named_parameters {
     NP_UNITS_PER_MINUTE,
     NP_UNITS_PER_REV,
     NP_COORD_SYSTEM,
+    NP_WORK_OFFSET_NUMBER,
     NP_TOOL_OFFSET,
     NP_RETRACT_R_PLANE,
     NP_RETRACT_OLD_Z,
@@ -597,7 +598,11 @@ int Interp::lookup_named_param(const char *nameBuf,
 	*value =
 	    (_setup.origin_index < 7) ? (530 + (10 * _setup.origin_index)) :
 	    (584 + _setup.origin_index);
-	break;
+    break;
+
+    case NP_WORK_OFFSET_NUMBER: // _work_offset_number - (1-500)
+        *value = _setup.origin_index;
+    break;
 
     case NP_TOOL_OFFSET: // _tool_offset
     *value =  toolOffsetActive(&_setup);
@@ -859,8 +864,11 @@ int Interp::init_named_parameters()
   // 1.0 if G95 is on
   init_readonly_param("_units_per_rev", NP_UNITS_PER_REV, PA_USE_LOOKUP);
 
-  // 0..9 for G54..G59.3
+  // 540-593 for G54..G59.3
   init_readonly_param("_coord_system", NP_COORD_SYSTEM, PA_USE_LOOKUP);
+
+  // 1-500 for G54.1 P#
+  init_readonly_param("_work_offset_number", NP_WORK_OFFSET_NUMBER, PA_USE_LOOKUP);
 
   // 1.0 if G43 is on
   init_readonly_param("_tool_offset", NP_TOOL_OFFSET, PA_USE_LOOKUP);
@@ -873,7 +881,6 @@ int Interp::init_named_parameters()
 
   // really esoteric
   // init_readonly_param("_control_mode", 110, PA_USE_LOOKUP);
-
 
   // 1 if G97 is on
   init_readonly_param("_spindle_rpm_mode", NP_SPINDLE_RPM_MODE, PA_USE_LOOKUP);
