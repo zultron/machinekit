@@ -2559,11 +2559,7 @@ int Interp::gen_g_codes(
         case G_CODE_unsupported: // unused
         case G_CODE_UNITS: // - length units (handled separately)
         case G_CODE_MOTION_MODE: // restoring the motion mode is a real bad idea to start with
-            break;
-
-        case G_CODE_ORIGIN: // Special case for P word
-            snprintf(buf, LINELEN, " G54.1 P%d", saved.work_offset_number);
-            cmd += buf;
+        case G_CODE_ORIGIN: // Handled separately due to extended work offsets
             break;
 
         case G_CODE_TOOL_LENGTH_OFFSET: // - tool offset (G43/G49)
@@ -2656,55 +2652,6 @@ int Interp::gen_m_codes(ActiveMCodeArray const &current, ActiveMCodeArray const 
     return INTERP_OK;
 }
 
-
-/**
- * Create a G code string to restore a modal state on program abort.
- * Note: This is only designed to be called on program abort. It restores the
- * modal state in the interpreter to the equivalent state at the most recent
- * motion line, but does not restore M codes.
- */
-int Interp::gen_restore_cmd(ModalState current,
-        StateTag const &saved_tag,
-        std::string &cmd)
-{
-    // A local copy of the saved settings, unpacked from a state tag
-    ModalState saved{};
-
-    //Extract saved state to local vectors
-    int res_unpack = active_modes(
-        saved,
-        saved_tag);
-    if (res_unpack != INTERP_OK) {
-        return INTERP_ERROR;
-    }
-
-    /* Now we clean up any G / M modes that should be reset when ending a
-     * program. Note that most of these mode states are based on logic in
-     * write_XXX functions.
-     */
-    // Force cancellation of tool compensation
-    saved.g_codes[G_CODE_CUTTER_SIDE] = G_40;
-
-    // KLUDGE force restoration of any modal state that isn't fully expressed by just the mode (e.g. tool number, offset number)
-    current.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = -1;
-    current.g_codes[G_CODE_ORIGIN] = -1;
-
-    //Mimic the order of restoration commands used elsewhere
-    if (current.g_codes[G_CODE_UNITS] != saved.g_codes[G_CODE_UNITS]) {
-        formatGCode((GCodes)saved.g_codes[G_CODE_UNITS], cmd);
-    }
-
-    //M codes should not be restored during an abort
-    int res_m = 0;
-    int res_g = gen_g_codes(current, saved, cmd);
-
-    if (res_m || res_g) {
-        return INTERP_ERROR;
-    }
-    
-    return INTERP_OK;
-}
-
 int Interp::save_settings(setup_pointer settings)
 {
       // the state is sprinkled all over _setup
@@ -2789,8 +2736,14 @@ int Interp::restore_settings_impl(
         saved.g_codes[G_CODE_UNITS]) {
         auto g_unit = (GCodes)saved.g_codes[G_CODE_UNITS];
         formatGCode(g_unit, cmd_list.back());
-        add_command_break(cmd_list);
     }
+
+    // Always restore work offset number using extended work offset format (since modal state is not fully captured in the G5x mode)
+    char buf[LINELEN];
+    snprintf(buf, LINELEN, "G54.1 P%d", saved.work_offset_number);
+    cmd_list.emplace_back(buf);
+    add_command_break(cmd_list);
+
     // Each M code needs to execute on its own line to avoid conflicts
     gen_m_codes(current.m_codes, saved.m_codes, cmd_list);
     add_command_break(cmd_list);
@@ -2828,7 +2781,6 @@ int Interp::restore_settings_impl(
     return INTERP_OK;
 }
 
-
 /**
  * Variation of restore_settings to pull state from a StateTag.
  */
@@ -2844,42 +2796,33 @@ int Interp::restore_from_tag(StateTag const &tag)
     // clear queue buster sflags, otherwise the command won't be executed - Tormach *dpr 8/17/15
     _setup.clear_queue_buster_flags();
 
-    // Restore line number from tag
+    // Explicitly restore line number from tag
     _setup.sequence_number = tag.fields[GM_FIELD_LINE_NUMBER];
 
-    // linearize state
+    // Capture current modal state
+    CHP(write_modal_state(nullptr, &_setup));
+    ModalState &current = _setup.modal_state;
+
+    // A local copy of the saved settings, unpacked from a state tag
+    ModalState saved{};
+    CHP(active_modes(
+        saved,
+        tag));
+
+    // Clean up the modal state as needed for the special case of on-abort restore:
+    // Force cancellation of tool compensation
+    saved.g_codes[G_CODE_CUTTER_SIDE] = G_40;
+
+    // KLUDGE force restoration of any modal state that isn't fully expressed by just the mode (e.g. tool number, offset number)
+    current.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = -1;
+    current.g_codes[G_CODE_ORIGIN] = -1;
+
+    // Force M-modes to match so they are never restored;
+    saved.m_codes = current.m_codes;
+
+    //KLUDGE pretend it's M2 that's aborting though it could be something else
+    restore_settings_impl(current, saved, 2);
     write_modal_state(nullptr, &_setup);
-
-    std::string cmd;
-
-    // construct gcode from the state difference and execute
-    // this assures appropriate canon commands are generated if needed -
-    // just restoring interp variables is not enough
-    int res_unpack = gen_restore_cmd(_setup.modal_state,
-            tag,
-            cmd);
-    if (res_unpack != INTERP_OK) {
-        return res_unpack;
-    }
-
-    if (!cmd.empty()) {
-        // the sequence can be multiline, separated by nl
-        // so split and execute each line
-        char buf[cmd.size() + 1];
-        strncpy(buf, cmd.c_str(), sizeof(buf));
-        char *last = buf;
-        char *s;
-        while ((s = strtok_r(last, "\n", &last)) != NULL) {
-            int status = execute_impl(s, CommandSource::ABORT_CLEANUP);
-            if (status > INTERP_MIN_ERROR) {
-                char currentError[LINELEN + 1];
-                strcpy(currentError, getSavedError());
-                logDebug("Interp::restore_from_tag - FAILED with status=%d ('%s') trying to execute line: %s", status, currentError, s);
-                CHKS(status, _("Failed to restore interp state on abort '%s': %s"), s, currentError);
-            }
-        }
-        write_modal_state(nullptr, &_setup);
-    }
 
     return INTERP_OK;
 }

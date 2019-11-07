@@ -548,9 +548,6 @@ public:
                  std::string &cmd);
  int gen_m_codes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved, RestoreCommandList & cmd);
  int restore_from_tag(StateTag const &tag);
- int gen_restore_cmd(ModalState state,
-        StateTag const &saved,
-        std::string &cmd);
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
                           ParameterArray &parameters, bool check_exists);
