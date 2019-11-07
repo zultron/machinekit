@@ -5,7 +5,7 @@
 o<print_debug> sub
 (debug, incremental = #<_incremental>)
 (debug, plane = #<_plane>)
-(debug, work offset = #<_coord_system>)
+(debug, work offset = #<_work_offset_number>)
 o<print_debug> endsub
 
 o1000 sub
