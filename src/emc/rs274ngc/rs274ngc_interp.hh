@@ -52,6 +52,8 @@ struct GCodeContextStack
     void reset();
 };
 
+using RestoreCommandList = std::vector<std::string>;
+
 class Interp : public InterpBase {
 
 public:
@@ -543,14 +545,15 @@ public:
     int init_readonly_param(const char *nameBuf, double value, int attr);
     int free_named_parameters(context_pointer frame);
  int save_settings(setup_pointer settings);
- int restore_settings(setup_pointer settings, int from_level, int m_code);
+ int restore_settings(setup_pointer settings, int from_level, int caller_m_code);
+ int restore_settings_impl(ModalState & current, ModalState const &saved, int caller_m_code);
  int gen_g_codes(ActiveGCodeArray const & current,
                  ActiveGCodeArray const & saved,
                  ActiveSettingsArray const & current_settings,
                  ActiveSettingsArray const & saved_settings,
                  int work_offset_origin,
                  std::string &cmd);
- int gen_m_codes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved, std::string &cmd);
+ int gen_m_codes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved, RestoreCommandList & cmd);
  int restore_from_tag(StateTag const &tag);
  int gen_restore_cmd(const ModalState & state,
         StateTag const &saved,

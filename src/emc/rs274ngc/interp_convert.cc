@@ -2618,7 +2618,7 @@ int Interp::gen_g_codes(
  * use multiple lines here because M7 and M8 may not be on the same line since
  * they are in the same modal group.
  */
-int Interp::gen_m_codes(ActiveMCodeArray const &current, ActiveMCodeArray const &saved, std::string &cmd)
+int Interp::gen_m_codes(ActiveMCodeArray const &current, ActiveMCodeArray const &saved, RestoreCommandList &cmd_list)
 {
     int i,val;
     char buf[LINELEN];
@@ -2637,8 +2637,8 @@ int Interp::gen_m_codes(ActiveMCodeArray const &current, ActiveMCodeArray const 
         case M_CODE_ADAPTIVE_FEED:
         case M_CODE_FEED_HOLD:
             if (val != -1) {  // unsure..
-                snprintf(buf,sizeof(buf),"M%d\n", val);
-                cmd+=buf;
+                snprintf(buf,sizeof(buf),"M%d", val);
+                cmd_list.push_back(buf);
             } else {
                 MSG("------ gen_m_codes: index %d = -1!!\n",i);
             }
@@ -2739,6 +2739,12 @@ int Interp::write_modal_state(block_pointer block, setup_pointer settings)
     return INTERP_OK;
 }
 
+/** Ends the current command and starts a new one (ensures that previous commands are called in a separate execute call).*/
+static void add_command_break(RestoreCommandList &l)
+{
+    l.push_back("");
+}
+
 /* restore global settings/gcodes/mcodes to current call level from a valid context
  * used by:
  *   M72 - restores context from same level
@@ -2751,7 +2757,7 @@ int Interp::write_modal_state(block_pointer block, setup_pointer settings)
 int Interp::restore_settings(
     setup_pointer settings,
     int from_level,
-    int m_code)    //!< call level of context to restore from
+    int caller_m_code)    //!< call level of context to restore from
 {
 
     CHKS((from_level < settings->call_level),
@@ -2762,7 +2768,16 @@ int Interp::restore_settings(
     // linearize state
     write_modal_state(nullptr, settings);
 
-    std::string cmd("");
+    ModalState &current = settings->modal_state;
+    ModalState const &saved = settings->sub_context[from_level].modal_state;
+    restore_settings_impl(current, saved, caller_m_code);
+    write_modal_state(nullptr, settings);
+    return INTERP_OK;
+}
+
+int Interp::restore_settings_impl(ModalState & current, const ModalState & saved, int caller_m_code)
+{
+    RestoreCommandList cmd_list({""});
 
     // construct gcode from the state difference and execute
     // this assures appropriate canon commands are generated if needed -
@@ -2771,47 +2786,46 @@ int Interp::restore_settings(
     // G20/G21 switching is special - it is executed beforehand
     // so restoring feed later on is interpreted in the correct context
 
-    if (settings->modal_state.g_codes[G_CODE_UNITS] !=
-        settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]) {
-        char buf[LINELEN];
-        snprintf(buf, sizeof(buf), "G%d\n",
-                 settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]/10);
+    if (current.g_codes[G_CODE_UNITS] !=
+        saved.g_codes[G_CODE_UNITS]) {
+        auto g_unit = (GCodes)saved.g_codes[G_CODE_UNITS];
+        formatGCode(g_unit, cmd_list.back());
+        add_command_break(cmd_list);
     }
-    gen_m_codes(settings->modal_state.m_codes, settings->sub_context[from_level].modal_state.m_codes,cmd);
-    gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,
-                settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings, settings->sub_context[from_level].modal_state.work_offset_origin_index, cmd);
+    // Each M code needs to execute on its own line to avoid conflicts
+    gen_m_codes(current.m_codes, saved.m_codes, cmd_list);
+    add_command_break(cmd_list);
+    // G code commands currently all execute in a single line (may change in the future if there are conflicts)
+    gen_g_codes(current.g_codes, saved.g_codes,
+                current.settings, saved.settings, saved.work_offset_origin_index, cmd_list.back());
 
-    // KLUDGE stash the caller line here
+    // KLUDGE stash the caller line here to restore it after the state restore commands (for error context)
     std::string old_linetext = _setup.linetext;
-    if (cmd.empty()) {
+    if (cmd_list.empty()) {
         return INTERP_OK;
     }
 
-    if (cmd.length() > 0) {
-        // the sequence can be multiline, separated by nl
-        // so split and execute each line
-        char cmd_buf[LINELEN];
-        strncpy(cmd_buf,cmd.c_str(), LINELEN);
-        char *last = cmd_buf;
-        char *s;
-        while ((s = strtok_r(last, "\n", &last)) != NULL) {
-            int status = execute_impl(s, CommandSource::MODAL_STATE_RESTORE);
-            strncpy(_setup.linetext, old_linetext.c_str(), sizeof(_setup.linetext)-1);
-            if (status != INTERP_OK) {
-                char currentError[LINELEN+1];
-                strcpy(currentError,getSavedError());
-                CHKS(status, _("M%d: restore_settings failed executing: '%s': %s"), m_code, s, currentError);
-            }
-        }
-    // Write updated state back to local storage
-	write_g_codes((block_pointer) NULL, settings, settings->modal_state);
-	write_m_codes((block_pointer) NULL, settings, settings->modal_state);
-	write_settings(settings, settings->modal_state);
+    logDebug("Modal state restore commands: ");
+    for (auto const &cmd_str : cmd_list) {
+        const char *c = cmd_str.c_str();
+        logDebug("%s", c);
     }
 
-    // TBD: any state deemed important to restore should be restored here
-    // NB: some state changes might generate canon commands so do that here
-    // if needed
+    for (auto const &cmd_str : cmd_list) {
+        if (cmd_str.empty()) {
+            continue;
+        }
+        // Execute each line of the command list individually
+        int status = execute_impl(cmd_str.c_str(), CommandSource::MODAL_STATE_RESTORE);
+        // Clean up after execution (restore previous linetext, and synch modal state with current interp state)
+        strncpy(_setup.linetext, old_linetext.c_str(), sizeof(_setup.linetext)-1);
+
+        if (status != INTERP_OK) {
+            std::string currentError(getSavedError());
+            CHKS(status, _("M%d: restore_settings failed executing: '%s': %s"),
+                 caller_m_code, cmd_str.c_str(), currentError.c_str());
+        }
+    }
 
     return INTERP_OK;
 }
