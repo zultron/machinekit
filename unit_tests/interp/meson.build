@@ -4,6 +4,7 @@ test_interp_srcs = files([
   'test_interp_block.cc',
   'test_interp_nurbs.cc',
   'test_interp_operators.cc',
+  'test_gcodegenerator.cc',
   ])
 
 test_interp_inc = include_directories('.')

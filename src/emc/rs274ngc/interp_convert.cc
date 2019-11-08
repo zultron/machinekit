@@ -31,6 +31,7 @@
 #include "interp_parameter_def.hh"
 #include <rotary_axis_util.hh>
 #include "interp_internal.hh"
+#include "gcodegenerator.hh"
 
 #include "units.h"
 #define TOOL_INSIDE_ARC(side, turn) (((side)==LEFT&&(turn)>0)||((side)==RIGHT&&(turn)<0))
@@ -2527,131 +2528,6 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
     return INTERP_OK;
 }
 
-/**
- * given two int arrays representing interpreter settings as stored in
- * _setup.active_g_codes, construct a G-code sequence to synchronize their state.
- *
- * similarly do the same for F and S words, but they have some dependency on G codes so
- * do this all within a single contained method.
- *
- * @note "Saved" here means state saved in a state tag, while current means the
- * current state of interp. Both are necessary so that redundant G-codes aren't
- * issued if the current state already matches the tag.
- */
-int Interp::gen_g_codes(
-    ModalState const &current,
-    ModalState const &saved,
-	std::string &cmd)
-{
-    int val;
-    char buf[LINELEN];
-    bool spindle_mode_restored = false;
-
-    for (int ii = 0; ii < ACTIVE_G_CODES; ii++) {
-        val = saved.g_codes[ii];
-        if (val == current.g_codes[ii]) {
-            continue;
-        }
-
-        switch ((ActiveGCodeIndex)ii) {
-        case G_CODE_SEQUENCE_NUMBER: // sequence_number - no point in restoring
-        case G_CODE_MODE_0: // TODO document why we don't restore mode 0
-        case G_CODE_unsupported: // unused
-        case G_CODE_UNITS: // - length units (handled separately)
-        case G_CODE_MOTION_MODE: // restoring the motion mode is a real bad idea to start with
-        case G_CODE_ORIGIN: // Handled separately due to extended work offsets
-            break;
-
-        case G_CODE_TOOL_LENGTH_OFFSET: // - tool offset (G43/G49)
-            CHKS(formatGCode((GCodes)val, cmd), "gen_g_codes BUG: index %d = -1", ii);
-            if (hasFeature(FEATURE_LATHE_TOOLCHANGE) && val == G_43) {
-                char buf[LINELEN];
-                snprintf(buf, sizeof(buf), "H%d", saved.tool_offset_number);
-                cmd += buf;
-            }
-            break;
-
-        case G_CODE_SPINDLE_MODE: // - spindle mode
-            spindle_mode_restored = true;
-
-            BOOST_FALLTHROUGH;
-        case G_CODE_PLANE: // - plane
-        case G_CODE_CUTTER_SIDE: // - cutter compensation
-        case G_CODE_DISTANCE_MODE: // - distance mode
-        case G_CODE_FEED_MODE: // - feed mode
-        case G_CODE_RETRACT_MODE: // - retract mode
-        case G_CODE_PATH_MODE: // - control mode
-        case G_CODE_DISTANCE_MODE_IJK: // - ijk distance mode
-        case G_CODE_LATHE_DIAMETER_MODE: // - lathe diameter mode
-            CHKS(formatGCode((GCodes)val, cmd), "gen_g_codes BUG: index %d = -1", ii);
-            break;
-        case ACTIVE_G_CODES: // Do nothing, not a real G-code
-            break;
-        }
-    }
-
-    // If G96 spindle mode is present for constant surface speed, you must have an S word
-    // also even if S appears to be the same between saved and current vectors.
-
-    for (int ii = 0; ii < ACTIVE_SETTINGS; ii++) {
-    if ((saved.settings[ii] != current.settings[ii]) || (2 == ii && spindle_mode_restored)) {
-	    switch (ii) {
-	    case 0: break; // sequence_number - no point in restoring
-	    case 1:
-        snprintf(buf,sizeof(buf)," F%.1f", saved.settings[ii]);
-		cmd+=buf;
-		break;
-	    case 2:
-        snprintf(buf,sizeof(buf)," S%.0f", saved.settings[ii]);
-		cmd+=buf;
-		break;
-	    }
-	}
-    }
-
-    return INTERP_OK;
-}
-
-/*
- * given two int arrays representing interpreter settings as stored in
- * _setup.active_m_codes, construct a M-code sequence to synchronize their state.
- *
- * use multiple lines here because M7 and M8 may not be on the same line since
- * they are in the same modal group.
- */
-int Interp::gen_m_codes(ActiveMCodeArray const &current, ActiveMCodeArray const &saved, RestoreCommandList &cmd_list)
-{
-    int i,val;
-    char buf[LINELEN];
-    for (i = 0; i < ACTIVE_M_CODES; i++) {
-	val = saved[i];
-	if (val != current[i]) {
-        switch ((ActiveMCodeIndex)i) {
-        case M_CODE_SEQUENCE_NUMBER:
-        case M_CODE_STOPPING:
-        case M_CODE_TOOLCHANGE:
-            break;
-        case M_CODE_SPINDLE:
-        case M_CODE_MIST:
-        case M_CODE_FLOOD:
-        case M_CODE_OVERRIDES:
-        case M_CODE_ADAPTIVE_FEED:
-        case M_CODE_FEED_HOLD:
-            if (val != -1) {  // unsure..
-                snprintf(buf,sizeof(buf),"M%d", val);
-                cmd_list.push_back(buf);
-            } else {
-                MSG("------ gen_m_codes: index %d = -1!!\n",i);
-            }
-            break;
-        case ACTIVE_M_CODES: // Do nothing, not a real M-code
-            break;
-        }
-    }
-    }
-    return INTERP_OK;
-}
-
 int Interp::save_settings(setup_pointer settings)
 {
       // the state is sprinkled all over _setup
@@ -2676,12 +2552,6 @@ int Interp::write_modal_state(block_pointer block, setup_pointer settings)
     settings->modal_state.tool_offset_number = settings->getCurrentToolNumber();
 
     return INTERP_OK;
-}
-
-/** Ends the current command and starts a new one (ensures that previous commands are called in a separate execute call).*/
-static void add_command_break(RestoreCommandList &l)
-{
-    l.push_back("");
 }
 
 /* restore global settings/gcodes/mcodes to current call level from a valid context
@@ -2741,47 +2611,18 @@ int Interp::execute_gcode_sequence(RestoreCommandList const &cmd_list, int calle
     return INTERP_OK;
 }
 
-/**
- * Construct and execute gcode from the state difference and execute this assures
- * appropriate canon commands are generated if needed - just restoring interp
- * variables is not enough.
- */
-int Interp::gen_modal_state_restore_sequence(
-        ModalState & current, //!< "current" modal state in the interpreter
-        const ModalState & saved, //!< modal state to restore the interpreter to.
-        RestoreCommandList &cmd_list
-    ){
-    if (current.g_codes[G_CODE_UNITS] !=
-        saved.g_codes[G_CODE_UNITS]) {
-        auto g_unit = (GCodes)saved.g_codes[G_CODE_UNITS];
-        formatGCode(g_unit, cmd_list.back());
-    }
-
-    // Always restore work offset number using extended work offset format (since modal state is not fully captured in the G5x mode)
-    char buf[LINELEN];
-    snprintf(buf, LINELEN, "G54.1 P%d", saved.work_offset_number);
-    cmd_list.emplace_back(buf);
-    add_command_break(cmd_list);
-
-    // Each M code needs to execute on its own line to avoid conflicts
-    gen_m_codes(current.m_codes, saved.m_codes, cmd_list);
-    add_command_break(cmd_list);
-    // G code commands currently all execute in a single line (may change in the future if there are conflicts)
-    gen_g_codes(current, saved, cmd_list.back());
-    return INTERP_OK;
-}
-
 int Interp::restore_settings_impl(
         ModalState & current, //!< "current" modal state in the interpreter
         const ModalState & saved, //!< modal state to restore the interpreter to.
         int caller_m_code //!< M-code triggering this restore (mostly for error context)
 ){
-    RestoreCommandList cmd_list({""});
-
     // G20/G21 switching is special - it is executed beforehand
     // so restoring feed later on is interpreted in the correct context
 
-    CHP(gen_modal_state_restore_sequence(current, saved, cmd_list));
+
+    GCodeGenerator generator(_setup);
+    generator.gen_modalStateRestore(current, saved);
+    RestoreCommandList const &cmd_list = generator.getCommandSequence();
 
     if (cmd_list.empty()) {
         return INTERP_OK;
@@ -2826,16 +2667,7 @@ int Interp::restore_from_tag(StateTag const &tag)
         saved,
         tag));
 
-    // Clean up the modal state as needed for the special case of on-abort restore:
-    // Force cancellation of tool compensation
-    saved.g_codes[G_CODE_CUTTER_SIDE] = G_40;
-
-    // KLUDGE force restoration of any modal state that isn't fully expressed by just the mode (e.g. tool number, offset number)
-    current.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = -1;
-    current.g_codes[G_CODE_ORIGIN] = -1;
-
-    // Force M-modes to match so they are never restored;
-    saved.m_codes = current.m_codes;
+    GCodeGenerator::filterAbortedStates(current, saved);
 
     //KLUDGE pretend it's M2 that's aborting though it could be something else
     restore_settings_impl(current, saved, 2);

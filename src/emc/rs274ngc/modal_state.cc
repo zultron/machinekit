@@ -10,5 +10,3 @@
 * Copyright (c) 2014 All rights reserved.
 *
 ********************************************************************/
-#include "modal_state.hh"
-#include "interp_base.hh"

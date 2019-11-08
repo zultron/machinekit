@@ -544,13 +544,9 @@ public:
  int save_settings(setup_pointer settings);
  int restore_settings(setup_pointer settings, int from_level, int caller_m_code);
  int restore_settings_impl(ModalState & current, ModalState const &saved, int caller_m_code);
- int gen_g_codes(const ModalState & current, const ModalState & saved,
-                 std::string &cmd);
- int gen_m_codes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved, RestoreCommandList & cmd);
 
  int write_modal_state(block_pointer block, setup_pointer settings);
  int execute_gcode_sequence(const RestoreCommandList & cmd_list, int caller_m_code, const char * caller_name);
- int gen_modal_state_restore_sequence(ModalState & current, const ModalState & saved, RestoreCommandList & cmd_list);
 
  int restore_from_tag(StateTag const &tag);
 
