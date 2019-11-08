@@ -547,7 +547,13 @@ public:
  int gen_g_codes(const ModalState & current, const ModalState & saved,
                  std::string &cmd);
  int gen_m_codes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved, RestoreCommandList & cmd);
+
+ int write_modal_state(block_pointer block, setup_pointer settings);
+ int execute_gcode_sequence(const RestoreCommandList & cmd_list, int caller_m_code, const char * caller_name);
+ int gen_modal_state_restore_sequence(ModalState & current, const ModalState & saved, RestoreCommandList & cmd_list);
+
  int restore_from_tag(StateTag const &tag);
+
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
                           ParameterArray &parameters, bool check_exists);
@@ -810,7 +816,6 @@ int read_inputs(setup_pointer settings);
 
     bool hasFeature(Features f) const;
     int find_g43_tool_offset(block_pointer block, setup_pointer settings, ShiftTransform & new_tool_offset);
-    int write_modal_state(block_pointer block, setup_pointer settings);
 
 protected:
     bool error_has_context;

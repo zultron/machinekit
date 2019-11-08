@@ -2717,21 +2717,40 @@ int Interp::restore_settings(
     return INTERP_OK;
 }
 
+int Interp::execute_gcode_sequence(RestoreCommandList const &cmd_list, int caller_m_code, const char *caller_name)
+{
+    std::string old_linetext = _setup.linetext;
+    for (auto const &cmd_str : cmd_list) {
+        if (cmd_str.empty()) {
+            continue;
+        }
+        // Execute each line of the command list individually
+        int status = execute_impl(cmd_str.c_str(), CommandSource::MODAL_STATE_RESTORE);
+        // Clean up after execution (restore previous linetext, and synch modal state with current interp state)
+        strncpy(_setup.linetext, old_linetext.c_str(), sizeof(_setup.linetext)-1);
+
+        if (status != INTERP_OK) {
+            std::string currentError(getSavedError());
+            CHKS(status, _("M%d: %s failed executing: '%s': %s"),
+                 caller_m_code,
+                 caller_name,
+                 cmd_str.c_str(),
+                 currentError.c_str());
+        }
+    }
+    return INTERP_OK;
+}
+
 /**
- * Construct gcode from the state difference and execute this assures
+ * Construct and execute gcode from the state difference and execute this assures
  * appropriate canon commands are generated if needed - just restoring interp
  * variables is not enough.
  */
-int Interp::restore_settings_impl(
+int Interp::gen_modal_state_restore_sequence(
         ModalState & current, //!< "current" modal state in the interpreter
         const ModalState & saved, //!< modal state to restore the interpreter to.
-        int caller_m_code //!< M-code triggering this restore (mostly for error context)
-){
-    RestoreCommandList cmd_list({""});
-
-    // G20/G21 switching is special - it is executed beforehand
-    // so restoring feed later on is interpreted in the correct context
-
+        RestoreCommandList &cmd_list
+    ){
     if (current.g_codes[G_CODE_UNITS] !=
         saved.g_codes[G_CODE_UNITS]) {
         auto g_unit = (GCodes)saved.g_codes[G_CODE_UNITS];
@@ -2749,9 +2768,21 @@ int Interp::restore_settings_impl(
     add_command_break(cmd_list);
     // G code commands currently all execute in a single line (may change in the future if there are conflicts)
     gen_g_codes(current, saved, cmd_list.back());
+    return INTERP_OK;
+}
 
-    // KLUDGE stash the caller line here to restore it after the state restore commands (for error context)
-    std::string old_linetext = _setup.linetext;
+int Interp::restore_settings_impl(
+        ModalState & current, //!< "current" modal state in the interpreter
+        const ModalState & saved, //!< modal state to restore the interpreter to.
+        int caller_m_code //!< M-code triggering this restore (mostly for error context)
+){
+    RestoreCommandList cmd_list({""});
+
+    // G20/G21 switching is special - it is executed beforehand
+    // so restoring feed later on is interpreted in the correct context
+
+    CHP(gen_modal_state_restore_sequence(current, saved, cmd_list));
+
     if (cmd_list.empty()) {
         return INTERP_OK;
     }
@@ -2762,21 +2793,7 @@ int Interp::restore_settings_impl(
         logDebug("%s", c);
     }
 
-    for (auto const &cmd_str : cmd_list) {
-        if (cmd_str.empty()) {
-            continue;
-        }
-        // Execute each line of the command list individually
-        int status = execute_impl(cmd_str.c_str(), CommandSource::MODAL_STATE_RESTORE);
-        // Clean up after execution (restore previous linetext, and synch modal state with current interp state)
-        strncpy(_setup.linetext, old_linetext.c_str(), sizeof(_setup.linetext)-1);
-
-        if (status != INTERP_OK) {
-            std::string currentError(getSavedError());
-            CHKS(status, _("M%d: restore_settings failed executing: '%s': %s"),
-                 caller_m_code, cmd_str.c_str(), currentError.c_str());
-        }
-    }
+    execute_gcode_sequence(cmd_list, caller_m_code, "restore_settings");
 
     return INTERP_OK;
 }
