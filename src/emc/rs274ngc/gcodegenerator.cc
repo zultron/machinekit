@@ -90,7 +90,7 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
 
         case G_CODE_TOOL_LENGTH_OFFSET: // - tool offset (G43/G49)
             formatGCode((GCodes)val, cmd);
-            if (settings.checkFeatureFlag(FEATURE_LATHE_TOOLCHANGE) && val == G_43) {
+            if (has_feature(features, FEATURE_LATHE_TOOLCHANGE) && val == G_43) {
                 char buf[LINELEN];
                 snprintf(buf, sizeof(buf), "H%d", saved.tool_offset_number);
                 cmd += buf;

@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <modal_state.hh>
+#include <featureset.hh>
 
 using RestoreCommandList = std::vector<std::string>;
 
@@ -13,15 +14,15 @@ class GCodeGenerator
 {
 protected:
     RestoreCommandList cmd_list;
-    struct setup_struct const &settings;
+    FeatureSet features;
 
     void start_next_line();
 
     static int formatGCode(GCodes g, std::string &cmd);
 public:
-    GCodeGenerator(struct setup_struct const &settings_in) :
+    GCodeGenerator(FeatureSet const &features_in) :
         cmd_list(),
-        settings(settings_in) {}
+        features(features_in) {}
 
     RestoreCommandList const &getCommandSequence() const;
     std::string getCommandSequenceAsString() const;

@@ -2620,7 +2620,7 @@ int Interp::restore_settings_impl(
     // so restoring feed later on is interpreted in the correct context
 
 
-    GCodeGenerator generator(_setup);
+    GCodeGenerator generator(_setup.feature_set);
     generator.gen_modalStateRestore(current, saved);
     RestoreCommandList const &cmd_list = generator.getCommandSequence();
 

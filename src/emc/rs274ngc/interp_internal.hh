@@ -27,6 +27,7 @@
 #include "modal_state.hh"
 #include "interp_parameter_def.hh"
 #include "interp_fwd.hh"
+#include "featureset.hh"
 
 #include <coordinatetransform.hh>
 #include <vector>
@@ -350,20 +351,6 @@ using ParameterArray = std::array<double, interp_param_global::RS274NGC_MAX_PARA
 /**
  * @note names match INI strings, do not rename
  */
-enum Features {
-    FEATURE_RETAIN_G43,
-    FEATURE_OWORD_N_ARGS,
-    FEATURE_INI_VARS,
-    FEATURE_HAL_PIN_VARS,
-    FEATURE_NO_DOWNCASE_OWORD,
-    FEATURE_OWORD_WARNONLY,
-    FEATURE_LATHE_TOOLCHANGE,
-    FEATURE_EXTENDED_ERROR_MESSAGES,
-    MAX_FEATURES
-};
-
-using FeatureSet = std::bitset<64>;
-
 struct setup_struct
 {
   setup_struct();

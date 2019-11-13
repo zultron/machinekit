@@ -234,20 +234,7 @@ int setup_struct::getCurrentToolNumber() const
 
 bool setup_struct::checkFeatureFlag(Features f) const
 {
-    switch (f) {
-    case FEATURE_RETAIN_G43:
-    case FEATURE_OWORD_N_ARGS:
-    case FEATURE_INI_VARS:
-    case FEATURE_HAL_PIN_VARS:
-    case FEATURE_NO_DOWNCASE_OWORD:
-    case FEATURE_OWORD_WARNONLY:
-    case FEATURE_LATHE_TOOLCHANGE:
-    case FEATURE_EXTENDED_ERROR_MESSAGES:
-        return feature_set.test((int)f);
-    case MAX_FEATURES:
-        return false;
-    }
-    return false;
+    return has_feature(feature_set, f);
 }
 
 setup_struct::~setup_struct() {
