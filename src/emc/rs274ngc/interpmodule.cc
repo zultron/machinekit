@@ -86,28 +86,22 @@ static  sub_context_array sub_context_wrapper ( Interp & inst) {
 #pragma GCC diagnostic ignored "-Wformat-security"
 static void setErrorMsg(Interp &interp, const char *s)
 {
-    setup *settings  = &interp._setup;
-
     if ((s == NULL) || (strlen(s) == 0))
 	s = "###";
     interp.setError (s);
-    settings->stack_index = 0;
-    strncpy(settings->stack[settings->stack_index],
-	    "Python", STACK_ENTRY_LEN);
-    settings->stack[settings->stack_index][STACK_ENTRY_LEN-1] = 0;
-    settings->stack_index++;
-    settings->stack[settings->stack_index][0] = 0;
+    interp.callstack.clear();
+    interp.callstack.append_stack_info("Python", "", 0);
 }
 
 #pragma GCC diagnostic warning "-Wformat-security"
 
 static bp::object errorStack(Interp &interp)
 {
-    setup *settings  = &interp._setup;
     bp::list msgs;
 
-    for (int i = 0; i < settings->stack_index; i++)
-	msgs.append(bp::object( (const char *) settings->stack[i]));
+    for (size_t i = 0; i < interp.callstack.frame_count(); i++) {
+        msgs.append(bp::object( interp.callstack.call_name(i)));
+    }
     return msgs;
 }
 
@@ -199,6 +193,7 @@ static int wrap_interp_execute_2(Interp &interp, const char *command, int lineno
 {
     setup &_setup = interp._setup;
     block saved_block = _setup.getExecutingBlock();
+    CallStackTracker &callstack = interp.callstack;
 
     // use the remap stack to save/restore the current block
     CHP(interp.enter_remap());
@@ -765,10 +760,7 @@ static inline void set_spindle_turning(Interp &interp, int value)  {
     interp._setup.spindle_turning = static_cast<CANON_DIRECTION>(value);
 }
 static inline int get_stack_index (Interp &interp)  {
-    return interp._setup.stack_index;
-}
-static inline void set_stack_index(Interp &interp, int value)  {
-    interp._setup.stack_index = value;
+    return interp.callstack.frame_count();
 }
 static inline int get_value_returned (Interp &interp)  {
     return interp._setup.value_returned;
@@ -965,7 +957,7 @@ BOOST_PYTHON_MODULE(interpreter) {
 	.add_property("speed_feed_mode", &get_speed_feed_mode, &set_speed_feed_mode)
 	.add_property("spindle_mode", &get_spindle_mode, &set_spindle_mode)
 	.add_property("spindle_turning", &get_spindle_turning, &set_spindle_turning)
-	.add_property("stack_index", &get_stack_index, &set_stack_index)
+    .add_property("stack_index", &get_stack_index)
 	.add_property("value_returned", &get_value_returned, &set_value_returned)
 
 	.add_property("current_tool", &get_current_tool, &set_current_tool)

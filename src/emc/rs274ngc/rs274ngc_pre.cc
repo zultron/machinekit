@@ -2821,21 +2821,7 @@ char *Interp::stack_name(int stack_index,       //!< index into stack of functio
                          char *function_name,   //!< string: to copy function name into
                          size_t max_size)  //!< maximum number of characters to copy
 {
-  size_t n;
-  char *the_name;
-
-  if ((stack_index > -1) && (stack_index < STACK_LEN)) {
-    the_name = _setup.stack[stack_index];
-    for (n = 0; n < (max_size - 1); n++) {
-      if (the_name[n] != 0)
-        function_name[n] = the_name[n];
-      else
-        break;
-    }
-    function_name[n] = 0;
-  } else
-    function_name[0] = 0;
-  return function_name;
+    return callstack.stack_name(stack_index, function_name, max_size);
 }
 
 /***********************************************************************/

@@ -20,6 +20,7 @@
 #include "interp_internal.hh"
 #include "interp_return.hh"
 #include <array>
+#include <callstacktracker.hh>
 
 /**
  * Stores information about a single line of G-code (where it came from, line number, etc.).
@@ -57,6 +58,7 @@ using RestoreCommandList = std::vector<std::string>;
 class Interp : public InterpBase {
 
 public:
+ CallStackTracker callstack;
  Interp();
  ~Interp();
 

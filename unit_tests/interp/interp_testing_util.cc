@@ -3,23 +3,18 @@
 
 int print_interp_error(Interp & interp, int retval, const char* src_file, int line)
 {
-    int index = 0;
     if (retval <= INTERP_MIN_ERROR) {
         return retval;
     }
-    auto err_string = interp.error_text();
-    if (!err_string.empty()) {
-        fprintf(stderr,"%s:%d: interp_error: %s\n", interp._setup.stack_file[0], interp._setup.stack_line[0], err_string.c_str());
+
+    if (interp.callstack.frame_count()) {
+        CallStackFrame const &frame = interp.callstack.get_stack().front();
+        fprintf(stderr,"%s:%d: interp_error: %s\n", frame.src_file.c_str(), frame.src_line, interp.error_text(retval).c_str());
     }
 
     if (emc_debug & EMC_DEBUG_INTERP) {
-        for (index = 1; index < interp._setup.stack_index; ++index) {
-            char interp_stack_buf[4096] = {};
-            interp.stack_name(index, interp_stack_buf, 4096);
-            if (0 == interp_stack_buf[0]) {
-                break;
-            }
-            fprintf(stderr,"%s:%d: from: %s\n", interp._setup.stack_file[index], interp._setup.stack_line[index], interp_stack_buf);
+        for (auto const &frame : interp.callstack.get_stack()) {
+            fprintf(stderr,"%s:%d: from: %s\n", frame.src_file.c_str(), frame.src_line, frame.call_name.c_str());
         }
         if (line > 0) {
             fprintf(stderr,"%s:%d: from G-code: %s\n", src_file, line, interp._setup.blocktext);

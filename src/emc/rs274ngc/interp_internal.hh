@@ -459,10 +459,6 @@ struct setup_struct
   CANON_SPEED_FEED_MODE speed_feed_mode;        // independent or synched
   bool speed_override;        // whether speed override is enabled
   CANON_DIRECTION spindle_turning;      // direction spindle is turning
-  char stack[STACK_LEN][STACK_ENTRY_LEN];      // stack of calls for error reporting
-  char stack_file[STACK_LEN][STACK_ENTRY_LEN]; // file where error occurred
-  int stack_line[STACK_LEN];      // line where error occurred
-  int stack_index;              // index into the stack
 
   int pockets_max;                 // number of pockets in carousel (including pocket 0, the spindle)
   std::array<CANON_TOOL_TABLE, CANON_POCKETS_MAX> tool_table;      // index is pocket number
@@ -575,30 +571,28 @@ macros totally crash-proof. If the function call stack is deeper than
 
 */
 
-void append_stack_info(setup_struct &settings, const char *function_name, const char * file_name, int line);
-
 // Just set an error string using printf-style formats, do NOT return
 #define ERM(fmt, ...)                                      \
     do {                                                   \
         setError (fmt, ## __VA_ARGS__);                    \
-        _setup.stack_index = 0;                            \
-        append_stack_info(_setup, __PRETTY_FUNCTION__, __FILE__, __LINE__); \
+        callstack.clear();                        \
+        callstack.append_stack_info(__PRETTY_FUNCTION__, __FILE__, __LINE__); \
     } while(0)
 
 // Set an error string using printf-style formats and return
 #define ERS(fmt, ...)                                      \
     do {                                                   \
         setError (fmt, ## __VA_ARGS__);                    \
-        _setup.stack_index = 0;                            \
-        append_stack_info(_setup, __PRETTY_FUNCTION__, __FILE__, __LINE__); \
+        callstack.clear();                            \
+        callstack.append_stack_info(__PRETTY_FUNCTION__, __FILE__, __LINE__); \
         return INTERP_ERROR;                               \
     } while(0)
 
 // Return one of the very few numeric errors
 #define ERN(error_code)                                    \
     do {                                                   \
-        _setup.stack_index = 0;                            \
-        append_stack_info(_setup, __PRETTY_FUNCTION__, __FILE__, __LINE__); \
+        callstack.clear();                            \
+        callstack.append_stack_info(__PRETTY_FUNCTION__, __FILE__, __LINE__); \
         return error_code;                                 \
     } while(0)
 
@@ -608,7 +602,7 @@ void append_stack_info(setup_struct &settings, const char *function_name, const 
 // Propagate an error up the stack
 #define ERP_LINE(error_code, __line)                                   \
     do {                                                       \
-        append_stack_info(_setup, __PRETTY_FUNCTION__, __FILE__, __line); \
+        callstack.append_stack_info(__PRETTY_FUNCTION__, __FILE__, __line); \
         return error_code;                                     \
     } while(0)
 
