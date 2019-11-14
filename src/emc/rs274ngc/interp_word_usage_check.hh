@@ -42,6 +42,7 @@ enum QWordMeanings
     Q_TIMEOUT, //M66
     Q_ANALOG_VALUE, //M67/M68
     Q_USER,
+    Q_DISCRETE_SETTER_INPUT,
     MAX_QWORD_MEANINGS
 };
 

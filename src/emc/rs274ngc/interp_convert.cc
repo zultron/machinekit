@@ -30,6 +30,7 @@
 #include "interp_queue.hh"
 #include "interp_parameter_def.hh"
 #include <rotary_axis_util.hh>
+#include "interp_internal.hh"
 
 #include "units.h"
 #define TOOL_INSIDE_ARC(side, turn) (((side)==LEFT&&(turn)>0)||((side)==RIGHT&&(turn)<0))
@@ -1091,10 +1092,8 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
   UnitsTransform program_to_user_units = convertsProgramToUser();
 
   if ((g_code == G_52) || (g_code == G_92)) {
-    // FIXME these cases preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
     if (g_code == G_52) {
       // Command represents new offsets, copy them in directly, and apply the difference to the current position
-      // FIXME this preserve the original (wrong) behavior of the interp (which does not consider rotation in the current position)
       PositionArray cmd_axis_values = getAxisWordsFromBlock(block, settings->transform.g92Offset.tf);
       settings->current += (settings->transform.g92Offset.tf - cmd_axis_values);
       settings->transform.g92Offset.tf = cmd_axis_values;
@@ -1199,7 +1198,7 @@ int Interp::convert_param_comment(char *comment, char *expanded, int len)
                     {
 		        // if tolower is a macro, may need this int
 		        int c = *comment++;
-			if (FEATURE(NO_DOWNCASE_OWORD))
+            if (_setup.hasFeature(FEATURE_NO_DOWNCASE_OWORD))
 			    param[i] = c;
 			else
 			    param[i] = tolower(c);
@@ -1616,6 +1615,10 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   // FIXME force the extended work offsets to match parameters (user might have changed them underneath us)
   settings->work_offsets_user[origin] = settings->transform.g5xOffset;
 
+  if (!isNonzero(settings->transform.g5xOffset)) {
+      setWarning("Work offset %s is all zeros (effectively G53)\n", lookup_work_offset_gcode_string_from_origin(origin).c_str());
+  }
+
   write_and_update_state_tag(nullptr);
 
   // Extract transform parts in the order that canon / tests expect
@@ -1961,8 +1964,8 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
                   block_pointer block,           //!< pointer to current block
                   setup_pointer settings)        //!< pointer to machine settings
 {
-	if (g_code == G_7) {
-    		if (FEATURE(LATHE_TOOLCHANGE)) {
+    if (g_code == G_7) {
+        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
    	 		if (!settings->lathe_diameter_mode) {
       				if(block->x_flag){
        		 			block->x_number /= 2; //Apply scaling now
@@ -1982,7 +1985,7 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
 		ERS("G7 - diameter mode - not allowed in mill");
  }
  	else if (g_code == G_8) {
-		if (FEATURE(LATHE_TOOLCHANGE)) {
+        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
 			ERS("BUG: G8 - radius mode - not allowed.");	
 			return INTERP_OK;
 		}
@@ -2523,25 +2526,6 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
     return INTERP_OK;
 }
 
-static int formatGCode(int val, std::string &cmd)
-{
-    char buf[LINELEN];
-    if (val != -1) { // FIXME not sure if this is correct!
-        // if this was set in sub, and unset in caller, it will
-        // not be reset
-        if (val % 10) {
-        snprintf(buf,sizeof(buf)," G%d.%d", val / 10, val % 10);
-        } else {
-        snprintf(buf,sizeof(buf)," G%d", val / 10);
-        }
-        cmd += buf;
-    } else {
-        return INTERP_ERROR;
-    }
-    return INTERP_OK;
-}
-
-
 /**
  * given two int arrays representing interpreter settings as stored in
  * _setup.active_g_codes, construct a G-code sequence to synchronize their state.
@@ -2597,7 +2581,7 @@ int Interp::gen_g_codes(
         case G_CODE_PATH_MODE: // - control mode
         case G_CODE_DISTANCE_MODE_IJK: // - ijk distance mode
         case G_CODE_LATHE_DIAMETER_MODE: // - lathe diameter mode
-            CHKS(formatGCode(val, cmd), "gen_g_codes BUG: index %d = -1", ii);
+            CHKS(formatGCode((GCodes)val, cmd), "gen_g_codes BUG: index %d = -1", ii);
             break;
         case ACTIVE_G_CODES: // Do nothing, not a real G-code
             break;
@@ -2703,7 +2687,7 @@ int Interp::gen_restore_cmd(ModalState const &state,
 
     //Mimic the order of restoration commands used elsewhere
     if (state.g_codes[G_CODE_UNITS] != saved_g[G_CODE_UNITS]) {
-        formatGCode(saved_g[G_CODE_UNITS], cmd);
+        formatGCode((GCodes)saved_g[G_CODE_UNITS], cmd);
     }
 
 
@@ -2712,7 +2696,7 @@ int Interp::gen_restore_cmd(ModalState const &state,
     int res_g = gen_g_codes(current_g, saved_g, state.settings, saved_settings, saved_work_offset, cmd);
 
     // If G43 is present for lathes, you must have an H word
-    if (FEATURE(LATHE_TOOLCHANGE)) {
+    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         if (cmd.find("G43") != std::string::npos) {
             char buf[LINELEN];
             snprintf(buf, sizeof(buf), " H%d", saved_tag.fields[GM_FIELD_TOOL_NUMBER]);
@@ -2753,8 +2737,10 @@ int Interp::save_settings(setup_pointer settings)
  *       issue this like so - after call_level has been decremented:
  *       restore_settings(settings->call_level + 1)
  */
-int Interp::restore_settings(setup_pointer settings,
-			    int from_level)    //!< call level of context to restore from
+int Interp::restore_settings(
+    setup_pointer settings,
+    int from_level,
+    int m_code)    //!< call level of context to restore from
 {
 
     CHKS((from_level < settings->call_level),
@@ -2777,15 +2763,20 @@ int Interp::restore_settings(setup_pointer settings,
     // so restoring feed later on is interpreted in the correct context
 
     if (settings->modal_state.g_codes[G_CODE_UNITS] !=
-	settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]) {
+        settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]) {
         char buf[LINELEN];
-        snprintf(buf, sizeof(buf), "G%d",
-		 settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]/10);
-        CHKS(execute(buf) != INTERP_OK, _("M7x: restore_settings G20/G21 failed: '%s'"), cmd.c_str());
+        snprintf(buf, sizeof(buf), "G%d\n",
+                 settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]/10);
     }
     gen_m_codes(settings->modal_state.m_codes, settings->sub_context[from_level].modal_state.m_codes,cmd);
     gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,
                 settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings, _setup.origin_index, cmd);
+
+    // KLUDGE stash the caller line here
+    std::string old_linetext = _setup.linetext;
+    if (cmd.empty()) {
+        return INTERP_OK;
+    }
 
     if (cmd.length() > 0) {
         // the sequence can be multiline, separated by nl
@@ -2795,11 +2786,12 @@ int Interp::restore_settings(setup_pointer settings,
         char *last = cmd_buf;
         char *s;
         while ((s = strtok_r(last, "\n", &last)) != NULL) {
-            int status = execute(s);
+            int status = execute_impl(s, CommandSource::MODAL_STATE_RESTORE);
+            strncpy(_setup.linetext, old_linetext.c_str(), sizeof(_setup.linetext)-1);
             if (status != INTERP_OK) {
                 char currentError[LINELEN+1];
                 strcpy(currentError,getSavedError());
-                CHKS(status, _("M7x: restore_settings failed executing: '%s': %s"), s, currentError);
+                CHKS(status, _("M%d: restore_settings failed executing: '%s': %s"), m_code, s, currentError);
             }
         }
     // Write updated state back to local storage
@@ -2859,7 +2851,7 @@ int Interp::restore_from_tag(StateTag const &tag)
         char *last = buf;
         char *s;
         while ((s = strtok_r(last, "\n", &last)) != NULL) {
-            int status = execute(s);
+            int status = execute_impl(s, CommandSource::ABORT_CLEANUP);
             if (status > INTERP_MIN_ERROR) {
                 char currentError[LINELEN + 1];
                 strcpy(currentError, getSavedError());
@@ -3085,7 +3077,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 
   // needs more testing.. once? test tool_change_flag!
   //#ifdef DEBATABLE
-  if (FEATURE(RETAIN_G43)) {
+  if (_setup.hasFeature(FEATURE_RETAIN_G43)) {
     // I consider this useful, so make it configurable.
     // Turn it on optionally . -mah
 
@@ -3184,7 +3176,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
         // restore state from current stack frame.
         CHKS((!(_setup.sub_context[_setup.call_level].context_status & CONTEXT_VALID)),
              (_("Cannot restore context from invalid stack frame - missing M70/M73?")));
-        CHP(restore_settings(&_setup, _setup.call_level));
+        CHP(restore_settings(&_setup, _setup.call_level, 72));
     }
   }
 
@@ -3316,7 +3308,7 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
 
  } else if ((block->m_modes[M_MODE_USER] == 998) && ONCE_M(10)){
 	 // Tormach only
-	 if (FEATURE(LATHE_TOOLCHANGE)){
+     if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)){
 		 CHKS(1, NCE_UNKNOWN_M_CODE_USED,998);
 	 } else {
 		CHP(convert_home(G_30, block, settings));
@@ -3330,6 +3322,32 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
     enqueue_M_USER_COMMAND(index,block->p_number,block->q_number);
   }
   return INTERP_OK;
+}
+
+int Interp::convert_g10(block_pointer block, setup_pointer settings)
+{
+    CHKS(!block->l_flag, _("G10 is missing L word"));
+    switch (block->l_number) {
+    case 1:
+    case 10:
+    case 11:
+        CHP(convert_setup_tool(block, settings));
+        // Any change to work / tool offsets means the queue should be flushed to prevent interp / task mismatches
+        settings->work_offset_modified_flag = true;
+        break;
+    case 2:
+    case 20:
+        CHP(convert_setup(block, settings));
+        settings->work_offset_modified_flag = true;
+        break;
+    case 99:
+        CHP(convert_part_count(block, settings));
+        break;
+    default:
+        ERS("Invalid L word %d in G10 block", block->l_number);
+    }
+
+    return INTERP_OK;
 }
 
 /****************************************************************************/
@@ -3357,7 +3375,6 @@ modal group 0), it is executed. The other two in modal group 0 (G4 and
 G53) are executed elsewhere.
 
 */
-
 int Interp::convert_modal_0(GCodes code,    //!< G code, must be from group 0
                            block_pointer block, //!< pointer to a block of RS274/NGC instructions
                            setup_pointer settings //!< pointer to machine settings
@@ -3373,12 +3390,7 @@ int Interp::convert_modal_0(GCodes code,    //!< G code, must be from group 0
             break;
 
         case G_10:
-            if(block->l_number == 1 || block->l_number == 10 || block->l_number == 11)
-                CHP(convert_setup_tool(block, settings));
-            else
-                CHP(convert_setup(block, settings));
-            // Any change to work / tool offsets means the queue should be flushed to prevent interp / task mismatches
-            settings->work_offset_modified_flag = true;
+            CHP(convert_g10(block, settings));
             break;
         case G_28:
         case G_30:
@@ -3540,10 +3552,12 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
   /* probe_type: 
      ~1 = error if probe operation is unsuccessful (ngc default)
      |1 = suppress error, report in # instead
-     ~2 = move until probe trips (ngc default)
-     |2 = move until probe clears
-     ~4 = move normally
-     |4 = move unconditionally - don't care if probe trips */
+     ~2 = move until probe/setter trips (ngc default)
+     |2 = move until probe/setter clears
+     ~4 = move normally - abort if probe/setter trips G38.6
+     |4 = move unconditionally - don't care if probe/setter trips
+     |8 = this is a tool setter probe
+  */
 
   unsigned char probe_type = g_code - G_38_2;
 
@@ -3566,6 +3580,16 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
        
   write_and_update_state_tag(block);
   TURN_PROBE_ON();
+  if (block->q_flag) {
+      double q_number = std::round(block->q_number);
+      CHKS((q_number < 0.0 || q_number > 1.0),
+           _("Q%f is invalid for probe moves, must be one of {0,1}"), block->q_number);
+      if (q_number == 1.0) {
+        /* tell motion this is a tool setter probe */
+        probe_type |= 8;
+      }
+  }
+
   if (block->p_flag) {
       CHKS(std::round(block->p_number) != 1.0,
            _("P%f is invalid for probe moves, must be one of {0,1}"), block->p_number);
@@ -3802,7 +3826,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
                              settings->tool_table[pocket].backangle,
                              settings->tool_table[pocket].orientation);
     }
-    if (FEATURE(LATHE_TOOLCHANGE)) {
+    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         // G10 command doesn't automatically apply a G43 length offset to the newly measured tool
         // we don't want to call a G43 in our python code for lathe, so we'll deal with applying the offset here.
         // Tormach *dpr 4/30/13
@@ -3835,6 +3859,27 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
             settings->current[W] += settings->transform.toolOffset[W] - tool_offset.w;
             settings->transform.toolOffset.tf = toArray(tool_offset);
         }
+    }
+    return INTERP_OK;
+}
+
+/**
+ * Manually update a part counter either with an increment, or a provided value (via the Q word)
+ */
+int Interp::convert_part_count(
+    block_pointer block,   //!< pointer to a block of RS274/NGC instructions
+    setup_pointer settings)        //!< pointer to machine settings
+{
+    CHKS(!block->p_flag, _("G10 L99 requires a P word to specify the cycle counter"));
+
+    // Assumes an integer value
+    size_t counter_id = std::round(block->p_number);
+
+    if (block->q_flag) {
+        int q_value = (int)std::round(block->q_number);
+        CHP(update_part_counter(settings, counter_id, q_value));
+    } else {
+        CHP(increment_part_counter(settings, counter_id));
     }
     return INTERP_OK;
 }
@@ -4166,10 +4211,9 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
       logDebug("M99 main program endless loop");
       loop_to_beginning(settings);  // return control to beginning of file
 
-      settings->parameters[M99_CYCLE_COUNTER_A] += 1;
-      settings->parameters[M99_CYCLE_COUNTER_B] += 1;
-
       FINISH();  // Output any final linked segments
+      increment_part_counter(settings, COUNTER_M_99_A);
+      increment_part_counter(settings, COUNTER_M_99_B);
       return INTERP_EXECUTE_FINISH;  // tell task to issue any queued commands
   } else if ((block->m_modes[M_MODE_STOPPING] == 2) || (block->m_modes[M_MODE_STOPPING] == 30) ||
          (block->m_modes[M_MODE_STOPPING] == 99 && !_setup.loop_on_main_m99)
@@ -4304,15 +4348,13 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
       // Clear G92/G52 offset
       clearPersistentG92Parameters(settings);
 
-    if (block->m_modes[M_MODE_STOPPING] == 30) {
+    if (bool rewind = (block->m_modes[M_MODE_STOPPING] == 30)){
       PALLET_SHUTTLE();
-      PROGRAM_END(true);  // reset after program end with m30
-
-      settings->parameters[M30_CYCLE_COUNTER_A] += 1;
-      settings->parameters[M30_CYCLE_COUNTER_B] += 1;
-
+      PROGRAM_END(rewind);  // reset after program end with m30
+      increment_part_counter(settings, COUNTER_M_30_A);
+      increment_part_counter(settings, COUNTER_M_30_B);
     } else {
-      PROGRAM_END(false);
+      PROGRAM_END(rewind);
     }
 
     if (_setup.percent_flag && _setup.file_pointer) {
@@ -4337,11 +4379,30 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
         }
       }
     }
-    unwind_call(INTERP_EXIT, __FILE__,__LINE__,__FUNCTION__);
+    unwind_call(INTERP_EXIT, __FILE__,__LINE__,__FUNCTION__, CommandSource::INIT);
     return INTERP_EXIT;
   } else
     ERS(NCE_BUG_CODE_NOT_M0_M1_M2_M30_M60_M99);
   return INTERP_OK;
+}
+
+int Interp::increment_part_counter(setup_pointer settings, size_t counter_id)
+{
+    size_t param_idx = counter_id + MIN_CYCLE_COUNTER_PARAM;
+    CHKS(param_idx < MIN_CYCLE_COUNTER_PARAM || param_idx >= MAX_CYCLE_COUNTER_PARAM,
+         _("%s: Invalid counter ID %ld"), settings->linetext, (long)counter_id);
+    CHP(update_part_counter(settings, counter_id, settings->parameters[param_idx] + 1));
+    return INTERP_OK;
+}
+
+int Interp::update_part_counter(setup_pointer settings, size_t counter_id, int part_count)
+{
+    size_t param_idx = counter_id + MIN_CYCLE_COUNTER_PARAM;
+    CHKS(param_idx < MIN_CYCLE_COUNTER_PARAM || param_idx >= MAX_CYCLE_COUNTER_PARAM,
+         _("%s: Invalid counter ID %ld"), settings->linetext, (long)counter_id);
+    settings->parameters[param_idx] = part_count;
+    UPDATE_PART_COUNT(counter_id, part_count);
+    return INTERP_OK;
 }
 
 /*************************************************************************** */
@@ -5355,7 +5416,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     } else if (g_code == G_43) {
         logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
                  block->h_flag,block->h_number,settings->toolchange_flag,settings->current_pocket);
-        if (FEATURE(LATHE_TOOLCHANGE)) {
+        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
             if (block->h_number < 100) { //Future change required for using tools greater than 99
                 geo_offset_register = block->h_number + 10000;
             } else if (block->h_number < 10000) {
@@ -5368,7 +5429,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
 
         if (block->h_flag) {
             CHP((find_tool_pocket(settings, geo_offset_register, &pocket_number)));
-        } else if (FEATURE(LATHE_TOOLCHANGE)) {
+        } else if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
             ERS("G43 with no H-word unsupported");
         } else if (settings->toolchange_flag) {
             // Tool change is in progress, so the "current tool" is in its
@@ -5393,7 +5454,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
         tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.x);
         tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.y);
         tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.z);        
-        if (FEATURE(LATHE_TOOLCHANGE)) {
+        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
 	       // Apply wear offsets
 	       if (wear_offset_register) {
 	           CHP((find_tool_pocket(

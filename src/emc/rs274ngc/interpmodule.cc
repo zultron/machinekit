@@ -79,7 +79,7 @@ static  tool_table_array tool_table_wrapper ( Interp & inst) {
 }
 
 static  sub_context_array sub_context_wrapper ( Interp & inst) {
-    return sub_context_array(inst._setup.sub_context);
+    return sub_context_array(inst._setup.sub_context.data());
 }
 
 
@@ -139,9 +139,6 @@ static bool is_near_int(double value) {
 }
 static int nearest_int(double value) { return (int)(value + .5); }
 
-int (Interp::*execute_1)(const char *command) = &Interp::execute;
-int (Interp::*execute_2)(const char *command, int line_number) = &Interp::execute;
-
 // lifted from http://stackoverflow.com/questions/2261858/boostpython-export-custom-exception
 
 
@@ -183,7 +180,7 @@ static int wrap_interp_execute_1(Interp &interp, const char *command)
 
     // Temporarily set the call state to CS_NORMAL
     _setup.call_state = CS_NORMAL;
-    int status = interp.execute(command);
+    int status = interp.execute(command, CommandSource::REMAP);
     _setup.call_state = saved_call_state;
     _setup.blocks[0] = saved_block;
 
@@ -204,7 +201,8 @@ static int wrap_interp_execute_2(Interp &interp, const char *command, int lineno
 
     // use the remap stack to save/restore the current block
     CHP(interp.enter_remap());
-    int status = interp.execute(command, lineno);
+    // FIXME need to set the source line here
+    int status = interp.execute(command, CommandSource::REMAP);
     CHP(interp.leave_remap());
     _setup.blocks[0] = saved_block;
     
@@ -223,7 +221,7 @@ static int wrap_interp_read(Interp &interp, const char *command)
     setup &_setup = interp._setup;
     block saved_block = _setup.blocks[0];
 
-    int status = interp.read(command);
+    int status = interp.read(command, CommandSource::REMAP);
     if ((status > INTERP_MIN_ERROR) && throw_exceptions) {
 	throw InterpreterException(interp.getSavedError(),
 				   _setup.blocks[0].line_number, // not sure

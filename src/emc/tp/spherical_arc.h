@@ -33,7 +33,6 @@ typedef struct {
     PmCartesian rEnd;
     PmCartesian uTan;   /* Tangent vector at start of arc (copied from
                            prev. tangent line)*/
-    PmCartesian binormal;
     double radius;
     double spiral;
     // Angle that the arc encloses
@@ -43,25 +42,17 @@ typedef struct {
 } SphericalArc;
 
 
-int arcInitFromPoints(SphericalArc * const arc, PmCartesian const * const start,
-        PmCartesian const * const end, PmCartesian const * const center);
-
-int arcInitFromVectors(SphericalArc * const arc, PmCartesian const * const vec0,
-        PmCartesian const * const vec1,
-        PmCartesian const * const center);
+int arcInitFromPoints(SphericalArc * const arc,
+    PmCartesian const * const start,
+    PmCartesian const * const end,
+    PmCartesian const * const center, const PmCartesian * const uTan, double prev_line_length);
 
 int arcPoint(SphericalArc const * const arc, double angle_in, PmCartesian * const out);
 
-int arcNormalizedSlerp(SphericalArc const * const arc, double t, PmCartesian * const out);
-
-int arcLength(SphericalArc const * const arc, double * const length);
-
-int arcFromLines(SphericalArc * const arc, PmCartLine const * const line1,
-        PmCartLine const * const line2, double radius,
-        double blend_dist, double center_dist, PmCartesian * const start, PmCartesian * const end, int consume);
+double arcLength(SphericalArc const * const arc);
 
 int checkRayIntersectsArc(PmCartesian const * const center,
         PmCartesian const * const P, PmCartesian const * const u_ray, int reverse_dir);
 
-int arcTangent(SphericalArc const * const arc, PmCartesian * const tan, int at_end);
+int arcTangent(SphericalArc const * const arc, const double t, PmCartesian * const out);
 #endif

@@ -35,7 +35,25 @@ static ptr_inihal_data *the_inihal_data;
 #define EPSILON .00001
 #define CLOSE(a,b,eps) ((a)-(b) < +(eps) && (a)-(b) > -(eps))
 
+
+#define CATCH_AND_LOG_ERROR(call__, need_return__) \
+do {\
+    int res = call__; \
+    if (0 != res) { \
+        if (emc_debug & EMC_DEBUG_CONFIG) { \
+            rcs_print("%s: %d: bad return value %d from %s\n", __FILE__, __LINE__, res, #call__); \
+        } \
+        if (need_return__) { \
+            return -1; \
+        } \
+    } \
+} while (0)
+
+#define LOG_ERROR(call__) CATCH_AND_LOG_ERROR(call__, false)
+#define RETURN_ON_ERROR(call__) CATCH_AND_LOG_ERROR(call__, true)
+
 #define NEW(NAME) new_inihal_data.NAME
+#define OLD(NAME) old_inihal_data.NAME
 
 #define CHANGED(NAME) \
     ((old_inihal_data.NAME) - (new_inihal_data.NAME) > +(EPSILON)) \
@@ -47,13 +65,17 @@ static ptr_inihal_data *the_inihal_data;
     || \
     ((old_inihal_data.NAME[IDX]) - (new_inihal_data.NAME[IDX]) < -(EPSILON))
 
-#define UPDATE(NAME) old_inihal_data.NAME = new_inihal_data.NAME
+#define UPDATE(NAME) OLD(NAME) = NEW(NAME)
 
 #define UPDATE_IDX(NAME,IDX) old_inihal_data.NAME[IDX] = new_inihal_data.NAME[IDX]
 
-#define SHOW_CHANGE(NAME) \
-    fprintf(stderr,"Changed: "#NAME" %g-->%g\n",old_inihal_data.NAME, \
-                                                new_inihal_data.NAME);
+#define SHOW_CHANGE(NAME) do {\
+    if (debug) { \
+        fprintf(stderr,"Changed: "#NAME" %g-->%g\n",old_inihal_data.NAME, \
+                                                    new_inihal_data.NAME); \
+    } \
+} while (0)
+
 #define SHOW_CHANGE_ARC_BLEND() \
     fprintf(stderr,"Changed: blend_enable:          %d-->%d\n"\
                    "         blend_fallback_enable: %d-->%d\n"\
@@ -72,9 +94,13 @@ static ptr_inihal_data *the_inihal_data;
            ,new_inihal_data.traj_arc_blend_ramp_freq \
           );
 
-#define SHOW_CHANGE_IDX(NAME,IDX) \
-    fprintf(stderr,"Changed: "#NAME"[%d] %g-->%g\n",IDX,old_inihal_data.NAME[IDX], \
-                                                        new_inihal_data.NAME[IDX]);
+#define SHOW_CHANGE_IDX(NAME,IDX) do {\
+    if (debug) { \
+        fprintf(stderr,"Changed: "#NAME"[%d] %g-->%g\n",IDX,old_inihal_data.NAME[IDX], \
+                                                            new_inihal_data.NAME[IDX]); \
+    } \
+} while (0)
+
 #define MAKE_BIT_PIN(NAME,DIR) \
 do { \
      retval = hal_pin_bit_newf(DIR,&(the_inihal_data->NAME),comp_id,PREFIX#NAME); \
@@ -84,6 +110,12 @@ do { \
 #define MAKE_S32_PIN(NAME,DIR) \
 do { \
      retval = hal_pin_s32_newf(DIR,&(the_inihal_data->NAME),comp_id,PREFIX#NAME); \
+     if (retval < 0) return retval; \
+   } while (0)
+
+#define MAKE_U32_PIN(NAME,DIR) \
+do { \
+     retval = hal_pin_u32_newf(DIR,&(the_inihal_data->NAME),comp_id,PREFIX#NAME); \
      if (retval < 0) return retval; \
    } while (0)
 
@@ -145,35 +177,31 @@ int ini_hal_init(void)
     MAKE_FLOAT_PIN(traj_arc_blend_ramp_freq,HAL_IN);
     MAKE_FLOAT_PIN(traj_arc_blend_tangent_kink_ratio,HAL_IN);
 
+    MAKE_U32_PIN(traj_biarc_max_iterations, HAL_IN);
+    MAKE_FLOAT_PIN(traj_biarc_velocity_rel_tolerance, HAL_IN);
+    MAKE_FLOAT_PIN(traj_biarc_velocity_abs_tolerance, HAL_IN);
+    MAKE_FLOAT_PIN(traj_biarc_deviation_abs_tolerance, HAL_IN);
+    MAKE_FLOAT_PIN(traj_biarc_feed_override_allowance, HAL_IN);
+    MAKE_FLOAT_PIN(traj_biarc_velocity_cutoff, HAL_IN);
+    MAKE_FLOAT_PIN(traj_biarc_convergence_tolerance, HAL_IN);
+
     hal_ready(comp_id);
     return 0;
 } // ini_hal_init()
 
 int ini_hal_init_pins()
 {
-    INIT_PIN(traj_default_velocity);
-    INIT_PIN(traj_max_velocity);
-    INIT_PIN(traj_max_angular_velocity);
-    INIT_PIN(traj_default_acceleration);
-    INIT_PIN(traj_max_acceleration);
+#define FIELD(t,f) INIT_PIN(f);
+#define ARRAY(t,f,n) do { \
+    for (int idx = 0; idx < n; idx++) { \
+        INIT_PIN(f[idx]); \
+    } \
+} while (0);
 
-    INIT_PIN(traj_arc_blend_enable);
-    INIT_PIN(traj_arc_blend_fallback_enable);
-    INIT_PIN(traj_arc_blend_optimization_depth);
-    INIT_PIN(traj_arc_blend_gap_cycles);
-    INIT_PIN(traj_arc_blend_ramp_freq);
-    INIT_PIN(traj_arc_blend_tangent_kink_ratio);
+HAL_FIELDS
 
-    for (int idx = 0; idx < EMCMOT_MAX_JOINTS; idx++) {
-        INIT_PIN(backlash[idx]);
-        INIT_PIN(min_limit[idx]);
-        INIT_PIN(max_limit[idx]);
-        INIT_PIN(max_velocity[idx]);
-        INIT_PIN(max_acceleration[idx]);
-        INIT_PIN(ferror[idx]);
-        INIT_PIN(min_ferror[idx]);
-    }
-
+#undef FIELD
+#undef ARRAY
     return 0;
 } // ini_hal_init_pins()
 
@@ -194,41 +222,27 @@ int check_ini_hal_items()
     const value_inihal_data &new_inihal_data = new_inihal_data_mutable;
 
     if (CHANGED(traj_default_velocity)) {
-        if (debug) SHOW_CHANGE(traj_default_velocity);
+        SHOW_CHANGE(traj_default_velocity);
         UPDATE(traj_default_velocity);
-        if (0 != emcTrajSetVelocity(0, NEW(traj_default_velocity))) {
-            rcs_print("check_ini_hal_items:bad return value from emcTrajSetVelocity\n");
-        }
+        LOG_ERROR(emcTrajSetVelocity(0, NEW(traj_default_velocity)));
     }
     if (CHANGED(traj_max_velocity) | CHANGED(traj_max_angular_velocity)) {
-        if (debug) SHOW_CHANGE(traj_max_velocity);
-	if (debug) SHOW_CHANGE(traj_max_angular_velocity);
+        SHOW_CHANGE(traj_max_velocity);
+        SHOW_CHANGE(traj_max_angular_velocity);
         UPDATE(traj_max_velocity);
         UPDATE(traj_max_angular_velocity);
-        if (0 != emcTrajSetMaxVelocity(NEW(traj_max_velocity),
-				       NEW(traj_max_angular_velocity))) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("check_ini_hal_items:bad return value from emcTrajSetMaxVelocity\n");
-            }
-        }
+        LOG_ERROR(emcTrajSetMaxVelocity(NEW(traj_max_velocity),
+                                            NEW(traj_max_angular_velocity)));
     }
     if (CHANGED(traj_default_acceleration)) {
-        if (debug) SHOW_CHANGE(traj_default_acceleration);
+        SHOW_CHANGE(traj_default_acceleration);
         UPDATE(traj_default_acceleration);
-        if (0 != emcTrajSetAcceleration(NEW(traj_default_acceleration))) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("check_ini_hal_items:bad return value from emcTrajSetAcceleration\n");
-            }
-        }
+        LOG_ERROR(emcTrajSetAcceleration(NEW(traj_default_acceleration)));
     }
     if (CHANGED(traj_max_acceleration)) {
-        if (debug) SHOW_CHANGE(traj_max_acceleration);
+        SHOW_CHANGE(traj_max_acceleration);
         UPDATE(traj_max_acceleration);
-        if (0 != emcTrajSetMaxAcceleration(NEW(traj_max_acceleration))) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("check_ini_hal_items:bad return value from emcTrajSetMaxAcceleration\n");
-            }
-        }
+        LOG_ERROR(emcTrajSetMaxAcceleration(NEW(traj_max_acceleration)));
     }
 
     if (   CHANGED(traj_arc_blend_enable)
@@ -238,90 +252,86 @@ int check_ini_hal_items()
         || CHANGED(traj_arc_blend_ramp_freq)
         || CHANGED(traj_arc_blend_tangent_kink_ratio)
        ) {
-        if (debug) SHOW_CHANGE_ARC_BLEND()
+        SHOW_CHANGE_ARC_BLEND()
         UPDATE(traj_arc_blend_enable);
         UPDATE(traj_arc_blend_fallback_enable);
         UPDATE(traj_arc_blend_optimization_depth);
         UPDATE(traj_arc_blend_gap_cycles);
         UPDATE(traj_arc_blend_ramp_freq);
         UPDATE(traj_arc_blend_tangent_kink_ratio);
-        if (0 != emcSetupArcBlends(old_inihal_data.traj_arc_blend_enable
-                                  ,old_inihal_data.traj_arc_blend_fallback_enable
-                                  ,old_inihal_data.traj_arc_blend_optimization_depth
-                                  ,old_inihal_data.traj_arc_blend_gap_cycles
-                                  ,old_inihal_data.traj_arc_blend_ramp_freq
-                                  ,old_inihal_data.traj_arc_blend_tangent_kink_ratio
-                                  )) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("bad return value from emcSetupArcBlends\n");
-            }
-            return -1;
-        }
+        tp_arc_blend_config_t cfg = {
+            OLD(traj_arc_blend_enable),
+            OLD(traj_arc_blend_fallback_enable),
+            OLD(traj_arc_blend_optimization_depth),
+            (int)OLD(traj_arc_blend_gap_cycles),
+            OLD(traj_arc_blend_ramp_freq),
+            OLD(traj_arc_blend_tangent_kink_ratio),
+        };
+        RETURN_ON_ERROR(emcSetupArcBlends(cfg));
+    }
+
+    if (   CHANGED(traj_biarc_max_iterations)
+        || CHANGED(traj_biarc_convergence_tolerance)
+        || CHANGED(traj_biarc_velocity_abs_tolerance)
+        || CHANGED(traj_biarc_velocity_rel_tolerance)
+        || CHANGED(traj_biarc_feed_override_allowance)
+        || CHANGED(traj_biarc_deviation_abs_tolerance)
+        || CHANGED(traj_biarc_velocity_cutoff)
+       ) {
+
+        UPDATE(traj_biarc_max_iterations);
+        UPDATE(traj_biarc_convergence_tolerance);
+        UPDATE(traj_biarc_velocity_abs_tolerance);
+        UPDATE(traj_biarc_velocity_rel_tolerance);
+        UPDATE(traj_biarc_feed_override_allowance);
+        UPDATE(traj_biarc_velocity_cutoff);
+        UPDATE(traj_biarc_deviation_abs_tolerance);
+        biarc_solver_config_t cfg{};
+        cfg.max_iterations = OLD(traj_biarc_max_iterations);
+        cfg.convergence_tolerance = OLD(traj_biarc_convergence_tolerance);
+        cfg.velocity_abs_tolerance = OLD(traj_biarc_velocity_abs_tolerance);
+        cfg.velocity_rel_tolerance = OLD(traj_biarc_velocity_rel_tolerance);
+        cfg.feed_override_allowance = OLD(traj_biarc_feed_override_allowance);
+        cfg.velocity_cutoff = OLD(traj_biarc_velocity_cutoff);
+        cfg.deviation_abs_tolerance = OLD(traj_biarc_deviation_abs_tolerance);
+        RETURN_ON_ERROR(emcSetupBiArcSolverCfg(cfg));
     }
 
     for (int idx = 0; idx < EMCMOT_MAX_JOINTS; idx++) {
         if (CHANGED_IDX(backlash,idx) ) {
-            if (debug) SHOW_CHANGE_IDX(backlash,idx);
+            SHOW_CHANGE_IDX(backlash,idx);
             UPDATE_IDX(backlash,idx);
-            if (0 != emcAxisSetBacklash(idx,NEW(backlash[idx]))) {
-                if (emc_debug & EMC_DEBUG_CONFIG) {
-                    rcs_print("check_ini_hal_items:bad return value from emcAxisSetBacklash\n");
-                }
-        }
+            LOG_ERROR(emcAxisSetBacklash(idx,NEW(backlash[idx])));
         }
         if (CHANGED_IDX(min_limit,idx) ) {
-            if (debug) SHOW_CHANGE_IDX(min_limit,idx);
+            SHOW_CHANGE_IDX(min_limit,idx);
             UPDATE_IDX(min_limit,idx);
-            if (0 != emcAxisSetMinPositionLimit(idx,NEW(min_limit[idx]))) {
-                if (emc_debug & EMC_DEBUG_CONFIG) {
-                    rcs_print_error("check_ini_hal_items:bad return from emcAxisSetMinPositionLimit\n");
-                }
-            }
+            LOG_ERROR(emcAxisSetMinPositionLimit(idx,NEW(min_limit[idx])));
         }
         if (CHANGED_IDX(max_limit,idx) ) {
-            if (debug) SHOW_CHANGE_IDX(max_limit,idx);
+            SHOW_CHANGE_IDX(max_limit,idx);
             UPDATE_IDX(max_limit,idx);
-            if (0 != emcAxisSetMaxPositionLimit(idx,NEW(max_limit[idx]))) {
-                if (emc_debug & EMC_DEBUG_CONFIG) {
-                    rcs_print_error("check_ini_hal_items:bad return from emcAxisSetMaxPositionLimit\n");
-                }
-            }
+            LOG_ERROR(emcAxisSetMaxPositionLimit(idx,NEW(max_limit[idx])));
         }
         if (CHANGED_IDX(max_velocity,idx) ) {
-            if (debug) SHOW_CHANGE_IDX(max_velocity,idx);
+            SHOW_CHANGE_IDX(max_velocity,idx);
             UPDATE_IDX(max_velocity,idx);
-            if (0 != emcAxisSetMaxVelocity(idx, NEW(max_velocity[idx]))) {
-                if (emc_debug & EMC_DEBUG_CONFIG) {
-                    rcs_print_error("check_ini_hal_items:bad return from emcAxisSetMaxVelocity\n");
-                }
-            }
+            LOG_ERROR(emcAxisSetMaxVelocity(idx, NEW(max_velocity[idx])));
         }
         if (CHANGED_IDX(max_acceleration,idx) ) {
-            if (debug) SHOW_CHANGE_IDX(max_acceleration,idx);
+            SHOW_CHANGE_IDX(max_acceleration,idx);
             UPDATE_IDX(max_acceleration,idx);
-            if (0 != emcAxisSetMaxAcceleration(idx, NEW(max_acceleration[idx]))) {
-                if (emc_debug & EMC_DEBUG_CONFIG) {
-                    rcs_print_error("check_ini_hal_items:bad return from emcAxisSetMaxAcceleration\n");
-                }
-            }
+            LOG_ERROR(emcAxisSetMaxAcceleration(idx, NEW(max_acceleration[idx])));
         }
         if (CHANGED_IDX(ferror,idx) ) {
-            if (debug) SHOW_CHANGE_IDX(ferror,idx);
+            SHOW_CHANGE_IDX(ferror,idx);
             UPDATE_IDX(ferror,idx);
-            if (0 != emcAxisSetFerror(idx,NEW(ferror[idx]))) {
-                if (emc_debug & EMC_DEBUG_CONFIG) {
-                    rcs_print_error("check_ini_hal_items:bad return from emcAxisSetFerror\n");
-                }
-            }
+            LOG_ERROR(emcAxisSetFerror(idx,NEW(ferror[idx])));
         }
         if (CHANGED_IDX(min_ferror,idx) ) {
-            if (debug) SHOW_CHANGE_IDX(min_ferror,idx);
+            SHOW_CHANGE_IDX(min_ferror,idx);
             UPDATE_IDX(min_ferror,idx);
-            if (0 != emcAxisSetMinFerror(idx,NEW(min_ferror[idx]))) {
-                if (emc_debug & EMC_DEBUG_CONFIG) {
-                    rcs_print_error("check_ini_hal_items:bad return from emcAxisSetMinFerror\n");
-                }
-        }
+            LOG_ERROR(emcAxisSetMinFerror(idx,NEW(min_ferror[idx])));
         }
     }
 

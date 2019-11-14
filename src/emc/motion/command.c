@@ -1031,8 +1031,6 @@ check_stuff ( "before command_handler()" );
 	    /* can do it at any time */
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_VEL");
 	    emcmotStatus->vel = emcmotCommand->vel;
-	    tpSetVmax(&emcmotDebug->tp, emcmotStatus->vel, 
-			    emcmotCommand->ini_maxvel);
 	    break;
 
 	case EMCMOT_SET_VEL_LIMIT:
@@ -1416,22 +1414,39 @@ check_stuff ( "before command_handler()" );
                 // if suppress errors = off...
 
                 int probeval = !!*(emcmot_hal_data->probe_input);
+                if ((emcmotCommand->probe_type & 8) && (!!*(emcmot_hal_data->discrete_setter_input))) {
+               	    // tool setter probe and has discrete input
+               	    probeval = !!*(emcmot_hal_data->setter_input);
+               	}
                 int probe_whenclears = !!(emcmotCommand->probe_type & 2);
-				int ignore_probe   = !!(emcmotCommand->probe_type & 4);
-				if (!ignore_probe){
-					if (probeval != probe_whenclears) {
-						// the probe is already in the state we're seeking.
-						if(probe_whenclears) 
-							reportError(_("Probe is already clear when starting G38.4 or G38.5 move"));
-						else
-							reportError(_("Probe is already tripped when starting G38.2 or G38.3 move"));
+		int ignore_probe   = !!(emcmotCommand->probe_type & 4);
 
-						emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
-						tpAbort(&emcmotDebug->tp);
-						SET_MOTION_ERROR_FLAG(1);
-						break;
-					}
-				}	
+		if (!ignore_probe){
+		    if (probeval != probe_whenclears) {
+			// the probe is already in the state we're seeking.
+			if (probe_whenclears) {
+			    if (emcmotCommand->probe_type & 8) {
+				    reportError(_("Tool setter is already clear when starting G38.4 or G38.5 move"));
+			    }
+			    else {
+				    reportError(_("Probe is already clear when starting G38.4 or G38.5 move"));	
+			    }
+			}
+			else {
+			    if (emcmotCommand->probe_type & 8) {
+				    reportError(_("Tool setter is already tripped when starting G38.2 or G38.3 move"));
+			    }
+			    else {
+				    reportError(_("Probe is already tripped when starting G38.2 or G38.3 move"));
+			    }
+
+			    emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
+			    tpAbort(&emcmotDebug->tp);
+			    SET_MOTION_ERROR_FLAG(1);
+			    break;
+			}
+		    }
+		}
             }
 
 	    /* append it to the emcmotDebug->tp */
@@ -1442,7 +1457,7 @@ check_stuff ( "before command_handler()" );
 				emcmotStatus->enables_new, 0, -1,
 				emcmotCommand->pure_angular,
 				emcmotCommand->tag)) {
-		reportError(_("can't add probe move"));
+		reportError(_("can't add probe/setter move"));
 		emcmotStatus->commandStatus = EMCMOT_COMMAND_BAD_EXEC;
 		tpAbort(&emcmotDebug->tp);
 		SET_MOTION_ERROR_FLAG(1);
@@ -1706,12 +1721,7 @@ check_stuff ( "before command_handler()" );
         break;
 
     case EMCMOT_SETUP_ARC_BLENDS:
-        emcmotConfig->arcBlendEnable = emcmotCommand->arcBlendEnable;
-        emcmotConfig->arcBlendFallbackEnable = emcmotCommand->arcBlendFallbackEnable;
-        emcmotConfig->arcBlendOptDepth = emcmotCommand->arcBlendOptDepth;
-        emcmotConfig->arcBlendGapCycles = emcmotCommand->arcBlendGapCycles;
-        emcmotConfig->arcBlendRampFreq = emcmotCommand->arcBlendRampFreq;
-        emcmotConfig->arcBlendTangentKinkRatio = emcmotCommand->arcBlendTangentKinkRatio;
+        emcmotConfig->arc_blend_cfg = emcmotCommand->arc_blend_cfg;
         break;
 
     case EMCMOT_SETUP_CONSISTENCY_CHECKS:
@@ -1720,6 +1730,10 @@ check_stuff ( "before command_handler()" );
 
     case EMCMOT_SET_MAX_POSITION_TRACKING_ERROR:
         emcmotConfig->maxPositionTrackingError = emcmotCommand->maxLimit;
+        break;
+
+    case EMCMOT_SETUP_BIARC_SOLVER_CFG:
+        emcmotConfig->biarc_solver_cfg = emcmotCommand->biarc_solver_cfg;
         break;
 
     default:

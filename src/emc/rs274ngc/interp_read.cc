@@ -3101,8 +3101,7 @@ int Interp::read_text(
     if (!fgets(raw_line, LINELEN, inport)) {
       if(_setup.skipping_to_sub)
       {
-        ERS(_("EOF in file:%s seeking o-word: o<%s> from line: %d"),
-                 _setup.filename,
+        ERS(_("EOF in file seeking o-word o<%s> called from line %d"),
                  _setup.skipping_to_sub,
                  _setup.skipping_start);
       }

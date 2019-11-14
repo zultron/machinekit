@@ -79,11 +79,34 @@ more trouble than would be nice.
 
 */
 
+InterpReturn Interp::check_g10(block_pointer block)
+{
+    int p_int = std::round(block->p_number);
+    CHKS(fabs(block->p_number - p_int) > 0.0001, _("P value not an integer with G10"));
+    switch (block->l_number) {
+    case 2:
+    case 20:
+        CHKS(p_int != 0 && !interp_param_global::is_valid_work_offset_index(p_int), _("P value out of range (0-500) with G10 L%d"), block->l_number);
+    break;
+    case 1:
+    case 10:
+    case 11:
+        CHKS((((block->l_number == 1 || block->l_number == 10 || block->l_number == 11) && p_int < 1)), _("P value out of range with G10 L%d"), block->l_number);
+    break;
+    case 99:
+        CHKS(fabs(block->q_number - std::round(block->q_number)) > 0.001, _("G10 L99 requires an integer value for Q if used"));
+        break;
+    default:
+        ERS("G10 has invalid L value %d (must be one of 1, 2, 10, 11, 20, 99)", block->l_number);
+    }
+
+    return INTERP_OK;
+}
+
 int Interp::check_g_codes(block_pointer block,   //!< pointer to a block to be checked
                          setup_pointer settings)        //!< pointer to machine settings
 {
     GCodes mode0, mode1;
-    int p_int;
 
     mode0 = block->g_modes[GM_MODAL_0];
     mode1 = block->g_modes[1];
@@ -94,11 +117,7 @@ int Interp::check_g_codes(block_pointer block,   //!< pointer to a block to be c
         CHKS((block->p_number == -1.0), NCE_DWELL_TIME_MISSING_WITH_G4);
         break;
     case G_10:
-        (block->p_number >= 0) ? p_int = (int) (block->p_number +0.5) :p_int = (int) (block->p_number -0.5);
-        CHKS((block->l_number != 2 && block->l_number != 1 && block->l_number != 20 && block->l_number != 10 && block->l_number != 11), _("Line with G10 does not have L1, L10, L11, L2, or L20"));
-        CHKS((((block->p_number + 0.0001) - p_int) > 0.0002),  _("P value not an integer with G10"));
-        CHKS((block->l_number == 2 || block->l_number == 20) && (p_int != 0 && !interp_param_global::is_valid_work_offset_index(p_int)), _("P value out of range (0-500) with G10 L%d"), block->l_number);
-        CHKS((((block->l_number == 1 || block->l_number == 10 || block->l_number == 11) && p_int < 1)), _("P value out of range with G10 L%d"), block->l_number);
+        CHP(check_g10(block));
         break;
     case G_5_3:
         CHKS(((mode1 != G_5_2) && (mode1 != -1)), _("Between G5.2 and G5.3 codes, only additional G5.2 codes are allowed."));

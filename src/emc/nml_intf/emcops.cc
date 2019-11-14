@@ -83,6 +83,7 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
     probeCount = 0;
     probing = false;
     probeval = 0;
+    setterval = 0;
     
     ZERO_EMC_POSE(dtg);
     distance_to_go = 0.0;
@@ -145,11 +146,14 @@ EMC_TASK_STAT::EMC_TASK_STAT():
     block_delete_state(false),
     input_timeout(false),
     orient_timeout(false),
-    orient_no_exec_error(false)
+    orient_no_exec_error(false),
+    motionTolerance(0.0),
+    naivecamTolerance(0.0)
 {
     activeGCodes.fill(G_INVALID);
     activeMCodes.fill(-1);
     activeSettings.fill(0.0);
+    std::fill(part_counters, part_counters+MAX_PART_COUNTERS, 0);
 }
 
 PositionArray const & EMC_TASK_STAT::g5x_offset() const

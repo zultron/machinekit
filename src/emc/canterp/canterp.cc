@@ -68,7 +68,6 @@ class Canterp : public InterpBase {
 public:
     Canterp () : f(0) {}
     char *error_text(int errcode, char *buf, size_t buflen);
-    char *warning_text(char *buf, size_t buflen);
     char *stack_name(int index, char *buf, size_t buflen);
     char *line_text(char *buf, size_t buflen);
     char *file_name(char *buf, size_t buflen);
@@ -77,13 +76,13 @@ public:
     int ini_load(const char *inifile);
     int init();
     int execute();
-    int execute(const char *line);
-    int execute(const char *line, int line_number);
+    int execute(const char *line, CommandSource cmd_src);
+    int execute(const char *line, CommandSource cmd_src, int line_number);
     int synch();
     int exit();
     int open(const char *filename);
     int read();
-    int read(const char *line);
+    int read(const char *line, CommandSource cmd_src);
     int close();
     int reset();
     int line();
@@ -111,10 +110,6 @@ char *Canterp::error_text(int errcode, char *buf, size_t buflen) {
     if(errcode < INTERP_MIN_ERROR) snprintf(buf, buflen, "OK %d", errcode);
     else snprintf(buf, buflen, "ERROR %d", errcode);
     return buf;
-}
-
-char *Canterp::warning_text(char *warning_text, size_t max_size) {
-    return 0;
 }
 
 char *Canterp::stack_name(int index, char *buf, size_t buflen) {
@@ -248,7 +243,7 @@ static int canterp_parse(char *buffer)
     return 0;
 }
 
-int Canterp::read(const char *line) {
+int Canterp::read(const char *line, CommandSource cmd_src) {
     return canterp_parse((char *) line);
 }
 
@@ -259,7 +254,7 @@ int Canterp::read() {
     return canterp_parse(buf);
 }
 
-int Canterp::execute(const char *line) {
+int Canterp::execute(const char *line, CommandSource cmd_src) {
     int retval;
     double d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11;
     int i1, ln=-1;
@@ -623,13 +618,18 @@ int Canterp::execute(const char *line) {
 	return 0;
     }
 
+    if (!strcmp(the_command_name, "UPDATE_PART_COUNTS")) {
+    UPDATE_PART_COUNT(0,0);
+    return 0;
+    }
+
     if (!strcmp(the_command_name, "OPTIONAL_PROGRAM_STOP")) {
 	OPTIONAL_PROGRAM_STOP();
 	return 0;
     }
 
     if (!strcmp(the_command_name, "PROGRAM_END")) {
-	PROGRAM_END(false);
+    PROGRAM_END(false);
 	return 0;
     }
 
@@ -679,12 +679,12 @@ int Canterp::execute(const char *line) {
     return INTERP_ERROR;
 }
 
-int Canterp::execute(const char *line, int line_number) {
-    return execute(line);
+int Canterp::execute(const char *line, CommandSource cmd_src, int line_number) {
+    return execute(line, cmd_src);
 }
 
 int Canterp::execute() {
-    return execute(0);
+    return execute(nullptr, CommandSource::PROGRAM);
 }
 
 int Canterp::open(const char *newfilename) {

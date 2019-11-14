@@ -326,6 +326,12 @@ static PyMemberDef Stat_members[] = {
     {(char*)"input_timeout", T_BOOL, O(task.input_timeout), READONLY},
     {(char*)"orient_timeout", T_BOOL, O(task.orient_timeout), READONLY},
     {(char*)"orient_no_exec_error", T_BOOL, O(task.orient_no_exec_error), READONLY},
+    {(char*)"motion_tolerance", T_DOUBLE, O(task.motionTolerance), READONLY},
+    {(char*)"naivecam_tolerance", T_DOUBLE, O(task.naivecamTolerance), READONLY},
+    {(char*)"parts_counter_m30a", T_INT, O(task.part_counters[COUNTER_M_30_A]), READONLY},
+    {(char*)"parts_counter_m30b", T_INT, O(task.part_counters[COUNTER_M_30_B]), READONLY},
+    {(char*)"parts_counter_m99a", T_INT, O(task.part_counters[COUNTER_M_99_A]), READONLY},
+    {(char*)"parts_counter_m99b", T_INT, O(task.part_counters[COUNTER_M_99_B]), READONLY},
     {(char*)"delay_left", T_DOUBLE, O(task.delayLeft), READONLY},
     {(char*)"queued_mdi_commands", T_INT, O(task.queuedMDIcommands), READONLY},
 
@@ -364,6 +370,7 @@ static PyMemberDef Stat_members[] = {
     {(char*)"uu_per_rev", T_DOUBLE, O(motion.traj.uu_per_rev), READONLY},
     {(char*)"probing", T_BOOL, O(motion.traj.probing), READONLY},
     {(char*)"probe_val", T_INT, O(motion.traj.probeval), READONLY},
+    {(char*)"setter_val", T_INT, O(motion.traj.setterval), READONLY},
     {(char*)"kinematics_type", T_INT, O(motion.traj.kinematics_type), READONLY},
     {(char*)"motion_type", T_INT, O(motion.traj.motion_type), READONLY},
     {(char*)"distance_to_go", T_DOUBLE, O(motion.traj.distance_to_go), READONLY},
@@ -922,6 +929,7 @@ static PyObject *mdi(pyCommandChannel *s, PyObject *o) {
         return NULL;
     }
     strcpy(m.command, cmd);
+    m.cmd_src = (int)CommandSource::MDI;
     emcSendCommand(s, m);
     Py_INCREF(Py_None);
     return Py_None;

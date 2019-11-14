@@ -22,6 +22,14 @@
 
 #include <work_offset_structs.hh>
 
+enum PartsCounterTypes {
+    COUNTER_M_30_A,
+    COUNTER_M_30_B,
+    COUNTER_M_99_A,
+    COUNTER_M_99_B,
+    MAX_PART_COUNTERS
+};
+
 struct StateTag;
 /*
   This is the header file that all applications that use the
@@ -238,7 +246,12 @@ extern void SET_FEED_MODE(int mode);
 
 extern void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance);
 
+extern double GET_MOTION_TOLERANCE();
+
 extern void SET_NAIVECAM_TOLERANCE(double tolerance);
+
+extern double GET_NAIVECAM_TOLERANCE();
+
 
 /*
 
@@ -600,6 +613,10 @@ program. If commands are being executed with a stop after each one
 already (such as when the interpreter is being used with keyboard
 input), this command has no effect. */
 
+extern void UPDATE_PART_COUNT(size_t counter_id, int part_count);
+
+using PartCountArray = std::array<int, MAX_PART_COUNTERS>;
+extern PartCountArray GET_EXTERNAL_PART_COUNTS();
 
 /* Commands to set/reset output bits and analog values */
 extern void SET_MOTION_OUTPUT_BIT(int index);

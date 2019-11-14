@@ -22,7 +22,7 @@
 int main() {
     InterpBase *b = makeInterp();
     b->init();
-    b->read("(this is a comment)");
+    b->read("(this is a comment)", CommandSource::PROGRAM);
     b->execute();
     return 0;
 }
@@ -149,6 +149,8 @@ void SET_OPTIONAL_PROGRAM_STOP(bool state) {}
 bool GET_OPTIONAL_PROGRAM_STOP() {return false;}
 void PROGRAM_END(bool reset) {}
 void PROGRAM_STOP() {}
+void UPDATE_PART_COUNT(size_t, int) {}
+extern PartCountArray GET_EXTERNAL_PART_COUNTS() {return PartCountArray();}
 void SET_MOTION_OUTPUT_BIT(int index) {}
 void CLEAR_MOTION_OUTPUT_BIT(int index) {}
 void SET_AUX_OUTPUT_BIT(int index) {}

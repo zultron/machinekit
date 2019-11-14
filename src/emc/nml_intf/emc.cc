@@ -335,6 +335,9 @@ int emcFormat(NMLTYPE type, void *buffer, CMS * cms)
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 	((EMC_TASK_PLAN_OPTIONAL_STOP *) buffer)->update(cms);
 	break;
+    case EMC_TASK_PLAN_UPDATE_PART_COUNT_TYPE:
+    ((EMC_TASK_PLAN_UPDATE_PART_COUNT *) buffer)->update(cms);
+    break;
     case EMC_TASK_SET_MODE_TYPE:
 	((EMC_TASK_SET_MODE *) buffer)->update(cms);
 	break;
@@ -688,6 +691,8 @@ const char *emc_symbol_lookup(uint32_t type)
 	return "EMC_TASK_PLAN_SET_BLOCK_DELETE";
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 	return "EMC_TASK_PLAN_OPTIONAL_STOP";
+    case EMC_TASK_PLAN_UPDATE_PART_COUNT_TYPE:
+    return "EMC_TASK_PLAN_UPDATE_PART_COUNTS";
     case EMC_TASK_SET_MODE_TYPE:
 	return "EMC_TASK_SET_MODE";
     case EMC_TASK_SET_STATE_TYPE:
@@ -1975,6 +1980,8 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(input_timeout);
     cms->update(orient_timeout);
     cms->update(orient_no_exec_error);
+    cms->update(motionTolerance);
+    cms->update(naivecamTolerance);
 }
 
 /*
@@ -2193,6 +2200,7 @@ void EMC_TASK_PLAN_END::update(CMS * cms)
 
     EMC_TASK_CMD_MSG::update(cms);
     cms->update(reset);
+
 }
 
 /*
@@ -2400,6 +2408,7 @@ void EMC_TRAJ_STAT::update(CMS * cms)
     cms->update(spindle_sync);
     cms->update(probing);
     cms->update(probeval);
+    cms->update(setterval);
     cms->update(kinematics_type);
     cms->update(motion_type);
     cms->update(tag);
@@ -2707,7 +2716,7 @@ void EMC_TASK_PLAN_EXECUTE::update(CMS * cms)
 
     EMC_TASK_CMD_MSG::update(cms);
     cms->update(command, 256);
-
+    cms->update(cmd_src);
 }
 
 /*
@@ -2813,6 +2822,12 @@ void EMC_TASK_PLAN_OPTIONAL_STOP::update(CMS * cms)
 
 }
 
+void EMC_TASK_PLAN_UPDATE_PART_COUNT::update(CMS * cms)
+{
+    EMC_TASK_CMD_MSG::update(cms);
+    cms->update(counter_id);
+    cms->update(part_count);
+}
 
 /*
 *	NML/CMS Update function for EMC_MOTION_STAT_MSG

@@ -62,6 +62,14 @@ int ini_hal_init_pins(void);
     FIELD(hal_float_t,traj_arc_blend_ramp_freq) \
     FIELD(hal_float_t,traj_arc_blend_tangent_kink_ratio) \
 \
+    FIELD(hal_u32_t, traj_biarc_max_iterations) \
+    FIELD(hal_float_t, traj_biarc_velocity_rel_tolerance) \
+    FIELD(hal_float_t, traj_biarc_velocity_abs_tolerance) \
+    FIELD(hal_float_t, traj_biarc_deviation_abs_tolerance) \
+    FIELD(hal_float_t, traj_biarc_feed_override_allowance) \
+    FIELD(hal_float_t, traj_biarc_velocity_cutoff) \
+    FIELD(hal_float_t, traj_biarc_convergence_tolerance) \
+\
     ARRAY(hal_float_t,backlash,EMCMOT_MAX_JOINTS) \
     ARRAY(hal_float_t,min_limit,EMCMOT_MAX_JOINTS) \
     ARRAY(hal_float_t,max_limit,EMCMOT_MAX_JOINTS) \

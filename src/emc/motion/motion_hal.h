@@ -76,6 +76,8 @@ typedef struct {
 
 typedef struct {
     hal_bit_t *probe_input;	/* RPI: probe switch input */
+    hal_bit_t *setter_input;
+    hal_bit_t *discrete_setter_input;
     hal_bit_t *enable;		/* RPI: motion inhibit input */
     hal_bit_t *spindle_index_enable;
     hal_bit_t *spindle_is_atspeed;
@@ -86,6 +88,8 @@ typedef struct {
     hal_s32_t *pos_tracking_state; // Internal state of position tracking controller
     hal_float_t *pos_tracking_velocity; // target feed velocity according to position tracker used during tpRunCycle
     hal_s32_t *rigid_tap_state; // Internal state of rigid tapping state machine
+    hal_float_t *rigid_tap_overshoot; // Reports how much the rigid tapping cycle overshot it's reversal target (negative means it didn't reach the target)
+    hal_float_t *rigid_tap_reversal_vel_rps; // Reports how much the rigid tapping cycle overshot it's reversal target (negative means it didn't reach the target)
     hal_float_t *adaptive_feed;	/* RPI: adaptive feedrate, 0.0 to 1.0 */
     hal_bit_t *feed_hold;	/* RPI: set TRUE to stop motion maskable with g53 P1*/
     hal_bit_t *feed_inhibit;	/* RPI: set TRUE to stop motion (non maskable)*/
@@ -101,6 +105,9 @@ typedef struct {
     hal_s32_t *motion_type;	/* RPA: type (feed/rapid) of currently commanded motion */
     hal_s32_t *next_program_line;    /* program line next to execute */
     hal_s32_t *completed_program_line;    /* program line most recently completed */
+    hal_s32_t *queued_program_line;    /* program line most recently queued*/
+    hal_s32_t *mot_command;       /* command being processed in the current update*/
+    hal_s32_t *mot_command_count; /* count of total commands executed by motion (will overflow)*/
     hal_float_t *current_vel;   /* RPI: velocity magnitude in machine units */
     hal_float_t *requested_vel;   /* RPI: requested velocity magnitude in machine units / second */
     hal_float_t *gcode_feed;      /* RPI: gcode F-word velocity magnitude in machine units */
@@ -142,6 +149,9 @@ typedef struct {
 
     // simple output for brake
     hal_bit_t *spindle_brake;	/* spindle brake output */
+
+    hal_float_t *spindle_max_acceleration_rps2; // Allows spindle to tell motion how fast it can decelerate
+    hal_float_t *spindle_cmd_latency_sec; // Allows spindle to tell motion how fast it can decelerate
 
     // output of a prescribed speed (to hook-up to a velocity controller)
     hal_float_t *spindle_speed_out;	/* spindle speed output */

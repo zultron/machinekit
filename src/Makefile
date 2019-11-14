@@ -208,7 +208,7 @@ OPT := -Os
 endif
 
 OPT := $(OPT) $(INTEGER_OVERFLOW_FLAGS)
-DEBUG := -g -Wall
+DEBUG := -g -Wall -Werror
 CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) $(EXTRA_DEBUG) -DULAPI -std=gnu99 -fgnu89-inline
 CXXFLAGS := $(INCLUDE) $(CXXFLAGS)   $(EXTRA_DEBUG) -DULAPI $(DEBUG) $(OPT)
 
@@ -298,6 +298,7 @@ HEADERS := \
     emc/tp/tc_types.h \
     emc/tp/tcq.h \
     emc/tp/tp.h \
+    emc/tp/tp_enums.h \
     emc/tp/tp_types.h \
     emc/tp/spherical_arc.h \
     emc/tp/blendmath.h \

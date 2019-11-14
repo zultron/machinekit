@@ -27,7 +27,7 @@ unsigned jointAccelViolation(int joint_idx, double acc)
     // Allow some numerical tolerance here since max acceleration is a bit
     // fuzzy anyway. Torque is the true limiting factor, so there has to be
     // some slack here anyway due to variations in table load, friction, etc.
-    static const double ABS_TOL = 1e-4;
+    static const double ABS_TOL = 1e-3;
     const double REL_TOL = 1.0 + ABS_TOL;
     const double a_max_nominal = emcmotDebug->joints[joint_idx].acc_limit;
     const double a_limit = fmax(a_max_nominal * REL_TOL, a_max_nominal + ABS_TOL);

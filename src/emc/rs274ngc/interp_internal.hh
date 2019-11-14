@@ -322,6 +322,7 @@ struct context_struct {
     int sequence_number; // location (line number) in file
     const char *filename;      // name of file for this context
     const char *subName;       // name of the subroutine (oword)
+    std::string linetext;
     int m98_loop_counter;      // loop counter for Fanuc-style sub calls
     double saved_params[INTERP_SUB_PARAMS];
     parameter_map named_params;
@@ -367,6 +368,23 @@ and is not represented here
 #define MAX_SUB_DIRS 10
 
 using ParameterArray = std::array<double, interp_param_global::RS274NGC_MAX_PARAMETERS>;
+
+/**
+ * @note names match INI strings, do not rename
+ */
+enum Features {
+    FEATURE_RETAIN_G43,
+    FEATURE_OWORD_N_ARGS,
+    FEATURE_INI_VARS,
+    FEATURE_HAL_PIN_VARS,
+    FEATURE_NO_DOWNCASE_OWORD,
+    FEATURE_OWORD_WARNONLY,
+    FEATURE_LATHE_TOOLCHANGE,
+    FEATURE_EXTENDED_ERROR_MESSAGES,
+    MAX_FEATURES
+};
+
+using FeatureSet = std::bitset<64>;
 
 struct setup_struct
 {
@@ -481,7 +499,7 @@ struct setup_struct
   double return_value;               // optional return value for "return", "endsub"
   int value_returned;                // the last NGC procedure did/did not return a value
   int call_level;                    // current subroutine level
-  context sub_context[INTERP_SUB_ROUTINE_LEVELS];
+  std::array<context, INTERP_SUB_ROUTINE_LEVELS> sub_context;
   int call_state;                  //  enum call_states - inidicate Py handler reexecution
   offset_map_type offset_map;      // store label x name, file, line
 
@@ -509,7 +527,7 @@ struct setup_struct
 
   bool lathe_diameter_mode;       //Lathe diameter mode (g07/G08)
   bool mdi_interrupt;
-  int feature_set; 
+  FeatureSet feature_set;
 
   /* Control single-stepping wrt subroutines and remapped code. true
    * implies that we want to treat the move as a single block, false
@@ -524,15 +542,7 @@ struct setup_struct
     // control to skip to beginning of file
     bool loop_on_main_m99;
 
-#define FEATURE(x) (_setup.feature_set & FEATURE_ ## x)
-#define FEATURE_RETAIN_G43           0x00000001
-#define FEATURE_OWORD_N_ARGS         0x00000002
-#define FEATURE_INI_VARS             0x00000004
-#define FEATURE_HAL_PIN_VARS         0x00000008
-    // do not lowercase named params inside comments - for #<_hal[PinName]>
-#define FEATURE_NO_DOWNCASE_OWORD    0x00000010
-#define FEATURE_OWORD_WARNONLY       0x00000020
-#define FEATURE_LATHE_TOOLCHANGE     0x00000040
+    bool hasFeature(Features f) const;
 
     boost::python::object *pythis;  // boost::cref to 'this'
     const char *on_abort_command;
@@ -557,7 +567,7 @@ struct setup_struct
     std::set<int> work_offsets_used;
 };
 
-// the externally visible singleton instance
+const char * GetFeatureStr(Features f);
 
 extern class PythonPlugin *python_plugin;
 #define PYUSABLE (((python_plugin) != NULL) && (python_plugin->usable()))
@@ -650,7 +660,7 @@ void append_stack_info(setup_struct &settings, const char *function_name, const 
 // oword warnings 
 #define OERR(fmt, ...)                                      \
     do {						    \
-	if (FEATURE(OWORD_WARNONLY))			    \
+    if (_setup.hasFeature(FEATURE_OWORD_WARNONLY))			    \
 	    fprintf(stderr,fmt, ## __VA_ARGS__);	    \
 	else						    \
 	    ERS(fmt, ## __VA_ARGS__);			    \

@@ -682,7 +682,7 @@ gui-dependent actions (like creating gui-specific hal pins).
 The new Trajectory Planner (TP) is on by default. +
 If you have no TP settings in your [TRAJ] section - LinuxCNC defaults to: +
 ARC_BLEND_ENABLE = 1 +
-ARC_BLEND_FALLBACK_ENABLE = 0 +
+ARC_BLEND_FALLBACK_ENABLE = 1 +
 ARC_BLEND_OPTIMIZATION_DEPTH = 50 +
 ARC_BLEND_GAP_CYCLES = 4 +
 ARC_BLEND_RAMP_FREQ = 100
@@ -693,9 +693,8 @@ planning module in 'motion'.
 * 'ARC_BLEND_ENABLE = 1' - Turn on new TP. If set to 0 TP uses parabolic
    blending (1 segment look ahead.) Default value 1.
 
-* 'ARC_BLEND_FALLBACK_ENABLE = 0' - Optionally fall back to parabolic blends
-   if the estimated speed is faster. However, this estimate is rough, and it
-   seems that just disabling it gives better performance. Default value 0.
+* 'ARC_BLEND_FALLBACK_ENABLE = 1' - Optionally fall back to parabolic blends
+   if the estimated speed is faster. Default value 1.
 
 * 'ARC_BLEND_OPTIMIZATION_DEPTH = 50' - Look ahead depth in number of segments.
 +

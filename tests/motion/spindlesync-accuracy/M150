@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+halcmd setp sim_spindle.eccentricity $1

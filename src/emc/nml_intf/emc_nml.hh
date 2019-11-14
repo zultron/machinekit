@@ -1047,6 +1047,7 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
     bool probing;		// Are we currently looking for a probe
     // signal.
     int probeval;		// Current value of probe input.
+    int setterval;       // Current value of tool setter input.
     int kinematics_type;	// identity=1,serial=2,parallel=3,custom=4
     int motion_type;
     double distance_to_go;         // in current move
@@ -1314,6 +1315,7 @@ class EMC_TASK_PLAN_EXECUTE:public EMC_TASK_CMD_MSG {
     void update(CMS * cms);
 
     char command[LINELEN];
+    int cmd_src;
 };
 
 class EMC_TASK_PLAN_PAUSE:public EMC_TASK_CMD_MSG {
@@ -1354,7 +1356,7 @@ class EMC_TASK_PLAN_END:public EMC_TASK_CMD_MSG {
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
-   
+
     bool reset;   // reset after program end
 };
 
@@ -1422,6 +1424,17 @@ class EMC_TASK_PLAN_OPTIONAL_STOP:public EMC_TASK_CMD_MSG {
     void update(CMS * cms);
 };
 
+class EMC_TASK_PLAN_UPDATE_PART_COUNT:public EMC_TASK_CMD_MSG {
+  public:
+    EMC_TASK_PLAN_UPDATE_PART_COUNT():EMC_TASK_CMD_MSG(EMC_TASK_PLAN_UPDATE_PART_COUNT_TYPE,
+                       sizeof(EMC_TASK_PLAN_UPDATE_PART_COUNT)) {
+    }
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+    size_t counter_id;
+    int part_count;
+};
 
 // EMC_TASK status base class
 class EMC_TASK_STAT_MSG:public RCS_STAT_MSG {
@@ -1435,6 +1448,7 @@ class EMC_TASK_STAT_MSG:public RCS_STAT_MSG {
 
     uint32_t heartbeat;
 };
+
 
 class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
   public:
@@ -1476,6 +1490,9 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     bool input_timeout;		// has a timeout happened on digital input
     bool orient_timeout;	// has a timeout happened on spindle orient
     bool orient_no_exec_error;	// set if M19 Q-word < 0 so g code can handle timeout
+    double motionTolerance;
+    double naivecamTolerance;
+    int part_counters[MAX_PART_COUNTERS];
 };
 
 // declarations for EMC_TOOL classes

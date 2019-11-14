@@ -870,6 +870,21 @@ int pmCartCartSub(PmCartesian const * const v1, PmCartesian const * const v2,
 
     return pmErrno = 0;
 }
+int pmCartScalAdd(PmCartesian const * v, double d, PmCartesian *vout)
+{
+    vout->x = v->x + d;
+    vout->y = v->y + d;
+    vout->z = v->z + d;
+    return pmErrno = 0;
+}
+
+int pmCartScalSub(PmCartesian const * v, double d, PmCartesian *vout)
+{
+    vout->x = v->x - d;
+    vout->y = v->y - d;
+    vout->z = v->z - d;
+    return pmErrno = 0;
+}
 
 int pmCartScalMult(PmCartesian const * const v1, double d, PmCartesian * const vout)
 {
@@ -903,6 +918,15 @@ int pmCartNegEq(PmCartesian * const v1)
     v1->z = -v1->z;
 
     return pmErrno = 0;
+}
+
+int pmCartCartDirection(
+    PmCartesian const * const to,
+    PmCartesian const * const from,
+    PmCartesian * const u)
+{
+    pmCartCartSub(to, from, u);
+    return pmCartUnitEq(u);
 }
 
 int pmCartInv(PmCartesian const * const v1, PmCartesian * const vout)
@@ -969,6 +993,26 @@ int pmCartCartSubEq(PmCartesian * const v, PmCartesian const * const v_sub)
     v->x -= v_sub->x;
     v->y -= v_sub->y;
     v->z -= v_sub->z;
+
+    return pmErrno = 0;
+}
+
+int pmCartScalAddEq(PmCartesian * v, double d)
+{
+
+    v->x += d;
+    v->y += d;
+    v->z += d;
+
+    return pmErrno = 0;
+}
+
+int pmCartScalSubEq(PmCartesian * const v, double d)
+{
+
+    v->x -= d;
+    v->y -= d;
+    v->z -= d;
 
     return pmErrno = 0;
 }
@@ -1066,6 +1110,63 @@ int pmCartPlaneProj(PmCartesian const * const v, PmCartesian const * const norma
 
     return pmErrno = r1 || r2 ? PM_NORM_ERR : 0;
 }
+
+/**
+ * Finds an in-plane orthonormal basis for two unit vectors based on a simplified Gram-Schmidt method.
+ */
+int pmCartCartOrthonormal(
+    PmCartesian const * const a_hat, //!< First unit vector (becomes first basis vector)
+    PmCartesian const * const b_hat, //!< Second unit vector
+    PmCartesian * const u, //!< [out] first orthonormal vector in direction of a_hat
+    PmCartesian * const v) //!< [out] second orthonormal vector
+{
+    *u = *a_hat;
+
+    // Find component of a in direction of b
+    // NOTE assumes both a and b are already unit
+    double dot;
+    pmCartCartDot(a_hat, b_hat, &dot);
+
+    //Build the component in the opposite direction of b
+    pmCartScalMult(a_hat, -dot, v);
+
+    // Subtract component of a in direction of b (by adding opposite)
+    pmCartCartAddEq(v, b_hat);
+
+    double dot_range = 1.0 - fabs(dot);
+    if ( dot_range > CART_FUZZ) {
+        // Only unitize vector if is has a nonzero magnitude, otherwise leave it zero
+        // This is correct-ish since colinear vectors don't span a plane, so we
+        // only need one vector as a basis. Leaving the second vector small or
+        // zero-lenth will be well-behaved for algorithms that anticipate this
+        // possibility.
+        pmCartUnitEq(v);
+    }
+    return pmErrno;
+}
+
+/**
+ * Performs "harmonic" addition elementwise on the vector and returns the square of the result.
+ * out(i) = arg_max(cos(theta_i) * a(i) + sin(theta_i) * b(i))
+ *
+ * According to the harmonic addition theorem, this is equivalent to
+ * out(i) = arg_max(c(i) * cos(theta_i + d_i)), where d_i is a phase angle, and c(i)^2 = a(i)^2+b(i)^2
+ *
+ * Therfore, the square of the harmonic addition out(i)^2 = a(i)^2 + b(i)^2.
+ *
+ * Returning the square term saves 3 square root operations (which can sometimes be avoided depending on the final calculation).
+ */
+int pmCartCartHarmonicAddSq(
+    PmCartesian const * const a,
+    PmCartesian const * const b,
+    PmCartesian * const out)
+{
+    out->x = pmSq(a->x) + pmSq(b->x);
+    out->y = pmSq(a->y) + pmSq(b->y);
+    out->z = pmSq(a->z) + pmSq(b->z);
+    return 0;
+}
+
 
 /* angle-axis functions */
 
@@ -1747,7 +1848,7 @@ int pmCircleInit(PmCircle * const circle,
 #ifdef PM_DEBUG
     if (0 == circle) {
 #ifdef PM_PRINT_ERROR
-        pmPrintError("error: pmCircleInit cirle pointer is null\n");
+        pmPrintError("error: pmCircleInit circle pointer is null\n");
 #endif
         return pmErrno = PM_ERR;
     }
@@ -1871,7 +1972,7 @@ int pmCircleInit(PmCircle * const circle,
   */
 int pmCirclePoint(PmCircle const * const circle, double angle, PmCartesian * const point)
 {
-    PmCartesian par, perp;
+    PmCartesian perp;
     double scale;
 
 #ifdef PM_DEBUG
@@ -1885,11 +1986,11 @@ int pmCirclePoint(PmCircle const * const circle, double angle, PmCartesian * con
 #endif
 
     /* compute components rel to center */
-    pmCartScalMult(&circle->rTan, cos(angle), &par);
+    pmCartScalMult(&circle->rTan, cos(angle), point);
     pmCartScalMult(&circle->rPerp, sin(angle), &perp);
 
     /* add to get radius vector rel to center */
-    pmCartCartAdd(&par, &perp, point);
+    pmCartCartAddEq(point, &perp);
 
     /* get scale for spiral, helix interpolation */
     if (circle->angle == 0.0) {
@@ -1901,16 +2002,15 @@ int pmCirclePoint(PmCircle const * const circle, double angle, PmCartesian * con
     scale = angle / circle->angle;
 
     /* add scaled vector in radial dir for spiral */
-    pmCartUnit(point, &par);
-    pmCartScalMult(&par, scale * circle->spiral, &par);
-    pmCartCartAdd(point, &par, point);
+    double spiral_scale = circle->spiral * scale / circle->radius;
+    pmCartScalMultEq(point, (1.0 + spiral_scale));
 
     /* add scaled vector in helix dir */
     pmCartScalMult(&circle->rHelix, scale, &perp);
-    pmCartCartAdd(point, &perp, point);
+    pmCartCartAddEq(point, &perp);
 
     /* add to center vector for final result */
-    pmCartCartAdd(&circle->center, point, point);
+    pmCartCartAddEq(point, &circle->center);
 
     return pmErrno = 0;
 }
@@ -1921,26 +2021,34 @@ int pmCircleStretch(PmCircle * const circ, double new_angle, int from_end)
         return PM_ERR;
     }
 
-    double mag = 0;
-    pmCartMagSq(&circ->rHelix, &mag);
-    if ( mag > 1e-6 ) {
-        //Can't handle helices
-        return PM_ERR;
-    }
-    //TODO handle spiral?
     if (from_end) {
-        //Not implemented yet, way more reprocessing...
+        // Need some extra juggling if we're creating a new start point
         PmCartesian new_start;
         double start_angle = circ->angle - new_angle;
         pmCirclePoint(circ, start_angle, &new_start);
-        pmCartCartSub(&new_start, &circ->center, &circ->rTan);
-        pmCartCartCross(&circ->normal, &circ->rTan, &circ->rPerp);
+        PmCartesian tmp;
+        pmCartCartSub(&new_start, &circ->center, &tmp);
+        // Need to find new components perpendicular to circle normal, and to each other
+        pmCartCartCross(&circ->normal, &tmp, &circ->rPerp);
+        pmCartCartCross(&circ->rPerp, &circ->normal, &circ->rTan);
+        // Center is displaced if there is a helical component
+        pmCartCartSubEq(&tmp, &circ->rTan);
+        pmCartCartAddEq(&circ->center, &tmp);
+        // New initial radius in case there is non-zero spiral component
         pmCartMag(&circ->rTan, &circ->radius);
-    } 
-    //Reduce the spiral proportionally
-    circ->spiral *= (new_angle / circ->angle);
-    // Easy to grow / shrink from start
+    }
+    // Reduce the spiral / helical components proportionally
+    double angle_ratio = (new_angle / circ->angle);
+    circ->spiral *= angle_ratio;
+    pmCartScalMultEq(&circ->rHelix, angle_ratio);
     circ->angle = new_angle;
 
     return 0;
+}
+
+int pmCircleStartPoint(PmCircle const * const circle, PmCartesian * const point)
+{
+    pmCartCartAdd(&circle->rTan, &circle->center, point);
+
+    return pmErrno = 0;
 }

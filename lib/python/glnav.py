@@ -347,7 +347,7 @@ class GlNavBase:
         self._redraw()
 
     def set_view_y(self):
-        if self.is_rear_tp_lathe:
+        if self.rear_tp_lathe_option:
             x_dir = -1
         else:
             x_dir = 1

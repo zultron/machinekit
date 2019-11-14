@@ -291,6 +291,8 @@ static int init_hal_io(void)
 
     /* export machine wide hal pins */
     if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->probe_input), mot_comp_id, "motion.probe-input")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->setter_input), mot_comp_id, "motion.setter-input")) < 0) goto error;
+    if ((retval = hal_pin_bit_newf(HAL_IN, &(emcmot_hal_data->discrete_setter_input), mot_comp_id, "motion.discrete-setter-input")) < 0) goto error;
     if ((retval = hal_pin_bit_newf(HAL_IO, &(emcmot_hal_data->spindle_index_enable), mot_comp_id, "motion.spindle-index-enable")) < 0) goto error;
 
     if ((retval = hal_pin_bit_newf(HAL_OUT, &(emcmot_hal_data->spindle_on), mot_comp_id, "motion.spindle-on")) < 0) goto error;
@@ -328,10 +330,18 @@ static int init_hal_io(void)
 
     if ((retval = hal_pin_s32_newf(HAL_IN, &(emcmot_hal_data->pos_tracking_mode), mot_comp_id, "motion.pos-tracking-mode")) < 0) goto error;
     *emcmot_hal_data->pos_tracking_mode = POS_TRACK_MODE_FLATTENED;
+    if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_max_acceleration_rps2), mot_comp_id, "motion.spindle-max-acceleration-rps2")) < 0) goto error;
+    *emcmot_hal_data->spindle_max_acceleration_rps2 = 0.0; // Ignore spindle acceleration by default
+    if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->spindle_cmd_latency_sec), mot_comp_id, "motion.spindle-cmd-latency-sec")) < 0) goto error;
+    *emcmot_hal_data->spindle_cmd_latency_sec = 0.0;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->pos_tracking_state), mot_comp_id, "motion.pos-tracking-state")) < 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->pos_tracking_error), mot_comp_id, "motion.pos-tracking-error")) < 0) goto error;
     if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->pos_tracking_velocity), mot_comp_id, "motion.pos-tracking-velocity")) < 0) goto error;
     if ((retval = hal_pin_s32_newf(HAL_OUT, &(emcmot_hal_data->rigid_tap_state), mot_comp_id, "motion.rigid-tap-state")) < 0) goto error;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->rigid_tap_overshoot), mot_comp_id, "motion.rigid-tap-overshoot")) < 0) goto error;
+    *emcmot_hal_data->rigid_tap_overshoot = 0.0;
+    if ((retval = hal_pin_float_newf(HAL_OUT, &(emcmot_hal_data->rigid_tap_reversal_vel_rps), mot_comp_id, "motion.rigid-tap-reversal-vel-rps")) < 0) goto error;
+    *emcmot_hal_data->rigid_tap_reversal_vel_rps = 0.0;
 
     if ((retval = hal_pin_float_newf(HAL_IN, &(emcmot_hal_data->adaptive_feed), mot_comp_id, "motion.adaptive-feed")) < 0) goto error;
     *(emcmot_hal_data->adaptive_feed) = 1.0;
@@ -443,6 +453,24 @@ static int init_hal_io(void)
 	mot_comp_id);
     if (retval != 0) {
 	return retval;
+    }
+    retval =
+    hal_pin_s32_new("motion.queued-program-line", HAL_OUT, &(emcmot_hal_data->queued_program_line),
+    mot_comp_id);
+    if (retval != 0) {
+    return retval;
+    }
+    retval =
+    hal_pin_s32_new("motion.mot-command", HAL_OUT, &(emcmot_hal_data->mot_command),
+    mot_comp_id);
+    if (retval != 0) {
+    return retval;
+    }
+    retval =
+    hal_pin_s32_new("motion.mot-command-count", HAL_OUT, &(emcmot_hal_data->mot_command_count),
+    mot_comp_id);
+    if (retval != 0) {
+    return retval;
     }
     /* export debug parameters */
     /* these can be used to view any internal variable, simply change a line
@@ -602,6 +630,8 @@ static int init_hal_io(void)
 
     /* initialize machine wide pins and parameters */
     *(emcmot_hal_data->probe_input) = 0;
+    *(emcmot_hal_data->setter_input) = 0;
+    *(emcmot_hal_data->discrete_setter_input) = 0;
     /* default value of enable is TRUE, so simple machines
        can leave it disconnected */
     *(emcmot_hal_data->enable) = 1;
@@ -1095,12 +1125,11 @@ static int init_comm_buffers(void)
 
     tpSetCycleTime(&emcmotDebug->tp, emcmotConfig->trajCycleTime);
     int res_pos = tpSetPos(&emcmotDebug->tp, &emcmotStatus->carte_pos_cmd);
-    int res_vel = tpSetVmax(&emcmotDebug->tp, emcmotStatus->vel, emcmotStatus->vel);
 
     emcmotStatus->tail = 0;
 
     rtapi_print_msg(RTAPI_MSG_INFO, "MOTION: init_comm_buffers() complete\n");
-    return res_pos | res_vel;
+    return res_pos;
 }
 
 /* init_threads() creates realtime threads, exports functions to

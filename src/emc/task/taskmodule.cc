@@ -363,6 +363,7 @@ BOOST_PYTHON_MODULE(emctask) {
 	.def_readwrite("probe_tripped", &EMC_TRAJ_STAT::probe_tripped )
 	.def_readwrite("probing", &EMC_TRAJ_STAT::probing )
 	.def_readwrite("probeval", &EMC_TRAJ_STAT::probeval )
+	.def_readwrite("setterval", &EMC_TRAJ_STAT::setterval )
 	.def_readwrite("kinematics_type", &EMC_TRAJ_STAT::kinematics_type )
 	.def_readwrite("motion_type", &EMC_TRAJ_STAT::motion_type )
 	.def_readwrite("distance_to_go", &EMC_TRAJ_STAT::distance_to_go )
@@ -455,6 +456,8 @@ BOOST_PYTHON_MODULE(emctask) {
 	.def_readwrite("input_timeout", &EMC_TASK_STAT::input_timeout)
 	.def_readwrite("orient_timeout", &EMC_TASK_STAT::orient_timeout)
 	.def_readwrite("orient_no_exec_error", &EMC_TASK_STAT::orient_no_exec_error)
+    .def_readonly("motion_tolerance", &EMC_TASK_STAT::motionTolerance)
+    .def_readonly("naivecam_tolerance", &EMC_TASK_STAT::naivecamTolerance)
 
 	//  read-only
 	.add_property("file",  &get_file)

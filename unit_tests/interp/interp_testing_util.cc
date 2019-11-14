@@ -8,8 +8,8 @@ int print_interp_error(Interp & interp, int retval, const char* src_file, int li
         return retval;
     }
 
-    char interp_error_text_buf[4096] = {};
-    interp.error_text(retval, interp_error_text_buf, 4096);
+    char interp_error_text_buf[MAX_ERROR_MSG_LEN+1] = {};
+    interp.error_text(retval, interp_error_text_buf, MAX_ERROR_MSG_LEN);
     if (0 != interp_error_text_buf[0]) {
         fprintf(stderr,"%s:%d: interp_error: %s\n", interp._setup.stack_file[0], interp._setup.stack_line[0], interp_error_text_buf);
     }

@@ -863,6 +863,9 @@ extern "C" {
     extern int pmCartCartDisp(PmCartesian const * const v1, PmCartesian const * const v2, double *d);
     extern int pmCartCartAdd(PmCartesian const * const, PmCartesian const * const, PmCartesian * const);
     extern int pmCartCartSub(PmCartesian const * const, PmCartesian const * const, PmCartesian * const);
+
+    extern int pmCartScalAdd(const PmCartesian * v, double d, PmCartesian * vout);
+    extern int pmCartScalSub(const PmCartesian * v, double d, PmCartesian * vout);
     extern int pmCartScalMult(PmCartesian const * const, double, PmCartesian * const);
     extern int pmCartScalDiv(PmCartesian const * const, double, PmCartesian * const);
     extern int pmCartNeg(PmCartesian const * const, PmCartesian * const);
@@ -871,10 +874,13 @@ extern "C" {
     // Equivalent of compound operators like +=, -=, etc. Basically, these functions work directly on the first PmCartesian
     extern int pmCartCartAddEq(PmCartesian * const, PmCartesian const * const);
     extern int pmCartCartSubEq(PmCartesian * const, PmCartesian const * const);
+    extern int pmCartScalAddEq(PmCartesian * v, double d);
+    extern int pmCartScalSubEq(PmCartesian * const v, double d);
     extern int pmCartScalMultEq(PmCartesian * const, double);
     extern int pmCartScalDivEq(PmCartesian * const, double);
     extern int pmCartUnitEq(PmCartesian * const);
     extern int pmCartNegEq(PmCartesian * const);
+    extern int pmCartCartDirection(PmCartesian const * const to, PmCartesian const * const, PmCartesian * const);
 /*! \todo Another #if 0 */
 #if 0
     extern int pmCartNorm(PmCartesian const * const v, PmCartesian * const vout);
@@ -889,6 +895,15 @@ extern "C" {
     extern int pmCartCartProj(PmCartesian const * const, PmCartesian const * const, PmCartesian * const);
     extern int pmCartPlaneProj(PmCartesian const * const v, PmCartesian const * const normal,
 	PmCartesian * vout);
+    extern int pmCartCartOrthonormal(
+        PmCartesian const * const a,
+        PmCartesian const * const b,
+        PmCartesian * const u,
+        PmCartesian * const v);
+    extern int pmCartCartHarmonicAddSq(
+        PmCartesian const * const a,
+        PmCartesian const * const b,
+        PmCartesian * const out);
 
 /* rotation functions */
 
@@ -955,6 +970,7 @@ extern "C" {
 
     extern int pmCirclePoint(PmCircle const * const circle, double angle, PmCartesian * const point);
     extern int pmCircleStretch(PmCircle * const circ, double new_angle, int from_end);
+    extern int pmCircleStartPoint(PmCircle const * const circle, PmCartesian * const point);
 
 /* slicky macros for item-by-item copying between C and C++ structs */
 

@@ -466,6 +466,8 @@ void SET_SPINDLE_SPEED(double rpm) {
 void ORIENT_SPINDLE(double d, int i) {}
 void WAIT_SPINDLE_ORIENT_COMPLETE(double timeout) {}
 void PROGRAM_STOP() {}
+void UPDATE_PART_COUNT(size_t, int) {}
+PartCountArray GET_EXTERNAL_PART_COUNTS() {return PartCountArray{};}
 void PROGRAM_END(bool reset) {}
 void FINISH() {}
 void ON_RESET() {}
@@ -811,8 +813,8 @@ static void count_err()
     err_dbg_count++;
 }
 
-#define RETURN_ON_INTERP_ERROR(call__) do { \
-    int result = call__; \
+#define RETURN_ON_INTERP_ERROR(interp_call) do { \
+    int result = interp_call; \
     switch(result) { \
     case INTERP_OK: \
     case INTERP_EXECUTE_FINISH: \
@@ -821,17 +823,25 @@ static void count_err()
         count_err(); \
         return result; \
     } \
-    } while (0); \
+    } while (0) \
 
-int execute_lines(InterpBase *interp, const char *multiline_cmd)
+int execute_lines(InterpBase *interp, const char *multiline_cmd, CommandSource cmd_src)
 {
     std::stringstream cmd(multiline_cmd);
     std::string s;
     while (std::getline(cmd, s, '\n')) {
-        RETURN_ON_INTERP_ERROR(interp->read(s.c_str()));
-        RETURN_ON_INTERP_ERROR(interp->execute());
+        RETURN_ON_INTERP_ERROR(interp->execute(s.c_str(), cmd_src));
     }
     return INTERP_OK;
+}
+
+static PyObject * gen_warning_list(std::vector<std::string> const &interp_warning_list)
+{
+    PyObject *warning_list = PyList_New(interp_warning_list.size());
+    for (size_t i=0; i < interp_warning_list.size(); ++i) {
+        PyList_SetItem(warning_list, i, PyString_FromString(interp_warning_list[i].c_str()));
+    }
+    return warning_list;
 }
 
 #define RESULT_OK (result == INTERP_OK || result == INTERP_EXECUTE_FINISH)
@@ -875,11 +885,11 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     maybe_new_line();
 
     if(unitcode) {
-        result = execute_lines(pinterp, unitcode);
+        result = execute_lines(pinterp, unitcode, CommandSource::INIT);
         if(!RESULT_OK) goto out_error;
     }
     if(initcode) {
-        result = execute_lines(pinterp, initcode);
+        result = execute_lines(pinterp, initcode, CommandSource::INIT);
         if(!RESULT_OK) goto out_error;
     }
     while(!interp_error && RESULT_OK) {
@@ -908,28 +918,36 @@ out_error:
     maybe_new_line();
     if(PyErr_Occurred()) { interp_error = 1; goto out_error; }
     PyObject *retval = PyTuple_New(3);
-    PyTuple_SetItem(retval, 0, PyInt_FromLong(result));
-    PyTuple_SetItem(retval, 1, PyInt_FromLong(last_sequence_number + error_line_offset));
+    PyTuple_SET_ITEM(retval, 0, PyInt_FromLong(result));
+    PyTuple_SET_ITEM(retval, 1, PyInt_FromLong(last_sequence_number + error_line_offset));
 
-    // Throw a warning if we're clipping lines
-    if (_linecount > max_glcanon_lines) {
-        std::stringstream preview_cutoff_warning;
-        preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use the context menu of the g-code window on the Main tab to load all preview lines.  Or use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
-        PyList_Append(reinterpret_cast<Interp*>(pinterp)->warning_list, PyString_FromString(preview_cutoff_warning.str().c_str()));
+    Interp* interp = dynamic_cast<Interp*>(pinterp);
+    if (interp) {
+        PyObject *warnings = gen_warning_list(interp->getWarnings());
+
+        // Throw a warning if we're clipping lines
+        if (_linecount > max_glcanon_lines) {
+            std::stringstream preview_cutoff_warning;
+            preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use the context menu of the g-code window on the Main tab to load all preview lines.  Or use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
+            PyObject *msg = PyString_FromString(preview_cutoff_warning.str().c_str());
+            PyList_Append(warnings, msg);
+            Py_DecRef(msg);
+        }
+        PyTuple_SET_ITEM(retval, 2, warnings);
+    } else {
+        PyTuple_SET_ITEM(retval, 2, PyList_New(0));
     }
-
-    PyTuple_SetItem(retval, 2, reinterpret_cast<Interp*>(pinterp)->warning_list);
 
     return retval;
 }
 
 static int maxerror = -1;
 
-static char savedError[LINELEN+1];
+static char savedError[MAX_ERROR_MSG_LEN+1];
 static PyObject *rs274_strerror(PyObject *s, PyObject *o) {
     int err;
     if(!PyArg_ParseTuple(o, "i", &err)) return nullptr;
-    pinterp->error_text(err, savedError, LINELEN);
+    pinterp->error_text(err, savedError, MAX_ERROR_MSG_LEN);
     return PyString_FromString(savedError);
 }
 

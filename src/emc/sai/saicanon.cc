@@ -653,6 +653,11 @@ void UNCLAMP_AXIS(CANON_AXIS axis)
 void PROGRAM_STOP()
 {PRINT("PROGRAM_STOP()\n");}
 
+void UPDATE_PART_COUNT(size_t, int)
+{}
+
+PartCountArray GET_EXTERNAL_PART_COUNTS() {return PartCountArray();}
+
 void SET_BLOCK_DELETE(bool state)
 {_sai.block_delete = state;} //state == ON, means we don't interpret lines starting with "/"
 
@@ -1103,6 +1108,7 @@ void IO_PLUGIN_CALL(int len, const char *call)
 }
 
 void UPDATE_TAG(StateTag &tag){
+    //_sai._line_number = tag.fields[GM_FIELD_LINE_NUMBER];
     //Do nothing
 }
 

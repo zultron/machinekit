@@ -36,6 +36,8 @@
 #include "python_plugin.hh"
 #include "taskclass.hh"
 #include "modal_state.hh"
+#include "interp_parameter_def.hh"
+using namespace interp_param_global;
 
 #define USER_DEFINED_FUNCTION_MAX_DIRS 5
 #define MAX_M_DIRS (USER_DEFINED_FUNCTION_MAX_DIRS+1)
@@ -413,10 +415,10 @@ static int determineState()
 
 static int waitFlag = 0;
 
-static char interp_error_text_buf[LINELEN];
+static char interp_error_text_buf[MAX_ERROR_MSG_LEN+1];
 // Don't need this buffer if we don't throw run-time warnings
 //static char interp_warning_text_buf[LINELEN];
-static char interp_stack_buf[LINELEN];
+static char interp_stack_buf[LINELEN+1];
 
 static void print_interp_error(int retval)
 {
@@ -430,7 +432,7 @@ static void print_interp_error(int retval)
     }
 
     interp_error_text_buf[0] = 0;
-    interp.error_text(retval, interp_error_text_buf, LINELEN);
+    interp.error_text(retval, interp_error_text_buf, MAX_ERROR_MSG_LEN);
     if (0 != interp_error_text_buf[0]) {
 	rcs_print_error("interp_error: %s\n", interp_error_text_buf);
     }
@@ -449,19 +451,6 @@ static void print_interp_error(int retval)
 	}
 	rcs_print("\n");
     }
-}
-
-static void print_interp_warning()
-{
-    //No longer needed since we have load-time warnings (also not hardened against uninitialized values according to valgrind)
-#if 0
-    Interp* local_pinterp = (Interp*)pinterp;
-    //interp_warning_text_buf[0] = 0;
-    if (local_pinterp->warning_text_buf[0] != 0) {
-        local_pinterp->warning_text(interp_warning_text_buf, LINELEN);
-        emcOperatorText(0, "%s", interp_warning_text_buf);
-    }
-#endif
 }
 
 int emcTaskPlanInit()
@@ -487,16 +476,15 @@ int emcTaskPlanInit()
     waitFlag = 0;
 
     int retval = interp.init();
-	print_interp_warning();
 	// In task, enable M99 main program endless looping
 	interp.set_loop_on_main_m99(true);
     if (retval > INTERP_MIN_ERROR) {  // I'd think this should be fatal.
 	print_interp_error(retval);
     } else {
-	if (0 != rs274ngc_startup_code[0]) {
-	    retval = interp.execute(rs274ngc_startup_code);
+    if (0 != rs274ngc_startup_code[0]) {
+        retval = interp.execute(rs274ngc_startup_code, CommandSource::INIT);
 	    while (retval == INTERP_EXECUTE_FINISH) {
-		retval = interp.execute(0);
+        retval = interp.execute();
 	    }
 	    if (retval > INTERP_MIN_ERROR) {
 		print_interp_error(retval);
@@ -582,7 +570,6 @@ int emcTaskPlanOpen(const char *file)
     }
 
     int retval = interp.open(file);
-    print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {
         print_interp_error(retval);
         return retval;
@@ -600,7 +587,6 @@ int emcTaskPlanOpen(const char *file)
 int emcTaskPlanRead()
 {
     int retval = interp.read();
-	print_interp_warning();
     if (retval == INTERP_FILE_NOT_OPEN) {
 	if (emcStatus->task.file[0] != 0) {
 	    retval = interp.open(emcStatus->task.file);
@@ -621,7 +607,12 @@ int emcTaskPlanRead()
     return retval;
 }
 
-int emcTaskPlanExecute(const char *command)
+int emcTaskPlanExecute()
+{
+    return emcTaskPlanExecute(nullptr, CommandSource::PROGRAM);
+}
+
+int emcTaskPlanExecute(const char *command, CommandSource cmd_src)
 {
     int inpos = emcStatus->motion.traj.inpos;	// 1 if in position, 0 if not.
 
@@ -633,8 +624,7 @@ int emcTaskPlanExecute(const char *command)
         }
         //FIXME the standard behavior now is to keep going here but this seems wrong
     }
-    int retval = interp.execute(command);
-    print_interp_warning();
+    int retval = interp.execute(command, cmd_src);
     if (retval > INTERP_MIN_ERROR) {
         print_interp_error(retval);
     }
@@ -643,27 +633,8 @@ int emcTaskPlanExecute(const char *command)
     }
 
     if (emc_debug & EMC_DEBUG_INTERP) {
-        rcs_print("emcTaskPlanExecute(0) return %d\n", retval);
+        rcs_print("emcTaskPlanExecute() return %d\n", retval);
     }
-
-    return retval;
-}
-
-int emcTaskPlanExecute(const char *command, int line_number)
-{
-    int retval = interp.execute(command, line_number);
-	print_interp_warning();
-    if (retval > INTERP_MIN_ERROR) {
-	print_interp_error(retval);
-    }
-    if(command != 0) { // this means MDI
-	FINISH();
-    }
-
-    if (emc_debug & EMC_DEBUG_INTERP) {
-        rcs_print("emcTaskPlanExecute(%s) returned %d\n", command, retval);
-    }
-
 
     return retval;
 }
@@ -671,7 +642,6 @@ int emcTaskPlanExecute(const char *command, int line_number)
 int emcTaskPlanClose()
 {
     int retval = interp.close();
-	print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {
 	print_interp_error(retval);
     }
@@ -683,7 +653,6 @@ int emcTaskPlanClose()
 int emcTaskPlanReset()
 {
     int retval = interp.reset();
-	print_interp_warning();
     if (retval > INTERP_MIN_ERROR) {
 	print_interp_error(retval);
     }
@@ -778,6 +747,9 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     //update state of block delete
     stat->block_delete_state = GET_BLOCK_DELETE();
 
+    stat->motionTolerance = GET_MOTION_TOLERANCE();
+    stat->naivecamTolerance = GET_NAIVECAM_TOLERANCE();
+
     stat->heartbeat++;
 
     return 0;
@@ -830,7 +802,6 @@ int emcStatusUpdateWorkOffset(int new_origin)
 int emcAbortCleanup(int reason, const char *message)
 {
     int status = interp.on_abort(reason,message);
-	print_interp_warning();
     if (status > INTERP_MIN_ERROR)
 	print_interp_error(status);
     return status;

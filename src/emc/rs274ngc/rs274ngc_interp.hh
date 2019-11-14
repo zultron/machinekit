@@ -21,6 +21,8 @@
 #include "interp_return.hh"
 #include <array>
 
+#define MAX_ERROR_MSG_LEN 10000
+
 class Interp : public InterpBase {
 
 public:
@@ -35,10 +37,12 @@ public:
  int close();
  
 // execute a line of NC code
- int execute(const char *command);
  int execute();
 
- int execute(const char *command, int line_no); //used for MDI calls to specify the pseudo MDI line number
+ /** Provide an explicit source of the G-code command (for logging purposes) */
+ int execute(const char *command, CommandSource cmd_src=CommandSource::PROGRAM);
+
+ int execute(const char *command, CommandSource cmd_src, int line_number);
 
 // stop running
  int exit();
@@ -60,7 +64,7 @@ public:
  std::set<int> get_work_offsets_used();
 
 // read the mdi or the next line of the open NC code file
- int read(const char *mdi);
+ int read(const char *mdi, CommandSource cmd_src);
  int read();
 
 // reset yourself
@@ -107,9 +111,6 @@ public:
  char *error_text(int error_code, char *error_text,
                                 size_t max_size);
  std::string error_text(int error_code=INTERP_ERROR);
-
- char *warning_text(char *error_text,
-                                size_t max_size);
 
  void setError(const char *fmt, ...) __attribute__((format(printf,2,3)));
 
@@ -350,12 +351,15 @@ public:
                           setup_pointer settings);
  int convert_probe(block_pointer block, GCodes g_code, setup_pointer settings);
  int convert_retract_mode(int g_code, setup_pointer settings);
+ int convert_part_count(block_pointer block, setup_pointer settings);
  int convert_setup(block_pointer block, setup_pointer settings);
  int convert_setup_tool(block_pointer block, setup_pointer settings);
  int convert_set_plane(int g_code, setup_pointer settings);
  int convert_speed(block_pointer block, setup_pointer settings);
-     int convert_spindle_mode(block_pointer block, setup_pointer settings);
+ int convert_spindle_mode(block_pointer block, setup_pointer settings);
  int convert_stop(block_pointer block, setup_pointer settings);
+ int increment_part_counter(setup_pointer settings, size_t counter_id);
+ int update_part_counter(setup_pointer settings, size_t counter_id, int part_count);
  int convert_straight(GCodes move, block_pointer block,
                             setup_pointer settings);
  int convert_straight_comp1(int move, block_pointer block,
@@ -382,7 +386,9 @@ public:
  int cycle_traverse(block_pointer block, CANON_PLANE plane, double end1, double end2,
                           double end3);
  int enhance_block(block_pointer block, setup_pointer settings);
- int _execute(const char *command = 0);
+protected:
+ int execute_impl(const char *command, CommandSource cmd_src);
+public:
  int execute_binary(double *left, int operation, double *right);
  int execute_binary1(double *left, int operation, double *right);
  int execute_binary2(double *left, int operation, double *right);
@@ -441,7 +447,9 @@ public:
  int parse_line(char *line, block_pointer block,
                       setup_pointer settings);
  int precedence(int an_operator);
- int _read(const char *command);
+protected:
+ int read_impl(const char *command);
+public:
  int read_a(char *line, int *counter, block_pointer block,
                   ParameterArray &parameters);
  int read_atan(char *line, int *counter, double *double_ptr,
@@ -500,7 +508,7 @@ public:
     int init_readonly_param(const char *nameBuf, double value, int attr);
     int free_named_parameters(context_pointer frame);
  int save_settings(setup_pointer settings);
- int restore_settings(setup_pointer settings, int from_level);
+ int restore_settings(setup_pointer settings, int from_level, int m_code);
  int gen_g_codes(ActiveGCodeArray const & current,
                  ActiveGCodeArray const & saved,
                  ActiveSettingsArray const & current_settings,
@@ -555,7 +563,9 @@ public:
  int refresh_actual_position(setup_pointer settings);
  void rotate(double *x, double *y, double t);
  int set_probe_data(setup_pointer settings);
+ static int formatGCode(GCodes g, std::string &cmd);
  static int lookup_work_offset_gcode_from_origin(int origin);
+ static std::string lookup_work_offset_gcode_string_from_origin(int origin);
  int write_g_codes(block_pointer block, setup_pointer settings, ModalState &state);
  int write_m_codes(block_pointer block, setup_pointer settings, ModalState &state);
  int write_settings(setup_pointer settings, ModalState &state);
@@ -696,15 +706,17 @@ int read_inputs(setup_pointer settings);
 	       int calltype);
     int py_execute(const char *cmd, bool as_file = false); // for (py, ....) comments
     int py_reload();
-    FILE *find_ngc_file(setup_pointer settings,const char *basename, char *foundhere = NULL);
+    FILE *find_ngc_file(setup_pointer settings,const char *basename, char *foundhere = nullptr);
 
-    const char *getSavedError();
+    const char *getSavedError() const;
     // set error message text without going through printf format interpretation
-    int setSavedError(const char *msg); 
+    int setSavedError(const char *msg);
+    int clearSavedError();
     int clearWarning();
 
-    int unwind_call(int status, const char *file, int line, const char *function);
-
+    int unwind_call(int status, const char *file, int line, const char *function, CommandSource cmd_src);
+    std::string get_command_location(CommandSource cmd_src);
+    int add_error_call_context(std::string caller_filename);
 
     int convert_straight_indexer(int, block*, setup*);
     int issue_straight_index(int, double, int, setup*);
@@ -713,6 +725,7 @@ int read_inputs(setup_pointer settings);
                const char *fmt, ...) __attribute__((format(printf,5,6)));
 
     const char *interp_status(int status);
+    std::vector<std::string> const &getWarnings() const {return warning_list;}
 
     //technically this violates encapsulation rules but is needed for
     // the Python introspection module
@@ -729,7 +742,7 @@ int read_inputs(setup_pointer settings);
     static const read_function_pointer default_readers[256];
 
     setup _setup;
-    PyObject* warning_list;
+    std::vector <std::string> warning_list;
 
     char warning_text_buf[LINELEN];
     enum {
@@ -751,6 +764,11 @@ int read_inputs(setup_pointer settings);
     double PROGRAM_TO_USER_ANG(double p) const;
     UnitsTransform convertsUserToProgram() const;
     UnitsTransform convertsProgramToUser() const;
+    int convert_g10(block_pointer block, setup_pointer settings);
+    InterpReturn check_g10(block_pointer block);
+
+protected:
+    bool error_has_context;
 };
 
 bool toolOffsetActive(setup_pointer s);

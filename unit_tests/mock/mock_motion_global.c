@@ -23,7 +23,7 @@ struct emcmot_error_t *emcmotError = NULL;	/* unused for RT_FIFO */
 
 struct emcmot_joint_t *joints = NULL;
 
-void init_motion_globals()
+void init_motion_globals(double a_max)
 {
     s = EMPTY_SHM;
     emcmotStruct = &s;
@@ -34,10 +34,11 @@ void init_motion_globals()
     emcmotInternal = &emcmotStruct->internal;
     emcmotStatus = &emcmotStruct->status;
 
-    emcmotConfig->arcBlendEnable = 1;
-    emcmotConfig->arcBlendOptDepth = 100;
-    emcmotConfig->arcBlendGapCycles = 5;
-    emcmotConfig->arcBlendRampFreq = 100;
+    emcmotConfig->arc_blend_cfg.enable = 1;
+    emcmotConfig->arc_blend_cfg.allow_fallback = 1;
+    emcmotConfig->arc_blend_cfg.optimization_depth = 100;
+    emcmotConfig->arc_blend_cfg.gap_cycles = 5;
+    emcmotConfig->arc_blend_cfg.ramp_frequency = 100;
     emcmotConfig->maxFeedScale = 2.0;
 
     joints = emcmotDebug->joints;
@@ -47,10 +48,18 @@ void init_motion_globals()
     emcmot_joint_t mock_j={0};
     mock_j.max_pos_limit = 20;
     mock_j.min_pos_limit = -20;
-    mock_j.vel_limit = 1.0;
-    mock_j.acc_limit = 20.0;
+    mock_j.vel_limit = 2.0;
+    mock_j.acc_limit = a_max;
 
     for (int i = 0; i < 4; ++i) {
         joints[i] = mock_j;
     }
+
+    emcmotConfig->biarc_solver_cfg.max_iterations = 15;
+    emcmotConfig->biarc_solver_cfg.velocity_cutoff = 0.001;
+    emcmotConfig->biarc_solver_cfg.convergence_tolerance = 0.000001;
+    emcmotConfig->biarc_solver_cfg.velocity_abs_tolerance = 0.0001;
+    emcmotConfig->biarc_solver_cfg.velocity_rel_tolerance = 0.02;
+    emcmotConfig->biarc_solver_cfg.deviation_abs_tolerance = 0.00001;
+    emcmotConfig->biarc_solver_cfg.feed_override_allowance = 1.0;
 }

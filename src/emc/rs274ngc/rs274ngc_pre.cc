@@ -188,11 +188,13 @@ UnitsTransform Interp::convertsProgramToUser() const
 
 extern struct _inittab builtin_modules[];
 int trace;
-static char savedError[LINELEN+1];
+static char savedError[MAX_ERROR_MSG_LEN+1];
 
 Interp::Interp()
     : log_file(stderr),
-      _setup(setup_struct())
+      _setup(setup_struct()),
+    warning_list(),
+    error_has_context(false)
 {
 
   init_remap_sets();
@@ -236,8 +238,6 @@ Interp::Interp()
     Error("PYTHON: exception during 'this' export:\n%s\n",exception_msg.c_str());
   }
 #endif
-
-  this->warning_list = PyList_New(0);
 
 }
 
@@ -365,10 +365,15 @@ Called By: external programs
 
 This executes a previously parsed block.
 
+@note XXX_internal methods do NOT unwind the call stack. Make sure to call the
+public method unless you know what you're doing.
+
 */
 
-int Interp::_execute(const char *command)
+int Interp::execute_impl(const char *command, CommandSource cmd_src)
 {
+  // KLUDGE assumes that we wouldn't be starting here if an error was not yet handled
+  clearSavedError();
   int status;
   int MDImode = 0;
   block_pointer eblock = &EXECUTING_BLOCK(_setup);
@@ -378,7 +383,7 @@ int Interp::_execute(const char *command)
 
   if (nullptr != command) {
     MDImode = 1;
-    status = read(command);
+    status = read(command, cmd_src);
     if (status != INTERP_OK) {
 	// if (status > INTERP_MIN_ERROR) 
       //     _setup.remap_level = 0;
@@ -415,7 +420,7 @@ int Interp::_execute(const char *command)
     logDebug("MDImode = %d", MDImode);
     while(MDImode && _setup.call_level) // we are still in a subroutine
     {
-      status = read(nullptr);  // reads from current file and calls parse
+      status = read();  // reads from current file and calls parse
       if (status > INTERP_MIN_ERROR)
         CHP(status);
       status = execute();  // special handling for mdi errors
@@ -446,6 +451,21 @@ int Interp::_execute(const char *command)
               [](const std::pair<size_t, double> &prm){
                 return prm.first > 5000;
               });
+
+  for (auto& prm : _setup.new_parameters)
+  {
+      const char *warning = nullptr;
+      if (prm.first > G59_3_R) {
+          warning = "parameters above 5390 are read-only";
+      } else if (prm.first >= G38_X && prm.first <= G38_TRIPPED) {
+          warning = "reserved for probing results.";
+      } else if (prm.first == ACTIVE_WORK_CSYS) {
+          warning = "reserved for the current active work offset.";
+      }
+      if (warning) {
+          setWarning("unsupported parameter assignment #%lu = %g: %s", prm.first, prm.second, warning);
+      }
+  }
 
   for (auto& param_pair : _setup.new_parameters)
   {  // copy parameter settings from parameter buffer into parameter table
@@ -560,7 +580,7 @@ int Interp::_execute(const char *command)
             }
             status = INTERP_OK;
             while(MDImode && _setup.call_level) { // we are still in a subroutine
-        CHP(read(nullptr));  // reads from current file and calls parse
+        CHP(read());  // reads from current file and calls parse
               status = execute();  // special handling for mdi errors
               if (status == INTERP_EXECUTE_FINISH)
                 _setup.mdi_interrupt = true;
@@ -576,7 +596,7 @@ int Interp::_execute(const char *command)
           }
         } else {
           // this should get the osub going
-          status = execute(nullptr);
+          status = execute();
           CHP(status);
           // when this is done, blocks[0] will be executed as per standard case
           // on endsub/return and g_codes/m_codes/settings recorded there.
@@ -615,36 +635,35 @@ int Interp::_execute(const char *command)
   return status;
 }
 
-int Interp::execute(const char *command)
+int Interp::execute()
 {
-    int status;
-    if ((status = _execute(command)) > INTERP_MIN_ERROR) {
-        unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
+    return Interp::execute(nullptr, CommandSource::PROGRAM);
+}
+
+int Interp::execute(const char *command, CommandSource cmd_src)
+{
+    int status = Interp::execute_impl(command, cmd_src);
+    if (status > INTERP_MIN_ERROR) {
+        unwind_call(status, __FILE__,__LINE__,__FUNCTION__, cmd_src);
     }
     return status;
 }
 
-int Interp::execute()
+int Interp::execute(const char *command, CommandSource cmd_src, int line_number)
 {
-  return Interp::execute(nullptr);
-}
-
-int Interp::execute(const char *command, int line_number)
-{
-    int status;
-
-    if(command && line_number)
+    if(command && line_number) {
         _setup.sequence_number = line_number;
-    status = Interp::execute(command);
+    }
+    int status = Interp::execute_impl(command, cmd_src);
     if (status > INTERP_MIN_ERROR) {
-	unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
-	logDebug("<-- execute(): error returned, clearing remap and call stack");
+        unwind_call(status, __FILE__,__LINE__,__FUNCTION__, cmd_src);
+        logDebug("<-- execute(): error returned, clearing remap and call stack");
     }
     if ((_setup.call_level == 0) &&
-	(status == INTERP_EXECUTE_FINISH) &&
-	(_setup.mdi_interrupt)) {
-	logDebug(" execute() clearing mdi_interrupt");
-	_setup.mdi_interrupt = false;  // seems to work ok! FIXME mah is this needed?
+        (status == INTERP_EXECUTE_FINISH) &&
+        (_setup.mdi_interrupt)) {
+        logDebug(" execute() clearing mdi_interrupt");
+        _setup.mdi_interrupt = false;  // seems to work ok! FIXME mah is this needed?
     }
     return status;
 }
@@ -685,7 +704,7 @@ int Interp::remap_finished(int phase)
 
 	    if (status < 0) {
 		// a remap was parsed, get the block going
-    return execute(nullptr);
+    return execute();
 	    } else
 		return status;
 	} else {
@@ -893,6 +912,28 @@ int Interp::exit()
 
 void Interp::set_loglevel(int level) { _setup.loggingLevel = level; }
 
+struct FindsIniFeature
+{
+    IniFile &inifile;
+    const char *section;
+    FindsIniFeature(IniFile &inifile_in, const char *section_in) : inifile(inifile_in), section(section_in) {}
+
+    template <typename T>
+    T operator()(const char *section_name, Features feature, T def_value) const {
+        T val = def_value;
+        const char * f_name = GetFeatureStr(feature);
+        if (!f_name || !f_name[0]) {
+            return val;
+        }
+        inifile.Find(&val, f_name, section_name);
+        return val;
+    }
+    template <typename T>
+    T operator()(Features f, T def_value) const {
+        return (*this)(section, f, def_value);
+    }
+};
+
 
 /***********************************************************************/
 
@@ -971,7 +1012,24 @@ int Interp::init()
       inifile.Find(&_setup.b_axis_wrapped, "WRAPPED_ROTARY", "AXIS_4");
       inifile.Find(&_setup.c_axis_wrapped, "WRAPPED_ROTARY", "AXIS_5");
       inifile.Find(&_setup.random_toolchanger, "RANDOM_TOOLCHANGER", "EMCIO");
-      inifile.Find(&_setup.feature_set, "FEATURES", "RS274NGC");
+
+      // Legacy featureset with bit mask
+      int feature_set=0;
+      inifile.Find(&feature_set, "FEATURES", "RS274NGC");
+      _setup.feature_set = feature_set;
+
+      // Can also specify features directly
+      FindsIniFeature find_features(inifile, "RS274NGC");
+      for (int i=0; i < MAX_FEATURES; ++i) {
+          // NOTE: ignores any integers that don't correspond with a feature
+          int enabled= find_features((Features)i, -1);
+          switch(enabled) {
+          case 0:
+          case 1:
+              _setup.feature_set.set(i, enabled);
+              break;
+          }
+      }
 
       inifile.Find(&_setup.a_indexer, "LOCKING_INDEXER", "AXIS_3");
       inifile.Find(&_setup.b_indexer, "LOCKING_INDEXER", "AXIS_4");
@@ -1162,6 +1220,9 @@ int Interp::init()
   if (filename[0] == 0)
     strcpy(filename, RS274NGC_PARAMETER_FILE_NAME_DEFAULT);
   int res_restore_param = restore_parameters(filename);
+  for (size_t idx = COUNTER_M_30_A; idx <= COUNTER_M_99_B; ++idx) {
+      UPDATE_PART_COUNT(idx, _setup.parameters[MIN_CYCLE_COUNTER_PARAM + idx]);
+  }
 
   _setup.origin_index = (int) (_setup.parameters[ACTIVE_WORK_CSYS] + 0.0001);
   if(!is_valid_work_offset_index(_setup.origin_index)) {
@@ -1285,7 +1346,7 @@ int Interp::init()
   if(!(axis_mask & AXIS_MASK_V)) _readers[(int)'v'] = nullptr;
   if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = nullptr;
 
-  // Don't bother reading work offsets since we just sent them
+  // WARNING send any initial values to task before this point (interp->task->interp round trip stops here)
   int res_synch = synch(); //synch first, then update the interface
 
   write_g_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
@@ -1613,7 +1674,7 @@ zero, this parses the line into the _setup.block1.
 
 */
 
-int Interp::_read(const char *command)  //!< may be NULL or a string to read
+int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
 {
   static char name[] = "Interp::read";
   int read_status;
@@ -1776,25 +1837,30 @@ int Interp::_read(const char *command)  //!< may be NULL or a string to read
   return read_status;
 }
 
-int Interp::read(const char *command)
+int Interp::read(const char *command, CommandSource cmd_src)
 {
     int status;
-    if ((status = _read(command)) > INTERP_MIN_ERROR) {
-      unwind_call(status, __FILE__,__LINE__,__FUNCTION__);
+    if ((status = read_impl(command)) > INTERP_MIN_ERROR) {
+      unwind_call(status, __FILE__,__LINE__,__FUNCTION__, cmd_src);
     }
     return status;
 }
 
 // Reset interpreter state and  terminate a call in progress by
 // falling back to toplevel in a controlled way. Idempotent.
-int Interp::unwind_call(int status, const char *file, int line, const char *function)
+int Interp::unwind_call(int status, const char *file, int line, const char *function, CommandSource cmd_src)
 {
+    if (_setup.hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
+    // Walks the subroutine call levels and appends caller / callee information
+    add_error_call_context(get_command_location(cmd_src));
+  }
+
   logDebug("unwind_call: call_level=%d status=%s from %s %s:%d",
            _setup.call_level, interp_status(status), function, file, line);
 
   for(; _setup.call_level > 0; _setup.call_level--) {
     int i;
-    context * sub = _setup.sub_context + _setup.call_level - 1;
+    context * sub = &_setup.sub_context[_setup.call_level - 1];
     free_named_parameters(&_setup.sub_context[_setup.call_level]);
     if(sub->subName) {
       logDebug("unwind_call leaving sub '%s'", sub->subName);
@@ -1844,8 +1910,68 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
   return INTERP_OK;
 }
 
+std::string Interp::get_command_location(CommandSource cmd_src)
+{
+    switch (cmd_src) {
+    case CommandSource::PROGRAM:
+    case CommandSource::REMAP:
+        return _setup.filename;
+    case CommandSource::MDI:
+        return "MDI";
+    case CommandSource::MODAL_STATE_RESTORE:
+        return "restore";
+    case CommandSource::ABORT_CLEANUP:
+        return "abort";
+    case CommandSource::INIT:
+        return "init";
+    case CommandSource::PREAMBLE:
+        return "preamble";
+    }
+    return "";
+}
+
+int Interp::add_error_call_context(std::string caller_filename)
+{
+  if (error_has_context) {
+    // No-op if we've already added context (guards against redundant adds)
+    return INTERP_OK;
+  }
+  std::ostringstream context_msg;
+  context_msg << getSavedError();
+
+  std::string caller_linetext = _setup.linetext;
+
+  for (int level = _setup.call_level; level >= 0; --level)
+  {
+      context const &sub = _setup.sub_context[level];
+      // KLUDGE the top of the stack is always interp's sequence number
+      int callee_line = (level == _setup.call_level) ? _setup.sequence_number : sub.sequence_number;
+      context_msg << "\n  in " << caller_filename;
+      if (sub.subName && sub.subName[0]) {
+          context_msg << " (o<" << sub.subName << ">)";
+      }
+      if (callee_line > 0) {
+          context_msg
+              << ": line " << callee_line;
+      }
+
+      context_msg
+          << ": " << caller_linetext;
+      caller_linetext = sub.linetext;
+      // File return location is off by one
+      if (level > 0) {
+          caller_filename = _setup.sub_context[level-1].filename;
+      }
+  }
+
+  context_msg.flush();
+  setSavedError(context_msg.str().c_str());
+  error_has_context = true;
+  return INTERP_OK;
+}
+
 int Interp::read() {
-  return read(0);
+    return read(nullptr, CommandSource::PROGRAM);
 }
 /***********************************************************************/
 
@@ -1897,9 +2023,9 @@ int Interp::reset()
     
     // drop any queued points in canon
     ON_RESET();
-    
-    unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__);
-    warning_list = PyList_New(0);
+
+    unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__, CommandSource::INIT);
+    warning_list.clear();
     return INTERP_OK;
 }
 
@@ -2099,7 +2225,7 @@ int Interp::save_parameters(
   outfile = fopen(filename, "w");
   if (!outfile) {
       fclose(infile);
-      ERS(NCE_CANNOT_OPEN_VARIABLE_FILE);
+      ERS(_("Cannot open variable file %s for writing"), filename);
   }
 
   k = 0;
@@ -2220,6 +2346,12 @@ int Interp::synch()
   _setup.speed_override = GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE();
   _setup.adaptive_feed = GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
   _setup.feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
+  auto counters = GET_EXTERNAL_PART_COUNTS();
+  std::copy(
+      counters.begin(),
+      counters.end(),
+      _setup.parameters.begin() + M30_CYCLE_COUNTER_A
+      );
 
   // Restore any work offsets that were changed during readahead but not reached by motion yet.
   synch_work_offsets_from_task();
@@ -2355,7 +2487,7 @@ int Interp::active_modes(int *g_codes,
     g_codes[G_CODE_RETRACT_MODE] =
 	tag.flags[GM_FLAG_RETRACT_OLDZ] ? G_98 : G_99;
     g_codes[G_CODE_PATH_MODE] =
-        tag.flags[GM_FLAG_BLEND] ? G_64 :
+        tag.flags[GM_FLAG_CONTINUOUS_PATH] ? G_64 :
         tag.flags[GM_FLAG_EXACT_STOP] ? G_61 : G_61_1;
     g_codes[G_CODE_SPINDLE_MODE] = tag.flags[GM_FLAG_CSS_MODE] ? G_97 : G_96;
     g_codes[G_CODE_DISTANCE_MODE_IJK] =
@@ -2403,7 +2535,7 @@ void Interp::setError(const char *fmt, ...)
 
     va_start(ap, fmt);
 
-    vsnprintf(savedError, LINELEN, fmt, ap);
+    vsnprintf(savedError, MAX_ERROR_MSG_LEN, fmt, ap);
     //printf("Got a saved error");
 
     va_end(ap);
@@ -2425,12 +2557,12 @@ void Interp::setWarning(const char *fmt, ...)
     sprintf(line_number_buf, "Line %d: ",this->_setup.sequence_number);
     msg.insert(0,line_number_buf);
 
-    PyList_Append(this->warning_list,PyString_FromString(msg.c_str()));
+    warning_list.push_back(msg);
 
     va_end(ap);
 }
 
-const char *Interp::getSavedError()
+const char *Interp::getSavedError() const
 {
     return savedError;
 }
@@ -2438,8 +2570,15 @@ const char *Interp::getSavedError()
 // set error message text without going through printf format interpretation
 int Interp::setSavedError(const char *msg)
 {
+    clearSavedError();
+    strncpy(savedError, msg, MAX_ERROR_MSG_LEN);
+    return INTERP_OK;
+}
+
+int Interp::clearSavedError()
+{
     savedError[0] = '\0';
-    strncpy(savedError, msg, LINELEN);
+    error_has_context = false;
     return INTERP_OK;
 }
 
@@ -2493,18 +2632,8 @@ char * Interp::error_text(int error_code,        //!< code number of error
 
 std::string Interp::error_text(int error_code)
 {
-    char buf[2048]={'\n'};
-    return std::string(error_text(error_code, buf, 2048));
-}
-
-char * Interp::warning_text(char *warning_text,      //!< char array to copy error text into
-                         size_t max_size)  //!< maximum number of characters to copy
-{
-    strncpy(warning_text, warning_text_buf, max_size);
-    warning_text[max_size-1] = 0;
-    //printf("warning max size = %d\n",max_size);
-    //printf(savedWarning);
-    return warning_text;
+    char buf[MAX_ERROR_MSG_LEN+1]={'\n'};
+    return std::string(error_text(error_code, buf, MAX_ERROR_MSG_LEN));
 }
 
 /***********************************************************************/
@@ -2866,7 +2995,7 @@ int Interp::on_abort(int reason, const char *message)
     // it will be lost after stopping and revert to T02. Something to look at in the future.
     // Tormach - *dpr 4/30/13, ammended 7/2/13, 8/3/17 PDH
 
-    if (FEATURE(LATHE_TOOLCHANGE)) {
+    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         tool =  _setup.tool_table[0].toolno;
 
         //find the geo offset tool pocket number from the tool number plus 10000
@@ -2901,7 +3030,7 @@ int Interp::on_abort(int reason, const char *message)
     char cmd[LINELEN];
 
     snprintf(cmd,sizeof(cmd), "%s [%d]",_setup.on_abort_command, reason);
-    int status = execute(cmd);
+    int status = execute(cmd, CommandSource::ABORT_CLEANUP);
 
     ERP(status);
     return status;
@@ -2999,7 +3128,7 @@ const char *strstore(const char *s)
 }
 
 context_struct::context_struct()
-  : position(0), sequence_number(0), filename(""), subName(""),
+    : position(0), sequence_number(0), filename(""), subName(""), linetext(""),
     m98_loop_counter(-1), context_status(0), modal_state(), call_type(0)
 {
 }

@@ -36,7 +36,7 @@ c.mode(linuxcnc.MODE_MDI)
 c.mdi('S%d M3' % spindle_speed)
     
 # Spindle synchronized motion at 2x Z axis maxvel
-c.mdi('G33 Z-5 K%.3f' % max_pitch)
+c.mdi('G33 Z-10 K%.3f' % max_pitch)
 
 # While above MDI command runs, take an average of pitch while the Z
 # axis is in motion

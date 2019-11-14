@@ -59,6 +59,15 @@ import thread
 import traceback
 
 
+def make_active_axis_word_str(position, mask):
+    axes="XYZABCUVW"
+    pos_words=[]
+    for ax in range(9):
+        if (1 << ax) & mask:
+            pos_words.append("{}{}".format(axes[ax], position[ax]))
+    return ' '.join(pos_words)
+
+
 class DummyProgress:
     def nextphase(self, unused): pass
     def progress(self): pass
@@ -184,7 +193,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.lathe_option = bool(temp == "1" or temp == "True" or temp == "true" )
 
         temp2 = inifile.find("DISPLAY", "GEOMETRY")
-        self.is_rear_tp_lathe = bool(temp2 == "-XZ")
+        self.rear_tp_lathe_option = bool(temp2 == "-XZ")
 
         self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
         self.show_offsets = False
@@ -363,7 +372,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         cmd_list = ((
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_UNITS]),  # Must be first before applying any other modes
-        ),(
+        ), (
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_PATH_MODE]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_LATHE_DIAMETER_MODE]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_PLANE]),
@@ -371,11 +380,17 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE_IJK]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_RETRACT_MODE]),
+        ), (
+            "G52 " + make_active_axis_word_str(self.stat.g92_offset, self.stat.axis_mask)
         ))
-        print "Active G-codes at redraw:", cmd_list
+        print("Active G-codes at redraw:", cmd_list)
         return '\n'.join((' '.join(sub_l) for sub_l in cmd_list))
 
-    def load(self, filename=None):
+    def load(self, filename=None, suppress_errors=False):
+        # suppress_errors arg was added to help situation where we need to have gremlin
+        # redraw the current file - which is a reload of the file.  In this case the operator
+        # has already seen the errors with the file and we want to avoid continuing to
+        # yell at them just because of some action needed that drives a redraw.
         s = self.stat
         s.poll()
         if not filename and s.file:
@@ -435,7 +450,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
                         dict(rpm_set=rpm, rpm_max=max_fpm/fpr, line_no=line_no,
                              pitch=max_fpm/rpm))
 
-            if result > gcode.MIN_ERROR:
+            if result > gcode.MIN_ERROR and not suppress_errors:
                 self.report_gcode_error(result, seq, filename)
 
             self._tools_used = self.canon.get_tools_used()
@@ -480,9 +495,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         return view_dict.get(self.current_view, 3)
 
     def is_lathe(self): return self.lathe_option
-    def is_rear_tool_post_lathe(self): return self.is_rear_tp_lathe
+    def is_rear_tool_post_lathe(self): return self.rear_tp_lathe_option
 
-    def is_foam(self): return self.foam_option
     def get_current_tool(self):
         for i in self.stat.tool_table:
             if i[0] == self.stat.tool_in_spindle:
