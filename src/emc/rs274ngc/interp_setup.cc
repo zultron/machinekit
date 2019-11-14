@@ -155,7 +155,8 @@ setup_struct::setup_struct() :
     init_once(1),
     m_remappable(),
     g_remappable(),
-    work_offsets_used()
+    work_offsets_used(),
+    tool_offsets_changed()
 {
   blocks.fill(block());
   parameters.fill(0);

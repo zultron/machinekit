@@ -67,6 +67,14 @@ void GCodeGenerator::addWorkOffset(int work_offset_number)
     cmd_list.emplace_back(buf);
 }
 
+void GCodeGenerator::addToolOffset(int tool_number)
+{
+    char buf[LINELEN];
+    // Does a no-op G10 to push the tool offset from interp's tool table down to task / IO
+    snprintf(buf, LINELEN, "G10 L1 P%d", tool_number);
+    cmd_list.emplace_back(buf);
+}
+
 int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState & saved)
 {
     // Always restore work offset number using extended work offset format (since modal state is not fully captured in the G5x mode)
@@ -171,6 +179,22 @@ int GCodeGenerator::addModalStateMCodes(const ActiveMCodeArray & current, const 
             break;
         }
     }
+    return 0;
+}
+
+int GCodeGenerator::addLinearFeedMove(const PositionArray & goal, double feed)
+{
+    std::ostringstream feed_move;
+    feed_move << "G1 ";
+    std::bitset<64> axis_mask(GET_EXTERNAL_AXIS_MASK());
+    for (size_t i = 0; i < goal.size(); ++i) {
+        if (!axis_mask.test(i)) {
+            continue;
+        }
+        feed_move << AxisNames[i] << goal[i] << " ";
+    }
+
+    cmd_list.emplace_back(feed_move.str());
     return 0;
 }
 

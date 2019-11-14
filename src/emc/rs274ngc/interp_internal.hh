@@ -531,6 +531,7 @@ struct setup_struct
     // during open/close we keep track of all the work offsets the interpreter sees
     // by origin index in this set.
     std::set<int> work_offsets_used;
+    std::set<int> tool_offsets_changed; //!< set of TOOL numbers that have been changed in the current program (e.g. due to G10)
 };
 
 const char * GetFeatureStr(Features f);

@@ -1608,6 +1608,7 @@ int Interp::open(const char *filename) //!< string: the name of the input NC-pro
 
     // As we're about to parse a new file, clear out the work offsets that were used by last file.
     _setup.work_offsets_used.clear();
+    _setup.tool_offsets_changed.clear();
 
     return INTERP_OK;
 }

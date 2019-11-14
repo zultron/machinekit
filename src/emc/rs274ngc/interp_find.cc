@@ -411,6 +411,7 @@ int Interp::store_tool_offset(setup_pointer settings, const ShiftTransform & too
 {
   CHKS(pocket < 0 || pocket >= CANON_POCKETS_MAX, _("Invalid tool pocket number %d (must be between %d and %d"), pocket, 0, CANON_POCKETS_MAX);
   settings->tool_table[pocket].offset = toEmcPose(convertsProgramToUser()(tool_offset.tf));
+  settings->tool_offsets_changed.insert(settings->tool_table[pocket].toolno);
   return INTERP_OK;
 }
 

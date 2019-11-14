@@ -552,6 +552,8 @@ public:
 
  int restore_from_tag(StateTag const &tag);
 
+ int create_full_restore_sequence(RestoreCommandList &restore_cmd_list);
+
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
                           ParameterArray &parameters, bool check_exists);

@@ -2676,6 +2676,32 @@ int Interp::restore_from_tag(StateTag const &tag)
     return INTERP_OK;
 }
 
+int Interp::create_full_restore_sequence(RestoreCommandList & restore_cmd_list)
+{
+    GCodeGenerator generator(_setup.feature_set);
+
+    // Send all work offsets that may have been changed during seek
+    // The worst case is that all "used" work offsets have changed (via G10),
+    // but often they will just be activated (e.g. G5x) without changing the offset values.
+    for (auto const &w : _setup.work_offsets_used) {
+        generator.addWorkOffset(w);
+    }
+
+    // Send any tool table values to IO that have changed
+    for (auto const &w : _setup.tool_offsets_changed) {
+        generator.addWorkOffset(w);
+    }
+
+    // Capture current modal state
+    CHP(write_modal_state(nullptr, &_setup));
+    ModalState &to_restore = _setup.modal_state;
+    ModalState dummy{}; // TODO pull this from task / motion via synch()?
+    generator.gen_modalStateRestore(dummy, to_restore);
+    restore_cmd_list = generator.getCommandSequence();
+    generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
+    return 0;
+}
+
 
 
 /****************************************************************************/
@@ -3461,12 +3487,13 @@ int Interp::convert_retract_mode(int g_code,     //!< g_code being executed (mus
 // G10 L10 P[tool number] R[radius] X[x offset] Z[z offset] Q[orientation]
 
 int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
-    CHKS(!(block->x_flag || block->y_flag || block->z_flag ||
-           block->a_flag || block->b_flag || block->c_flag ||
-           block->u_flag || block->v_flag || block->w_flag ||
-           block->r_flag || block->q_flag || block->i_flag ||
-           block->j_flag),
-         _("G10 L1 without offsets has no effect"));
+    if(!(block->x_flag || block->y_flag || block->z_flag ||
+          block->a_flag || block->b_flag || block->c_flag ||
+          block->u_flag || block->v_flag || block->w_flag ||
+          block->r_flag || block->q_flag || block->i_flag ||
+          block->j_flag) && last_cmd_src != CommandSource::INIT) {
+        setWarning("G10 L1 without offsets has no effect");
+    }
 
     int pocket = -1, toolno;
     // TODO same overhaul as setup (w/ unrotate etc.)

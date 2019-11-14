@@ -5,6 +5,7 @@
 #include <string>
 #include <modal_state.hh>
 #include <featureset.hh>
+#include <positionarray.hh>
 
 using RestoreCommandList = std::vector<std::string>;
 
@@ -30,8 +31,10 @@ public:
     static int filterAbortedStates(ModalState &current, ModalState &saved);
 
     void addWorkOffset(int work_offset_number);
+    void addToolOffset(int tool_number);
     int addModalStateGCodes(ModalState &current, const ModalState & saved);
     int addModalStateMCodes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved);
+    int addLinearFeedMove(PositionArray const &goal, double feed);
 
     int gen_modalStateRestore(ModalState & current, const ModalState & saved);
 
