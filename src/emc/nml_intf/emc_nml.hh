@@ -57,7 +57,7 @@ class EMC_OPERATOR_ERROR:public RCS_CMD_MSG {
     void update(CMS * cms);
 
     int id;
-    char error[LINELEN];
+    char error[ERROR_TEXT_LEN];
 };
 
 /**
@@ -75,7 +75,7 @@ class EMC_OPERATOR_TEXT:public RCS_CMD_MSG {
     void update(CMS * cms);
 
     int id;
-    char text[LINELEN];
+    char text[ERROR_TEXT_LEN];
 };
 
 /**
@@ -97,7 +97,7 @@ class EMC_OPERATOR_DISPLAY:public RCS_CMD_MSG {
     void update(CMS * cms);
 
     int id;
-    char display[LINELEN];
+    char display[ERROR_TEXT_LEN];
 };
 
 #define EMC_SYSTEM_CMD_LEN 256

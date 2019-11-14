@@ -188,7 +188,7 @@ UnitsTransform Interp::convertsProgramToUser() const
 
 extern struct _inittab builtin_modules[];
 int trace;
-static char savedError[MAX_ERROR_MSG_LEN+1];
+static char savedError[ERROR_TEXT_LEN];
 
 Interp::Interp()
     : log_file(stderr),
@@ -2535,7 +2535,7 @@ void Interp::setError(const char *fmt, ...)
 
     va_start(ap, fmt);
 
-    vsnprintf(savedError, MAX_ERROR_MSG_LEN, fmt, ap);
+    vsnprintf(savedError, ERROR_TEXT_LEN, fmt, ap);
     //printf("Got a saved error");
 
     va_end(ap);
@@ -2547,7 +2547,7 @@ void Interp::setWarning(const char *fmt, ...)
 
     va_start(ap, fmt);
 
-    vsnprintf(this->warning_text_buf, LINELEN, fmt, ap);
+    vsnprintf(this->warning_text_buf, MAX_ERROR_MSG_LEN, fmt, ap);
 
     //Ugly way to package the warning string up
     std::string msg(this->warning_text_buf);
@@ -2571,7 +2571,7 @@ const char *Interp::getSavedError() const
 int Interp::setSavedError(const char *msg)
 {
     clearSavedError();
-    strncpy(savedError, msg, MAX_ERROR_MSG_LEN);
+    strncpy(savedError, msg, ERROR_TEXT_LEN);
     return INTERP_OK;
 }
 
@@ -2632,8 +2632,8 @@ char * Interp::error_text(int error_code,        //!< code number of error
 
 std::string Interp::error_text(int error_code)
 {
-    char buf[MAX_ERROR_MSG_LEN+1]={'\n'};
-    return std::string(error_text(error_code, buf, MAX_ERROR_MSG_LEN));
+    char buf[ERROR_TEXT_LEN]={};
+    return std::string(error_text(error_code, buf, ERROR_TEXT_LEN));
 }
 
 /***********************************************************************/

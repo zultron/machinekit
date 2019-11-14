@@ -28,42 +28,6 @@
 #include "emcpos.h"
 #include "cms.hh"
 
-
-/**
- * Generic templated wrapper for update() member function.
- * This is designed to be specialized / overloaded with more specific versions of cms_update (see below).
- * @overload
- */
-template <typename T>
-void cms_update(CMS * cms, T &x)
-{
-    cms->update(x);
-}
-
-
-/**
- * CMS updater for an array of arbitrary type (the appropriate updater template instance is resolved automatically).
- * @overload
- */
-template <typename T, size_t N>
-void cms_update(CMS * cms, std::array<T, N> &x)
-{
-    for (auto & entry : x) {
-        cms_update(cms, entry);
-    }
-}
-
-/**
- * CMS updater for RotateShiftTransforms.
- * @overload
- */
-template <>
-void cms_update(CMS * cms, RotateShiftTransform &transform)
-{
-    cms_update(cms, transform.shift.tf);
-    cms->update(transform.xy_rotation_rad);
-}
-
 // Forward Function Prototypes
 void EmcPose_update(CMS * cms, EmcPose * x);
 void CANON_TOOL_TABLE_update(CMS * cms, CANON_TOOL_TABLE * x);
@@ -908,7 +872,7 @@ void EMC_AUX_ESTOP_OFF::update(CMS * cms)
 void EMC_OPERATOR_DISPLAY::update(CMS * cms)
 {
     cms->update(id);
-    cms->update(display, 256);
+    cms->update(display, sizeof(display));
 
 }
 
@@ -1682,7 +1646,7 @@ void EMC_IO_HALT::update(CMS * cms)
 void EMC_OPERATOR_TEXT::update(CMS * cms)
 {
     cms->update(id);
-    cms->update(text, 256);
+    cms->update(text, sizeof(text));
 
 }
 
@@ -1966,15 +1930,15 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(g5x_index);
     EmcPose_update(cms, &g92_offset);
     EmcPose_update(cms, &toolOffset);
-    cms_update(cms, activeGCodes);
-    cms_update(cms, activeMCodes);
-    cms_update(cms, activeSettings);
+    cms->update(activeGCodes);
+    cms->update(activeMCodes);
+    cms->update(activeSettings);
     cms->update(programUnits);
     cms->update(task_paused);
     cms->update(delayLeft);
     cms->update(queuedMDIcommands);
     cms->update(interpreter_errcode);
-    cms_update(cms, g5x_table);
+    cms->update(g5x_table);
     cms->update(optional_stop_state);
     cms->update(block_delete_state);
     cms->update(input_timeout);
@@ -2246,7 +2210,7 @@ void EMC_TRAJ_CMD_MSG::update(CMS * cms)
 void EMC_OPERATOR_ERROR::update(CMS * cms)
 {
     cms->update(id);
-    cms->update(error, 256);
+    cms->update(error, sizeof(error));
 
 }
 

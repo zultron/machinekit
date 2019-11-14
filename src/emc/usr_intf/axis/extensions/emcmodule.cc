@@ -1457,6 +1457,8 @@ static int Error_init(pyErrorChannel *self, PyObject *a, PyObject *k) {
     return 0;
 }
 
+static char error_string[ERROR_TEXT_LEN];
+
 static PyObject* Error_poll(pyErrorChannel *s) {
     if(!s->c->valid()) {
         PyErr_Format( error, "Error buffer invalid" );
@@ -1470,15 +1472,15 @@ static PyObject* Error_poll(pyErrorChannel *s) {
     PyObject *r = PyTuple_New(2);
     PyTuple_SET_ITEM(r, 0, PyInt_FromLong(type));
 #define PASTE(a,b) a ## b
-#define _TYPECASE(tag, type, f) \
+#define TYPECASE_IMPL(tag, type, f) \
     case tag: { \
-        char error_string[LINELEN]; \
-        strncpy(error_string, ((type*)s->c->get_address())->f, LINELEN-1); \
-        error_string[LINELEN-1] = 0; \
+        auto const &msg = ((type*)s->c->get_address())->f; \
+        strncpy(error_string, msg, std::min(sizeof(error_string), sizeof(msg)) - 1); \
+        error_string[sizeof(error_string) - 1] = '\0'; \
         PyTuple_SET_ITEM(r, 1, PyString_FromString(error_string)); \
         break; \
     }
-#define TYPECASE(x, f) _TYPECASE(PASTE(x, _TYPE), x, f)
+#define TYPECASE(x, f) TYPECASE_IMPL(PASTE(x, _TYPE), x, f)
     switch(type) {
         TYPECASE(EMC_OPERATOR_ERROR, error)
         TYPECASE(EMC_OPERATOR_TEXT, text)

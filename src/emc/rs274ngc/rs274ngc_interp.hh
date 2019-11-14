@@ -21,8 +21,6 @@
 #include "interp_return.hh"
 #include <array>
 
-#define MAX_ERROR_MSG_LEN 10000
-
 class Interp : public InterpBase {
 
 public:
