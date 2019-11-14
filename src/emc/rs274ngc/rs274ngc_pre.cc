@@ -1333,7 +1333,7 @@ int Interp::init()
   _setup.lathe_diameter_mode = false;
   _setup.parameters[DEBUG_LEVEL_FLAG] = 1.0; // enable (DEBUG, ) output
 
-  std::copy(default_readers, default_readers + 256, _readers);
+  _readers = default_readers;
 
   long axis_mask = GET_EXTERNAL_AXIS_MASK();
   if(!(axis_mask & AXIS_MASK_X)) _readers[(int)'x'] = &Interp::read_missing_axis;

@@ -740,8 +740,8 @@ int read_inputs(setup_pointer settings);
     static const int _required_parameters[];
     static const int _readonly_parameters[];
     static const int _n_readonly_parameters;
-    read_function_pointer _readers[256];
-    static const read_function_pointer default_readers[256];
+    std::array<read_function_pointer, 256> _readers;
+    static const std::array<read_function_pointer, 256> default_readers;
 
     setup _setup;
     std::vector <std::string> warning_list;
