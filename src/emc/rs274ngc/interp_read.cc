@@ -1162,18 +1162,18 @@ int Interp::read_one_item(
     block_pointer block,   //!< pointer to a block being filled from the line 
     ParameterArray &parameters) /* array of system parameters  */
 {
-  read_function_pointer function_pointer;
-  char letter;
+    read_function_pointer function_pointer;
+    char letter;
 
-  letter = line[*counter];      /* check if in array range */
-  CHKS(((letter < ' ') || (letter > 'z')),
-	_("Bad character '\\%03o' used"), (unsigned char)letter);
-  function_pointer = _readers[(int) letter]; /* Find the function pointer in the array */
-  CHKS((function_pointer == nullptr),
-	(!isprint(letter) || isspace(letter)) ?
-	    _("Bad character '\\%03o' used") : _("Bad character '%c' used"), letter);
-  CHP((*this.*function_pointer)(line, counter, block, parameters)); /* Call the function */ 
-  return INTERP_OK;
+    letter = line[*counter];      /* check if in array range */
+    CHKS(((letter < ' ') || (letter > 'z')),
+         _("Bad character '\\%03o' used"), (unsigned char)letter);
+    function_pointer = _readers[(int) letter]; /* Find the function pointer in the array */
+    CHKS((function_pointer == nullptr),
+         (!isprint(letter) || isspace(letter)) ?
+                                               _("Bad character '\\%03o' used") : _("Bad character '%c' used"), letter);
+    CHP((*this.*function_pointer)(line, counter, block, parameters)); /* Call the function */
+    return INTERP_OK;
 }
 
 /****************************************************************************/
@@ -3428,6 +3428,11 @@ int Interp::read_z(char *line,   //!< string: line of RS274 code being processed
   block->z_flag = true;
   block->z_number = value;
   return INTERP_OK;
+}
+
+int Interp::read_missing_axis(char * line, int * counter, block_pointer block, ParameterArray & parameters)
+{
+  ERS("Axis %c is not present on this machine", line[*counter]);
 }
 
 bool Interp::isreadonly(int index)

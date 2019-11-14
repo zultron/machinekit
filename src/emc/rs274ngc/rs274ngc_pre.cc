@@ -1327,7 +1327,7 @@ int Interp::init()
   // initialization stuff for subroutines and control structures
   _setup.call_level = 0;
   _setup.defining_sub = 0;
-  _setup.skipping_o = 0;
+  _setup.skipping_o = nullptr;
   _setup.offset_map.clear();
 
   _setup.lathe_diameter_mode = false;
@@ -1336,15 +1336,15 @@ int Interp::init()
   std::copy(default_readers, default_readers + 256, _readers);
 
   long axis_mask = GET_EXTERNAL_AXIS_MASK();
-  if(!(axis_mask & AXIS_MASK_X)) _readers[(int)'x'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_Y)) _readers[(int)'y'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_Z)) _readers[(int)'z'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_A)) _readers[(int)'a'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_B)) _readers[(int)'b'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_C)) _readers[(int)'c'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_U)) _readers[(int)'u'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_V)) _readers[(int)'v'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = nullptr;
+  if(!(axis_mask & AXIS_MASK_X)) _readers[(int)'x'] = &Interp::read_missing_axis;
+  if(!(axis_mask & AXIS_MASK_Y)) _readers[(int)'y'] = &Interp::read_missing_axis;
+  if(!(axis_mask & AXIS_MASK_Z)) _readers[(int)'z'] = &Interp::read_missing_axis;
+  if(!(axis_mask & AXIS_MASK_A)) _readers[(int)'a'] = &Interp::read_missing_axis;
+  if(!(axis_mask & AXIS_MASK_B)) _readers[(int)'b'] = &Interp::read_missing_axis;
+  if(!(axis_mask & AXIS_MASK_C)) _readers[(int)'c'] = &Interp::read_missing_axis;
+  if(!(axis_mask & AXIS_MASK_U)) _readers[(int)'u'] = &Interp::read_missing_axis;
+  if(!(axis_mask & AXIS_MASK_V)) _readers[(int)'v'] = &Interp::read_missing_axis;
+  if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = &Interp::read_missing_axis;
 
   // WARNING send any initial values to task before this point (interp->task->interp round trip stops here)
   int res_synch = synch(); //synch first, then update the interface

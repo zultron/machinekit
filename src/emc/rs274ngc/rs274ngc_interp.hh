@@ -560,6 +560,8 @@ public:
                   ParameterArray &parameters);
  int read_z(char *line, int *counter, block_pointer block,
                   ParameterArray &parameters);
+ int read_missing_axis(char *line, int *counter, block_pointer block,
+                  ParameterArray &parameters);
  int refresh_actual_position(setup_pointer settings);
  void rotate(double *x, double *y, double t);
  int set_probe_data(setup_pointer settings);
