@@ -1335,16 +1335,16 @@ int Interp::init()
 
   _readers = default_readers;
 
-  long axis_mask = GET_EXTERNAL_AXIS_MASK();
-  if(!(axis_mask & AXIS_MASK_X)) _readers[(int)'x'] = &Interp::read_missing_axis;
-  if(!(axis_mask & AXIS_MASK_Y)) _readers[(int)'y'] = &Interp::read_missing_axis;
-  if(!(axis_mask & AXIS_MASK_Z)) _readers[(int)'z'] = &Interp::read_missing_axis;
-  if(!(axis_mask & AXIS_MASK_A)) _readers[(int)'a'] = &Interp::read_missing_axis;
-  if(!(axis_mask & AXIS_MASK_B)) _readers[(int)'b'] = &Interp::read_missing_axis;
-  if(!(axis_mask & AXIS_MASK_C)) _readers[(int)'c'] = &Interp::read_missing_axis;
-  if(!(axis_mask & AXIS_MASK_U)) _readers[(int)'u'] = &Interp::read_missing_axis;
-  if(!(axis_mask & AXIS_MASK_V)) _readers[(int)'v'] = &Interp::read_missing_axis;
-  if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = &Interp::read_missing_axis;
+  std::bitset<64> axis_mask(GET_EXTERNAL_AXIS_MASK());
+  if(!axis_mask.test(X)) _readers[(int)'x'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(Y)) _readers[(int)'y'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(Z)) _readers[(int)'z'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(A)) _readers[(int)'a'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(B)) _readers[(int)'b'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(C)) _readers[(int)'c'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(U)) _readers[(int)'u'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(V)) _readers[(int)'v'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(W)) _readers[(int)'w'] = &Interp::read_missing_axis;
 
   // WARNING send any initial values to task before this point (interp->task->interp round trip stops here)
   int res_synch = synch(); //synch first, then update the interface

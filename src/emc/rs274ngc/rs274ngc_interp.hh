@@ -747,11 +747,6 @@ int read_inputs(setup_pointer settings);
     std::vector <std::string> warning_list;
 
     char warning_text_buf[LINELEN];
-    enum {
-        AXIS_MASK_X =   1, AXIS_MASK_Y =   2, AXIS_MASK_Z =   4,
-        AXIS_MASK_A =   8, AXIS_MASK_B =  16, AXIS_MASK_C =  32,
-        AXIS_MASK_U =  64, AXIS_MASK_V = 128, AXIS_MASK_W = 256,
-    };
 
     double getProgLenUnits() const;
     static double getProgAngUnits();
