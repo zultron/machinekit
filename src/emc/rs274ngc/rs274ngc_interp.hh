@@ -744,8 +744,6 @@ int read_inputs(setup_pointer settings);
     setup _setup;
     std::vector <std::string> warning_list;
 
-    char warning_text_buf[LINELEN];
-
     double getProgLenUnits() const;
     static double getProgAngUnits();
     double TO_PROG_LEN(double mm) const;

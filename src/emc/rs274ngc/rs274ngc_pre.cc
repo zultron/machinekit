@@ -1800,8 +1800,6 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
   if(command)logDebug("%s:[cmd]:|%s|", name, command);
   else logDebug("%s:|%s|", name, _setup.linetext);
 
-  // Clear the warning text buffer before reading a new line
-  warning_text_buf[0]=0;
   if ((read_status == INTERP_EXECUTE_FINISH)
       || (read_status == INTERP_OK)) {
     if (_setup.line_length != 0) {
@@ -2547,10 +2545,12 @@ void Interp::setWarning(const char *fmt, ...)
 
     va_start(ap, fmt);
 
-    vsnprintf(this->warning_text_buf, MAX_ERROR_MSG_LEN, fmt, ap);
+    // WARNING not thread-safe (this is ok currently since task is single-threaded)
+    static char warning_buf[ERROR_TEXT_LEN]={};
+    vsnprintf(warning_buf, ERROR_TEXT_LEN, fmt, ap);
 
     //Ugly way to package the warning string up
-    std::string msg(this->warning_text_buf);
+    std::string msg(warning_buf);
     // Build a crude line tag from the interpreters internal sequence number
     // FIXME sequence number could be wrong due to remap
     char line_number_buf[100];
