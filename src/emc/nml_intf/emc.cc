@@ -869,7 +869,7 @@ void EMC_AUX_ESTOP_OFF::update(CMS * cms)
 void EMC_OPERATOR_DISPLAY::update(CMS * cms)
 {
     cms->update(id);
-    cms->update(display, sizeof(display));
+    cms->update(text, sizeof(text));
 
 }
 
@@ -2207,7 +2207,7 @@ void EMC_TRAJ_CMD_MSG::update(CMS * cms)
 void EMC_OPERATOR_ERROR::update(CMS * cms)
 {
     cms->update(id);
-    cms->update(error, sizeof(error));
+    cms->update(text, sizeof(text));
 
 }
 

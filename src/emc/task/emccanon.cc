@@ -2505,8 +2505,8 @@ void MESSAGE(char *s)
 
     flush_segments();
     operator_display_msg.id = 0;
-    strncpy(operator_display_msg.display, s, LINELEN);
-    operator_display_msg.display[LINELEN - 1] = 0;
+    strncpy(operator_display_msg.text, s, LINELEN);
+    operator_display_msg.text[LINELEN - 1] = 0;
 	interp_list.append(operator_display_msg);
 }
 
@@ -2849,10 +2849,10 @@ void CANON_ERROR(const char *fmt, ...)
     operator_error_msg.id = 0;
     if (fmt) {
         va_start(ap, fmt);
-        vsnprintf(operator_error_msg.error,sizeof(operator_error_msg.error), fmt, ap);
+        vsnprintf(operator_error_msg.text,sizeof(operator_error_msg.text), fmt, ap);
         va_end(ap);
     } else {
-        operator_error_msg.error[0] = '\0';
+        operator_error_msg.text[0] = '\0';
     }
 
 	interp_list.append(operator_error_msg);

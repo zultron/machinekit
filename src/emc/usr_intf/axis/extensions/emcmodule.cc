@@ -1482,9 +1482,9 @@ static PyObject* Error_poll(pyErrorChannel *s) {
     }
 #define TYPECASE(x, f) TYPECASE_IMPL(PASTE(x, _TYPE), x, f)
     switch(type) {
-        TYPECASE(EMC_OPERATOR_ERROR, error)
+        TYPECASE(EMC_OPERATOR_ERROR, text)
         TYPECASE(EMC_OPERATOR_TEXT, text)
-        TYPECASE(EMC_OPERATOR_DISPLAY, display)
+        TYPECASE(EMC_OPERATOR_DISPLAY, text)
         TYPECASE(NML_ERROR, error)
         TYPECASE(NML_TEXT, text)
         TYPECASE(NML_DISPLAY, display)

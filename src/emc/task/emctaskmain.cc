@@ -234,21 +234,21 @@ int emcOperatorError(int id, const char *fmt, ...)
 	return -1;
     }
     // prepend error code, leave off 0 ad-hoc code
-    error_msg.error[0] = 0;
+    error_msg.text[0] = 0;
     if (0 != id) {
-	snprintf(error_msg.error, sizeof(error_msg.error), "[%d] ", id);
+    snprintf(error_msg.text, sizeof(error_msg.text), "[%d] ", id);
     }
     // append error string
     va_start(ap, fmt);
-    vsnprintf(&error_msg.error[strlen(error_msg.error)], 
-	      sizeof(error_msg.error) - strlen(error_msg.error), fmt, ap);
+    vsnprintf(&error_msg.text[strlen(error_msg.text)],
+          sizeof(error_msg.text) - strlen(error_msg.text), fmt, ap);
     va_end(ap);
 
     // force a NULL at the end for safety
-    error_msg.error[sizeof(error_msg.error) - 1] = 0;
+    error_msg.text[sizeof(error_msg.text) - 1] = 0;
 
     // write it
-    rcs_print("%s\n", error_msg.error);
+    rcs_print("%s\n", error_msg.text);
     return emcErrorBuffer->write(error_msg);
 }
 
@@ -282,11 +282,11 @@ int emcOperatorDisplay(int id, const char *fmt, ...)
 
     // write args to NML message (ignore int display code)
     va_start(ap, fmt);
-    vsnprintf(display_msg.display, sizeof(display_msg.display), fmt, ap);
+    vsnprintf(display_msg.text, sizeof(display_msg.text), fmt, ap);
     va_end(ap);
 
     // force a NULL at the end for safety
-    display_msg.display[sizeof(display_msg.display) - 1] = 0;
+    display_msg.text[sizeof(display_msg.text) - 1] = 0;
 
     // write it
     return emcErrorBuffer->write(display_msg);
@@ -493,8 +493,8 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
 
 	switch (cmd->type) {
 	case EMC_OPERATOR_ERROR_TYPE:
-	    emcOperatorError(operator_error_msg->id, "%s",
-			     operator_error_msg->error);
+        emcOperatorError(operator_error_msg->id, "%s",
+                 operator_error_msg->text);
 	    break;
 
 	case EMC_TRAJ_LINEAR_MOVE_TYPE:
@@ -1736,8 +1736,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	// general commands
 
     case EMC_OPERATOR_ERROR_TYPE:
-	retval = emcOperatorError(((EMC_OPERATOR_ERROR *) cmd)->id,
-				  "%s", ((EMC_OPERATOR_ERROR *) cmd)->error);
+    retval = emcOperatorError(((EMC_OPERATOR_ERROR *) cmd)->id,
+                  "%s", ((EMC_OPERATOR_ERROR *) cmd)->text);
 	break;
 
     case EMC_OPERATOR_TEXT_TYPE:
@@ -1748,7 +1748,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_OPERATOR_DISPLAY_TYPE:
 	retval = emcOperatorDisplay(((EMC_OPERATOR_DISPLAY *) cmd)->id,
 				    "%s", ((EMC_OPERATOR_DISPLAY *) cmd)->
-				    display);
+                    text);
 	break;
 
     case EMC_SYSTEM_CMD_TYPE:
