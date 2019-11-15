@@ -1473,11 +1473,7 @@ static PyObject* Error_poll(pyErrorChannel *s) {
 #define TYPECASE_IMPL(tag, type, f) \
     case tag: { \
         std::string msg(((type*)s->c->get_address())->f); \
-        const char *msg_ptr = msg.c_str(); \
-        if (0 == msg.compare(0, 4, CONTEXT_MARKER)) { \
-            msg_ptr+=strlen(CONTEXT_MARKER); \
-        } \
-        PyTuple_SET_ITEM(r, 1, PyString_FromString(msg_ptr)); \
+        PyTuple_SET_ITEM(r, 1, PyString_FromString(msg.c_str())); \
         break; \
     }
 #define TYPECASE(x, f) TYPECASE_IMPL(PASTE(x, _TYPE), x, f)
@@ -1488,6 +1484,16 @@ static PyObject* Error_poll(pyErrorChannel *s) {
         TYPECASE(NML_ERROR, error)
         TYPECASE(NML_TEXT, text)
         TYPECASE(NML_DISPLAY, display)
+    case EMC_OPERATOR_ERROR_EXTENDED_TYPE: {
+        std::string msg(((EMC_OPERATOR_ERROR_EXTENDED*)s->c->get_address())->text);
+        // KLUDGE strip context markers from extended error message
+        const char *msg_ptr = msg.c_str();
+        if (0 == msg.compare(0, 4, CONTEXT_MARKER)) {
+            msg_ptr+=strlen(CONTEXT_MARKER);
+        }
+        PyTuple_SET_ITEM(r, 1, PyString_FromString(msg_ptr));
+        break; \
+    }
     default:
         {
             char error_string[256];

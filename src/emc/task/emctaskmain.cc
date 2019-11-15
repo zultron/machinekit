@@ -217,24 +217,23 @@ int emcErrorBufferOKtoWrite(int space, const char *caller)
     return 0;
 }
 
+template <typename MsgType>
+int isEmcErrorBufferOKtoWrite_(MsgType const &msg, const char * caller)
+{
+    return emcErrorBufferOKtoWrite(sizeof(msg) * 2, caller) == 0;
+}
+#define isEmcErrorBufferOKtoWrite(msg) isEmcErrorBufferOKtoWrite_(msg, __FUNCTION__)
 
 // implementation of EMC error logger
 int emcOperatorError(const char *fmt, ...)
 {
-    EMC_OPERATOR_ERROR error_msg;
-    va_list ap;
-
-    if ( emcErrorBufferOKtoWrite(sizeof(error_msg) * 2, "emcOperatorError"))
+    EMC_OPERATOR_ERROR_EXTENDED error_msg;
+    if (!fmt || !fmt[0] || !isEmcErrorBufferOKtoWrite(error_msg)) {
         return -1;
+    }
 
-    if (NULL == fmt) {
-	return -1;
-    }
-    if (0 == *fmt) {
-	return -1;
-    }
-    // prepend error code, leave off 0 ad-hoc code
-    // append error string
+    // Copy error string into error buffer
+    va_list ap;
     va_start(ap, fmt);
     vsnprintf(error_msg.text,
           sizeof(error_msg.text), fmt, ap);
@@ -251,12 +250,12 @@ int emcOperatorError(const char *fmt, ...)
 int emcOperatorText(const char *fmt, ...)
 {
     EMC_OPERATOR_TEXT text_msg;
-    va_list ap;
-
-    if ( emcErrorBufferOKtoWrite(sizeof(text_msg) * 2, "emcOperatorText"))
-	return -1;
+    if (!fmt || !fmt[0] || !isEmcErrorBufferOKtoWrite(text_msg)) {
+        return -1;
+    }
 
     // write args to NML message (ignore int text code)
+    va_list ap;
     va_start(ap, fmt);
     vsnprintf(text_msg.text, sizeof(text_msg.text), fmt, ap);
     va_end(ap);
@@ -271,12 +270,12 @@ int emcOperatorText(const char *fmt, ...)
 int emcOperatorDisplay(const char *fmt, ...)
 {
     EMC_OPERATOR_DISPLAY display_msg;
-    va_list ap;
-
-    if ( emcErrorBufferOKtoWrite(sizeof(display_msg) * 2, "emcOperatorDisplay"))
-	return -1;
+    if (!fmt || !fmt[0] || !isEmcErrorBufferOKtoWrite(display_msg)) {
+        return -1;
+    }
 
     // write args to NML message (ignore int display code)
+    va_list ap;
     va_start(ap, fmt);
     vsnprintf(display_msg.text, sizeof(display_msg.text), fmt, ap);
     va_end(ap);
