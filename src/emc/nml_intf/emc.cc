@@ -769,11 +769,8 @@ const char *emc_symbol_lookup(uint32_t type)
 	return "EMC_TRAJ_STEP";
     case EMC_TASK_SET_TAG_TYPE:
 	return "EMC_TASK_SET_TAG";
-    default:
-	return "UNKNOWN";
-	break;
     }
-    return (NULL);
+    return "UNKNOWN";
 }
 
 /*
