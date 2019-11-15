@@ -3430,9 +3430,22 @@ int Interp::read_z(char *line,   //!< string: line of RS274 code being processed
   return INTERP_OK;
 }
 
+static std::string lookup_active_axes_as_str()
+{
+    std::string out{};
+    std::bitset<64> axis_mask(GET_EXTERNAL_AXIS_MASK());
+    for (int i = 0; i < EMC_AXIS_MAX; ++i) {
+        if (!axis_mask.test(i)) {
+            continue;
+        }
+        out += AxisNames[i];
+    }
+    return out;
+}
+
 int Interp::read_missing_axis(char * line, int * counter, block_pointer block, ParameterArray & parameters)
 {
-  ERS("Axis %c is not present on this machine", line[*counter]);
+  ERS("Axis %c is not present on this machine (valid axes are %s)", line[*counter], lookup_active_axes_as_str().c_str());
 }
 
 bool Interp::isreadonly(int index)
