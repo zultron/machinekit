@@ -1457,8 +1457,6 @@ static int Error_init(pyErrorChannel *self, PyObject *a, PyObject *k) {
     return 0;
 }
 
-static char error_string[ERROR_TEXT_LEN];
-
 static PyObject* Error_poll(pyErrorChannel *s) {
     if(!s->c->valid()) {
         PyErr_Format( error, "Error buffer invalid" );
@@ -1474,10 +1472,12 @@ static PyObject* Error_poll(pyErrorChannel *s) {
 #define PASTE(a,b) a ## b
 #define TYPECASE_IMPL(tag, type, f) \
     case tag: { \
-        auto const &msg = ((type*)s->c->get_address())->f; \
-        strncpy(error_string, msg, std::min(sizeof(error_string), sizeof(msg)) - 1); \
-        error_string[sizeof(error_string) - 1] = '\0'; \
-        PyTuple_SET_ITEM(r, 1, PyString_FromString(error_string)); \
+        std::string msg(((type*)s->c->get_address())->f); \
+        const char *msg_ptr = msg.c_str(); \
+        if (0 == msg.compare(0, 4, CONTEXT_MARKER)) { \
+            msg_ptr+=strlen(CONTEXT_MARKER); \
+        } \
+        PyTuple_SET_ITEM(r, 1, PyString_FromString(msg_ptr)); \
         break; \
     }
 #define TYPECASE(x, f) TYPECASE_IMPL(PASTE(x, _TYPE), x, f)
