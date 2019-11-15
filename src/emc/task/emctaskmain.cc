@@ -2004,8 +2004,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TRAJ_PROBE_TYPE:
 	retval = emcTrajProbe(
-	    ((EMC_TRAJ_PROBE *) cmd)->pos, 
-	    ((EMC_TRAJ_PROBE *) cmd)->type,
+	    ((EMC_TRAJ_PROBE *) cmd)->pos,
+        ((EMC_TRAJ_PROBE *) cmd)->motion_type,
 	    ((EMC_TRAJ_PROBE *) cmd)->vel,
             ((EMC_TRAJ_PROBE *) cmd)->ini_maxvel,  
 	    ((EMC_TRAJ_PROBE *) cmd)->acc,

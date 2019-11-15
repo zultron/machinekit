@@ -969,7 +969,7 @@ class EMC_TRAJ_PROBE:public EMC_TRAJ_CMD_MSG {
     void update(CMS * cms);
 
     EmcPose pos;
-    int type;
+    static constexpr int motion_type = EMC_MOTION_TYPE_PROBING;
     double vel, ini_maxvel, acc;
     int pure_angular;
     unsigned char probe_type;

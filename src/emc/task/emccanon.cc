@@ -1228,8 +1228,6 @@ void straight_probe_internal(int line_number,
     probeMsg.ini_maxvel = toExtVel(ini_maxvel);
     probeMsg.acc = toExtAcc(acc);
     probeMsg.pure_angular = angular_move & ! cartesian_move;
-
-    probeMsg.type = EMC_MOTION_TYPE_PROBING;
     probeMsg.probe_type = probe_type;
 
     probeMsg.pos = to_ext_pose(goal_pos_canon);
