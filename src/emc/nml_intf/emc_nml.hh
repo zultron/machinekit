@@ -56,7 +56,6 @@ class EMC_OPERATOR_ERROR:public RCS_CMD_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    int id;
     char text[ERROR_TEXT_LEN];
     static constexpr const size_t text_len = sizeof(text);
 };
@@ -75,7 +74,6 @@ class EMC_OPERATOR_TEXT:public RCS_CMD_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    int id;
     char text[ERROR_TEXT_LEN];
     static constexpr const size_t text_len = sizeof(text);
 };
@@ -98,7 +96,6 @@ class EMC_OPERATOR_DISPLAY:public RCS_CMD_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    int id;
     char text[ERROR_TEXT_LEN];
     static constexpr const size_t text_len = sizeof (text);
 };

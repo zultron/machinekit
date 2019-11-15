@@ -226,26 +226,15 @@ static double get_rotation_xy( EMC_TASK_STAT const &t) {
     return t.rotation_xy();
 }
 
-static void operator_error(const char *message, int id = 0) {
-    emcOperatorError(id,"%s",message);
+static void operator_error(const char *message) {
+    emcOperatorError("%s",message);
 }
-static void operator_text(const char *message, int id = 0) {
-    emcOperatorText(id,"%s",message);
+static void operator_text(const char *message) {
+    emcOperatorText("%s",message);
 }
-static void operator_display(const char *message, int id = 0) {
-    emcOperatorDisplay(id,"%s",message);
+static void operator_display(const char *message) {
+    emcOperatorDisplay("%s",message);
 }
-
-
-#pragma GCC diagnostic push
-#if defined(__GNUC__) && ((__GNUC__ > 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ >= 7)))
-#pragma GCC diagnostic ignored "-Wunused-local-typedefs"
-#endif
-BOOST_PYTHON_FUNCTION_OVERLOADS(operator_error_overloads, operator_error, 1,2)
-BOOST_PYTHON_FUNCTION_OVERLOADS(operator_text_overloads, operator_text, 1,2)
-BOOST_PYTHON_FUNCTION_OVERLOADS(operator_display_overloads, operator_display, 1,2)
-#pragma GCC diagnostic pop
-
 
 static const char *ini_filename() { return emc_inifile; }
 
@@ -263,16 +252,13 @@ BOOST_PYTHON_MODULE(emctask) {
 
     def("operator_error",
 	operator_error,
-	operator_error_overloads ( args("id"),
-				   "send an error messsage to the operator screen with an optional message id"  ));
+                   "send an error messsage to the operator screen with an optional message id"  );
     def("operator_text",
 	operator_text,
-	operator_text_overloads ( args("id"),
-				   "send a informational messsage to the operator screen"  ));
+                   "send a informational messsage to the operator screen"  );
     def("operator_display",
 	operator_display,
-	operator_display_overloads ( args("id"),
-				   "send a messsage to the operator display"  ));
+                   "send a messsage to the operator display"  );
 
     BOOST_PYENUM_(RCS_STATUS)
             .BOOST_PYENUM_VAL(RCS_EXEC)
