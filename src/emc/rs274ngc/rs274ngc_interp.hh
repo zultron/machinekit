@@ -760,8 +760,6 @@ int read_inputs(setup_pointer settings);
     int convert_g10(block_pointer block, setup_pointer settings);
     InterpReturn check_g10(block_pointer block);
 
-protected:
-    bool error_has_context;
 };
 
 bool toolOffsetActive(setup_pointer s);

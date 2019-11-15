@@ -2402,6 +2402,7 @@ initlinuxcnc(void) {
     PyStructSequence_InitType(&ToolResultType, &tool_result_desc);
     PyModule_AddObject(m, "tool", (PyObject*)&ToolResultType);
     PyModule_AddObject(m, "version", PyString_FromString(PACKAGE_VERSION));
+    PyModule_AddObject(m, "context_marker", PyString_FromString(CONTEXT_MARKER));
 
     ENUMX(4, EMC_AXIS_LINEAR);
     ENUMX(4, EMC_AXIS_ANGULAR);

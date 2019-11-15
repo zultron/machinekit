@@ -193,8 +193,7 @@ static char savedError[ERROR_TEXT_LEN];
 Interp::Interp()
     : log_file(stderr),
       _setup(setup_struct()),
-    warning_list(),
-    error_has_context(false)
+    warning_list()
 {
 
   init_remap_sets();
@@ -1928,14 +1927,21 @@ std::string Interp::get_command_location(CommandSource cmd_src)
     return "";
 }
 
+static constexpr const char* context_flag = "::::";
 int Interp::add_error_call_context(std::string caller_filename)
 {
-  if (error_has_context) {
-    // No-op if we've already added context (guards against redundant adds)
-    return INTERP_OK;
-  }
   std::ostringstream context_msg;
-  context_msg << getSavedError();
+  const char *err_msg = getSavedError();
+
+  if (err_msg) {
+      int res = strncmp(err_msg, context_flag, strlen(context_flag));
+      if (res == 0){
+          // No-op if we've already added context (guards against redundant adds)
+          return INTERP_OK;
+      }
+  }
+
+  context_msg << context_flag << err_msg;
 
   std::string caller_linetext = _setup.linetext;
 
@@ -1964,7 +1970,6 @@ int Interp::add_error_call_context(std::string caller_filename)
 
   context_msg.flush();
   setSavedError(context_msg.str().c_str());
-  error_has_context = true;
   return INTERP_OK;
 }
 
@@ -2578,7 +2583,6 @@ int Interp::setSavedError(const char *msg)
 int Interp::clearSavedError()
 {
     savedError[0] = '\0';
-    error_has_context = false;
     return INTERP_OK;
 }
 

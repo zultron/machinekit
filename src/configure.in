@@ -1141,6 +1141,7 @@ AH_TOP([/********************************************************************
 #define ERROR_TEXT_LEN 4096
 /* Used in a number of places for sprintf() buffers. */
 #define BUFFERLEN 80
+#define CONTEXT_MARKER "::::"
 
 #define MM_PER_INCH 25.4
 #define INCH_PER_MM (1.0/25.4)
