@@ -206,6 +206,9 @@ int emcFormat(NMLTYPE type, void *buffer, CMS * cms)
     case EMC_OPERATOR_TEXT_TYPE:
 	((EMC_OPERATOR_TEXT *) buffer)->update(cms);
 	break;
+    case EMC_OPERATOR_ERROR_EXTENDED_TYPE:
+    ((EMC_OPERATOR_ERROR_EXTENDED *) buffer)->update(cms);
+    break;
     case EMC_SYSTEM_CMD_TYPE:
 	((EMC_SYSTEM_CMD *) buffer)->update(cms);
 	break;
@@ -587,12 +590,14 @@ const char *emc_symbol_lookup(uint32_t type)
 	return "EMC_MOTION_STAT";
     case EMC_NULL_TYPE:
 	return "EMC_NULL";
-    case EMC_OPERATOR_DISPLAY_TYPE:
-	return "EMC_OPERATOR_DISPLAY";
     case EMC_OPERATOR_ERROR_TYPE:
 	return "EMC_OPERATOR_ERROR";
     case EMC_OPERATOR_TEXT_TYPE:
 	return "EMC_OPERATOR_TEXT";
+    case EMC_OPERATOR_DISPLAY_TYPE:
+    return "EMC_OPERATOR_DISPLAY";
+    case EMC_OPERATOR_ERROR_EXTENDED_TYPE:
+    return "EMC_OPERATOR_ERROR_EXTENDED";
     case EMC_SYSTEM_CMD_TYPE:
 	return "EMC_SYSTEM_CMD";
     case EMC_SET_DEBUG_TYPE:
@@ -870,6 +875,11 @@ void EMC_OPERATOR_DISPLAY::update(CMS * cms)
 {
     cms->update(text, sizeof(text));
 
+}
+
+void EMC_OPERATOR_ERROR_EXTENDED::update(CMS * cms)
+{
+    cms->update(text, sizeof(text));
 }
 
 /*

@@ -492,6 +492,10 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
         emcOperatorError("%s",
                  operator_error_msg->text);
 	    break;
+    case EMC_OPERATOR_ERROR_EXTENDED_TYPE:
+        // Not supported in command channel
+        emcOperatorError(_("EMC_OPERATOR_ERROR_EXTENDED not supported in NML command channel"));
+        return -1;
 
 	case EMC_TRAJ_LINEAR_MOVE_TYPE:
 	    if (linear_move->end.tran.x >

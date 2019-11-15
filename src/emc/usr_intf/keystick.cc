@@ -1140,6 +1140,12 @@ static int updateStatus()
           error_string[LINELEN - 1] = 0;
           break;
 
+        case EMC_OPERATOR_ERROR_EXTENDED_TYPE:
+          strncpy(error_string,
+                  ((EMC_OPERATOR_ERROR_EXTENDED *) (emcErrorBuffer->get_address()))->text,
+                  LINELEN - 1);
+          error_string[LINELEN - 1] = 0;
+          break;
 
         case NML_ERROR_TYPE:
           strncpy(error_string,
