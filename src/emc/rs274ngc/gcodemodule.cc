@@ -902,7 +902,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
         }
         if(!RESULT_OK) break;
         error_line_offset = 0;
-        result = pinterp->execute();
+        result = pinterp->execute(nullptr, CommandSource::PROGRAM);
     }
 
 out_error:

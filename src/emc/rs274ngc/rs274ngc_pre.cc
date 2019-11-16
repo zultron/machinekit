@@ -193,7 +193,8 @@ static char savedError[ERROR_TEXT_LEN];
 Interp::Interp()
     : log_file(stderr),
       _setup(setup_struct()),
-    warning_list()
+    warning_list(),
+    last_cmd_src()
 {
 
   init_remap_sets();
@@ -371,6 +372,7 @@ public method unless you know what you're doing.
 
 int Interp::execute_impl(const char *command, CommandSource cmd_src)
 {
+    last_cmd_src = cmd_src;
   // KLUDGE assumes that we wouldn't be starting here if an error was not yet handled
   clearSavedError();
   int status;
@@ -636,7 +638,12 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
 
 int Interp::execute()
 {
-    return Interp::execute(nullptr, CommandSource::PROGRAM);
+    return Interp::execute(nullptr);
+}
+
+int Interp::execute(const char * command)
+{
+    return Interp::execute(command, last_cmd_src);
 }
 
 int Interp::execute(const char *command, CommandSource cmd_src)
@@ -1836,11 +1843,17 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
 
 int Interp::read(const char *command, CommandSource cmd_src)
 {
+    last_cmd_src = cmd_src;
     int status;
     if ((status = read_impl(command)) > INTERP_MIN_ERROR) {
       unwind_call(status, __FILE__,__LINE__,__FUNCTION__, cmd_src);
     }
     return status;
+}
+
+int Interp::read(const char * command)
+{
+    return read(command, last_cmd_src);
 }
 
 // Reset interpreter state and  terminate a call in progress by
@@ -1911,7 +1924,6 @@ std::string Interp::get_command_location(CommandSource cmd_src)
 {
     switch (cmd_src) {
     case CommandSource::PROGRAM:
-    case CommandSource::REMAP:
         return _setup.filename;
     case CommandSource::MDI:
         return "MDI";
@@ -1974,7 +1986,7 @@ int Interp::add_error_call_context(std::string caller_filename)
 }
 
 int Interp::read() {
-    return read(nullptr, CommandSource::PROGRAM);
+    return read(nullptr);
 }
 /***********************************************************************/
 

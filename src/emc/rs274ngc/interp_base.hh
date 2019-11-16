@@ -27,7 +27,6 @@
 enum class CommandSource
 {
     PROGRAM,
-    REMAP,
     MDI,
     MODAL_STATE_RESTORE,
     ABORT_CLEANUP,

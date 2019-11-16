@@ -37,8 +37,9 @@ public:
 // execute a line of NC code
  int execute();
 
+ int execute(const char *command);
  /** Provide an explicit source of the G-code command (for logging purposes) */
- int execute(const char *command, CommandSource cmd_src=CommandSource::PROGRAM);
+ int execute(const char *command, CommandSource cmd_src);
 
  int execute(const char *command, CommandSource cmd_src, int line_number);
 
@@ -62,7 +63,8 @@ public:
  std::set<int> get_work_offsets_used();
 
 // read the mdi or the next line of the open NC code file
- int read(const char *mdi, CommandSource cmd_src);
+ int read(const char *command, CommandSource cmd_src);
+ int read(const char *command);
  int read();
 
 // reset yourself
@@ -743,6 +745,7 @@ int read_inputs(setup_pointer settings);
 
     setup _setup;
     std::vector <std::string> warning_list;
+    CommandSource last_cmd_src;
 
     double getProgLenUnits() const;
     static double getProgAngUnits();

@@ -136,7 +136,7 @@ int Interp::convert_remapped_code(block_pointer block,
     }
 
     // good to go, pass to o-word call handling mechanism
-    status = read(cmd, CommandSource::REMAP);
+    status = read(cmd);
     block_pointer eblock = &EXECUTING_BLOCK(*settings);
     eblock->call_type = CT_REMAP; 
     CHKS(status != INTERP_OK,
