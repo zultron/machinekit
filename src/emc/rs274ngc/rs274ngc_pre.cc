@@ -1862,7 +1862,7 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 {
     if (_setup.hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
     // Walks the subroutine call levels and appends caller / callee information
-    add_error_call_context(get_command_location(cmd_src));
+    add_error_call_context(cmd_src);
   }
 
   logDebug("unwind_call: call_level=%d status=%s from %s %s:%d",
@@ -1939,29 +1939,50 @@ std::string Interp::get_command_location(CommandSource cmd_src)
     return "";
 }
 
-static constexpr const char* context_flag = "::::";
-int Interp::add_error_call_context(std::string caller_filename)
+int Interp::add_error_call_context(CommandSource cmd_src)
 {
   std::ostringstream context_msg;
   const char *err_msg = getSavedError();
 
   if (err_msg) {
-      int res = strncmp(err_msg, context_flag, strlen(context_flag));
+      int res = strncmp(err_msg, CONTEXT_MARKER, strlen(CONTEXT_MARKER));
       if (res == 0){
           // No-op if we've already added context (guards against redundant adds)
           return INTERP_OK;
       }
   }
 
-  context_msg << context_flag << err_msg;
+  // Start with the context marker so we don't double-add
+  context_msg << CONTEXT_MARKER << err_msg;
 
-  std::string caller_linetext = _setup.linetext;
+  // The "top" of the stack is always what's in _setup, currently executing
+  std::string caller_filename{};
+  int callee_line = 0;
 
+  if (_setup.sub_context[_setup.call_level].call_type != CT_REMAP) {
+      caller_filename = _setup.filename;
+      callee_line = _setup.sequence_number;
+  }
+  std::string callee_linetext = _setup.linetext;
+
+  // Walk down the subroutine stack (from most local towards the original call site) and add context
   for (int level = _setup.call_level; level >= 0; --level)
   {
+      if (level == 0 && cmd_src != CommandSource::PROGRAM) {
+          // FIXME non-program sources don't come from the loaded program, so ignore
+          // the source location and use a generic name (like MDI, init, etc.)
+          caller_filename = get_command_location(cmd_src);
+          callee_line = 0;
+      }
+
       context const &sub = _setup.sub_context[level];
-      // KLUDGE the top of the stack is always interp's sequence number
-      int callee_line = (level == _setup.call_level) ? _setup.sequence_number : sub.sequence_number;
+      if (sub.call_type == CT_REMAP) {
+          // FIXME source information for remaps is a whole different system,
+          // just skip it until we can unravel this
+          continue;
+      }
+
+      // Format the context line, cleanly skipping any missing information (line, file name, etc.)
       context_msg << "\n  in " << caller_filename;
       if (sub.subName && sub.subName[0]) {
           context_msg << " (o<" << sub.subName << ">)";
@@ -1972,12 +1993,17 @@ int Interp::add_error_call_context(std::string caller_filename)
       }
 
       context_msg
-          << ": " << caller_linetext;
-      caller_linetext = sub.linetext;
-      // File return location is off by one
-      if (level > 0) {
-          caller_filename = _setup.sub_context[level-1].filename;
+          << ": " << callee_linetext;
+
+      callee_linetext = sub.linetext;
+
+      if (level == 0) {
+          break;
       }
+      // Get off-by-one source information from the next level down
+      context const &next_sub = _setup.sub_context[level-1];
+      caller_filename = next_sub.filename;
+      callee_line = next_sub.sequence_number;
   }
 
   context_msg.flush();

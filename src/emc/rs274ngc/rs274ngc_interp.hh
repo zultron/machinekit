@@ -718,7 +718,7 @@ int read_inputs(setup_pointer settings);
 
     int unwind_call(int status, const char *file, int line, const char *function, CommandSource cmd_src);
     std::string get_command_location(CommandSource cmd_src);
-    int add_error_call_context(std::string caller_filename);
+    int add_error_call_context(CommandSource cmd_src);
 
     int convert_straight_indexer(int, block*, setup*);
     int issue_straight_index(int, double, int, setup*);
