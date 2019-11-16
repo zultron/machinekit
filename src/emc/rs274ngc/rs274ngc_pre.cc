@@ -3133,7 +3133,7 @@ const char *strstore(const char *s)
 
 context_struct::context_struct()
     : position(0), sequence_number(0), filename(""), subName(""), linetext(""),
-    m98_loop_counter(-1), context_status(0), modal_state(), call_type(0)
+    m98_loop_counter(-1), context_status(0), modal_state(), call_type(CT_NONE)
 {
 }
 

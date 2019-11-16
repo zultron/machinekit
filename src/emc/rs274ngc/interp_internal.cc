@@ -311,7 +311,7 @@ int Interp::init_block(block_pointer block)      //!< pointer to a block to be i
 
   block->o_type = O_none;
   block->o_name = 0;
-  block->call_type = -1;
+  block->call_type = CT_INVALID;
 
   return INTERP_OK;
 }
