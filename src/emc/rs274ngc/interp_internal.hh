@@ -384,12 +384,12 @@ struct setup_struct
   bool arc_not_allowed;       // we just exited cutter compensation, so we error if the next move isn't straight
 
   // stack of controlling blocks for remap execution
-  block blocks[MAX_NESTED_REMAPS];
+  std::array<block, MAX_NESTED_REMAPS> blocks;
   // index into blocks, points to currently controlling block
   int remap_level;
 
-#define CONTROLLING_BLOCK(s) ((s).blocks[(s).remap_level])
-#define EXECUTING_BLOCK(s)   ((s).blocks[0])
+  block &getControllingBlock();
+  block &getExecutingBlock();
 
   char blocktext[LINELEN];   // linetext downcased, white space gone
   CANON_MOTION_MODE control_mode;       // exact path or cutting mode

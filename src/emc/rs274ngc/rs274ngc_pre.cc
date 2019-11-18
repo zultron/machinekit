@@ -377,7 +377,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
   clearSavedError();
   int status;
   int MDImode = 0;
-  block_pointer eblock = &EXECUTING_BLOCK(_setup);
+  block_pointer eblock = &_setup.getExecutingBlock();
   extern const char *call_statenames[];
   extern const char *call_typenames[];
   extern const char *o_ops[];
@@ -533,7 +533,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
 
 
       CHP(enter_remap());
-      block_pointer cblock = &CONTROLLING_BLOCK(_setup);
+      block_pointer cblock = &_setup.getControllingBlock();
       cblock->phase = next_remap;
       // execute up to the first remap including read() of its handler
       // this also sets cblock->executing_remap
@@ -679,7 +679,7 @@ int Interp::execute(const char *command, CommandSource cmd_src, int line_number)
 int Interp::remap_finished(int phase)
 {
     int next_remap,status;
-    block_pointer cblock = &CONTROLLING_BLOCK(_setup);
+    block_pointer cblock = &_setup.getControllingBlock();
 
     logRemap("remap_finished phase=%d remap_level=%d call_level=%d filename=%s",
 	  phase, _setup.remap_level,_setup.call_level,_setup.filename);
@@ -763,19 +763,19 @@ int Interp::find_remappings(block_pointer block, setup_pointer settings)
 {
     if (block->f_flag && remapping("F")) {
 	if (remap_in_progress("F"))
-	    CONTROLLING_BLOCK(*settings).builtin_used = true;
+        settings->getControllingBlock().builtin_used = true;
 	else
 	    block->remappings.insert(STEP_SET_FEED_RATE);
     }
     if (block->s_flag && remapping("S")) {
 	if (remap_in_progress("S"))
-	    CONTROLLING_BLOCK(*settings).builtin_used = true;
+        settings->getControllingBlock().builtin_used = true;
 	else
 	    block->remappings.insert(STEP_SET_SPINDLE_SPEED);
     }
     if (block->t_flag && remapping("T")) {
 	if (remap_in_progress("T"))
-	    CONTROLLING_BLOCK(*settings).builtin_used = true;
+        settings->getControllingBlock().builtin_used = true;
 	else
 	    block->remappings.insert(STEP_PREPARE);
     }
@@ -859,7 +859,7 @@ int Interp::find_remappings(block_pointer block, setup_pointer settings)
 	    // these require real work.
 	    // remap_in_progress("M2") ||
 	    // remap_in_progress("M60")
-	    CONTROLLING_BLOCK(*settings).builtin_used = true;
+        settings->getControllingBlock().builtin_used = true;
 	} else {
 	    block->remappings.insert(STEP_MGROUP4);
 	}
@@ -1756,7 +1756,7 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
   // to decide what to do.
   // The handler reexec code will call read_inputs() just before continuation.
 
-  block_pointer eblock = &EXECUTING_BLOCK(_setup);
+  block_pointer eblock = &_setup.getExecutingBlock();
 
   if ((_setup.call_state > CS_NORMAL) &&
       (eblock->call_type != CT_NGC_OWORD_SUB)  &&
@@ -1792,7 +1792,7 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
 
   if(_setup.file_pointer)
   {
-      EXECUTING_BLOCK(_setup).offset = ftell(_setup.file_pointer);
+      _setup.getExecutingBlock().offset = ftell(_setup.file_pointer);
   }
 
   read_status =
@@ -1809,7 +1809,7 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
   if ((read_status == INTERP_EXECUTE_FINISH)
       || (read_status == INTERP_OK)) {
     if (_setup.line_length != 0) {
-	CHP(parse_line(_setup.blocktext, &(EXECUTING_BLOCK(_setup)), &_setup));
+    CHP(parse_line(_setup.blocktext, &(_setup.getExecutingBlock()), &_setup));
     }
 
     else // Blank line (zero length)
@@ -1823,9 +1823,9 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
              not created new, so this is a legal operation on block1. */
 
 	// mah: FIXME test this - no idea what this is about; o_number is history
-        if (EXECUTING_BLOCK(_setup).o_type != O_none)  {
+        if (_setup.getExecutingBlock().o_type != O_none)  {
             // Clear o_type, this isn't line isn't a command...
-            EXECUTING_BLOCK(_setup).o_type = 0;
+            _setup.getExecutingBlock().o_type = 0;
 	}
     }
   } else if (read_status == INTERP_ENDFILE) {
@@ -2988,17 +2988,17 @@ int Interp::enter_remap(void)
     }
 
     // push onto block stack
-    CONTROLLING_BLOCK(_setup) = EXECUTING_BLOCK(_setup);
-    CONTROLLING_BLOCK(_setup).breadcrumbs = 0; // clear trail
+    _setup.getControllingBlock() = _setup.getExecutingBlock();
+    _setup.getControllingBlock().breadcrumbs = 0; // clear trail
     // set later but tested for in remap_in_progress()
-    CONTROLLING_BLOCK(_setup).executing_remap = nullptr;
+    _setup.getControllingBlock().executing_remap = nullptr;
 
     // remember the line where remap was discovered
     logRemap("enter_remap into %d - saved_line_number=%d",
 	     _setup.remap_level, _setup.sequence_number);
     if (_setup.remap_level == 1)
         _setup.stepping_id++;
-    CONTROLLING_BLOCK(_setup).saved_line_number = _setup.sequence_number;
+    _setup.getControllingBlock().saved_line_number = _setup.sequence_number;
     _setup.sequence_number = 0;
     return INTERP_OK;
 }
@@ -3007,9 +3007,9 @@ int Interp::leave_remap(void)
 {
     // restore the line number where remap was found
     logRemap("leave_remap from %d propagate saved_line_number=%d",
-	     _setup.remap_level, CONTROLLING_BLOCK(_setup).saved_line_number);
+         _setup.remap_level, _setup.getControllingBlock().saved_line_number);
 
-    _setup.sequence_number = CONTROLLING_BLOCK(_setup).saved_line_number;
+    _setup.sequence_number = _setup.getControllingBlock().saved_line_number;
     _setup.blocks[_setup.remap_level].executing_remap = nullptr;
     _setup.remap_level--; // drop one nesting level
     if (_setup.remap_level < 0) {

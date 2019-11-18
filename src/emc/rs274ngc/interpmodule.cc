@@ -67,7 +67,7 @@ static  active_settings_array active_settings_wrapper ( Interp & inst) {
 }
 
 static  blocks_array blocks_wrapper ( Interp & inst) {
-    return blocks_array(inst._setup.blocks);
+    return blocks_array(inst._setup.blocks.data());
 }
 
 static  parameters_array parameters_wrapper ( Interp & inst) {

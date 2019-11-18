@@ -208,7 +208,7 @@ int Interp::execute_call(setup_pointer settings,
 
     context_pointer previous_frame = &settings->sub_context[settings->call_level-1];
 
-    block_pointer eblock = &EXECUTING_BLOCK(*settings);
+    block_pointer eblock = &settings->getExecutingBlock();
 
     logOword("execute_call %s type=%s state=%s cl=%d rl=%d", 
 	     current_frame->subName, 
@@ -337,7 +337,7 @@ int Interp::execute_call(setup_pointer settings,
 	break;
 
     case CT_REMAP:
-	block_pointer cblock = &CONTROLLING_BLOCK(*settings);
+    block_pointer cblock = &settings->getControllingBlock();
 	remap_pointer remap = cblock->executing_remap;
 
 	switch (settings->call_state) {
@@ -415,8 +415,8 @@ int Interp::execute_return(setup_pointer settings, context_pointer current_frame
 	     call_typenames[call_type],
 	     call_statenames[settings->call_state]);
 
-    block_pointer cblock = &CONTROLLING_BLOCK(*settings);
-    block_pointer eblock = &EXECUTING_BLOCK(*settings);
+    block_pointer cblock = &settings->getControllingBlock();
+    block_pointer eblock = &settings->getExecutingBlock();
     context_pointer previous_frame = &settings->sub_context[settings->call_level - 1];
 
     // if level is not zero, in a call

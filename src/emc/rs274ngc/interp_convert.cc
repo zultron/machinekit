@@ -3041,7 +3041,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 	  } else {
 	      // the code was used in its very remap procedure -
 	      // the 'recursion case'; record the fact
-	      CONTROLLING_BLOCK(*settings).builtin_used = !remapped_in_block;
+          settings->getControllingBlock().builtin_used = !remapped_in_block;
 	      CHP(convert_tool_change(settings));
 	  }
       	  break;
@@ -3051,7 +3051,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 	      return convert_remapped_code(block, settings, STEP_M_6,'m',
                        block->m_modes[M_MODE_TOOLCHANGE]);
 	  } else {
-	      CONTROLLING_BLOCK(*settings).builtin_used = !remapped_in_block;
+          settings->getControllingBlock().builtin_used = !remapped_in_block;
 	      toolno = round_to_int(block->q_number);
 	      // now also accept M61 Q0 - unload tool
 	      CHKS((toolno < 0), (_("Need non-negative Q-word to specify tool number with M61")));
@@ -3119,7 +3119,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
           // the code was used in its very remap procedure
           // the 'recursion case'; record the fact and keep going.
         logRemap("M3-M4-M5 recursion detected so running real one?");
-        CONTROLLING_BLOCK(*settings).builtin_used = !remapped_in_block;
+        settings->getControllingBlock().builtin_used = !remapped_in_block;
       }
   
       if (block->m_modes[M_MODE_SPINDLE] == 3) {
