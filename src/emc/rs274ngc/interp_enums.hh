@@ -73,4 +73,25 @@ typedef std::array<int, ACTIVE_G_CODES> ActiveGCodeArray;
 typedef std::array<int, ACTIVE_M_CODES> ActiveMCodeArray;
 typedef std::array<double, ACTIVE_SETTINGS> ActiveSettingsArray;
 #endif
+
+// indicates which type of Python handler yielded, and needs reexecution
+// post sync/read_inputs
+enum RemapCallStates {
+    CS_NORMAL,
+    CS_REEXEC_PROLOG,
+    CS_REEXEC_PYBODY,
+    CS_REEXEC_EPILOG,
+    CS_REEXEC_PYOSUB,
+};
+
+// detail for O_call; tags the frame
+enum OCallTypes {
+    CT_INVALID = -1,     // really not in a call...
+    CT_NONE,             // not in a call
+    CT_NGC_OWORD_SUB,    // no restartable Python code involved
+    CT_NGC_M98_SUB,      // like above; Fanuc-style, pass in params #1..#30
+    CT_PYTHON_OWORD_SUB, // restartable Python code may be involved
+    CT_REMAP,            // restartable Python code may be involved
+};
+
 #endif // INTERP_ENUMS_HH

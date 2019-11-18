@@ -27,6 +27,7 @@ extern "C" {
 #endif
 #include "cms_cfg.hh"		/* CMS_CONFIG_LINELEN */
 #include "state_tag.h"
+#include <array>
 
 class PHYSMEM_HANDLE;
 struct PM_CARTESIAN;
@@ -41,6 +42,7 @@ struct PM_ROTATION_VECTOR;
 struct PM_RPY;
 struct PM_SPHERICAL;
 class LinkedList;
+struct RotateShiftTransform;
 
 enum CMS_STATUS {
 /* ERROR conditions */
@@ -322,6 +324,17 @@ class CMS {
     // pose types
     CMS_STATUS update(PM_POSE * x, int n);	// Pose
     CMS_STATUS update(PM_HOMOGENEOUS * x, int n);	// Hom
+
+    template <typename T, size_t N>
+    CMS_STATUS update(std::array<T, N> &x)
+    {
+        for (auto & entry : x) {
+             update(entry);
+        }
+        return status;
+    }
+
+    CMS_STATUS update(RotateShiftTransform &transform);
 
     /* comm protocol parameters shared by all protocols */
     int fatal_error_occurred;

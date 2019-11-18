@@ -1228,8 +1228,6 @@ void straight_probe_internal(int line_number,
     probeMsg.ini_maxvel = toExtVel(ini_maxvel);
     probeMsg.acc = toExtAcc(acc);
     probeMsg.pure_angular = angular_move & ! cartesian_move;
-
-    probeMsg.type = EMC_MOTION_TYPE_PROBING;
     probeMsg.probe_type = probe_type;
 
     probeMsg.pos = to_ext_pose(goal_pos_canon);
@@ -2506,9 +2504,8 @@ void MESSAGE(char *s)
     EMC_OPERATOR_DISPLAY operator_display_msg;
 
     flush_segments();
-    operator_display_msg.id = 0;
-    strncpy(operator_display_msg.display, s, LINELEN);
-    operator_display_msg.display[LINELEN - 1] = 0;
+    strncpy(operator_display_msg.text, s, LINELEN);
+    operator_display_msg.text[LINELEN - 1] = 0;
 	interp_list.append(operator_display_msg);
 }
 
@@ -2848,13 +2845,12 @@ void CANON_ERROR(const char *fmt, ...)
     va_list ap;
     EMC_OPERATOR_ERROR operator_error_msg;
 
-    operator_error_msg.id = 0;
     if (fmt) {
         va_start(ap, fmt);
-        vsnprintf(operator_error_msg.error,sizeof(operator_error_msg.error), fmt, ap);
+        vsnprintf(operator_error_msg.text,sizeof(operator_error_msg.text), fmt, ap);
         va_end(ap);
     } else {
-        operator_error_msg.error[0] = '\0';
+        operator_error_msg.text[0] = '\0';
     }
 
 	interp_list.append(operator_error_msg);
@@ -2868,7 +2864,6 @@ void CANON_MSG(const char *fmt, ...)
     va_list ap;
     EMC_OPERATOR_TEXT operator_text_msg;
 
-    operator_text_msg.id = 0;
     if (fmt) {
         va_start(ap, fmt);
         vsnprintf(operator_text_msg.text,sizeof(operator_text_msg.text), fmt, ap);

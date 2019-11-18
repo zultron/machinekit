@@ -35,6 +35,18 @@ enum PositionArrayIndex
     W,
 };
 
+static constexpr std::array<char, 9> AxisNames = {
+    'X',
+    'Y',
+    'Z',
+    'A',
+    'B',
+    'C',
+    'U',
+    'V',
+    'W',
+};
+
 using PositionMask = std::bitset<CANON_AXIS_COUNT>;
 
 constexpr std::array<size_t, 6> linearAxes = {X,Y,Z,U,V,W};

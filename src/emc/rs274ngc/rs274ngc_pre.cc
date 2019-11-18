@@ -188,13 +188,13 @@ UnitsTransform Interp::convertsProgramToUser() const
 
 extern struct _inittab builtin_modules[];
 int trace;
-static char savedError[MAX_ERROR_MSG_LEN+1];
+static char savedError[ERROR_TEXT_LEN];
 
 Interp::Interp()
     : log_file(stderr),
       _setup(setup_struct()),
     warning_list(),
-    error_has_context(false)
+    last_cmd_src()
 {
 
   init_remap_sets();
@@ -372,6 +372,7 @@ public method unless you know what you're doing.
 
 int Interp::execute_impl(const char *command, CommandSource cmd_src)
 {
+    last_cmd_src = cmd_src;
   // KLUDGE assumes that we wouldn't be starting here if an error was not yet handled
   clearSavedError();
   int status;
@@ -637,7 +638,12 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
 
 int Interp::execute()
 {
-    return Interp::execute(nullptr, CommandSource::PROGRAM);
+    return Interp::execute(nullptr);
+}
+
+int Interp::execute(const char * command)
+{
+    return Interp::execute(command, last_cmd_src);
 }
 
 int Interp::execute(const char *command, CommandSource cmd_src)
@@ -1327,24 +1333,24 @@ int Interp::init()
   // initialization stuff for subroutines and control structures
   _setup.call_level = 0;
   _setup.defining_sub = 0;
-  _setup.skipping_o = 0;
+  _setup.skipping_o = nullptr;
   _setup.offset_map.clear();
 
   _setup.lathe_diameter_mode = false;
   _setup.parameters[DEBUG_LEVEL_FLAG] = 1.0; // enable (DEBUG, ) output
 
-  std::copy(default_readers, default_readers + 256, _readers);
+  _readers = default_readers;
 
-  long axis_mask = GET_EXTERNAL_AXIS_MASK();
-  if(!(axis_mask & AXIS_MASK_X)) _readers[(int)'x'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_Y)) _readers[(int)'y'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_Z)) _readers[(int)'z'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_A)) _readers[(int)'a'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_B)) _readers[(int)'b'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_C)) _readers[(int)'c'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_U)) _readers[(int)'u'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_V)) _readers[(int)'v'] = nullptr;
-  if(!(axis_mask & AXIS_MASK_W)) _readers[(int)'w'] = nullptr;
+  std::bitset<64> axis_mask(GET_EXTERNAL_AXIS_MASK());
+  if(!axis_mask.test(X)) _readers[(int)'x'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(Y)) _readers[(int)'y'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(Z)) _readers[(int)'z'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(A)) _readers[(int)'a'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(B)) _readers[(int)'b'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(C)) _readers[(int)'c'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(U)) _readers[(int)'u'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(V)) _readers[(int)'v'] = &Interp::read_missing_axis;
+  if(!axis_mask.test(W)) _readers[(int)'w'] = &Interp::read_missing_axis;
 
   // WARNING send any initial values to task before this point (interp->task->interp round trip stops here)
   int res_synch = synch(); //synch first, then update the interface
@@ -1800,8 +1806,6 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
   if(command)logDebug("%s:[cmd]:|%s|", name, command);
   else logDebug("%s:|%s|", name, _setup.linetext);
 
-  // Clear the warning text buffer before reading a new line
-  warning_text_buf[0]=0;
   if ((read_status == INTERP_EXECUTE_FINISH)
       || (read_status == INTERP_OK)) {
     if (_setup.line_length != 0) {
@@ -1839,11 +1843,17 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
 
 int Interp::read(const char *command, CommandSource cmd_src)
 {
+    last_cmd_src = cmd_src;
     int status;
     if ((status = read_impl(command)) > INTERP_MIN_ERROR) {
       unwind_call(status, __FILE__,__LINE__,__FUNCTION__, cmd_src);
     }
     return status;
+}
+
+int Interp::read(const char * command)
+{
+    return read(command, last_cmd_src);
 }
 
 // Reset interpreter state and  terminate a call in progress by
@@ -1852,7 +1862,7 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 {
     if (_setup.hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
     // Walks the subroutine call levels and appends caller / callee information
-    add_error_call_context(get_command_location(cmd_src));
+    add_error_call_context(cmd_src);
   }
 
   logDebug("unwind_call: call_level=%d status=%s from %s %s:%d",
@@ -1914,7 +1924,6 @@ std::string Interp::get_command_location(CommandSource cmd_src)
 {
     switch (cmd_src) {
     case CommandSource::PROGRAM:
-    case CommandSource::REMAP:
         return _setup.filename;
     case CommandSource::MDI:
         return "MDI";
@@ -1930,22 +1939,50 @@ std::string Interp::get_command_location(CommandSource cmd_src)
     return "";
 }
 
-int Interp::add_error_call_context(std::string caller_filename)
+int Interp::add_error_call_context(CommandSource cmd_src)
 {
-  if (error_has_context) {
-    // No-op if we've already added context (guards against redundant adds)
-    return INTERP_OK;
-  }
   std::ostringstream context_msg;
-  context_msg << getSavedError();
+  const char *err_msg = getSavedError();
 
-  std::string caller_linetext = _setup.linetext;
+  if (err_msg) {
+      int res = strncmp(err_msg, CONTEXT_MARKER, strlen(CONTEXT_MARKER));
+      if (res == 0){
+          // No-op if we've already added context (guards against redundant adds)
+          return INTERP_OK;
+      }
+  }
 
+  // Start with the context marker so we don't double-add
+  context_msg << CONTEXT_MARKER << err_msg;
+
+  // The "top" of the stack is always what's in _setup, currently executing
+  std::string caller_filename{};
+  int callee_line = 0;
+
+  if (_setup.sub_context[_setup.call_level].call_type != CT_REMAP) {
+      caller_filename = _setup.filename;
+      callee_line = _setup.sequence_number;
+  }
+  std::string callee_linetext = _setup.linetext;
+
+  // Walk down the subroutine stack (from most local towards the original call site) and add context
   for (int level = _setup.call_level; level >= 0; --level)
   {
+      if (level == 0 && cmd_src != CommandSource::PROGRAM) {
+          // FIXME non-program sources don't come from the loaded program, so ignore
+          // the source location and use a generic name (like MDI, init, etc.)
+          caller_filename = get_command_location(cmd_src);
+          callee_line = 0;
+      }
+
       context const &sub = _setup.sub_context[level];
-      // KLUDGE the top of the stack is always interp's sequence number
-      int callee_line = (level == _setup.call_level) ? _setup.sequence_number : sub.sequence_number;
+      if (sub.call_type == CT_REMAP) {
+          // FIXME source information for remaps is a whole different system,
+          // just skip it until we can unravel this
+          continue;
+      }
+
+      // Format the context line, cleanly skipping any missing information (line, file name, etc.)
       context_msg << "\n  in " << caller_filename;
       if (sub.subName && sub.subName[0]) {
           context_msg << " (o<" << sub.subName << ">)";
@@ -1956,22 +1993,26 @@ int Interp::add_error_call_context(std::string caller_filename)
       }
 
       context_msg
-          << ": " << caller_linetext;
-      caller_linetext = sub.linetext;
-      // File return location is off by one
-      if (level > 0) {
-          caller_filename = _setup.sub_context[level-1].filename;
+          << ": " << callee_linetext;
+
+      callee_linetext = sub.linetext;
+
+      if (level == 0) {
+          break;
       }
+      // Get off-by-one source information from the next level down
+      context const &next_sub = _setup.sub_context[level-1];
+      caller_filename = next_sub.filename;
+      callee_line = next_sub.sequence_number;
   }
 
   context_msg.flush();
   setSavedError(context_msg.str().c_str());
-  error_has_context = true;
   return INTERP_OK;
 }
 
 int Interp::read() {
-    return read(nullptr, CommandSource::PROGRAM);
+    return read(nullptr);
 }
 /***********************************************************************/
 
@@ -2535,7 +2576,7 @@ void Interp::setError(const char *fmt, ...)
 
     va_start(ap, fmt);
 
-    vsnprintf(savedError, MAX_ERROR_MSG_LEN, fmt, ap);
+    vsnprintf(savedError, ERROR_TEXT_LEN, fmt, ap);
     //printf("Got a saved error");
 
     va_end(ap);
@@ -2547,10 +2588,12 @@ void Interp::setWarning(const char *fmt, ...)
 
     va_start(ap, fmt);
 
-    vsnprintf(this->warning_text_buf, LINELEN, fmt, ap);
+    // WARNING not thread-safe (this is ok currently since task is single-threaded)
+    static char warning_buf[ERROR_TEXT_LEN]={};
+    vsnprintf(warning_buf, ERROR_TEXT_LEN, fmt, ap);
 
     //Ugly way to package the warning string up
-    std::string msg(this->warning_text_buf);
+    std::string msg(warning_buf);
     // Build a crude line tag from the interpreters internal sequence number
     // FIXME sequence number could be wrong due to remap
     char line_number_buf[100];
@@ -2571,14 +2614,13 @@ const char *Interp::getSavedError() const
 int Interp::setSavedError(const char *msg)
 {
     clearSavedError();
-    strncpy(savedError, msg, MAX_ERROR_MSG_LEN);
+    strncpy(savedError, msg, ERROR_TEXT_LEN);
     return INTERP_OK;
 }
 
 int Interp::clearSavedError()
 {
     savedError[0] = '\0';
-    error_has_context = false;
     return INTERP_OK;
 }
 
@@ -2632,8 +2674,8 @@ char * Interp::error_text(int error_code,        //!< code number of error
 
 std::string Interp::error_text(int error_code)
 {
-    char buf[MAX_ERROR_MSG_LEN+1]={'\n'};
-    return std::string(error_text(error_code, buf, MAX_ERROR_MSG_LEN));
+    char buf[ERROR_TEXT_LEN]={};
+    return std::string(error_text(error_code, buf, ERROR_TEXT_LEN));
 }
 
 /***********************************************************************/
@@ -3129,7 +3171,7 @@ const char *strstore(const char *s)
 
 context_struct::context_struct()
     : position(0), sequence_number(0), filename(""), subName(""), linetext(""),
-    m98_loop_counter(-1), context_status(0), modal_state(), call_type(0)
+    m98_loop_counter(-1), context_status(0), modal_state(), call_type(CT_NONE)
 {
 }
 

@@ -902,7 +902,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
         }
         if(!RESULT_OK) break;
         error_line_offset = 0;
-        result = pinterp->execute();
+        result = pinterp->execute(nullptr, CommandSource::PROGRAM);
     }
 
 out_error:
@@ -943,12 +943,12 @@ out_error:
 
 static int maxerror = -1;
 
-static char savedError[MAX_ERROR_MSG_LEN+1];
 static PyObject *rs274_strerror(PyObject *s, PyObject *o) {
     int err;
     if(!PyArg_ParseTuple(o, "i", &err)) return nullptr;
-    pinterp->error_text(err, savedError, MAX_ERROR_MSG_LEN);
-    return PyString_FromString(savedError);
+    char error_buf[ERROR_TEXT_LEN]={};
+    pinterp->error_text(err, error_buf, ERROR_TEXT_LEN);
+    return PyString_FromString(error_buf);
 }
 
 static PyObject *rs274_calc_extents(PyObject *self, PyObject *args) {

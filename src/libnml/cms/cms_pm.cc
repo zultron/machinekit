@@ -15,6 +15,8 @@
 
 #include "cms.hh"		// class CMS
 #include "posemath.h"		// POSEMATH classes
+#include "coordinatetransform.hh"
+
 // translation types
 CMS_STATUS CMS::update(PM_CARTESIAN & Cart)
 {
@@ -203,4 +205,11 @@ CMS_STATUS CMS::update(PM_HOMOGENEOUS * x, int n)
 	update(x[i]);
     }
     return (status);
+}
+
+CMS_STATUS CMS::update(RotateShiftTransform & transform)
+{
+    update(transform.shift.tf);
+    update(transform.xy_rotation_rad);
+    return status;
 }

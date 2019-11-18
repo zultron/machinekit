@@ -699,12 +699,9 @@ usage:
 
 /***********************************************************************/
 
-int  emcOperatorError(int id, const char *fmt, ...)
+int  emcOperatorError(const char *fmt, ...)
 {
     va_list ap;
-
-    if (id)
-	fprintf(stderr,"[%d] ", id);
 
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
