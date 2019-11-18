@@ -226,7 +226,7 @@ int updateError()
     case EMC_OPERATOR_ERROR_TYPE:
 	strncpy(error_string,
 		((EMC_OPERATOR_ERROR *) (emcErrorBuffer->get_address()))->
-		error, LINELEN - 1);
+		text, LINELEN - 1);
 	error_string[NML_ERROR_LEN - 1] = 0;
 	break;
 
@@ -240,7 +240,7 @@ int updateError()
     case EMC_OPERATOR_DISPLAY_TYPE:
 	strncpy(operator_display_string,
 		((EMC_OPERATOR_DISPLAY *) (emcErrorBuffer->
-					   get_address()))->display,
+					   get_address()))->text,
 		LINELEN - 1);
 	operator_display_string[NML_DISPLAY_LEN - 1] = 0;
 	break;

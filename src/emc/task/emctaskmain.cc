@@ -217,76 +217,71 @@ int emcErrorBufferOKtoWrite(int space, const char *caller)
     return 0;
 }
 
+template <typename MsgType>
+int isEmcErrorBufferOKtoWrite_(MsgType const &msg, const char * caller)
+{
+    return emcErrorBufferOKtoWrite(sizeof(msg) * 2, caller) == 0;
+}
+#define isEmcErrorBufferOKtoWrite(msg) isEmcErrorBufferOKtoWrite_(msg, __FUNCTION__)
 
 // implementation of EMC error logger
-int emcOperatorError(int id, const char *fmt, ...)
+int emcOperatorError(const char *fmt, ...)
 {
-    EMC_OPERATOR_ERROR error_msg;
+    EMC_OPERATOR_ERROR_EXTENDED error_msg;
+    if (!fmt || !fmt[0] || !isEmcErrorBufferOKtoWrite(error_msg)) {
+        return -1;
+    }
+
+    // Copy error string into error buffer
     va_list ap;
-
-    if ( emcErrorBufferOKtoWrite(sizeof(error_msg) * 2, "emcOperatorError"))
-	return -1;
-
-    if (NULL == fmt) {
-	return -1;
-    }
-    if (0 == *fmt) {
-	return -1;
-    }
-    // prepend error code, leave off 0 ad-hoc code
-    error_msg.error[0] = 0;
-    if (0 != id) {
-	snprintf(error_msg.error, sizeof(error_msg.error), "[%d] ", id);
-    }
-    // append error string
     va_start(ap, fmt);
-    vsnprintf(&error_msg.error[strlen(error_msg.error)], 
-	      sizeof(error_msg.error) - strlen(error_msg.error), fmt, ap);
+    vsnprintf(error_msg.text,
+          sizeof(error_msg.text), fmt, ap);
     va_end(ap);
 
     // force a NULL at the end for safety
-    error_msg.error[LINELEN - 1] = 0;
+    error_msg.text[sizeof(error_msg.text) - 1] = 0;
 
     // write it
-    rcs_print("%s\n", error_msg.error);
+    rcs_print("%s\n", error_msg.text);
     return emcErrorBuffer->write(error_msg);
 }
 
-int emcOperatorText(int id, const char *fmt, ...)
+int emcOperatorText(const char *fmt, ...)
 {
     EMC_OPERATOR_TEXT text_msg;
-    va_list ap;
-
-    if ( emcErrorBufferOKtoWrite(sizeof(text_msg) * 2, "emcOperatorText"))
-	return -1;
+    if (!fmt || !fmt[0] || !isEmcErrorBufferOKtoWrite(text_msg)) {
+        return -1;
+    }
 
     // write args to NML message (ignore int text code)
+    va_list ap;
     va_start(ap, fmt);
     vsnprintf(text_msg.text, sizeof(text_msg.text), fmt, ap);
     va_end(ap);
 
     // force a NULL at the end for safety
-    text_msg.text[LINELEN - 1] = 0;
+    text_msg.text[sizeof(text_msg.text) - 1] = 0;
 
     // write it
     return emcErrorBuffer->write(text_msg);
 }
 
-int emcOperatorDisplay(int id, const char *fmt, ...)
+int emcOperatorDisplay(const char *fmt, ...)
 {
     EMC_OPERATOR_DISPLAY display_msg;
-    va_list ap;
-
-    if ( emcErrorBufferOKtoWrite(sizeof(display_msg) * 2, "emcOperatorDisplay"))
-	return -1;
+    if (!fmt || !fmt[0] || !isEmcErrorBufferOKtoWrite(display_msg)) {
+        return -1;
+    }
 
     // write args to NML message (ignore int display code)
+    va_list ap;
     va_start(ap, fmt);
-    vsnprintf(display_msg.display, sizeof(display_msg.display), fmt, ap);
+    vsnprintf(display_msg.text, sizeof(display_msg.text), fmt, ap);
     va_end(ap);
 
     // force a NULL at the end for safety
-    display_msg.display[LINELEN - 1] = 0;
+    display_msg.text[sizeof(display_msg.text) - 1] = 0;
 
     // write it
     return emcErrorBuffer->write(display_msg);
@@ -493,39 +488,43 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
 
 	switch (cmd->type) {
 	case EMC_OPERATOR_ERROR_TYPE:
-	    emcOperatorError(operator_error_msg->id, "%s",
-			     operator_error_msg->error);
+        emcOperatorError("%s",
+                 operator_error_msg->text);
 	    break;
+    case EMC_OPERATOR_ERROR_EXTENDED_TYPE:
+        // Not supported in command channel
+        emcOperatorError(_("EMC_OPERATOR_ERROR_EXTENDED not supported in NML command channel"));
+        return -1;
 
 	case EMC_TRAJ_LINEAR_MOVE_TYPE:
 	    if (linear_move->end.tran.x >
 		stat->motion.axis[0].maxPositionLimit) {
-		emcOperatorError(0, _("%s exceeds +X limit"), stat->task.command);
+        emcOperatorError(_("%s exceeds +X limit"), stat->task.command);
 		return -1;
 	    }
 	    if (linear_move->end.tran.y >
 		stat->motion.axis[1].maxPositionLimit) {
-		emcOperatorError(0, _("%s exceeds +Y limit"), stat->task.command);
+        emcOperatorError(_("%s exceeds +Y limit"), stat->task.command);
 		return -1;
 	    }
 	    if (linear_move->end.tran.z >
 		stat->motion.axis[2].maxPositionLimit) {
-		emcOperatorError(0, _("%s exceeds +Z limit"), stat->task.command);
+        emcOperatorError(_("%s exceeds +Z limit"), stat->task.command);
 		return -1;
 	    }
 	    if (linear_move->end.tran.x <
 		stat->motion.axis[0].minPositionLimit) {
-		emcOperatorError(0, _("%s exceeds -X limit"), stat->task.command);
+        emcOperatorError(_("%s exceeds -X limit"), stat->task.command);
 		return -1;
 	    }
 	    if (linear_move->end.tran.y <
 		stat->motion.axis[1].minPositionLimit) {
-		emcOperatorError(0, _("%s exceeds -Y limit"), stat->task.command);
+        emcOperatorError(_("%s exceeds -Y limit"), stat->task.command);
 		return -1;
 	    }
 	    if (linear_move->end.tran.z <
 		stat->motion.axis[2].minPositionLimit) {
-		emcOperatorError(0, _("%s exceeds -Z limit"), stat->task.command);
+        emcOperatorError(_("%s exceeds -Z limit"), stat->task.command);
 		return -1;
 	    }
 	    break;
@@ -533,32 +532,32 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
 	case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
 	    if (circular_move->end.tran.x >
 		stat->motion.axis[0].maxPositionLimit) {
-		emcOperatorError(0, _("%s exceeds +X limit"), stat->task.command);
+        emcOperatorError(_("%s exceeds +X limit"), stat->task.command);
 		return -1;
 	    }
 	    if (circular_move->end.tran.y >
 		stat->motion.axis[1].maxPositionLimit) {
-		emcOperatorError(0, _("%s exceeds +Y limit"), stat->task.command);
+        emcOperatorError(_("%s exceeds +Y limit"), stat->task.command);
 		return -1;
 	    }
 	    if (circular_move->end.tran.z >
 		stat->motion.axis[2].maxPositionLimit) {
-		emcOperatorError(0, _("%s exceeds +Z limit"), stat->task.command);
+        emcOperatorError(_("%s exceeds +Z limit"), stat->task.command);
 		return -1;
 	    }
 	    if (circular_move->end.tran.x <
 		stat->motion.axis[0].minPositionLimit) {
-		emcOperatorError(0, _("%s exceeds -X limit"), stat->task.command);
+        emcOperatorError(_("%s exceeds -X limit"), stat->task.command);
 		return -1;
 	    }
 	    if (circular_move->end.tran.y <
 		stat->motion.axis[1].minPositionLimit) {
-		emcOperatorError(0, _("%s exceeds -Y limit"), stat->task.command);
+        emcOperatorError(_("%s exceeds -Y limit"), stat->task.command);
 		return -1;
 	    }
 	    if (circular_move->end.tran.z <
 		stat->motion.axis[2].minPositionLimit) {
-		emcOperatorError(0, _("%s exceeds -Z limit"), stat->task.command);
+        emcOperatorError(_("%s exceeds -Z limit"), stat->task.command);
 		return -1;
 	    }
 	    break;
@@ -942,7 +941,7 @@ static int emcTaskPlan(void)
 		break;
 
 	    default:
-		emcOperatorError(0,
+        emcOperatorError(
 				 _
 				 ("command (%s) cannot be executed until the machine is out of E-stop and turned on"),
 				 emc_symbol_lookup(type));
@@ -1063,7 +1062,7 @@ static int emcTaskPlan(void)
 		// otherwise we can't handle it
 
 	    default:
-		emcOperatorError(0, _("can't do that (%s:%d) in manual mode"),
+        emcOperatorError(_("can't do that (%s:%d) in manual mode"),
 				 emc_symbol_lookup(type),(int) type);
 		retval = -1;
 		break;
@@ -1164,7 +1163,7 @@ static int emcTaskPlan(void)
 
 		    // otherwise we can't handle it
 		default:
-		    emcOperatorError(0, _
+            emcOperatorError(_
 			    ("can't do that (%s) in auto mode with the interpreter idle"),
 			    emc_symbol_lookup(type));
 		    retval = -1;
@@ -1238,7 +1237,7 @@ static int emcTaskPlan(void)
 
 		    // otherwise we can't handle it
 		default:
-		    emcOperatorError(0, _
+            emcOperatorError(_
 			    ("can't do that (%s) in auto mode with the interpreter reading"),
 			    emc_symbol_lookup(type));
 		    retval = -1;
@@ -1323,7 +1322,7 @@ static int emcTaskPlan(void)
 
 		    // otherwise we can't handle it
 		default:
-		    emcOperatorError(0, _
+            emcOperatorError(_
 			    ("can't do that (%s) in auto mode with the interpreter paused"),
 			    emc_symbol_lookup(type));
 		    retval = -1;
@@ -1403,7 +1402,7 @@ static int emcTaskPlan(void)
 
 		    // otherwise we can't handle it
 		default:
-		    emcOperatorError(0, _
+            emcOperatorError(_
 			    ("can't do that (%s) in auto mode with the interpreter waiting"),
 			    emc_symbol_lookup(type));
 		    retval = -1;
@@ -1516,7 +1515,7 @@ static int emcTaskPlan(void)
 
 		// otherwise we can't handle it
 	    default:
-		emcOperatorError(0, _("can't do that (%s:%d) in MDI mode"),
+        emcOperatorError(_("can't do that (%s:%d) in MDI mode"),
 			emc_symbol_lookup(type),(int) type);
 
 		retval = -1;
@@ -1736,19 +1735,19 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	// general commands
 
     case EMC_OPERATOR_ERROR_TYPE:
-	retval = emcOperatorError(((EMC_OPERATOR_ERROR *) cmd)->id,
-				  "%s", ((EMC_OPERATOR_ERROR *) cmd)->error);
+    retval = emcOperatorError(
+                  "%s", ((EMC_OPERATOR_ERROR *) cmd)->text);
 	break;
 
     case EMC_OPERATOR_TEXT_TYPE:
-	retval = emcOperatorText(((EMC_OPERATOR_TEXT *) cmd)->id,
+    retval = emcOperatorText(
 				 "%s", ((EMC_OPERATOR_TEXT *) cmd)->text);
 	break;
 
     case EMC_OPERATOR_DISPLAY_TYPE:
-	retval = emcOperatorDisplay(((EMC_OPERATOR_DISPLAY *) cmd)->id,
+    retval = emcOperatorDisplay(
 				    "%s", ((EMC_OPERATOR_DISPLAY *) cmd)->
-				    display);
+                    text);
 	break;
 
     case EMC_SYSTEM_CMD_TYPE:
@@ -2004,8 +2003,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TRAJ_PROBE_TYPE:
 	retval = emcTrajProbe(
-	    ((EMC_TRAJ_PROBE *) cmd)->pos, 
-	    ((EMC_TRAJ_PROBE *) cmd)->type,
+	    ((EMC_TRAJ_PROBE *) cmd)->pos,
+        ((EMC_TRAJ_PROBE *) cmd)->motion_type,
 	    ((EMC_TRAJ_PROBE *) cmd)->vel,
             ((EMC_TRAJ_PROBE *) cmd)->ini_maxvel,  
 	    ((EMC_TRAJ_PROBE *) cmd)->acc,
@@ -2187,7 +2186,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	if (emcStatus->task.mode == EMC_TASK_MODE_AUTO &&
 	    emcStatus->task.interpState != EMC_TASK_INTERP_IDLE &&
 	    mode_msg->mode != EMC_TASK_MODE_AUTO) {
-	    emcOperatorError(0, _("Can't switch mode while mode is AUTO and interpreter is not IDLE"));
+        emcOperatorError(_("Can't switch mode while mode is AUTO and interpreter is not IDLE"));
 	} else { // we can honour the modeswitch
 	    if (mode_msg->mode == EMC_TASK_MODE_MANUAL &&
 		emcStatus->task.mode != EMC_TASK_MODE_MANUAL) {
@@ -2246,7 +2245,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	    retval = -1;
 	}
 	if (-1 == retval) {
-	    emcOperatorError(0, _("can't open %s"), open_msg->file);
+        emcOperatorError(_("can't open %s"), open_msg->file);
 	} else {
 	    strcpy(emcStatus->task.file, open_msg->file);
 	    retval = 0;
@@ -2270,12 +2269,12 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	steppingWait = 0;
 	execute_msg = (EMC_TASK_PLAN_EXECUTE *) cmd;
         if (!all_homed() && !no_force_homing) { //!no_force_homing = force homing before MDI
-            emcOperatorError(0, _("Can't issue MDI command when not homed"));
+            emcOperatorError(_("Can't issue MDI command when not homed"));
             retval = -1;
             break;
         }
         if (emcStatus->task.mode != EMC_TASK_MODE_MDI) {
-            emcOperatorError(0, _("Must be in MDI mode to issue MDI command"));
+            emcOperatorError(_("Must be in MDI mode to issue MDI command"));
             retval = -1;
             break;
         }
@@ -2357,7 +2356,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TASK_PLAN_RUN_TYPE:
         if (!all_homed() && !no_force_homing) { //!no_force_homing = force homing before Auto
-            emcOperatorError(0, _("Can't run a program when not homed"));
+            emcOperatorError(_("Can't run a program when not homed"));
             retval = -1;
             break;
         }
@@ -2839,7 +2838,7 @@ static int emcTaskExecute(void)
     case EMC_TASK_EXEC_WAITING_FOR_MOTION:
 	STEPPING_CHECK();
 	if (emcStatus->motion.status == RCS_ERROR) {
-	    // emcOperatorError(0, "error in motion controller");
+        // emcOperatorError("error in motion controller");
 	    emcStatus->task.execState = EMC_TASK_EXEC_ERROR;
 	} else if (emcStatus->motion.status == RCS_DONE) {
 	    emcStatus->task.execState = EMC_TASK_EXEC_DONE;
@@ -2850,7 +2849,7 @@ static int emcTaskExecute(void)
     case EMC_TASK_EXEC_WAITING_FOR_IO:
 	STEPPING_CHECK();
 	if (emcStatus->io.status == RCS_ERROR) {
-	    // emcOperatorError(0, "error in IO controller");
+        // emcOperatorError("error in IO controller");
 	    emcStatus->task.execState = EMC_TASK_EXEC_ERROR;
 	} else if (emcStatus->io.status == RCS_DONE) {
 	    emcStatus->task.execState = EMC_TASK_EXEC_DONE;
@@ -2861,10 +2860,10 @@ static int emcTaskExecute(void)
     case EMC_TASK_EXEC_WAITING_FOR_MOTION_AND_IO:
 	STEPPING_CHECK();
 	if (emcStatus->motion.status == RCS_ERROR) {
-	    // emcOperatorError(0, "error in motion controller");
+        // emcOperatorError("error in motion controller");
 	    emcStatus->task.execState = EMC_TASK_EXEC_ERROR;
 	} else if (emcStatus->io.status == RCS_ERROR) {
-	    // emcOperatorError(0, "error in IO controller");
+        // emcOperatorError("error in IO controller");
 	    emcStatus->task.execState = EMC_TASK_EXEC_ERROR;
 	} else if (emcStatus->motion.status == RCS_DONE &&
 		   emcStatus->io.status == RCS_DONE) {
@@ -2898,7 +2897,7 @@ static int emcTaskExecute(void)
                 rcs_print("wait for orient complete: TIMED OUT\n");
             }
             else {
-                emcOperatorError(0, "wait for orient complete: TIMED OUT");
+                emcOperatorError("wait for orient complete: TIMED OUT");
             }
 	    }
 	    break;
@@ -2910,7 +2909,7 @@ static int emcTaskExecute(void)
 			emcStatus->task.execState = EMC_TASK_EXEC_DONE;
 	    emcStatus->task.delayLeft = 0;
 	    emcTaskEager = 1;
-	    emcOperatorError(0, "wait for orient complete: FAULTED code=%d", 
+        emcOperatorError("wait for orient complete: FAULTED code=%d",
 			     emcStatus->motion.spindle.orient_fault);
 	}
 	break;
@@ -2968,7 +2967,7 @@ static int emcTaskExecute(void)
 		    break;
 		
 		default:
-		    emcOperatorError(0, "Unknown Wait Mode");
+            emcOperatorError("Unknown Wait Mode");
 	    }
 	}
 	break;
@@ -3678,7 +3677,7 @@ int main(int argc, char *argv[])
 			      emcStatus->io.fault, emcStatus->io.reason);
 		}
 		if (emcStatus->io.reason < 0) {
-		    emcOperatorError(0, io_error, emcStatus->io.reason);
+            emcOperatorError(io_error, emcStatus->io.reason);
 		}
 	    }
 	    // motion already should have reported this condition (and set RCS_ERROR?)
@@ -3686,7 +3685,7 @@ int main(int argc, char *argv[])
 	    // if ((emcStatus->motion.status == RCS_ERROR) && 
 	    // 	(emcStatus->motion.spindle.orient_state == EMCMOT_ORIENT_FAULTED) &&
 	    // 	(emcStatus->motion.spindle.orient_fault != 0)) {
-	    // 	emcOperatorError(0, "wait for orient complete timed out");
+        // 	emcOperatorError("wait for orient complete timed out");
 	    // }
 
 	    // abort everything

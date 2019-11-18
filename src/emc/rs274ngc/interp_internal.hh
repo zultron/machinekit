@@ -219,7 +219,7 @@ struct block_struct
   // control (o-word) stuff
   long     offset;   // start of line in file
   int      o_type;
-  int      call_type; // oword-sub, python oword-sub, remap
+  OCallTypes call_type; // oword-sub, python oword-sub, remap
   const char    *o_name;   // !!!KL be sure to free this
   double   params[INTERP_SUB_PARAMS];
   int param_cnt;
@@ -256,27 +256,6 @@ struct block_struct
     // right thing depending on wether the builtin was used or not.
     bool builtin_used; 
 };
-
-
-// indicates which type of Python handler yielded, and needs reexecution
-// post sync/read_inputs
-enum call_states {
-    CS_NORMAL,
-    CS_REEXEC_PROLOG,
-    CS_REEXEC_PYBODY,
-    CS_REEXEC_EPILOG,
-    CS_REEXEC_PYOSUB,
-};
-
-// detail for O_call; tags the frame
-enum call_types {
-    CT_NONE,             // not in a call
-    CT_NGC_OWORD_SUB,    // no restartable Python code involved
-    CT_NGC_M98_SUB,      // like above; Fanuc-style, pass in params #1..#30
-    CT_PYTHON_OWORD_SUB, // restartable Python code may be involved
-    CT_REMAP,            // restartable Python code may be involved
-};
-
 
 enum retopts { RET_NONE, RET_DOUBLE, RET_INT, RET_YIELD, RET_STOPITERATION, RET_ERRORMSG };
 
@@ -328,7 +307,7 @@ struct context_struct {
     parameter_map named_params;
     unsigned char context_status;		// see CONTEXT_ defines below
     ModalState modal_state;
-    int call_type; // enum call_types
+    OCallTypes call_type; // enum call_types
     pycontext pystuff;
     // Python-related stuff
 };

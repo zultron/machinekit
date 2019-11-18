@@ -415,7 +415,7 @@ static int determineState()
 
 static int waitFlag = 0;
 
-static char interp_error_text_buf[MAX_ERROR_MSG_LEN+1];
+static char interp_error_text_buf[ERROR_TEXT_LEN];
 // Don't need this buffer if we don't throw run-time warnings
 //static char interp_warning_text_buf[LINELEN];
 static char interp_stack_buf[LINELEN+1];
@@ -432,11 +432,11 @@ static void print_interp_error(int retval)
     }
 
     interp_error_text_buf[0] = 0;
-    interp.error_text(retval, interp_error_text_buf, MAX_ERROR_MSG_LEN);
+    interp.error_text(retval, interp_error_text_buf, ERROR_TEXT_LEN);
     if (0 != interp_error_text_buf[0]) {
 	rcs_print_error("interp_error: %s\n", interp_error_text_buf);
     }
-    emcOperatorError(0, "%s", interp_error_text_buf);
+    emcOperatorError("%s", interp_error_text_buf);
     index = 0;
     if (emc_debug & EMC_DEBUG_INTERP) {
 	rcs_print("Interpreter stack: \t");

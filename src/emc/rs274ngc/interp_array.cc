@@ -264,7 +264,7 @@ const int Interp::_n_readonly_parameters = sizeof(_readonly_parameters)/sizeof(i
    At some point, it may be advantageous to add a read_$ or read_n for perhaps
    macro or jump labels..
    */
-const read_function_pointer Interp::default_readers[256] = {
+const std::array<read_function_pointer, 256> Interp::default_readers = {
 /* 00 */
 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 /* 10 */

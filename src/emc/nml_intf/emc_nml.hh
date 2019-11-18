@@ -50,14 +50,14 @@ class EMC_CMD_MSG:public RCS_CMD_MSG {
 class EMC_OPERATOR_ERROR:public RCS_CMD_MSG {
   public:
     EMC_OPERATOR_ERROR():RCS_CMD_MSG(EMC_OPERATOR_ERROR_TYPE,
-				     sizeof(EMC_OPERATOR_ERROR)) {
+                     sizeof(EMC_OPERATOR_ERROR)) {
     }
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    int id;
-    char error[LINELEN];
+    char text[LINELEN];
+    static constexpr const size_t text_len = sizeof(text);
 };
 
 /**
@@ -74,8 +74,8 @@ class EMC_OPERATOR_TEXT:public RCS_CMD_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    int id;
     char text[LINELEN];
+    static constexpr const size_t text_len = sizeof(text);
 };
 
 /**
@@ -96,8 +96,28 @@ class EMC_OPERATOR_DISPLAY:public RCS_CMD_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    int id;
-    char display[LINELEN];
+    char text[LINELEN];
+    static constexpr const size_t text_len = sizeof (text);
+};
+
+/**
+ * Send a textual error message to the operator.
+ * The message is put in the errlog buffer to be read by the GUI.
+ * @note this is a longer message and so is not compatible with the limited size
+ * of the command channel. Extended error messages can only be sent via the error channel.
+ */
+class EMC_OPERATOR_ERROR_EXTENDED : public RCS_CMD_MSG {
+  public:
+    EMC_OPERATOR_ERROR_EXTENDED() :
+          RCS_CMD_MSG(
+              EMC_OPERATOR_ERROR_EXTENDED_TYPE,
+              sizeof(EMC_OPERATOR_ERROR_EXTENDED)) {
+    }
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+    char text[ERROR_TEXT_LEN];
+    static constexpr const size_t text_len = sizeof (text);
 };
 
 #define EMC_SYSTEM_CMD_LEN 256
@@ -969,7 +989,7 @@ class EMC_TRAJ_PROBE:public EMC_TRAJ_CMD_MSG {
     void update(CMS * cms);
 
     EmcPose pos;
-    int type;
+    static constexpr int motion_type = EMC_MOTION_TYPE_PROBING;
     double vel, ini_maxvel, acc;
     int pure_angular;
     unsigned char probe_type;

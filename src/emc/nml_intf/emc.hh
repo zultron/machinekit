@@ -44,13 +44,13 @@ extern const char *emc_symbol_lookup(uint32_t type);
 // intended to be implemented in main() file, by writing to NML buffer
 
 // print an error
-extern int emcOperatorError(int id, const char *fmt, ...) __attribute__((format(printf,2,3)));
+extern int emcOperatorError(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
 // print general text
-extern int emcOperatorText(int id, const char *fmt, ...) __attribute__((format(printf,2,3)));
+extern int emcOperatorText(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
 // print note to operator
-extern int emcOperatorDisplay(int id, const char *fmt, ...) __attribute__((format(printf,2,3)));
+extern int emcOperatorDisplay(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
 // implementation functions for EMC_AXIS types
 

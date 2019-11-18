@@ -1470,22 +1470,30 @@ static PyObject* Error_poll(pyErrorChannel *s) {
     PyObject *r = PyTuple_New(2);
     PyTuple_SET_ITEM(r, 0, PyInt_FromLong(type));
 #define PASTE(a,b) a ## b
-#define _TYPECASE(tag, type, f) \
+#define TYPECASE_IMPL(tag, type, f) \
     case tag: { \
-        char error_string[LINELEN]; \
-        strncpy(error_string, ((type*)s->c->get_address())->f, LINELEN-1); \
-        error_string[LINELEN-1] = 0; \
-        PyTuple_SET_ITEM(r, 1, PyString_FromString(error_string)); \
+        std::string msg(((type*)s->c->get_address())->f); \
+        PyTuple_SET_ITEM(r, 1, PyString_FromString(msg.c_str())); \
         break; \
     }
-#define TYPECASE(x, f) _TYPECASE(PASTE(x, _TYPE), x, f)
+#define TYPECASE(x, f) TYPECASE_IMPL(PASTE(x, _TYPE), x, f)
     switch(type) {
-        TYPECASE(EMC_OPERATOR_ERROR, error)
+        TYPECASE(EMC_OPERATOR_ERROR, text)
         TYPECASE(EMC_OPERATOR_TEXT, text)
-        TYPECASE(EMC_OPERATOR_DISPLAY, display)
+        TYPECASE(EMC_OPERATOR_DISPLAY, text)
         TYPECASE(NML_ERROR, error)
         TYPECASE(NML_TEXT, text)
         TYPECASE(NML_DISPLAY, display)
+    case EMC_OPERATOR_ERROR_EXTENDED_TYPE: {
+        std::string msg(((EMC_OPERATOR_ERROR_EXTENDED*)s->c->get_address())->text);
+        // KLUDGE strip context markers from extended error message
+        const char *msg_ptr = msg.c_str();
+        if (0 == msg.compare(0, 4, CONTEXT_MARKER)) {
+            msg_ptr+=strlen(CONTEXT_MARKER);
+        }
+        PyTuple_SET_ITEM(r, 1, PyString_FromString(msg_ptr));
+        break; \
+    }
     default:
         {
             char error_string[256];
@@ -2400,6 +2408,7 @@ initlinuxcnc(void) {
     PyStructSequence_InitType(&ToolResultType, &tool_result_desc);
     PyModule_AddObject(m, "tool", (PyObject*)&ToolResultType);
     PyModule_AddObject(m, "version", PyString_FromString(PACKAGE_VERSION));
+    PyModule_AddObject(m, "context_marker", PyString_FromString(CONTEXT_MARKER));
 
     ENUMX(4, EMC_AXIS_LINEAR);
     ENUMX(4, EMC_AXIS_ANGULAR);

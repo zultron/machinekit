@@ -180,7 +180,7 @@ static int wrap_interp_execute_1(Interp &interp, const char *command)
 
     // Temporarily set the call state to CS_NORMAL
     _setup.call_state = CS_NORMAL;
-    int status = interp.execute(command, CommandSource::REMAP);
+    int status = interp.execute(command);
     _setup.call_state = saved_call_state;
     _setup.blocks[0] = saved_block;
 
@@ -202,7 +202,7 @@ static int wrap_interp_execute_2(Interp &interp, const char *command, int lineno
     // use the remap stack to save/restore the current block
     CHP(interp.enter_remap());
     // FIXME need to set the source line here
-    int status = interp.execute(command, CommandSource::REMAP);
+    int status = interp.execute(command);
     CHP(interp.leave_remap());
     _setup.blocks[0] = saved_block;
     
@@ -221,7 +221,7 @@ static int wrap_interp_read(Interp &interp, const char *command)
     setup &_setup = interp._setup;
     block saved_block = _setup.blocks[0];
 
-    int status = interp.read(command, CommandSource::REMAP);
+    int status = interp.read(command);
     if ((status > INTERP_MIN_ERROR) && throw_exceptions) {
 	throw InterpreterException(interp.getSavedError(),
 				   _setup.blocks[0].line_number, // not sure

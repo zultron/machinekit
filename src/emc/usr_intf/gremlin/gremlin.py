@@ -381,7 +381,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_DISTANCE_MODE_IJK]),
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_RETRACT_MODE]),
         ), (
-            "G52 " + make_active_axis_word_str(self.stat.g92_offset, self.stat.axis_mask)
+            "G52 " + make_active_axis_word_str(self.stat.g92_offset, self.stat.axis_mask), #TRAILING COMMA IS IMPORTANT
         ))
         print("Active G-codes at redraw:", cmd_list)
         return '\n'.join((' '.join(sub_l) for sub_l in cmd_list))

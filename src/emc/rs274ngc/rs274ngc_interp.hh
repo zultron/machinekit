@@ -21,8 +21,6 @@
 #include "interp_return.hh"
 #include <array>
 
-#define MAX_ERROR_MSG_LEN 10000
-
 class Interp : public InterpBase {
 
 public:
@@ -39,8 +37,9 @@ public:
 // execute a line of NC code
  int execute();
 
+ int execute(const char *command);
  /** Provide an explicit source of the G-code command (for logging purposes) */
- int execute(const char *command, CommandSource cmd_src=CommandSource::PROGRAM);
+ int execute(const char *command, CommandSource cmd_src);
 
  int execute(const char *command, CommandSource cmd_src, int line_number);
 
@@ -64,7 +63,8 @@ public:
  std::set<int> get_work_offsets_used();
 
 // read the mdi or the next line of the open NC code file
- int read(const char *mdi, CommandSource cmd_src);
+ int read(const char *command, CommandSource cmd_src);
+ int read(const char *command);
  int read();
 
 // reset yourself
@@ -560,6 +560,8 @@ public:
                   ParameterArray &parameters);
  int read_z(char *line, int *counter, block_pointer block,
                   ParameterArray &parameters);
+ int read_missing_axis(char *line, int *counter, block_pointer block,
+                  ParameterArray &parameters);
  int refresh_actual_position(setup_pointer settings);
  void rotate(double *x, double *y, double t);
  int set_probe_data(setup_pointer settings);
@@ -716,7 +718,7 @@ int read_inputs(setup_pointer settings);
 
     int unwind_call(int status, const char *file, int line, const char *function, CommandSource cmd_src);
     std::string get_command_location(CommandSource cmd_src);
-    int add_error_call_context(std::string caller_filename);
+    int add_error_call_context(CommandSource cmd_src);
 
     int convert_straight_indexer(int, block*, setup*);
     int issue_straight_index(int, double, int, setup*);
@@ -738,18 +740,12 @@ int read_inputs(setup_pointer settings);
     static const int _required_parameters[];
     static const int _readonly_parameters[];
     static const int _n_readonly_parameters;
-    read_function_pointer _readers[256];
-    static const read_function_pointer default_readers[256];
+    std::array<read_function_pointer, 256> _readers;
+    static const std::array<read_function_pointer, 256> default_readers;
 
     setup _setup;
     std::vector <std::string> warning_list;
-
-    char warning_text_buf[LINELEN];
-    enum {
-        AXIS_MASK_X =   1, AXIS_MASK_Y =   2, AXIS_MASK_Z =   4,
-        AXIS_MASK_A =   8, AXIS_MASK_B =  16, AXIS_MASK_C =  32,
-        AXIS_MASK_U =  64, AXIS_MASK_V = 128, AXIS_MASK_W = 256,
-    };
+    CommandSource last_cmd_src;
 
     double getProgLenUnits() const;
     static double getProgAngUnits();
@@ -767,8 +763,6 @@ int read_inputs(setup_pointer settings);
     int convert_g10(block_pointer block, setup_pointer settings);
     InterpReturn check_g10(block_pointer block);
 
-protected:
-    bool error_has_context;
 };
 
 bool toolOffsetActive(setup_pointer s);
