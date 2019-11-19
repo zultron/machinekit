@@ -2987,18 +2987,20 @@ int Interp::enter_remap(void)
 	ERS("maximum nesting of remapped blocks execeeded");
     }
 
+    block &controlling_block = _setup.updateControllingBlock();
+    push_gcode_context(&_setup, &controlling_block);
+
     // push onto block stack
-    _setup.getControllingBlock() = _setup.getExecutingBlock();
-    _setup.getControllingBlock().breadcrumbs = 0; // clear trail
+    controlling_block.breadcrumbs = 0; // clear trail
     // set later but tested for in remap_in_progress()
-    _setup.getControllingBlock().executing_remap = nullptr;
+    controlling_block.executing_remap = nullptr;
 
     // remember the line where remap was discovered
     logRemap("enter_remap into %d - saved_line_number=%d",
 	     _setup.remap_level, _setup.sequence_number);
     if (_setup.remap_level == 1)
         _setup.stepping_id++;
-    _setup.getControllingBlock().saved_line_number = _setup.sequence_number;
+    controlling_block.saved_line_number = _setup.sequence_number;
     _setup.sequence_number = 0;
     return INTERP_OK;
 }

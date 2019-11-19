@@ -221,6 +221,12 @@ void setup_struct::setExecutingBlock(const block & b)
     blocks[0] = b;
 }
 
+block &setup_struct::updateControllingBlock()
+{
+    getControllingBlock() = getExecutingBlock();
+    return getControllingBlock();
+}
+
 bool setup_struct::hasFeature(Features f) const
 {
     switch (f) {

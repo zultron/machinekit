@@ -391,6 +391,7 @@ struct setup_struct
   block &getControllingBlock();
   block &getExecutingBlock();
   void setExecutingBlock(block const &b);
+  block & updateControllingBlock();
 
   char blocktext[LINELEN];   // linetext downcased, white space gone
   CANON_MOTION_MODE control_mode;       // exact path or cutting mode
