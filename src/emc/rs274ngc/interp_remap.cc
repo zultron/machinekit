@@ -48,13 +48,14 @@ bool Interp::has_user_mcode(setup_pointer settings,block_pointer block)
 bool Interp::remap_in_progress(const char *code)
 {
     remap_pointer rp = remapping(code);
-    if (rp == NULL)
-	return false;
+    if (rp == nullptr) {
+        return false;
+    }
     for (int i = _setup.remap_level; i > 0; i--) {
-	if (_setup.blocks[i].executing_remap == rp) {
-	    // printf("---------------- remap_in_progress(%s): TRUE level=%d\n",code,i);
-	    return true;
-	}
+        if (_setup.blocks[i].executing_remap == rp) {
+            // printf("---------------- remap_in_progress(%s): TRUE level=%d\n",code,i);
+            return true;
+        }
     }
     // printf("---------------- remap_in_progress(%s): FALSE\n",code);
     return false;

@@ -3005,12 +3005,13 @@ int Interp::enter_remap(void)
 
 int Interp::leave_remap(void)
 {
+    block &controlling_block = _setup.getControllingBlock();
     // restore the line number where remap was found
     logRemap("leave_remap from %d propagate saved_line_number=%d",
-         _setup.remap_level, _setup.getControllingBlock().saved_line_number);
+         _setup.remap_level, controlling_block.saved_line_number);
 
-    _setup.sequence_number = _setup.getControllingBlock().saved_line_number;
-    _setup.blocks[_setup.remap_level].executing_remap = nullptr;
+    _setup.sequence_number = controlling_block.saved_line_number;
+    controlling_block.executing_remap = nullptr;
     _setup.remap_level--; // drop one nesting level
     if (_setup.remap_level < 0) {
 	ERS("BUG: remap_level < 0 : %d",_setup.remap_level);

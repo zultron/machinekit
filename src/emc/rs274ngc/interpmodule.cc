@@ -175,21 +175,22 @@ static int throw_exceptions = 1;
 static int wrap_interp_execute_1(Interp &interp, const char *command)
 {    
     setup &_setup = interp._setup;
-    block saved_block = _setup.blocks[0];
+    block saved_block = _setup.getExecutingBlock();
     int saved_call_state = _setup.call_state;
 
     // Temporarily set the call state to CS_NORMAL
     _setup.call_state = CS_NORMAL;
     int status = interp.execute(command);
     _setup.call_state = saved_call_state;
-    _setup.blocks[0] = saved_block;
+    _setup.setExecutingBlock(saved_block);
 
     // printf("ie1: tc=%d if=%d pf=%d\n", _setup.toolchange_flag,_setup.input_flag,_setup.probe_flag);
 
     if ((status > INTERP_MIN_ERROR) && throw_exceptions) {
-	throw InterpreterException(interp.getSavedError(),
-				   _setup.blocks[0].line_number, // not sure
-				   _setup.linetext);
+        throw InterpreterException(
+            interp.getSavedError(),
+            _setup.getExecutingBlock().line_number, // not sure
+            _setup.linetext);
     }
     return status;
 }
@@ -197,14 +198,14 @@ static int wrap_interp_execute_1(Interp &interp, const char *command)
 static int wrap_interp_execute_2(Interp &interp, const char *command, int lineno)
 {
     setup &_setup = interp._setup;
-    block saved_block = _setup.blocks[0];
+    block saved_block = _setup.getExecutingBlock();
 
     // use the remap stack to save/restore the current block
     CHP(interp.enter_remap());
     // FIXME need to set the source line here
     int status = interp.execute(command);
     CHP(interp.leave_remap());
-    _setup.blocks[0] = saved_block;
+    _setup.setExecutingBlock(saved_block);
     
     //printf("ie2: tc=%d if=%d pf=%d\n", _setup.toolchange_flag,_setup.input_flag,_setup.probe_flag);
     if ((status > INTERP_MIN_ERROR) && throw_exceptions) {
@@ -219,12 +220,12 @@ static int wrap_interp_execute_2(Interp &interp, const char *command, int lineno
 static int wrap_interp_read(Interp &interp, const char *command)
 {
     setup &_setup = interp._setup;
-    block saved_block = _setup.blocks[0];
+    block saved_block = _setup.getExecutingBlock();
 
     int status = interp.read(command);
     if ((status > INTERP_MIN_ERROR) && throw_exceptions) {
 	throw InterpreterException(interp.getSavedError(),
-				   _setup.blocks[0].line_number, // not sure
+                   _setup.getExecutingBlock().line_number, // not sure
 				   _setup.linetext);
     }
     return status;
