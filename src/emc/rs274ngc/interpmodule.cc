@@ -202,8 +202,8 @@ static int wrap_interp_execute_2(Interp &interp, const char *command, int lineno
 
     // use the remap stack to save/restore the current block
     CHP(interp.enter_remap());
-    // FIXME need to set the source line here
-    int status = interp.execute(command);
+
+    int status = interp.execute(command, interp.last_cmd_src, lineno);
     CHP(interp.leave_remap());
     _setup.setExecutingBlock(saved_block);
     
