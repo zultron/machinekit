@@ -717,7 +717,7 @@ static inline void set_random_toolchanger(Interp &interp, int value)  {
     interp._setup.random_toolchanger = value;
 }
 static inline int get_remap_level (Interp &interp)  {
-    return interp._setup.remap_level;
+    return interp.remap_level();
 }
 static inline void set_remap_level(Interp &interp, int value)  {
     interp._setup.remap_level = value;

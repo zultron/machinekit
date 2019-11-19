@@ -396,7 +396,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
            command ? "command" : "line",
            command ? command : _setup.linetext,
            _setup.mdi_interrupt, o_ops[eblock->o_type], eblock->o_name,
-       call_level(),_setup.remap_level,
+       call_level(),remap_level(),
 	   eblock->call_type < 0 ? "*unset*" : call_typenames[eblock->call_type], 
       call_statenames[_setup.call_state]);
 
@@ -547,7 +547,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
       // detect a remapping recursion.
       // since each remapped item pushes a new block onto the remap stack, we walk
       // the remap stack searching for an identical remap below the TOS
-      for (int i = _setup.remap_level - 1; i > 0; i--) {
+      for (int i = remap_level() - 1; i > 0; i--) {
         if (_setup.blocks[i].executing_remap == cblock->executing_remap) {
           ERS("recursive remapping for %s detected", cblock->executing_remap->name);
         }
@@ -617,11 +617,11 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
       write_settings(&_setup, _setup.modal_state);
 
       if ((status == INTERP_EXIT) &&
-          (_setup.remap_level > 0) &&
+          (remap_level() > 0) &&
           (call_level() > 0)) {
         // an M2 was encountered while executing a handler.
         logRemap("standard case status=%s remap_level=%d call_level=%d blocktext='%s' MDImode=%d",
-                 interp_status(status),_setup.remap_level,call_level(), _setup.blocktext,MDImode);
+                 interp_status(status),remap_level(),call_level(), _setup.blocktext,MDImode);
         logRemap("_setup.filename = %s, fn[0]=%s, fn[1]=%s",
                  _setup.filename,
                  _setup.sub_context[0].filename,
@@ -682,7 +682,7 @@ int Interp::remap_finished(int phase)
     block_pointer cblock = &_setup.getControllingBlock();
 
     logRemap("remap_finished phase=%d remap_level=%d call_level=%d filename=%s",
-      phase, _setup.remap_level,call_level(),_setup.filename);
+      phase, remap_level(),call_level(),_setup.filename);
 
     // the controlling block had a remapped item, which just finished and the
     // oword return/endsub code called in here.
@@ -700,7 +700,7 @@ int Interp::remap_finished(int phase)
 	    next_remap = *it;
 	    cblock->phase = next_remap;
 
-        logRemap("starting phase %d  (remap_level=%d call_level=%d)",next_remap,_setup.remap_level,call_level());
+        logRemap("starting phase %d  (remap_level=%d call_level=%d)",next_remap,remap_level(),call_level());
 
 	    // this will execute up to the next remap, and return
 	    // after parsing the handler with read()
@@ -720,16 +720,16 @@ int Interp::remap_finished(int phase)
 	    // execution of controlling block finished executing a remap, and it contains no more
 	    // remapped items. Execute any leftover items.
 	    logRemap("no more remaps in controlling_block found (remap_level=%d call_level=%d), remappings size=%zd, dropping",
-             _setup.remap_level,call_level(),cblock->remappings.size());
+             remap_level(),call_level(),cblock->remappings.size());
 
 	    status = execute_block(cblock,  &_setup);
 
 	    if ((status < 0) ||  (status > INTERP_MIN_ERROR)) {
 		// status < 0 is a bug; might happen if find_remappings() failed to indicate the next remap
 		logRemap("executing block leftover items: %s status=%s  remap_level=%d call_level=%d (failing)",
-             status < 0 ? "BUG":"ERROR", interp_status(status),_setup.remap_level,call_level());
+             status < 0 ? "BUG":"ERROR", interp_status(status),remap_level(),call_level());
 		if (status < 0)
-		    ERS("BUG - check find_remappings()!! status=%d nesting=%d",status,_setup.remap_level);
+            ERS("BUG - check find_remappings()!! status=%d nesting=%d",status,remap_level());
 	    } else {
 		// we're done with this remapped block.
 		// execute_block may return INTERP_EXECUTE_FINISH if a probe, input or toolchange
@@ -741,7 +741,7 @@ int Interp::remap_finished(int phase)
 		if (status != INTERP_EXIT) // Don't drop remap lev. at prog exit
 		    CHP(leave_remap());
 		logRemap("executing block leftover items complete, status=%s  remap_level=%d call_level=%d tc=%d probe=%d input=%d mdi_interrupt=%d  line=%d backtoline=%d",
-             interp_status(status),_setup.remap_level,call_level(),_setup.toolchange_flag,
+             interp_status(status),remap_level(),call_level(),_setup.toolchange_flag,
 			_setup.probe_flag,_setup.input_flag,_setup.mdi_interrupt,_setup.sequence_number,
 			 cblock->line_number);
 	    }
@@ -750,7 +750,7 @@ int Interp::remap_finished(int phase)
     } else {
 	// "should not happen"
 	ERS("BUG: remap_finished(): phase=%d nesting=%d",
-	    phase, _setup.remap_level);
+        phase, remap_level());
     }
     return INTERP_OK;
 }
@@ -2982,7 +2982,7 @@ int Interp::set_tool_parameters()
 int Interp::enter_remap(void)
 {
     _setup.remap_level++;
-    if (_setup.remap_level == MAX_NESTED_REMAPS) {
+    if (remap_level() == MAX_NESTED_REMAPS) {
 	_setup.remap_level = 0;
 	ERS("maximum nesting of remapped blocks execeeded");
     }
@@ -2997,8 +2997,8 @@ int Interp::enter_remap(void)
 
     // remember the line where remap was discovered
     logRemap("enter_remap into %d - saved_line_number=%d",
-	     _setup.remap_level, _setup.sequence_number);
-    if (_setup.remap_level == 1)
+         remap_level(), _setup.sequence_number);
+    if (remap_level() == 1)
         _setup.stepping_id++;
     controlling_block.saved_line_number = _setup.sequence_number;
     _setup.sequence_number = 0;
@@ -3010,13 +3010,14 @@ int Interp::leave_remap(void)
     block &controlling_block = _setup.getControllingBlock();
     // restore the line number where remap was found
     logRemap("leave_remap from %d propagate saved_line_number=%d",
-         _setup.remap_level, controlling_block.saved_line_number);
+         remap_level(), controlling_block.saved_line_number);
 
     _setup.sequence_number = controlling_block.saved_line_number;
     controlling_block.executing_remap = nullptr;
     _setup.remap_level--; // drop one nesting level
-    if (_setup.remap_level < 0) {
-	ERS("BUG: remap_level < 0 : %d",_setup.remap_level);
+    gcode_context_stack.pop();
+    if (remap_level() < 0) {
+    ERS("BUG: remap_level < 0 : %d",remap_level());
     }
     return INTERP_OK;
 }

@@ -141,6 +141,7 @@ public:
 
  int line() { return sequence_number(); }
  const int & call_level() const;
+ const int & remap_level() const;
 
  char *command(char *buf, size_t len) { line_text(buf, len); return buf; }
 

@@ -768,7 +768,7 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_REMAP_LEVEL:
-	*value = _setup.remap_level;
+    *value = remap_level();
 	break;
 	
     case NP_TASK:

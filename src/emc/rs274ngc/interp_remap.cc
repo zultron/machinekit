@@ -51,7 +51,7 @@ bool Interp::remap_in_progress(const char *code)
     if (rp == nullptr) {
         return false;
     }
-    for (int i = _setup.remap_level; i > 0; i--) {
+    for (int i = remap_level(); i > 0; i--) {
         if (_setup.blocks[i].executing_remap == rp) {
             // printf("---------------- remap_in_progress(%s): TRUE level=%d\n",code,i);
             return true;

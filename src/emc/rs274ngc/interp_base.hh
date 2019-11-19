@@ -57,6 +57,7 @@ public:
     virtual int reset() = 0;
     virtual int line() = 0;
     virtual int const &call_level() const = 0;
+    virtual int const &remap_level() const = 0;
     virtual char *command(char *buf, size_t buflen) = 0;
     virtual char *file(char *buf, size_t buflen) = 0;
     virtual int on_abort(int reason, const char *message) = 0;
