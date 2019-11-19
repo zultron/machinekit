@@ -140,7 +140,7 @@ public:
  int ini_load(const char *filename);
 
  int line() { return sequence_number(); }
- int call_level();
+ const int & call_level() const;
 
  char *command(char *buf, size_t len) { line_text(buf, len); return buf; }
 

@@ -524,7 +524,7 @@ std::string Interp::lookup_work_offset_gcode_string_from_origin(int origin)
     return g_str;
 }
 
-int Interp::call_level(void) { return _setup.call_level; }
+int const &Interp::call_level(void) const { return _setup.call_level; }
 
 PositionMask getUpdatedAxes(block_pointer b)
 {

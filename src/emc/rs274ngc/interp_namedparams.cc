@@ -192,7 +192,7 @@ int Interp::read_named_parameter(
             return INTERP_OK;
 
 	logNP("%s: referencing undefined named parameter '%s' level=%d",
-	      name, paramNameBuf, (paramNameBuf[0] == '_') ? 0 : _setup.call_level);
+          name, paramNameBuf, (paramNameBuf[0] == '_') ? 0 : call_level());
 	ERS(_("Named parameter #<%s> not defined"), paramNameBuf);
     }
     return INTERP_OK;
@@ -343,7 +343,7 @@ int Interp::find_named_param(
   parameter_map_iterator pi;
   int level;
 
-  level = (nameBuf[0] == '_') ? 0 : _setup.call_level; // determine scope
+  level = (nameBuf[0] == '_') ? 0 : call_level(); // determine scope
   frame = &_setup.sub_context[level];
   *status = 0;
 
@@ -438,7 +438,7 @@ int Interp::store_named_param(setup_pointer settings,
   int level;
   parameter_map_iterator pi;
 
-  level = (nameBuf[0] == '_') ? 0 : _setup.call_level; // determine scope
+  level = (nameBuf[0] == '_') ? 0 : call_level(); // determine scope
   frame = &settings->sub_context[level];
 
   pi = frame->named_params.find(nameBuf);
@@ -484,7 +484,7 @@ int Interp::add_named_param(
   attr |= PA_UNSET;
 
   if (nameBuf[0] != '_') {  // local scope
-      level = _setup.call_level;
+      level = call_level();
   } else {
       level = 0;    // call level zero is global scope
       attr |= PA_GLOBAL;
@@ -764,7 +764,7 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_CALL_LEVEL:
-	*value = _setup.call_level;
+    *value = call_level();
 	break;
 
     case NP_REMAP_LEVEL:

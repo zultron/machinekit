@@ -3157,26 +3157,26 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
        save_settings(&_setup);
   
        // flag this frame as containing a valid context
-       _setup.sub_context[_setup.call_level].context_status |= CONTEXT_VALID;
+       _setup.sub_context[call_level()].context_status |= CONTEXT_VALID;
   
        // mark as auto-restore context
        if (block->m_modes[M_MODE_SPINDLE] == 73) {
-  	 if (_setup.call_level == 0) {
+     if (call_level() == 0) {
   	     MSG("Warning - M73 at top level: nothing to return to; storing context anyway\n");
   	 } else {
-  	     _setup.sub_context[_setup.call_level].context_status |= CONTEXT_RESTORE_ON_RETURN;
+         _setup.sub_context[call_level()].context_status |= CONTEXT_RESTORE_ON_RETURN;
   	 }
        }
     } else if (block->m_modes[M_MODE_SPINDLE] == 71) {
         // M72 - invalidate context at current level
-        _setup.sub_context[_setup.call_level].context_status &= ~CONTEXT_VALID;
+        _setup.sub_context[call_level()].context_status &= ~CONTEXT_VALID;
   
     } else if (block->m_modes[M_MODE_SPINDLE] == 72) {
   
         // restore state from current stack frame.
-        CHKS((!(_setup.sub_context[_setup.call_level].context_status & CONTEXT_VALID)),
+        CHKS((!(_setup.sub_context[call_level()].context_status & CONTEXT_VALID)),
              (_("Cannot restore context from invalid stack frame - missing M70/M73?")));
-        CHP(restore_settings(&_setup, _setup.call_level, 72));
+        CHP(restore_settings(&_setup, call_level(), 72));
     }
   }
 

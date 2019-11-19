@@ -211,7 +211,7 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.fields[GM_FIELD_STEPPING_ID] = _setup.stepping_id;
     //FIXME refactor these into setup methods, and maybe put this whole method in setup struct
     bool in_remap = (_setup.remap_level > 0);
-    bool in_sub = (_setup.call_level > 0 && _setup.remap_level == 0);
+    bool in_sub = (call_level() > 0 && _setup.remap_level == 0);
     bool external_sub = strcmp(_setup.filename, _setup.sub_context[0].filename);
 
     state.flags[GM_FLAG_IN_REMAP] = in_remap;

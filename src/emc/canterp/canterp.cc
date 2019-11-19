@@ -86,7 +86,7 @@ public:
     int close();
     int reset();
     int line();
-    int call_level();
+    int const &call_level() const;
     char *command(char *buf, size_t buflen);
     char *file(char *buf, size_t buflen);
     int on_abort(int reason, const char *message);
@@ -702,7 +702,10 @@ int Canterp::exit() { return 0; }
 int Canterp::synch() { return 0; }
 int Canterp::reset() { return 0; }
 int Canterp::line() { return 0; }
-int Canterp::call_level() { return 0; }
+const int & Canterp::call_level() const {
+    static int cl = 0;
+    return cl;
+}
 
 char *Canterp::line_text(char *buf, size_t bufsize) {
    snprintf(buf, bufsize, "<Canterp::line_text>");

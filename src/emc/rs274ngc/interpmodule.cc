@@ -609,7 +609,7 @@ static inline void set_c_indexer(Interp &interp, int value)  {
     interp._setup.c_indexer = value;
 }
 static inline int get_call_level (Interp &interp)  {
-    return interp._setup.call_level;
+    return interp.call_level();
 }
 static inline void set_call_level(Interp &interp, int value)  {
     interp._setup.call_level = value;

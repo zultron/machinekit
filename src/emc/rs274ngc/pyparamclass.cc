@@ -104,7 +104,7 @@ bp::list ParamClass::namelist(context &c) const {
 }
 
 bp::list ParamClass::locals() {
-    return namelist(interp._setup.sub_context[interp._setup.call_level]);
+    return namelist(interp._setup.sub_context[interp.call_level()]);
 }
 
 bp::list ParamClass::globals() {
@@ -113,7 +113,7 @@ bp::list ParamClass::globals() {
 
 bp::list ParamClass::operator()() const
 {
-    bp::list result = namelist(interp._setup.sub_context[interp._setup.call_level]);
+    bp::list result = namelist(interp._setup.sub_context[interp.call_level()]);
     result.extend(namelist(interp._setup.sub_context[0]));
     return result;
 };

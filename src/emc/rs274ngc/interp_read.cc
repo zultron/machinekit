@@ -802,7 +802,7 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
       m_number = -1;
 
   if (line[counter] == 'o' || m_number == 98 ||
-      (m_number == 99 && _setup.call_level > 0))
+      (m_number == 99 && call_level() > 0))
 
  /* Handle 'o', 'm98' and 'm99' sub return (but not 'm99' endless
     program) explicitly here. Default is to read letters via pointer
@@ -1553,7 +1553,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
 
 	  // Subroutine name not provided in Fanuc syntax, so pull from
 	  // context
-	  strncpy(oNameBuf, _setup.sub_context[_setup.call_level].subName,
+      strncpy(oNameBuf, _setup.sub_context[call_level()].subName,
 		  LINELEN+1);
       } else
 	  // any other m-code should have been handled by read_m()
@@ -1658,10 +1658,10 @@ int Interp::read_o(    /* ARGUMENTS                                     */
 
       // the remainder are local cases
     default:
-      if(_setup.call_level)
+      if(call_level())
 	{
-	  subName = _setup.sub_context[_setup.call_level].subName;
-	  logDebug("inside a call[%d]:|%s|", _setup.call_level, subName);
+      subName = _setup.sub_context[call_level()].subName;
+      logDebug("inside a call[%d]:|%s|", call_level(), subName);
 	}
       else if(_setup.defining_sub)
 	{
