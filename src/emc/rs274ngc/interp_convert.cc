@@ -1599,6 +1599,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
 #ifdef DEBUG_EMC
     enqueue_COMMENT("interpreter: continuing to use same coordinate system");
 #endif
+    _setup.work_offsets_used.insert(origin);
     return INTERP_OK;
   }
 
