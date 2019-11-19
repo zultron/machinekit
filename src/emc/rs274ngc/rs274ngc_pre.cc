@@ -186,16 +186,30 @@ UnitsTransform Interp::convertsProgramToUser() const
                 getProgAngUnits() * GET_EXTERNAL_ANGLE_UNITS());
 }
 
-GCodeContext::GCodeContext(
-    std::string line_text,
+GCodeContext::GCodeContext(std::string line_text,
     int line,
     std::string file_path,
-    std::string sub_name) :
+    std::string caller_name,
+    std::string py_remap_name) :
     line_text(line_text),
     line(line),
     file_path(file_path),
-    sub_name(sub_name)
+    caller_name(caller_name),
+    py_remap_name(py_remap_name)
 {}
+
+bool GCodeContextStack::pop() {
+    if (context_lines.empty()) {
+        return false;
+    }
+    context_lines.pop_back();
+    return true;
+}
+
+void GCodeContextStack::reset()
+{
+    context_lines.clear();
+}
 
 extern struct _inittab builtin_modules[];
 int trace;
@@ -205,7 +219,8 @@ Interp::Interp()
     : log_file(stderr),
       _setup(setup_struct()),
     warning_list(),
-    last_cmd_src()
+    last_cmd_src(),
+    gcode_context_stack()
 {
 
   init_remap_sets();
@@ -1879,6 +1894,7 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
   logDebug("unwind_call: call_level=%d status=%s from %s %s:%d",
            call_level(), interp_status(status), function, file, line);
 
+  // TODO drain call context stack
   for(; _setup.call_level > 0; _setup.call_level--) {
     int i;
     context * sub = &_setup.sub_context[call_level() - 1];
@@ -1927,15 +1943,16 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
   _setup.offset_map.clear();
   _setup.mdi_interrupt = false;
 
+  gcode_context_stack.reset();
   qc_reset();
   return INTERP_OK;
 }
 
-std::string Interp::get_command_location(CommandSource cmd_src)
+std::string Interp::get_command_caller(CommandSource cmd_src)
 {
     switch (cmd_src) {
     case CommandSource::PROGRAM:
-        return _setup.filename;
+        return "";
     case CommandSource::MDI:
         return "MDI";
     case CommandSource::MODAL_STATE_RESTORE:
@@ -1948,6 +1965,27 @@ std::string Interp::get_command_location(CommandSource cmd_src)
         return "preamble";
     }
     return "";
+}
+
+void Interp::add_context_line(
+    std::ostream &context_msg,
+    const char * callee_filename,
+    const char * calling_sub,
+    int callee_line,
+    const char * callee_linetext
+    )
+{
+    context_msg << "\n  in " << callee_filename;
+    if (calling_sub && calling_sub[0]) {
+        context_msg << " (o<" << calling_sub << ">)";
+    }
+    if (callee_line > 0) {
+        context_msg
+            << ": line " << callee_line;
+    }
+
+    context_msg
+        << ": " << callee_linetext;
 }
 
 int Interp::add_error_call_context(CommandSource cmd_src)
@@ -1966,55 +2004,28 @@ int Interp::add_error_call_context(CommandSource cmd_src)
   // Start with the context marker so we don't double-add
   context_msg << CONTEXT_MARKER << err_msg;
 
-  // The "top" of the stack is always what's in _setup, currently executing
-  std::string caller_filename{};
-  int callee_line = 0;
+  push_gcode_context(&_setup, "");
 
-  if (_setup.sub_context[call_level()].call_type != CT_REMAP) {
-      caller_filename = _setup.filename;
-      callee_line = _setup.sequence_number;
+  GCodeContext &root = gcode_context_stack.context_lines.front();
+  if (cmd_src != CommandSource::PROGRAM) {
+      root.file_path = get_command_caller(cmd_src);
+      root.line = 0;
   }
-  std::string callee_linetext = _setup.linetext;
 
   // Walk down the subroutine stack (from most local towards the original call site) and add context
-  for (int level = call_level(); level >= 0; --level)
+  for (int i = gcode_context_stack.context_lines.size()-1;
+       i >= 0;
+       --i)
   {
-      if (level == 0 && cmd_src != CommandSource::PROGRAM) {
-          // FIXME non-program sources don't come from the loaded program, so ignore
-          // the source location and use a generic name (like MDI, init, etc.)
-          caller_filename = get_command_location(cmd_src);
-          callee_line = 0;
-      }
-
-      context const &sub = _setup.sub_context[level];
-      if (sub.call_type == CT_REMAP) {
-          // FIXME source information for remaps is a whole different system,
-          // just skip it until we can unravel this
-          continue;
-      }
-
+      auto const &cur_cxt = gcode_context_stack.context_lines[i];
+      const char * caller_name = i > 0 ? gcode_context_stack.context_lines[i-1].caller_name.c_str() : "";
       // Format the context line, cleanly skipping any missing information (line, file name, etc.)
-      context_msg << "\n  in " << caller_filename;
-      if (sub.subName && sub.subName[0]) {
-          context_msg << " (o<" << sub.subName << ">)";
-      }
-      if (callee_line > 0) {
-          context_msg
-              << ": line " << callee_line;
-      }
-
-      context_msg
-          << ": " << callee_linetext;
-
-      callee_linetext = sub.linetext;
-
-      if (level == 0) {
-          break;
-      }
-      // Get off-by-one source information from the next level down
-      context const &next_sub = _setup.sub_context[level-1];
-      caller_filename = next_sub.filename;
-      callee_line = next_sub.sequence_number;
+      add_context_line(
+          context_msg,
+          !cur_cxt.py_remap_name.empty() ? cur_cxt.py_remap_name.c_str() : cur_cxt.file_path.c_str(),
+          caller_name,
+          cur_cxt.line,
+          cur_cxt.line_text.c_str());
   }
 
   context_msg.flush();
@@ -2621,41 +2632,6 @@ const char *Interp::getSavedError() const
     return savedError;
 }
 
-GCodeContextStack Interp::getErrorContext() const
-{
-    return getContext(getSavedError(), GCODE_ERROR);
-}
-
-GCodeContextStack Interp::getContext(std::string message, ErrorLevel level) const
-{
-    GCodeContextStack c{};
-    c.msg_text = message;
-    c.level = level;
-
-    std::string caller_linetext = _setup.linetext;
-    std::string caller_filename = _setup.filename;
-
-    for (int level = _setup.call_level; level >= 0; --level)
-    {
-        context const &sub = _setup.sub_context[level];
-        int callee_line = sub.sequence_number ?: _setup.sequence_number;
-
-        c.context_lines.emplace_back(
-            caller_linetext,
-            callee_line,
-            caller_filename,
-            sub.subName ?: ""
-            );
-
-        caller_linetext = sub.linetext;
-        // File return location is off by one
-        if (level > 0) {
-            caller_filename = _setup.sub_context[level-1].filename;
-        }
-    }
-    return c;
-}
-
 // set error message text without going through printf format interpretation
 int Interp::setSavedError(const char *msg)
 {
@@ -3220,7 +3196,7 @@ const char *strstore(const char *s)
 }
 
 context_struct::context_struct()
-    : position(0), sequence_number(0), filename(""), subName(""), linetext(""),
+    : position(0), sequence_number(0), filename(""), subName(""),
     m98_loop_counter(-1), context_status(0), modal_state(), call_type(CT_NONE)
 {
 }

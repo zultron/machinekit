@@ -33,26 +33,23 @@ struct GCodeContext
         std::string line_text,
         int line,
         std::string file_path,
-        std::string sub_name);
+        std::string caller_name,
+        std::string py_remap_name);
 
     std::string line_text;
     int line;
     std::string file_path;
-    std::string sub_name;
-};
-
-enum ErrorLevel
-{
-    GCODE_ERROR,
-    GCODE_WARNING,
+    std::string caller_name;
+    std::string py_remap_name;
 };
 
 struct GCodeContextStack
 {
     std::vector<GCodeContext> context_lines;
-    std::string msg_text;
     int location_in_line; // First character of error
-    ErrorLevel level;
+    std::string cached_py_remap_name; // Just for internal use
+    bool pop();
+    void reset();
 };
 
 class Interp : public InterpBase {
@@ -746,15 +743,13 @@ int read_inputs(setup_pointer settings);
     FILE *find_ngc_file(setup_pointer settings,const char *basename, char *foundhere = nullptr);
 
     const char *getSavedError() const;
-    GCodeContextStack getErrorContext() const;
-    GCodeContextStack getContext(std::string message, ErrorLevel level) const;
     // set error message text without going through printf format interpretation
     int setSavedError(const char *msg);
     int clearSavedError();
     int clearWarning();
 
     int unwind_call(int status, const char *file, int line, const char *function, CommandSource cmd_src);
-    std::string get_command_location(CommandSource cmd_src);
+    std::string get_command_caller(CommandSource cmd_src);
     int add_error_call_context(CommandSource cmd_src);
 
     int convert_straight_indexer(int, block*, setup*);
@@ -784,6 +779,8 @@ int read_inputs(setup_pointer settings);
     std::vector <std::string> warning_list;
     CommandSource last_cmd_src;
 
+    GCodeContextStack gcode_context_stack;
+
     double getProgLenUnits() const;
     static double getProgAngUnits();
     double TO_PROG_LEN(double mm) const;
@@ -800,6 +797,18 @@ int read_inputs(setup_pointer settings);
     int convert_g10(block_pointer block, setup_pointer settings);
     InterpReturn check_g10(block_pointer block);
 
+    void add_context_line(
+        std::ostream &context_msg,
+        const char * caller_filename,
+        const char * subName,
+        int callee_line,
+        const char * callee_linetext
+        );
+
+    void push_gcode_context(setup_pointer settings, block_pointer block);
+    void push_gcode_context(setup_pointer settings, const char *caller);
+    void update_gcode_context(const setup_pointer settings);
+    void update_gcode_context_py_remap_name(const remap_pointer remap);
 };
 
 bool toolOffsetActive(setup_pointer s);
