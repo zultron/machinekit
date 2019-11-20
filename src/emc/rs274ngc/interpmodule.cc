@@ -67,7 +67,7 @@ static  active_settings_array active_settings_wrapper ( Interp & inst) {
 }
 
 static  blocks_array blocks_wrapper ( Interp & inst) {
-    return blocks_array(inst._setup.blocks);
+    return blocks_array(inst._setup.blocks.data());
 }
 
 static  parameters_array parameters_wrapper ( Interp & inst) {
@@ -175,21 +175,22 @@ static int throw_exceptions = 1;
 static int wrap_interp_execute_1(Interp &interp, const char *command)
 {    
     setup &_setup = interp._setup;
-    block saved_block = _setup.blocks[0];
+    block saved_block = _setup.getExecutingBlock();
     int saved_call_state = _setup.call_state;
 
     // Temporarily set the call state to CS_NORMAL
     _setup.call_state = CS_NORMAL;
     int status = interp.execute(command);
     _setup.call_state = saved_call_state;
-    _setup.blocks[0] = saved_block;
+    _setup.setExecutingBlock(saved_block);
 
     // printf("ie1: tc=%d if=%d pf=%d\n", _setup.toolchange_flag,_setup.input_flag,_setup.probe_flag);
 
     if ((status > INTERP_MIN_ERROR) && throw_exceptions) {
-	throw InterpreterException(interp.getSavedError(),
-				   _setup.blocks[0].line_number, // not sure
-				   _setup.linetext);
+        throw InterpreterException(
+            interp.getSavedError(),
+            _setup.getExecutingBlock().line_number, // not sure
+            _setup.linetext);
     }
     return status;
 }
@@ -197,14 +198,14 @@ static int wrap_interp_execute_1(Interp &interp, const char *command)
 static int wrap_interp_execute_2(Interp &interp, const char *command, int lineno)
 {
     setup &_setup = interp._setup;
-    block saved_block = _setup.blocks[0];
+    block saved_block = _setup.getExecutingBlock();
 
     // use the remap stack to save/restore the current block
     CHP(interp.enter_remap());
-    // FIXME need to set the source line here
-    int status = interp.execute(command);
+
+    int status = interp.execute(command, interp.last_cmd_src, lineno);
     CHP(interp.leave_remap());
-    _setup.blocks[0] = saved_block;
+    _setup.setExecutingBlock(saved_block);
     
     //printf("ie2: tc=%d if=%d pf=%d\n", _setup.toolchange_flag,_setup.input_flag,_setup.probe_flag);
     if ((status > INTERP_MIN_ERROR) && throw_exceptions) {
@@ -219,12 +220,12 @@ static int wrap_interp_execute_2(Interp &interp, const char *command, int lineno
 static int wrap_interp_read(Interp &interp, const char *command)
 {
     setup &_setup = interp._setup;
-    block saved_block = _setup.blocks[0];
+    block saved_block = _setup.getExecutingBlock();
 
     int status = interp.read(command);
     if ((status > INTERP_MIN_ERROR) && throw_exceptions) {
 	throw InterpreterException(interp.getSavedError(),
-				   _setup.blocks[0].line_number, // not sure
+                   _setup.getExecutingBlock().line_number, // not sure
 				   _setup.linetext);
     }
     return status;
@@ -608,7 +609,7 @@ static inline void set_c_indexer(Interp &interp, int value)  {
     interp._setup.c_indexer = value;
 }
 static inline int get_call_level (Interp &interp)  {
-    return interp._setup.call_level;
+    return interp.call_level();
 }
 static inline void set_call_level(Interp &interp, int value)  {
     interp._setup.call_level = value;
@@ -716,7 +717,7 @@ static inline void set_random_toolchanger(Interp &interp, int value)  {
     interp._setup.random_toolchanger = value;
 }
 static inline int get_remap_level (Interp &interp)  {
-    return interp._setup.remap_level;
+    return interp.remap_level();
 }
 static inline void set_remap_level(Interp &interp, int value)  {
     interp._setup.remap_level = value;

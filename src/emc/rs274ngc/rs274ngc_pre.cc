@@ -186,6 +186,31 @@ UnitsTransform Interp::convertsProgramToUser() const
                 getProgAngUnits() * GET_EXTERNAL_ANGLE_UNITS());
 }
 
+GCodeContext::GCodeContext(std::string line_text,
+    int line,
+    std::string file_path,
+    std::string caller_name,
+    std::string py_remap_name) :
+    line_text(line_text),
+    line(line),
+    file_path(file_path),
+    caller_name(caller_name),
+    py_remap_name(py_remap_name)
+{}
+
+bool GCodeContextStack::pop() {
+    if (context_lines.empty()) {
+        return false;
+    }
+    context_lines.pop_back();
+    return true;
+}
+
+void GCodeContextStack::reset()
+{
+    context_lines.clear();
+}
+
 extern struct _inittab builtin_modules[];
 int trace;
 static char savedError[ERROR_TEXT_LEN];
@@ -194,7 +219,8 @@ Interp::Interp()
     : log_file(stderr),
       _setup(setup_struct()),
     warning_list(),
-    last_cmd_src()
+    last_cmd_src(),
+    gcode_context_stack()
 {
 
   init_remap_sets();
@@ -328,7 +354,7 @@ int Interp::close()
     // be "lazy" only if we're not aborting a call in progress
     // in which case we need to reset() the call stack
     // this does not reset the filename properly
-    if(_setup.use_lazy_close) //  && (_setup.call_level == 0))
+    if(_setup.use_lazy_close) //  && (call_level() == 0))
     {
       _setup.lazy_closing = 1;
       return INTERP_OK;
@@ -377,7 +403,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
   clearSavedError();
   int status;
   int MDImode = 0;
-  block_pointer eblock = &EXECUTING_BLOCK(_setup);
+  block_pointer eblock = &_setup.getExecutingBlock();
   extern const char *call_statenames[];
   extern const char *call_typenames[];
   extern const char *o_ops[];
@@ -396,7 +422,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
            command ? "command" : "line",
            command ? command : _setup.linetext,
            _setup.mdi_interrupt, o_ops[eblock->o_type], eblock->o_name,
-	   _setup.call_level,_setup.remap_level, 
+       call_level(),remap_level(),
 	   eblock->call_type < 0 ? "*unset*" : call_typenames[eblock->call_type], 
       call_statenames[_setup.call_state]);
 
@@ -419,7 +445,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
     }
     logDebug("!!!KL Open file is:%s:", _setup.filename);
     logDebug("MDImode = %d", MDImode);
-    while(MDImode && _setup.call_level) // we are still in a subroutine
+    while(MDImode && call_level()) // we are still in a subroutine
     {
       status = read();  // reads from current file and calls parse
       if (status > INTERP_MIN_ERROR)
@@ -529,11 +555,11 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
       std::set<int>::iterator it;
       int next_remap = *eblock->remappings.begin();
       logRemap("found remap %d in '%s', level=%d filename=%s line=%d",
-               next_remap,_setup.blocktext,_setup.call_level,_setup.filename,_setup.sequence_number);
+               next_remap,_setup.blocktext,call_level(),_setup.filename,_setup.sequence_number);
 
 
       CHP(enter_remap());
-      block_pointer cblock = &CONTROLLING_BLOCK(_setup);
+      block_pointer cblock = &_setup.getControllingBlock();
       cblock->phase = next_remap;
       // execute up to the first remap including read() of its handler
       // this also sets cblock->executing_remap
@@ -547,7 +573,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
       // detect a remapping recursion.
       // since each remapped item pushes a new block onto the remap stack, we walk
       // the remap stack searching for an identical remap below the TOS
-      for (int i = _setup.remap_level - 1; i > 0; i--) {
+      for (int i = remap_level() - 1; i > 0; i--) {
         if (_setup.blocks[i].executing_remap == cblock->executing_remap) {
           ERS("recursive remapping for %s detected", cblock->executing_remap->name);
         }
@@ -580,7 +606,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
               MDImode = 1;
             }
             status = INTERP_OK;
-            while(MDImode && _setup.call_level) { // we are still in a subroutine
+            while(MDImode && call_level()) { // we are still in a subroutine
         CHP(read());  // reads from current file and calls parse
               status = execute();  // special handling for mdi errors
               if (status == INTERP_EXECUTE_FINISH)
@@ -617,11 +643,11 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
       write_settings(&_setup, _setup.modal_state);
 
       if ((status == INTERP_EXIT) &&
-          (_setup.remap_level > 0) &&
-          (_setup.call_level > 0)) {
+          (remap_level() > 0) &&
+          (call_level() > 0)) {
         // an M2 was encountered while executing a handler.
         logRemap("standard case status=%s remap_level=%d call_level=%d blocktext='%s' MDImode=%d",
-                 interp_status(status),_setup.remap_level,_setup.call_level, _setup.blocktext,MDImode);
+                 interp_status(status),remap_level(),call_level(), _setup.blocktext,MDImode);
         logRemap("_setup.filename = %s, fn[0]=%s, fn[1]=%s",
                  _setup.filename,
                  _setup.sub_context[0].filename,
@@ -665,7 +691,7 @@ int Interp::execute(const char *command, CommandSource cmd_src, int line_number)
         unwind_call(status, __FILE__,__LINE__,__FUNCTION__, cmd_src);
         logDebug("<-- execute(): error returned, clearing remap and call stack");
     }
-    if ((_setup.call_level == 0) &&
+    if ((call_level() == 0) &&
         (status == INTERP_EXECUTE_FINISH) &&
         (_setup.mdi_interrupt)) {
         logDebug(" execute() clearing mdi_interrupt");
@@ -679,10 +705,10 @@ int Interp::execute(const char *command, CommandSource cmd_src, int line_number)
 int Interp::remap_finished(int phase)
 {
     int next_remap,status;
-    block_pointer cblock = &CONTROLLING_BLOCK(_setup);
+    block_pointer cblock = &_setup.getControllingBlock();
 
     logRemap("remap_finished phase=%d remap_level=%d call_level=%d filename=%s",
-	  phase, _setup.remap_level,_setup.call_level,_setup.filename);
+      phase, remap_level(),call_level(),_setup.filename);
 
     // the controlling block had a remapped item, which just finished and the
     // oword return/endsub code called in here.
@@ -700,7 +726,7 @@ int Interp::remap_finished(int phase)
 	    next_remap = *it;
 	    cblock->phase = next_remap;
 
-	    logRemap("starting phase %d  (remap_level=%d call_level=%d)",next_remap,_setup.remap_level,_setup.call_level);
+        logRemap("starting phase %d  (remap_level=%d call_level=%d)",next_remap,remap_level(),call_level());
 
 	    // this will execute up to the next remap, and return
 	    // after parsing the handler with read()
@@ -720,16 +746,16 @@ int Interp::remap_finished(int phase)
 	    // execution of controlling block finished executing a remap, and it contains no more
 	    // remapped items. Execute any leftover items.
 	    logRemap("no more remaps in controlling_block found (remap_level=%d call_level=%d), remappings size=%zd, dropping",
-		     _setup.remap_level,_setup.call_level,cblock->remappings.size());
+             remap_level(),call_level(),cblock->remappings.size());
 
 	    status = execute_block(cblock,  &_setup);
 
 	    if ((status < 0) ||  (status > INTERP_MIN_ERROR)) {
 		// status < 0 is a bug; might happen if find_remappings() failed to indicate the next remap
 		logRemap("executing block leftover items: %s status=%s  remap_level=%d call_level=%d (failing)",
-			 status < 0 ? "BUG":"ERROR", interp_status(status),_setup.remap_level,_setup.call_level);
+             status < 0 ? "BUG":"ERROR", interp_status(status),remap_level(),call_level());
 		if (status < 0)
-		    ERS("BUG - check find_remappings()!! status=%d nesting=%d",status,_setup.remap_level);
+            ERS("BUG - check find_remappings()!! status=%d nesting=%d",status,remap_level());
 	    } else {
 		// we're done with this remapped block.
 		// execute_block may return INTERP_EXECUTE_FINISH if a probe, input or toolchange
@@ -741,7 +767,7 @@ int Interp::remap_finished(int phase)
 		if (status != INTERP_EXIT) // Don't drop remap lev. at prog exit
 		    CHP(leave_remap());
 		logRemap("executing block leftover items complete, status=%s  remap_level=%d call_level=%d tc=%d probe=%d input=%d mdi_interrupt=%d  line=%d backtoline=%d",
-			 interp_status(status),_setup.remap_level,_setup.call_level,_setup.toolchange_flag,
+             interp_status(status),remap_level(),call_level(),_setup.toolchange_flag,
 			_setup.probe_flag,_setup.input_flag,_setup.mdi_interrupt,_setup.sequence_number,
 			 cblock->line_number);
 	    }
@@ -750,7 +776,7 @@ int Interp::remap_finished(int phase)
     } else {
 	// "should not happen"
 	ERS("BUG: remap_finished(): phase=%d nesting=%d",
-	    phase, _setup.remap_level);
+        phase, remap_level());
     }
     return INTERP_OK;
 }
@@ -763,19 +789,19 @@ int Interp::find_remappings(block_pointer block, setup_pointer settings)
 {
     if (block->f_flag && remapping("F")) {
 	if (remap_in_progress("F"))
-	    CONTROLLING_BLOCK(*settings).builtin_used = true;
+        settings->getControllingBlock().builtin_used = true;
 	else
 	    block->remappings.insert(STEP_SET_FEED_RATE);
     }
     if (block->s_flag && remapping("S")) {
 	if (remap_in_progress("S"))
-	    CONTROLLING_BLOCK(*settings).builtin_used = true;
+        settings->getControllingBlock().builtin_used = true;
 	else
 	    block->remappings.insert(STEP_SET_SPINDLE_SPEED);
     }
     if (block->t_flag && remapping("T")) {
 	if (remap_in_progress("T"))
-	    CONTROLLING_BLOCK(*settings).builtin_used = true;
+        settings->getControllingBlock().builtin_used = true;
 	else
 	    block->remappings.insert(STEP_PREPARE);
     }
@@ -859,7 +885,7 @@ int Interp::find_remappings(block_pointer block, setup_pointer settings)
 	    // these require real work.
 	    // remap_in_progress("M2") ||
 	    // remap_in_progress("M60")
-	    CONTROLLING_BLOCK(*settings).builtin_used = true;
+        settings->getControllingBlock().builtin_used = true;
 	} else {
 	    block->remappings.insert(STEP_MGROUP4);
 	}
@@ -1756,7 +1782,7 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
   // to decide what to do.
   // The handler reexec code will call read_inputs() just before continuation.
 
-  block_pointer eblock = &EXECUTING_BLOCK(_setup);
+  block_pointer eblock = &_setup.getExecutingBlock();
 
   if ((_setup.call_state > CS_NORMAL) &&
       (eblock->call_type != CT_NGC_OWORD_SUB)  &&
@@ -1792,7 +1818,7 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
 
   if(_setup.file_pointer)
   {
-      EXECUTING_BLOCK(_setup).offset = ftell(_setup.file_pointer);
+      _setup.getExecutingBlock().offset = ftell(_setup.file_pointer);
   }
 
   read_status =
@@ -1809,7 +1835,7 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
   if ((read_status == INTERP_EXECUTE_FINISH)
       || (read_status == INTERP_OK)) {
     if (_setup.line_length != 0) {
-	CHP(parse_line(_setup.blocktext, &(EXECUTING_BLOCK(_setup)), &_setup));
+    CHP(parse_line(_setup.blocktext, &(_setup.getExecutingBlock()), &_setup));
     }
 
     else // Blank line (zero length)
@@ -1823,9 +1849,9 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
              not created new, so this is a legal operation on block1. */
 
 	// mah: FIXME test this - no idea what this is about; o_number is history
-        if (EXECUTING_BLOCK(_setup).o_type != O_none)  {
+        if (_setup.getExecutingBlock().o_type != O_none)  {
             // Clear o_type, this isn't line isn't a command...
-            EXECUTING_BLOCK(_setup).o_type = 0;
+            _setup.getExecutingBlock().o_type = 0;
 	}
     }
   } else if (read_status == INTERP_ENDFILE) {
@@ -1866,12 +1892,13 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
   }
 
   logDebug("unwind_call: call_level=%d status=%s from %s %s:%d",
-           _setup.call_level, interp_status(status), function, file, line);
+           call_level(), interp_status(status), function, file, line);
 
+  // TODO drain call context stack
   for(; _setup.call_level > 0; _setup.call_level--) {
     int i;
-    context * sub = &_setup.sub_context[_setup.call_level - 1];
-    free_named_parameters(&_setup.sub_context[_setup.call_level]);
+    context * sub = &_setup.sub_context[call_level() - 1];
+    free_named_parameters(&_setup.sub_context[call_level()]);
     if(sub->subName) {
       logDebug("unwind_call leaving sub '%s'", sub->subName);
       sub->subName = nullptr;
@@ -1901,7 +1928,7 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
     }
     _setup.sequence_number = sub->sequence_number;
     logDebug("unwind_call: setting sequence number=%d from frame %d",
-             _setup.sequence_number,_setup.call_level);
+             _setup.sequence_number,call_level());
   }
   // call_level == 0 here.
 
@@ -1916,15 +1943,16 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
   _setup.offset_map.clear();
   _setup.mdi_interrupt = false;
 
+  gcode_context_stack.reset();
   qc_reset();
   return INTERP_OK;
 }
 
-std::string Interp::get_command_location(CommandSource cmd_src)
+std::string Interp::get_command_caller(CommandSource cmd_src)
 {
     switch (cmd_src) {
     case CommandSource::PROGRAM:
-        return _setup.filename;
+        return "";
     case CommandSource::MDI:
         return "MDI";
     case CommandSource::MODAL_STATE_RESTORE:
@@ -1937,6 +1965,27 @@ std::string Interp::get_command_location(CommandSource cmd_src)
         return "preamble";
     }
     return "";
+}
+
+void Interp::add_context_line(
+    std::ostream &context_msg,
+    const char * callee_filename,
+    const char * calling_sub,
+    int callee_line,
+    const char * callee_linetext
+    )
+{
+    context_msg << "\n  in " << callee_filename;
+    if (calling_sub && calling_sub[0]) {
+        context_msg << " (o<" << calling_sub << ">)";
+    }
+    if (callee_line > 0) {
+        context_msg
+            << ": line " << callee_line;
+    }
+
+    context_msg
+        << ": " << callee_linetext;
 }
 
 int Interp::add_error_call_context(CommandSource cmd_src)
@@ -1955,55 +2004,28 @@ int Interp::add_error_call_context(CommandSource cmd_src)
   // Start with the context marker so we don't double-add
   context_msg << CONTEXT_MARKER << err_msg;
 
-  // The "top" of the stack is always what's in _setup, currently executing
-  std::string caller_filename{};
-  int callee_line = 0;
+  push_gcode_context(&_setup, "");
 
-  if (_setup.sub_context[_setup.call_level].call_type != CT_REMAP) {
-      caller_filename = _setup.filename;
-      callee_line = _setup.sequence_number;
+  GCodeContext &root = gcode_context_stack.context_lines.front();
+  if (cmd_src != CommandSource::PROGRAM) {
+      root.file_path = get_command_caller(cmd_src);
+      root.line = 0;
   }
-  std::string callee_linetext = _setup.linetext;
 
   // Walk down the subroutine stack (from most local towards the original call site) and add context
-  for (int level = _setup.call_level; level >= 0; --level)
+  for (int i = gcode_context_stack.context_lines.size()-1;
+       i >= 0;
+       --i)
   {
-      if (level == 0 && cmd_src != CommandSource::PROGRAM) {
-          // FIXME non-program sources don't come from the loaded program, so ignore
-          // the source location and use a generic name (like MDI, init, etc.)
-          caller_filename = get_command_location(cmd_src);
-          callee_line = 0;
-      }
-
-      context const &sub = _setup.sub_context[level];
-      if (sub.call_type == CT_REMAP) {
-          // FIXME source information for remaps is a whole different system,
-          // just skip it until we can unravel this
-          continue;
-      }
-
+      auto const &cur_cxt = gcode_context_stack.context_lines[i];
+      const char * caller_name = i > 0 ? gcode_context_stack.context_lines[i-1].caller_name.c_str() : "";
       // Format the context line, cleanly skipping any missing information (line, file name, etc.)
-      context_msg << "\n  in " << caller_filename;
-      if (sub.subName && sub.subName[0]) {
-          context_msg << " (o<" << sub.subName << ">)";
-      }
-      if (callee_line > 0) {
-          context_msg
-              << ": line " << callee_line;
-      }
-
-      context_msg
-          << ": " << callee_linetext;
-
-      callee_linetext = sub.linetext;
-
-      if (level == 0) {
-          break;
-      }
-      // Get off-by-one source information from the next level down
-      context const &next_sub = _setup.sub_context[level-1];
-      caller_filename = next_sub.filename;
-      callee_line = next_sub.sequence_number;
+      add_context_line(
+          context_msg,
+          !cur_cxt.py_remap_name.empty() ? cur_cxt.py_remap_name.c_str() : cur_cxt.file_path.c_str(),
+          caller_name,
+          cur_cxt.line,
+          cur_cxt.line_text.c_str());
   }
 
   context_msg.flush();
@@ -2982,38 +3004,42 @@ int Interp::set_tool_parameters()
 int Interp::enter_remap(void)
 {
     _setup.remap_level++;
-    if (_setup.remap_level == MAX_NESTED_REMAPS) {
+    if (remap_level() == MAX_NESTED_REMAPS) {
 	_setup.remap_level = 0;
 	ERS("maximum nesting of remapped blocks execeeded");
     }
 
+    block &controlling_block = _setup.updateControllingBlock();
+    push_gcode_context(&_setup, &controlling_block);
+
     // push onto block stack
-    CONTROLLING_BLOCK(_setup) = EXECUTING_BLOCK(_setup);
-    CONTROLLING_BLOCK(_setup).breadcrumbs = 0; // clear trail
+    controlling_block.breadcrumbs = 0; // clear trail
     // set later but tested for in remap_in_progress()
-    CONTROLLING_BLOCK(_setup).executing_remap = nullptr;
+    controlling_block.executing_remap = nullptr;
 
     // remember the line where remap was discovered
     logRemap("enter_remap into %d - saved_line_number=%d",
-	     _setup.remap_level, _setup.sequence_number);
-    if (_setup.remap_level == 1)
+         remap_level(), _setup.sequence_number);
+    if (remap_level() == 1)
         _setup.stepping_id++;
-    CONTROLLING_BLOCK(_setup).saved_line_number = _setup.sequence_number;
+    controlling_block.saved_line_number = _setup.sequence_number;
     _setup.sequence_number = 0;
     return INTERP_OK;
 }
 
 int Interp::leave_remap(void)
 {
+    block &controlling_block = _setup.getControllingBlock();
     // restore the line number where remap was found
     logRemap("leave_remap from %d propagate saved_line_number=%d",
-	     _setup.remap_level, CONTROLLING_BLOCK(_setup).saved_line_number);
+         remap_level(), controlling_block.saved_line_number);
 
-    _setup.sequence_number = CONTROLLING_BLOCK(_setup).saved_line_number;
-    _setup.blocks[_setup.remap_level].executing_remap = nullptr;
+    _setup.sequence_number = controlling_block.saved_line_number;
+    controlling_block.executing_remap = nullptr;
     _setup.remap_level--; // drop one nesting level
-    if (_setup.remap_level < 0) {
-	ERS("BUG: remap_level < 0 : %d",_setup.remap_level);
+    gcode_context_stack.pop();
+    if (remap_level() < 0) {
+    ERS("BUG: remap_level < 0 : %d",remap_level());
     }
     return INTERP_OK;
 }
@@ -3170,7 +3196,7 @@ const char *strstore(const char *s)
 }
 
 context_struct::context_struct()
-    : position(0), sequence_number(0), filename(""), subName(""), linetext(""),
+    : position(0), sequence_number(0), filename(""), subName(""),
     m98_loop_counter(-1), context_status(0), modal_state(), call_type(CT_NONE)
 {
 }

@@ -48,13 +48,14 @@ bool Interp::has_user_mcode(setup_pointer settings,block_pointer block)
 bool Interp::remap_in_progress(const char *code)
 {
     remap_pointer rp = remapping(code);
-    if (rp == NULL)
-	return false;
-    for (int i = _setup.remap_level; i > 0; i--) {
-	if (_setup.blocks[i].executing_remap == rp) {
-	    // printf("---------------- remap_in_progress(%s): TRUE level=%d\n",code,i);
-	    return true;
-	}
+    if (rp == nullptr) {
+        return false;
+    }
+    for (int i = remap_level(); i > 0; i--) {
+        if (_setup.blocks[i].executing_remap == rp) {
+            // printf("---------------- remap_in_progress(%s): TRUE level=%d\n",code,i);
+            return true;
+        }
     }
     // printf("---------------- remap_in_progress(%s): FALSE\n",code);
     return false;
@@ -118,7 +119,7 @@ int Interp::convert_remapped_code(block_pointer block,
     snprintf(cmd, sizeof(cmd),"O <%s> call ", REMAP_FUNC(remap));
 
     // the controlling block holds all dynamic remap information.
-    cblock = &CONTROLLING_BLOCK(*settings);
+    cblock = &settings->getControllingBlock();
     cblock->executing_remap = remap; // the current descriptor
     cblock->param_cnt = 0;
 
@@ -137,7 +138,7 @@ int Interp::convert_remapped_code(block_pointer block,
 
     // good to go, pass to o-word call handling mechanism
     status = read(cmd);
-    block_pointer eblock = &EXECUTING_BLOCK(*settings);
+    block_pointer eblock = &settings->getExecutingBlock();
     eblock->call_type = CT_REMAP; 
     CHKS(status != INTERP_OK,
 	 "convert_remapped_code: inital read returned %s",
@@ -212,7 +213,7 @@ int Interp::add_parameters(setup_pointer settings,
 	if (strchr(">^Nn",*s) && !strchr(required,*s)) *r++ = *s;
 	s++;
     }
-    block = &CONTROLLING_BLOCK((*settings));
+    block = &settings->getControllingBlock();
 
     logNP("add_parameters code=%s argspec=%s call_level=%d r=%s o=%s pydict=%d\n",
 	    code,argspec,settings->call_level,required,optional,pydict);

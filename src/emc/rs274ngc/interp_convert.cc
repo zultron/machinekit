@@ -1599,6 +1599,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
 #ifdef DEBUG_EMC
     enqueue_COMMENT("interpreter: continuing to use same coordinate system");
 #endif
+    _setup.work_offsets_used.insert(origin);
     return INTERP_OK;
   }
 
@@ -3041,7 +3042,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 	  } else {
 	      // the code was used in its very remap procedure -
 	      // the 'recursion case'; record the fact
-	      CONTROLLING_BLOCK(*settings).builtin_used = !remapped_in_block;
+          settings->getControllingBlock().builtin_used = !remapped_in_block;
 	      CHP(convert_tool_change(settings));
 	  }
       	  break;
@@ -3051,7 +3052,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 	      return convert_remapped_code(block, settings, STEP_M_6,'m',
                        block->m_modes[M_MODE_TOOLCHANGE]);
 	  } else {
-	      CONTROLLING_BLOCK(*settings).builtin_used = !remapped_in_block;
+          settings->getControllingBlock().builtin_used = !remapped_in_block;
 	      toolno = round_to_int(block->q_number);
 	      // now also accept M61 Q0 - unload tool
 	      CHKS((toolno < 0), (_("Need non-negative Q-word to specify tool number with M61")));
@@ -3119,7 +3120,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
           // the code was used in its very remap procedure
           // the 'recursion case'; record the fact and keep going.
         logRemap("M3-M4-M5 recursion detected so running real one?");
-        CONTROLLING_BLOCK(*settings).builtin_used = !remapped_in_block;
+        settings->getControllingBlock().builtin_used = !remapped_in_block;
       }
   
       if (block->m_modes[M_MODE_SPINDLE] == 3) {
@@ -3157,26 +3158,26 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
        save_settings(&_setup);
   
        // flag this frame as containing a valid context
-       _setup.sub_context[_setup.call_level].context_status |= CONTEXT_VALID;
+       _setup.sub_context[call_level()].context_status |= CONTEXT_VALID;
   
        // mark as auto-restore context
        if (block->m_modes[M_MODE_SPINDLE] == 73) {
-  	 if (_setup.call_level == 0) {
+     if (call_level() == 0) {
   	     MSG("Warning - M73 at top level: nothing to return to; storing context anyway\n");
   	 } else {
-  	     _setup.sub_context[_setup.call_level].context_status |= CONTEXT_RESTORE_ON_RETURN;
+         _setup.sub_context[call_level()].context_status |= CONTEXT_RESTORE_ON_RETURN;
   	 }
        }
     } else if (block->m_modes[M_MODE_SPINDLE] == 71) {
         // M72 - invalidate context at current level
-        _setup.sub_context[_setup.call_level].context_status &= ~CONTEXT_VALID;
+        _setup.sub_context[call_level()].context_status &= ~CONTEXT_VALID;
   
     } else if (block->m_modes[M_MODE_SPINDLE] == 72) {
   
         // restore state from current stack frame.
-        CHKS((!(_setup.sub_context[_setup.call_level].context_status & CONTEXT_VALID)),
+        CHKS((!(_setup.sub_context[call_level()].context_status & CONTEXT_VALID)),
              (_("Cannot restore context from invalid stack frame - missing M70/M73?")));
-        CHP(restore_settings(&_setup, _setup.call_level, 72));
+        CHP(restore_settings(&_setup, call_level(), 72));
     }
   }
 

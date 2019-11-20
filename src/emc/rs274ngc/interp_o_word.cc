@@ -198,7 +198,7 @@ const char *call_typenames[] = {
     "CT_REMAP",  
 };
 
-int Interp::execute_call(setup_pointer settings, 
+int Interp::execute_call(setup_pointer settings,
 			 context_pointer current_frame,
 			 int call_type)
 {
@@ -208,7 +208,7 @@ int Interp::execute_call(setup_pointer settings,
 
     context_pointer previous_frame = &settings->sub_context[settings->call_level-1];
 
-    block_pointer eblock = &EXECUTING_BLOCK(*settings);
+    block_pointer eblock = &settings->getExecutingBlock();
 
     logOword("execute_call %s type=%s state=%s cl=%d rl=%d", 
 	     current_frame->subName, 
@@ -239,7 +239,8 @@ int Interp::execute_call(setup_pointer settings,
 	else
 	    previous_frame->position = ftell(settings->file_pointer);
 	previous_frame->filename = strstore(settings->filename);
-	previous_frame->sequence_number = settings->sequence_number;
+    previous_frame->sequence_number = settings->sequence_number;
+    update_gcode_context(settings);
 	logOword("saving return location[cl=%d]: %s:%d offset=%ld", 
 		 settings->call_level-1,
 		 previous_frame->filename,
@@ -295,6 +296,7 @@ int Interp::execute_call(setup_pointer settings,
 	    logOword("M98 L0 instruction; skipping call");
 	else if (control_back_to(eblock, settings) == INTERP_ERROR) {
 	    settings->call_level--;
+        gcode_context_stack.pop();
 	    ERS(NCE_UNABLE_TO_OPEN_FILE,eblock->o_name);
 	    return INTERP_ERROR;
 	}
@@ -307,8 +309,9 @@ int Interp::execute_call(setup_pointer settings,
 	    settings->return_value = 0.0;
 	    settings->value_returned = 0;
 	    previous_frame->sequence_number = settings->sequence_number;
-	    previous_frame->filename = strstore(settings->filename);
-	    plist.append(*settings->pythis); // self
+        previous_frame->filename = strstore(settings->filename);
+        update_gcode_context(settings);
+        plist.append(*settings->pythis); // self
 	    for(int i = 0; i < eblock->param_cnt; i++)
 		plist.append(eblock->params[i]); // positonal args
 	    current_frame->pystuff.impl->tupleargs = bp::tuple(plist);
@@ -337,8 +340,10 @@ int Interp::execute_call(setup_pointer settings,
 	break;
 
     case CT_REMAP:
-	block_pointer cblock = &CONTROLLING_BLOCK(*settings);
+    block_pointer cblock = &settings->getControllingBlock();
 	remap_pointer remap = cblock->executing_remap;
+        //update_remap_gcode_context(remap);
+        update_gcode_context_py_remap_name(remap);
 
 	switch (settings->call_state) {
 	case CS_NORMAL:
@@ -415,8 +420,8 @@ int Interp::execute_return(setup_pointer settings, context_pointer current_frame
 	     call_typenames[call_type],
 	     call_statenames[settings->call_state]);
 
-    block_pointer cblock = &CONTROLLING_BLOCK(*settings);
-    block_pointer eblock = &EXECUTING_BLOCK(*settings);
+    block_pointer cblock = &settings->getControllingBlock();
+    block_pointer eblock = &settings->getExecutingBlock();
     context_pointer previous_frame = &settings->sub_context[settings->call_level - 1];
 
     // if level is not zero, in a call
@@ -670,10 +675,58 @@ int Interp::handler_returned( setup_pointer settings,  context_pointer active_fr
     }
     return status;
 }
- 
+
+void Interp::push_gcode_context(
+    setup_pointer settings,
+    block_pointer block
+){
+    if (block->call_type == CT_REMAP) {
+        // KLUDGE Skip empty "remap" contexts since they just add noise to the trace
+        return;
+    }
+    gcode_context_stack.context_lines.emplace_back(
+        settings->linetext ?: "",
+        settings->sequence_number,
+        settings->filename ?: "",
+        block->o_name ?: "",
+        gcode_context_stack.cached_py_remap_name
+                );
+
+    gcode_context_stack.cached_py_remap_name.clear();
+}
+
+void Interp::push_gcode_context(setup_pointer settings, const char * caller)
+{
+    gcode_context_stack.context_lines.emplace_back(
+        settings->linetext ?: "",
+        settings->sequence_number,
+        settings->filename ?: "",
+        caller,
+        gcode_context_stack.cached_py_remap_name
+        );
+    gcode_context_stack.cached_py_remap_name.clear();
+}
+
+/** Poke the file name / line number into the back of the stack (typically during a remap call, when the context is known) */
+void Interp::update_gcode_context(setup_pointer const settings)
+{
+    if (gcode_context_stack.context_lines.empty()) {
+        return;
+    }
+    GCodeContext &cxt = gcode_context_stack.context_lines.back();
+    cxt.line = settings->sequence_number;
+    cxt.file_path = settings->filename;
+}
+
+void Interp::update_gcode_context_py_remap_name(remap_pointer const remap)
+{
+    if (remap->remap_py) {
+        gcode_context_stack.cached_py_remap_name = std::string("py_remap ") + (remap->remap_py ?: "");
+    }
+}
 
 // prepare a new call frame.
-int Interp::enter_context(setup_pointer settings, block_pointer block) 
+int Interp::enter_context(setup_pointer settings, block_pointer block)
 {
     logOword("enter_context cl=%d->%d type=%s", 
 	     settings->call_level, settings->call_level+1, 
@@ -683,17 +736,21 @@ int Interp::enter_context(setup_pointer settings, block_pointer block)
     if (settings->call_level >= INTERP_SUB_ROUTINE_LEVELS) {
 	ERS(NCE_TOO_MANY_SUBROUTINE_LEVELS);
     }
+
     context_pointer frame = &settings->sub_context[settings->call_level];
     frame->clear();
     // mark frame for finishing remap
     frame->context_status = (block->call_type  == CT_REMAP) ? REMAP_FRAME : 0;
     frame->subName = block->o_name;
-    frame->linetext = settings->linetext;
     frame->pystuff.impl->py_returned_int = 0;
     frame->pystuff.impl->py_returned_double = 0.0;
     frame->pystuff.impl->py_return_type = -1;
     // distinguish call frames: oword,m99,python,remap
     frame->call_type = block->call_type;
+
+    // Copy context into the context stack
+    push_gcode_context(settings, block);
+
     return INTERP_OK;
 }
 
@@ -712,6 +769,11 @@ int Interp::leave_context(setup_pointer settings, bool restore)
     free_named_parameters(leaving_frame);
     leaving_frame->subName = NULL;
     settings->call_level--;  // drop back
+
+    // KLUDGE repeat the check for remap here...
+    if (leaving_frame->call_type != CT_REMAP) {
+        gcode_context_stack.context_lines.pop_back();
+    }
 
     if (restore && ((leaving_frame->context_status &
 		     (CONTEXT_RESTORE_ON_RETURN|CONTEXT_VALID)) ==

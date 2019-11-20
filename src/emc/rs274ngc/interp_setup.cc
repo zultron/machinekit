@@ -36,7 +36,7 @@ setup_struct::setup_struct() :
 
     arc_not_allowed(0),
 
-    blocks{},
+    blocks(),
     remap_level(0),
     blocktext{},
     control_mode(CANON_EXACT_STOP),
@@ -152,12 +152,13 @@ setup_struct::setup_struct() :
     disable_fanuc_style_sub(false),
     loop_on_main_m99(false),
     pythis(),
-    on_abort_command(NULL),
+    on_abort_command(nullptr),
     init_once(1),
     m_remappable(),
-    g_remappable()
-
+    g_remappable(),
+    work_offsets_used()
 {
+  blocks.fill(block());
   parameters.fill(0);
   tool_table.fill(CANON_TOOL_TABLE());
   sub_context.fill(context{});
@@ -203,6 +204,27 @@ void setup_struct::clear_queue_buster_flags()
     toolchange_flag = false;
     work_offset_modified_flag = false;
     have_new_reserved_parameters = false;
+}
+
+block & setup_struct::getControllingBlock()
+{
+    return blocks[remap_level];
+}
+
+block & setup_struct::getExecutingBlock()
+{
+    return blocks[0];
+}
+
+void setup_struct::setExecutingBlock(const block & b)
+{
+    blocks[0] = b;
+}
+
+block &setup_struct::updateControllingBlock()
+{
+    getControllingBlock() = getExecutingBlock();
+    return getControllingBlock();
 }
 
 bool setup_struct::hasFeature(Features f) const
