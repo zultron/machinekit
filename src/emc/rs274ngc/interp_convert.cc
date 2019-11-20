@@ -3491,8 +3491,15 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
           block->a_flag || block->b_flag || block->c_flag ||
           block->u_flag || block->v_flag || block->w_flag ||
           block->r_flag || block->q_flag || block->i_flag ||
-          block->j_flag) && last_cmd_src != CommandSource::INIT) {
-        setWarning("G10 L1 without offsets has no effect");
+          block->j_flag)) {
+        switch (last_cmd_src) {
+        case CommandSource::PREAMBLE:
+            // This is ok because it's flushing the tool offset from interp to IO
+            break;
+        default:
+            // Do not allow this in user code though
+            ERS("G10 L1 without offsets has no effect");
+        }
     }
 
     int pocket = -1, toolno;
