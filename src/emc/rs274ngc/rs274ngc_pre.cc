@@ -199,6 +199,7 @@ GCodeContext::GCodeContext(std::string line_text,
 {}
 
 bool GCodeContextStack::pop() {
+    cached_py_remap_name.clear();
     if (context_lines.empty()) {
         return false;
     }
