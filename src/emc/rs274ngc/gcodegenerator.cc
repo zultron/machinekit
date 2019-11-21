@@ -193,6 +193,17 @@ int GCodeGenerator::addModalStateMCodes(const ActiveMCodeArray & current, const 
     return 0;
 }
 
+int GCodeGenerator::addQueueBuster(const char *comment)
+{
+    cmd_list.emplace_back("M66 P0 L0");
+    if (comment) {
+        cmd_list.back()+= "(";
+        cmd_list.back()+= comment;
+        cmd_list.back()+= ")";
+    }
+    return 0;
+}
+
 int GCodeGenerator::addLinearFeedMove(const PositionArray & goal, double feed)
 {
     std::ostringstream feed_move;

@@ -2449,19 +2449,13 @@ int Interp::synch_and_restore()
 
         // Wrap the command list in a subroutine
         f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> sub\n";
-        // Force a queue buster to drop out of the plan operation and flush the queue (to allow user interactions like tool changes)
-        // FIXME find a proper linuxcnc generic way to do this
-        f_tmp << "M66 P63 L0 (KLUDGE force a queue buster)\n";
-
         for (auto const &cmd : restore_cmd_list) {
             f_tmp << cmd << "\n";
-
         }
         f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> endsub\n";
         f_tmp << "M2\n";
 
         CHKS(!f_tmp.good(), "Failed to write restore program");
-        f_tmp.close();
     }
 
     CHP(synch());

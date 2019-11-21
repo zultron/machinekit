@@ -35,6 +35,7 @@ public:
     void addToolChange(int tool_number);
     int addModalStateGCodes(ModalState &current, const ModalState & saved);
     int addModalStateMCodes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved);
+    int addQueueBuster(const char * comment=nullptr);
     int addLinearFeedMove(PositionArray const &goal, double feed);
 
     int gen_modalStateRestore(ModalState & current, const ModalState & saved);

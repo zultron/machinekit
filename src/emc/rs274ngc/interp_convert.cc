@@ -2684,6 +2684,7 @@ int Interp::create_full_restore_sequence(RestoreCommandList & restore_cmd_list)
 {
     GCodeGenerator generator(_setup.feature_set);
 
+    generator.addQueueBuster("Force a drop into auto mode to process remainder of restore sequence");
 // Don't restore work / tool offset values (but parameter values will be changed...)
 #if 0
     // Send all work offsets that may have been changed during seek
@@ -2706,7 +2707,9 @@ int Interp::create_full_restore_sequence(RestoreCommandList & restore_cmd_list)
     ModalState &to_restore = _setup.modal_state;
     ModalState dummy{}; // TODO pull this from task / motion via synch()?
     generator.gen_modalStateRestore(dummy, to_restore);
+    generator.addQueueBuster("Ensure that all state is restored before further processing to leave interp in a consistent state");
     generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
+
     restore_cmd_list = generator.getCommandSequence();
     return 0;
 }
