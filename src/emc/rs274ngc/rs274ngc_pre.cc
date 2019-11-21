@@ -101,6 +101,7 @@ include an option for suppressing superfluous commands.
 #include "units.h"
 #include "modal_state.hh"
 
+#include <fstream>
 #include <unordered_set>
 #include <algorithm>
 #include <functional>
@@ -409,8 +410,13 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
   extern const char *call_typenames[];
   extern const char *o_ops[];
 
+  // KLUDGE force special handling for preamble:
+  // Unlike MDI (which executes the command completely), we want to kick off the command,
+  // but then let the remainder of it execute in auto mode (returning to the last point in the main program)
+  // This ONLY works because Interp has a valid file / line to return to.
+  // For all intents and purposes, this is G-code injection, so use it carefully!
   if (nullptr != command) {
-    MDImode = 1;
+      MDImode = (cmd_src != CommandSource::PREAMBLE);
     status = read(command, cmd_src);
     if (status != INTERP_OK) {
 	// if (status > INTERP_MIN_ERROR) 
@@ -2433,10 +2439,38 @@ int Interp::synch()
 
 int Interp::synch_and_restore()
 {
-    RestoreCommandList l;
-    CHP(create_full_restore_sequence(l));
+    RestoreCommandList restore_cmd_list;
+
+    CHP(create_full_restore_sequence(restore_cmd_list));
+    {
+        char tmp_file_path[PATH_MAX+LINELEN] = {};
+        snprintf(tmp_file_path, PATH_MAX+LINELEN, "%s/%s.ngc", _setup.program_prefix ?: ".", STATE_RESTORE_SUBROUTINE_NAME);
+        std::ofstream f_tmp(tmp_file_path);
+
+        // Wrap the command list in a subroutine
+        f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> sub\n";
+        // Force a queue buster to drop out of the plan operation and flush the queue (to allow user interactions like tool changes)
+        // FIXME find a proper linuxcnc generic way to do this
+        f_tmp << "M66 P63 L0 (KLUDGE force a queue buster)\n";
+
+        for (auto const &cmd : restore_cmd_list) {
+            f_tmp << cmd << "\n";
+
+        }
+        f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> endsub\n";
+        f_tmp << "M2\n";
+
+        CHKS(!f_tmp.good(), "Failed to write restore program");
+        f_tmp.close();
+    }
+
     CHP(synch());
-    CHP(execute_gcode_sequence(l, -1, __FUNCTION__));
+    {
+        char restore_cmd[LINELEN] = {};
+        snprintf(restore_cmd, LINELEN, "o<%s> call", STATE_RESTORE_SUBROUTINE_NAME);
+        CHP(execute(restore_cmd, CommandSource::PREAMBLE));
+    }
+    // TODO make sure the return point is right
     return INTERP_OK;
 }
 

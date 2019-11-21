@@ -825,4 +825,6 @@ protected:
 
 bool toolOffsetActive(setup_pointer s);
 
+#define STATE_RESTORE_SUBROUTINE_NAME "restore_start_line_state"
+
 #endif
