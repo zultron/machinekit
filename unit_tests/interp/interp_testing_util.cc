@@ -7,11 +7,9 @@ int print_interp_error(Interp & interp, int retval, const char* src_file, int li
     if (retval <= INTERP_MIN_ERROR) {
         return retval;
     }
-
-    char interp_error_text_buf[MAX_ERROR_MSG_LEN+1] = {};
-    interp.error_text(retval, interp_error_text_buf, MAX_ERROR_MSG_LEN);
-    if (0 != interp_error_text_buf[0]) {
-        fprintf(stderr,"%s:%d: interp_error: %s\n", interp._setup.stack_file[0], interp._setup.stack_line[0], interp_error_text_buf);
+    auto err_string = interp.error_text();
+    if (!err_string.empty()) {
+        fprintf(stderr,"%s:%d: interp_error: %s\n", interp._setup.stack_file[0], interp._setup.stack_line[0], err_string.c_str());
     }
 
     if (emc_debug & EMC_DEBUG_INTERP) {
