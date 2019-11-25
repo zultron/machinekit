@@ -355,7 +355,7 @@ struct CutterCompData
 {
     double radius;    // current cutter compensation radius
     int orientation;  // current cutter compensation tool orientation
-    int side;         // current cutter compensation side
+    CutterCompDirection side;         // current cutter compensation side
     bool firstmove;   // this is the first comp move
 };
 

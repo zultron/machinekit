@@ -34,7 +34,10 @@
 #include "gcodegenerator.hh"
 
 #include "units.h"
-#define TOOL_INSIDE_ARC(side, turn) (((side)==LEFT&&(turn)>0)||((side)==RIGHT&&(turn)<0))
+static inline bool TOOL_INSIDE_ARC(CutterCompDirection side, int turn) {
+    return (((side)==LEFT_COMP&&(turn)>0)||((side)==RIGHT_COMP&&(turn)<0));
+}
+
 #define DEBUG_EMC
 
 using namespace interp_param_global;
@@ -672,13 +675,12 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
 {
     double center_x, center_y;
     double gamma;                 /* direction of perpendicular to arc at end */
-    int side;                     /* offset side - right or left              */
     double tool_radius;
     int turn;                     /* 1 for counterclockwise, -1 for clockwise */
     double cx, cy, cz; // current
     int plane = settings->plane;
 
-    side = settings->cutter_comp.side;
+    CutterCompDirection side = settings->cutter_comp.side;
     tool_radius = settings->cutter_comp.radius;   /* always is positive */
 
     double spiral_abs_tolerance = (settings->length_units == CANON_UNITS_INCHES) ? settings->center_arc_radius_tolerance_inch : settings->center_arc_radius_tolerance_mm;
@@ -705,7 +707,7 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
 
 
     // the tool will end up in gamma direction from the programmed arc endpoint
-    if TOOL_INSIDE_ARC(side, turn) {
+    if (TOOL_INSIDE_ARC(side, turn)) {
         // tool inside the arc: ends up toward the center
         gamma = atan2((center_y - end_y), (center_x - end_x));
     } else {
@@ -829,7 +831,6 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     double delta;                 /* direction of radius from start of arc to center of arc */
     double gamma;                 /* direction of perpendicular to arc at end */
     double midx, midy;
-    int side;
     double small = TOLERANCE_CONCAVE_CORNER;      /* angle for testing corners */
     double opx, opy, opz;
     double theta;                 /* direction of tangent to last cut */
@@ -863,19 +864,19 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     inverse_time_rate_arc(opx, opy, opz, centerx, centery,
                           turn, end_x, end_y, end_z, block, settings);
 
-    side = settings->cutter_comp.side;
+    CutterCompDirection side = settings->cutter_comp.side;
     tool_radius = settings->cutter_comp.radius;   /* always is positive */
     arc_radius = hypot((centerx - end_x), (centery - end_y));
     theta = atan2(cy - opy, cx - opx);
-    theta = (side == LEFT) ? (theta - M_PI_2l) : (theta + M_PI_2l);
+    theta = (side == LEFT_COMP) ? (theta - M_PI_2l) : (theta + M_PI_2l);
     delta = atan2(centery - opy, centerx - opx);
     alpha = (move == G_3) ? (delta - M_PI_2l) : (delta + M_PI_2l);
-    beta = (side == LEFT) ? (theta - alpha) : (alpha - theta);
+    beta = (side == LEFT_COMP) ? (theta - alpha) : (alpha - theta);
 
     // normalize beta -90 to +270?
     beta = (beta > (1.5 * M_PIl)) ? (beta - (2 * M_PIl)) : (beta < -M_PI_2l) ? (beta + (2 * M_PIl)) : beta;
 
-    if (((side == LEFT) && (move == G_3)) || ((side == RIGHT) && (move == G_2))) {
+    if (((side == LEFT_COMP) && (move == G_3)) || ((side == RIGHT_COMP) && (move == G_2))) {
         // we are cutting inside the arc
         gamma = atan2((centery - end_y), (centerx - end_x));
         CHKS((arc_radius <= tool_radius),
@@ -902,8 +903,8 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
             double toward_nominal;
             double dist_from_center;
             double angle_from_center;
-          
-            if TOOL_INSIDE_ARC(side, turn) {
+
+            if (TOOL_INSIDE_ARC(side, turn)) {
                 // tool is inside the arc
                 dist_from_center = arc_radius - tool_radius;
                 toward_nominal = cy + tool_radius;
@@ -935,7 +936,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
             struct arc_feed &prev = qc().front().data.arc_feed;
             double oldrad = hypot(prev.center2 - prev.end2, prev.center1 - prev.end1);
             double newrad;
-            if TOOL_INSIDE_ARC(side, turn) {
+            if (TOOL_INSIDE_ARC(side, turn)) {
                 newrad = arc_radius - tool_radius;
             } else {
                 newrad = arc_radius + tool_radius;
@@ -952,7 +953,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
             cc_dir = atan2(centery - prev.center2, centerx - prev.center1);
 
             double dir;
-            if TOOL_INSIDE_ARC(side, prev.turn) {
+            if (TOOL_INSIDE_ARC(side, prev.turn)) {
                 if(turn > 0)
                     dir = cc_dir + pullback;
                 else
@@ -981,7 +982,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
         dequeue_canons(settings);
         enqueue_ARC_FEED(settings, block->line_number, 
                          0.0, // doesn't matter since we won't move this arc's endpoint
-                         midx, midy, opx, opy, ((side == LEFT) ? -1 : 1),
+                         midx, midy, opx, opy, ((side == LEFT_COMP) ? -1 : 1),
                          cz,
                          AA_end, BB_end, CC_end, u, v, w);
         dequeue_canons(settings);
@@ -1678,13 +1679,13 @@ int Interp::convert_cutter_compensation(int g_code,      //!< must be G_40, G_41
   if (g_code == G_40) {
     CHP(convert_cutter_compensation_off(settings));
   } else if (g_code == G_41) {
-    CHP(convert_cutter_compensation_on(LEFT, block, settings));
+    CHP(convert_cutter_compensation_on(LEFT_COMP, block, settings));
   } else if (g_code == G_42) {
-    CHP(convert_cutter_compensation_on(RIGHT, block, settings));
+    CHP(convert_cutter_compensation_on(RIGHT_COMP, block, settings));
   } else if (g_code == G_41_1) {
-    CHP(convert_cutter_compensation_on(LEFT, block, settings));
+    CHP(convert_cutter_compensation_on(LEFT_COMP, block, settings));
   } else if (g_code == G_42_1) {
-    CHP(convert_cutter_compensation_on(RIGHT, block, settings));
+    CHP(convert_cutter_compensation_on(RIGHT_COMP, block, settings));
   } else
     ERS("BUG: Code not G40, G41, G41.1, G42, G42.2");
 
@@ -1725,7 +1726,7 @@ int Interp::convert_cutter_compensation_off(setup_pointer settings)      //!< po
       settings->current[Z] = settings->program_z;
       settings->arc_not_allowed = true;
   }
-  settings->cutter_comp.side = false;
+  settings->cutter_comp.side = NO_COMP;
   settings->cutter_comp.firstmove = true;
   return INTERP_OK;
 }
@@ -1790,7 +1791,7 @@ static int is_near_int(int *result, double value) {
     return fabs(*result - value) < .0001;
 }
 
-int Interp::convert_cutter_compensation_on(int side,     //!< side of path cutter is on (LEFT or RIGHT)
+int Interp::convert_cutter_compensation_on(CutterCompDirection side,     //!< side of path cutter is on (LEFT or RIGHT)
                                           block_pointer block,  //!< pointer to a block of RS274 instructions 
                                           setup_pointer settings)       //!< pointer to machine settings              
 {
@@ -1828,13 +1829,13 @@ int Interp::convert_cutter_compensation_on(int side,     //!< side of path cutte
   }
   if (radius < 0.0) { /* switch side & make radius positive if radius negative */
     radius = -radius;
-    if (side == RIGHT)
-      side = LEFT;
+    if (side == RIGHT_COMP)
+      side = LEFT_COMP;
     else
-      side = RIGHT;
+      side = RIGHT_COMP;
   }
 #ifdef DEBUG_EMC
-  if (side == RIGHT)
+  if (side == RIGHT_COMP)
     enqueue_COMMENT("interpreter: cutter radius compensation on right");
   else
     enqueue_COMMENT("interpreter: cutter radius compensation on left");
@@ -4105,7 +4106,7 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
     }
 
 /*6*/
-    settings->cutter_comp.side = false;
+    settings->cutter_comp.side = NO_COMP;
     settings->cutter_comp.firstmove = true;
 
 /*7*/
@@ -4733,10 +4734,10 @@ int Interp::convert_straight_comp1(int move,     //!< either G_0 or G_1
     comp_get_current(settings, &cx, &cy, &cz);
     distance = hypot((px - cx), (py - cy));
 
-    CHKS(((side != LEFT) && (side != RIGHT)), NCE_BUG_SIDE_NOT_RIGHT_OR_LEFT);
+    CHKS(((side != LEFT_COMP) && (side != RIGHT_COMP)), NCE_BUG_SIDE_NOT_RIGHT_OR_LEFT);
     CHKS((distance <= radius), _("Length of cutter compensation entry move is not greater than the tool radius"));
 
-    alpha = atan2(py - cy, px - cx) + (side == LEFT ? M_PIl/2. : -M_PIl/2.);
+    alpha = atan2(py - cy, px - cx) + (side == LEFT_COMP ? M_PIl/2. : -M_PIl/2.);
 
     end_x = (px + (radius * cos(alpha)));
     end_y = (py + (radius * sin(alpha)));
@@ -4858,7 +4859,6 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
     double gamma;
     double mid_x, mid_y;                 /* x-coordinate of end of added arc, if needed */
     double radius;
-    int side;
     double small = TOLERANCE_CONCAVE_CORNER;      /* radians, testing corners */
     double opx, opy, opz;      /* old programmed beginning point */
     double theta;
@@ -4885,17 +4885,17 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
         // end already filled out, above
     } else {
         // some XY motion
-        side = settings->cutter_comp.side;
+        CutterCompDirection side = settings->cutter_comp.side;
         radius = settings->cutter_comp.radius;      /* will always be positive */
         theta = atan2(cy - opy, cx - opx);
         alpha = atan2(py - opy, px - opx);
 
-        if (side == LEFT) {
+        if (side == LEFT_COMP) {
             if (theta < alpha)
                 theta = (theta + (2 * M_PIl));
             beta = ((theta - alpha) - M_PI_2l);
             gamma = M_PI_2l;
-        } else if (side == RIGHT) {
+        } else if (side == RIGHT_COMP) {
             if (alpha < theta)
                 alpha = (alpha + (2 * M_PIl));
             beta = ((alpha - theta) - M_PI_2l);
@@ -4911,8 +4911,8 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
             concave = 1;
         } else if (beta > (M_PIl - small) &&
                    (!qc().empty() && qc().front().type == QARC_FEED &&
-                    ((side == RIGHT && qc().front().data.arc_feed.turn > 0) ||
-                     (side == LEFT && qc().front().data.arc_feed.turn < 0)))) {
+                    ((side == RIGHT_COMP && qc().front().data.arc_feed.turn > 0) ||
+                     (side == LEFT_COMP && qc().front().data.arc_feed.turn < 0)))) {
             // this is an "h" shape, tool on right, going right to left
             // over the hemispherical round part, then up next to the
             // vertical part (or, the mirror case).  there are two ways
@@ -4931,7 +4931,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
                 enqueue_ARC_FEED(settings, block->line_number,
                                  0.0, // doesn't matter, since we will not move this arc's endpoint
                                  mid_x, mid_y, opx, opy,
-                                 ((side == LEFT) ? -1 : 1), cz,
+                                 ((side == LEFT_COMP) ? -1 : 1), cz,
                                  AA_end, BB_end, CC_end, u_end, v_end, w_end);
                 dequeue_canons(settings);
                 set_endpoint(mid_x, mid_y);
@@ -4978,7 +4978,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
 
                 theta = (prev.turn > 0) ? base_dir + M_PI_2l : base_dir - M_PI_2l;
                 phi = atan2(prev.center2 - opy, prev.center1 - opx);
-                if TOOL_INSIDE_ARC(side, prev.turn) {
+                if (TOOL_INSIDE_ARC(side, prev.turn)) {
                     oldrad_uncomp = oldrad + radius;
                 } else {
                     oldrad_uncomp = oldrad - radius;
@@ -4990,7 +4990,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
                 double d2;
                 double angle_from_center;
 
-                if TOOL_INSIDE_ARC(side, prev.turn) {
+                if (TOOL_INSIDE_ARC(side, prev.turn)) {
                     d2 = d - radius;
                     double l = d2/oldrad;
                     CHKS((l > 1.0 || l < -1.0), _("Arc to straight motion makes a corner the compensated tool can't fit in without gouging"));

@@ -625,7 +625,7 @@ static inline int get_cutter_comp_side (Interp &interp)  {
     return interp._setup.cutter_comp.side;
 }
 static inline void set_cutter_comp_side(Interp &interp, int value)  {
-    interp._setup.cutter_comp.side = value;
+    interp._setup.cutter_comp.side = static_cast<CutterCompDirection>(value);
 }
 static inline int get_cycle_il_flag (Interp &interp)  {
     return interp._setup.cycle_il_flag;
@@ -812,9 +812,9 @@ BOOST_PYTHON_MODULE(interpreter) {
             .BOOST_PYENUM_VAL(UNITS_PER_REVOLUTION)
             .export_values();
 
-    BOOST_PYENUM_(CUTTER_COMP_DIRECTION)
-            .BOOST_PYENUM_VAL(RIGHT)
-            .BOOST_PYENUM_VAL(LEFT)
+    BOOST_PYENUM_(CutterCompDirection)
+            .BOOST_PYENUM_VAL(RIGHT_COMP)
+            .BOOST_PYENUM_VAL(LEFT_COMP)
             .export_values();
 
     BOOST_PYENUM_(SPINDLE_MODE)
