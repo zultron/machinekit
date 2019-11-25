@@ -1307,7 +1307,7 @@ int Interp::init()
 //_setup.current_x set in Interp::synch
 //_setup.current_y set in Interp::synch
 //_setup.current_z set in Interp::synch
-  _setup.cutter_comp_side = false;
+  _setup.cutter_comp.side = false;
   _setup.arc_not_allowed = false;
   _setup.cycle_il_flag = false;
   _setup.distance_mode = MODE_ABSOLUTE;
@@ -1337,7 +1337,7 @@ int Interp::init()
   _setup.program_x = 0.;   /* for cutter comp */
   _setup.program_y = 0.;   /* for cutter comp */
   _setup.program_z = 0.;   /* for cutter comp */
-  _setup.cutter_comp_firstmove = true;
+  _setup.cutter_comp.firstmove = true;
 //_setup.retract_mode does not need initialization
 //_setup.selected_tool_slot set in Interp::synch
   _setup.sequence_number = 0;   /*DOES THIS NEED TO BE AT TOP? */

@@ -351,6 +351,14 @@ using ParameterArray = std::array<double, interp_param_global::RS274NGC_MAX_PARA
 /**
  * @note names match INI strings, do not rename
  */
+struct CutterCompData
+{
+    double radius;    // current cutter compensation radius
+    int orientation;  // current cutter compensation tool orientation
+    int side;         // current cutter compensation side
+    bool firstmove;   // this is the first comp move
+};
+
 struct setup_struct
 {
   setup_struct();
@@ -382,11 +390,10 @@ struct setup_struct
 
   char blocktext[LINELEN];   // linetext downcased, white space gone
   CANON_MOTION_MODE control_mode;       // exact path or cutting mode
+
+  CutterCompData cutter_comp;
   int current_pocket;             // carousel slot number of current tool
 
-  double cutter_comp_radius;    // current cutter compensation radius
-  int cutter_comp_orientation;  // current cutter compensation tool orientation
-  int cutter_comp_side;         // current cutter compensation side
   double cycle_cc;              // cc-value (normal) for canned cycles
   double cycle_i;               // i-value for canned cycles
   double cycle_j;               // j-value for canned cycles
@@ -430,7 +437,6 @@ struct setup_struct
 
   int input_index;		// channel queried
   bool input_digital;		// input queried was digital (false=analog)
-  bool cutter_comp_firstmove; // this is the first comp move
   double program_x;             // program x, used when cutter comp on
   double program_y;             // program y, used when cutter comp on
   double program_z;             // program y, used when cutter comp on

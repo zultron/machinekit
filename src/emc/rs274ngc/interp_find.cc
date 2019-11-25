@@ -213,8 +213,8 @@ int Interp::find_ends(block_pointer block, setup_pointer s, PositionArray & cmd_
     PositionArray current = s->current;
 
     // If tool compensation is active, then the program_[xyz] fields have the actual current position that interp needs
-    bool middle = !s->cutter_comp_firstmove;
-    int comp = (s->cutter_comp_side);
+    bool middle = !s->cutter_comp.firstmove;
+    int comp = (s->cutter_comp.side);
     current[X] = (comp && middle) ? s->program_x : s->current[X];
     current[Y] = (comp && middle && s->plane == CANON_PLANE_XY) ? s->program_y : s->current[Y];
     current[Z] = (comp && middle && s->plane == CANON_PLANE_XZ) ? s->program_z : s->current[Z];

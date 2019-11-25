@@ -244,10 +244,10 @@ static inline void set_arc_not_allowed(Interp &interp, bool value)  {
     interp._setup.arc_not_allowed = value;
 }
 static inline bool get_cutter_comp_firstmove (Interp &interp)  {
-    return interp._setup.cutter_comp_firstmove;
+    return interp._setup.cutter_comp.firstmove;
 }
 static inline void set_cutter_comp_firstmove(Interp &interp, bool value)  {
-    interp._setup.cutter_comp_firstmove = value;
+    interp._setup.cutter_comp.firstmove = value;
 }
 static inline bool get_feed_override (Interp &interp)  {
     return interp._setup.feed_override;
@@ -400,10 +400,10 @@ static inline void set_current_z(Interp &interp, double value)  {
     interp._setup.current[Z] = value;
 }
 static inline double get_cutter_comp_radius (Interp &interp)  {
-    return interp._setup.cutter_comp_radius;
+    return interp._setup.cutter_comp.radius;
 }
 static inline void set_cutter_comp_radius(Interp &interp, double value)  {
-    interp._setup.cutter_comp_radius = value;
+    interp._setup.cutter_comp.radius = value;
 }
 static inline double get_cycle_cc (Interp &interp)  {
     return interp._setup.cycle_cc;
@@ -616,16 +616,16 @@ static inline void set_current_pocket(Interp &interp, int value)  {
     interp._setup.current_pocket = value;
 }
 static inline int get_cutter_comp_orientation (Interp &interp)  {
-    return interp._setup.cutter_comp_orientation;
+    return interp._setup.cutter_comp.orientation;
 }
 static inline void set_cutter_comp_orientation(Interp &interp, int value)  {
-    interp._setup.cutter_comp_orientation = value;
+    interp._setup.cutter_comp.orientation = value;
 }
 static inline int get_cutter_comp_side (Interp &interp)  {
-    return interp._setup.cutter_comp_side;
+    return interp._setup.cutter_comp.side;
 }
 static inline void set_cutter_comp_side(Interp &interp, int value)  {
-    interp._setup.cutter_comp_side = value;
+    interp._setup.cutter_comp.side = value;
 }
 static inline int get_cycle_il_flag (Interp &interp)  {
     return interp._setup.cycle_il_flag;

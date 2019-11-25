@@ -219,7 +219,7 @@ int Interp::convert_spline(int mode,
     double end_z, AA_end, BB_end, CC_end, u_end, v_end, w_end;
     CONTROL_POINT cp;
 
-    CHKS((settings->cutter_comp_side), _("Cannot convert spline with cutter radius compensation")); // XXX
+    CHKS((settings->cutter_comp.side), _("Cannot convert spline with cutter radius compensation")); // XXX
 
     if (settings->feed_mode == UNITS_PER_MINUTE) {
       CHKS((settings->feed_rate == 0.0),
@@ -394,7 +394,7 @@ int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw
   CHKS((settings->arc_not_allowed), (_("The move just after exiting cutter compensation mode must be straight, not an arc")));
 
   ijk_flag = block->i_flag || block->j_flag || block->k_flag;
-  first = settings->cutter_comp_firstmove;
+  first = settings->cutter_comp.firstmove;
 
   CHKS((settings->plane == CANON_PLANE_UV
             || settings->plane == CANON_PLANE_VW
@@ -492,8 +492,8 @@ int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw
   write_and_update_state_tag(block);
 
   if (settings->plane == CANON_PLANE_XY) {
-    if ((!settings->cutter_comp_side) ||
-        (settings->cutter_comp_radius == 0.0)) {
+    if ((!settings->cutter_comp.side) ||
+        (settings->cutter_comp.radius == 0.0)) {
       status =
         convert_arc2(move, block, settings,
                      &(settings->current[X]), &(settings->current[Y]),
@@ -516,8 +516,8 @@ int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw
       CHP(status);
     }
   } else if (settings->plane == CANON_PLANE_XZ) {
-    if ((!settings->cutter_comp_side) ||
-        (settings->cutter_comp_radius == 0.0)) {
+    if ((!settings->cutter_comp.side) ||
+        (settings->cutter_comp.radius == 0.0)) {
       status =
         convert_arc2(move, block, settings,
                      &(settings->current[Z]), &(settings->current[X]),
@@ -678,8 +678,8 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     double cx, cy, cz; // current
     int plane = settings->plane;
 
-    side = settings->cutter_comp_side;
-    tool_radius = settings->cutter_comp_radius;   /* always is positive */
+    side = settings->cutter_comp.side;
+    tool_radius = settings->cutter_comp.radius;   /* always is positive */
 
     double spiral_abs_tolerance = (settings->length_units == CANON_UNITS_INCHES) ? settings->center_arc_radius_tolerance_inch : settings->center_arc_radius_tolerance_mm;
     double radius_tolerance = (settings->length_units == CANON_UNITS_INCHES) ? RADIUS_TOLERANCE_INCH : RADIUS_TOLERANCE_MM;
@@ -713,7 +713,7 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
         gamma = atan2((end_y - center_y), (end_x - center_x));
     }
 
-    settings->cutter_comp_firstmove = false;
+    settings->cutter_comp.firstmove = false;
 
     comp_set_programmed(settings, end_x, end_y, end_z);
 
@@ -749,7 +749,7 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     write_and_update_state_tag(block);
 
     // need this move for lathes to move the tool origin first.  otherwise, the arc isn't an arc.
-    if (settings->cutter_comp_orientation != 0 && settings->cutter_comp_orientation != 9) {
+    if (settings->cutter_comp.orientation != 0 && settings->cutter_comp.orientation != 9) {
         enqueue_STRAIGHT_FEED(settings, block->line_number, 
                               0, 0, 0,
                               cx, cy, cz,
@@ -863,8 +863,8 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     inverse_time_rate_arc(opx, opy, opz, centerx, centery,
                           turn, end_x, end_y, end_z, block, settings);
 
-    side = settings->cutter_comp_side;
-    tool_radius = settings->cutter_comp_radius;   /* always is positive */
+    side = settings->cutter_comp.side;
+    tool_radius = settings->cutter_comp.radius;   /* always is positive */
     arc_radius = hypot((centerx - end_x), (centery - end_y));
     theta = atan2(cy - opy, cx - opx);
     theta = (side == LEFT) ? (theta - M_PI_2l) : (theta + M_PI_2l);
@@ -1076,7 +1076,7 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
                                 block_pointer block,    //!< pointer to a block of RS274/NGC instructions  
                                 setup_pointer settings) //!< pointer to machine settings                   
 {
-  CHKS((settings->cutter_comp_side),      /* not "== true" */
+  CHKS((settings->cutter_comp.side),      /* not "== true" */
        NCE_CANNOT_CHANGE_AXIS_OFFSETS_WITH_CUTTER_RADIUS_COMP);
   CHKS((block->a_flag && settings->a_axis_wrapped &&
         (block->a_number <= -360.0 || block->a_number >= 360.0)),
@@ -1441,7 +1441,7 @@ int Interp::convert_control_mode(int g_code,     //!< g_code being executed (G_6
 				double naivecam_tolerance,    //tolerance for the naivecam
                                 setup_pointer settings) //!< pointer to machine settings                 
 {
-    CHKS((settings->cutter_comp_side),
+    CHKS((settings->cutter_comp.side),
             (_("Cannot change control mode with cutter radius compensation on")));
 
     switch (g_code) {
@@ -1558,7 +1558,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
 {
   int origin;
 
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
        (_("Cannot change coordinate systems with cutter radius compensation on")));
   switch (g_code) {
   case G_54:
@@ -1713,8 +1713,8 @@ int Interp::convert_cutter_compensation_off(setup_pointer settings)      //!< po
 #ifdef DEBUG_EMC
   enqueue_COMMENT("interpreter: cutter radius compensation off");
 #endif
-  if(settings->cutter_comp_side && settings->cutter_comp_radius > 0.0 &&
-     !settings->cutter_comp_firstmove) {
+  if(settings->cutter_comp.side && settings->cutter_comp.radius > 0.0 &&
+     !settings->cutter_comp.firstmove) {
       double cx, cy, cz;
       comp_get_current(settings, &cx, &cy, &cz);
       CHP(move_endpoint_and_flush(settings, cx, cy));
@@ -1725,8 +1725,8 @@ int Interp::convert_cutter_compensation_off(setup_pointer settings)      //!< po
       settings->current[Z] = settings->program_z;
       settings->arc_not_allowed = true;
   }
-  settings->cutter_comp_side = false;
-  settings->cutter_comp_firstmove = true;
+  settings->cutter_comp.side = false;
+  settings->cutter_comp.firstmove = true;
   return INTERP_OK;
 }
 
@@ -1799,7 +1799,7 @@ int Interp::convert_cutter_compensation_on(int side,     //!< side of path cutte
 
   CHKS((settings->plane != CANON_PLANE_XY && settings->plane != CANON_PLANE_XZ),
       NCE_RADIUS_COMP_ONLY_IN_XY_OR_XZ);
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
       NCE_CANNOT_TURN_CUTTER_RADIUS_COMP_ON_WHEN_ON);
   if(block->g_modes[GM_CUTTER_COMP] == G_41_1 || block->g_modes[GM_CUTTER_COMP] == G_42_1) {
       CHKS((!block->d_flag),
@@ -1840,9 +1840,9 @@ int Interp::convert_cutter_compensation_on(int side,     //!< side of path cutte
     enqueue_COMMENT("interpreter: cutter radius compensation on left");
 #endif
 
-  settings->cutter_comp_radius = radius;
-  settings->cutter_comp_orientation = orientation;
-  settings->cutter_comp_side = side;
+  settings->cutter_comp.radius = radius;
+  settings->cutter_comp.orientation = orientation;
+  settings->cutter_comp.side = side;
   return INTERP_OK;
 }
 
@@ -2244,7 +2244,7 @@ int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS27
 
 int Interp::convert_savehome(int code, block_pointer block, setup_pointer s) {
     
-    if(s->cutter_comp_side) {
+    if(s->cutter_comp.side) {
         ERS(_("Cannot set reference point with cutter compensation in effect"));
     }
 
@@ -2345,7 +2345,7 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
                 &AA_end, &BB_end, &CC_end, 
                 &u_end, &v_end, &w_end));
 
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
       NCE_CANNOT_USE_G28_OR_G30_WITH_CUTTER_RADIUS_COMP);
 
   // waypoint is in currently active coordinate system
@@ -2516,7 +2516,7 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
         settings->program_z = (settings->program_z * to_new_units.linear_fwd);
 
         qc_scale(to_new_units.linear_fwd);
-        settings->cutter_comp_radius *= to_new_units.linear_fwd;
+        settings->cutter_comp.radius *= to_new_units.linear_fwd;
 
         // Handles axis, work, and tool offsets
         settings->transform.rescaleAllTransforms(to_new_units);
@@ -2769,25 +2769,25 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
   }
   write_and_update_state_tag(block);
   if ((block->m_modes[M_MODE_IO] == 62) && ONCE_M(5)) {
-      CHKS((settings->cutter_comp_side),
+      CHKS((settings->cutter_comp.side),
            (_("Cannot set motion output with cutter radius compensation on")));  // XXX
       CHKS((!block->p_flag), _("No valid P word with M62"));
       //write_and_update_state_tag(block);
       SET_MOTION_OUTPUT_BIT(round_to_int(block->p_number));
   } else if ((block->m_modes[M_MODE_IO] == 63) && ONCE_M(5)) {
-      CHKS((settings->cutter_comp_side),
+      CHKS((settings->cutter_comp.side),
            (_("Cannot set motion digital output with cutter radius compensation on")));  // XXX
       CHKS((!block->p_flag), _("No valid P word with M63"));
       //write_and_update_state_tag(block);
       CLEAR_MOTION_OUTPUT_BIT(round_to_int(block->p_number));
   } else if ((block->m_modes[M_MODE_IO] == 64) && ONCE_M(5)){
-      CHKS((settings->cutter_comp_side),
+      CHKS((settings->cutter_comp.side),
            (_("Cannot set auxiliary digital output with cutter radius compensation on")));  // XXX
       CHKS((!block->p_flag), _("No valid P word with M64"));
       //write_and_update_state_tag(block);
       SET_AUX_OUTPUT_BIT(round_to_int(block->p_number));
   } else if ((block->m_modes[M_MODE_IO] == 65) && ONCE_M(5)) {
-      CHKS((settings->cutter_comp_side),
+      CHKS((settings->cutter_comp.side),
            (_("Cannot set auxiliary digital output with cutter radius compensation on")));  // XXX
       CHKS((!block->p_flag), _("No valid P word with M65"));
       //write_and_update_state_tag(block);
@@ -2834,7 +2834,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 	    timeout = 0;
         }
 
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot wait for digital input with cutter radius compensation on")));
 
     int ret = WAIT(round_to_int(block->p_number), DIGITAL_INPUT, (CANON_WAIT_MODE)type, timeout);
@@ -2846,7 +2846,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 	    settings->input_digital = true;
 	}
     } else if (round_to_int(block->e_number) >= 0) { // got an analog input
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot wait for analog input with cutter radius compensation on")));
 
     int ret = WAIT(round_to_int(block->e_number), ANALOG_INPUT, WAIT_MODE_IMMEDIATE, 0); //WAIT returns 0 on success, -1 for out of bounds
@@ -2861,14 +2861,14 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 
     //E-word = analog channel
     //Q-word = analog value
-      CHKS((settings->cutter_comp_side),
+      CHKS((settings->cutter_comp.side),
            (_("Cannot set motion analog output with cutter radius compensation on")));  // XXX
       CHKS((!block->e_flag) || (round_to_int(block->e_number) < 0), (_("Invalid analog index with M67")));
       SET_MOTION_OUTPUT_VALUE(round_to_int(block->e_number), block->q_number);
   } else if ((block->m_modes[M_MODE_IO] == 68)  && ONCE_M(5)) {
     //E-word = analog channel
     //Q-word = analog value
-      CHKS((settings->cutter_comp_side),
+      CHKS((settings->cutter_comp.side),
            (_("Cannot set auxiliary analog output with cutter radius compensation on")));  // XXX
       CHKS((!block->e_flag) || (round_to_int(block->e_number) < 0), (_("Invalid analog index with M68")));
       SET_AUX_OUTPUT_VALUE(round_to_int(block->e_number), block->q_number);
@@ -3067,7 +3067,7 @@ if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
      return convert_remapped_code(block, settings, STEP_M_9, 'm',
                    block->m_modes[M_MODE_FEED_SPEED_OVERRIDE]);
  } else if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 48)  && ONCE_M(9)){
-    CHKS((settings->cutter_comp_side),
+    CHKS((settings->cutter_comp.side),
          (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
     settings->feed_override = true;
     settings->speed_override = true;
@@ -3075,7 +3075,7 @@ if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
     ENABLE_FEED_OVERRIDE();
     ENABLE_SPEED_OVERRIDE();
  } else if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 49)  && ONCE_M(9)){
-    CHKS((settings->cutter_comp_side),
+    CHKS((settings->cutter_comp.side),
          (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
     settings->feed_override = false;
     settings->speed_override = false;
@@ -3086,13 +3086,13 @@ if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
 
 if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 50)  && ONCE_M(9)){
     if (block->p_number != 0) {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
 	settings->feed_override = true;
 	write_and_update_state_tag(block);
 	ENABLE_FEED_OVERRIDE();
     } else {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
 	settings->feed_override = false;
 	write_and_update_state_tag(block);
@@ -3103,13 +3103,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 50)  && ONCE_M(9)){
 if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 51)  && ONCE_M(9)){
 
     if (block->p_number != 0) {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
 	settings->speed_override = true;
 	write_and_update_state_tag(block);
 	ENABLE_SPEED_OVERRIDE();
     } else {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
 	settings->speed_override = false;
 	write_and_update_state_tag(block);
@@ -3119,13 +3119,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 51)  && ONCE_M(9)){
   
 if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 52)  && ONCE_M(9)){
     if (block->p_number != 0) {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
     settings->allow_adaptive_feed = true;
 	write_and_update_state_tag(block);
 	ENABLE_ADAPTIVE_FEED();
     } else {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
     settings->allow_adaptive_feed = false;
 	write_and_update_state_tag(block);
@@ -3135,13 +3135,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 52)  && ONCE_M(9)){
   
 if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 53)  && ONCE_M(9)){
     if (block->p_number != 0) {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
     settings->allow_feed_hold = true;
 	write_and_update_state_tag(block);
 	ENABLE_FEED_HOLD();
     } else {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
     settings->allow_feed_hold = false;
 	write_and_update_state_tag(block);
@@ -3409,7 +3409,7 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
   unsigned char probe_type = g_code - G_38_2;
 
   
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
       NCE_CANNOT_PROBE_WITH_CUTTER_RADIUS_COMP_ON);
   CHKS((settings->feed_rate == 0.0), NCE_CANNOT_PROBE_WITH_ZERO_FEED_RATE);
   CHKS(settings->feed_mode == UNITS_PER_REVOLUTION,
@@ -3478,7 +3478,7 @@ this function.
 int Interp::convert_retract_mode(int g_code,     //!< g_code being executed (must be G_98 or G_99)
                                 setup_pointer settings) //!< pointer to machine settings                 
 {
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
        (_("Cannot change retract mode with cutter radius compensation on")));
   if (g_code == G_98) {
 #ifdef DEBUG_EMC
@@ -3736,7 +3736,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
         (block->c_number <= -360.0 || block->c_number >= 360.0)),
        (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), block->c_number, 'C');
 
-  CHKS((settings->cutter_comp_side && p_int == settings->origin_index),
+  CHKS((settings->cutter_comp.side && p_int == settings->origin_index),
        (_("Cannot change the active coordinate system with cutter radius compensation on")));
 
   // Get the global position for later reference
@@ -3821,14 +3821,14 @@ Called by: convert_g.
 int Interp::convert_set_plane(int g_code,        //!< must be G_17, G_18, or G_19 
                              setup_pointer settings)    //!< pointer to machine settings 
 {
-  CHKS((settings->cutter_comp_side && g_code == G_17 && settings->plane != CANON_PLANE_XY),
+  CHKS((settings->cutter_comp.side && g_code == G_17 && settings->plane != CANON_PLANE_XY),
         NCE_CANNOT_CHANGE_PLANES_WITH_CUTTER_RADIUS_COMP_ON);
-  CHKS((settings->cutter_comp_side && g_code == G_18 && settings->plane != CANON_PLANE_XZ),
+  CHKS((settings->cutter_comp.side && g_code == G_18 && settings->plane != CANON_PLANE_XZ),
         NCE_CANNOT_CHANGE_PLANES_WITH_CUTTER_RADIUS_COMP_ON);
-  CHKS((settings->cutter_comp_side && g_code == G_19 && settings->plane != CANON_PLANE_YZ),
+  CHKS((settings->cutter_comp.side && g_code == G_19 && settings->plane != CANON_PLANE_YZ),
         NCE_CANNOT_CHANGE_PLANES_WITH_CUTTER_RADIUS_COMP_ON);
 
-  CHKS((settings->cutter_comp_side && g_code == G_19), 
+  CHKS((settings->cutter_comp.side && g_code == G_19),
           NCE_RADIUS_COMP_ONLY_IN_XY_OR_XZ);
 
   if (g_code == G_17) {
@@ -4105,8 +4105,8 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
     }
 
 /*6*/
-    settings->cutter_comp_side = false;
-    settings->cutter_comp_firstmove = true;
+    settings->cutter_comp.side = false;
+    settings->cutter_comp.firstmove = true;
 
 /*7*/
     settings->spindle_turning = CANON_STOPPED;
@@ -4301,21 +4301,21 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
   // Create a state tag and dump it to canon
   write_and_update_state_tag(block);
 
-  if ((settings->cutter_comp_side) &&    /* ! "== true" */
-      (settings->cutter_comp_radius > 0.0)) {   /* radius always is >= 0 */
+  if ((settings->cutter_comp.side) &&    /* ! "== true" */
+      (settings->cutter_comp.radius > 0.0)) {   /* radius always is >= 0 */
 
     CHKS((block->g_modes[GM_MODAL_0] == G_53),
         NCE_CANNOT_USE_G53_WITH_CUTTER_RADIUS_COMP);
 
     if(settings->plane == CANON_PLANE_XZ) {
-        if (settings->cutter_comp_firstmove)
+        if (settings->cutter_comp.firstmove)
             status = convert_straight_comp1(move, block, settings, end_z, end_x, end_y,
                                             AA_end, BB_end, CC_end, u_end, v_end, w_end);
         else
             status = convert_straight_comp2(move, block, settings, end_z, end_x, end_y,
                                             AA_end, BB_end, CC_end, u_end, v_end, w_end);
     } else if(settings->plane == CANON_PLANE_XY) {
-        if (settings->cutter_comp_firstmove)
+        if (settings->cutter_comp.firstmove)
             status = convert_straight_comp1(move, block, settings, end_x, end_y, end_z,
                                             AA_end, BB_end, CC_end, u_end, v_end, w_end);
         else
@@ -4576,7 +4576,7 @@ int Interp::convert_threading_cycle(block_pointer block,
 				    double end_x, double end_y, double end_z) {
 
 
-    CHKS((settings->cutter_comp_side),
+    CHKS((settings->cutter_comp.side),
          (_("Cannot use G76 threading cycle with cutter radius compensation on")));
 
     CHKS((block->i_number == 0),
@@ -4724,10 +4724,10 @@ int Interp::convert_straight_comp1(int move,     //!< either G_0 or G_1
 {
     double alpha;
     double distance;
-    double radius = settings->cutter_comp_radius; /* always will be positive */
+    double radius = settings->cutter_comp.radius; /* always will be positive */
     double end_x, end_y;
 
-    int side = settings->cutter_comp_side;
+    int side = settings->cutter_comp.side;
     double cx, cy, cz;
 
     comp_get_current(settings, &cx, &cy, &cz);
@@ -4762,7 +4762,7 @@ int Interp::convert_straight_comp1(int move,     //!< either G_0 or G_1
     } else
         ERS(NCE_BUG_CODE_NOT_G0_OR_G1);
 
-    settings->cutter_comp_firstmove = false;
+    settings->cutter_comp.firstmove = false;
 
     comp_set_current(settings, end_x, end_y, pz);
     settings->current[A] = AA_end;
@@ -4885,8 +4885,8 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
         // end already filled out, above
     } else {
         // some XY motion
-        side = settings->cutter_comp_side;
-        radius = settings->cutter_comp_radius;      /* will always be positive */
+        side = settings->cutter_comp.side;
+        radius = settings->cutter_comp.radius;      /* will always be positive */
         theta = atan2(cy - opy, cx - opx);
         alpha = atan2(py - opy, px - opx);
 
@@ -5084,7 +5084,7 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
     ERS(NCE_TXX_MISSING_FOR_M6);
   }
 
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
        (_("Cannot change tools with cutter radius compensation on")));
 
   write_and_update_state_tag(nullptr);
@@ -5271,7 +5271,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
                                       block_pointer block,      //!< pointer to a block of RS274/NGC instructions
                                       setup_pointer settings)   //!< pointer to machine settings
 {
-    CHKS((settings->cutter_comp_side),
+    CHKS((settings->cutter_comp.side),
          (_("Cannot change tool offset with cutter radius compensation on")));
 
     if (g_code == G_49) {
@@ -5382,7 +5382,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
     ERS(NCE_TXX_MISSING_FOR_M6);
   }
 
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
        (_("Cannot change tools with cutter radius compensation on")));
 
   START_CHANGE(); // indicate start of change operation

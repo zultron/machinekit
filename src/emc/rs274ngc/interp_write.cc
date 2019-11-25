@@ -98,8 +98,8 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
       break;
   }
   state.g_codes[G_CODE_CUTTER_SIDE] =
-    (settings->cutter_comp_side == RIGHT) ? G_42 :
-    (settings->cutter_comp_side == LEFT) ? G_41 : G_40;
+    (settings->cutter_comp.side == RIGHT) ? G_42 :
+    (settings->cutter_comp.side == LEFT) ? G_41 : G_40;
   state.g_codes[G_CODE_UNITS] = (settings->length_units == CANON_UNITS_INCHES) ? G_20 : G_21;
   state.g_codes[G_CODE_DISTANCE_MODE] = (settings->distance_mode == MODE_ABSOLUTE) ? G_90 : G_91;
   state.g_codes[G_CODE_FEED_MODE] = (settings->feed_mode == INVERSE_TIME) ? G_93 :
@@ -222,8 +222,8 @@ int Interp::write_state_tag(block_pointer block, StateTag &state)
     state.setActivePlane(_setup.plane);
 
     state.fields[GM_FIELD_CUTTER_COMP] =
-        (_setup.cutter_comp_side == RIGHT) ? G_42 :
-        (_setup.cutter_comp_side == LEFT) ? G_41 : G_40;
+        (_setup.cutter_comp.side == RIGHT) ? G_42 :
+        (_setup.cutter_comp.side == LEFT) ? G_41 : G_40;
 
     state.flags[GM_FLAG_UNITS] = (_setup.length_units == CANON_UNITS_INCHES);
 

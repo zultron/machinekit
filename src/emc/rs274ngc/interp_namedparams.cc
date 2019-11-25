@@ -571,8 +571,8 @@ int Interp::lookup_named_param(const char *nameBuf,
 
     case NP_CCOMP: // _ccomp - cutter compensation
 	*value =
-	    (_setup.cutter_comp_side == RIGHT) ? G_42 :
-	(_setup.cutter_comp_side == LEFT) ? G_41 : G_40;
+	    (_setup.cutter_comp.side == RIGHT) ? G_42 :
+	(_setup.cutter_comp.side == LEFT) ? G_41 : G_40;
 	break;
 
     case NP_METRIC: // _metric

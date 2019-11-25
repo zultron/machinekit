@@ -29,8 +29,8 @@ static int debug_qc = 0;
 // those with radius 0 (a point) do not need any translation.
 
 static double latheorigin_x(setup_pointer settings, double x) {
-    int o = settings->cutter_comp_orientation;
-    double r = settings->cutter_comp_radius;
+    int o = settings->cutter_comp.orientation;
+    double r = settings->cutter_comp.radius;
     if(settings->plane != CANON_PLANE_XZ) return x;
 
     if(o==2 || o==6 || o==1) x -= r;
@@ -39,8 +39,8 @@ static double latheorigin_x(setup_pointer settings, double x) {
 }
 
 static double latheorigin_z(setup_pointer settings, double z) {
-    int o = settings->cutter_comp_orientation;
-    double r = settings->cutter_comp_radius;
+    int o = settings->cutter_comp.orientation;
+    double r = settings->cutter_comp.radius;
     if(settings->plane != CANON_PLANE_XZ) return z;
 
     if(o==2 || o==7 || o==3) z -= r;
