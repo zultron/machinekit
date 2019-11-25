@@ -36,10 +36,11 @@ public:
     int addModalStateGCodes(ModalState &current, const ModalState & saved);
     int addModalStateMCodes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved);
     int addQueueBuster(const char * comment=nullptr);
-    int addLinearFeedMove(PositionArray const &goal, double feed);
+    int addLinearFeedMove(PositionArray const &goal, double feed_prog);
 
     int gen_modalStateRestore(ModalState & current, const ModalState & saved);
 
+    void addToolCompensation(GCodes cutter_side, double cutter_radius);
 };
 
 #endif // GCODEGENERATOR_HH

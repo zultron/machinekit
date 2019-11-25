@@ -115,7 +115,8 @@ public:
 
 // synchronize your internal model with the external world
  int synch();
- int synch_and_restore();
+ int cbBeforeSeekReadTransition(ModalState & seek_state);
+ int cbAfterSeekReadTransition(const ModalState & to_restore);
 
 /* Interface functions to call to get information from the interpreter.
    If a function has a return value, the return value contains the information.
@@ -548,12 +549,13 @@ public:
  int restore_settings(setup_pointer settings, int from_level, int caller_m_code);
  int restore_settings_impl(ModalState & current, ModalState const &saved, int caller_m_code);
 
- int write_modal_state(block_pointer block, setup_pointer settings);
+ int write_modal_state(block_pointer const block, setup_pointer settings);
+ int write_modal_state(block_pointer const block, setup_pointer const settings, ModalState &out);
  int execute_gcode_sequence(const RestoreCommandList & cmd_list, int caller_m_code, const char * caller_name);
 
  int restore_from_tag(StateTag const &tag);
 
- int create_full_restore_sequence(RestoreCommandList &restore_cmd_list);
+ int create_full_restore_sequence(const ModalState & to_restore, RestoreCommandList &restore_cmd_list);
 
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,

@@ -1805,7 +1805,7 @@ int Interp::convert_cutter_compensation_on(CutterCompDirection side,     //!< si
   if(block->g_modes[GM_CUTTER_COMP] == G_41_1 || block->g_modes[GM_CUTTER_COMP] == G_42_1) {
       CHKS((!block->d_flag),
               _("G%d.1 with no D word"), block->g_modes[GM_CUTTER_COMP]/10 );
-      radius = block->d_number_float / 2;
+      radius = block->d_number_float / 2.0;
       if(block->l_number != -1) {
           CHKS((settings->plane != CANON_PLANE_XZ), _("G%d.1 with L word, but plane is not G18"), block->g_modes[GM_CUTTER_COMP]/10);
           orientation = block->l_number;
@@ -2546,12 +2546,18 @@ int Interp::save_settings(setup_pointer settings)
 
 int Interp::write_modal_state(block_pointer block, setup_pointer settings)
 {
-    CHP(write_g_codes(block, settings, settings->modal_state));
-    CHP(write_m_codes(block, settings, settings->modal_state));
-    CHP(write_settings(settings, settings->modal_state));
-    settings->modal_state.work_offset_number = settings->origin_index;
-    settings->modal_state.tool_offset_number = settings->getCurrentToolNumber();
+    // KLUDGE technically aliases const settings with non-const modal state...
+    return write_modal_state(block, settings, settings->modal_state);
+}
 
+int Interp::write_modal_state(const block_pointer block, const setup_pointer settings, ModalState & out)
+{
+    CHP(write_g_codes(block, settings, out));
+    CHP(write_m_codes(block, settings, out));
+    CHP(write_settings(settings, out));
+    out.work_offset_number = settings->origin_index;
+    out.tool_offset_number = settings->getCurrentToolNumber();
+    out.cutter_comp_radius = settings->cutter_comp.radius;
     return INTERP_OK;
 }
 
@@ -2681,7 +2687,7 @@ int Interp::restore_from_tag(StateTag const &tag)
     return INTERP_OK;
 }
 
-int Interp::create_full_restore_sequence(RestoreCommandList & restore_cmd_list)
+int Interp::create_full_restore_sequence(ModalState const &to_restore, RestoreCommandList & restore_cmd_list)
 {
     GCodeGenerator generator(_setup.feature_set);
 
@@ -2703,12 +2709,14 @@ int Interp::create_full_restore_sequence(RestoreCommandList & restore_cmd_list)
 
     generator.addToolChange(_setup.getCurrentToolNumber());
 
-    // Capture current modal state
-    CHP(write_modal_state(nullptr, &_setup));
-    ModalState &to_restore = _setup.modal_state;
-    ModalState dummy{}; // TODO pull this from task / motion via synch()?
-    generator.gen_modalStateRestore(dummy, to_restore);
+    // NOTE: modal state was captured already in seek / read transition handler, so pull it back out here
+    ModalState dummy_current{};
+    // KLUDGE Don't restore toolcomp till after the queue-buster...
+    ModalState no_toolcomp = to_restore;
+    no_toolcomp.g_codes[G_CODE_CUTTER_SIDE] = G_40;
+    generator.gen_modalStateRestore(dummy_current, no_toolcomp);
     generator.addQueueBuster("Ensure that all state is restored before further processing to leave interp in a consistent state");
+    generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
     generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
 
     restore_cmd_list = generator.getCommandSequence();

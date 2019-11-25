@@ -24,5 +24,6 @@ struct ModalState {
     ActiveSettingsArray settings;     // array of feed, speed, etc.
     int work_offset_number;
     int tool_offset_number;
+    double cutter_comp_radius;
 };
 #endif

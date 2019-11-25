@@ -573,6 +573,36 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
 }
 extern int emcTaskMopup();
 
+/**
+ * Purges any queued commands that should not actually be sent out / processed.
+ *
+ * This occurs during "seek" mode, when interp is trying to find the start
+ * line. It's processing all of the G-code before that point, and the resulting
+ * commands are accumulating in the interp list. We need to purge these before
+ * starting the actual read-ahead so that only lines after the start line are
+ * actually executed.
+ */
+void emcTaskPlanPurgeInterpQueue()
+{
+    if (programStartLine < 0 ||
+        emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
+        // we're stepping over lines, so check them
+        // for
+        // limits, etc. and clear then out
+        if (0 != checkInterpList(&interp_list,
+                                 emcStatus)) {
+            // problem with actions, so do same as we
+            // did
+            // for a bad read from emcTaskPlanRead()
+            // above
+            emcStatus->task.interpState =
+                EMC_TASK_INTERP_WAITING;
+        }
+        // and clear it regardless
+        interp_list.clear();
+    }
+}
+
 void readahead_reading(void)
 {
     int readRetval;
@@ -669,23 +699,7 @@ interpret_again:
 			    // throw the results away if we're supposed to
 			    // read
 			    // through it
-                if (programStartLine < 0 ||
-                 emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
-				// we're stepping over lines, so check them
-				// for
-				// limits, etc. and clear then out
-				if (0 != checkInterpList(&interp_list,
-							 emcStatus)) {
-				    // problem with actions, so do same as we
-				    // did
-				    // for a bad read from emcTaskPlanRead()
-				    // above
-				    emcStatus->task.interpState =
-					EMC_TASK_INTERP_WAITING;
-				}
-				// and clear it regardless
-				interp_list.clear();
-                }
+                emcTaskPlanPurgeInterpQueue();
 
                 if (emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
 			    
@@ -706,15 +720,14 @@ interpret_again:
                         && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
 
                     // Next line will be the start line, so force a synch and
-                emcStatus->task.interpState = EMC_TASK_INTERP_READING;
-                emcTaskPlanSynchAndRestore();
+                    emcTaskPlanFinishLineSeek();
 
-                // reset programStartLine so we don't
-                // fall into our stepping routines if
-                // we happen to execute lines before
-                // the current point later (due to
-                // subroutines).
-                programStartLine = 0;
+                    // reset programStartLine so we don't
+                    // fall into our stepping routines if
+                    // we happen to execute lines before
+                    // the current point later (due to
+                    // subroutines).
+                    programStartLine = 0;
                 }
 
                             if (count++ < emc_task_interp_max_len

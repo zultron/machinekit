@@ -550,22 +550,27 @@ int emcTaskPlanSynch()
     return retval;
 }
 
-int emcTaskPlanSynchAndRestore()
+int emcTaskPlanFinishLineSeek()
 {
     Interp *rs274_interp = dynamic_cast<Interp*>(pinterp);
-    if (!rs274_interp) {
-        return -1;
-    }
-    int retval = rs274_interp->synch_and_restore();
 
-    if (emc_debug & EMC_DEBUG_INTERP) {
-        rcs_print("emcTaskPlanSynch() returned %d\n", retval);
+    ModalState state_at_seek{};
+    int res_interp = INTERP_OK;
+    if (rs274_interp) {
+        // NOTE: modal state is recorded before the transition for use in the restore sequence
+        res_interp = rs274_interp->cbBeforeSeekReadTransition(state_at_seek);
+        emcTaskPlanPurgeInterpQueue();
     }
+    emcStatus->task.interpState = EMC_TASK_INTERP_READING;
 
-    if (retval > INTERP_MIN_ERROR) {
-        print_interp_error(retval);
+    if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
+        res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek);
+    } else {
+        print_interp_error(res_interp);
+        // Can't continue here with an error
+        emcStatus->task.interpState = EMC_TASK_INTERP_WAITING;
     }
-    return retval;
+    return res_interp;
 }
 
 void emcTaskPlanExit()

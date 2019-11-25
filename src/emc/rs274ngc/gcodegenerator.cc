@@ -86,6 +86,23 @@ void GCodeGenerator::addToolChange(int tool_number)
     cmd_list.emplace_back(buf);
 }
 
+void GCodeGenerator::addToolCompensation(GCodes cutter_side, double cutter_radius)
+{
+    start_next_line();
+    std::string &cmd = cmd_list.back();
+    // Re-enable cutter comp if it was active
+    // WARNING: radius really should not be negative here
+    if (cutter_radius != 0) {
+        // Restore an explicit radius if it's not pulled from the tool table
+        formatGCode((GCodes)(cutter_side + 1), cmd);
+        char buf[LINELEN];
+        snprintf(buf, sizeof(buf), " D%f", cutter_radius * 2.0);
+        cmd += buf;
+    } else {
+        formatGCode((GCodes)(cutter_side), cmd);
+    }
+}
+
 int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState & saved)
 {
     // Always restore work offset number using extended work offset format (since modal state is not fully captured in the G5x mode)
@@ -204,7 +221,7 @@ int GCodeGenerator::addQueueBuster(const char *comment)
     return 0;
 }
 
-int GCodeGenerator::addLinearFeedMove(const PositionArray & goal, double feed)
+int GCodeGenerator::addLinearFeedMove(const PositionArray & goal, double feed_prog)
 {
     std::ostringstream feed_move;
     feed_move << "G1 ";
@@ -214,6 +231,10 @@ int GCodeGenerator::addLinearFeedMove(const PositionArray & goal, double feed)
             continue;
         }
         feed_move << AxisNames[i] << goal[i] << " ";
+    }
+
+    if (feed_prog >= 0.0) {
+        feed_move << "F" << feed_prog;
     }
 
     cmd_list.emplace_back(feed_move.str());

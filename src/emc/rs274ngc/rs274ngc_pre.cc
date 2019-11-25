@@ -2437,11 +2437,35 @@ int Interp::synch()
   return res_save;
 }
 
-int Interp::synch_and_restore()
+/**
+ * Pseudo-callback called when interp is about to start readahead.
+ * This is the first part of the transition from "seek" mode (where it's
+ * processing but not executing commands), to readahead mode.
+ *
+ * @param[out] seek_state Cached modal state from interp, basically what interp
+ * would look like if it had run the program from line 1.
+ */
+int Interp::cbBeforeSeekReadTransition(ModalState &seek_state)
+{
+    // Before transitioning to read-ahead, write out modal state of what interp thinks it should be
+    CHP(write_modal_state(nullptr, &_setup, seek_state));
+    // Cancel tool comp temporarily so that we can do startup activities like tool changes
+    // Note that any queued moves will be discarded here (all we need is the end point)
+    CHP(execute("G40", CommandSource::PREAMBLE));
+    return INTERP_OK;
+}
+
+/**
+ * Pseudo-callback called after interp has started readahead, and needs to restore its modal state.
+ * Interp needs to run a startup sequence to re-align itself with the external
+ * world (like canon / motion). The system needs to be as close as possible to
+ * what it would be, had it executed the program from the first line.
+ */
+int Interp::cbAfterSeekReadTransition(ModalState const &to_restore)
 {
     RestoreCommandList restore_cmd_list;
 
-    CHP(create_full_restore_sequence(restore_cmd_list));
+    CHP(create_full_restore_sequence(to_restore, restore_cmd_list));
     {
         char tmp_file_path[PATH_MAX+LINELEN] = {};
         snprintf(tmp_file_path, PATH_MAX+LINELEN, "%s/%s.ngc", _setup.program_prefix ?: ".", STATE_RESTORE_SUBROUTINE_NAME);
