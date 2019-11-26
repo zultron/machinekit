@@ -20,6 +20,7 @@ protected:
     void start_next_line();
 
     static int formatGCode(GCodes g, std::string &cmd);
+    void add_axes(std::ostream &out, PositionArray const & goal, AxisMask active_axes);
 public:
     GCodeGenerator(FeatureSet const &features_in) :
         cmd_list(),
@@ -30,13 +31,15 @@ public:
 
     static int filterAbortedStates(ModalState &current, ModalState &saved);
 
+    void addPreformatted(std::string const &g_code_line);
     void addWorkOffset(int work_offset_number);
     void addToolOffset(int tool_number);
     void addToolChange(int tool_number);
     int addModalStateGCodes(ModalState &current, const ModalState & saved);
     int addModalStateMCodes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved);
     int addQueueBuster(const char * comment=nullptr);
-    int addLinearFeedMove(PositionArray const &goal, double feed_prog);
+    int addLinearFeedMove(PositionArray const &goal, double feed_prog, AxisMask active_axes=-1);
+    int addLinearRapidMove(PositionArray const &goal, AxisMask active_axes=-1);
 
     int gen_modalStateRestore(ModalState & current, const ModalState & saved);
 

@@ -969,8 +969,57 @@ struct FindsIniFeature
     }
 };
 
-
 /***********************************************************************/
+AxisMask Interp::axis_mask_from_string(std::string const &axes_string, AxisMask default_axes)
+{
+    if (axes_string.empty()) {
+        return default_axes;
+    }
+    AxisMask mask(0);
+    for (char p : axes_string) {
+        size_t idx = std::find(AxisNames.begin(), AxisNames.end(), p) - AxisNames.begin();
+        if (idx < CANON_AXIS_COUNT) {
+            mask.set(idx);
+        }
+    }
+    return mask;
+}
+
+std::string to_lower(std::string const &data)
+{
+    std::string out;
+    out.reserve(data.size());
+    std::transform(data.begin(), data.end(), out.begin(),
+                   [](unsigned char c){ return std::tolower(c);});
+    return out;
+}
+
+int Interp::load_interp_preamble(IniFile &inifile)
+{
+    InterpPreamble preamble{};
+    // Start line callbacks (used if start line is not 1)
+    FindsIniStringOrEmpty finds_preamble_str(inifile, "INTERP_PREAMBLE");
+    preamble.toolchange_prolog = finds_preamble_str("TOOLCHANGE_PROLOG");
+    preamble.toolchange_epilog = finds_preamble_str("TOOLCHANGE_EPILOG");
+    preamble.leadin_prolog = finds_preamble_str("LEADIN_PROLOG");
+    preamble.leadin_epilog = finds_preamble_str("LEADIN_EPILOG");
+
+    // Map leadin move types to internal type
+    std::string entry_type_str = to_lower(finds_preamble_str("LEADIN_MOVE_TYPE"));
+    if (entry_type_str == "plunge") {
+        preamble.entry_type = InterpPreamble::Entry::PLUNGE;
+    } else if (entry_type_str == "linear") {
+        preamble.entry_type = InterpPreamble::Entry::LINEAR;
+    }
+
+    AxisMask active_axes_mask(GET_EXTERNAL_AXIS_MASK());
+    preamble.plunge_axes = axis_mask_from_string(finds_preamble_str("PLUNGE_AXES")) & active_axes_mask;
+
+    // All checks passed, store the preamble
+    _setup.default_seek_preamble = preamble;
+
+    return INTERP_OK;
+}
 
 /*! rs274_ngc_init
 
@@ -994,7 +1043,6 @@ should try to get one added). The initialization routine, therefore,
 always calls SET_FEED_REFERENCE(CANON_XYZ).
 
 */
-
 int Interp::init()
 {
   char filename[LINELEN];
@@ -1072,6 +1120,8 @@ int Interp::init()
       inifile.Find(&_setup.orient_offset, "ORIENT_OFFSET", "RS274NGC");
 
       inifile.Find(&_setup.debugmask, "DEBUG", "EMC");
+
+      CHP(load_interp_preamble(inifile));
 
       _setup.debugmask |= EMC_DEBUG_UNCONDITIONAL;
 
@@ -2465,7 +2515,7 @@ int Interp::cbAfterSeekReadTransition(ModalState const &to_restore)
 {
     RestoreCommandList restore_cmd_list;
 
-    CHP(create_full_restore_sequence(to_restore, restore_cmd_list));
+    CHP(create_full_restore_sequence(to_restore, restore_cmd_list, _setup.default_seek_preamble));
     {
         char tmp_file_path[PATH_MAX+LINELEN] = {};
         snprintf(tmp_file_path, PATH_MAX+LINELEN, "%s/%s.ngc", _setup.program_prefix ?: ".", STATE_RESTORE_SUBROUTINE_NAME);

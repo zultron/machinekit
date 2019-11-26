@@ -2687,8 +2687,11 @@ int Interp::restore_from_tag(StateTag const &tag)
     return INTERP_OK;
 }
 
-int Interp::create_full_restore_sequence(ModalState const &to_restore, RestoreCommandList & restore_cmd_list)
-{
+int Interp::create_full_restore_sequence(
+    ModalState const &to_restore,
+    RestoreCommandList & restore_cmd_list,
+    InterpPreamble const &preamble
+){
     GCodeGenerator generator(_setup.feature_set);
 
     generator.addQueueBuster("Force a drop into auto mode to process remainder of restore sequence");
@@ -2707,7 +2710,9 @@ int Interp::create_full_restore_sequence(ModalState const &to_restore, RestoreCo
     }
 #endif
 
+    generator.addPreformatted(preamble.toolchange_prolog);
     generator.addToolChange(_setup.getCurrentToolNumber());
+    generator.addPreformatted(preamble.toolchange_epilog);
 
     // NOTE: modal state was captured already in seek / read transition handler, so pull it back out here
     ModalState dummy_current{};
@@ -2717,7 +2722,27 @@ int Interp::create_full_restore_sequence(ModalState const &to_restore, RestoreCo
     generator.gen_modalStateRestore(dummy_current, no_toolcomp);
     generator.addQueueBuster("Ensure that all state is restored before further processing to leave interp in a consistent state");
     generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
+
+    generator.addPreformatted(preamble.leadin_prolog);
+    PositionArray leadin_position = _setup.current;
+    switch (preamble.entry_type) {
+    case InterpPreamble::Entry::NONE:
+        // Just rapid to the current position
+        break;
+    case InterpPreamble::Entry::PLUNGE:
+        leadin_position = merge(_setup.current, preamble.position, preamble.plunge_axes);
+        break;
+    case InterpPreamble::Entry::LINEAR:
+        leadin_position = preamble.position;
+        break;
+    }
+
+    // Traverse axes are whichever axes are not used for plunging (a crude way to generalize the XY / Z behavior of canned cycles)
+    AxisMask traverse_axes = ~preamble.plunge_axes;
+    generator.addLinearRapidMove(leadin_position, traverse_axes);
+    generator.addLinearRapidMove(leadin_position, preamble.plunge_axes);
     generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
+    generator.addPreformatted(preamble.leadin_epilog);
 
     restore_cmd_list = generator.getCommandSequence();
     return 0;

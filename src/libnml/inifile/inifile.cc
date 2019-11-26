@@ -715,3 +715,7 @@ iniFindDouble(FILE *fp, const char *tag, const char *section, double *result)
     IniFile f(false, fp);
     return(f.Find(result, tag, section));
 }
+
+std::string FindsIniStringOrEmpty::operator()(const char * tag) const {
+    return inifile.Find(tag, section) ?: "";
+}

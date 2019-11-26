@@ -44,6 +44,8 @@ struct GCodeContext
     std::string py_remap_name;
 };
 
+struct IniFile;
+
 struct GCodeContextStack
 {
     std::vector<GCodeContext> context_lines;
@@ -555,7 +557,10 @@ public:
 
  int restore_from_tag(StateTag const &tag);
 
- int create_full_restore_sequence(const ModalState & to_restore, RestoreCommandList &restore_cmd_list);
+ int create_full_restore_sequence(
+     const ModalState & to_restore,
+     RestoreCommandList &restore_cmd_list,
+     const InterpPreamble &preamble);
 
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
@@ -819,6 +824,10 @@ int read_inputs(setup_pointer settings);
 
     bool hasFeature(Features f) const;
     int find_g43_tool_offset(block_pointer block, setup_pointer settings, ShiftTransform & new_tool_offset);
+
+    static AxisMask axis_mask_from_string(const std::string & plunge_axes, AxisMask default_axes=0);
+    
+    int load_interp_preamble(IniFile & inifile);
 
 protected:
     bool error_has_context;

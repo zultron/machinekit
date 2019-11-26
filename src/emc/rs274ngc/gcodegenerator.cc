@@ -30,6 +30,18 @@ int GCodeGenerator::formatGCode(GCodes g, std::string & cmd)
     return 0;
 }
 
+void GCodeGenerator::add_axes(std::ostream &out, PositionArray const &goal, AxisMask active_axes)
+{
+    AxisMask axis_mask(GET_EXTERNAL_AXIS_MASK());
+    for (size_t i = 0; i < goal.size(); ++i) {
+        if (!axis_mask.test(i) || !active_axes.test(i)) {
+            continue;
+        }
+        out << AxisNames[i] << goal[i] << " ";
+    }
+}
+
+
 const RestoreCommandList & GCodeGenerator::getCommandSequence() const
 {
     return cmd_list;
@@ -221,23 +233,27 @@ int GCodeGenerator::addQueueBuster(const char *comment)
     return 0;
 }
 
-int GCodeGenerator::addLinearFeedMove(const PositionArray & goal, double feed_prog)
+int GCodeGenerator::addLinearFeedMove(PositionArray const & goal, double feed_prog, AxisMask active_axes)
 {
     std::ostringstream feed_move;
     feed_move << "G1 ";
-    std::bitset<64> axis_mask(GET_EXTERNAL_AXIS_MASK());
-    for (size_t i = 0; i < goal.size(); ++i) {
-        if (!axis_mask.test(i)) {
-            continue;
-        }
-        feed_move << AxisNames[i] << goal[i] << " ";
-    }
+    add_axes(feed_move, goal, active_axes);
 
     if (feed_prog >= 0.0) {
         feed_move << "F" << feed_prog;
     }
 
     cmd_list.emplace_back(feed_move.str());
+    return 0;
+}
+
+int GCodeGenerator::addLinearRapidMove(PositionArray const & goal, AxisMask active_axes)
+{
+    std::ostringstream rapid_move;
+    rapid_move << "G0 ";
+    add_axes(rapid_move, goal, active_axes);
+
+    cmd_list.emplace_back(rapid_move.str());
     return 0;
 }
 
@@ -254,4 +270,9 @@ int GCodeGenerator::gen_modalStateRestore(ModalState & current, const ModalState
     // G code commands currently all execute in a single line (may change in the future if there are conflicts)
     addModalStateGCodes(current, saved);
     return 0;
+}
+
+void GCodeGenerator::addPreformatted(std::string const & g_code_line)
+{
+    cmd_list.push_back(g_code_line);
 }

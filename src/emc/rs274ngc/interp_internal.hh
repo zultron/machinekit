@@ -359,6 +359,23 @@ struct CutterCompData
     bool firstmove;   // this is the first comp move
 };
 
+struct InterpPreamble
+{
+    enum class Entry {
+        NONE,
+        PLUNGE,
+        LINEAR
+    };
+
+    std::string toolchange_prolog;
+    std::string toolchange_epilog;
+    std::string leadin_prolog;
+    std::string leadin_epilog;
+    AxisMask plunge_axes; //!< Used to plunge towards the work / lead-in position after traverse axes are in position
+    Entry entry_type;
+    PositionArray position;
+};
+
 struct setup_struct
 {
   setup_struct();
@@ -538,6 +555,8 @@ struct setup_struct
     // by origin index in this set.
     std::set<int> work_offsets_used;
     std::set<int> tool_offsets_changed; //!< set of TOOL numbers that have been changed in the current program (e.g. due to G10)
+
+    InterpPreamble default_seek_preamble;
 };
 
 const char * GetFeatureStr(Features f);
@@ -685,7 +704,7 @@ macros totally crash-proof. If the function call stack is deeper than
        CHP(call); \
      }
 
-PositionMask getUpdatedAxes(block_pointer b);
+AxisMask getUpdatedAxes(block_pointer b);
 PositionArray getAxisWordsFromBlock(block_pointer b, PositionArray const &current);
 RotateShiftTransform getAxisWordsFromBlock(block_pointer b, RotateShiftTransform const &current);
 ShiftTransform getAxisWordsFromBlock(block_pointer b, ShiftTransform const &current);

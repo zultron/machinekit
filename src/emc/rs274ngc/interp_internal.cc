@@ -531,9 +531,9 @@ const int & Interp::remap_level() const
     return _setup.remap_level;
 }
 
-PositionMask getUpdatedAxes(block_pointer b)
+AxisMask getUpdatedAxes(block_pointer b)
 {
-    PositionMask axes_updated;
+    AxisMask axes_updated;
     axes_updated[X] = b->x_flag;
     axes_updated[Y] = b->y_flag;
     axes_updated[Z] = b->z_flag;

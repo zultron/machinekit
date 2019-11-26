@@ -178,7 +178,7 @@ EmcPose toEmcPose(const PositionArray & p)
     };
 }
 
-void merge_masked(PositionArray & p, const PositionArray & in, const PositionMask & new_value_mask)
+void merge_masked(PositionArray & p, const PositionArray & in, const AxisMask & new_value_mask)
 {
     for (size_t k = 0; k < in.size(); ++k) {
         if (new_value_mask[k]) {
@@ -187,7 +187,7 @@ void merge_masked(PositionArray & p, const PositionArray & in, const PositionMas
     }
 }
 
-PositionArray merge(const PositionArray & old_p, const PositionArray & new_p, const PositionMask & new_mask)
+PositionArray merge(const PositionArray & old_p, const PositionArray & new_p, const AxisMask & new_mask)
 {
     PositionArray out = old_p;
     merge_masked(out, new_p, new_mask);
