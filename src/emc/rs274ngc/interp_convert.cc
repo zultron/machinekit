@@ -2690,7 +2690,8 @@ int Interp::restore_from_tag(StateTag const &tag)
 int Interp::create_full_restore_sequence(
     ModalState const &to_restore,
     RestoreCommandList & restore_cmd_list,
-    InterpPreamble const &preamble
+    InterpPreamble const &preamble,
+    StartLineSettings const &leadin_settings
 ){
     GCodeGenerator generator(_setup.feature_set);
 
@@ -2724,16 +2725,16 @@ int Interp::create_full_restore_sequence(
     generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
 
     generator.addPreformatted(preamble.leadin_prolog);
-    PositionArray leadin_position = _setup.current;
-    switch (preamble.entry_type) {
-    case InterpPreamble::Entry::NONE:
-        // Just rapid to the current position
+    // Assume that current tool tip position is the starting position of a lead-in move
+    PositionArray leadin_position = GET_EXTERNAL_POSITION();
+    switch (leadin_settings.leadin_type) {
+    case StartLineSettings::Type::FROM_CURRENT:
         break;
-    case InterpPreamble::Entry::PLUNGE:
-        leadin_position = merge(_setup.current, preamble.position, preamble.plunge_axes);
+    case StartLineSettings::Type::PLUNGE_FROM_CURRENT:
+        leadin_position = merge(_setup.current, leadin_position, preamble.plunge_axes);
         break;
-    case InterpPreamble::Entry::LINEAR:
-        leadin_position = preamble.position;
+    case StartLineSettings::Type::CUSTOM:
+        leadin_position = leadin_settings.position;
         break;
     }
 

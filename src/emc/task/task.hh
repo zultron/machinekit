@@ -21,6 +21,7 @@
 extern NMLmsg *emcTaskCommand;
 
 extern InterpBase *pinterp;
+struct StartLineSettings;
 
 extern int stepping;
 extern int steppingWait;
@@ -43,7 +44,7 @@ int emcTaskPlanIsWait();
 int emcTaskPlanClearWait();
 int emcTaskPlanSynch();
 void emcTaskPlanPurgeInterpQueue();
-int emcTaskPlanFinishLineSeek();
+int emcTaskPlanFinishLineSeek(const StartLineSettings & start_settings);
 int emcTaskPlanSetOptionalStop(bool state);
 int emcTaskPlanSetBlockDelete(bool state);
 void emcTaskPlanExit();

@@ -1006,11 +1006,14 @@ int Interp::load_interp_preamble(IniFile &inifile)
 
     // Map leadin move types to internal type
     std::string entry_type_str = to_lower(finds_preamble_str("LEADIN_MOVE_TYPE"));
+#if 0
+// NOTE not yet supported (need to pass in an explicit lead-in position from GUI?)
     if (entry_type_str == "plunge") {
         preamble.entry_type = InterpPreamble::Entry::PLUNGE;
     } else if (entry_type_str == "linear") {
         preamble.entry_type = InterpPreamble::Entry::LINEAR;
     }
+#endif
 
     AxisMask active_axes_mask(GET_EXTERNAL_AXIS_MASK());
     preamble.plunge_axes = axis_mask_from_string(finds_preamble_str("PLUNGE_AXES")) & active_axes_mask;
@@ -2511,11 +2514,15 @@ int Interp::cbBeforeSeekReadTransition(ModalState &seek_state)
  * world (like canon / motion). The system needs to be as close as possible to
  * what it would be, had it executed the program from the first line.
  */
-int Interp::cbAfterSeekReadTransition(ModalState const &to_restore)
+int Interp::cbAfterSeekReadTransition(ModalState const &to_restore, StartLineSettings const &leadin_settings)
 {
     RestoreCommandList restore_cmd_list;
 
-    CHP(create_full_restore_sequence(to_restore, restore_cmd_list, _setup.default_seek_preamble));
+    CHP(create_full_restore_sequence(
+        to_restore,
+        restore_cmd_list,
+        _setup.default_seek_preamble,
+        leadin_settings));
     {
         char tmp_file_path[PATH_MAX+LINELEN] = {};
         snprintf(tmp_file_path, PATH_MAX+LINELEN, "%s/%s.ngc", _setup.program_prefix ?: ".", STATE_RESTORE_SUBROUTINE_NAME);

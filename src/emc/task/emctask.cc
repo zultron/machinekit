@@ -550,7 +550,7 @@ int emcTaskPlanSynch()
     return retval;
 }
 
-int emcTaskPlanFinishLineSeek()
+int emcTaskPlanFinishLineSeek(StartLineSettings const &start_settings)
 {
     Interp *rs274_interp = dynamic_cast<Interp*>(pinterp);
 
@@ -564,7 +564,8 @@ int emcTaskPlanFinishLineSeek()
     emcStatus->task.interpState = EMC_TASK_INTERP_READING;
 
     if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
-        res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek);
+        // FIXME support other lead-in types once GUI support is in place (needs more plumbing from task)
+        res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek, start_settings);
     } else {
         print_interp_error(res_interp);
         // Can't continue here with an error

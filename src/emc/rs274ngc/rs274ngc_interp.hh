@@ -118,7 +118,9 @@ public:
 // synchronize your internal model with the external world
  int synch();
  int cbBeforeSeekReadTransition(ModalState & seek_state);
- int cbAfterSeekReadTransition(const ModalState & to_restore);
+ int cbAfterSeekReadTransition(
+     const ModalState & to_restore,
+     StartLineSettings const &leadin_settings);
 
 /* Interface functions to call to get information from the interpreter.
    If a function has a return value, the return value contains the information.
@@ -557,10 +559,9 @@ public:
 
  int restore_from_tag(StateTag const &tag);
 
- int create_full_restore_sequence(
-     const ModalState & to_restore,
+ int create_full_restore_sequence(const ModalState & to_restore,
      RestoreCommandList &restore_cmd_list,
-     const InterpPreamble &preamble);
+     const InterpPreamble &preamble, const StartLineSettings & leadin_settings);
 
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,

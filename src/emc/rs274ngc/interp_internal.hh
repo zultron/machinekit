@@ -359,21 +359,26 @@ struct CutterCompData
     bool firstmove;   // this is the first comp move
 };
 
+struct StartLineSettings
+{
+    enum class Type {
+        FROM_CURRENT,
+        PLUNGE_FROM_CURRENT,
+        CUSTOM,
+        };
+
+    int start_line; //!< line in main program where user wants to start
+    Type leadin_type; //!< Controls lead-in behavior when not starting from the beginning of the program
+    PositionArray position; //!< For custom lead-in, specify the start position of the lead-in move.
+};
+
 struct InterpPreamble
 {
-    enum class Entry {
-        NONE,
-        PLUNGE,
-        LINEAR
-    };
-
     std::string toolchange_prolog;
     std::string toolchange_epilog;
     std::string leadin_prolog;
     std::string leadin_epilog;
     AxisMask plunge_axes; //!< Used to plunge towards the work / lead-in position after traverse axes are in position
-    Entry entry_type;
-    PositionArray position;
 };
 
 struct setup_struct

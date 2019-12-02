@@ -1161,12 +1161,12 @@ static PyObject *program_close(pyCommandChannel *s, PyObject *o) {
 
 static PyObject *emcauto(pyCommandChannel *s, PyObject *o) {
     int fn;
-    EMC_TASK_PLAN_RUN run;
+    EMC_TASK_PLAN_RUN run{};
     EMC_TASK_PLAN_PAUSE pause;
     EMC_TASK_PLAN_RESUME resume;
     EMC_TASK_PLAN_STEP step;
 
-    if(PyArg_ParseTuple(o, "ii", &fn, &run.line) && fn == LOCAL_AUTO_RUN) {
+    if(PyArg_ParseTuple(o, "ii|i", &fn, &run.line, &run.leadin_type) && fn == LOCAL_AUTO_RUN) {
         emcSendCommand(s, run);
     } else {
         PyErr_Clear();

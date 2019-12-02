@@ -440,8 +440,8 @@ static EMC_TASK_PLAN_RUN taskPlanRunCmd;	// 16-Aug-1999 FMP
 static EMC_TASK_PLAN_INIT taskPlanInitCmd;
 static EMC_TASK_PLAN_SYNCH taskPlanSynchCmd;
 
+static StartLineSettings start_settings{};
 static int interpResumeState = EMC_TASK_INTERP_IDLE;
-static int programStartLine = 0;	// which line to run program from
 // how long the interp list can be
 
 int stepping = 0;
@@ -584,7 +584,7 @@ extern int emcTaskMopup();
  */
 void emcTaskPlanPurgeInterpQueue()
 {
-    if (programStartLine < 0 ||
+    if (start_settings.start_line < 0 ||
         emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
         // we're stepping over lines, so check them
         // for
@@ -644,12 +644,12 @@ interpret_again:
 
                 // Check if the first real command should be read or not
                 if (emcTaskPlanLevel() == 0
-                        && emcStatus->task.readLine >= programStartLine
+                        && emcStatus->task.readLine >= start_settings.start_line
                         && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
                     // Next line will be the start line, and this is the first command, so immediately start reading
                     // NOTE: we don't need to synch here only because this is the first command
                     emcStatus->task.interpState = EMC_TASK_INTERP_READING;
-                    programStartLine = 0;
+                    start_settings.start_line = 0;
                 }
 
 			    emcTaskPlanCommand((char *) &emcStatus->task.
@@ -658,7 +658,7 @@ interpret_again:
 			    execRetval = INTERP_OK;
 			    // Tormach - set _task variable appropriately so that 
 			    // remap code can decide what to do in read-behind *dpr 12/15
-                _task = (programStartLine < 0 || emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) ? -1 : 1;
+                _task = (start_settings.start_line < 0 || emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) ? -1 : 1;
 
                 execRetval = emcTaskPlanExecute();
 			    // line number may need update after
@@ -716,18 +716,18 @@ interpret_again:
 			    }
 
                 if (emcTaskPlanLevel() == 0
-                        && emcStatus->task.readLine + 1 >= programStartLine
+                        && emcStatus->task.readLine + 1 >= start_settings.start_line
                         && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
 
                     // Next line will be the start line, so force a synch and
-                    emcTaskPlanFinishLineSeek();
+                    emcTaskPlanFinishLineSeek(start_settings);
 
-                    // reset programStartLine so we don't
+                    // reset start line so we don't
                     // fall into our stepping routines if
                     // we happen to execute lines before
                     // the current point later (due to
                     // subroutines).
-                    programStartLine = 0;
+                    start_settings.start_line = 0;
                 }
 
                             if (count++ < emc_task_interp_max_len
@@ -2376,7 +2376,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	    emcTaskPlanOpen(emcStatus->task.file);
 	}
 	run_msg = (EMC_TASK_PLAN_RUN *) cmd;
-    programStartLine = run_msg->line;
+    start_settings.start_line = run_msg->line;
+    start_settings.leadin_type = static_cast<StartLineSettings::Type>(run_msg->leadin_type);
     // KLUDGE always start by seeking (will drop into reading if the first command is at the start line)
     emcStatus->task.interpState = EMC_TASK_INTERP_SEEKING;
 	emcStatus->task.task_paused = 0;

@@ -1575,6 +1575,7 @@ void EMC_TASK_PLAN_RUN::update(CMS * cms)
 
     EMC_TASK_CMD_MSG::update(cms);
     cms->update(line);
+    cms->update(leadin_type);
 
 }
 

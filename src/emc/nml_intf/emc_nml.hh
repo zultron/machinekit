@@ -1304,13 +1304,14 @@ class EMC_TASK_PLAN_OPEN:public EMC_TASK_CMD_MSG {
 class EMC_TASK_PLAN_RUN:public EMC_TASK_CMD_MSG {
   public:
     EMC_TASK_PLAN_RUN():EMC_TASK_CMD_MSG(EMC_TASK_PLAN_RUN_TYPE,
-					 sizeof(EMC_TASK_PLAN_RUN)) {
+                             sizeof(EMC_TASK_PLAN_RUN)), line(), leadin_type() {
     }
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
     int line;			// line to run from; 0 or 1 means from start,
+    int leadin_type; //!< TYpe of leadin move to use if any lines are skipped
     // negative means run through to verify
 };
 
