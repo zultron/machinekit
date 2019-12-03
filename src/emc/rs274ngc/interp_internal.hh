@@ -380,8 +380,10 @@ enum {
     ORIENT,
     TOOLCHANGE,
     WORK_OFFSET_MODIFIED,
+    AXIS_OFFSET_MODIFIED,
     TOOL_OFFSET_MODIFED,
     RESERVED_PARAMETER_MODIFIED,
+    MAX_WAIT_FLAGS,
 };
 }
 
@@ -468,7 +470,7 @@ struct setup_struct
   bool percent_flag;          // true means first line was percent sign
   CANON_PLANE plane;            // active plane, XY-, YZ-, or XZ-plane
   // Queue-buster flags
-  std::bitset<64> wait_flags;
+  std::bitset<WaitFlag::MAX_WAIT_FLAGS> wait_flags;
 
   int input_index;		// channel queried
   bool input_digital;		// input queried was digital (false=analog)

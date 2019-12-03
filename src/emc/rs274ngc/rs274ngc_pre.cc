@@ -1735,6 +1735,7 @@ int Interp::read_inputs(setup_pointer settings)
     // Offset-modified flags are always cleared at the start of a block
     settings->wait_flags.reset(WORK_OFFSET_MODIFIED);
     settings->wait_flags.reset(TOOL_OFFSET_MODIFED);
+    settings->wait_flags.reset(AXIS_OFFSET_MODIFIED);
 
     return INTERP_OK;
 }

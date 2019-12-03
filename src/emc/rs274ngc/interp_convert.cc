@@ -1134,6 +1134,7 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
   // Always send a (valid) offset update down to Canon
   SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
 
+  settings->wait_flags.set(AXIS_OFFSET_MODIFIED);
   return INTERP_OK;
 }
 
