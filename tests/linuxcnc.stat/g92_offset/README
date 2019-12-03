@@ -1,0 +1,5 @@
+Test `linuxcnc.stat.g5x_offset{,s}`
+
+Check if the python stat module `g5x_offsets` and `g5x_offset`
+attributes are correctly updated during program execution, and whether
+they are correct after abort.
