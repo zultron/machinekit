@@ -38,6 +38,7 @@ extern int _task;  // zero in gcodemodule, 1 in milltask
 #include "rs274ngc.hh"
 #include "interp_return.hh"
 #include "interp_internal.hh"
+using namespace WaitFlag;
 #include "interp_tolerances.hh"
 #include "rs274ngc_interp.hh"
 #include "units.h"
@@ -262,10 +263,10 @@ static inline void set_input_digital(Interp &interp, bool value)  {
     interp._setup.input_digital = value;
 }
 static inline bool get_input_flag (Interp &interp)  {
-    return interp._setup.input_flag;
+    return interp._setup.wait_flags.test(INPUT);
 }
 static inline void set_input_flag(Interp &interp, bool value)  {
-    interp._setup.input_flag = value;
+    interp._setup.wait_flags.set(INPUT, value);
 }
 static inline bool get_mdi_interrupt (Interp &interp)  {
     return interp._setup.mdi_interrupt;
@@ -286,10 +287,10 @@ static inline void set_percent_flag(Interp &interp, bool value)  {
     interp._setup.percent_flag = value;
 }
 static inline bool get_probe_flag (Interp &interp)  {
-    return interp._setup.probe_flag;
+    return interp._setup.wait_flags.test(PROBE);
 }
 static inline void set_probe_flag(Interp &interp, bool value)  {
-    interp._setup.probe_flag = value;
+    interp._setup.wait_flags.set(PROBE, value);
 }
 static inline bool get_speed_override (Interp &interp)  {
     return interp._setup.speed_override;
@@ -298,10 +299,10 @@ static inline void set_speed_override(Interp &interp, bool value)  {
     interp._setup.speed_override = value;
 }
 static inline bool get_toolchange_flag (Interp &interp)  {
-    return interp._setup.toolchange_flag;
+    return interp._setup.wait_flags.test(TOOLCHANGE);
 }
 static inline void set_toolchange_flag(Interp &interp, bool value)  {
-    interp._setup.toolchange_flag = value;
+    interp._setup.wait_flags.set(TOOLCHANGE, value);
 }
 static inline double get_u_current (Interp &interp)  {
     return interp._setup.current[U];

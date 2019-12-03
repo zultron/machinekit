@@ -74,13 +74,7 @@ setup_struct::setup_struct() :
     new_named_parameters(),
     percent_flag(0),
     plane(CANON_PLANE_XY),
-    probe_flag(0),
-    input_flag(0),
-    orient_flag(0),
-    toolchange_flag(0),
-    work_offset_modified_flag(false),
-    tool_offset_modified_flag(false),
-    have_new_reserved_parameters(false),
+    wait_flags(0),
     input_index(0),
     input_digital(0),
     program_x (0.0),
@@ -195,13 +189,7 @@ int setup_struct::get_toplevel_line_number() const
 
 void setup_struct::clear_queue_buster_flags()
 {
-    probe_flag = false;
-    input_flag = false;
-    orient_flag = false;
-    toolchange_flag = false;
-    work_offset_modified_flag = false;
-    tool_offset_modified_flag = false;
-    have_new_reserved_parameters = false;
+    wait_flags.reset();
 }
 
 block & setup_struct::getControllingBlock()

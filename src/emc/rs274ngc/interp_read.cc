@@ -30,6 +30,7 @@
 #include <cmath>
 
 using namespace interp_param_global;
+using namespace WaitFlag;
 
 /****************************************************************************/
 
@@ -3143,7 +3144,7 @@ int Interp::read_text(
   }
 
   _setup.new_parameters.clear();      /* initialize parameter buffer */
-  _setup.have_new_reserved_parameters = false;
+  _setup.wait_flags.reset(RESERVED_PARAMETER_MODIFIED);
 
   if ((line[0] == 0) || ((line[0] == '/') && (GET_BLOCK_DELETE())))
     *length = 0;

@@ -41,6 +41,7 @@ static inline bool TOOL_INSIDE_ARC(CutterCompDirection side, int turn) {
 #define DEBUG_EMC
 
 using namespace interp_param_global;
+using namespace WaitFlag;
 
 // These four functions help make the rest of cutter comp
 // plane-agnostic in much the same way the ARC_FEED canon call is.
@@ -2876,7 +2877,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 	//WAIT returns 0 on success, -1 for out of bounds
 	CHKS((ret == -1), NCE_DIGITAL_INPUT_INVALID_ON_M66);
 	if (ret == 0) {
-	    settings->input_flag = true;
+        settings->wait_flags.set(INPUT);
 	    settings->input_index = round_to_int(block->p_number);
 	    settings->input_digital = true;
 	}
@@ -2887,7 +2888,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
     int ret = WAIT(round_to_int(block->e_number), ANALOG_INPUT, WAIT_MODE_IMMEDIATE, 0); //WAIT returns 0 on success, -1 for out of bounds
 	CHKS((ret == -1), NCE_ANALOG_INPUT_INVALID_ON_M66);
 	if (ret == 0) {
-	    settings->input_flag = true;
+        settings->wait_flags.set(INPUT);
 	    settings->input_index = round_to_int(block->e_number);
 	    settings->input_digital = false;
 	}
@@ -2943,7 +2944,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 	      // make sure selected tool exists
 	      CHP((find_tool_pocket(settings, toolno, &pocket)));
 	      settings->current_pocket = pocket;
-	      settings->toolchange_flag = true;
+          settings->wait_flags.set(TOOLCHANGE);
 	      CHANGE_TOOL_NUMBER(settings->current_pocket);
 	      set_tool_parameters();
 	  }
@@ -3019,7 +3020,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
       } else if (block->m_modes[M_MODE_SPINDLE] == 19) {
           settings->spindle_turning = CANON_STOPPED;
           if (block->r_flag || block->p_flag || block->q_flag) {
-              settings->orient_flag = true;
+              settings->wait_flags.set(ORIENT);
   	    write_and_update_state_tag(block);
   	    enqueue_ORIENT_SPINDLE(
   	        (block->r_flag ? (block->r_number + settings->orient_offset)
@@ -3215,12 +3216,12 @@ int Interp::convert_g10(block_pointer block, setup_pointer settings)
     case 11:
         CHP(convert_setup_tool(block, settings));
         // Any change to work / tool offsets means the queue should be flushed to prevent interp / task mismatches
-        settings->tool_offset_modified_flag = true;
+        settings->wait_flags.set(TOOL_OFFSET_MODIFED);
         break;
     case 2:
     case 20:
         CHP(convert_setup(block, settings));
-        settings->work_offset_modified_flag = true;
+        settings->wait_flags.set(WORK_OFFSET_MODIFIED);
         break;
     case 99:
         CHP(convert_part_count(block, settings));
@@ -3485,7 +3486,7 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
   }
   TURN_PROBE_OFF();
   settings->motion_mode = g_code;
-  settings->probe_flag = true;
+  settings->wait_flags.set(PROBE);
   return INTERP_OK;
 }
 
@@ -5197,7 +5198,7 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
 
   settings->current_pocket = settings->selected_pocket;
   // tool change can move the controlled point.  reread it:
-  settings->toolchange_flag = true; 
+  settings->wait_flags.set(TOOLCHANGE);
   set_tool_parameters();
   return INTERP_OK;
 }
@@ -5211,7 +5212,7 @@ int Interp::find_g43_tool_offset(
     ShiftTransform &new_tool_offset)
 {
     logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
-             block->h_flag,block->h_number,settings->toolchange_flag,settings->current_pocket);
+             block->h_flag,block->h_number,settings->wait_flags.test(TOOLCHANGE),settings->current_pocket);
 
     int geo_offset_register = 0;
     int wear_offset_register = 0;
@@ -5232,7 +5233,7 @@ int Interp::find_g43_tool_offset(
         CHP((find_tool_pocket(settings, geo_offset_register, &pocket_number)));
     } else if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         ERS("G43 with no H-word unsupported");
-    } else if (settings->toolchange_flag) {
+    } else if (settings->wait_flags.test(TOOLCHANGE)) {
         // Tool change is in progress, so the "current tool" is in its
         // original pocket still.
         pocket_number = settings->current_pocket;
@@ -5317,12 +5318,12 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
         settings->current = settings->transform.swap_tool_offset(settings->current, new_tool_offset);
         if (settings->tool_offset_mode == G_43_1 || settings->tool_offset_mode == G_43_2) {
             // Need queue-buster because we're switching from a custom to a table offset
-            settings->tool_offset_modified_flag = true;
+            settings->wait_flags.set(TOOL_OFFSET_MODIFED);
         }
     } else if (g_code == G_43_1) {
         ShiftTransform modified_tool_offset(getAxisWordsFromBlock(block, settings->transform.toolOffset));
         settings->current = settings->transform.swap_tool_offset(settings->current, modified_tool_offset);
-        settings->tool_offset_modified_flag = true;
+        settings->wait_flags.set(TOOL_OFFSET_MODIFED);
     } else if (g_code == G_43_2) {
         ShiftTransform additional_tool_offset{};
         CHKS((!block->h_flag), (_("G43.2: H-word missing")));
@@ -5330,7 +5331,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
         CHP((find_tool_pocket(settings, block->h_number, &pocket_number_g43_2)));
         find_tool_offset(settings, pocket_number_g43_2, additional_tool_offset);
         settings->current = settings->transform.add_tool_offset(settings->current, additional_tool_offset);
-        settings->tool_offset_modified_flag = true;
+        settings->wait_flags.set(TOOL_OFFSET_MODIFED);
     } else {
         ERS("BUG: Code not G43, G43.1, G43.2, or G49");
     }
@@ -5431,7 +5432,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
 
   settings->current_pocket = settings->selected_pocket;
   // tool change can move the controlled point.  reread it:
-  settings->toolchange_flag = true; 
+  settings->wait_flags.set(TOOLCHANGE);
   set_tool_parameters();
   
   

@@ -111,6 +111,7 @@ using namespace std::placeholders;
 
 #include <stdio.h>
 using namespace interp_param_global;
+using namespace WaitFlag;
 
 namespace bp = boost::python;
 
@@ -479,12 +480,15 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
   }
 
   // Linear search, consider replacing with ordered map if this gets big
-  _setup.have_new_reserved_parameters = std::any_of(
-              _setup.new_parameters.begin(),
-              _setup.new_parameters.end(),
-              [](const std::pair<size_t, double> &prm){
-                return prm.first > 5000;
-              });
+  _setup.wait_flags.set(
+      RESERVED_PARAMETER_MODIFIED,
+      std::any_of(
+          _setup.new_parameters.begin(),
+          _setup.new_parameters.end(),
+          [](const std::pair<size_t, double> &prm){
+              return prm.first > 5000;
+          })
+      );
 
   for (auto& prm : _setup.new_parameters)
   {
@@ -770,9 +774,13 @@ int Interp::remap_finished(int phase)
 		if (status != INTERP_EXIT) // Don't drop remap lev. at prog exit
 		    CHP(leave_remap());
 		logRemap("executing block leftover items complete, status=%s  remap_level=%d call_level=%d tc=%d probe=%d input=%d mdi_interrupt=%d  line=%d backtoline=%d",
-             interp_status(status),remap_level(),call_level(),_setup.toolchange_flag,
-			_setup.probe_flag,_setup.input_flag,_setup.mdi_interrupt,_setup.sequence_number,
-			 cblock->line_number);
+             interp_status(status),remap_level(),call_level(),
+                 _setup.wait_flags.test(TOOLCHANGE),
+                 _setup.wait_flags.test(PROBE),
+                 _setup.wait_flags.test(INPUT),
+                 _setup.mdi_interrupt,
+                 _setup.sequence_number,
+                 cblock->line_number);
 	    }
 	}
 	return status;
@@ -1686,24 +1694,24 @@ int Interp::read_inputs(setup_pointer settings)
 	// logDebug("read_inputs probe=%d input=%d toolchange=%d orient=%d",
     // 	     settings->probe_flag, settings->input_flag, settings->toolchange_flag, settings->orient_flag);
     write_and_update_state_tag(nullptr);
-    if (settings->probe_flag) {
+    if (settings->wait_flags.test(PROBE)) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING);
 	set_probe_data(&_setup);
-	settings->probe_flag = false;
+    settings->wait_flags.reset(PROBE);
     }
-    if (settings->toolchange_flag) {
+    if (settings->wait_flags.test(TOOLCHANGE)) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     _("Queue is not empty after tool change"));
 	refresh_actual_position(&_setup);
 	load_tool_table();
-	settings->toolchange_flag = false;
+    settings->wait_flags.reset(TOOLCHANGE);
     }
     // always track toolchanger-fault and toolchanger-reason codes
     settings->parameters[TOOLCHANGER_FAULT] = GET_EXTERNAL_TC_FAULT();
     settings->parameters[TOOLCHANGER_FAULT_CODE] = GET_EXTERNAL_TC_REASON();
 
-    if (settings->input_flag) {
+    if (settings->wait_flags.test(INPUT)) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_INPUT);
 	if (settings->input_digital) { // we are checking for a digital input
@@ -1714,19 +1722,19 @@ int Interp::read_inputs(setup_pointer settings)
       settings->parameters[M66_RESULT] =
     GET_EXTERNAL_ANALOG_INPUT(settings->input_index, settings->parameters[M66_RESULT]);
 	}
-	settings->input_flag = false;
+    settings->wait_flags.reset(INPUT);
     }
 
-    if (settings->orient_flag) {
+    if (settings->wait_flags.test(ORIENT)) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_ORIENT);
   settings->parameters[TOOL_ORIENT_TIMEOUT] = GET_EXTERNAL_ORIENT_TIMEOUT();
-  settings->orient_flag = false;
+  settings->wait_flags.reset(ORIENT);
     }
 
     // Offset-modified flags are always cleared at the start of a block
-    settings->work_offset_modified_flag = false;
-    settings->tool_offset_modified_flag = false;
+    settings->wait_flags.reset(WORK_OFFSET_MODIFIED);
+    settings->wait_flags.reset(TOOL_OFFSET_MODIFED);
 
     return INTERP_OK;
 }

@@ -372,6 +372,22 @@ struct StartLineSettings
     PositionArray position; //!< For custom lead-in, specify the start position of the lead-in move.
 };
 
+// Use a namespace / anonymous enum rather than enum class to allow implicit conversion to size_t for bitset
+namespace WaitFlag {
+enum {
+    PROBE,
+    INPUT,
+    ORIENT,
+    TOOLCHANGE,
+    WORK_OFFSET_MODIFIED,
+    TOOL_OFFSET_MODIFED,
+    RESERVED_PARAMETER_MODIFIED,
+};
+}
+
+/**
+ * Customization of set-start-line behavior for a specific machine (from INI settings).
+ */
 struct InterpPreamble
 {
     std::string toolchange_prolog;
@@ -381,6 +397,9 @@ struct InterpPreamble
     AxisMask plunge_axes; //!< Used to plunge towards the work / lead-in position after traverse axes are in position
 };
 
+/**
+ * Contains the majority of state used by RS274NGC interp.
+ */
 struct setup_struct
 {
   setup_struct();
@@ -449,13 +468,7 @@ struct setup_struct
   bool percent_flag;          // true means first line was percent sign
   CANON_PLANE plane;            // active plane, XY-, YZ-, or XZ-plane
   // Queue-buster flags
-  bool probe_flag;            // flag indicating probing done
-  bool input_flag;            // flag indicating waiting for input done
-  bool orient_flag;           // flag indicating waiting for spindle orient done
-  bool toolchange_flag;       // flag indicating we just had a tool change
-  bool work_offset_modified_flag; // indicates a work offset / rotation value was changed (e.g. by G10)
-  bool tool_offset_modified_flag; // indicates a tool offset was modified either by G10, or with G43.1 / G43.2
-  bool have_new_reserved_parameters; // flags an incoming modification to a "reserved" parameter (e.g. coordinate offset)
+  std::bitset<64> wait_flags;
 
   int input_index;		// channel queried
   bool input_digital;		// input queried was digital (false=analog)
