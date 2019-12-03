@@ -381,7 +381,7 @@ ShiftTransform Interp::getG92ActiveOffset(setup_pointer settings)
   }
 }
 
-int Interp::storeG92PersistentParms(const ShiftTransform & g92_offset, setup_pointer settings)
+int Interp::storeG92OffsetValues(const ShiftTransform & g92_offset, setup_pointer settings)
 {
   PositionArray g92_in_user_units = convertsProgramToUser()(g92_offset.tf);
 
@@ -396,6 +396,12 @@ int Interp::storeG92PersistentParms(const ShiftTransform & g92_offset, setup_poi
                settings->parameters[G92_V],
                settings->parameters[G92_W]
                );
+  return INTERP_OK;
+}
+
+int Interp::storeG92Applied(bool active, setup_pointer settings)
+{
+    settings->parameters[G92_APPLIED] = active;
     return INTERP_OK;
 }
 

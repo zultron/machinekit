@@ -916,6 +916,7 @@ class EMC_TRAJ_SET_G92:public EMC_TRAJ_CMD_MSG {
     void update(CMS * cms);
 
     EmcPose origin;
+    int persist;
 };
 
 class EMC_TRAJ_SET_ROTATION:public EMC_TRAJ_CMD_MSG {
@@ -1502,6 +1503,7 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     double delayLeft;           // delay time left of G4, M66..
     int queuedMDIcommands;      // current length of MDI input queue
     WorkOffsetTable g5x_table; // in user units, stored by 1-indexed work offset number
+    ShiftTransform g92_offset_persistant; // in user units, the persistent G92 offset values (if any)
     bool program_ended_and_reset; // program executed an M30 to gracefully end and reset
     bool program_ended;           // program executed an M2 to gracefully end
     bool optional_stop_state;	// state of optional stop (== ON means we stop on M1)

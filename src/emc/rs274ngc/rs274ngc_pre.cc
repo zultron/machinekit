@@ -1357,7 +1357,7 @@ int Interp::init()
 
   _setup.transform.g92Offset = getG92ActiveOffset(&_setup);
 
-  SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(_setup.transform.g92Offset.tf));
+  SET_G92_OFFSET(true, UNPACK_POSITION_ARRAY_REF(_setup.transform.g92Offset.tf));
   SET_FEED_REFERENCE(CANON_XYZ);
 //_setup.active_g_codes initialized below
 //_setup.active_m_codes initialized below
@@ -2483,6 +2483,10 @@ int Interp::synch()
 
   // Restore any work offsets that were changed during readahead but not reached by motion yet.
   synch_work_offsets_from_task();
+
+  // Restore G92 offset from task and store
+  _setup.transform.g92Offset = convertsUserToProgram().forward(GET_EXTERNAL_PERSISTENT_AXIS_OFFSET().tf);
+  storeG92OffsetValues(_setup.transform.g92Offset, &_setup);
 
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
   int res_save = save_parameters((file_name[0] == 0) ?

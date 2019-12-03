@@ -391,7 +391,7 @@ public:
  int convert_probe(block_pointer block, GCodes g_code, setup_pointer settings);
  int convert_retract_mode(int g_code, setup_pointer settings);
  int convert_part_count(block_pointer block, setup_pointer settings);
- int convert_setup(block_pointer block, setup_pointer settings);
+ int convert_setup_work(block_pointer block, setup_pointer settings);
  int convert_setup_tool(block_pointer block, setup_pointer settings);
  int convert_set_plane(int g_code, setup_pointer settings);
  int convert_speed(block_pointer block, setup_pointer settings);
@@ -440,7 +440,9 @@ public:
 
  int clearPersistentG92Parameters(setup_pointer settings);
  ShiftTransform getG92ActiveOffset(setup_pointer settings);
- int storeG92PersistentParms(ShiftTransform const &g92_offset, setup_pointer settings);
+ int storeG92OffsetValues(ShiftTransform const &g92_offset, setup_pointer settings);
+ int storeG92Applied(bool active, setup_pointer settings);
+
  int find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & tool_offset);
  int store_tool_offset(setup_pointer settings, ShiftTransform const &tool_offset, int pocket);
  int canon_use_tool_offset(ShiftTransform const &tool_offset);

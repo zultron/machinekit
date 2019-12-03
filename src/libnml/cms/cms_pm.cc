@@ -209,7 +209,7 @@ CMS_STATUS CMS::update(PM_HOMOGENEOUS * x, int n)
 
 CMS_STATUS CMS::update(RotateShiftTransform & transform)
 {
-    update(transform.shift.tf);
+    update(transform.shift);
     update(transform.xy_rotation_rad);
     return status;
 }
@@ -221,5 +221,11 @@ CMS_STATUS CMS::update(ModalState & state)
     update(state.settings);
     update(state.work_offset_number);
     update(state.tool_offset_number);
+    return status;
+}
+
+CMS_STATUS CMS::update(ShiftTransform & transform)
+{
+    update(transform.tf);
     return status;
 }

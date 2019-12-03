@@ -317,15 +317,31 @@ void SET_G5X_TRANSFORM(int origin,
     Py_XDECREF(result_offset);
 }
 
-void SET_G92_OFFSET(double x, double y, double z,
+static ShiftTransform cached_g92{};
+
+void SET_G92_OFFSET(bool persist, double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w) {
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line();
     if(interp_error) return;
+
+    auto g92 = ShiftTransform{{x,y,z,a,b,c,u,v,w}};
+    if (persist) {
+        cached_g92 = g92;
+    }
+
     PyObject *result =
         callmethod(callback, "set_g92_offset", "fffffffff",
-                            x, y, z, a, b, c, u, v, w);
+                   g92[X],
+                   g92[Y],
+                   g92[Z],
+                   g92[A],
+                   g92[B],
+                   g92[C],
+                   g92[U],
+                   g92[V],
+                   g92[W]);
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
 }
@@ -647,6 +663,10 @@ RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin) {
     Py_XDECREF(result);
     t.setXYRotationDeg(xy_rotation_deg);
     return t;
+}
+
+ShiftTransform GET_EXTERNAL_PERSISTENT_AXIS_OFFSET() {
+    return cached_g92;
 }
 
 int GET_EXTERNAL_DIGITAL_INPUT(int index, int def) { return def; }

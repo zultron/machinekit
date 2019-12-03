@@ -503,7 +503,7 @@ static void send_g5x_msg(int index, RotateShiftTransform work_offset) {
     tag_and_send(set_g5x_msg);
 }
 
-static void send_g92_msg(void) {
+static void send_g92_msg(int persist) {
     flush_segments();
 
     /* append it to interp list so it gets updated at the right time, not at
@@ -511,6 +511,7 @@ static void send_g92_msg(void) {
     EMC_TRAJ_SET_G92 set_g92_msg;
 
     set_g92_msg.origin = to_ext_pose(interpToMachineTransform.g92Offset.tf);
+    set_g92_msg.persist = persist;
 
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed_rpm);
@@ -534,8 +535,7 @@ void SET_G5X_TRANSFORM(int index,
     send_g5x_msg(index, interpToMachineTransform.g5xOffset);
 }
 
-
-void SET_G92_OFFSET(double x, double y, double z,
+void SET_G92_OFFSET(bool persist, double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w) {
     /* convert to mm units */
@@ -544,7 +544,7 @@ void SET_G92_OFFSET(double x, double y, double z,
 
     interpToMachineTransform.g92Offset = ShiftTransform(pos);
 
-    send_g92_msg();
+    send_g92_msg(persist);
 }
 
 void USE_LENGTH_UNITS(CANON_UNITS in_unit)
@@ -2912,6 +2912,11 @@ RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin)
 
     out = emcStatus->task.g5x_table[origin];
     return out;
+}
+
+ShiftTransform GET_EXTERNAL_PERSISTENT_AXIS_OFFSET()
+{
+    return emcStatus->task.g92_offset_persistant;
 }
 
 PositionArray GET_EXTERNAL_POSITION()

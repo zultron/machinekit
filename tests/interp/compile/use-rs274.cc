@@ -49,9 +49,11 @@ void SET_G5X_TRANSFORM(int ,
                            double , double , double ,
                            double , double , double ,
                            double ) {}
-void SET_G92_OFFSET(double x, double y, double z,
-                           double a, double b, double c,
-                           double u, double v, double w) {}
+void SET_G92_OFFSET(
+    bool persist,
+    double x, double y, double z,
+    double a, double b, double c,
+    double u, double v, double w) {}
 
 void CANON_UPDATE_END_POINT(double x, double y, double z, 
 				   double a, double b, double c,
@@ -217,6 +219,7 @@ int GET_EXTERNAL_TOOL_SLOT() {return 0;}
 int GET_EXTERNAL_SELECTED_TOOL_SLOT() {return 0;}
 CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket) {return CANON_TOOL_TABLE();}
 RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin) {return RotateShiftTransform();}
+ShiftTransform GET_EXTERNAL_PERSISTENT_AXIS_OFFSET() {return ShiftTransform();}
 int GET_EXTERNAL_TC_FAULT() {return 0;}
 int GET_EXTERNAL_TC_REASON() {return 0;}
 double GET_EXTERNAL_TRAVERSE_RATE() {return 0;}

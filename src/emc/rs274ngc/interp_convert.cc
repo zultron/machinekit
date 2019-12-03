@@ -1107,32 +1107,34 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
       settings->current = cmd_position_local;
     }
 
-    settings->parameters[G92_APPLIED] = 1.0;
-    storeG92PersistentParms(settings->transform.g92Offset, settings);
+    storeG92OffsetValues(settings->transform.g92Offset, settings);
+    storeG92Applied(true, settings);
+    SET_G92_OFFSET(true, UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
 
   } else if ((g_code == G_92_1) || (g_code == G_92_2)) {
-
     // Clear current offset (first removing it from the interp position)
     settings->transform.g92Offset.apply_fwd(settings->current);
     settings->transform.g92Offset = ShiftTransform();
 
-    if (g_code == G_92_1) {
+    // KLUDGE there's a lot of overlap in these code paths
+    bool persist = (g_code == G_92_1);
+    if (persist) {
       clearPersistentG92Parameters(settings);
     } else {
-      settings->parameters[G92_APPLIED] = 0.0;
+      storeG92Applied(false, settings);
     }
+    SET_G92_OFFSET(persist, UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
   } else if (g_code == G_92_3) {
     // Remove current offset, then apply user's new offset
     settings->transform.g92Offset.apply_fwd(settings->current);
-    settings->parameters[G92_APPLIED] = 1.0;
+    storeG92Applied(true, settings);
     settings->transform.g92Offset = getG92ActiveOffset(settings);
     settings->transform.g92Offset.apply_inv(settings->current);
+
+    SET_G92_OFFSET(true, UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
   } else {
     ERS(NCE_BUG_CODE_NOT_IN_G52_G92_SERIES);
   }
-
-  // Always send a (valid) offset update down to Canon
-  SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
 
   settings->wait_flags.set(AXIS_OFFSET_MODIFIED);
   return INTERP_OK;
@@ -1628,7 +1630,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
 
   // Extract transform parts in the order that canon / tests expect
   send_current_g5x_transform();
-  SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
+  SET_G92_OFFSET(true, UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
   return INTERP_OK;
 }
 
@@ -3221,7 +3223,7 @@ int Interp::convert_g10(block_pointer block, setup_pointer settings)
         break;
     case 2:
     case 20:
-        CHP(convert_setup(block, settings));
+        CHP(convert_setup_work(block, settings));
         settings->wait_flags.set(WORK_OFFSET_MODIFIED);
         break;
     case 99:
@@ -3756,7 +3758,7 @@ See documentation of convert_coordinate_system for more information.
 
 */
 
-int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
+int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
                          setup_pointer settings)        //!< pointer to machine settings                 
 {
   CHKS((block->i_flag || block->j_flag), _("I J words not allowed with G10 L2"));
