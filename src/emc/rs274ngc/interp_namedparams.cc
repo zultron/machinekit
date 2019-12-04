@@ -90,6 +90,15 @@ enum predefined_named_parameters {
     NP_U,
     NP_V,
     NP_W,
+    NP_AXIS_OFFSET_X,
+    NP_AXIS_OFFSET_Y,
+    NP_AXIS_OFFSET_Z,
+    NP_AXIS_OFFSET_A,
+    NP_AXIS_OFFSET_B,
+    NP_AXIS_OFFSET_C,
+    NP_AXIS_OFFSET_U,
+    NP_AXIS_OFFSET_V,
+    NP_AXIS_OFFSET_W,
     NP_WORK_OFFSET_X,
     NP_WORK_OFFSET_Y,
     NP_WORK_OFFSET_Z,
@@ -717,6 +726,19 @@ int Interp::lookup_named_param(const char *nameBuf,
         *value = _setup.current[cmd - NP_X];
         break;
 
+    case NP_AXIS_OFFSET_X:
+    case NP_AXIS_OFFSET_Y:
+    case NP_AXIS_OFFSET_Z:
+    case NP_AXIS_OFFSET_A:
+    case NP_AXIS_OFFSET_B:
+    case NP_AXIS_OFFSET_C:
+    case NP_AXIS_OFFSET_U:
+    case NP_AXIS_OFFSET_V:
+    case NP_AXIS_OFFSET_W:
+        *value = _setup.transform.g92Offset.tf[cmd - NP_AXIS_OFFSET_X];
+        break;
+
+
     // current interpreter position in local coordinates
     case NP_WORK_OFFSET_X:
     case NP_WORK_OFFSET_Y:
@@ -950,6 +972,17 @@ int Interp::init_named_parameters()
   init_readonly_param("_u", NP_U, PA_USE_LOOKUP);
   init_readonly_param("_v", NP_V, PA_USE_LOOKUP);
   init_readonly_param("_w", NP_W, PA_USE_LOOKUP);
+
+  // Current axis offset value actually applied
+  init_readonly_param("_axis_offset_x", NP_AXIS_OFFSET_X, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_y", NP_AXIS_OFFSET_Y, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_z", NP_AXIS_OFFSET_Z, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_a", NP_AXIS_OFFSET_A, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_b", NP_AXIS_OFFSET_B, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_c", NP_AXIS_OFFSET_C, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_u", NP_AXIS_OFFSET_U, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_v", NP_AXIS_OFFSET_V, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_w", NP_AXIS_OFFSET_W, PA_USE_LOOKUP);
 
   // Current G5X work offset
   init_readonly_param("_work_offset_x", NP_WORK_OFFSET_X, PA_USE_LOOKUP);
