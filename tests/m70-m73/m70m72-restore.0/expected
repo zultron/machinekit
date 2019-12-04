@@ -16,6 +16,7 @@
  N..... COMMENT("interpreter: distance mode changed to absolute")
  N..... STRAIGHT_TRAVERSE(5.0000, 20.0000, 0.0000, 0.0000, 0.0000, 0.0000)
  N..... COMMENT("restore context")
+ N..... COMMENT("interpreter: continuing to use same coordinate system")
  N..... COMMENT("interpreter: distance mode changed to incremental")
  N..... COMMENT("back in relative mode due to G72")
  N..... MESSAGE(" incremental=1.000000")
