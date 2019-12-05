@@ -2727,18 +2727,18 @@ int Interp::create_full_restore_sequence(
     generator.gen_modalStateRestore(dummy_current, no_toolcomp);
     generator.addQueueBuster("Ensure that all state is restored before further processing to leave interp in a consistent state");
 
-
     generator.addPreformatted(preamble.leadin_prolog);
     // Assume that current tool tip position is the starting position of a lead-in move
-    PositionArray orig_tip_position = _setup.transform.forward_local_to_tip(GET_EXTERNAL_POSITION());
-    auto desired_nose_position_with_correct_tool = leadin_settings.initial_transform.inverse_tip_to_nose(orig_tip_position);
-    PositionArray leadin_position = _setup.transform.inverse_local_from_nose(desired_nose_position_with_correct_tool);
 
     // Traverse axes are whichever axes are not used for plunging (a crude way to generalize the XY / Z behavior of canned cycles)
     AxisMask traverse_axes = ~preamble.plunge_axes;
 
     switch (leadin_settings.leadin_type) {
-    case StartLineSettings::Type::FROM_CURRENT:
+    case StartLineSettings::Type::LINEAR:
+    {
+        PositionArray orig_tip_position = _setup.transform.forward_local_to_tip(GET_EXTERNAL_POSITION());
+        auto desired_nose_position_with_correct_tool = leadin_settings.initial_transform.inverse_tip_to_nose(orig_tip_position);
+        PositionArray leadin_position = _setup.transform.inverse_local_from_nose(desired_nose_position_with_correct_tool);
         // Should likely do nothing (move back to initial position after tool change)
         generator.addLinearRapidMove(leadin_position, traverse_axes);
         if (preamble.plunge_axes.any()) {
@@ -2746,13 +2746,14 @@ int Interp::create_full_restore_sequence(
         }
         generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
         generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
-
+    }
         break;
-    case StartLineSettings::Type::PLUNGE_FROM_CURRENT:
-        leadin_position = merge(_setup.current, leadin_position, preamble.plunge_axes);
+    case StartLineSettings::Type::PLUNGE:
+        // NOTE: traverse plane is either initial Z height, or whatever the toolchange / epilog leaves the plunge axes.
         generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
-        generator.addLinearRapidMove(leadin_position, traverse_axes);
+        generator.addLinearRapidMove(_setup.current, traverse_axes);
         CHKS(!preamble.plunge_axes.any(), _("No plunge axes specified, cannot do a plunge lead-in move"));
+        // TODO rapid to a "retract height" here (will save a lot of time with slow feeds)
         generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
         break;
     }

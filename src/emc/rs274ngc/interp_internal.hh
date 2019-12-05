@@ -362,8 +362,8 @@ struct CutterCompData
 struct StartLineSettings
 {
     enum class Type {
-        FROM_CURRENT,
-        PLUNGE_FROM_CURRENT,
+        LINEAR,
+        PLUNGE,
         };
 
     int start_line; //!< line in main program where user wants to start
