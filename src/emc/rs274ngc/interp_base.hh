@@ -23,6 +23,7 @@
 #include <interp_enums.hh>
 #include <modal_state.hh>
 #include <StateTag.hh>
+#include "coordinatetransform.hh"
 
 enum class CommandSource
 {
@@ -69,6 +70,7 @@ public:
     virtual int restore_from_tag(StateTag const &tag) = 0;
     virtual void set_loglevel(int level) = 0;
     virtual void set_loop_on_main_m99(bool state) = 0;
+    virtual LocalToMachineTransform const &get_transform() const = 0;
 };
 
 InterpBase *interp_from_shlib(const char *shlib);

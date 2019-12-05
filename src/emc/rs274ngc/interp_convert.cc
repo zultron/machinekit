@@ -2730,7 +2730,10 @@ int Interp::create_full_restore_sequence(
 
     generator.addPreformatted(preamble.leadin_prolog);
     // Assume that current tool tip position is the starting position of a lead-in move
-    PositionArray leadin_position = GET_EXTERNAL_POSITION();
+    PositionArray orig_tip_position = _setup.transform.forward_local_to_tip(GET_EXTERNAL_POSITION());
+    auto desired_nose_position_with_correct_tool = leadin_settings.initial_transform.inverse_tip_to_nose(orig_tip_position);
+    PositionArray leadin_position = _setup.transform.inverse_local_from_nose(desired_nose_position_with_correct_tool);
+
     // Traverse axes are whichever axes are not used for plunging (a crude way to generalize the XY / Z behavior of canned cycles)
     AxisMask traverse_axes = ~preamble.plunge_axes;
 
@@ -3606,7 +3609,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
 
         const PositionArray goal_local = getAxisWordsFromBlock(block, current);
 
-        const PositionArray goal_nose = working_csys.forward_to_nose(goal_local);
+        const PositionArray goal_nose = working_csys.forward_local_to_nose(goal_local);
 
         const PositionArray new_tool_offset = machine_pos - goal_nose;
         store_tool_offset(settings, ShiftTransform(new_tool_offset), pocket);
@@ -3787,7 +3790,7 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
        (_("Cannot change the active coordinate system with cutter radius compensation on")));
 
   // Get the global position for later reference
-  const PositionArray pos_current_nose = settings->transform.forward_to_nose(settings->current);
+  const PositionArray pos_current_nose = settings->transform.forward_local_to_nose(settings->current);
 
   // Starting from the active overall transform, find the effective transform for the desired work offset number
   LocalToMachineTransform desired_csys = settings->transform;
@@ -3798,7 +3801,7 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
 
     // L20 means update the work offset so that the current local position matches the commanded values
     // This does not change the global position
-    PositionArray pos_local_in_csys = desired_csys.inverse_from_nose(pos_current_nose); // Current LOCAL position in program units, as if p_int cysys was active
+    PositionArray pos_local_in_csys = desired_csys.inverse_local_from_nose(pos_current_nose); // Current LOCAL position in program units, as if p_int cysys was active
     PositionArray commanded_local = getAxisWordsFromBlock(block, pos_local_in_csys); // in program units
 
     // Unrotate the displacement vector to get the global offset (since G5x offsets are not rotated)
@@ -3806,8 +3809,8 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
     // The work offset increases by the difference between the current local position, and the desired local position
     // new_offset_global = old_offset_global + rotate_to_global(old_local - new_local)
     // Expect that a smaller "new" coordinate gives a bigger offset value
-    desired_csys.g5xOffset.shift.tf -= (desired_csys.forward_to_nose(commanded_local) - pos_current_nose);
-    const PositionArray verify_pos_commanded_nose = desired_csys.forward_to_nose(commanded_local);
+    desired_csys.g5xOffset.shift.tf -= (desired_csys.forward_local_to_nose(commanded_local) - pos_current_nose);
+    const PositionArray verify_pos_commanded_nose = desired_csys.forward_local_to_nose(commanded_local);
 
     // DEBUG only
     if (max(abs_diff(verify_pos_commanded_nose, pos_current_nose)) > 1e-8) {
@@ -3834,7 +3837,7 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
   write_and_update_state_tag(nullptr);
 
   if (p_int == settings->origin_index) {        /* system is currently used */
-    settings->current = desired_csys.inverse_from_nose(pos_current_nose);
+    settings->current = desired_csys.inverse_local_from_nose(pos_current_nose);
     settings->transform = desired_csys;
   } else {
       // Restore the current offset in task / canon

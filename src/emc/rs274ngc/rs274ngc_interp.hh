@@ -87,6 +87,8 @@ public:
  int init();
  void set_loop_on_main_m99(bool state);
 
+ LocalToMachineTransform const &get_transform() const;
+
 // load a tool table
  int load_tool_table();
 

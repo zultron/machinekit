@@ -100,6 +100,7 @@ public:
 
     void set_loglevel(int level);
     void set_loop_on_main_m99(bool state);
+    LocalToMachineTransform const &get_transform() const;
     FILE *f;
     char filename[PATH_MAX];
 };
@@ -751,5 +752,12 @@ int Canterp::active_modes(
 
 void Canterp::set_loglevel(int level) {}
 void Canterp::set_loop_on_main_m99(bool state) {}
+
+const LocalToMachineTransform & Canterp::get_transform() const
+{
+    static auto tmp = LocalToMachineTransform();
+    return tmp;
+}
+
 
 InterpBase *makeInterp() { return new Canterp; }

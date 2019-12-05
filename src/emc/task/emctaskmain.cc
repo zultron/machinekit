@@ -2381,6 +2381,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	run_msg = (EMC_TASK_PLAN_RUN *) cmd;
     start_settings.start_line = run_msg->line;
     start_settings.leadin_type = static_cast<StartLineSettings::Type>(run_msg->leadin_type);
+    start_settings.initial_transform = pinterp->get_transform();
     // KLUDGE always start by seeking (will drop into reading if the first command is at the start line)
     emcStatus->task.interpState = EMC_TASK_INTERP_SEEKING;
 	emcStatus->task.task_paused = 0;

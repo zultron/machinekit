@@ -1510,6 +1510,11 @@ void Interp::set_loop_on_main_m99(bool state) {
     _setup.loop_on_main_m99 = state;
 }
 
+const LocalToMachineTransform & Interp::get_transform() const
+{
+    return _setup.transform;
+}
+
 
 /***********************************************************************/
 
