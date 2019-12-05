@@ -2726,26 +2726,34 @@ int Interp::create_full_restore_sequence(
     no_toolcomp.g_codes[G_CODE_CUTTER_SIDE] = G_40;
     generator.gen_modalStateRestore(dummy_current, no_toolcomp);
     generator.addQueueBuster("Ensure that all state is restored before further processing to leave interp in a consistent state");
-    generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
+
 
     generator.addPreformatted(preamble.leadin_prolog);
     // Assume that current tool tip position is the starting position of a lead-in move
     PositionArray leadin_position = GET_EXTERNAL_POSITION();
+    // Traverse axes are whichever axes are not used for plunging (a crude way to generalize the XY / Z behavior of canned cycles)
+    AxisMask traverse_axes = ~preamble.plunge_axes;
+
     switch (leadin_settings.leadin_type) {
     case StartLineSettings::Type::FROM_CURRENT:
+        // Should likely do nothing (move back to initial position after tool change)
+        generator.addLinearRapidMove(leadin_position, traverse_axes);
+        if (preamble.plunge_axes.any()) {
+            generator.addLinearRapidMove(leadin_position, preamble.plunge_axes);
+        }
+        generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
+
         break;
     case StartLineSettings::Type::PLUNGE_FROM_CURRENT:
         leadin_position = merge(_setup.current, leadin_position, preamble.plunge_axes);
-        break;
-    case StartLineSettings::Type::CUSTOM:
-        leadin_position = leadin_settings.position;
+        generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
+        generator.addLinearRapidMove(leadin_position, traverse_axes);
+        if (preamble.plunge_axes.any()) {
+            generator.addLinearRapidMove(leadin_position, preamble.plunge_axes);
+        }
         break;
     }
 
-    // Traverse axes are whichever axes are not used for plunging (a crude way to generalize the XY / Z behavior of canned cycles)
-    AxisMask traverse_axes = ~preamble.plunge_axes;
-    generator.addLinearRapidMove(leadin_position, traverse_axes);
-    generator.addLinearRapidMove(leadin_position, preamble.plunge_axes);
     generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
     generator.addPreformatted(preamble.leadin_epilog);
 

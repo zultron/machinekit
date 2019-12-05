@@ -364,12 +364,11 @@ struct StartLineSettings
     enum class Type {
         FROM_CURRENT,
         PLUNGE_FROM_CURRENT,
-        CUSTOM,
         };
 
     int start_line; //!< line in main program where user wants to start
     Type leadin_type; //!< Controls lead-in behavior when not starting from the beginning of the program
-    PositionArray position; //!< For custom lead-in, specify the start position of the lead-in move.
+    //PositionArray position; //!< For custom lead-in, specify the start position of the lead-in move.
 };
 
 // Use a namespace / anonymous enum rather than enum class to allow implicit conversion to size_t for bitset
