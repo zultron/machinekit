@@ -2,6 +2,7 @@
 #include "config.h"
 #include "interp_internal.hh"
 #include <sstream>
+#include <iomanip>
 
 //TODO error checking consistently like with interp macros (or exceptions?)
 
@@ -30,6 +31,10 @@ int GCodeGenerator::formatGCode(GCodes g, std::string & cmd)
     return 0;
 }
 
+/**
+ * Populate axis words in G-code parsable format.
+ * Example (with axis mask XY, position [1.0,1e-16, ...] -> "X1.00000000 Y0.00000000"
+ */
 void GCodeGenerator::add_axes(std::ostream &out, PositionArray const &goal, AxisMask active_axes)
 {
     AxisMask axis_mask(GET_EXTERNAL_AXIS_MASK());
@@ -37,10 +42,9 @@ void GCodeGenerator::add_axes(std::ostream &out, PositionArray const &goal, Axis
         if (!axis_mask.test(i) || !active_axes.test(i)) {
             continue;
         }
-        out << AxisNames[i] << goal[i] << " ";
+        out << AxisNames[i] << std::fixed << std::setprecision(8) << goal[i] << " ";
     }
 }
-
 
 const RestoreCommandList & GCodeGenerator::getCommandSequence() const
 {
