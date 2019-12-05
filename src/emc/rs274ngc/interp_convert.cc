@@ -2745,19 +2745,18 @@ int Interp::create_full_restore_sequence(
             generator.addLinearRapidMove(leadin_position, preamble.plunge_axes);
         }
         generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
+        generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
 
         break;
     case StartLineSettings::Type::PLUNGE_FROM_CURRENT:
         leadin_position = merge(_setup.current, leadin_position, preamble.plunge_axes);
         generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
         generator.addLinearRapidMove(leadin_position, traverse_axes);
-        if (preamble.plunge_axes.any()) {
-            generator.addLinearRapidMove(leadin_position, preamble.plunge_axes);
-        }
+        CHKS(!preamble.plunge_axes.any(), _("No plunge axes specified, cannot do a plunge lead-in move"));
+        generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
         break;
     }
 
-    generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
     generator.addPreformatted(preamble.leadin_epilog);
 
     restore_cmd_list = generator.getCommandSequence();

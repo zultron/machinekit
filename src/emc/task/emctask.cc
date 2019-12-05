@@ -566,7 +566,9 @@ int emcTaskPlanFinishLineSeek(StartLineSettings const &start_settings)
     if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
         // FIXME support other lead-in types once GUI support is in place (needs more plumbing from task)
         res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek, start_settings);
-    } else {
+    }
+
+    if (isInterpError((InterpReturn)res_interp)) {
         print_interp_error(res_interp);
         // Can't continue here with an error
         emcStatus->task.interpState = EMC_TASK_INTERP_WAITING;
