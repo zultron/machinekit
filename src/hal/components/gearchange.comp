@@ -8,6 +8,7 @@ The scale of gear 2 is relative to gear 1, so if gear 2 runs the spindle
 pin in bit sel "Gear selection input";
 pin in float speed_in "Speed command input";
 pin out float speed_out "Speed command to DAC/PWM";
+pin out float ratio_out "Gear ratio of active gear";
 pin in bit dir_in "Direction command input";
 pin out bit dir_out "Direction output - possibly inverted for second gear";
 pin out bit alarm "true when spindle speed command outside min/max limits";
@@ -44,6 +45,7 @@ FUNCTION(_) {
     	    alarm = 1;
     	}
     	temp_in /= scale2;		/* scale up to second gear output range */
+        ratio_out = scale2;
 	dir_out = dir_in ^ reverse;
     } else {
         alarm = 0;
@@ -55,6 +57,7 @@ FUNCTION(_) {
     	    temp_in = max1;
     	    alarm = 1;
     	}
+        ratio_out = 1.0;
 	dir_out = dir_in;
     }
     speed_out = sign*temp_in;
