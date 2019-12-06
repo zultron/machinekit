@@ -200,7 +200,7 @@ PositionArray LocalToMachineTransform::forward_nose_to_tip(const PositionArray &
     return toolOffset.forward(nose);
 }
 
-PositionArray LocalToMachineTransform::inverse_tip_to_nose(const PositionArray & tip) const
+PositionArray LocalToMachineTransform::inverse_nose_from_tip(const PositionArray & tip) const
 {
     return toolOffset.inverse(tip);
 }

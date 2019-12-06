@@ -87,7 +87,7 @@ struct LocalToMachineTransform : public TransformBase
     virtual PositionArray inverse_local_from_tip(PositionArray const &tip) const {return inverse(tip);}
 
     virtual PositionArray forward_nose_to_tip(PositionArray const &nose) const;
-    virtual PositionArray inverse_tip_to_nose(PositionArray const &tip) const;
+    virtual PositionArray inverse_nose_from_tip(PositionArray const &tip) const;
 
     PositionArray swap_tool_offset(PositionArray const &current_local_pos, ShiftTransform const &new_tool_offset);
     PositionArray swap_g5x_offset(PositionArray const &current_local_pos, RotateShiftTransform const &new_g5x_offset);

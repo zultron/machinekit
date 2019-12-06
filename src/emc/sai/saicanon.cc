@@ -729,6 +729,10 @@ int WAIT(int index, CANON_INPUT input_type, CANON_WAIT_MODE wait_type, double ti
 int UNLOCK_ROTARY(int line_no, int axis) {return 0;}
 int LOCK_ROTARY(int line_no, int axis) {return 0;}
 
+bool IN_START_LINE_SEEK() {
+    return false;
+}
+
 /* Returns the system feed rate */
 double GET_EXTERNAL_FEED_RATE()
 {

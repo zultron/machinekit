@@ -2737,7 +2737,7 @@ int Interp::create_full_restore_sequence(
     case StartLineSettings::Type::LINEAR:
     {
         PositionArray orig_tip_position = _setup.transform.forward_local_to_tip(GET_EXTERNAL_POSITION());
-        auto desired_nose_position_with_correct_tool = leadin_settings.initial_transform.inverse_tip_to_nose(orig_tip_position);
+        auto desired_nose_position_with_correct_tool = leadin_settings.initial_transform.inverse_nose_from_tip(orig_tip_position);
         PositionArray leadin_position = _setup.transform.inverse_local_from_nose(desired_nose_position_with_correct_tool);
         // Should likely do nothing (move back to initial position after tool change)
         generator.addLinearRapidMove(leadin_position, traverse_axes);

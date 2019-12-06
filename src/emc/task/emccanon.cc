@@ -2987,6 +2987,11 @@ double GET_EXTERNAL_PROBE_VALUE()
     return 0.0;
 }
 
+bool IN_START_LINE_SEEK()
+{
+    return emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING;
+}
+
 // feed rate wanted is in program units per minute
 double GET_EXTERNAL_FEED_RATE()
 {

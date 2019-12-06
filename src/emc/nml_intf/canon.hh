@@ -659,6 +659,8 @@ below.
 extern double GET_EXTERNAL_ANGLE_UNIT_FACTOR();
 */
 
+extern bool IN_START_LINE_SEEK();
+
 // Returns the system feed rate
 extern double GET_EXTERNAL_FEED_RATE();
 

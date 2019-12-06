@@ -408,11 +408,16 @@ int Interp::precedence(int an_operator)
 }
 
 
-int Interp::refresh_actual_position(setup_pointer settings) 
+int Interp::refresh_actual_position(setup_pointer settings)
 {
-  settings->current = GET_EXTERNAL_POSITION();
-
-  return INTERP_OK;
+    if (IN_START_LINE_SEEK()) {
+        // Assume plunge axes have returned to the home position (e.g. during a tool change or after a probe)
+        PositionArray local_machine_zero = settings->transform.inverse_local_from_tip(PositionArray{});
+        settings->current = merge(settings->current, local_machine_zero, settings->default_seek_preamble.plunge_axes);
+    } else {
+        settings->current = GET_EXTERNAL_POSITION();
+    }
+    return INTERP_OK;
 }
 
 static inline void wrap_rotary_value(double &unwrapped_pos)
