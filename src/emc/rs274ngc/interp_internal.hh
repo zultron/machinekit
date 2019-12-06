@@ -361,13 +361,8 @@ struct CutterCompData
 
 struct StartLineSettings
 {
-    enum class Type {
-        LINEAR,
-        PLUNGE,
-        };
-
     int start_line; //!< line in main program where user wants to start
-    Type leadin_type; //!< Controls lead-in behavior when not starting from the beginning of the program
+    RunPrepType prep_type; //!< Controls preparation / lead-in behavior when not starting from the beginning of the program
     LocalToMachineTransform initial_transform;
     //PositionArray position; //!< For custom lead-in, specify the start position of the lead-in move.
 };

@@ -2733,8 +2733,8 @@ int Interp::create_full_restore_sequence(
     // Traverse axes are whichever axes are not used for plunging (a crude way to generalize the XY / Z behavior of canned cycles)
     AxisMask traverse_axes = ~preamble.plunge_axes;
 
-    switch (leadin_settings.leadin_type) {
-    case StartLineSettings::Type::LINEAR:
+    switch (leadin_settings.prep_type) {
+    case PREP_LINEAR_LEADIN:
     {
         PositionArray orig_tip_position = _setup.transform.forward_local_to_tip(GET_EXTERNAL_POSITION());
         auto desired_nose_position_with_correct_tool = leadin_settings.initial_transform.inverse_nose_from_tip(orig_tip_position);
@@ -2748,7 +2748,7 @@ int Interp::create_full_restore_sequence(
         generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
     }
         break;
-    case StartLineSettings::Type::PLUNGE:
+    case PREP_PLUNGE_LEADIN:
         // NOTE: traverse plane is either initial Z height, or whatever the toolchange / epilog leaves the plunge axes.
         generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
         generator.addLinearRapidMove(_setup.current, traverse_axes);
@@ -2756,6 +2756,10 @@ int Interp::create_full_restore_sequence(
         // TODO rapid to a "retract height" here (will save a lot of time with slow feeds)
         generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
         break;
+    case PREP_NONE:
+        // Should never get here, so just flush out the list
+        restore_cmd_list = RestoreCommandList();
+        return 0;
     }
 
     generator.addPreformatted(preamble.leadin_epilog);

@@ -550,20 +550,26 @@ int emcTaskPlanSynch()
     return retval;
 }
 
+bool needs_prep(StartLineSettings const &s)
+{
+    return s.prep_type != PREP_NONE;
+}
+
 int emcTaskPlanFinishLineSeek(StartLineSettings const &start_settings)
 {
     Interp *rs274_interp = dynamic_cast<Interp*>(pinterp);
 
     ModalState state_at_seek{};
     int res_interp = INTERP_OK;
-    if (rs274_interp) {
+    if (rs274_interp && needs_prep(start_settings)) {
         // NOTE: modal state is recorded before the transition for use in the restore sequence
         res_interp = rs274_interp->cbBeforeSeekReadTransition(state_at_seek);
-        emcTaskPlanPurgeInterpQueue();
     }
+
+    emcTaskPlanPurgeInterpQueue();
     emcStatus->task.interpState = EMC_TASK_INTERP_READING;
 
-    if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
+    if (!isInterpError((InterpReturn)res_interp) && rs274_interp && needs_prep(start_settings)) {
         // FIXME support other lead-in types once GUI support is in place (needs more plumbing from task)
         res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek, start_settings);
     }

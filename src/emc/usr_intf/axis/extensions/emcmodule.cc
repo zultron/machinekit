@@ -1166,7 +1166,7 @@ static PyObject *emcauto(pyCommandChannel *s, PyObject *o) {
     EMC_TASK_PLAN_RESUME resume;
     EMC_TASK_PLAN_STEP step;
 
-    if(PyArg_ParseTuple(o, "ii|i", &fn, &run.line, &run.leadin_type) && fn == LOCAL_AUTO_RUN) {
+    if(PyArg_ParseTuple(o, "ii|i", &fn, &run.line, &run.prep_type) && fn == LOCAL_AUTO_RUN) {
         emcSendCommand(s, run);
     } else {
         PyErr_Clear();
@@ -2503,6 +2503,10 @@ initlinuxcnc(void) {
     ENUMX(0, G_CODE_SPINDLE_MODE);
     ENUMX(0, G_CODE_DISTANCE_MODE_IJK);
     ENUMX(0, G_CODE_LATHE_DIAMETER_MODE);
+
+    ENUM(PREP_NONE);
+    ENUM(PREP_LINEAR_LEADIN);
+    ENUM(PREP_PLUNGE_LEADIN);
 
     // Constants for indexing into the status.mcodes[] array
     ENUMX(0, M_CODE_SEQUENCE_NUMBER);
