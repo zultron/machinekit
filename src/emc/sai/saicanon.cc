@@ -140,7 +140,7 @@ void SET_G5X_TRANSFORM(int index,
 }
 
 
-void SET_G92_OFFSET(bool persist, double x, double y, double z,
+void SET_G92_OFFSET(bool applied, double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w) {
   ECHO_WITH_ARGS("%.4f, %.4f, %.4f, %.4f, %.4f, %.4f",
@@ -163,11 +163,12 @@ void SET_G92_OFFSET(bool persist, double x, double y, double z,
       v,
       w,
   }};
-  if (persist) {
-      _sai.g92_offset_persistant = _sai.g92_offset;
+  _sai.axis_offset_param.applied = applied;
+  if (applied) {
+      _sai.axis_offset_param.offset = _sai.g92_offset;
       if (_sai._length_unit_type == CANON_UNITS_MM) {
           // Assume inches for "user" units
-          UnitsTransform(25.4, 1.0).apply_inv(_sai.g92_offset_persistant.tf);
+          UnitsTransform(25.4, 1.0).apply_inv(_sai.axis_offset_param.offset.tf);
       }
   }
 }
@@ -967,9 +968,9 @@ extern RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin)
   return _sai._g5x_table[(size_t)origin];
 }
 
-extern ShiftTransform GET_EXTERNAL_PERSISTENT_AXIS_OFFSET()
+extern AxisOffsetParams GET_EXTERNAL_PERSISTENT_AXIS_OFFSET()
 {
-  return _sai.g92_offset_persistant;
+  return _sai.axis_offset_param;
 }
 
 /* Returns the system traverse rate */
@@ -1160,7 +1161,7 @@ StandaloneInterpInternals::StandaloneInterpInternals() :
   _g5x_b(0.0),
   _g5x_c(0.0),
   g92_offset(),
-  g92_offset_persistant(),
+  axis_offset_param(),
   _program_position(),
   _spindle_speed(0),
   _spindle_turning(CANON_STOPPED),

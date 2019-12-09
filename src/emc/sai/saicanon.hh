@@ -38,7 +38,7 @@ struct StandaloneInterpInternals
   double _g5x_b;
   double _g5x_c;
   ShiftTransform g92_offset;
-  ShiftTransform g92_offset_persistant;
+  AxisOffsetParams axis_offset_param;
   PositionArray _program_position;
   double _spindle_speed;
   CANON_DIRECTION _spindle_turning;

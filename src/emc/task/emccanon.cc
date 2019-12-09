@@ -511,7 +511,7 @@ static void send_g92_msg(int persist) {
     EMC_TRAJ_SET_G92 set_g92_msg;
 
     set_g92_msg.origin = to_ext_pose(interpToMachineTransform.g92Offset.tf);
-    set_g92_msg.persist = persist;
+    set_g92_msg.applied = persist;
 
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed_rpm);
@@ -535,7 +535,7 @@ void SET_G5X_TRANSFORM(int index,
     send_g5x_msg(index, interpToMachineTransform.g5xOffset);
 }
 
-void SET_G92_OFFSET(bool persist, double x, double y, double z,
+void SET_G92_OFFSET(bool applied, double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w) {
     /* convert to mm units */
@@ -544,7 +544,7 @@ void SET_G92_OFFSET(bool persist, double x, double y, double z,
 
     interpToMachineTransform.g92Offset = ShiftTransform(pos);
 
-    send_g92_msg(persist);
+    send_g92_msg(applied);
 }
 
 void USE_LENGTH_UNITS(CANON_UNITS in_unit)
@@ -2914,11 +2914,14 @@ RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin)
     return out;
 }
 
-ShiftTransform GET_EXTERNAL_PERSISTENT_AXIS_OFFSET()
+AxisOffsetParams GET_EXTERNAL_PERSISTENT_AXIS_OFFSET()
 {
-    return emcStatus->task.g92_offset_persistant;
+    return {emcStatus->task.g92_offset_persistant, emcStatus->task.g92_applied};
 }
 
+/**
+ * Gets current machine position in read-ahead-time local coordinates.
+ */
 PositionArray GET_EXTERNAL_POSITION()
 {
     // Get updated unit converters given current canon / motion settings

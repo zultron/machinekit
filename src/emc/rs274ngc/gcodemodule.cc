@@ -317,9 +317,9 @@ void SET_G5X_TRANSFORM(int origin,
     Py_XDECREF(result_offset);
 }
 
-static ShiftTransform cached_g92{};
+static AxisOffsetParams cached_g92{};
 
-void SET_G92_OFFSET(bool persist, double x, double y, double z,
+void SET_G92_OFFSET(bool applied, double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w) {
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
@@ -327,8 +327,9 @@ void SET_G92_OFFSET(bool persist, double x, double y, double z,
     if(interp_error) return;
 
     auto g92 = ShiftTransform{{x,y,z,a,b,c,u,v,w}};
-    if (persist) {
-        cached_g92 = g92;
+    cached_g92.applied = applied;
+    if (applied) {
+        cached_g92.offset = g92;
     }
 
     PyObject *result =
@@ -665,7 +666,7 @@ RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin) {
     return t;
 }
 
-ShiftTransform GET_EXTERNAL_PERSISTENT_AXIS_OFFSET() {
+AxisOffsetParams GET_EXTERNAL_PERSISTENT_AXIS_OFFSET() {
     return cached_g92;
 }
 

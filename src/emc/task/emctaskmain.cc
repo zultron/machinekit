@@ -2003,13 +2003,17 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     retval = 0;
     break;
     case EMC_TRAJ_SET_G92_TYPE:
+    {
+        auto g92_cmd = ((EMC_TRAJ_SET_G92 const &) *cmd);
         // struct-copy program origin
-        emcStatus->task.g92_offset = ((EMC_TRAJ_SET_G92 *) cmd)->origin;
-        if (((EMC_TRAJ_SET_G92 *) cmd)->persist) {
+        emcStatus->task.g92_offset = g92_cmd.origin;
+        emcStatus->task.g92_applied = g92_cmd.applied;
+        if (g92_cmd.applied) {
             emcStatus->task.g92_offset_persistant = toArray(emcStatus->task.g92_offset);
         }
-	retval = 0;
-	break;
+        retval = 0;
+    }
+    break;
     case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
 	retval = emcTrajClearProbeTrippedFlag();
 	break;

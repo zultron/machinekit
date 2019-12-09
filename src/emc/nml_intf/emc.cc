@@ -1944,6 +1944,10 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(interpreter_errcode);
     cms->update(g5x_table);
     cms->update(g92_offset_persistant);
+    cms->update(g92_applied);
+    cms->update(program_ended_and_reset);
+    cms->update(program_ended);
+    cms->update(block_delete_state);
     cms->update(optional_stop_state);
     cms->update(block_delete_state);
     cms->update(input_timeout);
@@ -2314,7 +2318,7 @@ void EMC_TRAJ_SET_G92::update(CMS * cms)
 
     EMC_TRAJ_CMD_MSG::update(cms);
     EmcPose_update(cms, &origin);
-    cms->update(persist);
+    cms->update(applied);
 
 }
 

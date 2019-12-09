@@ -2440,23 +2440,22 @@ int Interp::save_parameters(
 
 /***********************************************************************/
 
-/*! Interp::synch
-
-Returned Value: int (INTERP_OK)
-
-Side Effects:
-   sets the value of many attribute of _setup by calling various
-   GET_EXTERNAL_xxx functions.
-
-Called By:
-   Interp::init
-   external programs
-
-This function gets the _setup world model in synch with the rest of
-the controller.
-
-*/
-
+/**
+ * Updates _setup world model from "external" machine state.
+ *
+ * Also sets the value of many attribute of _setup by calling various
+ * GET_EXTERNAL_xxx functions.
+ *
+ * Called By:
+ *   Interp::init
+ *   external programs
+ *
+ * @return int (INTERP_OK), or an error code via the Interp error handler
+ *
+ * @warning Do not change active coordinate transforms / offsets here.  Offsets
+ * / rotations must be re-applied in a separate restore operation, to ensure that interp / canon
+ * always have the same transforms.
+ */
 int Interp::synch()
 {
 
@@ -2467,7 +2466,11 @@ int Interp::synch()
   _setup.current_pocket = GET_EXTERNAL_TOOL_SLOT();
   _setup.feed_rate = GET_EXTERNAL_FEED_RATE();
   _setup.flood = GET_EXTERNAL_FLOOD();
+  // FIXME this is effectively a no-op, since canon units track interp's units.
+  // If they aren't the same, it would massively break some assumptions in Interp.
+  // Many fields like current position, offsets, feed rate, etc. are in program units
   _setup.length_units = GET_EXTERNAL_LENGTH_UNIT_TYPE();
+
   _setup.mist = GET_EXTERNAL_MIST();
   _setup.plane = GET_EXTERNAL_PLANE();
   _setup.selected_pocket = GET_EXTERNAL_SELECTED_TOOL_SLOT();
@@ -2488,10 +2491,6 @@ int Interp::synch()
 
   // Restore any work offsets that were changed during readahead but not reached by motion yet.
   synch_work_offsets_from_task();
-
-  // Restore G92 offset from task and store
-  _setup.transform.g92Offset = convertsUserToProgram().forward(GET_EXTERNAL_PERSISTENT_AXIS_OFFSET().tf);
-  storeG92OffsetValues(_setup.transform.g92Offset, &_setup);
 
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
   int res_save = save_parameters((file_name[0] == 0) ?

@@ -2686,7 +2686,26 @@ int Interp::restore_from_tag(StateTag const &tag)
 
     //KLUDGE pretend it's M2 that's aborting though it could be something else
     restore_settings_impl(current, saved, 2);
+
     write_modal_state(nullptr, &_setup);
+
+    // KLUDGE also restore G92 state
+    GCodeGenerator generator(_setup.feature_set);
+    AxisOffsetParams axis_offset_user = GET_EXTERNAL_PERSISTENT_AXIS_OFFSET();
+    generator.addLocalAxisOffsets(axis_offset_user.offset);
+    if (!axis_offset_user.applied) {
+        // Implies that persistent offsets are stored but not currently used
+        generator.clearLocalAxisOffsets(false);
+    }
+    RestoreCommandList const &cmd_list = generator.getCommandSequence();
+
+    logDebug("Restore G92 Offsets: ");
+    for (auto const &cmd_str : cmd_list) {
+        const char *c = cmd_str.c_str();
+        logDebug("%s", c);
+    }
+
+    execute_gcode_sequence(cmd_list, 2, "restore_g92");
 
     return INTERP_OK;
 }
