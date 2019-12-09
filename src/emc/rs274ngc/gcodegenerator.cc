@@ -102,6 +102,25 @@ void GCodeGenerator::addToolChange(int tool_number)
     cmd_list.emplace_back(buf);
 }
 
+/**
+ * Directly set up local axis offsets (equivalent to G52 and axis words).
+ */
+void GCodeGenerator::addLocalAxisOffsets(const ShiftTransform & local_axis_offset, AxisMask active_axes)
+{
+    if (!active_axes.any()) {
+        return;
+    }
+    std::ostringstream gcode;
+    gcode << "G52 ";
+    add_axes(gcode, local_axis_offset.tf, active_axes);
+    cmd_list.push_back(gcode.str());
+}
+
+void GCodeGenerator::clearLocalAxisOffsets(bool clear_params)
+{
+    cmd_list.push_back(clear_params ? "G92.1" : "G92.2");
+}
+
 void GCodeGenerator::addToolCompensation(GCodes cutter_side, double cutter_radius)
 {
     start_next_line();

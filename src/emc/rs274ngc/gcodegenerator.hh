@@ -10,6 +10,7 @@
 using RestoreCommandList = std::vector<std::string>;
 
 struct setup_struct;
+struct ShiftTransform;
 
 class GCodeGenerator
 {
@@ -35,6 +36,8 @@ public:
     void addWorkOffset(int work_offset_number);
     void addToolOffset(int tool_number);
     void addToolChange(int tool_number);
+    void addLocalAxisOffsets(ShiftTransform const &local_axis_offset, AxisMask active_axes=-1);
+    void clearLocalAxisOffsets(bool clear_params);
     int addModalStateGCodes(ModalState &current, const ModalState & saved);
     int addModalStateMCodes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved);
     int addQueueBuster(const char * comment=nullptr);

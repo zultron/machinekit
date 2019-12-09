@@ -1127,9 +1127,9 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
   } else if (g_code == G_92_3) {
     // Remove current offset, then apply user's new offset
     settings->transform.g92Offset.apply_fwd(settings->current);
-    storeG92Applied(true, settings);
-    settings->transform.g92Offset = getG92ActiveOffset(settings);
+    settings->transform.g92Offset = getG92ParameterValues(settings);
     settings->transform.g92Offset.apply_inv(settings->current);
+    storeG92Applied(true, settings);
 
     SET_G92_OFFSET(true, UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
   } else {
@@ -2718,6 +2718,13 @@ int Interp::create_full_restore_sequence(
     generator.addPreformatted(preamble.toolchange_prolog);
     generator.addToolChange(_setup.getCurrentToolNumber());
     generator.addPreformatted(preamble.toolchange_epilog);
+
+    // Crude way to ensure that the "persistant" values are properly copied into stat
+    // Always send the actual paramter values, then clear the offsets if need be
+    generator.addLocalAxisOffsets(getG92ParameterValues(&_setup));
+    if (_setup.parameters[G92_APPLIED] == 0.0) {
+        generator.clearLocalAxisOffsets(false);
+    }
 
     // NOTE: modal state was captured already in seek / read transition handler, so pull it back out here
     ModalState dummy_current{};

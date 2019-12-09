@@ -834,6 +834,8 @@ int read_inputs(setup_pointer settings);
     
     int load_interp_preamble(IniFile & inifile);
 
+    ShiftTransform getG92ParameterValues(setup_pointer settings);
+
 protected:
     bool error_has_context;
 

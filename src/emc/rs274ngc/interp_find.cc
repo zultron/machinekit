@@ -370,12 +370,17 @@ int Interp::clearPersistentG92Parameters(setup_pointer settings)
  * Based on the current parameters, return the active offset (or zeros if it's inactive)
  * @warning only returns non-zero values if an offset is currently active in the parameter table.
  */
-ShiftTransform Interp::getG92ActiveOffset(setup_pointer settings)
+ShiftTransform Interp::getG92ParameterValues(setup_pointer settings)
 {
-  if (settings->parameters[G92_APPLIED] != 0.0) {
     double *axis_offset_begin = &settings->parameters[G92_X];
     const UnitsTransform user_to_program = convertsUserToProgram();
     return user_to_program.forward(toArray(axis_offset_begin, 9));
+}
+
+ShiftTransform Interp::getG92ActiveOffset(setup_pointer settings)
+{
+  if (settings->parameters[G92_APPLIED] != 0.0) {
+    return getG92ParameterValues(settings);
   } else {
     return ShiftTransform();
   }
