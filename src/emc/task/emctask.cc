@@ -569,9 +569,14 @@ int emcTaskPlanFinishLineSeek(StartLineSettings const &start_settings)
     emcTaskPlanPurgeInterpQueue();
     emcStatus->task.interpState = EMC_TASK_INTERP_READING;
 
-    if (!isInterpError((InterpReturn)res_interp) && rs274_interp && needs_prep(start_settings)) {
-        // FIXME support other lead-in types once GUI support is in place (needs more plumbing from task)
+    bool need_state_restore = !isInterpError((InterpReturn)res_interp) && rs274_interp && needs_prep(start_settings);
+    if (need_state_restore) {
+        // Do a full modal state restore as if the program had executed from line 1,
+        // and insert any preparatory actions like tool changes / lead-in moves.
         res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek, start_settings);
+    } else {
+        // Legacy behavior that just synchs up with world without doing explicit modal state restore
+        emcTaskPlanSynch();
     }
 
     if (isInterpError((InterpReturn)res_interp)) {
