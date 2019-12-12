@@ -256,7 +256,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     # confusing, but I guess this is an alias for straight_feed above
     straight_probe = straight_feed
     # KLUDGE will complain if the endpoint is not within limits even though it doesn't matter
-    straight_probe_to_limits = straight_feed
+    straight_probe_to_limit = straight_feed
 
     def straight_feed_synched(self, lineno, x,y,z, a,b,c, u,v,w, s, fpr):
         """For spindle-synched straight feeds, also collect data needed to
