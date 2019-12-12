@@ -259,7 +259,7 @@ int GCodeGenerator::addQueueBuster(const char *comment)
 int GCodeGenerator::addLinearFeedMove(PositionArray const & goal, double feed_prog, AxisMask active_axes)
 {
     std::ostringstream feed_move;
-    feed_move << "G1 ";
+    feed_move << "G90.2 G1 ";
     add_axes(feed_move, goal, active_axes);
 
     if (feed_prog >= 0.0) {
@@ -273,7 +273,7 @@ int GCodeGenerator::addLinearFeedMove(PositionArray const & goal, double feed_pr
 int GCodeGenerator::addLinearRapidMove(PositionArray const & goal, AxisMask active_axes)
 {
     std::ostringstream rapid_move;
-    rapid_move << "G0 ";
+    rapid_move << "G90.2 G0 ";
     add_axes(rapid_move, goal, active_axes);
 
     cmd_list.emplace_back(rapid_move.str());

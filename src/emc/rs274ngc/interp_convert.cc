@@ -2734,6 +2734,7 @@ int Interp::create_full_restore_sequence(
     }
 #endif
 
+    generator.addPreformatted("G90"); // Necessary to allow absolute moves in toolchange prolog
     generator.addPreformatted(preamble.toolchange_prolog);
     generator.addToolChange(_setup.getCurrentToolNumber());
     generator.addPreformatted(preamble.toolchange_epilog);
