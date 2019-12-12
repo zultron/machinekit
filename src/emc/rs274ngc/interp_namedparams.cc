@@ -51,6 +51,7 @@ enum predefined_named_parameters {
     NP_MOTION_MODE,
     NP_PLANE,
     NP_CCOMP,
+    NP_CCOMP_DIAMETER,
     NP_METRIC,
     NP_IMPERIAL,
     NP_ABSOLUTE,
@@ -582,7 +583,12 @@ int Interp::lookup_named_param(const char *nameBuf,
 	*value =
 	    (_setup.cutter_comp.side == RIGHT_COMP) ? G_42 :
 	(_setup.cutter_comp.side == LEFT_COMP) ? G_41 : G_40;
-	break;
+    break;
+
+    case NP_CCOMP_DIAMETER:
+        *value = _setup.cutter_comp.radius * 2.0;
+    break;
+
 
     case NP_METRIC: // _metric
 	*value = (_setup.length_units == CANON_UNITS_MM);
@@ -885,6 +891,8 @@ int Interp::init_named_parameters()
 
   // return 400,410,420 depending if (G40,G41,G42) is on
   init_readonly_param("_ccomp", NP_CCOMP, PA_USE_LOOKUP);
+
+  init_readonly_param("_ccomp_diameter", NP_CCOMP_DIAMETER, PA_USE_LOOKUP);
 
   // 1.0 if G21 is on
   init_readonly_param("_metric", NP_METRIC, PA_USE_LOOKUP);
