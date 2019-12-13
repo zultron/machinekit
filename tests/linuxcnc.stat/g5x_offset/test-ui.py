@@ -69,6 +69,8 @@ def do_unit_checks(s):
     for i, o in [(0, s.g5x_offset)] + standard_offsets:
         print "CHECK offset %d/%s:  X%.2f Y%.2f Z%.2f" % \
             tuple([i, offsets_map[i]] + list(o[:3]))
+    for n,v in zip('xyzabcuvw',s.g92_offset):
+        print "CHECK axis offset {} = {}".format(n,v)
     # - Sanity checks
     if offsets_map.get(s.g5x_index, None) != s.gcodes[8]:
         print "CHECK ERROR:  s.g5x_index=%s/%s != s.gcodes[8]=%s" % \
