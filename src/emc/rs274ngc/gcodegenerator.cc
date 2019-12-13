@@ -102,6 +102,13 @@ void GCodeGenerator::addToolChange(int tool_number)
     cmd_list.emplace_back(buf);
 }
 
+void GCodeGenerator::addToolLengthOffsetFromTable(int tool_number)
+{
+    char buf[LINELEN];
+    snprintf(buf, sizeof(buf), "G43 H%d", tool_number);
+    cmd_list.push_back(buf);
+}
+
 /**
  * Directly set up local axis offsets (equivalent to G52 and axis words).
  */

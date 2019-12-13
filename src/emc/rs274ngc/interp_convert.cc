@@ -2569,6 +2569,7 @@ int Interp::write_modal_state(const block_pointer block, const setup_pointer set
     CHP(write_settings(settings, out));
     out.work_offset_number = settings->origin_index;
     out.tool_offset_number = settings->getCurrentToolNumber();
+    out.tool_offset_mode = settings->tool_offset_mode;
     out.cutter_comp = settings->cutter_comp;
     return INTERP_OK;
 }
@@ -2759,7 +2760,24 @@ int Interp::create_full_restore_sequence(
     // KLUDGE Don't restore toolcomp till after the queue-buster...
     ModalState no_toolcomp = to_restore;
     no_toolcomp.g_codes[G_CODE_CUTTER_SIDE] = G_40;
+    no_toolcomp.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = G_49;
     generator.gen_modalStateRestore(dummy_current, no_toolcomp);
+    switch (to_restore.tool_offset_mode) {
+    case G_49:
+        // Do nothing, already cancelled in the modal state restore
+        break;
+    case G_43:
+        generator.addToolLengthOffsetFromTable(to_restore.tool_offset_number);
+        break;
+    case G_43_1:
+    case G_43_2:
+        // TODO support this if there is sufficient demand for it...
+        ERS("Cannot restore tool offset modes G43.1 / G43.2");
+        break;
+    default:
+        ERS("Unknown mode %d in tool offset restore", to_restore.tool_offset_mode);
+    }
+
     generator.addQueueBuster("Ensure that all state is restored before further processing to leave interp in a consistent state");
 
     generator.addPreformatted(preamble.leadin_prolog);

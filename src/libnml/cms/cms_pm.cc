@@ -221,6 +221,7 @@ CMS_STATUS CMS::update(ModalState & state)
     update(state.settings);
     update(state.work_offset_number);
     update(state.tool_offset_number);
+    // TODO copy the rest of the modal state if needed by external processes
     return status;
 }
 

@@ -36,6 +36,7 @@ public:
     void addWorkOffset(int work_offset_number);
     void addToolOffset(int tool_number);
     void addToolChange(int tool_number);
+    void addToolLengthOffsetFromTable(int tool_number);
     void addLocalAxisOffsets(ShiftTransform const &local_axis_offset, AxisMask active_axes=-1);
     void clearLocalAxisOffsets(bool clear_params);
     int addModalStateGCodes(ModalState &current, const ModalState & saved);
