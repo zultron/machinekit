@@ -309,10 +309,12 @@ int GCodeGenerator::gen_modalStateRestore(ModalState & current, const ModalState
 
 void GCodeGenerator::addToolCompensation(GCodes cutter_side, CutterCompData const & comp_data_to_restore)
 {
-    if (comp_data_to_restore.radius_from_tool) {
+    if (comp_data_to_restore.side == NO_COMP) {
+        addPreformatted("G40");
+    } else if (comp_data_to_restore.radius_from_tool) {
         addToolCompensationFromTable(cutter_side, comp_data_to_restore.tool_number);
     } else {
-        addToolCompensationFromTable(cutter_side, comp_data_to_restore.radius);
+        addToolCompensationWithRadius(cutter_side, comp_data_to_restore.radius);
     }
 }
 
