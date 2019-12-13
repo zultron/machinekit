@@ -46,6 +46,7 @@ G0 X22 F0.01
 ; Program should never reach here; change everything
 G55 G21 G10 L2 P2 X10 Y10 Z10
 G59.1 G21 G10 L2 P7 X12.7 Y12.7 Z12.7
+G52 X1 Y2 Z3
 M3
 
 %
