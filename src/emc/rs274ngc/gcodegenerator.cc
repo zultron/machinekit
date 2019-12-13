@@ -121,20 +121,25 @@ void GCodeGenerator::clearLocalAxisOffsets(bool clear_params)
     cmd_list.push_back(clear_params ? "G92.1" : "G92.2");
 }
 
-void GCodeGenerator::addToolCompensation(GCodes cutter_side, double cutter_radius)
+void GCodeGenerator::addToolCompensationWithRadius(GCodes cutter_side, double cutter_radius)
 {
     start_next_line();
     std::string &cmd = cmd_list.back();
-    // Re-enable cutter comp if it was active
-    // WARNING: radius really should not be negative here
-    if (cutter_radius != 0) {
-        // Restore an explicit radius if it's not pulled from the tool table
-        formatGCode((GCodes)(cutter_side + 1), cmd);
+    formatGCode((GCodes)(cutter_side + 1), cmd);
+    char buf[LINELEN];
+    snprintf(buf, sizeof(buf), " D%f", cutter_radius * 2.0);
+    cmd += buf;
+}
+
+void GCodeGenerator::addToolCompensationFromTable(GCodes cutter_side, int tool_number)
+{
+    start_next_line();
+    std::string &cmd = cmd_list.back();
+    formatGCode((GCodes)(cutter_side), cmd);
+    if (tool_number >= 0) {
         char buf[LINELEN];
-        snprintf(buf, sizeof(buf), " D%f", cutter_radius * 2.0);
+        snprintf(buf, sizeof(buf), " D%d", tool_number);
         cmd += buf;
-    } else {
-        formatGCode((GCodes)(cutter_side), cmd);
     }
 }
 
@@ -293,6 +298,15 @@ int GCodeGenerator::gen_modalStateRestore(ModalState & current, const ModalState
     // G code commands currently all execute in a single line (may change in the future if there are conflicts)
     addModalStateGCodes(current, saved);
     return 0;
+}
+
+void GCodeGenerator::addToolCompensation(GCodes cutter_side, CutterCompData const & comp_data_to_restore)
+{
+    if (comp_data_to_restore.radius_from_tool) {
+        addToolCompensationFromTable(cutter_side, comp_data_to_restore.tool_number);
+    } else {
+        addToolCompensationFromTable(cutter_side, comp_data_to_restore.radius);
+    }
 }
 
 void GCodeGenerator::addPreformatted(std::string const & g_code_line)

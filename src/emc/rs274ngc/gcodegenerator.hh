@@ -46,7 +46,9 @@ public:
 
     int gen_modalStateRestore(ModalState & current, const ModalState & saved);
 
-    void addToolCompensation(GCodes cutter_side, double cutter_radius);
+    void addToolCompensation(GCodes cutter_side, CutterCompData const &comp_data_to_restore);
+    void addToolCompensationWithRadius(GCodes cutter_side, double cutter_radius);
+    void addToolCompensationFromTable(GCodes cutter_side, int tool_number);
 };
 
 #endif // GCODEGENERATOR_HH

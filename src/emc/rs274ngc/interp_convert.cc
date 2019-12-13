@@ -1677,23 +1677,25 @@ Called by: convert_g
 
 int Interp::convert_cutter_compensation(int g_code,      //!< must be G_40, G_41, or G_42             
                                        block_pointer block,     //!< pointer to a block of RS274 instructions
-                                       setup_pointer settings)  //!< pointer to machine settings             
+                                       setup_pointer settings)  //!< pointer to machine settings
 {
+    switch (g_code) {
+    case G_40:
+        CHP(convert_cutter_compensation_off(settings));
+        break;
+    case G_41:
+    case G_41_1:
+        CHP(convert_cutter_compensation_on(LEFT_COMP, block, settings));
+        break;
+    case G_42:
+    case G_42_1:
+        CHP(convert_cutter_compensation_on(RIGHT_COMP, block, settings));
+        break;
+    default:
+        ERS("BUG: Code not G40, G41, G41.1, G42, G42.2");
+    }
 
-  if (g_code == G_40) {
-    CHP(convert_cutter_compensation_off(settings));
-  } else if (g_code == G_41) {
-    CHP(convert_cutter_compensation_on(LEFT_COMP, block, settings));
-  } else if (g_code == G_42) {
-    CHP(convert_cutter_compensation_on(RIGHT_COMP, block, settings));
-  } else if (g_code == G_41_1) {
-    CHP(convert_cutter_compensation_on(LEFT_COMP, block, settings));
-  } else if (g_code == G_42_1) {
-    CHP(convert_cutter_compensation_on(RIGHT_COMP, block, settings));
-  } else
-    ERS("BUG: Code not G40, G41, G41.1, G42, G42.2");
-
-  return INTERP_OK;
+    return INTERP_OK;
 }
 
 /****************************************************************************/
@@ -1816,9 +1818,13 @@ int Interp::convert_cutter_compensation_on(CutterCompDirection side,     //!< si
       } else {
           orientation = 0;
       }
+      settings->cutter_comp.tool_number = -1;
+      settings->cutter_comp.radius_from_tool = false;
   } else {
+      settings->cutter_comp.radius_from_tool = true;
       if(!block->d_flag) {
           pocket_number = 0;
+          settings->cutter_comp.tool_number = -1; // Not specified (whatever is currently loaded)
       } else {
           int tool;
           CHKS(!is_near_int(&tool, block->d_number_float),
@@ -1826,10 +1832,12 @@ int Interp::convert_cutter_compensation_on(CutterCompDirection side,     //!< si
                    block->g_modes[GM_CUTTER_COMP]/10);
           CHKS((tool < 0), NCE_NEGATIVE_D_WORD_TOOL_RADIUS_INDEX_USED);
           CHP((find_tool_pocket(settings, tool, &pocket_number)));
+          settings->cutter_comp.tool_number = tool;
       }
       radius = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].diameter) / 2.0;
       orientation = settings->tool_table[pocket_number].orientation;
       CHKS((settings->plane != CANON_PLANE_XZ && orientation != 0 && orientation != 9), _("G%d with lathe tool, but plane is not G18"), block->g_modes[GM_CUTTER_COMP]/10);
+      // FIXME assume the current pocket is valid as the source for this for both random and non-random tool changers...
   }
   if (radius < 0.0) { /* switch side & make radius positive if radius negative */
     radius = -radius;
@@ -2561,7 +2569,7 @@ int Interp::write_modal_state(const block_pointer block, const setup_pointer set
     CHP(write_settings(settings, out));
     out.work_offset_number = settings->origin_index;
     out.tool_offset_number = settings->getCurrentToolNumber();
-    out.cutter_comp_radius = settings->cutter_comp.radius;
+    out.cutter_comp = settings->cutter_comp;
     return INTERP_OK;
 }
 
@@ -2771,13 +2779,13 @@ int Interp::create_full_restore_sequence(
         if (preamble.plunge_axes.any()) {
             generator.addLinearRapidMove(leadin_position, preamble.plunge_axes);
         }
-        generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
+        generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp);
         generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
     }
         break;
     case PREP_PLUNGE_LEADIN:
         // NOTE: traverse plane is either initial Z height, or whatever the toolchange / epilog leaves the plunge axes.
-        generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp_radius);
+        generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp);
         generator.addLinearRapidMove(_setup.current, traverse_axes);
         CHKS(!preamble.plunge_axes.any(), _("No plunge axes specified, cannot do a plunge lead-in move"));
         // TODO rapid to a "retract height" here (will save a lot of time with slow feeds)
@@ -3683,12 +3691,13 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     // Unfortunately, random and nonrandom toolchangers use a different
     // number for "invalid tool number":  nonrandom uses 0, random uses -1.
     //
-    if (settings->random_toolchanger)
+    if (settings->random_toolchanger) {
         if (settings->tool_table[0].toolno >= 0) {
             settings->parameters[TOOL_NUMBER] = settings->tool_table[0].toolno;
         } else {
             settings->parameters[TOOL_NUMBER] = -1;
-        } else {
+        }
+    } else {
         if (settings->tool_table[0].toolno > 0) {
             settings->parameters[TOOL_NUMBER] = settings->tool_table[0].toolno;
         } else {

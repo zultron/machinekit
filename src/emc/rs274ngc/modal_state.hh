@@ -17,6 +17,16 @@
 #include <interp_fwd.hh>
 #include <interp_enums.hh>
 
+struct CutterCompData
+{
+    double radius;    // current cutter compensation radius
+    int orientation;  // current cutter compensation tool orientation
+    CutterCompDirection side;         // current cutter compensation side
+    bool firstmove;   // this is the first comp move
+    bool radius_from_tool;
+    int tool_number;
+};
+
 struct ModalState {
     ModalState() = default;
     ActiveGCodeArray g_codes;       // array of active G codes
@@ -24,6 +34,6 @@ struct ModalState {
     ActiveSettingsArray settings;     // array of feed, speed, etc.
     int work_offset_number;
     int tool_offset_number;
-    double cutter_comp_radius;
+    CutterCompData cutter_comp;
 };
 #endif

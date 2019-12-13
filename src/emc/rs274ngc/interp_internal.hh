@@ -348,17 +348,6 @@ and is not represented here
 
 using ParameterArray = std::array<double, interp_param_global::RS274NGC_MAX_PARAMETERS>;
 
-/**
- * @note names match INI strings, do not rename
- */
-struct CutterCompData
-{
-    double radius;    // current cutter compensation radius
-    int orientation;  // current cutter compensation tool orientation
-    CutterCompDirection side;         // current cutter compensation side
-    bool firstmove;   // this is the first comp move
-};
-
 struct StartLineSettings
 {
     int start_line; //!< line in main program where user wants to start
