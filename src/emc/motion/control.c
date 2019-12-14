@@ -325,9 +325,7 @@ void stop_motion_unexpected_trip(int setter_changed) {
     }
   }
 
-  char *err_src = "Probe";
-  if (setter_changed)
-    err_src = "Tool setter";
+  char *err_src = setter_changed ? "Probe" : "Tool setter";
 
   // abort_type == 0 if no axes are active, be quiet
   if (abort_type == 1) {
@@ -372,6 +370,9 @@ static void process_probe_inputs(void) {
     // rising or falling edge on inputs
     int probe_changed = old_probeVal != emcmotStatus->probeVal;
     int setter_changed = setterHasPin && (old_setterVal != emcmotStatus->setterVal);
+    // rising edges
+    int probe_contact_made  = !old_probeVal && emcmotStatus->probeVal;
+    int setter_contact_made = setterHasPin && (!old_setterVal && emcmotStatus->setterVal);
 
     if (emcmotStatus->probing) {
       // probe or tool setter move in preogess
@@ -462,9 +463,11 @@ static void process_probe_inputs(void) {
       }
     } else {
       // not probing or tool setting
-      if (probe_changed || setter_changed) {
-        // saw an edge on the probe or tool setter input, stop
-        stop_motion_unexpected_trip(setter_changed);
+      if (probe_contact_made) {
+        stop_motion_unexpected_trip(false);
+      }
+      if (setter_contact_made) {
+        stop_motion_unexpected_trip(true);
       }
     }
 
