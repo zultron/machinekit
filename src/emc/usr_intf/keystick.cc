@@ -958,7 +958,7 @@ static void printStatus()
       active_g_codes_string[0] = 0;
       for (t = 1; t < ACTIVE_G_CODES; t++)
         {
-          code = emcStatus->task.activeGCodes[t];
+          code = emcStatus->task.modalState.g_codes[t];
           if (code == -1)
             continue;
           if (code % 10)
@@ -972,15 +972,15 @@ static void printStatus()
       active_m_codes_string[0] = 0;
       for (t = 1; t < ACTIVE_M_CODES; t++)
         {
-          code = emcStatus->task.activeMCodes[t];
+          code = emcStatus->task.modalState.m_codes[t];
           if (code == -1)
             continue;
           sprintf(scratch_string, "M%d ", code);
           strcat(active_m_codes_string, scratch_string);
         }
-      sprintf(scratch_string, "F%.0f ", emcStatus->task.activeSettings[1]);
+      sprintf(scratch_string, "F%.0f ", emcStatus->task.modalState.settings[1]);
       strcat(active_m_codes_string, scratch_string);
-      sprintf(scratch_string, "S%.0f ", emcStatus->task.activeSettings[2]);
+      sprintf(scratch_string, "S%.0f ", emcStatus->task.modalState.settings[2]);
       strcat(active_m_codes_string, scratch_string);
 
       // fill the screen in

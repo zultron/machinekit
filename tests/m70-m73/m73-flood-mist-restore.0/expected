@@ -13,6 +13,7 @@
  N..... FLOOD_OFF()
  N..... MIST_ON()
  N..... FLOOD_ON()
+ N..... COMMENT("interpreter: continuing to use same coordinate system")
  N..... COMMENT("mist+flood must be on again here since restored by M73:")
  N..... STOP_SPINDLE_TURNING()
  N..... MIST_ON()

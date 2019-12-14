@@ -1,4 +1,5 @@
 rs274ngc_srcs = files([
+    'gcodegenerator.cc',
     'interp_arc.cc',
     'interp_array.cc',
     'interp_base.cc',

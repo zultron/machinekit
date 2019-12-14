@@ -20,6 +20,7 @@
 #include "interp_internal.hh"
 #include "interp_return.hh"
 #include <array>
+#include <callstacktracker.hh>
 
 /**
  * Stores information about a single line of G-code (where it came from, line number, etc.).
@@ -43,6 +44,8 @@ struct GCodeContext
     std::string py_remap_name;
 };
 
+struct IniFile;
+
 struct GCodeContextStack
 {
     std::vector<GCodeContext> context_lines;
@@ -52,9 +55,12 @@ struct GCodeContextStack
     void reset();
 };
 
+using RestoreCommandList = std::vector<std::string>;
+
 class Interp : public InterpBase {
 
 public:
+ CallStackTracker callstack;
  Interp();
  ~Interp();
 
@@ -80,6 +86,8 @@ public:
 // get ready to run
  int init();
  void set_loop_on_main_m99(bool state);
+
+ LocalToMachineTransform const &get_transform() const;
 
 // load a tool table
  int load_tool_table();
@@ -111,6 +119,10 @@ public:
 
 // synchronize your internal model with the external world
  int synch();
+ int cbBeforeSeekReadTransition(ModalState & seek_state);
+ int cbAfterSeekReadTransition(
+     const ModalState & to_restore,
+     StartLineSettings const &leadin_settings);
 
 /* Interface functions to call to get information from the interpreter.
    If a function has a return value, the return value contains the information.
@@ -131,11 +143,8 @@ public:
  void active_settings(double *settings, long int line);
 
  // Update the state vectors from a state tag
- int active_modes(int *g_codes,
-         int *mcodes,
-         double *settings,
-         int & work_offset_origin,
-         StateTag const &tag);
+ int active_modes(ModalState & active_state,
+     StateTag const &tag);
 
 // copy the text of the error message whose number is error_code into the
 // error_text array, but stop at max_size if the text is longer.
@@ -208,7 +217,7 @@ public:
 
  int arc_data_comp_ijk(int move,
          int plane,
-         int side,
+         CutterCompDirection side,
          double tool_radius,
          double current_x,
          double current_y,
@@ -227,7 +236,7 @@ public:
 
  int arc_data_comp_r(int move,
          int plane,
-         int side,
+         CutterCompDirection side,
          double tool_radius,
          double current_x,
          double current_y,
@@ -320,7 +329,7 @@ public:
  int convert_cutter_compensation(int g_code, block_pointer block,
                                        setup_pointer settings);
  int convert_cutter_compensation_off(setup_pointer settings);
- int convert_cutter_compensation_on(int side, block_pointer block,
+ int convert_cutter_compensation_on(CutterCompDirection side, block_pointer block,
                                           setup_pointer settings);
  int convert_cycle(GCodes motion, block_pointer block,
                          setup_pointer settings);
@@ -384,7 +393,7 @@ public:
  int convert_probe(block_pointer block, GCodes g_code, setup_pointer settings);
  int convert_retract_mode(int g_code, setup_pointer settings);
  int convert_part_count(block_pointer block, setup_pointer settings);
- int convert_setup(block_pointer block, setup_pointer settings);
+ int convert_setup_work(block_pointer block, setup_pointer settings);
  int convert_setup_tool(block_pointer block, setup_pointer settings);
  int convert_set_plane(int g_code, setup_pointer settings);
  int convert_speed(block_pointer block, setup_pointer settings);
@@ -433,9 +442,12 @@ public:
 
  int clearPersistentG92Parameters(setup_pointer settings);
  ShiftTransform getG92ActiveOffset(setup_pointer settings);
- int storeG92PersistentParms(ShiftTransform const &g92_offset, setup_pointer settings);
- int find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & work_offset);
+ int storeG92OffsetValues(ShiftTransform const &g92_offset, setup_pointer settings);
+ int storeG92Applied(bool active, setup_pointer settings);
+
+ int find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & tool_offset);
  int store_tool_offset(setup_pointer settings, ShiftTransform const &tool_offset, int pocket);
+ int canon_use_tool_offset(ShiftTransform const &tool_offset);
  InterpReturn find_work_offset_from_parameters(setup_pointer settings, int origin, RotateShiftTransform & out);
  int store_work_offset_to_parameters(setup_pointer settings, RotateShiftTransform const &work_offset, int origin);
  int find_work_offset(int origin, RotateShiftTransform & work_offset_user);
@@ -447,6 +459,8 @@ public:
                double *px, double *py, double *pz,
                double *AA_p, double *BB_p, double *CC_p,
                double *u_p, double *v_p, double *w_p);
+ int find_ends(block_pointer block, setup_pointer settings,
+               PositionArray &cmd_local_pos);
  int find_relative(double x1, double y1, double z1,
                    double AA_1, double BB_1, double CC_1,
                    double u_1, double v_1, double w_1,
@@ -455,8 +469,8 @@ public:
                    double *u_2, double *v_2, double *w_2,
                    setup_pointer settings);
  int find_relative(setup_pointer s,
-               PositionArray const &current_local,
-               PositionArray &out);
+               PositionArray const &command_abs,
+               PositionArray &cmd_local);
  double find_straight_length(double x2, double y2, double z2,
                              double AA_2, double BB_2, double CC_2,
                              double u_w, double v_2, double w_2,
@@ -540,18 +554,19 @@ public:
     int init_readonly_param(const char *nameBuf, double value, int attr);
     int free_named_parameters(context_pointer frame);
  int save_settings(setup_pointer settings);
- int restore_settings(setup_pointer settings, int from_level, int m_code);
- int gen_g_codes(ActiveGCodeArray const & current,
-                 ActiveGCodeArray const & saved,
-                 ActiveSettingsArray const & current_settings,
-                 ActiveSettingsArray const & saved_settings,
-                 int work_offset_origin,
-                 std::string &cmd);
- int gen_m_codes(const ActiveMCodeArray & current, const ActiveMCodeArray & saved, std::string &cmd);
+ int restore_settings(setup_pointer settings, int from_level, int caller_m_code);
+ int restore_settings_impl(ModalState & current, ModalState const &saved, int caller_m_code);
+
+ int write_modal_state(block_pointer const block, setup_pointer settings);
+ int write_modal_state(block_pointer const block, setup_pointer const settings, ModalState &out);
+ int execute_gcode_sequence(const RestoreCommandList & cmd_list, int caller_m_code, const char * caller_name);
+
  int restore_from_tag(StateTag const &tag);
- int gen_restore_cmd(const ModalState & state,
-        StateTag const &saved,
-        std::string &cmd);
+
+ int create_full_restore_sequence(const ModalState & to_restore,
+     RestoreCommandList &restore_cmd_list,
+     const InterpPreamble &preamble, const StartLineSettings & leadin_settings);
+
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
                           ParameterArray &parameters, bool check_exists);
@@ -603,6 +618,7 @@ public:
  int write_g_codes(block_pointer block, setup_pointer settings, ModalState &state);
  int write_m_codes(block_pointer block, setup_pointer settings, ModalState &state);
  int write_settings(setup_pointer settings, ModalState &state);
+ int write_state_tag(block_pointer block, StateTag & state);
  int write_and_update_state_tag(block_pointer block);
  int unwrap_rotary(double *, double, double, double, char);
  bool isreadonly(int index);
@@ -794,6 +810,7 @@ int read_inputs(setup_pointer settings);
     double PROGRAM_TO_USER_ANG(double p) const;
     UnitsTransform convertsUserToProgram() const;
     UnitsTransform convertsProgramToUser() const;
+
     int convert_g10(block_pointer block, setup_pointer settings);
     InterpReturn check_g10(block_pointer block);
 
@@ -809,8 +826,23 @@ int read_inputs(setup_pointer settings);
     void push_gcode_context(setup_pointer settings, const char *caller);
     void update_gcode_context(const setup_pointer settings);
     void update_gcode_context_py_remap_name(const remap_pointer remap);
+
+    bool hasFeature(Features f) const;
+    int find_g43_tool_offset(block_pointer block, setup_pointer settings, ShiftTransform & new_tool_offset);
+
+    static AxisMask axis_mask_from_string(const std::string & plunge_axes, AxisMask default_axes=0);
+    
+    int load_interp_preamble(IniFile & inifile);
+
+    ShiftTransform getG92ParameterValues(setup_pointer settings);
+
+protected:
+    bool error_has_context;
+
 };
 
 bool toolOffsetActive(setup_pointer s);
+
+#define STATE_RESTORE_SUBROUTINE_NAME "restore_start_line_state"
 
 #endif

@@ -150,9 +150,9 @@ EMC_TASK_STAT::EMC_TASK_STAT():
     motionTolerance(0.0),
     naivecamTolerance(0.0)
 {
-    activeGCodes.fill(G_INVALID);
-    activeMCodes.fill(-1);
-    activeSettings.fill(0.0);
+    modalState.g_codes.fill(G_INVALID);
+    modalState.m_codes.fill(-1);
+    modalState.settings.fill(0.0);
     std::fill(part_counters, part_counters+MAX_PART_COUNTERS, 0);
 }
 

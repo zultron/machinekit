@@ -204,15 +204,15 @@ static  analog_io_array analog_output_wrapper ( EMC_MOTION_STAT & m) {
 }
 
 static  active_g_codes_array activeGCodes_wrapper (  EMC_TASK_STAT & m) {
-    return active_g_codes_array{m.activeGCodes.data()};
+    return active_g_codes_array{m.modalState.g_codes.data()};
 }
 
 static  active_m_codes_array activeMCodes_wrapper ( EMC_TASK_STAT & m) {
-    return active_m_codes_array{m.activeMCodes.data()};
+    return active_m_codes_array{m.modalState.m_codes.data()};
 }
 
 static  active_settings_array activeSettings_wrapper ( EMC_TASK_STAT & m) {
-    return active_settings_array{m.activeSettings.data()};
+    return active_settings_array{m.modalState.settings.data()};
 }
 
 static const char *get_file( EMC_TASK_STAT &t) { return t.file; }

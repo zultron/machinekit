@@ -37,7 +37,7 @@ is therefore the index of the last non-error return value.
 
 static const InterpReturn INTERP_MIN_ERROR = INTERP_ENDFILE;
 
-inline bool isInterpError(InterpReturn err) {
+inline bool isInterpError(int err) {
     return err > INTERP_MIN_ERROR;
 }
 

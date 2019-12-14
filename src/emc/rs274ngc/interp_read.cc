@@ -30,6 +30,7 @@
 #include <cmath>
 
 using namespace interp_param_global;
+using namespace WaitFlag;
 
 /****************************************************************************/
 
@@ -2029,7 +2030,7 @@ int Interp::read_parameter(
       }
       CHKS(((index < 1) || (index >= RS274NGC_MAX_PARAMETERS)),
           NCE_PARAMETER_NUMBER_OUT_OF_RANGE);
-      CHKS(((index >= 5420) && (index <= 5428) && (_setup.cutter_comp_side)),
+      CHKS(((index >= 5420) && (index <= 5428) && (_setup.cutter_comp.side)),
            _("Cannot read current position with cutter radius compensation on"));
       *double_ptr = parameters[index];
   }
@@ -3143,7 +3144,7 @@ int Interp::read_text(
   }
 
   _setup.new_parameters.clear();      /* initialize parameter buffer */
-  _setup.have_new_reserved_parameters = false;
+  _setup.wait_flags.reset(RESERVED_PARAMETER_MODIFIED);
 
   if ((line[0] == 0) || ((line[0] == '/') && (GET_BLOCK_DELETE())))
     *length = 0;

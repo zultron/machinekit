@@ -5,6 +5,7 @@ LIB_DIR:=../lib
 INCLUDES += emc/rs274ngc
 
 LIBRS274SRCS := $(addprefix emc/rs274ngc/, \
+	gcodegenerator.cc \
 	interp_arc.cc \
 	interp_array.cc \
 	interp_base.cc \

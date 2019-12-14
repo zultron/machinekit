@@ -27,6 +27,7 @@
 #include "modal_state.hh"
 #include "interp_parameter_def.hh"
 #include "interp_fwd.hh"
+#include "featureset.hh"
 
 #include <coordinatetransform.hh>
 #include <vector>
@@ -347,23 +348,44 @@ and is not represented here
 
 using ParameterArray = std::array<double, interp_param_global::RS274NGC_MAX_PARAMETERS>;
 
-/**
- * @note names match INI strings, do not rename
- */
-enum Features {
-    FEATURE_RETAIN_G43,
-    FEATURE_OWORD_N_ARGS,
-    FEATURE_INI_VARS,
-    FEATURE_HAL_PIN_VARS,
-    FEATURE_NO_DOWNCASE_OWORD,
-    FEATURE_OWORD_WARNONLY,
-    FEATURE_LATHE_TOOLCHANGE,
-    FEATURE_EXTENDED_ERROR_MESSAGES,
-    MAX_FEATURES
+struct StartLineSettings
+{
+    int start_line; //!< line in main program where user wants to start
+    RunPrepType prep_type; //!< Controls preparation / lead-in behavior when not starting from the beginning of the program
+    LocalToMachineTransform initial_transform;
+    //PositionArray position; //!< For custom lead-in, specify the start position of the lead-in move.
 };
 
-using FeatureSet = std::bitset<64>;
+// Use a namespace / anonymous enum rather than enum class to allow implicit conversion to size_t for bitset
+namespace WaitFlag {
+enum {
+    PROBE,
+    INPUT,
+    ORIENT,
+    TOOLCHANGE,
+    WORK_OFFSET_MODIFIED,
+    AXIS_OFFSET_MODIFIED,
+    TOOL_OFFSET_MODIFED,
+    RESERVED_PARAMETER_MODIFIED,
+    MAX_WAIT_FLAGS,
+};
+}
 
+/**
+ * Customization of set-start-line behavior for a specific machine (from INI settings).
+ */
+struct InterpPreamble
+{
+    std::string toolchange_prolog;
+    std::string toolchange_epilog;
+    std::string leadin_prolog;
+    std::string leadin_epilog;
+    AxisMask plunge_axes; //!< Used to plunge towards the work / lead-in position after traverse axes are in position
+};
+
+/**
+ * Contains the majority of state used by RS274NGC interp.
+ */
 struct setup_struct
 {
   setup_struct();
@@ -371,6 +393,7 @@ struct setup_struct
 
   int get_toplevel_line_number() const;
   void clear_queue_buster_flags();
+  int getCurrentToolNumber() const;
 
   PositionArray current;
   LocalToMachineTransform transform;
@@ -394,11 +417,10 @@ struct setup_struct
 
   char blocktext[LINELEN];   // linetext downcased, white space gone
   CANON_MOTION_MODE control_mode;       // exact path or cutting mode
+
+  CutterCompData cutter_comp;
   int current_pocket;             // carousel slot number of current tool
 
-  double cutter_comp_radius;    // current cutter compensation radius
-  int cutter_comp_orientation;  // current cutter compensation tool orientation
-  int cutter_comp_side;         // current cutter compensation side
   double cycle_cc;              // cc-value (normal) for canned cycles
   double cycle_i;               // i-value for canned cycles
   double cycle_j;               // j-value for canned cycles
@@ -432,16 +454,10 @@ struct setup_struct
   bool percent_flag;          // true means first line was percent sign
   CANON_PLANE plane;            // active plane, XY-, YZ-, or XZ-plane
   // Queue-buster flags
-  bool probe_flag;            // flag indicating probing done
-  bool input_flag;            // flag indicating waiting for input done
-  bool orient_flag;           // flag indicating waiting for spindle orient done
-  bool toolchange_flag;       // flag indicating we just had a tool change
-  bool work_offset_modified_flag; // indicates a work offset / rotation value was changed (e.g. by G10)
-  bool have_new_reserved_parameters; // flags an incoming modification to a "reserved" parameter (e.g. coordinate offset)
+  std::bitset<WaitFlag::MAX_WAIT_FLAGS> wait_flags;
 
   int input_index;		// channel queried
   bool input_digital;		// input queried was digital (false=analog)
-  bool cutter_comp_firstmove; // this is the first comp move
   double program_x;             // program x, used when cutter comp on
   double program_y;             // program y, used when cutter comp on
   double program_z;             // program y, used when cutter comp on
@@ -449,6 +465,7 @@ struct setup_struct
   int random_toolchanger;       // tool changer swaps pockets, and pocket 0 is the spindle instead of "no tool"
   int selected_pocket;          // tool slot selected but not active
     int selected_tool;          // start switchover to pocket-agnostic interp
+    GCodes tool_offset_mode;
   int sequence_number;          // sequence number of line last read
   int stepping_id;              // tag value used to control stepping
   double speed;                 // current spindle speed in rpm or SxM
@@ -456,10 +473,6 @@ struct setup_struct
   CANON_SPEED_FEED_MODE speed_feed_mode;        // independent or synched
   bool speed_override;        // whether speed override is enabled
   CANON_DIRECTION spindle_turning;      // direction spindle is turning
-  char stack[STACK_LEN][STACK_ENTRY_LEN];      // stack of calls for error reporting
-  char stack_file[STACK_LEN][STACK_ENTRY_LEN]; // file where error occurred
-  int stack_line[STACK_LEN];      // line where error occurred
-  int stack_index;              // index into the stack
 
   int pockets_max;                 // number of pockets in carousel (including pocket 0, the spindle)
   std::array<CANON_TOOL_TABLE, CANON_POCKETS_MAX> tool_table;      // index is pocket number
@@ -483,8 +496,8 @@ struct setup_struct
   int call_state;                  //  enum call_states - inidicate Py handler reexecution
   offset_map_type offset_map;      // store label x name, file, line
 
-  bool adaptive_feed;              // adaptive feed is enabled
-  bool feed_hold;                  // feed hold is enabled
+  bool allow_adaptive_feed;              // adaptive feed is enabled
+  bool allow_feed_hold;                  // feed hold is enabled
   int loggingLevel;                  // 0 means logging is off
   int debugmask;                     // from ini  EMC/DEBUG
   char log_file[PATH_MAX];
@@ -522,7 +535,7 @@ struct setup_struct
     // control to skip to beginning of file
     bool loop_on_main_m99;
 
-    bool hasFeature(Features f) const;
+    bool checkFeatureFlag(Features f) const;
 
     boost::python::object *pythis;  // boost::cref to 'this'
     const char *on_abort_command;
@@ -545,6 +558,9 @@ struct setup_struct
     // during open/close we keep track of all the work offsets the interpreter sees
     // by origin index in this set.
     std::set<int> work_offsets_used;
+    std::set<int> tool_offsets_changed; //!< set of TOOL numbers that have been changed in the current program (e.g. due to G10)
+
+    InterpPreamble default_seek_preamble;
 };
 
 const char * GetFeatureStr(Features f);
@@ -572,30 +588,28 @@ macros totally crash-proof. If the function call stack is deeper than
 
 */
 
-void append_stack_info(setup_struct &settings, const char *function_name, const char * file_name, int line);
-
 // Just set an error string using printf-style formats, do NOT return
 #define ERM(fmt, ...)                                      \
     do {                                                   \
         setError (fmt, ## __VA_ARGS__);                    \
-        _setup.stack_index = 0;                            \
-        append_stack_info(_setup, __PRETTY_FUNCTION__, __FILE__, __LINE__); \
+        callstack.clear();                        \
+        callstack.append_stack_info(__PRETTY_FUNCTION__, __FILE__, __LINE__); \
     } while(0)
 
 // Set an error string using printf-style formats and return
 #define ERS(fmt, ...)                                      \
     do {                                                   \
         setError (fmt, ## __VA_ARGS__);                    \
-        _setup.stack_index = 0;                            \
-        append_stack_info(_setup, __PRETTY_FUNCTION__, __FILE__, __LINE__); \
+        callstack.clear();                            \
+        callstack.append_stack_info(__PRETTY_FUNCTION__, __FILE__, __LINE__); \
         return INTERP_ERROR;                               \
     } while(0)
 
 // Return one of the very few numeric errors
 #define ERN(error_code)                                    \
     do {                                                   \
-        _setup.stack_index = 0;                            \
-        append_stack_info(_setup, __PRETTY_FUNCTION__, __FILE__, __LINE__); \
+        callstack.clear();                            \
+        callstack.append_stack_info(__PRETTY_FUNCTION__, __FILE__, __LINE__); \
         return error_code;                                 \
     } while(0)
 
@@ -605,7 +619,7 @@ void append_stack_info(setup_struct &settings, const char *function_name, const 
 // Propagate an error up the stack
 #define ERP_LINE(error_code, __line)                                   \
     do {                                                       \
-        append_stack_info(_setup, __PRETTY_FUNCTION__, __FILE__, __line); \
+        callstack.append_stack_info(__PRETTY_FUNCTION__, __FILE__, __line); \
         return error_code;                                     \
     } while(0)
 
@@ -640,7 +654,7 @@ void append_stack_info(setup_struct &settings, const char *function_name, const 
 // oword warnings 
 #define OERR(fmt, ...)                                      \
     do {						    \
-    if (_setup.hasFeature(FEATURE_OWORD_WARNONLY))			    \
+    if (hasFeature(FEATURE_OWORD_WARNONLY))			    \
 	    fprintf(stderr,fmt, ## __VA_ARGS__);	    \
 	else						    \
 	    ERS(fmt, ## __VA_ARGS__);			    \
@@ -694,8 +708,9 @@ void append_stack_info(setup_struct &settings, const char *function_name, const 
        CHP(call); \
      }
 
-PositionMask getUpdatedAxes(block_pointer b);
+AxisMask getUpdatedAxes(block_pointer b);
 PositionArray getAxisWordsFromBlock(block_pointer b, PositionArray const &current);
 RotateShiftTransform getAxisWordsFromBlock(block_pointer b, RotateShiftTransform const &current);
+ShiftTransform getAxisWordsFromBlock(block_pointer b, ShiftTransform const &current);
 
 #endif // INTERP_INTERNAL_HH

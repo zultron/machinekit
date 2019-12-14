@@ -94,7 +94,7 @@ extern void SET_G5X_TRANSFORM(int origin,
                            double u, double v, double w,
                            double xy_rotation_deg);
 
-extern void SET_G92_OFFSET(double x, double y, double z,
+extern void SET_G92_OFFSET(bool applied, double x, double y, double z,
                            double a, double b, double c,
                            double u, double v, double w);
 
@@ -659,6 +659,8 @@ below.
 extern double GET_EXTERNAL_ANGLE_UNIT_FACTOR();
 */
 
+extern bool IN_START_LINE_SEEK();
+
 // Returns the system feed rate
 extern double GET_EXTERNAL_FEED_RATE();
 
@@ -819,6 +821,11 @@ extern int GET_EXTERNAL_SELECTED_TOOL_SLOT();
 // in the given pocket
 extern CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket);
 extern RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin);
+struct AxisOffsetParams {
+    ShiftTransform offset;
+    bool applied;
+};
+extern AxisOffsetParams GET_EXTERNAL_PERSISTENT_AXIS_OFFSET();
 
 // return the value of iocontrol's toolchanger-fault pin
 extern int GET_EXTERNAL_TC_FAULT();

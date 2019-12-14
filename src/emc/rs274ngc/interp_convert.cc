@@ -31,12 +31,17 @@
 #include "interp_parameter_def.hh"
 #include <rotary_axis_util.hh>
 #include "interp_internal.hh"
+#include "gcodegenerator.hh"
 
 #include "units.h"
-#define TOOL_INSIDE_ARC(side, turn) (((side)==LEFT&&(turn)>0)||((side)==RIGHT&&(turn)<0))
+static inline bool TOOL_INSIDE_ARC(CutterCompDirection side, int turn) {
+    return (((side)==LEFT_COMP&&(turn)>0)||((side)==RIGHT_COMP&&(turn)<0));
+}
+
 #define DEBUG_EMC
 
 using namespace interp_param_global;
+using namespace WaitFlag;
 
 // These four functions help make the rest of cutter comp
 // plane-agnostic in much the same way the ARC_FEED canon call is.
@@ -218,7 +223,7 @@ int Interp::convert_spline(int mode,
     double end_z, AA_end, BB_end, CC_end, u_end, v_end, w_end;
     CONTROL_POINT cp;
 
-    CHKS((settings->cutter_comp_side), _("Cannot convert spline with cutter radius compensation")); // XXX
+    CHKS((settings->cutter_comp.side), _("Cannot convert spline with cutter radius compensation")); // XXX
 
     if (settings->feed_mode == UNITS_PER_MINUTE) {
       CHKS((settings->feed_rate == 0.0),
@@ -393,7 +398,7 @@ int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw
   CHKS((settings->arc_not_allowed), (_("The move just after exiting cutter compensation mode must be straight, not an arc")));
 
   ijk_flag = block->i_flag || block->j_flag || block->k_flag;
-  first = settings->cutter_comp_firstmove;
+  first = settings->cutter_comp.firstmove;
 
   CHKS((settings->plane == CANON_PLANE_UV
             || settings->plane == CANON_PLANE_VW
@@ -491,8 +496,8 @@ int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw
   write_and_update_state_tag(block);
 
   if (settings->plane == CANON_PLANE_XY) {
-    if ((!settings->cutter_comp_side) ||
-        (settings->cutter_comp_radius == 0.0)) {
+    if ((!settings->cutter_comp.side) ||
+        (settings->cutter_comp.radius == 0.0)) {
       status =
         convert_arc2(move, block, settings,
                      &(settings->current[X]), &(settings->current[Y]),
@@ -515,8 +520,8 @@ int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw
       CHP(status);
     }
   } else if (settings->plane == CANON_PLANE_XZ) {
-    if ((!settings->cutter_comp_side) ||
-        (settings->cutter_comp_radius == 0.0)) {
+    if ((!settings->cutter_comp.side) ||
+        (settings->cutter_comp.radius == 0.0)) {
       status =
         convert_arc2(move, block, settings,
                      &(settings->current[Z]), &(settings->current[X]),
@@ -671,14 +676,13 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
 {
     double center_x, center_y;
     double gamma;                 /* direction of perpendicular to arc at end */
-    int side;                     /* offset side - right or left              */
     double tool_radius;
     int turn;                     /* 1 for counterclockwise, -1 for clockwise */
     double cx, cy, cz; // current
     int plane = settings->plane;
 
-    side = settings->cutter_comp_side;
-    tool_radius = settings->cutter_comp_radius;   /* always is positive */
+    CutterCompDirection side = settings->cutter_comp.side;
+    tool_radius = settings->cutter_comp.radius;   /* always is positive */
 
     double spiral_abs_tolerance = (settings->length_units == CANON_UNITS_INCHES) ? settings->center_arc_radius_tolerance_inch : settings->center_arc_radius_tolerance_mm;
     double radius_tolerance = (settings->length_units == CANON_UNITS_INCHES) ? RADIUS_TOLERANCE_INCH : RADIUS_TOLERANCE_MM;
@@ -704,7 +708,7 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
 
 
     // the tool will end up in gamma direction from the programmed arc endpoint
-    if TOOL_INSIDE_ARC(side, turn) {
+    if (TOOL_INSIDE_ARC(side, turn)) {
         // tool inside the arc: ends up toward the center
         gamma = atan2((center_y - end_y), (center_x - end_x));
     } else {
@@ -712,7 +716,7 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
         gamma = atan2((end_y - center_y), (end_x - center_x));
     }
 
-    settings->cutter_comp_firstmove = false;
+    settings->cutter_comp.firstmove = false;
 
     comp_set_programmed(settings, end_x, end_y, end_z);
 
@@ -748,7 +752,7 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     write_and_update_state_tag(block);
 
     // need this move for lathes to move the tool origin first.  otherwise, the arc isn't an arc.
-    if (settings->cutter_comp_orientation != 0 && settings->cutter_comp_orientation != 9) {
+    if (settings->cutter_comp.orientation != 0 && settings->cutter_comp.orientation != 9) {
         enqueue_STRAIGHT_FEED(settings, block->line_number, 
                               0, 0, 0,
                               cx, cy, cz,
@@ -828,7 +832,6 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     double delta;                 /* direction of radius from start of arc to center of arc */
     double gamma;                 /* direction of perpendicular to arc at end */
     double midx, midy;
-    int side;
     double small = TOLERANCE_CONCAVE_CORNER;      /* angle for testing corners */
     double opx, opy, opz;
     double theta;                 /* direction of tangent to last cut */
@@ -862,19 +865,19 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     inverse_time_rate_arc(opx, opy, opz, centerx, centery,
                           turn, end_x, end_y, end_z, block, settings);
 
-    side = settings->cutter_comp_side;
-    tool_radius = settings->cutter_comp_radius;   /* always is positive */
+    CutterCompDirection side = settings->cutter_comp.side;
+    tool_radius = settings->cutter_comp.radius;   /* always is positive */
     arc_radius = hypot((centerx - end_x), (centery - end_y));
     theta = atan2(cy - opy, cx - opx);
-    theta = (side == LEFT) ? (theta - M_PI_2l) : (theta + M_PI_2l);
+    theta = (side == LEFT_COMP) ? (theta - M_PI_2l) : (theta + M_PI_2l);
     delta = atan2(centery - opy, centerx - opx);
     alpha = (move == G_3) ? (delta - M_PI_2l) : (delta + M_PI_2l);
-    beta = (side == LEFT) ? (theta - alpha) : (alpha - theta);
+    beta = (side == LEFT_COMP) ? (theta - alpha) : (alpha - theta);
 
     // normalize beta -90 to +270?
     beta = (beta > (1.5 * M_PIl)) ? (beta - (2 * M_PIl)) : (beta < -M_PI_2l) ? (beta + (2 * M_PIl)) : beta;
 
-    if (((side == LEFT) && (move == G_3)) || ((side == RIGHT) && (move == G_2))) {
+    if (((side == LEFT_COMP) && (move == G_3)) || ((side == RIGHT_COMP) && (move == G_2))) {
         // we are cutting inside the arc
         gamma = atan2((centery - end_y), (centerx - end_x));
         CHKS((arc_radius <= tool_radius),
@@ -901,8 +904,8 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
             double toward_nominal;
             double dist_from_center;
             double angle_from_center;
-          
-            if TOOL_INSIDE_ARC(side, turn) {
+
+            if (TOOL_INSIDE_ARC(side, turn)) {
                 // tool is inside the arc
                 dist_from_center = arc_radius - tool_radius;
                 toward_nominal = cy + tool_radius;
@@ -934,7 +937,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
             struct arc_feed &prev = qc().front().data.arc_feed;
             double oldrad = hypot(prev.center2 - prev.end2, prev.center1 - prev.end1);
             double newrad;
-            if TOOL_INSIDE_ARC(side, turn) {
+            if (TOOL_INSIDE_ARC(side, turn)) {
                 newrad = arc_radius - tool_radius;
             } else {
                 newrad = arc_radius + tool_radius;
@@ -951,7 +954,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
             cc_dir = atan2(centery - prev.center2, centerx - prev.center1);
 
             double dir;
-            if TOOL_INSIDE_ARC(side, prev.turn) {
+            if (TOOL_INSIDE_ARC(side, prev.turn)) {
                 if(turn > 0)
                     dir = cc_dir + pullback;
                 else
@@ -980,7 +983,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
         dequeue_canons(settings);
         enqueue_ARC_FEED(settings, block->line_number, 
                          0.0, // doesn't matter since we won't move this arc's endpoint
-                         midx, midy, opx, opy, ((side == LEFT) ? -1 : 1),
+                         midx, midy, opx, opy, ((side == LEFT_COMP) ? -1 : 1),
                          cz,
                          AA_end, BB_end, CC_end, u, v, w);
         dequeue_canons(settings);
@@ -1075,7 +1078,7 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
                                 block_pointer block,    //!< pointer to a block of RS274/NGC instructions  
                                 setup_pointer settings) //!< pointer to machine settings                   
 {
-  CHKS((settings->cutter_comp_side),      /* not "== true" */
+  CHKS((settings->cutter_comp.side),      /* not "== true" */
        NCE_CANNOT_CHANGE_AXIS_OFFSETS_WITH_CUTTER_RADIUS_COMP);
   CHKS((block->a_flag && settings->a_axis_wrapped &&
         (block->a_number <= -360.0 || block->a_number >= 360.0)),
@@ -1104,33 +1107,36 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
       settings->current = cmd_position_local;
     }
 
-    settings->parameters[G92_APPLIED] = 1.0;
-    storeG92PersistentParms(settings->transform.g92Offset, settings);
+    storeG92OffsetValues(settings->transform.g92Offset, settings);
+    storeG92Applied(true, settings);
+    SET_G92_OFFSET(true, UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
 
   } else if ((g_code == G_92_1) || (g_code == G_92_2)) {
-
     // Clear current offset (first removing it from the interp position)
     settings->transform.g92Offset.apply_fwd(settings->current);
     settings->transform.g92Offset = ShiftTransform();
 
-    if (g_code == G_92_1) {
+    // KLUDGE there's a lot of overlap in these code paths
+    bool persist = (g_code == G_92_1);
+    if (persist) {
       clearPersistentG92Parameters(settings);
     } else {
-      settings->parameters[G92_APPLIED] = 0.0;
+      storeG92Applied(false, settings);
     }
+    SET_G92_OFFSET(persist, UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
   } else if (g_code == G_92_3) {
     // Remove current offset, then apply user's new offset
     settings->transform.g92Offset.apply_fwd(settings->current);
-    settings->parameters[G92_APPLIED] = 1.0;
-    settings->transform.g92Offset = getG92ActiveOffset(settings);
+    settings->transform.g92Offset = getG92ParameterValues(settings);
     settings->transform.g92Offset.apply_inv(settings->current);
+    storeG92Applied(true, settings);
+
+    SET_G92_OFFSET(true, UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
   } else {
     ERS(NCE_BUG_CODE_NOT_IN_G52_G92_SERIES);
   }
 
-  // Always send a (valid) offset update down to Canon
-  SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
-
+  settings->wait_flags.set(AXIS_OFFSET_MODIFIED);
   return INTERP_OK;
 }
 
@@ -1198,7 +1204,7 @@ int Interp::convert_param_comment(char *comment, char *expanded, int len)
                     {
 		        // if tolower is a macro, may need this int
 		        int c = *comment++;
-            if (_setup.hasFeature(FEATURE_NO_DOWNCASE_OWORD))
+            if (hasFeature(FEATURE_NO_DOWNCASE_OWORD))
 			    param[i] = c;
 			else
 			    param[i] = tolower(c);
@@ -1440,7 +1446,7 @@ int Interp::convert_control_mode(int g_code,     //!< g_code being executed (G_6
 				double naivecam_tolerance,    //tolerance for the naivecam
                                 setup_pointer settings) //!< pointer to machine settings                 
 {
-    CHKS((settings->cutter_comp_side),
+    CHKS((settings->cutter_comp.side),
             (_("Cannot change control mode with cutter radius compensation on")));
 
     switch (g_code) {
@@ -1557,7 +1563,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
 {
   int origin;
 
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
        (_("Cannot change coordinate systems with cutter radius compensation on")));
   switch (g_code) {
   case G_54:
@@ -1624,7 +1630,7 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
 
   // Extract transform parts in the order that canon / tests expect
   send_current_g5x_transform();
-  SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
+  SET_G92_OFFSET(true, UNPACK_POSITION_ARRAY_REF(settings->transform.g92Offset.tf));
   return INTERP_OK;
 }
 
@@ -1671,23 +1677,25 @@ Called by: convert_g
 
 int Interp::convert_cutter_compensation(int g_code,      //!< must be G_40, G_41, or G_42             
                                        block_pointer block,     //!< pointer to a block of RS274 instructions
-                                       setup_pointer settings)  //!< pointer to machine settings             
+                                       setup_pointer settings)  //!< pointer to machine settings
 {
+    switch (g_code) {
+    case G_40:
+        CHP(convert_cutter_compensation_off(settings));
+        break;
+    case G_41:
+    case G_41_1:
+        CHP(convert_cutter_compensation_on(LEFT_COMP, block, settings));
+        break;
+    case G_42:
+    case G_42_1:
+        CHP(convert_cutter_compensation_on(RIGHT_COMP, block, settings));
+        break;
+    default:
+        ERS("BUG: Code not G40, G41, G41.1, G42, G42.2");
+    }
 
-  if (g_code == G_40) {
-    CHP(convert_cutter_compensation_off(settings));
-  } else if (g_code == G_41) {
-    CHP(convert_cutter_compensation_on(LEFT, block, settings));
-  } else if (g_code == G_42) {
-    CHP(convert_cutter_compensation_on(RIGHT, block, settings));
-  } else if (g_code == G_41_1) {
-    CHP(convert_cutter_compensation_on(LEFT, block, settings));
-  } else if (g_code == G_42_1) {
-    CHP(convert_cutter_compensation_on(RIGHT, block, settings));
-  } else
-    ERS("BUG: Code not G40, G41, G41.1, G42, G42.2");
-
-  return INTERP_OK;
+    return INTERP_OK;
 }
 
 /****************************************************************************/
@@ -1712,8 +1720,8 @@ int Interp::convert_cutter_compensation_off(setup_pointer settings)      //!< po
 #ifdef DEBUG_EMC
   enqueue_COMMENT("interpreter: cutter radius compensation off");
 #endif
-  if(settings->cutter_comp_side && settings->cutter_comp_radius > 0.0 &&
-     !settings->cutter_comp_firstmove) {
+  if(settings->cutter_comp.side && settings->cutter_comp.radius > 0.0 &&
+     !settings->cutter_comp.firstmove) {
       double cx, cy, cz;
       comp_get_current(settings, &cx, &cy, &cz);
       CHP(move_endpoint_and_flush(settings, cx, cy));
@@ -1724,8 +1732,8 @@ int Interp::convert_cutter_compensation_off(setup_pointer settings)      //!< po
       settings->current[Z] = settings->program_z;
       settings->arc_not_allowed = true;
   }
-  settings->cutter_comp_side = false;
-  settings->cutter_comp_firstmove = true;
+  settings->cutter_comp.side = NO_COMP;
+  settings->cutter_comp.firstmove = true;
   return INTERP_OK;
 }
 
@@ -1789,7 +1797,7 @@ static int is_near_int(int *result, double value) {
     return fabs(*result - value) < .0001;
 }
 
-int Interp::convert_cutter_compensation_on(int side,     //!< side of path cutter is on (LEFT or RIGHT)
+int Interp::convert_cutter_compensation_on(CutterCompDirection side,     //!< side of path cutter is on (LEFT or RIGHT)
                                           block_pointer block,  //!< pointer to a block of RS274 instructions 
                                           setup_pointer settings)       //!< pointer to machine settings              
 {
@@ -1798,21 +1806,25 @@ int Interp::convert_cutter_compensation_on(int side,     //!< side of path cutte
 
   CHKS((settings->plane != CANON_PLANE_XY && settings->plane != CANON_PLANE_XZ),
       NCE_RADIUS_COMP_ONLY_IN_XY_OR_XZ);
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
       NCE_CANNOT_TURN_CUTTER_RADIUS_COMP_ON_WHEN_ON);
   if(block->g_modes[GM_CUTTER_COMP] == G_41_1 || block->g_modes[GM_CUTTER_COMP] == G_42_1) {
       CHKS((!block->d_flag),
               _("G%d.1 with no D word"), block->g_modes[GM_CUTTER_COMP]/10 );
-      radius = block->d_number_float / 2;
+      radius = block->d_number_float / 2.0;
       if(block->l_number != -1) {
           CHKS((settings->plane != CANON_PLANE_XZ), _("G%d.1 with L word, but plane is not G18"), block->g_modes[GM_CUTTER_COMP]/10);
           orientation = block->l_number;
       } else {
           orientation = 0;
       }
+      settings->cutter_comp.tool_number = -1;
+      settings->cutter_comp.radius_from_tool = false;
   } else {
+      settings->cutter_comp.radius_from_tool = true;
       if(!block->d_flag) {
           pocket_number = 0;
+          settings->cutter_comp.tool_number = -1; // Not specified (whatever is currently loaded)
       } else {
           int tool;
           CHKS(!is_near_int(&tool, block->d_number_float),
@@ -1820,28 +1832,30 @@ int Interp::convert_cutter_compensation_on(int side,     //!< side of path cutte
                    block->g_modes[GM_CUTTER_COMP]/10);
           CHKS((tool < 0), NCE_NEGATIVE_D_WORD_TOOL_RADIUS_INDEX_USED);
           CHP((find_tool_pocket(settings, tool, &pocket_number)));
+          settings->cutter_comp.tool_number = tool;
       }
       radius = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].diameter) / 2.0;
       orientation = settings->tool_table[pocket_number].orientation;
       CHKS((settings->plane != CANON_PLANE_XZ && orientation != 0 && orientation != 9), _("G%d with lathe tool, but plane is not G18"), block->g_modes[GM_CUTTER_COMP]/10);
+      // FIXME assume the current pocket is valid as the source for this for both random and non-random tool changers...
   }
   if (radius < 0.0) { /* switch side & make radius positive if radius negative */
     radius = -radius;
-    if (side == RIGHT)
-      side = LEFT;
+    if (side == RIGHT_COMP)
+      side = LEFT_COMP;
     else
-      side = RIGHT;
+      side = RIGHT_COMP;
   }
 #ifdef DEBUG_EMC
-  if (side == RIGHT)
+  if (side == RIGHT_COMP)
     enqueue_COMMENT("interpreter: cutter radius compensation on right");
   else
     enqueue_COMMENT("interpreter: cutter radius compensation on left");
 #endif
 
-  settings->cutter_comp_radius = radius;
-  settings->cutter_comp_orientation = orientation;
-  settings->cutter_comp_side = side;
+  settings->cutter_comp.radius = radius;
+  settings->cutter_comp.orientation = orientation;
+  settings->cutter_comp.side = side;
   return INTERP_OK;
 }
 
@@ -1966,7 +1980,7 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
                   setup_pointer settings)        //!< pointer to machine settings
 {
     if (g_code == G_7) {
-        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+        if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
    	 		if (!settings->lathe_diameter_mode) {
       				if(block->x_flag){
        		 			block->x_number /= 2; //Apply scaling now
@@ -1986,7 +2000,7 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
 		ERS("G7 - diameter mode - not allowed in mill");
  }
  	else if (g_code == G_8) {
-        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+        if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
 			ERS("BUG: G8 - radius mode - not allowed.");	
 			return INTERP_OK;
 		}
@@ -2243,7 +2257,7 @@ int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS27
 
 int Interp::convert_savehome(int code, block_pointer block, setup_pointer s) {
     
-    if(s->cutter_comp_side) {
+    if(s->cutter_comp.side) {
         ERS(_("Cannot set reference point with cutter compensation in effect"));
     }
 
@@ -2344,7 +2358,7 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
                 &AA_end, &BB_end, &CC_end, 
                 &u_end, &v_end, &w_end));
 
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
       NCE_CANNOT_USE_G28_OR_G30_WITH_CUTTER_RADIUS_COMP);
 
   // waypoint is in currently active coordinate system
@@ -2515,7 +2529,7 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
         settings->program_z = (settings->program_z * to_new_units.linear_fwd);
 
         qc_scale(to_new_units.linear_fwd);
-        settings->cutter_comp_radius *= to_new_units.linear_fwd;
+        settings->cutter_comp.radius *= to_new_units.linear_fwd;
 
         // Handles axis, work, and tool offsets
         settings->transform.rescaleAllTransforms(to_new_units);
@@ -2527,198 +2541,11 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
     return INTERP_OK;
 }
 
-/**
- * given two int arrays representing interpreter settings as stored in
- * _setup.active_g_codes, construct a G-code sequence to synchronize their state.
- *
- * similarly do the same for F and S words, but they have some dependency on G codes so
- * do this all within a single contained method.
- *
- * @note "Saved" here means state saved in a state tag, while current means the
- * current state of interp. Both are necessary so that redundant G-codes aren't
- * issued if the current state already matches the tag.
- */
-int Interp::gen_g_codes(
-    ActiveGCodeArray const &current,
-    ActiveGCodeArray const &saved,
-    ActiveSettingsArray const &current_settings,
-    ActiveSettingsArray const &saved_settings,
-    int work_offset_origin_tag,
-	std::string &cmd)
-{
-    int val;
-    char buf[LINELEN];
-    bool spindle_mode_restored = false;
-
-    for (int ii = 0; ii < ACTIVE_G_CODES; ii++) {
-        val = saved[ii];
-        if (val == current[ii]) {
-            continue;
-        }
-
-        switch ((ActiveGCodeIndex)ii) {
-        case G_CODE_SEQUENCE_NUMBER: // sequence_number - no point in restoring
-        case G_CODE_MODE_0: // TODO document why we don't restore mode 0
-        case G_CODE_unsupported: // unused
-        case G_CODE_UNITS: // - length units (handled separately)
-        case G_CODE_MOTION_MODE: // restoring the motion mode is a real bad idea to start with
-            break;
-
-        case G_CODE_ORIGIN: // Special case for P word
-            snprintf(buf, LINELEN, " G54.1 P%d", work_offset_origin_tag);
-            cmd += buf;
-            break;
-
-        case G_CODE_SPINDLE_MODE: // - spindle mode
-            spindle_mode_restored = true;
-
-            BOOST_FALLTHROUGH;
-        case G_CODE_PLANE: // - plane
-        case G_CODE_CUTTER_SIDE: // - cutter compensation
-        case G_CODE_DISTANCE_MODE: // - distance mode
-        case G_CODE_FEED_MODE: // - feed mode
-        case G_CODE_TOOL_LENGTH_OFFSET: // - tool offset (G43/G49)
-        case G_CODE_RETRACT_MODE: // - retract mode
-        case G_CODE_PATH_MODE: // - control mode
-        case G_CODE_DISTANCE_MODE_IJK: // - ijk distance mode
-        case G_CODE_LATHE_DIAMETER_MODE: // - lathe diameter mode
-            CHKS(formatGCode((GCodes)val, cmd), "gen_g_codes BUG: index %d = -1", ii);
-            break;
-        case ACTIVE_G_CODES: // Do nothing, not a real G-code
-            break;
-        }
-    }
-
-    // If G96 spindle mode is present for constant surface speed, you must have an S word
-    // also even if S appears to be the same between saved and current vectors.
-
-    for (int ii = 0; ii < ACTIVE_SETTINGS; ii++) {
-	if ((saved_settings[ii] != current_settings[ii]) || (2 == ii && spindle_mode_restored)) {
-	    switch (ii) {
-	    case 0: break; // sequence_number - no point in restoring
-	    case 1:
-		snprintf(buf,sizeof(buf)," F%.1f", saved_settings[ii]);
-		cmd+=buf;
-		break;
-	    case 2:
-		snprintf(buf,sizeof(buf)," S%.0f", saved_settings[ii]);
-		cmd+=buf;
-		break;
-	    }
-	}
-    }
-
-    return INTERP_OK;
-}
-
-/*
- * given two int arrays representing interpreter settings as stored in
- * _setup.active_m_codes, construct a M-code sequence to synchronize their state.
- *
- * use multiple lines here because M7 and M8 may not be on the same line since
- * they are in the same modal group.
- */
-int Interp::gen_m_codes(ActiveMCodeArray const &current, ActiveMCodeArray const &saved, std::string &cmd)
-{
-    int i,val;
-    char buf[LINELEN];
-    for (i = 0; i < ACTIVE_M_CODES; i++) {
-	val = saved[i];
-	if (val != current[i]) {
-        switch ((ActiveMCodeIndex)i) {
-        case M_CODE_SEQUENCE_NUMBER:
-        case M_CODE_STOPPING:
-        case M_CODE_TOOLCHANGE:
-            break;
-        case M_CODE_SPINDLE:
-        case M_CODE_MIST:
-        case M_CODE_FLOOD:
-        case M_CODE_OVERRIDES:
-        case M_CODE_ADAPTIVE_FEED:
-        case M_CODE_FEED_HOLD:
-            if (val != -1) {  // unsure..
-                snprintf(buf,sizeof(buf),"M%d\n", val);
-                cmd+=buf;
-            } else {
-                MSG("------ gen_m_codes: index %d = -1!!\n",i);
-            }
-            break;
-        case ACTIVE_M_CODES: // Do nothing, not a real M-code
-            break;
-        }
-    }
-    }
-    return INTERP_OK;
-}
-
-
-/**
- * Create a G code string to restore a modal state on program abort.
- * Note: This is only designed to be called on program abort. It restores the
- * modal state in the interpreter to the equivalent state at the most recent
- * motion line, but does not restore M codes.
- */
-int Interp::gen_restore_cmd(ModalState const &state,
-        StateTag const &saved_tag,
-        std::string &cmd)
-{
-    // A local copy of the saved settings, unpacked from a state tag
-    ActiveGCodeArray saved_g{};
-    ActiveMCodeArray saved_m{};
-    ActiveSettingsArray saved_settings{};
-
-    int saved_work_offset = -1;
-    //Extract saved state to local vectors
-    int res_unpack = active_modes(&saved_g[0], &saved_m[0], &saved_settings[0], saved_work_offset, saved_tag);
-    if (res_unpack != INTERP_OK) {
-        return INTERP_ERROR;
-    }
-
-    /* Now we clean up any G / M modes that should be reset when ending a
-     * program. Note that most of these mode states are based on logic in
-     * write_XXX functions.
-     */
-    // Force cancellation of tool compensation
-    saved_g[G_CODE_CUTTER_SIDE] = G_40;
-    ActiveGCodeArray current_g = state.g_codes;
-
-    // KLUDGE force restoration of any modal state that isn't fully expressed by just the mode (e.g. tool number, offset number)
-    current_g[G_CODE_TOOL_LENGTH_OFFSET] = -1;
-    current_g[G_CODE_ORIGIN] = -1;
-
-    //Mimic the order of restoration commands used elsewhere
-    if (state.g_codes[G_CODE_UNITS] != saved_g[G_CODE_UNITS]) {
-        formatGCode((GCodes)saved_g[G_CODE_UNITS], cmd);
-    }
-
-
-    //M codes should not be restored during an abort
-    int res_m = 0;
-    int res_g = gen_g_codes(current_g, saved_g, state.settings, saved_settings, saved_work_offset, cmd);
-
-    // If G43 is present for lathes, you must have an H word
-    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
-        if (cmd.find("G43") != std::string::npos) {
-            char buf[LINELEN];
-            snprintf(buf, sizeof(buf), " H%d", saved_tag.fields[GM_FIELD_TOOL_NUMBER]);
-            cmd += buf;
-        }
-    }
-
-    if (res_m || res_g) {
-        return INTERP_ERROR;
-    }
-    
-    return INTERP_OK;
-}
-
 int Interp::save_settings(setup_pointer settings)
 {
       // the state is sprinkled all over _setup
       // collate state in _setup.active_* arrays
-      write_g_codes((block_pointer) NULL, settings, settings->modal_state);
-      write_m_codes((block_pointer) NULL, settings, settings->modal_state);
-      write_settings(settings, settings->modal_state);
+      write_modal_state(nullptr, settings);
 
       // save in the current call frame
       settings->sub_context[settings->call_level].modal_state = settings->modal_state;
@@ -2727,6 +2554,24 @@ int Interp::save_settings(setup_pointer settings)
       // context_struct might need to be extended too.
 
       return INTERP_OK;
+}
+
+int Interp::write_modal_state(block_pointer block, setup_pointer settings)
+{
+    // KLUDGE technically aliases const settings with non-const modal state...
+    return write_modal_state(block, settings, settings->modal_state);
+}
+
+int Interp::write_modal_state(const block_pointer block, const setup_pointer settings, ModalState & out)
+{
+    CHP(write_g_codes(block, settings, out));
+    CHP(write_m_codes(block, settings, out));
+    CHP(write_settings(settings, out));
+    out.work_offset_number = settings->origin_index;
+    out.tool_offset_number = settings->getCurrentToolNumber();
+    out.tool_offset_mode = settings->tool_offset_mode;
+    out.cutter_comp = settings->cutter_comp;
+    return INTERP_OK;
 }
 
 /* restore global settings/gcodes/mcodes to current call level from a valid context
@@ -2741,7 +2586,7 @@ int Interp::save_settings(setup_pointer settings)
 int Interp::restore_settings(
     setup_pointer settings,
     int from_level,
-    int m_code)    //!< call level of context to restore from
+    int caller_m_code)    //!< call level of context to restore from
 {
 
     CHKS((from_level < settings->call_level),
@@ -2749,65 +2594,74 @@ int Interp::restore_settings(
     CHKS((from_level < 0), (_("BUG: restore from level %d !?")),from_level);
     CHKS((settings->call_level < 0), (_("BUG: restore to level %d !?")),settings->call_level);
 
-    // linearize state
-    write_g_codes((block_pointer) NULL, settings, settings->modal_state);
-    write_m_codes((block_pointer) NULL, settings, settings->modal_state);
-    write_settings(settings, settings->modal_state);
+    // capture current modal state from interpreter
+    write_modal_state(nullptr, settings);
 
-    std::string cmd("");
+    ModalState &current = settings->modal_state;
+    ModalState const &saved = settings->sub_context[from_level].modal_state;
 
-    // construct gcode from the state difference and execute
-    // this assures appropriate canon commands are generated if needed -
-    // just restoring interp variables is not enough
-
-    // G20/G21 switching is special - it is executed beforehand
-    // so restoring feed later on is interpreted in the correct context
-
-    if (settings->modal_state.g_codes[G_CODE_UNITS] !=
-        settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]) {
-        char buf[LINELEN];
-        snprintf(buf, sizeof(buf), "G%d\n",
-                 settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]/10);
-    }
-    gen_m_codes(settings->modal_state.m_codes, settings->sub_context[from_level].modal_state.m_codes,cmd);
-    gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,
-                settings->modal_state.settings, settings->sub_context[from_level].modal_state.settings, _setup.origin_index, cmd);
-
-    // KLUDGE stash the caller line here
-    std::string old_linetext = _setup.linetext;
-    if (cmd.empty()) {
-        return INTERP_OK;
-    }
-
-    if (cmd.length() > 0) {
-        // the sequence can be multiline, separated by nl
-        // so split and execute each line
-        char cmd_buf[LINELEN];
-        strncpy(cmd_buf,cmd.c_str(), LINELEN);
-        char *last = cmd_buf;
-        char *s;
-        while ((s = strtok_r(last, "\n", &last)) != NULL) {
-            int status = execute_impl(s, CommandSource::MODAL_STATE_RESTORE);
-            strncpy(_setup.linetext, old_linetext.c_str(), sizeof(_setup.linetext)-1);
-            if (status != INTERP_OK) {
-                char currentError[LINELEN+1];
-                strcpy(currentError,getSavedError());
-                CHKS(status, _("M%d: restore_settings failed executing: '%s': %s"), m_code, s, currentError);
-            }
-        }
-    // Write updated state back to local storage
-	write_g_codes((block_pointer) NULL, settings, settings->modal_state);
-	write_m_codes((block_pointer) NULL, settings, settings->modal_state);
-	write_settings(settings, settings->modal_state);
-    }
-
-    // TBD: any state deemed important to restore should be restored here
-    // NB: some state changes might generate canon commands so do that here
-    // if needed
-
+    restore_settings_impl(current, saved, caller_m_code);
+    // Re-capture modal state now that interpreter has been restored.
+    // This prevents mismatched modal state in case of incomplete restoration.
+    write_modal_state(nullptr, settings);
     return INTERP_OK;
 }
 
+int Interp::execute_gcode_sequence(RestoreCommandList const &cmd_list, int caller_m_code, const char *caller_name)
+{
+    std::string old_linetext = _setup.linetext;
+    for (auto const &cmd_str : cmd_list) {
+        if (cmd_str.empty()) {
+            continue;
+        }
+        // Execute each line of the command list individually
+        int status = execute_impl(cmd_str.c_str(), CommandSource::MODAL_STATE_RESTORE);
+        // Clean up after execution (restore previous linetext, and synch modal state with current interp state)
+        strncpy(_setup.linetext, old_linetext.c_str(), sizeof(_setup.linetext)-1);
+
+        if (status != INTERP_OK) {
+            std::string currentError(getSavedError());
+            char buf[40]="";
+            if (caller_m_code >= 0) {
+                snprintf(buf, 40, "M%d: ", caller_m_code);
+            }
+            CHKS(status, _("%s%s failed executing: '%s': %s"),
+                 buf,
+                 caller_name,
+                 cmd_str.c_str(),
+                 currentError.c_str());
+        }
+    }
+    return INTERP_OK;
+}
+
+int Interp::restore_settings_impl(
+        ModalState & current, //!< "current" modal state in the interpreter
+        const ModalState & saved, //!< modal state to restore the interpreter to.
+        int caller_m_code //!< M-code triggering this restore (mostly for error context)
+){
+    // G20/G21 switching is special - it is executed beforehand
+    // so restoring feed later on is interpreted in the correct context
+
+
+    GCodeGenerator generator(_setup.feature_set);
+    generator.gen_modalStateRestore(current, saved);
+    RestoreCommandList const &cmd_list = generator.getCommandSequence();
+
+    if (cmd_list.empty()) {
+        return INTERP_OK;
+    }
+
+    logDebug("Modal state restore commands: ");
+    for (auto const &cmd_str : cmd_list) {
+        const char *c = cmd_str.c_str();
+        logDebug("%s", c);
+    }
+
+    execute_gcode_sequence(cmd_list, caller_m_code, "restore_settings");
+
+    return INTERP_OK;
+}
 
 /**
  * Variation of restore_settings to pull state from a StateTag.
@@ -2824,48 +2678,147 @@ int Interp::restore_from_tag(StateTag const &tag)
     // clear queue buster sflags, otherwise the command won't be executed - Tormach *dpr 8/17/15
     _setup.clear_queue_buster_flags();
 
-    // Restore line number from tag
+    // Explicitly restore line number from tag
     _setup.sequence_number = tag.fields[GM_FIELD_LINE_NUMBER];
 
-    // linearize state
-    write_g_codes((block_pointer) NULL, &_setup, _setup.modal_state);
-    write_m_codes((block_pointer) NULL, &_setup, _setup.modal_state);
-    write_settings(&_setup, _setup.modal_state);
+    // Capture current modal state
+    CHP(write_modal_state(nullptr, &_setup));
+    ModalState &current = _setup.modal_state;
 
-    std::string cmd;
+    // A local copy of the saved settings, unpacked from a state tag
+    ModalState saved{};
+    CHP(active_modes(
+        saved,
+        tag));
 
-    // construct gcode from the state difference and execute
-    // this assures appropriate canon commands are generated if needed -
-    // just restoring interp variables is not enough
-    int res_unpack = gen_restore_cmd(_setup.modal_state,
-            tag,
-            cmd);
-    if (res_unpack != INTERP_OK) {
-        return res_unpack;
+    GCodeGenerator::filterAbortedStates(current, saved);
+
+    //KLUDGE pretend it's M2 that's aborting though it could be something else
+    restore_settings_impl(current, saved, 2);
+
+    write_modal_state(nullptr, &_setup);
+
+    // KLUDGE also restore G92 state
+    GCodeGenerator generator(_setup.feature_set);
+    AxisOffsetParams axis_offset_user = GET_EXTERNAL_PERSISTENT_AXIS_OFFSET();
+    generator.addLocalAxisOffsets(axis_offset_user.offset);
+    if (!axis_offset_user.applied) {
+        // Implies that persistent offsets are stored but not currently used
+        generator.clearLocalAxisOffsets(false);
+    }
+    RestoreCommandList const &cmd_list = generator.getCommandSequence();
+
+    logDebug("Restore G92 Offsets: ");
+    for (auto const &cmd_str : cmd_list) {
+        const char *c = cmd_str.c_str();
+        logDebug("%s", c);
     }
 
-    if (!cmd.empty()) {
-        // the sequence can be multiline, separated by nl
-        // so split and execute each line
-        char buf[cmd.size() + 1];
-        strncpy(buf, cmd.c_str(), sizeof(buf));
-        char *last = buf;
-        char *s;
-        while ((s = strtok_r(last, "\n", &last)) != NULL) {
-            int status = execute_impl(s, CommandSource::ABORT_CLEANUP);
-            if (status > INTERP_MIN_ERROR) {
-                char currentError[LINELEN + 1];
-                strcpy(currentError, getSavedError());
-                logDebug("Interp::restore_from_tag - FAILED with status=%d ('%s') trying to execute line: %s", status, currentError, s);
-                CHKS(status, _("Failed to restore interp state on abort '%s': %s"), s, currentError);
-            }
-        }
-        write_g_codes((block_pointer) NULL, &_setup, _setup.modal_state);
-        write_m_codes((block_pointer) NULL, &_setup, _setup.modal_state);
-        write_settings(&_setup, _setup.modal_state);
-    }
+    execute_gcode_sequence(cmd_list, 2, "restore_g92");
 
     return INTERP_OK;
+}
+
+int Interp::create_full_restore_sequence(
+    ModalState const &to_restore,
+    RestoreCommandList & restore_cmd_list,
+    InterpPreamble const &preamble,
+    StartLineSettings const &leadin_settings
+){
+    GCodeGenerator generator(_setup.feature_set);
+
+    generator.addQueueBuster("Force a drop into auto mode to process remainder of restore sequence");
+// Don't restore work / tool offset values (but parameter values will be changed...)
+#if 0
+    // Send all work offsets that may have been changed during seek
+    // The worst case is that all "used" work offsets have changed (via G10),
+    // but often they will just be activated (e.g. G5x) without changing the offset values.
+    for (auto const &origin : _setup.work_offsets_used) {
+        generator.addWorkOffset(origin);
+    }
+
+    // Send any tool table values to IO that have changed
+    for (auto const &toolno : _setup.tool_offsets_changed) {
+        generator.addToolOffset(toolno);
+    }
+#endif
+
+    generator.addPreformatted("G90"); // Necessary to allow absolute moves in toolchange prolog
+    generator.addPreformatted(preamble.toolchange_prolog);
+    generator.addToolChange(_setup.getCurrentToolNumber());
+    generator.addPreformatted(preamble.toolchange_epilog);
+
+    // Crude way to ensure that the "persistant" values are properly copied into stat
+    // Always send the actual paramter values, then clear the offsets if need be
+    generator.addLocalAxisOffsets(getG92ParameterValues(&_setup));
+    if (_setup.parameters[G92_APPLIED] == 0.0) {
+        generator.clearLocalAxisOffsets(false);
+    }
+
+    // NOTE: modal state was captured already in seek / read transition handler, so pull it back out here
+    ModalState dummy_current{};
+    // KLUDGE Don't restore toolcomp till after the queue-buster...
+    ModalState no_toolcomp = to_restore;
+    no_toolcomp.g_codes[G_CODE_CUTTER_SIDE] = G_40;
+    no_toolcomp.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = G_49;
+    generator.gen_modalStateRestore(dummy_current, no_toolcomp);
+    switch (to_restore.tool_offset_mode) {
+    case G_49:
+        // Do nothing, already cancelled in the modal state restore
+        break;
+    case G_43:
+        generator.addToolLengthOffsetFromTable(to_restore.tool_offset_number);
+        break;
+    case G_43_1:
+    case G_43_2:
+        // TODO support this if there is sufficient demand for it...
+        ERS("Cannot restore tool offset modes G43.1 / G43.2");
+        break;
+    default:
+        ERS("Unknown mode %d in tool offset restore", to_restore.tool_offset_mode);
+    }
+
+    generator.addQueueBuster("Ensure that all state is restored before further processing to leave interp in a consistent state");
+
+    generator.addPreformatted(preamble.leadin_prolog);
+    // Assume that current tool tip position is the starting position of a lead-in move
+
+    // Traverse axes are whichever axes are not used for plunging (a crude way to generalize the XY / Z behavior of canned cycles)
+    AxisMask traverse_axes = ~preamble.plunge_axes;
+
+    switch (leadin_settings.prep_type) {
+    case PREP_LINEAR_LEADIN:
+    {
+        PositionArray orig_tip_position = _setup.transform.forward_local_to_tip(GET_EXTERNAL_POSITION());
+        auto desired_nose_position_with_correct_tool = leadin_settings.initial_transform.inverse_nose_from_tip(orig_tip_position);
+        PositionArray leadin_position = _setup.transform.inverse_local_from_nose(desired_nose_position_with_correct_tool);
+        // Should likely do nothing (move back to initial position after tool change)
+        generator.addLinearRapidMove(leadin_position, traverse_axes);
+        if (preamble.plunge_axes.any()) {
+            generator.addLinearRapidMove(leadin_position, preamble.plunge_axes);
+        }
+        generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp);
+        generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
+    }
+        break;
+    case PREP_PLUNGE_LEADIN:
+        // NOTE: traverse plane is either initial Z height, or whatever the toolchange / epilog leaves the plunge axes.
+        generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp);
+        generator.addLinearRapidMove(_setup.current, traverse_axes);
+        CHKS(!preamble.plunge_axes.any(), _("No plunge axes specified, cannot do a plunge lead-in move"));
+        // TODO rapid to a "retract height" here (will save a lot of time with slow feeds)
+        generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
+        break;
+    case PREP_NONE:
+        // Should never get here, so just flush out the list
+        restore_cmd_list = RestoreCommandList();
+        return 0;
+    }
+
+    generator.addPreformatted(preamble.leadin_epilog);
+
+    restore_cmd_list = generator.getCommandSequence();
+    return 0;
 }
 
 
@@ -2923,25 +2876,25 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
   }
   write_and_update_state_tag(block);
   if ((block->m_modes[M_MODE_IO] == 62) && ONCE_M(5)) {
-      CHKS((settings->cutter_comp_side),
+      CHKS((settings->cutter_comp.side),
            (_("Cannot set motion output with cutter radius compensation on")));  // XXX
       CHKS((!block->p_flag), _("No valid P word with M62"));
       //write_and_update_state_tag(block);
       SET_MOTION_OUTPUT_BIT(round_to_int(block->p_number));
   } else if ((block->m_modes[M_MODE_IO] == 63) && ONCE_M(5)) {
-      CHKS((settings->cutter_comp_side),
+      CHKS((settings->cutter_comp.side),
            (_("Cannot set motion digital output with cutter radius compensation on")));  // XXX
       CHKS((!block->p_flag), _("No valid P word with M63"));
       //write_and_update_state_tag(block);
       CLEAR_MOTION_OUTPUT_BIT(round_to_int(block->p_number));
   } else if ((block->m_modes[M_MODE_IO] == 64) && ONCE_M(5)){
-      CHKS((settings->cutter_comp_side),
+      CHKS((settings->cutter_comp.side),
            (_("Cannot set auxiliary digital output with cutter radius compensation on")));  // XXX
       CHKS((!block->p_flag), _("No valid P word with M64"));
       //write_and_update_state_tag(block);
       SET_AUX_OUTPUT_BIT(round_to_int(block->p_number));
   } else if ((block->m_modes[M_MODE_IO] == 65) && ONCE_M(5)) {
-      CHKS((settings->cutter_comp_side),
+      CHKS((settings->cutter_comp.side),
            (_("Cannot set auxiliary digital output with cutter radius compensation on")));  // XXX
       CHKS((!block->p_flag), _("No valid P word with M65"));
       //write_and_update_state_tag(block);
@@ -2988,25 +2941,25 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 	    timeout = 0;
         }
 
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot wait for digital input with cutter radius compensation on")));
 
     int ret = WAIT(round_to_int(block->p_number), DIGITAL_INPUT, (CANON_WAIT_MODE)type, timeout);
 	//WAIT returns 0 on success, -1 for out of bounds
 	CHKS((ret == -1), NCE_DIGITAL_INPUT_INVALID_ON_M66);
 	if (ret == 0) {
-	    settings->input_flag = true;
+        settings->wait_flags.set(INPUT);
 	    settings->input_index = round_to_int(block->p_number);
 	    settings->input_digital = true;
 	}
     } else if (round_to_int(block->e_number) >= 0) { // got an analog input
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot wait for analog input with cutter radius compensation on")));
 
     int ret = WAIT(round_to_int(block->e_number), ANALOG_INPUT, WAIT_MODE_IMMEDIATE, 0); //WAIT returns 0 on success, -1 for out of bounds
 	CHKS((ret == -1), NCE_ANALOG_INPUT_INVALID_ON_M66);
 	if (ret == 0) {
-	    settings->input_flag = true;
+        settings->wait_flags.set(INPUT);
 	    settings->input_index = round_to_int(block->e_number);
 	    settings->input_digital = false;
 	}
@@ -3015,14 +2968,14 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 
     //E-word = analog channel
     //Q-word = analog value
-      CHKS((settings->cutter_comp_side),
+      CHKS((settings->cutter_comp.side),
            (_("Cannot set motion analog output with cutter radius compensation on")));  // XXX
       CHKS((!block->e_flag) || (round_to_int(block->e_number) < 0), (_("Invalid analog index with M67")));
       SET_MOTION_OUTPUT_VALUE(round_to_int(block->e_number), block->q_number);
   } else if ((block->m_modes[M_MODE_IO] == 68)  && ONCE_M(5)) {
     //E-word = analog channel
     //Q-word = analog value
-      CHKS((settings->cutter_comp_side),
+      CHKS((settings->cutter_comp.side),
            (_("Cannot set auxiliary analog output with cutter radius compensation on")));  // XXX
       CHKS((!block->e_flag) || (round_to_int(block->e_number) < 0), (_("Invalid analog index with M68")));
       SET_AUX_OUTPUT_VALUE(round_to_int(block->e_number), block->q_number);
@@ -3062,7 +3015,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 	      // make sure selected tool exists
 	      CHP((find_tool_pocket(settings, toolno, &pocket)));
 	      settings->current_pocket = pocket;
-	      settings->toolchange_flag = true;
+          settings->wait_flags.set(TOOLCHANGE);
 	      CHANGE_TOOL_NUMBER(settings->current_pocket);
 	      set_tool_parameters();
 	  }
@@ -3078,7 +3031,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
 
   // needs more testing.. once? test tool_change_flag!
   //#ifdef DEBATABLE
-  if (_setup.hasFeature(FEATURE_RETAIN_G43)) {
+  if (hasFeature(FEATURE_RETAIN_G43)) {
     // I consider this useful, so make it configurable.
     // Turn it on optionally . -mah
 
@@ -3138,7 +3091,7 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
       } else if (block->m_modes[M_MODE_SPINDLE] == 19) {
           settings->spindle_turning = CANON_STOPPED;
           if (block->r_flag || block->p_flag || block->q_flag) {
-              settings->orient_flag = true;
+              settings->wait_flags.set(ORIENT);
   	    write_and_update_state_tag(block);
   	    enqueue_ORIENT_SPINDLE(
   	        (block->r_flag ? (block->r_number + settings->orient_offset)
@@ -3221,7 +3174,7 @@ if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
      return convert_remapped_code(block, settings, STEP_M_9, 'm',
                    block->m_modes[M_MODE_FEED_SPEED_OVERRIDE]);
  } else if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 48)  && ONCE_M(9)){
-    CHKS((settings->cutter_comp_side),
+    CHKS((settings->cutter_comp.side),
          (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
     settings->feed_override = true;
     settings->speed_override = true;
@@ -3229,7 +3182,7 @@ if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
     ENABLE_FEED_OVERRIDE();
     ENABLE_SPEED_OVERRIDE();
  } else if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 49)  && ONCE_M(9)){
-    CHKS((settings->cutter_comp_side),
+    CHKS((settings->cutter_comp.side),
          (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
     settings->feed_override = false;
     settings->speed_override = false;
@@ -3240,13 +3193,13 @@ if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
 
 if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 50)  && ONCE_M(9)){
     if (block->p_number != 0) {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
 	settings->feed_override = true;
 	write_and_update_state_tag(block);
 	ENABLE_FEED_OVERRIDE();
     } else {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
 	settings->feed_override = false;
 	write_and_update_state_tag(block);
@@ -3257,13 +3210,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 50)  && ONCE_M(9)){
 if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 51)  && ONCE_M(9)){
 
     if (block->p_number != 0) {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
 	settings->speed_override = true;
 	write_and_update_state_tag(block);
 	ENABLE_SPEED_OVERRIDE();
     } else {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
 	settings->speed_override = false;
 	write_and_update_state_tag(block);
@@ -3273,15 +3226,15 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 51)  && ONCE_M(9)){
   
 if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 52)  && ONCE_M(9)){
     if (block->p_number != 0) {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
-	settings->adaptive_feed = true;
+    settings->allow_adaptive_feed = true;
 	write_and_update_state_tag(block);
 	ENABLE_ADAPTIVE_FEED();
     } else {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
-	settings->adaptive_feed = false;
+    settings->allow_adaptive_feed = false;
 	write_and_update_state_tag(block);
 	DISABLE_ADAPTIVE_FEED();
     }
@@ -3289,15 +3242,15 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 52)  && ONCE_M(9)){
   
 if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 53)  && ONCE_M(9)){
     if (block->p_number != 0) {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
-	settings->feed_hold = true;
+    settings->allow_feed_hold = true;
 	write_and_update_state_tag(block);
 	ENABLE_FEED_HOLD();
     } else {
-        CHKS((settings->cutter_comp_side),
+        CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
-	settings->feed_hold = false;
+    settings->allow_feed_hold = false;
 	write_and_update_state_tag(block);
 	DISABLE_FEED_HOLD();
     }
@@ -3309,7 +3262,7 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
 
  } else if ((block->m_modes[M_MODE_USER] == 998) && ONCE_M(10)){
 	 // Tormach only
-     if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)){
+     if (hasFeature(FEATURE_LATHE_TOOLCHANGE)){
 		 CHKS(1, NCE_UNKNOWN_M_CODE_USED,998);
 	 } else {
 		CHP(convert_home(G_30, block, settings));
@@ -3334,12 +3287,12 @@ int Interp::convert_g10(block_pointer block, setup_pointer settings)
     case 11:
         CHP(convert_setup_tool(block, settings));
         // Any change to work / tool offsets means the queue should be flushed to prevent interp / task mismatches
-        settings->work_offset_modified_flag = true;
+        settings->wait_flags.set(TOOL_OFFSET_MODIFED);
         break;
     case 2:
     case 20:
-        CHP(convert_setup(block, settings));
-        settings->work_offset_modified_flag = true;
+        CHP(convert_setup_work(block, settings));
+        settings->wait_flags.set(WORK_OFFSET_MODIFIED);
         break;
     case 99:
         CHP(convert_part_count(block, settings));
@@ -3563,7 +3516,7 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
   unsigned char probe_type = g_code - G_38_2;
 
   
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
       NCE_CANNOT_PROBE_WITH_CUTTER_RADIUS_COMP_ON);
   CHKS((settings->feed_rate == 0.0), NCE_CANNOT_PROBE_WITH_ZERO_FEED_RATE);
   CHKS(settings->feed_mode == UNITS_PER_REVOLUTION,
@@ -3604,7 +3557,7 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
   }
   TURN_PROBE_OFF();
   settings->motion_mode = g_code;
-  settings->probe_flag = true;
+  settings->wait_flags.set(PROBE);
   return INTERP_OK;
 }
 
@@ -3632,7 +3585,7 @@ this function.
 int Interp::convert_retract_mode(int g_code,     //!< g_code being executed (must be G_98 or G_99)
                                 setup_pointer settings) //!< pointer to machine settings                 
 {
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
        (_("Cannot change retract mode with cutter radius compensation on")));
   if (g_code == G_98) {
 #ifdef DEBUG_EMC
@@ -3653,27 +3606,29 @@ int Interp::convert_retract_mode(int g_code,     //!< g_code being executed (mus
 // G10 L10 P[tool number] R[radius] X[x offset] Z[z offset] Q[orientation]
 
 int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
+    if(!(block->x_flag || block->y_flag || block->z_flag ||
+          block->a_flag || block->b_flag || block->c_flag ||
+          block->u_flag || block->v_flag || block->w_flag ||
+          block->r_flag || block->q_flag || block->i_flag ||
+          block->j_flag)) {
+        switch (last_cmd_src) {
+        case CommandSource::PREAMBLE:
+            // This is ok because it's flushing the tool offset from interp to IO
+            break;
+        default:
+            // Do not allow this in user code though
+            ERS("G10 L1 without offsets has no effect");
+        }
+    }
+
     int pocket = -1, toolno;
-    int q;
-    PositionArray t_pos;
-
-    int direct = block->l_number == 1;
-
     // TODO same overhaul as setup (w/ unrotate etc.)
     is_near_int(&toolno, block->p_number);
-
     CHP((find_tool_pocket(settings, toolno, &pocket)));
 
     settings->tool_table[pocket].toolno = toolno;
 
-    CHKS(!(block->x_flag || block->y_flag || block->z_flag ||
-           block->a_flag || block->b_flag || block->c_flag ||
-           block->u_flag || block->v_flag || block->w_flag ||
-           block->r_flag || block->q_flag || block->i_flag ||
-           block->j_flag),
-         _("G10 L1 without offsets has no effect"));
-
-    if(direct) {
+    if(block->l_number == 1) {
        ShiftTransform tool_offset;
        CHP(find_tool_offset(settings, pocket, tool_offset));
        tool_offset.tf = getAxisWordsFromBlock(block, tool_offset.tf);
@@ -3684,76 +3639,44 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
         int to_fixture = block->l_number == 11;
         int destination_system = to_fixture? 9 : settings->origin_index; // maybe 9 (g59.3) should be user configurable?
 
-        find_current_in_system_without_tlo(settings, destination_system, t_pos);
+        LocalToMachineTransform working_csys = settings->transform;
 
-        if ( to_fixture) {
-            // For G10L11, we don't want to move the origin of the
-            // fixture according to G92.  Since find_current_in_system
-            // did this for us already, undo it.
-          settings->transform.g92Offset.apply_fwd(t_pos);
+        ShiftTransform tool_offset_from_table;
+        find_tool_offset(settings, pocket, tool_offset_from_table);
+        PositionArray current = working_csys.swap_tool_offset(settings->current, tool_offset_from_table);
+
+        // Find machine position (making sure to use the tool offset from the table
+        // that will be applied on the next G43, not whatever is currently applied)
+        PositionArray machine_pos = working_csys.forward(current);
+        // Use the nominal tool offset for the current tool (in case it hasn't been applied yet)
+
+
+        if (to_fixture) {
+            // The coordinate system we're specifying for L11 is
+            // with the specified fixture (default to G59.3) and no G92 offset.
+            // First, remove the G92 offset for L11, and clear it out:
+            working_csys.g92Offset.apply_fwd(current);
+            working_csys.g92Offset = ShiftTransform{};
+
+            // Next, find the equivalent position in fixture coordinates:
+            RotateShiftTransform fixture;
+            CHP(find_work_offset(destination_system, fixture));
+            current = working_csys.swap_g5x_offset(current, fixture);
         }
 
-        const double rotation_xy_deg = settings->transform.g5xOffset.getXYRotationDeg();
-        if(block->x_flag && block->y_flag) {
-            t_pos[X] -= block->x_number;
-            t_pos[Y] -= block->y_number;
-            rotate(&t_pos[X], &t_pos[Y], rotation_xy_deg);
-            settings->tool_table[pocket].offset.tran.x = PROGRAM_TO_USER_LEN(t_pos[X]);
-            settings->tool_table[pocket].offset.tran.y = PROGRAM_TO_USER_LEN(t_pos[Y]);
-        } else if(block->x_flag) {
-            // keep the component of the tool table's current setting that points
-            // along our possibly-rotated Y axis
-            double ox, oy;
-            ox = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
-            oy = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.y);
-            rotate(&ox, &oy, -rotation_xy_deg);
-            ox = 0;
-            rotate(&ox, &oy, rotation_xy_deg);
+        const PositionArray goal_local = getAxisWordsFromBlock(block, current);
 
+        const PositionArray goal_nose = working_csys.forward_local_to_nose(goal_local);
 
-            t_pos[X] -= block->x_number;
-            t_pos[Y] = 0;
-            rotate(&t_pos[X], &t_pos[Y], rotation_xy_deg);
-
-            settings->tool_table[pocket].offset.tran.x = PROGRAM_TO_USER_LEN(t_pos[X] + ox);
-            settings->tool_table[pocket].offset.tran.y = PROGRAM_TO_USER_LEN(t_pos[Y] + oy);
-        } else if(block->y_flag) {
-            double ox, oy;
-            ox = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
-            oy = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.y);
-            rotate(&ox, &oy, -rotation_xy_deg);
-            oy = 0;
-            rotate(&ox, &oy, rotation_xy_deg);
-
-            t_pos[Y] -= block->y_number;
-            t_pos[X] = 0;
-
-            rotate(&t_pos[X], &t_pos[Y], rotation_xy_deg);
-            settings->tool_table[pocket].offset.tran.x = PROGRAM_TO_USER_LEN(t_pos[X] + ox);
-            settings->tool_table[pocket].offset.tran.y = PROGRAM_TO_USER_LEN(t_pos[Y] + oy);
-        }
-
-
-        if(block->z_flag)
-            settings->tool_table[pocket].offset.tran.z = PROGRAM_TO_USER_LEN(t_pos[Z] - block->z_number);
-        if(block->a_flag)
-            settings->tool_table[pocket].offset.a = PROGRAM_TO_USER_ANG(t_pos[A] - block->a_number);
-        if(block->b_flag)
-            settings->tool_table[pocket].offset.b = PROGRAM_TO_USER_ANG(t_pos[B] - block->b_number);
-        if(block->c_flag)
-            settings->tool_table[pocket].offset.c = PROGRAM_TO_USER_ANG(t_pos[C] - block->c_number);
-        if(block->u_flag)
-            settings->tool_table[pocket].offset.u = PROGRAM_TO_USER_LEN(t_pos[U] - block->u_number);
-        if(block->v_flag)
-            settings->tool_table[pocket].offset.v = PROGRAM_TO_USER_LEN(t_pos[V] - block->v_number);
-        if(block->w_flag)
-            settings->tool_table[pocket].offset.w = PROGRAM_TO_USER_LEN(t_pos[W] - block->w_number);
+        const PositionArray new_tool_offset = machine_pos - goal_nose;
+        store_tool_offset(settings, ShiftTransform(new_tool_offset), pocket);
     }
 
     if(block->r_flag) settings->tool_table[pocket].diameter = PROGRAM_TO_USER_LEN(block->r_number) * 2.;
     if(block->i_flag) settings->tool_table[pocket].frontangle = block->i_number;
     if(block->j_flag) settings->tool_table[pocket].backangle = block->j_number;
     if(block->q_number != -1.0) {
+        int q;
         CHKS((!is_near_int(&q, block->q_number)), _("Q number in G10 is not an integer"));
         CHKS((q > 9), _("Invalid tool orientation"));
         settings->tool_table[pocket].orientation = q;
@@ -3786,12 +3709,13 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
     // Unfortunately, random and nonrandom toolchangers use a different
     // number for "invalid tool number":  nonrandom uses 0, random uses -1.
     //
-    if (settings->random_toolchanger)
+    if (settings->random_toolchanger) {
         if (settings->tool_table[0].toolno >= 0) {
             settings->parameters[TOOL_NUMBER] = settings->tool_table[0].toolno;
         } else {
             settings->parameters[TOOL_NUMBER] = -1;
-        } else {
+        }
+    } else {
         if (settings->tool_table[0].toolno > 0) {
             settings->parameters[TOOL_NUMBER] = settings->tool_table[0].toolno;
         } else {
@@ -3799,19 +3723,21 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
         }
     }
 
-    settings->parameters[TOOL_OFFSET_X] = settings->tool_table[0].offset.tran.x;
-    settings->parameters[TOOL_OFFSET_Y] = settings->tool_table[0].offset.tran.y;
-    settings->parameters[TOOL_OFFSET_Z] = settings->tool_table[0].offset.tran.z;
-    settings->parameters[TOOL_OFFSET_A] = settings->tool_table[0].offset.a;
-    settings->parameters[TOOL_OFFSET_B] = settings->tool_table[0].offset.b;
-    settings->parameters[TOOL_OFFSET_C] = settings->tool_table[0].offset.c;
-    settings->parameters[TOOL_OFFSET_U] = settings->tool_table[0].offset.u;
-    settings->parameters[TOOL_OFFSET_V] = settings->tool_table[0].offset.v;
-    settings->parameters[TOOL_OFFSET_W] = settings->tool_table[0].offset.w;
-    settings->parameters[TOOL_DIAMETER] = settings->tool_table[0].diameter;
-    settings->parameters[TOOL_FRONT_ANGLE] = settings->tool_table[0].frontangle;
-    settings->parameters[TOOL_BACK_ANGLE] = settings->tool_table[0].backangle;
-    settings->parameters[TOOL_ORIENTATION] = settings->tool_table[0].orientation;
+    CANON_TOOL_TABLE const &active_tool = settings->tool_table[0];
+    // Update parameters with new tool offset value
+    settings->parameters[TOOL_OFFSET_X] = active_tool.offset.tran.x;
+    settings->parameters[TOOL_OFFSET_Y] = active_tool.offset.tran.y;
+    settings->parameters[TOOL_OFFSET_Z] = active_tool.offset.tran.z;
+    settings->parameters[TOOL_OFFSET_A] = active_tool.offset.a;
+    settings->parameters[TOOL_OFFSET_B] = active_tool.offset.b;
+    settings->parameters[TOOL_OFFSET_C] = active_tool.offset.c;
+    settings->parameters[TOOL_OFFSET_U] = active_tool.offset.u;
+    settings->parameters[TOOL_OFFSET_V] = active_tool.offset.v;
+    settings->parameters[TOOL_OFFSET_W] = active_tool.offset.w;
+    settings->parameters[TOOL_DIAMETER] = active_tool.diameter;
+    settings->parameters[TOOL_FRONT_ANGLE] = active_tool.frontangle;
+    settings->parameters[TOOL_BACK_ANGLE] = active_tool.backangle;
+    settings->parameters[TOOL_ORIENTATION] = active_tool.orientation;
 
     // if the modified tool is currently in the spindle, then copy its
     // information to pocket 0 of the tool table (which signifies the
@@ -3827,7 +3753,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
                              settings->tool_table[pocket].backangle,
                              settings->tool_table[pocket].orientation);
     }
-    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+    if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         // G10 command doesn't automatically apply a G43 length offset to the newly measured tool
         // we don't want to call a G43 in our python code for lathe, so we'll deal with applying the offset here.
         // Tormach *dpr 4/30/13
@@ -3837,28 +3763,11 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
         // where a user has T0204 active and edits wear offset register 4.  Too complicated, so we'll
         // just say that G10 clears the wear offset application.  *dpr 2/6/14
         if (((toolno - 10000) == settings->tool_table[0].toolno)){
-            EmcPose tool_offset;
-            ZERO_EMC_POSE(tool_offset);
-            tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.x);
-            tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.y);
-            tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket].offset.tran.z);
-            USE_TOOL_LENGTH_OFFSET(tool_offset);
-            double dx, dy;
 
-            dx = settings->transform.toolOffset[X] - tool_offset.tran.x;
-            dy = settings->transform.toolOffset[Y] - tool_offset.tran.y;
-            rotate(&dx, &dy, -settings->transform.g5xOffset.getXYRotationDeg()); //FIXME
-
-            settings->current[X] += dx;
-            settings->current[Y] += dy;
-            settings->current[Z] += settings->transform.toolOffset[Z] - tool_offset.tran.z;
-            settings->current[A] += settings->transform.toolOffset[A] - tool_offset.a;
-            settings->current[B] += settings->transform.toolOffset[B] - tool_offset.b;
-            settings->current[C] += settings->transform.toolOffset[C] - tool_offset.c;
-            settings->current[U] += settings->transform.toolOffset[U] - tool_offset.u;
-            settings->current[V] += settings->transform.toolOffset[V] - tool_offset.v;
-            settings->current[W] += settings->transform.toolOffset[W] - tool_offset.w;
-            settings->transform.toolOffset.tf = toArray(tool_offset);
+            ShiftTransform tool_offset;
+            find_tool_offset(settings, pocket, tool_offset);
+            settings->current = settings->transform.swap_tool_offset(settings->current, tool_offset);
+            canon_use_tool_offset(tool_offset);
         }
     }
     return INTERP_OK;
@@ -3918,7 +3827,7 @@ See documentation of convert_coordinate_system for more information.
 
 */
 
-int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
+int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
                          setup_pointer settings)        //!< pointer to machine settings                 
 {
   CHKS((block->i_flag || block->j_flag), _("I J words not allowed with G10 L2"));
@@ -3935,11 +3844,11 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
         (block->c_number <= -360.0 || block->c_number >= 360.0)),
        (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), block->c_number, 'C');
 
-  CHKS((settings->cutter_comp_side && p_int == settings->origin_index),
+  CHKS((settings->cutter_comp.side && p_int == settings->origin_index),
        (_("Cannot change the active coordinate system with cutter radius compensation on")));
 
   // Get the global position for later reference
-  const PositionArray pos_current_nose = settings->transform.forward_to_nose(settings->current);
+  const PositionArray pos_current_nose = settings->transform.forward_local_to_nose(settings->current);
 
   // Starting from the active overall transform, find the effective transform for the desired work offset number
   LocalToMachineTransform desired_csys = settings->transform;
@@ -3950,7 +3859,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
 
     // L20 means update the work offset so that the current local position matches the commanded values
     // This does not change the global position
-    PositionArray pos_local_in_csys = desired_csys.inverse_from_nose(pos_current_nose); // Current LOCAL position in program units, as if p_int cysys was active
+    PositionArray pos_local_in_csys = desired_csys.inverse_local_from_nose(pos_current_nose); // Current LOCAL position in program units, as if p_int cysys was active
     PositionArray commanded_local = getAxisWordsFromBlock(block, pos_local_in_csys); // in program units
 
     // Unrotate the displacement vector to get the global offset (since G5x offsets are not rotated)
@@ -3958,8 +3867,8 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
     // The work offset increases by the difference between the current local position, and the desired local position
     // new_offset_global = old_offset_global + rotate_to_global(old_local - new_local)
     // Expect that a smaller "new" coordinate gives a bigger offset value
-    desired_csys.g5xOffset.shift.tf -= (desired_csys.forward_to_nose(commanded_local) - pos_current_nose);
-    const PositionArray verify_pos_commanded_nose = desired_csys.forward_to_nose(commanded_local);
+    desired_csys.g5xOffset.shift.tf -= (desired_csys.forward_local_to_nose(commanded_local) - pos_current_nose);
+    const PositionArray verify_pos_commanded_nose = desired_csys.forward_local_to_nose(commanded_local);
 
     // DEBUG only
     if (max(abs_diff(verify_pos_commanded_nose, pos_current_nose)) > 1e-8) {
@@ -3986,7 +3895,7 @@ int Interp::convert_setup(block_pointer block,   //!< pointer to a block of RS27
   write_and_update_state_tag(nullptr);
 
   if (p_int == settings->origin_index) {        /* system is currently used */
-    settings->current = desired_csys.inverse_from_nose(pos_current_nose);
+    settings->current = desired_csys.inverse_local_from_nose(pos_current_nose);
     settings->transform = desired_csys;
   } else {
       // Restore the current offset in task / canon
@@ -4020,14 +3929,14 @@ Called by: convert_g.
 int Interp::convert_set_plane(int g_code,        //!< must be G_17, G_18, or G_19 
                              setup_pointer settings)    //!< pointer to machine settings 
 {
-  CHKS((settings->cutter_comp_side && g_code == G_17 && settings->plane != CANON_PLANE_XY),
+  CHKS((settings->cutter_comp.side && g_code == G_17 && settings->plane != CANON_PLANE_XY),
         NCE_CANNOT_CHANGE_PLANES_WITH_CUTTER_RADIUS_COMP_ON);
-  CHKS((settings->cutter_comp_side && g_code == G_18 && settings->plane != CANON_PLANE_XZ),
+  CHKS((settings->cutter_comp.side && g_code == G_18 && settings->plane != CANON_PLANE_XZ),
         NCE_CANNOT_CHANGE_PLANES_WITH_CUTTER_RADIUS_COMP_ON);
-  CHKS((settings->cutter_comp_side && g_code == G_19 && settings->plane != CANON_PLANE_YZ),
+  CHKS((settings->cutter_comp.side && g_code == G_19 && settings->plane != CANON_PLANE_YZ),
         NCE_CANNOT_CHANGE_PLANES_WITH_CUTTER_RADIUS_COMP_ON);
 
-  CHKS((settings->cutter_comp_side && g_code == G_19), 
+  CHKS((settings->cutter_comp.side && g_code == G_19),
           NCE_RADIUS_COMP_ONLY_IN_XY_OR_XZ);
 
   if (g_code == G_17) {
@@ -4304,8 +4213,8 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
     }
 
 /*6*/
-    settings->cutter_comp_side = false;
-    settings->cutter_comp_firstmove = true;
+    settings->cutter_comp.side = NO_COMP;
+    settings->cutter_comp.firstmove = true;
 
 /*7*/
     settings->spindle_turning = CANON_STOPPED;
@@ -4500,21 +4409,21 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
   // Create a state tag and dump it to canon
   write_and_update_state_tag(block);
 
-  if ((settings->cutter_comp_side) &&    /* ! "== true" */
-      (settings->cutter_comp_radius > 0.0)) {   /* radius always is >= 0 */
+  if ((settings->cutter_comp.side) &&    /* ! "== true" */
+      (settings->cutter_comp.radius > 0.0)) {   /* radius always is >= 0 */
 
     CHKS((block->g_modes[GM_MODAL_0] == G_53),
         NCE_CANNOT_USE_G53_WITH_CUTTER_RADIUS_COMP);
 
     if(settings->plane == CANON_PLANE_XZ) {
-        if (settings->cutter_comp_firstmove)
+        if (settings->cutter_comp.firstmove)
             status = convert_straight_comp1(move, block, settings, end_z, end_x, end_y,
                                             AA_end, BB_end, CC_end, u_end, v_end, w_end);
         else
             status = convert_straight_comp2(move, block, settings, end_z, end_x, end_y,
                                             AA_end, BB_end, CC_end, u_end, v_end, w_end);
     } else if(settings->plane == CANON_PLANE_XY) {
-        if (settings->cutter_comp_firstmove)
+        if (settings->cutter_comp.firstmove)
             status = convert_straight_comp1(move, block, settings, end_x, end_y, end_z,
                                             AA_end, BB_end, CC_end, u_end, v_end, w_end);
         else
@@ -4775,7 +4684,7 @@ int Interp::convert_threading_cycle(block_pointer block,
 				    double end_x, double end_y, double end_z) {
 
 
-    CHKS((settings->cutter_comp_side),
+    CHKS((settings->cutter_comp.side),
          (_("Cannot use G76 threading cycle with cutter radius compensation on")));
 
     CHKS((block->i_number == 0),
@@ -4923,19 +4832,19 @@ int Interp::convert_straight_comp1(int move,     //!< either G_0 or G_1
 {
     double alpha;
     double distance;
-    double radius = settings->cutter_comp_radius; /* always will be positive */
+    double radius = settings->cutter_comp.radius; /* always will be positive */
     double end_x, end_y;
 
-    int side = settings->cutter_comp_side;
+    int side = settings->cutter_comp.side;
     double cx, cy, cz;
 
     comp_get_current(settings, &cx, &cy, &cz);
     distance = hypot((px - cx), (py - cy));
 
-    CHKS(((side != LEFT) && (side != RIGHT)), NCE_BUG_SIDE_NOT_RIGHT_OR_LEFT);
+    CHKS(((side != LEFT_COMP) && (side != RIGHT_COMP)), NCE_BUG_SIDE_NOT_RIGHT_OR_LEFT);
     CHKS((distance <= radius), _("Length of cutter compensation entry move is not greater than the tool radius"));
 
-    alpha = atan2(py - cy, px - cx) + (side == LEFT ? M_PIl/2. : -M_PIl/2.);
+    alpha = atan2(py - cy, px - cx) + (side == LEFT_COMP ? M_PIl/2. : -M_PIl/2.);
 
     end_x = (px + (radius * cos(alpha)));
     end_y = (py + (radius * sin(alpha)));
@@ -4961,7 +4870,7 @@ int Interp::convert_straight_comp1(int move,     //!< either G_0 or G_1
     } else
         ERS(NCE_BUG_CODE_NOT_G0_OR_G1);
 
-    settings->cutter_comp_firstmove = false;
+    settings->cutter_comp.firstmove = false;
 
     comp_set_current(settings, end_x, end_y, pz);
     settings->current[A] = AA_end;
@@ -5057,7 +4966,6 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
     double gamma;
     double mid_x, mid_y;                 /* x-coordinate of end of added arc, if needed */
     double radius;
-    int side;
     double small = TOLERANCE_CONCAVE_CORNER;      /* radians, testing corners */
     double opx, opy, opz;      /* old programmed beginning point */
     double theta;
@@ -5084,17 +4992,17 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
         // end already filled out, above
     } else {
         // some XY motion
-        side = settings->cutter_comp_side;
-        radius = settings->cutter_comp_radius;      /* will always be positive */
+        CutterCompDirection side = settings->cutter_comp.side;
+        radius = settings->cutter_comp.radius;      /* will always be positive */
         theta = atan2(cy - opy, cx - opx);
         alpha = atan2(py - opy, px - opx);
 
-        if (side == LEFT) {
+        if (side == LEFT_COMP) {
             if (theta < alpha)
                 theta = (theta + (2 * M_PIl));
             beta = ((theta - alpha) - M_PI_2l);
             gamma = M_PI_2l;
-        } else if (side == RIGHT) {
+        } else if (side == RIGHT_COMP) {
             if (alpha < theta)
                 alpha = (alpha + (2 * M_PIl));
             beta = ((alpha - theta) - M_PI_2l);
@@ -5110,8 +5018,8 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
             concave = 1;
         } else if (beta > (M_PIl - small) &&
                    (!qc().empty() && qc().front().type == QARC_FEED &&
-                    ((side == RIGHT && qc().front().data.arc_feed.turn > 0) ||
-                     (side == LEFT && qc().front().data.arc_feed.turn < 0)))) {
+                    ((side == RIGHT_COMP && qc().front().data.arc_feed.turn > 0) ||
+                     (side == LEFT_COMP && qc().front().data.arc_feed.turn < 0)))) {
             // this is an "h" shape, tool on right, going right to left
             // over the hemispherical round part, then up next to the
             // vertical part (or, the mirror case).  there are two ways
@@ -5130,7 +5038,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
                 enqueue_ARC_FEED(settings, block->line_number,
                                  0.0, // doesn't matter, since we will not move this arc's endpoint
                                  mid_x, mid_y, opx, opy,
-                                 ((side == LEFT) ? -1 : 1), cz,
+                                 ((side == LEFT_COMP) ? -1 : 1), cz,
                                  AA_end, BB_end, CC_end, u_end, v_end, w_end);
                 dequeue_canons(settings);
                 set_endpoint(mid_x, mid_y);
@@ -5177,7 +5085,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
 
                 theta = (prev.turn > 0) ? base_dir + M_PI_2l : base_dir - M_PI_2l;
                 phi = atan2(prev.center2 - opy, prev.center1 - opx);
-                if TOOL_INSIDE_ARC(side, prev.turn) {
+                if (TOOL_INSIDE_ARC(side, prev.turn)) {
                     oldrad_uncomp = oldrad + radius;
                 } else {
                     oldrad_uncomp = oldrad - radius;
@@ -5189,7 +5097,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
                 double d2;
                 double angle_from_center;
 
-                if TOOL_INSIDE_ARC(side, prev.turn) {
+                if (TOOL_INSIDE_ARC(side, prev.turn)) {
                     d2 = d - radius;
                     double l = d2/oldrad;
                     CHKS((l > 1.0 || l < -1.0), _("Arc to straight motion makes a corner the compensated tool can't fit in without gouging"));
@@ -5283,7 +5191,7 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
     ERS(NCE_TXX_MISSING_FOR_M6);
   }
 
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
        (_("Cannot change tools with cutter radius compensation on")));
 
   write_and_update_state_tag(nullptr);
@@ -5362,12 +5270,80 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
 
   settings->current_pocket = settings->selected_pocket;
   // tool change can move the controlled point.  reread it:
-  settings->toolchange_flag = true; 
+  settings->wait_flags.set(TOOLCHANGE);
   set_tool_parameters();
   return INTERP_OK;
 }
 
 /****************************************************************************/
+
+
+int Interp::find_g43_tool_offset(
+    block_pointer block,      //!< pointer to a block of RS274/NGC instructions
+    setup_pointer settings,
+    ShiftTransform &new_tool_offset)
+{
+    logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
+             block->h_flag,block->h_number,settings->wait_flags.test(TOOLCHANGE),settings->current_pocket);
+
+    int geo_offset_register = 0;
+    int wear_offset_register = 0;
+    if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+        if (block->h_number < 100) { //Future change required for using tools greater than 99
+            geo_offset_register = block->h_number + 10000;
+        } else if (block->h_number < 10000) {
+            geo_offset_register = floor(block->h_number/100) + 10000;
+            wear_offset_register = block->h_number % 100;
+        }
+    } else {
+        geo_offset_register = block->h_number;
+        wear_offset_register = 0;
+    }
+
+    int pocket_number;
+    if (block->h_flag) {
+        CHP((find_tool_pocket(settings, geo_offset_register, &pocket_number)));
+    } else if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+        ERS("G43 with no H-word unsupported");
+    } else if (settings->wait_flags.test(TOOLCHANGE)) {
+        // Tool change is in progress, so the "current tool" is in its
+        // original pocket still.
+        pocket_number = settings->current_pocket;
+    } else {
+        // Tool change is done so the current tool is in pocket 0 (aka the
+        // spindle).
+        pocket_number = 0;
+    }
+
+    logDebug("convert_tool_length_offset: using index=%d spindle_toolno=%d pocket_toolno=%d",
+             pocket_number, settings->tool_table[0].toolno,settings->tool_table[settings->current_pocket].toolno);
+
+    CHP(find_tool_offset(settings, pocket_number, new_tool_offset));
+    if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+        // Apply wear offsets
+        if (wear_offset_register) {
+            int wear_pocket_number;
+            CHP((find_tool_pocket(
+                settings, wear_offset_register, &wear_pocket_number)));
+            new_tool_offset[X] += USER_TO_PROGRAM_LEN(
+                settings->tool_table[wear_pocket_number].offset.tran.x);
+            new_tool_offset[Y] += USER_TO_PROGRAM_LEN(
+                settings->tool_table[wear_pocket_number].offset.tran.y);
+            new_tool_offset[Z] += USER_TO_PROGRAM_LEN(
+                settings->tool_table[wear_pocket_number].offset.tran.z);
+            logDebug("convert_tool_length_offset: "
+                     "added offsets from wear pocket number %d", wear_pocket_number);
+
+            // store which wear offset is currently applied in the .w field (not using a w axis on the lathe, are we?)
+            // the USE_TOOL_LENGTH offset in cannon sets the status.task.toolOffset struct in machine time, and the GUI gets it in machine time
+            // so we can tell which offset is really in use
+            new_tool_offset[W] = wear_offset_register;
+        }
+    }
+    return INTERP_OK;
+}
+
+
 
 /*! convert_tool_length_offset
 
@@ -5400,133 +5376,45 @@ integer when it was read, so that check does not need to be repeated.
 
 int Interp::convert_tool_length_offset(int g_code,       //!< g_code being executed (must be G_43 or G_49)
                                       block_pointer block,      //!< pointer to a block of RS274/NGC instructions
-                                      setup_pointer settings)   //!< pointer to machine settings                 
+                                      setup_pointer settings)   //!< pointer to machine settings
 {
-    int pocket_number, wear_pocket_number;
-    int geo_offset_register = 0;
-    int wear_offset_register = 0;
-    EmcPose tool_offset;
-    ZERO_EMC_POSE(tool_offset);
-
-    CHKS((settings->cutter_comp_side),
+    CHKS((settings->cutter_comp.side),
          (_("Cannot change tool offset with cutter radius compensation on")));
 
     if (g_code == G_49) {
-        pocket_number = 0;
-
+        // Clear tool offsets, no lookup needed
+        settings->current = settings->transform.swap_tool_offset(settings->current, ShiftTransform{});
     } else if (g_code == G_43) {
-        logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
-                 block->h_flag,block->h_number,settings->toolchange_flag,settings->current_pocket);
-        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
-            if (block->h_number < 100) { //Future change required for using tools greater than 99
-                geo_offset_register = block->h_number + 10000;
-            } else if (block->h_number < 10000) {
-                geo_offset_register = floor(block->h_number/100) + 10000;
-                wear_offset_register = block->h_number % 100;
-            }
-        } else {
-            geo_offset_register = block->h_number;
-        }        
-
-        if (block->h_flag) {
-            CHP((find_tool_pocket(settings, geo_offset_register, &pocket_number)));
-        } else if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
-            ERS("G43 with no H-word unsupported");
-        } else if (settings->toolchange_flag) {
-            // Tool change is in progress, so the "current tool" is in its
-            // original pocket still.
-            pocket_number = settings->current_pocket;
-        } else {
-            // Tool change is done so the current tool is in pocket 0 (aka the
-            // spindle).
-            pocket_number = 0;
+        ShiftTransform new_tool_offset{};
+        CHP(find_g43_tool_offset(block, settings, new_tool_offset));
+        settings->current = settings->transform.swap_tool_offset(settings->current, new_tool_offset);
+        if (settings->tool_offset_mode == G_43_1 || settings->tool_offset_mode == G_43_2) {
+            // Need queue-buster because we're switching from a custom to a table offset
+            settings->wait_flags.set(TOOL_OFFSET_MODIFED);
         }
-
-        logDebug("convert_tool_length_offset: using index=%d spindle_toolno=%d pocket_toolno=%d",
-	             pocket_number, settings->tool_table[0].toolno,settings->tool_table[settings->current_pocket].toolno);
-
-        tool_offset.b = USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.b);
-        tool_offset.a = USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.a);
-        tool_offset.c = USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.c);
-        tool_offset.u = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.u);
-        tool_offset.v = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.v);
-        tool_offset.w = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.w);
-
-        tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.x);
-        tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.y);
-        tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.z);        
-        if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
-	       // Apply wear offsets
-	       if (wear_offset_register) {
-	           CHP((find_tool_pocket(
-		           settings, wear_offset_register, &wear_pocket_number)));
-                tool_offset.tran.x += USER_TO_PROGRAM_LEN(
-                settings->tool_table[wear_pocket_number].offset.tran.x);
-                tool_offset.tran.y += USER_TO_PROGRAM_LEN(
-                settings->tool_table[wear_pocket_number].offset.tran.y);
-                tool_offset.tran.z += USER_TO_PROGRAM_LEN(
-                settings->tool_table[wear_pocket_number].offset.tran.z);
-                logDebug("convert_tool_length_offset: "
-                         "added offsets from wear pocket number %d", wear_pocket_number);                
- 
-                // store which wear offset is currently applied in the .w field (not using a w axis on the lathe, are we?)
-                // the USE_TOOL_LENGTH offset in cannon sets the status.task.toolOffset struct in machine time, and the GUI gets it in machine time
-                // so we can tell which offset is really in use     
-                tool_offset.w = wear_offset_register;
-	       }
-        }
-
     } else if (g_code == G_43_1) {
-        tool_offset = toEmcPose(settings->transform.toolOffset.tf);
-        pocket_number = -1;
-        if(block->x_flag) tool_offset.tran.x = block->x_number;
-        if(block->y_flag) tool_offset.tran.y = block->y_number;
-        if(block->z_flag) tool_offset.tran.z = block->z_number;
-        if(block->a_flag) tool_offset.a = block->a_number;
-        if(block->b_flag) tool_offset.b = block->b_number;
-        if(block->c_flag) tool_offset.c = block->c_number;
-        if(block->u_flag) tool_offset.u = block->u_number;
-        if(block->v_flag) tool_offset.v = block->v_number;
-        if(block->w_flag) tool_offset.w = block->w_number;
-
+        ShiftTransform modified_tool_offset(getAxisWordsFromBlock(block, settings->transform.toolOffset));
+        settings->current = settings->transform.swap_tool_offset(settings->current, modified_tool_offset);
+        settings->wait_flags.set(TOOL_OFFSET_MODIFED);
     } else if (g_code == G_43_2) {
+        ShiftTransform additional_tool_offset{};
         CHKS((!block->h_flag), (_("G43.2: H-word missing")));
-        CHP((find_tool_pocket(settings, block->h_number, &pocket_number)));
-        tool_offset = toEmcPose(settings->transform.toolOffset.tf);
-        tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.x);
-        tool_offset.tran.y += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.y);
-        tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.tran.z);
-        tool_offset.a += USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.a);
-        tool_offset.b += USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.b);
-        tool_offset.c += USER_TO_PROGRAM_ANG(settings->tool_table[pocket_number].offset.c);
-        tool_offset.u += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.u);
-        tool_offset.v += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.v);
-        tool_offset.w += USER_TO_PROGRAM_LEN(settings->tool_table[pocket_number].offset.w);
+        int pocket_number_g43_2;
+        CHP((find_tool_pocket(settings, block->h_number, &pocket_number_g43_2)));
+        find_tool_offset(settings, pocket_number_g43_2, additional_tool_offset);
+        settings->current = settings->transform.add_tool_offset(settings->current, additional_tool_offset);
+        settings->wait_flags.set(TOOL_OFFSET_MODIFED);
     } else {
         ERS("BUG: Code not G43, G43.1, G43.2, or G49");
     }
 
+    settings->tool_offset_mode = (GCodes)g_code;
+    // Update current tool offset and current interp position (local) if successful
+    // Send updated tool offset to canon
     write_and_update_state_tag(block);
-    USE_TOOL_LENGTH_OFFSET(tool_offset);
+    canon_use_tool_offset(settings->transform.toolOffset);
 
-    double dx, dy;
-  dx = settings->transform.toolOffset[X] - tool_offset.tran.x;
-  dy = settings->transform.toolOffset[Y] - tool_offset.tran.y;
-
-  rotate(&dx, &dy, -settings->transform.g5xOffset.getXYRotationDeg());
-
-  settings->current[X] += dx;
-  settings->current[Y] += dy;
-  settings->current[Z] += settings->transform.toolOffset[Z] - tool_offset.tran.z;
-  settings->current[A] += settings->transform.toolOffset[A] - tool_offset.a;
-  settings->current[B] += settings->transform.toolOffset[B] - tool_offset.b;
-  settings->current[C] += settings->transform.toolOffset[C] - tool_offset.c;
-  settings->current[U] += settings->transform.toolOffset[U] - tool_offset.u;
-  settings->current[V] += settings->transform.toolOffset[V] - tool_offset.v;
-  settings->current[W] += settings->transform.toolOffset[W] - tool_offset.w;
-
-  settings->transform.toolOffset.tf = toArray(tool_offset);
-  return INTERP_OK;
+    return INTERP_OK;
 }
 
 /****************************************************************************/
@@ -5601,7 +5489,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
     ERS(NCE_TXX_MISSING_FOR_M6);
   }
 
-  CHKS((settings->cutter_comp_side),
+  CHKS((settings->cutter_comp.side),
        (_("Cannot change tools with cutter radius compensation on")));
 
   START_CHANGE(); // indicate start of change operation
@@ -5616,7 +5504,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
 
   settings->current_pocket = settings->selected_pocket;
   // tool change can move the controlled point.  reread it:
-  settings->toolchange_flag = true; 
+  settings->wait_flags.set(TOOLCHANGE);
   set_tool_parameters();
   
   

@@ -98,8 +98,8 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
       break;
   }
   state.g_codes[G_CODE_CUTTER_SIDE] =
-    (settings->cutter_comp_side == RIGHT) ? G_42 :
-    (settings->cutter_comp_side == LEFT) ? G_41 : G_40;
+    (settings->cutter_comp.side == RIGHT_COMP) ? G_42 :
+    (settings->cutter_comp.side == LEFT_COMP) ? G_41 : G_40;
   state.g_codes[G_CODE_UNITS] = (settings->length_units == CANON_UNITS_INCHES) ? G_20 : G_21;
   state.g_codes[G_CODE_DISTANCE_MODE] = (settings->distance_mode == MODE_ABSOLUTE) ? G_90 : G_91;
   state.g_codes[G_CODE_FEED_MODE] = (settings->feed_mode == INVERSE_TIME) ? G_93 :
@@ -114,7 +114,6 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
     (settings->spindle_mode == CONSTANT_RPM) ? G_97 : G_96;
   state.g_codes[G_CODE_DISTANCE_MODE_IJK] = (settings->ijk_distance_mode == MODE_ABSOLUTE) ? G_90_1 : G_91_1;
   state.g_codes[G_CODE_LATHE_DIAMETER_MODE] = (settings->lathe_diameter_mode) ? G_7 : G_8;
-  state.work_offset_origin_index = settings->origin_index;
   return INTERP_OK;
 }
 
@@ -161,10 +160,10 @@ int Interp::write_m_codes(block_pointer block,   //!< pointer to a block of RS27
       state.m_codes[M_CODE_OVERRIDES] = 49;
   
   state.m_codes[M_CODE_ADAPTIVE_FEED] =			/* 7 adaptive feed */
-      (settings->adaptive_feed) ? 52 : -1;
+      (settings->allow_adaptive_feed) ? 52 : -1;
 
   state.m_codes[M_CODE_FEED_HOLD] =			/* 8 feed hold */
-      (settings->feed_hold) ? 53 : -1;
+      (settings->allow_feed_hold) ? 53 : -1;
 
   return INTERP_OK;
 }
@@ -199,10 +198,8 @@ int Interp::write_settings(setup_pointer settings,     //!< pointer to machine s
   return INTERP_OK;
 }
 
-int Interp::write_and_update_state_tag(block_pointer block)
+int Interp::write_state_tag(block_pointer block, StateTag &state)
 {
-    StateTag state;
-
     if (_setup.skipping_to_sub) {
 	logDebug("write_and_update_state_tag:  not tagging block while skipping");
 	return 0;
@@ -224,8 +221,8 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.setActivePlane(_setup.plane);
 
     state.fields[GM_FIELD_CUTTER_COMP] =
-        (_setup.cutter_comp_side == RIGHT) ? G_42 :
-        (_setup.cutter_comp_side == LEFT) ? G_41 : G_40;
+        (_setup.cutter_comp.side == RIGHT_COMP) ? G_42 :
+        (_setup.cutter_comp.side == LEFT_COMP) ? G_41 : G_40;
 
     state.flags[GM_FLAG_UNITS] = (_setup.length_units == CANON_UNITS_INCHES);
 
@@ -244,7 +241,7 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.flags[GM_FLAG_IJK_ABS] = (_setup.ijk_distance_mode == MODE_ABSOLUTE);
     state.flags[GM_FLAG_DIAMETER_MODE] = (_setup.lathe_diameter_mode);
 
-    state.fields[GM_FIELD_M_MODES_4] = (block == NULL) ? -1 : block->m_modes[M_MODE_STOPPING];
+    state.fields[GM_FIELD_M_MODE_STOPPING] = (block == NULL) ? -1 : block->m_modes[M_MODE_STOPPING];
 
     state.flags[GM_FLAG_SPINDLE_ON] = !(_setup.spindle_turning != CANON_STOPPED);
     state.flags[GM_FLAG_SPINDLE_CW] = (_setup.spindle_turning == CANON_CLOCKWISE);
@@ -252,7 +249,7 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.fields[GM_FIELD_TOOLCHANGE] = (block == NULL) ? -1 : block->m_modes[M_MODE_TOOLCHANGE];
 
     state.fields[GM_FIELD_POCKET_NUMBER] = (_setup.current_pocket);
-    state.fields[GM_FIELD_TOOL_NUMBER] = (_setup.tool_table[_setup.current_pocket].toolno);
+    state.fields[GM_FIELD_TOOL_NUMBER] = _setup.getCurrentToolNumber();
 
     state.flags[GM_FLAG_MIST] = (_setup.mist) ;
     state.flags[GM_FLAG_FLOOD] = (_setup.flood);
@@ -260,15 +257,23 @@ int Interp::write_and_update_state_tag(block_pointer block)
     state.flags[GM_FLAG_FEED_OVERRIDE] = _setup.feed_override;
     state.flags[GM_FLAG_SPEED_OVERRIDE] = _setup.speed_override;
 
-    state.flags[GM_FLAG_ADAPTIVE_FEED] = (_setup.adaptive_feed);
+    state.flags[GM_FLAG_ADAPTIVE_FEED] = (_setup.allow_adaptive_feed);
 
-    state.flags[GM_FLAG_FEED_HOLD] =  (_setup.feed_hold);
+    state.flags[GM_FLAG_FEED_HOLD] =  (_setup.allow_feed_hold);
 
     state.feed = _setup.feed_rate;        /* 1 feed rate       */
     state.speed = _setup.speed;    /* 2 spindle speed   */
+    return 0;
+}
 
+int Interp::write_and_update_state_tag(block_pointer block)
+{
+    StateTag state;
+    write_state_tag(block, state);
     UPDATE_TAG(state);
     return 0;
 }
+
+
 /****************************************************************************/
 

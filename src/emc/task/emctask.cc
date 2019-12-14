@@ -46,9 +46,8 @@ using namespace interp_param_global;
 /* flag for how we want to interpret traj coord mode, as mdi or auto */
 static int mdiOrAuto = EMC_TASK_MODE_AUTO;
 
-InterpBase *pinterp=0;
-//KLUDGE if we're using this terrible obfuscation, at least make it work for us...
-#define interp (*((Interp*)pinterp))
+InterpBase *pinterp = nullptr;
+
 setup_pointer _is = 0; // helper for gdb hardware watchpoints FIXME
 
 // Saved tag for restoring interp after abort
@@ -432,7 +431,7 @@ static void print_interp_error(int retval)
     }
 
     interp_error_text_buf[0] = 0;
-    interp.error_text(retval, interp_error_text_buf, ERROR_TEXT_LEN);
+    pinterp->error_text(retval, interp_error_text_buf, ERROR_TEXT_LEN);
     if (0 != interp_error_text_buf[0]) {
 	rcs_print_error("interp_error: %s\n", interp_error_text_buf);
     }
@@ -442,7 +441,7 @@ static void print_interp_error(int retval)
 	rcs_print("Interpreter stack: \t");
 	while (index < 5) {
 	    interp_stack_buf[0] = 0;
-	    interp.stack_name(index, interp_stack_buf, LINELEN);
+        pinterp->stack_name(index, interp_stack_buf, LINELEN);
 	    if (0 == interp_stack_buf[0]) {
 		break;
 	    }
@@ -469,22 +468,21 @@ int emcTaskPlanInit()
         pinterp = new Interp;
     }
 
-    Interp *i = dynamic_cast<Interp*>(pinterp);
-    if(i) _is = &i->_setup; // FIXME
-    else  _is = 0;
-    interp.ini_load(emc_inifile);
+    Interp *rs274_interp = dynamic_cast<Interp*>(pinterp);
+    _is = rs274_interp ? &rs274_interp->_setup : nullptr; // FIXME
+    pinterp->ini_load(emc_inifile);
     waitFlag = 0;
 
-    int retval = interp.init();
+    int retval = pinterp->init();
 	// In task, enable M99 main program endless looping
-	interp.set_loop_on_main_m99(true);
+    pinterp->set_loop_on_main_m99(true);
     if (retval > INTERP_MIN_ERROR) {  // I'd think this should be fatal.
 	print_interp_error(retval);
     } else {
     if (0 != rs274ngc_startup_code[0]) {
-        retval = interp.execute(rs274ngc_startup_code, CommandSource::INIT);
+        retval = pinterp->execute(rs274ngc_startup_code, CommandSource::INIT);
 	    while (retval == INTERP_EXECUTE_FINISH) {
-        retval = interp.execute();
+        retval = pinterp->execute();
 	    }
 	    if (retval > INTERP_MIN_ERROR) {
 		print_interp_error(retval);
@@ -540,7 +538,7 @@ int emcTaskPlanSetBlockDelete(bool state)
 
 int emcTaskPlanSynch()
 {
-    int retval = interp.synch();
+    int retval = pinterp->synch();
 
     if (emc_debug & EMC_DEBUG_INTERP) {
         rcs_print("emcTaskPlanSynch() returned %d\n", retval);
@@ -552,10 +550,47 @@ int emcTaskPlanSynch()
     return retval;
 }
 
+bool needs_prep(StartLineSettings const &s)
+{
+    return s.prep_type != PREP_NONE;
+}
+
+int emcTaskPlanFinishLineSeek(StartLineSettings const &start_settings)
+{
+    Interp *rs274_interp = dynamic_cast<Interp*>(pinterp);
+
+    ModalState state_at_seek{};
+    int res_interp = INTERP_OK;
+    if (rs274_interp && needs_prep(start_settings)) {
+        // NOTE: modal state is recorded before the transition for use in the restore sequence
+        res_interp = rs274_interp->cbBeforeSeekReadTransition(state_at_seek);
+    }
+
+    emcTaskPlanPurgeInterpQueue();
+    emcStatus->task.interpState = EMC_TASK_INTERP_READING;
+
+    bool need_state_restore = !isInterpError((InterpReturn)res_interp) && rs274_interp && needs_prep(start_settings);
+    if (need_state_restore) {
+        // Do a full modal state restore as if the program had executed from line 1,
+        // and insert any preparatory actions like tool changes / lead-in moves.
+        res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek, start_settings);
+    } else {
+        // Legacy behavior that just synchs up with world without doing explicit modal state restore
+        emcTaskPlanSynch();
+    }
+
+    if (isInterpError((InterpReturn)res_interp)) {
+        print_interp_error(res_interp);
+        // Can't continue here with an error
+        emcStatus->task.interpState = EMC_TASK_INTERP_WAITING;
+    }
+    return res_interp;
+}
+
 void emcTaskPlanExit()
 {
-    if (pinterp != NULL) {
-        interp.exit();
+    if (pinterp) {
+        pinterp->exit();
     }
 }
 
@@ -569,7 +604,7 @@ int emcTaskPlanOpen(const char *file)
         emcStatus->task.stepping_id = 0;
     }
 
-    int retval = interp.open(file);
+    int retval = pinterp->open(file);
     if (retval > INTERP_MIN_ERROR) {
         print_interp_error(retval);
         return retval;
@@ -586,14 +621,14 @@ int emcTaskPlanOpen(const char *file)
 
 int emcTaskPlanRead()
 {
-    int retval = interp.read();
+    int retval = pinterp->read();
     if (retval == INTERP_FILE_NOT_OPEN) {
 	if (emcStatus->task.file[0] != 0) {
-	    retval = interp.open(emcStatus->task.file);
+	    retval = pinterp->open(emcStatus->task.file);
 	    if (retval > INTERP_MIN_ERROR) {
 		print_interp_error(retval);
 	    }
-	    retval = interp.read();
+	    retval = pinterp->read();
 	}
     }
     if (retval > INTERP_MIN_ERROR) {
@@ -618,13 +653,13 @@ int emcTaskPlanExecute(const char *command, CommandSource cmd_src)
 
     if (command && (*command != '\0') && (inpos)) {
         // Need to synch with an MDI call, once motion has reached its final position
-        int retval_sync = interp.synch();
+        int retval_sync = pinterp->synch();
         if (retval_sync > INTERP_MIN_ERROR) {
             print_interp_error(retval_sync);
         }
         //FIXME the standard behavior now is to keep going here but this seems wrong
     }
-    int retval = interp.execute(command, cmd_src);
+    int retval = pinterp->execute(command, cmd_src);
     if (retval > INTERP_MIN_ERROR) {
         print_interp_error(retval);
     }
@@ -641,7 +676,7 @@ int emcTaskPlanExecute(const char *command, CommandSource cmd_src)
 
 int emcTaskPlanClose()
 {
-    int retval = interp.close();
+    int retval = pinterp->close();
     if (retval > INTERP_MIN_ERROR) {
 	print_interp_error(retval);
     }
@@ -652,7 +687,7 @@ int emcTaskPlanClose()
 
 int emcTaskPlanReset()
 {
-    int retval = interp.reset();
+    int retval = pinterp->reset();
     if (retval > INTERP_MIN_ERROR) {
 	print_interp_error(retval);
     }
@@ -662,7 +697,7 @@ int emcTaskPlanReset()
 
 int emcTaskPlanLine()
 {
-    int retval = interp.line();
+    int retval = pinterp->line();
     
     if (emc_debug & EMC_DEBUG_INTERP) {
         rcs_print("emcTaskPlanLine() returned %d\n", retval);
@@ -673,7 +708,7 @@ int emcTaskPlanLine()
 
 int emcTaskPlanLevel()
 {
-    int retval = interp.call_level();
+    int retval = pinterp->call_level();
 
     if (emc_debug & EMC_DEBUG_INTERP) {
         rcs_print("emcTaskPlanLevel() returned %d\n", retval);
@@ -686,7 +721,7 @@ int emcTaskPlanCommand(char *cmd)
 {
     char buf[LINELEN];
 
-    strcpy(cmd, interp.command(buf, LINELEN));
+    strcpy(cmd, pinterp->command(buf, LINELEN));
 
     if (emc_debug & EMC_DEBUG_INTERP) {
         rcs_print("emcTaskPlanCommand(%s) called. (line_number=%d)\n",
@@ -719,14 +754,14 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
     // readLine set in main
 
     char buf[LINELEN];
-    strcpy(stat->file, interp.file(buf, LINELEN));
+    strcpy(stat->file, pinterp->file(buf, LINELEN));
     // command set in main
 
     if (emcStatus->task.interpState == EMC_TASK_INTERP_IDLE) {
     	// When the machine is idle, update from interp
-        interp.active_g_codes(&stat->activeGCodes[0]);
-        interp.active_m_codes(&stat->activeMCodes[0]);
-        interp.active_settings(&stat->activeSettings[0]);
+        pinterp->active_g_codes(&stat->modalState.g_codes[0]);
+        pinterp->active_m_codes(&stat->modalState.m_codes[0]);
+        pinterp->active_settings(&stat->modalState.settings[0]);
     } else if (emcStatus->motion.traj.queue &&
 	       (emcStatus->task.stepping_id !=
 		emcStatus->motion.traj.tag.fields[GM_FIELD_STEPPING_ID])) {
@@ -777,16 +812,12 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
 	(tag->packed_flags & (1<<GM_FLAG_UNITS)) ?
 	CANON_UNITS_INCHES : CANON_UNITS_MM );
     // Set emcStatus gcodes, mcodes arrays
-    int new_origin = -1;
-    interp.active_modes(
-        emcStatus->task.activeGCodes.data(),
-        emcStatus->task.activeMCodes.data(),
-        emcStatus->task.activeSettings.data(),
-                new_origin,
-    StateTag(*tag));
+    pinterp->active_modes(
+        emcStatus->task.modalState,
+        StateTag(*tag));
 
     // Add more emcStatus updates here
-    return emcStatusUpdateWorkOffset(new_origin);
+    return emcStatusUpdateWorkOffset(emcStatus->task.modalState.work_offset_number);
 }
 
 int emcStatusUpdateWorkOffset(int new_origin)
@@ -801,7 +832,7 @@ int emcStatusUpdateWorkOffset(int new_origin)
 
 int emcAbortCleanup(int reason, const char *message)
 {
-    int status = interp.on_abort(reason,message);
+    int status = pinterp->on_abort(reason,message);
     if (status > INTERP_MIN_ERROR)
 	print_interp_error(status);
     return status;

@@ -91,6 +91,12 @@ void extract_axes(PositionArray const &p,
     _w = p[W];
 }
 
+void extract_axes(const PositionArray & p, double * _x, double * _y, double * _z, double * _a, double * _b, double * _c, double * _u, double * _v, double * _w)
+{
+    // FIXME no null checks here! be sure you know what you're doing!!
+    extract_axes(p, *_x, *_y, *_z, *_a, *_b, *_c, *_u, *_v, *_w);
+}
+
 PositionArray operator+(const PositionArray & b, const PositionArray & o)
 {
     PositionArray out = b;
@@ -172,7 +178,7 @@ EmcPose toEmcPose(const PositionArray & p)
     };
 }
 
-void merge_masked(PositionArray & p, const PositionArray & in, const PositionMask & new_value_mask)
+void merge_masked(PositionArray & p, const PositionArray & in, const AxisMask & new_value_mask)
 {
     for (size_t k = 0; k < in.size(); ++k) {
         if (new_value_mask[k]) {
@@ -181,7 +187,7 @@ void merge_masked(PositionArray & p, const PositionArray & in, const PositionMas
     }
 }
 
-PositionArray merge(const PositionArray & old_p, const PositionArray & new_p, const PositionMask & new_mask)
+PositionArray merge(const PositionArray & old_p, const PositionArray & new_p, const AxisMask & new_mask)
 {
     PositionArray out = old_p;
     merge_masked(out, new_p, new_mask);

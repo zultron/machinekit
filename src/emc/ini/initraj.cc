@@ -27,6 +27,7 @@
 #include "emcglb.h"		// A bunch of global values used across canon and interp
 #include "inihal.hh"
 
+#include <string>
 extern value_inihal_data old_inihal_data;
 
 // Follow interp convention to return on error

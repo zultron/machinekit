@@ -38,6 +38,7 @@ extern int _task;  // zero in gcodemodule, 1 in milltask
 #include "rs274ngc.hh"
 #include "interp_return.hh"
 #include "interp_internal.hh"
+using namespace WaitFlag;
 #include "interp_tolerances.hh"
 #include "rs274ngc_interp.hh"
 #include "units.h"
@@ -86,28 +87,22 @@ static  sub_context_array sub_context_wrapper ( Interp & inst) {
 #pragma GCC diagnostic ignored "-Wformat-security"
 static void setErrorMsg(Interp &interp, const char *s)
 {
-    setup *settings  = &interp._setup;
-
     if ((s == NULL) || (strlen(s) == 0))
 	s = "###";
     interp.setError (s);
-    settings->stack_index = 0;
-    strncpy(settings->stack[settings->stack_index],
-	    "Python", STACK_ENTRY_LEN);
-    settings->stack[settings->stack_index][STACK_ENTRY_LEN-1] = 0;
-    settings->stack_index++;
-    settings->stack[settings->stack_index][0] = 0;
+    interp.callstack.clear();
+    interp.callstack.append_stack_info("Python", "", 0);
 }
 
 #pragma GCC diagnostic warning "-Wformat-security"
 
 static bp::object errorStack(Interp &interp)
 {
-    setup *settings  = &interp._setup;
     bp::list msgs;
 
-    for (int i = 0; i < settings->stack_index; i++)
-	msgs.append(bp::object( (const char *) settings->stack[i]));
+    for (size_t i = 0; i < interp.callstack.frame_count(); i++) {
+        msgs.append(bp::object( interp.callstack.call_name(i)));
+    }
     return msgs;
 }
 
@@ -199,6 +194,7 @@ static int wrap_interp_execute_2(Interp &interp, const char *command, int lineno
 {
     setup &_setup = interp._setup;
     block saved_block = _setup.getExecutingBlock();
+    CallStackTracker &callstack = interp.callstack;
 
     // use the remap stack to save/restore the current block
     CHP(interp.enter_remap());
@@ -249,10 +245,10 @@ static inline void set_arc_not_allowed(Interp &interp, bool value)  {
     interp._setup.arc_not_allowed = value;
 }
 static inline bool get_cutter_comp_firstmove (Interp &interp)  {
-    return interp._setup.cutter_comp_firstmove;
+    return interp._setup.cutter_comp.firstmove;
 }
 static inline void set_cutter_comp_firstmove(Interp &interp, bool value)  {
-    interp._setup.cutter_comp_firstmove = value;
+    interp._setup.cutter_comp.firstmove = value;
 }
 static inline bool get_feed_override (Interp &interp)  {
     return interp._setup.feed_override;
@@ -267,10 +263,10 @@ static inline void set_input_digital(Interp &interp, bool value)  {
     interp._setup.input_digital = value;
 }
 static inline bool get_input_flag (Interp &interp)  {
-    return interp._setup.input_flag;
+    return interp._setup.wait_flags.test(INPUT);
 }
 static inline void set_input_flag(Interp &interp, bool value)  {
-    interp._setup.input_flag = value;
+    interp._setup.wait_flags.set(INPUT, value);
 }
 static inline bool get_mdi_interrupt (Interp &interp)  {
     return interp._setup.mdi_interrupt;
@@ -291,10 +287,10 @@ static inline void set_percent_flag(Interp &interp, bool value)  {
     interp._setup.percent_flag = value;
 }
 static inline bool get_probe_flag (Interp &interp)  {
-    return interp._setup.probe_flag;
+    return interp._setup.wait_flags.test(PROBE);
 }
 static inline void set_probe_flag(Interp &interp, bool value)  {
-    interp._setup.probe_flag = value;
+    interp._setup.wait_flags.set(PROBE, value);
 }
 static inline bool get_speed_override (Interp &interp)  {
     return interp._setup.speed_override;
@@ -303,10 +299,10 @@ static inline void set_speed_override(Interp &interp, bool value)  {
     interp._setup.speed_override = value;
 }
 static inline bool get_toolchange_flag (Interp &interp)  {
-    return interp._setup.toolchange_flag;
+    return interp._setup.wait_flags.test(TOOLCHANGE);
 }
 static inline void set_toolchange_flag(Interp &interp, bool value)  {
-    interp._setup.toolchange_flag = value;
+    interp._setup.wait_flags.set(TOOLCHANGE, value);
 }
 static inline double get_u_current (Interp &interp)  {
     return interp._setup.current[U];
@@ -405,10 +401,10 @@ static inline void set_current_z(Interp &interp, double value)  {
     interp._setup.current[Z] = value;
 }
 static inline double get_cutter_comp_radius (Interp &interp)  {
-    return interp._setup.cutter_comp_radius;
+    return interp._setup.cutter_comp.radius;
 }
 static inline void set_cutter_comp_radius(Interp &interp, double value)  {
-    interp._setup.cutter_comp_radius = value;
+    interp._setup.cutter_comp.radius = value;
 }
 static inline double get_cycle_cc (Interp &interp)  {
     return interp._setup.cycle_cc;
@@ -621,16 +617,16 @@ static inline void set_current_pocket(Interp &interp, int value)  {
     interp._setup.current_pocket = value;
 }
 static inline int get_cutter_comp_orientation (Interp &interp)  {
-    return interp._setup.cutter_comp_orientation;
+    return interp._setup.cutter_comp.orientation;
 }
 static inline void set_cutter_comp_orientation(Interp &interp, int value)  {
-    interp._setup.cutter_comp_orientation = value;
+    interp._setup.cutter_comp.orientation = value;
 }
 static inline int get_cutter_comp_side (Interp &interp)  {
-    return interp._setup.cutter_comp_side;
+    return interp._setup.cutter_comp.side;
 }
 static inline void set_cutter_comp_side(Interp &interp, int value)  {
-    interp._setup.cutter_comp_side = value;
+    interp._setup.cutter_comp.side = static_cast<CutterCompDirection>(value);
 }
 static inline int get_cycle_il_flag (Interp &interp)  {
     return interp._setup.cycle_il_flag;
@@ -765,10 +761,7 @@ static inline void set_spindle_turning(Interp &interp, int value)  {
     interp._setup.spindle_turning = static_cast<CANON_DIRECTION>(value);
 }
 static inline int get_stack_index (Interp &interp)  {
-    return interp._setup.stack_index;
-}
-static inline void set_stack_index(Interp &interp, int value)  {
-    interp._setup.stack_index = value;
+    return interp.callstack.frame_count();
 }
 static inline int get_value_returned (Interp &interp)  {
     return interp._setup.value_returned;
@@ -820,9 +813,9 @@ BOOST_PYTHON_MODULE(interpreter) {
             .BOOST_PYENUM_VAL(UNITS_PER_REVOLUTION)
             .export_values();
 
-    BOOST_PYENUM_(CUTTER_COMP_DIRECTION)
-            .BOOST_PYENUM_VAL(RIGHT)
-            .BOOST_PYENUM_VAL(LEFT)
+    BOOST_PYENUM_(CutterCompDirection)
+            .BOOST_PYENUM_VAL(RIGHT_COMP)
+            .BOOST_PYENUM_VAL(LEFT_COMP)
             .export_values();
 
     BOOST_PYENUM_(SPINDLE_MODE)
@@ -965,7 +958,7 @@ BOOST_PYTHON_MODULE(interpreter) {
 	.add_property("speed_feed_mode", &get_speed_feed_mode, &set_speed_feed_mode)
 	.add_property("spindle_mode", &get_spindle_mode, &set_spindle_mode)
 	.add_property("spindle_turning", &get_spindle_turning, &set_spindle_turning)
-	.add_property("stack_index", &get_stack_index, &set_stack_index)
+    .add_property("stack_index", &get_stack_index)
 	.add_property("value_returned", &get_value_returned, &set_value_returned)
 
 	.add_property("current_tool", &get_current_tool, &set_current_tool)

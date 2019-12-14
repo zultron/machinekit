@@ -40,11 +40,9 @@ setup_struct::setup_struct() :
     remap_level(0),
     blocktext{},
     control_mode(CANON_EXACT_STOP),
+    cutter_comp(),
     current_pocket(0),
 
-    cutter_comp_radius (0.0),
-    cutter_comp_orientation(0),
-    cutter_comp_side(0),
     cycle_cc (0.0),
     cycle_i (0.0),
     cycle_j (0.0),
@@ -76,15 +74,9 @@ setup_struct::setup_struct() :
     new_named_parameters(),
     percent_flag(0),
     plane(CANON_PLANE_XY),
-    probe_flag(0),
-    input_flag(0),
-    orient_flag(0),
-    toolchange_flag(0),
-    work_offset_modified_flag(false),
-    have_new_reserved_parameters(false),
+    wait_flags(0),
     input_index(0),
     input_digital(0),
-    cutter_comp_firstmove(0),
     program_x (0.0),
     program_y (0.0),
     program_z (0.0),
@@ -92,6 +84,7 @@ setup_struct::setup_struct() :
     random_toolchanger(0),
     selected_pocket(0),
     selected_tool(0),
+    tool_offset_mode(G_49),
     sequence_number(0),
     stepping_id(0),
     speed (0.0),
@@ -99,9 +92,6 @@ setup_struct::setup_struct() :
     speed_feed_mode(CANON_INDEPENDENT),
     speed_override(0),
     spindle_turning(CANON_STOPPED),
-    stack{},
-    stack_line{},
-    stack_index(0),
     pockets_max(0),
     tool_table(),
     traverse_rate (0.0),
@@ -122,8 +112,8 @@ setup_struct::setup_struct() :
     call_level(0),
     sub_context(),
     call_state(0),
-    adaptive_feed(0),
-    feed_hold(0),
+    allow_adaptive_feed(0),
+    allow_feed_hold(0),
     loggingLevel(0),
     debugmask(0),
     log_file{},
@@ -156,7 +146,8 @@ setup_struct::setup_struct() :
     init_once(1),
     m_remappable(),
     g_remappable(),
-    work_offsets_used()
+    work_offsets_used(),
+    tool_offsets_changed()
 {
   blocks.fill(block());
   parameters.fill(0);
@@ -198,12 +189,7 @@ int setup_struct::get_toplevel_line_number() const
 
 void setup_struct::clear_queue_buster_flags()
 {
-    probe_flag = false;
-    input_flag = false;
-    orient_flag = false;
-    toolchange_flag = false;
-    work_offset_modified_flag = false;
-    have_new_reserved_parameters = false;
+    wait_flags.reset();
 }
 
 block & setup_struct::getControllingBlock()
@@ -227,22 +213,14 @@ block &setup_struct::updateControllingBlock()
     return getControllingBlock();
 }
 
-bool setup_struct::hasFeature(Features f) const
+int setup_struct::getCurrentToolNumber() const
 {
-    switch (f) {
-    case FEATURE_RETAIN_G43:
-    case FEATURE_OWORD_N_ARGS:
-    case FEATURE_INI_VARS:
-    case FEATURE_HAL_PIN_VARS:
-    case FEATURE_NO_DOWNCASE_OWORD:
-    case FEATURE_OWORD_WARNONLY:
-    case FEATURE_LATHE_TOOLCHANGE:
-    case FEATURE_EXTENDED_ERROR_MESSAGES:
-        return feature_set.test((int)f);
-    case MAX_FEATURES:
-        return false;
-    }
-    return false;
+    return tool_table[current_pocket].toolno;
+}
+
+bool setup_struct::checkFeatureFlag(Features f) const
+{
+    return has_feature(feature_set, f);
 }
 
 setup_struct::~setup_struct() {

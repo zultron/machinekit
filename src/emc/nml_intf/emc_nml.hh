@@ -916,6 +916,7 @@ class EMC_TRAJ_SET_G92:public EMC_TRAJ_CMD_MSG {
     void update(CMS * cms);
 
     EmcPose origin;
+    int applied;
 };
 
 class EMC_TRAJ_SET_ROTATION:public EMC_TRAJ_CMD_MSG {
@@ -1304,13 +1305,14 @@ class EMC_TASK_PLAN_OPEN:public EMC_TASK_CMD_MSG {
 class EMC_TASK_PLAN_RUN:public EMC_TASK_CMD_MSG {
   public:
     EMC_TASK_PLAN_RUN():EMC_TASK_CMD_MSG(EMC_TASK_PLAN_RUN_TYPE,
-					 sizeof(EMC_TASK_PLAN_RUN)) {
+                             sizeof(EMC_TASK_PLAN_RUN)), line(), prep_type() {
     }
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
     int line;			// line to run from; 0 or 1 means from start,
+    int prep_type; //!< Type of preparation to use if any lines are skipped (state restore, leadin, etc.)
     // negative means run through to verify
 };
 
@@ -1494,15 +1496,15 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     int g5x_index;              // index of active g5x system
     EmcPose g92_offset;		// in user units, currently active
     EmcPose toolOffset;		// tool offset, in general pose form
-    ActiveGCodeArray activeGCodes;
-    ActiveMCodeArray activeMCodes;
-    ActiveSettingsArray activeSettings;
+    ModalState modalState;
     int programUnits;	// CANON_UNITS_INCHES, MM, CM
     int interpreter_errcode;	// return value from rs274ngc function 
     int task_paused;		// non-zero means task is paused
     double delayLeft;           // delay time left of G4, M66..
     int queuedMDIcommands;      // current length of MDI input queue
     WorkOffsetTable g5x_table; // in user units, stored by 1-indexed work offset number
+    ShiftTransform g92_offset_persistant; // in user units, the persistent G92 offset values (if any)
+    bool g92_applied;
     bool program_ended_and_reset; // program executed an M30 to gracefully end and reset
     bool program_ended;           // program executed an M2 to gracefully end
     bool optional_stop_state;	// state of optional stop (== ON means we stop on M1)

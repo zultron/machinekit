@@ -140,24 +140,37 @@ void SET_G5X_TRANSFORM(int index,
 }
 
 
-void SET_G92_OFFSET(double x, double y, double z,
+void SET_G92_OFFSET(bool applied, double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w) {
   ECHO_WITH_ARGS("%.4f, %.4f, %.4f, %.4f, %.4f, %.4f",
                       x, y, z, a, b, c);
-  _sai._program_position[X] = _sai._program_position[X] + _sai._g92_x - x;
-  _sai._program_position[Y] = _sai._program_position[Y] + _sai._g92_y - y;
-  _sai._program_position[Z] = _sai._program_position[Z] + _sai._g92_z - z;
-  _sai._program_position[A] = _sai._program_position[A] + _sai._g92_a - a;/*AA*/
-  _sai._program_position[B] = _sai._program_position[B] + _sai._g92_b - b;/*BB*/
-  _sai._program_position[C] = _sai._program_position[C] + _sai._g92_c - c;/*CC*/
+  _sai._program_position[X] = _sai._program_position[X] + _sai.g92_offset[X] - x;
+  _sai._program_position[Y] = _sai._program_position[Y] + _sai.g92_offset[Y] - y;
+  _sai._program_position[Z] = _sai._program_position[Z] + _sai.g92_offset[Z] - z;
+  _sai._program_position[A] = _sai._program_position[A] + _sai.g92_offset[A] - a;/*AA*/
+  _sai._program_position[B] = _sai._program_position[B] + _sai.g92_offset[B] - b;/*BB*/
+  _sai._program_position[C] = _sai._program_position[C] + _sai.g92_offset[C] - c;/*CC*/
 
-  _sai._g92_x = x;
-  _sai._g92_y = y;
-  _sai._g92_z = z;
-  _sai._g92_a = a;  /*AA*/
-  _sai._g92_b = b;  /*BB*/
-  _sai._g92_c = c;  /*CC*/
+  _sai.g92_offset = ShiftTransform{{
+      x,
+      y,
+      z,
+      a,
+      b,
+      c,
+      u,
+      v,
+      w,
+  }};
+  _sai.axis_offset_param.applied = applied;
+  if (applied) {
+      _sai.axis_offset_param.offset = _sai.g92_offset;
+      if (_sai._length_unit_type == CANON_UNITS_MM) {
+          // Assume inches for "user" units
+          UnitsTransform(25.4, 1.0).apply_inv(_sai.axis_offset_param.offset.tf);
+      }
+  }
 }
 
 void USE_LENGTH_UNITS(CANON_UNITS in_unit)
@@ -178,9 +191,9 @@ void USE_LENGTH_UNITS(CANON_UNITS in_unit)
           _sai._g5x_y /= 25.4;
           _sai._g5x_z /= 25.4;
 
-          _sai._g92_x /= 25.4;
-          _sai._g92_y /= 25.4;
-          _sai._g92_z /= 25.4;
+          _sai.g92_offset[X] /= 25.4;
+          _sai.g92_offset[Y] /= 25.4;
+          _sai.g92_offset[Z] /= 25.4;
         }
     }
   else if (in_unit == CANON_UNITS_MM)
@@ -199,9 +212,9 @@ void USE_LENGTH_UNITS(CANON_UNITS in_unit)
           _sai._g5x_y *= 25.4;
           _sai._g5x_z *= 25.4;
 
-          _sai._g92_x *= 25.4;
-          _sai._g92_y *= 25.4;
-          _sai._g92_z *= 25.4;
+          _sai.g92_offset[X] *= 25.4;
+          _sai.g92_offset[Y] *= 25.4;
+          _sai.g92_offset[Z] *= 25.4;
         }
     }
   else
@@ -717,6 +730,10 @@ int WAIT(int index, CANON_INPUT input_type, CANON_WAIT_MODE wait_type, double ti
 int UNLOCK_ROTARY(int line_no, int axis) {return 0;}
 int LOCK_ROTARY(int line_no, int axis) {return 0;}
 
+bool IN_START_LINE_SEEK() {
+    return false;
+}
+
 /* Returns the system feed rate */
 double GET_EXTERNAL_FEED_RATE()
 {
@@ -951,6 +968,11 @@ extern RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin)
   return _sai._g5x_table[(size_t)origin];
 }
 
+extern AxisOffsetParams GET_EXTERNAL_PERSISTENT_AXIS_OFFSET()
+{
+  return _sai.axis_offset_param;
+}
+
 /* Returns the system traverse rate */
 double GET_EXTERNAL_TRAVERSE_RATE()
 {
@@ -1138,12 +1160,8 @@ StandaloneInterpInternals::StandaloneInterpInternals() :
   _g5x_a(0.0),
   _g5x_b(0.0),
   _g5x_c(0.0),
-  _g92_x(0.0),
-  _g92_y(0.0),
-  _g92_z(0.0),
-  _g92_a(0.0),
-  _g92_b(0.0),
-  _g92_c(0.0),
+  g92_offset(),
+  axis_offset_param(),
   _program_position(),
   _spindle_speed(0),
   _spindle_turning(CANON_STOPPED),

@@ -47,9 +47,10 @@ enum FEED_MODE {
 
 // cutter radius compensation mode, 0 or false means none
 // not using CANON_SIDE since interpreter handles cutter radius comp
-enum CUTTER_COMP_DIRECTION {
-    RIGHT = 1,
-    LEFT = 2,
+enum CutterCompDirection {
+    NO_COMP = 0,
+    RIGHT_COMP = 1,
+    LEFT_COMP = 2,
 };
 
 // spindle control modes

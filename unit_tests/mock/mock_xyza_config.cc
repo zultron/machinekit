@@ -19,4 +19,6 @@ void setup_xyza_config()
     emcStatus->motion.traj.axes = 9;
     emcStatus->motion.traj.linearUnits = 1.0 / 25.4;
     emcStatus->io.tool.toolTable[0].toolno = 1;
+    emcStatus->io.tool.toolTable[1].toolno = 2;
+    emcStatus->io.tool.toolTable[2].toolno = 3;
 }

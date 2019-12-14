@@ -51,6 +51,7 @@ enum predefined_named_parameters {
     NP_MOTION_MODE,
     NP_PLANE,
     NP_CCOMP,
+    NP_CCOMP_DIAMETER,
     NP_METRIC,
     NP_IMPERIAL,
     NP_ABSOLUTE,
@@ -59,6 +60,7 @@ enum predefined_named_parameters {
     NP_UNITS_PER_MINUTE,
     NP_UNITS_PER_REV,
     NP_COORD_SYSTEM,
+    NP_WORK_OFFSET_NUMBER,
     NP_TOOL_OFFSET,
     NP_RETRACT_R_PLANE,
     NP_RETRACT_OLD_Z,
@@ -89,6 +91,15 @@ enum predefined_named_parameters {
     NP_U,
     NP_V,
     NP_W,
+    NP_AXIS_OFFSET_X,
+    NP_AXIS_OFFSET_Y,
+    NP_AXIS_OFFSET_Z,
+    NP_AXIS_OFFSET_A,
+    NP_AXIS_OFFSET_B,
+    NP_AXIS_OFFSET_C,
+    NP_AXIS_OFFSET_U,
+    NP_AXIS_OFFSET_V,
+    NP_AXIS_OFFSET_W,
     NP_WORK_OFFSET_X,
     NP_WORK_OFFSET_Y,
     NP_WORK_OFFSET_Z,
@@ -98,6 +109,15 @@ enum predefined_named_parameters {
     NP_WORK_OFFSET_U,
     NP_WORK_OFFSET_V,
     NP_WORK_OFFSET_W,
+    NP_TOOL_OFFSET_X,
+    NP_TOOL_OFFSET_Y,
+    NP_TOOL_OFFSET_Z,
+    NP_TOOL_OFFSET_A,
+    NP_TOOL_OFFSET_B,
+    NP_TOOL_OFFSET_C,
+    NP_TOOL_OFFSET_U,
+    NP_TOOL_OFFSET_V,
+    NP_TOOL_OFFSET_W,
     NP_X_MACHINE,
     NP_Y_MACHINE,
     NP_Z_MACHINE,
@@ -351,7 +371,7 @@ int Interp::find_named_param(
   if (pi == frame->named_params.end()) { // not found
       int exists = 0;
       double inivalue;
-      if (_setup.hasFeature(FEATURE_INI_VARS) && (strncasecmp(nameBuf,"_ini[",5) == 0)) {
+      if (hasFeature(FEATURE_INI_VARS) && (strncasecmp(nameBuf,"_ini[",5) == 0)) {
 	 fetch_ini_param(nameBuf, &exists, &inivalue);
 	  if (exists) {
 	      logNP("parameter '%s' retrieved from INI: %f",nameBuf,inivalue);
@@ -364,7 +384,7 @@ int Interp::find_named_param(
 	      return INTERP_OK;
 	  } 
       }
-      if (_setup.hasFeature(FEATURE_HAL_PIN_VARS) && (strncasecmp(nameBuf,"_hal[",5) == 0)) {
+      if (hasFeature(FEATURE_HAL_PIN_VARS) && (strncasecmp(nameBuf,"_hal[",5) == 0)) {
 	  fetch_hal_param(nameBuf, &exists, &inivalue);
 	  if (exists) {
 	      logNP("parameter '%s' retrieved from HAL: %f",nameBuf,inivalue);
@@ -561,9 +581,14 @@ int Interp::lookup_named_param(const char *nameBuf,
 
     case NP_CCOMP: // _ccomp - cutter compensation
 	*value =
-	    (_setup.cutter_comp_side == RIGHT) ? G_42 :
-	(_setup.cutter_comp_side == LEFT) ? G_41 : G_40;
-	break;
+	    (_setup.cutter_comp.side == RIGHT_COMP) ? G_42 :
+	(_setup.cutter_comp.side == LEFT_COMP) ? G_41 : G_40;
+    break;
+
+    case NP_CCOMP_DIAMETER:
+        *value = _setup.cutter_comp.radius * 2.0;
+    break;
+
 
     case NP_METRIC: // _metric
 	*value = (_setup.length_units == CANON_UNITS_MM);
@@ -597,7 +622,11 @@ int Interp::lookup_named_param(const char *nameBuf,
 	*value =
 	    (_setup.origin_index < 7) ? (530 + (10 * _setup.origin_index)) :
 	    (584 + _setup.origin_index);
-	break;
+    break;
+
+    case NP_WORK_OFFSET_NUMBER: // _work_offset_number - (1-500)
+        *value = _setup.origin_index;
+    break;
 
     case NP_TOOL_OFFSET: // _tool_offset
     *value =  toolOffsetActive(&_setup);
@@ -658,11 +687,11 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_ADAPTIVE_FEED: // adaptive feed
-	*value = _setup.adaptive_feed;
+    *value = _setup.allow_adaptive_feed;
 	break;
 
     case NP_FEED_HOLD: // feed hold
-	*value = _setup.feed_hold;
+    *value = _setup.allow_feed_hold;
 	break;
 
 	// from active_settings:
@@ -703,6 +732,19 @@ int Interp::lookup_named_param(const char *nameBuf,
         *value = _setup.current[cmd - NP_X];
         break;
 
+    case NP_AXIS_OFFSET_X:
+    case NP_AXIS_OFFSET_Y:
+    case NP_AXIS_OFFSET_Z:
+    case NP_AXIS_OFFSET_A:
+    case NP_AXIS_OFFSET_B:
+    case NP_AXIS_OFFSET_C:
+    case NP_AXIS_OFFSET_U:
+    case NP_AXIS_OFFSET_V:
+    case NP_AXIS_OFFSET_W:
+        *value = _setup.transform.g92Offset.tf[cmd - NP_AXIS_OFFSET_X];
+        break;
+
+
     // current interpreter position in local coordinates
     case NP_WORK_OFFSET_X:
     case NP_WORK_OFFSET_Y:
@@ -714,6 +756,18 @@ int Interp::lookup_named_param(const char *nameBuf,
     case NP_WORK_OFFSET_V:
     case NP_WORK_OFFSET_W:
         *value = _setup.transform.g5xOffset.shift.tf[cmd - NP_WORK_OFFSET_X];
+        break;
+
+    case NP_TOOL_OFFSET_X:
+    case NP_TOOL_OFFSET_Y:
+    case NP_TOOL_OFFSET_Z:
+    case NP_TOOL_OFFSET_A:
+    case NP_TOOL_OFFSET_B:
+    case NP_TOOL_OFFSET_C:
+    case NP_TOOL_OFFSET_U:
+    case NP_TOOL_OFFSET_V:
+    case NP_TOOL_OFFSET_W:
+        *value = _setup.transform.toolOffset.tf[cmd - NP_TOOL_OFFSET_X];
         break;
 
     // current interpreter position in machine coordinates
@@ -838,6 +892,8 @@ int Interp::init_named_parameters()
   // return 400,410,420 depending if (G40,G41,G42) is on
   init_readonly_param("_ccomp", NP_CCOMP, PA_USE_LOOKUP);
 
+  init_readonly_param("_ccomp_diameter", NP_CCOMP_DIAMETER, PA_USE_LOOKUP);
+
   // 1.0 if G21 is on
   init_readonly_param("_metric", NP_METRIC, PA_USE_LOOKUP);
 
@@ -859,8 +915,11 @@ int Interp::init_named_parameters()
   // 1.0 if G95 is on
   init_readonly_param("_units_per_rev", NP_UNITS_PER_REV, PA_USE_LOOKUP);
 
-  // 0..9 for G54..G59.3
+  // 540-593 for G54..G59.3
   init_readonly_param("_coord_system", NP_COORD_SYSTEM, PA_USE_LOOKUP);
+
+  // 1-500 for G54.1 P#
+  init_readonly_param("_work_offset_number", NP_WORK_OFFSET_NUMBER, PA_USE_LOOKUP);
 
   // 1.0 if G43 is on
   init_readonly_param("_tool_offset", NP_TOOL_OFFSET, PA_USE_LOOKUP);
@@ -873,7 +932,6 @@ int Interp::init_named_parameters()
 
   // really esoteric
   // init_readonly_param("_control_mode", 110, PA_USE_LOOKUP);
-
 
   // 1 if G97 is on
   init_readonly_param("_spindle_rpm_mode", NP_SPINDLE_RPM_MODE, PA_USE_LOOKUP);
@@ -923,6 +981,17 @@ int Interp::init_named_parameters()
   init_readonly_param("_v", NP_V, PA_USE_LOOKUP);
   init_readonly_param("_w", NP_W, PA_USE_LOOKUP);
 
+  // Current axis offset value actually applied
+  init_readonly_param("_axis_offset_x", NP_AXIS_OFFSET_X, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_y", NP_AXIS_OFFSET_Y, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_z", NP_AXIS_OFFSET_Z, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_a", NP_AXIS_OFFSET_A, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_b", NP_AXIS_OFFSET_B, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_c", NP_AXIS_OFFSET_C, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_u", NP_AXIS_OFFSET_U, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_v", NP_AXIS_OFFSET_V, PA_USE_LOOKUP);
+  init_readonly_param("_axis_offset_w", NP_AXIS_OFFSET_W, PA_USE_LOOKUP);
+
   // Current G5X work offset
   init_readonly_param("_work_offset_x", NP_WORK_OFFSET_X, PA_USE_LOOKUP);
   init_readonly_param("_work_offset_y", NP_WORK_OFFSET_Y, PA_USE_LOOKUP);
@@ -933,6 +1002,16 @@ int Interp::init_named_parameters()
   init_readonly_param("_work_offset_u", NP_WORK_OFFSET_U, PA_USE_LOOKUP);
   init_readonly_param("_work_offset_v", NP_WORK_OFFSET_V, PA_USE_LOOKUP);
   init_readonly_param("_work_offset_w", NP_WORK_OFFSET_W, PA_USE_LOOKUP);
+
+  init_readonly_param("_tool_offset_x", NP_TOOL_OFFSET_X, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_y", NP_TOOL_OFFSET_Y, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_z", NP_TOOL_OFFSET_Z, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_a", NP_TOOL_OFFSET_A, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_b", NP_TOOL_OFFSET_B, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_c", NP_TOOL_OFFSET_C, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_u", NP_TOOL_OFFSET_U, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_v", NP_TOOL_OFFSET_V, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_w", NP_TOOL_OFFSET_W, PA_USE_LOOKUP);
 
   // current position in machine coordinates (derived from current position)
   init_readonly_param("_x_machine", NP_X_MACHINE, PA_USE_LOOKUP);

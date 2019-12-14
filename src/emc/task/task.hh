@@ -20,6 +20,9 @@
 // global command pointer
 extern NMLmsg *emcTaskCommand;
 
+extern InterpBase *pinterp;
+struct StartLineSettings;
+
 extern int stepping;
 extern int steppingWait;
 extern int emcTaskQueueCommand(NMLmsg *cmd);
@@ -40,6 +43,8 @@ int emcTaskPlanSetWait();
 int emcTaskPlanIsWait();
 int emcTaskPlanClearWait();
 int emcTaskPlanSynch();
+void emcTaskPlanPurgeInterpQueue();
+int emcTaskPlanFinishLineSeek(const StartLineSettings & start_settings);
 int emcTaskPlanSetOptionalStop(bool state);
 int emcTaskPlanSetBlockDelete(bool state);
 void emcTaskPlanExit();

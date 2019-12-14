@@ -142,9 +142,6 @@ static double taskExecDelayTimeout = 0.0;
 // emcTaskIssueCommand issues command immediately
 static int emcTaskIssueCommand(NMLmsg * cmd);
 
-
-extern InterpBase *pinterp;
-
 // pending command to be sent out by emcTaskExecute()
 NMLmsg *emcTaskCommand = 0;
 
@@ -443,8 +440,8 @@ static EMC_TASK_PLAN_RUN taskPlanRunCmd;	// 16-Aug-1999 FMP
 static EMC_TASK_PLAN_INIT taskPlanInitCmd;
 static EMC_TASK_PLAN_SYNCH taskPlanSynchCmd;
 
+static StartLineSettings start_settings{};
 static int interpResumeState = EMC_TASK_INTERP_IDLE;
-static int programStartLine = 0;	// which line to run program from
 // how long the interp list can be
 
 int stepping = 0;
@@ -576,6 +573,36 @@ static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
 }
 extern int emcTaskMopup();
 
+/**
+ * Purges any queued commands that should not actually be sent out / processed.
+ *
+ * This occurs during "seek" mode, when interp is trying to find the start
+ * line. It's processing all of the G-code before that point, and the resulting
+ * commands are accumulating in the interp list. We need to purge these before
+ * starting the actual read-ahead so that only lines after the start line are
+ * actually executed.
+ */
+void emcTaskPlanPurgeInterpQueue()
+{
+    if (start_settings.start_line < 0 ||
+        emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
+        // we're stepping over lines, so check them
+        // for
+        // limits, etc. and clear then out
+        if (0 != checkInterpList(&interp_list,
+                                 emcStatus)) {
+            // problem with actions, so do same as we
+            // did
+            // for a bad read from emcTaskPlanRead()
+            // above
+            emcStatus->task.interpState =
+                EMC_TASK_INTERP_WAITING;
+        }
+        // and clear it regardless
+        interp_list.clear();
+    }
+}
+
 void readahead_reading(void)
 {
     int readRetval;
@@ -617,12 +644,12 @@ interpret_again:
 
                 // Check if the first real command should be read or not
                 if (emcTaskPlanLevel() == 0
-                        && emcStatus->task.readLine >= programStartLine
+                        && emcStatus->task.readLine >= start_settings.start_line
                         && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
                     // Next line will be the start line, and this is the first command, so immediately start reading
                     // NOTE: we don't need to synch here only because this is the first command
                     emcStatus->task.interpState = EMC_TASK_INTERP_READING;
-                    programStartLine = 0;
+                    start_settings.start_line = 0;
                 }
 
 			    emcTaskPlanCommand((char *) &emcStatus->task.
@@ -631,7 +658,7 @@ interpret_again:
 			    execRetval = INTERP_OK;
 			    // Tormach - set _task variable appropriately so that 
 			    // remap code can decide what to do in read-behind *dpr 12/15
-                _task = (programStartLine < 0 || emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) ? -1 : 1;
+                _task = (start_settings.start_line < 0 || emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) ? -1 : 1;
 
                 execRetval = emcTaskPlanExecute();
 			    // line number may need update after
@@ -672,23 +699,7 @@ interpret_again:
 			    // throw the results away if we're supposed to
 			    // read
 			    // through it
-                if (programStartLine < 0 ||
-                 emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
-				// we're stepping over lines, so check them
-				// for
-				// limits, etc. and clear then out
-				if (0 != checkInterpList(&interp_list,
-							 emcStatus)) {
-				    // problem with actions, so do same as we
-				    // did
-				    // for a bad read from emcTaskPlanRead()
-				    // above
-				    emcStatus->task.interpState =
-					EMC_TASK_INTERP_WAITING;
-				}
-				// and clear it regardless
-				interp_list.clear();
-                }
+                emcTaskPlanPurgeInterpQueue();
 
                 if (emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
 			    
@@ -705,19 +716,18 @@ interpret_again:
 			    }
 
                 if (emcTaskPlanLevel() == 0
-                        && emcStatus->task.readLine + 1 >= programStartLine
+                        && emcStatus->task.readLine + 1 >= start_settings.start_line
                         && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
 
                     // Next line will be the start line, so force a synch and
-                emcStatus->task.interpState = EMC_TASK_INTERP_READING;
-                emcTaskPlanSynch();
+                    emcTaskPlanFinishLineSeek(start_settings);
 
-                // reset programStartLine so we don't
-                // fall into our stepping routines if
-                // we happen to execute lines before
-                // the current point later (due to
-                // subroutines).
-                programStartLine = 0;
+                    // reset start line so we don't
+                    // fall into our stepping routines if
+                    // we happen to execute lines before
+                    // the current point later (due to
+                    // subroutines).
+                    start_settings.start_line = 0;
                 }
 
                             if (count++ < emc_task_interp_max_len
@@ -1993,10 +2003,17 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     retval = 0;
     break;
     case EMC_TRAJ_SET_G92_TYPE:
-	// struct-copy program origin
-	emcStatus->task.g92_offset = ((EMC_TRAJ_SET_G92 *) cmd)->origin;
-	retval = 0;
-	break;
+    {
+        auto g92_cmd = ((EMC_TRAJ_SET_G92 const &) *cmd);
+        // struct-copy program origin
+        emcStatus->task.g92_offset = g92_cmd.origin;
+        emcStatus->task.g92_applied = g92_cmd.applied;
+        if (g92_cmd.applied) {
+            emcStatus->task.g92_offset_persistant = toArray(emcStatus->task.g92_offset);
+        }
+        retval = 0;
+    }
+    break;
     case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
 	retval = emcTrajClearProbeTrippedFlag();
 	break;
@@ -2366,7 +2383,9 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	    emcTaskPlanOpen(emcStatus->task.file);
 	}
 	run_msg = (EMC_TASK_PLAN_RUN *) cmd;
-    programStartLine = run_msg->line;
+    start_settings.start_line = run_msg->line;
+    start_settings.prep_type = static_cast<RunPrepType>(run_msg->prep_type);
+    start_settings.initial_transform = pinterp->get_transform();
     // KLUDGE always start by seeking (will drop into reading if the first command is at the start line)
     emcStatus->task.interpState = EMC_TASK_INTERP_SEEKING;
 	emcStatus->task.task_paused = 0;

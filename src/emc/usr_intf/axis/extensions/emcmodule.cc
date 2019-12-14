@@ -530,15 +530,15 @@ static PyObject *Stat_probed(pyStatChannel *s) {
 }
 
 static PyObject *Stat_activegcodes(pyStatChannel *s) {
-    return int_array(s->status.task.activeGCodes.data(), ACTIVE_G_CODES);
+    return int_array(s->status.task.modalState.g_codes.data(), ACTIVE_G_CODES);
 }
 
 static PyObject *Stat_activemcodes(pyStatChannel *s) {
-    return int_array(s->status.task.activeMCodes.data(), ACTIVE_M_CODES);
+    return int_array(s->status.task.modalState.m_codes.data(), ACTIVE_M_CODES);
 }
 
 static PyObject *Stat_activesettings(pyStatChannel *s) {
-   return double_array(s->status.task.activeSettings.data(), ACTIVE_SETTINGS);
+   return double_array(s->status.task.modalState.settings.data(), ACTIVE_SETTINGS);
 }
 
 static PyObject *Stat_din(pyStatChannel *s) {
@@ -1161,12 +1161,12 @@ static PyObject *program_close(pyCommandChannel *s, PyObject *o) {
 
 static PyObject *emcauto(pyCommandChannel *s, PyObject *o) {
     int fn;
-    EMC_TASK_PLAN_RUN run;
+    EMC_TASK_PLAN_RUN run{};
     EMC_TASK_PLAN_PAUSE pause;
     EMC_TASK_PLAN_RESUME resume;
     EMC_TASK_PLAN_STEP step;
 
-    if(PyArg_ParseTuple(o, "ii", &fn, &run.line) && fn == LOCAL_AUTO_RUN) {
+    if(PyArg_ParseTuple(o, "ii|i", &fn, &run.line, &run.prep_type) && fn == LOCAL_AUTO_RUN) {
         emcSendCommand(s, run);
     } else {
         PyErr_Clear();
@@ -2503,6 +2503,10 @@ initlinuxcnc(void) {
     ENUMX(0, G_CODE_SPINDLE_MODE);
     ENUMX(0, G_CODE_DISTANCE_MODE_IJK);
     ENUMX(0, G_CODE_LATHE_DIAMETER_MODE);
+
+    ENUM(PREP_NONE);
+    ENUM(PREP_LINEAR_LEADIN);
+    ENUM(PREP_PLUNGE_LEADIN);
 
     // Constants for indexing into the status.mcodes[] array
     ENUMX(0, M_CODE_SEQUENCE_NUMBER);

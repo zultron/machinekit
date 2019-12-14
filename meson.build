@@ -72,6 +72,7 @@ subdir('src/rtapi')
 subdir('unit_tests')
 subdir('unit_tests/tp')
 subdir('unit_tests/interp')
+subdir('unit_tests/interp_shared')
 subdir('unit_tests/mock')
 
 # Global library dependencies
@@ -461,4 +462,18 @@ test_interp_ex = executable('test_interp',
 
 test('test_interp', test_interp_ex)
 
+test_interp_shared_ex = executable('test_interp_shared',
+    test_interp_shared_srcs,
+    include_directories : [
+      test_interp_shared_inc,
+      rs274ngc_inc,
+      rs274ngc_external_inc,
+      unit_test_support_inc,
+      ],
+    dependencies: [
+        dl_dep,
+        libinterp_shared_dep,
+        ]
+    )
 
+test('test_interp', test_interp_shared_ex)

@@ -1575,6 +1575,7 @@ void EMC_TASK_PLAN_RUN::update(CMS * cms)
 
     EMC_TASK_CMD_MSG::update(cms);
     cms->update(line);
+    cms->update(prep_type);
 
 }
 
@@ -1935,15 +1936,18 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(g5x_index);
     EmcPose_update(cms, &g92_offset);
     EmcPose_update(cms, &toolOffset);
-    cms->update(activeGCodes);
-    cms->update(activeMCodes);
-    cms->update(activeSettings);
+    cms->update(modalState);
     cms->update(programUnits);
     cms->update(task_paused);
     cms->update(delayLeft);
     cms->update(queuedMDIcommands);
     cms->update(interpreter_errcode);
     cms->update(g5x_table);
+    cms->update(g92_offset_persistant);
+    cms->update(g92_applied);
+    cms->update(program_ended_and_reset);
+    cms->update(program_ended);
+    cms->update(block_delete_state);
     cms->update(optional_stop_state);
     cms->update(block_delete_state);
     cms->update(input_timeout);
@@ -2314,6 +2318,7 @@ void EMC_TRAJ_SET_G92::update(CMS * cms)
 
     EMC_TRAJ_CMD_MSG::update(cms);
     EmcPose_update(cms, &origin);
+    cms->update(applied);
 
 }
 

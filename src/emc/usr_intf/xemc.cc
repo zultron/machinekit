@@ -3985,7 +3985,7 @@ void timeoutCB(XtPointer clientdata, XtIntervalId *id)
   // fill in the active G codes
   active_g_codes_string[0] = 0;
   for (t = 1; t < ACTIVE_G_CODES; t++) {
-    code = emcStatus->task.activeGCodes[t];
+    code = emcStatus->task.modalState.g_codes[t];
     if (code == -1) {
       continue;
     }
@@ -4001,7 +4001,7 @@ void timeoutCB(XtPointer clientdata, XtIntervalId *id)
   // fill in the active M codes, settings too
   active_m_codes_string[0] = 0;
   for (t = 1; t < ACTIVE_M_CODES; t++) {
-    code = emcStatus->task.activeMCodes[t];
+    code = emcStatus->task.modalState.m_codes[t];
     if (code == -1) {
       continue;
     }
@@ -4012,9 +4012,9 @@ void timeoutCB(XtPointer clientdata, XtIntervalId *id)
   sprintf(mdiCodes, "%s %s", active_g_codes_string, active_m_codes_string);
 
   // fill in F and S codes also
-  sprintf(string, " F%.0f", emcStatus->task.activeSettings[1]);
+  sprintf(string, " F%.0f", emcStatus->task.modalState.settings[1]);
   strcat(mdiCodes, string);
-  sprintf(string, " S%.0f", emcStatus->task.activeSettings[2]);
+  sprintf(string, " S%.0f", emcStatus->task.modalState.settings[2]);
   strcat(mdiCodes, string);
 
   if (0 != strcmp(oldMdiCodes, mdiCodes)) {

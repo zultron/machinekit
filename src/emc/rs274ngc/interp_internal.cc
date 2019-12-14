@@ -408,11 +408,16 @@ int Interp::precedence(int an_operator)
 }
 
 
-int Interp::refresh_actual_position(setup_pointer settings) 
+int Interp::refresh_actual_position(setup_pointer settings)
 {
-  settings->current = GET_EXTERNAL_POSITION();
-
-  return INTERP_OK;
+    if (IN_START_LINE_SEEK()) {
+        // Assume plunge axes have returned to the home position (e.g. during a tool change or after a probe)
+        PositionArray local_machine_zero = settings->transform.inverse_local_from_tip(PositionArray{});
+        settings->current = merge(settings->current, local_machine_zero, settings->default_seek_preamble.plunge_axes);
+    } else {
+        settings->current = GET_EXTERNAL_POSITION();
+    }
+    return INTERP_OK;
 }
 
 static inline void wrap_rotary_value(double &unwrapped_pos)
@@ -531,9 +536,9 @@ const int & Interp::remap_level() const
     return _setup.remap_level;
 }
 
-PositionMask getUpdatedAxes(block_pointer b)
+AxisMask getUpdatedAxes(block_pointer b)
 {
-    PositionMask axes_updated;
+    AxisMask axes_updated;
     axes_updated[X] = b->x_flag;
     axes_updated[Y] = b->y_flag;
     axes_updated[Z] = b->z_flag;
@@ -578,16 +583,9 @@ RotateShiftTransform getAxisWordsFromBlock(block_pointer b, RotateShiftTransform
     return out;
 }
 
-void append_stack_info(setup_struct & settings, const char * function_name, const char *file_name, int line)
+ShiftTransform getAxisWordsFromBlock(block_pointer b, ShiftTransform const & current)
 {
-    if (settings.stack_index >= STACK_LEN -1) {
-        return;
-    }
-
-    strncpy(settings.stack[settings.stack_index], function_name, STACK_ENTRY_LEN);
-    strncpy(settings.stack_file[settings.stack_index], file_name, STACK_ENTRY_LEN);
-    settings.stack_line[settings.stack_index] = line;
-    settings.stack[settings.stack_index][STACK_ENTRY_LEN-1] = '\0';
-    settings.stack_index++;
-    settings.stack[settings.stack_index][0] = '\0';
+    return ShiftTransform(getAxisWordsFromBlock(b, current.tf));
 }
+
+

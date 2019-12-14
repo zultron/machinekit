@@ -101,6 +101,7 @@ include an option for suppressing superfluous commands.
 #include "units.h"
 #include "modal_state.hh"
 
+#include <fstream>
 #include <unordered_set>
 #include <algorithm>
 #include <functional>
@@ -110,6 +111,7 @@ using namespace std::placeholders;
 
 #include <stdio.h>
 using namespace interp_param_global;
+using namespace WaitFlag;
 
 namespace bp = boost::python;
 
@@ -409,8 +411,13 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
   extern const char *call_typenames[];
   extern const char *o_ops[];
 
+  // KLUDGE force special handling for preamble:
+  // Unlike MDI (which executes the command completely), we want to kick off the command,
+  // but then let the remainder of it execute in auto mode (returning to the last point in the main program)
+  // This ONLY works because Interp has a valid file / line to return to.
+  // For all intents and purposes, this is G-code injection, so use it carefully!
   if (nullptr != command) {
-    MDImode = 1;
+      MDImode = (cmd_src != CommandSource::PREAMBLE);
     status = read(command, cmd_src);
     if (status != INTERP_OK) {
 	// if (status > INTERP_MIN_ERROR) 
@@ -473,12 +480,15 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
   }
 
   // Linear search, consider replacing with ordered map if this gets big
-  _setup.have_new_reserved_parameters = std::any_of(
-              _setup.new_parameters.begin(),
-              _setup.new_parameters.end(),
-              [](const std::pair<size_t, double> &prm){
-                return prm.first > 5000;
-              });
+  _setup.wait_flags.set(
+      RESERVED_PARAMETER_MODIFIED,
+      std::any_of(
+          _setup.new_parameters.begin(),
+          _setup.new_parameters.end(),
+          [](const std::pair<size_t, double> &prm){
+              return prm.first > 5000;
+          })
+      );
 
   for (auto& prm : _setup.new_parameters)
   {
@@ -617,9 +627,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
             _setup.mdi_interrupt = false;
             // at this point the MDI execution of a remapped block is complete.
             logRemap("MDI remap execution complete status=%s\n",interp_status(status));
-            write_g_codes(eblock, &_setup, _setup.modal_state);
-            write_m_codes(eblock, &_setup, _setup.modal_state);
-            write_settings(&_setup, _setup.modal_state);
+            write_modal_state(eblock, &_setup);
             return INTERP_OK;
           }
         } else {
@@ -639,9 +647,7 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
       // standard case: unremapped block execution
       status = execute_block(eblock, &_setup);
 
-      write_g_codes(eblock, &_setup, _setup.modal_state);
-      write_m_codes(eblock, &_setup, _setup.modal_state);
-      write_settings(&_setup, _setup.modal_state);
+      write_modal_state(eblock, &_setup);
 
       if ((status == INTERP_EXIT) &&
           (remap_level() > 0) &&
@@ -768,9 +774,13 @@ int Interp::remap_finished(int phase)
 		if (status != INTERP_EXIT) // Don't drop remap lev. at prog exit
 		    CHP(leave_remap());
 		logRemap("executing block leftover items complete, status=%s  remap_level=%d call_level=%d tc=%d probe=%d input=%d mdi_interrupt=%d  line=%d backtoline=%d",
-             interp_status(status),remap_level(),call_level(),_setup.toolchange_flag,
-			_setup.probe_flag,_setup.input_flag,_setup.mdi_interrupt,_setup.sequence_number,
-			 cblock->line_number);
+             interp_status(status),remap_level(),call_level(),
+                 _setup.wait_flags.test(TOOLCHANGE),
+                 _setup.wait_flags.test(PROBE),
+                 _setup.wait_flags.test(INPUT),
+                 _setup.mdi_interrupt,
+                 _setup.sequence_number,
+                 cblock->line_number);
 	    }
 	}
 	return status;
@@ -967,8 +977,60 @@ struct FindsIniFeature
     }
 };
 
-
 /***********************************************************************/
+AxisMask Interp::axis_mask_from_string(std::string const &axes_string, AxisMask default_axes)
+{
+    if (axes_string.empty()) {
+        return default_axes;
+    }
+    AxisMask mask(0);
+    for (char p : axes_string) {
+        size_t idx = std::find(AxisNames.begin(), AxisNames.end(), p) - AxisNames.begin();
+        if (idx < CANON_AXIS_COUNT) {
+            mask.set(idx);
+        }
+    }
+    return mask;
+}
+
+std::string to_lower(std::string const &data)
+{
+    std::string out;
+    out.reserve(data.size());
+    std::transform(data.begin(), data.end(), out.begin(),
+                   [](unsigned char c){ return std::tolower(c);});
+    return out;
+}
+
+int Interp::load_interp_preamble(IniFile &inifile)
+{
+    InterpPreamble preamble{};
+    // Start line callbacks (used if start line is not 1)
+    FindsIniStringOrEmpty finds_preamble_str(inifile, "INTERP_PREAMBLE");
+    preamble.toolchange_prolog = finds_preamble_str("TOOLCHANGE_PROLOG");
+    preamble.toolchange_epilog = finds_preamble_str("TOOLCHANGE_EPILOG");
+    preamble.leadin_prolog = finds_preamble_str("LEADIN_PROLOG");
+    preamble.leadin_epilog = finds_preamble_str("LEADIN_EPILOG");
+
+    // Map leadin move types to internal type
+    std::string entry_type_str = to_lower(finds_preamble_str("LEADIN_MOVE_TYPE"));
+#if 0
+// NOTE not yet supported (need to pass in an explicit lead-in position from GUI?)
+    if (entry_type_str == "plunge") {
+        preamble.entry_type = InterpPreamble::Entry::PLUNGE;
+    } else if (entry_type_str == "linear") {
+        preamble.entry_type = InterpPreamble::Entry::LINEAR;
+    }
+#endif
+
+    AxisMask active_axes_mask(GET_EXTERNAL_AXIS_MASK());
+    preamble.plunge_axes = axis_mask_from_string(finds_preamble_str("PLUNGE_AXES")) & active_axes_mask;
+
+    // All checks passed, store the preamble
+    _setup.default_seek_preamble = preamble;
+
+    return INTERP_OK;
+}
 
 /*! rs274_ngc_init
 
@@ -992,7 +1054,6 @@ should try to get one added). The initialization routine, therefore,
 always calls SET_FEED_REFERENCE(CANON_XYZ).
 
 */
-
 int Interp::init()
 {
   char filename[LINELEN];
@@ -1070,6 +1131,8 @@ int Interp::init()
       inifile.Find(&_setup.orient_offset, "ORIENT_OFFSET", "RS274NGC");
 
       inifile.Find(&_setup.debugmask, "DEBUG", "EMC");
+
+      CHP(load_interp_preamble(inifile));
 
       _setup.debugmask |= EMC_DEBUG_UNCONDITIONAL;
 
@@ -1294,7 +1357,7 @@ int Interp::init()
 
   _setup.transform.g92Offset = getG92ActiveOffset(&_setup);
 
-  SET_G92_OFFSET(UNPACK_POSITION_ARRAY_REF(_setup.transform.g92Offset.tf));
+  SET_G92_OFFSET(true, UNPACK_POSITION_ARRAY_REF(_setup.transform.g92Offset.tf));
   SET_FEED_REFERENCE(CANON_XYZ);
 //_setup.active_g_codes initialized below
 //_setup.active_m_codes initialized below
@@ -1305,7 +1368,7 @@ int Interp::init()
 //_setup.current_x set in Interp::synch
 //_setup.current_y set in Interp::synch
 //_setup.current_z set in Interp::synch
-  _setup.cutter_comp_side = false;
+  _setup.cutter_comp.side = NO_COMP;
   _setup.arc_not_allowed = false;
   _setup.cycle_il_flag = false;
   _setup.distance_mode = MODE_ABSOLUTE;
@@ -1335,7 +1398,7 @@ int Interp::init()
   _setup.program_x = 0.;   /* for cutter comp */
   _setup.program_y = 0.;   /* for cutter comp */
   _setup.program_z = 0.;   /* for cutter comp */
-  _setup.cutter_comp_firstmove = true;
+  _setup.cutter_comp.firstmove = true;
 //_setup.retract_mode does not need initialization
 //_setup.selected_tool_slot set in Interp::synch
   _setup.sequence_number = 0;   /*DOES THIS NEED TO BE AT TOP? */
@@ -1382,9 +1445,7 @@ int Interp::init()
   // WARNING send any initial values to task before this point (interp->task->interp round trip stops here)
   int res_synch = synch(); //synch first, then update the interface
 
-  write_g_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
-  write_m_codes((block_pointer) nullptr, &_setup, _setup.modal_state);
-  write_settings(&_setup, _setup.modal_state);
+  write_modal_state(nullptr, &_setup);
 
   init_tool_parameters();
   // Synch rest of settings to external world
@@ -1447,6 +1508,11 @@ int Interp::init()
 void Interp::set_loop_on_main_m99(bool state) {
     // Enable/disable M99 main program endless looping
     _setup.loop_on_main_m99 = state;
+}
+
+const LocalToMachineTransform & Interp::get_transform() const
+{
+    return _setup.transform;
 }
 
 
@@ -1614,6 +1680,7 @@ int Interp::open(const char *filename) //!< string: the name of the input NC-pro
 
     // As we're about to parse a new file, clear out the work offsets that were used by last file.
     _setup.work_offsets_used.clear();
+    _setup.tool_offsets_changed.clear();
 
     return INTERP_OK;
 }
@@ -1632,24 +1699,24 @@ int Interp::read_inputs(setup_pointer settings)
 	// logDebug("read_inputs probe=%d input=%d toolchange=%d orient=%d",
     // 	     settings->probe_flag, settings->input_flag, settings->toolchange_flag, settings->orient_flag);
     write_and_update_state_tag(nullptr);
-    if (settings->probe_flag) {
+    if (settings->wait_flags.test(PROBE)) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING);
 	set_probe_data(&_setup);
-	settings->probe_flag = false;
+    settings->wait_flags.reset(PROBE);
     }
-    if (settings->toolchange_flag) {
+    if (settings->wait_flags.test(TOOLCHANGE)) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     _("Queue is not empty after tool change"));
 	refresh_actual_position(&_setup);
 	load_tool_table();
-	settings->toolchange_flag = false;
+    settings->wait_flags.reset(TOOLCHANGE);
     }
     // always track toolchanger-fault and toolchanger-reason codes
     settings->parameters[TOOLCHANGER_FAULT] = GET_EXTERNAL_TC_FAULT();
     settings->parameters[TOOLCHANGER_FAULT_CODE] = GET_EXTERNAL_TC_REASON();
 
-    if (settings->input_flag) {
+    if (settings->wait_flags.test(INPUT)) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_INPUT);
 	if (settings->input_digital) { // we are checking for a digital input
@@ -1660,18 +1727,20 @@ int Interp::read_inputs(setup_pointer settings)
       settings->parameters[M66_RESULT] =
     GET_EXTERNAL_ANALOG_INPUT(settings->input_index, settings->parameters[M66_RESULT]);
 	}
-	settings->input_flag = false;
+    settings->wait_flags.reset(INPUT);
     }
 
-    if (settings->orient_flag) {
+    if (settings->wait_flags.test(ORIENT)) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
 	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_ORIENT);
   settings->parameters[TOOL_ORIENT_TIMEOUT] = GET_EXTERNAL_ORIENT_TIMEOUT();
-  settings->orient_flag = false;
+  settings->wait_flags.reset(ORIENT);
     }
 
-    // Offset-modified flag is always cleared at the start of a block
-    settings->work_offset_modified_flag = false;
+    // Offset-modified flags are always cleared at the start of a block
+    settings->wait_flags.reset(WORK_OFFSET_MODIFIED);
+    settings->wait_flags.reset(TOOL_OFFSET_MODIFED);
+    settings->wait_flags.reset(AXIS_OFFSET_MODIFIED);
 
     return INTERP_OK;
 }
@@ -1887,7 +1956,7 @@ int Interp::read(const char * command)
 // falling back to toplevel in a controlled way. Idempotent.
 int Interp::unwind_call(int status, const char *file, int line, const char *function, CommandSource cmd_src)
 {
-    if (_setup.hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
+    if (hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
     // Walks the subroutine call levels and appends caller / callee information
     add_error_call_context(cmd_src);
   }
@@ -2371,23 +2440,22 @@ int Interp::save_parameters(
 
 /***********************************************************************/
 
-/*! Interp::synch
-
-Returned Value: int (INTERP_OK)
-
-Side Effects:
-   sets the value of many attribute of _setup by calling various
-   GET_EXTERNAL_xxx functions.
-
-Called By:
-   Interp::init
-   external programs
-
-This function gets the _setup world model in synch with the rest of
-the controller.
-
-*/
-
+/**
+ * Updates _setup world model from "external" machine state.
+ *
+ * Also sets the value of many attribute of _setup by calling various
+ * GET_EXTERNAL_xxx functions.
+ *
+ * Called By:
+ *   Interp::init
+ *   external programs
+ *
+ * @return int (INTERP_OK), or an error code via the Interp error handler
+ *
+ * @warning Do not change active coordinate transforms / offsets here.  Offsets
+ * / rotations must be re-applied in a separate restore operation, to ensure that interp / canon
+ * always have the same transforms.
+ */
 int Interp::synch()
 {
 
@@ -2398,7 +2466,11 @@ int Interp::synch()
   _setup.current_pocket = GET_EXTERNAL_TOOL_SLOT();
   _setup.feed_rate = GET_EXTERNAL_FEED_RATE();
   _setup.flood = GET_EXTERNAL_FLOOD();
+  // FIXME this is effectively a no-op, since canon units track interp's units.
+  // If they aren't the same, it would massively break some assumptions in Interp.
+  // Many fields like current position, offsets, feed rate, etc. are in program units
   _setup.length_units = GET_EXTERNAL_LENGTH_UNIT_TYPE();
+
   _setup.mist = GET_EXTERNAL_MIST();
   _setup.plane = GET_EXTERNAL_PLANE();
   _setup.selected_pocket = GET_EXTERNAL_SELECTED_TOOL_SLOT();
@@ -2408,8 +2480,8 @@ int Interp::synch()
   _setup.traverse_rate = GET_EXTERNAL_TRAVERSE_RATE();
   _setup.feed_override = GET_EXTERNAL_FEED_OVERRIDE_ENABLE();
   _setup.speed_override = GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE();
-  _setup.adaptive_feed = GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
-  _setup.feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
+  _setup.allow_adaptive_feed = GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
+  _setup.allow_feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
   auto counters = GET_EXTERNAL_PART_COUNTS();
   std::copy(
       counters.begin(),
@@ -2433,6 +2505,65 @@ int Interp::synch()
   write_settings(&_setup, _setup.modal_state);
 
   return res_save;
+}
+
+/**
+ * Pseudo-callback called when interp is about to start readahead.
+ * This is the first part of the transition from "seek" mode (where it's
+ * processing but not executing commands), to readahead mode.
+ *
+ * @param[out] seek_state Cached modal state from interp, basically what interp
+ * would look like if it had run the program from line 1.
+ */
+int Interp::cbBeforeSeekReadTransition(ModalState &seek_state)
+{
+    // Before transitioning to read-ahead, write out modal state of what interp thinks it should be
+    CHP(write_modal_state(nullptr, &_setup, seek_state));
+    // Cancel tool comp temporarily so that we can do startup activities like tool changes
+    // Note that any queued moves will be discarded here (all we need is the end point)
+    CHP(execute("G40", CommandSource::PREAMBLE));
+    return INTERP_OK;
+}
+
+/**
+ * Pseudo-callback called after interp has started readahead, and needs to restore its modal state.
+ * Interp needs to run a startup sequence to re-align itself with the external
+ * world (like canon / motion). The system needs to be as close as possible to
+ * what it would be, had it executed the program from the first line.
+ */
+int Interp::cbAfterSeekReadTransition(ModalState const &to_restore, StartLineSettings const &leadin_settings)
+{
+    RestoreCommandList restore_cmd_list;
+
+    CHP(create_full_restore_sequence(
+        to_restore,
+        restore_cmd_list,
+        _setup.default_seek_preamble,
+        leadin_settings));
+    {
+        char tmp_file_path[PATH_MAX+LINELEN] = {};
+        snprintf(tmp_file_path, PATH_MAX+LINELEN, "%s/%s.ngc", _setup.program_prefix ?: ".", STATE_RESTORE_SUBROUTINE_NAME);
+        std::ofstream f_tmp(tmp_file_path);
+
+        // Wrap the command list in a subroutine
+        f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> sub\n";
+        for (auto const &cmd : restore_cmd_list) {
+            f_tmp << cmd << "\n";
+        }
+        f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> endsub\n";
+        f_tmp << "M2\n";
+
+        CHKS(!f_tmp.good(), "Failed to write restore program");
+    }
+
+    CHP(synch());
+    {
+        char restore_cmd[LINELEN] = {};
+        snprintf(restore_cmd, LINELEN, "o<%s> call", STATE_RESTORE_SUBROUTINE_NAME);
+        CHP(execute(restore_cmd, CommandSource::PREAMBLE));
+    }
+    // TODO make sure the return point is right
+    return INTERP_OK;
 }
 
 /***********************************************************************/
@@ -2518,16 +2649,16 @@ void Interp::active_settings(double *settings) //!< array of settings to copy in
  * This method allows us to keep the existing infrastructure for g
  * code status / state storage intact.
  */
-int Interp::active_modes(int *g_codes,
-         int *m_codes,
-         double *settings,
-         int &work_offset_origin,
-         StateTag const &tag)
+int Interp::active_modes(ModalState &active_state,
+     StateTag const &tag)
 {
     // Pre-checks on fields
     if (!tag.is_valid()) {
         return INTERP_ERROR;
     }
+    ActiveGCodeArray &g_codes = active_state.g_codes;
+    ActiveMCodeArray &m_codes = active_state.m_codes;
+    ActiveSettingsArray &settings = active_state.settings;
 
     // Extract as-is field values directly into appropriate array
     // position
@@ -2545,7 +2676,7 @@ int Interp::active_modes(int *g_codes,
         tag.flags[GM_FLAG_FEED_UPM] ? G_94 : G_95;
     g_codes[G_CODE_ORIGIN] =
             lookup_work_offset_gcode_from_origin(tag.fields[GM_FIELD_WORK_OFFSET_NUMBER]);
-    work_offset_origin = tag.fields[GM_FIELD_WORK_OFFSET_NUMBER];
+    active_state.work_offset_number = tag.fields[GM_FIELD_WORK_OFFSET_NUMBER];
     g_codes[G_CODE_TOOL_LENGTH_OFFSET] =
 	tag.flags[GM_FLAG_TOOL_OFFSETS_ON] ? G_43 : G_49;
     g_codes[G_CODE_RETRACT_MODE] =
@@ -2560,7 +2691,7 @@ int Interp::active_modes(int *g_codes,
 	tag.flags[GM_FLAG_DIAMETER_MODE] ? G_7 : G_8;
     //TODO remove redundant line number?
     m_codes[M_CODE_SEQUENCE_NUMBER] = tag.fields[GM_FIELD_LINE_NUMBER];
-    m_codes[M_CODE_STOPPING] = tag.fields[GM_FIELD_M_MODES_4];
+    m_codes[M_CODE_STOPPING] = tag.fields[GM_FIELD_M_MODE_STOPPING];
     m_codes[M_CODE_SPINDLE] = !tag.flags[GM_FLAG_SPINDLE_ON] ? 5 :
         tag.flags[GM_FLAG_SPINDLE_CW] ? 3 : 4;
     m_codes[M_CODE_TOOLCHANGE] = tag.fields[GM_FIELD_TOOLCHANGE];
@@ -2589,6 +2720,7 @@ int Interp::active_modes(int *g_codes,
     settings[1] = tag.feed;
     settings[2] = tag.speed;
 
+    active_state.tool_offset_number = tag.fields[GM_FIELD_TOOL_NUMBER];
     return INTERP_OK;
 }
 
@@ -2825,21 +2957,7 @@ char *Interp::stack_name(int stack_index,       //!< index into stack of functio
                          char *function_name,   //!< string: to copy function name into
                          size_t max_size)  //!< maximum number of characters to copy
 {
-  size_t n;
-  char *the_name;
-
-  if ((stack_index > -1) && (stack_index < STACK_LEN)) {
-    the_name = _setup.stack[stack_index];
-    for (n = 0; n < (max_size - 1); n++) {
-      if (the_name[n] != 0)
-        function_name[n] = the_name[n];
-      else
-        break;
-    }
-    function_name[n] = 0;
-  } else
-    function_name[0] = 0;
-  return function_name;
+    return callstack.stack_name(stack_index, function_name, max_size);
 }
 
 /***********************************************************************/
@@ -3064,7 +3182,7 @@ int Interp::on_abort(int reason, const char *message)
     // it will be lost after stopping and revert to T02. Something to look at in the future.
     // Tormach - *dpr 4/30/13, ammended 7/2/13, 8/3/17 PDH
 
-    if (_setup.hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
+    if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         tool =  _setup.tool_table[0].toolno;
 
         //find the geo offset tool pocket number from the tool number plus 10000

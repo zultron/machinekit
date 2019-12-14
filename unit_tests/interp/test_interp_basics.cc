@@ -160,71 +160,159 @@ TEST_CASE("G10 init")
 
 TEST_CASE("G10 L10 ")
 {
-  DECL_INIT_TEST_INTERP();
+    DECL_INIT_TEST_INTERP();
 
-  SECTION("tool offsets relative to position no rotation")
-  {
-  const char *test_setup[] = {
-      "g20",
-      "g10 l2 p1 x0 y0 z0",
-      "g54",
-      "g10 l1 p1 x0 y0 z0",
-      "t1 m6 g43",
-  };
-  REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
+    SECTION("tool offsets relative to position no rotation")
+    {
+        const char *test_setup[] = {
+            "g20",
+            "g10 l2 p1 x0 y0 z0",
+            "g54",
+            "g10 l1 p1 x0 y0 z0",
+            "t1 m6 g43",
+            };
+        REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
 
   REQUIRE_INTERP_OK(test_interp, execute("g0 x.1 y.2 z.3"));
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 0.0);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], 0.0);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
+        REQUIRE_INTERP_OK(test_interp, execute("g10 l10 p1 x2"));
+        //REQUIRE_INTERP_OK(test_interp, execute("g43"));
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -1.9);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], 0.0);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
   REQUIRE_INTERP_OK(test_interp, execute("g10 l10 p1 x1"));
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -0.9);
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], 0.0);
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
+        //REQUIRE_INTERP_OK(test_interp, execute("g43"));
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -0.9);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], 0.0);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
   REQUIRE_INTERP_OK(test_interp, execute("g10 l10 p1 y2"));
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -0.9);
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -1.8);
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
+        //REQUIRE_INTERP_OK(test_interp, execute("g43"));
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -0.9);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -1.8);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
 
   REQUIRE_INTERP_OK(test_interp, execute("g10 l10 p1 z3"));
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -0.9);
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -1.8);
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], -2.7);
-}
+        //REQUIRE_INTERP_OK(test_interp, execute("g43"));
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -0.9);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -1.8);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], -2.7);
+    }
 
-SECTION("G10 L10 tool offsets relative to position + 45 deg rotation")
-{
+    SECTION("G10 L10 tool offsets relative to position + 45 deg rotation")
+    {
 
-  const char *test_setup[] = {
-      "g20",
-      "g10 l2 p1 x0 y0 z0 r45",
-      "g54",
-      "g10 l1 p1 x0 y0 z0",
-      "t1 m6 g43",
-  };
-  REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
+        const char *test_setup[] = {
+            "g20",
+            "g10 l2 p1 x0 y0 z0 r45",
+            "g54",
+            "g10 l1 p1 x0 y0 z0",
+            "t1 m6 g43",
+            };
+        REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
+
+        GIVEN("No G92 offsets are active") {
+            REQUIRE_INTERP_OK(test_interp, execute("g92.1"));
+        }
+
+        GIVEN("G92 offsets are active") {
+            REQUIRE_INTERP_OK(test_interp, execute("g52 x-2 y-4 z-6"));
+        }
 
   REQUIRE_INTERP_OK(test_interp, execute("g0 x0 y0 z0"));
   REQUIRE_INTERP_OK(test_interp, execute("g10 l10 p1 x1"));
   REQUIRE_INTERP_OK(test_interp, execute("g43"));
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -sqrt(2.0)/2.0);
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -sqrt(2.0)/2.0);
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
-  CHECK_FUZZ(currentX(settings), 1.0);
-  CHECK_FUZZ(currentY(settings), 0.0);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], -sqrt(2.0)/2.0);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -sqrt(2.0)/2.0);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
+        CHECK_FUZZ(currentX(settings), 1.0);
+        CHECK_FUZZ(currentY(settings), 0.0);
 
   REQUIRE_INTERP_OK(test_interp, execute("g10 l10 p1 y1"));
   REQUIRE_INTERP_OK(test_interp, execute("g43"));
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 0.0);
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -sqrt(2));
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
-  CHECK_FUZZ(currentX(settings), 1.0);
-  CHECK_FUZZ(currentY(settings), 1.0);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 0.0);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -sqrt(2));
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
+        CHECK_FUZZ(currentX(settings), 1.0);
+        CHECK_FUZZ(currentY(settings), 1.0);
   REQUIRE_INTERP_OK(test_interp, execute("g49"));
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 0.0);
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -sqrt(2));
-  CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
-  CHECK_FUZZ(currentX(settings), 0.0);
-  CHECK_FUZZ(currentY(settings), 0.0);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 0.0);
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], -sqrt(2));
+        CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], 0.0);
+        CHECK_FUZZ(currentX(settings), 0.0);
+        CHECK_FUZZ(currentY(settings), 0.0);
+    }
 }
+
+SCENARIO("G10 called with L11")
+{
+    DECL_INIT_TEST_INTERP();
+
+    GIVEN("tool offsets relative to position no rotation")
+    {
+        const char *test_setup[] = {
+            "g20",
+            "g10 l2 p1 x1 y2 z-3 r10",
+            "g10 l2 p2 x4 y5 z-6 r20",
+            "g10 l2 p3 x7 y8 z-9 r30",
+            "g10 l2 p4 x10 y11 z-12 r40",
+            "g10 l2 p5 x13 y14 z-15 r50",
+            "g10 l2 p6 x16 y17 z-18 r60",
+            "g10 l2 p7 x19 y20 z-21 r70",
+            "g10 l2 p8 x22 y23 z-24 r80",
+            "g10 l2 p9 x25 y26 z-27 r0", // Touch off fixture
+        };
+        REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
+        THEN("Z length applied with G54 should not depend on current work offset") {
+            GIVEN("No G92 Offsets applied") {
+                REQUIRE_INTERP_OK(test_interp, execute("g54"));
+                REQUIRE_INTERP_OK(test_interp, execute("g52 x0 y0 z0 a0"));
+            }
+            GIVEN("G92 Offsets applied in G56") {
+                REQUIRE_INTERP_OK(test_interp, execute("g56"));
+                REQUIRE_INTERP_OK(test_interp, execute("g92 x30 y40 z50 ; add some g92 to all g5x: g92 shouldn't affect the tool touchoff fixture"));
+            }
+
+            REQUIRE_INTERP_OK(test_interp, execute("g54"));
+            REQUIRE_INTERP_OK(test_interp, execute("g0 g53 Z-30"));
+            REQUIRE_INTERP_OK(test_interp, execute("g10 l11 p1 z0"));
+            REQUIRE_INTERP_OK(test_interp, execute("t1 m6"));
+
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], -3.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_A], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_B], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_C], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_U], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_V], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_W], 0.0);
+            CHECK_FUZZ(settings->tool_table[0].offset.tran.x, 0.0);
+            CHECK_FUZZ(settings->tool_table[0].offset.tran.y, 0.0);
+            CHECK_FUZZ(settings->tool_table[0].offset.tran.z, -3.0);
+
+            REQUIRE_INTERP_OK(test_interp, execute("g55"));
+            REQUIRE_INTERP_OK(test_interp, execute("g0 g53 Z-30"));
+            REQUIRE_INTERP_OK(test_interp, execute("g10 l11 p1 z1"));
+            REQUIRE_INTERP_OK(test_interp, execute("t1 m6"));
+
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_X], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Y], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_Z], -4.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_A], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_B], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_C], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_U], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_V], 0.0);
+            CHECK_FUZZ(settings->parameters[TOOL_OFFSET_W], 0.0);
+            CHECK_FUZZ(settings->tool_table[0].offset.tran.x, 0.0);
+            CHECK_FUZZ(settings->tool_table[0].offset.tran.y, 0.0);
+            CHECK_FUZZ(settings->tool_table[0].offset.tran.z, -4.0);
+        }
+    }
 }
+
 
 SCENARIO("Call G10 with G92 active (based on runtest g10-with-g92)")
 {
@@ -629,6 +717,22 @@ SCENARIO("Incremental mode and G10 work offsets")
   }
 }
 
+SCENARIO("G53 mode")
+{
+  GIVEN("An empty interpreter")
+  {
+    DECL_INIT_TEST_INTERP();
+    REQUIRE_INTERP_OK(test_interp, execute("g20 G90"));
+    REQUIRE_INTERP_OK(test_interp, execute("g10 L2 P0 X1 Y-1.5 Z2"));
+    REQUIRE(settings->length_units == CANON_UNITS_INCHES);
+    REQUIRE_INTERP_OK(test_interp, execute("G53 G0 X1.5 Y2.75 Z3.25 A4.5"));
+    CHECK_FUZZ(currentX(settings), 0.5);
+    CHECK_FUZZ(currentY(settings), 4.25);
+    CHECK_FUZZ(currentZ(settings), 1.25);
+    CHECK_FUZZ(currentA(settings), 4.5);
+  }
+}
+
 
 SCENARIO("Ensure valid P word range is enforced for G10)")
 {
@@ -724,6 +828,59 @@ SCENARIO("Load and save parameters")
 
             check_work_offsets(exp_work_offsets, settings->work_offsets_user);
             check_parameters(exp_params, settings->parameters);
+        }
+    }
+}
+
+SCENARIO("G43 behavior")
+{
+    DECL_INIT_TEST_INTERP();
+
+    const char *test_setup[] = {
+        "g20 g90",
+        "g10 l1 p3 x0 y0 z0",
+        "m6 t3 g43",
+        "g10 l2 p1 x0 y0 z0",
+        "g10 l1 p1 x.1 y.2 z.3",
+        "g10 l1 p2 x1.0 y2.0 z3.0",
+        "g92.2",
+        "g54",
+        "G49",
+        };
+    REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
+    CHECK_FUZZ(settings->transform.toolOffset.tf[X], 0.0);
+    CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 0.0);
+    CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 0.0);
+
+    GIVEN("No offsets applied")
+    {
+        THEN("Calling G43 should apply just the specified tool offset")
+        {
+            REQUIRE_INTERP_OK(test_interp, execute("g43 h1"));
+            CHECK_FUZZ(settings->transform.toolOffset.tf[X], 0.1);
+            CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 0.2);
+            CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 0.3);
+
+            THEN("Calling G43.1 should override just the specified tool offset")
+            {
+                REQUIRE_INTERP_OK(test_interp, execute("g43.1 Z13.0"));
+                CHECK_FUZZ(settings->transform.toolOffset.tf[X], 0.1);
+                CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 0.2);
+                CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 13.0);
+            }
+
+            THEN("Calling G43.2 should add two tool offsets together")
+            {
+                REQUIRE_INTERP_OK(test_interp, execute("g43.2 H2"));
+                CHECK_FUZZ(settings->transform.toolOffset.tf[X], 1.1);
+                CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 2.2);
+                CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 3.3);
+            }
+
+            REQUIRE_INTERP_OK(test_interp, execute("g43 h2"));
+            CHECK_FUZZ(settings->transform.toolOffset.tf[X], 1.0);
+            CHECK_FUZZ(settings->transform.toolOffset.tf[Y], 2.0);
+            CHECK_FUZZ(settings->transform.toolOffset.tf[Z], 3.0);
         }
     }
 }

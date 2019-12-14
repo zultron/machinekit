@@ -49,9 +49,11 @@ void SET_G5X_TRANSFORM(int ,
                            double , double , double ,
                            double , double , double ,
                            double ) {}
-void SET_G92_OFFSET(double x, double y, double z,
-                           double a, double b, double c,
-                           double u, double v, double w) {}
+void SET_G92_OFFSET(
+    bool applied,
+    double x, double y, double z,
+    double a, double b, double c,
+    double u, double v, double w) {}
 
 void CANON_UPDATE_END_POINT(double x, double y, double z, 
 				   double a, double b, double c,
@@ -164,6 +166,7 @@ int WAIT(int index,
 {return 0;}
 int UNLOCK_ROTARY(int line_no, int axis) {return 0;}
 int LOCK_ROTARY(int line_no, int axis) {return 0;}
+bool IN_START_LINE_SEEK() {return false;}
 double GET_EXTERNAL_FEED_RATE() {return 0;}
 int GET_EXTERNAL_FLOOD() {return 0;}
 CANON_UNITS GET_EXTERNAL_LENGTH_UNIT_TYPE() {return CANON_UNITS_INCHES;}
@@ -217,6 +220,7 @@ int GET_EXTERNAL_TOOL_SLOT() {return 0;}
 int GET_EXTERNAL_SELECTED_TOOL_SLOT() {return 0;}
 CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket) {return CANON_TOOL_TABLE();}
 RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin) {return RotateShiftTransform();}
+AxisOffsetParams GET_EXTERNAL_PERSISTENT_AXIS_OFFSET() {return AxisOffsetParams();}
 int GET_EXTERNAL_TC_FAULT() {return 0;}
 int GET_EXTERNAL_TC_REASON() {return 0;}
 double GET_EXTERNAL_TRAVERSE_RATE() {return 0;}

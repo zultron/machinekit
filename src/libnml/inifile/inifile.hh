@@ -24,6 +24,7 @@
 
 #ifdef __cplusplus
 #include <fcntl.h>
+#include <string>
 class IniFile {
 public:
     typedef enum {
@@ -119,7 +120,17 @@ private:
     char                        *AfterEqual(const char *string);
     char                        *SkipWhite(const char *string);
 };
-#endif
 
+
+struct FindsIniStringOrEmpty
+{
+    IniFile &inifile;
+    const char *section;
+    FindsIniStringOrEmpty(IniFile &inifile_in, const char *section_in) : inifile(inifile_in), section(section_in) {}
+
+    std::string operator()(const char *tag) const;
+};
+
+#endif
 
 #endif

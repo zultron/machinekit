@@ -9,17 +9,10 @@ struct TransformBase
     virtual void apply_fwd(PositionArray &p) const = 0;
     virtual void apply_inv(PositionArray &p) const = 0;
 
-    // Ignores absolute offsets
-    virtual void apply_fwd_relative(PositionArray &) const {}
-    virtual void apply_inv_relative(PositionArray &) const {}
-
     virtual PositionArray forward(PositionArray const &p) const;
     virtual PositionArray inverse(PositionArray const &p) const;
 
     virtual PositionArray operator()(PositionArray const &p) const;
-
-    virtual PositionArray forward_relative(PositionArray const &p) const;
-    virtual PositionArray inverse_relative(PositionArray const &p) const;
 
     virtual ~TransformBase() = default;
 };
@@ -44,7 +37,7 @@ struct RotateShiftTransform : public TransformBase
     ShiftTransform shift;
     double xy_rotation_rad;
 
-    RotateShiftTransform();
+    RotateShiftTransform() = default;
     RotateShiftTransform(PositionArray const &pos,
                          double xy_rot_deg);
 
@@ -74,10 +67,6 @@ struct UnitsTransform : public TransformBase
     void apply_fwd(PositionArray &p) const;
     void apply_inv(PositionArray &p) const;
 
-    // Passthrough
-    void apply_fwd_relative(PositionArray &p) const { apply_fwd(p);}
-    void apply_inv_relative(PositionArray &p) const { apply_inv(p);}
-
     UnitsTransform &invert_scale();
 };
 
@@ -91,14 +80,19 @@ struct LocalToMachineTransform : public TransformBase
     void apply_fwd(PositionArray &p) const;
     void apply_inv(PositionArray &p) const;
 
-    void apply_fwd_relative(PositionArray &p) const;
-    void apply_inv_relative(PositionArray &p) const;
+    virtual PositionArray forward_local_to_nose(PositionArray const &local) const;
+    virtual PositionArray inverse_local_from_nose(PositionArray const &nose) const;
 
-    virtual PositionArray forward_to_nose(PositionArray const &local) const;
-    virtual PositionArray inverse_from_nose(PositionArray const &nose) const;
+    virtual PositionArray forward_local_to_tip(PositionArray const &local) const {return forward(local);}
+    virtual PositionArray inverse_local_from_tip(PositionArray const &tip) const {return inverse(tip);}
 
-    virtual PositionArray forward_to_tip(PositionArray const &p) const {return forward(p);}
-    virtual PositionArray inverse_from_tip(PositionArray const &p) const {return inverse(p);}
+    virtual PositionArray forward_nose_to_tip(PositionArray const &nose) const;
+    virtual PositionArray inverse_nose_from_tip(PositionArray const &tip) const;
+
+    PositionArray swap_tool_offset(PositionArray const &current_local_pos, ShiftTransform const &new_tool_offset);
+    PositionArray swap_g5x_offset(PositionArray const &current_local_pos, RotateShiftTransform const &new_g5x_offset);
+
+    PositionArray add_tool_offset(PositionArray const &current_local_pos, ShiftTransform const &new_tool_offset);
 
     double findAxisoffset(size_t axis_id);
 
