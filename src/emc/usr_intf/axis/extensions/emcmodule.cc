@@ -1167,7 +1167,7 @@ static PyObject *emcauto(pyCommandChannel *s, PyObject *o) {
     EMC_TASK_PLAN_RESUME resume;
     EMC_TASK_PLAN_STEP step;
 
-    if(PyArg_ParseTuple(o, "ii|i", &fn, &run.line, &run.prep_type) && fn == LOCAL_AUTO_RUN) {
+    if(PyArg_ParseTuple(o, "ii|ii", &fn, &run.run_settings.start_line, &run.run_settings.leadin_type, &run.run_settings.keep_current_tool) && fn == LOCAL_AUTO_RUN) {
         emcSendCommand(s, run);
     } else {
         PyErr_Clear();

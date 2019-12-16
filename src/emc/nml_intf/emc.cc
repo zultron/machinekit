@@ -1574,9 +1574,9 @@ void EMC_TASK_PLAN_RUN::update(CMS * cms)
 {
 
     EMC_TASK_CMD_MSG::update(cms);
-    cms->update(line);
-    cms->update(prep_type);
-
+    cms->update(run_settings.start_line);
+    cms->update(run_settings.leadin_type);
+    cms->update(run_settings.keep_current_tool);
 }
 
 /*

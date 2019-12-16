@@ -45,6 +45,7 @@ struct GCodeContext
 };
 
 struct IniFile;
+struct GCodeGenerator;
 
 struct GCodeContextStack
 {
@@ -60,7 +61,7 @@ using RestoreCommandList = std::vector<std::string>;
 class Interp : public InterpBase {
 
 public:
- CallStackTracker callstack;
+ mutable CallStackTracker callstack;
  Interp();
  ~Interp();
 
@@ -87,7 +88,7 @@ public:
  int init();
  void set_loop_on_main_m99(bool state);
 
- LocalToMachineTransform const &get_transform() const;
+ int write_expanded_modal_state(ExpandedModalState &initial_state) const;
 
 // load a tool table
  int load_tool_table();
@@ -119,10 +120,9 @@ public:
 
 // synchronize your internal model with the external world
  int synch();
- int cbBeforeSeekReadTransition(ModalState & seek_state);
- int cbAfterSeekReadTransition(
-     const ModalState & to_restore,
-     StartLineSettings const &leadin_settings);
+ int cbBeforeSeekReadTransition(const AutoRunSettings & start_settings, const ExpandedModalState & run_initial_state, ExpandedModalState & seek_state);
+ int cbAfterSeekReadTransition(const ExpandedModalState & to_restore,
+     const AutoRunSettings & start_settings, const ExpandedModalState & run_initial_state);
 
 /* Interface functions to call to get information from the interpreter.
    If a function has a return value, the return value contains the information.
@@ -558,14 +558,15 @@ public:
  int restore_settings_impl(ModalState & current, ModalState const &saved, int caller_m_code);
 
  int write_modal_state(block_pointer const block, setup_pointer settings);
- int write_modal_state(block_pointer const block, setup_pointer const settings, ModalState &out);
+ int write_modal_state(block_pointer const block, const setup_struct * settings, ModalState &out) const;
  int execute_gcode_sequence(const RestoreCommandList & cmd_list, int caller_m_code, const char * caller_name);
 
  int restore_from_tag(StateTag const &tag);
 
- int create_full_restore_sequence(const ModalState & to_restore,
+ int create_full_restore_sequence(const ExpandedModalState & to_restore,
      RestoreCommandList &restore_cmd_list,
-     const InterpPreamble &preamble, const StartLineSettings & leadin_settings);
+     const InterpPreamble &preamble,
+     const AutoRunSettings & start_settings, const ExpandedModalState & run_initial_state);
 
  int read_name(char *line, int *counter, char *nameBuf);
  int read_named_parameter(char *line, int *counter, double *double_ptr,
@@ -615,10 +616,10 @@ public:
  static int formatGCode(GCodes g, std::string &cmd);
  static int lookup_work_offset_gcode_from_origin(int origin);
  static std::string lookup_work_offset_gcode_string_from_origin(int origin);
- int write_g_codes(block_pointer block, setup_pointer settings, ModalState &state);
- int write_m_codes(block_pointer block, setup_pointer settings, ModalState &state);
- int write_settings(setup_pointer settings, ModalState &state);
- int write_state_tag(block_pointer block, StateTag & state);
+ int write_g_codes(block_pointer block, const setup_struct * settings, ModalState &state) const;
+ int write_m_codes(block_pointer block, const setup_struct * settings, ModalState &state) const;
+ int write_settings(const setup_struct * settings, ModalState &state) const;
+ int write_state_tag(block_pointer block, StateTag & state) const;
  int write_and_update_state_tag(block_pointer block);
  int unwrap_rotary(double *, double, double, double, char);
  bool isreadonly(int index);
@@ -772,7 +773,7 @@ int read_inputs(setup_pointer settings);
     int issue_straight_index(int, double, int, setup*);
 
     void doLog(unsigned int flags, const char *file, int line,
-               const char *fmt, ...) __attribute__((format(printf,5,6)));
+               const char *fmt, ...) const __attribute__((format(printf,5,6)));
 
     const char *interp_status(int status);
     std::vector<std::string> const &getWarnings() const {return warning_list;}
@@ -836,12 +837,14 @@ int read_inputs(setup_pointer settings);
 
     ShiftTransform getG92ParameterValues(setup_pointer settings);
 
+    int gen_toolOffset(GCodeGenerator & generator, GCodes tool_offset_mode, int tool_offset_number);
+
 protected:
     bool error_has_context;
 
 };
 
-bool toolOffsetActive(setup_pointer s);
+bool toolOffsetActive(setup_struct const *s);
 
 #define STATE_RESTORE_SUBROUTINE_NAME "restore_start_line_state"
 

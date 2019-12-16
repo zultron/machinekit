@@ -97,6 +97,7 @@ include an option for suppressing superfluous commands.
 #include "interp_tolerances.hh"
 #include "interp_queue.hh"
 #include "rs274ngc_interp.hh"
+#include "gcodegenerator.hh"
 
 #include "units.h"
 #include "modal_state.hh"
@@ -291,7 +292,7 @@ Interp::~Interp() {
 }
 
 void Interp::doLog(unsigned int flags, const char *file, int line,
-		   const char *fmt, ...)
+           const char *fmt, ...) const
 {
     struct timeval tv;
     struct tm *tm;
@@ -1011,6 +1012,7 @@ int Interp::load_interp_preamble(IniFile &inifile)
     preamble.toolchange_epilog = finds_preamble_str("TOOLCHANGE_EPILOG");
     preamble.leadin_prolog = finds_preamble_str("LEADIN_PROLOG");
     preamble.leadin_epilog = finds_preamble_str("LEADIN_EPILOG");
+    preamble.preamble_epilog = finds_preamble_str("PREAMBLE_EPILOG");
 
     // Map leadin move types to internal type
     std::string entry_type_str = to_lower(finds_preamble_str("LEADIN_MOVE_TYPE"));
@@ -1510,11 +1512,14 @@ void Interp::set_loop_on_main_m99(bool state) {
     _setup.loop_on_main_m99 = state;
 }
 
-const LocalToMachineTransform & Interp::get_transform() const
+int Interp::write_expanded_modal_state(ExpandedModalState & initial_state) const
 {
-    return _setup.transform;
+    auto initial_nose_prog = _setup.transform.forward_local_to_nose(GET_EXTERNAL_POSITION());
+    initial_state.initial_nose_position_uu = convertsProgramToUser().forward(initial_nose_prog);
+    initial_state.tool_offset_uu = convertsProgramToUser().forward_tf(_setup.transform.toolOffset);
+    write_modal_state(nullptr, &_setup, initial_state.modal_state);
+    return INTERP_OK;
 }
-
 
 /***********************************************************************/
 
@@ -2515,13 +2520,21 @@ int Interp::synch()
  * @param[out] seek_state Cached modal state from interp, basically what interp
  * would look like if it had run the program from line 1.
  */
-int Interp::cbBeforeSeekReadTransition(ModalState &seek_state)
+int Interp::cbBeforeSeekReadTransition(AutoRunSettings const &start_settings, ExpandedModalState const &run_initial_state, ExpandedModalState &seek_state)
 {
     // Before transitioning to read-ahead, write out modal state of what interp thinks it should be
-    CHP(write_modal_state(nullptr, &_setup, seek_state));
+    CHP(write_expanded_modal_state(seek_state));
     // Cancel tool comp temporarily so that we can do startup activities like tool changes
     // Note that any queued moves will be discarded here (all we need is the end point)
-    CHP(execute("G40", CommandSource::PREAMBLE));
+    GCodeGenerator generator(_setup.feature_set, GET_EXTERNAL_AXIS_MASK());
+    generator.cancelToolCompensation();
+    if (start_settings.keep_current_tool) {
+        generator.addToolChange(run_initial_state.modal_state.tool_number);
+        CHP(gen_toolOffset(generator, run_initial_state.modal_state.tool_offset_mode, run_initial_state.modal_state.tool_offset_number));
+    }
+    for (auto const &l : generator.getCommandSequence()) {
+        CHP(execute(l.c_str(), CommandSource::PREAMBLE));
+    }
     return INTERP_OK;
 }
 
@@ -2531,7 +2544,7 @@ int Interp::cbBeforeSeekReadTransition(ModalState &seek_state)
  * world (like canon / motion). The system needs to be as close as possible to
  * what it would be, had it executed the program from the first line.
  */
-int Interp::cbAfterSeekReadTransition(ModalState const &to_restore, StartLineSettings const &leadin_settings)
+int Interp::cbAfterSeekReadTransition(ExpandedModalState const &to_restore, AutoRunSettings const &start_settings, ExpandedModalState const &run_initial_state)
 {
     RestoreCommandList restore_cmd_list;
 
@@ -2539,7 +2552,8 @@ int Interp::cbAfterSeekReadTransition(ModalState const &to_restore, StartLineSet
         to_restore,
         restore_cmd_list,
         _setup.default_seek_preamble,
-        leadin_settings));
+        start_settings,
+        run_initial_state));
     {
         char tmp_file_path[PATH_MAX+LINELEN] = {};
         snprintf(tmp_file_path, PATH_MAX+LINELEN, "%s/%s.ngc", _setup.program_prefix ?: ".", STATE_RESTORE_SUBROUTINE_NAME);
@@ -2720,7 +2734,8 @@ int Interp::active_modes(ModalState &active_state,
     settings[1] = tag.feed;
     settings[2] = tag.speed;
 
-    active_state.tool_offset_number = tag.fields[GM_FIELD_TOOL_NUMBER];
+    active_state.tool_offset_number = tag.fields[GM_FIELD_TOOL_OFFSET_NUMBER];
+    // Don't need the tool number here because tool change is a queue buster
     return INTERP_OK;
 }
 
@@ -3325,7 +3340,7 @@ void context_struct::clear()
     new (this) context_struct();
 }
 
-bool toolOffsetActive(setup_pointer s)
+bool toolOffsetActive(const setup_struct * s)
 {
     return isNonzero(s->transform.toolOffset.tf) ;
 }

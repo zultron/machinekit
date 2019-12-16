@@ -94,7 +94,7 @@ enum OCallTypes {
     CT_REMAP,            // restartable Python code may be involved
 };
 
-enum RunPrepType {
+enum LeadinType {
     PREP_NONE,
     PREP_LINEAR_LEADIN,
     PREP_PLUNGE_LEADIN,

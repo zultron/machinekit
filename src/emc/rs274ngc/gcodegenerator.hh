@@ -17,24 +17,26 @@ class GCodeGenerator
 protected:
     RestoreCommandList cmd_list;
     FeatureSet features;
+    AxisMask axis_mask;
 
     void start_next_line();
 
     static int formatGCode(GCodes g, std::string &cmd);
     void add_axes(std::ostream &out, PositionArray const & goal, AxisMask active_axes);
 public:
-    GCodeGenerator(FeatureSet const &features_in) :
+    GCodeGenerator(FeatureSet const &features_in, AxisMask machine_axes) :
         cmd_list(),
-        features(features_in) {}
+        features(features_in),
+        axis_mask(machine_axes) {}
 
     RestoreCommandList const &getCommandSequence() const;
     std::string getCommandSequenceAsString() const;
 
-    static int filterAbortedStates(ModalState &current, ModalState &saved);
+    static void filterAbortedStates(ModalState &current, ModalState &saved);
 
-    void addPreformatted(std::string const &g_code_line);
+    void addPreformatted(std::string const &g_code_line, const char *trailing_comment_if_nonempty = nullptr);
     void addWorkOffset(int work_offset_number);
-    void addToolOffset(int tool_number);
+    void addToolOffsetUpdate(int tool_offset_number);
     void addToolChange(int tool_number);
     void addToolLengthOffsetFromTable(int tool_number);
     void addLocalAxisOffsets(ShiftTransform const &local_axis_offset, AxisMask active_axes=-1);
@@ -47,6 +49,7 @@ public:
 
     int gen_modalStateRestore(ModalState & current, const ModalState & saved);
 
+    void cancelToolCompensation();
     void addToolCompensation(GCodes cutter_side, CutterCompData const &comp_data_to_restore);
     void addToolCompensationWithRadius(GCodes cutter_side, double cutter_radius);
     void addToolCompensationFromTable(GCodes cutter_side, int tool_number);

@@ -95,9 +95,6 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 #define task_debug(...)
 #endif
 
-
-
-
 /* time after which the user interface is declared dead
  * because it would'nt read any more messages
  */
@@ -440,7 +437,9 @@ static EMC_TASK_PLAN_RUN taskPlanRunCmd;	// 16-Aug-1999 FMP
 static EMC_TASK_PLAN_INIT taskPlanInitCmd;
 static EMC_TASK_PLAN_SYNCH taskPlanSynchCmd;
 
-static StartLineSettings start_settings{};
+static AutoRunSettings run_settings{};
+static ExpandedModalState run_initial_state{};
+
 static int interpResumeState = EMC_TASK_INTERP_IDLE;
 // how long the interp list can be
 
@@ -605,8 +604,8 @@ bool emcTaskPlanReachedStartLine()
 {
     return emcTaskPlanLevel() == 0
             && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING
-            && emcStatus->task.readLine >= start_settings.start_line
-            && start_settings.start_line >= 0;
+            && emcStatus->task.readLine >= run_settings.start_line
+            && run_settings.start_line >= 0;
 }
 
 void readahead_reading(void)
@@ -714,7 +713,7 @@ interpret_again:
 
                 if (emcTaskPlanReachedStartLine()) {
                     // Next line will be the start line, so force a synch and transition to full read-ahead mode
-                    emcTaskPlanFinishLineSeek(start_settings);
+                    emcTaskPlanFinishLineSeek(run_settings, run_initial_state);
                 }
 
                             if (count++ < emc_task_interp_max_len
@@ -1134,7 +1133,7 @@ static int emcTaskPlan(void)
 		case EMC_TASK_PLAN_STEP_TYPE:
             task_debug("Got PLAN_STEP at interp start\n");
 		    // handles case where first action is to step the program
-		    taskPlanRunCmd.line = 1;	// run from start
+            taskPlanRunCmd.run_settings.start_line = 1;	// run from start
 		    /*! \todo FIXME-- can have GUI set this; send a run instead of a 
 		       step */
 		    retval = emcTaskIssueCommand(&taskPlanRunCmd);
@@ -2009,7 +2008,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         emcStatus->task.g92_offset = g92_cmd.origin;
         emcStatus->task.g92_applied = g92_cmd.applied;
         if (g92_cmd.applied) {
-            emcStatus->task.g92_offset_persistant = toArray(emcStatus->task.g92_offset);
+            emcStatus->task.g92_offset_persistant = ShiftTransform(toArray(emcStatus->task.g92_offset));
         }
         retval = 0;
     }
@@ -2383,9 +2382,9 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	    emcTaskPlanOpen(emcStatus->task.file);
 	}
 	run_msg = (EMC_TASK_PLAN_RUN *) cmd;
-    start_settings.start_line = run_msg->line;
-    start_settings.prep_type = static_cast<RunPrepType>(run_msg->prep_type);
-    start_settings.initial_transform = pinterp->get_transform();
+    run_settings = run_msg->run_settings;
+    pinterp->write_expanded_modal_state(run_initial_state);
+
     // KLUDGE always start by seeking (will drop into reading if the first command is at the start line)
     emcTaskSetInterpState(EMC_TASK_INTERP_SEEKING);
 	emcStatus->task.task_paused = 0;

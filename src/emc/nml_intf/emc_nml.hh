@@ -1306,14 +1306,13 @@ class EMC_TASK_PLAN_OPEN:public EMC_TASK_CMD_MSG {
 class EMC_TASK_PLAN_RUN:public EMC_TASK_CMD_MSG {
   public:
     EMC_TASK_PLAN_RUN():EMC_TASK_CMD_MSG(EMC_TASK_PLAN_RUN_TYPE,
-                             sizeof(EMC_TASK_PLAN_RUN)), line(), prep_type() {
+                             sizeof(EMC_TASK_PLAN_RUN)), run_settings() {
     }
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    int line;			// line to run from; 0 or 1 means from start,
-    int prep_type; //!< Type of preparation to use if any lines are skipped (state restore, leadin, etc.)
+    AutoRunSettings run_settings;
     // negative means run through to verify
 };
 

@@ -58,7 +58,6 @@
 #include "emc/nml_intf/interp_return.hh"
 #include "emc/nml_intf/canon.hh"
 #include "emc/rs274ngc/interp_base.hh"
-#include "modal_state.hh"
 
 static char the_command[LINELEN] = { 0 };	// our current command
 static char the_command_name[LINELEN] = { 0 };	// just the name part
@@ -100,7 +99,7 @@ public:
 
     void set_loglevel(int level);
     void set_loop_on_main_m99(bool state);
-    LocalToMachineTransform const &get_transform() const;
+    int write_expanded_modal_state(ExpandedModalState &initial_state) const;
     FILE *f;
     char filename[PATH_MAX];
 };
@@ -753,10 +752,9 @@ int Canterp::active_modes(
 void Canterp::set_loglevel(int level) {}
 void Canterp::set_loop_on_main_m99(bool state) {}
 
-const LocalToMachineTransform & Canterp::get_transform() const
+int Canterp::write_expanded_modal_state(ExpandedModalState & initial_state) const
 {
-    static auto tmp = LocalToMachineTransform();
-    return tmp;
+    return 0;
 }
 
 

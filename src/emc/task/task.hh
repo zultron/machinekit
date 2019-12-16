@@ -47,7 +47,7 @@ int emcTaskPlanIsWait();
 int emcTaskPlanClearWait();
 int emcTaskPlanSynch();
 void emcTaskPlanPurgeInterpQueue();
-int emcTaskPlanFinishLineSeek(const StartLineSettings & start_settings);
+int emcTaskPlanFinishLineSeek(AutoRunSettings const &run_settings, ExpandedModalState const &run_initial_state);
 int emcTaskPlanSetOptionalStop(bool state);
 int emcTaskPlanSetBlockDelete(bool state);
 void emcTaskPlanExit();

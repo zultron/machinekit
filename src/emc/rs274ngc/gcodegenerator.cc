@@ -1,8 +1,21 @@
-#include "gcodegenerator.hh"
-#include "config.h"
-#include "interp_internal.hh"
+/**
+ * @file gcodegenerator.cc
+ *
+ * @author Robert W. Ellenberg <rwe24g@gmail.com>
+ *
+ * @copyright Copyright 2019, Robert W. Ellenberg
+ *
+ * This source code is released for free distribution under the terms of the
+ * GNU General Public License (V2) as published by the Free Software Foundation.
+ */
+
 #include <sstream>
 #include <iomanip>
+
+#include "gcodegenerator.hh"
+#include "coordinatetransform.hh"
+
+#include "config.h"
 
 //TODO error checking consistently like with interp macros (or exceptions?)
 
@@ -37,7 +50,6 @@ int GCodeGenerator::formatGCode(GCodes g, std::string & cmd)
  */
 void GCodeGenerator::add_axes(std::ostream &out, PositionArray const &goal, AxisMask active_axes)
 {
-    AxisMask axis_mask(GET_EXTERNAL_AXIS_MASK());
     for (size_t i = 0; i < goal.size(); ++i) {
         if (!axis_mask.test(i) || !active_axes.test(i)) {
             continue;
@@ -61,7 +73,7 @@ std::string GCodeGenerator::getCommandSequenceAsString() const
     return out.str();
 }
 
-int GCodeGenerator::filterAbortedStates(ModalState & current, ModalState & saved)
+void GCodeGenerator::filterAbortedStates(ModalState & current, ModalState & saved)
 {
     // Clean up the modal state as needed for the special case of on-abort restore:
     // Force cancellation of tool compensation
@@ -73,7 +85,6 @@ int GCodeGenerator::filterAbortedStates(ModalState & current, ModalState & saved
 
     // Force M-modes to match so they are never restored;
     saved.m_codes = current.m_codes;
-    return 0;
 }
 
 void GCodeGenerator::addWorkOffset(int work_offset_number)
@@ -83,11 +94,11 @@ void GCodeGenerator::addWorkOffset(int work_offset_number)
     cmd_list.emplace_back(buf);
 }
 
-void GCodeGenerator::addToolOffset(int tool_number)
+void GCodeGenerator::addToolOffsetUpdate(int tool_offset_number)
 {
     char buf[LINELEN];
     // Does a no-op G10 to push the tool offset from interp's tool table down to task / IO
-    snprintf(buf, LINELEN, "G10 L1 P%d", tool_number);
+    snprintf(buf, LINELEN, "G10 L1 P%d", tool_offset_number);
     cmd_list.emplace_back(buf);
 }
 
@@ -175,6 +186,7 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
             formatGCode((GCodes)val, cmd);
             if (has_feature(features, FEATURE_LATHE_TOOLCHANGE) && val == G_43) {
                 char buf[LINELEN];
+                //FIXME handle a negative H
                 snprintf(buf, sizeof(buf), "H%d", saved.tool_offset_number);
                 cmd += buf;
             }
@@ -185,7 +197,6 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
         // If G96 spindle mode is present for constant surface speed, you must have an S word
         // also even if S appears to be the same between saved and current vectors.
             current.settings[SETTINGS_SPEED] = -1;
-            BOOST_FALLTHROUGH;
         case G_CODE_PLANE: // - plane
         case G_CODE_CUTTER_SIDE: // - cutter compensation
         case G_CODE_DISTANCE_MODE: // - distance mode
@@ -307,10 +318,15 @@ int GCodeGenerator::gen_modalStateRestore(ModalState & current, const ModalState
     return 0;
 }
 
+void GCodeGenerator::cancelToolCompensation()
+{
+    addPreformatted("G40");
+}
+
 void GCodeGenerator::addToolCompensation(GCodes cutter_side, CutterCompData const & comp_data_to_restore)
 {
     if (comp_data_to_restore.side == NO_COMP) {
-        addPreformatted("G40");
+        cancelToolCompensation();
     } else if (comp_data_to_restore.radius_from_tool) {
         addToolCompensationFromTable(cutter_side, comp_data_to_restore.tool_number);
     } else {
@@ -318,7 +334,13 @@ void GCodeGenerator::addToolCompensation(GCodes cutter_side, CutterCompData cons
     }
 }
 
-void GCodeGenerator::addPreformatted(std::string const & g_code_line)
+void GCodeGenerator::addPreformatted(const std::string & g_code_line, const char * trailing_comment_if_nonempty)
 {
-    cmd_list.push_back(g_code_line);
+    std::ostringstream cmd;
+    if (g_code_line.empty()) {return;}
+    cmd << g_code_line;
+    if (trailing_comment_if_nonempty && trailing_comment_if_nonempty[0]) {
+        cmd << " (" << trailing_comment_if_nonempty << ")";
+    }
+    cmd_list.emplace_back(cmd.str());
 }

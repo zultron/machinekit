@@ -151,6 +151,16 @@ void UnitsTransform::apply_inv(PositionArray & p) const {
     scale(p, 1.0 / linear_fwd, 1.0 / angular_fwd);
 }
 
+ShiftTransform UnitsTransform::forward_tf(const ShiftTransform & p) const
+{
+    return ShiftTransform(forward(p.tf));
+}
+
+ShiftTransform UnitsTransform::inverse_tf(const ShiftTransform & p) const
+{
+    return ShiftTransform(inverse(p.tf));
+}
+
 LocalToMachineTransform::LocalToMachineTransform() :
   g92Offset(),
   g5xOffset(),

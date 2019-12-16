@@ -71,8 +71,8 @@ group 16 - gez[15] g7,g8 - lathe diameter mode
 */
 
 int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
-                         setup_pointer settings,
-                         ModalState & state)        //!< pointer to machine settings
+                         setup_struct const *settings,
+                         ModalState & state) const       //!< pointer to machine settings
 {
   state.g_codes[G_CODE_SEQUENCE_NUMBER] = settings->sequence_number;
   state.g_codes[G_CODE_MOTION_MODE] = settings->motion_mode;
@@ -133,8 +133,8 @@ Might add check of speed override.
 */
 
 int Interp::write_m_codes(block_pointer block,   //!< pointer to a block of RS274/NGC instructions
-                         setup_pointer settings,
-                         ModalState & state)        //!< pointer to machine settings
+                         setup_struct const *settings,
+                         ModalState & state) const       //!< pointer to machine settings
 {
   state.m_codes[M_CODE_SEQUENCE_NUMBER] =   /* 0 seq number */
       settings->sequence_number;
@@ -184,8 +184,8 @@ Called by:
 
 */
 
-int Interp::write_settings(setup_pointer settings,     //!< pointer to machine settings
-        ModalState & state){
+int Interp::write_settings(setup_struct const *settings,     //!< pointer to machine settings
+        ModalState & state) const{
 
     // HERE
   state.settings[SETTINGS_SEQUENCE_NUMBER] =	/* 0 sequence number */
@@ -198,7 +198,7 @@ int Interp::write_settings(setup_pointer settings,     //!< pointer to machine s
   return INTERP_OK;
 }
 
-int Interp::write_state_tag(block_pointer block, StateTag &state)
+int Interp::write_state_tag(block_pointer block, StateTag &state) const
 {
     if (_setup.skipping_to_sub) {
 	logDebug("write_and_update_state_tag:  not tagging block while skipping");
@@ -249,7 +249,7 @@ int Interp::write_state_tag(block_pointer block, StateTag &state)
     state.fields[GM_FIELD_TOOLCHANGE] = (block == NULL) ? -1 : block->m_modes[M_MODE_TOOLCHANGE];
 
     state.fields[GM_FIELD_POCKET_NUMBER] = (_setup.current_pocket);
-    state.fields[GM_FIELD_TOOL_NUMBER] = _setup.getCurrentToolNumber();
+    state.fields[GM_FIELD_TOOL_OFFSET_NUMBER] = _setup.tool_offset_number;
 
     state.flags[GM_FLAG_MIST] = (_setup.mist) ;
     state.flags[GM_FLAG_FLOOD] = (_setup.flood);

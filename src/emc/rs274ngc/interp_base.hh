@@ -35,6 +35,8 @@ enum class CommandSource
     PREAMBLE,
 };
 
+struct StartLineSettings;
+
 class InterpBase {
 public:
     virtual ~InterpBase();
@@ -70,7 +72,9 @@ public:
     virtual int restore_from_tag(StateTag const &tag) = 0;
     virtual void set_loglevel(int level) = 0;
     virtual void set_loop_on_main_m99(bool state) = 0;
-    virtual LocalToMachineTransform const &get_transform() const = 0;
+
+    // Start line seek methods to pull out needed state for external caching
+    virtual int write_expanded_modal_state(ExpandedModalState &initial_state) const = 0;
 };
 
 InterpBase *interp_from_shlib(const char *shlib);

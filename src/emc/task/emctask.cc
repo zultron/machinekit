@@ -550,30 +550,24 @@ int emcTaskPlanSynch()
     return retval;
 }
 
-bool needs_prep(StartLineSettings const &s)
-{
-    return s.prep_type != PREP_NONE;
-}
-
-int emcTaskPlanFinishLineSeek(StartLineSettings const &start_settings)
+int emcTaskPlanFinishLineSeek(AutoRunSettings const &run_settings, ExpandedModalState const &run_initial_state)
 {
     Interp *rs274_interp = dynamic_cast<Interp*>(pinterp);
 
-    ModalState state_at_seek{};
+    ExpandedModalState state_at_seek{};
     int res_interp = INTERP_OK;
-    if (rs274_interp && needs_prep(start_settings)) {
+    if (rs274_interp) {
         // NOTE: modal state is recorded before the transition for use in the restore sequence
-        res_interp = rs274_interp->cbBeforeSeekReadTransition(state_at_seek);
+        res_interp = rs274_interp->cbBeforeSeekReadTransition(run_settings, run_initial_state, state_at_seek);
     }
 
     emcTaskPlanPurgeInterpQueue();
     emcTaskSetInterpState(EMC_TASK_INTERP_READING);
 
-    bool need_state_restore = !isInterpError((InterpReturn)res_interp) && rs274_interp && needs_prep(start_settings);
-    if (need_state_restore) {
+    if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
         // Do a full modal state restore as if the program had executed from line 1,
         // and insert any preparatory actions like tool changes / lead-in moves.
-        res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek, start_settings);
+        res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek, run_settings, run_initial_state);
     } else {
         // Legacy behavior that just synchs up with world without doing explicit modal state restore
         emcTaskPlanSynch();
