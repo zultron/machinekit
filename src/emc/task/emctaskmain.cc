@@ -1140,11 +1140,7 @@ static int emcTaskPlan(void)
 		    retval = emcTaskIssueCommand(&taskPlanRunCmd);
 		    if(retval != 0) break;
 		    emcTrajPause();
-		    if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
-			interpResumeState = emcStatus->task.interpState;
-		    }
-		    emcStatus->task.interpState = EMC_TASK_INTERP_PAUSED;
-		    emcStatus->task.task_paused = 1;
+            emcTaskPause();
 		    retval = 0;
 		    break;
 
@@ -1691,6 +1687,23 @@ int emcTaskQueueCommand(NMLmsg * cmd)
 }
 
 // issues command immediately
+void emcTaskPause()
+{
+    if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
+        interpResumeState = emcStatus->task.interpState;
+    }
+    emcTaskSetInterpState(EMC_TASK_INTERP_PAUSED);
+    emcStatus->task.task_paused = 1;
+}
+
+void emcTaskResume()
+{
+    emcTaskSetInterpState((EMC_TASK_INTERP_ENUM) interpResumeState);
+    emcStatus->task.task_paused = 0;
+    stepping = 0;
+    steppingWait = 0;
+}
+
 static int emcTaskIssueCommand(NMLmsg * cmd)
 {
     int retval = 0;
@@ -2383,33 +2396,21 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TASK_PLAN_PAUSE_TYPE:
 	emcTrajPause();
-	if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
-	    interpResumeState = emcStatus->task.interpState;
-	}
-	emcStatus->task.interpState = EMC_TASK_INTERP_PAUSED;
-	emcStatus->task.task_paused = 1;
+    emcTaskPause();
 	retval = 0;
 	break;
 
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 	if (GET_OPTIONAL_PROGRAM_STOP() == true) {
 	    emcTrajPause();
-	    if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
-		interpResumeState = emcStatus->task.interpState;
-	    }
-	    emcStatus->task.interpState = EMC_TASK_INTERP_PAUSED;
-	    emcStatus->task.task_paused = 1;
+        emcTaskPause();
 	}
 	retval = 0;
 	break;
 
     case EMC_TASK_PLAN_RESUME_TYPE:
-	emcTrajResume();
-	emcStatus->task.interpState =
-	    (enum EMC_TASK_INTERP_ENUM) interpResumeState;
-	emcStatus->task.task_paused = 0;
-	stepping = 0;
-	steppingWait = 0;
+    emcTrajResume();
+    emcTaskResume();
 	retval = 0;
 	break;
 
