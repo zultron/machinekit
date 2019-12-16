@@ -219,7 +219,7 @@ int emcTaskAbort(int restore_task_state)
     interp_list.clear();
 
     // clear out the interpreter state
-    emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
+    emcTaskSetInterpState(EMC_TASK_INTERP_IDLE);
     emcStatus->task.execState = EMC_TASK_EXEC_DONE;
     emcStatus->task.task_paused = 0;
     //FIXME should actually clear out the motion HAL pin?
@@ -567,7 +567,7 @@ int emcTaskPlanFinishLineSeek(StartLineSettings const &start_settings)
     }
 
     emcTaskPlanPurgeInterpQueue();
-    emcStatus->task.interpState = EMC_TASK_INTERP_READING;
+    emcTaskSetInterpState(EMC_TASK_INTERP_READING);
 
     bool need_state_restore = !isInterpError((InterpReturn)res_interp) && rs274_interp && needs_prep(start_settings);
     if (need_state_restore) {
@@ -582,7 +582,7 @@ int emcTaskPlanFinishLineSeek(StartLineSettings const &start_settings)
     if (isInterpError((InterpReturn)res_interp)) {
         print_interp_error(res_interp);
         // Can't continue here with an error
-        emcStatus->task.interpState = EMC_TASK_INTERP_WAITING;
+        emcTaskSetInterpState(EMC_TASK_INTERP_WAITING);
     }
     return res_interp;
 }

@@ -38,6 +38,7 @@ int emcTaskAbort(int restore_task_state);
 int emcTaskAbort();
 int emcTaskSetMode(int mode);
 int emcTaskSetState(int state);
+void emcTaskSetInterpState(EMC_TASK_INTERP_ENUM new_state);
 int emcTaskPlanInit();
 int emcTaskPlanSetWait();
 int emcTaskPlanIsWait();
