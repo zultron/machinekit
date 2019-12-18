@@ -1867,6 +1867,8 @@ int find_biarc_points_from_solution(
 
     if (fabs(M_PI_2 - param->theta) < 1e-6) {
         points->motion_type = TC_LINEAR;
+        double v_max = fmax(param->v_max_planar, param->v_max_altitude);
+        param->v_plan = fmin(controls->v_goal, v_max);
     } else {
         points->motion_type = TC_SPHERICAL;
         PmCartesian u_normal;
