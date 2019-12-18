@@ -1148,7 +1148,7 @@ int Interp::convert_param_comment(char *comment, char *expanded, int len)
     char param[LINELEN+1];
     int paramNumber;
     int stat;
-    double value;
+    double value = 0.0;
     char valbuf[VAL_LEN]; // max double length + room
     char *v;
     int found;
