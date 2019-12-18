@@ -1006,12 +1006,6 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     biarc_control_points_t const * const control_pts = &biarc_results.solution.control_pts;
     blend_boundary_t const * const boundary = &biarc_results.solution.boundary;
 
-    // Don't bother if another solution is better
-    double v_plan_optimizer = pmSqrt(biarc_results.solution.R_plan * param_guess.a_n_max);
-    if (emcmotConfig->arc_blend_cfg.allow_fallback && !isArcBlendFaster(prev_tc, v_plan_optimizer)) {
-        return TP_ERR_NO_ACTION;
-    }
-
     BlendPoints3 points1 = {}, points2 = {};
     BlendParameters param1 = {}, param2 = {};
 
@@ -1049,6 +1043,12 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
         &points2,
         &param2));
     CHP(initBlendSegmentFromPoints(&blend_tc2, &points2, &param2));
+
+    // Don't bother if another solution is better
+    double expected_v_max = fmin(param1.v_plan, param2.v_plan);
+    if (emcmotConfig->arc_blend_cfg.allow_fallback && !isArcBlendFaster(prev_tc, expected_v_max)) {
+        return TP_ERR_NO_ACTION;
+    }
 
     union {PmCartLine line; PmCircle circle;} prev_geom={}, this_geom={};
 
