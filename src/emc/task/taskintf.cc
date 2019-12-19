@@ -581,6 +581,7 @@ int emcAxisUpdate(EMC_AXIS_STAT stat[], int numAxes)
 	stat[axis].output = joint->pos_cmd;
 	stat[axis].input = joint->pos_fb;
 	stat[axis].velocity = joint->vel_cmd;
+	stat[axis].vel_limit = joint->vel_limit;
         stat[axis].ferrorCurrent = joint->ferror;
         stat[axis].ferrorHighMark = joint->ferror_high_mark;
 

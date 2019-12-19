@@ -583,6 +583,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 	double max_ferror;	/* max speed following error limit */
 	double home_offset;	/* dir/dist from switch to home point */
 	int kb_jog_active;	/* non-zero during a keyboard jog */
+	double vel_limit;
     } emcmot_joint_status_t;
 
 

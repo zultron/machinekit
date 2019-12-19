@@ -2071,6 +2071,7 @@ static void update_status(void)
 	joint_status->max_ferror = joint->max_ferror;
 	joint_status->home_offset = joint->home_offset;
 	joint_status->kb_jog_active = joint->kb_jog_active;
+	joint_status->vel_limit = joint->vel_limit;
     }
 
     for (dio = 0; dio < num_dio; dio++) {

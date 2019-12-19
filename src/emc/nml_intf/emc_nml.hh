@@ -515,6 +515,7 @@ class EMC_AXIS_STAT:public EMC_AXIS_STAT_MSG {
     unsigned char maxHardLimit;	// non-zero means max hard limit exceeded
     unsigned char overrideLimits; // non-zero means limits are overridden
     int kb_jog_active; // non-zero means kb jog active for this axis
+    double vel_limit;
 };
 
 // declarations for EMC_TRAJ classes
