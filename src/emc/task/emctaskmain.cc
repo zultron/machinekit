@@ -583,7 +583,8 @@ extern int emcTaskMopup();
  */
 void emcTaskPlanPurgeInterpQueue()
 {
-    if (emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
+    if (run_settings.start_line < 0 ||
+        emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
         // we're stepping over lines, so check them
         // for
         // limits, etc. and clear then out
@@ -598,14 +599,6 @@ void emcTaskPlanPurgeInterpQueue()
         // and clear it regardless
         interp_list.clear();
     }
-}
-
-bool emcTaskPlanReachedStartLine()
-{
-    return emcTaskPlanLevel() == 0
-            && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING
-            && emcStatus->task.readLine >= run_settings.start_line
-            && run_settings.start_line >= 0;
 }
 
 void readahead_reading(void)
@@ -647,8 +640,13 @@ interpret_again:
                 emcStatus->task.readLine = emcTaskPlanLine();
 
                 // Check if the first real command should be read or not
-                if (emcTaskPlanReachedStartLine()) {
+                if (emcTaskPlanLevel() == 0
+                        && emcStatus->task.readLine >= run_settings.start_line
+                        && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
+                    // Next line will be the start line, and this is the first command, so immediately start reading
+                    // NOTE: we don't need to synch here only because this is the first command
                     emcTaskSetInterpState(EMC_TASK_INTERP_READING);
+                    run_settings.start_line = 0;
                 }
 
 			    emcTaskPlanCommand((char *) &emcStatus->task.
@@ -657,7 +655,7 @@ interpret_again:
 			    execRetval = INTERP_OK;
 			    // Tormach - set _task variable appropriately so that 
 			    // remap code can decide what to do in read-behind *dpr 12/15
-                _task = (emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) ? -1 : 1;
+                _task = (run_settings.start_line < 0 || emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) ? -1 : 1;
 
                 execRetval = emcTaskPlanExecute();
 			    // line number may need update after
@@ -711,9 +709,19 @@ interpret_again:
 						       emcStatus->motion.traj.actualPosition.w);
 			    }
 
-                if (emcTaskPlanReachedStartLine()) {
-                    // Next line will be the start line, so force a synch and transition to full read-ahead mode
+                if (emcTaskPlanLevel() == 0
+                        && emcStatus->task.readLine + 1 >= run_settings.start_line
+                        && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
+
+                    // Next line will be the start line, so force a synch and
                     emcTaskPlanFinishLineSeek(run_settings, run_initial_state);
+
+                    // reset start line so we don't
+                    // fall into our stepping routines if
+                    // we happen to execute lines before
+                    // the current point later (due to
+                    // subroutines).
+                    run_settings.start_line = 0;
                 }
 
                             if (count++ < emc_task_interp_max_len
