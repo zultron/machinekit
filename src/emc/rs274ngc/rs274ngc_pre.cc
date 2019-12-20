@@ -2533,7 +2533,7 @@ int Interp::cbBeforeSeekReadTransition(AutoRunSettings const &start_settings, Ex
         CHP(gen_toolOffset(generator, run_initial_state.modal_state.tool_offset_mode, run_initial_state.modal_state.tool_offset_number));
     }
     for (auto const &l : generator.getCommandSequence()) {
-        CHP(execute(l.c_str(), CommandSource::PREAMBLE));
+        CHP(execute(l.c_str(), CommandSource::MODAL_STATE_RESTORE));
     }
     return INTERP_OK;
 }
