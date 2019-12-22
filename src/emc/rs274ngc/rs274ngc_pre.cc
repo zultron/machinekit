@@ -2533,7 +2533,9 @@ int Interp::cbBeforeSeekReadTransition(AutoRunSettings const &start_settings, Ex
         CHP(gen_toolOffset(generator, run_initial_state.modal_state.tool_offset_mode, run_initial_state.modal_state.tool_offset_number));
     }
     for (auto const &l : generator.getCommandSequence()) {
-        CHP(execute(l.c_str(), CommandSource::MODAL_STATE_RESTORE));
+        // NOTE: this is not part of the preamble because it's just cleaning up the modal state of interp,
+        // not actually sending anything out to the rest of the system
+        CHP(execute(l.c_str(), CommandSource::MODAL_STATE_RESTORE)); // does NOT use the special PREAMBLE mode that treats an explicit command like part of auto
     }
     return INTERP_OK;
 }
@@ -2544,7 +2546,10 @@ int Interp::cbBeforeSeekReadTransition(AutoRunSettings const &start_settings, Ex
  * world (like canon / motion). The system needs to be as close as possible to
  * what it would be, had it executed the program from the first line.
  */
-int Interp::cbAfterSeekReadTransition(ExpandedModalState const &to_restore, AutoRunSettings const &start_settings, ExpandedModalState const &run_initial_state)
+int Interp::cbAfterSeekReadTransition(
+    ExpandedModalState const &to_restore,
+    AutoRunSettings const &start_settings,
+    ExpandedModalState const &run_initial_state)
 {
     RestoreCommandList restore_cmd_list;
 
@@ -2556,7 +2561,12 @@ int Interp::cbAfterSeekReadTransition(ExpandedModalState const &to_restore, Auto
         run_initial_state));
     {
         char tmp_file_path[PATH_MAX+LINELEN] = {};
-        snprintf(tmp_file_path, PATH_MAX+LINELEN, "%s/%s.ngc", _setup.program_prefix ?: ".", STATE_RESTORE_SUBROUTINE_NAME);
+        snprintf(
+            tmp_file_path,
+            PATH_MAX+LINELEN,
+            "%s/%s.ngc",
+            _setup.program_prefix ?: ".",
+            STATE_RESTORE_SUBROUTINE_NAME);
         std::ofstream f_tmp(tmp_file_path);
 
         // Wrap the command list in a subroutine
@@ -2574,6 +2584,9 @@ int Interp::cbAfterSeekReadTransition(ExpandedModalState const &to_restore, Auto
     {
         char restore_cmd[LINELEN] = {};
         snprintf(restore_cmd, LINELEN, "o<%s> call", STATE_RESTORE_SUBROUTINE_NAME);
+        // NOTE: PREAMBLE is special here. It forces execute to treat the
+        // restore command as if it was part of the original program,
+        // effectively injecting G-code into the program
         CHP(execute(restore_cmd, CommandSource::PREAMBLE));
     }
     // TODO make sure the return point is right
