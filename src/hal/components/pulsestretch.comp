@@ -1,0 +1,46 @@
+component pulsestretch "Pulse Stretch";
+
+description
+"""
+Pulse Stretch
+
+Some hal pins can toggle high or low so briefly that the UI can 'miss' them.
+Routing the pulse through this component makes the time the pin is high or low
+longer to be more useful for visual diagnostics.
+""";
+
+author "John Freeborg";
+
+license "GPL";
+
+// Input Pins
+pin in bit input "Input pin to stretch";
+pin in bit input_value_to_stretch "Should 1 or 0 be stretched?";
+pin in s32 stretch_period_milliseconds "How long should any input pin transition be stretched?";
+
+// Output Pins
+pin out bit output "Echos the value of the input, but any transition is a minimum of stretch_period_milliseconds";
+
+// Global Variables
+variable float remaining_milliseconds = 0;
+
+function _;
+
+;;
+
+#include "rtapi_math.h"
+
+FUNCTION(_) {
+
+    if (input == input_value_to_stretch) {
+        output = input;
+        remaining_milliseconds = stretch_period_milliseconds;  // start or restart timer
+    } else {
+        // timer running
+        remaining_milliseconds -= (period * 0.000001);  // period is in nanoseconds
+        if (remaining_milliseconds <= 0) {
+            // timer expired so stretch is over
+            output = input;
+        }
+    }
+}
