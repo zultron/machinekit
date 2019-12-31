@@ -854,10 +854,10 @@ if (vfd_cap == VFD_CAP_NO_MODE_SW) //note orient case handled above
     we assume VFD mode switch succeed
 */
 
-
+//orient_encoder == 1 or 0 means no encoder. Can't always set to "0" as linuxcnc/src/hal/drivers/mesa-hostmot2/encoder.c uses
+//this value as a divisor.  Yet we wish to allow a "generic" HALs to ignore & not connect this pin (and they'll also not have an spindle encoder component, so the divide by 0 doesn't happen) in which case it's going to be 0 here.
+//Our newer base HAL files set ENCODER_SCALE "1" to indicate no encoder. So a specific ini that then doesn't define (modify) ENCODER_SCALE at all means it will be "1" here
 #define have_encoder() ( (spindle_type == SPINDLE_TYPE_STANDARD) && ( ( (orient_encoder_cpr != 0) && (orient_encoder_cpr != 1) )?1:0) )
-//if(orient_encoder_cpr == 0.0 || orient_encoder_cpr == 1.0) //means no encoder. not setting to "0" as linuxcnc/src/hal/drivers/mesa-hostmot2/encoder.c uses this as a divisor, so !=0, yet we wish to allow HAL to not connect
-
 
 
 //The VFD PWR up sequencing goes through these states in order, and look nice on halscope
@@ -2100,37 +2100,16 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
     //this pin, in which case it's going to be 0 here.  Our base HAL files set ENCODER_SCALE "1" to indicate no encoder.
     //a specific ini that then doesn't define ENCODER_SCALE at all means it will be "1" here
     if(have_encoder()) {     
-        //use the spindle encoder and TODO add verify VFD motor speed feedback is working and/or alert wrong belt ratios, etc
         feedback_spindle_rpm += ((fabs(encoder_velocity) * 60) - feedback_spindle_rpm) * 0.1;
-
-        if(at_speed) { // which means other errors which inhibit at_speed take precedence to these error checks
-            if ((encoder_velocity < 1.0) && (spindle_forward_thur)) { //if encoder dir REV AND VFD cmd FWD
-                SpindleFaultSet(SPINDLE_FAULT_FWD_WRONG_DIR);
-                past_dir |= WRONG_DIR_FWD;
-            }
-            else if ((encoder_velocity > 1.0) && (!(spindle_forward_thur))) { //if encoder dir is FWD AND VFD cmd is REV
-                SpindleFaultSet(SPINDLE_FAULT_REV_WRONG_DIR);
-                past_dir |= WRONG_DIR_REV;
-            }
-
-            if (encoder_test != ENCODER_TEST_OFF && past_dir && spindle_forward_thur) { //this hair-splitting is only done during encoder_testing AND FWD command, and assumes CCW testing done previously
-                switch (past_dir & (WRONG_DIR_FWD|WRONG_DIR_REV)) { //results in 4 states to check, one of which is no error at all and ignored
-                    case (WRONG_DIR_FWD|WRONG_DIR_REV): SpindleFaultSet(SPINDLE_FAULT_ENC_WRONG_DIR); break; //both directions reversed, so encoder is wired backwards
-                    case WRONG_DIR_REV: SpindleFaultSet(SPINDLE_FAULT_ENC_ALWAYS_FWD); break; //encoder only "broken" when REV commanded
-                    case WRONG_DIR_FWD: SpindleFaultSet(SPINDLE_FAULT_ENC_ALWAYS_REV); break; //encoder only "broken" when FWD commanded
-                    default: break; //ignored, no fault (can't get here as past_dir should be 0)
-                }
-            }
-        }
     }
     else {
         feedback_spindle_rpm = estimated_spindle_rpm; // use VFD's feedback, which isn't so accurate
     }
 
     if (feedback_motor_rpm <= RPM_CLOSE_TO_ZERO) { 
-        feedback_motor_rpm = 0.0;   //set to perfect zero.  This has effects in linuxcnc code???  We don't want .0001 RPM issues
+        feedback_motor_rpm = 0.0;   //set to perfect zero.  This has effects in linuxcnc code???  We don't want .0001 RPM issues TODO: what reads this value? what about when encoder is also present?
+        //TODO: should we deal with spindle_rpm and not motor rpm to other consumers??
     }   
-
 
     // spindle-at-speed checking
     if (spindle_state == SPINDLE_STATE_ORIENTING || spindle_state == SPINDLE_STATE_LOCKED) {
@@ -2144,6 +2123,7 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
         speed_alarm = BIT_FALSE;
         vfd_freq_cmd = 0.0;
     }
+    //in other words, we only test this when (spindle_on is ON) AND NOT(SPINDLE_STATE_ORIENTING) AND NOT(SPINDLE_STATE_LOCKED)
     else if ((encoder_test!=ENCODER_TEST_Z) && (iabs(vfd_rpm_cmd) > 0.0)) { //we know spindle_on is true, so not checking it again
         if (at_speed == BIT_FALSE) {
             if (at_speed_force == BIT_TRUE) {
@@ -2202,8 +2182,28 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
         }
     }
 
-    //SLP had to move up because of bt30_offset needs to be set by it before entering "Now we can do the heavy lifting of spindle_states" section above, otherwise errors with BT30_OFFSET invalid error
-    //spindleEncoderTestExec(fperiod); //always call this every loop, it handles if we're actually doing something encoder_test 
+    if(have_encoder()) {
+        if(at_speed) { // which means other errors which inhibit at_speed take precedence to these error checks
+            if ((encoder_velocity < 1.0) && (spindle_forward_thur)) { //if encoder dir REV AND VFD cmd FWD
+                SpindleFaultSet(SPINDLE_FAULT_FWD_WRONG_DIR);
+                past_dir |= WRONG_DIR_FWD;
+            }
+            else if ((encoder_velocity > 1.0) && (!(spindle_forward_thur))) { //if encoder dir is FWD AND VFD cmd is REV
+                SpindleFaultSet(SPINDLE_FAULT_REV_WRONG_DIR);
+                past_dir |= WRONG_DIR_REV;
+            }
+
+            if (encoder_test != ENCODER_TEST_OFF && past_dir && spindle_forward_thur) { //this hair-splitting is only done during encoder_testing AND FWD command, and assumes CCW testing done previously
+                switch (past_dir & (WRONG_DIR_FWD|WRONG_DIR_REV)) { //results in 4 states to check, one of which is no error at all and ignored
+                    case (WRONG_DIR_FWD|WRONG_DIR_REV): SpindleFaultSet(SPINDLE_FAULT_ENC_WRONG_DIR); break; //both directions reversed, so encoder is wired backwards
+                    case WRONG_DIR_REV: SpindleFaultSet(SPINDLE_FAULT_ENC_ALWAYS_FWD); break; //encoder only "broken" when REV commanded
+                    case WRONG_DIR_FWD: SpindleFaultSet(SPINDLE_FAULT_ENC_ALWAYS_REV); break; //encoder only "broken" when FWD commanded
+                    default: break; //ignored, no fault (can't get here as past_dir should be 0)
+                }
+            }
+        }
+    }
+
 
     if (disable) { //do this last  TODO: This may fault the drive, but do we care???
         // no spindle motion allowed
