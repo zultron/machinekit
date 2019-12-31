@@ -1874,7 +1874,9 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
 #if (!(TEST_SPINDLE_LOCK)) 
                 if ((encoder_position > (orient_start + orient_max_encoder_steps)) || (encoder_position < (orient_start - orient_max_encoder_steps))) {
                     spindle_run = BIT_FALSE; //error condition, turn off spindle!
-                    SpindleFaultSet(SPINDLE_FAULT_ORIENT_MAX_ROTATION); 
+                    if (finding_z_index && (zindex_state != (ISTATE_PAST | ISTATE_DONE)))
+                       SpindleFaultSet(SPINDLE_FAULT_NO_ZINDEX); //promote as real root cause of max rotation 
+                    else SpindleFaultSet(SPINDLE_FAULT_ORIENT_MAX_ROTATION); 
                 }
                 else //no error detected
 #endif //end TEST_SPINDLE_LOCK
