@@ -3272,9 +3272,15 @@ static constexpr const std::array<const char *, 2> _gcode_file_extensions =
 
 FILE* Interp::try_load_subroutine_from_path(const char *basename, const char *sub_directory, char *file_path)
 {
-    char try_file[PATH_MAX+1];
+    char try_file[PATH_MAX]="";
+    int name_start = 0;
+    if (sub_directory && sub_directory[0]) {
+        name_start = snprintf(try_file, PATH_MAX, "%s/", sub_directory);
+    }
+
+    int remaining_buf = std::max((int)sizeof(try_file) - name_start, 0);
     for (auto extension : _gcode_file_extensions) {
-        sprintf(try_file, "%s/%s.%s", sub_directory, basename, extension);
+        snprintf(try_file + name_start, remaining_buf, "%s.%s", basename, extension);
         if (FILE* f = fopen(try_file, "r")) {
             if (file_path) {
                 strcpy(file_path, try_file);
@@ -3291,6 +3297,9 @@ FILE* Interp::try_load_subroutine_from_path(const char *basename, const char *su
 std::string get_path_basename(const std::string &full_path)
 {
     size_t found = full_path.find_last_of("/");
+    if (found == std::string::npos) {
+        return "";
+    }
     return full_path.substr(0,found);
 }
 
