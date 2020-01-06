@@ -186,6 +186,7 @@ public:
  char *command(char *buf, size_t len) { line_text(buf, len); return buf; }
 
  char *file(char *buf, size_t len) { file_name(buf, len); return buf; }
+ char *working_dir(char *buf, size_t len);
 
 private:
  void copy_tool0_parameters();

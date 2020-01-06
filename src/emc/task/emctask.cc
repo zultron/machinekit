@@ -749,7 +749,7 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
 
     char buf[LINELEN];
     strcpy(stat->file, pinterp->file(buf, LINELEN));
-    strcpy(stat->working_dir, interp._setup.working_dir.c_str());
+    strcpy(stat->working_dir, pinterp->working_dir(buf, LINELEN));
     // command set in main
 
     if (emcStatus->task.interpState == EMC_TASK_INTERP_IDLE) {

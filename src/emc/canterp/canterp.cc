@@ -89,6 +89,7 @@ public:
     int const &remap_level() const;
     char *command(char *buf, size_t buflen);
     char *file(char *buf, size_t buflen);
+    char *working_dir(char *buf, size_t buflen);
     int on_abort(int reason, const char *message);
     void active_g_codes(int active_gcodes[ACTIVE_G_CODES]);
     void active_m_codes(int active_mcodes[ACTIVE_M_CODES]);
@@ -102,6 +103,7 @@ public:
     int write_expanded_modal_state(ExpandedModalState &initial_state) const;
     FILE *f;
     char filename[PATH_MAX];
+    char working_dir_[PATH_MAX];
 };
 
 char *Canterp::error_text(int errcode, char *buf, size_t buflen) {
@@ -689,6 +691,7 @@ int Canterp::open(const char *newfilename, const char * working_dir) {
     if(f) fclose(f);
     f = fopen(newfilename, "r");
     if(f) snprintf(filename, sizeof(filename), "%s", newfilename);
+    snprintf(working_dir_, PATH_MAX, "%s", working_dir);
     return f ? INTERP_OK : INTERP_ERROR;
 }
 
@@ -715,13 +718,20 @@ char *Canterp::line_text(char *buf, size_t bufsize) {
    return buf;
 }
 char *Canterp::file_name(char *buf, size_t bufsize) {
-   snprintf(buf, bufsize, "%s", filename);
-   return buf;
+    return file(buf, bufsize);
 }
+
 char *Canterp::file(char *buf, size_t bufsize) {
    snprintf(buf, bufsize, "%s", filename);
    return buf;
 }
+
+char * Canterp::working_dir(char * buf, size_t buflen)
+{
+   snprintf(buf, buflen, "%s", working_dir_);
+   return buf;
+}
+
 int Canterp::on_abort(int reason, const char *message)
 {
     fprintf(stderr, "Canterp::on_abort reason=%d message='%s'", reason, message);

@@ -63,6 +63,7 @@ public:
     virtual int const &remap_level() const = 0;
     virtual char *command(char *buf, size_t buflen) = 0;
     virtual char *file(char *buf, size_t buflen) = 0;
+    virtual char *working_dir(char *buf, size_t buflen) = 0;
     virtual int on_abort(int reason, const char *message) = 0;
     virtual void active_g_codes(int active_gcodes[ACTIVE_G_CODES]) = 0;
     virtual void active_m_codes(int active_mcodes[ACTIVE_M_CODES]) = 0;
