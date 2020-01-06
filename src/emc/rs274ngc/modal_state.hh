@@ -59,6 +59,11 @@ struct ModalState {
  */
 struct AutoRunSettings
 {
+    AutoRunSettings() :
+        start_line(0),
+        leadin_type(0),
+        keep_current_tool(true)
+    {}
     int start_line; //!< line in main program where user wants to start
     int leadin_type; //!< Controls lead-in behavior when not starting from the beginning of the program
     bool keep_current_tool;
