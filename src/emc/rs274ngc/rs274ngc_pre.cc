@@ -2561,12 +2561,20 @@ int Interp::cbAfterSeekReadTransition(
         run_initial_state));
     {
         char tmp_file_path[PATH_MAX+LINELEN] = {};
+        if (_setup.program_prefix && _setup.program_prefix[0]) {
         snprintf(
             tmp_file_path,
             PATH_MAX+LINELEN,
             "%s/%s.ngc",
-            _setup.program_prefix ?: ".",
+            _setup.program_prefix,
             STATE_RESTORE_SUBROUTINE_NAME);
+        } else {
+            snprintf(
+                tmp_file_path,
+                PATH_MAX+LINELEN,
+                "%s.ngc",
+                STATE_RESTORE_SUBROUTINE_NAME);
+        }
         std::ofstream f_tmp(tmp_file_path);
 
         // Wrap the command list in a subroutine
