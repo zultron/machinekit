@@ -830,7 +830,7 @@ int read_inputs(setup_pointer settings);
     void update_gcode_context_py_remap_name(const remap_pointer remap);
 
     bool hasFeature(Features f) const;
-    int find_g43_tool_offset(block_pointer block, setup_pointer settings, ShiftTransform & new_tool_offset);
+    int find_g43_tool_offset(int h_number, bool h_flag, setup_pointer settings, ShiftTransform & new_tool_offset);
 
     static AxisMask axis_mask_from_string(const std::string & plunge_axes, AxisMask default_axes=0);
     

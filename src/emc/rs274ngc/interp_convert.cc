@@ -5290,29 +5290,30 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
 
 
 int Interp::find_g43_tool_offset(
-    block_pointer block,      //!< pointer to a block of RS274/NGC instructions
+    int h_number,
+    bool h_flag,
     setup_pointer settings,
     ShiftTransform &new_tool_offset)
 {
     logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
-             block->h_flag,block->h_number,settings->wait_flags.test(TOOLCHANGE),settings->current_pocket);
+             h_flag, h_number, settings->wait_flags.test(TOOLCHANGE),settings->current_pocket);
 
     int geo_offset_register = 0;
     int wear_offset_register = 0;
     if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
-        if (block->h_number < 100) { //Future change required for using tools greater than 99
-            geo_offset_register = block->h_number + 10000;
-        } else if (block->h_number < 10000) {
-            geo_offset_register = floor(block->h_number/100) + 10000;
-            wear_offset_register = block->h_number % 100;
+        if (h_number < 100) { //Future change required for using tools greater than 99
+            geo_offset_register = h_number + 10000;
+        } else if (h_number < 10000) {
+            geo_offset_register = floor(h_number/100) + 10000;
+            wear_offset_register = h_number % 100;
         }
     } else {
-        geo_offset_register = block->h_number;
+        geo_offset_register = h_number;
         wear_offset_register = 0;
     }
 
     int pocket_number;
-    if (block->h_flag) {
+    if (h_flag) {
         CHP((find_tool_pocket(settings, geo_offset_register, &pocket_number)));
     } else if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         ERS("G43 with no H-word unsupported");
@@ -5398,7 +5399,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
         settings->tool_offset_number = 0; // Tool "0" implies no offset
     } else if (g_code == G_43) {
         ShiftTransform new_tool_offset{};
-        CHP(find_g43_tool_offset(block, settings, new_tool_offset));
+        CHP(find_g43_tool_offset(block->h_number, block->h_flag, settings, new_tool_offset));
         settings->current = settings->transform.swap_tool_offset(settings->current, new_tool_offset);
         if (settings->tool_offset_mode == G_43_1 || settings->tool_offset_mode == G_43_2) {
             // Need queue-buster because we're switching from a custom to a table offset
