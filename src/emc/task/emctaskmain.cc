@@ -95,9 +95,6 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 #define task_debug(...)
 #endif
 
-
-
-
 /* time after which the user interface is declared dead
  * because it would'nt read any more messages
  */
@@ -440,7 +437,9 @@ static EMC_TASK_PLAN_RUN taskPlanRunCmd;	// 16-Aug-1999 FMP
 static EMC_TASK_PLAN_INIT taskPlanInitCmd;
 static EMC_TASK_PLAN_SYNCH taskPlanSynchCmd;
 
-static StartLineSettings start_settings{};
+static AutoRunSettings run_settings{};
+static ExpandedModalState run_initial_state{};
+
 static int interpResumeState = EMC_TASK_INTERP_IDLE;
 // how long the interp list can be
 
@@ -584,7 +583,7 @@ extern int emcTaskMopup();
  */
 void emcTaskPlanPurgeInterpQueue()
 {
-    if (start_settings.start_line < 0 ||
+    if (run_settings.start_line < 0 ||
         emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
         // we're stepping over lines, so check them
         // for
@@ -595,8 +594,7 @@ void emcTaskPlanPurgeInterpQueue()
             // did
             // for a bad read from emcTaskPlanRead()
             // above
-            emcStatus->task.interpState =
-                EMC_TASK_INTERP_WAITING;
+            emcTaskSetInterpState(EMC_TASK_INTERP_WAITING);
         }
         // and clear it regardless
         interp_list.clear();
@@ -635,8 +633,7 @@ interpret_again:
 			    /*! \todo FIXME The above test *should* be reduced to:
 			       readRetVal != INTERP_OK
 			       (N.B. Watch for negative error codes.) */
-			    emcStatus->task.interpState =
-				EMC_TASK_INTERP_WAITING;
+                emcTaskSetInterpState(EMC_TASK_INTERP_WAITING);
 			} else {
 			    // got a good line
 			    // record the line number and command
@@ -644,12 +641,12 @@ interpret_again:
 
                 // Check if the first real command should be read or not
                 if (emcTaskPlanLevel() == 0
-                        && emcStatus->task.readLine >= start_settings.start_line
+                        && emcStatus->task.readLine >= run_settings.start_line
                         && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
                     // Next line will be the start line, and this is the first command, so immediately start reading
                     // NOTE: we don't need to synch here only because this is the first command
-                    emcStatus->task.interpState = EMC_TASK_INTERP_READING;
-                    start_settings.start_line = 0;
+                    emcTaskSetInterpState(EMC_TASK_INTERP_READING);
+                    run_settings.start_line = 0;
                 }
 
 			    emcTaskPlanCommand((char *) &emcStatus->task.
@@ -658,7 +655,7 @@ interpret_again:
 			    execRetval = INTERP_OK;
 			    // Tormach - set _task variable appropriately so that 
 			    // remap code can decide what to do in read-behind *dpr 12/15
-                _task = (start_settings.start_line < 0 || emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) ? -1 : 1;
+                _task = (run_settings.start_line < 0 || emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) ? -1 : 1;
 
                 execRetval = emcTaskPlanExecute();
 			    // line number may need update after
@@ -666,15 +663,13 @@ interpret_again:
 			    // files
 			    emcStatus->task.readLine = emcTaskPlanLine();
 			    if (execRetval > INTERP_MIN_ERROR) {
-				emcStatus->task.interpState =
-				    EMC_TASK_INTERP_WAITING;
+                emcTaskSetInterpState(EMC_TASK_INTERP_WAITING);
 				interp_list.clear();
 				emcAbortCleanup(EMC_ABORT_INTERPRETER_ERROR,
 						"interpreter error"); 
 			    } else if (execRetval == -1
 				    || execRetval == INTERP_EXIT ) {
-				emcStatus->task.interpState =
-				    EMC_TASK_INTERP_WAITING;
+                emcTaskSetInterpState(EMC_TASK_INTERP_WAITING);
 			    } else if (execRetval == INTERP_EXECUTE_FINISH) {
 				// INTERP_EXECUTE_FINISH signifies
 				// that no more reading should be done until
@@ -687,8 +682,7 @@ interpret_again:
                     }
 			    } else if (execRetval != 0) {
 				// end of file
-				emcStatus->task.interpState =
-				    EMC_TASK_INTERP_WAITING;
+                emcTaskSetInterpState(EMC_TASK_INTERP_WAITING);
                                 emcStatus->task.motionLine = 0;
                                 emcStatus->task.readLine = 0;
 			    } else {
@@ -716,18 +710,18 @@ interpret_again:
 			    }
 
                 if (emcTaskPlanLevel() == 0
-                        && emcStatus->task.readLine + 1 >= start_settings.start_line
+                        && emcStatus->task.readLine + 1 >= run_settings.start_line
                         && emcStatus->task.interpState == EMC_TASK_INTERP_SEEKING) {
 
                     // Next line will be the start line, so force a synch and
-                    emcTaskPlanFinishLineSeek(start_settings);
+                    emcTaskPlanFinishLineSeek(run_settings, run_initial_state);
 
                     // reset start line so we don't
                     // fall into our stepping routines if
                     // we happen to execute lines before
                     // the current point later (due to
                     // subroutines).
-                    start_settings.start_line = 0;
+                    run_settings.start_line = 0;
                 }
 
                             if (count++ < emc_task_interp_max_len
@@ -758,7 +752,7 @@ static void mdi_execute_abort(void)
     }
     mdi_execute_queue.clear();
 
-    emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
+    emcTaskSetInterpState(EMC_TASK_INTERP_IDLE);
 }
 
 static void mdi_execute_hook(void)
@@ -802,7 +796,7 @@ static void mdi_execute_hook(void)
 	    rcs_print("mdi_execute_hook: MDI command '%s' done (remaining: %d)\n",
 		      emcStatus->task.command, mdi_input_queue.len());
 	emcStatus->task.command[0] = 0;
-	emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
+	emcTaskSetInterpState(EMC_TASK_INTERP_IDLE);
     }
 
     if (!mdi_execute_next) return;
@@ -839,7 +833,7 @@ void readahead_waiting(void)
 		// then resynch interpreter
 		emcTaskQueueCommand(&taskPlanSynchCmd);
 	    } else {
-		emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
+		emcTaskSetInterpState(EMC_TASK_INTERP_IDLE);
 	    }
 	    emcStatus->task.readLine = 0;
 	} else {
@@ -1147,17 +1141,13 @@ static int emcTaskPlan(void)
 		case EMC_TASK_PLAN_STEP_TYPE:
             task_debug("Got PLAN_STEP at interp start\n");
 		    // handles case where first action is to step the program
-		    taskPlanRunCmd.line = 1;	// run from start
+            taskPlanRunCmd.run_settings.start_line = 1;	// run from start
 		    /*! \todo FIXME-- can have GUI set this; send a run instead of a 
 		       step */
 		    retval = emcTaskIssueCommand(&taskPlanRunCmd);
 		    if(retval != 0) break;
 		    emcTrajPause();
-		    if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
-			interpResumeState = emcStatus->task.interpState;
-		    }
-		    emcStatus->task.interpState = EMC_TASK_INTERP_PAUSED;
-		    emcStatus->task.task_paused = 1;
+            emcTaskPause();
 		    retval = 0;
 		    break;
 
@@ -1704,6 +1694,23 @@ int emcTaskQueueCommand(NMLmsg * cmd)
 }
 
 // issues command immediately
+void emcTaskPause()
+{
+    if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
+        interpResumeState = emcStatus->task.interpState;
+    }
+    emcTaskSetInterpState(EMC_TASK_INTERP_PAUSED);
+    emcStatus->task.task_paused = 1;
+}
+
+void emcTaskResume()
+{
+    emcTaskSetInterpState((EMC_TASK_INTERP_ENUM) interpResumeState);
+    emcStatus->task.task_paused = 0;
+    stepping = 0;
+    steppingWait = 0;
+}
+
 static int emcTaskIssueCommand(NMLmsg * cmd)
 {
     int retval = 0;
@@ -2009,7 +2016,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         emcStatus->task.g92_offset = g92_cmd.origin;
         emcStatus->task.g92_applied = g92_cmd.applied;
         if (g92_cmd.applied) {
-            emcStatus->task.g92_offset_persistant = toArray(emcStatus->task.g92_offset);
+            emcStatus->task.g92_offset_persistant = ShiftTransform(toArray(emcStatus->task.g92_offset));
         }
         retval = 0;
     }
@@ -2236,7 +2243,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         emcStatus->task.stepping_id = 0;
 
 		// clear out the interpreter state
-		emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
+		emcTaskSetInterpState(EMC_TASK_INTERP_IDLE);
 		emcStatus->task.execState = EMC_TASK_EXEC_DONE;
 		stepping = 0;
 		steppingWait = 0;
@@ -2256,8 +2263,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	// interpreter commands
 
     case EMC_TASK_PLAN_OPEN_TYPE:
-	open_msg = (EMC_TASK_PLAN_OPEN *) cmd;
-	retval = emcTaskPlanOpen(open_msg->file);
+    open_msg = (EMC_TASK_PLAN_OPEN *) cmd;
+    retval = emcTaskPlanOpen(open_msg->file, open_msg->working_dir);
 	if (retval > INTERP_MIN_ERROR) {
 	    retval = -1;
 	}
@@ -2296,7 +2303,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
             break;
         }
 	// track interpState also during MDI - it might be an oword sub call
-	emcStatus->task.interpState = EMC_TASK_INTERP_READING;
+	emcTaskSetInterpState(EMC_TASK_INTERP_READING);
 
     if (execute_msg->command[0] != 0) {
         char * command = execute_msg->command;
@@ -2379,15 +2386,15 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         }
 	stepping = 0;
 	steppingWait = 0;
-	if (!taskplanopen && emcStatus->task.file[0] != 0) {
-	    emcTaskPlanOpen(emcStatus->task.file);
+    if (!taskplanopen && emcStatus->task.file[0] != 0) {
+        emcTaskPlanOpen(emcStatus->task.file, emcStatus->task.working_dir);
 	}
 	run_msg = (EMC_TASK_PLAN_RUN *) cmd;
-    start_settings.start_line = run_msg->line;
-    start_settings.prep_type = static_cast<RunPrepType>(run_msg->prep_type);
-    start_settings.initial_transform = pinterp->get_transform();
+    run_settings = run_msg->run_settings;
+    pinterp->write_expanded_modal_state(run_initial_state);
+
     // KLUDGE always start by seeking (will drop into reading if the first command is at the start line)
-    emcStatus->task.interpState = EMC_TASK_INTERP_SEEKING;
+    emcTaskSetInterpState(EMC_TASK_INTERP_SEEKING);
 	emcStatus->task.task_paused = 0;
         emcStatus->task.program_ended = 0;
         emcStatus->task.program_ended_and_reset = 0;
@@ -2396,33 +2403,21 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TASK_PLAN_PAUSE_TYPE:
 	emcTrajPause();
-	if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
-	    interpResumeState = emcStatus->task.interpState;
-	}
-	emcStatus->task.interpState = EMC_TASK_INTERP_PAUSED;
-	emcStatus->task.task_paused = 1;
+    emcTaskPause();
 	retval = 0;
 	break;
 
     case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 	if (GET_OPTIONAL_PROGRAM_STOP() == true) {
 	    emcTrajPause();
-	    if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
-		interpResumeState = emcStatus->task.interpState;
-	    }
-	    emcStatus->task.interpState = EMC_TASK_INTERP_PAUSED;
-	    emcStatus->task.task_paused = 1;
+        emcTaskPause();
 	}
 	retval = 0;
 	break;
 
     case EMC_TASK_PLAN_RESUME_TYPE:
-	emcTrajResume();
-	emcStatus->task.interpState =
-	    (enum EMC_TASK_INTERP_ENUM) interpResumeState;
-	emcStatus->task.task_paused = 0;
-	stepping = 0;
-	steppingWait = 0;
+    emcTrajResume();
+    emcTaskResume();
 	retval = 0;
 	break;
 
@@ -2797,7 +2792,7 @@ static int emcTaskExecute(void)
     emcStatus->task.stepping_id = 0;
 
 	// clear out the interpreter state
-	emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
+	emcTaskSetInterpState(EMC_TASK_INTERP_IDLE);
 	emcStatus->task.execState = EMC_TASK_EXEC_DONE;
 	stepping = 0;
 	steppingWait = 0;
@@ -3735,7 +3730,7 @@ int main(int argc, char *argv[])
 	    emcAbortCleanup(EMC_ABORT_MOTION_OR_IO_RCS_ERROR);
 
 	    // clear out the interpreter state
-	    emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
+	    emcTaskSetInterpState(EMC_TASK_INTERP_IDLE);
 	    emcStatus->task.execState = EMC_TASK_EXEC_DONE;
 	    stepping = 0;
 	    steppingWait = 0;
@@ -3827,4 +3822,9 @@ int main(int argc, char *argv[])
 
     // and leave
     exit(0);
+}
+
+void emcTaskSetInterpState(EMC_TASK_INTERP_ENUM new_state)
+{
+    emcStatus->task.interpState = new_state;
 }

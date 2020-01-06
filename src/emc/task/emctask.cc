@@ -219,7 +219,7 @@ int emcTaskAbort(int restore_task_state)
     interp_list.clear();
 
     // clear out the interpreter state
-    emcStatus->task.interpState = EMC_TASK_INTERP_IDLE;
+    emcTaskSetInterpState(EMC_TASK_INTERP_IDLE);
     emcStatus->task.execState = EMC_TASK_EXEC_DONE;
     emcStatus->task.task_paused = 0;
     //FIXME should actually clear out the motion HAL pin?
@@ -550,30 +550,24 @@ int emcTaskPlanSynch()
     return retval;
 }
 
-bool needs_prep(StartLineSettings const &s)
-{
-    return s.prep_type != PREP_NONE;
-}
-
-int emcTaskPlanFinishLineSeek(StartLineSettings const &start_settings)
+int emcTaskPlanFinishLineSeek(AutoRunSettings const &run_settings, ExpandedModalState const &run_initial_state)
 {
     Interp *rs274_interp = dynamic_cast<Interp*>(pinterp);
 
-    ModalState state_at_seek{};
+    ExpandedModalState state_at_seek{};
     int res_interp = INTERP_OK;
-    if (rs274_interp && needs_prep(start_settings)) {
+    if (rs274_interp) {
         // NOTE: modal state is recorded before the transition for use in the restore sequence
-        res_interp = rs274_interp->cbBeforeSeekReadTransition(state_at_seek);
+        res_interp = rs274_interp->cbBeforeSeekReadTransition(run_settings, run_initial_state, state_at_seek);
     }
 
     emcTaskPlanPurgeInterpQueue();
-    emcStatus->task.interpState = EMC_TASK_INTERP_READING;
+    emcTaskSetInterpState(EMC_TASK_INTERP_READING);
 
-    bool need_state_restore = !isInterpError((InterpReturn)res_interp) && rs274_interp && needs_prep(start_settings);
-    if (need_state_restore) {
+    if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
         // Do a full modal state restore as if the program had executed from line 1,
         // and insert any preparatory actions like tool changes / lead-in moves.
-        res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek, start_settings);
+        res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek, run_settings, run_initial_state);
     } else {
         // Legacy behavior that just synchs up with world without doing explicit modal state restore
         emcTaskPlanSynch();
@@ -582,7 +576,7 @@ int emcTaskPlanFinishLineSeek(StartLineSettings const &start_settings)
     if (isInterpError((InterpReturn)res_interp)) {
         print_interp_error(res_interp);
         // Can't continue here with an error
-        emcStatus->task.interpState = EMC_TASK_INTERP_WAITING;
+        emcTaskSetInterpState(EMC_TASK_INTERP_WAITING);
     }
     return res_interp;
 }
@@ -594,7 +588,7 @@ void emcTaskPlanExit()
     }
 }
 
-int emcTaskPlanOpen(const char *file)
+int emcTaskPlanOpen(const char *file, const char *working_dir)
 {
     if (emcStatus != 0) {
         emcStatus->task.motionLine = 0;
@@ -604,7 +598,7 @@ int emcTaskPlanOpen(const char *file)
         emcStatus->task.stepping_id = 0;
     }
 
-    int retval = pinterp->open(file);
+    int retval = pinterp->open(file, working_dir);
     if (retval > INTERP_MIN_ERROR) {
         print_interp_error(retval);
         return retval;
@@ -623,8 +617,8 @@ int emcTaskPlanRead()
 {
     int retval = pinterp->read();
     if (retval == INTERP_FILE_NOT_OPEN) {
-	if (emcStatus->task.file[0] != 0) {
-	    retval = pinterp->open(emcStatus->task.file);
+    if (emcStatus->task.file[0] != 0) {
+        retval = pinterp->open(emcStatus->task.file, emcStatus->task.working_dir);
 	    if (retval > INTERP_MIN_ERROR) {
 		print_interp_error(retval);
 	    }
@@ -755,6 +749,7 @@ int emcTaskUpdate(EMC_TASK_STAT * stat)
 
     char buf[LINELEN];
     strcpy(stat->file, pinterp->file(buf, LINELEN));
+    strcpy(stat->working_dir, pinterp->working_dir(buf, LINELEN));
     // command set in main
 
     if (emcStatus->task.interpState == EMC_TASK_INTERP_IDLE) {

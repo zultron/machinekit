@@ -1035,7 +1035,7 @@ int sendProgramRun(int line)
     // save the start line, to compare against active line later
     programStartLine = line;
 
-    emc_task_plan_run_msg.line = line;
+    emc_task_plan_run_msg.run_settings.start_line = line;
     emcCommandSend(emc_task_plan_run_msg);
     if (emcWaitType == EMC_WAIT_RECEIVED) {
 	return emcCommandWaitReceived();

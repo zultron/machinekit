@@ -58,7 +58,6 @@
 #include "emc/nml_intf/interp_return.hh"
 #include "emc/nml_intf/canon.hh"
 #include "emc/rs274ngc/interp_base.hh"
-#include "modal_state.hh"
 
 static char the_command[LINELEN] = { 0 };	// our current command
 static char the_command_name[LINELEN] = { 0 };	// just the name part
@@ -80,7 +79,7 @@ public:
     int execute(const char *line, CommandSource cmd_src, int line_number);
     int synch();
     int exit();
-    int open(const char *filename);
+    int open(const char *filename, const char *working_dir);
     int read();
     int read(const char *line, CommandSource cmd_src);
     int close();
@@ -90,6 +89,7 @@ public:
     int const &remap_level() const;
     char *command(char *buf, size_t buflen);
     char *file(char *buf, size_t buflen);
+    char *working_dir(char *buf, size_t buflen);
     int on_abort(int reason, const char *message);
     void active_g_codes(int active_gcodes[ACTIVE_G_CODES]);
     void active_m_codes(int active_mcodes[ACTIVE_M_CODES]);
@@ -100,9 +100,10 @@ public:
 
     void set_loglevel(int level);
     void set_loop_on_main_m99(bool state);
-    LocalToMachineTransform const &get_transform() const;
+    int write_expanded_modal_state(ExpandedModalState &initial_state) const;
     FILE *f;
     char filename[PATH_MAX];
+    char working_dir_[PATH_MAX];
 };
 
 char *Canterp::error_text(int errcode, char *buf, size_t buflen) {
@@ -686,10 +687,11 @@ int Canterp::execute() {
     return execute(nullptr, CommandSource::PROGRAM);
 }
 
-int Canterp::open(const char *newfilename) {
+int Canterp::open(const char *newfilename, const char * working_dir) {
     if(f) fclose(f);
     f = fopen(newfilename, "r");
     if(f) snprintf(filename, sizeof(filename), "%s", newfilename);
+    snprintf(working_dir_, PATH_MAX, "%s", working_dir);
     return f ? INTERP_OK : INTERP_ERROR;
 }
 
@@ -716,13 +718,20 @@ char *Canterp::line_text(char *buf, size_t bufsize) {
    return buf;
 }
 char *Canterp::file_name(char *buf, size_t bufsize) {
-   snprintf(buf, bufsize, "%s", filename);
-   return buf;
+    return file(buf, bufsize);
 }
+
 char *Canterp::file(char *buf, size_t bufsize) {
    snprintf(buf, bufsize, "%s", filename);
    return buf;
 }
+
+char * Canterp::working_dir(char * buf, size_t buflen)
+{
+   snprintf(buf, buflen, "%s", working_dir_);
+   return buf;
+}
+
 int Canterp::on_abort(int reason, const char *message)
 {
     fprintf(stderr, "Canterp::on_abort reason=%d message='%s'", reason, message);
@@ -753,10 +762,9 @@ int Canterp::active_modes(
 void Canterp::set_loglevel(int level) {}
 void Canterp::set_loop_on_main_m99(bool state) {}
 
-const LocalToMachineTransform & Canterp::get_transform() const
+int Canterp::write_expanded_modal_state(ExpandedModalState & initial_state) const
 {
-    static auto tmp = LocalToMachineTransform();
-    return tmp;
+    return 0;
 }
 
 

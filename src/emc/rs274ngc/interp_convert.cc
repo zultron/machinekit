@@ -1148,7 +1148,7 @@ int Interp::convert_param_comment(char *comment, char *expanded, int len)
     char param[LINELEN+1];
     int paramNumber;
     int stat;
-    double value;
+    double value = 0.0;
     char valbuf[VAL_LEN]; // max double length + room
     char *v;
     int found;
@@ -2562,14 +2562,15 @@ int Interp::write_modal_state(block_pointer block, setup_pointer settings)
     return write_modal_state(block, settings, settings->modal_state);
 }
 
-int Interp::write_modal_state(const block_pointer block, const setup_pointer settings, ModalState & out)
+int Interp::write_modal_state(const block_pointer block, setup_struct const *settings, ModalState & out) const
 {
     CHP(write_g_codes(block, settings, out));
     CHP(write_m_codes(block, settings, out));
     CHP(write_settings(settings, out));
     out.work_offset_number = settings->origin_index;
-    out.tool_offset_number = settings->getCurrentToolNumber();
+    out.tool_number = settings->getCurrentToolNumber();
     out.tool_offset_mode = settings->tool_offset_mode;
+    out.tool_offset_number = settings->tool_offset_number;
     out.cutter_comp = settings->cutter_comp;
     return INTERP_OK;
 }
@@ -2644,7 +2645,7 @@ int Interp::restore_settings_impl(
     // so restoring feed later on is interpreted in the correct context
 
 
-    GCodeGenerator generator(_setup.feature_set);
+    GCodeGenerator generator(_setup.feature_set, GET_EXTERNAL_AXIS_MASK());
     generator.gen_modalStateRestore(current, saved);
     RestoreCommandList const &cmd_list = generator.getCommandSequence();
 
@@ -2699,7 +2700,7 @@ int Interp::restore_from_tag(StateTag const &tag)
     write_modal_state(nullptr, &_setup);
 
     // KLUDGE also restore G92 state
-    GCodeGenerator generator(_setup.feature_set);
+    GCodeGenerator generator(_setup.feature_set, GET_EXTERNAL_AXIS_MASK());
     AxisOffsetParams axis_offset_user = GET_EXTERNAL_PERSISTENT_AXIS_OFFSET();
     generator.addLocalAxisOffsets(axis_offset_user.offset);
     if (!axis_offset_user.applied) {
@@ -2719,13 +2720,34 @@ int Interp::restore_from_tag(StateTag const &tag)
     return INTERP_OK;
 }
 
+int Interp::gen_toolOffset(GCodeGenerator &generator, GCodes tool_offset_mode, int tool_offset_number)
+{
+    switch (tool_offset_mode) {
+    case G_43:
+        generator.addToolLengthOffsetFromTable(tool_offset_number);
+        break;
+    case G_43_1:
+    case G_43_2:
+        // TODO support this if there is sufficient demand for it...
+        ERS("Cannot restore tool offset modes G43.1 / G43.2");
+        break;
+    case G_49:
+        // Do nothing, already cancelled in the modal state restore
+        break;
+    default:
+        ERS("Unknown mode %d in tool offset restore", tool_offset_mode);
+    }
+    return INTERP_OK;
+}
+
 int Interp::create_full_restore_sequence(
-    ModalState const &to_restore,
+    ExpandedModalState const &to_restore,
     RestoreCommandList & restore_cmd_list,
     InterpPreamble const &preamble,
-    StartLineSettings const &leadin_settings
+    AutoRunSettings const &run_settings,
+    ExpandedModalState const &run_initial_state
 ){
-    GCodeGenerator generator(_setup.feature_set);
+    GCodeGenerator generator(_setup.feature_set, GET_EXTERNAL_AXIS_MASK());
 
     generator.addQueueBuster("Force a drop into auto mode to process remainder of restore sequence");
 // Don't restore work / tool offset values (but parameter values will be changed...)
@@ -2743,10 +2765,12 @@ int Interp::create_full_restore_sequence(
     }
 #endif
 
-    generator.addPreformatted("G90"); // Necessary to allow absolute moves in toolchange prolog
-    generator.addPreformatted(preamble.toolchange_prolog);
-    generator.addToolChange(_setup.getCurrentToolNumber());
-    generator.addPreformatted(preamble.toolchange_epilog);
+    if (!run_settings.keep_current_tool) {
+        generator.addPreformatted("G90"); // Necessary to allow absolute moves in toolchange prolog
+        generator.addPreformatted(preamble.toolchange_prolog, "TOOLCHANGE PROLOG");
+        generator.addToolChange(_setup.getCurrentToolNumber());
+        generator.addPreformatted(preamble.toolchange_epilog, "TOOLCHANGE EPILOG");
+    }
 
     // Crude way to ensure that the "persistant" values are properly copied into stat
     // Always send the actual paramter values, then clear the offsets if need be
@@ -2758,65 +2782,52 @@ int Interp::create_full_restore_sequence(
     // NOTE: modal state was captured already in seek / read transition handler, so pull it back out here
     ModalState dummy_current{};
     // KLUDGE Don't restore toolcomp till after the queue-buster...
-    ModalState no_toolcomp = to_restore;
+    ModalState no_toolcomp = to_restore.modal_state;
     no_toolcomp.g_codes[G_CODE_CUTTER_SIDE] = G_40;
     no_toolcomp.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = G_49;
     generator.gen_modalStateRestore(dummy_current, no_toolcomp);
-    switch (to_restore.tool_offset_mode) {
-    case G_49:
-        // Do nothing, already cancelled in the modal state restore
-        break;
-    case G_43:
-        generator.addToolLengthOffsetFromTable(to_restore.tool_offset_number);
-        break;
-    case G_43_1:
-    case G_43_2:
-        // TODO support this if there is sufficient demand for it...
-        ERS("Cannot restore tool offset modes G43.1 / G43.2");
-        break;
-    default:
-        ERS("Unknown mode %d in tool offset restore", to_restore.tool_offset_mode);
-    }
+    gen_toolOffset(generator, to_restore.modal_state.tool_offset_mode, to_restore.modal_state.tool_offset_number);
 
     generator.addQueueBuster("Ensure that all state is restored before further processing to leave interp in a consistent state");
-
-    generator.addPreformatted(preamble.leadin_prolog);
-    // Assume that current tool tip position is the starting position of a lead-in move
 
     // Traverse axes are whichever axes are not used for plunging (a crude way to generalize the XY / Z behavior of canned cycles)
     AxisMask traverse_axes = ~preamble.plunge_axes;
 
-    switch (leadin_settings.prep_type) {
+    switch (run_settings.leadin_type) {
     case PREP_LINEAR_LEADIN:
     {
-        PositionArray orig_tip_position = _setup.transform.forward_local_to_tip(GET_EXTERNAL_POSITION());
-        auto desired_nose_position_with_correct_tool = leadin_settings.initial_transform.inverse_nose_from_tip(orig_tip_position);
-        PositionArray leadin_position = _setup.transform.inverse_local_from_nose(desired_nose_position_with_correct_tool);
+        generator.addPreformatted(preamble.leadin_prolog);
+        // Assume that current tool tip position is the starting position of a lead-in move
+        PositionArray leadin_position = _setup.transform.inverse_local_from_nose(
+            convertsUserToProgram().forward(run_initial_state.initial_nose_position_uu));
         // Should likely do nothing (move back to initial position after tool change)
         generator.addLinearRapidMove(leadin_position, traverse_axes);
         if (preamble.plunge_axes.any()) {
             generator.addLinearRapidMove(leadin_position, preamble.plunge_axes);
         }
-        generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp);
+        generator.addToolCompensation((GCodes)to_restore.modal_state.g_codes[G_CODE_CUTTER_SIDE], to_restore.modal_state.cutter_comp);
+        // TODO rapid to within a specified linear distance of the final position, then feed
         generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
+        generator.addPreformatted(preamble.leadin_epilog);
     }
         break;
     case PREP_PLUNGE_LEADIN:
+        generator.addPreformatted(preamble.leadin_prolog);
         // NOTE: traverse plane is either initial Z height, or whatever the toolchange / epilog leaves the plunge axes.
-        generator.addToolCompensation((GCodes)to_restore.g_codes[G_CODE_CUTTER_SIDE], to_restore.cutter_comp);
+        generator.addToolCompensation((GCodes)to_restore.modal_state.g_codes[G_CODE_CUTTER_SIDE], to_restore.modal_state.cutter_comp);
         generator.addLinearRapidMove(_setup.current, traverse_axes);
         CHKS(!preamble.plunge_axes.any(), _("No plunge axes specified, cannot do a plunge lead-in move"));
-        // TODO rapid to a "retract height" here (will save a lot of time with slow feeds)
+        // TODO rapid to a relative retract height here (will save a lot of time with slow feeds)
         generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
+        generator.addPreformatted(preamble.leadin_epilog);
         break;
     case PREP_NONE:
-        // Should never get here, so just flush out the list
-        restore_cmd_list = RestoreCommandList();
-        return 0;
+        //TODO do tool compensation after preamble epilog?
+        generator.addToolCompensation((GCodes)to_restore.modal_state.g_codes[G_CODE_CUTTER_SIDE], to_restore.modal_state.cutter_comp);
+        break;
     }
 
-    generator.addPreformatted(preamble.leadin_epilog);
-
+    generator.addPreformatted(preamble.preamble_epilog);
     restore_cmd_list = generator.getCommandSequence();
     return 0;
 }
@@ -5279,29 +5290,30 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
 
 
 int Interp::find_g43_tool_offset(
-    block_pointer block,      //!< pointer to a block of RS274/NGC instructions
+    int h_number,
+    bool h_flag,
     setup_pointer settings,
     ShiftTransform &new_tool_offset)
 {
     logDebug("convert_tool_length_offset h_flag=%d h_number=%d toolchange_flag=%d current_pocket=%d\n",
-             block->h_flag,block->h_number,settings->wait_flags.test(TOOLCHANGE),settings->current_pocket);
+             h_flag, h_number, settings->wait_flags.test(TOOLCHANGE),settings->current_pocket);
 
     int geo_offset_register = 0;
     int wear_offset_register = 0;
     if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
-        if (block->h_number < 100) { //Future change required for using tools greater than 99
-            geo_offset_register = block->h_number + 10000;
-        } else if (block->h_number < 10000) {
-            geo_offset_register = floor(block->h_number/100) + 10000;
-            wear_offset_register = block->h_number % 100;
+        if (h_number < 100) { //Future change required for using tools greater than 99
+            geo_offset_register = h_number + 10000;
+        } else if (h_number < 10000) {
+            geo_offset_register = floor(h_number/100) + 10000;
+            wear_offset_register = h_number % 100;
         }
     } else {
-        geo_offset_register = block->h_number;
+        geo_offset_register = h_number;
         wear_offset_register = 0;
     }
 
     int pocket_number;
-    if (block->h_flag) {
+    if (h_flag) {
         CHP((find_tool_pocket(settings, geo_offset_register, &pocket_number)));
     } else if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
         ERS("G43 with no H-word unsupported");
@@ -5384,18 +5396,21 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     if (g_code == G_49) {
         // Clear tool offsets, no lookup needed
         settings->current = settings->transform.swap_tool_offset(settings->current, ShiftTransform{});
+        settings->tool_offset_number = 0; // Tool "0" implies no offset
     } else if (g_code == G_43) {
         ShiftTransform new_tool_offset{};
-        CHP(find_g43_tool_offset(block, settings, new_tool_offset));
+        CHP(find_g43_tool_offset(block->h_number, block->h_flag, settings, new_tool_offset));
         settings->current = settings->transform.swap_tool_offset(settings->current, new_tool_offset);
         if (settings->tool_offset_mode == G_43_1 || settings->tool_offset_mode == G_43_2) {
             // Need queue-buster because we're switching from a custom to a table offset
             settings->wait_flags.set(TOOL_OFFSET_MODIFED);
         }
+        settings->tool_offset_number = block->h_flag ? block->h_number : settings->getCurrentToolNumber();
     } else if (g_code == G_43_1) {
         ShiftTransform modified_tool_offset(getAxisWordsFromBlock(block, settings->transform.toolOffset));
         settings->current = settings->transform.swap_tool_offset(settings->current, modified_tool_offset);
         settings->wait_flags.set(TOOL_OFFSET_MODIFED);
+        settings->tool_offset_number = -1;
     } else if (g_code == G_43_2) {
         ShiftTransform additional_tool_offset{};
         CHKS((!block->h_flag), (_("G43.2: H-word missing")));
@@ -5404,6 +5419,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
         find_tool_offset(settings, pocket_number_g43_2, additional_tool_offset);
         settings->current = settings->transform.add_tool_offset(settings->current, additional_tool_offset);
         settings->wait_flags.set(TOOL_OFFSET_MODIFED);
+        settings->tool_offset_number = -1; // Cannot describe the tool offset with a single number
     } else {
         ERS("BUG: Code not G43, G43.1, G43.2, or G49");
     }
@@ -5499,7 +5515,6 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
       STOP_SPINDLE_TURNING();
   }
 
-  
   CHANGE_TOOL(settings->selected_pocket);
 
   settings->current_pocket = settings->selected_pocket;
@@ -5507,39 +5522,16 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
   settings->wait_flags.set(TOOLCHANGE);
   set_tool_parameters();
   
-  
-  int index;
-  int geo_offset_register = 0;
-  int wear_offset_register = 0;
-  EmcPose tool_offset;
-  ZERO_EMC_POSE(tool_offset);
+  ShiftTransform new_tool_offset{};
+  CHP(find_g43_tool_offset(block->t_number, true, settings, new_tool_offset));
+  settings->tool_offset_number = block->t_number;
 
-	if (block->t_number > 99 && block->t_number<10000) {//Future change required for using tools greater than 99
-		geo_offset_register = floor(block->t_number/100) + 10000;	// geometery offset is first two digits of T call, plus 10000 offset
-		wear_offset_register = block->t_number % 100;	// wear offset is second two digits
-	} else if (block->t_number < 100) {
-		geo_offset_register = block->t_number + 10000;	// per Smit (p.404 CNC Fundamentals) geo offsets are offset by 10000
-	}
-	CHP((find_tool_pocket(settings, geo_offset_register, &index)));
-	tool_offset.tran.x = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
-	tool_offset.tran.y = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.y);
-	tool_offset.tran.z = USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
-	tool_offset.w = 0;
-	if (block->t_number > 99) { // Future change required for using tools greater than 99
-		CHP((find_tool_pocket(settings, wear_offset_register, &index)));
-		// wear offsets are stored in the actual tool value register (e.g. T1 X Z stores wear, T10001 X Z stores geo offsets)
-		tool_offset.tran.x += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.x);
-        tool_offset.tran.y += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.y);
-		tool_offset.tran.z += USER_TO_PROGRAM_LEN(settings->tool_table[index].offset.tran.z);
-		// store which wear offset is currently applied in the .w field (not using a w axis on the lathe, are we?)
-		// the USE_TOOL_LENGTH offset in cannon sets the status.task.toolOffset struct in machine time, and the GUI gets it in machine time
-		// so we can tell which offset is really in use
-		tool_offset.w = wear_offset_register;
-	}
+  USE_TOOL_LENGTH_OFFSET(toEmcPose(new_tool_offset.tf));
 
-  USE_TOOL_LENGTH_OFFSET(tool_offset);
-
-  settings->transform.toolOffset.tf = toArray(tool_offset);
+  // KLUDGE directly copying the tool offset is dangerous (ideally this should call
+  // swap_tool_offset), but this works because a synch occurs after the tool
+  // change that updates the current position based on the new tool offset.
+  settings->transform.toolOffset = new_tool_offset;
   return INTERP_OK;
 }
 

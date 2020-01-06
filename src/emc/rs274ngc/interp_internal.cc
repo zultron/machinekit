@@ -536,6 +536,16 @@ const int & Interp::remap_level() const
     return _setup.remap_level;
 }
 
+char * Interp::working_dir(char * buf, size_t len)
+{
+    if (_setup.working_dir.size() < ((size_t) len)) {
+        strcpy(buf, _setup.filename);
+    } else {
+        buf[0] = 0;
+    }
+    return buf;
+}
+
 AxisMask getUpdatedAxes(block_pointer b)
 {
     AxisMask axes_updated;

@@ -869,12 +869,13 @@ static PyObject * gen_warning_list(std::vector<std::string> const &interp_warnin
 
 #define RESULT_OK (result == INTERP_OK || result == INTERP_EXECUTE_FINISH)
 static PyObject *parse_file(PyObject *self, PyObject *args) {
-    char *f;
+    char *f = nullptr;
     char *unitcode = nullptr, *initcode=nullptr, *interpname=nullptr;
+    char *working_dir = nullptr;
     int error_line_offset = 0;
     struct timeval t0, t1;
     int wait = 1;
-    if(!PyArg_ParseTuple(args, "sO|sss", &f, &callback, &unitcode, &initcode, &interpname))
+    if(!PyArg_ParseTuple(args, "sO|ssss", &f, &callback, &unitcode, &initcode, &interpname, &working_dir))
         return nullptr;
 
     if(pinterp) {
@@ -902,7 +903,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
 
     int result = pinterp->init();
     if(!RESULT_OK) goto out_error;
-    result = pinterp->open(f);
+    result = pinterp->open(f, working_dir);
     if(!RESULT_OK) goto out_error;
 
     maybe_new_line();

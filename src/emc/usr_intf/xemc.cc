@@ -1077,7 +1077,7 @@ static int sendProgramRun(int line)
     }
   }
 
-  emc_task_plan_run_msg.line = line;
+  emc_task_plan_run_msg.run_settings.start_line = line;
   emcCommandSend(emc_task_plan_run_msg);
 
   programStartLineLast = programStartLine;

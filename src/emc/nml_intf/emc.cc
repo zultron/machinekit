@@ -1574,9 +1574,9 @@ void EMC_TASK_PLAN_RUN::update(CMS * cms)
 {
 
     EMC_TASK_CMD_MSG::update(cms);
-    cms->update(line);
-    cms->update(prep_type);
-
+    cms->update(run_settings.start_line);
+    cms->update(run_settings.leadin_type);
+    cms->update(run_settings.keep_current_tool);
 }
 
 /*
@@ -2640,10 +2640,9 @@ void EMC_TRAJ_SET_MAX_VELOCITY::update(CMS * cms)
 */
 void EMC_TASK_PLAN_OPEN::update(CMS * cms)
 {
-
     EMC_TASK_CMD_MSG::update(cms);
-    cms->update(file, 256);
-
+    cms->update(file, LINELEN);
+    cms->update(working_dir, LINELEN);
 }
 
 /*

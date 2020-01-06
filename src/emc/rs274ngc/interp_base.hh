@@ -35,6 +35,8 @@ enum class CommandSource
     PREAMBLE,
 };
 
+struct StartLineSettings;
+
 class InterpBase {
 public:
     virtual ~InterpBase();
@@ -51,7 +53,7 @@ public:
     virtual int execute(const char *line, CommandSource cmd_src, int line_number) = 0;
     virtual int synch() = 0;
     virtual int exit() = 0;
-    virtual int open(const char *filename) = 0;
+    virtual int open(const char *filename, const char *working_dir=nullptr) = 0;
     virtual int read() = 0;
     virtual int read(const char *line, CommandSource cmd_src) = 0;
     virtual int close() = 0;
@@ -61,6 +63,7 @@ public:
     virtual int const &remap_level() const = 0;
     virtual char *command(char *buf, size_t buflen) = 0;
     virtual char *file(char *buf, size_t buflen) = 0;
+    virtual char *working_dir(char *buf, size_t buflen) = 0;
     virtual int on_abort(int reason, const char *message) = 0;
     virtual void active_g_codes(int active_gcodes[ACTIVE_G_CODES]) = 0;
     virtual void active_m_codes(int active_mcodes[ACTIVE_M_CODES]) = 0;
@@ -70,7 +73,9 @@ public:
     virtual int restore_from_tag(StateTag const &tag) = 0;
     virtual void set_loglevel(int level) = 0;
     virtual void set_loop_on_main_m99(bool state) = 0;
-    virtual LocalToMachineTransform const &get_transform() const = 0;
+
+    // Start line seek methods to pull out needed state for external caching
+    virtual int write_expanded_modal_state(ExpandedModalState &initial_state) const = 0;
 };
 
 InterpBase *interp_from_shlib(const char *shlib);

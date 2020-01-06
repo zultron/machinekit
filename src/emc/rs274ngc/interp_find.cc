@@ -374,7 +374,7 @@ ShiftTransform Interp::getG92ParameterValues(setup_pointer settings)
 {
     double *axis_offset_begin = &settings->parameters[G92_X];
     const UnitsTransform user_to_program = convertsUserToProgram();
-    return user_to_program.forward(toArray(axis_offset_begin, 9));
+    return ShiftTransform(user_to_program.forward(toArray(axis_offset_begin, 9)));
 }
 
 ShiftTransform Interp::getG92ActiveOffset(setup_pointer settings)
@@ -414,7 +414,7 @@ int Interp::storeG92Applied(bool active, setup_pointer settings)
 int Interp::find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & tool_offset)
 {
   CHKS(pocket < 0 || pocket >= CANON_POCKETS_MAX, _("Invalid tool pocket number %d (must be between %d and %d"), pocket, 0, CANON_POCKETS_MAX);
-  tool_offset = convertsUserToProgram()(toArray(settings->tool_table[pocket].offset));
+  tool_offset = ShiftTransform(convertsUserToProgram()(toArray(settings->tool_table[pocket].offset)));
   return INTERP_OK;
 }
 

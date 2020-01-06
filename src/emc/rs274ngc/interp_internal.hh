@@ -348,14 +348,6 @@ and is not represented here
 
 using ParameterArray = std::array<double, interp_param_global::RS274NGC_MAX_PARAMETERS>;
 
-struct StartLineSettings
-{
-    int start_line; //!< line in main program where user wants to start
-    RunPrepType prep_type; //!< Controls preparation / lead-in behavior when not starting from the beginning of the program
-    LocalToMachineTransform initial_transform;
-    //PositionArray position; //!< For custom lead-in, specify the start position of the lead-in move.
-};
-
 // Use a namespace / anonymous enum rather than enum class to allow implicit conversion to size_t for bitset
 namespace WaitFlag {
 enum {
@@ -380,6 +372,7 @@ struct InterpPreamble
     std::string toolchange_epilog;
     std::string leadin_prolog;
     std::string leadin_epilog;
+    std::string preamble_epilog; //!< Called after everything else,
     AxisMask plunge_axes; //!< Used to plunge towards the work / lead-in position after traverse axes are in position
 };
 
@@ -437,6 +430,7 @@ struct setup_struct
   bool feed_override;         // whether feed override is enabled
   double feed_rate;             // feed rate in current units/min
   char filename[PATH_MAX];      // name of currently open NC code file
+  std::string working_dir;
   FILE *file_pointer;           // file pointer for open NC code file
   bool flood;                 // whether flood coolant is on
   CANON_UNITS length_units;     // millimeters or inches
@@ -465,7 +459,8 @@ struct setup_struct
   int random_toolchanger;       // tool changer swaps pockets, and pocket 0 is the spindle instead of "no tool"
   int selected_pocket;          // tool slot selected but not active
     int selected_tool;          // start switchover to pocket-agnostic interp
-    GCodes tool_offset_mode;
+    GCodes tool_offset_mode;    // Modal state that last altered the offset (e.g. G43, G43.1, G43.2, G49)
+    int tool_offset_number;     // Number of tool offset used (may not be the same as the current tool)
   int sequence_number;          // sequence number of line last read
   int stepping_id;              // tag value used to control stepping
   double speed;                 // current spindle speed in rpm or SxM
@@ -502,7 +497,7 @@ struct setup_struct
   int debugmask;                     // from ini  EMC/DEBUG
   char log_file[PATH_MAX];
   char program_prefix[PATH_MAX];            // program directory
-  const char *subroutines[MAX_SUB_DIRS];  // subroutines directories
+  std::vector<const char *> subroutines;
   int use_lazy_close;                // wait until next open before closing
                                      // the input file
   int lazy_closing;                  // close has been called

@@ -22,7 +22,7 @@ struct ShiftTransform : public TransformBase
     PositionArray tf;
 
     ShiftTransform();
-    ShiftTransform(PositionArray const &pos);
+    explicit ShiftTransform(PositionArray const &pos);
 
     PositionArray::value_type &operator[](PositionArrayIndex idx);
     PositionArray::value_type const &operator[](PositionArrayIndex idx) const;
@@ -66,6 +66,9 @@ struct UnitsTransform : public TransformBase
 
     void apply_fwd(PositionArray &p) const;
     void apply_inv(PositionArray &p) const;
+
+    ShiftTransform forward_tf(ShiftTransform const &p) const;
+    ShiftTransform inverse_tf(ShiftTransform const &p) const;
 
     UnitsTransform &invert_scale();
 };

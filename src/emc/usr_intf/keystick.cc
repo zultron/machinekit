@@ -2774,7 +2774,7 @@ int main(int argc, char *argv[])
                   strcpy(task_plan_open_msg.file, programFile);
                   emcCommandSend(task_plan_open_msg);
                 }
-              task_plan_run_msg.line = 0;
+              task_plan_run_msg.run_settings.start_line = 0;
               emcCommandSend(task_plan_run_msg);
               programOpened = 0;
             }

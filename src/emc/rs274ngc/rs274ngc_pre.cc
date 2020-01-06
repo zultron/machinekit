@@ -97,6 +97,7 @@ include an option for suppressing superfluous commands.
 #include "interp_tolerances.hh"
 #include "interp_queue.hh"
 #include "rs274ngc_interp.hh"
+#include "gcodegenerator.hh"
 
 #include "units.h"
 #include "modal_state.hh"
@@ -291,7 +292,7 @@ Interp::~Interp() {
 }
 
 void Interp::doLog(unsigned int flags, const char *file, int line,
-		   const char *fmt, ...)
+           const char *fmt, ...) const
 {
     struct timeval tv;
     struct tm *tm;
@@ -1011,6 +1012,7 @@ int Interp::load_interp_preamble(IniFile &inifile)
     preamble.toolchange_epilog = finds_preamble_str("TOOLCHANGE_EPILOG");
     preamble.leadin_prolog = finds_preamble_str("LEADIN_PROLOG");
     preamble.leadin_epilog = finds_preamble_str("LEADIN_EPILOG");
+    preamble.preamble_epilog = finds_preamble_str("PREAMBLE_EPILOG");
 
     // Map leadin move types to internal type
     std::string entry_type_str = to_lower(finds_preamble_str("LEADIN_MOVE_TYPE"));
@@ -1188,6 +1190,12 @@ int Interp::init()
       logDebug("_setup.program_prefix:%s:", _setup.program_prefix);
 
 
+      // Set up search path for subroutines by inserting additional prefixes
+      _setup.subroutines.clear();
+      if (_setup.program_prefix) {
+          _setup.subroutines.push_back(strstore(_setup.program_prefix));
+      }
+
       if(nullptr != (inistring = inifile.Find("SUBROUTINE_PATH", "RS274NGC")))
       {
         // found it
@@ -1195,9 +1203,6 @@ int Interp::init()
         char* nextdir;
         char tmpdirs[PATH_MAX+1];
 
-        for (dct=0; dct < MAX_SUB_DIRS; dct++) {
-          _setup.subroutines[dct] = nullptr;
-        }
 
         strcpy(tmpdirs,inistring);
         nextdir = strtok(tmpdirs,":");  // first token
@@ -1211,10 +1216,9 @@ int Interp::init()
           if (realpath(expandnextdir, tmp_path) == nullptr){
             //realpath didn't find the directory
             logDebug("realpath failed to find subroutines[%d]:%s:",dct,nextdir);
-            _setup.subroutines[dct] = nullptr;
           } else {
-            _setup.subroutines[dct] = strstore(tmp_path);
-            logDebug("program prefix[%d]:%s",dct,_setup.subroutines[dct]);
+              _setup.subroutines.push_back(strstore(tmp_path));
+              logDebug("program prefix[%d]:%s",dct,_setup.subroutines.back());
             dct++;
           }
           if (dct >= MAX_SUB_DIRS) {
@@ -1510,11 +1514,14 @@ void Interp::set_loop_on_main_m99(bool state) {
     _setup.loop_on_main_m99 = state;
 }
 
-const LocalToMachineTransform & Interp::get_transform() const
+int Interp::write_expanded_modal_state(ExpandedModalState & initial_state) const
 {
-    return _setup.transform;
+    auto initial_nose_prog = _setup.transform.forward_local_to_nose(GET_EXTERNAL_POSITION());
+    initial_state.initial_nose_position_uu = convertsProgramToUser().forward(initial_nose_prog);
+    initial_state.tool_offset_uu = convertsProgramToUser().forward_tf(_setup.transform.toolOffset);
+    write_modal_state(nullptr, &_setup, initial_state.modal_state);
+    return INTERP_OK;
 }
-
 
 /***********************************************************************/
 
@@ -1620,7 +1627,7 @@ file.
 
 */
 
-int Interp::open(const char *filename) //!< string: the name of the input NC-program file
+int Interp::open(const char *filename, const char *working_dir) //!< string: the name of the input NC-program file
 {
     char *line;
     int index;
@@ -1632,6 +1639,9 @@ int Interp::open(const char *filename) //!< string: the name of the input NC-pro
         close();
         _setup.use_lazy_close = 1;
         _setup.lazy_closing = 0;
+    }
+    if (working_dir) {
+        _setup.working_dir=working_dir;
     }
 
     CHKS((_setup.file_pointer), NCE_A_FILE_IS_ALREADY_OPEN);
@@ -2515,13 +2525,23 @@ int Interp::synch()
  * @param[out] seek_state Cached modal state from interp, basically what interp
  * would look like if it had run the program from line 1.
  */
-int Interp::cbBeforeSeekReadTransition(ModalState &seek_state)
+int Interp::cbBeforeSeekReadTransition(AutoRunSettings const &start_settings, ExpandedModalState const &run_initial_state, ExpandedModalState &seek_state)
 {
     // Before transitioning to read-ahead, write out modal state of what interp thinks it should be
-    CHP(write_modal_state(nullptr, &_setup, seek_state));
+    CHP(write_expanded_modal_state(seek_state));
     // Cancel tool comp temporarily so that we can do startup activities like tool changes
     // Note that any queued moves will be discarded here (all we need is the end point)
-    CHP(execute("G40", CommandSource::PREAMBLE));
+    GCodeGenerator generator(_setup.feature_set, GET_EXTERNAL_AXIS_MASK());
+    generator.cancelToolCompensation();
+    if (start_settings.keep_current_tool) {
+        generator.addToolChange(run_initial_state.modal_state.tool_number);
+        CHP(gen_toolOffset(generator, run_initial_state.modal_state.tool_offset_mode, run_initial_state.modal_state.tool_offset_number));
+    }
+    for (auto const &l : generator.getCommandSequence()) {
+        // NOTE: this is not part of the preamble because it's just cleaning up the modal state of interp,
+        // not actually sending anything out to the rest of the system
+        CHP(execute(l.c_str(), CommandSource::MODAL_STATE_RESTORE)); // does NOT use the special PREAMBLE mode that treats an explicit command like part of auto
+    }
     return INTERP_OK;
 }
 
@@ -2531,7 +2551,10 @@ int Interp::cbBeforeSeekReadTransition(ModalState &seek_state)
  * world (like canon / motion). The system needs to be as close as possible to
  * what it would be, had it executed the program from the first line.
  */
-int Interp::cbAfterSeekReadTransition(ModalState const &to_restore, StartLineSettings const &leadin_settings)
+int Interp::cbAfterSeekReadTransition(
+    ExpandedModalState const &to_restore,
+    AutoRunSettings const &start_settings,
+    ExpandedModalState const &run_initial_state)
 {
     RestoreCommandList restore_cmd_list;
 
@@ -2539,10 +2562,24 @@ int Interp::cbAfterSeekReadTransition(ModalState const &to_restore, StartLineSet
         to_restore,
         restore_cmd_list,
         _setup.default_seek_preamble,
-        leadin_settings));
+        start_settings,
+        run_initial_state));
     {
         char tmp_file_path[PATH_MAX+LINELEN] = {};
-        snprintf(tmp_file_path, PATH_MAX+LINELEN, "%s/%s.ngc", _setup.program_prefix ?: ".", STATE_RESTORE_SUBROUTINE_NAME);
+        if (_setup.program_prefix && _setup.program_prefix[0]) {
+        snprintf(
+            tmp_file_path,
+            PATH_MAX+LINELEN,
+            "%s/%s.ngc",
+            _setup.program_prefix,
+            STATE_RESTORE_SUBROUTINE_NAME);
+        } else {
+            snprintf(
+                tmp_file_path,
+                PATH_MAX+LINELEN,
+                "%s.ngc",
+                STATE_RESTORE_SUBROUTINE_NAME);
+        }
         std::ofstream f_tmp(tmp_file_path);
 
         // Wrap the command list in a subroutine
@@ -2560,6 +2597,9 @@ int Interp::cbAfterSeekReadTransition(ModalState const &to_restore, StartLineSet
     {
         char restore_cmd[LINELEN] = {};
         snprintf(restore_cmd, LINELEN, "o<%s> call", STATE_RESTORE_SUBROUTINE_NAME);
+        // NOTE: PREAMBLE is special here. It forces execute to treat the
+        // restore command as if it was part of the original program,
+        // effectively injecting G-code into the program
         CHP(execute(restore_cmd, CommandSource::PREAMBLE));
     }
     // TODO make sure the return point is right
@@ -2720,7 +2760,8 @@ int Interp::active_modes(ModalState &active_state,
     settings[1] = tag.feed;
     settings[2] = tag.speed;
 
-    active_state.tool_offset_number = tag.fields[GM_FIELD_TOOL_NUMBER];
+    active_state.tool_offset_number = tag.fields[GM_FIELD_TOOL_OFFSET_NUMBER];
+    // Don't need the tool number here because tool change is a queue buster
     return INTERP_OK;
 }
 
@@ -3223,81 +3264,99 @@ int Interp::on_abort(int reason, const char *message)
     return status;
 }
 
-// spun out from interp_o_word so we can use it to test ngc file accessibility during
-// config file parsing (REMAP... ngc=<basename>)
-// in each directory first look for basename.ngc and if not there then try basename.nc
-FILE *Interp::find_ngc_file(setup_pointer settings,const char *basename, char *foundhere )
+static constexpr const std::array<const char *, 2> _gcode_file_extensions =
 {
-    FILE *newFP;
-    char tmpFileName[PATH_MAX+1];
+    "ngc",
+    "nc",
+};
+
+FILE* Interp::try_load_subroutine_from_path(const char *basename, const char *sub_directory, char *file_path)
+{
+    char try_file[PATH_MAX]="";
+    int name_start = 0;
+    if (sub_directory && sub_directory[0]) {
+        name_start = snprintf(try_file, PATH_MAX, "%s/", sub_directory);
+    }
+
+    int remaining_buf = std::max((int)sizeof(try_file) - name_start, 0);
+    for (auto extension : _gcode_file_extensions) {
+        snprintf(try_file + name_start, remaining_buf, "%s.%s", basename, extension);
+        if (FILE* f = fopen(try_file, "r")) {
+            if (file_path) {
+                strcpy(file_path, try_file);
+            }
+            return f;
+        }
+    }
+    if (file_path) {
+        file_path[0]='\0';
+    }
+    return nullptr;
+}
+
+std::string get_path_basename(const std::string &full_path)
+{
+    size_t found = full_path.find_last_of("/");
+    if (found == std::string::npos) {
+        return "";
+    }
+    return full_path.substr(0,found);
+}
+
+/**
+ * Finds the NGC file with the given base name (and any of the allowed extensions).
+ * @note file extensions are searched in the order specified in the _gcode_file_extensions array.
+ * @return an open file handle if it's found, or nullptr
+ */
+FILE *Interp::find_ngc_file(
+    setup_pointer settings,
+    const char *basename, //!< Specified the stem of the NGC filename to find (i.e. no extension)
+    char *foundhere //!< Assumed to be at least PATH_MAX (if not null), populated with the NGC file name if found
+){
+    // First, look at the current program path / working directory and see if subroutines are there
+    std::string current_loaded_program_path = _setup.working_dir.empty()
+                                                  ? get_path_basename(_setup.filename)
+                                                  : _setup.working_dir;
+    if (FILE *newFP = try_load_subroutine_from_path(basename, current_loaded_program_path.c_str(), foundhere)) {
+        return newFP;
+    }
+
+    // Then, try looking in the subroutine path (in order)
+    for (auto const & sub_dir : settings->subroutines) {
+        if (FILE* f_from_searchpath = try_load_subroutine_from_path(basename, sub_dir, foundhere)) {
+            return f_from_searchpath;
+        }
+    }
+
+    // Finally, search the "wizard" tree
+    FILE *newFP=nullptr;
     char newFileName[PATH_MAX+1];
-    char foundPlace[PATH_MAX+1];
-    int  dct;
+    if (settings->wizard_root) {
+        int ret;
+        char tmpFileName[PATH_MAX+1];
+        char foundPlace[PATH_MAX+1];
+        // look for .ngc extension first
+        sprintf(tmpFileName, "%s.ngc", basename);
+        ret = findFile(settings->wizard_root, tmpFileName, foundPlace);
 
-    // look for a new file
-    // look for .ngc extension first
-    sprintf(tmpFileName, "%s.ngc", basename);
-
-    // find subroutine by search: program_prefix, subroutines, wizard_root
-    // use first file found
-
-    // first look in the program_prefix place
-    sprintf(newFileName, "%s/%s", settings->program_prefix, tmpFileName);
-    newFP = fopen(newFileName, "r");
-    if (!newFP) {
-        // .ngc not found try .nc extension
-        sprintf(tmpFileName, "%s.nc", basename);
-        newFP = fopen(newFileName, "r");
-    }
-
-    // then look in the subroutines place
-    if (!newFP) {
-	for (dct = 0; dct < MAX_SUB_DIRS; dct++) {
-	    if (!settings->subroutines[dct])
-		continue;
-	    // try .ngc first
-	    sprintf(tmpFileName, "%s.ngc", basename);
-	    sprintf(newFileName, "%s/%s", settings->subroutines[dct], tmpFileName);
-	    newFP = fopen(newFileName, "r");
-	    if (newFP) {
-		// logOword("fopen: |%s|", newFileName);
-		break; // use first occurrence in dir search
-	    }
-	    // .ngc not found try .nc extension
-            sprintf(tmpFileName, "%s.nc", basename);
-            sprintf(newFileName, "%s/%s", settings->subroutines[dct], tmpFileName);
+        if (INTERP_OK == ret) {
+            sprintf(newFileName, "%s/%s", foundPlace, tmpFileName);
             newFP = fopen(newFileName, "r");
-	    if (newFP) {
-		// logOword("fopen: |%s|", newFileName);
-		break; // use first occurrence in dir search
-	    }
-	}
-    }
-    // if not found, search the wizard tree
-    if (!newFP) {
-	int ret;
-	// look for .ngc extension first
-	sprintf(tmpFileName, "%s.ngc", basename);
-	ret = findFile(settings->wizard_root, tmpFileName, foundPlace);
-
-	if (INTERP_OK == ret) {
-	    sprintf(newFileName, "%s/%s", foundPlace, tmpFileName);
-	    newFP = fopen(newFileName, "r");
-	}
-	else {
-	    // .ngc not found try .nc extension
-	    sprintf(tmpFileName, "%s.nc", basename);
-	    ret = findFile(settings->wizard_root, tmpFileName, foundPlace);
-	    if (INTERP_OK == ret) {
-	        // create the long name
+        }
+        else {
+            // .ngc not found try .nc extension
+            sprintf(tmpFileName, "%s.nc", basename);
+            ret = findFile(settings->wizard_root, tmpFileName, foundPlace);
+            if (INTERP_OK == ret) {
+                // create the long name
                 sprintf(newFileName, "%s/%s", foundPlace, tmpFileName);
                 newFP = fopen(newFileName, "r");
-	    }
-	}
+            }
+        }
     }
 
     if (foundhere && newFP)
-       strcpy(foundhere, newFileName);
+        strcpy(foundhere, newFileName);
 
     return newFP;
 }
@@ -3325,7 +3384,7 @@ void context_struct::clear()
     new (this) context_struct();
 }
 
-bool toolOffsetActive(setup_pointer s)
+bool toolOffsetActive(const setup_struct * s)
 {
     return isNonzero(s->transform.toolOffset.tf) ;
 }
