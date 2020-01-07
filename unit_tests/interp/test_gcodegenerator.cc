@@ -29,7 +29,7 @@ SCENARIO("Generate G-code from a modal state list")
     {
         THEN("G-code restore should produce equivalent G-code")
         {
-            GCodeGenerator gen(features);
+            GCodeGenerator gen(features, AxisMask(15));
             gen.addModalStateGCodes(current, saved);
             std::string out = gen.getCommandSequenceAsString();
 
