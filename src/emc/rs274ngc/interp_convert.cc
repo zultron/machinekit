@@ -2768,6 +2768,7 @@ int Interp::restore_settings(
         char buf[LINELEN];
         snprintf(buf, sizeof(buf), "G%d\n",
                  settings->sub_context[from_level].modal_state.g_codes[G_CODE_UNITS]/10);
+        cmd+=buf;
     }
     gen_m_codes(settings->modal_state.m_codes, settings->sub_context[from_level].modal_state.m_codes,cmd);
     gen_g_codes(settings->modal_state.g_codes, settings->sub_context[from_level].modal_state.g_codes,
