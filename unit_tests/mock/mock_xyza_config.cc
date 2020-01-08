@@ -1,6 +1,7 @@
 #include "mock_xyza_config.hh"
 #include "emc_nml.hh"
 #include "emc_statics.hh"
+#include "emc.hh"
 
 void setup_xyza_config()
 {
@@ -21,4 +22,13 @@ void setup_xyza_config()
     emcStatus->io.tool.toolTable[0].toolno = 1;
     emcStatus->io.tool.toolTable[1].toolno = 2;
     emcStatus->io.tool.toolTable[2].toolno = 3;
+
+    // KLUDGE force emcglobals to have reasonable values for axis kinematic limits
+    // TODO set these in a more standard way for tests that require specific values
+    axis_max_velocity[X] = 2.0;
+    axis_max_velocity[Y] = 2.0;
+    axis_max_velocity[Z] = 1.5;
+    axis_max_acceleration[X] = 15.0;
+    axis_max_acceleration[Y] = 15.0;
+    axis_max_acceleration[Z] = 10.0;
 }

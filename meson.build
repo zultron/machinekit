@@ -447,7 +447,7 @@ libmock_emcglb_dep = declare_dependency(include_directories : [mock_inc],
 libmock_stat_config = library('mock_stat_config',
   [mock_stat_config_srcs],
   include_directories : common_mock_inc,
-  dependencies : [libnml_dep, libposemath_dep, librs274ngc_dep, libinterp_shared_dep, libut_emccanon_dep, libnml_interp_list_dep]
+  dependencies : [libnml_dep, libposemath_dep, librs274ngc_dep, libinterp_shared_dep, libut_emccanon_dep, libnml_interp_list_dep, libmock_emcglb_dep]
 )
 
 libmock_stat_config_dep = declare_dependency(include_directories : [mock_inc],
