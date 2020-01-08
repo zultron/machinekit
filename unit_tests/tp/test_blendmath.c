@@ -222,7 +222,6 @@ static const double SMALL_VELOCITY = 1e-12;
 TEST checkEndCondition_zero_velocity()
 {
     EndCondition ec_zero = checkEndCondition(cycle_time,
-                                   0.0,
                                    target_dist_mock,
                                    0.0,
                                    0.0,
@@ -232,7 +231,6 @@ TEST checkEndCondition_zero_velocity()
     ASSERT(ec_zero.dt >= cycle_time);
 
     EndCondition ec_small = checkEndCondition(cycle_time,
-                                   0.0,
                                    target_dist_mock,
                                    SMALL_VELOCITY,
                                    0.0,
@@ -245,17 +243,16 @@ TEST checkEndCondition_zero_velocity()
 TEST checkEndCondition_small_velocity()
 {
     EndCondition ec_small_close = checkEndCondition(cycle_time,
-                                   target_dist_mock - SMALL_VELOCITY*cycle_time / 2.0,
-                                   target_dist_mock,
+                                   SMALL_VELOCITY*cycle_time / 4.0,
                                    SMALL_VELOCITY,
                                    0.0,
                                    a_max_mock
                                    );
+    printf("Found dt %f\n", ec_small_close.dt);
     ASSERT(ec_small_close.dt < cycle_time);
 
     EndCondition ec_small_far = checkEndCondition(cycle_time,
-                                   target_dist_mock - SMALL_VELOCITY*cycle_time * 2.0,
-                                   target_dist_mock,
+                                   SMALL_VELOCITY*cycle_time * 2.0,
                                    SMALL_VELOCITY,
                                    0.0,
                                    a_max_mock
@@ -270,8 +267,7 @@ TEST checkEndCondition_at_velocity()
 {
     double v_final = 1.0;
     EndCondition ec_close = checkEndCondition(cycle_time,
-                                   target_dist_mock - 0.001 + SMALL_DISTANCE,
-                                   target_dist_mock,
+                                   0.001 - SMALL_DISTANCE,
                                    v_final,
                                    v_final,
                                    a_max_mock
@@ -280,8 +276,7 @@ TEST checkEndCondition_at_velocity()
     ASSERT_IN_RANGEm("final velocity", ec_close.v_f, v_final - DOUBLE_FUZZ, v_final + DOUBLE_FUZZ);
 
     EndCondition ec_far = checkEndCondition(cycle_time,
-                                   target_dist_mock - 0.001 - SMALL_DISTANCE,
-                                   target_dist_mock,
+                                   0.001 + SMALL_DISTANCE,
                                    v_final,
                                    v_final,
                                    a_max_mock
@@ -298,8 +293,7 @@ TEST checkEndCondition_below_vf_close()
     const double nominal_cycle_dist = v_current * cycle_time;
 
     EndCondition ec = checkEndCondition(cycle_time,
-                                   target_dist_mock - nominal_cycle_dist,
-                                   target_dist_mock,
+                                   nominal_cycle_dist,
                                    v_current,
                                    v_final,
                                    a_max_mock
@@ -316,8 +310,7 @@ TEST checkEndCondition_below_vf_far()
     const double nominal_cycle_dist = v_current * cycle_time;
 
     EndCondition ec = checkEndCondition(cycle_time,
-                                   target_dist_mock - 4*nominal_cycle_dist,
-                                   target_dist_mock,
+                                   4.0*nominal_cycle_dist,
                                    v_current,
                                    v_final,
                                    a_max_mock
@@ -333,7 +326,6 @@ TEST checkEndCondition_above_vf_far()
     const double v_current = v_max_mock;
 
     EndCondition ec = checkEndCondition(cycle_time,
-                                              0.0,
                                               target_dist_mock,
                                               v_current,
                                               v_final,
@@ -352,8 +344,7 @@ TEST checkEndCondition_above_vf_close()
     const double nominal_cycle_dist = (v_current + v_final) / 2.0 * cycle_time;
 
     EndCondition ec = checkEndCondition(cycle_time,
-                                              target_dist_mock - nominal_cycle_dist,
-                                              target_dist_mock,
+                                              nominal_cycle_dist,
                                               v_current,
                                               v_final,
                                               a_max_mock
