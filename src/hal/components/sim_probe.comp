@@ -71,7 +71,7 @@ FUNCTION(_) {
         // boss
         // distance between centers must be less than or equal to the sum of the radii
         out = (enable &&
-              ((distance_between_centers + tip_radius) <= w/2) &&
+              ((distance_between_centers) <= (w/2 + tip_radius)) &&
               z_in_minus_offset <= z);
               // (distance_between_centers <= (w + tip_radius) &&
       }
