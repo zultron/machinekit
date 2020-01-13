@@ -431,6 +431,7 @@ function _ "Tormach Spindle HAL Component M200";
 // this avoids false positive at-speed from power on noise burst from VFD
 #define AT_SPEED_DEBOUNCE_SECS 0.100
 #define AT_SPEED_FORCE_DELAY_SECS 10.0  //This is the delay before forcing at-speed to be true, when at-speed-force is true
+#define AT_SPEED_DEBOUNCE_ENCODER_TEST_Z  (2.1) //at-speed debounce when running ENCODER_TEST_Z.  WAG at least 2 secs, plus some hang time. We only update speed-out once per sec during ENCODER_TEST_Z, so must be >1.0+ sec for sure
 
 /////// SPINDLE Errors as reported on 'm200.spindle-error pin  KEEP in sync with python/constants.py
 #define M200_COMP_VERSION (9)   //keep advancing this number whenever changing or adding SPINDLE_FAULT_* defines to prevent PP GUI sync issues with this component.  Version here doesn't have any linkage to PP versions, or anything else.
@@ -495,7 +496,8 @@ function _ "Tormach Spindle HAL Component M200";
 #define ENCODER_TEST_OFF    (0) 
 #define ENCODER_TEST_IDLE   (1) // Flush Encoder states and errors
 #define ENCODER_TEST_AB     (2) // Spindle Encoder test active: testing A/B encoder phases (direction and activity and correct rate of encoder counts)
-#define ENCODER_TEST_Z      (3) // Spindle Encoder test active: testing encoder's Z index operation (look for encoder counts to reset every rev)
+#define ENCODER_TEST_Z      (3) // Spindle Encoder test active: testing encoder's Z index operation (look for encoder counts to reset every rev) This test is meant to be run at highest spindle speed
+                                // AT_SPEED_DEBOUNCE_ENCODER_TEST_Z is used for at-speed debounce time when running ENCODER_TEST_Z
 #define ENCODER_TEST_ORIENT (4) // Spindle Encoder test active: testing encoder's orient functionality  
 
 #define WRONG_DIR_FWD   (1)
@@ -1509,15 +1511,12 @@ static float last_speed_in = 0.0;
 
         if(encoder_test_ztimer <= 0.0) { //if timer times out (or never yet run)
             encoder_test_ztimer = 1.0; //sample each sec
-//SLP9 based on RPM commanded, verify encoder_test_zcount is correct
-//if less than or equal to 60 RPM commanded, then don't clear encoder_test_count and compute time it will take between each zindex pulse
-
-            if ((encoder_test_zcount - encoder_test_zcount_last)<=1)    //detect hand movement
-                encoder_test_zspeed_out = encoder_test_zcount; //no math, spindle DRO reads z index counts
-            else { //spindle is rotating at greater than 120 RPM
-                encoder_test_zspeed_out = encoder_test_zcount * 60;
-                encoder_test_zcount = 0;
-            }
+        //RPM commanded, verify encoder_test_zcount is correct
+        //this assumes more than 60 RPM (1 RPS) commanded, as we then don't clear encoder_test_count and compute time it will take between each zindex pulse
+        //presently, encoder_test==ENCODER_TEST_Z assumes we're running at max RPM
+            
+            encoder_test_zspeed_out = encoder_test_zcount * 60;
+            encoder_test_zcount = 0;
 
             if(encoder_test_zcount >= 99999) //reset raw count not that anyone would get here, and at 10K RPM we can't get here anyway
                 encoder_test_zcount = 0;
@@ -1536,9 +1535,10 @@ static float last_speed_in = 0.0;
             encoder_test_zspeed_out = 0; 
         }
 
-        if (spindle_on && fabs(speed_in) > 1.0 && is_close_enough(fabs(speed_out), iabs(speed_in), .03)) { //anything within 3% is OK SLP magic number
+        //if we're moving and we're in the upper boundary for step_tol_above, then we can set at-speed
+        if (spindle_on && fabs(speed_in) >= step_speed && is_close_enough(fabs(speed_out), iabs(speed_in), step_tol_above/100)) { 
             at_speed_debounce += the_period;
-            if (at_speed_debounce > 2.1 ) //SLP fix magic number
+            if (at_speed_debounce > AT_SPEED_DEBOUNCE_ENCODER_TEST_Z ) 
                 at_speed = BIT_TRUE;
             else at_speed = BIT_FALSE;
         }
@@ -1641,6 +1641,7 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
 
 
     // set min and max speed from belt position
+    // TODO: with one exception, ENCODER_TEST_Z, we don't use min_speed and max_speed in this m200.comp.  Do we care? Are there external consumers?
     // we default or assume hi belt except when HI speed spindle
     if (belt_position != BELT_POSITION_LOW) { //default HI belt unknowns, too
         spindle_pulley_ratio =  highbelt_ratio;
