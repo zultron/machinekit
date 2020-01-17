@@ -105,6 +105,8 @@ int tpCalculateRampAccel(TP_STRUCT const * const tp,
                          double * const acc,
                          double * const vel_desired);
 
+double estimate_rigidtap_decel_distance(double vel, double uu_per_rev);
+
 void tpUpdateRigidTapState(
     TP_STRUCT * const tp,
     TC_STRUCT * const tc,

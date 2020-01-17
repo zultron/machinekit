@@ -1443,7 +1443,7 @@ void clearBlendStructs()
     memset(&blend_tc2, 0, sizeof(TC_STRUCT));
 }
 
-static void addRigidTapOverrun(TC_STRUCT * const tc, double revolutions)
+static void addRigidTapOverrun(TC_STRUCT * const tc, double revolutions, double uu_per_rev)
 {
     PmCartLine *actual_xyz = &tc->coords.rigidtap.actual_xyz;
     pmCartLineStretch(actual_xyz, actual_xyz->tmag + revolutions * tc->uu_per_rev, 0);
@@ -1511,9 +1511,8 @@ int tpAddRigidTap(
             &end,
             scale);
 
-    addRigidTapOverrun(&tc, RIGIDTAP_MAX_OVERSHOOT_REVS);
+    addRigidTapOverrun(&tc, RIGIDTAP_MAX_OVERSHOOT_REVS, tc.coords.rigidtap.tap_uu_per_rev);
 
-    tc.target = tc.coords.rigidtap.actual_xyz.tmag;
 
     return tpFinalizeAndEnqueue(tp, &tc);
 }
@@ -2428,6 +2427,11 @@ static inline void reverseRigidTapMotion(TC_STRUCT * const tc,
     tc->progress = 0.0;
 }
 
+double estimate_rigidtap_decel_distance(double vel, double uu_per_rev)
+{
+    return emcmotStatus->spindle_max_acceleration_rps2 > 0.0 ? pmSq(vel) / (2.0 * uu_per_rev * emcmotStatus->spindle_max_acceleration_rps2) : 0.0;
+}
+
 /**
  * Handle special cases for rigid tapping.
  * This function deals with updating the goal position and spindle position
@@ -2441,33 +2445,36 @@ void tpUpdateRigidTapState(
 {
     static double old_spindle_pos = 0.0;
     double spindle_pos = emcmotStatus->spindle_fb.position_rev;
-
-    double cmd_latency_dist = tc->currentvel * emcmotStatus->spindle_cmd_latency_sec;
-    double decel_distance = emcmotStatus->spindle_max_acceleration_rps2 > 0.0 ? pmSq(tc->currentvel) / (2.0 * tc->uu_per_rev * emcmotStatus->spindle_max_acceleration_rps2) : 0.0;
-    double reversal_target = bound(tc->coords.rigidtap.reversal_target - cmd_latency_dist - decel_distance,
-                                   tc->coords.rigidtap.reversal_target,
-                                   0.0);
+    static double retract_allowance = 0.0;
 
     rigid_tap_state_t const initial_state = tc->coords.rigidtap.state;
     switch (initial_state) {
         case RIGIDTAP_INACTIVE:
             return;
         case RIGIDTAP_TAPPING:
+        {
             tc->uu_per_rev = tc->coords.rigidtap.tap_uu_per_rev;
+            double decel_distance = estimate_rigidtap_decel_distance(tc->currentvel, tc->uu_per_rev);
+            double cmd_latency_dist = tc->currentvel * emcmotStatus->spindle_cmd_latency_sec;
+            double reversal_target = bound(tc->coords.rigidtap.reversal_target - cmd_latency_dist - decel_distance,
+                                           tc->coords.rigidtap.reversal_target,
+                                           0.0);
             if (tc->progress >= reversal_target) {
                 // command reversal to stop / reverse at the bottom of the hole
                 emcmotStatus->rigid_tap_reversal_vel_rps = emcmotStatus->spindle_fb.velocity_rps;
                 cmdReverseSpindle(tc->coords.rigidtap.reversal_scale);
                 tc->coords.rigidtap.state = RIGIDTAP_REVERSING;
+                retract_allowance = estimate_rigidtap_decel_distance(tc->currentvel, tc->coords.rigidtap.retract_uu_per_rev);
             }
             break;
+        }
         case RIGIDTAP_REVERSING:
             if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
                 emcmotStatus->rigid_tap_overshoot = tc->progress - tc->coords.rigidtap.reversal_target;
                 reverseRigidTapMotion(tc, &tp->spindle.origin, spindle_pos);
-                double expected_reversal_overshoot = fmax(decel_distance / tc->uu_per_rev, 0);
+                double expected_reversal_overshoot = fmax(retract_allowance / tc->coords.rigidtap.retract_uu_per_rev, 0);
                 // Anticipate the overshoot at the top and add a safety factor for spindle uncertainty
-                addRigidTapOverrun(tc, RIGIDTAP_MAX_OVERSHOOT_REVS + expected_reversal_overshoot);
+                addRigidTapOverrun(tc, RIGIDTAP_MAX_OVERSHOOT_REVS + expected_reversal_overshoot, tc->coords.rigidtap.retract_uu_per_rev);
                 tc->coords.rigidtap.state = RIGIDTAP_RETRACTION;
                 tc->uu_per_rev = tc->coords.rigidtap.retract_uu_per_rev;
             }
@@ -2477,6 +2484,15 @@ void tpUpdateRigidTapState(
                 // Flip spindle direction again to start final reversal
                 cmdReverseSpindle(1.0/tc->coords.rigidtap.reversal_scale);
                 tc->coords.rigidtap.state = RIGIDTAP_FINAL_REVERSAL;
+                // Once we've cleared the hole, there's no reason to keep synched with the spindle unless we're peck tapping
+                if (!nexttc
+                        || nexttc->motion_type != TC_RIGIDTAP
+                        || tc->term_cond != TC_TERM_COND_TANGENT) {
+                    // Stop synchronized motion if not peck tapping
+                    tc->synchronized = 0;
+                    tc->target_vel = 0; // Stop as fast as possible during final reversal
+                    tc->canon_motion_type = EMC_MOTION_TYPE_TRAVERSE;
+                }
             }
             break;
         case RIGIDTAP_FINAL_REVERSAL:
@@ -2489,13 +2505,15 @@ void tpUpdateRigidTapState(
                         || tc->term_cond != TC_TERM_COND_TANGENT) {
                     // Stop synchronized motion if not peck tapping
                     tc->synchronized = 0;
-                    tc->target_vel = tc->maxvel_geom;
+                    tc->target_vel = tc->maxvel_geom; // Move as fast as possible to the final position
                     tc->canon_motion_type = EMC_MOTION_TYPE_TRAVERSE;
                 }
             }
             break;
         case RIGIDTAP_FINAL_PLACEMENT:
             // this is a regular move now, it'll stop at target above.
+            old_spindle_pos = 0.0;
+            retract_allowance = 0.0;
             break;
     }
     old_spindle_pos = spindle_pos;
