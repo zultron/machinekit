@@ -2465,7 +2465,9 @@ void tpUpdateRigidTapState(
             if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
                 emcmotStatus->rigid_tap_overshoot = tc->progress - tc->coords.rigidtap.reversal_target;
                 reverseRigidTapMotion(tc, &tp->spindle.origin, spindle_pos);
-                addRigidTapOverrun(tc, RIGIDTAP_MAX_OVERSHOOT_REVS);
+                double expected_reversal_overshoot = fmax(decel_distance / tc->uu_per_rev, 0);
+                // Anticipate the overshoot at the top and add a safety factor for spindle uncertainty
+                addRigidTapOverrun(tc, RIGIDTAP_MAX_OVERSHOOT_REVS + expected_reversal_overshoot);
                 tc->coords.rigidtap.state = RIGIDTAP_RETRACTION;
                 tc->uu_per_rev = tc->coords.rigidtap.retract_uu_per_rev;
             }
