@@ -2187,7 +2187,7 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
 
     if(have_encoder()) {
         if(at_speed) { // which means other errors which inhibit at_speed take precedence to these error checks
-            if ((encoder_velocity < 1.0) && (spindle_forward_thur)) { //if encoder dir REV AND VFD cmd FWD
+            if ((encoder_velocity < -1.0) && (spindle_forward_thur)) { //if encoder dir REV AND VFD cmd FWD
                 SpindleFaultSet(SPINDLE_FAULT_FWD_WRONG_DIR);
                 past_dir |= WRONG_DIR_FWD;
             }
