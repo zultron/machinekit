@@ -1,6 +1,7 @@
 sample_files = glob('test_case_*.samples');
 SYNC_POSITION=4;
-
+do_plot_pos_time = 1;
+do_plot_vel_time = 1;
 close all
 for k = 1:length(sample_files)
   prefix = sample_files{k};
@@ -53,4 +54,22 @@ for k = 1:length(sample_files)
   line([t_sync(1),t_sync(end)],[1 1]*-constants.max_tracking_error,'Color','g','linestyle','--')
   legend('deviation from linear fit','motion.pos-tracking-error', 'min / max measured error', 'allowed deviation')
   hold off
+  if exist('do_plot_pos_time','var') && do_plot_pos_time
+    figure()
+    plot(d(:,1),d(:,[2, 5]))
+    grid on
+    title(sprintf('Spindle / Z position vs time, pitch %0.3f in, %d RPM. distance %0.3f in, %s, %s',...
+     constants.pitch, constants.spindle_speed_rps * 60, constants.z_depth, constants.spindle_direction, prefix(11:end)),'interpreter','none')
+     xlabel('time, ms');
+  endif
+  if exist('do_plot_vel_time','var') && do_plot_pos_time
+    figure()
+    plot(d(:,1),d(:,[3, 4]))
+    grid on
+    title(sprintf('Spindle / Z velocity vs time, pitch %0.3f in, %d RPM. distance %0.3f in, %s, %s',...
+     constants.pitch, constants.spindle_speed_rps * 60, constants.z_depth, constants.spindle_direction, prefix(11:end)),'interpreter','none')
+     xlabel('time, ms');
+  endif
 end
+
+
