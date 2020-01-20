@@ -1,10 +1,8 @@
 o<rigid_tap_sub> sub
-G91
-(PRINT,THIS IS A SUB)
+#<z_incr> = [#1/#2]
+#<z_next> = #<z_incr>
 o<101> repeat [#2]
-#<z_next>=[#1/#2]
-G33.1 Z#<z_next> K#3
+#<z_next>=[#<z_next> + #<z_incr>] G33.1 Z#<z_next> K#3
 o<101> endrepeat
-G90
 o<rigid_tap_sub> endsub
 M2
