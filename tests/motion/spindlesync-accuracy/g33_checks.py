@@ -65,8 +65,20 @@ def check_all(test_name):
 
     exceeds_abs_dev = check_abs_deviation(samples, constants)
 
+    # Copied from test INI file
+    z_max_accel = 50.0
+    spindle_max_accel_rps2 = 100.0
+    z_feed = constants["pitch"] * constants["spindle_speed_rps"]
+    if constants["z_pecks"] > 1:
+        z_retract_decel_distance = constants["pitch"] * constants["spindle_speed_rps"] ** 2. / (2.0 * spindle_max_accel_rps2)
+    else:
+        z_retract_decel_distance = z_feed ** 2. / (2.0 * z_max_accel)
     z_endpt = constants["z_depth"]
-    exceeds_overrun = check_overrun(samples[:, 4], z_endpt, 10. * constants["pitch"])
+
+    target_allowance = constants["overrun_allowance_rev"] * constants["pitch"]
+    retract_overshoot_tolerance = target_allowance + z_retract_decel_distance
+    threading_overshoot_tolerance = target_allowance
+    exceeds_overrun = check_overrun(samples[:, 4], z_endpt, threading_overshoot_tolerance, retract_overshoot_tolerance)
 
     return exceeds_abs_dev or exceeds_overrun
 
@@ -101,17 +113,19 @@ def check_abs_deviation(samples, constants):
         sync_pos = samples[e, 4]
         endpoint = constants["z_depth"]
         if sync_pos < endpoint:
-            print >> sys.stderr, "Failed: position sync starts at position %f, after the endpoint %f)" % (sync_pos, endpoint)
+            print >> sys.stderr, "Failed: position sync starts at position %f, after endpoint %f)" % (sync_pos, endpoint)
             return True
+        print >> sys.stderr, "Passed: position sync starts at position %f, before endpoint %f)" % (sync_pos, endpoint)
 
     max_sync_delay = constants.get("max_sync_delay", 1)
     for e, s in zip(index_seek_start_idx, sync_start_idx):
         if e-s > max_sync_delay:
-            print >> sys.stderr, "Failed: position sync started at %d), not within %d steps of expected (%d)" % (
+            print >> sys.stderr, "Failed: position sync started at %d, not within %d steps of expected (%d)" % (
                 e, max_sync_delay, s)
             return True
 
-    print >> sys.stderr, "Passed: spindle sync starts within expected limits"
+    print >> sys.stderr, "Passed: position sync started at %d, within %d steps of expected (%d)" % (
+        e, max_sync_delay, s)
 
     pos_sync_active_range = find_state(samples[:, 6], SYNC_POSITION)
     spindle_pos_active = spindle_pos[pos_sync_active_range]
@@ -137,22 +151,25 @@ def check_abs_deviation(samples, constants):
     return deviation_failure
 
 
-def check_overrun(axis_pos, nominal_endpt, allowed_overshoot):
+def check_overrun(axis_pos, nominal_endpt, max_threading_overshoot, max_retract_overshoot):
     min_pos = np.min(np.array(axis_pos))
     max_pos = np.max(np.array(axis_pos))
 
     print >> sys.stderr, "min axis position: ", min_pos
     print >> sys.stderr, "max axis position: ", max_pos
-    allowed_min = nominal_endpt - allowed_overshoot
+    allowed_min = nominal_endpt - max_threading_overshoot
     if min_pos < allowed_min:
-        print >> sys.stderr, "Failed: Overrun detected at bottom of hole, min_pos {} exceeds limit of {}".format(min_pos, allowed_min)
+        print >> sys.stderr, "Failed: threading overrun detected at bottom of hole, min_pos {} exceeds limit of {}".format(min_pos, allowed_min)
         return True
+    else:
+        print >> sys.stderr, "Passed: threading overrun {} within limit of {}".format(min_pos, allowed_min)
 
-    if max_pos > allowed_overshoot:
-        print >> sys.stderr, "Failed: Overrun detected at retract, max_pos {} exceeds limit of {}".format(max_pos, allowed_overshoot)
+    if max_pos > max_retract_overshoot:
+        print >> sys.stderr, "Failed: retract overrun detected at retract, max_pos {} exceeds limit of {}".format(max_pos, max_retract_overshoot)
         return True
+    else:
+        print >> sys.stderr, "Passed: retract overrun {} within limit of {}".format(max_pos, max_retract_overshoot)
 
-    print >> sys.stderr, "Passed: no overrun detected"
     return False
 
 
