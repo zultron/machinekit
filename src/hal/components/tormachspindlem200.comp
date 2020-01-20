@@ -131,9 +131,12 @@ pin in float speed_in;
 
 pin in bit at_speed_force;  //A debugging pin.  When set, at_speed will be forced true after AT_SPEED_FORCE_DELAY_SECS
 // connect to motion.spindle-at-speed
-pin out bit at_speed;
-pin out float at_speed_debounce;
-pin out float at_speed_force_timer;
+pin out bit at_speed; //when set, tells linuxcnc that spindle is at commanded speed 
+pin out float at_speed_debounce;   //timer for how long at_speed condition must be continuously true before setting at_speed to true
+pin out float at_speed_force_timer; //debugging pin.  timer for setting at_speed reguardless of if commanded and actual spindle speed match
+pin out bit at_speed_reversal_lockout; //flag for when spindle_on input remained set, yet spindle commanded direction flips TODO: hide from external view
+pin out float at_speed_cmd; //records actual commanded speed at last at-speed latching
+pin out bit at_speed_dir; //records FWD (1) or REV (0) state at last at-speed latching
 
 // connect to motion.spindle-on
 pin in bit spindle_on;
@@ -157,6 +160,10 @@ pin in float highbelt_max_rpm;
 pin in float highbelt_ratio;
 pin in float lowbelt_ratio;
 
+//Note we rely on none of these *_tol_* values being >= (100-(AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO*100))
+//Todo: create an m200 comp "init" function that tests this at run time.  Unfortunately, some run time checks may not be set until well after
+//m200 started, so it's a handshake with the PP GUI to run this init function.
+//   initFunction()   { if (any) ((*belt_tol_*) * 100)  > (AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO*100) then generate a fault. }
 pin in float highbelt_step_rpm;     // rpm below which we expand tolerance when in highbelt
 pin in float lowbelt_step_rpm;      // rpm below which we expand tolerance when in lowbelt
 pin in float highbelt_tol_below;    // what the rpm tolerance is below highbelt-step-rpm
@@ -201,7 +208,7 @@ pin out float vfd_rpm_cmd;
 pin out float feedback_motor_rpm;
 pin out float feedback_spindle_rpm;
 
-//SLP remove
+//TODO: remove for production, debug-ish only
 pin out float estimated_spindle_rpm;
 pin out float estimated_motor_rpm;
 pin out bit speed_fault;
@@ -209,7 +216,6 @@ pin out s32 speed_fault_id;
 pin out float speed_fault_timer;
 pin out float spindle_run_timer;
 pin out float wrong_belt_rpm;
-pin out bit at_speed_dir;
 pin out float belt_ratio_wrong;
 
 
@@ -227,7 +233,8 @@ pin in float vfd_feedback_factor;
 
 pin out u32 spindle_fault;  //used to alert PP GUI to spindle and VFD faults
 pin out u32 past_dir; 
-pin in bit pp_reset_ok;     //input from HAL estop latch.  When high, we are not estopped and PP is out of reset.  SLP REMOVE:  not using it
+//TODO: not using this within this m200 comp, however HALs are hooking it up, so I can't just remove it here as of yet.  Should we monitor it here?
+pin in bit pp_reset_ok;     //input from HAL estop latch.  When high, we are not estopped and PP is out of reset.  
                             //this will not go hi when estop_button_in goes high and user pressed PP reset button.
                             //this goes low immediately if estop_button_in goes low (user pressed physical estop)
 pin in bit estop_button_in; //actual ESTOP switch circuit.  When low, estop is active and machine DC bus is off.  
@@ -253,7 +260,7 @@ pin in u32 encoder_test;         //spindle encoder testing for MX.  Use ENCODER_
 pin in bit phaseA;
 pin in bit phaseB;
 
-//SLP REMOVE, debug only!
+//TODO Values exposed via pins for debug only.  Change to internal variables.
 pin out u32 phaseCntALow;
 pin out u32 phaseCntAHi;
 pin out u32 phaseCntBLow;
@@ -390,8 +397,8 @@ pin out s32 last_enc_err;
 
 ///////////// end of spindle orienting additions
 
-pin out u32 vfd_handshake_state; //SLP REMOVE and replace with internal variable below DEBUG ONLY
-pin out u32 vfd_handshake_cnt; // SLP REMOVE and replace with internal variable below DEBUG ONLY
+pin out u32 vfd_handshake_state; //TODO replace with internal variable below DEBUG ONLY
+pin out u32 vfd_handshake_cnt; // TODO replace with internal variable below DEBUG ONLY
 
 function _ "Tormach Spindle HAL Component M200";
 
@@ -429,7 +436,14 @@ function _ "Tormach Spindle HAL Component M200";
 // feedback speed must be stable at speed for this long before
 // setting at-speed pin TRUE
 // this avoids false positive at-speed from power on noise burst from VFD
-#define AT_SPEED_DEBOUNCE_SECS 0.100
+#define AT_SPEED_DEBOUNCE_SECS (0.100)
+#define AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO (.25) //absolute speed must drop below min_speed * AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO when direction changes during constant spindle-on input.  
+    //In other words, this is a zero-cross detector.  Example for hi speed belt 1100M* where min_speed = 525 RPM.  Initially going  FWD at speed 1000RPM we switch to REV, spindle slows down to reverse, 
+    //eventually drops to less than 25% * 525 ~= 130 RPM.  ... RPM continues to drop to 0 then -130 RPM and eventually -525 RPM.  Once we drop below the +130 RPM, we can look for the 
+    //absolute RPM value to go to 525 RPM to set at-speed.  Keep in mind that at-speed is using absolute values for "is_close_enough()" since this m200 component reports RPM in absolute value which means that
+    //AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO = 25% means the step_tol_below and step_tol_above values must be below 100%-AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO or 75% for AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO to function correctly
+    //presently, worst case step_tol_below is 35%, which means AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO could be any value below 100-35 ~= 65% and still work
+
 #define AT_SPEED_FORCE_DELAY_SECS 10.0  //This is the delay before forcing at-speed to be true, when at-speed-force is true
 #define AT_SPEED_DEBOUNCE_ENCODER_TEST_Z  (2.1) //at-speed debounce when running ENCODER_TEST_Z.  WAG at least 2 secs, plus some hang time. We only update speed-out once per sec during ENCODER_TEST_Z, so must be >1.0+ sec for sure
 
@@ -475,7 +489,6 @@ function _ "Tormach Spindle HAL Component M200";
 #define SPINDLE_FAULT_VFD_DOESNT_SUPPORT (28)   //This machine's VFD does not support M19 or automatic VFD mode switching.
 #define SPINDLE_FAULT_SPINDLE_TYPE (29)         //Orient mode requested with spindle type that doesnt support it (HSS or RapidTurn)
 #define SPINDLE_FAULT_VFD_RPM  (30)             //VFD motor speed feedback absent. Check VFD wiring T10.
-//SLP change to contiguous range here 
 #define SPINDLE_FAULT_NO_PHASE_A (31)           //this error only occurs during spindle-encoder-test active. No encoder phase A activity seen 
 #define SPINDLE_FAULT_NO_PHASE_B (32)           //this error only occurs during spindle-encoder-test active. No encoder phase B activity seen
 #define SPINDLE_FAULT_NO_PHASES (33)            //this error only occurs during spindle-encoder-test active. Encoder indicating incorrect direction
@@ -616,7 +629,7 @@ function _ "Tormach Spindle HAL Component M200";
 
 //These are the two vfd-mode# pins encoding.  vfd-mode0 is LSBit, vfd-mode1 is MSBit.  m200 VFD "par" files must be kept in sync!
 //Do not confuse with SPINDLE_TYPE_??? in constants.py
-#define VFD_MODE_NONE 0   //"NONE" isn't used except during first pass of code, and if vfd_mode is a pin, then it'll start at 0. SLP3 
+#define VFD_MODE_NONE 0   //"NONE" isn't used except during first pass of code, and if vfd_mode is a pin, then it'll start at 0.  
 #define VFD_MODE_RAPIDTURN 1
 #define VFD_MODE_HISPEED 2
 #define VFD_MODE_ORIENT 3
@@ -654,6 +667,8 @@ static unsigned int below_cnts;
 #define is_spindle_stopped() (_is_spindle_stopped(__comp_inst))
 #define worst_vfd_tolerance() (_worst_vfd_tolerance(__comp_inst))
 #define spindleEncoderTestExec(the_elapsed) (_spindleEncoderTestExec(__comp_inst, the_elapsed))
+#define spindle_rpm_tolerance() (_spindle_rpm_tolerance(__comp_inst))
+
  
 #define FILTER_LENGTH (16)
 static signed int firstFlag = 0;
@@ -897,7 +912,7 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
 //static int look_for_fault_glitch = VFG_FIRST_PASS; 
 //static int must_wait_for_stop_cmd = 0;
 
-    if (!pp_estop_fault && !PHYSICAL_ESTOP ) // SLP check what pp_estop_fault is driven by, as we could be locked out here!
+    if (!pp_estop_fault && !PHYSICAL_ESTOP ) // TODO: check what pp_estop_fault is driven by, as we could be locked out here!
         estop_fault = BIT_FALSE;
 
     if (vfd_24V)
@@ -951,7 +966,7 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
                 if (!vfd_24V)
                     vfd_pwr_state_timer = 0.0;
                 else vfd_pwr_state_timer = VFD_PWR_FADE_PERIOD; //in case user just opened spindle door, let VFD power die completely before restarting
-                if(orient_execute || spindle_lock) { //SLP should we call SpindleFaultSet() here instead?
+                if(orient_execute || spindle_lock) { //note we don't call SpindleFaultSet() here because we don't want other side effects of SpindleFaultSet()
                     orient_fault = SPINDLE_FAULT_NO_PWR; //flag linuxcnc that something happened.
                     orient_drift = ORIENT_DRIFT_UNRECOVERABLE;
                 }
@@ -969,7 +984,7 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
                 vfd_pwr_state_timer = 0.0; // power is out, no need for VFD_PWR_FADE_PERIOD verses other methods of reaching VFD_PWR_ERR state
                 spindle_fault = SPINDLE_FAULT_LOST_PWR;
                 if (spindle_lock || orient_execute || spindle_on) { //if spindle was commanded to move
-                    orient_fault = SPINDLE_FAULT_LOST_PWR; //SLP can we use SpindleFaultSet() here??
+                    orient_fault = SPINDLE_FAULT_LOST_PWR; //note we don't call SpindleFaultSet() here because we don't want other side effects of SpindleFaultSet()
                     orient_drift = ORIENT_DRIFT_UNRECOVERABLE;
                     must_wait_for_stop_cmd = 1;
                 }
@@ -1030,7 +1045,7 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
                     estop_fault = BIT_TRUE; //another big deal
                     if (vfd_fault) {
                         orient_problem |= 0x20;
-                        orient_fault = SPINDLE_FAULT_VFD; //SLP use SpindeFaultSet() here???
+                        orient_fault = SPINDLE_FAULT_VFD; //note we don't call SpindleFaultSet() here because we don't want other side effects of SpindleFaultSet()
                         orient_drift = ORIENT_DRIFT_UNRECOVERABLE;
                         spindle_fault = SPINDLE_FAULT_VFD; 
                     }
@@ -1097,7 +1112,7 @@ void _SpindleFaultSet(struct __comp_state const *__comp_inst, unsigned int the_f
             // the orient_drift will be set high for ATC code in SPINDLE_FAULT_ORIENT_TO case, so don't set to ORIENT_DRIFT_UNRECOVERABLE either, so ATC retries in NGC code
             orient_fault = the_fault; 
             orient_drift = ORIENT_DRIFT_UNRECOVERABLE;
-            //SLP todo test a re-orient time delay and/or spindle_fault being set???  May want to handle SPINDLE_FAULT_ORIENT_TO with exceptions in additional code areas in addition to just here.
+            //TODO test a re-orient time delay and/or spindle_fault being set???  May want to handle SPINDLE_FAULT_ORIENT_TO with exceptions in additional code areas in addition to just here.
         }
         else return; //fault is SPINDLE_FAULT_ORIENT_TO, and we need to ignore it
     }
@@ -1137,9 +1152,9 @@ int _VFDCapHandler(struct __comp_state const *__comp_inst, int ack)
         spindle_run = BIT_FALSE;
         _SpindleFaultSet(__comp_inst, SPINDLE_FAULT_MODE_SWITCH);
         _VFDModeSwitch(__comp_inst, VFD_MODE_DEFAULT); //jump here
-        vfd_mode = VFD_MODE_DEFAULT; //SLP why, doesn't this get set by _VFDModeSwitch() call?
-        vfd_power_state = VFD_PWR_ERR; //SLP why, doesn't this get set by _SpindleFaultSet() call? 
-        if (vfd_mode == VFD_MODE_ORIENT) { // SLP remove this now, right, as _SpindleFaultSet() did this already  (or is there an exception here?)
+        vfd_mode = VFD_MODE_DEFAULT; //TODO why, doesn't this get set by _VFDModeSwitch() call?
+        vfd_power_state = VFD_PWR_ERR; //TODO why, doesn't this get set by _SpindleFaultSet() call? 
+        if (vfd_mode == VFD_MODE_ORIENT) { // TODO remove this now, right, as _SpindleFaultSet() did this already  (or is there an exception here?)
             orient_fault = SPINDLE_FAULT_MODE_SWITCH; //set specific orient-fault pin as linuxcnc is looking here for faults
             orient_drift = ORIENT_DRIFT_UNRECOVERABLE;
         }
@@ -1411,6 +1426,15 @@ static float worst_case = 0.0;
     return worst_case;
 }
 
+//returns a number 0 to 1.0 representing the tolerance from the VFD_FEEDBACK signal acceptable
+float _spindle_rpm_tolerance(struct __comp_state const *__comp_inst) {
+    // at the very bottom end the feedback speed falls off from commanded
+    if (iabs(vfd_rpm_cmd) < step_speed) 
+        return step_tol_below/100.0;
+
+    return step_tol_above/100.0;
+}
+
 static unsigned int phaseCnts;
 static unsigned int phaseCnt[2][3]; //[phase a or b][hi count | low count | active flag]
 //used for phaseCnt[][] element "a" access
@@ -1458,7 +1482,7 @@ static float last_speed_in = 0.0;
         if (encoder_test == ENCODER_TEST_OFF || encoder_test == ENCODER_TEST_IDLE) {// a.k.a. when exiting all active states 
             SpindleFaultSet(SPINDLE_OK); //clear any possible previous errors 
 
-            //SLP9 flush ENC dir tests states  ... OTHERS???
+            // flush ENC dir tests states  ...TODO: are there OTHER variables to clear/reset???
             past_dir = 0;
              
             if (encoder_test == ENCODER_TEST_OFF)
@@ -1559,7 +1583,7 @@ static float last_speed_in = 0.0;
                 phaseCnt[ii][PHASE_LOW]=0;
                 phaseCnt[ii][PHASE_HI]=0;
             }
-            //SLP remove these two debug outputs
+            //TODO remove these two debug outputs for production
             phaseAactivity = phaseCnt[PHASE_A][PHASE_ACTIVITY];
             phaseBactivity = phaseCnt[PHASE_B][PHASE_ACTIVITY];
 
@@ -1576,14 +1600,14 @@ static float last_speed_in = 0.0;
             if (phaseB) phaseCnt[PHASE_B][PHASE_HI]++;
             else phaseCnt[PHASE_B][PHASE_LOW]++;
 
-            //SLP REMOVE, debug only
+            //TODO debug only remove for production compile case
             phaseCntALow = phaseCnt[PHASE_A][PHASE_LOW];
             phaseCntAHi = phaseCnt[PHASE_A][PHASE_HI];
             phaseCntBLow = phaseCnt[PHASE_B][PHASE_LOW];
             phaseCntBHi = phaseCnt[PHASE_B][PHASE_HI];
         }
     }
-//SLP9 TODO: add SPINDLE_FAULT_ENC_WRONG_DIR detection based on encoder-velocity
+//TODO: add SPINDLE_FAULT_ENC_WRONG_DIR detection based on encoder-velocity
 //use min_ and max_ rpm inputs for high belt verses commanded to verify correct encoder output
 //add orient mode with timer, looking for spindle_lock to go high, and orient_time to validate
 //the GUI drives M19 R20, M19 R10, M19 0, then M19 R180
@@ -1593,11 +1617,7 @@ static float last_speed_in = 0.0;
 FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each mS
 
     float speeder_ratio;
-//TODO: doing   SLP
-//    float hz_per_cmd_hz;
-    float tolerance;
     float vfd_feedback_ratio;
-//    signed int enc_err;
     static float cw_boost_min = 0;
     static float cw_boost_step = 0;
     static float ccw_boost_min = 0;
@@ -1668,6 +1688,7 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
         max_speed = max_speed * speeder_ratio;
         step_speed = step_speed * speeder_ratio;
         //TODO: Does tolerance change by speeder ratio???  I say no..., but it's complicated by vfd_rpm_feedback not having any idea of external speeder, so depends on how & where tol is checked 
+        //TODO: does speeder even work on MX at all??????
         step_tol_below = step_tol_below * speeder_ratio;
         step_tol_above = step_tol_above * speeder_ratio;
         spindle_max_acceleration_rps = vfd_max_acceleration_rps * speeder_ratio;
@@ -1816,10 +1837,10 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
                 orient_to = 1; //Debug pin only
                 orient_problem |= 2; //Debug pin only
             //  orient_fault = ORIENT_ERR_TIME_OUT; setting this here goofs up linuxcnc such that it will never attempt another M19
-                //orient_drift = ORIENT_DRIFT_UNRECOVERABLE;  //TODO: SLP CONTROVERSIAL DECISION if we set orient_drift to fault here
-                SpindleFaultSet(SPINDLE_FAULT_ORIENT_TO); //TODO: May not be necessary to report as GUI already tells user ????? SLP do we want to call here??? (we do want to flag during encoder testing)
+                //orient_drift = ORIENT_DRIFT_UNRECOVERABLE;  //TODO: CONTROVERSIAL DECISION if we set orient_drift to fault here
+                SpindleFaultSet(SPINDLE_FAULT_ORIENT_TO); //TODO: May not be necessary to report as GUI already tells user ????? TODO do we want to call here??? (we do want to flag during encoder testing)
             }
-            else if ((spindle_state == SPINDLE_STATE_ORIENTING && oriented) || (spindle_state == SPINDLE_STATE_LOCKED)) { //SLP I'm setting orient_drift to ORIENT_DRIFT_INVALID state during normal spindle state after oriented
+            else if ((spindle_state == SPINDLE_STATE_ORIENTING && oriented) || (spindle_state == SPINDLE_STATE_LOCKED)) { //TODO: I'm setting orient_drift to ORIENT_DRIFT_INVALID state during normal spindle state after oriented
                 orient_drift = ORIENT_DRIFT_INVALID;
             }
 
@@ -1917,12 +1938,12 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
                         orient_drift = (float)enc_err;
                 }
                 if (orient_drift != 0.0)
-                    orient_problem |= 4;  //SLP remove for local debug with broken ATC & spindle
+                    orient_problem |= 4;  //TODO: debug only with broken ATC & spindle remove for production
                 else {
                     if (orient_drift_test && (spindle_lock_timer >= (ORIENT_BRAKE_ACTUATION_TIME + DRIFT_TEST_TIME))) {
                         if (orient_drift_test_cnt >= DRIFT_TEST_LOOP) {
                             orient_drift_test_cnt = 0;
-                            orient_problem |= 4;  //SLP remove for local debug with broken ATC & spindle
+                            orient_problem |= 4;  //TODO remove for production only for local debug with broken ATC & spindle
                             if(enc_err >= 0)
                                 orient_drift = DRIFT_TEST_VALUE;
                             else orient_drift = -(DRIFT_TEST_VALUE);
@@ -2141,14 +2162,12 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
             // speed-out will be reported as the commanded speed
             speed_out = feedback_spindle_rpm;
      
-            // at the very bottom end the feedback speed falls off from commanded
-            if (iabs(vfd_rpm_cmd) < step_speed) {
-                tolerance = step_tol_below/100.0;
+            if (at_speed_reversal_lockout) { 
+                if (fabs(speed_out) < fabs(min_speed) * AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO) 
+                    at_speed_reversal_lockout = 0;
             }
-            else {
-                tolerance = step_tol_above/100.0;
-            }
-            if (is_close_enough(fabs(speed_out), iabs(vfd_rpm_cmd), tolerance)) {
+        
+            if (!at_speed_reversal_lockout && is_close_enough(fabs(speed_out), iabs(vfd_rpm_cmd), spindle_rpm_tolerance())) {
                 // the M200 outputs a burst of noise approximately 1 second after
                 // its power on boot that
                 // causes a false positive 'at-speed' indication long before the
@@ -2161,7 +2180,8 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
                     // spindle should now be at speed
                     at_speed = BIT_TRUE;
                     at_speed_debounce = 0.0; //without this, the debounce only happens once
-                    at_speed_dir = spindle_forward_thur; //record present direction.   This handles at-speed when reversing without stopping
+                    at_speed_dir = spindle_forward_thur; //record present direction.   This is used to detect dir cmd changes while at-speed 
+                    at_speed_cmd = vfd_rpm_cmd; //record the cmd speed  for detecting speed changes while at-speed
                 }
             }
             else {
@@ -2173,13 +2193,20 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
         else {
             //check if we've reversed speed  -- note linuxcnc allows contiguous M3 to M4 statements and never drops motion.spindle_on (spindle_on) when switching direction
             if (at_speed_dir != spindle_forward_thur) {
-                at_speed_dir = spindle_forward_thur;
                 at_speed = BIT_FALSE;
-                speed_out = feedback_spindle_rpm; //track actual 
+                at_speed_reversal_lockout = 1;
             }
-            else
-                speed_out = iabs(vfd_rpm_cmd);
+            else if (at_speed_cmd != vfd_rpm_cmd) { // we already know dir didn't change, but see if input speed changed
+                if (is_close_enough(fabs(speed_out), iabs(vfd_rpm_cmd), spindle_rpm_tolerance())) //if new speed outside of tolerance, keep at-speed latched
+                    at_speed_cmd = vfd_rpm_cmd; //record the new cmd speed  for detecting speed changes while at-speed
+                else //new speed is far enough from current that at-speed should be cleared
+                    at_speed = BIT_FALSE;
+            }
             
+            if (!at_speed)
+                speed_out = feedback_spindle_rpm; //track actual speed in user's DRO when out of at-speed state
+            else 
+                speed_out = fabs(speed_in);
             // uncomment next line for debugging or to display feedback RPM in UI
             //speed_out = feedback_spindle_rpm
         }
@@ -2243,8 +2270,8 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
         speed_out_rps = speed_out / 60.0;
     else
         speed_out_rps = feedback_spindle_rpm/60; // use filtered encoder_velocity
-            // we are filtering encoder_velocity (which is rps) into feedback_spindle_rpm above. Don't use raw encoder_velocity because it's very noisy. SLP (or do we care?) Rob is looking at unfiltered encoder_velocity directly
-            // SLP PLUS speed_out is dependent on at-speed whereas feedback_spindle_rpm is not, so another issue to consider
+            // we are filtering encoder_velocity (which is rps) into feedback_spindle_rpm above. Don't use raw encoder_velocity because it's very noisy. TODO: (or do we care?) Rob is looking at unfiltered encoder_velocity directly
+            // PLUS speed_out is dependent on at-speed whereas feedback_spindle_rpm is not, so another issue to consider
 
     VFDPowerExec(fperiod); 
 
