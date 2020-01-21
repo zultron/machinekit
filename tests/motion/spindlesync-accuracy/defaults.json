@@ -1,6 +1,8 @@
 {
     "spindle_speed_rps": 10.0,
     "pitch": 0.1,
+    "tap_pitch_scale": 1.0,
+    "retract_rate_scale": 1.0,
     "z_depth": -1.0,
     "z_pecks": 1,
     "z_axis_max_vel": 4.0,

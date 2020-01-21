@@ -43,12 +43,13 @@ spindle_cmd = 'S%d %s' % (constants["spindle_speed_rps"]*60., g33_checks.get_spi
 print >> sys.stderr, spindle_cmd
 c.mdi(spindle_cmd)
 c.wait_complete(10)
-cmd_str='o<{}> call [{}] [{}] [{}] [{}]'.format(
+cmd_str = 'o<{}> call [{}] [{}] [{}] [{}] [{}]'.format(
     constants.get("test_subroutine","rigid_tap_sub"),
     constants.get("z_depth",-1.0),
     constants.get("z_pecks", 1.0),
     constants.get("pitch", 0.1),
-    constants.get("retract_scale", 1.0),
+    constants.get("retract_rate_scale", 1.0),
+    constants.get("tap_pitch_scale", 1.0),
 )
 print >> sys.stderr, cmd_str
 c.mdi(cmd_str)

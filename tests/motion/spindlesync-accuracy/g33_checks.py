@@ -15,6 +15,13 @@ SYNC_ACCEL_RAMP = 3
 SYNC_POSITION = 4
 SYNC_TRIGGER_WAIT = 6
 
+RIGIDTAP_INACTIVE = 0
+RIGIDTAP_TAPPING = 1
+RIGIDTAP_REVERSING = 2
+RIGIDTAP_RETRACTION = 3
+RIGIDTAP_FINAL_REVERSAL = 4
+RIGIDTAP_FINAL_PLACEMENT = 5
+
 def get_spindle_direction(constants):
     return -1.0 if 'ccw' == constants.get('spindle_direction', 'cw') else 1.0
 
@@ -63,7 +70,10 @@ def check_all(test_name):
 
     samples = load_samples_after_sync(get_sample_file_name(test_name))
 
-    exceeds_abs_dev = check_abs_deviation(samples, constants)
+    if abs(constants["tap_pitch_scale"] - 1.0) > 0.0001:
+        exceeds_abs_dev = check_abs_deviation(samples, constants, (RIGIDTAP_RETRACTION,))
+    else:
+        exceeds_abs_dev = check_abs_deviation(samples, constants)
 
     # Copied from test INI file
     z_max_accel = 50.0
@@ -99,7 +109,14 @@ def find_state(states, s):
     return np.where(states == s)[0]
 
 
-def check_abs_deviation(samples, constants):
+def find_any_of_state(states, s_arr):
+    res = []
+    for s in s_arr:
+        res.extend(np.where(states == s)[0])
+    return np.unique(res)
+
+
+def check_abs_deviation(samples, constants, rigid_tapping_phases=None):
     spindle_pos = samples[:, 1] * get_spindle_direction(constants)
     z_axis_pos = samples[:, 4]
 
@@ -128,6 +145,9 @@ def check_abs_deviation(samples, constants):
         e, max_sync_delay, s)
 
     pos_sync_active_range = find_state(samples[:, 6], SYNC_POSITION)
+    if rigid_tapping_phases is not None:
+        rigid_tap_state_range = find_any_of_state(samples[:, 8], rigid_tapping_phases)
+        pos_sync_active_range = np.intersect1d(pos_sync_active_range, rigid_tap_state_range)
     spindle_pos_active = spindle_pos[pos_sync_active_range]
     z_axis_pos_active = z_axis_pos[pos_sync_active_range]
     print >> sys.stderr, np.size(pos_sync_active_range)
