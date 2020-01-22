@@ -204,15 +204,11 @@ int emcTaskStateRestore()
     return 0;
 }
 
-int emcTaskAbort(int restore_task_state)
+int emcTaskAbort()
 {
     // Call motion abort before state restore to make absolutely sure no
     // stray restore commands make it down to motion
     emcMotionAbort();
-
-    if (restore_task_state)
-	// Then call state restore to update the interpreter
-	emcTaskStateRestore();
 
     // clear out the pending command
     emcTaskCommand = 0;
@@ -249,11 +245,6 @@ int emcTaskAbort(int restore_task_state)
     }
 
     return 0;
-}
-
-int emcTaskAbort()
-{
-    return emcTaskAbort(0);
 }
 
 int emcTaskSetMode(int mode)

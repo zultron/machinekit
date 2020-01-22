@@ -1053,6 +1053,7 @@ void FINISH() {
 }
 
 void ON_RESET() {
+    prev_stepping_id = -1;
     drop_segments();
 }
 

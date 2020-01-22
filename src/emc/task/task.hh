@@ -36,7 +36,6 @@ int emcTaskHalt();
 int emcTaskStateRestore();
 void emcTaskPause();
 void emcTaskResume();
-int emcTaskAbort(int restore_task_state);
 int emcTaskAbort();
 int emcTaskSetMode(int mode);
 int emcTaskSetState(int state);

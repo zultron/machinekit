@@ -2204,12 +2204,13 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TASK_ABORT_TYPE:
-	emcTaskAbort(1);
+    emcTaskAbort();
         task_methods->emcIoAbort(EMC_ABORT_TASK_ABORT);
         emcSpindleAbort();
 	mdi_execute_abort();
 	emcAbortCleanup(EMC_ABORT_TASK_ABORT);
-	retval = 0;
+    emcTaskStateRestore();
+    retval = 0;
 	break;
 
 	// mode and state commands

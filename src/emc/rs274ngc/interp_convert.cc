@@ -2698,6 +2698,7 @@ int Interp::restore_from_tag(StateTag const &tag)
     restore_settings_impl(current, saved, 2);
 
     write_modal_state(nullptr, &_setup);
+    write_and_update_state_tag(nullptr);
 
     // KLUDGE also restore G92 state
     GCodeGenerator generator(_setup.feature_set, GET_EXTERNAL_AXIS_MASK());
