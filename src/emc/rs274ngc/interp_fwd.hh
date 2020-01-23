@@ -202,6 +202,7 @@ enum GCodes
     G_73 = 730,
     G_76 = 760,
     G_80 = 800,
+    G_80_9 = 809, //KLUDGE backdoor to force a motion mode directly
     G_81 = 810,
     G_82 = 820,
     G_83 = 830,
