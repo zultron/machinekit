@@ -376,6 +376,22 @@ struct InterpPreamble
     AxisMask plunge_axes; //!< Used to plunge towards the work / lead-in position after traverse axes are in position
 };
 
+struct InterpCycle
+{
+    InterpCycle() = default;
+    double cc;              // cc-value (normal) for canned cycles
+    double i;               // i-value for canned cycles
+    double j;               // j-value for canned cycles
+    double k;               // k-value for canned cycles
+    int l;                  // l-value for canned cycles
+    double p;               // p-value (dwell) for canned cycles
+    double q;               // q-value for canned cycles
+    double r;               // r-value for canned cycles
+    double il;              // "initial level" height when switching from non-cycle into cycle, for g98 retract
+    int il_flag;            // il is currently valid because we're in a series of cycles
+    RETRACT_MODE retract_mode;    // for cycles, old_z or r_plane
+};
+
 /**
  * Contains the majority of state used by RS274NGC interp.
  */
@@ -414,16 +430,7 @@ struct setup_struct
   CutterCompData cutter_comp;
   int current_pocket;             // carousel slot number of current tool
 
-  double cycle_cc;              // cc-value (normal) for canned cycles
-  double cycle_i;               // i-value for canned cycles
-  double cycle_j;               // j-value for canned cycles
-  double cycle_k;               // k-value for canned cycles
-  int cycle_l;                  // l-value for canned cycles
-  double cycle_p;               // p-value (dwell) for canned cycles
-  double cycle_q;               // q-value for canned cycles
-  double cycle_r;               // r-value for canned cycles
-  double cycle_il;              // "initial level" height when switching from non-cycle into cycle, for g98 retract
-  int cycle_il_flag;            // il is currently valid because we're in a series of cycles
+  InterpCycle cycle;
   DISTANCE_MODE distance_mode;  // absolute or incremental
   DISTANCE_MODE ijk_distance_mode;  // absolute or incremental for IJK in arcs
   int feed_mode;                // G_93 (inverse time) or G_94 units/min
@@ -455,7 +462,6 @@ struct setup_struct
   double program_x;             // program x, used when cutter comp on
   double program_y;             // program y, used when cutter comp on
   double program_z;             // program y, used when cutter comp on
-  RETRACT_MODE retract_mode;    // for cycles, old_z or r_plane
   int random_toolchanger;       // tool changer swaps pockets, and pocket 0 is the spindle instead of "no tool"
   int selected_pocket;          // tool slot selected but not active
     int selected_tool;          // start switchover to pocket-agnostic interp

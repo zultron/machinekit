@@ -106,7 +106,7 @@ int Interp::write_g_codes(block_pointer block,   //!< pointer to a block of RS27
 	    (settings->feed_mode == UNITS_PER_MINUTE) ? G_94 : G_95;
   state.g_codes[G_CODE_ORIGIN] = lookup_work_offset_gcode_from_origin(settings->origin_index);
   state.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = toolOffsetActive(settings) ? G_43 : G_49;
-  state.g_codes[G_CODE_RETRACT_MODE] = (settings->retract_mode == OLD_Z) ? G_98 : G_99;
+  state.g_codes[G_CODE_RETRACT_MODE] = (settings->cycle.retract_mode == OLD_Z) ? G_98 : G_99;
   state.g_codes[G_CODE_PATH_MODE] =
     (settings->control_mode == CANON_CONTINUOUS) ? G_64 :
     (settings->control_mode == CANON_EXACT_PATH) ? G_61 : G_61_1;
@@ -234,7 +234,7 @@ int Interp::write_state_tag(block_pointer block, StateTag &state) const
     state.fields[GM_FIELD_WORK_OFFSET_NUMBER] = _setup.origin_index;
 
     state.flags[GM_FLAG_TOOL_OFFSETS_ON] = toolOffsetActive(&_setup);
-    state.flags[GM_FLAG_RETRACT_OLDZ] = (_setup.retract_mode == OLD_Z);
+    state.flags[GM_FLAG_RETRACT_OLDZ] = (_setup.cycle.retract_mode == OLD_Z);
     state.flags[GM_FLAG_CONTINUOUS_PATH] = (_setup.control_mode == CANON_CONTINUOUS);
     state.flags[GM_FLAG_EXACT_STOP] = (_setup.control_mode == CANON_EXACT_STOP);
     state.flags[GM_FLAG_CSS_MODE] = (_setup.spindle_mode == CONSTANT_RPM);

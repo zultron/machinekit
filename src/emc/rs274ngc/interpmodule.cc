@@ -407,52 +407,52 @@ static inline void set_cutter_comp_radius(Interp &interp, double value)  {
     interp._setup.cutter_comp.radius = value;
 }
 static inline double get_cycle_cc (Interp &interp)  {
-    return interp._setup.cycle_cc;
+    return interp._setup.cycle.cc;
 }
 static inline void set_cycle_cc(Interp &interp, double value)  {
-    interp._setup.cycle_cc = value;
+    interp._setup.cycle.cc = value;
 }
 static inline double get_cycle_i (Interp &interp)  {
-    return interp._setup.cycle_i;
+    return interp._setup.cycle.i;
 }
 static inline void set_cycle_i(Interp &interp, double value)  {
-    interp._setup.cycle_i = value;
+    interp._setup.cycle.i = value;
 }
 static inline double get_cycle_il (Interp &interp)  {
-    return interp._setup.cycle_il;
+    return interp._setup.cycle.il;
 }
 static inline void set_cycle_il(Interp &interp, double value)  {
-    interp._setup.cycle_il = value;
+    interp._setup.cycle.il = value;
 }
 static inline double get_cycle_j (Interp &interp)  {
-    return interp._setup.cycle_j;
+    return interp._setup.cycle.j;
 }
 static inline void set_cycle_j(Interp &interp, double value)  {
-    interp._setup.cycle_j = value;
+    interp._setup.cycle.j = value;
 }
 static inline double get_cycle_k (Interp &interp)  {
-    return interp._setup.cycle_k;
+    return interp._setup.cycle.k;
 }
 static inline void set_cycle_k(Interp &interp, double value)  {
-    interp._setup.cycle_k = value;
+    interp._setup.cycle.k = value;
 }
 static inline double get_cycle_p (Interp &interp)  {
-    return interp._setup.cycle_p;
+    return interp._setup.cycle.p;
 }
 static inline void set_cycle_p(Interp &interp, double value)  {
-    interp._setup.cycle_p = value;
+    interp._setup.cycle.p = value;
 }
 static inline double get_cycle_q (Interp &interp)  {
-    return interp._setup.cycle_q;
+    return interp._setup.cycle.q;
 }
 static inline void set_cycle_q(Interp &interp, double value)  {
-    interp._setup.cycle_q = value;
+    interp._setup.cycle.q = value;
 }
 static inline double get_cycle_r (Interp &interp)  {
-    return interp._setup.cycle_r;
+    return interp._setup.cycle.r;
 }
 static inline void set_cycle_r(Interp &interp, double value)  {
-    interp._setup.cycle_r = value;
+    interp._setup.cycle.r = value;
 }
 static inline double get_feed_rate (Interp &interp)  {
     return interp._setup.feed_rate;
@@ -629,16 +629,16 @@ static inline void set_cutter_comp_side(Interp &interp, int value)  {
     interp._setup.cutter_comp.side = static_cast<CutterCompDirection>(value);
 }
 static inline int get_cycle_il_flag (Interp &interp)  {
-    return interp._setup.cycle_il_flag;
+    return interp._setup.cycle.il_flag;
 }
 static inline void set_cycle_il_flag(Interp &interp, int value)  {
-    interp._setup.cycle_il_flag = value;
+    interp._setup.cycle.il_flag = value;
 }
 static inline int get_cycle_l (Interp &interp)  {
-    return interp._setup.cycle_l;
+    return interp._setup.cycle.l;
 }
 static inline void set_cycle_l(Interp &interp, int value)  {
-    interp._setup.cycle_l = value;
+    interp._setup.cycle.l = value;
 }
 static inline int get_debugmask (Interp &interp)  {
     return interp._setup.debugmask;
@@ -719,10 +719,10 @@ static inline void set_remap_level(Interp &interp, int value)  {
     interp._setup.remap_level = value;
 }
 static inline int get_retract_mode (Interp &interp)  {
-    return interp._setup.retract_mode;
+    return interp._setup.cycle.retract_mode;
 }
 static inline void set_retract_mode(Interp &interp, RETRACT_MODE value)  {
-    interp._setup.retract_mode = value;
+    interp._setup.cycle.retract_mode = value;
 }
 static inline int get_selected_pocket (Interp &interp)  {
     return interp._setup.selected_pocket;

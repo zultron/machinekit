@@ -240,7 +240,7 @@ enum DISTANCE_MODE
 /** retract_mode for cycles */
 enum RETRACT_MODE
 {
-    R_PLANE,
+    R_PLANE = 0,
     OLD_Z,
 };
 

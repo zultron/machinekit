@@ -279,8 +279,8 @@ int Interp::convert_spline(int mode,
       if(!block->i_flag || !block->j_flag) {
           CHKS(block->i_flag || block->j_flag,
                   _("Must specify both I and J, or neither"));
-          x1 = settings->current[X] + settings->cycle_i;
-          y1 = settings->current[Y] + settings->cycle_j;
+          x1 = settings->current[X] + settings->cycle.i;
+          y1 = settings->current[Y] + settings->cycle.j;
       } else {
           x1 = settings->current[X] + block->i_number;
           y1 = settings->current[Y] + block->j_number;
@@ -310,8 +310,8 @@ int Interp::convert_spline(int mode,
       NURBS_FEED(block->line_number, nurbs_control_points, 4);
       nurbs_control_points.clear();
 
-      settings->cycle_i = -block->p_number;
-      settings->cycle_j = -block->q_number;
+      settings->cycle.i = -block->p_number;
+      settings->cycle.j = -block->q_number;
       settings->current[X] = x3;
       settings->current[Y] = y3;
     }
@@ -3431,7 +3431,7 @@ int Interp::convert_motion(GCodes motion,   //!< g_code for a line, arc, canned 
        (_("Indexing axis %c can only be moved alone")), 'C');
 
   if (!is_a_cycle(motion))
-    settings->cycle_il_flag = false;
+    settings->cycle.il_flag = false;
 
   if (ai || bi || ci) {
     int n;
@@ -3603,12 +3603,12 @@ int Interp::convert_retract_mode(int g_code,     //!< g_code being executed (mus
 #ifdef DEBUG_EMC
     enqueue_COMMENT("interpreter: retract mode set to old_z");
 #endif
-    settings->retract_mode = OLD_Z;
+    settings->cycle.retract_mode = OLD_Z;
   } else if (g_code == G_99) {
 #ifdef DEBUG_EMC
     enqueue_COMMENT("interpreter: retract mode set to r_plane");
 #endif
-    settings->retract_mode = R_PLANE;
+    settings->cycle.retract_mode = R_PLANE;
   } else
     ERS(NCE_BUG_CODE_NOT_G98_OR_G99);
   return INTERP_OK;

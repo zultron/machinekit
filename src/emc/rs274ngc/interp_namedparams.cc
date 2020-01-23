@@ -633,11 +633,11 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_RETRACT_R_PLANE: // _retract_r_plane - G98
-	*value = (_setup.retract_mode == R_PLANE);
+	*value = (_setup.cycle.retract_mode == R_PLANE);
 	break;
 
     case NP_RETRACT_OLD_Z: // _retract_old_z - G99
-	*value = (_setup.retract_mode == OLD_Z);
+	*value = (_setup.cycle.retract_mode == OLD_Z);
 	break;
 
     case NP_SPINDLE_RPM_MODE: // _spindle_rpm_mode G97
