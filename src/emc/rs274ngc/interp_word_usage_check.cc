@@ -84,6 +84,9 @@ WordUsageStatus is_p_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_mo
     case G_76:
         active_p[P_THREAD_PITCH] = true;
         break;
+    case G_80_9:
+        active_p[P_MOTION_MODE] = true;
+        break;
     case G_81:
     case G_82:
         unused_p=true;
