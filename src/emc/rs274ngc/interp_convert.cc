@@ -3455,7 +3455,8 @@ int Interp::convert_motion(GCodes motion,   //!< g_code for a line, arc, canned 
   } else if (motion == G_80_9) {
       // Tormach - DANGEROUS unless you know what you're doping
       int motion_to_be=-1;
-      CHKS(last_cmd_src != CommandSource::PREAMBLE, "G80.9 motion mode setting is not valid outside of start line state restore preamble");
+      // TODO figure out how to make the body of the restore premable execute in preamble mode
+      //CHKS(last_cmd_src != CommandSource::PREAMBLE, "G80.9 motion mode setting is not valid outside of start line state restore preamble");
       CHKS(!block->p_flag , "Motion mode not specified for G80.9");
       CHKS(!is_near_int(&motion_to_be, block->p_number), "Motion mode must be an integer for G80.9");
       CHKS(motion_to_be < 0 || motion_to_be > 999 || Interp::_gees[motion_to_be] != 1, "Invalid motion mode %d specified for G80.9", motion_to_be);
