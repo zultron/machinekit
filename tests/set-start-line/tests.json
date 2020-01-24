@@ -1,0 +1,17 @@
+{
+    "defaults": {
+        "start_line": 0,
+        "leadin": "linear",
+        "keep_tool": false
+    },
+    "tests": [
+        {
+            "file": "modal_state_test",
+            "start_line": 21
+        },
+        {
+            "file": "g92_change",
+            "start_line": 18
+        }
+    ]
+}

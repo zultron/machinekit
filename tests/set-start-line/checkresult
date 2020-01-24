@@ -1,5 +1,37 @@
-#!/bin/sh
-set -e
-test -s run_from_start.log
-test -s run_from_line.log
-diff run_from_line.log run_from_start.log
+#!/usr/bin/env python
+
+import json
+import difflib
+import sys
+
+
+def check_file_contents(t_name):
+    if t_name is None:
+        print >>sys.stderr,"Failed to find test file name"
+        return False
+    with open('{}_from_start.log'.format(t_name),'r') as f_start:
+        with open('{}_from_line.log'.format(t_name),'r') as f_line:
+            s1 = f_start.readlines()
+            s2 = f_line.readlines()
+            if not s1 or not s2:
+                print >>sys.std_err,"No modal state data found"
+                return False
+            d=list(difflib.unified_diff(s1,s2))
+            if d:
+                print "Failed: Found differences between modal state"
+                for l in d:
+                    print >>sys.stderr,l.rstrip()
+                return False
+            print "Passed: contents identical"
+    return True
+
+if __name__ == '__main__':
+    with open('tests.json','r') as f:
+        tests=json.load(f)
+
+    for t in tests.get('tests',[]):
+        t_name = t.get("file",None)
+        if not check_file_contents(t_name):
+            sys.exit(1)
+
+    # TODO better standards to make sure the output isn't garbled
