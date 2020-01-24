@@ -1,0 +1,7 @@
+o<open_startline_logfile> sub
+o<100> IF [#<_task> EQ 1]
+(LOGOPEN,run_from_start.log)
+o<100> ELSEIF [#<_task> EQ -1]
+(LOGOPEN,run_from_line.log)
+o<100> ENDIF
+o<open_startline_logfile> endsub

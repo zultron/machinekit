@@ -1,0 +1,30 @@
+(Show that modal states are preserved in start-from-line)
+o<open_startline_logfile> call (Opens a named log file depending on start line)
+G90 G20 G91.1 G18
+M6 T2 G43 H2
+F180
+G54
+G0 Z1
+G0 X0 Y0 
+Z0
+M3 S2000
+M8
+G21
+G1 X100 F2540
+G55
+G1 Y100
+G56
+G1 Z0
+G91 X5
+G1 Z-5
+(Start at next line to show properly restored modal state)
+o<log_modal_state> call (logs modal state at start line for comparison)
+Z-10
+G90
+G0 Z50
+G0 X0 Y0
+M9
+M5
+M6 T0 G49
+M2
+
