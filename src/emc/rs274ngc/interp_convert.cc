@@ -2829,8 +2829,8 @@ int Interp::create_full_restore_sequence(
     }
 
     generator.addPreformatted(preamble.preamble_epilog);
-    // Ugly hack to force the motion mode to be correct
-    generator.forceMotionMode((GCodes)to_restore.modal_state.g_codes[G_CODE_MOTION_MODE]);
+    // KLUDGE force restore of the cached motion mode
+    generator.addPreformatted("G80.9");
     restore_cmd_list = generator.getCommandSequence();
     return 0;
 }
@@ -3453,14 +3453,12 @@ int Interp::convert_motion(GCodes motion,   //!< g_code for a line, arc, canned 
     // Tormach - set motion mode to G0 on G80 per Smid, 2nd Ed. pp 189 *dpr 3/16
     settings->motion_mode = G_0;
   } else if (motion == G_80_9) {
-      // Tormach - DANGEROUS unless you know what you're doping
       int motion_to_be=-1;
-      // TODO figure out how to make the body of the restore premable execute in preamble mode
-      //CHKS(last_cmd_src != CommandSource::PREAMBLE, "G80.9 motion mode setting is not valid outside of start line state restore preamble");
-      CHKS(!block->p_flag , "Motion mode not specified for G80.9");
-      CHKS(!is_near_int(&motion_to_be, block->p_number), "Motion mode must be an integer for G80.9");
-      CHKS(motion_to_be < 0 || motion_to_be > 999 || Interp::_gees[motion_to_be] != 1, "Invalid motion mode %d specified for G80.9", motion_to_be);
+      CHKS(!is_near_int(&motion_to_be, settings->start_line_motion_mode), "Motion mode must be an integer for G80.9");
+      CHKS(motion_to_be < 0 || motion_to_be > 999 || Interp::_gees[motion_to_be] != 1, "Invalid motion mode %d for G80.9", motion_to_be);
       settings->motion_mode = (GCodes)motion_to_be;
+      // Finish the restore by clearing the cached mode so that subsequent G80.9 won't step on the motion mode
+      settings->start_line_motion_mode = G_INVALID;
   } else if (IS_USER_GCODE(motion)) {
       CHP(convert_remapped_code(block, settings, STEP_MOTION, 'g', motion));
   } else if (is_a_cycle(motion)) {

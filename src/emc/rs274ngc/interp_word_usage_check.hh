@@ -37,7 +37,6 @@ enum PWordMeanings
     P_IO_PIN,
     P_USER_MCODE,
     P_SUBROUTINE_NUMBER,
-    P_MOTION_MODE, // G80.9, only during preamble
     MAX_PWORD_MEANINGS
 };
 

@@ -447,6 +447,7 @@ struct setup_struct
   char linetext[LINELEN];       // text of most recent line read
   bool mist;                  // whether mist coolant is on
   GCodes motion_mode;              // active G-code for motion
+  GCodes start_line_motion_mode;     // Previously active G-code for motion leading into the start line
   int origin_index;             // active origin (1=G54 to 9=G59.3)
 
   ParameterArray parameters;   // system parameters

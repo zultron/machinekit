@@ -344,10 +344,3 @@ void GCodeGenerator::addPreformatted(const std::string & g_code_line, const char
     }
     cmd_list.emplace_back(cmd.str());
 }
-
-void GCodeGenerator::forceMotionMode(GCodes mode_for_start_line)
-{
-    std::ostringstream cmd;
-    cmd << "G80.9 P" << mode_for_start_line;
-    cmd_list.emplace_back(cmd.str());
-}

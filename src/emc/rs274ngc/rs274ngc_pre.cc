@@ -1691,6 +1691,7 @@ int Interp::open(const char *filename, const char *working_dir) //!< string: the
     // As we're about to parse a new file, clear out the work offsets that were used by last file.
     _setup.work_offsets_used.clear();
     _setup.tool_offsets_changed.clear();
+    _setup.start_line_motion_mode = G_INVALID;
 
     return INTERP_OK;
 }
@@ -2529,6 +2530,7 @@ int Interp::cbBeforeSeekReadTransition(AutoRunSettings const &start_settings, Ex
 {
     // Before transitioning to read-ahead, write out modal state of what interp thinks it should be
     CHP(write_expanded_modal_state(seek_state));
+    _setup.start_line_motion_mode = _setup.motion_mode;
     // Cancel tool comp temporarily so that we can do startup activities like tool changes
     // Note that any queued moves will be discarded here (all we need is the end point)
     GCodeGenerator generator(_setup.feature_set, GET_EXTERNAL_AXIS_MASK());

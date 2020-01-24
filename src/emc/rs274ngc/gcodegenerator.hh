@@ -53,7 +53,6 @@ public:
     void addToolCompensation(GCodes cutter_side, CutterCompData const &comp_data_to_restore);
     void addToolCompensationWithRadius(GCodes cutter_side, double cutter_radius);
     void addToolCompensationFromTable(GCodes cutter_side, int tool_number);
-    void forceMotionMode(GCodes mode_for_start_line);
 };
 
 #endif // GCODEGENERATOR_HH
