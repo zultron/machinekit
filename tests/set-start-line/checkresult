@@ -3,14 +3,15 @@
 import json
 import difflib
 import sys
+import os
 
 
-def check_file_contents(t_name):
+def check_file_contents(t_name, t_path):
     if t_name is None:
         print >>sys.stderr,"Failed to find test file name"
         return False
-    with open('{}_from_start.log'.format(t_name),'r') as f_start:
-        with open('{}_from_line.log'.format(t_name),'r') as f_line:
+    with open(os.path.join(t_path, '{}_from_start.log'.format(t_name)),'r') as f_start:
+        with open(os.path.join(t_path, '{}_from_line.log'.format(t_name)),'r') as f_line:
             s1 = f_start.readlines()
             s2 = f_line.readlines()
             if not s1 or not s2:
@@ -26,12 +27,14 @@ def check_file_contents(t_name):
     return True
 
 if __name__ == '__main__':
-    with open('tests.json','r') as f:
+    out_name = (sys.argv[1] if len(sys.argv) > 1 else None) or './test_results'
+    out_dir = os.path.dirname(out_name)
+    with open(os.path.join(out_dir, 'tests.json'),'r') as f:
         tests=json.load(f)
 
     for t in tests.get('tests',[]):
         t_name = t.get("file",None)
-        if not check_file_contents(t_name):
+        if not check_file_contents(t_name, out_dir):
             sys.exit(1)
 
     # TODO better standards to make sure the output isn't garbled
