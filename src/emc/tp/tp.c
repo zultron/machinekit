@@ -220,6 +220,8 @@ double tpGetRealMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const
      * limit here.
      */
     if ((tc->synchronized != TC_SYNC_POSITION)){
+        // FIXME this is wrong for 9-axis velocity. Independently limiting the velocity like this means we need to store the proportion of the path distance contributed by each bank of axes, and separately restrict the target velocity that way.
+        // We could do this using the old velocity / accel bounds code for pmcartesian
         v_max_target = fmin(v_max_target,
 			    tcPureRotaryCheck(tc) ? tp->vLimitAng : tp->vLimit);
     }

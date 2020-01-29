@@ -867,6 +867,10 @@ extern "C" {
     extern int pmCartCartDisp(PmCartesian const * const v1, PmCartesian const * const v2, double *d);
     extern int pmCartCartAdd(PmCartesian const * const, PmCartesian const * const, PmCartesian * const);
     extern int pmCartCartSub(PmCartesian const * const, PmCartesian const * const, PmCartesian * const);
+    extern int pmCartCartElemDivNonZero(
+        PmCartesian const * const v,
+        PmCartesian const * const divisor,
+        PmCartesian * const scale);
 
     extern int pmCartScalAdd(const PmCartesian * v, double d, PmCartesian * vout);
     extern int pmCartScalSub(const PmCartesian * v, double d, PmCartesian * vout);

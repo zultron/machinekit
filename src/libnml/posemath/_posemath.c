@@ -870,6 +870,24 @@ int pmCartCartSub(PmCartesian const * const v1, PmCartesian const * const v2,
 
     return pmErrno = 0;
 }
+
+int pmCartCartElemDivNonZero(
+    PmCartesian const * const v,
+    PmCartesian const * const d,
+    PmCartesian * const scale)
+{
+    if (!v || !d || !scale ) {
+        return pmErrno = PM_ERR;
+    }
+
+    scale->x = d->x ? fabs(v->x / d->x) : 0.0;
+    scale->y = d->y ? fabs(v->y / d->y) : 0.0;
+    scale->z = d->z ? fabs(v->z / d->z) : 0.0;
+
+    return pmErrno = 0;
+}
+
+
 int pmCartScalAdd(PmCartesian const * v, double d, PmCartesian *vout)
 {
     vout->x = v->x + d;
