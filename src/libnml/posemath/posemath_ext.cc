@@ -1,5 +1,5 @@
 /********************************************************************
-* Description: posemath.cc
+* Description: posemath_ext.cc
 *    C++ definitions for pose math library data types and manipulation
 *    functions.
 *
@@ -14,7 +14,7 @@
 * Last change: 
 ********************************************************************/
 
-#include "posemath.h"
+#include "posemath_ext.hh"
 
 #ifdef PM_PRINT_ERROR
 #define PM_DEBUG		// need debug with printing
@@ -37,29 +37,25 @@ PM_CARTESIAN::PM_CARTESIAN(double _x, double _y, double _z)
 PM_CARTESIAN::PM_CARTESIAN(PM_CONST PM_CYLINDRICAL PM_REF c)
 {
     PmCylindrical cyl;
-    PmCartesian cart;
 
     toCyl(c, &cyl);
-    pmCylCartConvert(&cyl, &cart);
-    toCart(cart, this);
+    pmCylCartConvert(&cyl, (PmCartesian*)this);
 }
 
 PM_CARTESIAN::PM_CARTESIAN(PM_CONST PM_SPHERICAL PM_REF s)
 {
     PmSpherical sph;
-    PmCartesian cart;
 
     toSph(s, &sph);
-    pmSphCartConvert(&sph, &cart);
-    toCart(cart, this);
+    pmSphCartConvert(&sph, (PmCartesian*)this);
 }
 
 double &PM_CARTESIAN::operator [] (int n) {
     switch (n) {
     case 0:
-	return x;
+    return x;
     case 1:
-	return y;
+    return y;
     case 2:
 	return z;
     default:
@@ -141,15 +137,6 @@ void PM_CARTESIAN::shift(int n)
 }
 
 
-#ifdef INCLUDE_POSEMATH_COPY_CONSTRUCTORS
-PM_CARTESIAN::PM_CARTESIAN(PM_CCONST PM_CARTESIAN & v)
-{
-    x = v.x;
-    y = v.y;
-    z = v.z;
-}
-#endif
-
 // PM_SPHERICAL
 
 PM_SPHERICAL::PM_SPHERICAL(double _theta, double _phi, double _r)
@@ -161,11 +148,9 @@ PM_SPHERICAL::PM_SPHERICAL(double _theta, double _phi, double _r)
 
 PM_SPHERICAL::PM_SPHERICAL(PM_CONST PM_CARTESIAN PM_REF v)
 {
-    PmCartesian cart;
     PmSpherical sph;
 
-    toCart(v, &cart);
-    pmCartSphConvert(&cart, &sph);
+    pmCartSphConvert(&v, &sph);
     toSph(sph, this);
 }
 
@@ -211,11 +196,9 @@ PM_CYLINDRICAL::PM_CYLINDRICAL(double _theta, double _r, double _z)
 
 PM_CYLINDRICAL::PM_CYLINDRICAL(PM_CONST PM_CARTESIAN PM_REF v)
 {
-    PmCartesian cart;
     PmCylindrical cyl;
 
-    toCart(v, &cart);
-    pmCartCylConvert(&cart, &cyl);
+    pmCartCylConvert(&v, &cyl);
     toCyl(cyl, this);
 }
 
@@ -706,9 +689,9 @@ PM_POSE::PM_POSE(PM_CONST PM_HOMOGENEOUS PM_REF h)
 double &PM_POSE::operator [] (int n) {
     switch (n) {
     case 0:
-	return tran.x;
+    return tran.x;
     case 1:
-	return tran.y;
+    return tran.y;
     case 2:
 	return tran.z;
     case 3:
@@ -841,38 +824,16 @@ PM_CIRCLE::PM_CIRCLE(PM_CCONST PM_CIRCLE & c)
 #endif
 
 int PM_CIRCLE::init(PM_POSE start, PM_POSE end,
-    PM_CARTESIAN center, PM_CARTESIAN normal, int turn)
+    PM_CARTESIAN _center, PM_CARTESIAN _normal, int turn)
 {
-    PmCircle _circle;
-    PmPose _start, _end;
-    PmCartesian _center, _normal;
     int retval;
-
-    toPose(start, &_start);
-    toPose(end, &_end);
-    toCart(center, &_center);
-    toCart(normal, &_normal);
-
-    retval = pmCircleInit(&_circle, &_start.tran, &_end.tran, &_center, &_normal, turn);
-
-    toCircle(_circle, this);
-
+    retval = pmCircleInit(this, &start.tran, &end.tran, &_center, &_normal, turn);
     return retval;
 }
 
-int PM_CIRCLE::point(double angle, PM_POSE * point)
+int PM_CIRCLE::point(double angle_, PM_POSE * point)
 {
-    PmCircle _circle;
-    PmPose _point;
-    int retval;
-
-    toCircle(*this, &_circle);
-
-    retval = pmCirclePoint(&_circle, angle, &_point.tran);
-
-    toPose(_point, point);
-
-    return retval;
+    return pmCirclePoint(this, angle_, &point->tran);
 }
 
 // overloaded external functions

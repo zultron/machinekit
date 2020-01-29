@@ -1,8 +1,8 @@
 posemath_cpp_srcs = files([
-    'posemath.cc',
+    'posemath_ext.cc',
 ])
 posemath_srcs = files([
-    '_posemath.c',
+    'posemath.c',
     'sincos.c',
     'gomath.c',
     'pm_vector.c',

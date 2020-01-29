@@ -14,7 +14,7 @@
 #ifndef CANON_POSITION_HH
 #define CANON_POSITION_HH
 
-#include "posemath.h"       // For PM_CARTESIAN type
+#include "posemath_ext.hh"       // For PM_CARTESIAN type
 #include "positionarray.hh"
 
 PM_CARTESIAN xyz(PositionArray const &p);

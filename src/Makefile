@@ -384,7 +384,10 @@ HEADERS := \
     libnml/os_intf/shm.hh \
     libnml/os_intf/_timer.h \
     libnml/os_intf/timer.hh \
+    libnml/posemath/posemath_ext.hh \
+    libnml/posemath/posemath_fwd.hh \
     libnml/posemath/posemath.h \
+    libnml/posemath/posemath_fwd.h \
     libnml/posemath/gotypes.h \
     libnml/posemath/gomath.h \
     libnml/posemath/sincos.h \
@@ -966,7 +969,7 @@ tripodkins-objs := emc/kinematics/tripodkins.o
 
 obj-m += genhexkins.o
 genhexkins-objs := emc/kinematics/genhexkins.o
-genhexkins-objs += libnml/posemath/_posemath.o
+genhexkins-objs += libnml/posemath/posemath.o
 genhexkins-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 obj-m += genserkins.o
@@ -976,12 +979,12 @@ genserkins-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 obj-m += pumakins.o
 pumakins-objs := emc/kinematics/pumakins.o
-pumakins-objs += libnml/posemath/_posemath.o
+pumakins-objs += libnml/posemath/posemath.o
 pumakins-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 obj-m += scarakins.o
 scarakins-objs := emc/kinematics/scarakins.o
-scarakins-objs += libnml/posemath/_posemath.o
+scarakins-objs += libnml/posemath/posemath.o
 scarakins-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 obj-$(CONFIG_MOTMOD) += motmod.o
@@ -1007,7 +1010,7 @@ motmod-objs += emc/motion/stashf.o
 motmod-objs += emc/motion/state_tag.o
 motmod-objs += emc/motion/dbuf.o
 motmod-objs += emc/nml_intf/emcpose.o
-motmod-objs += libnml/posemath/_posemath.o
+motmod-objs += libnml/posemath/posemath.o
 motmod-objs += libnml/posemath/pm_vector.o
 motmod-objs += libnml/posemath/sincos.o $(MATHSTUB)
 

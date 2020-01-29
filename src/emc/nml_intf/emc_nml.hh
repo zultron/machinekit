@@ -22,6 +22,7 @@
 #include "canon.hh"		// CANON_TOOL_TABLE, CANON_UNITS
 #include "rs274ngc.hh"		// ACTIVE_G_CODES, etc
 
+#include "posemath_ext.hh"
 #include <interp_parameter_def.hh>
 #include <array>
 #include <coordinatetransform.hh>

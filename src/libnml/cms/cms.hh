@@ -30,21 +30,14 @@ extern "C" {
 #include "modal_state.hh"
 #include <array>
 
+#include "posemath_fwd.hh"
 class PHYSMEM_HANDLE;
-struct PM_CARTESIAN;
-struct PM_CYLINDRICAL;
-struct PM_EULER_ZYX;
-struct PM_EULER_ZYZ;
-struct PM_HOMOGENEOUS;
-struct PM_POSE;
-struct PM_QUATERNION;
-struct PM_ROTATION_MATRIX;
-struct PM_ROTATION_VECTOR;
-struct PM_RPY;
-struct PM_SPHERICAL;
+
 class LinkedList;
 struct RotateShiftTransform;
 struct ShiftTransform;
+
+
 
 enum CMS_STATUS {
 /* ERROR conditions */
@@ -294,6 +287,7 @@ class CMS {
    ************************************************************************/
     // translation types
     CMS_STATUS update(PM_CARTESIAN & x);	// Cart /* Used by emc2 */
+    CMS_STATUS update(PmCartesian & x);	// Cart /* Used by emc2 */
     CMS_STATUS update(PM_SPHERICAL & x);	// Sph
     CMS_STATUS update(PM_CYLINDRICAL & x);	// Cyl
 
@@ -301,6 +295,7 @@ class CMS {
     CMS_STATUS update(PM_ROTATION_VECTOR & x);	// Rot
     CMS_STATUS update(PM_ROTATION_MATRIX & x);	// Mat
     CMS_STATUS update(PM_QUATERNION & x);	// Quat
+    CMS_STATUS update(PmQuaternion & x);	// Quat
     CMS_STATUS update(PM_EULER_ZYZ & x);	// Zyz
     CMS_STATUS update(PM_EULER_ZYX & x);	// Zyx
     CMS_STATUS update(PM_RPY & x);	// Rpy
