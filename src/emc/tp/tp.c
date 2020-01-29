@@ -64,7 +64,7 @@ do {\
 
 #define CHP(mycall__) CH_ERR(TP_ERR_OK, mycall__)
 
-// FIXME: turn off this feature, which causes blends between rapids to
+// NOTE: turned off this feature, which causes blends between rapids to
 // use the feed override instead of the rapid override
 #undef TP_SHOW_BLENDS
 
@@ -2430,7 +2430,7 @@ tp_err_t tpHandleAbort(TP_STRUCT * const tp, TC_STRUCT * const tc,
         emcmotStatus->spindle_fb.synced = 0;
         tpResume(tp);
         return TP_ERR_STOPPED;
-    }  //FIXME consistent error codes
+    }
     return TP_ERR_SLOWING;
 }
 
@@ -2935,7 +2935,6 @@ int tpUpdateInitialStatus(TP_STRUCT const * const tp) {
     emcmotStatus->tcqlen = tcqLen(&tp->queue);
     // Set default value for requested speed
     emcmotStatus->requested_vel = 0.0;
-    //FIXME test if we can do this safely
     emcmotStatus->current_vel = 0.0;
     emcmotStatus->dwell_time_remaining = 0.0;
     // Set synched move waiting on spindle flag
