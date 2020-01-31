@@ -22,7 +22,7 @@
 
 // place to reference arrays when bounds are exceeded
 static double noElement = 0.0;
-static PM_CARTESIAN *noCart = 0;
+static PM_CARTESIAN *noCart = nullptr;
 
 
 // PM_CARTESIAN class
@@ -561,12 +561,7 @@ PM_EULER_ZYX::PM_EULER_ZYX(double _z, double _y, double _x)
 
 PM_EULER_ZYX::PM_EULER_ZYX(PM_CONST PM_QUATERNION PM_REF q)
 {
-    PmQuaternion quat;
-    PmEulerZyx zyx;
-
-    toQuat(q, &quat);
-    pmQuatZyxConvert(&quat, &zyx);
-    toEulerZyx(zyx, this);
+    pmQuatZyxConvert(&q, this);
 }
 
 PM_EULER_ZYX::PM_EULER_ZYX(PM_CONST PM_ROTATION_MATRIX PM_REF m)
@@ -655,13 +650,8 @@ double &PM_RPY::operator [] (int n) {
 
 PM_POSE::PM_POSE(PM_CARTESIAN v, PM_QUATERNION q)
 {
-    tran.x = v.x;
-    tran.y = v.y;
-    tran.z = v.z;
-    rot.s = q.s;
-    rot.x = q.x;
-    rot.y = q.y;
-    rot.z = q.z;
+    tran = v;
+    rot = q;
 }
 
 PM_POSE::PM_POSE(double x, double y, double z,

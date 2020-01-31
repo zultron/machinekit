@@ -213,7 +213,7 @@ struct PM_EULER_ZYZ {
 
 /* PM_EULER_ZYX */
 
-struct PM_EULER_ZYX {
+struct PM_EULER_ZYX : public PmEulerZyx {
     /* ctors/dtors */
     PM_EULER_ZYX() {
     }
@@ -226,9 +226,6 @@ struct PM_EULER_ZYX {
 
     /* operators */
     double &operator[] (int n);
-
-    /* data */
-    double z, y, x;
 };
 
 /* PM_RPY */
