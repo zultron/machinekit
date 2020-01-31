@@ -124,7 +124,7 @@ author "";
 
 // standard, speeder, high speed, or rapid-turn
 pin in s32 spindle_type;
-pin in u32 m200_comp_version;    //PP GUI must write version , keep in sync with PP GUI python/constants.py M200_VERSION_NUMBER
+pin out u32 m200_comp_version;    //PP GUI must write version , keep in sync with PP GUI python/constants.py M200_VERSION_NUMBER
 
 // connect to motion.spindle-speed-out
 pin in float speed_in;
@@ -926,7 +926,7 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
             vfd_fault_cnt = 0;
             must_wait_for_stop_cmd = 1; //reset this flag 
             look_for_fault_glitch = VFG_SEEN; //assume VFD was on before PP started, gets changed later in VFD_PWR_UP_WAIT if need be 
-
+            m200_comp_version = M200_COMP_VERSION; // TODO: make a first pass initialization function and put this there, but otherwise this is a good place for this to hammer pin
             vfd_pwr_state_timer = VFD_PWR_ON_PERIOD; //just keep loading/restarting this timer it gets used once we exit this state.    
             //we don't care about existing a vfd_fault here, as it gets looked at in VFD_PWR_UP_WAIT with a timer
             //NOTE vfd_24V and vfd_fault are false for a period even if VFD was on before PP started, as there's a 3ms debounce in the HAL!
@@ -1002,6 +1002,7 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
             else
                 spindle_fault = SPINDLE_OK_POSSIBLE_WIRING_ISSUE;
 
+#if 0
             if (spindle_on || orient_execute || spindle_lock) {
                 //we could do this check else where, but we do it here for a couple of reasons
                 // 1) it won't flag until user tries to start spindle
@@ -1013,7 +1014,7 @@ void _VFDPowerExec(struct __comp_state const *__comp_inst, float deltaT)
                     vfd_pwr_state_timer = VFD_PWR_FADE_PERIOD;
                 }
             }
-
+#endif
 
             //note vfd_fault will always preceed !vfd_24V when ESTOP hit OR user opens spindle door, by several secs
             //so realistically the only way ever see vfd_24V drop first is rare loose wire or other VFD malfunction
