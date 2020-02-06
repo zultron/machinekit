@@ -1570,15 +1570,15 @@ int Interp::load_tool_table()
   return INTERP_OK;
 }
 
-int Interp::synch_work_offsets_from_task()
+int Interp::synch_work_offsets_from_task(setup_pointer settings) const
 {
   // Only ask for offsets that are currently defined
   // NOTE "external" units are user units, so no conversions are necessary
   // here since work_offset tables in task and interp are both in user units.
-  for (auto origin_to_synch : _setup.work_offsets_to_synch) {
-      store_work_offset(GET_EXTERNAL_WORK_OFFSET(origin_to_synch), origin_to_synch);
+  for (auto origin_to_synch : settings->work_offsets_to_synch) {
+      store_work_offset(settings, GET_EXTERNAL_WORK_OFFSET(origin_to_synch), origin_to_synch);
   }
-  _setup.work_offsets_to_synch.clear();
+  settings->work_offsets_to_synch.clear();
 
   return INTERP_OK;
 }
@@ -2511,7 +2511,7 @@ int Interp::synch()
       );
 
   // Restore any work offsets that were changed during readahead but not reached by motion yet.
-  synch_work_offsets_from_task();
+  synch_work_offsets_from_task(&_setup);
 
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
   int res_save = save_parameters((file_name[0] == 0) ?

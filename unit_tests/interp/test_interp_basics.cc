@@ -783,7 +783,7 @@ SCENARIO("Load and save parameters")
 
         THEN("A synch directly after init should have no effect") {
             WorkOffsetMap exp_work_offsets = settings->work_offsets_user;
-            REQUIRE_INTERP_OK(test_interp, synch_work_offsets_from_task());
+            REQUIRE_INTERP_OK(test_interp, synch_work_offsets_from_task(settings));
             check_work_offsets(exp_work_offsets, settings->work_offsets_user);
         }
 

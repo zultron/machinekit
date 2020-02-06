@@ -446,7 +446,7 @@ InterpReturn Interp::find_work_offset_from_parameters(setup_pointer settings, in
     return INTERP_OK;
 }
 
-int Interp::store_work_offset_to_parameters(setup_pointer settings, const RotateShiftTransform & work_offset, int origin)
+int Interp::store_work_offset_to_parameters(setup_pointer settings, const RotateShiftTransform & work_offset, int origin) const
 {
     if (origin < 1 || origin >9) {
         return INTERP_ERROR;
@@ -477,19 +477,19 @@ int Interp::find_work_offset_prog(int origin, RotateShiftTransform &work_offset_
   return INTERP_OK;
 }
 
-int Interp::store_work_offset_from_prog(const RotateShiftTransform & work_offset_prog, int origin)
+int Interp::store_work_offset_from_prog(setup_pointer settings, const RotateShiftTransform & work_offset_prog, int origin) const
 {
-  return store_work_offset(convertsProgramToUser().forward_tf(work_offset_prog), origin);
+  return store_work_offset(settings, convertsProgramToUser().forward_tf(work_offset_prog), origin);
 }
 
-int Interp::store_work_offset(RotateShiftTransform const &work_offset_user, int origin)
+int Interp::store_work_offset(setup_pointer settings, RotateShiftTransform const &work_offset_user, int origin) const
 {
     if (isNonzero(work_offset_user)) {
-      _setup.work_offsets_user[origin] = work_offset_user;
+        settings->work_offsets_user[origin] = work_offset_user;
     } else {
-      _setup.work_offsets_user.erase(origin);
+        settings->work_offsets_user.erase(origin);
     }
-  return store_work_offset_to_parameters(&_setup, work_offset_user, origin);
+    return store_work_offset_to_parameters(settings, work_offset_user, origin);
 }
 
 /** Find what current coordinates would be if the specified coordinate system was active. */

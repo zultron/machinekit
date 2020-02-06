@@ -93,7 +93,7 @@ public:
 // load a tool table
  int load_tool_table();
 
- int synch_work_offsets_from_task();
+ int synch_work_offsets_from_task(setup_pointer settings) const;
 
 // open a file of NC code
  int open(const char *filename, const char *working_dir);
@@ -450,10 +450,10 @@ public:
  int store_tool_offset(setup_pointer settings, ShiftTransform const &tool_offset, int pocket);
  int canon_use_tool_offset(ShiftTransform const &tool_offset);
  InterpReturn find_work_offset_from_parameters(setup_pointer settings, int origin, RotateShiftTransform & out);
- int store_work_offset_to_parameters(setup_pointer settings, RotateShiftTransform const &work_offset, int origin);
+ int store_work_offset_to_parameters(setup_pointer settings, RotateShiftTransform const &work_offset, int origin) const;
  int find_work_offset_prog(int origin, RotateShiftTransform & work_offset_user);
- int store_work_offset_from_prog(RotateShiftTransform const &work_offset_prog, int origin);
- int store_work_offset(RotateShiftTransform const &work_offset_user, int origin);
+ int store_work_offset_from_prog(setup_pointer settings, RotateShiftTransform const &work_offset_prog, int origin) const;
+ int store_work_offset(setup_pointer settings, RotateShiftTransform const &work_offset_user, int origin) const;
  int find_current_in_system(setup_pointer s, int system, PositionArray &out);
  int find_current_in_system_without_tlo(setup_pointer s, int system, PositionArray & out);
  int find_ends(block_pointer block, setup_pointer settings,

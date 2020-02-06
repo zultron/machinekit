@@ -3930,7 +3930,7 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
     // L2 means directly edit the work offset of the specified CSYS
     desired_csys.g5xOffset = getAxisWordsFromBlock(block, desired_csys.g5xOffset);
   }
-  store_work_offset_from_prog(desired_csys.g5xOffset, p_int);
+  store_work_offset_from_prog(settings, desired_csys.g5xOffset, p_int);
 
   // KLUDGE always send a coordinate system update
   send_g5x_transform(p_int, desired_csys.g5xOffset);
