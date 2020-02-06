@@ -39,6 +39,17 @@
 #include "interp_parameter_def.hh"
 using namespace interp_param_global;
 
+#define CALL_AND_RETURN(call__) do {\
+    int retval = call__; \
+    if (emc_debug & EMC_DEBUG_INTERP) { \
+        rcs_print(__FILE__ ": %d: %s returned %d\n", __LINE__,  __FUNCTION__, retval); \
+    } \
+    if (retval > INTERP_MIN_ERROR) { \
+        print_interp_error(retval); \
+    } \
+    return retval; \
+} while (0)
+
 #define USER_DEFINED_FUNCTION_MAX_DIRS 5
 #define MAX_M_DIRS (USER_DEFINED_FUNCTION_MAX_DIRS+1)
 //note:the +1 is for the PROGRAM_PREFIX or default directory==nc_files
