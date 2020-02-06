@@ -111,12 +111,17 @@ public:
  int reset();
 
 // restore interpreter variables from a file
- int restore_parameters(const char *filename);
+ int restore_nv_parameters(const char *filename);
+ int restore_all_parameters(const char *filename);
 
 // save interpreter variables to file
- int save_parameters(
+ int save_nv_parameters(
      const char *filename,
      ParameterArray const &parameters);
+
+ // Saves all parameters (including volatiles) to the specified file (typically for preview use)
+ int save_all_parameters(const setup_pointer settings,
+     const char *filename) const;
 
 // synchronize your internal model with the external world
  int synch();
