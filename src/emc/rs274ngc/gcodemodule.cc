@@ -875,22 +875,38 @@ static PyObject * gen_warning_list(std::vector<std::string> const &interp_warnin
 }
 
 #define RESULT_OK (result == INTERP_OK || result == INTERP_EXECUTE_FINISH)
-static PyObject *parse_file(PyObject *self, PyObject *args) {
-    char *f = nullptr;
-    char *unitcode = nullptr, *initcode=nullptr, *interpname=nullptr;
+static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
+    char *file_name = nullptr;
+    char *units_gcode = nullptr;
+    char *init_gcode = nullptr;
+    char *interp_name = nullptr;
     char *working_dir = nullptr;
     int error_line_offset = 0;
+    int start_line = 0;
     struct timeval t0, t1;
     int wait = 1;
-    if(!PyArg_ParseTuple(args, "sO|ssss", &f, &callback, &unitcode, &initcode, &interpname, &working_dir))
+
+    static const char * const kwarg_list[] = {
+        "file_name",
+        "canon_instance",
+        "units_gcode",
+        "init_gcode",
+        "interp_name",
+        "working_dir",
+        "start_line_number",
+        nullptr,
+    };
+
+    // KLUDGE shove even more parameters in here...
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "sO|ssssi", const_cast<char**>(kwarg_list), &file_name, &callback, &units_gcode, &init_gcode, &interp_name, &working_dir, &start_line))
         return nullptr;
 
     if(pinterp) {
         delete pinterp;
         pinterp = 0;
     }
-    if(interpname && *interpname)
-        pinterp = interp_from_shlib(interpname);
+    if(interp_name && *interp_name)
+        pinterp = interp_from_shlib(interp_name);
     if(!pinterp)
         pinterp = new Interp;
 
@@ -910,17 +926,17 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
 
     int result = pinterp->init();
     if(!RESULT_OK) goto out_error;
-    result = pinterp->open(f, working_dir);
+    result = pinterp->open(file_name, working_dir);
     if(!RESULT_OK) goto out_error;
 
     maybe_new_line();
 
-    if(unitcode) {
-        result = execute_lines(pinterp, unitcode, CommandSource::INIT);
+    if(units_gcode) {
+        result = execute_lines(pinterp, units_gcode, CommandSource::INIT);
         if(!RESULT_OK) goto out_error;
     }
-    if(initcode) {
-        result = execute_lines(pinterp, initcode, CommandSource::INIT);
+    if(init_gcode) {
+        result = execute_lines(pinterp, init_gcode, CommandSource::INIT);
         if(!RESULT_OK) goto out_error;
     }
     while(!interp_error && RESULT_OK) {
@@ -1221,7 +1237,7 @@ static PyObject *get_set_max_glcanon_lines(PyObject *self, PyObject *args) {
 }
 
 static PyMethodDef gcode_methods[] = {
-    {"parse", (PyCFunction)parse_file, METH_VARARGS, "Parse a G-Code file"},
+    {"parse", (PyCFunction)parse_file, METH_VARARGS | METH_KEYWORDS, "Parse a G-Code file"},
     {"strerror", (PyCFunction)rs274_strerror, METH_VARARGS,
         "Convert a numeric error to a string"},
     {"calc_extents", (PyCFunction)rs274_calc_extents, METH_VARARGS,

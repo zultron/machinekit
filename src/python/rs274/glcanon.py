@@ -1972,7 +1972,14 @@ class GlCanonDraw:
     def load_preview(self, f, canon, unitcode, initcode, interpname=None, working_dir=None):
         self.set_canon(canon)
         print working_dir
-        result, seq, warnings = gcode.parse(f, canon, unitcode, initcode, interpname or "", working_dir or "")
+        result, seq, warnings = gcode.parse(
+            file_name=f,
+            canon_instance=canon,
+            units_gcode=unitcode,
+            init_gcode=initcode,
+            interp_name=interpname or "",
+            working_dir=working_dir or ""
+        )
 
         # this is only valid right after a gcode.parse() as it will continue to change if the 
         # underlying interp is reset or reused for other files.  It gets cleared when a new file is
