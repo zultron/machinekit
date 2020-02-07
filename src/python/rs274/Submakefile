@@ -1,0 +1,23 @@
+RS274_TARGET_DIR = ../lib/python/rs274
+RS274_SRC_DIR = python/rs274
+RS274_SRCS := \
+			   __init__.py \
+			   author.py\
+			   glcanon.py\
+			   __init__.py\
+			   interpret.py\
+			   OpenGLTk.py\
+			   options.py\
+
+PYTARGETS += $(addprefix $(RS274_TARGET_DIR)/,$(RS274_SRCS))
+# TODO document these sources too?
+
+$(RS274_TARGET_DIR):
+	mkdir -p $@
+
+$(RS274_TARGET_DIR)/%: $(RS274_SRC_DIR)/% | $(RS274_TARGET_DIR)
+	@$(ECHO) Syntax checking python script $(notdir $@)
+	$(Q)$(PYTHON) -c 'import sys; compile(open(sys.argv[1]).read(), sys.argv[1], "exec")' $<
+	$(ECHO) Copying python script $(notdir $@)
+	$(Q)cp $< $@
+

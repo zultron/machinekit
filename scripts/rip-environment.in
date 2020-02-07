@@ -82,9 +82,9 @@ else
 fi
 
 if [ -z "$PYTHONPATH" ]; then
-    PYTHONPATH=$EMC2_HOME/lib/python
+    PYTHONPATH=$EMC2_HOME/lib/python:$EMC2_HOME/lib/python/support
 else
-    PYTHONPATH=$EMC2_HOME/lib/python:"$PYTHONPATH"
+    PYTHONPATH=$EMC2_HOME/lib/python:$EMC2_HOME/lib/python/support:"$PYTHONPATH"
 fi
 
 if [ -z "$MANPATH" ]; then

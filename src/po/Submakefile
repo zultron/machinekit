@@ -64,19 +64,26 @@ TARGETS += po/linuxcnc.pot
 pofiles: po/linuxcnc.pot
 	set -x; for i in po/*.po; do msgmerge -U $$i po/linuxcnc.pot; done
 
-po/linuxcnc.pot: emc/task/emctaskmain.cc $(LIBRS274SRCS) emc/rs274ngc/rs274ngc_return.hh
-po/linuxcnc.pot: hal/utils/meter.c \
+po/linuxcnc.pot: \
+	emc/task/emctaskmain.cc \
+	$(LIBRS274SRCS) \
+	emc/rs274ngc/rs274ngc_return.hh \
+	hal/utils/meter.c \
     hal/utils/scope.c \
-    hal/utils/scope_horiz.c \
-    hal/utils/scope_vert.c \
-    hal/utils/scope_trig.c \
-    hal/utils/scope_disp.c \
-    hal/utils/scope_files.c \
-    hal/utils/miscgtk.c
-po/linuxcnc.pot: emc/motion/control.c emc/motion/command.c emc/motion/motion.c emc/motion/homing.c
+	hal/utils/scope_horiz.c \
+	hal/utils/scope_vert.c \
+	hal/utils/scope_trig.c \
+	hal/utils/scope_disp.c \
+	hal/utils/scope_files.c \
+	hal/utils/miscgtk.c \
+	emc/motion/control.c \
+	emc/motion/command.c \
+	emc/motion/motion.c \
+	emc/motion/homing.c \
+	$(TCLSRCS) \
+	$(PYI18NSRCS) \
+	../lib/python/support/propertywindow.py
 
-po/linuxcnc.pot: $(TCLSRCS)
-po/linuxcnc.pot: $(PYI18NSRCS)
 
 .PHONY: install-locale
 install-locale: $(addprefix $(DESTDIR)$(localedir)/, $(MO_FILES))

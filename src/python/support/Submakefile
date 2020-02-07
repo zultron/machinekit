@@ -1,0 +1,33 @@
+# Catch-all directory for python support in linuxcnc
+SUPPORT_TARGET_DIR = ../lib/python/support
+SUPPORT_SRC_DIR = python/support
+SUPPORT_SRCS := \
+	bitfile.py\
+	glnav.py\
+	hershey.py\
+	pyngcgui.py\
+	vismach.py\
+	bwidget.py\
+	hal_glib.py\
+	linux_event.py\
+	popupkeyboard.py\
+	pyvcp_widgets.py\
+	gladevcp_makepins.py\
+	hal.py\
+	multifilebuilder.py\
+	propertywindow.py\
+	vcpparse.py\
+
+PYI18NSRCS += $(addprefix $(SUPPORT_SRC_DIR)/,$(SUPPORT__SRCS))
+
+PYTARGETS += $(addprefix $(SUPPORT_TARGET_DIR)/,$(SUPPORT_SRCS))
+
+$(SUPPORT_TARGET_DIR):
+	mkdir -p $@
+
+$(SUPPORT_TARGET_DIR)/%: $(SUPPORT_SRC_DIR)/% | $(SUPPORT_TARGET_DIR)
+	@$(ECHO) Syntax checking python script $(notdir $@)
+	$(Q)$(PYTHON) -c 'import sys; compile(open(sys.argv[1]).read(), sys.argv[1], "exec")' $<
+	$(ECHO) Copying python script $(notdir $@)
+	$(Q)cp $< $@
+
