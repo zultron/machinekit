@@ -72,6 +72,7 @@ class DummyProgress:
     def nextphase(self, unused): pass
     def progress(self): pass
 
+
 class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
     def __init__(self, colors, geometry, lathe_view_option, stat, random, inifile):
         rs274.glcanon.GLCanon.__init__(self, colors, geometry, inifile)
@@ -395,13 +396,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def set_leadin_type(self, leadin_type):
         self.leadin_type = leadin_type
 
-
-    def get_tmp_file_path(self):
-        td = tempfile.mkdtemp()
-        parameter_raw = self.inifile.find("RS274NGC", "PARAMETER_FILE")
-        parameter = os.path.expanduser(parameter_raw)
-        return os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
-
     def load(self, filename=None, suppress_errors=False, working_dir=None, start_line=None, leadin_type=None, temp_parameter_file_name=None):
         # suppress_errors arg was added to help situation where we need to have gremlin
         # redraw the current file - which is a reload of the file.  In this case the operator
@@ -415,8 +409,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         if leadin_type is not None:
             self.leadin_type = leadin_type
 
-        print s.file
-        print s.working_dir
         if not filename:
             return
 
@@ -702,3 +694,4 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
     def rotate_view(self,x,y):
         self.rotateOrTranslate(x, y)
+
