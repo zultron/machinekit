@@ -775,6 +775,12 @@ static inline int get_current_tool(Interp &interp)  {
 static inline void set_current_tool(Interp &interp, int value)  {
     interp._setup.tool_table[0].toolno = value;
 }
+static inline int get_flood(Interp &interp)  {
+    return interp._setup.flood;
+}
+static inline void set_flood(Interp &interp, bool val)  {
+    interp._setup.flood = val;
+}
 
 BOOST_PYTHON_MODULE(interpreter) {
     using namespace boost::python;
@@ -876,8 +882,9 @@ BOOST_PYTHON_MODULE(interpreter) {
 	.add_property("input_digital", &get_input_digital, &set_input_digital)
 	.add_property("input_flag", &get_input_flag, &set_input_flag)
 	.add_property("mdi_interrupt", &get_mdi_interrupt, &set_mdi_interrupt)
-	.add_property("mist", &get_mist, &set_mist)
-	.add_property("percent_flag", &get_percent_flag, &set_percent_flag)
+    .add_property("mist", &get_mist, &set_mist)
+    .add_property("flood", &get_flood, &set_flood)
+    .add_property("percent_flag", &get_percent_flag, &set_percent_flag)
 	.add_property("probe_flag", &get_probe_flag, &set_probe_flag)
 	.add_property("speed_override", &get_speed_override, &set_speed_override)
 	.add_property("toolchange_flag", &get_toolchange_flag, &set_toolchange_flag)
