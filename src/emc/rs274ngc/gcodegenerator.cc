@@ -311,10 +311,11 @@ int GCodeGenerator::gen_modalStateRestore(ModalState & current, const ModalState
         auto g_unit = (GCodes)saved.g_codes[G_CODE_UNITS];
         formatGCode(g_unit, cmd_list.back());
     }
-    // Each M code needs to execute on its own line to avoid conflicts
-    addModalStateMCodes(current.m_codes, saved.m_codes);
     // G code commands currently all execute in a single line (may change in the future if there are conflicts)
     addModalStateGCodes(current, saved);
+    // Each M code needs to execute on its own line to avoid conflicts
+    // Execute after the G-codes are set up so that the correct spindle speed is restored
+    addModalStateMCodes(current.m_codes, saved.m_codes);
     return 0;
 }
 
