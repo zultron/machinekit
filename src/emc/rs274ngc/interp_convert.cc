@@ -22,6 +22,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string>
+#include <sstream>
+
 #include "rs274ngc.hh"
 #include "rs274ngc_return.hh"
 #include "rs274ngc_interp.hh"
@@ -2750,6 +2752,9 @@ int Interp::create_full_restore_sequence(
 ){
     GCodeGenerator generator(_setup.feature_set, GET_EXTERNAL_AXIS_MASK());
 
+    std::ostringstream oss;
+    oss << "program preamble: Starting program execution at line " << run_settings.start_line;
+    generator.printMsg(oss.str());
     generator.addQueueBuster("Force a drop into auto mode to process remainder of restore sequence");
 // Don't restore work / tool offset values (but parameter values will be changed...)
 #if 0
@@ -2767,6 +2772,7 @@ int Interp::create_full_restore_sequence(
 #endif
 
     if (!run_settings.keep_current_tool) {
+        generator.printMsg("program preamble: Change to active tool at start line and execute prolog and epilog");
         generator.addPreformatted("G90"); // Necessary to allow absolute moves in toolchange prolog
         generator.addPreformatted(preamble.toolchange_prolog, "TOOLCHANGE PROLOG");
         generator.addToolChange(_setup.getCurrentToolNumber());
@@ -2797,6 +2803,7 @@ int Interp::create_full_restore_sequence(
     switch (run_settings.leadin_type) {
     case PREP_LINEAR_LEADIN:
     {
+        generator.printMsg("program preamble: Linear lead-in at program feed, from initial position to program position at start of next line");
         generator.addPreformatted(preamble.leadin_prolog);
         // Assume that current tool tip position is the starting position of a lead-in move
         PositionArray leadin_position = _setup.transform.inverse_local_from_nose(
@@ -2813,6 +2820,7 @@ int Interp::create_full_restore_sequence(
     }
         break;
     case PREP_PLUNGE_LEADIN:
+        generator.printMsg("program preamble: Traverse / Plunge lead-in at program feed, from safe height to program height at start of next line");
         generator.addPreformatted(preamble.leadin_prolog);
         // NOTE: traverse plane is either initial Z height, or whatever the toolchange / epilog leaves the plunge axes.
         generator.addToolCompensation((GCodes)to_restore.modal_state.g_codes[G_CODE_CUTTER_SIDE], to_restore.modal_state.cutter_comp);
@@ -2824,6 +2832,7 @@ int Interp::create_full_restore_sequence(
         break;
     case PREP_NONE:
         //TODO do tool compensation after preamble epilog?
+        generator.printMsg("program preamble: No lead-in move");
         generator.addToolCompensation((GCodes)to_restore.modal_state.g_codes[G_CODE_CUTTER_SIDE], to_restore.modal_state.cutter_comp);
         break;
     }

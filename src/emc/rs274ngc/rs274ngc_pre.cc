@@ -2538,6 +2538,7 @@ int Interp::cbBeforeSeekReadTransition(AutoRunSettings const &start_settings, Ex
     if (start_settings.keep_current_tool) {
         generator.addToolChange(run_initial_state.modal_state.tool_number);
         CHP(gen_toolOffset(generator, run_initial_state.modal_state.tool_offset_mode, run_initial_state.modal_state.tool_offset_number));
+        generator.printMsg("program preamble: keeping current tool in spindle and active offset");
     }
     for (auto const &l : generator.getCommandSequence()) {
         // NOTE: this is not part of the preamble because it's just cleaning up the modal state of interp,
@@ -2585,8 +2586,10 @@ int Interp::cbAfterSeekReadTransition(
         std::ofstream f_tmp(tmp_file_path);
 
         // Wrap the command list in a subroutine
+        doLog(0, nullptr, -1, "program preamble commands before starting at line %d:\n", start_settings.start_line);
         f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> sub\n";
         for (auto const &cmd : restore_cmd_list) {
+            doLog(0, nullptr, -1, "  %s\n",cmd.c_str());
             f_tmp << cmd << "\n";
         }
         f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> endsub\n";

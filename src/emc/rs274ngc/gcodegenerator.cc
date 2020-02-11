@@ -161,6 +161,11 @@ void GCodeGenerator::addToolCompensationFromTable(GCodes cutter_side, int tool_n
     }
 }
 
+void GCodeGenerator::printMsg(const std::string && msg)
+{
+    cmd_list.emplace_back("(PRINT,"+msg+")");
+}
+
 int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState & saved)
 {
     // Always restore work offset number using extended work offset format (since modal state is not fully captured in the G5x mode)
