@@ -2542,7 +2542,7 @@ int Interp::cbBeforeSeekReadTransition(AutoRunSettings const &start_settings, Ex
     for (auto const &l : generator.getCommandSequence()) {
         // NOTE: this is not part of the preamble because it's just cleaning up the modal state of interp,
         // not actually sending anything out to the rest of the system
-        CHP(execute(l.c_str(), CommandSource::MODAL_STATE_RESTORE)); // does NOT use the special PREAMBLE mode that treats an explicit command like part of auto
+        CHP(isInterpError(execute(l.c_str(), CommandSource::MODAL_STATE_RESTORE))); // does NOT use the special PREAMBLE mode that treats an explicit command like part of auto
     }
     return INTERP_OK;
 }
