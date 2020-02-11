@@ -34,9 +34,9 @@ int GCodeGenerator::formatGCode(GCodes g, std::string & cmd)
     int base_g = g / 10;
     int sub_g = g - base_g*10;
     if (sub_g) {
-        snprintf(buf, sizeof(buf), "G%d.%d", base_g, sub_g);
+        snprintf(buf, sizeof(buf), "G%d.%d ", base_g, sub_g);
     } else {
-        snprintf(buf, sizeof(buf), "G%d", base_g);
+        snprintf(buf, sizeof(buf), "G%d ", base_g);
     }
 
     cmd += buf;
@@ -145,7 +145,7 @@ void GCodeGenerator::addToolCompensationWithRadius(GCodes cutter_side, double cu
     std::string &cmd = cmd_list.back();
     formatGCode((GCodes)(cutter_side + 1), cmd);
     char buf[LINELEN];
-    snprintf(buf, sizeof(buf), " D%f", cutter_radius * 2.0);
+    snprintf(buf, sizeof(buf), "D%f", cutter_radius * 2.0);
     cmd += buf;
 }
 
@@ -156,7 +156,7 @@ void GCodeGenerator::addToolCompensationFromTable(GCodes cutter_side, int tool_n
     formatGCode((GCodes)(cutter_side), cmd);
     if (tool_number >= 0) {
         char buf[LINELEN];
-        snprintf(buf, sizeof(buf), " D%d", tool_number);
+        snprintf(buf, sizeof(buf), "D%d", tool_number);
         cmd += buf;
     }
 }
@@ -192,7 +192,7 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
             if (has_feature(features, FEATURE_LATHE_TOOLCHANGE) && val == G_43) {
                 char buf[LINELEN];
                 //FIXME handle a negative H
-                snprintf(buf, sizeof(buf), "H%d", saved.tool_offset_number);
+                snprintf(buf, sizeof(buf), "H%d ", saved.tool_offset_number);
                 cmd += buf;
             }
             break;
@@ -225,11 +225,11 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
         switch ((ActiveSettingIndex)ii) {
         case SETTINGS_SEQUENCE_NUMBER: break; // sequence_number - no point in restoring
         case SETTINGS_FEED_RATE:
-            snprintf(buf,sizeof(buf)," F%.1f", saved.settings[ii]);
+            snprintf(buf,sizeof(buf)," F%.1f ", saved.settings[ii]);
             cmd+=buf;
             break;
         case SETTINGS_SPEED:
-            snprintf(buf,sizeof(buf)," S%.0f", saved.settings[ii]);
+            snprintf(buf,sizeof(buf)," S%.0f ", saved.settings[ii]);
             cmd+=buf;
             break;
         case ACTIVE_SETTINGS: // Not a real setting index
@@ -275,7 +275,7 @@ int GCodeGenerator::addModalStateMCodes(const ActiveMCodeArray & current, const 
 
 int GCodeGenerator::addQueueBuster(const char *comment)
 {
-    cmd_list.emplace_back("M66 P0 L0");
+    cmd_list.emplace_back("M66 P0 L0 ");
     if (comment) {
         cmd_list.back()+= "(";
         cmd_list.back()+= comment;
