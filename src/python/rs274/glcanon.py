@@ -82,7 +82,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.highlight_line = None
         self.visible_tools = None
         self.current_tool = 0
-        self.inifile = inifile
 
     def comment(self, arg):
         if arg.startswith("AXIS,"):
@@ -441,7 +440,8 @@ class GlCanonDraw:
         'axis_x': (1.00, 0.20, 0.20),
         'grid': (0.15, 0.15, 0.15),
     }
-    def __init__(self, s, lp, g=None):
+
+    def __init__(self, s, lp, inifile, g=None):
         self.stat = s
         self.lp = lp
         self.canon = g
@@ -450,6 +450,15 @@ class GlCanonDraw:
         self.cached_tool = -1
         self.initialised = 0
         self._work_offsets_used = []
+        self.x_limit_positive = float(inifile.find("AXIS_0", "MAX_LIMIT"))
+        self.x_limit_negative = float(inifile.find("AXIS_0", "MIN_LIMIT"))
+        self.y_limit_positive = float(inifile.find("AXIS_1", "MAX_LIMIT") or 0)
+        self.y_limit_negative = float(inifile.find("AXIS_1", "MIN_LIMIT") or 0)
+        self.z_limit_positive = float(inifile.find("AXIS_2", "MAX_LIMIT"))
+        self.z_limit_negative = float(inifile.find("AXIS_2", "MIN_LIMIT"))
+
+    def update_glcanon(self, new_canon):
+        self.canon = new_canon
 
     def realize(self):
         self.hershey = hershey.Hershey()
@@ -1916,35 +1925,24 @@ class GlCanonDraw:
 
     def extents_info(self):
         if self.canon:
-            mid = [(a+b)/2 for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
-            if self.is_lathe():
-                size = [(.5 * (a-b)) for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
-            else:
-                size = [(a-b) for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
+            mid = [(a+b) / 2 for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
+            sz_scale = .5 if self.is_lathe() else 1.0
+            size = [sz_scale * (a-b) for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
         else:  # use work space extents (limits) from .ini file
-            x_limit_positive = float(self.inifile.find("AXIS_0", "MAX_LIMIT"))
-            x_limit_negative = float(self.inifile.find("AXIS_0", "MIN_LIMIT"))
-            y_limit_positive = float(self.inifile.find("AXIS_1", "MAX_LIMIT") or 0)
-            y_limit_negative = float(self.inifile.find("AXIS_1", "MIN_LIMIT") or 0)
-            z_limit_positive = float(self.inifile.find("AXIS_2", "MAX_LIMIT"))
-            z_limit_negative = float(self.inifile.find("AXIS_2", "MIN_LIMIT"))
             s = self.stat
-            if self.is_lathe():
-                mid = [((x_limit_positive + x_limit_negative) / 2) - s.tool_offset[0],
-                       ((y_limit_positive + y_limit_negative) / 2) - s.tool_offset[1],
-                       ((z_limit_positive + z_limit_negative) / 2) - s.tool_offset[2] ]
+            sz_scale = 0.37 if self.is_lathe() else 0.43
 
-                size = [.37 * (x_limit_positive - x_limit_negative),
-                        .37 * (y_limit_positive - y_limit_negative),
-                        .37 * (z_limit_positive - z_limit_negative) ]
-            else:
-                mid = [(((x_limit_positive + x_limit_negative) / 2) - s.tool_offset[0]),
-                       (((y_limit_positive + y_limit_negative) / 2) - s.tool_offset[1]),
-                       (((z_limit_positive + z_limit_negative) / 2) - s.tool_offset[2]) ]
+            mid = [
+                ((self.x_limit_positive + self.x_limit_negative) / 2) - s.tool_offset[0],
+                ((self.y_limit_positive + self.y_limit_negative) / 2) - s.tool_offset[1],
+                ((self.z_limit_positive + self.z_limit_negative) / 2) - s.tool_offset[2],
+                ]
 
-                size = [.43 * (x_limit_positive - x_limit_negative),
-                        .43 * (y_limit_positive - y_limit_negative),
-                        .43 * (z_limit_positive - z_limit_negative) ]
+            size = [
+                sz_scale * (self.x_limit_positive - self.x_limit_negative),
+                sz_scale * (self.y_limit_positive - self.y_limit_negative),
+                sz_scale * (self.z_limit_positive - self.z_limit_negative),
+                ]
 
         return mid, size
 
@@ -2011,5 +2009,7 @@ class GlCanonDraw:
         lus = [lu, lu, lu, 1, 1, 1, lu, lu, lu]
         return [a*b for a, b in zip(pos, lus)]
 
+    def get_highlight_line(self):
+        pass
 
 # vim:ts=8:sts=4:sw=4:et:

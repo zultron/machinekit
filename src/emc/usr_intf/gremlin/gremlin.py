@@ -145,7 +145,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         )
         thread.start_new_thread(self.logger.start, (.01,))
 
-        rs274.glcanon.GlCanonDraw.__init__(self, linuxcnc.stat(), self.logger)
+        rs274.glcanon.GlCanonDraw.__init__(self, linuxcnc.stat(), self.logger, inifile=inifile)
 
         self.current_view = 'z'
 
