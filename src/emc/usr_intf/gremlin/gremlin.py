@@ -215,6 +215,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         self._tools_used = []
 
+        # Cache start settings for preview redraw
+        self.start_line = 0
+        self.leadin_type = 0
 
     def destroy(self):
         # cleanup so that the garbage collector can actually do its work.
@@ -386,7 +389,13 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         print("Active G-codes at redraw:", cmd_list)
         return '\n'.join((' '.join(sub_l) for sub_l in cmd_list))
 
-    def load(self, filename=None, suppress_errors=False, working_dir=None):
+    def set_start_line(self, start_line):
+        self.start_line = start_line
+
+    def set_leadin_type(self, leadin_type):
+        self.leadin_type = leadin_type
+
+    def load(self, filename=None, suppress_errors=False, working_dir=None, start_line=None, leadin_type=None):
         # suppress_errors arg was added to help situation where we need to have gremlin
         # redraw the current file - which is a reload of the file.  In this case the operator
         # has already seen the errors with the file and we want to avoid continuing to
@@ -394,6 +403,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         s = self.stat
         s.poll()
         filename = filename or s.file
+        if start_line is not None:
+            self.start_line = start_line
+        if leadin_type is not None:
+            self.leadin_type = leadin_type
 
         print s.file
         print s.working_dir
@@ -421,7 +434,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
             initcode = self.get_active_g_code_string() or self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
             unitcode = "G{}".format(20 + (s.program_units == linuxcnc.UNITS_MM))
-            result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode, None, working_dir)
+            result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode, None, working_dir, self.start_line, self.leadin_type)
 
             #Handle extents violation (copied from AXIS)
             machine_limit_min, machine_limit_max = self.canon.get_soft_limits()

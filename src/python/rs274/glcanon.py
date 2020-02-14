@@ -1969,7 +1969,7 @@ class GlCanonDraw:
     def get_work_offsets_used(self):
         return self._work_offsets_used
 
-    def load_preview(self, f, canon, unitcode, initcode, interpname=None, working_dir=None):
+    def load_preview(self, f, canon, unitcode, initcode, interpname=None, working_dir=None, start_line=0, leadin_type=None):
         self.set_canon(canon)
         print working_dir
         result, seq, warnings = gcode.parse(
@@ -1978,7 +1978,9 @@ class GlCanonDraw:
             units_gcode=unitcode,
             init_gcode=initcode,
             interp_name=interpname or "",
-            working_dir=working_dir or ""
+            working_dir=working_dir or "",
+            start_line_number=start_line,
+            leadin_type=leadin_type
         )
 
         # this is only valid right after a gcode.parse() as it will continue to change if the 
