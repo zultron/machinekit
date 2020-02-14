@@ -934,6 +934,8 @@ int planFinishLineSeek(
         res_interp = rs274_interp->cbBeforeSeekReadTransition(run_settings, run_initial_state, state_at_seek);
     }
 
+    maybe_new_line();
+    RETURN_ON_ERROR(pinterp->execute("", CommandSource::MODAL_STATE_RESTORE));
     set_exec_mode(ParseExecMode::PREP);
     restore_machine_state_before_preview_synch(run_initial_state);
 
@@ -961,7 +963,7 @@ static int do_parse_loop(
     char *units_gcode,
     char *init_gcode,
     char *working_dir,
-    int error_line_offset,
+    int &error_line_offset,
     AutoRunSettings start_settings,
     int wait
 ){
@@ -998,19 +1000,16 @@ static int do_parse_loop(
     set_exec_mode(ParseExecMode::SEEK);
 
     while(!interp_error) {
-        error_line_offset = 1;
-        RETURN_ON_ERROR(pinterp->read());
         gettimeofday(&t1, nullptr);
         if(t1.tv_sec > t0.tv_sec + wait) {
             if(check_abort()) return 255;
             t0 = t1;
         }
-        error_line_offset = 0;
-
 
         int cur_line = pinterp->line();
         switch (exec_mode_) {
         case ParseExecMode::SEEK:
+            // NOTE: current line has been read here but not executed
             if (cur_line + 1 >= start_settings.start_line) {
                 RETURN_ON_ERROR(planFinishLineSeek(rs274_interp, start_settings, run_initial_state));
             }
@@ -1023,6 +1022,9 @@ static int do_parse_loop(
             // Do nothing, already in run mode
             break;
         }
+        error_line_offset = 1;
+        RETURN_ON_ERROR(pinterp->read());
+        error_line_offset = 0;
         InterpReturn result = (InterpReturn)pinterp->execute(nullptr, CommandSource::PROGRAM);
         switch(result)
         {
