@@ -162,7 +162,6 @@ static int interp_error;
 static int last_sequence_number;
 static bool metric;
 static PositionArray _pos{};
-static EmcPose tool_offset;
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
 
@@ -171,6 +170,9 @@ static int spindle_synched_motion = 0;
 static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
 static double css_max_speed_programmed = 0.0;
+
+static AxisOffsetParams cached_g92{};
+static LocalToMachineTransform transform{};
 
 enum class ParseExecMode {
     SEEK,
@@ -321,10 +323,9 @@ void SET_G5X_TRANSFORM(int origin,
         callmethod(callback, "set_g5x_transform", "iffffffffff",
                 origin, x, y, z, a, b, c, u, v, w, xy_rotation_deg);
     if(!result_offset) interp_error ++;
+    transform.g5xOffset = RotateShiftTransform({x, y, z, a, b, c, u, v, w}, xy_rotation_deg);
     Py_XDECREF(result_offset);
 }
-
-static AxisOffsetParams cached_g92{};
 
 void SET_G92_OFFSET(bool applied, double x, double y, double z,
                     double a, double b, double c,
@@ -333,7 +334,7 @@ void SET_G92_OFFSET(bool applied, double x, double y, double z,
     maybe_new_line();
     if(interp_error) return;
 
-    auto g92 = ShiftTransform{{x,y,z,a,b,c,u,v,w}};
+    auto const &g92 = transform.g92Offset = ShiftTransform{{x,y,z,a,b,c,u,v,w}};
     cached_g92.applied = applied;
     if (applied) {
         cached_g92.offset = g92;
@@ -394,6 +395,7 @@ void CHANGE_TOOL(int pocket) {
     Py_XDECREF(result);
 }
 
+// FIXME does this have an effect on tool number / preview data organization?
 void CHANGE_TOOL_NUMBER(int pocket) {
     maybe_new_line();
     if(interp_error) return;
@@ -451,7 +453,7 @@ void SET_TOOL_TABLE_ENTRY(int pocket, int toolno, EmcPose offset, double diamete
 }
 
 void USE_TOOL_LENGTH_OFFSET(EmcPose offset) {
-    tool_offset = offset;
+    transform.toolOffset = ShiftTransform(toArray(offset));
     maybe_new_line();
     if(interp_error) return;
     if(metric) {
@@ -734,31 +736,31 @@ int GET_EXTERNAL_AXIS_MASK() {
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_XOFFSET() {
-    return tool_offset.tran.x;
+    return transform.toolOffset[X];
 }
 double GET_EXTERNAL_TOOL_LENGTH_YOFFSET() {
-    return tool_offset.tran.y;
+    return transform.toolOffset[Y];
 }
 double GET_EXTERNAL_TOOL_LENGTH_ZOFFSET() {
-    return tool_offset.tran.z;
+    return transform.toolOffset[Z];
 }
 double GET_EXTERNAL_TOOL_LENGTH_AOFFSET() {
-    return tool_offset.a;
+    return transform.toolOffset[A];
 }
 double GET_EXTERNAL_TOOL_LENGTH_BOFFSET() {
-    return tool_offset.b;
+    return transform.toolOffset[B];
 }
 double GET_EXTERNAL_TOOL_LENGTH_COFFSET() {
-    return tool_offset.c;
+    return transform.toolOffset[C];
 }
 double GET_EXTERNAL_TOOL_LENGTH_UOFFSET() {
-    return tool_offset.u;
+    return transform.toolOffset[U];
 }
 double GET_EXTERNAL_TOOL_LENGTH_VOFFSET() {
-    return tool_offset.v;
+    return transform.toolOffset[V];
 }
 double GET_EXTERNAL_TOOL_LENGTH_WOFFSET() {
-    return tool_offset.w;
+    return transform.toolOffset[W];
 }
 
 static bool PyInt_CheckAndError(const char *func, PyObject *p)  {
@@ -896,6 +898,16 @@ void set_exec_mode(ParseExecMode mode)
     exec_mode_ = mode;
 }
 
+void restore_machine_state_before_preview_synch(ExpandedModalState const &run_initial_state)
+{
+    // KLUDGE force the "machine" state to be what the initial position was again, as if synching from a real machine
+    _pos = transform.inverse_local_from_nose(run_initial_state.initial_nose_position_uu);
+
+    // TODO handle coolant settings here if we ever show coolant state in preview
+    // flood
+    // mist
+}
+
 int planFinishLineSeek(
     Interp *rs274_interp,
     AutoRunSettings const &run_settings,
@@ -909,10 +921,12 @@ int planFinishLineSeek(
     }
 
     set_exec_mode(ParseExecMode::PREP);
+    restore_machine_state_before_preview_synch(run_initial_state);
 
     if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
         // Do a full modal state restore as if the program had executed from line 1,
         // and insert any preparatory actions like tool changes / lead-in moves.
+        // FIXME synch may return garbage since the globals that are equivalent to machine state are directly poked in canon
         res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek, run_settings, run_initial_state);
     } else {
         // Legacy behavior that just synchs up with world without doing explicit modal state restore
