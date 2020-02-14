@@ -2381,6 +2381,10 @@ int Interp::restore_all_parameters(const char * filename)
     find_work_offset_from_parameters(&_setup, origin, _setup.work_offsets_user[origin]);
   }
 
+  // Copy current position back out of reserved parameter area
+  auto it_cur_pos = _setup.parameters.begin() + EXPORT_CUR_POS_ARRAY;
+  std::copy(it_cur_pos, it_cur_pos + _setup.current.size(), _setup.current.begin());
+
   auto pred = [](WorkOffsetMap::value_type const &el)
   {
       return !isNonzero(el.second);
@@ -2550,6 +2554,7 @@ int Interp::save_all_parameters(
     if (!export_file) {
         return INTERP_FILE_NOT_OPEN;
     }
+
 
     char line[PATH_MAX]={0};
 
@@ -2745,6 +2750,8 @@ int Interp::synch_and_export(setup_pointer settings, const char * export_file_na
 {
     setup tmp(*settings);
     int res_synch = synch_external_state(&tmp);
+    // KLUDGE shove the current position into
+    std::copy(tmp.current.begin(), tmp.current.end(), tmp.parameters.begin() + EXPORT_CUR_POS_ARRAY);
     int res_save = save_all_parameters(&tmp, export_file_name);
     return res_synch | res_save;
 }
