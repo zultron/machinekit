@@ -172,6 +172,14 @@ static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
 static double css_max_speed_programmed = 0.0;
 
+enum class ParseExecMode {
+    SEEK,
+    PREP,
+    RUN,
+};
+
+static ParseExecMode exec_mode_;
+
 static InterpBase *pinterp;
 
 #define callmethod(o, m, f, ...) PyObject_CallMethod((o), const_cast<char*>(m), const_cast<char*>(f), ## __VA_ARGS__)
@@ -874,7 +882,139 @@ static PyObject * gen_warning_list(std::vector<std::string> const &interp_warnin
     return warning_list;
 }
 
-#define RESULT_OK (result == INTERP_OK || result == INTERP_EXECUTE_FINISH)
+// Crude version of CHP for the parse loop
+#define RETURN_ON_ERROR(call) \
+do { \
+    int err_status = (call); \
+    if (isInterpError(err_status)) { \
+        return err_status; \
+    } \
+} while(0)
+
+void set_exec_mode(ParseExecMode mode)
+{
+    exec_mode_ = mode;
+}
+
+int planFinishLineSeek(
+    Interp *rs274_interp,
+    AutoRunSettings const &run_settings,
+    ExpandedModalState const &run_initial_state
+){
+    ExpandedModalState state_at_seek{};
+    int res_interp = INTERP_OK;
+    if (rs274_interp) {
+        // NOTE: modal state is recorded before the transition for use in the restore sequence
+        res_interp = rs274_interp->cbBeforeSeekReadTransition(run_settings, run_initial_state, state_at_seek);
+    }
+
+    set_exec_mode(ParseExecMode::PREP);
+
+    if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
+        // Do a full modal state restore as if the program had executed from line 1,
+        // and insert any preparatory actions like tool changes / lead-in moves.
+        res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek, run_settings, run_initial_state);
+    } else {
+        // Legacy behavior that just synchs up with world without doing explicit modal state restore
+        rs274_interp->synch();
+    }
+
+    return res_interp;
+}
+
+
+static int do_parse_loop(
+    Interp *rs274_interp,
+    char *file_name,
+    char *units_gcode,
+    char *init_gcode,
+    char *working_dir,
+    int error_line_offset,
+    AutoRunSettings start_settings,
+    int wait
+){
+    struct timeval t0{}, t1{};
+    gettimeofday(&t0, nullptr);
+
+    RETURN_ON_ERROR(pinterp->init());
+    RETURN_ON_ERROR(pinterp->open(file_name, working_dir));
+
+    maybe_new_line();
+
+    if(units_gcode) {
+        RETURN_ON_ERROR(execute_lines(pinterp, units_gcode, CommandSource::INIT));
+    }
+    if(init_gcode) {
+        RETURN_ON_ERROR(execute_lines(pinterp, init_gcode, CommandSource::INIT));
+    }
+
+    ExpandedModalState run_initial_state;
+    pinterp->write_expanded_modal_state(run_initial_state);
+    set_exec_mode(ParseExecMode::SEEK);
+
+    while(!interp_error) {
+        error_line_offset = 1;
+        RETURN_ON_ERROR(pinterp->read());
+        gettimeofday(&t1, nullptr);
+        if(t1.tv_sec > t0.tv_sec + wait) {
+            if(check_abort()) return 255;
+            t0 = t1;
+        }
+        error_line_offset = 0;
+
+
+        int cur_line = pinterp->line();
+        switch (exec_mode_) {
+        case ParseExecMode::SEEK:
+            if (cur_line + 1 >= start_settings.start_line) {
+                RETURN_ON_ERROR(planFinishLineSeek(rs274_interp, start_settings, run_initial_state));
+            }
+            break;
+        case ParseExecMode::PREP:
+            // Start run mode
+            set_exec_mode(ParseExecMode::RUN);
+            break;
+        case ParseExecMode::RUN:
+            // Do nothing, already in run mode
+            break;
+        }
+        InterpReturn result = (InterpReturn)pinterp->execute(nullptr, CommandSource::PROGRAM);
+        switch(result)
+        {
+        case INTERP_OK:
+        case INTERP_EXECUTE_FINISH:
+            break;
+        default:
+            return result;
+        }
+    }
+    return 0;
+}
+
+void reset_gcode_canon_globals(const char *interp_name)
+{
+    if(pinterp) {
+        delete pinterp;
+        pinterp = nullptr;
+    }
+    if(interp_name && *interp_name)
+        pinterp = interp_from_shlib(interp_name);
+    if(!pinterp)
+        pinterp = new Interp;
+
+    for(int i=0; i<USER_DEFINED_FUNCTION_NUM; i++)
+        USER_DEFINED_FUNCTION[i] = user_defined_function;
+
+    metric=false;
+    interp_error = 0;
+    last_sequence_number = -1;
+    spindle_synched_motion = 0;
+    spindle_speed_programmed = 0.0;
+
+    _pos.fill(0);
+    _linecount=0;
+}
+
 static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     char *file_name = nullptr;
     char *units_gcode = nullptr;
@@ -882,8 +1022,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     char *interp_name = nullptr;
     char *working_dir = nullptr;
     int error_line_offset = 0;
-    int start_line = 0;
-    struct timeval t0, t1;
+    AutoRunSettings run_settings;
     int wait = 1;
 
     static const char * const kwarg_list[] = {
@@ -894,65 +1033,34 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
         "interp_name",
         "working_dir",
         "start_line_number",
+        "leadin_type",
+        "keep_current_tool",
         nullptr,
     };
 
     // KLUDGE shove even more parameters in here...
-    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "sO|ssssi", const_cast<char**>(kwarg_list), &file_name, &callback, &units_gcode, &init_gcode, &interp_name, &working_dir, &start_line))
+    if(!PyArg_ParseTupleAndKeywords(
+            args,
+            kwargs,
+            "sO|ssssiii",
+            const_cast<char**>(kwarg_list),
+            &file_name,
+            &callback,
+            &units_gcode,
+            &init_gcode,
+            &interp_name,
+            &working_dir,
+            &run_settings.start_line,
+            &run_settings.leadin_type,
+            &run_settings.keep_current_tool))
         return nullptr;
 
-    if(pinterp) {
-        delete pinterp;
-        pinterp = 0;
-    }
-    if(interp_name && *interp_name)
-        pinterp = interp_from_shlib(interp_name);
-    if(!pinterp)
-        pinterp = new Interp;
+    // reset canon global variables and flags before parsing
+    reset_gcode_canon_globals(interp_name);
 
-    for(int i=0; i<USER_DEFINED_FUNCTION_NUM; i++)
-        USER_DEFINED_FUNCTION[i] = user_defined_function;
+    Interp* interp = dynamic_cast<Interp*>(pinterp);
+    int result = do_parse_loop(interp, file_name, units_gcode, init_gcode, working_dir, error_line_offset, run_settings, wait);
 
-    gettimeofday(&t0, nullptr);
-
-    metric=false;
-    interp_error = 0;
-    last_sequence_number = -1;
-    spindle_synched_motion = 0;
-    spindle_speed_programmed = 0.0;
-
-    _pos.fill(0);
-    _linecount=0;
-
-    int result = pinterp->init();
-    if(!RESULT_OK) goto out_error;
-    result = pinterp->open(file_name, working_dir);
-    if(!RESULT_OK) goto out_error;
-
-    maybe_new_line();
-
-    if(units_gcode) {
-        result = execute_lines(pinterp, units_gcode, CommandSource::INIT);
-        if(!RESULT_OK) goto out_error;
-    }
-    if(init_gcode) {
-        result = execute_lines(pinterp, init_gcode, CommandSource::INIT);
-        if(!RESULT_OK) goto out_error;
-    }
-    while(!interp_error && RESULT_OK) {
-        error_line_offset = 1;
-        result = pinterp->read();
-        gettimeofday(&t1, nullptr);
-        if(t1.tv_sec > t0.tv_sec + wait) {
-            if(check_abort()) return nullptr;
-            t0 = t1;
-        }
-        if(!RESULT_OK) break;
-        error_line_offset = 0;
-        result = pinterp->execute(nullptr, CommandSource::PROGRAM);
-    }
-
-out_error:
     if(pinterp) pinterp->close();
     if(interp_error) {
         if(!PyErr_Occurred()) {
@@ -963,12 +1071,14 @@ out_error:
     }
     PyErr_Clear();
     maybe_new_line();
-    if(PyErr_Occurred()) { interp_error = 1; goto out_error; }
+    if(PyErr_Occurred()) {
+        interp_error = 1;
+        return nullptr;
+    }
     PyObject *retval = PyTuple_New(3);
     PyTuple_SET_ITEM(retval, 0, PyInt_FromLong(result));
     PyTuple_SET_ITEM(retval, 1, PyInt_FromLong(last_sequence_number + error_line_offset));
 
-    Interp* interp = dynamic_cast<Interp*>(pinterp);
     if (interp) {
         PyObject *warnings = gen_warning_list(interp->getWarnings());
 
