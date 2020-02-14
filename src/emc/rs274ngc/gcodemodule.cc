@@ -161,7 +161,7 @@ static PyObject *callback;
 static int interp_error;
 static int last_sequence_number;
 static bool metric;
-static PositionArray _pos{};
+static PositionArray _pos = {};
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
 
@@ -922,6 +922,19 @@ int planFinishLineSeek(
 
     set_exec_mode(ParseExecMode::PREP);
     restore_machine_state_before_preview_synch(run_initial_state);
+
+    maybe_new_line(run_settings.start_line);
+    if(interp_error) return INTERP_ERROR;
+    auto synch_local_pos = transform.forward_local_to_tip(_pos);
+    PyObject *result =
+        callmethod(callback, "synch_position", "fffffffff",
+                   UNPACK_POSITION_ARRAY_REF(synch_local_pos));
+    if(result == nullptr) {
+        interp_error ++;
+        return INTERP_ERROR;
+    }
+    Py_XDECREF(result);
+
 
     if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
         // Do a full modal state restore as if the program had executed from line 1,

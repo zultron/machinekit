@@ -282,6 +282,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         color = self.colors['dwell']
         self.dwells.append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], 0))
 
+    def synch_position(self, x, y, z, a, b, c, u, v, w):
+        #FIXME check for valid position here? This should ONLY be used to set up the machine initial position
+        self.lo = (x, y, z, a, b, c, u, v, w)
 
     def highlight(self, lineno, geometry):
         glLineWidth(3)
