@@ -898,6 +898,20 @@ void set_exec_mode(ParseExecMode mode)
     exec_mode_ = mode;
 }
 
+int synch_position(PositionArray const &machine_pos)
+{
+    if(interp_error) return INTERP_ERROR;
+    PyObject *result =
+        callmethod(callback, "synch_position", "fffffffff",
+                   UNPACK_POSITION_ARRAY_REF(machine_pos));
+    if(result == nullptr) {
+        interp_error ++;
+        return INTERP_ERROR;
+    }
+    Py_XDECREF(result);
+    return INTERP_OK;
+}
+
 void restore_machine_state_before_preview_synch(ExpandedModalState const &run_initial_state)
 {
     // KLUDGE force the "machine" state to be what the initial position was again, as if synching from a real machine
@@ -923,18 +937,9 @@ int planFinishLineSeek(
     set_exec_mode(ParseExecMode::PREP);
     restore_machine_state_before_preview_synch(run_initial_state);
 
-    maybe_new_line(run_settings.start_line);
     if(interp_error) return INTERP_ERROR;
-    auto synch_local_pos = transform.forward_local_to_tip(_pos);
-    PyObject *result =
-        callmethod(callback, "synch_position", "fffffffff",
-                   UNPACK_POSITION_ARRAY_REF(synch_local_pos));
-    if(result == nullptr) {
-        interp_error ++;
-        return INTERP_ERROR;
-    }
-    Py_XDECREF(result);
-
+    auto machine_pos = transform.forward_local_to_tip(_pos);
+    RETURN_ON_ERROR(synch_position(machine_pos));
 
     if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
         // Do a full modal state restore as if the program had executed from line 1,
@@ -964,6 +969,19 @@ static int do_parse_loop(
     gettimeofday(&t0, nullptr);
 
     RETURN_ON_ERROR(pinterp->init());
+
+    if (rs274_interp) {
+        transform =  rs274_interp->_setup.transform;
+        // KLUDGE pull the super secret current position out of the reserved parameters and update both interp and our cached position
+        auto it_cur_pos = rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY;
+        std::copy(it_cur_pos, it_cur_pos + rs274_interp->_setup.current.size(), rs274_interp->_setup.current.begin());
+        _pos = rs274_interp->_setup.current;
+        auto machine_pos = transform.forward_local_to_tip(_pos);
+        RETURN_ON_ERROR(synch_position(machine_pos));
+    }
+
+    // Copy current position back out of reserved parameter area
+
     RETURN_ON_ERROR(pinterp->open(file_name, working_dir));
 
     maybe_new_line();

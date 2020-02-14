@@ -2381,10 +2381,6 @@ int Interp::restore_all_parameters(const char * filename)
     find_work_offset_from_parameters(&_setup, origin, _setup.work_offsets_user[origin]);
   }
 
-  // Copy current position back out of reserved parameter area
-  auto it_cur_pos = _setup.parameters.begin() + EXPORT_CUR_POS_ARRAY;
-  std::copy(it_cur_pos, it_cur_pos + _setup.current.size(), _setup.current.begin());
-
   auto pred = [](WorkOffsetMap::value_type const &el)
   {
       return !isNonzero(el.second);
