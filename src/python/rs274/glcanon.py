@@ -348,18 +348,18 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
         if not no_traverse:
             glEnable(GL_LINE_STIPPLE)
-            for tool in self.traverse.keys():
+            for tool, traverse_lines in self.traverse.iteritems():
                 if self.visible_tools is None or tool in self.visible_tools:
-                    self.colored_lines('traverse', self.traverse[tool], for_selection)
+                    self.colored_lines('traverse', traverse_lines, for_selection)
             glDisable(GL_LINE_STIPPLE)
         else:
-            for tool in self.feed.keys():
+            for tool, feeds in self.feed.iteritems():
                 if self.visible_tools is None or tool in self.visible_tools:
-                    self.colored_lines('straight_feed', self.feed[tool], for_selection)
+                    self.colored_lines('straight_feed', feeds, for_selection)
 
-            for tool in self.arcfeed.keys():
+            for tool, arcfeeds in self.arcfeed.iteritems():
                 if self.visible_tools is None or tool in self.visible_tools:
-                    self.colored_lines('arc_feed', self.arcfeed[tool], for_selection)
+                    self.colored_lines('arc_feed', arcfeeds, for_selection)
 
             glLineWidth(2)
             self.draw_dwells(self.dwells, self.colors.get('dwell_alpha', 1/3.), for_selection)
