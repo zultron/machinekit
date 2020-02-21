@@ -2583,6 +2583,7 @@ int Interp::cbAfterSeekReadTransition(
                 "%s.ngc",
                 STATE_RESTORE_SUBROUTINE_NAME);
         }
+        doLog(0, nullptr, -1, "state restore subroutine filename: %s\n", tmp_file_path);
         std::ofstream f_tmp(tmp_file_path);
 
         // Wrap the command list in a subroutine
