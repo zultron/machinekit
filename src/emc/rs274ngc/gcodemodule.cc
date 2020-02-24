@@ -893,9 +893,18 @@ do { \
     } \
 } while(0)
 
-void set_exec_mode(ParseExecMode mode)
+int set_exec_mode(ParseExecMode mode)
 {
     exec_mode_ = mode;
+    if(interp_error) return INTERP_ERROR;
+    PyObject *result =
+        callmethod(callback, "set_exec_mode", "i", (int)mode);
+    if(result == nullptr) {
+        interp_error ++;
+        return INTERP_ERROR;
+    }
+    Py_XDECREF(result);
+    return INTERP_OK;
 }
 
 int synch_position(PositionArray const &machine_pos)
@@ -1155,6 +1164,81 @@ static PyObject *rs274_strerror(PyObject *s, PyObject *o) {
     return PyString_FromString(error_buf);
 }
 
+static PyObject *rs274_calc_extents_dict(PyObject *self, PyObject *args) {
+    double min_x = 9e99, min_y = 9e99, min_z = 9e99,
+           min_xt = 9e99, min_yt = 9e99, min_zt = 9e99,
+           max_x = -9e99, max_y = -9e99, max_z = -9e99,
+           max_xt = -9e99, max_yt = -9e99, max_zt = -9e99;
+
+    PyObject *lines_dict = nullptr;
+    int r = PyArg_ParseTuple(
+        args,
+        "O!:calc_extents dict lookup",
+        &PyDict_Type,
+        &lines_dict);
+    if (!r) {
+        return nullptr;
+    }
+
+    PyObject *key, *value;
+    Py_ssize_t pos = 0;
+    while (PyDict_Next(lines_dict, &pos, &key, &value)) {
+        double xs=0, ys=0, zs=0, xe=0, ye=0, ze=0, xt=0, yt=0, zt=0;
+        int j = 0;
+        for(; j<PySequence_Length(value); j++) {
+            PyObject *sj = PySequence_GetItem(value, j);
+            PyObject *unused;
+            int r;
+            if(PyTuple_Size(sj) == 4)
+                r = PyArg_ParseTuple(sj,
+                    "O(dddOOOOOO)(dddOOOOOO)(ddd):calc_extents item",
+                    &unused,
+                    &xs, &ys, &zs, &unused, &unused, &unused, &unused, &unused, &unused,
+                    &xe, &ye, &ze, &unused, &unused, &unused, &unused, &unused, &unused,
+                    &xt, &yt, &zt);
+            else
+                r = PyArg_ParseTuple(sj,
+                    "O(dddOOOOOO)(dddOOOOOO)O(ddd):calc_extents item",
+                    &unused,
+                    &xs, &ys, &zs, &unused, &unused, &unused, &unused, &unused, &unused,
+                    &xe, &ye, &ze, &unused, &unused, &unused, &unused, &unused, &unused,
+                    &unused, &xt, &yt, &zt);
+            Py_DECREF(sj);
+            if(!r) return nullptr;
+            max_x = std::max(max_x, xs);
+            max_y = std::max(max_y, ys);
+            max_z = std::max(max_z, zs);
+            min_x = std::min(min_x, xs);
+            min_y = std::min(min_y, ys);
+            min_z = std::min(min_z, zs);
+            max_xt = std::max(max_xt, xs+xt);
+            max_yt = std::max(max_yt, ys+yt);
+            max_zt = std::max(max_zt, zs+zt);
+            min_xt = std::min(min_xt, xs+xt);
+            min_yt = std::min(min_yt, ys+yt);
+            min_zt = std::min(min_zt, zs+zt);
+        }
+        if(j > 0) {
+            max_x = std::max(max_x, xe);
+            max_y = std::max(max_y, ye);
+            max_z = std::max(max_z, ze);
+            min_x = std::min(min_x, xe);
+            min_y = std::min(min_y, ye);
+            min_z = std::min(min_z, ze);
+            max_xt = std::max(max_xt, xe+xt);
+            max_yt = std::max(max_yt, ye+yt);
+            max_zt = std::max(max_zt, ze+zt);
+            min_xt = std::min(min_xt, xe+xt);
+            min_yt = std::min(min_yt, ye+yt);
+            min_zt = std::min(min_zt, ze+zt);
+        }
+    }
+    return Py_BuildValue("[ddd][ddd][ddd][ddd]",
+        min_x, min_y, min_z,  max_x, max_y, max_z,
+        min_xt, min_yt, min_zt,  max_xt, max_yt, max_zt);
+}
+
+
 static PyObject *rs274_calc_extents(PyObject *self, PyObject *args) {
     double min_x = 9e99, min_y = 9e99, min_z = 9e99,
            min_xt = 9e99, min_yt = 9e99, min_zt = 9e99,
@@ -1399,6 +1483,8 @@ static PyMethodDef gcode_methods[] = {
         "Convert a numeric error to a string"},
     {"calc_extents", (PyCFunction)rs274_calc_extents, METH_VARARGS,
         "Calculate information about extents of gcode"},
+    {"calc_extents_dict", (PyCFunction)rs274_calc_extents_dict, METH_VARARGS,
+        "Calculate information about extents of gcode using the dict of lines"},
     {"arc_to_segments", (PyCFunction)rs274_arc_to_segments, METH_VARARGS,
         "Convert an arc to straight segments"},
     {"max_glcanon_lines", (PyCFunction)get_set_max_glcanon_lines, METH_VARARGS,
@@ -1417,6 +1503,9 @@ initgcode(void) {
     PyObject_SetAttrString(m, "MAX_ERROR", PyInt_FromLong(maxerror));
     PyObject_SetAttrString(m, "MIN_ERROR",
             PyInt_FromLong(INTERP_MIN_ERROR));
+    PyModule_AddIntConstant(m, "PARSE_EXEC_SEEK", (long)ParseExecMode::SEEK);
+    PyModule_AddIntConstant(m, "PARSE_EXEC_PREP", (long)ParseExecMode::PREP);
+    PyModule_AddIntConstant(m, "PARSE_EXEC_RUN", (long)ParseExecMode::RUN);
 }
 
 // vim:ts=8:sts=4:sw=4:et:

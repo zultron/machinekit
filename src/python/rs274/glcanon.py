@@ -24,6 +24,8 @@ import linuxcnc
 import array
 import gcode
 import os
+from collections import defaultdict, namedtuple
+
 
 def minmax(*args):
     return min(*args), max(*args)
@@ -40,22 +42,19 @@ limiticon = array.array('B',
            0,   0,    0, 0])
 
 class GLCanon(Translated, ArcsToSegmentsMixin):
+    MotionKey = namedtuple('ToolMotionKey', ['motion_type', 'exec_mode', 'tool_no'])
     lineno = -1
+
     def __init__(self, colors, geometry, inifile):
         ArcsToSegmentsMixin.__init__(self)
 
         # Fields that store preview data built up during parse:
 
-        # traverse, feed, and arcfeeds are dictionaries where
-        # the key is the tool number and the value is the list of tuples cut using that tool
-        # this makes it super fast to draw only those lines which are desired based on a subset of
-        # tools
-        # traverse key is tool number, value is list of tuples (line number, [start position], [end position], [tlo x, tlo y, tlo z], toolno)
-        self.traverse = { 0:[] }
-        # feed key is tool number, value is list of tuples (line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z], toolno)
-        self.feed = { 0:[] }
-        # arcfeed key is tool number, value is list of tuples (line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z], toolno)
-        self.arcfeed = { 0:[] }
+        # Dict with tuple key holding various sets of motions
+        # {(motion_type_str, exec_mode, tool_number) : (line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z], toolno)}
+        self.tool_motions = defaultdict(list)
+
+        self.exec_mode = gcode.PARSE_EXEC_SEEK
         # dwell list - (line number, color, pos x, pos y, pos z, plane)
         self.dwells = []
         # spindle-synched feed list - (line number, (position deltas), S, fpr)
@@ -108,6 +107,10 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
     def check_abort(self): pass
 
+    # For managing motion keys
+    def set_exec_mode(self, exec_mode):
+        self.exec_mode = exec_mode
+
     def next_line(self, st):
         pass
 
@@ -117,39 +120,27 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def colored_lines(self, color, lines, for_selection):
         if self.foam_option:
             if not for_selection:
-                self.color_with_alpha(color + "_xy")
+                self.gl_color_with_alpha(color + "_xy")
             glPushMatrix()
             glTranslatef(0, 0, self.foam_z)
             self.draw_lines(lines, for_selection, 'XY')
             glPopMatrix()
             if not for_selection:
-                self.color_with_alpha(color + "_uv")
+                self.gl_color_with_alpha(color + "_uv")
             glPushMatrix()
             glTranslatef(0, 0, self.foam_w)
             self.draw_lines(lines, for_selection, 'UV')
             glPopMatrix()
         else:
             if not for_selection:
-                self.color_with_alpha(color)
+                self.gl_color_with_alpha(color)
             self.draw_lines(lines, for_selection)
 
     def draw_dwells(self, dwells, alpha, for_selection):
         return linuxcnc.draw_dwells(self.geometry, dwells, alpha, for_selection, self.is_lathe())
 
     def calc_extents(self):
-        all_arcfeeds = []
-        for tool in self.arcfeed.keys():
-            all_arcfeeds.extend(self.arcfeed[tool])
-
-        all_feeds = []
-        for tool in self.feed.keys():
-            all_feeds.extend(self.feed[tool])
-
-        all_traverse = []
-        for tool in self.traverse.keys():
-            all_traverse.extend(self.traverse[tool])
-
-        self.min_extents, self.max_extents, self.min_extents_notool, self.max_extents_notool = gcode.calc_extents(all_arcfeeds, all_feeds, all_traverse)
+        self.min_extents, self.max_extents, self.min_extents_notool, self.max_extents_notool = gcode.calc_extents_dict(self.tool_motions)
         if self.foam_option:
             min_z = min(self.foam_z, self.foam_w)
             max_z = max(self.foam_z, self.foam_w)
@@ -210,19 +201,14 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         # keep track of current tooling so it can be associated with the various paths. this enables us to later
         # create display lists based on tooling
         self.current_tool = pocket
-        if self.current_tool not in self.feed:
-            self.feed[self.current_tool] = []
-        if self.current_tool not in self.traverse:
-            self.traverse[self.current_tool] = []
-        if self.current_tool not in self.arcfeed:
-            self.arcfeed[self.current_tool] = []
+        # FIXME does defaultdict with list serve the correct purpose here? We used to add empty lists to each dict
 
-
-    def straight_traverse(self, lineno, x,y,z, a,b,c, u, v, w):
+    def straight_traverse(self, lineno, x, y, z, a, b, c, u, v, w):
         if self.suppress > 0: return
-        l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
+        l = self.rotate_and_translate(x, y, z, a, b, c, u, v, w)
         if not self.first_move:
-                self.traverse[self.current_tool].append((lineno, self.lo, l, [self.xo, self.yo, self.zo]))
+            k = self.make_motion_key('traverse')
+            self.tool_motions[k].append((lineno, self.lo, l, [self.xo, self.yo, self.zo]))
         self.lo = l
 
     def rigid_tap(self, lineno, x, y, z):
@@ -231,9 +217,10 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         l = self.rotate_and_translate(x,y,z,0,0,0,0,0,0)[:3]
         l += [self.lo[3], self.lo[4], self.lo[5],
                self.lo[6], self.lo[7], self.lo[8]]
-        self.feed[self.current_tool].append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
+        k = self.make_motion_key('straight_feed')
+        self.tool_motions[k].append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
 #        self.dwells.append((self.lineno, self.colors['dwell'], x + self.offset_x, y + self.offset_y, z + self.offset_z, 0))
-        self.feed[self.current_tool].append((lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
+        self.tool_motions[k].append((lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
 
     def arc_feed(self, *args):
         if self.suppress > 0: return
@@ -249,8 +236,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         lo = self.lo
         feedrate = self.feedrate
         to = [self.xo, self.yo, self.zo]
+        k = self.make_motion_key('arc_feed')
         for l in segs:
-            self.arcfeed[self.current_tool].append((lineno, lo, l, feedrate, to))
+            self.tool_motions[k].append((lineno, lo, l, feedrate, to))
             lo = l
         self.lo = lo
 
@@ -258,7 +246,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         if self.suppress > 0: return
         self.first_move = False
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
-        self.feed[self.current_tool].append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
+        self.tool_motions[self.make_motion_key('straight_feed')].append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
         self.lo = l
 
     # confusing, but I guess this is an alias for straight_feed above
@@ -300,27 +288,17 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         glBegin(GL_LINES)
         coords = []
         #FIXME limit seek depth here? This could go on for a long time
-        for tool in self.traverse.keys():
-            for line in self.traverse[tool]:
-                if line[0] != lineno: continue
-                linuxcnc.line9(geometry, line[1], line[2])
-                coords.append(line[1][:3])
-                coords.append(line[2][:3])
-        for tool in self.arcfeed.keys():
-            for line in self.arcfeed[tool]:
-                if line[0] != lineno: continue
-                linuxcnc.line9(geometry, line[1], line[2])
-                coords.append(line[1][:3])
-                coords.append(line[2][:3])
-        for tool in self.feed.keys():
-            for line in self.feed[tool]:
-                if line[0] != lineno: continue
-                linuxcnc.line9(geometry, line[1], line[2])
-                coords.append(line[1][:3])
-                coords.append(line[2][:3])
+        for k, motions in self.tool_motions.iteritems():
+            for motion_data in motions:
+                if motion_data[0] != lineno:
+                    continue
+                linuxcnc.line9(geometry, motion_data[1], motion_data[2])
+                coords.append(motion_data[1][:3])
+                coords.append(motion_data[2][:3])
         glEnd()
         for line in self.dwells:
-            if line[0] != lineno: continue
+            if line[0] != lineno:
+                continue
             self.draw_dwells([(line[0], c) + line[2:]], 2, 0)
             coords.append(line[2:5])
         glLineWidth(1)
@@ -334,9 +312,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             z = (self.min_extents[2] + self.max_extents[2])/2
         return x, y, z
 
-    def color_with_alpha(self, name):
+    def gl_color_with_alpha(self, name):
         glColor4f(*(self.colors[name] + (self.colors.get(name+'_alpha', 1/3.),)))
-    def color(self, name):
+    def gl_color(self, name):
         glColor3f(*self.colors[name])
 
     def get_visible_tools(self):
@@ -351,27 +329,31 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         '''
         self.visible_tools = tool_list
 
-    def draw(self, for_selection=0, no_traverse=True):
-        # draw only those lines that were made with the tools we are interested in
+    def make_motion_key(self, motion_type, exec_mode=None, tool_no=None):
+        exec_mode = self.exec_mode if exec_mode is None else exec_mode
+        tool_no = self.current_tool if tool_no is None else tool_no
+        return GLCanon.MotionKey(motion_type, exec_mode, tool_no)
 
-        if not no_traverse:
-            glEnable(GL_LINE_STIPPLE)
-            for tool, traverse_lines in self.traverse.iteritems():
-                if self.visible_tools is None or tool in self.visible_tools:
-                    self.colored_lines('traverse', traverse_lines, for_selection)
-            glDisable(GL_LINE_STIPPLE)
-        else:
-            for tool, feeds in self.feed.iteritems():
-                if self.visible_tools is None or tool in self.visible_tools:
-                    self.colored_lines('straight_feed', feeds, for_selection)
+    def draw_rapids(self, for_selection):
+        glEnable(GL_LINE_STIPPLE)
+        for k, v in self.tool_motions.iteritems():
+            if k.motion_type != 'traverse':
+                continue
+            if self.visible_tools is None or k.tool_no in self.visible_tools:
+                self.colored_lines('traverse', v, for_selection)
+        glDisable(GL_LINE_STIPPLE)
 
-            for tool, arcfeeds in self.arcfeed.iteritems():
-                if self.visible_tools is None or tool in self.visible_tools:
-                    self.colored_lines('arc_feed', arcfeeds, for_selection)
+    def draw_nonrapids(self, for_selection):
+        for k, v in self.tool_motions.iteritems():
+            if k.motion_type == 'traverse':
+                continue
+            if self.visible_tools is None or k.tool_no in self.visible_tools:
+                self.colored_lines(k.motion_type, v, for_selection)
 
-            glLineWidth(2)
-            self.draw_dwells(self.dwells, self.colors.get('dwell_alpha', 1/3.), for_selection)
-            glLineWidth(1)
+        glLineWidth(2)
+        self.draw_dwells(self.dwells, self.colors.get('dwell_alpha', 1/3.), for_selection)
+        glLineWidth(1)
+
 
 def with_context(f):
     def inner(self, *args, **kw):
@@ -381,6 +363,7 @@ def with_context(f):
         finally:
             self.deactivate()
     return inner
+
 
 def with_context_swap(f):
     def inner(self, *args, **kw):
@@ -1226,7 +1209,7 @@ class GlCanonDraw:
                 glTranslatef(*g5x_offset)
                 glRotatef(s.rotation_xy, 0, 0, 1)
 
-                if  self.get_show_offsets() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
+                if self.get_show_offsets() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
                     glBegin(GL_LINES)
                     glVertex3f(0,0,0)
                     # g92_offset[0] *= -1 if rear tool lathe?
@@ -1955,24 +1938,25 @@ class GlCanonDraw:
         return mid, size
 
     def make_selection_list(self, unused=None):
-        select_rapids = self.dlist('select_rapids')
-        select_program = self.dlist('select_norapids')
-        glNewList(select_rapids, GL_COMPILE)
-        if self.canon: self.canon.draw(1, False)
+        glNewList(self.dlist('select_norapids'), GL_COMPILE)
+        if self.canon:
+            self.canon.draw_nonrapids(True)
         glEndList()
-        glNewList(select_program, GL_COMPILE)
-        if self.canon: self.canon.draw(1, True)
+
+        glNewList(self.dlist('select_rapids'), GL_COMPILE)
+        if self.canon:
+            self.canon.draw_rapids(True)
         glEndList()
 
     def make_main_list(self, unused=None):
-        program = self.dlist('program_norapids')
-        rapids = self.dlist('program_rapids')
-        glNewList(program, GL_COMPILE)
-        if self.canon: self.canon.draw(0, True)
+        glNewList(self.dlist('program_norapids'), GL_COMPILE)
+        if self.canon:
+            self.canon.draw_nonrapids(False)
         glEndList()
 
-        glNewList(rapids, GL_COMPILE)
-        if self.canon: self.canon.draw(0, False)
+        glNewList(self.dlist('program_rapids'), GL_COMPILE)
+        if self.canon:
+            self.canon.draw_rapids(False)
         glEndList()
 
     def get_work_offsets_used(self):
