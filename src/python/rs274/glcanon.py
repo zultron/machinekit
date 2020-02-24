@@ -43,7 +43,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     lineno = -1
     def __init__(self, colors, geometry, inifile):
         ArcsToSegmentsMixin.__init__(self)
-        
+
+        # Fields that store preview data built up during parse:
+
         # traverse, feed, and arcfeeds are dictionaries where
         # the key is the tool number and the value is the list of tuples cut using that tool
         # this makes it super fast to draw only those lines which are desired based on a subset of
@@ -58,30 +60,36 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.dwells = []
         # spindle-synched feed list - (line number, (position deltas), S, fpr)
         self.feed_synched = []
-        self.choice = None
         self.feedrate = 1
         self.lo = (0,) * 9
         self.first_move = True
         self.geometry = geometry
-        self.min_extents = [9e99,9e99,9e99]
-        self.max_extents = [-9e99,-9e99,-9e99]
-        self.min_extents_notool = [9e99,9e99,9e99]
-        self.max_extents_notool = [-9e99,-9e99,-9e99]
-        self.colors = colors
         self.in_arc = 0
         self.xo = self.yo = self.zo = self.ao = self.bo = self.co = self.uo = self.vo = self.wo = 0
         self.dwell_time = 0
         self.suppress = 0
         Translated.__init__(self, 1)
-        self.rear_tp_lathe_option = bool(inifile.find("DISPLAY", "GEOMETRY") == "-XZ")
+
+        # Computed once after parse completes then cached here
+        self.min_extents = [9e99, 9e99, 9e99]
+        self.max_extents = [-9e99, -9e99, -9e99]
+        self.min_extents_notool = [9e99, 9e99, 9e99]
+        self.max_extents_notool = [-9e99, -9e99, -9e99]
+
+        # Settings at init time that control preview behavior
+        self.colors = colors
+        self.rear_tp_lathe_option = bool(geometry == "-XZ")
         self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
-        self.foam_z = 0
+        self.foam_z = 0.0
         self.foam_w = 1.5
         self.notify = 0
         self.notify_message = ""
         self.highlight_line = None
         self.visible_tools = None
         self.current_tool = 0
+
+        # KLUDGE Define these attributes here for mixins only
+        self.choice = None
 
     def comment(self, arg):
         if arg.startswith("AXIS,"):
@@ -186,7 +194,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.xo = xo
         self.yo = yo
         self.zo = zo
-        self.so = ao
+        self.ao = ao
         self.bo = bo
         self.co = co
         self.uo = uo
