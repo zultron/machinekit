@@ -183,7 +183,12 @@ int emcTaskStateRestore()
 {
     // clear out the pending command
     emcTaskCommand = 0;
-    interp_list.clear();
+
+    // Do not discard the interp_list here.  So far, this is only called during abort cleanup
+    // and its after the on abort ngc code has already been interpreted so the interp list is
+    // valuable and must be run.
+    // 2/20/2020 jwf
+    //interp_list.clear();
 
     // Do NOT restore on MDI command
     if (emcStatus->task.mode == EMC_TASK_MODE_AUTO) {

@@ -2204,14 +2204,19 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TASK_ABORT_TYPE:
-    emcTaskAbort();
+        emcTaskAbort();
         task_methods->emcIoAbort(EMC_ABORT_TASK_ABORT);
         emcSpindleAbort();
-	mdi_execute_abort();
-	emcAbortCleanup(EMC_ABORT_TASK_ABORT);
-    emcTaskStateRestore();
-    retval = 0;
-	break;
+        mdi_execute_abort();
+        emcAbortCleanup(EMC_ABORT_TASK_ABORT);
+        // emcTaskStateRestore() here ends up discarding the interp_list that running the on_abort.ngc just
+        // built before it can ever be acted upon.
+        // but this is the ONLY place in the code base I can find emcTaskStateRestore() ever called.
+        // so I changed it to not discard the interp queue.
+        // 2/20/2020 jwf
+        emcTaskStateRestore();
+        retval = 0;
+        break;
 
 	// mode and state commands
 

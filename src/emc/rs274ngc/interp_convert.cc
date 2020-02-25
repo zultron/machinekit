@@ -2800,14 +2800,17 @@ int Interp::create_full_restore_sequence(
     // Traverse axes are whichever axes are not used for plunging (a crude way to generalize the XY / Z behavior of canned cycles)
     AxisMask traverse_axes = ~preamble.plunge_axes;
 
+    PositionArray move_start_pos = _setup.posWithDiameterMode();
+
     switch (run_settings.leadin_type) {
     case PREP_LINEAR_LEADIN:
     {
         generator.printMsg("program preamble: Linear lead-in at program feed, from initial position to program position at start of next line");
         generator.addPreformatted(preamble.leadin_prolog);
         // Assume that current tool tip position is the starting position of a lead-in move
-        PositionArray leadin_position = _setup.transform.inverse_local_from_nose(
+        PositionArray leadin_position_raw = _setup.transform.inverse_local_from_nose(
             convertsUserToProgram().forward(run_initial_state.initial_nose_position_uu));
+        PositionArray leadin_position = _setup.posWithDiameterMode(leadin_position_raw);
         // Should likely do nothing (move back to initial position after tool change)
         generator.addLinearRapidMove(leadin_position, traverse_axes);
         if (preamble.plunge_axes.any()) {
@@ -2815,7 +2818,7 @@ int Interp::create_full_restore_sequence(
         }
         generator.addToolCompensation((GCodes)to_restore.modal_state.g_codes[G_CODE_CUTTER_SIDE], to_restore.modal_state.cutter_comp);
         // TODO rapid to within a specified linear distance of the final position, then feed
-        generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
+        generator.addLinearFeedMove(move_start_pos, _setup.feed_rate);
         generator.addPreformatted(preamble.leadin_epilog);
     }
         break;
@@ -2824,10 +2827,10 @@ int Interp::create_full_restore_sequence(
         generator.addPreformatted(preamble.leadin_prolog);
         // NOTE: traverse plane is either initial Z height, or whatever the toolchange / epilog leaves the plunge axes.
         generator.addToolCompensation((GCodes)to_restore.modal_state.g_codes[G_CODE_CUTTER_SIDE], to_restore.modal_state.cutter_comp);
-        generator.addLinearRapidMove(_setup.current, traverse_axes);
+        generator.addLinearRapidMove(move_start_pos, traverse_axes);
         CHKS(!preamble.plunge_axes.any(), _("No plunge axes specified, cannot do a plunge lead-in move"));
         // TODO rapid to a relative retract height here (will save a lot of time with slow feeds)
-        generator.addLinearFeedMove(_setup.current, _setup.feed_rate);
+        generator.addLinearFeedMove(move_start_pos, _setup.feed_rate);
         generator.addPreformatted(preamble.leadin_epilog);
         break;
     case PREP_NONE:

@@ -209,6 +209,30 @@ int setup_struct::getCurrentToolNumber() const
     return tool_table[current_pocket].toolno;
 }
 
+PositionArray setup_struct::posWithDiameterMode(const PositionArray & p_native) const
+{
+    auto p_out = p_native;
+    if (lathe_diameter_mode) {
+        p_out[X] *= 2.0;
+    }
+    return p_out;
+}
+
+PositionArray setup_struct::posWithDiameterMode() const
+{
+    return posWithDiameterMode(current);
+}
+
+PositionArray setup_struct::posStripDiameterMode(const PositionArray & p_diam) const
+{
+    auto p_out = p_diam;
+    if (lathe_diameter_mode) {
+        p_out[X] /= 2.0;
+    }
+    return p_out;
+}
+
+
 bool setup_struct::checkFeatureFlag(Features f) const
 {
     return has_feature(feature_set, f);
