@@ -45,7 +45,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     MotionKey = namedtuple('ToolMotionKey', ['motion_type', 'exec_mode', 'tool_no'])
     lineno = -1
 
-    def __init__(self, colors, geometry, inifile):
+    def __init__(self, colors, alphas, geometry, inifile):
         ArcsToSegmentsMixin.__init__(self)
 
         # Fields that store preview data built up during parse:
@@ -77,6 +77,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
         # Settings at init time that control preview behavior
         self.colors = colors
+        self.alphas = alphas
         self.rear_tp_lathe_option = bool(geometry == "-XZ")
         self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
         self.foam_z = 0.0
@@ -288,14 +289,19 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         glBegin(GL_LINES)
         coords = []
         #FIXME limit seek depth here? This could go on for a long time
+        print "Line no: ", lineno
         for k, motions in self.tool_motions.iteritems():
+            print k
             for motion_data in motions:
+                print motion_data
                 if motion_data[0] != lineno:
                     continue
+                print "Found match"
                 linuxcnc.line9(geometry, motion_data[1], motion_data[2])
                 coords.append(motion_data[1][:3])
                 coords.append(motion_data[2][:3])
         glEnd()
+        print coords
         for line in self.dwells:
             if line[0] != lineno:
                 continue
@@ -313,7 +319,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         return x, y, z
 
     def gl_color_with_alpha(self, name):
-        glColor4f(*(self.colors[name] + (self.colors.get(name+'_alpha', 1/3.),)))
+        c = (self.colors.get(name, (1., 1., 1.)) + (self.alphas.get(name, 1./3.),))
+        glColor4f(*c)
+
     def gl_color(self, name):
         glColor3f(*self.colors[name])
 
@@ -351,7 +359,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
                 self.colored_lines(k.motion_type, v, for_selection)
 
         glLineWidth(2)
-        self.draw_dwells(self.dwells, self.colors.get('dwell_alpha', 1/3.), for_selection)
+        self.draw_dwells(self.dwells, self.alphas.get('dwell', 1/3.), for_selection)
         glLineWidth(1)
 
 
@@ -377,22 +385,36 @@ def with_context_swap(f):
 
 
 class GlCanonDraw:
+    alphas = {
+        'traverse': 1/3.,
+        'traverse_xy': 1/3.,
+        'traverse_uv': 1/3.,
+        'backplotprobing': 0.75,
+        'backplotjog': 0.75,
+        'lathetool': 0.10,
+        'straight_feed': 1/3.,
+        'straight_feed_xy': 1/3.,
+        'straight_feed_uv': 1/3.,
+        'backplottoolchange': 0.25,
+        'backplottraverse': 0.25,
+        'overlay': 0.75,
+        'tool': 0.20,
+        'backplotfeed': 0.75,
+        'backplotarc': 0.75,
+        'arc_feed': .5,
+        'arc_feed_xy': 1/3.,
+        'arc_feed_uv': 1/3.,
+    }
     colors = {
         'traverse': (0.30, 0.50, 0.50),
-        'traverse_alpha': 1/3.,
         'traverse_xy': (0.30, 0.50, 0.50),
-        'traverse_alpha_xy': 1/3.,
         'traverse_uv': (0.30, 0.50, 0.50),
-        'traverse_alpha_uv': 1/3.,
-        'backplotprobing_alpha': 0.75,
         'backplotprobing': (0.63, 0.13, 0.94),
         'backplottraverse': (0.30, 0.50, 0.50),
         'label_ok': (1.00, 0.51, 0.53),
-        'backplotjog_alpha': 0.75,
         'tool_diffuse': (0.60, 0.60, 0.60),
         'backplotfeed': (0.75, 0.25, 0.25),
         'back': (0.00, 0.00, 0.00),
-        'lathetool_alpha': 0.10,
         'axis_y': (0.20, 1.00, 0.20),
         'cone': (1.00, 1.00, 1.00),
         'cone_xy': (0.00, 1.00, 0.00),
@@ -406,28 +428,16 @@ class GlCanonDraw:
         'overlay_foreground': (1.00, 1.00, 1.00),
         'overlay_background': (0.00, 0.00, 0.00),
         'straight_feed': (1.00, 1.00, 1.00),
-        'straight_feed_alpha': 1/3.,
         'straight_feed_xy': (0.20, 1.00, 0.20),
-        'straight_feed_alpha_xy': 1/3.,
         'straight_feed_uv': (0.20, 0.20, 1.00),
-        'straight_feed_alpha_uv': 1/3.,
         'small_origin': (0.00, 1.00, 1.00),
-        'backplottoolchange_alpha': 0.25,
-        'backplottraverse_alpha': 0.25,
-        'overlay_alpha': 0.75,
         'tool_ambient': (0.40, 0.40, 0.40),
-        'tool_alpha': 0.20,
         'backplottoolchange': (1.00, 0.65, 0.00),
         'backplotarc': (0.75, 0.25, 0.50),
         'm1xx': (0.50, 0.50, 1.00),
-        'backplotfeed_alpha': 0.75,
-        'backplotarc_alpha': 0.75,
         'arc_feed': (1.00, 1.00, 1.00),
-        'arc_feed_alpha': .5,
         'arc_feed_xy': (0.20, 1.00, 0.20),
-        'arc_feed_alpha_xy': 1/3.,
         'arc_feed_uv': (0.20, 0.20, 1.00),
-        'arc_feed_alpha_uv': 1/3.,
         'axis_x': (1.00, 0.20, 0.20),
         'grid': (0.15, 0.15, 0.15),
     }
@@ -1499,7 +1509,7 @@ class GlCanonDraw:
         glEnable(GL_BLEND)
         glBlendFunc(GL_ONE, GL_CONSTANT_ALPHA)
         glColor3f(*self.colors['overlay_background'])
-        glBlendColor(0,0,0,1-self.colors['overlay_alpha'])
+        glBlendColor(0,0,0,1-self.alphas['overlay'])
         glBegin(GL_QUADS)
         glVertex3f(0, ypos, 1)
         glVertex3f(0, ypos - 8 - linespace*len(posstrs), 1)
@@ -1554,10 +1564,10 @@ class GlCanonDraw:
         self.cached_tool = current_tool
         glNewList(self.dlist('tool'), GL_COMPILE)
         if self.is_lathe() and current_tool and current_tool.orientation != 0:
-            glBlendColor(0,0,0,self.colors['lathetool_alpha'])
+            glBlendColor(0,0,0,self.alpha['lathetool'])
             self.lathetool(current_tool)
         else:
-            glBlendColor(0,0,0,self.colors['tool_alpha'])
+            glBlendColor(0,0,0,self.alphas['tool'])
             if self.is_lathe():
                 glRotatef(90, 0, 1, 0)
             else:
@@ -2003,5 +2013,10 @@ class GlCanonDraw:
 
     def get_highlight_line(self):
         pass
+
+    def lkup_color(self, s):
+        a = self.alphas[s]
+        s = self.colors[s]
+        return [int(x * 255) for x in s + (a,)]
 
 # vim:ts=8:sts=4:sw=4:et:
