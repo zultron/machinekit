@@ -74,8 +74,8 @@ class DummyProgress:
 
 
 class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
-    def __init__(self, colors, alphas, geometry, lathe_view_option, stat, random, inifile):
-        rs274.glcanon.GLCanon.__init__(self, colors, alphas, geometry, inifile)
+    def __init__(self, color_config, geometry, lathe_view_option, stat, random, inifile):
+        rs274.glcanon.GLCanon.__init__(self, color_config, geometry, inifile)
         rs274.interpret.StatMixin.__init__(self, stat, random)
         self.progress = DummyProgress()
         self.lathe_view_option = lathe_view_option
@@ -129,20 +129,21 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         gtk.gtkgl.widget.DrawingArea.__init__(self, glconfig)
         glnav.GlNavBase.__init__(self)
+        color_config = rs274.glcanon.GlDrawColors()
         self.inifile = inifile
         self.logger = linuxcnc.positionlogger(
             linuxcnc.stat(),
-            self.lkup_color('backplotjog'),
-            self.lkup_color('backplottraverse'),
-            self.lkup_color('backplotfeed'),
-            self.lkup_color('backplotarc'),
-            self.lkup_color('backplottoolchange'),
-            self.lkup_color('backplotprobing'),
+            color_config.lkup_color('backplotjog'),
+            color_config.lkup_color('backplottraverse'),
+            color_config.lkup_color('backplotfeed'),
+            color_config.lkup_color('backplotarc'),
+            color_config.lkup_color('backplottoolchange'),
+            color_config.lkup_color('backplotprobing'),
             self.get_geometry()
         )
         thread.start_new_thread(self.logger.start, (.01,))
 
-        rs274.glcanon.GlCanonDraw.__init__(self, linuxcnc.stat(), self.logger, inifile=inifile)
+        rs274.glcanon.GlCanonDraw.__init__(self, linuxcnc.stat(), self.logger, inifile=inifile, color_config=color_config)
 
         self.current_view = 'z'
 
@@ -420,7 +421,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self._tools_used = []
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
-            self.canon = StatCanon(self.colors, self.alphas, self.geometry, self.lathe_option, s, random, self.inifile)
+            self.canon = StatCanon(self.color_config, self.geometry, self.lathe_option, s, random, self.inifile)
             self.canon.parameter_file = temp_parameter_file_name
 
             initcode = self.get_active_g_code_string() or self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
