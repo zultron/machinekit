@@ -283,7 +283,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def dwell(self, arg):
         if self.suppress > 0: return
         self.dwell_time += arg
-        color = self.color_config.get_color('dwell')
+        color = self.color_config.get_color('dwell' if self.exec_mode != gcode.PARSE_EXEC_PREP else 'leadin')
         self.dwells.append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], 0))
 
     def synch_position(self, x, y, z, a, b, c, u, v, w):

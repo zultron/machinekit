@@ -2805,7 +2805,6 @@ int Interp::create_full_restore_sequence(
     }
 
     generator.addQueueBuster("Ensure that all state is restored before further processing to leave interp in a consistent state");
-
     // Traverse axes are whichever axes are not used for plunging (a crude way to generalize the XY / Z behavior of canned cycles)
     AxisMask traverse_axes = ~preamble.plunge_axes;
 
@@ -2815,6 +2814,7 @@ int Interp::create_full_restore_sequence(
     case PREP_LINEAR_LEADIN:
     {
         generator.printMsg("program preamble: Linear lead-in at program feed, from initial position to program position at start of next line");
+        generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);
         // Assume that current tool tip position is the starting position of a lead-in move
         PositionArray leadin_position_raw = _setup.transform.inverse_local_from_nose(
@@ -2833,6 +2833,7 @@ int Interp::create_full_restore_sequence(
         break;
     case PREP_PLUNGE_LEADIN:
         generator.printMsg("program preamble: Traverse / Plunge lead-in at program feed, from safe height to program height at start of next line");
+        generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);
         // NOTE: traverse plane is either initial Z height, or whatever the toolchange / epilog leaves the plunge axes.
         generator.addToolCompensation((GCodes)to_restore.modal_state.g_codes[G_CODE_CUTTER_SIDE], to_restore.modal_state.cutter_comp);
