@@ -215,8 +215,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def straight_traverse(self, lineno, x, y, z, a, b, c, u, v, w):
         if self.suppress > 0: return
         l = self.rotate_and_translate(x, y, z, a, b, c, u, v, w)
-        if not self.first_move:
-            k = self.make_motion_key('traverse')
+        k = self.make_motion_key('traverse')
+        if not self.first_move or self.exec_mode == gcode.PARSE_EXEC_PREP:
             self.tool_motions[k].append((lineno, self.lo, l, [self.xo, self.yo, self.zo]))
         self.lo = l
 
