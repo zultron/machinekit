@@ -1024,8 +1024,10 @@ static int do_parse_loop(
             }
             break;
         case ParseExecMode::PREP:
-            // Start run mode
-            set_exec_mode(ParseExecMode::RUN);
+            // KLUDGE Start run mode after G80.9 (we know this is the last step in the restore, but it's a subtle side effect and I don't like it)
+            if (rs274_interp && rs274_interp->_setup.start_line_motion_mode == G_INVALID) {
+                set_exec_mode(ParseExecMode::RUN);
+            }
             break;
         case ParseExecMode::RUN:
             // Do nothing, already in run mode

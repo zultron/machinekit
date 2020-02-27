@@ -2850,7 +2850,7 @@ int Interp::create_full_restore_sequence(
     }
 
     generator.addPreformatted(preamble.preamble_epilog);
-    // KLUDGE force restore of the cached motion mode
+    // KLUDGE force restore of the cached motion mode and other side effects
     generator.addPreformatted("G80.9");
     restore_cmd_list = generator.getCommandSequence();
     return 0;
