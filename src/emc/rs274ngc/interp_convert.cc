@@ -2809,6 +2809,9 @@ int Interp::create_full_restore_sequence(
     AxisMask traverse_axes = ~preamble.plunge_axes;
 
     PositionArray move_start_pos = _setup.posWithDiameterMode();
+    PositionArray leadin_position_raw = _setup.transform.inverse_local_from_nose(
+        convertsUserToProgram().forward(run_initial_state.initial_nose_position_uu));
+    PositionArray leadin_position = _setup.posWithDiameterMode(leadin_position_raw);
 
     switch (run_settings.leadin_type) {
     case PREP_LINEAR_LEADIN:
@@ -2817,9 +2820,6 @@ int Interp::create_full_restore_sequence(
         generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);
         // Assume that current tool tip position is the starting position of a lead-in move
-        PositionArray leadin_position_raw = _setup.transform.inverse_local_from_nose(
-            convertsUserToProgram().forward(run_initial_state.initial_nose_position_uu));
-        PositionArray leadin_position = _setup.posWithDiameterMode(leadin_position_raw);
         // Should likely do nothing (move back to initial position after tool change)
         generator.addLinearRapidMove(leadin_position, traverse_axes);
         if (preamble.plunge_axes.any()) {
@@ -2832,9 +2832,17 @@ int Interp::create_full_restore_sequence(
     }
         break;
     case PREP_PLUNGE_LEADIN:
+    {
         generator.printMsg("program preamble: Traverse / Plunge lead-in at program feed, from safe height to program height at start of next line");
         generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);
+
+        // Should likely do nothing (move back to initial position after tool change)
+        generator.addLinearRapidMove(leadin_position, traverse_axes);
+        if (preamble.plunge_axes.any()) {
+            generator.addLinearRapidMove(leadin_position, preamble.plunge_axes);
+        }
+
         // NOTE: traverse plane is either initial Z height, or whatever the toolchange / epilog leaves the plunge axes.
         generator.addToolCompensation((GCodes)to_restore.modal_state.g_codes[G_CODE_CUTTER_SIDE], to_restore.modal_state.cutter_comp);
         generator.addLinearRapidMove(move_start_pos, traverse_axes);
@@ -2842,6 +2850,7 @@ int Interp::create_full_restore_sequence(
         // TODO rapid to a relative retract height here (will save a lot of time with slow feeds)
         generator.addLinearFeedMove(move_start_pos, _setup.feed_rate);
         generator.addPreformatted(preamble.leadin_epilog);
+    }
         break;
     case PREP_NONE:
         //TODO do tool compensation after preamble epilog?
