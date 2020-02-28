@@ -965,6 +965,9 @@ int planFinishLineSeek(
     return res_interp;
 }
 
+static bool isStartLineNext(int start_line) {
+    return (pinterp->line() + 1 >= start_line && pinterp->call_level() == 0);
+}
 
 static int do_parse_loop(
     Interp *rs274_interp,
@@ -1015,11 +1018,10 @@ static int do_parse_loop(
             t0 = t1;
         }
 
-        int cur_line = pinterp->line();
         switch (exec_mode_) {
         case ParseExecMode::SEEK:
             // NOTE: current line has been read here but not executed
-            if (cur_line + 1 >= start_settings.start_line) {
+            if (isStartLineNext(start_settings.start_line)) {
                 RETURN_ON_ERROR(planFinishLineSeek(rs274_interp, start_settings, run_initial_state));
             }
             break;
