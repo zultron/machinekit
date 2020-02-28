@@ -29,6 +29,7 @@ enum InterpParameterIndex {
     INTERP_MAX_USER_PARAMETER=5000,
     // Private parameters for internal use only, 5001-5060
     EXPORT_CUR_POS_ARRAY=5001, // Just for parameter export to preview, not populated during normal use
+    EXPORT_CUR_POS_ARRAY_END=5010, // One-past-the-end of the position export array
     // reserved parameters with special meanings in the main interpreter
     G38_X=5061,
     G38_Y,
