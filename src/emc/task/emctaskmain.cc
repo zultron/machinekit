@@ -915,7 +915,8 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_AOUT_TYPE:
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
-	    case EMC_SET_DEBUG_TYPE:
+        case EMC_SET_DEBUG_TYPE:
+        case EMC_TASK_PLAN_SYNCH_EXPORT_TYPE: // Can issue this any time, though the result may not be meaningful before a machine reset
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
