@@ -2793,7 +2793,14 @@ int Interp::create_full_restore_sequence(
     no_toolcomp.g_codes[G_CODE_CUTTER_SIDE] = G_40;
     no_toolcomp.g_codes[G_CODE_TOOL_LENGTH_OFFSET] = G_49;
     generator.gen_modalStateRestore(dummy_current, no_toolcomp);
-    gen_toolOffset(generator, to_restore.modal_state.tool_offset_mode, to_restore.modal_state.tool_offset_number);
+
+    if (!run_settings.keep_current_tool) {
+        generator.printMsg("program preamble: restore tool offset state for program tool");
+        gen_toolOffset(generator, to_restore.modal_state.tool_offset_mode, to_restore.modal_state.tool_offset_number);
+    } else {
+        generator.printMsg("program preamble: restore tool offset state for tool in spindle");
+        gen_toolOffset(generator, run_initial_state.modal_state.tool_offset_mode, run_initial_state.modal_state.tool_offset_number);
+    }
 
     generator.addQueueBuster("Ensure that all state is restored before further processing to leave interp in a consistent state");
 
