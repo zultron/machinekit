@@ -217,6 +217,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         # Cache start settings for preview redraw
         self.start_line = 0
         self.leadin_type = 0
+        self.keep_current_tool = True
 
     def destroy(self):
         # cleanup so that the garbage collector can actually do its work.
@@ -394,6 +395,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def set_leadin_type(self, leadin_type):
         self.leadin_type = leadin_type
 
+    def set_keep_current_tool(self, keep_current_tool):
+        self.keep_current_tool = keep_current_tool
+
     def load(self, filename=None, suppress_errors=False, working_dir=None, start_line=None, leadin_type=None, temp_parameter_file_name=None):
         # suppress_errors arg was added to help situation where we need to have gremlin
         # redraw the current file - which is a reload of the file.  In this case the operator
@@ -426,7 +430,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
             initcode = self.get_active_g_code_string() or self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
             unitcode = "G{}".format(20 + (s.program_units == linuxcnc.UNITS_MM))
-            result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode, None, working_dir, self.start_line, self.leadin_type)
+            result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode, None, working_dir, self.start_line, self.leadin_type, self.keep_current_tool)
 
             #Handle extents violation (copied from AXIS)
             machine_limit_min, machine_limit_max = self.canon.get_soft_limits()
