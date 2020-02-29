@@ -162,6 +162,7 @@ static int interp_error;
 static int last_sequence_number;
 static bool metric;
 static PositionArray _pos = {};
+static PositionArray probe_start_pos = {};
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
 
@@ -559,9 +560,11 @@ void STRAIGHT_PROBE(int line_number,
                     double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
+    probe_start_pos = _pos;
     _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
     _pos[A]=a; _pos[B]=b; _pos[C]=c;
     _pos[U]=u; _pos[V]=v; _pos[W]=w;
+
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -611,7 +614,14 @@ void RIGID_TAP(int line_number,
     Py_XDECREF(result);
 }
 double GET_EXTERNAL_MOTION_CONTROL_TOLERANCE() { return 0.1; }
-PositionArray GET_EXTERNAL_PROBE_POSITION() { return _pos; }
+PositionArray GET_EXTERNAL_PROBE_POSITION()
+{
+    // KLUDGE if we're about to start a prep move, and are getting the external probe position (to restore the actual position), cheat and pretend the probe stopped right at the beginning
+    if (exec_mode_ == ParseExecMode::PREP) {
+        _pos = probe_start_pos;
+    }
+    return _pos;
+}
 double GET_EXTERNAL_PROBE_POSITION_X() { return _pos[X]; }
 double GET_EXTERNAL_PROBE_POSITION_Y() { return _pos[Y]; }
 double GET_EXTERNAL_PROBE_POSITION_Z() { return _pos[Z]; }
@@ -708,7 +718,7 @@ CANON_DIRECTION GET_EXTERNAL_SPINDLE() { return CANON_STOPPED; }
 int GET_EXTERNAL_TOOL_SLOT() { return 0; }
 int GET_EXTERNAL_SELECTED_TOOL_SLOT() { return 0; }
 // TODO support preview-level start line seek to show expected execution
-bool IN_START_LINE_SEEK() { return 0; }
+bool IN_START_LINE_SEEK() { return exec_mode_ == ParseExecMode::SEEK; }
 double GET_EXTERNAL_FEED_RATE() { return 1; }
 double GET_EXTERNAL_TRAVERSE_RATE() { return 0; }
 int GET_EXTERNAL_FLOOD() { return 0; }
