@@ -1199,6 +1199,17 @@ static PyObject *rs274_calc_extents_dict(PyObject *self, PyObject *args) {
     while (PyDict_Next(lines_dict, &pos, &key, &value)) {
         double xs=0, ys=0, zs=0, xe=0, ye=0, ze=0, xt=0, yt=0, zt=0;
         int j = 0;
+
+
+        char *motion_type = nullptr;
+        int exec_mode = -1;
+        int tool_no = -1;
+        r = PyArg_ParseTuple(key, "sii", &motion_type, &exec_mode, &tool_no);
+        if ((ParseExecMode)exec_mode == ParseExecMode::PREP) {
+            // Prep moves are not part of the program and so should not affect the motion extents
+            continue;
+        }
+
         for(; j<PySequence_Length(value); j++) {
             PyObject *sj = PySequence_GetItem(value, j);
             PyObject *unused;
