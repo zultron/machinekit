@@ -5255,19 +5255,13 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
   }
 
   if (settings->tool_change_quill_up) {
-      double up_z;
-      double discard;
-      find_relative(0., 0., 0., 0., 0., 0., 0., 0., 0., 
-                    &discard, &discard, &up_z,
-                    &discard, &discard, &discard, 
-                    &discard, &discard, &discard,
-                    settings);
+      // Assume plunge axes have returned to the home position (e.g. during a tool change or after a probe)
+      PositionArray local_machine_zero = settings->transform.inverse_local_from_tip(PositionArray{});
+      auto plunge_axis_zero = merge(settings->current, local_machine_zero, settings->default_seek_preamble.plunge_axes);
       COMMENT("AXIS,hide");
-      STRAIGHT_TRAVERSE(-1, settings->current[X], settings->current[Y], up_z,
-                        settings->current[A], settings->current[B], settings->current[C],
-                        settings->current[U], settings->current[V], settings->current[W]);
+      STRAIGHT_TRAVERSE(-1, UNPACK_POSITION_ARRAY_REF(plunge_axis_zero));
       COMMENT("AXIS,show");
-      settings->current[Z] = up_z;
+      settings->current = plunge_axis_zero;
   }
 
   if (settings->tool_change_at_g30) {

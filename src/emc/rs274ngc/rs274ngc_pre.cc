@@ -1007,7 +1007,7 @@ int Interp::load_interp_preamble(IniFile &inifile)
 {
     InterpPreamble preamble{};
     // Start line callbacks (used if start line is not 1)
-    FindsIniStringOrEmpty finds_preamble_str(inifile, "INTERP_PREAMBLE");
+    FindsIniStringOrDefault finds_preamble_str(inifile, "INTERP_PREAMBLE");
     preamble.toolchange_prolog = finds_preamble_str("TOOLCHANGE_PROLOG");
     preamble.toolchange_epilog = finds_preamble_str("TOOLCHANGE_EPILOG");
     preamble.leadin_prolog = finds_preamble_str("LEADIN_PROLOG");
@@ -1026,7 +1026,8 @@ int Interp::load_interp_preamble(IniFile &inifile)
 #endif
 
     AxisMask active_axes_mask(GET_EXTERNAL_AXIS_MASK());
-    preamble.plunge_axes = axis_mask_from_string(finds_preamble_str("PLUNGE_AXES")) & active_axes_mask;
+    // Assume Z axis is the plunge default for compatibility with axis' quill_up assumptions
+    preamble.plunge_axes = axis_mask_from_string(finds_preamble_str("PLUNGE_AXES", "Z")) & active_axes_mask;
 
     // All checks passed, store the preamble
     _setup.default_seek_preamble = preamble;
