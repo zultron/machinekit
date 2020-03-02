@@ -718,7 +718,16 @@ CANON_DIRECTION GET_EXTERNAL_SPINDLE() { return CANON_STOPPED; }
 int GET_EXTERNAL_TOOL_SLOT() { return 0; }
 int GET_EXTERNAL_SELECTED_TOOL_SLOT() { return 0; }
 // TODO support preview-level start line seek to show expected execution
-bool IN_START_LINE_SEEK() { return exec_mode_ == ParseExecMode::SEEK; }
+bool IN_START_LINE_SEEK() {
+    switch(exec_mode_) {
+    case ParseExecMode::SEEK:
+        return true;
+    case ParseExecMode::PREP:
+    case ParseExecMode::RUN:
+        return false;
+    }
+    return false;
+}
 double GET_EXTERNAL_FEED_RATE() { return 1; }
 double GET_EXTERNAL_TRAVERSE_RATE() { return 0; }
 int GET_EXTERNAL_FLOOD() { return 0; }
