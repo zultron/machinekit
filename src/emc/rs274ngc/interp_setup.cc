@@ -204,9 +204,25 @@ block &setup_struct::updateControllingBlock()
     return getControllingBlock();
 }
 
+/**
+ * ONLY valid during seek-start-line phase (clunky workaround for tool / pocket ambiguity)
+ */
 int setup_struct::getCurrentToolNumber() const
 {
-    return tool_table[current_pocket].toolno;
+    int canonical_tool_no = tool_table[current_pocket].toolno;
+
+    if (!random_toolchanger && IN_START_LINE_SEEK() && current_pocket <= 0) {
+        // non-random tool changers have an extra pocket for the spindle (pocket 0).
+        // Requesting tool zero means no tool, which is canonically means selecting pocket zero.
+        // In IO, the tool change will set the tool number of pocket zero to zero, and interp's tool table is
+        // then updated during the next synch.
+        // Therefore, under normal execution, the canonical tool number is correct.
+        // HOWEVER, when seeking the start line, no IO actions occur (so the tool table is never updated). Therefore,
+        // we have to assume that current pocket being zero means tool zero even if the tool table says something else.
+        return 0;
+    } else {
+        return canonical_tool_no;
+    }
 }
 
 PositionArray setup_struct::posWithDiameterMode(const PositionArray & p_native) const
