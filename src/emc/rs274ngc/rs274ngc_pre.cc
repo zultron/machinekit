@@ -1712,15 +1712,22 @@ int Interp::read_inputs(setup_pointer settings)
     write_and_update_state_tag(nullptr);
     if (settings->wait_flags.test(PROBE)) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
-	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING);
-	set_probe_data(&_setup);
+         NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING);
+
+    set_probe_data(settings);
     settings->wait_flags.reset(PROBE);
     }
     if (settings->wait_flags.test(TOOLCHANGE)) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
-	     _("Queue is not empty after tool change"));
-	refresh_actual_position(&_setup);
-	load_tool_table();
+         _("Queue is not empty after tool change"));
+    if (IN_START_LINE_SEEK()) {
+        // Assume plunge axes have returned to the home position after tool change is complete
+        PositionArray local_machine_zero = settings->transform.inverse_local_from_tip(PositionArray{});
+        settings->current = merge(settings->current, local_machine_zero, settings->default_seek_preamble.plunge_axes);
+    } else {
+        refresh_actual_position(settings);
+    }
+    load_tool_table();
     settings->wait_flags.reset(TOOLCHANGE);
     }
     // always track toolchanger-fault and toolchanger-reason codes
