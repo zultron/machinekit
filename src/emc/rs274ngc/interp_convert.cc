@@ -2775,7 +2775,7 @@ int Interp::create_full_restore_sequence(
         generator.printMsg("program preamble: Change to active tool at start line and execute prolog and epilog");
         generator.addPreformatted("G90"); // Necessary to allow absolute moves in toolchange prolog
         generator.addPreformatted(preamble.toolchange_prolog, "TOOLCHANGE PROLOG");
-        generator.addToolChange(_setup.getCurrentToolNumber());
+        generator.addToolChange(to_restore.modal_state.tool_number);
         generator.addPreformatted(preamble.toolchange_epilog, "TOOLCHANGE EPILOG");
     }
 
