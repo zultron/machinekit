@@ -1333,7 +1333,7 @@ int Interp::init()
   _setup.plane = GET_EXTERNAL_PLANE();
 
   int origin = _setup.origin_index;
-  find_work_offset(origin, _setup.transform.g5xOffset);
+  find_work_offset_prog(origin, _setup.transform.g5xOffset);
 
   write_and_update_state_tag(nullptr);
 
@@ -1342,9 +1342,8 @@ int Interp::init()
       if (t_pair.first == _setup.origin_index) {
           continue;
       }
-      RotateShiftTransform work_offset_user = t_pair.second;
-      convertAxisUnits(work_offset_user, convertsUserToProgram());
-      send_g5x_transform(t_pair.first, work_offset_user);
+      RotateShiftTransform work_offset_prog = convertsUserToProgram().forward_tf(t_pair.second);
+      send_g5x_transform(t_pair.first, work_offset_prog);
   }
 
   send_current_g5x_transform();

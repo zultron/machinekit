@@ -161,6 +161,17 @@ ShiftTransform UnitsTransform::inverse_tf(const ShiftTransform & p) const
     return ShiftTransform(inverse(p.tf));
 }
 
+RotateShiftTransform UnitsTransform::forward_tf(const RotateShiftTransform & p) const
+{
+    return RotateShiftTransform(forward(p.shift.tf), p.getXYRotationDeg());
+}
+
+RotateShiftTransform UnitsTransform::inverse_tf(const RotateShiftTransform & p) const
+{
+    return RotateShiftTransform(inverse(p.shift.tf), p.getXYRotationDeg());
+}
+
+
 LocalToMachineTransform::LocalToMachineTransform() :
   g92Offset(),
   g5xOffset(),

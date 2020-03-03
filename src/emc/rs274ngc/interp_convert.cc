@@ -1619,10 +1619,12 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   settings->parameters[ACTIVE_WORK_CSYS] = (double) origin;
 
   // load the origin of the newly-selected system
-  CHP(find_work_offset(origin, settings->transform.g5xOffset));
+  CHP(find_work_offset_prog(origin, settings->transform.g5xOffset));
 
-  // FIXME force the extended work offsets to match parameters (user might have changed them underneath us)
-  settings->work_offsets_user[origin] = settings->transform.g5xOffset;
+  if (origin > 0 && origin <= 9) {
+      // In case parameters were changed by user, force an update of of the user work offset map so that they stay synchronized
+      settings->work_offsets_user[origin] = convertsProgramToUser().forward_tf(settings->transform.g5xOffset);
+  }
 
   if (!isNonzero(settings->transform.g5xOffset)) {
       setWarning("Work offset %s is all zeros (effectively G53)\n", lookup_work_offset_gcode_string_from_origin(origin).c_str());
@@ -3700,7 +3702,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
 
             // Next, find the equivalent position in fixture coordinates:
             RotateShiftTransform fixture;
-            CHP(find_work_offset(destination_system, fixture));
+            CHP(find_work_offset_prog(destination_system, fixture));
             current = working_csys.swap_g5x_offset(current, fixture);
         }
 
@@ -3892,7 +3894,7 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
 
   // Starting from the active overall transform, find the effective transform for the desired work offset number
   LocalToMachineTransform desired_csys = settings->transform;
-  CHP(find_work_offset(p_int, desired_csys.g5xOffset)); // In program units
+  CHP(find_work_offset_prog(p_int, desired_csys.g5xOffset)); // In program units
 
   if (block->l_number == 20) {
     CHKS((block->r_flag), _("R not allowed in G10 L20"));
