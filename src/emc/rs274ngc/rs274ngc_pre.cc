@@ -2747,7 +2747,8 @@ int Interp::synch_and_export(setup_pointer settings, const char * export_file_na
     setup tmp(*settings);
     int res_synch = synch_external_state(&tmp);
     // KLUDGE shove the current position into
-    std::copy(tmp.current.begin(), tmp.current.end(), tmp.parameters.begin() + EXPORT_CUR_POS_ARRAY);
+    auto current_pos_user = convertsProgramToUser().forward(tmp.current);
+    std::copy(current_pos_user.begin(), current_pos_user.end(), tmp.parameters.begin() + EXPORT_CUR_POS_ARRAY);
     int res_save = save_all_parameters(&tmp, export_file_name);
     return res_synch | res_save;
 }

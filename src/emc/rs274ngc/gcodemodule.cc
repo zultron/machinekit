@@ -161,7 +161,7 @@ static PyObject *callback;
 static int interp_error;
 static int last_sequence_number;
 static bool metric;
-static PositionArray _pos = {};
+static PositionArray _pos = {}; // In USER units
 static PositionArray probe_start_pos = {};
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
@@ -172,8 +172,8 @@ static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
 static double css_max_speed_programmed = 0.0;
 
-static AxisOffsetParams cached_g92{};
-static LocalToMachineTransform transform{};
+static AxisOffsetParams cached_g92{}; // in USER units
+static LocalToMachineTransform transform{}; // in USER units
 
 enum class ParseExecMode {
     SEEK,
@@ -661,7 +661,7 @@ void GET_EXTERNAL_PARAMETER_FILE_NAME(char *name, int max_size) {
     strncpy(name, s, max_size - 1);
 }
 
-CANON_UNITS GET_EXTERNAL_LENGTH_UNIT_TYPE() { return CANON_UNITS_INCHES; }
+CANON_UNITS GET_EXTERNAL_LENGTH_UNIT_TYPE() { return metric ? CANON_UNITS_MM : CANON_UNITS_INCHES; }
 
 CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket) {
     CANON_TOOL_TABLE t = {-1,{{0,0,0},0,0,0,0,0,0},0,0,0,0};
@@ -1004,13 +1004,19 @@ static int do_parse_loop(
     RETURN_ON_ERROR(pinterp->init());
 
     if (rs274_interp) {
-        transform =  rs274_interp->_setup.transform;
+        //
+        auto UtoP = rs274_interp->convertsUserToProgram();
+        auto PtoU = rs274_interp->convertsProgramToUser();
+        transform.g5xOffset = PtoU.forward_tf(rs274_interp->_setup.transform.g5xOffset);
+        transform.g92Offset = PtoU.forward_tf(rs274_interp->_setup.transform.g92Offset);
+        transform.toolOffset = PtoU.forward_tf(rs274_interp->_setup.transform.g92Offset);
         // KLUDGE pull the super secret current position out of the reserved parameters and update both interp and our cached position
-        auto it_cur_pos = rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY;
-        std::copy(it_cur_pos, it_cur_pos + rs274_interp->_setup.current.size(), rs274_interp->_setup.current.begin());
-        _pos = rs274_interp->_setup.current;
-        auto machine_pos = transform.forward_local_to_tip(_pos);
-        RETURN_ON_ERROR(synch_position(machine_pos));
+        _pos = toArray(
+            rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY,
+            rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY_END);
+        rs274_interp->_setup.current = UtoP.forward(_pos);
+        auto machine_pos_user = transform.forward_local_to_tip(_pos);
+        RETURN_ON_ERROR(synch_position(machine_pos_user));
     }
 
     // Copy current position back out of reserved parameter area

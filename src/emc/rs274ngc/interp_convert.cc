@@ -1094,7 +1094,6 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
         (block->c_number <= -360.0 || block->c_number >= 360.0)),
        (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
        block->c_number, 'C');
-  UnitsTransform program_to_user_units = convertsProgramToUser();
 
   if ((g_code == G_52) || (g_code == G_92)) {
     if (g_code == G_52) {
