@@ -25,8 +25,6 @@ import array
 import gcode
 import os
 from collections import defaultdict, namedtuple
-import traceback
-import sys
 
 
 def minmax(*args):
@@ -619,11 +617,6 @@ class GlCanonDraw:
         glPushMatrix()
         try:
             self.redraw()
-        except Exception as e:
-            # TEMPORARY for debugging only
-            traceback_txt = ''.join(traceback.format_exception(*sys.exc_info()))
-            print 'redraw got unexpected exception\n{:s}'.format(traceback_txt)
-            raise e
         finally:
             glFlush()                               # Tidy up
             glPopMatrix()                   # Restore the matrix
@@ -654,11 +647,6 @@ class GlCanonDraw:
         glPushMatrix()
         try:
             self.redraw()
-        except Exception as e:
-            # TEMPORARY for debugging only
-            traceback_txt = ''.join(traceback.format_exception(*sys.exc_info()))
-            print 'redraw got unexpected exception\n{:s}'.format(traceback_txt)
-            raise e
         finally:
             glFlush()                               # Tidy up
             glPopMatrix()                   # Restore the matrix
