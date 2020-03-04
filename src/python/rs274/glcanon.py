@@ -1996,9 +1996,10 @@ class GlCanonDraw:
 
     def load_preview(self, f, canon, unitcode, initcode, interpname=None, working_dir=None, start_line=0, leadin_type=None, keep_current_tool=True):
         self.set_canon(canon)
-        print "Working directory is: ", working_dir
-        print "preview start line is: ", start_line
-        print "preview leadin is: ", leadin_type
+        print "preview working directory: ", working_dir
+        print "preview start line: ", start_line
+        print "preview leadin: ", leadin_type
+        print "preview keep-current-tool: ", keep_current_tool
         result, seq, warnings = gcode.parse(
             file_name=f,
             canon_instance=canon,
