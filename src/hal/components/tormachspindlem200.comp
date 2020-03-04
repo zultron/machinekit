@@ -160,10 +160,6 @@ pin in float highbelt_max_rpm;
 pin in float highbelt_ratio;
 pin in float lowbelt_ratio;
 
-//Note we rely on none of these *_tol_* values being >= (100-(AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO*100))
-//Todo: create an m200 comp "init" function that tests this at run time.  Unfortunately, some run time checks may not be set until well after
-//m200 started, so it's a handshake with the PP GUI to run this init function.
-//   initFunction()   { if (any) ((*belt_tol_*) * 100)  > (AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO*100) then generate a fault. }
 pin in float highbelt_step_rpm;     // rpm below which we expand tolerance when in highbelt
 pin in float lowbelt_step_rpm;      // rpm below which we expand tolerance when in lowbelt
 pin in float highbelt_tol_below;    // what the rpm tolerance is below highbelt-step-rpm
@@ -437,12 +433,6 @@ function _ "Tormach Spindle HAL Component M200";
 // setting at-speed pin TRUE
 // this avoids false positive at-speed from power on noise burst from VFD
 #define AT_SPEED_DEBOUNCE_SECS (0.100)
-#define AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO (.25) //absolute speed must drop below min_speed * AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO when direction changes during constant spindle-on input.  
-    //In other words, this is a zero-cross detector.  Example for hi speed belt 1100M* where min_speed = 525 RPM.  Initially going  FWD at speed 1000RPM we switch to REV, spindle slows down to reverse, 
-    //eventually drops to less than 25% * 525 ~= 130 RPM.  ... RPM continues to drop to 0 then -130 RPM and eventually -525 RPM.  Once we drop below the +130 RPM, we can look for the 
-    //absolute RPM value to go to 525 RPM to set at-speed.  Keep in mind that at-speed is using absolute values for "is_close_enough()" since this m200 component reports RPM in absolute value which means that
-    //AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO = 25% means the step_tol_below and step_tol_above values must be below 100%-AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO or 75% for AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO to function correctly
-    //presently, worst case step_tol_below is 35%, which means AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO could be any value below 100-35 ~= 65% and still work
 
 #define AT_SPEED_FORCE_DELAY_SECS 10.0  //This is the delay before forcing at-speed to be true, when at-speed-force is true
 #define AT_SPEED_DEBOUNCE_ENCODER_TEST_Z  (2.1) //at-speed debounce when running ENCODER_TEST_Z.  WAG at least 2 secs, plus some hang time. We only update speed-out once per sec during ENCODER_TEST_Z, so must be >1.0+ sec for sure
@@ -811,11 +801,11 @@ signed int modulus;
     return modulus;
 }
 
-//if pin isn't zero, use the value of pin, otherwise use default defined in this comp
-float setValue(float x, float def_val)  {
+//if x isn't zero use it, otherwise use default passed
+float setValueAbs(float x, float def_val)  {
     if((int)x)
-        return x;
-    return def_val;
+        return fabs(x);
+    return fabs(def_val);
 }
 
 
@@ -1666,19 +1656,19 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
     // we default or assume hi belt except when HI speed spindle
     if (belt_position != BELT_POSITION_LOW) { //default HI belt unknowns, too
         spindle_pulley_ratio =  highbelt_ratio;
-        min_speed = setValue(highbelt_min_rpm, DEF_HIGHBELT_MIN_RPM);
-        max_speed = setValue(highbelt_max_rpm, DEF_HIGHBELT_MAX_RPM);
-        step_speed = setValue(highbelt_step_rpm, DEF_HIGHBELT_STEP_RPM);
-        step_tol_below = setValue(highbelt_tol_below, DEF_HIGHBELT_TOL_BELOW);
-        step_tol_above = setValue(highbelt_tol_above, DEF_HIGHBELT_TOL_ABOVE);
+        min_speed = setValueAbs(highbelt_min_rpm, DEF_HIGHBELT_MIN_RPM);
+        max_speed = setValueAbs(highbelt_max_rpm, DEF_HIGHBELT_MAX_RPM);
+        step_speed = setValueAbs(highbelt_step_rpm, DEF_HIGHBELT_STEP_RPM);
+        step_tol_below = setValueAbs(highbelt_tol_below, DEF_HIGHBELT_TOL_BELOW);
+        step_tol_above = setValueAbs(highbelt_tol_above, DEF_HIGHBELT_TOL_ABOVE);
     }
     else { //low belt case
         spindle_pulley_ratio = lowbelt_ratio;
-        min_speed = setValue(lowbelt_min_rpm,DEF_LOWBELT_MIN_RPM);
-        max_speed = setValue(lowbelt_max_rpm,DEF_LOWBELT_MAX_RPM);
-        step_speed = setValue(lowbelt_step_rpm,DEF_LOWBELT_STEP_RPM);
-        step_tol_below = setValue(lowbelt_tol_below,DEF_LOWBELT_TOL_BELOW);
-        step_tol_above = setValue(lowbelt_tol_above,DEF_LOWBELT_TOL_ABOVE);
+        min_speed = setValueAbs(lowbelt_min_rpm,DEF_LOWBELT_MIN_RPM);
+        max_speed = setValueAbs(lowbelt_max_rpm,DEF_LOWBELT_MAX_RPM);
+        step_speed = setValueAbs(lowbelt_step_rpm,DEF_LOWBELT_STEP_RPM);
+        step_tol_below = setValueAbs(lowbelt_tol_below,DEF_LOWBELT_TOL_BELOW);
+        step_tol_above = setValueAbs(lowbelt_tol_above,DEF_LOWBELT_TOL_ABOVE);
     }
     spindle_max_acceleration_rps = vfd_max_acceleration_rps * spindle_pulley_ratio;
 
@@ -1699,11 +1689,11 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
     if (spindle_type == SPINDLE_TYPE_HISPEED) {
         spindle_pulley_ratio = 1.0;
         // use high speed spindle min and max
-        min_speed = setValue(hispeed_min,DEF_HISPEED_MIN_RPM);
-        max_speed = setValue(hispeed_max,DEF_HISPEED_MAX_RPM);
-        step_speed = setValue(hispeed_step_rpm,DEF_HISPEED_STEP_RPM);
-        step_tol_below = setValue(hispeed_tol_below,DEF_HISPEED_TOL_BELOW);
-        step_tol_above = setValue(hispeed_tol_above,DEF_HISPEED_TOL_ABOVE);
+        min_speed = setValueAbs(hispeed_min,DEF_HISPEED_MIN_RPM);
+        max_speed = setValueAbs(hispeed_max,DEF_HISPEED_MAX_RPM);
+        step_speed = setValueAbs(hispeed_step_rpm,DEF_HISPEED_STEP_RPM);
+        step_tol_below = setValueAbs(hispeed_tol_below,DEF_HISPEED_TOL_BELOW);
+        step_tol_above = setValueAbs(hispeed_tol_above,DEF_HISPEED_TOL_ABOVE);
         spindle_max_acceleration_rps = 0.0; //Can't do rigid tapping with high-speed spindle, so don't bother
     }
     // KLUDGE: ignore torque for now and assume VFD acceleration is exactly commanded
@@ -2164,7 +2154,9 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
             speed_out = feedback_spindle_rpm;
      
             if (at_speed_reversal_lockout) { 
-                if (fabs(speed_out) < fabs(min_speed) * AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO) 
+                if (fabs(speed_out) < (fabs(at_speed_cmd) * ((100-step_tol_below)/100.0))) // we waiting for us to go out of worst case at-speed tolerance and "know" step_tol_below is always worse than step_tol_above
+                                                                                //for example, M3 S1000 to M4 S1000. graphs as speed_out = 1000, 900, 800 ... (some low inflection) ... 800, 900, 1000
+                                                                                //Prior to PP-2818, we used AT_SPEED_REV_LOCKOUT_THRESHOLD_RATIO which is now deprecated 
                     at_speed_reversal_lockout = 0;
             }
         
