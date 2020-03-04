@@ -432,14 +432,14 @@ int Interp::canon_use_tool_offset(const ShiftTransform & tool_offset)
     return INTERP_OK;
 }
 
-InterpReturn Interp::find_work_offset_from_parameters(setup_pointer settings, int origin, RotateShiftTransform &out)
+InterpReturn Interp::find_work_offset_from_parameters(setup_pointer settings, int origin, RotateShiftTransform &work_offset_user)
 {
     if (origin < 1 || origin >9) {
         return INTERP_ERROR;
     }
     const int prm_offset = getWorkOffsetParamIdx(origin, 1); // X starts at 1 in PRM table
     // KLUDGE assumes contiguous parameters X,Y,Z,...,R
-    out = RotateShiftTransform(
+    work_offset_user = RotateShiftTransform(
         toArray(&settings->parameters.at(prm_offset),
                 &settings->parameters[prm_offset + 9]),
         settings->parameters.at(prm_offset + 9));
