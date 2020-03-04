@@ -350,10 +350,10 @@ public:
  int convert_cycle_g83(block_pointer block, CANON_PLANE plane, double x, double y,
                              double r, double clear_z, double bottom_z,
                              double delta);
- int convert_cycle_g74_g84(block_pointer block, CANON_PLANE plane, double x, double y,
-                             double clear_z, double bottom_z,
+ int convert_cycle_g74_g84(block_pointer block, CANON_PLANE plane, double planar_pos_1, double planar_pos_2,
+                             double clear_height, double bottom_depth,
                              CANON_DIRECTION direction,
-                             CANON_SPEED_FEED_MODE mode,int motion, double dwell);
+                             CANON_SPEED_FEED_MODE mode, int motion, double dwell);
  int convert_cycle_g85(block_pointer block, CANON_PLANE plane, double x, double y,
                              double r, double clear_z, double bottom_z);
  int convert_cycle_g86(block_pointer block, CANON_PLANE plane, double x, double y,

@@ -110,6 +110,36 @@ PM_CARTESIAN & PM_CARTESIAN::operator /= (double o)
     return *this;
 }
 
+void PM_CARTESIAN::shift(int n)
+{
+    switch (n % 3) {
+    case -3:
+    case 0:
+    case 3:
+        return;
+    case -2:
+    case 1:
+    {
+        double xp = x;
+        x = z;
+        double yp = y;
+        y = xp;
+        z = yp;
+        return;
+    }
+    case -1:
+    case 2:
+    {
+        double zp = z;
+        z = x;
+        double yp = y;
+        y = zp;
+        x = yp;
+        return;
+    }
+    }
+}
+
 
 #ifdef INCLUDE_POSEMATH_COPY_CONSTRUCTORS
 PM_CARTESIAN::PM_CARTESIAN(PM_CCONST PM_CARTESIAN & v)
@@ -1423,4 +1453,12 @@ PM_CARTESIAN operator *(const PM_POSE &p, const PM_CARTESIAN &v)
     toCart(_v, &ret);
 
     return ret;
+}
+
+PM_CARTESIAN shift(const PM_CARTESIAN & p, int n)
+{
+    // TODO optimize
+    auto out = p;
+    out.shift(n);
+    return out;
 }

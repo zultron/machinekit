@@ -257,9 +257,10 @@ For the XY plane, this implements the following RS274/NGC cycle,
 3. Stop the spindle.
 4. Start the spindle counterclockwise (or cw if g74), suppressing the
    wait-for-spindle-at-speed for the following feed move out.
-5. Retract the z-axis at current feed rate to clear_z.
-6. Stop the spindle.
-7. Start the spindle clockwise (or ccw if g74), with normal wait-for-at-speed for next feed move.
+5. Dwell for the specified time (optional)
+6. Retract the z-axis at current feed rate to clear_z.
+7. Stop the spindle.
+8. Start the spindle clockwise (or ccw if g74), with normal wait-for-at-speed for next feed move.
 
 CYCLE_MACRO has positioned the tool at (x, y, r, a, b, c) when this starts.
 The direction argument must be clockwise.
@@ -270,24 +271,34 @@ For the XZ and YZ planes, this makes analogous motions.
 
 int Interp::convert_cycle_g74_g84(block_pointer block,
                                  CANON_PLANE plane, //!< selected plane
-                                 double x,  //!< x-value where cycle is executed
-                                 double y,  //!< y-value where cycle is executed
-                                 double clear_z,    //!< z-value of clearance plane
-                                 double bottom_z,   //!< value of z at bottom of cycle
+                                 double planar_pos_1,  //!< "x"-value where cycle is executed
+                                 double planar_pos_2,  //!< "y"-value where cycle is executed
+                                 double clear_height,    //!< height of clearance plane
+                                 double bottom_depth,   //!< depth at bottom of cycle
                                  CANON_DIRECTION direction, //!< direction spindle turning at outset
                                  CANON_SPEED_FEED_MODE mode,       //!< the speed-feed mode at outset
-                                 int motion, double dwell)
+                                 int motion,
+                                  double dwell)
 {
     char op = motion ==  G_74 ? '7' : '8';
 
-   switch (direction) {
-   case CANON_STOPPED:
-      ERS(_("Spindle not turning in G%c4"), op);
-   case CANON_CLOCKWISE:
-      CHKS((motion == G_74), _("Spindle turning clockwise in G74"));
-      break;
-   case CANON_COUNTERCLOCKWISE:
-       CHKS((motion == G_84), _("Spindle turning counterclockwise in G84"));
+    switch (direction) {
+    case CANON_STOPPED:
+        ERS(_("Spindle not turning in G%c4"), op);
+    case CANON_CLOCKWISE:
+        CHKS((motion == G_74), _("Spindle turning clockwise in G74"));
+        break;
+    case CANON_COUNTERCLOCKWISE:
+        CHKS((motion == G_84), _("Spindle turning counterclockwise in G84"));
+    }
+
+    switch (plane) {
+    case CANON_PLANE_UV:
+    case CANON_PLANE_VW:
+    case CANON_PLANE_UW:
+        ERS(_("Tap cycles G74 / G84 not supported in UVW axes"));
+    default:
+        break;
     }
 
     int save_feed_override_enable;
@@ -296,85 +307,38 @@ int Interp::convert_cycle_g74_g84(block_pointer block,
     save_feed_override_enable = GET_EXTERNAL_FEED_OVERRIDE_ENABLE();
     save_spindle_override_enable = GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE();
 
-   switch (plane) {
+    // Initialize the top / bottom points assuming XY plane, but will shift to the correct value
+    int n = plane;
+    PM_CARTESIAN bottom{shift({planar_pos_1, planar_pos_2, bottom_depth}, n)};
+    PM_CARTESIAN top{shift({planar_pos_1, planar_pos_2, clear_height}, n)};
 
-    case CANON_PLANE_XY:
-       DISABLE_FEED_OVERRIDE();
-       DISABLE_SPEED_OVERRIDE();
-       cycle_feed(block, plane, x, y, bottom_z);
-       STOP_SPINDLE_TURNING();
-       // the zero parameter suppresses the wait for at-speed on next feed
-       if (motion == G_84)
-           START_SPINDLE_COUNTERCLOCKWISE(0);
-       else
-           START_SPINDLE_CLOCKWISE(0);
-       DWELL(dwell);
-       cycle_feed(block, plane, x, y, clear_z);
-       STOP_SPINDLE_TURNING();
-       if (motion == G_84)
-           START_SPINDLE_CLOCKWISE();
-       else
-           START_SPINDLE_COUNTERCLOCKWISE();
-       break;
+    DISABLE_FEED_OVERRIDE();
+    DISABLE_SPEED_OVERRIDE();
+    if (motion == G_84)
+        START_SPINDLE_CLOCKWISE();
+    else
+        START_SPINDLE_COUNTERCLOCKWISE();
+    cycle_feed(block, plane, bottom.x, bottom.y, bottom.z);
+    STOP_SPINDLE_TURNING();
+    // the zero parameter suppresses the wait for at-speed on next feed
+    if (motion == G_84)
+        START_SPINDLE_COUNTERCLOCKWISE(0);
+    else
+        START_SPINDLE_CLOCKWISE(0);
+    DWELL(dwell);
+    cycle_feed(block, plane, top.x, top.y, top.z);
+    STOP_SPINDLE_TURNING();
+    if (motion == G_84)
+        START_SPINDLE_CLOCKWISE();
+    else
+        START_SPINDLE_COUNTERCLOCKWISE();
 
-    case CANON_PLANE_YZ:
-       DISABLE_FEED_OVERRIDE();
-       DISABLE_SPEED_OVERRIDE();
-       cycle_feed(block, plane, bottom_z, x, y);
-       STOP_SPINDLE_TURNING();
-       if (motion == G_84)
-           START_SPINDLE_COUNTERCLOCKWISE(0);
-       else
-           START_SPINDLE_CLOCKWISE(0);
-       DWELL(dwell);
-       cycle_feed(block, plane, clear_z, x, y);
-       STOP_SPINDLE_TURNING();
-       if (motion == G_84)
-           START_SPINDLE_CLOCKWISE();
-       else
-           START_SPINDLE_COUNTERCLOCKWISE();
-       break;
-
-    case CANON_PLANE_XZ:
-       DISABLE_FEED_OVERRIDE();
-       DISABLE_SPEED_OVERRIDE();
-       cycle_feed(block, plane, y, bottom_z, x);
-       STOP_SPINDLE_TURNING();
-       if (motion == G_84)
-           START_SPINDLE_COUNTERCLOCKWISE(0);
-       else
-           START_SPINDLE_CLOCKWISE(0);
-       DWELL(dwell);
-       cycle_feed(block, plane, y, clear_z, x);
-       STOP_SPINDLE_TURNING();
-       if (motion == G_84)
-           START_SPINDLE_CLOCKWISE();
-       else
-           START_SPINDLE_COUNTERCLOCKWISE();
-       break;
-
-    default:
-       ERS("G%c4 for plane %s not implemented",
-           op, plane_name(plane));
-    }
-   if(save_feed_override_enable)
-    ENABLE_FEED_OVERRIDE();
-   if(save_spindle_override_enable)
-    ENABLE_SPEED_OVERRIDE();
+    if(save_feed_override_enable)
+        ENABLE_FEED_OVERRIDE();
+    if(save_spindle_override_enable)
+        ENABLE_SPEED_OVERRIDE();
 
     return INTERP_OK;
-
-#if 0
-  START_SPEED_FEED_SYNCH();
-  cycle_feed(block, plane, x, y, bottom_z);
-
-  cycle_feed(block, plane, x, y, clear_z);
-  if (mode != CANON_SYNCHED)
-    STOP_SPEED_FEED_SYNCH();
-  STOP_SPINDLE_TURNING();
-  START_SPINDLE_CLOCKWISE();
-  return INTERP_OK;
-#endif
 }
 
 /****************************************************************************/
@@ -1073,8 +1037,9 @@ int Interp::convert_cycle_xy(int motion, //!< a g-code between G_81 and G_89, a 
   settings->current[Z] = clear_cc;
   settings->cycle.cc = block->z_number;
 
-  if (save_mode != CANON_EXACT_PATH)
+  if (save_mode != CANON_EXACT_PATH) {
     SET_MOTION_CONTROL_MODE(save_mode, save_tolerance);
+  }
 
     return INTERP_OK;
 }
