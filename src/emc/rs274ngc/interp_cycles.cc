@@ -970,6 +970,8 @@ int Interp::convert_cycle_xy(int motion, //!< a g-code between G_81 and G_89, a 
     break;
   case G_74:
   case G_84:
+    CHKS(((settings->motion_mode != motion) && (block->p_number == -1.0)),
+        NCE_P_WORD_MISSING_WITH_G74_G84);
       block->p_number =
       block->p_number == -1.0 ? settings->cycle.p : block->p_number;
       CYCLE_MACRO(convert_cycle_g74_g84(block, CANON_PLANE_XY, aa, bb, clear_cc, cc,
