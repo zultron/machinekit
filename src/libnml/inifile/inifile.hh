@@ -122,13 +122,16 @@ private:
 };
 
 
-struct FindsIniStringOrEmpty
+struct FindsIniStringOrDefault
 {
     IniFile &inifile;
     const char *section;
-    FindsIniStringOrEmpty(IniFile &inifile_in, const char *section_in) : inifile(inifile_in), section(section_in) {}
+    FindsIniStringOrDefault(IniFile &inifile_in, const char *section_in) :
+        inifile(inifile_in),
+        section(section_in)
+    {}
 
-    std::string operator()(const char *tag) const;
+    std::string operator()(const char *tag, const char *default_str="") const;
 };
 
 #endif

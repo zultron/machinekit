@@ -1007,7 +1007,7 @@ int Interp::load_interp_preamble(IniFile &inifile)
 {
     InterpPreamble preamble{};
     // Start line callbacks (used if start line is not 1)
-    FindsIniStringOrEmpty finds_preamble_str(inifile, "INTERP_PREAMBLE");
+    FindsIniStringOrDefault finds_preamble_str(inifile, "INTERP_PREAMBLE");
     preamble.toolchange_prolog = finds_preamble_str("TOOLCHANGE_PROLOG");
     preamble.toolchange_epilog = finds_preamble_str("TOOLCHANGE_EPILOG");
     preamble.leadin_prolog = finds_preamble_str("LEADIN_PROLOG");
@@ -1026,7 +1026,8 @@ int Interp::load_interp_preamble(IniFile &inifile)
 #endif
 
     AxisMask active_axes_mask(GET_EXTERNAL_AXIS_MASK());
-    preamble.plunge_axes = axis_mask_from_string(finds_preamble_str("PLUNGE_AXES")) & active_axes_mask;
+    // Assume Z axis is the plunge default for compatibility with axis' quill_up assumptions
+    preamble.plunge_axes = axis_mask_from_string(finds_preamble_str("PLUNGE_AXES", "Z")) & active_axes_mask;
 
     // All checks passed, store the preamble
     _setup.default_seek_preamble = preamble;
@@ -1332,7 +1333,7 @@ int Interp::init()
   _setup.plane = GET_EXTERNAL_PLANE();
 
   int origin = _setup.origin_index;
-  find_work_offset(origin, _setup.transform.g5xOffset);
+  find_work_offset_prog(origin, _setup.transform.g5xOffset);
 
   write_and_update_state_tag(nullptr);
 
@@ -1341,9 +1342,8 @@ int Interp::init()
       if (t_pair.first == _setup.origin_index) {
           continue;
       }
-      RotateShiftTransform work_offset_user = t_pair.second;
-      convertAxisUnits(work_offset_user, convertsUserToProgram());
-      send_g5x_transform(t_pair.first, work_offset_user);
+      RotateShiftTransform work_offset_prog = convertsUserToProgram().forward_tf(t_pair.second);
+      send_g5x_transform(t_pair.first, work_offset_prog);
   }
 
   send_current_g5x_transform();
@@ -1712,15 +1712,22 @@ int Interp::read_inputs(setup_pointer settings)
     write_and_update_state_tag(nullptr);
     if (settings->wait_flags.test(PROBE)) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
-	     NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING);
-	set_probe_data(&_setup);
+         NCE_QUEUE_IS_NOT_EMPTY_AFTER_PROBING);
+
+    set_probe_data(settings);
     settings->wait_flags.reset(PROBE);
     }
     if (settings->wait_flags.test(TOOLCHANGE)) {
 	CHKS((GET_EXTERNAL_QUEUE_EMPTY() == 0),
-	     _("Queue is not empty after tool change"));
-	refresh_actual_position(&_setup);
-	load_tool_table();
+         _("Queue is not empty after tool change"));
+    if (IN_START_LINE_SEEK()) {
+        // Assume plunge axes have returned to the home position after tool change is complete
+        PositionArray local_machine_zero = settings->transform.inverse_local_from_tip(PositionArray{});
+        settings->current = merge(settings->current, local_machine_zero, settings->default_seek_preamble.plunge_axes);
+    } else {
+        refresh_actual_position(settings);
+    }
+    load_tool_table();
     settings->wait_flags.reset(TOOLCHANGE);
     }
     // always track toolchanger-fault and toolchanger-reason codes

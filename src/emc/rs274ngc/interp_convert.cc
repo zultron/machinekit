@@ -1619,10 +1619,12 @@ int Interp::convert_coordinate_system(int g_code,        //!< g_code called (mus
   settings->parameters[ACTIVE_WORK_CSYS] = (double) origin;
 
   // load the origin of the newly-selected system
-  CHP(find_work_offset(origin, settings->transform.g5xOffset));
+  CHP(find_work_offset_prog(origin, settings->transform.g5xOffset));
 
-  // FIXME force the extended work offsets to match parameters (user might have changed them underneath us)
-  settings->work_offsets_user[origin] = settings->transform.g5xOffset;
+  if (origin > 0 && origin <= 9) {
+      // In case parameters were changed by user, force an update of of the user work offset map so that they stay synchronized
+      settings->work_offsets_user[origin] = convertsProgramToUser().forward_tf(settings->transform.g5xOffset);
+  }
 
   if (!isNonzero(settings->transform.g5xOffset)) {
       setWarning("Work offset %s is all zeros (effectively G53)\n", lookup_work_offset_gcode_string_from_origin(origin).c_str());
@@ -2775,7 +2777,7 @@ int Interp::create_full_restore_sequence(
         generator.printMsg("program preamble: Change to active tool at start line and execute prolog and epilog");
         generator.addPreformatted("G90"); // Necessary to allow absolute moves in toolchange prolog
         generator.addPreformatted(preamble.toolchange_prolog, "TOOLCHANGE PROLOG");
-        generator.addToolChange(_setup.getCurrentToolNumber());
+        generator.addToolChange(to_restore.modal_state.tool_number);
         generator.addPreformatted(preamble.toolchange_epilog, "TOOLCHANGE EPILOG");
     }
 
@@ -3700,7 +3702,7 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
 
             // Next, find the equivalent position in fixture coordinates:
             RotateShiftTransform fixture;
-            CHP(find_work_offset(destination_system, fixture));
+            CHP(find_work_offset_prog(destination_system, fixture));
             current = working_csys.swap_g5x_offset(current, fixture);
         }
 
@@ -3892,7 +3894,7 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
 
   // Starting from the active overall transform, find the effective transform for the desired work offset number
   LocalToMachineTransform desired_csys = settings->transform;
-  CHP(find_work_offset(p_int, desired_csys.g5xOffset)); // In program units
+  CHP(find_work_offset_prog(p_int, desired_csys.g5xOffset)); // In program units
 
   if (block->l_number == 20) {
     CHKS((block->r_flag), _("R not allowed in G10 L20"));
@@ -5255,19 +5257,13 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
   }
 
   if (settings->tool_change_quill_up) {
-      double up_z;
-      double discard;
-      find_relative(0., 0., 0., 0., 0., 0., 0., 0., 0., 
-                    &discard, &discard, &up_z,
-                    &discard, &discard, &discard, 
-                    &discard, &discard, &discard,
-                    settings);
+      // Assume plunge axes have returned to the home position (e.g. during a tool change or after a probe)
+      PositionArray local_machine_zero = settings->transform.inverse_local_from_tip(PositionArray{});
+      auto plunge_axis_zero = merge(settings->current, local_machine_zero, settings->default_seek_preamble.plunge_axes);
       COMMENT("AXIS,hide");
-      STRAIGHT_TRAVERSE(-1, settings->current[X], settings->current[Y], up_z,
-                        settings->current[A], settings->current[B], settings->current[C],
-                        settings->current[U], settings->current[V], settings->current[W]);
+      STRAIGHT_TRAVERSE(-1, UNPACK_POSITION_ARRAY_REF(plunge_axis_zero));
       COMMENT("AXIS,show");
-      settings->current[Z] = up_z;
+      settings->current = plunge_axis_zero;
   }
 
   if (settings->tool_change_at_g30) {

@@ -451,7 +451,7 @@ public:
  int canon_use_tool_offset(ShiftTransform const &tool_offset);
  InterpReturn find_work_offset_from_parameters(setup_pointer settings, int origin, RotateShiftTransform & out);
  int store_work_offset_to_parameters(setup_pointer settings, RotateShiftTransform const &work_offset, int origin);
- int find_work_offset(int origin, RotateShiftTransform & work_offset_user);
+ int find_work_offset_prog(int origin, RotateShiftTransform & work_offset_user);
  int store_work_offset_from_prog(RotateShiftTransform const &work_offset_prog, int origin);
  int store_work_offset(RotateShiftTransform const &work_offset_user, int origin);
  int find_current_in_system(setup_pointer s, int system, PositionArray &out);

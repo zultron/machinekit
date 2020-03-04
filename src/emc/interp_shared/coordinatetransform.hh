@@ -69,6 +69,8 @@ struct UnitsTransform : public TransformBase
 
     ShiftTransform forward_tf(ShiftTransform const &p) const;
     ShiftTransform inverse_tf(ShiftTransform const &p) const;
+    RotateShiftTransform forward_tf(RotateShiftTransform const &p) const;
+    RotateShiftTransform inverse_tf(RotateShiftTransform const &p) const;
 
     UnitsTransform &invert_scale();
 };

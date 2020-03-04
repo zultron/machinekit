@@ -884,3 +884,50 @@ SCENARIO("G43 behavior")
         }
     }
 }
+
+SCENARIO("Consistent unit behavior when accessing / storing work offsets")
+{
+    DECL_INIT_TEST_INTERP();
+    GIVEN("A default interpreter with work offsets")
+    {
+        static const char *make_offsets[] = {
+            "G90 G20",
+            "G10 L2 P1 X1.2 Y2.3 Z3.4 A4.5",
+            "G10 L2 P2 X5.6 Y6.7 Z7.8 A8.9",
+            "G10 L2 P10 X9.0 Y0.1 Z1.2 A2.3",
+            "G10 L2 P20 X3.4 Y4.5 Z5.6 A6.7",
+            "G10 L2 P500 X7.8 Y8.9 Z9.0 A0.1",
+            };
+
+        REQUIRE_INTERP_EXEC_LINES_OK(test_interp, make_offsets);
+
+        WorkOffsetMap const exp_work_offsets = settings->work_offsets_user;
+
+        GIVEN("Change to metric") {
+            REQUIRE_INTERP_OK(test_interp, execute("G21"));
+            THEN("Accessing a work offset should not mutate its values") {
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P1"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P2"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P10"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P20"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P500"));
+                check_work_offsets(exp_work_offsets, settings->work_offsets_user);
+                REQUIRE_INTERP_OK(test_interp, execute("G20"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P1"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P2"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P10"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P20"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P500"));
+                check_work_offsets(exp_work_offsets, settings->work_offsets_user);
+                REQUIRE_INTERP_OK(test_interp, execute("G21"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P1"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P1"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P2"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P10"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P20"));
+                REQUIRE_INTERP_OK(test_interp, execute("G54.1 P500"));
+                check_work_offsets(exp_work_offsets, settings->work_offsets_user);
+            }
+        }
+    }
+}

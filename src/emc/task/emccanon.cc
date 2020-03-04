@@ -2957,8 +2957,10 @@ PositionArray GET_EXTERNAL_PROBE_POSITION()
     PositionArray prog_position = unoffset_and_unrotate_pos(pos_probe);
     PositionArray probe_position_out = canon_to_program_units.forward(prog_position);
 
-    // Not re-entrant due to tracking of last probed position
-    log_probed_position(probe_position_out);
+    if (!IN_START_LINE_SEEK()) {
+        // Not re-entrant due to tracking of last probed position
+        log_probed_position(probe_position_out);
+    }
 
     return probe_position_out;
 }

@@ -469,22 +469,17 @@ int Interp::store_work_offset_to_parameters(setup_pointer settings, const Rotate
 }
 
 /** Finds the specified work offset in program units. */
-int Interp::find_work_offset(int origin, RotateShiftTransform &work_offset)
+int Interp::find_work_offset_prog(int origin, RotateShiftTransform &work_offset_prog)
 {
   // Force an update from the parameters in case they changed underneath us during g-code read
   find_work_offset_from_parameters(&_setup, origin, _setup.work_offsets_user[origin]);
-  work_offset = _setup.work_offsets_user[origin];
-
-  convertAxisUnits(work_offset, convertsUserToProgram());
+  work_offset_prog = convertsUserToProgram().forward_tf(_setup.work_offsets_user[origin]);
   return INTERP_OK;
 }
 
 int Interp::store_work_offset_from_prog(const RotateShiftTransform & work_offset_prog, int origin)
 {
-  RotateShiftTransform work_offset_user = work_offset_prog;
-  convertAxisUnits(work_offset_user, convertsProgramToUser());
-
-  return store_work_offset(work_offset_user, origin);
+  return store_work_offset(convertsProgramToUser().forward_tf(work_offset_prog), origin);
 }
 
 int Interp::store_work_offset(RotateShiftTransform const &work_offset_user, int origin)
@@ -502,7 +497,7 @@ int Interp::find_current_in_system(setup_pointer s, int system, PositionArray &o
     // Tool offset is not changed by switching work offsets, so we don't have to transform fully into tool tip coordinates, just spindle nose coordinates
     PositionArray pos_nose = s->transform.forward_local_to_nose(s->current);
     LocalToMachineTransform tmp = s->transform;
-    CHP(find_work_offset(system, tmp.g5xOffset));
+    CHP(find_work_offset_prog(system, tmp.g5xOffset));
 
     out = tmp.inverse_local_from_nose(pos_nose);
     return INTERP_OK;
@@ -516,7 +511,7 @@ int Interp::find_current_in_system_without_tlo(setup_pointer s, int system, Posi
 {
     PositionArray pos = s->transform.forward(s->current);
     LocalToMachineTransform tmp = s->transform;
-    CHP(find_work_offset(system, tmp.g5xOffset));
+    CHP(find_work_offset_prog(system, tmp.g5xOffset));
     // NOTE: this is where the "tool offsets not applied" part happens.
     out = tmp.inverse_local_from_nose(pos);
     return INTERP_OK;

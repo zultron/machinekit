@@ -411,13 +411,7 @@ int Interp::precedence(int an_operator)
 
 int Interp::refresh_actual_position(setup_pointer settings)
 {
-    if (IN_START_LINE_SEEK()) {
-        // Assume plunge axes have returned to the home position (e.g. during a tool change or after a probe)
-        PositionArray local_machine_zero = settings->transform.inverse_local_from_tip(PositionArray{});
-        settings->current = merge(settings->current, local_machine_zero, settings->default_seek_preamble.plunge_axes);
-    } else {
-        settings->current = GET_EXTERNAL_POSITION();
-    }
+    settings->current = GET_EXTERNAL_POSITION();
     return INTERP_OK;
 }
 
@@ -429,22 +423,24 @@ static inline void wrap_rotary_value(double &unwrapped_pos)
 
 /****************************************************************************/
 
-/*! set_probe_data
-
-Returned Value: int (INTERP_OK)
-
-Side effects:
-  The current position is set.
-  System parameters for probe position are set.
-
-Called by:  Interp::read
-
-*/
-
+/**
+ * Gets actual probe trip position from motion and copies it
+ * into relevant parameters (along with trip status).
+ *
+ * Used by interp::read() after a probe move has finished (before resuming
+ * read-ahead).
+ *
+ * @note this no longer restores the current position from the
+ * machine position as a side-effect (now done one level up in read_inputs).
+ */
 int Interp::set_probe_data(setup_pointer settings)       //!< pointer to machine settings
 {
-  refresh_actual_position(settings);
   PositionArray probe_pos = GET_EXTERNAL_PROBE_POSITION();
+
+  if (!IN_START_LINE_SEEK()) {
+      // KLUDGE must do this after getting probe pos for preview interpreter
+      refresh_actual_position(settings);
+  }
 
   if(settings->a_axis_wrapped) {
       wrap_rotary_value(probe_pos[A]);
