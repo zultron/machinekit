@@ -2145,6 +2145,8 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
                 at_speed_force_timer += fperiod;
                 if (at_speed_force_timer > AT_SPEED_FORCE_DELAY_SECS) {
                     at_speed = BIT_TRUE;
+                    at_speed_cmd = vfd_rpm_cmd;
+                    at_speed_dir = spindle_forward_thur;
                     at_speed_force_timer = 0.0;
                 }
             }
@@ -2182,7 +2184,7 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
                 at_speed_debounce = 0.0;
             }
         }
-        // in at-speed state - speed-out follows speed-in
+        // in at-speed state - speed-out follows at_speed_cmd 
         else {
             //check if we've reversed speed  -- note linuxcnc allows contiguous M3 to M4 statements and never drops motion.spindle_on (spindle_on) when switching direction
             if (at_speed_dir != spindle_forward_thur) {
@@ -2199,7 +2201,7 @@ FUNCTION(_) {  //the main m200 comp super loop function that gets called ~ each 
             if (!at_speed)
                 speed_out = feedback_spindle_rpm; //track actual speed in user's DRO when out of at-speed state
             else 
-                speed_out = fabs(speed_in);
+                speed_out = fabs(at_speed_cmd); //lie to user with whatever speed we were shooting for when at-speed was last set
             // uncomment next line for debugging or to display feedback RPM in UI
             //speed_out = feedback_spindle_rpm
         }
