@@ -295,19 +295,14 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         glBegin(GL_LINES)
         coords = []
         #FIXME limit seek depth here? This could go on for a long time
-        print "Line no: ", lineno
         for k, motions in self.tool_motions.iteritems():
-            print k
             for motion_data in motions:
-                print motion_data
                 if motion_data[0] != lineno:
                     continue
-                print "Found match"
                 linuxcnc.line9(geometry, motion_data[1], motion_data[2])
                 coords.append(motion_data[1][:3])
                 coords.append(motion_data[2][:3])
         glEnd()
-        print coords
         for line in self.dwells:
             if line[0] != lineno:
                 continue
