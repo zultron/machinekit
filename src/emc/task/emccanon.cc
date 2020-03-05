@@ -347,8 +347,8 @@ static int axis_valid(int n) {
   retrieves the xyz position after the last of the queued segments.  these
   are also in absolute frame, mm units.
   */
-static PositionArray canonEndPoint;
-static void canonUpdateEndPoint(double x, double y, double z, 
+static PositionArray canonEndPoint{};
+static void canonUpdateEndPoint(double x, double y, double z,
                                 double a, double b, double c,
                                 double u, double v, double w)
 {
@@ -2942,6 +2942,10 @@ static inline void log_probed_position(PositionArray const &probe_position_out)
             probe_position_out[U], probe_position_out[V], probe_position_out[W]);
 }
 
+/**
+ * Report the probe position as measured by motion.
+ * @warning This is canonically the end point of the probe motion if the probe fails to trip. Since no probe motion occurs when seeking the start line, we act as if it failed and report the end point as the probe position.
+ */
 PositionArray GET_EXTERNAL_PROBE_POSITION()
 {
     // Get updated unit converters given current canon / motion settings
@@ -2951,7 +2955,12 @@ PositionArray GET_EXTERNAL_PROBE_POSITION()
     flush_segments();
 
     // Get probed position in canon units
-    PositionArray pos_probe = motion_to_canon_units.forward(toArray(emcStatus->motion.traj.probedPosition));
+    // WARNING: for seek-start-line, the probe motion "fails" by definition,
+    // because no trip can occur without motion. Therefore, we report the end
+    // point of the probe position as the result.
+    PositionArray pos_probe = IN_START_LINE_SEEK() ?
+                                                   canonEndPoint :
+                                                   motion_to_canon_units.forward(toArray(emcStatus->motion.traj.probedPosition));
 
     // now calculate position in program units, for interpreter
     PositionArray prog_position = unoffset_and_unrotate_pos(pos_probe);
@@ -2965,9 +2974,13 @@ PositionArray GET_EXTERNAL_PROBE_POSITION()
     return probe_position_out;
 }
 
+/**
+ * Report whether an external probe trip was observed.
+ * @warning This is canonically false when seeking the start line because no motion occurs (so no probe trip is possible).
+ */
 int GET_EXTERNAL_PROBE_TRIPPED_VALUE()
 {
-    return emcStatus->motion.traj.probe_tripped;
+    return IN_START_LINE_SEEK() ? false : emcStatus->motion.traj.probe_tripped;
 }
 
 double GET_EXTERNAL_PROBE_VALUE()
