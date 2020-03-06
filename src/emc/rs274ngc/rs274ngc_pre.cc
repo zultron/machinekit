@@ -349,6 +349,11 @@ Called By: external programs
 
 int Interp::close()
 {
+    // Need to reset the interpreter and unwind any accumulated stack before closing
+    // The contract is that reset always occurs, even if close is lazy and
+    // doesn't actually close the file handle.
+    reset();
+
     logOword("Interp::close()");
 
     // Testing finds that if you try to remove the lazy close mechanism that
@@ -369,7 +374,6 @@ int Interp::close()
     _setup.file_pointer = nullptr;
     _setup.percent_flag = false;
   }
-  reset();
 
   return INTERP_OK;
 }
