@@ -2576,6 +2576,7 @@ int Interp::write_modal_state(const block_pointer block, setup_struct const *set
     out.tool_offset_mode = settings->tool_offset_mode;
     out.tool_offset_number = settings->tool_offset_number;
     out.cutter_comp = settings->cutter_comp;
+    out.feed_rate_uu = PROGRAM_TO_USER_LEN(settings->feed_rate);
     return INTERP_OK;
 }
 
@@ -2811,7 +2812,7 @@ int Interp::create_full_restore_sequence(
 
     PositionArray move_start_pos = _setup.posWithDiameterMode();
 
-    double leadin_feedrate = run_initial_state.modal_state.settings[SETTINGS_FEED_RATE];
+    double leadin_feedrate = USER_TO_PROGRAM_LEN(run_initial_state.modal_state.feed_rate_uu);
 
     switch (run_settings.leadin_type) {
     case PREP_LINEAR_LEADIN:
