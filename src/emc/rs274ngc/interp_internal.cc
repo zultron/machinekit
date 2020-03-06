@@ -536,7 +536,7 @@ const int & Interp::remap_level() const
 char * Interp::working_dir(char * buf, size_t len)
 {
     if (_setup.working_dir.size() < ((size_t) len)) {
-        strcpy(buf, _setup.filename);
+        strcpy(buf, _setup.working_dir.c_str());
     } else {
         buf[0] = 0;
     }

@@ -2576,6 +2576,7 @@ int Interp::write_modal_state(const block_pointer block, setup_struct const *set
     out.tool_offset_mode = settings->tool_offset_mode;
     out.tool_offset_number = settings->tool_offset_number;
     out.cutter_comp = settings->cutter_comp;
+    out.feed_rate_uu = PROGRAM_TO_USER_LEN(settings->feed_rate);
     return INTERP_OK;
 }
 
@@ -2811,6 +2812,8 @@ int Interp::create_full_restore_sequence(
 
     PositionArray move_start_pos = _setup.posWithDiameterMode();
 
+    double leadin_feedrate = USER_TO_PROGRAM_LEN(run_initial_state.modal_state.feed_rate_uu);
+
     switch (run_settings.leadin_type) {
     case PREP_LINEAR_LEADIN:
     {
@@ -2827,7 +2830,7 @@ int Interp::create_full_restore_sequence(
         }
         generator.addToolCompensation((GCodes)to_restore.modal_state.g_codes[G_CODE_CUTTER_SIDE], to_restore.modal_state.cutter_comp);
         // TODO rapid to within a specified linear distance of the final position, then feed
-        generator.addLinearFeedMove(move_start_pos, _setup.feed_rate);
+        generator.addLinearFeedMove(move_start_pos, leadin_feedrate);
         generator.addPreformatted(preamble.leadin_epilog);
     }
         break;
@@ -2839,7 +2842,7 @@ int Interp::create_full_restore_sequence(
         generator.addLinearRapidMove(move_start_pos, traverse_axes);
         CHKS(!preamble.plunge_axes.any(), _("No plunge axes specified, cannot do a plunge lead-in move"));
         // TODO rapid to a relative retract height here (will save a lot of time with slow feeds)
-        generator.addLinearFeedMove(move_start_pos, _setup.feed_rate);
+        generator.addLinearFeedMove(move_start_pos, leadin_feedrate);
         generator.addPreformatted(preamble.leadin_epilog);
         break;
     case PREP_NONE:

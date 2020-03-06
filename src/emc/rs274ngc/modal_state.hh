@@ -49,6 +49,7 @@ struct ModalState {
     int tool_offset_number;
     GCodes tool_offset_mode;
     CutterCompData cutter_comp;
+    double feed_rate_uu;
 };
 
 /**
