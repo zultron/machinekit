@@ -161,10 +161,20 @@ static PyObject *callback;
 static int interp_error;
 static int last_sequence_number;
 static bool metric;
-static PositionArray _pos = {}; // In USER units
-static PositionArray probe_start_pos = {};
+static PositionArray _pos_prog = {}; // In PROGRAM units (note that data passed to callbacks is in USER units)
+static PositionArray probe_start_pos_prog = {};
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
+
+static UnitsTransform convertsUserToProg()
+{
+    return UnitsTransform(metric ? 25.4 : 1.0, 1.0);
+}
+
+static UnitsTransform convertsProgToUser()
+{
+    return convertsUserToProg().invert_scale();
+}
 
 // Track spindle synched motion
 static int spindle_synched_motion = 0;
@@ -172,8 +182,8 @@ static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
 static double css_max_speed_programmed = 0.0;
 
-static AxisOffsetParams cached_g92{}; // in USER units
-static LocalToMachineTransform transform{}; // in USER units
+static AxisOffsetParams cached_g92_uu{}; // in USER units
+static LocalToMachineTransform transform_uu{}; // in USER units
 
 enum class ParseExecMode {
     SEEK,
@@ -227,15 +237,17 @@ void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points
     double umax = n - k + 2;
     unsigned int div = nurbs_control_points.size()*15;
     std::vector<unsigned int> knot_vector = knot_vector_creator(n, k);
-    PLANE_POINT P1;
+    auto nurbs_pt = _pos_prog;
     while (u+umax/div < umax) {
         PLANE_POINT P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
-        STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos[Z], _pos[A], _pos[B], _pos[C], _pos[U], _pos[V], _pos[W]);
+        nurbs_pt[X] = P1.X;
+        nurbs_pt[Y] = P1.Y;
+        STRAIGHT_FEED(line_number, UNPACK_POSITION_ARRAY_REF(nurbs_pt));
         u = u + umax/div;
     }
-    P1.X = nurbs_control_points[n].X;
-    P1.Y = nurbs_control_points[n].Y;
-    STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos[Z], _pos[A], _pos[B], _pos[C], _pos[U], _pos[V], _pos[W]);
+    nurbs_pt[X] = nurbs_control_points[n].X;
+    nurbs_pt[Y] = nurbs_control_points[n].Y;
+    STRAIGHT_FEED(line_number, UNPACK_POSITION_ARRAY_REF(nurbs_pt));
     knot_vector.clear();
 }
 
@@ -273,9 +285,7 @@ void STRAIGHT_FEED(int line_number,
                    double x, double y, double z,
                    double a, double b, double c,
                    double u, double v, double w) {
-    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
-    _pos[A]=a; _pos[B]=b; _pos[C]=c;
-    _pos[U]=u; _pos[V]=v; _pos[W]=w;
+    assign(_pos_prog, x, y, z, a, b, c, u, v, w);
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -296,9 +306,7 @@ void STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
                        double a, double b, double c,
                        double u, double v, double w) {
-    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
-    _pos[A]=a; _pos[B]=b; _pos[C]=c;
-    _pos[U]=u; _pos[V]=v; _pos[W]=w;
+    assign(_pos_prog, x, y, z, a, b, c, u, v, w);
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -317,28 +325,31 @@ void SET_G5X_TRANSFORM(int origin,
                        double u, double v, double w,
                        double xy_rotation_deg)
 {
-    if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
+    transform_uu.g5xOffset = RotateShiftTransform(convertsProgToUser().forward({x, y, z, a, b, c, u, v, w}), xy_rotation_deg);
     maybe_new_line();
     if(interp_error) return;
     PyObject *result_offset =
-        callmethod(callback, "set_g5x_transform", "iffffffffff",
-                origin, x, y, z, a, b, c, u, v, w, xy_rotation_deg);
+        callmethod(
+            callback,
+            "set_g5x_transform",
+            "iffffffffff",
+            origin,
+            UNPACK_POSITION_ARRAY_REF(transform_uu.g5xOffset.shift.tf),
+            xy_rotation_deg);
     if(!result_offset) interp_error ++;
-    transform.g5xOffset = RotateShiftTransform({x, y, z, a, b, c, u, v, w}, xy_rotation_deg);
     Py_XDECREF(result_offset);
 }
 
 void SET_G92_OFFSET(bool applied, double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w) {
-    if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line();
     if(interp_error) return;
 
-    auto const &g92 = transform.g92Offset = ShiftTransform{{x,y,z,a,b,c,u,v,w}};
-    cached_g92.applied = applied;
+    auto const &g92 = transform_uu.g92Offset = ShiftTransform{convertsProgToUser().forward({x,y,z,a,b,c,u,v,w})};
+    cached_g92_uu.applied = applied;
     if (applied) {
-        cached_g92.offset = g92;
+        cached_g92_uu.offset = g92;
     }
 
     PyObject *result =
@@ -356,7 +367,9 @@ void SET_G92_OFFSET(bool applied, double x, double y, double z,
     Py_XDECREF(result);
 }
 
-void USE_LENGTH_UNITS(CANON_UNITS u) { metric = u == CANON_UNITS_MM; }
+void USE_LENGTH_UNITS(CANON_UNITS u) {
+    metric = (u == CANON_UNITS_MM);
+}
 
 void SELECT_PLANE(CANON_PLANE pl) {
     maybe_new_line();
@@ -454,14 +467,10 @@ void SET_TOOL_TABLE_ENTRY(int pocket, int toolno, EmcPose offset, double diamete
 }
 
 void USE_TOOL_LENGTH_OFFSET(EmcPose offset) {
-    transform.toolOffset = ShiftTransform(toArray(offset));
+    transform_uu.toolOffset = ShiftTransform(convertsProgToUser().forward(toArray(offset)));
     maybe_new_line();
     if(interp_error) return;
-    if(metric) {
-        offset.tran.x /= 25.4; offset.tran.y /= 25.4; offset.tran.z /= 25.4;
-        offset.u /= 25.4; offset.v /= 25.4; offset.w /= 25.4; }
-    PyObject *result = callmethod(callback, "tool_offset", "ddddddddd", offset.tran.x, offset.tran.y, offset.tran.z,
-        offset.a, offset.b, offset.c, offset.u, offset.v, offset.w);
+    PyObject *result = callmethod(callback, "tool_offset", "ddddddddd", UNPACK_POSITION_ARRAY_REF(transform_uu.toolOffset));
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
 }
@@ -560,10 +569,8 @@ void STRAIGHT_PROBE(int line_number,
                     double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
-    probe_start_pos = _pos;
-    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
-    _pos[A]=a; _pos[B]=b; _pos[C]=c;
-    _pos[U]=u; _pos[V]=v; _pos[W]=w;
+    probe_start_pos_prog = _pos_prog;
+    assign(_pos_prog, x, y, z, a, b, c, u, v, w);
 
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
@@ -581,9 +588,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
                     double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
-    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
-    _pos[A]=a; _pos[B]=b; _pos[C]=c;
-    _pos[U]=u; _pos[V]=v; _pos[W]=w;
+    assign(_pos_prog, x, y, z, a, b, c, u, v, w);
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -614,35 +619,39 @@ void RIGID_TAP(int line_number,
     Py_XDECREF(result);
 }
 double GET_EXTERNAL_MOTION_CONTROL_TOLERANCE() { return 0.1; }
+
 PositionArray GET_EXTERNAL_PROBE_POSITION()
 {
     // KLUDGE if we're about to start a prep move, and are getting the external probe position (to restore the actual position), cheat and pretend the probe stopped right at the beginning
     if (exec_mode_ == ParseExecMode::PREP) {
-        _pos = probe_start_pos;
+        _pos_prog = probe_start_pos_prog;
     }
-    return _pos;
+    return _pos_prog;
 }
-double GET_EXTERNAL_PROBE_POSITION_X() { return _pos[X]; }
-double GET_EXTERNAL_PROBE_POSITION_Y() { return _pos[Y]; }
-double GET_EXTERNAL_PROBE_POSITION_Z() { return _pos[Z]; }
-double GET_EXTERNAL_PROBE_POSITION_A() { return _pos[A]; }
-double GET_EXTERNAL_PROBE_POSITION_B() { return _pos[B]; }
-double GET_EXTERNAL_PROBE_POSITION_C() { return _pos[C]; }
-double GET_EXTERNAL_PROBE_POSITION_U() { return _pos[U]; }
-double GET_EXTERNAL_PROBE_POSITION_V() { return _pos[V]; }
-double GET_EXTERNAL_PROBE_POSITION_W() { return _pos[W]; }
+double GET_EXTERNAL_PROBE_POSITION_X() { return GET_EXTERNAL_PROBE_POSITION()[X]; }
+double GET_EXTERNAL_PROBE_POSITION_Y() { return GET_EXTERNAL_PROBE_POSITION()[Y]; }
+double GET_EXTERNAL_PROBE_POSITION_Z() { return GET_EXTERNAL_PROBE_POSITION()[Z]; }
+double GET_EXTERNAL_PROBE_POSITION_A() { return GET_EXTERNAL_PROBE_POSITION()[A]; }
+double GET_EXTERNAL_PROBE_POSITION_B() { return GET_EXTERNAL_PROBE_POSITION()[B]; }
+double GET_EXTERNAL_PROBE_POSITION_C() { return GET_EXTERNAL_PROBE_POSITION()[C]; }
+double GET_EXTERNAL_PROBE_POSITION_U() { return GET_EXTERNAL_PROBE_POSITION()[U]; }
+double GET_EXTERNAL_PROBE_POSITION_V() { return GET_EXTERNAL_PROBE_POSITION()[V]; }
+double GET_EXTERNAL_PROBE_POSITION_W() { return GET_EXTERNAL_PROBE_POSITION()[W]; }
 double GET_EXTERNAL_PROBE_VALUE() { return 0.0; }
 int GET_EXTERNAL_PROBE_TRIPPED_VALUE() { return 0; }
-PositionArray GET_EXTERNAL_POSITION() { return _pos; }
-double GET_EXTERNAL_POSITION_X() { return _pos[X]; }
-double GET_EXTERNAL_POSITION_Y() { return _pos[Y]; }
-double GET_EXTERNAL_POSITION_Z() { return _pos[Z]; }
-double GET_EXTERNAL_POSITION_A() { return _pos[A]; }
-double GET_EXTERNAL_POSITION_B() { return _pos[B]; }
-double GET_EXTERNAL_POSITION_C() { return _pos[C]; }
-double GET_EXTERNAL_POSITION_U() { return _pos[U]; }
-double GET_EXTERNAL_POSITION_V() { return _pos[V]; }
-double GET_EXTERNAL_POSITION_W() { return _pos[W]; }
+
+PositionArray GET_EXTERNAL_POSITION() {
+    return _pos_prog;
+}
+double GET_EXTERNAL_POSITION_X() { return GET_EXTERNAL_POSITION()[X]; }
+double GET_EXTERNAL_POSITION_Y() { return GET_EXTERNAL_POSITION()[Y]; }
+double GET_EXTERNAL_POSITION_Z() { return GET_EXTERNAL_POSITION()[Z]; }
+double GET_EXTERNAL_POSITION_A() { return GET_EXTERNAL_POSITION()[A]; }
+double GET_EXTERNAL_POSITION_B() { return GET_EXTERNAL_POSITION()[B]; }
+double GET_EXTERNAL_POSITION_C() { return GET_EXTERNAL_POSITION()[C]; }
+double GET_EXTERNAL_POSITION_U() { return GET_EXTERNAL_POSITION()[U]; }
+double GET_EXTERNAL_POSITION_V() { return GET_EXTERNAL_POSITION()[V]; }
+double GET_EXTERNAL_POSITION_W() { return GET_EXTERNAL_POSITION()[W]; }
 void INIT_CANON() {}
 
 void SET_PARAMETER_FILE_NAME(const char *name)
@@ -694,7 +703,7 @@ RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin) {
 }
 
 AxisOffsetParams GET_EXTERNAL_PERSISTENT_AXIS_OFFSET() {
-    return cached_g92;
+    return cached_g92_uu;
 }
 
 int GET_EXTERNAL_DIGITAL_INPUT(int index, int def) { return def; }
@@ -754,32 +763,36 @@ int GET_EXTERNAL_AXIS_MASK() {
     return mask;
 }
 
+static inline PositionArray getToolOffsetProg() {
+    return convertsUserToProg().forward(transform_uu.toolOffset.tf);
+}
+
 double GET_EXTERNAL_TOOL_LENGTH_XOFFSET() {
-    return transform.toolOffset[X];
+    return getToolOffsetProg()[X];
 }
 double GET_EXTERNAL_TOOL_LENGTH_YOFFSET() {
-    return transform.toolOffset[Y];
+    return getToolOffsetProg()[Y];
 }
 double GET_EXTERNAL_TOOL_LENGTH_ZOFFSET() {
-    return transform.toolOffset[Z];
+    return getToolOffsetProg()[Z];
 }
 double GET_EXTERNAL_TOOL_LENGTH_AOFFSET() {
-    return transform.toolOffset[A];
+    return getToolOffsetProg()[A];
 }
 double GET_EXTERNAL_TOOL_LENGTH_BOFFSET() {
-    return transform.toolOffset[B];
+    return getToolOffsetProg()[B];
 }
 double GET_EXTERNAL_TOOL_LENGTH_COFFSET() {
-    return transform.toolOffset[C];
+    return getToolOffsetProg()[C];
 }
 double GET_EXTERNAL_TOOL_LENGTH_UOFFSET() {
-    return transform.toolOffset[U];
+    return getToolOffsetProg()[U];
 }
 double GET_EXTERNAL_TOOL_LENGTH_VOFFSET() {
-    return transform.toolOffset[V];
+    return getToolOffsetProg()[V];
 }
 double GET_EXTERNAL_TOOL_LENGTH_WOFFSET() {
-    return transform.toolOffset[W];
+    return getToolOffsetProg()[W];
 }
 
 static bool PyInt_CheckAndError(const char *func, PyObject *p)  {
@@ -926,12 +939,22 @@ int set_exec_mode(ParseExecMode mode)
     return INTERP_OK;
 }
 
-int synch_position(PositionArray const &machine_pos)
+/**
+ * Using the current canon position and transform, compute the "machine"
+ * position in user units and update the current position of the python canon
+ * instance.
+ *
+ * Do this typically after a synch operation where we're setting up an initial
+ * position (like at the start of a program, or before hitting the start line)
+ */
+int synch_position_to_python()
 {
+    auto machine_pos_uu = transform_uu.forward_local_to_tip(convertsProgToUser().forward(_pos_prog));
+
     if(interp_error) return INTERP_ERROR;
     PyObject *result =
         callmethod(callback, "synch_position", "fffffffff",
-                   UNPACK_POSITION_ARRAY_REF(machine_pos));
+                   UNPACK_POSITION_ARRAY_REF(machine_pos_uu));
     if(result == nullptr) {
         interp_error ++;
         return INTERP_ERROR;
@@ -943,7 +966,7 @@ int synch_position(PositionArray const &machine_pos)
 void restore_machine_state_before_preview_synch(ExpandedModalState const &run_initial_state)
 {
     // KLUDGE force the "machine" state to be what the initial position was again, as if synching from a real machine
-    _pos = transform.inverse_local_from_nose(run_initial_state.initial_nose_position_uu);
+    _pos_prog = convertsUserToProg().forward(transform_uu.inverse_local_from_nose(run_initial_state.initial_nose_position_uu));
 
     // TODO handle coolant settings here if we ever show coolant state in preview
     // flood
@@ -968,8 +991,7 @@ int planFinishLineSeek(
     restore_machine_state_before_preview_synch(run_initial_state);
 
     if(interp_error) return INTERP_ERROR;
-    auto machine_pos = transform.forward_local_to_tip(_pos);
-    RETURN_ON_ERROR(synch_position(machine_pos));
+    RETURN_ON_ERROR(synch_position_to_python());
 
     if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
         // Do a full modal state restore as if the program had executed from line 1,
@@ -1003,22 +1025,6 @@ static int do_parse_loop(
 
     RETURN_ON_ERROR(pinterp->init());
 
-    if (rs274_interp) {
-        //
-        auto UtoP = rs274_interp->convertsUserToProgram();
-        auto PtoU = rs274_interp->convertsProgramToUser();
-        transform.g5xOffset = PtoU.forward_tf(rs274_interp->_setup.transform.g5xOffset);
-        transform.g92Offset = PtoU.forward_tf(rs274_interp->_setup.transform.g92Offset);
-        transform.toolOffset = PtoU.forward_tf(rs274_interp->_setup.transform.g92Offset);
-        // KLUDGE pull the super secret current position out of the reserved parameters and update both interp and our cached position
-        _pos = toArray(
-            rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY,
-            rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY_END);
-        rs274_interp->_setup.current = UtoP.forward(_pos);
-        auto machine_pos_user = transform.forward_local_to_tip(_pos);
-        RETURN_ON_ERROR(synch_position(machine_pos_user));
-    }
-
     // Copy current position back out of reserved parameter area
 
     RETURN_ON_ERROR(pinterp->open(file_name, working_dir));
@@ -1030,6 +1036,19 @@ static int do_parse_loop(
     }
     if(init_gcode) {
         RETURN_ON_ERROR(execute_lines(pinterp, init_gcode, CommandSource::INIT));
+    }
+
+    if (rs274_interp) {
+        //
+        auto UtoP = rs274_interp->convertsUserToProgram();
+        auto PtoU = rs274_interp->convertsProgramToUser();
+        transform_uu = rs274_interp->_setup.transform.scale_by(PtoU);
+        // KLUDGE pull the super secret current position out of the reserved parameters and update both interp and our cached position
+        _pos_prog = UtoP.forward(toArray(
+            rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY,
+            rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY_END));
+        rs274_interp->_setup.current = _pos_prog;
+        RETURN_ON_ERROR(synch_position_to_python());
     }
 
     ExpandedModalState run_initial_state;
@@ -1096,7 +1115,7 @@ void reset_gcode_canon_globals(const char *interp_name)
     spindle_synched_motion = 0;
     spindle_speed_programmed = 0.0;
 
-    _pos.fill(0);
+    _pos_prog.fill(0);
     _linecount=0;
 }
 

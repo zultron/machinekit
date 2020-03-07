@@ -276,6 +276,13 @@ void LocalToMachineTransform::rescaleAllTransforms(const UnitsTransform & to_new
     to_new_units.apply_fwd(toolOffset.tf);
 }
 
+LocalToMachineTransform LocalToMachineTransform::scale_by(const UnitsTransform & to_new_units) const
+{
+    auto transform_out = *this;
+    transform_out.rescaleAllTransforms(to_new_units);
+    return transform_out;
+}
+
 /**
  * Applies unit conversion supplied to linear / angular axes.
  * @note coordinate system rotation is always stored internally as radians, so this is NOT converted.

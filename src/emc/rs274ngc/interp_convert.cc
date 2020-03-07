@@ -2808,8 +2808,8 @@ int Interp::create_full_restore_sequence(
     AxisMask traverse_axes = ~preamble.plunge_axes;
 
     PositionArray move_start_pos = _setup.posWithDiameterMode();
-    PositionArray leadin_position_raw = _setup.transform.inverse_local_from_nose(
-        convertsUserToProgram().forward(run_initial_state.initial_nose_position_uu));
+    auto leadin_nose_prog = convertsUserToProgram().forward(run_initial_state.initial_nose_position_uu);
+    PositionArray leadin_position_raw = _setup.transform.inverse_local_from_nose(leadin_nose_prog);
     PositionArray leadin_position = _setup.posWithDiameterMode(leadin_position_raw);
 
     switch (run_settings.leadin_type) {

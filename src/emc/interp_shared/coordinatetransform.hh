@@ -104,6 +104,7 @@ struct LocalToMachineTransform : public TransformBase
     bool rotationActive() const;
 
     void rescaleAllTransforms(UnitsTransform const &to_new_units);
+    LocalToMachineTransform scale_by(UnitsTransform const &to_new_units) const;
 };
 
 void convertAxisUnits(RotateShiftTransform &out, const UnitsTransform & units);
