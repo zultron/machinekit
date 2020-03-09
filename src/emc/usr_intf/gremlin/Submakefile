@@ -1,7 +1,17 @@
-PYTARGETS += ../bin/gremlin ../lib/python/gremlin.py
-PYI18NSRCS += emc/usr_intf/gremlin/gremlin.py
+GREMLIN_SRCS := \
+			   __init__.py \
+			   gremlin.py \
+			   gremlin_view.py \
 
-../lib/python/%: emc/usr_intf/gremlin/%
+PYTARGETS += ../bin/gremlin
+PYTARGETS += $(addprefix ../lib/python/gremlin/,$(GREMLIN_SRCS))
+
+PYI18NSRCS += $(addprefix emc/usr_intf/gremlin/,$(GREMLIN_SRCS))
+
+../lib/python/gremlin:
+	mkdir -p $@
+
+../lib/python/gremlin/%: emc/usr_intf/gremlin/% | ../lib/python/gremlin
 	@$(ECHO) Syntax checking python script $(notdir $@)
 	$(Q)$(PYTHON) -c 'import sys; compile(open(sys.argv[1]).read(), sys.argv[1], "exec")' $<
 	$(ECHO) Copying python script $(notdir $@)

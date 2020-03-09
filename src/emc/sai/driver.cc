@@ -624,7 +624,9 @@ usage:
         break;
       else if (choice == 2)
         {
-          if (designate_parameter_file(_parameter_file_name) != 0)
+          static char parameter_file_name[LINELEN];
+          GET_EXTERNAL_PARAMETER_FILE_NAME(parameter_file_name, LINELEN - 1);
+          if (designate_parameter_file(parameter_file_name) != 0)
             exit(1);
         }
       else if (choice == 3)

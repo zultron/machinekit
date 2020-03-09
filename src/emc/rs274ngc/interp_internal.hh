@@ -542,7 +542,6 @@ struct setup_struct
 
     bool checkFeatureFlag(Features f) const;
 
-    boost::python::object *pythis;  // boost::cref to 'this'
     const char *on_abort_command;
     int_remap_map  g_remapped,m_remapped;
     remap_map remaps;

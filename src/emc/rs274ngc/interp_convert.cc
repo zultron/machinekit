@@ -1094,7 +1094,6 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
         (block->c_number <= -360.0 || block->c_number >= 360.0)),
        (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
        block->c_number, 'C');
-  UnitsTransform program_to_user_units = convertsProgramToUser();
 
   if ((g_code == G_52) || (g_code == G_92)) {
     if (g_code == G_52) {
@@ -2806,11 +2805,13 @@ int Interp::create_full_restore_sequence(
     }
 
     generator.addQueueBuster("Ensure that all state is restored before further processing to leave interp in a consistent state");
-
     // Traverse axes are whichever axes are not used for plunging (a crude way to generalize the XY / Z behavior of canned cycles)
     AxisMask traverse_axes = ~preamble.plunge_axes;
 
     PositionArray move_start_pos = _setup.posWithDiameterMode();
+    auto leadin_nose_prog = convertsUserToProgram().forward(run_initial_state.initial_nose_position_uu);
+    PositionArray leadin_position_raw = _setup.transform.inverse_local_from_nose(leadin_nose_prog);
+    PositionArray leadin_position = _setup.posWithDiameterMode(leadin_position_raw);
 
     double leadin_feedrate = USER_TO_PROGRAM_LEN(run_initial_state.modal_state.feed_rate_uu);
 
@@ -2818,11 +2819,9 @@ int Interp::create_full_restore_sequence(
     case PREP_LINEAR_LEADIN:
     {
         generator.printMsg("program preamble: Linear lead-in at program feed, from initial position to program position at start of next line");
+        generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);
         // Assume that current tool tip position is the starting position of a lead-in move
-        PositionArray leadin_position_raw = _setup.transform.inverse_local_from_nose(
-            convertsUserToProgram().forward(run_initial_state.initial_nose_position_uu));
-        PositionArray leadin_position = _setup.posWithDiameterMode(leadin_position_raw);
         // Should likely do nothing (move back to initial position after tool change)
         generator.addLinearRapidMove(leadin_position, traverse_axes);
         if (preamble.plunge_axes.any()) {
@@ -2835,8 +2834,17 @@ int Interp::create_full_restore_sequence(
     }
         break;
     case PREP_PLUNGE_LEADIN:
+    {
         generator.printMsg("program preamble: Traverse / Plunge lead-in at program feed, from safe height to program height at start of next line");
+        generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);
+
+        // Should likely do nothing (move back to initial position after tool change)
+        generator.addLinearRapidMove(leadin_position, traverse_axes);
+        if (preamble.plunge_axes.any()) {
+            generator.addLinearRapidMove(leadin_position, preamble.plunge_axes);
+        }
+
         // NOTE: traverse plane is either initial Z height, or whatever the toolchange / epilog leaves the plunge axes.
         generator.addToolCompensation((GCodes)to_restore.modal_state.g_codes[G_CODE_CUTTER_SIDE], to_restore.modal_state.cutter_comp);
         generator.addLinearRapidMove(move_start_pos, traverse_axes);
@@ -2844,6 +2852,7 @@ int Interp::create_full_restore_sequence(
         // TODO rapid to a relative retract height here (will save a lot of time with slow feeds)
         generator.addLinearFeedMove(move_start_pos, leadin_feedrate);
         generator.addPreformatted(preamble.leadin_epilog);
+    }
         break;
     case PREP_NONE:
         //TODO do tool compensation after preamble epilog?
@@ -2853,7 +2862,7 @@ int Interp::create_full_restore_sequence(
     }
 
     generator.addPreformatted(preamble.preamble_epilog);
-    // KLUDGE force restore of the cached motion mode
+    // KLUDGE force restore of the cached motion mode and other side effects
     generator.addPreformatted("G80.9");
     restore_cmd_list = generator.getCommandSequence();
     return 0;
@@ -3933,7 +3942,7 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
     // L2 means directly edit the work offset of the specified CSYS
     desired_csys.g5xOffset = getAxisWordsFromBlock(block, desired_csys.g5xOffset);
   }
-  store_work_offset_from_prog(desired_csys.g5xOffset, p_int);
+  store_work_offset_from_prog(settings, desired_csys.g5xOffset, p_int);
 
   // KLUDGE always send a coordinate system update
   send_g5x_transform(p_int, desired_csys.g5xOffset);

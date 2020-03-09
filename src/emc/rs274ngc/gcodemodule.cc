@@ -28,7 +28,6 @@
 
 int _task = 0; // control preview behaviour when remapping
 
-char _parameter_file_name[LINELEN];
 extern "C" void initinterpreter();
 extern "C" void initemccanon();
 extern "C" struct _inittab builtin_modules[];
@@ -162,16 +161,37 @@ static PyObject *callback;
 static int interp_error;
 static int last_sequence_number;
 static bool metric;
-static PositionArray _pos{};
-static EmcPose tool_offset;
+static PositionArray _pos_prog = {}; // In PROGRAM units (note that data passed to callbacks is in USER units)
+static PositionArray probe_start_pos_prog = {};
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
+
+static UnitsTransform convertsUserToProg()
+{
+    return UnitsTransform(metric ? 25.4 : 1.0, 1.0);
+}
+
+static UnitsTransform convertsProgToUser()
+{
+    return convertsUserToProg().invert_scale();
+}
 
 // Track spindle synched motion
 static int spindle_synched_motion = 0;
 static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
 static double css_max_speed_programmed = 0.0;
+
+static AxisOffsetParams cached_g92_uu{}; // in USER units
+static LocalToMachineTransform transform_uu{}; // in USER units
+
+enum class ParseExecMode {
+    SEEK,
+    PREP,
+    RUN,
+};
+
+static ParseExecMode exec_mode_;
 
 static InterpBase *pinterp;
 
@@ -217,15 +237,17 @@ void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points
     double umax = n - k + 2;
     unsigned int div = nurbs_control_points.size()*15;
     std::vector<unsigned int> knot_vector = knot_vector_creator(n, k);
-    PLANE_POINT P1;
+    auto nurbs_pt = _pos_prog;
     while (u+umax/div < umax) {
         PLANE_POINT P1 = nurbs_point(u+umax/div,k,nurbs_control_points,knot_vector);
-        STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos[Z], _pos[A], _pos[B], _pos[C], _pos[U], _pos[V], _pos[W]);
+        nurbs_pt[X] = P1.X;
+        nurbs_pt[Y] = P1.Y;
+        STRAIGHT_FEED(line_number, UNPACK_POSITION_ARRAY_REF(nurbs_pt));
         u = u + umax/div;
     }
-    P1.X = nurbs_control_points[n].X;
-    P1.Y = nurbs_control_points[n].Y;
-    STRAIGHT_FEED(line_number, P1.X,P1.Y, _pos[Z], _pos[A], _pos[B], _pos[C], _pos[U], _pos[V], _pos[W]);
+    nurbs_pt[X] = nurbs_control_points[n].X;
+    nurbs_pt[Y] = nurbs_control_points[n].Y;
+    STRAIGHT_FEED(line_number, UNPACK_POSITION_ARRAY_REF(nurbs_pt));
     knot_vector.clear();
 }
 
@@ -263,9 +285,7 @@ void STRAIGHT_FEED(int line_number,
                    double x, double y, double z,
                    double a, double b, double c,
                    double u, double v, double w) {
-    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
-    _pos[A]=a; _pos[B]=b; _pos[C]=c;
-    _pos[U]=u; _pos[V]=v; _pos[W]=w;
+    assign(_pos_prog, x, y, z, a, b, c, u, v, w);
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -286,9 +306,7 @@ void STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
                        double a, double b, double c,
                        double u, double v, double w) {
-    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
-    _pos[A]=a; _pos[B]=b; _pos[C]=c;
-    _pos[U]=u; _pos[V]=v; _pos[W]=w;
+    assign(_pos_prog, x, y, z, a, b, c, u, v, w);
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -307,29 +325,31 @@ void SET_G5X_TRANSFORM(int origin,
                        double u, double v, double w,
                        double xy_rotation_deg)
 {
-    if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
+    transform_uu.g5xOffset = RotateShiftTransform(convertsProgToUser().forward({x, y, z, a, b, c, u, v, w}), xy_rotation_deg);
     maybe_new_line();
     if(interp_error) return;
     PyObject *result_offset =
-        callmethod(callback, "set_g5x_transform", "iffffffffff",
-                origin, x, y, z, a, b, c, u, v, w, xy_rotation_deg);
+        callmethod(
+            callback,
+            "set_g5x_transform",
+            "iffffffffff",
+            origin,
+            UNPACK_POSITION_ARRAY_REF(transform_uu.g5xOffset.shift.tf),
+            xy_rotation_deg);
     if(!result_offset) interp_error ++;
     Py_XDECREF(result_offset);
 }
 
-static AxisOffsetParams cached_g92{};
-
 void SET_G92_OFFSET(bool applied, double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w) {
-    if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line();
     if(interp_error) return;
 
-    auto g92 = ShiftTransform{{x,y,z,a,b,c,u,v,w}};
-    cached_g92.applied = applied;
+    auto const &g92 = transform_uu.g92Offset = ShiftTransform{convertsProgToUser().forward({x,y,z,a,b,c,u,v,w})};
+    cached_g92_uu.applied = applied;
     if (applied) {
-        cached_g92.offset = g92;
+        cached_g92_uu.offset = g92;
     }
 
     PyObject *result =
@@ -347,7 +367,9 @@ void SET_G92_OFFSET(bool applied, double x, double y, double z,
     Py_XDECREF(result);
 }
 
-void USE_LENGTH_UNITS(CANON_UNITS u) { metric = u == CANON_UNITS_MM; }
+void USE_LENGTH_UNITS(CANON_UNITS u) {
+    metric = (u == CANON_UNITS_MM);
+}
 
 void SELECT_PLANE(CANON_PLANE pl) {
     maybe_new_line();
@@ -387,6 +409,7 @@ void CHANGE_TOOL(int pocket) {
     Py_XDECREF(result);
 }
 
+// FIXME does this have an effect on tool number / preview data organization?
 void CHANGE_TOOL_NUMBER(int pocket) {
     maybe_new_line();
     if(interp_error) return;
@@ -444,14 +467,10 @@ void SET_TOOL_TABLE_ENTRY(int pocket, int toolno, EmcPose offset, double diamete
 }
 
 void USE_TOOL_LENGTH_OFFSET(EmcPose offset) {
-    tool_offset = offset;
+    transform_uu.toolOffset = ShiftTransform(convertsProgToUser().forward(toArray(offset)));
     maybe_new_line();
     if(interp_error) return;
-    if(metric) {
-        offset.tran.x /= 25.4; offset.tran.y /= 25.4; offset.tran.z /= 25.4;
-        offset.u /= 25.4; offset.v /= 25.4; offset.w /= 25.4; }
-    PyObject *result = callmethod(callback, "tool_offset", "ddddddddd", offset.tran.x, offset.tran.y, offset.tran.z,
-        offset.a, offset.b, offset.c, offset.u, offset.v, offset.w);
+    PyObject *result = callmethod(callback, "tool_offset", "ddddddddd", UNPACK_POSITION_ARRAY_REF(transform_uu.toolOffset));
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
 }
@@ -550,9 +569,9 @@ void STRAIGHT_PROBE(int line_number,
                     double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
-    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
-    _pos[A]=a; _pos[B]=b; _pos[C]=c;
-    _pos[U]=u; _pos[V]=v; _pos[W]=w;
+    probe_start_pos_prog = _pos_prog;
+    assign(_pos_prog, x, y, z, a, b, c, u, v, w);
+
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -569,9 +588,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
                     double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
-    _pos[X]=x; _pos[Y]=y; _pos[Z]=z;
-    _pos[A]=a; _pos[B]=b; _pos[C]=c;
-    _pos[U]=u; _pos[V]=v; _pos[W]=w;
+    assign(_pos_prog, x, y, z, a, b, c, u, v, w);
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -602,33 +619,46 @@ void RIGID_TAP(int line_number,
     Py_XDECREF(result);
 }
 double GET_EXTERNAL_MOTION_CONTROL_TOLERANCE() { return 0.1; }
-PositionArray GET_EXTERNAL_PROBE_POSITION() { return _pos; }
-double GET_EXTERNAL_PROBE_POSITION_X() { return _pos[X]; }
-double GET_EXTERNAL_PROBE_POSITION_Y() { return _pos[Y]; }
-double GET_EXTERNAL_PROBE_POSITION_Z() { return _pos[Z]; }
-double GET_EXTERNAL_PROBE_POSITION_A() { return _pos[A]; }
-double GET_EXTERNAL_PROBE_POSITION_B() { return _pos[B]; }
-double GET_EXTERNAL_PROBE_POSITION_C() { return _pos[C]; }
-double GET_EXTERNAL_PROBE_POSITION_U() { return _pos[U]; }
-double GET_EXTERNAL_PROBE_POSITION_V() { return _pos[V]; }
-double GET_EXTERNAL_PROBE_POSITION_W() { return _pos[W]; }
+
+PositionArray GET_EXTERNAL_PROBE_POSITION()
+{
+    // KLUDGE if we're about to start a prep move, and are getting the external probe position (to restore the actual position), cheat and pretend the probe stopped right at the beginning
+    if (exec_mode_ == ParseExecMode::PREP) {
+        _pos_prog = probe_start_pos_prog;
+    }
+    return _pos_prog;
+}
+double GET_EXTERNAL_PROBE_POSITION_X() { return GET_EXTERNAL_PROBE_POSITION()[X]; }
+double GET_EXTERNAL_PROBE_POSITION_Y() { return GET_EXTERNAL_PROBE_POSITION()[Y]; }
+double GET_EXTERNAL_PROBE_POSITION_Z() { return GET_EXTERNAL_PROBE_POSITION()[Z]; }
+double GET_EXTERNAL_PROBE_POSITION_A() { return GET_EXTERNAL_PROBE_POSITION()[A]; }
+double GET_EXTERNAL_PROBE_POSITION_B() { return GET_EXTERNAL_PROBE_POSITION()[B]; }
+double GET_EXTERNAL_PROBE_POSITION_C() { return GET_EXTERNAL_PROBE_POSITION()[C]; }
+double GET_EXTERNAL_PROBE_POSITION_U() { return GET_EXTERNAL_PROBE_POSITION()[U]; }
+double GET_EXTERNAL_PROBE_POSITION_V() { return GET_EXTERNAL_PROBE_POSITION()[V]; }
+double GET_EXTERNAL_PROBE_POSITION_W() { return GET_EXTERNAL_PROBE_POSITION()[W]; }
 double GET_EXTERNAL_PROBE_VALUE() { return 0.0; }
 int GET_EXTERNAL_PROBE_TRIPPED_VALUE() { return 0; }
-PositionArray GET_EXTERNAL_POSITION() { return _pos; }
-double GET_EXTERNAL_POSITION_X() { return _pos[X]; }
-double GET_EXTERNAL_POSITION_Y() { return _pos[Y]; }
-double GET_EXTERNAL_POSITION_Z() { return _pos[Z]; }
-double GET_EXTERNAL_POSITION_A() { return _pos[A]; }
-double GET_EXTERNAL_POSITION_B() { return _pos[B]; }
-double GET_EXTERNAL_POSITION_C() { return _pos[C]; }
-double GET_EXTERNAL_POSITION_U() { return _pos[U]; }
-double GET_EXTERNAL_POSITION_V() { return _pos[V]; }
-double GET_EXTERNAL_POSITION_W() { return _pos[W]; }
+
+PositionArray GET_EXTERNAL_POSITION() {
+    return _pos_prog;
+}
+double GET_EXTERNAL_POSITION_X() { return GET_EXTERNAL_POSITION()[X]; }
+double GET_EXTERNAL_POSITION_Y() { return GET_EXTERNAL_POSITION()[Y]; }
+double GET_EXTERNAL_POSITION_Z() { return GET_EXTERNAL_POSITION()[Z]; }
+double GET_EXTERNAL_POSITION_A() { return GET_EXTERNAL_POSITION()[A]; }
+double GET_EXTERNAL_POSITION_B() { return GET_EXTERNAL_POSITION()[B]; }
+double GET_EXTERNAL_POSITION_C() { return GET_EXTERNAL_POSITION()[C]; }
+double GET_EXTERNAL_POSITION_U() { return GET_EXTERNAL_POSITION()[U]; }
+double GET_EXTERNAL_POSITION_V() { return GET_EXTERNAL_POSITION()[V]; }
+double GET_EXTERNAL_POSITION_W() { return GET_EXTERNAL_POSITION()[W]; }
 void INIT_CANON() {}
 
 void SET_PARAMETER_FILE_NAME(const char *name)
 {
-  strncpy(_parameter_file_name, name, PARAMETER_FILE_NAME_LENGTH);
+    PyObject *fname = PyString_FromString(name);
+    PyObject_SetAttrString(callback, "parameter_file", fname);
+    Py_XDECREF(fname);
 }
 
 void GET_EXTERNAL_PARAMETER_FILE_NAME(char *name, int max_size) {
@@ -640,7 +670,7 @@ void GET_EXTERNAL_PARAMETER_FILE_NAME(char *name, int max_size) {
     strncpy(name, s, max_size - 1);
 }
 
-CANON_UNITS GET_EXTERNAL_LENGTH_UNIT_TYPE() { return CANON_UNITS_INCHES; }
+CANON_UNITS GET_EXTERNAL_LENGTH_UNIT_TYPE() { return metric ? CANON_UNITS_MM : CANON_UNITS_INCHES; }
 
 CANON_TOOL_TABLE GET_EXTERNAL_TOOL_TABLE(int pocket) {
     CANON_TOOL_TABLE t = {-1,{{0,0,0},0,0,0,0,0,0},0,0,0,0};
@@ -673,7 +703,7 @@ RotateShiftTransform GET_EXTERNAL_WORK_OFFSET(int origin) {
 }
 
 AxisOffsetParams GET_EXTERNAL_PERSISTENT_AXIS_OFFSET() {
-    return cached_g92;
+    return cached_g92_uu;
 }
 
 int GET_EXTERNAL_DIGITAL_INPUT(int index, int def) { return def; }
@@ -697,7 +727,16 @@ CANON_DIRECTION GET_EXTERNAL_SPINDLE() { return CANON_STOPPED; }
 int GET_EXTERNAL_TOOL_SLOT() { return 0; }
 int GET_EXTERNAL_SELECTED_TOOL_SLOT() { return 0; }
 // TODO support preview-level start line seek to show expected execution
-bool IN_START_LINE_SEEK() { return 0; }
+bool IN_START_LINE_SEEK() {
+    switch(exec_mode_) {
+    case ParseExecMode::SEEK:
+        return true;
+    case ParseExecMode::PREP:
+    case ParseExecMode::RUN:
+        return false;
+    }
+    return false;
+}
 double GET_EXTERNAL_FEED_RATE() { return 1; }
 double GET_EXTERNAL_TRAVERSE_RATE() { return 0; }
 int GET_EXTERNAL_FLOOD() { return 0; }
@@ -724,32 +763,36 @@ int GET_EXTERNAL_AXIS_MASK() {
     return mask;
 }
 
+static inline PositionArray getToolOffsetProg() {
+    return convertsUserToProg().forward(transform_uu.toolOffset.tf);
+}
+
 double GET_EXTERNAL_TOOL_LENGTH_XOFFSET() {
-    return tool_offset.tran.x;
+    return getToolOffsetProg()[X];
 }
 double GET_EXTERNAL_TOOL_LENGTH_YOFFSET() {
-    return tool_offset.tran.y;
+    return getToolOffsetProg()[Y];
 }
 double GET_EXTERNAL_TOOL_LENGTH_ZOFFSET() {
-    return tool_offset.tran.z;
+    return getToolOffsetProg()[Z];
 }
 double GET_EXTERNAL_TOOL_LENGTH_AOFFSET() {
-    return tool_offset.a;
+    return getToolOffsetProg()[A];
 }
 double GET_EXTERNAL_TOOL_LENGTH_BOFFSET() {
-    return tool_offset.b;
+    return getToolOffsetProg()[B];
 }
 double GET_EXTERNAL_TOOL_LENGTH_COFFSET() {
-    return tool_offset.c;
+    return getToolOffsetProg()[C];
 }
 double GET_EXTERNAL_TOOL_LENGTH_UOFFSET() {
-    return tool_offset.u;
+    return getToolOffsetProg()[U];
 }
 double GET_EXTERNAL_TOOL_LENGTH_VOFFSET() {
-    return tool_offset.v;
+    return getToolOffsetProg()[V];
 }
 double GET_EXTERNAL_TOOL_LENGTH_WOFFSET() {
-    return tool_offset.w;
+    return getToolOffsetProg()[W];
 }
 
 static bool PyInt_CheckAndError(const char *func, PyObject *p)  {
@@ -873,30 +916,198 @@ static PyObject * gen_warning_list(std::vector<std::string> const &interp_warnin
     return warning_list;
 }
 
-#define RESULT_OK (result == INTERP_OK || result == INTERP_EXECUTE_FINISH)
-static PyObject *parse_file(PyObject *self, PyObject *args) {
-    char *f = nullptr;
-    char *unitcode = nullptr, *initcode=nullptr, *interpname=nullptr;
-    char *working_dir = nullptr;
-    int error_line_offset = 0;
-    struct timeval t0, t1;
-    int wait = 1;
-    if(!PyArg_ParseTuple(args, "sO|ssss", &f, &callback, &unitcode, &initcode, &interpname, &working_dir))
-        return nullptr;
+// Crude version of CHP for the parse loop
+#define RETURN_ON_ERROR(call) \
+do { \
+    int err_status = (call); \
+    if (isInterpError(err_status)) { \
+        return err_status; \
+    } \
+} while(0)
 
+int set_exec_mode(ParseExecMode mode)
+{
+    exec_mode_ = mode;
+    if(interp_error) return INTERP_ERROR;
+    PyObject *result =
+        callmethod(callback, "set_exec_mode", "i", (int)mode);
+    if(result == nullptr) {
+        interp_error ++;
+        return INTERP_ERROR;
+    }
+    Py_XDECREF(result);
+    return INTERP_OK;
+}
+
+/**
+ * Using the current canon position and transform, compute the "machine"
+ * position in user units and update the current position of the python canon
+ * instance.
+ *
+ * Do this typically after a synch operation where we're setting up an initial
+ * position (like at the start of a program, or before hitting the start line)
+ */
+int synch_position_to_python()
+{
+    auto machine_pos_uu = transform_uu.forward_local_to_tip(convertsProgToUser().forward(_pos_prog));
+
+    if(interp_error) return INTERP_ERROR;
+    PyObject *result =
+        callmethod(callback, "synch_position", "fffffffff",
+                   UNPACK_POSITION_ARRAY_REF(machine_pos_uu));
+    if(result == nullptr) {
+        interp_error ++;
+        return INTERP_ERROR;
+    }
+    Py_XDECREF(result);
+    return INTERP_OK;
+}
+
+void restore_machine_state_before_preview_synch(ExpandedModalState const &run_initial_state)
+{
+    // KLUDGE force the "machine" state to be what the initial position was again, as if synching from a real machine
+    _pos_prog = convertsUserToProg().forward(transform_uu.inverse_local_from_nose(run_initial_state.initial_nose_position_uu));
+
+    // TODO handle coolant settings here if we ever show coolant state in preview
+    // flood
+    // mist
+}
+
+int planFinishLineSeek(
+    Interp *rs274_interp,
+    AutoRunSettings const &run_settings,
+    ExpandedModalState const &run_initial_state
+){
+    ExpandedModalState state_at_seek{};
+    int res_interp = INTERP_OK;
+    if (rs274_interp) {
+        // NOTE: modal state is recorded before the transition for use in the restore sequence
+        res_interp = rs274_interp->cbBeforeSeekReadTransition(run_settings, run_initial_state, state_at_seek);
+    }
+
+    maybe_new_line();
+    RETURN_ON_ERROR(pinterp->execute("", CommandSource::MODAL_STATE_RESTORE));
+    set_exec_mode(ParseExecMode::PREP);
+    restore_machine_state_before_preview_synch(run_initial_state);
+
+    if(interp_error) return INTERP_ERROR;
+    RETURN_ON_ERROR(synch_position_to_python());
+
+    if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
+        // Do a full modal state restore as if the program had executed from line 1,
+        // and insert any preparatory actions like tool changes / lead-in moves.
+        // FIXME synch may return garbage since the globals that are equivalent to machine state are directly poked in canon
+        res_interp = rs274_interp->cbAfterSeekReadTransition(state_at_seek, run_settings, run_initial_state);
+    } else {
+        // Legacy behavior that just synchs up with world without doing explicit modal state restore
+        rs274_interp->synch();
+    }
+
+    return res_interp;
+}
+
+static bool isStartLineNext(int start_line) {
+    return (pinterp->line() + 1 >= start_line && pinterp->call_level() == 0);
+}
+
+static int do_parse_loop(
+    Interp *rs274_interp,
+    char *file_name,
+    char *units_gcode,
+    char *init_gcode,
+    char *working_dir,
+    int &error_line_offset,
+    AutoRunSettings start_settings,
+    int wait
+){
+    struct timeval t0{}, t1{};
+    gettimeofday(&t0, nullptr);
+
+    RETURN_ON_ERROR(pinterp->init());
+
+    // Copy current position back out of reserved parameter area
+
+    RETURN_ON_ERROR(pinterp->open(file_name, working_dir));
+
+    maybe_new_line();
+
+    if(units_gcode) {
+        RETURN_ON_ERROR(execute_lines(pinterp, units_gcode, CommandSource::INIT));
+    }
+    if(init_gcode) {
+        RETURN_ON_ERROR(execute_lines(pinterp, init_gcode, CommandSource::INIT));
+    }
+
+    if (rs274_interp) {
+        //
+        auto UtoP = rs274_interp->convertsUserToProgram();
+        auto PtoU = rs274_interp->convertsProgramToUser();
+        transform_uu = rs274_interp->_setup.transform.scale_by(PtoU);
+        // KLUDGE pull the super secret current position out of the reserved parameters and update both interp and our cached position
+        _pos_prog = UtoP.forward(toArray(
+            rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY,
+            rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY_END));
+        rs274_interp->_setup.current = _pos_prog;
+        RETURN_ON_ERROR(synch_position_to_python());
+    }
+
+    ExpandedModalState run_initial_state;
+    pinterp->write_expanded_modal_state(run_initial_state);
+    set_exec_mode(ParseExecMode::SEEK);
+
+    while(!interp_error) {
+        gettimeofday(&t1, nullptr);
+        if(t1.tv_sec > t0.tv_sec + wait) {
+            if(check_abort()) return 255;
+            t0 = t1;
+        }
+
+        switch (exec_mode_) {
+        case ParseExecMode::SEEK:
+            // NOTE: current line has been read here but not executed
+            if (isStartLineNext(start_settings.start_line)) {
+                RETURN_ON_ERROR(planFinishLineSeek(rs274_interp, start_settings, run_initial_state));
+            }
+            break;
+        case ParseExecMode::PREP:
+            // KLUDGE Start run mode after G80.9 (we know this is the last step in the restore, but it's a subtle side effect and I don't like it)
+            if (rs274_interp && rs274_interp->_setup.start_line_motion_mode == G_INVALID) {
+                set_exec_mode(ParseExecMode::RUN);
+            }
+            break;
+        case ParseExecMode::RUN:
+            // Do nothing, already in run mode
+            break;
+        }
+        error_line_offset = 1;
+        RETURN_ON_ERROR(pinterp->read());
+        error_line_offset = 0;
+        InterpReturn result = (InterpReturn)pinterp->execute(nullptr, CommandSource::PROGRAM);
+        switch(result)
+        {
+        case INTERP_OK:
+        case INTERP_EXECUTE_FINISH:
+            break;
+        default:
+            return result;
+        }
+    }
+    return 0;
+}
+
+void reset_gcode_canon_globals(const char *interp_name)
+{
     if(pinterp) {
         delete pinterp;
-        pinterp = 0;
+        pinterp = nullptr;
     }
-    if(interpname && *interpname)
-        pinterp = interp_from_shlib(interpname);
+    if(interp_name && *interp_name)
+        pinterp = interp_from_shlib(interp_name);
     if(!pinterp)
         pinterp = new Interp;
 
     for(int i=0; i<USER_DEFINED_FUNCTION_NUM; i++)
         USER_DEFINED_FUNCTION[i] = user_defined_function;
-
-    gettimeofday(&t0, nullptr);
 
     metric=false;
     interp_error = 0;
@@ -904,38 +1115,56 @@ static PyObject *parse_file(PyObject *self, PyObject *args) {
     spindle_synched_motion = 0;
     spindle_speed_programmed = 0.0;
 
-    _pos.fill(0);
+    _pos_prog.fill(0);
     _linecount=0;
+}
 
-    int result = pinterp->init();
-    if(!RESULT_OK) goto out_error;
-    result = pinterp->open(f, working_dir);
-    if(!RESULT_OK) goto out_error;
+static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
+    char *file_name = nullptr;
+    char *units_gcode = nullptr;
+    char *init_gcode = nullptr;
+    char *interp_name = nullptr;
+    char *working_dir = nullptr;
+    int error_line_offset = 0;
+    AutoRunSettings run_settings;
+    int wait = 1;
 
-    maybe_new_line();
+    static const char * const kwarg_list[] = {
+        "file_name",
+        "canon_instance",
+        "units_gcode",
+        "init_gcode",
+        "interp_name",
+        "working_dir",
+        "start_line_number",
+        "leadin_type",
+        "keep_current_tool",
+        nullptr,
+    };
 
-    if(unitcode) {
-        result = execute_lines(pinterp, unitcode, CommandSource::INIT);
-        if(!RESULT_OK) goto out_error;
-    }
-    if(initcode) {
-        result = execute_lines(pinterp, initcode, CommandSource::INIT);
-        if(!RESULT_OK) goto out_error;
-    }
-    while(!interp_error && RESULT_OK) {
-        error_line_offset = 1;
-        result = pinterp->read();
-        gettimeofday(&t1, nullptr);
-        if(t1.tv_sec > t0.tv_sec + wait) {
-            if(check_abort()) return nullptr;
-            t0 = t1;
-        }
-        if(!RESULT_OK) break;
-        error_line_offset = 0;
-        result = pinterp->execute(nullptr, CommandSource::PROGRAM);
-    }
+    // KLUDGE shove even more parameters in here...
+    if(!PyArg_ParseTupleAndKeywords(
+            args,
+            kwargs,
+            "sO|ssssiii",
+            const_cast<char**>(kwarg_list),
+            &file_name,
+            &callback,
+            &units_gcode,
+            &init_gcode,
+            &interp_name,
+            &working_dir,
+            &run_settings.start_line,
+            &run_settings.leadin_type,
+            &run_settings.keep_current_tool))
+        return nullptr;
 
-out_error:
+    // reset canon global variables and flags before parsing
+    reset_gcode_canon_globals(interp_name);
+
+    Interp* interp = dynamic_cast<Interp*>(pinterp);
+    int result = do_parse_loop(interp, file_name, units_gcode, init_gcode, working_dir, error_line_offset, run_settings, wait);
+
     if(pinterp) pinterp->close();
     if(interp_error) {
         if(!PyErr_Occurred()) {
@@ -946,12 +1175,14 @@ out_error:
     }
     PyErr_Clear();
     maybe_new_line();
-    if(PyErr_Occurred()) { interp_error = 1; goto out_error; }
+    if(PyErr_Occurred()) {
+        interp_error = 1;
+        return nullptr;
+    }
     PyObject *retval = PyTuple_New(3);
     PyTuple_SET_ITEM(retval, 0, PyInt_FromLong(result));
     PyTuple_SET_ITEM(retval, 1, PyInt_FromLong(last_sequence_number + error_line_offset));
 
-    Interp* interp = dynamic_cast<Interp*>(pinterp);
     if (interp) {
         PyObject *warnings = gen_warning_list(interp->getWarnings());
 
@@ -980,6 +1211,92 @@ static PyObject *rs274_strerror(PyObject *s, PyObject *o) {
     pinterp->error_text(err, error_buf, ERROR_TEXT_LEN);
     return PyString_FromString(error_buf);
 }
+
+static PyObject *rs274_calc_extents_dict(PyObject *self, PyObject *args) {
+    double min_x = 9e99, min_y = 9e99, min_z = 9e99,
+           min_xt = 9e99, min_yt = 9e99, min_zt = 9e99,
+           max_x = -9e99, max_y = -9e99, max_z = -9e99,
+           max_xt = -9e99, max_yt = -9e99, max_zt = -9e99;
+
+    PyObject *lines_dict = nullptr;
+    int r = PyArg_ParseTuple(
+        args,
+        "O!:calc_extents dict lookup",
+        &PyDict_Type,
+        &lines_dict);
+    if (!r) {
+        return nullptr;
+    }
+
+    PyObject *key, *value;
+    Py_ssize_t pos = 0;
+    while (PyDict_Next(lines_dict, &pos, &key, &value)) {
+        double xs=0, ys=0, zs=0, xe=0, ye=0, ze=0, xt=0, yt=0, zt=0;
+        int j = 0;
+
+
+        char *motion_type = nullptr;
+        int exec_mode = -1;
+        int tool_no = -1;
+        r = PyArg_ParseTuple(key, "sii", &motion_type, &exec_mode, &tool_no);
+        if ((ParseExecMode)exec_mode == ParseExecMode::PREP) {
+            // Prep moves are not part of the program and so should not affect the motion extents
+            continue;
+        }
+
+        for(; j<PySequence_Length(value); j++) {
+            PyObject *sj = PySequence_GetItem(value, j);
+            PyObject *unused;
+            int r;
+            if(PyTuple_Size(sj) == 4)
+                r = PyArg_ParseTuple(sj,
+                    "O(dddOOOOOO)(dddOOOOOO)(ddd):calc_extents item",
+                    &unused,
+                    &xs, &ys, &zs, &unused, &unused, &unused, &unused, &unused, &unused,
+                    &xe, &ye, &ze, &unused, &unused, &unused, &unused, &unused, &unused,
+                    &xt, &yt, &zt);
+            else
+                r = PyArg_ParseTuple(sj,
+                    "O(dddOOOOOO)(dddOOOOOO)O(ddd):calc_extents item",
+                    &unused,
+                    &xs, &ys, &zs, &unused, &unused, &unused, &unused, &unused, &unused,
+                    &xe, &ye, &ze, &unused, &unused, &unused, &unused, &unused, &unused,
+                    &unused, &xt, &yt, &zt);
+            Py_DECREF(sj);
+            if(!r) return nullptr;
+            max_x = std::max(max_x, xs);
+            max_y = std::max(max_y, ys);
+            max_z = std::max(max_z, zs);
+            min_x = std::min(min_x, xs);
+            min_y = std::min(min_y, ys);
+            min_z = std::min(min_z, zs);
+            max_xt = std::max(max_xt, xs+xt);
+            max_yt = std::max(max_yt, ys+yt);
+            max_zt = std::max(max_zt, zs+zt);
+            min_xt = std::min(min_xt, xs+xt);
+            min_yt = std::min(min_yt, ys+yt);
+            min_zt = std::min(min_zt, zs+zt);
+        }
+        if(j > 0) {
+            max_x = std::max(max_x, xe);
+            max_y = std::max(max_y, ye);
+            max_z = std::max(max_z, ze);
+            min_x = std::min(min_x, xe);
+            min_y = std::min(min_y, ye);
+            min_z = std::min(min_z, ze);
+            max_xt = std::max(max_xt, xe+xt);
+            max_yt = std::max(max_yt, ye+yt);
+            max_zt = std::max(max_zt, ze+zt);
+            min_xt = std::min(min_xt, xe+xt);
+            min_yt = std::min(min_yt, ye+yt);
+            min_zt = std::min(min_zt, ze+zt);
+        }
+    }
+    return Py_BuildValue("[ddd][ddd][ddd][ddd]",
+        min_x, min_y, min_z,  max_x, max_y, max_z,
+        min_xt, min_yt, min_zt,  max_xt, max_yt, max_zt);
+}
+
 
 static PyObject *rs274_calc_extents(PyObject *self, PyObject *args) {
     double min_x = 9e99, min_y = 9e99, min_z = 9e99,
@@ -1220,11 +1537,13 @@ static PyObject *get_set_max_glcanon_lines(PyObject *self, PyObject *args) {
 }
 
 static PyMethodDef gcode_methods[] = {
-    {"parse", (PyCFunction)parse_file, METH_VARARGS, "Parse a G-Code file"},
+    {"parse", (PyCFunction)parse_file, METH_VARARGS | METH_KEYWORDS, "Parse a G-Code file"},
     {"strerror", (PyCFunction)rs274_strerror, METH_VARARGS,
         "Convert a numeric error to a string"},
     {"calc_extents", (PyCFunction)rs274_calc_extents, METH_VARARGS,
         "Calculate information about extents of gcode"},
+    {"calc_extents_dict", (PyCFunction)rs274_calc_extents_dict, METH_VARARGS,
+        "Calculate information about extents of gcode using the dict of lines"},
     {"arc_to_segments", (PyCFunction)rs274_arc_to_segments, METH_VARARGS,
         "Convert an arc to straight segments"},
     {"max_glcanon_lines", (PyCFunction)get_set_max_glcanon_lines, METH_VARARGS,
@@ -1243,6 +1562,9 @@ initgcode(void) {
     PyObject_SetAttrString(m, "MAX_ERROR", PyInt_FromLong(maxerror));
     PyObject_SetAttrString(m, "MIN_ERROR",
             PyInt_FromLong(INTERP_MIN_ERROR));
+    PyModule_AddIntConstant(m, "PARSE_EXEC_SEEK", (long)ParseExecMode::SEEK);
+    PyModule_AddIntConstant(m, "PARSE_EXEC_PREP", (long)ParseExecMode::PREP);
+    PyModule_AddIntConstant(m, "PARSE_EXEC_RUN", (long)ParseExecMode::RUN);
 }
 
 // vim:ts=8:sts=4:sw=4:et:

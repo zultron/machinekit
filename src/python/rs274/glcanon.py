@@ -24,6 +24,8 @@ import linuxcnc
 import array
 import gcode
 import os
+from collections import defaultdict, namedtuple
+
 
 def minmax(*args):
     return min(*args), max(*args)
@@ -39,50 +41,61 @@ limiticon = array.array('B',
          255, 255,  176, 0,  152, 0,  140, 0,  134, 0,  128, 0,    0,   0,
            0,   0,    0, 0])
 
+
 class GLCanon(Translated, ArcsToSegmentsMixin):
+    MotionKey = namedtuple('ToolMotionKey', ['motion_type', 'exec_mode', 'tool_no'])
     lineno = -1
-    def __init__(self, colors, geometry, inifile):
+
+    def __init__(self, color_config, geometry, inifile):
+        """
+
+        :type color_config: GlDrawColors
+        :type geometry: str
+        :param inifile:
+        """
         ArcsToSegmentsMixin.__init__(self)
-        
-        # traverse, feed, and arcfeeds are dictionaries where
-        # the key is the tool number and the value is the list of tuples cut using that tool
-        # this makes it super fast to draw only those lines which are desired based on a subset of
-        # tools
-        # traverse key is tool number, value is list of tuples (line number, [start position], [end position], [tlo x, tlo y, tlo z], toolno)
-        self.traverse = { 0:[] }
-        # feed key is tool number, value is list of tuples (line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z], toolno)
-        self.feed = { 0:[] }
-        # arcfeed key is tool number, value is list of tuples (line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z], toolno)
-        self.arcfeed = { 0:[] }
+
+        self.geometry = geometry
+        self.color_config = color_config
+        # Fields that store preview data built up during parse:
+
+        # Dict with tuple key holding various sets of motions
+        # {(motion_type_str, exec_mode, tool_number) : (line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z], toolno)}
+        self.tool_motions = defaultdict(list)
+
+        self.exec_mode = gcode.PARSE_EXEC_SEEK
         # dwell list - (line number, color, pos x, pos y, pos z, plane)
         self.dwells = []
         # spindle-synched feed list - (line number, (position deltas), S, fpr)
         self.feed_synched = []
-        self.choice = None
         self.feedrate = 1
         self.lo = (0,) * 9
         self.first_move = True
-        self.geometry = geometry
-        self.min_extents = [9e99,9e99,9e99]
-        self.max_extents = [-9e99,-9e99,-9e99]
-        self.min_extents_notool = [9e99,9e99,9e99]
-        self.max_extents_notool = [-9e99,-9e99,-9e99]
-        self.colors = colors
         self.in_arc = 0
         self.xo = self.yo = self.zo = self.ao = self.bo = self.co = self.uo = self.vo = self.wo = 0
         self.dwell_time = 0
         self.suppress = 0
         Translated.__init__(self, 1)
-        self.rear_tp_lathe_option = bool(inifile.find("DISPLAY", "GEOMETRY") == "-XZ")
+
+        # Computed once after parse completes then cached here
+        self.min_extents = [9e99, 9e99, 9e99]
+        self.max_extents = [-9e99, -9e99, -9e99]
+        self.min_extents_notool = [9e99, 9e99, 9e99]
+        self.max_extents_notool = [-9e99, -9e99, -9e99]
+
+        # Settings at init time that control preview behavior
+        self.rear_tp_lathe_option = bool(geometry == "-XZ")
         self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
-        self.foam_z = 0
+        self.foam_z = 0.0
         self.foam_w = 1.5
         self.notify = 0
         self.notify_message = ""
         self.highlight_line = None
         self.visible_tools = None
         self.current_tool = 0
-        self.inifile = inifile
+
+        # KLUDGE Define these attributes here for mixins only
+        self.choice = None
 
     def comment(self, arg):
         if arg.startswith("AXIS,"):
@@ -101,48 +114,40 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
     def check_abort(self): pass
 
+    # For managing motion keys
+    def set_exec_mode(self, exec_mode):
+        self.exec_mode = exec_mode
+
     def next_line(self, st):
         pass
 
     def draw_lines(self, lines, for_selection, geometry=None):
         return linuxcnc.draw_lines(geometry or self.geometry, lines, for_selection)
 
-    def colored_lines(self, color, lines, for_selection):
+    def colored_lines(self, color_name, lines, for_selection):
         if self.foam_option:
             if not for_selection:
-                self.color_with_alpha(color + "_xy")
+                self.color_config.gl_color_with_alpha(color_name + "_xy")
             glPushMatrix()
             glTranslatef(0, 0, self.foam_z)
             self.draw_lines(lines, for_selection, 'XY')
             glPopMatrix()
             if not for_selection:
-                self.color_with_alpha(color + "_uv")
+                self.color_config.gl_color_with_alpha(color_name + "_uv")
             glPushMatrix()
             glTranslatef(0, 0, self.foam_w)
             self.draw_lines(lines, for_selection, 'UV')
             glPopMatrix()
         else:
             if not for_selection:
-                self.color_with_alpha(color)
+                self.color_config.gl_color_with_alpha(color_name)
             self.draw_lines(lines, for_selection)
 
     def draw_dwells(self, dwells, alpha, for_selection):
         return linuxcnc.draw_dwells(self.geometry, dwells, alpha, for_selection, self.is_lathe())
 
     def calc_extents(self):
-        all_arcfeeds = []
-        for tool in self.arcfeed.keys():
-            all_arcfeeds.extend(self.arcfeed[tool])
-
-        all_feeds = []
-        for tool in self.feed.keys():
-            all_feeds.extend(self.feed[tool])
-
-        all_traverse = []
-        for tool in self.traverse.keys():
-            all_traverse.extend(self.traverse[tool])
-
-        self.min_extents, self.max_extents, self.min_extents_notool, self.max_extents_notool = gcode.calc_extents(all_arcfeeds, all_feeds, all_traverse)
+        self.min_extents, self.max_extents, self.min_extents_notool, self.max_extents_notool = gcode.calc_extents_dict(self.tool_motions)
         if self.foam_option:
             min_z = min(self.foam_z, self.foam_w)
             max_z = max(self.foam_z, self.foam_w)
@@ -187,7 +192,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.xo = xo
         self.yo = yo
         self.zo = zo
-        self.so = ao
+        self.ao = ao
         self.bo = bo
         self.co = co
         self.uo = uo
@@ -203,19 +208,14 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         # keep track of current tooling so it can be associated with the various paths. this enables us to later
         # create display lists based on tooling
         self.current_tool = pocket
-        if self.current_tool not in self.feed:
-            self.feed[self.current_tool] = []
-        if self.current_tool not in self.traverse:
-            self.traverse[self.current_tool] = []
-        if self.current_tool not in self.arcfeed:
-            self.arcfeed[self.current_tool] = []
+        # FIXME does defaultdict with list serve the correct purpose here? We used to add empty lists to each dict
 
-
-    def straight_traverse(self, lineno, x,y,z, a,b,c, u, v, w):
+    def straight_traverse(self, lineno, x, y, z, a, b, c, u, v, w):
         if self.suppress > 0: return
-        l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
-        if not self.first_move:
-                self.traverse[self.current_tool].append((lineno, self.lo, l, [self.xo, self.yo, self.zo]))
+        l = self.rotate_and_translate(x, y, z, a, b, c, u, v, w)
+        k = self.make_motion_key('traverse')
+        if not self.first_move or self.exec_mode == gcode.PARSE_EXEC_PREP:
+            self.tool_motions[k].append((lineno, self.lo, l, [self.xo, self.yo, self.zo]))
         self.lo = l
 
     def rigid_tap(self, lineno, x, y, z):
@@ -224,9 +224,10 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         l = self.rotate_and_translate(x,y,z,0,0,0,0,0,0)[:3]
         l += [self.lo[3], self.lo[4], self.lo[5],
                self.lo[6], self.lo[7], self.lo[8]]
-        self.feed[self.current_tool].append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
+        k = self.make_motion_key('straight_feed')
+        self.tool_motions[k].append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
 #        self.dwells.append((self.lineno, self.colors['dwell'], x + self.offset_x, y + self.offset_y, z + self.offset_z, 0))
-        self.feed[self.current_tool].append((lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
+        self.tool_motions[k].append((lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
 
     def arc_feed(self, *args):
         if self.suppress > 0: return
@@ -242,8 +243,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         lo = self.lo
         feedrate = self.feedrate
         to = [self.xo, self.yo, self.zo]
+        k = self.make_motion_key('arc_feed')
         for l in segs:
-            self.arcfeed[self.current_tool].append((lineno, lo, l, feedrate, to))
+            self.tool_motions[k].append((lineno, lo, l, feedrate, to))
             lo = l
         self.lo = lo
 
@@ -251,7 +253,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         if self.suppress > 0: return
         self.first_move = False
         l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
-        self.feed[self.current_tool].append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
+        self.tool_motions[self.make_motion_key('straight_feed')].append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
         self.lo = l
 
     # confusing, but I guess this is an alias for straight_feed above
@@ -273,44 +275,37 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
     def user_defined_function(self, i, p, q):
         if self.suppress > 0: return
-        color = self.colors['m1xx']
+        color = self.color_config.get_color('m1xx')
         self.dwells.append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], 0))
 
     def dwell(self, arg):
         if self.suppress > 0: return
         self.dwell_time += arg
-        color = self.colors['dwell']
+        color = self.color_config.get_color('dwell' if self.exec_mode != gcode.PARSE_EXEC_PREP else 'leadin')
         self.dwells.append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], 0))
 
+    def synch_position(self, x, y, z, a, b, c, u, v, w):
+        #FIXME check for valid position here? This should ONLY be used to set up the machine initial position
+        self.lo = (x, y, z, a, b, c, u, v, w)
 
     def highlight(self, lineno, geometry):
         glLineWidth(3)
-        c = self.colors['selected']
+        c = self.color_config.get_color('selected')
         glColor3f(*c)
         glBegin(GL_LINES)
         coords = []
         #FIXME limit seek depth here? This could go on for a long time
-        for tool in self.traverse.keys():
-            for line in self.traverse[tool]:
-                if line[0] != lineno: continue
-                linuxcnc.line9(geometry, line[1], line[2])
-                coords.append(line[1][:3])
-                coords.append(line[2][:3])
-        for tool in self.arcfeed.keys():
-            for line in self.arcfeed[tool]:
-                if line[0] != lineno: continue
-                linuxcnc.line9(geometry, line[1], line[2])
-                coords.append(line[1][:3])
-                coords.append(line[2][:3])
-        for tool in self.feed.keys():
-            for line in self.feed[tool]:
-                if line[0] != lineno: continue
-                linuxcnc.line9(geometry, line[1], line[2])
-                coords.append(line[1][:3])
-                coords.append(line[2][:3])
+        for k, motions in self.tool_motions.iteritems():
+            for motion_data in motions:
+                if motion_data[0] != lineno:
+                    continue
+                linuxcnc.line9(geometry, motion_data[1], motion_data[2])
+                coords.append(motion_data[1][:3])
+                coords.append(motion_data[2][:3])
         glEnd()
         for line in self.dwells:
-            if line[0] != lineno: continue
+            if line[0] != lineno:
+                continue
             self.draw_dwells([(line[0], c) + line[2:]], 2, 0)
             coords.append(line[2:5])
         glLineWidth(1)
@@ -324,11 +319,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             z = (self.min_extents[2] + self.max_extents[2])/2
         return x, y, z
 
-    def color_with_alpha(self, name):
-        glColor4f(*(self.colors[name] + (self.colors.get(name+'_alpha', 1/3.),)))
-    def color(self, name):
-        glColor3f(*self.colors[name])
-
     def get_visible_tools(self):
         '''
         Returns a list of visible tool paths.  None means all tools are visible.
@@ -341,27 +331,34 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         '''
         self.visible_tools = tool_list
 
-    def draw(self, for_selection=0, no_traverse=True):
-        # draw only those lines that were made with the tools we are interested in
+    def make_motion_key(self, motion_type, exec_mode=None, tool_no=None):
+        exec_mode = self.exec_mode if exec_mode is None else exec_mode
+        tool_no = self.current_tool if tool_no is None else tool_no
+        return GLCanon.MotionKey(motion_type, exec_mode, tool_no)
 
-        if not no_traverse:
-            glEnable(GL_LINE_STIPPLE)
-            for tool in self.traverse.keys():
-                if self.visible_tools is None or tool in self.visible_tools:
-                    self.colored_lines('traverse', self.traverse[tool], for_selection)
-            glDisable(GL_LINE_STIPPLE)
-        else:
-            for tool in self.feed.keys():
-                if self.visible_tools is None or tool in self.visible_tools:
-                    self.colored_lines('straight_feed', self.feed[tool], for_selection)
+    def draw_rapids(self, for_selection):
+        glEnable(GL_LINE_STIPPLE)
+        for k, v in self.tool_motions.iteritems():
+            if k.motion_type != 'traverse':
+                continue
 
-            for tool in self.arcfeed.keys():
-                if self.visible_tools is None or tool in self.visible_tools:
-                    self.colored_lines('arc_feed', self.arcfeed[tool], for_selection)
+            if self.visible_tools is None or k.tool_no in self.visible_tools:
+                color_base_name = self.color_config.exec_mode_colormap.get(k.exec_mode, k.motion_type)
+                self.colored_lines(color_base_name, v, for_selection)
+        glDisable(GL_LINE_STIPPLE)
 
-            glLineWidth(2)
-            self.draw_dwells(self.dwells, self.colors.get('dwell_alpha', 1/3.), for_selection)
-            glLineWidth(1)
+    def draw_nonrapids(self, for_selection):
+        for k, v in self.tool_motions.iteritems():
+            if k.motion_type == 'traverse':
+                continue
+            if self.visible_tools is None or k.tool_no in self.visible_tools:
+                color_base_name = self.color_config.exec_mode_colormap.get(k.exec_mode, k.motion_type)
+                self.colored_lines(color_base_name, v, for_selection)
+
+        glLineWidth(2)
+        self.draw_dwells(self.dwells, self.color_config.get_alpha_or_default('dwell'), for_selection)
+        glLineWidth(1)
+
 
 def with_context(f):
     def inner(self, *args, **kw):
@@ -371,6 +368,7 @@ def with_context(f):
         finally:
             self.deactivate()
     return inner
+
 
 def with_context_swap(f):
     def inner(self, *args, **kw):
@@ -383,62 +381,90 @@ def with_context_swap(f):
     return inner
 
 
+class GlDrawColors:
+    def __init__(self):
+        self.default_alpha = 1. / 3.
+        self.alphas = {
+            'backplotprobing': 0.75,
+            'backplotjog': 0.75,
+            'lathetool': 0.10,
+            'backplottoolchange': 0.25,
+            'backplottraverse': 0.25,
+            'overlay': 0.75,
+            'tool': 0.20,
+            'backplotfeed': 0.75,
+            'backplotarc': 0.75,
+            'arc_feed': .5,
+        }
+        self.colors = {
+            'traverse': (0.30, 0.50, 0.50),
+            'traverse_xy': (0.30, 0.50, 0.50),
+            'traverse_uv': (0.30, 0.50, 0.50),
+            'backplotprobing': (0.63, 0.13, 0.94),
+            'backplottraverse': (0.30, 0.50, 0.50),
+            'label_ok': (1.00, 0.51, 0.53),
+            'tool_diffuse': (0.60, 0.60, 0.60),
+            'backplotfeed': (0.75, 0.25, 0.25),
+            'back': (0.00, 0.00, 0.00),
+            'axis_y': (0.20, 1.00, 0.20),
+            'cone': (1.00, 1.00, 1.00),
+            'cone_xy': (0.00, 1.00, 0.00),
+            'cone_uv': (0.00, 0.00, 1.00),
+            'axis_z': (0.20, 0.20, 1.00),
+            'label_limit': (1.00, 0.21, 0.23),
+            'backplotjog': (1.00, 1.00, 0.00),
+            'selected': (0.00, 1.00, 1.00),
+            'lathetool': (0.80, 0.80, 0.80),
+            'dwell': (1.00, 0.50, 0.50),
+            'overlay_foreground': (1.00, 1.00, 1.00),
+            'overlay_background': (0.00, 0.00, 0.00),
+            'straight_feed': (1.00, 1.00, 1.00),
+            'straight_feed_xy': (0.20, 1.00, 0.20),
+            'straight_feed_uv': (0.20, 0.20, 1.00),
+            'small_origin': (0.00, 1.00, 1.00),
+            'tool_ambient': (0.40, 0.40, 0.40),
+            'backplottoolchange': (1.00, 0.65, 0.00),
+            'backplotarc': (0.75, 0.25, 0.50),
+            'm1xx': (0.50, 0.50, 1.00),
+            'arc_feed': (1.00, 1.00, 1.00),
+            'arc_feed_xy': (0.20, 1.00, 0.20),
+            'arc_feed_uv': (0.20, 0.20, 1.00),
+            'axis_x': (1.00, 0.20, 0.20),
+            'grid': (0.15, 0.15, 0.15),
+            'skipped_segments': (0.4, 0.4, 0.3),
+            'leadin': (0.4, 1.0, 0.5),
+        }
+
+        # NOTE: PARSE_EXEC_RUN is deliberately omitted here so that the lookup will fall back to the motion type
+        self.exec_mode_colormap = {
+            gcode.PARSE_EXEC_SEEK: 'skipped_segments',
+            gcode.PARSE_EXEC_PREP: 'leadin',
+        }
+
+    def get_alpha_or_default(self, color):
+        return self.alphas.get(color, self.default_alpha)
+
+    def get_color(self, color):
+        return self.colors[color]
+
+    def gl_color_with_alpha(self, name):
+        # NOTE: concatenates in to a 4-tuple of floats
+        c = (self.colors.get(name, (1., 1., 1.)) + (self.get_alpha_or_default(name),))
+        glColor4f(*c)
+
+    def gl_color(self, name):
+        glColor3f(*self.colors[name])
+
+    def lkup_color(self, s):
+        a = self.get_alpha_or_default(s)
+        s = self.get_color(s)
+        return [int(x * 255) for x in s + (a,)]
+
+
 class GlCanonDraw:
-    colors = {
-        'traverse': (0.30, 0.50, 0.50),
-        'traverse_alpha': 1/3.,
-        'traverse_xy': (0.30, 0.50, 0.50),
-        'traverse_alpha_xy': 1/3.,
-        'traverse_uv': (0.30, 0.50, 0.50),
-        'traverse_alpha_uv': 1/3.,
-        'backplotprobing_alpha': 0.75,
-        'backplotprobing': (0.63, 0.13, 0.94),
-        'backplottraverse': (0.30, 0.50, 0.50),
-        'label_ok': (1.00, 0.51, 0.53),
-        'backplotjog_alpha': 0.75,
-        'tool_diffuse': (0.60, 0.60, 0.60),
-        'backplotfeed': (0.75, 0.25, 0.25),
-        'back': (0.00, 0.00, 0.00),
-        'lathetool_alpha': 0.10,
-        'axis_y': (0.20, 1.00, 0.20),
-        'cone': (1.00, 1.00, 1.00),
-        'cone_xy': (0.00, 1.00, 0.00),
-        'cone_uv': (0.00, 0.00, 1.00),
-        'axis_z': (0.20, 0.20, 1.00),
-        'label_limit': (1.00, 0.21, 0.23),
-        'backplotjog': (1.00, 1.00, 0.00),
-        'selected': (0.00, 1.00, 1.00),
-        'lathetool': (0.80, 0.80, 0.80),
-        'dwell': (1.00, 0.50, 0.50),
-        'overlay_foreground': (1.00, 1.00, 1.00),
-        'overlay_background': (0.00, 0.00, 0.00),
-        'straight_feed': (1.00, 1.00, 1.00),
-        'straight_feed_alpha': 1/3.,
-        'straight_feed_xy': (0.20, 1.00, 0.20),
-        'straight_feed_alpha_xy': 1/3.,
-        'straight_feed_uv': (0.20, 0.20, 1.00),
-        'straight_feed_alpha_uv': 1/3.,
-        'small_origin': (0.00, 1.00, 1.00),
-        'backplottoolchange_alpha': 0.25,
-        'backplottraverse_alpha': 0.25,
-        'overlay_alpha': 0.75,
-        'tool_ambient': (0.40, 0.40, 0.40),
-        'tool_alpha': 0.20,
-        'backplottoolchange': (1.00, 0.65, 0.00),
-        'backplotarc': (0.75, 0.25, 0.50),
-        'm1xx': (0.50, 0.50, 1.00),
-        'backplotfeed_alpha': 0.75,
-        'backplotarc_alpha': 0.75,
-        'arc_feed': (1.00, 1.00, 1.00),
-        'arc_feed_alpha': .5,
-        'arc_feed_xy': (0.20, 1.00, 0.20),
-        'arc_feed_alpha_xy': 1/3.,
-        'arc_feed_uv': (0.20, 0.20, 1.00),
-        'arc_feed_alpha_uv': 1/3.,
-        'axis_x': (1.00, 0.20, 0.20),
-        'grid': (0.15, 0.15, 0.15),
-    }
-    def __init__(self, s, lp, g=None):
+
+    def __init__(self, s, lp, inifile, color_config, g=None):
+        self.color_config = color_config
         self.stat = s
         self.lp = lp
         self.canon = g
@@ -447,6 +473,15 @@ class GlCanonDraw:
         self.cached_tool = -1
         self.initialised = 0
         self._work_offsets_used = []
+        self.x_limit_positive = float(inifile.find("AXIS_0", "MAX_LIMIT"))
+        self.x_limit_negative = float(inifile.find("AXIS_0", "MIN_LIMIT"))
+        self.y_limit_positive = float(inifile.find("AXIS_1", "MAX_LIMIT") or 0)
+        self.y_limit_negative = float(inifile.find("AXIS_1", "MIN_LIMIT") or 0)
+        self.z_limit_positive = float(inifile.find("AXIS_2", "MAX_LIMIT"))
+        self.z_limit_negative = float(inifile.find("AXIS_2", "MIN_LIMIT"))
+
+    def update_glcanon(self, new_canon):
+        self.canon = new_canon
 
     def realize(self):
         self.hershey = hershey.Hershey()
@@ -460,8 +495,8 @@ class GlCanonDraw:
     @with_context
     def basic_lighting(self):
         glLightfv(GL_LIGHT0, GL_POSITION, (1, -1, 1, 0))
-        glLightfv(GL_LIGHT0, GL_AMBIENT, self.colors['tool_ambient'] + (0,))
-        glLightfv(GL_LIGHT0, GL_DIFFUSE, self.colors['tool_diffuse'] + (0,))
+        glLightfv(GL_LIGHT0, GL_AMBIENT, self.color_config.get_color('tool_ambient') + (0,))
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, self.color_config.get_color('tool_diffuse') + (0,))
         glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, (1,1,1,0))
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
@@ -563,7 +598,7 @@ class GlCanonDraw:
         glViewport(0, 0, w, h)
 
         # Clear the background and depth buffer.
-        glClearColor(*(self.colors['back'] + (0,)))
+        glClearColor(*(self.color_config.get_color('back') + (0,)))
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         glMatrixMode(GL_PROJECTION)
@@ -590,7 +625,7 @@ class GlCanonDraw:
         glViewport(0, 0, w, h)
 
         # Clear the background and depth buffer.
-        glClearColor(*(self.colors['back'] + (0,)))
+        glClearColor(*(self.color_config.get_color('back') + (0,)))
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         glMatrixMode(GL_PROJECTION)
@@ -613,9 +648,9 @@ class GlCanonDraw:
 
     def color_limit(self, cond):
         if cond:
-            glColor3f(*self.colors['label_limit'])
+            glColor3f(*self.color_config.get_color('label_limit'))
         else:
-            glColor3f(*self.colors['label_ok'])
+            glColor3f(*self.color_config.get_color('label_ok'))
         return cond
 
 
@@ -1040,7 +1075,7 @@ class GlCanonDraw:
         if not grid_size: return
 
         glLineWidth(1)
-        glColor3f(*self.colors['grid'])
+        glColor3f(*self.color_config.get_color('grid'))
 
         s = self.stat
         tlo_offset = permutation(self.to_internal_units(s.tool_offset)[:3])
@@ -1206,7 +1241,7 @@ class GlCanonDraw:
                 glTranslatef(*g5x_offset)
                 glRotatef(s.rotation_xy, 0, 0, 1)
 
-                if  self.get_show_offsets() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
+                if self.get_show_offsets() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
                     glBegin(GL_LINES)
                     glVertex3f(0,0,0)
                     # g92_offset[0] *= -1 if rear tool lathe?
@@ -1421,14 +1456,14 @@ class GlCanonDraw:
                 glTranslatef(pos[0], pos[1], self.get_foam_z())
                 glRotatef(180, 1, 0, 0)
                 cone = self.dlist("cone", gen=self.make_cone)
-                glColor3f(*self.colors['cone_xy'])
+                glColor3f(*self.color_config.get_color('cone_xy'))
                 glCallList(cone)
                 glPopMatrix()
                 u = self.to_internal_linear_unit(rx)
                 v = self.to_internal_linear_unit(ry)
                 glPushMatrix()
                 glTranslatef(u, v, self.get_foam_w())
-                glColor3f(*self.colors['cone_uv'])
+                glColor3f(*self.color_config.get_color('cone_uv'))
                 glCallList(cone)
                 glPopMatrix()
             else:
@@ -1466,12 +1501,12 @@ class GlCanonDraw:
                         glRotatef(90, 0, 1, 0)
                     cone = self.dlist("cone", gen=self.make_cone)
                     glScalef(cone_scale, cone_scale, cone_scale)
-                    glColor3f(*self.colors['cone'])
+                    glColor3f(*self.color_config.get_color('cone'))
                     glCallList(cone)
                 else:
                     if current_tool != self.cached_tool:
                         self.cache_tool(current_tool)
-                    glColor3f(*self.colors['cone'])
+                    glColor3f(*self.color_config.get_color('cone'))
                     glCallList(self.dlist('tool'))
                 glPopMatrix()
 
@@ -1495,8 +1530,8 @@ class GlCanonDraw:
         glDepthMask(GL_FALSE)
         glEnable(GL_BLEND)
         glBlendFunc(GL_ONE, GL_CONSTANT_ALPHA)
-        glColor3f(*self.colors['overlay_background'])
-        glBlendColor(0,0,0,1-self.colors['overlay_alpha'])
+        glColor3f(*self.color_config.get_color('overlay_background'))
+        glBlendColor(0,0,0,1-self.color_config.get_alpha_or_default('overlay'))
         glBegin(GL_QUADS)
         glVertex3f(0, ypos, 1)
         glVertex3f(0, ypos - 8 - linespace*len(posstrs), 1)
@@ -1508,7 +1543,7 @@ class GlCanonDraw:
         maxlen = 0
         ypos -= linespace+5
         i=0
-        glColor3f(*self.colors['overlay_foreground'])
+        glColor3f(*self.color_config.get_color('overlay_foreground'))
         if not self.get_show_offsets():
             for string in posstrs:
                 maxlen = max(maxlen, len(string))
@@ -1551,10 +1586,10 @@ class GlCanonDraw:
         self.cached_tool = current_tool
         glNewList(self.dlist('tool'), GL_COMPILE)
         if self.is_lathe() and current_tool and current_tool.orientation != 0:
-            glBlendColor(0,0,0,self.colors['lathetool_alpha'])
+            glBlendColor(0,0,0,self.color_config.get_alpha_or_default('lathetool'))
             self.lathetool(current_tool)
         else:
-            glBlendColor(0,0,0,self.colors['tool_alpha'])
+            glBlendColor(0,0,0,self.color_config.get_alpha_or_default('tool'))
             if self.is_lathe():
                 glRotatef(90, 0, 1, 0)
             else:
@@ -1703,7 +1738,7 @@ class GlCanonDraw:
     def draw_small_origin(self, n):
         glNewList(n, GL_COMPILE)
         r = 2.0/25.4
-        glColor3f(*self.colors['small_origin'])
+        glColor3f(*self.color_config.get_color('small_origin'))
 
         glBegin(GL_LINE_STRIP)
         for i in range(37):
@@ -1745,7 +1780,7 @@ class GlCanonDraw:
         s = self.stat
         view = self.get_view()
 
-        glColor3f(*self.colors['axis_x'])
+        glColor3f(*self.color_config.get_color('axis_x'))
         glBegin(GL_LINES)
         if self.is_rear_tool_post_lathe():
             glVertex3f(-1.0,0.0,0.0)
@@ -1776,7 +1811,7 @@ class GlCanonDraw:
             self.hershey.plot_string(letters[0], 0.5)
             glPopMatrix()
 
-        glColor3f(*self.colors['axis_y'])
+        glColor3f(*self.color_config.get_color('axis_y'))
         glBegin(GL_LINES)
         glVertex3f(0.0,0.0,0.0)
         glVertex3f(0.0,1.0,0.0)
@@ -1793,7 +1828,7 @@ class GlCanonDraw:
             self.hershey.plot_string(letters[1], 0.5)
             glPopMatrix()
 
-        glColor3f(*self.colors['axis_z'])
+        glColor3f(*self.color_config.get_color('axis_z'))
         glBegin(GL_LINES)
         glVertex3f(0.0,0.0,0.0)
         glVertex3f(0.0,0.0,1.0)
@@ -1855,7 +1890,7 @@ class GlCanonDraw:
         w = 3/8.
 
         radius = self.to_internal_linear_unit(diameter) / 2.
-        glColor3f(*self.colors['lathetool'])
+        glColor3f(*self.color_config.get_color('lathetool'))
         glBegin(GL_LINES)  # Draw tool control point cross hairs
         glVertex3f(-radius/2.0,0.0,0.0)
         glVertex3f(radius/2.0,0.0,0.0)
@@ -1913,66 +1948,69 @@ class GlCanonDraw:
 
     def extents_info(self):
         if self.canon:
-            mid = [(a+b)/2 for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
-            if self.is_lathe():
-                size = [(.5 * (a-b)) for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
-            else:
-                size = [(a-b) for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
+            mid = [(a+b) / 2 for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
+            sz_scale = .5 if self.is_lathe() else 1.0
+            size = [sz_scale * (a-b) for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
         else:  # use work space extents (limits) from .ini file
-            x_limit_positive = float(self.inifile.find("AXIS_0", "MAX_LIMIT"))
-            x_limit_negative = float(self.inifile.find("AXIS_0", "MIN_LIMIT"))
-            y_limit_positive = float(self.inifile.find("AXIS_1", "MAX_LIMIT") or 0)
-            y_limit_negative = float(self.inifile.find("AXIS_1", "MIN_LIMIT") or 0)
-            z_limit_positive = float(self.inifile.find("AXIS_2", "MAX_LIMIT"))
-            z_limit_negative = float(self.inifile.find("AXIS_2", "MIN_LIMIT"))
             s = self.stat
-            if self.is_lathe():
-                mid = [((x_limit_positive + x_limit_negative) / 2) - s.tool_offset[0],
-                       ((y_limit_positive + y_limit_negative) / 2) - s.tool_offset[1],
-                       ((z_limit_positive + z_limit_negative) / 2) - s.tool_offset[2] ]
+            sz_scale = 0.37 if self.is_lathe() else 0.43
 
-                size = [.37 * (x_limit_positive - x_limit_negative),
-                        .37 * (y_limit_positive - y_limit_negative),
-                        .37 * (z_limit_positive - z_limit_negative) ]
-            else:
-                mid = [(((x_limit_positive + x_limit_negative) / 2) - s.tool_offset[0]),
-                       (((y_limit_positive + y_limit_negative) / 2) - s.tool_offset[1]),
-                       (((z_limit_positive + z_limit_negative) / 2) - s.tool_offset[2]) ]
+            mid = [
+                ((self.x_limit_positive + self.x_limit_negative) / 2) - s.tool_offset[0],
+                ((self.y_limit_positive + self.y_limit_negative) / 2) - s.tool_offset[1],
+                ((self.z_limit_positive + self.z_limit_negative) / 2) - s.tool_offset[2],
+                ]
 
-                size = [.43 * (x_limit_positive - x_limit_negative),
-                        .43 * (y_limit_positive - y_limit_negative),
-                        .43 * (z_limit_positive - z_limit_negative) ]
+            size = [
+                sz_scale * (self.x_limit_positive - self.x_limit_negative),
+                sz_scale * (self.y_limit_positive - self.y_limit_negative),
+                sz_scale * (self.z_limit_positive - self.z_limit_negative),
+                ]
 
         return mid, size
 
     def make_selection_list(self, unused=None):
-        select_rapids = self.dlist('select_rapids')
-        select_program = self.dlist('select_norapids')
-        glNewList(select_rapids, GL_COMPILE)
-        if self.canon: self.canon.draw(1, False)
+        glNewList(self.dlist('select_norapids'), GL_COMPILE)
+        if self.canon:
+            self.canon.draw_nonrapids(True)
         glEndList()
-        glNewList(select_program, GL_COMPILE)
-        if self.canon: self.canon.draw(1, True)
+
+        glNewList(self.dlist('select_rapids'), GL_COMPILE)
+        if self.canon:
+            self.canon.draw_rapids(True)
         glEndList()
 
     def make_main_list(self, unused=None):
-        program = self.dlist('program_norapids')
-        rapids = self.dlist('program_rapids')
-        glNewList(program, GL_COMPILE)
-        if self.canon: self.canon.draw(0, True)
+        glNewList(self.dlist('program_norapids'), GL_COMPILE)
+        if self.canon:
+            self.canon.draw_nonrapids(False)
         glEndList()
 
-        glNewList(rapids, GL_COMPILE)
-        if self.canon: self.canon.draw(0, False)
+        glNewList(self.dlist('program_rapids'), GL_COMPILE)
+        if self.canon:
+            self.canon.draw_rapids(False)
         glEndList()
 
     def get_work_offsets_used(self):
         return self._work_offsets_used
 
-    def load_preview(self, f, canon, unitcode, initcode, interpname=None, working_dir=None):
+    def load_preview(self, f, canon, unitcode, initcode, interpname=None, working_dir=None, start_line=0, leadin_type=None, keep_current_tool=True):
         self.set_canon(canon)
-        print working_dir
-        result, seq, warnings = gcode.parse(f, canon, unitcode, initcode, interpname or "", working_dir or "")
+        print "preview working directory: ", working_dir
+        print "preview start line: ", start_line
+        print "preview leadin: ", leadin_type
+        print "preview keep-current-tool: ", keep_current_tool
+        result, seq, warnings = gcode.parse(
+            file_name=f,
+            canon_instance=canon,
+            units_gcode=unitcode,
+            init_gcode=initcode,
+            interp_name=interpname or "",
+            working_dir=working_dir or "",
+            start_line_number=start_line,
+            leadin_type=leadin_type,
+            keep_current_tool=keep_current_tool,
+        )
 
         # this is only valid right after a gcode.parse() as it will continue to change if the 
         # underlying interp is reset or reused for other files.  It gets cleared when a new file is
@@ -1997,5 +2035,12 @@ class GlCanonDraw:
         lus = [lu, lu, lu, 1, 1, 1, lu, lu, lu]
         return [a*b for a, b in zip(pos, lus)]
 
+    def get_highlight_line(self):
+        pass
+
+    def lkup_color(self, s):
+        a = self.color_config.get_alpha_or_default(s)
+        s = self.color_config.get_color(s)
+        return [int(x * 255) for x in s + (a,)]
 
 # vim:ts=8:sts=4:sw=4:et:

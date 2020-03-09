@@ -72,9 +72,10 @@ class DummyProgress:
     def nextphase(self, unused): pass
     def progress(self): pass
 
+
 class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
-    def __init__(self, colors, geometry, lathe_view_option, stat, random, inifile):
-        rs274.glcanon.GLCanon.__init__(self, colors, geometry, inifile)
+    def __init__(self, color_config, geometry, lathe_view_option, stat, random, inifile):
+        rs274.glcanon.GLCanon.__init__(self, color_config, geometry, inifile)
         rs274.interpret.StatMixin.__init__(self, stat, random)
         self.progress = DummyProgress()
         self.lathe_view_option = lathe_view_option
@@ -128,23 +129,21 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         gtk.gtkgl.widget.DrawingArea.__init__(self, glconfig)
         glnav.GlNavBase.__init__(self)
-        def C(s):
-            a = self.colors[s + "_alpha"]
-            s = self.colors[s]
-            return [int(x * 255) for x in s + (a,)]
+        color_config = rs274.glcanon.GlDrawColors()
         self.inifile = inifile
-        self.logger = linuxcnc.positionlogger(linuxcnc.stat(),
-            C('backplotjog'),
-            C('backplottraverse'),
-            C('backplotfeed'),
-            C('backplotarc'),
-            C('backplottoolchange'),
-            C('backplotprobing'),
+        self.logger = linuxcnc.positionlogger(
+            linuxcnc.stat(),
+            color_config.lkup_color('backplotjog'),
+            color_config.lkup_color('backplottraverse'),
+            color_config.lkup_color('backplotfeed'),
+            color_config.lkup_color('backplotarc'),
+            color_config.lkup_color('backplottoolchange'),
+            color_config.lkup_color('backplotprobing'),
             self.get_geometry()
         )
         thread.start_new_thread(self.logger.start, (.01,))
 
-        rs274.glcanon.GlCanonDraw.__init__(self, linuxcnc.stat(), self.logger)
+        rs274.glcanon.GlCanonDraw.__init__(self, linuxcnc.stat(), self.logger, inifile=inifile, color_config=color_config)
 
         self.current_view = 'z'
 
@@ -215,6 +214,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         self._tools_used = []
 
+        # Cache start settings for preview redraw
+        self.start_line = 0
+        self.leadin_type = 0
+        self.keep_current_tool = True
 
     def destroy(self):
         # cleanup so that the garbage collector can actually do its work.
@@ -386,7 +389,16 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         print("Active G-codes at redraw:", cmd_list)
         return '\n'.join((' '.join(sub_l) for sub_l in cmd_list))
 
-    def load(self, filename=None, suppress_errors=False, working_dir=None):
+    def set_start_line(self, start_line):
+        self.start_line = start_line
+
+    def set_leadin_type(self, leadin_type):
+        self.leadin_type = leadin_type
+
+    def set_keep_current_tool(self, keep_current_tool):
+        self.keep_current_tool = keep_current_tool
+
+    def load(self, filename=None, suppress_errors=False, working_dir=None, start_line=None, leadin_type=None, temp_parameter_file_name=None):
         # suppress_errors arg was added to help situation where we need to have gremlin
         # redraw the current file - which is a reload of the file.  In this case the operator
         # has already seen the errors with the file and we want to avoid continuing to
@@ -394,9 +406,11 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         s = self.stat
         s.poll()
         filename = filename or s.file
+        if start_line is not None:
+            self.start_line = start_line
+        if leadin_type is not None:
+            self.leadin_type = leadin_type
 
-        print s.file
-        print s.working_dir
         if not filename:
             return
 
@@ -411,17 +425,12 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self._tools_used = []
         try:
             random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
-            self.canon = StatCanon(self.colors, self.geometry, self.lathe_option, s, random, self.inifile)
-            parameter = self.inifile.find("RS274NGC", "PARAMETER_FILE")
-            parameter = os.path.expanduser(parameter)
-            temp_parameter = os.path.join(td, os.path.basename(parameter or "linuxcnc.var"))
-            if parameter:
-                shutil.copy(parameter, temp_parameter)
-            self.canon.parameter_file = temp_parameter
+            self.canon = StatCanon(self.color_config, self.geometry, self.lathe_option, s, random, self.inifile)
+            self.canon.parameter_file = temp_parameter_file_name
 
             initcode = self.get_active_g_code_string() or self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
             unitcode = "G{}".format(20 + (s.program_units == linuxcnc.UNITS_MM))
-            result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode, None, working_dir)
+            result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode, None, working_dir, self.start_line, self.leadin_type, self.keep_current_tool)
 
             #Handle extents violation (copied from AXIS)
             machine_limit_min, machine_limit_max = self.canon.get_soft_limits()
@@ -687,3 +696,4 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
     def rotate_view(self,x,y):
         self.rotateOrTranslate(x, y)
+

@@ -1167,6 +1167,25 @@ static PyObject *program_close(pyCommandChannel *s, PyObject *o) {
     return Py_None;
 }
 
+static PyObject *synch_and_export(pyCommandChannel *s, PyObject *o) {
+    EMC_TASK_PLAN_SYNCH_EXPORT m;
+
+    char *file = nullptr;
+    int len = 0;
+
+    if(!PyArg_ParseTuple(o, "s", &file, &len)) return nullptr;
+    const size_t max_len = sizeof(m.export_file) - 1;
+    if(unsigned(len) > max_len) {
+        PyErr_Format(PyExc_ValueError, "File name limited to %zu characters", max_len);
+        return nullptr;
+    }
+    //FIXME does file get deallocated here?
+    strcpy(m.export_file, file);
+    emcSendCommand(s, m);
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyObject *emcauto(pyCommandChannel *s, PyObject *o) {
     int fn;
     EMC_TASK_PLAN_RUN run{};
@@ -1411,6 +1430,7 @@ static PyMethodDef Command_methods[] = {
     {"set_homing_params", (PyCFunction)set_homing_params, METH_VARARGS},
     {"set_axis_max_velocity", (PyCFunction)set_axis_max_velocity, METH_VARARGS},
     {"program_close", (PyCFunction)program_close, METH_NOARGS},
+    {"synch_and_export", (PyCFunction)synch_and_export, METH_VARARGS},
     {NULL}
 };
 

@@ -311,7 +311,7 @@ int Interp::execute_call(setup_pointer settings,
 	    previous_frame->sequence_number = settings->sequence_number;
         previous_frame->filename = strstore(settings->filename);
         update_gcode_context(settings);
-        plist.append(*settings->pythis); // self
+        plist.append(*pythis); // self
 	    for(int i = 0; i < eblock->param_cnt; i++)
 		plist.append(eblock->params[i]); // positonal args
 	    current_frame->pystuff.impl->tupleargs = bp::tuple(plist);
@@ -350,7 +350,7 @@ int Interp::execute_call(setup_pointer settings,
 	    if (remap->remap_py || remap->prolog_func || remap->epilog_func) {
 		CHKS(!PYUSABLE, "%s (remapped) uses Python functions, but the Python plugin is not available", 
 		     remap->name);
-		plist.append(*settings->pythis);   //self
+        plist.append(*pythis);   //self
 		current_frame->pystuff.impl->tupleargs = bp::tuple(plist);
 		current_frame->pystuff.impl->kwargs = bp::dict();
 	    }

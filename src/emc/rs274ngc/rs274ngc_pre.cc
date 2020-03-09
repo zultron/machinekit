@@ -117,6 +117,7 @@ using namespace WaitFlag;
 namespace bp = boost::python;
 
 extern char * _rs274ngc_errors[];
+extern int _task;
 
 const char *Interp::interp_status(int status) {
     static char statustext[50];
@@ -222,6 +223,7 @@ static char savedError[ERROR_TEXT_LEN];
 Interp::Interp()
     : log_file(stderr),
       _setup(setup_struct()),
+    pythis(),
     warning_list(),
     last_cmd_src(),
     gcode_context_stack()
@@ -246,12 +248,12 @@ Interp::Interp()
     // since interp.init() may be called repeatedly this would create a new
     // wrapper instance on every init(), abandoning the old one and all user attributes
     // tacked onto it, so make sure this is done exactly once
-    _setup.pythis = new boost::python::object(boost::cref(*this));
+    pythis = new boost::python::object(boost::cref(*this));
 
     // alias to 'interpreter.this' for the sake of ';py, .... ' comments
     // besides 'this', eventually use proper instance names to handle
 	// several instances
-    bp::scope(interp_module).attr("this") =  *_setup.pythis;
+    bp::scope(interp_module).attr("this") =  *pythis;
 
     // make "this" visible without importing interpreter explicitly
     bp::object retval;
@@ -282,6 +284,8 @@ Interp::~Interp() {
             fclose(log_file);
         log_file = nullptr;
     }
+    assert(!pythis || Py_IsInitialized());
+    if(pythis) delete pythis;
 
     // Be sure to close the file as there may be a lazy close pending and we would
     // leak a file handle otherwise.
@@ -931,7 +935,7 @@ int Interp::exit()
   char file_name[LINELEN];
 
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  save_parameters(((file_name[0] == 0) ?
+  save_nv_parameters(((file_name[0] == 0) ?
                             RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
                             file_name), _setup.parameters);
   reset();
@@ -942,7 +946,7 @@ int Interp::exit()
       bp::object retval, tupleargs, kwargs;
       bp::list plist;
 
-      plist.append(*_setup.pythis); // self
+      plist.append(*pythis); // self
       tupleargs = bp::tuple(plist);
       kwargs = bp::dict();
 
@@ -1324,7 +1328,13 @@ int Interp::init()
   GET_EXTERNAL_PARAMETER_FILE_NAME(filename, LINELEN);
   if (filename[0] == 0)
     strcpy(filename, RS274NGC_PARAMETER_FILE_NAME_DEFAULT);
-  int res_restore_param = restore_parameters(filename);
+
+  // restore parameters as needed based on interpreter's role (preview vs run)
+  int res_restore_param = _task ?
+                                restore_nv_parameters(filename) :
+                                restore_all_parameters(filename);
+
+  // Update part counters in canon from restored parameters
   for (size_t idx = COUNTER_M_30_A; idx <= COUNTER_M_99_B; ++idx) {
       UPDATE_PART_COUNT(idx, _setup.parameters[MIN_CYCLE_COUNTER_PARAM + idx]);
   }
@@ -1495,7 +1505,7 @@ int Interp::init()
       bp::object retval, tupleargs, kwargs;
       bp::list plist;
 
-      plist.append(*_setup.pythis); // self
+      plist.append(*pythis); // self
       tupleargs = bp::tuple(plist);
       kwargs = bp::dict();
 
@@ -1571,15 +1581,15 @@ int Interp::load_tool_table()
   return INTERP_OK;
 }
 
-int Interp::synch_work_offsets_from_task()
+int Interp::synch_work_offsets_from_task(setup_pointer settings) const
 {
   // Only ask for offsets that are currently defined
   // NOTE "external" units are user units, so no conversions are necessary
   // here since work_offset tables in task and interp are both in user units.
-  for (auto origin_to_synch : _setup.work_offsets_to_synch) {
-      store_work_offset(GET_EXTERNAL_WORK_OFFSET(origin_to_synch), origin_to_synch);
+  for (auto origin_to_synch : settings->work_offsets_to_synch) {
+      store_work_offset(settings, GET_EXTERNAL_WORK_OFFSET(origin_to_synch), origin_to_synch);
   }
-  _setup.work_offsets_to_synch.clear();
+  settings->work_offsets_to_synch.clear();
 
   return INTERP_OK;
 }
@@ -2219,7 +2229,7 @@ sets of origin offsets. Any parameter not given a value in the file
 has its value set to zero.
 
 */
-int Interp::restore_parameters(const char *filename)   //!< name of parameter file to read
+int Interp::restore_nv_parameters(const char *filename)   //!< name of parameter file to read
 {
   FILE *infile = nullptr;
   char line[256];
@@ -2312,6 +2322,78 @@ int Interp::restore_parameters(const char *filename)   //!< name of parameter fi
   return INTERP_OK;
 }
 
+int Interp::restore_all_parameters(const char * filename)
+{
+  _setup.parameters.fill(0);
+  FILE *infile = nullptr;
+  char line[256];
+
+  // it's OK if the parameter file doesn't exist yet
+  // it'll be created in due course with some default values
+  if(access(filename, F_OK) == -1)
+    return INTERP_OK;
+  // open original for reading
+  infile = fopen(filename, "r");
+  CHKS((infile == nullptr), _("Unable to open parameter file: '%s'"), filename);
+
+  while (feof(infile) == 0) {
+    if (!fgets(line, 256, infile)) {
+      break;
+    }
+
+    int variable;
+    double value;
+    // Skip the line if it doesn't match the pattern
+    if (sscanf(line, "%d %lf", &variable, &value) < 2) {
+      continue;
+    }
+
+    if (variable <= 0) {
+        fclose(infile);
+        ERS(_("Parameter number out of range: %d"), variable);
+    }
+
+    // KLUDGE handle work offsets stored as fake parameters
+    if (variable >=  EXTENDED_WORK_OFFSET_START && variable < EXTENDED_WORK_OFFSET_END) {
+      // Work offsets
+      int offset_number = (variable - EXTENDED_WORK_OFFSET_START ) / 20;
+      int offset_base = EXTENDED_WORK_OFFSET_START + 20 * offset_number;
+      // zero-indexed displacement from the initial value
+      int index = variable - offset_base - 1;
+      switch (index) {
+      case X:
+      case Y:
+      case Z:
+      case A:
+      case B:
+      case C:
+      case U:
+      case V:
+      case W:
+        _setup.work_offsets_user[offset_number].shift.tf[index] = value;
+        break;
+      case 9:
+        _setup.work_offsets_user[offset_number].setXYRotationDeg(value);
+        break;
+      }
+    } else if (variable < RS274NGC_MAX_PARAMETERS) {
+        _setup.parameters[variable] = value;
+    }
+  }
+  fclose(infile);
+  for (int origin = 1; origin <= 9; ++origin) {
+    find_work_offset_from_parameters(&_setup, origin, _setup.work_offsets_user[origin]);
+  }
+
+  auto pred = [](WorkOffsetMap::value_type const &el)
+  {
+      return !isNonzero(el.second);
+  };
+  erase_if(_setup.work_offsets_user, pred);
+  return INTERP_OK;
+
+}
+
 /***********************************************************************/
 
 /*! Interp::save_parameters
@@ -2346,7 +2428,7 @@ If a required parameter is missing from the input file, this does not
 complain, but does write it in the output file.
 
 */
-int Interp::save_parameters(
+int Interp::save_nv_parameters(
     const char *filename,      //!< name of file to write
     ParameterArray const &parameters) //!< parameters to save
 {
@@ -2460,6 +2542,46 @@ int Interp::save_parameters(
   return INTERP_OK;
 }
 
+int Interp::save_all_parameters(
+    setup_pointer const settings,
+    const char * filename) const
+{
+    if (!filename || !filename[0]) {
+        return INTERP_FILE_NOT_OPEN;
+    }
+
+    FILE* export_file = fopen(filename, "w");
+    if (!export_file) {
+        return INTERP_FILE_NOT_OPEN;
+    }
+
+
+    char line[PATH_MAX]={0};
+
+    // Writes out ALL parameters (even volatile ones) for the preview interpreter
+    for (int k = 1; k < RS274NGC_MAX_PARAMETERS; k++) {
+        sprintf(line, "%d\t%f\n", k, settings->parameters[k]);
+        fputs(line, export_file);
+    }
+
+    for (auto const& wo : settings->work_offsets_user) {
+        if (wo.first < 10) {
+            continue;
+        }
+        size_t offset_base = EXTENDED_WORK_OFFSET_START + 20 * (size_t)wo.first;
+
+        for (size_t k = 0; k < wo.second.shift.tf.size(); ++k) {
+            // KLUDGE follow convention of one-indexed work offset parameters
+            sprintf(line, "%lu\t%0.17g\n", offset_base + k + 1, wo.second.shift.tf[k]);
+            fputs(line, export_file);
+        }
+        sprintf(line, "%lu\t%0.17g\n", offset_base + 10, wo.second.getXYRotationDeg());
+        fputs(line, export_file);
+    }
+    fclose(export_file);
+    return INTERP_OK;
+}
+
 /***********************************************************************/
 
 /**
@@ -2480,54 +2602,55 @@ int Interp::save_parameters(
  */
 int Interp::synch()
 {
-
-  char file_name[LINELEN];
-
-  _setup.control_mode = GET_EXTERNAL_MOTION_CONTROL_MODE();
-  _setup.current = GET_EXTERNAL_POSITION();
-  _setup.current_pocket = GET_EXTERNAL_TOOL_SLOT();
-  _setup.feed_rate = GET_EXTERNAL_FEED_RATE();
-  _setup.flood = GET_EXTERNAL_FLOOD();
-  // FIXME this is effectively a no-op, since canon units track interp's units.
-  // If they aren't the same, it would massively break some assumptions in Interp.
-  // Many fields like current position, offsets, feed rate, etc. are in program units
-  _setup.length_units = GET_EXTERNAL_LENGTH_UNIT_TYPE();
-
-  _setup.mist = GET_EXTERNAL_MIST();
-  _setup.plane = GET_EXTERNAL_PLANE();
-  _setup.selected_pocket = GET_EXTERNAL_SELECTED_TOOL_SLOT();
-  _setup.speed = GET_EXTERNAL_SPEED();
-  _setup.spindle_turning = GET_EXTERNAL_SPINDLE();
-  _setup.pockets_max = GET_EXTERNAL_POCKETS_MAX();
-  _setup.traverse_rate = GET_EXTERNAL_TRAVERSE_RATE();
-  _setup.feed_override = GET_EXTERNAL_FEED_OVERRIDE_ENABLE();
-  _setup.speed_override = GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE();
-  _setup.allow_adaptive_feed = GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
-  _setup.allow_feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
-  auto counters = GET_EXTERNAL_PART_COUNTS();
-  std::copy(
-      counters.begin(),
-      counters.end(),
-      _setup.parameters.begin() + M30_CYCLE_COUNTER_A
-      );
-
-  // Restore any work offsets that were changed during readahead but not reached by motion yet.
-  synch_work_offsets_from_task();
-
+  int res_synch_external = synch_external_state(&_setup);
+  char file_name[LINELEN]="";
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  int res_save = save_parameters((file_name[0] == 0) ?
-                            RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
-                           file_name, _setup.parameters);
+  int save_param = save_nv_parameters((file_name[0] == 0) ?
+                                                RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
+                                                file_name, _setup.parameters);
 
   load_tool_table();   /*  must set  _setup.tool_max first */
 
-  //send_current_g5x_transform();
-  //read_inputs(&_setup); // input/probe/toolchange
-
   write_settings(&_setup, _setup.modal_state);
 
-  return res_save;
+  return res_synch_external | save_param;
 }
+
+int Interp::synch_external_state(setup_pointer settings) const
+{
+    settings->control_mode = GET_EXTERNAL_MOTION_CONTROL_MODE();
+    settings->current = GET_EXTERNAL_POSITION();
+    settings->current_pocket = GET_EXTERNAL_TOOL_SLOT();
+    settings->feed_rate = GET_EXTERNAL_FEED_RATE();
+    settings->flood = GET_EXTERNAL_FLOOD();
+    // FIXME this is effectively a no-op, since canon units track interp's units.
+    // If they aren't the same, it would massively break some assumptions in Interp.
+    // Many fields like current position, offsets, feed rate, etc. are in program units
+    settings->length_units = GET_EXTERNAL_LENGTH_UNIT_TYPE();
+
+    settings->mist = GET_EXTERNAL_MIST();
+    settings->plane = GET_EXTERNAL_PLANE();
+    settings->selected_pocket = GET_EXTERNAL_SELECTED_TOOL_SLOT();
+    settings->speed = GET_EXTERNAL_SPEED();
+    settings->spindle_turning = GET_EXTERNAL_SPINDLE();
+    settings->pockets_max = GET_EXTERNAL_POCKETS_MAX();
+    settings->traverse_rate = GET_EXTERNAL_TRAVERSE_RATE();
+    settings->feed_override = GET_EXTERNAL_FEED_OVERRIDE_ENABLE();
+    settings->speed_override = GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE();
+    settings->allow_adaptive_feed = GET_EXTERNAL_ADAPTIVE_FEED_ENABLE();
+    settings->allow_feed_hold = GET_EXTERNAL_FEED_HOLD_ENABLE();
+    auto counters = GET_EXTERNAL_PART_COUNTS();
+    std::copy(
+        counters.begin(),
+        counters.end(),
+        settings->parameters.begin() + M30_CYCLE_COUNTER_A
+        );
+
+    // Restore any work offsets that were changed during readahead but not reached by motion yet.
+    synch_work_offsets_from_task(settings);
+    return INTERP_OK;
+}
+
 
 /**
  * Pseudo-callback called when interp is about to start readahead.
@@ -2621,6 +2744,17 @@ int Interp::cbAfterSeekReadTransition(
     }
     // TODO make sure the return point is right
     return INTERP_OK;
+}
+
+int Interp::synch_and_export(setup_pointer settings, const char * export_file_name) const
+{
+    setup tmp(*settings);
+    int res_synch = synch_external_state(&tmp);
+    // KLUDGE shove the current position into
+    auto current_pos_user = convertsProgramToUser().forward(tmp.current);
+    std::copy(current_pos_user.begin(), current_pos_user.end(), tmp.parameters.begin() + EXPORT_CUR_POS_ARRAY);
+    int res_save = save_all_parameters(&tmp, export_file_name);
+    return res_synch | res_save;
 }
 
 /***********************************************************************/

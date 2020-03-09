@@ -66,9 +66,9 @@ BASEPWD := $(shell pwd)
 export BASEPWD
 include Makefile.inc
 ifeq ($(origin PYTHONPATH),undefined)
-PYTHONPATH:=$(EMC2_HOME)/lib/python
+PYTHONPATH:=$(EMC2_HOME)/lib/python:$(EMC2_HOME)/lib/python/support
 else
-PYTHONPATH:=$(EMC2_HOME)/lib/python:$(PYTHONPATH)
+PYTHONPATH:=$(EMC2_HOME)/lib/python:$(EMC2_HOME)/lib/python/support:$(PYTHONPATH)
 endif
 export PYTHONPATH
 else
@@ -128,6 +128,9 @@ SUBDIRS := \
     emc/interp_shared \
     \
     module_helper \
+    python \
+    python/rs274 \
+    python/support \
     \
     po \
     \

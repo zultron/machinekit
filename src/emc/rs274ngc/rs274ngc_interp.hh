@@ -93,7 +93,7 @@ public:
 // load a tool table
  int load_tool_table();
 
- int synch_work_offsets_from_task();
+ int synch_work_offsets_from_task(setup_pointer settings) const;
 
 // open a file of NC code
  int open(const char *filename, const char *working_dir);
@@ -111,18 +111,24 @@ public:
  int reset();
 
 // restore interpreter variables from a file
- int restore_parameters(const char *filename);
+ int restore_nv_parameters(const char *filename);
+ int restore_all_parameters(const char *filename);
 
 // save interpreter variables to file
- int save_parameters(
+ int save_nv_parameters(
      const char *filename,
      ParameterArray const &parameters);
+
+ // Saves all parameters (including volatiles) to the specified file (typically for preview use)
+ int save_all_parameters(const setup_pointer settings,
+     const char *filename) const;
 
 // synchronize your internal model with the external world
  int synch();
  int cbBeforeSeekReadTransition(const AutoRunSettings & start_settings, const ExpandedModalState & run_initial_state, ExpandedModalState & seek_state);
  int cbAfterSeekReadTransition(const ExpandedModalState & to_restore,
      const AutoRunSettings & start_settings, const ExpandedModalState & run_initial_state);
+ int synch_and_export(setup_pointer settings, const char *export_file_name) const;
 
 /* Interface functions to call to get information from the interpreter.
    If a function has a return value, the return value contains the information.
@@ -449,11 +455,11 @@ public:
  int find_tool_offset(setup_pointer settings, int pocket, ShiftTransform & tool_offset);
  int store_tool_offset(setup_pointer settings, ShiftTransform const &tool_offset, int pocket);
  int canon_use_tool_offset(ShiftTransform const &tool_offset);
- InterpReturn find_work_offset_from_parameters(setup_pointer settings, int origin, RotateShiftTransform & out);
- int store_work_offset_to_parameters(setup_pointer settings, RotateShiftTransform const &work_offset, int origin);
+ InterpReturn find_work_offset_from_parameters(setup_pointer settings, int origin, RotateShiftTransform & work_offset_user);
+ int store_work_offset_to_parameters(setup_pointer settings, RotateShiftTransform const &work_offset, int origin) const;
  int find_work_offset_prog(int origin, RotateShiftTransform & work_offset_user);
- int store_work_offset_from_prog(RotateShiftTransform const &work_offset_prog, int origin);
- int store_work_offset(RotateShiftTransform const &work_offset_user, int origin);
+ int store_work_offset_from_prog(setup_pointer settings, RotateShiftTransform const &work_offset_prog, int origin) const;
+ int store_work_offset(setup_pointer settings, RotateShiftTransform const &work_offset_user, int origin) const;
  int find_current_in_system(setup_pointer s, int system, PositionArray &out);
  int find_current_in_system_without_tlo(setup_pointer s, int system, PositionArray & out);
  int find_ends(block_pointer block, setup_pointer settings,
@@ -794,6 +800,8 @@ int read_inputs(setup_pointer settings);
     static const std::array<read_function_pointer, 256> default_readers;
 
     setup _setup;
+    boost::python::object *pythis;  // boost::cref to 'this'
+
     std::vector <std::string> warning_list;
     CommandSource last_cmd_src;
 
@@ -841,6 +849,8 @@ int read_inputs(setup_pointer settings);
     int gen_toolOffset(GCodeGenerator & generator, GCodes tool_offset_mode, int tool_offset_number);
 
     FILE * try_load_subroutine_from_path(const char * basename, const char * sub_directory, char * file_path);
+
+    int synch_external_state(setup_pointer settings) const;
 
 protected:
     bool error_has_context;

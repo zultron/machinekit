@@ -60,9 +60,9 @@ if test "xyes" = "x@RUN_IN_PLACE@"; then
 fi
 
 if [ -z "$PYTHONPATH" ]; then
-    PYTHONPATH=$LINUXCNC_HOME/lib/python
+    PYTHONPATH=$LINUXCNC_HOME/lib/python:$LINUXCNC_HOME/lib/python/support
 else
-    PYTHONPATH=$LINUXCNC_HOME/lib/python:"$PYTHONPATH"
+    PYTHONPATH=$LINUXCNC_HOME/lib/python:$LINUXCNC_HOME/lib/python/support:"$PYTHONPATH"
 fi
 export PYTHONPATH
 

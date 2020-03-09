@@ -27,6 +27,10 @@ inline bool is_valid_work_offset_index(int idx) {return idx > 0 && idx <= MAX_EX
 enum InterpParameterIndex {
 // 5061-5069 - Coordinates of a G38 probe result (X, Y, Z, A, B, C, U, V & W). Coordinates are in the coordinate system in which the G38 took place. Volatile.
     INTERP_MAX_USER_PARAMETER=5000,
+    // Private parameters for internal use only, 5001-5060
+    EXPORT_CUR_POS_ARRAY=5001, // Just for parameter export to preview, not populated during normal use
+    EXPORT_CUR_POS_ARRAY_END=5010, // One-past-the-end of the position export array
+    // reserved parameters with special meanings in the main interpreter
     G38_X=5061,
     G38_Y,
     G38_Z,

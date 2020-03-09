@@ -132,7 +132,6 @@ setup_struct::setup_struct() :
     persistent_g92_offset(false),
     disable_fanuc_style_sub(false),
     loop_on_main_m99(false),
-    pythis(),
     on_abort_command(nullptr),
     init_once(1),
     m_remappable(),
@@ -255,8 +254,6 @@ bool setup_struct::checkFeatureFlag(Features f) const
 }
 
 setup_struct::~setup_struct() {
-    assert(!pythis || Py_IsInitialized());
-    if(pythis) delete pythis;
 }
 
 block_struct::block_struct ()

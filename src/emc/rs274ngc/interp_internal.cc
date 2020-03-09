@@ -408,7 +408,6 @@ int Interp::precedence(int an_operator)
   return 0;
 }
 
-
 int Interp::refresh_actual_position(setup_pointer settings)
 {
     settings->current = GET_EXTERNAL_POSITION();

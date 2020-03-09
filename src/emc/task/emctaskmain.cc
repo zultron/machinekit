@@ -915,7 +915,8 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_SET_AOUT_TYPE:
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_TRAJ_SET_TELEOP_ENABLE_TYPE:
-	    case EMC_SET_DEBUG_TYPE:
+        case EMC_SET_DEBUG_TYPE:
+        case EMC_TASK_PLAN_SYNCH_EXPORT_TYPE: // Can issue this any time, though the result may not be meaningful before a machine reset
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
@@ -1022,7 +1023,8 @@ static int emcTaskPlan(void)
 	    case EMC_TASK_PLAN_RESUME_TYPE:
 	    case EMC_TASK_PLAN_INIT_TYPE:
 	    case EMC_TASK_PLAN_SYNCH_TYPE:
-	    case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
+        case EMC_TASK_PLAN_SYNCH_EXPORT_TYPE:
+        case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 	    case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
 	    case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
         case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
@@ -1134,6 +1136,7 @@ static int emcTaskPlan(void)
 		case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 		case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
 		case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
+                case EMC_TASK_PLAN_SYNCH_EXPORT_TYPE:
 		case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
 		case EMC_TRAJ_PROBE_TYPE:
 		case EMC_AUX_INPUT_WAIT_TYPE:
@@ -1493,6 +1496,7 @@ static int emcTaskPlan(void)
 	    case EMC_MOTION_ADAPTIVE_TYPE:
 	    case EMC_TRAJ_RIGID_TAP_TYPE:
 	    case EMC_SET_DEBUG_TYPE:
+            case EMC_TASK_PLAN_SYNCH_EXPORT_TYPE:
 		retval = emcTaskIssueCommand(emcCommand);
 		break;
 
@@ -1679,6 +1683,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
 	return EMC_TASK_EXEC_DONE;
 
     case EMC_TASK_SET_TAG_TYPE:
+    case EMC_TASK_PLAN_SYNCH_EXPORT_TYPE: // Can grab this any time
     return EMC_TASK_EXEC_DONE;
 
     default:
@@ -2478,7 +2483,14 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	if (retval > INTERP_MIN_ERROR) {
 	    retval = -1;
 	}
-	break;
+    break;
+
+    case EMC_TASK_PLAN_SYNCH_EXPORT_TYPE:
+        retval = emcTaskPlanSynchExport(static_cast<EMC_TASK_PLAN_SYNCH_EXPORT*>(cmd)->export_file);
+    if (retval > INTERP_MIN_ERROR) {
+        retval = -1;
+    }
+    break;
 
     case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 	os_msg = (EMC_TASK_PLAN_SET_OPTIONAL_STOP *) cmd;

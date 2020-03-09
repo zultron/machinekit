@@ -1435,6 +1435,18 @@ class EMC_TASK_PLAN_SYNCH:public EMC_TASK_CMD_MSG {
     void update(CMS * cms);
 };
 
+class EMC_TASK_PLAN_SYNCH_EXPORT:public EMC_TASK_CMD_MSG {
+  public:
+    EMC_TASK_PLAN_SYNCH_EXPORT():EMC_TASK_CMD_MSG(EMC_TASK_PLAN_SYNCH_EXPORT_TYPE,
+                       sizeof(EMC_TASK_PLAN_SYNCH_EXPORT)) {
+    }
+
+    // For internal NML/CMS use only.
+    char export_file[LINELEN];
+    void update(CMS * cms);
+};
+
+
 class EMC_TASK_PLAN_SET_OPTIONAL_STOP:public EMC_TASK_CMD_MSG {
   public:
     EMC_TASK_PLAN_SET_OPTIONAL_STOP():EMC_TASK_CMD_MSG(EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE,

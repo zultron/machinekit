@@ -22,6 +22,9 @@
 
 import sys, os
 import string
+
+from glcanon import GlDrawColors
+
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 sys.path.insert(0, os.path.join(BASE, "lib", "python"))
 
@@ -364,7 +367,7 @@ class MyOpengl(GlCanonDraw, Opengl):
         self.motion_after = None
         self.perspective = False
         Opengl.__init__(self, *args, **kw)
-        GlCanonDraw.__init__(self, s, None)
+        GlCanonDraw.__init__(self, s, None, inifile, rs274.glcanon.GlDrawColors())
         self.bind('<Button-1>', self.select_prime, add=True)
         self.bind('<ButtonRelease-1>', self.select_fire, add=True)
         self.bind('<Button1-Motion>', self.select_cancel, add=True)
@@ -985,7 +988,7 @@ class Progress:
 
 class AxisCanon(GLCanon, StatMixin):
     def __init__(self, widget, text, linecount, progress, arcdivision):
-        GLCanon.__init__(self, widget.colors, geometry, inifile)
+        GLCanon.__init__(self, widget.color_config, geometry, inifile)
         StatMixin.__init__(self, s, random_toolchanger)
         self.text = text
         self.linecount = linecount

@@ -31,7 +31,6 @@ int main() {
 // implemented the python "remap" functionality of the interpreter
 // (and it needs Python.h for the definition of struct inttab)
 int _task = 0;
-char _parameter_file_name[LINELEN];
 extern "C" void initinterpreter();
 extern "C" void initemccanon();
 extern "C" struct _inittab builtin_modules[];
