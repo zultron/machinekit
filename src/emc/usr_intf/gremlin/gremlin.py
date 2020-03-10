@@ -416,60 +416,56 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         working_dir = working_dir or s.working_dir
 
-        td = tempfile.mkdtemp()
         self._current_file = filename
         #KLUDGE define dummy vars here
         result = 0
         warnings = []
         seq = 0
         self._tools_used = []
-        try:
-            random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
-            self.canon = StatCanon(self.color_config, self.geometry, self.lathe_option, s, random, self.inifile)
-            self.canon.parameter_file = temp_parameter_file_name
 
-            initcode = self.get_active_g_code_string() or self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
-            unitcode = "G{}".format(20 + (s.program_units == linuxcnc.UNITS_MM))
-            result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode, None, working_dir, self.start_line, self.leadin_type, self.keep_current_tool)
+        random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
+        self.canon = StatCanon(self.color_config, self.geometry, self.lathe_option, s, random, self.inifile)
+        self.canon.parameter_file = temp_parameter_file_name
 
-            #Handle extents violation (copied from AXIS)
-            machine_limit_min, machine_limit_max = self.canon.get_soft_limits()
-            # KLUDGE: reverse engineer the machine units
-            unit_suffix = "mm" if s.linear_units == 1 else "in"
-            for i in range(3): # Does not enforce angle limits
-                if not(s.axis_mask & (1<<i)): continue
-                if self.canon.min_extents_notool[i] < machine_limit_min[i]:
-                    neg_overhang = self.canon.min_extents_notool[i] - machine_limit_min[i]
-                    warnings.append("Program exceeds machine minimum on %c axis  by %0.4f %s"
-                        % ("XYZABCUVW"[i], neg_overhang, unit_suffix))
-                if self.canon.max_extents_notool[i] > machine_limit_max[i]:
-                    pos_overhang = self.canon.max_extents_notool[i] - machine_limit_max[i]
-                    warnings.append("Program exceeds machine maximum on %c axis by %0.4f %s"
-                        % ("XYZABCUVW"[i], pos_overhang, unit_suffix))
-            # Warn user if spindle-synched feeds violate axis limits
-            axis_max_vel = tuple([
-                float(self.inifile.find("AXIS_%d" % i,"MAX_VELOCITY") or 0.0)*60
-                for i in range(9)])
-            for line_no, delta, rpm, fpr in self.canon.feed_synched:
-                fpm = rpm * fpr  # feed per minute
-                max_fpm = self.canon.calc_velocity(delta, axis_max_vel) * 0.95
-                if fpm > max_fpm:
-                    warnings.append(
-                        "Spindle synched move at %(rpm_set).1f RPM would "
-                        "exceed safe XYZ velocity limits on line %(line_no)d. "
-                        "Please reduce spindle speed to %(rpm_max).1f RPM or "
-                        "reduce thread pitch/feed per revolution to "
-                        "%(pitch).3f." %
-                        dict(rpm_set=rpm, rpm_max=max_fpm/fpr, line_no=line_no,
-                             pitch=max_fpm/rpm))
+        initcode = self.get_active_g_code_string() or self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
+        unitcode = "G{}".format(20 + (s.program_units == linuxcnc.UNITS_MM))
+        result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode, None, working_dir, self.start_line, self.leadin_type, self.keep_current_tool)
 
-            if result > gcode.MIN_ERROR and not suppress_errors:
-                self.report_gcode_error(result, seq, filename)
+        #Handle extents violation (copied from AXIS)
+        machine_limit_min, machine_limit_max = self.canon.get_soft_limits()
+        # KLUDGE: reverse engineer the machine units
+        unit_suffix = "mm" if s.linear_units == 1 else "in"
+        for i in range(3): # Does not enforce angle limits
+            if not(s.axis_mask & (1<<i)): continue
+            if self.canon.min_extents_notool[i] < machine_limit_min[i]:
+                neg_overhang = self.canon.min_extents_notool[i] - machine_limit_min[i]
+                warnings.append("Program exceeds machine minimum on %c axis  by %0.4f %s"
+                    % ("XYZABCUVW"[i], neg_overhang, unit_suffix))
+            if self.canon.max_extents_notool[i] > machine_limit_max[i]:
+                pos_overhang = self.canon.max_extents_notool[i] - machine_limit_max[i]
+                warnings.append("Program exceeds machine maximum on %c axis by %0.4f %s"
+                    % ("XYZABCUVW"[i], pos_overhang, unit_suffix))
+        # Warn user if spindle-synched feeds violate axis limits
+        axis_max_vel = tuple([
+            float(self.inifile.find("AXIS_%d" % i,"MAX_VELOCITY") or 0.0)*60
+            for i in range(9)])
+        for line_no, delta, rpm, fpr in self.canon.feed_synched:
+            fpm = rpm * fpr  # feed per minute
+            max_fpm = self.canon.calc_velocity(delta, axis_max_vel) * 0.95
+            if fpm > max_fpm:
+                warnings.append(
+                    "Spindle synched move at %(rpm_set).1f RPM would "
+                    "exceed safe XYZ velocity limits on line %(line_no)d. "
+                    "Please reduce spindle speed to %(rpm_max).1f RPM or "
+                    "reduce thread pitch/feed per revolution to "
+                    "%(pitch).3f." %
+                    dict(rpm_set=rpm, rpm_max=max_fpm/fpr, line_no=line_no,
+                         pitch=max_fpm/rpm))
 
-            self._tools_used = self.canon.get_tools_used()
+        if result > gcode.MIN_ERROR and not suppress_errors:
+            self.report_gcode_error(result, seq, filename)
 
-        finally:
-            shutil.rmtree(td)
+        self._tools_used = self.canon.get_tools_used()
 
         return result, seq, warnings
     # doing this kills our zoom settings if gremlin.load is called on work offset change
