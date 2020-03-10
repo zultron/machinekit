@@ -1740,8 +1740,8 @@ int Interp::read_inputs(setup_pointer settings)
         settings->current = merge(settings->current, local_machine_zero, settings->default_seek_preamble.plunge_axes);
     } else {
         refresh_actual_position(settings);
+        load_tool_table();
     }
-    load_tool_table();
     settings->wait_flags.reset(TOOLCHANGE);
     }
     // always track toolchanger-fault and toolchanger-reason codes
