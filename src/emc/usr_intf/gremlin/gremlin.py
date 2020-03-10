@@ -306,7 +306,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             s.poll()
         except:
             return
-        self._current_file = None
 
         self.font_base, width, linespace = glnav.use_pango_font('courier bold 16', 0, 128)
         self.font_linespace = linespace
@@ -411,16 +410,15 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         if leadin_type is not None:
             self.leadin_type = leadin_type
 
-        if not filename:
-            return
-
-        working_dir = working_dir or s.working_dir
-
-        self._current_file = filename
-        #KLUDGE define dummy vars here
         result = 0
         warnings = []
         seq = 0
+        if not filename:
+            return result, seq, warnings
+
+        working_dir = working_dir or s.working_dir
+
+        #KLUDGE define dummy vars here
         self._tools_used = []
 
         random = int(self.inifile.find("EMCIO", "RANDOM_TOOLCHANGER") or 0)
