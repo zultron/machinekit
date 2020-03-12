@@ -723,17 +723,27 @@ int read_inputs(setup_pointer settings);
 #define M_BUILTIN(m) (_ems[m] != -1)
 #define G_BUILTIN(g) (_gees[g] != -1)
 
-    // see interp_remap_sets():
-#define M_REMAPPABLE(m)	((m >= 0) && (m < 1000) && _setup.m_remappable[m])
+    bool M_REMAPPABLE(int m)
+    {
+        return (m >= 0) && (m < 1000) && _setup.m_remappable[m];
+    }
     // range for user-remapped G-codes
-#define G_REMAPPABLE(g)	((g >= 0) && (g < 1000) &&_setup.g_remappable[g])
+    bool G_REMAPPABLE(int g)
+    {
+        return (g >= 0) && (g < 1000) &&_setup.g_remappable[g];
+    }
 
-#define IS_USER_GCODE(x) (G_REMAPPABLE(x) && _setup.g_remapped[x])
+    bool IS_USER_GCODE(int x) {
+        return G_REMAPPABLE(x) && _setup.g_remapped[x];
+    }
 
-#define IS_USER_MCODE(bp,sp,mgroup) \
-    ((M_REMAPPABLE((bp)->m_modes[mgroup])) && \
-    (((bp)->m_modes[mgroup]) > -1) &&		\
-     ((sp)->m_remapped[(bp)->m_modes[mgroup]]))
+    bool IS_USER_MCODE(
+        block_pointer block,
+        setup_pointer settings,
+        int mgroup)
+    {
+        return M_REMAPPABLE(block->m_modes[mgroup]) && (block->m_modes[mgroup] > -1) && (settings->m_remapped[block->m_modes[mgroup]]);
+    }
     
     bool remap_in_progress(const char *code);
     int convert_remapped_code(block_pointer block,
