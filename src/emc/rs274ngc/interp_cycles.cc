@@ -280,16 +280,16 @@ int Interp::convert_cycle_g74_g84(block_pointer block,
                                  int motion,
                                   double dwell)
 {
-    char op = motion ==  G_74 ? '7' : '8';
+    char op = motion ==  G_74_1 ? '7' : '8';
 
     switch (direction) {
     case CANON_STOPPED:
         ERS(_("Spindle not turning in G%c4"), op);
     case CANON_CLOCKWISE:
-        CHKS((motion == G_74), _("Spindle turning clockwise in G74"));
+        CHKS((motion == G_74_1), _("Spindle turning clockwise in G%c4"), op);
         break;
     case CANON_COUNTERCLOCKWISE:
-        CHKS((motion == G_84), _("Spindle turning counterclockwise in G84"));
+        CHKS((motion == G_84_1), _("Spindle turning counterclockwise in G%c4"), op);
     }
 
     switch (plane) {
@@ -314,21 +314,21 @@ int Interp::convert_cycle_g74_g84(block_pointer block,
 
     DISABLE_FEED_OVERRIDE();
     DISABLE_SPEED_OVERRIDE();
-    if (motion == G_84)
+    if (motion == G_84_1)
         START_SPINDLE_CLOCKWISE();
     else
         START_SPINDLE_COUNTERCLOCKWISE();
     cycle_feed(block, plane, bottom.x, bottom.y, bottom.z);
     STOP_SPINDLE_TURNING();
     // the zero parameter suppresses the wait for at-speed on next feed
-    if (motion == G_84)
+    if (motion == G_84_1)
         START_SPINDLE_COUNTERCLOCKWISE(0);
     else
         START_SPINDLE_CLOCKWISE(0);
     DWELL(dwell);
     cycle_feed(block, plane, top.x, top.y, top.z);
     STOP_SPINDLE_TURNING();
-    if (motion == G_84)
+    if (motion == G_84_1)
         START_SPINDLE_CLOCKWISE();
     else
         START_SPINDLE_COUNTERCLOCKWISE();
@@ -968,8 +968,8 @@ int Interp::convert_cycle_xy(int motion, //!< a g-code between G_81 and G_89, a 
                                   block->q_number))
       settings->cycle.q = block->q_number;
     break;
-  case G_74:
-  case G_84:
+  case G_74_1:
+  case G_84_1:
     CHKS(((settings->motion_mode != motion) && (block->p_number == -1.0)),
         NCE_P_WORD_MISSING_WITH_G74_G84);
       block->p_number =
@@ -1148,8 +1148,8 @@ int Interp::convert_cycle_uv(int motion, //!< a g-code between G_81 and G_89, a 
                                   block->q_number))
       settings->cycle.q = block->q_number;
     break;
-  case G_74:
-  case G_84:
+  case G_74_1:
+  case G_84_1:
     block->p_number =
     block->p_number == -1.0 ? settings->cycle.p : block->p_number;
     CYCLE_MACRO(convert_cycle_g74_g84(block, CANON_PLANE_UV, aa, bb, clear_cc, cc,
@@ -1371,8 +1371,8 @@ int Interp::convert_cycle_yz(int motion, //!< a g-code between G_81 and G_89, a 
                                   block->q_number))
       settings->cycle.q = block->q_number;
     break;
-  case G_74:
-  case G_84:
+  case G_74_1:
+  case G_84_1:
      block->p_number =
      block->p_number == -1.0 ? settings->cycle.p : block->p_number;
      CYCLE_MACRO(convert_cycle_g74_g84(block, CANON_PLANE_YZ, aa, bb, clear_cc, cc,
@@ -1546,8 +1546,8 @@ int Interp::convert_cycle_vw(int motion, //!< a g-code between G_81 and G_89, a 
                                   block->q_number))
       settings->cycle.q = block->q_number;
     break;
-  case G_74:
-  case G_84:
+  case G_74_1:
+  case G_84_1:
     block->p_number =
     block->p_number == -1.0 ? settings->cycle.p : block->p_number;
     CYCLE_MACRO(convert_cycle_g74_g84(block, CANON_PLANE_VW, aa, bb, clear_cc, cc,
@@ -1778,8 +1778,8 @@ int Interp::convert_cycle_zx(int motion, //!< a g-code between G_81 and G_89, a 
                                   block->q_number))
       settings->cycle.q = block->q_number;
     break;
-  case G_74:
-  case G_84:
+  case G_74_1:
+  case G_84_1:
      block->p_number =
          block->p_number == -1.0 ? settings->cycle.p : block->p_number;
     CYCLE_MACRO(convert_cycle_g74_g84(block, CANON_PLANE_XZ, aa, bb, clear_cc, cc,
@@ -1952,8 +1952,8 @@ int Interp::convert_cycle_wu(int motion, //!< a g-code between G_81 and G_89, a 
                                   block->q_number))
       settings->cycle.q = block->q_number;
     break;
-  case G_74:
-  case G_84:
+  case G_74_1:
+  case G_84_1:
      block->p_number =
      block->p_number == -1.0 ? settings->cycle.p : block->p_number;
      CYCLE_MACRO(convert_cycle_g74_g84(block, CANON_PLANE_UW, aa, bb, clear_cc, cc,
