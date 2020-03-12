@@ -2394,6 +2394,9 @@ void EMC_TRAJ_STAT::update(CMS * cms)
     cms->update(probe_tripped);
     cms->update(probeCount);
     cms->update(spindle_sync);
+    cms->update(uu_per_rev);
+    cms->update(spindle_max_acceleration_rps2);
+    cms->update(spindle_cmd_latency_sec);
     cms->update(probing);
     cms->update(probeval);
     cms->update(setterval);

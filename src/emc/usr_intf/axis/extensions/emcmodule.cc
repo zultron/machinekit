@@ -376,6 +376,8 @@ static PyMemberDef Stat_members[] = {
     {(char*)"waiting_on_spindle", T_BOOL, O(motion.traj.waiting_on_spindle),
      READONLY},
     {(char*)"uu_per_rev", T_DOUBLE, O(motion.traj.uu_per_rev), READONLY},
+    {(char*)"spindle_max_acceleration_rps2", T_DOUBLE, O(motion.traj.spindle_max_acceleration_rps2), READONLY},
+    {(char*)"spindle_cmd_latency_sec", T_DOUBLE, O(motion.traj.spindle_cmd_latency_sec), READONLY},
     {(char*)"probing", T_BOOL, O(motion.traj.probing), READONLY},
     {(char*)"probe_val", T_INT, O(motion.traj.probeval), READONLY},
     {(char*)"setter_val", T_INT, O(motion.traj.setterval), READONLY},

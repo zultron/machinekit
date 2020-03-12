@@ -1070,6 +1070,9 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
     bool waiting_on_spindle;    // Waiting for spindle on spindle-synched move
     double spindle_sync;		// Tormach - use as flag for feed/rev mode active
     double uu_per_rev;		// Tormach added 3/12/13 *dpr
+    double spindle_max_acceleration_rps2;
+    double spindle_cmd_latency_sec;
+
     bool probing;		// Are we currently looking for a probe
     // signal.
     int probeval;		// Current value of probe input.

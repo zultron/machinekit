@@ -1177,6 +1177,8 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
     // tormach added to deal with disconnect between motion and interp time *dpr 3/12/13
     stat->uu_per_rev = emcmotStatus.uu_per_rev;
     stat->waiting_on_spindle = emcmotStatus.waiting_on_spindle;
+    stat->spindle_max_acceleration_rps2 = emcmotStatus.spindle_max_acceleration_rps2;
+    stat->spindle_cmd_latency_sec = emcmotStatus.spindle_cmd_latency_sec;
 
     if (EMC_DEBUG_MOTION_TIME & emc_debug) {
 	if (stat->id != last_id) {
