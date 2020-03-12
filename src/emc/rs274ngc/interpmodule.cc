@@ -161,8 +161,7 @@ static PyObject *InterpreterExceptionType = NULL;
 void translateInterpreterException(InterpreterException const &e)
 {
   assert(InterpreterExceptionType != NULL);
-  bp::object pythonExceptionInstance(e);
-  PyErr_SetObject(InterpreterExceptionType, pythonExceptionInstance.ptr());
+  PyErr_SetString(PyExc_RuntimeError, e.what());
 }
 
 static int throw_exceptions = 1;
