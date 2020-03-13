@@ -30,6 +30,8 @@ import struct
 import operator
 import numpy as np
 
+MotionKey = namedtuple('MotionKey', ['motion_type', 'exec_mode', 'tool_no'])
+
 
 def minmax(*args):
     return min(*args), max(*args)
@@ -47,7 +49,6 @@ limiticon = array.array('B',
 
 
 class GLCanon(Translated, ArcsToSegmentsMixin):
-    MotionKey = namedtuple('ToolMotionKey', ['motion_type', 'exec_mode', 'tool_no'])
     lineno = -1
 
     def __init__(self, color_config, geometry, inifile):
@@ -341,7 +342,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def make_motion_key(self, motion_type, exec_mode=None, tool_no=None):
         exec_mode = self.exec_mode if exec_mode is None else exec_mode
         tool_no = self.current_tool if tool_no is None else tool_no
-        return GLCanon.MotionKey(motion_type, exec_mode, tool_no)
+        return MotionKey(motion_type, exec_mode, tool_no)
 
     def draw_rapids(self, for_selection):
         glEnable(GL_LINE_STIPPLE)
