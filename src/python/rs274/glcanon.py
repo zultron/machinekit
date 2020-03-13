@@ -2041,7 +2041,8 @@ class GlCanonDraw:
         self._work_offsets_used = gcode.get_work_offsets_used()
 
         if result <= gcode.MIN_ERROR:
-            self.canon.progress.nextphase(1)
+            if self.canon.progress is not None:
+                self.canon.progress.nextphase(1)
             canon.calc_extents()
             self.stale_dlist('program_rapids')
             self.stale_dlist('program_norapids')

@@ -77,7 +77,7 @@ class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
     def __init__(self, color_config, geometry, lathe_view_option, stat, random, inifile):
         rs274.glcanon.GLCanon.__init__(self, color_config, geometry, inifile)
         rs274.interpret.StatMixin.__init__(self, stat, random)
-        self.progress = DummyProgress()
+        self.progress = None
         self.lathe_view_option = lathe_view_option
         self.tools_used = []
 
