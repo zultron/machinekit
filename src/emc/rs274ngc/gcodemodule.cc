@@ -978,9 +978,7 @@ int planFinishLineSeek(
     AutoRunSettings const &run_settings,
     ExpandedModalState const &run_initial_state
 ){
-    // Try bypassing this whole thing
     set_exec_mode(ParseExecMode::RUN);
-    return INTERP_OK;
     ExpandedModalState state_at_seek{};
     int res_interp = INTERP_OK;
     if (rs274_interp) {
