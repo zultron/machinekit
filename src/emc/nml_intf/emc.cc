@@ -293,6 +293,9 @@ int emcFormat(NMLTYPE type, void *buffer, CMS * cms)
     case EMC_TASK_PLAN_SYNCH_TYPE:
 	((EMC_TASK_PLAN_SYNCH *) buffer)->update(cms);
 	break;
+    case EMC_TASK_PLAN_CLEAR_RECOVERY_INFO_TYPE:
+    ((EMC_TASK_PLAN_CLEAR_RECOVERY_INFO *) buffer)->update(cms);
+    break;
     case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 	((EMC_TASK_PLAN_SET_OPTIONAL_STOP *) buffer)->update(cms);
 	break;
@@ -656,6 +659,8 @@ const char *emc_symbol_lookup(uint32_t type)
 	return "EMC_TASK_PLAN_SYNCH";
     case EMC_TASK_PLAN_SYNCH_EXPORT_TYPE:
     return "EMC_TASK_PLAN_SYNCH_EXPORT";
+    case EMC_TASK_PLAN_CLEAR_RECOVERY_INFO_TYPE:
+    return "EMC_TASK_PLAN_CLEAR_RECOVERY_INFO";
     case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 	return "EMC_TASK_PLAN_SET_OPTIONAL_STOP";
     case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
@@ -1938,6 +1943,7 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(currentLine);
     cms->update(previousLine);
     cms->update(readLine);
+    cms->update(recoveryLine);
     cms->update(stepping_id);
     cms->update(file, 256);
     cms->update(working_dir, 256);

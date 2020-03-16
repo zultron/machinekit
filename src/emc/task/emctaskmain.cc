@@ -1024,6 +1024,7 @@ static int emcTaskPlan(void)
 	    case EMC_TASK_PLAN_INIT_TYPE:
 	    case EMC_TASK_PLAN_SYNCH_TYPE:
         case EMC_TASK_PLAN_SYNCH_EXPORT_TYPE:
+        case EMC_TASK_PLAN_CLEAR_RECOVERY_INFO_TYPE:
         case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 	    case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
 	    case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
@@ -1137,7 +1138,8 @@ static int emcTaskPlan(void)
 		case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
 		case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
                 case EMC_TASK_PLAN_SYNCH_EXPORT_TYPE:
-		case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
+                case EMC_TASK_PLAN_CLEAR_RECOVERY_INFO_TYPE:
+        case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
 		case EMC_TRAJ_PROBE_TYPE:
 		case EMC_AUX_INPUT_WAIT_TYPE:
 		case EMC_TRAJ_RIGID_TAP_TYPE:
@@ -1212,9 +1214,11 @@ static int emcTaskPlan(void)
 		case EMC_TASK_PLAN_REVERSE_TYPE:
 		case EMC_TASK_PLAN_FORWARD_TYPE:
 		case EMC_TASK_PLAN_RESUME_TYPE:
-		case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
+        case EMC_TASK_PLAN_SYNCH_EXPORT_TYPE:
+        case EMC_TASK_PLAN_CLEAR_RECOVERY_INFO_TYPE:
+        case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 		case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
-		case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
+        case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 		case EMC_TASK_SET_MODE_TYPE:
 		case EMC_TASK_SET_STATE_TYPE:
 		case EMC_TASK_ABORT_TYPE:
@@ -1231,7 +1235,6 @@ static int emcTaskPlan(void)
         case EMC_LUBE_OFF_TYPE:
             retval = emcTaskIssueCommand(emcCommand);
             return retval;
-            break;
 
 		case EMC_TASK_PLAN_STEP_TYPE:
             task_debug("Got PLAN_STEP during interp reading\n");
@@ -1307,7 +1310,8 @@ static int emcTaskPlan(void)
 		case EMC_TASK_PLAN_REVERSE_TYPE:
 		case EMC_TASK_PLAN_FORWARD_TYPE:
 		case EMC_TASK_PLAN_RESUME_TYPE:
-		case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
+        case EMC_TASK_PLAN_CLEAR_RECOVERY_INFO_TYPE:
+        case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 		case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
 		case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 		case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
@@ -1377,7 +1381,8 @@ static int emcTaskPlan(void)
 		case EMC_TASK_PLAN_REVERSE_TYPE:
 		case EMC_TASK_PLAN_FORWARD_TYPE:
 		case EMC_TASK_PLAN_RESUME_TYPE:
-		case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
+        case EMC_TASK_PLAN_CLEAR_RECOVERY_INFO_TYPE:
+        case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 		case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
 		case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 		case EMC_TASK_SET_MODE_TYPE:
@@ -1486,7 +1491,8 @@ static int emcTaskPlan(void)
 	    case EMC_TASK_PLAN_SET_OPTIONAL_STOP_TYPE:
 	    case EMC_TASK_PLAN_SET_BLOCK_DELETE_TYPE:
 	    case EMC_TASK_PLAN_RESUME_TYPE:
-	    case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
+        case EMC_TASK_PLAN_CLEAR_RECOVERY_INFO_TYPE:
+        case EMC_TASK_PLAN_OPTIONAL_STOP_TYPE:
 	    case EMC_TASK_ABORT_TYPE:
 	    case EMC_TRAJ_CLEAR_PROBE_TRIPPED_FLAG_TYPE:
 	    case EMC_TRAJ_PROBE_TYPE:
@@ -2449,7 +2455,12 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     emcTrajResume();
     emcTaskResume();
 	retval = 0;
-	break;
+    break;
+
+    case EMC_TASK_PLAN_CLEAR_RECOVERY_INFO_TYPE:
+        emcStatus->task.recoveryLine = 0;
+        retval = 0;
+        break;
 
     case EMC_TASK_PLAN_END_TYPE:
         end_msg = (EMC_TASK_PLAN_END *) cmd;
@@ -2457,6 +2468,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
             emcStatus->task.program_ended_and_reset = 1;
             emcStatus->task.currentLine = 0;
             emcStatus->task.previousLine = 0;
+            // TODO reset recovery line here?
 
             static_cast<Interp*>(pinterp)->_setup.sequence_number = 0;
             interp_list.set_line_number(0);

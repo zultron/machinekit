@@ -316,6 +316,7 @@ static PyMemberDef Stat_members[] = {
     {(char*)"motion_line", T_INT, O(task.motionLine), READONLY},
     {(char*)"current_line", T_INT, O(task.currentLine), READONLY},
     {(char*)"previous_line", T_INT, O(task.previousLine), READONLY},
+    {(char*)"recovery_line", T_INT, O(task.recoveryLine), READONLY},
     {(char*)"file", T_STRING_INPLACE, O(task.file), READONLY},
     {(char*)"working_dir", T_STRING_INPLACE, O(task.working_dir), READONLY},
     {(char*)"command", T_STRING_INPLACE, O(task.command), READONLY},
@@ -1186,6 +1187,13 @@ static PyObject *synch_and_export(pyCommandChannel *s, PyObject *o) {
     return Py_None;
 }
 
+static PyObject *clear_recovery_info(pyCommandChannel *s, PyObject *) {
+    EMC_TASK_PLAN_CLEAR_RECOVERY_INFO m;
+    emcSendCommand(s, m);
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyObject *emcauto(pyCommandChannel *s, PyObject *o) {
     int fn;
     EMC_TASK_PLAN_RUN run{};
@@ -1431,6 +1439,7 @@ static PyMethodDef Command_methods[] = {
     {"set_axis_max_velocity", (PyCFunction)set_axis_max_velocity, METH_VARARGS},
     {"program_close", (PyCFunction)program_close, METH_NOARGS},
     {"synch_and_export", (PyCFunction)synch_and_export, METH_VARARGS},
+    {"clear_recovery_info", (PyCFunction)clear_recovery_info, METH_NOARGS},
     {NULL}
 };
 

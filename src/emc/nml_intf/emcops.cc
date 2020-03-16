@@ -125,6 +125,7 @@ EMC_TASK_STAT::EMC_TASK_STAT():
     currentLine(0),
     previousLine(0),
     readLine(0),
+    recoveryLine(0),
     stepping_id(0),
     file(),
     command(),

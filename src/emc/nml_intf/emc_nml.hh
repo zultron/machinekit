@@ -1393,6 +1393,17 @@ class EMC_TASK_PLAN_RESUME:public EMC_TASK_CMD_MSG {
     void update(CMS * cms);
 };
 
+class EMC_TASK_PLAN_CLEAR_RECOVERY_INFO:public EMC_TASK_CMD_MSG {
+  public:
+    EMC_TASK_PLAN_CLEAR_RECOVERY_INFO():EMC_TASK_CMD_MSG(EMC_TASK_PLAN_CLEAR_RECOVERY_INFO_TYPE,
+                        sizeof(EMC_TASK_PLAN_CLEAR_RECOVERY_INFO)) {
+    }
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms) { static_cast<EMC_TASK_CMD_MSG*>(this)->update(cms);}
+};
+
+
 class EMC_TASK_PLAN_END:public EMC_TASK_CMD_MSG {
   public:
     EMC_TASK_PLAN_END():EMC_TASK_CMD_MSG(EMC_TASK_PLAN_END_TYPE,
@@ -1524,6 +1535,8 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     int currentLine;		// line currently "executing" in task (tends to lead motion)
     int previousLine;		// previous line handled by task
     int readLine;		// line interpreter has read to
+    int recoveryLine;		// tracks currentLine when running, and latches the last "current" line on
+                            // abort or mode change so that UI's know where to restart
     int stepping_id;		// ID of block we are stepping on
 
     char file[LINELEN];

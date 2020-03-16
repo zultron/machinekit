@@ -612,6 +612,7 @@ int emcTaskPlanOpen(const char *file, const char *working_dir)
         emcStatus->task.currentLine = 0;
         emcStatus->task.previousLine = 0;
         emcStatus->task.readLine = 0;
+        emcStatus->task.recoveryLine = 0;
         emcStatus->task.stepping_id = 0;
     }
 
@@ -702,6 +703,7 @@ int emcTaskPlanReset()
     if (retval > INTERP_MIN_ERROR) {
 	print_interp_error(retval);
     }
+    emcStatus->task.recoveryLine = 0;
 
     return retval;
 }
@@ -818,6 +820,7 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
     if (emcStatus->task.currentLine != tag->fields[GM_FIELD_LINE_NUMBER]) {
         emcStatus->task.previousLine = emcStatus->task.currentLine;
         emcStatus->task.currentLine = tag->fields[GM_FIELD_LINE_NUMBER];
+        emcStatus->task.recoveryLine = emcStatus->task.currentLine;
     }
     emcStatus->task.stepping_id = tag->fields[GM_FIELD_STEPPING_ID];
     emcStatus->task.programUnits = (
