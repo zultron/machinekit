@@ -582,13 +582,11 @@ class GlCanonDraw:
         for base, count in self._dlists.values():
             glDeleteLists(base, count)
 
-    def update_highlight_variable(self, line):
-        self.highlight_line = line
-
     def set_current_line(self, line): pass
     def set_highlight_line(self, line):
-        if line == self.get_highlight_line(): return
-        self.update_highlight_variable(line)
+        if line == self.get_highlight_line():
+            return
+        self.highlight_line = line
         highlight = self.dlist('highlight')
         glNewList(highlight, GL_COMPILE)
         if line is not None and self.canon is not None:
@@ -2060,7 +2058,7 @@ class GlCanonDraw:
         return [a*b for a, b in zip(pos, lus)]
 
     def get_highlight_line(self):
-        pass
+        return self.highlight_line
 
     def lkup_color(self, s):
         a = self.color_config.get_alpha_or_default(s)

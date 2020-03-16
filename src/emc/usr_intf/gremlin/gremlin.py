@@ -508,7 +508,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         for i in self.stat.tool_table:
             if i[0] == self.stat.tool_in_spindle:
                 return i
-    def get_highlight_line(self): return self.highlight_line
 
     def get_a_axis_wrapped(self): return self.a_axis_wrapped
     def get_b_axis_wrapped(self): return self.b_axis_wrapped
