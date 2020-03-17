@@ -47,6 +47,8 @@ public:
     int addLinearFeedMove(PositionArray const &goal, double feed_prog, AxisMask active_axes=-1);
     int addLinearRapidMove(PositionArray const &goal, AxisMask active_axes=-1);
 
+    int addFeedRate(double feed_rate);
+
     int gen_modalStateRestore(ModalState & current, const ModalState & saved);
 
     void cancelToolCompensation();

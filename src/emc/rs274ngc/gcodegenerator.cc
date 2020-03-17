@@ -308,6 +308,15 @@ int GCodeGenerator::addLinearRapidMove(PositionArray const & goal, AxisMask acti
     return 0;
 }
 
+int GCodeGenerator::addFeedRate(double feed_rate)
+{
+    std::ostringstream feed_word;
+    feed_word << "F" << std::fixed << std::setprecision(8) << feed_rate;
+
+    cmd_list.emplace_back(feed_word.str());
+    return 0;
+}
+
 int GCodeGenerator::gen_modalStateRestore(ModalState & current, const ModalState & saved)
 {
     if (current.g_codes[G_CODE_UNITS] !=
