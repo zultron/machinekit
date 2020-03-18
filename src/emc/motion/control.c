@@ -294,7 +294,7 @@ check_stuff ( "after update_status()" );
 */
 
 
-void stop_motion_unexpected_trip(int setter_changed) {
+void stop_motion_unexpected_trip(char *err_src) {
   int abort_type = 0;
 
   for (int i = 0; i < num_joints; i++) {
@@ -327,8 +327,6 @@ void stop_motion_unexpected_trip(int setter_changed) {
     }
   }
 
-  char *err_src = setter_changed ? "Probe" : "Tool setter";
-
   // abort_type == 0 if no axes are active, be quiet
   if (abort_type == 1) {
     reportError("%s input changed during homing motion.", err_src);
@@ -343,19 +341,22 @@ void stop_motion_unexpected_trip(int setter_changed) {
 static void process_probe_inputs(void) {
     static int old_probeVal = 0;
     static int old_setterVal = 0;
+    char *probe_str = "Probe";
+    char *tool_setter_str = "Tool setter";
+    char *probe_or_tool_setter_str = "Probe or tool setter";
     unsigned char probe_type = emcmotStatus->probe_type;
 
-    // don't error
+    // do not error during probe or tool setter operations - G38.3 or G38.5
     char probe_suppress_error = probe_type & 1;
 
-    // trigger when the probe clears, instead of the usual case of triggering when it trips
+    // trigger when the probe clears G38.4, instead of the usual case of triggering when it trips G38.2
     char probe_whenclears = !!(probe_type & 2);
     
     // g38.6 move - ignore all inputs so we can back off a tripped point and ignore any bounce. Tormach *dpr 4/2/15
     char ignore_expected_input = !!(probe_type & 4);
 
-    // check if this is a tool setter probe operation - G38.x Q1
-    char tool_setter_probe = !!(probe_type & 8);
+    // check if this is a tool setter or probe operation - G38.x Q1 indicates tool setter
+    char tool_setter_operation = !!(probe_type & 8);
 
     // read tool setter HAL pin
     emcmotStatus->setterVal = !!*(emcmot_hal_data->setter_input);
@@ -364,10 +365,6 @@ static void process_probe_inputs(void) {
 
     /* read probe HAL pin */
     emcmotStatus->probeVal = !!*(emcmot_hal_data->probe_input);
-
-    // rising edge on inputs
-    //int probe_tripped = !old_probeVal && emcmotStatus->probeVal;
-    //int setter_tripped = setterHasPin && !old_setterVal && emcmotStatus->setterVal;
 
     // rising or falling edge on inputs
     int probe_changed = old_probeVal != emcmotStatus->probeVal;
@@ -381,30 +378,40 @@ static void process_probe_inputs(void) {
       int probe_success = 0;
 
       // always check for change on the unexpected input
-      if (tool_setter_probe) {
-        // expecting tool setter trip, error if probe changed
-        if (setterHasPin && probe_changed) {
-          // discrete setter pin present and probe changed during tool setter move, stop
-          stop_motion_unexpected_trip(!probe_changed);
-          reportError(_("Probe input changed while expecting tool setter trip."));
-          SET_MOTION_ERROR_FLAG(1);
-          emcmotStatus->probing = 0;
+      // if setter and probe are on different inputs
+      // it could mean probe or setter is plugged into the incorrect port
+      // do this even during G38.6
+      if (setterHasPin) {
+        int unexpected_input_tripped = 0;
+        // discrete setter pin present
+        if (tool_setter_operation && probe_changed) {
+            // probe changed during tool setter move
+            stop_motion_unexpected_trip(probe_str);
+            reportError(_("Probe input changed while expecting tool setter trip."));
+            unexpected_input_tripped = 1;
         }
-      }
-      else {
-        // expecting probe trip, error if tool setter changed
-        if (setter_changed) {
-          // setter changed during probe move, stop
-          stop_motion_unexpected_trip(setter_changed);
+        if (!tool_setter_operation && setter_changed) {
+          // setter changed during probe move
+          stop_motion_unexpected_trip(tool_setter_str);
           reportError(_("Tool setter input changed while expecting probe trip."));
+          unexpected_input_tripped = 1;
+        }
+        if (unexpected_input_tripped) {
+          // set error, cancel probing
           SET_MOTION_ERROR_FLAG(1);
           emcmotStatus->probing = 0;
+          old_probeVal = emcmotStatus->probeVal;
+          old_setterVal = emcmotStatus->setterVal;
+
+          // early exit
+          return;
         }
       }
 
+      // still probing or setting
       if (!ignore_expected_input) {
         // non-G38.6 move - check for trip
-        if (tool_setter_probe) {
+        if (tool_setter_operation) {
           // check tool setter input
           // default to use probe input
           int setterVal = emcmotStatus->probeVal;
@@ -463,13 +470,22 @@ static void process_probe_inputs(void) {
           }
         }
       }
-    } else {
+    }
+    else {
       // not probing or tool setting
-      if (probe_contact_made) {
-        stop_motion_unexpected_trip(false);
-      }
       if (setter_contact_made) {
-        stop_motion_unexpected_trip(true);
+        // setter changed during non setter move
+        // setter_contact_made includes setterHasPin check
+        stop_motion_unexpected_trip(tool_setter_str);
+      }
+      else if (probe_contact_made) {
+        if (setterHasPin) {
+          stop_motion_unexpected_trip(probe_str);
+        }
+        else {
+          // no discrete setter input so source could be either
+          stop_motion_unexpected_trip(probe_or_tool_setter_str);
+        }
       }
     }
 
