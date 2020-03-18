@@ -192,7 +192,7 @@ void CANON_MSG(const char *fmt, ...) __attribute__((format(printf,1,2)));
   the GET_EXTERNAL_LENGTH_UNITS() function.
   */
 
-static CANON_UNITS lengthUnits = CANON_UNITS_MM;
+static CANON_UNITS lengthUnits = CANON_UNITS_INVALID;
 static CANON_PLANE activePlane = CANON_PLANE_XY;
 
 inline static double getProgramLengthUnits(void)
@@ -2794,10 +2794,10 @@ double GET_EXTERNAL_TOOL_LENGTH_WOFFSET()
     return TO_PROG_LEN(getToolOffsetByIndex(W));
 }
 
-/*
-  INIT_CANON()
-  Initialize canonical local variables to defaults
-  */
+/**
+ * Initialize canonical local variables to defaults.
+ * Exception is length units, which are untouched if already in a valid state
+ */
 void INIT_CANON()
 {
     double units;
@@ -2808,6 +2808,8 @@ void INIT_CANON()
     EMC_TRAJ_CLEAR_G5X_TABLE clear_g5x_table;
     interp_list.append(clear_g5x_table);
 
+    // Changing these should not directly affect interp / canon state
+    // (coordinate systems, scale factors, etc.), so we can just init to defaults here:
     activePlane = CANON_PLANE_XY;
     canonUpdateEndPoint({});
     SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, 0);
@@ -2819,21 +2821,29 @@ void INIT_CANON()
     currentAngularFeedRate = 0.0;
     uuPerRev_vel = 0.0;
     uuPerRev_pos = 0.0;
-    /* 
-       to set the units, note that GET_EXTERNAL_LENGTH_UNITS() returns
-       traj->linearUnits, which is already set from the .ini file in
-       iniTraj(). This is a floating point number, in user units per mm. We
-       can compare this against known values and set the symbolic values
-       accordingly. If it doesn't match, we have an error. */
-    units = GET_EXTERNAL_LENGTH_UNITS();
-    if (fabs(units - 1.0 / 25.4) < 1.0e-3) {
-        USE_LENGTH_UNITS(CANON_UNITS_INCHES);
-    } else if (fabs(units - 1.0) < 1.0e-3) {
-        USE_LENGTH_UNITS(CANON_UNITS_MM);
-    } else {
-        CANON_ERROR
+
+    // Changing units IS a big deal, so only "init" the value if it's garbage
+    switch (lengthUnits) {
+    case CANON_UNITS_INCHES:
+    case CANON_UNITS_MM:
+        // Don't touch already valid units here since we want to match interp
+        break;
+    default:
+        /* to set the units, note that GET_EXTERNAL_LENGTH_UNITS() returns
+         * traj->linearUnits, which is already set from the .ini file in
+         * iniTraj(). This is a floating point number, in user units per mm. We
+         * can compare this against known values and set the symbolic values
+         * accordingly. If it doesn't match, we have an error. */
+        units = GET_EXTERNAL_LENGTH_UNITS();
+        if (fabs(units - 1.0 / 25.4) < 1.0e-3) {
+            USE_LENGTH_UNITS(CANON_UNITS_INCHES);
+        } else if (fabs(units - 1.0) < 1.0e-3) {
+            USE_LENGTH_UNITS(CANON_UNITS_MM);
+        } else {
+            CANON_ERROR
                 ("non-standard length units, setting interpreter to mm");
-        USE_LENGTH_UNITS(CANON_UNITS_MM);
+            USE_LENGTH_UNITS(CANON_UNITS_MM);
+        }
     }
 }
 
