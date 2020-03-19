@@ -25,6 +25,7 @@ import array
 import gcode
 import os
 from collections import defaultdict, namedtuple
+import time
 
 
 def minmax(*args):
@@ -289,6 +290,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.lo = (x, y, z, a, b, c, u, v, w)
 
     def highlight(self, lineno, geometry):
+        t0 = time.time()
         glLineWidth(3)
         c = self.color_config.get_color('selected')
         glColor3f(*c)
@@ -317,6 +319,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             x = (self.min_extents[0] + self.max_extents[0])/2
             y = (self.min_extents[1] + self.max_extents[1])/2
             z = (self.min_extents[2] + self.max_extents[2])/2
+
+        print "gremlin.highlight() call time: {}".format(time.time()-t0)
         return x, y, z
 
     def get_visible_tools(self):
@@ -507,6 +511,7 @@ class GlCanonDraw:
 
     def select(self, x, y):
         if self.canon is None: return
+        t0 = time.time()
         pmatrix = glGetDoublev(GL_PROJECTION_MATRIX)
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
@@ -542,6 +547,7 @@ class GlCanonDraw:
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
+        print "glcanon.select() call time: {}".format(time.time()-t0)
 
     def dlist(self, name, n=1, gen=lambda n: None):
         if name not in self._dlists:
@@ -1168,11 +1174,11 @@ class GlCanonDraw:
                 inverse_permutations[view])
 
     def redraw(self):
+        t0 = time.time()
         s = self.stat
         s.poll()
 
         machine_limit_min, machine_limit_max = self.soft_limits()
-
         glDisable(GL_LIGHTING)
         glMatrixMode(GL_MODELVIEW)
         self.draw_grid()
@@ -1581,6 +1587,7 @@ class GlCanonDraw:
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
+        print "glcanon.redraw() call time: {}".format(time.time()-t0)
 
     def cache_tool(self, current_tool):
         self.cached_tool = current_tool
@@ -1970,6 +1977,7 @@ class GlCanonDraw:
         return mid, size
 
     def make_selection_list(self, unused=None):
+        t0 = time.time()
         glNewList(self.dlist('select_norapids'), GL_COMPILE)
         if self.canon:
             self.canon.draw_nonrapids(True)
@@ -1979,6 +1987,7 @@ class GlCanonDraw:
         if self.canon:
             self.canon.draw_rapids(True)
         glEndList()
+        print "glcanon.make_selection_list() call time: {}".format(time.time()-t0)
 
     def make_main_list(self, unused=None):
         glNewList(self.dlist('program_norapids'), GL_COMPILE)
