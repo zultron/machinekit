@@ -869,5 +869,7 @@ void initminigl(void) {
     CONST(GL_UNPACK_ALIGNMENT);
     CONST(GL_LUMINANCE);
     CONST(GL_UNSIGNED_BYTE);
+    CONST(GL_RGB);
+    CONST(GL_RGBA);
 
 }
