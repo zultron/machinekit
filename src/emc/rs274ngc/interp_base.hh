@@ -44,8 +44,8 @@ public:
     virtual char *line_text(char *buf, size_t buflen) = 0;
     virtual char *file_name(char *buf, size_t buflen) = 0;
     virtual char *stack_name(int index, char *buf, size_t buflen) = 0;
-    virtual size_t line_length() = 0;
-    virtual int sequence_number() = 0;
+    virtual size_t line_length() const = 0;
+    virtual int sequence_number() const = 0;
     virtual int ini_load(const char *inifile) = 0;
     virtual int init() = 0;
     virtual int execute() = 0;
@@ -58,7 +58,8 @@ public:
     virtual int read(const char *line, CommandSource cmd_src) = 0;
     virtual int close() = 0;
     virtual int reset() = 0;
-    virtual int line() = 0;
+    virtual int line() const = 0;
+    virtual int toplevel_line() const = 0;
     virtual int const &call_level() const = 0;
     virtual int const &remap_level() const = 0;
     virtual char *command(char *buf, size_t buflen) = 0;

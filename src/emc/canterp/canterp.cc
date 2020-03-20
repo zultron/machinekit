@@ -70,8 +70,8 @@ public:
     char *stack_name(int index, char *buf, size_t buflen);
     char *line_text(char *buf, size_t buflen);
     char *file_name(char *buf, size_t buflen);
-    size_t line_length();
-    int sequence_number();
+    size_t line_length() const;
+    int sequence_number() const;
     int ini_load(const char *inifile);
     int init();
     int execute();
@@ -84,7 +84,8 @@ public:
     int read(const char *line, CommandSource cmd_src);
     int close();
     int reset();
-    int line();
+    int line() const;
+    int toplevel_line() const;
     int const &call_level() const;
     int const &remap_level() const;
     char *command(char *buf, size_t buflen);
@@ -702,7 +703,8 @@ int Canterp::close() {
 int Canterp::exit() { return 0; }
 int Canterp::synch() { return 0; }
 int Canterp::reset() { return 0; }
-int Canterp::line() { return 0; }
+int Canterp::line() const { return 0; }
+int Canterp::toplevel_line() const { return 0; }
 const int & Canterp::call_level() const {
     static int cl = 0;
     return cl;
@@ -742,10 +744,10 @@ char *Canterp::command(char *buf, size_t bufsize) {
    snprintf(buf, bufsize, "<Canterp::command>");
    return buf;
 }
-size_t Canterp::line_length() {
+size_t Canterp::line_length() const {
    return 0;
 }
-int Canterp::sequence_number() {
+int Canterp::sequence_number() const {
    return -1;
 }
 int Canterp::init() { return INTERP_OK; }

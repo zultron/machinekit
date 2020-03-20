@@ -167,14 +167,14 @@ public:
  char *file_name(char *file_name, size_t max_size);
 
 // return the length of the most recently read line
- size_t line_length();
+ size_t line_length() const;
 
 // copy the text of the most recently read line into the line_text array,
 // but stop at max_size if the text is longer
  char *line_text(char *line_text, size_t max_size);
 
 // return the current sequence number (how many lines read)
- int sequence_number();
+ int sequence_number() const;
 
 // copy the function name from the stack_index'th position of the
 // function call stack at the time of the most recent error into
@@ -185,7 +185,8 @@ public:
 // Get the parameter file name from the ini file.
  int ini_load(const char *filename);
 
- int line() { return sequence_number(); }
+ int line() const { return sequence_number(); }
+ int toplevel_line() const { return _setup.get_toplevel_line_number(); }
  const int & call_level() const;
  const int & remap_level() const;
 

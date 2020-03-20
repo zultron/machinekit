@@ -3064,7 +3064,7 @@ Called By: external programs
 
 */
 
-size_t Interp::line_length()
+size_t Interp::line_length() const
 {
   return _setup.line_length;
 }
@@ -3116,7 +3116,7 @@ Called By: external programs
 
 */
 
-int Interp::sequence_number()
+int Interp::sequence_number() const
 {
   return _setup.sequence_number;
 }
