@@ -174,6 +174,21 @@ GLCALL2V(glBlendFunc, "ii", int, int)
 GLCALL0V(glFlush)
 GLCALL2V(glPixelStorei, "ii", int, int)
 
+static PyObject *pyglForceColorPassthrough(PyObject *s, PyObject *o) {
+    glDisable (GL_BLEND);
+    glDisable (GL_DITHER);
+    glDisable (GL_FOG);
+    glDisable (GL_LIGHTING);
+    glDisable (GL_TEXTURE_1D);
+    glDisable (GL_TEXTURE_2D);
+    glDisable (GL_TEXTURE_3D);
+    glShadeModel (GL_FLAT);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    CHECK_ERROR;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyObject *pyglBitmap(PyObject *s, PyObject *o) {
     int width, height, nbitmap;
     float xorg, yorg, xmove, ymove;
@@ -772,7 +787,7 @@ METH(gluQuadricOrientation, "specify inside/outside orientation for quadrics"),
 METH(gluUnProject, "map window coordinates to object coordinates"),
 METH(glBitmap, "draw a bitmap"),
 METH(glReadPixels, "read pixels"),
-
+        {"glForceColorPassthrough", pyglForceColorPassthrough, METH_NOARGS, "Force disable anything that would alter colors in a viewport"},
 
 #undef METH
 {NULL, NULL, 0, 0},

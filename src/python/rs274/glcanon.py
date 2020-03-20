@@ -527,6 +527,8 @@ class GlCanonDraw:
         clear_color = [0, 0, 0, 0]
         glClearColor(*clear_color)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        # This is mostly for insurance, doesn't seem to have an effect currently
+        glForceColorPassthrough()
 
         t0_tmp = time.time()
         if self.get_show_rapids():
