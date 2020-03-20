@@ -522,12 +522,14 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def select_prime(self, x, y):
         self.select_primed = x, y
 
-    @rs274.glcanon.with_context
     def select_fire(self, widget, event):
         if not self.select_primed: return
         x, y = self.select_primed
         self.select_primed = None
         self.select(x, y)
+        # KLUDGE Need to redraw after picking since we draw over the front buffer in color picking
+        # TODO use the back buffer only and avoid this
+        self.expose()
 
     def select_cancel(self, widget=None, event=None):
         self.select_primed = None

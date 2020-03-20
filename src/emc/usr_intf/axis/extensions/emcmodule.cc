@@ -1807,7 +1807,20 @@ static PyObject *pydraw_lines(PyObject *s, PyObject *o) {
         if(!gl_wrapper.started() || memcmp(p1, pl, sizeof(p1)) || (for_selection && segment_line_no != active_line_no)){
             gl_wrapper.end();
             if (for_selection && segment_line_no != active_line_no) {
-                glLoadName(segment_line_no);
+                // NOTE: this doesn't currently get passed through, so we only
+                // really have 24 bits of resolution in line numbers (16.7
+                // million lines ought to be enough for anybody) Effectively
+                // "a" is the overflow right now
+                unsigned a = (segment_line_no & 0xFF000000) >> 24;
+                if (!a) {
+                    unsigned r = (segment_line_no & 0x000000FF) >>  0;
+                    unsigned g = (segment_line_no & 0x0000FF00) >>  8;
+                    unsigned b = (segment_line_no & 0x00FF0000) >> 16;
+                    glColor4ub(r,g,b,0xFF);
+                } else {
+                    // Ignore any lines above our cutoff since we can't distinguish them anyway
+                    glColor4ub(0,0,0,0xFF);
+                }
                 active_line_no = segment_line_no;
             }
             gl_wrapper.begin(GL_LINE_STRIP);

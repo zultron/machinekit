@@ -26,6 +26,9 @@ import gcode
 import os
 from collections import defaultdict, namedtuple
 import time
+import struct
+import operator
+import numpy as np
 
 
 def minmax(*args):
@@ -290,7 +293,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.lo = (x, y, z, a, b, c, u, v, w)
 
     def highlight(self, lineno, geometry):
-        t0 = time.time()
+        #t0 = time.time()
         glLineWidth(3)
         c = self.color_config.get_color('selected')
         glColor3f(*c)
@@ -320,7 +323,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             y = (self.min_extents[1] + self.max_extents[1])/2
             z = (self.min_extents[2] + self.max_extents[2])/2
 
-        print "gremlin.highlight() call time: {}".format(time.time()-t0)
+        #print "gremlin.highlight() call time: {}".format(time.time()-t0)
         return x, y, z
 
     def get_visible_tools(self):
@@ -483,6 +486,7 @@ class GlCanonDraw:
         self.y_limit_negative = float(inifile.find("AXIS_1", "MIN_LIMIT") or 0)
         self.z_limit_positive = float(inifile.find("AXIS_2", "MAX_LIMIT"))
         self.z_limit_negative = float(inifile.find("AXIS_2", "MIN_LIMIT"))
+        self.highlight_line = None
 
     def update_glcanon(self, new_canon):
         self.canon = new_canon
@@ -509,45 +513,57 @@ class GlCanonDraw:
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
 
-    def select(self, x, y):
-        if self.canon is None: return
-        t0 = time.time()
-        pmatrix = glGetDoublev(GL_PROJECTION_MATRIX)
-        glMatrixMode(GL_PROJECTION)
-        glPushMatrix()
-        glLoadIdentity()
+    @with_context_swap
+    def select(self, x, y_inv):
+        if self.canon is None:
+            return
+        # t0 = time.time()
+        # invert y now
         vport = glGetIntegerv(GL_VIEWPORT)
-        gluPickMatrix(x, vport[3]-y, 5, 5, vport)
-        glMultMatrixd(pmatrix)
+        y = vport[3] - y_inv
+        # print "viewport is {}, with pick location ({}, {})".format(vport, x, y))
         glMatrixMode(GL_MODELVIEW)
 
-        while 1:
-            glSelectBuffer(self.select_buffer_size)
-            glRenderMode(GL_SELECT)
-            glInitNames()
-            glPushName(0)
+        clear_color = [0, 0, 0, 0]
+        glClearColor(*clear_color)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-            if self.get_show_rapids():
-                glCallList(self.dlist('select_rapids', gen=self.make_selection_list))
-            glCallList(self.dlist('select_norapids', gen=self.make_selection_list))
+        t0_tmp = time.time()
+        if self.get_show_rapids():
+            glCallList(self.dlist('select_rapids', gen=self.make_selection_list))
+        glCallList(self.dlist('select_norapids', gen=self.make_selection_list))
+        # print "glCallList(s) call time: {}".format(time.time()-t0_tmp)
+        glFlush()
 
-            try:
-                buffer = list(glRenderMode(GL_RENDER))
-            except OverflowError:
-                self.select_buffer_size *= 2
-                continue
-            break
+        # This brute-force search is inefficient but it's fast enough
+        search_radius = 3
+        x = int(x)
+        y = int(y)
+        found = defaultdict(int)
 
-        if buffer:
-            min_depth, max_depth, names = min(buffer)
-            self.set_highlight_line(names[0])
+        x_min = max(x - search_radius, vport[0])
+        x_max = min(x + search_radius, vport[2])
+        y_min = max(y - search_radius, vport[1])
+        y_max = min(y + search_radius, vport[3])
+        # print "searching vport subsection {}".format([x_min, y_min, x_max, y_max])
+        for x_test in range(x_min, x_max +1):
+            for y_test in range(y_min, y_max + 1):
+                px_data = glReadPixels(int(x_test), int(y_test), 1, 1, GL_RGB, GL_UNSIGNED_BYTE)
+                rgba = [struct.unpack("@b", px_elem) for px_elem in px_data]
+                # print "pixel rgba is {}".format(rgba)
+                picked_line_no = struct.unpack("<I", px_data[0:3]+'\0')[0] if rgba != clear_color else None
+                # Weight by maximum pixel distance
+                w = (2*search_radius + 1) ** 2 / max(abs(np.array([x_test-x, y_test-y, 1])))
+                found[picked_line_no] += float(picked_line_no > 0) * w
+                # print "pixel at {}, {} is line {} with weight {}".format(x_test, y_test, picked_line_no, found[picked_line_no])
+
+        most_hits = max(found.iteritems(), key=operator.itemgetter(1))[0]
+        if most_hits and found[most_hits] > 0:
+            # print "found best candidate {} with weight {}".format(most_hits, found[most_hits])
+            self.set_highlight_line(most_hits)
         else:
             self.set_highlight_line(None)
-
-        glMatrixMode(GL_PROJECTION)
-        glPopMatrix()
-        glMatrixMode(GL_MODELVIEW)
-        print "glcanon.select() call time: {}".format(time.time()-t0)
+        # print "glcanon.select() call time: {}".format(time.time()-t0)
 
     def dlist(self, name, n=1, gen=lambda n: None):
         if name not in self._dlists:
@@ -565,7 +581,7 @@ class GlCanonDraw:
         for base, count in self._dlists.values():
             glDeleteLists(base, count)
 
-    def update_highlight_variable(self,line):
+    def update_highlight_variable(self, line):
         self.highlight_line = line
 
     def set_current_line(self, line): pass
@@ -1587,7 +1603,7 @@ class GlCanonDraw:
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
-        print "glcanon.redraw() call time: {}".format(time.time()-t0)
+        #print "glcanon.redraw() call time: {}".format(time.time()-t0)
 
     def cache_tool(self, current_tool):
         self.cached_tool = current_tool
@@ -1977,7 +1993,6 @@ class GlCanonDraw:
         return mid, size
 
     def make_selection_list(self, unused=None):
-        t0 = time.time()
         glNewList(self.dlist('select_norapids'), GL_COMPILE)
         if self.canon:
             self.canon.draw_nonrapids(True)
@@ -1987,7 +2002,6 @@ class GlCanonDraw:
         if self.canon:
             self.canon.draw_rapids(True)
         glEndList()
-        print "glcanon.make_selection_list() call time: {}".format(time.time()-t0)
 
     def make_main_list(self, unused=None):
         glNewList(self.dlist('program_norapids'), GL_COMPILE)
