@@ -1744,14 +1744,48 @@ static PyObject *pyvertex9(PyObject *s, PyObject *o) {
     return Py_BuildValue("(ddd)", &pt[0], &pt[1], &pt[2]);
 }
 
+/**
+ * RAII wrapper for glBegin / glEnd to avoid manual management of "first" flag
+ */
+struct GLBeginEndWrapper
+{
+private:
+    GLBeginEndWrapper(const GLBeginEndWrapper&) = delete;
+    GLBeginEndWrapper& operator=(const GLBeginEndWrapper&) = delete;
+    int draw_type;
+
+public:
+    GLBeginEndWrapper() : draw_type(-1) {}
+    bool begin(int draw_type_begin) {
+        if (draw_type < 0) {
+            draw_type = draw_type_begin;
+            glBegin(draw_type);
+            return true;
+        }
+        return false;
+    }
+    void end() {
+        if (draw_type >= 0) {
+            glEnd();
+            draw_type = -1;
+        }
+    }
+    bool started() const {
+        return draw_type >= 0;
+    }
+    ~GLBeginEndWrapper() {
+        end();
+    }
+};
+
 static PyObject *pydraw_lines(PyObject *s, PyObject *o) {
     PyListObject *li;
     int for_selection = 0;
     int i;
-    int first = 1;
-    int nl = -1, n;
+    unsigned active_line_no = -1, segment_line_no;
     double p1[9], p2[9], pl[9];
     char *geometry;
+    GLBeginEndWrapper gl_wrapper{};
 
     if(!PyArg_ParseTuple(o, "sO!|i:draw_lines",
 			    &geometry, &PyList_Type, &li, &for_selection))
@@ -1760,7 +1794,7 @@ static PyObject *pydraw_lines(PyObject *s, PyObject *o) {
     for(i=0; i<PyList_GET_SIZE(li); i++) {
         PyObject *it = PyList_GET_ITEM(li, i);
         PyObject *dummy1, *dummy2, *dummy3;
-        if(!PyArg_ParseTuple(it, "i(ddddddddd)(ddddddddd)|OOO", &n,
+        if(!PyArg_ParseTuple(it, "i(ddddddddd)(ddddddddd)|OOO", &segment_line_no,
                     p1+0, p1+1, p1+2,
                     p1+3, p1+4, p1+5,
                     p1+6, p1+7, p1+8,
@@ -1768,25 +1802,20 @@ static PyObject *pydraw_lines(PyObject *s, PyObject *o) {
                     p2+3, p2+4, p2+5,
                     p2+6, p2+7, p2+8,
                     &dummy1, &dummy2, &dummy3)) {
-            if(!first) glEnd();
             return NULL;
         }
-        if(first || memcmp(p1, pl, sizeof(p1))
-                || (for_selection && n != nl)) {
-            if(!first) glEnd();
-            if(for_selection && n != nl) {
-                glLoadName(n);
-                nl = n;
+        if(!gl_wrapper.started() || memcmp(p1, pl, sizeof(p1)) || (for_selection && segment_line_no != active_line_no)){
+            gl_wrapper.end();
+            if (for_selection && segment_line_no != active_line_no) {
+                glLoadName(segment_line_no);
+                active_line_no = segment_line_no;
             }
-            glBegin(GL_LINE_STRIP);
+            gl_wrapper.begin(GL_LINE_STRIP);
             glvertex9(p1, geometry);
-            first = 0;
         }
         line9(p1, p2, geometry);
         memcpy(pl, p2, sizeof(p1));
     }
-
-    if(!first) glEnd();
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -2381,13 +2410,11 @@ static PyTypeObject PositionLoggerType = {
 };
 
 static PyMethodDef emc_methods[] = {
-#define METH(name, doc) { #name, (PyCFunction) py##name, METH_VARARGS, doc }
-METH(draw_lines, "Draw a bunch of lines in the 'rs274.glcanon' format"),
-METH(draw_dwells, "Draw a bunch of dwell positions in the 'rs274.glcanon' format"),
-METH(line9, "Draw a single line in the 'rs274.glcanon' format; assumes glBegin(GL_LINES)"),
-METH(vertex9, "Get the 3d location for a 9d point"),
-    {NULL}
-#undef METH
+    {"draw_lines", pydraw_lines, METH_VARARGS, "Draw a bunch of lines in the 'rs274.glcanon' format"},
+    {"draw_dwells", pydraw_dwells, METH_VARARGS, "Draw a bunch of dwell positions in the 'rs274.glcanon' format"},
+    {"line9", pyline9, METH_VARARGS, "Draw a single line in the 'rs274.glcanon' format; assumes glBegin(GL_LINES)"},
+    {"vertex9", pyvertex9, METH_VARARGS, "Get the 3d location for a 9d point"},
+    {}
 };
 
 /* ENUM defines an integer constant with the same name as the C constant.
