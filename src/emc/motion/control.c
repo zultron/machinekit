@@ -1156,9 +1156,17 @@ static void handle_jogwheels(void)
 	   the command is faster than the machine can track, excess
 	   command is simply dropped. */
 	if ( *(joint_data->jog_vel_mode) ) {
-        double v = joint->vel_limit;
+            double v = joint->vel_limit;
+            double max_vel = *(joint_data->jog_max_vel);
+            if ((max_vel != 0.0) && (fabs(v) > max_vel)) {
+                if (v > 0.0) {
+                    v = max_vel;  // cap the jog velocity per the hal pin limit for safety        
+                } else {                       
+                    v = max_vel * -1.0;  // cap the jog velocity per the hal pin limit for safety        
+                }
+            }
 	    /* compute stopping distance at max speed */
-      /* multiply by 2 to give some slop and prevent jerky jogging */
+            /* multiply by 2 to give some slop and prevent jerky jogging */
 	    stop_dist = (v * v / ( 2.0 * joint->acc_limit)) * 2;
 	    /* if commanded position leads the actual position by more
 	       than stopping distance, discard excess command */

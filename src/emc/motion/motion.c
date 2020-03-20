@@ -788,6 +788,10 @@ static int export_joint(int num, joint_hal_t * addr)
     if (retval != 0) {
 	return retval;
     }
+    retval = hal_pin_float_newf(HAL_IN, &(addr->jog_max_vel), mot_comp_id, "axis.%d.jog-max-vel", num);
+    if (retval != 0) {
+	return retval;
+    }
     retval = hal_pin_bit_newf(HAL_OUT, &(addr->homing), mot_comp_id, "axis.%d.homing", num);
     if (retval != 0) {
 	return retval;
