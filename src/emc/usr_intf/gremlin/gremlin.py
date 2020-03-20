@@ -529,7 +529,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.select(x, y)
         # KLUDGE Need to redraw after picking since we draw over the front buffer in color picking
         # TODO use the back buffer only and avoid this
-        self.expose()
+        #self.expose()
 
     def select_cancel(self, widget=None, event=None):
         self.select_primed = None

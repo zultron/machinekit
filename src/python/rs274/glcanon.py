@@ -513,7 +513,6 @@ class GlCanonDraw:
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
 
-    @with_context_swap
     def select(self, x, y_inv):
         if self.canon is None:
             return
