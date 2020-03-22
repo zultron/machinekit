@@ -20,7 +20,7 @@
 #include <structmember.h>
 
 #include "rs274ngc.hh"
-#include "rs274ngc_interp.hh"
+#include "previewinterp.hh"
 #include "interp_return.hh"
 #include "canon.hh"
 #include "config.h"		// LINELEN
@@ -877,7 +877,8 @@ static PyObject *get_work_offsets_used(PyObject *self, PyObject *args) {
 
     // call pinterp to snag the set of work offset indexes and build a new list to 
     // give back to python land
-    std::set<int> used_offsets = reinterpret_cast<Interp*>(pinterp)->get_work_offsets_used();
+    auto preview_interp = dynamic_cast<PreviewInterp*>(pinterp);
+    std::set<int> used_offsets = preview_interp ? preview_interp->get_work_offsets_used() : std::set<int>();
 
     PyObject* offsets = PyTuple_New(used_offsets.size());
     int ix = 0;
@@ -1119,7 +1120,7 @@ void reset_gcode_canon_globals(const char *interp_name)
     if(interp_name && *interp_name)
         pinterp = interp_from_shlib(interp_name);
     if(!pinterp)
-        pinterp = new Interp;
+        pinterp = new PreviewInterp;
 
     for(int i=0; i<USER_DEFINED_FUNCTION_NUM; i++)
         USER_DEFINED_FUNCTION[i] = user_defined_function;
@@ -1177,7 +1178,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     // reset canon global variables and flags before parsing
     reset_gcode_canon_globals(interp_name);
 
-    Interp* interp = dynamic_cast<Interp*>(pinterp);
+    PreviewInterp* interp = dynamic_cast<PreviewInterp*>(pinterp);
     int result = do_parse_loop(interp, file_name, units_gcode, init_gcode, working_dir, error_line_offset, run_settings, wait);
 
     if(pinterp) pinterp->close();

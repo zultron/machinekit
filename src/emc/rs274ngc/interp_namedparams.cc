@@ -138,6 +138,7 @@ enum predefined_named_parameters {
     NP_SELECTED_TOOL,
     NP_VALUE_RETURNED,
     NP_TASK,
+    NP_IN_PREVIEW_CONTEXT,
 };
 
 /****************************************************************************/
@@ -828,7 +829,11 @@ int Interp::lookup_named_param(const char *nameBuf,
     case NP_TASK:
 	extern int _task;  // zero in gcodemodule, 1 in milltask
 	*value = _task;
-	break;
+    break;
+
+    case NP_IN_PREVIEW_CONTEXT:
+    *value = is_preview();
+    break;
 
 
     default:
@@ -1038,6 +1043,7 @@ int Interp::init_named_parameters()
 
   // predicate: 1 in milltask instance, 0 in UI - control preview behaviour
   init_readonly_param("_task", NP_TASK, PA_USE_LOOKUP);
+  init_readonly_param("_in_preview", NP_IN_PREVIEW_CONTEXT, PA_USE_LOOKUP);
 
   // debugging aids
   init_readonly_param("_call_level", NP_CALL_LEVEL, PA_USE_LOOKUP);

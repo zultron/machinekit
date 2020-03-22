@@ -111,16 +111,15 @@ public:
  int reset();
 
 // restore interpreter variables from a file
- int restore_nv_parameters(const char *filename);
- int restore_all_parameters(const char *filename);
+ virtual int restore_parameters(const char *filename);
 
 // save interpreter variables to file
- int save_nv_parameters(
+ int save_parameters(
      const char *filename,
      ParameterArray const &parameters);
 
  // Saves all parameters (including volatiles) to the specified file (typically for preview use)
- int save_all_parameters(const setup_pointer settings,
+ int export_all_parameters(const setup_pointer settings,
      const char *filename) const;
 
 // synchronize your internal model with the external world
@@ -627,8 +626,8 @@ public:
  int write_g_codes(block_pointer block, const setup_struct * settings, ModalState &state) const;
  int write_m_codes(block_pointer block, const setup_struct * settings, ModalState &state) const;
  int write_settings(const setup_struct * settings, ModalState &state) const;
- int write_state_tag(block_pointer block, StateTag & state) const;
- int write_and_update_state_tag(block_pointer block);
+ virtual int write_state_tag(block_pointer block, StateTag & state) const;
+ virtual int write_and_update_state_tag(block_pointer block);
  int unwrap_rotary(double *, double, double, double, char);
  bool isreadonly(int index);
 
@@ -852,6 +851,8 @@ int read_inputs(setup_pointer settings);
     FILE * try_load_subroutine_from_path(const char * basename, const char * sub_directory, char * file_path);
 
     int synch_external_state(setup_pointer settings) const;
+
+    virtual bool is_preview() const {return false;}
 
 protected:
     bool error_has_context;

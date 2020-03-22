@@ -776,7 +776,7 @@ SCENARIO("Load and save parameters")
     GIVEN("A default interpreter with work offsets")
     {
         static const char * const dummy_file_name = "dummy.var";
-        REQUIRE_INTERP_OK(test_interp, save_nv_parameters(dummy_file_name, settings->parameters));
+        REQUIRE_INTERP_OK(test_interp, save_parameters(dummy_file_name, settings->parameters));
         WorkOffsetMap empty_work_offsets = settings->work_offsets_user;
 
         CHECK(empty_work_offsets.size() == 1);
@@ -802,7 +802,7 @@ SCENARIO("Load and save parameters")
 
         THEN("Restoring from a missing / empty parameter file should not affect existing offsets?") {
             std::remove(prm_file_name);
-            REQUIRE_INTERP_OK(test_interp, restore_nv_parameters(prm_file_name));
+            REQUIRE_INTERP_OK(test_interp, restore_parameters(prm_file_name));
 
             check_work_offsets(exp_work_offsets, settings->work_offsets_user);
             check_parameters(exp_params, settings->parameters);
@@ -811,20 +811,20 @@ SCENARIO("Load and save parameters")
 // Don't need to enforce this currently because we only restore parameters at init time when interp is empty anyway
 #if 0
         THEN("Work offsets should be cleared out if 'restored' from an all-zeros prm file") {
-            REQUIRE_INTERP_OK(test_interp, restore_nv_parameters(dummy_file_name));
+            REQUIRE_INTERP_OK(test_interp, restore_parameters(dummy_file_name));
             CHECK(settings->work_offsets_user.size() == 0);
         }
 #endif
 
         THEN("Work offsets should write out to a parameter file cleanly") {
-            REQUIRE_INTERP_OK(test_interp, save_nv_parameters(prm_file_name, settings->parameters));
+            REQUIRE_INTERP_OK(test_interp, save_parameters(prm_file_name, settings->parameters));
 
             // Manually clear out parameters / work offsets to test restore
             settings->parameters.fill(0);
             settings->work_offsets_user.clear();
             settings->work_offsets_used.clear();
 
-            REQUIRE_INTERP_OK(test_interp, restore_nv_parameters(prm_file_name));
+            REQUIRE_INTERP_OK(test_interp, restore_parameters(prm_file_name));
 
             check_work_offsets(exp_work_offsets, settings->work_offsets_user);
             check_parameters(exp_params, settings->parameters);

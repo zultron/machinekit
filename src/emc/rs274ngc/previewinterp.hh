@@ -1,0 +1,16 @@
+#ifndef PREVIEWINTERP_HH
+#define PREVIEWINTERP_HH
+
+#include "rs274ngc_interp.hh"
+
+class PreviewInterp : public Interp
+{
+public:
+    PreviewInterp() : Interp() {}
+    virtual int write_state_tag(block_pointer block, StateTag & state) const;
+    virtual int write_and_update_state_tag(block_pointer block);
+    virtual int restore_parameters(const char *filename);
+    virtual bool is_preview() const {return true;}
+};
+
+#endif // PREVIEWINTERP_HH

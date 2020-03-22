@@ -271,7 +271,7 @@ int Interp::write_and_update_state_tag(block_pointer block)
     StateTag state;
     write_state_tag(block, state);
     UPDATE_TAG(state);
-    return 0;
+    return INTERP_OK;
 }
 
 

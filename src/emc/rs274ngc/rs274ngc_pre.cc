@@ -935,7 +935,7 @@ int Interp::exit()
   char file_name[LINELEN];
 
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  save_nv_parameters(((file_name[0] == 0) ?
+  save_parameters(((file_name[0] == 0) ?
                             RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
                             file_name), _setup.parameters);
   reset();
@@ -1330,9 +1330,7 @@ int Interp::init()
     strcpy(filename, RS274NGC_PARAMETER_FILE_NAME_DEFAULT);
 
   // restore parameters as needed based on interpreter's role (preview vs run)
-  int res_restore_param = _task ?
-                                restore_nv_parameters(filename) :
-                                restore_all_parameters(filename);
+  int res_restore_param = restore_parameters(filename);
 
   // Update part counters in canon from restored parameters
   for (size_t idx = COUNTER_M_30_A; idx <= COUNTER_M_99_B; ++idx) {
@@ -2229,7 +2227,7 @@ sets of origin offsets. Any parameter not given a value in the file
 has its value set to zero.
 
 */
-int Interp::restore_nv_parameters(const char *filename)   //!< name of parameter file to read
+int Interp::restore_parameters(const char *filename)   //!< name of parameter file to read
 {
   FILE *infile = nullptr;
   char line[256];
@@ -2322,78 +2320,6 @@ int Interp::restore_nv_parameters(const char *filename)   //!< name of parameter
   return INTERP_OK;
 }
 
-int Interp::restore_all_parameters(const char * filename)
-{
-  _setup.parameters.fill(0);
-  FILE *infile = nullptr;
-  char line[256];
-
-  // it's OK if the parameter file doesn't exist yet
-  // it'll be created in due course with some default values
-  if(access(filename, F_OK) == -1)
-    return INTERP_OK;
-  // open original for reading
-  infile = fopen(filename, "r");
-  CHKS((infile == nullptr), _("Unable to open parameter file: '%s'"), filename);
-
-  while (feof(infile) == 0) {
-    if (!fgets(line, 256, infile)) {
-      break;
-    }
-
-    int variable;
-    double value;
-    // Skip the line if it doesn't match the pattern
-    if (sscanf(line, "%d %lf", &variable, &value) < 2) {
-      continue;
-    }
-
-    if (variable <= 0) {
-        fclose(infile);
-        ERS(_("Parameter number out of range: %d"), variable);
-    }
-
-    // KLUDGE handle work offsets stored as fake parameters
-    if (variable >=  EXTENDED_WORK_OFFSET_START && variable < EXTENDED_WORK_OFFSET_END) {
-      // Work offsets
-      int offset_number = (variable - EXTENDED_WORK_OFFSET_START ) / 20;
-      int offset_base = EXTENDED_WORK_OFFSET_START + 20 * offset_number;
-      // zero-indexed displacement from the initial value
-      int index = variable - offset_base - 1;
-      switch (index) {
-      case X:
-      case Y:
-      case Z:
-      case A:
-      case B:
-      case C:
-      case U:
-      case V:
-      case W:
-        _setup.work_offsets_user[offset_number].shift.tf[index] = value;
-        break;
-      case 9:
-        _setup.work_offsets_user[offset_number].setXYRotationDeg(value);
-        break;
-      }
-    } else if (variable < RS274NGC_MAX_PARAMETERS) {
-        _setup.parameters[variable] = value;
-    }
-  }
-  fclose(infile);
-  for (int origin = 1; origin <= 9; ++origin) {
-    find_work_offset_from_parameters(&_setup, origin, _setup.work_offsets_user[origin]);
-  }
-
-  auto pred = [](WorkOffsetMap::value_type const &el)
-  {
-      return !isNonzero(el.second);
-  };
-  erase_if(_setup.work_offsets_user, pred);
-  return INTERP_OK;
-
-}
-
 /***********************************************************************/
 
 /*! Interp::save_parameters
@@ -2428,7 +2354,7 @@ If a required parameter is missing from the input file, this does not
 complain, but does write it in the output file.
 
 */
-int Interp::save_nv_parameters(
+int Interp::save_parameters(
     const char *filename,      //!< name of file to write
     ParameterArray const &parameters) //!< parameters to save
 {
@@ -2542,7 +2468,7 @@ int Interp::save_nv_parameters(
   return INTERP_OK;
 }
 
-int Interp::save_all_parameters(
+int Interp::export_all_parameters(
     setup_pointer const settings,
     const char * filename) const
 {
@@ -2605,7 +2531,7 @@ int Interp::synch()
   int res_synch_external = synch_external_state(&_setup);
   char file_name[LINELEN]="";
   GET_EXTERNAL_PARAMETER_FILE_NAME(file_name, (LINELEN - 1));
-  int save_param = save_nv_parameters((file_name[0] == 0) ?
+  int save_param = save_parameters((file_name[0] == 0) ?
                                                 RS274NGC_PARAMETER_FILE_NAME_DEFAULT :
                                                 file_name, _setup.parameters);
 
@@ -2753,7 +2679,7 @@ int Interp::synch_and_export(setup_pointer settings, const char * export_file_na
     // KLUDGE shove the current position into
     auto current_pos_user = convertsProgramToUser().forward(tmp.current);
     std::copy(current_pos_user.begin(), current_pos_user.end(), tmp.parameters.begin() + EXPORT_CUR_POS_ARRAY);
-    int res_save = save_all_parameters(&tmp, export_file_name);
+    int res_save = export_all_parameters(&tmp, export_file_name);
     return res_synch | res_save;
 }
 
