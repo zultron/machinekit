@@ -32,6 +32,7 @@
 #include "timer.hh"
 #include "nml_oi.hh"
 #include "rcs_print.hh"
+#include "tool_motion_data.hh"
 
 #include <cmath>
 
@@ -1787,18 +1788,25 @@ public:
     }
 };
 
+static int size_of_map = 0;
 static PyObject *pydraw_lines(PyObject *s, PyObject *o) {
     PyListObject *li;
     int for_selection = 0;
-    int i;
     unsigned active_line_no = -1, segment_line_no;
     double p1[9], p2[9], pl[9];
     char *geometry;
     GLBeginEndWrapper gl_wrapper{};
 
-    if(!PyArg_ParseTuple(o, "sO!|i:draw_lines",
-			    &geometry, &PyList_Type, &li, &for_selection))
+    int i;
+    PyObject *capsule=nullptr;
+
+    if(!PyArg_ParseTuple(o, "sO!|iOO!:draw_lines",
+                &geometry, &PyList_Type, &li, &for_selection, &capsule, &PyCapsule_Type))
         return NULL;
+    if (capsule) {
+        auto motions = (ToolMotionMap const*)PyCapsule_GetPointer(capsule, "tool_motion_data");
+        size_of_map = motions ? motions->size() : -1;
+    }
 
     for(i=0; i<PyList_GET_SIZE(li); i++) {
         PyObject *it = PyList_GET_ITEM(li, i);

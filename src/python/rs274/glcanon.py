@@ -101,6 +101,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
         # KLUDGE Define these attributes here for mixins only
         self.choice = None
+        self.tool_data_capsule = None
 
     def comment(self, arg):
         if arg.startswith("AXIS,"):
@@ -127,7 +128,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         pass
 
     def draw_lines(self, lines, for_selection, geometry=None):
-        return linuxcnc.draw_lines(geometry or self.geometry, lines, for_selection)
+        return linuxcnc.draw_lines(geometry or self.geometry, lines, for_selection, self.tool_data_capsule)
 
     def colored_lines(self, color_name, lines, for_selection):
         if self.foam_option:
@@ -292,6 +293,9 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def synch_position(self, x, y, z, a, b, c, u, v, w):
         #FIXME check for valid position here? This should ONLY be used to set up the machine initial position
         self.lo = (x, y, z, a, b, c, u, v, w)
+
+    def set_tool_data_capsule(self, capsule):
+        self.tool_data_capsule = capsule
 
     def highlight(self, lineno, geometry):
         #t0 = time.time()

@@ -66,6 +66,8 @@ PositionArray abs(PositionArray const &p);
 PositionArray abs_diff(PositionArray const &b, PositionArray const &o);
 double max(PositionArray const &p);
 double min(PositionArray const & p);
+PositionArray max(PositionArray const &p0, PositionArray const &p1);
+PositionArray min(PositionArray const &p0, PositionArray const &p1);
 
 bool isNonzero(PositionArray const &p);
 

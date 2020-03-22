@@ -223,3 +223,21 @@ bool isNonzero(PositionArray const &p)
       p[V] != 0.0 ||
       p[W] != 0.0;
 }
+
+PositionArray max(const PositionArray & p0, const PositionArray & p1)
+{
+    PositionArray out{};
+    for (size_t i=0; i < p0.size(); ++i) {
+        out[i] = std::max(p0[i], p1[i]);
+    }
+    return out;
+}
+
+PositionArray min(const PositionArray & p0, const PositionArray & p1)
+{
+    PositionArray out{};
+    for (size_t i=0; i < p0.size(); ++i) {
+        out[i] = std::min(p0[i], p1[i]);
+    }
+    return out;
+}

@@ -218,6 +218,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.start_line = 0
         self.leadin_type = 0
         self.keep_current_tool = True
+        self.tool_data_capsule = None
 
     def destroy(self):
         # cleanup so that the garbage collector can actually do its work.

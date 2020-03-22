@@ -19,12 +19,14 @@
 #include <Python.h>
 #include <structmember.h>
 
+#include "gcodemodule.hh"
 #include "rs274ngc.hh"
 #include "previewinterp.hh"
 #include "interp_return.hh"
 #include "canon.hh"
 #include "config.h"		// LINELEN
 #include <sstream>
+
 
 int _task = 0; // control preview behaviour when remapping
 
@@ -162,6 +164,7 @@ static int interp_error;
 static int last_sequence_number;
 static bool metric;
 static PositionArray _pos_prog = {}; // In PROGRAM units (note that data passed to callbacks is in USER units)
+static PositionArray _pos_machine_uu = {};
 static PositionArray probe_start_pos_prog = {};
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
@@ -183,13 +186,9 @@ static double spindle_speed_programmed = 0.0;
 static double css_max_speed_programmed = 0.0;
 
 static AxisOffsetParams cached_g92_uu{}; // in USER units
-static LocalToMachineTransform transform_uu{}; // in USER units
+static ToolMotionMap tool_motions{};
 
-enum class ParseExecMode {
-    SEEK,
-    PREP,
-    RUN,
-};
+static PreviewMachine machine;
 
 static ParseExecMode exec_mode_;
 
@@ -280,6 +279,11 @@ void ARC_FEED(int line_number,
                     u_position, v_position, w_position);
         if(result == nullptr) interp_error ++;
         Py_XDECREF(result);
+        machine.arc_feed(
+                    line_number, first_end, second_end, first_axis, second_axis,
+                    rotation, axis_end_point,
+                    a_position, b_position, c_position,
+                    u_position, v_position, w_position);
     }
 }
 
@@ -287,22 +291,25 @@ void STRAIGHT_FEED(int line_number,
                    double x, double y, double z,
                    double a, double b, double c,
                    double u, double v, double w) {
+    _pos_machine_uu = convertsProgToUser().forward(_pos_prog);
     // KLUDGE override with the toplevel line for selection
     line_number = pinterp->toplevel_line();
     assign(_pos_prog, x, y, z, a, b, c, u, v, w);
+
     if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
-	PyObject *result = spindle_synched_motion ?
-	    callmethod(callback, "straight_feed_synched", "ifffffffffff",
-		       line_number, x, y, z, a, b, c, u, v, w,
-               css_max_speed_programmed ?: spindle_speed_programmed,
-		       spindle_synched_feed_per_revolution/(metric?25.4:1.0)) :
-	    callmethod(callback, "straight_feed", "ifffffffff",
-		       line_number, x, y, z, a, b, c, u, v, w);
-    if(result == nullptr) interp_error ++;
-	Py_XDECREF(result);
+        PyObject *result = spindle_synched_motion ?
+                                                  callmethod(callback, "straight_feed_synched", "ifffffffffff",
+                                                             line_number, x, y, z, a, b, c, u, v, w,
+                                                             css_max_speed_programmed ?: spindle_speed_programmed,
+                                                             spindle_synched_feed_per_revolution/(metric?25.4:1.0)) :
+                                                  callmethod(callback, "straight_feed", "ifffffffff",
+                                                             line_number, x, y, z, a, b, c, u, v, w);
+        if(result == nullptr) interp_error ++;
+        Py_XDECREF(result);
+        machine.straight_feed(line_number, _pos_prog);
     }
 }
 
@@ -322,6 +329,7 @@ void STRAIGHT_TRAVERSE(int line_number,
                     line_number, x, y, z, a, b, c, u, v, w);
         if(result == nullptr) interp_error ++;
         Py_XDECREF(result);
+        machine.straight_traverse(line_number, _pos_prog);
     }
 }
 
@@ -331,7 +339,7 @@ void SET_G5X_TRANSFORM(int origin,
                        double u, double v, double w,
                        double xy_rotation_deg)
 {
-    transform_uu.g5xOffset = RotateShiftTransform(convertsProgToUser().forward({x, y, z, a, b, c, u, v, w}), xy_rotation_deg);
+    machine.transform_uu.g5xOffset = RotateShiftTransform(convertsProgToUser().forward({x, y, z, a, b, c, u, v, w}), xy_rotation_deg);
     maybe_new_line();
     if(interp_error) return;
     PyObject *result_offset =
@@ -340,7 +348,7 @@ void SET_G5X_TRANSFORM(int origin,
             "set_g5x_transform",
             "iffffffffff",
             origin,
-            UNPACK_POSITION_ARRAY_REF(transform_uu.g5xOffset.shift.tf),
+            UNPACK_POSITION_ARRAY_REF(machine.transform_uu.g5xOffset.shift.tf),
             xy_rotation_deg);
     if(!result_offset) interp_error ++;
     Py_XDECREF(result_offset);
@@ -352,7 +360,7 @@ void SET_G92_OFFSET(bool applied, double x, double y, double z,
     maybe_new_line();
     if(interp_error) return;
 
-    auto const &g92 = transform_uu.g92Offset = ShiftTransform{convertsProgToUser().forward({x,y,z,a,b,c,u,v,w})};
+    auto const &g92 = machine.transform_uu.g92Offset = ShiftTransform{convertsProgToUser().forward({x,y,z,a,b,c,u,v,w})};
     cached_g92_uu.applied = applied;
     if (applied) {
         cached_g92_uu.offset = g92;
@@ -384,6 +392,7 @@ void SELECT_PLANE(CANON_PLANE pl) {
         callmethod(callback, "set_plane", "i", pl);
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
+    machine.set_plane(pl);
 }
 
 void SET_TRAVERSE_RATE(double rate) {
@@ -412,6 +421,7 @@ void CHANGE_TOOL(int pocket) {
     PyObject *result =
         callmethod(callback, "change_tool", "i", pocket);
     if(result == nullptr) interp_error ++;
+    machine.set_current_tool(pocket);
     Py_XDECREF(result);
 }
 
@@ -473,10 +483,10 @@ void SET_TOOL_TABLE_ENTRY(int pocket, int toolno, EmcPose offset, double diamete
 }
 
 void USE_TOOL_LENGTH_OFFSET(EmcPose offset) {
-    transform_uu.toolOffset = ShiftTransform(convertsProgToUser().forward(toArray(offset)));
+    machine.transform_uu.toolOffset = ShiftTransform(convertsProgToUser().forward(toArray(offset)));
     maybe_new_line();
     if(interp_error) return;
-    PyObject *result = callmethod(callback, "tool_offset", "ddddddddd", UNPACK_POSITION_ARRAY_REF(transform_uu.toolOffset));
+    PyObject *result = callmethod(callback, "tool_offset", "ddddddddd", UNPACK_POSITION_ARRAY_REF(machine.transform_uu.toolOffset));
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
 }
@@ -776,7 +786,7 @@ int GET_EXTERNAL_AXIS_MASK() {
 }
 
 static inline PositionArray getToolOffsetProg() {
-    return convertsUserToProg().forward(transform_uu.toolOffset.tf);
+    return convertsUserToProg().forward(machine.transform_uu.toolOffset.tf);
 }
 
 double GET_EXTERNAL_TOOL_LENGTH_XOFFSET() {
@@ -941,6 +951,7 @@ do { \
 int set_exec_mode(ParseExecMode mode)
 {
     exec_mode_ = mode;
+    machine.set_exec_mode(mode);
     if(interp_error) return INTERP_ERROR;
     PyObject *result =
         callmethod(callback, "set_exec_mode", "i", (int)mode);
@@ -962,7 +973,7 @@ int set_exec_mode(ParseExecMode mode)
  */
 int synch_position_to_python()
 {
-    auto machine_pos_uu = transform_uu.forward_local_to_tip(convertsProgToUser().forward(_pos_prog));
+    auto machine_pos_uu = machine.transform_uu.forward_local_to_tip(convertsProgToUser().forward(_pos_prog));
 
     if(interp_error) return INTERP_ERROR;
     PyObject *result =
@@ -979,7 +990,7 @@ int synch_position_to_python()
 void restore_machine_state_before_preview_synch(ExpandedModalState const &run_initial_state)
 {
     // KLUDGE force the "machine" state to be what the initial position was again, as if synching from a real machine
-    _pos_prog = convertsUserToProg().forward(transform_uu.inverse_local_from_nose(run_initial_state.initial_nose_position_uu));
+    _pos_prog = convertsUserToProg().forward(machine.transform_uu.inverse_local_from_nose(run_initial_state.initial_nose_position_uu));
 
     // TODO handle coolant settings here if we ever show coolant state in preview
     // flood
@@ -1056,7 +1067,7 @@ static int do_parse_loop(
         //
         auto UtoP = rs274_interp->convertsUserToProgram();
         auto PtoU = rs274_interp->convertsProgramToUser();
-        transform_uu = rs274_interp->_setup.transform.scale_by(PtoU);
+        machine.transform_uu = rs274_interp->_setup.transform.scale_by(PtoU);
         // KLUDGE pull the super secret current position out of the reserved parameters and update both interp and our cached position
         _pos_prog = UtoP.forward(toArray(
             rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY,
@@ -1214,6 +1225,12 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     } else {
         PyTuple_SET_ITEM(retval, 2, PyList_New(0));
     }
+
+    PyObject *capsule = PyCapsule_New((void*)&machine.getToolMotionData(), "tool_motion_data", nullptr);
+    PyObject *res_capsule = callmethod(callback, "set_tool_data_capsule", "O",
+                   capsule);
+    if(res_capsule == nullptr) interp_error ++;
+    Py_XDECREF(res_capsule);
 
     return retval;
 }
@@ -1583,4 +1600,165 @@ initgcode(void) {
     PyModule_AddIntConstant(m, "PARSE_EXEC_RUN", (long)ParseExecMode::RUN);
 }
 
-// vim:ts=8:sts=4:sw=4:et:
+void PreviewMachine::add_motion(ToolMotionKey key, ToolMotion motion)
+{
+    tool_motions[key].push_back(motion);
+    machine_pos_uu = motion.p1;
+    updateExtents(motion);
+}
+
+void PreviewMachine::straight_motion(int line_number, const PositionArray & goal_pos_prog, MotionType t)
+{
+    auto goal_pos_uu = transform_uu.forward_local_to_tip(convertsProgToUser().forward(goal_pos_prog));
+    add_motion({t, exec_mode, current_tool_pocket}, {
+        line_number,
+        machine_pos_uu,
+                   goal_pos_uu, t == MotionType::RAPID ? -1 : feed_rate});
+}
+
+void PreviewMachine::updateExtents(const ToolMotion & motion)
+{
+    extents.max = max(max(extents.max, motion.p0), motion.p1);
+    extents.min = min(min(extents.min, motion.p0), motion.p1);
+
+    PositionArray p0_notool = transform_uu.inverse_nose_from_tip(motion.p0);
+    PositionArray p1_notool = transform_uu.inverse_nose_from_tip(motion.p1);
+    extents_no_tool.max = max(max(extents.max, p0_notool), p1_notool);
+    extents_no_tool.min = min(min(extents.min, p0_notool), p1_notool);
+}
+
+void PreviewMachine::straight_feed(int line_number, const PositionArray & goal_pos_prog)
+{
+    straight_motion(line_number, goal_pos_prog, MotionType::STRAIGHT_FEED);
+}
+
+void PreviewMachine::straight_probe(int line_number, const PositionArray & goal_pos_prog)
+{
+    straight_motion(line_number, goal_pos_prog, MotionType::PROBE);
+}
+
+void PreviewMachine::straight_traverse(int line_number, const PositionArray & goal_pos_prog)
+{
+    straight_motion(line_number, goal_pos_prog, MotionType::RAPID);
+}
+
+/**
+ * @warning: assumes user units, not program units for all elements
+ */
+void PreviewMachine::arc_feed(int line_number,
+                              double x1,
+                              double y1,
+                              double cx,
+                              double cy,
+                              double rot,
+                              double z1,
+                              double a,
+                              double b,
+                              double c,
+                              double u,
+                              double v,
+                              double w)
+{
+    static const int max_segments=64; // TODO make customizable
+
+
+    int X=0, Y=1, Z=2;
+    switch (plane) {
+    case CANON_PLANE_XY:
+        // Default
+        break;
+    case CANON_PLANE_XZ:
+        X=2; Y=0; Z=1;
+        break;
+    case CANON_PLANE_YZ:
+        X=1; Y=2; Z=0;
+        break;
+    default:
+        // TODO support UVW arcs
+        break;
+    }
+
+    PM_CARTESIAN n_tmp;
+    n_tmp[X] = x1;
+    n_tmp[Y] = y1;
+    n_tmp[Z] = z1;
+    PositionArray const n{n_tmp.x,n_tmp.y,n_tmp.z,a,b,c,u,v,w};
+
+    PositionArray const o = transform_uu.inverse_nose_from_tip(machine_pos_uu);
+
+    double theta1 = atan2(o[Y]-cy, o[X]-cx);
+    double theta2 = atan2(n[Y]-cy, n[X]-cx);
+
+    if(rot < 0) {
+        while(theta2 - theta1 > -CIRCLE_FUZZ) theta2 -= 2*M_PI;
+    } else {
+        while(theta2 - theta1 < CIRCLE_FUZZ) theta2 += 2*M_PI;
+    }
+
+    // if multi-turn, add the right number of full circles
+    if(rot < -1) theta2 += 2*M_PI*(rot+1);
+    if(rot > 1) theta2 += 2*M_PI*(rot-1);
+
+    int steps = std::max(3, int(max_segments * fabs(theta1 - theta2) / M_PI));
+    double rsteps = 1. / steps;
+
+    double dtheta = theta2 - theta1;
+    PositionArray d = {0, 0, 0, n[3]-o[3], n[4]-o[4], n[5]-o[5], n[6]-o[6], n[7]-o[7], n[8]-o[8]};
+    d[Z] = n[Z] - o[Z];
+
+    PositionArray p_last = o;
+    PositionArray p_next;
+    double tx = o[X] - cx, ty = o[Y] - cy, dc = cos(dtheta*rsteps), ds = sin(dtheta*rsteps);
+    for(int i=0; i<steps-1; i++) {
+        double f = (i+1) * rsteps;
+        rotate(tx, ty, dc, ds);
+        PositionArray p;
+        p[X] = tx + cx;
+        p[Y] = ty + cy;
+        p[Z] = o[Z] + d[Z] * f;
+        p[3] = o[3] + d[3] * f;
+        p[4] = o[4] + d[4] * f;
+        p[5] = o[5] + d[5] * f;
+        p[6] = o[6] + d[6] * f;
+        p[7] = o[7] + d[7] * f;
+        p[8] = o[8] + d[8] * f;
+        p_next = transform_uu.forward_local_to_tip(p);
+        add_motion({MotionType::ARC_FEED, exec_mode, current_tool_pocket},{line_number, p_last, p, feed_rate});
+    }
+    add_motion({MotionType::ARC_FEED, exec_mode, current_tool_pocket}, {line_number, p_next, transform_uu.forward_local_to_tip(n), feed_rate});
+}
+
+bool PreviewMachine::set_exec_mode(ParseExecMode mode)
+{
+    switch (mode) {
+    case ParseExecMode::SEEK:
+    case ParseExecMode::PREP:
+    case ParseExecMode::RUN:
+        exec_mode = mode;
+        return true;
+    }
+    return false;
+}
+
+void PreviewMachine::set_current_tool(int tool_pocket)
+{
+    current_tool_pocket = tool_pocket;
+}
+
+/**
+ * Accessor for tool motion map (the idea is to use this in emcmodule, and have
+ * python call more abstract commands for rendering, like draw a subset of tool
+ * motions, or with coloring rules.
+ *
+ * The goal here is to avoid passing raw motion data across the python barrier
+ */
+const ToolMotionMap & PreviewMachine::getToolMotionData() const
+{
+    return tool_motions;
+}
+
+
+const ToolMotionMap & getToolMotionData()
+{
+    return machine.getToolMotionData();
+}
