@@ -70,45 +70,42 @@ The KT and NGC manuals say nothing about case or spaces and tabs.
 
 int Interp::close_and_downcase(char *line)       //!< string: one line of NC code
 {
-    int m;
-    int n;
-    int comment, semicomment;
-    char item;
-    comment = semicomment = 0;
-    for (n = 0, m = 0; (item = line[m]) != (char) NULL; m++) {
-        if ((item == ';') && !comment)
-            semicomment = 1;
-
-        if (semicomment) {
-            line[n++] = item; // pass literally
-            continue;
+    int comment = 0;
+    bool semicomment = false;
+    char item = '\0';
+    int n = 0, m = 0;
+    for (; (item = line[m]) != (char) NULL; m++) {
+        if (item == '(') {
+            comment++;
+        } else if (item == ')') {
+            comment--;
         }
+
         if (comment) {
             line[n++] = item;
-            if (item == ')') {
-                comment--;
-            } else if (item == '(') {
-                comment++;
-            }
+        } else if (item == ';') {
+            semicomment = true;
+            break;
         } else if ((item == ' ') || (item == '\t') || (item == '\r')) {
-        /* don't copy blank or tab or CR */
+            /* don't copy blank or tab or CR */
         } else if (item == '\n') {
             /* don't copy newline            */
             /* but check null follows        */
             CHKS((line[m + 1] != 0), NCE_NULL_MISSING_AFTER_NEWLINE);
-        } else if ((64 < item) && (item < 91)) {
-            /* downcase upper case letters */
-            line[n++] = (32 + item);
-        } else if ((item == '(') && !semicomment) {
-            /* (comment is starting */
-            comment++;
-            line[n++] = item;
         } else {
-            line[n++] = item;         /* copy anything else */
+            // Downcase using bitmask trick (6th bit is always 1 in lowercase)
+            line[n++] = (64 < item) && (item < 91) ? item | 0x20 : item;
         }
     }
     CHKS((comment), NCE_UNCLOSED_COMMENT_FOUND);
-    line[n] = 0;
+    if (semicomment) {
+        // Continue the previous loop and just run it out
+        for (; (item = line[m]) != '\0'; m++) {
+            line[n++] = item; // pass literally
+        }
+    }
+
+    line[n] = '\0';
     return INTERP_OK;
 }
 
