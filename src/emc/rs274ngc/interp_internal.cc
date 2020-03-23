@@ -68,12 +68,13 @@ The KT and NGC manuals say nothing about case or spaces and tabs.
 
 */
 
-int Interp::close_and_downcase(char *line, char const *raw_line)       //!< string: one line of NC code
+int Interp::close_and_downcase(char *line, char const *raw_line, int *length)       //!< string: one line of NC code
 {
     int comment = 0;
     bool semicomment = false;
     char item = '\0';
     int n = 0, m = 0;
+    *length=0;
     for (; (item = raw_line[m]) != (char) NULL; m++) {
         if (item == '(') {
             comment++;
@@ -106,6 +107,7 @@ int Interp::close_and_downcase(char *line, char const *raw_line)       //!< stri
     }
 
     line[n] = '\0';
+    *length = n;
     return INTERP_OK;
 }
 

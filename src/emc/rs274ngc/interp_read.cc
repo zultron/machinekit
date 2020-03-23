@@ -3097,6 +3097,7 @@ int Interp::read_text(
     int *length)       //!< a pointer to an integer to be set
 {
   int index;
+  *length = 0;
 
   if (!command) {
     if (!fgets(raw_line, LINELEN, inport)) {
@@ -3130,7 +3131,7 @@ int Interp::read_text(
          --index) { // remove space at end of raw_line, especially CR & LF
       raw_line[index] = '\0';
     }
-    CHP(close_and_downcase(line, raw_line));
+    CHP(close_and_downcase(line, raw_line, length));
     if ((line[0] == '%') && (line[1] == 0) && (_setup.percent_flag)) {
 	if (! _setup.skipping_o)
 	    FINISH();
@@ -3139,16 +3140,15 @@ int Interp::read_text(
   } else {
     CHKS((strlen(command) >= LINELEN), NCE_COMMAND_TOO_LONG);
     strcpy(raw_line, command);
-    CHP(close_and_downcase(line, raw_line));
+    CHP(close_and_downcase(line, raw_line, length));
   }
 
   _setup.new_parameters.clear();      /* initialize parameter buffer */
   _setup.wait_flags.reset(RESERVED_PARAMETER_MODIFIED);
 
-  if ((line[0] == 0) || ((line[0] == '/') && (GET_BLOCK_DELETE())))
+  if ((line[0] == 0) || ((line[0] == '/') && (GET_BLOCK_DELETE()))) {
     *length = 0;
-  else
-    *length = strlen(line);
+  }
 
   return INTERP_OK;
 }

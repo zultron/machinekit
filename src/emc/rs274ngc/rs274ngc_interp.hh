@@ -289,7 +289,7 @@ public:
  int check_items(block_pointer block, setup_pointer settings);
  int check_m_codes(block_pointer block);
  int check_other_codes(block_pointer block);
- int close_and_downcase(char *line, const char * raw_line);
+ int close_and_downcase(char *line, const char * raw_line, int * length);
  int convert_nurbs(GCodes move, block_pointer block, setup_pointer settings);
  int convert_spline(int move, block_pointer block, setup_pointer settings);
  int comp_get_current(setup_pointer settings, double *x, double *y, double *z);
