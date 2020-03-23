@@ -2701,25 +2701,30 @@ handle.
 
 */
 
-int Interp::read_real_number(char *line, //!< string: line of RS274/NGC code being processed
+int Interp::read_real_number(char const *line, //!< string: line of RS274/NGC code being processed
                             int *counter,       //!< pointer to a counter for position on the line 
                             double *double_ptr) //!< pointer to double to be read                  
 {
-  char *start;
+  const char *start;
   size_t after;
 
   start = line + *counter;
 
   after = strspn(start, "+-");
-  after = strspn(start+after, "0123456789.") + after;
+  after += strspn(start+after, "0123456789.");
+  std::string st{start, start+after};
+  size_t used=0;
+  try {
+      *double_ptr = std::stod(st, &used);
+  } catch (std::invalid_argument const &) {
+      ERS(_("bad number format (conversion failed) parsing '%s'"), st.c_str());
+  } catch (std::out_of_range const &) {
+      ERS(_("out of range parsing '%s'"), st.c_str());
+  }
+  if (used < (after)) {
+      ERS(_("bad number format (truncated to %d chars) '%s'"), (int)used, st.c_str());
+  }
 
-  std::string st(start, start+after);
-  std::stringstream s(st);
-  double val;
-  if(!(s >> val)) ERS(_("bad number format (conversion failed) parsing '%s'"), st.c_str());
-  if(s.get() != std::char_traits<char>::eof()) ERS(_("bad number format (trailing characters) parsing '%s'"), st.c_str());
-
-  *double_ptr = val;
   *counter = start + after - line;
   //fprintf(stderr, "got %f   rest of line=%s\n", val, line+*counter);
   return INTERP_OK;

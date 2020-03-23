@@ -1004,3 +1004,34 @@ SCENARIO("test downcasing")
         }
     }
 }
+
+SCENARIO("test read_real_number")
+{
+    DECL_INIT_TEST_INTERP();
+    static char const good_integer[] = {"0123456789"};
+    static char const good_float_trail[] = {"5.432"};
+    static char const good_float_notrail[] = {"241."};
+    static char const good_float_nolead[] = {".137"};
+    static char const bad_float_multi_decimal[] = {"1.01.234"};
+    int counter=0;
+    double got_val=0;
+    THEN("Integer") {
+        CHECK(!test_interp.read_real_number(good_integer, &counter, &got_val));
+        CHECK(got_val == 123456789);
+    }
+    THEN("Float trailing") {
+        CHECK(!test_interp.read_real_number(good_float_trail, &counter, &got_val));
+        CHECK(got_val == Approx(5.432));
+    }
+    THEN("Float no trail") {
+        CHECK(!test_interp.read_real_number(good_float_notrail, &counter, &got_val));
+        CHECK(got_val == Approx(241));
+    }
+    THEN("Float no lead") {
+        CHECK(!test_interp.read_real_number(good_float_nolead, &counter, &got_val));
+        CHECK(got_val == Approx(0.137));
+    }
+    THEN("Multiple decimal points throws an error") {
+        REQUIRE_INTERP_ERROR(test_interp, read_real_number(bad_float_multi_decimal, &counter, &got_val));
+    }
+}

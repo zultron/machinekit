@@ -593,7 +593,7 @@ public:
                   ParameterArray &parameters);
  int read_real_expression(char *line, int *counter,
                                 double *hold2, ParameterArray &parameters);
- int read_real_number(char *line, int *counter, double *double_ptr);
+ int read_real_number(const char * line, int *counter, double *double_ptr);
  int read_real_value(char *line, int *counter, double *double_ptr,
                            ParameterArray &parameters);
  int read_s(char *line, int *counter, block_pointer block,
