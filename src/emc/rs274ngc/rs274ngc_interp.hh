@@ -497,8 +497,11 @@ public:
                                 block_pointer block,
                                 setup_pointer settings);
  int move_endpoint_and_flush(setup_pointer, double, double);
- int parse_line(char *line, block_pointer block,
-                      setup_pointer settings);
+ int parse_line(
+     char *line,
+     int line_length,
+     block_pointer block,
+     setup_pointer settings);
  int precedence(int an_operator);
 protected:
  int read_impl(const char *command);
@@ -534,7 +537,7 @@ public:
  int read_integer_unsigned(char *line, int *counter, int *integer_ptr);
  int read_integer_value(char *line, int *counter, int *integer_ptr,
                               ParameterArray &parameters);
- int read_items(block_pointer block, char *line, ParameterArray &parameters);
+ int read_items(block_pointer block, char *line, int line_length, ParameterArray &parameters);
  int read_j(char *line, int *counter, block_pointer block,
                   ParameterArray &parameters);
  int read_k(char *line, int *counter, block_pointer block,
@@ -544,7 +547,7 @@ public:
  int read_n_number(char *line, int *counter, block_pointer block);
  int read_m(char *line, int *counter, block_pointer block,
                   ParameterArray &parameters);
- int read_o(char *line, int *counter, block_pointer block,
+ int read_o(char *line, int line_length, int *counter, block_pointer block,
                   ParameterArray &parameters);
 
 

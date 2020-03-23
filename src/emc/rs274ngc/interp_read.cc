@@ -781,13 +781,13 @@ Called by: parse_line
 
 */
 
-int Interp::read_items(block_pointer block,      //!< pointer to a block being filled from the line 
+int Interp::read_items(block_pointer block,      //!< pointer to a block being filled from the line
                       char *line,       //!< string: line of RS274/NGC code being processed
+                      int line_length, //!< length of processed blocktest being processed (previously found)
                       ParameterArray &parameters)   //!< array of system parameters
 {
   int counter = 0;
   int m_number = 0, m_counter = 0;  // for checking m98/m99 as o-words
-  int length = strlen(line);
 
   if (line[counter] == '/')     /* skip the slash character if first */
     counter++;
@@ -810,14 +810,14 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
     calls to related reader functions. 'o' control lines have their
     own commands and command handlers. */
   {
-      CHP(read_o(line, &counter, block, parameters));
+      CHP(read_o(line, line_length, &counter, block, parameters));
 
       // if skipping, the conditionals are not evaluated and are therefore unconsumed
       // so we can't check the rest of the line.  but don't worry, we'll get it later
       if(_setup.skipping_o) return INTERP_OK;
 
       // after if [...], etc., nothing is allowed except comments
-      for (; counter < length;) {
+      for (; counter < line_length;) {
           if(line[counter] == ';') read_semicolon(line, &counter, block, parameters);
           else if (line[counter] == '(') read_comment(line, &counter, block, parameters);
           else ERS("Unexpected character after O-word");
@@ -833,7 +833,7 @@ int Interp::read_items(block_pointer block,      //!< pointer to a block being f
       return INTERP_OK;
   }
 
-  for (; counter < length;) {
+  for (; counter < line_length;) {
     CHP(read_one_item(line, &counter, block, parameters));
   }
   return INTERP_OK;
@@ -1498,6 +1498,7 @@ the place.
 
 int Interp::read_o(    /* ARGUMENTS                                     */
  char * line,         /* string: line of RS274/NGC code being processed */
+ int line_length,
  int * counter,       /* pointer to a counter for position on the line  */
  block_pointer block, /* pointer to a block being filled from the line  */
  ParameterArray &parameters) /* array of system parameters                     */
@@ -1524,7 +1525,7 @@ int Interp::read_o(    /* ARGUMENTS                                     */
 	  *counter += 3;
 
 	  // Read P-word and L-word now
-	  n = strlen(line);
+      n = line_length;
 	  while (*counter < n)
 	      CHP(read_one_item(line, counter, block, parameters));
 	  // P-word:  convert to int and put in oNameBuf

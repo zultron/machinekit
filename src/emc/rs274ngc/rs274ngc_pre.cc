@@ -1935,7 +1935,7 @@ int Interp::read_impl(const char *command)  //!< may be NULL or a string to read
   if ((read_status == INTERP_EXECUTE_FINISH)
       || (read_status == INTERP_OK)) {
     if (_setup.line_length != 0) {
-    CHP(parse_line(_setup.blocktext, &(_setup.getExecutingBlock()), &_setup));
+    CHP(parse_line(_setup.blocktext, _setup.line_length, &(_setup.getExecutingBlock()), &_setup));
     }
 
     else // Blank line (zero length)

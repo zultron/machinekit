@@ -31,7 +31,7 @@ static block_struct read_and_parse_command(Interp &test_interp, const char *comm
 
   block_struct eblock{};
   REQUIRE_INTERP_OK(test_interp, init_block(&eblock));
-  REQUIRE_INTERP_OK(test_interp, read_items(&eblock, blocktext, test_interp._setup.parameters));
+  REQUIRE_INTERP_OK(test_interp, read_items(&eblock, blocktext, strlen(blocktext), test_interp._setup.parameters));
   return eblock;
 }
 
