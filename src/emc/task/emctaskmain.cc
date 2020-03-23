@@ -2411,7 +2411,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	}
 	run_msg = (EMC_TASK_PLAN_RUN *) cmd;
     run_settings = run_msg->run_settings;
-    pinterp->write_expanded_modal_state(run_initial_state);
+    pinterp->collect_expanded_modal_state(run_initial_state);
 
     // KLUDGE always start by seeking (will drop into reading if the first command is at the start line)
     emcTaskSetInterpState(EMC_TASK_INTERP_SEEKING);

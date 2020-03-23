@@ -1066,7 +1066,7 @@ static int do_parse_loop(
     }
 
     ExpandedModalState run_initial_state;
-    pinterp->write_expanded_modal_state(run_initial_state);
+    pinterp->collect_expanded_modal_state(run_initial_state);
     // KLUDGE avoid start line handling unless it's explicitly a non-default option (also reduces log noise)
     auto init_mode = start_settings.start_line > 1 ? ParseExecMode::SEEK : ParseExecMode::RUN;
     set_exec_mode(init_mode);

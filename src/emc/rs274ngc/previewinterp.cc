@@ -83,3 +83,10 @@ int PreviewInterp::restore_parameters(const char * filename)
   return INTERP_OK;
 
 }
+
+int PreviewInterp::write_modal_state(const block_pointer block, setup_pointer settings)
+{
+    // KLUDGE this is a no-op because the preview interpreter never exports modal state to task, so there's no reason to bother updating it for export.
+    // WARNING: other overloads ARE used (e.g. for state restore, seek-start-line). Eventually this will be disambiguated properly with better names.
+    return INTERP_OK;
+}

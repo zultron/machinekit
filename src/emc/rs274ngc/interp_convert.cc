@@ -2544,14 +2544,13 @@ int Interp::convert_length_units(int g_code,     //!< g_code being executed (mus
     return INTERP_OK;
 }
 
-int Interp::save_settings(setup_pointer settings)
+/**
+ * @warning not really effectively const since we almost always pass a reference to Interp::_setup here anyway
+ */
+int Interp::save_settings(setup_pointer settings) const
 {
-      // the state is sprinkled all over _setup
-      // collate state in _setup.active_* arrays
-      write_modal_state(nullptr, settings);
-
       // save in the current call frame
-      settings->sub_context[settings->call_level].modal_state = settings->modal_state;
+      collect_modal_state(nullptr, settings, settings->sub_context[settings->call_level].modal_state);
 
       // TBD: any other state deemed important to save/restore should be added here
       // context_struct might need to be extended too.
@@ -2562,10 +2561,15 @@ int Interp::save_settings(setup_pointer settings)
 int Interp::write_modal_state(block_pointer block, setup_pointer settings)
 {
     // KLUDGE technically aliases const settings with non-const modal state...
-    return write_modal_state(block, settings, settings->modal_state);
+    return collect_modal_state(block, settings, settings->modal_state);
 }
 
-int Interp::write_modal_state(const block_pointer block, setup_struct const *settings, ModalState & out) const
+int Interp::refresh_modal_state(setup_pointer settings)
+{
+    return collect_modal_state(nullptr, settings, settings->modal_state);
+}
+
+int Interp::collect_modal_state(const block_pointer block, setup_struct const *settings, ModalState & out) const
 {
     CHP(write_g_codes(block, settings, out));
     CHP(write_m_codes(block, settings, out));
@@ -2599,8 +2603,8 @@ int Interp::restore_settings(
     CHKS((from_level < 0), (_("BUG: restore from level %d !?")),from_level);
     CHKS((settings->call_level < 0), (_("BUG: restore to level %d !?")),settings->call_level);
 
-    // capture current modal state from interpreter
-    write_modal_state(nullptr, settings);
+    // capture current modal state from interpreter as a baseline (used to avoid redundant G-code in the restore)
+    refresh_modal_state(settings);
 
     ModalState &current = settings->modal_state;
     ModalState const &saved = settings->sub_context[from_level].modal_state;
@@ -2608,7 +2612,7 @@ int Interp::restore_settings(
     restore_settings_impl(current, saved, caller_m_code);
     // Re-capture modal state now that interpreter has been restored.
     // This prevents mismatched modal state in case of incomplete restoration.
-    write_modal_state(nullptr, settings);
+    refresh_modal_state(settings);
     return INTERP_OK;
 }
 

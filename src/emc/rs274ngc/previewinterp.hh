@@ -11,6 +11,7 @@ public:
     virtual int write_and_update_state_tag(block_pointer block);
     virtual int restore_parameters(const char *filename);
     virtual bool is_preview() const {return true;}
+    virtual int write_modal_state(block_pointer const block, setup_pointer settings);
 };
 
 #endif // PREVIEWINTERP_HH

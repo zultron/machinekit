@@ -88,7 +88,7 @@ public:
  int init();
  void set_loop_on_main_m99(bool state);
 
- int write_expanded_modal_state(ExpandedModalState &initial_state) const;
+ int collect_expanded_modal_state(ExpandedModalState &initial_state) const;
 
 // load a tool table
  int load_tool_table();
@@ -560,12 +560,13 @@ public:
  int lookup_named_param(const char *nameBuf, double index, double *value);
     int init_readonly_param(const char *nameBuf, double value, int attr);
     int free_named_parameters(context_pointer frame);
- int save_settings(setup_pointer settings);
+ int save_settings(setup_pointer settings) const;
  int restore_settings(setup_pointer settings, int from_level, int caller_m_code);
  int restore_settings_impl(ModalState & current, ModalState const &saved, int caller_m_code);
 
- int write_modal_state(block_pointer const block, setup_pointer settings);
- int write_modal_state(block_pointer const block, const setup_struct * settings, ModalState &out) const;
+ virtual int write_modal_state(block_pointer const block, setup_pointer settings);
+ int refresh_modal_state(setup_pointer settings);
+ int collect_modal_state(block_pointer const block, const setup_struct * settings, ModalState &out) const;
  int execute_gcode_sequence(const RestoreCommandList & cmd_list, int caller_m_code, const char * caller_name);
 
  int restore_from_tag(StateTag const &tag);

@@ -101,7 +101,7 @@ public:
 
     void set_loglevel(int level);
     void set_loop_on_main_m99(bool state);
-    int write_expanded_modal_state(ExpandedModalState &initial_state) const;
+    int collect_expanded_modal_state(ExpandedModalState &initial_state) const;
     FILE *f;
     char filename[PATH_MAX];
     char working_dir_[PATH_MAX];
@@ -764,7 +764,7 @@ int Canterp::active_modes(
 void Canterp::set_loglevel(int level) {}
 void Canterp::set_loop_on_main_m99(bool state) {}
 
-int Canterp::write_expanded_modal_state(ExpandedModalState & initial_state) const
+int Canterp::collect_expanded_modal_state(ExpandedModalState & initial_state) const
 {
     return 0;
 }

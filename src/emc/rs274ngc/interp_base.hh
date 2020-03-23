@@ -76,7 +76,7 @@ public:
     virtual void set_loop_on_main_m99(bool state) = 0;
 
     // Start line seek methods to pull out needed state for external caching
-    virtual int write_expanded_modal_state(ExpandedModalState &initial_state) const = 0;
+    virtual int collect_expanded_modal_state(ExpandedModalState &initial_state) const = 0;
 };
 
 InterpBase *interp_from_shlib(const char *shlib);

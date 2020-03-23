@@ -1526,12 +1526,12 @@ void Interp::set_loop_on_main_m99(bool state) {
     _setup.loop_on_main_m99 = state;
 }
 
-int Interp::write_expanded_modal_state(ExpandedModalState & initial_state) const
+int Interp::collect_expanded_modal_state(ExpandedModalState & initial_state) const
 {
     auto initial_nose_prog = _setup.transform.forward_local_to_nose(GET_EXTERNAL_POSITION());
     initial_state.initial_nose_position_uu = convertsProgramToUser().forward(initial_nose_prog);
     initial_state.tool_offset_uu = convertsProgramToUser().forward_tf(_setup.transform.toolOffset);
-    write_modal_state(nullptr, &_setup, initial_state.modal_state);
+    collect_modal_state(nullptr, &_setup, initial_state.modal_state);
     return INTERP_OK;
 }
 
@@ -2589,7 +2589,7 @@ int Interp::synch_external_state(setup_pointer settings) const
 int Interp::cbBeforeSeekReadTransition(AutoRunSettings const &start_settings, ExpandedModalState const &run_initial_state, ExpandedModalState &seek_state)
 {
     // Before transitioning to read-ahead, write out modal state of what interp thinks it should be
-    CHP(write_expanded_modal_state(seek_state));
+    CHP(collect_expanded_modal_state(seek_state));
     _setup.start_line_motion_mode = _setup.motion_mode;
     // Cancel tool comp temporarily so that we can do startup activities like tool changes
     // Note that any queued moves will be discarded here (all we need is the end point)
