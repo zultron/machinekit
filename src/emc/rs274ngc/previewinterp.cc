@@ -90,3 +90,9 @@ int PreviewInterp::write_modal_state(const block_pointer block, setup_pointer se
     // WARNING: other overloads ARE used (e.g. for state restore, seek-start-line). Eventually this will be disambiguated properly with better names.
     return INTERP_OK;
 }
+
+int PreviewInterp::synch_work_offsets_from_task(setup_pointer settings) const
+{
+    // Everything is immediate in preview, no disparity to recover from
+    return INTERP_OK;
+}

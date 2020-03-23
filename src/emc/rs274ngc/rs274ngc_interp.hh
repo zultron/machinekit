@@ -93,7 +93,7 @@ public:
 // load a tool table
  int load_tool_table();
 
- int synch_work_offsets_from_task(setup_pointer settings) const;
+ virtual int synch_work_offsets_from_task(setup_pointer settings) const;
 
 // open a file of NC code
  int open(const char *filename, const char *working_dir);

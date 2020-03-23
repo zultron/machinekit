@@ -12,6 +12,7 @@ public:
     virtual int restore_parameters(const char *filename);
     virtual bool is_preview() const {return true;}
     virtual int write_modal_state(block_pointer const block, setup_pointer settings);
+    virtual int synch_work_offsets_from_task(setup_pointer settings) const;
 };
 
 #endif // PREVIEWINTERP_HH
