@@ -936,66 +936,71 @@ SCENARIO("test downcasing")
 {
     DECL_INIT_TEST_INTERP();
     char const perfect_nocomment_line[] = {"g1x2y3z4a6b7.89f1.0i.07j1."};
+    int length = 0;
     GIVEN("Simple G-code that's properly formatted")
     {
-        char line[sizeof(perfect_nocomment_line)]={};
-        strcpy(line, perfect_nocomment_line);
+        char line_out[sizeof(perfect_nocomment_line)]={};
 
         THEN("Output should be exactly the same") {
-            printf("exp: %s\ngot: %s", perfect_nocomment_line, line);
-            CHECK(!test_interp.close_and_downcase(line));
-            CHECK_THAT(std::string(line), Catch::Matchers::Equals(std::string(perfect_nocomment_line)));
+            printf("exp: %s\ngot: %s", perfect_nocomment_line, perfect_nocomment_line);
+            CHECK(!test_interp.close_and_downcase(line_out, perfect_nocomment_line, &length));
+            CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(perfect_nocomment_line)));
         }
     }
     GIVEN("Proper G-code full of whitespace")
     {
-        char line[]={"g1  x2 y3 z4 a \r6\t  \t\rb7.8 9\rf1.0i.07j\t1  .\n"};
+        char line_in[]={"g1  x2 y3 z4 a \r6\t  \t\rb7.8 9\rf1.0i.07j\t1  .\n"};
+        char line_out[sizeof(line_in)]={};
 
         THEN("Output should be exactly the same as the perfect version") {
-            printf("exp: %s\ngot: %s", perfect_nocomment_line, line);
-            CHECK(!test_interp.close_and_downcase(line));
-            CHECK_THAT(std::string(line), Catch::Matchers::Equals(std::string(perfect_nocomment_line)));
+            printf("exp: %s\ngot: %s", perfect_nocomment_line, line_in);
+            CHECK(!test_interp.close_and_downcase(line_out, line_in, &length));
+            CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(perfect_nocomment_line)));
         }
     }
     GIVEN("Line with linebreak not at the end")
     {
-        char line[]={"g1  x2 y3 \n "};
+        char line_in[]={"g1  x2 y3 \n d"};
+        char line_out[sizeof(line_in)]={};
 
         THEN("Expect an error") {
-            REQUIRE_INTERP_ERROR(test_interp, close_and_downcase(line));
+            REQUIRE_INTERP_ERROR(test_interp, close_and_downcase(line_out, line_in, &length));
         }
     }
     GIVEN("Perfect downcased code with a semicolon in middle of line")
     {
         const char expected_line[]={"g1x2y3;This is a LITERALLY formatted comment with (()())))( unmatched parens"};
-        char line[sizeof(expected_line)]={};
-        strcpy(line, expected_line);
+        char line_in[sizeof(expected_line)]={};
+        strcpy(line_in, expected_line);
+        char line_out[sizeof(line_in)]={};
 
         THEN("Output should be exactly the same as the perfect version") {
-            printf("exp: %s\ngot: %s", perfect_nocomment_line, line);
-            CHECK(!test_interp.close_and_downcase(line));
-            CHECK_THAT(std::string(line), Catch::Matchers::Equals(std::string(expected_line)));
+            CHECK(!test_interp.close_and_downcase(line_out, line_in, &length));
+            printf("exp: %s\ngot: %s", perfect_nocomment_line, line_out);
+            CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(expected_line)));
         }
     }
     const char expected_line[]={"n123g1x2y3a4b5c6u7.1v8.2f100.0"};
     GIVEN("Mixed case G-code with no spaces")
     {
-        char line[]={"N123G1x2Y3a4B5C6u7.1v8.2F100.0"};
+        char line_in[]={"N123G1x2Y3a4B5C6u7.1v8.2F100.0"};
+        char line_out[sizeof(line_in)]={};
 
         THEN("Output should be exactly the same as the perfect version") {
-            printf("exp: %s\ngot: %s", expected_line, line);
-            CHECK(!test_interp.close_and_downcase(line));
-            CHECK_THAT(std::string(line), Catch::Matchers::Equals(std::string(expected_line)));
+            printf("exp: %s\ngot: %s", expected_line, line_in);
+            CHECK(!test_interp.close_and_downcase(line_out, line_in, &length));
+            CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(expected_line)));
         }
     }
     GIVEN("Mixed case G-code with whitespace")
     {
-        char line[]={"N123 G1 x2 Y3 a4 B 5 C 6u 7 .1 v8. 2F 100.0"};
+        char line_in[]={"N123 G1 x2 Y3 a4 B 5 C 6u 7 .1 v8. 2F 100.0"};
+        char line_out[sizeof(line_in)]={};
 
         THEN("Output should be exactly the same as the perfect version") {
-            printf("exp: %s\ngot: %s", expected_line, line);
-            CHECK(!test_interp.close_and_downcase(line));
-            CHECK_THAT(std::string(line), Catch::Matchers::Equals(std::string(expected_line)));
+            printf("exp: %s\ngot: %s", expected_line, line_in);
+            CHECK(!test_interp.close_and_downcase(line_out, line_in, &length));
+            CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(expected_line)));
         }
     }
 }

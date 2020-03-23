@@ -3119,18 +3119,18 @@ int Interp::read_text(
       return INTERP_ENDFILE;  // added *dpr 8/19/14
     }
     _setup.sequence_number++;   /* moved from version1, was outside if */
-    if (strlen(raw_line) == (LINELEN - 1)) { // line is too long. need to finish reading the line to recover
+    const size_t raw_line_len = strlen(raw_line);
+    if (raw_line_len == (LINELEN - 1)) { // line is too long. need to finish reading the line to recover
       for (; fgetc(inport) != '\n';) {
       }                         // could also look for EOF
       ERS(NCE_COMMAND_TOO_LONG);
     }
-    for (index = (strlen(raw_line) - 1);        // index set on last char
+    for (index = (raw_line_len - 1);        // index set on last char
          (index >= 0) && (isspace(raw_line[index]));
-         index--) { // remove space at end of raw_line, especially CR & LF
-      raw_line[index] = 0;
+         --index) { // remove space at end of raw_line, especially CR & LF
+      raw_line[index] = '\0';
     }
-    strcpy(line, raw_line);
-    CHP(close_and_downcase(line));
+    CHP(close_and_downcase(line, raw_line));
     if ((line[0] == '%') && (line[1] == 0) && (_setup.percent_flag)) {
 	if (! _setup.skipping_o)
 	    FINISH();
@@ -3139,8 +3139,7 @@ int Interp::read_text(
   } else {
     CHKS((strlen(command) >= LINELEN), NCE_COMMAND_TOO_LONG);
     strcpy(raw_line, command);
-    strcpy(line, command);
-    CHP(close_and_downcase(line));
+    CHP(close_and_downcase(line, raw_line));
   }
 
   _setup.new_parameters.clear();      /* initialize parameter buffer */

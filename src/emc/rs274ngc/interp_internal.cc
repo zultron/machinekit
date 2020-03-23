@@ -68,13 +68,13 @@ The KT and NGC manuals say nothing about case or spaces and tabs.
 
 */
 
-int Interp::close_and_downcase(char *line)       //!< string: one line of NC code
+int Interp::close_and_downcase(char *line, char const *raw_line)       //!< string: one line of NC code
 {
     int comment = 0;
     bool semicomment = false;
     char item = '\0';
     int n = 0, m = 0;
-    for (; (item = line[m]) != (char) NULL; m++) {
+    for (; (item = raw_line[m]) != (char) NULL; m++) {
         if (item == '(') {
             comment++;
         } else if (item == ')') {
@@ -91,7 +91,7 @@ int Interp::close_and_downcase(char *line)       //!< string: one line of NC cod
         } else if (item == '\n') {
             /* don't copy newline            */
             /* but check null follows        */
-            CHKS((line[m + 1] != 0), NCE_NULL_MISSING_AFTER_NEWLINE);
+            CHKS((raw_line[m + 1] != 0), NCE_NULL_MISSING_AFTER_NEWLINE);
         } else {
             // Downcase using bitmask trick (6th bit is always 1 in lowercase)
             line[n++] = (64 < item) && (item < 91) ? item | 0x20 : item;
@@ -100,7 +100,7 @@ int Interp::close_and_downcase(char *line)       //!< string: one line of NC cod
     CHKS((comment), NCE_UNCLOSED_COMMENT_FOUND);
     if (semicomment) {
         // Continue the previous loop and just run it out
-        for (; (item = line[m]) != '\0'; m++) {
+        for (; (item = raw_line[m]) != '\0'; m++) {
             line[n++] = item; // pass literally
         }
     }
