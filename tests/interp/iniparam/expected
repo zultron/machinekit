@@ -11,3 +11,4 @@ Named parameter #<_ini[nosuchsection]nosuchname> not defined
     8 N..... MESSAGE(" position now: 10.000000 20.000000 30.000000")
     9 N..... MESSAGE(" not in ini: ######")
    10 N..... ON_RESET()
+   11 N..... ON_RESET()

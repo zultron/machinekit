@@ -45,6 +45,7 @@ executing
    44 N..... PALLET_SHUTTLE()
    45 N..... PROGRAM_END(1)
    46 N..... ON_RESET()
+   47 N..... ON_RESET()
 executing
     1 N..... USE_TOOL_LENGTH_OFFSET(0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000)
     2 N..... USE_LENGTH_UNITS(CANON_UNITS_MM)
@@ -74,6 +75,7 @@ executing
    26 N..... PALLET_SHUTTLE()
    27 N..... PROGRAM_END(1)
    28 N..... ON_RESET()
+   29 N..... ON_RESET()
 executing
 DISABLE_FANUC_STYLE_SUB set in .ini file, but found m98
 M98 P1 L3
@@ -87,6 +89,7 @@ M98 P1 L3
     8 N..... SET_FEED_RATE(40.0000)
     9 N..... STRAIGHT_TRAVERSE(0.0000, 0.0000, 0.2500, 0.0000, 0.0000, 0.0000)
    10 N..... ON_RESET()
+   11 N..... ON_RESET()
 executing
     1 N..... USE_TOOL_LENGTH_OFFSET(0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000)
     2 N..... USE_LENGTH_UNITS(CANON_UNITS_MM)
@@ -116,6 +119,7 @@ executing
    26 N..... PALLET_SHUTTLE()
    27 N..... PROGRAM_END(1)
    28 N..... ON_RESET()
+   29 N..... ON_RESET()
 executing
     1 N..... USE_TOOL_LENGTH_OFFSET(0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000)
     2 N..... USE_LENGTH_UNITS(CANON_UNITS_MM)

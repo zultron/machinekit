@@ -64,6 +64,7 @@ globals: [
 	_flood,
 	_ijk_absolute_mode,
 	_imperial,
+	_in_preview,
 	_incremental,
 	_ini[example]variable,
 	_inverse_time,
@@ -164,6 +165,7 @@ params: [
 	_flood,
 	_ijk_absolute_mode,
 	_imperial,
+	_in_preview,
 	_incremental,
 	_ini[example]variable,
 	_inverse_time,
@@ -241,3 +243,4 @@ params: [
    22 N..... FLOOD_OFF()
    23 N..... PROGRAM_END(0)
    24 N..... ON_RESET()
+   25 N..... ON_RESET()

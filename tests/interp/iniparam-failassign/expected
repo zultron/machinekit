@@ -8,3 +8,4 @@ Cannot assign to read-only parameter #<_ini[vars]toolchange_x>
     5 N..... SET_FEED_REFERENCE(CANON_XYZ)
     6 N..... ON_RESET()
     7 N..... ON_RESET()
+    8 N..... ON_RESET()

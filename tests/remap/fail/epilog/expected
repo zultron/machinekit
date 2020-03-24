@@ -11,3 +11,4 @@ o<mustbecalled>endsub
     8 N..... MESSAGE(" I should complain if I were'nt called but I guess I cant do that")
     9 N..... MESSAGE("failing_epilog returning INTERP_ERROR")
    10 N..... ON_RESET()
+   11 N..... ON_RESET()
