@@ -271,14 +271,6 @@ void ARC_FEED(int line_number,
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
-        PyObject *result =
-            callmethod(callback, "arc_feed", "iffffifffffff",
-                    line_number, first_end, second_end, first_axis, second_axis,
-                    rotation, axis_end_point,
-                    a_position, b_position, c_position,
-                    u_position, v_position, w_position);
-        if(result == nullptr) interp_error ++;
-        Py_XDECREF(result);
         machine.arc_feed(
                     line_number, first_end, second_end, first_axis, second_axis,
                     rotation, axis_end_point,
@@ -300,16 +292,16 @@ void STRAIGHT_FEED(int line_number,
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
-        PyObject *result = spindle_synched_motion ?
-                                                  callmethod(callback, "straight_feed_synched", "ifffffffffff",
-                                                             line_number, x, y, z, a, b, c, u, v, w,
-                                                             css_max_speed_programmed ?: spindle_speed_programmed,
-                                                             spindle_synched_feed_per_revolution/(metric?25.4:1.0)) :
-                                                  callmethod(callback, "straight_feed", "ifffffffff",
-                                                             line_number, x, y, z, a, b, c, u, v, w);
-        if(result == nullptr) interp_error ++;
-        Py_XDECREF(result);
         machine.straight_feed(line_number, _pos_prog);
+        // Keep this around just for the warnings
+        if (spindle_synched_motion) {
+            PyObject *result = callmethod(callback, "straight_feed_synched", "ifffffffffff",
+                                          line_number, x, y, z, a, b, c, u, v, w,
+                                          css_max_speed_programmed ?: spindle_speed_programmed,
+                                          spindle_synched_feed_per_revolution/(metric?25.4:1.0));
+            if(result == nullptr) interp_error ++;
+            Py_XDECREF(result);
+        }
     }
 }
 
@@ -324,11 +316,6 @@ void STRAIGHT_TRAVERSE(int line_number,
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
-        PyObject *result =
-            callmethod(callback, "straight_traverse", "ifffffffff",
-                    line_number, x, y, z, a, b, c, u, v, w);
-        if(result == nullptr) interp_error ++;
-        Py_XDECREF(result);
         machine.straight_traverse(line_number, _pos_prog);
     }
 }
@@ -1188,6 +1175,14 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
 
     // reset canon global variables and flags before parsing
     reset_gcode_canon_globals(interp_name);
+    machine.clear_motions();
+    PyObject *res_clear = callmethod(callback, "clear_tool_motion_keys", "");
+    if (!res_clear) {
+        PyErr_Format(PyExc_RuntimeError,
+                     "Failed to clear tool motion keys");
+        return nullptr;
+    }
+    Py_XDECREF(res_clear);
 
     PreviewInterp* interp = dynamic_cast<PreviewInterp*>(pinterp);
     int result = do_parse_loop(interp, file_name, units_gcode, init_gcode, working_dir, error_line_offset, run_settings, wait);
@@ -1206,6 +1201,24 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
         interp_error = 1;
         return nullptr;
     }
+
+    PyObject *capsule = PyCapsule_New((void*)&machine.getToolMotionData(), "tool_motion_data", nullptr);
+    PyObject *res_capsule = callmethod(callback, "set_tool_data_capsule", "O",
+                   capsule);
+    if(res_capsule == nullptr) interp_error ++;
+    Py_XDECREF(res_capsule);
+
+    for (auto const &item : machine.getToolMotionData()) {
+        ToolMotionKey const &key = item.first;
+        PyObject *res_motion_key = callmethod(callback,
+                                              "add_tool_motion_key", "sii",
+                                              motion_type_as_str(key.motion_type),
+                                              key.exec_mode,
+                                              key.tool_pocket_no);
+        if(res_motion_key == nullptr) interp_error ++;
+        Py_XDECREF(res_motion_key);
+    }
+
     PyObject *retval = PyTuple_New(3);
     PyTuple_SET_ITEM(retval, 0, PyInt_FromLong(result));
     PyTuple_SET_ITEM(retval, 1, PyInt_FromLong(last_sequence_number + error_line_offset));
@@ -1225,12 +1238,6 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     } else {
         PyTuple_SET_ITEM(retval, 2, PyList_New(0));
     }
-
-    PyObject *capsule = PyCapsule_New((void*)&machine.getToolMotionData(), "tool_motion_data", nullptr);
-    PyObject *res_capsule = callmethod(callback, "set_tool_data_capsule", "O",
-                   capsule);
-    if(res_capsule == nullptr) interp_error ++;
-    Py_XDECREF(res_capsule);
 
     return retval;
 }
@@ -1603,7 +1610,7 @@ initgcode(void) {
 void PreviewMachine::add_motion(ToolMotionKey key, ToolMotion motion)
 {
     tool_motions[key].push_back(motion);
-    machine_pos_uu = motion.p1;
+    machine_pos_uu = motion.p_end;
     updateExtents(motion);
 }
 
@@ -1618,11 +1625,11 @@ void PreviewMachine::straight_motion(int line_number, const PositionArray & goal
 
 void PreviewMachine::updateExtents(const ToolMotion & motion)
 {
-    extents.max = max(max(extents.max, motion.p0), motion.p1);
-    extents.min = min(min(extents.min, motion.p0), motion.p1);
+    extents.max = max(max(extents.max, motion.p_start), motion.p_end);
+    extents.min = min(min(extents.min, motion.p_start), motion.p_end);
 
-    PositionArray p0_notool = transform_uu.inverse_nose_from_tip(motion.p0);
-    PositionArray p1_notool = transform_uu.inverse_nose_from_tip(motion.p1);
+    PositionArray p0_notool = transform_uu.inverse_nose_from_tip(motion.p_start);
+    PositionArray p1_notool = transform_uu.inverse_nose_from_tip(motion.p_end);
     extents_no_tool.max = max(max(extents.max, p0_notool), p1_notool);
     extents_no_tool.min = min(min(extents.min, p0_notool), p1_notool);
 }
@@ -1684,9 +1691,9 @@ void PreviewMachine::arc_feed(int line_number,
     n_tmp[Z] = z1;
     PositionArray const n{n_tmp.x,n_tmp.y,n_tmp.z,a,b,c,u,v,w};
 
-    PositionArray const o = transform_uu.inverse_nose_from_tip(machine_pos_uu);
+    PositionArray const start_lcl = transform_uu.inverse_local_from_tip(machine_pos_uu);
 
-    double theta1 = atan2(o[Y]-cy, o[X]-cx);
+    double theta1 = atan2(start_lcl[Y]-cy, start_lcl[X]-cx);
     double theta2 = atan2(n[Y]-cy, n[X]-cx);
 
     if(rot < 0) {
@@ -1703,29 +1710,43 @@ void PreviewMachine::arc_feed(int line_number,
     double rsteps = 1. / steps;
 
     double dtheta = theta2 - theta1;
-    PositionArray d = {0, 0, 0, n[3]-o[3], n[4]-o[4], n[5]-o[5], n[6]-o[6], n[7]-o[7], n[8]-o[8]};
-    d[Z] = n[Z] - o[Z];
+    PositionArray d = n-start_lcl;
+    d[X] = 0;
+    d[Y] = 0;
+    d[Z] = n[Z] - start_lcl[Z];
 
-    PositionArray p_last = o;
-    PositionArray p_next;
-    double tx = o[X] - cx, ty = o[Y] - cy, dc = cos(dtheta*rsteps), ds = sin(dtheta*rsteps);
+    PositionArray p_lcl_last = start_lcl;
+    PositionArray p_lcl = start_lcl;
+    double tx = start_lcl[X] - cx, ty = start_lcl[Y] - cy, dc = cos(dtheta*rsteps), ds = sin(dtheta*rsteps);
+    ToolMotionKey key{MotionType::ARC_FEED, exec_mode, current_tool_pocket};
+    auto &motion_set = get_motion_set(key);
     for(int i=0; i<steps-1; i++) {
         double f = (i+1) * rsteps;
         rotate(tx, ty, dc, ds);
-        PositionArray p;
-        p[X] = tx + cx;
-        p[Y] = ty + cy;
-        p[Z] = o[Z] + d[Z] * f;
-        p[3] = o[3] + d[3] * f;
-        p[4] = o[4] + d[4] * f;
-        p[5] = o[5] + d[5] * f;
-        p[6] = o[6] + d[6] * f;
-        p[7] = o[7] + d[7] * f;
-        p[8] = o[8] + d[8] * f;
-        p_next = transform_uu.forward_local_to_tip(p);
-        add_motion({MotionType::ARC_FEED, exec_mode, current_tool_pocket},{line_number, p_last, p, feed_rate});
+        p_lcl = start_lcl + d*f;
+        p_lcl[X] = tx + cx;
+        p_lcl[Y] = ty + cy;
+        p_lcl[Z] = start_lcl[Z] + d[Z] * f;
+        motion_set.push_back(
+                   {
+                       line_number,
+                       transform_uu.forward_local_to_tip(p_lcl),
+                       transform_uu.forward_local_to_tip(p_lcl_last),
+                       feed_rate
+                   });
+        updateExtents(motion_set.back());
+        p_lcl_last = p_lcl;
     }
-    add_motion({MotionType::ARC_FEED, exec_mode, current_tool_pocket}, {line_number, p_next, transform_uu.forward_local_to_tip(n), feed_rate});
+    motion_set.push_back(
+        {
+            line_number,
+            transform_uu.forward_local_to_tip(p_lcl_last),
+            transform_uu.forward_local_to_tip(n),
+            feed_rate
+        });
+    updateExtents(motion_set.back());
+    // Do updates that would have happened with add_motion
+    machine_pos_uu = motion_set.back().p_end;
 }
 
 bool PreviewMachine::set_exec_mode(ParseExecMode mode)
@@ -1743,6 +1764,13 @@ bool PreviewMachine::set_exec_mode(ParseExecMode mode)
 void PreviewMachine::set_current_tool(int tool_pocket)
 {
     current_tool_pocket = tool_pocket;
+}
+
+void PreviewMachine::clear_motions()
+{
+    tool_motions.clear();
+    extents = ExtentBox();
+    extents_no_tool = ExtentBox();
 }
 
 /**

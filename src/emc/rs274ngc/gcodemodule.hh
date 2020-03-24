@@ -16,6 +16,7 @@ class PreviewMachine
     ExtentBox extents_no_tool;
 
     void add_motion(ToolMotionKey key, ToolMotion motion);
+    std::vector<ToolMotion> &get_motion_set(ToolMotionKey key) {return tool_motions[key];}
     void straight_motion(int line_number, PositionArray const &goal_pos_prog, MotionType t);
     void updateExtents(ToolMotion const &motion);
     void resetExtents();
@@ -40,10 +41,15 @@ public:
         double u_position,
         double v_position,
         double w_position);
-
-    bool set_exec_mode(ParseExecMode mode);
-    void set_current_tool(int tool_pocket);
+    void change_tool(int tool_pocket);
     void set_plane(CANON_PLANE pl) {plane = pl;}
+    void set_firstmove();
+    void clear_firstmove();
+    void tool_offset(const EmcPose & offset);
+
+    // Misc helpers
+    bool set_exec_mode(ParseExecMode mode);
+    void clear_motions();
 
     ToolMotionMap const &getToolMotionData() const;
 };

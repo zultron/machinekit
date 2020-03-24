@@ -1673,6 +1673,10 @@ static void glvertex9(const double pt[9], const char *geometry) {
     glVertex3dv(p);
 }
 
+static inline void glvertex9(PositionArray pt, const char *geometry){
+    glvertex9(pt.data(), geometry);
+}
+
 #define max(a,b) ((a) < (b) ? (b) : (a))
 #define max3(a,b,c) (max((a),max((b),(c))))
 
@@ -1694,6 +1698,27 @@ static void line9(const double p1[9], const double p2[9], const char *geometry) 
         }
     } else {
         glvertex9(p2, geometry);
+    }
+}
+
+static void line9(PositionArray const & p1, PositionArray const &p2, const char *geometry) {
+    if(p1[3] != p2[3] || p1[4] != p2[4] || p1[5] != p2[5]) {
+        double dc = max3(
+            fabs(p2[3] - p1[3]),
+            fabs(p2[4] - p1[4]),
+            fabs(p2[5] - p1[5]));
+        int st = (int)ceil(max(10, dc/10));
+        int i;
+
+        for(i=1; i<=st; i++) {
+            double t = i * 1.0 / st;
+            double v = 1.0 - t;
+            double pt[9];
+            for(int j=0; j<9; j++) { pt[j] = t * p2[j] + v * p1[j]; }
+            glvertex9(pt, geometry);
+        }
+    } else {
+        glvertex9(p2.data(), geometry);
     }
 }
 
@@ -1845,6 +1870,78 @@ static PyObject *pydraw_lines(PyObject *s, PyObject *o) {
         }
         line9(p1, p2, geometry);
         memcpy(pl, p2, sizeof(p1));
+    }
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject *pydraw_lines_by_type(PyObject *s, PyObject *o) {
+    int for_selection = 0;
+    int active_line_no = -1;
+    PositionArray pl;
+    char *geometry={};
+    GLBeginEndWrapper gl_wrapper{};
+
+    PyObject *capsule=nullptr;
+    PyObject *motion_key_tuple=nullptr;
+    if(!PyArg_ParseTuple(o, "sO!O!i:draw_lines_by_type",
+                &geometry, &PyCapsule_Type, &capsule, &PyTuple_Type, &motion_key_tuple, &for_selection))
+        return NULL;
+    if (!capsule) {
+        PyErr_Format( error, "Motion data capsule is null!");
+        return nullptr;
+    }
+
+    char *motion_type_str;
+    int exec_mode=-1;
+    int tool_no=-1;
+    if(!PyArg_ParseTuple(motion_key_tuple, "sii", &motion_type_str, &exec_mode, &tool_no)) {
+        PyErr_Format( error, "Invalid motion key tuple");
+        return nullptr;
+    }
+    ToolMotionKey key{motion_type_from_str(motion_type_str), (ParseExecMode)exec_mode, tool_no};
+
+    auto tool_motion_map = static_cast<ToolMotionMap*>(PyCapsule_GetPointer(capsule, "tool_motion_data"));
+    if (!tool_motion_map) {
+        PyErr_Format( error, "No tool motion map found in capsule");
+        return nullptr;
+    }
+
+    auto it = tool_motion_map->find(key);
+    if (it == tool_motion_map->end()) {
+        // No matching tool motion, should be an error but handle this later
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+
+    auto const &tool_motions = it->second;
+
+    for(auto const &motion : tool_motions) {
+        if(!gl_wrapper.started() || motion.p_start != motion.p_end || (for_selection && motion.line_number != active_line_no)){
+            gl_wrapper.end();
+            if (for_selection && motion.line_number != active_line_no) {
+                // NOTE: this doesn't currently get passed through, so we only
+                // really have 24 bits of resolution in line numbers (16.7
+                // million lines ought to be enough for anybody) Effectively
+                // "a" is the overflow right now
+                unsigned a = (motion.line_number & 0xFF000000) >> 24;
+                if (!a) {
+                    unsigned r = (motion.line_number & 0x000000FF) >>  0;
+                    unsigned g = (motion.line_number & 0x0000FF00) >>  8;
+                    unsigned b = (motion.line_number & 0x00FF0000) >> 16;
+                    glColor4ub(r,g,b,0xFF);
+                } else {
+                    // Ignore any lines above our cutoff since we can't distinguish them anyway
+                    glColor4ub(0,0,0,0xFF);
+                }
+                active_line_no = motion.line_number;
+            }
+            gl_wrapper.begin(GL_LINE_STRIP);
+            glvertex9(motion.p_start.data(), geometry);
+        }
+        line9(motion.p_start, motion.p_end, geometry);
+        pl = motion.p_end;
     }
 
     Py_INCREF(Py_None);
@@ -2441,6 +2538,7 @@ static PyTypeObject PositionLoggerType = {
 
 static PyMethodDef emc_methods[] = {
     {"draw_lines", pydraw_lines, METH_VARARGS, "Draw a bunch of lines in the 'rs274.glcanon' format"},
+    {"draw_lines_by_type", pydraw_lines_by_type, METH_VARARGS, "Draw a subset of lines by key (using internal storage in gcodemodule for lines)"},
     {"draw_dwells", pydraw_dwells, METH_VARARGS, "Draw a bunch of dwell positions in the 'rs274.glcanon' format"},
     {"line9", pyline9, METH_VARARGS, "Draw a single line in the 'rs274.glcanon' format; assumes glBegin(GL_LINES)"},
     {"vertex9", pyvertex9, METH_VARARGS, "Get the 3d location for a 9d point"},

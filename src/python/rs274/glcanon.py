@@ -67,6 +67,7 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         # Dict with tuple key holding various sets of motions
         # {(motion_type_str, exec_mode, tool_number) : (line number, [start position], [end position], feedrate, [tlo x, tlo y, tlo z], toolno)}
         self.tool_motions = defaultdict(list)
+        self.tool_motion_types = set()
 
         self.exec_mode = gcode.PARSE_EXEC_SEEK
         # dwell list - (line number, color, pos x, pos y, pos z, plane)
@@ -127,27 +128,10 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def next_line(self, st):
         pass
 
-    def draw_lines(self, lines, for_selection, geometry=None):
-        return linuxcnc.draw_lines(geometry or self.geometry, lines, for_selection, self.tool_data_capsule)
-
-    def colored_lines(self, color_name, lines, for_selection):
-        if self.foam_option:
-            if not for_selection:
-                self.color_config.gl_color_with_alpha(color_name + "_xy")
-            glPushMatrix()
-            glTranslatef(0, 0, self.foam_z)
-            self.draw_lines(lines, for_selection, 'XY')
-            glPopMatrix()
-            if not for_selection:
-                self.color_config.gl_color_with_alpha(color_name + "_uv")
-            glPushMatrix()
-            glTranslatef(0, 0, self.foam_w)
-            self.draw_lines(lines, for_selection, 'UV')
-            glPopMatrix()
-        else:
-            if not for_selection:
-                self.color_config.gl_color_with_alpha(color_name)
-            self.draw_lines(lines, for_selection)
+    def colored_lines_by_type(self, color_name, motion_key, for_selection):
+        if not for_selection:
+            self.color_config.gl_color_with_alpha(color_name)
+        return linuxcnc.draw_lines_by_type(self.geometry, self.tool_data_capsule, motion_key, for_selection)
 
     def draw_dwells(self, dwells, alpha, for_selection):
         return linuxcnc.draw_dwells(self.geometry, dwells, alpha, for_selection, self.is_lathe())
@@ -297,6 +281,12 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def set_tool_data_capsule(self, capsule):
         self.tool_data_capsule = capsule
 
+    def add_tool_motion_key(self, motion_type, exec_mode, tool_number):
+        self.tool_motion_types.add(MotionKey(motion_type, exec_mode, tool_number))
+
+    def clear_tool_motion_keys(self):
+        self.tool_motion_types = set()
+
     def highlight(self, lineno, geometry):
         #t0 = time.time()
         glLineWidth(3)
@@ -350,22 +340,23 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
 
     def draw_rapids(self, for_selection):
         glEnable(GL_LINE_STIPPLE)
-        for k, v in self.tool_motions.iteritems():
+        for k in self.tool_motion_types:
             if k.motion_type != 'traverse':
                 continue
 
             if self.visible_tools is None or k.tool_no in self.visible_tools:
                 color_base_name = self.color_config.exec_mode_colormap.get(k.exec_mode, k.motion_type)
-                self.colored_lines(color_base_name, v, for_selection)
+                self.colored_lines_by_type(color_base_name, k, for_selection)
         glDisable(GL_LINE_STIPPLE)
 
     def draw_nonrapids(self, for_selection):
-        for k, v in self.tool_motions.iteritems():
+        for k in self.tool_motion_types:
             if k.motion_type == 'traverse':
                 continue
+
             if self.visible_tools is None or k.tool_no in self.visible_tools:
                 color_base_name = self.color_config.exec_mode_colormap.get(k.exec_mode, k.motion_type)
-                self.colored_lines(color_base_name, v, for_selection)
+                self.colored_lines_by_type(color_base_name, k, for_selection)
 
         glLineWidth(2)
         self.draw_dwells(self.dwells, self.color_config.get_alpha_or_default('dwell'), for_selection)
