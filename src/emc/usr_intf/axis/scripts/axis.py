@@ -23,8 +23,6 @@
 import sys, os
 import string
 
-from glcanon import GlDrawColors
-
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 sys.path.insert(0, os.path.join(BASE, "lib", "python"))
 
@@ -62,7 +60,7 @@ import gcode
 sys.setdlopenflags(old_flags)
 from rs274.OpenGLTk import *
 from rs274.interpret import StatMixin
-from rs274.glcanon import GLCanon, GlCanonDraw
+from rs274.glcanon import GLCanon, GlCanonDraw, GlDrawColors
 from hershey import Hershey
 from propertywindow import properties
 import rs274.options
@@ -367,7 +365,7 @@ class MyOpengl(GlCanonDraw, Opengl):
         self.motion_after = None
         self.perspective = False
         Opengl.__init__(self, *args, **kw)
-        GlCanonDraw.__init__(self, s, None, inifile, rs274.glcanon.GlDrawColors())
+        GlCanonDraw.__init__(self, s, None, inifile, GlDrawColors())
         self.bind('<Button-1>', self.select_prime, add=True)
         self.bind('<ButtonRelease-1>', self.select_fire, add=True)
         self.bind('<Button1-Motion>', self.select_cancel, add=True)
