@@ -950,7 +950,7 @@ int set_exec_mode(ParseExecMode mode)
  */
 int synch_position_to_python()
 {
-    auto machine_pos_uu = machine.transform_uu.forward_local_to_tip(convertsProgToUser().forward(_pos_prog));
+    auto machine_pos_uu = machine.transform_uu.forward_local_to_nose(convertsProgToUser().forward(_pos_prog));
 
     if(interp_error) return INTERP_ERROR;
     PyObject *result =
@@ -1635,7 +1635,7 @@ void PreviewMachine::straight_motion(int line_number, const PositionArray & goal
         set_current_pos(goal_pos_prog);
         return;
     }
-    auto goal_pos_uu = transform_uu.forward_local_to_tip(convertsProgToUser().forward(goal_pos_prog));
+    auto goal_pos_uu = transform_uu.forward_local_to_nose(convertsProgToUser().forward(goal_pos_prog));
     add_motion({t, exec_mode, current_tool_pocket}, {
         line_number,
         machine_pos_uu,
@@ -1647,14 +1647,14 @@ void PreviewMachine::updateExtents(const ToolMotion & motion)
     extents.max = max(max(extents.max, motion.p_start), motion.p_end);
     extents.min = min(min(extents.min, motion.p_start), motion.p_end);
 
-    PositionArray p0_notool = transform_uu.inverse_nose_from_tip(motion.p_start);
-    PositionArray p1_notool = transform_uu.inverse_nose_from_tip(motion.p_end);
+    PositionArray p0_notool = transform_uu.forward_nose_to_tip(motion.p_start);
+    PositionArray p1_notool = transform_uu.forward_nose_to_tip(motion.p_end);
     extents_no_tool.max = max(max(extents.max, p0_notool), p1_notool);
     extents_no_tool.min = min(min(extents.min, p0_notool), p1_notool);
 }
 
 void PreviewMachine::set_current_pos(const PositionArray & pos_local_prog) {
-    machine_pos_uu =  transform_uu.forward_local_to_tip(convertsProgToUser().forward(pos_local_prog));
+    machine_pos_uu =  transform_uu.forward_local_to_nose(convertsProgToUser().forward(pos_local_prog));
 }
 
 void PreviewMachine::straight_feed(int line_number, const PositionArray & goal_pos_prog)
@@ -1717,7 +1717,7 @@ void PreviewMachine::arc_feed(int line_number,
     n_tmp[Z] = z1;
     PositionArray const n{n_tmp.x,n_tmp.y,n_tmp.z,a,b,c,u,v,w};
 
-    PositionArray const start_lcl = transform_uu.inverse_local_from_tip(machine_pos_uu);
+    PositionArray const start_lcl = transform_uu.inverse_local_from_nose(machine_pos_uu);
 
     double theta1 = atan2(start_lcl[Y]-cy, start_lcl[X]-cx);
     double theta2 = atan2(n[Y]-cy, n[X]-cx);
@@ -1756,8 +1756,8 @@ void PreviewMachine::arc_feed(int line_number,
         motion_set.push_back(
                    {
                        line_number,
-                       transform_uu.forward_local_to_tip(p_lcl),
-                       transform_uu.forward_local_to_tip(p_lcl_last),
+                       transform_uu.forward_local_to_nose(p_lcl),
+                       transform_uu.forward_local_to_nose(p_lcl_last),
                        feed_rate
                    });
         updateExtents(motion_set.back());
@@ -1766,8 +1766,8 @@ void PreviewMachine::arc_feed(int line_number,
     motion_set.push_back(
         {
             line_number,
-            transform_uu.forward_local_to_tip(p_lcl_last),
-            transform_uu.forward_local_to_tip(n),
+            transform_uu.forward_local_to_nose(p_lcl_last),
+            transform_uu.forward_local_to_nose(n),
             feed_rate
         });
     updateExtents(motion_set.back());
@@ -1778,7 +1778,7 @@ void PreviewMachine::arc_feed(int line_number,
 void PreviewMachine::rigid_tap(int line_number, const PositionArray & goal_pos_prog)
 {
     first_move = false;
-    PositionArray orig_pos_prog = convertsUserToProg().forward(transform_uu.inverse_local_from_tip(get_current_pos()));
+    PositionArray orig_pos_prog = convertsUserToProg().forward(transform_uu.inverse_local_from_nose(get_current_pos()));
     straight_motion(line_number, goal_pos_prog, MotionType::RIGID_TAP);
     straight_motion(line_number, orig_pos_prog, MotionType::RIGID_TAP);
 }
