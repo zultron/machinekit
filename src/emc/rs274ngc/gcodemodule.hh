@@ -12,8 +12,6 @@ class PreviewMachine
     double feed_rate;
 
     ToolMotionMap tool_motions;
-    ExtentBox extents;
-    ExtentBox extents_no_tool;
 
     void add_motion(ToolMotionKey key, ToolMotion motion);
     std::vector<ToolMotion> &get_motion_set(ToolMotionKey key) {return tool_motions[key];}
@@ -22,6 +20,8 @@ class PreviewMachine
     void resetExtents();
 
 public:
+    ExtentBox extents;
+    ExtentBox extents_no_tool;
     PreviewMachine() = default;
     LocalToMachineTransform transform_uu; //KLUDGE easier to just poke this directly
     void straight_feed(int line_number, PositionArray const &goal_pos_prog);

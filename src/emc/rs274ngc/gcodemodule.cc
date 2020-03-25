@@ -1219,6 +1219,31 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
         Py_XDECREF(res_motion_key);
     }
 
+    {
+        PyObject *res = callmethod(
+            callback,
+            "set_extents",
+            "(ddd)(ddd)(ddd)(ddd)",
+            machine.extents.min[X],
+            machine.extents.min[Y],
+            machine.extents.min[Z],
+            machine.extents.max[X],
+            machine.extents.max[Y],
+            machine.extents.max[Z],
+            machine.extents_no_tool.min[X],
+            machine.extents_no_tool.min[Y],
+            machine.extents_no_tool.min[Z],
+            machine.extents_no_tool.max[X],
+            machine.extents_no_tool.max[Y],
+            machine.extents_no_tool.max[Z]);
+
+        if(!res) {
+            PyErr_Format(PyExc_RuntimeError,
+                    "Failed to set extents");
+        }
+        Py_XDECREF(res);
+    }
+
     PyObject *retval = PyTuple_New(3);
     PyTuple_SET_ITEM(retval, 0, PyInt_FromLong(result));
     PyTuple_SET_ITEM(retval, 1, PyInt_FromLong(last_sequence_number + error_line_offset));

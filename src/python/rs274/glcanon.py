@@ -148,6 +148,13 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             self.max_extents_notool = \
                 self.max_extents_notool[0], self.max_extents_notool[1], max_z
 
+    def set_extents(self, min_extents, max_extents, min_extents_notool, max_extents_notool):
+        # TODO support foam option
+        self.min_extents = min_extents
+        self.max_extents = max_extents
+        self.min_extents_notool = min_extents_notool
+        self.max_extents_notool = max_extents_notool
+
     def calc_velocity(self, delta, axis_max_vel):
         """Using techniques from getStraightVelocity() in emccanon.cc, given 9
         axis deltas and velocity limits, calculate max velocity of a
@@ -2038,7 +2045,7 @@ class GlCanonDraw:
         if result <= gcode.MIN_ERROR:
             if self.canon.progress is not None:
                 self.canon.progress.nextphase(1)
-            canon.calc_extents()
+            #canon.calc_extents()
             self.stale_dlist('program_rapids')
             self.stale_dlist('program_norapids')
             self.stale_dlist('select_rapids')
