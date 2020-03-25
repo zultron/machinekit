@@ -173,7 +173,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.maxlat = 90
 
         self.highlight_line = None
-        self.program_alpha = False
+        # Now on by default, but can be turned off with ADMIN SET_PREVIEW_ALPHA
+        self.program_alpha = True
         self.use_joints_mode = False
         self.use_commanded = True
         self.show_limits = True
