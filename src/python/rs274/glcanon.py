@@ -435,6 +435,8 @@ class GlDrawColors:
             'grid': (0.15, 0.15, 0.15),
             'skipped_segments': (0.35, 0.35, 0.25),
             'leadin': (0.4, 1.0, 0.5),
+            'work_offset': (.4, .45, .8),
+            'axis_offset': (.4, .6, .8),
         }
 
         # NOTE: PARSE_EXEC_RUN is deliberately omitted here so that the lookup will fall back to the motion type
@@ -1232,13 +1234,14 @@ class GlCanonDraw:
                     glCallList(olist)
 
                 g5x_offset = self.to_internal_units(s.g5x_offset)[:3]
-                if  self.is_rear_tool_post_lathe():
+                if self.is_rear_tool_post_lathe():
                     g5x_offset[0] *= -1
                 g92_offset = self.to_internal_units(s.g92_offset)[:3]
 
                 if self.get_show_offsets() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2]):
 
                     # plot offset crosshair
+                    self.color_config.gl_color_with_alpha('work_offset')
                     glBegin(GL_LINES)
                     glVertex3f(0,0,0)
                     glVertex3f(*g5x_offset)
@@ -1248,8 +1251,10 @@ class GlCanonDraw:
                     i = s.g5x_index
                     if i<7:
                         label = "G5%d" % (i+3)
-                    else:
+                    elif i<10:
                         label = "G59.%d" % (i-6)
+                    else:
+                        label = "G54.1 P{}".format(i)
                     glPushMatrix()
                     glScalef(0.2,0.2,0.2)
                     if self.is_lathe():
@@ -1267,6 +1272,7 @@ class GlCanonDraw:
                 glRotatef(s.rotation_xy, 0, 0, 1)
 
                 if self.get_show_offsets() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
+                    self.color_config.gl_color_with_alpha('axis_offset')
                     glBegin(GL_LINES)
                     glVertex3f(0,0,0)
                     # g92_offset[0] *= -1 if rear tool lathe?

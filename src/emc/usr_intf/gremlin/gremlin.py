@@ -197,8 +197,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.rear_tp_lathe_option = bool(temp2 == "-XZ")
 
         self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
-        self.show_offsets = False
-        #self.show_offsets = True
+        self.show_offsets = True
         self.show_g53_origin = False
         self.mouse_btn_mode = 0
 
