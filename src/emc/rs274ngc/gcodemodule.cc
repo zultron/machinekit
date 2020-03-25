@@ -966,6 +966,7 @@ void restore_machine_state_before_preview_synch(ExpandedModalState const &run_in
 {
     // KLUDGE force the "machine" state to be what the initial position was again, as if synching from a real machine
     _pos_prog = convertsUserToProg().forward(machine.transform_uu.inverse_local_from_nose(run_initial_state.initial_nose_position_uu));
+    machine.set_current_pos(_pos_prog);
 
     // TODO handle coolant settings here if we ever show coolant state in preview
     // flood
