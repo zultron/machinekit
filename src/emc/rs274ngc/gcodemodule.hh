@@ -26,6 +26,7 @@ public:
     PreviewMachine() = default;
     LocalToMachineTransform transform_uu; //KLUDGE easier to just poke this directly
 
+    PositionArray const &get_current_pos() const {return machine_pos_uu;}
     void set_current_pos(PositionArray const &pos_local_prog);
 
     // Callbacks for various canon functions
@@ -46,6 +47,7 @@ public:
         double u_position,
         double v_position,
         double w_position);
+    void rigid_tap(int line_number, PositionArray const &goal_pos_prog);
     void change_tool(int tool_pocket);
     void set_plane(CANON_PLANE pl) {plane = pl;}
     void set_firstmove();

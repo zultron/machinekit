@@ -420,6 +420,8 @@ class GlDrawColors:
             'overlay_foreground': (1.00, 1.00, 1.00),
             'overlay_background': (0.00, 0.00, 0.00),
             'straight_feed': (1.00, 1.00, 1.00),
+            'rigid_tap': (1.0, 1.0, 0.9),
+            'probe': (1.0, 0.9, 1.0),
             'straight_feed_xy': (0.20, 1.00, 0.20),
             'straight_feed_uv': (0.20, 0.20, 1.00),
             'small_origin': (0.00, 1.00, 1.00),

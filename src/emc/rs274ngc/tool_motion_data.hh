@@ -43,10 +43,10 @@ inline const char * motion_type_as_str(MotionType motion_type) {
         return "traverse";
     case MotionType::PROBE:
         //TODO unique color?
-        return "straight_feed";
+        return "probe";
     case MotionType::RIGID_TAP:
         //TODO unique color?
-        return "straight_feed";
+        return "rigid_tap";
     case MotionType::ARC_FEED:
         return "arc_feed";
     }
@@ -58,6 +58,8 @@ inline MotionType motion_type_from_str(const char *motion_str) {
         {"straight_feed", MotionType::STRAIGHT_FEED},
         {"traverse", MotionType::RAPID},
         {"arc_feed", MotionType::ARC_FEED},
+        {"probe", MotionType::PROBE},
+        {"rigid_tap", MotionType::RIGID_TAP},
         };
     auto it = str_lookup.find(motion_str);
     if (it != str_lookup.end()) {

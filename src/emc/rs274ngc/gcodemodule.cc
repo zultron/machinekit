@@ -312,7 +312,6 @@ void STRAIGHT_TRAVERSE(int line_number,
     // KLUDGE override with the toplevel line for selection
     line_number = pinterp->toplevel_line();
     assign(_pos_prog, x, y, z, a, b, c, u, v, w);
-    if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
@@ -577,15 +576,10 @@ void STRAIGHT_PROBE(int line_number,
     probe_start_pos_prog = _pos_prog;
     assign(_pos_prog, x, y, z, a, b, c, u, v, w);
 
-    if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
-        PyObject *result =
-            callmethod(callback, "straight_probe", "ifffffffff",
-                    line_number, x, y, z, a, b, c, u, v, w);
-        if(result == nullptr) interp_error ++;
-        Py_XDECREF(result);
+        machine.straight_probe(line_number, _pos_prog);
     }
 }
 
@@ -593,18 +587,14 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
                     double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
-    // KLUDGE override with the toplevel line for selection
+
     line_number = pinterp->toplevel_line();
+    probe_start_pos_prog = _pos_prog;
     assign(_pos_prog, x, y, z, a, b, c, u, v, w);
-    if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
-        PyObject *result =
-            callmethod(callback, "straight_probe_to_limit", "ifffffffff",
-                    line_number, x, y, z, a, b, c, u, v, w);
-        if(result == nullptr) interp_error ++;
-        Py_XDECREF(result);
+        machine.straight_probe(line_number, _pos_prog);
     }
 }
 
@@ -618,14 +608,14 @@ void RIGID_TAP(int line_number,
 ){
     // KLUDGE override with the toplevel line for selection
     line_number = pinterp->toplevel_line();
-    if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; }
+    _pos_prog[X] = x;
+    _pos_prog[Y] = y;
+    _pos_prog[Z] = z;
     maybe_new_line(line_number);
     if(interp_error) return;
-    PyObject *result =
-        callmethod(callback, "rigid_tap", "ifff",
-            line_number, x, y, z);
-    if(result == nullptr) interp_error ++;
-    Py_XDECREF(result);
+    if (_linecount < max_glcanon_lines) {
+        machine.rigid_tap(line_number, _pos_prog);
+    }
 }
 double GET_EXTERNAL_MOTION_CONTROL_TOLERANCE() { return 0.1; }
 
@@ -1783,6 +1773,14 @@ void PreviewMachine::arc_feed(int line_number,
     updateExtents(motion_set.back());
     // Do updates that would have happened with add_motion
     machine_pos_uu = motion_set.back().p_end;
+}
+
+void PreviewMachine::rigid_tap(int line_number, const PositionArray & goal_pos_prog)
+{
+    first_move = false;
+    PositionArray orig_pos_prog = convertsUserToProg().forward(transform_uu.inverse_local_from_tip(get_current_pos()));
+    straight_motion(line_number, goal_pos_prog, MotionType::RIGID_TAP);
+    straight_motion(line_number, orig_pos_prog, MotionType::RIGID_TAP);
 }
 
 bool PreviewMachine::set_exec_mode(ParseExecMode mode)
