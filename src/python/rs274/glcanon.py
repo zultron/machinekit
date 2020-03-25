@@ -1238,7 +1238,7 @@ class GlCanonDraw:
                     g5x_offset[0] *= -1
                 g92_offset = self.to_internal_units(s.g92_offset)[:3]
 
-                if self.get_show_offsets() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2]):
+                if self.get_show_work_offset() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2]):
 
                     # plot offset crosshair
                     self.color_config.gl_color_with_alpha('work_offset')
@@ -1271,7 +1271,7 @@ class GlCanonDraw:
                 glTranslatef(*g5x_offset)
                 glRotatef(s.rotation_xy, 0, 0, 1)
 
-                if self.get_show_offsets() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
+                if self.get_show_axis_offset() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
                     self.color_config.gl_color_with_alpha('axis_offset')
                     glBegin(GL_LINES)
                     glVertex3f(0,0,0)
@@ -2076,4 +2076,9 @@ class GlCanonDraw:
         s = self.color_config.get_color(s)
         return [int(x * 255) for x in s + (a,)]
 
+    def get_show_work_offset(self):
+        return False
+
+    def get_show_axis_offset(self):
+        return True
 # vim:ts=8:sts=4:sw=4:et:
