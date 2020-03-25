@@ -33,6 +33,9 @@
 #include "nml_oi.hh"
 #include "rcs_print.hh"
 #include "tool_motion_data.hh"
+#include <algorithm>
+using std::max;
+using std::min;
 
 #include <cmath>
 
@@ -1677,8 +1680,7 @@ static inline void glvertex9(PositionArray pt, const char *geometry){
     glvertex9(pt.data(), geometry);
 }
 
-#define max(a,b) ((a) < (b) ? (b) : (a))
-#define max3(a,b,c) (max((a),max((b),(c))))
+#define max3(a,b,c) (std::max((a),std::max((b),(c))))
 
 static void line9(const double p1[9], const double p2[9], const char *geometry) {
     if(p1[3] != p2[3] || p1[4] != p2[4] || p1[5] != p2[5]) {
@@ -1686,7 +1688,7 @@ static void line9(const double p1[9], const double p2[9], const char *geometry) 
             fabs(p2[3] - p1[3]),
             fabs(p2[4] - p1[4]),
             fabs(p2[5] - p1[5]));
-        int st = (int)ceil(max(10, dc/10));
+        int st = (int)ceil(max(10., dc/10));
         int i;
 
         for(i=1; i<=st; i++) {
@@ -1707,7 +1709,7 @@ static void line9(PositionArray const & p1, PositionArray const &p2, const char 
             fabs(p2[3] - p1[3]),
             fabs(p2[4] - p1[4]),
             fabs(p2[5] - p1[5]));
-        int st = (int)ceil(max(10, dc/10));
+        int st = (int)ceil(max(10., dc/10));
         int i;
 
         for(i=1; i<=st; i++) {
@@ -1729,7 +1731,7 @@ static void line9b(const double p1[9], const double p2[9], const char *geometry)
             fabs(p2[3] - p1[3]),
             fabs(p2[4] - p1[4]),
             fabs(p2[5] - p1[5]));
-        int st = (int)ceil(max(10, dc/10));
+        int st = (int)ceil(max(10., dc/10));
         int i;
 
         for(i=1; i<=st; i++) {
@@ -2018,6 +2020,81 @@ static PyObject *pydraw_dwells(PyObject *s, PyObject *o) {
     Py_INCREF(Py_None);
     return Py_None;
 }
+
+static PM_CARTESIAN xyz(PositionArray const &p)
+{
+    return PM_CARTESIAN{p[X], p[Y], p[Z]};
+}
+
+static PyObject *pydraw_lines_by_property(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+    // Assume that linewidth and color are already specified (e.g. for highlighting)
+    char *geometry={};
+
+    PyObject *capsule=nullptr;
+
+    int line_number=-1;
+    int tool_number=-1;
+    // TODO other properties to filter by
+
+    static const char * const kwarg_list[] = {
+        "geometry",
+        "tool_motions_capsule",
+        "line_number",
+        "tool_number",
+        nullptr,
+        };
+
+    // KLUDGE shove even more parameters in here...
+    if(!PyArg_ParseTupleAndKeywords(
+            args,
+            kwargs,
+            "sO!|ii",
+            const_cast<char**>(kwarg_list),
+            &geometry,
+            &PyCapsule_Type,
+            &capsule,
+            &line_number,
+            &tool_number)) {
+        return nullptr;
+    }
+
+    if (!capsule) {
+        PyErr_Format( error, "Motion data capsule is null!");
+        return nullptr;
+    }
+
+    auto tool_motion_map = static_cast<ToolMotionMap*>(PyCapsule_GetPointer(capsule, "tool_motion_data"));
+    if (!tool_motion_map) {
+        PyErr_Format( error, "No tool motion map found in capsule");
+        return nullptr;
+    }
+
+    PyObject *coords = PyList_New(0);
+    glBegin(GL_LINES);
+    for(auto const &motion_set : *tool_motion_map) {
+        auto const &key = motion_set.first;
+        if (tool_number > 0 && key.tool_pocket_no != tool_number) {
+            continue;
+        }
+        for(auto const &motion : motion_set.second) {
+            if (line_number <= 0 || motion.line_number == line_number) {
+                line9b(motion.p_start.data(), motion.p_end.data(), geometry);
+                PM_CARTESIAN center_pt = (xyz(motion.p_end) + xyz(motion.p_start))/2.;
+                PyObject *c = PyTuple_New(3);
+                for(int i = 0; i < 3; i++) {
+                    PyTuple_SET_ITEM(c, i, PyFloat_FromDouble(center_pt[i]));
+                }
+                PyList_Append(coords, c);
+                Py_XDECREF(c);
+            }
+        }
+    }
+    glEnd();
+    return coords;
+}
+
+// Logger stuff for online plotting
 
 struct color {
     unsigned char r, g, b, a;
@@ -2539,6 +2616,7 @@ static PyTypeObject PositionLoggerType = {
 static PyMethodDef emc_methods[] = {
     {"draw_lines", pydraw_lines, METH_VARARGS, "Draw a bunch of lines in the 'rs274.glcanon' format"},
     {"draw_lines_by_type", pydraw_lines_by_type, METH_VARARGS, "Draw a subset of lines by key (using internal storage in gcodemodule for lines)"},
+    {"draw_lines_by_property", (PyCFunction)pydraw_lines_by_property, METH_VARARGS | METH_KEYWORDS, "Draw a subset of lines that match the specified property (e.g. tool number, line number)"},
     {"draw_dwells", pydraw_dwells, METH_VARARGS, "Draw a bunch of dwell positions in the 'rs274.glcanon' format"},
     {"line9", pyline9, METH_VARARGS, "Draw a single line in the 'rs274.glcanon' format; assumes glBegin(GL_LINES)"},
     {"vertex9", pyvertex9, METH_VARARGS, "Get the 3d location for a 9d point"},

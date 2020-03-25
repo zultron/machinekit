@@ -299,17 +299,8 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         glLineWidth(3)
         c = self.color_config.get_color('selected')
         glColor3f(*c)
-        glBegin(GL_LINES)
-        coords = []
-        #FIXME limit seek depth here? This could go on for a long time
-        for k, motions in self.tool_motions.iteritems():
-            for motion_data in motions:
-                if motion_data[0] != lineno:
-                    continue
-                linuxcnc.line9(geometry, motion_data[1], motion_data[2])
-                coords.append(motion_data[1][:3])
-                coords.append(motion_data[2][:3])
-        glEnd()
+        coords = linuxcnc.draw_lines_by_property(geometry, self.tool_data_capsule, line_number=lineno)
+
         for line in self.dwells:
             if line[0] != lineno:
                 continue
