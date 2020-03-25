@@ -394,7 +394,7 @@ class GlDrawColors:
             'tool': 0.20,
             'backplotfeed': 0.75,
             'backplotarc': 0.75,
-            'arc_feed': .5,
+            'skipped_segments': 0.25,
         }
         self.colors = {
             'traverse': (0.30, 0.50, 0.50),
@@ -433,7 +433,7 @@ class GlDrawColors:
             'arc_feed_uv': (0.20, 0.20, 1.00),
             'axis_x': (1.00, 0.20, 0.20),
             'grid': (0.15, 0.15, 0.15),
-            'skipped_segments': (0.4, 0.4, 0.3),
+            'skipped_segments': (0.35, 0.35, 0.25),
             'leadin': (0.4, 1.0, 0.5),
         }
 
