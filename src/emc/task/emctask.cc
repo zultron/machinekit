@@ -820,7 +820,7 @@ int emcStatusUpdateFromTag(state_tag_t const * const tag)
     if (emcStatus->task.currentLine != tag->fields[GM_FIELD_LINE_NUMBER]) {
         emcStatus->task.previousLine = emcStatus->task.currentLine;
         emcStatus->task.currentLine = tag->fields[GM_FIELD_LINE_NUMBER];
-        emcStatus->task.recoveryLine = emcStatus->task.currentLine;
+        emcStatus->task.recoveryLine = emcStatus->task.mode == EMC_TASK_MODE_MDI ? 0 : emcStatus->task.currentLine;
     }
     emcStatus->task.stepping_id = tag->fields[GM_FIELD_STEPPING_ID];
     emcStatus->task.programUnits = (
