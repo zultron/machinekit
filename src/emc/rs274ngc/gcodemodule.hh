@@ -10,6 +10,7 @@ class PreviewMachine
     PositionArray machine_pos_uu;
     CANON_PLANE plane;
     double feed_rate;
+    bool first_move;
 
     ToolMotionMap tool_motions;
 
@@ -24,6 +25,10 @@ public:
     ExtentBox extents_no_tool;
     PreviewMachine() = default;
     LocalToMachineTransform transform_uu; //KLUDGE easier to just poke this directly
+
+    void set_current_pos(PositionArray const &pos_local_prog);
+
+    // Callbacks for various canon functions
     void straight_feed(int line_number, PositionArray const &goal_pos_prog);
     void straight_probe(int line_number, PositionArray const &goal_pos_prog);
     void straight_traverse(int line_number, PositionArray const &goal_pos_prog);

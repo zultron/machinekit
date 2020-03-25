@@ -408,7 +408,7 @@ void CHANGE_TOOL(int pocket) {
     PyObject *result =
         callmethod(callback, "change_tool", "i", pocket);
     if(result == nullptr) interp_error ++;
-    machine.set_current_tool(pocket);
+    machine.change_tool(pocket);
     Py_XDECREF(result);
 }
 
@@ -470,7 +470,7 @@ void SET_TOOL_TABLE_ENTRY(int pocket, int toolno, EmcPose offset, double diamete
 }
 
 void USE_TOOL_LENGTH_OFFSET(EmcPose offset) {
-    machine.transform_uu.toolOffset = ShiftTransform(convertsProgToUser().forward(toArray(offset)));
+    machine.tool_offset(offset);
     maybe_new_line();
     if(interp_error) return;
     PyObject *result = callmethod(callback, "tool_offset", "ddddddddd", UNPACK_POSITION_ARRAY_REF(machine.transform_uu.toolOffset));
@@ -1641,6 +1641,10 @@ void PreviewMachine::add_motion(ToolMotionKey key, ToolMotion motion)
 
 void PreviewMachine::straight_motion(int line_number, const PositionArray & goal_pos_prog, MotionType t)
 {
+    if (first_move) {
+        set_current_pos(goal_pos_prog);
+        return;
+    }
     auto goal_pos_uu = transform_uu.forward_local_to_tip(convertsProgToUser().forward(goal_pos_prog));
     add_motion({t, exec_mode, current_tool_pocket}, {
         line_number,
@@ -1659,13 +1663,19 @@ void PreviewMachine::updateExtents(const ToolMotion & motion)
     extents_no_tool.min = min(min(extents.min, p0_notool), p1_notool);
 }
 
+void PreviewMachine::set_current_pos(const PositionArray & pos_local_prog) {
+    machine_pos_uu =  transform_uu.forward_local_to_tip(convertsProgToUser().forward(pos_local_prog));
+}
+
 void PreviewMachine::straight_feed(int line_number, const PositionArray & goal_pos_prog)
 {
+    first_move = false;
     straight_motion(line_number, goal_pos_prog, MotionType::STRAIGHT_FEED);
 }
 
 void PreviewMachine::straight_probe(int line_number, const PositionArray & goal_pos_prog)
 {
+    first_move = false;
     straight_motion(line_number, goal_pos_prog, MotionType::PROBE);
 }
 
@@ -1693,6 +1703,7 @@ void PreviewMachine::arc_feed(int line_number,
 {
     static const int max_segments=64; // TODO make customizable
 
+    first_move = false;
 
     int X=0, Y=1, Z=2;
     switch (plane) {
@@ -1786,9 +1797,16 @@ bool PreviewMachine::set_exec_mode(ParseExecMode mode)
     return false;
 }
 
-void PreviewMachine::set_current_tool(int tool_pocket)
+void PreviewMachine::change_tool(int tool_pocket)
 {
+    first_move = true;
     current_tool_pocket = tool_pocket;
+}
+
+void PreviewMachine::tool_offset(EmcPose const &offset)
+{
+    transform_uu.toolOffset = ShiftTransform(convertsProgToUser().forward(toArray(offset)));
+    first_move = true;
 }
 
 void PreviewMachine::clear_motions()
@@ -1798,6 +1816,7 @@ void PreviewMachine::clear_motions()
     extents.max.fill(-1e+99);
     extents_no_tool.min.fill(1e+99);
     extents_no_tool.max.fill(-1e+99);
+    first_move = true;
 }
 
 /**
