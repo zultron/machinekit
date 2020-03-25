@@ -96,7 +96,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.foam_w = 1.5
         self.notify = 0
         self.notify_message = ""
-        self.highlight_line = None
         self.visible_tools = None
         self.current_tool = 0
 
