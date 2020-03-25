@@ -1878,12 +1878,57 @@ static PyObject *pydraw_lines(PyObject *s, PyObject *o) {
     return Py_None;
 }
 
-static PyObject *pydraw_lines_by_type(PyObject *s, PyObject *o) {
-    int for_selection = 0;
-    int active_line_no = -1;
-    PositionArray pl;
-    char *geometry={};
+void draw_lines(std::vector<ToolMotion> const &tool_motions, const char *geometry)
+{
+    PositionArray pl{};
     GLBeginEndWrapper gl_wrapper{};
+    for(auto const &motion : tool_motions) {
+        if(motion.p_start != pl){
+            gl_wrapper.end();
+            gl_wrapper.begin(GL_LINE_STRIP);
+            glvertex9(motion.p_start.data(), geometry);
+        }
+        line9(motion.p_start, motion.p_end, geometry);
+        pl = motion.p_end;
+    }
+}
+
+void draw_lines_for_selection(std::vector<ToolMotion> const &tool_motions, const char *geometry)
+{
+    int active_line_no = -1;
+    PositionArray pl{};
+    GLBeginEndWrapper gl_wrapper{};
+    for(auto const &motion : tool_motions) {
+        if(motion.p_start != pl || (motion.line_number != active_line_no)){
+            gl_wrapper.end();
+            if (motion.line_number != active_line_no) {
+                // NOTE: this doesn't currently get passed through, so we only
+                // really have 24 bits of resolution in line numbers (16.7
+                // million lines ought to be enough for anybody) Effectively
+                // "a" is the overflow right now
+                unsigned a = (motion.line_number & 0xFF000000) >> 24;
+                if (!a) {
+                    unsigned r = (motion.line_number & 0x000000FF) >>  0;
+                    unsigned g = (motion.line_number & 0x0000FF00) >>  8;
+                    unsigned b = (motion.line_number & 0x00FF0000) >> 16;
+                    glColor4ub(r,g,b,0xFF);
+                } else {
+                    // Ignore any lines above our cutoff since we can't distinguish them anyway
+                    glColor4ub(0,0,0,0xFF);
+                }
+                active_line_no = motion.line_number;
+            }
+            gl_wrapper.begin(GL_LINE_STRIP);
+            glvertex9(motion.p_start.data(), geometry);
+        }
+        line9(motion.p_start, motion.p_end, geometry);
+        pl = motion.p_end;
+    }
+}
+
+static PyObject *pydraw_lines_by_type(PyObject *s, PyObject *o) {
+    char *geometry={};
+    int for_selection = 0;
 
     PyObject *capsule=nullptr;
     PyObject *motion_key_tuple=nullptr;
@@ -1919,31 +1964,10 @@ static PyObject *pydraw_lines_by_type(PyObject *s, PyObject *o) {
 
     auto const &tool_motions = it->second;
 
-    for(auto const &motion : tool_motions) {
-        if(!gl_wrapper.started() || motion.p_start != motion.p_end || (for_selection && motion.line_number != active_line_no)){
-            gl_wrapper.end();
-            if (for_selection && motion.line_number != active_line_no) {
-                // NOTE: this doesn't currently get passed through, so we only
-                // really have 24 bits of resolution in line numbers (16.7
-                // million lines ought to be enough for anybody) Effectively
-                // "a" is the overflow right now
-                unsigned a = (motion.line_number & 0xFF000000) >> 24;
-                if (!a) {
-                    unsigned r = (motion.line_number & 0x000000FF) >>  0;
-                    unsigned g = (motion.line_number & 0x0000FF00) >>  8;
-                    unsigned b = (motion.line_number & 0x00FF0000) >> 16;
-                    glColor4ub(r,g,b,0xFF);
-                } else {
-                    // Ignore any lines above our cutoff since we can't distinguish them anyway
-                    glColor4ub(0,0,0,0xFF);
-                }
-                active_line_no = motion.line_number;
-            }
-            gl_wrapper.begin(GL_LINE_STRIP);
-            glvertex9(motion.p_start.data(), geometry);
-        }
-        line9(motion.p_start, motion.p_end, geometry);
-        pl = motion.p_end;
+    if (for_selection) {
+        draw_lines_for_selection(tool_motions, geometry);
+    } else {
+        draw_lines(tool_motions, geometry);
     }
 
     Py_INCREF(Py_None);
