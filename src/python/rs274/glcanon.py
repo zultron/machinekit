@@ -1242,10 +1242,13 @@ class GlCanonDraw:
 
                     # plot offset crosshair
                     self.color_config.gl_color_with_alpha('work_offset')
+                    glLineStipple(1, 0x1C47)
+                    glEnable(GL_LINE_STIPPLE)
                     glBegin(GL_LINES)
-                    glVertex3f(0,0,0)
+                    glVertex3f(0, 0, 0)
                     glVertex3f(*g5x_offset)
                     glEnd()
+                    glDisable(GL_LINE_STIPPLE)
 
                     # plot offset label
                     i = s.g5x_index
@@ -1273,11 +1276,14 @@ class GlCanonDraw:
 
                 if self.get_show_axis_offset() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
                     self.color_config.gl_color_with_alpha('axis_offset')
+                    glLineStipple(1, 0x1C47)
+                    glEnable(GL_LINE_STIPPLE)
                     glBegin(GL_LINES)
                     glVertex3f(0,0,0)
                     # g92_offset[0] *= -1 if rear tool lathe?
                     glVertex3f(*g92_offset)
                     glEnd()
+                    glDisable(GL_LINE_STIPPLE)
 
                     glPushMatrix()
                     glScalef(0.2,0.2,0.2)
