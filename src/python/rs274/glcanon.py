@@ -419,8 +419,8 @@ class GlDrawColors:
             'overlay_foreground': (1.00, 1.00, 1.00),
             'overlay_background': (0.00, 0.00, 0.00),
             'straight_feed': (1.00, 1.00, 1.00),
-            'rigid_tap': (1.0, 1.0, 0.9),
-            'probe': (1.0, 0.9, 1.0),
+            'rigid_tap': (1.0, 1.0, 0.8),
+            'probe': (0.815, 0.565, 0.97),
             'straight_feed_xy': (0.20, 1.00, 0.20),
             'straight_feed_uv': (0.20, 0.20, 1.00),
             'small_origin': (0.00, 1.00, 1.00),
@@ -461,6 +461,15 @@ class GlDrawColors:
         a = self.get_alpha_or_default(s)
         s = self.get_color(s)
         return [int(x * 255) for x in s + (a,)]
+
+    def set_color(self, name, r, g, b, a=None):
+        name = name.lower()
+        if name not in self.colors:
+            return False
+        self.colors[name] = (float(r), float(g), float(b))
+        if a:
+            self.alphas[name] = a
+        return True
 
 
 class GlCanonDraw:
