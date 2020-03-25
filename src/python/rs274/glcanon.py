@@ -468,7 +468,7 @@ class GlDrawColors:
             return False
         self.colors[name] = (float(r), float(g), float(b))
         if a:
-            self.alphas[name] = a
+            self.alphas[name] = float(a)
         return True
 
 
