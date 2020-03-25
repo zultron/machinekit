@@ -36,9 +36,7 @@ PositionArray & operator-=(PositionArray & b, const PositionArray & o)
 
 PositionArray toArray(double _x, double _y, double _z, double _a, double _b, double _c, double _u, double _v, double _w)
 {
-    PositionArray out;
-    assign(out, _x, _y, _z, _a, _b, _c, _u, _v, _w);
-    return out;
+    return {_x, _y, _z, _a, _b, _c, _u, _v, _w};
 }
 
 PositionArray toArray(const EmcPose & p)
@@ -54,19 +52,6 @@ PositionArray toArray(const EmcPose & p)
         p.v,
         p.w,
     };
-}
-
-void assign(PositionArray & p, double _x, double _y, double _z, double _a, double _b, double _c, double _u, double _v, double _w)
-{
-    p[X] = _x;
-    p[Y] = _y;
-    p[Z] = _z;
-    p[A] = _a;
-    p[B] = _b;
-    p[C] = _c;
-    p[U] = _u;
-    p[V] = _v;
-    p[W] = _w;
 }
 
 void extract_axes(PositionArray const &p,

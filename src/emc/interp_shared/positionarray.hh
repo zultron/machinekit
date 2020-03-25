@@ -100,17 +100,6 @@ PositionArray toArray(const double * arr_begin,
 
 PositionArray toArray(EmcPose const &p);
 
-void assign(PositionArray &p,
-            double _x,
-            double _y,
-            double _z,
-            double _a,
-            double _b,
-            double _c,
-            double _u,
-            double _v,
-            double _w);
-
 void extract_axes(PositionArray const &p,
                   double &_x,
                   double &_y,

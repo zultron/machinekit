@@ -306,17 +306,17 @@ int Interp::find_relative(double x1,     //!< absolute x position
                           double *w_2,
                           setup_pointer settings)        //!< pointer to machine settings
 {
-    PositionArray cmd_abs;
-    assign(cmd_abs,
-            x1,
-            y1,
-            z1,
-            AA_1,
-            BB_1,
-            CC_1,
-            u_1,
-            v_1,
-            w_1);
+    PositionArray cmd_abs = {
+        x1,
+        y1,
+        z1,
+        AA_1,
+        BB_1,
+        CC_1,
+        u_1,
+        v_1,
+        w_1,
+    };
     PositionArray cmd_local;
     find_relative(settings, cmd_abs, cmd_local);
     extract_axes(cmd_local,

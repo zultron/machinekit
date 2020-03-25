@@ -352,7 +352,7 @@ static void canonUpdateEndPoint(double x, double y, double z,
                                 double a, double b, double c,
                                 double u, double v, double w)
 {
-    assign(canonEndPoint, x, y, z, a, b, c, u, v, w);
+    canonEndPoint = {x, y, z, a, b, c, u, v, w};
 }
 
 static void canonUpdateEndPoint(const PositionArray & pos)

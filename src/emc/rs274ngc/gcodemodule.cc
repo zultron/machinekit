@@ -164,7 +164,6 @@ static int interp_error;
 static int last_sequence_number;
 static bool metric;
 static PositionArray _pos_prog = {}; // In PROGRAM units (note that data passed to callbacks is in USER units)
-static PositionArray _pos_machine_uu = {};
 static PositionArray probe_start_pos_prog = {};
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
@@ -283,18 +282,17 @@ void STRAIGHT_FEED(int line_number,
                    double x, double y, double z,
                    double a, double b, double c,
                    double u, double v, double w) {
-    _pos_machine_uu = convertsProgToUser().forward(_pos_prog);
     // KLUDGE override with the toplevel line for selection
     line_number = pinterp->toplevel_line();
-    assign(_pos_prog, x, y, z, a, b, c, u, v, w);
+    _pos_prog={x, y, z, a, b, c, u, v, w};
 
-    if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
         machine.straight_feed(line_number, _pos_prog);
         // Keep this around just for the warnings
         if (spindle_synched_motion) {
+            if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
             PyObject *result = callmethod(callback, "straight_feed_synched", "ifffffffffff",
                                           line_number, x, y, z, a, b, c, u, v, w,
                                           css_max_speed_programmed ?: spindle_speed_programmed,
@@ -311,7 +309,7 @@ void STRAIGHT_TRAVERSE(int line_number,
                        double u, double v, double w) {
     // KLUDGE override with the toplevel line for selection
     line_number = pinterp->toplevel_line();
-    assign(_pos_prog, x, y, z, a, b, c, u, v, w);
+    _pos_prog={x, y, z, a, b, c, u, v, w};
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
@@ -574,7 +572,7 @@ void STRAIGHT_PROBE(int line_number,
     // KLUDGE override with the toplevel line for selection
     line_number = pinterp->toplevel_line();
     probe_start_pos_prog = _pos_prog;
-    assign(_pos_prog, x, y, z, a, b, c, u, v, w);
+    _pos_prog={x, y, z, a, b, c, u, v, w};
 
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -590,7 +588,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
 
     line_number = pinterp->toplevel_line();
     probe_start_pos_prog = _pos_prog;
-    assign(_pos_prog, x, y, z, a, b, c, u, v, w);
+    _pos_prog={x, y, z, a, b, c, u, v, w};
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
