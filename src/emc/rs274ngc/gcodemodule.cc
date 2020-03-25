@@ -1769,8 +1769,10 @@ void PreviewMachine::set_current_tool(int tool_pocket)
 void PreviewMachine::clear_motions()
 {
     tool_motions.clear();
-    extents = ExtentBox();
-    extents_no_tool = ExtentBox();
+    extents.min.fill(1e+99);
+    extents.max.fill(-1e+99);
+    extents_no_tool.min.fill(1e+99);
+    extents_no_tool.max.fill(-1e+99);
 }
 
 /**
