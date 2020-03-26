@@ -2844,13 +2844,7 @@ int Interp::create_full_restore_sequence(
         generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);
 
-        // Should likely do nothing (move back to initial position after tool change)
-        generator.addLinearRapidMove(leadin_position, traverse_axes);
-        if (preamble.plunge_axes.any()) {
-            generator.addLinearRapidMove(leadin_position, preamble.plunge_axes);
-        }
-
-        // NOTE: traverse plane is either initial Z height, or whatever the toolchange / epilog leaves the plunge axes.
+        // NOTE: traverse plane is defined by the toolchange or toolchange epilog (i.e. whereever it leaves the plunge axes)
         generator.addToolCompensation((GCodes)to_restore.modal_state.g_codes[G_CODE_CUTTER_SIDE], to_restore.modal_state.cutter_comp);
         generator.addLinearRapidMove(move_start_pos, traverse_axes);
         CHKS(!preamble.plunge_axes.any(), _("No plunge axes specified, cannot do a plunge lead-in move"));
