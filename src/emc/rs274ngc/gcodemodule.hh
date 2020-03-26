@@ -17,7 +17,7 @@ class PreviewMachine
     void add_motion(ToolMotionKey key, ToolMotion motion);
     std::vector<ToolMotion> &get_motion_set(ToolMotionKey key) {return tool_motions[key];}
     void straight_motion(int line_number, PositionArray const &goal_pos_prog, MotionType t);
-    void updateExtents(ToolMotion const &motion);
+    void updateExtents(PositionArray machine_goal_pos_uu);
     void resetExtents();
 
 public:
@@ -59,6 +59,8 @@ public:
     void clear_motions();
 
     ToolMotionMap const &getToolMotionData() const;
+    void begin_feed();
+    void end_feed();
 };
 
 // for emcmodule.cc, get tool motion data from the machine object in gcodemodule

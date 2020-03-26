@@ -1625,12 +1625,12 @@ void PreviewMachine::add_motion(ToolMotionKey key, ToolMotion motion)
 {
     tool_motions[key].push_back(motion);
     machine_pos_uu = motion.p_end;
-    updateExtents(motion);
 }
 
 void PreviewMachine::straight_motion(int line_number, const PositionArray & goal_pos_prog, MotionType t)
 {
     if (first_move) {
+        // Don't check extents on setup moves because they
         set_current_pos(goal_pos_prog);
         return;
     }
@@ -1639,32 +1639,47 @@ void PreviewMachine::straight_motion(int line_number, const PositionArray & goal
         line_number,
         machine_pos_uu,
                    goal_pos_uu, t == MotionType::RAPID ? -1 : feed_rate});
+    // New machine position is the end point (and other maximal extent) by definition
+    updateExtents(machine_pos_uu);
 }
 
-void PreviewMachine::updateExtents(const ToolMotion & motion)
+void PreviewMachine::updateExtents(PositionArray machine_goal_pos_uu)
 {
-    extents.max = max(max(extents.max, motion.p_start), motion.p_end);
-    extents.min = min(min(extents.min, motion.p_start), motion.p_end);
+    max_inplace(extents.max, machine_goal_pos_uu);
+    min_inplace(extents.min, machine_goal_pos_uu);
 
-    PositionArray p0_notool = transform_uu.forward_nose_to_tip(motion.p_start);
-    PositionArray p1_notool = transform_uu.forward_nose_to_tip(motion.p_end);
-    extents_no_tool.max = max(max(extents.max, p0_notool), p1_notool);
-    extents_no_tool.min = min(min(extents.min, p0_notool), p1_notool);
+    PositionArray p1_notool = transform_uu.forward_nose_to_tip(machine_goal_pos_uu);
+    max_inplace(extents_no_tool.max, p1_notool);
+    min_inplace(extents_no_tool.min, p1_notool);
 }
 
 void PreviewMachine::set_current_pos(const PositionArray & pos_local_prog) {
     machine_pos_uu =  transform_uu.forward_local_to_nose(convertsProgToUser().forward(pos_local_prog));
 }
 
+void PreviewMachine::begin_feed()
+{
+    if (first_move) {
+        first_move = false;
+        // Initial position is now part of a feed move, so include it in the extents calculation
+        updateExtents(machine.get_current_pos());
+    }
+}
+
+void PreviewMachine::end_feed()
+{
+    first_move = true;
+}
+
 void PreviewMachine::straight_feed(int line_number, const PositionArray & goal_pos_prog)
 {
-    first_move = false;
+    begin_feed();
     straight_motion(line_number, goal_pos_prog, MotionType::STRAIGHT_FEED);
 }
 
 void PreviewMachine::straight_probe(int line_number, const PositionArray & goal_pos_prog)
 {
-    first_move = false;
+    begin_feed();
     straight_motion(line_number, goal_pos_prog, MotionType::PROBE);
 }
 
@@ -1692,7 +1707,7 @@ void PreviewMachine::arc_feed(int line_number,
 {
     static const int max_segments=64; // TODO make customizable
 
-    first_move = false;
+    begin_feed();
 
     int X=0, Y=1, Z=2;
     switch (plane) {
@@ -1759,7 +1774,7 @@ void PreviewMachine::arc_feed(int line_number,
                        transform_uu.forward_local_to_nose(p_lcl_last),
                        feed_rate
                    });
-        updateExtents(motion_set.back());
+        updateExtents(motion_set.back().p_end);
         p_lcl_last = p_lcl;
     }
     motion_set.push_back(
@@ -1769,14 +1784,14 @@ void PreviewMachine::arc_feed(int line_number,
             transform_uu.forward_local_to_nose(n),
             feed_rate
         });
-    updateExtents(motion_set.back());
+    updateExtents(motion_set.back().p_end);
     // Do updates that would have happened with add_motion
     machine_pos_uu = motion_set.back().p_end;
 }
 
 void PreviewMachine::rigid_tap(int line_number, const PositionArray & goal_pos_prog)
 {
-    first_move = false;
+    begin_feed();
     PositionArray orig_pos_prog = convertsUserToProg().forward(transform_uu.inverse_local_from_nose(get_current_pos()));
     straight_motion(line_number, goal_pos_prog, MotionType::RIGID_TAP);
     straight_motion(line_number, orig_pos_prog, MotionType::RIGID_TAP);
@@ -1796,14 +1811,14 @@ bool PreviewMachine::set_exec_mode(ParseExecMode mode)
 
 void PreviewMachine::change_tool(int tool_pocket)
 {
-    first_move = true;
+    end_feed();
     current_tool_pocket = tool_pocket;
 }
 
 void PreviewMachine::tool_offset(EmcPose const &offset)
 {
     transform_uu.toolOffset = ShiftTransform(convertsProgToUser().forward(toArray(offset)));
-    first_move = true;
+    end_feed();
 }
 
 void PreviewMachine::clear_motions()
@@ -1813,7 +1828,7 @@ void PreviewMachine::clear_motions()
     extents.max.fill(-1e+99);
     extents_no_tool.min.fill(1e+99);
     extents_no_tool.max.fill(-1e+99);
-    first_move = true;
+    end_feed();
 }
 
 /**
