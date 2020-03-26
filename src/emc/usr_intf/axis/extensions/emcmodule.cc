@@ -1641,12 +1641,6 @@ static void rotate_x(double pt[3], double a) {
     pt[1] = tx; pt[2] = tz;
 }
 
-static void translate(double pt[3], double ox, double oy, double oz) {
-    pt[0] += ox;
-    pt[1] += oy;
-    pt[2] += oz;
-}
-
 static void vertex9(const double pt[9], double p[3], const char *geometry) {
     double sign = 1;
 
@@ -1657,12 +1651,12 @@ static void vertex9(const double pt[9], double p[3], const char *geometry) {
     for(; *geometry; geometry++) {
         switch(*geometry) {
             case '-': sign = -1; break;
-            case 'X': translate(p, pt[0] * sign, 0, 0); sign=1; break;
-            case 'Y': translate(p, 0, pt[1] * sign, 0); sign=1; break;
-            case 'Z': translate(p, 0, 0, pt[2] * sign); sign=1; break;
-            case 'U': translate(p, pt[6] * sign, 0, 0); sign=1; break;
-            case 'V': translate(p, 0, pt[7] * sign, 0); sign=1; break;
-            case 'W': translate(p, 0, 0, pt[8] * sign); sign=1; break;
+            case 'X': p[0] += pt[0]*sign; sign=1; break;
+            case 'Y': p[1] += pt[1]*sign; sign=1; break;
+            case 'Z': p[2] += pt[2]*sign; sign=1; break;
+            case 'U': p[0] += pt[6]*sign; sign=1; break;
+            case 'V': p[1] += pt[7]*sign; sign=1; break;
+            case 'W': p[2] += pt[8]*sign; sign=1; break;
             case 'A': rotate_x(p, pt[3] * sign); sign=1; break;
             case 'B': rotate_y(p, pt[4] * sign); sign=1; break;
             case 'C': rotate_z(p, pt[5] * sign); sign=1; break;
