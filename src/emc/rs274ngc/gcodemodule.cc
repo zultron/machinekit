@@ -1629,7 +1629,7 @@ void PreviewMachine::add_motion(ToolMotionKey key, ToolMotion motion)
 
 void PreviewMachine::straight_motion(int line_number, const PositionArray & goal_pos_prog, MotionType t)
 {
-    if (first_move) {
+    if (first_move && exec_mode != ParseExecMode::PREP) {
         // Don't check extents on setup moves because they
         set_current_pos(goal_pos_prog);
         return;
