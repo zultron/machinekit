@@ -57,6 +57,7 @@ import sys
 
 import thread
 import traceback
+import numpy as np
 
 
 def make_active_axis_word_str(position, mask):
@@ -433,15 +434,17 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
 
         #Handle extents violation (copied from AXIS)
         machine_limit_min, machine_limit_max = self.canon.get_soft_limits()
+        # KLUDGE force limits to be slightly larger to avoid complaints about motions right near them
+        limit_padding = 1e-8
         # KLUDGE: reverse engineer the machine units
         unit_suffix = "mm" if s.linear_units == 1 else "in"
         for i in range(3): # Does not enforce angle limits
             if not(s.axis_mask & (1<<i)): continue
-            if self.canon.min_extents_notool[i] < machine_limit_min[i]:
+            if self.canon.min_extents_notool[i] < (machine_limit_min[i] - limit_padding):
                 neg_overhang = self.canon.min_extents_notool[i] - machine_limit_min[i]
-                warnings.append("Program exceeds machine minimum on %c axis  by %0.4f %s"
+                warnings.append("Program exceeds machine minimum on %c axis by %0.4f %s"
                     % ("XYZABCUVW"[i], neg_overhang, unit_suffix))
-            if self.canon.max_extents_notool[i] > machine_limit_max[i]:
+            if self.canon.max_extents_notool[i] > (machine_limit_max[i] + limit_padding):
                 pos_overhang = self.canon.max_extents_notool[i] - machine_limit_max[i]
                 warnings.append("Program exceeds machine maximum on %c axis by %0.4f %s"
                     % ("XYZABCUVW"[i], pos_overhang, unit_suffix))
