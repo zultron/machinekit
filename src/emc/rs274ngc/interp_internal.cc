@@ -261,7 +261,6 @@ The rules for the indicators for slots whose values may be read are:
 
 int Interp::init_block(block_pointer block)      //!< pointer to a block to be initialized or reset
 {
-  int n;
   block->breadcrumbs = 0; // clear execution trail
   block->executing_remap = NULL;
   block->param_cnt = 0;
@@ -275,9 +274,7 @@ int Interp::init_block(block_pointer block)      //!< pointer to a block to be i
   block->d_flag = false;
   block->e_flag = false;
   block->f_flag = false;
-  for (n = 0; n < 16; n++) {
-    block->g_modes[n] = G_INVALID;
-  }
+  block->g_modes.fill(G_INVALID);
   block->h_flag = false;
   block->h_number = -1;
   block->i_flag = false;
@@ -289,9 +286,7 @@ int Interp::init_block(block_pointer block)      //!< pointer to a block to be i
   block->n_number = -1;
   block->motion_to_be = G_INVALID;
   block->m_count = 0;
-  for (n = 0; n < 11; n++) {
-    block->m_modes[n] = -1;
-  }
+  block->m_modes.fill(G_INVALID);
   block->user_m = 0;
   block->p_number = -1.0;
   block->p_flag = false;
