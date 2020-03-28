@@ -1003,6 +1003,18 @@ SCENARIO("test downcasing")
             CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(expected_line)));
         }
     }
+    GIVEN("g-code with non-letter characters")
+    {
+        static const char line_exp[]={"n421g1@[1+2*[3/4]]^3.45z4a5b6c7u8v9w1"};
+        char line_in[]={"N421 G1@[1 + 2*[ 3/4 ] ]   ^3  .45 Z4 A5 B6C7U8V9W 1"};
+        char line_out[sizeof(line_in)]={};
+
+        THEN("Output should only downcase letters, not other symbols nearby") {
+            printf("exp: %s\ngot: %s", expected_line, line_in);
+            CHECK(!test_interp.close_and_downcase(line_out, line_in, &length));
+            CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(line_exp)));
+        }
+    }
 }
 
 SCENARIO("test read_real_number")

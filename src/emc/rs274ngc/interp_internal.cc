@@ -96,7 +96,7 @@ int Interp::close_and_downcase(char *line, char const *raw_line, int *length)   
         } else {
             // Downcase using bitmask trick (6th bit is always 1 in lowercase)
             // Try shifting instead of greater comparison
-            line[n++] = (item >> 6) && (item < 91) ? item | 0x20 : item;
+            line[n++] = (item > 64) && (item < 91) ? item | 0x20 : item;
         }
     }
     CHKS((comment), NCE_UNCLOSED_COMMENT_FOUND);
