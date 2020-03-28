@@ -664,8 +664,9 @@ macros totally crash-proof. If the function call stack is deeper than
                                repeat > 0; \
                                repeat--) \
      { \
-       aa = (aa + aa_increment); \
-       bb = (bb + bb_increment); \
+       aa += aa_increment; \
+       bb += bb_increment; \
+       cycle_end += cycle_increment; \
        if(radius_increment) { \
            double radius, theta; \
            CHKS((bb == 0 && aa == 0), _("Incremental motion with polar coordinates is indeterminate when at the origin")); \
@@ -683,13 +684,13 @@ macros totally crash-proof. If the function call stack is deeper than
            bb = radius * sin(theta); \
        } \
        if ((repeat == block->l_number) && (current_cc > r)) { \
-         cycle_traverse(block, plane, aa, bb, current_cc); \
-         cycle_traverse(block, plane, aa, bb, r); \
+         cycle_traverse(cycle_end, plane, aa, bb, current_cc); \
+         cycle_traverse(cycle_end, plane, aa, bb, r); \
        } else { \
          /* we must be at CLEAR_CC already */ \
-         cycle_traverse(block, plane, aa, bb, clear_cc); \
+         cycle_traverse(cycle_end, plane, aa, bb, clear_cc); \
          if (clear_cc > r) { \
-           cycle_traverse(block, plane, aa, bb, r); \
+           cycle_traverse(cycle_end, plane, aa, bb, r); \
          } \
        } \
        CHP(call); \

@@ -58,6 +58,32 @@ struct GCodeContextStack
 
 using RestoreCommandList = std::vector<std::string>;
 
+struct CannedCycleConfig
+{
+
+    const CANON_PLANE plane;
+    PositionArrayIndex axis_0, axis_1, depth_axis;
+
+    double current_cc;
+
+    double aa;
+    double aa_increment;
+    double bb;
+    double bb_increment;
+    double cc;
+    double clear_cc;
+    double i;
+    double j;
+    double k;
+    double old_cc;
+    double radius_increment;
+    double theta_increment;
+    double r;
+    int repeat;
+    CANON_MOTION_MODE save_mode;
+    double save_tolerance;
+};
+
 class Interp : public InterpBase {
 
 public:
@@ -340,46 +366,37 @@ public:
                                           setup_pointer settings);
  int convert_cycle(GCodes motion, block_pointer block,
                          setup_pointer settings);
- int convert_cycle_g81(block_pointer block, CANON_PLANE plane, double x, double y,
+ int convert_cycle_for_plane(int motion,
+                            block_pointer block,
+                             setup_pointer settings);
+ int convert_cycle_g81(PositionArray const &cycle_end, CANON_PLANE plane, double x, double y,
                              double clear_z, double bottom_z);
- int convert_cycle_g82(block_pointer block, CANON_PLANE plane, double x, double y,
+ int convert_cycle_g82(PositionArray const &cycle_end, CANON_PLANE plane, double x, double y,
                              double clear_z, double bottom_z, double dwell);
- int convert_cycle_g73(block_pointer block, CANON_PLANE plane, double x, double y,
+ int convert_cycle_g73(PositionArray const &cycle_end, CANON_PLANE plane, double x, double y,
                              double r, double clear_z, double bottom_z,
                              double delta);
- int convert_cycle_g83(block_pointer block, CANON_PLANE plane, double x, double y,
+ int convert_cycle_g83(PositionArray const &cycle_end, CANON_PLANE plane, double x, double y,
                              double r, double clear_z, double bottom_z,
                              double delta);
- int convert_cycle_g74_g84(block_pointer block, CANON_PLANE plane, double planar_pos_1, double planar_pos_2,
+ int convert_cycle_g74_g84(PositionArray const &cycle_end, CANON_PLANE plane, double planar_pos_1, double planar_pos_2,
                              double clear_height, double bottom_depth,
                              CANON_DIRECTION direction,
                              CANON_SPEED_FEED_MODE mode, int motion, double dwell);
- int convert_cycle_g85(block_pointer block, CANON_PLANE plane, double x, double y,
+ int convert_cycle_g85(PositionArray const &cycle_end, CANON_PLANE plane, double x, double y,
                              double r, double clear_z, double bottom_z);
- int convert_cycle_g86(block_pointer block, CANON_PLANE plane, double x, double y,
+ int convert_cycle_g86(PositionArray const &cycle_end, CANON_PLANE plane, double x, double y,
                              double clear_z, double bottom_z, double dwell,
                              CANON_DIRECTION direction);
- int convert_cycle_g87(block_pointer block, CANON_PLANE plane, double x, double offset_x,
+ int convert_cycle_g87(PositionArray const &cycle_end, CANON_PLANE plane, double x, double offset_x,
                              double y, double offset_y, double r,
                              double clear_z, double middle_z, double bottom_z,
                              CANON_DIRECTION direction);
- int convert_cycle_g88(block_pointer block, CANON_PLANE plane, double x, double y,
+ int convert_cycle_g88(PositionArray const &cycle_end, CANON_PLANE plane, double x, double y,
                              double bottom_z, double dwell,
                              CANON_DIRECTION direction);
- int convert_cycle_g89(block_pointer block, CANON_PLANE plane, double x, double y,
+ int convert_cycle_g89(PositionArray const &cycle_end, CANON_PLANE plane, double x, double y,
                              double clear_z, double bottom_z, double dwell);
- int convert_cycle_xy(int motion, block_pointer block,
-                            setup_pointer settings);
- int convert_cycle_yz(int motion, block_pointer block,
-                            setup_pointer settings);
- int convert_cycle_zx(int motion, block_pointer block,
-                            setup_pointer settings);
- int convert_cycle_uv(int motion, block_pointer block,
-                            setup_pointer settings);
- int convert_cycle_vw(int motion, block_pointer block,
-                            setup_pointer settings);
- int convert_cycle_wu(int motion, block_pointer block,
-                            setup_pointer settings);
  int convert_distance_mode(int g_code, setup_pointer settings);
  int convert_ijk_distance_mode(int g_code, setup_pointer settings);
  int convert_lathe_diameter_mode(int g_code, block_pointer block, setup_pointer settings);
@@ -429,10 +446,10 @@ public:
  int convert_tool_select(block_pointer block, setup_pointer settings);
  int update_tag(StateTag &tag);
  int send_tag_io_msg();
- PositionArray get_cycle_position(block_pointer block, CANON_PLANE plane, double plane_x, double plane_y, double height);
- int cycle_feed(block_pointer block, CANON_PLANE plane, double end1,
+ PositionArray get_cycle_position(const PositionArray & cycle_end, CANON_PLANE plane, double plane_x, double plane_y, double height);
+ int cycle_feed(const PositionArray & cycle_end, CANON_PLANE plane, double end1,
                 double end2, double end3);
- int cycle_traverse(block_pointer block, CANON_PLANE plane, double plane_x, double plane_y, double height);
+ int cycle_traverse(const PositionArray & cycle_end, CANON_PLANE plane, double plane_x, double plane_y, double height);
  int enhance_block(block_pointer block, setup_pointer settings);
 protected:
  int execute_impl(const char *command, CommandSource cmd_src);
@@ -884,7 +901,7 @@ protected:
 StateTag make_state_tag(setup_struct const &s, block_pointer block);
 
 bool toolOffsetActive(setup_struct const *s);
-std::tuple<size_t, size_t, size_t> plane_indices(CANON_PLANE plane);
+std::tuple<PositionArrayIndex, PositionArrayIndex, PositionArrayIndex> plane_indices(CANON_PLANE plane);
 
 #define STATE_RESTORE_SUBROUTINE_NAME "restore_start_line_state"
 

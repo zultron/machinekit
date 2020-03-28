@@ -669,7 +669,12 @@ int Interp::find_tool_pocket(setup_pointer settings, int toolno, int *pocket)
     return INTERP_OK;
 }
 
-std::tuple<size_t, size_t, size_t> plane_indices(CANON_PLANE plane)
+
+/**
+ * @return tuple of indices in order: (plane "X", plane "Y", plunge direction
+ * "Z"), where XYZ are whatever analogs for the specified plane.
+ */
+std::tuple<PositionArrayIndex, PositionArrayIndex, PositionArrayIndex> plane_indices(CANON_PLANE plane)
 {
     switch (plane) {
     case CANON_PLANE_XY:
