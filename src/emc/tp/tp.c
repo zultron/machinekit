@@ -158,6 +158,8 @@ int tcRotaryMotionCheck(TC_STRUCT const * const tc) {
             }
         case TC_SPHERICAL:
             return true;
+        case TC_DWELL:
+            return false;
     }
     return false;
 }
@@ -420,6 +422,7 @@ int tpClear(TP_STRUCT * const tp)
     emcmotStatus->current_vel = 0.0;
     emcmotStatus->requested_vel = 0.0;
     emcmotStatus->distance_to_go = 0.0;
+    emcmotStatus->dwell_time_remaining = 0.0;
     clearPosTrackingStatus();
     ZERO_EMC_POSE(emcmotStatus->dtg);
     SET_MOTION_INPOS_FLAG(1);
@@ -1354,6 +1357,10 @@ int handlePrevTermCondition(TC_STRUCT *prev_tc, TC_STRUCT *tc)
         tcSetTermCond(prev_tc, tc, prev_term);
     }
         break;
+    case TC_DWELL:
+        // Previous motion must do an exact stop at the dwell point since that's the whole point
+        tcSetTermCond(prev_tc, tc, TC_TERM_COND_STOP);
+        return TP_ERR_OK;
     }
     return TP_ERR_OK;
 }
@@ -1518,6 +1525,26 @@ int tpAddRigidTap(
 
     return tpFinalizeAndEnqueue(tp, &tc);
 }
+
+int tpAddDwell(TP_STRUCT * const tp, double time_sec, struct state_tag_t tag)
+{
+    TC_STRUCT tc={};
+    tcInit(&tc,
+            TC_DWELL,
+            0,
+            tp->cycleTime,
+            0,
+            0);
+    tc.motion_type = TC_DWELL;
+    tc.coords.dwell.dwell_time = tc.coords.dwell.remaining_time = time_sec;
+    tc.coords.dwell.dwell_pos = tp->goalPos;
+    tc.term_cond = TC_TERM_COND_STOP;
+    tc.tag = tag;
+    tpAddSegmentToQueue(tp, &tc);
+
+    return TP_ERR_OK;
+}
+
 
 static double applyKinkVelLimit(TC_STRUCT const * const tc, double vel_in)
 {
@@ -2167,8 +2194,9 @@ double estimateParabolicBlendPerformance(
     double target_vel_next = tcGetPlanMaxTargetVel(nexttc, emcmotConfig->maxFeedScale);
 
     double v_net = 0.0;
-    tpComputeBlendVelocity(tc, nexttc, target_vel_this, target_vel_next, &v_this, &v_next, &v_net);
-
+    if (tpComputeBlendVelocity(tc, nexttc, target_vel_this, target_vel_next, &v_this, &v_next, &v_net) != TP_ERR_OK) {
+        return 0.0;
+    }
     return v_net;
 }
 
@@ -2547,6 +2575,7 @@ int tpUpdateMovementStatus(TP_STRUCT * const tp,
         emcmotStatus->enables_queued = emcmotStatus->enables_new;
         emcmotStatus->requested_vel = 0;
         emcmotStatus->current_vel = 0;
+        emcmotStatus->dwell_time_remaining = 0.0;
         emcPoseZero(&emcmotStatus->dtg);
 
         tp->motionType = 0;
@@ -2573,6 +2602,7 @@ int tpUpdateMovementStatus(TP_STRUCT * const tp,
 
     emcmotStatus->requested_vel = tc->reqvel;
     emcmotStatus->current_vel = tc->currentvel;
+    emcmotStatus->dwell_time_remaining = tc->motion_type == TC_DWELL ? tc->coords.dwell.remaining_time : 0.0;
     emcmotStatus->waiting_on_spindle = tpIsWaitingOnSpindle(tp);
 
     // KLUDGE Zero out any EMC status that doesn't apply
@@ -3283,6 +3313,7 @@ int tpUpdateInitialStatus(TP_STRUCT const * const tp) {
     emcmotStatus->requested_vel = 0.0;
     //FIXME test if we can do this safely
     emcmotStatus->current_vel = 0.0;
+    emcmotStatus->dwell_time_remaining = 0.0;
     // Set synched move waiting on spindle flag
     emcmotStatus->waiting_on_spindle = tpIsWaitingOnSpindle(tp);
     return TP_ERR_OK;
@@ -3317,16 +3348,25 @@ int tcSetSplitCycle(TC_STRUCT * const tc, double split_time,
  * If it's greater than one timestep, then we do nothing and carry on. If not,
  * then we flag the segment as "splitting", so that during the next cycle,
  * it handles the transition to the next segment.
+ *
+ * @warning not reentrant since this is where we process TP-based dwells
  */
 int tpCheckEndCondition(TP_STRUCT const * const tp, TC_STRUCT * const tc, TC_STRUCT const * const nexttc)
 {
-    EndCondition ec = checkEndCondition(
+    EndCondition ec;
+    if (tc->motion_type == TC_DWELL) {
+        // Knock one cycle off the remaining dwell time
+        ec.dt = (tc->coords.dwell.remaining_time -= tp->cycleTime);
+        ec.v_f = 0.0;
+    } else {
+        ec = checkEndCondition(
             tp->cycleTime,
             tcGetDistanceToGo(tc, tp->reverse_run),
             tc->currentvel,
             tpGetRealFinalVel(tp, tc, nexttc),
             tcGetTangentialMaxAccel(tc)
             );
+    }
 
     double dt = ec.dt;
     int splitting = dt < tp->cycleTime;
@@ -3791,6 +3831,5 @@ int tpIsMoving(TP_STRUCT const * const tp)
     }
     return false;
 }
-
 
 // vim:sw=4:sts=4:et:

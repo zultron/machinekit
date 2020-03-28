@@ -1963,6 +1963,17 @@ void DWELL(double seconds)
 	tag_and_send(delayMsg);
 }
 
+void PRECISION_DWELL(double seconds)
+{
+    EMC_TRAJ_PRECISION_DWELL precisionDwellMsg;
+
+    flush_segments();
+
+    precisionDwellMsg.dwell_time = seconds;
+
+    tag_and_send(precisionDwellMsg);
+}
+
 /* Spindle Functions */
 void SPINDLE_RETRACT_TRAVERSE()
 {

@@ -136,8 +136,11 @@ extern int emcTrajProbe(EmcPose pos, int type, double vel,
                         double ini_maxvel, double acc, int pure_angular, unsigned char probe_type);
 extern int emcAuxInputWait(int index, int input_type, int wait_type, int timeout);
 extern int emcTrajRigidTap(EMC_TRAJ_RIGID_TAP const &cmd);
+extern int emcTrajDwell(double time_sec);
 
 extern int emcTrajUpdate(EMC_TRAJ_STAT * stat);
+
+
 
 // implementation functions for EMC_MOTION aggregate types
 

@@ -184,6 +184,7 @@ extern "C" {
         EMCMOT_SETUP_CONSISTENCY_CHECKS,
         EMCMOT_SET_MAX_POSITION_TRACKING_ERROR,
         EMCMOT_SETUP_BIARC_SOLVER_CFG,
+        EMCMOT_SET_DWELL,
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */
@@ -721,6 +722,7 @@ Suggestion: Split this in to an Error and a Status flag register..
         EmcPose dtg;
         double current_vel;
         double requested_vel;
+        double dwell_time_remaining; // 0 if not dwelling in TP
 
         int tcqlen;
         EmcPose tool_offset;

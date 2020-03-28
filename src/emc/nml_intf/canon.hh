@@ -408,6 +408,7 @@ extern void STOP();
 /* stop motion after current feed */
 
 extern void DWELL(double seconds);
+extern void PRECISION_DWELL(double seconds);
 
 /* freeze x,y,z for a time */
 

@@ -1014,6 +1014,18 @@ class EMC_TRAJ_RIGID_TAP:public EMC_TRAJ_CMD_MSG {
     double scale;
 };
 
+class EMC_TRAJ_PRECISION_DWELL:public EMC_TRAJ_CMD_MSG {
+  public:
+    EMC_TRAJ_PRECISION_DWELL():EMC_TRAJ_CMD_MSG(EMC_TRAJ_PRECISION_DWELL_TYPE,
+                      sizeof(EMC_TRAJ_PRECISION_DWELL)) {
+    }
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+
+    double dwell_time;
+};
+
 // EMC_TRAJ status base class
 class EMC_TRAJ_STAT_MSG:public RCS_STAT_MSG {
   public:
@@ -1082,6 +1094,7 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
     double distance_to_go;         // in current move
     EmcPose dtg;
     double current_vel;         // in current move
+    double dwell_time_remaining; // 0 if not dwelling
     bool feed_override_enabled;
     bool spindle_override_enabled;
     bool adaptive_feed_enabled;

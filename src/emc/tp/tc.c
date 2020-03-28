@@ -183,6 +183,7 @@ int tcGetEndAccelUnitVector(TC_STRUCT const * const tc, PmCartesian * const out)
     case TC_CIRCULAR:
         return tcCircleEndAccelUnitVector(tc,out);
     case TC_SPHERICAL:
+    case TC_DWELL:
         break;
     }
     return -1;
@@ -283,6 +284,8 @@ int tcGetStartTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const 
             return pmCircleTangentVector(&tc->coords.circle.xyz, 0.0, out);
         case TC_SPHERICAL:
             return arcTangent(&tc->coords.arc.xyz, 0, out);
+        case TC_DWELL:
+            return -1;
     }
     rtapi_print_msg(RTAPI_MSG_ERR, "Invalid motion type %d!\n",tc->motion_type);
     return -1;
@@ -306,6 +309,8 @@ int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmCartesian * const ou
                     tc->coords.circle.xyz.angle, out);
         case TC_SPHERICAL:
             return arcTangent(&tc->coords.arc.xyz, 1.0, out);
+        case TC_DWELL:
+            return -1;
     }
     rtapi_print_msg(RTAPI_MSG_ERR, "Invalid motion type %d!\n",tc->motion_type);
     return -1;
@@ -412,11 +417,14 @@ int tcGetStartpoint(TC_STRUCT const * const tc, EmcPose * const pos)
             abc = tc->coords.arc.abc;
             uvw = tc->coords.arc.uvw;
             break;
+        case TC_DWELL:
+            *pos = tc->coords.dwell.dwell_pos;
+            return TP_ERR_OK;
     }
 
     pmCartesianToEmcPose(&xyz, &abc, &uvw, pos);
 
-    return 0;
+    return TP_ERR_OK;
 }
 
 int tcGetEndpoint(TC_STRUCT const * const tc, EmcPose * const out) {
@@ -473,6 +481,9 @@ int tcGetPosReal(TC_STRUCT const * const tc, double progress, EmcPose * const po
             abc = tc->coords.arc.abc;
             uvw = tc->coords.arc.uvw;
             break;
+        case TC_DWELL:
+            *pos = tc->coords.dwell.dwell_pos;
+            return TP_ERR_OK;
     }
 
     if (res_fit == TP_ERR_OK) {
@@ -917,6 +928,8 @@ const char *tcMotionTypeAsString(tc_motion_type_t c)
             return "RigidTap";
         case TC_SPHERICAL:
             return "SphericalArc";
+        case TC_DWELL:
+            return "Dwell";
     }
     return "NONE";
 }

@@ -482,6 +482,11 @@ void DWELL(double seconds)
   ECHO_WITH_ARGS("%.4f", seconds);
 }
 
+void PRECISION_DWELL(double seconds)
+{
+  ECHO_WITH_ARGS("%.4f", seconds);
+}
+
 /* Spindle Functions */
 void SPINDLE_RETRACT_TRAVERSE()
 {PRINT("SPINDLE_RETRACT_TRAVERSE()\n");}

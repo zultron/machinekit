@@ -439,6 +439,10 @@ void DWELL(double time) {
     Py_XDECREF(result);
 }
 
+void PRECISION_DWELL(double seconds) {
+    DWELL(seconds);
+}
+
 void MESSAGE(char *comment) {
     maybe_new_line();
     if(interp_error) return;

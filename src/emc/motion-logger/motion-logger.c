@@ -610,7 +610,12 @@ void log_print_emcmot_cmd(emcmot_command_t *c)
     case EMCMOT_SETUP_BIARC_SOLVER_CFG:
         log_print("SETUP_BIARC_SOLVER_CFG\n");
         return;
+
+    case EMCMOT_SET_DWELL:
+        log_print("DWELL\n");
+        return;
     }
+
     log_print("ERROR: unknown command %d\n", c->command);
 }
 

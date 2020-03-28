@@ -1126,6 +1126,13 @@ int emcTrajRigidTap(EMC_TRAJ_RIGID_TAP const &cmd)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
+int emcTrajDwell(double time_sec)
+{
+    emcmotCommand.command = EMCMOT_SET_DWELL;
+    emcmotCommand.timeout = time_sec;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
 
 static int last_id = 0;
 static int last_id_printed = 0;
@@ -1174,6 +1181,7 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
     stat->distance_to_go = emcmotStatus.distance_to_go;
     stat->dtg = emcmotStatus.dtg;
     stat->current_vel = emcmotStatus.current_vel;
+    stat->dwell_time_remaining = emcmotStatus.dwell_time_remaining;
     // tormach added to deal with disconnect between motion and interp time *dpr 3/12/13
     stat->uu_per_rev = emcmotStatus.uu_per_rev;
     stat->waiting_on_spindle = emcmotStatus.waiting_on_spindle;

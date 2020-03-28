@@ -1737,6 +1737,10 @@ check_stuff ( "before command_handler()" );
         emcmotConfig->biarc_solver_cfg = emcmotCommand->biarc_solver_cfg;
         break;
 
+    case EMCMOT_SET_DWELL:
+        tpAddDwell(&emcmotDebug->tp, emcmotCommand->timeout, emcmotCommand->tag);
+        break;
+
     default:
         rtapi_print_msg(RTAPI_MSG_DBG, "UNKNOWN");
         reportError(_("unrecognized command %d"), emcmotCommand->command);
