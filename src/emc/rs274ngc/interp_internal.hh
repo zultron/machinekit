@@ -156,10 +156,7 @@ struct block_struct
 {
   block_struct ();
 
-  double a_number;
-
-  double b_number;
-  double c_number;
+  PositionArray axis_numbers;
   char comment[256];
   double d_number_float;
   double e_number;
@@ -183,18 +180,10 @@ struct block_struct
   double r_number;
   double s_number;
   int t_number;
-  double u_number;
-  double v_number;
-  double w_number;
-  double x_number;
-  double y_number;
-  double z_number;
   double radius;
   double theta;
 
-  bool a_flag;
-  bool b_flag;
-  bool c_flag;
+  std::bitset<64> axis_flags;
   bool d_flag;
   bool e_flag;
   bool f_flag;
@@ -208,12 +197,6 @@ struct block_struct
   bool r_flag;
   bool s_flag;
   bool t_flag;
-  bool u_flag;
-  bool v_flag;
-  bool w_flag;
-  bool x_flag;
-  bool y_flag;
-  bool z_flag;
   bool radius_flag;
   bool theta_flag;
 

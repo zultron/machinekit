@@ -147,9 +147,9 @@ int Interp::convert_nurbs(GCodes mode,
     CONTROL_POINT CP;   
 
     if (mode == G_5_2)  {
-	CHKS((((block->x_flag) && !(block->y_flag)) || (!(block->x_flag) && (block->y_flag))), (
+	CHKS((((block->axis_flags[X]) && !(block->axis_flags[Y])) || (!(block->axis_flags[X]) && (block->axis_flags[Y]))), (
              _("You must specify both X and Y coordinates for Control Points")));
-	CHKS((!(block->x_flag) && !(block->y_flag) && (block->p_number > 0) && 
+	CHKS((!(block->axis_flags[X]) && !(block->axis_flags[Y]) && (block->p_number > 0) && 
              (!nurbs_control_points.empty())), (
              _("Can specify P without X and Y only for the first control point")));
 
@@ -164,7 +164,7 @@ int Interp::convert_nurbs(GCodes mode,
         if (nurbs_control_points.empty()) {
             CP.X = settings->current[X];
             CP.Y = settings->current[Y];
-            if (!(block->x_flag) && !(block->y_flag) && (block->p_number > 0)) {
+            if (!(block->axis_flags[X]) && !(block->axis_flags[Y]) && (block->p_number > 0)) {
                 CP.W = block->p_number;
             } else {
                 CP.W = 1;
@@ -175,7 +175,7 @@ int Interp::convert_nurbs(GCodes mode,
         if (block->l_number != -1 && block->l_number > 3) {
             nurbs_order = block->l_number;  
         } 
-        if ((block->x_flag) && (block->y_flag)) {
+        if ((block->axis_flags[X]) && (block->axis_flags[Y])) {
             CHP(find_ends(block, settings, &CP.X, &CP.Y, &end_z, &AA_end, &BB_end, &CC_end,
                           &u_end, &v_end, &w_end));
             CP.W = block->p_number;
@@ -238,8 +238,8 @@ int Interp::convert_spline(int mode,
     CHKS((settings->plane != CANON_PLANE_XY), _("Splines must be in the XY plane")); // XXX
        //Error (for now): Splines must be in XY plane
 
-    CHKS((block->z_flag || block->a_flag || block->b_flag
-          || block->c_flag),
+    CHKS((block->axis_flags[Z] || block->axis_flags[A] || block->axis_flags[B]
+          || block->axis_flags[C]),
           _("Splines may not have motion in Z, A, B, or C"));
 
     if(mode == G_5_1) {
@@ -475,13 +475,13 @@ int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw
   } else {
     // in R format, we need some XYZ words specified because a full circle is not allowed.
     if (settings->plane == CANON_PLANE_XY) { 
-        CHKS(((!block->x_flag) && (!block->y_flag) && (!block->radius_flag) && (!block->theta_flag)),
+        CHKS(((!block->axis_flags[X]) && (!block->axis_flags[Y]) && (!block->radius_flag) && (!block->theta_flag)),
             NCE_X_AND_Y_WORDS_MISSING_FOR_ARC_IN_XY_PLANE);
     } else if (settings->plane == CANON_PLANE_YZ) {
-        CHKS(((!block->y_flag) && (!block->z_flag)),
+        CHKS(((!block->axis_flags[Y]) && (!block->axis_flags[Z])),
             NCE_Y_AND_Z_WORDS_MISSING_FOR_ARC_IN_YZ_PLANE);
     } else if (settings->plane == CANON_PLANE_XZ) {
-        CHKS(((!block->x_flag) && (!block->z_flag)),
+        CHKS(((!block->axis_flags[X]) && (!block->axis_flags[Z])),
             NCE_X_AND_Z_WORDS_MISSING_FOR_ARC_IN_XZ_PLANE);
     }
   }
@@ -1081,18 +1081,18 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
 {
   CHKS((settings->cutter_comp.side),      /* not "== true" */
        NCE_CANNOT_CHANGE_AXIS_OFFSETS_WITH_CUTTER_RADIUS_COMP);
-  CHKS((block->a_flag && settings->a_axis_wrapped &&
-        (block->a_number <= -360.0 || block->a_number >= 360.0)),
+  CHKS((block->axis_flags[A] && settings->a_axis_wrapped &&
+        (block->axis_numbers[A] <= -360.0 || block->axis_numbers[A] >= 360.0)),
        (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
-       block->a_number, 'A');
-  CHKS((block->b_flag && settings->b_axis_wrapped &&
-        (block->b_number <= -360.0 || block->b_number >= 360.0)),
+       block->axis_numbers[A], 'A');
+  CHKS((block->axis_flags[B] && settings->b_axis_wrapped &&
+        (block->axis_numbers[B] <= -360.0 || block->axis_numbers[B] >= 360.0)),
        (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
-       block->b_number, 'B');
-  CHKS((block->c_flag && settings->c_axis_wrapped &&
-        (block->c_number <= -360.0 || block->c_number >= 360.0)),
+       block->axis_numbers[B], 'B');
+  CHKS((block->axis_flags[C] && settings->c_axis_wrapped &&
+        (block->axis_numbers[C] <= -360.0 || block->axis_numbers[C] >= 360.0)),
        (_("Invalid absolute position %5.2f for wrapped rotary axis %c")),
-       block->c_number, 'C');
+       block->axis_numbers[C], 'C');
 
   if ((g_code == G_52) || (g_code == G_92)) {
     if (g_code == G_52) {
@@ -1984,8 +1984,8 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
     if (g_code == G_7) {
         if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
    	 		if (!settings->lathe_diameter_mode) {
-      				if(block->x_flag){
-       		 			block->x_number /= 2; //Apply scaling now
+      				if(block->axis_flags[X]){
+       		 			block->axis_numbers[X] /= 2; //Apply scaling now
       				}
       				if(block->motion_to_be == G_76) {
          	 			block->i_number /= 2;
@@ -2007,9 +2007,9 @@ int Interp::convert_lathe_diameter_mode(int g_code,    //!< g_code being execute
 			return INTERP_OK;
 		}
   	if (settings->lathe_diameter_mode) {
-    		if(block->x_flag)
+    		if(block->axis_flags[X])
 			{
-				block->x_number *= 2; //Remove any existing scaling
+				block->axis_numbers[X] *= 2; //Remove any existing scaling
 			}
       	if(block->motion_to_be == G_76) {
 				block->i_number *= 2;
@@ -2424,22 +2424,22 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
   // if any axes are specified, home only those axes after the waypoint 
   // (both fanuc & haas, contrary to emc historical operation)
 
-  if (block->x_flag) end_x = end_x_home;  
-  if (block->y_flag) end_y = end_y_home;  
-  if (block->z_flag) end_z = end_z_home;  
-  if (block->a_flag) AA_end = AA_end_home;
-  if (block->b_flag) BB_end = BB_end_home;
-  if (block->c_flag) CC_end = CC_end_home;
-  if (block->u_flag) u_end = u_end_home;  
-  if (block->v_flag) v_end = v_end_home;  
-  if (block->w_flag) w_end = w_end_home;  
+  if (block->axis_flags[X]) end_x = end_x_home;  
+  if (block->axis_flags[Y]) end_y = end_y_home;  
+  if (block->axis_flags[Z]) end_z = end_z_home;  
+  if (block->axis_flags[A]) AA_end = AA_end_home;
+  if (block->axis_flags[B]) BB_end = BB_end_home;
+  if (block->axis_flags[C]) CC_end = CC_end_home;
+  if (block->axis_flags[U]) u_end = u_end_home;  
+  if (block->axis_flags[V]) v_end = v_end_home;  
+  if (block->axis_flags[W]) w_end = w_end_home;  
 
   // but, if no axes are specified, home all of them 
   // (haas does this, emc historical did, throws an error in fanuc)
 
-  if (!block->x_flag && !block->y_flag && !block->z_flag &&
-      !block->a_flag && !block->b_flag && !block->c_flag &&
-      !block->u_flag && !block->v_flag && !block->w_flag) {
+  if (!block->axis_flags[X] && !block->axis_flags[Y] && !block->axis_flags[Z] &&
+      !block->axis_flags[A] && !block->axis_flags[B] && !block->axis_flags[C] &&
+      !block->axis_flags[U] && !block->axis_flags[V] && !block->axis_flags[W]) {
       end_x = end_x_home;  
       end_y = end_y_home;  
       end_z = end_z_home;  
@@ -3444,9 +3444,9 @@ int Interp::convert_motion(GCodes motion,   //!< g_code for a line, arc, canned 
                           block_pointer block,  //!< pointer to a block of RS274 instructions 
                           setup_pointer settings)       //!< pointer to machine settings              
 {
-  int ai = block->a_flag && settings->a_indexer;
-  int bi = block->b_flag && settings->b_indexer;
-  int ci = block->c_flag && settings->c_indexer;
+  int ai = block->axis_flags[A] && settings->a_indexer;
+  int bi = block->axis_flags[B] && settings->b_indexer;
+  int ci = block->axis_flags[C] && settings->c_indexer;
 
 
   if (motion != G_0) {
@@ -3455,14 +3455,14 @@ int Interp::convert_motion(GCodes motion,   //!< g_code for a line, arc, canned 
       CHKS((ci), (_("Indexing axis %c can only be moved with G0")), 'C');
   }
 
-  int xyzuvw_flag = (block->x_flag || block->y_flag || block->z_flag ||
-                     block->u_flag || block->v_flag || block->w_flag);
+  int xyzuvw_flag = (block->axis_flags[X] || block->axis_flags[Y] || block->axis_flags[Z] ||
+                     block->axis_flags[U] || block->axis_flags[V] || block->axis_flags[W]);
 
-  CHKS((ai && (xyzuvw_flag || block->b_flag || block->c_flag)),
+  CHKS((ai && (xyzuvw_flag || block->axis_flags[B] || block->axis_flags[C])),
        (_("Indexing axis %c can only be moved alone")), 'A');
-  CHKS((bi && (xyzuvw_flag || block->a_flag || block->c_flag)),
+  CHKS((bi && (xyzuvw_flag || block->axis_flags[A] || block->axis_flags[C])),
        (_("Indexing axis %c can only be moved alone")), 'B');
-  CHKS((ci && (xyzuvw_flag || block->a_flag || block->b_flag)),
+  CHKS((ci && (xyzuvw_flag || block->axis_flags[A] || block->axis_flags[B])),
        (_("Indexing axis %c can only be moved alone")), 'C');
 
   if (!is_a_cycle(motion))
@@ -3660,9 +3660,9 @@ int Interp::convert_retract_mode(int g_code,     //!< g_code being executed (mus
 // G10 L10 P[tool number] R[radius] X[x offset] Z[z offset] Q[orientation]
 
 int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
-    if(!(block->x_flag || block->y_flag || block->z_flag ||
-          block->a_flag || block->b_flag || block->c_flag ||
-          block->u_flag || block->v_flag || block->w_flag ||
+    if(!(block->axis_flags[X] || block->axis_flags[Y] || block->axis_flags[Z] ||
+          block->axis_flags[A] || block->axis_flags[B] || block->axis_flags[C] ||
+          block->axis_flags[U] || block->axis_flags[V] || block->axis_flags[W] ||
           block->r_flag || block->q_flag || block->i_flag ||
           block->j_flag)) {
         switch (last_cmd_src) {
@@ -3888,15 +3888,15 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
 
   int p_int = (int) (block->p_number + 0.0001) ?: settings->origin_index;
 
-  CHKS((block->l_number == 20 && block->a_flag && settings->a_axis_wrapped &&
-        (block->a_number <= -360.0 || block->a_number >= 360.0)),
-       (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), block->a_number, 'A');
-  CHKS((block->l_number == 20 && block->b_flag && settings->b_axis_wrapped &&
-        (block->b_number <= -360.0 || block->b_number >= 360.0)),
-       (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), block->b_number, 'B');
-  CHKS((block->l_number == 20 && block->c_flag && settings->c_axis_wrapped &&
-        (block->c_number <= -360.0 || block->c_number >= 360.0)),
-       (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), block->c_number, 'C');
+  CHKS((block->l_number == 20 && block->axis_flags[A] && settings->a_axis_wrapped &&
+        (block->axis_numbers[A] <= -360.0 || block->axis_numbers[A] >= 360.0)),
+       (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), block->axis_numbers[A], 'A');
+  CHKS((block->l_number == 20 && block->axis_flags[B] && settings->b_axis_wrapped &&
+        (block->axis_numbers[B] <= -360.0 || block->axis_numbers[B] >= 360.0)),
+       (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), block->axis_numbers[B], 'B');
+  CHKS((block->l_number == 20 && block->axis_flags[C] && settings->c_axis_wrapped &&
+        (block->axis_numbers[C] <= -360.0 || block->axis_numbers[C] >= 360.0)),
+       (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), block->axis_numbers[C], 'C');
 
   CHKS((settings->cutter_comp.side && p_int == settings->origin_index),
        (_("Cannot change the active coordinate system with cutter radius compensation on")));

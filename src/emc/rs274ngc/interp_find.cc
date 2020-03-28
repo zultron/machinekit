@@ -200,7 +200,7 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
 
 int Interp::find_ends(block_pointer block, setup_pointer s, PositionArray & cmd_local_pos)
 {
-    CHKS((block->radius_flag || block->theta_flag) && (block->x_flag || block->y_flag),
+    CHKS((block->radius_flag || block->theta_flag) && (block->axis_flags[X] || block->axis_flags[Y]),
          _("Cannot specify X or Y words with polar coordinate"));
 
     if (block->g_modes[GM_MODAL_0] == G_53) {      /* distance mode is absolute in this case */
@@ -231,16 +231,16 @@ int Interp::find_ends(block_pointer block, setup_pointer s, PositionArray & cmd_
             cmd_local_pos[Y] = radius * sin(theta);
         }
 
-        if(block->a_flag && s->a_axis_wrapped) {
-            CHP(unwrap_rotary(&cmd_local_pos[A], block->a_number, block->a_number, current[A], 'A'));
+        if(block->axis_flags[A] && s->a_axis_wrapped) {
+            CHP(unwrap_rotary(&cmd_local_pos[A], block->axis_numbers[A], block->axis_numbers[A], current[A], 'A'));
         }
 
-        if(block->b_flag && s->b_axis_wrapped) {
-            CHP(unwrap_rotary(&cmd_local_pos[B], block->b_number, block->b_number, current[B], 'B'));
+        if(block->axis_flags[B] && s->b_axis_wrapped) {
+            CHP(unwrap_rotary(&cmd_local_pos[B], block->axis_numbers[B], block->axis_numbers[B], current[B], 'B'));
         }
 
-        if(block->c_flag && s->c_axis_wrapped) {
-            CHP(unwrap_rotary(&cmd_local_pos[C], block->c_number, block->c_number, current[C], 'C'));
+        if(block->axis_flags[C] && s->c_axis_wrapped) {
+            CHP(unwrap_rotary(&cmd_local_pos[C], block->axis_numbers[C], block->axis_numbers[C], current[C], 'C'));
         }
         return INTERP_OK;
     case MODE_INCREMENTAL:

@@ -258,9 +258,9 @@ int Interp::add_parameters(setup_pointer settings,
     // in the correct order
     while (*s) {
 	switch (tolower(*s)) {
-	case 'a' : PARAM('a',"a",block->a_flag,block->a_number); break;
-	case 'b' : PARAM('b',"b",block->b_flag,block->b_number); break;
-	case 'c' : PARAM('c',"c",block->c_flag,block->c_number); break;
+	case 'a' : PARAM('a',"a",block->axis_flags[A],block->axis_numbers[A]); break;
+    case 'b' : PARAM('b',"b",block->axis_flags[B],block->axis_numbers[B]); break;
+	case 'c' : PARAM('c',"c",block->axis_flags[C],block->axis_numbers[C]); break;
 	case 'd' : PARAM('d',"d",block->d_flag,block->d_number_float); break;
 	case 'e' : PARAM('e',"e",block->e_flag,block->e_number); break;
 	case 'f' : PARAM('f',"f",block->f_flag,block->f_number); break;
@@ -274,12 +274,12 @@ int Interp::add_parameters(setup_pointer settings,
 	case 'r' : PARAM('r',"r",block->r_flag,block->r_number); break;
 	case 's' : PARAM('s',"s",block->s_flag,block->s_number); break;
 	case 't' : PARAM('t',"t",block->t_flag, (double) block->t_number); break;
-	case 'u' : PARAM('u',"u",block->u_flag,block->u_number); break;
-	case 'v' : PARAM('v',"v",block->v_flag,block->v_number); break;
-	case 'w' : PARAM('w',"w",block->w_flag,block->w_number); break;
-	case 'x' : PARAM('x',"x",block->x_flag,block->x_number); break;
-	case 'y' : PARAM('y',"y",block->y_flag,block->y_number); break;
-	case 'z' : PARAM('z',"z",block->z_flag,block->z_number); break;
+	case 'u' : PARAM('u',"u",block->axis_flags[U],block->axis_numbers[U]); break;
+	case 'v' : PARAM('v',"v",block->axis_flags[V],block->axis_numbers[V]); break;
+	case 'w' : PARAM('w',"w",block->axis_flags[W],block->axis_numbers[W]); break;
+	case 'x' : PARAM('x',"x",block->axis_flags[X],block->axis_numbers[X]); break;
+	case 'y' : PARAM('y',"y",block->axis_flags[Y],block->axis_numbers[Y]); break;
+	case 'z' : PARAM('z',"z",block->axis_flags[Z],block->axis_numbers[Z]); break;
 	case '-' : break; // ignore - backwards compatibility
 	default: ;
 	}

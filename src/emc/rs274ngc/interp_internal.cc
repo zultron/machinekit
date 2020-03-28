@@ -164,15 +164,15 @@ int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be c
       // someday, tediously add polar support for other planes here:
       CHKS((!_readers[(int)'x'] || !_readers[(int)'y']), _("Cannot use polar coordinate on a machine lacking X or Y axes"));
       CHKS(((settings->plane != CANON_PLANE_XY)), _("Cannot use polar coordinate except in G17 plane"));
-      CHKS(((block->x_flag)), _("Cannot specify both polar coordinate and X word"));
-      CHKS(((block->y_flag)), _("Cannot specify both polar coordinate and Y word"));
+      CHKS(((block->axis_flags[X])), _("Cannot specify both polar coordinate and X word"));
+      CHKS(((block->axis_flags[Y])), _("Cannot specify both polar coordinate and Y word"));
   }
 
-  axis_flag = ((block->x_flag) || (block->y_flag) ||
-               (block->z_flag) || (block->a_flag) ||
-               (block->b_flag) || (block->c_flag) ||
-               (block->u_flag) || (block->v_flag) ||
-               (block->w_flag));
+  axis_flag = ((block->axis_flags[X]) || (block->axis_flags[Y]) ||
+               (block->axis_flags[Z]) || (block->axis_flags[A]) ||
+               (block->axis_flags[B]) || (block->axis_flags[C]) ||
+               (block->axis_flags[U]) || (block->axis_flags[V]) ||
+               (block->axis_flags[W]));
   polar_flag = (block->radius_flag) || (block->theta_flag);
   ijk_flag = ((block->i_flag) || (block->j_flag) ||
               (block->k_flag));
@@ -267,9 +267,7 @@ int Interp::init_block(block_pointer block)      //!< pointer to a block to be i
   block->remappings.clear();
   block->builtin_used = false;
 
-  block->a_flag = false;
-  block->b_flag = false;
-  block->c_flag = false;
+  block->axis_flags.reset();
   block->comment[0] = 0;
   block->d_flag = false;
   block->e_flag = false;
@@ -295,12 +293,6 @@ int Interp::init_block(block_pointer block)      //!< pointer to a block to be i
   block->r_flag = false;
   block->s_flag = false;
   block->t_flag = false;
-  block->u_flag = false;
-  block->v_flag = false;
-  block->w_flag = false;
-  block->x_flag = false;
-  block->y_flag = false;
-  block->z_flag = false;
 
   block->theta_flag = false;
   block->radius_flag = false;
@@ -540,15 +532,15 @@ char * Interp::working_dir(char * buf, size_t len)
 AxisMask getUpdatedAxes(block_pointer b)
 {
     AxisMask axes_updated;
-    axes_updated[X] = b->x_flag;
-    axes_updated[Y] = b->y_flag;
-    axes_updated[Z] = b->z_flag;
-    axes_updated[A] = b->a_flag;
-    axes_updated[B] = b->b_flag;
-    axes_updated[C] = b->c_flag;
-    axes_updated[U] = b->u_flag;
-    axes_updated[V] = b->v_flag;
-    axes_updated[W] = b->w_flag;
+    axes_updated[X] = b->axis_flags[X];
+    axes_updated[Y] = b->axis_flags[Y];
+    axes_updated[Z] = b->axis_flags[Z];
+    axes_updated[A] = b->axis_flags[A];
+    axes_updated[B] = b->axis_flags[B];
+    axes_updated[C] = b->axis_flags[C];
+    axes_updated[U] = b->axis_flags[U];
+    axes_updated[V] = b->axis_flags[V];
+    axes_updated[W] = b->axis_flags[W];
 
     return axes_updated;
 }
@@ -560,17 +552,17 @@ PositionArray getAxisWordsFromBlock(block_pointer b, const PositionArray &curren
 {
     PositionArray out;
 
-    out[X] = b->x_flag ? b->x_number : current[X];
-    out[Y] = b->y_flag ? b->y_number : current[Y];
-    out[Z] = b->z_flag ? b->z_number : current[Z];
+    out[X] = b->axis_flags[X] ? b->axis_numbers[X] : current[X];
+    out[Y] = b->axis_flags[Y] ? b->axis_numbers[Y] : current[Y];
+    out[Z] = b->axis_flags[Z] ? b->axis_numbers[Z] : current[Z];
 
-    out[A] = b->a_flag ? b->a_number : current[A];
-    out[B] = b->b_flag ? b->b_number : current[B];
-    out[C] = b->c_flag ? b->c_number : current[C];
+    out[A] = b->axis_flags[A] ? b->axis_numbers[A] : current[A];
+    out[B] = b->axis_flags[B] ? b->axis_numbers[B] : current[B];
+    out[C] = b->axis_flags[C] ? b->axis_numbers[C] : current[C];
 
-    out[U] = b->u_flag ? b->u_number : current[U];
-    out[V] = b->v_flag ? b->v_number : current[V];
-    out[W] = b->w_flag ? b->w_number : current[W];
+    out[U] = b->axis_flags[U] ? b->axis_numbers[U] : current[U];
+    out[V] = b->axis_flags[V] ? b->axis_numbers[V] : current[V];
+    out[W] = b->axis_flags[W] ? b->axis_numbers[W] : current[W];
     return out;
 }
 

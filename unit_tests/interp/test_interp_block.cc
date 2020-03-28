@@ -46,18 +46,18 @@ SCENARIO("Movement commands")
 
       block_struct eblock = read_and_parse_command(test_interp, command);
       REQUIRE(eblock.g_modes[GM_MOTION] == G_1);
-      REQUIRE(eblock.x_flag);
-      REQUIRE(eblock.y_flag);
-      REQUIRE(eblock.z_flag);
-      REQUIRE(eblock.a_flag);
-      REQUIRE(!eblock.b_flag);
-      REQUIRE(eblock.c_flag);
+      REQUIRE(eblock.axis_flags[X]);
+      REQUIRE(eblock.axis_flags[Y]);
+      REQUIRE(eblock.axis_flags[Z]);
+      REQUIRE(eblock.axis_flags[A]);
+      REQUIRE(!eblock.axis_flags[B]);
+      REQUIRE(eblock.axis_flags[C]);
 
-      REQUIRE_FUZZ(eblock.x_number, 1);
-      REQUIRE_FUZZ(eblock.y_number, 2);
-      REQUIRE_FUZZ(eblock.z_number, 3);
-      REQUIRE_FUZZ(eblock.a_number, 4);
-      REQUIRE_FUZZ(eblock.c_number, 6);
+      REQUIRE_FUZZ(eblock.axis_numbers[X], 1);
+      REQUIRE_FUZZ(eblock.axis_numbers[Y], 2);
+      REQUIRE_FUZZ(eblock.axis_numbers[Z], 3);
+      REQUIRE_FUZZ(eblock.axis_numbers[A], 4);
+      REQUIRE_FUZZ(eblock.axis_numbers[C], 6);
     }
   }
   GIVEN("Rapid along multiple axes ")
@@ -69,18 +69,18 @@ SCENARIO("Movement commands")
 
       block_struct eblock = read_and_parse_command(test_interp, command);
       REQUIRE(eblock.g_modes[GM_MOTION] == G_0);
-      REQUIRE(eblock.x_flag);
-      REQUIRE(eblock.y_flag);
-      REQUIRE(eblock.z_flag);
-      REQUIRE(eblock.a_flag);
-      REQUIRE(!eblock.b_flag);
-      REQUIRE(eblock.c_flag);
+      REQUIRE(eblock.axis_flags[X]);
+      REQUIRE(eblock.axis_flags[Y]);
+      REQUIRE(eblock.axis_flags[Z]);
+      REQUIRE(eblock.axis_flags[A]);
+      REQUIRE(!eblock.axis_flags[B]);
+      REQUIRE(eblock.axis_flags[C]);
 
-      REQUIRE_FUZZ(eblock.x_number, 1);
-      REQUIRE_FUZZ(eblock.y_number, 2);
-      REQUIRE_FUZZ(eblock.z_number, 3);
-      REQUIRE_FUZZ(eblock.a_number, 4);
-      REQUIRE_FUZZ(eblock.c_number, 6);
+      REQUIRE_FUZZ(eblock.axis_numbers[X], 1);
+      REQUIRE_FUZZ(eblock.axis_numbers[Y], 2);
+      REQUIRE_FUZZ(eblock.axis_numbers[Z], 3);
+      REQUIRE_FUZZ(eblock.axis_numbers[A], 4);
+      REQUIRE_FUZZ(eblock.axis_numbers[C], 6);
     }
   }
   GIVEN("Clockwise circular motion commanded")
@@ -92,17 +92,17 @@ SCENARIO("Movement commands")
     THEN("Block should have G2 / G3word and axis words") {
 
       REQUIRE(eblock.g_modes[GM_MOTION] == G_2);
-      REQUIRE(eblock.x_flag);
-      REQUIRE(eblock.y_flag);
-      REQUIRE(eblock.z_flag);
+      REQUIRE(eblock.axis_flags[X]);
+      REQUIRE(eblock.axis_flags[Y]);
+      REQUIRE(eblock.axis_flags[Z]);
       REQUIRE(eblock.r_flag);
-      REQUIRE(!eblock.a_flag);
-      REQUIRE(!eblock.b_flag);
-      REQUIRE(!eblock.c_flag);
+      REQUIRE(!eblock.axis_flags[A]);
+      REQUIRE(!eblock.axis_flags[B]);
+      REQUIRE(!eblock.axis_flags[C]);
 
-      REQUIRE_FUZZ(eblock.x_number, 1);
-      REQUIRE_FUZZ(eblock.y_number, 2);
-      REQUIRE_FUZZ(eblock.z_number, 3);
+      REQUIRE_FUZZ(eblock.axis_numbers[X], 1);
+      REQUIRE_FUZZ(eblock.axis_numbers[Y], 2);
+      REQUIRE_FUZZ(eblock.axis_numbers[Z], 3);
       REQUIRE_FUZZ(eblock.r_number, 1);
     }
   }

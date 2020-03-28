@@ -695,22 +695,22 @@ int Interp::convert_cycle(GCodes motion,    //!< a g-code between G_81 and G_89,
   case CANON_PLANE_XY:
   case CANON_PLANE_XZ:
   case CANON_PLANE_YZ:
-    CHKS(block->u_flag, "Cannot put a U in a canned cycle in the %s plane",
+    CHKS(block->axis_flags[U], "Cannot put a U in a canned cycle in the %s plane",
 	plane_name(settings->plane));
-    CHKS(block->v_flag, "Cannot put a V in a canned cycle in the %s plane",
+    CHKS(block->axis_flags[V], "Cannot put a V in a canned cycle in the %s plane",
 	plane_name(settings->plane));
-    CHKS(block->w_flag, "Cannot put a W in a canned cycle in the %s plane",
+    CHKS(block->axis_flags[W], "Cannot put a W in a canned cycle in the %s plane",
 	plane_name(settings->plane));
     break;
 
   case CANON_PLANE_UV:
   case CANON_PLANE_VW:
   case CANON_PLANE_UW:
-    CHKS(block->x_flag, "Cannot put an X in a canned cycle in the %s plane",
+    CHKS(block->axis_flags[X], "Cannot put an X in a canned cycle in the %s plane",
 	plane_name(settings->plane));
-    CHKS(block->y_flag, "Cannot put a Y in a canned cycle in the %s plane",
+    CHKS(block->axis_flags[Y], "Cannot put a Y in a canned cycle in the %s plane",
 	plane_name(settings->plane));
-    CHKS(block->z_flag, "Cannot put a Z in a canned cycle in the %s plane",
+    CHKS(block->axis_flags[Z], "Cannot put a Z in a canned cycle in the %s plane",
 	plane_name(settings->plane));
   }
 
@@ -871,11 +871,11 @@ int Interp::convert_cycle_xy(int motion, //!< a g-code between G_81 and G_89, a 
 
   plane = CANON_PLANE_XY;
   if (settings->motion_mode != motion) {
-    CHKS((!block->z_flag),
+    CHKS((!block->axis_flags[Z]),
         _readers[(int)'z']? NCE_Z_VALUE_UNSPECIFIED_IN_XY_PLANE_CANNED_CYCLE: _("G17 canned cycle is not possible on a machine without Z axis"));
   }
-  block->z_number =
-    block->z_flag ? block->z_number : settings->cycle.cc;
+  block->axis_numbers[Z] =
+    block->axis_flags[Z] ? block->axis_numbers[Z] : settings->cycle.cc;
   if(settings->cycle.il_flag) {
       old_cc = settings->cycle.il;
   } else {
@@ -888,7 +888,7 @@ int Interp::convert_cycle_xy(int motion, //!< a g-code between G_81 and G_89, a 
     aa_increment = 0.0;
     bb_increment = 0.0;
     r = block->r_number;
-    cc = block->z_number;
+    cc = block->axis_numbers[Z];
     if(block->radius_flag)
         radius = block->radius;
     else
@@ -901,16 +901,16 @@ int Interp::convert_cycle_xy(int motion, //!< a g-code between G_81 and G_89, a 
         aa = radius * cos(theta);
         bb = radius * sin(theta);
     } else {
-        aa = block->x_flag ? block->x_number : settings->current[X];
-        bb = block->y_flag ? block->y_number : settings->current[Y];
+        aa = block->axis_flags[X] ? block->axis_numbers[X] : settings->current[X];
+        bb = block->axis_flags[Y] ? block->axis_numbers[Y] : settings->current[Y];
     }
   } else if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
-    if (block->x_flag) aa_increment = block->x_number;
-    if (block->y_flag) bb_increment = block->y_number;
+    if (block->axis_flags[X]) aa_increment = block->axis_numbers[X];
+    if (block->axis_flags[Y]) bb_increment = block->axis_numbers[Y];
     if (block->radius_flag) radius_increment = block->radius;
     if (block->theta_flag) theta_increment = D2R(block->theta);
     r = (block->r_number + old_cc);
-    cc = (r + block->z_number); /* [NCMS, page 98] */
+    cc = (r + block->axis_numbers[Z]); /* [NCMS, page 98] */
     aa = settings->current[X];
     bb = settings->current[Y];
   } else
@@ -1033,7 +1033,7 @@ int Interp::convert_cycle_xy(int motion, //!< a g-code between G_81 and G_89, a 
   settings->current[X] = aa;     /* CYCLE_MACRO updates aa and bb */
   settings->current[Y] = bb;
   settings->current[Z] = clear_cc;
-  settings->cycle.cc = block->z_number;
+  settings->cycle.cc = block->axis_numbers[Z];
 
   if (save_mode != CANON_EXACT_PATH) {
     SET_MOTION_CONTROL_MODE(save_mode, save_tolerance);
@@ -1069,11 +1069,11 @@ int Interp::convert_cycle_uv(int motion, //!< a g-code between G_81 and G_89, a 
 
   plane = CANON_PLANE_UV;
   if (settings->motion_mode != motion) {
-    CHKS((!block->w_flag),
+    CHKS((!block->axis_flags[W]),
         _readers[(int)'w']? NCE_W_VALUE_UNSPECIFIED_IN_UV_PLANE_CANNED_CYCLE: _("G17.1 canned cycle is not possible on a machine without W axis"));
   }
-  block->w_number =
-    block->w_flag ? block->w_number : settings->cycle.cc;
+  block->axis_numbers[W] =
+    block->axis_flags[W] ? block->axis_numbers[W] : settings->cycle.cc;
   if(settings->cycle.il_flag) {
       old_cc = settings->cycle.il;
   } else {
@@ -1085,14 +1085,14 @@ int Interp::convert_cycle_uv(int motion, //!< a g-code between G_81 and G_89, a 
     aa_increment = 0.0;
     bb_increment = 0.0;
     r = block->r_number;
-    cc = block->w_number;
-    aa = block->u_flag ? block->u_number : settings->current[U];
-    bb = block->v_flag ? block->v_number : settings->current[V];
+    cc = block->axis_numbers[W];
+    aa = block->axis_flags[U] ? block->axis_numbers[U] : settings->current[U];
+    bb = block->axis_flags[V] ? block->axis_numbers[V] : settings->current[V];
   } else if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
-    if (block->u_flag) aa_increment = block->u_number;
-    if (block->v_flag) bb_increment = block->v_number;
+    if (block->axis_flags[U]) aa_increment = block->axis_numbers[U];
+    if (block->axis_flags[V]) bb_increment = block->axis_numbers[V];
     r = (block->r_number + old_cc);
-    cc = (r + block->w_number); /* [NCMS, page 98] */
+    cc = (r + block->axis_numbers[W]); /* [NCMS, page 98] */
     aa = settings->current[U];
     bb = settings->current[V];
   } else
@@ -1210,7 +1210,7 @@ int Interp::convert_cycle_uv(int motion, //!< a g-code between G_81 and G_89, a 
   settings->current[U] = aa;     /* CYCLE_MACRO updates aa and bb */
   settings->current[V] = bb;
   settings->current[W] = clear_cc;
-  settings->cycle.cc = block->w_number;
+  settings->cycle.cc = block->axis_numbers[W];
 
   if (save_mode != CANON_EXACT_PATH)
     SET_MOTION_CONTROL_MODE(save_mode, save_tolerance);
@@ -1292,11 +1292,11 @@ int Interp::convert_cycle_yz(int motion, //!< a g-code between G_81 and G_89, a 
 
   plane = CANON_PLANE_YZ;
   if (settings->motion_mode != motion) {
-    CHKS((!block->x_flag),
+    CHKS((!block->axis_flags[X]),
         _readers[(int)'x']? NCE_X_VALUE_UNSPECIFIED_IN_YZ_PLANE_CANNED_CYCLE: _("G19 canned cycle is not possible on a machine without X axis"));
   }
-  block->x_number =
-    block->x_flag ? block->x_number : settings->cycle.cc;
+  block->axis_numbers[X] =
+    block->axis_flags[X] ? block->axis_numbers[X] : settings->cycle.cc;
   if(settings->cycle.il_flag) {
       old_cc = settings->cycle.il;
   } else {
@@ -1308,14 +1308,14 @@ int Interp::convert_cycle_yz(int motion, //!< a g-code between G_81 and G_89, a 
     aa_increment = 0.0;
     bb_increment = 0.0;
     r = block->r_number;
-    cc = block->x_number;
-    aa = block->y_flag ? block->y_number : settings->current[Y];
-    bb = block->z_flag ? block->z_number : settings->current[Z];
+    cc = block->axis_numbers[X];
+    aa = block->axis_flags[Y] ? block->axis_numbers[Y] : settings->current[Y];
+    bb = block->axis_flags[Z] ? block->axis_numbers[Z] : settings->current[Z];
   } else if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
-    if (block->y_flag) aa_increment = block->y_number;
-    if (block->z_flag) bb_increment = block->z_number;
+    if (block->axis_flags[Y]) aa_increment = block->axis_numbers[Y];
+    if (block->axis_flags[Z]) bb_increment = block->axis_numbers[Z];
     r = (block->r_number + old_cc);
-    cc = (r + block->x_number); /* [NCMS, page 98] */
+    cc = (r + block->axis_numbers[X]); /* [NCMS, page 98] */
     aa = settings->current[Y];
     bb = settings->current[Z];
   } else
@@ -1433,7 +1433,7 @@ int Interp::convert_cycle_yz(int motion, //!< a g-code between G_81 and G_89, a 
   settings->current[Y] = aa;     /* CYCLE_MACRO updates aa and bb */
   settings->current[Z] = bb;
   settings->current[X] = clear_cc;
-  settings->cycle.cc = block->x_number;
+  settings->cycle.cc = block->axis_numbers[X];
 
   if (save_mode != CANON_EXACT_PATH)
     SET_MOTION_CONTROL_MODE(save_mode, save_tolerance);
@@ -1467,11 +1467,11 @@ int Interp::convert_cycle_vw(int motion, //!< a g-code between G_81 and G_89, a 
 
   plane = CANON_PLANE_VW;
   if (settings->motion_mode != motion) {
-    CHKS((!block->u_flag),
+    CHKS((!block->axis_flags[U]),
         _readers[(int)'u']? NCE_U_VALUE_UNSPECIFIED_IN_VW_PLANE_CANNED_CYCLE: _("G19.1 canned cycle is not possible on a machine without U axis"));
   }
-  block->u_number =
-    block->u_flag ? block->u_number : settings->cycle.cc;
+  block->axis_numbers[U] =
+    block->axis_flags[U] ? block->axis_numbers[U] : settings->cycle.cc;
   if(settings->cycle.il_flag) {
       old_cc = settings->cycle.il;
   } else {
@@ -1483,14 +1483,14 @@ int Interp::convert_cycle_vw(int motion, //!< a g-code between G_81 and G_89, a 
     aa_increment = 0.0;
     bb_increment = 0.0;
     r = block->r_number;
-    cc = block->u_number;
-    aa = block->v_flag ? block->v_number : settings->current[V];
-    bb = block->w_flag ? block->w_number : settings->current[W];
+    cc = block->axis_numbers[U];
+    aa = block->axis_flags[V] ? block->axis_numbers[V] : settings->current[V];
+    bb = block->axis_flags[W] ? block->axis_numbers[W] : settings->current[W];
   } else if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
-    if (block->v_flag) aa_increment = block->v_number;
-    if (block->w_flag) bb_increment = block->w_number;
+    if (block->axis_flags[V]) aa_increment = block->axis_numbers[V];
+    if (block->axis_flags[W]) bb_increment = block->axis_numbers[W];
     r = (block->r_number + old_cc);
-    cc = (r + block->u_number); /* [NCMS, page 98] */
+    cc = (r + block->axis_numbers[U]); /* [NCMS, page 98] */
     aa = settings->current[V];
     bb = settings->current[W];
   } else
@@ -1608,7 +1608,7 @@ int Interp::convert_cycle_vw(int motion, //!< a g-code between G_81 and G_89, a 
   settings->current[V] = aa;     /* CYCLE_MACRO updates aa and bb */
   settings->current[W] = bb;
   settings->current[U] = clear_cc;
-  settings->cycle.cc = block->u_number;
+  settings->cycle.cc = block->axis_numbers[U];
 
   if (save_mode != CANON_EXACT_PATH)
     SET_MOTION_CONTROL_MODE(save_mode, save_tolerance);
@@ -1699,11 +1699,11 @@ int Interp::convert_cycle_zx(int motion, //!< a g-code between G_81 and G_89, a 
 
   plane = CANON_PLANE_XZ;
   if (settings->motion_mode != motion) {
-    CHKS((!block->y_flag),
+    CHKS((!block->axis_flags[Y]),
         _readers[(int)'y']? NCE_Y_VALUE_UNSPECIFIED_IN_XZ_PLANE_CANNED_CYCLE: _("G18 canned cycle is not possible on a machine without Y axis"));
   }
-  block->y_number =
-    block->y_flag ? block->y_number : settings->cycle.cc;
+  block->axis_numbers[Y] =
+    block->axis_flags[Y] ? block->axis_numbers[Y] : settings->cycle.cc;
   if(settings->cycle.il_flag) {
       old_cc = settings->cycle.il;
   } else {
@@ -1715,14 +1715,14 @@ int Interp::convert_cycle_zx(int motion, //!< a g-code between G_81 and G_89, a 
     aa_increment = 0.0;
     bb_increment = 0.0;
     r = block->r_number;
-    cc = block->y_number;
-    aa = block->z_flag ? block->z_number : settings->current[Z];
-    bb = block->x_flag ? block->x_number : settings->current[X];
+    cc = block->axis_numbers[Y];
+    aa = block->axis_flags[Z] ? block->axis_numbers[Z] : settings->current[Z];
+    bb = block->axis_flags[X] ? block->axis_numbers[X] : settings->current[X];
   } else if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
-    if (block->z_flag) aa_increment = block->z_number;
-    if (block->x_flag) bb_increment = block->x_number;
+    if (block->axis_flags[Z]) aa_increment = block->axis_numbers[Z];
+    if (block->axis_flags[X]) bb_increment = block->axis_numbers[X];
     r = (block->r_number + old_cc);
-    cc = (r + block->y_number); /* [NCMS, page 98] */
+    cc = (r + block->axis_numbers[Y]); /* [NCMS, page 98] */
     aa = settings->current[Z];
     bb = settings->current[X];
   } else
@@ -1840,7 +1840,7 @@ int Interp::convert_cycle_zx(int motion, //!< a g-code between G_81 and G_89, a 
   settings->current[Z] = aa;     /* CYCLE_MACRO updates aa and bb */
   settings->current[X] = bb;
   settings->current[Y] = clear_cc;
-  settings->cycle.cc = block->y_number;
+  settings->cycle.cc = block->axis_numbers[Y];
 
   if (save_mode != CANON_EXACT_PATH)
     SET_MOTION_CONTROL_MODE(save_mode, save_tolerance);
@@ -1873,11 +1873,11 @@ int Interp::convert_cycle_wu(int motion, //!< a g-code between G_81 and G_89, a 
 
   plane = CANON_PLANE_UW;
   if (settings->motion_mode != motion) {
-    CHKS((!block->v_flag),
+    CHKS((!block->axis_flags[V]),
         _readers[(int)'v']? NCE_V_VALUE_UNSPECIFIED_IN_UW_PLANE_CANNED_CYCLE: _("G18.1 canned cycle is not possible on a machine without V axis"));
   }
-  block->v_number =
-    block->v_flag ? block->v_number : settings->cycle.cc;
+  block->axis_numbers[V] =
+    block->axis_flags[V] ? block->axis_numbers[V] : settings->cycle.cc;
   if(settings->cycle.il_flag) {
       old_cc = settings->cycle.il;
   } else {
@@ -1889,14 +1889,14 @@ int Interp::convert_cycle_wu(int motion, //!< a g-code between G_81 and G_89, a 
     aa_increment = 0.0;
     bb_increment = 0.0;
     r = block->r_number;
-    cc = block->v_number;
-    aa = block->w_flag ? block->w_number : settings->current[W];
-    bb = block->u_flag ? block->u_number : settings->current[U];
+    cc = block->axis_numbers[V];
+    aa = block->axis_flags[W] ? block->axis_numbers[W] : settings->current[W];
+    bb = block->axis_flags[U] ? block->axis_numbers[U] : settings->current[U];
   } else if (get_distance_mode(block, settings) == MODE_INCREMENTAL) {
-    if (block->w_flag) aa_increment = block->w_number;
-    if (block->u_flag) bb_increment = block->u_number;
+    if (block->axis_flags[W]) aa_increment = block->axis_numbers[W];
+    if (block->axis_flags[U]) bb_increment = block->axis_numbers[U];
     r = (block->r_number + old_cc);
-    cc = (r + block->v_number); /* [NCMS, page 98] */
+    cc = (r + block->axis_numbers[V]); /* [NCMS, page 98] */
     aa = settings->current[W];
     bb = settings->current[U];
   } else
@@ -2014,7 +2014,7 @@ int Interp::convert_cycle_wu(int motion, //!< a g-code between G_81 and G_89, a 
   settings->current[W] = aa;     /* CYCLE_MACRO updates aa and bb */
   settings->current[U] = bb;
   settings->current[V] = clear_cc;
-  settings->cycle.cc = block->v_number;
+  settings->cycle.cc = block->axis_numbers[V];
 
   if (save_mode != CANON_EXACT_PATH)
     SET_MOTION_CONTROL_MODE(save_mode, save_tolerance);

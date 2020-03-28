@@ -257,9 +257,8 @@ setup_struct::~setup_struct() {
 }
 
 block_struct::block_struct ()
-    : a_number(0),
-      b_number(0),
-      c_number(0),
+    :
+      axis_numbers{{}},
       comment{},
       d_number_float(0),
       e_number(0),
@@ -281,18 +280,10 @@ block_struct::block_struct ()
       r_number(0),
       s_number(0),
       t_number(0),
-      u_number(0),
-      v_number(0),
-      w_number(0),
-      x_number(0),
-      y_number(0),
-      z_number(0),
       radius(0.0),
       theta(0.0),
 // Flags
-      a_flag(false),
-      b_flag(false),
-      c_flag(false),
+      axis_flags{},
       d_flag(false),
       e_flag(false),
       f_flag(false),
@@ -306,12 +297,6 @@ block_struct::block_struct ()
       r_flag(false),
       s_flag(false),
       t_flag(false),
-      u_flag(false),
-      v_flag(false),
-      w_flag(false),
-      x_flag(false),
-      y_flag(false),
-      z_flag(false),
       radius_flag(false),
       theta_flag(false),
 

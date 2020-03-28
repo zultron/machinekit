@@ -284,13 +284,13 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   if (has_user_mcode(&(_setup),block)) {
       return INTERP_OK;
     }
-  if (block->a_flag) {
+  if (block->axis_flags[A]) {
     CHKS(is_a_cycle(motion), NCE_CANNOT_PUT_AN_A_IN_CANNED_CYCLE);
   }
-  if (block->b_flag) {
+  if (block->axis_flags[B]) {
     CHKS(is_a_cycle(motion), NCE_CANNOT_PUT_A_B_IN_CANNED_CYCLE);
   }
-  if (block->c_flag) {
+  if (block->axis_flags[C]) {
     CHKS(is_a_cycle(motion), NCE_CANNOT_PUT_A_C_IN_CANNED_CYCLE);
   }
   if (block->d_flag) {

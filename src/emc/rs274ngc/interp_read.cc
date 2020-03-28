@@ -80,10 +80,10 @@ int Interp::read_a(char *line,   //!< string: line of RS274/NGC code being proce
 
   CHKS((line[*counter] != 'a'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
   *counter = (*counter + 1);
-  CHKS((block->a_flag), NCE_MULTIPLE_A_WORDS_ON_ONE_LINE);
+  CHKS((block->axis_flags[A]), NCE_MULTIPLE_A_WORDS_ON_ONE_LINE);
   CHP(read_real_value(line, counter, &value, parameters));
-  block->a_flag = true;
-  block->a_number = value;
+  block->axis_flags[A] = true;
+  block->axis_numbers[A] = value;
   return INTERP_OK;
 }
 
@@ -188,10 +188,10 @@ int Interp::read_b(char *line,   //!< string: line of RS274/NGC code being proce
 
   CHKS((line[*counter] != 'b'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
   *counter = (*counter + 1);
-  CHKS((block->b_flag), NCE_MULTIPLE_B_WORDS_ON_ONE_LINE);
+  CHKS((block->axis_flags[B]), NCE_MULTIPLE_B_WORDS_ON_ONE_LINE);
   CHP(read_real_value(line, counter, &value, parameters));
-  block->b_flag = true;
-  block->b_number = value;
+  block->axis_flags[B] = true;
+  block->axis_numbers[B] = value;
   return INTERP_OK;
 }
 
@@ -243,10 +243,10 @@ int Interp::read_c(char *line,   //!< string: line of RS274/NGC code being proce
 
   CHKS((line[*counter] != 'c'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
   *counter = (*counter + 1);
-  CHKS((block->c_flag), NCE_MULTIPLE_C_WORDS_ON_ONE_LINE);
+  CHKS((block->axis_flags[C]), NCE_MULTIPLE_C_WORDS_ON_ONE_LINE);
   CHP(read_real_value(line, counter, &value, parameters));
-  block->c_flag = true;
-  block->c_number = value;
+  block->axis_flags[C] = true;
+  block->axis_numbers[C] = value;
   return INTERP_OK;
 }
 
@@ -3279,10 +3279,10 @@ int Interp::read_u(char *line,   //!< string: line of RS274/NGC code being proce
 
   CHKS((line[*counter] != 'u'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
   *counter = (*counter + 1);
-  CHKS((block->u_flag), _("Multiple U words on one line"));
+  CHKS((block->axis_flags[U]), _("Multiple U words on one line"));
   CHP(read_real_value(line, counter, &value, parameters));
-  block->u_flag = true;
-  block->u_number = value;
+  block->axis_flags[U] = true;
+  block->axis_numbers[U] = value;
   return INTERP_OK;
 }
 
@@ -3295,10 +3295,10 @@ int Interp::read_v(char *line,   //!< string: line of RS274/NGC code being proce
 
   CHKS((line[*counter] != 'v'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
   *counter = (*counter + 1);
-  CHKS((block->v_flag), _("Multiple V words on one line"));
+  CHKS((block->axis_flags[V]), _("Multiple V words on one line"));
   CHP(read_real_value(line, counter, &value, parameters));
-  block->v_flag = true;
-  block->v_number = value;
+  block->axis_flags[V] = true;
+  block->axis_numbers[V] = value;
   return INTERP_OK;
 }
 
@@ -3311,10 +3311,10 @@ int Interp::read_w(char *line,   //!< string: line of RS274/NGC code being proce
 
   CHKS((line[*counter] != 'w'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
   *counter = (*counter + 1);
-  CHKS((block->w_flag), _("Multiple W words on one line"));
+  CHKS((block->axis_flags[W]), _("Multiple W words on one line"));
   CHP(read_real_value(line, counter, &value, parameters));
-  block->w_flag = true;
-  block->w_number = value;
+  block->axis_flags[W] = true;
+  block->axis_numbers[W] = value;
   return INTERP_OK;
 }
 
@@ -3361,15 +3361,15 @@ int Interp::read_x(char *line,   //!< string: line of RS274 code being processed
 
   CHKS((line[*counter] != 'x'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
   *counter = (*counter + 1);
-  CHKS((block->x_flag), NCE_MULTIPLE_X_WORDS_ON_ONE_LINE);
+  CHKS((block->axis_flags[X]), NCE_MULTIPLE_X_WORDS_ON_ONE_LINE);
   CHP(read_real_value(line, counter, &value, parameters));
-  block->x_flag = true;
+  block->axis_flags[X] = true;
   if(_setup.lathe_diameter_mode)
   {
-    block->x_number = value / 2;
+    block->axis_numbers[X] = value / 2;
   }else
   {
-  block->x_number = value;
+  block->axis_numbers[X] = value;
   }
   return INTERP_OK;
 }
@@ -3436,10 +3436,10 @@ int Interp::read_y(char *line,   //!< string: line of RS274 code being processed
 
   CHKS((line[*counter] != 'y'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
   *counter = (*counter + 1);
-  CHKS((block->y_flag), NCE_MULTIPLE_Y_WORDS_ON_ONE_LINE);
+  CHKS((block->axis_flags[Y]), NCE_MULTIPLE_Y_WORDS_ON_ONE_LINE);
   CHP(read_real_value(line, counter, &value, parameters));
-  block->y_flag = true;
-  block->y_number = value;
+  block->axis_flags[Y] = true;
+  block->axis_numbers[Y] = value;
   return INTERP_OK;
 }
 
@@ -3485,10 +3485,10 @@ int Interp::read_z(char *line,   //!< string: line of RS274 code being processed
 
   CHKS((line[*counter] != 'z'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
   *counter = (*counter + 1);
-  CHKS((block->z_flag), NCE_MULTIPLE_Z_WORDS_ON_ONE_LINE);
+  CHKS((block->axis_flags[Z]), NCE_MULTIPLE_Z_WORDS_ON_ONE_LINE);
   CHP(read_real_value(line, counter, &value, parameters));
-  block->z_flag = true;
-  block->z_number = value;
+  block->axis_flags[Z] = true;
+  block->axis_numbers[Z] = value;
   return INTERP_OK;
 }
 
