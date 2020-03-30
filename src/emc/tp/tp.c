@@ -3598,7 +3598,7 @@ int tpRunCycleInternal(TP_STRUCT * const tp)
 }
 
 
-int tpRunCycle(TP_STRUCT *tp, long period)
+int tpRunCycle(TP_STRUCT *tp)
 {
     // Before every TP update, ensure that elapsed time and
     // TP measurements are stored for error checks

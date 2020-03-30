@@ -175,7 +175,7 @@ static void handle_jogwheels(void);
    calling the trajectory planner and interpolating its outputs.
 */
 
-static void get_pos_cmds(long period);
+static void get_pos_cmds();
 
 /* 'compute_screw_comp()' is responsible for calculating backlash and
    lead screw error compensation.  (Leadscrew error compensation is
@@ -1195,7 +1195,7 @@ static void handle_jogwheels(void)
     first_pass = 0;
 }
 
-static void get_pos_cmds(long period)
+static void get_pos_cmds()
 {
     int joint_num, result;
     emcmot_joint_t *joint;
@@ -1396,7 +1396,7 @@ static void get_pos_cmds(long period)
 	while (cubicNeedNextPoint(&(joints[0].cubic))) {
 	    /* they're empty, pull next point(s) off Cartesian planner */
 	    /* run coordinated trajectory planning cycle */
-        tp_err_t res_cycle = tpRunCycle(&emcmotDebug->tp, period);
+        tp_err_t res_cycle = tpRunCycle(&emcmotDebug->tp);
         emcmotStatus->stopped = (TP_ERR_STOPPED == res_cycle);
 	    /* gt new commanded traj pos */
 	    tpGetPos(&emcmotDebug->tp, &emcmotStatus->carte_pos_cmd);
