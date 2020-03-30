@@ -325,7 +325,8 @@ int Interp::convert_cycle_g74_g84(block_pointer block,
         START_SPINDLE_COUNTERCLOCKWISE(0);
     else
         START_SPINDLE_CLOCKWISE(0);
-    DWELL(dwell);
+    // NOTE: use internal TP dwell for more precise delay time
+    PRECISION_DWELL(dwell);
     cycle_feed(block, plane, top.x, top.y, top.z);
     STOP_SPINDLE_TURNING();
     if (motion == G_84_1)
