@@ -307,18 +307,13 @@ int Interp::convert_cycle_g74_g84(block_pointer block,
     save_feed_override_enable = GET_EXTERNAL_FEED_OVERRIDE_ENABLE();
     save_spindle_override_enable = GET_EXTERNAL_SPINDLE_OVERRIDE_ENABLE();
 
-    // Initialize the top / bottom points assuming XY plane, but will shift to the correct value
-    int n = plane;
-    PM_CARTESIAN bottom{shift({planar_pos_1, planar_pos_2, bottom_depth}, n)};
-    PM_CARTESIAN top{shift({planar_pos_1, planar_pos_2, clear_height}, n)};
-
     DISABLE_FEED_OVERRIDE();
     DISABLE_SPEED_OVERRIDE();
     if (motion == G_84_1)
         START_SPINDLE_CLOCKWISE();
     else
         START_SPINDLE_COUNTERCLOCKWISE();
-    cycle_feed(block, plane, bottom.x, bottom.y, bottom.z);
+    cycle_feed(block, plane, planar_pos_1, planar_pos_2, bottom_depth);
     STOP_SPINDLE_TURNING();
     // the zero parameter suppresses the wait for at-speed on next feed
     if (motion == G_84_1)
@@ -327,7 +322,7 @@ int Interp::convert_cycle_g74_g84(block_pointer block,
         START_SPINDLE_CLOCKWISE(0);
     // NOTE: use internal TP dwell for more precise delay time
     PRECISION_DWELL(dwell);
-    cycle_feed(block, plane, top.x, top.y, top.z);
+    cycle_feed(block, plane, planar_pos_1, planar_pos_2, clear_height);
     STOP_SPINDLE_TURNING();
     if (motion == G_84_1)
         START_SPINDLE_CLOCKWISE();
