@@ -2408,8 +2408,7 @@ void cmdReverseSpindle(double reversal_scale)
  * @note extra motion distance for overrun must be added separately
  */
 static inline void reverseRigidTapMotion(TC_STRUCT * const tc,
-                                  spindle_origin_t * const spindle_origin,
-                                  double spindle_pos_at_reversal)
+                                  spindle_origin_t * const spindle_origin)
 {
     // we've stopped, so set a new target at the original position
     PmCartesian start, end;
@@ -2473,7 +2472,7 @@ void tpUpdateRigidTapState(
         case RIGIDTAP_REVERSING:
             if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
                 emcmotStatus->rigid_tap_overshoot = tc->progress - tc->coords.rigidtap.reversal_target;
-                reverseRigidTapMotion(tc, &tp->spindle.origin, spindle_pos);
+                reverseRigidTapMotion(tc, &tp->spindle.origin);
                 double expected_reversal_overshoot = fmax(retract_allowance / tc->coords.rigidtap.retract_uu_per_rev, 0);
                 // Anticipate the overshoot at the top and add a safety factor for spindle uncertainty
                 addRigidTapOverrun(tc, RIGIDTAP_MAX_OVERSHOOT_REVS + expected_reversal_overshoot, tc->coords.rigidtap.retract_uu_per_rev);
@@ -2499,7 +2498,7 @@ void tpUpdateRigidTapState(
             break;
         case RIGIDTAP_FINAL_REVERSAL:
             if (spindleReversed(tp->spindle.origin, old_spindle_pos, spindle_pos) && tc->currentvel <= 0.0) {
-                reverseRigidTapMotion(tc, &tp->spindle.origin, spindle_pos);
+                reverseRigidTapMotion(tc, &tp->spindle.origin);
                 tc->uu_per_rev = tc->coords.rigidtap.tap_uu_per_rev;
                 tc->coords.rigidtap.state = RIGIDTAP_FINAL_PLACEMENT;
                 if (!nexttc
