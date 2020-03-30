@@ -99,73 +99,124 @@ extern void reportError(const char *fmt, ...) __attribute((format(printf,1,2)));
 
 #define GET_MOTION_ERROR_FLAG() (emcmotStatus->motionFlag & EMCMOT_MOTION_ERROR_BIT ? 1 : 0)
 
-#define SET_MOTION_ERROR_FLAG(fl) if (fl) emcmotStatus->motionFlag |= EMCMOT_MOTION_ERROR_BIT; else emcmotStatus->motionFlag &= ~EMCMOT_MOTION_ERROR_BIT;
+#define SET_MOTION_ERROR_FLAG(fl) do { \
+    if (fl) emcmotStatus->motionFlag |= EMCMOT_MOTION_ERROR_BIT; \
+    else emcmotStatus->motionFlag &= ~EMCMOT_MOTION_ERROR_BIT; \
+} while (0)
 
 #define GET_MOTION_COORD_FLAG() (emcmotStatus->motionFlag & EMCMOT_MOTION_COORD_BIT ? 1 : 0)
 
-#define SET_MOTION_COORD_FLAG(fl) if (fl) emcmotStatus->motionFlag |= EMCMOT_MOTION_COORD_BIT; else emcmotStatus->motionFlag &= ~EMCMOT_MOTION_COORD_BIT;
+#define SET_MOTION_COORD_FLAG(fl) do { \
+    if (fl) emcmotStatus->motionFlag |= EMCMOT_MOTION_COORD_BIT; \
+    else emcmotStatus->motionFlag &= ~EMCMOT_MOTION_COORD_BIT; \
+} while (0)
 
 #define GET_MOTION_TELEOP_FLAG() (emcmotStatus->motionFlag & EMCMOT_MOTION_TELEOP_BIT ? 1 : 0)
 
-#define SET_MOTION_TELEOP_FLAG(fl) if (fl) emcmotStatus->motionFlag |= EMCMOT_MOTION_TELEOP_BIT; else emcmotStatus->motionFlag &= ~EMCMOT_MOTION_TELEOP_BIT;
+#define SET_MOTION_TELEOP_FLAG(fl) do { \
+    if (fl) emcmotStatus->motionFlag |= EMCMOT_MOTION_TELEOP_BIT; \
+    else emcmotStatus->motionFlag &= ~EMCMOT_MOTION_TELEOP_BIT; \
+} while (0)
 
 #define GET_MOTION_INPOS_FLAG() (emcmotStatus->motionFlag & EMCMOT_MOTION_INPOS_BIT ? 1 : 0)
 
-#define SET_MOTION_INPOS_FLAG(fl) if (fl) emcmotStatus->motionFlag |= EMCMOT_MOTION_INPOS_BIT; else emcmotStatus->motionFlag &= ~EMCMOT_MOTION_INPOS_BIT;
+#define SET_MOTION_INPOS_FLAG(fl) do { \
+    if (fl) emcmotStatus->motionFlag |= EMCMOT_MOTION_INPOS_BIT; \
+    else emcmotStatus->motionFlag &= ~EMCMOT_MOTION_INPOS_BIT; \
+} while (0)
 
 #define GET_MOTION_ENABLE_FLAG() (emcmotStatus->motionFlag & EMCMOT_MOTION_ENABLE_BIT ? 1 : 0)
 
-#define SET_MOTION_ENABLE_FLAG(fl) if (fl) emcmotStatus->motionFlag |= EMCMOT_MOTION_ENABLE_BIT; else emcmotStatus->motionFlag &= ~EMCMOT_MOTION_ENABLE_BIT;
+#define SET_MOTION_ENABLE_FLAG(fl) do { \
+    if (fl) emcmotStatus->motionFlag |= EMCMOT_MOTION_ENABLE_BIT; \
+    else emcmotStatus->motionFlag &= ~EMCMOT_MOTION_ENABLE_BIT; \
+} while (0)
 
 /* joint flags */
 
 #define GET_JOINT_ENABLE_FLAG(joint) ((joint)->flag & EMCMOT_JOINT_ENABLE_BIT ? 1 : 0)
 
-#define SET_JOINT_ENABLE_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_ENABLE_BIT; else (joint)->flag &= ~EMCMOT_JOINT_ENABLE_BIT;
+#define SET_JOINT_ENABLE_FLAG(joint,fl) do { \
+    if (fl) (joint)->flag |= EMCMOT_JOINT_ENABLE_BIT; \
+    else (joint)->flag &= ~EMCMOT_JOINT_ENABLE_BIT; \
+} while (0)
 
 #define GET_JOINT_ACTIVE_FLAG(joint) ((joint)->flag & EMCMOT_JOINT_ACTIVE_BIT ? 1 : 0)
 
-#define SET_JOINT_ACTIVE_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_ACTIVE_BIT; else (joint)->flag &= ~EMCMOT_JOINT_ACTIVE_BIT;
+#define SET_JOINT_ACTIVE_FLAG(joint,fl) do { \
+    if (fl) (joint)->flag |= EMCMOT_JOINT_ACTIVE_BIT; \
+    else (joint)->flag &= ~EMCMOT_JOINT_ACTIVE_BIT; \
+} while (0)
 
 #define GET_JOINT_INPOS_FLAG(joint) ((joint)->flag & EMCMOT_JOINT_INPOS_BIT ? 1 : 0)
 
-#define SET_JOINT_INPOS_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_INPOS_BIT; else (joint)->flag &= ~EMCMOT_JOINT_INPOS_BIT;
+#define SET_JOINT_INPOS_FLAG(joint,fl) do { \
+    if (fl) (joint)->flag |= EMCMOT_JOINT_INPOS_BIT; \
+    else (joint)->flag &= ~EMCMOT_JOINT_INPOS_BIT; \
+} while (0)
 
 #define GET_JOINT_ERROR_FLAG(joint) ((joint)->flag & EMCMOT_JOINT_ERROR_BIT ? 1 : 0)
 
-#define SET_JOINT_ERROR_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_ERROR_BIT; else (joint)->flag &= ~EMCMOT_JOINT_ERROR_BIT;
+#define SET_JOINT_ERROR_FLAG(joint,fl) do { \
+    if (fl) (joint)->flag |= EMCMOT_JOINT_ERROR_BIT; \
+    else (joint)->flag &= ~EMCMOT_JOINT_ERROR_BIT; \
+} while (0)
 
 #define GET_JOINT_PHL_FLAG(joint) ((joint)->flag & EMCMOT_JOINT_MAX_HARD_LIMIT_BIT ? 1 : 0)
 
-#define SET_JOINT_PHL_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_MAX_HARD_LIMIT_BIT; else (joint)->flag &= ~EMCMOT_JOINT_MAX_HARD_LIMIT_BIT;
+#define SET_JOINT_PHL_FLAG(joint,fl) do { \
+    if (fl) (joint)->flag |= EMCMOT_JOINT_MAX_HARD_LIMIT_BIT; \
+    else (joint)->flag &= ~EMCMOT_JOINT_MAX_HARD_LIMIT_BIT; \
+} while (0)
 
 #define GET_JOINT_NHL_FLAG(joint) ((joint)->flag & EMCMOT_JOINT_MIN_HARD_LIMIT_BIT ? 1 : 0)
 
-#define SET_JOINT_NHL_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_MIN_HARD_LIMIT_BIT; else (joint)->flag &= ~EMCMOT_JOINT_MIN_HARD_LIMIT_BIT;
+#define SET_JOINT_NHL_FLAG(joint,fl) do { \
+    if (fl) (joint)->flag |= EMCMOT_JOINT_MIN_HARD_LIMIT_BIT; \
+    else (joint)->flag &= ~EMCMOT_JOINT_MIN_HARD_LIMIT_BIT; \
+} while (0)
 
 #define GET_JOINT_HOME_SWITCH_FLAG(joint) ((joint)->flag & EMCMOT_JOINT_HOME_SWITCH_BIT ? 1 : 0)
 
-#define SET_JOINT_HOME_SWITCH_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_HOME_SWITCH_BIT; else (joint)->flag &= ~EMCMOT_JOINT_HOME_SWITCH_BIT;
+#define SET_JOINT_HOME_SWITCH_FLAG(joint,fl) do { \
+    if (fl) (joint)->flag |= EMCMOT_JOINT_HOME_SWITCH_BIT; \
+    else (joint)->flag &= ~EMCMOT_JOINT_HOME_SWITCH_BIT; \
+} while (0)
 
 #define GET_JOINT_HOMING_FLAG(joint) ((joint)->flag & EMCMOT_JOINT_HOMING_BIT ? 1 : 0)
 
-#define SET_JOINT_HOMING_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_HOMING_BIT; else (joint)->flag &= ~EMCMOT_JOINT_HOMING_BIT;
+#define SET_JOINT_HOMING_FLAG(joint,fl) do { \
+    if (fl) (joint)->flag |= EMCMOT_JOINT_HOMING_BIT; \
+    else (joint)->flag &= ~EMCMOT_JOINT_HOMING_BIT; \
+} while (0)
 
 #define GET_JOINT_HOMED_FLAG(joint) ((joint)->flag & EMCMOT_JOINT_HOMED_BIT ? 1 : 0)
 
-#define SET_JOINT_HOMED_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_HOMED_BIT; else (joint)->flag &= ~EMCMOT_JOINT_HOMED_BIT;
+#define SET_JOINT_HOMED_FLAG(joint,fl) do { \
+    if (fl) (joint)->flag |= EMCMOT_JOINT_HOMED_BIT; \
+    else (joint)->flag &= ~EMCMOT_JOINT_HOMED_BIT; \
+} while (0)
 
 #define GET_JOINT_AT_HOME_FLAG(joint) ((joint)->flag & EMCMOT_JOINT_AT_HOME_BIT ? 1 : 0)
 
-#define SET_JOINT_AT_HOME_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_AT_HOME_BIT; else (joint)->flag &= ~EMCMOT_JOINT_AT_HOME_BIT;
+#define SET_JOINT_AT_HOME_FLAG(joint,fl) do { \
+    if (fl) (joint)->flag |= EMCMOT_JOINT_AT_HOME_BIT; \
+    else (joint)->flag &= ~EMCMOT_JOINT_AT_HOME_BIT; \
+} while (0)
 
 #define GET_JOINT_FERROR_FLAG(joint) ((joint)->flag & EMCMOT_JOINT_FERROR_BIT ? 1 : 0)
 
-#define SET_JOINT_FERROR_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_FERROR_BIT; else (joint)->flag &= ~EMCMOT_JOINT_FERROR_BIT;
+#define SET_JOINT_FERROR_FLAG(joint,fl) do { \
+    if (fl) (joint)->flag |= EMCMOT_JOINT_FERROR_BIT; \
+    else (joint)->flag &= ~EMCMOT_JOINT_FERROR_BIT; \
+} while (0)
 
 #define GET_JOINT_FAULT_FLAG(joint) ((joint)->flag & EMCMOT_JOINT_FAULT_BIT ? 1 : 0)
 
-#define SET_JOINT_FAULT_FLAG(joint,fl) if (fl) (joint)->flag |= EMCMOT_JOINT_FAULT_BIT; else (joint)->flag &= ~EMCMOT_JOINT_FAULT_BIT;
+#define SET_JOINT_FAULT_FLAG(joint,fl) do { \
+    if (fl) (joint)->flag |= EMCMOT_JOINT_FAULT_BIT; \
+    else (joint)->flag &= ~EMCMOT_JOINT_FAULT_BIT; \
+} while (0)
 
 #if defined(__KERNEL__)
 #define HAVE_CPU_KHZ
