@@ -1528,6 +1528,7 @@ int tpAddRigidTap(
 
 int tpAddDwell(TP_STRUCT * const tp, double time_sec, struct state_tag_t tag)
 {
+    // NOTE: it's not possible to dwell for less than 1 servo timestep due to how dwells are implemented
     TC_STRUCT tc={};
     tcInit(&tc,
             TC_DWELL,
@@ -1536,7 +1537,7 @@ int tpAddDwell(TP_STRUCT * const tp, double time_sec, struct state_tag_t tag)
             0,
             0);
     tc.motion_type = TC_DWELL;
-    tc.coords.dwell.dwell_time = tc.coords.dwell.remaining_time = time_sec;
+    tc.coords.dwell.dwell_time = tc.coords.dwell.remaining_time = fmax(time_sec, tp->cycleTime);
     tc.coords.dwell.dwell_pos = tp->goalPos;
     tc.term_cond = TC_TERM_COND_STOP;
     tc.tag = tag;
@@ -2602,7 +2603,7 @@ int tpUpdateMovementStatus(TP_STRUCT * const tp,
 
     emcmotStatus->requested_vel = tc->reqvel;
     emcmotStatus->current_vel = tc->currentvel;
-    emcmotStatus->dwell_time_remaining = tc->motion_type == TC_DWELL ? tc->coords.dwell.remaining_time : 0.0;
+    emcmotStatus->dwell_time_remaining = (tc->motion_type == TC_DWELL) ? tc->coords.dwell.remaining_time : 0.0;
     emcmotStatus->waiting_on_spindle = tpIsWaitingOnSpindle(tp);
 
     // KLUDGE Zero out any EMC status that doesn't apply
@@ -3356,7 +3357,7 @@ int tpCheckEndCondition(TP_STRUCT const * const tp, TC_STRUCT * const tc, TC_STR
     EndCondition ec;
     if (tc->motion_type == TC_DWELL) {
         // Knock one cycle off the remaining dwell time
-        ec.dt = (tc->coords.dwell.remaining_time -= tp->cycleTime);
+        ec.dt = fmax(tc->coords.dwell.remaining_time -= tp->cycleTime, 0.0);
         ec.v_f = 0.0;
     } else {
         ec = checkEndCondition(
