@@ -1448,7 +1448,7 @@ void clearBlendStructs()
 static void addRigidTapOverrun(TC_STRUCT * const tc, double revolutions, double uu_per_rev)
 {
     PmCartLine *actual_xyz = &tc->coords.rigidtap.actual_xyz;
-    pmCartLineStretch(actual_xyz, actual_xyz->tmag + revolutions * tc->uu_per_rev, 0);
+    pmCartLineStretch(actual_xyz, actual_xyz->tmag + revolutions * uu_per_rev, 0);
     tc->target = actual_xyz->tmag;
 }
 
