@@ -3418,6 +3418,14 @@ int Interp::convert_modal_0(GCodes code,    //!< G code, must be from group 0
 
 /****************************************************************************/
 
+int Interp::validate_motion_mode(int motion_to_be)
+{
+    CHKS(motion_to_be < 0 || motion_to_be > 999, _("G80.9: motion mode %d outside of valid range"), motion_to_be);
+    // If a remapped motion claims it's a motion type, we're trusting that it's done the proper setup
+    CHKS(Interp::_gees[motion_to_be] != 1 && !IS_USER_GCODE(motion_to_be), "G80.9: motion mode %d is not a motion or remapped code", motion_to_be);
+    return 0;
+}
+
 /*! convert_motion
 
 Returned Value: int
@@ -3487,7 +3495,7 @@ int Interp::convert_motion(GCodes motion,   //!< g_code for a line, arc, canned 
   } else if (motion == G_80_9) {
       int motion_to_be=-1;
       CHKS(!is_near_int(&motion_to_be, settings->start_line_motion_mode), "Motion mode must be an integer for G80.9");
-      CHKS(motion_to_be < 0 || motion_to_be > 999 || Interp::_gees[motion_to_be] != 1, "Invalid motion mode %d for G80.9", motion_to_be);
+      CHP(validate_motion_mode(motion_to_be));
       settings->motion_mode = (GCodes)motion_to_be;
       // Finish the restore by clearing the cached mode so that subsequent G80.9 won't step on the motion mode
       settings->start_line_motion_mode = G_INVALID;

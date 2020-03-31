@@ -858,6 +858,8 @@ int read_inputs(setup_pointer settings);
 
     virtual bool is_preview() const {return false;}
 
+    int validate_motion_mode(int motion_to_be);
+
 protected:
     bool error_has_context;
 
