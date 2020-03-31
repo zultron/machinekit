@@ -1963,6 +1963,17 @@ void DWELL(double seconds)
 	tag_and_send(delayMsg);
 }
 
+void PRECISION_DWELL(double seconds)
+{
+    EMC_TRAJ_PRECISION_DWELL precisionDwellMsg;
+
+    flush_segments();
+
+    precisionDwellMsg.dwell_time = seconds;
+
+    tag_and_send(precisionDwellMsg);
+}
+
 /* Spindle Functions */
 void SPINDLE_RETRACT_TRAVERSE()
 {
@@ -1998,9 +2009,10 @@ void buildSpindleCmd(SpindleMsg & msg, double spindle_rpm)
 
 }
 
-void START_SPINDLE_CLOCKWISE()
+void START_SPINDLE_CLOCKWISE(int wait_for_atspeed)
 {
     EMC_SPINDLE_ON emc_spindle_on_msg;
+    emc_spindle_on_msg.wait_for_spindle_at_speed = wait_for_atspeed;
 
     flush_segments();
     spindle_dir = 1;
@@ -2009,9 +2021,10 @@ void START_SPINDLE_CLOCKWISE()
     tag_and_send(emc_spindle_on_msg);
 }
 
-void START_SPINDLE_COUNTERCLOCKWISE()
+void START_SPINDLE_COUNTERCLOCKWISE(int wait_for_atspeed)
 {
     EMC_SPINDLE_ON emc_spindle_on_msg;
+    emc_spindle_on_msg.wait_for_spindle_at_speed = wait_for_atspeed;
 
     flush_segments();
     spindle_dir = -1;
@@ -2407,6 +2420,7 @@ void ENABLE_FEED_OVERRIDE()
     set_fo_enable_msg.mode = 1;
 	tag_and_send(set_fo_enable_msg);
 }
+
 
 //refers to adaptive feed override (HAL input, usefull for EDM for example)
 void DISABLE_ADAPTIVE_FEED()

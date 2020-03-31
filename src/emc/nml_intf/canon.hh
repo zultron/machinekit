@@ -408,6 +408,7 @@ extern void STOP();
 /* stop motion after current feed */
 
 extern void DWELL(double seconds);
+extern void PRECISION_DWELL(double seconds);
 
 /* freeze x,y,z for a time */
 
@@ -418,12 +419,12 @@ extern void SPINDLE_RETRACT_TRAVERSE();
 
 /* Retract the spindle at traverse rate to the fully retracted position. */
 
-extern void START_SPINDLE_CLOCKWISE();
+extern void START_SPINDLE_CLOCKWISE(int wait_for_atspeed = 1);
 
 /* Turn the spindle clockwise at the currently set speed rate. If the
 spindle is already turning that way, this command has no effect. */
 
-extern void START_SPINDLE_COUNTERCLOCKWISE();
+extern void START_SPINDLE_COUNTERCLOCKWISE(int wait_for_atspeed = 1);
 
 /* Turn the spindle counterclockwise at the currently set speed rate. If
 the spindle is already turning that way, this command has no effect. */

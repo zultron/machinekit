@@ -37,7 +37,8 @@ typedef enum {
     TC_LINEAR = 1,
     TC_CIRCULAR = 2,
     TC_RIGIDTAP = 3,
-    TC_SPHERICAL = 4
+    TC_SPHERICAL = 4,
+    TC_DWELL = 5
 } tc_motion_type_t;
 
 typedef enum {
@@ -93,6 +94,12 @@ typedef struct {
     PmCartesian abc;
     PmCartesian uvw;
 } Arc9;
+
+typedef struct {
+    EmcPose dwell_pos;
+    double dwell_time;
+    double remaining_time;
+} TPDwell;
 
 typedef unsigned long long iomask_t; // 64 bits on both x86 and x86_64
 
@@ -156,6 +163,7 @@ typedef struct {
         PmCircle9 circle;
         PmRigidTap rigidtap;
         Arc9 arc;
+        TPDwell dwell;
     } coords;
 
     tc_motion_type_t motion_type;       // TC_LINEAR (coords.line) or

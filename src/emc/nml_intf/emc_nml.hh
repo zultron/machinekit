@@ -1014,6 +1014,18 @@ class EMC_TRAJ_RIGID_TAP:public EMC_TRAJ_CMD_MSG {
     double scale;
 };
 
+class EMC_TRAJ_PRECISION_DWELL:public EMC_TRAJ_CMD_MSG {
+  public:
+    EMC_TRAJ_PRECISION_DWELL():EMC_TRAJ_CMD_MSG(EMC_TRAJ_PRECISION_DWELL_TYPE,
+                      sizeof(EMC_TRAJ_PRECISION_DWELL)) {
+    }
+
+    // For internal NML/CMS use only.
+    void update(CMS * cms);
+
+    double dwell_time;
+};
+
 // EMC_TRAJ status base class
 class EMC_TRAJ_STAT_MSG:public RCS_STAT_MSG {
   public:
@@ -1070,6 +1082,9 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
     bool waiting_on_spindle;    // Waiting for spindle on spindle-synched move
     double spindle_sync;		// Tormach - use as flag for feed/rev mode active
     double uu_per_rev;		// Tormach added 3/12/13 *dpr
+    double spindle_max_acceleration_rps2;
+    double spindle_cmd_latency_sec;
+
     bool probing;		// Are we currently looking for a probe
     // signal.
     int probeval;		// Current value of probe input.
@@ -1079,6 +1094,7 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
     double distance_to_go;         // in current move
     EmcPose dtg;
     double current_vel;         // in current move
+    double dwell_time_remaining; // 0 if not dwelling
     bool feed_override_enabled;
     bool spindle_override_enabled;
     bool adaptive_feed_enabled;
@@ -1849,7 +1865,7 @@ class EMC_SPINDLE_ON:public EMC_SPINDLE_CMD_MSG {
   public:
     EMC_SPINDLE_ON():EMC_SPINDLE_CMD_MSG(EMC_SPINDLE_ON_TYPE,
 					 sizeof(EMC_SPINDLE_ON)),
-	speed(0), factor(0), xoffset(0) {
+	speed(0), factor(0), xoffset(0), wait_for_spindle_at_speed(1)  {
     }
 
     // For internal NML/CMS use only.
@@ -1858,6 +1874,7 @@ class EMC_SPINDLE_ON:public EMC_SPINDLE_CMD_MSG {
     double speed;   // commanded speed in RPMs or maximum speed for CSS
     double factor;  // Zero for constant RPM.  numerator of speed for CSS
     double xoffset; // X axis offset compared to center of rotation, for CSS
+    int wait_for_spindle_at_speed;
 };
 
 class EMC_SPINDLE_OFF:public EMC_SPINDLE_CMD_MSG {

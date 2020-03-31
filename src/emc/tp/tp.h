@@ -77,7 +77,12 @@ int tpAddCircle(TP_STRUCT * const tp,
         char atspeed,
         struct state_tag_t tag);
 
-tp_err_t tpRunCycle(TP_STRUCT * const tp, long period);
+int tpAddDwell(
+    TP_STRUCT * const tp,
+    double time_sec,
+    struct state_tag_t tag);
+
+tp_err_t tpRunCycle(TP_STRUCT * const tp);
 int tpPause(TP_STRUCT * const tp);
 int tpResume(TP_STRUCT * const tp);
 int tpAbort(TP_STRUCT * const tp);

@@ -141,6 +141,7 @@
 #define NCE_P_WORD_INVALID_M19 _("P must be 0, 1, or 2 with M19")
 #define NCE_P_WORD_INVALID_G2_G3 _("P must be 1 or greater with G2 or G3")
 #define NCE_P_WORD_INVALID_PROBING _("If specified, P must be 0 or 1 for G38.x")
+#define NCE_P_WORD_MISSING_WITH_G74_G84 _("P word missing with G74 / G84 non-rigid tap cycle")
 // Q word
 #define NCE_Q_WORD_WITH_NO_GCODE_THAT_USES_IT _("Q word with no G5, G10, G38.x, G64, G73, G76, G83, M19, M66, M67, M68 or user M code that uses it")
 #define NCE_Q_WORD_MISSING_WITH_G73 _("Q word missing with g73")

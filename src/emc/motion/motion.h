@@ -184,6 +184,7 @@ extern "C" {
         EMCMOT_SETUP_CONSISTENCY_CHECKS,
         EMCMOT_SET_MAX_POSITION_TRACKING_ERROR,
         EMCMOT_SETUP_BIARC_SOLVER_CFG,
+        EMCMOT_SET_DWELL,
     } cmd_code_t;
 
 /* this enum lists the possible results of a command */
@@ -258,6 +259,7 @@ typedef struct emcmot_command_t {
 	double  orientation;    /* angle for spindle orient */
 	char    direction;      /* CANON_DIRECTION flag for spindle orient */
 	double  timeout;        /* of wait for spindle orient to complete */
+	unsigned char wait_for_spindle_at_speed; // EMCMOT_SPINDLE_ON now carries this, for next feed move
     unsigned char tail;	/* flag count for mutex detect */
     tp_arc_blend_config_t arc_blend_cfg;
     double maxFeedScale;
@@ -720,6 +722,7 @@ Suggestion: Split this in to an Error and a Status flag register..
         EmcPose dtg;
         double current_vel;
         double requested_vel;
+        double dwell_time_remaining; // 0 if not dwelling in TP
 
         int tcqlen;
         EmcPose tool_offset;

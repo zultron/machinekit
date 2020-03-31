@@ -473,6 +473,9 @@ int emcFormat(NMLTYPE type, void *buffer, CMS * cms)
     case EMC_TRAJ_STEP_TYPE:
 	((EMC_TRAJ_STEP *) buffer)->update(cms);
 	break;
+    case EMC_TRAJ_PRECISION_DWELL_TYPE:
+    ((EMC_TRAJ_PRECISION_DWELL *) buffer)->update(cms);
+    break;
     case EMC_TASK_SET_TAG_TYPE:
 	((EMC_TASK_SET_TAG *) buffer)->update(cms);
 	break;
@@ -779,6 +782,8 @@ const char *emc_symbol_lookup(uint32_t type)
 	return "EMC_TRAJ_STAT";
     case EMC_TRAJ_STEP_TYPE:
 	return "EMC_TRAJ_STEP";
+    case EMC_TRAJ_PRECISION_DWELL_TYPE:
+    return "EMC_TRAJ_PRECISION_DWELL";
     case EMC_TASK_SET_TAG_TYPE:
 	return "EMC_TASK_SET_TAG";
     }
@@ -2135,7 +2140,7 @@ void EMC_SPINDLE_ON::update(CMS * cms)
     cms->update(speed);
     cms->update(factor);
     cms->update(xoffset);
-
+    cms->update(wait_for_spindle_at_speed);
 }
 
 /*
@@ -2394,6 +2399,9 @@ void EMC_TRAJ_STAT::update(CMS * cms)
     cms->update(probe_tripped);
     cms->update(probeCount);
     cms->update(spindle_sync);
+    cms->update(uu_per_rev);
+    cms->update(spindle_max_acceleration_rps2);
+    cms->update(spindle_cmd_latency_sec);
     cms->update(probing);
     cms->update(probeval);
     cms->update(setterval);
@@ -2890,6 +2898,11 @@ void EMC_TRAJ_RIGID_TAP::update(CMS * cms)
 
 }
 
+void EMC_TRAJ_PRECISION_DWELL::update(CMS * cms)
+{
+    EMC_TRAJ_CMD_MSG::update(cms);
+    cms->update(dwell_time);
+}
 
 /*
 *	NML/CMS Update function for EMC_LUBE_OFF

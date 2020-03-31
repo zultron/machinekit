@@ -141,10 +141,13 @@ struct PM_CARTESIAN {
     // Scalar operations
     PM_CARTESIAN & operator *= (double o);
     PM_CARTESIAN & operator /= (double o);
+    void shift(int n);
 
     /* data */
     double x, y, z;		/* this.x, etc. */
 };
+
+PM_CARTESIAN shift(PM_CARTESIAN const &p, int n);
 
 /* PM_SPHERICAL */
 

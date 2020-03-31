@@ -200,13 +200,14 @@ enum GCodes
     G_61_1 = 611,
     G_64 = 640,
     G_73 = 730,
+    G_74_1 = 741, // KLUDGE use a non-standard code for the low-level internal implementation of tap cycle (meant to be wrapped with a remap)
     G_76 = 760,
     G_80 = 800,
     G_80_9 = 809, //KLUDGE backdoor to force a motion mode directly
     G_81 = 810,
     G_82 = 820,
     G_83 = 830,
-    G_84 = 840,
+    G_84_1 = 841, // See G74.1
     G_85 = 850,
     G_86 = 860,
     G_87 = 870,

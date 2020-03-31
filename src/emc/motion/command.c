@@ -278,21 +278,22 @@ STATIC int inRange(char *move_type)
 	if (!GET_JOINT_ACTIVE_FLAG(joint)) {
 	    /* if joint is not active, don't even look at its limits */
 	    continue;
-	}
-	if (joint_pos[joint_num] > joint->max_pos_limit) {
+    }
+    double p = joint_pos[joint_num];
+    if (p > joint->max_pos_limit) {
             in_range = 0;
 	    reportError(
-		_("%s move on line %d would exceed joint %d's positive limit"),
+        _("%s move on line %d would exceed joint %d's positive limit by %f"),
 		move_type, emcmotCommand->tag.fields[GM_FIELD_LINE_NUMBER],
-		joint_num);
+        joint_num, p);
         }
 
         if (joint_pos[joint_num] < joint->min_pos_limit) {
 	    in_range = 0;
 	    reportError(
-		_("%s move on line %d would exceed joint %d's negative limit"),
+        _("%s move on line %d would exceed joint %d's negative limit by %f"),
 		move_type, emcmotCommand->tag.fields[GM_FIELD_LINE_NUMBER],
-		joint_num);
+        joint_num, p);
 	}
     }
     return in_range;
@@ -1602,7 +1603,11 @@ check_stuff ( "before command_handler()" );
         emcmotStatus->spindle_cmd.css_factor = emcmotCommand->css_factor;
         emcmotStatus->spindle_cmd.xoffset = emcmotCommand->css_xoffset;
         emcmotStatus->spindle_cmd.brake = 0; //disengage brake
-	    emcmotStatus->atspeed_next_feed = 1;
+            emcmotStatus->atspeed_next_feed = emcmotCommand->wait_for_spindle_at_speed;
+
+           // check wether it's passed correctly
+           if (!emcmotStatus->atspeed_next_feed)
+               rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE_ON without wait-for-atspeed");
 	    break;
 
 	case EMCMOT_SPINDLE_OFF:
@@ -1731,6 +1736,10 @@ check_stuff ( "before command_handler()" );
 
     case EMCMOT_SETUP_BIARC_SOLVER_CFG:
         emcmotConfig->biarc_solver_cfg = emcmotCommand->biarc_solver_cfg;
+        break;
+
+    case EMCMOT_SET_DWELL:
+        tpAddDwell(&emcmotDebug->tp, emcmotCommand->timeout, emcmotCommand->tag);
         break;
 
     default:

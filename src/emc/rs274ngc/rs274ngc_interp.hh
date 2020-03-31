@@ -350,10 +350,10 @@ public:
  int convert_cycle_g83(block_pointer block, CANON_PLANE plane, double x, double y,
                              double r, double clear_z, double bottom_z,
                              double delta);
- int convert_cycle_g84(block_pointer block, CANON_PLANE plane, double x, double y,
-                             double clear_z, double bottom_z,
+ int convert_cycle_g74_g84(block_pointer block, CANON_PLANE plane, double planar_pos_1, double planar_pos_2,
+                             double clear_height, double bottom_depth,
                              CANON_DIRECTION direction,
-                             CANON_SPEED_FEED_MODE mode);
+                             CANON_SPEED_FEED_MODE mode, int motion, double dwell);
  int convert_cycle_g85(block_pointer block, CANON_PLANE plane, double x, double y,
                              double r, double clear_z, double bottom_z);
  int convert_cycle_g86(block_pointer block, CANON_PLANE plane, double x, double y,
@@ -723,17 +723,27 @@ int read_inputs(setup_pointer settings);
 #define M_BUILTIN(m) (_ems[m] != -1)
 #define G_BUILTIN(g) (_gees[g] != -1)
 
-    // see interp_remap_sets():
-#define M_REMAPPABLE(m)	((m >= 0) && (m < 1000) && _setup.m_remappable[m])
+    bool M_REMAPPABLE(int m)
+    {
+        return (m >= 0) && (m < 1000) && _setup.m_remappable[m];
+    }
     // range for user-remapped G-codes
-#define G_REMAPPABLE(g)	((g >= 0) && (g < 1000) &&_setup.g_remappable[g])
+    bool G_REMAPPABLE(int g)
+    {
+        return (g >= 0) && (g < 1000) &&_setup.g_remappable[g];
+    }
 
-#define IS_USER_GCODE(x) (G_REMAPPABLE(x) && _setup.g_remapped[x])
+    bool IS_USER_GCODE(int x) {
+        return G_REMAPPABLE(x) && _setup.g_remapped[x];
+    }
 
-#define IS_USER_MCODE(bp,sp,mgroup) \
-    ((M_REMAPPABLE((bp)->m_modes[mgroup])) && \
-    (((bp)->m_modes[mgroup]) > -1) &&		\
-     ((sp)->m_remapped[(bp)->m_modes[mgroup]]))
+    bool IS_USER_MCODE(
+        block_pointer block,
+        setup_pointer settings,
+        int mgroup)
+    {
+        return M_REMAPPABLE(block->m_modes[mgroup]) && (block->m_modes[mgroup] > -1) && (settings->m_remapped[block->m_modes[mgroup]]);
+    }
     
     bool remap_in_progress(const char *code);
     int convert_remapped_code(block_pointer block,
@@ -857,6 +867,8 @@ int read_inputs(setup_pointer settings);
     int synch_external_state(setup_pointer settings) const;
 
     virtual bool is_preview() const {return false;}
+
+    int validate_motion_mode(int motion_to_be);
 
 protected:
     bool error_has_context;

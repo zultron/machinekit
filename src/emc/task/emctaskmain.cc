@@ -1602,6 +1602,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_FO_ENABLE_TYPE:
     case EMC_TRAJ_SET_FH_ENABLE_TYPE:
     case EMC_TRAJ_SET_SO_ENABLE_TYPE:
+    case EMC_TRAJ_PRECISION_DWELL_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_IO;
 
     case EMC_TRAJ_SET_OFFSET_TYPE:
@@ -2057,7 +2058,11 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	    ((EMC_TRAJ_PROBE *) cmd)->acc,
         ((EMC_TRAJ_PROBE *) cmd)->pure_angular,
             ((EMC_TRAJ_PROBE *) cmd)->probe_type);
-	break;
+    break;
+
+    case EMC_TRAJ_PRECISION_DWELL_TYPE:
+        retval = emcTrajDwell(((EMC_TRAJ_PRECISION_DWELL*) cmd)->dwell_time);
+        break;
 
     case EMC_AUX_INPUT_WAIT_TYPE:
 	emcAuxInputWaitMsg = (EMC_AUX_INPUT_WAIT *) cmd;
@@ -2148,7 +2153,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
    case EMC_SPINDLE_ON_TYPE:
 	spindle_on_msg = (EMC_SPINDLE_ON *) cmd;
-	retval = emcSpindleOn(spindle_on_msg->speed, spindle_on_msg->factor, spindle_on_msg->xoffset);
+	retval = emcSpindleOn(spindle_on_msg->speed, spindle_on_msg->factor, spindle_on_msg->xoffset,
+                             spindle_on_msg->wait_for_spindle_at_speed);
 	break;
 
     case EMC_SPINDLE_OFF_TYPE:
@@ -2594,6 +2600,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_FH_ENABLE_TYPE:
     case EMC_TRAJ_SET_SO_ENABLE_TYPE:
     case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
+    case EMC_TRAJ_PRECISION_DWELL_TYPE:
 
     case EMC_TOOL_PREPARE_TYPE:
     case EMC_TOOL_LOAD_TYPE:
@@ -2726,6 +2733,7 @@ static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd)
         case EMC_TRAJ_SET_SO_ENABLE_TYPE:
         case EMC_TRAJ_SET_FH_ENABLE_TYPE:
         case EMC_TRAJ_RIGID_TAP_TYPE:
+        case EMC_TRAJ_PRECISION_DWELL_TYPE:
 	case EMC_MOTION_SET_DOUT_TYPE:
 	case EMC_MOTION_ADAPTIVE_TYPE:
 	case EMC_MOTION_SET_AOUT_TYPE:

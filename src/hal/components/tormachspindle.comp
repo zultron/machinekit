@@ -114,6 +114,7 @@ pin in float lowbelt_min_mcb_freq;
 pin in float lowbelt_max_mcb_freq;
 pin in float lowbelt_min_pwm_dc;
 pin in float lowbelt_max_pwm_dc;
+pin in float lowbelt_ratio;
 
 pin in float highbelt_min_rpm;
 pin in float highbelt_max_rpm;
@@ -121,6 +122,7 @@ pin in float highbelt_min_mcb_freq;
 pin in float highbelt_max_mcb_freq;
 pin in float highbelt_min_pwm_dc;
 pin in float highbelt_max_pwm_dc;
+pin in float highbelt_ratio;
 
 // current min and max speeds based upon spindle-type and belt-position
 pin out float min_speed;
@@ -144,6 +146,11 @@ pin in float enc_door_open_max_rpm;
 
 pin in  bit enable_in;
 pin out bit enable_out;
+
+// For nominal acceleration of spindle as a function of belt position
+pin in float vfd_max_acceleration_rps;
+pin out float spindle_max_acceleration_rps;
+pin out float spindle_pulley_ratio;
 
 function _ "Tormach Spindle HAL Component";
 
@@ -206,14 +213,21 @@ FUNCTION(_) {
     }
 
     // set min and max speed from belt position
-    if (belt_position != BELT_POSITION_LOW) {
+    switch(belt_position) {
+    case BELT_POSITION_HIGH:
+    default:
         min_speed = highbelt_min_rpm;
         max_speed = highbelt_max_rpm;
-    }
-    else {
+        spindle_pulley_ratio = highbelt_ratio;
+        break;
+    case BELT_POSITION_LOW:
         min_speed = lowbelt_min_rpm;
         max_speed = lowbelt_max_rpm;
+        spindle_pulley_ratio = lowbelt_ratio;
+        break;
     }
+
+    spindle_max_acceleration_rps = vfd_max_acceleration_rps * spindle_pulley_ratio;
 
     // ignore sign/direction
     min_speed = fabs(min_speed);

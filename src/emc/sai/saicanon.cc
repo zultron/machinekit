@@ -482,6 +482,11 @@ void DWELL(double seconds)
   ECHO_WITH_ARGS("%.4f", seconds);
 }
 
+void PRECISION_DWELL(double seconds)
+{
+  ECHO_WITH_ARGS("%.4f", seconds);
+}
+
 /* Spindle Functions */
 void SPINDLE_RETRACT_TRAVERSE()
 {PRINT("SPINDLE_RETRACT_TRAVERSE()\n");}
@@ -490,14 +495,14 @@ void SET_SPINDLE_MODE(double arg) {
   PRINT("SET_SPINDLE_MODE(%.4f)\n", arg);
 }
 
-void START_SPINDLE_CLOCKWISE()
+void START_SPINDLE_CLOCKWISE(int wait_for_atspeed)
 {
   PRINT("START_SPINDLE_CLOCKWISE()\n");
   _sai._spindle_turning = ((_sai._spindle_speed == 0) ? CANON_STOPPED :
                                                    CANON_CLOCKWISE);
 }
 
-void START_SPINDLE_COUNTERCLOCKWISE()
+void START_SPINDLE_COUNTERCLOCKWISE(int wait_for_atspeed)
 {
   PRINT("START_SPINDLE_COUNTERCLOCKWISE()\n");
   _sai._spindle_turning = ((_sai._spindle_speed == 0) ? CANON_STOPPED :

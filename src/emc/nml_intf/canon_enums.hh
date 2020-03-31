@@ -12,14 +12,17 @@
 #ifndef CANON_ENUMS_HH
 #define CANON_ENUMS_HH
 
+/**
+ * Designed so that the coordinates can be circularly shifted by the value represented by the plane (mod 3).
+ */
 enum CANON_PLANE
 {
-    CANON_PLANE_XY = 1,
-    CANON_PLANE_YZ,
+    CANON_PLANE_XY = 0,
     CANON_PLANE_XZ,
+    CANON_PLANE_YZ,
     CANON_PLANE_UV,
-    CANON_PLANE_VW,
     CANON_PLANE_UW,
+    CANON_PLANE_VW,
 };
 
 enum CANON_UNITS

@@ -1126,6 +1126,13 @@ int emcTrajRigidTap(EMC_TRAJ_RIGID_TAP const &cmd)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
+int emcTrajDwell(double time_sec)
+{
+    emcmotCommand.command = EMCMOT_SET_DWELL;
+    emcmotCommand.timeout = time_sec;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}
+
 
 static int last_id = 0;
 static int last_id_printed = 0;
@@ -1174,9 +1181,12 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
     stat->distance_to_go = emcmotStatus.distance_to_go;
     stat->dtg = emcmotStatus.dtg;
     stat->current_vel = emcmotStatus.current_vel;
+    stat->dwell_time_remaining = emcmotStatus.dwell_time_remaining;
     // tormach added to deal with disconnect between motion and interp time *dpr 3/12/13
     stat->uu_per_rev = emcmotStatus.uu_per_rev;
     stat->waiting_on_spindle = emcmotStatus.waiting_on_spindle;
+    stat->spindle_max_acceleration_rps2 = emcmotStatus.spindle_max_acceleration_rps2;
+    stat->spindle_cmd_latency_sec = emcmotStatus.spindle_cmd_latency_sec;
 
     if (EMC_DEBUG_MOTION_TIME & emc_debug) {
 	if (stat->id != last_id) {
@@ -1452,8 +1462,7 @@ int emcSpindleSpeed(double speed, double css_factor, double offset)
 
     if (emcmotStatus.spindle_cmd.velocity_rpm_out == 0)
 	return 0; //spindle stopped, not updating speed
-
-    return emcSpindleOn(speed, css_factor, offset);
+    return emcSpindleOn(speed, css_factor, offset, emcmotCommand.wait_for_spindle_at_speed);
 }
 
 int emcSpindleOrient(double orientation, int mode) 
@@ -1465,13 +1474,14 @@ int emcSpindleOrient(double orientation, int mode)
 }
 
 
-int emcSpindleOn(double speed, double css_factor, double offset)
+int emcSpindleOn(double speed, double css_factor, double offset, int wait_for_at_speed)
 {
 
     emcmotCommand.command = EMCMOT_SPINDLE_ON;
     emcmotCommand.spindle_speed = speed;
     emcmotCommand.css_factor = css_factor;
     emcmotCommand.css_xoffset = offset;
+    emcmotCommand.wait_for_spindle_at_speed = wait_for_at_speed;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 

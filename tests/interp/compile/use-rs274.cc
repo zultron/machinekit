@@ -104,10 +104,11 @@ void STRAIGHT_PROBE_TO_LIMIT(int lineno,
                            double u, double v, double w, unsigned char probe_type) {}
 void STOP() {}
 void DWELL(double seconds) {}
+void PRECISION_DWELL(double seconds) {}
 void SET_SPINDLE_MODE(double) {}
 void SPINDLE_RETRACT_TRAVERSE() {}
-void START_SPINDLE_CLOCKWISE() {}
-void START_SPINDLE_COUNTERCLOCKWISE() {}
+void START_SPINDLE_CLOCKWISE(int) {}
+void START_SPINDLE_COUNTERCLOCKWISE(int) {}
 void SET_SPINDLE_SPEED(double r) {}
 void STOP_SPINDLE_TURNING() {}
 void SPINDLE_RETRACT() {}
