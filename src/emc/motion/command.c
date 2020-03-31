@@ -278,21 +278,22 @@ STATIC int inRange(char *move_type)
 	if (!GET_JOINT_ACTIVE_FLAG(joint)) {
 	    /* if joint is not active, don't even look at its limits */
 	    continue;
-	}
-	if (joint_pos[joint_num] > joint->max_pos_limit) {
+    }
+    double p = joint_pos[joint_num];
+    if (p > joint->max_pos_limit) {
             in_range = 0;
 	    reportError(
-		_("%s move on line %d would exceed joint %d's positive limit"),
+        _("%s move on line %d would exceed joint %d's positive limit by %f"),
 		move_type, emcmotCommand->tag.fields[GM_FIELD_LINE_NUMBER],
-		joint_num);
+        joint_num, p);
         }
 
         if (joint_pos[joint_num] < joint->min_pos_limit) {
 	    in_range = 0;
 	    reportError(
-		_("%s move on line %d would exceed joint %d's negative limit"),
+        _("%s move on line %d would exceed joint %d's negative limit by %f"),
 		move_type, emcmotCommand->tag.fields[GM_FIELD_LINE_NUMBER],
-		joint_num);
+        joint_num, p);
 	}
     }
     return in_range;
