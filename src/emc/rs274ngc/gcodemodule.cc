@@ -191,7 +191,7 @@ static PreviewMachine machine;
 
 static ParseExecMode exec_mode_;
 
-static InterpBase *pinterp;
+static InterpBase *preview_interp;
 
 #define callmethod(o, m, f, ...) PyObject_CallMethod((o), const_cast<char*>(m), const_cast<char*>(f), ## __VA_ARGS__)
 
@@ -202,7 +202,7 @@ static InterpBase *pinterp;
 #ifndef SUPPRESS_NEXT_LINE_CB
 static void maybe_new_line(int sequence_number=interp_new.sequence_number());
 static void maybe_new_line(int sequence_number) {
-    if(!pinterp) return;
+    if(!preview_interp) return;
     if(interp_error) return;
     if(sequence_number == last_sequence_number)
         return;
@@ -221,7 +221,7 @@ static void maybe_new_line(int sequence_number) {
     _linecount++;
 }
 #else
-static inline void maybe_new_line(int sequence_number=pinterp->sequence_number());
+static inline void maybe_new_line(int sequence_number=preview_interp->sequence_number());
 static inline void maybe_new_line(int sequence_number) {
     _linecount++;
     last_sequence_number = sequence_number;
@@ -256,7 +256,7 @@ void ARC_FEED(int line_number,
               double u_position, double v_position, double w_position) {
     // XXX: set _pos_*
     // KLUDGE override with the toplevel line for selection
-    line_number = pinterp->toplevel_line();
+    line_number = preview_interp->toplevel_line();
     if(metric) {
         first_end /= 25.4;
         second_end /= 25.4;
@@ -283,7 +283,7 @@ void STRAIGHT_FEED(int line_number,
                    double a, double b, double c,
                    double u, double v, double w) {
     // KLUDGE override with the toplevel line for selection
-    line_number = pinterp->toplevel_line();
+    line_number = preview_interp->toplevel_line();
     _pos_prog={x, y, z, a, b, c, u, v, w};
 
     maybe_new_line(line_number);
@@ -308,7 +308,7 @@ void STRAIGHT_TRAVERSE(int line_number,
                        double a, double b, double c,
                        double u, double v, double w) {
     // KLUDGE override with the toplevel line for selection
-    line_number = pinterp->toplevel_line();
+    line_number = preview_interp->toplevel_line();
     _pos_prog={x, y, z, a, b, c, u, v, w};
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -574,7 +574,7 @@ void STRAIGHT_PROBE(int line_number,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
     // KLUDGE override with the toplevel line for selection
-    line_number = pinterp->toplevel_line();
+    line_number = preview_interp->toplevel_line();
     probe_start_pos_prog = _pos_prog;
     _pos_prog={x, y, z, a, b, c, u, v, w};
 
@@ -590,7 +590,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
 
-    line_number = pinterp->toplevel_line();
+    line_number = preview_interp->toplevel_line();
     probe_start_pos_prog = _pos_prog;
     _pos_prog={x, y, z, a, b, c, u, v, w};
     maybe_new_line(line_number);
@@ -609,7 +609,7 @@ void RIGID_TAP(int line_number,
     double retract_pitch
 ){
     // KLUDGE override with the toplevel line for selection
-    line_number = pinterp->toplevel_line();
+    line_number = preview_interp->toplevel_line();
     _pos_prog[X] = x;
     _pos_prog[Y] = y;
     _pos_prog[Z] = z;
@@ -864,10 +864,10 @@ void SET_NAIVECAM_TOLERANCE(double tolerance) { }
 
 static PyObject *get_work_offsets_used(PyObject *self, PyObject *args) {
 
-    // call pinterp to snag the set of work offset indexes and build a new list to 
+    // call preview_interp to snag the set of work offset indexes and build a new list to
     // give back to python land
-    auto preview_interp = dynamic_cast<PreviewInterp*>(pinterp);
-    std::set<int> used_offsets = preview_interp ? preview_interp->get_work_offsets_used() : std::set<int>();
+    auto rs274_preview_interp = dynamic_cast<PreviewInterp*>(preview_interp);
+    std::set<int> used_offsets = rs274_preview_interp ? rs274_preview_interp->get_work_offsets_used() : std::set<int>();
 
     PyObject* offsets = PyTuple_New(used_offsets.size());
     int ix = 0;
@@ -993,7 +993,7 @@ int planFinishLineSeek(
     }
 
     maybe_new_line();
-    RETURN_ON_ERROR(pinterp->execute("", CommandSource::MODAL_STATE_RESTORE));
+    RETURN_ON_ERROR(preview_interp->execute("", CommandSource::MODAL_STATE_RESTORE));
     set_exec_mode(ParseExecMode::PREP);
     restore_machine_state_before_preview_synch(run_initial_state);
 
@@ -1014,7 +1014,7 @@ int planFinishLineSeek(
 }
 
 static bool isStartLineNext(int start_line) {
-    return (pinterp->line() + 1 >= start_line && pinterp->call_level() == 0);
+    return (preview_interp->line() + 1 >= start_line && preview_interp->call_level() == 0);
 }
 
 static int do_parse_loop(
@@ -1030,19 +1030,19 @@ static int do_parse_loop(
     struct timeval t0{}, t1{};
     gettimeofday(&t0, nullptr);
 
-    RETURN_ON_ERROR(pinterp->init());
+    RETURN_ON_ERROR(preview_interp->init());
 
     // Copy current position back out of reserved parameter area
 
-    RETURN_ON_ERROR(pinterp->open(file_name, working_dir));
+    RETURN_ON_ERROR(preview_interp->open(file_name, working_dir));
 
     maybe_new_line();
 
     if(units_gcode) {
-        RETURN_ON_ERROR(execute_lines(pinterp, units_gcode, CommandSource::INIT));
+        RETURN_ON_ERROR(execute_lines(preview_interp, units_gcode, CommandSource::INIT));
     }
     if(init_gcode) {
-        RETURN_ON_ERROR(execute_lines(pinterp, init_gcode, CommandSource::INIT));
+        RETURN_ON_ERROR(execute_lines(preview_interp, init_gcode, CommandSource::INIT));
     }
 
     if (rs274_interp) {
@@ -1059,7 +1059,7 @@ static int do_parse_loop(
     }
 
     ExpandedModalState run_initial_state;
-    pinterp->collect_expanded_modal_state(run_initial_state);
+    preview_interp->collect_expanded_modal_state(run_initial_state);
     // KLUDGE avoid start line handling unless it's explicitly a non-default option (also reduces log noise)
     auto init_mode = start_settings.start_line > 1 ? ParseExecMode::SEEK : ParseExecMode::RUN;
     set_exec_mode(init_mode);
@@ -1089,9 +1089,9 @@ static int do_parse_loop(
             break;
         }
         error_line_offset = 1;
-        RETURN_ON_ERROR(pinterp->read());
+        RETURN_ON_ERROR(preview_interp->read());
         error_line_offset = 0;
-        InterpReturn result = (InterpReturn)pinterp->execute(nullptr, CommandSource::PROGRAM);
+        InterpReturn result = (InterpReturn)preview_interp->execute(nullptr, CommandSource::PROGRAM);
         switch(result)
         {
         case INTERP_OK:
@@ -1106,14 +1106,14 @@ static int do_parse_loop(
 
 void reset_gcode_canon_globals(const char *interp_name)
 {
-    if(pinterp) {
-        delete pinterp;
-        pinterp = nullptr;
+    if(preview_interp) {
+        delete preview_interp;
+        preview_interp = nullptr;
     }
     if(interp_name && *interp_name)
-        pinterp = interp_from_shlib(interp_name);
-    if(!pinterp)
-        pinterp = new PreviewInterp;
+        preview_interp = interp_from_shlib(interp_name);
+    if(!preview_interp)
+        preview_interp = new PreviewInterp;
 
     for(int i=0; i<USER_DEFINED_FUNCTION_NUM; i++)
         USER_DEFINED_FUNCTION[i] = user_defined_function;
@@ -1179,10 +1179,10 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     }
     Py_XDECREF(res_clear);
 
-    PreviewInterp* interp = dynamic_cast<PreviewInterp*>(pinterp);
+    PreviewInterp* interp = dynamic_cast<PreviewInterp*>(preview_interp);
     int result = do_parse_loop(interp, file_name, units_gcode, init_gcode, working_dir, error_line_offset, run_settings, wait);
 
-    if(pinterp) pinterp->close();
+    if(preview_interp) preview_interp->close();
     if(interp_error) {
         if(!PyErr_Occurred()) {
             PyErr_Format(PyExc_RuntimeError,
@@ -1268,7 +1268,7 @@ static PyObject *rs274_strerror(PyObject *s, PyObject *o) {
     int err;
     if(!PyArg_ParseTuple(o, "i", &err)) return nullptr;
     char error_buf[ERROR_TEXT_LEN]={};
-    pinterp->error_text(err, error_buf, ERROR_TEXT_LEN);
+    preview_interp->error_text(err, error_buf, ERROR_TEXT_LEN);
     return PyString_FromString(error_buf);
 }
 
