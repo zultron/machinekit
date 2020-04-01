@@ -81,7 +81,7 @@ struct wait_orient_spindle_complete {
     double timeout;
 };
 
-struct queued_canon {
+struct QueuedCanon {
     queued_canon_type type;
     union {
         struct straight_traverse straight_traverse;
@@ -99,7 +99,7 @@ struct queued_canon {
     } data;
 };
 
-std::vector<queued_canon>& qc(void);
+std::vector<QueuedCanon>& qc(void);
 
 void enqueue_SET_FEED_RATE(double feed);
 void enqueue_DWELL(double time);
