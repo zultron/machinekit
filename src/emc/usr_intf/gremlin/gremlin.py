@@ -346,6 +346,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.stale_dlist('program_norapids')
             self.stale_dlist('select_rapids')
             self.stale_dlist('select_norapids')
+            self.stale_dlist('highlight')
 
         if self.logger:
             self.logger.set_visible_tools(tool_list)

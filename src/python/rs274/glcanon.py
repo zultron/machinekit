@@ -1212,7 +1212,7 @@ class GlCanonDraw:
             if self.get_show_rapids():
                 glCallList(self.dlist('program_rapids', gen=self.make_main_list))
             glCallList(self.dlist('program_norapids', gen=self.make_main_list))
-            glCallList(self.dlist('highlight'))
+            glCallList(self.dlist('highlight', gen=self.make_highlight_list))
 
             if self.get_program_alpha():
                 glDisable(GL_BLEND)
@@ -2029,6 +2029,21 @@ class GlCanonDraw:
             self.canon.draw_rapids(False)
         glEndList()
 
+    def make_highlight_list(self, unused=None):
+        line = self.get_highlight_line()
+        glNewList(self.dlist('highlight'), GL_COMPILE)
+        if line is not None and self.canon is not None:
+            if self.foam_option:
+                glPushMatrix()
+                glTranslatef(0, 0, self.get_foam_z())
+                self.canon.highlight(line, "XY")
+                glTranslatef(0, 0, self.get_foam_w()-self.get_foam_z())
+                self.canon.highlight(line, "UV")
+                glPopMatrix()
+            else:
+                self.canon.highlight(line, self.get_geometry())
+        glEndList()
+
     def get_work_offsets_used(self):
         return self._work_offsets_used
 
@@ -2063,6 +2078,7 @@ class GlCanonDraw:
             self.stale_dlist('program_norapids')
             self.stale_dlist('select_rapids')
             self.stale_dlist('select_norapids')
+            self.stale_dlist('highlight')
 
         return result, seq, warnings
 
