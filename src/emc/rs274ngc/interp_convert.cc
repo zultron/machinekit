@@ -755,14 +755,14 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
 
     // need this move for lathes to move the tool origin first.  otherwise, the arc isn't an arc.
     if (settings->cutter_comp.orientation != 0 && settings->cutter_comp.orientation != 9) {
-        enqueue_STRAIGHT_FEED(settings, block->line_number, 
+        enqueue_STRAIGHT_FEED(settings->plane, block->line_number,
                               0, 0, 0,
                               cx, cy, cz,
                               AA_end, BB_end, CC_end, u_end, v_end, w_end);
         set_endpoint(cx, cy);
     }
     
-    enqueue_ARC_FEED(settings, block->line_number, 
+    enqueue_ARC_FEED(block->line_number,
                      find_turn(cx, cy, center_x, center_y, turn, end_x, end_y),
                      end_x, end_y, center_x, center_y, turn, end_z,
                      AA_end, BB_end, CC_end, u_end, v_end, w_end);
@@ -974,7 +974,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
             CHP(move_endpoint_and_flush(settings, midx, midy));
         }
 	write_and_update_state_tag(block);
-        enqueue_ARC_FEED(settings, block->line_number, 
+        enqueue_ARC_FEED(block->line_number,
                          find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
                          AA_end, BB_end, CC_end, u, v, w);
@@ -983,14 +983,14 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
         midy = opy + tool_radius * sin(delta);
 	write_and_update_state_tag(block);
         dequeue_canons(settings);
-        enqueue_ARC_FEED(settings, block->line_number, 
+        enqueue_ARC_FEED(block->line_number,
                          0.0, // doesn't matter since we won't move this arc's endpoint
                          midx, midy, opx, opy, ((side == LEFT_COMP) ? -1 : 1),
                          cz,
                          AA_end, BB_end, CC_end, u, v, w);
         dequeue_canons(settings);
         set_endpoint(midx, midy);
-        enqueue_ARC_FEED(settings, block->line_number, 
+        enqueue_ARC_FEED(block->line_number,
                          find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
                          AA_end, BB_end, CC_end, u, v, w);
@@ -998,7 +998,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
 	write_and_update_state_tag(block);
         dequeue_canons(settings);
         set_endpoint(cx, cy);
-        enqueue_ARC_FEED(settings, block->line_number, 
+        enqueue_ARC_FEED(block->line_number,
                          find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
                          AA_end, BB_end, CC_end, u, v, w);
@@ -4930,13 +4930,13 @@ int Interp::convert_straight_comp1(int move,     //!< either G_0 or G_1
 
     write_and_update_state_tag(block);
     if (move == G_0) {
-        enqueue_STRAIGHT_TRAVERSE(settings, block->line_number, 
+        enqueue_STRAIGHT_TRAVERSE(settings->plane, block->line_number,
                                   cos(alpha), sin(alpha), 0, 
                                   end_x, end_y, pz,
                                   AA_end, BB_end, CC_end, u_end, v_end, w_end);
     }
     else if (move == G_1) {
-        enqueue_STRAIGHT_FEED(settings, block->line_number, 
+        enqueue_STRAIGHT_FEED(settings->plane, block->line_number,
                               cos(alpha), sin(alpha), 0,
                               end_x, end_y, pz,
                               AA_end, BB_end, CC_end, u_end, v_end, w_end);
@@ -5052,12 +5052,12 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
     write_and_update_state_tag(block);
     if ((py == opy) && (px == opx)) {     /* no XY motion */
         if (move == G_0) {
-            enqueue_STRAIGHT_TRAVERSE(settings, block->line_number, 
+            enqueue_STRAIGHT_TRAVERSE(settings->plane, block->line_number,
                                       px - opx, py - opy, pz - opz, 
                                       cx, cy, pz,
                                       AA_end, BB_end, CC_end, u_end, v_end, w_end);
         } else if (move == G_1) {
-            enqueue_STRAIGHT_FEED(settings, block->line_number, 
+            enqueue_STRAIGHT_FEED(settings->plane, block->line_number,
                                   px - opx, py - opy, pz - opz, 
                                   cx, cy, pz, AA_end, BB_end, CC_end, u_end, v_end, w_end);
         } else
@@ -5108,7 +5108,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
         if (!concave && (beta > small)) {       /* ARC NEEDED */
             CHP(move_endpoint_and_flush(settings, cx, cy));
             if(move == G_1) {
-                enqueue_ARC_FEED(settings, block->line_number,
+                enqueue_ARC_FEED(block->line_number,
                                  0.0, // doesn't matter, since we will not move this arc's endpoint
                                  mid_x, mid_y, opx, opy,
                                  ((side == LEFT_COMP) ? -1 : 1), cz,
@@ -5121,7 +5121,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
                 // most of our rapid will be parallel to the original
                 // programmed one.  if nothing else, this will look a
                 // little less confusing in the preview.
-                enqueue_STRAIGHT_TRAVERSE(settings, block->line_number,
+                enqueue_STRAIGHT_TRAVERSE(settings->plane, block->line_number,
                                           0.0, 0.0, 0.0, 
                                           mid_x, mid_y, cz, 
                                           AA_end, BB_end, CC_end,
@@ -5197,7 +5197,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
             set_endpoint(cx, cy);
         }
         (move == G_0? enqueue_STRAIGHT_TRAVERSE: enqueue_STRAIGHT_FEED)
-            (settings, block->line_number, 
+            (settings->plane, block->line_number,
              px - opx, py - opy, pz - opz, 
              end_x, end_y, pz,
              AA_end, BB_end, CC_end, 

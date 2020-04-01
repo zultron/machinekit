@@ -254,7 +254,7 @@ void enqueue_COMMENT(const char *c) {
     qc().push_back(q);
 }
 
-int enqueue_STRAIGHT_FEED(setup_pointer settings, int l, 
+int enqueue_STRAIGHT_FEED(CANON_PLANE plane, int l,
                            double dx, double dy, double dz,
                            double x, double y, double z, 
                            double a, double b, double c, 
@@ -262,7 +262,7 @@ int enqueue_STRAIGHT_FEED(setup_pointer settings, int l,
     QueuedCanon q;
     q.type = QSTRAIGHT_FEED;
     q.data.straight_feed.line_number = l;
-    switch(settings->plane) {
+    switch(plane) {
     case CANON_PLANE_XY:
         q.data.straight_feed.dx = dx;
         q.data.straight_feed.dy = dy;
@@ -293,7 +293,7 @@ int enqueue_STRAIGHT_FEED(setup_pointer settings, int l,
     return 0;
 }
 
-int enqueue_STRAIGHT_TRAVERSE(setup_pointer settings, int l, 
+int enqueue_STRAIGHT_TRAVERSE(CANON_PLANE plane, int l,
                                double dx, double dy, double dz,
                                double x, double y, double z, 
                                double a, double b, double c, 
@@ -301,7 +301,7 @@ int enqueue_STRAIGHT_TRAVERSE(setup_pointer settings, int l,
     QueuedCanon q;
     q.type = QSTRAIGHT_TRAVERSE;
     q.data.straight_traverse.line_number = l;
-    switch(settings->plane) {
+    switch(plane) {
     case CANON_PLANE_XY:
         q.data.straight_traverse.dx = dx;
         q.data.straight_traverse.dy = dy;
@@ -332,7 +332,7 @@ int enqueue_STRAIGHT_TRAVERSE(setup_pointer settings, int l,
     return 0;
 }
 
-void enqueue_ARC_FEED(setup_pointer settings, int l, 
+void enqueue_ARC_FEED(int l,
                       double original_turns,
                       double end1, double end2, double center1, double center2,
                       int turn,
