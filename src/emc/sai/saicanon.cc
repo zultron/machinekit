@@ -66,7 +66,6 @@ stdout to a file.
 */
 
 //extern void rs274ngc_line_text(char * line_text, int max_size);
-extern InterpBase *pinterp;
 
 void print_nc_line_number()
 {
@@ -79,7 +78,7 @@ void print_nc_line_number()
       _outfile = stdout;
     }
 
-  pinterp->line_text(text, 256);
+  sai_pinterp->line_text(text, 256);
   for (k = 0;
        ((k < 256) &&
         ((text[k] == '\t') || (text[k] == ' ') || (text[k] == '/')));

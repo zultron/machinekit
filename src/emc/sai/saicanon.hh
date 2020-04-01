@@ -12,7 +12,7 @@ struct StandaloneInterpInternals;
 class InterpBase;
 
 extern StandaloneInterpInternals _sai;
-extern InterpBase *pinterp;
+extern InterpBase *sai_pinterp;
 extern FILE *_outfile;
 
 struct StandaloneInterpInternals

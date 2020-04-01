@@ -39,30 +39,29 @@
 
 #include <saicanon.hh>
 
-InterpBase *pinterp;
-#define interp_new (*pinterp)
+InterpBase *sai_pinterp;
 const char *prompt = "READ => ";
 const char *history = "~/.rs274";
 #define RS274_HISTORY "RS274_HISTORY"
 
-#define active_settings  interp_new.active_settings
-#define active_g_codes   interp_new.active_g_codes
-#define active_m_codes   interp_new.active_m_codes
-#define error_text	 interp_new.error_text
-#define interp_execute	 interp_new.execute
-#define file_name	 interp_new.file_name
-#define interp_init	 interp_new.init
-#define stack_name	 interp_new.stack_name
-#define line_text	 interp_new.line_text
-#define line_length	 interp_new.line_length
-#define sequence_number  interp_new.sequence_number
-#define interp_close     interp_new.close
-#define interp_exit      interp_new.exit
-#define interp_open      interp_new.open
-#define interp_read	 interp_new.read
-#define interp_load_tool_table interp_new.load_tool_table
-#define interp_set_loglevel interp_new.set_loglevel
-#define interp_task_init interp_new.task_init
+#define active_settings  sai_pinterp->active_settings
+#define active_g_codes   sai_pinterp->active_g_codes
+#define active_m_codes   sai_pinterp->active_m_codes
+#define error_text	 sai_pinterp->error_text
+#define interp_execute	 sai_pinterp->execute
+#define file_name	 sai_pinterp->file_name
+#define interp_init	 sai_pinterp->init
+#define stack_name	 sai_pinterp->stack_name
+#define line_text	 sai_pinterp->line_text
+#define line_length	 sai_pinterp->line_length
+#define sequence_number  sai_pinterp->sequence_number
+#define interp_close     sai_pinterp->close
+#define interp_exit      sai_pinterp->exit
+#define interp_open      sai_pinterp->open
+#define interp_read	 sai_pinterp->read
+#define interp_load_tool_table sai_pinterp->load_tool_table
+#define interp_set_loglevel sai_pinterp->set_loglevel
+#define interp_task_init sai_pinterp->task_init
 
 /*
 
@@ -602,9 +601,9 @@ usage:
     }
 
   if(!interp.empty()) {
-    pinterp = interp_from_shlib(interp.c_str());
+    sai_pinterp = interp_from_shlib(interp.c_str());
   }
-  if(!pinterp) pinterp = new Interp;
+  if(!sai_pinterp) sai_pinterp = new Interp;
 
   for(; !go_flag ;)
     {
