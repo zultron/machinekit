@@ -936,7 +936,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
             CHP(move_endpoint_and_flush(settings, midx, midy));
         } else {
             // arc->arc
-            struct arc_feed &prev = qc().front().data.arc_feed;
+            ArcFeed &prev = qc().front().data.arc_feed;
             double oldrad = hypot(prev.center2 - prev.end2, prev.center1 - prev.end1);
             double newrad;
             if (TOOL_INSIDE_ARC(side, turn)) {
@@ -5147,7 +5147,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
             } else {
                 // arc->line
                 // beware: the arc we saved is the compensated one.
-                arc_feed prev = qc().front().data.arc_feed;
+                ArcFeed prev = qc().front().data.arc_feed;
                 double oldrad = hypot(prev.center2 - prev.end2, prev.center1 - prev.end1);
                 double oldrad_uncomp;
 

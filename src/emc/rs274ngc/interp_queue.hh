@@ -15,26 +15,42 @@
 #include <interp_internal.hh>
 #include <vector>
 
-enum queued_canon_type {QSTRAIGHT_TRAVERSE, QSTRAIGHT_FEED, QARC_FEED, QSET_FEED_RATE, QDWELL, QSET_FEED_MODE,
-                                QMIST_ON, QMIST_OFF, QFLOOD_ON, QFLOOD_OFF,
-                                QSTART_SPINDLE_CLOCKWISE, QSTART_SPINDLE_COUNTERCLOCKWISE, QSTOP_SPINDLE_TURNING,
-                                QSET_SPINDLE_MODE, QSET_SPINDLE_SPEED,
-			QCOMMENT, QM_USER_COMMAND,QSTART_CHANGE, 
-			QORIENT_SPINDLE, QWAIT_ORIENT_SPINDLE_COMPLETE};
+enum queued_canon_type {
+    QSTRAIGHT_TRAVERSE,
+    QSTRAIGHT_FEED,
+    QARC_FEED,
+    QSET_FEED_RATE,
+    QDWELL,
+    QSET_FEED_MODE,
+    QMIST_ON,
+    QMIST_OFF,
+    QFLOOD_ON,
+    QFLOOD_OFF,
+    QSTART_SPINDLE_CLOCKWISE,
+    QSTART_SPINDLE_COUNTERCLOCKWISE,
+    QSTOP_SPINDLE_TURNING,
+    QSET_SPINDLE_MODE,
+    QSET_SPINDLE_SPEED,
+    QCOMMENT,
+    QM_USER_COMMAND,
+    QSTART_CHANGE,
+    QORIENT_SPINDLE,
+    QWAIT_ORIENT_SPINDLE_COMPLETE
+};
 
-struct straight_traverse {
+struct StraightTraverse {
     int line_number;
     double dx, dy, dz;          // direction of original motion
     double x,y,z, a,b,c, u,v,w;
 };
 
-struct straight_feed {
+struct StraightFeed {
     int line_number;
     double dx, dy, dz;          // direction of original motion
     double x,y,z, a,b,c, u,v,w; // target
 };
 
-struct arc_feed {
+struct ArcFeed {
     int line_number;
     double original_turns;
     double end1, end2, center1, center2;
@@ -42,60 +58,60 @@ struct arc_feed {
     double end3, a,b,c, u,v,w;
 };
 
-struct set_feed_rate {
+struct SetFeedRate {
     double feed;
 };
 
-struct set_feed_mode {
-    int mode;
-};
-
-struct dwell {
+struct Dwell {
     double time;
 };
 
-struct set_spindle_mode {
+struct SetFeedMode {
+    int mode;
+};
+
+struct SetSpindleMode {
     double mode;
 };
 
-struct set_spindle_speed {
+struct SetSpindleSpeed {
     double speed;
 };
 
-struct comment {
+struct Comment {
     char *comment;
 };
 
-struct mcommand {
+struct MCommand {
     int    index;
     double p_number;
     double q_number;
 };
 
-struct orient_spindle {
+struct OrientSpindle {
     double orientation;
     int mode;
 };
 
-struct wait_orient_spindle_complete {
+struct WaitOrientSpindleComplete {
     double timeout;
 };
 
 struct QueuedCanon {
     queued_canon_type type;
     union {
-        struct straight_traverse straight_traverse;
-        struct straight_feed straight_feed;
-        struct arc_feed arc_feed;
-        struct set_feed_rate set_feed_rate;
-        struct dwell dwell;
-        struct set_feed_mode set_feed_mode;
-        struct set_spindle_mode set_spindle_mode;
-        struct set_spindle_speed set_spindle_speed;
-        struct comment comment;
-        struct mcommand mcommand;
-	struct orient_spindle orient_spindle;
-	struct wait_orient_spindle_complete wait_orient_spindle_complete;
+        StraightTraverse straight_traverse;
+        StraightFeed straight_feed;
+        ArcFeed arc_feed;
+        SetFeedRate set_feed_rate;
+        Dwell dwell;
+        SetFeedMode set_feed_mode;
+        SetSpindleMode set_spindle_mode;
+        SetSpindleSpeed set_spindle_speed;
+        Comment comment;
+        MCommand mcommand;
+        OrientSpindle orient_spindle;
+        WaitOrientSpindleComplete wait_orient_spindle_complete;
     } data;
 };
 
