@@ -919,10 +919,12 @@ static PyObject * gen_warning_list(std::vector<std::string> const &interp_warnin
 }
 
 // Crude version of CHP for the parse loop
+// WARNING: INTERP_ENDFILE needs to be considered an error condition during preview because of order of read / execute.
+// Since read() is called first, we need to catch an end-file 'error' and stop further processing, because execute won't catch this.
 #define RETURN_ON_ERROR(call) \
 do { \
     int err_status = (call); \
-    if (isInterpError(err_status)) { \
+    if (err_status != INTERP_OK && err_status != INTERP_EXECUTE_FINISH) { \
         return err_status; \
     } \
 } while(0)
