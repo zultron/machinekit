@@ -1285,18 +1285,7 @@ class GlCanonDraw:
                     glEnd()
                     glDisable(GL_LINE_STIPPLE)
 
-                    glPushMatrix()
-                    glScalef(0.2,0.2,0.2)
-                    if self.is_lathe():
-                        g92rot=math.atan2(g92_offset[0], -g92_offset[2])
-                        glRotatef(90, 1, 0, 0)
-                        glRotatef(-90, 0, 0, 1)
-                    else:
-                        g92rot=math.atan2(g92_offset[1], g92_offset[0])
-                    glRotatef(math.degrees(g92rot), 0, 0, 1)
-                    glTranslatef(0.5, 0.5, 0)
-                    self.hershey.plot_string("G92", 0.1)
-                    glPopMatrix()
+                    self.gl_draw_g92_label(g92_offset)
 
                 glTranslatef(*g92_offset)
 
@@ -1890,6 +1879,34 @@ class GlCanonDraw:
 
         glEndList()
 
+    def gl_draw_g92_label(self, g92_offset):
+        x,y,z,p = 0,1,2,3
+        s = self.stat
+        view = self.get_view()
+
+        glPushMatrix()
+
+        glScalef(0.2, 0.2, 0.2)
+        if self.is_lathe():
+            g92rot = math.atan2(g92_offset[0], -g92_offset[2])
+            glRotatef(90, 1, 0, 0)
+            glRotatef(-90, 0, 0, 1)
+        else:
+            if view == x:
+                g92rot = math.atan2(g92_offset[2], g92_offset[1])
+                glRotatef(90, 1, 0, 0)
+                glRotatef(90, 0, 1, 0)
+            elif view == y:
+                g92rot = math.atan2(g92_offset[2], g92_offset[0])
+                glRotatef(90, 1, 0, 0)
+            else:
+                g92rot = math.atan2(g92_offset[1], g92_offset[0])
+
+        glRotatef(math.degrees(g92rot), 0, 0, 1)
+        glTranslatef(0.5, 0.5, 0)
+        self.hershey.plot_string("G92", 0.1)
+        glPopMatrix()
+
     def make_cone(self, n):
         q = gluNewQuadric()
         glNewList(n, GL_COMPILE)
@@ -1903,11 +1920,7 @@ class GlCanonDraw:
         glEndList()
         gluDeleteQuadric(q)
 
-
-
-
     def lathetool(self, current_tool):
-
         if self.is_rear_tool_post_lathe:
             lathe_shapes = [
                 None,                           # 0
