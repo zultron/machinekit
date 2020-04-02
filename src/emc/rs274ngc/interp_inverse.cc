@@ -27,6 +27,12 @@
 
 /****************************************************************************/
 
+static double get_feed_from_inverse_time(double path_length, double total_time)
+{
+    // TODO make the minimum time value less arbitrary
+    return std::abs(path_length) / std::max(0.0001, total_time);
+}
+
 /*! inverse_time_rate_arc
 
 Returned Value: int (INTERP_OK)
@@ -56,13 +62,10 @@ int Interp::inverse_time_rate_arc(double x1,     //!< x coord of start point of 
                                  block_pointer block,   //!< pointer to a block of RS274 instructions
                                  setup_pointer settings)        //!< pointer to machine settings             
 {
-  double length;
-  double rate;
-
   if (settings->feed_mode != INVERSE_TIME) return -1;
 
-  length = find_arc_length(x1, y1, z1, cx, cy, turn, x2, y2, z2);
-  rate = std::max(0.1, (length * block->f_number));
+  double length = find_arc_length(x1, y1, z1, cx, cy, turn, x2, y2, z2);
+  double rate = get_feed_from_inverse_time(length, block->f_number);
   enqueue_SET_FEED_RATE(rate);
   settings->feed_rate = rate;
 
@@ -97,8 +100,6 @@ int Interp::inverse_time_rate_straight(double end_x,     //!< x coordinate of en
                                        block_pointer block,      //!< pointer to a block of RS274 instructions  
                                        setup_pointer settings)   //!< pointer to machine settings               
 {
-  double length;
-  double rate;
   double cx, cy, cz;
 
   if (settings->feed_mode != INVERSE_TIME) return -1;
@@ -114,14 +115,14 @@ int Interp::inverse_time_rate_straight(double end_x,     //!< x coordinate of en
       cz = settings->current[Z];
   }
 
-  length = find_straight_length(end_x, end_y, end_z,
+  double length = find_straight_length(end_x, end_y, end_z,
                                 AA_end, BB_end, CC_end,
                                 u_end, v_end, w_end,
                                 cx, cy, cz,
                                 settings->current[A], settings->current[B], settings->current[C],
                                 settings->current[U], settings->current[V], settings->current[W]);
 
-  rate = std::max(0.1, (length * block->f_number));
+  double rate = get_feed_from_inverse_time(length, block->f_number);
   enqueue_SET_FEED_RATE(rate);
   settings->feed_rate = rate;
 
