@@ -255,8 +255,6 @@ void ARC_FEED(int line_number,
               double a_position, double b_position, double c_position,
               double u_position, double v_position, double w_position) {
     // XXX: set _pos_*
-    // KLUDGE override with the toplevel line for selection
-    line_number = preview_interp->toplevel_line();
     if(metric) {
         first_end /= 25.4;
         second_end /= 25.4;
@@ -282,8 +280,6 @@ void STRAIGHT_FEED(int line_number,
                    double x, double y, double z,
                    double a, double b, double c,
                    double u, double v, double w) {
-    // KLUDGE override with the toplevel line for selection
-    line_number = preview_interp->toplevel_line();
     _pos_prog={x, y, z, a, b, c, u, v, w};
 
     maybe_new_line(line_number);
@@ -307,8 +303,6 @@ void STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
                        double a, double b, double c,
                        double u, double v, double w) {
-    // KLUDGE override with the toplevel line for selection
-    line_number = preview_interp->toplevel_line();
     _pos_prog={x, y, z, a, b, c, u, v, w};
     maybe_new_line(line_number);
     if(interp_error) return;
@@ -573,8 +567,6 @@ void STRAIGHT_PROBE(int line_number,
                     double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
-    // KLUDGE override with the toplevel line for selection
-    line_number = preview_interp->toplevel_line();
     probe_start_pos_prog = _pos_prog;
     _pos_prog={x, y, z, a, b, c, u, v, w};
 
@@ -590,7 +582,6 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
                     double a, double b, double c,
                     double u, double v, double w, unsigned char probe_type) {
 
-    line_number = preview_interp->toplevel_line();
     probe_start_pos_prog = _pos_prog;
     _pos_prog={x, y, z, a, b, c, u, v, w};
     maybe_new_line(line_number);
@@ -608,8 +599,6 @@ void RIGID_TAP(int line_number,
     double tap_pitch,
     double retract_pitch
 ){
-    // KLUDGE override with the toplevel line for selection
-    line_number = preview_interp->toplevel_line();
     _pos_prog[X] = x;
     _pos_prog[Y] = y;
     _pos_prog[Z] = z;
