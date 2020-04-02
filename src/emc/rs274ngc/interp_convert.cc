@@ -4439,9 +4439,6 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
                                  block, settings);
   }
 
-  // Create a state tag and dump it to canon
-  write_and_update_state_tag(block);
-
   if ((settings->cutter_comp.side) &&    /* ! "== true" */
       (settings->cutter_comp.radius > 0.0)) {   /* radius always is >= 0 */
 
@@ -4464,21 +4461,27 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
                                             AA_end, BB_end, CC_end, u_end, v_end, w_end);
     } else ERS("BUG: Invalid plane for cutter compensation");
     CHP(status);
-  } else if (move == G_0) {
+    } else {
+        // no cutter compensation queueing, generate state tag here
+        write_and_update_state_tag(block);
+        switch (move) {
+        case G_0:
     STRAIGHT_TRAVERSE(block->line_number, end_x, end_y, end_z,
                       AA_end, BB_end, CC_end,
                       u_end, v_end, w_end);
     settings->current[X] = end_x;
     settings->current[Y] = end_y;
     settings->current[Z] = end_z;
-  } else if (move == G_1) {
+            break;
+        case G_1:
     STRAIGHT_FEED(block->line_number, end_x, end_y, end_z,
                   AA_end, BB_end, CC_end,
                   u_end, v_end, w_end);
     settings->current[X] = end_x;
     settings->current[Y] = end_y;
     settings->current[Z] = end_z;
-  } else if (move == G_33) {
+            break;
+        case G_33:
     CHKS(((settings->spindle_turning != CANON_CLOCKWISE) &&
            (settings->spindle_turning != CANON_COUNTERCLOCKWISE)),
           _("Spindle not turning in G33"));
@@ -4488,7 +4491,9 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
     settings->current[X] = end_x;
     settings->current[Y] = end_y;
     settings->current[Z] = end_z;
-  } else if (move == G_33_1) {
+            break;
+        case G_33_1:
+        {
     CHKS(((settings->spindle_turning != CANON_CLOCKWISE) &&
            (settings->spindle_turning != CANON_COUNTERCLOCKWISE)),
           _("Spindle not turning in G33.1"));
@@ -4508,7 +4513,10 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
     RIGID_TAP(block->line_number, end_x, end_y, end_z, spindle_retract_speed_scale, tap_pitch, retract_pitch);
     STOP_SPEED_FEED_SYNCH();
     // after the RIGID_TAP cycle we'll be in the same spot
-  } else if (move == G_76) {
+        }
+        break;
+        case G_76:
+        {
     CHKS(((settings->spindle_turning != CANON_CLOCKWISE) &&
            (settings->spindle_turning != CANON_COUNTERCLOCKWISE)),
           _("Spindle not turning in G76"));
@@ -4520,9 +4528,14 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
          settings->current[W] != w_end), NCE_CANNOT_MOVE_ROTARY_AXES_WITH_G76);
     int result = convert_threading_cycle(block, settings, end_x, end_y, end_z);
     if(result != INTERP_OK) return result;
-  } else
+        }
+        break;
+        default:
     ERS(NCE_BUG_CODE_NOT_G0_OR_G1);
+        }
+    }
 
+    // NOTE: X/Y/Z are updated above based on tool compensation state.
   settings->current[A] = AA_end;
   settings->current[B] = BB_end;
   settings->current[C] = CC_end;
