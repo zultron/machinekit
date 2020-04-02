@@ -493,13 +493,12 @@ int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw
 
   settings->motion_mode = move;
 
-  // Should be done with changes to settings here, so we can pack the state
-  // Create a state tag and dump it to canon
-  write_and_update_state_tag(block);
-
   if (settings->plane == CANON_PLANE_XY) {
     if ((!settings->cutter_comp.side) ||
         (settings->cutter_comp.radius == 0.0)) {
+
+      // No cutter comp queueing, generate the tag immediately
+      write_and_update_state_tag(block);
       status =
         convert_arc2(move, block, settings,
                      &(settings->current[X]), &(settings->current[Y]),
@@ -524,6 +523,8 @@ int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw
   } else if (settings->plane == CANON_PLANE_XZ) {
     if ((!settings->cutter_comp.side) ||
         (settings->cutter_comp.radius == 0.0)) {
+      // No cutter comp queueing, generate the tag immediately
+      write_and_update_state_tag(block);
       status =
         convert_arc2(move, block, settings,
                      &(settings->current[Z]), &(settings->current[X]),
