@@ -57,7 +57,8 @@ typedef enum {
  * TODO: make that standalone function a method here for maintainability
  */
 typedef enum {
-    GM_FIELD_LINE_NUMBER=0,
+    GM_FIELD_LOCAL_LINE_NUMBER=0,
+    GM_FIELD_LINE_NUMBER,
     GM_FIELD_STEPPING_ID,
     GM_FIELD_NEXT_LINE,
     GM_FIELD_G_MODE_0,

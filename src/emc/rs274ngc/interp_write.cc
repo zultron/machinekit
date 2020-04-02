@@ -210,6 +210,7 @@ StateTag make_state_tag(setup_struct const &s, block_pointer block)
 {
     StateTag state;
     state.fields[GM_FIELD_LINE_NUMBER] = s.get_toplevel_line_number();
+    state.fields[GM_FIELD_LOCAL_LINE_NUMBER] = s.sequence_number;
     state.fields[GM_FIELD_STEPPING_ID] = s.stepping_id;
     //FIXME refactor these into setup methods, and maybe put this whole method in setup struct
     bool in_remap = (s.remap_level > 0);
