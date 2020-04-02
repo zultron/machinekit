@@ -225,7 +225,8 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
         switch ((ActiveSettingIndex)ii) {
         case SETTINGS_SEQUENCE_NUMBER: break; // sequence_number - no point in restoring
         case SETTINGS_FEED_RATE:
-            snprintf(buf,sizeof(buf)," F%.1f ", saved.settings[ii]);
+            // FPR mode feed rates get clobbered if this is rounded down too far
+            snprintf(buf,sizeof(buf)," F%.17f ", saved.settings[ii]);
             cmd+=buf;
             break;
         case SETTINGS_SPEED:
