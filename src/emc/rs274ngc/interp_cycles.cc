@@ -920,7 +920,7 @@ int Interp::convert_cycle_xy(int motion, //!< a g-code between G_81 and G_89, a 
   // First motion of a canned cycle (maybe): if we're below the R plane,
   // rapid straight up to the R plane.
   if (old_cc < r) {
-    STRAIGHT_TRAVERSE(block->line_number, settings->current[X], settings->current[Y], r,
+    STRAIGHT_TRAVERSE(settings->get_toplevel_line_number(), settings->current[X], settings->current[Y], r,
                       settings->current[A], settings->current[B], settings->current[C], 
                       settings->current[U], settings->current[V], settings->current[W]);
     old_cc = r;
@@ -1100,7 +1100,7 @@ int Interp::convert_cycle_uv(int motion, //!< a g-code between G_81 and G_89, a 
   CHKS((r < cc), NCE_R_LESS_THAN_W_IN_CYCLE_IN_UV_PLANE);
 
   if (old_cc < r) {
-    STRAIGHT_TRAVERSE(block->line_number, settings->current[X], settings->current[Y], settings->current[Z],
+    STRAIGHT_TRAVERSE(settings->get_toplevel_line_number(), settings->current[X], settings->current[Y], settings->current[Z],
                       settings->current[A], settings->current[B], settings->current[C], 
                       settings->current[U], settings->current[V], r);
     old_cc = r;
@@ -1323,7 +1323,7 @@ int Interp::convert_cycle_yz(int motion, //!< a g-code between G_81 and G_89, a 
   CHKS((r < cc), NCE_R_LESS_THAN_X_IN_CYCLE_IN_YZ_PLANE);
 
   if (old_cc < r) {
-    STRAIGHT_TRAVERSE(block->line_number, r, settings->current[Y], settings->current[Z],
+    STRAIGHT_TRAVERSE(settings->get_toplevel_line_number(), r, settings->current[Y], settings->current[Z],
                       settings->current[A], settings->current[B], settings->current[C],
                       settings->current[U], settings->current[V], settings->current[W]);
     old_cc = r;
@@ -1498,7 +1498,7 @@ int Interp::convert_cycle_vw(int motion, //!< a g-code between G_81 and G_89, a 
   CHKS((r < cc), NCE_R_LESS_THAN_U_IN_CYCLE_IN_VW_PLANE);
 
   if (old_cc < r) {
-    STRAIGHT_TRAVERSE(block->line_number, settings->current[X], settings->current[Y], settings->current[Z],
+    STRAIGHT_TRAVERSE(settings->get_toplevel_line_number(), settings->current[X], settings->current[Y], settings->current[Z],
                       settings->current[A], settings->current[B], settings->current[C],
                       r, settings->current[V], settings->current[W]);
     old_cc = r;
@@ -1730,7 +1730,7 @@ int Interp::convert_cycle_zx(int motion, //!< a g-code between G_81 and G_89, a 
   CHKS((r < cc), NCE_R_LESS_THAN_Y_IN_CYCLE_IN_XZ_PLANE);
 
   if (old_cc < r) {
-    STRAIGHT_TRAVERSE(block->line_number, settings->current[X], r, settings->current[Z],
+    STRAIGHT_TRAVERSE(settings->get_toplevel_line_number(), settings->current[X], r, settings->current[Z],
                       settings->current[A], settings->current[B], settings->current[C],
                       settings->current[U], settings->current[V], settings->current[W]);
     old_cc = r;
@@ -1904,7 +1904,7 @@ int Interp::convert_cycle_wu(int motion, //!< a g-code between G_81 and G_89, a 
   CHKS((r < cc), NCE_R_LESS_THAN_V_IN_CYCLE_IN_UW_PLANE);
 
   if (old_cc < r) {
-    STRAIGHT_TRAVERSE(block->line_number, settings->current[X], settings->current[Y], settings->current[Z],
+    STRAIGHT_TRAVERSE(settings->get_toplevel_line_number(), settings->current[X], settings->current[Y], settings->current[Z],
                       settings->current[A], settings->current[B], settings->current[C],
                       settings->current[U], r, settings->current[W]);
     old_cc = r;
@@ -2053,27 +2053,27 @@ int Interp::cycle_feed(block_pointer block,
                        double end3)      //!< third coordinate value    
 {
     if (plane == CANON_PLANE_XY)
-        STRAIGHT_FEED(block->line_number, end1, end2, end3,
+        STRAIGHT_FEED(_setup.get_toplevel_line_number(), end1, end2, end3,
                       _setup.current[A], _setup.current[B], _setup.current[C],
                       _setup.current[U], _setup.current[V], _setup.current[W]);
     else if (plane == CANON_PLANE_YZ)
-        STRAIGHT_FEED(block->line_number, end3, end1, end2,
+        STRAIGHT_FEED(_setup.get_toplevel_line_number(), end3, end1, end2,
                       _setup.current[A], _setup.current[B], _setup.current[C],
                       _setup.current[U], _setup.current[V], _setup.current[W]);
     else if (plane == CANON_PLANE_XZ)
-        STRAIGHT_FEED(block->line_number, end2, end3, end1,
+        STRAIGHT_FEED(_setup.get_toplevel_line_number(), end2, end3, end1,
                       _setup.current[A], _setup.current[B], _setup.current[C],
                       _setup.current[U], _setup.current[V], _setup.current[W]);
     else if (plane == CANON_PLANE_UV)
-        STRAIGHT_FEED(block->line_number, _setup.current[X], _setup.current[Y], _setup.current[Z],
+        STRAIGHT_FEED(_setup.get_toplevel_line_number(), _setup.current[X], _setup.current[Y], _setup.current[Z],
                       _setup.current[A], _setup.current[B], _setup.current[C],
                       end1, end2, end3);
     else if (plane == CANON_PLANE_VW)
-        STRAIGHT_FEED(block->line_number, _setup.current[X], _setup.current[Y], _setup.current[Z],
+        STRAIGHT_FEED(_setup.get_toplevel_line_number(), _setup.current[X], _setup.current[Y], _setup.current[Z],
                       _setup.current[A], _setup.current[B], _setup.current[C],
                       end3, end1, end2);
     else // (plane == CANON_PLANE_UW)
-        STRAIGHT_FEED(block->line_number, _setup.current[X], _setup.current[Y], _setup.current[Z],
+        STRAIGHT_FEED(_setup.get_toplevel_line_number(), _setup.current[X], _setup.current[Y], _setup.current[Z],
                       _setup.current[A], _setup.current[B], _setup.current[C],
                       end2, end3, end1);
     return INTERP_OK;
@@ -2112,27 +2112,27 @@ int Interp::cycle_traverse(block_pointer block,
 {
 
     if (plane == CANON_PLANE_XY)
-        STRAIGHT_TRAVERSE(block->line_number, end1, end2, end3,
+        STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(), end1, end2, end3,
                           _setup.current[A], _setup.current[B], _setup.current[C],
                           _setup.current[U], _setup.current[V], _setup.current[W]);
     else if (plane == CANON_PLANE_YZ)
-        STRAIGHT_TRAVERSE(block->line_number, end3, end1, end2,
+        STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(), end3, end1, end2,
                           _setup.current[A], _setup.current[B], _setup.current[C],
                           _setup.current[U], _setup.current[V], _setup.current[W]);
     else if (plane == CANON_PLANE_XZ)
-        STRAIGHT_TRAVERSE(block->line_number, end2, end3, end1,
+        STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(), end2, end3, end1,
                           _setup.current[A], _setup.current[B], _setup.current[C],
                           _setup.current[U], _setup.current[V], _setup.current[W]);
     else if (plane == CANON_PLANE_UV)
-        STRAIGHT_TRAVERSE(block->line_number, _setup.current[X], _setup.current[Y], _setup.current[Z],
+        STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(), _setup.current[X], _setup.current[Y], _setup.current[Z],
                           _setup.current[A], _setup.current[B], _setup.current[C],
                           end1, end2, end3);
     else if (plane == CANON_PLANE_VW)
-        STRAIGHT_TRAVERSE(block->line_number, _setup.current[X], _setup.current[Y], _setup.current[Z],
+        STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(), _setup.current[X], _setup.current[Y], _setup.current[Z],
                           _setup.current[A], _setup.current[B], _setup.current[C],
                           end3, end1, end2);
     else // (plane == CANON_PLANE_UW)
-        STRAIGHT_TRAVERSE(block->line_number, _setup.current[X], _setup.current[Y], _setup.current[Z],
+        STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(), _setup.current[X], _setup.current[Y], _setup.current[Z],
                           _setup.current[A], _setup.current[B], _setup.current[C],
                           end2, end3, end1);
     return INTERP_OK;

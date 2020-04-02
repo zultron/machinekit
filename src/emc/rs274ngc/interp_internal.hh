@@ -171,7 +171,7 @@ struct block_struct
   double j_number;
   double k_number;
   int l_number;
-  int line_number;
+  int line_number; // Local line number (in sub / remap if applicable)
   int saved_line_number;  // value of sequence_number when a remap was encountered
   int n_number;
   GCodes motion_to_be;

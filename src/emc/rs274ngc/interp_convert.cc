@@ -199,7 +199,7 @@ int Interp::convert_nurbs(GCodes mode,
     settings->current[X] = nurbs_control_points[nurbs_control_points.size()-1].X;
         settings->current[Y] = nurbs_control_points[nurbs_control_points.size()-1].Y;
 	write_and_update_state_tag(block);
-        NURBS_FEED(block->line_number, nurbs_control_points, nurbs_order);
+    NURBS_FEED(settings->get_toplevel_line_number(), nurbs_control_points, nurbs_order);
 	//printf("hello\n");
 	nurbs_control_points.clear();
 	//printf("%d\n", 	nurbs_control_points.size());
@@ -257,7 +257,7 @@ int Interp::convert_spline(int mode,
         // intermediate point is colinear with start and end (same slope test)
         // STRAIGHT_FEED
         write_and_update_state_tag(block);
-        STRAIGHT_FEED(block->line_number, x2, y2, end_z, AA_end, BB_end, CC_end, u_end, v_end, w_end);
+        STRAIGHT_FEED(settings->get_toplevel_line_number(), x2, y2, end_z, AA_end, BB_end, CC_end, u_end, v_end, w_end);
       }
       else {
         // NURBS_FEED
@@ -272,7 +272,7 @@ int Interp::convert_spline(int mode,
         cp.Y = y2;
         nurbs_control_points.push_back(cp);
         write_and_update_state_tag(block);
-        NURBS_FEED(block->line_number, nurbs_control_points, 3);
+        NURBS_FEED(settings->get_toplevel_line_number(), nurbs_control_points, 3);
         nurbs_control_points.clear();
       }
       settings->current[X] = x2;
@@ -309,7 +309,7 @@ int Interp::convert_spline(int mode,
       cp.Y = y3;
       nurbs_control_points.push_back(cp);
       write_and_update_state_tag(nullptr);
-      NURBS_FEED(block->line_number, nurbs_control_points, 4);
+      NURBS_FEED(settings->get_toplevel_line_number(), nurbs_control_points, 4);
       nurbs_control_points.clear();
 
       settings->cycle.i = -block->p_number;
@@ -623,7 +623,7 @@ int Interp::convert_arc2(int move,       //!< either G_2 (cw arc) or G_3 (ccw ar
                         turn, end1, end2, end3, block, settings);
 
   write_and_update_state_tag(block);
-  ARC_FEED(block->line_number, end1, end2, center1, center2, turn, end3,
+  ARC_FEED(settings->get_toplevel_line_number(), end1, end2, center1, center2, turn, end3,
            AA_end, BB_end, CC_end, u, v, w);
   *current1 = end1;
   *current2 = end2;
@@ -752,16 +752,18 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
               hypot(center_x-cx,center_y-cy)) > spiral_abs_tolerance),
         NCE_BUG_IN_TOOL_RADIUS_COMP);
 
+    const int toplevel_line = settings->get_toplevel_line_number();
+
     // need this move for lathes to move the tool origin first.  otherwise, the arc isn't an arc.
     if (settings->cutter_comp.orientation != 0 && settings->cutter_comp.orientation != 9) {
-        enqueue_STRAIGHT_FEED(settings->plane, block->line_number,
+        enqueue_STRAIGHT_FEED(settings->plane, toplevel_line,
                               0, 0, 0,
                               cx, cy, cz,
                               AA_end, BB_end, CC_end, u_end, v_end, w_end, make_state_tag(*settings, block));
         set_endpoint(cx, cy);
     }
     
-    enqueue_ARC_FEED(block->line_number,
+    enqueue_ARC_FEED(toplevel_line,
                      find_turn(cx, cy, center_x, center_y, turn, end_x, end_y),
                      end_x, end_y, center_x, center_y, turn, end_z,
                      AA_end, BB_end, CC_end, u_end, v_end, w_end, make_state_tag(*settings, block));
@@ -891,6 +893,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     // move arc endpoint to the compensated position
     new_end_x = end_x + tool_radius * cos(gamma);
     new_end_y = end_y + tool_radius * sin(gamma);
+    const int toplevel_line = settings->get_toplevel_line_number();
 
     if (beta < -small || 
         beta > M_PIl + small ||
@@ -972,7 +975,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
           
             CHP(move_endpoint_and_flush(settings, midx, midy));
         }
-        enqueue_ARC_FEED(block->line_number,
+        enqueue_ARC_FEED(toplevel_line,
                          find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
                          AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block));
@@ -980,21 +983,21 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
         midx = opx + tool_radius * cos(delta);
         midy = opy + tool_radius * sin(delta);
         dequeue_canons(settings);
-        enqueue_ARC_FEED(block->line_number,
+        enqueue_ARC_FEED(toplevel_line,
                          0.0, // doesn't matter since we won't move this arc's endpoint
                          midx, midy, opx, opy, ((side == LEFT_COMP) ? -1 : 1),
                          cz,
                          AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block));
         dequeue_canons(settings);
         set_endpoint(midx, midy);
-        enqueue_ARC_FEED(block->line_number,
+        enqueue_ARC_FEED(toplevel_line,
                          find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
                          AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block));
     } else {                      /* convex, one arc needed */
         dequeue_canons(settings);
         set_endpoint(cx, cy);
-        enqueue_ARC_FEED(block->line_number,
+        enqueue_ARC_FEED(toplevel_line,
                          find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
                          AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block));
@@ -2366,16 +2369,16 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
 
   // move indexers first, one at a time
   if (AA_end != settings->current[A] && settings->a_indexer)
-      issue_straight_index(3, AA_end, block->line_number, settings);
+      issue_straight_index(3, AA_end, settings->get_toplevel_line_number(), settings);
   if (BB_end != settings->current[B] && settings->b_indexer)
-      issue_straight_index(4, BB_end, block->line_number, settings);
+      issue_straight_index(4, BB_end, settings->get_toplevel_line_number(), settings);
   if (CC_end != settings->current[C] && settings->c_indexer)
-      issue_straight_index(5, CC_end, block->line_number, settings);
+      issue_straight_index(5, CC_end, settings->get_toplevel_line_number(), settings);
 
   // Create a state tag and dump it to canon
   write_and_update_state_tag(block);
 
-  STRAIGHT_TRAVERSE(block->line_number, end_x, end_y, end_z,
+  STRAIGHT_TRAVERSE(settings->get_toplevel_line_number(), end_x, end_y, end_z,
                     AA_end, BB_end, CC_end,
                     u_end, v_end, w_end);
 
@@ -2450,13 +2453,13 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
 
   // move indexers first, one at a time
   if (AA_end != settings->current[A] && settings->a_indexer)
-      issue_straight_index(3, AA_end, block->line_number, settings);
+      issue_straight_index(3, AA_end, settings->get_toplevel_line_number(), settings);
   if (BB_end != settings->current[B] && settings->b_indexer)
-      issue_straight_index(4, BB_end, block->line_number, settings);
+      issue_straight_index(4, BB_end, settings->get_toplevel_line_number(), settings);
   if (CC_end != settings->current[C] && settings->c_indexer)
-      issue_straight_index(5, CC_end, block->line_number, settings);
+      issue_straight_index(5, CC_end, settings->get_toplevel_line_number(), settings);
 
-  STRAIGHT_TRAVERSE(block->line_number, end_x, end_y, end_z,
+  STRAIGHT_TRAVERSE(settings->get_toplevel_line_number(), end_x, end_y, end_z,
                     AA_end, BB_end, CC_end,
                     u_end, v_end, w_end);
   settings->current[X] = end_x;
@@ -3598,11 +3601,11 @@ int Interp::convert_probe(block_pointer block,   //!< pointer to a block of RS27
   if (block->p_flag) {
       CHKS(std::round(block->p_number) != 1.0,
            _("P%f is invalid for probe moves, must be one of {0,1}"), block->p_number);
-      STRAIGHT_PROBE_TO_LIMIT(block->line_number, end_x, end_y, end_z,
+      STRAIGHT_PROBE_TO_LIMIT(settings->get_toplevel_line_number(), end_x, end_y, end_z,
                      AA_end, BB_end, CC_end,
                      u_end, v_end, w_end, probe_type);
   } else {
-      STRAIGHT_PROBE(block->line_number, end_x, end_y, end_z,
+      STRAIGHT_PROBE(settings->get_toplevel_line_number(), end_x, end_y, end_z,
                      AA_end, BB_end, CC_end,
                      u_end, v_end, w_end, probe_type);
   }
@@ -4466,7 +4469,7 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
         write_and_update_state_tag(block);
         switch (move) {
         case G_0:
-    STRAIGHT_TRAVERSE(block->line_number, end_x, end_y, end_z,
+            STRAIGHT_TRAVERSE(settings->get_toplevel_line_number(), end_x, end_y, end_z,
                       AA_end, BB_end, CC_end,
                       u_end, v_end, w_end);
     settings->current[X] = end_x;
@@ -4474,7 +4477,7 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
     settings->current[Z] = end_z;
             break;
         case G_1:
-    STRAIGHT_FEED(block->line_number, end_x, end_y, end_z,
+            STRAIGHT_FEED(settings->get_toplevel_line_number(), end_x, end_y, end_z,
                   AA_end, BB_end, CC_end,
                   u_end, v_end, w_end);
     settings->current[X] = end_x;
@@ -4486,7 +4489,7 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
            (settings->spindle_turning != CANON_COUNTERCLOCKWISE)),
           _("Spindle not turning in G33"));
     START_SPEED_FEED_SYNCH(block->k_number, 0);
-    STRAIGHT_FEED(block->line_number, end_x, end_y, end_z, AA_end, BB_end, CC_end, u_end, v_end, w_end);
+            STRAIGHT_FEED(settings->get_toplevel_line_number(), end_x, end_y, end_z, AA_end, BB_end, CC_end, u_end, v_end, w_end);
     STOP_SPEED_FEED_SYNCH();
     settings->current[X] = end_x;
     settings->current[Y] = end_y;
@@ -4510,7 +4513,7 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
         tap_pitch *= block->j_number;
     }
     CHKS(tap_pitch <= 0.0, "Thread pitch must be greater than 0.0 for rigid tapping");
-    RIGID_TAP(block->line_number, end_x, end_y, end_z, spindle_retract_speed_scale, tap_pitch, retract_pitch);
+            RIGID_TAP(settings->get_toplevel_line_number(), end_x, end_y, end_z, spindle_retract_speed_scale, tap_pitch, retract_pitch);
     STOP_SPEED_FEED_SYNCH();
     // after the RIGID_TAP cycle we'll be in the same spot
         }
@@ -4566,13 +4569,13 @@ int Interp::convert_straight_indexer(int axis, block_pointer block, setup_pointe
 
     switch(axis) {
     case 3:
-        issue_straight_index(axis, AA_end, block->line_number, settings);
+        issue_straight_index(axis, AA_end, settings->get_toplevel_line_number(), settings);
         break;
     case 4:
-        issue_straight_index(axis, BB_end, block->line_number, settings);
+        issue_straight_index(axis, BB_end, settings->get_toplevel_line_number(), settings);
         break;
     case 5:
-        issue_straight_index(axis, CC_end, block->line_number, settings);
+        issue_straight_index(axis, CC_end, settings->get_toplevel_line_number(), settings);
         break;
     default:
         ERS((_("BUG: trying to index incorrect axis")));
@@ -4666,14 +4669,14 @@ threading_pass(setup_pointer settings, block_pointer block,
 
     if (d_number != 0) {
         // back
-        traverse(block->line_number,
+        traverse(settings->get_toplevel_line_number(),
                  // internal : external
                  boring? safe_x + depth - end_depth : safe_x - depth + end_depth,
                  start_y,
                  start_z - zoff);
 
         // in
-        traverse(block->line_number,
+        traverse(settings->get_toplevel_line_number(),
                  boring? safe_x + depth : safe_x - depth,
                  start_y,
                  start_z - zoff);
@@ -4681,55 +4684,55 @@ threading_pass(setup_pointer settings, block_pointer block,
         START_SPEED_FEED_SYNCH(pitch, 0);
 
         // over
-        feed(block->line_number,
+        feed(settings->get_toplevel_line_number(),
              boring? safe_x + depth + d_number : safe_x - depth + d_number,
              start_y,
              target_z - zoff);
 
         // out
         STOP_SPEED_FEED_SYNCH();
-        traverse(block->line_number,
+        traverse(settings->get_toplevel_line_number(),
                  boring? safe_x + depth - end_depth : safe_x - depth + end_depth,
                  start_y,
                  target_z - zoff);
         ENABLE_FEED_OVERRIDE();
 
     } else {
-        traverse(block->line_number, boring?
+        traverse(settings->get_toplevel_line_number(), boring?
                      safe_x + depth - end_depth:
                      safe_x - depth + end_depth,
                  start_y, start_z - zoff); //back
         if(taper_dist && entry_taper) {
             DISABLE_FEED_OVERRIDE();
             START_SPEED_FEED_SYNCH(taper_pitch, 0);
-            feed(block->line_number, boring?
+            feed(settings->get_toplevel_line_number(), boring?
                      safe_x + depth - full_threadheight:
                      safe_x - depth + full_threadheight,
                  start_y, start_z - zoff); //in
-            feed(block->line_number, boring? safe_x + depth: safe_x - depth, //angled in
+            feed(settings->get_toplevel_line_number(), boring? safe_x + depth: safe_x - depth, //angled in
                  start_y, start_z - zoff - taper_dist);
             START_SPEED_FEED_SYNCH(pitch, 0);
         } else {
-            traverse(block->line_number, boring? safe_x + depth: safe_x - depth,
+            traverse(settings->get_toplevel_line_number(), boring? safe_x + depth: safe_x - depth,
                      start_y, start_z - zoff); //in
             DISABLE_FEED_OVERRIDE();
             START_SPEED_FEED_SYNCH(pitch, 0);
         }
 
         if(taper_dist && exit_taper) {
-            feed(block->line_number, boring? safe_x + depth: safe_x - depth,  //over
+            feed(settings->get_toplevel_line_number(), boring? safe_x + depth: safe_x - depth,  //over
                  start_y, target_z - zoff + taper_dist);
             START_SPEED_FEED_SYNCH(taper_pitch, 0);
-            feed(block->line_number, boring?
+            feed(settings->get_toplevel_line_number(), boring?
                      safe_x + depth - full_threadheight:
                      safe_x - depth + full_threadheight,
                  start_y, target_z - zoff); //angled out
         } else {
-            feed(block->line_number, boring? safe_x + depth: safe_x - depth,
+            feed(settings->get_toplevel_line_number(), boring? safe_x + depth: safe_x - depth,
                  start_y, target_z - zoff); //over
         }
         STOP_SPEED_FEED_SYNCH();
-        traverse(block->line_number, boring?
+        traverse(settings->get_toplevel_line_number(), boring?
                      safe_x + depth - end_depth:
                      safe_x - depth + end_depth,
                  start_y, target_z - zoff); //out
@@ -4834,7 +4837,7 @@ int Interp::convert_threading_cycle(block_pointer block,
     } 
     write_and_update_state_tag(block);
     StraightTraverseXYZ traverse(settings->current);
-    traverse(block->line_number, end_x, end_y, end_z);
+    traverse(settings->get_toplevel_line_number(), end_x, end_y, end_z);
     settings->current[X] = end_x;
     settings->current[Y] = end_y;
     settings->current[Z] = end_z;
@@ -4915,13 +4918,13 @@ int Interp::convert_straight_comp1(int move,     //!< either G_0 or G_1
 
     auto const tag = make_state_tag(*settings, block);
     if (move == G_0) {
-        enqueue_STRAIGHT_TRAVERSE(settings->plane, block->line_number,
+        enqueue_STRAIGHT_TRAVERSE(settings->plane, settings->get_toplevel_line_number(),
                                   cos(alpha), sin(alpha), 0, 
                                   end_x, end_y, pz,
                                   AA_end, BB_end, CC_end, u_end, v_end, w_end, tag);
     }
     else if (move == G_1) {
-        enqueue_STRAIGHT_FEED(settings->plane, block->line_number,
+        enqueue_STRAIGHT_FEED(settings->plane, settings->get_toplevel_line_number(),
                               cos(alpha), sin(alpha), 0,
                               end_x, end_y, pz,
                               AA_end, BB_end, CC_end, u_end, v_end, w_end, tag);
@@ -5035,14 +5038,15 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
     comp_get_programmed(settings, &opx, &opy, &opz);
 
     auto const tag = make_state_tag(*settings, block);
+    const int toplevel_line = settings->get_toplevel_line_number();
     if ((py == opy) && (px == opx)) {     /* no XY motion */
         if (move == G_0) {
-            enqueue_STRAIGHT_TRAVERSE(settings->plane, block->line_number,
+            enqueue_STRAIGHT_TRAVERSE(settings->plane, toplevel_line,
                                       px - opx, py - opy, pz - opz, 
                                       cx, cy, pz,
                                       AA_end, BB_end, CC_end, u_end, v_end, w_end, tag);
         } else if (move == G_1) {
-            enqueue_STRAIGHT_FEED(settings->plane, block->line_number,
+            enqueue_STRAIGHT_FEED(settings->plane, toplevel_line,
                                   px - opx, py - opy, pz - opz, 
                                   cx, cy, pz, AA_end, BB_end, CC_end, u_end, v_end, w_end, tag);
         } else
@@ -5093,7 +5097,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
         if (!concave && (beta > small)) {       /* ARC NEEDED */
             CHP(move_endpoint_and_flush(settings, cx, cy));
             if(move == G_1) {
-                enqueue_ARC_FEED(block->line_number,
+                enqueue_ARC_FEED(toplevel_line,
                                  0.0, // doesn't matter, since we will not move this arc's endpoint
                                  mid_x, mid_y, opx, opy,
                                  ((side == LEFT_COMP) ? -1 : 1), cz,
@@ -5106,7 +5110,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
                 // most of our rapid will be parallel to the original
                 // programmed one.  if nothing else, this will look a
                 // little less confusing in the preview.
-                enqueue_STRAIGHT_TRAVERSE(settings->plane, block->line_number,
+                enqueue_STRAIGHT_TRAVERSE(settings->plane, toplevel_line,
                                           0.0, 0.0, 0.0, 
                                           mid_x, mid_y, cz, 
                                           AA_end, BB_end, CC_end,
@@ -5182,7 +5186,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
             set_endpoint(cx, cy);
         }
         (move == G_0? enqueue_STRAIGHT_TRAVERSE: enqueue_STRAIGHT_FEED)
-            (settings->plane, block->line_number,
+            (settings->plane, toplevel_line,
              px - opx, py - opy, pz - opz, 
              end_x, end_y, pz,
              AA_end, BB_end, CC_end, 
