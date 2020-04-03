@@ -1415,12 +1415,14 @@ int Interp::read_operation_unary(char *line,     //!< string: line of RS274/NGC 
       if (match_suffix_and_adv("fix", line, counter)) {*operation = FIX; break;}
       if (match_suffix_and_adv("fup", line, counter)) {*operation = FUP; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
+  case 'g':
+      if (match_suffix_and_adv("golden", line, counter)) {*operation = CONST_GOLDEN_RATIO; break;}
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 'l':
       if (match_suffix_and_adv("ln", line, counter)) {*operation = LN; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 'p':
       if (match_suffix_and_adv("pi", line, counter)) {*operation = CONST_PI; break;}
-      if (match_suffix_and_adv("phi", line, counter)) {*operation = CONST_GOLDEN_RATIO; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 'r':
       if (match_suffix_and_adv("round", line, counter)) {*operation = ROUND; break;}
@@ -3224,7 +3226,7 @@ int Interp::read_unary(char *line,       //!< string: line of RS274/NGC code bei
   CHKS((line[*counter] != '['),
       NCE_LEFT_BRACKET_MISSING_AFTER_UNARY_OPERATION_NAME);
 
-  switch (operation) {
+  switch ((UnaryOperations)operation) {
   case EXISTS: // A special case because we're passing a name, not a value
       CHP(read_bracketed_parameter(line, counter, double_ptr, parameters, true));
       return INTERP_OK;
@@ -3258,9 +3260,12 @@ int Interp::read_unary(char *line,       //!< string: line of RS274/NGC code bei
 
   // nullary functions (taking no arguments), expect an empty expression and error otherwise
   case CONST_PI:
+  case CONST_GOLDEN_RATIO:
       CHP(read_empty_expression(line, counter, "pi"));
       CHP(execute_unary(double_ptr, operation));
       return INTERP_OK;
+  case INVALID_OPERATION:
+      break;
   }
   ERS("Unknown unary function type %d", operation);
 }

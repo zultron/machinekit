@@ -116,3 +116,30 @@ SCENARIO("Interp Non-modal incremental words G90.2 and G91.2")
     }
   }
 }
+
+SCENARIO("Constants in G-code expressions")
+{
+  DECL_INIT_TEST_INTERP();
+
+  REQUIRE_INTERP_OK(test_interp, execute("G20 G90"));
+  REQUIRE_INTERP_OK(test_interp, execute("G0 X0 Y0 Z0"));
+
+  GIVEN ("Constants embedded in G-code math")
+  {
+      THEN("pi")
+      {
+      REQUIRE_INTERP_OK(test_interp, execute("G0 X[2*PI[]/3]"));
+      CHECK_FUZZ(currentX(settings), 2./3.*M_PI);
+      CHECK_FUZZ(currentY(settings), 0);
+      CHECK_FUZZ(currentZ(settings), 0);
+      }
+      THEN("golden ratio")
+      {
+      REQUIRE_INTERP_OK(test_interp, execute("G0 X[2*GOLDEN[]/3]"));
+      CHECK_FUZZ(currentX(settings), 2./3. * 1.61803398874989484820458683436563811);
+      CHECK_FUZZ(currentY(settings), 0);
+      CHECK_FUZZ(currentZ(settings), 0);
+      }
+  }
+
+}
