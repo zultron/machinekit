@@ -5,6 +5,7 @@ g90 ; absolute coordinates mode
 g20 ; imperial
 
 f10
+M3 S1000
 
 ; starting position
 g0 x0 y0 z2
@@ -15,13 +16,13 @@ g0 x0 y0 z2
 ;
 
 (number 1: Z[-1] < R[1] < OLD_Z[2])
-g84 x1 y1 z-1 r1
+g84.1 x1 y1 z-1 r1 p0.0
 
 (number 2: Z[0.5] < OLD_Z[1] < R[3])
-g84 x1 y2 z0.5 r3
+g84.1 x1 y2 z0.5 r3 p0.0
 
 (number 3: OLD_Z[3] < Z[4] < R[5])
-g84 x1 y3 z4 r5
+g84.1 x1 y3 z4 r5 p0.0
 
 
 ;
@@ -30,15 +31,15 @@ g84 x1 y3 z4 r5
 
 (number 4: Z[-1] < R[1] < OLD_Z[2])
 g90 g0 x10 y0 z2
-g91 g84 x1 y1 z-2 r-1 l2
+g91 g84.1 x1 y1 z-2 r-1 l2 p0.0
 
 (number 5: Z[0.5] < OLD_Z[2] < R[3])
 g90 g0 x20 y0 z2
-g91 g84 x1 y1 z-2.5 r1 l2
+g91 g84.1 x1 y1 z-2.5 r1 l2 p0.0
 
 (number 6: OLD_Z[2] < Z[4] < R[5])
 g90 g0 x30 y0 z2
-g91 g84 x1 y1 z-1 r3 l2
+g91 g84.1 x1 y1 z-1 r3 l2 p0.0
 
 
 (done)
