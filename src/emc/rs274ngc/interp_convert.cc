@@ -4000,32 +4000,20 @@ int Interp::convert_set_plane(int g_code,        //!< must be G_17, G_18, or G_1
   CHKS((settings->cutter_comp.side && g_code == G_19),
           NCE_RADIUS_COMP_ONLY_IN_XY_OR_XZ);
 
-  if (g_code == G_17) {
-    settings->plane = CANON_PLANE_XY;
-    write_and_update_state_tag(nullptr);
-    SELECT_PLANE(CANON_PLANE_XY);
-  } else if (g_code == G_18) {
-    settings->plane = CANON_PLANE_XZ;
-    write_and_update_state_tag(nullptr);
-    SELECT_PLANE(CANON_PLANE_XZ);
-  } else if (g_code == G_19) {
-    write_and_update_state_tag(nullptr);
-    settings->plane = CANON_PLANE_YZ;
-    SELECT_PLANE(CANON_PLANE_YZ);
-  } else if (g_code == G_17_1) {
-    settings->plane = CANON_PLANE_UV;
-    write_and_update_state_tag(nullptr);
-    SELECT_PLANE(CANON_PLANE_UV);
-  } else if (g_code == G_18_1) {
-    settings->plane = CANON_PLANE_UW;
-    write_and_update_state_tag(nullptr);
-    SELECT_PLANE(CANON_PLANE_UW);
-  } else if (g_code == G_19_1) {
-    settings->plane = CANON_PLANE_VW;
-    write_and_update_state_tag(nullptr);
-    SELECT_PLANE(CANON_PLANE_VW);
-  } else
+  CANON_PLANE plane = CANON_PLANE_XY;
+  switch (g_code) {
+  case G_17: plane = CANON_PLANE_XY; break;
+  case G_18: plane = CANON_PLANE_XZ; break;
+  case G_19: plane = CANON_PLANE_YZ; break;
+  case G_17_1: plane = CANON_PLANE_UV; break;
+  case G_18_1: plane = CANON_PLANE_UW; break;
+  case G_19_1: plane = CANON_PLANE_VW; break;
+  default:
     ERS(NCE_BUG_CODE_NOT_G17_G18_OR_G19);
+  }
+  settings->plane = plane;
+  write_and_update_state_tag(nullptr);
+  SELECT_PLANE(plane);
   return INTERP_OK;
 }
 
