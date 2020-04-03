@@ -383,8 +383,8 @@ public:
  int convert_distance_mode(int g_code, setup_pointer settings);
  int convert_ijk_distance_mode(int g_code, setup_pointer settings);
  int convert_lathe_diameter_mode(int g_code, block_pointer block, setup_pointer settings);
- int convert_dwell(setup_pointer settings, double time);
- int convert_feed_mode(int g_code, setup_pointer settings);
+ int convert_dwell(setup_pointer settings, block_pointer block, double time);
+ int convert_feed_mode(int g_code, setup_pointer settings, block_pointer block);
  int convert_feed_rate(block_pointer block, setup_pointer settings);
     int convert_g(block_pointer block, setup_pointer settings);
  int convert_home(int move, block_pointer block,
@@ -875,6 +875,8 @@ protected:
     bool error_has_context;
 
 };
+
+StateTag make_state_tag(setup_struct const &s, block_pointer block);
 
 bool toolOffsetActive(setup_struct const *s);
 

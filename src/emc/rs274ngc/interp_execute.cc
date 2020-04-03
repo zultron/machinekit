@@ -262,9 +262,6 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
       settings->stepping_id++;
   }
 
-  //KLUDGE stuff the tag here so that at least the line is correct, but not much else
-  write_and_update_state_tag(block);
-
   if ((block->comment[0] != 0) && ONCE(STEP_COMMENT)) {
     status = convert_comment(block->comment);
     CHP(status);
@@ -274,7 +271,7 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
       CHP(status);
   }
   if ((block->g_modes[GM_FEED_MODE] != -1) && ONCE(STEP_FEED_MODE)) {
-      status = convert_feed_mode(block->g_modes[GM_FEED_MODE], settings);
+      status = convert_feed_mode(block->g_modes[GM_FEED_MODE], settings, block);
       CHP(status);
 
   }

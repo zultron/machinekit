@@ -198,18 +198,23 @@ int Interp::write_settings(setup_struct const *settings,     //!< pointer to mac
   return INTERP_OK;
 }
 
-int Interp::write_state_tag(block_pointer block, StateTag &state) const
+int Interp::write_state_tag(block_pointer block, StateTag & state) const
 {
-    if (_setup.skipping_to_sub) {
-	logDebug("write_and_update_state_tag:  not tagging block while skipping");
-	return 0;
+    if (!_setup.skipping_to_sub) {
+        state = make_state_tag(_setup, block);
     }
-    state.fields[GM_FIELD_LINE_NUMBER] = _setup.get_toplevel_line_number();
-    state.fields[GM_FIELD_STEPPING_ID] = _setup.stepping_id;
+    return 0;
+}
+
+StateTag make_state_tag(setup_struct const &s, block_pointer block)
+{
+    StateTag state;
+    state.fields[GM_FIELD_LINE_NUMBER] = s.get_toplevel_line_number();
+    state.fields[GM_FIELD_STEPPING_ID] = s.stepping_id;
     //FIXME refactor these into setup methods, and maybe put this whole method in setup struct
-    bool in_remap = (remap_level() > 0);
-    bool in_sub = (call_level() > 0 && remap_level() == 0);
-    bool external_sub = strcmp(_setup.filename, _setup.sub_context[0].filename);
+    bool in_remap = (s.remap_level > 0);
+    bool in_sub = (s.call_level > 0 && s.remap_level == 0);
+    bool external_sub = strcmp(s.filename, s.sub_context[0].filename);
 
     state.flags[GM_FLAG_IN_REMAP] = in_remap;
     state.flags[GM_FLAG_IN_SUB] = in_sub;
@@ -217,53 +222,53 @@ int Interp::write_state_tag(block_pointer block, StateTag &state) const
     // Tormach - change so that all tags are restorable.  This may change in future
     state.flags[GM_FLAG_RESTORABLE] = 1;
     state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[GM_MODAL_0]);
-    state.fields[GM_FIELD_MOTION_MODE] = _setup.motion_mode;
-    state.setActivePlane(_setup.plane);
+    state.fields[GM_FIELD_MOTION_MODE] = s.motion_mode;
+    state.setActivePlane(s.plane);
 
     state.fields[GM_FIELD_CUTTER_COMP] =
-        (_setup.cutter_comp.side == RIGHT_COMP) ? G_42 :
-        (_setup.cutter_comp.side == LEFT_COMP) ? G_41 : G_40;
+        (s.cutter_comp.side == RIGHT_COMP) ? G_42 :
+        (s.cutter_comp.side == LEFT_COMP) ? G_41 : G_40;
 
-    state.flags[GM_FLAG_UNITS] = (_setup.length_units == CANON_UNITS_INCHES);
+    state.flags[GM_FLAG_UNITS] = (s.length_units == CANON_UNITS_INCHES);
 
-    state.flags[GM_FLAG_DISTANCE_MODE] = (_setup.distance_mode == MODE_ABSOLUTE);
-    state.flags[GM_FLAG_FEED_INVERSE_TIME] = (_setup.feed_mode == INVERSE_TIME);
-    state.flags[GM_FLAG_FEED_UPM] = (_setup.feed_mode == UNITS_PER_MINUTE);
+    state.flags[GM_FLAG_DISTANCE_MODE] = (s.distance_mode == MODE_ABSOLUTE);
+    state.flags[GM_FLAG_FEED_INVERSE_TIME] = (s.feed_mode == INVERSE_TIME);
+    state.flags[GM_FLAG_FEED_UPM] = (s.feed_mode == UNITS_PER_MINUTE);
 
 
-    state.fields[GM_FIELD_WORK_OFFSET_NUMBER] = _setup.origin_index;
+    state.fields[GM_FIELD_WORK_OFFSET_NUMBER] = s.origin_index;
 
-    state.flags[GM_FLAG_TOOL_OFFSETS_ON] = toolOffsetActive(&_setup);
-    state.flags[GM_FLAG_RETRACT_OLDZ] = (_setup.cycle.retract_mode == OLD_Z);
-    state.flags[GM_FLAG_CONTINUOUS_PATH] = (_setup.control_mode == CANON_CONTINUOUS);
-    state.flags[GM_FLAG_EXACT_STOP] = (_setup.control_mode == CANON_EXACT_STOP);
-    state.flags[GM_FLAG_CSS_MODE] = (_setup.spindle_mode == CONSTANT_RPM);
-    state.flags[GM_FLAG_IJK_ABS] = (_setup.ijk_distance_mode == MODE_ABSOLUTE);
-    state.flags[GM_FLAG_DIAMETER_MODE] = (_setup.lathe_diameter_mode);
+    state.flags[GM_FLAG_TOOL_OFFSETS_ON] = toolOffsetActive(&s);
+    state.flags[GM_FLAG_RETRACT_OLDZ] = (s.cycle.retract_mode == OLD_Z);
+    state.flags[GM_FLAG_CONTINUOUS_PATH] = (s.control_mode == CANON_CONTINUOUS);
+    state.flags[GM_FLAG_EXACT_STOP] = (s.control_mode == CANON_EXACT_STOP);
+    state.flags[GM_FLAG_CSS_MODE] = (s.spindle_mode == CONSTANT_RPM);
+    state.flags[GM_FLAG_IJK_ABS] = (s.ijk_distance_mode == MODE_ABSOLUTE);
+    state.flags[GM_FLAG_DIAMETER_MODE] = (s.lathe_diameter_mode);
 
     state.fields[GM_FIELD_M_MODE_STOPPING] = (block == NULL) ? -1 : block->m_modes[M_MODE_STOPPING];
 
-    state.flags[GM_FLAG_SPINDLE_ON] = !(_setup.spindle_turning != CANON_STOPPED);
-    state.flags[GM_FLAG_SPINDLE_CW] = (_setup.spindle_turning == CANON_CLOCKWISE);
+    state.flags[GM_FLAG_SPINDLE_ON] = !(s.spindle_turning != CANON_STOPPED);
+    state.flags[GM_FLAG_SPINDLE_CW] = (s.spindle_turning == CANON_CLOCKWISE);
 
     state.fields[GM_FIELD_TOOLCHANGE] = (block == NULL) ? -1 : block->m_modes[M_MODE_TOOLCHANGE];
 
-    state.fields[GM_FIELD_POCKET_NUMBER] = (_setup.current_pocket);
-    state.fields[GM_FIELD_TOOL_OFFSET_NUMBER] = _setup.tool_offset_number;
+    state.fields[GM_FIELD_POCKET_NUMBER] = (s.current_pocket);
+    state.fields[GM_FIELD_TOOL_OFFSET_NUMBER] = s.tool_offset_number;
 
-    state.flags[GM_FLAG_MIST] = (_setup.mist) ;
-    state.flags[GM_FLAG_FLOOD] = (_setup.flood);
+    state.flags[GM_FLAG_MIST] = (s.mist) ;
+    state.flags[GM_FLAG_FLOOD] = (s.flood);
 
-    state.flags[GM_FLAG_FEED_OVERRIDE] = _setup.feed_override;
-    state.flags[GM_FLAG_SPEED_OVERRIDE] = _setup.speed_override;
+    state.flags[GM_FLAG_FEED_OVERRIDE] = s.feed_override;
+    state.flags[GM_FLAG_SPEED_OVERRIDE] = s.speed_override;
 
-    state.flags[GM_FLAG_ADAPTIVE_FEED] = (_setup.allow_adaptive_feed);
+    state.flags[GM_FLAG_ADAPTIVE_FEED] = (s.allow_adaptive_feed);
 
-    state.flags[GM_FLAG_FEED_HOLD] =  (_setup.allow_feed_hold);
+    state.flags[GM_FLAG_FEED_HOLD] =  (s.allow_feed_hold);
 
-    state.feed = _setup.feed_rate;        /* 1 feed rate       */
-    state.speed = _setup.speed;    /* 2 spindle speed   */
-    return 0;
+    state.feed = s.feed_rate;        /* 1 feed rate       */
+    state.speed = s.speed;    /* 2 spindle speed   */
+    return state;
 }
 
 int Interp::write_and_update_state_tag(block_pointer block)

@@ -751,21 +751,19 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
               hypot(center_x-cx,center_y-cy)) > spiral_abs_tolerance),
         NCE_BUG_IN_TOOL_RADIUS_COMP);
 
-    write_and_update_state_tag(block);
-
     // need this move for lathes to move the tool origin first.  otherwise, the arc isn't an arc.
     if (settings->cutter_comp.orientation != 0 && settings->cutter_comp.orientation != 9) {
         enqueue_STRAIGHT_FEED(settings->plane, block->line_number,
                               0, 0, 0,
                               cx, cy, cz,
-                              AA_end, BB_end, CC_end, u_end, v_end, w_end);
+                              AA_end, BB_end, CC_end, u_end, v_end, w_end, make_state_tag(*settings, block));
         set_endpoint(cx, cy);
     }
     
     enqueue_ARC_FEED(block->line_number,
                      find_turn(cx, cy, center_x, center_y, turn, end_x, end_y),
                      end_x, end_y, center_x, center_y, turn, end_z,
-                     AA_end, BB_end, CC_end, u_end, v_end, w_end);
+                     AA_end, BB_end, CC_end, u_end, v_end, w_end, make_state_tag(*settings, block));
 
     comp_set_current(settings, end_x, end_y, end_z);
     settings->current[A] = AA_end;
@@ -973,35 +971,32 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
           
             CHP(move_endpoint_and_flush(settings, midx, midy));
         }
-	write_and_update_state_tag(block);
         enqueue_ARC_FEED(block->line_number,
                          find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
-                         AA_end, BB_end, CC_end, u, v, w);
+                         AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block));
     } else if (beta > small) {           /* convex, two arcs needed */
         midx = opx + tool_radius * cos(delta);
         midy = opy + tool_radius * sin(delta);
-	write_and_update_state_tag(block);
         dequeue_canons(settings);
         enqueue_ARC_FEED(block->line_number,
                          0.0, // doesn't matter since we won't move this arc's endpoint
                          midx, midy, opx, opy, ((side == LEFT_COMP) ? -1 : 1),
                          cz,
-                         AA_end, BB_end, CC_end, u, v, w);
+                         AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block));
         dequeue_canons(settings);
         set_endpoint(midx, midy);
         enqueue_ARC_FEED(block->line_number,
                          find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
-                         AA_end, BB_end, CC_end, u, v, w);
+                         AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block));
     } else {                      /* convex, one arc needed */
-	write_and_update_state_tag(block);
         dequeue_canons(settings);
         set_endpoint(cx, cy);
         enqueue_ARC_FEED(block->line_number,
                          find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
-                         AA_end, BB_end, CC_end, u, v, w);
+                         AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block));
     }
 
     comp_set_programmed(settings, end_x, end_y, end_z);
@@ -2041,10 +2036,9 @@ Called by: convert_g.
 
 */
 
-int Interp::convert_dwell(setup_pointer settings, double time)   //!< time in seconds to dwell  */
+int Interp::convert_dwell(setup_pointer settings, block_pointer block, double time)   //!< time in seconds to dwell  */
 {
-    write_and_update_state_tag(nullptr);
-  enqueue_DWELL(time);
+  enqueue_DWELL(time, make_state_tag(*settings, block));
   return INTERP_OK;
 }
 
@@ -2071,36 +2065,40 @@ Called by: execute_block.
 */
 
 int Interp::convert_feed_mode(int g_code,        //!< g_code being executed (must be G_93, G_94 or G_95)
-                             setup_pointer settings)    //!< pointer to machine settings                 
+                             setup_pointer settings,
+                             block_pointer block)    //!< pointer to machine settings
 {
-  if (g_code == G_93) {
+    auto tag = make_state_tag(*settings, block);
+    switch (g_code) {
+    case G_93:
 #ifdef DEBUG_EMC
-    enqueue_COMMENT("interpreter: feed mode set to inverse time");
+        enqueue_COMMENT("interpreter: feed mode set to inverse time");
 #endif
-    settings->feed_mode = INVERSE_TIME;
-    write_and_update_state_tag(nullptr);
-    enqueue_SET_FEED_MODE(0);
-  } else if (g_code == G_94) {
+        settings->feed_mode = INVERSE_TIME;
+        enqueue_SET_FEED_MODE(0, tag);
+        break;
+    case G_94:
 #ifdef DEBUG_EMC
-    enqueue_COMMENT("interpreter: feed mode set to units per minute");
+        enqueue_COMMENT("interpreter: feed mode set to units per minute");
 #endif
-    settings->feed_mode = UNITS_PER_MINUTE;
-    settings->feed_rate = 0.0;
-    write_and_update_state_tag(nullptr);
-    enqueue_SET_FEED_MODE(0);
-    enqueue_SET_FEED_RATE(0);
-  } else if(g_code == G_95) {
+        settings->feed_mode = UNITS_PER_MINUTE;
+        settings->feed_rate = 0.0;
+        enqueue_SET_FEED_MODE(0, tag);
+        enqueue_SET_FEED_RATE(0, tag);
+        break;
+    case G_95:
 #ifdef DEBUG_EMC
-    enqueue_COMMENT("interpreter: feed mode set to units per revolution");
+        enqueue_COMMENT("interpreter: feed mode set to units per revolution");
 #endif
-    settings->feed_mode = UNITS_PER_REVOLUTION;
-    settings->feed_rate = 0.0;
-    write_and_update_state_tag(nullptr);
-    enqueue_SET_FEED_MODE(1);
-    enqueue_SET_FEED_RATE(0);
-  } else
-    ERS("BUG: Code not G93, G94, or G95");
-  return INTERP_OK;
+        settings->feed_mode = UNITS_PER_REVOLUTION;
+        settings->feed_rate = 0.0;
+        enqueue_SET_FEED_MODE(1, tag);
+        enqueue_SET_FEED_RATE(0, tag);
+        break;
+    default:
+        ERS("BUG: Code not G93, G94, or G95");
+    }
+    return INTERP_OK;
 }
 
 /****************************************************************************/
@@ -2124,8 +2122,7 @@ int Interp::convert_feed_rate(block_pointer block,       //!< pointer to a block
                              setup_pointer settings)    //!< pointer to machine settings             
 {
   settings->feed_rate = block->f_number;
-  write_and_update_state_tag(block);
-  enqueue_SET_FEED_RATE(block->f_number);
+  enqueue_SET_FEED_RATE(block->f_number, make_state_tag(*settings, block));
   return INTERP_OK;
 }
 
@@ -2194,7 +2191,7 @@ int Interp::convert_g(block_pointer block,       //!< pointer to a block of RS27
     int status;
 
     if ((block->g_modes[GM_MODAL_0] == G_4) && ONCE(STEP_DWELL)) {
-      status = convert_dwell(settings, block->p_number);
+      status = convert_dwell(settings, block, block->p_number);
       CHP(status);
     }
     if ((block->g_modes[GM_SET_PLANE] != -1) && ONCE(STEP_SET_PLANE)) {
@@ -3107,7 +3104,8 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
   }
   //#endif
   
- 
+  auto const tag = make_state_tag(*settings, block);
+
   if ((block->m_modes[M_MODE_SPINDLE] != -1) && ONCE_M(7)) {
   
       bool remapped_in_block = STEP_REMAPPED_IN_BLOCK(block, STEP_M_7);
@@ -3124,32 +3122,27 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
   
       if (block->m_modes[M_MODE_SPINDLE] == 3) {
         settings->spindle_turning = CANON_CLOCKWISE;
-        write_and_update_state_tag(block);
-        enqueue_START_SPINDLE_CLOCKWISE();
+        enqueue_START_SPINDLE_CLOCKWISE(tag);
       } else if (block->m_modes[M_MODE_SPINDLE] == 4) {
         settings->spindle_turning = CANON_COUNTERCLOCKWISE;
-        write_and_update_state_tag(block);
-        enqueue_START_SPINDLE_COUNTERCLOCKWISE();
+        enqueue_START_SPINDLE_COUNTERCLOCKWISE(tag);
       } else if (block->m_modes[M_MODE_SPINDLE] == 5) {
         settings->spindle_turning = CANON_STOPPED;
-        write_and_update_state_tag(block);
-        enqueue_STOP_SPINDLE_TURNING();
+        enqueue_STOP_SPINDLE_TURNING(tag);
       } else if (block->m_modes[M_MODE_SPINDLE] == 19) {
           settings->spindle_turning = CANON_STOPPED;
           if (block->r_flag || block->p_flag || block->q_flag) {
               settings->wait_flags.set(ORIENT);
-  	    write_and_update_state_tag(block);
-  	    enqueue_ORIENT_SPINDLE(
-  	        (block->r_flag ? (block->r_number + settings->orient_offset)
-  	         : settings->orient_offset),
-  	        block->p_flag ? block->p_number : 0);
+              enqueue_ORIENT_SPINDLE(
+                  (block->r_flag ? (block->r_number + settings->orient_offset)
+                                 : settings->orient_offset),
+                  block->p_flag ? block->p_number : 0, tag);
 
-       	     if (block->q_flag) {
-  	       //CHKS((block->q_number <= 0.0),(_("Q word with M19 requires a value > 0")));
-  	       // Q < 0.0 means don't make a timeout and error, let the g code handle it.
-  	       write_and_update_state_tag(block);
-  	       enqueue_WAIT_ORIENT_SPINDLE_COMPLETE(block->q_number);
-  	     }
+              if (block->q_flag) {
+                  //CHKS((block->q_number <= 0.0),(_("Q word with M19 requires a value > 0")));
+                  // Q < 0.0 means don't make a timeout and error, let the g code handle it.
+                  enqueue_WAIT_ORIENT_SPINDLE_COMPLETE(block->q_number, tag);
+              }
           }
       } else if ((block->m_modes[M_MODE_SPINDLE] == 70) || (block->m_modes[M_MODE_SPINDLE] == 73)) {
        // save state in current stack frame. We borrow the o-word call stack
@@ -3180,24 +3173,20 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
     }
   }
 
-
   if (IS_USER_MCODE(block,settings,8) && ONCE_M(8)) {
      return convert_remapped_code(block, settings, STEP_M_8, 'm',
                    block->m_modes[M_MODE_COOLANT]);
   } else if ((block->m_modes[M_MODE_COOLANT] == 7) && ONCE_M(8)){
       settings->mist = true;
-      write_and_update_state_tag(block);
-      enqueue_MIST_ON();
+      enqueue_MIST_ON(tag);
   } else if ((block->m_modes[M_MODE_COOLANT] == 8) && ONCE_M(8)) {
       settings->flood = true;
-      write_and_update_state_tag(block);
-      enqueue_FLOOD_ON();
+      enqueue_FLOOD_ON(tag);
   } else if ((block->m_modes[M_MODE_COOLANT] == 9) && ONCE_M(8)) {
       settings->flood = false;
       settings->mist = false;
-      write_and_update_state_tag(block);
-      enqueue_MIST_OFF();
-      enqueue_FLOOD_OFF();
+      enqueue_MIST_OFF(tag);
+      enqueue_FLOOD_OFF(tag);
   }
 
 /* No axis clamps in this version
@@ -3224,7 +3213,7 @@ if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
          (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
     settings->feed_override = true;
     settings->speed_override = true;
-    write_and_update_state_tag(block);
+    UPDATE_TAG(tag);
     ENABLE_FEED_OVERRIDE();
     ENABLE_SPEED_OVERRIDE();
  } else if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 49)  && ONCE_M(9)){
@@ -3232,7 +3221,7 @@ if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
          (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
     settings->feed_override = false;
     settings->speed_override = false;
-    write_and_update_state_tag(block);
+    UPDATE_TAG(tag);
     DISABLE_FEED_OVERRIDE();
     DISABLE_SPEED_OVERRIDE();
   }
@@ -3242,13 +3231,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 50)  && ONCE_M(9)){
         CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
 	settings->feed_override = true;
-	write_and_update_state_tag(block);
+    UPDATE_TAG(tag);
 	ENABLE_FEED_OVERRIDE();
     } else {
         CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
 	settings->feed_override = false;
-	write_and_update_state_tag(block);
+    UPDATE_TAG(tag);
         DISABLE_FEED_OVERRIDE();
     }
   }
@@ -3259,13 +3248,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 51)  && ONCE_M(9)){
         CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
 	settings->speed_override = true;
-	write_and_update_state_tag(block);
+    UPDATE_TAG(tag);
 	ENABLE_SPEED_OVERRIDE();
     } else {
         CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
 	settings->speed_override = false;
-	write_and_update_state_tag(block);
+    UPDATE_TAG(tag);
 	DISABLE_SPEED_OVERRIDE();
     }
   }
@@ -3275,13 +3264,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 52)  && ONCE_M(9)){
         CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
     settings->allow_adaptive_feed = true;
-	write_and_update_state_tag(block);
+    UPDATE_TAG(tag);
 	ENABLE_ADAPTIVE_FEED();
     } else {
         CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
     settings->allow_adaptive_feed = false;
-	write_and_update_state_tag(block);
+    UPDATE_TAG(tag);
 	DISABLE_ADAPTIVE_FEED();
     }
   }
@@ -3291,13 +3280,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 53)  && ONCE_M(9)){
         CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
     settings->allow_feed_hold = true;
-	write_and_update_state_tag(block);
+    UPDATE_TAG(tag);
 	ENABLE_FEED_HOLD();
     } else {
         CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
     settings->allow_feed_hold = false;
-	write_and_update_state_tag(block);
+    UPDATE_TAG(tag);
 	DISABLE_FEED_HOLD();
     }
   }
@@ -3319,7 +3308,7 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
     if (USER_DEFINED_FUNCTION[index - 100] == 0) {
       CHKS(1, NCE_UNKNOWN_M_CODE_USED,index);
     }
-    enqueue_M_USER_COMMAND(index,block->p_number,block->q_number);
+    enqueue_M_USER_COMMAND(index,block->p_number,block->q_number, tag);
   }
   return INTERP_OK;
 }
@@ -4036,8 +4025,7 @@ int Interp::convert_speed(block_pointer block,   //!< pointer to a block of RS27
                          setup_pointer settings)        //!< pointer to machine settings             
 {
   settings->speed = block->s_number;
-  write_and_update_state_tag(block);
-  enqueue_SET_SPINDLE_SPEED(block->s_number);
+  enqueue_SET_SPINDLE_SPEED(block->s_number, make_state_tag(*settings, block));
   return INTERP_OK;
 }
 
@@ -4045,15 +4033,13 @@ int Interp::convert_spindle_mode(block_pointer block, setup_pointer settings)
 {
     if(block->g_modes[GM_SPINDLE_MODE] == G_97) {
         settings->spindle_mode = CONSTANT_RPM;
-	write_and_update_state_tag(block);
-	enqueue_SET_SPINDLE_MODE(0);
+    enqueue_SET_SPINDLE_MODE(0, make_state_tag(*settings, block));
     } else { /* G_96 */
         settings->spindle_mode = CONSTANT_SURFACE;
-	write_and_update_state_tag(block);
 	if(block->d_flag)
-	    enqueue_SET_SPINDLE_MODE(fabs(block->d_number_float));
+        enqueue_SET_SPINDLE_MODE(fabs(block->d_number_float), make_state_tag(*settings, block));
 	else
-	    enqueue_SET_SPINDLE_MODE(1e30);
+        enqueue_SET_SPINDLE_MODE(1e30, make_state_tag(*settings, block));
     }
     return INTERP_OK;
 }
@@ -4146,7 +4132,6 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
   double cx, cy, cz;
   comp_get_current(settings, &cx, &cy, &cz);
   CHP(move_endpoint_and_flush(settings, cx, cy));
-  write_and_update_state_tag(block);
   dequeue_canons(settings);
 
   // M99 as subroutine return is handled in interp_o_word.cc
@@ -4154,15 +4139,13 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
   CHKS((block->m_modes[M_MODE_STOPPING] == 99 && settings->call_level > 0),
 	   (_("Bug:  Reached convert_stop() from M99 as subprogram return")));
 
+  write_and_update_state_tag(block);
   if (block->m_modes[M_MODE_STOPPING] == 0) {
-      write_and_update_state_tag(block);
       PROGRAM_STOP();
   } else if (block->m_modes[M_MODE_STOPPING] == 60) {
-      write_and_update_state_tag(block);
       PALLET_SHUTTLE();
       PROGRAM_STOP();
   } else if (block->m_modes[M_MODE_STOPPING] == 1) {
-      write_and_update_state_tag(block);
       OPTIONAL_PROGRAM_STOP();
   } else if (block->m_modes[M_MODE_STOPPING] == 99 && _setup.loop_on_main_m99) {
       // Fanuc-style M99 main program endless loop
@@ -4916,18 +4899,18 @@ int Interp::convert_straight_comp1(int move,     //!< either G_0 or G_1
 
     set_endpoint(cx, cy);
 
-    write_and_update_state_tag(block);
+    auto const tag = make_state_tag(*settings, block);
     if (move == G_0) {
         enqueue_STRAIGHT_TRAVERSE(settings->plane, block->line_number,
                                   cos(alpha), sin(alpha), 0, 
                                   end_x, end_y, pz,
-                                  AA_end, BB_end, CC_end, u_end, v_end, w_end);
+                                  AA_end, BB_end, CC_end, u_end, v_end, w_end, tag);
     }
     else if (move == G_1) {
         enqueue_STRAIGHT_FEED(settings->plane, block->line_number,
                               cos(alpha), sin(alpha), 0,
                               end_x, end_y, pz,
-                              AA_end, BB_end, CC_end, u_end, v_end, w_end);
+                              AA_end, BB_end, CC_end, u_end, v_end, w_end, tag);
     } else
         ERS(NCE_BUG_CODE_NOT_G0_OR_G1);
 
@@ -5037,17 +5020,17 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
     comp_get_current(settings, &end_x, &end_y, &end_z);
     comp_get_programmed(settings, &opx, &opy, &opz);
 
-    write_and_update_state_tag(block);
+    auto const tag = make_state_tag(*settings, block);
     if ((py == opy) && (px == opx)) {     /* no XY motion */
         if (move == G_0) {
             enqueue_STRAIGHT_TRAVERSE(settings->plane, block->line_number,
                                       px - opx, py - opy, pz - opz, 
                                       cx, cy, pz,
-                                      AA_end, BB_end, CC_end, u_end, v_end, w_end);
+                                      AA_end, BB_end, CC_end, u_end, v_end, w_end, tag);
         } else if (move == G_1) {
             enqueue_STRAIGHT_FEED(settings->plane, block->line_number,
                                   px - opx, py - opy, pz - opz, 
-                                  cx, cy, pz, AA_end, BB_end, CC_end, u_end, v_end, w_end);
+                                  cx, cy, pz, AA_end, BB_end, CC_end, u_end, v_end, w_end, tag);
         } else
             ERS(NCE_BUG_CODE_NOT_G0_OR_G1);
         // end already filled out, above
@@ -5100,7 +5083,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
                                  0.0, // doesn't matter, since we will not move this arc's endpoint
                                  mid_x, mid_y, opx, opy,
                                  ((side == LEFT_COMP) ? -1 : 1), cz,
-                                 AA_end, BB_end, CC_end, u_end, v_end, w_end);
+                                 AA_end, BB_end, CC_end, u_end, v_end, w_end, tag);
                 dequeue_canons(settings);
                 set_endpoint(mid_x, mid_y);
             } else if(move == G_0) {
@@ -5113,7 +5096,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
                                           0.0, 0.0, 0.0, 
                                           mid_x, mid_y, cz, 
                                           AA_end, BB_end, CC_end,
-                                          u_end, v_end, w_end);
+                                          u_end, v_end, w_end, tag);
                 dequeue_canons(settings);
                 set_endpoint(mid_x, mid_y);
             } else ERS(NCE_BUG_CODE_NOT_G0_OR_G1);
@@ -5189,7 +5172,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
              px - opx, py - opy, pz - opz, 
              end_x, end_y, pz,
              AA_end, BB_end, CC_end, 
-             u_end, v_end, w_end);
+             u_end, v_end, w_end, tag);
     }
 
     comp_set_current(settings, end_x, end_y, pz);
