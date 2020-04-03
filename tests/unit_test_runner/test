@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Assumes path to root linuxcnc directory
+set -x
+cd ../..
+meson ./build
+cd build
+meson test -v 1>&2

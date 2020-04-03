@@ -1,5 +1,6 @@
 #include "interp_testing_util.hh"
 
+int emc_debug = EMC_DEBUG_INTERP;
 
 int print_interp_error(Interp & interp, int retval, const char* src_file, int line)
 {

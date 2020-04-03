@@ -9,8 +9,6 @@
 #include <cstdio>
 using namespace interp_param_global;
 
-int emc_debug = EMC_DEBUG_INTERP;
-
 TEST_CASE("Interp Basics")
 {
   DECL_INIT_TEST_INTERP();
