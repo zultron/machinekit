@@ -80,7 +80,7 @@ static int prev_stepping_id=0;
  * This flag is used to prevent duplicate line number messages from being sent out to IO. 
  */
 
-void UPDATE_TAG(StateTag &tag) {
+void UPDATE_TAG(StateTag const &tag) {
     canon_debug("--Got UPDATE_TAG: line %d, id %d--\n",tag.fields[GM_FIELD_LINE_NUMBER],
             tag.fields[GM_FIELD_STEPPING_ID]);
     _tag = tag;

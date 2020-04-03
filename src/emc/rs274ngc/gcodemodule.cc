@@ -513,7 +513,7 @@ void FINISH() {}
 void ON_RESET() {}
 void PALLET_SHUTTLE() {}
 void SELECT_POCKET(int pocket, int tool) {}
-void UPDATE_TAG(StateTag &tag) {}
+void UPDATE_TAG(StateTag const &tag) {}
 void SEND_TAG_MSG() {}
 void OPTIONAL_PROGRAM_STOP() {}
 void START_CHANGE() {}
