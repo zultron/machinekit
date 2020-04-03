@@ -298,69 +298,64 @@ int emcTaskSetMode(int mode)
     return retval;
 }
 
+/**
+ * Common function to turn everything off for either e-stop or a user-requested power-down.
+ */
+static void abort_everything(EMC_IO_ABORT_REASON_ENUM reason)
+{
+    emcMotionAbort();
+    emcSpindleAbort();
+    for (int t = 0; t < emcStatus->motion.traj.axes; t++) {
+        emcAxisDisable(t);
+    }
+    emcTrajDisable();
+    task_methods->emcLubeOff();
+    task_methods->emcIoAbort(reason);
+    emcTaskAbort();
+    emcAxisUnhome(-2); // only those joints which are volatile_home
+    emcAbortCleanup(reason);
+    emcTaskPlanSynch();
+}
+
 int emcTaskSetState(int state)
 {
     int t;
     int retval = 0;
 
+    // TODO actually catch errors here
     switch (state) {
     case EMC_TASK_STATE_OFF:
-        emcMotionAbort();
-	// turn the machine servos off-- go into READY state
-        emcSpindleAbort();
-	for (t = 0; t < emcStatus->motion.traj.axes; t++) {
-	    emcAxisDisable(t);
-	}
-	emcTrajDisable();
-	task_methods->emcIoAbort(EMC_ABORT_TASK_STATE_OFF);
-	task_methods->emcLubeOff();
-	emcTaskAbort();
-        emcSpindleAbort();
-        emcAxisUnhome(-2); // only those joints which are volatile_home
-	emcAbortCleanup(EMC_ABORT_TASK_STATE_OFF);
-	emcTaskPlanSynch();
-	break;
-
-    case EMC_TASK_STATE_ON:
-	// turn the machine servos on
-	emcTrajEnable();
-	for (t = 0; t < emcStatus->motion.traj.axes; t++) {
-	    emcAxisEnable(t);
-	}
-	task_methods->emcLubeOn();
-	break;
+        abort_everything(EMC_ABORT_TASK_STATE_OFF);
+        break;
 
     case EMC_TASK_STATE_ESTOP_RESET:
-	// reset the estop
-	task_methods->emcAuxEstopOff();
-	task_methods->emcLubeOff();
-	emcTaskAbort();
+        // reset the estop but don't turn the machine fully back on
+        task_methods->emcAuxEstopOff();
+        task_methods->emcLubeOff();
+        emcTaskAbort();
         task_methods->emcIoAbort(EMC_ABORT_TASK_STATE_ESTOP_RESET);
         emcSpindleAbort();
-	emcAbortCleanup(EMC_ABORT_TASK_STATE_ESTOP_RESET);
-	emcTaskPlanSynch();
-	break;
+        emcAbortCleanup(EMC_ABORT_TASK_STATE_ESTOP_RESET);
+        emcTaskPlanSynch();
+        break;
 
     case EMC_TASK_STATE_ESTOP:
-        emcMotionAbort();
-        emcSpindleAbort();
-	// go into estop-- do both IO estop and machine servos off
-	task_methods->emcAuxEstopOn();
-	for (t = 0; t < emcStatus->motion.traj.axes; t++) {
-	    emcAxisDisable(t);
-	}
-	emcTrajDisable();
-	task_methods->emcLubeOff();
-	emcTaskAbort();
-        task_methods->emcIoAbort(EMC_ABORT_TASK_STATE_ESTOP);
-        emcAxisUnhome(-2); // only those joints which are volatile_home
-	emcAbortCleanup(EMC_ABORT_TASK_STATE_ESTOP);
-	emcTaskPlanSynch();
-	break;
+        task_methods->emcAuxEstopOn();
+        abort_everything(EMC_ABORT_TASK_STATE_ESTOP);
+        break;
+
+    case EMC_TASK_STATE_ON:
+        // turn the machine servos and lube on
+        emcTrajEnable();
+        for (t = 0; t < emcStatus->motion.traj.axes; t++) {
+            emcAxisEnable(t);
+        }
+        task_methods->emcLubeOn();
+        break;
 
     default:
-	retval = -1;
-	break;
+        retval = -1;
+        break;
     }
 
     return retval;
