@@ -1403,38 +1403,37 @@ int Interp::read_operation_unary(char *line,     //!< string: line of RS274/NGC 
       if (match_suffix_and_adv("acos", line, counter)) {*operation = ACOS; break;}
       if (match_suffix_and_adv("asin", line, counter)) {*operation = ASIN; break;}
       if (match_suffix_and_adv("atan", line, counter)) {*operation = ATAN; break;}
-      ERS(NCE_UNKNOWN_WORD_STARTING_WITH_A);
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 'c':
       if (match_suffix_and_adv("cos", line, counter)) {*operation = COS; break;}
-      ERS(NCE_UNKNOWN_WORD_STARTING_WITH_C);
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 'e':
       if (match_suffix_and_adv("exp", line, counter)) {*operation = EXP; break;}
       if (match_suffix_and_adv("exists", line, counter)) {*operation = EXISTS; break;}
-      ERS(NCE_UNKNOWN_WORD_STARTING_WITH_E);
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 'f':
       if (match_suffix_and_adv("fix", line, counter)) {*operation = FIX; break;}
       if (match_suffix_and_adv("fup", line, counter)) {*operation = FUP; break;}
-      ERS(NCE_UNKNOWN_WORD_STARTING_WITH_F);
-    break;
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 'l':
       if (match_suffix_and_adv("ln", line, counter)) {*operation = LN; break;}
-      ERS(NCE_UNKNOWN_WORD_STARTING_WITH_L);
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 'r':
       if (match_suffix_and_adv("round", line, counter)) {*operation = ROUND; break;}
-      ERS(NCE_UNKNOWN_WORD_STARTING_WITH_R);
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 's':
       if (match_suffix_and_adv("sin", line, counter)) {*operation = SIN; break;}
       if (match_suffix_and_adv("sqrt", line, counter)) {*operation = SQRT; break;}
-      ERS(NCE_UNKNOWN_WORD_STARTING_WITH_S);
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 't':
       if (match_suffix_and_adv("tan", line, counter)) {*operation = TAN; break;}
-      ERS(NCE_UNKNOWN_WORD_STARTING_WITH_T);
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 'u':
       if (match_suffix_and_adv("u_inch", line, counter)) {*operation = U_INCH; break;}
       if (match_suffix_and_adv("u_mm", line, counter)) {*operation = U_MM; break;}
       if (match_suffix_and_adv("u_cm", line, counter)) {*operation = U_CM; break;}
       if (match_suffix_and_adv("u_tpi", line, counter)) {*operation = U_TPI; break;}
-      ERS(NCE_UNKNOWN_WORD_STARTING_WITH_U);
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
     break;
   default:
     ERS(NCE_UNKNOWN_WORD_WHERE_UNARY_OPERATION_COULD_BE);
