@@ -364,60 +364,60 @@ All angle measures in the input or output are in degrees.
 
 */
 
-int Interp::execute_unary(double *double_ptr,    //!< pointer to the operand         
-                         int operation) //!< integer code for the operation 
+int Interp::execute_unary(double *double_ptr,    //!< pointer to the operand
+                         int operation) //!< integer code for the operation
 {
-  switch (operation) {
+    switch ((UnaryOperations)operation) {
   case ABS:
     if (*double_ptr < 0.0)
       *double_ptr = (-1.0 * *double_ptr);
-    break;
+    return INTERP_OK;
   case ACOS:
     CHKS(((*double_ptr < -1.0) || (*double_ptr > 1.0)),
         NCE_ARGUMENT_TO_ACOS_OUT_OF_RANGE);
     *double_ptr = acos(*double_ptr);
     *double_ptr = ((*double_ptr * 180.0) / M_PIl);
-    break;
+    return INTERP_OK;
   case ASIN:
     CHKS(((*double_ptr < -1.0) || (*double_ptr > 1.0)),
         NCE_ARGUMENT_TO_ASIN_OUT_OF_RANGE);
     *double_ptr = asin(*double_ptr);
     *double_ptr = ((*double_ptr * 180.0) / M_PIl);
-    break;
+    return INTERP_OK;
   case COS:
     *double_ptr = cos((*double_ptr * M_PIl) / 180.0);
-    break;
+    return INTERP_OK;
   case EXISTS:
     // do nothing here
     // result for the EXISTS function is set by Interp:read_unary()
-    break;
+    return INTERP_OK;
   case EXP:
     *double_ptr = exp(*double_ptr);
-    break;
+    return INTERP_OK;
   case FIX:
     *double_ptr = floor(*double_ptr);
-    break;
+    return INTERP_OK;
   case FUP:
     *double_ptr = ceil(*double_ptr);
-    break;
+    return INTERP_OK;
   case LN:
     CHKS((*double_ptr <= 0.0), NCE_ZERO_OR_NEGATIVE_ARGUMENT_TO_LN);
     *double_ptr = log(*double_ptr);
-    break;
+    return INTERP_OK;
   case ROUND:
     *double_ptr = (double)
       ((int) (*double_ptr + ((*double_ptr < 0.0) ? -0.5 : 0.5)));
-    break;
+    return INTERP_OK;
   case SIN:
     *double_ptr = sin((*double_ptr * M_PIl) / 180.0);
-    break;
+    return INTERP_OK;
   case SQRT:
     CHKS((*double_ptr < 0.0), NCE_NEGATIVE_ARGUMENT_TO_SQRT);
     *double_ptr = sqrt(*double_ptr);
-    break;
+    return INTERP_OK;
   case TAN:
     *double_ptr = tan((*double_ptr * M_PIl) / 180.0);
-    break;
+    return INTERP_OK;
   case U_INCH:
       switch (_setup.length_units) {
       case CANON_UNITS_MM:
@@ -430,7 +430,7 @@ int Interp::execute_unary(double *double_ptr,    //!< pointer to the operand
       case CANON_UNITS_INVALID:
           break;
       }
-      break;
+      return INTERP_OK;
   case U_MM:
       switch (_setup.length_units) {
       case CANON_UNITS_CM:
@@ -443,7 +443,7 @@ int Interp::execute_unary(double *double_ptr,    //!< pointer to the operand
       case CANON_UNITS_MM:
           break;
       }
-      break;
+      return INTERP_OK;
   case U_CM:
       switch (_setup.length_units) {
       case CANON_UNITS_INCHES:
@@ -456,7 +456,7 @@ int Interp::execute_unary(double *double_ptr,    //!< pointer to the operand
       case CANON_UNITS_INVALID:
           break;
       }
-      break;
+      return INTERP_OK;
   case U_TPI:
       switch (_setup.length_units) {
       case CANON_UNITS_INCHES:
@@ -471,10 +471,14 @@ int Interp::execute_unary(double *double_ptr,    //!< pointer to the operand
       case CANON_UNITS_INVALID:
           break;
       }
-      break;
-  default:
-    ERS(NCE_BUG_UNKNOWN_OPERATION);
+      return INTERP_OK;
+  case CONST_PI:
+      *double_ptr = M_PI;
+      return INTERP_OK;
+  case INVALID_OPERATION:
+  case ATAN: // Handled separately, an error if we try to evaluate here
+      ERS("Bug: cannot process atan function in execute_unary");
   }
-  return INTERP_OK;
+  ERS(NCE_BUG_UNKNOWN_OPERATION);
 }
 

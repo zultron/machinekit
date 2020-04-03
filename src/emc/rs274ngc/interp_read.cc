@@ -1418,6 +1418,9 @@ int Interp::read_operation_unary(char *line,     //!< string: line of RS274/NGC 
   case 'l':
       if (match_suffix_and_adv("ln", line, counter)) {*operation = LN; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
+  case 'p':
+      if (match_suffix_and_adv("pi", line, counter)) {*operation = CONST_PI; break;}
+      ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 'r':
       if (match_suffix_and_adv("round", line, counter)) {*operation = ROUND; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
@@ -2627,8 +2630,8 @@ int Interp::read_real_expression(char *line,     //!< string: line of RS274/NGC 
                                 double *value,  //!< pointer to double to be computed              
                                 ParameterArray &parameters)     //!< array of system parameters
 {
-  double values[MAX_STACK];
-  int operators[MAX_STACK];
+  double values[MAX_STACK]={};
+  int operators[MAX_STACK]={};
   int stack_index;
 
   CHKS((line[*counter] != '['), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -2661,6 +2664,28 @@ int Interp::read_real_expression(char *line,     //!< string: line of RS274/NGC 
   }
   *value = values[0];
   return INTERP_OK;
+}
+
+/**
+ * Checks for an expected empty expression (is an error if non-empty).
+ *
+ */
+int Interp::read_empty_expression(char * line, int * counter, const char *caller_name)
+{
+  CHKS((line[*counter] != '['), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
+  char c = '\0';
+  do {
+      c = line[++*counter];
+      if (c == ']') {
+          ++*counter; // get ready for next read
+          return INTERP_OK;
+      }
+      if (isspace(c)) {
+          continue;
+      }
+      // Any non-space character that's not a closed bracket is an error
+  } while (!c);
+  ERS("Got unexpected argument for function %s taking no arguments", caller_name ? : "unknown");
 }
 
 
@@ -3198,19 +3223,45 @@ int Interp::read_unary(char *line,       //!< string: line of RS274/NGC code bei
   CHKS((line[*counter] != '['),
       NCE_LEFT_BRACKET_MISSING_AFTER_UNARY_OPERATION_NAME);
 
-  if (operation == EXISTS)
-  {
+  switch (operation) {
+  case EXISTS: // A special case because we're passing a name, not a value
       CHP(read_bracketed_parameter(line, counter, double_ptr, parameters, true));
       return INTERP_OK;
+
+      // Binary functions taking two arguments separated by a slash (syntax hack)
+  case ATAN:
+      CHP(read_real_expression(line, counter, double_ptr, parameters));
+      CHP(read_atan(line, counter, double_ptr, parameters));
+      return INTERP_OK;
+
+      // functions taking exactly 1 argument (true unary functions)
+  case ABS:
+  case ACOS:
+  case ASIN:
+  case COS:
+  case EXP:
+  case FIX:
+  case FUP:
+  case LN:
+  case ROUND:
+  case SIN:
+  case SQRT:
+  case TAN:
+  case U_INCH:
+  case U_MM:
+  case U_CM:
+  case U_TPI:
+      CHP(read_real_expression(line, counter, double_ptr, parameters));
+      CHP(execute_unary(double_ptr, operation));
+      return INTERP_OK;
+
+  // nullary functions (taking no arguments), expect an empty expression and error otherwise
+  case CONST_PI:
+      CHP(read_empty_expression(line, counter, "pi"));
+      CHP(execute_unary(double_ptr, operation));
+      return INTERP_OK;
   }
-
-  CHP(read_real_expression(line, counter, double_ptr, parameters));
-
-  if (operation == ATAN)
-    CHP(read_atan(line, counter, double_ptr, parameters));
-  else
-    CHP(execute_unary(double_ptr, operation));
-  return INTERP_OK;
+  ERS("Unknown unary function type %d", operation);
 }
 
 int Interp::read_u(char *line,   //!< string: line of RS274/NGC code being processed

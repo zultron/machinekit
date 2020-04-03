@@ -84,6 +84,7 @@ enum UnaryOperations
     U_MM,
     U_CM,
     U_TPI,
+    CONST_PI,
 };
 
 

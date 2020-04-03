@@ -596,6 +596,7 @@ public:
                   ParameterArray &parameters);
  int read_real_expression(char *line, int *counter,
                                 double *hold2, ParameterArray &parameters);
+ int read_empty_expression(char *line, int *counter, const char * caller_name);
  int read_real_number(const char * line, int *counter, double *double_ptr);
  int read_real_value(char *line, int *counter, double *double_ptr,
                            ParameterArray &parameters);
