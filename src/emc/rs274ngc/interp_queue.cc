@@ -72,7 +72,7 @@ void enqueue_SET_FEED_RATE(double feed) {
         return;
     }
     QueuedCanon q;
-    q.type = QSET_FEED_RATE;
+    q.qc_type = QSET_FEED_RATE;
     q.data.set_feed_rate.feed = feed;
     if(debug_qc) printf("enqueue set feed rate %f\n", feed);
     qc().push_back(q);
@@ -85,7 +85,7 @@ void enqueue_DWELL(double time) {
         return;
     }
     QueuedCanon q;
-    q.type = QDWELL;
+    q.qc_type = QDWELL;
     q.data.dwell.time = time;
     if(debug_qc) printf("enqueue dwell %f\n", time);
     qc().push_back(q);
@@ -98,7 +98,7 @@ void enqueue_SET_FEED_MODE(int mode) {
         return;
     }
     QueuedCanon q;
-    q.type = QSET_FEED_MODE;
+    q.qc_type = QSET_FEED_MODE;
     q.data.set_feed_mode.mode = mode;
     if(debug_qc) printf("enqueue set feed mode %d\n", mode);
     qc().push_back(q);
@@ -111,7 +111,7 @@ void enqueue_MIST_ON(void) {
         return;
     }
     QueuedCanon q;
-    q.type = QMIST_ON;
+    q.qc_type = QMIST_ON;
     if(debug_qc) printf("enqueue mist on\n");
     qc().push_back(q);
 }
@@ -123,7 +123,7 @@ void enqueue_MIST_OFF(void) {
         return;
     }
     QueuedCanon q;
-    q.type = QMIST_OFF;
+    q.qc_type = QMIST_OFF;
     if(debug_qc) printf("enqueue mist off\n");
     qc().push_back(q);
 }
@@ -135,7 +135,7 @@ void enqueue_FLOOD_ON(void) {
         return;
     }
     QueuedCanon q;
-    q.type = QFLOOD_ON;
+    q.qc_type = QFLOOD_ON;
     if(debug_qc) printf("enqueue flood on\n");
     qc().push_back(q);
 }
@@ -147,7 +147,7 @@ void enqueue_FLOOD_OFF(void) {
         return;
     }
     QueuedCanon q;
-    q.type = QFLOOD_OFF;
+    q.qc_type = QFLOOD_OFF;
     if(debug_qc) printf("enqueue flood off\n");
     qc().push_back(q);
 }
@@ -159,7 +159,7 @@ void enqueue_START_SPINDLE_CLOCKWISE(void) {
         return;
     }
     QueuedCanon q;
-    q.type = QSTART_SPINDLE_CLOCKWISE;
+    q.qc_type = QSTART_SPINDLE_CLOCKWISE;
     if(debug_qc) printf("enqueue spindle clockwise\n");
     qc().push_back(q);
 }
@@ -171,7 +171,7 @@ void enqueue_START_SPINDLE_COUNTERCLOCKWISE(void) {
         return;
     }
     QueuedCanon q;
-    q.type = QSTART_SPINDLE_COUNTERCLOCKWISE;
+    q.qc_type = QSTART_SPINDLE_COUNTERCLOCKWISE;
     if(debug_qc) printf("enqueue spindle counterclockwise\n");
     qc().push_back(q);
 }
@@ -183,7 +183,7 @@ void enqueue_STOP_SPINDLE_TURNING(void) {
         return;
     }
     QueuedCanon q;
-    q.type = QSTOP_SPINDLE_TURNING;
+    q.qc_type = QSTOP_SPINDLE_TURNING;
     if(debug_qc) printf("enqueue spindle stop\n");
     qc().push_back(q);
 }
@@ -195,7 +195,7 @@ void enqueue_ORIENT_SPINDLE(double orientation, int mode) {
         return;
     }
     QueuedCanon q;
-    q.type = QORIENT_SPINDLE;
+    q.qc_type = QORIENT_SPINDLE;
     q.data.orient_spindle.orientation = orientation;
     q.data.orient_spindle.mode = mode;
     if(debug_qc) printf("enqueue spindle orient\n");
@@ -209,7 +209,7 @@ void enqueue_WAIT_ORIENT_SPINDLE_COMPLETE(double timeout) {
         return;
     }
     QueuedCanon q;
-    q.type = QWAIT_ORIENT_SPINDLE_COMPLETE;
+    q.qc_type = QWAIT_ORIENT_SPINDLE_COMPLETE;
     q.data.wait_orient_spindle_complete.timeout = timeout;
     if(debug_qc) printf("enqueue wait spindle orient complete\n");
     qc().push_back(q);
@@ -222,7 +222,7 @@ void enqueue_SET_SPINDLE_MODE(double mode) {
         return;
     }
     QueuedCanon q;
-    q.type = QSET_SPINDLE_MODE;
+    q.qc_type = QSET_SPINDLE_MODE;
     q.data.set_spindle_mode.mode = mode;
     if(debug_qc) printf("enqueue spindle mode %f\n", mode);
     qc().push_back(q);
@@ -235,7 +235,7 @@ void enqueue_SET_SPINDLE_SPEED(double speed) {
         return;
     }
     QueuedCanon q;
-    q.type = QSET_SPINDLE_SPEED;
+    q.qc_type = QSET_SPINDLE_SPEED;
     q.data.set_spindle_speed.speed = speed;
     if(debug_qc) printf("enqueue set spindle speed %f\n", speed);
     qc().push_back(q);
@@ -248,7 +248,7 @@ void enqueue_COMMENT(const char *c) {
         return;
     }
     QueuedCanon q;
-    q.type = QCOMMENT;
+    q.qc_type = QCOMMENT;
     q.data.comment.comment = strdup(c);
     if(debug_qc) printf("enqueue comment \"%s\"\n", c);
     qc().push_back(q);
@@ -260,7 +260,7 @@ int enqueue_STRAIGHT_FEED(CANON_PLANE plane, int l,
                            double a, double b, double c, 
                            double u, double v, double w) {
     QueuedCanon q;
-    q.type = QSTRAIGHT_FEED;
+    q.qc_type = QSTRAIGHT_FEED;
     q.data.straight_feed.line_number = l;
     switch(plane) {
     case CANON_PLANE_XY:
@@ -299,7 +299,7 @@ int enqueue_STRAIGHT_TRAVERSE(CANON_PLANE plane, int l,
                                double a, double b, double c, 
                                double u, double v, double w) {
     QueuedCanon q;
-    q.type = QSTRAIGHT_TRAVERSE;
+    q.qc_type = QSTRAIGHT_TRAVERSE;
     q.data.straight_traverse.line_number = l;
     switch(plane) {
     case CANON_PLANE_XY:
@@ -341,7 +341,7 @@ void enqueue_ARC_FEED(int l,
                       double u, double v, double w) {
     QueuedCanon q;
 
-    q.type = QARC_FEED;
+    q.qc_type = QARC_FEED;
     q.data.arc_feed.line_number = l;
     q.data.arc_feed.original_turns = original_turns;
     q.data.arc_feed.end1 = end1;
@@ -369,7 +369,7 @@ void enqueue_M_USER_COMMAND (int index, double p_number, double q_number) {
         return;
     }
     QueuedCanon q;
-    q.type = QM_USER_COMMAND;
+    q.qc_type = QM_USER_COMMAND;
     q.data.mcommand.index    = index;
     q.data.mcommand.p_number = p_number;
     q.data.mcommand.q_number = q_number;
@@ -380,7 +380,7 @@ void enqueue_M_USER_COMMAND (int index, double p_number, double q_number) {
 
 void enqueue_START_CHANGE (void) {
     QueuedCanon q;
-    q.type = QSTART_CHANGE;
+    q.qc_type = QSTART_CHANGE;
     if(debug_qc) printf("enqueue START_CHANGE\n");
     qc().push_back(q);
 }
@@ -401,7 +401,7 @@ void qc_scale(double scale) {
         QueuedCanon &q = qc()[i];
         endpoint[0] *= scale;
         endpoint[1] *= scale;
-        switch(q.type) {
+        switch(q.qc_type) {
         case QARC_FEED:
             q.data.arc_feed.end1 *= scale;
             q.data.arc_feed.end2 *= scale;
@@ -444,7 +444,7 @@ void dequeue_canons(setup_pointer settings) {
     for(unsigned int i = 0; i<qc().size(); i++) {
         QueuedCanon &q = qc()[i];
 
-        switch(q.type) {
+        switch(q.qc_type) {
         case QARC_FEED:
             if(debug_qc) printf("issuing arc feed lineno %d\n", q.data.arc_feed.line_number);
             ARC_FEED(q.data.arc_feed.line_number, 
@@ -571,7 +571,7 @@ int Interp::move_endpoint_and_flush(setup_pointer settings, double x, double y) 
 
         QueuedCanon &q = qc()[i];
 
-        switch(q.type) {
+        switch(q.qc_type) {
         case QARC_FEED:
             double r1, r2, l1, l2;
             r1 = hypot(q.data.arc_feed.end1 - q.data.arc_feed.center1,

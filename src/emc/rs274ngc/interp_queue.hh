@@ -98,7 +98,7 @@ struct WaitOrientSpindleComplete {
 };
 
 struct QueuedCanon {
-    queued_canon_type type;
+    queued_canon_type qc_type;
     union {
         StraightTraverse straight_traverse;
         StraightFeed straight_feed;

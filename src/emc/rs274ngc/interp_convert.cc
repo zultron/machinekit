@@ -900,7 +900,7 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
         (fabs(beta - M_PIl) < small && !TOOL_INSIDE_ARC(side, turn))
         ) {
         // concave
-        if (qc().front().type != QARC_FEED) {
+        if (qc().front().qc_type != QARC_FEED) {
             // line->arc
             double cy = arc_radius * sin(beta - M_PI_2l);
             double toward_nominal;
@@ -5090,7 +5090,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
         if ((beta < -small) || (beta > (M_PIl + small))) {
             concave = 1;
         } else if (beta > (M_PIl - small) &&
-                   (!qc().empty() && qc().front().type == QARC_FEED &&
+                   (!qc().empty() && qc().front().qc_type == QARC_FEED &&
                     ((side == RIGHT_COMP && qc().front().data.arc_feed.turn > 0) ||
                      (side == LEFT_COMP && qc().front().data.arc_feed.turn < 0)))) {
             // this is an "h" shape, tool on right, going right to left
@@ -5130,7 +5130,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
                 set_endpoint(mid_x, mid_y);
             } else ERS(NCE_BUG_CODE_NOT_G0_OR_G1);
         } else if (concave) {
-            if (qc().front().type != QARC_FEED) {
+            if (qc().front().qc_type != QARC_FEED) {
                 // line->line
                 double retreat;
                 // half the angle of the inside corner
