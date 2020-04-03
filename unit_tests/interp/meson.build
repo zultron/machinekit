@@ -3,6 +3,7 @@ test_interp_srcs = files([
   'test_interp_basics.cc',
   'test_interp_block.cc',
   'test_interp_cycles.cc',
+  'test_interp_modal.cc',
   'test_interp_nurbs.cc',
   'test_interp_operators.cc',
   'test_gcodegenerator.cc',

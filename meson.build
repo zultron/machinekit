@@ -476,4 +476,4 @@ test_interp_shared_ex = executable('test_interp_shared',
         ]
     )
 
-test('test_interp', test_interp_shared_ex)
+test('test_interp_shared', test_interp_shared_ex)
