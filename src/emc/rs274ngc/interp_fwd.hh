@@ -85,6 +85,7 @@ enum UnaryOperations
     U_CM,
     U_TPI,
     CONST_PI,
+    CONST_GOLDEN_RATIO,
 };
 
 

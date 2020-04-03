@@ -1420,6 +1420,7 @@ int Interp::read_operation_unary(char *line,     //!< string: line of RS274/NGC 
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 'p':
       if (match_suffix_and_adv("pi", line, counter)) {*operation = CONST_PI; break;}
+      if (match_suffix_and_adv("phi", line, counter)) {*operation = CONST_GOLDEN_RATIO; break;}
       ERS(NCE_UNKNOWN_WORD_STARTING_WITH, c);
   case 'r':
       if (match_suffix_and_adv("round", line, counter)) {*operation = ROUND; break;}

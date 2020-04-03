@@ -475,6 +475,9 @@ int Interp::execute_unary(double *double_ptr,    //!< pointer to the operand
   case CONST_PI:
       *double_ptr = M_PI;
       return INTERP_OK;
+  case CONST_GOLDEN_RATIO:
+      *double_ptr = 1.61803398874989484820458683436563811;
+      return INTERP_OK;
   case INVALID_OPERATION:
   case ATAN: // Handled separately, an error if we try to evaluate here
       ERS("Bug: cannot process atan function in execute_unary");
