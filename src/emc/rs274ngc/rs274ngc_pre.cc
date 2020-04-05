@@ -2843,7 +2843,7 @@ int Interp::active_modes(ModalState &active_state,
 }
 
 
-void Interp::setError(const char *fmt, ...)
+void Interp::setError(const char *fmt, ...) const
 {
     va_list ap;
 
@@ -2855,7 +2855,7 @@ void Interp::setError(const char *fmt, ...)
     va_end(ap);
 }
 
-void Interp::setWarning(const char *fmt, ...)
+void Interp::setWarning(const char *fmt, ...) const
 {
     va_list ap;
 

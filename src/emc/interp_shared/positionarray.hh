@@ -121,4 +121,5 @@ void extract_axes(PositionArray const &p,
 
 #define UNPACK_POSITION_ARRAY_REF(arr_) (arr_)[X], (arr_)[Y], (arr_)[Z], (arr_)[A], (arr_)[B], (arr_)[C], (arr_)[U], (arr_)[V], (arr_)[W]
 #define UNPACK_POSITION_ARRAY(arr_) &(arr_)[X], &(arr_)[Y], &(arr_)[Z], &(arr_)[A], &(arr_)[B], &(arr_)[C], &(arr_)[U], &(arr_)[V], &(arr_)[W]
+
 #endif // POSITIONARRAY_HH

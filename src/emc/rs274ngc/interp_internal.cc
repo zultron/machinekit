@@ -153,29 +153,38 @@ This also make the checks described above.
 int Interp::enhance_block(block_pointer block,   //!< pointer to a block to be checked 
                          setup_pointer settings)        //!< pointer to machine settings      
 {
-  int axis_flag;
-  int ijk_flag;
-  int polar_flag;
+  bool axis_flag = (
+        (block->axis_flags[X]) || (block->axis_flags[Y]) ||
+        (block->axis_flags[Z]) || (block->axis_flags[A]) ||
+        (block->axis_flags[B]) || (block->axis_flags[C]) ||
+        (block->axis_flags[U]) || (block->axis_flags[V]) ||
+        (block->axis_flags[W])
+        );
+  bool ijk_flag = (
+      (block->i_flag) || (block->j_flag) || (block->k_flag));
+  bool polar_flag = (block->radius_flag || block->theta_flag);
   int mode_zero_covets_axes;
   GCodes mode0;
   GCodes mode1;
 
-  if(block->radius_flag || block->theta_flag) {
-      // someday, tediously add polar support for other planes here:
-      CHKS((!_readers[(int)'x'] || !_readers[(int)'y']), _("Cannot use polar coordinate on a machine lacking X or Y axes"));
-      CHKS(((settings->plane != CANON_PLANE_XY)), _("Cannot use polar coordinate except in G17 plane"));
-      CHKS(((block->axis_flags[X])), _("Cannot specify both polar coordinate and X word"));
-      CHKS(((block->axis_flags[Y])), _("Cannot specify both polar coordinate and Y word"));
+  if(polar_flag) {
+      size_t idx_0, idx_1; std::tie(idx_0, idx_1, std::ignore) = plane_indices(settings->plane);
+
+    // Since polar coordinates are now allowed in any plane, we need to check all planes for valid polar coordinate endpoint
+    CHKS((block->axis_flags[idx_0]),
+         _("Cannot specify both polar coordinates and %c word in %c%c plane"),
+         axis_to_char(idx_0),
+         axis_to_char(idx_0),
+         axis_to_char(idx_1)
+         );
+    CHKS((block->axis_flags[idx_1]),
+         _("Cannot specify both polar coordinates and %c word in %c%c plane"),
+         axis_to_char(idx_1),
+         axis_to_char(idx_0),
+         axis_to_char(idx_1)
+         );
   }
 
-  axis_flag = ((block->axis_flags[X]) || (block->axis_flags[Y]) ||
-               (block->axis_flags[Z]) || (block->axis_flags[A]) ||
-               (block->axis_flags[B]) || (block->axis_flags[C]) ||
-               (block->axis_flags[U]) || (block->axis_flags[V]) ||
-               (block->axis_flags[W]));
-  polar_flag = (block->radius_flag) || (block->theta_flag);
-  ijk_flag = ((block->i_flag) || (block->j_flag) ||
-              (block->k_flag));
   mode0 = block->g_modes[GM_MODAL_0];
   mode1 = block->g_modes[1];
   mode_zero_covets_axes =

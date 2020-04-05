@@ -157,9 +157,9 @@ public:
                                 size_t max_size);
  std::string error_text(int error_code=INTERP_ERROR);
 
- void setError(const char *fmt, ...) __attribute__((format(printf,2,3)));
+ void setError(const char *fmt, ...) const __attribute__((format(printf,2,3)));
 
- void setWarning(const char *fmt, ...) __attribute__((format(printf,2,3)));
+ void setWarning(const char *fmt, ...) const __attribute__((format(printf,2,3)));
 
 // copy the name of the currently open file into the file_name array,
 // but stop at max_size if the name is longer
@@ -817,7 +817,7 @@ int read_inputs(setup_pointer settings);
     setup _setup;
     boost::python::object *pythis;  // boost::cref to 'this'
 
-    std::vector <std::string> warning_list;
+    mutable std::vector <std::string> warning_list;
     CommandSource last_cmd_src;
 
     GCodeContextStack gcode_context_stack;
@@ -871,6 +871,11 @@ int read_inputs(setup_pointer settings);
 
     int validate_motion_mode(int motion_to_be);
 
+    int get_absolute_polar_point(block_pointer block, const PositionArray & current, CANON_PLANE plane, PositionArray & cmd_local_pos) const;
+    int get_absolute_polar(block_pointer block, double p0_current, double p1_current, double &p0, double &p1) const;
+    int get_relative_polar_point(block_pointer block, CANON_PLANE plane, PositionArray &cmd_local_pos) const;
+    int add_relative_polar(block_pointer block, double &p0, double &p1) const;
+
 protected:
     bool error_has_context;
 
@@ -879,6 +884,7 @@ protected:
 StateTag make_state_tag(setup_struct const &s, block_pointer block);
 
 bool toolOffsetActive(setup_struct const *s);
+std::tuple<size_t, size_t, size_t> plane_indices(CANON_PLANE plane);
 
 #define STATE_RESTORE_SUBROUTINE_NAME "restore_start_line_state"
 

@@ -198,12 +198,54 @@ int Interp::find_ends(block_pointer block,       //!< pointer to a block of RS27
     return INTERP_OK;
 }
 
+int Interp::get_absolute_polar_point(block_pointer block, PositionArray const &current, CANON_PLANE plane, PositionArray &cmd_local_pos) const
+{
+    size_t idx_0, idx_1; std::tie(idx_0, idx_1, std::ignore) = plane_indices(plane);
+
+    CHKS((block->radius_flag || block->theta_flag) && (block->axis_flags[idx_0] || block->axis_flags[idx_1]),
+         _("Cannot specify %c or %c words when using polar coordinates"), "XYZABCUVW"[idx_0], "XYZABCUVW"[idx_1]);
+    return get_absolute_polar(block, current[idx_0], current[idx_1], cmd_local_pos[idx_0], cmd_local_pos[idx_1]);
+}
+
+int Interp::get_absolute_polar(block_pointer block, double p0_current, double p1_current, double & p0, double & p1) const
+{
+    if(block->radius_flag || block->theta_flag) {
+        double radius = block->radius_flag ? block->radius : hypot(p1_current, p0_current);
+        double theta = block->theta_flag ? D2R(block->theta) : atan2(p1_current, p0_current);
+        p0 = radius * cos(theta);
+        p1 = radius * sin(theta);
+    }
+    // No-op if no polar coordinates are specified
+    return INTERP_OK;
+}
+
+int Interp::get_relative_polar_point(block_pointer block, CANON_PLANE plane, PositionArray &cmd_local_pos) const
+{
+    size_t idx_0, idx_1; std::tie(idx_0, idx_1, std::ignore) = plane_indices(plane);
+    return add_relative_polar(block, cmd_local_pos[idx_0], cmd_local_pos[idx_1]);
+}
+
+int Interp::add_relative_polar(block_pointer block, double & p0, double & p1) const
+{
+    if(block->radius_flag || block->theta_flag) {
+        CHKS((p1 == 0 && p0 == 0), _("Incremental motion with polar coordinates is indeterminate when at the origin"));
+        double radius_0 = hypot(p1, p0);
+        double theta_0 = atan2(p1, p0);
+
+        double radius = radius_0 + (block->radius_flag ? block->radius : 0);
+        double theta = theta_0 + D2R(block->theta_flag ? block->theta : 0);
+
+        p0 = radius * cos(theta);
+        p1 = radius * sin(theta);
+    }
+    // No-op if no polar coordinates are specified
+    return INTERP_OK;
+}
+
 int Interp::find_ends(block_pointer block, setup_pointer s, PositionArray & cmd_local_pos)
 {
-    CHKS((block->radius_flag || block->theta_flag) && (block->axis_flags[X] || block->axis_flags[Y]),
-         _("Cannot specify X or Y words with polar coordinate"));
-
     if (block->g_modes[GM_MODAL_0] == G_53) {      /* distance mode is absolute in this case */
+        // FIXME polar support?
         const PositionArray machine_abs = s->transform.forward_local_to_machine(s->current);
         const PositionArray cmd_abs = getAxisWordsFromBlock(block, machine_abs);
         find_relative(s, cmd_abs, cmd_local_pos);
@@ -224,12 +266,7 @@ int Interp::find_ends(block_pointer block, setup_pointer s, PositionArray & cmd_
     case MODE_ABSOLUTE:
         cmd_local_pos = getAxisWordsFromBlock(block, current);
 
-        if(block->radius_flag || block->theta_flag) {
-            double radius = block->radius_flag ? block->radius : hypot(current[Y], current[X]);
-            double theta = block->theta_flag ? D2R(block->theta) : atan2(current[Y], current[X]);
-            cmd_local_pos[X] = radius * cos(theta);
-            cmd_local_pos[Y] = radius * sin(theta);
-        }
+        CHP(get_absolute_polar_point(block, current, s->plane, cmd_local_pos));
 
         if(block->axis_flags[A] && s->a_axis_wrapped) {
             CHP(unwrap_rotary(&cmd_local_pos[A], block->axis_numbers[A], block->axis_numbers[A], current[A], 'A'));
@@ -247,18 +284,7 @@ int Interp::find_ends(block_pointer block, setup_pointer s, PositionArray & cmd_
         cmd_local_pos = getAxisWordsFromBlock(block, PositionArray());
         cmd_local_pos += current;
 
-        if(block->radius_flag || block->theta_flag) {
-            CHKS((cmd_local_pos[Y] == 0 && cmd_local_pos[X] == 0), _("Incremental motion with polar coordinates is indeterminate when at the origin"));
-
-            double radius_0 = hypot(cmd_local_pos[Y], cmd_local_pos[X]);
-            double theta_0 = atan2(cmd_local_pos[Y], cmd_local_pos[X]);
-
-            double radius = radius_0 + (block->radius_flag ? block->radius : 0);
-            double theta = theta_0 + D2R(block->theta_flag ? block->theta : 0);
-
-            cmd_local_pos[X] = radius * cos(theta);
-            cmd_local_pos[Y] = radius * sin(theta);
-        }
+        CHP(get_relative_polar_point(block, s->plane, cmd_local_pos));
         return INTERP_OK;
     }
     ERS(_("Invalid distance mode %d"), distance_mode);
@@ -641,4 +667,23 @@ int Interp::find_tool_pocket(setup_pointer settings, int toolno, int *pocket)
 
     CHKS((*pocket == -1), (_("Requested tool %d not found in the tool table")), toolno);
     return INTERP_OK;
+}
+
+std::tuple<size_t, size_t, size_t> plane_indices(CANON_PLANE plane)
+{
+    switch (plane) {
+    case CANON_PLANE_XY:
+        return {X, Y, Z};
+    case CANON_PLANE_XZ:
+        return {Z, X, Y};
+    case CANON_PLANE_YZ:
+        return {Y, Z, X};
+    case CANON_PLANE_UV:
+        return {U, V, W};
+    case CANON_PLANE_UW:
+        return {W, U, V};
+    case CANON_PLANE_VW:
+        return {V, W, U};
+    }
+    return {X, Y, Z};
 }

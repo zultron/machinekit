@@ -474,16 +474,16 @@ int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw
     }
   } else {
     // in R format, we need some XYZ words specified because a full circle is not allowed.
-    if (settings->plane == CANON_PLANE_XY) { 
-        CHKS(((!block->axis_flags[X]) && (!block->axis_flags[Y]) && (!block->radius_flag) && (!block->theta_flag)),
-            NCE_X_AND_Y_WORDS_MISSING_FOR_ARC_IN_XY_PLANE);
-    } else if (settings->plane == CANON_PLANE_YZ) {
-        CHKS(((!block->axis_flags[Y]) && (!block->axis_flags[Z])),
-            NCE_Y_AND_Z_WORDS_MISSING_FOR_ARC_IN_YZ_PLANE);
-    } else if (settings->plane == CANON_PLANE_XZ) {
-        CHKS(((!block->axis_flags[X]) && (!block->axis_flags[Z])),
-            NCE_X_AND_Z_WORDS_MISSING_FOR_ARC_IN_XZ_PLANE);
-    }
+    size_t idx_0, idx_1; std::tie(idx_0, idx_1, std::ignore) = plane_indices(settings->plane);
+
+    // Since polar coordinates are now allowed in any plane, we need to check all planes for valid polar coordinate endpoint
+    CHKS(((!block->axis_flags[idx_0]) && (!block->axis_flags[Y]) && (!block->radius_flag) && (!block->theta_flag)),
+         _("%c and %c words missing for radius-format arc in %c%c plane"),
+         axis_to_char(idx_0),
+         axis_to_char(idx_1),
+         axis_to_char(idx_0),
+         axis_to_char(idx_1)
+         );
   }
 
 
