@@ -1654,15 +1654,15 @@ static void vertex9(PositionArray const &pt, double p[3], const char *geometry) 
     for(; *geometry; geometry++) {
         switch(*geometry) {
             case '-': sign = -1; break;
-            case 'X': p[0] += pt[0]*sign; sign=1; break;
-            case 'Y': p[1] += pt[1]*sign; sign=1; break;
-            case 'Z': p[2] += pt[2]*sign; sign=1; break;
-            case 'U': p[0] += pt[6]*sign; sign=1; break;
-            case 'V': p[1] += pt[7]*sign; sign=1; break;
-            case 'W': p[2] += pt[8]*sign; sign=1; break;
-            case 'A': rotate_x(p, pt[3] * sign); sign=1; break;
-            case 'B': rotate_y(p, pt[4] * sign); sign=1; break;
-            case 'C': rotate_z(p, pt[5] * sign); sign=1; break;
+            case 'X': p[X] += pt[X]*sign; sign=1; break;
+            case 'Y': p[Y] += pt[Y]*sign; sign=1; break;
+            case 'Z': p[Z] += pt[Z]*sign; sign=1; break;
+            case 'U': p[X] += pt[U]*sign; sign=1; break;
+            case 'V': p[Y] += pt[V]*sign; sign=1; break;
+            case 'W': p[Z] += pt[W]*sign; sign=1; break;
+            case 'A': rotate_x(p, pt[A] * sign); sign=1; break;
+            case 'B': rotate_y(p, pt[B] * sign); sign=1; break;
+            case 'C': rotate_z(p, pt[C] * sign); sign=1; break;
         }
     }
 }
@@ -1676,11 +1676,11 @@ static void glvertex9(PositionArray const &pt, const char *geometry) {
 #define max3(a,b,c) (std::max((a),std::max((b),(c))))
 
 static void line9(PositionArray const &p1, PositionArray const &p2, const char *geometry) {
-    if(p1[3] != p2[3] || p1[4] != p2[4] || p1[5] != p2[5]) {
+    if(p1[A] != p2[A] || p1[B] != p2[B] || p1[C] != p2[C]) {
         double dc = max3(
-            fabs(p2[3] - p1[3]),
-            fabs(p2[4] - p1[4]),
-            fabs(p2[5] - p1[5]));
+            fabs(p2[A] - p1[A]),
+            fabs(p2[B] - p1[B]),
+            fabs(p2[C] - p1[C]));
         int st = (int)ceil(max(10., dc/10));
         int i;
 
@@ -1698,11 +1698,11 @@ static void line9(PositionArray const &p1, PositionArray const &p2, const char *
 
 static void line9b(PositionArray const &p1, PositionArray const &p2, const char *geometry) {
     glvertex9(p1, geometry);
-    if(p1[3] != p2[3] || p1[4] != p2[4] || p1[5] != p2[5]) {
+    if(p1[A] != p2[A] || p1[B] != p2[B] || p1[C] != p2[C]) {
         double dc = max3(
-            fabs(p2[3] - p1[3]),
-            fabs(p2[4] - p1[4]),
-            fabs(p2[5] - p1[5]));
+            fabs(p2[A] - p1[A]),
+            fabs(p2[B] - p1[B]),
+            fabs(p2[C] - p1[C]));
         int st = (int)ceil(max(10., dc/10));
         int i;
 
@@ -1725,13 +1725,10 @@ static PyObject *pyline9(PyObject *s, PyObject *o) {
     const char *geometry;
 
     if(!PyArg_ParseTuple(o, "s(ddddddddd)(ddddddddd):line9",
-            &geometry,
-            &pt1[0], &pt1[1], &pt1[2],
-            &pt1[3], &pt1[4], &pt1[5],
-            &pt1[6], &pt1[7], &pt1[8],
-            &pt2[0], &pt2[1], &pt2[2],
-            &pt2[3], &pt2[4], &pt2[5],
-            &pt2[6], &pt2[7], &pt2[8]))
+                          &geometry,
+                          UNPACK_POSITION_ARRAY(pt1),
+                          UNPACK_POSITION_ARRAY(pt2)
+                          ))
         return NULL;
 
     line9b(pt1, pt2, geometry);
@@ -1744,7 +1741,7 @@ static PyObject *pyvertex9(PyObject *s, PyObject *o) {
     double pt[3];
     char *geometry;
     if(!PyArg_ParseTuple(o, "s(ddddddddd):vertex9",
-            &geometry,
+                          &geometry,
                           UNPACK_POSITION_ARRAY(vert)))
         return NULL;
 
