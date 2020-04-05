@@ -183,7 +183,7 @@ struct block_struct
   double radius;
   double theta;
 
-  std::bitset<64> axis_flags;
+  AxisMask axis_flags;
   bool d_flag;
   bool e_flag;
   bool f_flag;

@@ -550,20 +550,7 @@ AxisMask getUpdatedAxes(block_pointer b)
  */
 PositionArray getAxisWordsFromBlock(block_pointer b, const PositionArray &current)
 {
-    PositionArray out;
-
-    out[X] = b->axis_flags[X] ? b->axis_numbers[X] : current[X];
-    out[Y] = b->axis_flags[Y] ? b->axis_numbers[Y] : current[Y];
-    out[Z] = b->axis_flags[Z] ? b->axis_numbers[Z] : current[Z];
-
-    out[A] = b->axis_flags[A] ? b->axis_numbers[A] : current[A];
-    out[B] = b->axis_flags[B] ? b->axis_numbers[B] : current[B];
-    out[C] = b->axis_flags[C] ? b->axis_numbers[C] : current[C];
-
-    out[U] = b->axis_flags[U] ? b->axis_numbers[U] : current[U];
-    out[V] = b->axis_flags[V] ? b->axis_numbers[V] : current[V];
-    out[W] = b->axis_flags[W] ? b->axis_numbers[W] : current[W];
-    return out;
+    return merge(current, b->axis_numbers, b->axis_flags);
 }
 
 /**
