@@ -80,10 +80,6 @@ bool isNonzero(PositionArray const &p);
 
 EmcPose toEmcPose(PositionArray const &p);
 
-void merge_masked(PositionArray &p,
-                   PositionArray const &in,
-                   AxisMask const &new_value_mask);
-
 PositionArray merge(PositionArray const &old_p,
                    PositionArray const &new_p,
                    AxisMask const &new_mask);

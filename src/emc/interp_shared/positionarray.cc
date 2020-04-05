@@ -163,19 +163,12 @@ EmcPose toEmcPose(const PositionArray & p)
     };
 }
 
-void merge_masked(PositionArray & p, const PositionArray & in, const AxisMask & new_value_mask)
-{
-    for (size_t k = 0; k < MAX_USED_AXES; ++k) {
-        if (new_value_mask[k]) {
-            p[k] = in[k];
-        }
-    }
-}
-
 PositionArray merge(const PositionArray & old_p, const PositionArray & new_p, const AxisMask & new_mask)
 {
-    PositionArray out = old_p;
-    merge_masked(out, new_p, new_mask);
+    PositionArray out{};
+    for (size_t k = 0; k < MAX_USED_AXES; ++k) {
+        out[k] = new_mask.test(k) ? new_p[k] : old_p[k];
+    }
     return out;
 }
 
