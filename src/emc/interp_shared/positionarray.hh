@@ -19,8 +19,11 @@
 #include <bitset>
 struct EmcPose;
 
-static constexpr size_t CANON_AXIS_COUNT = 9;
+static constexpr const size_t CANON_AXIS_COUNT = 9;
 using PositionArray = std::array<double, CANON_AXIS_COUNT>;
+
+// For now identical to the total count of axes but may be smaller for special applications
+static constexpr const size_t MAX_USED_AXES = CANON_AXIS_COUNT;
 
 enum PositionArrayIndex
 {
@@ -35,7 +38,7 @@ enum PositionArrayIndex
     W,
 };
 
-static constexpr std::array<char, 9> AxisNames = {
+static constexpr std::array<char, CANON_AXIS_COUNT> AxisNames = {
     'X',
     'Y',
     'Z',
@@ -47,7 +50,7 @@ static constexpr std::array<char, 9> AxisNames = {
     'W',
 };
 
-using AxisMask = std::bitset<CANON_AXIS_COUNT>;
+using AxisMask = std::bitset<64>;
 
 constexpr std::array<size_t, 6> linearAxes = {X,Y,Z,U,V,W};
 constexpr std::array<size_t, 3> angularAxes = {A,B,C};

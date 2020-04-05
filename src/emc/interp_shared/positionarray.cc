@@ -19,7 +19,7 @@
 
 PositionArray & operator+=(PositionArray & b, const PositionArray & o)
 {
-    for (size_t k=0; k <b.size(); ++k) {
+    for (size_t k=0; k < MAX_USED_AXES; ++k) {
         b[k] += o[k];
     }
     return b;
@@ -27,7 +27,7 @@ PositionArray & operator+=(PositionArray & b, const PositionArray & o)
 
 PositionArray & operator-=(PositionArray & b, const PositionArray & o)
 {
-    for (size_t k=0; k <b.size(); ++k) {
+    for (size_t k=0; k < MAX_USED_AXES; ++k) {
         b[k] -= o[k];
     }
     return b;
@@ -96,7 +96,7 @@ PositionArray operator-(const PositionArray & b, const PositionArray & o)
 
 PositionArray & operator*=(PositionArray & b, double d)
 {
-    for (size_t k=0; k <b.size(); ++k) {
+    for (size_t k=0; k < MAX_USED_AXES; ++k) {
         b[k] *= d;
     }
     return b;
@@ -110,7 +110,7 @@ PositionArray operator*(const PositionArray & b, double d)
 
 PositionArray & operator/=(PositionArray & b, double d)
 {
-    for (size_t k=0; k <b.size(); ++k) {
+    for (size_t k=0; k < MAX_USED_AXES; ++k) {
         b[k] /= d;
     }
     return b;
@@ -126,7 +126,7 @@ PositionArray operator/(const PositionArray & b, double d)
 PositionArray abs(const PositionArray & p)
 {
     PositionArray out;
-    for (size_t k=0; k <p.size(); ++k) {
+    for (size_t k=0; k < MAX_USED_AXES; ++k) {
         out[k] = fabs(p[k]);
     }
     return out;
@@ -165,7 +165,7 @@ EmcPose toEmcPose(const PositionArray & p)
 
 void merge_masked(PositionArray & p, const PositionArray & in, const AxisMask & new_value_mask)
 {
-    for (size_t k = 0; k < in.size(); ++k) {
+    for (size_t k = 0; k < MAX_USED_AXES; ++k) {
         if (new_value_mask[k]) {
             p[k] = in[k];
         }
@@ -197,22 +197,17 @@ PositionArray toArray(double const *arr_begin, double const *arr_end)
 
 bool isNonzero(PositionArray const &p)
 {
-  return
-      p[X] != 0.0 ||
-      p[Y] != 0.0 ||
-      p[Z] != 0.0 ||
-      p[A] != 0.0 ||
-      p[B] != 0.0 ||
-      p[C] != 0.0 ||
-      p[U] != 0.0 ||
-      p[V] != 0.0 ||
-      p[W] != 0.0;
+    bool out = false;
+    for (size_t k = 0; k < MAX_USED_AXES; ++k) {
+        out |= (p[k] != 0.0);
+    }
+    return out;
 }
 
 PositionArray max(const PositionArray & p0, const PositionArray & p1)
 {
     PositionArray out;
-    for (size_t i=0; i < p0.size(); ++i) {
+    for (size_t i=0; i < MAX_USED_AXES; ++i) {
         out[i] = std::max(p0[i], p1[i]);
     }
     return out;
@@ -221,7 +216,7 @@ PositionArray max(const PositionArray & p0, const PositionArray & p1)
 PositionArray min(const PositionArray & p0, const PositionArray & p1)
 {
     PositionArray out;
-    for (size_t i=0; i < p0.size(); ++i) {
+    for (size_t i=0; i < MAX_USED_AXES; ++i) {
         out[i] = std::min(p0[i], p1[i]);
     }
     return out;
@@ -229,7 +224,7 @@ PositionArray min(const PositionArray & p0, const PositionArray & p1)
 
 PositionArray & max_inplace(PositionArray & p0, const PositionArray & p1)
 {
-    for (size_t i=0; i < p0.size(); ++i) {
+    for (size_t i=0; i < MAX_USED_AXES; ++i) {
         p0[i] = std::max(p0[i], p1[i]);
     }
     return p0;
@@ -237,7 +232,7 @@ PositionArray & max_inplace(PositionArray & p0, const PositionArray & p1)
 
 PositionArray & min_inplace(PositionArray & p0, const PositionArray & p1)
 {
-    for (size_t i=0; i < p0.size(); ++i) {
+    for (size_t i=0; i < MAX_USED_AXES; ++i) {
         p0[i] = std::min(p0[i], p1[i]);
     }
     return p0;
