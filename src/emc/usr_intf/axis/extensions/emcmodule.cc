@@ -1644,7 +1644,7 @@ static void rotate_x(double pt[3], double a) {
     pt[1] = tx; pt[2] = tz;
 }
 
-static void vertex9(const double pt[9], double p[3], const char *geometry) {
+static void vertex9(PositionArray const &pt, double p[3], const char *geometry) {
     double sign = 1;
 
     p[0] = 0;
@@ -1667,19 +1667,15 @@ static void vertex9(const double pt[9], double p[3], const char *geometry) {
     }
 }
 
-static void glvertex9(const double pt[9], const char *geometry) {
+static void glvertex9(PositionArray const &pt, const char *geometry) {
     double p[3];
     vertex9(pt, p, geometry);
     glVertex3dv(p);
 }
 
-static inline void glvertex9(PositionArray pt, const char *geometry){
-    glvertex9(pt.data(), geometry);
-}
-
 #define max3(a,b,c) (std::max((a),std::max((b),(c))))
 
-static void line9(const double p1[9], const double p2[9], const char *geometry) {
+static void line9(PositionArray const &p1, PositionArray const &p2, const char *geometry) {
     if(p1[3] != p2[3] || p1[4] != p2[4] || p1[5] != p2[5]) {
         double dc = max3(
             fabs(p2[3] - p1[3]),
@@ -1691,8 +1687,7 @@ static void line9(const double p1[9], const double p2[9], const char *geometry) 
         for(i=1; i<=st; i++) {
             double t = i * 1.0 / st;
             double v = 1.0 - t;
-            double pt[9];
-            for(int j=0; j<9; j++) { pt[j] = t * p2[j] + v * p1[j]; }
+            PositionArray pt = p2 * t + p1 * v;
             glvertex9(pt, geometry);
         }
     } else {
@@ -1700,28 +1695,8 @@ static void line9(const double p1[9], const double p2[9], const char *geometry) 
     }
 }
 
-static void line9(PositionArray const & p1, PositionArray const &p2, const char *geometry) {
-    if(p1[3] != p2[3] || p1[4] != p2[4] || p1[5] != p2[5]) {
-        double dc = max3(
-            fabs(p2[3] - p1[3]),
-            fabs(p2[4] - p1[4]),
-            fabs(p2[5] - p1[5]));
-        int st = (int)ceil(max(10., dc/10));
-        int i;
 
-        for(i=1; i<=st; i++) {
-            double t = i * 1.0 / st;
-            double v = 1.0 - t;
-            double pt[9];
-            for(int j=0; j<9; j++) { pt[j] = t * p2[j] + v * p1[j]; }
-            glvertex9(pt, geometry);
-        }
-    } else {
-        glvertex9(p2.data(), geometry);
-    }
-}
-
-static void line9b(const double p1[9], const double p2[9], const char *geometry) {
+static void line9b(PositionArray const &p1, PositionArray const &p2, const char *geometry) {
     glvertex9(p1, geometry);
     if(p1[3] != p2[3] || p1[4] != p2[4] || p1[5] != p2[5]) {
         double dc = max3(
@@ -1734,8 +1709,7 @@ static void line9b(const double p1[9], const double p2[9], const char *geometry)
         for(i=1; i<=st; i++) {
             double t = i * 1.0 / st;
             double v = 1.0 - t;
-            double pt[9];
-            for(int j=0; j<9; j++) { pt[j] = t * p2[j] + v * p1[j]; }
+            PositionArray pt = p2 * t + p1 * v;
             glvertex9(pt, geometry);
             if(i != st)
                 glvertex9(pt, geometry);
@@ -1746,7 +1720,8 @@ static void line9b(const double p1[9], const double p2[9], const char *geometry)
 }
 
 static PyObject *pyline9(PyObject *s, PyObject *o) {
-    double pt1[9], pt2[9];
+    PositionArray pt1;
+    PositionArray pt2;
     const char *geometry;
 
     if(!PyArg_ParseTuple(o, "s(ddddddddd)(ddddddddd):line9",
@@ -1765,16 +1740,15 @@ static PyObject *pyline9(PyObject *s, PyObject *o) {
 }
 
 static PyObject *pyvertex9(PyObject *s, PyObject *o) {
-    double pt1[9], pt[3];
+    PositionArray vert;
+    double pt[3];
     char *geometry;
     if(!PyArg_ParseTuple(o, "s(ddddddddd):vertex9",
             &geometry,
-            &pt1[0], &pt1[1], &pt1[2],
-            &pt1[3], &pt1[4], &pt1[5],
-            &pt1[6], &pt1[7], &pt1[8]))
+                          UNPACK_POSITION_ARRAY(vert)))
         return NULL;
 
-    vertex9(pt, pt1, geometry);
+    vertex9(vert, pt, geometry);
     return Py_BuildValue("(ddd)", &pt[0], &pt[1], &pt[2]);
 }
 
@@ -1817,7 +1791,9 @@ static PyObject *pydraw_lines(PyObject *s, PyObject *o) {
     PyListObject *li;
     int for_selection = 0;
     unsigned active_line_no = -1, segment_line_no;
-    double p1[9], p2[9], pl[9];
+    PositionArray p1;
+    PositionArray p2;
+    PositionArray pl;
     char *geometry;
     GLBeginEndWrapper gl_wrapper{};
 
@@ -1836,16 +1812,12 @@ static PyObject *pydraw_lines(PyObject *s, PyObject *o) {
         PyObject *it = PyList_GET_ITEM(li, i);
         PyObject *dummy1, *dummy2, *dummy3;
         if(!PyArg_ParseTuple(it, "i(ddddddddd)(ddddddddd)|OOO", &segment_line_no,
-                    p1+0, p1+1, p1+2,
-                    p1+3, p1+4, p1+5,
-                    p1+6, p1+7, p1+8,
-                    p2+0, p2+1, p2+2,
-                    p2+3, p2+4, p2+5,
-                    p2+6, p2+7, p2+8,
+                              UNPACK_POSITION_ARRAY(p1),
+                              UNPACK_POSITION_ARRAY(p2),
                     &dummy1, &dummy2, &dummy3)) {
             return NULL;
         }
-        if(!gl_wrapper.started() || memcmp(p1, pl, sizeof(p1)) || (for_selection && segment_line_no != active_line_no)){
+        if(!gl_wrapper.started() || p1 != pl || (for_selection && segment_line_no != active_line_no)){
             gl_wrapper.end();
             if (for_selection && segment_line_no != active_line_no) {
                 // NOTE: this doesn't currently get passed through, so we only
@@ -1868,7 +1840,7 @@ static PyObject *pydraw_lines(PyObject *s, PyObject *o) {
             glvertex9(p1, geometry);
         }
         line9(p1, p2, geometry);
-        memcpy(pl, p2, sizeof(p1));
+        pl=p2;
     }
 
     Py_INCREF(Py_None);
@@ -1883,7 +1855,7 @@ void draw_lines(std::vector<ToolMotion> const &tool_motions, const char *geometr
         if(motion.p_start != pl){
             gl_wrapper.end();
             gl_wrapper.begin(GL_LINE_STRIP);
-            glvertex9(motion.p_start.data(), geometry);
+            glvertex9(motion.p_start, geometry);
         }
         line9(motion.p_start, motion.p_end, geometry);
         pl = motion.p_end;
@@ -1916,7 +1888,7 @@ void draw_lines_for_selection(std::vector<ToolMotion> const &tool_motions, const
                 active_line_no = motion.line_number;
             }
             gl_wrapper.begin(GL_LINE_STRIP);
-            glvertex9(motion.p_start.data(), geometry);
+            glvertex9(motion.p_start, geometry);
         }
         line9(motion.p_start, motion.p_end, geometry);
         pl = motion.p_end;
@@ -2100,7 +2072,7 @@ static PyObject *pydraw_lines_by_property(PyObject *self, PyObject *args, PyObje
         }
         for(auto const &motion : motion_set.second) {
             if (line_number <= 0 || motion.line_number == line_number) {
-                line9b(motion.p_start.data(), motion.p_end.data(), geometry);
+                line9b(motion.p_start, motion.p_end, geometry);
                 PM_CARTESIAN center_pt = (xyz(motion.p_end) + xyz(motion.p_start))/2.;
                 PyObject *c = PyTuple_New(3);
                 for(int i = 0; i < 3; i++) {
@@ -2364,7 +2336,7 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                                 op->rx, op->ry, op->rz,
                                 oop->rx, oop->ry, oop->rz);
             } else {
-                double pt[9] = {
+                PositionArray const &pt = {
                     status->motion.traj.position.tran.x - status->task.toolOffset.tran.x,
                     status->motion.traj.position.tran.y - status->task.toolOffset.tran.y,
                     status->motion.traj.position.tran.z - status->task.toolOffset.tran.z,
