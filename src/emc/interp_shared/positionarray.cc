@@ -237,3 +237,20 @@ PositionArray & min_inplace(PositionArray & p0, const PositionArray & p1)
     }
     return p0;
 }
+
+char axis_to_char(int ax)
+{
+    switch (ax) {
+    case X:
+    case Y:
+    case Z:
+    case A:
+    case B:
+    case C:
+    case U:
+    case V:
+    case W:
+        return AxisNames[ax];
+    }
+    return '_';
+}

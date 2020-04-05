@@ -50,6 +50,8 @@ static constexpr std::array<char, CANON_AXIS_COUNT> AxisNames = {
     'W',
 };
 
+char axis_to_char(int ax);
+
 using AxisMask = std::bitset<64>;
 
 constexpr std::array<size_t, 6> linearAxes = {X,Y,Z,U,V,W};
