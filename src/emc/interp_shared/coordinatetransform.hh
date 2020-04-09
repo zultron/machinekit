@@ -75,6 +75,13 @@ struct UnitsTransform : public TransformBase
     UnitsTransform &invert_scale();
 };
 
+/**
+ * Contains transforms required to convert from "local" program coordinates to other coordinate systems:
+ * "Machine" coordinates are the actual machine axis positions (relative to their home position). For a milling machine, this would be the location of the spindle nose in the work envelope.
+ * "Local" coordinates are what the program is written in:  p_local = T_g92^-1 * T_g5x^-1 *  T_tool_offset^-1 * p_machine
+ * Equivalently: p_machine = T_tool_offset * T_g5x * T_g92 * p_local
+ * "Tool" coordinates are machine coordinates, with the tool offset subtracted away: p_tool = T_tool_offset^-1 * p_machine = T_g5x * T_g92 * p_local
+ */
 struct LocalToMachineTransform : public TransformBase
 {
     ShiftTransform g92Offset;
@@ -85,14 +92,14 @@ struct LocalToMachineTransform : public TransformBase
     void apply_fwd(PositionArray &p) const;
     void apply_inv(PositionArray &p) const;
 
-    virtual PositionArray forward_local_to_nose(PositionArray const &local) const;
-    virtual PositionArray inverse_local_from_nose(PositionArray const &nose) const;
+    virtual PositionArray forward_local_to_tool(PositionArray const &local) const;
+    virtual PositionArray inverse_local_from_tool(PositionArray const &tool) const;
 
-    virtual PositionArray forward_local_to_tip(PositionArray const &local) const {return forward(local);}
-    virtual PositionArray inverse_local_from_tip(PositionArray const &tip) const {return inverse(tip);}
+    virtual PositionArray forward_local_to_machine(PositionArray const &local) const {return forward(local);}
+    virtual PositionArray inverse_local_from_machine(PositionArray const &machine) const {return inverse(machine);}
 
-    virtual PositionArray forward_nose_to_tip(PositionArray const &nose) const;
-    virtual PositionArray inverse_nose_from_tip(PositionArray const &tip) const;
+    virtual PositionArray forward_tool_to_machine(PositionArray const &tool) const;
+    virtual PositionArray inverse_tool_from_machine(PositionArray const &machine) const;
 
     PositionArray swap_tool_offset(PositionArray const &current_local_pos, ShiftTransform const &new_tool_offset);
     PositionArray swap_g5x_offset(PositionArray const &current_local_pos, RotateShiftTransform const &new_g5x_offset);

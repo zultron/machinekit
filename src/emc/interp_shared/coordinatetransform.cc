@@ -201,29 +201,30 @@ void LocalToMachineTransform::apply_inv(PositionArray & p) const
 }
 
 /**
- * Transform from local coordinates to spindle "nose" coordinate (i.e. tool coordinates without tool offsets).
+ * Transform from local coordinates to tool tip coordinates.
+ * tool tip coordinates are
  */
-PositionArray LocalToMachineTransform::forward_local_to_nose(const PositionArray & local) const
+PositionArray LocalToMachineTransform::forward_local_to_tool(const PositionArray & local) const
 {
      return g5xOffset.forward(g92Offset.forward(local));
 }
 
 /**
- * Transform from nose coordinates back to local coordinates.
+ * Transform from tool tip coordinates back to local coordinates.
  */
-PositionArray LocalToMachineTransform::inverse_local_from_nose(const PositionArray & nose) const
+PositionArray LocalToMachineTransform::inverse_local_from_tool(const PositionArray & tool) const
 {
-    return g92Offset.inverse(g5xOffset.inverse(nose));
+    return g92Offset.inverse(g5xOffset.inverse(tool));
 }
 
-PositionArray LocalToMachineTransform::forward_nose_to_tip(const PositionArray & nose) const
+PositionArray LocalToMachineTransform::forward_tool_to_machine(const PositionArray & tool) const
 {
-    return toolOffset.forward(nose);
+    return toolOffset.forward(tool);
 }
 
-PositionArray LocalToMachineTransform::inverse_nose_from_tip(const PositionArray & tip) const
+PositionArray LocalToMachineTransform::inverse_tool_from_machine(const PositionArray & machine) const
 {
-    return toolOffset.inverse(tip);
+    return toolOffset.inverse(machine);
 }
 
 PositionArray LocalToMachineTransform::swap_tool_offset(const PositionArray & current_local_pos, const ShiftTransform & new_tool_offset)
@@ -238,12 +239,12 @@ PositionArray LocalToMachineTransform::swap_tool_offset(const PositionArray & cu
 
 PositionArray LocalToMachineTransform::swap_g5x_offset(const PositionArray & current_local_pos, const RotateShiftTransform & new_g5x_offset)
 {
-    // Go forward to real machine coordinates with the current g5x offset
-    PositionArray nose_pos = forward_local_to_nose(current_local_pos);
+    // Go forward to real tool coordinates with the current g5x offset
+    PositionArray tool_pos = forward_local_to_tool(current_local_pos);
     // Swap out the g5x offset
     g5xOffset = new_g5x_offset;
-    // Apply inverse transform to get back to the current position with the new g5x offset applied
-    return inverse_local_from_nose(nose_pos);
+    // Apply inverse transform to get the local position resulting from the new g5x offset
+    return inverse_local_from_tool(tool_pos);
 }
 
 

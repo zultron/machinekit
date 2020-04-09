@@ -2814,8 +2814,8 @@ int Interp::create_full_restore_sequence(
     AxisMask traverse_axes = ~preamble.plunge_axes;
 
     PositionArray move_start_pos = _setup.posWithDiameterMode();
-    auto leadin_nose_prog = convertsUserToProgram().forward(run_initial_state.initial_nose_position_uu);
-    PositionArray leadin_position_raw = _setup.transform.inverse_local_from_nose(leadin_nose_prog);
+    auto leadin_tool_prog = convertsUserToProgram().forward(run_initial_state.initial_tool_position_uu);
+    PositionArray leadin_position_raw = _setup.transform.inverse_local_from_tool(leadin_tool_prog);
     PositionArray leadin_position = _setup.posWithDiameterMode(leadin_position_raw);
 
     double leadin_feedrate = USER_TO_PROGRAM_LEN(run_initial_state.modal_state.feed_rate_uu);
@@ -3720,9 +3720,9 @@ int Interp::convert_setup_tool(block_pointer block, setup_pointer settings) {
 
         const PositionArray goal_local = getAxisWordsFromBlock(block, current);
 
-        const PositionArray goal_nose = working_csys.forward_local_to_nose(goal_local);
-
-        const PositionArray new_tool_offset = machine_pos - goal_nose;
+        const PositionArray goal_tool = working_csys.forward_local_to_tool(goal_local);
+        // Subtract the tool tip position from the machine absolute position to get the tool offset
+        const PositionArray new_tool_offset = machine_pos - goal_tool;
         store_tool_offset(settings, ShiftTransform(new_tool_offset), pocket);
     }
 
@@ -3902,7 +3902,7 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
        (_("Cannot change the active coordinate system with cutter radius compensation on")));
 
   // Get the global position for later reference
-  const PositionArray pos_current_nose = settings->transform.forward_local_to_nose(settings->current);
+  const PositionArray pos_current_tool = settings->transform.forward_local_to_tool(settings->current);
 
   // Starting from the active overall transform, find the effective transform for the desired work offset number
   LocalToMachineTransform desired_csys = settings->transform;
@@ -3913,7 +3913,7 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
 
     // L20 means update the work offset so that the current local position matches the commanded values
     // This does not change the global position
-    PositionArray pos_local_in_csys = desired_csys.inverse_local_from_nose(pos_current_nose); // Current LOCAL position in program units, as if p_int cysys was active
+    PositionArray pos_local_in_csys = desired_csys.inverse_local_from_tool(pos_current_tool); // Current LOCAL position in program units, as if p_int cysys was active
     PositionArray commanded_local = getAxisWordsFromBlock(block, pos_local_in_csys); // in program units
 
     // Unrotate the displacement vector to get the global offset (since G5x offsets are not rotated)
@@ -3921,18 +3921,18 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
     // The work offset increases by the difference between the current local position, and the desired local position
     // new_offset_global = old_offset_global + rotate_to_global(old_local - new_local)
     // Expect that a smaller "new" coordinate gives a bigger offset value
-    desired_csys.g5xOffset.shift.tf -= (desired_csys.forward_local_to_nose(commanded_local) - pos_current_nose);
-    const PositionArray verify_pos_commanded_nose = desired_csys.forward_local_to_nose(commanded_local);
+    desired_csys.g5xOffset.shift.tf -= (desired_csys.forward_local_to_tool(commanded_local) - pos_current_tool);
+    const PositionArray verify_pos_commanded_tool = desired_csys.forward_local_to_tool(commanded_local);
 
     // DEBUG only
-    if (max(abs_diff(verify_pos_commanded_nose, pos_current_nose)) > 1e-8) {
-        ERS("machine global position mismatch after G10 L20, commanded nose [%f %f %f],  current nose [%f %f %f],  current [%f %f %f]",
-            verify_pos_commanded_nose[X],
-            verify_pos_commanded_nose[Y],
-            verify_pos_commanded_nose[Z],
-            pos_current_nose[X],
-            pos_current_nose[Y],
-            pos_current_nose[Z],
+    if (max(abs_diff(verify_pos_commanded_tool, pos_current_tool)) > 1e-8) {
+        ERS("machine global position mismatch after G10 L20, commanded tool [%f %f %f],  current tool [%f %f %f],  current [%f %f %f]",
+            verify_pos_commanded_tool[X],
+            verify_pos_commanded_tool[Y],
+            verify_pos_commanded_tool[Z],
+            pos_current_tool[X],
+            pos_current_tool[Y],
+            pos_current_tool[Z],
             settings->current[X],
             settings->current[Y],
             settings->current[Z]
@@ -3949,7 +3949,7 @@ int Interp::convert_setup_work(block_pointer block,   //!< pointer to a block of
   write_and_update_state_tag(nullptr);
 
   if (p_int == settings->origin_index) {        /* system is currently used */
-    settings->current = desired_csys.inverse_local_from_nose(pos_current_nose);
+    settings->current = desired_csys.inverse_local_from_tool(pos_current_tool);
     settings->transform = desired_csys;
   } else {
       // Restore the current offset in task / canon
@@ -5266,7 +5266,7 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
 
   if (settings->tool_change_quill_up) {
       // Assume plunge axes have returned to the home position (e.g. during a tool change or after a probe)
-      PositionArray local_machine_zero = settings->transform.inverse_local_from_tip(PositionArray{});
+      PositionArray local_machine_zero = settings->transform.inverse_local_from_machine(PositionArray{});
       auto plunge_axis_zero = merge(settings->current, local_machine_zero, settings->default_seek_preamble.plunge_axes);
       COMMENT("AXIS,hide");
       STRAIGHT_TRAVERSE(-1, UNPACK_POSITION_ARRAY_REF(plunge_axis_zero));

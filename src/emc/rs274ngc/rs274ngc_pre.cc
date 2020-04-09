@@ -1528,8 +1528,8 @@ void Interp::set_loop_on_main_m99(bool state) {
 
 int Interp::collect_expanded_modal_state(ExpandedModalState & initial_state) const
 {
-    auto initial_nose_prog = _setup.transform.forward_local_to_nose(GET_EXTERNAL_POSITION());
-    initial_state.initial_nose_position_uu = convertsProgramToUser().forward(initial_nose_prog);
+    auto initial_tool_prog = _setup.transform.forward_local_to_tool(GET_EXTERNAL_POSITION());
+    initial_state.initial_tool_position_uu = convertsProgramToUser().forward(initial_tool_prog);
     initial_state.tool_offset_uu = convertsProgramToUser().forward_tf(_setup.transform.toolOffset);
     collect_modal_state(nullptr, &_setup, initial_state.modal_state);
     return INTERP_OK;
@@ -1734,7 +1734,7 @@ int Interp::read_inputs(setup_pointer settings)
          _("Queue is not empty after tool change"));
     if (IN_START_LINE_SEEK()) {
         // Assume plunge axes have returned to the home position after tool change is complete
-        PositionArray local_machine_zero = settings->transform.inverse_local_from_tip(PositionArray{});
+        PositionArray local_machine_zero = settings->transform.inverse_local_from_machine(PositionArray{});
         settings->current = merge(settings->current, local_machine_zero, settings->default_seek_preamble.plunge_axes);
     } else {
         refresh_actual_position(settings);

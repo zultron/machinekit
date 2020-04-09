@@ -943,7 +943,7 @@ int set_exec_mode(ParseExecMode mode)
  */
 int synch_position_to_python()
 {
-    auto machine_pos_uu = machine.transform_uu.forward_local_to_nose(convertsProgToUser().forward(_pos_prog));
+    auto machine_pos_uu = machine.transform_uu.forward_local_to_tool(convertsProgToUser().forward(_pos_prog));
 
     if(interp_error) return INTERP_ERROR;
     PyObject *result =
@@ -960,7 +960,7 @@ int synch_position_to_python()
 void restore_machine_state_before_preview_synch(ExpandedModalState const &run_initial_state)
 {
     // KLUDGE force the "machine" state to be what the initial position was again, as if synching from a real machine
-    _pos_prog = convertsUserToProg().forward(machine.transform_uu.inverse_local_from_nose(run_initial_state.initial_nose_position_uu));
+    _pos_prog = convertsUserToProg().forward(machine.transform_uu.inverse_local_from_tool(run_initial_state.initial_tool_position_uu));
     machine.set_current_pos(_pos_prog);
 
     // TODO handle coolant settings here if we ever show coolant state in preview
@@ -1208,18 +1208,18 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
             callback,
             "set_extents",
             "(ddd)(ddd)(ddd)(ddd)",
-            machine.extents.min[X],
-            machine.extents.min[Y],
-            machine.extents.min[Z],
-            machine.extents.max[X],
-            machine.extents.max[Y],
-            machine.extents.max[Z],
-            machine.extents_no_tool.min[X],
-            machine.extents_no_tool.min[Y],
-            machine.extents_no_tool.min[Z],
-            machine.extents_no_tool.max[X],
-            machine.extents_no_tool.max[Y],
-            machine.extents_no_tool.max[Z]);
+            machine.extents_tool.min[X],
+            machine.extents_tool.min[Y],
+            machine.extents_tool.min[Z],
+            machine.extents_tool.max[X],
+            machine.extents_tool.max[Y],
+            machine.extents_tool.max[Z],
+            machine.extents_machine.min[X],
+            machine.extents_machine.min[Y],
+            machine.extents_machine.min[Z],
+            machine.extents_machine.max[X],
+            machine.extents_machine.max[Y],
+            machine.extents_machine.max[Z]);
 
         if(!res) {
             PyErr_Format(PyExc_RuntimeError,
@@ -1629,7 +1629,7 @@ void PreviewMachine::straight_motion(int line_number, const PositionArray & goal
         set_current_pos(goal_pos_prog);
         return;
     }
-    auto goal_pos_uu = transform_uu.forward_local_to_nose(convertsProgToUser().forward(goal_pos_prog));
+    auto goal_pos_uu = transform_uu.forward_local_to_tool(convertsProgToUser().forward(goal_pos_prog));
     add_motion({t, exec_mode, current_tool_pocket}, {
         line_number,
         machine_pos_uu,
@@ -1640,16 +1640,16 @@ void PreviewMachine::straight_motion(int line_number, const PositionArray & goal
 
 void PreviewMachine::updateExtents(PositionArray machine_goal_pos_uu)
 {
-    max_inplace(extents.max, machine_goal_pos_uu);
-    min_inplace(extents.min, machine_goal_pos_uu);
+    max_inplace(extents_tool.max, machine_goal_pos_uu);
+    min_inplace(extents_tool.min, machine_goal_pos_uu);
 
-    PositionArray p1_notool = transform_uu.forward_nose_to_tip(machine_goal_pos_uu);
-    max_inplace(extents_no_tool.max, p1_notool);
-    min_inplace(extents_no_tool.min, p1_notool);
+    PositionArray p1_machine = transform_uu.forward_tool_to_machine(machine_goal_pos_uu);
+    max_inplace(extents_machine.max, p1_machine);
+    min_inplace(extents_machine.min, p1_machine);
 }
 
 void PreviewMachine::set_current_pos(const PositionArray & pos_local_prog) {
-    machine_pos_uu =  transform_uu.forward_local_to_nose(convertsProgToUser().forward(pos_local_prog));
+    machine_pos_uu =  transform_uu.forward_local_to_tool(convertsProgToUser().forward(pos_local_prog));
 }
 
 void PreviewMachine::begin_feed()
@@ -1726,7 +1726,7 @@ void PreviewMachine::arc_feed(int line_number,
     n_tmp[Z] = z1;
     PositionArray const n{n_tmp.x,n_tmp.y,n_tmp.z,a,b,c,u,v,w};
 
-    PositionArray const start_lcl = transform_uu.inverse_local_from_nose(machine_pos_uu);
+    PositionArray const start_lcl = transform_uu.inverse_local_from_tool(machine_pos_uu);
 
     double theta1 = atan2(start_lcl[Y]-cy, start_lcl[X]-cx);
     double theta2 = atan2(n[Y]-cy, n[X]-cx);
@@ -1765,8 +1765,8 @@ void PreviewMachine::arc_feed(int line_number,
         motion_set.push_back(
                    {
                        line_number,
-                       transform_uu.forward_local_to_nose(p_lcl),
-                       transform_uu.forward_local_to_nose(p_lcl_last),
+                       transform_uu.forward_local_to_tool(p_lcl),
+                       transform_uu.forward_local_to_tool(p_lcl_last),
                        feed_rate
                    });
         updateExtents(motion_set.back().p_end);
@@ -1775,8 +1775,8 @@ void PreviewMachine::arc_feed(int line_number,
     motion_set.push_back(
         {
             line_number,
-            transform_uu.forward_local_to_nose(p_lcl_last),
-            transform_uu.forward_local_to_nose(n),
+            transform_uu.forward_local_to_tool(p_lcl_last),
+            transform_uu.forward_local_to_tool(n),
             feed_rate
         });
     updateExtents(motion_set.back().p_end);
@@ -1787,7 +1787,7 @@ void PreviewMachine::arc_feed(int line_number,
 void PreviewMachine::rigid_tap(int line_number, const PositionArray & goal_pos_prog)
 {
     begin_feed();
-    PositionArray orig_pos_prog = convertsUserToProg().forward(transform_uu.inverse_local_from_nose(get_current_pos()));
+    PositionArray orig_pos_prog = convertsUserToProg().forward(transform_uu.inverse_local_from_tool(get_current_pos()));
     straight_motion(line_number, goal_pos_prog, MotionType::RIGID_TAP);
     straight_motion(line_number, orig_pos_prog, MotionType::RIGID_TAP);
 }
@@ -1819,10 +1819,10 @@ void PreviewMachine::tool_offset(EmcPose const &offset)
 void PreviewMachine::clear_motions()
 {
     tool_motions.clear();
-    extents.min.fill(1e+99);
-    extents.max.fill(-1e+99);
-    extents_no_tool.min.fill(1e+99);
-    extents_no_tool.max.fill(-1e+99);
+    extents_tool.min.fill(1e+99);
+    extents_tool.max.fill(-1e+99);
+    extents_machine.min.fill(1e+99);
+    extents_machine.max.fill(-1e+99);
     end_feed();
 }
 

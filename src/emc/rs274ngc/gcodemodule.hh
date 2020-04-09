@@ -21,8 +21,8 @@ class PreviewMachine
     void resetExtents();
 
 public:
-    ExtentBox extents;
-    ExtentBox extents_no_tool;
+    ExtentBox extents_tool;
+    ExtentBox extents_machine;
     PreviewMachine() = default;
     LocalToMachineTransform transform_uu; //KLUDGE easier to just poke this directly
 

@@ -79,7 +79,7 @@ struct AutoRunSettings
  * state as it would have been if it was run from the beginning.
  */
 struct ExpandedModalState {
-    PositionArray initial_nose_position_uu; //!< Theoretical initial machine position if the spindle nose were at the same height as the current tool tip
+    PositionArray initial_tool_position_uu; //!< Theoretical initial machine position if the spindle nose were at the same height as the current tool tip
     ShiftTransform tool_offset_uu; //!< currently applied custom tool offset (if applicable)
     ModalState modal_state;
 };

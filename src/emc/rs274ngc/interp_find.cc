@@ -204,7 +204,7 @@ int Interp::find_ends(block_pointer block, setup_pointer s, PositionArray & cmd_
          _("Cannot specify X or Y words with polar coordinate"));
 
     if (block->g_modes[GM_MODAL_0] == G_53) {      /* distance mode is absolute in this case */
-        const PositionArray machine_abs = s->transform.forward_local_to_tip(s->current);
+        const PositionArray machine_abs = s->transform.forward_local_to_machine(s->current);
         const PositionArray cmd_abs = getAxisWordsFromBlock(block, machine_abs);
         find_relative(s, cmd_abs, cmd_local_pos);
         return INTERP_OK;
@@ -335,7 +335,7 @@ int Interp::find_relative(double x1,     //!< absolute x position
 
 int Interp::find_relative(setup_pointer s, const PositionArray &cmd_abs, PositionArray &cmd_local)
 {
-    cmd_local = s->transform.inverse_local_from_tip(cmd_abs);
+    cmd_local = s->transform.inverse_local_from_machine(cmd_abs);
     CHKS(s->a_axis_wrapped && angle_too_big(cmd_abs[A]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), cmd_abs[A], 'A');
     CHKS(s->b_axis_wrapped && angle_too_big(cmd_abs[B]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), cmd_abs[B], 'B');
     CHKS(s->c_axis_wrapped && angle_too_big(cmd_abs[C]), (_("Invalid absolute position %5.2f for wrapped rotary axis %c")), cmd_abs[C], 'C');
@@ -494,18 +494,18 @@ int Interp::store_work_offset(setup_pointer settings, RotateShiftTransform const
 
 /** Find what current coordinates would be if the specified coordinate system was active. */
 int Interp::find_current_in_system(setup_pointer s, int system, PositionArray &out) {
-    // Tool offset is not changed by switching work offsets, so we don't have to transform fully into tool tip coordinates, just spindle nose coordinates
-    PositionArray pos_nose = s->transform.forward_local_to_nose(s->current);
+    // Tool offset is not changed by switching work offsets, so we don't have to transform fully into tool tip coordinates, just spindle tool coordinates
+    PositionArray pos_tool = s->transform.forward_local_to_tool(s->current);
     LocalToMachineTransform tmp = s->transform;
     CHP(find_work_offset_prog(system, tmp.g5xOffset));
 
-    out = tmp.inverse_local_from_nose(pos_nose);
+    out = tmp.inverse_local_from_tool(pos_tool);
     return INTERP_OK;
 }
 
 /**
  * Find what current coordinates would be if the specified coordinate system was active, and tool offsets were not applied.
- * Think of this as spindle-nose coordinates rather than tool-tip coordinates.
+ * Think of this as the position of the spindle "nose" (i.e. a zero-length tool) expressed in local coordinates.
  */
 int Interp::find_current_in_system_without_tlo(setup_pointer s, int system, PositionArray &out)
 {
@@ -513,7 +513,7 @@ int Interp::find_current_in_system_without_tlo(setup_pointer s, int system, Posi
     LocalToMachineTransform tmp = s->transform;
     CHP(find_work_offset_prog(system, tmp.g5xOffset));
     // NOTE: this is where the "tool offsets not applied" part happens.
-    out = tmp.inverse_local_from_nose(pos);
+    out = tmp.inverse_local_from_tool(pos);
     return INTERP_OK;
 }
 
