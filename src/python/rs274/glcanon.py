@@ -29,6 +29,8 @@ import time
 import struct
 import operator
 import numpy as np
+import re
+
 
 MotionKey = namedtuple('MotionKey', ['motion_type', 'exec_mode', 'tool_no'])
 
@@ -60,7 +62,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         """
         ArcsToSegmentsMixin.__init__(self)
 
-        self.geometry = geometry
         self.color_config = color_config
         # Fields that store preview data built up during parse:
 
@@ -130,10 +131,10 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def colored_lines_by_type(self, color_name, motion_key, for_selection):
         if not for_selection:
             self.color_config.gl_color_with_alpha(color_name)
-        return linuxcnc.draw_lines_by_type(self.geometry, self.tool_data_capsule, motion_key, for_selection)
+        return linuxcnc.draw_lines_by_type(self.tool_data_capsule, motion_key, for_selection)
 
     def draw_dwells(self, dwells, alpha, for_selection):
-        return linuxcnc.draw_dwells(self.geometry, dwells, alpha, for_selection, self.is_lathe())
+        return linuxcnc.draw_dwells(dwells, alpha, for_selection, self.is_lathe())
 
     def calc_extents(self):
         self.min_extents, self.max_extents, self.min_extents_notool, self.max_extents_notool = gcode.calc_extents_dict(self.tool_motions)
@@ -293,12 +294,12 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
     def clear_tool_motion_keys(self):
         self.tool_motion_types = set()
 
-    def highlight(self, lineno, geometry):
+    def highlight(self, lineno):
         #t0 = time.time()
         glLineWidth(3)
         c = self.color_config.get_color('selected')
         glColor3f(*c)
-        coords = linuxcnc.draw_lines_by_property(geometry, self.tool_data_capsule, line_number=lineno)
+        coords = linuxcnc.draw_lines_by_property(self.tool_data_capsule, line_number=lineno)
 
         for line in self.dwells:
             if line[0] != lineno:
@@ -476,11 +477,12 @@ class GlDrawColors:
 
 class GlCanonDraw:
 
-    def __init__(self, s, lp, inifile, color_config, g=None):
+    def __init__(self, s, inifile, color_config, canon_inst=None):
+        self.hershey = None
+        self.inifile = inifile
         self.color_config = color_config
         self.stat = s
-        self.lp = lp
-        self.canon = g
+        self.canon = canon_inst
         self._dlists = {}
         self.select_buffer_size = 100
         self.cached_tool = -1
@@ -494,8 +496,43 @@ class GlCanonDraw:
         self.z_limit_negative = float(inifile.find("AXIS_2", "MIN_LIMIT"))
         self.highlight_line = None
 
+        temp = inifile.find("DISPLAY", "LATHE")
+        self.lathe_option = bool(temp == "1" or temp == "True" or temp == "true" )
+
+        temp2 = inifile.find("DISPLAY", "GEOMETRY")
+        self.rear_tp_lathe_option = bool(temp2 == "-XZ")
+
+        self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
+        self.geometry = None
+        self.set_geometry()
+
     def update_glcanon(self, new_canon):
         self.canon = new_canon
+
+    def get_geometry(self):
+        return self.geometry
+
+    def set_geometry(self, geometry_override=None):
+        geom_spec = geometry_override or (self.inifile.find("DISPLAY", "GEOMETRY") or 'XYZ').upper()
+
+        # KLUDGE check for special rendering cases here
+        # TODO find a way to generalize this
+        if geom_spec == 'XYZA_FIXED':
+            y0 = self.inifile.find("DISPLAY", "A_AXIS_Y_ORIGIN") or 0.0
+            z0 = self.inifile.find("DISPLAY", "A_AXIS_Z_ORIGIN") or 0.0
+            flipped = self.inifile.find("DISPLAY", "A_AXIS_FLIPPED") or 0.0
+            linuxcnc.set_preview_xyza_kinematics(float(y0), float(z0), int(flipped))
+            # For reference only, may remove this
+            self.geometry = geom_spec
+        elif geom_spec == 'XYZ':
+            linuxcnc.set_preview_xyz_kinematics()
+            self.geometry = geom_spec
+        else:
+            # Reverse the provided order internally to match axis (not sure why)
+            geometry_elems = re.split(" *(-?[XYZABCUVW])", geom_spec)
+            geometry_reversed = ''.join(reversed(geometry_elems))
+            linuxcnc.set_preview_trivial_kinematics(geometry_reversed)
+            self.geometry = geometry_reversed
 
     def realize(self):
         self.hershey = hershey.Hershey()
@@ -599,15 +636,17 @@ class GlCanonDraw:
             if self.foam_option:
                 glPushMatrix()
                 glTranslatef(0, 0, self.get_foam_z())
-                x, y, z = self.canon.highlight(line, "XY")
+                self.set_geometry("XY")
+                x, y, z = self.canon.highlight(line)
                 glTranslatef(0, 0, self.get_foam_w()-self.get_foam_z())
-                u, v, w = self.canon.highlight(line, "UV")
+                self.set_geometry("UV")
+                u, v, w = self.canon.highlight(line)
                 glPopMatrix()
                 x = (x+u)/2
                 y = (y+v)/2
                 z = (self.get_foam_z() + self.get_foam_w())/2
             else:
-                x, y, z = self.canon.highlight(line, self.get_geometry())
+                x, y, z = self.canon.highlight(line)
         elif self.canon is not None:
             x = (self.canon.min_extents[0] + self.canon.max_extents[0])/2
             y = (self.canon.min_extents[1] + self.canon.max_extents[1])/2
@@ -1461,7 +1500,7 @@ class GlCanonDraw:
             glPushMatrix()
             glTranslatef(0,0,.003)
 
-            self.lp.draw_live_plot()
+            self.logger.draw_live_plot()
 
             glPopMatrix()
             glMatrixMode(GL_MODELVIEW)
@@ -1471,7 +1510,7 @@ class GlCanonDraw:
             glDepthFunc(GL_LESS)
 
         if self.get_show_tool():
-            pos = self.lp.last(self.get_show_live_plot())
+            pos = self.logger.last(self.get_show_live_plot())
             if pos is None: pos = [0] * 6
             rx, ry, rz = pos[3:6]
             pos = self.to_internal_units(pos[:3])
@@ -2049,12 +2088,14 @@ class GlCanonDraw:
             if self.foam_option:
                 glPushMatrix()
                 glTranslatef(0, 0, self.get_foam_z())
-                self.canon.highlight(line, "XY")
+                self.set_geometry("XY")
+                self.canon.highlight(line)
                 glTranslatef(0, 0, self.get_foam_w()-self.get_foam_z())
-                self.canon.highlight(line, "UV")
+                self.set_geometry("UV")
+                self.canon.highlight(line)
                 glPopMatrix()
             else:
-                self.canon.highlight(line, self.get_geometry())
+                self.canon.highlight(line)
         glEndList()
 
     def get_work_offsets_used(self):
@@ -2116,4 +2157,10 @@ class GlCanonDraw:
 
     def get_show_axis_offset(self):
         return True
+
+    def is_lathe(self):
+        return self.lathe_option
+
+    def is_rear_tool_post_lathe(self):
+        return self.rear_tp_lathe_option
 # vim:ts=8:sts=4:sw=4:et:

@@ -123,7 +123,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     rotation_vectors = [(1.,0.,0.), (0., 0., 1.)]
 
     def __init__(self, inifile):
-        self.geometry = ''
         display_mode = ( gtk.gdkgl.MODE_RGB | gtk.gdkgl.MODE_DEPTH |
                          gtk.gdkgl.MODE_DOUBLE )
         glconfig = gtk.gdkgl.Config(mode=display_mode)
@@ -131,7 +130,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         gtk.gtkgl.widget.DrawingArea.__init__(self, glconfig)
         glnav.GlNavBase.__init__(self)
         color_config = rs274.glcanon.GlDrawColors()
-        self.inifile = inifile
+        rs274.glcanon.GlCanonDraw.__init__(self, linuxcnc.stat(), inifile=inifile, color_config=color_config)
+
         self.logger = linuxcnc.positionlogger(
             linuxcnc.stat(),
             color_config.lkup_color('backplotjog'),
@@ -139,12 +139,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             color_config.lkup_color('backplotfeed'),
             color_config.lkup_color('backplotarc'),
             color_config.lkup_color('backplottoolchange'),
-            color_config.lkup_color('backplotprobing'),
-            self.get_geometry()
+            color_config.lkup_color('backplotprobing')
         )
         thread.start_new_thread(self.logger.start, (.01,))
-
-        rs274.glcanon.GlCanonDraw.__init__(self, linuxcnc.stat(), self.logger, inifile=inifile, color_config=color_config)
 
         self.current_view = 'z'
 
@@ -190,13 +187,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.show_dtg = True
         self.grid_size = 0.0
         self.use_default_controls = True
-        temp = inifile.find("DISPLAY", "LATHE")
-        self.lathe_option = bool(temp == "1" or temp == "True" or temp == "true" )
 
-        temp2 = inifile.find("DISPLAY", "GEOMETRY")
-        self.rear_tp_lathe_option = bool(temp2 == "-XZ")
-
-        self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
         self.show_offsets = True
         self.show_g53_origin = False
         self.mouse_btn_mode = 0
@@ -322,10 +313,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             return
         return getattr(self, 'set_view_%s' % self.current_view)()
     
-    def set_geometry(self, geometry):
-        self.geometry = geometry
-
-
     def get_visible_tools(self):
         '''
         Returns a list of visible tool paths.  None means all tools are visible.
@@ -478,15 +465,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def get_tools_used(self): return self._tools_used
     def get_program_alpha(self): return self.program_alpha
     def get_num_joints(self): return self.num_joints
-    def get_geometry(self):
-        if self.geometry == '':
-            temp = self.inifile.find("DISPLAY", "GEOMETRY")
-            if temp:
-                geometry = re.split(" *(-?[XYZABCUVW])", temp.upper())
-                self.geometry = "".join(reversed(geometry))
-            else:
-                self.geometry = 'XYZ'
-        return self.geometry
 
     def get_joints_mode(self): return self.use_joints_mode
     def get_show_commanded(self): return self.use_commanded
@@ -505,9 +483,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
     def get_view(self):
         view_dict = {'x':0, 'y':1, 'z':2, 'p':3}
         return view_dict.get(self.current_view, 3)
-
-    def is_lathe(self): return self.lathe_option
-    def is_rear_tool_post_lathe(self): return self.rear_tp_lathe_option
 
     def get_current_tool(self):
         for i in self.stat.tool_table:

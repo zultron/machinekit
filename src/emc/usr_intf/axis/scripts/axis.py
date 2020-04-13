@@ -365,7 +365,7 @@ class MyOpengl(GlCanonDraw, Opengl):
         self.motion_after = None
         self.perspective = False
         Opengl.__init__(self, *args, **kw)
-        GlCanonDraw.__init__(self, s, None, inifile, GlDrawColors())
+        GlCanonDraw.__init__(self, s, inifile, GlDrawColors())
         self.bind('<Button-1>', self.select_prime, add=True)
         self.bind('<ButtonRelease-1>', self.select_fire, add=True)
         self.bind('<Button1-Motion>', self.select_cancel, add=True)
@@ -1177,7 +1177,7 @@ def open_file_guts(f, filtered=False, addrecent=True):
 
 
         t.configure(state="disabled")
-        o.lp.set_depth(from_internal_linear_unit(o.get_foam_z()),
+        o.logger.set_depth(from_internal_linear_unit(o.get_foam_z()),
                        from_internal_linear_unit(o.get_foam_w()))
 
     except Exception, e:
@@ -3362,7 +3362,7 @@ get_coordinate_font(vars.dro_large_font.get())
 
 live_plotter = LivePlotter(o)
 live_plotter.start()
-o.lp = live_plotter.logger
+o.logger = live_plotter.logger
 hershey = Hershey()
 
 def remove_tempdir(t):

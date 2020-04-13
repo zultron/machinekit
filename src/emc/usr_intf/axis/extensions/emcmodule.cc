@@ -1629,6 +1629,13 @@ static PyObject *pyset_trivial_kinematics(PyObject *s, PyObject *o) {
     Py_RETURN_NONE;
 }
 
+static PyObject *pyset_xyz_kinematics(PyObject *, PyObject *) {
+
+    kinematics.reset(new Kinematics_XYZ());
+
+    Py_RETURN_NONE;
+}
+
 static PyObject *pyset_xyza_kinematics(PyObject *s, PyObject *o) {
     double y0=0, z0=0;
     int flipped_A=0;
@@ -1809,13 +1816,12 @@ void draw_lines_for_selection(std::vector<ToolMotion> const &tool_motions)
 }
 
 static PyObject *pydraw_lines_by_type(PyObject *s, PyObject *o) {
-    char *geometry={};
     int for_selection = 0;
 
     PyObject *capsule=nullptr;
     PyObject *motion_key_tuple=nullptr;
-    if(!PyArg_ParseTuple(o, "sO!O!i:draw_lines_by_type",
-                &geometry, &PyCapsule_Type, &capsule, &PyTuple_Type, &motion_key_tuple, &for_selection))
+    if(!PyArg_ParseTuple(o, "O!O!i:draw_lines_by_type",
+                &PyCapsule_Type, &capsule, &PyTuple_Type, &motion_key_tuple, &for_selection))
         return NULL;
     if (!capsule) {
         PyErr_Format( error, "Motion data capsule is null!");
@@ -1860,10 +1866,9 @@ static PyObject *pydraw_dwells(PyObject *s, PyObject *o) {
     PyListObject *li;
     int for_selection = 0, is_lathe = 0, i, n;
     double alpha;
-    char *geometry;
     double delta = 0.015625;
 
-    if(!PyArg_ParseTuple(o, "sO!dii:draw_dwells", &geometry, &PyList_Type, &li, &alpha, &for_selection, &is_lathe))
+    if(!PyArg_ParseTuple(o, "O!dii:draw_dwells", &PyList_Type, &li, &alpha, &for_selection, &is_lathe))
         return NULL;
 
     if (for_selection == 0)
@@ -1935,8 +1940,6 @@ static PM_CARTESIAN xyz(PositionArray const &p)
 static PyObject *pydraw_lines_by_property(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     // Assume that linewidth and color are already specified (e.g. for highlighting)
-    char *geometry={};
-
     PyObject *capsule=nullptr;
 
     int line_number=-1;
@@ -1944,7 +1947,6 @@ static PyObject *pydraw_lines_by_property(PyObject *self, PyObject *args, PyObje
     // TODO other properties to filter by
 
     static const char * const kwarg_list[] = {
-        "geometry",
         "tool_motions_capsule",
         "line_number",
         "tool_number",
@@ -1955,9 +1957,8 @@ static PyObject *pydraw_lines_by_property(PyObject *self, PyObject *args, PyObje
     if(!PyArg_ParseTupleAndKeywords(
             args,
             kwargs,
-            "sO!|ii",
+            "O!|ii",
             const_cast<char**>(kwarg_list),
-            &geometry,
             &PyCapsule_Type,
             &capsule,
             &line_number,
@@ -2054,7 +2055,6 @@ typedef struct {
     bool exit;
     bool clear;
 
-    char *geometry;
     int is_xyuv;
     double foam_z;
     double foam_w;
@@ -2116,7 +2116,6 @@ static tool_point_list* find_active_tool_point_list(pyPositionLogger *s, int tar
 }
 
 static int Logger_init(pyPositionLogger *self, PyObject *a, PyObject *k) {
-    char *geometry;
     struct color *c = self->colors;
 
     self->last_tool = 0;
@@ -2131,7 +2130,7 @@ static int Logger_init(pyPositionLogger *self, PyObject *a, PyObject *k) {
     self->is_xyuv = 0;
     self->foam_z = 0;
     self->foam_w = 1.5;  // temporarily hard-code
-    if(!PyArg_ParseTuple(a, "O!(BBBB)(BBBB)(BBBB)(BBBB)(BBBB)(BBBB)s|i",
+    if(!PyArg_ParseTuple(a, "O!(BBBB)(BBBB)(BBBB)(BBBB)(BBBB)(BBBB)|i",
             &Stat_Type, &self->st,
             &c[0].r,&c[0].g, &c[0].b, &c[0].a,
             &c[1].r,&c[1].g, &c[1].b, &c[1].a,
@@ -2139,11 +2138,10 @@ static int Logger_init(pyPositionLogger *self, PyObject *a, PyObject *k) {
             &c[3].r,&c[3].g, &c[3].b, &c[3].a,
             &c[4].r,&c[4].g, &c[4].b, &c[4].a,
             &c[5].r,&c[5].g, &c[5].b, &c[5].a,
-            &geometry, &self->is_xyuv
+            &self->is_xyuv
             ))
         return -1;
     Py_INCREF(self->st);
-    self->geometry = strdup(geometry);
     return 0;
 }
 
@@ -2156,7 +2154,6 @@ static void Logger_dealloc(pyPositionLogger *s) {
         free(pldead);
     }
     Py_XDECREF(s->st);
-    free(s->geometry);
     PyObject_Del(s);
 }
 
@@ -2526,6 +2523,7 @@ static PyMethodDef emc_methods[] = {
 //    {"line9", pyline9, METH_VARARGS, "Draw a single line in the 'rs274.glcanon' format; assumes glBegin(GL_LINES)"},
 //    {"vertex9", pyvertex9, METH_VARARGS, "Get the 3d location for a 9d point"},
     {"set_preview_trivial_kinematics", pyset_trivial_kinematics, METH_VARARGS, "Preview tool motions with trivial kinematics from the provided geometry specification"},
+    {"set_preview_xyz_kinematics", pyset_xyz_kinematics, METH_NOARGS, "Preview tool motions with default XYZ kinematics"},
     {"set_preview_xyza_kinematics", pyset_xyza_kinematics, METH_VARARGS, "Preview tool motions with XYZA kinematics, specifying a fixed A axis intercept in the workspace"},
     {}
 };

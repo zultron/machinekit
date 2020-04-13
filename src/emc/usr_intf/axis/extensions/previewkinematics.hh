@@ -14,6 +14,8 @@ public:
     virtual ~PreviewKinematicsBase() = default;
 };
 
+using Kinematics_XYZ = PreviewKinematicsBase;
+
 /**
  * Defines kinematics for a 4-axis machine with a fixed A axis
  * parallel with the machine X axis.
