@@ -1698,6 +1698,7 @@ static void line9b(PositionArray const &p1, PositionArray const &p2) {
     }
 }
 
+#if 0
 static PyObject *pyline9(PyObject *s, PyObject *o) {
     PositionArray pt1;
     PositionArray pt2;
@@ -1723,6 +1724,7 @@ static PyObject *pyvertex9(PyObject *s, PyObject *o) {
     kinematics->forward(vert, pt);
     return Py_BuildValue("(ddd)", &pt[0], &pt[1], &pt[2]);
 }
+#endif
 
 /**
  * RAII wrapper for glBegin / glEnd to avoid manual management of "first" flag
@@ -1757,67 +1759,6 @@ public:
         end();
     }
 };
-
-static int size_of_map = 0;
-static PyObject *pydraw_lines(PyObject *s, PyObject *o) {
-    PyListObject *li;
-    int for_selection = 0;
-    unsigned active_line_no = -1, segment_line_no;
-    PositionArray p1;
-    PositionArray p2;
-    PositionArray pl;
-    char *geometry;
-    GLBeginEndWrapper gl_wrapper{};
-
-    int i;
-    PyObject *capsule=nullptr;
-
-    if(!PyArg_ParseTuple(o, "sO!|iOO!:draw_lines",
-                &geometry, &PyList_Type, &li, &for_selection, &capsule, &PyCapsule_Type))
-        return NULL;
-    if (capsule) {
-        auto motions = (ToolMotionMap const*)PyCapsule_GetPointer(capsule, "tool_motion_data");
-        size_of_map = motions ? motions->size() : -1;
-    }
-
-    for(i=0; i<PyList_GET_SIZE(li); i++) {
-        PyObject *it = PyList_GET_ITEM(li, i);
-        PyObject *dummy1, *dummy2, *dummy3;
-        if(!PyArg_ParseTuple(it, "i(ddddddddd)(ddddddddd)|OOO", &segment_line_no,
-                              UNPACK_POSITION_ARRAY(p1),
-                              UNPACK_POSITION_ARRAY(p2),
-                    &dummy1, &dummy2, &dummy3)) {
-            return NULL;
-        }
-        if(!gl_wrapper.started() || p1 != pl || (for_selection && segment_line_no != active_line_no)){
-            gl_wrapper.end();
-            if (for_selection && segment_line_no != active_line_no) {
-                // NOTE: this doesn't currently get passed through, so we only
-                // really have 24 bits of resolution in line numbers (16.7
-                // million lines ought to be enough for anybody) Effectively
-                // "a" is the overflow right now
-                unsigned a = (segment_line_no & 0xFF000000) >> 24;
-                if (!a) {
-                    unsigned r = (segment_line_no & 0x000000FF) >>  0;
-                    unsigned g = (segment_line_no & 0x0000FF00) >>  8;
-                    unsigned b = (segment_line_no & 0x00FF0000) >> 16;
-                    glColor4ub(r,g,b,0xFF);
-                } else {
-                    // Ignore any lines above our cutoff since we can't distinguish them anyway
-                    glColor4ub(0,0,0,0xFF);
-                }
-                active_line_no = segment_line_no;
-            }
-            gl_wrapper.begin(GL_LINE_STRIP);
-            glvertex9(p1);
-        }
-        line9(p1, p2);
-        pl=p2;
-    }
-
-    Py_INCREF(Py_None);
-    return Py_None;
-}
 
 void draw_lines(std::vector<ToolMotion> const &tool_motions)
 {
@@ -2579,12 +2520,11 @@ static PyTypeObject PositionLoggerType = {
 };
 
 static PyMethodDef emc_methods[] = {
-    {"draw_lines", pydraw_lines, METH_VARARGS, "Draw a bunch of lines in the 'rs274.glcanon' format"},
     {"draw_lines_by_type", pydraw_lines_by_type, METH_VARARGS, "Draw a subset of lines by key (using internal storage in gcodemodule for lines)"},
     {"draw_lines_by_property", (PyCFunction)pydraw_lines_by_property, METH_VARARGS | METH_KEYWORDS, "Draw a subset of lines that match the specified property (e.g. tool number, line number)"},
     {"draw_dwells", pydraw_dwells, METH_VARARGS, "Draw a bunch of dwell positions in the 'rs274.glcanon' format"},
-    {"line9", pyline9, METH_VARARGS, "Draw a single line in the 'rs274.glcanon' format; assumes glBegin(GL_LINES)"},
-    {"vertex9", pyvertex9, METH_VARARGS, "Get the 3d location for a 9d point"},
+//    {"line9", pyline9, METH_VARARGS, "Draw a single line in the 'rs274.glcanon' format; assumes glBegin(GL_LINES)"},
+//    {"vertex9", pyvertex9, METH_VARARGS, "Get the 3d location for a 9d point"},
     {"set_preview_trivial_kinematics", pyset_trivial_kinematics, METH_VARARGS, "Preview tool motions with trivial kinematics from the provided geometry specification"},
     {"set_preview_xyza_kinematics", pyset_xyza_kinematics, METH_VARARGS, "Preview tool motions with XYZA kinematics, specifying a fixed A axis intercept in the workspace"},
     {}
