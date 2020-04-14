@@ -2001,6 +2001,61 @@ static PyObject *pydraw_lines_by_property(PyObject *self, PyObject *args, PyObje
     return coords;
 }
 
+static PyObject *pydraw_oriented_limit_box(PyObject *self, PyObject *args)
+{
+    PositionArray cur_pos{};
+    // Limit box in tool tip coordinates (i.e. caller subtracts away current tool offset)
+    PositionArray min_limits_tool = cur_pos;
+    PositionArray max_limits_tool = cur_pos;
+    // KLUDGE shove even more parameters in here...
+    if(!PyArg_ParseTuple(
+            args,
+            "(ddd)(ddd)(ddddddddd):draw_oriented_limit_box",
+            &min_limits_tool[X],
+            &min_limits_tool[Y],
+            &min_limits_tool[Z],
+            &max_limits_tool[X],
+            &max_limits_tool[Y],
+            &max_limits_tool[Z],
+            UNPACK_POSITION_ARRAY(cur_pos)
+            )) {
+        return nullptr;
+    }
+    // Limit box is drawn based on allowed XYZ travel from the current position / orientation
+    min_limits_tool = merge(min_limits_tool, cur_pos, AxisMask("111111000"));
+
+    static const AxisMask mask_corners[] = {
+        AxisMask("100"),
+        AxisMask("000"),
+        AxisMask("001"),
+        AxisMask("101"),
+        AxisMask("001"),
+        AxisMask("011"),
+        AxisMask("111"),
+        AxisMask("011"),
+        AxisMask("010"),
+        AxisMask("110"),
+        AxisMask("010"),
+        AxisMask("000"),
+        AxisMask("100"),
+        AxisMask("101"),
+        AxisMask("111"),
+        AxisMask("110"),
+        AxisMask("100"),
+        };
+
+    glBegin(GL_LINE_STRIP);
+    for (auto const &m : mask_corners) {
+        auto p_corner = merge(min_limits_tool, max_limits_tool, m);
+        // Draws rotated limitbox in current geometry
+        glvertex9(p_corner);
+    }
+    glEnd();
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+
 // Logger stuff for online plotting
 
 struct color {
@@ -2520,6 +2575,7 @@ static PyMethodDef emc_methods[] = {
     {"draw_lines_by_type", pydraw_lines_by_type, METH_VARARGS, "Draw a subset of lines by key (using internal storage in gcodemodule for lines)"},
     {"draw_lines_by_property", (PyCFunction)pydraw_lines_by_property, METH_VARARGS | METH_KEYWORDS, "Draw a subset of lines that match the specified property (e.g. tool number, line number)"},
     {"draw_dwells", pydraw_dwells, METH_VARARGS, "Draw a bunch of dwell positions in the 'rs274.glcanon' format"},
+    {"draw_oriented_limit_box", pydraw_oriented_limit_box, METH_VARARGS, "Draw the tool-oriented limit box using the currently active preview kinematics"},
 //    {"line9", pyline9, METH_VARARGS, "Draw a single line in the 'rs274.glcanon' format; assumes glBegin(GL_LINES)"},
 //    {"vertex9", pyvertex9, METH_VARARGS, "Get the 3d location for a 9d point"},
     {"set_preview_trivial_kinematics", pyset_trivial_kinematics, METH_VARARGS, "Preview tool motions with trivial kinematics from the provided geometry specification"},
