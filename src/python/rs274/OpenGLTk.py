@@ -331,18 +331,10 @@ http://www.yorvic.york.ac.uk/~mjh/
         glLoadIdentity()
         gluPerspective(self.fovy, float(w)/float(h), self.near, self.far)
 
-        if 0:
-            # Now translate the scene origin away from the world origin
-            glMatrixMode(GL_MODELVIEW)
-            mat = glGetDoublev(GL_MODELVIEW_MATRIX)
-            glLoadIdentity()
-            glTranslatef(-self.xcenter, -self.ycenter, -(self.zcenter+self.distance))
-            glMultMatrixd(mat)
-        else:
-            gluLookAt(self.xcenter, self.ycenter, self.zcenter + self.distance,
-                self.xcenter, self.ycenter, self.zcenter,
-                0., 1., 0.)
-            glMatrixMode(GL_MODELVIEW)
+        gluLookAt(self.xcenter, self.ycenter, self.zcenter + self.distance,
+            self.xcenter, self.ycenter, self.zcenter,
+            0., 1., 0.)
+        glMatrixMode(GL_MODELVIEW)
     
         # Call objects redraw method.
         self.redraw()
