@@ -248,6 +248,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         return True
 
     def _redraw(self): self.expose()
+    
+    def clear_redraw_count(self):
+        self.need_redraw = glnav.CallOnExitWrapper(self._redraw)
 
     def clear_live_plotter(self):
         self.logger.clear()
@@ -324,8 +327,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
             self.stale_dlist('highlight')
 
         if self.logger:
-            self.logger.set_visible_tools(tool_list)
-            self._redraw()
+            with self.need_redraw:
+                self.logger.set_visible_tools(tool_list)
 
     @staticmethod
     def gcode_to_str(g_code):
