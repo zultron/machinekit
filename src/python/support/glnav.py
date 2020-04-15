@@ -72,13 +72,17 @@ def pango_font_post():
 
 def glTranslateScene(w, s, x, y, mousex, mousey):
     glMatrixMode(GL_MODELVIEW)
+    # Unapply user view transform
     mat = glGetDoublev(GL_MODELVIEW_MATRIX)
     glLoadIdentity()
+    # Apply local view translation
     glTranslatef(s * (x - mousex), s * (mousey - y), 0.0)
+
+    # Re-apply user view transform
     glMultMatrixd(mat)
 
 
-def glRotateScene(w, s, xcenter, ycenter, zcenter, x, y, mousex, mousey):
+def glRotateScene(w, scale, xcenter, ycenter, zcenter, mouse_dx, mouse_dy):
     def snap(a):
         m = a%90
         if m < 3:
@@ -88,19 +92,24 @@ def glRotateScene(w, s, xcenter, ycenter, zcenter, x, y, mousex, mousey):
         else:
             return a
 
-    lat = min(w.maxlat, max(w.minlat, w.lat + (y - mousey) * .5))
-    lon = (w.lon + (x - mousex) * .5) % 360
+    lat = min(w.maxlat, max(w.minlat, w.lat + mouse_dy * .5))
+    lon = (w.lon + mouse_dx * .5) % 360
 
     glMatrixMode(GL_MODELVIEW)
 
+    # 1) Unapply view center transform
     glTranslatef(xcenter, ycenter, zcenter)
-    mat = glGetDoublev(GL_MODELVIEW_MATRIX)
 
+    # Store current view transformation
+    mat = glGetDoublev(GL_MODELVIEW_MATRIX)
     glLoadIdentity()
+
+    # Preserve translation in current scene
     tx, ty, tz = mat[12:15]
     glTranslatef(tx, ty, tz)
     glRotatef(snap(lat), *w.rotation_vectors[0])
     glRotatef(snap(lon), *w.rotation_vectors[1])
+    # Re-apply view venter transform
     glTranslatef(-xcenter, -ycenter, -zcenter)
     w.lat = lat
     w.lon = lon
@@ -154,6 +163,7 @@ class GlNavBase:
         # View settings
         self.perspective = False
         self.lat = 0
+        self.lon = 0
         self.minlat = -90
         self.maxlat = 90
 
@@ -267,7 +277,7 @@ class GlNavBase:
 
         self.activate()
         self.perspective = True
-        glRotateScene(self, 0.5, self.xcenter, self.ycenter, self.zcenter, x, y, self.xmouse, self.ymouse)
+        glRotateScene(self, 0.5, self.xcenter, self.ycenter, self.zcenter, x-self.xmouse, y-self.ymouse)
         self._redraw()
         self.recordMouse(x, y)
 
@@ -292,7 +302,7 @@ class GlNavBase:
     def set_viewangle(self, lat, lon):
         self.lat = lat
         self.lon = lon
-        glRotateScene(self, 0.5, self.xcenter, self.ycenter, self.zcenter, 0, 0, 0, 0)
+        glRotateScene(self, 0.5, self.xcenter, self.ycenter, self.zcenter, 0, 0)
         self.tkRedraw()
 
     def get_zoom_distance(self):
@@ -414,7 +424,7 @@ class GlNavBase:
         self.set_eyepoint((size * 1.1 + 1.0) / 2 / math.sin ( fov * math.pi / 180 / 2))
         self.lat = -60
         self.lon = 335
-        glRotateScene(self, 1.0, mid[0], mid[1], mid[2], 0, 0, 0, 0)
+        glRotateScene(self, 1.0, mid[0], mid[1], mid[2], 0, 0)
         self._redraw()
 
 # vim:ts=8:sts=4:sw=4:et:

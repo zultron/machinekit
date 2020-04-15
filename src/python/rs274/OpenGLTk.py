@@ -262,7 +262,7 @@ http://www.yorvic.york.ac.uk/~mjh/
         s = 0.5
         self.activate()
 
-        glnav.glRotateScene(self, 0.5, self.xcenter, self.ycenter, self.zcenter, self.yspin, self.xspin, 0, 0)
+        glnav.glRotateScene(self, 0.5, self.xcenter, self.ycenter, self.zcenter, self.yspin, self.xspin)
         self.tkRedraw()
 
         if self.autospin:
