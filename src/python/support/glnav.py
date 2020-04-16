@@ -248,7 +248,7 @@ class GlNavBase:
 
         Dragging up zooms in, while dragging down zooms out
         """
-        scale = 1 - 0.01 * (event.y - self.ymouse)
+        scale = 1 - 0.01 * (y - self.ymouse)
         # do some sanity checks, scale no more than
         # 1:1000 on any given click+drag
         if scale < 0.001:
