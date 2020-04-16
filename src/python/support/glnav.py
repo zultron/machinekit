@@ -365,7 +365,7 @@ class GlNavBase(GlUserView):
 
         self.activate()
         with self.need_redraw:
-            self.perspective = True
+            self.perspective = False
             self.glRotateScene(0.5, x - self.xmouse, y - self.ymouse)
         self.recordMouse(x, y)
 
@@ -514,7 +514,7 @@ class GlNavBase(GlUserView):
             fov = min(fovx, self.fovy)
             self.set_eyepoint((size * 1.1 + 1.0) / 2 / math.sin(fov * math.pi / 180 / 2))
 
-            self.perspective = True
+            self.perspective = False
             glTranslatef(-mid[0], -mid[1], -mid[2])
             self.glRotateUserViewPolar(mid, longitude=-25, latitude=-60)
 
