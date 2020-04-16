@@ -590,7 +590,7 @@ class GlCanonDraw:
 
     def set_current_line(self, line): pass
     def set_highlight_line(self, line):
-        if line == self.get_highlight_line():
+        if line and line == self.get_highlight_line():
             return
         self.highlight_line = line
         highlight = self.dlist('highlight')
