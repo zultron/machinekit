@@ -132,10 +132,46 @@ def v3distsq(a,b):
     d = ( a[0] - b[0], a[1] - b[1], a[2] - b[2] )
     return d[0]*d[0] + d[1]*d[1] + d[2]*d[2]
 
-class GlNavBase:
+class GlUserView:
+    """
+    Encapsulates basic operations to move the user's viewpoint of a scene safetly
+    (i.e. without disturbing any other camera transforms that might occur, due like view animations)
+    """
+
     rotation_vectors = [(1.,0.,0.), (0., 0., 1.)]
 
     def __init__(self):
+        self._lon = 0
+        self._lat = 0
+
+    @property
+    def center_pt(self):
+        return self._center_pt
+
+    @property
+    def longitude(self):
+        return self._lon
+
+    @property
+    def latitude(self):
+        return self._lat
+
+    def reset(self):
+        """
+        Reset model view rotation matrix and view settings.
+        """
+
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        self._lon = 0
+        self._lat = 0
+
+
+class GlNavBase(GlUserView):
+
+    def __init__(self):
+        GlUserView.__init__(self)
+        self.canon = None
         # Current coordinates of the mouse.
         self.xmouse = 0
         self.ymouse = 0
@@ -162,10 +198,40 @@ class GlNavBase:
 
         # View settings
         self.perspective = False
-        self.lat = 0
-        self.lon = 0
-        self.minlat = -90
-        self.maxlat = 90
+        self.minlat = -180
+        self.maxlat = 180
+
+        self.y0 = 0
+        self.original_zoom = 0
+
+        self.width = 0
+        self.height = 0
+
+    # Abstract methods that must be implemented
+    def _redraw(self):
+        raise NotImplementedError
+
+    def extents_info(self):
+        raise NotImplementedError
+
+    def is_lathe(self):
+        raise NotImplementedError
+
+    def is_rear_tool_post_lathe(self):
+        raise NotImplementedError
+
+    def activate(self):
+        raise NotImplementedError
+
+    def winfo_width(self):
+        return self.width
+
+    def winfo_height(self):
+        return self.height
+
+    def set_window_size(self, width, height):
+        self.width = width
+        self.height = height
 
     # This should almost certainly be part of some derived class.
     # But I have put it here for convenience.

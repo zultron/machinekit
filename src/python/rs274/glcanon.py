@@ -475,9 +475,10 @@ class GlDrawColors:
         return True
 
 
-class GlCanonDraw:
+class GlCanonDraw(glnav.GlNavBase):
 
     def __init__(self, s, inifile, color_config, canon_inst=None):
+        glnav.GlNavBase.__init__(self)
         self.hershey = None
         self.inifile = inifile
         self.color_config = color_config
@@ -505,6 +506,14 @@ class GlCanonDraw:
         self.foam_option = bool(inifile.find("DISPLAY", "FOAM"))
         self.geometry = None
         self.set_geometry()
+
+    # Abstract methods
+
+    def _redraw(self):
+        raise NotImplementedError
+
+    def activate(self):
+        raise NotImplementedError
 
     def update_glcanon(self, new_canon):
         self.canon = new_canon

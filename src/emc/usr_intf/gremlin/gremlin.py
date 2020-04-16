@@ -118,7 +118,7 @@ class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
 
 
 
-class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
+class Gremlin(gtk.gtkgl.widget.DrawingArea,
               rs274.glcanon.GlCanonDraw):
     rotation_vectors = [(1.,0.,0.), (0., 0., 1.)]
 
@@ -165,10 +165,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         self.add_events(gtk.gdk.BUTTON_RELEASE_MASK)
 
         self.fingerprint = ()
-
-        self.lat = 0
-        self.minlat = -90
-        self.maxlat = 90
 
         self.highlight_line = None
         # Now on by default, but can be turned off with ADMIN SET_PREVIEW_ALPHA
@@ -240,15 +236,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
         gldrawable = gtk.gtkgl.widget_get_gl_drawable(self)
         gldrawable.gl_end()
 
-    def winfo_width(self):
-        return self.width
-
-    def winfo_height(self):
-        return self.height
-
     def reshape(self, widget, event):
-        self.width = event.width
-        self.height = event.height
+        self.set_window_size(event.width, event.height)
 
     def expose(self, widget=None, event=None):
         if not self.initialised: return

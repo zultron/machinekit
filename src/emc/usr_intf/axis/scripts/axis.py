@@ -349,9 +349,6 @@ def soft_limits():
 
 class MyOpengl(GlCanonDraw, Opengl):
 
-    def is_rear_tool_post_lathe(self):
-        return self.is_rear_tool_post_lathe
-
     def __init__(self, *args, **kw):
 
         # KLUDGE bandaid for gremlin / glcanon divergence
