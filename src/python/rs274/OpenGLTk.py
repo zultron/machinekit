@@ -256,13 +256,13 @@ http://www.yorvic.york.ac.uk/~mjh/
         self.tkRecordMouse(event)
 
     def tkScale(self, event):
-        self.scale(event.x, event.y)
+        self.scale_scene(event.x, event.y)
 
     def do_AutoSpin(self):
         s = 0.5
         self.activate()
 
-        glnav.glRotateScene(self, 0.5, self.xcenter, self.ycenter, self.zcenter, self.yspin, self.xspin)
+        self.glRotateScene(s, self.xspin, self.yspin)
         self.tkRedraw()
 
         if self.autospin:
@@ -331,9 +331,14 @@ http://www.yorvic.york.ac.uk/~mjh/
         glLoadIdentity()
         gluPerspective(self.fovy, float(w)/float(h), self.near, self.far)
 
-        gluLookAt(self.xcenter, self.ycenter, self.zcenter + self.distance,
-            self.xcenter, self.ycenter, self.zcenter,
-            0., 1., 0.)
+        cen_pt = self.center_pt
+        eye_pt = cen_pt + (0, 0, self.distance)
+        up_vec = (0., 1., 0.)
+        gluLookAt(
+            eye_pt[0], eye_pt[1], eye_pt[2],
+            cen_pt[0], cen_pt[1], cen_pt[2],
+            up_vec[0], up_vec[1], up_vec[2]
+        )
         glMatrixMode(GL_MODELVIEW)
     
         # Call objects redraw method.

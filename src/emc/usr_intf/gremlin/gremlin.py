@@ -117,7 +117,6 @@ class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
         return x
 
 
-
 class Gremlin(gtk.gtkgl.widget.DrawingArea,
               rs274.glcanon.GlCanonDraw):
     rotation_vectors = [(1.,0.,0.), (0., 0., 1.)]
