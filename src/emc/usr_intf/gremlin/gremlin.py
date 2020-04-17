@@ -240,11 +240,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
 
     def expose(self, widget=None, event=None):
         if not self.initialised: return
-        if self.perspective:
-            self.redraw_perspective()
-        else:
-            self.redraw_ortho()
-
+        self.redraw_view()
         return True
 
     def _redraw(self): self.expose()

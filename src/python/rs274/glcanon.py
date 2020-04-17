@@ -666,34 +666,15 @@ class GlCanonDraw(glnav.GlNavBase):
         glEndList()
         self.set_centerpoint(x, y, z)
 
-    @with_context_swap
-    def redraw_perspective(self):
-
-        w = self.winfo_width()
-        h = self.winfo_height()
-        glViewport(0, 0, w, h)
-
-        # Clear the background and depth buffer.
-        glClearColor(*(self.color_config.get_color('back') + (0,)))
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluPerspective(self.fovy, float(w)/float(h), self.near, self.far + self.distance)
-
-        gluLookAt(0, 0, self.distance,
+    @staticmethod
+    def gl_look_at_z(distance):
+        gluLookAt(
+            0, 0, distance,
             0, 0, 0,
             0., 1., 0.)
-        glMatrixMode(GL_MODELVIEW)
-        glPushMatrix()
-        try:
-            self.redraw()
-        finally:
-            glFlush()                               # Tidy up
-            glPopMatrix()                   # Restore the matrix
 
     @with_context_swap
-    def redraw_ortho(self):
+    def redraw_view(self):
         if not self.initialised: return
 
         w = self.winfo_width()
@@ -706,14 +687,18 @@ class GlCanonDraw(glnav.GlNavBase):
 
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
-        ztran = self.distance
-        k = (abs(ztran or 1)) ** .55555
-        l = k * h / w
-        glOrtho(-k, k, -l, l, -1000, 1000.)
 
-        gluLookAt(0, 0, 1,
-            0, 0, 0,
-            0., 1., 0.)
+        if self.perspective_view:
+            gluPerspective(self.fovy, float(w) / float(h), self.near, self.far + self.distance)
+            self.gl_look_at_z(self.distance)
+        else:
+            horiz_clip = (abs(self.distance or 1)) ** .55555
+            vert_clip = horiz_clip * h / w
+            near_clip = -1000
+            far_clip = 1000
+            glOrtho(-horiz_clip, horiz_clip, -vert_clip, vert_clip, near_clip, far_clip)
+            self.gl_look_at_z(1.0)
+
         glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
         try:

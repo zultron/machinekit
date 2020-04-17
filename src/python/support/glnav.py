@@ -229,7 +229,8 @@ class GlNavBase(GlUserView):
         self.far = 1000.0
 
         # View settings
-        self.perspective = False
+        self.perspective_view = False
+        self.use_perspective_proj = False
         self.minlat = -180
         self.maxlat = 180
 
@@ -372,7 +373,7 @@ class GlNavBase(GlUserView):
         """Perform rotation of scene."""
 
         self.activate()
-        self.perspective = False
+        self.restore_projection()
         self.glRotateScene(0.5, x - self.xmouse, y - self.ymouse)
         self.recordMouse(x, y)
 
@@ -450,6 +451,24 @@ class GlNavBase(GlUserView):
         else:
             self.translate(x, y)
 
+    @with_redraw
+    def set_projection_mode(self, use_perspective):
+        self.use_perspective_proj = use_perspective
+
+    @with_redraw
+    def disable_projection(self):
+        """
+        Unconditionally disable perspective projection (for specific orthographic views)
+        """
+        self.perspective_view = False
+
+    @with_redraw
+    def restore_projection(self):
+        """
+        Restore the currently active projection mode for general viewing (can be orthographic or perspective)
+        """
+        self.perspective_view = self.use_perspective_proj
+
     # NOTE: set_view_XXX functions follow a standard pattern
     # * reset the GL Model View matrix and the view center / rotation settings
     # * get the current view region of interest (machine bounds or extents of loaded program)
@@ -463,7 +482,7 @@ class GlNavBase(GlUserView):
         self.reset_view()
         mid, size = self.extents_info()
         self.set_eyepoint_from_extents(size[1], size[2])
-        self.perspective = False
+        self.disable_projection()
         glTranslatef(-mid[0], -mid[1], -mid[2])
         self.glRotateUserViewPolar(mid, longitude=270, latitude=-90)
 
@@ -474,7 +493,7 @@ class GlNavBase(GlUserView):
         center_pt = np.array(mid)
         center_pt[0] *= -1. if self.is_rear_tool_post_lathe() else 1.
         self.set_eyepoint_from_extents(size[0], size[2])
-        self.perspective = False
+        self.disable_projection()
         el = 90 if self.is_lathe() else -90
         glTranslatef(*(-1.*center_pt))
         self.glRotateUserViewPolar(center_pt, longitude=0, latitude=el)
@@ -487,7 +506,7 @@ class GlNavBase(GlUserView):
         self.reset_view()
         mid, size = self.extents_info()
         self.set_eyepoint_from_extents(size[0], size[2])
-        self.perspective = False
+        self.disable_projection()
         glTranslatef(-mid[0], -mid[1], -mid[2])
         self.glRotateUserViewPolar(mid, longitude=0, latitude=-90)
 
@@ -496,7 +515,7 @@ class GlNavBase(GlUserView):
         self.reset_view()
         mid, size = self.extents_info()
         self.set_eyepoint_from_extents(size[0], size[1])
-        self.perspective = False
+        self.disable_projection()
         glTranslatef(-mid[0], -mid[1], -mid[2])
         self.glRotateUserViewPolar(mid, longitude=0, latitude=0)
 
@@ -505,7 +524,7 @@ class GlNavBase(GlUserView):
         self.reset_view()
         mid, size = self.extents_info()
         self.set_eyepoint_from_extents(size[1], size[0])
-        self.perspective = False
+        self.disable_projection()
         glTranslatef(-mid[0], -mid[1], -mid[2])
         self.glRotateUserViewPolar(mid, longitude=270, latitude=0)
 
@@ -524,7 +543,7 @@ class GlNavBase(GlUserView):
         fov = min(fovx, self.fovy)
         self.set_eyepoint((size * 1.1 + 1.0) / 2 / math.sin(fov * math.pi / 180 / 2))
 
-        self.perspective = False
+        self.restore_projection()
         glTranslatef(-mid[0], -mid[1], -mid[2])
         self.glRotateUserViewPolar(mid, longitude=-25, latitude=-60)
 

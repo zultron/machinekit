@@ -360,7 +360,6 @@ class MyOpengl(GlCanonDraw, Opengl):
 
         self.after_id = None
         self.motion_after = None
-        self.perspective = False
         Opengl.__init__(self, *args, **kw)
         GlCanonDraw.__init__(self, s, inifile, GlDrawColors())
         self.bind('<Button-1>', self.select_prime, add=True)
@@ -477,16 +476,9 @@ class MyOpengl(GlCanonDraw, Opengl):
         if self.after_id: return
         self.after_id = self.after(50, self.actual_tkRedraw)
 
-    def tkRedraw_perspective(self, *dummy):
-        """Cause the opengl widget to redraw itself."""
-        self.redraw_perspective()
-
-    def tkRedraw_ortho(self, *dummy):
-        """Cause the opengl widget to redraw itself."""
-        self.redraw_ortho()
-
-    def startRotate(self, event):
-        if lathe: return
+    def tkStartRotate(self, event):
+        if lathe:
+            return
         return Opengl.startRotate(self, event)
 
     def tkAutoSpin(self, event):
@@ -496,7 +488,7 @@ class MyOpengl(GlCanonDraw, Opengl):
     def tkRotate(self, event):
         if lathe: return
         Opengl.tkRotate(self, event)
-        self.perspective = True
+        self.perspective_view = True
         widgets.view_z.configure(relief="link")
         widgets.view_z2.configure(relief="link")
         widgets.view_x.configure(relief="link")
@@ -518,10 +510,7 @@ class MyOpengl(GlCanonDraw, Opengl):
 
     def actual_tkRedraw(self, *dummy):
         self.after_id = None
-        if self.perspective:
-            self.tkRedraw_perspective()
-        else:
-            self.tkRedraw_ortho()
+        self.redraw_view()
 
     def get_show_program(self): return vars.show_program.get()
     def get_show_offsets(self): return vars.show_offsets.get()
@@ -616,7 +605,7 @@ def init():
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
 
 def toggle_perspective(e):
-    o.perspective = not o.perspective
+    o.perspective_view = not o.perspective_view
     o.tkRedraw()
 
 def select_line(event):
