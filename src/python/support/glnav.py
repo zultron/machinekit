@@ -210,7 +210,7 @@ class GlNavBase(GlUserView):
 
         # Where the eye is
         self.distance = 10.0
-        self.zoom_ratio_default = 1.1
+        self.zoom_ratio_default = 1.2
 
         # Field of view in y direction
         self.fovy = 30.0
