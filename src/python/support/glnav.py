@@ -100,6 +100,27 @@ def snaps_to_increment(incr, tol):
     return snap
 
 
+class CallOnExitWrapper(object):
+    def __init__(self, fcall):
+        self._counter = 0
+        self.fcall = fcall
+    def __enter__(self):
+        self._counter += 1
+    def __exit__(self, type, value, traceback):
+        self._counter -= 1
+        if self._counter <= 0 and self.fcall is not None:
+            self.fcall()
+            # Recover from underflow
+            self._counter = 0
+
+
+def with_redraw(f):
+    def inner(self, *args, **kw):
+        with self.need_redraw:
+            return f(self, *args, **kw)
+    return inner
+
+
 class GlUserView:
     """
     Encapsulates basic operations to move the user's viewpoint of a scene safetly
@@ -114,6 +135,8 @@ class GlUserView:
         self._center_pt = np.array((0.,) * 3)
         self._lon = 0
         self._lat = 0
+
+        self.need_redraw = CallOnExitWrapper(self._redraw)
 
     @property
     def center_pt(self):
@@ -137,6 +160,7 @@ class GlUserView:
         self._lon = 0
         self._lat = 0
 
+    @with_redraw
     def glTranslateUserView(self, view_dx, view_dy, scale=1.0):
         glMatrixMode(GL_MODELVIEW)
         # Unapply user view transform
@@ -147,9 +171,8 @@ class GlUserView:
 
         # Re-apply user view transform
         glMultMatrixd(mat)
-        with self.need_redraw:
-            pass
 
+    @with_redraw
     def glRotateUserViewPolar(self, center_pt=None, longitude=None, latitude=None):
         """
         Rotates the user view to the specified lat / lon coordinates, given
@@ -180,26 +203,8 @@ class GlUserView:
         self._lon = longitude
         self._lat = latitude
 
-
-class CallOnExitWrapper(object):
-    def __init__(self, fcall):
-        self._counter = 0
-        self.fcall = fcall
-    def __enter__(self):
-        self._counter += 1
-    def __exit__(self, type, value, traceback):
-        self._counter -= 1
-        if self._counter <= 0 and self.fcall is not None:
-            self.fcall()
-            # Recover from underflow
-            self._counter = 0
-
-
-def with_redraw(f):
-    def inner(self, *args, **kw):
-        with self.need_redraw:
-            return f(self, *args, **kw)
-    return inner
+    def _redraw(self):
+        raise NotImplementedError
 
 
 class GlNavBase(GlUserView):
@@ -238,8 +243,6 @@ class GlNavBase(GlUserView):
 
         self.width = 0
         self.height = 0
-
-        self.need_redraw = CallOnExitWrapper(self._redraw)
 
     # Abstract methods that must be implemented
     def _redraw(self):
