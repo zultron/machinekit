@@ -105,11 +105,10 @@ class GlUserView:
     Encapsulates basic operations to move the user's viewpoint of a scene safetly
     (i.e. without disturbing any other camera transforms that might occur, due like view animations)
     """
-
-    rotation_vectors = [
+    view_rotation_vectors = (
         (1., 0., 0.), # Latitude
         (0., 0., 1.), # Longitude
-    ]
+    )
 
     def __init__(self):
         self._center_pt = np.array((0.,) * 3)
@@ -169,9 +168,9 @@ class GlUserView:
 
         # 2) Unrotate our current view rotation (note the reverse order)
         # then rotate to apply the requested user view rotation
-        glRotatef(-self.longitude, *self.rotation_vectors[1])
-        glRotatef(latitude - self.latitude, *self.rotation_vectors[0])
-        glRotatef(longitude, *self.rotation_vectors[1])
+        glRotatef(-self.longitude, *self.view_rotation_vectors[1])
+        glRotatef(latitude - self.latitude, *self.view_rotation_vectors[0])
+        glRotatef(longitude, *self.view_rotation_vectors[1])
 
         # 3) Restore the scene's translation back to the original location
         # Note that this function should produce no net translation

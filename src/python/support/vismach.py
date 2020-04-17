@@ -990,12 +990,13 @@ class AsciiOBJ:
         glCallList(self.list)
 
 
-def main(model, tool, work, size=10, hud=0, rotation_vectors=None, lat=0, lon=0):
+def main(model, tool, work, size=10, hud=0, view_rotation_vectors=None, lat=0, lon=0):
     app = Tkinter.Tk()
 
     t = O(app, double=1, depth=1)
     # set which axes to rotate around
-    if rotation_vectors: t.rotation_vectors = rotation_vectors
+    if view_rotation_vectors:
+        t.view_rotation_vectors = view_rotation_vectors
     # we want to be able to see the model from all angles
     t.set_latitudelimits(-180, 180)
     # set starting viewpoint if desired
