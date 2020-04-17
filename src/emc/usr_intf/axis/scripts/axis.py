@@ -1915,10 +1915,10 @@ class TclCommands(nf.TclCommands):
         commands.task_run()
 
     def zoomin(event=None):
-        o.zoomin()
+        o.zoom_in()
 
     def zoomout(event=None):
-        o.zoomout()
+        o.zoom_out()
 
     def set_view_x(event=None):
         widgets.view_z.configure(relief="link")

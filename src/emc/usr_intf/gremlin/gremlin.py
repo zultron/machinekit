@@ -620,8 +620,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
 
     def scroll(self, widget, event):
         if not self.use_default_controls:return
-        if event.direction == gtk.gdk.SCROLL_UP: self.zoomin()
-        elif event.direction == gtk.gdk.SCROLL_DOWN: self.zoomout()
+        if event.direction == gtk.gdk.SCROLL_UP: self.zoom_in()
+        elif event.direction == gtk.gdk.SCROLL_DOWN: self.zoom_out()
 
     def report_gcode_error(self, result, seq, filename):
         error_str = gcode.strerror(result)
@@ -635,12 +635,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
 
 
     # These are for external controlling of the view
-
-    def zoom_in(self, ratio=1.1):
-        self.zoomin(ratio)
-
-    def zoom_out(self, ratio=1.1):
-        self.zoomout(ratio)
 
     def start_continuous_zoom(self, y):
         self.startZoom(y)

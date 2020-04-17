@@ -210,6 +210,7 @@ class GlNavBase(GlUserView):
 
         # Where the eye is
         self.distance = 10.0
+        self.zoom_ratio_default = 1.1
 
         # Field of view in y direction
         self.fovy = 30.0
@@ -411,13 +412,13 @@ class GlNavBase(GlUserView):
         with self.need_redraw:
             self.distance = data
 
-    def zoomin(self, ratio=1.1):
+    def zoom_in(self, ratio=None):
         with self.need_redraw:
-            self.distance /= ratio
+            self.distance /= (ratio or self.zoom_ratio_default)
 
-    def zoomout(self, ratio=1.1):
+    def zoom_out(self, ratio=None):
         with self.need_redraw:
-            self.distance *= ratio
+            self.distance *= (ratio or self.zoom_ratio_default)
 
     def startZoom(self, y):
         self.y0 = y

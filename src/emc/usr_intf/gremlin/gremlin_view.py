@@ -389,13 +389,13 @@ class GremlinView():
 
     def on_zoomin_pressed(self,w):
         while w.get_state() == gtk.STATE_ACTIVE:
-            self.halg.zoomin()
+            self.halg.zoom_in()
             time.sleep(g_move_delay_secs)
             gtk.main_iteration_do()
 
     def on_zoomout_pressed(self,w):
         while w.get_state() == gtk.STATE_ACTIVE:
-            self.halg.zoomout()
+            self.halg.zoom_out()
             time.sleep(g_move_delay_secs)
             gtk.main_iteration_do()
 

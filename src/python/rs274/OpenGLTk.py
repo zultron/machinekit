@@ -374,8 +374,8 @@ http://www.yorvic.york.ac.uk/~mjh/
         self.activate()
 
     def zoomwheel(self, event):
-        if event.delta > 0: self.zoomin(event)
-        else: self.zoomout(event)
+        if event.delta > 0: self.zoom_in(event)
+        else: self.zoom_out(event)
 
     def tkStartZoom(self, event):
         self.startZoom(event.y)
@@ -384,9 +384,9 @@ http://www.yorvic.york.ac.uk/~mjh/
         self.continueZoom(event.y)
 
     def tkZoomin(self, event):
-        self.zoomin()
+        self.zoom_in()
 
     def tkZoomout(self, event):
-        self.zoomout()
+        self.zoom_out()
 
 # vim:ts=8:sts=4:et:
