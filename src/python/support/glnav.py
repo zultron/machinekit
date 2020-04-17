@@ -148,6 +148,8 @@ class GlUserView:
 
         # Re-apply user view transform
         glMultMatrixd(mat)
+        with self.need_redraw:
+            pass
 
     def glRotateUserViewPolar(self, center_pt=None, longitude=None, latitude=None):
         """
@@ -192,6 +194,13 @@ class CallOnExitWrapper(object):
             self.fcall()
             # Recover from underflow
             self._counter = 0
+
+
+def with_redraw(f):
+    def inner(self, *args, **kw):
+        with self.need_redraw:
+            return f(self, *args, **kw)
+    return inner
 
 
 class GlNavBase(GlUserView):
@@ -277,17 +286,15 @@ class GlNavBase(GlUserView):
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
 
-
+    @with_redraw
     def set_background(self, r, g, b):
         """Change the background colour of the widget."""
 
-        with self.need_redraw:
-            self.r_back = r
-            self.g_back = g
-            self.b_back = b
+        self.r_back = r
+        self.g_back = g
+        self.b_back = b
 
-
-
+    @with_redraw
     def set_centerpoint(self, x, y, z):
         """
         Set the new center point for the model.
@@ -297,27 +304,26 @@ class GlNavBase(GlUserView):
         """
 
         # FIXME need to track the old centerpoint until the rotation is actually used
-        with self.need_redraw:
-            self._center_pt = np.array((x, y, z))
+        self._center_pt = np.array((x, y, z))
 
-
+    @with_redraw
     def set_latitudelimits(self, minlat, maxlat):
         """Set the new "latitude" limits for rotations."""
-        with self.need_redraw:
-            if maxlat > 180:
-                return
-            if minlat < -180:
-                return
-            if maxlat <= minlat:
-                return
-            self.maxlat = maxlat
-            self.minlat = minlat
+        if maxlat > 180:
+            return
+        if minlat < -180:
+            return
+        if maxlat <= minlat:
+            return
+        self.maxlat = maxlat
+        self.minlat = minlat
 
+    @with_redraw
     def set_eyepoint(self, distance):
         """Set how far the eye is from the position we are looking."""
-        with self.need_redraw:
-            self.distance = distance
+        self.distance = distance
 
+    @with_redraw
     def set_eyepoint_from_extents(self, e1, e2):
         """Set how far the eye is from the position we are looking
         based on the screen width and height of a subject."""
@@ -327,12 +333,12 @@ class GlNavBase(GlUserView):
         ztran = max(2.0, e1, e2 * w/h) ** 2
         self.set_eyepoint(ztran - self.center_pt[2])
 
+    @with_redraw
     def reset(self):
         """Reset rotation matrix for this widget."""
 
-        with self.need_redraw:
-            glMatrixMode(GL_MODELVIEW)
-            glLoadIdentity()
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
 
 
     def recordMouse(self, x, y):
@@ -342,34 +348,35 @@ class GlNavBase(GlUserView):
     def startRotate(self, x, y):
         self.recordMouse(x, y)
 
+    @with_redraw
     def scale_scene(self, x, y):
         """Scale the scene.  Achieved by moving the eye position.
 
         Dragging up zooms in, while dragging down zooms out
         """
-        with self.need_redraw:
-            scale = 1 - 0.01 * (y - self.ymouse)
-            # do some sanity checks, scale no more than
-            # 1:1000 on any given click+drag
-            if scale < 0.001:
-                scale = 0.001
-            elif scale > 1000:
-                scale = 1000
-            newdistance = self.distance * scale
-            if newdistance < 1e-30 or newdistance > 1e30:
-                return
-            self.distance = newdistance
+        scale = 1 - 0.01 * (y - self.ymouse)
+        # do some sanity checks, scale no more than
+        # 1:1000 on any given click+drag
+        if scale < 0.001:
+            scale = 0.001
+        elif scale > 1000:
+            scale = 1000
+        newdistance = self.distance * scale
+        if newdistance < 1e-30 or newdistance > 1e30:
+            return
+        self.distance = newdistance
         self.recordMouse(x, y)
 
+    @with_redraw
     def rotate(self, x, y):
         """Perform rotation of scene."""
 
         self.activate()
-        with self.need_redraw:
-            self.perspective = False
-            self.glRotateScene(0.5, x - self.xmouse, y - self.ymouse)
+        self.perspective = False
+        self.glRotateScene(0.5, x - self.xmouse, y - self.ymouse)
         self.recordMouse(x, y)
 
+    @with_redraw
     def translate(self, x, y):
         """Perform translation of scene."""
 
@@ -378,10 +385,9 @@ class GlNavBase(GlUserView):
         # Scale mouse translations to object viewplane so object tracks with mouse
         view_scale = self.find_mouse_scale_from_view()
 
-        with self.need_redraw:
-            view_dx = view_scale * (x - self.xmouse)
-            view_dy = -view_scale * (y - self.ymouse)
-            self.glTranslateUserView(view_dx, view_dy)
+        view_dx = view_scale * (x - self.xmouse)
+        view_dy = -view_scale * (y - self.ymouse)
+        self.glTranslateUserView(view_dx, view_dy)
         self.recordMouse(x, y)
 
     def find_mouse_scale_from_view(self):
@@ -392,6 +398,7 @@ class GlNavBase(GlUserView):
         scale = abs(dist / (0.5 * win_height))
         return scale
 
+    @with_redraw
     def glRotateScene(self, scale, mouse_dx, mouse_dy):
         snap = snaps_to_increment(90, 2)
 
@@ -400,34 +407,34 @@ class GlNavBase(GlUserView):
 
         self.glRotateUserViewPolar(longitude=snap(lon_new), latitude=snap(lat_new))
 
+    @with_redraw
     def set_viewangle(self, lat, lon):
         self.glRotateUserViewPolar(latitude=lat, longitude=lon)
-        self.tkRedraw()
 
     def get_zoom_distance(self):
         data = self.distance
         return data
 
+    @with_redraw
     def set_zoom_distance(self,data):
-        with self.need_redraw:
-            self.distance = data
+        self.distance = data
 
+    @with_redraw
     def zoom_in(self, ratio=None):
-        with self.need_redraw:
-            self.distance /= (ratio or self.zoom_ratio_default)
+        self.distance /= (ratio or self.zoom_ratio_default)
 
+    @with_redraw
     def zoom_out(self, ratio=None):
-        with self.need_redraw:
-            self.distance *= (ratio or self.zoom_ratio_default)
+        self.distance *= (ratio or self.zoom_ratio_default)
 
     def startZoom(self, y):
         self.y0 = y
         self.original_zoom = self.distance
 
+    @with_redraw
     def continueZoom(self, y):
         dy = y - self.y0
-        with self.need_redraw:
-            self.distance = self.original_zoom * pow(1.25, dy / 16.)
+        self.distance = self.original_zoom * pow(1.25, dy / 16.)
 
     def getRotateMode(self): return False
 
@@ -451,72 +458,74 @@ class GlNavBase(GlUserView):
     # * Translate view to be centered on the region of interest
     # * Rotate view to the desired orientation about the center point
 
+    @with_redraw
     def set_view_x(self):
-        with self.need_redraw:
-            self.reset_view()
-            mid, size = self.extents_info()
-            self.set_eyepoint_from_extents(size[1], size[2])
-            self.perspective = False
-            glTranslatef(-mid[0], -mid[1], -mid[2])
-            self.glRotateUserViewPolar(mid, longitude=270, latitude=-90)
+        self.reset_view()
+        mid, size = self.extents_info()
+        self.set_eyepoint_from_extents(size[1], size[2])
+        self.perspective = False
+        glTranslatef(-mid[0], -mid[1], -mid[2])
+        self.glRotateUserViewPolar(mid, longitude=270, latitude=-90)
 
+    @with_redraw
     def set_view_y(self):
-        with self.need_redraw:
-            self.reset_view()
-            mid, size = self.extents_info()
-            center_pt = np.array(mid)
-            center_pt[0] *= -1. if self.is_rear_tool_post_lathe() else 1.
-            self.set_eyepoint_from_extents(size[0], size[2])
-            self.perspective = False
-            el = 90 if self.is_lathe() else -90
-            glTranslatef(*(-1.*center_pt))
-            self.glRotateUserViewPolar(center_pt, longitude=0, latitude=el)
+        self.reset_view()
+        mid, size = self.extents_info()
+        center_pt = np.array(mid)
+        center_pt[0] *= -1. if self.is_rear_tool_post_lathe() else 1.
+        self.set_eyepoint_from_extents(size[0], size[2])
+        self.perspective = False
+        el = 90 if self.is_lathe() else -90
+        glTranslatef(*(-1.*center_pt))
+        self.glRotateUserViewPolar(center_pt, longitude=0, latitude=el)
 
-        # lathe backtool display
+    @with_redraw
     def set_view_y2(self):
-        with self.need_redraw:
-            self.reset_view()
-            mid, size = self.extents_info()
-            self.set_eyepoint_from_extents(size[0], size[2])
-            self.perspective = False
-            glTranslatef(-mid[0], -mid[1], -mid[2])
-            self.glRotateUserViewPolar(mid, longitude=0, latitude=-90)
+        """
+        lathe backtool display
+        """
+        self.reset_view()
+        mid, size = self.extents_info()
+        self.set_eyepoint_from_extents(size[0], size[2])
+        self.perspective = False
+        glTranslatef(-mid[0], -mid[1], -mid[2])
+        self.glRotateUserViewPolar(mid, longitude=0, latitude=-90)
 
+    @with_redraw
     def set_view_z(self):
-        with self.need_redraw:
-            self.reset_view()
-            mid, size = self.extents_info()
-            self.set_eyepoint_from_extents(size[0], size[1])
-            self.perspective = False
-            glTranslatef(-mid[0], -mid[1], -mid[2])
-            self.glRotateUserViewPolar(mid, longitude=0, latitude=0)
+        self.reset_view()
+        mid, size = self.extents_info()
+        self.set_eyepoint_from_extents(size[0], size[1])
+        self.perspective = False
+        glTranslatef(-mid[0], -mid[1], -mid[2])
+        self.glRotateUserViewPolar(mid, longitude=0, latitude=0)
 
+    @with_redraw
     def set_view_z2(self):
-        with self.need_redraw:
-            self.reset_view()
-            mid, size = self.extents_info()
-            self.set_eyepoint_from_extents(size[1], size[0])
-            self.perspective = False
-            glTranslatef(-mid[0], -mid[1], -mid[2])
-            self.glRotateUserViewPolar(mid, longitude=270, latitude=0)
+        self.reset_view()
+        mid, size = self.extents_info()
+        self.set_eyepoint_from_extents(size[1], size[0])
+        self.perspective = False
+        glTranslatef(-mid[0], -mid[1], -mid[2])
+        self.glRotateUserViewPolar(mid, longitude=270, latitude=0)
 
+    @with_redraw
     def set_view_p(self):
-        with self.need_redraw:
-            self.reset_view()
-            mid, sizes = self.extents_info()
-            size = (sizes[0] ** 2 + sizes[1] ** 2 + sizes[2] ** 2) ** .5
-            if not self.canon:
-                size /= 0.55
-            if size > 1e99:
-                size = 5. # in case there are no moves in the preview
-            w = self.winfo_width()
-            h = self.winfo_height()
-            fovx = self.fovy * w / h
-            fov = min(fovx, self.fovy)
-            self.set_eyepoint((size * 1.1 + 1.0) / 2 / math.sin(fov * math.pi / 180 / 2))
+        self.reset_view()
+        mid, sizes = self.extents_info()
+        size = (sizes[0] ** 2 + sizes[1] ** 2 + sizes[2] ** 2) ** .5
+        if not self.canon:
+            size /= 0.55
+        if size > 1e99:
+            size = 5. # in case there are no moves in the preview
+        w = self.winfo_width()
+        h = self.winfo_height()
+        fovx = self.fovy * w / h
+        fov = min(fovx, self.fovy)
+        self.set_eyepoint((size * 1.1 + 1.0) / 2 / math.sin(fov * math.pi / 180 / 2))
 
-            self.perspective = False
-            glTranslatef(-mid[0], -mid[1], -mid[2])
-            self.glRotateUserViewPolar(mid, longitude=-25, latitude=-60)
+        self.perspective = False
+        glTranslatef(-mid[0], -mid[1], -mid[2])
+        self.glRotateUserViewPolar(mid, longitude=-25, latitude=-60)
 
 # vim:ts=8:sts=4:sw=4:et:
