@@ -2073,21 +2073,21 @@ static PyObject *pydraw_oriented_limit_box(PyObject *self, PyObject *args)
 
 // Logger stuff for online plotting
 
-struct color {
+struct ColorRGBA {
     unsigned char r, g, b, a;
-    bool operator==(const struct color &o) const {
         return r == o.r && g == o.g && b == o.b && a == o.a;
+    bool operator==(const struct ColorRGBA &o) const {
     }
-    bool operator!=(const struct color &o) const {
         return r != o.r || g != o.g || b != o.b || a != o.a;
+    bool operator!=(const struct ColorRGBA &o) const {
     }
 };
 
 struct logger_point {
     float x, y, z;
-    struct color c;
+    struct ColorRGBA c;
     float rx, ry, rz; // or uvw
-    struct color c2;
+    struct ColorRGBA c2;
 };
 
 #define NUMCOLORS (6)
@@ -2121,7 +2121,7 @@ typedef struct {
     PyObject *visible_tool_list;
     int last_tool;
 
-    struct color colors[NUMCOLORS];
+    struct ColorRGBA colors[NUMCOLORS];
     bool exit;
     bool clear;
 
@@ -2186,7 +2186,7 @@ static tool_point_list* find_active_tool_point_list(pyPositionLogger *s, int tar
 }
 
 static int Logger_init(pyPositionLogger *self, PyObject *a, PyObject *k) {
-    struct color *c = self->colors;
+    struct ColorRGBA *c = self->colors;
 
     self->last_tool = 0;
     self->tool_point_list_head = find_active_tool_point_list(self, self->last_tool);
@@ -2279,7 +2279,7 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
 
             int colornum = status->motion.traj.motion_type;
             if (colornum < 0 || colornum > NUMCOLORS) colornum = 0;
-            struct color c = s->colors[colornum];
+            struct ColorRGBA c = s->colors[colornum];
 
             LOCK();
             if (status->io.tool.toolInSpindle != s->last_tool) {
