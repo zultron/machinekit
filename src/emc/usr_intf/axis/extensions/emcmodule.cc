@@ -2111,7 +2111,7 @@ typedef struct tag_tool_point_list {
     bool active;     // if true, this is the point list that the tool should be adding to
     int npts;        // number of logger_point structs at p that are valid
     int alloc_pts;   // number of logger_point structs allocated from heap at p
-    struct LoggerPoint* p;
+    struct LoggerPoint* points;
     struct tag_tool_point_list* next_list;
 } tool_point_list;
 
@@ -2160,7 +2160,7 @@ static tool_point_list* tool_point_list_new() {
         pl->tool = 0;
         pl->npts = 0;
         pl->alloc_pts = 0;
-        pl->p = (LoggerPoint*) malloc(pl->alloc_pts);
+        pl->points = (LoggerPoint*) malloc(pl->alloc_pts);
         pl->next_list = NULL;
     }
     return pl;
@@ -2221,7 +2221,7 @@ static void Logger_dealloc(pyPositionLogger *s) {
     while (s->tool_point_list_head) {
         tool_point_list* pldead = s->tool_point_list_head;
         s->tool_point_list_head = s->tool_point_list_head->next_list;
-        free(pldead->p);
+        free(pldead->points);
         free(pldead);
     }
     Py_XDECREF(s->st);
@@ -2267,7 +2267,7 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
             while (s->tool_point_list_head) {
                 tool_point_list* pldead = s->tool_point_list_head;
                 s->tool_point_list_head = s->tool_point_list_head->next_list;
-                free(pldead->p);
+                free(pldead->points);
                 free(pldead);
             }
             s->tool_point_list_head = find_active_tool_point_list(s, s->last_tool);
@@ -2292,8 +2292,8 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
             tool_point_list* pl = find_active_tool_point_list(s, status->io.tool.toolInSpindle);
             UNLOCK();
 
-            struct LoggerPoint *op = &pl->p[pl->npts-1];
-            struct LoggerPoint *oop = &pl->p[pl->npts-2];
+            struct LoggerPoint *op = &pl->points[pl->npts-1];
+            struct LoggerPoint *oop = &pl->points[pl->npts-2];
             bool add_point = pl->npts < 2 || c != op->c;
             double x, y, z, rx, ry, rz;
 
@@ -2353,29 +2353,29 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                         int adjust = MAX_POINTS / 10;
                         if (adjust < 2) adjust = 2;
                         pl->npts -= adjust;
-                        memmove(pl->p, pl->p + adjust, 
+                        memmove(pl->points, pl->points + adjust,
                                 sizeof(struct LoggerPoint) * pl->npts);
                     } else {
                         // Double the buffer (grows it exponentially over time)
                         pl->alloc_pts = 2 * pl->alloc_pts + 2;
-                        pl->p = (struct LoggerPoint*) realloc(pl->p,
+                        pl->points = (struct LoggerPoint*) realloc(pl->points,
                                     sizeof(struct LoggerPoint) * pl->alloc_pts);
                     }
                     UNLOCK();
-                    op = &pl->p[pl->npts-1];
-                    oop = &pl->p[pl->npts-2];
+                    op = &pl->points[pl->npts-1];
+                    oop = &pl->points[pl->npts-2];
                 }                
 
                 if (changed_color) {
                     // when changing color we need to record an extra point
-                    struct LoggerPoint &np = pl->p[pl->npts];
+                    struct LoggerPoint &np = pl->points[pl->npts];
                     np.x = op->x; np.y = op->y; np.z = op->z;
                     np.rx = rx; np.ry = ry; np.rz = rz;
                     np.c = np.c2 = c;
                     pl->npts++;
                 } 
 
-                struct LoggerPoint &np = pl->p[pl->npts];
+                struct LoggerPoint &np = pl->points[pl->npts];
                 np.x = x; np.y = y; np.z = z;
                 np.rx = rx; np.ry = ry; np.rz = rz;
                 np.c = np.c2 = c;
@@ -2384,7 +2384,7 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
             } else {
                 // update position of last recorded point so that next delta calc is less
                 if (pl->npts > 0) {
-                    struct LoggerPoint &np = pl->p[pl->npts-1];
+                    struct LoggerPoint &np = pl->points[pl->npts-1];
                     np.x = x; np.y = y; np.z = z;
                     np.rx = rx; np.ry = ry; np.rz = rz;
                 }
@@ -2436,17 +2436,17 @@ static PyObject* Logger_draw_live_plot(pyPositionLogger *s, PyObject *o) {
             if (drawit) {
                 if (s->is_xyuv) {
                     glVertexPointer(3, GL_FLOAT,
-                            sizeof(struct LoggerPoint)/2, &pl->p->x);
+                            sizeof(struct LoggerPoint)/2, &pl->points->x);
                     glColorPointer(4, GL_UNSIGNED_BYTE,
-                            sizeof(struct LoggerPoint)/2, &pl->p->c);
+                            sizeof(struct LoggerPoint)/2, &pl->points->c);
                     glEnableClientState(GL_COLOR_ARRAY);
                     glEnableClientState(GL_VERTEX_ARRAY);
                     glDrawArrays(GL_LINES, 0, 2*pl->npts);
                 } else {
                     glVertexPointer(3, GL_FLOAT,
-                            sizeof(struct LoggerPoint), &pl->p->x);
+                            sizeof(struct LoggerPoint), &pl->points->x);
                     glColorPointer(4, GL_UNSIGNED_BYTE,
-                            sizeof(struct LoggerPoint), &pl->p->c);
+                            sizeof(struct LoggerPoint), &pl->points->c);
                     glEnableClientState(GL_COLOR_ARRAY);
                     glEnableClientState(GL_VERTEX_ARRAY);
                     glDrawArrays(GL_LINE_STRIP, 0, pl->npts);
@@ -2474,7 +2474,7 @@ static PyObject *Logger_last(pyPositionLogger *s, PyObject *o) {
         result = Py_None;
     } else {
         result = PyTuple_New(6);
-        struct LoggerPoint &p = pl->p[pl->npts-1];
+        struct LoggerPoint &p = pl->points[pl->npts-1];
         PyTuple_SET_ITEM(result, 0, PyFloat_FromDouble(p.x));
         PyTuple_SET_ITEM(result, 1, PyFloat_FromDouble(p.y));
         PyTuple_SET_ITEM(result, 2, PyFloat_FromDouble(p.z));
