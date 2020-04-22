@@ -42,6 +42,9 @@ using std::min;
 
 #include <cmath>
 #include <tuple>
+#include <mutex>
+#include <map>
+#include <vector>
 
 #ifndef T_BOOL
 // The C++ standard probably doesn't specify the amount of storage for a 'bool',
@@ -2071,8 +2074,10 @@ static PyObject *pydraw_oriented_limit_box(PyObject *self, PyObject *args)
     return Py_None;
 }
 
-
 // Logger stuff for online plotting
+static std::recursive_mutex logger_mutex;
+
+using RLock = std::lock_guard<std::recursive_mutex>;
 
 struct ColorRGBA {
     unsigned char r, g, b, a;
@@ -2106,19 +2111,22 @@ struct LoggerPoint {
 // change.  New active tool_point_list structures are always added to the head so the
 // active ones should be found first.
 
-typedef struct tag_tool_point_list {    
-    int tool;        // tool number that was current when these points were logged
-    bool active;     // if true, this is the point list that the tool should be adding to
-    int npts;        // number of logger_point structs at p that are valid
-    int alloc_pts;   // number of logger_point structs allocated from heap at p
-    struct LoggerPoint* points;
-    struct tag_tool_point_list* next_list;
-} tool_point_list;
+/**
+ * Set of live-plot points (vertices that are connected into a strip of lines).
+ * @warning MUST BE A VECTOR OR ARRAY
+ * This is used to store points for use in openGL so it must be a contiguous block with a consistent, known stride.
+ */
+using ToolPoints = std::vector<LoggerPoint>;
 
-typedef struct {
+/**
+ * Stores sets of contiguous tool path sections, organized by tool number.
+ */
+using ToolPointsMap = std::map<int, std::vector<std::vector<LoggerPoint>>>;
+
+struct pyPositionLogger {
     PyObject_HEAD
 
-    tool_point_list* tool_point_list_head;
+    ToolPointsMap logger_tool_points;
     PyObject *visible_tool_list;
     int last_tool;
 
@@ -2130,9 +2138,21 @@ typedef struct {
     double foam_z;
     double foam_w;
 
+
     pyStatChannel *st;
 
-} pyPositionLogger;
+    void retire_active_list();
+    ToolPoints & find_active_tool_point_list(int target_tool);
+
+};
+
+void pyPositionLogger::retire_active_list()
+{
+    RLock lock(logger_mutex);
+    auto v = logger_tool_points[last_tool];
+    v.push_back(ToolPoints());
+    v.back().reserve(1024);
+}
 
 static const double epsilon = 1e-4; // 1-cos(1 deg) ~= 1e-4
 static const double tiny = 1e-10; 
@@ -2149,48 +2169,20 @@ static inline bool colinear(float xa, float ya, float za, float xb, float yb, fl
     return false;
 }
 
-// This mutex guards the tool_point_list integrity and the heap memory of each point list.
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-static void LOCK() { pthread_mutex_lock(&mutex); }
-static void UNLOCK() { pthread_mutex_unlock(&mutex); }
-
-static tool_point_list* tool_point_list_new() {
-    tool_point_list* pl = (tool_point_list*) malloc(sizeof(tool_point_list));
-    if (pl) {
-        pl->tool = 0;
-        pl->npts = 0;
-        pl->alloc_pts = 0;
-        pl->points = (LoggerPoint*) malloc(pl->alloc_pts);
-        pl->next_list = NULL;
+ToolPoints &pyPositionLogger::find_active_tool_point_list(int target_tool) {
+    RLock lock(logger_mutex);
+    auto &v = logger_tool_points[target_tool];
+    if (v.empty()) {
+        v.push_back(ToolPoints{});
+        v.back().reserve(1024);
     }
-    return pl;
-}
-
-static tool_point_list* find_active_tool_point_list(pyPositionLogger *s, int target_tool) {
-
-    tool_point_list* ptmp = s->tool_point_list_head;
-    while (ptmp && !((ptmp->tool == target_tool) && (ptmp->active))) {
-        ptmp = ptmp->next_list;
-    }
-
-    if (! ptmp) {
-        // Never found an active one for the target tool, allocate a new one for this tool and store it at the head of the list
-        // since that is MRU.
-        ptmp = tool_point_list_new();
-        ptmp->tool = target_tool;
-        ptmp->active = true;
-        ptmp->next_list = s->tool_point_list_head;
-        s->tool_point_list_head = ptmp;
-    }
-
-    return ptmp;
+    return v.back();
 }
 
 static int Logger_init(pyPositionLogger *self, PyObject *a, PyObject *k) {
     struct ColorRGBA *c = self->colors;
 
     self->last_tool = 0;
-    self->tool_point_list_head = find_active_tool_point_list(self, self->last_tool);
     self->exit = false;
     self->clear = false;
 
@@ -2218,12 +2210,6 @@ static int Logger_init(pyPositionLogger *self, PyObject *a, PyObject *k) {
 
 static void Logger_dealloc(pyPositionLogger *s) {
     Py_DECREF(s->visible_tool_list);
-    while (s->tool_point_list_head) {
-        tool_point_list* pldead = s->tool_point_list_head;
-        s->tool_point_list_head = s->tool_point_list_head->next_list;
-        free(pldead->points);
-        free(pldead);
-    }
     Py_XDECREF(s->st);
     PyObject_Del(s);
 }
@@ -2257,145 +2243,121 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
     s->clear = true;
 
     Py_BEGIN_ALLOW_THREADS
-    while (!s->exit) {
-
-        if (s->clear) {           
+        while (!s->exit) {
+        nanosleep(&ts, NULL);
+        if (s->clear) {
             // Clear point lists for all tools.  We dealloc them all because there can be a lot of
             // inactive tool point lists and trying to collapse them all together is more work than just
             // starting fresh.
-            LOCK();
-            while (s->tool_point_list_head) {
-                tool_point_list* pldead = s->tool_point_list_head;
-                s->tool_point_list_head = s->tool_point_list_head->next_list;
-                free(pldead->points);
-                free(pldead);
-            }
-            s->tool_point_list_head = find_active_tool_point_list(s, s->last_tool);
-            UNLOCK();
+
+            RLock lock(logger_mutex);
+            s->logger_tool_points.clear();
             s->clear = false;
         }
 
-        if (s->st->c->valid() && s->st->c->peek() == EMC_STAT_TYPE) {
-            EMC_STAT *status = static_cast<EMC_STAT*>(s->st->c->get_address());
+        if (!s->st->c->valid() || !(s->st->c->peek() == EMC_STAT_TYPE)) {
+            continue;
+        }
 
-            int colornum = status->motion.traj.motion_type;
-            if (colornum < 0 || colornum > NUMCOLORS) colornum = 0;
-            struct ColorRGBA c = s->colors[colornum];
+        EMC_STAT *status = static_cast<EMC_STAT*>(s->st->c->get_address());
 
-            LOCK();
-            if (status->io.tool.toolInSpindle != s->last_tool) {
-                // a tool change occurred.  retire the tool point list for the last tool
-                // so that if it is used again later on, we don't draw lines where they never actually occurred.
-                tool_point_list* pl = find_active_tool_point_list(s, s->last_tool);
-                pl->active = false;
-            }
-            tool_point_list* pl = find_active_tool_point_list(s, status->io.tool.toolInSpindle);
-            UNLOCK();
+        int colornum = status->motion.traj.motion_type;
+        if (colornum < 0 || colornum > NUMCOLORS) colornum = 0;
+        struct ColorRGBA c = s->colors[colornum];
 
-            struct LoggerPoint *op = &pl->points[pl->npts-1];
-            struct LoggerPoint *oop = &pl->points[pl->npts-2];
-            bool add_point = pl->npts < 2 || c != op->c;
-            double x, y, z, rx, ry, rz;
+        if (status->io.tool.toolInSpindle != s->last_tool) {
+            s->retire_active_list();
+        }
+        ToolPoints &pl = s->find_active_tool_point_list(status->io.tool.toolInSpindle);
 
-            if (s->is_xyuv) {
-                x = status->motion.traj.position.tran.x - status->task.toolOffset.tran.x;
-                y = status->motion.traj.position.tran.y - status->task.toolOffset.tran.y;
-                z = s->foam_z;
-                rx = status->motion.traj.position.u - status->task.toolOffset.u;
-                ry = status->motion.traj.position.v - status->task.toolOffset.v;
-                rz = s->foam_w;
-                /* TODO .01, the distance at which a preview line is dropped,
+        struct LoggerPoint *op = pl.empty() ? nullptr : &(*(pl.rbegin()));
+        struct LoggerPoint *oop = pl.size() < 2 ? nullptr : &(*(pl.rbegin()+1));
+        bool changed_color = false;
+        // WARNING: taking care not to access op or oop if the size isn't at the minimum
+        bool add_point = !op || (changed_color = (c != op->c)) || !oop;
+        double x, y, z, rx, ry, rz;
+
+        if (s->is_xyuv) {
+            x = status->motion.traj.position.tran.x - status->task.toolOffset.tran.x;
+            y = status->motion.traj.position.tran.y - status->task.toolOffset.tran.y;
+            z = s->foam_z;
+            rx = status->motion.traj.position.u - status->task.toolOffset.u;
+            ry = status->motion.traj.position.v - status->task.toolOffset.v;
+            rz = s->foam_w;
+            /* TODO .01, the distance at which a preview line is dropped,
                  * should either be dependent on units or configurable, because
                  * 0.1 is inappropriate for mm systems
                  */
-                add_point = add_point || (dist2(x, y, oop->x, oop->y) > .01)
-                    || (dist2(rx, ry, oop->rx, oop->ry) > .01);
-                add_point = add_point || !colinear(x, y, z,
-                                op->x, op->y, op->z,
-                                oop->x, oop->y, oop->z);
-                add_point = add_point || !colinear(rx, ry, rz,
-                                op->rx, op->ry, op->rz,
-                                oop->rx, oop->ry, oop->rz);
-            } else {
-                PositionArray const &pt = {
-                    status->motion.traj.position.tran.x - status->task.toolOffset.tran.x,
-                    status->motion.traj.position.tran.y - status->task.toolOffset.tran.y,
-                    status->motion.traj.position.tran.z - status->task.toolOffset.tran.z,
-                    status->motion.traj.position.a - status->task.toolOffset.a,
-                    status->motion.traj.position.b - status->task.toolOffset.b,
-                    status->motion.traj.position.c - status->task.toolOffset.c,
-                    status->motion.traj.position.u - status->task.toolOffset.u,
-                    status->motion.traj.position.v - status->task.toolOffset.v,
-                    status->motion.traj.position.w - status->task.toolOffset.w};
+            add_point = add_point || (dist2(x, y, oop->x, oop->y) > .01)
+                        || (dist2(rx, ry, oop->rx, oop->ry) > .01);
+            add_point = add_point || !colinear(x, y, z,
+                                               op->x, op->y, op->z,
+                                               oop->x, oop->y, oop->z);
+            add_point = add_point || !colinear(rx, ry, rz,
+                                               op->rx, op->ry, op->rz,
+                                               oop->rx, oop->ry, oop->rz);
+        } else {
+            PositionArray const &pt = {
+                status->motion.traj.position.tran.x - status->task.toolOffset.tran.x,
+                status->motion.traj.position.tran.y - status->task.toolOffset.tran.y,
+                status->motion.traj.position.tran.z - status->task.toolOffset.tran.z,
+                status->motion.traj.position.a - status->task.toolOffset.a,
+                status->motion.traj.position.b - status->task.toolOffset.b,
+                status->motion.traj.position.c - status->task.toolOffset.c,
+                status->motion.traj.position.u - status->task.toolOffset.u,
+                status->motion.traj.position.v - status->task.toolOffset.v,
+                status->motion.traj.position.w - status->task.toolOffset.w};
 
                 Array3 position_xyz, rotation_xyz;
                 kinematics->forward(pt, position_xyz, rotation_xyz);
                 x = position_xyz[X]; y = position_xyz[Y]; z = position_xyz[Z];
                 rx = rotation_xyz[X]; ry = rotation_xyz[Y]; rz = rotation_xyz[Z];
 
-                add_point = add_point || !colinear(x, y, z,
-                                op->x, op->y, op->z,
-                                oop->x, oop->y, oop->z);
+            add_point = add_point || !colinear(x, y, z,
+                                               op->x, op->y, op->z,
+                                               oop->x, oop->y, oop->z);
+        }
+
+        if (add_point) {
+            if (changed_color) {
+                // when changing color we need to record an extra point
+                RLock lock(logger_mutex);
+                pl.push_back({
+                    op->x,
+                    op->y,
+                    op->z,
+                    c,
+                    (float)rx,
+                    (float)ry,
+                    (float)rz,
+                    c,
+                    });
             }
+            RLock lock(logger_mutex);
+            pl.push_back({
+                (float)x,
+                (float)y,
+                (float)z,
+                c,
+                (float)rx,
+                (float)ry,
+                (float)rz,
+                c,
+                });
 
-
-            if (add_point) {
-                // 1 or 2 points may be added, make room whenever
-                // fewer than 2 are left
-                bool changed_color = pl->npts && c != op->c;
-
-                // Do we need to expand the allocated heap for the point list?
-                if(pl->npts+2 > pl->alloc_pts) {
-                    LOCK();
-                    if (pl->alloc_pts >= MAX_POINTS) {
-                        // We've reached max buffer size so start throwing away oldest
-                        // point history instead of growing buffer any further.
-                        int adjust = MAX_POINTS / 10;
-                        if (adjust < 2) adjust = 2;
-                        pl->npts -= adjust;
-                        memmove(pl->points, pl->points + adjust,
-                                sizeof(struct LoggerPoint) * pl->npts);
-                    } else {
-                        // Double the buffer (grows it exponentially over time)
-                        pl->alloc_pts = 2 * pl->alloc_pts + 2;
-                        pl->points = (struct LoggerPoint*) realloc(pl->points,
-                                    sizeof(struct LoggerPoint) * pl->alloc_pts);
-                    }
-                    UNLOCK();
-                    op = &pl->points[pl->npts-1];
-                    oop = &pl->points[pl->npts-2];
-                }                
-
-                if (changed_color) {
-                    // when changing color we need to record an extra point
-                    struct LoggerPoint &np = pl->points[pl->npts];
-                    np.x = op->x; np.y = op->y; np.z = op->z;
-                    np.rx = rx; np.ry = ry; np.rz = rz;
-                    np.c = np.c2 = c;
-                    pl->npts++;
-                } 
-
-                struct LoggerPoint &np = pl->points[pl->npts];
+        } else {
+            // update position of last recorded point so that next delta calc is less
+            if (!pl.empty()) {
+                struct LoggerPoint &np = pl.back();
                 np.x = x; np.y = y; np.z = z;
                 np.rx = rx; np.ry = ry; np.rz = rz;
-                np.c = np.c2 = c;
-                pl->npts++;
-
-            } else {
-                // update position of last recorded point so that next delta calc is less
-                if (pl->npts > 0) {
-                    struct LoggerPoint &np = pl->points[pl->npts-1];
-                    np.x = x; np.y = y; np.z = z;
-                    np.rx = rx; np.ry = ry; np.rz = rz;
-                }
             }
-
-            s->last_tool = status->io.tool.toolInSpindle;
         }
-        nanosleep(&ts, NULL);
+
+        s->last_tool = status->io.tool.toolInSpindle;
     }
     Py_END_ALLOW_THREADS
-    Py_DECREF(s->st);
+        Py_DECREF(s->st);
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -2412,50 +2374,58 @@ static PyObject* Logger_stop(pyPositionLogger *s, PyObject *o) {
     return Py_None;
 }
 
+bool need_draw_tool_points(PyObject *visible_tool_list, int tool_num)
+{
+    if (visible_tool_list == Py_None) {
+        return true;
+    } else {
+        for (Py_ssize_t ix = 0; ix < PyList_Size(visible_tool_list); ix++) {
+            long visible_tool = PyInt_AsLong(PyList_GetItem(visible_tool_list, ix));
+            if (tool_num == visible_tool) {
+                return true;
+            }
+        }
+    }
+    return true;
+}
+
 static PyObject* Logger_draw_live_plot(pyPositionLogger *s, PyObject *o) {
     if (!s->clear) {
+        RLock lock(logger_mutex);
 
-        LOCK();
+        // Give loop optimization a shot
+        const bool is_foam = s->is_xyuv;
 
-        tool_point_list* pl = s->tool_point_list_head;
-        while (pl) {
+        for (auto const &it : s->logger_tool_points) {
+            if (it.second.empty()) {
+                continue;
+            }
+            auto const &points = it.second.back();
+            const int tool_num = it.first;
+
             // Should we draw this tool's point list or not?
-            bool drawit = false;
-            if (s->visible_tool_list == Py_None) {
-                drawit = true;  // A visible tool list of None means draw all tools
+            if (!need_draw_tool_points(s->visible_tool_list, tool_num)) {
+                continue;
+            }
+
+            if (is_foam) {
+                glVertexPointer(3, GL_FLOAT,
+                                sizeof(struct LoggerPoint)/2, &points[0].x);
+                glColorPointer(4, GL_UNSIGNED_BYTE,
+                               sizeof(struct LoggerPoint)/2, &points[0].c);
+                glEnableClientState(GL_COLOR_ARRAY);
+                glEnableClientState(GL_VERTEX_ARRAY);
+                glDrawArrays(GL_LINES, 0, 2*points.size());
             } else {
-                for (Py_ssize_t ix = 0; ix < PyList_Size(s->visible_tool_list); ix++) {
-                    long visible_tool = PyInt_AsLong(PyList_GetItem(s->visible_tool_list, ix));
-                    if (pl->tool == visible_tool) {
-                        drawit = true;
-                        break;
-                    }
-                }
+                glVertexPointer(3, GL_FLOAT,
+                                sizeof(struct LoggerPoint), &points[0].x);
+                glColorPointer(4, GL_UNSIGNED_BYTE,
+                               sizeof(struct LoggerPoint), &points[0].c);
+                glEnableClientState(GL_COLOR_ARRAY);
+                glEnableClientState(GL_VERTEX_ARRAY);
+                glDrawArrays(GL_LINE_STRIP, 0, points.size());
             }
-
-            if (drawit) {
-                if (s->is_xyuv) {
-                    glVertexPointer(3, GL_FLOAT,
-                            sizeof(struct LoggerPoint)/2, &pl->points->x);
-                    glColorPointer(4, GL_UNSIGNED_BYTE,
-                            sizeof(struct LoggerPoint)/2, &pl->points->c);
-                    glEnableClientState(GL_COLOR_ARRAY);
-                    glEnableClientState(GL_VERTEX_ARRAY);
-                    glDrawArrays(GL_LINES, 0, 2*pl->npts);
-                } else {
-                    glVertexPointer(3, GL_FLOAT,
-                            sizeof(struct LoggerPoint), &pl->points->x);
-                    glColorPointer(4, GL_UNSIGNED_BYTE,
-                            sizeof(struct LoggerPoint), &pl->points->c);
-                    glEnableClientState(GL_COLOR_ARRAY);
-                    glEnableClientState(GL_VERTEX_ARRAY);
-                    glDrawArrays(GL_LINE_STRIP, 0, pl->npts);
-                }
-            }
-            pl = pl->next_list;
         }  
-
-        UNLOCK();
     }
     Py_INCREF(Py_None);
     return Py_None;
@@ -2465,16 +2435,15 @@ static PyObject *Logger_last(pyPositionLogger *s, PyObject *o) {
     int flag=1;
     if(!PyArg_ParseTuple(o, "|i:emc.positionlogger.last", &flag)) return NULL;
     PyObject *result = NULL;
+    RLock lock(logger_mutex);
 
-    LOCK();
-
-    tool_point_list* pl = find_active_tool_point_list(s, s->last_tool);
-    if (pl->npts == 0) {
+    ToolPoints &points = s->find_active_tool_point_list(s->last_tool);
+    if (points.empty()) {
         Py_INCREF(Py_None);
         result = Py_None;
     } else {
         result = PyTuple_New(6);
-        struct LoggerPoint &p = pl->points[pl->npts-1];
+        struct LoggerPoint &p = points.back();
         PyTuple_SET_ITEM(result, 0, PyFloat_FromDouble(p.x));
         PyTuple_SET_ITEM(result, 1, PyFloat_FromDouble(p.y));
         PyTuple_SET_ITEM(result, 2, PyFloat_FromDouble(p.z));
@@ -2482,9 +2451,6 @@ static PyObject *Logger_last(pyPositionLogger *s, PyObject *o) {
         PyTuple_SET_ITEM(result, 4, PyFloat_FromDouble(p.ry));
         PyTuple_SET_ITEM(result, 5, PyFloat_FromDouble(p.rz));
     }
-
-    UNLOCK();
-
     return result;
 }
 
@@ -2509,15 +2475,13 @@ static PyObject *Logger_set_visible_tools(pyPositionLogger *s, PyObject *o) {
 }
 
 static PyObject* Logger_get_npts(pyPositionLogger *s, PyObject *o) {
-
-    LOCK();
+    RLock lock(logger_mutex);
     long total_npts = 0;
-    tool_point_list* ptmp = s->tool_point_list_head;
-    while (ptmp) {
-        total_npts += ptmp->npts;
-        ptmp = ptmp->next_list;
+    for (auto const &it_tool : s->logger_tool_points) {
+        for (auto const &it_pts : it_tool.second) {
+            total_npts += it_pts.size();
+        }
     }
-    UNLOCK();
 
     return PyLong_FromLong(total_npts);
 }
@@ -2630,7 +2594,6 @@ initlinuxcnc(void) {
 
     PyType_Ready(&PositionLoggerType);
     PyModule_AddObject(m, "positionlogger", (PyObject*)&PositionLoggerType);
-    pthread_mutex_init(&mutex, NULL);
 
     PyModule_AddStringConstant(m, "PREFIX", EMC2_HOME);
     PyModule_AddStringConstant(m, "SHARE", EMC2_HOME "/share");
@@ -2774,4 +2737,5 @@ initlinuxcnc(void) {
 
 
 // # vim:sw=4:sts=4:et:ts=8:
+
 
