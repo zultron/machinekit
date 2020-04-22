@@ -2298,11 +2298,11 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
             double x, y, z, rx, ry, rz;
 
             if (s->is_xyuv) {
-                x = status->motion.traj.position.tran.x - status->task.toolOffset.tran.x,
-                y = status->motion.traj.position.tran.y - status->task.toolOffset.tran.y,
+                x = status->motion.traj.position.tran.x - status->task.toolOffset.tran.x;
+                y = status->motion.traj.position.tran.y - status->task.toolOffset.tran.y;
                 z = s->foam_z;
-                rx = status->motion.traj.position.u - status->task.toolOffset.u,
-                ry = status->motion.traj.position.v - status->task.toolOffset.v,
+                rx = status->motion.traj.position.u - status->task.toolOffset.u;
+                ry = status->motion.traj.position.v - status->task.toolOffset.v;
                 rz = s->foam_w;
                 /* TODO .01, the distance at which a preview line is dropped,
                  * should either be dependent on units or configurable, because
