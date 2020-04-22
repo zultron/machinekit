@@ -41,6 +41,7 @@ using std::max;
 using std::min;
 
 #include <cmath>
+#include <tuple>
 
 #ifndef T_BOOL
 // The C++ standard probably doesn't specify the amount of storage for a 'bool',
@@ -2075,11 +2076,11 @@ static PyObject *pydraw_oriented_limit_box(PyObject *self, PyObject *args)
 
 struct ColorRGBA {
     unsigned char r, g, b, a;
-        return r == o.r && g == o.g && b == o.b && a == o.a;
     bool operator==(const struct ColorRGBA &o) const {
+        return std::tie(r, g, b, a) == std::tie(o.r, o.g, o.b, o.a);
     }
-        return r != o.r || g != o.g || b != o.b || a != o.a;
     bool operator!=(const struct ColorRGBA &o) const {
+        return std::tie(r, g, b, a) != std::tie(o.r, o.g, o.b, o.a);
     }
 };
 
