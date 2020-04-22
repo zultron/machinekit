@@ -2075,13 +2075,13 @@ static PyObject *pydraw_oriented_limit_box(PyObject *self, PyObject *args)
 
 struct color {
     unsigned char r, g, b, a;
-    bool operator==(const color &o) const {
+    bool operator==(const struct color &o) const {
         return r == o.r && g == o.g && b == o.b && a == o.a;
     }
-    bool operator!=(const color &o) const {
+    bool operator!=(const struct color &o) const {
         return r != o.r || g != o.g || b != o.b || a != o.a;
     }
-} color;
+};
 
 struct logger_point {
     float x, y, z;
