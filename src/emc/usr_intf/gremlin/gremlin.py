@@ -597,4 +597,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
     def draw_live_plot_lines(self):
         self.logger.draw_live_plot()
 
-
+    def set_max_live_plot_points(self, points=None):
+        if points:
+            self.logger.set_max_live_plot_points(int(points))
+        else:
+            self.logger.set_max_live_plot_points()

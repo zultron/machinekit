@@ -8,8 +8,9 @@
 #include <memory>
 #include <mutex>
 
-// should be power of two to optimize modulus
-#define MAX_VERTICES (1 << 19)
+// WARNING must be a power of two
+static constexpr size_t MAX_VERTICES = 1 << 20; // Requires a single allocation of 32MB
+static constexpr size_t DEFAULT_VERTICES = 1 << 18;
 
 using RLock = std::lock_guard<std::recursive_mutex>;
 
@@ -56,6 +57,7 @@ class ToolPointBuffer
 {
 protected:
     ToolVertexArray tool_vertices;
+    size_t max_vertices;
     ToolLineStrips strips; // WARNING: never clear this fully! it must have one entry for nextVertexID to work
     std::recursive_mutex &line_strip_lock;
     void newStrip(int tool);
@@ -65,6 +67,7 @@ protected:
 public:
     ToolPointBuffer(std::recursive_mutex &line_strip_lock);
 
+    void setMaxVertices(size_t max_v);
     void clear();
     int lastTool() const;
     bool addPoint(const ToolPoint & pt);
@@ -78,6 +81,7 @@ public:
     StripVertexDef getStripVertices(LineStripInfo const &strip) const;
 
     int countPoints() const;
+    size_t convertToIndex(long long id) const { return id & (max_vertices - 1);} //WARNING: assumes power-of-two size of max vertices
 };
 
 #endif // TOOLPOINTBUFFER_HH

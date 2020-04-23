@@ -2419,6 +2419,18 @@ static PyObject* Logger_get_npts(pyPositionLogger *s, PyObject *o) {
     return PyLong_FromLong(s->logger_tool_points ? s->logger_tool_points->countPoints() : 0);
 }
 
+static PyObject* Logger_set_max_live_plot_points(pyPositionLogger *s, PyObject *o) {
+    long l=DEFAULT_VERTICES;
+    if (!PyArg_ParseTuple(o, "|i:set_max_plot_points", &l)) {
+        return NULL;
+    }
+    if (s->logger_tool_points) {
+        s->logger_tool_points->setMaxVertices(l);
+    }
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyMethodDef Logger_methods[] = {
     {"start", (PyCFunction)Logger_start, METH_VARARGS,
         "Start the position logger and run every ARG seconds"},
@@ -2436,6 +2448,8 @@ static PyMethodDef Logger_methods[] = {
         "Set the list of tool numbers the live plot should filter its drawing on.  None means all tools are visible."},
     {"get_npts", (PyCFunction)Logger_get_npts, METH_NOARGS,
         "Get total number of points logged"},
+    {"set_max_live_plot_points", (PyCFunction)Logger_set_max_live_plot_points, METH_VARARGS,
+        "Set the maximum number of plot points allowed before dropping old points"},
     {NULL, NULL, 0, NULL},
 };
 

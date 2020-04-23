@@ -4,10 +4,30 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 
+static size_t next_power_of_two(size_t n)
+{
+    size_t cnt = 1;
+    while(n >>= 1)
+    {
+        ++cnt;
+    }
+
+    return 1 << cnt;
+}
+
+
 LineStripInfo::LineStripInfo(int t, int p_start, int p_end) : tool(t), start_id(p_start), end_id(p_end) {}
 
-ToolPointBuffer::ToolPointBuffer(std::recursive_mutex &rlock) : tool_vertices{}, strips(), line_strip_lock(rlock)
+ToolPointBuffer::ToolPointBuffer(std::recursive_mutex &rlock) : tool_vertices{}, max_vertices(DEFAULT_VERTICES), strips(), line_strip_lock(rlock)
 {}
+
+// Forces max_v to be a power of two for fast modulus
+void ToolPointBuffer::setMaxVertices(size_t max_v)
+{
+    RLock lock(line_strip_lock);
+    strips.clear();
+    max_vertices = std::max((size_t)64, std::min(next_power_of_two(max_v), (size_t)MAX_VERTICES));
+}
 
 void ToolPointBuffer::clear()
 {
@@ -28,7 +48,7 @@ bool ToolPointBuffer::addPoint(ToolPoint const &pt)
 {
     RLock lock(line_strip_lock);
     // Somewhat naive since this count can't skip
-    size_t next_idx = getNextVertexID() % MAX_VERTICES;
+    size_t next_idx = getNextVertexID() & (max_vertices - 1);
     // If a strip has at least one vertex, don't let it wrap around
     if (next_idx == 0 && getStartVertexID() != getNextVertexID()) {
         // The next point will be at the beginning of the vertex array
@@ -102,7 +122,7 @@ void ToolPointBuffer::dropStaleStrips()
 {
     RLock lock(line_strip_lock);
     // Can be negative if we haven't filled the buffer the first time yet
-    auto const cutoff_pt_id = getNextVertexID() - MAX_VERTICES;
+    auto const cutoff_pt_id = getNextVertexID() - (long long)max_vertices;
     for (auto &strip : strips) {
         // A valid strip must start later than our earliest possible point
         // Since the line strips are sequential in ID, we can stop searching once we hit the first valid one
@@ -133,7 +153,7 @@ ToolPoint * ToolPointBuffer::getPointFromEnd(int idx_from_end)
     if (idx_from_end > max_available_idx) {
         return nullptr;
     } else {
-        size_t vertex_idx = ((end_id - 1) - idx_from_end) % MAX_VERTICES;
+        size_t vertex_idx = convertToIndex((end_id - 1) - idx_from_end);
         return &tool_vertices[vertex_idx];
     }
 }
@@ -146,8 +166,8 @@ const ToolLineStrips & ToolPointBuffer::getStrips() const
 StripVertexDef ToolPointBuffer::getStripVertices(LineStripInfo const &strip) const
 {
     long long start = strip.start_id;
-    size_t length = std::min(strip.end_id - start, (long long)MAX_VERTICES);
-    return {&tool_vertices[ start % MAX_VERTICES], length};
+    size_t length = std::min(strip.end_id - start, (long long)max_vertices);
+    return {&tool_vertices[convertToIndex(start)], length};
 }
 
 int ToolPointBuffer::countPoints() const
