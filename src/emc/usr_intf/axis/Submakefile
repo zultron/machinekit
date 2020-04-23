@@ -2,6 +2,7 @@
 EMCMODULESRCS := \
 	emc/usr_intf/axis/extensions/emcmodule.cc \
 	emc/usr_intf/axis/extensions/previewkinematics.cc \
+	emc/usr_intf/axis/extensions/toolpointbuffer.cc \
 
 
 MINIGLMODULESRCS := emc/usr_intf/axis/extensions/minigl.c

@@ -34,6 +34,7 @@
 #include "rcs_print.hh"
 #include "tool_motion_data.hh"
 #include "previewkinematics.hh"
+#include "toolpointbuffer.hh"
 
 #include <memory>
 #include <algorithm>
@@ -2078,59 +2079,26 @@ static PyObject *pydraw_oriented_limit_box(PyObject *self, PyObject *args)
 // Logger stuff for online plotting
 static std::recursive_mutex logger_mutex;
 
-using RLock = std::lock_guard<std::recursive_mutex>;
-
-struct ColorRGBA {
-    unsigned char r, g, b, a;
-    bool operator==(const struct ColorRGBA &o) const {
-        return std::tie(r, g, b, a) == std::tie(o.r, o.g, o.b, o.a);
-    }
-    bool operator!=(const struct ColorRGBA &o) const {
-        return std::tie(r, g, b, a) != std::tie(o.r, o.g, o.b, o.a);
-    }
-};
-
-struct LoggerPoint {
-    float x, y, z;
-    struct ColorRGBA c;
-    float rx, ry, rz; // or uvw
-    struct ColorRGBA c2;
-};
+using LoggerPoint = ToolPoint;
 
 #define NUMCOLORS (6)
-#define MAX_POINTS (10000)
 
-// We keep track of the live tool path by recording points every so often in an array and then
-// getting opengl to draw the array of points as line vertices.  We build each array of
-// points according to the tool number that is active.
-// When we notice a tool change has occurred, we mark the tool point list for the previous
-// tool as inactive.  That way if that same tool is changed to later on in the program,
-// we don't simply append another point to the array and draw a line segment that never
-// actually happened.
-//
-// So the single linked list of tool_point_list structures grows by one with every tool
-// change.  New active tool_point_list structures are always added to the head so the
-// active ones should be found first.
-
-/**
- * Set of live-plot points (vertices that are connected into a strip of lines).
- * @warning MUST BE A VECTOR OR ARRAY
- * This is used to store points for use in openGL so it must be a contiguous block with a consistent, known stride.
+/** 
+ * Keep track of the live tool path by recording points every so often in an
+ * array and then getting opengl to draw the array of points as line vertices.
+ * We build each array of points according to the tool number that is active.
+ * When we notice a tool change has occurred, we start a new line strip, so
+ * that if the same tool is changed to later on in the program, we don't simply
+ * append another point to the array and draw a line segment that never
+ * actually happened.
  */
-using ToolPoints = std::vector<LoggerPoint>;
-
-/**
- * Stores sets of contiguous tool path sections, organized by tool number.
- */
-using ToolPointsMap = std::map<int, std::vector<std::vector<LoggerPoint>>>;
-
 struct pyPositionLogger {
     PyObject_HEAD
 
-    ToolPointsMap logger_tool_points;
+    std::unique_ptr<ToolPointBuffer> logger_tool_points;
+
     PyObject *visible_tool_list;
     std::set<int> visible_tools;
-    int last_tool;
 
     struct ColorRGBA colors[NUMCOLORS];
     bool exit;
@@ -2143,21 +2111,12 @@ struct pyPositionLogger {
 
     pyStatChannel *st;
 
-    void retire_active_list();
-    ToolPoints & find_active_tool_point_list(int target_tool);
     bool need_draw_tool_points(int tool_num) const;
 };
 
-void pyPositionLogger::retire_active_list()
-{
-    RLock lock(logger_mutex);
-    auto v = logger_tool_points[last_tool];
-    v.push_back(ToolPoints());
-    v.back().reserve(1024);
-}
 
-static const double epsilon = 1e-4; // 1-cos(1 deg) ~= 1e-4
-static const double tiny = 1e-10; 
+static constexpr double epsilon = 1e-4; // 1-cos(1 deg) ~= 1e-4
+static constexpr double tiny = 1e-10;
 
 static inline bool colinear(float xa, float ya, float za, float xb, float yb, float zb, float xc, float yc, float zc) {
     double dx1 = xa-xb, dx2 = xb-xc;
@@ -2165,30 +2124,23 @@ static inline bool colinear(float xa, float ya, float za, float xb, float yb, fl
     double dz1 = za-zb, dz2 = zb-zc;
     double dp = sqrt(dx1*dx1 + dy1*dy1 + dz1*dz1);
     double dq = sqrt(dx2*dx2 + dy2*dy2 + dz2*dz2);
-    if( fabs(dp) < tiny || fabs(dq) < tiny ) return true;
-    double dot = (dx1*dx2 + dy1*dy2 + dz1*dz2) / dp / dq;
-    if( fabs(1-dot) < epsilon) return true;
-    return false;
-}
-
-ToolPoints &pyPositionLogger::find_active_tool_point_list(int target_tool) {
-    RLock lock(logger_mutex);
-    auto &v = logger_tool_points[target_tool];
-    if (v.empty()) {
-        v.push_back(ToolPoints{});
-        v.back().reserve(1024);
+    if( fabs(dp) < tiny || fabs(dq) < tiny ) {
+        return true;
     }
-    return v.back();
+    double dot = (dx1*dx2 + dy1*dy2 + dz1*dz2) / dp / dq;
+    if( fabs(1-dot) < epsilon) {
+        return true;
+    }
+    return false;
 }
 
 static int Logger_init(pyPositionLogger *self, PyObject *a, PyObject *k) {
     struct ColorRGBA *c = self->colors;
 
-    self->last_tool = 0;
     self->exit = false;
     self->clear = false;
 
-    Py_INCREF(Py_None);
+    self->logger_tool_points.reset(new ToolPointBuffer(logger_mutex));
     self->visible_tools.clear();
 
     self->st = 0;
@@ -2235,6 +2187,11 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
     struct timespec ts;
 
     if(!PyArg_ParseTuple(o, "d:logger.start", &interval)) return NULL;
+
+    if (!s->logger_tool_points) {
+        //TODO exception here
+        return nullptr;
+    }
     ts.tv_sec = (int)interval;
     ts.tv_nsec = (long int)(1e9 * (interval - ts.tv_sec));
 
@@ -2247,12 +2204,8 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
         while (!s->exit) {
         nanosleep(&ts, NULL);
         if (s->clear) {
-            // Clear point lists for all tools.  We dealloc them all because there can be a lot of
-            // inactive tool point lists and trying to collapse them all together is more work than just
-            // starting fresh.
-
-            RLock lock(logger_mutex);
-            s->logger_tool_points.clear();
+            // Drop all line strips and start over
+            s->logger_tool_points->clear();
             s->clear = false;
         }
 
@@ -2266,13 +2219,10 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
         if (colornum < 0 || colornum > NUMCOLORS) colornum = 0;
         struct ColorRGBA c = s->colors[colornum];
 
-        if (status->io.tool.toolInSpindle != s->last_tool) {
-            s->retire_active_list();
-        }
-        ToolPoints &pl = s->find_active_tool_point_list(status->io.tool.toolInSpindle);
-
-        struct LoggerPoint *op = pl.empty() ? nullptr : &(*(pl.rbegin()));
-        struct LoggerPoint *oop = pl.size() < 2 ? nullptr : &(*(pl.rbegin()+1));
+        RLock lock(logger_mutex);
+        s->logger_tool_points->setActiveTool(status->io.tool.toolInSpindle);
+        LoggerPoint *op = s->logger_tool_points->getPointFromEnd(0);
+        LoggerPoint *oop = s->logger_tool_points->getPointFromEnd(1);
         bool changed_color = false;
         // WARNING: taking care not to access op or oop if the size isn't at the minimum
         bool add_point = !op || (changed_color = (c != op->c)) || !oop;
@@ -2321,9 +2271,7 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
 
         if (add_point) {
             if (changed_color) {
-                // when changing color we need to record an extra point
-                RLock lock(logger_mutex);
-                pl.push_back({
+                s->logger_tool_points->addPoint({
                     op->x,
                     op->y,
                     op->z,
@@ -2334,8 +2282,7 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                     c,
                     });
             }
-            RLock lock(logger_mutex);
-            pl.push_back({
+            s->logger_tool_points->addPoint({
                 (float)x,
                 (float)y,
                 (float)z,
@@ -2346,16 +2293,15 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                 c,
                 });
 
-        } else {
-            // update position of last recorded point so that next delta calc is less
-            if (!pl.empty()) {
-                struct LoggerPoint &np = pl.back();
-                np.x = x; np.y = y; np.z = z;
-                np.rx = rx; np.ry = ry; np.rz = rz;
-            }
+        } else if (op) {
+            // We have at least two points, but the last one isn't enough displacement to warrant a new point
+            op->x = x;
+            op->y = y;
+            op->z = z;
+            op->rx = rx;
+            op->ry = ry;
+            op->rz = rz;
         }
-
-        s->last_tool = status->io.tool.toolInSpindle;
     }
     Py_END_ALLOW_THREADS
         Py_DECREF(s->st);
@@ -2387,34 +2333,36 @@ static PyObject* Logger_draw_live_plot(pyPositionLogger *s, PyObject *o) {
         // Give loop optimization a shot
         const bool is_foam = s->is_xyuv;
 
-        for (auto const &it : s->logger_tool_points) {
-            if (it.second.empty()) {
+        for (auto const &strip : s->logger_tool_points->getStrips()) {
+            // Should we draw this tool's point list or not?
+            if (!s->need_draw_tool_points(strip.tool)) {
                 continue;
             }
-            auto const &points = it.second.back();
-            const int tool_num = it.first;
-
-            // Should we draw this tool's point list or not?
-            if (!s->need_draw_tool_points(tool_num)) {
+            // Get vertices and unpack them
+            auto const strip_vertex_def = s->logger_tool_points->getStripVertices(strip);
+            LoggerPoint const *point = strip_vertex_def.start_vertex;
+            if (!point) {
+                // Can't draw a NULL strip
                 continue;
             }
 
             if (is_foam) {
-                glVertexPointer(3, GL_FLOAT,
-                                sizeof(struct LoggerPoint)/2, &points[0].x);
-                glColorPointer(4, GL_UNSIGNED_BYTE,
-                               sizeof(struct LoggerPoint)/2, &points[0].c);
+                constexpr size_t foam_stride = sizeof(LoggerPoint)/2;
+
+                glVertexPointer(3, GL_FLOAT, foam_stride, &point->x);
+                glColorPointer(4, GL_UNSIGNED_BYTE, foam_stride, &point->c);
                 glEnableClientState(GL_COLOR_ARRAY);
                 glEnableClientState(GL_VERTEX_ARRAY);
-                glDrawArrays(GL_LINES, 0, 2*points.size());
+                int point_count = strip_vertex_def.count * 2;
+                glDrawArrays(GL_LINES, 0, point_count);
             } else {
-                glVertexPointer(3, GL_FLOAT,
-                                sizeof(struct LoggerPoint), &points[0].x);
-                glColorPointer(4, GL_UNSIGNED_BYTE,
-                               sizeof(struct LoggerPoint), &points[0].c);
+                constexpr size_t stride = sizeof(LoggerPoint);
+                glVertexPointer(3, GL_FLOAT, stride, &point->x);
+                glColorPointer(4, GL_UNSIGNED_BYTE, stride, &point->c);
                 glEnableClientState(GL_COLOR_ARRAY);
                 glEnableClientState(GL_VERTEX_ARRAY);
-                glDrawArrays(GL_LINE_STRIP, 0, points.size());
+                int point_count = strip_vertex_def.count;
+                glDrawArrays(GL_LINE_STRIP, 0, point_count);
             }
         }  
     }
@@ -2426,21 +2374,19 @@ static PyObject *Logger_last(pyPositionLogger *s, PyObject *o) {
     int flag=1;
     if(!PyArg_ParseTuple(o, "|i:emc.positionlogger.last", &flag)) return NULL;
     PyObject *result = NULL;
-    RLock lock(logger_mutex);
 
-    ToolPoints &points = s->find_active_tool_point_list(s->last_tool);
-    if (points.empty()) {
+    LoggerPoint const *last_pt = s->logger_tool_points ? s->logger_tool_points->getPointFromEnd(0) : nullptr;
+    if (!last_pt) {
         Py_INCREF(Py_None);
         result = Py_None;
     } else {
         result = PyTuple_New(6);
-        struct LoggerPoint &p = points.back();
-        PyTuple_SET_ITEM(result, 0, PyFloat_FromDouble(p.x));
-        PyTuple_SET_ITEM(result, 1, PyFloat_FromDouble(p.y));
-        PyTuple_SET_ITEM(result, 2, PyFloat_FromDouble(p.z));
-        PyTuple_SET_ITEM(result, 3, PyFloat_FromDouble(p.rx));
-        PyTuple_SET_ITEM(result, 4, PyFloat_FromDouble(p.ry));
-        PyTuple_SET_ITEM(result, 5, PyFloat_FromDouble(p.rz));
+        PyTuple_SET_ITEM(result, 0, PyFloat_FromDouble(last_pt->x));
+        PyTuple_SET_ITEM(result, 1, PyFloat_FromDouble(last_pt->y));
+        PyTuple_SET_ITEM(result, 2, PyFloat_FromDouble(last_pt->z));
+        PyTuple_SET_ITEM(result, 3, PyFloat_FromDouble(last_pt->rx));
+        PyTuple_SET_ITEM(result, 4, PyFloat_FromDouble(last_pt->ry));
+        PyTuple_SET_ITEM(result, 5, PyFloat_FromDouble(last_pt->rz));
     }
     return result;
 }
@@ -2470,15 +2416,7 @@ static PyObject *Logger_set_visible_tools(pyPositionLogger *s, PyObject *o) {
 }
 
 static PyObject* Logger_get_npts(pyPositionLogger *s, PyObject *o) {
-    RLock lock(logger_mutex);
-    long total_npts = 0;
-    for (auto const &it_tool : s->logger_tool_points) {
-        for (auto const &it_pts : it_tool.second) {
-            total_npts += it_pts.size();
-        }
-    }
-
-    return PyLong_FromLong(total_npts);
+    return PyLong_FromLong(s->logger_tool_points ? s->logger_tool_points->countPoints() : 0);
 }
 
 static PyMethodDef Logger_methods[] = {
