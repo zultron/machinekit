@@ -45,6 +45,7 @@ using std::min;
 #include <mutex>
 #include <map>
 #include <vector>
+#include <set>
 
 #ifndef T_BOOL
 // The C++ standard probably doesn't specify the amount of storage for a 'bool',
@@ -2128,6 +2129,7 @@ struct pyPositionLogger {
 
     ToolPointsMap logger_tool_points;
     PyObject *visible_tool_list;
+    std::set<int> visible_tools;
     int last_tool;
 
     struct ColorRGBA colors[NUMCOLORS];
@@ -2143,7 +2145,7 @@ struct pyPositionLogger {
 
     void retire_active_list();
     ToolPoints & find_active_tool_point_list(int target_tool);
-
+    bool need_draw_tool_points(int tool_num) const;
 };
 
 void pyPositionLogger::retire_active_list()
@@ -2187,7 +2189,7 @@ static int Logger_init(pyPositionLogger *self, PyObject *a, PyObject *k) {
     self->clear = false;
 
     Py_INCREF(Py_None);
-    self->visible_tool_list = Py_None;
+    self->visible_tools.clear();
 
     self->st = 0;
     self->is_xyuv = 0;
@@ -2209,7 +2211,6 @@ static int Logger_init(pyPositionLogger *self, PyObject *a, PyObject *k) {
 }
 
 static void Logger_dealloc(pyPositionLogger *s) {
-    Py_DECREF(s->visible_tool_list);
     Py_XDECREF(s->st);
     PyObject_Del(s);
 }
@@ -2374,19 +2375,9 @@ static PyObject* Logger_stop(pyPositionLogger *s, PyObject *o) {
     return Py_None;
 }
 
-bool need_draw_tool_points(PyObject *visible_tool_list, int tool_num)
+bool pyPositionLogger::need_draw_tool_points(int tool_num) const
 {
-    if (visible_tool_list == Py_None) {
-        return true;
-    } else {
-        for (Py_ssize_t ix = 0; ix < PyList_Size(visible_tool_list); ix++) {
-            long visible_tool = PyInt_AsLong(PyList_GetItem(visible_tool_list, ix));
-            if (tool_num == visible_tool) {
-                return true;
-            }
-        }
-    }
-    return true;
+    return visible_tools.empty() || visible_tools.find(tool_num) != visible_tools.end();
 }
 
 static PyObject* Logger_draw_live_plot(pyPositionLogger *s, PyObject *o) {
@@ -2404,7 +2395,7 @@ static PyObject* Logger_draw_live_plot(pyPositionLogger *s, PyObject *o) {
             const int tool_num = it.first;
 
             // Should we draw this tool's point list or not?
-            if (!need_draw_tool_points(s->visible_tool_list, tool_num)) {
+            if (!s->need_draw_tool_points(tool_num)) {
                 continue;
             }
 
@@ -2465,9 +2456,13 @@ static PyObject *Logger_set_visible_tools(pyPositionLogger *s, PyObject *o) {
         return NULL;
     }
 
-    Py_DECREF(s->visible_tool_list);
-    Py_INCREF(li);
-    s->visible_tool_list = li;
+    if (li == Py_None) {
+        s->visible_tools.clear();
+    } else {
+        for (Py_ssize_t ix = 0; ix < PyList_Size(li); ix++) {
+            s->visible_tools.insert(PyInt_AsLong(PyList_GetItem(li, ix)));
+        }
+    }
 
     Py_INCREF(Py_None);
     PyObject *result = Py_None;
