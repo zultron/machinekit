@@ -103,13 +103,17 @@ void ToolPointBuffer::dropStaleStrips()
     RLock lock(line_strip_lock);
     // Can be negative if we haven't filled the buffer the first time yet
     auto const cutoff_pt_id = getNextVertexID() - MAX_VERTICES;
-    for (auto const &strip : strips) {
+    for (auto &strip : strips) {
         // A valid strip must start later than our earliest possible point
         // Since the line strips are sequential in ID, we can stop searching once we hit the first valid one
-        if (strip.start_id > cutoff_pt_id) {
+        if (strip.end_id < (cutoff_pt_id + 1)) {
+            // Strip would be empty, throw it out
+            strips.pop_front();
+        } else if (strip.start_id <= cutoff_pt_id) {
+            strip.start_id = cutoff_pt_id + 1;
+        } else {
             return;
         }
-        strips.pop_front();
     }
 }
 
