@@ -19,6 +19,7 @@ from rs274 import Translated, ArcsToSegmentsMixin, OpenGLTk
 from minigl import *
 import math
 import glnav
+from gl_context_managers import *
 import hershey
 import linuxcnc
 import array
@@ -737,12 +738,11 @@ class GlCanonDraw(glnav.GlNavBase):
             self.gl_look_at_z(1.0)
 
         glMatrixMode(GL_MODELVIEW)
-        glPushMatrix()
-        try:
-            self.redraw_scene()
-        finally:
-            glFlush()                               # Tidy up
-            glPopMatrix()                   # Restore the matrix
+        with gl_push_matrix():
+            try:
+                self.redraw_scene()
+            finally:
+                glFlush()
 
     def color_limit(self, cond):
         if cond:
