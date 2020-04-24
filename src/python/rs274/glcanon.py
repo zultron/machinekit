@@ -1455,28 +1455,16 @@ class GlCanonDraw(glnav.GlNavBase):
         glDepthFunc(GL_LESS)
 
     def draw_tool(self):
-        pos_raw = self.get_logger_last() or (0,) * 6
-        rx, ry, rz = pos_raw[3:6]
-        pos = self.to_internal_units(pos_raw)[:3]
+        pos6 = self.get_logger_last() or (0,) * 6
+        rx, ry, rz = pos6[3:6]
+        pos = self.to_internal_units(pos6)[:3]
         if self.foam_option:
-            glEnable(GL_COLOR_MATERIAL)
-            glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
-            glPushMatrix()
-            glTranslatef(pos[0], pos[1], self.get_foam_z())
-            glRotatef(180, 1, 0, 0)
-            cone = self.dlist("cone", gen=self.make_cone)
-            glColor3f(*self.color_config.get_color('cone_xy'))
-            glCallList(cone)
-            glPopMatrix()
-            u = self.to_internal_linear_unit(rx)
-            v = self.to_internal_linear_unit(ry)
-            glPushMatrix()
-            glTranslatef(u, v, self.get_foam_w())
-            glColor3f(*self.color_config.get_color('cone_uv'))
-            glCallList(cone)
-            glPopMatrix()
+            self.draw_foamwire_tool(pos, rx, ry)
         else:
-            glPushMatrix()
+            self.draw_single_tool(pos, rx, ry, rz)
+
+    def draw_single_tool(self, pos, rx, ry, rz):
+        with gl_push_matrix():
             glTranslatef(*pos)
             sign = 1
             for ch in self.get_geometry():
@@ -1494,18 +1482,9 @@ class GlCanonDraw(glnav.GlNavBase):
             glEnable(GL_BLEND)
             glEnable(GL_CULL_FACE)
             glBlendFunc(GL_ONE, GL_CONSTANT_ALPHA)
-
             current_tool = self.get_current_tool()
             if current_tool is None or current_tool.diameter == 0:
-                if self.canon:
-                    g = self.canon
-                    x, y, z = 0, 1, 2
-                    cone_scale = max(g.max_extents[x] - g.min_extents[x],
-                                     g.max_extents[y] - g.min_extents[y],
-                                     g.max_extents[z] - g.min_extents[z],
-                                     2) * .5
-                else:
-                    cone_scale = 1
+                cone_scale = self.find_tool_placeholder_scale()
                 if self.is_lathe():
                     glRotatef(90, 0, 1, 0)
                 cone = self.dlist("cone", gen=self.make_cone)
@@ -1514,10 +1493,37 @@ class GlCanonDraw(glnav.GlNavBase):
                 glCallList(cone)
             else:
                 if current_tool != self.cached_tool:
-                    self.cache_tool(current_tool)
-                glColor3f(*self.color_config.get_color('cone'))
-                glCallList(self.dlist('tool'))
-            glPopMatrix()
+                    self.stale_dlist('tool')
+                glCallList(self.dlist('tool', gen=lambda n: self.make_tool(n, current_tool)))
+
+    def find_tool_placeholder_scale(self):
+        if self.canon:
+            g = self.canon
+            x, y, z = 0, 1, 2
+            return max(g.max_extents[x] - g.min_extents[x],
+                             g.max_extents[y] - g.min_extents[y],
+                             g.max_extents[z] - g.min_extents[z],
+                             2) * .5
+        else:
+            return 1
+
+    def draw_foamwire_tool(self, pos, rx, ry):
+        glEnable(GL_COLOR_MATERIAL)
+        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
+        glPushMatrix()
+        glTranslatef(pos[0], pos[1], self.get_foam_z())
+        glRotatef(180, 1, 0, 0)
+        cone = self.dlist("cone", gen=self.make_cone)
+        glColor3f(*self.color_config.get_color('cone_xy'))
+        glCallList(cone)
+        glPopMatrix()
+        u = self.to_internal_linear_unit(rx)
+        v = self.to_internal_linear_unit(ry)
+        glPushMatrix()
+        glTranslatef(u, v, self.get_foam_w())
+        glColor3f(*self.color_config.get_color('cone_uv'))
+        glCallList(cone)
+        glPopMatrix()
 
     def draw_stat_overlay(self):
         """
@@ -1588,14 +1594,15 @@ class GlCanonDraw(glnav.GlNavBase):
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
 
-    def cache_tool(self, current_tool):
+    def make_tool(self, tool_dlist, current_tool):
+        glColor3f(*self.color_config.get_color('cone'))
         self.cached_tool = current_tool
-        glNewList(self.dlist('tool'), GL_COMPILE)
+        glNewList(tool_dlist, GL_COMPILE)
         if self.is_lathe() and current_tool and current_tool.orientation != 0:
-            glBlendColor(0,0,0,self.color_config.get_alpha_or_default('lathetool'))
-            self.lathetool(current_tool)
+            glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('lathetool'))
+            self._draw_lathetool(current_tool)
         else:
-            glBlendColor(0,0,0,self.color_config.get_alpha_or_default('tool'))
+            glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
             if self.is_lathe():
                 glRotatef(90, 0, 1, 0)
             else:
@@ -1604,11 +1611,10 @@ class GlCanonDraw(glnav.GlNavBase):
                 q = gluNewQuadric()
                 glEnable(GL_LIGHTING)
                 gluCylinder(q, r, r, 8*r, 32, 1)
-                glPushMatrix()
-                glRotatef(180, 1, 0, 0)
-                gluDisk(q, 0, r, 32, 1)
-                glPopMatrix()
-                glTranslatef(0,0,8*r)
+                with gl_push_matrix():
+                    glRotatef(180, 1, 0, 0)
+                    gluDisk(q, 0, r, 32, 1)
+                glTranslatef(0, 0, 8*r)
                 gluDisk(q, 0, r, 32, 1)
                 glDisable(GL_LIGHTING)
                 gluDeleteQuadric(q)
@@ -1898,14 +1904,14 @@ class GlCanonDraw(glnav.GlNavBase):
         glEnable(GL_LIGHTING)
         gluCylinder(q, 0, .1, .25, 32, 1)
         glPushMatrix()
-        glTranslatef(0,0,.25)
+        glTranslatef(0, 0, .25)
         gluDisk(q, 0, .1, 32, 1)
         glPopMatrix()
         glDisable(GL_LIGHTING)
         glEndList()
         gluDeleteQuadric(q)
 
-    def lathetool(self, current_tool):
+    def _draw_lathetool(self, current_tool):
         if self.is_rear_tool_post_lathe:
             lathe_shapes = [
                 None,                           # 0
