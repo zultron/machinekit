@@ -1300,8 +1300,8 @@ class GlCanonDraw(glnav.GlNavBase):
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
             if self.get_show_rapids():
-                glCallList(self.dlist('program_rapids', gen=self.make_main_list))
-            glCallList(self.dlist('program_norapids', gen=self.make_main_list))
+                glCallList(self.dlist('program_rapids', gen=self.make_rapids_list))
+            glCallList(self.dlist('program_norapids', gen=self.make_nonrapids_list))
             glCallList(self.dlist('highlight', gen=self.make_highlight_list))
 
             if self.get_program_alpha():
@@ -2021,20 +2021,21 @@ class GlCanonDraw(glnav.GlNavBase):
             self.canon.draw_rapids(True)
         glEndList()
 
-    def make_main_list(self, unused=None):
-        glNewList(self.dlist('program_norapids'), GL_COMPILE)
+    def make_nonrapids_list(self, nonrapids_list):
+        glNewList(nonrapids_list, GL_COMPILE)
         if self.canon:
             self.canon.draw_nonrapids(False)
         glEndList()
 
-        glNewList(self.dlist('program_rapids'), GL_COMPILE)
+    def make_rapids_list(self, rapids_list):
+        glNewList(rapids_list, GL_COMPILE)
         if self.canon:
             self.canon.draw_rapids(False)
         glEndList()
 
-    def make_highlight_list(self, unused=None):
+    def make_highlight_list(self, highlight_list):
         line = self.get_highlight_line()
-        glNewList(self.dlist('highlight'), GL_COMPILE)
+        glNewList(highlight_list, GL_COMPILE)
         if line is not None and self.canon is not None:
             if self.foam_option:
                 glPushMatrix()
