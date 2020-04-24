@@ -599,7 +599,7 @@ class MyOpengl(GlCanonDraw, Opengl):
     def get_logger_last(self):
         return o.logger.last()
 
-    def draw_live_plot(self):
+    def draw_live_plot_lines(self):
         o.logger.draw_live_plot()
 
 def init():

@@ -593,7 +593,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
     def get_logger_last(self):
         return self.logger.last()
 
-    def draw_live_plot(self):
+    def draw_live_plot_lines(self):
         self.logger.draw_live_plot()
 
 

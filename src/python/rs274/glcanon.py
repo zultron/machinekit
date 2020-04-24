@@ -532,6 +532,7 @@ class GlCanonDraw(glnav.GlNavBase):
         self.use_relative = True
         self.show_tool = True
         self.show_dtg = True
+        self.show_stat_overlay = False
         self.grid_size = 0.0
         self.show_offsets = True
         self.show_g53_origin = False
@@ -748,8 +749,7 @@ class GlCanonDraw(glnav.GlNavBase):
             glColor3f(*self.color_config.get_color('label_ok'))
         return cond
 
-
-    def show_extents(self):
+    def draw_program_extents(self):
         s = self.stat
         g = self.canon
         if g is None: return
@@ -1015,10 +1015,17 @@ class GlCanonDraw(glnav.GlNavBase):
                 for i in range(3)]))
 
     def get_foam_z(self):
-        if self.canon: return self.canon.foam_z
+        """
+        Assumed to be zero for single-point cutters, this describes the offset for the bottom of a wire-style cutter (foam, wire EDM, water jet?).
+        """
+        if self.canon:
+            return self.canon.foam_z
         return 0
 
     def get_foam_w(self):
+        """
+        The offset for the top of a wire-style cutter (foam, wire EDM, water jet?)
+        """
         if self.canon: return self.canon.foam_w
         return 1.5
 
@@ -1264,13 +1271,26 @@ class GlCanonDraw(glnav.GlNavBase):
 
     def redraw(self):
         t0 = time.time()
-        s = self.stat
-        s.poll()
 
+        # Get needed data from status after poll
+        self.stat.poll()
         machine_limit_min, machine_limit_max = self.soft_limits()
-        glDisable(GL_LIGHTING)
+        current_position = self.stat.position
+        tool_offset = self.stat.tool_offset
+        units_per_inch = 1 / ((self.stat.linear_units or 1) * 25.4)
+        g5x_index = self.stat.g5x_index
+        g5x_offset = self.to_internal_units(self.stat.g5x_offset)[:3]
+        if self.is_rear_tool_post_lathe():
+            g5x_offset[0] *= -1
+        rotation_xy = self.stat.rotation_xy
+        g92_offset = self.to_internal_units(self.stat.g92_offset)[:3]
+
+        glDisable(GL_LIGHTING) # Can't light lines, so only enable this for specific 3D geometry
         glMatrixMode(GL_MODELVIEW)
+
+        # Go through each display option and draw any view elements needed
         self.draw_grid()
+
         if self.get_show_program():
             if self.get_program_alpha():
                 glDisable(GL_DEPTH_TEST)
@@ -1287,212 +1307,221 @@ class GlCanonDraw(glnav.GlNavBase):
                 glEnable(GL_DEPTH_TEST)
 
             if self.get_show_extents():
-                self.show_extents()
+                self.draw_program_extents()
 
         if self.get_show_live_plot() or self.get_show_program():
-            alist = self.dlist(('axes', self.get_view()), gen=self.draw_axes)
-            glPushMatrix()
-
-            if self.get_show_relative() and (s.g5x_offset[0] or s.g5x_offset[1] or s.g5x_offset[2] or
-                                             s.g92_offset[0] or s.g92_offset[1] or s.g92_offset[2] or
-                                             s.rotation_xy):
-
-                if self.show_g53_origin == True :  # plot machine zero
-                    olist = self.dlist('draw_small_origin', gen=self.draw_small_origin)
-                    glCallList(olist)
-
-                g5x_offset = self.to_internal_units(s.g5x_offset)[:3]
-                if self.is_rear_tool_post_lathe():
-                    g5x_offset[0] *= -1
-                g92_offset = self.to_internal_units(s.g92_offset)[:3]
-
-                if self.get_show_work_offset() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2]):
-
-                    # plot offset crosshair
-                    self.color_config.gl_color_with_alpha('work_offset')
-                    glLineStipple(1, 0x1C47)
-                    glEnable(GL_LINE_STIPPLE)
-                    glBegin(GL_LINES)
-                    glVertex3f(0, 0, 0)
-                    glVertex3f(*g5x_offset)
-                    glEnd()
-                    glDisable(GL_LINE_STIPPLE)
-
-                    # plot offset label
-                    i = s.g5x_index
-                    if i<7:
-                        label = "G5%d" % (i+3)
-                    elif i<10:
-                        label = "G59.%d" % (i-6)
-                    else:
-                        label = "G54.1 P{}".format(i)
-                    glPushMatrix()
-                    glScalef(0.2,0.2,0.2)
-                    if self.is_lathe():
-                        g5xrot=math.atan2(g5x_offset[0], -g5x_offset[2])
-                        glRotatef(90, 1, 0, 0)
-                        glRotatef(-90, 0, 0, 1)
-                    else:
-                        g5xrot=math.atan2(g5x_offset[1], g5x_offset[0])
-                    glRotatef(math.degrees(g5xrot), 0, 0, 1)
-                    glTranslatef(0.5, 0.5, 0)
-                    self.hershey.plot_string(label, 0.1)
-                    glPopMatrix()
-
-                glTranslatef(*g5x_offset)
-                glRotatef(s.rotation_xy, 0, 0, 1)
-
-                if self.get_show_axis_offset() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
-                    self.color_config.gl_color_with_alpha('axis_offset')
-                    glLineStipple(1, 0x1C47)
-                    glEnable(GL_LINE_STIPPLE)
-                    glBegin(GL_LINES)
-                    glVertex3f(0,0,0)
-                    # g92_offset[0] *= -1 if rear tool lathe?
-                    glVertex3f(*g92_offset)
-                    glEnd()
-                    glDisable(GL_LINE_STIPPLE)
-
-                    self.gl_draw_g92_label(g92_offset)
-
-                glTranslatef(*g92_offset)
-
-            if self.foam_option:
-                glTranslatef(0, 0, self.get_foam_z())
-                glCallList(alist)
-                uwalist = self.dlist(('axes_uw', self.get_view()), gen=lambda n: self.draw_axes(n, 'UVW'))
-                glTranslatef(0, 0, self.get_foam_w()-self.get_foam_z())
-                glCallList(uwalist)
-            else:
-                glCallList(alist)
-            glPopMatrix()
+            self.draw_coordinate_systems(g5x_index, g5x_offset, g92_offset, rotation_xy)
 
         if self.get_show_limits():
-            # Chris Radek commited a 2 line change
-            # https://github.com/LinuxCNC/linuxcnc/commit/b98597b97b8a777325bafb9e7eab18f4c8305077
-            #
-            # The entire limit box drawing was effected (see the the matching commented out
-            # glTranslatef() and the end of this block which attempts to restore the previous matrix.
-            # (not sure why he didn't just use glPushMatrix/glPopMatrix also)
-            #
-            # The change installs an identity translation matrix which effectively shifts all limit
-            # box vertices negatively by the tool offset. Most visible in Z of course on the mill.
-            #
-            # Do not understand how he thought this was helping, the logic doesn't seem to match his
-            # commit comment (my theory is its somehow effective in Axis so it felt right to him?).
-            #
-            #glTranslatef(*[-x for x in self.to_internal_units(s.tool_offset)[:3]])
-
-            glLineWidth(1)
-            glLineStipple(1, 0x1111)
-            glEnable(GL_LINE_STIPPLE)
-
-            machine_limit_xyz_min_tool = np.array(machine_limit_min[0:3]) - np.array(s.tool_offset[0:3])
-            machine_limit_xyz_max_tool = np.array(machine_limit_max[0:3]) - np.array(s.tool_offset[0:3])
-
-            if self.is_rear_tool_post_lathe():
-                # Flip the draw X axis orientation and tweak the color for the rear TP
-                machine_limit_xyz_min_tool[0] *= -1.
-                machine_limit_xyz_max_tool[0] *= -1.
-                glColor3f(0.0, 1.0, 0.0)
-            else:
-                # Normal limit box color
-                glColor3f(0.3, 0.5, 1.0)
-            linuxcnc.draw_oriented_limit_box(machine_limit_xyz_min_tool, machine_limit_xyz_max_tool, s.position)
-
-            glDisable(GL_LINE_STIPPLE)
-            glLineStipple(2, 0x5555)
-
-            # See comment above at start of limit box drawing for why this is commented out.
-            #glTranslatef(*self.to_internal_units(s.tool_offset)[:3])
+            self.draw_limit_box(machine_limit_max, machine_limit_min, current_position, tool_offset)
 
         if self.get_show_live_plot():
-            glDepthFunc(GL_LEQUAL)
-            glLineWidth(3)
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-            glEnable(GL_BLEND)
-            glPushMatrix()
-            lu = 1/((s.linear_units or 1)*25.4)
-            glScalef(lu, lu, lu)
-            glMatrixMode(GL_PROJECTION)
-            glPushMatrix()
-            glTranslatef(0,0,.003)
-
-            self.draw_live_plot()
-
-            glPopMatrix()
-            glMatrixMode(GL_MODELVIEW)
-            glPopMatrix()
-            glDisable(GL_BLEND)
-            glLineWidth(1)
-            glDepthFunc(GL_LESS)
+            self.draw_live_plot_all(units_per_inch)
 
         if self.get_show_tool():
-            pos = self.get_logger_last()
-            if pos is None: pos = [0] * 6
-            rx, ry, rz = pos[3:6]
-            pos = self.to_internal_units(pos[:3])
-            if self.foam_option:
-                glEnable(GL_COLOR_MATERIAL)
-                glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
-                glPushMatrix()
-                glTranslatef(pos[0], pos[1], self.get_foam_z())
-                glRotatef(180, 1, 0, 0)
-                cone = self.dlist("cone", gen=self.make_cone)
-                glColor3f(*self.color_config.get_color('cone_xy'))
-                glCallList(cone)
-                glPopMatrix()
-                u = self.to_internal_linear_unit(rx)
-                v = self.to_internal_linear_unit(ry)
-                glPushMatrix()
-                glTranslatef(u, v, self.get_foam_w())
-                glColor3f(*self.color_config.get_color('cone_uv'))
-                glCallList(cone)
-                glPopMatrix()
-            else:
-                glPushMatrix()
-                glTranslatef(*pos)
-                sign = 1
-                for ch in self.get_geometry():
-                    if ch == '-':
-                        sign = -1
-                    elif ch == 'A':
-                        glRotatef(rx*sign, 1, 0, 0)
-                        sign = 1
-                    elif ch == 'B':
-                        glRotatef(ry*sign, 0, 1, 0)
-                        sign = 1
-                    elif ch == 'C':
-                        glRotatef(rz*sign, 0, 0, 1)
-                        sign = 1
-                glEnable(GL_BLEND)
-                glEnable(GL_CULL_FACE)
-                glBlendFunc(GL_ONE, GL_CONSTANT_ALPHA)
+            self.draw_tool()
 
-                current_tool = self.get_current_tool()
-                if current_tool is None or current_tool.diameter == 0:
-                    if self.canon:
-                        g = self.canon
-                        x,y,z = 0,1,2
-                        cone_scale = max(g.max_extents[x] - g.min_extents[x],
-                                       g.max_extents[y] - g.min_extents[y],
-                                       g.max_extents[z] - g.min_extents[z],
-                                       2 ) * .5
-                    else:
-                        cone_scale = 1
-                    if self.is_lathe():
-                        glRotatef(90, 0, 1, 0)
-                    cone = self.dlist("cone", gen=self.make_cone)
-                    glScalef(cone_scale, cone_scale, cone_scale)
-                    glColor3f(*self.color_config.get_color('cone'))
-                    glCallList(cone)
+        if self.get_show_stat_overlay():
+            self.draw_stat_overlay()
+        #print "glcanon.redraw() call time: {}".format(time.time()-t0)
+
+    def draw_coordinate_systems(self, g5x_index, g5x_offset, g92_offset, rotation_xy):
+        glPushMatrix()
+        if self.get_show_relative() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2] or
+                                         g92_offset[0] or g92_offset[1] or g92_offset[2] or
+                                         rotation_xy):
+
+            if self.show_g53_origin:  # plot machine zero
+                glCallList(self.dlist('draw_small_origin', gen=self.draw_small_origin))
+
+            if self.get_show_work_offset() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2]):
+                self.draw_work_offset_viz(g5x_offset, g5x_index)
+            # Translate into work offset / rotated coordinates
+            glTranslatef(*g5x_offset)
+            glRotatef(rotation_xy, 0, 0, 1)
+
+            if self.get_show_axis_offset() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
+                self.draw_axis_offset_viz(g92_offset)
+
+            # Translate into local coordinates (in preparation for drawing the offset axes)
+            glTranslatef(*g92_offset)
+        # "Foam" z coordinate offset is zero on a non-wire machine
+        glTranslatef(0, 0, self.get_foam_z())
+        glCallList(self.dlist(('axes', self.get_view()), gen=self.make_local_axes))
+        if self.foam_option:
+            glTranslatef(0, 0, self.get_foam_w() - self.get_foam_z())
+            uwalist = self.dlist(('axes_uw', self.get_view()), gen=lambda n: self.make_local_axes(n, 'UVW'))
+            glCallList(uwalist)
+        glPopMatrix()
+
+    def draw_work_offset_viz(self, g5x_offset, g5x_index):
+        # plot offset crosshair
+        self.color_config.gl_color_with_alpha('work_offset')
+        glLineStipple(1, 0x1C47)
+        glEnable(GL_LINE_STIPPLE)
+        glBegin(GL_LINES)
+        glVertex3f(0, 0, 0)
+        glVertex3f(*g5x_offset)
+        glEnd()
+        glDisable(GL_LINE_STIPPLE)
+        # plot offset label
+        i = g5x_index
+        if i < 7:
+            label = "G5%d" % (i + 3)
+        elif i < 10:
+            label = "G59.%d" % (i - 6)
+        else:
+            label = "G54.1 P{}".format(i)
+        glPushMatrix()
+        glScalef(0.2, 0.2, 0.2)
+        if self.is_lathe():
+            g5xrot = math.atan2(g5x_offset[0], -g5x_offset[2])
+            glRotatef(90, 1, 0, 0)
+            glRotatef(-90, 0, 0, 1)
+        else:
+            g5xrot = math.atan2(g5x_offset[1], g5x_offset[0])
+        glRotatef(math.degrees(g5xrot), 0, 0, 1)
+        glTranslatef(0.5, 0.5, 0)
+        self.hershey.plot_string(label, 0.1)
+        glPopMatrix()
+
+    def draw_axis_offset_viz(self, g92_offset):
+        self.color_config.gl_color_with_alpha('axis_offset')
+        glLineStipple(1, 0x1C47)
+        glEnable(GL_LINE_STIPPLE)
+        glBegin(GL_LINES)
+        glVertex3f(0, 0, 0)
+        # g92_offset[0] *= -1 if rear tool lathe?
+        glVertex3f(*g92_offset)
+        glEnd()
+        glDisable(GL_LINE_STIPPLE)
+        self.gl_draw_g92_label(g92_offset)
+
+    def draw_limit_box(self, machine_limit_max, machine_limit_min, position, tool_offset):
+        # Chris Radek commited a 2 line change
+        # https://github.com/LinuxCNC/linuxcnc/commit/b98597b97b8a777325bafb9e7eab18f4c8305077
+        #
+        # The entire limit box drawing was effected (see the the matching commented out
+        # glTranslatef() and the end of this block which attempts to restore the previous matrix.
+        # (not sure why he didn't just use glPushMatrix/glPopMatrix also)
+        #
+        # The change installs an identity translation matrix which effectively shifts all limit
+        # box vertices negatively by the tool offset. Most visible in Z of course on the mill.
+        #
+        # Do not understand how he thought this was helping, the logic doesn't seem to match his
+        # commit comment (my theory is its somehow effective in Axis so it felt right to him?).
+        #
+        # glTranslatef(*[-x for x in self.to_internal_units(s.tool_offset)[:3]])
+        glLineWidth(1)
+        glLineStipple(1, 0x1111)
+        glEnable(GL_LINE_STIPPLE)
+        tool_offset_xyz = np.array(tool_offset[0:3])
+        machine_limit_xyz_min_tool = np.array(machine_limit_min[0:3]) - tool_offset_xyz
+        machine_limit_xyz_max_tool = np.array(machine_limit_max[0:3]) - tool_offset_xyz
+        if self.is_rear_tool_post_lathe():
+            # Flip the draw X axis orientation and tweak the color for the rear TP
+            machine_limit_xyz_min_tool[0] *= -1.
+            machine_limit_xyz_max_tool[0] *= -1.
+            glColor3f(0.0, 1.0, 0.0)
+        else:
+            # Normal limit box color
+            glColor3f(0.3, 0.5, 1.0)
+        linuxcnc.draw_oriented_limit_box(machine_limit_xyz_min_tool, machine_limit_xyz_max_tool, position)
+        glDisable(GL_LINE_STIPPLE)
+        glLineStipple(2, 0x5555)
+        # See comment above at start of limit box drawing for why this is commented out.
+        # glTranslatef(*self.to_internal_units(s.tool_offset)[:3])
+
+    def draw_live_plot_all(self, units_per_inch):
+        glDepthFunc(GL_LEQUAL)
+        glLineWidth(3)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glEnable(GL_BLEND)
+        glPushMatrix()
+        glScalef(units_per_inch, units_per_inch, units_per_inch)
+        glMatrixMode(GL_PROJECTION)
+        glPushMatrix()
+        # Draws live plot slightly above the preview path in the user's view
+        glTranslatef(0, 0, .003)
+        self.draw_live_plot_lines()
+        glPopMatrix()
+        glMatrixMode(GL_MODELVIEW)
+        glPopMatrix()
+        glDisable(GL_BLEND)
+        glLineWidth(1)
+        glDepthFunc(GL_LESS)
+
+    def draw_tool(self):
+        pos = self.get_logger_last()
+        if pos is None: pos = [0] * 6
+        rx, ry, rz = pos[3:6]
+        pos = self.to_internal_units(pos[:3])
+        if self.foam_option:
+            glEnable(GL_COLOR_MATERIAL)
+            glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
+            glPushMatrix()
+            glTranslatef(pos[0], pos[1], self.get_foam_z())
+            glRotatef(180, 1, 0, 0)
+            cone = self.dlist("cone", gen=self.make_cone)
+            glColor3f(*self.color_config.get_color('cone_xy'))
+            glCallList(cone)
+            glPopMatrix()
+            u = self.to_internal_linear_unit(rx)
+            v = self.to_internal_linear_unit(ry)
+            glPushMatrix()
+            glTranslatef(u, v, self.get_foam_w())
+            glColor3f(*self.color_config.get_color('cone_uv'))
+            glCallList(cone)
+            glPopMatrix()
+        else:
+            glPushMatrix()
+            glTranslatef(*pos)
+            sign = 1
+            for ch in self.get_geometry():
+                if ch == '-':
+                    sign = -1
+                elif ch == 'A':
+                    glRotatef(rx * sign, 1, 0, 0)
+                    sign = 1
+                elif ch == 'B':
+                    glRotatef(ry * sign, 0, 1, 0)
+                    sign = 1
+                elif ch == 'C':
+                    glRotatef(rz * sign, 0, 0, 1)
+                    sign = 1
+            glEnable(GL_BLEND)
+            glEnable(GL_CULL_FACE)
+            glBlendFunc(GL_ONE, GL_CONSTANT_ALPHA)
+
+            current_tool = self.get_current_tool()
+            if current_tool is None or current_tool.diameter == 0:
+                if self.canon:
+                    g = self.canon
+                    x, y, z = 0, 1, 2
+                    cone_scale = max(g.max_extents[x] - g.min_extents[x],
+                                     g.max_extents[y] - g.min_extents[y],
+                                     g.max_extents[z] - g.min_extents[z],
+                                     2) * .5
                 else:
-                    if current_tool != self.cached_tool:
-                        self.cache_tool(current_tool)
-                    glColor3f(*self.color_config.get_color('cone'))
-                    glCallList(self.dlist('tool'))
-                glPopMatrix()
+                    cone_scale = 1
+                if self.is_lathe():
+                    glRotatef(90, 0, 1, 0)
+                cone = self.dlist("cone", gen=self.make_cone)
+                glScalef(cone_scale, cone_scale, cone_scale)
+                glColor3f(*self.color_config.get_color('cone'))
+                glCallList(cone)
+            else:
+                if current_tool != self.cached_tool:
+                    self.cache_tool(current_tool)
+                glColor3f(*self.color_config.get_color('cone'))
+                glCallList(self.dlist('tool'))
+            glPopMatrix()
 
+    def draw_stat_overlay(self):
+        """
+        Draws the status overlay text on top of gremlin preview (things like position, dtg, offsets, etc.)
+        :return:
+        """
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
@@ -1501,31 +1530,25 @@ class GlCanonDraw(glnav.GlNavBase):
         glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
         glLoadIdentity()
-
         limit, homed, posstrs, droposstrs = self.posstrs()
-
         charwidth, linespace, base = self.get_font_info()
-
         maxlen = max([len(p) for p in posstrs])
         pixel_width = charwidth * max(len(p) for p in posstrs)
-
         glDepthFunc(GL_ALWAYS)
         glDepthMask(GL_FALSE)
         glEnable(GL_BLEND)
         glBlendFunc(GL_ONE, GL_CONSTANT_ALPHA)
         glColor3f(*self.color_config.get_color('overlay_background'))
-        glBlendColor(0,0,0,1-self.color_config.get_alpha_or_default('overlay'))
+        glBlendColor(0, 0, 0, 1 - self.color_config.get_alpha_or_default('overlay'))
         glBegin(GL_QUADS)
         glVertex3f(0, ypos, 1)
-        glVertex3f(0, ypos - 8 - linespace*len(posstrs), 1)
-        glVertex3f(pixel_width+42, ypos - 8 - linespace*len(posstrs), 1)
-        glVertex3f(pixel_width+42, ypos, 1)
+        glVertex3f(0, ypos - 8 - linespace * len(posstrs), 1)
+        glVertex3f(pixel_width + 42, ypos - 8 - linespace * len(posstrs), 1)
+        glVertex3f(pixel_width + 42, ypos, 1)
         glEnd()
         glDisable(GL_BLEND)
-
-        maxlen = 0
-        ypos -= linespace+5
-        i=0
+        ypos -= linespace + 5
+        i = 0
         glColor3f(*self.color_config.get_color('overlay_foreground'))
         if not self.get_show_offsets():
             for string in posstrs:
@@ -1535,7 +1558,7 @@ class GlCanonDraw(glnav.GlNavBase):
                     glCallList(base + ord(char))
                 # Tormach
                 # Eliminate homed indicator as redundant and confusing
-                #if i < len(homed) and homed[i]:
+                # if i < len(homed) and homed[i]:
                 #    glRasterPos2i(pixel_width + 8, ypos)
                 #    glBitmap(13, 16, 0, 3, 17, 0, homeicon)
                 if i < len(homed) and limit[i]:
@@ -1543,7 +1566,7 @@ class GlCanonDraw(glnav.GlNavBase):
                 ypos -= linespace
                 i = i + 1
         if self.get_show_offsets():
-            i=0
+            i = 0
             for string in droposstrs:
                 maxlen = max(maxlen, len(string))
                 glRasterPos2i(5, ypos)
@@ -1551,20 +1574,17 @@ class GlCanonDraw(glnav.GlNavBase):
                     glCallList(base + ord(char))
                 # Tormach
                 # Eliminate homed indicator as redundant and confusing
-                #if i < len(homed) and homed[i]:
+                # if i < len(homed) and homed[i]:
                 #    glRasterPos2i(charwidth *3, ypos)
                 #    glBitmap(13, 16, 0, 3, 17, 0, homeicon)
                 ypos -= linespace
                 i = i + 1
-
         glDepthFunc(GL_LESS)
         glDepthMask(GL_TRUE)
-
         glPopMatrix()
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
-        #print "glcanon.redraw() call time: {}".format(time.time()-t0)
 
     def cache_tool(self, current_tool):
         self.cached_tool = current_tool
@@ -1758,10 +1778,16 @@ class GlCanonDraw(glnav.GlNavBase):
         glEnd()
         glEndList()
 
-    def draw_axes(self, n, letters="XYZ"):
-        glNewList(n, GL_COMPILE)
+    def make_local_axes(self, dlist_name, letters="XYZ"):
+        """
+        Draws labeled axes at the current view origin.
+        For example, to draw the work origin, work offset, xy rotation, and g92 offset all need to be "applied"
+        :param dlist_name:
+        :param letters:
+        :return:
+        """
+        glNewList(dlist_name, GL_COMPILE)
         x,y,z,p = 0,1,2,3
-        s = self.stat
         view = self.get_view()
 
         glColor3f(*self.color_config.get_color('axis_x'))
@@ -2057,7 +2083,7 @@ class GlCanonDraw(glnav.GlNavBase):
     def from_internal_units(self, pos, unit=None):
         if unit is None:
             unit = self.stat.linear_units
-        lu = (unit or 1) * 25.4
+        lu = (unit or 1) * 25.4 # units / inch
 
         lus = [lu, lu, lu, 1, 1, 1, lu, lu, lu]
         return [a*b for a, b in zip(pos, lus)]
@@ -2093,6 +2119,7 @@ class GlCanonDraw(glnav.GlNavBase):
     def get_show_relative(self): return self.use_relative
     def get_show_tool(self): return self.show_tool
     def get_show_distance_to_go(self): return self.show_dtg
+    def get_show_stat_overlay(self): return self.show_stat_overlay
     def get_program_alpha(self): return self.program_alpha
     def get_num_joints(self): return self.num_joints
     def get_joints_mode(self): return self.use_joints_mode
@@ -2124,7 +2151,7 @@ class GlCanonDraw(glnav.GlNavBase):
     def get_logger_last(self):
         raise NotImplementedError
 
-    def draw_live_plot(self):
+    def draw_live_plot_lines(self):
         raise NotImplementedError
 
 # vim:ts=8:sts=4:sw=4:et:
