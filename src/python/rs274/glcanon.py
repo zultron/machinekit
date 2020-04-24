@@ -710,8 +710,10 @@ class GlCanonDraw(glnav.GlNavBase):
 
     @with_context_swap
     def redraw_view(self):
-        if not self.initialised: return
+        if not self.initialised:
+            return
 
+        # Define user view of the scene
         w = self.winfo_width()
         h = self.winfo_height()
         glViewport(0, 0, w, h)
@@ -1323,7 +1325,12 @@ class GlCanonDraw(glnav.GlNavBase):
 
         if self.get_show_stat_overlay():
             self.draw_stat_overlay()
-        #print "glcanon.redraw() call time: {}".format(time.time()-t0)
+
+        t1 = time.time()
+        dt_ms = 1000. * (t1 - t0)
+        dt_cutoff_ms = 10.
+        if dt_ms > dt_cutoff_ms:
+            print "glcanon.redraw() call exceeded {} ms: {:0.3f} ms".format(dt_cutoff_ms, dt_ms)
 
     def draw_coordinate_systems(self, g5x_index, g5x_offset, g92_offset, rotation_xy):
         glPushMatrix()
