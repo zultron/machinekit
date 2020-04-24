@@ -596,6 +596,12 @@ class MyOpengl(GlCanonDraw, Opengl):
             text.configure(font=(font, new_font, "bold"))
             self.last_font = new_font
 
+    def get_logger_last(self):
+        return o.logger.last()
+
+    def draw_live_plot(self):
+        o.logger.draw_live_plot()
+
 def init():
     glDrawBuffer(GL_BACK)
     glDisable(GL_CULL_FACE)

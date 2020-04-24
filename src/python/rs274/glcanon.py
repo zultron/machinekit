@@ -1418,7 +1418,7 @@ class GlCanonDraw(glnav.GlNavBase):
             glPushMatrix()
             glTranslatef(0,0,.003)
 
-            self.logger.draw_live_plot()
+            self.draw_live_plot()
 
             glPopMatrix()
             glMatrixMode(GL_MODELVIEW)
@@ -1428,7 +1428,7 @@ class GlCanonDraw(glnav.GlNavBase):
             glDepthFunc(GL_LESS)
 
         if self.get_show_tool():
-            pos = self.logger.last(self.get_show_live_plot())
+            pos = self.get_logger_last()
             if pos is None: pos = [0] * 6
             rx, ry, rz = pos[3:6]
             pos = self.to_internal_units(pos[:3])
@@ -2120,5 +2120,11 @@ class GlCanonDraw(glnav.GlNavBase):
         return self.font_charwidth, self.font_linespace, self.font_base
 
     def get_show_offsets(self): return self.show_offsets
+
+    def get_logger_last(self):
+        raise NotImplementedError
+
+    def draw_live_plot(self):
+        raise NotImplementedError
 
 # vim:ts=8:sts=4:sw=4:et:

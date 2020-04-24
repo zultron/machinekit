@@ -590,3 +590,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
     def rotate_view(self, x, y):
         self.rotateOrTranslate(x, y)
 
+    def get_logger_last(self):
+        return self.logger.last()
+
+    def draw_live_plot(self):
+        self.logger.draw_live_plot()
+
+
