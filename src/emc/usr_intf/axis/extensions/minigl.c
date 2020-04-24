@@ -125,6 +125,7 @@ GLCALL1V(glDepthFunc, "i", int)
 GLCALL1V(glDepthMask, "i", int)
 GLCALL1V(glDisable, "i", int)
 GLCALL1V(glEnable, "i", int)
+GLCALL1V(glIsEnabled, "i", int)
 GLCALL0V(glEndList)
 GLCALL1V(glFrontFace, "i", int)
 GLCALL0V(glInitNames)
@@ -724,6 +725,7 @@ METH(glEndList, "create or replace a display list"),
 METH(glFlush, "force execution of GL commands in finite time"),
 METH(glFrontFace, "define front- and back-facing polygons"),
 METH(glInitNames, "initialize the name stack"),
+METH(glIsEnabled, "check if a server-side GL capability is enabled"),
 METH(glLightf, "set light source parameters"),
 METH(glLineStipple, "specify the line stipple pattern"),
 METH(glLineWidth, "specify the width of rasterized lines"),
@@ -823,6 +825,7 @@ void initminigl(void) {
     CONST(GL_LINE_LOOP);
     CONST(GL_LINE_STIPPLE);
     CONST(GL_LINE_STRIP);
+    CONST(GL_MATRIX_MODE);
     CONST(GL_MODELVIEW);
     CONST(GL_MODELVIEW_MATRIX);
     CONST(GL_ONE_MINUS_SRC_ALPHA);
