@@ -619,8 +619,8 @@ class GlCanonDraw(glnav.GlNavBase):
 
         t0_tmp = time.time()
         if self.get_show_rapids():
-            glCallList(self.dlist('select_rapids', gen=self.make_selection_list))
-        glCallList(self.dlist('select_norapids', gen=self.make_selection_list))
+            glCallList(self.dlist('select_rapids', gen=lambda n: self.make_rapids_list(n, True)))
+        glCallList(self.dlist('select_norapids', gen=lambda n: self.make_nonrapids_list(n, True)))
         # print "glCallList(s) call time: {}".format(time.time()-t0_tmp)
         glFlush()
 
@@ -1298,7 +1298,6 @@ class GlCanonDraw(glnav.GlNavBase):
                 glDisable(GL_DEPTH_TEST)
                 glEnable(GL_BLEND)
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-
             if self.get_show_rapids():
                 glCallList(self.dlist('program_rapids', gen=self.make_rapids_list))
             glCallList(self.dlist('program_norapids', gen=self.make_nonrapids_list))
@@ -2010,27 +2009,16 @@ class GlCanonDraw(glnav.GlNavBase):
 
         return mid, size
 
-    def make_selection_list(self, unused=None):
-        glNewList(self.dlist('select_norapids'), GL_COMPILE)
-        if self.canon:
-            self.canon.draw_nonrapids(True)
-        glEndList()
-
-        glNewList(self.dlist('select_rapids'), GL_COMPILE)
-        if self.canon:
-            self.canon.draw_rapids(True)
-        glEndList()
-
-    def make_nonrapids_list(self, nonrapids_list):
+    def make_nonrapids_list(self, nonrapids_list, for_selection=False):
         glNewList(nonrapids_list, GL_COMPILE)
         if self.canon:
-            self.canon.draw_nonrapids(False)
+            self.canon.draw_nonrapids(for_selection)
         glEndList()
 
-    def make_rapids_list(self, rapids_list):
+    def make_rapids_list(self, rapids_list, for_selection=False):
         glNewList(rapids_list, GL_COMPILE)
         if self.canon:
-            self.canon.draw_rapids(False)
+            self.canon.draw_rapids(for_selection)
         glEndList()
 
     def make_highlight_list(self, highlight_list):
