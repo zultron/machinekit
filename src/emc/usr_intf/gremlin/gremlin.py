@@ -209,7 +209,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         self.set_window_size(event.width, event.height)
 
     def expose(self, widget=None, event=None):
-        if not self.initialised: return
+        if not self.initialised:
+            return
         self.redraw_view()
         return True
 

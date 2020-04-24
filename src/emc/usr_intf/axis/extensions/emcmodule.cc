@@ -645,6 +645,20 @@ static PyObject *Stat_axis(pyStatChannel *s) {
     return res;
 }
 
+static PyObject *Stat_axis_limits(pyStatChannel *s) {
+    PyObject *min_limit = PyTuple_New(EMC_AXIS_MAX);
+    PyObject *max_limit = PyTuple_New(EMC_AXIS_MAX);
+
+    for(int i=0; i<EMC_AXIS_MAX; i++) {
+        PyTuple_SET_ITEM(min_limit, i, PyFloat_FromDouble(s->status.motion.axis[i].minPositionLimit));
+        PyTuple_SET_ITEM(max_limit, i, PyFloat_FromDouble(s->status.motion.axis[i].maxPositionLimit));
+    }
+    PyObject *limit_pair = PyTuple_New(2);
+    PyTuple_SET_ITEM(limit_pair, 0, min_limit);
+    PyTuple_SET_ITEM(limit_pair, 1, max_limit);
+    return limit_pair;
+}
+
 static PyStructSequence_Field tool_fields[] = {
     {(char*)"id", },
     {(char*)"xoffset", },
@@ -707,6 +721,7 @@ static PyGetSetDef Stat_getsetlist[] = {
     {(char*)"ain", (getter)Stat_ain},
     {(char*)"aout", (getter)Stat_aout},
     {(char*)"axis", (getter)Stat_axis},
+    {(char*)"axis_limits", (getter)Stat_axis_limits},
     {(char*)"din", (getter)Stat_din},
     {(char*)"dout", (getter)Stat_dout},
     {(char*)"gcodes", (getter)Stat_activegcodes},

@@ -994,26 +994,24 @@ class GlCanonDraw(glnav.GlNavBase):
         lu = (unit or 1) * 25.4
         return v/lu
 
-
-    def to_internal_units(self, pos, unit=None):
+    def to_internal_units(self, pos9, unit=None):
         if unit is None:
             unit = self.stat.linear_units
         lu = (unit or 1) * 25.4
 
-        lus = [lu, lu, lu, 1, 1, 1, lu, lu, lu]
-        return [a/b for a, b in zip(pos, lus)]
+        unit_scales = (lu, lu, lu, 1, 1, 1, lu, lu, lu)
+        return [a/b for a, b in zip(pos9, unit_scales)]
+
+    @staticmethod
+    def mask_bignum(pos9):
+        return [0 if abs(x) > 1e30 else x for x in pos9]
 
     def soft_limits(self):
-        def fudge(x):
-            if abs(x) > 1e30: return 0
-            return x
-
-        ax = self.stat.axis
+        min_limits, max_limits = self.stat.axis_limits
         return (
-            self.to_internal_units([fudge(ax[i]['min_position_limit'])
-                for i in range(3)]),
-            self.to_internal_units([fudge(ax[i]['max_position_limit'])
-                for i in range(3)]))
+            self.to_internal_units(self.mask_bignum(min_limits))[:3],
+            self.to_internal_units(self.mask_bignum(max_limits))[:3],
+        )
 
     def get_foam_z(self):
         """
@@ -1457,10 +1455,9 @@ class GlCanonDraw(glnav.GlNavBase):
         glDepthFunc(GL_LESS)
 
     def draw_tool(self):
-        pos = self.get_logger_last()
-        if pos is None: pos = [0] * 6
-        rx, ry, rz = pos[3:6]
-        pos = self.to_internal_units(pos[:3])
+        pos_raw = self.get_logger_last() or (0,) * 6
+        rx, ry, rz = pos_raw[3:6]
+        pos = self.to_internal_units(pos_raw)[:3]
         if self.foam_option:
             glEnable(GL_COLOR_MATERIAL)
             glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
