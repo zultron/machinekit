@@ -435,9 +435,6 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
             # Skip selection during program run (can lock the UI for an unsafe amount of time)
             return
         self.select(x, y)
-        # KLUDGE Need to redraw after picking since we draw over the front buffer in color picking
-        # TODO use the back buffer only and avoid this
-        #self.expose()
 
     def select_cancel(self, widget=None, event=None):
         self.select_primed = None
