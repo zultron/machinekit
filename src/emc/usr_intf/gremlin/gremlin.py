@@ -431,7 +431,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         x, y = self.select_primed
 
         self.select_primed = None
-        if self.stat.task_mode == linuxcnc.MODE_AUTO and self.stat.interp_state != linuxcnc.INTERP_IDLE:
+        if self.stat.task_mode == linuxcnc.MODE_AUTO and self.stat.interp_state != linuxcnc.INTERP_IDLE and self.stat.interp_state != linuxcnc.INTERP_PAUSED:
+            # Skip selection during program run (can lock the UI for an unsafe amount of time)
             return
         self.select(x, y)
         # KLUDGE Need to redraw after picking since we draw over the front buffer in color picking
