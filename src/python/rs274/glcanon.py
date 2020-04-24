@@ -676,30 +676,29 @@ class GlCanonDraw(glnav.GlNavBase):
         if line and line == self.get_highlight_line():
             return
         self.highlight_line = line
-        highlight = self.dlist('highlight')
-        glNewList(highlight, GL_COMPILE)
-        if line is not None and self.canon is not None:
+        if self.canon is None:
+            self.set_centerpoint(0, 0, 0)
+            return
+        elif line is None:
+            x = (self.canon.min_extents[0] + self.canon.max_extents[0]) / 2
+            y = (self.canon.min_extents[1] + self.canon.max_extents[1]) / 2
+            z = (self.canon.min_extents[2] + self.canon.max_extents[2]) / 2
+            self.set_centerpoint(x, y, z)
+            return
+
+        with gl_new_list(self.dlist('highlight')), gl_push_matrix():
+            glTranslatef(0, 0, self.get_foam_z())
             if self.foam_option:
-                glPushMatrix()
-                glTranslatef(0, 0, self.get_foam_z())
                 self.set_geometry("XY")
-                x, y, z = self.canon.highlight(line)
+            x, y, z = self.canon.highlight(line)
+
+            if self.foam_option:
                 glTranslatef(0, 0, self.get_foam_w()-self.get_foam_z())
                 self.set_geometry("UV")
                 u, v, w = self.canon.highlight(line)
-                glPopMatrix()
                 x = (x+u)/2
                 y = (y+v)/2
                 z = (self.get_foam_z() + self.get_foam_w())/2
-            else:
-                x, y, z = self.canon.highlight(line)
-        elif self.canon is not None:
-            x = (self.canon.min_extents[0] + self.canon.max_extents[0])/2
-            y = (self.canon.min_extents[1] + self.canon.max_extents[1])/2
-            z = (self.canon.min_extents[2] + self.canon.max_extents[2])/2
-        else:
-            x, y, z = 0.0, 0.0, 0.0
-        glEndList()
         self.set_centerpoint(x, y, z)
 
     @staticmethod
