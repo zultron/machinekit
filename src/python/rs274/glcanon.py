@@ -507,6 +507,40 @@ class GlCanonDraw(glnav.GlNavBase):
         self.geometry = None
         self.set_geometry()
 
+        self.a_axis_wrapped = inifile.find("AXIS_3", "WRAPPED_ROTARY")
+        self.b_axis_wrapped = inifile.find("AXIS_4", "WRAPPED_ROTARY")
+        self.c_axis_wrapped = inifile.find("AXIS_5", "WRAPPED_ROTARY")
+
+        live_axis_count = 0
+        for i, j in enumerate("XYZABCUVW"):
+            if self.stat.axis_mask & (1<<i) == 0:
+                continue
+            live_axis_count += 1
+        self.num_joints = int(inifile.find("TRAJ", "JOINTS") or live_axis_count)
+
+        # Now on by default, but can be turned off with ADMIN SET_PREVIEW_ALPHA
+        self.program_alpha = True
+        self.use_joints_mode = False
+        self.use_commanded = True
+        self.show_limits = True
+        self.show_extents_option = True
+        self.show_live_plot = True
+        self.show_velocity = True
+        self.metric_units = True
+        self.show_program = True
+        self.show_rapids = True
+        self.use_relative = True
+        self.show_tool = True
+        self.show_dtg = True
+        self.grid_size = 0.0
+        self.show_offsets = True
+        self.show_g53_origin = False
+
+        self.current_view = 'z'
+        self.font_base = None
+        self.font_linespace = None
+        self.font_charwidth = None
+
     # Abstract methods
 
     def _redraw(self):
@@ -2047,4 +2081,44 @@ class GlCanonDraw(glnav.GlNavBase):
 
     def is_rear_tool_post_lathe(self):
         return self.rear_tp_lathe_option
+
+    def get_show_commanded(self): return self.use_commanded
+    def get_show_extents(self): return self.show_extents_option
+    def get_show_limits(self): return self.show_limits
+    def get_show_live_plot(self): return self.show_live_plot
+    def get_show_machine_speed(self): return self.show_velocity
+    def get_show_metric(self): return self.metric_units
+    def get_show_program(self): return self.show_program
+    def get_show_rapids(self): return self.show_rapids
+    def get_show_relative(self): return self.use_relative
+    def get_show_tool(self): return self.show_tool
+    def get_show_distance_to_go(self): return self.show_dtg
+    def get_program_alpha(self): return self.program_alpha
+    def get_num_joints(self): return self.num_joints
+    def get_joints_mode(self): return self.use_joints_mode
+    def get_grid_size(self): return self.grid_size
+
+    def get_view(self):
+        view_dict = {
+            'x': 0,
+            'y': 1,
+            'z': 2,
+            'p': 3
+        }
+        return view_dict.get(self.current_view, 3)
+
+    def get_a_axis_wrapped(self): return self.a_axis_wrapped
+    def get_b_axis_wrapped(self): return self.b_axis_wrapped
+    def get_c_axis_wrapped(self): return self.c_axis_wrapped
+
+    def get_current_tool(self):
+        for i in self.stat.tool_table:
+            if i[0] == self.stat.tool_in_spindle:
+                return i
+
+    def get_font_info(self):
+        return self.font_charwidth, self.font_linespace, self.font_base
+
+    def get_show_offsets(self): return self.show_offsets
+
 # vim:ts=8:sts=4:sw=4:et:
