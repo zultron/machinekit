@@ -16,6 +16,7 @@
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 from minigl import *
+from gl_context_managers import *
 
 default_hershey = {
     '0': [[(240.0, 20.0),
@@ -326,46 +327,44 @@ class Hershey:
             i += 1
 
     def plot_digit(self, n):
-        glPushMatrix()
-        glScalef(1/440.0, 1/440.0, 1/440.0)
-        glCallList(self.lists + n)
-        glPopMatrix()
+        with gl_push_matrix():
+            glScalef(1/440.0, 1/440.0, 1/440.0)
+            glCallList(self.lists + n)
 
     def plot_string(self, s, frac=0, bbox=0):
-        glPushMatrix()
-        mat = glGetDoublev(GL_MODELVIEW_MATRIX)
-        if mat[10] < -.001:
-            glTranslatef(0, .5, 0)
-            glRotatef(180, 0, 1, 0)
-            glTranslatef(0, -.5, 0)
-            frac = 1 - frac
+        with gl_push_matrix():
             mat = glGetDoublev(GL_MODELVIEW_MATRIX)
-        if mat[5] < -.001:
-            glTranslatef(0, .5, 0)
-            glRotatef(180, 0, 0, 1)
-            glTranslatef(0, -.5, 0)
-            frac = 1 - frac
-        if frac:
-            len = self.string_len(s)
-            glTranslatef(-len*frac, 0, 0)
-        glScalef(1/440.0, 1/440.0, 1/440.0)
-        if bbox:
-            glBegin(GL_LINE_STRIP)
-            glVertex3f(-140, -140, 0)
-            glVertex3f(self.string_len(s)*440.0 + 140, -140, 0)
-            glVertex3f(self.string_len(s)*440.0 + 140, 580.0, 0)
-            glVertex3f(-140, 580.0, 0)
-            glVertex3f(-140, -140, 0)
-            glEnd()
-        for c in s:
-            glCallList(self.list_index_map.get(c, None) or self.list_index_map.get('_space')) # default to space
-            if c == '1':
-                glTranslatef(260, 0, 0)
-            elif c == '.':
-                glTranslatef(180, 0, 0)
-            else:
-                glTranslatef(400, 0, 0)
-        glPopMatrix()
+            if mat[10] < -.001:
+                glTranslatef(0, .5, 0)
+                glRotatef(180, 0, 1, 0)
+                glTranslatef(0, -.5, 0)
+                frac = 1 - frac
+                mat = glGetDoublev(GL_MODELVIEW_MATRIX)
+            if mat[5] < -.001:
+                glTranslatef(0, .5, 0)
+                glRotatef(180, 0, 0, 1)
+                glTranslatef(0, -.5, 0)
+                frac = 1 - frac
+            if frac:
+                len = self.string_len(s)
+                glTranslatef(-len*frac, 0, 0)
+            glScalef(1/440.0, 1/440.0, 1/440.0)
+            if bbox:
+                glBegin(GL_LINE_STRIP)
+                glVertex3f(-140, -140, 0)
+                glVertex3f(self.string_len(s)*440.0 + 140, -140, 0)
+                glVertex3f(self.string_len(s)*440.0 + 140, 580.0, 0)
+                glVertex3f(-140, 580.0, 0)
+                glVertex3f(-140, -140, 0)
+                glEnd()
+            for c in s:
+                glCallList(self.list_index_map.get(c, None) or self.list_index_map.get('_space')) # default to space
+                if c == '1':
+                    glTranslatef(260, 0, 0)
+                elif c == '.':
+                    glTranslatef(180, 0, 0)
+                else:
+                    glTranslatef(400, 0, 0)
 
     def string_len(self, s):
         l = 0.0
