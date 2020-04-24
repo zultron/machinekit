@@ -739,7 +739,7 @@ class GlCanonDraw(glnav.GlNavBase):
         glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
         try:
-            self.redraw()
+            self.redraw_scene()
         finally:
             glFlush()                               # Tidy up
             glPopMatrix()                   # Restore the matrix
@@ -1271,7 +1271,7 @@ class GlCanonDraw(glnav.GlNavBase):
         self.draw_grid_permuted(rotation, permutations[view],
                 inverse_permutations[view])
 
-    def redraw(self):
+    def redraw_scene(self):
         t0 = time.time()
 
         # Get needed data from status after poll

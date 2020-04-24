@@ -538,7 +538,7 @@ class MyOpengl(GlCanonDraw, Opengl):
     def get_show_relative(self): return vars.coord_type.get()
     def get_show_limits(self): return vars.show_machine_limits.get()
     def get_show_tool(self): return vars.show_tool.get()
-    def redraw(self):
+    def redraw_scene(self):
         if not self.winfo_viewable():
             return self.redraw_dro()
 
@@ -546,7 +546,7 @@ class MyOpengl(GlCanonDraw, Opengl):
             self.select(self.select_event)
             self.select_event = None
 
-        GlCanonDraw.redraw(self)
+        GlCanonDraw.redraw_scene(self)
 
     def redraw_dro(self):
         self.stat.poll()
