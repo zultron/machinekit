@@ -10,7 +10,13 @@ using Array3 = std::array<double, 3>;
 class PreviewKinematicsBase
 {
 public:
-    virtual void forward(PositionArray const &p, Array3 &out);
+    virtual void forward(PositionArray const &p, //!< Joint position array
+                         Array3 &position_xyz, //!< tool position, xyz
+                         Array3 &rotation_xyz //!< tool orientation, Euler XYZ convention
+                         );
+    virtual void forward_position(PositionArray const &p,
+                                  Array3 &position_xyz //!< tool position, xyz
+                                  );
     virtual ~PreviewKinematicsBase() = default;
 };
 
@@ -31,7 +37,8 @@ public:
     Kinematics_XYZA() = default;
     Kinematics_XYZA(double y0, double z0, bool flipped) : a_y0(y0), a_z0(z0), orientation(flipped ? -1.0 : 1.0) {}
 
-    virtual void forward(PositionArray const &p, Array3 &out);
+    virtual void forward(PositionArray const &p, Array3 &position_xyz, Array3 &rotation_xyz);
+    virtual void forward_position(PositionArray const &p, Array3 &position_xyz);
 };
 
 /**
@@ -50,7 +57,8 @@ class TrivialKinematics : public PreviewKinematicsBase
 public:
     TrivialKinematics() = default;
     TrivialKinematics(const char *geometry_spec) : geometry_str(geometry_spec) {}
-    virtual void forward(PositionArray const &p, Array3 &out);
+    virtual void forward(PositionArray const &p, Array3 &position_xyz, Array3 &rotation_xyz);
+    virtual void forward_position(PositionArray const &pt, Array3 &p);
 };
 
 #endif // PREVIEWKINEMATICS_HH

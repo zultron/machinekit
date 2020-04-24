@@ -542,6 +542,7 @@ class GlCanonDraw(glnav.GlNavBase):
         self.font_base = None
         self.font_linespace = None
         self.font_charwidth = None
+        self.last_tool_position = (0., )*9
 
     # Abstract methods
 
@@ -1463,22 +1464,16 @@ class GlCanonDraw(glnav.GlNavBase):
         else:
             self.draw_single_tool(pos, rx, ry, rz)
 
+        #TODO rotate view based on kinematics here
+
+
     def draw_single_tool(self, pos, rx, ry, rz):
         with gl_push_matrix():
             glTranslatef(*pos)
-            sign = 1
-            for ch in self.get_geometry():
-                if ch == '-':
-                    sign = -1
-                elif ch == 'A':
-                    glRotatef(rx * sign, 1, 0, 0)
-                    sign = 1
-                elif ch == 'B':
-                    glRotatef(ry * sign, 0, 1, 0)
-                    sign = 1
-                elif ch == 'C':
-                    glRotatef(rz * sign, 0, 0, 1)
-                    sign = 1
+            # FIXME not sure if the extrinsic / intrinsic order is right here
+            glRotatef(rz * 180./np.pi, 0, 0, 1)
+            glRotatef(ry * 180./np.pi, 0, 1, 0)
+            glRotatef(rx * 180./np.pi, 1, 0, 0)
             glEnable(GL_BLEND)
             glEnable(GL_CULL_FACE)
             glBlendFunc(GL_ONE, GL_CONSTANT_ALPHA)

@@ -1670,7 +1670,7 @@ static PyObject *pyset_xyza_kinematics(PyObject *s, PyObject *o) {
 
 static inline void glvertex9(PositionArray const &pt) {
     Array3 p;
-    kinematics->forward(pt, p);
+    kinematics->forward_position(pt, p);
     glVertex3dv(p.data());
 }
 
@@ -2327,10 +2327,10 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                     status->motion.traj.position.v - status->task.toolOffset.v,
                     status->motion.traj.position.w - status->task.toolOffset.w};
 
-                Array3 p;
-                kinematics->forward(pt, p);
-                x = p[0]; y = p[1]; z = p[2];
-                rx = pt[3]; ry = -pt[4]; rz = pt[5];
+                Array3 position_xyz, rotation_xyz;
+                kinematics->forward(pt, position_xyz, rotation_xyz);
+                x = position_xyz[X]; y = position_xyz[Y]; z = position_xyz[Z];
+                rx = rotation_xyz[X]; ry = rotation_xyz[Y]; rz = rotation_xyz[Z];
 
                 add_point = add_point || !colinear(x, y, z,
                                 op->x, op->y, op->z,
