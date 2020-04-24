@@ -4,6 +4,7 @@ SUPPORT_SRC_DIR = python/support
 SUPPORT_SRCS := \
 	bitfile.py\
 	glnav.py\
+	gl_context_managers.py \
 	hershey.py\
 	pyngcgui.py\
 	vismach.py\
