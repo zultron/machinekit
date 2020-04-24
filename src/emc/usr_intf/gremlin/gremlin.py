@@ -426,9 +426,13 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         self.select_primed = x, y
 
     def select_fire(self, widget, event):
-        if not self.select_primed: return
+        if not self.select_primed:
+            return
         x, y = self.select_primed
+
         self.select_primed = None
+        if self.stat.task_mode == linuxcnc.MODE_AUTO and self.stat.interp_state != linuxcnc.INTERP_IDLE:
+            return
         self.select(x, y)
         # KLUDGE Need to redraw after picking since we draw over the front buffer in color picking
         # TODO use the back buffer only and avoid this
@@ -438,7 +442,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         self.select_primed = None
 
     def pressed(self, widget, event):
-        if not self.use_default_controls:return
+        if not self.use_default_controls:
+            return
         button1 = event.button == 1
         button2 = event.button == 2
         button3 = event.button == 3
