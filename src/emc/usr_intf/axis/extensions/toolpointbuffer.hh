@@ -59,6 +59,7 @@ protected:
     ToolVertexArray tool_vertices;
     size_t max_vertices;
     ToolLineStrips strips; // WARNING: never clear this fully! it must have one entry for nextVertexID to work
+    long long next_id_;
     std::recursive_mutex &line_strip_lock;
     void newStrip(int tool);
     long long advanceVertexID();

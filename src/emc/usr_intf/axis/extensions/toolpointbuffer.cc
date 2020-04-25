@@ -18,7 +18,12 @@ static size_t next_power_of_two(size_t n)
 
 LineStripInfo::LineStripInfo(int t, int p_start, int p_end) : tool(t), start_id(p_start), end_id(p_end) {}
 
-ToolPointBuffer::ToolPointBuffer(std::recursive_mutex &rlock) : tool_vertices{}, max_vertices(DEFAULT_VERTICES), strips(), line_strip_lock(rlock)
+ToolPointBuffer::ToolPointBuffer(std::recursive_mutex &rlock) :
+    tool_vertices{},
+    max_vertices(DEFAULT_VERTICES),
+    strips(),
+    next_id_(0),
+    line_strip_lock(rlock)
 {}
 
 // Forces max_v to be a power of two for fast modulus
@@ -37,6 +42,7 @@ void ToolPointBuffer::clear()
 
 int ToolPointBuffer::lastTool() const
 {
+    RLock lock(line_strip_lock);
     if (strips.empty()) {
         return -1;
     } else {
@@ -69,23 +75,16 @@ bool ToolPointBuffer::addPoint(ToolPoint const &pt)
 
 long long ToolPointBuffer::advanceVertexID()
 {
-    // RLock lock(line_strip_lock); Should lock but assume the caller
+    RLock lock(line_strip_lock);
     if (strips.empty()) {
         return 0;
     }
-    return ++strips.back().end_id;
+    return next_id_ = ++strips.back().end_id;
 }
 
-/**
- * @pre line strip buffer is locked
- */
 long long ToolPointBuffer::getNextVertexID() const
 {
-    //RLock lock(line_strip_lock);
-    if (strips.empty()) {
-        return 0;
-    }
-    return strips.back().end_id;
+    return next_id_;
 }
 
 /**
