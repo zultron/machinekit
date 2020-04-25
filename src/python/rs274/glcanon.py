@@ -740,8 +740,8 @@ class GlCanonDraw(glnav.GlNavBase):
 
         glMatrixMode(GL_MODELVIEW)
         try:
-            p, r, rc, lp = self.logger.get_world_transform()
-            pos6 = self.get_logger_last() or (0,) * 6
+            p, r, rc, lp, pos6 = self.logger.get_world_transform()
+            pos6 = pos6 or (0,) * 6
             self.update_world_view_transform(p, r, rc)
             with gl_push_matrix():
                 self.redraw_scene(lp, pos6)

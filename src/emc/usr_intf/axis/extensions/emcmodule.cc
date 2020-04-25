@@ -2426,6 +2426,7 @@ static PyObject *Logger_last(pyPositionLogger *s, PyObject *o) {
 }
 
 static PyObject *Logger_get_world_transform(pyPositionLogger *s, PyObject *o) {
+    RLock lock(logger_mutex);
     Array3 pos_out{};
     Array3 rot_out{};
     Array3 rot_center{};
@@ -2444,11 +2445,12 @@ static PyObject *Logger_get_world_transform(pyPositionLogger *s, PyObject *o) {
     for (size_t i=0; i<CANON_AXIS_COUNT; ++i) {
         PyTuple_SET_ITEM(jpos, i, PyFloat_FromDouble(s->last_tool_pos[i]));
     }
-    PyObject *result = PyTuple_New(4);
+    PyObject *result = PyTuple_New(5);
     for (int i=0; i<3; ++i) {
         PyTuple_SET_ITEM(result, i, r[i]);
     }
     PyTuple_SET_ITEM(result, 3, jpos);
+    PyTuple_SET_ITEM(result, 4, Logger_last(s, o));
 
     return result;
 }
