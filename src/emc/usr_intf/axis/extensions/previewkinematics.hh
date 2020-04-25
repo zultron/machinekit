@@ -17,6 +17,24 @@ public:
     virtual void forward_position(PositionArray const &p,
                                   Array3 &position_xyz //!< tool position, xyz
                                   );
+
+    /**
+     * Defines pieces of a global view transform to rotate the model view to follow a particular reference.
+     *
+     * The rotation / center is designed to "un-rotate" the world for machines
+     * that have trunion / tilt tables. It assumes that the machine rotation
+     * axes intersect at a single center point.
+     *
+     * Different view-tracking effects can be created by using parts of this
+     * transform. For example, applying just the rotation will give a
+     * "table"-centric view on a trunion machine, where the work rotates, but the tool
+     * does all the translating.
+     */
+    virtual void forward_world(PositionArray const &p, //!< Joint position array
+                         Array3 &position_xyz, //!< world view offset position in xyz for tool-frame view
+                         Array3 &rotation_xyz, //!< world view orientation, Euler XYZ convention (used for table-frame view)
+                         Array3 &rotation_center //!< rotation center of tilt axes, used for table-frame view
+                               );
     virtual ~PreviewKinematicsBase() = default;
 };
 
@@ -39,6 +57,10 @@ public:
 
     virtual void forward(PositionArray const &p, Array3 &position_xyz, Array3 &rotation_xyz);
     virtual void forward_position(PositionArray const &p, Array3 &position_xyz);
+    virtual void forward_world(PositionArray const &p,
+                         Array3 &position_xyz,
+                         Array3 &rotation_xyz,
+                         Array3 &rotation_center);
 };
 
 /**

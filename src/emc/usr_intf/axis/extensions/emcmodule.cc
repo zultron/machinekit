@@ -308,8 +308,11 @@ static PyObject *poll(pyStatChannel *s, PyObject *o) {
     return Py_None;
 }
 
+static PyObject *py_get_world_transform(pyStatChannel *s, PyObject *o);
+
 static PyMethodDef Stat_methods[] = {
     {"poll", (PyCFunction)poll, METH_NOARGS, "Update current machine state"},
+    {"get_world_transform", (PyCFunction)py_get_world_transform, METH_NOARGS, "Get the world transform to move the tool / work into a physically sensible position"},
     {NULL}
 };
 
@@ -1671,6 +1674,32 @@ static PyObject *pyset_xyza_kinematics(PyObject *s, PyObject *o) {
 
     Py_RETURN_NONE;
 }
+
+static PyObject *py_get_world_transform(pyStatChannel * s, PyObject *o) {
+    PositionArray p = toArray(s->status.motion.traj.position);
+
+    Array3 pos_out{};
+    Array3 rot_out{};
+    Array3 rot_center{};
+    kinematics->forward_world(p, pos_out, rot_out, rot_center); // Get the net displacement
+    PyObject *r[3] = {
+        PyTuple_New(3),
+        PyTuple_New(3),
+        PyTuple_New(3),
+    };
+    for (int i=0; i<3; ++i) {
+        PyTuple_SET_ITEM(r[0], i, PyFloat_FromDouble(pos_out[i]));
+        PyTuple_SET_ITEM(r[1], i, PyFloat_FromDouble(rot_out[i]));
+        PyTuple_SET_ITEM(r[2], i, PyFloat_FromDouble(rot_center[i]));
+    }
+    PyObject *result = PyTuple_New(3);
+    for (int i=0; i<3; ++i) {
+        PyTuple_SET_ITEM(result, i, r[i]);
+    }
+
+    return result;
+}
+
 
 #include <GL/gl.h>
 

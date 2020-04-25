@@ -542,7 +542,7 @@ class GlCanonDraw(glnav.GlNavBase):
         self.font_base = None
         self.font_linespace = None
         self.font_charwidth = None
-        self.last_tool_position = (0., )*9
+        self.last_world_transform = None
 
     # Abstract methods
 
@@ -739,11 +739,12 @@ class GlCanonDraw(glnav.GlNavBase):
             self.gl_look_at_z(1.0)
 
         glMatrixMode(GL_MODELVIEW)
-        with gl_push_matrix():
-            try:
+        try:
+            with gl_push_matrix():
                 self.redraw_scene()
-            finally:
-                glFlush()
+            self.update_world_view_transform()
+        finally:
+            glFlush()
 
     def color_limit(self, cond):
         if cond:
@@ -1456,6 +1457,26 @@ class GlCanonDraw(glnav.GlNavBase):
         glLineWidth(1)
         glDepthFunc(GL_LESS)
 
+    def update_world_view_transform(self):
+        d2r = 180./np.pi
+        if self.last_world_transform is not None:
+            pos, rot, rot_cen = self.last_world_transform
+            glTranslatef(*(np.array(rot_cen)))
+            glRotatef(-rot[0] * d2r, 1, 0, 0)
+            glRotatef(-rot[1] * d2r, 0, 1, 0)
+            glRotatef(-rot[2] * d2r, 0, 0, 1)
+            glTranslatef(*(np.array(rot_cen) * -1.))
+            glTranslatef(*(np.array(pos) * -1.))
+
+        # Get world transform in standard form
+        pos, rot, rot_cen = self.last_world_transform = self.stat.get_world_transform()
+        glTranslatef(*pos)
+        glTranslatef(*rot_cen)
+        glRotatef(rot[2] * d2r, 0, 0, 1)
+        glRotatef(rot[1] * d2r, 0, 1, 0)
+        glRotatef(rot[0] * d2r, 1, 0, 0)
+        glTranslatef(*(np.array(rot_cen)*-1))
+
     def draw_tool(self):
         pos6 = self.get_logger_last() or (0,) * 6
         rx, ry, rz = pos6[3:6]
@@ -1464,9 +1485,6 @@ class GlCanonDraw(glnav.GlNavBase):
             self.draw_foamwire_tool(pos, rx, ry)
         else:
             self.draw_single_tool(pos, rx, ry, rz)
-
-        #TODO rotate view based on kinematics here
-
 
     def draw_single_tool(self, pos, rx, ry, rz):
         with gl_push_matrix():

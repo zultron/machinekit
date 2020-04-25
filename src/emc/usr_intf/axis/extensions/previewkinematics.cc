@@ -19,10 +19,19 @@ void PreviewKinematicsBase::forward_position(const PositionArray & p, Array3 &po
     std::copy(p.begin(), p.begin()+3, position_xyz.begin());
 }
 
+void PreviewKinematicsBase::forward_world(const PositionArray & p, Array3 &position_xyz, Array3 &rotation_xyz, Array3 &rotation_center)
+{
+    position_xyz.fill(0);
+    rotation_xyz.fill(0);
+    rotation_center.fill(0);
+}
+
 void Kinematics_XYZA::forward(const PositionArray & p, Array3 &position_xyz, Array3 &rotation_xyz)
 {
     forward_position(p, position_xyz);
     rotation_xyz[X] = orientation * p[A] * M_PI / 180;
+    rotation_xyz[Y] = 0.0;
+    rotation_xyz[Z] = 0.0;
 }
 
 void Kinematics_XYZA::forward_position(const PositionArray &p, Array3 &position_xyz)
@@ -35,6 +44,19 @@ void Kinematics_XYZA::forward_position(const PositionArray &p, Array3 &position_
     position_xyz[X] = p[X];
     position_xyz[Y] = a_y0 + dY * cA - dZ * sA;
     position_xyz[Z] = a_z0 + dY * sA + dZ * cA;
+}
+
+void Kinematics_XYZA::forward_world(const PositionArray & p, Array3 &position_xyz, Array3 &rotation_xyz, Array3 &rotation_center)
+{
+    rotation_xyz[X] = -orientation * p[A] * M_PI / 180.;
+
+    rotation_center[X] = 0.0;
+    rotation_center[Y] = a_y0;
+    rotation_center[Z] = a_z0;
+
+    position_xyz[X] = -p[X];
+    position_xyz[Y] = -p[Y];
+    position_xyz[Z] = 0;
 }
 
 static void rotate_z(Array3 &pt, double a) {
