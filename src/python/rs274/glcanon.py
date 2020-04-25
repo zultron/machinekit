@@ -740,9 +740,11 @@ class GlCanonDraw(glnav.GlNavBase):
 
         glMatrixMode(GL_MODELVIEW)
         try:
+            p, r, rc, lp = self.logger.get_world_transform()
+            pos6 = self.get_logger_last() or (0,) * 6
+            self.update_world_view_transform(p, r, rc)
             with gl_push_matrix():
-                self.redraw_scene()
-            self.update_world_view_transform()
+                self.redraw_scene(lp, pos6)
         finally:
             glFlush()
 
@@ -1267,7 +1269,7 @@ class GlCanonDraw(glnav.GlNavBase):
         self.draw_grid_permuted(rotation, permutations[view],
                 inverse_permutations[view])
 
-    def redraw_scene(self):
+    def redraw_scene(self, last_position=None, last_tpos=None):
         t0 = time.time()
 
         # Get needed data from status after poll
@@ -1281,7 +1283,6 @@ class GlCanonDraw(glnav.GlNavBase):
             g5x_offset[0] *= -1
         rotation_xy = self.stat.rotation_xy
         g92_offset = self.to_internal_units(self.stat.g92_offset)[:3]
-        last_position = self.logger.last_jointpos()
 
         glDisable(GL_LIGHTING) # Can't light lines, so only enable this for specific 3D geometry
         glMatrixMode(GL_MODELVIEW)
@@ -1318,7 +1319,7 @@ class GlCanonDraw(glnav.GlNavBase):
             self.draw_live_plot_all(units_per_inch)
 
         if self.get_show_tool():
-            self.draw_tool()
+            self.draw_tool(last_tpos)
 
         if self.get_show_stat_overlay():
             self.draw_stat_overlay()
@@ -1463,7 +1464,7 @@ class GlCanonDraw(glnav.GlNavBase):
         glLineWidth(1)
         glDepthFunc(GL_LESS)
 
-    def update_world_view_transform(self):
+    def update_world_view_transform(self, pos_new, rot_new, rot_cen_new):
         d2r = 180./np.pi
         if self.last_world_transform is not None:
             pos, rot, rot_cen = self.last_world_transform
@@ -1475,16 +1476,15 @@ class GlCanonDraw(glnav.GlNavBase):
             glTranslatef(*(np.array(pos) * -1.))
 
         # Get world transform in standard form
-        pos, rot, rot_cen = self.last_world_transform = self.logger.get_world_transform()
-        glTranslatef(*pos)
-        glTranslatef(*rot_cen)
-        glRotatef(rot[2] * d2r, 0, 0, 1)
-        glRotatef(rot[1] * d2r, 0, 1, 0)
-        glRotatef(rot[0] * d2r, 1, 0, 0)
-        glTranslatef(*(np.array(rot_cen)*-1))
+        self.last_world_transform = (pos_new, rot_new, rot_cen_new)
+        glTranslatef(*pos_new)
+        glTranslatef(*rot_cen_new)
+        glRotatef(rot_new[2] * d2r, 0, 0, 1)
+        glRotatef(rot_new[1] * d2r, 0, 1, 0)
+        glRotatef(rot_new[0] * d2r, 1, 0, 0)
+        glTranslatef(*(np.array(rot_cen_new)*-1))
 
-    def draw_tool(self):
-        pos6 = self.get_logger_last() or (0,) * 6
+    def draw_tool(self, pos6):
         rx, ry, rz = pos6[3:6]
         pos = self.to_internal_units(pos6)[:3]
         if self.foam_option:

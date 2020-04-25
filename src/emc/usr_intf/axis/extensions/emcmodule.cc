@@ -2440,10 +2440,15 @@ static PyObject *Logger_get_world_transform(pyPositionLogger *s, PyObject *o) {
         PyTuple_SET_ITEM(r[1], i, PyFloat_FromDouble(rot_out[i]));
         PyTuple_SET_ITEM(r[2], i, PyFloat_FromDouble(rot_center[i]));
     }
-    PyObject *result = PyTuple_New(3);
+    PyObject *jpos = PyTuple_New(CANON_AXIS_COUNT);
+    for (size_t i=0; i<CANON_AXIS_COUNT; ++i) {
+        PyTuple_SET_ITEM(jpos, i, PyFloat_FromDouble(s->last_tool_pos[i]));
+    }
+    PyObject *result = PyTuple_New(4);
     for (int i=0; i<3; ++i) {
         PyTuple_SET_ITEM(result, i, r[i]);
     }
+    PyTuple_SET_ITEM(result, 3, jpos);
 
     return result;
 }
