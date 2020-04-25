@@ -677,6 +677,7 @@ class GlCanonDraw(glnav.GlNavBase):
         if line and line == self.get_highlight_line():
             return
         self.highlight_line = line
+        self.stale_dlist('highlight')
         if self.canon is None:
             self.set_centerpoint(0, 0, 0)
             return
