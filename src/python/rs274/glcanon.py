@@ -1277,7 +1277,6 @@ class GlCanonDraw(glnav.GlNavBase):
         # Get needed data from status after poll
         self.stat.poll()
         machine_limit_min, machine_limit_max = self.soft_limits()
-        current_position = self.stat.position
         tool_offset = self.stat.tool_offset
         units_per_inch = 1 / ((self.stat.linear_units or 1) * 25.4)
         g5x_index = self.stat.g5x_index
@@ -1286,6 +1285,7 @@ class GlCanonDraw(glnav.GlNavBase):
             g5x_offset[0] *= -1
         rotation_xy = self.stat.rotation_xy
         g92_offset = self.to_internal_units(self.stat.g92_offset)[:3]
+        last_position = self.logger.last_jointpos()
 
         glDisable(GL_LIGHTING) # Can't light lines, so only enable this for specific 3D geometry
         glMatrixMode(GL_MODELVIEW)
@@ -1314,9 +1314,9 @@ class GlCanonDraw(glnav.GlNavBase):
             self.draw_coordinate_systems(g5x_index, g5x_offset, g92_offset, rotation_xy)
 
         if self.get_show_limits():
-            self.draw_limit_box(machine_limit_max, machine_limit_min, current_position, tool_offset)
+            self.draw_limit_box(machine_limit_max, machine_limit_min, last_position, tool_offset)
 
-        self.draw_axis_chain(current_position)
+        self.draw_axis_chain(last_position)
 
         if self.get_show_live_plot():
             self.draw_live_plot_all(units_per_inch)
@@ -1479,7 +1479,7 @@ class GlCanonDraw(glnav.GlNavBase):
             glTranslatef(*(np.array(pos) * -1.))
 
         # Get world transform in standard form
-        pos, rot, rot_cen = self.last_world_transform = self.stat.get_world_transform()
+        pos, rot, rot_cen = self.last_world_transform = self.logger.get_world_transform()
         glTranslatef(*pos)
         glTranslatef(*rot_cen)
         glRotatef(rot[2] * d2r, 0, 0, 1)
@@ -1524,10 +1524,11 @@ class GlCanonDraw(glnav.GlNavBase):
         if self.canon:
             g = self.canon
             x, y, z = 0, 1, 2
-            return max(g.max_extents[x] - g.min_extents[x],
-                             g.max_extents[y] - g.min_extents[y],
-                             g.max_extents[z] - g.min_extents[z],
-                             2) * .5
+            return 0.5 * max(
+                g.max_extents[x] - g.min_extents[x],
+                g.max_extents[y] - g.min_extents[y],
+                g.max_extents[z] - g.min_extents[z],
+                2.)
         else:
             return 1
 

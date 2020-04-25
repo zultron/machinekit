@@ -308,11 +308,8 @@ static PyObject *poll(pyStatChannel *s, PyObject *o) {
     return Py_None;
 }
 
-static PyObject *py_get_world_transform(pyStatChannel *s, PyObject *o);
-
 static PyMethodDef Stat_methods[] = {
     {"poll", (PyCFunction)poll, METH_NOARGS, "Update current machine state"},
-    {"get_world_transform", (PyCFunction)py_get_world_transform, METH_NOARGS, "Get the world transform to move the tool / work into a physically sensible position"},
     {NULL}
 };
 
@@ -1675,32 +1672,6 @@ static PyObject *pyset_xyza_kinematics(PyObject *s, PyObject *o) {
     Py_RETURN_NONE;
 }
 
-static PyObject *py_get_world_transform(pyStatChannel * s, PyObject *o) {
-    PositionArray p = toArray(s->status.motion.traj.position);
-
-    Array3 pos_out{};
-    Array3 rot_out{};
-    Array3 rot_center{};
-    kinematics->forward_world(p, pos_out, rot_out, rot_center); // Get the net displacement
-    PyObject *r[3] = {
-        PyTuple_New(3),
-        PyTuple_New(3),
-        PyTuple_New(3),
-    };
-    for (int i=0; i<3; ++i) {
-        PyTuple_SET_ITEM(r[0], i, PyFloat_FromDouble(pos_out[i]));
-        PyTuple_SET_ITEM(r[1], i, PyFloat_FromDouble(rot_out[i]));
-        PyTuple_SET_ITEM(r[2], i, PyFloat_FromDouble(rot_center[i]));
-    }
-    PyObject *result = PyTuple_New(3);
-    for (int i=0; i<3; ++i) {
-        PyTuple_SET_ITEM(result, i, r[i]);
-    }
-
-    return result;
-}
-
-
 #include <GL/gl.h>
 
 static inline void glvertex9(PositionArray const &pt) {
@@ -2157,8 +2128,7 @@ struct pyPositionLogger {
     PyObject_HEAD
 
     std::unique_ptr<ToolPointBuffer> logger_tool_points;
-
-    PyObject *visible_tool_list;
+    PositionArray last_tool_pos;
     std::set<int> visible_tools;
 
     struct ColorRGBA colors[NUMCOLORS];
@@ -2289,12 +2259,24 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
         bool add_point = !op || (changed_color = (c != op->c)) || !oop;
         double x, y, z, rx, ry, rz;
 
+        PositionArray const &pt = {
+            status->motion.traj.position.tran.x - status->task.toolOffset.tran.x,
+            status->motion.traj.position.tran.y - status->task.toolOffset.tran.y,
+            status->motion.traj.position.tran.z - status->task.toolOffset.tran.z,
+            status->motion.traj.position.a - status->task.toolOffset.a,
+            status->motion.traj.position.b - status->task.toolOffset.b,
+            status->motion.traj.position.c - status->task.toolOffset.c,
+            status->motion.traj.position.u - status->task.toolOffset.u,
+            status->motion.traj.position.v - status->task.toolOffset.v,
+            status->motion.traj.position.w - status->task.toolOffset.w};
+        s->last_tool_pos = pt;
+
         if (s->is_xyuv) {
-            x = status->motion.traj.position.tran.x - status->task.toolOffset.tran.x;
-            y = status->motion.traj.position.tran.y - status->task.toolOffset.tran.y;
+            x = pt[X];
+            y = pt[Y];
             z = s->foam_z;
-            rx = status->motion.traj.position.u - status->task.toolOffset.u;
-            ry = status->motion.traj.position.v - status->task.toolOffset.v;
+            rx = pt[U];
+            ry = pt[V];
             rz = s->foam_w;
             /* TODO .01, the distance at which a preview line is dropped,
                  * should either be dependent on units or configurable, because
@@ -2309,16 +2291,6 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
                                                op->rx, op->ry, op->rz,
                                                oop->rx, oop->ry, oop->rz);
         } else {
-            PositionArray const &pt = {
-                status->motion.traj.position.tran.x - status->task.toolOffset.tran.x,
-                status->motion.traj.position.tran.y - status->task.toolOffset.tran.y,
-                status->motion.traj.position.tran.z - status->task.toolOffset.tran.z,
-                status->motion.traj.position.a - status->task.toolOffset.a,
-                status->motion.traj.position.b - status->task.toolOffset.b,
-                status->motion.traj.position.c - status->task.toolOffset.c,
-                status->motion.traj.position.u - status->task.toolOffset.u,
-                status->motion.traj.position.v - status->task.toolOffset.v,
-                status->motion.traj.position.w - status->task.toolOffset.w};
 
                 Array3 position_xyz, rotation_xyz;
                 kinematics->forward(pt, position_xyz, rotation_xyz);
@@ -2436,6 +2408,7 @@ static PyObject *Logger_last(pyPositionLogger *s, PyObject *o) {
     if(!PyArg_ParseTuple(o, "|i:emc.positionlogger.last", &flag)) return NULL;
     PyObject *result = NULL;
 
+    // Don't need to lock here unless the logger manages to completely fill the buffer
     LoggerPoint const *last_pt = s->logger_tool_points ? s->logger_tool_points->getPointFromEnd(0) : nullptr;
     if (!last_pt) {
         Py_INCREF(Py_None);
@@ -2448,6 +2421,37 @@ static PyObject *Logger_last(pyPositionLogger *s, PyObject *o) {
         PyTuple_SET_ITEM(result, 3, PyFloat_FromDouble(last_pt->rx));
         PyTuple_SET_ITEM(result, 4, PyFloat_FromDouble(last_pt->ry));
         PyTuple_SET_ITEM(result, 5, PyFloat_FromDouble(last_pt->rz));
+    }
+    return result;
+}
+
+static PyObject *Logger_get_world_transform(pyPositionLogger *s, PyObject *o) {
+    Array3 pos_out{};
+    Array3 rot_out{};
+    Array3 rot_center{};
+    kinematics->forward_world(s->last_tool_pos, pos_out, rot_out, rot_center); // Get the net displacement
+    PyObject *r[3] = {
+        PyTuple_New(3),
+        PyTuple_New(3),
+        PyTuple_New(3),
+    };
+    for (int i=0; i<3; ++i) {
+        PyTuple_SET_ITEM(r[0], i, PyFloat_FromDouble(pos_out[i]));
+        PyTuple_SET_ITEM(r[1], i, PyFloat_FromDouble(rot_out[i]));
+        PyTuple_SET_ITEM(r[2], i, PyFloat_FromDouble(rot_center[i]));
+    }
+    PyObject *result = PyTuple_New(3);
+    for (int i=0; i<3; ++i) {
+        PyTuple_SET_ITEM(result, i, r[i]);
+    }
+
+    return result;
+}
+
+static PyObject *Logger_last_jointpos(pyPositionLogger *s, PyObject *o) {
+    PyObject *result = PyTuple_New(CANON_AXIS_COUNT);
+    for (size_t i=0; i<CANON_AXIS_COUNT; ++i) {
+        PyTuple_SET_ITEM(result, i, PyFloat_FromDouble(s->last_tool_pos[i]));
     }
     return result;
 }
@@ -2505,6 +2509,10 @@ static PyMethodDef Logger_methods[] = {
         "set the Z and W depths for foam cutter"},
     {"last", (PyCFunction)Logger_last, METH_VARARGS,
         "Return the most recent point on the plot or None"},
+    {"last_jointpos", (PyCFunction)Logger_last_jointpos, METH_VARARGS,
+        "Return the most recent joint-level position corresponding to the logged tool position"},
+    {"get_world_transform", (PyCFunction)Logger_get_world_transform, METH_VARARGS,
+        "Return the world transform corresponding to the last logged joint position"},
     {"set_visible_tools", (PyCFunction)Logger_set_visible_tools, METH_VARARGS,
         "Set the list of tool numbers the live plot should filter its drawing on.  None means all tools are visible."},
     {"get_npts", (PyCFunction)Logger_get_npts, METH_NOARGS,
