@@ -1570,6 +1570,12 @@ TCIntersectType tpSetupTangent(TP_STRUCT const * const tp,
         return TC_INTERSECT_INCOMPATIBLE;
     }
 
+    if (prev_tc->indexrotary != INDEX_NONE || tc->indexrotary != INDEX_NONE) {
+        tp_debug_json5_log_end("rotary axis move requires indexing");
+        tcSetTermCond(prev_tc, TC_TERM_COND_STOP);
+        return TC_INTERSECT_INCOMPATIBLE;
+    }
+
     // TODO see if this can go after the tangent check
     if (prev_tc->progress > prev_tc->target / 2.0) {
         tp_debug_json5_log_end(" prev_tc progress (%f) is too large, aborting blend arc\n", prev_tc->progress);
@@ -1728,7 +1734,7 @@ int tpAddLine(
     double acc,
     unsigned char enables,
     char atspeed,
-    int indexrotary,
+    IndexRotaryAxis indexrotary,
     struct state_tag_t tag)
 {
     PmVector end;
@@ -2336,12 +2342,12 @@ void tpHandleEmptyQueue(TP_STRUCT * const tp)
 }
 
 /** Wrapper function to unlock rotary axes */
-void tpSetRotaryUnlock(int axis, int unlock) {
+void tpSetRotaryUnlock(IndexRotaryAxis axis, int unlock) {
     emcmotSetRotaryUnlock(axis, unlock);
 }
 
 /** Wrapper function to check rotary axis lock */
-int tpGetRotaryIsUnlocked(int axis) {
+int tpGetRotaryIsUnlocked(IndexRotaryAxis axis) {
     return emcmotGetRotaryIsUnlocked(axis);
 }
 
@@ -2367,7 +2373,7 @@ int tpCompleteSegment(TP_STRUCT * const tp,
         setSpindleOrigin(&tp->spindle.origin, 0.0);
     }
 
-    if(tc->indexrotary != -1) {
+    if(tc->indexrotary != INDEX_NONE) {
         // this was an indexing move, so before we remove it we must
         // relock the axis
         tpSetRotaryUnlock(tc->indexrotary, 0);
@@ -2622,7 +2628,7 @@ tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
         return TP_ERR_WAITING;
     }
 
-    if (tc->indexrotary != -1) {
+    if (tc->indexrotary != INDEX_NONE) {
         // request that the axis unlock
         tpSetRotaryUnlock(tc->indexrotary, 1);
         // if it is unlocked, fall through and start the move.

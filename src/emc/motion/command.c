@@ -977,7 +977,7 @@ check_stuff ( "before command_handler()" );
                 emcmotCommand->acc,
                 emcmotStatus->enables_new,
                 issue_atspeed,
-                emcmotCommand->turn,
+                (IndexRotaryAxis)emcmotCommand->turn,
                 emcmotCommand->tag);
             addSegmentOrReportError(res_addline, issue_atspeed, "linear");
 	    break;

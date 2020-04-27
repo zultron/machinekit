@@ -59,7 +59,7 @@ int tpAddLine(
     double acc,
     unsigned char enables,
     char atspeed,
-    int indexrotary,
+    IndexRotaryAxis indexrotary,
     struct state_tag_t tag);
 
 int tpAddCircle(TP_STRUCT * const tp,

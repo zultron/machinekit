@@ -342,7 +342,7 @@ int tcInit(TC_STRUCT * const tc,
     tc->cycle_time = cycle_time;
 
     /** Segment settings (given values later during setup / optimization) */
-    tc->indexrotary = -1;
+    tc->indexrotary = INDEX_NONE;
 
     tc->active_depth = 1;
 

@@ -35,6 +35,7 @@ GREATEST_MAIN_DEFS();
 
 
 static const EmcPose pt0 = {};
+static const IndexRotaryAxis no_index_rotary = INDEX_NONE;
 
 TEST test_mock_tp_init() {
     CREATE_MOCK_TP();
@@ -60,7 +61,7 @@ TEST test_create_single_line() {
 
     tpSetTermCond(tp, TC_TERM_COND_STOP, 0.0);
 
-    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 10.0, 0, 0, 0,  line_tag(1));
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 10.0, 0, 0, no_index_rotary, line_tag(1));
     ASSERT_EQ(1, tcqLen(&tp->queue));
     ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
 
@@ -82,12 +83,12 @@ TEST test_create_two_exact_lines() {
 
     tpSetTermCond(tp, TC_TERM_COND_STOP, 0.0);
 
-    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 10.0, 0, 0, 0, line_tag(1));
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 10.0, 0, 0, no_index_rotary, line_tag(1));
     ASSERT_EQ(1, tcqLen(&tp->queue));
     ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
 
     EmcPose pt2 = newXYZ(1,4,9,pt1);
-    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 10.0, 0, 0, 0, line_tag(2));
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 10.0, 0, 0, no_index_rotary, line_tag(2));
     ASSERT_EQ(2, tcqLen(&tp->queue));
     ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
 
@@ -102,12 +103,12 @@ TEST test_create_two_blended_lines() {
     tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
 
     // Ask for impossibly high velocity to force the arc to maximum size
-    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(1));
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(1));
     ASSERT_EQ(1, tcqLen(&tp->queue));
     ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
 
     EmcPose pt2 = newXYZ(1,1,0,pt1);
-    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(2));
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(2));
     ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
     ASSERT_EQ(4, tcqLen(&tp->queue));
 
@@ -132,6 +133,39 @@ TEST test_create_two_blended_lines() {
     PASS();
 }
 
+TEST test_create_lines_with_indexable_rotary() {
+    CREATE_MOCK_TP();
+
+    EmcPose pt1 = newXYZ(1,0,0,pt0);
+    tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(1));
+    ASSERT_EQ(1, tcqLen(&tp->queue));
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
+
+    EmcPose pt2 = newXYZ(1,1,0,pt1);
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, INDEX_A_AXIS, line_tag(2));
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
+    ASSERT_EQ_FMT(2, tcqLen(&tp->queue), "%d");
+
+    TC_STRUCT const *first_tc = tcqItem(&tp->queue, 0);
+    ASSERT(first_tc);
+    ASSERT_EQ(TC_TERM_COND_STOP, first_tc->term_cond);
+
+    EmcPose pt3 = newXYZ(0,1,0,pt1);
+    tpAddLine(tp, pt3, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(2));
+    ASSERT_EMCPOSE_IN_RANGE(pt3, tpGetGoalPos(tp), TP_POS_EPSILON);
+    ASSERT_EQ_FMT(3, tcqLen(&tp->queue), "%d");
+
+    TC_STRUCT const *index_tc = tcqItem(&tp->queue, 1);
+    ASSERT(index_tc);
+    ASSERT_EQ(TC_TERM_COND_STOP, index_tc->term_cond);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
 TEST test_create_two_blended_lines_dios() {
     CREATE_MOCK_TP_ACC(5.0);
 
@@ -144,7 +178,7 @@ TEST test_create_two_blended_lines_dios() {
     tpSetDout(tp, 0, 1, 0);
     tpSetAout(tp, 2, a_out2, 0);
     // Ask for impossibly high velocity to force the arc to maximum size
-    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(1));
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(1));
     ASSERT_EQ(1, tcqLen(&tp->queue));
     ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
     tpSetDout(tp, 0, 0, 0);
@@ -152,7 +186,7 @@ TEST test_create_two_blended_lines_dios() {
     tpSetAout(tp, 2, 0, 0);
     tpSetAout(tp, 3, a_out3, 0);
     EmcPose pt2 = newXYZ(1,1,0,pt1);
-    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(2));
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(2));
     ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
     ASSERT_EQ(4, tcqLen(&tp->queue));
 
@@ -197,12 +231,12 @@ TEST test_create_two_blended_lines_rotary() {
     tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
 
     // Ask for impossibly high velocity to force the arc to maximum size
-    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(1));
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(1));
     ASSERT_EQ(1, tcqLen(&tp->queue));
     ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
 
     EmcPose pt2 = {{1,0,0},1,0,0,0,0,0};
-    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(2));
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(2));
     ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
     ASSERT_EQ(4, tcqLen(&tp->queue));
 
@@ -234,12 +268,12 @@ TEST test_create_two_blended_lines_all() {
     tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.0);
 
     // Ask for impossibly high velocity to force the arc to maximum size
-    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(1));
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(1));
     ASSERT_EQ(1, tcqLen(&tp->queue));
     ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
 
     EmcPose pt2 = {{0,.5,.5},.5,.5,.5,.5,.5,.5};
-    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(2));
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(2));
     ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
     ASSERT_EQ(4, tcqLen(&tp->queue));
 
@@ -396,7 +430,7 @@ TEST test_line_arc_in_plane() {
     PmCartesian const normal = {0,0,-1};
 
     // Ask for impossibly high velocity to force the arc to maximum size
-    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 8.0, 0, 0, 0, line_tag(1));
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 8.0, 0, 0, no_index_rotary, line_tag(1));
     tpAddCircle(tp, pt2, center1, normal, 0, EMC_MOTION_TYPE_FEED, 1.0, 1.0, 8.0, 0, 0, 0, line_tag(2));
 
     ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
@@ -510,7 +544,7 @@ static greatest_test_res setup_initial_line(TP_STRUCT *tp, double v_req, double 
     tpSetPos(tp, &pt0);
     tpSetId(tp, 1);
     // Ask for impossibly high velocity to force the arc to maximum size
-    ASSERT_EQ(TP_ERR_OK, tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, v_req, v_max, a_max, 0, 0, 0, line_tag(1)));
+    ASSERT_EQ(TP_ERR_OK, tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, v_req, v_max, a_max, 0, 0, no_index_rotary, line_tag(1)));
     ASSERT_EQ(1, tcqLen(& tp->queue));
 
     TC_STRUCT const * tc = tcqItem(&tp->queue, 0);
@@ -1082,6 +1116,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_create_two_exact_lines);
     RUN_TEST(test_create_two_blended_lines);
     RUN_TEST(test_create_two_blended_lines_dios);
+    RUN_TEST(test_create_lines_with_indexable_rotary);
     RUN_TEST(test_create_two_blended_lines_rotary);
     RUN_TEST(test_create_two_blended_lines_all);
     RUN_TEST(test_create_tangent_arcs);

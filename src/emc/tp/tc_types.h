@@ -100,6 +100,19 @@ typedef struct {
     rigid_tap_state_t state;
 } PmRigidTap;
 
+typedef enum {
+    INDEX_NONE=-1,
+    INDEX_X_AXIS=0,
+    INDEX_Y_AXIS,
+    INDEX_Z_AXIS,
+    INDEX_A_AXIS,
+    INDEX_B_AXIS,
+    INDEX_C_AXIS,
+    INDEX_U_AXIS,
+    INDEX_V_AXIS,
+    INDEX_W_AXIS,
+} IndexRotaryAxis;
+
 typedef struct {
     double cycle_time;
     //Position stuff
@@ -152,7 +165,7 @@ typedef struct {
     unsigned char enables;  // Feed scale, etc, enable bits for this move
     int atspeed;           // wait for the spindle to be at-speed before starting this move
     syncdio_t syncdio;      // synched DIO's for this move. what to turn on/off
-    int indexrotary;        // which rotary axis to unlock to make this move, -1 for none
+    IndexRotaryAxis indexrotary;        // which rotary axis to unlock to make this move, -1 for none
     TCOptimizationLevel optimization_state;             // At peak velocity during blends)
     int on_final_decel;
     int accel_mode;

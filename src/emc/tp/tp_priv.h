@@ -119,9 +119,9 @@ int tpUpdateMovementStatus(TP_STRUCT * const tp,
 
 void tpHandleEmptyQueue(TP_STRUCT * const tp);
 
-void tpSetRotaryUnlock(int axis, int unlock);
+void tpSetRotaryUnlock(IndexRotaryAxis axis, int unlock);
 
-int tpGetRotaryIsUnlocked(int axis);
+int tpGetRotaryIsUnlocked(IndexRotaryAxis axis);
 
 int tpCompleteSegment(TP_STRUCT * const tp,
                       TC_STRUCT * const tc);
