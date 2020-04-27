@@ -1535,7 +1535,6 @@ void EMC_TRAJ_LINEAR_MOVE::update(CMS * cms)
     cms->update(acc);
     cms->update(feed_mode);
     cms->update(indexrotary);
-    cms->update(pure_angular);
 }
 
 /*
