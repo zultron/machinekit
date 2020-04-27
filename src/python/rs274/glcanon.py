@@ -1316,6 +1316,8 @@ class GlCanonDraw(glnav.GlNavBase):
         if self.get_show_limits():
             self.draw_limit_box(machine_limit_max, machine_limit_min, current_position, tool_offset)
 
+        self.draw_axis_chain(current_position)
+
         if self.get_show_live_plot():
             self.draw_live_plot_all(units_per_inch)
 
@@ -1437,6 +1439,14 @@ class GlCanonDraw(glnav.GlNavBase):
         glLineStipple(2, 0x5555)
         # See comment above at start of limit box drawing for why this is commented out.
         # glTranslatef(*self.to_internal_units(s.tool_offset)[:3])
+
+    def draw_axis_chain(self, position):
+        glLineWidth(1)
+        glLineStipple(4, 0x9999)
+        glEnable(GL_LINE_STIPPLE)
+        linuxcnc.draw_oriented_axis_chain(position)
+        glDisable(GL_LINE_STIPPLE)
+        glLineStipple(2, 0x5555)
 
     def draw_live_plot_all(self, units_per_inch):
         glDepthFunc(GL_LEQUAL)
