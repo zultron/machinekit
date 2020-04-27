@@ -1154,11 +1154,11 @@ class GlCanonDraw(glnav.GlNavBase):
                 #    glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], -y1 + s.tool_offset[0], lim_min[2])))
                 #elif view == 2:
                 if view == 2:
-                    glVertex3f(*inverse_permutation((x0, y0, lim_min[2] - s.tool_offset[2])))
-                    glVertex3f(*inverse_permutation((x1, y1, lim_min[2] - s.tool_offset[2])))
+                    glVertex3f(*inverse_permutation((x0, y0, lim_min[2])))
+                    glVertex3f(*inverse_permutation((x1, y1, lim_min[2])))
                 else:
-                    glVertex3f(*inverse_permutation((x0 - s.tool_offset[2], y0, lim_min[2])))
-                    glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], y1, lim_min[2])))
+                    glVertex3f(*inverse_permutation((x0, y0, lim_min[2])))
+                    glVertex3f(*inverse_permutation((x1, y1, lim_min[2])))
 
                 """
                 if self.is_rear_tool_post_lathe():
@@ -1174,30 +1174,27 @@ class GlCanonDraw(glnav.GlNavBase):
                     glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], x_dir * y1, lim_min[2])))
                 """
 
-    def draw_grid_permuted(self, rotation, permutation, inverse_permutation):
-        grid_size=self.get_grid_size()
-        if not grid_size: return
+    def draw_grid_permuted(self, rotation, permutation, inverse_permutation, draw_at_top=False):
+        grid_size = self.get_grid_size()
+        if not grid_size:
+            return
 
         glLineWidth(1)
         glColor3f(*self.color_config.get_color('grid'))
 
         s = self.stat
-        tlo_offset = permutation(self.to_internal_units(s.tool_offset)[:3])
+        tlo_orig = np.array(self.to_internal_units(s.tool_offset)[:3])
+        tlo_permuted = permutation(self.to_internal_units(s.tool_offset)[:3])
         g5x_offset = permutation(self.to_internal_units(s.g5x_offset)[:3])[:2]
         g92_offset = permutation(self.to_internal_units(s.g92_offset)[:3])[:2]
 
         lim_min, lim_max = self.soft_limits()
-        lim_min = permutation(lim_min)
-        lim_max = permutation(lim_max)
+        lim_min = np.array(permutation(lim_min))
+        lim_max = np.array(permutation(lim_max))
 
-        lim_min = tuple(a-b for a,b in zip(lim_min, tlo_offset))
-        lim_max = tuple(a-b for a,b in zip(lim_max, tlo_offset))
+        lim_min -= tlo_permuted
+        lim_max -= tlo_permuted
 
-        lim_pts = (
-                (lim_min[0], lim_min[1]),
-                (lim_max[0], lim_min[1]),
-                (lim_min[0], lim_max[1]),
-                (lim_max[0], lim_max[1]))
         if self.get_show_relative():
             cos_rot = math.cos(rotation)
             sin_rot = math.sin(rotation)
@@ -1230,43 +1227,42 @@ class GlCanonDraw(glnav.GlNavBase):
             grid_string = '%smm' % int(grid_size * 25.4)
         else:
             grid_string = '%ssin.' % grid_size
-        glPushMatrix()
-        glColor3f(1.0, 1.0, 1.0)
-        if view == z:
-            glTranslatef(0.2, 0.2, 0.0)
-            glScalef(0.3,0.3,0.3)
-        elif view == y:
-            glRotatef(90, 1, 0, 0)
-            glTranslatef(0.3, -0.5, 0.0)
-            glScalef(0.3,0.3,0.3)
-        elif view == x:
-            glRotatef(90, 0, 1, 0)
-            glRotatef(90, 0, 0, 1)
-            glTranslatef(0.3, -0.5, 0.0)
-            glScalef(0.3,0.3,0.3)
-        else:
-            pass
-        self.hershey.plot_string(grid_string, 0.1)
-        glPopMatrix()
 
-        grid_size=self.get_grid_size()
+        with gl_push_matrix():
+            glColor3f(1.0, 1.0, 1.0)
+            glTranslatef(*(-np.array(tlo_orig)))
+            if view == z:
+                glTranslatef(0.2, 0.2, 0.0)
+            elif view == y:
+                glRotatef(90, 1, 0, 0)
+                glTranslatef(0.3, -0.5, 0.0)
+            elif view == x:
+                glRotatef(90, 0, 1, 0)
+                glRotatef(90, 0, 0, 1)
+                glTranslatef(0.3, -0.5, 0.0)
+            else:
+                pass
+            glScalef(0.3, 0.3, 0.3)
+            self.hershey.plot_string(grid_string, 0.1)
 
 
     def draw_grid(self):
         x,y,z,p = 0,1,2,3
         view = self.get_view()
-        if view == p: return
+        if view == p:
+            return
         rotation = math.radians(self.stat.rotation_xy % 90)
-        if rotation != 0 and view != z and self.get_show_relative(): return
+        if rotation != 0 and view != z and self.get_show_relative():
+            return
         permutations = [
-                lambda (x, y, z): (z, y, x),  # YZ X
-                lambda (x, y, z): (z, x, y),  # ZX Y
-                lambda (x, y, z): (x, y, z),  # XY Z
+                lambda (x, y, z): np.array((z, y, x)),  # YZ X
+                lambda (x, y, z): np.array((z, x, y)),  # ZX Y
+                lambda (x, y, z): np.array((x, y, z)),  # XY Z
         ]
         inverse_permutations = [
-                lambda (z, y, x): (x, y, z),  # YZ X
-                lambda (z, x, y): (x, y, z),  # ZX Y
-                lambda (x, y, z): (x, y, z),  # XY Z
+                lambda (z, y, x): np.array((x, y, z)),  # YZ X
+                lambda (z, x, y): np.array((x, y, z)),  # ZX Y
+                lambda (x, y, z): np.array((x, y, z)),  # XY Z
         ]
         self.draw_grid_permuted(rotation, permutations[view],
                 inverse_permutations[view])
