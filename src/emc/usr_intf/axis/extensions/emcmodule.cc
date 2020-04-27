@@ -2433,7 +2433,7 @@ static PyObject *Logger_get_world_transform(pyPositionLogger *s, PyObject *o) {
     kinematics->forward_world(s->last_tool_pos, pos_out, rot_out, rot_center); // Get the net displacement
     PyObject *r[3] = {
         PyTuple_New(3),
-        PyTuple_New(3),
+        PyTuple_New(4),
         PyTuple_New(3),
     };
     for (int i=0; i<3; ++i) {
@@ -2441,16 +2441,19 @@ static PyObject *Logger_get_world_transform(pyPositionLogger *s, PyObject *o) {
         PyTuple_SET_ITEM(r[1], i, PyFloat_FromDouble(rot_out[i]));
         PyTuple_SET_ITEM(r[2], i, PyFloat_FromDouble(rot_center[i]));
     }
+    PyObject *world_tf = PyTuple_New(3);
+    for (int i=0; i<3; ++i) {
+        PyTuple_SET_ITEM(world_tf, i, r[i]);
+    }
+
     PyObject *jpos = PyTuple_New(CANON_AXIS_COUNT);
     for (size_t i=0; i<CANON_AXIS_COUNT; ++i) {
         PyTuple_SET_ITEM(jpos, i, PyFloat_FromDouble(s->last_tool_pos[i]));
     }
-    PyObject *result = PyTuple_New(5);
-    for (int i=0; i<3; ++i) {
-        PyTuple_SET_ITEM(result, i, r[i]);
-    }
-    PyTuple_SET_ITEM(result, 3, jpos);
-    PyTuple_SET_ITEM(result, 4, Logger_last(s, o));
+    PyObject *result = PyTuple_New(3);
+    PyTuple_SET_ITEM(result, 0, world_tf);
+    PyTuple_SET_ITEM(result, 1, jpos);
+    PyTuple_SET_ITEM(result, 2, Logger_last(s, o));
 
     return result;
 }

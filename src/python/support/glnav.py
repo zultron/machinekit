@@ -191,7 +191,7 @@ class GlUserView:
         if latitude is None:
             latitude = self.latitude
 
-        world_view_tf = self.swap_world_view_transform(*GlUserView.empty_world_tf)
+        world_view_tf = self.swap_world_view_transform(GlUserView.empty_world_tf)
 
         # 1) Translate the scene so the view center is at the origin
         glTranslatef(*center_pt)
@@ -206,13 +206,16 @@ class GlUserView:
         # Note that this function should produce no net translation
         glTranslatef(*(-1. * center_pt))
 
-        self.swap_world_view_transform(*world_view_tf)
+        self.swap_world_view_transform(world_view_tf)
 
         # Finally, update the scene values
         self._lon = longitude
         self._lat = latitude
 
     def _redraw(self):
+        raise NotImplementedError
+
+    def swap_world_view_transform(self, world_tf):
         raise NotImplementedError
 
 

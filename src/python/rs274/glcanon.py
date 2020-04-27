@@ -740,9 +740,9 @@ class GlCanonDraw(glnav.GlNavBase):
 
         glMatrixMode(GL_MODELVIEW)
         try:
-            p, r, rc, lp, pos6 = self.logger.get_world_transform()
+            world_tf, lp, pos6 = self.get_logger_world_transform()
             pos6 = pos6 or (0,) * 6
-            self.swap_world_view_transform(p, r, rc)
+            self.swap_world_view_transform(world_tf)
             with gl_push_matrix():
                 self.redraw_scene(lp, pos6)
         finally:
@@ -1464,8 +1464,8 @@ class GlCanonDraw(glnav.GlNavBase):
         glLineWidth(1)
         glDepthFunc(GL_LESS)
 
-    def swap_world_view_transform(self, pos_new, rot_new, rot_cen_new):
-        d2r = 180./np.pi
+    def swap_world_view_transform(self, world_tf):
+        r2d = 180./np.pi
         old_tf = self.last_world_transform
         if self.last_world_transform is not None:
             pos, rot, rot_cen = self.last_world_transform
@@ -1477,7 +1477,8 @@ class GlCanonDraw(glnav.GlNavBase):
             glTranslatef(*(np.array(pos) * -1.))
 
         # Get world transform in standard form
-        self.last_world_transform = (pos_new, rot_new, rot_cen_new)
+        self.last_world_transform = world_tf
+        pos_new, rot_new, rot_cen_new = world_tf
         glTranslatef(*pos_new)
         glTranslatef(*rot_cen_new)
         glRotatef(rot_new[2] * d2r, 0, 0, 1)
@@ -2170,6 +2171,9 @@ class GlCanonDraw(glnav.GlNavBase):
     def get_show_offsets(self): return self.show_offsets
 
     def get_logger_last(self):
+        raise NotImplementedError
+
+    def get_logger_world_transform(self):
         raise NotImplementedError
 
     def draw_live_plot_lines(self):
