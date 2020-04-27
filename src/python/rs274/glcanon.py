@@ -542,7 +542,6 @@ class GlCanonDraw(glnav.GlNavBase):
         self.font_base = None
         self.font_linespace = None
         self.font_charwidth = None
-        self.last_world_transform = glnav.GlUserView.empty_world_tf
 
     # Abstract methods
 
@@ -1463,29 +1462,6 @@ class GlCanonDraw(glnav.GlNavBase):
         glDisable(GL_BLEND)
         glLineWidth(1)
         glDepthFunc(GL_LESS)
-
-    def swap_world_view_transform(self, world_tf):
-        r2d = 180./np.pi
-        old_tf = self.last_world_transform
-        if self.last_world_transform is not None:
-            pos, rot, rot_cen = self.last_world_transform
-            glTranslatef(*(np.array(rot_cen)))
-            glRotatef(-rot[0] * d2r, 1, 0, 0)
-            glRotatef(-rot[1] * d2r, 0, 1, 0)
-            glRotatef(-rot[2] * d2r, 0, 0, 1)
-            glTranslatef(*(np.array(rot_cen) * -1.))
-            glTranslatef(*(np.array(pos) * -1.))
-
-        # Get world transform in standard form
-        self.last_world_transform = world_tf
-        pos_new, rot_new, rot_cen_new = world_tf
-        glTranslatef(*pos_new)
-        glTranslatef(*rot_cen_new)
-        glRotatef(rot_new[2] * d2r, 0, 0, 1)
-        glRotatef(rot_new[1] * d2r, 0, 1, 0)
-        glRotatef(rot_new[0] * d2r, 1, 0, 0)
-        glTranslatef(*(np.array(rot_cen_new)*-1))
-        return old_tf
 
     def draw_tool(self, pos6):
         rx, ry, rz = pos6[3:6]

@@ -143,6 +143,8 @@ class GlUserView:
 
         self.need_redraw = CallOnExitWrapper(self._redraw)
 
+        self.last_world_transform = GlUserView.empty_world_tf
+
     @property
     def center_pt(self):
         return self._center_pt
@@ -216,7 +218,27 @@ class GlUserView:
         raise NotImplementedError
 
     def swap_world_view_transform(self, world_tf):
-        raise NotImplementedError
+        r2d = 180./np.pi
+        old_tf = self.last_world_transform
+        if self.last_world_transform is not None:
+            pos, rot, rot_cen = self.last_world_transform
+            glTranslatef(*(np.array(rot_cen)))
+            glRotatef(-rot[0] * r2d, 1, 0, 0)
+            glRotatef(-rot[1] * r2d, 0, 1, 0)
+            glRotatef(-rot[2] * r2d, 0, 0, 1)
+            glTranslatef(*(np.array(rot_cen) * -1.))
+            glTranslatef(*(np.array(pos) * -1.))
+
+        # Get world transform in standard form
+        self.last_world_transform = world_tf
+        pos_new, rot_new, rot_cen_new = world_tf
+        glTranslatef(*pos_new)
+        glTranslatef(*rot_cen_new)
+        glRotatef(rot_new[2] * r2d, 0, 0, 1)
+        glRotatef(rot_new[1] * r2d, 0, 1, 0)
+        glRotatef(rot_new[0] * r2d, 1, 0, 0)
+        glTranslatef(*(np.array(rot_cen_new)*-1))
+        return old_tf
 
 
 class GlNavBase(GlUserView):
