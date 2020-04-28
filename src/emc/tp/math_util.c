@@ -85,3 +85,8 @@ double hypot3(double x, double y, double z)
 {
     return sqrt(x*x + y*y + z*z);
 }
+
+double hypot4(double w, double x, double y, double z)
+{
+    return sqrt(w*w + x*x + y*y + z*z);
+}

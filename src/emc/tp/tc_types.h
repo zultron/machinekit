@@ -133,6 +133,9 @@ typedef struct {
     double kink_accel_reduce; // How much to reduce the allowed tangential acceleration to account for the extra acceleration at an approximate tangent intersection.
     double parabolic_equiv_vel; // Estimated equivalent velocity for a parabolic blend with the next segment
 
+    double v_limit_linear_ratio;
+    double v_limit_angular_ratio;
+
     //Acceleration
     double maxaccel;        // accel calc'd by task
     double acc_ratio_tan;// ratio between normal and tangential accel

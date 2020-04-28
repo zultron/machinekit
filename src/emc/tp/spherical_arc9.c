@@ -140,3 +140,8 @@ int arc9Tangent(SphericalArc9 const * const arc, double const t, PmVector * cons
 
     return TP_ERR_OK;
 }
+
+double arc9VLimit(const SphericalArc9 * const arc, double v_target, double v_limit_linear, double v_limit_angular)
+{
+    return VecVLimit(&arc->uTan, v_target, v_limit_linear, v_limit_angular);
+}

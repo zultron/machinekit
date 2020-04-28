@@ -174,6 +174,23 @@ TEST test_VecVecOrthonormal()
     PASS();
 }
 
+TEST test_VecVLimit()
+{
+    PmVector xyz = {{3,3,3,0,0,0,0,0,0}};
+    VecUnitEq(&xyz);
+
+    ASSERT_FLOAT_EQ(4.0, VecVLimit(&xyz, 100.0, 4.0, 2.0));
+    PmVector abc = {{0,0,0,1,2,1,0,0,0}};
+    VecUnitEq(&abc);
+    ASSERT_FLOAT_EQ(2.0, VecVLimit(&abc, 100.0, 4.0, 2.0));
+
+    PmVector all = {{1,0,0,0,1,0,1,0,0}};
+    VecUnitEq(&all);
+    ASSERT_FLOAT_EQ(sqrt(12), VecVLimit(&all, 100.0, 4.0, 2.0));
+    ASSERT_FLOAT_EQ(3.0, VecVLimit(&all, 3.0, 4.0, 2.0));
+    PASS();
+}
+
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();
     RUN_TEST(test_VecVecDot_parallel);
@@ -182,5 +199,6 @@ int main(int argc, char **argv) {
     RUN_TEST(test_VecUnit);
     RUN_TEST(test_VecAbs);
     RUN_TEST(test_VecVecOrthonormal);
+    RUN_TEST(test_VecVLimit);
     GREATEST_MAIN_END();
 }

@@ -7,11 +7,13 @@
 
 static inline double sq(double x) {return x*x;}
 
-void updateLengthRatio(PmCircle9 * const circ9)
+double pmCircle9LengthAndRatios(PmCircle9 * const circ9)
 {
-    double l = pmCircle9Length(circ9);
-    circ9->abcuvw_ratio = circ9->abcuvw.tmag / l;
-    circ9->xyz_ratio = hypot2(circ9->fit.total_planar_length, circ9->xyz.height) / l;
+    circ9->total_length = pmCircle9Length(circ9);
+    circ9->xyz_ratio = hypot2(circ9->fit.total_planar_length, circ9->xyz.height) / circ9->total_length;
+    circ9->abc_ratio = circ9->abc.tmag / circ9->total_length;
+    circ9->uvw_ratio = circ9->uvw.tmag / circ9->total_length;
+    return circ9->total_length;
 }
 
 int pmCircle9Init(
@@ -32,15 +34,16 @@ int pmCircle9Init(
     int xyz_fail = pmCircleInit(&circ9->xyz, &start_xyz, &end_xyz, center, normal, turn);
     //Initialize line parts of Circle9
 
-    int abcuvw_fail = pmLine9Init(&circ9->abcuvw, start, end, true);
+    int abc_fail = pmCartLineInit(&circ9->abc, &start_abc, &end_abc);
+    int uvw_fail = pmCartLineInit(&circ9->uvw, &start_uvw, &end_uvw);
 
     int res_fit = findSpiralArcLengthFit(&circ9->xyz, &circ9->fit, 1e-6);
 
-    updateLengthRatio(circ9);
+    double l = pmCircle9LengthAndRatios(circ9);
 
-    if (xyz_fail || abcuvw_fail || res_fit) {
-        rtapi_print_msg(RTAPI_MSG_ERR,"Failed to initialize Circle9, err codes %d, %d, %d\n",
-                xyz_fail, abcuvw_fail, res_fit);
+    if (xyz_fail || abc_fail || uvw_fail || res_fit) {
+        rtapi_print_msg(RTAPI_MSG_ERR,"Failed to initialize Circle9, err codes %d, %d, %d, %d with length %f\n",
+                xyz_fail, abc_fail, uvw_fail, res_fit, l);
         return -1;
     }
 
@@ -49,7 +52,7 @@ int pmCircle9Init(
 
 double pmCircle9Length(PmCircle9 const * const circ9)
 {
-    return hypot3(circ9->fit.total_planar_length, circ9->xyz.height, circ9->abcuvw.tmag);
+    return hypot4(circ9->fit.total_planar_length, circ9->xyz.height, circ9->abc.tmag, circ9->uvw.tmag);
 }
 
 int pmCircle9Point(PmCircle9 const * const circ9, double progress, PmVector * const point)
@@ -59,24 +62,30 @@ int pmCircle9Point(PmCircle9 const * const circ9, double progress, PmVector * co
     pmCircleAngleFromProgress(&circ9->xyz, &circ9->fit, xyz_progress, &angle);
     PmCartesian xyz;
     pmCirclePoint(&circ9->xyz, angle, &xyz);
-    pmLine9Point(&circ9->abcuvw, circ9->abcuvw_ratio * progress, point);
-    VecSetXYZ(&xyz, point);
+    PmCartesian abc;
+    pmCartLinePoint(&circ9->abc, circ9->abc_ratio * progress, &abc);
+    PmCartesian uvw;
+    pmCartLinePoint(&circ9->uvw, circ9->uvw_ratio * progress, &uvw);
+    CartToVec(&xyz, &abc, &uvw, point);
     return 0;
 }
 
 int pmCircle9Cut(PmCircle9 * const circ9, double cut_progress, SegmentToKeepType keep_pt)
 {
     double xyz_new_pt_progress = cut_progress * circ9->xyz_ratio;
-    double abcuvw_cut_progress = cut_progress * circ9->abcuvw_ratio;
+    double abc_cut_progress = cut_progress * circ9->abc_ratio;
+    double uvw_cut_progress = cut_progress * circ9->uvw_ratio;
 
-    int res_other_stretch = pmLine9Cut(&circ9->abcuvw, abcuvw_cut_progress, keep_pt);
+    int res_other_stretch = pmCartLineCut(&circ9->abc, abc_cut_progress, keep_pt);
+    res_other_stretch |= pmCartLineCut(&circ9->uvw, uvw_cut_progress, keep_pt);
+
     double cut_angle;
     pmCircleAngleFromProgress(&circ9->xyz, &circ9->fit, xyz_new_pt_progress, &cut_angle);
 
     int res_stretch = pmCircleCut(&circ9->xyz, cut_angle, keep_pt);
     int res_fit = findSpiralArcLengthFit(&circ9->xyz, &circ9->fit, 1e-6);
 
-    updateLengthRatio(circ9);
+    pmCircle9LengthAndRatios(circ9);
 
     return res_fit | res_stretch | res_other_stretch;
 }
@@ -94,8 +103,13 @@ int pmCircle9TangentVector(PmCircle9 const * const circ9, double progress, PmVec
     pmCircleTangentVector(circle, angle_in, &xyz);
     pmCartScalMultEq(&xyz, circ9->xyz_ratio);
 
-    VecScalMult(&circ9->abcuvw.uVec, circ9->abcuvw_ratio, out);
-    VecSetXYZ(&xyz, out);
+    PmCartesian abc;
+    pmCartScalMult(&circ9->abc.uVec, circ9->abc_ratio, &abc);
+
+    PmCartesian uvw;
+    pmCartScalMult(&circ9->uvw.uVec, circ9->uvw_ratio, &uvw);
+
+    CartToVec(&xyz, &abc, &uvw, out);
     VecUnitEq(out);
     return 0;
 }
@@ -342,3 +356,16 @@ int pmCircleAngleFromProgress(PmCircle const * const circle,
     return pmCircleAngleFromParam(circle, fit, t, angle);
 }
 
+double pmCircle9VLimit(PmCircle9 const * const circle, double v_target, double v_limit_linear, double v_limit_angular)
+{
+    double v_linear = fmax(circle->xyz_ratio, circle->uvw_ratio) * v_target;
+    double v_angular = circle->abc_ratio * v_target;
+
+    if ((v_linear > 1e-12 && v_limit_linear < 1e-12)
+        || (v_angular > 1e-12 && v_limit_angular < 1e-12)) {
+        return 0.0;
+    }
+    double v_ratio = fmax(v_linear / v_limit_linear, v_angular / v_limit_angular);
+    return v_target /
+           v_ratio;
+}

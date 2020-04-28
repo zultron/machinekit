@@ -173,6 +173,27 @@ int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmVector
     return -1;
 }
 
+double tcGetVLimit(TC_STRUCT const * const tc, double v_target, double v_limit_linear, double v_limit_angular)
+{
+    if ((tc->synchronized == TC_SYNC_POSITION)){
+        // No limits applied during position sync
+        return v_target;
+    }
+    switch (tc->motion_type) {
+    case TC_LINEAR:
+        return pmLine9VLimit(&tc->coords.line, v_target, v_limit_linear, v_limit_angular);
+    case TC_CIRCULAR:
+        return pmCircle9VLimit(&tc->coords.circle, v_target, v_limit_linear, v_limit_angular);
+    case TC_SPHERICAL:
+        return arc9VLimit(&tc->coords.arc, v_target, v_limit_linear, v_limit_angular);
+    case TC_RIGIDTAP:
+    case TC_DWELL:
+        break;
+        // for the non-synched portion of rigid tapping
+    }
+    return fmin(v_target, v_limit_linear);
+}
+
 /**
  * Calculate the distance left in the trajectory segment in the indicated
  * direction.
@@ -233,7 +254,8 @@ int tcGetStartpoint(TC_STRUCT const * const tc, PmVector * const pos)
             return 0;
         case TC_CIRCULAR:
             pmCircleStartPoint(&tc->coords.circle.xyz, &xyz);
-            VecToCart(&tc->coords.circle.abcuvw.start, NULL, &abc, &uvw);
+            abc = tc->coords.circle.abc.start;
+            uvw = tc->coords.circle.uvw.start;
             return CartToVec(&xyz, &abc, &uvw, pos);
         case TC_SPHERICAL:
             return arc9Point(&tc->coords.arc,
@@ -568,6 +590,6 @@ int tcSetCircle9(TC_STRUCT * const tc, PmCircle9 const * const circle9)
 {
     if (tc->motion_type != TC_CIRCULAR) { return -1; }
     tc->coords.circle = *circle9;
-    tc->target = pmCircle9Length(circle9);
+    tc->target = circle9->total_length;
     return 0;
 }

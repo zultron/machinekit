@@ -20,16 +20,10 @@ static const PmCartesian zero={0,0,0};
 int pmLine9Init(
     PmLine9 * const line9,
     PmVector const * const start,
-    PmVector const * const end,
-    bool ignore_xyz)
+    PmVector const * const end)
 {
     line9->start = *start;
     line9->end = *end;
-
-    if (ignore_xyz) {
-        VecSetXYZ(&zero, &line9->start);
-        VecSetXYZ(&zero, &line9->end);
-    }
 
     VecVecSub(&line9->end, &line9->start, &line9->uVec);
     line9->tmag = VecMag(&line9->uVec);
@@ -92,3 +86,35 @@ int pmLine9Cut(PmLine9 * const line9, double cut_pt_progress, SegmentToKeepType 
     return -1;
 }
 
+static inline bool is_fuzz(double a) {
+    return fabs(a) < (CART_FUZZ) ? true : false;
+}
+
+int pmCartLineCut(PmCartLine * const line, double cut_pt_progress, SegmentToKeepType keep_pt)
+{
+    switch (keep_pt) {
+    case KEEP_END_PT:
+    {
+        PmCartesian tmp;
+        pmCartScalMult(&line->uVec, cut_pt_progress, &tmp);
+        pmCartCartAddEq(&line->start, &tmp);
+        line->tmag -= cut_pt_progress;
+        line->tmag_zero = is_fuzz(line->tmag);
+        return 0;
+    }
+    case KEEP_START_PT:
+        pmCartScalMult(&line->uVec, cut_pt_progress, &line->end);
+        pmCartCartAddEq(&line->end, &line->start);
+        line->tmag = cut_pt_progress;
+        line->tmag_zero = is_fuzz(line->tmag);
+        return 0;
+    }
+
+    return -1;
+}
+
+
+double pmLine9VLimit(PmLine9 const * const line9, double v_target, double v_limit_linear, double v_limit_angular)
+{
+    return VecVLimit(&line9->uVec, v_target, v_limit_linear, v_limit_angular);
+}

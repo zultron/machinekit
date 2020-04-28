@@ -18,10 +18,13 @@ typedef struct {
 
 typedef struct {
     PmCircle xyz;
-    PmLine9 abcuvw;
+    PmCartLine abc;
+    PmCartLine uvw;
     SpiralArcLengthFit fit;
     double xyz_ratio;
-    double abcuvw_ratio;
+    double abc_ratio;
+    double uvw_ratio;
+    double total_length;
 } PmCircle9;
 
 typedef struct {
@@ -29,7 +32,7 @@ typedef struct {
     double acc_ratio;
 } PmCircleLimits;
 
-void updateLengthRatio(PmCircle9 * const circ9);
+double pmCircle9LengthAndRatios(PmCircle9 * const circ9);
 
 int pmCircle9Init(
     PmCircle9 * const circ9,
@@ -75,5 +78,7 @@ int pmCircleAngleFromProgress(
     SpiralArcLengthFit const * const fit,
     double progress,
     double * const angle);
+
+double pmCircle9VLimit(const PmCircle9 * const circle, double v_target, double v_limit_linear, double v_limit_angular);
 
 #endif // PM_CIRCLE9_H

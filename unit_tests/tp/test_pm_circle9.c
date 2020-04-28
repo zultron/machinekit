@@ -24,16 +24,19 @@ TEST test_pmCircle9Init()
     PmCartesian center = {0, 1, 0};
     PmCartesian normal = {0, 0, 1};
     const double exp_planar_length = M_PI_2;
-    const double exp_length_abcuvw = pmSqrt(pmSq(4)+pmSq(5)+pmSq(6)+pmSq(7)+pmSq(8)+pmSq(9));
-    const double exp_length = hypot3(exp_planar_length, z_height, exp_length_abcuvw);
+    const double exp_length_abc = pmSqrt(pmSq(4)+pmSq(5)+pmSq(6));
+    const double exp_length_uvw = pmSqrt(pmSq(7)+pmSq(8)+pmSq(9));
+    const double exp_length = hypot4(exp_planar_length, z_height, exp_length_abc, exp_length_uvw);
     const double exp_length_ratio_xyz = hypot2(exp_planar_length, z_height) / exp_length;
-    const double exp_length_ratio_abcuvw = exp_length_abcuvw / exp_length;
+    const double exp_length_ratio_abc = exp_length_abc / exp_length;
+    const double exp_length_ratio_uvw = exp_length_uvw / exp_length;
     ASSERT_FALSE(pmCircle9Init(&circ9, &start_0, &end, &center, &normal, 0));
     ASSERT_FLOAT_EQ(exp_planar_length, circ9.fit.total_planar_length);
     ASSERT_FLOAT_EQ(exp_length, pmCircle9Length(&circ9));
 
-    ASSERT_FLOAT_EQ(exp_length_ratio_abcuvw, circ9.abcuvw_ratio);
     ASSERT_FLOAT_EQ(exp_length_ratio_xyz, circ9.xyz_ratio);
+    ASSERT_FLOAT_EQ(exp_length_ratio_abc, circ9.abc_ratio);
+    ASSERT_FLOAT_EQ(exp_length_ratio_uvw, circ9.uvw_ratio);
     PASS();
 }
 
@@ -144,6 +147,18 @@ TEST test_pmCircle9Stretch_from_end()
     PASS();
 }
 
+TEST test_pmCircle9VLimit()
+{
+    PmCircle9 circ9;
+    const double z_height = 3;
+    PmVector const end = {{3,3,z_height,0,0,0,0,0,0}};
+    PmCartesian center = {0, 1, 0};
+    PmCartesian normal = {0, 0, 1};
+    ASSERT_FALSE(pmCircle9Init(&circ9, &start_0, &end, &center, &normal, 0));
+    ASSERT_FLOAT_EQ(4.0, pmCircle9VLimit(&circ9, 5.0, 4.0, 2.0));
+    PASS();
+}
+
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();
     RUN_TEST(test_pmCircle9Init);
@@ -152,5 +167,6 @@ int main(int argc, char **argv) {
     RUN_TEST(test_pmCircle9TangentVector);
     RUN_TEST(test_pmCircle9Stretch_from_start);
     RUN_TEST(test_pmCircle9Stretch_from_end);
+    RUN_TEST(test_pmCircle9VLimit);
     GREATEST_MAIN_END();
 }

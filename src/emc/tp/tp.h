@@ -50,8 +50,7 @@ int tpAddRigidTap(TP_STRUCT * const tp,
         double scale,
         struct state_tag_t tag);
 
-int tpAddLine(
-    TP_STRUCT * const tp,
+int tpAddLine(TP_STRUCT * const tp,
     EmcPose end,
     EMCMotionTypes canon_motion_type,
     double vel,

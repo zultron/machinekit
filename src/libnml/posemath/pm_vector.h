@@ -93,4 +93,5 @@ int VecVecUnitAntiParallel(
     double threshold);
 
 bool VecHasNAN(PmVector const * const v);
+double VecVLimit(PmVector const * const uVec, double v_target, double v_limit_linear, double v_limit_angular);
 #endif

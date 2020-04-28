@@ -40,4 +40,5 @@ double arc9Length(SphericalArc9 const * const arc);
 
 int arc9Tangent(SphericalArc9 const * const arc, const double t, PmVector * const out);
 
+double arc9VLimit(SphericalArc9 const * const arc, double v_target, double v_limit_linear, double v_limit_angular);
 #endif // SPHERICAL_ARC9_H

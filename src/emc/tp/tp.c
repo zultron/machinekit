@@ -219,15 +219,8 @@ double tpGetRealMaxTargetVel(TP_STRUCT const * const tp, TC_STRUCT const * const
      * computed in the TP, so it would disrupt position tracking to apply this
      * limit here.
      */
-    if ((tc->synchronized != TC_SYNC_POSITION)){
-        // FIXME this is wrong for 9-axis velocity. Independently limiting the velocity like this means we need to store the proportion of the path distance contributed by each bank of axes, and separately restrict the target velocity that way.
-        // We could do this using the old velocity / accel bounds code for pmcartesian
-        v_max_target = fmin(v_max_target,
-			    tcPureRotaryCheck(tc) ? tp->vLimitAng : tp->vLimit);
-    }
-
-    // Apply maximum segment velocity limit (must always be respected)
-    return fmin(v_max_target, v_max);
+    double v_limited = tcGetVLimit(tc, v_max_target, tp->vLimit, tp->vLimitAng);
+    return fmin(v_limited, v_max);
 }
 
 
@@ -444,15 +437,9 @@ int tpSetVlimit(TP_STRUCT * const tp, double vLimit, double vLimitAng)
 {
     if (!tp) return TP_ERR_FAIL;
 
-    if (vLimit < 0.)
-        tp->vLimit = 0.;
-    else
-        tp->vLimit = vLimit;
-
-    if (vLimitAng < 0.)
-        tp->vLimitAng = 0.;
-    else
-        tp->vLimitAng = vLimitAng;
+    tp->vLimit = fmax(vLimit, 0.0);
+    tp->vLimitAng = fmax(vLimitAng, 0.0);
+    tp_debug_print("Setting Vlimit %f %f\n", tp->vLimit, tp->vLimitAng);
 
     return TP_ERR_OK;
 }
@@ -1772,8 +1759,7 @@ int tpAddLine(
     pmLine9Init(
         &tc.coords.line,
         &tp->goalPos,
-        &end,
-        false);
+        &end);
     tc.target = pmLine9Length(&tc.coords.line);
     tc.nominal_length = tc.target;
     tc.indexrotary = indexrotary;
@@ -1876,8 +1862,9 @@ int tpAddCircle(TP_STRUCT * const tp,
             ini_maxvel,
             acc);
 
+    pmCircle9LengthAndRatios(&tc.coords.circle);
     // Update tc target with existing circular segment
-    tc.target = pmCircle9Length(&tc.coords.circle);
+    tc.target = tc.coords.circle.total_length;
     tc.nominal_length = tc.target;
 
 #ifdef TP_DEBUG

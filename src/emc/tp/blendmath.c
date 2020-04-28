@@ -223,7 +223,7 @@ tp_err_t init_blend_segment_from_points(
 
     switch (points->motion_type) {
     case TC_LINEAR:
-        pmLine9Init(&blend_tc->coords.line, &points->arc_start, &points->arc_end, false);
+        pmLine9Init(&blend_tc->coords.line, &points->arc_start, &points->arc_end);
         break;
     case TC_SPHERICAL:
     {

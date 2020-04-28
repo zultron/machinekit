@@ -395,3 +395,28 @@ bool VecHasNAN(const PmVector * const v)
     }
     return has_nan;
 }
+
+double VecVLimit(PmVector const * const uVec, double v_target, double v_limit_linear, double v_limit_angular)
+{
+    if (v_target <= 0.0) {
+        return 0.0;
+    }
+    PmCartesian xyz, abc, uvw;
+    VecToCart(uVec, &xyz, &abc, &uvw);
+    double m_xyz;
+    pmCartMag(&xyz, &m_xyz);
+    double m_abc;
+    pmCartMag(&abc, &m_abc);
+    double m_uvw;
+    pmCartMag(&uvw, &m_uvw);
+
+    double v_linear = fmax(m_xyz, m_uvw) * v_target;
+    double v_angular = m_abc * v_target;
+
+    if ((v_linear > 1e-12 && v_limit_linear < 1e-12)
+        || (v_angular > 1e-12 && v_limit_angular < 1e-12)) {
+        return 0.0;
+    }
+    double v_ratio = fmax(v_linear / v_limit_linear, v_angular / v_limit_angular);
+    return v_target / fmax(v_ratio, 1.0);
+}

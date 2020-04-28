@@ -39,6 +39,7 @@ int tcGetPosReal(TC_STRUCT const * const tc, double progress,  PmVector * const 
 int tcGetStartTangentUnitVector(TC_STRUCT const * const tc, PmVector * const out);
 int tcGetEndTangentUnitVector(TC_STRUCT const * const tc, PmVector * const out);
 int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmVector * const out);
+double tcGetVLimit(TC_STRUCT const * const tc, double v_target, double v_limit_linear, double v_limit_angular);
 
 double tcGetDistanceToGo(TC_STRUCT const * const tc, int direction);
 double tcGetTarget(TC_STRUCT const * const tc, int direction);

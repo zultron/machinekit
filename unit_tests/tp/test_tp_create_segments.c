@@ -110,7 +110,7 @@ TEST test_create_two_blended_lines() {
     EmcPose pt2 = newXYZ(1,1,0,pt1);
     tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(2));
     ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
-    ASSERT_EQ(4, tcqLen(&tp->queue));
+    ASSERT_EQ_FMT(4, tcqLen(&tp->queue), "%d");
 
     // check blend properties here
     TC_STRUCT const *prev_tc = tcqItem(&tp->queue, 0);
