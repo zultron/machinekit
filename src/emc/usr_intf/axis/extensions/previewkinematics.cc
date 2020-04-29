@@ -89,7 +89,7 @@ static void rotate_x(Array3 &pt, double a) {
     pt[1] = tx; pt[2] = tz;
 }
 
-void TrivialKinematics::forward(const PositionArray & pt, Array3 &p, Array3 &rotation_xyz)
+void NaiveSerialKinematics::forward(const PositionArray & pt, Array3 &p, Array3 &rotation_xyz)
 {
     double sign = 1;
     size_t r_idx=0;
@@ -127,7 +127,7 @@ void TrivialKinematics::forward(const PositionArray & pt, Array3 &p, Array3 &rot
     }
 }
 
-void TrivialKinematics::forward_position(const PositionArray & pt, Array3 &p)
+void NaiveSerialKinematics::forward_position(const PositionArray & pt, Array3 &p)
 {
     double sign = 1;
 

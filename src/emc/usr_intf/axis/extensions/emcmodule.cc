@@ -1637,7 +1637,7 @@ static PyTypeObject Error_Type = {
 };
 
 // Assumed to always be non-null
-static std::unique_ptr<PreviewKinematicsBase> kinematics(new TrivialKinematics);
+static std::unique_ptr<PreviewKinematicsBase> kinematics(new NaiveSerialKinematics);
 
 static PyObject *pyset_trivial_kinematics(PyObject *s, PyObject *o) {
     const char *geometry="";
@@ -1646,7 +1646,7 @@ static PyObject *pyset_trivial_kinematics(PyObject *s, PyObject *o) {
                           ))
         return nullptr;
 
-    kinematics.reset(new TrivialKinematics(geometry));
+    kinematics.reset(new NaiveSerialKinematics(geometry));
     Py_RETURN_NONE;
 }
 

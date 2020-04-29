@@ -73,12 +73,12 @@ public:
  * If either of these conditions aren't met, then the preview and backplot will
  * not be a faithful representation.
  */
-class TrivialKinematics : public PreviewKinematicsBase
+class NaiveSerialKinematics : public PreviewKinematicsBase
 {
     std::string geometry_str;
 public:
-    TrivialKinematics() = default;
-    TrivialKinematics(const char *geometry_spec) : geometry_str(geometry_spec) {}
+    NaiveSerialKinematics() = default;
+    NaiveSerialKinematics(const char *geometry_spec) : geometry_str(geometry_spec) {}
     virtual void forward(PositionArray const &p, Array3 &position_xyz, Array3 &rotation_xyz);
     virtual void forward_position(PositionArray const &pt, Array3 &p);
 };
