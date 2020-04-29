@@ -92,7 +92,7 @@ TEST test_pmLine9VLimit()
     ASSERT_FLOAT_EQ(2.0, pmLine9VLimit(&line9, 100.0, 4.0, 2.0));
     PmVector const end_all = {{1,0,0,0,1,0,1,0,0}};
     ASSERT_FALSE(pmLine9Init(&line9, &start, &end_all));
-    ASSERT_FLOAT_EQ(sqrt(12), pmLine9VLimit(&line9, 100.0, 4.0, 2.0));
+    ASSERT_IN_RANGE(sqrt(48), pmLine9VLimit(&line9, 100.0, 4.0, 2.0), 1e-15);
     ASSERT_FLOAT_EQ(3.0, pmLine9VLimit(&line9, 3.0, 4.0, 2.0));
     PASS();
 }

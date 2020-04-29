@@ -358,14 +358,12 @@ int pmCircleAngleFromProgress(PmCircle const * const circle,
 
 double pmCircle9VLimit(PmCircle9 const * const circle, double v_target, double v_limit_linear, double v_limit_angular)
 {
-    double v_linear = fmax(circle->xyz_ratio, circle->uvw_ratio) * v_target;
-    double v_angular = circle->abc_ratio * v_target;
-
-    if ((v_linear > 1e-12 && v_limit_linear < 1e-12)
-        || (v_angular > 1e-12 && v_limit_angular < 1e-12)) {
+    double u_linear = fmax(circle->xyz_ratio, circle->uvw_ratio);
+    if (u_linear > 1e-12) {
+        return fmin(v_target, v_limit_linear / u_linear);
+    } else if (circle->abc_ratio > 1e-12) {
+        return fmin(v_target, v_limit_angular / circle->abc_ratio);
+    } else {
         return 0.0;
     }
-    double v_ratio = fmax(v_linear / v_limit_linear, v_angular / v_limit_angular);
-    return v_target /
-           v_ratio;
 }

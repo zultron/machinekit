@@ -186,7 +186,7 @@ TEST test_VecVLimit()
 
     PmVector all = {{1,0,0,0,1,0,1,0,0}};
     VecUnitEq(&all);
-    ASSERT_FLOAT_EQ(sqrt(12), VecVLimit(&all, 100.0, 4.0, 2.0));
+    ASSERT_IN_RANGE(sqrt(12), VecVLimit(&all, 100.0, 2.0, 1.0), 1e-15);
     ASSERT_FLOAT_EQ(3.0, VecVLimit(&all, 3.0, 4.0, 2.0));
     PASS();
 }
