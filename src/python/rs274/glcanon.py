@@ -576,7 +576,7 @@ class GlCanonDraw(glnav.GlNavBase):
             # Reverse the provided order internally to match axis (not sure why)
             geometry_elems = re.split(" *(-?[XYZABCUVW])", geom_spec)
             geometry_reversed = ''.join(reversed(geometry_elems))
-            linuxcnc.set_preview_trivial_kinematics(geometry_reversed)
+            linuxcnc.set_preview_naive_kinematics(geometry_reversed)
             self.geometry = geometry_reversed
 
     def realize(self):

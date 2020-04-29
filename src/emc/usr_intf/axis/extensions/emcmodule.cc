@@ -1639,9 +1639,9 @@ static PyTypeObject Error_Type = {
 // Assumed to always be non-null
 static std::unique_ptr<PreviewKinematicsBase> kinematics(new NaiveSerialKinematics);
 
-static PyObject *pyset_trivial_kinematics(PyObject *s, PyObject *o) {
+static PyObject *pyset_naive_kinematics(PyObject *s, PyObject *o) {
     const char *geometry="";
-    if(!PyArg_ParseTuple(o, "s:set_trivial_kinematics",
+    if(!PyArg_ParseTuple(o, "s:set_naive_kinematics",
                           &geometry
                           ))
         return nullptr;
@@ -2585,7 +2585,7 @@ static PyMethodDef emc_methods[] = {
     {"draw_oriented_axis_chain", pydraw_oriented_axis_chain, METH_VARARGS, "Draw the chain of axis displacements from the machine home position"},
 //    {"line9", pyline9, METH_VARARGS, "Draw a single line in the 'rs274.glcanon' format; assumes glBegin(GL_LINES)"},
 //    {"vertex9", pyvertex9, METH_VARARGS, "Get the 3d location for a 9d point"},
-    {"set_preview_trivial_kinematics", pyset_trivial_kinematics, METH_VARARGS, "Preview tool motions with trivial kinematics from the provided geometry specification"},
+    {"set_preview_naive_kinematics", pyset_naive_kinematics, METH_VARARGS, "Preview tool motions with trivial kinematics from the provided geometry specification"},
     {"set_preview_xyz_kinematics", pyset_xyz_kinematics, METH_NOARGS, "Preview tool motions with default XYZ kinematics"},
     {"set_preview_xyza_kinematics", pyset_xyza_kinematics, METH_VARARGS, "Preview tool motions with XYZA kinematics, specifying a fixed A axis intercept in the workspace"},
     {}
