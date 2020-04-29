@@ -56,7 +56,7 @@ void Kinematics_XYZA::forward_world(const PositionArray & p, Array3 &position_xy
 
     position_xyz[X] = -p[X];
     position_xyz[Y] = -p[Y];
-    position_xyz[Z] = 0;
+    position_xyz[Z] = -p[Z];
 }
 
 static void rotate_z(Array3 &pt, double a) {
