@@ -2,6 +2,8 @@
 #define PREVIEWKINEMATICS_HH
 
 #include <array>
+#include <memory>
+#include <string>
 #include "positionarray.hh"
 struct PM_CARTESIAN;
 
@@ -18,10 +20,11 @@ enum KinsType
     KinsRotaryA,
 };
 
+
 class PreviewKinematicsBase;
 // KLUDGE ugly forward def to avoid including Python.h
-struct _object;
-_object * getKinematicsDataTuple(PreviewKinematicsBase const &kins);
+using KinematicsPtr = std::unique_ptr<PreviewKinematicsBase>;
+KinematicsPtr make_kinematics(std::string const &config_json);
 
 class PreviewKinematicsBase
 {
@@ -55,7 +58,6 @@ public:
     virtual std::string describe() const; // Pretty-print the kinematics configuration for user debugging
     virtual ~PreviewKinematicsBase() = default;
     virtual KinsType get_type() const {return KinsType::KinsCanonicalRS274;}
-    friend struct _object *getKinematicsDataTuple(PreviewKinematicsBase const &);
 };
 
 
@@ -93,7 +95,6 @@ public:
                          Array3 &rotation_center);
     virtual std::string describe() const; // Pretty-print the kinematics configuration for user debugging
     virtual KinsType get_type() const {return KinsType::KinsRotaryA;}
-    friend struct _object *getKinematicsDataTuple(Kinematics_RotaryA const &);
 };
 
 /**
@@ -110,13 +111,11 @@ class NaiveSerialKinematics : public PreviewKinematicsBase
 {
     std::string geometry_str;
 public:
-    NaiveSerialKinematics() = default;
-    NaiveSerialKinematics(const char *geometry_spec) : geometry_str(geometry_spec) {}
+    NaiveSerialKinematics(const char *geometry_spec="XYZ") : geometry_str(geometry_spec) {}
     virtual void forward(PositionArray const &p, Array3 &position_xyz, Array3 &rotation_xyz);
     virtual void forward_position(PositionArray const &pt, Array3 &p);
     virtual std::string describe() const; // Pretty-print the kinematics configuration for user debugging
     virtual KinsType get_type() const {return KinsType::KinsNaive;}
-    friend struct _object *getKinematicsDataTuple(NaiveSerialKinematics const &);
 };
 
 #endif // PREVIEWKINEMATICS_HH

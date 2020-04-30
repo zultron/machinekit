@@ -2,9 +2,39 @@
 #include "posemath.h"
 #include "math.h"
 #include <sstream>
+#include "boost/property_tree/ptree.hpp"
+#include "boost/property_tree/json_parser.hpp"
+#include <map>
 
 static constexpr double D2R = M_PI / 180.0;
 static constexpr double R2D = 180.0 / M_PI;
+
+KinematicsPtr make_kinematics(const std::string & config_json)
+{
+    boost::property_tree::ptree cfg;
+    std::istringstream cfg_in(config_json);
+    boost::property_tree::read_json(cfg_in, cfg);
+
+    std::string ktype = cfg.get("kinematics_type", "naive");
+
+    // TODO map of some sort as this table gets bigger. For now a bunch of if / else is good enough.
+    if (ktype == "naive") {
+        std::string geometry = cfg.get("geometry", "XYZ");
+        return KinematicsPtr(new NaiveSerialKinematics(geometry.c_str()));
+    } else if (ktype == "rotary") {
+        // For now assume a flat structure until we can standardize
+        double a_y0 = cfg.get("a_axis_origin_y", 0.0);
+        double a_z0 = cfg.get("a_axis_origin_z", 0.0);
+        double orientation = cfg.get("a_axis_direction", 1.0);
+        // TODO check for missing data (instead of silent recovery)
+        return KinematicsPtr(new Kinematics_RotaryA(a_y0, a_z0, orientation));
+
+    } else if (ktype == "Canonical") {
+        return KinematicsPtr(new Kinematics_CanonicalRS274());
+    }
+    return nullptr;
+}
+
 
 static void rotate_z(Array3 &pt, double a) {
     double theta = a * M_PI / 180;
@@ -35,6 +65,7 @@ static void rotate_x(Array3 &pt, double a) {
 
     pt[1] = tx; pt[2] = tz;
 }
+
 
 /**
  * Default kinematics implementation is just trivial XYZ kinematics, ignoring all other axes

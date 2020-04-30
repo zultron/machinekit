@@ -31,6 +31,7 @@ import struct
 import operator
 import numpy as np
 import re
+import json
 
 
 MotionKey = namedtuple('MotionKey', ['motion_type', 'exec_mode', 'tool_no'])
@@ -560,22 +561,15 @@ class GlCanonDraw(glnav.GlNavBase):
     def set_geometry(self, geometry_override=None):
         geom_spec = geometry_override or (self.inifile.find("DISPLAY", "GEOMETRY") or 'XYZ').upper()
 
-        # KLUDGE check for special rendering cases here
-        # TODO find a way to generalize this
-        if geom_spec == 'XYZA':
-            y0 = self.inifile.find("DISPLAY", "A_AXIS_Y_ORIGIN") or 0.0
-            z0 = self.inifile.find("DISPLAY", "A_AXIS_Z_ORIGIN") or 0.0
-            flipped = self.inifile.find("DISPLAY", "A_AXIS_FLIPPED") or 0.0
-            linuxcnc.set_preview_kinematics(linuxcnc.KinsRotaryA, (float(y0), float(z0), float(flipped)))
-            # For reference only, may remove this
-            self.geometry = geom_spec
-        else:
-            # Reverse the provided order internally to match axis (not sure why)
-            geometry_elems = re.split(" *(-?[XYZABCUVW])", geom_spec)
-            geometry_reversed = ''.join(reversed(geometry_elems))
-            linuxcnc.set_preview_kinematics(linuxcnc.KinsNaive, (geometry_reversed,))
-            self.geometry = geometry_reversed
-        print linuxcnc.get_kinematics_description()
+        # Reverse the provided order internally to match axis (not sure why)
+        geometry_elems = re.split(" *(-?[XYZABCUVW])", geom_spec)
+        geometry_reversed = ''.join(reversed(geometry_elems))
+        kinematics_spec = json.dumps({
+            "kinematics_type": "naive",
+            "geometry": geometry_reversed
+        })
+        linuxcnc.set_preview_kinematics(kinematics_spec)
+        self.geometry = geometry_reversed
 
     def realize(self):
         self.hershey = hershey.Hershey()

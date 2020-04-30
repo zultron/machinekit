@@ -1635,104 +1635,33 @@ static PyTypeObject Error_Type = {
 // Assumed to always be non-null
 static std::unique_ptr<PreviewKinematicsBase> kinematics(new NaiveSerialKinematics);
 
-//
-// Start of interface code for preview kinematics that needs to be updated with new types
-//
+// Declarations for linuxcnc module methods
+static PyObject *pydraw_lines_by_type(PyObject *s, PyObject *o);
+static PyObject *pydraw_lines_by_property(PyObject *self, PyObject *args, PyObject *kwargs);
+static PyObject *pydraw_dwells(PyObject *s, PyObject *o);
+static PyObject *pydraw_oriented_limit_box(PyObject *self, PyObject *args);
+static PyObject *pydraw_oriented_axis_chain(PyObject *self, PyObject *args);
+static PyObject *pyset_preview_kinematics(PyObject *s, PyObject *o);
+static PyObject *pydescribe_kinematics(PyObject *s, PyObject *o);
+
+// Implementations of linuxcnc module methods
 
 static PyObject *pyset_preview_kinematics(PyObject *s, PyObject *o) {
-    int kinematics_type;
-    PyObject *kinematics_data_tuple;
-    if(!PyArg_ParseTuple(o, "iO!:set_preview_kinematics",
-                          &kinematics_type,
-                          &PyTuple_Type,
-                          &kinematics_data_tuple
+    const char *config_json;
+    if(!PyArg_ParseTuple(o, "s:set_preview_kinematics",
+                          &config_json
                           )) {
         return nullptr;
     }
-    switch (static_cast<KinsType>(kinematics_type)) {
-    case KinsNaive:
-    {
-        const char *geometry;
-        if(!PyArg_ParseTuple(kinematics_data_tuple, "s:naive_kinematics",
-                              &geometry
-                              )) {
-            // TODO decref here?
-            return nullptr;
-        }
-        kinematics.reset(new NaiveSerialKinematics(geometry));
-        break;
+    auto new_kins = make_kinematics(config_json);
+    if (!new_kins) {
+        PyErr_Format( error, "Failed to create new kinematics with provided configuration %s", config_json);
+        return nullptr;
     }
-    case KinsCanonicalRS274:
-        // No data for the canonical case
-        kinematics.reset(new Kinematics_CanonicalRS274());
-        break;
-    case KinsRotaryA:
-    {
-        double a_y0, a_z0, orientation;
-        if(!PyArg_ParseTuple(kinematics_data_tuple, "ddd:rotary_a_kinematics",
-                              &a_y0,
-                              &a_z0,
-                              &orientation
-                              )) {
-            return nullptr;
-        }
-        kinematics.reset(new Kinematics_RotaryA(a_y0, a_z0, orientation));
-        break;
-    }
-    }
-    Py_DecRef(kinematics_data_tuple);
+    kinematics.reset(new_kins.release());
+    return pydescribe_kinematics(s, o);
     Py_RETURN_NONE;
 }
-
-struct _object *getKinematicsDataTuple(Kinematics_CanonicalRS274 const &)
-{
-    return PyTuple_New(0);
-}
-
-struct _object *getKinematicsDataTuple(NaiveSerialKinematics const &kins)
-{
-    PyObject *kinematics_data_tuple = PyTuple_New(1);
-    PyTuple_SET_ITEM(kinematics_data_tuple, 0, PyString_FromString(kins.geometry_str.c_str()));
-    return kinematics_data_tuple;
-}
-
-struct _object *getKinematicsDataTuple(Kinematics_RotaryA const &kins)
-{
-    PyObject *kinematics_data_tuple = PyTuple_New(3);
-    PyTuple_SET_ITEM(kinematics_data_tuple, 0, PyFloat_FromDouble(kins.a_y0));
-    PyTuple_SET_ITEM(kinematics_data_tuple, 1, PyFloat_FromDouble(kins.a_z0));
-    PyTuple_SET_ITEM(kinematics_data_tuple, 2, PyFloat_FromDouble(kins.orientation));
-    return kinematics_data_tuple;
-}
-
-// FIXME there has to be a better way to do this that doesn't shove details of Python API into the kinematics source file...
-static PyObject *pyget_preview_kinematics(PyObject *s, PyObject *o) {
-    switch (static_cast<KinsType>(kinematics->get_type())) {
-    case KinsNaive:
-    {
-        auto kp = dynamic_cast<NaiveSerialKinematics*>(kinematics.get());
-        if (!kp) {return nullptr;}
-        return getKinematicsDataTuple(*kp);
-    }
-    case KinsCanonicalRS274:
-    {
-        auto kp = dynamic_cast<NaiveSerialKinematics*>(kinematics.get());
-        if (!kp) {return nullptr;}
-        return getKinematicsDataTuple(*kp);
-    }
-    case KinsRotaryA:
-    {
-        auto kp = dynamic_cast<NaiveSerialKinematics*>(kinematics.get());
-        if (!kp) {return nullptr;}
-        return getKinematicsDataTuple(*kp);
-    }
-    }
-    Py_RETURN_NONE;
-}
-
-//
-// End of interface code for preview kinematics that needs to be updated with new types
-//
 
 static PyObject *pydescribe_kinematics(PyObject *s, PyObject *o) {
     return PyString_FromString(kinematics->describe().c_str());
@@ -2652,7 +2581,6 @@ static PyMethodDef emc_methods[] = {
 //    {"line9", pyline9, METH_VARARGS, "Draw a single line in the 'rs274.glcanon' format; assumes glBegin(GL_LINES)"},
 //    {"vertex9", pyvertex9, METH_VARARGS, "Get the 3d location for a 9d point"},
     {"set_preview_kinematics", pyset_preview_kinematics, METH_VARARGS, "Set up kinematics for use by the tool path preview and live plot"},
-    {"get_preview_kinematics", pyget_preview_kinematics, METH_NOARGS, "Get a storable kinematics data tuple for the current kinematics (that can be used to set up kinematics again in the future)"},
     {"get_kinematics_description", pydescribe_kinematics, METH_NOARGS, "Get a user-friendly description of the currently loaded kinematics"},
     {}
 };
