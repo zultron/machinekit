@@ -1421,9 +1421,6 @@ static PyObject *wait_complete(pyCommandChannel *s, PyObject *o) {
 }
 
 
-
-
-
 static PyMemberDef Command_members[] = {
     {(char*)"serial", T_INT, offsetof(pyCommandChannel, serial), READONLY},
     {NULL}
@@ -1639,6 +1636,52 @@ static PyTypeObject Error_Type = {
 // Assumed to always be non-null
 static std::unique_ptr<PreviewKinematicsBase> kinematics(new NaiveSerialKinematics);
 
+static PyObject *pyset_preview_kinematics(PyObject *s, PyObject *o) {
+    int kinematics_type;
+    PyObject *kinematics_data_tuple;
+    if(!PyArg_ParseTuple(o, "iO!:set_preview_kinematics",
+                          &kinematics_type,
+                          &PyTuple_Type,
+                          &kinematics_data_tuple
+                          )) {
+        return nullptr;
+    }
+    switch (static_cast<KinsType>(kinematics_type)) {
+    case KinsType::Naive:
+    {
+        const char *geometry;
+        if(!PyArg_ParseTuple(kinematics_data_tuple, "s:naive_kinematics",
+                              &geometry
+                              )) {
+            // TODO decref here?
+            return nullptr;
+        }
+        kinematics.reset(new NaiveSerialKinematics(geometry));
+        break;
+    }
+    case KinsType::CanonicalRS274:
+        // No data for the canonical case
+        kinematics.reset(new Kinematics_CanonicalRS274());
+        break;
+    case KinsType::RotaryA:
+    {
+        double a_y0, a_z0, orientation;
+        if(!PyArg_ParseTuple(kinematics_data_tuple, "ddd:rotary_a_kinematics",
+                              &a_y0,
+                              &a_z0,
+                              &orientation
+                              )) {
+            return nullptr;
+        }
+        kinematics.reset(new Kinematics_RotaryA(a_y0, a_z0, orientation));
+        break;
+    }
+    }
+    printf("kinematics configuration: %s", kinematics->describe().c_str());
+    Py_DecRef(kinematics_data_tuple);
+    Py_RETURN_NONE;
+}
+
 static PyObject *pyset_naive_kinematics(PyObject *s, PyObject *o) {
     const char *geometry="";
     if(!PyArg_ParseTuple(o, "s:set_naive_kinematics",
@@ -1652,7 +1695,7 @@ static PyObject *pyset_naive_kinematics(PyObject *s, PyObject *o) {
 
 static PyObject *pyset_xyz_kinematics(PyObject *, PyObject *) {
 
-    kinematics.reset(new Kinematics_XYZ());
+    kinematics.reset(new Kinematics_CanonicalRS274());
 
     Py_RETURN_NONE;
 }
@@ -1667,7 +1710,7 @@ static PyObject *pyset_xyza_kinematics(PyObject *s, PyObject *o) {
                           ))
         return nullptr;
 
-    kinematics.reset(new Kinematics_XYZA(y0, z0, flipped_A));
+    kinematics.reset(new Kinematics_RotaryA(y0, z0, flipped_A));
 
     Py_RETURN_NONE;
 }
@@ -2585,6 +2628,7 @@ static PyMethodDef emc_methods[] = {
     {"draw_oriented_axis_chain", pydraw_oriented_axis_chain, METH_VARARGS, "Draw the chain of axis displacements from the machine home position"},
 //    {"line9", pyline9, METH_VARARGS, "Draw a single line in the 'rs274.glcanon' format; assumes glBegin(GL_LINES)"},
 //    {"vertex9", pyvertex9, METH_VARARGS, "Get the 3d location for a 9d point"},
+    {"set_preview_kinematics", pyset_preview_kinematics, METH_VARARGS, "Set up kinematics for use by the tool path preview and live plot"},
     {"set_preview_naive_kinematics", pyset_naive_kinematics, METH_VARARGS, "Preview tool motions with trivial kinematics from the provided geometry specification"},
     {"set_preview_xyz_kinematics", pyset_xyz_kinematics, METH_NOARGS, "Preview tool motions with default XYZ kinematics"},
     {"set_preview_xyza_kinematics", pyset_xyza_kinematics, METH_VARARGS, "Preview tool motions with XYZA kinematics, specifying a fixed A axis intercept in the workspace"},

@@ -7,6 +7,18 @@ struct PM_CARTESIAN;
 
 using Array3 = std::array<double, 3>;
 
+/**
+ * Maps to the classes below (used when constructing a new kinematics object from Python API)
+ * Note that
+ */
+enum class KinsType
+{
+    Naive,
+    CanonicalRS274,
+    RotaryA,
+};
+
+
 class PreviewKinematicsBase
 {
 public:
@@ -35,10 +47,20 @@ public:
                          Array3 &rotation_xyz, //!< world view orientation, Euler XYZ convention (used for table-frame view)
                          Array3 &rotation_center //!< rotation center of tilt axes, used for table-frame view
                                );
+
+    virtual std::string describe() const; // Pretty-print the kinematics configuration for user debugging
     virtual ~PreviewKinematicsBase() = default;
 };
 
-using Kinematics_XYZ = PreviewKinematicsBase;
+/**
+ * Axes act as originally imagined in the RS274 spec:
+ * 1) XYZ position absolutely in workspace
+ * 2) ABC rotates the tool about its tip around each global axis (in that order)
+ * 3) UVW displaces the tool along the rotated axes.
+ *
+ * These are the kinematics of the "ideal" machine.
+ */
+using Kinematics_CanonicalRS274 = PreviewKinematicsBase;
 
 /**
  * Defines kinematics for a 4-axis machine with a fixed A axis
@@ -46,14 +68,14 @@ using Kinematics_XYZ = PreviewKinematicsBase;
  * No Tool Point Compensation (TPC) is currently supported. The A axis is at a fixed
  * location and orientation in the workspace.
  */
-class Kinematics_XYZA : public PreviewKinematicsBase
+class Kinematics_RotaryA : public PreviewKinematicsBase
 {
     double a_y0; // Absolute Y coordinate of A axis intercept in workspace
     double a_z0; // Absolute Z coordinate of A axis intercept in workspace
     double orientation; // +1 for right-facing A axis, -1 for left-facing
 public:
-    Kinematics_XYZA() = default;
-    Kinematics_XYZA(double y0, double z0, bool flipped) : a_y0(y0), a_z0(z0), orientation(flipped ? -1.0 : 1.0) {}
+    Kinematics_RotaryA() = default;
+    Kinematics_RotaryA(double y0, double z0, bool flipped) : a_y0(y0), a_z0(z0), orientation(flipped ? -1.0 : 1.0) {}
 
     virtual void forward(PositionArray const &p, Array3 &position_xyz, Array3 &rotation_xyz);
     virtual void forward_position(PositionArray const &p, Array3 &position_xyz);
@@ -61,6 +83,7 @@ public:
                          Array3 &position_xyz,
                          Array3 &rotation_xyz,
                          Array3 &rotation_center);
+    virtual std::string describe() const; // Pretty-print the kinematics configuration for user debugging
 };
 
 /**
@@ -81,6 +104,7 @@ public:
     NaiveSerialKinematics(const char *geometry_spec) : geometry_str(geometry_spec) {}
     virtual void forward(PositionArray const &p, Array3 &position_xyz, Array3 &rotation_xyz);
     virtual void forward_position(PositionArray const &pt, Array3 &p);
+    virtual std::string describe() const; // Pretty-print the kinematics configuration for user debugging
 };
 
 #endif // PREVIEWKINEMATICS_HH
