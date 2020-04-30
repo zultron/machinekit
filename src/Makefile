@@ -339,6 +339,7 @@ HEADERS := \
     emc/rs274ngc/work_offset_structs.hh \
     emc/interp_shared/coordinatetransform.hh \
     emc/interp_shared/positionarray.hh \
+    emc/interp_shared/array_math.hh \
     hal/hal.h \
     hal/hal_parport.h \
     libnml/buffer/locmem.hh \

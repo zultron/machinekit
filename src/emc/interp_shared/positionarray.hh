@@ -17,6 +17,8 @@
 
 #include <array>
 #include <bitset>
+#include <array_math.hh>
+
 struct EmcPose;
 
 static constexpr const size_t CANON_AXIS_COUNT = 9;
@@ -56,16 +58,6 @@ using AxisMask = std::bitset<64>;
 
 constexpr std::array<size_t, 6> linearAxes = {X,Y,Z,U,V,W};
 constexpr std::array<size_t, 3> angularAxes = {A,B,C};
-
-PositionArray & operator+=(PositionArray &b, PositionArray const &o);
-PositionArray & operator-=(PositionArray &b, PositionArray const &o);
-PositionArray operator+(PositionArray const &b, PositionArray const &o);
-PositionArray operator-(PositionArray const &b, PositionArray const &o);
-
-PositionArray & operator*=(PositionArray &b, double d);
-PositionArray operator*(PositionArray const &b, double d);
-PositionArray & operator/=(PositionArray &b, double d);
-PositionArray operator/(PositionArray const &b, double d);
 
 PositionArray abs(PositionArray const &p);
 PositionArray abs_diff(PositionArray const &b, PositionArray const &o);

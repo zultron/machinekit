@@ -16,24 +16,6 @@
 #include <emcpose.h>
 #include <algorithm>
 
-
-PositionArray & operator+=(PositionArray & b, const PositionArray & o)
-{
-    for (size_t k=0; k < MAX_USED_AXES; ++k) {
-        b[k] += o[k];
-    }
-    return b;
-}
-
-PositionArray & operator-=(PositionArray & b, const PositionArray & o)
-{
-    for (size_t k=0; k < MAX_USED_AXES; ++k) {
-        b[k] -= o[k];
-    }
-    return b;
-
-}
-
 PositionArray toArray(double _x, double _y, double _z, double _a, double _b, double _c, double _u, double _v, double _w)
 {
     return {_x, _y, _z, _a, _b, _c, _u, _v, _w};
@@ -80,47 +62,6 @@ void extract_axes(const PositionArray & p, double * _x, double * _y, double * _z
 {
     // FIXME no null checks here! be sure you know what you're doing!!
     extract_axes(p, *_x, *_y, *_z, *_a, *_b, *_c, *_u, *_v, *_w);
-}
-
-PositionArray operator+(const PositionArray & b, const PositionArray & o)
-{
-    PositionArray out = b;
-    return out += o;
-}
-
-PositionArray operator-(const PositionArray & b, const PositionArray & o)
-{
-    PositionArray out = b;
-    return out -= o;
-}
-
-PositionArray & operator*=(PositionArray & b, double d)
-{
-    for (size_t k=0; k < MAX_USED_AXES; ++k) {
-        b[k] *= d;
-    }
-    return b;
-}
-
-PositionArray operator*(const PositionArray & b, double d)
-{
-    PositionArray out = b;
-    return out *= d;
-}
-
-PositionArray & operator/=(PositionArray & b, double d)
-{
-    for (size_t k=0; k < MAX_USED_AXES; ++k) {
-        b[k] /= d;
-    }
-    return b;
-
-}
-
-PositionArray operator/(const PositionArray & b, double d)
-{
-    PositionArray out = b;
-    return out /= d;
 }
 
 PositionArray abs(const PositionArray & p)
