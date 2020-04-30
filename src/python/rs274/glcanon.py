@@ -562,22 +562,20 @@ class GlCanonDraw(glnav.GlNavBase):
 
         # KLUDGE check for special rendering cases here
         # TODO find a way to generalize this
-        if geom_spec == 'XYZA_FIXED':
+        if geom_spec == 'XYZA':
             y0 = self.inifile.find("DISPLAY", "A_AXIS_Y_ORIGIN") or 0.0
             z0 = self.inifile.find("DISPLAY", "A_AXIS_Z_ORIGIN") or 0.0
             flipped = self.inifile.find("DISPLAY", "A_AXIS_FLIPPED") or 0.0
-            linuxcnc.set_preview_xyza_kinematics(float(y0), float(z0), int(flipped))
+            linuxcnc.set_preview_kinematics(linuxcnc.KinsRotaryA, (float(y0), float(z0), float(flipped)))
             # For reference only, may remove this
-            self.geometry = geom_spec
-        elif geom_spec == 'XYZ':
-            linuxcnc.set_preview_xyz_kinematics()
             self.geometry = geom_spec
         else:
             # Reverse the provided order internally to match axis (not sure why)
             geometry_elems = re.split(" *(-?[XYZABCUVW])", geom_spec)
             geometry_reversed = ''.join(reversed(geometry_elems))
-            linuxcnc.set_preview_naive_kinematics(geometry_reversed)
+            linuxcnc.set_preview_kinematics(linuxcnc.KinsNaive, (geometry_reversed,))
             self.geometry = geometry_reversed
+        print linuxcnc.get_kinematics_description()
 
     def realize(self):
         self.hershey = hershey.Hershey()

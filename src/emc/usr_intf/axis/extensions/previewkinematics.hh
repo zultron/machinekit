@@ -11,11 +11,11 @@ using Array3 = std::array<double, 3>;
  * Maps to the classes below (used when constructing a new kinematics object from Python API)
  * Note that
  */
-enum class KinsType
+enum KinsType
 {
-    Naive,
-    CanonicalRS274,
-    RotaryA,
+    KinsNaive,
+    KinsCanonicalRS274,
+    KinsRotaryA,
 };
 
 class PreviewKinematicsBase;
@@ -54,7 +54,7 @@ public:
 
     virtual std::string describe() const; // Pretty-print the kinematics configuration for user debugging
     virtual ~PreviewKinematicsBase() = default;
-    virtual KinsType get_type() const {return KinsType::CanonicalRS274;}
+    virtual KinsType get_type() const {return KinsType::KinsCanonicalRS274;}
     friend struct _object *getKinematicsDataTuple(PreviewKinematicsBase const &);
 };
 
@@ -92,7 +92,7 @@ public:
                          Array3 &rotation_xyz,
                          Array3 &rotation_center);
     virtual std::string describe() const; // Pretty-print the kinematics configuration for user debugging
-    virtual KinsType get_type() const {return KinsType::RotaryA;}
+    virtual KinsType get_type() const {return KinsType::KinsRotaryA;}
     friend struct _object *getKinematicsDataTuple(Kinematics_RotaryA const &);
 };
 
@@ -115,7 +115,7 @@ public:
     virtual void forward(PositionArray const &p, Array3 &position_xyz, Array3 &rotation_xyz);
     virtual void forward_position(PositionArray const &pt, Array3 &p);
     virtual std::string describe() const; // Pretty-print the kinematics configuration for user debugging
-    virtual KinsType get_type() const {return KinsType::Naive;}
+    virtual KinsType get_type() const {return KinsType::KinsNaive;}
     friend struct _object *getKinematicsDataTuple(NaiveSerialKinematics const &);
 };
 

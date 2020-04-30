@@ -1651,7 +1651,7 @@ static PyObject *pyset_preview_kinematics(PyObject *s, PyObject *o) {
         return nullptr;
     }
     switch (static_cast<KinsType>(kinematics_type)) {
-    case KinsType::Naive:
+    case KinsNaive:
     {
         const char *geometry;
         if(!PyArg_ParseTuple(kinematics_data_tuple, "s:naive_kinematics",
@@ -1663,11 +1663,11 @@ static PyObject *pyset_preview_kinematics(PyObject *s, PyObject *o) {
         kinematics.reset(new NaiveSerialKinematics(geometry));
         break;
     }
-    case KinsType::CanonicalRS274:
+    case KinsCanonicalRS274:
         // No data for the canonical case
         kinematics.reset(new Kinematics_CanonicalRS274());
         break;
-    case KinsType::RotaryA:
+    case KinsRotaryA:
     {
         double a_y0, a_z0, orientation;
         if(!PyArg_ParseTuple(kinematics_data_tuple, "ddd:rotary_a_kinematics",
@@ -1681,7 +1681,6 @@ static PyObject *pyset_preview_kinematics(PyObject *s, PyObject *o) {
         break;
     }
     }
-    printf("kinematics configuration: %s", kinematics->describe().c_str());
     Py_DecRef(kinematics_data_tuple);
     Py_RETURN_NONE;
 }
@@ -1710,19 +1709,19 @@ struct _object *getKinematicsDataTuple(Kinematics_RotaryA const &kins)
 // FIXME there has to be a better way to do this that doesn't shove details of Python API into the kinematics source file...
 static PyObject *pyget_preview_kinematics(PyObject *s, PyObject *o) {
     switch (static_cast<KinsType>(kinematics->get_type())) {
-    case KinsType::Naive:
+    case KinsNaive:
     {
         auto kp = dynamic_cast<NaiveSerialKinematics*>(kinematics.get());
         if (!kp) {return nullptr;}
         return getKinematicsDataTuple(*kp);
     }
-    case KinsType::CanonicalRS274:
+    case KinsCanonicalRS274:
     {
         auto kp = dynamic_cast<NaiveSerialKinematics*>(kinematics.get());
         if (!kp) {return nullptr;}
         return getKinematicsDataTuple(*kp);
     }
-    case KinsType::RotaryA:
+    case KinsRotaryA:
     {
         auto kp = dynamic_cast<NaiveSerialKinematics*>(kinematics.get());
         if (!kp) {return nullptr;}
@@ -2828,6 +2827,11 @@ initlinuxcnc(void) {
     ENUM(RCS_DONE);
     ENUM(RCS_EXEC);
     ENUM(RCS_ERROR);
+
+    // Kinematics: expose types here to allow Python API to set up kinematics
+    ENUMX(0, KinsNaive);
+    ENUMX(0, KinsCanonicalRS274);
+    ENUMX(0, KinsRotaryA);
 }
 
 
