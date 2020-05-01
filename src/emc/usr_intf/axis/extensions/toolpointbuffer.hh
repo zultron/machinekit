@@ -9,8 +9,8 @@
 #include <mutex>
 
 // WARNING must be a power of two
-static constexpr size_t MAX_VERTICES = 1 << 20; // Requires a single allocation of 32MB
-static constexpr size_t DEFAULT_VERTICES = 1 << 18;
+static constexpr size_t MAX_VERTICES = 1 << 19; // Requires a single allocation of 16MB
+static constexpr size_t DEFAULT_VERTICES = 1 << 16; //65k points, equivalent to maxing out the old logger and changing tools ~6 times
 
 using RLock = std::lock_guard<std::recursive_mutex>;
 
