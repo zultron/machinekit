@@ -1636,6 +1636,10 @@ static PyTypeObject Error_Type = {
 // Assumed to always be non-null
 static std::unique_ptr<PreviewKinematicsBase> kinematics(new NaiveSerialKinematics);
 
+//
+// Start of interface code for preview kinematics that needs to be updated with new types
+//
+
 static PyObject *pyset_preview_kinematics(PyObject *s, PyObject *o) {
     int kinematics_type;
     PyObject *kinematics_data_tuple;
@@ -1682,37 +1686,58 @@ static PyObject *pyset_preview_kinematics(PyObject *s, PyObject *o) {
     Py_RETURN_NONE;
 }
 
-static PyObject *pyset_naive_kinematics(PyObject *s, PyObject *o) {
-    const char *geometry="";
-    if(!PyArg_ParseTuple(o, "s:set_naive_kinematics",
-                          &geometry
-                          ))
-        return nullptr;
+struct _object *getKinematicsDataTuple(Kinematics_CanonicalRS274 const &)
+{
+    return PyTuple_New(0);
+}
 
-    kinematics.reset(new NaiveSerialKinematics(geometry));
+struct _object *getKinematicsDataTuple(NaiveSerialKinematics const &kins)
+{
+    PyObject *kinematics_data_tuple = PyTuple_New(1);
+    PyTuple_SET_ITEM(kinematics_data_tuple, 0, PyString_FromString(kins.geometry_str.c_str()));
+    return kinematics_data_tuple;
+}
+
+struct _object *getKinematicsDataTuple(Kinematics_RotaryA const &kins)
+{
+    PyObject *kinematics_data_tuple = PyTuple_New(3);
+    PyTuple_SET_ITEM(kinematics_data_tuple, 0, PyFloat_FromDouble(kins.a_y0));
+    PyTuple_SET_ITEM(kinematics_data_tuple, 1, PyFloat_FromDouble(kins.a_z0));
+    PyTuple_SET_ITEM(kinematics_data_tuple, 2, PyFloat_FromDouble(kins.orientation));
+    return kinematics_data_tuple;
+}
+
+// FIXME there has to be a better way to do this that doesn't shove details of Python API into the kinematics source file...
+static PyObject *pyget_preview_kinematics(PyObject *s, PyObject *o) {
+    switch (static_cast<KinsType>(kinematics->get_type())) {
+    case KinsType::Naive:
+    {
+        auto kp = dynamic_cast<NaiveSerialKinematics*>(kinematics.get());
+        if (!kp) {return nullptr;}
+        return getKinematicsDataTuple(*kp);
+    }
+    case KinsType::CanonicalRS274:
+    {
+        auto kp = dynamic_cast<NaiveSerialKinematics*>(kinematics.get());
+        if (!kp) {return nullptr;}
+        return getKinematicsDataTuple(*kp);
+    }
+    case KinsType::RotaryA:
+    {
+        auto kp = dynamic_cast<NaiveSerialKinematics*>(kinematics.get());
+        if (!kp) {return nullptr;}
+        return getKinematicsDataTuple(*kp);
+    }
+    }
     Py_RETURN_NONE;
 }
 
-static PyObject *pyset_xyz_kinematics(PyObject *, PyObject *) {
+//
+// End of interface code for preview kinematics that needs to be updated with new types
+//
 
-    kinematics.reset(new Kinematics_CanonicalRS274());
-
-    Py_RETURN_NONE;
-}
-
-static PyObject *pyset_xyza_kinematics(PyObject *s, PyObject *o) {
-    double y0=0, z0=0;
-    int flipped_A=0;
-    if(!PyArg_ParseTuple(o, "|ddi:set_xyza_kinematics",
-                          &y0,
-                          &z0,
-                          &flipped_A
-                          ))
-        return nullptr;
-
-    kinematics.reset(new Kinematics_RotaryA(y0, z0, flipped_A));
-
-    Py_RETURN_NONE;
+static PyObject *pydescribe_kinematics(PyObject *s, PyObject *o) {
+    return PyString_FromString(kinematics->describe().c_str());
 }
 
 #include <GL/gl.h>
@@ -2629,9 +2654,8 @@ static PyMethodDef emc_methods[] = {
 //    {"line9", pyline9, METH_VARARGS, "Draw a single line in the 'rs274.glcanon' format; assumes glBegin(GL_LINES)"},
 //    {"vertex9", pyvertex9, METH_VARARGS, "Get the 3d location for a 9d point"},
     {"set_preview_kinematics", pyset_preview_kinematics, METH_VARARGS, "Set up kinematics for use by the tool path preview and live plot"},
-    {"set_preview_naive_kinematics", pyset_naive_kinematics, METH_VARARGS, "Preview tool motions with trivial kinematics from the provided geometry specification"},
-    {"set_preview_xyz_kinematics", pyset_xyz_kinematics, METH_NOARGS, "Preview tool motions with default XYZ kinematics"},
-    {"set_preview_xyza_kinematics", pyset_xyza_kinematics, METH_VARARGS, "Preview tool motions with XYZA kinematics, specifying a fixed A axis intercept in the workspace"},
+    {"get_preview_kinematics", pyget_preview_kinematics, METH_NOARGS, "Get a storable kinematics data tuple for the current kinematics (that can be used to set up kinematics again in the future)"},
+    {"get_kinematics_description", pydescribe_kinematics, METH_NOARGS, "Get a user-friendly description of the currently loaded kinematics"},
     {}
 };
 

@@ -18,6 +18,10 @@ enum class KinsType
     RotaryA,
 };
 
+class PreviewKinematicsBase;
+// KLUDGE ugly forward def to avoid including Python.h
+struct _object;
+_object * getKinematicsDataTuple(PreviewKinematicsBase const &kins);
 
 class PreviewKinematicsBase
 {
@@ -50,7 +54,11 @@ public:
 
     virtual std::string describe() const; // Pretty-print the kinematics configuration for user debugging
     virtual ~PreviewKinematicsBase() = default;
+    virtual KinsType get_type() const {return KinsType::CanonicalRS274;}
+    friend struct _object *getKinematicsDataTuple(PreviewKinematicsBase const &);
 };
+
+
 
 /**
  * Axes act as originally imagined in the RS274 spec:
@@ -84,6 +92,8 @@ public:
                          Array3 &rotation_xyz,
                          Array3 &rotation_center);
     virtual std::string describe() const; // Pretty-print the kinematics configuration for user debugging
+    virtual KinsType get_type() const {return KinsType::RotaryA;}
+    friend struct _object *getKinematicsDataTuple(Kinematics_RotaryA const &);
 };
 
 /**
@@ -105,6 +115,8 @@ public:
     virtual void forward(PositionArray const &p, Array3 &position_xyz, Array3 &rotation_xyz);
     virtual void forward_position(PositionArray const &pt, Array3 &p);
     virtual std::string describe() const; // Pretty-print the kinematics configuration for user debugging
+    virtual KinsType get_type() const {return KinsType::Naive;}
+    friend struct _object *getKinematicsDataTuple(NaiveSerialKinematics const &);
 };
 
 #endif // PREVIEWKINEMATICS_HH
