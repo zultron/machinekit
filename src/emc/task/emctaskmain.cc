@@ -1958,21 +1958,27 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TRAJ_LINEAR_MOVE_TYPE:
 	emcTrajLinearMoveMsg = (EMC_TRAJ_LINEAR_MOVE *) cmd;
-        retval = emcTrajLinearMove(emcTrajLinearMoveMsg->end,
-                                   emcTrajLinearMoveMsg->emc_motion_type, emcTrajLinearMoveMsg->vel,
-                                   emcTrajLinearMoveMsg->ini_maxvel, emcTrajLinearMoveMsg->acc,
-                                   emcTrajLinearMoveMsg->indexrotary, emcTrajLinearMoveMsg->pure_angular);
+        retval = emcTrajLinearMove(
+        emcTrajLinearMoveMsg->end,
+        emcTrajLinearMoveMsg->emc_motion_type,
+        emcTrajLinearMoveMsg->vel,
+        emcTrajLinearMoveMsg->ini_maxvel,
+        emcTrajLinearMoveMsg->acc,
+        emcTrajLinearMoveMsg->indexrotary);
 	break;
 
     case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
 	emcTrajCircularMoveMsg = (EMC_TRAJ_CIRCULAR_MOVE *) cmd;
-        retval = emcTrajCircularMove(emcTrajCircularMoveMsg->end,
-                emcTrajCircularMoveMsg->center, emcTrajCircularMoveMsg->normal,
-                emcTrajCircularMoveMsg->turn, emcTrajCircularMoveMsg->emc_motion_type,
-                emcTrajCircularMoveMsg->vel,
-                emcTrajCircularMoveMsg->ini_maxvel,
-                emcTrajCircularMoveMsg->acc,
-                emcTrajCircularMoveMsg->acc_normal);
+        retval = emcTrajCircularMove(
+        emcTrajCircularMoveMsg->end,
+        emcTrajCircularMoveMsg->center,
+        emcTrajCircularMoveMsg->normal,
+        emcTrajCircularMoveMsg->turn,
+        emcTrajCircularMoveMsg->emc_motion_type,
+        emcTrajCircularMoveMsg->vel,
+        emcTrajCircularMoveMsg->ini_maxvel,
+        emcTrajCircularMoveMsg->acc,
+        emcTrajCircularMoveMsg->acc_normal);
 	break;
 
     case EMC_TRAJ_PAUSE_TYPE:
@@ -2050,13 +2056,12 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_TRAJ_PROBE_TYPE:
-	retval = emcTrajProbe(
-	    ((EMC_TRAJ_PROBE *) cmd)->pos,
-        ((EMC_TRAJ_PROBE *) cmd)->motion_type,
-	    ((EMC_TRAJ_PROBE *) cmd)->vel,
-            ((EMC_TRAJ_PROBE *) cmd)->ini_maxvel,  
-	    ((EMC_TRAJ_PROBE *) cmd)->acc,
-        ((EMC_TRAJ_PROBE *) cmd)->pure_angular,
+    retval = emcTrajProbe(
+            ((EMC_TRAJ_PROBE *) cmd)->pos,
+            ((EMC_TRAJ_PROBE *) cmd)->motion_type,
+            ((EMC_TRAJ_PROBE *) cmd)->vel,
+            ((EMC_TRAJ_PROBE *) cmd)->ini_maxvel,
+            ((EMC_TRAJ_PROBE *) cmd)->acc,
             ((EMC_TRAJ_PROBE *) cmd)->probe_type);
     break;
 

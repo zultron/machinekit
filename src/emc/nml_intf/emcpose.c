@@ -158,6 +158,20 @@ int pmCartesianToEmcPose(PmCartesian const * const xyz,
     return EMCPOSE_ERR_OK;
 }
 
+// TODO optimize
+int emcPoseToPmVector(EmcPose const * const pose, PmVector * const v)
+{
+    PmCartesian p1,p2,p3;
+    emcPoseToPmCartesian(pose, &p1, &p2, &p3);
+    return CartToVec(&p1, &p2, &p3, v);
+}
+
+int pmVectorToEmcPose(PmVector const * const v, EmcPose * const pose)
+{
+    PmCartesian p1,p2,p3;
+    VecToCart(v, &p1, &p2, &p3);
+    return pmCartesianToEmcPose(&p1, &p2, &p3, pose);
+}
 
 int emcPoseSetXYZ(PmCartesian const * const xyz, EmcPose * const pose)
 {
@@ -320,27 +334,4 @@ int emcPoseValid(EmcPose const * const pose)
     } else {
         return 1;
     }
-}
-
-/**
- * Checks all axis values in an EmcPose to see if they exceed a magnitude threshold.
- * @return a bitmask that is 0 if all axes are within the threshold. Any
- * out-of-limit axes set their corresponding bit to 1 in the returned value (X
- * is 0th bit, Y is 1st, etc.).
- */
-unsigned int findAbsThresholdViolations(EmcPose vec, double threshold)
-{
-    threshold = fabs(threshold);
-    // Bit-mask each failure so we can report all failed axes
-    unsigned fail_bits = (unsigned)(0x0
-            | (fabs(vec.tran.x) > threshold) << 0
-            | (fabs(vec.tran.y) > threshold) << 1
-            | (fabs(vec.tran.z) > threshold) << 2
-            | (fabs(vec.a) > threshold) << 3
-            | (fabs(vec.b) > threshold) << 4
-            | (fabs(vec.c) > threshold) << 5
-            | (fabs(vec.u) > threshold) << 6
-            | (fabs(vec.v) > threshold) << 7
-            | (fabs(vec.w) > threshold) << 8);
-    return fail_bits;
 }

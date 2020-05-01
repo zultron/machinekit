@@ -41,18 +41,35 @@ void init_motion_globals(double a_max)
     emcmotConfig->arc_blend_cfg.ramp_frequency = 100;
     emcmotConfig->maxFeedScale = 2.0;
 
+    emcmotConfig->min_displacement_cfg.min_linear_displacement = 1e-7;
+    emcmotConfig->min_displacement_cfg.min_angular_displacement = 1e-7;
+
     joints = emcmotDebug->joints;
 
     // assume an XYZ machine
-    emcmotConfig->numJoints=4;
-    emcmot_joint_t mock_j={0};
-    mock_j.max_pos_limit = 20;
-    mock_j.min_pos_limit = -20;
-    mock_j.vel_limit = 2.0;
-    mock_j.acc_limit = a_max;
+    emcmotConfig->numJoints=9;
+    emcmot_joint_t mock_xyz={0};
+    mock_xyz.max_pos_limit = 20;
+    mock_xyz.min_pos_limit = -20;
+    mock_xyz.vel_limit = 2.0;
+    mock_xyz.acc_limit = a_max;
 
-    for (int i = 0; i < 4; ++i) {
-        joints[i] = mock_j;
+    for (int i = 0; i < 3; ++i) {
+        joints[i] = mock_xyz;
+    }
+
+    emcmot_joint_t mock_abc={0};
+    mock_abc.max_pos_limit = 1000;
+    mock_abc.min_pos_limit = -1000;
+    mock_abc.vel_limit = 20.0;
+    mock_abc.acc_limit = 3.0*a_max;
+
+    for (int i = 3; i < 6; ++i) {
+        joints[i] = mock_abc;
+    }
+
+    for (int i = 6; i < 9; ++i) {
+        joints[i] = mock_xyz;
     }
 
     emcmotConfig->biarc_solver_cfg.max_iterations = 15;

@@ -22,6 +22,7 @@
 #include "canon.hh"		// CANON_TOOL_TABLE, CANON_UNITS
 #include "rs274ngc.hh"		// ACTIVE_G_CODES, etc
 
+#include "posemath_ext.hh"
 #include <interp_parameter_def.hh>
 #include <array>
 #include <coordinatetransform.hh>
@@ -824,7 +825,6 @@ class EMC_TRAJ_LINEAR_MOVE:public EMC_TRAJ_CMD_MSG {
     double vel, ini_maxvel, acc;
     int feed_mode;
     int indexrotary;
-    int pure_angular;
 };
 
 class EMC_TRAJ_CIRCULAR_MOVE:public EMC_TRAJ_CMD_MSG {
@@ -993,7 +993,6 @@ class EMC_TRAJ_PROBE:public EMC_TRAJ_CMD_MSG {
     EmcPose pos;
     static constexpr int motion_type = EMC_MOTION_TYPE_PROBING;
     double vel, ini_maxvel, acc;
-    int pure_angular;
     unsigned char probe_type;
 };
 

@@ -49,8 +49,10 @@
 
 #include "coordinatetransform.hh"
 #include "units.h"
+#include "path_geom_util.hh"
 
 #include <algorithm>
+#include <numeric>
 
 //#define EMCCANON_DEBUG
 
@@ -58,16 +60,18 @@ static constexpr double RIGID_TAP_LEADIN_SAFETY_FACTOR = 1.25;
 
 //Simple compile-time debug macro
 #ifdef EMCCANON_DEBUG
+#include <iostream>
 #define canon_debug(...) fprintf(stderr,__VA_ARGS__)
+#define debug_canon_var(varname) (std::cout << #varname << " = " << varname)
 #else
+#define debug_canon_var(varname)
 #define canon_debug(...)
 #endif
 
 static bool limitSpindleSpeed(double rpm);
 static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel);
-static double limitSpindleSpeedByActiveFeedRate(double ini_maxvel);
+static double getPathVelocityFromActiveFeed(VelData const &vel_data, CanonFeedAxisReferenceType feed_axes);
 
-static int debug_velacc = 0;
 static double css_maximum; // both always positive
 static int spindle_dir = 0;
 
@@ -95,22 +99,6 @@ void UPDATE_TAG(StateTag const &tag) {
 #define IS_PERIODIC(axisnum) (0)
 
 #define AXIS_PERIOD(axisnum) (IS_PERIODIC(axisnum) ? 360 : 0)
-
-//KLUDGE kinematic data struct (instead of returning a single float value)
-//FIXME This should really be refactored into a more general structure, but this
-//means tearing up the getStraightXXX functions, which probably means
-//converting to canon_position operators
-struct VelData {
-    double tmax;
-    double vel;
-    double dtot;
-};
-
-struct AccelData{
-    double tmax;
-    double acc;
-    double dtot;
-};
 
 static PM_QUATERNION quat(1, 0, 0, 0);
 
@@ -333,11 +321,6 @@ static void to_prog(PositionArray &e) {
     program_to_canon_units.apply_fwd(e);
 }
 
-
-static int axis_valid(int n) {
-    return emcStatus->motion.traj.axis_mask & (1<<n);
-}
-
 /*
   canonEndPoint is the last programmed end point, stored in case it's
   needed for subsequent calculations. It's in absolute frame, mm units.
@@ -347,13 +330,7 @@ static int axis_valid(int n) {
   retrieves the xyz position after the last of the queued segments.  these
   are also in absolute frame, mm units.
   */
-static PositionArray canonEndPoint{};
-static void canonUpdateEndPoint(double x, double y, double z,
-                                double a, double b, double c,
-                                double u, double v, double w)
-{
-    canonEndPoint = {x, y, z, a, b, c, u, v, w};
-}
+static PositionArray canonEndPoint;
 
 static void canonUpdateEndPoint(const PositionArray & pos)
 {
@@ -372,6 +349,17 @@ void CANON_UPDATE_END_POINT(double x, double y, double z,
     canonUpdateEndPoint(end_point);
 }
 
+static void tagFeedAxes(DisplacementData const &disp_data, StateTag &tag)
+{
+    tag.fields[GM_FIELD_FEED_AXES] = disp_data.feed_axes;
+}
+
+static DisplacementData getCanonStraightDisplacement(PositionArray const &p_goal_ext, StateTag &tag)
+{
+    DisplacementData disp_data = getStraightDisplacement(ConvertsCanonToUserUnits().forward(canonEndPoint), p_goal_ext);
+    tagFeedAxes(disp_data, tag);
+    return disp_data;
+}
 
 /* motion control mode is used to signify blended v. stop-at-end moves.
    Set to 0 (invalid) at start, so first call will send command out */
@@ -410,8 +398,6 @@ static double currentAngularFeedRate = 0.0;
    a combination of both. */
    //AJ says: linear means axes XYZ move (lines or even circles)
    //         angular means axes ABC move
-static int cartesian_move = 0;
-static int angular_move = 0;
 
 enum FeedRateType
 {
@@ -423,7 +409,7 @@ enum FeedRateType
  * Get the nominal feed rate currently active.
  * If spindle sync is active, this function estimates the equivalent feed rate under ideal conditions.
  */
-static double getActiveFeedRate(FeedRateType angular)
+static double getActiveExtFeedRate(CanonFeedAxisReferenceType feed_axes)
 {
     double uuPerRev = feed_mode ? uuPerRev_vel : uuPerRev_pos;
     // KLUDGE effective spindle speed depends on current state
@@ -434,28 +420,17 @@ static double getActiveFeedRate(FeedRateType angular)
 
     double uu_per_sec = uuPerRev * planned_spindle_rpm / 60.0;
 
-    //KLUDGE relies on external state here
-    if (!angular) {
-        return synched ? FROM_PROG_LEN(uu_per_sec) : currentLinearFeedRate;
-    } else {
-        return synched ? FROM_PROG_ANG(uu_per_sec) : currentAngularFeedRate;
+    switch (feed_axes) {
+    case CANON_FEED_XYZ:
+    case CANON_FEED_UVW:
+        return TO_EXT_LEN(synched ? FROM_PROG_LEN(uu_per_sec) : currentLinearFeedRate);
+    case CANON_FEED_ABC:
+        return TO_EXT_ANG(synched ? FROM_PROG_ANG(uu_per_sec) : currentAngularFeedRate);
+    case CANON_FEED_NONE:
+        break;
     }
+    return 0.0;
 }
-
-
-static double toExtVel(double vel) {
-    if (cartesian_move && !angular_move) {
-	return TO_EXT_LEN(vel);
-    } else if (!cartesian_move && angular_move) {
-	return TO_EXT_ANG(vel);
-    } else if (cartesian_move && angular_move) {
-	return TO_EXT_LEN(vel);
-    } else { //seems this case was forgotten, neither linear, neither angular move (we are only sending vel)
-	return TO_EXT_LEN(vel);
-    }	
-}
-
-static double toExtAcc(double acc) { return toExtVel(acc); }
 
 static void send_g5x_msg(int index, RotateShiftTransform work_offset) {
     flush_segments();
@@ -586,342 +561,29 @@ void SET_FEED_REFERENCE(CANON_FEED_REFERENCE reference)
  *
  * @todo revisit this when the TP is overhauled to use a consistent set of internal units.
  */
-static double getMinLinearDisplacement()
+static constexpr double getTPMinLinearDisplacement()
 {
-    return FROM_EXT_LEN(CART_FUZZ);
+    return CART_FUZZ;
 }
 
 /**
  * Equivalent of getMinLinearDisplacement for rotary axes.
  */
-static double getMinAngularDisplacement()
+static constexpr double getTPMinAngularDisplacement()
 {
-    return FROM_EXT_ANG(CART_FUZZ);
-}
-
-/**
- * Apply the minimum displacement check to each axis delta.
- *
- * Checks that the axis is valid / active, and looks up the appropriate minimum
- * displacement for the axis type and user units.
- */
-static void applyMinDisplacement(double &dx,
-                                 double &dy,
-                                 double &dz,
-                                 double &da,
-                                 double &db,
-                                 double &dc,
-                                 double &du,
-                                 double &dv,
-                                 double &dw
-                                 )
-{
-    const double tiny_linear = getMinLinearDisplacement();
-    const double tiny_angular = getMinAngularDisplacement();
-    if(!axis_valid(0) || dx < tiny_linear) dx = 0.0;
-    if(!axis_valid(1) || dy < tiny_linear) dy = 0.0;
-    if(!axis_valid(2) || dz < tiny_linear) dz = 0.0;
-    if(!axis_valid(3) || da < tiny_angular) da = 0.0;
-    if(!axis_valid(4) || db < tiny_linear) db = 0.0;
-    if(!axis_valid(5) || dc < tiny_linear) dc = 0.0;
-    if(!axis_valid(6) || du < tiny_linear) du = 0.0;
-    if(!axis_valid(7) || dv < tiny_linear) dv = 0.0;
-    if(!axis_valid(8) || dw < tiny_linear) dw = 0.0;
-}
-
-
-/**
- * Get the limiting acceleration for a displacement from the current position to the given position.
- * returns a single acceleration that is the minimum of all axis accelerations.
- */
-static AccelData getStraightAcceleration(
-  double x, double y, double z,
-  double a, double b, double c,
-  double u, double v, double w,
-  int known_xyz_motion)
-{
-    double dx, dy, dz, du, dv, dw, da, db, dc;
-    double tx, ty, tz, tu, tv, tw, ta, tb, tc;
-    AccelData out;
-
-    out.acc = 0.0; // if a move to nowhere
-    out.tmax = 0;
-    out.dtot = 0;
-
-    // Compute absolute travel distance for each axis:
-    dx = fabs(x - canonEndPoint[X]);
-    dy = fabs(y - canonEndPoint[Y]);
-    dz = fabs(z - canonEndPoint[Z]);
-    da = fabs(a - canonEndPoint[A]);
-    db = fabs(b - canonEndPoint[B]);
-    dc = fabs(c - canonEndPoint[C]);
-    du = fabs(u - canonEndPoint[U]);
-    dv = fabs(v - canonEndPoint[V]);
-    dw = fabs(w - canonEndPoint[W]);
-
-    applyMinDisplacement(dx, dy, dz, da, db, dc, du, dv, dw);
-
-    if(debug_velacc) 
-        printf("getStraightAcceleration dx %g dy %g dz %g da %g db %g"
-               " dc %g du %g dv %g dw %g\n", 
-               dx, dy, dz, da, db, dc, du, dv, dw);
-
-    // Figure out what kind of move we're making.  This is used to determine
-    // the units of vel/acc.
-    if (known_xyz_motion)
-      cartesian_move = 1;
-    else if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
-        du <= 0.0 && dv <= 0.0 && dw <= 0.0) {
-	cartesian_move = 0;
-    } else {
-	cartesian_move = 1;
-    }
-    if (da <= 0.0 && db <= 0.0 && dc <= 0.0) {
-	angular_move = 0;
-    } else {
-	angular_move = 1;
-    }
-
-    // Pure linear move:
-    if (cartesian_move && !angular_move) {
-	tx = dx? (dx / FROM_EXT_LEN(axis_max_acceleration[0])): 0.0;
-	ty = dy? (dy / FROM_EXT_LEN(axis_max_acceleration[1])): 0.0;
-	tz = dz? (dz / FROM_EXT_LEN(axis_max_acceleration[2])): 0.0;
-	tu = du? (du / FROM_EXT_LEN(axis_max_acceleration[6])): 0.0;
-	tv = dv? (dv / FROM_EXT_LEN(axis_max_acceleration[7])): 0.0;
-    tw = dw? (dw / FROM_EXT_LEN(axis_max_acceleration[8])): 0.0;
-    out.tmax = std::max({tx, ty ,tz});
-    out.tmax = std::max({tu, tv, tw, out.tmax});
-
-        if(dx || dy || dz)
-            out.dtot = sqrt(dx * dx + dy * dy + dz * dz);
-        else
-            out.dtot = sqrt(du * du + dv * dv + dw * dw);
-        
-	if (out.tmax > 0.0) {
-	    out.acc = out.dtot / out.tmax;
-	}
-    }
-    // Pure angular move:
-    else if (!cartesian_move && angular_move) {
-	ta = da? (da / FROM_EXT_ANG(axis_max_acceleration[3])): 0.0;
-	tb = db? (db / FROM_EXT_ANG(axis_max_acceleration[4])): 0.0;
-    tc = dc? (dc / FROM_EXT_ANG(axis_max_acceleration[5])): 0.0;
-    out.tmax = std::max({ta, tb, tc});
-
-	out.dtot = sqrt(da * da + db * db + dc * dc);
-	if (out.tmax > 0.0) {
-	    out.acc = out.dtot / out.tmax;
-	}
-    }
-    // Combination angular and linear move:
-    else if (cartesian_move && angular_move) {
-	tx = dx? (dx / FROM_EXT_LEN(axis_max_acceleration[0])): 0.0;
-	ty = dy? (dy / FROM_EXT_LEN(axis_max_acceleration[1])): 0.0;
-	tz = dz? (dz / FROM_EXT_LEN(axis_max_acceleration[2])): 0.0;
-	ta = da? (da / FROM_EXT_ANG(axis_max_acceleration[3])): 0.0;
-	tb = db? (db / FROM_EXT_ANG(axis_max_acceleration[4])): 0.0;
-	tc = dc? (dc / FROM_EXT_ANG(axis_max_acceleration[5])): 0.0;
-	tu = du? (du / FROM_EXT_LEN(axis_max_acceleration[6])): 0.0;
-	tv = dv? (dv / FROM_EXT_LEN(axis_max_acceleration[7])): 0.0;
-    tw = dw? (dw / FROM_EXT_LEN(axis_max_acceleration[8])): 0.0;
-    out.tmax = std::max({tx, ty, tz,
-                         ta, tb, tc,
-                         tu, tv, tw});
-
-    if(debug_velacc)
-        printf("getStraightAcceleration t^2 tx %g ty %g tz %g ta %g tb %g tc %g tu %g tv %g tw %g\n", 
-               tx, ty, tz, ta, tb, tc, tu, tv, tw);
-/*  According to NIST IR6556 Section 2.1.2.5 Paragraph A
-    a combnation move is handled like a linear move, except
-    that the angular axes are allowed sufficient time to
-    complete their motion coordinated with the motion of
-    the linear axes.
-*/
-        if(dx || dy || dz)
-            out.dtot = sqrt(dx * dx + dy * dy + dz * dz);
-        else
-            out.dtot = sqrt(du * du + dv * dv + dw * dw);
-
-	if (out.tmax > 0.0) {
-	    out.acc = out.dtot / out.tmax;
-	}
-    }
-    if(debug_velacc) 
-        printf("cartesian %d ang %d acc %g\n", cartesian_move, angular_move, out.acc);
-    return out;
-}
-
-static AccelData getStraightAcceleration(
-  double x, double y, double z,
-  double a, double b, double c,
-  double u, double v, double w)
-{
-    return getStraightAcceleration(
-      x, y, z, a, b, c, u, v, w, 0);
-}
-
-static AccelData getStraightAcceleration(PositionArray pos,
-                                         int known_xyz_motion)
-{
-
-    return getStraightAcceleration(pos[X],
-            pos[Y],
-            pos[Z],
-            pos[A],
-            pos[B],
-            pos[C],
-            pos[U],
-            pos[V],
-            pos[W],
-            known_xyz_motion);
-}
-
-static VelData getStraightVelocity(double x, double y, double z,
-                                   double a, double b, double c,
-                                   double u, double v, double w)
-{
-    double dx, dy, dz, da, db, dc, du, dv, dw;
-    double tx, ty, tz, ta, tb, tc, tu, tv, tw;
-    VelData out;
-
-/* If we get a move to nowhere (!cartesian_move && !angular_move)
-   we might as well go there at the currentLinearFeedRate...
-*/
-    out.vel = getActiveFeedRate(FEED_LINEAR);
-    out.tmax = 0;
-    out.dtot = 0;
-
-    // Compute absolute travel distance for each axis:
-    dx = fabs(x - canonEndPoint[X]);
-    dy = fabs(y - canonEndPoint[Y]);
-    dz = fabs(z - canonEndPoint[Z]);
-    da = fabs(a - canonEndPoint[A]);
-    db = fabs(b - canonEndPoint[B]);
-    dc = fabs(c - canonEndPoint[C]);
-    du = fabs(u - canonEndPoint[U]);
-    dv = fabs(v - canonEndPoint[V]);
-    dw = fabs(w - canonEndPoint[W]);
-
-    applyMinDisplacement(dx, dy, dz, da, db, dc, du, dv, dw);
-
-    if(debug_velacc) 
-        printf("getStraightVelocity dx %g dy %g dz %g da %g db %g dc %g du %g dv %g dw %g\n",
-               dx, dy, dz, da, db, dc, du, dv, dw);
-
-    // Figure out what kind of move we're making:
-    if (dx <= 0.0 && dy <= 0.0 && dz <= 0.0 &&
-        du <= 0.0 && dv <= 0.0 && dw <= 0.0) {
-	cartesian_move = 0;
-    } else {
-	cartesian_move = 1;
-    }
-    if (da <= 0.0 && db <= 0.0 && dc <= 0.0) {
-	angular_move = 0;
-    } else {
-	angular_move = 1;
-    }
-
-    // Pure linear move:
-    if (cartesian_move && !angular_move) {
-        tx = dx? fabs(dx / FROM_EXT_LEN(axis_max_velocity[0])): 0.0;
-        ty = dy? fabs(dy / FROM_EXT_LEN(axis_max_velocity[1])): 0.0;
-        tz = dz? fabs(dz / FROM_EXT_LEN(axis_max_velocity[2])): 0.0;
-        tu = du? fabs(du / FROM_EXT_LEN(axis_max_velocity[6])): 0.0;
-        tv = dv? fabs(dv / FROM_EXT_LEN(axis_max_velocity[7])): 0.0;
-        tw = dw? fabs(dw / FROM_EXT_LEN(axis_max_velocity[8])): 0.0;
-        out.tmax = std::max({tx, ty ,tz});
-        out.tmax = std::max({tu, tv, tw, out.tmax});
-
-        if(dx || dy || dz)
-            out.dtot = sqrt(dx * dx + dy * dy + dz * dz);
-        else
-            out.dtot = sqrt(du * du + dv * dv + dw * dw);
-
-        if (out.tmax <= 0.0) {
-            out.vel = getActiveFeedRate(FEED_LINEAR);
-        } else {
-            out.vel = out.dtot / out.tmax;
-        }
-    }
-    // Pure angular move:
-    else if (!cartesian_move && angular_move) {
-        ta = da? fabs(da / FROM_EXT_ANG(axis_max_velocity[3])):0.0;
-        tb = db? fabs(db / FROM_EXT_ANG(axis_max_velocity[4])):0.0;
-        tc = dc? fabs(dc / FROM_EXT_ANG(axis_max_velocity[5])):0.0;
-        out.tmax = std::max({ta, tb, tc});
-
-        out.dtot = sqrt(da * da + db * db + dc * dc);
-        if (out.tmax <= 0.0) {
-            out.vel = getActiveFeedRate(FEED_ANGULAR);
-        } else {
-            out.vel = out.dtot / out.tmax;
-        }
-    }
-    // Combination angular and linear move:
-    else if (cartesian_move && angular_move) {
-        tx = dx? fabs(dx / FROM_EXT_LEN(axis_max_velocity[0])): 0.0;
-        ty = dy? fabs(dy / FROM_EXT_LEN(axis_max_velocity[1])): 0.0;
-        tz = dz? fabs(dz / FROM_EXT_LEN(axis_max_velocity[2])): 0.0;
-        ta = da? fabs(da / FROM_EXT_ANG(axis_max_velocity[3])): 0.0;
-        tb = db? fabs(db / FROM_EXT_ANG(axis_max_velocity[4])): 0.0;
-        tc = dc? fabs(dc / FROM_EXT_ANG(axis_max_velocity[5])): 0.0;
-        tu = du? fabs(du / FROM_EXT_LEN(axis_max_velocity[6])): 0.0;
-        tv = dv? fabs(dv / FROM_EXT_LEN(axis_max_velocity[7])): 0.0;
-        tw = dw? fabs(dw / FROM_EXT_LEN(axis_max_velocity[8])): 0.0;
-        out.tmax = std::max({
-            tx, ty, tz,
-            ta, tb, tc,
-            tu, tv, tw
-        });
-
-        if(debug_velacc)
-            printf("getStraightVelocity times tx %g ty %g tz %g ta %g tb %g tc %g tu %g tv %g tw %g\n",
-                    tx, ty, tz, ta, tb, tc, tu, tv, tw);
-
-        /*  According to NIST IR6556 Section 2.1.2.5 Paragraph A
-            a combnation move is handled like a linear move, except
-            that the angular axes are allowed sufficient time to
-            complete their motion coordinated with the motion of
-            the linear axes.
-            */
-        if(dx || dy || dz)
-            out.dtot = sqrt(dx * dx + dy * dy + dz * dz);
-        else
-            out.dtot = sqrt(du * du + dv * dv + dw * dw);
-
-        if (out.tmax <= 0.0) {
-            out.vel = getActiveFeedRate(FEED_LINEAR);
-        } else {
-            out.vel = out.dtot / out.tmax;
-        }
-    }
-    if(debug_velacc) 
-        printf("cartesian %d ang %d vel %g\n", cartesian_move, angular_move, out.vel);
-    return out;
-}
-
-static VelData getStraightVelocity(PositionArray pos)
-{
-
-    return getStraightVelocity(pos[X],
-            pos[Y],
-            pos[Z],
-            pos[A],
-            pos[B],
-            pos[C],
-            pos[U],
-            pos[V],
-            pos[W]);
+    return CART_FUZZ;
 }
 
 #include <vector>
-struct TaggedPoint : PositionArray {
-    TaggedPoint(PositionArray const &p, StateTag const &tag_in) :
-        PositionArray(p),
+struct TaggedPoint {
+    TaggedPoint(PositionArray const &p_in, StateTag const &tag_in) :
+        p(p_in),
         tag(tag_in)
     {
     }
+    double &operator[](size_t i) {return p[i];}
+    double const &operator[](size_t i) const {return p[i];}
+    PositionArray p;
     StateTag tag;
 };
 
@@ -931,45 +593,49 @@ static void drop_segments(void) {
     chained_points.clear();
 }
 
+
+
 static void flush_segments(void) {
     if(chained_points.empty()) return;
 
-    TaggedPoint const &pos = chained_points.back();
-
-    double x = pos[X], y = pos[Y], z = pos[Z];
-    double a = pos[A], b = pos[B], c = pos[C];
-    double u = pos[U], v = pos[V], w = pos[W];
-    
+    canon_debug("Flushing segments up to line %d\n", line_no);
 #ifdef SHOW_JOINED_SEGMENTS
     for(unsigned int i=0; i != chained_points.size(); i++) { printf("."); }
     printf("\n");
 #endif
 
-    VelData linedata = getStraightVelocity(x, y, z, a, b, c, u, v, w);
-    double ini_maxvel = linedata.vel;
+    PositionArray const &goal_pos_canon = chained_points.back().p;
 
-    double vel = limitSpindleSpeedByActiveFeedRate(ini_maxvel);
+    PositionArray p_goal_ext = ConvertsCanonToUserUnits().forward(goal_pos_canon);
+
+    DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, chained_points.back().tag);
+
+    VelData vel_data = getStraightVelocity(disp_data);
+    AccelData acc_data = getStraightAcceleration(disp_data);
+
+    double v_path_max = vel_data.v_max_path;
+
+    double v_req = getActiveExtFeedRate(disp_data.feed_axes);
+    limitSpindleSpeedFromVel(v_req, v_path_max);
+
+    double v_req_path = getPathVelocityFromActiveFeed(vel_data, disp_data.feed_axes);
+
     canon_debug("Line segment maximum velocity %f, requested vel %f\n", ini_maxvel, vel);
 
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = feed_mode;
-
-    linearMoveMsg.end = to_ext_pose(pos);
-
-    linearMoveMsg.pure_angular = angular_move && !cartesian_move;
-    linearMoveMsg.vel = toExtVel(vel);
-    linearMoveMsg.ini_maxvel = toExtVel(ini_maxvel);
-    AccelData lineaccdata = getStraightAcceleration(x, y, z, a, b, c, u, v, w);
-    double acc = lineaccdata.acc;
-    linearMoveMsg.acc = toExtAcc(acc);
-
+    linearMoveMsg.end = toEmcPose(p_goal_ext);
+    linearMoveMsg.vel = v_req_path;
+    linearMoveMsg.ini_maxvel = vel_data.v_max_path;
+    linearMoveMsg.acc = acc_data.a_max_path;
     linearMoveMsg.emc_motion_type = EMC_MOTION_TYPE_FEED;
     linearMoveMsg.indexrotary = -1;
 
-    if ((vel && acc) || synched) {
-        tag_and_send(linearMoveMsg, pos.tag);
+    // FIXME why do we allow zero-length synched moves?
+    if (disp_data.feed_axes != CANON_FEED_NONE || synched) {
+        tag_and_send(linearMoveMsg, chained_points.back().tag);
     }
-    canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
+    canonUpdateEndPoint(goal_pos_canon);
 
     drop_segments();
 }
@@ -987,10 +653,68 @@ static void get_last_pos(double &lx, double &ly, double &lz) {
     }
 }
 
+
+/**
+ * Compute distance from a point to a finite line segment.
+ * @param P0 first point of line segment
+ * @param P1 second point of line segment
+ * @param R point to test
+ * @return distance between point and segment
+ *
+ * Uses the voronoi regions of a line segment to compute distance:
+ *
+ *       .                        .
+ *       .         (2)            .
+ *       .                        .
+ * (1)   x-------line-segment-----x      (4)
+ *       . P0                     . P1
+ *       .                        .
+ *       .          (3)           .
+ *       .                        .
+ *
+ *  If the test point lies in regions 2 / 3 in the above diagram, we find the
+ *  perpendicular distance to the line.
+ *  In region (1), the distance to the segment is R - P0
+ *  In region (4), the distance to the segment is R - P1
+ */
+static double distance_to_segment(PM_CARTESIAN const & P0,
+        PM_CARTESIAN const & P1,
+        PM_CARTESIAN const & R)
+{
+    // Find relative distances from first point
+    PM_CARTESIAN V = R - P0;
+    PM_CARTESIAN M = P1 - P0;
+
+    // Project onto M
+    double base_dist_sq = dot(M, M);
+
+    // Distance along the line segment to the point closest to R (if R is in
+    // region 2/3)
+    double t0;
+    if (base_dist_sq > getTPMinLinearDisplacement()) {
+        t0 = dot(M, V) / base_dist_sq;
+    } else {
+        // Degenerate segment, use end point to calculate distance
+        t0 = 1;
+    }
+
+    // Clip t0 if R lies in region 1 / 4
+    if(t0 < 0) {
+        t0 = 0;
+    } else if (t0 > 1) {
+        t0 = 1;
+    }
+
+    // Subtract away parallel component to find perpendicular distance.
+    return mag(V - t0 * M);
+}
+
+
+/**
+ * Check if we can skip over intermediate points.
+ */
 static bool
-linkable(double x, double y, double z, 
-         double a, double b, double c, 
-         double u, double v, double w) {
+linkable(PositionArray const &goal_pos_canon) {
     if (chained_points.empty() || chained_points.size() > 100) {
         return false;
     }
@@ -998,54 +722,39 @@ linkable(double x, double y, double z,
     if(canonMotionMode != CANON_CONTINUOUS || canonNaivecamTolerance == 0)
         return false;
 
-    //If ABCUVW motion, then the tangent calculation fails?
-    // TODO is there a fundamental reason that we can't handle 9D motion here?
-    if(a != pos[A]) return false;
-    if(b != pos[B]) return false;
-    if(c != pos[C]) return false;
-    if(u != pos[U]) return false;
-    if(v != pos[V]) return false;
-    if(w != pos[W]) return false;
+    static const std::array<PositionArrayIndex, 6> nontangent_axes{A,B,C,U,V,W};
 
-    if(x==canonEndPoint[X] && y==canonEndPoint[Y] && z==canonEndPoint[Z]) return false;
-    
+    //If ABCUVW motion, then the tangent calculation fails?
+    for (auto i : nontangent_axes) {
+        if(goal_pos_canon[i] != pos[i]) return false;
+    }
+
+    if(goal_pos_canon == canonEndPoint) return false;
+
+    // start and end points of "merged" segment.
+    PM_CARTESIAN P0=xyz(canonEndPoint);
+    PM_CARTESIAN P1=xyz(goal_pos_canon);
+
     for(std::vector<TaggedPoint>::iterator it = chained_points.begin();
             it != chained_points.end(); it++) {
-        PM_CARTESIAN M(x-canonEndPoint[X], y-canonEndPoint[Y], z-canonEndPoint[Z]),
-                     B(canonEndPoint[X], canonEndPoint[Y], canonEndPoint[Z]),
-                     P((*it)[X], (*it)[Y], (*it)[Z]);
-        double t0 = dot(M, P-B) / dot(M, M);
-        if(t0 < 0) t0 = 0;
-        if(t0 > 1) t0 = 1;
-
-        double D = mag(P - (B + t0 * M));
-        if(D > canonNaivecamTolerance) return false;
+        PM_CARTESIAN P_test((*it)[X], (*it)[Y], (*it)[Z]);
+        double D_xyz = distance_to_segment(P0, P1, P_test);
+        debug_canon_var(D_xyz);
+        if( D_xyz > canonNaivecamTolerance) return false;
     }
     return true;
 }
 
 static void
-see_segment(int line_number,
+see_segment(
         StateTag const &tag,
-	    double x, double y, double z, 
-            double a, double b, double c,
-            double u, double v, double w) {
-    bool changed_abc = (a != canonEndPoint[A])
-        || (b != canonEndPoint[B])
-        || (c != canonEndPoint[C]);
-
-    bool changed_uvw = (u != canonEndPoint[U])
-        || (v != canonEndPoint[V])
-        || (w != canonEndPoint[W]);
-
-    if(!chained_points.empty() && !linkable(x, y, z, a, b, c, u, v, w)) {
+        PositionArray goal_pos_canon) {
+    if(!chained_points.empty() && !linkable(goal_pos_canon)) {
         flush_segments();
     }
-    TaggedPoint pos({x, y, z, a, b, c, u, v, w}, tag);
+    TaggedPoint pos(goal_pos_canon, tag);
+    canon_debug("Adding line %d to chained points\n", line_number);
     chained_points.push_back(pos);
-    if(changed_abc || changed_uvw) {
-        flush_segments();
-    }
 }
 
 void FINISH() {
@@ -1057,52 +766,58 @@ void ON_RESET() {
     drop_segments();
 }
 
-
-void STRAIGHT_TRAVERSE(int line_number,
-                       double x, double y, double z,
-		       double a, double b, double c,
-                       double u, double v, double w)
+static int straight_traverse_internal(
+    PositionArray goal_pos_canon,
+    EMCMotionTypes emc_motion_type = EMC_MOTION_TYPE_TRAVERSE)
 {
-    double vel, acc;
-
     flush_segments();
+
+    ConvertsProgramToCanonUnits().apply_fwd(goal_pos_canon);
+    interpToMachineTransform.apply_fwd(goal_pos_canon);
+
+    PositionArray p_goal_ext = ConvertsCanonToUserUnits().forward(goal_pos_canon);
+
+    DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
+
+    if(disp_data.feed_axes == CANON_FEED_NONE)  {
+        return 1;
+    }
+
+    VelData veldata = getStraightVelocity(disp_data);
+    AccelData accdata = getStraightAcceleration(disp_data);
+
+    canon_debug("Line segment maximum velocity %f, requested vel %f\n", ini_maxvel, vel);
 
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
 
     linearMoveMsg.feed_mode = 0;
-    if (rotary_unlock_for_traverse != -1)
-        linearMoveMsg.emc_motion_type = EMC_MOTION_TYPE_INDEXROTARY;
-    else
-        linearMoveMsg.emc_motion_type = EMC_MOTION_TYPE_TRAVERSE;
-
-    from_prog(x,y,z,a,b,c,u,v,w);
-    rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
-
-    VelData veldata = getStraightVelocity(x, y, z, a, b, c, u, v, w);
-    AccelData accdata = getStraightAcceleration(x, y, z, a, b, c, u, v, w);
-
-    vel = veldata.vel;
-    acc = accdata.acc;
-
-    linearMoveMsg.end = to_ext_pose(x,y,z,a,b,c,u,v,w);
-    linearMoveMsg.pure_angular = angular_move && !cartesian_move;
-    linearMoveMsg.vel = linearMoveMsg.ini_maxvel = toExtVel(vel);
-    linearMoveMsg.acc = toExtAcc(acc);
+    linearMoveMsg.emc_motion_type = emc_motion_type;
+    linearMoveMsg.end = toEmcPose(p_goal_ext);
+    linearMoveMsg.vel = linearMoveMsg.ini_maxvel = veldata.v_max_path;
+    linearMoveMsg.acc = accdata.a_max_path;
     linearMoveMsg.indexrotary = rotary_unlock_for_traverse;
 
     int old_feed_mode = feed_mode;
     if(feed_mode)
         STOP_SPEED_FEED_SYNCH();
 
-    // Since we're not doing NCD on traverse moves, we can safely overwrite the line_number with _sloc
-    if(vel && acc)  {
-        tag_and_send(linearMoveMsg);
-    }
+    tag_and_send(linearMoveMsg);
 
     if(old_feed_mode)
         START_SPEED_FEED_SYNCH(uuPerRev_vel, 1);
 
-    canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
+    canonUpdateEndPoint(goal_pos_canon);
+    return 0;
+}
+
+
+void STRAIGHT_TRAVERSE(int line_number,
+                       double x, double y, double z,
+		       double a, double b, double c,
+                       double u, double v, double w)
+{
+    EMCMotionTypes emc_motion_type = (rotary_unlock_for_traverse != -1) ? EMC_MOTION_TYPE_INDEXROTARY : EMC_MOTION_TYPE_TRAVERSE;
+    straight_traverse_internal(PositionArray{x,y,z,a,b,c,u,v,w}, emc_motion_type);
 }
 
 void STRAIGHT_FEED(int line_number,
@@ -1110,9 +825,13 @@ void STRAIGHT_FEED(int line_number,
                    double a, double b, double c,
                    double u, double v, double w)
 {
-    from_prog(x,y,z,a,b,c,u,v,w);
-    rotate_and_offset_pos(x,y,z,a,b,c,u,v,w);
-    see_segment(line_number, _tag, x, y, z, a, b, c, u, v, w);
+
+    canon_debug("STRAIGHT_FEED x %g y %g z %g a %g b %g c %g u %g v %g w %g\n",
+            x, y, z, a, b, c, u, v, w);
+    PositionArray goal_pos_canon{x,y,z,a,b,c,u,v,w};
+    from_prog(goal_pos_canon);
+    rotate_and_offset(goal_pos_canon);
+    see_segment(_tag, goal_pos_canon);
 }
 
 
@@ -1124,50 +843,54 @@ void RIGID_TAP(int line_number,
     double tap_pitch,
     double retract_pitch
 ){
-    double ini_maxvel,acc;
+    flush_segments();
+
     double unused=0;
 
     from_prog(x,y,z,unused,unused,unused,unused,unused,unused);
     rotate_and_offset_pos(x,y,z,unused,unused,unused,unused,unused,unused);
 
+    // Ignore ABCUVW components since no motion is allowed in those axes during a rigid tap
     PositionArray bottom = toArray(x, y, z,
                               canonEndPoint[A], canonEndPoint[B], canonEndPoint[C], 
                               canonEndPoint[U], canonEndPoint[V], canonEndPoint[W]);
 
-    VelData veldata = getStraightVelocity(bottom);
+    PositionArray p_goal_ext = ConvertsCanonToUserUnits().forward(bottom);
 
-    ini_maxvel = veldata.vel;
+    DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
 
-    const double nominal_tap_vel = FROM_PROG_LEN(tap_pitch) * spindleSpeed_rpm / 60.0;
-    const double nominal_retract_vel = FROM_PROG_LEN(retract_pitch) * spindleSpeed_rpm / 60.0;
-    double nominal_vel = fmax(nominal_tap_vel, nominal_retract_vel);
-    // Limit spindle speed during rigid tapping
-    limitSpindleSpeedFromVel(nominal_vel, ini_maxvel);
-
-    AccelData accdata = getStraightAcceleration(bottom, 0);
-    acc = accdata.acc;
-
-    double depth = mag(xyz(bottom) - xyz(canonEndPoint));
-    double safe_lead = nominal_vel * nominal_vel / (2.0 * acc) * RIGID_TAP_LEADIN_SAFETY_FACTOR;
-
-    if (safe_lead > depth) {
-        CANON_ERROR("Rigid tap move at line %d length %f is too short for spindle synchronization (need at least %f)", line_number, depth, safe_lead);
+    if(disp_data.feed_axes == CANON_FEED_NONE)  {
         return;
     }
 
-    {
+    VelData vel_data = getStraightVelocity(disp_data);
+    AccelData acc_data = getStraightAcceleration(disp_data);
+
+    const double nominal_tap_vel = FROM_PROG_LEN(tap_pitch) * spindleSpeed_rpm / 60.0;
+    const double nominal_retract_vel = FROM_PROG_LEN(retract_pitch) * spindleSpeed_rpm / 60.0;
+    // It's safe to assume path is in length units because rigid tapping is only allowed in XYZ (for now anyway)
+
+    double nominal_vel_path = TO_EXT_LEN(fmax(nominal_tap_vel, nominal_retract_vel));
+    // Limit spindle speed during rigid tapping
+    limitSpindleSpeedFromVel(nominal_vel_path, vel_data.v_max_path);
+
+    double depth = mag(xyz(bottom) - xyz(canonEndPoint));
+    double safe_lead = FROM_EXT_LEN(pow(vel_data.vel_xyz, 2) / (2.0 * acc_data.a_max_path)) * RIGID_TAP_LEADIN_SAFETY_FACTOR;
+
+    if (safe_lead > depth) {
+
+        CANON_ERROR("Rigid tap move at line %d length %f is too short for spindle synchronization (need at least %f mm)", line_number, depth, safe_lead);
+        return;
+    } else {
         EMC_TRAJ_RIGID_TAP rigidTapMsg;
         rigidTapMsg.pos = to_ext_pose(bottom);
+        // NOTE: It's safe to assume linear axis units here only because rigid tapping is allowed in XYZ only
         rigidTapMsg.tap_uu_per_rev = TO_EXT_LEN(FROM_PROG_LEN(tap_pitch));
         rigidTapMsg.retract_uu_per_rev = TO_EXT_LEN(FROM_PROG_LEN(retract_pitch));
-        rigidTapMsg.ini_maxvel = toExtVel(ini_maxvel);
-        rigidTapMsg.acc = toExtAcc(acc);
+        rigidTapMsg.ini_maxvel = vel_data.v_max_path;
+        rigidTapMsg.acc = acc_data.a_max_path;
         rigidTapMsg.scale = spindle_retract_speed_scale;
-        flush_segments();
-
-        if(ini_maxvel && acc)  {
-            tag_and_send(rigidTapMsg);
-        }
+        tag_and_send(rigidTapMsg);
     }
 
     // don't move the endpoint because after this move, we are back where we started
@@ -1204,25 +927,29 @@ void straight_probe_internal(int line_number,
 
     flush_segments();
 
-    VelData veldata = getStraightVelocity(goal_pos_canon);
-    double ini_maxvel = veldata.vel;
+    PositionArray p_goal_ext = ConvertsCanonToUserUnits().forward(goal_pos_canon);
 
-    double vel = limitSpindleSpeedByActiveFeedRate(ini_maxvel);
+    DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
 
-    AccelData accdata = getStraightAcceleration(goal_pos_canon, 0);
-    double acc = accdata.acc;
+    if(disp_data.feed_axes == CANON_FEED_NONE)  {
+        return;
+    }
 
-    probeMsg.vel = toExtVel(vel);
-    probeMsg.ini_maxvel = toExtVel(ini_maxvel);
-    probeMsg.acc = toExtAcc(acc);
-    probeMsg.pure_angular = angular_move & ! cartesian_move;
+    VelData vel_data = getStraightVelocity(disp_data);
+    AccelData acc_data = getStraightAcceleration(disp_data);
+
+    double v_max_path = vel_data.v_max_path;
+    double v_req_path = getPathVelocityFromActiveFeed(vel_data, disp_data.feed_axes);
+    limitSpindleSpeedFromVel(v_req_path, v_max_path);
+
+    probeMsg.vel = v_req_path;
+    probeMsg.ini_maxvel = v_max_path;
+    probeMsg.acc = acc_data.a_max_path;
     probeMsg.probe_type = probe_type;
 
     probeMsg.pos = to_ext_pose(goal_pos_canon);
 
-    if(vel && acc)  {
-        tag_and_send(probeMsg);
-    }
+    tag_and_send(probeMsg);
     canonUpdateEndPoint(goal_pos_canon);
 }
 
@@ -1582,6 +1309,9 @@ void ARC_FEED(int line_number,
               double u, double v, double w)
 {
 
+    canon_debug("ARC_FEED a %g b %g c %g u %g v %g w %g ",
+            a, b, c, u, v, w);
+
     EMC_TRAJ_CIRCULAR_MOVE circularMoveMsg;
 
     canon_debug("line = %d\n", line_number);
@@ -1607,19 +1337,23 @@ void ARC_FEED(int line_number,
             w = FROM_PROG_LEN(w);
 
             rotate_and_offset_pos(unused, unused, unused, a, b, c, u, v, w);
-            see_segment(line_number, _tag, mx, my,
-                        (lz + ae)/2, 
-                        (canonEndPoint[A] + a)/2, 
-                        (canonEndPoint[B] + b)/2, 
-                        (canonEndPoint[C] + c)/2, 
-                        (canonEndPoint[U] + u)/2, 
-                        (canonEndPoint[V] + v)/2, 
-                        (canonEndPoint[W] + w)/2);
-            see_segment(line_number, _tag, fe, se, ae, a, b, c, u, v, w);
+            see_segment(_tag,
+                        {
+                            mx,
+                            my,
+                            (lz + ae)/2,
+                            (canonEndPoint[A] + a)/2,
+                            (canonEndPoint[B] + b)/2,
+                            (canonEndPoint[C] + c)/2,
+                            (canonEndPoint[U] + u)/2,
+                            (canonEndPoint[V] + v)/2,
+                            (canonEndPoint[W] + w)/2
+                        });
+            see_segment(_tag,
+                        {fe, se, ae, a, b, c, u, v, w});
             return;
         }
     }
-
 
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = feed_mode;
@@ -1632,7 +1366,6 @@ void ARC_FEED(int line_number,
     PM_CARTESIAN normal_cart(0.0,0.0,1.0);
     PM_CARTESIAN plane_x(1.0,0.0,0.0);
     PM_CARTESIAN plane_y(0.0,1.0,0.0);
-
 
     canon_debug("start = %f %f %f\n",
             canonEndPoint[X],
@@ -1834,19 +1567,27 @@ void ARC_FEED(int line_number,
 
     //FIXME allow tangential acceleration like in TP
     double a_normal_budget = a_max_axes * sqrt(3.0)/2.0;
-    canon_debug("a_max_axes = %f\n", a_max_axes);
+    debug_canon_var(a_max_axes);
 
     // Compute the centripetal acceleration
     double v_max_radial = sqrt(a_normal_budget * effective_radius);
-    canon_debug("v_max_radial = %f\n", v_max_radial);
+    debug_canon_var(v_max_radial);
 
     // Restrict our maximum velocity in-plane if need be
     double v_max_planar = std::min(v_max_radial, v_max_axes);
     canon_debug("v_max_planar = %f\n", v_max_planar);
 
+    PositionArray p_goal_ext = ConvertsCanonToUserUnits().forward(endpt);
+    DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
+
+    if(disp_data.feed_axes == CANON_FEED_NONE)  {
+        return;
+    }
+
     // Find the equivalent maximum velocity for a linear displacement
     // This accounts for speed restrictions due to helical and other axes
-    VelData veldata = getStraightVelocity(endpt);
+    VelData veldata = getStraightVelocity(disp_data);
+    AccelData accdata = getStraightAcceleration(disp_data);
 
     // Compute spiral length, first by the minimum circular arc length
     double circular_length = min_radius * fabs(full_angle);
@@ -1861,7 +1602,7 @@ void ARC_FEED(int line_number,
 
     // Next, compute the minimum time that we must take to complete the segment. 
     // The motion computation gives us min time needed for the helical and auxiliary axes
-    double t_max_motion = veldata.tmax;
+    double t_max_motion = veldata.t_max_path;
     // Assumes worst case that velocity can be in any direction in the plane, so
     // we assume tangential velocity is always less than the planar velocity limit.
     // The spiral time is the min time needed to stay under the planar velocity limit.
@@ -1869,88 +1610,67 @@ void ARC_FEED(int line_number,
 
     // Now, compute actual XYZ max velocity from this min time and the total arc length
     double t_max = fmax(t_max_motion, t_max_spiral);
+    // NOTE: overrides the "straight" XYZ velocity in veldata
+    double v_xyz_path = TO_EXT_LEN(total_xyz_length / t_max);
+    double total_length_path = hypot3(TO_EXT_LEN(total_xyz_length), disp_data.d_uvw, disp_data.d_abc);
+    double v_max_path = total_length_path / t_max;
+    debug_canon_var(v_max);
 
-    double v_max = total_xyz_length / t_max;
-    canon_debug("v_max = %f\n", v_max);
-
-
-//COMPUTE ACCEL
+    // COMPUTE ACCELERATION
     
     // Use "straight" acceleration measure to compute acceleration bounds due
     // to non-circular components (helical axis, other axes)
-    AccelData accdata = getStraightAcceleration(
-      endpt, fabs(total_xyz_length) > 0.000001);
 
-    double tt_max_motion = accdata.tmax;
+    double tt_max_motion = accdata.t2max;
     double tt_max_spiral = spiral_length / a_max_axes;
     double tt_max = fmax(tt_max_motion, tt_max_spiral);
 
     // a_max could be higher than a_max_axes, but the projection onto the
     // circle plane and helical axis will still be within limits
-    double a_max = total_xyz_length / tt_max;
+    // Also factor in UVW acceleration here
+    double a_max_path = total_length_path / tt_max;
 
-    // Limit velocity by maximum
-#ifdef EMCCANON_DEBUG
-    double nominal_vel = getActiveFeedRate(FEED_LINEAR);
-#endif
+    // clamp XYZ component of velocity only,
+    double v_active_path = std::min(getActiveExtFeedRate(CANON_FEED_XYZ), v_xyz_path);
+    double v_req_path = v_max_path * v_active_path / v_xyz_path;
 
-    // Make sure spindle speed is within range (for spindle_sync motion only)
-    double vel = limitSpindleSpeedByActiveFeedRate(v_max);
+    // Dump final values for debugging
+    debug_canon_var(v_req);
+    debug_canon_var(v_xyz);
+    debug_canon_var(v_max);
+    debug_canon_var(a_max);
 
-    canon_debug("current F = %f\n", nominal_vel);
-    canon_debug("vel = %f\n",vel);
-
-    canon_debug("v_max = %f\n",v_max);
-    canon_debug("a_max = %f\n",a_max);
-
-    cartesian_move = 1;
+    if(!v_req_path || !a_max_path) {
+        // Zero length move
+        // FIXME clean this up after development
+        CANON_ERROR("Zero length circle, no motion");
+        return;
+    }
 
     if (rotation == 0) {
-        // linear move
-        // FIXME (Rob) Am I missing something? the P word should never be zero,
-        // or we wouldn't be calling ARC_FEED
-        linearMoveMsg.end = to_ext_pose(endpt);
-        linearMoveMsg.emc_motion_type = EMC_MOTION_TYPE_ARC;
-
-        linearMoveMsg.pure_angular = angular_move && !cartesian_move;
-        linearMoveMsg.vel = toExtVel(vel);
-        linearMoveMsg.ini_maxvel = toExtVel(v_max);
-        linearMoveMsg.acc = toExtAcc(a_max);
-        linearMoveMsg.indexrotary = -1;
-        if(vel && a_max){
-            tag_and_send(linearMoveMsg);
-        }
-    } else {
-        circularMoveMsg.end = to_ext_pose(endpt);
-
-        // Convert internal center and normal to external units
-        circularMoveMsg.center = to_ext_len(center_cart);
-        circularMoveMsg.normal = normal_cart;
-
-        if (rotation > 0)
-            circularMoveMsg.turn = rotation - 1;
-        else
-            // reverse turn
-            circularMoveMsg.turn = rotation;
-
-        circularMoveMsg.emc_motion_type = EMC_MOTION_TYPE_ARC;
-
-        circularMoveMsg.vel = toExtVel(vel);
-        circularMoveMsg.ini_maxvel = toExtVel(v_max);
-        circularMoveMsg.acc = toExtAcc(a_max);
-        circularMoveMsg.acc_normal = toExtAcc(a_max_axes);
-
-        //FIXME what happens if accel or vel is zero?
-        // The end point is still updated, but nothing is added to the interp list
-        // seems to be a crude way to indicate a zero length segment?
-        if(vel && a_max) {
-            tag_and_send(circularMoveMsg);
-        }
+        CANON_ERROR("Cannot have 0 rotation in a circular segment");
+        return;
     }
-    // update the end point
+    circularMoveMsg.end = toEmcPose(p_goal_ext);
+
+    // Convert internal center and normal to external units
+    circularMoveMsg.center = to_ext_len(center_cart);
+    circularMoveMsg.normal = normal_cart;
+
+    circularMoveMsg.turn = rotation;
+    if (rotation > 0)
+        circularMoveMsg.turn -= 1;
+
+    circularMoveMsg.emc_motion_type = EMC_MOTION_TYPE_ARC;
+
+    circularMoveMsg.vel = v_req_path;
+    circularMoveMsg.ini_maxvel = v_max_path;
+    circularMoveMsg.acc = a_max_path;
+    circularMoveMsg.acc_normal = TO_EXT_LEN(a_max_axes);
+
+    tag_and_send(circularMoveMsg);
     canonUpdateEndPoint(endpt);
 }
-
 
 void DWELL(double seconds)
 {
@@ -2067,6 +1787,12 @@ static bool limitSpindleSpeed(double rpm)
     return true;
 }
 
+/**
+ * Based on the proportion of nominal to maximum velocity for a move, limit the
+ * spindle speed if necessary to prevent runaway position errors.
+ *
+ * @note the units don't matter for nominal / max velocity as long as they are consistent
+ */
 static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel)
 {
     if (!synched || nominal_vel <= 0.0) {
@@ -2083,18 +1809,32 @@ static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel)
     return limitSpindleSpeed(maxSpindleRPM);
 }
 
-static double limitSpindleSpeedByActiveFeedRate(double ini_maxvel)
+static double getPathVelocityFromActiveFeed(VelData const &vel_data, CanonFeedAxisReferenceType feed_axes)
 {
-    const double nominal_vel = getActiveFeedRate(static_cast<FeedRateType>(!cartesian_move && angular_move));
-    // Limit spindle speed during rigid tapping
-    limitSpindleSpeedFromVel(nominal_vel, ini_maxvel);
+    // KLUDGE double lookup here
+    double v_req = getActiveExtFeedRate(feed_axes);
 
-    double real_max_vel = std::min(ini_maxvel, nominal_vel);
-    canon_debug("%s: nominal_vel %f, real_max_vel %f\n", __PRETTY_FUNCTION__, nominal_vel, real_max_vel);
-    return real_max_vel;
+    switch (feed_axes) {
+    case CANON_FEED_XYZ:
+    {
+        double v_axes_limit = std::min(vel_data.vel_xyz, v_req);
+        return vel_data.v_max_path * (v_axes_limit / vel_data.vel_xyz);
+    }
+    case CANON_FEED_UVW:
+    {
+        double v_axes_limit = std::min(vel_data.vel_uvw, v_req);
+        return vel_data.v_max_path * (v_axes_limit / vel_data.vel_uvw);
+    }
+    case CANON_FEED_ABC:
+    {
+        double v_axes_limit = std::min(vel_data.vel_abc, v_req);
+        return vel_data.v_max_path * (v_axes_limit / vel_data.vel_abc);
+    }
+    case CANON_FEED_NONE:
+        break;
+    }
+    return 0.0;
 }
-
-
 
 void STOP_SPINDLE_TURNING()
 {
@@ -2216,7 +1956,7 @@ void CHANGE_TOOL(int slot)
      * is called.  */
     
     if (have_tool_change_position) {
-        double vel, acc, x, y, z, a, b, c, u, v, w;
+        double x, y, z, a, b, c, u, v, w;
 
         x = canonEndPoint[X];
         y = canonEndPoint[Y];
@@ -2244,34 +1984,8 @@ void CHANGE_TOOL(int slot)
             w = FROM_EXT_LEN(tool_change_position.w);
         }
 
-        VelData veldata = getStraightVelocity(x, y, z, a, b, c, u, v, w);
-        AccelData accdata = getStraightAcceleration(x, y, z, a, b, c, u, v, w);
-        vel = veldata.vel;
-        acc = accdata.acc;
-
-        linearMoveMsg.end = to_ext_pose(x, y, z, a, b, c, u, v, w);
-
-        linearMoveMsg.pure_angular = angular_move && !cartesian_move;
-        linearMoveMsg.vel = linearMoveMsg.ini_maxvel = toExtVel(vel);
-        linearMoveMsg.acc = toExtAcc(acc);
-        linearMoveMsg.emc_motion_type = EMC_MOTION_TYPE_TOOLCHANGE;
-        linearMoveMsg.feed_mode = 0;
-        linearMoveMsg.indexrotary = -1;
-
-        int old_feed_mode = feed_mode;
-        if(feed_mode) {
-
-            STOP_SPEED_FEED_SYNCH();
-        }
-
-        if(vel && acc) {
-            tag_and_send(linearMoveMsg);
-        }
-
-        if(old_feed_mode)
-	    START_SPEED_FEED_SYNCH(uuPerRev_vel, 1);
-
-        canonUpdateEndPoint(x, y, z, a, b, c, u, v, w);
+        PositionArray pos{x,z,y,a,b,c,u,v,w};
+        straight_traverse_internal(pos, EMC_MOTION_TYPE_TOOLCHANGE);
     }
 
     /* regardless of optional moves above, we'll always send a load tool
@@ -2815,8 +2529,6 @@ void INIT_CANON()
     SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, 0);
     spindleSpeed_rpm = 0.0;
     preppedTool = 0;
-    cartesian_move = 0;
-    angular_move = 0;
     currentLinearFeedRate = 0.0;
     currentAngularFeedRate = 0.0;
     uuPerRev_vel = 0.0;

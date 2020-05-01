@@ -19,6 +19,7 @@
 #include <Python.h>
 #include <structmember.h>
 
+#include "posemath_ext.hh"
 #include "gcodemodule.hh"
 #include "rs274ngc.hh"
 #include "previewinterp.hh"
@@ -26,7 +27,6 @@
 #include "canon.hh"
 #include "config.h"		// LINELEN
 #include <sstream>
-
 
 int _task = 0; // control preview behaviour when remapping
 

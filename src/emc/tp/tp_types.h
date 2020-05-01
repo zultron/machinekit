@@ -72,9 +72,9 @@ typedef struct {
                                        completed segment, i.e. "-1" in
                                        the queue"*/
 
-    EmcPose currentPos;
-    EmcPose goalPos;
-    EmcPose currentVel;
+    PmVector currentPos;
+    PmVector goalPos;
+    PmVector currentVel;
 
     int queueSize;
     double cycleTime;

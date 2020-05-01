@@ -26,20 +26,11 @@
 #include "initraj.hh"		// these decls
 #include "emcglb.h"		// A bunch of global values used across canon and interp
 #include "inihal.hh"
+#include "ini_macros.hh"
+#include <float.h>
 
 #include <string>
 extern value_inihal_data old_inihal_data;
-
-// Follow interp convention to return on error
-#define CHP(call__) \
-do { \
-    if (call__) { \
-        if (emc_debug & EMC_DEBUG_CONFIG) { \
-            rcs_print("%s: %d: bad return value from %s\n", __FUNCTION__, __LINE__, #call__); \
-        } \
-        return -1; \
-    } \
-} while (0)
 
 struct FindsIniFieldOrDefault
 {
@@ -123,24 +114,14 @@ static int loadTraj(EmcIniFile &trajInifile)
         }
         trajInifile.Find(&axes, "AXES", "TRAJ");
 
-        if (0 != emcTrajSetAxes(axes, axismask)) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("bad return value from emcTrajSetAxes\n");
-            }
-            return -1;
-        }
+        CHP(emcTrajSetAxes(axes, axismask));
 
         linearUnits = 0;
         trajInifile.FindLinearUnits(&linearUnits, "LINEAR_UNITS", "TRAJ");
         angularUnits = 0;
         trajInifile.FindAngularUnits(&angularUnits, "ANGULAR_UNITS", "TRAJ");
 
-        if (0 != emcTrajSetUnits(linearUnits, angularUnits)) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("bad return value from emcTrajSetUnits\n");
-            }
-            return -1;
-        }
+        CHP(emcTrajSetUnits(linearUnits, angularUnits));
 
         vel = 1.0;
         trajInifile.Find(&vel, "DEFAULT_VELOCITY", "TRAJ");
@@ -150,12 +131,7 @@ static int loadTraj(EmcIniFile &trajInifile)
         old_inihal_data.traj_default_velocity = vel;
 
         // and set dynamic value
-        if (0 != emcTrajSetVelocity(0, vel)) { //default velocity on startup 0
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("bad return value from emcTrajSetVelocity\n");
-            }
-            return -1;
-        }
+        CHP(emcTrajSetVelocity(0, vel));
 
         vel = 1e99; // by default, use AXIS limit
         vela = 1e99;
@@ -168,33 +144,18 @@ static int loadTraj(EmcIniFile &trajInifile)
         old_inihal_data.traj_max_angular_velocity = vela;
 
         // and set dynamic value
-        if (0 != emcTrajSetMaxVelocity(vel, vela)) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("bad return value from emcTrajSetMaxVelocity\n");
-            }
-            return -1;
-        }
+        CHP(emcTrajSetMaxVelocity(vel, vela));
 
         acc = 1e99; // let the axis values apply
         trajInifile.Find(&acc, "DEFAULT_ACCELERATION", "TRAJ");
 
-        if (0 != emcTrajSetAcceleration(acc)) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("bad return value from emcTrajSetAcceleration\n");
-            }
-            return -1;
-        }
+        CHP(emcTrajSetAcceleration(acc));
         old_inihal_data.traj_default_acceleration = acc;
 
         acc = 1e99; // let the axis values apply
         trajInifile.Find(&acc, "MAX_ACCELERATION", "TRAJ");
 
-        if (0 != emcTrajSetMaxAcceleration(acc)) {
-            if (emc_debug & EMC_DEBUG_CONFIG) {
-                rcs_print("bad return value from emcTrajSetMaxAcceleration\n");
-            }
-            return -1;
-        }
+        CHP(emcTrajSetMaxAcceleration(acc));
         old_inihal_data.traj_max_acceleration = acc;
 
         tp_arc_blend_config_t arc_blend_cfg = {
@@ -255,6 +216,13 @@ static int loadTraj(EmcIniFile &trajInifile)
         old_inihal_data.traj_biarc_feed_override_allowance = biarc_solver_cfg.feed_override_allowance;
         old_inihal_data.traj_biarc_velocity_cutoff = biarc_solver_cfg.velocity_cutoff;
         old_inihal_data.traj_biarc_convergence_tolerance = biarc_solver_cfg.convergence_tolerance;
+
+        min_displacement_config_t min_displacement_cfg = {
+            fmax(ini_traj_find("MIN_LINEAR_DISPLACEMENT", 1e-7), 0),
+            fmax(ini_traj_find("MIN_ANGULAR_DISPLACEMENT", 1e-7), 0),
+        };
+        CHP(emcSetMinDisplacement(min_displacement_cfg));
+
     }
 
     catch(EmcIniFile::Exception &e){
@@ -331,12 +299,7 @@ static int loadTraj(EmcIniFile &trajInifile)
 	}			// end of for-loop on coordinateMark[]
     }
 
-    if (0 != emcTrajSetHome(homePose)) {
-	if (emc_debug & EMC_DEBUG_CONFIG) {
-	    rcs_print("bad return value from emcTrajSetHome\n");
-	}
-	return -1;
-    }
+    CHP(emcTrajSetHome(homePose));
 
     return 0;
 }

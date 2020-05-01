@@ -72,6 +72,14 @@ extern "C" {
 /*just used to keep track of unneccessary debug printing. */
     extern int taskplanopen;
 
+    extern int emc_traj_axes;
+    extern unsigned emc_traj_axis_mask;
+    extern double emc_traj_linear_units_per_mm;
+    extern double emc_traj_angular_units_per_deg;
+
+    extern double emc_traj_min_linear_displacement_user;
+    extern double emc_traj_min_angular_displacement_user;
+
     extern int emcGetArgs(int argc, char *argv[]);
     extern void emcInitGlobals();
 

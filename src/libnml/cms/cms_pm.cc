@@ -14,11 +14,18 @@
 ********************************************************************/
 
 #include "cms.hh"		// class CMS
-#include "posemath.h"		// POSEMATH classes
+#include "posemath_ext.hh"		// POSEMATH classes
+#include "posemath.h"
 #include "coordinatetransform.hh"
 
 // translation types
 CMS_STATUS CMS::update(PM_CARTESIAN & Cart)
+{
+    update(static_cast<PmCartesian &>(Cart));
+    return (status);
+}
+
+CMS_STATUS CMS::update(PmCartesian & Cart)
 {
     update(Cart.x);
     update(Cart.y);
@@ -106,6 +113,12 @@ CMS_STATUS CMS::update(PM_ROTATION_MATRIX * x, int n)
 }
 
 CMS_STATUS CMS::update(PM_QUATERNION & Quat)
+{
+    update(static_cast<PmQuaternion&>(Quat));
+    return (status);
+}
+
+CMS_STATUS CMS::update(PmQuaternion & Quat)
 {
     update(Quat.s);
     update(Quat.x);

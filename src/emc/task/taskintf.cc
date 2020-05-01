@@ -633,11 +633,6 @@ int emcAxisUpdate(EMC_AXIS_STAT stat[], int numAxes)
 
 // EMC_TRAJ functions
 
-// local status data, not provided by emcmot
-static int localEmcTrajAxes = 0;
-static int localEmcTrajAxisMask = 0;
-static double localEmcTrajLinearUnits = 1.0;
-static double localEmcTrajAngularUnits = 1.0;
 //FIXME if you can't beat em...
 static struct state_tag_t localEmcTrajTag;
 
@@ -668,8 +663,8 @@ int emcTrajSetAxes(int axes, int axismask)
 	return -1;
     }
 
-    localEmcTrajAxes = axes;
-    localEmcTrajAxisMask = axismask;
+    emc_traj_axes = axes;
+    emc_traj_axis_mask = axismask;
     emcmotCommand.command = EMCMOT_SET_NUM_AXES;
     emcmotCommand.axis = axes;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
@@ -681,8 +676,8 @@ int emcTrajSetUnits(double linearUnits, double angularUnits)
 	return -1;
     }
 
-    localEmcTrajLinearUnits = linearUnits;
-    localEmcTrajAngularUnits = angularUnits;
+    emc_traj_linear_units_per_mm = linearUnits;
+    emc_traj_angular_units_per_deg = angularUnits;
 
     return 0;
 }
@@ -970,12 +965,12 @@ int emcTrajDelay(double delay)
 
 double emcTrajGetLinearUnits()
 {
-    return localEmcTrajLinearUnits;
+    return emc_traj_linear_units_per_mm;
 }
 
 double emcTrajGetAngularUnits()
 {
-    return localEmcTrajAngularUnits;
+    return emc_traj_angular_units_per_deg;
 }
 
 int emcTrajSetOffset(EmcPose tool_offset)
@@ -1003,8 +998,13 @@ int emcTrajSetTermCond(int cond, double tolerance)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel, double acc,
-                      int indexrotary, int pure_angular)
+int emcTrajLinearMove(
+    EmcPose end,
+    int type,
+    double vel,
+    double ini_maxvel,
+    double acc,
+    int indexrotary)
 {
 #ifdef ISNAN_TRAP
     if (std::isnan(end.tran.x) || std::isnan(end.tran.y) || std::isnan(end.tran.z) ||
@@ -1026,13 +1026,20 @@ int emcTrajLinearMove(EmcPose end, int type, double vel, double ini_maxvel, doub
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
     emcmotCommand.turn = indexrotary;
-    emcmotCommand.pure_angular = pure_angular;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center,
-            PM_CARTESIAN normal, int turn, int type, double vel, double ini_maxvel, double acc, double acc_normal)
+int emcTrajCircularMove(
+    EmcPose end,
+    PM_CARTESIAN center,
+    PM_CARTESIAN normal,
+    int turn,
+    int type,
+    double vel,
+    double ini_maxvel,
+    double acc,
+    double acc_normal)
 {
 #ifdef ISNAN_TRAP
     if (std::isnan(end.tran.x) || std::isnan(end.tran.y) || std::isnan(end.tran.z) ||
@@ -1078,7 +1085,7 @@ int emcTrajClearProbeTrippedFlag()
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double acc, int pure_angular, unsigned char probe_type)
+int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double acc, unsigned char probe_type)
 {
 #ifdef ISNAN_TRAP
     if (std::isnan(pos.tran.x) || std::isnan(pos.tran.y) || std::isnan(pos.tran.z) ||
@@ -1097,7 +1104,6 @@ int emcTrajProbe(EmcPose pos, int type, double vel, double ini_maxvel, double ac
     emcmotCommand.vel = vel;
     emcmotCommand.ini_maxvel = ini_maxvel;
     emcmotCommand.acc = acc;
-    emcmotCommand.pure_angular = pure_angular;
     emcmotCommand.probe_type = probe_type;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
@@ -1142,10 +1148,10 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
 {
     int axis, enables;
 
-    stat->axes = localEmcTrajAxes;
-    stat->axis_mask = localEmcTrajAxisMask;
-    stat->linearUnits = localEmcTrajLinearUnits;
-    stat->angularUnits = localEmcTrajAngularUnits;
+    stat->axes = emc_traj_axes;
+    stat->axis_mask = emc_traj_axis_mask;
+    stat->linearUnits = emc_traj_linear_units_per_mm;
+    stat->angularUnits = emc_traj_angular_units_per_deg;
 
     stat->mode =
 	emcmotStatus.
@@ -1157,7 +1163,7 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
     /* enabled if motion enabled and all axes enabled */
     stat->enabled = 0;		/* start at disabled */
     if (emcmotStatus.motionFlag & EMCMOT_MOTION_ENABLE_BIT) {
-	for (axis = 0; axis < localEmcTrajAxes; axis++) {
+    for (axis = 0; axis < emc_traj_axes; axis++) {
 /*! \todo Another #if 0 */
 #if 0				/*! \todo FIXME - the axis flag has been moved to the joint struct */
 	    if (!emcmotStatus.axisFlag[axis] & EMCMOT_JOINT_ENABLE_BIT) {
@@ -1336,7 +1342,7 @@ int emcMotionInit()
     r2 = emcTrajInit(); // we want to check Traj first, the sane defaults for units are there
 
     r1 = 0;
-    for (axis = 0; axis < localEmcTrajAxes; axis++) {
+    for (axis = 0; axis < emc_traj_axes; axis++) {
 	if (0 != emcAxisInit(axis)) {
 	    r1 = -1;		// at least one is busted
 	}
@@ -1520,8 +1526,6 @@ int emcSpindleConstant()
     return 0; // nothing to do
 }
 
-
-
 int emcMotionUpdate(EMC_MOTION_STAT * stat)
 {
     int r1;
@@ -1660,3 +1664,11 @@ int emcSetMaxFeedOverride(double maxFeedScale) {
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
+int emcSetMinDisplacement(min_displacement_config_t cfg)
+{
+    emcmotCommand.command = EMCMOT_SET_MIN_DISPLACEMENT;
+    emcmotCommand.min_displacement_cfg = cfg;
+    emc_traj_min_linear_displacement_user = cfg.min_linear_displacement;
+    emc_traj_min_angular_displacement_user = cfg.min_angular_displacement;
+    return usrmotWriteEmcmotCommand(&emcmotCommand);
+}

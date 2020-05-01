@@ -41,21 +41,29 @@ double traj_max_velocity = DEFAULT_TRAJ_MAX_VELOCITY;
 double traj_default_tolerance = DEFAULT_TRAJ_TOLERANCE;
 double traj_default_naivecam_tolerance = DEFAULT_TRAJ_NAIVECAM_TOLERANCE;
 
-double axis_max_velocity[EMC_AXIS_MAX] = { 1.0 };	/*! \todo FIXME - I think
+double axis_max_velocity[EMC_AXIS_MAX] = { 0.0 };	/*! \todo FIXME - I think
 							   these should be
 							   0.0 */
-double axis_max_acceleration[EMC_AXIS_MAX] = { 1.0 };
+double axis_max_acceleration[EMC_AXIS_MAX] = { 0.0 };
 
 EmcPose tool_change_position;	/* no defaults */
 unsigned char have_tool_change_position = 0;	/* default is 'not there' */
 
 int taskplanopen = 0;
 
+int emc_traj_axes = 0;
+unsigned emc_traj_axis_mask = 0;
+double emc_traj_linear_units_per_mm = 1.0;
+double emc_traj_angular_units_per_deg = 1.0;
+double emc_traj_min_linear_displacement_user = 1e-7;
+double emc_traj_min_angular_displacement_user = 1e-7;
+
 void emcInitGlobals()
 {
     int t;
 
     for (t = 0; t < EMC_AXIS_MAX; t++) {
-	axis_max_velocity[t] = DEFAULT_AXIS_MAX_VELOCITY;
+        axis_max_velocity[t] = 0;
+        axis_max_acceleration[t] = 0;
     }
 }

@@ -32,6 +32,7 @@ int tpUpdateCycle(TP_STRUCT * const tp,
         TC_STRUCT const * const nexttc,
         UpdateCycleMode cycle_mode);
 
+double tpGetCurrentVel(TP_STRUCT const * const tp, PmVector const * const v_current);
 int tpRunOptimization(TP_STRUCT * const tp);
 
 int tpAddSegmentToQueue(TP_STRUCT * const tp, TC_STRUCT * const tc);
@@ -46,10 +47,10 @@ int tcRotaryMotionCheck(TC_STRUCT const * const tc);
 
 double tpGetTangentKinkRatio(void);
 
-double tpGetRealFeedScale(TP_STRUCT const * const tp,
+double tpGetRealAbsFeedScale(TP_STRUCT const * const tp,
                       TC_STRUCT const * const tc);
 
-double tpGetRealTargetVel(TP_STRUCT const * const tp,
+double tpGetRealAbsTargetVel(TP_STRUCT const * const tp,
                           TC_STRUCT const * const tc);
 
 double getMaxBlendFeedScale(TC_STRUCT const * prev_tc, TC_STRUCT const * tc);
@@ -116,15 +117,11 @@ int tpUpdateMovementStatus(TP_STRUCT * const tp,
                            TC_STRUCT const * const tc,
                            TC_STRUCT const * const nexttc);
 
-void tpUpdateBlend(TP_STRUCT * const tp,
-                   TC_STRUCT * const tc,
-                   TC_STRUCT * const nexttc);
-
 void tpHandleEmptyQueue(TP_STRUCT * const tp);
 
-void tpSetRotaryUnlock(int axis, int unlock);
+void tpSetRotaryUnlock(IndexRotaryAxis axis, int unlock);
 
-int tpGetRotaryIsUnlocked(int axis);
+int tpGetRotaryIsUnlocked(IndexRotaryAxis axis);
 
 int tpCompleteSegment(TP_STRUCT * const tp,
                       TC_STRUCT * const tc);
@@ -173,6 +170,11 @@ int tpDoParabolicBlending(TP_STRUCT * const tp,
 
 int tpUpdateInitialStatus(TP_STRUCT const * const tp);
 
+int tpUpdateCycle(TP_STRUCT * const tp,
+        TC_STRUCT * const tc,
+        TC_STRUCT const * const nexttc,
+        UpdateCycleMode cycle_mode);
+
 int tcSetSplitCycle(TC_STRUCT * const tc,
                     double split_time,
                     double v_f);
@@ -189,15 +191,13 @@ int tpSteppingCheck(TP_STRUCT * const tp,
                     TC_STRUCT * const tc,
                     TC_STRUCT * const nexttc);
 
-int tpInitBlendArcFromPrev(TP_STRUCT const * const tp,
+int tpInitBlendArcFromAdjacent(TP_STRUCT const * const tp,
                            TC_STRUCT const * const prev_tc,
                            TC_STRUCT * const blend_tc,
                            double vel,
                            double ini_maxvel,
                            double acc,
                            tc_motion_type_t motion_type);
-
-int tcSetLineXYZ(TC_STRUCT * const tc, PmCartLine const * const line);
 
 int find_max_element(double arr[], int sz);
 

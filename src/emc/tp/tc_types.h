@@ -15,12 +15,14 @@
 #ifndef TC_TYPES_H
 #define TC_TYPES_H
 
-#include "spherical_arc.h"
+#include "spherical_arc9.h"
 #include "posemath.h"
 #include "emcpos.h"
 #include "emcmotcfg.h"
 #include "state_tag.h"
 #include "motion_types.h"
+#include "pm_circle9.h"
+#include "pm_line9.h"
 
 typedef unsigned long long tc_unique_id_t;
 
@@ -62,41 +64,10 @@ typedef enum {
     TC_ACCEL_RAMP,
 } TCAccelMode;
 
-/**
- * Spiral arc length approximation by quadratic fit.
- */
-typedef struct {
-    double b0;                  /* 2nd order coefficient */
-    double b1;                  /* 1st order coefficient */
-    double total_planar_length; /* total arc length in plane */
-    int spiral_in;              /* flag indicating spiral is inward,
-                                   rather than outward */
-} SpiralArcLengthFit;
-
-
 /* structure for individual trajectory elements */
 
 typedef struct {
-    PmCartLine xyz;
-    PmCartLine abc;
-    PmCartLine uvw;
-} PmLine9;
-
-typedef struct {
-    PmCircle xyz;
-    PmCartLine abc;
-    PmCartLine uvw;
-    SpiralArcLengthFit fit;
-} PmCircle9;
-
-typedef struct {
-    SphericalArc xyz;
-    PmCartesian abc;
-    PmCartesian uvw;
-} Arc9;
-
-typedef struct {
-    EmcPose dwell_pos;
+    PmVector dwell_pos;
     double dwell_time;
     double remaining_time;
 } TPDwell;
@@ -129,6 +100,19 @@ typedef struct {
     rigid_tap_state_t state;
 } PmRigidTap;
 
+typedef enum {
+    INDEX_NONE=-1,
+    INDEX_X_AXIS=0,
+    INDEX_Y_AXIS,
+    INDEX_Z_AXIS,
+    INDEX_A_AXIS,
+    INDEX_B_AXIS,
+    INDEX_C_AXIS,
+    INDEX_U_AXIS,
+    INDEX_V_AXIS,
+    INDEX_W_AXIS,
+} IndexRotaryAxis;
+
 typedef struct {
     double cycle_time;
     //Position stuff
@@ -149,6 +133,9 @@ typedef struct {
     double kink_accel_reduce; // How much to reduce the allowed tangential acceleration to account for the extra acceleration at an approximate tangent intersection.
     double parabolic_equiv_vel; // Estimated equivalent velocity for a parabolic blend with the next segment
 
+    double v_limit_linear_ratio;
+    double v_limit_angular_ratio;
+
     //Acceleration
     double maxaccel;        // accel calc'd by task
     double acc_ratio_tan;// ratio between normal and tangential accel
@@ -162,7 +149,7 @@ typedef struct {
         PmLine9 line;
         PmCircle9 circle;
         PmRigidTap rigidtap;
-        Arc9 arc;
+        SphericalArc9 arc;
         TPDwell dwell;
     } coords;
 
@@ -174,20 +161,16 @@ typedef struct {
     tc_term_cond_t term_cond;          // gcode requests continuous feed at the end of
                             // this segment (g64 mode)
 
-    int blending_next;      // segment is being blended into following segment
-    double blend_vel;       // velocity below which we should start blending
     double tolerance;       // during the blend at the end of this move,
                             // stay within this distance from the path.
     tc_spindle_sync_t synchronized;       // spindle sync state
     double uu_per_rev;      // for sync, user units per rev (e.g. 0.0625 for 16tpi)
-    double vel_at_blend_start;
     unsigned char enables;  // Feed scale, etc, enable bits for this move
     int atspeed;           // wait for the spindle to be at-speed before starting this move
     syncdio_t syncdio;      // synched DIO's for this move. what to turn on/off
-    int indexrotary;        // which rotary axis to unlock to make this move, -1 for none
+    IndexRotaryAxis indexrotary;        // which rotary axis to unlock to make this move, -1 for none
     TCOptimizationLevel optimization_state;             // At peak velocity during blends)
     int on_final_decel;
-    int blend_prev;
     int accel_mode;
     int splitting;          // the segment is less than 1 cycle time
                             // away from the end.
@@ -197,8 +180,6 @@ typedef struct {
                             * speed) */
     int finalized;
 
-    // Temporary status flags (reset each cycle)
-    int is_blending;
 } TC_STRUCT;
 
 #endif				/* TC_TYPES_H */

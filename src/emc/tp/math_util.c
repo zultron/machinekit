@@ -1,4 +1,5 @@
 #include "math_util.h"
+#include "rtapi_math.h"
 
 double fsign(double f)
 {
@@ -73,4 +74,19 @@ int sat_inplace(double * const x, double max) {
         return -1;
     }
     return 0;
+}
+
+double hypot2(double x, double y)
+{
+    return sqrt(x*x + y*y);
+}
+
+double hypot3(double x, double y, double z)
+{
+    return sqrt(x*x + y*y + z*z);
+}
+
+double hypot4(double w, double x, double y, double z)
+{
+    return sqrt(w*w + x*x + y*y + z*z);
 }

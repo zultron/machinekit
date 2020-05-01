@@ -297,6 +297,8 @@ HEADERS := \
     emc/kinematics/genhexkins.h \
     emc/kinematics/genserkins.h \
     emc/kinematics/pumakins.h \
+    emc/tp/pm_line9.h \
+    emc/tp/pm_circle9.h \
     emc/tp/tc.h \
     emc/tp/tc_types.h \
     emc/tp/tcq.h \
@@ -304,7 +306,9 @@ HEADERS := \
     emc/tp/tp_enums.h \
     emc/tp/tp_types.h \
     emc/tp/spherical_arc.h \
+    emc/tp/spherical_arc9.h \
     emc/tp/blendmath.h \
+    emc/tp/blendmath_types.h \
     emc/tp/math_util.h \
     emc/motion/emcmotcfg.h \
     emc/motion/emcmotglb.h \
@@ -321,6 +325,7 @@ HEADERS := \
     emc/nml_intf/emccfg.h \
     emc/nml_intf/emcglb.h \
     emc/nml_intf/emcpos.h \
+    emc/nml_intf/emcpose.h \
     emc/nml_intf/interp_return.hh \
     emc/nml_intf/interpl.hh \
     emc/nml_intf/motion_types.h \
@@ -380,10 +385,14 @@ HEADERS := \
     libnml/os_intf/shm.hh \
     libnml/os_intf/_timer.h \
     libnml/os_intf/timer.hh \
+    libnml/posemath/posemath_ext.hh \
+    libnml/posemath/posemath_fwd.hh \
     libnml/posemath/posemath.h \
+    libnml/posemath/posemath_fwd.h \
     libnml/posemath/gotypes.h \
     libnml/posemath/gomath.h \
     libnml/posemath/sincos.h \
+    libnml/posemath/pm_vector.h \
     libnml/rcs/rcs.hh \
     libnml/rcs/rcs_exit.hh \
     libnml/rcs/rcs_print.hh \
@@ -961,7 +970,7 @@ tripodkins-objs := emc/kinematics/tripodkins.o
 
 obj-m += genhexkins.o
 genhexkins-objs := emc/kinematics/genhexkins.o
-genhexkins-objs += libnml/posemath/_posemath.o
+genhexkins-objs += libnml/posemath/posemath.o
 genhexkins-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 obj-m += genserkins.o
@@ -971,12 +980,12 @@ genserkins-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 obj-m += pumakins.o
 pumakins-objs := emc/kinematics/pumakins.o
-pumakins-objs += libnml/posemath/_posemath.o
+pumakins-objs += libnml/posemath/posemath.o
 pumakins-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 obj-m += scarakins.o
 scarakins-objs := emc/kinematics/scarakins.o
-scarakins-objs += libnml/posemath/_posemath.o
+scarakins-objs += libnml/posemath/posemath.o
 scarakins-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 obj-$(CONFIG_MOTMOD) += motmod.o
@@ -985,9 +994,12 @@ motmod-objs += emc/tp/tc.o
 motmod-objs += emc/tp/tcq.o
 motmod-objs += emc/tp/tp.o
 motmod-objs += emc/tp/spherical_arc.o
+motmod-objs += emc/tp/spherical_arc9.o
 motmod-objs += emc/tp/blendmath.o
 motmod-objs += emc/tp/joint_util.o
 motmod-objs += emc/tp/math_util.o
+motmod-objs += emc/tp/pm_circle9.o
+motmod-objs += emc/tp/pm_line9.o
 motmod-objs += emc/motion/motion.o
 motmod-objs += emc/motion/motion_shared.o
 motmod-objs += emc/motion/command.o
@@ -999,7 +1011,8 @@ motmod-objs += emc/motion/stashf.o
 motmod-objs += emc/motion/state_tag.o
 motmod-objs += emc/motion/dbuf.o
 motmod-objs += emc/nml_intf/emcpose.o
-motmod-objs += libnml/posemath/_posemath.o
+motmod-objs += libnml/posemath/posemath.o
+motmod-objs += libnml/posemath/pm_vector.o
 motmod-objs += libnml/posemath/sincos.o $(MATHSTUB)
 
 TORTOBJS = $(foreach file,$($(patsubst %.o,%,$(1))-objs), objects/rt$(file))

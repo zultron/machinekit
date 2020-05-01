@@ -1,6 +1,7 @@
 #include "joint_util.h"
 #include "motion_debug.h"
 #include "rtapi_math.h"
+#include "pm_vector.h"
 
 extern emcmot_debug_t *emcmotDebug;
 
@@ -19,6 +20,24 @@ PmCartesian getXYZVelBounds() {
         emcmotDebug->joints[1].vel_limit,
         emcmotDebug->joints[2].vel_limit,
     };
+    return vel_bound;
+}
+
+PmVector getAccelBounds()
+{
+    PmVector acc_bound={0};
+    for (int i = 0; i < PM_VECTOR_SIZE; ++i) {
+        acc_bound.ax[i] = emcmotDebug->joints[i].acc_limit;
+    }
+    return acc_bound;
+}
+
+PmVector getVelBounds()
+{
+    PmVector vel_bound={0};
+    for (int i = 0; i < PM_VECTOR_SIZE; ++i) {
+        vel_bound.ax[i] = emcmotDebug->joints[i].vel_limit;
+    }
     return vel_bound;
 }
 
@@ -58,54 +77,38 @@ unsigned jointPositionViolation(int joint_idx, double position)
  *
  * @return 0 if all acceleration bounds are respected, or a bit-set of failed axes (in XYZABCUVW bit order).
  */
-unsigned findAccelViolations(EmcPose axis_accel)
+unsigned findAccelViolations(PmVector axis_accel)
 {
+
     // Bit-mask each failure so we can report all failed axes
-    unsigned fail_bits = (unsigned)(0x0
-        | jointAccelViolation(0, axis_accel.tran.x)
-        | jointAccelViolation(1, axis_accel.tran.y)
-        | jointAccelViolation(2, axis_accel.tran.z)
-        | jointAccelViolation(3, axis_accel.a)
-        | jointAccelViolation(4, axis_accel.b)
-        | jointAccelViolation(5, axis_accel.c)
-        | jointAccelViolation(6, axis_accel.u)
-        | jointAccelViolation(7, axis_accel.v)
-        | jointAccelViolation(8, axis_accel.w));
+    unsigned fail_bits = (unsigned)(0x0);
+    for (int i=0; i < PM_VECTOR_SIZE; ++i) {
+        fail_bits |= jointAccelViolation(i, axis_accel.ax[i]);
+    }
     return fail_bits;
 }
 
-unsigned findVelocityViolations(EmcPose axis_vel)
+unsigned findVelocityViolations(PmVector axis_vel)
 {
+
     // Bit-mask each failure so we can report all failed axes
-    unsigned fail_bits = (unsigned)(0x0
-        | jointVelocityViolation(0, axis_vel.tran.x)
-        | jointVelocityViolation(1, axis_vel.tran.y)
-        | jointVelocityViolation(2, axis_vel.tran.z)
-        | jointVelocityViolation(3, axis_vel.a)
-        | jointVelocityViolation(4, axis_vel.b)
-        | jointVelocityViolation(5, axis_vel.c)
-        | jointVelocityViolation(6, axis_vel.u)
-        | jointVelocityViolation(7, axis_vel.v)
-        | jointVelocityViolation(8, axis_vel.w));
+    unsigned fail_bits = (unsigned)(0x0);
+    for (int i=0; i < PM_VECTOR_SIZE; ++i) {
+        fail_bits |= jointVelocityViolation(i, axis_vel.ax[i]);
+    }
     return fail_bits;
 }
 
-unsigned findPositionLimitViolations(EmcPose axis_pos)
+unsigned findPositionViolations(PmVector axis_pos)
 {
+
     // Bit-mask each failure so we can report all failed axes
-    unsigned fail_bits = (unsigned)(0x0
-        | jointPositionViolation(0, axis_pos.tran.x)
-        | jointPositionViolation(1, axis_pos.tran.y)
-        | jointPositionViolation(2, axis_pos.tran.z)
-        | jointPositionViolation(3, axis_pos.a)
-        | jointPositionViolation(4, axis_pos.b)
-        | jointPositionViolation(5, axis_pos.c)
-        | jointPositionViolation(6, axis_pos.u)
-        | jointPositionViolation(7, axis_pos.v)
-        | jointPositionViolation(8, axis_pos.w));
+    unsigned fail_bits = (unsigned)(0x0);
+    for (int i=0; i < PM_VECTOR_SIZE; ++i) {
+        fail_bits |= jointPositionViolation(i, axis_pos.ax[i]);
+    }
     return fail_bits;
 }
-
 
 double findMinNonZero(const PmCartesian * const bounds) {
     //Start with max accel value
@@ -122,4 +125,20 @@ double findMinNonZero(const PmCartesian * const bounds) {
         act_limit = fmin(act_limit, bounds->z);
     }
     return act_limit;
+}
+
+/**
+ * Checks all axis values in an EmcPose to see if they exceed a magnitude threshold.
+ * @return a bitmask that is 0 if all axes are within the threshold. Any
+ * out-of-limit axes set their corresponding bit to 1 in the returned value (X
+ * is 0th bit, Y is 1st, etc.).
+ */
+unsigned int findAbsThresholdViolations(PmVector vec, double threshold)
+{
+    threshold = fabs(threshold);
+    unsigned fail_bits = (unsigned)(0x0);
+    for (int i=0; i < PM_VECTOR_SIZE; ++i) {
+        fail_bits |= fabs(vec.ax[i]) > threshold;
+    }
+    return fail_bits;
 }

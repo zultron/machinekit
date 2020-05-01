@@ -13,7 +13,7 @@
 #include "positionarray.hh"
 #include <cmath>
 #include <algorithm>
-#include <emcpose.h>
+#include <emcpos.h>
 #include <algorithm>
 
 PositionArray toArray(double _x, double _y, double _z, double _a, double _b, double _c, double _u, double _v, double _w)
@@ -187,4 +187,13 @@ char axis_to_char(int ax)
         return AxisNames[ax];
     }
     return '_';
+}
+
+void apply_abs_mask(PositionArray & p, const PositionArray & min_mask)
+{
+    for (size_t i=0; i < p.size(); ++i) {
+        if (p[i] < min_mask[i]) {
+            p[i] = 0;
+        }
+    }
 }

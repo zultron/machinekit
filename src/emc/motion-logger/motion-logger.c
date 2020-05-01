@@ -613,6 +613,10 @@ void log_print_emcmot_cmd(emcmot_command_t *c)
 
     case EMCMOT_SET_DWELL:
         log_print("DWELL\n");
+		return;
+
+    case EMCMOT_SET_MIN_DISPLACEMENT:
+        log_print("SET_MIN_DISPLACEMENT %g, %g\n", c->min_displacement_cfg.min_linear_displacement, c->min_displacement_cfg.min_angular_displacement);
         return;
     }
 

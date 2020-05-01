@@ -68,6 +68,8 @@ PositionArray &min_inplace(PositionArray &p0, PositionArray const &p1);
 PositionArray max(PositionArray const &p0, PositionArray const &p1);
 PositionArray min(PositionArray const &p0, PositionArray const &p1);
 
+void apply_abs_mask(PositionArray &p, PositionArray const &min_mask);
+
 bool isNonzero(PositionArray const &p);
 
 EmcPose toEmcPose(PositionArray const &p);

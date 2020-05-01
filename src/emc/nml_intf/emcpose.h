@@ -15,6 +15,7 @@
 
 #include "emcpos.h"
 #include "posemath.h"
+#include "pm_vector.h"
 
 typedef enum {
     EMCPOSE_ERR_OK = 0,
@@ -36,6 +37,9 @@ int emcPoseToPmCartesian(EmcPose const * const pose,
 int pmCartesianToEmcPose(PmCartesian const * const xyz,
         PmCartesian const * const abc, PmCartesian const * const uvw, EmcPose * const pose);
 
+int emcPoseToPmVector(EmcPose const * const pose, PmVector * const v);
+int pmVectorToEmcPose(PmVector const * const v, EmcPose * const pose);
+
 int emcPoseSelfAdd(EmcPose * const self, EmcPose const * const p2);
 int emcPoseSelfSub(EmcPose * const self, EmcPose const * const p2);
 
@@ -49,7 +53,7 @@ int emcPoseGetUVW(EmcPose const * const pose, PmCartesian * const uvw);
 
 int emcPoseMagnitude(EmcPose const * const pose, double * const out);
 
-unsigned int findAbsThresholdViolations(EmcPose vec, double threshold);
+unsigned int findAbsThresholdViolations(PmVector vec, double threshold);
 
 int emcPoseValid(EmcPose const * const pose);
 
