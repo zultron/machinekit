@@ -1228,9 +1228,13 @@ class GlCanonDraw(glnav.GlNavBase):
         else:
             grid_string = '%ssin.' % grid_size
 
+        gpo_permuted = np.array([0, 0, grid_plane_offset])
+        text_offset_permuted = tlo_permuted - gpo_permuted
+        text_offset = -1.*np.array(inverse_permutation(text_offset_permuted))
+
         with gl_push_matrix():
             glColor3f(1.0, 1.0, 1.0)
-            glTranslatef(*(-np.array(tlo_orig)))
+            glTranslatef(*text_offset)
             if view == z:
                 glTranslatef(0.2, 0.2, 0.0)
             elif view == y:
