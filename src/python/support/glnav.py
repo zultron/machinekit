@@ -526,7 +526,7 @@ class GlNavBase(GlUserView):
         mid, size = self.extents_info()
         self.set_eyepoint_from_extents(size[1], size[2])
         self.disable_projection()
-        
+
         self.reset_view(center=mid)
         self.glRotateUserViewPolar(mid, longitude=270, latitude=-90)
 

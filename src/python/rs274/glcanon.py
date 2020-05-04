@@ -1135,38 +1135,9 @@ class GlCanonDraw(glnav.GlNavBase):
                     t0, t1 = times[0], times[1] # Take the only two times
                 x0, y0 = p0[0] + delta[0]*t0, p0[1] + delta[1]*t0
                 x1, y1 = p0[0] + delta[0]*t1, p0[1] + delta[1]*t1
-                xm, ym = (x0+x1)/2, (y0+y1)/2
-                # The computation of k0 and k1 above should mean that
-                # the lines are always in the limits, but I observed
-                # that this wasn't always the case...
-                #if xm < lim_min[0] or xm > lim_max[0]: continue
-                #if ym < lim_min[1] or ym > lim_max[1]: continue
-
-                view = self.get_view()
-                #if self.is_rear_tool_post_lathe():
-                #    glVertex3f(*inverse_permutation((x0 - s.tool_offset[2], -y0 + s.tool_offset[0], lim_min[2])))
-                #    glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], -y1 + s.tool_offset[0], lim_min[2])))
-                #elif view == 2:
-                if view == 2:
-                    glVertex3f(*inverse_permutation((x0, y0, lim_min[2])))
-                    glVertex3f(*inverse_permutation((x1, y1, lim_min[2])))
-                else:
-                    glVertex3f(*inverse_permutation((x0, y0, lim_min[2])))
-                    glVertex3f(*inverse_permutation((x1, y1, lim_min[2])))
-
-                """
-                if self.is_rear_tool_post_lathe():
-                    x_dir = -1
-                else:
-                    x_dir = 1
-                view = self.get_view()
-                if view == 2:
-                    glVertex3f(*inverse_permutation((x0, x_dir * y0, lim_min[2] - s.tool_offset[2])))
-                    glVertex3f(*inverse_permutation((x1, x_dir * y1, lim_min[2] - s.tool_offset[2])))
-                else:
-                    glVertex3f(*inverse_permutation((x0 - s.tool_offset[2], x_dir * y0, lim_min[2])))
-                    glVertex3f(*inverse_permutation((x1 - s.tool_offset[2], x_dir * y1, lim_min[2])))
-                """
+                
+                glVertex3f(*inverse_permutation((x0, y0, lim_min[2])))
+                glVertex3f(*inverse_permutation((x1, y1, lim_min[2])))
 
     def draw_grid_permuted(self, rotation, permutation, inverse_permutation, draw_at_top=False):
         grid_size = self.get_grid_size()
