@@ -1039,7 +1039,7 @@ class GlCanonDraw(glnav.GlNavBase):
         return num * 1. / den
 
     def draw_grid_lines(self, space, (ox, oy), (dx, dy), lim_min, lim_max,
-            inverse_permutation, line_dir):
+            inverse_permutation, line_dir, grid_plane_offset=None):
         # draw a series of line segments of the form
         #   dx(x-ox) + dy(y-oy) + k*space = 0
         # for integers k that intersect the AABB [lim_min, lim_max]
@@ -1135,9 +1135,10 @@ class GlCanonDraw(glnav.GlNavBase):
                     t0, t1 = times[0], times[1] # Take the only two times
                 x0, y0 = p0[0] + delta[0]*t0, p0[1] + delta[1]*t0
                 x1, y1 = p0[0] + delta[0]*t1, p0[1] + delta[1]*t1
-                
-                glVertex3f(*inverse_permutation((x0, y0, lim_min[2])))
-                glVertex3f(*inverse_permutation((x1, y1, lim_min[2])))
+
+
+                glVertex3f(*inverse_permutation((x0, y0, grid_plane_offset or lim_min[2])))
+                glVertex3f(*inverse_permutation((x1, y1, grid_plane_offset or lim_min[2])))
 
     def draw_grid_permuted(self, rotation, permutation, inverse_permutation, draw_at_top=False):
         grid_size = self.get_grid_size()
@@ -1150,8 +1151,8 @@ class GlCanonDraw(glnav.GlNavBase):
         s = self.stat
         tlo_orig = np.array(self.to_internal_units(s.tool_offset)[:3])
         tlo_permuted = permutation(self.to_internal_units(s.tool_offset)[:3])
-        g5x_offset = permutation(self.to_internal_units(s.g5x_offset)[:3])[:2]
-        g92_offset = permutation(self.to_internal_units(s.g92_offset)[:3])[:2]
+        g5x_offset = permutation(self.to_internal_units(s.g5x_offset)[:3])[:3]
+        g92_offset = permutation(self.to_internal_units(s.g92_offset)[:3])[:3]
 
         lim_min, lim_max = self.soft_limits()
         lim_min = np.array(permutation(lim_min))
@@ -1164,20 +1165,23 @@ class GlCanonDraw(glnav.GlNavBase):
             cos_rot = math.cos(rotation)
             sin_rot = math.sin(rotation)
             offset = (
-                    g5x_offset[0] + g92_offset[0] * cos_rot
-                                  - g92_offset[1] * sin_rot,
-                    g5x_offset[1] + g92_offset[0] * sin_rot
-                                  + g92_offset[1] * cos_rot)
+                g5x_offset[0] + g92_offset[0] * cos_rot - g92_offset[1] * sin_rot,
+                g5x_offset[1] + g92_offset[0] * sin_rot + g92_offset[1] * cos_rot,
+            )
         else:
             offset = 0., 0.
             cos_rot = 1.
             sin_rot = 0.
+
+        # Use permuted offsets bounded by machine limits for the grid offset plane
+        grid_plane_offset = min(max(lim_min[2], g5x_offset[2] + g92_offset[2]), lim_max[2])
         glDepthMask(False)
         glBegin(GL_LINES)
+
         self.draw_grid_lines(grid_size, offset, (cos_rot, sin_rot),
-                lim_min, lim_max, inverse_permutation, 0)
+                lim_min, lim_max, inverse_permutation, 0, grid_plane_offset)
         self.draw_grid_lines(grid_size, offset, (sin_rot, -cos_rot),
-                lim_min, lim_max, inverse_permutation, 1)
+                lim_min, lim_max, inverse_permutation, 1, grid_plane_offset)
         glEnd()
         glDepthMask(True)
 
