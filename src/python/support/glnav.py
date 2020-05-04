@@ -180,7 +180,7 @@ class GlUserView:
         glMultMatrixd(mat)
 
     @with_redraw
-    def glRotateUserViewPolar(self, center_pt=None, longitude=None, latitude=None):
+    def glRotateUserViewPolar(self, center_pt=None, longitude=None, latitude=None, bypass_world=False):
         """
         Rotates the user view to the specified lat / lon coordinates, given
         the center point in model space (uses current centerpoint by default).
@@ -193,7 +193,9 @@ class GlUserView:
         if latitude is None:
             latitude = self.latitude
 
-        world_view_tf = self.swap_world_view_transform(GlUserView.empty_world_tf)
+        # If starting from identity transform (e.g. when preparing top / side / front view),
+        # don't remove the world transform (since it's not currently applied)
+        world_view_tf = self.last_world_transform if bypass_world else self.swap_world_view_transform(GlUserView.empty_world_tf)
 
         # 1) Translate the scene so the view center is at the origin
         glTranslatef(*center_pt)
@@ -208,6 +210,7 @@ class GlUserView:
         # Note that this function should produce no net translation
         glTranslatef(*(-1. * center_pt))
 
+        # Restore the world transform
         self.swap_world_view_transform(world_view_tf)
 
         # Finally, update the scene values
@@ -520,7 +523,7 @@ class GlNavBase(GlUserView):
         self.set_eyepoint_from_extents(size[1], size[2])
         self.disable_projection()
         glTranslatef(-mid[0], -mid[1], -mid[2])
-        self.glRotateUserViewPolar(mid, longitude=270, latitude=-90)
+        self.glRotateUserViewPolar(mid, longitude=270, latitude=-90, bypass_world=True)
 
     @with_redraw
     def set_view_y(self):
@@ -532,7 +535,7 @@ class GlNavBase(GlUserView):
         self.disable_projection()
         el = 90 if self.is_lathe() else -90
         glTranslatef(*(-1.*center_pt))
-        self.glRotateUserViewPolar(center_pt, longitude=0, latitude=el)
+        self.glRotateUserViewPolar(center_pt, longitude=0, latitude=el, bypass_world=True)
 
     @with_redraw
     def set_view_y2(self):
@@ -544,7 +547,7 @@ class GlNavBase(GlUserView):
         self.set_eyepoint_from_extents(size[0], size[2])
         self.disable_projection()
         glTranslatef(-mid[0], -mid[1], -mid[2])
-        self.glRotateUserViewPolar(mid, longitude=0, latitude=-90)
+        self.glRotateUserViewPolar(mid, longitude=0, latitude=-90, bypass_world=True)
 
     @with_redraw
     def set_view_z(self):
@@ -553,7 +556,7 @@ class GlNavBase(GlUserView):
         self.set_eyepoint_from_extents(size[0], size[1])
         self.disable_projection()
         glTranslatef(-mid[0], -mid[1], -mid[2])
-        self.glRotateUserViewPolar(mid, longitude=0, latitude=0)
+        self.glRotateUserViewPolar(mid, longitude=0, latitude=0, bypass_world=True)
 
     @with_redraw
     def set_view_z2(self):
@@ -562,7 +565,7 @@ class GlNavBase(GlUserView):
         self.set_eyepoint_from_extents(size[1], size[0])
         self.disable_projection()
         glTranslatef(-mid[0], -mid[1], -mid[2])
-        self.glRotateUserViewPolar(mid, longitude=270, latitude=0)
+        self.glRotateUserViewPolar(mid, longitude=270, latitude=0, bypass_world=True)
 
     @with_redraw
     def set_view_p(self):
@@ -581,6 +584,6 @@ class GlNavBase(GlUserView):
 
         self.restore_projection()
         glTranslatef(-mid[0], -mid[1], -mid[2])
-        self.glRotateUserViewPolar(mid, longitude=-25, latitude=-60)
+        self.glRotateUserViewPolar(mid, longitude=-25, latitude=-60, bypass_world=True)
 
 # vim:ts=8:sts=4:sw=4:et:
