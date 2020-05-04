@@ -442,8 +442,8 @@ class GlDrawColors:
             'leadin': (0.4, 1.0, 0.5),
             'work_offset': (.4, .45, .8),
             'axis_offset': (.4, .6, .8),
-            'grid_plane_above': (.05, .05, .02),
-            'grid_plane_below': (.07, .03, .02),
+            'grid_plane_above': (.06, .06, .03),
+            'grid_plane_below': (.06, .06, .03),
         }
 
         # NOTE: PARSE_EXEC_RUN is deliberately omitted here so that the lookup will fall back to the motion type
