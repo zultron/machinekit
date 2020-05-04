@@ -1031,10 +1031,11 @@ class GlCanonDraw(glnav.GlNavBase):
     def comp(self, (sx, sy), (cx, cy)):
         return -(sx*cx + sy*cy) / (sx*sx + sy*sy)
 
-    def param(self, (x1, y1), (dx1, dy1), (x3, y3), (dx3, dy3)):
+    def param(self, (x1, y1), (dx1, dy1), (x_limit, y_limit), (dx3, dy3)):
         den = (dy3)*(dx1) - (dx3)*(dy1)
-        if den == 0: return 0
-        num = (dx3)*(y1-y3) - (dy3)*(x1-x3)
+        if den == 0:
+            return 0
+        num = (dx3) * (y1 - y_limit) - (dy3) * (x1 - x_limit)
         return num * 1. / den
 
     def draw_grid_lines(self, space, (ox, oy), (dx, dy), lim_min, lim_max,
