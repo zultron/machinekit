@@ -398,8 +398,8 @@ class GlDrawColors:
             'backplotfeed': 0.75,
             'backplotarc': 0.75,
             'skipped_segments': 0.25,
-            'grid_plane_above': 0.05,
-            'grid_plane_below': 0.05,
+            'grid_plane_above': 0.1,
+            'grid_plane_below': 0.1,
         }
         self.colors = {
             'traverse': (0.30, 0.50, 0.50),
@@ -442,8 +442,8 @@ class GlDrawColors:
             'leadin': (0.4, 1.0, 0.5),
             'work_offset': (.4, .45, .8),
             'axis_offset': (.4, .6, .8),
-            'grid_plane_above': (.06, .06, .03),
-            'grid_plane_below': (.06, .06, .03),
+            'grid_plane_above': (.01, .05, .05),
+            'grid_plane_below': (.01, .05, .05),
         }
 
         # NOTE: PARSE_EXEC_RUN is deliberately omitted here so that the lookup will fall back to the motion type
@@ -1226,7 +1226,7 @@ class GlCanonDraw(glnav.GlNavBase):
         if self.get_show_metric():  # the 's' is a space for hershey.py
             grid_string = '%smm' % int(grid_size * 25.4)
         else:
-            grid_string = '%ssin.' % grid_size
+            grid_string = '%sin.' % grid_size
 
         gpo_permuted = np.array([0, 0, grid_plane_offset])
         text_offset_permuted = tlo_permuted - gpo_permuted
