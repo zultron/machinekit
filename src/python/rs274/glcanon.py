@@ -398,6 +398,8 @@ class GlDrawColors:
             'backplotfeed': 0.75,
             'backplotarc': 0.75,
             'skipped_segments': 0.25,
+            'grid_plane_above': 0.05,
+            'grid_plane_below': 0.05,
         }
         self.colors = {
             'traverse': (0.30, 0.50, 0.50),
@@ -440,6 +442,8 @@ class GlDrawColors:
             'leadin': (0.4, 1.0, 0.5),
             'work_offset': (.4, .45, .8),
             'axis_offset': (.4, .6, .8),
+            'grid_plane_above': (.05, .05, .02),
+            'grid_plane_below': (.07, .03, .02),
         }
 
         # NOTE: PARSE_EXEC_RUN is deliberately omitted here so that the lookup will fall back to the motion type
@@ -1060,93 +1064,92 @@ class GlCanonDraw(glnav.GlNavBase):
             x_dir = -1
             machine_limit_min, machine_limit_max = self.soft_limits()
 
-            if line_dir == 1:
-                grid_offset = 0
-                grid_count = 0
-                while (-d1 + grid_offset) < (machine_limit_max[2] - s.tool_offset[2]):
-                    if (-d1 + grid_offset) > (machine_limit_min[2] - s.tool_offset[2]):
-                        glVertex3f((x_dir * (machine_limit_min[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
-                        glVertex3f((x_dir * (machine_limit_max[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
-                    grid_offset = grid_count * space
-                    grid_count += 1
-                    if grid_count > 1000:
-                        break
+            with gl_begin(GL_LINES):
+                if line_dir == 1:
+                    grid_offset = 0
+                    grid_count = 0
+                    while (-d1 + grid_offset) < (machine_limit_max[2] - s.tool_offset[2]):
+                        if (-d1 + grid_offset) > (machine_limit_min[2] - s.tool_offset[2]):
+                            glVertex3f((x_dir * (machine_limit_min[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
+                            glVertex3f((x_dir * (machine_limit_max[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
+                        grid_offset = grid_count * space
+                        grid_count += 1
+                        if grid_count > 1000:
+                            break
 
-                grid_offset = 0
-                grid_count = 0
-                while (-d1 + grid_offset) > (machine_limit_min[2] - s.tool_offset[2]):
-                    if (-d1 + grid_offset) < (machine_limit_max[2] - s.tool_offset[2]):
-                        glVertex3f((x_dir * (machine_limit_min[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
-                        glVertex3f((x_dir * (machine_limit_max[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
-                    grid_offset = -grid_count * space
-                    grid_count += 1
-                    if grid_count > 1000:
-                        break
+                    grid_offset = 0
+                    grid_count = 0
+                    while (-d1 + grid_offset) > (machine_limit_min[2] - s.tool_offset[2]):
+                        if (-d1 + grid_offset) < (machine_limit_max[2] - s.tool_offset[2]):
+                            glVertex3f((x_dir * (machine_limit_min[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
+                            glVertex3f((x_dir * (machine_limit_max[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
+                        grid_offset = -grid_count * space
+                        grid_count += 1
+                        if grid_count > 1000:
+                            break
 
-            elif line_dir == 0:
-                grid_offset = 0
-                grid_count = 0
-                while (-d1 + grid_offset) < (machine_limit_max[0] - s.tool_offset[0]):
-                    if (-d1 + grid_offset) > (machine_limit_min[0] - s.tool_offset[0]):
-                        glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_min[2] - s.tool_offset[2]))
-                        glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_max[2] - s.tool_offset[2]))
-                    grid_offset = grid_count * space
-                    grid_count += 1
-                    if grid_count > 1000:
-                        break
+                elif line_dir == 0:
+                    grid_offset = 0
+                    grid_count = 0
+                    while (-d1 + grid_offset) < (machine_limit_max[0] - s.tool_offset[0]):
+                        if (-d1 + grid_offset) > (machine_limit_min[0] - s.tool_offset[0]):
+                            glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_min[2] - s.tool_offset[2]))
+                            glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_max[2] - s.tool_offset[2]))
+                        grid_offset = grid_count * space
+                        grid_count += 1
+                        if grid_count > 1000:
+                            break
 
-                grid_offset = 0
-                grid_count = 0
-                while (-d1 + grid_offset) > (machine_limit_min[0] - s.tool_offset[0]):
-                    if (-d1 + grid_offset) < (machine_limit_max[0] - s.tool_offset[0]):
-                        glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_min[2] - s.tool_offset[2]))
-                        glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_max[2] - s.tool_offset[2]))
-                    grid_offset = -grid_count * space
-                    grid_count += 1
-                    if grid_count > 1000:
-                        break
+                    grid_offset = 0
+                    grid_count = 0
+                    while (-d1 + grid_offset) > (machine_limit_min[0] - s.tool_offset[0]):
+                        if (-d1 + grid_offset) < (machine_limit_max[0] - s.tool_offset[0]):
+                            glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_min[2] - s.tool_offset[2]))
+                            glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_max[2] - s.tool_offset[2]))
+                        grid_offset = -grid_count * space
+                        grid_count += 1
+                        if grid_count > 1000:
+                            break
         else:
-            for k in range(k0, k1+1):
-                d = k*space
-                # Now we're drawing the line dx(x-ox) + dx(y-oy) + d = 0
-                p0 = (ox - dy * d, oy + dx * d)
-                # which is the same as the line p0 + u * delta
+            with gl_begin(GL_LINES):
+                for k in range(k0, k1+1):
+                    d = k*space
+                    # Now we're drawing the line dx(x-ox) + dx(y-oy) + d = 0
+                    p0 = (ox - dy * d, oy + dx * d)
+                    # which is the same as the line p0 + u * delta
 
-                # but we only want the part that's inside the box lim_pts...
-                if dx and dy:
-                    times = [
-                            self.param(p0, delta, lim_min[:2], (0, 1)),
-                            self.param(p0, delta, lim_min[:2], (1, 0)),
-                            self.param(p0, delta, lim_max[:2], (0, 1)),
-                            self.param(p0, delta, lim_max[:2], (1, 0))]
-                    times.sort()
-                    t0, t1 = times[1], times[2] # Take the middle two times
-                elif dx:
-                    times = [
-                            self.param(p0, delta, lim_min[:2], (0, 1)),
-                            self.param(p0, delta, lim_max[:2], (0, 1))]
-                    times.sort()
-                    t0, t1 = times[0], times[1] # Take the only two times
-                else:
-                    times = [
-                            self.param(p0, delta, lim_min[:2], (1, 0)),
-                            self.param(p0, delta, lim_max[:2], (1, 0))]
-                    times.sort()
-                    t0, t1 = times[0], times[1] # Take the only two times
-                x0, y0 = p0[0] + delta[0]*t0, p0[1] + delta[1]*t0
-                x1, y1 = p0[0] + delta[0]*t1, p0[1] + delta[1]*t1
+                    # but we only want the part that's inside the box lim_pts...
+                    if dx and dy:
+                        times = [
+                                self.param(p0, delta, lim_min[:2], (0, 1)),
+                                self.param(p0, delta, lim_min[:2], (1, 0)),
+                                self.param(p0, delta, lim_max[:2], (0, 1)),
+                                self.param(p0, delta, lim_max[:2], (1, 0))]
+                        times.sort()
+                        t0, t1 = times[1], times[2] # Take the middle two times
+                    elif dx:
+                        times = [
+                                self.param(p0, delta, lim_min[:2], (0, 1)),
+                                self.param(p0, delta, lim_max[:2], (0, 1))]
+                        times.sort()
+                        t0, t1 = times[0], times[1] # Take the only two times
+                    else:
+                        times = [
+                                self.param(p0, delta, lim_min[:2], (1, 0)),
+                                self.param(p0, delta, lim_max[:2], (1, 0))]
+                        times.sort()
+                        t0, t1 = times[0], times[1] # Take the only two times
+                    x0, y0 = p0[0] + delta[0]*t0, p0[1] + delta[1]*t0
+                    x1, y1 = p0[0] + delta[0]*t1, p0[1] + delta[1]*t1
 
 
-                glVertex3f(*inverse_permutation((x0, y0, grid_plane_offset or lim_min[2])))
-                glVertex3f(*inverse_permutation((x1, y1, grid_plane_offset or lim_min[2])))
+                    glVertex3f(*inverse_permutation((x0, y0, grid_plane_offset or lim_min[2])))
+                    glVertex3f(*inverse_permutation((x1, y1, grid_plane_offset or lim_min[2])))
 
     def draw_grid_permuted(self, rotation, permutation, inverse_permutation, draw_at_top=False):
         grid_size = self.get_grid_size()
         if not grid_size:
             return
-
-        glLineWidth(1)
-        glColor3f(*self.color_config.get_color('grid'))
 
         s = self.stat
         tlo_orig = np.array(self.to_internal_units(s.tool_offset)[:3])
@@ -1173,16 +1176,44 @@ class GlCanonDraw(glnav.GlNavBase):
             cos_rot = 1.
             sin_rot = 0.
 
-        # Use permuted offsets bounded by machine limits for the grid offset plane
-        grid_plane_offset = min(max(lim_min[2], g5x_offset[2] + g92_offset[2]), lim_max[2])
+        # Use permuted offsets bounded by machine limits for the grid offset plane, slightly offset from zero to avoid occlusion
+        grid_plane_offset = min(max(lim_min[2], g5x_offset[2] + g92_offset[2]), lim_max[2])-0.000
         glDepthMask(False)
-        glBegin(GL_LINES)
 
+        glLineWidth(1)
+        with gl_begin(GL_QUADS):
+            gpo = grid_plane_offset or lim_min[2]
+            defuzz = 0.00001
+            gpo_upper = gpo + defuzz
+            gpo_lower = gpo - defuzz
+            self.color_config.gl_color_with_alpha('grid_plane_above')
+            # Define vertices in CCW order for upper plane
+            glVertex3f(*inverse_permutation((lim_min[0], lim_min[1], gpo_upper)))
+            glVertex3f(*inverse_permutation((lim_max[0], lim_min[1], gpo_upper)))
+            glVertex3f(*inverse_permutation((lim_max[0], lim_max[1], gpo_upper)))
+            glVertex3f(*inverse_permutation((lim_min[0], lim_max[1], gpo_upper)))
+
+            self.color_config.gl_color_with_alpha('grid_plane_below')
+            # Define vertices in CW order for lower plane
+            glVertex3f(*inverse_permutation((lim_min[0], lim_min[1], gpo_lower)))
+            glVertex3f(*inverse_permutation((lim_min[0], lim_max[1], gpo_lower)))
+            glVertex3f(*inverse_permutation((lim_max[0], lim_max[1], gpo_lower)))
+            glVertex3f(*inverse_permutation((lim_max[0], lim_min[1], gpo_lower)))
+
+        glColor3f(*self.color_config.get_color('grid'))
         self.draw_grid_lines(grid_size, offset, (cos_rot, sin_rot),
                 lim_min, lim_max, inverse_permutation, 0, grid_plane_offset)
         self.draw_grid_lines(grid_size, offset, (sin_rot, -cos_rot),
                 lim_min, lim_max, inverse_permutation, 1, grid_plane_offset)
-        glEnd()
+
+        glLineStipple(1, 0x1111)
+        with gl_enable(GL_LINE_STIPPLE), gl_begin(GL_LINE_STRIP):
+            glVertex3f(*inverse_permutation((lim_min[0], lim_min[1], gpo)))
+            glVertex3f(*inverse_permutation((lim_max[0], lim_min[1], gpo)))
+            glVertex3f(*inverse_permutation((lim_max[0], lim_max[1], gpo)))
+            glVertex3f(*inverse_permutation((lim_min[0], lim_max[1], gpo)))
+            glVertex3f(*inverse_permutation((lim_min[0], lim_min[1], gpo)))
+
         glDepthMask(True)
 
         # draw grid size label
