@@ -85,7 +85,7 @@ class Kinematics_RotaryA : public PreviewKinematicsBase
     double orientation; // +1 for right-facing A axis, -1 for left-facing
 public:
     Kinematics_RotaryA() = default;
-    Kinematics_RotaryA(double y0, double z0, bool flipped) : a_y0(y0), a_z0(z0), orientation(flipped ? -1.0 : 1.0) {}
+    Kinematics_RotaryA(double y0, double z0, double axis_dir) : a_y0(y0), a_z0(z0), orientation(axis_dir) {}
 
     virtual void forward(PositionArray const &p, Array3 &position_xyz, Array3 &rotation_xyz);
     virtual void forward_position(PositionArray const &p, Array3 &position_xyz);
