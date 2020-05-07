@@ -129,6 +129,7 @@ class GlUserView:
     view_rotation_vectors = (
         (1., 0., 0.), # Latitude
         (0., 0., 1.), # Longitude
+        (0., 1., 0.), # Y spin
     )
     empty_world_tf = (
         (0.,)*3,
@@ -140,6 +141,7 @@ class GlUserView:
         self._center_pt = np.array((0.,) * 3)
         self._lon = 0
         self._lat = 0
+        self._spin = 0
 
         self.need_redraw = CallOnExitWrapper(self._redraw)
 
@@ -154,6 +156,10 @@ class GlUserView:
     @property
     def longitude(self):
         return self._lon
+
+    @property
+    def spin(self):
+        return self._spin
 
     @property
     def latitude(self):
@@ -187,7 +193,7 @@ class GlUserView:
         glMultMatrixd(mat)
 
     @with_redraw
-    def glRotateUserViewPolar(self, center_pt=None, longitude=None, latitude=None, bypass_world=False):
+    def glRotateUserViewPolar(self, center_pt=None, longitude=None, latitude=None, spin=None, bypass_world=False):
         """
         Rotates the user view to the specified lat / lon coordinates, given
         the center point in model space (uses current centerpoint by default).
@@ -199,6 +205,8 @@ class GlUserView:
             longitude = self.longitude
         if latitude is None:
             latitude = self.latitude
+        if spin is None:
+            spin = self.spin
 
         # If starting from identity transform (e.g. when preparing top / side / front view),
         # don't remove the world transform (since it's not currently applied)
@@ -209,9 +217,11 @@ class GlUserView:
 
         # 2) Unrotate our current view rotation (note the reverse order)
         # then rotate to apply the requested user view rotation
+        glRotatef(-self.spin, *self.view_rotation_vectors[2])
         glRotatef(-self.longitude, *self.view_rotation_vectors[1])
         glRotatef(latitude - self.latitude, *self.view_rotation_vectors[0])
         glRotatef(longitude, *self.view_rotation_vectors[1])
+        glRotatef(spin, *self.view_rotation_vectors[2])
 
         # 3) Restore the scene's translation back to the original location
         # Note that this function should produce no net translation
@@ -223,6 +233,7 @@ class GlUserView:
         # Finally, update the scene values
         self._lon = longitude
         self._lat = latitude
+        self._spin = spin
 
     def _redraw(self):
         raise NotImplementedError
@@ -548,8 +559,11 @@ class GlNavBase(GlUserView):
         center_pt = np.array(mid)
         center_pt[0] *= -1. if self.is_rear_tool_post_lathe() else 1.
         self.reset_view(center=mid)
-        el = 90 if self.is_lathe() else -90
-        self.glRotateUserViewPolar(center_pt, longitude=0, latitude=el)
+        if self.is_lathe():
+            spin = 90
+        else:
+            spin = 0
+        self.glRotateUserViewPolar(center_pt, longitude=0, latitude=-90, spin=spin)
 
     @with_redraw
     def set_view_y2(self):
@@ -561,7 +575,11 @@ class GlNavBase(GlUserView):
         self.disable_projection()
 
         self.reset_view(center=mid)
-        self.glRotateUserViewPolar(mid, longitude=0, latitude=-90)
+        if self.is_lathe():
+            spin = 90 if self.is_rear_tool_post_lathe() else -90
+        else:
+            spin = 0
+        self.glRotateUserViewPolar(mid, longitude=0, latitude=90, spin=spin)
 
     @with_redraw
     def set_view_z(self):
