@@ -1177,9 +1177,11 @@ class GlCanonDraw:
                     glCallList(olist)
 
                 g5x_offset = self.to_internal_units(s.g5x_offset)[:3]
+                g92_offset = self.to_internal_units(s.g92_offset)[:3]
+
                 if self.is_rear_tool_post_lathe():
                     g5x_offset[0] *= -1
-                g92_offset = self.to_internal_units(s.g92_offset)[:3]
+                    g92_offset[0] *= -1
 
                 if self.get_show_work_offset() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2]):
 
