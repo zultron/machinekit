@@ -766,7 +766,7 @@ class GlCanonDraw(glnav.GlNavBase):
         is_metric = self.get_show_metric()
         dimscale = is_metric and 25.4 or 1.0
         fmt = is_metric and "%.1f" or "%.2f"
-        dfmt = is_metric and "Ds%.1f" or "Ds%.2f"
+        dfmt = is_metric and "D %.1f" or "D %.2f"
 
         machine_limit_min, machine_limit_max = self.soft_limits()
 
