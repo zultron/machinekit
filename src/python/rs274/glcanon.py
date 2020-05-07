@@ -542,7 +542,8 @@ class GlCanonDraw(glnav.GlNavBase):
         self.grid_size = 0.0
         self.show_offsets = True
         self.show_g53_origin = False
-
+        self.request_view_follow_rotation = True
+        self.request_view_follow_translation = False
         self.current_view = 'z'
         self.font_base = None
         self.font_linespace = None
@@ -737,7 +738,10 @@ class GlCanonDraw(glnav.GlNavBase):
         try:
             world_tf, lp, pos6 = self.get_logger_world_transform()
             pos6 = pos6 or (0,) * 6
-            self.swap_world_view_transform(world_tf)
+            self.swap_world_view_transform(
+                world_tf,
+                follow_translation=self.request_view_follow_translation,
+                follow_rotation=self.request_view_follow_rotation)
             with gl_push_matrix():
                 self.redraw_scene(lp, pos6)
         finally:
@@ -2089,6 +2093,8 @@ class GlCanonDraw(glnav.GlNavBase):
         lus = [lu, lu, lu, 1, 1, 1, lu, lu, lu]
         return [a*b for a, b in zip(pos, lus)]
 
+    # Getters for various settings
+
     def get_highlight_line(self):
         return self.highlight_line
 
@@ -2125,6 +2131,11 @@ class GlCanonDraw(glnav.GlNavBase):
     def get_num_joints(self): return self.num_joints
     def get_joints_mode(self): return self.use_joints_mode
     def get_grid_size(self): return self.grid_size
+    def set_view_follow_rotation(self, f):
+        self.request_view_follow_rotation = f
+
+    def set_view_follow_translation(self, f):
+        self.request_view_follow_translation = f
 
     def get_view(self):
         view_dict = {

@@ -144,6 +144,8 @@ class GlUserView:
         self.need_redraw = CallOnExitWrapper(self._redraw)
 
         self.last_world_transform = GlUserView.empty_world_tf
+        self._view_follows_rotation = True # Controls whether to apply rotation part of world transform
+        self._view_follows_translation = False # View follows tool in translation
 
     @property
     def center_pt(self):
@@ -225,27 +227,34 @@ class GlUserView:
     def _redraw(self):
         raise NotImplementedError
 
-    def swap_world_view_transform(self, world_tf, ignore_previous=False):
+    def swap_world_view_transform(self, world_tf, ignore_previous=False, follow_translation=False, follow_rotation=True):
         r2d = 180./np.pi
         old_tf = self.last_world_transform
         if self.last_world_transform is not None and not ignore_previous:
             pos, rot, rot_cen = self.last_world_transform
-            glTranslatef(*(np.array(rot_cen)))
-            glRotatef(-rot[0] * r2d, 1, 0, 0)
-            glRotatef(-rot[1] * r2d, 0, 1, 0)
-            glRotatef(-rot[2] * r2d, 0, 0, 1)
-            glTranslatef(*(np.array(rot_cen) * -1.))
-            glTranslatef(*(np.array(pos) * -1.))
+            if self._view_follows_rotation:
+                glTranslatef(*(np.array(rot_cen)))
+                glRotatef(-rot[0] * r2d, 1, 0, 0)
+                glRotatef(-rot[1] * r2d, 0, 1, 0)
+                glRotatef(-rot[2] * r2d, 0, 0, 1)
+                glTranslatef(*(np.array(rot_cen) * -1.))
+            if self._view_follows_translation:
+                glTranslatef(*(np.array(pos) * -1.))
 
         # Get world transform in standard form
         self.last_world_transform = world_tf
         pos_new, rot_new, rot_cen_new = world_tf
-        glTranslatef(*pos_new)
-        glTranslatef(*rot_cen_new)
-        glRotatef(rot_new[2] * r2d, 0, 0, 1)
-        glRotatef(rot_new[1] * r2d, 0, 1, 0)
-        glRotatef(rot_new[0] * r2d, 1, 0, 0)
-        glTranslatef(*(np.array(rot_cen_new)*-1))
+        if follow_translation:
+            glTranslatef(*pos_new)
+        if follow_rotation:
+            glTranslatef(*rot_cen_new)
+            glRotatef(rot_new[2] * r2d, 0, 0, 1)
+            glRotatef(rot_new[1] * r2d, 0, 1, 0)
+            glRotatef(rot_new[0] * r2d, 1, 0, 0)
+            glTranslatef(*(np.array(rot_cen_new)*-1))
+        self._view_follows_translation = follow_translation
+        self._view_follows_rotation = follow_rotation
+
         return old_tf
 
 
