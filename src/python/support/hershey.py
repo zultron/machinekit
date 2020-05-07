@@ -17,6 +17,7 @@
 
 from minigl import *
 from gl_context_managers import *
+import math
 
 default_hershey = {
     '0': [[(240.0, 20.0),
@@ -52,7 +53,7 @@ default_hershey = {
            (380.0, 140.0),
            (360.0, 180.0),
            (320.0, 240.0),
-           (120.0, 440.0),
+           (140.0, 440.0),
            (400.0, 440.0)]],
     '3': [[(160.0, 20.0),
            (380.0, 20.0),
@@ -310,8 +311,8 @@ default_hershey = {
 default_character_spacing = 400
 character_spacing_map = {
     '1': 260,
-    '.': 180,
-    ',': 190,
+    '.': 170,
+    ',': 180,
     ' ': 250,
 }
 
@@ -369,22 +370,23 @@ class Hershey:
                 glEnd()
             for c in s:
                 glCallList(self.list_index_map.get(c, None) or self.list_index_map.get(' ')) # default to space
-                ch_space = character_spacing_map.get(c, default_character_spacing)
+                ch_space = self.character_spacing(c)
                 glTranslatef(ch_space, 0, 0)
 
     def string_len(self, s):
         l = 0.0
         for c in s:
-            if c == '1':
-                l += 260.0
-            elif c == '.':
-                l += 180.0
-            else:
-                l += 400.0
+            l += self.character_spacing(c)
 
-        return l/440.0
+        return l / default_character_spacing
 
     def center_string(self, s):
         len = self.string_len(s)
         glTranslatef(-len/2, -.5, 0)
 
+    def character_spacing(self, c):
+        return character_spacing_map.get(c, default_character_spacing)
+
+    def fill_blank(self, length):
+        count = int(math.ceil(length * default_character_spacing / character_spacing_map.get(' ')))
+        return ' ' * count

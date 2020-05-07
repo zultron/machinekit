@@ -51,6 +51,26 @@ limiticon = array.array('B',
          255, 255,  176, 0,  152, 0,  140, 0,  134, 0,  128, 0,    0,   0,
            0,   0,    0, 0])
 
+class formats_dim_string:
+
+    def __init__(self, hershey, dimscale, char_scale):
+        self.hershey = hershey
+        self.dimscale = dimscale
+        self.char_scale = char_scale
+
+    def format(self, fmt, dimension_uu):
+        return fmt % (dimension_uu * self.dimscale)
+
+    def get_dim_string_padding(self, dim_str, dimension_uu, inside_fit_ratio, center=True):
+        str_len = self.hershey.string_len(dim_str)
+
+        if str_len > inside_fit_ratio * dimension_uu / self.char_scale:
+            # Pad with enough spaces to put the dimension string entirely outside the dimension area
+            # KLUDGE multiply by two because the dimension strings are centered
+            return self.hershey.fill_blank((2.0 if center else 1.0) * str_len)
+        else:
+            return ''
+
 
 class GLCanon(Translated, ArcsToSegmentsMixin):
     lineno = -1
@@ -764,16 +784,18 @@ class GlCanonDraw(glnav.GlNavBase):
         x,y,z,p = 0,1,2,3
         view = self.get_view()
         is_metric = self.get_show_metric()
-        dimscale = is_metric and 25.4 or 1.0
+        dimscale = 25.4 if is_metric else 1.0
         fmt = is_metric and "%.1f" or "%.2f"
         dfmt = is_metric and "D %.1f" or "D %.2f"
 
         machine_limit_min, machine_limit_max = self.soft_limits()
 
-        pullback = max(g.max_extents[x] - g.min_extents[x],
-                       g.max_extents[y] - g.min_extents[y],
-                       g.max_extents[z] - g.min_extents[z],
-                       2 ) * .1
+        pullback = max(
+            g.max_extents[x] - g.min_extents[x],
+            g.max_extents[y] - g.min_extents[y],
+            g.max_extents[z] - g.min_extents[z],
+            2
+        ) * .1
 
         dashwidth = pullback/4
         charsize = dashwidth * 1.5
@@ -849,6 +871,8 @@ class GlCanonDraw(glnav.GlNavBase):
         else:
             x_dir = 1
 
+        formatter = formats_dim_string(self.hershey, dimscale, charsize)
+
         # ### plot Z extent labels ###
         if view != z and g.max_extents[z] > g.min_extents[z]:
 
@@ -860,85 +884,88 @@ class GlCanonDraw(glnav.GlNavBase):
                 x_pos = x_dir * (g.min_extents[x] - 6.0*dashwidth)
                 y_pos = g.min_extents[y] - pullback
 
+
             bbox = self.color_limit(g.min_extents_notool[z] < machine_limit_min[z])
-            glPushMatrix()
-            f = fmt % ((g.min_extents[z]-offset[z]) * dimscale)
-            glTranslatef(x_pos, y_pos, g.min_extents[z] - halfchar)
-            glScalef(charsize, charsize, charsize)
-            glRotatef(x_dir * -90, 0, 1, 0)
-            glRotatef(-90, 0, 0, 1)
-            if view != x:
-                glRotatef(-90, 0, 1, 0)
-            self.hershey.plot_string(f, 0, bbox)
-            glPopMatrix()
+            with gl_push_matrix():
+                z_min_str = formatter.format(fmt, g.min_extents[z] - offset[z])
+                glTranslatef(x_pos, y_pos, g.min_extents[z] - halfchar)
+                glScalef(charsize, charsize, charsize)
+                glRotatef(x_dir * -90, 0, 1, 0)
+                glRotatef(-90, 0, 0, 1)
+                if view != x:
+                    glRotatef(-90, 0, 1, 0)
+                self.hershey.plot_string(z_min_str, 0, bbox)
 
             bbox = self.color_limit(g.max_extents_notool[z] > machine_limit_max[z])
-            glPushMatrix()
-            f = fmt % ((g.max_extents[z]-offset[z]) * dimscale)
-            glTranslatef(x_pos, y_pos, g.max_extents[z] - halfchar)
-            glScalef(charsize, charsize, charsize)
-            glRotatef(x_dir * -90, 0, 1, 0)
-            glRotatef(-90, 0, 0, 1)
-            if view != x:
-                glRotatef(-90, 0, 1, 0)
-            self.hershey.plot_string(f, 0, bbox)
-            glPopMatrix()
+            with gl_push_matrix():
+                z_max_str = formatter.format(fmt, g.max_extents[z] - offset[z])
+                glTranslatef(x_pos, y_pos, g.max_extents[z] - halfchar)
+                glScalef(charsize, charsize, charsize)
+                glRotatef(x_dir * -90, 0, 1, 0)
+                glRotatef(-90, 0, 0, 1)
+                if view != x:
+                    glRotatef(-90, 0, 1, 0)
+                self.hershey.plot_string(z_max_str, 0, bbox)
 
             # create Z extnet distance value and ready for plotting
             self.color_limit(0)
-            glPushMatrix()
-            f = fmt % ((g.max_extents[z] - g.min_extents[z]) * dimscale)
-            glTranslatef(x_pos, y_pos, (g.max_extents[z] + g.min_extents[z])/2)
-            glScalef(charsize, charsize, charsize)
-            if view != x:
-                glRotatef(-90, 0, 0, 1)
-            glRotatef(-90, 0, 1, 0)
-            self.hershey.plot_string(f, .5, bbox)
-            glPopMatrix()
+            with gl_push_matrix():
+                glTranslatef(x_pos, y_pos, (g.max_extents[z] + g.min_extents[z])/2)
+                glScalef(charsize, charsize, charsize)
+                if view != x:
+                    glRotatef(-90, 0, 0, 1)
+                glRotatef(-90, 0, 1, 0)
+
+                z_size = g.max_extents[z] - g.min_extents[z]
+                z_size_str = formatter.format(fmt, z_size)
+                padding = formatter.get_dim_string_padding(z_size_str, z_size, 0.95)
+                self.hershey.plot_string(z_size_str + padding, .5, bbox)
 
         # ### plot Y extent labels ###
         if view != y and g.max_extents[y] > g.min_extents[y]:
             x_pos = g.min_extents[x] - 6.0*dashwidth
 
             bbox = self.color_limit(g.min_extents_notool[y] < machine_limit_min[y])
-            glPushMatrix()
-            f = fmt % ((g.min_extents[y] - offset[y]) * dimscale)
-            glTranslatef(x_pos, g.min_extents[y] + halfchar, z_pos)
-            glRotatef(-90, 0, 0, 1)
-            glRotatef(-90, 0, 0, 1)
-            if view == x:
-                glRotatef(90, 0, 1, 0)
-                glTranslatef(dashwidth*1.5, 0, 0)
-            glScalef(charsize, charsize, charsize)
-            self.hershey.plot_string(f, 0, bbox)
-            glPopMatrix()
+            with gl_push_matrix():
+                f = formatter.format(fmt, g.min_extents[y] - offset[y])
+                glTranslatef(x_pos, g.min_extents[y] + halfchar, z_pos)
+                glRotatef(-90, 0, 0, 1)
+                glRotatef(-90, 0, 0, 1)
+                if view == x:
+                    glRotatef(90, 0, 1, 0)
+                    glTranslatef(dashwidth*1.5, 0, 0)
+                glScalef(charsize, charsize, charsize)
+                self.hershey.plot_string(f, 0, bbox)
 
             bbox = self.color_limit(g.max_extents_notool[y] > machine_limit_max[y])
-            glPushMatrix()
-            f = fmt % ((g.max_extents[y] - offset[y]) * dimscale)
-            glTranslatef(x_pos, g.max_extents[y] + halfchar, z_pos)
-            glRotatef(-90, 0, 0, 1)
-            glRotatef(-90, 0, 0, 1)
-            if view == x:
-                glRotatef(90, 0, 1, 0)
-                glTranslatef(dashwidth*1.5, 0, 0)
-            glScalef(charsize, charsize, charsize)
-            self.hershey.plot_string(f, 0, bbox)
-            glPopMatrix()
+            with gl_push_matrix():
+                f = formatter.format(fmt, (g.max_extents[y] - offset[y]))
+                glTranslatef(x_pos, g.max_extents[y] + halfchar, z_pos)
+                glRotatef(-90, 0, 0, 1)
+                glRotatef(-90, 0, 0, 1)
+                if view == x:
+                    glRotatef(90, 0, 1, 0)
+                    glTranslatef(dashwidth*1.5, 0, 0)
+                glScalef(charsize, charsize, charsize)
+                self.hershey.plot_string(f, 0, bbox)
 
             self.color_limit(0)
-            glPushMatrix()
-            f = fmt % ((g.max_extents[y] - g.min_extents[y]) * dimscale)
+            with gl_push_matrix():
+                f = formatter.format(fmt, (g.max_extents[y] - g.min_extents[y]))
 
-            glTranslatef(x_pos, (g.max_extents[y] + g.min_extents[y])/2,
-                        z_pos)
-            glRotatef(-90, 0, 0, 1)
-            if view == x:
-                glRotatef(-90, 1, 0, 0)
-                glTranslatef(0, halfchar, 0)
-            glScalef(charsize, charsize, charsize)
-            self.hershey.plot_string(f, .5)
-            glPopMatrix()
+                glTranslatef(x_pos, (g.max_extents[y] + g.min_extents[y])/2,
+                            z_pos)
+                glRotatef(-90, 0, 0, 1)
+
+
+                y_size = g.max_extents[y] - g.min_extents[y]
+                y_size_str = formatter.format(fmt, y_size)
+                padding = formatter.get_dim_string_padding(y_size_str, y_size, 0.95)
+                if view == x:
+                    glRotatef(-90, 1, 0, 0)
+                    glTranslatef(0, halfchar, 0)
+                glScalef(charsize, charsize, charsize)
+                self.hershey.plot_string(y_size_str + padding, .5, bbox)
 
         # ### plot X extent labels ###
         if view != x and g.max_extents[x] > g.min_extents[x]:
@@ -946,52 +973,49 @@ class GlCanonDraw(glnav.GlNavBase):
             y_pos = g.min_extents[y] - 6.0*dashwidth
 
             bbox = self.color_limit(g.min_extents_notool[x] < machine_limit_min[x])
-            glPushMatrix()
+            with gl_push_matrix():
+                if self.rear_tp_lathe_option:
+                    f = formatter.format(dfmt, g.min_extents[x] - offset[x] * 2.0)
+                else:
+                    f = formatter.format(fmt, g.min_extents[x] - offset[x])
 
-            if self.rear_tp_lathe_option:
-                f = dfmt % ((g.min_extents[x] - offset[x]) * dimscale * 2)
-            else:
-                f = fmt % ((g.min_extents[x] - offset[x]) * dimscale)
-
-            glTranslatef(x_dir * (g.min_extents[x] - halfchar), y_pos, z_pos)
-            glRotatef(-90, 0, 0, 1)
-            if view == y:
-                glRotatef(90, 0, 1, 0)
-                glTranslatef(dashwidth*1.5, 0, 0)
-            glScalef(charsize, charsize, charsize)
-            self.hershey.plot_string(f, 0, bbox)
-            glPopMatrix()
+                glTranslatef(x_dir * (g.min_extents[x] - halfchar), y_pos, z_pos)
+                glRotatef(-90, 0, 0, 1)
+                if view == y:
+                    glRotatef(90, 0, 1, 0)
+                    glTranslatef(dashwidth*1.5, 0, 0)
+                glScalef(charsize, charsize, charsize)
+                self.hershey.plot_string(f, 0, bbox)
 
             bbox = self.color_limit(g.max_extents_notool[x] > machine_limit_max[x])
-            glPushMatrix()
+            with gl_push_matrix():
+                if self.rear_tp_lathe_option:
+                    f = formatter.format(dfmt, (g.max_extents[x] - offset[x]) * 2.0)
+                else:
+                    f = formatter.format(fmt, g.max_extents[x] - offset[x])
 
-            if self.rear_tp_lathe_option:
-                f = dfmt % ((g.max_extents[x] - offset[x]) * dimscale * 2)
-            else:
-                f = fmt % ((g.max_extents[x] - offset[x]) * dimscale)
+                glTranslatef(x_dir * (g.max_extents[x] - halfchar), y_pos, z_pos)
+                glRotatef(-90, 0, 0, 1)
+                if view == y:
+                    glRotatef(90, 0, 1, 0)
+                    glTranslatef(dashwidth*1.5, 0, 0)
+                glScalef(charsize, charsize, charsize)
+                self.hershey.plot_string(f, 0, bbox)
 
-            glTranslatef(x_dir * (g.max_extents[x] - halfchar), y_pos, z_pos)
-            glRotatef(-90, 0, 0, 1)
-            if view == y:
-                glRotatef(90, 0, 1, 0)
-                glTranslatef(dashwidth*1.5, 0, 0)
-            glScalef(charsize, charsize, charsize)
-            self.hershey.plot_string(f, 0, bbox)
-            glPopMatrix()
-
-            # create X extnet distance value and ready for plotting
+            # create X extent distance value and ready for plotting
             self.color_limit(0)
-            glPushMatrix()
-            f = fmt % ((g.max_extents[x] - g.min_extents[x]) * dimscale)
+            with gl_push_matrix():
+                glTranslatef(x_dir * (g.max_extents[x] + g.min_extents[x])/2, y_pos,
+                            z_pos)
+                x_size = g.max_extents[x] - g.min_extents[x]
+                x_size_str = formatter.format(fmt, x_size)
+                padding = formatter.get_dim_string_padding(x_size_str, x_size, 0.95)
+                if view == y:
+                    glRotatef(-90, 1, 0, 0)
+                    glTranslatef(0, halfchar, 0)
+                glScalef(charsize, charsize, charsize)
+                self.hershey.plot_string(x_size_str + padding, .5, bbox)
 
-            glTranslatef(x_dir * (g.max_extents[x] + g.min_extents[x])/2, y_pos,
-                        z_pos)
-            if view == y:
-                glRotatef(-90, 1, 0, 0)
-                glTranslatef(0, halfchar, 0)
-            glScalef(charsize, charsize, charsize)
-            self.hershey.plot_string(f, .5)
-            glPopMatrix()
 
     def to_internal_linear_unit(self, v, unit=None):
         if unit is None:
