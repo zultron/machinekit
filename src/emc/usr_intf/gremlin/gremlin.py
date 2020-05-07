@@ -206,7 +206,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         gldrawable.gl_end()
 
     def reshape(self, widget, event):
-        self.set_window_size(event.width, event.height)
+        pass
 
     def expose(self, widget=None, event=None):
         if not self.initialised:
@@ -344,6 +344,14 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
 
     def set_keep_current_tool(self, keep_current_tool):
         self.keep_current_tool = keep_current_tool
+
+    def clear_preview(self):
+        self._tools_used = []
+        self.canon = None
+        self.clear_dlists()
+
+    # doing this kills our zoom settings if gremlin.load is called on work offset change
+    # self.set_current_view()
 
     def load(self, filename=None, suppress_errors=False, working_dir=None, start_line=None, leadin_type=None, temp_parameter_file_name=None):
         # suppress_errors arg was added to help situation where we need to have gremlin
@@ -608,3 +616,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
             self.logger.set_max_live_plot_points(int(points))
         else:
             self.logger.set_max_live_plot_points()
+
+    def winfo_width(self):
+        return self.get_size_request()[0]
+
+    def winfo_height(self):
+        return self.get_size_request()[1]
+

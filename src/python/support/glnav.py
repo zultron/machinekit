@@ -179,6 +179,7 @@ class GlUserView:
             self.swap_world_view_transform(self.last_world_transform, ignore_previous=True)
         self._lon = 0
         self._lat = 0
+        self._spin = 0
 
     @with_redraw
     def glTranslateUserView(self, view_dx, view_dy, scale=1.0):
@@ -283,8 +284,11 @@ class GlNavBase(GlUserView):
         self.g_back = 0.
         self.b_back = 1.
 
-        # Where the eye is
+        # In ortho mode, "distance" is the scene width.
+        # In perspective mode, it's the distance between near and far planes
         self.distance = 10.0
+        # TODO use separate zoom controls for each view mode since perspective now gets its own
+        #self.ortho_view_width = 10.0
         self.zoom_ratio_default = 1.2
 
         # Field of view in y direction
@@ -303,8 +307,9 @@ class GlNavBase(GlUserView):
         self.y0 = 0
         self.original_zoom = 0
 
-        self.width = 0
-        self.height = 0
+        # Zoom out by this factor to see the extent labels for a loaded model.
+        # At 1.0, the preview toolpath just fills the screen
+        self.ortho_view_scale = 1.75
 
     # Abstract methods that must be implemented
     def _redraw(self):
@@ -323,14 +328,10 @@ class GlNavBase(GlUserView):
         raise NotImplementedError
 
     def winfo_width(self):
-        return self.width
+        raise NotImplementedError
 
     def winfo_height(self):
-        return self.height
-
-    def set_window_size(self, width, height):
-        self.width = width
-        self.height = height
+        raise NotImplementedError
 
     # This should almost certainly be part of some derived class.
     # But I have put it here for convenience.
@@ -389,14 +390,17 @@ class GlNavBase(GlUserView):
         self.distance = distance
 
     @with_redraw
-    def set_eyepoint_from_extents(self, e1, e2):
+    def set_eyepoint_from_extents(self, scene_width, scene_height=None, view_scale=None):
         """Set how far the eye is from the position we are looking
         based on the screen width and height of a subject."""
         w = self.winfo_width()
         h = self.winfo_height()
+        view_scale = self.ortho_view_scale if view_scale is None else view_scale
 
-        ztran = max(2.0, e1, e2 * w/h) ** 2
-        self.set_eyepoint(ztran - self.center_pt[2])
+        scaled_height = scene_height * w / h if scene_height is not None else scene_width
+        effective_width_sq = (max(2.0, scene_width, scaled_height) * view_scale) ** 2.
+        self.set_eyepoint(effective_width_sq)
+        #print "w, h = {}, {}, scene size: {}, {}, scaled_height = {}".format(w, h, scene_width, scene_height, scaled_height)
 
     @with_redraw
     def reset(self):
@@ -487,10 +491,12 @@ class GlNavBase(GlUserView):
     @with_redraw
     def zoom_in(self, ratio=None):
         self.distance /= (ratio or self.zoom_ratio_default)
+        #print "distance =", self.distance
 
     @with_redraw
     def zoom_out(self, ratio=None):
         self.distance *= (ratio or self.zoom_ratio_default)
+        #print "distance =", self.distance
 
     def startZoom(self, y):
         self.y0 = y
@@ -533,6 +539,9 @@ class GlNavBase(GlUserView):
         """
         self.perspective_view = self.use_perspective_proj
 
+    def set_ortho_view_scale(self, vs):
+        self.ortho_view_scale = max(vs, 1.0)
+
     # NOTE: set_view_XXX functions follow a standard pattern
     # * reset the GL Model View matrix and the view center / rotation settings
     # * get the current view region of interest (machine bounds or extents of loaded program)
@@ -543,8 +552,8 @@ class GlNavBase(GlUserView):
 
     @with_redraw
     def set_view_x(self):
-        mid, size = self.extents_info()
-        self.set_eyepoint_from_extents(size[1], size[2])
+        mid, size, scale = self.extents_info()
+        self.set_eyepoint_from_extents(size[1], size[2], scale)
         self.disable_projection()
 
         self.reset_view(center=mid)
@@ -552,13 +561,19 @@ class GlNavBase(GlUserView):
 
     @with_redraw
     def set_view_y(self):
-        mid, size = self.extents_info()
-        self.set_eyepoint_from_extents(size[0], size[2])
+        mid, size, scale = self.extents_info()
+        if self.is_lathe():
+            width = size[2]
+            height = size[0]
+        else:
+            width = size[0]
+            height = size[2]
+        self.set_eyepoint_from_extents(width, height, scale)
         self.disable_projection()
 
         center_pt = np.array(mid)
         center_pt[0] *= -1. if self.is_rear_tool_post_lathe() else 1.
-        self.reset_view(center=mid)
+        self.reset_view(center=center_pt)
         if self.is_lathe():
             spin = 90
         else:
@@ -570,8 +585,8 @@ class GlNavBase(GlUserView):
         """
         lathe backtool display
         """
-        mid, size = self.extents_info()
-        self.set_eyepoint_from_extents(size[0], size[2])
+        mid, size, scale = self.extents_info()
+        self.set_eyepoint_from_extents(size[0], size[2], scale)
         self.disable_projection()
 
         self.reset_view(center=mid)
@@ -583,8 +598,8 @@ class GlNavBase(GlUserView):
 
     @with_redraw
     def set_view_z(self):
-        mid, size = self.extents_info()
-        self.set_eyepoint_from_extents(size[0], size[1])
+        mid, size, scale = self.extents_info()
+        self.set_eyepoint_from_extents(size[0], size[1], scale)
         self.disable_projection()
 
         self.reset_view(center=mid)
@@ -592,8 +607,8 @@ class GlNavBase(GlUserView):
 
     @with_redraw
     def set_view_z2(self):
-        mid, size = self.extents_info()
-        self.set_eyepoint_from_extents(size[1], size[0])
+        mid, size, scale = self.extents_info()
+        self.set_eyepoint_from_extents(size[1], size[0], scale)
         self.disable_projection()
 
         self.reset_view(center=mid)
@@ -601,19 +616,22 @@ class GlNavBase(GlUserView):
 
     @with_redraw
     def set_view_p(self):
-        mid, sizes = self.extents_info()
+        mid, sizes, scale = self.extents_info()
         size = (sizes[0] ** 2 + sizes[1] ** 2 + sizes[2] ** 2) ** .5
-        if not self.canon:
-            size /= 0.55
         if size > 1e99:
             size = 5. # in case there are no moves in the preview
-        w = self.winfo_width()
-        h = self.winfo_height()
-        fovx = self.fovy * w / h
-        fov = min(fovx, self.fovy)
-        self.set_eyepoint((size * 1.1 + 1.0) / 2 / math.sin(fov * math.pi / 180 / 2))
 
         self.restore_projection()
+
+        if self.perspective_view:
+            w = self.winfo_width()
+            h = self.winfo_height()
+            fovx = self.fovy * w / h
+            fov = min(fovx, self.fovy)
+            self.set_eyepoint((size * 1.1 + 1.0) / 2 / math.sin(fov * math.pi / 180 / 2))
+        else:
+            self.set_eyepoint_from_extents(size, view_scale=scale)
+
         self.reset_view(center=mid)
         self.glRotateUserViewPolar(mid, longitude=-25, latitude=-60)
 

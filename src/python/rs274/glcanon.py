@@ -728,7 +728,7 @@ class GlCanonDraw(glnav.GlNavBase):
             gluPerspective(self.fovy, float(w) / float(h), self.near, self.far + self.distance)
             self.gl_look_at_z(self.distance)
         else:
-            horiz_clip = (abs(self.distance or 1)) ** .55555
+            horiz_clip = math.sqrt(max(self.distance, 0.1)) / 2.0
             vert_clip = horiz_clip * h / w
             near_clip = -1000
             far_clip = 1000
@@ -1002,7 +1002,7 @@ class GlCanonDraw(glnav.GlNavBase):
     def to_internal_units(self, pos9, unit=None):
         if unit is None:
             unit = self.stat.linear_units
-        lu = (unit or 1) * 25.4
+        lu = (unit or 1.) * 25.4
 
         unit_scales = (lu, lu, lu, 1, 1, 1, lu, lu, lu)
         return [a/b for a, b in zip(pos9, unit_scales)]
@@ -1011,8 +1011,13 @@ class GlCanonDraw(glnav.GlNavBase):
     def mask_bignum(pos9):
         return [0 if abs(x) > 1e30 else x for x in pos9]
 
-    def soft_limits(self):
+    def soft_limits(self, at_tool_tip=False):
         min_limits, max_limits = self.stat.axis_limits
+
+        if at_tool_tip:
+            min_limits = np.array(min_limits) - self.stat.tool_offset
+            max_limits = np.array(max_limits) - self.stat.tool_offset
+
         return (
             self.to_internal_units(self.mask_bignum(min_limits))[:3],
             self.to_internal_units(self.mask_bignum(max_limits))[:3],
@@ -1956,26 +1961,17 @@ class GlCanonDraw(glnav.GlNavBase):
 
     def extents_info(self):
         if self.canon:
-            mid = [(a+b) / 2 for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
-            sz_scale = .5 if self.is_lathe() else 1.0
-            size = [sz_scale * (a-b) for a, b in zip(self.canon.max_extents, self.canon.min_extents)]
-        else:  # use work space extents (limits) from .ini file
-            s = self.stat
-            sz_scale = 0.37 if self.is_lathe() else 0.43
+            lim_min = np.array(self.canon.min_extents)
+            lim_max = np.array(self.canon.max_extents)
+            scale = self.ortho_view_scale
+        else:
+            lim_min, lim_max = self.soft_limits(at_tool_tip=True)
+            scale = 1.1
 
-            mid = [
-                ((self.x_limit_positive + self.x_limit_negative) / 2) - s.tool_offset[0],
-                ((self.y_limit_positive + self.y_limit_negative) / 2) - s.tool_offset[1],
-                ((self.z_limit_positive + self.z_limit_negative) / 2) - s.tool_offset[2],
-                ]
+        mid = (np.array(lim_max) + np.array(lim_min)) / 2.0
+        size = np.array(lim_max) - np.array(lim_min)
 
-            size = [
-                sz_scale * (self.x_limit_positive - self.x_limit_negative),
-                sz_scale * (self.y_limit_positive - self.y_limit_negative),
-                sz_scale * (self.z_limit_positive - self.z_limit_negative),
-                ]
-
-        return mid, size
+        return mid, size, scale
 
     def make_nonrapids_list(self, nonrapids_list, for_selection=False):
         glNewList(nonrapids_list, GL_COMPILE)
@@ -2008,6 +2004,13 @@ class GlCanonDraw(glnav.GlNavBase):
 
     def get_work_offsets_used(self):
         return self._work_offsets_used
+
+    def clear_dlists(self):
+        self.stale_dlist('program_rapids')
+        self.stale_dlist('program_norapids')
+        self.stale_dlist('select_rapids')
+        self.stale_dlist('select_norapids')
+        self.stale_dlist('highlight')
 
     def load_preview(self, f, canon, unitcode, initcode, interpname=None, working_dir=None, start_line=0, leadin_type=None, keep_current_tool=True):
         self.set_canon(canon)
@@ -2129,4 +2132,9 @@ class GlCanonDraw(glnav.GlNavBase):
     def draw_live_plot_lines(self):
         raise NotImplementedError
 
+    def winfo_width(self):
+        raise NotImplementedError
+
+    def winfo_height(self):
+        raise NotImplementedError
 # vim:ts=8:sts=4:sw=4:et:
