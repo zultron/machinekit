@@ -1063,93 +1063,40 @@ class GlCanonDraw(glnav.GlNavBase):
         k1 = int(math.floor(d1/space))
         delta = (dx, dy)
 
-        s = self.stat
+        with gl_begin(GL_LINES):
+            for k in range(k0, k1+1):
+                d = k*space
+                # Now we're drawing the line dx(x-ox) + dx(y-oy) + d = 0
+                p0 = (ox - dy * d, oy + dx * d)
+                # which is the same as the line p0 + u * delta
 
-        if self.is_rear_tool_post_lathe():
-            x_dir = -1
-            machine_limit_min, machine_limit_max = self.soft_limits()
-
-            with gl_begin(GL_LINES):
-                if line_dir == 1:
-                    grid_offset = 0
-                    grid_count = 0
-                    while (-d1 + grid_offset) < (machine_limit_max[2] - s.tool_offset[2]):
-                        if (-d1 + grid_offset) > (machine_limit_min[2] - s.tool_offset[2]):
-                            glVertex3f((x_dir * (machine_limit_min[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
-                            glVertex3f((x_dir * (machine_limit_max[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
-                        grid_offset = grid_count * space
-                        grid_count += 1
-                        if grid_count > 1000:
-                            break
-
-                    grid_offset = 0
-                    grid_count = 0
-                    while (-d1 + grid_offset) > (machine_limit_min[2] - s.tool_offset[2]):
-                        if (-d1 + grid_offset) < (machine_limit_max[2] - s.tool_offset[2]):
-                            glVertex3f((x_dir * (machine_limit_min[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
-                            glVertex3f((x_dir * (machine_limit_max[0] - s.tool_offset[0])), 0.0, (-d1 + grid_offset))
-                        grid_offset = -grid_count * space
-                        grid_count += 1
-                        if grid_count > 1000:
-                            break
-
-                elif line_dir == 0:
-                    grid_offset = 0
-                    grid_count = 0
-                    while (-d1 + grid_offset) < (machine_limit_max[0] - s.tool_offset[0]):
-                        if (-d1 + grid_offset) > (machine_limit_min[0] - s.tool_offset[0]):
-                            glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_min[2] - s.tool_offset[2]))
-                            glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_max[2] - s.tool_offset[2]))
-                        grid_offset = grid_count * space
-                        grid_count += 1
-                        if grid_count > 1000:
-                            break
-
-                    grid_offset = 0
-                    grid_count = 0
-                    while (-d1 + grid_offset) > (machine_limit_min[0] - s.tool_offset[0]):
-                        if (-d1 + grid_offset) < (machine_limit_max[0] - s.tool_offset[0]):
-                            glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_min[2] - s.tool_offset[2]))
-                            glVertex3f((x_dir * (-d1 + grid_offset)), 0.0, (machine_limit_max[2] - s.tool_offset[2]))
-                        grid_offset = -grid_count * space
-                        grid_count += 1
-                        if grid_count > 1000:
-                            break
-        else:
-            with gl_begin(GL_LINES):
-                for k in range(k0, k1+1):
-                    d = k*space
-                    # Now we're drawing the line dx(x-ox) + dx(y-oy) + d = 0
-                    p0 = (ox - dy * d, oy + dx * d)
-                    # which is the same as the line p0 + u * delta
-
-                    # but we only want the part that's inside the box lim_pts...
-                    if dx and dy:
-                        times = [
-                                self.param(p0, delta, lim_min[:2], (0, 1)),
-                                self.param(p0, delta, lim_min[:2], (1, 0)),
-                                self.param(p0, delta, lim_max[:2], (0, 1)),
-                                self.param(p0, delta, lim_max[:2], (1, 0))]
-                        times.sort()
-                        t0, t1 = times[1], times[2] # Take the middle two times
-                    elif dx:
-                        times = [
-                                self.param(p0, delta, lim_min[:2], (0, 1)),
-                                self.param(p0, delta, lim_max[:2], (0, 1))]
-                        times.sort()
-                        t0, t1 = times[0], times[1] # Take the only two times
-                    else:
-                        times = [
-                                self.param(p0, delta, lim_min[:2], (1, 0)),
-                                self.param(p0, delta, lim_max[:2], (1, 0))]
-                        times.sort()
-                        t0, t1 = times[0], times[1] # Take the only two times
-                    x0, y0 = p0[0] + delta[0]*t0, p0[1] + delta[1]*t0
-                    x1, y1 = p0[0] + delta[0]*t1, p0[1] + delta[1]*t1
+                # but we only want the part that's inside the box lim_pts...
+                if dx and dy:
+                    times = [
+                            self.param(p0, delta, lim_min[:2], (0, 1)),
+                            self.param(p0, delta, lim_min[:2], (1, 0)),
+                            self.param(p0, delta, lim_max[:2], (0, 1)),
+                            self.param(p0, delta, lim_max[:2], (1, 0))]
+                    times.sort()
+                    t0, t1 = times[1], times[2] # Take the middle two times
+                elif dx:
+                    times = [
+                            self.param(p0, delta, lim_min[:2], (0, 1)),
+                            self.param(p0, delta, lim_max[:2], (0, 1))]
+                    times.sort()
+                    t0, t1 = times[0], times[1] # Take the only two times
+                else:
+                    times = [
+                            self.param(p0, delta, lim_min[:2], (1, 0)),
+                            self.param(p0, delta, lim_max[:2], (1, 0))]
+                    times.sort()
+                    t0, t1 = times[0], times[1] # Take the only two times
+                x0, y0 = p0[0] + delta[0]*t0, p0[1] + delta[1]*t0
+                x1, y1 = p0[0] + delta[0]*t1, p0[1] + delta[1]*t1
 
 
-                    glVertex3f(*inverse_permutation((x0, y0, grid_plane_offset or lim_min[2])))
-                    glVertex3f(*inverse_permutation((x1, y1, grid_plane_offset or lim_min[2])))
+                glVertex3f(*inverse_permutation((x0, y0, grid_plane_offset or lim_min[2])))
+                glVertex3f(*inverse_permutation((x1, y1, grid_plane_offset or lim_min[2])))
 
     def draw_grid_permuted(self, rotation, permutation, inverse_permutation, draw_at_top=False):
         grid_size = self.get_grid_size()
@@ -1157,15 +1104,26 @@ class GlCanonDraw(glnav.GlNavBase):
             return
 
         s = self.stat
-        tlo_orig = np.array(self.to_internal_units(s.tool_offset)[:3])
-        tlo_permuted = permutation(self.to_internal_units(s.tool_offset)[:3])
-        g5x_offset = permutation(self.to_internal_units(s.g5x_offset)[:3])[:3]
-        g92_offset = permutation(self.to_internal_units(s.g92_offset)[:3])[:3]
+        tlo = self.to_internal_units(s.tool_offset)[:3]
+        g5x = self.to_internal_units(s.g5x_offset)[:3]
+        g92 = self.to_internal_units(s.g92_offset)[:3]
+        lim_min_raw, lim_max_raw = self.soft_limits()
+        if self.is_rear_tool_post_lathe():
+            # Flip X axis on all raw values
+            tlo[0] *= -1.
+            g5x[0] *= -1.
+            g92[0] *= -1.
+            lim_min_raw[0] *= -1.
+            lim_max_raw[0] *= -1.
 
-        lim_min, lim_max = self.soft_limits()
-        lim_min = np.array(permutation(lim_min))
-        lim_max = np.array(permutation(lim_max))
+        # Permute the offsets and limits
+        tlo_permuted = permutation(tlo)[:3]
+        g5x_offset = permutation(g5x)[:3]
+        g92_offset = permutation(g92)[:3]
+        lim_min = np.array(permutation(lim_min_raw))
+        lim_max = np.array(permutation(lim_max_raw))
 
+        # Convert to tool tip coordinates
         lim_min -= tlo_permuted
         lim_max -= tlo_permuted
 
@@ -1433,9 +1391,7 @@ class GlCanonDraw(glnav.GlNavBase):
         machine_limit_xyz_min_tool = np.array(machine_limit_min[0:3]) - tool_offset_xyz
         machine_limit_xyz_max_tool = np.array(machine_limit_max[0:3]) - tool_offset_xyz
         if self.is_rear_tool_post_lathe():
-            # Flip the draw X axis orientation and tweak the color for the rear TP
-            machine_limit_xyz_min_tool[0] *= -1.
-            machine_limit_xyz_max_tool[0] *= -1.
+            # Rear limit box color
             glColor3f(0.0, 1.0, 0.0)
         else:
             # Normal limit box color
