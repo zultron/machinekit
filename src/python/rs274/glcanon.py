@@ -529,6 +529,7 @@ class GlCanonDraw(glnav.GlNavBase):
         self.use_joints_mode = False
         self.use_commanded = True
         self.show_limits = True
+        self.show_axis_chain = False
         self.show_extents_option = True
         self.show_live_plot = True
         self.show_velocity = True
@@ -1319,7 +1320,8 @@ class GlCanonDraw(glnav.GlNavBase):
         if self.get_show_limits():
             self.draw_limit_box(machine_limit_max, machine_limit_min, last_position, tool_offset)
 
-        self.draw_axis_chain(last_position)
+        if self.get_show_axis_chain():
+            self.draw_axis_chain(last_position)
 
         if self.get_show_live_plot():
             self.draw_live_plot_all(units_per_inch)
@@ -2118,6 +2120,7 @@ class GlCanonDraw(glnav.GlNavBase):
     def get_show_commanded(self): return self.use_commanded
     def get_show_extents(self): return self.show_extents_option
     def get_show_limits(self): return self.show_limits
+    def get_show_axis_chain(self): return self.show_axis_chain
     def get_show_live_plot(self): return self.show_live_plot
     def get_show_machine_speed(self): return self.show_velocity
     def get_show_metric(self): return self.metric_units
