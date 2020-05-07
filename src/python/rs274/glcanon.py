@@ -1286,10 +1286,11 @@ class GlCanonDraw(glnav.GlNavBase):
         units_per_inch = 1 / ((self.stat.linear_units or 1) * 25.4)
         g5x_index = self.stat.g5x_index
         g5x_offset = self.to_internal_units(self.stat.g5x_offset)[:3]
-        if self.is_rear_tool_post_lathe():
-            g5x_offset[0] *= -1
         rotation_xy = self.stat.rotation_xy
         g92_offset = self.to_internal_units(self.stat.g92_offset)[:3]
+        if self.is_rear_tool_post_lathe():
+            g5x_offset[0] *= -1
+            g92_offset[0] *= -1
 
         glDisable(GL_LIGHTING) # Can't light lines, so only enable this for specific 3D geometry
         glMatrixMode(GL_MODELVIEW)
