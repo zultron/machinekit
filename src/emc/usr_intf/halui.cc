@@ -2214,15 +2214,15 @@ static void modify_hal_pins()
     *(halui_data->lube_is_on) = emcStatus->io.lube.on;
 
     *(halui_data->tool_number) = emcStatus->io.tool.toolInSpindle;
-    *(halui_data->tool_length_offset_x) = emcStatus->task.toolOffset.tran.x;
-    *(halui_data->tool_length_offset_y) = emcStatus->task.toolOffset.tran.y;
-    *(halui_data->tool_length_offset_z) = emcStatus->task.toolOffset.tran.z;
-    *(halui_data->tool_length_offset_a) = emcStatus->task.toolOffset.a;
-    *(halui_data->tool_length_offset_b) = emcStatus->task.toolOffset.b;
-    *(halui_data->tool_length_offset_c) = emcStatus->task.toolOffset.c;
-    *(halui_data->tool_length_offset_u) = emcStatus->task.toolOffset.u;
-    *(halui_data->tool_length_offset_v) = emcStatus->task.toolOffset.v;
-    *(halui_data->tool_length_offset_w) = emcStatus->task.toolOffset.w;
+    *(halui_data->tool_length_offset_x) = emcStatus->task.toolOffset[X];
+    *(halui_data->tool_length_offset_y) = emcStatus->task.toolOffset[Y];
+    *(halui_data->tool_length_offset_z) = emcStatus->task.toolOffset[Z];
+    *(halui_data->tool_length_offset_a) = emcStatus->task.toolOffset[A];
+    *(halui_data->tool_length_offset_b) = emcStatus->task.toolOffset[B];
+    *(halui_data->tool_length_offset_c) = emcStatus->task.toolOffset[C];
+    *(halui_data->tool_length_offset_u) = emcStatus->task.toolOffset[U];
+    *(halui_data->tool_length_offset_v) = emcStatus->task.toolOffset[V];
+    *(halui_data->tool_length_offset_w) = emcStatus->task.toolOffset[W];
 
     *(halui_data->spindle_is_on) = (emcStatus->motion.spindle.speed != 0);
     *(halui_data->spindle_runs_forward) = (emcStatus->motion.spindle.direction == 1);
@@ -2238,6 +2238,7 @@ static void modify_hal_pins()
 	*(halui_data->joint_has_fault[joint]) = emcStatus->motion.axis[joint].fault;
     }
 
+    //TODO local transform
     *(halui_data->axis_pos_commanded[0]) = emcStatus->motion.traj.position.tran.x;	
     *(halui_data->axis_pos_commanded[1]) = emcStatus->motion.traj.position.tran.y;	
     *(halui_data->axis_pos_commanded[2]) = emcStatus->motion.traj.position.tran.z;
@@ -2256,15 +2257,15 @@ static void modify_hal_pins()
     *(halui_data->axis_pos_feedback[6]) = emcStatus->motion.traj.actualPosition.u;
     *(halui_data->axis_pos_feedback[7]) = emcStatus->motion.traj.actualPosition.v;
     *(halui_data->axis_pos_feedback[8]) = emcStatus->motion.traj.actualPosition.w;
-    *(halui_data->axis_pos_relative[0]) = emcStatus->motion.traj.actualPosition.tran.x - emcStatus->task.g5x_offset()[X] - emcStatus->task.g92_offset.tran.x - emcStatus->task.toolOffset.tran.x;
-    *(halui_data->axis_pos_relative[1]) = emcStatus->motion.traj.actualPosition.tran.y - emcStatus->task.g5x_offset()[Y] - emcStatus->task.g92_offset.tran.y - emcStatus->task.toolOffset.tran.y;
-    *(halui_data->axis_pos_relative[2]) = emcStatus->motion.traj.actualPosition.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset.tran.z - emcStatus->task.toolOffset.tran.z;
-    *(halui_data->axis_pos_relative[3]) = emcStatus->motion.traj.actualPosition.a - emcStatus->task.g5x_offset()[A] - emcStatus->task.g92_offset.a - emcStatus->task.toolOffset.a;
-    *(halui_data->axis_pos_relative[4]) = emcStatus->motion.traj.actualPosition.b - emcStatus->task.g5x_offset()[B] - emcStatus->task.g92_offset.b - emcStatus->task.toolOffset.b;
-    *(halui_data->axis_pos_relative[5]) = emcStatus->motion.traj.actualPosition.c - emcStatus->task.g5x_offset()[C] - emcStatus->task.g92_offset.c - emcStatus->task.toolOffset.c;
-    *(halui_data->axis_pos_relative[6]) = emcStatus->motion.traj.actualPosition.u - emcStatus->task.g5x_offset()[U] - emcStatus->task.g92_offset.u - emcStatus->task.toolOffset.u;
-    *(halui_data->axis_pos_relative[7]) = emcStatus->motion.traj.actualPosition.v - emcStatus->task.g5x_offset()[V] - emcStatus->task.g92_offset.v - emcStatus->task.toolOffset.v;
-    *(halui_data->axis_pos_relative[8]) = emcStatus->motion.traj.actualPosition.w - emcStatus->task.g5x_offset()[W] - emcStatus->task.g92_offset.w - emcStatus->task.toolOffset.w;
+    *(halui_data->axis_pos_relative[0]) = emcStatus->motion.traj.actualPosition.tran.x - emcStatus->task.g5x_offset()[X] - emcStatus->task.g92_offset[X] - emcStatus->task.toolOffset[X];
+    *(halui_data->axis_pos_relative[1]) = emcStatus->motion.traj.actualPosition.tran.y - emcStatus->task.g5x_offset()[Y] - emcStatus->task.g92_offset[Y] - emcStatus->task.toolOffset[Y];
+    *(halui_data->axis_pos_relative[2]) = emcStatus->motion.traj.actualPosition.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset[Z] - emcStatus->task.toolOffset[Z];
+    *(halui_data->axis_pos_relative[3]) = emcStatus->motion.traj.actualPosition.a - emcStatus->task.g5x_offset()[A] - emcStatus->task.g92_offset[A] - emcStatus->task.toolOffset[A];
+    *(halui_data->axis_pos_relative[4]) = emcStatus->motion.traj.actualPosition.b - emcStatus->task.g5x_offset()[B] - emcStatus->task.g92_offset[B] - emcStatus->task.toolOffset[B];
+    *(halui_data->axis_pos_relative[5]) = emcStatus->motion.traj.actualPosition.c - emcStatus->task.g5x_offset()[C] - emcStatus->task.g92_offset[C] - emcStatus->task.toolOffset[C];
+    *(halui_data->axis_pos_relative[6]) = emcStatus->motion.traj.actualPosition.u - emcStatus->task.g5x_offset()[U] - emcStatus->task.g92_offset[U] - emcStatus->task.toolOffset[U];
+    *(halui_data->axis_pos_relative[7]) = emcStatus->motion.traj.actualPosition.v - emcStatus->task.g5x_offset()[V] - emcStatus->task.g92_offset[V] - emcStatus->task.toolOffset[V];
+    *(halui_data->axis_pos_relative[8]) = emcStatus->motion.traj.actualPosition.w - emcStatus->task.g5x_offset()[W] - emcStatus->task.g92_offset[W] - emcStatus->task.toolOffset[W];
 
     *(halui_data->joint_is_homed[num_axes]) = emcStatus->motion.axis[*(halui_data->joint_selected)].homed;
     *(halui_data->joint_on_soft_min_limit[num_axes]) = emcStatus->motion.axis[*(halui_data->joint_selected)].minSoftLimit;

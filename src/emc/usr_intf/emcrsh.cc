@@ -1601,7 +1601,7 @@ static cmdResponseType getToolOffset(char *s, connectionRecType *context)
 {
   const char *pToolOffsetStr = "TOOL_OFFSET %d";
   
-  sprintf(context->outBuf, pToolOffsetStr, emcStatus->task.toolOffset.tran.z);
+  sprintf(context->outBuf, pToolOffsetStr, emcStatus->task.toolOffset[Z]);
   return rtNoError; 
 }
 
@@ -1699,27 +1699,27 @@ static cmdResponseType getRelCmdPos(char *s, connectionRecType *context)
     strcat(context->outBuf, buf);
     }
   if ((axis == -1) || (axis == 0)) {
-    sprintf(buf, " %f", emcStatus->motion.traj.position.tran.x - emcStatus->task.g5x_offset()[X] - emcStatus->task.g92_offset.tran.x);
+    sprintf(buf, " %f", emcStatus->motion.traj.position.tran.x - emcStatus->task.g5x_offset()[X] - emcStatus->task.g92_offset[X]);
     strcat(context->outBuf, buf);
     }
   if ((axis == -1) || (axis == 1)) {
-    sprintf(buf, " %f", emcStatus->motion.traj.position.tran.y - emcStatus->task.g5x_offset()[Y] - emcStatus->task.g92_offset.tran.y);
+    sprintf(buf, " %f", emcStatus->motion.traj.position.tran.y - emcStatus->task.g5x_offset()[Y] - emcStatus->task.g92_offset[Y]);
     strcat(context->outBuf, buf);
     }
   if ((axis == -1) || (axis == 2)) {
-    sprintf(buf, " %f", emcStatus->motion.traj.position.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset.tran.z);
+    sprintf(buf, " %f", emcStatus->motion.traj.position.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset[Z]);
     strcat(context->outBuf, buf);
     }
   if ((axis == -1) || (axis == 3)) {
-    sprintf(buf, " %f", emcStatus->motion.traj.position.a - emcStatus->task.g5x_offset()[A] - emcStatus->task.g92_offset.a);
+    sprintf(buf, " %f", emcStatus->motion.traj.position.a - emcStatus->task.g5x_offset()[A] - emcStatus->task.g92_offset[A]);
     strcat(context->outBuf, buf);
     }
   if ((axis == -1) || (axis == 4)) {
-    sprintf(buf, " %f", emcStatus->motion.traj.position.b - emcStatus->task.g5x_offset()[B] - emcStatus->task.g92_offset.b);
+    sprintf(buf, " %f", emcStatus->motion.traj.position.b - emcStatus->task.g5x_offset()[B] - emcStatus->task.g92_offset[B]);
     strcat(context->outBuf, buf);
     }
   if ((axis == -1) || (axis == 5)) {
-    sprintf(buf, " %f", emcStatus->motion.traj.position.c - emcStatus->task.g5x_offset()[C] - emcStatus->task.g92_offset.c);
+    sprintf(buf, " %f", emcStatus->motion.traj.position.c - emcStatus->task.g5x_offset()[C] - emcStatus->task.g92_offset[C]);
     strcat(context->outBuf, buf);
     }
   return rtNoError;
@@ -1739,27 +1739,27 @@ static cmdResponseType getRelActPos(char *s, connectionRecType *context)
     strcat(context->outBuf, buf);
     }
   if ((axis == -1) || (axis == 0)) {
-    sprintf(buf, " %f", emcStatus->motion.traj.actualPosition.tran.x - emcStatus->task.g5x_offset()[X] - emcStatus->task.g92_offset.tran.x);
+    sprintf(buf, " %f", emcStatus->motion.traj.actualPosition.tran.x - emcStatus->task.g5x_offset()[X] - emcStatus->task.g92_offset[X]);
     strcat(context->outBuf, buf);
     }
   if ((axis == -1) || (axis == 1)) {
-    sprintf(buf, " %f", emcStatus->motion.traj.actualPosition.tran.y - emcStatus->task.g5x_offset()[Y] - emcStatus->task.g92_offset.tran.y);
+    sprintf(buf, " %f", emcStatus->motion.traj.actualPosition.tran.y - emcStatus->task.g5x_offset()[Y] - emcStatus->task.g92_offset[Y]);
     strcat(context->outBuf, buf);
     }
   if ((axis == -1) || (axis == 2)) {
-    sprintf(buf, " %f", emcStatus->motion.traj.actualPosition.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset.tran.z);
+    sprintf(buf, " %f", emcStatus->motion.traj.actualPosition.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset[Z]);
     strcat(context->outBuf, buf);
     }
   if ((axis == -1) || (axis == 3)) {
-    sprintf(buf, " %f", emcStatus->motion.traj.actualPosition.a - emcStatus->task.g5x_offset()[A] - emcStatus->task.g92_offset.a);
+    sprintf(buf, " %f", emcStatus->motion.traj.actualPosition.a - emcStatus->task.g5x_offset()[A] - emcStatus->task.g92_offset[A]);
     strcat(context->outBuf, buf);
     }
   if ((axis == -1) || (axis == 4)) {
-    sprintf(buf, " %f", emcStatus->motion.traj.actualPosition.b - emcStatus->task.g5x_offset()[B] - emcStatus->task.g92_offset.b);
+    sprintf(buf, " %f", emcStatus->motion.traj.actualPosition.b - emcStatus->task.g5x_offset()[B] - emcStatus->task.g92_offset[B]);
     strcat(context->outBuf, buf);
     }
   if ((axis == -1) || (axis == 5)) {
-    sprintf(buf, " %f", emcStatus->motion.traj.actualPosition.c - emcStatus->task.g5x_offset()[C] - emcStatus->task.g92_offset.c);
+    sprintf(buf, " %f", emcStatus->motion.traj.actualPosition.c - emcStatus->task.g5x_offset()[C] - emcStatus->task.g92_offset[C]);
     strcat(context->outBuf, buf);
     }
   return rtNoError;
@@ -1793,31 +1793,31 @@ static cmdResponseType getPosOffset(char *s, connectionRecType *context)
   
   if (s == NULL) {
     strcpy(context->outBuf, pPosOffset);
-    sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[X] + emcStatus->task.g92_offset.tran.x));
+    sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[X] + emcStatus->task.g92_offset[X]));
     strcat(context->outBuf, buf);
-    sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[Y] + emcStatus->task.g92_offset.tran.y));
+    sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[Y] + emcStatus->task.g92_offset[Y]));
     strcat(context->outBuf, buf);
-    sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[Z] + emcStatus->task.g92_offset.tran.z));
+    sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[Z] + emcStatus->task.g92_offset[Z]));
     strcat(context->outBuf, buf);
-    sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[A] + emcStatus->task.g92_offset.a));
+    sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[A] + emcStatus->task.g92_offset[A]));
     strcat(context->outBuf, buf);
-    sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[B] + emcStatus->task.g92_offset.b));
+    sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[B] + emcStatus->task.g92_offset[B]));
     strcat(context->outBuf, buf);
-    sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[C] + emcStatus->task.g92_offset.c));
+    sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[C] + emcStatus->task.g92_offset[C]));
     strcat(context->outBuf, buf);
     }
   else
     {
       switch (s[0]) {
-        case 'X': sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[X] + emcStatus->task.g92_offset.tran.x)); break;
-        case 'Y': sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[Y] + emcStatus->task.g92_offset.tran.y)); break;
-        case 'Z': sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[Z] + emcStatus->task.g92_offset.tran.z)); break;
+        case 'X': sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[X] + emcStatus->task.g92_offset[X])); break;
+        case 'Y': sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[Y] + emcStatus->task.g92_offset[Y])); break;
+        case 'Z': sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[Z] + emcStatus->task.g92_offset[Z])); break;
         case 'A': 
-        case 'R': sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[A] + emcStatus->task.g92_offset.a)); break;
+        case 'R': sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[A] + emcStatus->task.g92_offset[A])); break;
         case 'B': 
-        case 'P': sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[B] + emcStatus->task.g92_offset.b)); break;
+        case 'P': sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[B] + emcStatus->task.g92_offset[B])); break;
         case 'C': 
-        case 'W': sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[C] + emcStatus->task.g92_offset.c));
+        case 'W': sprintf(buf, " %f", convertLinearUnits(emcStatus->task.g5x_offset()[C] + emcStatus->task.g92_offset[C]));
       }
       sprintf(context->outBuf, "%s %c %s", pPosOffset, s[0], buf);
     }

@@ -2162,7 +2162,7 @@ static void toolSetOffsetUpAction(Widget w, XEvent *event, String *params, Cardi
 
   sprintf(string, "%d", emcStatus->io.tool.toolInSpindle);
   XtVaSetValues(toolSetOffsetTool, XtNstring, string, NULL);
-  sprintf(string, "%f", emcStatus->motion.traj.actualPosition.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset.tran.z);
+  sprintf(string, "%f", emcStatus->motion.traj.actualPosition.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset[Z]);
   XtVaSetValues(toolSetOffsetLength, XtNstring, string, NULL);
   XtVaSetValues(toolSetOffsetDiameter, XtNstring, "0.0", NULL);
 
@@ -2755,7 +2755,7 @@ static void keyPressAction(unsigned int state, unsigned int keycode)
     case XKEY_EVENT_STATE_ALT:
       sprintf(string, "%d", emcStatus->io.tool.toolInSpindle);
       XtVaSetValues(toolSetOffsetTool, XtNstring, string, NULL);
-      sprintf(string, "%f", emcStatus->motion.traj.actualPosition.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset.tran.z);
+      sprintf(string, "%f", emcStatus->motion.traj.actualPosition.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset[Z]);
       XtVaSetValues(toolSetOffsetLength, XtNstring, string, NULL);
       XtVaSetValues(toolSetOffsetDiameter, XtNstring, "0.0", NULL);
       dialogPopup(NULL, toolSetOffsetShell, NULL);
@@ -3861,13 +3861,13 @@ void timeoutCB(XtPointer clientdata, XtIntervalId *id)
     oldTool = emcStatus->io.tool.toolInSpindle;
   }
 
-  if (emcStatus->task.toolOffset.tran.z != oldToolOffset) {
-    sprintf(string, "%.4f", emcStatus->task.toolOffset.tran.z);
+  if (emcStatus->task.toolOffset[Z] != oldToolOffset) {
+    sprintf(string, "%.4f", emcStatus->task.toolOffset[Z]);
     setLabel(toolOffsetFormName, string);
 
     redraw = 1;
 
-    oldToolOffset = emcStatus->task.toolOffset.tran.z;
+    oldToolOffset = emcStatus->task.toolOffset[Z];
   }
 
   changedPositionType = 0;
@@ -3901,31 +3901,31 @@ void timeoutCB(XtPointer clientdata, XtIntervalId *id)
     else {
       // switched to relative display, so redisplay offsets
       sprintf(string, "X%.4f  Y%.4f  Z%.4f",
-              emcStatus->task.g5x_offset()[X] + emcStatus->task.g92_offset.tran.x,
-              emcStatus->task.g5x_offset()[Y] + emcStatus->task.g92_offset.tran.y,
-              emcStatus->task.g5x_offset()[Z] + emcStatus->task.g92_offset.tran.z);
+              emcStatus->task.g5x_offset()[X] + emcStatus->task.g92_offset[X],
+              emcStatus->task.g5x_offset()[Y] + emcStatus->task.g92_offset[Y],
+              emcStatus->task.g5x_offset()[Z] + emcStatus->task.g92_offset[Z]);
       setLabel(workOffsetFormName, string);
       redraw = 1;
     }
   }
-  else if (emcStatus->task.g5x_offset()[X] + emcStatus->task.g92_offset.tran.x != oldXOffset ||
-           emcStatus->task.g5x_offset()[Y] + emcStatus->task.g92_offset.tran.y != oldYOffset ||
-           emcStatus->task.g5x_offset()[Z] + emcStatus->task.g92_offset.tran.z != oldZOffset) {
+  else if (emcStatus->task.g5x_offset()[X] + emcStatus->task.g92_offset[X] != oldXOffset ||
+           emcStatus->task.g5x_offset()[Y] + emcStatus->task.g92_offset[Y] != oldYOffset ||
+           emcStatus->task.g5x_offset()[Z] + emcStatus->task.g92_offset[Z] != oldZOffset) {
     if (coords == COORD_MACHINE) {
       // display offsets changed, but we're not displaying them
     }
     else {
       // display offsets changed and we are displaying them
       sprintf(string, "X%.4f  Y%.4f  Z%.4f",
-              emcStatus->task.g5x_offset()[X] + emcStatus->task.g92_offset.tran.x,
-              emcStatus->task.g5x_offset()[Y] + emcStatus->task.g92_offset.tran.y,
-              emcStatus->task.g5x_offset()[Z] + emcStatus->task.g92_offset.tran.z);
+              emcStatus->task.g5x_offset()[X] + emcStatus->task.g92_offset[X],
+              emcStatus->task.g5x_offset()[Y] + emcStatus->task.g92_offset[Y],
+              emcStatus->task.g5x_offset()[Z] + emcStatus->task.g92_offset[Z]);
       setLabel(workOffsetFormName, string);
       redraw = 1;
 
-      oldXOffset = emcStatus->task.g5x_offset()[X] + emcStatus->task.g92_offset.tran.x;
-      oldYOffset = emcStatus->task.g5x_offset()[Y] + emcStatus->task.g92_offset.tran.y;
-      oldZOffset = emcStatus->task.g5x_offset()[Z] + emcStatus->task.g92_offset.tran.z;
+      oldXOffset = emcStatus->task.g5x_offset()[X] + emcStatus->task.g92_offset[X];
+      oldYOffset = emcStatus->task.g5x_offset()[Y] + emcStatus->task.g92_offset[Y];
+      oldZOffset = emcStatus->task.g5x_offset()[Z] + emcStatus->task.g92_offset[Z];
     }
   }
 
@@ -3946,15 +3946,15 @@ void timeoutCB(XtPointer clientdata, XtIntervalId *id)
   else {
     // COORD_RELATIVE
     if (posDisplay == POS_DISPLAY_ACT) {
-      newX = emcStatus->motion.traj.actualPosition.tran.x - emcStatus->task.g5x_offset()[X] - emcStatus->task.g92_offset.tran.x - emcStatus->task.toolOffset.tran.x;
-      newY = emcStatus->motion.traj.actualPosition.tran.y - emcStatus->task.g5x_offset()[Y] - emcStatus->task.g92_offset.tran.y - emcStatus->task.toolOffset.tran.y;
-      newZ = emcStatus->motion.traj.actualPosition.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset.tran.z - emcStatus->task.toolOffset.tran.z;
+      newX = emcStatus->motion.traj.actualPosition.tran.x - emcStatus->task.g5x_offset()[X] - emcStatus->task.g92_offset[X] - emcStatus->task.toolOffset[X];
+      newY = emcStatus->motion.traj.actualPosition.tran.y - emcStatus->task.g5x_offset()[Y] - emcStatus->task.g92_offset[Y] - emcStatus->task.toolOffset[Y];
+      newZ = emcStatus->motion.traj.actualPosition.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset[Z] - emcStatus->task.toolOffset[Z];
     }
     else {
       // POS_DISPLAY_CMD
-      newX = emcStatus->motion.traj.position.tran.x - emcStatus->task.g5x_offset()[X] - emcStatus->task.g92_offset.tran.x - emcStatus->task.toolOffset.tran.x;
-      newY = emcStatus->motion.traj.position.tran.y - emcStatus->task.g5x_offset()[Y] - emcStatus->task.g92_offset.tran.y - emcStatus->task.toolOffset.tran.y;
-      newZ = emcStatus->motion.traj.position.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset.tran.z - emcStatus->task.toolOffset.tran.z;
+      newX = emcStatus->motion.traj.position.tran.x - emcStatus->task.g5x_offset()[X] - emcStatus->task.g92_offset[X] - emcStatus->task.toolOffset[X];
+      newY = emcStatus->motion.traj.position.tran.y - emcStatus->task.g5x_offset()[Y] - emcStatus->task.g92_offset[Y] - emcStatus->task.toolOffset[Y];
+      newZ = emcStatus->motion.traj.position.tran.z - emcStatus->task.g5x_offset()[Z] - emcStatus->task.g92_offset[Z] - emcStatus->task.toolOffset[Z];
     }
   }
 

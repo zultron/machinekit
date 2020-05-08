@@ -2014,8 +2014,8 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TRAJ_SET_OFFSET_TYPE:
 	// update tool offset
-    emcStatus->task.toolOffset = ((EMC_TRAJ_SET_OFFSET *) cmd)->offset;
-        retval = emcTrajSetOffset(emcStatus->task.toolOffset);
+    emcStatus->task.toolOffset.tf = toArray(((EMC_TRAJ_SET_OFFSET *) cmd)->offset);
+        retval = emcTrajSetOffset(((EMC_TRAJ_SET_OFFSET *) cmd)->offset);
 	break;
 
     case EMC_TRAJ_SET_ROTATION_TYPE:
@@ -2043,10 +2043,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     {
         auto g92_cmd = ((EMC_TRAJ_SET_G92 const &) *cmd);
         // struct-copy program origin
-        emcStatus->task.g92_offset = g92_cmd.origin;
+        emcStatus->task.g92_offset = ShiftTransform(toArray(g92_cmd.origin));
         emcStatus->task.g92_applied = g92_cmd.applied;
         if (g92_cmd.applied) {
-            emcStatus->task.g92_offset_persistant = ShiftTransform(toArray(emcStatus->task.g92_offset));
+            emcStatus->task.g92_offset_persistant = emcStatus->task.g92_offset;
         }
         retval = 0;
     }

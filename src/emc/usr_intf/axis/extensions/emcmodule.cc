@@ -466,6 +466,15 @@ static PyObject *tupleFromRotateShiftTransform(const RotateShiftTransform &p) {
     return res;
 }
 
+static PyObject *tupleFromShiftTransform(const ShiftTransform &p) {
+    PyObject *res = PyTuple_New(9);
+
+    for (int i = 0; i <9; ++i) {
+        PyTuple_SET_ITEM(res, i, PyFloat_FromDouble(p.tf[i]));
+    }
+    return res;
+}
+
 static PyObject *Stat_g5x_index(pyStatChannel *s) {
     return PyInt_FromLong(s->status.task.g5x_index);
 }
@@ -507,11 +516,11 @@ static PyObject *Stat_g5x_offsets(pyStatChannel *s) {
 }
 
 static PyObject *Stat_g92_offset(pyStatChannel *s) {
-    return pose(s->status.task.g92_offset);
+    return tupleFromShiftTransform(s->status.task.g92_offset);
 }
 
 static PyObject *Stat_tool_offset(pyStatChannel *s) {
-    return pose(s->status.task.toolOffset);
+    return tupleFromShiftTransform(s->status.task.toolOffset);
 }
 
 static PyObject *Stat_position(pyStatChannel *s) {
@@ -2255,15 +2264,15 @@ static PyObject *Logger_start(pyPositionLogger *s, PyObject *o) {
         double x, y, z, rx, ry, rz;
 
         PositionArray const &pt = {
-            status->motion.traj.position.tran.x - status->task.toolOffset.tran.x,
-            status->motion.traj.position.tran.y - status->task.toolOffset.tran.y,
-            status->motion.traj.position.tran.z - status->task.toolOffset.tran.z,
-            status->motion.traj.position.a - status->task.toolOffset.a,
-            status->motion.traj.position.b - status->task.toolOffset.b,
-            status->motion.traj.position.c - status->task.toolOffset.c,
-            status->motion.traj.position.u - status->task.toolOffset.u,
-            status->motion.traj.position.v - status->task.toolOffset.v,
-            status->motion.traj.position.w - status->task.toolOffset.w};
+            status->motion.traj.position.tran.x - status->task.toolOffset[X],
+            status->motion.traj.position.tran.y - status->task.toolOffset[Y],
+            status->motion.traj.position.tran.z - status->task.toolOffset[Z],
+            status->motion.traj.position.a - status->task.toolOffset[A],
+            status->motion.traj.position.b - status->task.toolOffset[B],
+            status->motion.traj.position.c - status->task.toolOffset[C],
+            status->motion.traj.position.u - status->task.toolOffset[U],
+            status->motion.traj.position.v - status->task.toolOffset[V],
+            status->motion.traj.position.w - status->task.toolOffset[W]};
         s->last_tool_pos = pt;
 
         if (s->is_xyuv) {

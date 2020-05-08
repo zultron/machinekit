@@ -1953,8 +1953,8 @@ void EMC_TASK_STAT::update(CMS * cms)
     cms->update(working_dir, 256);
     cms->update(command, 256);
     cms->update(g5x_index);
-    EmcPose_update(cms, &g92_offset);
-    EmcPose_update(cms, &toolOffset);
+    cms->update(g92_offset);
+    cms->update(toolOffset);
     cms->update(modalState);
     cms->update(programUnits);
     cms->update(task_paused);

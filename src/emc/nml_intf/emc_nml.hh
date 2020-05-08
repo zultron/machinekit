@@ -1558,8 +1558,8 @@ class EMC_TASK_STAT:public EMC_TASK_STAT_MSG {
     char working_dir[LINELEN];
     char command[LINELEN];
     int g5x_index;              // index of active g5x system
-    EmcPose g92_offset;		// in user units, currently active
-    EmcPose toolOffset;		// tool offset, in general pose form
+    ShiftTransform g92_offset;		// in user units, currently active
+    ShiftTransform toolOffset;		// tool offset, in general pose form
     ModalState modalState;
     int programUnits;	// CANON_UNITS_INCHES, MM, CM
     int interpreter_errcode;	// return value from rs274ngc function 
