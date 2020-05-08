@@ -1,6 +1,7 @@
 GREMLIN_SRCS := \
 			   __init__.py \
 			   gremlin.py \
+			   gremlin_draw.py \
 			   gremlin_view.py \
 
 PYTARGETS += ../bin/gremlin

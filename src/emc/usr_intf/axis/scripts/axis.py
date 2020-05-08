@@ -34,7 +34,7 @@ sys.excepthook = sys.__excepthook__
 import gettext;
 gettext.install("linuxcnc", localedir=os.path.join(BASE, "share", "locale"), unicode=True)
 
-import array, time, atexit, tempfile, shutil, errno, thread, select, re, getopt
+import time, atexit, tempfile, shutil, thread, select, getopt
 import traceback
 
 # Print Tk errors to stdout. python.org/sf/639266
@@ -52,7 +52,7 @@ class Tk(OldTk):
 Tkinter.Tk = Tk
 
 from Tkinter import *
-from minigl import *
+
 RTLD_NOW, RTLD_GLOBAL = 0x1, 0x100  # XXX portable?
 old_flags = sys.getdlopenflags()
 sys.setdlopenflags(RTLD_NOW | RTLD_GLOBAL);
@@ -60,14 +60,13 @@ import gcode
 sys.setdlopenflags(old_flags)
 from rs274.OpenGLTk import *
 from rs274.interpret import StatMixin
-from rs274.glcanon import GLCanon, GlCanonDraw, GlDrawColors
+from rs274.glcanon import GLCanon
+from gremlin_draw import GremlinDraw, GlDrawColors
 from hershey import Hershey
 from propertywindow import properties
 import rs274.options
 import nf
-import locale
 import bwidget
-from math import hypot, atan2, sin, cos, pi, sqrt
 import linuxcnc
 from glnav import *
 
@@ -347,7 +346,7 @@ def soft_limits():
         to_internal_units([fudge(ax[i]['max_position_limit']) for i in range(3)]))
 
 
-class MyOpengl(GlCanonDraw, Opengl):
+class MyOpengl(GremlinDraw, Opengl):
 
     def __init__(self, *args, **kw):
 
@@ -361,7 +360,7 @@ class MyOpengl(GlCanonDraw, Opengl):
         self.after_id = None
         self.motion_after = None
         Opengl.__init__(self, *args, **kw)
-        GlCanonDraw.__init__(self, s, inifile, GlDrawColors())
+        GremlinDraw.__init__(self, s, inifile, GlDrawColors())
         self.bind('<Button-1>', self.select_prime, add=True)
         self.bind('<ButtonRelease-1>', self.select_fire, add=True)
         self.bind('<Button1-Motion>', self.select_cancel, add=True)
@@ -386,7 +385,7 @@ class MyOpengl(GlCanonDraw, Opengl):
         return coordinate_charwidth, coordinate_linespace, fontbase
 
     def get_resources(self):
-        self.colors = dict(GlCanonDraw.colors)
+        self.colors = dict(GremlinDraw.colors)
         for c in self.colors.keys():
             if isinstance(c, tuple):
                 c, d = c
@@ -424,7 +423,7 @@ class MyOpengl(GlCanonDraw, Opengl):
         self.set_highlight_line(None)
 
     def select(self, event):
-        GlCanonDraw.select(self, event.x, event.y)
+        GremlinDraw.select(self, event.x, event.y)
 
     def get_joints_mode(self): return joints_mode()
     def get_current_tool(self): return current_tool
@@ -456,7 +455,7 @@ class MyOpengl(GlCanonDraw, Opengl):
 
     def set_highlight_line(self, line):
         if line == self.get_highlight_line(): return
-        GlCanonDraw.set_highlight_line(self, line)
+        GremlinDraw.set_highlight_line(self, line)
         t.tag_remove("sel", "0.0", "end")
         if line is not None and line > 0:
             t.see("%d.0" % (line+2))
@@ -546,7 +545,7 @@ class MyOpengl(GlCanonDraw, Opengl):
             self.select(self.select_event)
             self.select_event = None
 
-        GlCanonDraw.redraw_scene(self, last_position)
+        GremlinDraw.redraw_scene(self, last_position)
 
     def redraw_dro(self):
         self.stat.poll()

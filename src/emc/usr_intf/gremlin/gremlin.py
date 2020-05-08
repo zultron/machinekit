@@ -44,20 +44,16 @@ import gtk.gdk
 import glnav
 import gobject
 
+import gremlin_draw
 import rs274.glcanon
 import rs274.interpret
 import linuxcnc
 import gcode
 
-import re
-import tempfile
-import shutil
 import os
 import sys
 
 import thread
-import traceback
-import numpy as np
 
 
 def make_active_axis_word_str(position, mask):
@@ -118,7 +114,7 @@ class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
 
 
 class Gremlin(gtk.gtkgl.widget.DrawingArea,
-              rs274.glcanon.GlCanonDraw):
+              gremlin_draw.GremlinDraw):
     rotation_vectors = [(1.,0.,0.), (0., 0., 1.)]
 
     def __init__(self, inifile):
@@ -128,8 +124,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
 
         gtk.gtkgl.widget.DrawingArea.__init__(self, glconfig)
         glnav.GlNavBase.__init__(self)
-        color_config = rs274.glcanon.GlDrawColors()
-        rs274.glcanon.GlCanonDraw.__init__(self, linuxcnc.stat(), inifile=inifile, color_config=color_config)
+        color_config = gremlin_draw.GlDrawColors()
+        gremlin_draw.GremlinDraw.__init__(self, linuxcnc.stat(), inifile=inifile, color_config=color_config)
 
         self.logger = linuxcnc.positionlogger(
             linuxcnc.stat(),
@@ -249,7 +245,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
 
         return True
 
-    @rs274.glcanon.with_context
+    @gremlin_draw.with_context
     def realize(self, widget):
         self.set_current_view()
         s = self.stat
@@ -261,7 +257,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         self.font_base, width, linespace = glnav.use_pango_font('courier bold 16', 0, 128)
         self.font_linespace = linespace
         self.font_charwidth = width
-        rs274.glcanon.GlCanonDraw.realize(self)
+        gremlin_draw.GremlinDraw.realize(self)
 
         if s.file:
             self.load()

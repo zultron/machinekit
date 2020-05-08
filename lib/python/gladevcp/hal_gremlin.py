@@ -26,11 +26,11 @@
 # 6 = left move, middle zoom, right zoom (no rotate - for 2D plasma machines or lathes)
 
 import os
-import gtk, gobject
+import gobject
 
 import linuxcnc
 import gremlin
-import rs274.glcanon
+import gremlin_draw
 import gcode
 
 from hal_actions import _EMC_ActionBase
@@ -252,7 +252,7 @@ class HAL_Gremlin(gremlin.Gremlin, _EMC_ActionBase):
     def realize(self, widget):
         gremlin.Gremlin.realize(self, widget)
 
-    @rs274.glcanon.with_context
+    @gremlin_draw.with_context
     def _load(self, filename):
         return self.load(filename)
 
