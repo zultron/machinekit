@@ -54,7 +54,7 @@ limiticon = array.array('B',
                            0,   0,    0, 0])
 
 
-class formats_dim_string:
+class DimensionStringFormatter:
 
     def __init__(self, hershey, dimscale, char_scale):
         self.hershey = hershey
@@ -446,7 +446,7 @@ class GremlinDraw(glnav.GlNavBase):
         else:
             x_dir = 1
 
-        formatter = formats_dim_string(self.hershey, dimscale, charsize)
+        formatter = DimensionStringFormatter(self.hershey, dimscale, charsize)
 
         # ### plot Z extent labels ###
         if view != z and g.max_extents[z] > g.min_extents[z]:
