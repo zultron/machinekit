@@ -795,9 +795,8 @@ class GremlinDraw(glnav.GlNavBase):
         else:
             grid_string = '%sin.' % grid_size
 
-        gpo_permuted = np.array([0, 0, grid_plane_offset])
-        text_offset_permuted = tlo_permuted - gpo_permuted
-        text_offset = -1.*np.array(inverse_permutation(text_offset_permuted))
+        text_offset_permuted = np.array([-tlo_permuted[0], -tlo_permuted[1], grid_plane_offset])
+        text_offset = np.array(inverse_permutation(text_offset_permuted))
 
         with gl_push_matrix():
             glColor3f(1.0, 1.0, 1.0)
