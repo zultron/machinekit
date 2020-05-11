@@ -137,7 +137,7 @@ class GremlinDraw(glnav.GlNavBase):
         self.show_stat_overlay = False
         self.grid_size = 0.0
         self.show_offsets = True
-        self.show_g53_origin = False
+        self.show_g53_origin = True
         self.request_view_follow_rotation = True
         self.request_view_follow_translation = False
         self.current_view = 'z'
