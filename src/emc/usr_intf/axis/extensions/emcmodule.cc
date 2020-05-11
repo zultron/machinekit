@@ -377,11 +377,29 @@ static PyObject *apply_forward_kinematics(pyStatChannel *s, PyObject *o) {
     return result;
 }
 
+static PyObject *get_g5x_offset(pyStatChannel *s, PyObject *o) {
+    size_t offset=0;
+
+    if(!PyArg_ParseTuple(o, "i: get_g5x_offset",
+                          &offset)) {
+        return nullptr;
+    }
+
+    if (offset < 0 || offset > s->status.task.g5x_table.size()) {
+        PyErr_Format( error, "G5X offset %zu is not valid", offset);
+        return nullptr;
+    }
+
+    return asPyTuple(s->status.task.g5x_table[offset]);
+}
+
+
 static PyMethodDef Stat_methods[] = {
     {"poll", (PyCFunction)poll, METH_NOARGS, "Update current machine state"},
     {"convert_local_to_tool_position", (PyCFunction)convert_local_to_tool_position, METH_VARARGS, "Convert the given local position to tool tip position"},
     {"convert_work_to_tool_position", (PyCFunction)convert_work_to_tool_position, METH_VARARGS, "Convert the given work position to tool tip position"},
-    {"apply_forward_kinematics", (PyCFunction)apply_forward_kinematics, METH_VARARGS, "Convert the given tool tip position in joint space to work coordinates"},
+    {"apply_forward_kinematics", (PyCFunction)apply_forward_kinematics, METH_VARARGS, "Convert the given position in joint space to work coordinates"},
+    {"get_g5x_offset", (PyCFunction)get_g5x_offset, METH_VARARGS, "Get the offset values for the given work offset number"},
     {NULL}
 };
 
