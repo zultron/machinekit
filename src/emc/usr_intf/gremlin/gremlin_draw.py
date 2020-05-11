@@ -845,13 +845,6 @@ class GremlinDraw(glnav.GlNavBase):
         machine_limit_min, machine_limit_max = self.soft_limits()
         tool_offset = self.stat.tool_offset
         units_per_inch = 1 / ((self.stat.linear_units or 1) * 25.4)
-        g5x_index = self.stat.g5x_index
-        g5x_offset = self.to_internal_units(self.stat.g5x_offset)[:3]
-        rotation_xy = self.stat.rotation_xy
-        g92_offset = self.to_internal_units(self.stat.g92_offset)[:3]
-        if self.is_rear_tool_post_lathe():
-            g5x_offset[0] *= -1
-            g92_offset[0] *= -1
 
         glDisable(GL_LIGHTING) # Can't light lines, so only enable this for specific 3D geometry
         glMatrixMode(GL_MODELVIEW)
@@ -877,7 +870,7 @@ class GremlinDraw(glnav.GlNavBase):
                 self.draw_program_extents()
 
         if self.get_show_live_plot() or self.get_show_program():
-            self.draw_coordinate_systems(g5x_index, g5x_offset, g92_offset, rotation_xy)
+            self.draw_coordinate_systems(last_position)
 
         if self.get_show_limits():
             self.draw_limit_box(machine_limit_max, machine_limit_min, last_position, tool_offset)
@@ -900,43 +893,77 @@ class GremlinDraw(glnav.GlNavBase):
         if dt_ms > dt_cutoff_ms:
             print "glcanon.redraw() call exceeded {} ms: {:0.3f} ms".format(dt_cutoff_ms, dt_ms)
 
-    def draw_coordinate_systems(self, g5x_index, g5x_offset, g92_offset, rotation_xy):
-        glPushMatrix()
-        if self.get_show_relative() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2] or
-                                         g92_offset[0] or g92_offset[1] or g92_offset[2] or
-                                         rotation_xy):
+    def draw_coordinate_systems(self, last_position):
+        # For reference only
+        g5x_index = self.stat.g5x_index
+        g5x_offset = self.to_internal_units(self.stat.g5x_offset)[:3]
+        rotation_xy = self.stat.rotation_xy
+        g92_offset = self.to_internal_units(self.stat.g92_offset)[:3]
+        if self.is_rear_tool_post_lathe():
+            g5x_offset[0] *= -1
+            g92_offset[0] *= -1
 
-            if self.show_g53_origin:  # plot machine zero
-                glCallList(self.dlist('draw_small_origin', gen=self.draw_small_origin))
+        tool_offset = self.to_internal_units(self.stat.tool_offset)
 
-            if self.get_show_work_offset() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2]):
-                self.draw_work_offset_viz(g5x_offset, g5x_index)
-            # Translate into work offset / rotated coordinates
-            glTranslatef(*g5x_offset)
-            glRotatef(rotation_xy, 0, 0, 1)
+        # Convert from various program coordinate systems to tool tip coordinates
+        g5x_origin_joint = self.stat.convert_work_to_tool_position((0., )*9)
+        local_origin_joint = self.stat.convert_local_to_tool_position((0., )*9)
 
-            if self.get_show_axis_offset() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
-                self.draw_axis_offset_viz(g92_offset)
+        # NOTE: this assumes that the program motions / offsets are in joint space, so we have to apply forward kinematics here
+        # Future implementations that plan in work space directly will need to handle that case here
+        tool_origin_joint = np.array(last_position) + tool_offset
+        tool_origin_joint[0:3] = 0
+        tool_origin_preview, _ = self.stat.apply_forward_kinematics(tool_origin_joint)
+        work_origin_preview, work_rotation_preview = self.stat.apply_forward_kinematics(g5x_origin_joint)
 
-            # Translate into local coordinates (in preparation for drawing the offset axes)
-            glTranslatef(*g92_offset)
-        # "Foam" z coordinate offset is zero on a non-wire machine
-        glTranslatef(0, 0, self.get_foam_z())
-        glCallList(self.dlist(('axes', self.get_view()), gen=self.make_local_axes))
-        if self.foam_option:
-            glTranslatef(0, 0, self.get_foam_w() - self.get_foam_z())
-            uwalist = self.dlist(('axes_uw', self.get_view()), gen=lambda n: self.make_local_axes(n, 'UVW'))
-            glCallList(uwalist)
-        glPopMatrix()
+        # TODO support local A axis displacement by doing a separate, parallel transform for local
+        # local_origin_preview, local_rotation_preview = self.stat.apply_forward_kinematics(local_origin_joint)
 
-    def draw_work_offset_viz(self, g5x_offset, g5x_index):
+        with gl_push_matrix():
+            if self.get_show_relative() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2] or
+                                             g92_offset[0] or g92_offset[1] or g92_offset[2] or
+                                             rotation_xy):
+
+                with gl_push_matrix():
+                    glTranslatef(*tool_origin_preview)
+                    work_offset_disp = np.array(work_origin_preview) - tool_origin_preview
+                    if self.show_g53_origin:  # plot machine zero
+                        glCallList(self.dlist('draw_small_origin', gen=self.draw_small_origin))
+                    if self.get_show_work_offset() and (g5x_offset[0] or g5x_offset[1] or g5x_offset[2]):
+                        self.draw_work_offset_viz(work_offset_disp, g5x_index)
+
+                # Translate to work origin / orientation to draw local offsets
+                glTranslatef(*work_origin_preview)
+                r2d = 180. / np.pi
+                # Rotate into the rotated (due to ABC motion) frame
+                glRotatef(work_rotation_preview[0] * r2d, 1, 0, 0)
+                glRotatef(work_rotation_preview[1] * r2d, 0, 1, 0)
+                glRotatef(work_rotation_preview[2] * r2d, 0, 0, 1)
+                # Finally, rotate into the locally-rotated frame specified by G5x R###
+                glRotatef(rotation_xy, 0, 0, 1)
+
+                # TODO support A-axis displacement in G92 (currently just XYZ)
+                if self.get_show_axis_offset() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
+                    self.draw_axis_offset_viz(g92_offset)
+
+                glTranslatef(*g92_offset)
+
+            # "Foam" z coordinate offset is zero on a non-wire machine
+            glTranslatef(0, 0, self.get_foam_z())
+            glCallList(self.dlist(('axes', self.get_view()), gen=self.make_local_axes))
+            if self.foam_option:
+                glTranslatef(0, 0, self.get_foam_w() - self.get_foam_z())
+                uwalist = self.dlist(('axes_uw', self.get_view()), gen=lambda n: self.make_local_axes(n, 'UVW'))
+                glCallList(uwalist)
+
+    def draw_work_offset_viz(self, work_offset, g5x_index):
         # plot offset crosshair
         self.color_config.gl_color_with_alpha('work_offset')
         glLineStipple(1, 0x1C47)
         glEnable(GL_LINE_STIPPLE)
         glBegin(GL_LINES)
-        glVertex3f(0, 0, 0)
-        glVertex3f(*g5x_offset)
+        glVertex3f(0,0,0)
+        glVertex3f(*work_offset)
         glEnd()
         glDisable(GL_LINE_STIPPLE)
         # plot offset label
@@ -950,11 +977,11 @@ class GremlinDraw(glnav.GlNavBase):
         glPushMatrix()
         glScalef(0.2, 0.2, 0.2)
         if self.is_lathe():
-            g5xrot = math.atan2(g5x_offset[0], -g5x_offset[2])
+            g5xrot = math.atan2(work_offset[0], -work_offset[2])
             glRotatef(90, 1, 0, 0)
             glRotatef(-90, 0, 0, 1)
         else:
-            g5xrot = math.atan2(g5x_offset[1], g5x_offset[0])
+            g5xrot = math.atan2(work_offset[1], work_offset[0])
         glRotatef(math.degrees(g5xrot), 0, 0, 1)
         glTranslatef(0.5, 0.5, 0)
         self.hershey.plot_string(label, 0.1)

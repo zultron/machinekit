@@ -179,6 +179,13 @@ LocalToMachineTransform::LocalToMachineTransform() :
 {
 }
 
+LocalToMachineTransform::LocalToMachineTransform(const ShiftTransform & g92, const RotateShiftTransform & g5x, const ShiftTransform & tool) :
+    g92Offset(g92),
+    g5xOffset(g5x),
+    toolOffset(tool)
+{
+}
+
 UnitsTransform & UnitsTransform::invert_scale()
 {
     linear_fwd = 1.0 / linear_fwd;

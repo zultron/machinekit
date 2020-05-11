@@ -84,6 +84,16 @@ using std::min;
 #define LOCAL_AUTO_REVERSE (4)
 #define LOCAL_AUTO_FORWARD (5)
 
+
+static PyObject *asPyTuple(const RotateShiftTransform &p);
+static PyObject *asPyTuple(const PositionArray &p);
+static PyObject *asPyTuple(const ShiftTransform &p);
+static PyObject *asPyTuple(const EmcPose &p);
+
+
+// Assumed to always be non-null
+static std::unique_ptr<PreviewKinematicsBase> kinematics(new NaiveSerialKinematics);
+
 /* This definition of offsetof avoids the g++ warning
  * 'invalid offsetof from non-POD type'.
  */
@@ -307,8 +317,71 @@ static PyObject *poll(pyStatChannel *s, PyObject *o) {
     return Py_None;
 }
 
+static PyObject *convert_local_to_tool_position(pyStatChannel *s, PyObject *o) {
+    PositionArray p_local;
+
+    if(!PyArg_ParseTuple(o, "(ddddddddd): convert_local_to_tool_position",
+                          UNPACK_POSITION_ARRAY(p_local)
+                          )) {
+        return NULL;
+    }
+
+    LocalToMachineTransform tf(
+        s->status.task.g92_offset,
+        s->status.task.g5x_table[s->status.task.g5x_index],
+        s->status.task.toolOffset
+        );
+
+    return asPyTuple(tf.forward_local_to_tool(p_local));
+}
+
+static PyObject *convert_work_to_tool_position(pyStatChannel *s, PyObject *o) {
+    PositionArray p_work;
+
+    if(!PyArg_ParseTuple(o, "(ddddddddd): convert_work_to_tool_position",
+                          UNPACK_POSITION_ARRAY(p_work)
+                          )) {
+        return NULL;
+    }
+
+    RotateShiftTransform tf(s->status.task.g5x_table[s->status.task.g5x_index]);
+
+    return asPyTuple(tf.forward(p_work));
+}
+
+static PyObject *apply_forward_kinematics(pyStatChannel *s, PyObject *o) {
+    PositionArray p_tool;
+
+    if(!PyArg_ParseTuple(o, "(ddddddddd): apply_forward_kinematics",
+                          UNPACK_POSITION_ARRAY(p_tool)
+                          )) {
+        return NULL;
+    }
+
+    Array3 pos_out{};
+    Array3 rot_out{};
+
+    kinematics->forward(p_tool, pos_out, rot_out);
+    PyObject *r[2] = {
+        PyTuple_New(3),
+        PyTuple_New(3),
+    };
+    for (int i=0; i<3; ++i) {
+        PyTuple_SET_ITEM(r[0], i, PyFloat_FromDouble(pos_out[i]));
+        PyTuple_SET_ITEM(r[1], i, PyFloat_FromDouble(rot_out[i]));
+    }
+    PyObject *result = PyTuple_New(2);
+    PyTuple_SET_ITEM(result, 0, r[0]);
+    PyTuple_SET_ITEM(result, 1, r[1]);
+
+    return result;
+}
+
 static PyMethodDef Stat_methods[] = {
     {"poll", (PyCFunction)poll, METH_NOARGS, "Update current machine state"},
+    {"convert_local_to_tool_position", (PyCFunction)convert_local_to_tool_position, METH_VARARGS, "Convert the given local position to tool tip position"},
+    {"convert_work_to_tool_position", (PyCFunction)convert_work_to_tool_position, METH_VARARGS, "Convert the given work position to tool tip position"},
+    {"apply_forward_kinematics", (PyCFunction)apply_forward_kinematics, METH_VARARGS, "Convert the given tool tip position in joint space to work coordinates"},
     {NULL}
 };
 
@@ -442,7 +515,7 @@ static PyObject *double_array(double const *arr, int sz) {
     return res;
 }
 
-static PyObject *pose(const EmcPose &p) {
+static PyObject *asPyTuple(const EmcPose &p) {
     PyObject *res = PyTuple_New(9);
     PyTuple_SET_ITEM(res, 0, PyFloat_FromDouble(p.tran.x));
     PyTuple_SET_ITEM(res, 1, PyFloat_FromDouble(p.tran.y));
@@ -456,7 +529,7 @@ static PyObject *pose(const EmcPose &p) {
     return res;
 }
 
-static PyObject *tupleFromRotateShiftTransform(const RotateShiftTransform &p) {
+static PyObject *asPyTuple(const RotateShiftTransform &p) {
     PyObject *res = PyTuple_New(10);
 
     for (int i = 0; i <9; ++i) {
@@ -466,14 +539,19 @@ static PyObject *tupleFromRotateShiftTransform(const RotateShiftTransform &p) {
     return res;
 }
 
-static PyObject *tupleFromShiftTransform(const ShiftTransform &p) {
+static PyObject *asPyTuple(const PositionArray &p) {
     PyObject *res = PyTuple_New(9);
 
     for (int i = 0; i <9; ++i) {
-        PyTuple_SET_ITEM(res, i, PyFloat_FromDouble(p.tf[i]));
+        PyTuple_SET_ITEM(res, i, PyFloat_FromDouble(p[i]));
     }
     return res;
 }
+
+static PyObject *asPyTuple(const ShiftTransform &p) {
+    return asPyTuple(p.tf);
+}
+
 
 static PyObject *Stat_g5x_index(pyStatChannel *s) {
     return PyInt_FromLong(s->status.task.g5x_index);
@@ -499,14 +577,14 @@ static PyObject *Stat_g5x_offsets(pyStatChannel *s) {
     // Set index 0 to the current offset so that we can write
     // `stat.g5x_offsets[stat.g5x_index]` in python
     PyObject *k0 = PyInt_FromLong(0);
-    PyObject *v0 = tupleFromRotateShiftTransform(s->status.task.g5x_table[s->status.task.g5x_index]);
+    PyObject *v0 = asPyTuple(s->status.task.g5x_table[s->status.task.g5x_index]);
     PyDict_SetItem(res, k0, v0);
     Py_XDECREF(k0);
     Py_XDECREF(v0);
 
     for (size_t i = 1; i < s->status.task.g5x_table.size(); ++i) {
         PyObject *key = PyInt_FromSize_t(i);
-        PyObject *val = tupleFromRotateShiftTransform(s->status.task.g5x_table[i]);
+        PyObject *val = asPyTuple(s->status.task.g5x_table[i]);
 
         PyDict_SetItem(res, key, val);
         Py_XDECREF(key);
@@ -516,23 +594,23 @@ static PyObject *Stat_g5x_offsets(pyStatChannel *s) {
 }
 
 static PyObject *Stat_g92_offset(pyStatChannel *s) {
-    return tupleFromShiftTransform(s->status.task.g92_offset);
+    return asPyTuple(s->status.task.g92_offset);
 }
 
 static PyObject *Stat_tool_offset(pyStatChannel *s) {
-    return tupleFromShiftTransform(s->status.task.toolOffset);
+    return asPyTuple(s->status.task.toolOffset);
 }
 
 static PyObject *Stat_position(pyStatChannel *s) {
-    return pose(s->status.motion.traj.position);
+    return asPyTuple(s->status.motion.traj.position);
 }
 
 static PyObject *Stat_dtg(pyStatChannel *s) {
-    return pose(s->status.motion.traj.dtg);
+    return asPyTuple(s->status.motion.traj.dtg);
 }
 
 static PyObject *Stat_actual(pyStatChannel *s) {
-    return pose(s->status.motion.traj.actualPosition);
+    return asPyTuple(s->status.motion.traj.actualPosition);
 }
 
 static PyObject *Stat_joint_position(pyStatChannel *s) {
@@ -554,7 +632,7 @@ static PyObject *Stat_joint_actual(pyStatChannel *s) {
 }
 
 static PyObject *Stat_probed(pyStatChannel *s) {
-    return pose(s->status.motion.traj.probedPosition);
+    return asPyTuple(s->status.motion.traj.probedPosition);
 }
 
 static PyObject *Stat_activegcodes(pyStatChannel *s) {
@@ -1640,9 +1718,6 @@ static PyTypeObject Error_Type = {
     0,                      /*tp_free*/
     0,                      /*tp_is_gc*/
 };
-
-// Assumed to always be non-null
-static std::unique_ptr<PreviewKinematicsBase> kinematics(new NaiveSerialKinematics);
 
 // Declarations for linuxcnc module methods
 static PyObject *pydraw_lines_by_type(PyObject *s, PyObject *o);
