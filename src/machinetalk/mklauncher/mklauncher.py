@@ -21,7 +21,6 @@ from six.moves import configparser
 from operator import attrgetter
 
 from machinekit import service
-from machinekit import config
 
 from google.protobuf.message import DecodeError
 from machinetalk.protobuf.message_pb2 import Container
@@ -635,9 +634,10 @@ def main():
     else:
         logger.setLevel(logging.INFO)
 
-    mkconfig = config.Config()
     mkini = os.getenv("MACHINEKIT_INI")
     if mkini is None:
+        from machinekit import config
+        mkconfig = config.Config()
         mkini = mkconfig.MACHINEKIT_INI
     if not os.path.isfile(mkini):
         sys.stderr.write("MACHINEKIT_INI " + mkini + " does not exist\n")

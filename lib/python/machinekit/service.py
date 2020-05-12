@@ -7,8 +7,6 @@ import uuid
 
 from six.moves.configparser import ConfigParser
 
-from machinekit import config
-
 
 class ZeroconfService(object):
     """A simple class to publish a network service with zeroconf using
@@ -152,9 +150,10 @@ class Service(object):
 
 
 def read_machinekit_ini(debug=False):
-    mkconfig = config.Config()
     mkini = os.getenv("MACHINEKIT_INI")
     if mkini is None:
+        from machinekit import config
+        mkconfig = config.Config()
         mkini = mkconfig.MACHINEKIT_INI
     if not os.path.isfile(mkini):
         sys.stderr.write('MACHINEKIT_INI %s does not exist\n' % mkini)

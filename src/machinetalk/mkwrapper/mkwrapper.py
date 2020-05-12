@@ -16,7 +16,6 @@ import codecs
 from six.moves import configparser
 import linuxcnc
 from machinekit import service
-from machinekit import config
 from locking import ObjectLock, AccessError
 
 from pyftpdlib.authorizers import DummyAuthorizer
@@ -2374,9 +2373,10 @@ def main():
     debug = args.debug
     ini_file = args.ini
 
-    mkconfig = config.Config()
     mkini = os.getenv("MACHINEKIT_INI")
     if mkini is None:
+        from machinekit import config
+        mkconfig = config.Config()
         mkini = mkconfig.MACHINEKIT_INI
     if not os.path.isfile(mkini):
         sys.stderr.write("MACHINEKIT_INI " + mkini + " does not exist\n")
