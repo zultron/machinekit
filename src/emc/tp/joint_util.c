@@ -25,7 +25,7 @@ PmCartesian getXYZVelBounds() {
 
 PmVector getAccelBounds()
 {
-    PmVector acc_bound={0};
+    PmVector acc_bound={};
     for (int i = 0; i < PM_VECTOR_SIZE; ++i) {
         acc_bound.ax[i] = emcmotDebug->joints[i].acc_limit;
     }
@@ -34,7 +34,7 @@ PmVector getAccelBounds()
 
 PmVector getVelBounds()
 {
-    PmVector vel_bound={0};
+    PmVector vel_bound={};
     for (int i = 0; i < PM_VECTOR_SIZE; ++i) {
         vel_bound.ax[i] = emcmotDebug->joints[i].vel_limit;
     }

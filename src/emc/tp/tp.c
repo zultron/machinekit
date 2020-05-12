@@ -70,8 +70,8 @@ do {\
 
 #define TP_OPTIMIZATION_LAZY
 
-static TC_STRUCT blend_tc1 = {0};
-static TC_STRUCT blend_tc2 = {0};
+static TC_STRUCT blend_tc1 = {};
+static TC_STRUCT blend_tc2 = {};
 
 void clearPositionSyncErrors(void);
 
@@ -354,7 +354,7 @@ int tpClear(TP_STRUCT * const tp)
     tp->execId = 0;
     tp->nextexecId = 0;
     tp->tc_completed = NULL;
-    struct state_tag_t tag = {0};
+    struct state_tag_t tag = {};
     tp->execTag = tag;
     tp->motionType = 0;
     tp->done = 1;
@@ -524,7 +524,7 @@ int tpGetQueuedId(TP_STRUCT const * const tp)
 struct state_tag_t tpGetExecTag(TP_STRUCT const * const tp)
 {
     if (0 == tp) {
-        struct state_tag_t empty = {0};
+        struct state_tag_t empty = {};
         return empty;
     }
 
@@ -927,8 +927,8 @@ tp_err_t tpCreateBiarcBlend(TP_STRUCT * const tp, TC_STRUCT * const prev_tc, TC_
     static biarc_solver_results_t biarc_results = {};
     memset(&biarc_results, 0, sizeof(biarc_solver_results_t));
 
-    BlendParameters param_guess = {0};
-    BlendControls controls = {0};
+    BlendParameters param_guess = {};
+    BlendControls controls = {};
     CHP(optimize_biarc_blend_size(
         prev_tc,
         this_tc,
@@ -1308,7 +1308,7 @@ int tpAddRigidTap(
         return TP_ERR_FAIL;
     }
 
-    TC_STRUCT tc = {0};
+    TC_STRUCT tc = {};
     clearBlendStructs();
 
     tcSetId(tp, &tc, tag);
@@ -1730,7 +1730,7 @@ int tpAddLine(
         return TP_ERR_FAIL;
     }
     // Initialize new tc struct for the line segment
-    TC_STRUCT tc = {0};
+    TC_STRUCT tc = {};
 
     clearBlendStructs();
     tcSetId(tp, &tc, tag);
@@ -1825,7 +1825,7 @@ int tpAddCircle(TP_STRUCT * const tp,
     PmVector end;
     emcPoseToPmVector(&end_p, &end);
 
-    TC_STRUCT tc = {0};
+    TC_STRUCT tc = {};
 
     clearBlendStructs();
 
@@ -3370,7 +3370,7 @@ int tpGetPos(TP_STRUCT const * const tp, EmcPose * const pos)
 
 EmcPose tpGetGoalPos(TP_STRUCT const  * const tp)
 {
-    EmcPose out={0};
+    EmcPose out={};
     if (tp) {
         pmVectorToEmcPose(&tp->goalPos, &out);
     }

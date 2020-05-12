@@ -31,7 +31,7 @@ typedef enum {
 } PmVectorAxes;
 
 static const double PM_MIN_VECTOR_MAG = 1e-9;
-const PmVector PmVector_zero = {0};
+const PmVector PmVector_zero = {};
 
 int VecCopyFrom(PmVector * const v, const PmVector * const from)
 {
