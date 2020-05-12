@@ -942,7 +942,7 @@ class GremlinDraw(glnav.GlNavBase):
                 # Finally, rotate into the locally-rotated frame specified by G5x R###
                 glRotatef(rotation_xy, 0, 0, 1)
 
-                # TODO support A-axis displacement in G92 (currently just XYZ)
+                # Note: still need to support A-axis displacement in G92 (currently just XYZ), see above
                 if self.get_show_axis_offset() and (g92_offset[0] or g92_offset[1] or g92_offset[2]):
                     self.draw_axis_offset_viz(g92_offset)
 

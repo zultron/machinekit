@@ -317,6 +317,24 @@ static PyObject *poll(pyStatChannel *s, PyObject *o) {
     return Py_None;
 }
 
+static PyObject *convert_local_to_machine_position(pyStatChannel *s, PyObject *o) {
+    PositionArray p_local;
+
+    if(!PyArg_ParseTuple(o, "(ddddddddd): convert_local_to_machine_position",
+                          UNPACK_POSITION_ARRAY(p_local)
+                          )) {
+        return NULL;
+    }
+
+    LocalToMachineTransform tf(
+        s->status.task.g92_offset,
+        s->status.task.g5x_table[s->status.task.g5x_index],
+        s->status.task.toolOffset
+        );
+
+    return asPyTuple(tf.forward_local_to_machine(p_local));
+}
+
 static PyObject *convert_local_to_tool_position(pyStatChannel *s, PyObject *o) {
     PositionArray p_local;
 
@@ -396,6 +414,7 @@ static PyObject *get_g5x_offset(pyStatChannel *s, PyObject *o) {
 
 static PyMethodDef Stat_methods[] = {
     {"poll", (PyCFunction)poll, METH_NOARGS, "Update current machine state"},
+    {"convert_local_to_machine_position", (PyCFunction)convert_local_to_machine_position, METH_VARARGS, "Convert the given local position to machine position"},
     {"convert_local_to_tool_position", (PyCFunction)convert_local_to_tool_position, METH_VARARGS, "Convert the given local position to tool tip position"},
     {"convert_work_to_tool_position", (PyCFunction)convert_work_to_tool_position, METH_VARARGS, "Convert the given work position to tool tip position"},
     {"apply_forward_kinematics", (PyCFunction)apply_forward_kinematics, METH_VARARGS, "Convert the given position in joint space to work coordinates"},
