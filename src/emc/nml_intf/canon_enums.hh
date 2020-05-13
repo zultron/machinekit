@@ -91,13 +91,13 @@ enum CANON_WAIT_MODE
     WAIT_MODE_LOW = 4,
 };
 
-enum CanonMessageLevel
+enum CanonMessageAlarmLevel
 {
-    CANON_MSG_ALL=0,
-    CANON_MSG_ERROR,
-    CANON_MSG_WARNING,
-    CANON_MSG_INFO,
-    CANON_MSG_DBG
+    CANON_MSG_DEBUG = 0,
+    CANON_MSG_QUIET = 1,
+    CANON_MSG_LOW = 2,
+    CANON_MSG_MEDIUM = 3,
+    CANON_MSG_HIGH = 4,
 };
 
 #endif // CANON_ENUMS_HH

@@ -21,7 +21,7 @@ std::ostream &to_stream(std::ostream &out, EMC_TRAJ_SET_G5X_TRANSFORM const &msg
 std::ostream &to_stream(std::ostream &out, EMC_TRAJ_SET_TOOL_OFFSET const &msg);
 
 template <typename NMLMessageType>
-void log_processed_message(NMLMessageType const &msg, CanonMessageLevel lvl, const char *log_prefix="")
+void log_processed_message(NMLMessageType const &msg, CanonMessageAlarmLevel lvl, const char *log_prefix="")
 {
     std::ostringstream oss;
     oss << log_prefix;

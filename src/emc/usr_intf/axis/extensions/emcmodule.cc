@@ -1519,6 +1519,7 @@ static PyObject* Error_poll(pyErrorChannel *s) {
         Py_INCREF(Py_None);
         return Py_None;
     }
+    // TODO fix this to map the alarm level to the message type (or replace the separate error message type)
     PyObject *r = PyTuple_New(3);
     PyTuple_SET_ITEM(r, 0, PyInt_FromLong(type));
 #define PASTE(a,b) a ## b
@@ -1526,7 +1527,7 @@ static PyObject* Error_poll(pyErrorChannel *s) {
     case tag: { \
         std::string msg(((type*)s->c->get_address())->f); \
         PyTuple_SET_ITEM(r, 1, PyString_FromString(msg.c_str())); \
-        PyTuple_SET_ITEM(r, 2, PyInt_FromLong(0)); \
+        PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_LOW)); \
         break; \
     }
 #define TYPECASE(x, f) TYPECASE_IMPL(PASTE(x, _TYPE), x, f)
@@ -1544,7 +1545,7 @@ static PyObject* Error_poll(pyErrorChannel *s) {
             msg_ptr+=strlen(CONTEXT_MARKER);
         }
         PyTuple_SET_ITEM(r, 1, PyString_FromString(msg_ptr));
-        PyTuple_SET_ITEM(r, 2, PyInt_FromLong(0));
+        PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_MEDIUM));
         break;
     }
     case EMC_OPERATOR_TEXT_TYPE: {
@@ -1558,7 +1559,7 @@ static PyObject* Error_poll(pyErrorChannel *s) {
             char error_string[256];
             sprintf(error_string, "unrecognized error %" PRId32, type);
             PyTuple_SET_ITEM(r, 1, PyString_FromString(error_string));
-            PyTuple_SET_ITEM(r, 2, PyInt_FromLong(0));
+            PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_HIGH));
             break;
         }
     }

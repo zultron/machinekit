@@ -25,7 +25,7 @@
 
 extern int done;
 extern int emcOperatorError(const char *fmt, ...);
-extern int emcOperatorText(CanonMessageLevel lvl, const char *fmt, ...);
+extern int emcOperatorText(CanonMessageAlarmLevel lvl, const char *fmt, ...);
 
 void backtrace(int signo)
 {
@@ -52,7 +52,7 @@ void backtrace(int signo)
         waitpid(child_pid, &status,0);
 	if (signo == SIGUSR1) {  // continue running after backtrace
 	    signal(SIGUSR1, backtrace);
-        emcOperatorText(CANON_MSG_ALL, "backtrace for %s stored in %s, continuing", name_buf, filename);
+        emcOperatorText(CANON_MSG_LOW, "backtrace for %s stored in %s, continuing", name_buf, filename);
 	    fprintf(stderr, "%s: backtrace stored in %s, continuing\n", name_buf, filename);
 	} else {
 	    // this takes emcmodule.cc:EMC_COMMAND_TIMEOUT seconds to display:

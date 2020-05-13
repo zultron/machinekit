@@ -246,7 +246,7 @@ int emcOperatorError(const char *fmt, ...)
     return emcErrorBuffer->write(error_msg);
 }
 
-int emcOperatorText(CanonMessageLevel lvl, const char *fmt, ...)
+int emcOperatorText(CanonMessageAlarmLevel lvl, const char *fmt, ...)
 {
     EMC_OPERATOR_TEXT text_msg;
     text_msg.lvl = lvl;
@@ -1789,7 +1789,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_OPERATOR_TEXT_TYPE:
     {
         auto const msg = (EMC_OPERATOR_TEXT *) cmd;
-        retval = emcOperatorText((CanonMessageLevel)msg->lvl, "%s", msg->text);
+        retval = emcOperatorText((CanonMessageAlarmLevel)msg->lvl, "%s", msg->text);
     }
 	break;
 
@@ -2020,7 +2020,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         // update tool offset
         emcStatus->task.toolOffset = msg.offset;
         retval = emcTrajSetToolOffset(emcStatus->task.toolOffset);
-        log_processed_message(msg, CANON_MSG_INFO);
+        log_processed_message(msg, CANON_MSG_DEBUG);
     }
 	break;
 
@@ -2035,7 +2035,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         int new_index = (size_t)g5x_msg.g5x_index;
         emcStatus->task.g5x_table[new_index] = g5x_msg.g5x_transform;
         retval = emcStatusUpdateWorkOffset(new_index);
-        log_processed_message(g5x_msg, CANON_MSG_INFO);
+        log_processed_message(g5x_msg, CANON_MSG_DEBUG);
     }
     retval = 0;
 	break;
@@ -2048,7 +2048,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TRAJ_SET_G92_TYPE:
     {
         auto g92_cmd = ((EMC_TRAJ_SET_G92 const &) *cmd);
-        log_processed_message(g92_cmd, CANON_MSG_INFO);
+        log_processed_message(g92_cmd, CANON_MSG_DEBUG);
         // struct-copy program origin
         emcStatus->task.g92_offset = g92_cmd.origin;
         emcStatus->task.g92_applied = g92_cmd.applied;

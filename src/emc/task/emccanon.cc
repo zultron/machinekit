@@ -2048,7 +2048,7 @@ static bool limitSpindleSpeed(double rpm)
         return false;
     }
     EMC_SPINDLE_SPEED emc_spindle_speed_msg;
-    CANON_MSG(CANON_MSG_WARNING, "Reducing spindle speed from %0.0f to %0.0f for synched motion\n", spindleSpeed_rpm, limit_rpm);
+    CANON_MSG(CANON_MSG_LOW, "Reducing spindle speed from %0.0f to %0.0f for synched motion\n", spindleSpeed_rpm, limit_rpm);
 
     buildSpindleCmd(emc_spindle_speed_msg, limit_rpm);
     interp_list.append(emc_spindle_speed_msg);
@@ -2855,7 +2855,7 @@ void CANON_ERROR(const char *fmt, ...)
 /**
  * KLUDGE like CANON_ERROR but for sending an info message to the user.
  */
-void CANON_MSG(CanonMessageLevel lvl, const char *fmt, ...)
+void CANON_MSG(CanonMessageAlarmLevel lvl, const char *fmt, ...)
 {
     va_list ap;
     EMC_OPERATOR_TEXT operator_text_msg;
