@@ -1519,19 +1519,19 @@ static PyObject* Error_poll(pyErrorChannel *s) {
         Py_INCREF(Py_None);
         return Py_None;
     }
-    PyObject *r = PyTuple_New(2);
+    PyObject *r = PyTuple_New(3);
     PyTuple_SET_ITEM(r, 0, PyInt_FromLong(type));
 #define PASTE(a,b) a ## b
 #define TYPECASE_IMPL(tag, type, f) \
     case tag: { \
         std::string msg(((type*)s->c->get_address())->f); \
         PyTuple_SET_ITEM(r, 1, PyString_FromString(msg.c_str())); \
+        PyTuple_SET_ITEM(r, 2, PyInt_FromLong(0)); \
         break; \
     }
 #define TYPECASE(x, f) TYPECASE_IMPL(PASTE(x, _TYPE), x, f)
     switch(type) {
         TYPECASE(EMC_OPERATOR_ERROR, text)
-        TYPECASE(EMC_OPERATOR_TEXT, text)
         TYPECASE(EMC_OPERATOR_DISPLAY, text)
         TYPECASE(NML_ERROR, error)
         TYPECASE(NML_TEXT, text)
@@ -1544,13 +1544,21 @@ static PyObject* Error_poll(pyErrorChannel *s) {
             msg_ptr+=strlen(CONTEXT_MARKER);
         }
         PyTuple_SET_ITEM(r, 1, PyString_FromString(msg_ptr));
-        break; \
+        PyTuple_SET_ITEM(r, 2, PyInt_FromLong(0));
+        break;
+    }
+    case EMC_OPERATOR_TEXT_TYPE: {
+        auto const nml_msg = reinterpret_cast<EMC_OPERATOR_TEXT const &>(*s->c->get_address());
+        PyTuple_SET_ITEM(r, 1, PyString_FromString(nml_msg.text));
+        PyTuple_SET_ITEM(r, 2, PyInt_FromLong(nml_msg.lvl));
+        break;
     }
     default:
         {
             char error_string[256];
             sprintf(error_string, "unrecognized error %" PRId32, type);
             PyTuple_SET_ITEM(r, 1, PyString_FromString(error_string));
+            PyTuple_SET_ITEM(r, 2, PyInt_FromLong(0));
             break;
         }
     }
