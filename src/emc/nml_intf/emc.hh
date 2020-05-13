@@ -48,7 +48,7 @@ extern const char *emc_symbol_lookup(uint32_t type);
 extern int emcOperatorError(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
 // print general text
-extern int emcOperatorText(const char *fmt, ...) __attribute__((format(printf,1,2)));
+extern int emcOperatorText(CanonMessageLevel lvl, const char *fmt, ...) __attribute__((format(printf,2,3)));
 
 // print note to operator
 extern int emcOperatorDisplay(const char *fmt, ...) __attribute__((format(printf,1,2)));

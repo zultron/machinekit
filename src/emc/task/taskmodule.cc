@@ -231,7 +231,7 @@ static void operator_error(const char *message) {
     emcOperatorError("%s",message);
 }
 static void operator_text(const char *message) {
-    emcOperatorText("%s",message);
+    emcOperatorText(CANON_MSG_ALL, "%s",message);
 }
 static void operator_display(const char *message) {
     emcOperatorDisplay("%s",message);

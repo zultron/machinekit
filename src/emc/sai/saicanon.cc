@@ -1128,6 +1128,12 @@ void CANON_ERROR(const char *fmt, ...)
 	}
     }
 }
+
+void CANON_MSG(CanonMessageLevel lvl, const char *fmt, ...)
+{
+    // Don't print these or we'll have to update all the tests...
+}
+
 void PLUGIN_CALL(int len, const char *call)
 {
     printf("PLUGIN_CALL(%d)\n",len);

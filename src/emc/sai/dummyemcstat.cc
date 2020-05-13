@@ -29,7 +29,7 @@ EMC_STAT *emcStatus = new EMC_STAT;
 
 int emcOperatorDisplay(char const*, ...) {return 0;};
 
-int emcOperatorText(char const*, ...) {return 0;}
+int emcOperatorText(CanonMessageLevel lvl, char const*, ...) {return 0;}
 
 // int emcOperatorError(int, char const*, ...) {return 0;}
 

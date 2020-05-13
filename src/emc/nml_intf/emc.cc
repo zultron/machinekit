@@ -1670,6 +1670,7 @@ void EMC_IO_HALT::update(CMS * cms)
 */
 void EMC_OPERATOR_TEXT::update(CMS * cms)
 {
+    cms->update(lvl);
     cms->update(text, sizeof(text));
 
 }

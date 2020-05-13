@@ -74,6 +74,7 @@ class EMC_OPERATOR_TEXT:public RCS_CMD_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
+    int lvl; // Actually CanonMessageLevel
     char text[LINELEN];
     static constexpr const size_t text_len = sizeof(text);
 };

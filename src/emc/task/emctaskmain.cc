@@ -241,9 +241,10 @@ int emcOperatorError(const char *fmt, ...)
     return emcErrorBuffer->write(error_msg);
 }
 
-int emcOperatorText(const char *fmt, ...)
+int emcOperatorText(CanonMessageLevel lvl, const char *fmt, ...)
 {
     EMC_OPERATOR_TEXT text_msg;
+    text_msg.lvl = lvl;
     if (!fmt || !fmt[0] || !isEmcErrorBufferOKtoWrite(text_msg)) {
         return -1;
     }
@@ -1781,8 +1782,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_OPERATOR_TEXT_TYPE:
-    retval = emcOperatorText(
-				 "%s", ((EMC_OPERATOR_TEXT *) cmd)->text);
+    {
+        auto const msg = (EMC_OPERATOR_TEXT *) cmd;
+        retval = emcOperatorText((CanonMessageLevel)msg->lvl, "%s", msg->text);
+    }
 	break;
 
     case EMC_OPERATOR_DISPLAY_TYPE:
