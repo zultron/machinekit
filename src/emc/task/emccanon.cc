@@ -2167,7 +2167,7 @@ void SET_TOOL_TABLE_ENTRY(int pocket, int toolno, EmcPose offset, double diamete
   */
 void USE_TOOL_LENGTH_OFFSET(EmcPose offset)
 {
-    EMC_TRAJ_SET_OFFSET set_offset_msg;
+    EMC_TRAJ_SET_TOOL_OFFSET set_offset_msg;
 
     flush_segments();
 

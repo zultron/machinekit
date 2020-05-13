@@ -1605,7 +1605,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TRAJ_PRECISION_DWELL_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_IO;
 
-    case EMC_TRAJ_SET_OFFSET_TYPE:
+    case EMC_TRAJ_SET_TOOL_OFFSET_TYPE:
 	// this applies the tool length offset variable after previous
 	// motions
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
@@ -2006,10 +2006,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         retval = emcTrajSetSpindleSync(emcTrajSetSpindlesyncMsg->feed_per_revolution, emcTrajSetSpindlesyncMsg->velocity_mode);
         break;
 
-    case EMC_TRAJ_SET_OFFSET_TYPE:
+    case EMC_TRAJ_SET_TOOL_OFFSET_TYPE:
 	// update tool offset
-    emcStatus->task.toolOffset = ((EMC_TRAJ_SET_OFFSET *) cmd)->offset;
-        retval = emcTrajSetOffset(emcStatus->task.toolOffset);
+    emcStatus->task.toolOffset = ((EMC_TRAJ_SET_TOOL_OFFSET *) cmd)->offset;
+        retval = emcTrajSetToolOffset(emcStatus->task.toolOffset);
 	break;
 
     case EMC_TRAJ_SET_ROTATION_TYPE:
@@ -2587,7 +2587,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_ACCELERATION_TYPE:
     case EMC_TRAJ_SET_TERM_COND_TYPE:
     case EMC_TRAJ_SET_SPINDLESYNC_TYPE:
-    case EMC_TRAJ_SET_OFFSET_TYPE:
+    case EMC_TRAJ_SET_TOOL_OFFSET_TYPE:
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
     case EMC_TRAJ_SET_G92_TYPE:
     case EMC_TRAJ_SET_ROTATION_TYPE:
@@ -2718,7 +2718,7 @@ static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd)
         case EMC_TRAJ_LINEAR_MOVE_TYPE:
         case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
         case EMC_TRAJ_SET_TERM_COND_TYPE:
-        case EMC_TRAJ_SET_OFFSET_TYPE:
+        case EMC_TRAJ_SET_TOOL_OFFSET_TYPE:
         case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
         case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
         case EMC_TRAJ_SET_HOME_TYPE:

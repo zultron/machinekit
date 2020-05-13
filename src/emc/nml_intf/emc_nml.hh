@@ -872,10 +872,10 @@ class EMC_TRAJ_SET_SPINDLESYNC:public EMC_TRAJ_CMD_MSG {
 	bool velocity_mode; 
 };
 
-class EMC_TRAJ_SET_OFFSET:public EMC_TRAJ_CMD_MSG {
+class EMC_TRAJ_SET_TOOL_OFFSET:public EMC_TRAJ_CMD_MSG {
   public:
-    EMC_TRAJ_SET_OFFSET():EMC_TRAJ_CMD_MSG(EMC_TRAJ_SET_OFFSET_TYPE,
-                       sizeof(EMC_TRAJ_SET_OFFSET)) {
+    EMC_TRAJ_SET_TOOL_OFFSET():EMC_TRAJ_CMD_MSG(EMC_TRAJ_SET_TOOL_OFFSET_TYPE,
+                       sizeof(EMC_TRAJ_SET_TOOL_OFFSET)) {
     }
 
     // For internal NML/CMS use only.
