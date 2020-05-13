@@ -458,11 +458,8 @@ static void send_g5x_msg(int index, RotateShiftTransform work_offset) {
     set_g5x_msg.g5x_index = index;
 
     convertAxisUnits(work_offset, ConvertsCanonToUserUnits());
-    std::copy(work_offset.shift.tf.begin(),
-              work_offset.shift.tf.end(),
-              set_g5x_msg.offset);
 
-    set_g5x_msg.xy_rotation_deg = work_offset.getXYRotationDeg();
+    set_g5x_msg.g5x_transform = work_offset;
 
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed_rpm);

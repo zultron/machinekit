@@ -894,8 +894,7 @@ class EMC_TRAJ_SET_G5X_TRANSFORM:public EMC_TRAJ_CMD_MSG {
     // For internal NML/CMS use only.
     void update(CMS * cms);
     int g5x_index;
-    double offset[9];
-    double xy_rotation_deg;
+    RotateShiftTransform g5x_transform;
 };
 
 class EMC_TRAJ_CLEAR_G5X_TABLE:public EMC_TRAJ_CMD_MSG {

@@ -58,7 +58,7 @@
 #include <ctype.h>		// isspace()
 #include <libintl.h>
 #include <locale.h>
-
+#include <sstream>
 
 #if 0
 // Enable this to niftily trap floating point exceptions for debugging
@@ -85,6 +85,8 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 #include "taskclass.hh"
 #include "motion.h"             // EMCMOT_ORIENT_*
 #include "inihal.hh"
+
+#include "nml_prettyprint.hh"
 
 //#define EMCTASK_DEBUG
 
@@ -114,6 +116,9 @@ static RCS_CMD_MSG *emcCommand = 0;
 
 // global EMC status
 EMC_STAT *emcStatus = 0;
+
+// For use in task to format log messages when receiving certain NML messages
+static std::ostringstream oss;
 
 // timer stuff
 static RCS_TIMER *timer = 0;
@@ -2010,9 +2015,13 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         break;
 
     case EMC_TRAJ_SET_TOOL_OFFSET_TYPE:
-	// update tool offset
-    emcStatus->task.toolOffset = ((EMC_TRAJ_SET_TOOL_OFFSET *) cmd)->offset;
+    {
+        auto const msg = reinterpret_cast<EMC_TRAJ_SET_TOOL_OFFSET const &>(*cmd);
+        // update tool offset
+        emcStatus->task.toolOffset = msg.offset;
         retval = emcTrajSetToolOffset(emcStatus->task.toolOffset);
+        log_processed_message(msg, CANON_MSG_INFO);
+    }
 	break;
 
     case EMC_TRAJ_SET_ROTATION_TYPE:
@@ -2022,11 +2031,11 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
     {
-        double const *offset = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->offset;
-        int new_index = (size_t)((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->g5x_index;
-        double xy_rotation_deg = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->xy_rotation_deg;
-        emcStatus->task.g5x_table[new_index] = RotateShiftTransform(toArray(offset, 9), xy_rotation_deg);
+        auto const g5x_msg = (EMC_TRAJ_SET_G5X_TRANSFORM const &) *cmd;
+        int new_index = (size_t)g5x_msg.g5x_index;
+        emcStatus->task.g5x_table[new_index] = g5x_msg.g5x_transform;
         retval = emcStatusUpdateWorkOffset(new_index);
+        log_processed_message(g5x_msg, CANON_MSG_INFO);
     }
     retval = 0;
 	break;
@@ -2039,6 +2048,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TRAJ_SET_G92_TYPE:
     {
         auto g92_cmd = ((EMC_TRAJ_SET_G92 const &) *cmd);
+        log_processed_message(g92_cmd, CANON_MSG_INFO);
         // struct-copy program origin
         emcStatus->task.g92_offset = g92_cmd.origin;
         emcStatus->task.g92_applied = g92_cmd.applied;

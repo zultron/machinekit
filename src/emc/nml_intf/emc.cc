@@ -2324,9 +2324,7 @@ void EMC_TRAJ_SET_G5X_TRANSFORM::update(CMS * cms)
 {
     EMC_TRAJ_CMD_MSG::update(cms);
     cms->update(g5x_index);
-    cms->update(offset, 9);
-    cms->update(xy_rotation_deg);
-
+    cms->update(g5x_transform);
 }
 
 void EMC_TRAJ_CLEAR_G5X_TABLE::update(CMS * cms)

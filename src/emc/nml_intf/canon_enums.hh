@@ -96,6 +96,7 @@ enum CanonMessageLevel
     CANON_MSG_ALL=0,
     CANON_MSG_ERROR,
     CANON_MSG_WARNING,
+    CANON_MSG_INFO,
     CANON_MSG_DBG
 };
 
