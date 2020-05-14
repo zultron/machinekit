@@ -929,4 +929,15 @@ std::tuple<PositionArrayIndex, PositionArrayIndex, PositionArrayIndex> plane_ind
 
 #define STATE_RESTORE_SUBROUTINE_NAME "restore_start_line_state"
 
+
+/**
+ * Return the first position after the "needle" string if the haystack string starts with it, else 0.
+ * @warning used only with compile-time strings (typically as static const char arrays).
+ */
+template<size_t N>
+size_t startswith(char *haystack, const char (&needle)[N]) {
+    return !strncmp(haystack, needle, N) ? N : 0;
+}
+
+
 #endif

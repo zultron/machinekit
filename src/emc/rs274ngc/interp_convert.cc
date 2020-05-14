@@ -1290,12 +1290,8 @@ subtype of comment. This is an extension to the rs274NGC language.
 
 */
 
-static int streq(char *s1, char *s2) {
+static int streq(const char *s1, const char *s2) {
     return !strcmp(s1, s2);
-}
-
-static int startswith(char *haystack, char *needle) {
-    return !strncmp(haystack, needle, strlen(needle));
 }
 
 int Interp::convert_comment(char *comment, bool enqueue)       //!< string with comment
@@ -1304,20 +1300,20 @@ int Interp::convert_comment(char *comment, bool enqueue)       //!< string with 
   { LC_SIZE = 256, EX_SIZE = 2*LC_SIZE};            // 256 from comment[256] in rs274ngc.hh
   char lc[LC_SIZE+1];
   char expanded[EX_SIZE+1];
-  char MSG_STR[] = "msg,";
+  static const char MSG_STR[] = "msg,";
 
   //!!!KL add two -- debug => same as msg
   //!!!KL         -- print => goes to stderr
-  char DEBUG_STR[] = "debug,";
-  char PRINT_STR[] = "print,";
-  char LOG_STR[] = "log,";
-  char LOGOPEN_STR[] = "logopen,";
-  char LOGAPPEND_STR[] = "logappend,";
-  char LOGCLOSE_STR[] = "logclose";
-  char PY_STR[] = "py,";
-  char PYRUN_STR[] = "pyrun,";
-  char PYRELOAD_STR[] = "pyreload";
-  char ABORT_STR[] = "abort,";
+  static const char DEBUG_STR[] = "debug,";
+  static const char PRINT_STR[] = "print,";
+  static const char LOG_STR[] = "log,";
+  static const char LOGOPEN_STR[] = "logopen,";
+  static const char LOGAPPEND_STR[] = "logappend,";
+  static const char LOGCLOSE_STR[] = "logclose";
+  static const char PY_STR[] = "py,";
+  static const char PYRUN_STR[] = "pyrun,";
+  static const char PYRELOAD_STR[] = "pyreload";
+  static const char ABORT_STR[] = "abort,";
   int m, n, start;
 
   // step over leading white space in comment
@@ -1332,58 +1328,60 @@ int Interp::convert_comment(char *comment, bool enqueue)       //!< string with 
   lc[n] = 0;                    // null terminate
 
   // compare with MSG, SYSTEM, DEBUG, PRINT
-  if (startswith(lc, MSG_STR)) {
-    MESSAGE(comment + start + strlen(MSG_STR));
+
+  char *comment_start = comment + start;
+  if (size_t n = startswith(lc, MSG_STR)) {
+    MESSAGE(comment + start + n);
     return INTERP_OK;
   }
-  else if (startswith(lc, DEBUG_STR))
+  else if (size_t n = startswith(lc, DEBUG_STR))
   {
-      convert_param_comment(comment+start+strlen(DEBUG_STR), expanded,
+      convert_param_comment(comment_start + n, expanded,
                             EX_SIZE);
       if (_setup.parameters[DEBUG_LEVEL_FLAG] > 0.0)
 	  MESSAGE(expanded);
       return INTERP_OK;
   }
-  else if (startswith(lc, PRINT_STR)) 
+  else if (size_t n = startswith(lc, PRINT_STR))
   {
-      convert_param_comment(comment+start+strlen(PRINT_STR), expanded,
+      convert_param_comment(comment_start + n, expanded,
                             EX_SIZE);
       fprintf(stdout, "%s\n", expanded);
       fflush(stdout);
       return INTERP_OK;
   }
-  else if (startswith(lc, LOG_STR))
+  else if (size_t n = startswith(lc, LOG_STR))
   {
-      convert_param_comment(comment+start+strlen(LOG_STR), expanded,
+      convert_param_comment(comment_start + n, expanded,
                             EX_SIZE);
       LOG(expanded);
       return INTERP_OK;
   }
-  else if (startswith(lc, LOGOPEN_STR))
+  else if (size_t n = startswith(lc, LOGOPEN_STR))
   {
-      LOGOPEN(comment + start + strlen(LOGOPEN_STR));
+      LOGOPEN(comment_start + n);
       return INTERP_OK;
   }
-  else if (startswith(lc, LOGAPPEND_STR))
+  else if (size_t n = startswith(lc, LOGAPPEND_STR))
   {
-      LOGAPPEND(comment + start + strlen(LOGAPPEND_STR));
+      LOGAPPEND(comment_start + n);
       return INTERP_OK;
   }
-  else if (startswith(lc, PY_STR))
+  else if (size_t n = startswith(lc, PY_STR))
   {
-      return py_execute(comment + start + strlen(PY_STR), false);
+      return py_execute(comment_start + n, false);
   }
-  else if (startswith(lc, PYRUN_STR))
+  else if (size_t n = startswith(lc, PYRUN_STR))
   {
-      return py_execute(comment + start + strlen(PYRUN_STR), true);
+      return py_execute(comment_start + n, true);
   }
   else if (startswith(lc, PYRELOAD_STR))
   {
       return py_reload();
   }
-  else if (startswith(lc, ABORT_STR))
+  else if (size_t n = startswith(lc, ABORT_STR))
   {
-      convert_param_comment(comment+start+strlen(ABORT_STR), expanded,
+      convert_param_comment(comment_start + n, expanded,
                             EX_SIZE);
       setSavedError(expanded); // avoid printf interpretation
 
@@ -1397,7 +1395,7 @@ int Interp::convert_comment(char *comment, bool enqueue)       //!< string with 
   }
   // else it's a real comment
   if (enqueue)
-      enqueue_COMMENT(comment + start);
+      enqueue_COMMENT(comment_start);
   return INTERP_OK;
 }
 
