@@ -24,6 +24,7 @@ MILLTASKSRCS := \
 	emc/task/taskmodule.cc \
 	emc/task/taskclass.cc \
 	emc/task/backtrace.cc \
+	emc/task/nml_prettyprint.cc \
 
 USERSRCS += $(MILLTASKSRCS)
 

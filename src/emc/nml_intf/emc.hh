@@ -48,7 +48,7 @@ extern const char *emc_symbol_lookup(uint32_t type);
 extern int emcOperatorError(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
 // print general text
-extern int emcOperatorText(const char *fmt, ...) __attribute__((format(printf,1,2)));
+extern int emcOperatorText(CanonMessageAlarmLevel lvl, const char *fmt, ...) __attribute__((format(printf,2,3)));
 
 // print note to operator
 extern int emcOperatorDisplay(const char *fmt, ...) __attribute__((format(printf,1,2)));
@@ -127,7 +127,7 @@ extern int emcTrajCircularMove(EmcPose end, PM_CARTESIAN center, PM_CARTESIAN
         normal, int turn, int type, double vel, double ini_maxvel, double acc, double acc_normal);
 extern int emcTrajSetTermCond(int cond, double tolerance);
 extern int emcTrajSetSpindleSync(double feed_per_revolution, bool wait_for_index);
-extern int emcTrajSetOffset(EmcPose tool_offset);
+extern int emcTrajSetToolOffset(EmcPose tool_offset);
 extern int emcTrajSetOrigin(EmcPose origin);
 extern int emcTrajSetRotation(double rotation);
 extern int emcTrajSetHome(EmcPose home);
