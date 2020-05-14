@@ -885,12 +885,14 @@ void EMC_AUX_ESTOP_OFF::update(CMS * cms)
 */
 void EMC_OPERATOR_DISPLAY::update(CMS * cms)
 {
+    cms->update(lvl);
     cms->update(text, sizeof(text));
 
 }
 
 void EMC_OPERATOR_ERROR_EXTENDED::update(CMS * cms)
 {
+    cms->update(lvl);
     cms->update(text, sizeof(text));
 }
 
@@ -2239,8 +2241,8 @@ void EMC_TRAJ_CMD_MSG::update(CMS * cms)
 */
 void EMC_OPERATOR_ERROR::update(CMS * cms)
 {
+    cms->update(lvl);
     cms->update(text, sizeof(text));
-
 }
 
 /*

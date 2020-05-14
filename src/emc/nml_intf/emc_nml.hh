@@ -50,12 +50,14 @@ class EMC_CMD_MSG:public RCS_CMD_MSG {
 class EMC_OPERATOR_ERROR:public RCS_CMD_MSG {
   public:
     EMC_OPERATOR_ERROR():RCS_CMD_MSG(EMC_OPERATOR_ERROR_TYPE,
-                     sizeof(EMC_OPERATOR_ERROR)) {
+                     sizeof(EMC_OPERATOR_ERROR))
+    {
     }
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
+    int lvl = CANON_MSG_MIN_ERROR;
     char text[LINELEN];
     static constexpr const size_t text_len = sizeof(text);
 };
@@ -68,13 +70,13 @@ class EMC_OPERATOR_ERROR:public RCS_CMD_MSG {
 class EMC_OPERATOR_TEXT:public RCS_CMD_MSG {
   public:
     EMC_OPERATOR_TEXT():RCS_CMD_MSG(EMC_OPERATOR_TEXT_TYPE,
-				    sizeof(EMC_OPERATOR_TEXT)) {
-    }
+                    sizeof(EMC_OPERATOR_TEXT))
+    {}
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
-    int lvl; // Actually CanonMessageLevel
+    int lvl = CANON_MSG_LOW;
     char text[LINELEN];
     static constexpr const size_t text_len = sizeof(text);
 };
@@ -90,13 +92,15 @@ class EMC_OPERATOR_TEXT:public RCS_CMD_MSG {
  */
 class EMC_OPERATOR_DISPLAY:public RCS_CMD_MSG {
   public:
-    EMC_OPERATOR_DISPLAY():RCS_CMD_MSG(EMC_OPERATOR_DISPLAY_TYPE,
-				       sizeof(EMC_OPERATOR_DISPLAY)) {
-    }
+      EMC_OPERATOR_DISPLAY() :
+          RCS_CMD_MSG(EMC_OPERATOR_DISPLAY_TYPE,
+                        sizeof(EMC_OPERATOR_DISPLAY))
+      {}
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
+    int lvl = CANON_MSG_LOW;
     char text[LINELEN];
     static constexpr const size_t text_len = sizeof (text);
 };
@@ -117,6 +121,7 @@ class EMC_OPERATOR_ERROR_EXTENDED : public RCS_CMD_MSG {
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
+    int lvl = CANON_MSG_MIN_ERROR;
     char text[ERROR_TEXT_LEN];
     static constexpr const size_t text_len = sizeof (text);
 };
