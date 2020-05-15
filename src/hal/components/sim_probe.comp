@@ -35,7 +35,8 @@ FUNCTION(_) {
   //tip_diameter -= 0.004;
   float tip_radius = tip_diameter / 2.0;
   float height = h;
-  z_in_minus_offset = z_in - probe_length;
+  // Note: probe tip is typically zeroed at the bottom of the probe ball, but circular boss calculations need to work from the center of the ball
+  z_in_minus_offset = z_in - probe_length + tip_radius;
 
   // if h is zero make equal to width
   if (h == 0.0) {
