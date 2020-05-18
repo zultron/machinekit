@@ -642,9 +642,11 @@ static PyObject *Stat_position(pyStatChannel *s) {
     return asPyTuple(s->status.motion.traj.position);
 }
 
-static PyObject *Stat_tool_tip_position(pyStatChannel *s, PyObject *o) {
+static PyObject *Stat_tool_tip_position(pyStatChannel *s) {
     PositionArray p_machine = toArray(s->status.motion.traj.position);
-    return asPyTuple(s->status.task.toolOffset.inverse(p_machine));
+    // FIXME Need to copy this to avoid segfault, the vtable is likely getting trashed in the stat struct when passed via NML
+    auto toolOffset(s->status.task.toolOffset);
+    return asPyTuple(toolOffset.inverse(p_machine));
 }
 
 static PyObject *Stat_dtg(pyStatChannel *s) {

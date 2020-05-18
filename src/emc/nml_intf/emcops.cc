@@ -131,8 +131,8 @@ EMC_TASK_STAT::EMC_TASK_STAT():
     file(),
     command(),
     g5x_index(0),
-    g92_offset{},
-    toolOffset{},
+    g92_offset(),
+    toolOffset(),
     // active g / m code arrays filled in body
     //
     //
