@@ -642,6 +642,11 @@ static PyObject *Stat_position(pyStatChannel *s) {
     return asPyTuple(s->status.motion.traj.position);
 }
 
+static PyObject *Stat_tool_tip_position(pyStatChannel *s, PyObject *o) {
+    PositionArray p_machine = toArray(s->status.motion.traj.position);
+    return asPyTuple(s->status.task.toolOffset.inverse(p_machine));
+}
+
 static PyObject *Stat_dtg(pyStatChannel *s) {
     return asPyTuple(s->status.motion.traj.dtg);
 }
@@ -863,6 +868,7 @@ static PyGetSetDef Stat_getsetlist[] = {
     {(char*)"g5x_index", (getter)Stat_g5x_index},
     {(char*)"g92_offset", (getter)Stat_g92_offset},
     {(char*)"position", (getter)Stat_position},
+    {(char*)"tool_tip_position", (getter)Stat_tool_tip_position},
     {(char*)"dtg", (getter)Stat_dtg},
     {(char*)"joint_position", (getter)Stat_joint_position},
     {(char*)"joint_actual_position", (getter)Stat_joint_actual},
