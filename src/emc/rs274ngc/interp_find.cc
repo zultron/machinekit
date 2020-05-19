@@ -254,7 +254,7 @@ int Interp::find_ends(block_pointer block, setup_pointer s, PositionArray & cmd_
             double theta_0 = atan2(cmd_local_pos[Y], cmd_local_pos[X]);
 
             double radius = radius_0 + (block->radius_flag ? block->radius : 0);
-            double theta = theta_0 + (block->theta_flag ? block->theta : 0);
+            double theta = theta_0 + D2R(block->theta_flag ? block->theta : 0);
 
             cmd_local_pos[X] = radius * cos(theta);
             cmd_local_pos[Y] = radius * sin(theta);
