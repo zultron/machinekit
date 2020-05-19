@@ -52,6 +52,19 @@ int execute_lines_or_err(Interp &interp, const char* (&lines)[N], const char *sr
     settings->tool_table[1].toolno = 2; \
     settings->tool_table[2].toolno = 3 \
 
+// TODO factor the setup into something more resuable for other configs
+#define DECL_INIT_TEST_INTERP_9AXIS() \
+    setup_9axis_config(); \
+    SET_PARAMETER_FILE_NAME("unit_test.var"); \
+    std::remove("unit_test.var"); \
+    Interp test_interp = Interp(); \
+    pinterp = &test_interp; \
+    setup_struct * const settings = &test_interp._setup; \
+    test_interp.init(); \
+    settings->tool_table[0].toolno = 1; \
+    settings->tool_table[1].toolno = 2; \
+    settings->tool_table[2].toolno = 3 \
+
 
 namespace Catch {
 namespace Matchers {

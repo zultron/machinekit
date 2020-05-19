@@ -12,7 +12,7 @@ using namespace interp_param_global;
 
 TEST_CASE("Interp Basics")
 {
-  DECL_INIT_TEST_INTERP();
+  DECL_INIT_TEST_INTERP_9AXIS();
   SECTION("Interp Init")
   {
     REQUIRE(currentX(settings) == 0.0);
@@ -317,7 +317,7 @@ SCENARIO("Call G10 with G92 active (based on runtest g10-with-g92)")
 {
   GIVEN("No G92 offsets applied")
   {
-    DECL_INIT_TEST_INTERP();
+    DECL_INIT_TEST_INTERP_9AXIS();
     REQUIRE_INTERP_OK(test_interp, execute("g20"));
     REQUIRE(settings->length_units == CANON_UNITS_INCHES);
     WHEN("No offsets are applied") {
@@ -419,7 +419,7 @@ SCENARIO("Call G10 with G92 active (based on runtest g10-with-g92)")
   }
   GIVEN("G92 offsets active")
   {
-    DECL_INIT_TEST_INTERP();
+    DECL_INIT_TEST_INTERP_9AXIS();
     REQUIRE_INTERP_OK(test_interp, execute("g20"));
     REQUIRE(settings->length_units == CANON_UNITS_INCHES);
     REQUIRE_INTERP_OK(test_interp, execute("g92 x3 y4 z5"));
@@ -554,7 +554,7 @@ SCENARIO("Convert G20 / G21 ")
 {
   GIVEN("Starting in G20")
   {
-    DECL_INIT_TEST_INTERP();
+    DECL_INIT_TEST_INTERP_9AXIS();
     REQUIRE_INTERP_OK(test_interp, execute("g20"));
     REQUIRE_INTERP_OK(test_interp, execute("g0 x1 y2 z3 a4 b5 c6"));
 
@@ -621,7 +621,7 @@ SCENARIO("Convert G20 / G21 ")
 
   GIVEN("Starting in with an axis offset")
   {
-    DECL_INIT_TEST_INTERP();
+    DECL_INIT_TEST_INTERP_9AXIS();
     REQUIRE_INTERP_OK(test_interp, execute("g20"));
     REQUIRE_INTERP_OK(test_interp, execute("g92 x1 y2 z3 a4 b5 c6"));
 
