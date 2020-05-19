@@ -39,7 +39,7 @@ SCENARIO("Movement commands")
 {
   GIVEN("Linear Feed along multiple axes ")
   {
-    DECL_INIT_TEST_INTERP();
+    DECL_INIT_TEST_INTERP_9AXIS();
 
     THEN("Block should have G1 word and axis words") {
       const char *command = "G1 X1 Y2 Z3 A4 C6";
@@ -62,7 +62,7 @@ SCENARIO("Movement commands")
   }
   GIVEN("Rapid along multiple axes ")
   {
-    DECL_INIT_TEST_INTERP();
+    DECL_INIT_TEST_INTERP_9AXIS();
 
     THEN("Block should have G0 word and axis words") {
       const char *command = "G0 X1 Y2 Z3 A4 C6";
