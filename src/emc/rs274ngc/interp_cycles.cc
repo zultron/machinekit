@@ -2038,7 +2038,19 @@ PositionArray Interp::get_cycle_position(block_pointer block,
                        double plane_y,      //!< second coordinate value
                        double height)      //!< third coordinate value
 {
-    PositionArray goal_pos = getAxisWordsFromBlock(block, _setup.current);
+
+    PositionArray goal_pos;
+    switch(get_distance_mode(block, &_setup)) {
+    case MODE_ABSOLUTE:
+        goal_pos = getAxisWordsFromBlock(block, _setup.current);
+        break;
+    case MODE_INCREMENTAL:
+        goal_pos = getAxisWordsFromBlock(block, PositionArray()) + _setup.current;
+        break;
+    default:
+        goal_pos = _setup.current;
+    }
+
 
     PM_CARTESIAN end{plane_x, plane_y, height};
     switch (plane) {
