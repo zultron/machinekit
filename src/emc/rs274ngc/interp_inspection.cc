@@ -32,6 +32,21 @@ double & currentC(setup_pointer s)
   return s->current[C];
 }
 
+double & currentU(setup_pointer s)
+{
+  return s->current[U];
+}
+
+double & currentV(setup_pointer s)
+{
+  return s->current[V];
+}
+
+double & currentW(setup_pointer s)
+{
+  return s->current[W];
+}
+
 double & currentWorkOffsetX(setup_pointer s)
 {
   return s->transform.g5xOffset.shift.tf[X];
