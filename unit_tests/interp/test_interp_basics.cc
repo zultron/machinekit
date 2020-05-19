@@ -1214,3 +1214,39 @@ SCENARIO("Polar coordinates")
         }
     }
 }
+
+
+SCENARIO("Modal behavior of incremental vs absolute motion")
+{
+    DECL_INIT_TEST_INTERP();
+
+    const char *test_setup[] = {
+        "g20g90",
+        "g0x0y0z0a0"
+    };
+    REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
+
+    GIVEN("Incremental motion of a subset of axes")
+    {
+        REQUIRE_INTERP_OK(test_interp, execute("g17"));
+        REQUIRE_INTERP_OK(test_interp, execute("g0x1y2z3"));
+
+        THEN("Incremental motion starts from the current planar rotation and increments the radius and/or angle") {
+            REQUIRE_INTERP_OK(test_interp, execute("G91"));
+            REQUIRE_INTERP_OK(test_interp, execute("g0x7"));
+            const PositionArray expected_incr_result = {
+                8,2,3,
+                0,0,0,0,0,0};
+            CHECK_THAT(settings->current, Catch::Matchers::Approx(expected_incr_result).margin(CART_FUZZ));
+
+            THEN("Switching back to absolute mode and going to a specific position should ONLY affect the specified axes") {
+                REQUIRE_INTERP_OK(test_interp, execute("G90"));
+                REQUIRE_INTERP_OK(test_interp, execute("g0y3"));
+                const PositionArray expected_incr_result2 = {
+                    8,3,3,
+                    0,0,0,0,0,0};
+                CHECK_THAT(settings->current, Catch::Matchers::Approx(expected_incr_result2).margin(CART_FUZZ));
+            }
+        }
+    }
+}
