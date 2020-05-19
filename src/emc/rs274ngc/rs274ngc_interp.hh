@@ -429,6 +429,7 @@ public:
  int convert_tool_select(block_pointer block, setup_pointer settings);
  int update_tag(StateTag &tag);
  int send_tag_io_msg();
+ PositionArray get_cycle_position(block_pointer block, CANON_PLANE plane, double end1, double end2, double end3);
  int cycle_feed(block_pointer block, CANON_PLANE plane, double end1,
                 double end2, double end3);
  int cycle_traverse(block_pointer block, CANON_PLANE plane, double end1, double end2,

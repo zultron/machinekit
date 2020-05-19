@@ -23,6 +23,7 @@
 #include "rs274ngc_return.hh"
 #include "interp_internal.hh"
 #include "rs274ngc_interp.hh"
+#include "posemath_ext.hh"
 
 static const char* plane_name(CANON_PLANE p);
 
@@ -2046,36 +2047,45 @@ respect to the given plane. No rotary axis motion takes place.
 
 */
 
+PositionArray Interp::get_cycle_position(block_pointer block,
+                       CANON_PLANE plane,        //!< currently selected plane
+                       double end1,      //!< first coordinate value
+                       double end2,      //!< second coordinate value
+                       double end3)      //!< third coordinate value
+{
+    PositionArray goal_pos = getAxisWordsFromBlock(block, _setup.current, angularAxisMask);
+
+    PM_CARTESIAN end{end1, end2, end3};
+    switch (plane) {
+    case CANON_PLANE_UV:
+    case CANON_PLANE_VW:
+    case CANON_PLANE_UW:
+        end.shift(-(int)plane - 3);
+        goal_pos[U] = end.x;
+        goal_pos[V] = end.y;
+        goal_pos[W] = end.z;
+        break;
+    case CANON_PLANE_XY:
+    case CANON_PLANE_YZ:
+    case CANON_PLANE_XZ:
+        end.shift(-plane);
+        goal_pos[X] = end.x;
+        goal_pos[Y] = end.y;
+        goal_pos[Z] = end.z;
+        break;
+    }
+    return goal_pos;
+}
+
 int Interp::cycle_feed(block_pointer block,
                        CANON_PLANE plane,        //!< currently selected plane  
                        double end1,      //!< first coordinate value    
                        double end2,      //!< second coordinate value   
                        double end3)      //!< third coordinate value    
 {
-    if (plane == CANON_PLANE_XY)
-        STRAIGHT_FEED(_setup.get_toplevel_line_number(), end1, end2, end3,
-                      _setup.current[A], _setup.current[B], _setup.current[C],
-                      _setup.current[U], _setup.current[V], _setup.current[W]);
-    else if (plane == CANON_PLANE_YZ)
-        STRAIGHT_FEED(_setup.get_toplevel_line_number(), end3, end1, end2,
-                      _setup.current[A], _setup.current[B], _setup.current[C],
-                      _setup.current[U], _setup.current[V], _setup.current[W]);
-    else if (plane == CANON_PLANE_XZ)
-        STRAIGHT_FEED(_setup.get_toplevel_line_number(), end2, end3, end1,
-                      _setup.current[A], _setup.current[B], _setup.current[C],
-                      _setup.current[U], _setup.current[V], _setup.current[W]);
-    else if (plane == CANON_PLANE_UV)
-        STRAIGHT_FEED(_setup.get_toplevel_line_number(), _setup.current[X], _setup.current[Y], _setup.current[Z],
-                      _setup.current[A], _setup.current[B], _setup.current[C],
-                      end1, end2, end3);
-    else if (plane == CANON_PLANE_VW)
-        STRAIGHT_FEED(_setup.get_toplevel_line_number(), _setup.current[X], _setup.current[Y], _setup.current[Z],
-                      _setup.current[A], _setup.current[B], _setup.current[C],
-                      end3, end1, end2);
-    else // (plane == CANON_PLANE_UW)
-        STRAIGHT_FEED(_setup.get_toplevel_line_number(), _setup.current[X], _setup.current[Y], _setup.current[Z],
-                      _setup.current[A], _setup.current[B], _setup.current[C],
-                      end2, end3, end1);
+    auto goal_pos = get_cycle_position(block, plane, end1, end2, end3);
+    STRAIGHT_FEED(_setup.get_toplevel_line_number(),
+                      UNPACK_POSITION_ARRAY_REF(goal_pos));
     return INTERP_OK;
 }
 
@@ -2106,34 +2116,13 @@ move with respect to the given plane. No rotary axis motion takes place.
 
 int Interp::cycle_traverse(block_pointer block,
                            CANON_PLANE plane,    //!< currently selected plane 
-                           double end1,  //!< first coordinate value   
-                           double end2,  //!< second coordinate value  
-                           double end3)  //!< third coordinate value   
+                           double end1,  //!< first coordinate value
+                           double end2,  //!< second coordinate value
+                           double end3)  //!< third coordinate value
 {
+    auto goal_pos = get_cycle_position(block, plane, end1, end2, end3);
 
-    if (plane == CANON_PLANE_XY)
-        STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(), end1, end2, end3,
-                          _setup.current[A], _setup.current[B], _setup.current[C],
-                          _setup.current[U], _setup.current[V], _setup.current[W]);
-    else if (plane == CANON_PLANE_YZ)
-        STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(), end3, end1, end2,
-                          _setup.current[A], _setup.current[B], _setup.current[C],
-                          _setup.current[U], _setup.current[V], _setup.current[W]);
-    else if (plane == CANON_PLANE_XZ)
-        STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(), end2, end3, end1,
-                          _setup.current[A], _setup.current[B], _setup.current[C],
-                          _setup.current[U], _setup.current[V], _setup.current[W]);
-    else if (plane == CANON_PLANE_UV)
-        STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(), _setup.current[X], _setup.current[Y], _setup.current[Z],
-                          _setup.current[A], _setup.current[B], _setup.current[C],
-                          end1, end2, end3);
-    else if (plane == CANON_PLANE_VW)
-        STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(), _setup.current[X], _setup.current[Y], _setup.current[Z],
-                          _setup.current[A], _setup.current[B], _setup.current[C],
-                          end3, end1, end2);
-    else // (plane == CANON_PLANE_UW)
-        STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(), _setup.current[X], _setup.current[Y], _setup.current[Z],
-                          _setup.current[A], _setup.current[B], _setup.current[C],
-                          end2, end3, end1);
+    STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(),
+                      UNPACK_POSITION_ARRAY_REF(goal_pos));
     return INTERP_OK;
 }

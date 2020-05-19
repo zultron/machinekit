@@ -697,6 +697,7 @@ macros totally crash-proof. If the function call stack is deeper than
 
 AxisMask getUpdatedAxes(block_pointer b);
 PositionArray getAxisWordsFromBlock(block_pointer b, PositionArray const &current);
+PositionArray getAxisWordsFromBlock(block_pointer b, PositionArray const &current, AxisMask allowed);
 RotateShiftTransform getAxisWordsFromBlock(block_pointer b, RotateShiftTransform const &current);
 ShiftTransform getAxisWordsFromBlock(block_pointer b, ShiftTransform const &current);
 

@@ -284,15 +284,6 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   if (has_user_mcode(&(_setup),block)) {
       return INTERP_OK;
     }
-  if (block->axis_flags[A]) {
-    CHKS(is_a_cycle(motion), NCE_CANNOT_PUT_AN_A_IN_CANNED_CYCLE);
-  }
-  if (block->axis_flags[B]) {
-    CHKS(is_a_cycle(motion), NCE_CANNOT_PUT_A_B_IN_CANNED_CYCLE);
-  }
-  if (block->axis_flags[C]) {
-    CHKS(is_a_cycle(motion), NCE_CANNOT_PUT_A_C_IN_CANNED_CYCLE);
-  }
   if (block->d_flag) {
     CHKS(((block->g_modes[GM_CUTTER_COMP] != G_41) && (block->g_modes[GM_CUTTER_COMP] != G_42) &&
         (block->g_modes[GM_CUTTER_COMP] != G_41_1) && (block->g_modes[GM_CUTTER_COMP] != G_42_1) &&

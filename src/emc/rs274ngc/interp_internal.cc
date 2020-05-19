@@ -557,9 +557,14 @@ AxisMask getUpdatedAxes(block_pointer b)
 /**
  * Given a G-code block and a baseline position, return a copy that's updated with any active axis commands.
  */
-PositionArray getAxisWordsFromBlock(block_pointer b, const PositionArray &current)
+
+PositionArray getAxisWordsFromBlock(block_pointer b, const PositionArray & current)
 {
     return merge(current, b->axis_numbers, b->axis_flags);
+}
+PositionArray getAxisWordsFromBlock(block_pointer b, const PositionArray &current, AxisMask allowed)
+{
+    return merge(current, b->axis_numbers, b->axis_flags & allowed);
 }
 
 /**

@@ -56,8 +56,17 @@ char axis_to_char(int ax);
 
 using AxisMask = std::bitset<64>;
 
-constexpr std::array<size_t, 6> linearAxes = {X,Y,Z,U,V,W};
-constexpr std::array<size_t, 3> angularAxes = {A,B,C};
+const constexpr std::array<size_t, 6> linearAxes = {X,Y,Z,U,V,W};
+const constexpr std::array<size_t, 3> angularAxes = {A,B,C};
+const constexpr AxisMask angularAxisMask = 1 << A |
+                                     1 << B |
+                                     1 << C;
+const constexpr AxisMask linearAxisMask = 1 << X |
+                                    1 << Y |
+                                    1 << Z |
+                                    1 << U |
+                                    1 << V |
+                                    1 << W;
 
 PositionArray abs(PositionArray const &p);
 PositionArray abs_diff(PositionArray const &b, PositionArray const &o);
