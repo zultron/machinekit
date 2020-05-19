@@ -52,4 +52,55 @@ int execute_lines_or_err(Interp &interp, const char* (&lines)[N], const char *sr
     settings->tool_table[1].toolno = 2; \
     settings->tool_table[2].toolno = 3 \
 
+
+namespace Catch {
+namespace Matchers {
+namespace Array {
+
+template<typename T, size_t N>
+struct ApproxMatcher : Catch::MatcherBase<std::array<T, N>> {
+    using ArrayType = std::array<T, N>;
+    ApproxMatcher(ArrayType const& comparator) : m_comparator( comparator ) {}
+
+    bool match(ArrayType const &v) const override {
+        if (m_comparator.size() != v.size())
+            return false;
+        for (std::size_t i = 0; i < v.size(); ++i)
+            if (m_comparator[i] != approx(v[i]))
+                return false;
+        return true;
+    }
+    std::string describe() const override {
+        return "is approx: " + ::Catch::Detail::stringify( m_comparator );
+    }
+    template <typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
+    ApproxMatcher& epsilon( T const& newEpsilon ) {
+        approx.epsilon(newEpsilon);
+        return *this;
+    }
+    template <typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
+    ApproxMatcher& margin( T const& newMargin ) {
+        approx.margin(newMargin);
+        return *this;
+    }
+    template <typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
+    ApproxMatcher& scale( T const& newScale ) {
+        approx.scale(newScale);
+        return *this;
+    }
+
+    ArrayType const& m_comparator;
+    mutable Catch::Detail::Approx approx = Catch::Detail::Approx::custom();
+};
+
+// KLUDGE hard-coded size here
+using PositionArrayApproxMatcher = ApproxMatcher<PositionArray, 9>;
+}
+    template<typename T, size_t N>
+    Array::ApproxMatcher<T, N> Approx( std::array<T, N> const& comparator ) {
+        return Array::ApproxMatcher<T, N>( comparator );
+    }
+
+}}
+
 #endif // INTERP_TESTING_UTIL_HH

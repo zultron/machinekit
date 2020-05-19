@@ -9,6 +9,7 @@
 #include <cstdio>
 using namespace interp_param_global;
 
+
 TEST_CASE("Interp Basics")
 {
   DECL_INIT_TEST_INTERP();
@@ -1043,5 +1044,67 @@ SCENARIO("test read_real_number")
     }
     THEN("Multiple decimal points throws an error") {
         REQUIRE_INTERP_ERROR(test_interp, read_real_number(bad_float_multi_decimal, &counter, &got_val));
+    }
+}
+
+
+SCENARIO("Polar coordinates")
+{
+    DECL_INIT_TEST_INTERP();
+
+    const char *test_setup[] = {
+        "g20g90",
+        };
+    REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
+
+    GIVEN("XY Plane (G17) active")
+    {
+        const double expected_x = sqrt(3.);
+        const double expected_y = 1.0;
+        REQUIRE_INTERP_OK(test_interp, execute("g17"));
+
+        THEN("Absolute motion in polar coordinates should produce a displacement only in XY, equivalent to x=r*cos(theta), y = r*sin(theta)")
+        {
+            REQUIRE_INTERP_OK(test_interp, execute("g0@2^30."));
+            const PositionArray expected1 = {
+                expected_x,
+                expected_y,
+                0,
+                0,0,0,0,0,0};
+            THEN("Additional absolute motions goes to absolute radius / angle position") {
+                CHECK_THAT(settings->current, Catch::Matchers::Approx(expected1).margin(CART_FUZZ));
+                REQUIRE_INTERP_OK(test_interp, execute("g0@2^-60."));
+                const PositionArray expected_abs2 = {
+                    expected_y,
+                    -expected_x,
+                    0,
+                    0,0,0,0,0,0};
+                CHECK_THAT(settings->current, Catch::Matchers::Approx(expected_abs2).margin(CART_FUZZ));
+            }
+            THEN("Incremental motion starts from the current planar rotation and increments the radius and/or angle") {
+                REQUIRE_INTERP_OK(test_interp, execute("G91"));
+                REQUIRE_INTERP_OK(test_interp, execute("g0^30."));
+                const PositionArray expected_incr_result = {
+                    expected_y,
+                    expected_x,
+                    0,
+                    0,0,0,0,0,0};
+                CHECK_THAT(settings->current, Catch::Matchers::Approx(expected_incr_result).margin(CART_FUZZ));
+                REQUIRE_INTERP_OK(test_interp, execute("g0@1^30."));
+                const PositionArray expected_incr_result2 = {
+                    0,
+                    3,
+                    0,
+                    0,0,0,0,0,0};
+                CHECK_THAT(settings->current, Catch::Matchers::Approx(expected_incr_result2).margin(CART_FUZZ));
+                REQUIRE_INTERP_OK(test_interp, execute("g0@-2^-90."));
+                const PositionArray expected_incr_result3 = {
+                    1,
+                    0,
+                    0,
+                    0,0,0,0,0,0};
+                CHECK_THAT(settings->current, Catch::Matchers::Approx(expected_incr_result3).margin(CART_FUZZ));
+            }
+        }
     }
 }

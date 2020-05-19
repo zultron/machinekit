@@ -24,6 +24,9 @@ double &currentZ(setup_pointer s);
 double &currentA(setup_pointer s);
 double &currentB(setup_pointer s);
 double &currentC(setup_pointer s);
+double &currentU(setup_pointer s);
+double &currentV(setup_pointer s);
+double &currentW(setup_pointer s);
 
 double &currentWorkOffsetX(setup_pointer s);
 double &currentWorkOffsetY(setup_pointer s);
