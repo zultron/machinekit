@@ -2024,38 +2024,23 @@ int Interp::convert_cycle_wu(int motion, //!< a g-code between G_81 and G_89, a 
 }
 /****************************************************************************/
 
-/*! cycle_feed
-
-Returned Value: int (INTERP_OK)
-
-Side effects:
-  STRAIGHT_FEED is called.
-
-Called by:
-  convert_cycle_g81
-  convert_cycle_g82
-  convert_cycle_g83
-  convert_cycle_g74_g84
-  convert_cycle_g85
-  convert_cycle_g86
-  convert_cycle_g87
-  convert_cycle_g88
-  convert_cycle_g89
-
-This writes a STRAIGHT_FEED command appropriate for a cycle move with
-respect to the given plane. No rotary axis motion takes place.
-
-*/
-
+/**
+ * Converts cycle coordinates to an actual goal position usable for
+ * STRAIGHT_FEED or STRAIGHT_TRAVERSE, given a block and active plane.
+ *
+ * This works by pulling out the nominal goal position from the block (using
+ * all axes), but replacing the "active" canned cycle axis words with the given
+ * cycle values.
+ */
 PositionArray Interp::get_cycle_position(block_pointer block,
                        CANON_PLANE plane,        //!< currently selected plane
-                       double end1,      //!< first coordinate value
-                       double end2,      //!< second coordinate value
-                       double end3)      //!< third coordinate value
+                       double plane_x,      //!< first coordinate value
+                       double plane_y,      //!< second coordinate value
+                       double height)      //!< third coordinate value
 {
-    PositionArray goal_pos = getAxisWordsFromBlock(block, _setup.current, angularAxisMask);
+    PositionArray goal_pos = getAxisWordsFromBlock(block, _setup.current);
 
-    PM_CARTESIAN end{end1, end2, end3};
+    PM_CARTESIAN end{plane_x, plane_y, height};
     switch (plane) {
     case CANON_PLANE_UV:
     case CANON_PLANE_VW:
@@ -2077,13 +2062,39 @@ PositionArray Interp::get_cycle_position(block_pointer block,
     return goal_pos;
 }
 
+
+/**
+ * cycle_feed
+
+Returned Value: int (INTERP_OK)
+
+Side effects:
+  STRAIGHT_FEED is called.
+
+Called by:
+  convert_cycle_g81
+  convert_cycle_g82
+  convert_cycle_g83
+  convert_cycle_g74_g84
+  convert_cycle_g85
+  convert_cycle_g86
+  convert_cycle_g87
+  convert_cycle_g88
+  convert_cycle_g89
+
+This writes a STRAIGHT_FEED command appropriate for a cycle move with
+respect to the given plane. Only motions from the "active" axis set are allowed
+(either XYZ or UVW depending on plane selection). ABC axis motion is never allowed during a cycle feed.
+
+*/
+
 int Interp::cycle_feed(block_pointer block,
                        CANON_PLANE plane,        //!< currently selected plane  
-                       double end1,      //!< first coordinate value    
-                       double end2,      //!< second coordinate value   
-                       double end3)      //!< third coordinate value    
+                       double plane_x,      //!< first coordinate value
+                       double plane_y,      //!< second coordinate value
+                       double height)      //!< third coordinate value
 {
-    auto goal_pos = get_cycle_position(block, plane, end1, end2, end3);
+    auto goal_pos = get_cycle_position(block, plane, plane_x, plane_y, height);
     STRAIGHT_FEED(_setup.get_toplevel_line_number(),
                       UNPACK_POSITION_ARRAY_REF(goal_pos));
     return INTERP_OK;
@@ -2110,17 +2121,16 @@ Called by:
   convert_cycle_zx (via CYCLE_MACRO)
 
 This writes a STRAIGHT_TRAVERSE command appropriate for a cycle
-move with respect to the given plane. No rotary axis motion takes place.
-
+move with respect to the given plane. Motion is ALLOWED in all axes except for the "depth" axis (e.g. XYABCUVW for G17).
 */
 
 int Interp::cycle_traverse(block_pointer block,
                            CANON_PLANE plane,    //!< currently selected plane 
-                           double end1,  //!< first coordinate value
-                           double end2,  //!< second coordinate value
-                           double end3)  //!< third coordinate value
+                           double plane_x,  //!< first coordinate value
+                           double plane_y,  //!< second coordinate value
+                           double height)  //!< third coordinate value
 {
-    auto goal_pos = get_cycle_position(block, plane, end1, end2, end3);
+    auto goal_pos = get_cycle_position(block, plane, plane_x, plane_y, height);
 
     STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(),
                       UNPACK_POSITION_ARRAY_REF(goal_pos));
