@@ -17,7 +17,7 @@ M00
 
 ; Line 21, Case 4:  G93 w/ motion
 G93
-G1 X0.01 F[0.01/600]  ; Move 0.01" in 0.1s = 600IPM
+G1 X0.01 F600  ; Move 0.01" in 1m/600=0.1s
 M00
 
 ; Line 26, Case 5:  G94 w/ motion
@@ -32,7 +32,7 @@ M00
 
 ; Line 35, id 26, Case 7:  G93 w/ motion; abort in middle
 G93
-G1 X10 F[1*10]  ; Move 9.98" at 1ipm
+G1 X10 F0.10  ; Move 9.98" at 1ipm
 
 ; Program should never reach here; change everything
 G94
