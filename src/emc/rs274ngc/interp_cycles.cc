@@ -1026,6 +1026,7 @@ int Interp::convert_cycle_for_plane(int motion, //!< a g-code between G_81 and G
     default:
         ERS(NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
     }
+    settings->current = cycle_end; // For non-cycle axes
     settings->current[axis_0] = aa;     /* CYCLE_MACRO updates aa and bb */
     settings->current[axis_1] = bb;
     settings->current[depth_axis] = clear_cc;
