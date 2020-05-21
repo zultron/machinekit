@@ -77,6 +77,12 @@ PositionArray &min_inplace(PositionArray &p0, PositionArray const &p1);
 PositionArray max(PositionArray const &p0, PositionArray const &p1);
 PositionArray min(PositionArray const &p0, PositionArray const &p1);
 
+PositionArray &operator*=(PositionArray &p0, double v);
+PositionArray operator*(PositionArray const &p0, double v);
+
+double dot(PositionArray const &p0, PositionArray const &p1);
+double mag(PositionArray const &p0);
+
 void apply_abs_mask(PositionArray &p, PositionArray const &min_mask);
 
 bool isNonzero(PositionArray const &p);

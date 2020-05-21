@@ -197,3 +197,34 @@ void apply_abs_mask(PositionArray & p, const PositionArray & min_mask)
         }
     }
 }
+
+double dot(const PositionArray & p0, const PositionArray & p1)
+{
+    double d = 0;
+    for (size_t i=0; i < MAX_USED_AXES; ++i) {
+        d += p0[i]*p1[i];
+    }
+    return d;
+}
+
+PositionArray &operator*=(PositionArray & p0, double v)
+{
+    for (auto &p : p0) {
+        p*=v;
+    }
+    return p0;
+}
+
+PositionArray operator*(PositionArray const & p0, double v)
+{
+    PositionArray out = p0;
+    for (auto &p : out) {
+        p*=v;
+    }
+    return out;
+}
+
+double mag(const PositionArray & p0)
+{
+    return sqrt(dot(p0, p0));
+}

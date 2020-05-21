@@ -665,13 +665,13 @@ static void get_last_pos(double &lx, double &ly, double &lz) {
  *  In region (1), the distance to the segment is R - P0
  *  In region (4), the distance to the segment is R - P1
  */
-static double distance_to_segment(PM_CARTESIAN const & P0,
-        PM_CARTESIAN const & P1,
-        PM_CARTESIAN const & R)
+static double distance_to_segment(PositionArray const & P0,
+        PositionArray const & P1,
+        PositionArray const & R)
 {
     // Find relative distances from first point
-    PM_CARTESIAN V = R - P0;
-    PM_CARTESIAN M = P1 - P0;
+    PositionArray V = R - P0;
+    PositionArray M = P1 - P0;
 
     // Project onto M
     double base_dist_sq = dot(M, M);
@@ -694,7 +694,7 @@ static double distance_to_segment(PM_CARTESIAN const & P0,
     }
 
     // Subtract away parallel component to find perpendicular distance.
-    return mag(V - t0 * M);
+    return mag(V - M * t0);
 }
 
 
@@ -706,27 +706,14 @@ linkable(PositionArray const &goal_pos_canon) {
     if (chained_points.empty() || chained_points.size() > 100) {
         return false;
     }
-    TaggedPoint &pos = chained_points.back();
     if(canonMotionMode != CANON_CONTINUOUS || canonNaivecamTolerance == 0)
         return false;
 
-    static const std::array<PositionArrayIndex, 6> nontangent_axes{A,B,C,U,V,W};
-
-    //If ABCUVW motion, then the tangent calculation fails?
-    for (auto i : nontangent_axes) {
-        if(goal_pos_canon[i] != pos[i]) return false;
-    }
-
     if(goal_pos_canon == canonEndPoint) return false;
-
-    // start and end points of "merged" segment.
-    PM_CARTESIAN P0=xyz(canonEndPoint);
-    PM_CARTESIAN P1=xyz(goal_pos_canon);
 
     for(std::vector<TaggedPoint>::iterator it = chained_points.begin();
             it != chained_points.end(); it++) {
-        PM_CARTESIAN P_test((*it)[X], (*it)[Y], (*it)[Z]);
-        double D_xyz = distance_to_segment(P0, P1, P_test);
+        double D_xyz = distance_to_segment(canonEndPoint, goal_pos_canon, it->p);
         debug_canon_var(D_xyz);
         if( D_xyz > canonNaivecamTolerance) return false;
     }
