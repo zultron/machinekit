@@ -678,17 +678,17 @@ std::tuple<PositionArrayIndex, PositionArrayIndex, PositionArrayIndex> plane_ind
 {
     switch (plane) {
     case CANON_PLANE_XY:
-        return {X, Y, Z};
+        return std::make_tuple(X, Y, Z);
     case CANON_PLANE_XZ:
-        return {Z, X, Y};
+        return std::make_tuple(Z, X, Y);
     case CANON_PLANE_YZ:
-        return {Y, Z, X};
+        return std::make_tuple(Y, Z, X);
     case CANON_PLANE_UV:
-        return {U, V, W};
+        return std::make_tuple(U, V, W);
     case CANON_PLANE_UW:
-        return {W, U, V};
+        return std::make_tuple(W, U, V);
     case CANON_PLANE_VW:
-        return {V, W, U};
+        return std::make_tuple(V, W, U);
     }
-    return {X, Y, Z};
+    return std::make_tuple(X, Y, Z);
 }
