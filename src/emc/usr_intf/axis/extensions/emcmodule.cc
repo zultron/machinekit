@@ -1661,6 +1661,52 @@ static int Error_init(pyErrorChannel *self, PyObject *a, PyObject *k) {
     return 0;
 }
 
+template<typename NmlMsgType>
+void addMsgFields(NmlMsgType const &e, PyObject *r);
+
+template<>
+void addMsgFields(EMC_OPERATOR_ERROR const &e, PyObject *r)
+{
+    PyTuple_SET_ITEM(r, 1, PyString_FromString(e.text));
+    PyTuple_SET_ITEM(r, 2, PyInt_FromLong(e.lvl));
+}
+
+template<>
+void addMsgFields(EMC_OPERATOR_TEXT const &e, PyObject *r)
+{
+    PyTuple_SET_ITEM(r, 1, PyString_FromString(e.text));
+    PyTuple_SET_ITEM(r, 2, PyInt_FromLong(e.lvl));
+}
+
+template<>
+void addMsgFields(EMC_OPERATOR_DISPLAY const &e, PyObject *r)
+{
+    PyTuple_SET_ITEM(r, 1, PyString_FromString(e.text));
+    PyTuple_SET_ITEM(r, 2, PyInt_FromLong(e.lvl));
+}
+
+// These should never appear under normal conditions but handle them anyway
+template<>
+void addMsgFields(NML_TEXT const &e, PyObject *r)
+{
+    PyTuple_SET_ITEM(r, 1, PyString_FromString(e.text));
+    PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_LOW));
+}
+
+template<>
+void addMsgFields(NML_DISPLAY const &e, PyObject *r)
+{
+    PyTuple_SET_ITEM(r, 1, PyString_FromString(e.display));
+    PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_LOW));
+}
+
+template<>
+void addMsgFields(NML_ERROR const &e, PyObject *r)
+{
+    PyTuple_SET_ITEM(r, 1, PyString_FromString(e.error));
+    PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_HIGH));
+}
+
 static PyObject* Error_poll(pyErrorChannel *s) {
     if(!s->c->valid()) {
         PyErr_Format( error, "Error buffer invalid" );
@@ -1671,23 +1717,24 @@ static PyObject* Error_poll(pyErrorChannel *s) {
         Py_INCREF(Py_None);
         return Py_None;
     }
-    PyObject *r = PyTuple_New(2);
+    // TODO fix this to map the alarm level to the message type (or replace the separate error message type)
+    PyObject *r = PyTuple_New(3);
     PyTuple_SET_ITEM(r, 0, PyInt_FromLong(type));
+
 #define PASTE(a,b) a ## b
-#define TYPECASE_IMPL(tag, type, f) \
+#define TYPECASE_IMPL(tag, type) \
     case tag: { \
-        std::string msg(((type*)s->c->get_address())->f); \
-        PyTuple_SET_ITEM(r, 1, PyString_FromString(msg.c_str())); \
+        addMsgFields(*((type*)s->c->get_address()), r); \
         break; \
     }
-#define TYPECASE(x, f) TYPECASE_IMPL(PASTE(x, _TYPE), x, f)
+#define TYPECASE(x) TYPECASE_IMPL(PASTE(x, _TYPE), x)
     switch(type) {
-        TYPECASE(EMC_OPERATOR_ERROR, text)
-        TYPECASE(EMC_OPERATOR_TEXT, text)
-        TYPECASE(EMC_OPERATOR_DISPLAY, text)
-        TYPECASE(NML_ERROR, error)
-        TYPECASE(NML_TEXT, text)
-        TYPECASE(NML_DISPLAY, display)
+        TYPECASE(EMC_OPERATOR_ERROR)
+        TYPECASE(EMC_OPERATOR_TEXT)
+        TYPECASE(EMC_OPERATOR_DISPLAY)
+        TYPECASE(NML_ERROR)
+        TYPECASE(NML_TEXT)
+        TYPECASE(NML_DISPLAY)
     case EMC_OPERATOR_ERROR_EXTENDED_TYPE: {
         std::string msg(((EMC_OPERATOR_ERROR_EXTENDED*)s->c->get_address())->text);
         // KLUDGE strip context markers from extended error message
@@ -1696,13 +1743,15 @@ static PyObject* Error_poll(pyErrorChannel *s) {
             msg_ptr+=strlen(CONTEXT_MARKER);
         }
         PyTuple_SET_ITEM(r, 1, PyString_FromString(msg_ptr));
-        break; \
+        PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_MEDIUM));
+        break;
     }
     default:
         {
             char error_string[256];
             sprintf(error_string, "unrecognized error %" PRId32, type);
             PyTuple_SET_ITEM(r, 1, PyString_FromString(error_string));
+            PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_HIGH));
             break;
         }
     }
@@ -2757,7 +2806,9 @@ initlinuxcnc(void) {
         PyModule_AddStringConstant(m, "nmlfile", envPtr);
     }
 
+    // NOTE: add any error-like types here
     PyModule_AddIntConstant(m, "OPERATOR_ERROR", EMC_OPERATOR_ERROR_TYPE);
+    PyModule_AddIntConstant(m, "OPERATOR_ERROR_EXTENDED", EMC_OPERATOR_ERROR_EXTENDED_TYPE);
     PyModule_AddIntConstant(m, "OPERATOR_TEXT", EMC_OPERATOR_TEXT_TYPE);
     PyModule_AddIntConstant(m, "OPERATOR_DISPLAY", EMC_OPERATOR_DISPLAY_TYPE);
     PyModule_AddIntConstant(m, "NML_ERROR", NML_ERROR_TYPE);
@@ -2768,6 +2819,7 @@ initlinuxcnc(void) {
     PyModule_AddObject(m, "tool", (PyObject*)&ToolResultType);
     PyModule_AddObject(m, "version", PyString_FromString(PACKAGE_VERSION));
     PyModule_AddObject(m, "context_marker", PyString_FromString(CONTEXT_MARKER));
+
 
     ENUMX(4, EMC_AXIS_LINEAR);
     ENUMX(4, EMC_AXIS_ANGULAR);

@@ -58,7 +58,7 @@
 #include <ctype.h>		// isspace()
 #include <libintl.h>
 #include <locale.h>
-
+#include <sstream>
 
 #if 0
 // Enable this to niftily trap floating point exceptions for debugging
@@ -85,6 +85,8 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 #include "taskclass.hh"
 #include "motion.h"             // EMCMOT_ORIENT_*
 #include "inihal.hh"
+
+#include "nml_prettyprint.hh"
 
 //#define EMCTASK_DEBUG
 
@@ -114,6 +116,9 @@ static RCS_CMD_MSG *emcCommand = 0;
 
 // global EMC status
 EMC_STAT *emcStatus = 0;
+
+// For use in task to format log messages when receiving certain NML messages
+static std::ostringstream oss;
 
 // timer stuff
 static RCS_TIMER *timer = 0;
@@ -241,9 +246,10 @@ int emcOperatorError(const char *fmt, ...)
     return emcErrorBuffer->write(error_msg);
 }
 
-int emcOperatorText(const char *fmt, ...)
+int emcOperatorText(CanonMessageAlarmLevel lvl, const char *fmt, ...)
 {
     EMC_OPERATOR_TEXT text_msg;
+    text_msg.lvl = lvl;
     if (!fmt || !fmt[0] || !isEmcErrorBufferOKtoWrite(text_msg)) {
         return -1;
     }
@@ -1605,7 +1611,7 @@ static int emcTaskCheckPreconditions(NMLmsg * cmd)
     case EMC_TRAJ_PRECISION_DWELL_TYPE:
 	return EMC_TASK_EXEC_WAITING_FOR_IO;
 
-    case EMC_TRAJ_SET_OFFSET_TYPE:
+    case EMC_TRAJ_SET_TOOL_OFFSET_TYPE:
 	// this applies the tool length offset variable after previous
 	// motions
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
@@ -1781,8 +1787,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 	break;
 
     case EMC_OPERATOR_TEXT_TYPE:
-    retval = emcOperatorText(
-				 "%s", ((EMC_OPERATOR_TEXT *) cmd)->text);
+    {
+        auto const msg = (EMC_OPERATOR_TEXT *) cmd;
+        retval = emcOperatorText((CanonMessageAlarmLevel)msg->lvl, "%s", msg->text);
+    }
 	break;
 
     case EMC_OPERATOR_DISPLAY_TYPE:
@@ -2012,10 +2020,14 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
         retval = emcTrajSetSpindleSync(emcTrajSetSpindlesyncMsg->feed_per_revolution, emcTrajSetSpindlesyncMsg->velocity_mode);
         break;
 
-    case EMC_TRAJ_SET_OFFSET_TYPE:
-	// update tool offset
-    emcStatus->task.toolOffset.tf = toArray(((EMC_TRAJ_SET_OFFSET *) cmd)->offset);
-        retval = emcTrajSetOffset(((EMC_TRAJ_SET_OFFSET *) cmd)->offset);
+    case EMC_TRAJ_SET_TOOL_OFFSET_TYPE:
+    {
+        auto const msg = reinterpret_cast<EMC_TRAJ_SET_TOOL_OFFSET const &>(*cmd);
+        // update tool offset
+        emcStatus->task.toolOffset.tf = toArray(msg.offset);
+        retval = emcTrajSetToolOffset(msg.offset);
+        log_processed_message(msg, CANON_MSG_DEBUG);
+    }
 	break;
 
     case EMC_TRAJ_SET_ROTATION_TYPE:
@@ -2025,11 +2037,11 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
     {
-        double const *offset = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->offset;
-        int new_index = (size_t)((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->g5x_index;
-        double xy_rotation_deg = ((EMC_TRAJ_SET_G5X_TRANSFORM *) cmd)->xy_rotation_deg;
-        emcStatus->task.g5x_table[new_index] = RotateShiftTransform(toArray(offset, 9), xy_rotation_deg);
+        auto const g5x_msg = (EMC_TRAJ_SET_G5X_TRANSFORM const &) *cmd;
+        int new_index = (size_t)g5x_msg.g5x_index;
+        emcStatus->task.g5x_table[new_index] = g5x_msg.g5x_transform;
         retval = emcStatusUpdateWorkOffset(new_index);
+        log_processed_message(g5x_msg, CANON_MSG_DEBUG);
     }
     retval = 0;
 	break;
@@ -2042,6 +2054,7 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     case EMC_TRAJ_SET_G92_TYPE:
     {
         auto g92_cmd = ((EMC_TRAJ_SET_G92 const &) *cmd);
+        log_processed_message(g92_cmd, CANON_MSG_DEBUG);
         // struct-copy program origin
         emcStatus->task.g92_offset = ShiftTransform(toArray(g92_cmd.origin));
         emcStatus->task.g92_applied = g92_cmd.applied;
@@ -2592,7 +2605,7 @@ static int emcTaskCheckPostconditions(NMLmsg * cmd)
     case EMC_TRAJ_SET_ACCELERATION_TYPE:
     case EMC_TRAJ_SET_TERM_COND_TYPE:
     case EMC_TRAJ_SET_SPINDLESYNC_TYPE:
-    case EMC_TRAJ_SET_OFFSET_TYPE:
+    case EMC_TRAJ_SET_TOOL_OFFSET_TYPE:
     case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
     case EMC_TRAJ_SET_G92_TYPE:
     case EMC_TRAJ_SET_ROTATION_TYPE:
@@ -2723,7 +2736,7 @@ static state_tag_t * emcTaskGetTagFromCommand(NMLmsg * const cmd)
         case EMC_TRAJ_LINEAR_MOVE_TYPE:
         case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
         case EMC_TRAJ_SET_TERM_COND_TYPE:
-        case EMC_TRAJ_SET_OFFSET_TYPE:
+        case EMC_TRAJ_SET_TOOL_OFFSET_TYPE:
         case EMC_TRAJ_SET_G5X_TRANSFORM_TYPE:
         case EMC_TRAJ_CLEAR_G5X_TABLE_TYPE:
         case EMC_TRAJ_SET_HOME_TYPE:

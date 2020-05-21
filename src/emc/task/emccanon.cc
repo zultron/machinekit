@@ -158,15 +158,6 @@ void SEND_TAG_MSG(void) {
     send_tag_msg();
 }
 
-
-/*
-  These decls were from the old 3-axis canon.hh, and refer functions
-  defined here that are used for convenience but no longer have decls
-  in the 6-axis canon.hh. So, we declare them here now.
-*/
-void CANON_ERROR(const char *fmt, ...) __attribute__((format(printf,1,2)));
-void CANON_MSG(const char *fmt, ...) __attribute__((format(printf,1,2)));
-
 /*
   Origin offsets, length units, and active plane are all maintained
   here in this file. Controller runs in absolute mode, and does not
@@ -442,11 +433,8 @@ static void send_g5x_msg(int index, RotateShiftTransform work_offset) {
     set_g5x_msg.g5x_index = index;
 
     convertAxisUnits(work_offset, ConvertsCanonToUserUnits());
-    std::copy(work_offset.shift.tf.begin(),
-              work_offset.shift.tf.end(),
-              set_g5x_msg.offset);
 
-    set_g5x_msg.xy_rotation_deg = work_offset.getXYRotationDeg();
+    set_g5x_msg.g5x_transform = work_offset;
 
     if(css_maximum) {
         SET_SPINDLE_SPEED(spindleSpeed_rpm);
@@ -1780,7 +1768,7 @@ static bool limitSpindleSpeed(double rpm)
         return false;
     }
     EMC_SPINDLE_SPEED emc_spindle_speed_msg;
-    CANON_MSG("Reducing spindle speed from %0.0f to %0.0f for synched motion\n", spindleSpeed_rpm, limit_rpm);
+    CANON_MSG(CANON_MSG_LOW, "Reducing spindle speed from %0.0f to %0.0f for synched motion\n", spindleSpeed_rpm, limit_rpm);
 
     buildSpindleCmd(emc_spindle_speed_msg, limit_rpm);
     interp_list.append(emc_spindle_speed_msg);
@@ -1907,7 +1895,7 @@ void SET_TOOL_TABLE_ENTRY(int pocket, int toolno, EmcPose offset, double diamete
   */
 void USE_TOOL_LENGTH_OFFSET(EmcPose offset)
 {
-    EMC_TRAJ_SET_OFFSET set_offset_msg;
+    EMC_TRAJ_SET_TOOL_OFFSET set_offset_msg;
 
     flush_segments();
 
@@ -2579,10 +2567,11 @@ void CANON_ERROR(const char *fmt, ...)
 /**
  * KLUDGE like CANON_ERROR but for sending an info message to the user.
  */
-void CANON_MSG(const char *fmt, ...)
+void CANON_MSG(CanonMessageAlarmLevel lvl, const char *fmt, ...)
 {
     va_list ap;
     EMC_OPERATOR_TEXT operator_text_msg;
+    operator_text_msg.lvl = lvl;
 
     if (fmt) {
         va_start(ap, fmt);
