@@ -364,7 +364,7 @@ static double canonMotionTolerance = 0.0;
 
 static double canonNaivecamTolerance = 0.0;
 // TODO support changing this with an R-word in G64?
-static double canonNaivecamMMPerDeg = 3.5; // Calibrated for a roughly 200mm radius
+static double canonNaivecamMMPerDeg = 3.5; // Calibrated so that linear NCD tolerance >= angular tolerance up ~200mm away from the rotary center.
 
 /* Spindle speed is saved here */
 static double spindleSpeed_rpm = 0.0; // always positive
@@ -667,7 +667,7 @@ static void get_last_pos(double &lx, double &ly, double &lz) {
  *  In region (1), the distance to the segment is R - P0
  *  In region (4), the distance to the segment is R - P1
  */
-static double distance_to_segment(PositionArray const & P0,
+double distance_to_segment(PositionArray const & P0,
         PositionArray const & P1,
         PositionArray const & R)
 {
@@ -707,8 +707,7 @@ static double distance_to_segment(PositionArray const & P0,
 /**
  * Check if we can skip over intermediate points.
  */
-static bool
-linkable(PositionArray const &goal_pos_canon) {
+bool linkable(PositionArray const &goal_pos_canon) {
     if (chained_points.empty() || chained_points.size() > 100) {
         return false;
     }
@@ -726,8 +725,7 @@ linkable(PositionArray const &goal_pos_canon) {
     return true;
 }
 
-static void
-see_segment(
+void see_segment(
         StateTag const &tag,
         PositionArray goal_pos_canon) {
     if(!chained_points.empty() && !linkable(goal_pos_canon)) {
@@ -3354,4 +3352,9 @@ void IO_PLUGIN_CALL(int len, const char *call)
     printf("canon: IO_PLUGIN_CALL(arglen=%d)\n",len);
 
 	interp_list.append(call_msg);
+}
+
+double get_naivecam_mm_per_deg()
+{
+    return canonNaivecamMMPerDeg;
 }
