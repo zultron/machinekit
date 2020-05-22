@@ -363,6 +363,8 @@ static CANON_MOTION_MODE canonMotionMode = CANON_EXACT_STOP;
 static double canonMotionTolerance = 0.0;
 
 static double canonNaivecamTolerance = 0.0;
+// TODO support changing this with an R-word in G64?
+static double canonNaivecamMMPerDeg = 3.5; // Calibrated for a roughly 200mm radius
 
 /* Spindle speed is saved here */
 static double spindleSpeed_rpm = 0.0; // always positive
@@ -694,7 +696,11 @@ static double distance_to_segment(PositionArray const & P0,
     }
 
     // Subtract away parallel component to find perpendicular distance.
-    return mag(V - M * t0);
+    PositionArray min_dist = V - M * t0;
+    min_dist[A] *= canonNaivecamMMPerDeg;
+    min_dist[B] *= canonNaivecamMMPerDeg;
+    min_dist[C] *= canonNaivecamMMPerDeg;
+    return mag(min_dist);
 }
 
 
