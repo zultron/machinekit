@@ -525,5 +525,5 @@ test_emccanon_ex = executable('test_emccanon',
         ]
     )
 
-
+test('test_emccanon', test_emccanon_ex)
 
