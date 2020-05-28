@@ -132,7 +132,7 @@ class LinuxcncControl:
 
         self.error = self.e.poll()
         if self.error:
-            kind, text = self.error
+            kind, text, lvl = self.error
             if kind in (linuxcnc.NML_ERROR, linuxcnc.OPERATOR_ERROR):
                 if LinuxcncControl.g_raise_except:
                     raise LinuxcncError(text)

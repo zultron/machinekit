@@ -29,7 +29,7 @@ def do_dout(cmd, with_motion=False):
         (cmd, s.dout[0], s.dout[1])
     error = e.poll()
     if error:
-        type_code, msg = error
+        type_code, msg, lvl = error
         if type_code == linuxcnc.OPERATOR_DISPLAY:
             sys.stderr.write("%s\n" % msg)
         else:

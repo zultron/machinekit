@@ -17,7 +17,7 @@ M00
 
 ; Line 21, Case 4:  G93 w/ motion
 G93
-G1 X0.01 F600  ; Move 0.01" in 1m/600=0.1s
+G1 X0.01 F600  ; Move 0.01" in (1/600) minutes=0.1s
 M00
 
 ; Line 26, Case 5:  G94 w/ motion
@@ -25,12 +25,17 @@ G94
 G1 Y0.01 F500  ; Move 0.01" at 500ipm
 M00
 
-; Line 31, Case 6:  G95 w/ motion
+; Line 31, Case 6:  G93 w/ small linear motion and large rotary motion
+G93
+G1 Y0.01000001 A1 F600.0  ; Move 1 deg in 0.1 sec (linear feed rate is 0.0006 IPM)
+M00
+
+; Line 36, Case 7:  G95 w/ motion
 G95
 G1 Z0.01 S2000 M3 F0.001  ; Move 0.01" at 2k RPM * 0.001" per rev = 2ipm
 M00
 
-; Line 35, id 26, Case 7:  G93 w/ motion; abort in middle
+; Line 41, id 26, Case 8:  G93 w/ motion; abort in middle
 G93
 G1 X10 F0.10  ; Move 9.98" at 1ipm
 
