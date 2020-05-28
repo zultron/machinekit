@@ -130,7 +130,7 @@ class LinuxcncControl:
 
         self.error = self.e.poll()
         if self.error:
-            kind, text = self.error
+            kind, text, lvl = self.error
             if kind in (linuxcnc.NML_ERROR, linuxcnc.OPERATOR_ERROR):
                 if self.g_raise_except:
                     raise LinuxcncError(text)
@@ -198,7 +198,7 @@ def get_interp_param(param_number):
             time.sleep(0.010)
             continue
 
-        kind, text = error
+        kind, text, lvl = error
         if kind == linuxcnc.OPERATOR_DISPLAY:
             return float(text)
 

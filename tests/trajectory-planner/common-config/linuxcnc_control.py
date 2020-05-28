@@ -266,7 +266,7 @@ class LinuxcncControl:
         if error is None:
             return False
 
-        err_type, msg_text = error
+        err_type, msg_text, msg_lvl = error
         err_type_str = 'error' if err_type in (linuxcnc.NML_ERROR, linuxcnc.OPERATOR_ERROR) else 'info'
         self.log(f, err_type_str, msg_text)
         return True
