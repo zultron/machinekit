@@ -110,20 +110,6 @@ class Translated:
         self.g92_offset_w = w
 
 
-class ArcsToSegmentsMixin:
-    def __init__(self):
-        self.plane = 1
-        self.arcdivision = 64
-        self.lo = None
-
-    def set_plane(self, plane):
-        self.plane = plane
-
-    def arc_feed(self, lineno, x1, y1, cx, cy, rot, z1, a, b, c, u, v, w):
-        self.lo = tuple(self.lo)
-        segs = gcode.arc_to_segments(self, x1, y1, cx, cy, rot, z1, a, b, c, u, v, w, self.arcdivision)
-        self.straight_arcsegments(lineno, segs)
-
 class PrintCanon:
     def set_g5x_transform(self, *args):
         print "set_g5x_transform", args
