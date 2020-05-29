@@ -5438,9 +5438,6 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
     CHKS((settings->cutter_comp.side),
          (_("Cannot change tool offset with cutter radius compensation on")));
 
-    // PP-2734: make any offset change to tool offsets be a queue buster
-    settings->wait_flags.set(TOOL_OFFSET_MODIFED);
-
     if (g_code == G_49) {
         // Clear tool offsets, no lookup needed
         settings->current = settings->transform.swap_tool_offset(settings->current, ShiftTransform{});
@@ -5449,10 +5446,15 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
         ShiftTransform new_tool_offset{};
         CHP(find_g43_tool_offset(block->h_number, block->h_flag, settings, new_tool_offset));
         settings->current = settings->transform.swap_tool_offset(settings->current, new_tool_offset);
+        if (settings->tool_offset_mode == G_43_1 || settings->tool_offset_mode == G_43_2) {
+            // Need queue-buster because we're switching from a custom to a table offset
+            settings->wait_flags.set(TOOL_OFFSET_MODIFED);
+        }
         settings->tool_offset_number = block->h_flag ? block->h_number : settings->getCurrentToolNumber();
     } else if (g_code == G_43_1) {
         ShiftTransform modified_tool_offset(getAxisWordsFromBlock(block, settings->transform.toolOffset));
         settings->current = settings->transform.swap_tool_offset(settings->current, modified_tool_offset);
+        settings->wait_flags.set(TOOL_OFFSET_MODIFED);
         settings->tool_offset_number = -1;
     } else if (g_code == G_43_2) {
         ShiftTransform additional_tool_offset{};
@@ -5461,6 +5463,7 @@ int Interp::convert_tool_length_offset(int g_code,       //!< g_code being execu
         CHP((find_tool_pocket(settings, block->h_number, &pocket_number_g43_2)));
         find_tool_offset(settings, pocket_number_g43_2, additional_tool_offset);
         settings->current = settings->transform.add_tool_offset(settings->current, additional_tool_offset);
+        settings->wait_flags.set(TOOL_OFFSET_MODIFED);
         settings->tool_offset_number = -1; // Cannot describe the tool offset with a single number
     } else {
         ERS("BUG: Code not G43, G43.1, G43.2, or G49");
