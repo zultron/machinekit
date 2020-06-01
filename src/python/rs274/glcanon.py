@@ -205,14 +205,14 @@ class GLCanon(Translated):
         self.current_tool = pocket
         # FIXME does defaultdict with list serve the correct purpose here? We used to add empty lists to each dict
 
-    def check_straight_feed_synched(self, lineno, start_pos, end_pos, s, fpr, move_type="Spindle-synched"):
+    def check_straight_feed_synched(self, lineno, start_pos, end_pos, s, fpr, move_type=None):
         """For spindle-synched straight feeds, collect data needed to
         check if the commanded spindle rate and feed per revolution
         will violate any axis MAX_VELOCITY constraints"""
         if self.suppress > 0:
             return
         delta = tuple(np.abs(np.array(end_pos) - np.array(start_pos)))
-        self.feed_synched.append((lineno, delta, s, fpr, move_type))
+        self.feed_synched.append((lineno, delta, s, fpr, move_type or "Spindle-synched move"))
 
     def user_defined_function(self, position, i, p, q):
         if self.suppress > 0:

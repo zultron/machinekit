@@ -457,7 +457,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             max_fpm = self.canon.calc_velocity(delta, axis_max_vel) * 0.95
             if fpm > max_fpm:
                 warnings.append(
-                    "{move_type} move at {rpm_set:.1f} RPM would "
+                    "{move_type} at {rpm_set:.1f} RPM would "
                     "exceed safe XYZ velocity limits on line {line_no:d}. "
                     "Please reduce spindle speed to {rpm_max:.1f} RPM or "
                     "reduce thread pitch/feed per revolution to "
