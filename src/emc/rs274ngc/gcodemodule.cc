@@ -179,10 +179,23 @@ static UnitsTransform convertsProgToUser()
 }
 
 // Track spindle synched motion
-static int spindle_synched_motion = 0;
+static int spindle_synched_motion = 0; // Whether any synch is active or not
+static bool synch_velocity_mode = false; // When synched motion is active, is it position synch or velocity synch?
+
 static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
 static double css_max_speed_programmed = 0.0;
+
+bool in_position_synch()
+{
+    return spindle_synched_motion && !synch_velocity_mode;
+}
+
+bool in_velocity_synch()
+{
+    return spindle_synched_motion && synch_velocity_mode;
+}
+
 
 static AxisOffsetParams cached_g92_uu{}; // in USER units
 static ToolMotionMap tool_motions{};
@@ -288,9 +301,8 @@ void STRAIGHT_FEED(int line_number,
     if (_linecount < max_glcanon_lines) {
         machine.straight_feed(line_number, _pos_prog);
         // Keep this around just for the warnings
-        if (spindle_synched_motion) {
+        if (in_position_synch()) {
             PositionArray end_pos_uu = machine.get_current_pos();
-
             double fpr = spindle_synched_feed_per_revolution / (metric ? 25.4 : 1.0);
             PyObject *result = callmethod(
                 callback,
@@ -491,12 +503,10 @@ void SET_FEED_REFERENCE(double reference) { }
 void SET_CUTTER_RADIUS_COMPENSATION(double radius) {}
 void START_CUTTER_RADIUS_COMPENSATION(int direction) {}
 void STOP_CUTTER_RADIUS_COMPENSATION(int direction) {}
-void START_SPEED_FEED_SYNCH() {
-    spindle_synched_motion = 1;
-}
 void START_SPEED_FEED_SYNCH(double sync, bool vel) {
     spindle_synched_motion = 1;
     spindle_synched_feed_per_revolution = sync;
+    synch_velocity_mode = vel;
 }
 void STOP_SPEED_FEED_SYNCH() {
     spindle_synched_motion = 0;
@@ -617,6 +627,40 @@ void RIGID_TAP(int line_number,
     _pos_prog[X] = x;
     _pos_prog[Y] = y;
     _pos_prog[Z] = z;
+    PositionArray top_pos_uu = machine.get_current_pos();
+    PositionArray bottom_pos_uu = machine.to_preview_coords(_pos_prog);
+
+    double fpr_tap = tap_pitch / (metric ? 25.4 : 1.0);
+
+    PyObject *result = callmethod(
+        callback,
+        "check_straight_feed_synched",
+        "i(ddddddddd)(ddddddddd)dds",
+        line_number,
+        UNPACK_POSITION_ARRAY_REF(top_pos_uu),
+        UNPACK_POSITION_ARRAY_REF(bottom_pos_uu),
+        spindle_speed_programmed,
+        fpr_tap,
+        "Rigid tapping entry"
+        );
+    if(result == nullptr) interp_error ++;
+    Py_XDECREF(result);
+
+    double fpr_retract = retract_pitch / (metric ? 25.4 : 1.0);
+    result = callmethod(
+        callback,
+        "check_straight_feed_synched",
+        "i(ddddddddd)(ddddddddd)dds",
+        line_number,
+        UNPACK_POSITION_ARRAY_REF(bottom_pos_uu),
+        UNPACK_POSITION_ARRAY_REF(top_pos_uu),
+        spindle_speed_programmed * spindle_retract_speed_scale,
+        fpr_retract,
+        "Rigid tapping retraction"
+        );
+    if(result == nullptr) interp_error ++;
+    Py_XDECREF(result);
+
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
@@ -1494,6 +1538,11 @@ void PreviewMachine::updateExtents(PositionArray machine_goal_pos_uu)
     PositionArray p1_notool = transform_uu.forward_nose_to_tip(machine_goal_pos_uu);
     max_inplace(extents_no_tool.max, p1_notool);
     min_inplace(extents_no_tool.min, p1_notool);
+}
+
+PositionArray PreviewMachine::to_preview_coords(const PositionArray & local_pos_prog)
+{
+    return transform_uu.forward_local_to_nose(convertsProgToUser().forward(local_pos_prog));
 }
 
 void PreviewMachine::set_current_pos(const PositionArray & pos_local_prog) {

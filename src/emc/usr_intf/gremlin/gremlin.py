@@ -450,20 +450,23 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
                     % ("XYZABCUVW"[i], pos_overhang, unit_suffix))
         # Warn user if spindle-synched feeds violate axis limits
         axis_max_vel = tuple([
-            float(self.inifile.find("AXIS_%d" % i,"MAX_VELOCITY") or 0.0)*60
+            float(self.inifile.find("AXIS_%d" % i, "MAX_VELOCITY") or 0.0)*60
             for i in range(9)])
-        for line_no, delta, rpm, fpr in self.canon.feed_synched:
+        for line_no, delta, rpm, fpr, move_type in self.canon.feed_synched:
             fpm = rpm * fpr  # feed per minute
             max_fpm = self.canon.calc_velocity(delta, axis_max_vel) * 0.95
             if fpm > max_fpm:
                 warnings.append(
-                    "Spindle synched move at %(rpm_set).1f RPM would "
-                    "exceed safe XYZ velocity limits on line %(line_no)d. "
-                    "Please reduce spindle speed to %(rpm_max).1f RPM or "
+                    "{move_type} move at {rpm_set:.1f} RPM would "
+                    "exceed safe XYZ velocity limits on line {line_no:d}. "
+                    "Please reduce spindle speed to {rpm_max:.1f} RPM or "
                     "reduce thread pitch/feed per revolution to "
-                    "%(pitch).3f." %
-                    dict(rpm_set=rpm, rpm_max=max_fpm/fpr, line_no=line_no,
-                         pitch=max_fpm/rpm))
+                    "{pitch:.3f}.".format(
+                        move_type=move_type,
+                        rpm_set=rpm,
+                        rpm_max=max_fpm/fpr,
+                        line_no=line_no,
+                        pitch=max_fpm/rpm))
 
         if result > gcode.MIN_ERROR and not suppress_errors:
             self.report_gcode_error(result, seq, filename)

@@ -71,7 +71,7 @@ class GLCanon(Translated):
         self.exec_mode = gcode.PARSE_EXEC_SEEK
         # dwell list - (line number, color, (position as 9D tuple), plane)
         self.dwells = []
-        # spindle-synched feed list - (line number, (position deltas), S, fpr)
+        # spindle-synched feed list - (line number, (position deltas), S, fpr, move type)
         self.feed_synched = []
         self.feedrate = 1
         self.first_move = True
@@ -205,14 +205,14 @@ class GLCanon(Translated):
         self.current_tool = pocket
         # FIXME does defaultdict with list serve the correct purpose here? We used to add empty lists to each dict
 
-    def check_straight_feed_synched(self, lineno, start_pos, end_pos, s, fpr):
+    def check_straight_feed_synched(self, lineno, start_pos, end_pos, s, fpr, move_type="Spindle-synched"):
         """For spindle-synched straight feeds, collect data needed to
         check if the commanded spindle rate and feed per revolution
         will violate any axis MAX_VELOCITY constraints"""
         if self.suppress > 0:
             return
         delta = tuple(np.abs(np.array(end_pos) - np.array(start_pos)))
-        self.feed_synched.append((lineno, delta, s, fpr))
+        self.feed_synched.append((lineno, delta, s, fpr, move_type))
 
     def user_defined_function(self, position, i, p, q):
         if self.suppress > 0:
