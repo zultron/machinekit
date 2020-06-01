@@ -2048,7 +2048,7 @@ static bool limitSpindleSpeed(double rpm)
         return false;
     }
     EMC_SPINDLE_SPEED emc_spindle_speed_msg;
-    CANON_MSG(CANON_MSG_LOW, "Reducing spindle speed from %0.0f to %0.0f for synched motion\n", spindleSpeed_rpm, limit_rpm);
+    CANON_MSG(CANON_MSG_LOW, "Reducing spindle speed from %0.0f to %0.0f for synched motion at line %d\n", spindleSpeed_rpm, limit_rpm, _tag.fields[GM_FIELD_LINE_NUMBER]);
 
     buildSpindleCmd(emc_spindle_speed_msg, limit_rpm);
     interp_list.append(emc_spindle_speed_msg);
