@@ -415,7 +415,7 @@ enum FeedRateType
  */
 static double getActiveFeedRate(FeedRateType angular)
 {
-    double uuPerRev = synched == CANON_SYNC_VELOCITY ? uuPerRev_vel : uuPerRev_pos;
+    double uuPerRev = (synched == CANON_SYNC_VELOCITY) ? uuPerRev_vel : uuPerRev_pos;
     // KLUDGE effective spindle speed depends on current state
     // If CSS mode is active, then we need to assume the worst-case (maximum) spindle speed specified by the D word
     // Otherwise, the nominal spindle speed is used
@@ -2056,10 +2056,10 @@ static bool limitSpindleSpeed(double rpm)
 
 static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel)
 {
-    if (!synched || nominal_vel <= 0.0) {
+    if (nominal_vel <= 0.0) {
         canon_debug("No spindle speed limit required\n");
         return false;
-    } else if (feed_mode) {
+    } else if (synched != CANON_SYNC_POSITION) {
         canon_debug("Skipping spindle speed limit due to velocity sync\n");
         return false;
     }
