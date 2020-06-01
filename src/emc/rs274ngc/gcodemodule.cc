@@ -641,11 +641,13 @@ void RIGID_TAP(int line_number,
         UNPACK_POSITION_ARRAY_REF(bottom_pos_uu),
         spindle_speed_programmed,
         fpr_tap,
-        "Rigid tapping entry"
+        "Rigid tapping cycle"
         );
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
 
+// Re-enable this when we officially support different entry / retract pitches and rapid retract
+#if 0
     double fpr_retract = retract_pitch / (metric ? 25.4 : 1.0);
     result = callmethod(
         callback,
@@ -660,6 +662,7 @@ void RIGID_TAP(int line_number,
         );
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
+#endif
 
     maybe_new_line(line_number);
     if(interp_error) return;
