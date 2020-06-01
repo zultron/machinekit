@@ -225,8 +225,7 @@ static inline double FROM_PROG_ANG(double deg)
 }
 
 static int feed_mode = 0;
-static int synched = 0;
-
+static CanonSyncLevel synched = CANON_SYNC_NONE;
 
 static inline UnitsTransform ConvertsCanonToUserUnits()
 {
@@ -416,7 +415,7 @@ enum FeedRateType
  */
 static double getActiveFeedRate(FeedRateType angular)
 {
-    double uuPerRev = feed_mode ? uuPerRev_vel : uuPerRev_pos;
+    double uuPerRev = synched == CANON_SYNC_VELOCITY ? uuPerRev_vel : uuPerRev_pos;
     // KLUDGE effective spindle speed depends on current state
     // If CSS mode is active, then we need to assume the worst-case (maximum) spindle speed specified by the D word
     // Otherwise, the nominal spindle speed is used
@@ -1339,7 +1338,7 @@ void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode)
     spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(FROM_PROG_LEN(feed_per_revolution));
     spindlesyncMsg.velocity_mode = velocity_mode;
 	tag_and_send(spindlesyncMsg);
-    synched = 1;
+    synched = velocity_mode ? CANON_SYNC_VELOCITY : CANON_SYNC_POSITION;
 }
 
 void STOP_SPEED_FEED_SYNCH()
@@ -1349,7 +1348,7 @@ void STOP_SPEED_FEED_SYNCH()
     spindlesyncMsg.feed_per_revolution = 0.0;
     spindlesyncMsg.velocity_mode = false;
 	tag_and_send(spindlesyncMsg);
-    synched = 0;
+    synched = CANON_SYNC_NONE;
 }
 
 /* Machining Functions */
