@@ -2,7 +2,7 @@
 '''Copied from m61-test'''
 
 import linuxcnc
-from linuxcnc_control import  LinuxcncControl
+from linuxcnc_test_support import  LinuxcncControl
 import hal
 
 from time import sleep
