@@ -131,6 +131,7 @@ SUBDIRS := \
     python \
     python/rs274 \
     python/support \
+    python/testing \
     \
     po \
     \

@@ -4,7 +4,7 @@
 import sys
 import linuxcnc
 from subprocess import Popen
-from linuxcnc_control import LinuxcncControl
+from linuxcnc_test_support import LinuxcncControl
 
 def run_test(ngc_filename, sample_file):
 
