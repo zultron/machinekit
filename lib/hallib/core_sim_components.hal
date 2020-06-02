@@ -1,4 +1,4 @@
-# core HAL config file for simulation
+# a-la-carte HAL config file for simulation (individual axis components loaded in axis-[XYZABCUVW].tcl files)
 
 # first load all the RT modules that will be needed
 # kinematics
