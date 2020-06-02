@@ -213,8 +213,7 @@ static inline double FROM_PROG_ANG(double deg)
 }
 
 static int feed_mode = 0;
-static int synched = 0;
-
+static CanonSyncLevel synched = CANON_SYNC_NONE;
 
 static inline UnitsTransform ConvertsCanonToUserUnits()
 {
@@ -404,7 +403,7 @@ enum FeedRateType
  */
 static double getActiveExtFeedRate(CanonFeedAxisReferenceType feed_axes)
 {
-    double uuPerRev = feed_mode ? uuPerRev_vel : uuPerRev_pos;
+    double uuPerRev = (synched == CANON_SYNC_VELOCITY) ? uuPerRev_vel : uuPerRev_pos;
     // KLUDGE effective spindle speed depends on current state
     // If CSS mode is active, then we need to assume the worst-case (maximum) spindle speed specified by the D word
     // Otherwise, the nominal spindle speed is used
@@ -1057,7 +1056,7 @@ void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode)
     spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(FROM_PROG_LEN(feed_per_revolution));
     spindlesyncMsg.velocity_mode = velocity_mode;
 	tag_and_send(spindlesyncMsg);
-    synched = 1;
+    synched = velocity_mode ? CANON_SYNC_VELOCITY : CANON_SYNC_POSITION;
 }
 
 void STOP_SPEED_FEED_SYNCH()
@@ -1067,7 +1066,7 @@ void STOP_SPEED_FEED_SYNCH()
     spindlesyncMsg.feed_per_revolution = 0.0;
     spindlesyncMsg.velocity_mode = false;
 	tag_and_send(spindlesyncMsg);
-    synched = 0;
+    synched = CANON_SYNC_NONE;
 }
 
 /* Machining Functions */
@@ -1759,7 +1758,7 @@ static bool limitSpindleSpeed(double rpm)
         return false;
     }
     EMC_SPINDLE_SPEED emc_spindle_speed_msg;
-    CANON_MSG(CANON_MSG_LOW, "Reducing spindle speed from %0.0f to %0.0f for synched motion\n", spindleSpeed_rpm, limit_rpm);
+    CANON_MSG(CANON_MSG_LOW, "Reducing spindle speed from %0.0f to %0.0f for synched motion at line %d\n", spindleSpeed_rpm, limit_rpm, _tag.fields[GM_FIELD_LINE_NUMBER]);
 
     buildSpindleCmd(emc_spindle_speed_msg, limit_rpm);
     interp_list.append(emc_spindle_speed_msg);
@@ -1774,10 +1773,10 @@ static bool limitSpindleSpeed(double rpm)
  */
 static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel)
 {
-    if (!synched || nominal_vel <= 0.0) {
+    if (nominal_vel <= 0.0) {
         canon_debug("No spindle speed limit required\n");
         return false;
-    } else if (feed_mode) {
+    } else if (synched != CANON_SYNC_POSITION) {
         canon_debug("Skipping spindle speed limit due to velocity sync\n");
         return false;
     }

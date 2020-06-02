@@ -179,10 +179,23 @@ static UnitsTransform convertsProgToUser()
 }
 
 // Track spindle synched motion
-static int spindle_synched_motion = 0;
+static int spindle_synched_motion = 0; // Whether any synch is active or not
+static bool synch_velocity_mode = false; // When synched motion is active, is it position synch or velocity synch?
+
 static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
 static double css_max_speed_programmed = 0.0;
+
+bool in_position_synch()
+{
+    return spindle_synched_motion && !synch_velocity_mode;
+}
+
+bool in_velocity_synch()
+{
+    return spindle_synched_motion && synch_velocity_mode;
+}
+
 
 static AxisOffsetParams cached_g92_uu{}; // in USER units
 static ToolMotionMap tool_motions{};
@@ -280,6 +293,7 @@ void STRAIGHT_FEED(int line_number,
                    double x, double y, double z,
                    double a, double b, double c,
                    double u, double v, double w) {
+    PositionArray start_pos_uu = machine.get_current_pos();
     _pos_prog={x, y, z, a, b, c, u, v, w};
 
     maybe_new_line(line_number);
@@ -287,12 +301,19 @@ void STRAIGHT_FEED(int line_number,
     if (_linecount < max_glcanon_lines) {
         machine.straight_feed(line_number, _pos_prog);
         // Keep this around just for the warnings
-        if (spindle_synched_motion) {
-            if(metric) { x /= 25.4; y /= 25.4; z /= 25.4; u /= 25.4; v /= 25.4; w /= 25.4; }
-            PyObject *result = callmethod(callback, "straight_feed_synched", "ifffffffffff",
-                                          line_number, x, y, z, a, b, c, u, v, w,
-                                          css_max_speed_programmed ?: spindle_speed_programmed,
-                                          spindle_synched_feed_per_revolution/(metric?25.4:1.0));
+        if (in_position_synch()) {
+            PositionArray end_pos_uu = machine.get_current_pos();
+            double fpr = spindle_synched_feed_per_revolution / (metric ? 25.4 : 1.0);
+            PyObject *result = callmethod(
+                callback,
+                "check_straight_feed_synched",
+                "i(ddddddddd)(ddddddddd)dd",
+                line_number,
+                UNPACK_POSITION_ARRAY_REF(start_pos_uu),
+                UNPACK_POSITION_ARRAY_REF(end_pos_uu),
+                css_max_speed_programmed ?: spindle_speed_programmed,
+                fpr
+                );
             if(result == nullptr) interp_error ++;
             Py_XDECREF(result);
         }
@@ -428,7 +449,12 @@ void DWELL(double time) {
     maybe_new_line();
     if(interp_error) return;
     PyObject *result =
-        callmethod(callback, "dwell", "f", time);
+        callmethod(
+            callback,
+            "dwell",
+            "(ddddddddd)d",
+            UNPACK_POSITION_ARRAY_REF(machine.get_current_pos()),
+            time);
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
 }
@@ -477,12 +503,10 @@ void SET_FEED_REFERENCE(double reference) { }
 void SET_CUTTER_RADIUS_COMPENSATION(double radius) {}
 void START_CUTTER_RADIUS_COMPENSATION(int direction) {}
 void STOP_CUTTER_RADIUS_COMPENSATION(int direction) {}
-void START_SPEED_FEED_SYNCH() {
-    spindle_synched_motion = 1;
-}
 void START_SPEED_FEED_SYNCH(double sync, bool vel) {
     spindle_synched_motion = 1;
     spindle_synched_feed_per_revolution = sync;
+    synch_velocity_mode = vel;
 }
 void STOP_SPEED_FEED_SYNCH() {
     spindle_synched_motion = 0;
@@ -603,6 +627,43 @@ void RIGID_TAP(int line_number,
     _pos_prog[X] = x;
     _pos_prog[Y] = y;
     _pos_prog[Z] = z;
+    PositionArray top_pos_uu = machine.get_current_pos();
+    PositionArray bottom_pos_uu = machine.to_preview_coords(_pos_prog);
+
+    double fpr_tap = tap_pitch / (metric ? 25.4 : 1.0);
+
+    PyObject *result = callmethod(
+        callback,
+        "check_straight_feed_synched",
+        "i(ddddddddd)(ddddddddd)dds",
+        line_number,
+        UNPACK_POSITION_ARRAY_REF(top_pos_uu),
+        UNPACK_POSITION_ARRAY_REF(bottom_pos_uu),
+        spindle_speed_programmed,
+        fpr_tap,
+        "Rigid tapping cycle"
+        );
+    if(result == nullptr) interp_error ++;
+    Py_XDECREF(result);
+
+// Re-enable this when we officially support different entry / retract pitches and rapid retract
+#if 0
+    double fpr_retract = retract_pitch / (metric ? 25.4 : 1.0);
+    result = callmethod(
+        callback,
+        "check_straight_feed_synched",
+        "i(ddddddddd)(ddddddddd)dds",
+        line_number,
+        UNPACK_POSITION_ARRAY_REF(bottom_pos_uu),
+        UNPACK_POSITION_ARRAY_REF(top_pos_uu),
+        spindle_speed_programmed * spindle_retract_speed_scale,
+        fpr_retract,
+        "Rigid tapping retraction"
+        );
+    if(result == nullptr) interp_error ++;
+    Py_XDECREF(result);
+#endif
+
     maybe_new_line(line_number);
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
@@ -707,7 +768,9 @@ static void user_defined_function(int num, double arg1, double arg2) {
     maybe_new_line();
     PyObject *result =
         callmethod(callback, "user_defined_function",
-                            "idd", num, arg1, arg2);
+                            "(ddddddddd)idd",
+                   UNPACK_POSITION_ARRAY_REF(_pos_prog),
+                   num, arg1, arg2);
     if(result == nullptr) interp_error++;
     Py_XDECREF(result);
 }
@@ -786,12 +849,14 @@ double GET_EXTERNAL_TOOL_LENGTH_WOFFSET() {
     return getToolOffsetProg()[W];
 }
 
+#if 0
 static bool PyInt_CheckAndError(const char *func, PyObject *p)  {
     if(PyInt_Check(p)) return true;
     PyErr_Format(PyExc_TypeError,
             "%s: Expected int, got %s", func, p->ob_type->tp_name);
     return false;
 }
+#endif
 
 static bool PyFloat_CheckAndError(const char *func, PyObject *p)  {
     if(PyFloat_Check(p)) return true;
@@ -934,30 +999,6 @@ int set_exec_mode(ParseExecMode mode)
     return INTERP_OK;
 }
 
-/**
- * Using the current canon position and transform, compute the "machine"
- * position in user units and update the current position of the python canon
- * instance.
- *
- * Do this typically after a synch operation where we're setting up an initial
- * position (like at the start of a program, or before hitting the start line)
- */
-int synch_position_to_python()
-{
-    auto machine_pos_uu = machine.transform_uu.forward_local_to_tool(convertsProgToUser().forward(_pos_prog));
-
-    if(interp_error) return INTERP_ERROR;
-    PyObject *result =
-        callmethod(callback, "synch_position", "fffffffff",
-                   UNPACK_POSITION_ARRAY_REF(machine_pos_uu));
-    if(result == nullptr) {
-        interp_error ++;
-        return INTERP_ERROR;
-    }
-    Py_XDECREF(result);
-    return INTERP_OK;
-}
-
 void restore_machine_state_before_preview_synch(ExpandedModalState const &run_initial_state)
 {
     // KLUDGE force the "machine" state to be what the initial position was again, as if synching from a real machine
@@ -988,7 +1029,6 @@ int planFinishLineSeek(
     restore_machine_state_before_preview_synch(run_initial_state);
 
     if(interp_error) return INTERP_ERROR;
-    RETURN_ON_ERROR(synch_position_to_python());
 
     if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
         // Do a full modal state restore as if the program had executed from line 1,
@@ -1045,7 +1085,6 @@ static int do_parse_loop(
             rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY,
             rs274_interp->_setup.parameters.begin() + interp_param_global::EXPORT_CUR_POS_ARRAY_END));
         rs274_interp->_setup.current = _pos_prog;
-        RETURN_ON_ERROR(synch_position_to_python());
     }
 
     ExpandedModalState run_initial_state;
@@ -1418,154 +1457,11 @@ static PyObject *rs274_calc_extents(PyObject *self, PyObject *args) {
     PyArg_VaParse((o),const_cast<char*>((f)),(a))
 #endif
 
-static bool get_attr(PyObject *o, const char *attr_name, int *v) {
-    PyObject *attr = PyObject_GetAttrString(o, attr_name);
-    if(attr && PyInt_CheckAndError(attr_name, attr)) {
-        *v = PyInt_AsLong(attr);
-        Py_DECREF(attr);
-        return true;
-    }
-    Py_XDECREF(attr);
-    return false;
-}
-
-static bool get_attr(PyObject *o, const char *attr_name, double *v) {
-    PyObject *attr = PyObject_GetAttrString(o, attr_name);
-    if(attr && PyFloat_CheckAndError(attr_name, attr)) {
-        *v = PyFloat_AsDouble(attr);
-        Py_DECREF(attr);
-        return true;
-    }
-    Py_XDECREF(attr);
-    return false;
-}
-
-static bool get_attr(PyObject *o, const char *attr_name, const char *fmt, ...) {
-    bool result = false;
-    va_list ap;
-    va_start(ap, fmt);
-    PyObject *attr = PyObject_GetAttrString(o, attr_name);
-    if(attr) result = PyArg_VaParse(attr, fmt, ap);
-    va_end(ap);
-    Py_XDECREF(attr);
-    return result;
-}
-
-static void unrotate(double &x, double &y, double c, double s) {
-    double tx = x * c + y * s;
-    y = -x * s + y * c;
-    x = tx;
-}
 
 static void rotate(double &x, double &y, double c, double s) {
     double tx = x * c - y * s;
     y = x * s + y * c;
     x = tx;
-}
-
-static PyObject *rs274_arc_to_segments(PyObject *self, PyObject *args) {
-    PyObject *canon;
-    double x1, y1, cx, cy, z1, a, b, c, u, v, w;
-    double o[9], n[9], g5xoffset[9], g92offset[9];
-    int rot, plane;
-    int X, Y, Z;
-    double rotation_cos, rotation_sin;
-    int max_segments = 128;
-
-    if(!PyArg_ParseTuple(args, "Oddddiddddddd|i:arcs_to_segments",
-        &canon, &x1, &y1, &cx, &cy, &rot, &z1, &a, &b, &c, &u, &v, &w, &max_segments)) return nullptr;
-    if(!get_attr(canon, "lo", "ddddddddd:arcs_to_segments lo", &o[0], &o[1], &o[2],
-                    &o[3], &o[4], &o[5], &o[6], &o[7], &o[8]))
-        return nullptr;
-    if(!get_attr(canon, "plane", &plane)) return nullptr;
-    if(!get_attr(canon, "rotation_cos", &rotation_cos)) return nullptr;
-    if(!get_attr(canon, "rotation_sin", &rotation_sin)) return nullptr;
-    if(!get_attr(canon, "g5x_offset_x", &g5xoffset[0])) return nullptr;
-    if(!get_attr(canon, "g5x_offset_y", &g5xoffset[1])) return nullptr;
-    if(!get_attr(canon, "g5x_offset_z", &g5xoffset[2])) return nullptr;
-    if(!get_attr(canon, "g5x_offset_a", &g5xoffset[3])) return nullptr;
-    if(!get_attr(canon, "g5x_offset_b", &g5xoffset[4])) return nullptr;
-    if(!get_attr(canon, "g5x_offset_c", &g5xoffset[5])) return nullptr;
-    if(!get_attr(canon, "g5x_offset_u", &g5xoffset[6])) return nullptr;
-    if(!get_attr(canon, "g5x_offset_v", &g5xoffset[7])) return nullptr;
-    if(!get_attr(canon, "g5x_offset_w", &g5xoffset[8])) return nullptr;
-    if(!get_attr(canon, "g92_offset_x", &g92offset[0])) return nullptr;
-    if(!get_attr(canon, "g92_offset_y", &g92offset[1])) return nullptr;
-    if(!get_attr(canon, "g92_offset_z", &g92offset[2])) return nullptr;
-    if(!get_attr(canon, "g92_offset_a", &g92offset[3])) return nullptr;
-    if(!get_attr(canon, "g92_offset_b", &g92offset[4])) return nullptr;
-    if(!get_attr(canon, "g92_offset_c", &g92offset[5])) return nullptr;
-    if(!get_attr(canon, "g92_offset_u", &g92offset[6])) return nullptr;
-    if(!get_attr(canon, "g92_offset_v", &g92offset[7])) return nullptr;
-    if(!get_attr(canon, "g92_offset_w", &g92offset[8])) return nullptr;
-
-    if(plane == 1) {
-        X=0; Y=1; Z=2;
-    } else if(plane == 3) {
-        X=2; Y=0; Z=1;
-    } else {
-        X=1; Y=2; Z=0;
-    }
-    n[X] = x1;
-    n[Y] = y1;
-    n[Z] = z1;
-    n[3] = a;
-    n[4] = b;
-    n[5] = c;
-    n[6] = u;
-    n[7] = v;
-    n[8] = w;
-    for(int ax=0; ax<9; ax++) o[ax] -= g5xoffset[ax];
-    unrotate(o[0], o[1], rotation_cos, rotation_sin);
-    for(int ax=0; ax<9; ax++) o[ax] -= g92offset[ax];
-
-    double theta1 = atan2(o[Y]-cy, o[X]-cx);
-    double theta2 = atan2(n[Y]-cy, n[X]-cx);
-
-    if(rot < 0) {
-        while(theta2 - theta1 > -CIRCLE_FUZZ) theta2 -= 2*M_PI;
-    } else {
-        while(theta2 - theta1 < CIRCLE_FUZZ) theta2 += 2*M_PI;
-    }
-
-    // if multi-turn, add the right number of full circles
-    if(rot < -1) theta2 += 2*M_PI*(rot+1);
-    if(rot > 1) theta2 += 2*M_PI*(rot-1);
-
-    int steps = std::max(3, int(max_segments * fabs(theta1 - theta2) / M_PI));
-    double rsteps = 1. / steps;
-    PyObject *segs = PyList_New(steps);
-
-    double dtheta = theta2 - theta1;
-    double d[9] = {0, 0, 0, n[3]-o[3], n[4]-o[4], n[5]-o[5], n[6]-o[6], n[7]-o[7], n[8]-o[8]};
-    d[Z] = n[Z] - o[Z];
-
-    double tx = o[X] - cx, ty = o[Y] - cy, dc = cos(dtheta*rsteps), ds = sin(dtheta*rsteps);
-    for(int i=0; i<steps-1; i++) {
-        double f = (i+1) * rsteps;
-        double p[9];
-        rotate(tx, ty, dc, ds);
-        p[X] = tx + cx;
-        p[Y] = ty + cy;
-        p[Z] = o[Z] + d[Z] * f;
-        p[3] = o[3] + d[3] * f;
-        p[4] = o[4] + d[4] * f;
-        p[5] = o[5] + d[5] * f;
-        p[6] = o[6] + d[6] * f;
-        p[7] = o[7] + d[7] * f;
-        p[8] = o[8] + d[8] * f;
-        for(int ax=0; ax<9; ax++) p[ax] += g92offset[ax];
-        rotate(p[0], p[1], rotation_cos, rotation_sin);
-        for(int ax=0; ax<9; ax++) p[ax] += g5xoffset[ax];
-        PyList_SET_ITEM(segs, i,
-            Py_BuildValue("ddddddddd", p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]));
-    }
-    for(int ax=0; ax<9; ax++) n[ax] += g92offset[ax];
-    rotate(n[0], n[1], rotation_cos, rotation_sin);
-    for(int ax=0; ax<9; ax++) n[ax] += g5xoffset[ax];
-    PyList_SET_ITEM(segs, steps-1,
-        Py_BuildValue("ddddddddd", n[0], n[1], n[2], n[3], n[4], n[5], n[6], n[7], n[8]));
-    return segs;
 }
 
 static PyObject *get_set_max_glcanon_lines(PyObject *self, PyObject *args) {
@@ -1594,8 +1490,6 @@ static PyMethodDef gcode_methods[] = {
         "Calculate information about extents of gcode"},
     {"calc_extents_dict", (PyCFunction)rs274_calc_extents_dict, METH_VARARGS,
         "Calculate information about extents of gcode using the dict of lines"},
-    {"arc_to_segments", (PyCFunction)rs274_arc_to_segments, METH_VARARGS,
-        "Convert an arc to straight segments"},
     {"max_glcanon_lines", (PyCFunction)get_set_max_glcanon_lines, METH_VARARGS,
      "Get maximum number of lines to preview; pass integer argument to set"},
     {"get_work_offsets_used", (PyCFunction)get_work_offsets_used, METH_VARARGS,
@@ -1647,6 +1541,11 @@ void PreviewMachine::updateExtents(PositionArray machine_goal_pos_uu)
     PositionArray p1_machine = transform_uu.forward_tool_to_machine(machine_goal_pos_uu);
     max_inplace(extents_machine.max, p1_machine);
     min_inplace(extents_machine.min, p1_machine);
+}
+
+PositionArray PreviewMachine::to_preview_coords(const PositionArray & local_pos_prog)
+{
+    return transform_uu.forward_local_to_tool(convertsProgToUser().forward(local_pos_prog));
 }
 
 void PreviewMachine::set_current_pos(const PositionArray & pos_local_prog) {

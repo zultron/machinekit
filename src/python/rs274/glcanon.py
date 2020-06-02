@@ -15,7 +15,7 @@
 #    along with this program; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-from rs274 import Translated, ArcsToSegmentsMixin
+from rs274 import Translated, OpenGLTk
 import math
 from gl_context_managers import *
 import linuxcnc
@@ -25,7 +25,7 @@ from collections import defaultdict, namedtuple
 MotionKey = namedtuple('MotionKey', ['motion_type', 'exec_mode', 'tool_no'])
 
 
-class GLCanon(Translated, ArcsToSegmentsMixin):
+class GLCanon(Translated):
     lineno = -1
 
     def __init__(self, color_config, geometry, inifile):
@@ -35,7 +35,6 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         :type geometry: str
         :param inifile:
         """
-        ArcsToSegmentsMixin.__init__(self)
 
         self.color_config = color_config
         # Fields that store preview data built up during parse:
@@ -46,12 +45,11 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.tool_motion_types = set()
 
         self.exec_mode = gcode.PARSE_EXEC_SEEK
-        # dwell list - (line number, color, pos x, pos y, pos z, plane)
+        # dwell list - (line number, color, (position as 9D tuple), plane)
         self.dwells = []
-        # spindle-synched feed list - (line number, (position deltas), S, fpr)
+        # spindle-synched feed list - (line number, (position deltas), S, fpr, move type)
         self.feed_synched = []
         self.feedrate = 1
-        self.lo = (0,) * 9
         self.first_move = True
         self.in_arc = 0
         self.xo = self.yo = self.zo = self.ao = self.bo = self.co = self.uo = self.vo = self.wo = 0
@@ -78,6 +76,10 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         # KLUDGE Define these attributes here for mixins only
         self.choice = None
         self.tool_data_capsule = None
+        self.plane = 1
+
+    def set_plane(self, plane):
+        self.plane = plane
 
     def comment(self, arg):
         if arg.startswith("AXIS,"):
@@ -153,14 +155,11 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
             # Angular-only
             dtot = math.sqrt(sum(i*i for i in delta[3:6]))
         # Max velocity = total distance / fastest time
-        max_vel = dtot/tmax
+        max_vel = dtot/tmax if tmax > 0.0 else 0.0
         return max_vel
 
     def tool_offset(self, xo, yo, zo, ao, bo, co, uo, vo, wo):
         self.first_move = True
-        x, y, z, a, b, c, u, v, w = self.lo
-        self.lo = (x - xo + self.xo, y - yo + self.yo, z - zo + self.zo, a - ao + self.ao, b - bo + self.bo, c - bo + self.bo,
-          u - uo + self.uo, v - vo + self.vo, w - wo + self.wo)
         self.xo = xo
         self.yo = yo
         self.zo = zo
@@ -182,83 +181,27 @@ class GLCanon(Translated, ArcsToSegmentsMixin):
         self.current_tool = pocket
         # FIXME does defaultdict with list serve the correct purpose here? We used to add empty lists to each dict
 
-    def straight_traverse(self, lineno, x, y, z, a, b, c, u, v, w):
-        if self.suppress > 0: return
-        l = self.rotate_and_translate(x, y, z, a, b, c, u, v, w)
-        k = self.make_motion_key('traverse')
-        if not self.first_move or self.exec_mode == gcode.PARSE_EXEC_PREP:
-            self.tool_motions[k].append((lineno, self.lo, l, [self.xo, self.yo, self.zo]))
-        self.lo = l
-
-    def rigid_tap(self, lineno, x, y, z):
-        if self.suppress > 0: return
-        self.first_move = False
-        l = self.rotate_and_translate(x,y,z,0,0,0,0,0,0)[:3]
-        l += [self.lo[3], self.lo[4], self.lo[5],
-               self.lo[6], self.lo[7], self.lo[8]]
-        k = self.make_motion_key('straight_feed')
-        self.tool_motions[k].append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
-#        self.dwells.append((self.lineno, self.colors['dwell'], x + self.offset_x, y + self.offset_y, z + self.offset_z, 0))
-        self.tool_motions[k].append((lineno, l, self.lo, self.feedrate, [self.xo, self.yo, self.zo]))
-
-    def arc_feed(self, *args):
-        if self.suppress > 0: return
-        self.first_move = False
-        self.in_arc = True
-        try:
-            ArcsToSegmentsMixin.arc_feed(self, *args)
-        finally:
-            self.in_arc = False
-
-    def straight_arcsegments(self, lineno, segs):
-        self.first_move = False
-        lo = self.lo
-        feedrate = self.feedrate
-        to = [self.xo, self.yo, self.zo]
-        k = self.make_motion_key('arc_feed')
-        for l in segs:
-            self.tool_motions[k].append((lineno, lo, l, feedrate, to))
-            lo = l
-        self.lo = lo
-
-    def straight_feed(self, lineno, x,y,z, a,b,c, u, v, w):
-        if self.suppress > 0: return
-        self.first_move = False
-        l = self.rotate_and_translate(x,y,z,a,b,c,u,v,w)
-        self.tool_motions[self.make_motion_key('straight_feed')].append((lineno, self.lo, l, self.feedrate, [self.xo, self.yo, self.zo]))
-        self.lo = l
-
-    # confusing, but I guess this is an alias for straight_feed above
-    straight_probe = straight_feed
-    # KLUDGE will complain if the endpoint is not within limits even though it doesn't matter
-    straight_probe_to_limit = straight_feed
-
-    def straight_feed_synched(self, lineno, x,y,z, a,b,c, u,v,w, s, fpr):
-        """For spindle-synched straight feeds, also collect data needed to
+    def check_straight_feed_synched(self, lineno, start_pos, end_pos, s, fpr, move_type=None):
+        """For spindle-synched straight feeds, collect data needed to
         check if the commanded spindle rate and feed per revolution
         will violate any axis MAX_VELOCITY constraints"""
-        if self.suppress > 0: return
-        # save segment start and record straight feed segment
-        lo = self.lo
-        self.straight_feed(lineno, x,y,z, a,b,c, u, v, w)
-        # record axis distances, spindle speed and feed per revolution
-        delta = tuple([abs(i[0]-i[1]) for i in zip(lo, self.lo)])
-        self.feed_synched.append((lineno, delta, s, fpr))
+        if self.suppress > 0:
+            return
+        delta = tuple(np.abs(np.array(end_pos) - np.array(start_pos)))
+        self.feed_synched.append((lineno, delta, s, fpr, move_type or "Spindle-synched move"))
 
-    def user_defined_function(self, i, p, q):
-        if self.suppress > 0: return
+    def user_defined_function(self, position, i, p, q):
+        if self.suppress > 0:
+            return
         color = self.color_config.get_color('m1xx')
-        self.dwells.append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], 0))
+        self.dwells.append((self.lineno, color, position, 0))
 
-    def dwell(self, arg):
-        if self.suppress > 0: return
-        self.dwell_time += arg
+    def dwell(self, dwell_pos, dwell_time):
+        if self.suppress > 0:
+            return
+        self.dwell_time += dwell_time
         color = self.color_config.get_color('dwell' if self.exec_mode != gcode.PARSE_EXEC_PREP else 'leadin')
-        self.dwells.append((self.lineno, color, self.lo[0], self.lo[1], self.lo[2], 0))
-
-    def synch_position(self, x, y, z, a, b, c, u, v, w):
-        #FIXME check for valid position here? This should ONLY be used to set up the machine initial position
-        self.lo = (x, y, z, a, b, c, u, v, w)
+        self.dwells.append((self.lineno, color, dwell_pos, 0))
 
     def set_tool_data_capsule(self, capsule):
         self.tool_data_capsule = capsule

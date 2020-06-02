@@ -2070,9 +2070,16 @@ static PyObject *pydraw_dwells(PyObject *s, PyObject *o) {
 
     for(i=0; i<PyList_GET_SIZE(li); i++) {
         PyObject *it = PyList_GET_ITEM(li, i);
-        double red, green, blue, x, y, z;
+        double red, green, blue;
+        PositionArray pos;
         int axis;
-        if(!PyArg_ParseTuple(it, "i(ddd)dddi", &n, &red, &green, &blue, &x, &y, &z, &axis)) {
+        if(!PyArg_ParseTuple(
+                it,
+                "i(ddd)(ddddddddd)i",
+                &n,
+                &red, &green, &blue,
+                UNPACK_POSITION_ARRAY(pos),
+                &axis)) {
             return NULL;
         }
         if (for_selection != 1)
@@ -2083,6 +2090,12 @@ static PyObject *pydraw_dwells(PyObject *s, PyObject *o) {
         }
         if (is_lathe == 1)
             axis = 1;
+
+        double p_dwell[3];
+        vertex9(pos.data(), p_dwell, geometry);
+        double x = p_dwell[X];
+        double y = p_dwell[Y];
+        double z = p_dwell[Z];
 
         if (axis == 0) {
             glVertex3f(x-delta,y-delta,z);

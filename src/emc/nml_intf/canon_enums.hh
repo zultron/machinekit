@@ -109,4 +109,10 @@ enum CanonMessageAlarmLevel
     CANON_MSG_MIN_ERROR = 3,
 };
 
+enum CanonSyncLevel {
+    CANON_SYNC_NONE = 0,
+    CANON_SYNC_VELOCITY,
+    CANON_SYNC_POSITION
+};
+
 #endif // CANON_ENUMS_HH
