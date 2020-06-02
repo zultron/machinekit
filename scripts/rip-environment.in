@@ -81,10 +81,11 @@ else
     LD_LIBRARY_PATH=$EMC2_HOME/lib:"$LD_LIBRARY_PATH"
 fi
 
+LINUXCNC_PYTHON_PATHS=$EMC2_HOME/lib/python:$EMC2_HOME/lib/python/support
 if [ -z "$PYTHONPATH" ]; then
-    PYTHONPATH=$EMC2_HOME/lib/python:$EMC2_HOME/lib/python/support
+    PYTHONPATH=$LINUXCNC_PYTHON_PATHS
 else
-    PYTHONPATH=$EMC2_HOME/lib/python:$EMC2_HOME/lib/python/support:"$PYTHONPATH"
+    PYTHONPATH=$LINUXCNC_PYTHON_PATHS:"$PYTHONPATH"
 fi
 
 if [ -z "$MANPATH" ]; then
