@@ -2091,8 +2091,8 @@ static PyObject *pydraw_dwells(PyObject *s, PyObject *o) {
         if (is_lathe == 1)
             axis = 1;
 
-        double p_dwell[3];
-        vertex9(pos.data(), p_dwell, geometry);
+        Array3 p_dwell;
+        kinematics->forward_position(pos, p_dwell);
         double x = p_dwell[X];
         double y = p_dwell[Y];
         double z = p_dwell[Z];
