@@ -63,11 +63,13 @@ struct AutoRunSettings
     AutoRunSettings() :
         start_line(0),
         leadin_type(0),
-        keep_current_tool(true)
+        keep_current_tool(true),
+        single_step_mode(false)
     {}
     int start_line; //!< line in main program where user wants to start
     int leadin_type; //!< Controls lead-in behavior when not starting from the beginning of the program
     bool keep_current_tool;
+    bool single_step_mode; //!< If true, run the program (with these start settings) in stepping mode, so the first run command doesn't process any read any G-code.
 };
 
 
