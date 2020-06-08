@@ -2496,7 +2496,9 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
             interp_list.set_line_number(0);
         }
         emcStatus->task.program_ended = 1;
-	retval = 0;
+        emcTrajResume(); // If single-stepped to the end of the program, ensure that motion is not paused at the end point
+        emcOperatorText(CANON_MSG_DEBUG, "Reset motion pause state at program end");
+    retval = 0;
     break;
 
      case EMC_TASK_PLAN_UPDATE_PART_COUNT_TYPE:
