@@ -1,0 +1,126 @@
+component s3sbob "Series 3 Servo Breakout Board";
+
+pin in bit zlimit_in;  //debounced raw zlimit, multiplexed by S3SBOB
+pin in float z_freq;  //frequency input from fake encoder which is the S3SBOB multiplexing
+pin out bit zlimit_out;  //demultiplexed zlimit switch output
+
+//these implement a minimal axes motor.  Skeletal implementation of the home2hstop comp
+pin io s32 status_code;
+pin io s32 motor_command;
+pin out s32 motor_state;
+
+// TODO hide these once debugged
+pin out float debounce_timer;
+pin out float debounce_time;
+pin out float reset_timer;
+pin out bit zlimit_last;
+pin out float z_freq_ave;
+
+
+function _ "Tormach Series 3 Servo Break Out Board";
+license "GPL";
+;;
+
+
+#include <rtapi_math.h>
+
+/*
+We assume at start that S3SBOB is pass through mode, i.e. Z limit switch is actual.
+
+
+
+*/
+
+//########## keep these in sync with constants.py!!
+// status-code
+#define MFB_OK                         0   //was "ERROR_NONE" No Error. This CPM component understood and acted on last command and so far has no error executing it.
+//CPM Error codes, other motor comps won't use (MFB_FAULT may be exception)
+#define MFB_NO_HOMING                  1
+#define MFB_CMD_INVALID                2    //unexpected command, i.e. comp is in invalid state to accept it now ; we ignored it
+#define MFB_POSITION                   3    //axis motor reported temporary position error. PP UI is expected to clear this error with MOTOR_CMD_ACK_POS command
+#define MFB_CMD_UNKNOWN                4    //unknown command; we ignored it
+#define MFB_FAULT                      5    //axis motor has faulted.  Could be a fault or no power on CPM.  We don't know
+#define MFB_HSTOP_FAULT                6    //hstop homing error, HLFB was low for too long
+
+//CPM linuxcnc States
+// motor-status output
+#define MS_DISABLED         0    //CPM has been commanded disabled
+#define MS_WAIT             1    //This linuxcnc component is initializing CPM; please wait
+#define MS_HOME_SEARCHING   2    //This linuxcnc component is expecting PP UI to be executing homing; we haven't detected a hardstop hit yet
+#define MS_HOME_WAITING     3    //This linuxcnc component detected a hardstop hit, but we wait to let CPM motors complete that detection, or to fail with HLFB un-asserted
+#define MS_HOME_COMPLETE    4    //The CPM has detected a hardstop hit. We expect Linuxcnc is still finishing backoff, ect.
+#define MS_NORMAL           5    //CPM is active and is not in any hardstop mode
+#define MS_FAULT            6    //CPM is inactive. We've detected a fault or via ESTOP has been powered off, this comp can't really tell. (but UI can infer)
+
+//Commands to this linuxcnc component
+// motor-command
+#define MOTOR_CMD_NONE      0    //there is no command, or cleared/did/acknowledge last command.  We use this on the bi-directional i/o to "edge detect" commands and signal to UI, if it cares to look (it doesn't presently)
+#define MOTOR_CMD_DISABLE   1    //Disable CPM.  The enable line to the CPM is immediately de-asserted so it will no longer move or actively hold position
+#define MOTOR_CMD_NORMAL    2    //Enable the CPM for normal operation.  This comp assumes that PP UI issues the requisite minimum 1 step in each direction to disable hardstop homing mode
+                                 //This comp passes through "MS_WAIT" state before assuming "MS_NORMAL" state
+#define MOTOR_CMD_HOME      3    //Enable the CPM for hardstop detection.  After "MS_WAIT", we enter "MS_HOME_SEARCHING" state.
+                                 //Then this comp assumes PP will issue homing commands to linuxcnc.  The first CPM HLFB inactive state triggers "MS_HOME_COMPLETE"
+#define MOTOR_CMD_ACK_HOME  4    //When homing is finished, use this command to transistion from "MS_HOME_COMPLETE" to "MS_NORMAL" without toggling CPM enable which would have put CPM back into torque foldback mode
+#define MOTOR_CMD_ACK_POS   5    //UI uses this command to acknowledge temporary MFB_POSITION "errors".  This comp will clear error to HLFB_OK and doesn't change motor state
+#define MOTOR_CMD_ACK_ERR   6    //UI use this command to acknowlege all other error.  This comp will clear previous UI command errors to MFB_OK if CPM hasn't faulted.
+//############# end of defines that need to be kept in sync in constants.py
+
+
+
+#define QUICK_DEBOUNCE (.010)
+#define SLOW_DEBOUNCE (.050)
+#define RESET_TIME (.25)
+#define FAULT_DETECT_FREQ (250.0)  //actual is like 430 some hertz
+
+FUNCTION(_) { 
+
+    if(!debounce_time) { //first pass detector
+        debounce_time = QUICK_DEBOUNCE; //z limit switch is actual
+        motor_state = MS_NORMAL;
+        status_code = MFB_OK;
+        reset_timer = RESET_TIME;
+        z_freq_ave = FAULT_DETECT_FREQ;
+    }
+
+    z_freq_ave += (fabs(z_freq) - z_freq_ave) * .05; //average about 20 samples, so about 20 mS filtering delay
+
+    if (reset_timer > 0)
+        reset_timer -= fperiod;
+
+    if (reset_timer <= 0.0) {
+
+        if (zlimit_last != zlimit_in) {
+            zlimit_last = zlimit_in;
+            debounce_timer = debounce_time;  //restart debounce timer
+        }
+        else {
+            if (debounce_timer > 0) 
+                debounce_timer -= fperiod;
+            if (debounce_timer <= 0) {
+                zlimit_out = zlimit_in;
+                debounce_time = QUICK_DEBOUNCE; //revert to quick debounce
+            }
+        }
+    
+
+        if (reset_timer <= 0.0 && (z_freq_ave > 100.0)) { //if series 3 BOB z limit fb is not active
+            zlimit_out = 0;  //over ride above zlimit_out and lie that the z limit switch is NOT being actuated 
+            zlimit_last = zlimit_in; //save whatever is happening now
+            motor_state = MS_FAULT; //flag PP that servo error has happened 
+            status_code = MFB_FAULT; 
+            debounce_time = SLOW_DEBOUNCE; //slower debounce as we leave S33BOB fault state
+            debounce_timer = SLOW_DEBOUNCE;
+        }
+
+    }
+
+    if (motor_command == MOTOR_CMD_NORMAL) {  //clear previous command
+        motor_state = MS_NORMAL;
+        status_code = MFB_OK;
+        reset_timer = RESET_TIME; //start timer  to let BOB respond
+    }
+
+    motor_command = MOTOR_CMD_NONE; //reset all previous commands
+
+}
+
