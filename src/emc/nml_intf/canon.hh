@@ -884,7 +884,7 @@ extern void FINISH(void);
 extern void ON_RESET(void);
 
 extern void CANON_ERROR(const char *fmt, ...) __attribute__((format(printf,1,2)));
-extern void CANON_MSG(CanonMessageAlarmLevel lvl, const char *fmt, ...) __attribute__((format(printf,2,3)));
+extern void CANON_MESSAGE(CanonMessageAlarmLevel lvl, const char *fmt, ...) __attribute__((format(printf,2,3)));
 
 // queue a call to a task-time Python plugin method
 // call is expected to be a tuple of (method,pickled posargs,pickled kwargs)

@@ -242,7 +242,7 @@ int GET_EXTERNAL_AXIS_MASK() {return 0;}
 void FINISH(void) {}
 void ON_RESET(void) {}
 void CANON_ERROR(const char *fmt, ...) {}
-void CANON_MSG(CanonMessageAlarmLevel lvl, const char *fmt, ...) {}
+void CANON_MESSAGE(CanonMessageAlarmLevel lvl, const char *fmt, ...) {}
 void PLUGIN_CALL(int len, const char *call) {}
 void IO_PLUGIN_CALL(int len, const char *call) {}
 void SEND_TAG_MSG() {}
