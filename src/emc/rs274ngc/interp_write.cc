@@ -212,6 +212,7 @@ StateTag make_state_tag(setup_struct const &s, block_pointer block)
     state.fields[GM_FIELD_LINE_NUMBER] = s.get_toplevel_line_number();
     state.fields[GM_FIELD_LOCAL_LINE_NUMBER] = s.sequence_number;
     state.fields[GM_FIELD_STEPPING_ID] = s.stepping_id;
+#if 0
     //FIXME refactor these into setup methods, and maybe put this whole method in setup struct
     bool in_remap = (s.remap_level > 0);
     bool in_sub = (s.call_level > 0 && s.remap_level == 0);
@@ -220,6 +221,7 @@ StateTag make_state_tag(setup_struct const &s, block_pointer block)
     state.flags[GM_FLAG_IN_REMAP] = in_remap;
     state.flags[GM_FLAG_IN_SUB] = in_sub;
     state.flags[GM_FLAG_EXTERNAL_FILE] = external_sub;
+#endif
     // Tormach - change so that all tags are restorable.  This may change in future
     state.flags[GM_FLAG_RESTORABLE] = 1;
     state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[GM_MODAL_0]);
