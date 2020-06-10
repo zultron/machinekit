@@ -2742,7 +2742,8 @@ int Interp::gen_toolOffset(GCodeGenerator &generator, GCodes tool_offset_mode, i
         ERS("Cannot restore tool offset modes G43.1 / G43.2");
         break;
     case G_49:
-        // Do nothing, already cancelled in the modal state restore
+        // Add an explicit G49 (it's redundant, but it demonstrates intent)
+        generator.addPreformatted("G49");
         break;
     default:
         ERS("Unknown mode %d in tool offset restore", tool_offset_mode);
