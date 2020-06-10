@@ -387,7 +387,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea, glnav.GlNavBase,
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_RETRACT_MODE]),
         ), (
             "G52 " + make_active_axis_word_str(self.stat.g92_offset, self.stat.axis_mask), #TRAILING COMMA IS IMPORTANT
-        ))
+        ),
+            # KLUDGE assume G43 is active if a tool is loaded
+            ("M6 T{tool_no:d} G43 H{tool_no:d}".format(tool_no=self.stat.tool_in_spindle),),
+        )
         print("Active G-codes at redraw:", cmd_list)
         return '\n'.join((' '.join(sub_l) for sub_l in cmd_list))
 
