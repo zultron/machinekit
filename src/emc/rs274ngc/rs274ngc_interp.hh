@@ -440,7 +440,8 @@ public:
  int execute_binary(double *left, int operation, double *right);
  int execute_binary1(double *left, int operation, double *right);
  int execute_binary2(double *left, int operation, double *right);
-    int execute_block(block_pointer block, setup_pointer settings);
+ virtual bool need_step_increment(const setup_struct *settings) const;
+ int execute_block(block_pointer block, setup_pointer settings);
  int execute_unary(double *double_ptr, int operation);
  double find_arc_length(double x1, double y1, double z1,
                               double center_x, double center_y, int turn,
