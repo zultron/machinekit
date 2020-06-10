@@ -96,3 +96,13 @@ int PreviewInterp::synch_work_offsets_from_task(setup_pointer settings) const
     // Everything is immediate in preview, no disparity to recover from
     return INTERP_OK;
 }
+
+int PreviewInterp::check_startline_leadin_feedrate(double &feed_rate, const char * move_type)
+{
+    if (feed_rate < 1e-10) {
+        setWarning(_("Start-line %s lead-in move needs a positive feed rate (start-line lead-in uses current machine feed)"), move_type);
+        // KLUDGE force this to be non-zero so that it at least draws the path correctly
+        feed_rate = 1e-10;
+    }
+    return INTERP_OK;
+}

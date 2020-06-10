@@ -875,6 +875,8 @@ int read_inputs(setup_pointer settings);
 protected:
     bool error_has_context;
 
+    virtual int check_startline_leadin_feedrate(double & feed_rate_uu, const char * move_type);
+
 };
 
 StateTag make_state_tag(setup_struct const &s, block_pointer block);
