@@ -438,6 +438,7 @@ void CHANGE_TOOL_NUMBER(int pocket) {
 void SET_FEED_RATE(double rate) {
     maybe_new_line();
     if(interp_error) return;
+    machine.set_feed_rate(rate);
     if(metric) rate /= 25.4;
     PyObject *result =
         callmethod(callback, "set_feed_rate", "f", rate);
@@ -554,7 +555,7 @@ extern bool GET_BLOCK_DELETE(void) {
 }
 
 void CANON_ERROR(const char *fmt, ...) {}
-void CANON_MSG(CanonMessageAlarmLevel lvl, const char *fmt, ...) {}
+void CANON_MESSAGE(CanonMessageAlarmLevel lvl, const char *fmt, ...) {}
 void CLAMP_AXIS(CANON_AXIS axis) {}
 bool GET_OPTIONAL_PROGRAM_STOP() { return false;}
 void SET_OPTIONAL_PROGRAM_STOP(bool state) {}
@@ -1714,6 +1715,11 @@ void PreviewMachine::tool_offset(EmcPose const &offset)
 {
     transform_uu.toolOffset = ShiftTransform(convertsProgToUser().forward(toArray(offset)));
     end_feed();
+}
+
+void PreviewMachine::set_feed_rate(double feed_rate_prog)
+{
+    feed_rate = feed_rate_prog / (metric ? 25.4 : 1.0);
 }
 
 void PreviewMachine::clear_motions()
