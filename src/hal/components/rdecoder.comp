@@ -26,7 +26,7 @@ pin out float stop_period;
 pin out float this_period;
 
 //pin out unsigned stall-# [4];      //stall detected
-pin in bit proto2board;  //flip SLP4 BMASK_RETURN and BMASK_BLAST command bits; this is to compensate for the J2 output on reid's
+//pin in bit proto2board;  //flip SLP4 BMASK_RETURN and BMASK_BLAST command bits; this is to compensate for the J2 output on reid's
                 //board not being functional
 
 pin out s32 index;
@@ -275,20 +275,13 @@ unsigned int output;
         output = BMASK_DUST;
     else output = 0;
 
-    if (!proto2board) { //by default, swap these bits for reid's board
-        if (pdb_return)
-            output |= BMASK_BLAST;
-    
-        if (air_blast)
-            output |= BMASK_RETURN;
-    }
-    else { //final, non-prototype, functionality
-        if (pdb_return)
-            output |= BMASK_RETURN;
+    //final, non-prototype, functionality
+    if (pdb_return)
+        output |= BMASK_RETURN;
 
-        if (air_blast)
-            output |= BMASK_BLAST;
-    }
+    if (air_blast)
+        output |= BMASK_BLAST;
+    
 
     if (pdb_open)
         output |= BMASK_OPEN;
