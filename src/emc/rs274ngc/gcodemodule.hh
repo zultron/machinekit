@@ -54,6 +54,7 @@ public:
     void set_firstmove();
     void clear_firstmove();
     void tool_offset(const EmcPose & offset);
+    void set_feed_rate(double feed_rate_prog);
 
     // Misc helpers
     bool set_exec_mode(ParseExecMode mode);

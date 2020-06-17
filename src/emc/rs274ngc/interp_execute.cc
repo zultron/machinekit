@@ -183,6 +183,26 @@ int Interp::execute_binary2(double *left,        //!< pointer to the left operan
   return INTERP_OK;
 }
 
+bool Interp::need_step_increment(const setup_struct * settings) const
+{
+    // Note, a block can be both in a subroutine and a remap (e.g. a subroutine calls remapped code, or vice versa)
+    bool in_remap = (settings->remap_level > 0);
+    if (in_remap) {
+        // Skip ID update for remapped code
+        return false;
+    }
+
+    bool in_subroutine = (settings->call_level > 0);
+    if (in_subroutine) {
+        bool external_sub = strcmp(settings->filename, settings->sub_context[0].filename);
+        // Check if local line number should be ignored (i.e. we don't want to step through external and/or local subroutines)
+        if ((!settings->single_block_external_sub && external_sub) || (!settings->single_block_local_sub && !external_sub)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 
 /****************************************************************************/
 
@@ -246,19 +266,7 @@ int Interp::execute_block(block_pointer block,   //!< pointer to a block of RS27
    *  SINGLE_BLOCK_LOCAL_SUB and SINGLE_BLOCK_EXTERNAL_SUB
    */
 
-  bool in_remap = (settings->remap_level > 0);
-  bool in_subroutine = (settings->call_level > 0 && settings->remap_level == 0);
-  bool external_sub = strcmp(settings->filename, settings->sub_context[0].filename);
-  if (in_remap) {
-      // Skip ID update for remapped code
-  }
-  else if (in_subroutine && external_sub && !settings->single_block_external_sub) {
-      // Skip ID increment for local subroutine
-  }
-  else if (in_subroutine && !external_sub && !settings->single_block_local_sub) {
-      // SKip ID update for external subroutine
-  }
-  else {
+  if (need_step_increment(settings)) {
       settings->stepping_id++;
   }
 

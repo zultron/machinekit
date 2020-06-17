@@ -2742,11 +2742,18 @@ int Interp::gen_toolOffset(GCodeGenerator &generator, GCodes tool_offset_mode, i
         ERS("Cannot restore tool offset modes G43.1 / G43.2");
         break;
     case G_49:
-        // Do nothing, already cancelled in the modal state restore
+        // Add an explicit G49 (it's redundant, but it demonstrates intent)
+        generator.addPreformatted("G49");
         break;
     default:
         ERS("Unknown mode %d in tool offset restore", tool_offset_mode);
     }
+    return INTERP_OK;
+}
+
+int Interp::check_startline_leadin_feedrate(double &feed_rate_uu, const char *move_type)
+{
+    CHKS(feed_rate_uu < 1e-10, _("Can't do %s lead-in move with zero feed rate (lead-in uses current machine feed)"), move_type);
     return INTERP_OK;
 }
 
@@ -2824,6 +2831,7 @@ int Interp::create_full_restore_sequence(
     switch (run_settings.leadin_type) {
     case PREP_LINEAR_LEADIN:
     {
+        CHP(check_startline_leadin_feedrate(leadin_feedrate, "linear"));
         generator.printMsg("program preamble: Linear lead-in at program feed, from initial position to program position at start of next line");
         generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);
@@ -2841,6 +2849,7 @@ int Interp::create_full_restore_sequence(
         break;
     case PREP_PLUNGE_LEADIN:
     {
+        CHP(check_startline_leadin_feedrate(leadin_feedrate, "plunge"));
         generator.printMsg("program preamble: Traverse / Plunge lead-in at program feed, from safe height to program height at start of next line");
         generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);

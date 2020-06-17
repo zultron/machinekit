@@ -1126,7 +1126,7 @@ void CANON_ERROR(const char *fmt, ...)
     }
 }
 
-void CANON_MSG(CanonMessageAlarmLevel lvl, const char *fmt, ...)
+void CANON_MESSAGE(CanonMessageAlarmLevel lvl, const char *fmt, ...)
 {
     // Don't print these or we'll have to update all the tests...
 }

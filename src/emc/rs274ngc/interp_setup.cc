@@ -153,8 +153,7 @@ setup_struct::setup_struct() :
 int setup_struct::get_toplevel_line_number() const
 {
     bool in_remap = (remap_level > 0);
-    bool in_subroutine = (call_level > 0 && remap_level == 0);
-    bool external_sub = strcmp(filename, sub_context[0].filename);
+    bool in_subroutine = (call_level > 0);
     /*
      * The line number is for cosmetic labelling only. Based on the interpreter
      * settings from the INI file, we can substitute the controlling block's
@@ -163,18 +162,23 @@ int setup_struct::get_toplevel_line_number() const
      * text of these subroutines, then the line numbers will be wrong if
      * overlaid on the parent file.
     */
-    if (in_remap) {
-        return blocks[1].saved_line_number;
+
+    // Default is the current line, override for specific cases
+    int display_line = sequence_number;
+
+    if (in_remap ) {
+        // Regardless of subroutine state, we can only display the caller's line for the top-most remap
+        display_line = blocks[1].saved_line_number;
     }
-    else if (in_subroutine && external_sub && !single_block_external_sub) {
-        return sub_context[0].sequence_number;
+
+    if (in_subroutine) {
+        bool external_sub = strcmp(filename, sub_context[0].filename);
+        // Check if local line number should be ignored (i.e. we don't want to step through external and/or local subroutines)
+        if ((!single_block_external_sub && external_sub) || (!single_block_local_sub && !external_sub)) {
+            return sub_context[0].sequence_number;
+        }
     }
-    else if (in_subroutine && !external_sub && !single_block_local_sub) {
-        return sub_context[0].sequence_number;
-    }
-    else {
-        return sequence_number;
-    }
+    return display_line;
 }
 
 void setup_struct::clear_queue_buster_flags()

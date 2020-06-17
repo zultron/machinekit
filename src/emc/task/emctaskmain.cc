@@ -653,6 +653,11 @@ interpret_again:
                     // NOTE: we don't need to synch here only because this is the first command
                     emcTaskSetInterpState(EMC_TASK_INTERP_READING);
                     run_settings.start_line = 0;
+                    if (run_settings.single_step_mode) {
+                        emcOperatorText(CANON_MSG_DEBUG, "Pausing for single-step mode before first line %d", emcStatus->task.readLine);
+                        emcTrajPause();
+                        emcTaskPause();
+                    }
                 }
 
 			    emcTaskPlanCommand((char *) &emcStatus->task.
@@ -1154,16 +1159,8 @@ static int emcTaskPlan(void)
 		    break;
 
 		case EMC_TASK_PLAN_STEP_TYPE:
-            task_debug("Got PLAN_STEP at interp start\n");
-		    // handles case where first action is to step the program
-            taskPlanRunCmd.run_settings.start_line = 1;	// run from start
-		    /*! \todo FIXME-- can have GUI set this; send a run instead of a 
-		       step */
-		    retval = emcTaskIssueCommand(&taskPlanRunCmd);
-		    if(retval != 0) break;
-		    emcTrajPause();
-            emcTaskPause();
-		    retval = 0;
+            emcOperatorError(_("Can't step a program that is not started (used RUN with single-step option enabled)"));
+            retval = -1;
 		    break;
 
 		case EMC_TOOL_LOAD_TOOL_TABLE_TYPE:
@@ -1735,6 +1732,12 @@ void emcTaskPause()
 
 void emcTaskResume()
 {
+#if 0
+    // These seems to be ok in practice, but it's not pretty...
+    if (emcStatus->task.interpState != EMC_TASK_INTERP_PAUSED) {
+        emcOperatorText(CANON_MSG_LOW, "Assumptions violated: emcTaskResume from interpState %d", emcStatus->task.interpState);
+    }
+#endif
     emcTaskSetInterpState((EMC_TASK_INTERP_ENUM) interpResumeState);
     emcStatus->task.task_paused = 0;
     stepping = 0;
@@ -2498,7 +2501,9 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
             interp_list.set_line_number(0);
         }
         emcStatus->task.program_ended = 1;
-	retval = 0;
+        emcTrajResume(); // If single-stepped to the end of the program, ensure that motion is not paused at the end point
+        emcOperatorText(CANON_MSG_DEBUG, "Reset motion pause state at program end");
+    retval = 0;
     break;
 
      case EMC_TASK_PLAN_UPDATE_PART_COUNT_TYPE:

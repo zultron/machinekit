@@ -565,6 +565,11 @@ int emcTaskPlanFinishLineSeek(AutoRunSettings const &run_settings, ExpandedModal
 
     emcTaskPlanPurgeInterpQueue();
     emcTaskSetInterpState(EMC_TASK_INTERP_READING);
+    if (run_settings.single_step_mode) {
+        emcOperatorText(CANON_MSG_DEBUG, "Pausing for single-step mode before start line %d", run_settings.start_line);
+        emcTrajPause();
+        emcTaskPause();
+    }
 
     if (!isInterpError((InterpReturn)res_interp) && rs274_interp) {
         // Do a full modal state restore as if the program had executed from line 1,

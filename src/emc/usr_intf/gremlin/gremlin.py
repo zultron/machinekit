@@ -316,6 +316,9 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         # G_CODE_TOOL_LENGTH_OFFSET
         # G_CODE_SPINDLE_MODE
 
+        tool_in_spindle = self.stat.tool_in_spindle
+        tool_str = "M6 T{tool_no:d} ".format(tool_no=tool_in_spindle) + "G49" if np.max(np.abs(self.stat.tool_offset)) < 1e-10 else "G43 H{tool_no:d}".format(tool_no=tool_in_spindle)
+
         cmd_list = ((
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_UNITS]),  # Must be first before applying any other modes
         ), (
@@ -328,6 +331,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_RETRACT_MODE]),
         ), (
             "G52 " + make_active_axis_word_str(self.stat.g92_offset, self.stat.axis_mask), #TRAILING COMMA IS IMPORTANT
+        ), (
+            tool_str,
         ))
         print("Active G-codes at redraw:", cmd_list)
         return '\n'.join((' '.join(sub_l) for sub_l in cmd_list))
