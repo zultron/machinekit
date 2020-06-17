@@ -54,6 +54,7 @@ import os
 import sys
 
 import thread
+import numpy as np
 
 
 def make_active_axis_word_str(position, mask):
