@@ -15,9 +15,11 @@ TEST_CASE("EMCCANON hello world")
     while(interp_list.get()) {}
     SET_FEED_RATE(100.0);
     auto *tag_msg = interp_list.get();
+    REQUIRE(tag_msg);
     CHECK(tag_msg->type == EMC_TASK_SET_TAG_TYPE);
     ARC_FEED(0,1,2,3,4,5,6,7,8,9,1,2,3);
     auto *arc_msg = interp_list.get();
+    REQUIRE(arc_msg);
     CHECK(arc_msg->type == EMC_TRAJ_CIRCULAR_MOVE_TYPE);
 }
 
