@@ -158,3 +158,29 @@ SCENARIO("Multiple G-codes can't use the same axis words")
     }
 }
 
+SCENARIO("Require that radius format arcs have at least one axis word from the current plane")
+{
+    DECL_INIT_TEST_INTERP();
+        REQUIRE_INTERP_OK(test_interp, execute("G90 G21"));
+    THEN("G17 requires X or Y") {
+        REQUIRE_INTERP_OK(test_interp, execute("G0 X0 Y0 Z0"));
+        REQUIRE_INTERP_OK(test_interp, execute("G1 X0 Y10 F1000"));
+        REQUIRE_INTERP_OK(test_interp, execute("G17"));
+        REQUIRE_INTERP_ERROR(test_interp, execute("G3 Z-10 R10"));
+        REQUIRE_INTERP_OK(test_interp, execute("G3 Y20 R15"));
+    }
+    THEN("G18 requires X or Z") {
+        REQUIRE_INTERP_OK(test_interp, execute("G0 X0 Y0 Z0"));
+        REQUIRE_INTERP_OK(test_interp, execute("G1 X0 Y10 F1000"));
+        REQUIRE_INTERP_OK(test_interp, execute("G18"));
+        REQUIRE_INTERP_ERROR(test_interp, execute("G3 Y-10 R10"));
+        REQUIRE_INTERP_OK(test_interp, execute("G3 Z20 R15"));
+    }
+    THEN("G19 requires Y or Z") {
+        REQUIRE_INTERP_OK(test_interp, execute("G0 X0 Y0 Z0"));
+        REQUIRE_INTERP_OK(test_interp, execute("G1 X0 Y10 F1000"));
+        REQUIRE_INTERP_OK(test_interp, execute("G19"));
+        REQUIRE_INTERP_ERROR(test_interp, execute("G3 X-10 R10"));
+        REQUIRE_INTERP_OK(test_interp, execute("G3 Y20 R15"));
+    }
+}
