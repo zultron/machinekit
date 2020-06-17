@@ -17,6 +17,7 @@
 
 from rs274 import Translated, OpenGLTk
 import math
+import numpy as np
 from gl_context_managers import *
 import linuxcnc
 import gcode
