@@ -477,7 +477,7 @@ int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw
     size_t idx_0, idx_1; std::tie(idx_0, idx_1, std::ignore) = plane_indices(settings->plane);
 
     // Since polar coordinates are now allowed in any plane, we need to check all planes for valid polar coordinate endpoint
-    CHKS(((!block->axis_flags[idx_0]) && (!block->axis_flags[Y]) && (!block->radius_flag) && (!block->theta_flag)),
+    CHKS(((!block->axis_flags[idx_0]) && (!block->axis_flags[idx_1]) && (!block->radius_flag) && (!block->theta_flag)),
          _("%c and %c words missing for radius-format arc in %c%c plane"),
          axis_to_char(idx_0),
          axis_to_char(idx_1),
