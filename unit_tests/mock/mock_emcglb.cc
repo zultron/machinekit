@@ -24,4 +24,6 @@ unsigned char have_tool_change_position=0;
 double traj_default_tolerance = 0.005;
 double traj_default_naivecam_tolerance = 0.0;
 
+int emc_traj_axes = 0;
+unsigned emc_traj_axis_mask = 0;
 int taskplanopen = 0;

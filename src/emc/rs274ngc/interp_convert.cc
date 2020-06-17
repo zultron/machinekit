@@ -486,7 +486,6 @@ int Interp::convert_arc(GCodes move,        //!< either G_2 (cw arc) or G_3 (ccw
          );
   }
 
-
   CHP(find_ends(block, settings, &end_x, &end_y, &end_z,
                 &AA_end, &BB_end, &CC_end, 
                 &u_end, &v_end, &w_end));

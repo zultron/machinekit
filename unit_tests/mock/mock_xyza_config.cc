@@ -2,6 +2,7 @@
 #include "emc_nml.hh"
 #include "emc_statics.hh"
 #include "emc.hh"
+#include "emcglb.h"
 
 void setup_xyza_config()
 {
@@ -36,7 +37,10 @@ void setup_xyza_config()
         emcStatus->motion.axis[W].enabled = false;
     }
 
+    // TODO
     emcStatus->motion.traj.axis_mask = (1 << 4) - 1;
+    emc_traj_axis_mask = emcStatus->motion.traj.axis_mask;
+    emc_traj_axes = emcStatus->motion.traj.axes;
     emcStatus->motion.traj.axes = 4;
     emcStatus->motion.traj.linearUnits = 1.0 / 25.4;
     emcStatus->io.tool.toolTable[0].toolno = 1;
@@ -76,6 +80,8 @@ void setup_9axis_config()
     }
 
     emcStatus->motion.traj.axis_mask = (1 << 9) - 1;
+    emc_traj_axis_mask = emcStatus->motion.traj.axis_mask;
+    emc_traj_axes = emcStatus->motion.traj.axes;
     emcStatus->motion.traj.axes = 9;
     emcStatus->motion.traj.linearUnits = 1.0 / 25.4;
     emcStatus->io.tool.toolTable[0].toolno = 1;

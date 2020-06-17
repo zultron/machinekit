@@ -10,7 +10,7 @@
 
 TEST_CASE("EMCCANON hello world")
 {
-    emcStatus->motion.traj.axis_mask = 0xF;
+    setup_9axis_config();
     INIT_CANON();
     while(interp_list.get()) {}
     SET_FEED_RATE(100.0);
