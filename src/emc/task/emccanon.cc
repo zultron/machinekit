@@ -351,6 +351,14 @@ static DisplacementData getCanonStraightDisplacement(PositionArray const &p_goal
     return disp_data;
 }
 
+static DisplacementData getCanonArcDisplacement(PositionArray const &p_goal_ext, double total_xyz_length, StateTag &tag)
+{
+    DisplacementData disp_data = getArcDisplacement(ConvertsCanonToUserUnits().forward(canonEndPoint), p_goal_ext, total_xyz_length);
+    tagFeedAxes(disp_data, tag);
+    return disp_data;
+}
+
+
 /* motion control mode is used to signify blended v. stop-at-end moves.
    Set to 0 (invalid) at start, so first call will send command out */
 static CANON_MOTION_MODE canonMotionMode = CANON_EXACT_STOP;
@@ -1555,18 +1563,6 @@ void ARC_FEED(int line_number,
     double v_max_planar = std::min(v_max_radial, v_max_axes);
     canon_debug("v_max_planar = %f\n", v_max_planar);
 
-    PositionArray p_goal_ext = ConvertsCanonToUserUnits().forward(endpt);
-    DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
-
-    if(disp_data.feed_axes == CANON_FEED_NONE)  {
-        return;
-    }
-
-    // Find the equivalent maximum velocity for a linear displacement
-    // This accounts for speed restrictions due to helical and other axes
-    VelData veldata = getStraightVelocity(disp_data);
-    AccelData accdata = getStraightAcceleration(disp_data);
-
     // Compute spiral length, first by the minimum circular arc length
     double circular_length = min_radius * fabs(full_angle);
     // Then by linear approximation of the spiral arc length function of angle
@@ -1577,6 +1573,19 @@ void ARC_FEED(int line_number,
     PM_CARTESIAN xyz_end(canonEndPoint[X], canonEndPoint[Y], canonEndPoint[Z]);
     double axis_len = dot(end_cart - xyz_end, normal_cart);
     double total_xyz_length = hypot(spiral_length, axis_len);
+
+    // Start with "straight" displacement from start to end point (may be zero for an arc that ends at the same point)
+    PositionArray p_goal_ext = ConvertsCanonToUserUnits().forward(endpt);
+    DisplacementData disp_data = getCanonArcDisplacement(p_goal_ext, total_xyz_length, _tag);
+
+    // Find the equivalent maximum velocity for a linear displacement
+    // This accounts for speed restrictions due to helical and other axes
+    VelData veldata = getStraightVelocity(disp_data);
+    AccelData accdata = getStraightAcceleration(disp_data);
+
+    if(disp_data.feed_axes == CANON_FEED_NONE)  {
+        return;
+    }
 
     // Next, compute the minimum time that we must take to complete the segment. 
     // The motion computation gives us min time needed for the helical and auxiliary axes

@@ -93,6 +93,34 @@ DisplacementData getStraightDisplacement(PositionArray const &start_pt, Position
     return out;
 }
 
+DisplacementData getArcDisplacement(const PositionArray & start_pt, const PositionArray & goal_pt, double total_xyz_length)
+{
+    DisplacementData out{};
+    out.displacement = abs(goal_pt - start_pt);
+    // TODO decide if this step is necessary?
+    apply_abs_mask(out.displacement, getMinDisplacement());
+
+    // NOTE: need to work in external (TP) units here, since the TP assumes
+    // that all axes are "path units". 1 path unit = 1 in = 1 deg (for the
+    // typical config).
+    // TODO replace with to_path_XXX functions when we implement optimized path units
+    out.d_xyz = total_xyz_length;
+    out.d_abc = getAngularDisplacement(out.displacement);
+    out.d_uvw = getUVWDisplacement(out.displacement);
+    out.d_tot = hypot3(out.d_xyz, out.d_abc, out.d_uvw);
+
+    const double tiny_linear = getTPMinLinearDisplacement();
+    const double tiny_angular = getTPMinAngularDisplacement();
+    if (out.d_xyz >= tiny_linear) {
+        out.feed_axes = CANON_FEED_XYZ;
+    } else if (out.d_uvw >= tiny_linear) {
+        out.feed_axes = CANON_FEED_UVW;
+    } else if (out.d_abc >= tiny_angular) {
+        out.feed_axes = CANON_FEED_ABC;
+    }
+    return out;
+}
+
 /**
  * Finds velocity limits / expected minimum motion time for the given linear displacement.
  * @note all values are in EXTERNAL (TP) units, not canon units (see explanation of "path" units vs normal axis units).

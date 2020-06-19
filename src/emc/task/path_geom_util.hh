@@ -48,8 +48,10 @@ struct AccelData{
 double hypot3(double a, double b, double c);
 
 DisplacementData getStraightDisplacement(const PositionArray & start_pt, PositionArray const &goal_pt);
+DisplacementData getArcDisplacement(const PositionArray & start_pt, PositionArray const &goal_pt, double total_xyz_length);
 VelData getStraightVelocity(DisplacementData const &disp_data);
 AccelData getStraightAcceleration(DisplacementData const &disp_data);
+void addCircularPathDisplacement(DisplacementData &disp_data, double total_xyz_length);
 
 int axis_valid(int n);
 #endif // PATH_GEOM_UTIL_HH
