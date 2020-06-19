@@ -96,9 +96,12 @@ SCENARIO("A circular IJK arc with the same start / endpoint")
     while(interp_list.get()) {} // Discard any NML commands up to this point
 
     GIVEN("A clockwise, circular arc that ends at the start point") {
-        REQUIRE_INTERP_OK(test_interp, execute("G2 X0 Y0 Z0 I1.0 F200"));
+        REQUIRE_INTERP_OK(test_interp, execute("G2 X0 Y0 Z0 I1.0"));
         THEN("Expect a single circular move NML command as a result") {
-            auto *arc_msg = (EMC_TRAJ_CIRCULAR_MOVE*) interp_list.get();
+            NMLmsg *msg = nullptr;
+            // Discard any tag messages
+            while ((msg = interp_list.get()) && msg->type == EMC_TASK_SET_TAG_TYPE) {}
+            auto *arc_msg = (EMC_TRAJ_CIRCULAR_MOVE*) msg;
             REQUIRE(arc_msg);
             REQUIRE(arc_msg->type == EMC_TRAJ_CIRCULAR_MOVE_TYPE);
             // Only check these once we're sure the type is right
@@ -108,4 +111,36 @@ SCENARIO("A circular IJK arc with the same start / endpoint")
             CHECK_THAT(arc_msg->normal, Catch::Matchers::PoseMath::CartApproxMatcher(exp_normal));
         }
     }
+}
+
+SCENARIO("Max feed / acceleration of circular arcs")
+{
+    DECL_INIT_TEST_INTERP();
+    INIT_CANON();
+    REQUIRE_INTERP_OK(test_interp, execute("F60"));
+    while(interp_list.get()) {} // Discard any NML commands up to this point
+
+    GIVEN("A planar semi-circular arc with no spiral or helical component") {
+        const double eff_radius=0.25;
+        REQUIRE_INTERP_OK(test_interp, execute("G2 X0.5 Y0 Z0 I0.25"));
+        THEN("Expect a single circular move NML command as a result") {
+            NMLmsg *msg = nullptr;
+            while ((msg = interp_list.get()) && msg->type == EMC_TASK_SET_TAG_TYPE) {}
+            auto *arc_msg = (EMC_TRAJ_CIRCULAR_MOVE*) msg;
+            REQUIRE(arc_msg);
+            REQUIRE(arc_msg->type == EMC_TRAJ_CIRCULAR_MOVE_TYPE);
+            // Only check these once we're sure the type is right
+            const PM_CARTESIAN exp_center = {.25,0.0,0.0};
+            const PM_CARTESIAN exp_normal = {0.0,0.0,1.0};
+            CHECK_THAT(arc_msg->center, Catch::Matchers::PoseMath::CartApproxMatcher(exp_center));
+            CHECK_THAT(arc_msg->normal, Catch::Matchers::PoseMath::CartApproxMatcher(exp_normal));
+
+            // Allow ~86% of the maximum theoretical acceleration budget for normal acceleration
+            const double exp_acc_normal_max = 15. * sqrt(3.)/2.; //IPS^2
+            const double exp_v_max_planar = sqrt(exp_acc_normal_max * eff_radius);
+            CHECK(arc_msg->vel == Approx(1.));
+            CHECK(arc_msg->ini_maxvel == Approx(exp_v_max_planar));
+        }
+    }
+    // TODO other cases
 }
