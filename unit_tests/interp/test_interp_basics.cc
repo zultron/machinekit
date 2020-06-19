@@ -9,7 +9,6 @@
 #include <cstdio>
 using namespace interp_param_global;
 
-
 TEST_CASE("Interp Basics")
 {
   DECL_INIT_TEST_INTERP_9AXIS();
@@ -1215,7 +1214,6 @@ SCENARIO("Polar coordinates")
     }
 }
 
-
 SCENARIO("Modal behavior of incremental vs absolute motion")
 {
     DECL_INIT_TEST_INTERP();
@@ -1245,7 +1243,8 @@ SCENARIO("Modal behavior of incremental vs absolute motion")
                 const PositionArray expected_incr_result2 = {
                     8,3,3,
                     0,0,0,0,0,0};
-                CHECK_THAT(settings->current, Catch::Matchers::Approx(expected_incr_result2).margin(CART_FUZZ));
+                CHECK_THAT(settings->current, Catch::Matchers::Approx(
+                                                  expected_incr_result2).margin(CART_FUZZ));
             }
         }
     }

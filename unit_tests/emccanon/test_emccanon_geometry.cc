@@ -87,3 +87,25 @@ SCENARIO("Test for various distance measurements in distance check")
         CHECK_FUZZ(distance_to_segment(P0, P1, P_region4_below), hypot(0.01, exp_mmPerDeg));
     }
 }
+
+SCENARIO("A circular IJK arc with the same start / endpoint")
+{
+    DECL_INIT_TEST_INTERP();
+    INIT_CANON();
+    REQUIRE_INTERP_OK(test_interp, execute("F200"));
+    while(interp_list.get()) {} // Discard any NML commands up to this point
+
+    GIVEN("A clockwise, circular arc that ends at the start point") {
+        REQUIRE_INTERP_OK(test_interp, execute("G2 X0 Y0 Z0 I1.0 F200"));
+        THEN("Expect a single circular move NML command as a result") {
+            auto *arc_msg = (EMC_TRAJ_CIRCULAR_MOVE*) interp_list.get();
+            REQUIRE(arc_msg);
+            REQUIRE(arc_msg->type == EMC_TRAJ_CIRCULAR_MOVE_TYPE);
+            // Only check these once we're sure the type is right
+            const PM_CARTESIAN exp_center = {1.0,0.0,0.0};
+            const PM_CARTESIAN exp_normal = {0.0,0.0,1.0};
+            CHECK_THAT(arc_msg->center, Catch::Matchers::PoseMath::CartApproxMatcher(exp_center));
+            CHECK_THAT(arc_msg->normal, Catch::Matchers::PoseMath::CartApproxMatcher(exp_normal));
+        }
+    }
+}

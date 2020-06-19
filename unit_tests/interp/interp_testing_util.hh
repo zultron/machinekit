@@ -7,6 +7,7 @@
 #include <catch.hpp>
 #include <mock_xyza_config.hh>
 #include <cstdio>
+#include <posemath_ext.hh>
 
 using Catch::Matchers::WithinAbs;
 #define INTERP_FUZZ 1e-10
@@ -114,6 +115,40 @@ using PositionArrayApproxMatcher = ApproxMatcher<PositionArray, 9>;
         return Array::ApproxMatcher<T, N>( comparator );
     }
 
+    namespace PoseMath {
+
+    struct CartApproxMatcher : Catch::MatcherBase<PM_CARTESIAN> {
+        CartApproxMatcher(PM_CARTESIAN const& comparator) : m_comparator( comparator ) {}
+
+        bool match(PM_CARTESIAN const &v) const override {
+            if (m_comparator.x != approx(v.x))
+                return false;
+            if (m_comparator.y != approx(v.y))
+                return false;
+            if (m_comparator.x != approx(v.x))
+                return false;
+            return true;
+        }
+        std::string describe() const override {
+            return "is approx: " + ::Catch::Detail::stringify( m_comparator );
+        }
+        CartApproxMatcher& epsilon(double const& newEpsilon ) {
+            approx.epsilon(newEpsilon);
+            return *this;
+        }
+        CartApproxMatcher& margin(double const& newMargin ) {
+            approx.margin(newMargin);
+            return *this;
+        }
+        CartApproxMatcher& scale(double const& newScale ) {
+            approx.scale(newScale);
+            return *this;
+        }
+
+        PM_CARTESIAN const& m_comparator;
+        mutable Catch::Detail::Approx approx = Catch::Detail::Approx::custom();
+    };
+    }
 }}
 
 #endif // INTERP_TESTING_UTIL_HH
