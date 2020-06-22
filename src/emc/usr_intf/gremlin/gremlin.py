@@ -318,7 +318,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         # G_CODE_SPINDLE_MODE
 
         tool_in_spindle = self.stat.tool_in_spindle
-        tool_str = "M6 T{tool_no:d} ".format(tool_no=tool_in_spindle) + "G49" if np.max(np.abs(self.stat.tool_offset)) < 1e-10 else "G43 H{tool_no:d}".format(tool_no=tool_in_spindle)
+        if tool_in_spindle:
+            tool_str = "M6 T{tool_no:d} ".format(tool_no=tool_in_spindle) + "G49" if np.max(np.abs(self.stat.tool_offset)) < 1e-10 else "G43 H{tool_no:d}".format(tool_no=tool_in_spindle)
+        else:
+            tool_str = ""
 
         cmd_list = ((
             self.gcode_to_str(gcodes[linuxcnc.G_CODE_UNITS]),  # Must be first before applying any other modes
