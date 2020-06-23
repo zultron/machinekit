@@ -129,7 +129,7 @@ int Interp::pycall(setup_pointer settings,
     if (_setup.loggingLevel > 4)
 	logPy("pycall(%s.%s) \n", module ? module : "", funcname);
 
-    CHKS(!PYUSABLE, "pycall(%s): Pyhton plugin not initialized",funcname);
+    CHKS(!PYUSABLE, "pycall(%s): Python plugin not initialized", funcname);
     frame->pystuff.impl->py_return_type = 0;
 
     switch (calltype) {
@@ -180,8 +180,9 @@ int Interp::pycall(setup_pointer settings,
 	break;
     default:
 	python_plugin->call(module,funcname, frame->pystuff.impl->tupleargs,frame->pystuff.impl->kwargs,retval);
+    // NOTE: Assume that an exception containing a formatted interp error already has the appropriate context G-code context
 	CHKS(python_plugin->plugin_status() == PLUGIN_EXCEPTION,
-	     "pycall(%s):\n%s", funcname,
+         "%spycall(%s):\n%s", CONTEXT_MARKER, funcname,
 	     python_plugin->last_exception().c_str());
     }
 
