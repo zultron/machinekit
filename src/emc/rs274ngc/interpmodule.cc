@@ -148,7 +148,15 @@ public:
 	this->line_number = line_number;
 	this->line_text = line_text;
     }
-    const char *what() const noexcept { return this->error_message.c_str();  }
+    const char *what() const noexcept {
+        static const size_t MARKER_LENGTH = std::string(CONTEXT_MARKER).length();
+        // KLUDGE: Prune the context marker off of an interp error (typically coming from remap)
+        // since it gets appended to a larger message. Downstream error handling assumes that
+        // context has been added and won't add additional context.
+        if (error_message.size() >= MARKER_LENGTH && error_message.substr(0, MARKER_LENGTH) == CONTEXT_MARKER) {
+            return error_message.c_str() + MARKER_LENGTH;
+        }
+        return this->error_message.c_str();  }
 
     ~InterpreterException() noexcept  {}
     std::string get_error_message()  { return this->error_message;  }
