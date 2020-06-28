@@ -1050,9 +1050,17 @@ void STOP_CUTTER_RADIUS_COMPENSATION()
     send_tag_msg();
 }
 
+static void send_speed_feed_synch_msg(double feed_per_revolution_prog, bool velocity_mode)
+{
+    canon_debug("synch state: feed_per_revolution = %f, velocity_mode = %d\n", feed_per_revolution, velocity_mode);
+    EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
+    spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(FROM_PROG_LEN(feed_per_revolution_prog));
+    spindlesyncMsg.velocity_mode = velocity_mode;
+    tag_and_send(spindlesyncMsg);
+}
+
 void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode)
 {
-    canon_debug("Setting sync, feed_per_revolution = %f, velocity_mode = %d\n", feed_per_revolution, velocity_mode);
     flush_segments();
     // KLUDGE often we pass these values in from internal state, redundant and bug-prone
     if (velocity_mode) {
@@ -1060,20 +1068,14 @@ void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode)
     } else {
         uuPerRev_pos = feed_per_revolution;
     }
-    EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
-    spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(FROM_PROG_LEN(feed_per_revolution));
-    spindlesyncMsg.velocity_mode = velocity_mode;
-	tag_and_send(spindlesyncMsg);
     synched = velocity_mode ? CANON_SYNC_VELOCITY : CANON_SYNC_POSITION;
+    send_speed_feed_synch_msg(feed_per_revolution, velocity_mode);
 }
 
 void STOP_SPEED_FEED_SYNCH()
 {
     flush_segments();
-    EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
-    spindlesyncMsg.feed_per_revolution = 0.0;
-    spindlesyncMsg.velocity_mode = false;
-	tag_and_send(spindlesyncMsg);
+    send_speed_feed_synch_msg(0, false);
     synched = CANON_SYNC_NONE;
 }
 
