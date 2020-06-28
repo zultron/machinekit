@@ -523,7 +523,6 @@ void SET_FEED_RATE(double rate)
 
     if(feed_mode) {
         START_SPEED_FEED_SYNCH(rate, 1);
-        uuPerRev_vel = rate;
     } else {
         /* convert from /min to /sec */
         rate /= 60.0;
