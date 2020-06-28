@@ -1076,6 +1076,10 @@ void STOP_SPEED_FEED_SYNCH()
 {
     flush_segments();
     send_speed_feed_synch_msg(0, false);
+    if (synched == CANON_SYNC_POSITION && feed_mode) {
+        // Need to restore units-per-rev feed mode since it was previously active
+        return START_SPEED_FEED_SYNCH(uuPerRev_vel, true);
+    }
     synched = CANON_SYNC_NONE;
 }
 
