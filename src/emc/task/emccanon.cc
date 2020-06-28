@@ -212,7 +212,7 @@ static inline double FROM_PROG_ANG(double deg)
     return deg / getProgramAngularUnits();
 }
 
-static int feed_mode = 0;
+static int feed_mode = 0; // 0 means IPM or inv time, 1 means IPM
 static CanonSyncLevel synched = CANON_SYNC_NONE;
 
 static inline UnitsTransform ConvertsCanonToUserUnits()
@@ -509,10 +509,11 @@ void SET_TRAVERSE_RATE(double rate)
 void SET_FEED_MODE(int mode) {
     flush_segments();
     feed_mode = mode;
-    if(feed_mode == 0)
-	STOP_SPEED_FEED_SYNCH();  // This sends an NML msg; don't do it twice
-    else
-	send_tag_msg();
+    if(feed_mode == 0) {
+        STOP_SPEED_FEED_SYNCH();  // stop all synch (v & p)
+    } else {
+        send_tag_msg();
+    }
 
     canon_debug("setting feed mode %d\n", mode);
 }
@@ -785,7 +786,7 @@ static int straight_traverse_internal(
 
     int old_feed_mode = feed_mode;
     if(feed_mode)
-        STOP_SPEED_FEED_SYNCH();
+        STOP_SPEED_FEED_SYNCH(); // stop velocity synch (and position, but it won't be active here if things are done right)
 
     tag_and_send(linearMoveMsg);
 

@@ -4498,7 +4498,7 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
           _("Spindle not turning in G33"));
     START_SPEED_FEED_SYNCH(block->k_number, 0);
             STRAIGHT_FEED(settings->get_toplevel_line_number(), end_x, end_y, end_z, AA_end, BB_end, CC_end, u_end, v_end, w_end);
-    STOP_SPEED_FEED_SYNCH();
+    STOP_SPEED_FEED_SYNCH(); // Stop position synch
     settings->current[X] = end_x;
     settings->current[Y] = end_y;
     settings->current[Z] = end_z;
@@ -4522,7 +4522,7 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
     }
     CHKS(tap_pitch <= 0.0, "Thread pitch must be greater than 0.0 for rigid tapping");
             RIGID_TAP(settings->get_toplevel_line_number(), end_x, end_y, end_z, spindle_retract_speed_scale, tap_pitch, retract_pitch);
-    STOP_SPEED_FEED_SYNCH();
+    STOP_SPEED_FEED_SYNCH(); // Stop position synch
     // after the RIGID_TAP cycle we'll be in the same spot
         }
         break;
@@ -4698,7 +4698,7 @@ threading_pass(setup_pointer settings, block_pointer block,
              target_z - zoff);
 
         // out
-        STOP_SPEED_FEED_SYNCH();
+        STOP_SPEED_FEED_SYNCH(); // Stop position synch
         traverse(settings->get_toplevel_line_number(),
                  boring? safe_x + depth - end_depth : safe_x - depth + end_depth,
                  start_y,
@@ -4739,7 +4739,7 @@ threading_pass(setup_pointer settings, block_pointer block,
             feed(settings->get_toplevel_line_number(), boring? safe_x + depth: safe_x - depth,
                  start_y, target_z - zoff); //over
         }
-        STOP_SPEED_FEED_SYNCH();
+        STOP_SPEED_FEED_SYNCH(); // Stop position synch
         traverse(settings->get_toplevel_line_number(), boring?
                      safe_x + depth - end_depth:
                      safe_x - depth + end_depth,
