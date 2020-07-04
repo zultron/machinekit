@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python
 # -*- coding: UTF-8 -*
 import os
 import zmq
