@@ -1444,6 +1444,8 @@ int hm2_register(hm2_lowlevel_io_t *llio, char *config_string) {
 
     hm2_force_write(hm2);
 
+    // don't overflow our target board, delay 1ms
+    rtapi_delay(1000 * 1000);
 
     //
     // read the TRAM one first time
