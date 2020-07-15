@@ -50,7 +50,7 @@ src/machinekitcfg.py-tmp
 scripts/machinekit.ini.tmpl
 
 # redis libs
-#lib/python/
+lib/python/
 lib/python/gmoccapy/
 lib/python/gscreen/
 lib/python/pncconf/
