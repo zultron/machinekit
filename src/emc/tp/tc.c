@@ -28,6 +28,8 @@
 //Debug output
 #include "tp_debug.h"
 #include "tp_enums.h"
+#include "tp_call_wrappers.h"
+
 
 double tcGetMaxVelFromLength(TC_STRUCT const * const tc)
 {
@@ -266,7 +268,7 @@ int tcGetStartpoint(TC_STRUCT const * const tc, PmVector * const pos)
             return TP_ERR_OK;
     }
 
-    return -1;
+    return TP_ERR_FAIL;
 }
 
 int tcGetEndpoint(TC_STRUCT const * const tc, PmVector * const out) {
@@ -405,6 +407,9 @@ int tcSetupState(TC_STRUCT * const tc, TP_STRUCT const * const tp)
 int tcUpdateCircleAccRatio(TC_STRUCT * tc, double v_max_path)
 {
     if (tc->motion_type == TC_CIRCULAR) {
+        if (tc->coords.circle.xyz_ratio <= 0.0) {
+            return TP_ERR_FAIL;
+        }
         double v_max3 = v_max_path * tc->coords.circle.xyz_ratio;
         PmCircleLimits limits = pmCircleActualMaxVel(&tc->coords.circle.xyz,
                              v_max3,
@@ -441,7 +446,7 @@ int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override)
     double maxvel_old = tc->maxvel_geom;
 #endif
 
-    tcUpdateCircleAccRatio(tc, tcGetPlanMaxTargetVel(tc, max_feed_override));
+    CHP(tcUpdateCircleAccRatio(tc, tcGetPlanMaxTargetVel(tc, max_feed_override)));
 
     if (tc->term_cond == TC_TERM_COND_PARABOLIC) {
         tcSetTermCond(tc, TC_TERM_COND_EXACT);

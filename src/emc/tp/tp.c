@@ -746,7 +746,7 @@ int tpInitBlendArcFromAdjacent(
 
     //NOTE: blend arc radius and everything else is finalized, so set this to 1.
     //In the future, radius may be adjustable.
-    tcFinalizeLength(blend_tc, emcmotConfig->maxFeedScale);
+    CHP(tcFinalizeLength(blend_tc, emcmotConfig->maxFeedScale));
 
     return TP_ERR_OK;
 }
@@ -1258,7 +1258,7 @@ tp_err_t tpFinalizeAndEnqueue(TP_STRUCT * const tp, TC_STRUCT * const tc)
     CHP(tpSetupSegmentBlend(tp, prev_tc, tc));
     // KLUDGE order is important here, the parabolic blend check has to
     // happen after all other steps that affect the terminal condition
-    tcFinalizeLength(prev_tc, emcmotConfig->maxFeedScale);
+    CHP(tcFinalizeLength(prev_tc, emcmotConfig->maxFeedScale));
 
     CHP(tpAddSegmentToQueue(tp, tc));
     //Run speed optimization (will abort safely if there are no tangent segments)

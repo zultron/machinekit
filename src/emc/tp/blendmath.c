@@ -24,14 +24,7 @@
 #include "math_util.h"
 #include "emcpose.h"
 
-// Inspired by interp
-#define CHP(callee__) \
-do { \
-    tp_err_t res = (callee__); \
-    if (res != TP_ERR_OK) { \
-        return res; \
-    } \
-} while (0)
+#include "tp_call_wrappers.h"
 
 static const double NEAR_INFINITY=1e300;
 
