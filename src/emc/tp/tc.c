@@ -405,7 +405,7 @@ int tcSetupState(TC_STRUCT * const tc, TP_STRUCT const * const tp)
 int tcUpdateCircleAccRatio(TC_STRUCT * tc, double v_max_path)
 {
     if (tc->motion_type == TC_CIRCULAR) {
-        double v_max3 = v_max_path * tc->coords.circle.xyz_ratio * v_max_path;
+        double v_max3 = v_max_path * tc->coords.circle.xyz_ratio;
         PmCircleLimits limits = pmCircleActualMaxVel(&tc->coords.circle.xyz,
                              v_max3,
                              tc->acc_normal_max * tcGetAccelScale(tc));
