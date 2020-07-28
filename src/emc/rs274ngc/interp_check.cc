@@ -275,73 +275,13 @@ reading. This function checks for additional logical errors in codes.
 int Interp::check_other_codes(block_pointer block)       //!< pointer to a block of RS274/NGC instructions
 {
   GCodes motion = block->motion_to_be;
+  const bool has_runtime_argspec = IS_USER_GCODE(motion) || has_user_mcode(&(_setup),block);
 
-  // bypass ALL checks, argspec takes care of that
-  if (IS_USER_GCODE(motion)) {
-      return INTERP_OK;
-  }
-  // bypass ALL checks, argspec takes care of that
-  if (has_user_mcode(&(_setup),block)) {
-      return INTERP_OK;
-    }
-  if (block->d_flag) {
-    CHKS(((block->g_modes[GM_CUTTER_COMP] != G_41) && (block->g_modes[GM_CUTTER_COMP] != G_42) &&
-        (block->g_modes[GM_CUTTER_COMP] != G_41_1) && (block->g_modes[GM_CUTTER_COMP] != G_42_1) &&
-    (block->g_modes[GM_SPINDLE_MODE] != G_96) && (block->g_modes[1] != G_76)),
-        _("D word with no G41, G41.1, G42, G42.1, G76, or G96 to use it"));
-  }
-
-  if (block->e_flag) {
-    CHKS(((motion != G_76) && (block->m_modes[M_MODE_IO] != 66) &&
-      (block->m_modes[M_MODE_IO] != 67) && (block->m_modes[M_MODE_IO] != 68)),
-       _("E word with no G76, M66, M67 or M68 to use it"));
-  }
-
-  if (block->h_flag) {
-    CHKS((block->g_modes[GM_TOOL_LENGTH_OFFSET] != G_43 && motion != G_76 && block->g_modes[GM_TOOL_LENGTH_OFFSET] != G_43_2),
-      _("H word with no G43 or G76 to use it"));
-  }
-
-  if (block->i_flag) {    /* could still be useless if yz_plane arc */
-    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_5) && (motion != G_5_1) &&
-          (motion != G_76) && (motion != G_87) && (motion != G_33_1) && (block->g_modes[GM_MODAL_0] != G_10)),
-        _("I word with no G2, G3, G5, G5.1, G10, G33.1, G76, or G87 to use it"));
-  }
-
-  if (block->j_flag) {
-      //Edited to allow P words even when they will be ignored. These are caught with the warnings below
-      const WordUsageStatus j_status = is_j_allowed(block->g_modes, block->motion_to_be);
-      switch (j_status)
-      {
-      case WORD_MEANING_CONFLICT:
-          ERS("J word has conflicting meanings in line");
-      case WORD_NOT_ALLOWED:
-          ERS("J word specified, but line has no G-code that uses it");
-      default:
-          break;
-      }
-  }
-
-  if (block->k_flag) {    /* could still be useless if xy_plane arc */
-    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_33) &&
-        (motion != G_33_1) && (motion != G_76) && (motion != G_87)),
-        _("K word with no G2, G3, G33, G33.1, G76, or G87 to use it"));
-  }
-
-  if (block->l_number != -1) {
-    CHKS((((motion < G_81) || (motion > G_89)) && (motion != G_76) &&
-         (motion != G_5_2) && (motion != G_73) &&
-         (block->g_modes[GM_MODAL_0] != G_10) &&
-         (block->g_modes[GM_CUTTER_COMP] != G_41) && (block->g_modes[GM_CUTTER_COMP] != G_41_1) &&
-         (block->g_modes[GM_CUTTER_COMP] != G_42) && (block->g_modes[GM_CUTTER_COMP] != G_42_1) &&
-     (block->m_modes[M_MODE_IO] != 66) &&
-	 (block->o_type != M_98)  // m98 repeat
-     ), NCE_L_WORD_WITH_NO_GCODES);
-  }
+  // For checks that understand runtime arg-specs
 
   if (block->p_flag) {
       //Edited to allow P words even when they will be ignored. These are caught with the warnings below
-      const WordUsageStatus p_status = is_p_allowed(block->g_modes, block->motion_to_be, block->m_modes, block->o_type);
+      const WordUsageStatus p_status = is_p_allowed(block->g_modes, block->motion_to_be, block->m_modes, block->o_type, has_runtime_argspec);
       switch (p_status)
       {
       case WORD_USAGE_OK:
@@ -369,7 +309,7 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   }
 
   if (block->q_number != -1.0) {
-      const WordUsageStatus q_status = is_q_allowed(block->g_modes, block->motion_to_be, block->m_modes);
+      const WordUsageStatus q_status = is_q_allowed(block->g_modes, block->motion_to_be, block->m_modes, has_runtime_argspec);
       switch (q_status)
       {
       case WORD_USAGE_OK:
@@ -384,7 +324,7 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
   }
 
   if (block->r_flag) {
-      const WordUsageStatus r_status = is_r_allowed(block->g_modes, block->motion_to_be, block->m_modes);
+      const WordUsageStatus r_status = is_r_allowed(block->g_modes, block->motion_to_be, block->m_modes, has_runtime_argspec);
       switch (r_status)
       {
       case WORD_USAGE_OK:
@@ -399,6 +339,67 @@ int Interp::check_other_codes(block_pointer block)       //!< pointer to a block
       CHKS((block->m_modes[M_MODE_SPINDLE] == 19) && ((block->r_number > 360.0) || (block->r_number < 0.0)),
            NCE_R_VALUE_OUT_OF_RANGE_M19);
   }
+
+  if (block->j_flag) {
+      //Edited to allow P words even when they will be ignored. These are caught with the warnings below
+      const WordUsageStatus j_status = is_j_allowed(block->g_modes, block->motion_to_be, has_runtime_argspec);
+      switch (j_status)
+      {
+      case WORD_MEANING_CONFLICT:
+          ERS("J word has conflicting meanings in line");
+      case WORD_NOT_ALLOWED:
+          ERS("J word specified, but line has no G-code that uses it");
+      default:
+          break;
+      }
+  }
+
+  if (has_runtime_argspec) {
+      // NOTE: remaining checks do not understand runtime arg-specs, so must be bypassed if there's any remapping
+      return INTERP_OK;
+  }
+
+  if (block->d_flag) {
+    CHKS(((block->g_modes[GM_CUTTER_COMP] != G_41) && (block->g_modes[GM_CUTTER_COMP] != G_42) &&
+        (block->g_modes[GM_CUTTER_COMP] != G_41_1) && (block->g_modes[GM_CUTTER_COMP] != G_42_1) &&
+    (block->g_modes[GM_SPINDLE_MODE] != G_96) && (block->g_modes[1] != G_76)),
+        _("D word with no G41, G41.1, G42, G42.1, G76, or G96 to use it"));
+  }
+
+  if (block->e_flag) {
+    CHKS(((motion != G_76) && (block->m_modes[M_MODE_IO] != 66) &&
+      (block->m_modes[M_MODE_IO] != 67) && (block->m_modes[M_MODE_IO] != 68)),
+       _("E word with no G76, M66, M67 or M68 to use it"));
+  }
+
+  if (block->h_flag) {
+    CHKS((block->g_modes[GM_TOOL_LENGTH_OFFSET] != G_43 && motion != G_76 && block->g_modes[GM_TOOL_LENGTH_OFFSET] != G_43_2),
+      _("H word with no G43 or G76 to use it"));
+  }
+
+  if (block->i_flag) {    /* could still be useless if yz_plane arc */
+    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_5) && (motion != G_5_1) &&
+          (motion != G_76) && (motion != G_87) && (motion != G_33_1) && (block->g_modes[GM_MODAL_0] != G_10)),
+        _("I word with no G2, G3, G5, G5.1, G10, G33.1, G76, or G87 to use it"));
+  }
+
+  if (block->k_flag) {    /* could still be useless if xy_plane arc */
+    CHKS(((motion != G_2) && (motion != G_3) && (motion != G_33) &&
+        (motion != G_33_1) && (motion != G_76) && (motion != G_87)),
+        _("K word with no G2, G3, G33, G33.1, G76, or G87 to use it"));
+  }
+
+  if (block->l_number != -1) {
+    CHKS((((motion < G_81) || (motion > G_89)) && (motion != G_76) &&
+         (motion != G_5_2) && (motion != G_73) &&
+         (block->g_modes[GM_MODAL_0] != G_10) &&
+         (block->g_modes[GM_CUTTER_COMP] != G_41) && (block->g_modes[GM_CUTTER_COMP] != G_41_1) &&
+         (block->g_modes[GM_CUTTER_COMP] != G_42) && (block->g_modes[GM_CUTTER_COMP] != G_42_1) &&
+     (block->m_modes[M_MODE_IO] != 66) &&
+	 (block->o_type != M_98)  // m98 repeat
+     ), NCE_L_WORD_WITH_NO_GCODES);
+  }
+
 
   if (!block->s_flag) {
     CHKS((block->g_modes[GM_SPINDLE_MODE] == G_96), NCE_S_WORD_MISSING_WITH_G96);

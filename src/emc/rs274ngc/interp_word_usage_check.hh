@@ -6,10 +6,10 @@
 
 enum WordUsageStatus
 {
-    WORD_NOT_ALLOWED = -2,
-    WORD_MEANING_CONFLICT = -1,
+    WORD_NOT_ALLOWED = -2, // A word is used in a G-code line with no applicable G / M codes
+    WORD_MEANING_CONFLICT = -1, // A line has multiple G / M codes that expect a given word, so the meaning is ambiguous
     WORD_USAGE_OK = 0,
-    WORD_IGNORED = 1,
+    WORD_IGNORED = 1, // Some G-codes accept words for compatibility but ignore them
 };
 
 enum JWordMeanings
@@ -66,14 +66,13 @@ enum RWordMeanings
     MAX_RWORD_MEANINGS
 };
 
-WordUsageStatus is_j_allowed(
-    std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_modes,
-    GCodes motion_to_be);
+WordUsageStatus is_j_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_modes,
+    GCodes motion_to_be, bool has_runtime_argspec);
 
-WordUsageStatus is_p_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes, int o_type);
+WordUsageStatus is_p_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes, int o_type, bool has_runtime_argspec);
 
-WordUsageStatus is_q_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes);
+WordUsageStatus is_q_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes, bool has_runtime_argspec);
 
-WordUsageStatus is_r_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes);
+WordUsageStatus is_r_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes, bool has_runtime_argspec);
 
 #endif // INTERP_WORD_USAGE_CHECK_HH

@@ -14,8 +14,13 @@ static const std::map<GCodes, int> j_word_map{
     {G_76, J_INITIAL_CUT_DEPTH},
 };
 
+/**
+ *
+ * Based on usages and check flags, determine if word usage is legal or not in the block.
+ * See WordUsageStatus enum declaration for the meaning of each possible result.
+ */
 template <typename T, size_t N>
-WordUsageStatus count_usages(std::array<T, N> const &active_usages, bool have_unused_word)
+WordUsageStatus check_word_usage(std::array<T, N> const &active_usages, bool have_unused_word, bool have_runtime_argspec)
 {
     int usage_count = std::count(active_usages.begin(),
                                 active_usages.end(),
@@ -23,10 +28,17 @@ WordUsageStatus count_usages(std::array<T, N> const &active_usages, bool have_un
     if (usage_count > 1)
     {
         return WORD_MEANING_CONFLICT;
-    } else if (usage_count == 1) {
-        return have_unused_word ? WORD_IGNORED : WORD_USAGE_OK;
+    } else {
+        if (usage_count == 1) {
+            if (have_unused_word) {
+                return WORD_IGNORED;
+            } else {
+                return WORD_USAGE_OK;
+            }
+        } else {
+            return have_runtime_argspec ? WORD_USAGE_OK : WORD_NOT_ALLOWED;
+        }
     }
-    return WORD_NOT_ALLOWED;
 }
 
 template <typename ArrayType>
@@ -40,7 +52,8 @@ bool find_motion_mode(GCodes mode, std::map<GCodes, int> const &usage_map, Array
 }
 
 WordUsageStatus is_j_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_modes,
-                             GCodes motion_to_be
+                             GCodes motion_to_be,
+                             bool has_runtime_argspec
                              )
 {
     std::array<bool, MAX_JWORD_MEANINGS> active_j{};
@@ -48,13 +61,14 @@ WordUsageStatus is_j_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_mo
     find_motion_mode(motion_to_be, j_word_map, active_j);
     find_motion_mode(g_modes[GM_MODAL_0], j_word_map, active_j);
 
-    return count_usages(active_j, false);
+    return check_word_usage(active_j, false, has_runtime_argspec);
 }
 
 WordUsageStatus is_p_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_modes,
                              GCodes motion_to_be,
                              std::array<int, M_MAX_MODAL_GROUPS> const &m_modes,
-                             int o_type
+                             int o_type,
+                             bool has_runtime_argspec
                              )
 {
     std::array<bool, MAX_PWORD_MEANINGS> active_p{};
@@ -146,13 +160,13 @@ WordUsageStatus is_p_allowed(std::array<GCodes, GM_MAX_MODAL_GROUPS> const &g_mo
     active_p[P_USER_MCODE] = m_modes[M_MODE_USER] > 0;
     active_p[P_SUBROUTINE_NUMBER] = o_type == M_98;
 
-    return count_usages(active_p, unused_p);
+    return check_word_usage(active_p, unused_p, has_runtime_argspec);
 }
 
 /**
  * Looks for meaning conflicts between Q words in a G-code line based on the active modes from a block.
  */
-WordUsageStatus is_q_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes)
+WordUsageStatus is_q_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes, bool has_runtime_argspec)
 {
     std::array<bool, MAX_QWORD_MEANINGS> active_q{};
     switch (motion_to_be)
@@ -200,10 +214,10 @@ WordUsageStatus is_q_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_m
     if (m_modes[M_MODE_SPINDLE] == 19) { active_q[Q_TIMEOUT] = true;}
     if (m_modes[M_MODE_USER] >= 100) { active_q[Q_USER] = true;}
 
-    return count_usages(active_q, false);
+    return check_word_usage(active_q, false, has_runtime_argspec);
 }
 
-WordUsageStatus is_r_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes)
+WordUsageStatus is_r_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_modes, GCodes motion_to_be, const std::array<int, M_MAX_MODAL_GROUPS> & m_modes, bool has_runtime_argspec)
 {
     std::array<bool, MAX_RWORD_MEANINGS> active_r{};
     switch (motion_to_be)
@@ -241,5 +255,5 @@ WordUsageStatus is_r_allowed(const std::array<GCodes, GM_MAX_MODAL_GROUPS> & g_m
 
     if (m_modes[M_MODE_SPINDLE] == 19) { active_r[R_ORIENT_POSITION] = true;}
 
-    return count_usages(active_r, false);
+    return check_word_usage(active_r, false, has_runtime_argspec);
 }
