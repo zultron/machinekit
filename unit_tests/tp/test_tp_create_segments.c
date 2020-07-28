@@ -34,6 +34,8 @@ GREATEST_MAIN_DEFS();
 #include "mock_rtapi.inc"
 
 
+#define TOLERANCE_LIMIT_FUZZ 1e-7
+
 static const EmcPose pt0 = {};
 static const IndexRotaryAxis no_index_rotary = INDEX_NONE;
 
@@ -293,6 +295,201 @@ TEST test_create_two_blended_lines_all() {
 
     ASSERT_IN_RANGE(0.5, blend_tc1->coords.arc.radius, TP_POS_EPSILON);
     ASSERT_IN_RANGE(0.5, blend_tc2->coords.arc.radius, TP_POS_EPSILON);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+TEST test_create_two_perp_blended_lines_rotary_tolerance() {
+    CREATE_MOCK_TP();
+
+    const double pu = 1.0;
+    // Pure B axis move
+    EmcPose pt1 = {{0,0,0},0,pu,0,0,0,0};
+    tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.01);
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(1));
+    ASSERT_EQ(1, tcqLen(&tp->queue));
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
+
+    // A move perpendicular to the original in the A axis, 1 planning unit long
+    EmcPose pt2 = {{0,0,0},pu,pu,0,0,0,0};
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(2));
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
+    ASSERT_EQ(4, tcqLen(&tp->queue));
+
+    // check blend properties here
+    TC_STRUCT const *prev_tc = tcqItem(&tp->queue, 0);
+    ASSERT(prev_tc);
+    TC_STRUCT const *blend_tc1 = tcqItem(&tp->queue, 1);
+    ASSERT(blend_tc1);
+    TC_STRUCT const *blend_tc2 = tcqItem(&tp->queue, 2);
+    ASSERT(blend_tc2);
+    TC_STRUCT const *this_tc = tcqItem(&tp->queue, 3);
+    ASSERT(this_tc);
+    ASSERT_EQ(TC_SPHERICAL, blend_tc1->motion_type);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc1->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc2->term_cond);
+
+    const double exp_tolerance = 0.01;
+    const double exp_radius = exp_tolerance / (sqrt(2) - 1);
+    ASSERT_IN_RANGE(exp_radius, blend_tc1->coords.arc.radius, TP_POS_EPSILON);
+    ASSERT_IN_RANGE(exp_radius, blend_tc2->coords.arc.radius, TP_POS_EPSILON);
+
+    PmVector mid;
+    tcGetEndpoint(blend_tc1, &mid);
+
+    PmVector intersect;
+    emcPoseToPmVector(&pt1, &intersect);
+    double d = VecVecDisp(&mid, &intersect);
+    ASSERT(exp_tolerance >= d - TOLERANCE_LIMIT_FUZZ);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+TEST test_create_two_perp_blended_lines_linear_tolerance() {
+    CREATE_MOCK_TP();
+
+    EmcPose pt1 = {{1,0,0},0,0,0,0,0,0};
+    tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.01);
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(1));
+    ASSERT_EQ(1, tcqLen(&tp->queue));
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
+
+    // A move perpendicular to the original in the A axis, 1 planning unit long
+    EmcPose pt2 = {{1,0,1},0,0,0,0,0,0};
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(2));
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
+    ASSERT_EQ(4, tcqLen(&tp->queue));
+
+    // check blend properties here
+    TC_STRUCT const *prev_tc = tcqItem(&tp->queue, 0);
+    ASSERT(prev_tc);
+    TC_STRUCT const *blend_tc1 = tcqItem(&tp->queue, 1);
+    ASSERT(blend_tc1);
+    TC_STRUCT const *blend_tc2 = tcqItem(&tp->queue, 2);
+    ASSERT(blend_tc2);
+    TC_STRUCT const *this_tc = tcqItem(&tp->queue, 3);
+    ASSERT(this_tc);
+    ASSERT_EQ(TC_SPHERICAL, blend_tc1->motion_type);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc1->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc2->term_cond);
+
+    const double exp_tolerance = 0.01;
+    const double exp_radius = exp_tolerance / (sqrt(2) - 1);
+    ASSERT_IN_RANGE(exp_radius, blend_tc1->coords.arc.radius, TP_POS_EPSILON);
+    ASSERT_IN_RANGE(exp_radius, blend_tc2->coords.arc.radius, TP_POS_EPSILON);
+
+    PmVector mid;
+    tcGetEndpoint(blend_tc1, &mid);
+
+    PmVector intersect;
+    emcPoseToPmVector(&pt1, &intersect);
+    double d = VecVecDisp(&mid, &intersect);
+    ASSERT(exp_tolerance+TP_POS_EPSILON >= d);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+TEST test_create_two_perp_blended_lines_mixed_tolerance() {
+    CREATE_MOCK_TP();
+
+    const double pu = 1.0;
+    EmcPose pt1 = {{1,0,0},0,0,0,0,0,0};
+    tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.01);
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(1));
+    ASSERT_EQ(1, tcqLen(&tp->queue));
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
+
+    // A move perpendicular to the original in the A axis, 1 planning unit long
+    EmcPose pt2 = {{1,0,0},pu,0,0,0,0,0};
+    tpAddLine(tp, pt2, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(2));
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
+    ASSERT_EQ(4, tcqLen(&tp->queue));
+
+    // check blend properties here
+    TC_STRUCT const *prev_tc = tcqItem(&tp->queue, 0);
+    ASSERT(prev_tc);
+    TC_STRUCT const *blend_tc1 = tcqItem(&tp->queue, 1);
+    ASSERT(blend_tc1);
+    TC_STRUCT const *blend_tc2 = tcqItem(&tp->queue, 2);
+    ASSERT(blend_tc2);
+    TC_STRUCT const *this_tc = tcqItem(&tp->queue, 3);
+    ASSERT(this_tc);
+    ASSERT_EQ(TC_SPHERICAL, blend_tc1->motion_type);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc1->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc2->term_cond);
+
+    const double exp_tolerance = 0.01 + TOLERANCE_LIMIT_FUZZ;
+    PmVector mid;
+    tcGetEndpoint(blend_tc1, &mid);
+
+    PmVector intersect;
+    emcPoseToPmVector(&pt1, &intersect);
+
+    double d = VecVecDisp(&mid, &intersect);
+    ASSERT(exp_tolerance >= d);
+
+    deleteMockTP(&tp);
+    PASS();
+}
+
+TEST test_create_two_line_arc_rotary_mixed_tolerance() {
+    CREATE_MOCK_TP();
+
+    const double pu = 10.0;
+    EmcPose pt1 = {{1,0,0},0,0,0,0,0,0};
+    tpSetTermCond(tp, TC_TERM_COND_PARABOLIC, 0.01);
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddLine(tp, pt1, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, no_index_rotary, line_tag(1));
+    ASSERT_EQ(1, tcqLen(&tp->queue));
+    ASSERT_EMCPOSE_IN_RANGE(pt1, tpGetGoalPos(tp), TP_POS_EPSILON);
+
+    // A move perpendicular to the original in the A axis, 1 planning unit long
+    EmcPose pt2 = {{3,0,0},pu,0,0,0,0,0};
+
+    PmCartesian center = {2,0,0};
+    PmCartesian normal = {0,0,-1};
+
+    // Ask for impossibly high velocity to force the arc to maximum size
+    tpAddCircle(tp, pt2, center, normal, 0, EMC_MOTION_TYPE_FEED, 10.0, 10.0, 20.0, 0, 0, 0, line_tag(2));
+    ASSERT_EMCPOSE_IN_RANGE(pt2, tpGetGoalPos(tp), TP_POS_EPSILON);
+    ASSERT_EQ(4, tcqLen(&tp->queue));
+
+    // check blend properties here
+    TC_STRUCT const *prev_tc = tcqItem(&tp->queue, 0);
+    ASSERT(prev_tc);
+    TC_STRUCT const *blend_tc1 = tcqItem(&tp->queue, 1);
+    ASSERT(blend_tc1);
+    TC_STRUCT const *blend_tc2 = tcqItem(&tp->queue, 2);
+    ASSERT(blend_tc2);
+    TC_STRUCT const *this_tc = tcqItem(&tp->queue, 3);
+    ASSERT(this_tc);
+    ASSERT_EQ(TC_SPHERICAL, blend_tc1->motion_type);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, prev_tc->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc1->term_cond);
+    ASSERT_EQ(TC_TERM_COND_TANGENT, blend_tc2->term_cond);
+
+    const double exp_tolerance = 0.01 + TOLERANCE_LIMIT_FUZZ;
+    PmVector mid;
+    tcGetEndpoint(blend_tc1, &mid);
+
+    PmVector intersect;
+    emcPoseToPmVector(&pt1, &intersect);
+
+    double d = VecVecDisp(&mid, &intersect);
+    ASSERT(exp_tolerance >= d);
 
     deleteMockTP(&tp);
     PASS();
@@ -1119,6 +1316,10 @@ int main(int argc, char **argv) {
     RUN_TEST(test_create_lines_with_indexable_rotary);
     RUN_TEST(test_create_two_blended_lines_rotary);
     RUN_TEST(test_create_two_blended_lines_all);
+    RUN_TEST(test_create_two_perp_blended_lines_rotary_tolerance);
+    RUN_TEST(test_create_two_perp_blended_lines_linear_tolerance);
+    RUN_TEST(test_create_two_perp_blended_lines_mixed_tolerance);
+    RUN_TEST(test_create_two_line_arc_rotary_mixed_tolerance);
     RUN_TEST(test_create_tangent_arcs);
     RUN_TEST(test_convex_arcs_lineblend);
     RUN_TEST(test_line_arc_in_plane);
