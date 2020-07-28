@@ -1019,7 +1019,7 @@ void SET_NAIVECAM_TOLERANCE(double tolerance)
 {
     const double new_tol_mm = tolerance < 0.0 ? FROM_EXT_LEN(traj_default_naivecam_tolerance) : FROM_PROG_LEN(tolerance);
     if (canonNaivecamTolerance != new_tol_mm) {
-        fprintf(stderr,"Setting naivecam tolerance to %f mm\n", canonNaivecamTolerance);
+        fprintf(stderr,"Setting naivecam tolerance to %f mm\n", new_tol_mm);
     }
     canonNaivecamTolerance = new_tol_mm;
 }
