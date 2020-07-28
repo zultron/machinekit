@@ -172,7 +172,7 @@ int tcGetTangentUnitVector(TC_STRUCT const * const tc, double progress, PmVector
         }
     }
     rtapi_print_msg(RTAPI_MSG_ERR, "Invalid motion type %d!\n",tc->motion_type);
-    return -1;
+    return TP_ERR_FAIL;
 }
 
 double tcGetVLimit(TC_STRUCT const * const tc, double v_target, double v_limit_linear, double v_limit_angular)
@@ -406,20 +406,20 @@ int tcSetupState(TC_STRUCT * const tc, TP_STRUCT const * const tp)
 
 int tcUpdateCircleAccRatio(TC_STRUCT * tc, double v_max_path)
 {
-    if (tc->motion_type == TC_CIRCULAR) {
-        if (tc->coords.circle.xyz_ratio <= 0.0) {
-            return TP_ERR_FAIL;
-        }
-        double v_max3 = v_max_path * tc->coords.circle.xyz_ratio;
-        PmCircleLimits limits = pmCircleActualMaxVel(&tc->coords.circle.xyz,
-                             v_max3,
-                             tc->acc_normal_max * tcGetAccelScale(tc));
-        tc->maxvel_geom = limits.v_max / tc->coords.circle.xyz_ratio;
-        tc->acc_ratio_tan = limits.acc_ratio;
-        return 0;
+    if (tc->motion_type != TC_CIRCULAR) {
+        return TP_ERR_OK;
     }
-    // TODO handle blend arc here too?
-    return 1; //nothing to do, but not an error
+    if (tc->coords.circle.xyz_ratio <= 0.0) {
+        return TP_ERR_FAIL;
+    }
+
+    double v_max3 = v_max_path * tc->coords.circle.xyz_ratio;
+    PmCircleLimits limits = pmCircleActualMaxVel(&tc->coords.circle.xyz,
+                                                 v_max3,
+                                                 tc->acc_normal_max * tcGetAccelScale(tc));
+    tc->maxvel_geom = limits.v_max / tc->coords.circle.xyz_ratio;
+    tc->acc_ratio_tan = limits.acc_ratio;
+    return TP_ERR_OK;
 }
 
 /**
@@ -433,13 +433,13 @@ int tcFinalizeLength(TC_STRUCT * const tc, double max_feed_override)
 {
     //Apply velocity corrections
     if (!tc) {
-        return TP_ERR_FAIL;
+        return TP_ERR_OK;
     }
 
     tp_debug_json5_log_start(tcFinalizeLength);
     if (tc->finalized) {
         tp_debug_json5_log_end("tc %d already finalized", tc->id);
-        return TP_ERR_NO_ACTION;
+        return TP_ERR_OK;
     }
 
 #ifdef TP_DEBUG

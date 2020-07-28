@@ -26,6 +26,7 @@
 #include "string.h"
 #include "tp_priv.h"
 #include "motion_shared.h"
+#include "tp_call_wrappers.h"
 
 static const double RIGIDTAP_MAX_OVERSHOOT_REVS = 10.0;
 
@@ -51,18 +52,6 @@ static const bool _tc_debug = true;
 #else
 static const bool _tc_debug = false;
 #endif
-
-#define CH_ERR(expect__, mycall__) \
-do {\
-    int expt = expect__; \
-    int res = mycall__; \
-    if (expt != res) { \
-        tp_debug_print("%s failed with %d (expect %d) at %s:%d\n", #mycall__, res, expt, __FUNCTION__, __LINE__); \
-        return res; \
-    } \
-} while (0)
-
-#define CHP(mycall__) CH_ERR(TP_ERR_OK, mycall__)
 
 // NOTE: turned off this feature, which causes blends between rapids to
 // use the feed override instead of the rapid override

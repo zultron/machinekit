@@ -3,13 +3,17 @@
 
 #include "tp_enums.h"
 
-// WARNING: assumes that positive or zero return codes are not fatal errors, and will continue execution locally
-#define CHP(callee__) \
-do { \
-    tp_err_t res = (callee__); \
-    if (res < TP_ERR_OK) { \
+#define CH_ERR(expect__, mycall__) \
+do {\
+    int expt = expect__; \
+    int res = mycall__; \
+    if (expt != res) { \
+        tp_debug_print("%s failed with %d (expect %d) at %s:%d\n", #mycall__, res, expt, __FUNCTION__, __LINE__); \
         return res; \
     } \
 } while (0)
+
+#define CHP(mycall__) CH_ERR(TP_ERR_OK, mycall__)
+
 
 #endif // TP_CALL_WRAPPERS_H
