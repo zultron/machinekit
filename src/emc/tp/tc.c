@@ -409,7 +409,7 @@ int tcUpdateCircleAccRatio(TC_STRUCT * tc, double v_max_path)
         PmCircleLimits limits = pmCircleActualMaxVel(&tc->coords.circle.xyz,
                              v_max3,
                              tc->acc_normal_max * tcGetAccelScale(tc));
-        tc->maxvel_geom = limits.v_max;
+        tc->maxvel_geom = limits.v_max / tc->coords.circle.xyz_ratio;
         tc->acc_ratio_tan = limits.acc_ratio;
         return 0;
     }
