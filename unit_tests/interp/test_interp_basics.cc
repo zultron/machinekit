@@ -940,7 +940,7 @@ SCENARIO("test downcasing")
         char line_out[sizeof(perfect_nocomment_line)]={};
 
         THEN("Output should be exactly the same") {
-            printf("exp: %s\ngot: %s", perfect_nocomment_line, perfect_nocomment_line);
+            printf("exp: %s\ngot: %s\n", perfect_nocomment_line, perfect_nocomment_line);
             CHECK(!test_interp.close_and_downcase(line_out, perfect_nocomment_line, &length));
             CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(perfect_nocomment_line)));
         }
@@ -951,7 +951,7 @@ SCENARIO("test downcasing")
         char line_out[sizeof(line_in)]={};
 
         THEN("Output should be exactly the same as the perfect version") {
-            printf("exp: %s\ngot: %s", perfect_nocomment_line, line_in);
+            printf("exp: %s\ngot: %s\n", perfect_nocomment_line, line_in);
             CHECK(!test_interp.close_and_downcase(line_out, line_in, &length));
             CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(perfect_nocomment_line)));
         }
@@ -974,7 +974,7 @@ SCENARIO("test downcasing")
 
         THEN("Output should be exactly the same as the perfect version") {
             CHECK(!test_interp.close_and_downcase(line_out, line_in, &length));
-            printf("exp: %s\ngot: %s", perfect_nocomment_line, line_out);
+            printf("exp: %s\ninput: %s\n", perfect_nocomment_line, line_out);
             CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(expected_line)));
         }
     }
@@ -985,7 +985,7 @@ SCENARIO("test downcasing")
         char line_out[sizeof(line_in)]={};
 
         THEN("Output should be exactly the same as the perfect version") {
-            printf("exp: %s\ngot: %s", expected_line, line_in);
+            printf("exp: %s\ninput: %s\n", expected_line, line_in);
             CHECK(!test_interp.close_and_downcase(line_out, line_in, &length));
             CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(expected_line)));
         }
@@ -996,7 +996,7 @@ SCENARIO("test downcasing")
         char line_out[sizeof(line_in)]={};
 
         THEN("Output should be exactly the same as the perfect version") {
-            printf("exp: %s\ngot: %s", expected_line, line_in);
+            printf("exp: %s\ninput: %s\n", expected_line, line_in);
             CHECK(!test_interp.close_and_downcase(line_out, line_in, &length));
             CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(expected_line)));
         }
@@ -1008,7 +1008,7 @@ SCENARIO("test downcasing")
         char line_out[sizeof(line_in)]={};
 
         THEN("Output should only downcase letters, not other symbols nearby") {
-            printf("exp: %s\ngot: %s", expected_line, line_in);
+            printf("exp: %s\ninput: %s\n", line_exp, line_in);
             CHECK(!test_interp.close_and_downcase(line_out, line_in, &length));
             CHECK_THAT(std::string(line_out), Catch::Matchers::Equals(std::string(line_exp)));
         }
