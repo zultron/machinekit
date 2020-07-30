@@ -1093,6 +1093,7 @@ static int do_parse_loop(
     // KLUDGE avoid start line handling unless it's explicitly a non-default option (also reduces log noise)
     auto init_mode = start_settings.start_line > 1 ? ParseExecMode::SEEK : ParseExecMode::RUN;
     set_exec_mode(init_mode);
+    restore_machine_state_before_preview_synch(run_initial_state);
 
     while(!interp_error) {
         gettimeofday(&t1, nullptr);
