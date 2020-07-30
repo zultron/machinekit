@@ -323,7 +323,7 @@ class GremlinDraw(glnav.GlNavBase):
             gluPerspective(self.fovy, float(w) / float(h), self.near, self.far + self.distance)
             self.gl_look_at_z(self.distance)
         else:
-            horiz_clip = math.sqrt(max(self.distance, 0.1)) / 2.0
+            horiz_clip = math.sqrt(self.distance) / 2.0
             vert_clip = horiz_clip * h / w
             near_clip = -1000
             far_clip = 1000
