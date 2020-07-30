@@ -699,8 +699,8 @@ class GremlinDraw(glnav.GlNavBase):
                 x1, y1 = p0[0] + delta[0]*t1, p0[1] + delta[1]*t1
 
 
-                glVertex3f(*inverse_permutation((x0, y0, grid_plane_offset or lim_min[2])))
-                glVertex3f(*inverse_permutation((x1, y1, grid_plane_offset or lim_min[2])))
+                glVertex3f(*inverse_permutation((x0, y0, grid_plane_offset)))
+                glVertex3f(*inverse_permutation((x1, y1, grid_plane_offset)))
 
     def draw_grid_permuted(self, rotation, permutation, inverse_permutation, draw_at_top=False):
         grid_size = self.get_grid_size()
@@ -749,7 +749,7 @@ class GremlinDraw(glnav.GlNavBase):
 
         glLineWidth(1)
         with gl_begin(GL_QUADS):
-            gpo = grid_plane_offset or lim_min[2]
+            gpo = grid_plane_offset
             defuzz = 0.00001
             gpo_upper = gpo + defuzz
             gpo_lower = gpo - defuzz
