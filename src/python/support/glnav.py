@@ -614,14 +614,13 @@ class GlNavBase(GlUserView):
         self.reset_view(center=mid)
         self.glRotateUserViewPolar(mid, longitude=270, latitude=0)
 
+
     @with_redraw
-    def set_view_p(self):
+    def reset_iso_view_zoom(self):
         mid, sizes, scale = self.extents_info()
         size = (sizes[0] ** 2 + sizes[1] ** 2 + sizes[2] ** 2) ** .5
         if size > 1e99:
             size = 5. # in case there are no moves in the preview
-
-        self.restore_projection()
 
         if self.perspective_view:
             w = self.winfo_width()
@@ -631,6 +630,13 @@ class GlNavBase(GlUserView):
             self.set_eyepoint((size * 1.1 + 1.0) / 2 / math.sin(fov * math.pi / 180 / 2))
         else:
             self.set_eyepoint_from_extents(size, view_scale=scale)
+        return mid
+
+
+    @with_redraw
+    def set_view_p(self):
+        self.restore_projection()
+        mid = self.reset_iso_view_zoom()
 
         self.reset_view(center=mid)
         self.glRotateUserViewPolar(mid, longitude=-25, latitude=-60)
