@@ -199,6 +199,7 @@ int read_updatev2(int fd) {
             break;
 
         case KEY_DOT:
+        case KEY_COMMA:
             input_buffer[input_index++] = '.';
             break;
 
