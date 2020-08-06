@@ -338,7 +338,12 @@ void SET_G5X_TRANSFORM(int origin,
                        double u, double v, double w,
                        double xy_rotation_deg)
 {
-    machine.transform_uu.g5xOffset = RotateShiftTransform(convertsProgToUser().forward({x, y, z, a, b, c, u, v, w}), xy_rotation_deg);
+
+    auto new_g5x = RotateShiftTransform(convertsProgToUser().forward({x, y, z, a, b, c, u, v, w}), xy_rotation_deg);
+    auto updated_pos = machine.transform_uu.swap_g5x_offset(machine.get_current_pos_local(), new_g5x);
+    _pos_prog = convertsUserToProg().forward(updated_pos);
+    machine.set_current_pos(_pos_prog);
+
     maybe_new_line();
     if(interp_error) return;
     PyObject *result_offset =
@@ -1545,6 +1550,16 @@ void PreviewMachine::updateExtents(PositionArray machine_goal_pos_uu)
     min_inplace(extents_machine.min, p1_machine);
 }
 
+const PositionArray PreviewMachine::get_current_pos_local() const
+{
+    return transform_uu.inverse_local_from_tool(get_current_pos());
+}
+
+const PositionArray PreviewMachine::get_current_pos_prog() const
+{
+    return convertsUserToProg().forward(get_current_pos_local());
+}
+
 PositionArray PreviewMachine::to_preview_coords(const PositionArray & local_pos_prog)
 {
     return transform_uu.forward_local_to_tool(convertsProgToUser().forward(local_pos_prog));
@@ -1559,7 +1574,7 @@ void PreviewMachine::begin_feed()
     if (first_move) {
         first_move = false;
         // Initial position is now part of a feed move, so include it in the extents calculation
-        updateExtents(machine.get_current_pos());
+        updateExtents(get_current_pos());
     }
 }
 

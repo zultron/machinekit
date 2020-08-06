@@ -27,6 +27,8 @@ public:
     LocalToMachineTransform transform_uu; //KLUDGE easier to just poke this directly
 
     PositionArray const &get_current_pos() const {return machine_pos_uu;}
+    const PositionArray get_current_pos_local() const;
+    const PositionArray get_current_pos_prog() const;
     PositionArray to_preview_coords(PositionArray const &local_pos_prog);
     void set_current_pos(PositionArray const &pos_local_prog);
 
