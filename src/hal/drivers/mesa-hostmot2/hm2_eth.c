@@ -1006,6 +1006,15 @@ static int hm2_eth_probe(hm2_eth_t *board) {
         board->llio.ioport_connector_name[4] = "P5";
         board->llio.fpga_part_number = "XC6SLX9";
         board->llio.num_leds = 0;
+    } else if (strncmp(board_name, "stmc", 4) == 0) {
+        strncpy(llio_name, board_name, 4);
+
+        board->llio.num_ioport_connectors = 2;
+        board->llio.pins_per_connector = 32;
+        board->llio.ioport_connector_name[0] = "P2";
+        board->llio.ioport_connector_name[1] = "P1";
+        board->llio.fpga_part_number = "stm32f407";
+        board->llio.num_leds = 0;
     } else {
         LL_PRINT("Unrecognized ethernet board found: %.16s -- port names will be wrong\n", board_name);
         strncpy(llio_name, board_name, 4);
