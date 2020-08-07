@@ -104,6 +104,7 @@ struct LocalToMachineTransform : public TransformBase
 
     PositionArray swap_tool_offset(PositionArray const &current_local_pos, ShiftTransform const &new_tool_offset);
     PositionArray swap_g5x_offset(PositionArray const &current_local_pos, RotateShiftTransform const &new_g5x_offset);
+    PositionArray swap_g92_offset(PositionArray const &current_local_pos, ShiftTransform const &new_g92_offset);
 
     PositionArray add_tool_offset(PositionArray const &current_local_pos, ShiftTransform const &new_tool_offset);
 

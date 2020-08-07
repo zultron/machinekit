@@ -1094,17 +1094,17 @@ int Interp::convert_axis_offsets(int g_code,     //!< g_code being executed (mus
        block->axis_numbers[C], 'C');
 
   if ((g_code == G_52) || (g_code == G_92)) {
+
+    PositionArray new_axis_offset;
     if (g_code == G_52) {
       // Command represents new offsets, copy them in directly, and apply the difference to the current position
-      PositionArray cmd_axis_values = getAxisWordsFromBlock(block, settings->transform.g92Offset.tf);
-      settings->current += (settings->transform.g92Offset.tf - cmd_axis_values);
-      settings->transform.g92Offset.tf = cmd_axis_values;
+      new_axis_offset = getAxisWordsFromBlock(block, settings->transform.g92Offset.tf);
     } else {
       // Command represents new desired position directly
       PositionArray cmd_position_local = getAxisWordsFromBlock(block, settings->current);
-      settings->transform.g92Offset.tf += (settings->current  - cmd_position_local);
-      settings->current = cmd_position_local;
+      new_axis_offset = settings->transform.g92Offset.tf + (settings->current  - cmd_position_local);
     }
+    settings->current = settings->transform.swap_g92_offset(settings->current, ShiftTransform(new_axis_offset));
 
     storeG92OffsetValues(settings->transform.g92Offset, settings);
     storeG92Applied(true, settings);

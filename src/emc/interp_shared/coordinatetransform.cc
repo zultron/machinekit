@@ -254,6 +254,16 @@ PositionArray LocalToMachineTransform::swap_g5x_offset(const PositionArray & cur
     return inverse_local_from_tool(tool_pos);
 }
 
+PositionArray LocalToMachineTransform::swap_g92_offset(const PositionArray & current_local_pos, const ShiftTransform & new_g92_offset)
+{
+    // Go forward to work coordinates (i.e. unapply the current G92 offset)
+    PositionArray work_pos = g92Offset.forward(current_local_pos);
+    // Swap out the g92 offset
+    g92Offset = new_g92_offset;
+    // Apply inverse transform to get back to local position resulting from the new g92 offset
+    return g92Offset.inverse(work_pos);
+}
+
 
 /**
  * Adds the new tool offset to the active offset, and returns an updated local position.

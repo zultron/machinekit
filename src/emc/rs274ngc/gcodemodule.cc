@@ -338,14 +338,15 @@ void SET_G5X_TRANSFORM(int origin,
                        double u, double v, double w,
                        double xy_rotation_deg)
 {
-
-    auto new_g5x = RotateShiftTransform(convertsProgToUser().forward({x, y, z, a, b, c, u, v, w}), xy_rotation_deg);
-    auto updated_pos = machine.transform_uu.swap_g5x_offset(machine.get_current_pos_local(), new_g5x);
-    _pos_prog = convertsUserToProg().forward(updated_pos);
-    machine.set_current_pos(_pos_prog);
-
     maybe_new_line();
     if(interp_error) return;
+
+    // Handshake to update cached positions for preview machine
+    auto new_g5x = RotateShiftTransform(convertsProgToUser().forward({x, y, z, a, b, c, u, v, w}), xy_rotation_deg);
+    auto new_pos_local = machine.transform_uu.swap_g5x_offset(machine.get_current_pos_local(), new_g5x);
+    _pos_prog = convertsUserToProg().forward(new_pos_local);
+    machine.set_current_pos(_pos_prog);
+
     PyObject *result_offset =
         callmethod(
             callback,
@@ -364,23 +365,28 @@ void SET_G92_OFFSET(bool applied, double x, double y, double z,
     maybe_new_line();
     if(interp_error) return;
 
-    auto const &g92 = machine.transform_uu.g92Offset = ShiftTransform{convertsProgToUser().forward({x,y,z,a,b,c,u,v,w})};
+    // Handshake to update cached positions for preview machine
+    auto const g92_uu = ShiftTransform{convertsProgToUser().forward({x,y,z,a,b,c,u,v,w})};
+    auto new_pos_local = machine.transform_uu.swap_g92_offset(machine.get_current_pos_local(), g92_uu);
+    _pos_prog = convertsUserToProg().forward(new_pos_local);
+    machine.set_current_pos(_pos_prog);
+
     cached_g92_uu.applied = applied;
     if (applied) {
-        cached_g92_uu.offset = g92;
+        cached_g92_uu.offset = g92_uu;
     }
 
     PyObject *result =
         callmethod(callback, "set_g92_offset", "fffffffff",
-                   g92[X],
-                   g92[Y],
-                   g92[Z],
-                   g92[A],
-                   g92[B],
-                   g92[C],
-                   g92[U],
-                   g92[V],
-                   g92[W]);
+                   g92_uu[X],
+                   g92_uu[Y],
+                   g92_uu[Z],
+                   g92_uu[A],
+                   g92_uu[B],
+                   g92_uu[C],
+                   g92_uu[U],
+                   g92_uu[V],
+                   g92_uu[W]);
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
 }
