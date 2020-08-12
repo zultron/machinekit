@@ -52,7 +52,9 @@ struct GCodeContextStack
     std::vector<GCodeContext> context_lines;
     int location_in_line; // First character of error
     std::string cached_py_remap_name; // Just for internal use
+    std::string replacement_local_linetext;
     bool pop();
+    void replace_local_linetext(const char *replacement_linetext);
     void reset();
 };
 

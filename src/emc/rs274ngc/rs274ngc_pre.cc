@@ -211,9 +211,15 @@ bool GCodeContextStack::pop() {
     return true;
 }
 
+void GCodeContextStack::replace_local_linetext(const char * replacement_linetext)
+{
+    replacement_local_linetext = replacement_linetext ?: "";
+}
+
 void GCodeContextStack::reset()
 {
     context_lines.clear();
+    replacement_local_linetext.clear();
 }
 
 extern struct _inittab builtin_modules[];
@@ -2105,6 +2111,11 @@ int Interp::add_error_call_context(CommandSource cmd_src)
   context_msg << CONTEXT_MARKER << err_msg;
 
   push_gcode_context(&_setup, "");
+
+  // If the error handler specified a replacement for the local linetext (at the error site), replace it here
+  if (!gcode_context_stack.replacement_local_linetext.empty()) {
+      gcode_context_stack.context_lines.back().line_text = gcode_context_stack.replacement_local_linetext;
+  }
 
   GCodeContext &root = gcode_context_stack.context_lines.front();
   if (cmd_src != CommandSource::PROGRAM) {
