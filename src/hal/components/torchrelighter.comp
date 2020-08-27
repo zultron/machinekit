@@ -18,6 +18,10 @@ license "GPL";
 ;;
 #include "rtapi_math.h"
 
+void error_msg(char *msg) {
+    rtapi_print_msg(RTAPI_MSG_ERR, "Plasma source error: %s\n", msg);
+}
+
 enum torch_states {
     DISABLED,
     OFF,
@@ -76,6 +80,7 @@ FUNCTION(_) {
             //Transitions out of ON
             if(torch_in && !arcok_in) {
                 torch_state = COOLDOWN;
+                error_msg("Source reports lost arc - will try relighting");
             } else if (!torch_in) {
                 torch_state = OFF;
             }
@@ -105,6 +110,8 @@ FUNCTION(_) {
             } else if(torch_in && elapsed_timer > cooldown) {
                 elapsed_timer = 0;
                 torch_state = COOLDOWN;
+                error_msg("Torch lighting failed - arc-ok signal stayed false.");
+
             } else if (!torch_in) {
                 torch_state = OFF;
             }
