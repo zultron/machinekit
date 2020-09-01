@@ -285,8 +285,7 @@ int Canterp::execute(const char *line, CommandSource cmd_src) {
 			&d1, &d2, &d3, &d4, &i1, &d5, &d6, &d7, &d8, &d9, &d10, &d11)) {
 	    return INTERP_ERROR;
 	}
-	ARC_FEED(ln, d1, d2, d3, d4, i1, d5, d6, d7, d8, d9, d10, d11);
-	return 0;
+    return ARC_FEED(ln, d1, d2, d3, d4, i1, d5, d6, d7, d8, d9, d10, d11);
     }
 
     if (!strcmp(the_command_name, "STRAIGHT_TRAVERSE")) {

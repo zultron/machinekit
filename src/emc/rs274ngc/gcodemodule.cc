@@ -262,7 +262,7 @@ void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points
     knot_vector.clear();
 }
 
-void ARC_FEED(int line_number,
+int ARC_FEED(int line_number,
               double first_end, double second_end, double first_axis,
               double second_axis, int rotation, double axis_end_point,
               double a_position, double b_position, double c_position,
@@ -279,7 +279,7 @@ void ARC_FEED(int line_number,
         w_position /= 25.4;
     }
     maybe_new_line(line_number);
-    if(interp_error) return;
+    if(interp_error) return 0;
     if (_linecount < max_glcanon_lines) {
         machine.arc_feed(
                     line_number, first_end, second_end, first_axis, second_axis,
@@ -287,6 +287,7 @@ void ARC_FEED(int line_number,
                     a_position, b_position, c_position,
                     u_position, v_position, w_position);
     }
+    return 0;
 }
 
 void STRAIGHT_FEED(int line_number,
@@ -566,6 +567,7 @@ extern bool GET_BLOCK_DELETE(void) {
 }
 
 void CANON_ERROR(const char *fmt, ...) {}
+std::string GET_CANON_ERROR() {return "";}
 void CANON_MESSAGE(CanonMessageAlarmLevel lvl, const char *fmt, ...) {}
 void CLAMP_AXIS(CANON_AXIS axis) {}
 bool GET_OPTIONAL_PROGRAM_STOP() { return false;}
@@ -628,7 +630,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
     }
 }
 
-void RIGID_TAP(int line_number,
+int RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
@@ -677,11 +679,15 @@ void RIGID_TAP(int line_number,
 #endif
 
     maybe_new_line(line_number);
-    if(interp_error) return;
+    if(interp_error) {
+        return 0;
+    }
     if (_linecount < max_glcanon_lines) {
         machine.rigid_tap(line_number, _pos_prog);
     }
+    return 0;
 }
+
 double GET_EXTERNAL_MOTION_CONTROL_TOLERANCE() { return 0.1; }
 
 PositionArray GET_EXTERNAL_PROBE_POSITION()

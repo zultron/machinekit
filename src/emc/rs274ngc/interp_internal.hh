@@ -637,6 +637,20 @@ macros totally crash-proof. If the function call stack is deeper than
         }                                                          \
     } while(0)
 
+// Specifically for catching readahead-time canon errors and re-throwing them
+// as interp errors This is a hack but otherwise there's no safe way to bail
+// out if canon calls fail. The need for this is an unfortunate side-effect of
+// how much work canon calls do in emccanon. Especially for ARC_FEED and
+// RIGID_TAP, there's a lot of subtle checking that's beyond the scope of what
+// interp does.
+#define CHP_CANON(call)                                            \
+    do {                                                           \
+    int CHP__status = (call);                                      \
+        if (CHP__status != INTERP_OK) {                            \
+        ERS("%s", GET_CANON_ERROR().c_str());                              \
+        }                                                          \
+    } while(0)
+
 
 // oword warnings 
 #define OERR(fmt, ...)                                      \

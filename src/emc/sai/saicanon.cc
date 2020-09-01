@@ -334,7 +334,7 @@ std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k)
   _sai._program_position[Y] = nurbs_control_points[nurbs_control_points.size()].Y;
 }
 
-void ARC_FEED(int line_number,
+int ARC_FEED(int line_number,
  double first_end, double second_end,
  double first_axis, double second_axis, int rotation, double axis_end_point
  , double a /*AA*/
@@ -374,6 +374,7 @@ void ARC_FEED(int line_number,
   _sai._program_position[A] = a; /*AA*/
   _sai._program_position[B] = b; /*BB*/
   _sai._program_position[C] = c; /*CC*/
+  return 0;
 }
 
 void STRAIGHT_FEED(int line_number,
@@ -461,7 +462,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
   STRAIGHT_PROBE(line_number, x, y, z, a, b, c, u, v, w, probe_type);
 }
 
-void RIGID_TAP(int line_number,
+int RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
@@ -470,6 +471,7 @@ void RIGID_TAP(int line_number,
     double retract_pitch
 ){
     ECHO_WITH_ARGS("%.4f, %.4f, %.4f", x, y, z);
+    return 0;
 }
 
 
@@ -1103,6 +1105,7 @@ int GET_EXTERNAL_TC_REASON()
     return _sai._toolchanger_reason;
 }
 
+std::string GET_CANON_ERROR() {return "";}
 /* Sends error message */
 void CANON_ERROR(const char *fmt, ...)
 {
