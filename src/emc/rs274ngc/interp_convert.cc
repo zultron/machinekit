@@ -1394,6 +1394,8 @@ int Interp::convert_comment(char *comment, bool enqueue)       //!< string with 
       convert_param_comment(comment+start+strlen(ABORT_STR), expanded,
                             EX_SIZE);
       setSavedError(expanded); // avoid printf interpretation
+
+      gcode_context_stack.replace_local_linetext("(ABORT,...");
       return INTERP_ERROR;
   }
   else if (streq(lc, LOGCLOSE_STR))
