@@ -560,19 +560,9 @@ inline bool is_a_cycle(int motion) {
 }
 /*
 
-The _setup model includes a stack array for the names of function
+The _setup model includes a "stack" vector for the names of function
 calls. This stack is written into if an error occurs. Just before each
-function returns an error code, it writes its name in the next
-available string, initializes the following string, and increments
-the array index. The following four macros do the work.
-
-The size of the stack array is 50. An error in the middle of a very
-complex expression would cause the ERP and CHP macros to write past the
-bounds of the array if a check were not provided. No real program
-would contain such a thing, but the check is included to make the
-macros totally crash-proof. If the function call stack is deeper than
-49, the top of the stack will be missing.
-
+function returns an error code, it adds an entry to the callstack object.
 */
 
 // Just set an error string using printf-style formats, do NOT return
