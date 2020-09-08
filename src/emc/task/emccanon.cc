@@ -1692,6 +1692,17 @@ void PRECISION_DWELL(double seconds)
     tag_and_send(precisionDwellMsg);
 }
 
+void DWELL_FOR_SPINDLE(double delta_rpm)
+{
+    EMC_TRAJ_PRECISION_DWELL precisionDwellMsg;
+
+    flush_segments();
+
+    precisionDwellMsg.delta_rpm = delta_rpm;
+
+    tag_and_send(precisionDwellMsg);
+}
+
 /* Spindle Functions */
 void SPINDLE_RETRACT_TRAVERSE()
 {

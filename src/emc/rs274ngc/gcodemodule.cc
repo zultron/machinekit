@@ -476,6 +476,10 @@ void PRECISION_DWELL(double seconds) {
     DWELL(seconds);
 }
 
+void DWELL_FOR_SPINDLE(double delta_rpm) {
+    DWELL(delta_rpm * 0.001); // Not a real calculation, just a heuristic / placeholder for future time estimates
+}
+
 void MESSAGE(char *comment) {
     maybe_new_line();
     if(interp_error) return;

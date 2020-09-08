@@ -485,6 +485,11 @@ void PRECISION_DWELL(double seconds)
   ECHO_WITH_ARGS("%.4f", seconds);
 }
 
+void DWELL_FOR_SPINDLE(double delta_rpm)
+{
+  ECHO_WITH_ARGS("%.4f", delta_rpm);
+}
+
 /* Spindle Functions */
 void SPINDLE_RETRACT_TRAVERSE()
 {PRINT("SPINDLE_RETRACT_TRAVERSE()\n");}

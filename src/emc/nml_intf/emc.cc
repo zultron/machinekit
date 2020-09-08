@@ -2901,6 +2901,7 @@ void EMC_TRAJ_PRECISION_DWELL::update(CMS * cms)
 {
     EMC_TRAJ_CMD_MSG::update(cms);
     cms->update(dwell_time);
+    cms->update(delta_rpm);
 }
 
 /*

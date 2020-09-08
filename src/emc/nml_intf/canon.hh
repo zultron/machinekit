@@ -409,6 +409,7 @@ extern void STOP();
 
 extern void DWELL(double seconds);
 extern void PRECISION_DWELL(double seconds);
+extern void DWELL_FOR_SPINDLE(double delta_rpm);
 
 /* freeze x,y,z for a time */
 
