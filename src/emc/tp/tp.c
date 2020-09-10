@@ -1340,7 +1340,7 @@ int tpAddRigidTap(
     return tpFinalizeAndEnqueue(tp, &tc);
 }
 
-int tpAddDwell(TP_STRUCT * const tp, double time_sec, struct state_tag_t tag)
+int tpAddDwell(TP_STRUCT * const tp, double time_sec, double delta_rpm, struct state_tag_t tag)
 {
     // NOTE: it's not possible to dwell for less than 1 servo timestep due to how dwells are implemented
     TC_STRUCT tc={};
@@ -1351,8 +1351,12 @@ int tpAddDwell(TP_STRUCT * const tp, double time_sec, struct state_tag_t tag)
             0,
             0);
     tc.motion_type = TC_DWELL;
-    tc.coords.dwell.dwell_time = tc.coords.dwell.remaining_time = fmax(time_sec, tp->cycleTime);
+    tc.coords.dwell.dwell_time_req = fmax(time_sec, tp->cycleTime);
+    tc.coords.dwell.delta_rpm_req = fabs(delta_rpm);
     tc.coords.dwell.dwell_pos = tp->goalPos;
+    // Initialize with invalid values (dwell time computed at segment activation)
+    tc.coords.dwell.dwell_time = -1;
+    tc.coords.dwell.remaining_time = -1;
     tc.term_cond = TC_TERM_COND_STOP;
     tc.tag = tag;
     tpAddSegmentToQueue(tp, &tc);
@@ -2631,6 +2635,19 @@ tp_err_t tpActivateSegment(TP_STRUCT * const tp, TC_STRUCT * const tc) {
         emcmotStatus->spindle_sync_state = SYNC_SEEK_INDEX;
         rtapi_print_msg(RTAPI_MSG_DBG, "Waiting on sync...\n");
         res = TP_ERR_WAITING;
+    }
+
+    if (tc->motion_type == TC_DWELL) {
+        // Dwell the requested amount of time, plus any extra time required by the spindle rpm delta
+        double dwell_time = tc->coords.dwell.dwell_time_req;
+        if (tc->coords.dwell.delta_rpm_req > 0
+        && emcmotStatus->spindle_max_acceleration_rps2 > 0) {
+            // Get the current spindle acceleration (changes based on belt position, for example) and compute a dwell time to wait for the spindle to reach the speed delta
+            // This avoids the at-speed handshake which may not be consistent enough for soft-tapping
+            double delta_rps = tc->coords.dwell.delta_rpm_req / 60.0;
+            dwell_time += delta_rps / emcmotStatus->spindle_max_acceleration_rps2 + emcmotStatus->spindle_cmd_latency_sec;
+        }
+        tc->coords.dwell.dwell_time = tc->coords.dwell.remaining_time = dwell_time;
     }
 
     // Update the modal state displayed by the TP

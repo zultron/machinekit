@@ -322,7 +322,13 @@ int Interp::convert_cycle_g74_g84(PositionArray const &cycle_end,
     else
         START_SPINDLE_CLOCKWISE(0);
     // NOTE: use internal TP dwell for more precise delay time
-    PRECISION_DWELL(dwell);
+    if (dwell > 0) {
+        PRECISION_DWELL(dwell);
+    } else {
+        // NOTE: fast-retract not currently supported for non-rigid tapping
+        double delta_rpm = GET_EXTERNAL_SPEED() * 2.0;
+        DWELL_FOR_SPINDLE(delta_rpm);
+    }
     cycle_feed(cycle_end,plane, planar_pos_1, planar_pos_2, clear_height);
     STOP_SPINDLE_TURNING();
     if (motion == G_84_1)

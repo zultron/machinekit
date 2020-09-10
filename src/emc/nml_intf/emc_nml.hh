@@ -1020,14 +1020,17 @@ class EMC_TRAJ_RIGID_TAP:public EMC_TRAJ_CMD_MSG {
 
 class EMC_TRAJ_PRECISION_DWELL:public EMC_TRAJ_CMD_MSG {
   public:
-    EMC_TRAJ_PRECISION_DWELL():EMC_TRAJ_CMD_MSG(EMC_TRAJ_PRECISION_DWELL_TYPE,
-                      sizeof(EMC_TRAJ_PRECISION_DWELL)) {
-    }
+    EMC_TRAJ_PRECISION_DWELL():
+          EMC_TRAJ_CMD_MSG(EMC_TRAJ_PRECISION_DWELL_TYPE, sizeof(EMC_TRAJ_PRECISION_DWELL)),
+          dwell_time(),
+          delta_rpm()
+          {}
 
     // For internal NML/CMS use only.
     void update(CMS * cms);
 
     double dwell_time;
+    double delta_rpm;
 };
 
 // EMC_TRAJ status base class

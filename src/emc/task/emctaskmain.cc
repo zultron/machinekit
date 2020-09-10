@@ -2086,7 +2086,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
     break;
 
     case EMC_TRAJ_PRECISION_DWELL_TYPE:
-        retval = emcTrajDwell(((EMC_TRAJ_PRECISION_DWELL*) cmd)->dwell_time);
+    {
+        auto const msg = (EMC_TRAJ_PRECISION_DWELL const*)cmd;
+        retval = emcTrajDwell(msg->dwell_time, msg->delta_rpm);
+    }
         break;
 
     case EMC_AUX_INPUT_WAIT_TYPE:

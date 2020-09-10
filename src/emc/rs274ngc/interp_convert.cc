@@ -622,8 +622,8 @@ int Interp::convert_arc2(int move,       //!< either G_2 (cw arc) or G_3 (ccw ar
                             turn, end1, end2, end3, block, settings));
 
   write_and_update_state_tag(block);
-  ARC_FEED(settings->get_toplevel_line_number(), end1, end2, center1, center2, turn, end3,
-           AA_end, BB_end, CC_end, u, v, w);
+  CHP_CANON(ARC_FEED(settings->get_toplevel_line_number(), end1, end2, center1, center2, turn, end3,
+                     AA_end, BB_end, CC_end, u, v, w));
   *current1 = end1;
   *current2 = end2;
   *current3 = end3;
@@ -4523,7 +4523,7 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
         tap_pitch *= block->j_number;
     }
     CHKS(tap_pitch <= 0.0, "Thread pitch must be greater than 0.0 for rigid tapping");
-            RIGID_TAP(settings->get_toplevel_line_number(), end_x, end_y, end_z, spindle_retract_speed_scale, tap_pitch, retract_pitch);
+    CHP_CANON(RIGID_TAP(settings->get_toplevel_line_number(), end_x, end_y, end_z, spindle_retract_speed_scale, tap_pitch, retract_pitch));
     STOP_SPEED_FEED_SYNCH(); // Stop position synch
     // after the RIGID_TAP cycle we'll be in the same spot
         }

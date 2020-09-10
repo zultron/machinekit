@@ -80,6 +80,8 @@ static int rotary_unlock_for_traverse = -1;
 static StateTag _tag;
 static int prev_stepping_id=0;
 
+static std::string last_canon_error="";
+
 /**
  * This flag is used to prevent duplicate line number messages from being sent out to IO. 
  */
@@ -821,7 +823,7 @@ void STRAIGHT_FEED(int line_number,
 }
 
 
-void RIGID_TAP(int line_number,
+int RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
@@ -846,7 +848,8 @@ void RIGID_TAP(int line_number,
     DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
-        return;
+        // Not strictly an error, just means there is nothing to do zince the move is zero length
+        return 0;
     }
 
     VelData vel_data = getStraightVelocity(disp_data);
@@ -864,9 +867,9 @@ void RIGID_TAP(int line_number,
     double safe_lead = FROM_EXT_LEN(pow(vel_data.vel_xyz, 2) / (2.0 * acc_data.a_max_path)) * RIGID_TAP_LEADIN_SAFETY_FACTOR;
 
     if (safe_lead > depth) {
-
-        CANON_ERROR("Rigid tap move at line %d length %f is too short for spindle synchronization (need at least %f mm)", line_number, depth, safe_lead);
-        return;
+        CANON_ERROR("Rigid tap move is too short for proper spindle synchronization. For the given spindle speed / pitch, the cycle depth (initial - bottom) must be at least %0.3f. The requested move is only %0.3f deep",
+                    TO_PROG_LEN(safe_lead), TO_PROG_LEN(depth));
+        return -1;
     } else {
         EMC_TRAJ_RIGID_TAP rigidTapMsg;
         rigidTapMsg.pos = to_ext_pose(bottom);
@@ -880,6 +883,7 @@ void RIGID_TAP(int line_number,
     }
 
     // don't move the endpoint because after this move, we are back where we started
+    return 0;
 }
 
 /**
@@ -1293,7 +1297,7 @@ static double axis_acc_time(const PositionArray & start, const PositionArray & e
 }
 #endif
 
-void ARC_FEED(int line_number,
+int ARC_FEED(int line_number,
               double first_end, double second_end,
 	      double first_axis, double second_axis, int rotation,
 	      double axis_end_point, 
@@ -1343,7 +1347,7 @@ void ARC_FEED(int line_number,
                         });
             see_segment(_tag,
                         {fe, se, ae, a, b, c, u, v, w});
-            return;
+            return 0;
         }
     }
 
@@ -1388,7 +1392,7 @@ void ARC_FEED(int line_number,
         case CANON_PLANE_UV:
         case CANON_PLANE_VW:
         case CANON_PLANE_UW:
-            CANON_ERROR("Can't set plane in UVW axes, assuming XY");
+            CANON_MESSAGE(CANON_MSG_LOW, "Can't set plane in UVW axes, assuming XY");
             break;
     }
 
@@ -1590,7 +1594,8 @@ void ARC_FEED(int line_number,
     AccelData accdata = getStraightAcceleration(disp_data);
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
-        return;
+        // Not strictly an error, just means the move is zero length
+        return 0;
     }
 
     // Next, compute the minimum time that we must take to complete the segment. 
@@ -1634,15 +1639,14 @@ void ARC_FEED(int line_number,
     debug_canon_var(a_max);
 
     if(!v_req_path || !a_max_path) {
-        // Zero length move
-        // FIXME clean this up after development
-        CANON_ERROR("Zero length circle, no motion");
-        return;
+        // Generally means zero length move but that should be detected earlier
+        CANON_MESSAGE(CANON_MSG_DEBUG, "Got invalid velocity %f and/or acceleration %f for circular move, assuming zero length", v_req_path, a_max_path);
+        return 0;
     }
 
     if (rotation == 0) {
         CANON_ERROR("Cannot have 0 rotation in a circular segment");
-        return;
+        return -1;
     }
     circularMoveMsg.end = toEmcPose(p_goal_ext);
 
@@ -1663,6 +1667,7 @@ void ARC_FEED(int line_number,
 
     tag_and_send(circularMoveMsg);
     canonUpdateEndPoint(endpt);
+    return 0;
 }
 
 void DWELL(double seconds)
@@ -1683,6 +1688,17 @@ void PRECISION_DWELL(double seconds)
     flush_segments();
 
     precisionDwellMsg.dwell_time = seconds;
+
+    tag_and_send(precisionDwellMsg);
+}
+
+void DWELL_FOR_SPINDLE(double delta_rpm)
+{
+    EMC_TRAJ_PRECISION_DWELL precisionDwellMsg;
+
+    flush_segments();
+
+    precisionDwellMsg.delta_rpm = delta_rpm;
 
     tag_and_send(precisionDwellMsg);
 }
@@ -2510,6 +2526,7 @@ void INIT_CANON()
     double units;
 
     chained_points.clear();
+    last_canon_error.clear();
 
     interpToMachineTransform = LocalToMachineTransform();
     EMC_TRAJ_CLEAR_G5X_TABLE clear_g5x_table;
@@ -2545,32 +2562,37 @@ void INIT_CANON()
         } else if (fabs(units - 1.0) < 1.0e-3) {
             USE_LENGTH_UNITS(CANON_UNITS_MM);
         } else {
-            CANON_ERROR
-                ("non-standard length units, setting interpreter to mm");
+            CANON_MESSAGE(CANON_MSG_LOW, "non-standard length units, setting interpreter to mm");
             USE_LENGTH_UNITS(CANON_UNITS_MM);
         }
     }
+}
+
+std::string GET_CANON_ERROR()
+{
+    return last_canon_error;
 }
 
 /* Sends error message */
 void CANON_ERROR(const char *fmt, ...)
 {
     va_list ap;
-    EMC_OPERATOR_ERROR operator_error_msg;
 
+    // KLUDGE do string formatting in a local text buffer
+    static char error_buf[ERROR_TEXT_LEN]="";
     if (fmt) {
         va_start(ap, fmt);
-        vsnprintf(operator_error_msg.text,sizeof(operator_error_msg.text), fmt, ap);
+        vsnprintf(error_buf,sizeof(error_buf), fmt, ap);
         va_end(ap);
     } else {
-        operator_error_msg.text[0] = '\0';
+        error_buf[0] = '\0';
     }
 
-	interp_list.append(operator_error_msg);
+    last_canon_error = error_buf;
 }
 
 /**
- * KLUDGE like CANON_ERROR but for sending an info message to the user.
+ * Send a generic message via NML channel to the operator with an alarm level that the UI can use to control visibility.
  */
 void CANON_MESSAGE(CanonMessageAlarmLevel lvl, const char *fmt, ...)
 {
@@ -2768,7 +2790,7 @@ double GET_EXTERNAL_LENGTH_UNITS(void)
     u = emcStatus->motion.traj.linearUnits;
 
     if (u == 0) {
-        CANON_ERROR("external length units are zero, assuming mm");
+        CANON_MESSAGE(CANON_MSG_LOW,"external length units are zero, assuming mm");
         return 1.0;
     } else {
         return u;
@@ -2782,7 +2804,7 @@ double GET_EXTERNAL_ANGLE_UNITS(void)
     u = emcStatus->motion.traj.angularUnits;
 
     if (u == 0) {
-        CANON_ERROR("external angle units are zero, assuming deg");
+        CANON_MESSAGE(CANON_MSG_LOW,"external angle units are zero, assuming deg");
         return 1.0;
     } else {
         return u;
@@ -3145,8 +3167,6 @@ void SET_MOTION_OUTPUT_BIT(int index)
   dout_msg.now = 0;		// not immediate, but synched with motion (goes to the TP)
 
 	tag_and_send(dout_msg);
-
-  return;
 }
 
 /*! \function CLEAR_MOTION_OUTPUT_BIT
@@ -3173,8 +3193,6 @@ void CLEAR_MOTION_OUTPUT_BIT(int index)
   dout_msg.now = 0;		// not immediate, but synched with motion (goes to the TP)
 
 	tag_and_send(dout_msg);
-
-  return;
 }
 
 /*! \function SET_AUX_OUTPUT_BIT
@@ -3199,8 +3217,6 @@ void SET_AUX_OUTPUT_BIT(int index)
   dout_msg.now = 1;		// immediate, we don't care about synching for AUX
 
 	tag_and_send(dout_msg);
-
-  return;
 }
 
 /*! \function CLEAR_AUX_OUTPUT_BIT
@@ -3224,8 +3240,6 @@ void CLEAR_AUX_OUTPUT_BIT(int index)
   dout_msg.now = 1;		// immediate, we don't care about synching for AUX
 
 	tag_and_send(dout_msg);
-
-  return;
 }
 
 /*! \function SET_MOTION_OUTPUT_VALUE
@@ -3245,8 +3259,6 @@ void SET_MOTION_OUTPUT_VALUE(int index, double value)
   aout_msg.now = 0;		// immediate=1, or synched when motion start=0
 
 	tag_and_send(aout_msg);
-
-  return;
 }
 
 /*! \function SET_AUX_OUTPUT_VALUE
@@ -3266,8 +3278,6 @@ void SET_AUX_OUTPUT_VALUE(int index, double value)
   aout_msg.now = 1;		// immediate=1, or synched when motion start=0
 
 	tag_and_send(aout_msg);
-
-  return;
 }
 
 /*! \function WAIT

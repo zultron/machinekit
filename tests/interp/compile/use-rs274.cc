@@ -74,26 +74,26 @@ void START_CUTTER_RADIUS_COMPENSATION(int direction) {}
 void STOP_CUTTER_RADIUS_COMPENSATION() {}
 void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode) {}
 void STOP_SPEED_FEED_SYNCH() {}
-void ARC_FEED(int lineno,
+int ARC_FEED(int lineno,
                      double first_end, double second_end,
 		     double first_axis, double second_axis, int rotation,
 		     double axis_end_point, 
                      double a, double b, double c,
-                     double u, double v, double w) {}
+             double u, double v, double w) {return 0;}
 void STRAIGHT_FEED(int lineno,
                           double x, double y, double z,
                           double a, double b, double c,
                           double u, double v, double w) {}
 void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {}
 
-void RIGID_TAP(int line_number,
+int RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
     double spindle_retract_speed_scale,
     double tap_pitch,
     double retract_pitch
-){}
+              ){return 0;}
 void STRAIGHT_PROBE(int lineno,
                            double x, double y, double z,
                            double a, double b, double c,
@@ -105,6 +105,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int lineno,
 void STOP() {}
 void DWELL(double seconds) {}
 void PRECISION_DWELL(double seconds) {}
+void DWELL_FOR_SPINDLE(double delta_rpm) {}
 void SET_SPINDLE_MODE(double) {}
 void SPINDLE_RETRACT_TRAVERSE() {}
 void START_SPINDLE_CLOCKWISE(int) {}
@@ -241,6 +242,7 @@ double GET_EXTERNAL_ANALOG_INPUT(int index, double def) {return 0;}
 int GET_EXTERNAL_AXIS_MASK() {return 0;}
 void FINISH(void) {}
 void ON_RESET(void) {}
+std::string GET_CANON_ERROR() {return "";}
 void CANON_ERROR(const char *fmt, ...) {}
 void CANON_MESSAGE(CanonMessageAlarmLevel lvl, const char *fmt, ...) {}
 void PLUGIN_CALL(int len, const char *call) {}

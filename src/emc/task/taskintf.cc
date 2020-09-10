@@ -1132,10 +1132,11 @@ int emcTrajRigidTap(EMC_TRAJ_RIGID_TAP const &cmd)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcTrajDwell(double time_sec)
+int emcTrajDwell(double time_sec, double delta_rpm)
 {
     emcmotCommand.command = EMCMOT_SET_DWELL;
     emcmotCommand.timeout = time_sec;
+    emcmotCommand.delta_rpm = delta_rpm;
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
