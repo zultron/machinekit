@@ -325,6 +325,7 @@ int Interp::convert_cycle_g74_g84(PositionArray const &cycle_end,
     if (dwell > 0) {
         PRECISION_DWELL(dwell);
     } else {
+        // NOTE: fast-retract not currently supported for non-rigid tapping
         double delta_rpm = GET_EXTERNAL_SPEED() * 2.0;
         DWELL_FOR_SPINDLE(delta_rpm);
     }
