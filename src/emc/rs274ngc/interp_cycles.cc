@@ -431,6 +431,7 @@ int Interp::convert_cycle_g86(PositionArray const &cycle_end,
   cycle_feed(cycle_end,plane, x, y, bottom_z);
   DWELL(dwell);
   STOP_SPINDLE_TURNING();
+  DWELL_FOR_SPINDLE(GET_EXTERNAL_SPEED(), 2.0); // KLUDGE simulate at-speed but for zero speed
   cycle_traverse(cycle_end, plane, x, y, clear_z);
   if (direction == CANON_CLOCKWISE)
     START_SPINDLE_CLOCKWISE();

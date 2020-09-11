@@ -476,7 +476,7 @@ void PRECISION_DWELL(double seconds) {
     DWELL(seconds);
 }
 
-void DWELL_FOR_SPINDLE(double delta_rpm) {
+void DWELL_FOR_SPINDLE(double delta_rpm, double extra_wait_sec) {
     DWELL(delta_rpm * 0.001); // Not a real calculation, just a heuristic / placeholder for future time estimates
 }
 

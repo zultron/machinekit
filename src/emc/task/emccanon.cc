@@ -1692,13 +1692,14 @@ void PRECISION_DWELL(double seconds)
     tag_and_send(precisionDwellMsg);
 }
 
-void DWELL_FOR_SPINDLE(double delta_rpm)
+void DWELL_FOR_SPINDLE(double delta_rpm, double extra_wait_sec)
 {
     EMC_TRAJ_PRECISION_DWELL precisionDwellMsg;
 
     flush_segments();
 
     precisionDwellMsg.delta_rpm = delta_rpm;
+    precisionDwellMsg.dwell_time = extra_wait_sec;
 
     tag_and_send(precisionDwellMsg);
 }
