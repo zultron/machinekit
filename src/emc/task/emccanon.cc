@@ -72,9 +72,6 @@ static bool limitSpindleSpeed(double rpm);
 static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel);
 static double getPathVelocityFromActiveFeed(VelData const &vel_data, CanonFeedAxisReferenceType feed_axes);
 
-static double css_maximum; // both always positive
-static int spindle_dir = 0;
-
 static int rotary_unlock_for_traverse = -1;
 
 static StateTag _tag;
@@ -376,7 +373,9 @@ static double canonNaivecamTolerance = 0.0;
 static double canonNaivecamMMPerDeg = 3.5; // Calibrated so that linear NCD tolerance >= angular tolerance up ~200mm away from the rotary center.
 
 /* Spindle speed is saved here */
-static double spindleSpeed_rpm = 0.0; // always positive
+static double css_maximum = 0.0; // always positive, nonzero value means spindle mode is CSS
+static int spindle_dir = 0;
+static double spindleSpeedCmd = 0.0; // Surface units / min if CSS mode is active, otherwise RPM
 
 /* Prepped tool is saved here */
 static int preppedTool = 0;
@@ -418,7 +417,7 @@ static double getActiveExtFeedRate(CanonFeedAxisReferenceType feed_axes)
     // If CSS mode is active, then we need to assume the worst-case (maximum) spindle speed specified by the D word
     // Otherwise, the nominal spindle speed is used
 
-    double planned_spindle_rpm = css_maximum > 0.0 ? css_maximum : spindleSpeed_rpm;
+    double planned_spindle_rpm = GET_EXTERNAL_SPEED_PLANNED();
 
     double uu_per_sec = uuPerRev * planned_spindle_rpm / 60.0;
 
@@ -434,6 +433,13 @@ static double getActiveExtFeedRate(CanonFeedAxisReferenceType feed_axes)
     return 0.0;
 }
 
+static void update_css()
+{
+    if(css_maximum) {
+        SET_SPINDLE_SPEED(spindleSpeedCmd);
+    }
+}
+
 static void send_g5x_msg(int index, RotateShiftTransform work_offset) {
     flush_segments();
 
@@ -447,9 +453,7 @@ static void send_g5x_msg(int index, RotateShiftTransform work_offset) {
 
     set_g5x_msg.g5x_transform = work_offset;
 
-    if(css_maximum) {
-        SET_SPINDLE_SPEED(spindleSpeed_rpm);
-    }
+    update_css();
     tag_and_send(set_g5x_msg);
 }
 
@@ -463,9 +467,7 @@ static void send_g92_msg(int persist) {
     set_g92_msg.origin = to_ext_pose(interpToMachineTransform.g92Offset.tf);
     set_g92_msg.applied = persist;
 
-    if(css_maximum) {
-        SET_SPINDLE_SPEED(spindleSpeed_rpm);
-    }
+    update_css();
     tag_and_send(set_g92_msg);
 }
 
@@ -855,8 +857,8 @@ int RIGID_TAP(int line_number,
     VelData vel_data = getStraightVelocity(disp_data);
     AccelData acc_data = getStraightAcceleration(disp_data);
 
-    const double nominal_tap_vel = FROM_PROG_LEN(tap_pitch) * spindleSpeed_rpm / 60.0;
-    const double nominal_retract_vel = FROM_PROG_LEN(retract_pitch) * spindleSpeed_rpm / 60.0;
+    const double nominal_tap_vel = FROM_PROG_LEN(tap_pitch) * GET_EXTERNAL_SPEED_PLANNED() / 60.0;
+    const double nominal_retract_vel = FROM_PROG_LEN(retract_pitch) * GET_EXTERNAL_SPEED_PLANNED() / 60.0;
     // It's safe to assume path is in length units because rigid tapping is only allowed in XYZ (for now anyway)
 
     double nominal_vel_path = TO_EXT_LEN(fmax(nominal_tap_vel, nominal_retract_vel));
@@ -1722,58 +1724,71 @@ void SET_SPINDLE_MODE(double css_max) {
  * messages derive from EMC_SPINDLE_SPEED.
  */
 template <typename SpindleMsg>
-void buildSpindleCmd(SpindleMsg & msg, double spindle_rpm)
+void buildCSSSpindleCmd(SpindleMsg & msg, double css_maximum, double spindle_surface_upm)
 {
     double css_numerator = 0.0;
-    if(css_maximum > 0.0) {
-        if(lengthUnits == CANON_UNITS_INCHES)
-            css_numerator = 12 / (2.0 * M_PI) * spindle_rpm * TO_EXT_LEN(25.4);
-        else
-            css_numerator = 1000 / (2.0 * M_PI) * spindle_rpm * TO_EXT_LEN(1);
-        msg.speed = spindle_dir * css_maximum;
-        msg.factor = spindle_dir * css_numerator;
-        msg.xoffset = TO_EXT_LEN(interpToMachineTransform.findAxisoffset(0));
+    if(lengthUnits == CANON_UNITS_INCHES) {
+        // Spindle units are Surface Feet / Min (SFM)
+        css_numerator = 12 / (2.0 * M_PI) * spindle_surface_upm * TO_EXT_LEN(25.4);
     } else {
-        msg.speed = spindle_dir * spindle_rpm;
+        // Spindle units are Surface Meters / Min (SMM)
+        css_numerator = 1000 / (2.0 * M_PI) * spindle_surface_upm * TO_EXT_LEN(1);
     }
+    msg.speed = spindle_dir * css_maximum;
+    msg.factor = spindle_dir * css_numerator;
+    msg.xoffset = TO_EXT_LEN(interpToMachineTransform.findAxisoffset(0));
+}
 
+template <typename SpindleMsg>
+void buildSpindleCmd(SpindleMsg & msg, double spindle_rpm)
+{
+    msg.speed = spindle_dir * spindle_rpm;
+    msg.factor = 0;
+    msg.xoffset = 0;
+}
+
+static void startSpindle(int wait_for_atspeed, int direction)
+{
+    EMC_SPINDLE_ON emc_spindle_on_msg;
+    emc_spindle_on_msg.wait_for_spindle_at_speed = wait_for_atspeed;
+
+    flush_segments();
+    spindle_dir = direction;
+    if (css_maximum) {
+        buildCSSSpindleCmd(emc_spindle_on_msg, css_maximum, spindleSpeedCmd);
+    } else {
+        buildSpindleCmd(emc_spindle_on_msg, spindleSpeedCmd);
+    }
+    tag_and_send(emc_spindle_on_msg);
 }
 
 void START_SPINDLE_CLOCKWISE(int wait_for_atspeed)
 {
-    EMC_SPINDLE_ON emc_spindle_on_msg;
-    emc_spindle_on_msg.wait_for_spindle_at_speed = wait_for_atspeed;
-
-    flush_segments();
-    spindle_dir = 1;
-
-    buildSpindleCmd(emc_spindle_on_msg, spindleSpeed_rpm);
-    tag_and_send(emc_spindle_on_msg);
+    startSpindle(wait_for_atspeed, 1);
 }
 
 void START_SPINDLE_COUNTERCLOCKWISE(int wait_for_atspeed)
 {
-    EMC_SPINDLE_ON emc_spindle_on_msg;
-    emc_spindle_on_msg.wait_for_spindle_at_speed = wait_for_atspeed;
+    startSpindle(wait_for_atspeed, -1);
+}
 
-    flush_segments();
-    spindle_dir = -1;
-    buildSpindleCmd(emc_spindle_on_msg, spindleSpeed_rpm);
+void setSpindleSpeedIternal(double speed_cmd)
+{
+    EMC_SPINDLE_SPEED emc_spindle_speed_msg;
+    spindleSpeedCmd = fabs(speed_cmd);
+    if (css_maximum) {
+        buildCSSSpindleCmd(emc_spindle_speed_msg, css_maximum, spindleSpeedCmd);
+    } else {
+        buildSpindleCmd(emc_spindle_speed_msg, spindleSpeedCmd);
+    }
 
-    tag_and_send(emc_spindle_on_msg);
+    tag_and_send(emc_spindle_speed_msg);
 }
 
 void SET_SPINDLE_SPEED(double r)
 {
-    // speed is in RPMs everywhere
-    spindleSpeed_rpm = fabs(r); // interp will never send negative anyway ...
-
-    EMC_SPINDLE_SPEED emc_spindle_speed_msg;
-
     flush_segments();
-
-    buildSpindleCmd(emc_spindle_speed_msg, spindleSpeed_rpm);
-    tag_and_send(emc_spindle_speed_msg);
+    setSpindleSpeedIternal(r);
 }
 
 /**
@@ -1784,15 +1799,29 @@ static bool limitSpindleSpeed(double rpm)
 {
     // Don't care about fractional RPM here, the limit speed has a safety factor anyway
     double limit_rpm = ceil(fabs(rpm));
-    if (spindleSpeed_rpm <= limit_rpm) {
+    double prev_plan_rpm = GET_EXTERNAL_SPEED_PLANNED();
+    if (prev_plan_rpm <= (limit_rpm + CART_FUZZ)) {
         // spindle speed within range, do nothing
-        canon_debug("Spindle speed %f is within max of %f\n", spindleSpeed_rpm, limit_rpm);
+        canon_debug("Spindle speed %f is within max of %f\n", spindleSpeedCmd, limit_rpm);
         return false;
     }
-    EMC_SPINDLE_SPEED emc_spindle_speed_msg;
-    CANON_MESSAGE(CANON_MSG_LOW, "Reducing spindle speed from %0.0f to %0.0f for synched motion at line %d\n", spindleSpeed_rpm, limit_rpm, _tag.fields[GM_FIELD_LINE_NUMBER]);
 
-    buildSpindleCmd(emc_spindle_speed_msg, limit_rpm);
+    EMC_SPINDLE_SPEED emc_spindle_speed_msg;
+    static const char * const warning_fmt = "Reducing spindle speed in %s from %0.0f to %0.0f for synched motion at line %d\n";
+    const char *mode_str = "";
+    if (css_maximum > 0.0) {
+        // Limit the CSS max RPM, but leave the surface feet per minute setting unchanged
+        css_maximum = limit_rpm;
+        buildCSSSpindleCmd(emc_spindle_speed_msg, css_maximum, spindleSpeedCmd);
+        mode_str = "G96";
+    } else {
+        // Limit spindle RPM only
+        spindleSpeedCmd = limit_rpm;
+        buildSpindleCmd(emc_spindle_speed_msg, limit_rpm);
+        mode_str = "G97";
+    }
+
+    CANON_MESSAGE(CANON_MSG_LOW, warning_fmt, mode_str, prev_plan_rpm, limit_rpm, _tag.fields[GM_FIELD_LINE_NUMBER]);
     interp_list.append(emc_spindle_speed_msg);
     return true;
 }
@@ -1815,7 +1844,7 @@ static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel)
     const static double SPINDLE_SYNCH_MARGIN = 0.05;
 
     // Scale down spindle RPM in proportion to the maximum allowed spindle velocity, with a safety factor
-    double maxSpindleRPM = spindleSpeed_rpm * max_vel / nominal_vel * (1.0 - SPINDLE_SYNCH_MARGIN);
+    double maxSpindleRPM = GET_EXTERNAL_SPEED_PLANNED() * max_vel / nominal_vel * (1.0 - SPINDLE_SYNCH_MARGIN);
     return limitSpindleSpeed(maxSpindleRPM);
 }
 
@@ -1932,7 +1961,7 @@ void USE_TOOL_LENGTH_OFFSET(EmcPose offset)
     set_offset_msg.offset = toEmcPose(offset_machine);
 
     if(css_maximum != 0.0) {
-        SET_SPINDLE_SPEED(spindleSpeed_rpm);
+        SET_SPINDLE_SPEED(spindleSpeedCmd);
     }
 	tag_and_send(set_offset_msg);
 }
@@ -2538,7 +2567,8 @@ void INIT_CANON()
     activePlane = CANON_PLANE_XY;
     canonUpdateEndPoint({});
     SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, 0);
-    spindleSpeed_rpm = 0.0;
+    css_maximum = 0.0;
+    spindleSpeedCmd = 0.0;
     preppedTool = 0;
     currentLinearFeedRate = 0.0;
     currentAngularFeedRate = 0.0;
@@ -2824,8 +2854,18 @@ int GET_EXTERNAL_FLOOD()
 
 double GET_EXTERNAL_SPEED()
 {
-    // speed is in RPMs everywhere
-    return spindleSpeed_rpm;
+    return spindleSpeedCmd;
+}
+
+// Is the spindle in constant RPM or constant surface mode?
+double GET_EXTERNAL_SPINDLE_CSS_MAX_SPEED()
+{
+    return css_maximum;
+}
+
+double GET_EXTERNAL_SPEED_PLANNED()
+{
+    return css_maximum ?: spindleSpeedCmd;
 }
 
 CANON_DIRECTION GET_EXTERNAL_SPINDLE()

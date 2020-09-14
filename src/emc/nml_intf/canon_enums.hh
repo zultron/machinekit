@@ -115,4 +115,11 @@ enum CanonSyncLevel {
     CANON_SYNC_POSITION
 };
 
+// spindle control modes
+enum SPINDLE_MODE {
+    CONSTANT_RPM,
+    CONSTANT_SURFACE
+};
+
+
 #endif // CANON_ENUMS_HH

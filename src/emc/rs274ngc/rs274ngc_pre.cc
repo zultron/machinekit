@@ -2568,6 +2568,7 @@ int Interp::synch_external_state(setup_pointer settings) const
     settings->mist = GET_EXTERNAL_MIST();
     settings->plane = GET_EXTERNAL_PLANE();
     settings->selected_pocket = GET_EXTERNAL_SELECTED_TOOL_SLOT();
+    settings->spindle_mode = GET_EXTERNAL_SPINDLE_CSS_MAX_SPEED() ? CONSTANT_SURFACE : CONSTANT_RPM;
     settings->speed = GET_EXTERNAL_SPEED();
     settings->spindle_turning = GET_EXTERNAL_SPINDLE();
     settings->pockets_max = GET_EXTERNAL_POCKETS_MAX();
