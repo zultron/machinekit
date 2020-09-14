@@ -61,6 +61,8 @@ InterpBase *pinterp = nullptr;
 
 setup_pointer _is = 0; // helper for gdb hardware watchpoints FIXME
 
+bool is_license_valid();
+
 // Saved tag for restoring interp after abort
 static state_tag_t saved_tag = {};
 
@@ -266,6 +268,7 @@ int emcTaskAbort()
 int emcTaskSetMode(int mode)
 {
     int retval = 0;
+    bool licenseValid = false;
 
     switch (mode) {
     case EMC_TASK_MODE_MANUAL:
@@ -283,11 +286,18 @@ int emcTaskSetMode(int mode)
 	break;
 
     case EMC_TASK_MODE_AUTO:
-	// go to auto mode
-	emcTrajSetMode(EMC_TRAJ_MODE_COORD);
-	emcTaskAbort();
-	emcTaskPlanSynch();
-	mdiOrAuto = EMC_TASK_MODE_AUTO;
+    	// simulate license failure...
+	licenseValid = is_license_valid();
+	if (licenseValid) {
+	    // go to auto mode
+	    emcTrajSetMode(EMC_TRAJ_MODE_COORD);
+	    emcTaskAbort();
+	    emcTaskPlanSynch();
+	    mdiOrAuto = EMC_TASK_MODE_AUTO;
+	} else {
+	    retval = -1;
+    	    emcOperatorError("License has expired.");
+	}
 	break;
 
     default:

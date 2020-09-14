@@ -16,6 +16,7 @@ MILLTASKSRCS := \
 	emc/task/emccanon.cc \
 	emc/task/path_geom_util.cc \
 	emc/task/emctaskmain.cc \
+	emc/task/licensecheck.cc \
 	emc/motion/usrmotintf.cc \
 	emc/motion/emcmotutil.c \
 	emc/task/taskintf.cc \
