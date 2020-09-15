@@ -1806,23 +1806,23 @@ static bool limitSpindleSpeed(double rpm)
         return false;
     }
 
-    EMC_SPINDLE_SPEED emc_spindle_speed_msg;
+    EMC_SPINDLE_ON emc_spindle_speed_limit_msg; // Force a wait for at-speed here since the spindle speed is changing
     static const char * const warning_fmt = "Reducing spindle speed in %s from %0.0f to %0.0f for synched motion at line %d\n";
     const char *mode_str = "";
     if (css_maximum > 0.0) {
         // Limit the CSS max RPM, but leave the surface feet per minute setting unchanged
         css_maximum = limit_rpm;
-        buildCSSSpindleCmd(emc_spindle_speed_msg, css_maximum, spindleSpeedCmd);
+        buildCSSSpindleCmd(emc_spindle_speed_limit_msg, css_maximum, spindleSpeedCmd);
         mode_str = "G96";
     } else {
         // Limit spindle RPM only
         spindleSpeedCmd = limit_rpm;
-        buildSpindleCmd(emc_spindle_speed_msg, limit_rpm);
+        buildSpindleCmd(emc_spindle_speed_limit_msg, limit_rpm);
         mode_str = "G97";
     }
 
     CANON_MESSAGE(CANON_MSG_LOW, warning_fmt, mode_str, prev_plan_rpm, limit_rpm, _tag.fields[GM_FIELD_LINE_NUMBER]);
-    interp_list.append(emc_spindle_speed_msg);
+    interp_list.append(emc_spindle_speed_limit_msg);
     return true;
 }
 
