@@ -4523,6 +4523,7 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
         tap_pitch *= block->j_number;
     }
     CHKS(tap_pitch <= 0.0, "Thread pitch must be greater than 0.0 for rigid tapping");
+    CHKS(settings->spindle_mode == CONSTANT_SURFACE, _("Cannot rigid tap in G96 (CSS) mode"));
     CHP_CANON(RIGID_TAP(settings->get_toplevel_line_number(), end_x, end_y, end_z, spindle_retract_speed_scale, tap_pitch, retract_pitch));
     STOP_SPEED_FEED_SYNCH(); // Stop position synch
     // after the RIGID_TAP cycle we'll be in the same spot
