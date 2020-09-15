@@ -866,7 +866,7 @@ int RIGID_TAP(int line_number,
     limitSpindleSpeedFromVel(nominal_vel_path, vel_data.v_max_path);
 
     double depth = mag(xyz(bottom) - xyz(canonEndPoint));
-    double safe_lead = FROM_EXT_LEN(pow(vel_data.vel_xyz, 2) / (2.0 * acc_data.a_max_path)) * RIGID_TAP_LEADIN_SAFETY_FACTOR;
+    double safe_lead = FROM_EXT_LEN(pow(nominal_vel_path, 2) / (2.0 * acc_data.a_max_path)) * RIGID_TAP_LEADIN_SAFETY_FACTOR;
 
     if (safe_lead > depth) {
         CANON_ERROR("Rigid tap move is too short for proper spindle synchronization. For the given spindle speed / pitch, the cycle depth (initial - bottom) must be at least %0.3f. The requested move is only %0.3f deep",
