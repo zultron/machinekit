@@ -40,6 +40,7 @@ struct StandaloneInterpInternals
   AxisOffsetParams axis_offset_param;
   PositionArray _program_position;
   double _spindle_speed;
+  double _css_maximum_rpm;
   CANON_DIRECTION _spindle_turning;
   int _pockets_max;
   CANON_TOOL_TABLE _tools[CANON_POCKETS_MAX];

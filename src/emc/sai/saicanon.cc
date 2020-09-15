@@ -494,8 +494,9 @@ void DWELL_FOR_SPINDLE(double delta_rpm, double extra_wait_sec)
 void SPINDLE_RETRACT_TRAVERSE()
 {PRINT("SPINDLE_RETRACT_TRAVERSE()\n");}
 
-void SET_SPINDLE_MODE(double arg) {
-  PRINT("SET_SPINDLE_MODE(%.4f)\n", arg);
+void SET_SPINDLE_MODE(double css_maximum_rpm) {
+  PRINT("SET_SPINDLE_MODE(%.4f)\n", css_maximum_rpm);
+  _sai._css_maximum_rpm = css_maximum_rpm;
 }
 
 void START_SPINDLE_CLOCKWISE(int wait_for_atspeed)
@@ -947,6 +948,16 @@ extern int GET_EXTERNAL_QUEUE_EMPTY()
 double GET_EXTERNAL_SPEED()
 {
   return _sai._spindle_speed;
+}
+
+// Is the spindle in constant RPM or constant surface mode?
+double GET_EXTERNAL_SPINDLE_CSS_MAX_SPEED() {
+    return _sai._css_maximum_rpm;
+}
+
+// For the current state, what is the planned spindle speed factoring in CSS?
+double GET_EXTERNAL_SPEED_PLANNED() {
+    return _sai._css_maximum_rpm ?: _sai._spindle_speed;
 }
 
 /* Returns the system value for direction of spindle turning */

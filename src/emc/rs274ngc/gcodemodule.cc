@@ -818,7 +818,9 @@ double GET_EXTERNAL_TRAVERSE_RATE() { return 0; }
 int GET_EXTERNAL_FLOOD() { return 0; }
 int GET_EXTERNAL_MIST() { return 0; }
 CANON_PLANE GET_EXTERNAL_PLANE() { return CANON_PLANE_XY; }
-double GET_EXTERNAL_SPEED() { return 0; }
+double GET_EXTERNAL_SPEED() { return spindle_speed_programmed; }
+double GET_EXTERNAL_SPINDLE_CSS_MAX_SPEED() {return css_max_speed_programmed;}
+double GET_EXTERNAL_SPEED_PLANNED() { return css_max_speed_programmed ?: spindle_speed_programmed;}
 int GET_EXTERNAL_POCKETS_MAX() { return CANON_POCKETS_MAX; }
 void DISABLE_ADAPTIVE_FEED() {}
 void ENABLE_ADAPTIVE_FEED() {}
@@ -1175,6 +1177,7 @@ void reset_gcode_canon_globals(const char *interp_name)
     last_sequence_number = -1;
     spindle_synched_motion = 0;
     spindle_speed_programmed = 0.0;
+    css_max_speed_programmed = 0.0;
 
     _pos_prog.fill(0);
     _linecount=0;

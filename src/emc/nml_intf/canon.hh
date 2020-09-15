@@ -799,6 +799,12 @@ extern int GET_EXTERNAL_QUEUE_EMPTY();
 // Returns the system value for spindle speed in rpm
 extern double GET_EXTERNAL_SPEED();
 
+// Is the spindle in constant RPM or constant surface mode?
+extern double GET_EXTERNAL_SPINDLE_CSS_MAX_SPEED();
+
+// For the current state, what is the planned spindle speed factoring in CSS?
+extern double GET_EXTERNAL_SPEED_PLANNED();
+
 // Returns the system value for direction of spindle turning
 extern CANON_DIRECTION GET_EXTERNAL_SPINDLE();
 
