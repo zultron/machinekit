@@ -70,7 +70,7 @@ We assume at start that S3SBOB is pass through mode, i.e. Z limit switch is actu
 #define QUICK_DEBOUNCE (.010)
 #define SLOW_DEBOUNCE (.050)
 #define RESET_TIME (.25)
-#define FAULT_DETECT_FREQ (250.0)  //actual is like 430 some hertz
+#define FAULT_DETECT_FREQ (150.0)  //actual is like 250 ish hertz
 
 FUNCTION(_) { 
 
@@ -97,13 +97,13 @@ FUNCTION(_) {
             if (debounce_timer > 0) 
                 debounce_timer -= fperiod;
             if (debounce_timer <= 0) {
-                zlimit_out = zlimit_in;
+                zlimit_out = zlimit_in;  //note we know zlimit_last == zlimit_in
                 debounce_time = QUICK_DEBOUNCE; //revert to quick debounce
             }
         }
     
 
-        if (reset_timer <= 0.0 && (z_freq_ave > 100.0)) { //if series 3 BOB z limit fb is not active
+        if (reset_timer <= 0.0 && (z_freq_ave > FAULT_DETECT_FREQ)) { //if series 3 BOB z limit fb is active
             zlimit_out = 0;  //over ride above zlimit_out and lie that the z limit switch is NOT being actuated 
             zlimit_last = zlimit_in; //save whatever is happening now
             motor_state = MS_FAULT; //flag PP that servo error has happened 
