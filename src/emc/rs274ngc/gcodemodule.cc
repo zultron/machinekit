@@ -161,7 +161,6 @@ static PyTypeObject LineCodeType = {
 
 static PyObject *callback;
 static int interp_error;
-static int last_sequence_number;
 static bool metric;
 static PositionArray _pos_prog = {}; // In PROGRAM units (note that data passed to callbacks is in USER units)
 static PositionArray probe_start_pos_prog = {};
@@ -208,39 +207,9 @@ static InterpBase *preview_interp;
 
 #define callmethod(o, m, f, ...) PyObject_CallMethod((o), const_cast<char*>(m), const_cast<char*>(f), ## __VA_ARGS__)
 
-#define SUPPRESS_NEXT_LINE_CB
-// Experiment: suppress maybe new line since we don't need it for non-axis GUIs
-// maybe_new_line doesn't seem to do anything if we don't actually have a
-// callback connected, other than cost us overhead.
-#ifndef SUPPRESS_NEXT_LINE_CB
-static void maybe_new_line(int sequence_number=interp_new.sequence_number());
-static void maybe_new_line(int sequence_number) {
-    if(!preview_interp) return;
-    if(interp_error) return;
-    if(sequence_number == last_sequence_number)
-        return;
-    LineCode *new_line_code =
-        (LineCode*)(PyObject_New(LineCode, &LineCodeType));
-    interp_new.active_settings(new_line_code->settings);
-    interp_new.active_g_codes(new_line_code->gcodes);
-    interp_new.active_m_codes(new_line_code->mcodes);
-    new_line_code->gcodes[0] = sequence_number;
-    last_sequence_number = sequence_number;
-    PyObject *result =
-        callmethod(callback, "next_line", "O", new_line_code);
-    Py_DECREF(new_line_code);
-    if(result == nullptr) interp_error ++;
-    Py_XDECREF(result);
+static inline void maybe_new_line() {
     _linecount++;
 }
-#else
-static inline void maybe_new_line(int sequence_number=preview_interp->sequence_number());
-static inline void maybe_new_line(int sequence_number) {
-    _linecount++;
-    last_sequence_number = sequence_number;
-}
-#endif
-
 
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
     double u = 0.0;
@@ -278,7 +247,7 @@ int ARC_FEED(int line_number,
         v_position /= 25.4;
         w_position /= 25.4;
     }
-    maybe_new_line(line_number);
+    maybe_new_line();
     if(interp_error) return 0;
     if (_linecount < max_glcanon_lines) {
         machine.arc_feed(
@@ -297,7 +266,7 @@ void STRAIGHT_FEED(int line_number,
     PositionArray start_pos_uu = machine.get_current_pos();
     _pos_prog={x, y, z, a, b, c, u, v, w};
 
-    maybe_new_line(line_number);
+    maybe_new_line();
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
         machine.straight_feed(line_number, _pos_prog);
@@ -326,7 +295,7 @@ void STRAIGHT_TRAVERSE(int line_number,
                        double a, double b, double c,
                        double u, double v, double w) {
     _pos_prog={x, y, z, a, b, c, u, v, w};
-    maybe_new_line(line_number);
+    maybe_new_line();
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
         machine.straight_traverse(line_number, _pos_prog);
@@ -613,7 +582,7 @@ void STRAIGHT_PROBE(int line_number,
     probe_start_pos_prog = _pos_prog;
     _pos_prog={x, y, z, a, b, c, u, v, w};
 
-    maybe_new_line(line_number);
+    maybe_new_line();
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
         machine.straight_probe(line_number, _pos_prog);
@@ -627,7 +596,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
 
     probe_start_pos_prog = _pos_prog;
     _pos_prog={x, y, z, a, b, c, u, v, w};
-    maybe_new_line(line_number);
+    maybe_new_line();
     if(interp_error) return;
     if (_linecount < max_glcanon_lines) {
         machine.straight_probe(line_number, _pos_prog);
@@ -682,7 +651,7 @@ int RIGID_TAP(int line_number,
     Py_XDECREF(result);
 #endif
 
-    maybe_new_line(line_number);
+    maybe_new_line();
     if(interp_error) {
         return 0;
     }
@@ -1171,7 +1140,6 @@ void reset_gcode_canon_globals(const char *interp_name)
 
     metric=false;
     interp_error = 0;
-    last_sequence_number = -1;
     spindle_synched_motion = 0;
     spindle_speed_programmed = 0.0;
     css_max_speed_programmed = 0.0;
