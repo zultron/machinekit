@@ -1077,7 +1077,6 @@ static int do_parse_loop(
     char *units_gcode,
     char *init_gcode,
     char *working_dir,
-    int &error_line_offset,
     AutoRunSettings start_settings,
     int wait
 ){
@@ -1142,9 +1141,7 @@ static int do_parse_loop(
             // Do nothing, already in run mode
             break;
         }
-        error_line_offset = 1;
         RETURN_ON_ERROR(preview_interp->read());
-        error_line_offset = 0;
         InterpReturn result = (InterpReturn)preview_interp->execute(nullptr, CommandSource::PROGRAM);
         switch(result)
         {
@@ -1189,7 +1186,6 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     char *init_gcode = nullptr;
     char *interp_name = nullptr;
     char *working_dir = nullptr;
-    int error_line_offset = 0;
     AutoRunSettings run_settings;
     int wait = 1;
 
@@ -1235,7 +1231,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     Py_XDECREF(res_clear);
 
     PreviewInterp* interp = dynamic_cast<PreviewInterp*>(preview_interp);
-    int result = do_parse_loop(interp, file_name, units_gcode, init_gcode, working_dir, error_line_offset, run_settings, wait);
+    int result = do_parse_loop(interp, file_name, units_gcode, init_gcode, working_dir, run_settings, wait);
 
     if(preview_interp) preview_interp->close();
     if(interp_error) {
@@ -1296,7 +1292,8 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
 
     PyObject *retval = PyTuple_New(3);
     PyTuple_SET_ITEM(retval, 0, PyInt_FromLong(result));
-    PyTuple_SET_ITEM(retval, 1, PyInt_FromLong(last_sequence_number + error_line_offset));
+    long error_line = interp->_setup.get_toplevel_line_number();
+    PyTuple_SET_ITEM(retval, 1, PyInt_FromLong(error_line));
 
     if (interp) {
         PyObject *warnings = gen_warning_list(interp->getWarnings());
