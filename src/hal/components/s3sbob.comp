@@ -15,7 +15,7 @@ pin out float debounce_time;
 pin out float reset_timer;
 pin out bit zlimit_last;
 pin out float z_freq_ave;
-
+pin out float z_timer; //lockout timer for looking at z-freq input
 
 function _ "Tormach Series 3 Servo Break Out Board";
 license "GPL";
@@ -26,9 +26,6 @@ license "GPL";
 
 /*
 We assume at start that S3SBOB is pass through mode, i.e. Z limit switch is actual.
-
-
-
 */
 
 //########## keep these in sync with constants.py!!
@@ -70,19 +67,42 @@ We assume at start that S3SBOB is pass through mode, i.e. Z limit switch is actu
 #define QUICK_DEBOUNCE (.010)
 #define SLOW_DEBOUNCE (.050)
 #define RESET_TIME (.25)
-#define FAULT_DETECT_FREQ (150.0)  //actual is like 250 ish hertz
+#define FAULT_APROX_FREQ (25.0) //approximate fb freq is 25 hertz
+#define FAULT_WINDOW_LOW (FAULT_APROX_FREQ/2)  
+#define FAULT_WINDOW_HIGH (FAULT_APROX_FREQ*2)
+#define Z_LOCKOUT_TIME (0.10)
+
 
 FUNCTION(_) { 
+float fb_freq;
 
     if(!debounce_time) { //first pass detector
         debounce_time = QUICK_DEBOUNCE; //z limit switch is actual
         motor_state = MS_NORMAL;
         status_code = MFB_OK;
         reset_timer = RESET_TIME;
-        z_freq_ave = FAULT_DETECT_FREQ;
+        z_freq_ave = FAULT_APROX_FREQ; //assume start with S3SBOB signaling a fault
     }
 
-    z_freq_ave += (fabs(z_freq) - z_freq_ave) * .05; //average about 20 samples, so about 20 mS filtering delay
+    fb_freq = fabs(z_freq);
+
+    //feedback freq is FAULT_APROX_FREQ, but normal switch bouncing can give spikes of 1Khz or more. So we make 
+    //sure we have a fb freq that is within expected window (range)
+
+    if (z_timer >= 0.0) { //if timer is running
+        z_timer -= fperiod;
+        z_freq_ave = 0.0;
+    }
+    else {
+        if (fb_freq > FAULT_WINDOW_HIGH) {
+            z_freq_ave = 0.0;
+            z_timer = Z_LOCKOUT_TIME;
+        }
+        else if (fb_freq > FAULT_WINDOW_LOW)  //so we know fb_freq <= FAULT_WINDOW_HIGH
+            z_freq_ave += (fb_freq - z_freq_ave) * .05; //average about 20 samples, so about 20 mS filtering delay
+        else z_freq_ave = 0; //fb_freq is <= FAULT_WINDOW_LOW
+    }
+
 
     if (reset_timer > 0)
         reset_timer -= fperiod;
@@ -97,15 +117,18 @@ FUNCTION(_) {
             if (debounce_timer > 0) 
                 debounce_timer -= fperiod;
             if (debounce_timer <= 0) {
-                zlimit_out = zlimit_in;  //note we know zlimit_last == zlimit_in
+                if (fb_freq < FAULT_WINDOW_LOW || fb_freq > FAULT_WINDOW_HIGH) //only change zlimit_out if fb freq is not within normal S3SBOB freq range
+                    zlimit_out = zlimit_in;  //note we know zlimit_last == zlimit_in
+                else 
+                    debounce_timer = QUICK_DEBOUNCE; //restart debounce timer, so we look again if fb freq is drifting through valid S3SBOB range simply due to normal limit switch glitches 
                 debounce_time = QUICK_DEBOUNCE; //revert to quick debounce
             }
-        }
-    
+        }    
+           
 
-        if (reset_timer <= 0.0 && (z_freq_ave > FAULT_DETECT_FREQ)) { //if series 3 BOB z limit fb is active
+        if (reset_timer <= 0.0 && (z_freq_ave > FAULT_WINDOW_LOW)) { //our running average is indicating a fault
             zlimit_out = 0;  //over ride above zlimit_out and lie that the z limit switch is NOT being actuated 
-            zlimit_last = zlimit_in; //save whatever is happening now
+            zlimit_last = 0; // must echo our lie
             motor_state = MS_FAULT; //flag PP that servo error has happened 
             status_code = MFB_FAULT; 
             debounce_time = SLOW_DEBOUNCE; //slower debounce as we leave S33BOB fault state
