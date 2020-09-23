@@ -2,15 +2,90 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+
+// use all stdlib stuff to drop in easily to linuxcnc without
+// much C++ STL dependencies and vagaries
 
 const char* OPENSSL_BINARY = "/usr/bin/openssl";
 const char* LICENSE_FILE = "/home/operator/license.json";
 const char* LICENSE_FILE_SIGNATURE = "/home/operator/license.sig";
 const char* PUBLIC_KEY = "/home/operator/public.pem";
 
-// use all stdlib stuff to drop in easily to linuxcnc
+// 64K is way bigger than any possible license.json file in the real world
+const size_t BUFFER_SIZE = (sizeof(char) * 64 * 1024);
+
+#define ZERO_STRUCT(ptr) { memset(ptr, 0, sizeof(*ptr)); }
+
+bool is_license_expired()
+{
+    bool license_expired = true;  // assume the worst
+
+    char* buffer = (char*) malloc(BUFFER_SIZE);
+    if (buffer)
+    {
+        memset(buffer, 0, BUFFER_SIZE);  // null terminate entire buffer so later strstr can't possibly overflow
+
+        FILE* licfile = fopen(LICENSE_FILE, "r");
+        if (licfile)
+        {
+            size_t bytecount = fread(buffer, 1, BUFFER_SIZE-1, licfile);
+            if (bytecount > 0)
+            {
+                const char* buffer_limit = buffer + bytecount;
+                // buffer contains a small json structure and we're hunting for the substring
+                // "expiration_timestamp_utc": "2020-09-30 22:31:09"
+                char* token = strstr(buffer, "\"expiration_timestamp_utc\":");
+                if (token)
+                {
+                    token += strlen("\"expiration_timestamp_utc\":");
+                    while ((*token == ' ') && (token < buffer_limit)) ++token;
+                    while ((*token == '"') && (token < buffer_limit)) ++token;
+                    char* expire_timestamp_utc = token;
+                    while ((*token != '"') && (token < buffer_limit)) ++token;
+                    if (token < buffer_limit)
+                    {
+                        *token = '\0';
+
+                        // Now expire_timestamp_utc points to just the timestamp.
+                        printf("expire timestamp: %s\n", expire_timestamp_utc);
+
+                        // HUB returns license dates in UTC time zone in this format which
+                        // conveniently maps to the strptime function from time.h
+                        // '%Y-%m-%d %H:%M:%S'
+
+                        tzset();  // time functions now aware of proper local time zone...
+                        time_t now_utc = time(NULL);
+
+                        struct tm expiretm;
+                        ZERO_STRUCT(&expiretm);
+                        if (strptime(expire_timestamp_utc, "%Y-%m-%d %H:%M:%S", &expiretm) != NULL)
+                        {
+                            // convert from struct tm in utc time to utc time_t for easy comparision
+                            time_t expire_utc = timegm(&expiretm);
+                            if (expire_utc > now_utc)
+                            {
+                                license_expired = false;  // license still has time left
+                            }
+                        }
+                    }
+                }
+            }
+
+            fclose(licfile);
+            licfile = NULL;
+        }
+
+        free(buffer);
+        buffer = NULL;
+    }
+
+    return license_expired;
+}
+
 
 bool is_license_valid()
 {
@@ -48,9 +123,13 @@ bool is_license_valid()
                         {
                             if (WIFEXITED(status))
                             {
-                                if (0 ==WEXITSTATUS(status))
+                                if (0 == WEXITSTATUS(status))
                                 {
-                                    return true;
+                                    // awesome - the signature is valid so we can trust the contents of
+                                    // license.json
+                                    // now need to verify that the current time isn't past the license expiration
+                                    // time.
+                                    return !is_license_expired();
                                 }
                             }
                         }
