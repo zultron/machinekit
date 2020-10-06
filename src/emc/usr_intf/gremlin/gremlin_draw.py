@@ -144,6 +144,7 @@ class GremlinDraw(glnav.GlNavBase):
         self.font_base = None
         self.font_linespace = None
         self.font_charwidth = None
+        self.debug_drawtime = False
 
     # Abstract methods
 
@@ -889,8 +890,8 @@ class GremlinDraw(glnav.GlNavBase):
 
         t1 = time.time()
         dt_ms = 1000. * (t1 - t0)
-        dt_cutoff_ms = 10.
-        if dt_ms > dt_cutoff_ms:
+        dt_cutoff_ms = 40.
+        if self.debug_drawtime and dt_ms > dt_cutoff_ms:
             print "glcanon.redraw() call exceeded {} ms: {:0.3f} ms".format(dt_cutoff_ms, dt_ms)
 
     def draw_coordinate_systems(self, last_position):
