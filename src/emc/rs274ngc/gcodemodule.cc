@@ -1257,6 +1257,19 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
         }
         Py_XDECREF(res);
     }
+    {
+        PyObject *res = callmethod(
+            callback,
+            "set_effective_program_linecount",
+            "i",
+            _linecount);
+
+        if(!res) {
+            PyErr_Format(PyExc_RuntimeError,
+                    "Failed to set program effective linecount");
+        }
+        Py_XDECREF(res);
+    }
 
     PyObject *retval = PyTuple_New(3);
     PyTuple_SET_ITEM(retval, 0, PyInt_FromLong(result));

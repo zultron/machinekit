@@ -58,6 +58,8 @@ class GLCanon(Translated):
         self.suppress = 0
         Translated.__init__(self, 1)
 
+        self.linecount = 0
+
         # Computed once after parse completes then cached here
         self.min_extents = [9e99, 9e99, 9e99]
         self.max_extents = [-9e99, -9e99, -9e99]
@@ -132,6 +134,12 @@ class GLCanon(Translated):
         self.max_extents = max_extents
         self.min_extents_notool = min_extents_notool
         self.max_extents_notool = max_extents_notool
+
+    def set_effective_program_linecount(self, linecount):
+        self.linecount = linecount
+
+    def get_effective_program_linecount(self):
+        return self.linecount
 
     def calc_velocity(self, delta, axis_max_vel):
         """Using techniques from getStraightVelocity() in emccanon.cc, given 9
