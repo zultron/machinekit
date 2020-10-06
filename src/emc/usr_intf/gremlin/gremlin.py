@@ -438,6 +438,12 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
     def get_canon(self): return self.canon
     def get_tools_used(self): return self._tools_used
 
+    def get_program_effective_linecount(self):
+        if self.canon is None:
+            return 0
+        else:
+            return self.canon.linecount
+
     def select_prime(self, x, y):
         self.select_primed = x, y
 
