@@ -1539,8 +1539,8 @@ class GremlinDraw(glnav.GlNavBase):
         glPopMatrix()
 
     def set_tool_gl_materials(self, ambient_name=None, diffuse_name=None):
-        ambient_matcolor4 = self.color_config.get_color(ambient_name or 'tool_ambient') + (0,)
-        diffuse_matcolor4 = self.color_config.get_color(diffuse_name or 'tool_diffuse') + (0,)
+        ambient_matcolor4 = self.color_config.get_color(ambient_name or 'tool_body_ambient') + (0,)
+        diffuse_matcolor4 = self.color_config.get_color(diffuse_name or 'tool_body_diffuse') + (0,)
         glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient_matcolor4)
         glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse_matcolor4)
 
@@ -1874,8 +1874,10 @@ class GlDrawColors:
             'grid_plane_above': (.01, .05, .05),
             'grid_plane_below': (.01, .05, .05),
             # Tool colors
-            'tool_diffuse': (0.80, 0.80, 0.80),
-            'tool_ambient': (0.20, 0.20, 0.20),
+            'tool_diffuse': (0.60, 0.60, 0.60),
+            'tool_ambient': (0.40, 0.40, 0.40),
+            'tool_body_diffuse': (0.80, 0.80, 0.80),
+            'tool_body_ambient': (0.20, 0.20, 0.20),
             'probe_tip_diffuse': (0.608, 0.0667, 0.1176),
             'probe_shaft_diffuse': (0.95, 0.95, 0.95),
         }
