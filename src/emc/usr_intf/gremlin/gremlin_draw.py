@@ -1553,7 +1553,7 @@ class GremlinDraw(glnav.GlNavBase):
             glScalef(scale, scale, scale)
             glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
             self.set_tool_gl_materials()
-            gluCylinder(q, 0, .1, .25, 32, 1)
+            gluCylinder(q, 0, .1, .25, 32, 4)
             with gl_push_matrix():
                 glTranslatef(0, 0, .25)
                 gluDisk(q, 0, .1, 32, 1)
