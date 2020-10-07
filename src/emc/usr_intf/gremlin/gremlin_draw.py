@@ -1496,6 +1496,7 @@ class GremlinDraw(glnav.GlNavBase):
         glPopMatrix()
 
     def make_cone(self, n):
+        glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
         q = gluNewQuadric()
         glNewList(n, GL_COMPILE)
         glEnable(GL_LIGHTING)
