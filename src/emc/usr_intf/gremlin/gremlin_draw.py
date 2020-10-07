@@ -1081,15 +1081,8 @@ class GremlinDraw(glnav.GlNavBase):
             current_tool = self.get_current_tool()
             if current_tool != self.cached_tool:
                 self.stale_dlist('tool')
-            if current_tool is None or current_tool.diameter == 0:
-                cone_scale = self.find_tool_placeholder_scale()
-                if self.is_lathe():
-                    glRotatef(90, 0, 1, 0)
-                tool_dlist = self.dlist('tool', gen=lambda n: self.make_cone(n, cone_scale))
-                glCallList(tool_dlist)
-            else:
-                tool_dlist = self.dlist('tool', gen=lambda n: self.make_tool(n, current_tool))
-                glCallList(tool_dlist)
+            tool_dlist = self.dlist('tool', gen=lambda n: self.make_tool(n, current_tool))
+            glCallList(tool_dlist)
             self.cached_tool = current_tool
 
     def find_tool_placeholder_scale(self):
@@ -1110,7 +1103,7 @@ class GremlinDraw(glnav.GlNavBase):
         glPushMatrix()
         glTranslatef(pos[0], pos[1], self.get_foam_z())
         glRotatef(180, 1, 0, 0)
-        cone = self.dlist("cone", gen=self.make_cone)
+        cone = self.dlist('cone', gen=self.make_cone)
         glColor3f(*self.color_config.get_color('cone_xy'))
         glCallList(cone)
         glPopMatrix()
@@ -1232,11 +1225,15 @@ class GremlinDraw(glnav.GlNavBase):
                     self._draw_lathetool(current_tool)
                 else:
                     # Use default tool opacity but rotate the cone to lie in the lathe plane
+                    glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
                     self._draw_cone(1.0)
                     glRotatef(90, 0, 1, 0)
             else:
                 glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
-                if current_tool.id == 99:
+                if current_tool is None or current_tool.diameter == 0:
+                    cone_scale = self.find_tool_placeholder_scale()
+                    self._draw_cone(cone_scale)
+                elif current_tool.id == 99:
                     # Use the dedicated draw function for a renishaw-style probe tip
                     self._draw_ball_probe_tool(current_tool)
                 else:
@@ -1547,9 +1544,8 @@ class GremlinDraw(glnav.GlNavBase):
             self._draw_cone(scale)
 
     def _draw_cone(self, scale):
-        with gl_quadric() as q, gl_enable(GL_LIGHTING):
+        with gl_enable(GL_LIGHTING), gl_quadric() as q:
             glScalef(scale, scale, scale)
-            glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
             self.set_tool_gl_materials()
             gluCylinder(q, 0, .1, .25, 32, 4)
             with gl_push_matrix():
