@@ -1193,8 +1193,46 @@ class GremlinDraw(glnav.GlNavBase):
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
 
+    def make_probe_tool(self, tool_dlist, current_tool, tip_color_name):
+        # Use default tool alpha (used for constant alpha blend)
+        glNewList(tool_dlist, GL_COMPILE)
+        glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
+
+        self.set_tool_gl_lighting('tool_ambient', 'probe_shaft_diffuse')
+        dia = current_tool.diameter
+        r = self.to_internal_linear_unit(dia) / 2.
+        # KLUDGE hard-code until we can embed this in tool properties
+        shaft_radius = .66 * r
+        # KLUDGE hard-code the probe tip length in inches
+        shaft_height = 1.25
+        # How far above the bottom of the sphere the shaft starts
+        embed_depth = r * 1.2
+        tip_dia = 2.0 * r
+        q_shaft = gluNewQuadric()
+        glEnable(GL_LIGHTING)
+        glTranslatef(0, 0, tip_dia)
+        gluCylinder(q_shaft, shaft_radius, shaft_radius, shaft_height, 32, 1)
+        with gl_push_matrix():
+            glRotatef(180, 1, 0, 0)
+            gluDisk(q_shaft, 0, shaft_radius, 32, 1)
+        with gl_push_matrix():
+            glTranslatef(0, 0, shaft_height-embed_depth)
+            gluDisk(q_shaft, 0, shaft_radius, 32, 1)
+        gluDeleteQuadric(q_shaft)
+        self.set_tool_gl_lighting('tool_ambient', 'probe_tip_diffuse')
+        q_ball = gluNewQuadric()
+        gluSphere(q_ball, r, 32, 32)
+        glDisable(GL_LIGHTING)
+        gluDeleteQuadric(q_ball)
+        glEndList()
+
     def make_tool(self, tool_dlist, current_tool):
+        if current_tool.id == 99 and not self.is_lathe():
+            # The ugliest way to make a probe tip...
+            return self.make_probe_tool(tool_dlist, current_tool, 'probe_tip')
+
         glColor3f(*self.color_config.get_color('cone'))
+        self.set_tool_gl_lighting()
         glNewList(tool_dlist, GL_COMPILE)
         if self.is_lathe() and current_tool and current_tool.orientation != 0:
             glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('lathetool'))
@@ -1496,8 +1534,19 @@ class GremlinDraw(glnav.GlNavBase):
         self.hershey.plot_string("G92", 0.1)
         glPopMatrix()
 
+    def set_tool_gl_lighting(self, ambient_name=None, diffuse_name=None):
+        ambient_matcolor4 = self.color_config.get_color(ambient_name or 'tool_ambient') + (0,)
+        diffuse_matcolor4 = self.color_config.get_color(diffuse_name or 'tool_diffuse') + (0,)
+        glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient_matcolor4)
+        glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse_matcolor4)
+        # glLightfv(GL_LIGHT0, GL_AMBIENT, self.color_config.get_color('tool_ambient') + (0,))
+        # glLightfv(GL_LIGHT0, GL_DIFFUSE, self.color_config.get_color('tool_diffuse') + (0,))
+        # glEnable(GL_LIGHT0)
+        # TODO enable other settings here? Currently we depend on them not being touched by other draw steps
+
     def make_cone(self, n):
         glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
+        self.set_tool_gl_lighting()
         q = gluNewQuadric()
         glNewList(n, GL_COMPILE)
         glEnable(GL_LIGHTING)
@@ -1791,7 +1840,6 @@ class GlDrawColors:
             'backplotprobing': (0.63, 0.13, 0.94),
             'backplottraverse': (0.30, 0.50, 0.50),
             'label_ok': (1.00, 0.51, 0.53),
-            'tool_diffuse': (0.60, 0.60, 0.60),
             'backplotfeed': (0.75, 0.25, 0.25),
             'back': (0.00, 0.00, 0.00),
             'axis_y': (0.20, 1.00, 0.20),
@@ -1812,7 +1860,6 @@ class GlDrawColors:
             'straight_feed_xy': (0.20, 1.00, 0.20),
             'straight_feed_uv': (0.20, 0.20, 1.00),
             'small_origin': (0.00, 1.00, 1.00),
-            'tool_ambient': (0.40, 0.40, 0.40),
             'backplottoolchange': (1.00, 0.65, 0.00),
             'backplotarc': (0.75, 0.25, 0.50),
             'm1xx': (0.50, 0.50, 1.00),
@@ -1827,6 +1874,11 @@ class GlDrawColors:
             'axis_offset': (.4, .6, .8),
             'grid_plane_above': (.01, .05, .05),
             'grid_plane_below': (.01, .05, .05),
+            # Tool colors
+            'tool_diffuse': (0.80, 0.80, 0.80),
+            'tool_ambient': (0.20, 0.20, 0.20),
+            'probe_tip_diffuse': (0.608, 0.0667, 0.1176),
+            'probe_shaft_diffuse': (0.95, 0.95, 0.95),
         }
 
         # NOTE: PARSE_EXEC_RUN is deliberately omitted here so that the lookup will fall back to the motion type
