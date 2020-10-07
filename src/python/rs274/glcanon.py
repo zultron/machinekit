@@ -22,6 +22,7 @@ from gl_context_managers import *
 import linuxcnc
 import gcode
 from collections import defaultdict, namedtuple
+from minigl import *
 
 MotionKey = namedtuple('MotionKey', ['motion_type', 'exec_mode', 'tool_no'])
 
