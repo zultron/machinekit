@@ -15,7 +15,7 @@ from minigl import *
 
 import glnav
 import hershey
-from gl_context_managers import gl_new_list, gl_push_matrix, gl_begin, gl_enable
+from gl_context_managers import *
 
 
 def with_context(f):
@@ -1081,17 +1081,15 @@ class GremlinDraw(glnav.GlNavBase):
             current_tool = self.get_current_tool()
             if current_tool != self.cached_tool:
                 self.stale_dlist('tool')
-                self.stale_dlist('cone')
             if current_tool is None or current_tool.diameter == 0:
                 cone_scale = self.find_tool_placeholder_scale()
                 if self.is_lathe():
                     glRotatef(90, 0, 1, 0)
-                cone = self.dlist("cone", gen=self.make_cone)
-                glScalef(cone_scale, cone_scale, cone_scale)
-                glColor3f(*self.color_config.get_color('cone'))
-                glCallList(cone)
+                tool_dlist = self.dlist('tool', gen=lambda n: self.make_cone(n, cone_scale))
+                glCallList(tool_dlist)
             else:
-                glCallList(self.dlist('tool', gen=lambda n: self.make_tool(n, current_tool)))
+                tool_dlist = self.dlist('tool', gen=lambda n: self.make_tool(n, current_tool))
+                glCallList(tool_dlist)
             self.cached_tool = current_tool
 
     def find_tool_placeholder_scale(self):
@@ -1193,68 +1191,74 @@ class GremlinDraw(glnav.GlNavBase):
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
 
-    def make_probe_tool(self, tool_dlist, current_tool, tip_color_name):
+    def make_ball_probe_tool(self, tool_dlist, current_tool):
         # Use default tool alpha (used for constant alpha blend)
-        glNewList(tool_dlist, GL_COMPILE)
-        glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
-
-        self.set_tool_gl_lighting('tool_ambient', 'probe_shaft_diffuse')
         dia = current_tool.diameter
         r = self.to_internal_linear_unit(dia) / 2.
         # KLUDGE hard-code until we can embed this in tool properties
         shaft_radius = .66 * r
         # KLUDGE hard-code the probe tip length in inches
         shaft_height = 1.25
-        # How far above the bottom of the sphere the shaft starts
-        embed_depth = r * 1.2
-        tip_dia = 2.0 * r
-        q_shaft = gluNewQuadric()
-        glEnable(GL_LIGHTING)
-        glTranslatef(0, 0, tip_dia)
-        gluCylinder(q_shaft, shaft_radius, shaft_radius, shaft_height, 32, 1)
-        with gl_push_matrix():
-            glRotatef(180, 1, 0, 0)
-            gluDisk(q_shaft, 0, shaft_radius, 32, 1)
-        with gl_push_matrix():
-            glTranslatef(0, 0, shaft_height-embed_depth)
-            gluDisk(q_shaft, 0, shaft_radius, 32, 1)
-        gluDeleteQuadric(q_shaft)
-        self.set_tool_gl_lighting('tool_ambient', 'probe_tip_diffuse')
-        q_ball = gluNewQuadric()
-        gluSphere(q_ball, r, 32, 32)
-        glDisable(GL_LIGHTING)
-        gluDeleteQuadric(q_ball)
-        glEndList()
+        facets = 32
 
-    def make_tool(self, tool_dlist, current_tool):
-        if current_tool.id == 99 and not self.is_lathe():
-            # The ugliest way to make a probe tip...
-            return self.make_probe_tool(tool_dlist, current_tool, 'probe_tip')
-
-        glColor3f(*self.color_config.get_color('cone'))
-        self.set_tool_gl_lighting()
-        glNewList(tool_dlist, GL_COMPILE)
-        if self.is_lathe() and current_tool and current_tool.orientation != 0:
-            glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('lathetool'))
-            self._draw_lathetool(current_tool)
-        else:
+        with gl_new_list(tool_dlist, GL_COMPILE):
             glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
-            if self.is_lathe():
-                glRotatef(90, 0, 1, 0)
-            else:
-                dia = current_tool.diameter
-                r = self.to_internal_linear_unit(dia) / 2.
-                q = gluNewQuadric()
-                glEnable(GL_LIGHTING)
-                gluCylinder(q, r, r, 8*r, 32, 1)
+            self.set_tool_gl_materials('tool_ambient', 'probe_shaft_diffuse')
+            glEnable(GL_LIGHTING)
+            with gl_push_matrix(), gl_quadric() as q_shaft:
+                # Offset so shaft end is at tip center (for visual alignment)
+                glTranslatef(0, 0, r)
+                gluCylinder(q_shaft, shaft_radius, shaft_radius, shaft_height, facets, 1)
                 with gl_push_matrix():
                     glRotatef(180, 1, 0, 0)
-                    gluDisk(q, 0, r, 32, 1)
-                glTranslatef(0, 0, 8*r)
-                gluDisk(q, 0, r, 32, 1)
+                    gluDisk(q_shaft, 0, shaft_radius, facets, 1)
+                with gl_push_matrix():
+                    glTranslatef(0, 0, shaft_height)
+                    gluDisk(q_shaft, 0, shaft_radius, facets, 1)
+            self.set_tool_gl_materials('tool_ambient', 'probe_tip_diffuse')
+            with gl_quadric() as q_ball:
+                glTranslatef(0, 0, r)
+                gluSphere(q_ball, r, facets, facets)
                 glDisable(GL_LIGHTING)
-                gluDeleteQuadric(q)
-        glEndList()
+
+    def make_tool(self, tool_dlist, current_tool):
+        """
+        Generate a tool model based on the current tool and gremlin settings (populating the provided call list)
+        """
+        if current_tool.id == 99 and not self.is_lathe():
+            # The ugliest way to make a probe tip...
+            return self.make_ball_probe_tool(tool_dlist, current_tool)
+
+        # Restore default tool materials / lighting
+        with gl_new_list(tool_dlist, GL_COMPILE):
+            self.set_tool_gl_materials()
+            if self.is_lathe():
+                glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('lathetool'))
+                if current_tool and current_tool.orientation != 0:
+                    self._draw_lathetool(current_tool)
+                else:
+                    # Use default tool opacity but rotate the cone to lie in the lathe plane
+                    self._draw_cone(1.0)
+                    glRotatef(90, 0, 1, 0)
+            else:
+                # Normal mill tools
+                glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
+                self._draw_cylinder_tool(current_tool)
+
+    def _draw_cylinder_tool(self, current_tool):
+        """
+        Draws a basic cylindrical tool shape with current material / color settings
+        :param current_tool: Model data for the current tool
+        """
+        dia = current_tool.diameter
+        r = self.to_internal_linear_unit(dia) / 2.
+        with gl_quadric() as q, gl_enable(GL_LIGHTING):
+            gluCylinder(q, r, r, 8 * r, 32, 1)
+            with gl_push_matrix():
+                glRotatef(180, 1, 0, 0)
+                gluDisk(q, 0, r, 32, 1)
+            glTranslatef(0, 0, 8 * r)
+            gluDisk(q, 0, r, 32, 1)
 
     def posstrs(self):
         s = self.stat
@@ -1534,30 +1538,25 @@ class GremlinDraw(glnav.GlNavBase):
         self.hershey.plot_string("G92", 0.1)
         glPopMatrix()
 
-    def set_tool_gl_lighting(self, ambient_name=None, diffuse_name=None):
+    def set_tool_gl_materials(self, ambient_name=None, diffuse_name=None):
         ambient_matcolor4 = self.color_config.get_color(ambient_name or 'tool_ambient') + (0,)
         diffuse_matcolor4 = self.color_config.get_color(diffuse_name or 'tool_diffuse') + (0,)
         glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient_matcolor4)
         glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse_matcolor4)
-        # glLightfv(GL_LIGHT0, GL_AMBIENT, self.color_config.get_color('tool_ambient') + (0,))
-        # glLightfv(GL_LIGHT0, GL_DIFFUSE, self.color_config.get_color('tool_diffuse') + (0,))
-        # glEnable(GL_LIGHT0)
-        # TODO enable other settings here? Currently we depend on them not being touched by other draw steps
 
-    def make_cone(self, n):
-        glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
-        self.set_tool_gl_lighting()
-        q = gluNewQuadric()
-        glNewList(n, GL_COMPILE)
-        glEnable(GL_LIGHTING)
-        gluCylinder(q, 0, .1, .25, 32, 1)
-        glPushMatrix()
-        glTranslatef(0, 0, .25)
-        gluDisk(q, 0, .1, 32, 1)
-        glPopMatrix()
-        glDisable(GL_LIGHTING)
-        glEndList()
-        gluDeleteQuadric(q)
+    def make_cone(self, n, scale=1.0):
+        with gl_new_list(n, GL_COMPILE):
+            self._draw_cone(scale)
+
+    def _draw_cone(self, scale):
+        with gl_quadric() as q, gl_enable(GL_LIGHTING):
+            glScalef(scale, scale, scale)
+            glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
+            self.set_tool_gl_materials()
+            gluCylinder(q, 0, .1, .25, 32, 1)
+            with gl_push_matrix():
+                glTranslatef(0, 0, .25)
+                gluDisk(q, 0, .1, 32, 1)
 
     def _draw_lathetool(self, current_tool):
         if self.is_rear_tool_post_lathe:
