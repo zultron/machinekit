@@ -1191,7 +1191,7 @@ class GremlinDraw(glnav.GlNavBase):
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
 
-    def make_ball_probe_tool(self, tool_dlist, current_tool):
+    def _draw_ball_probe_tool(self, current_tool):
         # Use default tool alpha (used for constant alpha blend)
         dia = current_tool.diameter
         r = self.to_internal_linear_unit(dia) / 2.
@@ -1201,11 +1201,9 @@ class GremlinDraw(glnav.GlNavBase):
         shaft_height = 1.25
         facets = 32
 
-        with gl_new_list(tool_dlist, GL_COMPILE):
-            glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
-            self.set_tool_gl_materials('tool_ambient', 'probe_shaft_diffuse')
-            glEnable(GL_LIGHTING)
+        with gl_enable(GL_LIGHTING):
             with gl_push_matrix(), gl_quadric() as q_shaft:
+                self.set_tool_gl_materials('tool_ambient', 'probe_shaft_diffuse')
                 # Offset so shaft end is at tip center (for visual alignment)
                 glTranslatef(0, 0, r)
                 gluCylinder(q_shaft, shaft_radius, shaft_radius, shaft_height, facets, 1)
@@ -1215,19 +1213,15 @@ class GremlinDraw(glnav.GlNavBase):
                 with gl_push_matrix():
                     glTranslatef(0, 0, shaft_height)
                     gluDisk(q_shaft, 0, shaft_radius, facets, 1)
-            self.set_tool_gl_materials('probe_tip_ambient', 'probe_tip_diffuse')
             with gl_quadric() as q_ball:
+                self.set_tool_gl_materials('probe_tip_ambient', 'probe_tip_diffuse')
                 glTranslatef(0, 0, r)
-                gluSphere(q_ball, r, facets, facets)
-                glDisable(GL_LIGHTING)
+                gluSphere(q_ball, r, 24, 24)
 
     def make_tool(self, tool_dlist, current_tool):
         """
         Generate a tool model based on the current tool and gremlin settings (populating the provided call list)
         """
-        if current_tool.id == 99 and not self.is_lathe():
-            # The ugliest way to make a probe tip...
-            return self.make_ball_probe_tool(tool_dlist, current_tool)
 
         # Restore default tool materials / lighting
         with gl_new_list(tool_dlist, GL_COMPILE):
@@ -1241,9 +1235,13 @@ class GremlinDraw(glnav.GlNavBase):
                     self._draw_cone(1.0)
                     glRotatef(90, 0, 1, 0)
             else:
-                # Normal mill tools
                 glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('tool'))
-                self._draw_cylinder_tool(current_tool)
+                if current_tool.id == 99:
+                    # Use the dedicated draw function for a renishaw-style probe tip
+                    self._draw_ball_probe_tool(current_tool)
+                else:
+                    # Normal mill tools
+                    self._draw_cylinder_tool(current_tool)
 
     def _draw_cylinder_tool(self, current_tool):
         """
