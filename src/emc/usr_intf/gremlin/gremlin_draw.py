@@ -1215,7 +1215,7 @@ class GremlinDraw(glnav.GlNavBase):
                 with gl_push_matrix():
                     glTranslatef(0, 0, shaft_height)
                     gluDisk(q_shaft, 0, shaft_radius, facets, 1)
-            self.set_tool_gl_materials('tool_ambient', 'probe_tip_diffuse')
+            self.set_tool_gl_materials('probe_tip_ambient', 'probe_tip_diffuse')
             with gl_quadric() as q_ball:
                 glTranslatef(0, 0, r)
                 gluSphere(q_ball, r, facets, facets)
@@ -1878,7 +1878,8 @@ class GlDrawColors:
             'tool_ambient': (0.40, 0.40, 0.40),
             'tool_body_diffuse': (0.80, 0.80, 0.80),
             'tool_body_ambient': (0.20, 0.20, 0.20),
-            'probe_tip_diffuse': (0.608, 0.0667, 0.1176),
+            'probe_tip_ambient': (0.4, 0.20, 0.25),
+            'probe_tip_diffuse': (0.608, 0.0667, 0.13),
             'probe_shaft_diffuse': (0.95, 0.95, 0.95),
         }
 
