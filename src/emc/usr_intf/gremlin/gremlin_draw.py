@@ -1079,6 +1079,9 @@ class GremlinDraw(glnav.GlNavBase):
             glEnable(GL_CULL_FACE)
             glBlendFunc(GL_ONE, GL_CONSTANT_ALPHA)
             current_tool = self.get_current_tool()
+            if current_tool != self.cached_tool:
+                self.stale_dlist('tool')
+                self.stale_dlist('cone')
             if current_tool is None or current_tool.diameter == 0:
                 cone_scale = self.find_tool_placeholder_scale()
                 if self.is_lathe():
@@ -1088,9 +1091,8 @@ class GremlinDraw(glnav.GlNavBase):
                 glColor3f(*self.color_config.get_color('cone'))
                 glCallList(cone)
             else:
-                if current_tool != self.cached_tool:
-                    self.stale_dlist('tool')
                 glCallList(self.dlist('tool', gen=lambda n: self.make_tool(n, current_tool)))
+            self.cached_tool = current_tool
 
     def find_tool_placeholder_scale(self):
         if self.canon:
@@ -1193,7 +1195,6 @@ class GremlinDraw(glnav.GlNavBase):
 
     def make_tool(self, tool_dlist, current_tool):
         glColor3f(*self.color_config.get_color('cone'))
-        self.cached_tool = current_tool
         glNewList(tool_dlist, GL_COMPILE)
         if self.is_lathe() and current_tool and current_tool.orientation != 0:
             glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('lathetool'))
