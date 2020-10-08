@@ -188,7 +188,7 @@ class GremlinDraw(glnav.GlNavBase):
         glLightfv(GL_LIGHT0, GL_AMBIENT, self.color_config.get_color('tool_ambient') + (0,))
         glLightfv(GL_LIGHT0, GL_DIFFUSE, self.color_config.get_color('tool_diffuse') + (0,))
         # Disable this since we weren't actually using it, and now with proper inheritance this override is called
-        # glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, (1,1,1,0))
+        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
         glDepthFunc(GL_LESS)
@@ -1069,7 +1069,8 @@ class GremlinDraw(glnav.GlNavBase):
             self.draw_single_tool(pos, rx, ry, rz)
 
     def draw_single_tool(self, pos, rx, ry, rz):
-        with gl_push_matrix():
+        glShadeModel(GL_SMOOTH)
+        with gl_push_matrix(), gl_enable(GL_LIGHTING), gl_enable(GL_COLOR_MATERIAL):
             glTranslatef(*pos)
             # FIXME not sure if the extrinsic / intrinsic order is right here
             glRotatef(rz * 180./np.pi, 0, 0, 1)
@@ -1194,31 +1195,29 @@ class GremlinDraw(glnav.GlNavBase):
         shaft_height = 1.25
         facets = 32
 
-        with gl_enable(GL_LIGHTING):
-            with gl_push_matrix(), gl_quadric() as q_shaft:
-                self.set_tool_gl_materials('tool_ambient', 'probe_shaft_diffuse')
-                # Offset so shaft end is at tip center (for visual alignment)
-                glTranslatef(0, 0, r)
-                gluCylinder(q_shaft, shaft_radius, shaft_radius, shaft_height, facets, 1)
-                with gl_push_matrix():
-                    glRotatef(180, 1, 0, 0)
-                    gluDisk(q_shaft, 0, shaft_radius, facets, 1)
-                with gl_push_matrix():
-                    glTranslatef(0, 0, shaft_height)
-                    gluDisk(q_shaft, 0, shaft_radius, facets, 1)
-            with gl_quadric() as q_ball:
-                self.set_tool_gl_materials('probe_tip_ambient', 'probe_tip_diffuse')
-                glTranslatef(0, 0, r)
-                gluSphere(q_ball, r, 24, 24)
+        self.color_config.gl_color('probe_shaft')
+        with gl_push_matrix(), gl_quadric() as q_shaft:
+            # Offset so shaft end is at tip center (for visual alignment)
+            glTranslatef(0, 0, r)
+            gluCylinder(q_shaft, shaft_radius, shaft_radius, shaft_height, facets, 1)
+            with gl_push_matrix():
+                glRotatef(180, 1, 0, 0)
+                gluDisk(q_shaft, 0, shaft_radius, facets, 1)
+            with gl_push_matrix():
+                glTranslatef(0, 0, shaft_height)
+                gluDisk(q_shaft, 0, shaft_radius, facets, 1)
+        self.color_config.gl_color('probe_tip')
+        with gl_quadric() as q_ball:
+            glTranslatef(0, 0, r)
+            gluSphere(q_ball, r, 24, 24)
 
     def make_tool(self, tool_dlist, current_tool):
         """
         Generate a tool model based on the current tool and gremlin settings (populating the provided call list)
         """
 
-        # Restore default tool materials / lighting
+        # Assumes that lighting is already active
         with gl_new_list(tool_dlist, GL_COMPILE):
-            self.set_tool_gl_materials()
             if self.is_lathe():
                 glBlendColor(0, 0, 0, self.color_config.get_alpha_or_default('lathetool'))
                 if current_tool and current_tool.orientation != 0:
@@ -1247,7 +1246,8 @@ class GremlinDraw(glnav.GlNavBase):
         """
         dia = current_tool.diameter
         r = self.to_internal_linear_unit(dia) / 2.
-        with gl_quadric() as q, gl_enable(GL_LIGHTING):
+        self.color_config.gl_color('tool_body')
+        with gl_quadric() as q:
             gluCylinder(q, r, r, 8 * r, 32, 1)
             with gl_push_matrix():
                 glRotatef(180, 1, 0, 0)
@@ -1445,6 +1445,7 @@ class GremlinDraw(glnav.GlNavBase):
         if view != x:
             glPushMatrix()
             if self.is_lathe():
+                self.color_config.gl_color('probe_shaft')
                 if self.is_rear_tool_post_lathe():
                     glTranslatef(-1.3, 0, 0)
                     glRotatef(-90, 0, 0, 1)
@@ -1533,26 +1534,21 @@ class GremlinDraw(glnav.GlNavBase):
         self.hershey.plot_string("G92", 0.1)
         glPopMatrix()
 
-    def set_tool_gl_materials(self, ambient_name=None, diffuse_name=None):
-        ambient_matcolor4 = self.color_config.get_color(ambient_name or 'tool_body_ambient') + (0,)
-        diffuse_matcolor4 = self.color_config.get_color(diffuse_name or 'tool_body_diffuse') + (0,)
-        glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient_matcolor4)
-        glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse_matcolor4)
-
     def make_cone(self, n, scale=1.0):
         with gl_new_list(n, GL_COMPILE):
             self._draw_cone(scale)
 
     def _draw_cone(self, scale):
-        with gl_enable(GL_LIGHTING), gl_quadric() as q:
+        self.color_config.gl_color('no_tool_body')
+        with gl_quadric() as q:
             glScalef(scale, scale, scale)
-            self.set_tool_gl_materials()
-            gluCylinder(q, 0, .1, .25, 32, 4)
+            gluCylinder(q, 0, .1, .25, 32, 2)
             with gl_push_matrix():
                 glTranslatef(0, 0, .25)
                 gluDisk(q, 0, .1, 32, 1)
 
     def _draw_lathetool(self, current_tool):
+        self.color_config.gl_color('tool_body')
         if self.is_rear_tool_post_lathe:
             lathe_shapes = [
                 None,                           # 0
@@ -1870,11 +1866,10 @@ class GlDrawColors:
             # Tool colors
             'tool_diffuse': (0.60, 0.60, 0.60),
             'tool_ambient': (0.40, 0.40, 0.40),
-            'tool_body_diffuse': (0.80, 0.80, 0.80),
-            'tool_body_ambient': (0.20, 0.20, 0.20),
-            'probe_tip_ambient': (0.4, 0.20, 0.25),
-            'probe_tip_diffuse': (0.608, 0.0667, 0.13),
-            'probe_shaft_diffuse': (0.95, 0.95, 0.95),
+            'tool_body': (0.5, 0.5, 0.5),
+            'no_tool_body': (0.35, 0.35, 0.35),
+            'probe_tip': (0.55, 0.07, 0.22),
+            'probe_shaft': (0.77, 0.77, 0.75),
         }
 
         # NOTE: PARSE_EXEC_RUN is deliberately omitted here so that the lookup will fall back to the motion type
