@@ -2663,9 +2663,8 @@ static PyObject *Logger_set_visible_tools(pyPositionLogger *s, PyObject *o) {
         return NULL;
     }
 
-    if (li == Py_None) {
-        s->visible_tools.clear();
-    } else {
+    s->visible_tools.clear();
+    if (li != Py_None) {
         for (Py_ssize_t ix = 0; ix < PyList_Size(li); ix++) {
             s->visible_tools.insert(PyInt_AsLong(PyList_GetItem(li, ix)));
         }
