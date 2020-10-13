@@ -1726,7 +1726,9 @@ void PreviewMachine::change_tool(int tool_pocket)
 
 void PreviewMachine::tool_offset(EmcPose const &offset)
 {
-    transform_uu.toolOffset = ShiftTransform(convertsProgToUser().forward(toArray(offset)));
+    // If the tool offset changes then the current tool tip location will as well
+    auto new_tool_offset = ShiftTransform(convertsProgToUser().forward(toArray(offset)));
+    machine_pos_uu = transform_uu.swap_tool_offset(get_current_pos(), new_tool_offset);
     end_feed();
 }
 
