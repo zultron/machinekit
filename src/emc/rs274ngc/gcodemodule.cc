@@ -957,15 +957,6 @@ int execute_lines(InterpBase *interp, const char *multiline_cmd, CommandSource c
     return INTERP_OK;
 }
 
-static PyObject * gen_warning_list(std::vector<std::string> const &interp_warning_list)
-{
-    PyObject *warning_list = PyList_New(interp_warning_list.size());
-    for (size_t i=0; i < interp_warning_list.size(); ++i) {
-        PyList_SetItem(warning_list, i, PyString_FromString(interp_warning_list[i].c_str()));
-    }
-    return warning_list;
-}
-
 // Crude version of CHP for the parse loop
 // WARNING: INTERP_ENDFILE needs to be considered an error condition during preview because of order of read / execute.
 // Since read() is called first, we need to catch an end-file 'error' and stop further processing, because execute won't catch this.
@@ -1148,6 +1139,15 @@ void reset_gcode_canon_globals(const char *interp_name)
     _linecount=0;
 }
 
+PyObject *py_make_annotation_tuple(GCodeAnnotation const &a)
+{
+    PyObject *annotation_tuple = PyTuple_New(3);
+    PyTuple_SET_ITEM(annotation_tuple, 0, PyString_FromString(a.message.c_str()));
+    PyTuple_SET_ITEM(annotation_tuple, 1, PyLong_FromLong(a.toplevel_line));
+    PyTuple_SET_ITEM(annotation_tuple, 2, PyLong_FromLong(a.severity));
+    return annotation_tuple;
+}
+
 static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     char *file_name = nullptr;
     char *units_gcode = nullptr;
@@ -1277,17 +1277,22 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     PyTuple_SET_ITEM(retval, 1, PyInt_FromLong(error_line));
 
     if (interp) {
-        PyObject *warnings = gen_warning_list(interp->getWarnings());
+        const size_t annotation_count = interp->gcode_annotations.size();
+        PyObject *annotations = PyList_New(annotation_count);
+        for (size_t i=0; i < annotation_count; ++i) {
+            auto const &a = interp->gcode_annotations[i];
+            //TODO verify that reference count is correct here and we're not leaking memory
+            PyList_SetItem(annotations, i, py_make_annotation_tuple(a));
+        }
 
         // Throw a warning if we're clipping lines
         if (_linecount > max_glcanon_lines) {
             std::stringstream preview_cutoff_warning;
             preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use the context menu of the g-code window on the Main tab to load all preview lines.  Or use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
-            PyObject *msg = PyString_FromString(preview_cutoff_warning.str().c_str());
-            PyList_Append(warnings, msg);
-            Py_DecRef(msg);
+            GCodeAnnotation cutoff_warning(preview_cutoff_warning.str().c_str(), 0);
+            PyList_Append(annotations, py_make_annotation_tuple(cutoff_warning));
         }
-        PyTuple_SET_ITEM(retval, 2, warnings);
+        PyTuple_SET_ITEM(retval, 2, annotations);
     } else {
         PyTuple_SET_ITEM(retval, 2, PyList_New(0));
     }

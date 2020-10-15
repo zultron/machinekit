@@ -251,14 +251,15 @@ void GCodeContextStack::update_display_line()
 extern struct _inittab builtin_modules[];
 int trace;
 static char savedError[ERROR_TEXT_LEN];
+static std::deque<GCodeAnnotation> annotations_;
 
 Interp::Interp()
     : log_file(stderr),
       _setup(setup_struct()),
     pythis(),
-    warning_list(),
     last_cmd_src(),
-    gcode_context_stack()
+    gcode_context_stack(),
+    gcode_annotations()
 {
 
   init_remap_sets();
@@ -2167,6 +2168,7 @@ int Interp::add_error_call_context(CommandSource cmd_src)
 
   context_msg.flush();
   setSavedError(context_msg.str().c_str());
+  annotations_.emplace_back(context_msg.str(), get_toplevel_line_number());
   return INTERP_OK;
 }
 
@@ -2249,7 +2251,7 @@ int Interp::reset()
     ON_RESET();
 
     unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__, CommandSource::INIT);
-    warning_list.clear();
+    gcode_annotations.clear();
     return INTERP_OK;
 }
 
@@ -2927,15 +2929,8 @@ void Interp::setWarning(const char *fmt, ...) const
     static char warning_buf[ERROR_TEXT_LEN]={};
     vsnprintf(warning_buf, ERROR_TEXT_LEN, fmt, ap);
 
-    //Ugly way to package the warning string up
-    std::string msg(warning_buf);
-    // Build a crude line tag from the interpreters internal sequence number
-    // FIXME sequence number could be wrong due to remap
-    char line_number_buf[100];
-    sprintf(line_number_buf, "Line %d: ",this->_setup.sequence_number);
-    msg.insert(0,line_number_buf);
-
-    warning_list.push_back(msg);
+    gcode_annotations.emplace_back(warning_buf, get_toplevel_line_number(), CANON_MSG_LOW);
+    // TODO add call-stack context
 
     va_end(ap);
 }

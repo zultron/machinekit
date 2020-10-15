@@ -48,6 +48,21 @@ struct GCodeContext
 struct IniFile;
 struct GCodeGenerator;
 
+struct GCodeAnnotation
+{
+    GCodeAnnotation(
+        std::string msg,
+        int line,
+        CanonMessageAlarmLevel severity_lvl=CANON_MSG_MEDIUM) :
+        message(msg),
+        toplevel_line(line),
+        severity(severity_lvl)
+    {}
+    std::string message;
+    int toplevel_line;
+    CanonMessageAlarmLevel severity;
+};
+
 struct GCodeContextStack
 {
     std::vector<GCodeContext> context_lines;
@@ -823,7 +838,6 @@ int read_inputs(setup_pointer settings);
                const char *fmt, ...) const __attribute__((format(printf,5,6)));
 
     const char *interp_status(int status);
-    std::vector<std::string> const &getWarnings() const {return warning_list;}
 
     //technically this violates encapsulation rules but is needed for
     // the Python introspection module
@@ -842,10 +856,10 @@ int read_inputs(setup_pointer settings);
     setup _setup;
     boost::python::object *pythis;  // boost::cref to 'this'
 
-    mutable std::vector <std::string> warning_list;
     CommandSource last_cmd_src;
 
     GCodeContextStack gcode_context_stack;
+    mutable std::deque<GCodeAnnotation> gcode_annotations;
 
     double getProgLenUnits() const;
     static double getProgAngUnits();
