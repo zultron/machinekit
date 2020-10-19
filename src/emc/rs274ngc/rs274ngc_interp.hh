@@ -213,7 +213,6 @@ public:
  int ini_load(const char *filename);
 
  int line() const { return sequence_number(); }
- int toplevel_line() const { return _setup.get_toplevel_line_number(); }
  const int & call_level() const;
  const int & remap_level() const;
 
