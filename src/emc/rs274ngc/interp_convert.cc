@@ -3108,8 +3108,6 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
   }
   //#endif
   
-  auto const tag = make_state_tag(*settings, block);
-
   if ((block->m_modes[M_MODE_SPINDLE] != -1) && ONCE_M(7)) {
   
       bool remapped_in_block = STEP_REMAPPED_IN_BLOCK(block, STEP_M_7);
@@ -3126,13 +3124,13 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
   
       if (block->m_modes[M_MODE_SPINDLE] == 3) {
         settings->spindle_turning = CANON_CLOCKWISE;
-        enqueue_START_SPINDLE_CLOCKWISE(tag);
+        enqueue_START_SPINDLE_CLOCKWISE(make_state_tag(*settings, block));
       } else if (block->m_modes[M_MODE_SPINDLE] == 4) {
         settings->spindle_turning = CANON_COUNTERCLOCKWISE;
-        enqueue_START_SPINDLE_COUNTERCLOCKWISE(tag);
+        enqueue_START_SPINDLE_COUNTERCLOCKWISE(make_state_tag(*settings, block));
       } else if (block->m_modes[M_MODE_SPINDLE] == 5) {
         settings->spindle_turning = CANON_STOPPED;
-        enqueue_STOP_SPINDLE_TURNING(tag);
+        enqueue_STOP_SPINDLE_TURNING(make_state_tag(*settings, block));
       } else if (block->m_modes[M_MODE_SPINDLE] == 19) {
           settings->spindle_turning = CANON_STOPPED;
           if (block->r_flag || block->p_flag || block->q_flag) {
@@ -3140,12 +3138,12 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
               enqueue_ORIENT_SPINDLE(
                   (block->r_flag ? (block->r_number + settings->orient_offset)
                                  : settings->orient_offset),
-                  block->p_flag ? block->p_number : 0, tag);
+                  block->p_flag ? block->p_number : 0, make_state_tag(*settings, block));
 
               if (block->q_flag) {
                   //CHKS((block->q_number <= 0.0),(_("Q word with M19 requires a value > 0")));
                   // Q < 0.0 means don't make a timeout and error, let the g code handle it.
-                  enqueue_WAIT_ORIENT_SPINDLE_COMPLETE(block->q_number, tag);
+                  enqueue_WAIT_ORIENT_SPINDLE_COMPLETE(block->q_number, make_state_tag(*settings, block));
               }
           }
       } else if ((block->m_modes[M_MODE_SPINDLE] == 70) || (block->m_modes[M_MODE_SPINDLE] == 73)) {
@@ -3182,13 +3180,14 @@ int Interp::convert_m(block_pointer block,       //!< pointer to a block of RS27
                    block->m_modes[M_MODE_COOLANT]);
   } else if ((block->m_modes[M_MODE_COOLANT] == 7) && ONCE_M(8)){
       settings->mist = true;
-      enqueue_MIST_ON(tag);
+      enqueue_MIST_ON(make_state_tag(*settings, block));
   } else if ((block->m_modes[M_MODE_COOLANT] == 8) && ONCE_M(8)) {
       settings->flood = true;
-      enqueue_FLOOD_ON(tag);
+      enqueue_FLOOD_ON(make_state_tag(*settings, block));
   } else if ((block->m_modes[M_MODE_COOLANT] == 9) && ONCE_M(8)) {
       settings->flood = false;
       settings->mist = false;
+      auto const tag = make_state_tag(*settings, block);
       enqueue_MIST_OFF(tag);
       enqueue_FLOOD_OFF(tag);
   }
@@ -3217,7 +3216,7 @@ if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
          (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
     settings->feed_override = true;
     settings->speed_override = true;
-    UPDATE_TAG(tag);
+    write_and_update_state_tag();
     ENABLE_FEED_OVERRIDE();
     ENABLE_SPEED_OVERRIDE();
  } else if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 49)  && ONCE_M(9)){
@@ -3225,7 +3224,7 @@ if (IS_USER_MCODE(block,settings,9) && ONCE_M(9)) {
          (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
     settings->feed_override = false;
     settings->speed_override = false;
-    UPDATE_TAG(tag);
+    write_and_update_state_tag();
     DISABLE_FEED_OVERRIDE();
     DISABLE_SPEED_OVERRIDE();
   }
@@ -3235,13 +3234,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 50)  && ONCE_M(9)){
         CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
 	settings->feed_override = true;
-    UPDATE_TAG(tag);
+    write_and_update_state_tag();
 	ENABLE_FEED_OVERRIDE();
     } else {
         CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
 	settings->feed_override = false;
-    UPDATE_TAG(tag);
+    write_and_update_state_tag();
         DISABLE_FEED_OVERRIDE();
     }
   }
@@ -3252,13 +3251,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 51)  && ONCE_M(9)){
         CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
 	settings->speed_override = true;
-    UPDATE_TAG(tag);
+    write_and_update_state_tag();
 	ENABLE_SPEED_OVERRIDE();
     } else {
         CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
 	settings->speed_override = false;
-    UPDATE_TAG(tag);
+    write_and_update_state_tag();
 	DISABLE_SPEED_OVERRIDE();
     }
   }
@@ -3268,13 +3267,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 52)  && ONCE_M(9)){
         CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
     settings->allow_adaptive_feed = true;
-    UPDATE_TAG(tag);
+    write_and_update_state_tag();
 	ENABLE_ADAPTIVE_FEED();
     } else {
         CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
     settings->allow_adaptive_feed = false;
-    UPDATE_TAG(tag);
+    write_and_update_state_tag();
 	DISABLE_ADAPTIVE_FEED();
     }
   }
@@ -3284,13 +3283,13 @@ if ((block->m_modes[M_MODE_FEED_SPEED_OVERRIDE] == 53)  && ONCE_M(9)){
         CHKS((settings->cutter_comp.side),
              (_("Cannot enable overrides with cutter radius compensation on")));  // XXX
     settings->allow_feed_hold = true;
-    UPDATE_TAG(tag);
+    write_and_update_state_tag();
 	ENABLE_FEED_HOLD();
     } else {
         CHKS((settings->cutter_comp.side),
              (_("Cannot disable overrides with cutter radius compensation on")));  // XXX
     settings->allow_feed_hold = false;
-    UPDATE_TAG(tag);
+    write_and_update_state_tag();
 	DISABLE_FEED_HOLD();
     }
   }
@@ -3312,7 +3311,7 @@ if (IS_USER_MCODE(block,settings,10) && ONCE_M(10)) {
     if (USER_DEFINED_FUNCTION[index - 100] == 0) {
       CHKS(1, NCE_UNKNOWN_M_CODE_USED,index);
     }
-    enqueue_M_USER_COMMAND(index,block->p_number,block->q_number, tag);
+    enqueue_M_USER_COMMAND(index,block->p_number,block->q_number, make_state_tag(*settings, block));
   }
   return INTERP_OK;
 }
