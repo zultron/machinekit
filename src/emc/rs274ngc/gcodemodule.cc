@@ -1273,7 +1273,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
 
     PyObject *retval = PyTuple_New(3);
     PyTuple_SET_ITEM(retval, 0, PyInt_FromLong(result));
-    long error_line = interp->_setup.get_toplevel_line_number();
+    long error_line = interp->get_toplevel_line_number();
     PyTuple_SET_ITEM(retval, 1, PyInt_FromLong(error_line));
 
     if (interp) {

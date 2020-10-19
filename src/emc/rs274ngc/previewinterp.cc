@@ -2,14 +2,10 @@
 #include "interp_parameter_def.hh"
 using namespace interp_param_global;
 
-int PreviewInterp::write_state_tag(block_pointer block, StateTag & state) const
+int PreviewInterp::write_and_update_state_tag(block_pointer block, int line_number)
 {
-    return INTERP_OK;
-}
-
-int PreviewInterp::write_and_update_state_tag(block_pointer block)
-{
-    return INTERP_OK;
+    // Pass through the line number but don't write a tag because they're not needed in the preview context
+    return line_number ?: get_toplevel_line_number();
 }
 
 int PreviewInterp::restore_parameters(const char * filename)

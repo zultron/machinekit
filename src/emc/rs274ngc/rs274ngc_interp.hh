@@ -42,6 +42,7 @@ struct GCodeContext
     std::string file_path;
     std::string caller_name;
     std::string py_remap_name;
+    bool is_external;
 };
 
 struct IniFile;
@@ -53,9 +54,13 @@ struct GCodeContextStack
     int location_in_line; // First character of error
     std::string cached_py_remap_name; // Just for internal use
     std::string replacement_local_linetext;
+    std::string base_file_name; // For reference only to check if a context level is external
+    bool current_context_is_external;
     bool pop();
     void replace_local_linetext(const char *replacement_linetext);
-    void reset();
+    void reset(const char * base_file_name_in);
+    int get_closest_toplevel_caller_line() const;
+    void update_external_flag();
 };
 
 using RestoreCommandList = std::vector<std::string>;
@@ -650,8 +655,7 @@ public:
  int write_g_codes(block_pointer block, const setup_struct * settings, ModalState &state) const;
  int write_m_codes(block_pointer block, const setup_struct * settings, ModalState &state) const;
  int write_settings(const setup_struct * settings, ModalState &state) const;
- virtual int write_state_tag(block_pointer block, StateTag & state) const;
- virtual int write_and_update_state_tag(block_pointer block);
+ virtual int write_and_update_state_tag(block_pointer block=nullptr, int line_number=0);
  int unwrap_rotary(double *, double, double, double, char);
  bool isreadonly(int index);
 
@@ -810,6 +814,8 @@ int read_inputs(setup_pointer settings);
     std::string get_command_caller(CommandSource cmd_src);
     int add_error_call_context(CommandSource cmd_src);
 
+    int get_toplevel_line_number() const;
+
     int convert_straight_indexer(int, block*, setup*);
     int issue_straight_index(int, double, int, setup*);
 
@@ -900,9 +906,9 @@ protected:
 
     virtual int check_startline_leadin_feedrate(double & feed_rate_uu, const char * move_type);
 
+    StateTag make_state_tag(setup_struct const &s, block_pointer block, int toplevel_line=0) const;
 };
 
-StateTag make_state_tag(setup_struct const &s, block_pointer block);
 
 bool toolOffsetActive(setup_struct const *s);
 std::tuple<PositionArrayIndex, PositionArrayIndex, PositionArrayIndex> plane_indices(CANON_PLANE plane);

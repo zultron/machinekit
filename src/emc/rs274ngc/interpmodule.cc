@@ -190,7 +190,8 @@ static int wrap_interp_execute_1(Interp &interp, const char *command)
 
     // Temporarily set the call state to CS_NORMAL
     _setup.call_state = CS_NORMAL;
-    int status = interp.execute(command);
+    int context_line =  interp.gcode_context_stack.get_closest_toplevel_caller_line() + interp.gcode_context_stack.context_lines.size();
+    int status = interp.execute(command, interp.last_cmd_src, context_line);
     _setup.call_state = saved_call_state;
     _setup.setExecutingBlock(saved_block);
 

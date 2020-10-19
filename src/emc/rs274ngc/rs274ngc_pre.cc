@@ -199,8 +199,11 @@ GCodeContext::GCodeContext(std::string line_text,
     line(line),
     file_path(file_path),
     caller_name(caller_name),
-    py_remap_name(py_remap_name)
-{}
+    py_remap_name(py_remap_name),
+    is_external(false)
+{
+    // NOTE: external flag is set later after comparing to the base name
+}
 
 bool GCodeContextStack::pop() {
     cached_py_remap_name.clear();
@@ -216,10 +219,34 @@ void GCodeContextStack::replace_local_linetext(const char * replacement_linetext
     replacement_local_linetext = replacement_linetext ?: "";
 }
 
-void GCodeContextStack::reset()
+void GCodeContextStack::reset(const char *base_file_name_in)
 {
     context_lines.clear();
     replacement_local_linetext.clear();
+    base_file_name = base_file_name_in ?: "";
+}
+
+/**
+ * Crude lookup of the most local line currently known (mostly used to fill in bogus line numbers from remap python calls)
+ */
+int GCodeContextStack::get_closest_toplevel_caller_line() const
+{
+    // Find the first non-external caller
+    for (auto rev_it = context_lines.rbegin(); rev_it != context_lines.rend(); ++rev_it) {
+        if (!rev_it->is_external) {
+            return context_lines.back().line;
+        }
+    }
+    return 0;
+}
+
+void GCodeContextStack::update_external_flag()
+{
+    if (!context_lines.empty()) {
+        auto &last_entry = context_lines.back();
+        last_entry.is_external = (base_file_name != last_entry.file_path);
+        // TODO could optimize this later, it's unlikely that an external sub will call an internal sub again
+    }
 }
 
 extern struct _inittab builtin_modules[];
@@ -1353,7 +1380,7 @@ int Interp::init()
   int origin = _setup.origin_index;
   find_work_offset_prog(origin, _setup.transform.g5xOffset);
 
-  write_and_update_state_tag(nullptr);
+  write_and_update_state_tag();
 
   for (auto const &t_pair : _setup.work_offsets_user) {
       // Avoid redundant canon calls by sending the current transform separately
@@ -2049,7 +2076,7 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
   _setup.offset_map.clear();
   _setup.mdi_interrupt = false;
 
-  gcode_context_stack.reset();
+  gcode_context_stack.reset(_setup.filename);
   qc_reset();
   return INTERP_OK;
 }
@@ -2142,6 +2169,30 @@ int Interp::add_error_call_context(CommandSource cmd_src)
   context_msg.flush();
   setSavedError(context_msg.str().c_str());
   return INTERP_OK;
+}
+
+int Interp::get_toplevel_line_number() const
+{
+    bool in_remap = (_setup.remap_level > 0);
+    bool in_subroutine = (_setup.call_level > 0);
+    /*
+     * The line number is for cosmetic labelling only. Based on the interpreter
+     * settings from the INI file, we can substitute the controlling block's
+     * line number for the actual local line number. One use of this is with
+     * external subroutines. If the UI doesn't have the means to display the
+     * text of these subroutines, then the line numbers will be wrong if
+     * overlaid on the parent file.
+    */
+
+    if (in_remap) {
+        return gcode_context_stack.get_closest_toplevel_caller_line();
+    } else if (in_subroutine ) {
+        bool external_sub = strcmp(_setup.filename, gcode_context_stack.base_file_name.c_str());
+        if (external_sub) {
+            return gcode_context_stack.get_closest_toplevel_caller_line();
+        }
+    }
+    return _setup.sequence_number;
 }
 
 int Interp::read() {

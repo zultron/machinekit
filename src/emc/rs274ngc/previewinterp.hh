@@ -7,8 +7,7 @@ class PreviewInterp : public Interp
 {
 public:
     PreviewInterp() : Interp() {}
-    virtual int write_state_tag(block_pointer block, StateTag & state) const;
-    virtual int write_and_update_state_tag(block_pointer block);
+     virtual int write_and_update_state_tag(block_pointer block=nullptr, int line_number=0);
     virtual int restore_parameters(const char *filename);
     virtual bool is_preview() const {return true;}
     virtual bool need_step_increment(const setup_struct *) const {return true;}
