@@ -4238,12 +4238,10 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 
 /*5*/ if (!settings->feed_override) {
       settings->feed_override = true;
-      write_and_update_state_tag(block);
       ENABLE_FEED_OVERRIDE();
     }
     if (!settings->speed_override) {
       settings->speed_override = true;
-      write_and_update_state_tag(block);
       ENABLE_SPEED_OVERRIDE();
     }
 
@@ -4253,7 +4251,6 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
 
 /*7*/
     settings->spindle_turning = CANON_STOPPED;
-    write_and_update_state_tag(block);
     STOP_SPINDLE_TURNING();
 
     /* turn off FPR */
@@ -4266,13 +4263,11 @@ int Interp::convert_stop(block_pointer block,    //!< pointer to a block of RS27
     MIST_ON();
     DWELL(.1);
     settings->mist = false;
-    write_and_update_state_tag(block);
     MIST_OFF();
 
     FLOOD_ON();
     DWELL(.1);
     settings->flood = false;
-    write_and_update_state_tag(block);
     FLOOD_OFF();
 
 /*
