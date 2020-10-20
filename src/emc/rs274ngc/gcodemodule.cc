@@ -166,6 +166,7 @@ static PositionArray _pos_prog = {}; // In PROGRAM units (note that data passed 
 static PositionArray probe_start_pos_prog = {};
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
+static int cutoff_line_ = 0;
 
 static UnitsTransform convertsUserToProg()
 {
@@ -212,8 +213,18 @@ static InterpBase *preview_interp;
 
 #define callmethod(o, m, f, ...) PyObject_CallMethod((o), const_cast<char*>(m), const_cast<char*>(f), ## __VA_ARGS__)
 
-static inline void maybe_new_line() {
-    _linecount++;
+static inline bool maybe_new_line() {
+    ++_linecount;
+    if (_linecount < max_glcanon_lines) {
+        // Even if we're allowed more lines, can't proceed with an active interp error
+        return (0 == interp_error);
+    }
+    if (_linecount == max_glcanon_lines) {
+        auto interp = dynamic_cast<Interp*>(preview_interp);
+        cutoff_line_ = interp ? interp->get_toplevel_line_number() : 0;
+    }
+    return false;
+
 }
 
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
@@ -252,9 +263,7 @@ int ARC_FEED(int line_number,
         v_position /= 25.4;
         w_position /= 25.4;
     }
-    maybe_new_line();
-    if(interp_error) return 0;
-    if (_linecount < max_glcanon_lines) {
+    if (maybe_new_line()) {
         machine.arc_feed(
                     line_number, first_end, second_end, first_axis, second_axis,
                     rotation, axis_end_point,
@@ -271,9 +280,7 @@ void STRAIGHT_FEED(int line_number,
     PositionArray start_pos_uu = machine.get_current_pos();
     _pos_prog={x, y, z, a, b, c, u, v, w};
 
-    maybe_new_line();
-    if(interp_error) return;
-    if (_linecount < max_glcanon_lines) {
+    if (maybe_new_line()) {
         machine.straight_feed(line_number, _pos_prog);
         // Keep this around just for the warnings
         if (in_position_synch()) {
@@ -300,9 +307,7 @@ void STRAIGHT_TRAVERSE(int line_number,
                        double a, double b, double c,
                        double u, double v, double w) {
     _pos_prog={x, y, z, a, b, c, u, v, w};
-    maybe_new_line();
-    if(interp_error) return;
-    if (_linecount < max_glcanon_lines) {
+    if (maybe_new_line()) {
         machine.straight_traverse(line_number, _pos_prog);
     }
 }
@@ -391,8 +396,7 @@ void SET_TRAVERSE_RATE(double rate) {
 
 void SET_FEED_MODE(int mode) {
 #if 0
-    maybe_new_line();
-    if(interp_error) return;
+    if(!preview_more_lines()) return;
     PyObject *result =
         callmethod(callback, "set_feed_mode", "i", mode);
     if(result == nullptr) interp_error ++;
@@ -597,9 +601,7 @@ void STRAIGHT_PROBE(int line_number,
     probe_start_pos_prog = _pos_prog;
     _pos_prog={x, y, z, a, b, c, u, v, w};
 
-    maybe_new_line();
-    if(interp_error) return;
-    if (_linecount < max_glcanon_lines) {
+    if (maybe_new_line()) {
         machine.straight_probe(line_number, _pos_prog);
     }
 }
@@ -611,9 +613,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
 
     probe_start_pos_prog = _pos_prog;
     _pos_prog={x, y, z, a, b, c, u, v, w};
-    maybe_new_line();
-    if(interp_error) return;
-    if (_linecount < max_glcanon_lines) {
+    if (maybe_new_line()) {
         machine.straight_probe(line_number, _pos_prog);
     }
 }
@@ -666,11 +666,7 @@ int RIGID_TAP(int line_number,
     Py_XDECREF(result);
 #endif
 
-    maybe_new_line();
-    if(interp_error) {
-        return 0;
-    }
-    if (_linecount < max_glcanon_lines) {
+    if (maybe_new_line()) {
         machine.rigid_tap(line_number, _pos_prog);
     }
     return 0;
@@ -1326,7 +1322,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
         if (_linecount > max_glcanon_lines) {
             std::stringstream preview_cutoff_warning;
             preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use the context menu of the g-code window on the Main tab to load all preview lines.  Or use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
-            GCodeAnnotation cutoff_warning(preview_cutoff_warning.str().c_str(), 0);
+            GCodeAnnotation cutoff_warning(preview_cutoff_warning.str().c_str(), cutoff_line_);
             PyList_Append(annotations, py_make_annotation_tuple(cutoff_warning));
         }
         PyTuple_SET_ITEM(retval, 2, annotations);
