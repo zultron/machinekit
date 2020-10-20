@@ -2705,14 +2705,14 @@ int Interp::cbAfterSeekReadTransition(
                 "%s.ngc",
                 STATE_RESTORE_SUBROUTINE_NAME);
         }
-        doLog(0, nullptr, -1, "state restore subroutine filename: %s\n", tmp_file_path);
+        logIf(EMC_DEBUG_SET_START_LINE, "state restore subroutine filename: %s\n", tmp_file_path);
         std::ofstream f_tmp(tmp_file_path);
 
         // Wrap the command list in a subroutine
-        doLog(0, nullptr, -1, "program preamble commands before starting at line %d:\n", start_settings.start_line);
+        logIf(EMC_DEBUG_SET_START_LINE, "program preamble commands before starting at line %d:\n", start_settings.start_line);
         f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> sub\n";
         for (auto const &cmd : restore_cmd_list) {
-            doLog(0, nullptr, -1, "  %s\n",cmd.c_str());
+            logIf(EMC_DEBUG_SET_START_LINE, "  %s\n",cmd.c_str());
             f_tmp << cmd << "\n";
         }
         f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> endsub\n";

@@ -71,6 +71,7 @@ typedef int (Interp::*read_function_pointer) (char *, int *, block_pointer, std:
 #define logRemap(fmt, args...)  _logDebug(EMC_DEBUG_REMAP,0,1,fmt, ## args)
 #define logPy(fmt, args...)     _logDebug(EMC_DEBUG_PYTHON,0,1,fmt, ## args)
 #define logNP(fmt, args...)     _logDebug(EMC_DEBUG_NAMEDPARAM,0,1,fmt, ## args)
+#define logIf(mask_, fmt, args...)   _logDebug(mask_,0,1,fmt, ## args)
 
 // log always
 #define Log(fmt, args...)       _logDebug(EMC_DEBUG_UNCONDITIONAL,LOG_PROCESSID|LOG_FILENAME,-1,fmt, ## args)
