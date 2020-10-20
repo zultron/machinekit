@@ -318,7 +318,6 @@ void SET_G5X_TRANSFORM(int origin,
                        double u, double v, double w,
                        double xy_rotation_deg)
 {
-    maybe_new_line();
     if(interp_error) return;
 
     // Handshake to update cached positions for preview machine
@@ -342,7 +341,6 @@ void SET_G5X_TRANSFORM(int origin,
 void SET_G92_OFFSET(bool applied, double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w) {
-    maybe_new_line();
     if(interp_error) return;
 
     // Handshake to update cached positions for preview machine
@@ -376,7 +374,6 @@ void USE_LENGTH_UNITS(CANON_UNITS u) {
 }
 
 void SELECT_PLANE(CANON_PLANE pl) {
-    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "set_plane", "i", pl);
@@ -386,7 +383,6 @@ void SELECT_PLANE(CANON_PLANE pl) {
 }
 
 void SET_TRAVERSE_RATE(double rate) {
-    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "set_traverse_rate", "f", rate);
@@ -405,7 +401,6 @@ void SET_FEED_MODE(int mode) {
 }
 
 void CHANGE_TOOL(int pocket) {
-    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "change_tool", "i", pocket);
@@ -416,7 +411,6 @@ void CHANGE_TOOL(int pocket) {
 
 // FIXME does this have an effect on tool number / preview data organization?
 void CHANGE_TOOL_NUMBER(int pocket) {
-    maybe_new_line();
     if(interp_error) return;
 }
 
@@ -426,7 +420,6 @@ void CHANGE_TOOL_NUMBER(int pocket) {
  * time feed wrong anyway..
  */
 void SET_FEED_RATE(double rate) {
-    maybe_new_line();
     if(interp_error) return;
     machine.set_feed_rate(rate);
     if(metric) rate /= 25.4;
@@ -437,7 +430,6 @@ void SET_FEED_RATE(double rate) {
 }
 
 void DWELL(double time) {
-    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(
@@ -469,7 +461,6 @@ void DWELL_FOR_SPINDLE(int line_number, double delta_rpm, double extra_wait_sec)
 }
 
 void MESSAGE(char *comment) {
-    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "message", "s", comment);
@@ -483,7 +474,6 @@ void LOGAPPEND(char *f) {}
 void LOGCLOSE() {}
 
 void COMMENT(const char *comment) {
-    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "comment", "s", comment);
@@ -496,9 +486,8 @@ void SET_TOOL_TABLE_ENTRY(int pocket, int toolno, EmcPose offset, double diamete
 }
 
 void USE_TOOL_LENGTH_OFFSET(EmcPose offset) {
-    machine.tool_offset(offset);
-    maybe_new_line();
     if(interp_error) return;
+    machine.tool_offset(offset);
     PyObject *result = callmethod(callback, "tool_offset", "ddddddddd", UNPACK_POSITION_ARRAY_REF(machine.transform_uu.toolOffset));
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
@@ -767,7 +756,6 @@ int WAIT(int index, CANON_INPUT input_type, CANON_WAIT_MODE wait_type, double ti
 
 static void user_defined_function(int num, double arg1, double arg2) {
     if(interp_error) return;
-    maybe_new_line();
     PyObject *result =
         callmethod(callback, "user_defined_function",
                             "(ddddddddd)idd",
@@ -1018,7 +1006,6 @@ int planFinishLineSeek(
         res_interp = rs274_interp->cbBeforeSeekReadTransition(run_settings, run_initial_state, state_at_seek);
     }
 
-    maybe_new_line();
     RETURN_ON_ERROR(preview_interp->execute("", CommandSource::MODAL_STATE_RESTORE));
     set_exec_mode(ParseExecMode::PREP);
     restore_machine_state_before_preview_synch(run_initial_state);
@@ -1059,8 +1046,6 @@ static int do_parse_loop(
     // Copy current position back out of reserved parameter area
 
     RETURN_ON_ERROR(preview_interp->open(file_name, working_dir));
-
-    maybe_new_line();
 
     if(units_gcode) {
         RETURN_ON_ERROR(execute_lines(preview_interp, units_gcode, CommandSource::INIT));
@@ -1243,7 +1228,6 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
         return nullptr;
     }
     PyErr_Clear();
-    maybe_new_line();
     if(PyErr_Occurred()) {
         interp_error = 1;
         return nullptr;
