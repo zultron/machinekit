@@ -105,7 +105,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int lineno,
 void STOP() {}
 void DWELL(double seconds) {}
 void PRECISION_DWELL(double seconds) {}
-void DWELL_FOR_SPINDLE(double delta_rpm, double extra_wait_sec) {}
+void DWELL_FOR_SPINDLE(int line_number, double delta_rpm, double extra_wait_sec) {}
 void SET_SPINDLE_MODE(double) {}
 void SPINDLE_RETRACT_TRAVERSE() {}
 void START_SPINDLE_CLOCKWISE(int) {}

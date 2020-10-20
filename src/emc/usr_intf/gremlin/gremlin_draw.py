@@ -1684,7 +1684,7 @@ class GremlinDraw(glnav.GlNavBase):
         print "preview start line: ", start_line
         print "preview leadin: ", leadin_type
         print "preview keep-current-tool: ", keep_current_tool
-        result, seq, warnings = gcode.parse(
+        result, seq, annotations = gcode.parse(
             file_name=f,
             canon_instance=canon,
             units_gcode=unitcode,
@@ -1707,7 +1707,7 @@ class GremlinDraw(glnav.GlNavBase):
             #canon.calc_extents()
             self.clear_dlists()
 
-        return result, seq, warnings
+        return result, seq, annotations
 
     def from_internal_units(self, pos, unit=None):
         if unit is None:

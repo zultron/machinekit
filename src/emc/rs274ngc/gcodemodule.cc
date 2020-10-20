@@ -185,6 +185,11 @@ static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
 static double css_max_speed_programmed = 0.0;
 
+static double lo_belt_dwell_scale_sec_per_rpm = 0;
+static double lo_belt_spindle_dwell_extra = 0;
+static double hi_belt_dwell_scale_sec_per_rpm = 0;
+static double hi_belt_spindle_dwell_extra = 0;
+
 bool in_position_synch()
 {
     return spindle_synched_motion && !synch_velocity_mode;
@@ -445,8 +450,18 @@ void PRECISION_DWELL(double seconds) {
     DWELL(seconds);
 }
 
-void DWELL_FOR_SPINDLE(double delta_rpm, double extra_wait_sec) {
+void DWELL_FOR_SPINDLE(int line_number, double delta_rpm, double extra_wait_sec) {
+    // TODO annotate G-code using the passed line number
     DWELL(delta_rpm * 0.001); // Not a real calculation, just a heuristic / placeholder for future time estimates
+    auto interp = dynamic_cast<Interp*>(preview_interp);
+    if (interp) {
+        char buf[LINELEN+1]="";
+        double lo_dwell = delta_rpm * lo_belt_dwell_scale_sec_per_rpm + lo_belt_spindle_dwell_extra;
+        double hi_dwell = delta_rpm * hi_belt_dwell_scale_sec_per_rpm + hi_belt_spindle_dwell_extra;
+        snprintf(buf, LINELEN, "Dwell P%0.3f (High Belt), P%0.3f (Low Belt)", hi_dwell, lo_dwell);
+        buf[LINELEN] = '\0';
+        interp->gcode_annotations.emplace_back(buf, line_number, CANON_MSG_QUIET);
+    }
 }
 
 void MESSAGE(char *comment) {
@@ -1197,6 +1212,25 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
         return nullptr;
     }
     Py_XDECREF(res_clear);
+
+    {
+        PyObject *res_spindle_data = callmethod(callback, "get_spindle_dwell_data", "");
+        if (!res_clear) {
+            PyErr_Format(PyExc_RuntimeError,
+                         "Failed to get spindle dwell data");
+            return nullptr;
+        }
+        if(!PyArg_ParseTuple(
+                res_spindle_data,
+                "(dd)(dd)",
+                &lo_belt_dwell_scale_sec_per_rpm,
+                &lo_belt_spindle_dwell_extra,
+                &hi_belt_dwell_scale_sec_per_rpm,
+                &hi_belt_spindle_dwell_extra)) {
+            return nullptr;
+        }
+        Py_XDECREF(res_spindle_data);
+    }
 
     PreviewInterp* interp = dynamic_cast<PreviewInterp*>(preview_interp);
     int result = do_parse_loop(interp, file_name, units_gcode, init_gcode, working_dir, run_settings, wait);

@@ -1,5 +1,6 @@
 #include "previewinterp.hh"
 #include "interp_parameter_def.hh"
+
 using namespace interp_param_global;
 
 int PreviewInterp::write_and_update_state_tag(block_pointer block, int line_number)
