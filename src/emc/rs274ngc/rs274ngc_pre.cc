@@ -200,7 +200,7 @@ GCodeContext::GCodeContext(std::string line_text,
     file_path(file_path),
     caller_name(caller_name),
     py_remap_name(py_remap_name),
-    is_external(false)
+    display_line(line) // Assume display line matches unless otherwise specified later on
 {
     // NOTE: external flag is set later after comparing to the base name
 }
@@ -231,21 +231,20 @@ void GCodeContextStack::reset(const char *base_file_name_in)
  */
 int GCodeContextStack::get_closest_toplevel_caller_line() const
 {
-    // Find the first non-external caller
-    for (auto rev_it = context_lines.rbegin(); rev_it != context_lines.rend(); ++rev_it) {
-        if (!rev_it->is_external) {
-            return context_lines.back().line;
-        }
+    if (context_lines.empty()) {
+        return 0;
+    } else {
+        return context_lines.back().display_line;
     }
     return 0;
 }
 
-void GCodeContextStack::update_external_flag()
+void GCodeContextStack::update_display_line()
 {
-    if (!context_lines.empty()) {
-        auto &last_entry = context_lines.back();
-        last_entry.is_external = (base_file_name != last_entry.file_path);
-        // TODO could optimize this later, it's unlikely that an external sub will call an internal sub again
+    if (context_lines.size() > 1 && context_lines.back().file_path != base_file_name) {
+        // Use the last display line if the new context can't be displayed
+        auto it = ++context_lines.rbegin();
+        context_lines.back().display_line = it->display_line;
     }
 }
 

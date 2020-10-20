@@ -42,7 +42,7 @@ struct GCodeContext
     std::string file_path;
     std::string caller_name;
     std::string py_remap_name;
-    bool is_external;
+    int display_line; // The closest line in the base file to this context
 };
 
 struct IniFile;
@@ -60,7 +60,7 @@ struct GCodeContextStack
     void replace_local_linetext(const char *replacement_linetext);
     void reset(const char * base_file_name_in);
     int get_closest_toplevel_caller_line() const;
-    void update_external_flag();
+    void update_display_line();
 };
 
 using RestoreCommandList = std::vector<std::string>;
