@@ -1201,6 +1201,9 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     PreviewInterp* interp = dynamic_cast<PreviewInterp*>(preview_interp);
     int result = do_parse_loop(interp, file_name, units_gcode, init_gcode, working_dir, run_settings, wait);
 
+    // Copy annotations out before closing interpreter
+    auto gcode_annotations = interp->gcode_annotations;
+
     if(preview_interp) preview_interp->close();
     if(interp_error) {
         if(!PyErr_Occurred()) {
@@ -1276,11 +1279,11 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     long error_line = interp->get_toplevel_line_number();
     PyTuple_SET_ITEM(retval, 1, PyInt_FromLong(error_line));
 
-    if (interp) {
-        const size_t annotation_count = interp->gcode_annotations.size();
+    {
+        const size_t annotation_count = gcode_annotations.size();
         PyObject *annotations = PyList_New(annotation_count);
         for (size_t i=0; i < annotation_count; ++i) {
-            auto const &a = interp->gcode_annotations[i];
+            auto const &a = gcode_annotations[i];
             //TODO verify that reference count is correct here and we're not leaking memory
             PyList_SetItem(annotations, i, py_make_annotation_tuple(a));
         }
@@ -1293,8 +1296,6 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
             PyList_Append(annotations, py_make_annotation_tuple(cutoff_warning));
         }
         PyTuple_SET_ITEM(retval, 2, annotations);
-    } else {
-        PyTuple_SET_ITEM(retval, 2, PyList_New(0));
     }
 
     return retval;
