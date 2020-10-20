@@ -2136,7 +2136,7 @@ int Interp::add_error_call_context(CommandSource cmd_src)
   // Start with the context marker so we don't double-add
   context_msg << CONTEXT_MARKER << err_msg;
 
-  push_gcode_context(&_setup, "");
+  push_local_gcode_context(&_setup);
 
   // If the error handler specified a replacement for the local linetext (at the error site), replace it here
   if (!gcode_context_stack.replacement_local_linetext.empty()) {

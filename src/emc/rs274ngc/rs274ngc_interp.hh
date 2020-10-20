@@ -873,7 +873,7 @@ int read_inputs(setup_pointer settings);
         );
 
     void push_gcode_context(setup_pointer settings, block_pointer block);
-    void push_gcode_context(setup_pointer settings, const char *caller);
+    void push_local_gcode_context(setup_pointer settings);
     void update_gcode_context(const setup_pointer settings);
     void update_gcode_context_py_remap_name(const remap_pointer remap);
 
