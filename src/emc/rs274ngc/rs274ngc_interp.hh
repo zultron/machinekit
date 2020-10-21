@@ -933,10 +933,20 @@ std::tuple<PositionArrayIndex, PositionArrayIndex, PositionArrayIndex> plane_ind
 /**
  * Return the first position after the "needle" string if the haystack string starts with it, else 0.
  * @warning used only with compile-time strings (typically as static const char arrays).
+ * @pre needle should be a non-empty string (this function will only find a non-trivial match) that is null-terminated
  */
 template<size_t N>
 size_t startswith(char *haystack, const char (&needle)[N]) {
-    return !strncmp(haystack, needle, N) ? N : 0;
+    return !strncmp(haystack, needle, N-1) ? N-1 : 0;
+}
+
+template<size_t N>
+size_t startswith(char *, const char (&)[1]) {
+    return false;
+}
+template<size_t N>
+size_t startswith(char *, const char (&)[2]) {
+    return false;
 }
 
 
