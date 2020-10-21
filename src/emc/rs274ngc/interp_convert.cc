@@ -1314,6 +1314,7 @@ int Interp::convert_comment(char *comment, bool enqueue)       //!< string with 
   static const char PYRUN_STR[] = "pyrun,";
   static const char PYRELOAD_STR[] = "pyreload";
   static const char ABORT_STR[] = "abort,";
+  static const char WARN_STR[] = "warn,";
   int m, n, start;
 
   // step over leading white space in comment
@@ -1391,6 +1392,14 @@ int Interp::convert_comment(char *comment, bool enqueue)       //!< string with 
   else if (streq(lc, LOGCLOSE_STR))
   {
       LOGCLOSE();
+      return INTERP_OK;
+  }
+  else if (size_t n = startswith(lc, WARN_STR))
+  {
+      convert_param_comment(comment_start + n, expanded,
+                            EX_SIZE);
+      setWarning("%s", expanded);
+      // TODO handle callstack context (and hide the local line text since it's redundant)
       return INTERP_OK;
   }
   // else it's a real comment
