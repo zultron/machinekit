@@ -485,7 +485,7 @@ void PRECISION_DWELL(double seconds)
   ECHO_WITH_ARGS("%.4f", seconds);
 }
 
-void DWELL_FOR_SPINDLE(double delta_rpm, double extra_wait_sec)
+void DWELL_FOR_SPINDLE(int line_number, double delta_rpm, double extra_wait_sec)
 {
   ECHO_WITH_ARGS("%.4f", delta_rpm);
 }

@@ -199,8 +199,11 @@ GCodeContext::GCodeContext(std::string line_text,
     line(line),
     file_path(file_path),
     caller_name(caller_name),
-    py_remap_name(py_remap_name)
-{}
+    py_remap_name(py_remap_name),
+    display_line(line) // Assume display line matches unless otherwise specified later on
+{
+    // NOTE: external flag is set later after comparing to the base name
+}
 
 bool GCodeContextStack::pop() {
     cached_py_remap_name.clear();
@@ -216,23 +219,47 @@ void GCodeContextStack::replace_local_linetext(const char * replacement_linetext
     replacement_local_linetext = replacement_linetext ?: "";
 }
 
-void GCodeContextStack::reset()
+void GCodeContextStack::reset(const char *base_file_name_in)
 {
     context_lines.clear();
     replacement_local_linetext.clear();
+    base_file_name = base_file_name_in ?: "";
+}
+
+/**
+ * Crude lookup of the most local line currently known (mostly used to fill in bogus line numbers from remap python calls)
+ */
+int GCodeContextStack::get_closest_toplevel_caller_line() const
+{
+    if (context_lines.empty()) {
+        return 0;
+    } else {
+        return context_lines.back().display_line;
+    }
+    return 0;
+}
+
+void GCodeContextStack::update_display_line()
+{
+    if (context_lines.size() > 1 && context_lines.back().file_path != base_file_name) {
+        // Use the last display line if the new context can't be displayed
+        auto it = ++context_lines.rbegin();
+        context_lines.back().display_line = it->display_line;
+    }
 }
 
 extern struct _inittab builtin_modules[];
 int trace;
 static char savedError[ERROR_TEXT_LEN];
+static std::deque<GCodeAnnotation> annotations_;
 
 Interp::Interp()
     : log_file(stderr),
       _setup(setup_struct()),
     pythis(),
-    warning_list(),
     last_cmd_src(),
-    gcode_context_stack()
+    gcode_context_stack(),
+    gcode_annotations()
 {
 
   init_remap_sets();
@@ -1353,7 +1380,7 @@ int Interp::init()
   int origin = _setup.origin_index;
   find_work_offset_prog(origin, _setup.transform.g5xOffset);
 
-  write_and_update_state_tag(nullptr);
+  write_and_update_state_tag();
 
   for (auto const &t_pair : _setup.work_offsets_user) {
       // Avoid redundant canon calls by sending the current transform separately
@@ -2049,7 +2076,7 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
   _setup.offset_map.clear();
   _setup.mdi_interrupt = false;
 
-  gcode_context_stack.reset();
+  gcode_context_stack.reset(_setup.filename);
   qc_reset();
   return INTERP_OK;
 }
@@ -2110,7 +2137,7 @@ int Interp::add_error_call_context(CommandSource cmd_src)
   // Start with the context marker so we don't double-add
   context_msg << CONTEXT_MARKER << err_msg;
 
-  push_gcode_context(&_setup, "");
+  push_local_gcode_context(&_setup);
 
   // If the error handler specified a replacement for the local linetext (at the error site), replace it here
   if (!gcode_context_stack.replacement_local_linetext.empty()) {
@@ -2141,7 +2168,32 @@ int Interp::add_error_call_context(CommandSource cmd_src)
 
   context_msg.flush();
   setSavedError(context_msg.str().c_str());
+  annotations_.emplace_back(context_msg.str(), get_toplevel_line_number());
   return INTERP_OK;
+}
+
+int Interp::get_toplevel_line_number() const
+{
+    bool in_remap = (_setup.remap_level > 0);
+    bool in_subroutine = (_setup.call_level > 0);
+    /*
+     * The line number is for cosmetic labelling only. Based on the interpreter
+     * settings from the INI file, we can substitute the controlling block's
+     * line number for the actual local line number. One use of this is with
+     * external subroutines. If the UI doesn't have the means to display the
+     * text of these subroutines, then the line numbers will be wrong if
+     * overlaid on the parent file.
+    */
+
+    if (in_remap) {
+        return gcode_context_stack.get_closest_toplevel_caller_line();
+    } else if (in_subroutine ) {
+        bool external_sub = strcmp(_setup.filename, gcode_context_stack.base_file_name.c_str());
+        if (external_sub) {
+            return gcode_context_stack.get_closest_toplevel_caller_line();
+        }
+    }
+    return _setup.sequence_number;
 }
 
 int Interp::read() {
@@ -2199,7 +2251,7 @@ int Interp::reset()
     ON_RESET();
 
     unwind_call(INTERP_OK, __FILE__,__LINE__,__FUNCTION__, CommandSource::INIT);
-    warning_list.clear();
+    gcode_annotations.clear();
     return INTERP_OK;
 }
 
@@ -2655,14 +2707,14 @@ int Interp::cbAfterSeekReadTransition(
                 "%s.ngc",
                 STATE_RESTORE_SUBROUTINE_NAME);
         }
-        doLog(0, nullptr, -1, "state restore subroutine filename: %s\n", tmp_file_path);
+        logIf(EMC_DEBUG_SET_START_LINE, "state restore subroutine filename: %s\n", tmp_file_path);
         std::ofstream f_tmp(tmp_file_path);
 
         // Wrap the command list in a subroutine
-        doLog(0, nullptr, -1, "program preamble commands before starting at line %d:\n", start_settings.start_line);
+        logIf(EMC_DEBUG_SET_START_LINE, "program preamble commands before starting at line %d:\n", start_settings.start_line);
         f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> sub\n";
         for (auto const &cmd : restore_cmd_list) {
-            doLog(0, nullptr, -1, "  %s\n",cmd.c_str());
+            logIf(EMC_DEBUG_SET_START_LINE, "  %s\n",cmd.c_str());
             f_tmp << cmd << "\n";
         }
         f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> endsub\n";
@@ -2877,15 +2929,8 @@ void Interp::setWarning(const char *fmt, ...) const
     static char warning_buf[ERROR_TEXT_LEN]={};
     vsnprintf(warning_buf, ERROR_TEXT_LEN, fmt, ap);
 
-    //Ugly way to package the warning string up
-    std::string msg(warning_buf);
-    // Build a crude line tag from the interpreters internal sequence number
-    // FIXME sequence number could be wrong due to remap
-    char line_number_buf[100];
-    sprintf(line_number_buf, "Line %d: ",this->_setup.sequence_number);
-    msg.insert(0,line_number_buf);
-
-    warning_list.push_back(msg);
+    gcode_annotations.emplace_back(warning_buf, get_toplevel_line_number(), CANON_MSG_LOW);
+    // TODO add call-stack context
 
     va_end(ap);
 }
@@ -3109,7 +3154,6 @@ The file looks like this:
 VARIABLE_FILE = rs274ngc.var
 
 */
-
 
 int Interp::ini_load(const char *filename)
 {

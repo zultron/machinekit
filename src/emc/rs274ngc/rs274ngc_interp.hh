@@ -42,10 +42,26 @@ struct GCodeContext
     std::string file_path;
     std::string caller_name;
     std::string py_remap_name;
+    int display_line; // The closest line in the base file to this context
 };
 
 struct IniFile;
 struct GCodeGenerator;
+
+struct GCodeAnnotation
+{
+    GCodeAnnotation(
+        std::string msg,
+        int line,
+        CanonMessageAlarmLevel severity_lvl=CANON_MSG_MEDIUM) :
+        message(msg),
+        toplevel_line(line),
+        severity(severity_lvl)
+    {}
+    std::string message;
+    int toplevel_line;
+    CanonMessageAlarmLevel severity;
+};
 
 struct GCodeContextStack
 {
@@ -53,9 +69,13 @@ struct GCodeContextStack
     int location_in_line; // First character of error
     std::string cached_py_remap_name; // Just for internal use
     std::string replacement_local_linetext;
+    std::string base_file_name; // For reference only to check if a context level is external
+    bool current_context_is_external;
     bool pop();
     void replace_local_linetext(const char *replacement_linetext);
-    void reset();
+    void reset(const char * base_file_name_in);
+    int get_closest_toplevel_caller_line() const;
+    void update_display_line();
 };
 
 using RestoreCommandList = std::vector<std::string>;
@@ -213,7 +233,6 @@ public:
  int ini_load(const char *filename);
 
  int line() const { return sequence_number(); }
- int toplevel_line() const { return _setup.get_toplevel_line_number(); }
  const int & call_level() const;
  const int & remap_level() const;
 
@@ -651,8 +670,7 @@ public:
  int write_g_codes(block_pointer block, const setup_struct * settings, ModalState &state) const;
  int write_m_codes(block_pointer block, const setup_struct * settings, ModalState &state) const;
  int write_settings(const setup_struct * settings, ModalState &state) const;
- virtual int write_state_tag(block_pointer block, StateTag & state) const;
- virtual int write_and_update_state_tag(block_pointer block);
+ virtual int write_and_update_state_tag(block_pointer block=nullptr, int line_number=0);
  int unwrap_rotary(double *, double, double, double, char);
  bool isreadonly(int index);
 
@@ -811,6 +829,8 @@ int read_inputs(setup_pointer settings);
     std::string get_command_caller(CommandSource cmd_src);
     int add_error_call_context(CommandSource cmd_src);
 
+    int get_toplevel_line_number() const;
+
     int convert_straight_indexer(int, block*, setup*);
     int issue_straight_index(int, double, int, setup*);
 
@@ -818,7 +838,6 @@ int read_inputs(setup_pointer settings);
                const char *fmt, ...) const __attribute__((format(printf,5,6)));
 
     const char *interp_status(int status);
-    std::vector<std::string> const &getWarnings() const {return warning_list;}
 
     //technically this violates encapsulation rules but is needed for
     // the Python introspection module
@@ -837,10 +856,10 @@ int read_inputs(setup_pointer settings);
     setup _setup;
     boost::python::object *pythis;  // boost::cref to 'this'
 
-    mutable std::vector <std::string> warning_list;
     CommandSource last_cmd_src;
 
     GCodeContextStack gcode_context_stack;
+    mutable std::deque<GCodeAnnotation> gcode_annotations;
 
     double getProgLenUnits() const;
     static double getProgAngUnits();
@@ -868,7 +887,7 @@ int read_inputs(setup_pointer settings);
         );
 
     void push_gcode_context(setup_pointer settings, block_pointer block);
-    void push_gcode_context(setup_pointer settings, const char *caller);
+    void push_local_gcode_context(setup_pointer settings);
     void update_gcode_context(const setup_pointer settings);
     void update_gcode_context_py_remap_name(const remap_pointer remap);
 
@@ -901,13 +920,34 @@ protected:
 
     virtual int check_startline_leadin_feedrate(double & feed_rate_uu, const char * move_type);
 
+    StateTag make_state_tag(setup_struct const &s, block_pointer block, int toplevel_line=0) const;
 };
 
-StateTag make_state_tag(setup_struct const &s, block_pointer block);
 
 bool toolOffsetActive(setup_struct const *s);
 std::tuple<PositionArrayIndex, PositionArrayIndex, PositionArrayIndex> plane_indices(CANON_PLANE plane);
 
 #define STATE_RESTORE_SUBROUTINE_NAME "restore_start_line_state"
+
+
+/**
+ * Return the first position after the "needle" string if the haystack string starts with it, else 0.
+ * @warning used only with compile-time strings (typically as static const char arrays).
+ * @pre needle should be a non-empty string (this function will only find a non-trivial match) that is null-terminated
+ */
+template<size_t N>
+size_t startswith(char *haystack, const char (&needle)[N]) {
+    return !strncmp(haystack, needle, N-1) ? N-1 : 0;
+}
+
+template<size_t N>
+size_t startswith(char *, const char (&)[1]) {
+    return false;
+}
+template<size_t N>
+size_t startswith(char *, const char (&)[2]) {
+    return false;
+}
+
 
 #endif

@@ -1694,7 +1694,7 @@ void PRECISION_DWELL(double seconds)
     tag_and_send(precisionDwellMsg);
 }
 
-void DWELL_FOR_SPINDLE(double delta_rpm, double extra_wait_sec)
+void DWELL_FOR_SPINDLE(int line_number, double delta_rpm, double extra_wait_sec)
 {
     EMC_TRAJ_PRECISION_DWELL precisionDwellMsg;
 

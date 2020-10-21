@@ -166,6 +166,7 @@ static PositionArray _pos_prog = {}; // In PROGRAM units (note that data passed 
 static PositionArray probe_start_pos_prog = {};
 static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
+static int cutoff_line_ = 0;
 
 static UnitsTransform convertsUserToProg()
 {
@@ -184,6 +185,11 @@ static bool synch_velocity_mode = false; // When synched motion is active, is it
 static double spindle_synched_feed_per_revolution;
 static double spindle_speed_programmed = 0.0;
 static double css_max_speed_programmed = 0.0;
+
+static double lo_belt_dwell_scale_sec_per_rpm = 0;
+static double lo_belt_spindle_dwell_extra = 0;
+static double hi_belt_dwell_scale_sec_per_rpm = 0;
+static double hi_belt_spindle_dwell_extra = 0;
 
 bool in_position_synch()
 {
@@ -207,8 +213,18 @@ static InterpBase *preview_interp;
 
 #define callmethod(o, m, f, ...) PyObject_CallMethod((o), const_cast<char*>(m), const_cast<char*>(f), ## __VA_ARGS__)
 
-static inline void maybe_new_line() {
-    _linecount++;
+static inline bool maybe_new_line() {
+    ++_linecount;
+    if (_linecount < max_glcanon_lines) {
+        // Even if we're allowed more lines, can't proceed with an active interp error
+        return (0 == interp_error);
+    }
+    if (_linecount == max_glcanon_lines) {
+        auto interp = dynamic_cast<Interp*>(preview_interp);
+        cutoff_line_ = interp ? interp->get_toplevel_line_number() : 0;
+    }
+    return false;
+
 }
 
 void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {
@@ -247,9 +263,7 @@ int ARC_FEED(int line_number,
         v_position /= 25.4;
         w_position /= 25.4;
     }
-    maybe_new_line();
-    if(interp_error) return 0;
-    if (_linecount < max_glcanon_lines) {
+    if (maybe_new_line()) {
         machine.arc_feed(
                     line_number, first_end, second_end, first_axis, second_axis,
                     rotation, axis_end_point,
@@ -266,9 +280,7 @@ void STRAIGHT_FEED(int line_number,
     PositionArray start_pos_uu = machine.get_current_pos();
     _pos_prog={x, y, z, a, b, c, u, v, w};
 
-    maybe_new_line();
-    if(interp_error) return;
-    if (_linecount < max_glcanon_lines) {
+    if (maybe_new_line()) {
         machine.straight_feed(line_number, _pos_prog);
         // Keep this around just for the warnings
         if (in_position_synch()) {
@@ -295,9 +307,7 @@ void STRAIGHT_TRAVERSE(int line_number,
                        double a, double b, double c,
                        double u, double v, double w) {
     _pos_prog={x, y, z, a, b, c, u, v, w};
-    maybe_new_line();
-    if(interp_error) return;
-    if (_linecount < max_glcanon_lines) {
+    if (maybe_new_line()) {
         machine.straight_traverse(line_number, _pos_prog);
     }
 }
@@ -308,7 +318,6 @@ void SET_G5X_TRANSFORM(int origin,
                        double u, double v, double w,
                        double xy_rotation_deg)
 {
-    maybe_new_line();
     if(interp_error) return;
 
     // Handshake to update cached positions for preview machine
@@ -332,7 +341,6 @@ void SET_G5X_TRANSFORM(int origin,
 void SET_G92_OFFSET(bool applied, double x, double y, double z,
                     double a, double b, double c,
                     double u, double v, double w) {
-    maybe_new_line();
     if(interp_error) return;
 
     // Handshake to update cached positions for preview machine
@@ -366,7 +374,6 @@ void USE_LENGTH_UNITS(CANON_UNITS u) {
 }
 
 void SELECT_PLANE(CANON_PLANE pl) {
-    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "set_plane", "i", pl);
@@ -376,7 +383,6 @@ void SELECT_PLANE(CANON_PLANE pl) {
 }
 
 void SET_TRAVERSE_RATE(double rate) {
-    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "set_traverse_rate", "f", rate);
@@ -386,8 +392,7 @@ void SET_TRAVERSE_RATE(double rate) {
 
 void SET_FEED_MODE(int mode) {
 #if 0
-    maybe_new_line();
-    if(interp_error) return;
+    if(!preview_more_lines()) return;
     PyObject *result =
         callmethod(callback, "set_feed_mode", "i", mode);
     if(result == nullptr) interp_error ++;
@@ -396,7 +401,6 @@ void SET_FEED_MODE(int mode) {
 }
 
 void CHANGE_TOOL(int pocket) {
-    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "change_tool", "i", pocket);
@@ -407,7 +411,6 @@ void CHANGE_TOOL(int pocket) {
 
 // FIXME does this have an effect on tool number / preview data organization?
 void CHANGE_TOOL_NUMBER(int pocket) {
-    maybe_new_line();
     if(interp_error) return;
 }
 
@@ -417,7 +420,6 @@ void CHANGE_TOOL_NUMBER(int pocket) {
  * time feed wrong anyway..
  */
 void SET_FEED_RATE(double rate) {
-    maybe_new_line();
     if(interp_error) return;
     machine.set_feed_rate(rate);
     if(metric) rate /= 25.4;
@@ -428,7 +430,6 @@ void SET_FEED_RATE(double rate) {
 }
 
 void DWELL(double time) {
-    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(
@@ -445,12 +446,21 @@ void PRECISION_DWELL(double seconds) {
     DWELL(seconds);
 }
 
-void DWELL_FOR_SPINDLE(double delta_rpm, double extra_wait_sec) {
+void DWELL_FOR_SPINDLE(int line_number, double delta_rpm, double extra_wait_sec) {
+    // TODO annotate G-code using the passed line number
     DWELL(delta_rpm * 0.001); // Not a real calculation, just a heuristic / placeholder for future time estimates
+    auto interp = dynamic_cast<Interp*>(preview_interp);
+    if (interp) {
+        char buf[LINELEN+1]="";
+        double lo_dwell = delta_rpm * lo_belt_dwell_scale_sec_per_rpm + lo_belt_spindle_dwell_extra;
+        double hi_dwell = delta_rpm * hi_belt_dwell_scale_sec_per_rpm + hi_belt_spindle_dwell_extra;
+        snprintf(buf, LINELEN, "Dwell P%0.3f (High Belt), P%0.3f (Low Belt)", hi_dwell, lo_dwell);
+        buf[LINELEN] = '\0';
+        interp->gcode_annotations.emplace_back(buf, line_number, CANON_MSG_QUIET);
+    }
 }
 
 void MESSAGE(char *comment) {
-    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "message", "s", comment);
@@ -464,7 +474,6 @@ void LOGAPPEND(char *f) {}
 void LOGCLOSE() {}
 
 void COMMENT(const char *comment) {
-    maybe_new_line();
     if(interp_error) return;
     PyObject *result =
         callmethod(callback, "comment", "s", comment);
@@ -477,9 +486,8 @@ void SET_TOOL_TABLE_ENTRY(int pocket, int toolno, EmcPose offset, double diamete
 }
 
 void USE_TOOL_LENGTH_OFFSET(EmcPose offset) {
-    machine.tool_offset(offset);
-    maybe_new_line();
     if(interp_error) return;
+    machine.tool_offset(offset);
     PyObject *result = callmethod(callback, "tool_offset", "ddddddddd", UNPACK_POSITION_ARRAY_REF(machine.transform_uu.toolOffset));
     if(result == nullptr) interp_error ++;
     Py_XDECREF(result);
@@ -582,9 +590,7 @@ void STRAIGHT_PROBE(int line_number,
     probe_start_pos_prog = _pos_prog;
     _pos_prog={x, y, z, a, b, c, u, v, w};
 
-    maybe_new_line();
-    if(interp_error) return;
-    if (_linecount < max_glcanon_lines) {
+    if (maybe_new_line()) {
         machine.straight_probe(line_number, _pos_prog);
     }
 }
@@ -596,9 +602,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
 
     probe_start_pos_prog = _pos_prog;
     _pos_prog={x, y, z, a, b, c, u, v, w};
-    maybe_new_line();
-    if(interp_error) return;
-    if (_linecount < max_glcanon_lines) {
+    if (maybe_new_line()) {
         machine.straight_probe(line_number, _pos_prog);
     }
 }
@@ -651,11 +655,7 @@ int RIGID_TAP(int line_number,
     Py_XDECREF(result);
 #endif
 
-    maybe_new_line();
-    if(interp_error) {
-        return 0;
-    }
-    if (_linecount < max_glcanon_lines) {
+    if (maybe_new_line()) {
         machine.rigid_tap(line_number, _pos_prog);
     }
     return 0;
@@ -756,7 +756,6 @@ int WAIT(int index, CANON_INPUT input_type, CANON_WAIT_MODE wait_type, double ti
 
 static void user_defined_function(int num, double arg1, double arg2) {
     if(interp_error) return;
-    maybe_new_line();
     PyObject *result =
         callmethod(callback, "user_defined_function",
                             "(ddddddddd)idd",
@@ -957,15 +956,6 @@ int execute_lines(InterpBase *interp, const char *multiline_cmd, CommandSource c
     return INTERP_OK;
 }
 
-static PyObject * gen_warning_list(std::vector<std::string> const &interp_warning_list)
-{
-    PyObject *warning_list = PyList_New(interp_warning_list.size());
-    for (size_t i=0; i < interp_warning_list.size(); ++i) {
-        PyList_SetItem(warning_list, i, PyString_FromString(interp_warning_list[i].c_str()));
-    }
-    return warning_list;
-}
-
 // Crude version of CHP for the parse loop
 // WARNING: INTERP_ENDFILE needs to be considered an error condition during preview because of order of read / execute.
 // Since read() is called first, we need to catch an end-file 'error' and stop further processing, because execute won't catch this.
@@ -1016,7 +1006,6 @@ int planFinishLineSeek(
         res_interp = rs274_interp->cbBeforeSeekReadTransition(run_settings, run_initial_state, state_at_seek);
     }
 
-    maybe_new_line();
     RETURN_ON_ERROR(preview_interp->execute("", CommandSource::MODAL_STATE_RESTORE));
     set_exec_mode(ParseExecMode::PREP);
     restore_machine_state_before_preview_synch(run_initial_state);
@@ -1057,8 +1046,6 @@ static int do_parse_loop(
     // Copy current position back out of reserved parameter area
 
     RETURN_ON_ERROR(preview_interp->open(file_name, working_dir));
-
-    maybe_new_line();
 
     if(units_gcode) {
         RETURN_ON_ERROR(execute_lines(preview_interp, units_gcode, CommandSource::INIT));
@@ -1148,6 +1135,15 @@ void reset_gcode_canon_globals(const char *interp_name)
     _linecount=0;
 }
 
+PyObject *py_make_annotation_tuple(GCodeAnnotation const &a)
+{
+    PyObject *annotation_tuple = PyTuple_New(3);
+    PyTuple_SET_ITEM(annotation_tuple, 0, PyString_FromString(a.message.c_str()));
+    PyTuple_SET_ITEM(annotation_tuple, 1, PyLong_FromLong(a.toplevel_line));
+    PyTuple_SET_ITEM(annotation_tuple, 2, PyLong_FromLong(a.severity));
+    return annotation_tuple;
+}
+
 static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     char *file_name = nullptr;
     char *units_gcode = nullptr;
@@ -1198,8 +1194,30 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     }
     Py_XDECREF(res_clear);
 
+    {
+        PyObject *res_spindle_data = callmethod(callback, "get_spindle_dwell_data", "");
+        if (!res_clear) {
+            PyErr_Format(PyExc_RuntimeError,
+                         "Failed to get spindle dwell data");
+            return nullptr;
+        }
+        if(!PyArg_ParseTuple(
+                res_spindle_data,
+                "(dd)(dd)",
+                &lo_belt_dwell_scale_sec_per_rpm,
+                &lo_belt_spindle_dwell_extra,
+                &hi_belt_dwell_scale_sec_per_rpm,
+                &hi_belt_spindle_dwell_extra)) {
+            return nullptr;
+        }
+        Py_XDECREF(res_spindle_data);
+    }
+
     PreviewInterp* interp = dynamic_cast<PreviewInterp*>(preview_interp);
     int result = do_parse_loop(interp, file_name, units_gcode, init_gcode, working_dir, run_settings, wait);
+
+    // Copy annotations out before closing interpreter
+    auto gcode_annotations = interp->gcode_annotations;
 
     if(preview_interp) preview_interp->close();
     if(interp_error) {
@@ -1210,7 +1228,6 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
         return nullptr;
     }
     PyErr_Clear();
-    maybe_new_line();
     if(PyErr_Occurred()) {
         interp_error = 1;
         return nullptr;
@@ -1273,23 +1290,26 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
 
     PyObject *retval = PyTuple_New(3);
     PyTuple_SET_ITEM(retval, 0, PyInt_FromLong(result));
-    long error_line = interp->_setup.get_toplevel_line_number();
+    long error_line = interp->get_toplevel_line_number();
     PyTuple_SET_ITEM(retval, 1, PyInt_FromLong(error_line));
 
-    if (interp) {
-        PyObject *warnings = gen_warning_list(interp->getWarnings());
+    {
+        const size_t annotation_count = gcode_annotations.size();
+        PyObject *annotations = PyList_New(annotation_count);
+        for (size_t i=0; i < annotation_count; ++i) {
+            auto const &a = gcode_annotations[i];
+            //TODO verify that reference count is correct here and we're not leaking memory
+            PyList_SetItem(annotations, i, py_make_annotation_tuple(a));
+        }
 
         // Throw a warning if we're clipping lines
         if (_linecount > max_glcanon_lines) {
             std::stringstream preview_cutoff_warning;
             preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use the context menu of the g-code window on the Main tab to load all preview lines.  Or use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
-            PyObject *msg = PyString_FromString(preview_cutoff_warning.str().c_str());
-            PyList_Append(warnings, msg);
-            Py_DecRef(msg);
+            GCodeAnnotation cutoff_warning(preview_cutoff_warning.str().c_str(), cutoff_line_, CANON_MSG_LOW);
+            PyList_Append(annotations, py_make_annotation_tuple(cutoff_warning));
         }
-        PyTuple_SET_ITEM(retval, 2, warnings);
-    } else {
-        PyTuple_SET_ITEM(retval, 2, PyList_New(0));
+        PyTuple_SET_ITEM(retval, 2, annotations);
     }
 
     return retval;

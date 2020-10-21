@@ -327,7 +327,7 @@ int Interp::convert_cycle_g74_g84(PositionArray const &cycle_end,
     } else {
         // NOTE: fast-retract not currently supported for non-rigid tapping
         double delta_rpm = GET_EXTERNAL_SPEED_PLANNED() * 2.0;
-        DWELL_FOR_SPINDLE(delta_rpm);
+        DWELL_FOR_SPINDLE(get_toplevel_line_number(), delta_rpm);
     }
     cycle_feed(cycle_end,plane, planar_pos_1, planar_pos_2, clear_height);
     STOP_SPINDLE_TURNING();
@@ -431,7 +431,7 @@ int Interp::convert_cycle_g86(PositionArray const &cycle_end,
   cycle_feed(cycle_end,plane, x, y, bottom_z);
   DWELL(dwell);
   STOP_SPINDLE_TURNING();
-  DWELL_FOR_SPINDLE(GET_EXTERNAL_SPEED_PLANNED(), 2.0); // KLUDGE simulate at-speed but for zero speed
+  DWELL_FOR_SPINDLE(get_toplevel_line_number(), GET_EXTERNAL_SPEED_PLANNED(), 2.0); // KLUDGE simulate at-speed but for zero speed
   cycle_traverse(cycle_end, plane, x, y, clear_z);
   if (direction == CANON_CLOCKWISE)
     START_SPINDLE_CLOCKWISE();
@@ -1106,7 +1106,7 @@ int Interp::cycle_feed(PositionArray const &cycle_end,
                        double height)      //!< third coordinate value
 {
     auto goal_pos = get_cycle_position(cycle_end, plane, plane_x, plane_y, height);
-    STRAIGHT_FEED(_setup.get_toplevel_line_number(),
+    STRAIGHT_FEED(get_toplevel_line_number(),
                       UNPACK_POSITION_ARRAY_REF(goal_pos));
     return INTERP_OK;
 }
@@ -1143,7 +1143,7 @@ int Interp::cycle_traverse(PositionArray const &cycle_end,
 {
     auto goal_pos = get_cycle_position(cycle_end, plane, plane_x, plane_y, height);
 
-    STRAIGHT_TRAVERSE(_setup.get_toplevel_line_number(),
+    STRAIGHT_TRAVERSE(get_toplevel_line_number(),
                       UNPACK_POSITION_ARRAY_REF(goal_pos));
     return INTERP_OK;
 }
