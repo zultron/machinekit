@@ -1306,7 +1306,7 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
         if (_linecount > max_glcanon_lines) {
             std::stringstream preview_cutoff_warning;
             preview_cutoff_warning << "Program exceeds " << max_glcanon_lines << " motion lines (" << _linecount << " total), displayed extents may not be accurate.  Use the context menu of the g-code window on the Main tab to load all preview lines.  Or use ADMIN SET_PREVIEW_LIMIT MDI command to change number of lines to interpret on program load.";
-            GCodeAnnotation cutoff_warning(preview_cutoff_warning.str().c_str(), cutoff_line_);
+            GCodeAnnotation cutoff_warning(preview_cutoff_warning.str().c_str(), cutoff_line_, CANON_MSG_LOW);
             PyList_Append(annotations, py_make_annotation_tuple(cutoff_warning));
         }
         PyTuple_SET_ITEM(retval, 2, annotations);

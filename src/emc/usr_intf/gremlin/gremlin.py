@@ -449,7 +449,11 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
                 ))
 
         if result > gcode.MIN_ERROR and not suppress_errors:
-            self.report_gcode_error(result, seq, filename)
+            err_annotation = self.report_gcode_error(result, seq, filename)
+            if err_annotation:
+                err_oneline = ', '.join([s.lstrip() for s in err_annotation[0].split('\n')])
+                err_annotation_flat = (err_oneline, err_annotation[1], err_annotation[2])
+                annotations.append(err_annotation_flat)
 
         self._tools_used = self.canon.get_tools_used()
 
