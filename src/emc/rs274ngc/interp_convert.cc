@@ -1314,6 +1314,7 @@ int Interp::convert_comment(char *comment, bool enqueue)       //!< string with 
   static const char PYRUN_STR[] = "pyrun,";
   static const char PYRELOAD_STR[] = "pyreload";
   static const char ERROR_STR[] = "error,";
+  static const char ABORT_STR[] = "abort,";
   static const char WARN_STR[] = "warn,";
   int m, n, start;
 
@@ -1379,6 +1380,15 @@ int Interp::convert_comment(char *comment, bool enqueue)       //!< string with 
   else if (startswith(lc, PYRELOAD_STR))
   {
       return py_reload();
+  }
+  else if (size_t n = startswith(lc, ABORT_STR))
+  {
+      convert_param_comment(comment_start + n, expanded,
+                            EX_SIZE);
+      setSavedError(expanded); // avoid printf interpretation
+
+      gcode_context_stack.replace_local_linetext("(ABORT,...");
+      return INTERP_ERROR;
   }
   else if (size_t n = startswith(lc, ERROR_STR))
   {
