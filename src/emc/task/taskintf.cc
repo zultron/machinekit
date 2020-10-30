@@ -128,10 +128,8 @@ int emcAxisSetBacklash(int axis, double backlash)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-// saved values of limits, since emcmot expects them to be set in
+// NOTE: saved values of limits, since emcmot expects them to be set in
 // pairs and we set them individually.
-static double saveMinLimit[EMCMOT_MAX_JOINTS];
-static double saveMaxLimit[EMCMOT_MAX_JOINTS];
 
 int emcAxisSetMinPositionLimit(int axis, double limit)
 {
@@ -148,9 +146,9 @@ int emcAxisSetMinPositionLimit(int axis, double limit)
 
     emcmotCommand.command = EMCMOT_SET_POSITION_LIMITS;
     emcmotCommand.axis = axis;
-    emcmotCommand.maxLimit = saveMaxLimit[axis];
+    emcmotCommand.maxLimit = axis_max_position_limit[axis];
     emcmotCommand.minLimit = limit;
-    saveMinLimit[axis] = limit;
+    axis_min_position_limit[axis] = limit;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
@@ -170,9 +168,9 @@ int emcAxisSetMaxPositionLimit(int axis, double limit)
 
     emcmotCommand.command = EMCMOT_SET_POSITION_LIMITS;
     emcmotCommand.axis = axis;
-    emcmotCommand.minLimit = saveMinLimit[axis];
+    emcmotCommand.minLimit = axis_min_position_limit[axis];
     emcmotCommand.maxLimit = limit;
-    saveMaxLimit[axis] = limit;
+    axis_max_position_limit[axis] = limit;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }

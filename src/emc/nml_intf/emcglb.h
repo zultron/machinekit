@@ -58,6 +58,9 @@ extern "C" {
     extern double traj_default_velocity;
     extern double traj_max_velocity;
 
+    // FIXME these are really joint-level limits, keep this consistent in the future
+    extern double axis_max_position_limit[EMCMOT_MAX_JOINTS];
+    extern double axis_min_position_limit[EMCMOT_MAX_JOINTS];
     extern double axis_max_velocity[EMC_AXIS_MAX];
     extern double axis_max_acceleration[EMC_AXIS_MAX];
 
