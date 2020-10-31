@@ -5591,10 +5591,7 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
 
   USE_TOOL_LENGTH_OFFSET(toEmcPose(new_tool_offset.tf));
 
-  // KLUDGE directly copying the tool offset is dangerous (ideally this should call
-  // swap_tool_offset), but this works because a synch occurs after the tool
-  // change that updates the current position based on the new tool offset.
-  settings->transform.toolOffset = new_tool_offset;
+  settings->current = settings->transform.swap_tool_offset(settings->current, new_tool_offset);
   return INTERP_OK;
 }
 
