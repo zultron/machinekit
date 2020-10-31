@@ -915,6 +915,8 @@ int read_inputs(setup_pointer settings);
     int get_relative_polar_point(block_pointer block, CANON_PLANE plane, PositionArray &cmd_local_pos) const;
     int add_relative_polar(block_pointer block, double &p0, double &p1) const;
 
+    virtual int check_leadin_feedmode(const ModalState & initial, const ModalState & to_restore, int start_line, double leadin_feedrate) const;
+    
 protected:
     bool error_has_context;
 
