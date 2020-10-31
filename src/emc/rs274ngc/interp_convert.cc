@@ -2755,6 +2755,19 @@ int Interp::check_startline_leadin_feedrate(double &feed_rate_uu, const char *mo
     return INTERP_OK;
 }
 
+int Interp::check_leadin_feedmode(ModalState const &initial, ModalState const &to_restore, int start_line, double leadin_feedrate) const
+{
+    if (initial.g_codes[G_CODE_FEED_MODE] != to_restore.g_codes[G_CODE_FEED_MODE]) {
+        ERS("Lead-in move for start line %d expects a feed rate in G%d mode. Feed setting at cycle start was G%d F%0.4f",
+            start_line,
+            to_restore.g_codes[G_CODE_FEED_MODE] / 10,
+            initial.g_codes[G_CODE_FEED_MODE] / 10,
+            leadin_feedrate
+            );
+    }
+    return INTERP_OK;
+}
+
 int Interp::create_full_restore_sequence(
     ExpandedModalState const &to_restore,
     RestoreCommandList & restore_cmd_list,
@@ -2824,6 +2837,7 @@ int Interp::create_full_restore_sequence(
     PositionArray leadin_position = _setup.posWithDiameterMode(leadin_position_raw);
 
     double leadin_feedrate = USER_TO_PROGRAM_LEN(run_initial_state.modal_state.feed_rate_uu);
+    CHP(check_leadin_feedmode(run_initial_state.modal_state, to_restore.modal_state, run_settings.start_line, leadin_feedrate));
     double feedrate_to_restore = to_restore.modal_state.settings[SETTINGS_FEED_RATE]; // Already in program units
 
     switch (run_settings.leadin_type) {
