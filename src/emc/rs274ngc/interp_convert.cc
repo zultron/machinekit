@@ -5584,7 +5584,10 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
   
   ShiftTransform new_tool_offset{};
   CHP(find_g43_tool_offset(block->t_number, true, settings, new_tool_offset));
+  // Lathe-style tool change implies G43, so update the offset mode accordingly
+  // This is similar to what convert_tool_length_offset does for non-lathe tool offsets
   settings->tool_offset_number = block->t_number;
+  settings->tool_offset_mode = G_43;
 
   USE_TOOL_LENGTH_OFFSET(toEmcPose(new_tool_offset.tf));
 
