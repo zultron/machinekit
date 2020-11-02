@@ -103,3 +103,9 @@ int PreviewInterp::check_startline_leadin_feedrate(double &feed_rate, const char
     }
     return INTERP_OK;
 }
+
+int PreviewInterp::check_leadin_feedmode(const ModalState & initial, const ModalState & to_restore, int start_line, double leadin_feedrate) const
+{
+    // Don't check this in preview because users can change the feed mode. We want to show what the lead-in motion will be if everything is set up correctly, not based on the conditions at load.
+    return INTERP_OK;
+}
