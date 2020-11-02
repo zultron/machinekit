@@ -825,7 +825,7 @@ void STRAIGHT_FEED(int line_number,
 }
 
 
-int RIGID_TAP(int line_number,
+CanonReturn RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
@@ -851,7 +851,7 @@ int RIGID_TAP(int line_number,
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
         // Not strictly an error, just means there is nothing to do zince the move is zero length
-        return 0;
+        return CANON_RETURN_OK;
     }
 
     VelData vel_data = getStraightVelocity(disp_data);
@@ -871,7 +871,7 @@ int RIGID_TAP(int line_number,
     if (safe_lead > depth) {
         CANON_ERROR("Rigid tap move is too short for proper spindle synchronization. For the given spindle speed / pitch, the cycle depth (initial - bottom) must be at least %0.3f. The requested move is only %0.3f deep",
                     TO_PROG_LEN(safe_lead), TO_PROG_LEN(depth));
-        return -1;
+        return CANON_RETURN_ERROR;
     } else {
         EMC_TRAJ_RIGID_TAP rigidTapMsg;
         rigidTapMsg.pos = to_ext_pose(bottom);
@@ -885,7 +885,7 @@ int RIGID_TAP(int line_number,
     }
 
     // don't move the endpoint because after this move, we are back where we started
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 /**
@@ -1299,7 +1299,7 @@ static double axis_acc_time(const PositionArray & start, const PositionArray & e
 }
 #endif
 
-int ARC_FEED(int line_number,
+CanonReturn ARC_FEED(int line_number,
               double first_end, double second_end,
 	      double first_axis, double second_axis, int rotation,
 	      double axis_end_point, 
@@ -1349,7 +1349,7 @@ int ARC_FEED(int line_number,
                         });
             see_segment(_tag,
                         {fe, se, ae, a, b, c, u, v, w});
-            return 0;
+            return CANON_RETURN_OK;
         }
     }
 
@@ -1597,7 +1597,7 @@ int ARC_FEED(int line_number,
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
         // Not strictly an error, just means the move is zero length
-        return 0;
+        return CANON_RETURN_OK;
     }
 
     // Next, compute the minimum time that we must take to complete the segment. 
@@ -1643,12 +1643,12 @@ int ARC_FEED(int line_number,
     if(!v_req_path || !a_max_path) {
         // Generally means zero length move but that should be detected earlier
         CANON_MESSAGE(CANON_MSG_DEBUG, "Got invalid velocity %f and/or acceleration %f for circular move, assuming zero length", v_req_path, a_max_path);
-        return 0;
+        return CANON_RETURN_OK;
     }
 
     if (rotation == 0) {
         CANON_ERROR("Cannot have 0 rotation in a circular segment");
-        return -1;
+        return CANON_RETURN_ERROR;
     }
     circularMoveMsg.end = toEmcPose(p_goal_ext);
 
@@ -1669,7 +1669,7 @@ int ARC_FEED(int line_number,
 
     tag_and_send(circularMoveMsg);
     canonUpdateEndPoint(endpt);
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 void DWELL(double seconds)
