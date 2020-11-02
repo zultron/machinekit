@@ -2765,6 +2765,19 @@ int Interp::check_startline_leadin_feedrate(double &feed_rate_uu, const char *mo
     return INTERP_OK;
 }
 
+int Interp::check_leadin_feedmode(ModalState const &initial, ModalState const &to_restore, int start_line, double leadin_feedrate) const
+{
+    if (initial.g_codes[G_CODE_FEED_MODE] != to_restore.g_codes[G_CODE_FEED_MODE]) {
+        ERS("Lead-in move for start line %d expects a feed rate in G%d mode. Feed setting at cycle start was G%d F%0.4f",
+            start_line,
+            to_restore.g_codes[G_CODE_FEED_MODE] / 10,
+            initial.g_codes[G_CODE_FEED_MODE] / 10,
+            leadin_feedrate
+            );
+    }
+    return INTERP_OK;
+}
+
 int Interp::create_full_restore_sequence(
     ExpandedModalState const &to_restore,
     RestoreCommandList & restore_cmd_list,
@@ -2834,6 +2847,7 @@ int Interp::create_full_restore_sequence(
     PositionArray leadin_position = _setup.posWithDiameterMode(leadin_position_raw);
 
     double leadin_feedrate = USER_TO_PROGRAM_LEN(run_initial_state.modal_state.feed_rate_uu);
+    CHP(check_leadin_feedmode(run_initial_state.modal_state, to_restore.modal_state, run_settings.start_line, leadin_feedrate));
     double feedrate_to_restore = to_restore.modal_state.settings[SETTINGS_FEED_RATE]; // Already in program units
 
     switch (run_settings.leadin_type) {
@@ -5580,14 +5594,14 @@ int Interp::convert_lathe_tool_change(block_pointer block,     //!< pointer to a
   
   ShiftTransform new_tool_offset{};
   CHP(find_g43_tool_offset(block->t_number, true, settings, new_tool_offset));
+  // Lathe-style tool change implies G43, so update the offset mode accordingly
+  // This is similar to what convert_tool_length_offset does for non-lathe tool offsets
   settings->tool_offset_number = block->t_number;
+  settings->tool_offset_mode = G_43;
 
   USE_TOOL_LENGTH_OFFSET(toEmcPose(new_tool_offset.tf));
 
-  // KLUDGE directly copying the tool offset is dangerous (ideally this should call
-  // swap_tool_offset), but this works because a synch occurs after the tool
-  // change that updates the current position based on the new tool offset.
-  settings->transform.toolOffset = new_tool_offset;
+  settings->current = settings->transform.swap_tool_offset(settings->current, new_tool_offset);
   return INTERP_OK;
 }
 
