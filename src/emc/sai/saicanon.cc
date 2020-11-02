@@ -227,7 +227,7 @@ void SET_TRAVERSE_RATE(double rate)
   _sai._traverse_rate = rate;
 }
 
-void STRAIGHT_TRAVERSE( int line_number,
+CanonReturn STRAIGHT_TRAVERSE( int line_number,
  double x, double y, double z
  , double a /*AA*/
  , double b /*BB*/
@@ -250,6 +250,7 @@ void STRAIGHT_TRAVERSE( int line_number,
   _sai._program_position[A] = a; /*AA*/
   _sai._program_position[B] = b; /*BB*/
   _sai._program_position[C] = c; /*CC*/
+  return CANON_RETURN_OK;
 }
 
 /* Machining Attributes */

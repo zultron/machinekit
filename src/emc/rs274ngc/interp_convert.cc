@@ -2386,9 +2386,9 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
   if (CC_end != settings->current[C] && settings->c_indexer)
       issue_straight_index(5, CC_end, toplevel_line, settings);
 
-  STRAIGHT_TRAVERSE(toplevel_line, end_x, end_y, end_z,
-                    AA_end, BB_end, CC_end,
-                    u_end, v_end, w_end);
+  CHP_CANON(STRAIGHT_TRAVERSE(toplevel_line, end_x, end_y, end_z,
+                              AA_end, BB_end, CC_end,
+                              u_end, v_end, w_end));
 
   settings->current[X] = end_x;
   settings->current[Y] = end_y;
@@ -2467,9 +2467,9 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
   if (CC_end != settings->current[C] && settings->c_indexer)
       issue_straight_index(5, CC_end, get_toplevel_line_number(), settings);
 
-  STRAIGHT_TRAVERSE(toplevel_line, end_x, end_y, end_z,
-                    AA_end, BB_end, CC_end,
-                    u_end, v_end, w_end);
+  CHP_CANON(STRAIGHT_TRAVERSE(toplevel_line, end_x, end_y, end_z,
+                              AA_end, BB_end, CC_end,
+                              u_end, v_end, w_end));
   settings->current[X] = end_x;
   settings->current[Y] = end_y;
   settings->current[Z] = end_z;
@@ -4493,9 +4493,9 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
         const int line_number = write_and_update_state_tag(block);
         switch (move) {
         case G_0:
-            STRAIGHT_TRAVERSE(line_number, end_x, end_y, end_z,
-                      AA_end, BB_end, CC_end,
-                      u_end, v_end, w_end);
+            CHP_CANON(STRAIGHT_TRAVERSE(line_number, end_x, end_y, end_z,
+                                  AA_end, BB_end, CC_end,
+                                  u_end, v_end, w_end));
     settings->current[X] = end_x;
     settings->current[Y] = end_y;
     settings->current[Z] = end_z;
@@ -4626,9 +4626,9 @@ int Interp::issue_straight_index(int axis, double target, int lineno, setup_poin
 
     // tell canon that this is a special indexing move
     UNLOCK_ROTARY(lineno, axis);
-    STRAIGHT_TRAVERSE(lineno, settings->current[X], settings->current[Y], settings->current[Z],
-                      AA_end, BB_end, CC_end,
-                      settings->current[U], settings->current[V], settings->current[W]);
+    CHP_CANON(STRAIGHT_TRAVERSE(lineno, settings->current[X], settings->current[Y], settings->current[Z],
+                          AA_end, BB_end, CC_end,
+                          settings->current[U], settings->current[V], settings->current[W]));
     LOCK_ROTARY(lineno, axis);
 
     // restore path mode
@@ -4647,8 +4647,8 @@ struct StraightTraverseXYZ
     StraightTraverseXYZ(PositionArray const &default_pos_in) :
         default_pos(default_pos_in) {}
 
-    void operator()(int line_number, double x, double y, double z) const {
-        STRAIGHT_TRAVERSE(line_number,
+    int operator()(int line_number, double x, double y, double z) const {
+        return STRAIGHT_TRAVERSE(line_number,
                           x,
                           y,
                           z,
@@ -5294,7 +5294,7 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
       PositionArray local_machine_zero = settings->transform.inverse_local_from_machine(PositionArray{});
       auto plunge_axis_zero = merge(settings->current, local_machine_zero, settings->default_seek_preamble.plunge_axes);
       COMMENT("AXIS,hide");
-      STRAIGHT_TRAVERSE(-1, UNPACK_POSITION_ARRAY_REF(plunge_axis_zero));
+      CHP_CANON(STRAIGHT_TRAVERSE(get_toplevel_line_number(), UNPACK_POSITION_ARRAY_REF(plunge_axis_zero)));
       COMMENT("AXIS,show");
       settings->current = plunge_axis_zero;
   }
@@ -5332,9 +5332,9 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
       if (CC_end != settings->current[C] && settings->c_indexer)
           issue_straight_index(5, CC_end, -1, settings);
 
-      STRAIGHT_TRAVERSE(-1, end_x, end_y, end_z,
-                        AA_end, BB_end, CC_end,
-                        u_end, v_end, w_end);
+      CHP_CANON(STRAIGHT_TRAVERSE(get_toplevel_line_number(), end_x, end_y, end_z,
+                                  AA_end, BB_end, CC_end,
+                                  u_end, v_end, w_end));
       COMMENT("AXIS,show");
       settings->current[X] = end_x;
       settings->current[Y] = end_y;

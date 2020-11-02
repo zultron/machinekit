@@ -11,7 +11,9 @@ LIBEMCSRCS := \
     emc/ini/initool.cc \
     emc/ini/initraj.cc \
     emc/ini/inihal.cc \
-    emc/nml_intf/interpl.cc
+    emc/nml_intf/interpl.cc \
+    emc/nml_intf/limit_checks.cc \
+
 
 USERSRCS += $(LIBEMCSRCS)
 

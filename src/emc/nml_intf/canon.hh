@@ -133,7 +133,7 @@ extern void SET_TRAVERSE_RATE(double rate);
 is expected that no cutting will occur while a traverse move is being
 made. */
 
-extern void STRAIGHT_TRAVERSE(int lineno,
+extern CanonReturn STRAIGHT_TRAVERSE(int lineno,
                               double x, double y, double z,
                               double a, double b, double c,
                               double u, double v, double w);

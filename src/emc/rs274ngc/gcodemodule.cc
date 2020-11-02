@@ -302,7 +302,7 @@ void STRAIGHT_FEED(int line_number,
     }
 }
 
-void STRAIGHT_TRAVERSE(int line_number,
+CanonReturn STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
                        double a, double b, double c,
                        double u, double v, double w) {
@@ -310,6 +310,7 @@ void STRAIGHT_TRAVERSE(int line_number,
     if (maybe_new_line()) {
         machine.straight_traverse(line_number, _pos_prog);
     }
+    return CANON_RETURN_OK;
 }
 
 void SET_G5X_TRANSFORM(int origin,
