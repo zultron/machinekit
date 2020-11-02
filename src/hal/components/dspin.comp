@@ -135,6 +135,8 @@ union{
 		uint16_t config_vccval_r : 1;
 		uint16_t config_f_pwm_dec_r : 3;
 		uint16_t config_f_pwm_int_r : 3;
+		uint16_t revision;
+		uint16_t unused;
 	} volt;
 	struct{
 		uint16_t acc_r : 12; // 0x05
@@ -187,8 +189,10 @@ union{
 		uint16_t config_vccval_r : 1;
 		uint16_t config_tsw_r : 5;
 		uint16_t config_pred_en : 1;
+		uint16_t revision;
+		uint16_t unused;
 	} current;
-	uint16_t data_r[18];
+	uint16_t data_r[20];
 } regs;
 
 #pragma pack(1)

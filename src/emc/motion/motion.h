@@ -258,7 +258,8 @@ typedef struct emcmot_command_t {
         EmcPose tool_offset;        /* TLO */
 	double  orientation;    /* angle for spindle orient */
 	char    direction;      /* CANON_DIRECTION flag for spindle orient */
-	double  timeout;        /* of wait for spindle orient to complete */
+    double  timeout;        /* of wait for spindle orient to complete */
+    double delta_rpm;      // For motion-based dwell, used to compute open-loop dwell time for a spindle RPM change (e.g. for G84)
 	unsigned char wait_for_spindle_at_speed; // EMCMOT_SPINDLE_ON now carries this, for next feed move
     unsigned char tail;	/* flag count for mutex detect */
     tp_arc_blend_config_t arc_blend_cfg;

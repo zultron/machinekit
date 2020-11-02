@@ -112,15 +112,15 @@ GLCALL1V(glBegin, "i", int)
 GLCALL3V(glColor3f, "fff", float, float, float)
 GLCALL4V(glColor4f, "ffff", float, float, float, float)
 GLCALL4V(glBlendColor, "ffff", float, float, float, float)
-GLCALL3V(glVertex3f, "fff", float, float, float);
+GLCALL3V(glVertex3f, "fff", float, float, float)
 GLCALL2V(glLineStipple, "ii", int, int)
 GLCALL1V(glLineWidth, "f", float)
 
 GLCALL1V(glCallList, "i", int)
 GLCALL1V(glClear, "i", int)
 GLCALL4V(glClearColor, "ffff", float, float, float, float)
-GLCALL4V(glColorMask, "iiii", int, int, int, int);
-GLCALL2V(glColorMaterial, "ii", int, int);
+GLCALL4V(glColorMask, "iiii", int, int, int, int)
+GLCALL2V(glColorMaterial, "ii", int, int)
 GLCALL1V(glDepthFunc, "i", int)
 GLCALL1V(glDepthMask, "i", int)
 GLCALL1V(glDisable, "i", int)
@@ -147,15 +147,16 @@ GLCALL2V(glRasterPos2i, "ii", int, int)
 GLCALL4V(glRectf, "ffff", float, float, float, float)
 GLCALL4V(glRotatef, "ffff", float, float, float, float)
 GLCALL3V(glScalef, "fff", float, float, float)
-GLCALL3V(glStencilFunc, "iii", int, int, int);
-GLCALL3V(glStencilOp, "iii", int, int, int);
+GLCALL1V(glShadeModel, "i", int)
+GLCALL3V(glStencilFunc, "iii", int, int, int)
+GLCALL3V(glStencilOp, "iii", int, int, int)
 GLCALL1V(glDrawBuffer, "i", int)
 GLCALL3V(glDrawArrays, "iii", int, int, int)
 GLCALL1V(glMatrixMode, "i", int)
-GLCALL6V(glOrtho, "ffffff", float, float, float, float, float, float);
-GLCALL3V(glTranslatef, "fff", float, float, float);
-GLCALL4V(glViewport, "iiii", int, int, int, int);
-GLCALL4V(gluPerspective, "dddd", double, double, double, double);
+GLCALL6V(glOrtho, "ffffff", float, float, float, float, float, float)
+GLCALL3V(glTranslatef, "fff", float, float, float)
+GLCALL4V(glViewport, "iiii", int, int, int, int)
+GLCALL4V(gluPerspective, "dddd", double, double, double, double)
 
 static void make_glerror(int code) {
     PyObject *e = \
@@ -749,6 +750,7 @@ METH(glRasterPos2i, "specify the raster position for pixel operations"),
 METH(glRectf, "draw a rectangle"),
 METH(glRotatef, "multiply the current matrix by a rotation matrix"),
 METH(glScalef, "multiply the current matrix by a general scaling matrix"),
+METH(glShadeModel, "Control opengl shade model"),
 METH(glStencilFunc, "specify the stencil buffer test function"),
 METH(glStencilOp, "specify the stencil buffer operation"),
 METH(glDrawBuffer, "specify which color buffers are to be drawn into"),
@@ -889,5 +891,7 @@ void initminigl(void) {
     CONST(GL_UNSIGNED_BYTE);
     CONST(GL_RGB);
     CONST(GL_RGBA);
+    CONST(GL_SMOOTH);
+    CONST(GL_FLAT);
 
 }

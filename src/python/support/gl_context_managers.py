@@ -1,32 +1,32 @@
-from minigl import *
+import minigl
 from contextlib import contextmanager
 
 
 @contextmanager
-def gl_new_list(list_obj, list_mode=GL_COMPILE):
+def gl_new_list(list_obj, list_mode=minigl.GL_COMPILE):
     try:
-        glNewList(list_obj, list_mode)
+        minigl.glNewList(list_obj, list_mode)
         yield
     finally:
-        glEndList()
+        minigl.glEndList()
 
 
 @contextmanager
 def gl_line_width(w):
-    glLineWidth(w)
+    minigl.glLineWidth(w)
     try:
         yield
     finally:
-        glLineWidth(1)
+        minigl.glLineWidth(1)
 
 
 @contextmanager
 def gl_begin(mode):
-    glBegin(mode)
+    minigl.glBegin(mode)
     try:
         yield
     finally:
-        glEnd()
+        minigl.glEnd()
 
 
 @contextmanager
@@ -35,11 +35,11 @@ def gl_enable(mode):
     Enables the specified mode, and disables it on context exit
     NOTE: this ignores the current enable / disable state
     """
-    glEnable(mode)
+    minigl.glEnable(mode)
     try:
         yield
     finally:
-        glDisable(mode)
+        minigl.glDisable(mode)
 
 
 @contextmanager
@@ -48,18 +48,26 @@ def gl_disable(mode):
     Disables the specified mode, and enables it on context exit
     NOTE: this ignores the current enable / disable state
     """
-    glDisable(mode)
+    minigl.glDisable(mode)
     try:
         yield
     finally:
-        glEnable(mode)
+        minigl.glEnable(mode)
 
 
 @contextmanager
 def gl_push_matrix():
-    glPushMatrix()
+    minigl.glPushMatrix()
     try:
         yield
     finally:
-        glPopMatrix()
+        minigl.glPopMatrix()
+
+@contextmanager
+def gl_quadric():
+    q = minigl.gluNewQuadric()
+    try:
+        yield q
+    finally:
+        minigl.gluDeleteQuadric(q)
 

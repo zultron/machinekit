@@ -75,9 +75,8 @@ int tpAddCircle(TP_STRUCT * const tp,
         char atspeed,
         struct state_tag_t tag);
 
-int tpAddDwell(
-    TP_STRUCT * const tp,
-    double time_sec,
+int tpAddDwell(TP_STRUCT * const tp,
+    double time_sec, double delta_rpm,
     struct state_tag_t tag);
 
 tp_err_t tpRunCycle(TP_STRUCT * const tp);

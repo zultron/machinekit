@@ -334,7 +334,7 @@ std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k)
   _sai._program_position[Y] = nurbs_control_points[nurbs_control_points.size()].Y;
 }
 
-void ARC_FEED(int line_number,
+int ARC_FEED(int line_number,
  double first_end, double second_end,
  double first_axis, double second_axis, int rotation, double axis_end_point
  , double a /*AA*/
@@ -374,6 +374,7 @@ void ARC_FEED(int line_number,
   _sai._program_position[A] = a; /*AA*/
   _sai._program_position[B] = b; /*BB*/
   _sai._program_position[C] = c; /*CC*/
+  return 0;
 }
 
 void STRAIGHT_FEED(int line_number,
@@ -461,7 +462,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
   STRAIGHT_PROBE(line_number, x, y, z, a, b, c, u, v, w, probe_type);
 }
 
-void RIGID_TAP(int line_number,
+int RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
@@ -470,6 +471,7 @@ void RIGID_TAP(int line_number,
     double retract_pitch
 ){
     ECHO_WITH_ARGS("%.4f, %.4f, %.4f", x, y, z);
+    return 0;
 }
 
 
@@ -483,12 +485,18 @@ void PRECISION_DWELL(double seconds)
   ECHO_WITH_ARGS("%.4f", seconds);
 }
 
+void DWELL_FOR_SPINDLE(int line_number, double delta_rpm, double extra_wait_sec)
+{
+  ECHO_WITH_ARGS("%.4f", delta_rpm);
+}
+
 /* Spindle Functions */
 void SPINDLE_RETRACT_TRAVERSE()
 {PRINT("SPINDLE_RETRACT_TRAVERSE()\n");}
 
-void SET_SPINDLE_MODE(double arg) {
-  PRINT("SET_SPINDLE_MODE(%.4f)\n", arg);
+void SET_SPINDLE_MODE(double css_maximum_rpm) {
+  PRINT("SET_SPINDLE_MODE(%.4f)\n", css_maximum_rpm);
+  _sai._css_maximum_rpm = css_maximum_rpm;
 }
 
 void START_SPINDLE_CLOCKWISE(int wait_for_atspeed)
@@ -942,6 +950,16 @@ double GET_EXTERNAL_SPEED()
   return _sai._spindle_speed;
 }
 
+// Is the spindle in constant RPM or constant surface mode?
+double GET_EXTERNAL_SPINDLE_CSS_MAX_SPEED() {
+    return _sai._css_maximum_rpm;
+}
+
+// For the current state, what is the planned spindle speed factoring in CSS?
+double GET_EXTERNAL_SPEED_PLANNED() {
+    return _sai._css_maximum_rpm ?: _sai._spindle_speed;
+}
+
 /* Returns the system value for direction of spindle turning */
 extern CANON_DIRECTION GET_EXTERNAL_SPINDLE()
 {
@@ -1103,6 +1121,7 @@ int GET_EXTERNAL_TC_REASON()
     return _sai._toolchanger_reason;
 }
 
+std::string GET_CANON_ERROR() {return "";}
 /* Sends error message */
 void CANON_ERROR(const char *fmt, ...)
 {

@@ -8,19 +8,18 @@ double get_spindle_speed_out_rpm(struct emcmot_status_t const * const stat)
     if(stat->spindle_cmd.css_factor) {
         double denom = fabs(stat->spindle_cmd.xoffset - emcmotStatus->carte_pos_cmd.tran.x);
         double speed;
-        double maxpositive;
-        if(denom > 0) speed = stat->spindle_cmd.css_factor / denom;
-        else speed = stat->spindle_cmd.velocity_rpm_out;
+        if(denom > 0) {
+            speed = stat->spindle_cmd.css_factor / denom;
+        } else {
+            speed = stat->spindle_cmd.velocity_rpm_out;
+        }
 
-        speed = speed * stat->net_spindle_scale;
-
-        maxpositive = fabs(stat->spindle_cmd.velocity_rpm_out);
+        double maxpositive = fabs(stat->spindle_cmd.velocity_rpm_out);
         // cap speed to G96 D...
-        if(speed < -maxpositive)
-            speed = -maxpositive;
-        if(speed > maxpositive)
-            speed = maxpositive;
-        return speed;
+        double bounded_speed = bound(speed, maxpositive, -maxpositive);
+        bounded_speed *= stat->net_spindle_scale;
+
+        return bounded_speed;
     } else {
         return stat->spindle_cmd.velocity_rpm_out * emcmotStatus->net_spindle_scale;
     }

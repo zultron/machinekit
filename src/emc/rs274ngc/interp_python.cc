@@ -179,11 +179,20 @@ int Interp::pycall(setup_pointer settings,
 	}
 	break;
     default:
-	python_plugin->call(module,funcname, frame->pystuff.impl->tupleargs,frame->pystuff.impl->kwargs,retval);
-    // NOTE: Assume that an exception containing a formatted interp error already has the appropriate context G-code context
-	CHKS(python_plugin->plugin_status() == PLUGIN_EXCEPTION,
-         "%spycall(%s):\n%s", CONTEXT_MARKER, funcname,
-	     python_plugin->last_exception().c_str());
+        python_plugin->call(module,funcname, frame->pystuff.impl->tupleargs,frame->pystuff.impl->kwargs,retval);
+        // NOTE: Assume that an exception containing a formatted interp error already has the appropriate context G-code context
+        if (python_plugin->plugin_status() == PLUGIN_EXCEPTION) {
+            if (getSavedError()[0]) {
+                // Already have error context (assume an interp error triggered this error),
+                // so signal to upstream error handlers not to add anymore context.
+                ERS("%sPython Exception %s", CONTEXT_MARKER,
+                    python_plugin->last_exception().c_str());
+            } else {
+                // Assume exception originated from within python code itself, so we still need the call context that got us here
+                ERS("Python Exception %s",
+                    python_plugin->last_exception().c_str());
+            }
+        }
     }
 
     try {

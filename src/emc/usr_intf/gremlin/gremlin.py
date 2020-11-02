@@ -78,6 +78,14 @@ class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
         self.progress = None
         self.lathe_view_option = lathe_view_option
         self.tools_used = []
+        vfd_rps2 = float(inifile.find("TORMACH_SPINDLE", "SPINDLE_VFD_PEAK_ACCEL_RPS2") or 1000.0/60)
+        vfd_cmd_latency = float(inifile.find("TORMACH_SPINDLE", "SPINDLE_CMD_LATENCY_SEC") or 0.0)
+        lo_belt_ratio = float(inifile.find("SPINDLE", "LO_RANGE_PULLEY_RATIO") or 1.0)
+        hi_belt_ratio = float(inifile.find("SPINDLE", "HI_RANGE_PULLEY_RATIO") or 1.0)
+        self.spindle_dwell_data = (
+            (1.0 / 60.0 / (vfd_rps2 * lo_belt_ratio), vfd_cmd_latency,),
+            (1.0 / 60.0 / (vfd_rps2 * hi_belt_ratio), vfd_cmd_latency,),
+        )
 
     def is_lathe(self): return self.lathe_view_option
 
@@ -112,6 +120,11 @@ class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
     def fudge(x):
         if abs(x) > 1e30: return 0
         return x
+
+    def get_spindle_dwell_data(self):
+        # Called in gcodemodule for canned cycles that auto-calculate a dwell time
+        # TODO formalize this structure (currently just assumed to a constant)
+        return self.spindle_dwell_data
 
 
 class Gremlin(gtk.gtkgl.widget.DrawingArea,
@@ -372,10 +385,10 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
             self.leadin_type = leadin_type
 
         result = 0
-        warnings = []
+        annotations = []
         seq = 0
         if not filename:
-            return result, seq, warnings
+            return result, seq, annotations
 
         working_dir = working_dir or s.working_dir
 
@@ -388,7 +401,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
 
         initcode = self.get_active_g_code_string() or self.inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
         unitcode = "G{}".format(20 + (s.program_units == linuxcnc.UNITS_MM))
-        result, seq, warnings = self.load_preview(filename, self.canon, unitcode, initcode, None, working_dir, self.start_line, self.leadin_type, self.keep_current_tool)
+        result, seq, annotations = self.load_preview(filename, self.canon, unitcode, initcode, None, working_dir, self.start_line, self.leadin_type, self.keep_current_tool)
 
         #Handle extents violation (copied from AXIS)
         machine_limit_min, machine_limit_max = self.canon.get_soft_limits()
@@ -400,12 +413,18 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
             if not(s.axis_mask & (1<<i)): continue
             if self.canon.min_extents_notool[i] < (machine_limit_min[i] - limit_padding):
                 neg_overhang = self.canon.min_extents_notool[i] - machine_limit_min[i]
-                warnings.append("Program exceeds machine minimum on %c axis by %0.4f %s"
-                    % ("XYZABCUVW"[i], neg_overhang, unit_suffix))
+                annotations.append((
+                        "Program exceeds machine minimum on %c axis by %0.4f %s" % ("XYZABCUVW"[i], neg_overhang, unit_suffix),
+                        0,
+                        linuxcnc.CANON_MSG_LOW,
+                ))
             if self.canon.max_extents_notool[i] > (machine_limit_max[i] + limit_padding):
                 pos_overhang = self.canon.max_extents_notool[i] - machine_limit_max[i]
-                warnings.append("Program exceeds machine maximum on %c axis by %0.4f %s"
-                    % ("XYZABCUVW"[i], pos_overhang, unit_suffix))
+                annotations.append((
+                    "Program exceeds machine maximum on %c axis by %0.4f %s" % ("XYZABCUVW"[i], pos_overhang, unit_suffix),
+                    0,
+                    linuxcnc.CANON_MSG_LOW,
+                ))
         # Warn user if spindle-synched feeds violate axis limits
         axis_max_vel = tuple([
             float(self.inifile.find("AXIS_%d" % i, "MAX_VELOCITY") or 0.0)*60
@@ -414,7 +433,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
             fpm = rpm * fpr  # feed per minute
             max_fpm = self.canon.calc_velocity(delta, axis_max_vel) * 0.95
             if fpm > max_fpm:
-                warnings.append(
+                annotations.append((
                     "{move_type} at {rpm_set:.1f} RPM would "
                     "exceed safe XYZ velocity limits on line {line_no:d}. "
                     "Please reduce spindle speed to {rpm_max:.1f} RPM or "
@@ -424,19 +443,32 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
                         rpm_set=rpm,
                         rpm_max=max_fpm/fpr,
                         line_no=line_no,
-                        pitch=max_fpm/rpm))
+                        pitch=max_fpm/rpm),
+                    line_no,
+                    linuxcnc.CANON_MSG_LOW
+                ))
 
         if result > gcode.MIN_ERROR and not suppress_errors:
-            self.report_gcode_error(result, seq, filename)
+            err_annotation = self.report_gcode_error(result, seq, filename)
+            if err_annotation:
+                err_oneline = ', '.join([s.lstrip() for s in err_annotation[0].split('\n')])
+                err_annotation_flat = (err_oneline, err_annotation[1], err_annotation[2])
+                annotations.append(err_annotation_flat)
 
         self._tools_used = self.canon.get_tools_used()
 
-        return result, seq, warnings
+        return result, seq, annotations
     # doing this kills our zoom settings if gremlin.load is called on work offset change
         #self.set_current_view()
 
     def get_canon(self): return self.canon
     def get_tools_used(self): return self._tools_used
+
+    def get_program_effective_linecount(self):
+        if self.canon is None:
+            return 0
+        else:
+            return self.canon.linecount
 
     def select_prime(self, x, y):
         self.select_primed = x, y

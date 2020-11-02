@@ -651,10 +651,14 @@ double Interp::find_turn(double x1,      //!< X-coordinate of start point
 int Interp::find_tool_pocket(setup_pointer settings, int toolno, int *pocket)
 {
     if (hasFeature(FEATURE_LATHE_TOOLCHANGE)) {
-		if (toolno > 99 && toolno < 10000) { //Future change required for using tools greater than 99
-			toolno = floor(toolno / 100);
-		}
-	}
+        if (toolno > 99 && toolno < 10000) { //Future change required for using tools greater than 99
+            toolno = floor(toolno / 100);
+        } else if (!settings->random_toolchanger && toolno == 10000) {
+            // T0 corresponds to 10000, but this is not a real tool, so bypass the typical lathe machinations here.
+            *pocket = 0;
+            return INTERP_OK;
+        }
+    }
     if(!settings->random_toolchanger && toolno == 0) {
         *pocket = 0;
         return INTERP_OK;

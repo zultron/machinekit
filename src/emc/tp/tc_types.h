@@ -68,7 +68,9 @@ typedef enum {
 
 typedef struct {
     PmVector dwell_pos;
-    double dwell_time;
+    double dwell_time_req; // Pre-calculated, fixed dwell time
+    double delta_rpm_req; // Use to compute a dwell based on the spindle acceleration at run-time
+    double dwell_time; // actual dwell time (determined at run-time when dwell starts)
     double remaining_time;
 } TPDwell;
 

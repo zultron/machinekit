@@ -1138,9 +1138,9 @@ def open_file_guts(f, filtered=False, addrecent=True):
         else:
 		unitcode = ''
         try:
-            result, seq, warnings = o.load_preview(f, canon, unitcode, initcode, interpname)
+            result, seq, annotations = o.load_preview(f, canon, unitcode, initcode, interpname)
         except KeyboardInterrupt:
-            result, seq , warnings = 0, 0, []
+            result, seq , annotations = 0, 0, []
         # According to the documentation, MIN_ERROR is the largest value that is
         # not an error.  Crazy though that sounds...
         if result > gcode.MIN_ERROR:
@@ -1151,15 +1151,15 @@ def open_file_guts(f, filtered=False, addrecent=True):
                     "error",0,_("OK"))
 
         max_dialogs = 4
-        ind = min(max_dialogs,len(warnings))
+        ind = min(max_dialogs,len(annotations))
 
-        for w in warnings[0:ind]:
+        for w in annotations[0:ind]:
             root_window.tk.call("nf_dialog", ".warning",
                     _("G-Code warning in %s") % os.path.basename(f),
-                    _("%(error_str)s") % {'error_str': w},
+                    _("%(error_str)s") % {'error_str': w[0]},
                     "warning",0,_("OK"))
 
-        num_suppressed_warnings = len(warnings) - max_dialogs
+        num_suppressed_warnings = len(annotations) - max_dialogs
         if num_suppressed_warnings > 0:
             root_window.tk.call("nf_dialog", ".warning",
                     _("G-Code warning in %s") % os.path.basename(f),

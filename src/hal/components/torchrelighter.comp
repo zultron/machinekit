@@ -6,8 +6,6 @@ pin in bit torch_in = 0;
 pin in u32 relight_attempts = 3 """Configure the number of relight attempts to make before asserting arcok_out = False""";
 pin in float cooldown = 1.0 "Time in seconds to cooldown between light atttempts"; 
 
-//pin out bit arcok_out = 0 """If enable is False, simply passes through arkok-in. If torch relight is enabled, arcok_out remains True until torch relight has failed.""";
-//pin out bit feed_inhibit_out = 0 """Feed is inhibited if enable is True and arkok-in is False""";
 pin out bit torch_out = 0 """If enable = False, this is a passthrough for torch-in. Otherwise, might be toggled to handle relight."""; 
 
 pin in bit enable = 0 """If True, torch relight is enabled. If False, torch-out signal is simply passed directly through with no interaction.
@@ -17,6 +15,14 @@ function _;
 license "GPL";
 ;;
 #include "rtapi_math.h"
+
+void error_msg(char *msg) {
+    rtapi_print_msg(RTAPI_MSG_ERR, "Plasma source error: %s\n", msg);
+}
+
+void debug_msg(char *msg) {
+    rtapi_print_msg(RTAPI_MSG_ERR, "Plasma source info: %s\n", msg);
+}
 
 enum torch_states {
     DISABLED,
@@ -49,10 +55,13 @@ FUNCTION(_) {
             //Transititions out of DISABLED
             if (enable && !torch_in) {
                 torch_state = OFF;
+                debug_msg("Arc command: DISABLED -> OFF");
             } else if (enable && torch_in && arcok_in) {
                 torch_state = ON;
+                debug_msg("Arc command: DISABLED -> ON");
             } else if (enable && torch_in && !arcok_in) {
                 torch_state = LIGHTING;
+                debug_msg("Arc command: DISABLED -> LIGHTING");
             }
             break;
         case OFF:
@@ -65,6 +74,7 @@ FUNCTION(_) {
             //Transitions out of OFF
             if(torch_in) {
                 torch_state = LIGHTING;
+                debug_msg("Arc command: OFF -> LIGHTING");
             }
             break;
         case ON:
@@ -76,8 +86,10 @@ FUNCTION(_) {
             //Transitions out of ON
             if(torch_in && !arcok_in) {
                 torch_state = COOLDOWN;
+                error_msg("Source reports lost arc - will try relighting");
             } else if (!torch_in) {
                 torch_state = OFF;
+                debug_msg("Arc command: ON -> OFF");
             }
             break;
         case COOLDOWN:
@@ -87,26 +99,34 @@ FUNCTION(_) {
 
             if(torch_in && elapsed_timer > cooldown) {
                 elapsed_timer = 0;
+                retries += 1;
                 torch_state = LIGHTING;
+                debug_msg("Arc command: COOLDOWN -> LIGHTING");
             } else if (!torch_in) {
                 torch_state = OFF;
+                debug_msg("Arc command: COOLDOWN -> OFF");
             }
             break;
         case LIGHTING:
             torch_out = 1;
 
-            retries += 1;
             elapsed_timer += fperiod;
 
             if(torch_in && arcok_in) {
                 torch_state = ON;
+                retries = 0;
+                debug_msg("Arc command: LIGHTING -> ON");
             } else if(torch_in && elapsed_timer > cooldown && retries >= relight_attempts) {
                 torch_state = FAILED;
+                error_msg("Torch lighting failed too many times. Giving up.");
             } else if(torch_in && elapsed_timer > cooldown) {
                 elapsed_timer = 0;
                 torch_state = COOLDOWN;
+                error_msg("Torch lighting failed - arc-ok signal stayed false.");
+
             } else if (!torch_in) {
                 torch_state = OFF;
+                debug_msg("Arc command: LIGHTING -> OFF");
             }
             break;
         case FAILED:
@@ -114,6 +134,7 @@ FUNCTION(_) {
             
             if (!torch_in) {
                 torch_state = OFF;
+                debug_msg("Arc command: FAILED -> OFF");
             }
             break;
     }

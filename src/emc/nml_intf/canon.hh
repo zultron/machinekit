@@ -284,7 +284,7 @@ extern void STOP_SPEED_FEED_SYNCH();
 
 /* Machining Functions */
 
-extern void ARC_FEED(int lineno,
+extern int ARC_FEED(int lineno,
                      double first_end, double second_end,
 		     double first_axis, double second_axis, int rotation,
 		     double axis_end_point, 
@@ -374,7 +374,7 @@ extern void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_poin
 all axes have covered the same proportion of their required motion.
 The meanings of the parameters is the same as for STRAIGHT_TRAVERSE.*/
 
-extern void RIGID_TAP(
+extern int RIGID_TAP(
     int lineno,
     double x,
     double y,
@@ -409,6 +409,7 @@ extern void STOP();
 
 extern void DWELL(double seconds);
 extern void PRECISION_DWELL(double seconds);
+extern void DWELL_FOR_SPINDLE(int line_number, double delta_rpm, double extra_wait_sec=0.0);
 
 /* freeze x,y,z for a time */
 
@@ -798,6 +799,12 @@ extern int GET_EXTERNAL_QUEUE_EMPTY();
 // Returns the system value for spindle speed in rpm
 extern double GET_EXTERNAL_SPEED();
 
+// Is the spindle in constant RPM or constant surface mode?
+extern double GET_EXTERNAL_SPINDLE_CSS_MAX_SPEED();
+
+// For the current state, what is the planned spindle speed factoring in CSS?
+extern double GET_EXTERNAL_SPEED_PLANNED();
+
 // Returns the system value for direction of spindle turning
 extern CANON_DIRECTION GET_EXTERNAL_SPINDLE();
 
@@ -883,6 +890,8 @@ extern void FINISH(void);
 // it to the interp list in certain cases
 extern void ON_RESET(void);
 
+// Mimic interp error pattern, if there's a fatal canon error, retrieve it from a static buffer here
+extern std::string GET_CANON_ERROR();
 extern void CANON_ERROR(const char *fmt, ...) __attribute__((format(printf,1,2)));
 extern void CANON_MESSAGE(CanonMessageAlarmLevel lvl, const char *fmt, ...) __attribute__((format(printf,2,3)));
 

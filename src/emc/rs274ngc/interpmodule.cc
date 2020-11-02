@@ -172,7 +172,15 @@ void translateInterpreterException(InterpreterException const &e)
   PyErr_SetString(PyExc_RuntimeError, e.what());
 }
 
+
+static bool check_interp_has_error(Interp &interp)
+{
+    const char *msg = interp.getSavedError();
+    return msg && msg[0];
+}
+
 static int throw_exceptions = 1;
+
 
 static int wrap_interp_execute_1(Interp &interp, const char *command)
 {    
@@ -182,7 +190,8 @@ static int wrap_interp_execute_1(Interp &interp, const char *command)
 
     // Temporarily set the call state to CS_NORMAL
     _setup.call_state = CS_NORMAL;
-    int status = interp.execute(command);
+    int context_line =  interp.gcode_context_stack.get_closest_toplevel_caller_line() + interp.gcode_context_stack.context_lines.size();
+    int status = interp.execute(command, interp.last_cmd_src, context_line);
     _setup.call_state = saved_call_state;
     _setup.setExecutingBlock(saved_block);
 
@@ -866,7 +875,8 @@ BOOST_PYTHON_MODULE(interpreter) {
 
 	.def("set_errormsg", &setErrorMsg)
 	.def("get_errormsg", &Interp::getSavedError)
-	.def("stack", &errorStack)
+    .def("has_error", &check_interp_has_error)
+    .def("stack", &errorStack)
 	.def("synch", &Interp::synch)
 
 	// those will raise exceptions on return value < INTERP_MIN_ERROR  if throw_exceptions is set.

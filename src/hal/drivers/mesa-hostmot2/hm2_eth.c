@@ -194,6 +194,7 @@ static char* fetch_ifname(int sockfd, char *buf, size_t n) {
 
     for (it=ifa; it; it=it->ifa_next) {
         struct sockaddr_in *ifaddr = (struct sockaddr_in*)it->ifa_addr;
+        if (ifaddr == NULL) continue;
         if (ifaddr->sin_family != srcaddr.sin_family) continue;
         if (ifaddr->sin_addr.s_addr != srcaddr.sin_addr.s_addr) continue;
         snprintf(buf, n, "%s", it->ifa_name);
@@ -1028,6 +1029,7 @@ static int hm2_eth_probe(hm2_eth_t *board) {
         hm2_eth_read(&board->llio, HM2_ADDR_IDROM_OFFSET, &read_data, 4);
         unsigned int idrom_address = read_data & 0xffff;
         hm2_idrom_t idrom;
+        memset(&idrom, 0, sizeof(idrom));
         hm2_eth_read(&board->llio, idrom_address, &idrom, sizeof(idrom));
 
         board->llio.num_ioport_connectors = idrom.io_ports;

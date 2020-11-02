@@ -383,7 +383,6 @@ struct setup_struct
   setup_struct();
  ~setup_struct();
 
-  int get_toplevel_line_number() const;
   void clear_queue_buster_flags();
   int getCurrentToolNumber() const;
   PositionArray posWithDiameterMode(const PositionArray & p_native) const;
@@ -560,19 +559,9 @@ inline bool is_a_cycle(int motion) {
 }
 /*
 
-The _setup model includes a stack array for the names of function
+The _setup model includes a "stack" vector for the names of function
 calls. This stack is written into if an error occurs. Just before each
-function returns an error code, it writes its name in the next
-available string, initializes the following string, and increments
-the array index. The following four macros do the work.
-
-The size of the stack array is 50. An error in the middle of a very
-complex expression would cause the ERP and CHP macros to write past the
-bounds of the array if a check were not provided. No real program
-would contain such a thing, but the check is included to make the
-macros totally crash-proof. If the function call stack is deeper than
-49, the top of the stack will be missing.
-
+function returns an error code, it adds an entry to the callstack object.
 */
 
 // Just set an error string using printf-style formats, do NOT return
@@ -634,6 +623,20 @@ macros totally crash-proof. If the function call stack is deeper than
 	int CHP__status = (call);                                  \
         if (CHP__status != INTERP_OK) {                            \
         ERP_LINE(CHP__status, __LINE__);                                \
+        }                                                          \
+    } while(0)
+
+// Specifically for catching readahead-time canon errors and re-throwing them
+// as interp errors This is a hack but otherwise there's no safe way to bail
+// out if canon calls fail. The need for this is an unfortunate side-effect of
+// how much work canon calls do in emccanon. Especially for ARC_FEED and
+// RIGID_TAP, there's a lot of subtle checking that's beyond the scope of what
+// interp does.
+#define CHP_CANON(call)                                            \
+    do {                                                           \
+    int CHP__status = (call);                                      \
+        if (CHP__status != INTERP_OK) {                            \
+        ERS("%s", GET_CANON_ERROR().c_str());                              \
         }                                                          \
     } while(0)
 
