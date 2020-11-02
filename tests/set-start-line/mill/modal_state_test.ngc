@@ -26,5 +26,6 @@ G0 X0 Y0
 M9
 M5
 M6 T0 G49
+(logclose)
 M2
 

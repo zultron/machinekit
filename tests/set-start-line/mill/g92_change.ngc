@@ -22,6 +22,7 @@ G92 Z0
 o<pocket_pass> call
 
 M6 T0 G49
+(logclose)
 M2
 
 o<pocket_pass> sub

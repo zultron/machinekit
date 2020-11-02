@@ -10,6 +10,7 @@ import glob
 import re
 import argparse
 import shutil
+from subprocess import CalledProcessError
 
 print sys.argv
 parser = argparse.ArgumentParser()
@@ -42,6 +43,7 @@ c.wait_complete()
 time.sleep(.5)
 c.mode(linuxcnc.MODE_AUTO)
 c.auto(linuxcnc.AUTO_RUN, 0)
+s.poll()
 c.wait_complete(100)
 
 # Run from the designated start line in the test program and log modal state
@@ -49,10 +51,18 @@ c.wait_complete(100)
 c.program_open(ngc_filename)
 c.wait_complete()
 time.sleep(.5)
+c.mode(linuxcnc.MODE_MDI)
+c.wait_complete()
+c.mdi("G94 F90") # Set a distinctive feed rate so we could check that it's not rapid speed
+c.wait_complete()
 c.mode(linuxcnc.MODE_AUTO)
 c.auto(linuxcnc.AUTO_RUN, args.start_line, args.prep_type, args.keep_tool)
 c.wait_complete()
 s.poll()
 
-os.rename('run_from_start.log','{}_from_start.log'.format(args.ngc_file))
-os.rename('run_from_line.log','{}_from_line.log'.format(args.ngc_file))
+try:
+    os.rename('run_from_start.log','{}_from_start.log'.format(args.ngc_file))
+    os.rename('run_from_line.log','{}_from_line.log'.format(args.ngc_file))
+except CalledProcessError as e:
+    print >>sys.stderr, "Log files are missing for case {}".format(args.ngc_file)
+    sys.exit(1)
