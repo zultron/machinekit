@@ -73,5 +73,4 @@ o<log_modal_state> sub
 (log,task: #<_task>)
 (log,call_level: #<_call_level>)
 (log,remap_level: #<_remap_level>)
-(logclose)
 o<log_modal_state> endsub

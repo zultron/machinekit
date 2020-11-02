@@ -1,0 +1,22 @@
+T0
+G49 (Assume no offsets at first)
+o<open_startline_logfile> call (Opens a named log file depending on start line)
+N10 G18 G40 G80 G20 G54 G94
+N40 T0101
+N60 G00 Z1.5
+(Start on the next line, should execute only the last two passes)
+o<log_modal_state> call (logs modal state at start line for comparison)
+N150 G0 Z1.0
+(log,at program end)
+(log,x_machine: #<_x_machine>)
+(log,y_machine: #<_y_machine>)
+(log,z_machine: #<_z_machine>)
+(log,a_machine: #<_a_machine>)
+(log,b_machine: #<_b_machine>)
+(log,c_machine: #<_c_machine>)
+(log,u_machine: #<_u_machine>)
+(log,v_machine: #<_v_machine>)
+(log,w_machine: #<_w_machine>)
+(logclose)
+M30
+

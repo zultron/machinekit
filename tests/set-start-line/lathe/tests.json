@@ -1,0 +1,23 @@
+{
+    "defaults": {
+        "start_line": 0,
+        "leadin": "linear",
+        "keep_tool": false
+    },
+    "tests": [
+        {
+            "file": "noop",
+            "start_line": 8,
+            "leadin": "plunge"
+        },
+        {
+            "file": "tool_offset_during_seek",
+            "start_line": 10,
+            "leadin": "plunge"
+        },
+        {
+            "file": "g92_change",
+            "start_line": 17
+        }
+    ]
+}

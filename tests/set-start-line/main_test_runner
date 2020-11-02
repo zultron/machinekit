@@ -8,6 +8,10 @@ import shutil
 
 if __name__ == '__main__':
     shutil.copy('sim.tbl.template','sim.tmp.tbl')
+    try:
+        shutil.copy('param.var.template','param.tmp.var')
+    except IOError:
+        print >>sys.stderr, "No param file found, using default"
     with open('tests.json','r') as f:
         tests=json.load(f)
 

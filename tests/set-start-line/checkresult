@@ -10,12 +10,18 @@ def check_file_contents(t_name, t_path):
     if t_name is None:
         print >>sys.stderr,"Failed to find test file name"
         return False
-    with open(os.path.join(t_path, '{}_from_start.log'.format(t_name)),'r') as f_start:
-        with open(os.path.join(t_path, '{}_from_line.log'.format(t_name)),'r') as f_line:
-            s1 = f_start.readlines()
+    expected_logfile = '{}_from_start.log'.format(t_name)
+    got_logfile = '{}_from_line.log'.format(t_name)
+    print >>sys.stderr, "Comparing {} and {}".format(expected_logfile, got_logfile)
+    with open(os.path.join(t_path, expected_logfile),'r') as f_start:
+        s1 = f_start.readlines()
+        if not s1:
+            print >>sys.stderr,"No modal state data found for {}".format(expected_logfile)
+            return False
+        with open(os.path.join(t_path, got_logfile),'r') as f_line:
             s2 = f_line.readlines()
-            if not s1 or not s2:
-                print >>sys.std_err,"No modal state data found"
+            if not s2:
+                print >>sys.stderr,"No modal state data found for {}".format(got_logfile)
                 return False
             d=list(difflib.unified_diff(s1,s2))
             if d:
