@@ -1,4 +1,4 @@
-# !/bin/bash
+#!/bin/bash
 
 if [ "$#" -lt 2 ]; then
     echo "fix-uuid requires 2 args, an inifile path and a new MKUUID"
