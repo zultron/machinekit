@@ -1,1 +1,15 @@
-Subdirectories in this folder contain test cases for set-start-line under various machine configurations.
+Subdirectories in this folder contain test cases for set-start-line under various machine configurations:
+
+test cases:
+* lathe
+* mill
+
+Subroutines (test config uses top-level directory as subroutine path):
+* log_modal_state.ngc - subroutine to capture a bunch of interp state
+* open_startline_logfile.ngc - subroutine to open a named logfile
+
+Common code (symlink this into each test directory):
+* checkresult - common check function to compare two log files and highlight any differences (empty log files are an error)
+* main_test_runner - top-level test runner
+* set-start-line-ui.py - main script to run linuxcnc instance and execute tests
+
