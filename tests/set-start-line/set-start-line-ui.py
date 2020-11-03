@@ -57,7 +57,7 @@ c.mdi("G94 F90") # Set a distinctive feed rate so we could check that it's not r
 c.wait_complete()
 c.mode(linuxcnc.MODE_AUTO)
 c.auto(linuxcnc.AUTO_RUN, args.start_line, args.prep_type, args.keep_tool)
-c.wait_complete()
+c.wait_complete(100)
 s.poll()
 
 try:

@@ -29,5 +29,6 @@ N40 T02
 (log,current_tool: #<_current_tool>)
 (log,current_pocket: #<_current_pocket>)
 (logclose)
+G0 Z1
 M30
 
