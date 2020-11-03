@@ -30,6 +30,11 @@ enum PartsCounterTypes {
     MAX_PART_COUNTERS
 };
 
+enum CanonReturn {
+    CANON_RETURN_OK=0,
+    CANON_RETURN_ERROR=5,
+};
+
 struct StateTag;
 /*
   This is the header file that all applications that use the
@@ -128,7 +133,7 @@ extern void SET_TRAVERSE_RATE(double rate);
 is expected that no cutting will occur while a traverse move is being
 made. */
 
-extern void STRAIGHT_TRAVERSE(int lineno,
+extern CanonReturn STRAIGHT_TRAVERSE(int lineno,
                               double x, double y, double z,
                               double a, double b, double c,
                               double u, double v, double w);
@@ -284,7 +289,7 @@ extern void STOP_SPEED_FEED_SYNCH();
 
 /* Machining Functions */
 
-extern int ARC_FEED(int lineno,
+extern CanonReturn ARC_FEED(int lineno,
                      double first_end, double second_end,
 		     double first_axis, double second_axis, int rotation,
 		     double axis_end_point, 
@@ -374,7 +379,7 @@ extern void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_poin
 all axes have covered the same proportion of their required motion.
 The meanings of the parameters is the same as for STRAIGHT_TRAVERSE.*/
 
-extern int RIGID_TAP(
+extern CanonReturn RIGID_TAP(
     int lineno,
     double x,
     double y,

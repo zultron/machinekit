@@ -1,6 +1,7 @@
-#!/usr/bin/env python
-"""Copied from m61-test"""
-
+"""
+Test support for LinuxCNC runtests. Provides some common tools and wrappers
+around stock LinuxCNC Python API for easier test setup.
+"""
 import linuxcnc
 import os
 import sys

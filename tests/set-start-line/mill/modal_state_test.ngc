@@ -1,6 +1,6 @@
 (Show that modal states are preserved in start-from-line)
 o<open_startline_logfile> call (Opens a named log file depending on start line)
-G90 G20 G91.1 G18
+G90 G20 G91.1 G18 G94
 M6 T2 G43 H2
 F180
 G54
@@ -18,13 +18,18 @@ G1 Z0
 G91 X5
 G1 Z-5
 (Start at next line to show properly restored modal state)
-o<log_modal_state> call (logs modal state at start line for comparison)
+o<log_modal_state_and_selected> call (logs modal state at start line for comparison)
 Z-10
+(log,selected_tool: #<_selected_tool>)
+(log,selected_pocket: #<_selected_pocket>)
 G90
 G0 Z50
 G0 X0 Y0
 M9
 M5
 M6 T0 G49
+(log,selected_tool: #<_selected_tool>)
+(log,selected_pocket: #<_selected_pocket>)
+(logclose)
 M2
 

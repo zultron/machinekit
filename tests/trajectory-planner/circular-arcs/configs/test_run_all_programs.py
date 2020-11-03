@@ -4,7 +4,7 @@ Based on the control script in m61_test
 """
 
 import linuxcnc
-from linuxcnc_control import  LinuxcncControl
+from linuxcnc_test_support import  LinuxcncControl
 import sys
 
 from os import listdir

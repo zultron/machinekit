@@ -46,6 +46,7 @@
 #include "canon_position.hh"		// data type for a machine position
 #include "interpl.hh"		// interp_list
 #include "emcglb.h"		// global values from INI for max velocity, tolerance, etc.
+#include "limit_checks.hh"
 
 #include "coordinatetransform.hh"
 #include "units.h"
@@ -213,6 +214,17 @@ static inline double FROM_PROG_ANG(double deg)
 
 static int feed_mode = 0; // 0 means IPM or inv time, 1 means IPM
 static CanonSyncLevel synched = CANON_SYNC_NONE;
+
+static CanonReturn checkPositionLimits(PositionArray const &pos, const char *msg, int line_number)
+{
+    unsigned below_min = findMinPositionViolations(pos);
+    unsigned above_max = findMaxPositionViolations(pos);
+    if (below_min || above_max) {
+        CANON_ERROR("%s", formatAxisError(below_min, above_max, msg, line_number).c_str());
+        return CANON_RETURN_ERROR;
+    }
+    return CANON_RETURN_OK;
+}
 
 static inline UnitsTransform ConvertsCanonToUserUnits()
 {
@@ -756,7 +768,8 @@ void ON_RESET() {
     drop_segments();
 }
 
-static int straight_traverse_internal(
+static CanonReturn straight_traverse_internal(
+    int line_number,
     PositionArray goal_pos_canon,
     EMCMotionTypes emc_motion_type = EMC_MOTION_TYPE_TRAVERSE)
 {
@@ -770,7 +783,7 @@ static int straight_traverse_internal(
     DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
-        return 1;
+        return CANON_RETURN_OK;
     }
 
     VelData veldata = getStraightVelocity(disp_data);
@@ -787,6 +800,10 @@ static int straight_traverse_internal(
     linearMoveMsg.acc = accdata.a_max_path;
     linearMoveMsg.indexrotary = rotary_unlock_for_traverse;
 
+    if (checkPositionLimits(p_goal_ext, "Rapid move would exceed machine position limits in", line_number)) {
+        return CANON_RETURN_ERROR;
+    }
+
     int old_feed_mode = feed_mode;
     if(feed_mode)
         STOP_SPEED_FEED_SYNCH(); // stop velocity synch (and position, but it won't be active here if things are done right)
@@ -797,17 +814,17 @@ static int straight_traverse_internal(
         START_SPEED_FEED_SYNCH(uuPerRev_vel, 1);
 
     canonUpdateEndPoint(goal_pos_canon);
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 
-void STRAIGHT_TRAVERSE(int line_number,
+CanonReturn STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
 		       double a, double b, double c,
                        double u, double v, double w)
 {
     EMCMotionTypes emc_motion_type = (rotary_unlock_for_traverse != -1) ? EMC_MOTION_TYPE_INDEXROTARY : EMC_MOTION_TYPE_TRAVERSE;
-    straight_traverse_internal(PositionArray{x,y,z,a,b,c,u,v,w}, emc_motion_type);
+    return straight_traverse_internal(line_number, PositionArray{x,y,z,a,b,c,u,v,w}, emc_motion_type);
 }
 
 void STRAIGHT_FEED(int line_number,
@@ -825,7 +842,7 @@ void STRAIGHT_FEED(int line_number,
 }
 
 
-int RIGID_TAP(int line_number,
+CanonReturn RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
@@ -851,7 +868,7 @@ int RIGID_TAP(int line_number,
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
         // Not strictly an error, just means there is nothing to do zince the move is zero length
-        return 0;
+        return CANON_RETURN_OK;
     }
 
     VelData vel_data = getStraightVelocity(disp_data);
@@ -871,7 +888,7 @@ int RIGID_TAP(int line_number,
     if (safe_lead > depth) {
         CANON_ERROR("Rigid tap move is too short for proper spindle synchronization. For the given spindle speed / pitch, the cycle depth (initial - bottom) must be at least %0.3f. The requested move is only %0.3f deep",
                     TO_PROG_LEN(safe_lead), TO_PROG_LEN(depth));
-        return -1;
+        return CANON_RETURN_ERROR;
     } else {
         EMC_TRAJ_RIGID_TAP rigidTapMsg;
         rigidTapMsg.pos = to_ext_pose(bottom);
@@ -885,7 +902,7 @@ int RIGID_TAP(int line_number,
     }
 
     // don't move the endpoint because after this move, we are back where we started
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 /**
@@ -1299,7 +1316,7 @@ static double axis_acc_time(const PositionArray & start, const PositionArray & e
 }
 #endif
 
-int ARC_FEED(int line_number,
+CanonReturn ARC_FEED(int line_number,
               double first_end, double second_end,
 	      double first_axis, double second_axis, int rotation,
 	      double axis_end_point, 
@@ -1349,7 +1366,7 @@ int ARC_FEED(int line_number,
                         });
             see_segment(_tag,
                         {fe, se, ae, a, b, c, u, v, w});
-            return 0;
+            return CANON_RETURN_OK;
         }
     }
 
@@ -1597,7 +1614,7 @@ int ARC_FEED(int line_number,
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
         // Not strictly an error, just means the move is zero length
-        return 0;
+        return CANON_RETURN_OK;
     }
 
     // Next, compute the minimum time that we must take to complete the segment. 
@@ -1643,12 +1660,12 @@ int ARC_FEED(int line_number,
     if(!v_req_path || !a_max_path) {
         // Generally means zero length move but that should be detected earlier
         CANON_MESSAGE(CANON_MSG_DEBUG, "Got invalid velocity %f and/or acceleration %f for circular move, assuming zero length", v_req_path, a_max_path);
-        return 0;
+        return CANON_RETURN_OK;
     }
 
     if (rotation == 0) {
         CANON_ERROR("Cannot have 0 rotation in a circular segment");
-        return -1;
+        return CANON_RETURN_ERROR;
     }
     circularMoveMsg.end = toEmcPose(p_goal_ext);
 
@@ -1669,7 +1686,7 @@ int ARC_FEED(int line_number,
 
     tag_and_send(circularMoveMsg);
     canonUpdateEndPoint(endpt);
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 void DWELL(double seconds)
@@ -2024,7 +2041,7 @@ void CHANGE_TOOL(int slot)
         }
 
         PositionArray pos{x,z,y,a,b,c,u,v,w};
-        straight_traverse_internal(pos, EMC_MOTION_TYPE_TOOLCHANGE);
+        straight_traverse_internal(_tag.getCallerLine(), pos, EMC_MOTION_TYPE_TOOLCHANGE);
     }
 
     /* regardless of optional moves above, we'll always send a load tool

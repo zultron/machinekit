@@ -247,7 +247,7 @@ void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points
     knot_vector.clear();
 }
 
-int ARC_FEED(int line_number,
+CanonReturn ARC_FEED(int line_number,
               double first_end, double second_end, double first_axis,
               double second_axis, int rotation, double axis_end_point,
               double a_position, double b_position, double c_position,
@@ -270,7 +270,7 @@ int ARC_FEED(int line_number,
                     a_position, b_position, c_position,
                     u_position, v_position, w_position);
     }
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 void STRAIGHT_FEED(int line_number,
@@ -302,7 +302,7 @@ void STRAIGHT_FEED(int line_number,
     }
 }
 
-void STRAIGHT_TRAVERSE(int line_number,
+CanonReturn STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
                        double a, double b, double c,
                        double u, double v, double w) {
@@ -310,6 +310,7 @@ void STRAIGHT_TRAVERSE(int line_number,
     if (maybe_new_line()) {
         machine.straight_traverse(line_number, _pos_prog);
     }
+    return CANON_RETURN_OK;
 }
 
 void SET_G5X_TRANSFORM(int origin,
@@ -607,7 +608,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
     }
 }
 
-int RIGID_TAP(int line_number,
+CanonReturn RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
@@ -658,7 +659,7 @@ int RIGID_TAP(int line_number,
     if (maybe_new_line()) {
         machine.rigid_tap(line_number, _pos_prog);
     }
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 double GET_EXTERNAL_MOTION_CONTROL_TOLERANCE() { return 0.1; }

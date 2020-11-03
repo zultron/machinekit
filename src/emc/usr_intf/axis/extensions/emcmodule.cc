@@ -34,6 +34,7 @@
 #include "tool_motion_data.hh"
 #include "previewkinematics.hh"
 #include "toolpointbuffer.hh"
+#include <stdio.h>
 
 #include <memory>
 #include <algorithm>
@@ -231,6 +232,7 @@ static PyTypeObject Ini_Type = {
 };
 
 #define EMC_COMMAND_TIMEOUT 5.0  // how long to wait until timeout
+// WARNING change this value with care, too slow and the UI will be hobbled, too fast and it will be wasted (delays much shorter than milltask cycle time are a waste)
 #define EMC_COMMAND_DELAY   0.01 // how long to sleep between checks
 
 static int emcWaitCommandComplete(pyCommandChannel *s, double timeout) {

@@ -45,5 +45,7 @@ struct StateTag : public state_tag_t {
 
     GCodes getActivePlane() const;
     int setActivePlane(CANON_PLANE plane);
+    int getCallerLine() const;
+    int getLocalLine() const;
 };
 #endif

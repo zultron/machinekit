@@ -1,0 +1,19 @@
+# Catch-all directory for python testing in linuxcnc
+TESTING_TARGET_DIR = ../lib/python/testing
+TESTING_SRC_DIR = python/testing
+TESTING_SRCS := \
+	linuxcnc_test_support.py\
+
+PYI18NSRCS += $(addprefix $(TESTING_SRC_DIR)/,$(TESTING__SRCS))
+
+PYTARGETS += $(addprefix $(TESTING_TARGET_DIR)/,$(TESTING_SRCS))
+
+$(TESTING_TARGET_DIR):
+	mkdir -p $@
+
+$(TESTING_TARGET_DIR)/%: $(TESTING_SRC_DIR)/% | $(TESTING_TARGET_DIR)
+	@$(ECHO) Syntax checking python script $(notdir $@)
+	$(Q)$(PYTHON) -c 'import sys; compile(open(sys.argv[1]).read(), sys.argv[1], "exec")' $<
+	$(ECHO) Copying python script $(notdir $@)
+	$(Q)cp $< $@
+
