@@ -12,6 +12,15 @@ import argparse
 import shutil
 from subprocess import CalledProcessError
 
+
+def prune_test_files(files):
+    for f in files:
+        try:
+            os.remove(f)
+        except OSError:
+            pass
+
+
 print sys.argv
 parser = argparse.ArgumentParser()
 parser.add_argument("-ini", help="ini specified", type=str)
@@ -22,6 +31,8 @@ parser.add_argument("--keep-tool", help="Don't change to the tool needed by the 
 args = parser.parse_args()
 
 ngc_filename = args.ngc_file+'.ngc'
+old_logs = ('{}_from_start.log'.format(args.ngc_file), '{}_from_line.log'.format(args.ngc_file))
+prune_test_files(old_logs)
 
 PREP_NONE = 0
 PREP_LINEAR_LEADIN = 1
