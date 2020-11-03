@@ -38,9 +38,12 @@ if __name__ == '__main__':
     with open(os.path.join(out_dir, 'tests.json'),'r') as f:
         tests=json.load(f)
 
+    exit_code=0
     for t in tests.get('tests',[]):
         t_name = t.get("file",None)
         if not check_file_contents(t_name, out_dir):
-            sys.exit(1)
+            exit_code = 1
 
-    # TODO better standards to make sure the output isn't garbled
+
+    sys.exit(exit_code)
+
