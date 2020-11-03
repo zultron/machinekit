@@ -1,6 +1,6 @@
 (Show that modal states are preserved in start-from-line)
 o<open_startline_logfile> call (Opens a named log file depending on start line)
-G90 G20 G91.1 G18
+G90 G20 G91.1 G18 G94
 M6 T2 G43 H2
 F180
 G54
