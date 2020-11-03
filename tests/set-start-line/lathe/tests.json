@@ -6,14 +6,13 @@
     },
     "tests": [
         {
-            "file": "noop",
+            "file": "toolchange_after_g49_t0",
             "start_line": 8,
             "leadin": "plunge"
         },
         {
             "file": "tool_offset_during_seek",
-            "start_line": 10,
-            "leadin": "plunge"
+            "start_line": 10
         },
         {
             "file": "g92_change",

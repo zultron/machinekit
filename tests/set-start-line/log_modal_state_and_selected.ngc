@@ -1,0 +1,5 @@
+o<log_modal_state_and_selected> sub
+o<log_modal_state> call
+(log,selected_tool: #<_selected_tool>)
+(log,selected_pocket: #<_selected_pocket>)
+o<log_modal_state_and_selected> endsub
