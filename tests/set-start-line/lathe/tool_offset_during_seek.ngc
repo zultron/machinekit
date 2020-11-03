@@ -22,9 +22,12 @@ N150 Z1.0
 (log,v_machine: #<_v_machine>)
 (log,w_machine: #<_w_machine>)
 (Another tool change to see if selected tool / pocket is fixed)
+(log,changing to tool 2)
 N40 T02
-(log,v_machine: #<_selected_tool>)
-(log,w_machine: #<_selected_pocket>)
+(log,selected_tool: #<_selected_tool>)
+(log,selected_pocket: #<_selected_pocket>)
+(log,current_tool: #<_current_tool>)
+(log,current_pocket: #<_current_pocket>)
 (logclose)
 M30
 

@@ -66,8 +66,6 @@ o<log_modal_state> sub
 (log,axis_offset_w: #<_axis_offset_w>)
 (log,current_tool: #<_current_tool>)
 (log,current_pocket: #<_current_pocket>)
-(log,selected_tool: #<_selected_tool>)
-(log,selected_pocket: #<_selected_pocket>)
 (log,value: #<_value>)
 (log,value_returned: #<_value_returned>)
 (log,task: #<_task>)

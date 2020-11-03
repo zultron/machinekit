@@ -15,7 +15,7 @@ o<pocket_pass> call
 G92 Z0
 o<pocket_pass> call
 (Start on the next line, should execute only the last two passes)
-o<log_modal_state> call (logs modal state at start line for comparison)
+o<log_modal_state_and_selected> call (logs modal state at start line for comparison)
 (debug, Z axis offset: expect -2, got #<_axis_offset_z>)
 (debug, Z position: expect -1, got #<_z>)
 G92 Z0
