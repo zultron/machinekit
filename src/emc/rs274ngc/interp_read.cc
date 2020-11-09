@@ -1578,8 +1578,8 @@ int Interp::read_o(    /* ARGUMENTS                                     */
 
       if(line[*counter] == '<')
 	  {
-	      read_name(line, counter, oNameBuf);
-	  }
+          read_name(line, counter, oNameBuf); // Requires a name in brackets: <name>
+      }
       else
 	  {
 	      if (read_integer_value(line, counter, &oNumber,
@@ -1923,16 +1923,22 @@ int Interp::read_p(char *line,   //!< string: line of RS274/NGC code being proce
   return INTERP_OK;
 }
 
+/**
+ * Reads an alphanumeric name wrapped in angle brackets: <my_name_123>
+ *
+ * @return INTERP_OK if name was read successfully, or an error code if
+ * a bracket is missing, or an invalid name character is read.
+ */
 int Interp::read_name(
     char *line,   //!< string: line of RS274/NGC code being processed
     int *counter, //!< pointer to a counter for position on the line 
     char *nameBuf)   //!< pointer to name to be read
 {
 
-  int done = 0;
   int i;
 
-  CHKS(((line[*counter] != '<') && !isalpha(line[*(counter)])),
+  // Preconditions require a bracketed name
+  CHKS(line[*counter] != '<',
       NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
 
   // skip over the '<'
@@ -1942,17 +1948,16 @@ int Interp::read_name(
   {
       if(line[*counter] == '>')
       {
-          nameBuf[i] = 0; // terminate the name
-          *counter = (*counter + 1);
-          done = 1;
-          break;
+          nameBuf[i] = '\0'; // terminate the name
+          ++(*counter);
+          return INTERP_OK;
       }
       nameBuf[i] = line[*counter];
-      *counter = (*counter + 1);
+      ++(*counter);
   }
 
   // !!!KL need to rename the error message and change text
-  CHKS((!done), NCE_NAMED_PARAMETER_NOT_TERMINATED);
+  ERS(NCE_NAMED_PARAMETER_NOT_TERMINATED);
 
   return INTERP_OK;
 }
@@ -2140,10 +2145,10 @@ int Interp::read_parameter_setting(
   const char *dup;
 
   CHKS((line[*counter] != '#'), NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
-  *counter = (*counter + 1);
+  ++(*counter);
 
   // named parameters look like '<letter...>' or '<_letter.....>'
-  if((line[*counter] == '<') || isalpha(line[*(counter)]))
+  if(line[*counter] == '<')
   {
       CHP(read_named_parameter_setting(line, counter, &param, parameters));
 
@@ -2261,10 +2266,10 @@ int Interp::read_named_parameter_setting(
   *param = paramNameBuf;
 
   logDebug("entered %s", name);
-  CHKS(((line[*counter] != '<') && !isalpha(line[*(counter)])),
+  CHKS(line[*counter] != '<',
       NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
 
-  status=read_name(line, counter, paramNameBuf);
+  status=read_name(line, counter, paramNameBuf); // Requires a name in brackets: <name>
   CHP(status);
 
   logDebug("%s: returned(%d) from read_name:|%s|", name, status, paramNameBuf);
