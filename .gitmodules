@@ -1,0 +1,3 @@
+[submodule "src/emc/task/jwt-cpp"]
+	path = src/emc/task/jwt-cpp
+	url = git@bitbucket.org:tormachinc/jwt-cpp.git
