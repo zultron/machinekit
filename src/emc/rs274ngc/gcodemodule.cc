@@ -1253,7 +1253,8 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
         Py_XDECREF(res_motion_key);
     }
 
-    {
+    // Only send extent data if it's valid (otherwise leave it blank and gremlin will use default values for zoom / centerpoint)
+    if (!machine.getToolMotionData().empty()) {
         PyObject *res = callmethod(
             callback,
             "set_extents",
@@ -1763,6 +1764,7 @@ void PreviewMachine::set_feed_rate(double feed_rate_prog)
 void PreviewMachine::clear_motions()
 {
     tool_motions.clear();
+    // NOTE: extent values are degenerate here (min > max) so that we don't need a special case when adding the first point
     extents_tool.min.fill(1e+99);
     extents_tool.max.fill(-1e+99);
     extents_machine.min.fill(1e+99);
