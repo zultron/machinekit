@@ -117,18 +117,6 @@ class GLCanon(Translated):
     def draw_dwells(self, dwells, alpha, for_selection):
         return linuxcnc.draw_dwells(dwells, alpha, for_selection, self.is_lathe())
 
-    def calc_extents(self):
-        self.min_extents, self.max_extents, self.min_extents_notool, self.max_extents_notool = gcode.calc_extents_dict(self.tool_motions)
-        if self.foam_option:
-            min_z = min(self.foam_z, self.foam_w)
-            max_z = max(self.foam_z, self.foam_w)
-            self.min_extents = self.min_extents[0], self.min_extents[1], min_z
-            self.max_extents = self.max_extents[0], self.max_extents[1], max_z
-            self.min_extents_notool = \
-                self.min_extents_notool[0], self.min_extents_notool[1], min_z
-            self.max_extents_notool = \
-                self.max_extents_notool[0], self.max_extents_notool[1], max_z
-
     def set_extents(self, min_extents, max_extents, min_extents_notool, max_extents_notool):
         # TODO support foam option
         self.min_extents = min_extents
