@@ -271,7 +271,7 @@ class GremlinDraw(glnav.GlNavBase):
             return
         self.highlight_line = line
         self.stale_dlist('highlight')
-        if self.canon is None:
+        if self.canon is None or not self.canon.has_extents():
             self.set_centerpoint(0, 0, 0)
             return
         elif line is None:
@@ -354,7 +354,8 @@ class GremlinDraw(glnav.GlNavBase):
     def draw_program_extents(self):
         s = self.stat
         g = self.canon
-        if g is None: return
+        if self.canon is None or not self.canon.has_extents():
+            return
 
         # Dimensions
         x,y,z,p = 0,1,2,3
@@ -1087,13 +1088,12 @@ class GremlinDraw(glnav.GlNavBase):
             self.cached_tool = current_tool
 
     def find_tool_placeholder_scale(self):
-        if self.canon:
-            g = self.canon
+        if self.canon and self.canon.has_extents():
             x, y, z = 0, 1, 2
             return 0.5 * max(
-                g.max_extents[x] - g.min_extents[x],
-                g.max_extents[y] - g.min_extents[y],
-                g.max_extents[z] - g.min_extents[z],
+                self.canon.max_extents[x] - self.canon.min_extents[x],
+                self.canon.max_extents[y] - self.canon.min_extents[y],
+                self.canon.max_extents[z] - self.canon.min_extents[z],
                 2.)
         else:
             return 1
@@ -1626,7 +1626,7 @@ class GremlinDraw(glnav.GlNavBase):
         glDepthFunc(GL_LESS)
 
     def extents_info(self):
-        if self.canon:
+        if self.canon and self.canon.has_extents():
             lim_min = np.array(self.canon.min_extents)
             lim_max = np.array(self.canon.max_extents)
             scale = self.ortho_view_scale

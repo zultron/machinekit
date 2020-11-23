@@ -62,10 +62,10 @@ class GLCanon(Translated):
         self.linecount = 0
 
         # Computed once after parse completes then cached here
-        self.min_extents = [9e99, 9e99, 9e99]
-        self.max_extents = [-9e99, -9e99, -9e99]
-        self.min_extents_notool = [9e99, 9e99, 9e99]
-        self.max_extents_notool = [-9e99, -9e99, -9e99]
+        self.min_extents = None
+        self.max_extents = None
+        self.min_extents_notool = None
+        self.max_extents_notool = None
 
         # Settings at init time that control preview behavior
         self.rear_tp_lathe_option = bool(geometry == "-XZ")
@@ -135,6 +135,13 @@ class GLCanon(Translated):
         self.max_extents = max_extents
         self.min_extents_notool = min_extents_notool
         self.max_extents_notool = max_extents_notool
+
+    def has_extents(self):
+        extents_ok = (self.max_extents is not None) and \
+                     (self.max_extents is not None) and \
+                     (self.min_extents_notool is not None) and \
+                     (self.max_extents_notool is not None)
+        return extents_ok
 
     def set_effective_program_linecount(self, linecount):
         self.linecount = linecount
@@ -239,10 +246,13 @@ class GLCanon(Translated):
             x = reduce(lambda x,y:x+y, [c[0] for c in coords]) / len(coords)
             y = reduce(lambda x,y:x+y, [c[1] for c in coords]) / len(coords)
             z = reduce(lambda x,y:x+y, [c[2] for c in coords]) / len(coords)
-        else:
+        elif self.has_extents():
             x = (self.min_extents[0] + self.max_extents[0])/2
             y = (self.min_extents[1] + self.max_extents[1])/2
             z = (self.min_extents[2] + self.max_extents[2])/2
+        else:
+            # No extent information so assume zero
+            x = y = z = 0
 
         #print "gremlin.highlight() call time: {}".format(time.time()-t0)
         return x, y, z
