@@ -65,6 +65,7 @@ public:
     ToolMotionMap const &getToolMotionData() const;
     void begin_feed();
     void end_feed();
+    bool has_valid_extents() const;
 };
 
 // for emcmodule.cc, get tool motion data from the machine object in gcodemodule
