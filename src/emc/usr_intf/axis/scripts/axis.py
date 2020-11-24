@@ -1700,7 +1700,8 @@ def run_warn():
     if o.canon:
         machine_limit_min, machine_limit_max = soft_limits()
         for i in range(3): # Does not enforce angle limits
-            if not(s.axis_mask & (1<<i)): continue
+            if not (s.axis_mask & (1 << i)) or o.canon is None or not o.canon.has_extents():
+                continue
             if o.canon.min_extents_notool[i] < machine_limit_min[i]:
                 warnings.append(_("Program exceeds machine minimum on axis %s")
                     % "XYZABCUVW"[i])

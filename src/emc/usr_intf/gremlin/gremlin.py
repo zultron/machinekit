@@ -410,7 +410,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         # KLUDGE: reverse engineer the machine units
         unit_suffix = "mm" if s.linear_units == 1 else "in"
         for i in range(3): # Does not enforce angle limits
-            if not(s.axis_mask & (1<<i)): continue
+            if not (s.axis_mask & (1 << i)) or self.canon is None or not self.canon.has_extents():
+                continue
             if self.canon.min_extents_notool[i] < (machine_limit_min[i] - limit_padding):
                 neg_overhang = self.canon.min_extents_notool[i] - machine_limit_min[i]
                 annotations.append((
