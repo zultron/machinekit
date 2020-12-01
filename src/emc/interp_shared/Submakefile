@@ -10,9 +10,9 @@ USERSRCS += $(LIB_SRCS)
 
 $(call TOOBJSDEPS, $(LIB_SRCS)) : EXTRAFLAGS=-fPIC
 
-TARGETS += ../lib/libinterp_shared.so
+TARGETS += ../lib/libinterp_shared.a
 
-../lib/libinterp_shared.so: $(call TOOBJS,$(LIB_SRCS))
+../lib/libinterp_shared.a: $(call TOOBJS,$(LIB_SRCS))
 	$(ECHO) Linking $(notdir $@)
 	@mkdir -p ../lib
 	@rm -f $@

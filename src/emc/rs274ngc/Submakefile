@@ -49,7 +49,7 @@ REQUIRED_LIBS = $(addprefix $(LIB_DIR)/, \
 				libpyplugin.so \
 				liblinuxcnchal.so.0 \
 				libposemath.so.0 \
-				libinterp_shared.so \
+				libinterp_shared.a \
 				)
 
 $(LIB_DIR)/librs274.so.0: $(patsubst %.cc,objects/%.o,$(LIBRS274SRCS)) $(REQUIRED_LIBS)
