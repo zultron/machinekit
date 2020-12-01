@@ -31,6 +31,7 @@
 #include "rotary_axis_util.hh"
 
 using namespace interp_param_global;
+using namespace interp_shared;
 
 /****************************************************************************/
 
