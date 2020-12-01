@@ -19,6 +19,7 @@
 #include "coordinatetransform.hh"
 #include <math.h>
 
+namespace interp_shared {
 static void rotate(double &x, double &y, double theta_rad) {
     if (theta_rad == 0.0) {
         return;
@@ -313,4 +314,5 @@ void convertAxisUnits(RotateShiftTransform & out, const UnitsTransform & units)
 bool isNonzero(const RotateShiftTransform & r)
 {
     return isNonzero(r.shift.tf) || r.xy_rotation_rad != 0.0;
+}
 }

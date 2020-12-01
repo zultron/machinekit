@@ -22,6 +22,9 @@
 
 #include <work_offset_structs.hh>
 
+#include <positionarray.hh>
+using namespace interp_shared;
+
 enum PartsCounterTypes {
     COUNTER_M_30_A,
     COUNTER_M_30_B,

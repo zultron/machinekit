@@ -2,8 +2,9 @@
 #define LIMIT_CHECKS_HH
 
 #include <emcpos.h>
-#include <positionarray.hh>
 #include <string>
+#include "interp_shared_fwd.hh"
+using namespace interp_shared;
 
 unsigned jointAccelViolation(int joint_idx, double acc);
 unsigned jointVelocityViolation(int joint_idx, double v_actual);

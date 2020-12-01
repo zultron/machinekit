@@ -16,6 +16,7 @@
 
 #include "posemath_ext.hh"       // For PM_CARTESIAN type
 #include "positionarray.hh"
+using namespace interp_shared;
 
 PM_CARTESIAN xyz(PositionArray const &p);
 PM_CARTESIAN abc(PositionArray const &p);

@@ -5,12 +5,12 @@
 #include <string>
 #include <modal_state.hh>
 #include <featureset.hh>
-#include <positionarray.hh>
+#include <interp_shared_fwd.hh>
+using namespace interp_shared;
 
 using RestoreCommandList = std::vector<std::string>;
 
 struct setup_struct;
-struct ShiftTransform;
 
 class GCodeGenerator
 {

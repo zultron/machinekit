@@ -6,6 +6,8 @@
 #include "boost/property_tree/json_parser.hpp"
 #include <map>
 
+#include <positionarray.hh>
+
 static constexpr double D2R = M_PI / 180.0;
 static constexpr double R2D = 180.0 / M_PI;
 

@@ -6,6 +6,8 @@
 #include <interp_parameter_def.hh>
 #include <map>
 
+using namespace interp_shared;
+
 template< typename ContainerT, typename PredicateT >
 void erase_if( ContainerT& items, const PredicateT& predicate ) {
     for( auto it = items.begin(); it != items.end(); ) {

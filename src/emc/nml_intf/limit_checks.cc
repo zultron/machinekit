@@ -1,6 +1,7 @@
 #include "limit_checks.hh"
 #include "emcglb.h"
 #include "sstream"
+#include <positionarray.hh>
 
 unsigned jointAccelViolation(int joint_idx, double acc)
 {
