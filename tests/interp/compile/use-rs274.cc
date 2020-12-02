@@ -60,7 +60,7 @@ void CANON_UPDATE_END_POINT(double x, double y, double z,
 void USE_LENGTH_UNITS(CANON_UNITS u) {}
 void SELECT_PLANE(CANON_PLANE pl) {}
 void SET_TRAVERSE_RATE(double rate) {}
-void STRAIGHT_TRAVERSE(int lineno,
+CanonReturn STRAIGHT_TRAVERSE(int lineno,
                               double x, double y, double z,
 			      double a, double b, double c,
                               double u, double v, double w) {}
@@ -74,7 +74,7 @@ void START_CUTTER_RADIUS_COMPENSATION(int direction) {}
 void STOP_CUTTER_RADIUS_COMPENSATION() {}
 void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode) {}
 void STOP_SPEED_FEED_SYNCH() {}
-int ARC_FEED(int lineno,
+CanonReturn ARC_FEED(int lineno,
                      double first_end, double second_end,
 		     double first_axis, double second_axis, int rotation,
 		     double axis_end_point, 
@@ -86,7 +86,7 @@ void STRAIGHT_FEED(int lineno,
                           double u, double v, double w) {}
 void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {}
 
-int RIGID_TAP(int line_number,
+CanonReturn RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
