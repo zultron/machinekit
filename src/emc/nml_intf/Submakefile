@@ -21,7 +21,7 @@ $(call TOOBJSDEPS, $(LIBEMCSRCS)) : EXTRAFLAGS=-fPIC
 
 TARGETS += ../lib/liblinuxcnc.a
 
-../lib/liblinuxcnc.a: $(call TOOBJS,$(LIBEMCSRCS)) ../lib/libinterp_shared.a
+../lib/liblinuxcnc.a: $(call TOOBJS,$(LIBEMCSRCS)) 
 	$(ECHO) Linking $(notdir $@)
 	@mkdir -p ../lib
 	@rm -f $@
