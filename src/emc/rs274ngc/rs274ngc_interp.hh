@@ -22,6 +22,8 @@
 #include <array>
 #include <callstacktracker.hh>
 
+using namespace interp_shared;
+
 /**
  * Stores information about a single line of G-code (where it came from, line number, etc.).
  * This is designed for error messages / diagnostics, so it's not

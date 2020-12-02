@@ -44,6 +44,7 @@ static inline bool TOOL_INSIDE_ARC(CutterCompDirection side, int turn) {
 
 using namespace interp_param_global;
 using namespace WaitFlag;
+using namespace interp_shared;
 
 // These four functions help make the rest of cutter comp
 // plane-agnostic in much the same way the ARC_FEED canon call is.

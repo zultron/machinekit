@@ -2,6 +2,9 @@
 #define GCODE_PREVIEW_DATA_HH
 
 #include "tool_motion_data.hh"
+#include "coordinatetransform.hh"
+
+struct EmcPose;
 
 class PreviewMachine
 {

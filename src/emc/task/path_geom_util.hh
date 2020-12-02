@@ -3,6 +3,7 @@
 
 #include "canon_enums.hh"
 #include "positionarray.hh"
+using namespace interp_shared;
 
 struct DisplacementData {
     DisplacementData() = default;

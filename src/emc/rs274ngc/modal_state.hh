@@ -18,6 +18,8 @@
 #include <interp_enums.hh>
 #include <coordinatetransform.hh>
 
+using namespace interp_shared;
+
 /**
  * Captures modal state and settings for cutter compensation for exact state restore via generated G-code.
  */

@@ -4,7 +4,10 @@
 #include <array>
 #include <memory>
 #include <string>
-#include "positionarray.hh"
+
+#include "interp_shared_fwd.hh"
+using namespace interp_shared;
+
 struct PM_CARTESIAN;
 
 using Array3 = std::array<double, 3>;

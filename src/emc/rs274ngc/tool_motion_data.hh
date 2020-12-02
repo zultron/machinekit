@@ -6,8 +6,9 @@
 #include <tuple>
 
 #include "canon_enums.hh"
-#include "positionarray.hh"
-#include "coordinatetransform.hh"
+#include "interp_shared_fwd.hh"
+using namespace interp_shared;
+//#include "coordinatetransform.hh"
 
 enum class MotionType
 {
