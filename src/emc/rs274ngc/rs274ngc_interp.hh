@@ -922,7 +922,7 @@ protected:
 
     virtual int check_startline_leadin_feedrate(double & feed_rate_uu, const char * move_type);
 
-    StateTag make_state_tag(setup_struct const &s, block_pointer block, int toplevel_line=0) const;
+    virtual StateTag make_state_tag(setup_struct const &s, block_pointer block, int toplevel_line=0) const;
 };
 
 

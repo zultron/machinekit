@@ -15,6 +15,7 @@ public:
     virtual int synch_work_offsets_from_task(setup_pointer settings) const;
     virtual int check_startline_leadin_feedrate(double & feed_rate, const char * move_type);
     virtual int check_leadin_feedmode(const ModalState & initial, const ModalState & to_restore, int start_line, double leadin_feedrate) const;
+    virtual StateTag make_state_tag(setup_struct const &s, block_pointer block, int toplevel_line=0) const;
 };
 
 #endif // PREVIEWINTERP_HH

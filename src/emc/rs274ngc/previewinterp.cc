@@ -109,3 +109,8 @@ int PreviewInterp::check_leadin_feedmode(const ModalState & initial, const Modal
     // Don't check this in preview because users can change the feed mode. We want to show what the lead-in motion will be if everything is set up correctly, not based on the conditions at load.
     return INTERP_OK;
 }
+
+StateTag PreviewInterp::make_state_tag(const setup_struct & s, block_pointer block, int toplevel_line) const
+{
+    return StateTag();
+}
