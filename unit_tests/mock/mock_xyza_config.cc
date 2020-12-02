@@ -37,7 +37,6 @@ void setup_xyza_config()
         emcStatus->motion.axis[W].enabled = false;
     }
 
-    // TODO
     emcStatus->motion.traj.axis_mask = (1 << 4) - 1;
     emc_traj_axis_mask = emcStatus->motion.traj.axis_mask;
     emc_traj_axes = emcStatus->motion.traj.axes;
@@ -46,6 +45,23 @@ void setup_xyza_config()
     emcStatus->io.tool.toolTable[0].toolno = 1;
     emcStatus->io.tool.toolTable[1].toolno = 2;
     emcStatus->io.tool.toolTable[2].toolno = 3;
+
+    // TODO clean up this manual limit setting
+    for (int i=0;i<3;++i) {
+        axis_max_position_limit[i] = 20;
+        axis_min_position_limit[i] = -10;
+    }
+    axis_max_position_limit[A] = 1e99;
+    axis_min_position_limit[A] = -1e99;
+
+    axis_max_velocity[X] = 2.0;
+    axis_max_velocity[Y] = 2.0;
+    axis_max_velocity[Z] = 1.5;
+    axis_max_velocity[A] = 5;
+    axis_max_acceleration[X] = 15.0;
+    axis_max_acceleration[Y] = 15.0;
+    axis_max_acceleration[Z] = 10.0;
+    axis_max_acceleration[A] = 50.0;
 }
 
 void setup_9axis_config()
@@ -90,10 +106,43 @@ void setup_9axis_config()
 
     // KLUDGE force emcglobals to have reasonable values for axis kinematic limits
     // TODO set these in a more standard way for tests that require specific values
+    for (int i=0;i<3;++i) {
+        axis_max_position_limit[i] = 20;
+        axis_min_position_limit[i] = -10;
+    }
+    for (int i=3;i<6;++i) {
+        axis_max_position_limit[i] = 1e99;
+        axis_min_position_limit[i] = -1e99;
+    }
+    for (int i=6;i<9;++i) {
+        axis_max_position_limit[i] = 20;
+        axis_min_position_limit[i] = -10;
+    }
+
     axis_max_velocity[X] = 2.0;
     axis_max_velocity[Y] = 2.0;
     axis_max_velocity[Z] = 1.5;
+    axis_max_velocity[A] = 5;
+    axis_max_velocity[B] = 10;
+    axis_max_velocity[C] = 10;
+    axis_max_velocity[U] = 5.0;
+    axis_max_velocity[V] = 5.0;
+    axis_max_velocity[W] = 5.0;
     axis_max_acceleration[X] = 15.0;
     axis_max_acceleration[Y] = 15.0;
     axis_max_acceleration[Z] = 10.0;
+    axis_max_acceleration[A] = 50.0;
+    axis_max_acceleration[B] = 50.0;
+    axis_max_acceleration[C] = 50.0;
+    axis_max_acceleration[U] = 50.0;
+    axis_max_acceleration[V] = 50.0;
+    axis_max_acceleration[W] = 50.0;
+}
+
+void set_axis_position_limit(int axis_num, double max_limit, double min_limit)
+{
+    emcStatus->motion.axis[axis_num].maxPositionLimit = max_limit;
+    emcStatus->motion.axis[axis_num].minPositionLimit = min_limit;
+    axis_max_position_limit[axis_num] = max_limit;
+    axis_min_position_limit[axis_num] = min_limit;
 }

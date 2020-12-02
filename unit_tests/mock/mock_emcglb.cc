@@ -15,10 +15,10 @@ char tool_table_file[LINELEN]="dummy.tbl";
 double traj_default_velocity = 1.0;
 double traj_max_velocity = 1.0;
 
-double axis_max_position_limit[EMCMOT_MAX_JOINTS];
-double axis_min_position_limit[EMCMOT_MAX_JOINTS];
-double axis_max_velocity[EMC_AXIS_MAX]={1,1,1,5,0,0,0,0,0};
-double axis_max_acceleration[EMC_AXIS_MAX]={10,10,10,50,0,0,0,0,0};
+double axis_max_position_limit[EMCMOT_MAX_JOINTS] = {};
+double axis_min_position_limit[EMCMOT_MAX_JOINTS] = {};
+double axis_max_velocity[EMC_AXIS_MAX]={};
+double axis_max_acceleration[EMC_AXIS_MAX]={};
 
 struct EmcPose tool_change_position={{0,0,0},0,0,0,0,0,0};
 unsigned char have_tool_change_position=0;
