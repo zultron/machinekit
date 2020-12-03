@@ -280,9 +280,7 @@ int Interp::write_and_update_state_tag(block_pointer block, int line_number)
 {
     int line_number_fortag = line_number ?: get_toplevel_line_number();
     if (!_setup.skipping_to_sub) {
-        StateTag state;
-        state = make_state_tag(_setup, block, line_number_fortag);
-        UPDATE_TAG(state);
+        UPDATE_TAG(make_state_tag(_setup, block, line_number_fortag));
     }
     return line_number_fortag;
 }
