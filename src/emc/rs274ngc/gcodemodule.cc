@@ -530,7 +530,7 @@ void SELECT_POCKET(int pocket, int tool) {}
 void prep_for_retract_motion(GCodes mode)
 {
     switch (mode) {
- //   case G_28:
+    case G_28:
     case G_30:
         machine.begin_retract_phase();
         break;
