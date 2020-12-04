@@ -1591,7 +1591,7 @@ bool PreviewMachine::updateExtents(PositionArray const &machine_goal_pos_uu)
     }
     // Don't show extents of skipped moves or lead-in motions from set-start-line
     switch (exec_mode) {
-    case ParseExecMode::SEEK:
+    //case ParseExecMode::SEEK: // Disable this for now, re-enable when set-start-line can ignore limit violations in skipped moves
     case ParseExecMode::PREP:
         return false;
     default:
