@@ -3,12 +3,6 @@
 
 using namespace interp_param_global;
 
-int PreviewInterp::write_and_update_state_tag(block_pointer block, int line_number)
-{
-    // Pass through the line number but don't write a tag because they're not needed in the preview context
-    return line_number ?: get_toplevel_line_number();
-}
-
 int PreviewInterp::restore_parameters(const char * filename)
 {
   _setup.parameters.fill(0);
@@ -108,4 +102,14 @@ int PreviewInterp::check_leadin_feedmode(const ModalState & initial, const Modal
 {
     // Don't check this in preview because users can change the feed mode. We want to show what the lead-in motion will be if everything is set up correctly, not based on the conditions at load.
     return INTERP_OK;
+}
+
+StateTag PreviewInterp::make_state_tag(const setup_struct & s, block_pointer block, int toplevel_line) const
+{
+    StateTag tag;
+    auto const &cblock = s.getControllingBlock();
+    tag.fields[GM_FIELD_MOTION_MODE_CONTROLLING] = cblock.g_modes[GM_MOTION];
+    tag.fields[GM_FIELD_MOTION_MODE] = s.motion_mode;
+    tag.fields[GM_FIELD_G_MODE_0] = block ? block->g_modes[GM_MODAL_0] : -1;
+    return tag;
 }

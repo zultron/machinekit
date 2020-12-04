@@ -2843,6 +2843,9 @@ int Interp::active_modes(ModalState &active_state,
 
     // Extract as-is field values directly into appropriate array
     // position
+    // FIXME remove ambiguity on state restore between LOCAL_LINE_NUMBER and
+    // LINE_NUMBER. Only top-level tags can be restored anyway so it works, but
+    // we should be more consistent about the definition / usage.
     g_codes[G_CODE_SEQUENCE_NUMBER] = tag.fields[GM_FIELD_LINE_NUMBER];
     g_codes[G_CODE_MOTION_MODE] = tag.fields[GM_FIELD_MOTION_MODE];
     g_codes[G_CODE_MODE_0] = tag.fields[GM_FIELD_G_MODE_0];

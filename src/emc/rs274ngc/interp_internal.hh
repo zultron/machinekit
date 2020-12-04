@@ -405,7 +405,9 @@ struct setup_struct
   int remap_level;
 
   block &getControllingBlock();
+  block const &getControllingBlock() const;
   block &getExecutingBlock();
+  block const &getExecutingBlock() const;
   void setExecutingBlock(block const &b);
   block & updateControllingBlock();
 

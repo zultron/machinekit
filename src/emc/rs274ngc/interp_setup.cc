@@ -159,9 +159,19 @@ block & setup_struct::getControllingBlock()
     return blocks[remap_level];
 }
 
+const block & setup_struct::getControllingBlock() const
+{
+    return const_cast<setup_struct*>(this)->getControllingBlock();
+}
+
 block & setup_struct::getExecutingBlock()
 {
     return blocks[0];
+}
+
+const block & setup_struct::getExecutingBlock() const
+{
+    return const_cast<setup_struct*>(this)->getExecutingBlock();
 }
 
 void setup_struct::setExecutingBlock(const block & b)
