@@ -219,6 +219,8 @@ StateTag Interp::make_state_tag(setup_struct const &s, block_pointer block, int 
     state.flags[GM_FLAG_RESTORABLE] = 1;
     state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[GM_MODAL_0]);
     state.fields[GM_FIELD_MOTION_MODE] = s.motion_mode;
+    // Used in preview but copied here for completeness
+    state.fields[GM_FIELD_MOTION_MODE_CONTROLLING] = s.getControllingBlock().g_modes[GM_MOTION];
     state.setActivePlane(s.plane);
 
     state.fields[GM_FIELD_CUTTER_COMP] =
@@ -278,9 +280,7 @@ int Interp::write_and_update_state_tag(block_pointer block, int line_number)
 {
     int line_number_fortag = line_number ?: get_toplevel_line_number();
     if (!_setup.skipping_to_sub) {
-        StateTag state;
-        state = make_state_tag(_setup, block, line_number_fortag);
-        UPDATE_TAG(state);
+        UPDATE_TAG(make_state_tag(_setup, block, line_number_fortag));
     }
     return line_number_fortag;
 }

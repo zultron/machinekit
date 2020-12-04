@@ -168,6 +168,7 @@ static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
 static int cutoff_line_ = 0;
 
+
 static UnitsTransform convertsUserToProg()
 {
     return UnitsTransform(metric ? 25.4 : 1.0, 1.0);
@@ -526,7 +527,25 @@ void FINISH() {}
 void ON_RESET() {}
 void PALLET_SHUTTLE() {}
 void SELECT_POCKET(int pocket, int tool) {}
-void UPDATE_TAG(StateTag const &tag) {}
+
+void prep_for_retract_motion(GCodes mode)
+{
+    switch (mode) {
+    case G_28:
+    case G_30:
+        machine.begin_retract_phase();
+        break;
+    default:
+        break;
+    }
+}
+
+void UPDATE_TAG(StateTag const &tag) {
+    // Check for retraction moves (e.g. normal or remapped G28 / G30)
+    prep_for_retract_motion((GCodes)tag.fields[GM_FIELD_MOTION_MODE_CONTROLLING]);
+    prep_for_retract_motion((GCodes)tag.fields[GM_FIELD_G_MODE_0]);
+}
+
 void SEND_TAG_MSG() {}
 void OPTIONAL_PROGRAM_STOP() {}
 void START_CHANGE() {}
@@ -1067,6 +1086,11 @@ static int do_parse_loop(
         rs274_interp->_setup.current = _pos_prog;
     }
 
+    // TEMPORARY hard-code the hidden / shown extents here (eventually control this by settings)
+    machine.hide_motion_phase_extents.set(MOTION_PHASE_SETUP);
+    machine.hide_motion_phase_preview.set(MOTION_PHASE_SETUP);
+    machine.hide_motion_phase_extents.set(MOTION_PHASE_RETRACT);
+
     ExpandedModalState run_initial_state;
     preview_interp->collect_expanded_modal_state(run_initial_state);
     // Assume a small but non-zero initial feed rate to avoid tripping interp checks for minimum feed
@@ -1547,8 +1571,9 @@ void PreviewMachine::add_motion(ToolMotionKey key, ToolMotion motion)
 
 void PreviewMachine::straight_motion(int line_number, const PositionArray & goal_pos_prog, MotionType t)
 {
-    if (first_move && exec_mode != ParseExecMode::PREP) {
-        // Don't check extents on setup moves because they
+    if (hide_motion_phase_preview[current_motion_phase] && exec_mode != ParseExecMode::PREP) {
+        // Any motion phases flagged as hidden will not be shown in the preview (just advance the current position to the end of the move)
+        // Note that this is overridden for lead-in / prep motions in set-start line because we want to show them for safety.
         set_current_pos(goal_pos_prog);
         return;
     }
@@ -1561,14 +1586,27 @@ void PreviewMachine::straight_motion(int line_number, const PositionArray & goal
     updateExtents(machine_pos_uu);
 }
 
-void PreviewMachine::updateExtents(PositionArray machine_goal_pos_uu)
+bool PreviewMachine::updateExtents(PositionArray const &machine_goal_pos_uu)
 {
+    if (hide_motion_phase_extents[current_motion_phase]) {
+        return false;
+    }
+    // Don't show extents of skipped moves or lead-in motions from set-start-line
+    switch (exec_mode) {
+    //case ParseExecMode::SEEK: // Disable this for now, re-enable when set-start-line can ignore limit violations in skipped moves
+    case ParseExecMode::PREP:
+        return false;
+    default:
+        break;
+    }
+
     max_inplace(extents_tool.max, machine_goal_pos_uu);
     min_inplace(extents_tool.min, machine_goal_pos_uu);
 
     PositionArray p1_machine = transform_uu.forward_tool_to_machine(machine_goal_pos_uu);
     max_inplace(extents_machine.max, p1_machine);
     min_inplace(extents_machine.min, p1_machine);
+    return true;
 }
 
 const PositionArray PreviewMachine::get_current_pos_local() const
@@ -1590,18 +1628,23 @@ void PreviewMachine::set_current_pos(const PositionArray & pos_local_prog) {
     machine_pos_uu =  transform_uu.forward_local_to_tool(convertsProgToUser().forward(pos_local_prog));
 }
 
-void PreviewMachine::begin_feed()
+void PreviewMachine::begin_feed_phase()
 {
-    if (first_move) {
-        first_move = false;
+    if (current_motion_phase != PreviewMotionPhase::MOTION_PHASE_NORMAL) {
+        current_motion_phase = PreviewMotionPhase::MOTION_PHASE_NORMAL;
         // Initial position is now part of a feed move, so include it in the extents calculation
         updateExtents(get_current_pos());
     }
 }
 
-void PreviewMachine::end_feed()
+void PreviewMachine::begin_retract_phase()
 {
-    first_move = true;
+    current_motion_phase = PreviewMotionPhase::MOTION_PHASE_RETRACT;
+}
+
+void PreviewMachine::begin_setup_phase()
+{
+    current_motion_phase = PreviewMotionPhase::MOTION_PHASE_SETUP;
 }
 
 bool PreviewMachine::has_valid_extents() const
@@ -1611,13 +1654,13 @@ bool PreviewMachine::has_valid_extents() const
 
 void PreviewMachine::straight_feed(int line_number, const PositionArray & goal_pos_prog)
 {
-    begin_feed();
+    begin_feed_phase();
     straight_motion(line_number, goal_pos_prog, MotionType::STRAIGHT_FEED);
 }
 
 void PreviewMachine::straight_probe(int line_number, const PositionArray & goal_pos_prog)
 {
-    begin_feed();
+    begin_feed_phase();
     straight_motion(line_number, goal_pos_prog, MotionType::PROBE);
 }
 
@@ -1645,7 +1688,7 @@ void PreviewMachine::arc_feed(int line_number,
 {
     static const int max_segments=64; // TODO make customizable
 
-    begin_feed();
+    begin_feed_phase();
 
     int X=0, Y=1, Z=2;
     switch (plane) {
@@ -1729,7 +1772,7 @@ void PreviewMachine::arc_feed(int line_number,
 
 void PreviewMachine::rigid_tap(int line_number, const PositionArray & goal_pos_prog)
 {
-    begin_feed();
+    begin_feed_phase();
     PositionArray orig_pos_prog = convertsUserToProg().forward(transform_uu.inverse_local_from_tool(get_current_pos()));
     straight_motion(line_number, goal_pos_prog, MotionType::RIGID_TAP);
     straight_motion(line_number, orig_pos_prog, MotionType::RIGID_TAP);
@@ -1742,6 +1785,8 @@ bool PreviewMachine::set_exec_mode(ParseExecMode mode)
     case ParseExecMode::PREP:
     case ParseExecMode::RUN:
         exec_mode = mode;
+        // Make sure toolpath extents are up to date when entering "run" mode (i.e. motions that would actually execute when user runs the program)
+        updateExtents(get_current_pos());
         return true;
     }
     return false;
@@ -1749,7 +1794,7 @@ bool PreviewMachine::set_exec_mode(ParseExecMode mode)
 
 void PreviewMachine::change_tool(int tool_pocket)
 {
-    end_feed();
+    begin_setup_phase();
     current_tool_pocket = tool_pocket;
 }
 
@@ -1758,7 +1803,7 @@ void PreviewMachine::tool_offset(EmcPose const &offset)
     // If the tool offset changes then the current tool tip location will as well
     auto new_tool_offset = ShiftTransform(convertsProgToUser().forward(toArray(offset)));
     machine_pos_uu = transform_uu.swap_tool_offset(get_current_pos(), new_tool_offset);
-    end_feed();
+    begin_setup_phase();
 }
 
 void PreviewMachine::set_feed_rate(double feed_rate_prog)
@@ -1774,7 +1819,7 @@ void PreviewMachine::clear_motions()
     extents_tool.max.fill(-1e+99);
     extents_machine.min.fill(1e+99);
     extents_machine.max.fill(-1e+99);
-    end_feed();
+    begin_setup_phase();
 }
 
 /**
