@@ -3,12 +3,26 @@ from contextlib import contextmanager
 
 
 @contextmanager
+def gl_gen_new_list(list_mode=minigl.GL_COMPILE):
+    list_id = minigl.glGenLists(1)
+    try:
+        if list_id:
+            minigl.glNewList(list_id, list_mode)
+        yield list_id
+    finally:
+        if list_id:
+            minigl.glEndList()
+
+
+@contextmanager
 def gl_new_list(list_obj, list_mode=minigl.GL_COMPILE):
     try:
-        minigl.glNewList(list_obj, list_mode)
-        yield
+        if list_obj:
+            minigl.glNewList(list_obj, list_mode)
+        yield list_obj
     finally:
-        minigl.glEndList()
+        if list_obj:
+            minigl.glEndList()
 
 
 @contextmanager
