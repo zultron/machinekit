@@ -15,13 +15,13 @@ def gl_gen_new_list(list_mode=minigl.GL_COMPILE):
 
 
 @contextmanager
-def gl_new_list(list_obj, list_mode=minigl.GL_COMPILE):
+def gl_new_list(list_id, list_mode=minigl.GL_COMPILE):
     try:
-        if list_obj:
-            minigl.glNewList(list_obj, list_mode)
-        yield list_obj
+        if list_id:
+            minigl.glNewList(list_id, list_mode)
+        yield list_id
     finally:
-        if list_obj:
+        if list_id:
             minigl.glEndList()
 
 
