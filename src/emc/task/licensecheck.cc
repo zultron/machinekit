@@ -5,7 +5,17 @@
 #include <time.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/wait.h>
+
+// Licenses are implemented using JSON web tokens (JWT). JWTs are used to share 'claims' securely between
+// two parties - in this case the PathPilot HUB server and PathPilot software on the controller.
+// They combine a json data structure, several standard algorithims for detecting modifications
+// (we use RSA public/private key pairs), standard header info for identifying algorithims used, and the
+// results is all base64url encoded to make it easy to transport them around.
+//
+// See https://jwt.io/introduction/ for more.
 
 // Header only C++ 11 libraries for JSON Web Tokens (JWT) and JSON
 // https://github.com/Thalhammer/jwt-cpp
@@ -17,9 +27,12 @@
 #include "jwt-cpp/include/jwt-cpp/jwt.h"
 #include "jwt-cpp/include/nlohmann/json.hpp"
 
-// The jwt-cpp library has a legacy json library named picojson that it includes still for backward compatibility.
+// The jwt-cpp library has a legacy json library named picojson that it still includes for backward compatibility.
 // But instead the nlohmann json library is recommended by many so this traits struct lets the jwt-cpp use nlohmann
 // through C++ template magic.
+// "Think of a trait as a small object whose main purpose is to carry information used by another object or
+//  algorithm to determine "policy" or "implementation details". - Bjarne Stroustrup
+
 struct nlohmann_traits {
     using json = nlohmann::json;
     using value_type = json;
@@ -47,7 +60,7 @@ struct nlohmann_traits {
             return type::array;
         else if (val.type() == json::value_t::object)
             return type::object;
-        else
+       else
             throw std::logic_error("invalid type");
     }
 
@@ -103,9 +116,6 @@ struct nlohmann_traits {
 };
 
 
-// use all stdlib stuff to drop in easily to linuxcnc without
-// much C++ STL dependencies and vagaries
-
 const char* OPENSSL_BINARY = "/usr/bin/openssl";
 const char* LICENSE_FILE = "/home/operator/license.json";
 const char* LICENSE_FILE_SIGNATURE = "/home/operator/license.sig";
@@ -115,6 +125,7 @@ const char* PUBLIC_KEY = "/home/operator/public.pem";
 const size_t BUFFER_SIZE = (sizeof(char) * 64 * 1024);
 
 #define ZERO_STRUCT(ptr) { memset(ptr, 0, sizeof(*ptr)); }
+
 
 bool is_license_expired()
 {
@@ -183,57 +194,60 @@ bool is_license_expired()
 }
 
 
-bool is_license_signature_valid()
+std::string read_entire_file(const std::string& path)
 {
-    // Don't trust contest of bash scripts, run the openssl binary directly
-    pid_t pid = fork();
-    if (0 == pid)
+    std::string res;
+    int fd = open(path.c_str(), O_RDONLY);
+    if (fd >= 0)
     {
-        // Child - first convert the base64 license signature into appropriate binary form
-        int ev = execl(OPENSSL_BINARY, OPENSSL_BINARY, "base64", "-d", "-in", LICENSE_FILE_SIGNATURE, "-out", "/tmp/sign.sha256", NULL);
-        exit(ev);  // Unexpected as we should not have failed
-    }
-    else
-    {
-        // Parent - wait for result
-        int status = 0;
-        if (pid == waitpid(pid, &status, 0))
+        struct stat sb;
+        if (0 == fstat(fd, &sb))
         {
-            if (WIFEXITED(status))
-            {
-                if (0 == WEXITSTATUS(status))
-                {
-                    // Now actually validate the binary signature using the public.pem key
-                    pid_t pid = fork();
-                    if (0 == pid)
-                    {
-                        // Child
-                        int ev = execl(OPENSSL_BINARY, OPENSSL_BINARY, "dgst", "-sha256", "-verify", PUBLIC_KEY, "-signature", "/tmp/sign.sha256", LICENSE_FILE, NULL);
-                        exit(ev);  // Unexpected as we should not have failed
-                    }
-                    else
-                    {
-                        // Parent - wait for result
-                        int status = 0;
-                        if (pid == waitpid(pid, &status, 0))
-                        {
-                            if (WIFEXITED(status))
-                            {
-                                if (0 == WEXITSTATUS(status))
-                                {
-                                    // awesome - the signature is valid so we can trust the contents of license.json
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            res.resize(sb.st_size);
+            read(fd, const_cast<char*>(res.data()), sb.st_size);
         }
+
+        close(fd);
     }
 
+    return res;
+}
+
+
+bool is_license_signature_valid()
+{
+    try
+    {
+        std::string license = read_entire_file("/home/operator/license");
+        std::string public_key = read_entire_file("/home/operator/public.pem");
+
+      	auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
+                        .allow_algorithm(jwt::algorithm::rs256(public_key, "", "", ""));
+
+        // decode the base64url license
+      	auto decoded = jwt::decode<nlohmann_traits>(license);
+
+      	//header_claims = decoded.get_header_claims();
+      	//cout << header_claims['hub'] << std::endl;
+      	//payload_claims = decoded.get_header_claims();
+
+    	for (auto &e : decoded.get_header_claims())
+    	    std::cout << e.first << " = " << e.second.to_json() << std::endl;
+      	for (auto &e : decoded.get_payload_claims())
+    	    std::cout << e.first << " = " << e.second.to_json() << std::endl;
+
+        // might need to catch signature_verification_exception here...
+        verify.verify(decoded);
+
+        return true;
+    }
+    catch (jwt::error::signature_verification_exception ex)
+    {
+        ;
+    }
     return false;
 }
+
 
 
 void test_jwt_cpp_lib()
@@ -287,8 +301,7 @@ YwIDAQAB
       "uc2z5c05CCXqVSpfCjWbh9gQ";
 
   auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
-                    .allow_algorithm(jwt::algorithm::rs256(
-                        rsa_pub_key, rsa_priv_key, "", ""))
+                    .allow_algorithm(jwt::algorithm::rs256(rsa_pub_key, rsa_priv_key, "", ""))
                     .with_issuer("auth0");
 
   auto decoded = jwt::decode<nlohmann_traits>(token);
@@ -303,16 +316,18 @@ YwIDAQAB
 
 bool is_license_valid()
 {
-    test_jwt_cpp_lib();
-
     bool valid = is_license_signature_valid();
     if (valid)
     {
+        ;
+#if 0
         valid = !is_license_expired();
         if (valid)
         {
             // Great, we have an unaltered license file that has a time window that hasn't expired yet.
             // Make sure its actually for this machine...
+
+            // much easier now that we have a json class lib
 
             // Check serial number
             // Check model
@@ -320,6 +335,7 @@ bool is_license_valid()
             // Assume that earlier in the launch the ecm1 flash is read, signature verified, and then unpacked.
             ;
         }
+#endif
     }
 
     return valid;
@@ -327,6 +343,9 @@ bool is_license_valid()
 
 #if 0
 // Here just for easy testing
+// Compile and run just this single independent file and then run ./a.out
+//     g++ -std=c++11 licensecheck.cc -lcrypto -lssl
+//
 int main(int argc, char** argv)
 {
     bool valid = is_license_valid();
