@@ -94,6 +94,10 @@ BOOST_PYTHON_MODULE(emccanon) {
             .value("CANON_AXIS_V", CANON_AXIS_V)
             .value("CANON_AXIS_W", CANON_AXIS_W)
             .export_values();
+    enum_<CanonReturn>("CanonReturn")
+            .value("CANON_RETURN_OK", CANON_RETURN_OK)
+            .value("CANON_RETURN_ERROR", CANON_RETURN_ERROR)
+            .export_values();
 
     //  scope().attr("") =  ;
 

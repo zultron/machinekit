@@ -41,6 +41,8 @@ double traj_max_velocity = DEFAULT_TRAJ_MAX_VELOCITY;
 double traj_default_tolerance = DEFAULT_TRAJ_TOLERANCE;
 double traj_default_naivecam_tolerance = DEFAULT_TRAJ_NAIVECAM_TOLERANCE;
 
+double axis_max_position_limit[EMCMOT_MAX_JOINTS] = {0.0};
+double axis_min_position_limit[EMCMOT_MAX_JOINTS] = {0.0};
 double axis_max_velocity[EMC_AXIS_MAX] = { 0.0 };	/*! \todo FIXME - I think
 							   these should be
 							   0.0 */

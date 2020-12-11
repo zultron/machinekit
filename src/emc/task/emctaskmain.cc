@@ -85,6 +85,7 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 #include "taskclass.hh"
 #include "motion.h"             // EMCMOT_ORIENT_*
 #include "inihal.hh"
+#include "limit_checks.hh"
 
 #include "nml_prettyprint.hh"
 
@@ -477,104 +478,58 @@ static int max_mdi_queued_commands = MAX_MDI_QUEUE;
   It returns 0 if all messages check out, -1 if any of them fail. If one
   fails, the rest of the list is not checked.
  */
-static int checkInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
+static int checkAndClearInterpList(NML_INTERP_LIST * il, EMC_STAT * stat)
 {
     NMLmsg *cmd = 0;
-    // let's create some shortcuts to casts at compile time
-#define operator_error_msg ((EMC_OPERATOR_ERROR *) cmd)
-#define linear_move ((EMC_TRAJ_LINEAR_MOVE *) cmd)
-#define circular_move ((EMC_TRAJ_CIRCULAR_MOVE *) cmd)
 
     while (il->len() > 0) {
-	cmd = il->get();
+        cmd = il->get();
 
-	switch (cmd->type) {
-	case EMC_OPERATOR_ERROR_TYPE:
-        emcOperatorError("%s",
-                 operator_error_msg->text);
-	    break;
-    case EMC_OPERATOR_ERROR_EXTENDED_TYPE:
-        // Not supported in command channel
-        emcOperatorError(_("EMC_OPERATOR_ERROR_EXTENDED not supported in NML command channel"));
-        return -1;
+        switch (cmd->type) {
+        case EMC_OPERATOR_ERROR_TYPE:
+            emcOperatorError("%s",
+                             ((EMC_OPERATOR_ERROR *) cmd)->text);
+            break;
+        case EMC_OPERATOR_ERROR_EXTENDED_TYPE:
+            // Not supported in command channel
+            emcOperatorError(_("EMC_OPERATOR_ERROR_EXTENDED not supported in NML command channel"));
+            return -1;
 
-	case EMC_TRAJ_LINEAR_MOVE_TYPE:
-	    if (linear_move->end.tran.x >
-		stat->motion.axis[0].maxPositionLimit) {
-        emcOperatorError(_("%s exceeds +X limit"), stat->task.command);
-		return -1;
-	    }
-	    if (linear_move->end.tran.y >
-		stat->motion.axis[1].maxPositionLimit) {
-        emcOperatorError(_("%s exceeds +Y limit"), stat->task.command);
-		return -1;
-	    }
-	    if (linear_move->end.tran.z >
-		stat->motion.axis[2].maxPositionLimit) {
-        emcOperatorError(_("%s exceeds +Z limit"), stat->task.command);
-		return -1;
-	    }
-	    if (linear_move->end.tran.x <
-		stat->motion.axis[0].minPositionLimit) {
-        emcOperatorError(_("%s exceeds -X limit"), stat->task.command);
-		return -1;
-	    }
-	    if (linear_move->end.tran.y <
-		stat->motion.axis[1].minPositionLimit) {
-        emcOperatorError(_("%s exceeds -Y limit"), stat->task.command);
-		return -1;
-	    }
-	    if (linear_move->end.tran.z <
-		stat->motion.axis[2].minPositionLimit) {
-        emcOperatorError(_("%s exceeds -Z limit"), stat->task.command);
-		return -1;
-	    }
-	    break;
+        case EMC_TRAJ_LINEAR_MOVE_TYPE:
+        {
+            auto const *linear_move = reinterpret_cast<EMC_TRAJ_LINEAR_MOVE const*>(cmd);
+            int line_number = linear_move->tag.fields[GM_FIELD_LINE_NUMBER];
+            PositionArray pos(toArray(linear_move->end));
+            unsigned below_min = findMinPositionViolations(pos);
+            unsigned above_max = findMaxPositionViolations(pos);
+            if (below_min || above_max) {
+                emcOperatorError(_("%s"), formatAxisError(below_min, above_max, "Linear move exceeds position limits in", line_number).c_str());
+                return -1;
+            }
+        }
+        break;
 
-	case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
-	    if (circular_move->end.tran.x >
-		stat->motion.axis[0].maxPositionLimit) {
-        emcOperatorError(_("%s exceeds +X limit"), stat->task.command);
-		return -1;
-	    }
-	    if (circular_move->end.tran.y >
-		stat->motion.axis[1].maxPositionLimit) {
-        emcOperatorError(_("%s exceeds +Y limit"), stat->task.command);
-		return -1;
-	    }
-	    if (circular_move->end.tran.z >
-		stat->motion.axis[2].maxPositionLimit) {
-        emcOperatorError(_("%s exceeds +Z limit"), stat->task.command);
-		return -1;
-	    }
-	    if (circular_move->end.tran.x <
-		stat->motion.axis[0].minPositionLimit) {
-        emcOperatorError(_("%s exceeds -X limit"), stat->task.command);
-		return -1;
-	    }
-	    if (circular_move->end.tran.y <
-		stat->motion.axis[1].minPositionLimit) {
-        emcOperatorError(_("%s exceeds -Y limit"), stat->task.command);
-		return -1;
-	    }
-	    if (circular_move->end.tran.z <
-		stat->motion.axis[2].minPositionLimit) {
-        emcOperatorError(_("%s exceeds -Z limit"), stat->task.command);
-		return -1;
-	    }
-	    break;
+        case EMC_TRAJ_CIRCULAR_MOVE_TYPE:
+        {
+            auto const *circular_move = reinterpret_cast<EMC_TRAJ_CIRCULAR_MOVE const*>(cmd);
+            int line_number = circular_move->tag.fields[GM_FIELD_LINE_NUMBER];
+            PositionArray pos(toArray(circular_move->end));
+            unsigned below_min = findMinPositionViolations(pos);
+            unsigned above_max = findMaxPositionViolations(pos);
+            if (below_min || above_max) {
+                emcOperatorError(_("%s"), formatAxisError(below_min, above_max, "Circular move exceeds position limits in", line_number).c_str());
+                return -1;
+            }
+        }
+        break;
 
-	default:
-	    break;
-	}
+        default:
+            break;
+        }
     }
 
     return 0;
 
-    // get rid of the compile-time cast shortcuts
-#undef circular_move_msg
-#undef linear_move_msg
-#undef operator_error_msg
 }
 extern int emcTaskMopup();
 
@@ -594,7 +549,7 @@ void emcTaskPlanPurgeInterpQueue()
         // we're stepping over lines, so check them
         // for
         // limits, etc. and clear then out
-        if (0 != checkInterpList(&interp_list,
+        if (0 != checkAndClearInterpList(&interp_list,
                                  emcStatus)) {
             // problem with actions, so do same as we
             // did

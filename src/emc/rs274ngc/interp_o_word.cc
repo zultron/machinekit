@@ -692,18 +692,20 @@ void Interp::push_gcode_context(
         gcode_context_stack.cached_py_remap_name
                 );
 
+    gcode_context_stack.update_display_line();
     gcode_context_stack.cached_py_remap_name.clear();
 }
 
-void Interp::push_gcode_context(setup_pointer settings, const char * caller)
+void Interp::push_local_gcode_context(setup_pointer settings)
 {
     gcode_context_stack.context_lines.emplace_back(
         settings->linetext ?: "",
         settings->sequence_number,
         settings->filename ?: "",
-        caller,
+        "",
         gcode_context_stack.cached_py_remap_name
         );
+    gcode_context_stack.update_display_line();
     gcode_context_stack.cached_py_remap_name.clear();
 }
 
@@ -716,6 +718,7 @@ void Interp::update_gcode_context(setup_pointer const settings)
     GCodeContext &cxt = gcode_context_stack.context_lines.back();
     cxt.line = settings->sequence_number;
     cxt.file_path = settings->filename;
+    gcode_context_stack.update_display_line();
 }
 
 void Interp::update_gcode_context_py_remap_name(remap_pointer const remap)

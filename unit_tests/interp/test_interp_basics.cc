@@ -246,6 +246,8 @@ TEST_CASE("G10 L10 ")
 SCENARIO("G10 called with L11")
 {
     DECL_INIT_TEST_INTERP();
+    // TEMPORARY tweak global limits to allow more Z travel
+    set_axis_position_limit(Z, 20, -40);
 
     GIVEN("tool offsets relative to position no rotation")
     {

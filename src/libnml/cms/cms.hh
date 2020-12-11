@@ -34,8 +34,10 @@ extern "C" {
 class PHYSMEM_HANDLE;
 
 class LinkedList;
+namespace interp_shared {
 struct RotateShiftTransform;
 struct ShiftTransform;
+}
 
 
 

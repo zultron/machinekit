@@ -14,6 +14,7 @@
 
 #include "gcodegenerator.hh"
 #include "coordinatetransform.hh"
+using namespace interp_shared;
 
 #include "config.h"
 

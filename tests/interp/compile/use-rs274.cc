@@ -60,7 +60,7 @@ void CANON_UPDATE_END_POINT(double x, double y, double z,
 void USE_LENGTH_UNITS(CANON_UNITS u) {}
 void SELECT_PLANE(CANON_PLANE pl) {}
 void SET_TRAVERSE_RATE(double rate) {}
-void STRAIGHT_TRAVERSE(int lineno,
+CanonReturn STRAIGHT_TRAVERSE(int lineno,
                               double x, double y, double z,
 			      double a, double b, double c,
                               double u, double v, double w) {}
@@ -74,7 +74,7 @@ void START_CUTTER_RADIUS_COMPENSATION(int direction) {}
 void STOP_CUTTER_RADIUS_COMPENSATION() {}
 void START_SPEED_FEED_SYNCH(double feed_per_revolution, bool velocity_mode) {}
 void STOP_SPEED_FEED_SYNCH() {}
-int ARC_FEED(int lineno,
+CanonReturn ARC_FEED(int lineno,
                      double first_end, double second_end,
 		     double first_axis, double second_axis, int rotation,
 		     double axis_end_point, 
@@ -86,7 +86,7 @@ void STRAIGHT_FEED(int lineno,
                           double u, double v, double w) {}
 void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k) {}
 
-int RIGID_TAP(int line_number,
+CanonReturn RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
@@ -105,7 +105,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int lineno,
 void STOP() {}
 void DWELL(double seconds) {}
 void PRECISION_DWELL(double seconds) {}
-void DWELL_FOR_SPINDLE(double delta_rpm, double extra_wait_sec) {}
+void DWELL_FOR_SPINDLE(int line_number, double delta_rpm, double extra_wait_sec) {}
 void SET_SPINDLE_MODE(double) {}
 void SPINDLE_RETRACT_TRAVERSE() {}
 void START_SPINDLE_CLOCKWISE(int) {}
@@ -213,6 +213,8 @@ double GET_EXTERNAL_PROBE_VALUE() {return 0;}
 int GET_EXTERNAL_PROBE_TRIPPED_VALUE() {return 0;}
 int GET_EXTERNAL_QUEUE_EMPTY() {return 0;}
 double GET_EXTERNAL_SPEED() {return 0;}
+double GET_EXTERNAL_SPINDLE_CSS_MAX_SPEED() {return 0;}
+double GET_EXTERNAL_SPEED_PLANNED() {return 0;}
 CANON_DIRECTION GET_EXTERNAL_SPINDLE() {return CANON_STOPPED;}
 double GET_EXTERNAL_TOOL_LENGTH_XOFFSET() {return 0;}
 double GET_EXTERNAL_TOOL_LENGTH_YOFFSET() {return 0;}

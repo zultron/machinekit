@@ -196,7 +196,7 @@ int Interp::read_named_parameter(
 
     CHKS((line[*counter] != '<'),
 	 NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
-    CHP(read_name(line, counter, paramNameBuf));
+    CHP(read_name(line, counter, paramNameBuf)); // Requires a name in brackets: <name>
 
     CHP(find_named_param(paramNameBuf, &exists, &value));
     if (check_exists) {

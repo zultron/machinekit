@@ -59,10 +59,11 @@ if test "xyes" = "x@RUN_IN_PLACE@"; then
 	export LD_LIBRARY_PATH
 fi
 
+LINUXCNC_PYTHON_PATHS=$EMC2_HOME/lib/python:$EMC2_HOME/lib/python/support
 if [ -z "$PYTHONPATH" ]; then
-    PYTHONPATH=$LINUXCNC_HOME/lib/python:$LINUXCNC_HOME/lib/python/support
+    PYTHONPATH=$LINUXCNC_PYTHON_PATHS
 else
-    PYTHONPATH=$LINUXCNC_HOME/lib/python:$LINUXCNC_HOME/lib/python/support:"$PYTHONPATH"
+    PYTHONPATH=$LINUXCNC_PYTHON_PATHS:"$PYTHONPATH"
 fi
 export PYTHONPATH
 

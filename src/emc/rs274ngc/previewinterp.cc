@@ -1,16 +1,7 @@
 #include "previewinterp.hh"
 #include "interp_parameter_def.hh"
+
 using namespace interp_param_global;
-
-int PreviewInterp::write_state_tag(block_pointer block, StateTag & state) const
-{
-    return INTERP_OK;
-}
-
-int PreviewInterp::write_and_update_state_tag(block_pointer block)
-{
-    return INTERP_OK;
-}
 
 int PreviewInterp::restore_parameters(const char * filename)
 {
@@ -105,4 +96,20 @@ int PreviewInterp::check_startline_leadin_feedrate(double &feed_rate, const char
         feed_rate = 1e-10;
     }
     return INTERP_OK;
+}
+
+int PreviewInterp::check_leadin_feedmode(const ModalState & initial, const ModalState & to_restore, int start_line, double leadin_feedrate) const
+{
+    // Don't check this in preview because users can change the feed mode. We want to show what the lead-in motion will be if everything is set up correctly, not based on the conditions at load.
+    return INTERP_OK;
+}
+
+StateTag PreviewInterp::make_state_tag(const setup_struct & s, block_pointer block, int toplevel_line) const
+{
+    StateTag tag;
+    auto const &cblock = s.getControllingBlock();
+    tag.fields[GM_FIELD_MOTION_MODE_CONTROLLING] = cblock.g_modes[GM_MOTION];
+    tag.fields[GM_FIELD_MOTION_MODE] = s.motion_mode;
+    tag.fields[GM_FIELD_G_MODE_0] = block ? block->g_modes[GM_MODAL_0] : -1;
+    return tag;
 }

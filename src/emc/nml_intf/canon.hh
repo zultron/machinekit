@@ -22,12 +22,20 @@
 
 #include <work_offset_structs.hh>
 
+#include <positionarray.hh>
+using namespace interp_shared;
+
 enum PartsCounterTypes {
     COUNTER_M_30_A,
     COUNTER_M_30_B,
     COUNTER_M_99_A,
     COUNTER_M_99_B,
     MAX_PART_COUNTERS
+};
+
+enum CanonReturn {
+    CANON_RETURN_OK=0,
+    CANON_RETURN_ERROR=5,
 };
 
 struct StateTag;
@@ -128,7 +136,7 @@ extern void SET_TRAVERSE_RATE(double rate);
 is expected that no cutting will occur while a traverse move is being
 made. */
 
-extern void STRAIGHT_TRAVERSE(int lineno,
+extern CanonReturn STRAIGHT_TRAVERSE(int lineno,
                               double x, double y, double z,
                               double a, double b, double c,
                               double u, double v, double w);
@@ -284,7 +292,7 @@ extern void STOP_SPEED_FEED_SYNCH();
 
 /* Machining Functions */
 
-extern int ARC_FEED(int lineno,
+extern CanonReturn ARC_FEED(int lineno,
                      double first_end, double second_end,
 		     double first_axis, double second_axis, int rotation,
 		     double axis_end_point, 
@@ -374,7 +382,7 @@ extern void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_poin
 all axes have covered the same proportion of their required motion.
 The meanings of the parameters is the same as for STRAIGHT_TRAVERSE.*/
 
-extern int RIGID_TAP(
+extern CanonReturn RIGID_TAP(
     int lineno,
     double x,
     double y,
@@ -409,7 +417,7 @@ extern void STOP();
 
 extern void DWELL(double seconds);
 extern void PRECISION_DWELL(double seconds);
-extern void DWELL_FOR_SPINDLE(double delta_rpm, double extra_wait_sec=0.0);
+extern void DWELL_FOR_SPINDLE(int line_number, double delta_rpm, double extra_wait_sec=0.0);
 
 /* freeze x,y,z for a time */
 
@@ -798,6 +806,12 @@ extern int GET_EXTERNAL_QUEUE_EMPTY();
 
 // Returns the system value for spindle speed in rpm
 extern double GET_EXTERNAL_SPEED();
+
+// Is the spindle in constant RPM or constant surface mode?
+extern double GET_EXTERNAL_SPINDLE_CSS_MAX_SPEED();
+
+// For the current state, what is the planned spindle speed factoring in CSS?
+extern double GET_EXTERNAL_SPEED_PLANNED();
 
 // Returns the system value for direction of spindle turning
 extern CANON_DIRECTION GET_EXTERNAL_SPINDLE();

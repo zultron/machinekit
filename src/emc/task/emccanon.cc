@@ -46,6 +46,7 @@
 #include "canon_position.hh"		// data type for a machine position
 #include "interpl.hh"		// interp_list
 #include "emcglb.h"		// global values from INI for max velocity, tolerance, etc.
+#include "limit_checks.hh"
 
 #include "coordinatetransform.hh"
 #include "units.h"
@@ -71,9 +72,6 @@ static constexpr double RIGID_TAP_LEADIN_SAFETY_FACTOR = 1.25;
 static bool limitSpindleSpeed(double rpm);
 static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel);
 static double getPathVelocityFromActiveFeed(VelData const &vel_data, CanonFeedAxisReferenceType feed_axes);
-
-static double css_maximum; // both always positive
-static int spindle_dir = 0;
 
 static int rotary_unlock_for_traverse = -1;
 
@@ -216,6 +214,17 @@ static inline double FROM_PROG_ANG(double deg)
 
 static int feed_mode = 0; // 0 means IPM or inv time, 1 means IPM
 static CanonSyncLevel synched = CANON_SYNC_NONE;
+
+static CanonReturn checkPositionLimits(PositionArray const &pos, const char *msg, int line_number)
+{
+    unsigned below_min = findMinPositionViolations(pos);
+    unsigned above_max = findMaxPositionViolations(pos);
+    if (below_min || above_max) {
+        CANON_ERROR("%s", formatAxisError(below_min, above_max, msg, line_number).c_str());
+        return CANON_RETURN_ERROR;
+    }
+    return CANON_RETURN_OK;
+}
 
 static inline UnitsTransform ConvertsCanonToUserUnits()
 {
@@ -376,7 +385,9 @@ static double canonNaivecamTolerance = 0.0;
 static double canonNaivecamMMPerDeg = 3.5; // Calibrated so that linear NCD tolerance >= angular tolerance up ~200mm away from the rotary center.
 
 /* Spindle speed is saved here */
-static double spindleSpeed_rpm = 0.0; // always positive
+static double css_maximum = 0.0; // always positive, nonzero value means spindle mode is CSS
+static int spindle_dir = 0;
+static double spindleSpeedCmd = 0.0; // Surface units / min if CSS mode is active, otherwise RPM
 
 /* Prepped tool is saved here */
 static int preppedTool = 0;
@@ -418,7 +429,7 @@ static double getActiveExtFeedRate(CanonFeedAxisReferenceType feed_axes)
     // If CSS mode is active, then we need to assume the worst-case (maximum) spindle speed specified by the D word
     // Otherwise, the nominal spindle speed is used
 
-    double planned_spindle_rpm = css_maximum > 0.0 ? css_maximum : spindleSpeed_rpm;
+    double planned_spindle_rpm = GET_EXTERNAL_SPEED_PLANNED();
 
     double uu_per_sec = uuPerRev * planned_spindle_rpm / 60.0;
 
@@ -434,6 +445,13 @@ static double getActiveExtFeedRate(CanonFeedAxisReferenceType feed_axes)
     return 0.0;
 }
 
+static void update_css()
+{
+    if(css_maximum) {
+        SET_SPINDLE_SPEED(spindleSpeedCmd);
+    }
+}
+
 static void send_g5x_msg(int index, RotateShiftTransform work_offset) {
     flush_segments();
 
@@ -447,9 +465,7 @@ static void send_g5x_msg(int index, RotateShiftTransform work_offset) {
 
     set_g5x_msg.g5x_transform = work_offset;
 
-    if(css_maximum) {
-        SET_SPINDLE_SPEED(spindleSpeed_rpm);
-    }
+    update_css();
     tag_and_send(set_g5x_msg);
 }
 
@@ -463,9 +479,7 @@ static void send_g92_msg(int persist) {
     set_g92_msg.origin = to_ext_pose(interpToMachineTransform.g92Offset.tf);
     set_g92_msg.applied = persist;
 
-    if(css_maximum) {
-        SET_SPINDLE_SPEED(spindleSpeed_rpm);
-    }
+    update_css();
     tag_and_send(set_g92_msg);
 }
 
@@ -754,7 +768,8 @@ void ON_RESET() {
     drop_segments();
 }
 
-static int straight_traverse_internal(
+static CanonReturn straight_traverse_internal(
+    int line_number,
     PositionArray goal_pos_canon,
     EMCMotionTypes emc_motion_type = EMC_MOTION_TYPE_TRAVERSE)
 {
@@ -768,7 +783,7 @@ static int straight_traverse_internal(
     DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
-        return 1;
+        return CANON_RETURN_OK;
     }
 
     VelData veldata = getStraightVelocity(disp_data);
@@ -785,6 +800,10 @@ static int straight_traverse_internal(
     linearMoveMsg.acc = accdata.a_max_path;
     linearMoveMsg.indexrotary = rotary_unlock_for_traverse;
 
+    if (checkPositionLimits(p_goal_ext, "Rapid move would exceed machine position limits in", line_number)) {
+        return CANON_RETURN_ERROR;
+    }
+
     int old_feed_mode = feed_mode;
     if(feed_mode)
         STOP_SPEED_FEED_SYNCH(); // stop velocity synch (and position, but it won't be active here if things are done right)
@@ -795,17 +814,17 @@ static int straight_traverse_internal(
         START_SPEED_FEED_SYNCH(uuPerRev_vel, 1);
 
     canonUpdateEndPoint(goal_pos_canon);
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 
-void STRAIGHT_TRAVERSE(int line_number,
+CanonReturn STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
 		       double a, double b, double c,
                        double u, double v, double w)
 {
     EMCMotionTypes emc_motion_type = (rotary_unlock_for_traverse != -1) ? EMC_MOTION_TYPE_INDEXROTARY : EMC_MOTION_TYPE_TRAVERSE;
-    straight_traverse_internal(PositionArray{x,y,z,a,b,c,u,v,w}, emc_motion_type);
+    return straight_traverse_internal(line_number, PositionArray{x,y,z,a,b,c,u,v,w}, emc_motion_type);
 }
 
 void STRAIGHT_FEED(int line_number,
@@ -823,7 +842,7 @@ void STRAIGHT_FEED(int line_number,
 }
 
 
-int RIGID_TAP(int line_number,
+CanonReturn RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
@@ -849,14 +868,14 @@ int RIGID_TAP(int line_number,
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
         // Not strictly an error, just means there is nothing to do zince the move is zero length
-        return 0;
+        return CANON_RETURN_OK;
     }
 
     VelData vel_data = getStraightVelocity(disp_data);
     AccelData acc_data = getStraightAcceleration(disp_data);
 
-    const double nominal_tap_vel = FROM_PROG_LEN(tap_pitch) * spindleSpeed_rpm / 60.0;
-    const double nominal_retract_vel = FROM_PROG_LEN(retract_pitch) * spindleSpeed_rpm / 60.0;
+    const double nominal_tap_vel = FROM_PROG_LEN(tap_pitch) * GET_EXTERNAL_SPEED_PLANNED() / 60.0;
+    const double nominal_retract_vel = FROM_PROG_LEN(retract_pitch) * GET_EXTERNAL_SPEED_PLANNED() / 60.0;
     // It's safe to assume path is in length units because rigid tapping is only allowed in XYZ (for now anyway)
 
     double nominal_vel_path = TO_EXT_LEN(fmax(nominal_tap_vel, nominal_retract_vel));
@@ -864,12 +883,12 @@ int RIGID_TAP(int line_number,
     limitSpindleSpeedFromVel(nominal_vel_path, vel_data.v_max_path);
 
     double depth = mag(xyz(bottom) - xyz(canonEndPoint));
-    double safe_lead = FROM_EXT_LEN(pow(vel_data.vel_xyz, 2) / (2.0 * acc_data.a_max_path)) * RIGID_TAP_LEADIN_SAFETY_FACTOR;
+    double safe_lead = FROM_EXT_LEN(pow(nominal_vel_path, 2) / (2.0 * acc_data.a_max_path)) * RIGID_TAP_LEADIN_SAFETY_FACTOR;
 
     if (safe_lead > depth) {
         CANON_ERROR("Rigid tap move is too short for proper spindle synchronization. For the given spindle speed / pitch, the cycle depth (initial - bottom) must be at least %0.3f. The requested move is only %0.3f deep",
                     TO_PROG_LEN(safe_lead), TO_PROG_LEN(depth));
-        return -1;
+        return CANON_RETURN_ERROR;
     } else {
         EMC_TRAJ_RIGID_TAP rigidTapMsg;
         rigidTapMsg.pos = to_ext_pose(bottom);
@@ -883,7 +902,7 @@ int RIGID_TAP(int line_number,
     }
 
     // don't move the endpoint because after this move, we are back where we started
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 /**
@@ -1297,7 +1316,7 @@ static double axis_acc_time(const PositionArray & start, const PositionArray & e
 }
 #endif
 
-int ARC_FEED(int line_number,
+CanonReturn ARC_FEED(int line_number,
               double first_end, double second_end,
 	      double first_axis, double second_axis, int rotation,
 	      double axis_end_point, 
@@ -1347,7 +1366,7 @@ int ARC_FEED(int line_number,
                         });
             see_segment(_tag,
                         {fe, se, ae, a, b, c, u, v, w});
-            return 0;
+            return CANON_RETURN_OK;
         }
     }
 
@@ -1595,7 +1614,7 @@ int ARC_FEED(int line_number,
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
         // Not strictly an error, just means the move is zero length
-        return 0;
+        return CANON_RETURN_OK;
     }
 
     // Next, compute the minimum time that we must take to complete the segment. 
@@ -1641,12 +1660,12 @@ int ARC_FEED(int line_number,
     if(!v_req_path || !a_max_path) {
         // Generally means zero length move but that should be detected earlier
         CANON_MESSAGE(CANON_MSG_DEBUG, "Got invalid velocity %f and/or acceleration %f for circular move, assuming zero length", v_req_path, a_max_path);
-        return 0;
+        return CANON_RETURN_OK;
     }
 
     if (rotation == 0) {
         CANON_ERROR("Cannot have 0 rotation in a circular segment");
-        return -1;
+        return CANON_RETURN_ERROR;
     }
     circularMoveMsg.end = toEmcPose(p_goal_ext);
 
@@ -1667,7 +1686,7 @@ int ARC_FEED(int line_number,
 
     tag_and_send(circularMoveMsg);
     canonUpdateEndPoint(endpt);
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 void DWELL(double seconds)
@@ -1692,7 +1711,7 @@ void PRECISION_DWELL(double seconds)
     tag_and_send(precisionDwellMsg);
 }
 
-void DWELL_FOR_SPINDLE(double delta_rpm, double extra_wait_sec)
+void DWELL_FOR_SPINDLE(int line_number, double delta_rpm, double extra_wait_sec)
 {
     EMC_TRAJ_PRECISION_DWELL precisionDwellMsg;
 
@@ -1722,58 +1741,71 @@ void SET_SPINDLE_MODE(double css_max) {
  * messages derive from EMC_SPINDLE_SPEED.
  */
 template <typename SpindleMsg>
-void buildSpindleCmd(SpindleMsg & msg, double spindle_rpm)
+void buildCSSSpindleCmd(SpindleMsg & msg, double css_maximum, double spindle_surface_upm)
 {
     double css_numerator = 0.0;
-    if(css_maximum > 0.0) {
-        if(lengthUnits == CANON_UNITS_INCHES)
-            css_numerator = 12 / (2.0 * M_PI) * spindle_rpm * TO_EXT_LEN(25.4);
-        else
-            css_numerator = 1000 / (2.0 * M_PI) * spindle_rpm * TO_EXT_LEN(1);
-        msg.speed = spindle_dir * css_maximum;
-        msg.factor = spindle_dir * css_numerator;
-        msg.xoffset = TO_EXT_LEN(interpToMachineTransform.findAxisoffset(0));
+    if(lengthUnits == CANON_UNITS_INCHES) {
+        // Spindle units are Surface Feet / Min (SFM)
+        css_numerator = 12 / (2.0 * M_PI) * spindle_surface_upm * TO_EXT_LEN(25.4);
     } else {
-        msg.speed = spindle_dir * spindle_rpm;
+        // Spindle units are Surface Meters / Min (SMM)
+        css_numerator = 1000 / (2.0 * M_PI) * spindle_surface_upm * TO_EXT_LEN(1);
     }
+    msg.speed = spindle_dir * css_maximum;
+    msg.factor = spindle_dir * css_numerator;
+    msg.xoffset = TO_EXT_LEN(interpToMachineTransform.findAxisoffset(0));
+}
 
+template <typename SpindleMsg>
+void buildSpindleCmd(SpindleMsg & msg, double spindle_rpm)
+{
+    msg.speed = spindle_dir * spindle_rpm;
+    msg.factor = 0;
+    msg.xoffset = 0;
+}
+
+static void startSpindle(int wait_for_atspeed, int direction)
+{
+    EMC_SPINDLE_ON emc_spindle_on_msg;
+    emc_spindle_on_msg.wait_for_spindle_at_speed = wait_for_atspeed;
+
+    flush_segments();
+    spindle_dir = direction;
+    if (css_maximum) {
+        buildCSSSpindleCmd(emc_spindle_on_msg, css_maximum, spindleSpeedCmd);
+    } else {
+        buildSpindleCmd(emc_spindle_on_msg, spindleSpeedCmd);
+    }
+    tag_and_send(emc_spindle_on_msg);
 }
 
 void START_SPINDLE_CLOCKWISE(int wait_for_atspeed)
 {
-    EMC_SPINDLE_ON emc_spindle_on_msg;
-    emc_spindle_on_msg.wait_for_spindle_at_speed = wait_for_atspeed;
-
-    flush_segments();
-    spindle_dir = 1;
-
-    buildSpindleCmd(emc_spindle_on_msg, spindleSpeed_rpm);
-    tag_and_send(emc_spindle_on_msg);
+    startSpindle(wait_for_atspeed, 1);
 }
 
 void START_SPINDLE_COUNTERCLOCKWISE(int wait_for_atspeed)
 {
-    EMC_SPINDLE_ON emc_spindle_on_msg;
-    emc_spindle_on_msg.wait_for_spindle_at_speed = wait_for_atspeed;
+    startSpindle(wait_for_atspeed, -1);
+}
 
-    flush_segments();
-    spindle_dir = -1;
-    buildSpindleCmd(emc_spindle_on_msg, spindleSpeed_rpm);
+void setSpindleSpeedIternal(double speed_cmd)
+{
+    EMC_SPINDLE_SPEED emc_spindle_speed_msg;
+    spindleSpeedCmd = fabs(speed_cmd);
+    if (css_maximum) {
+        buildCSSSpindleCmd(emc_spindle_speed_msg, css_maximum, spindleSpeedCmd);
+    } else {
+        buildSpindleCmd(emc_spindle_speed_msg, spindleSpeedCmd);
+    }
 
-    tag_and_send(emc_spindle_on_msg);
+    tag_and_send(emc_spindle_speed_msg);
 }
 
 void SET_SPINDLE_SPEED(double r)
 {
-    // speed is in RPMs everywhere
-    spindleSpeed_rpm = fabs(r); // interp will never send negative anyway ...
-
-    EMC_SPINDLE_SPEED emc_spindle_speed_msg;
-
     flush_segments();
-
-    buildSpindleCmd(emc_spindle_speed_msg, spindleSpeed_rpm);
-    tag_and_send(emc_spindle_speed_msg);
+    setSpindleSpeedIternal(r);
 }
 
 /**
@@ -1784,16 +1816,30 @@ static bool limitSpindleSpeed(double rpm)
 {
     // Don't care about fractional RPM here, the limit speed has a safety factor anyway
     double limit_rpm = ceil(fabs(rpm));
-    if (spindleSpeed_rpm <= limit_rpm) {
+    double prev_plan_rpm = GET_EXTERNAL_SPEED_PLANNED();
+    if (prev_plan_rpm <= (limit_rpm + CART_FUZZ)) {
         // spindle speed within range, do nothing
-        canon_debug("Spindle speed %f is within max of %f\n", spindleSpeed_rpm, limit_rpm);
+        canon_debug("Spindle speed %f is within max of %f\n", spindleSpeedCmd, limit_rpm);
         return false;
     }
-    EMC_SPINDLE_SPEED emc_spindle_speed_msg;
-    CANON_MESSAGE(CANON_MSG_LOW, "Reducing spindle speed from %0.0f to %0.0f for synched motion at line %d\n", spindleSpeed_rpm, limit_rpm, _tag.fields[GM_FIELD_LINE_NUMBER]);
 
-    buildSpindleCmd(emc_spindle_speed_msg, limit_rpm);
-    interp_list.append(emc_spindle_speed_msg);
+    EMC_SPINDLE_ON emc_spindle_speed_limit_msg; // Force a wait for at-speed here since the spindle speed is changing
+    static const char * const warning_fmt = "Reducing spindle speed in %s from %0.0f to %0.0f for synched motion at line %d\n";
+    const char *mode_str = "";
+    if (css_maximum > 0.0) {
+        // Limit the CSS max RPM, but leave the surface feet per minute setting unchanged
+        css_maximum = limit_rpm;
+        buildCSSSpindleCmd(emc_spindle_speed_limit_msg, css_maximum, spindleSpeedCmd);
+        mode_str = "G96";
+    } else {
+        // Limit spindle RPM only
+        spindleSpeedCmd = limit_rpm;
+        buildSpindleCmd(emc_spindle_speed_limit_msg, limit_rpm);
+        mode_str = "G97";
+    }
+
+    CANON_MESSAGE(CANON_MSG_LOW, warning_fmt, mode_str, prev_plan_rpm, limit_rpm, _tag.fields[GM_FIELD_LINE_NUMBER]);
+    interp_list.append(emc_spindle_speed_limit_msg);
     return true;
 }
 
@@ -1815,7 +1861,7 @@ static bool limitSpindleSpeedFromVel(double nominal_vel, double max_vel)
     const static double SPINDLE_SYNCH_MARGIN = 0.05;
 
     // Scale down spindle RPM in proportion to the maximum allowed spindle velocity, with a safety factor
-    double maxSpindleRPM = spindleSpeed_rpm * max_vel / nominal_vel * (1.0 - SPINDLE_SYNCH_MARGIN);
+    double maxSpindleRPM = GET_EXTERNAL_SPEED_PLANNED() * max_vel / nominal_vel * (1.0 - SPINDLE_SYNCH_MARGIN);
     return limitSpindleSpeed(maxSpindleRPM);
 }
 
@@ -1932,7 +1978,7 @@ void USE_TOOL_LENGTH_OFFSET(EmcPose offset)
     set_offset_msg.offset = toEmcPose(offset_machine);
 
     if(css_maximum != 0.0) {
-        SET_SPINDLE_SPEED(spindleSpeed_rpm);
+        SET_SPINDLE_SPEED(spindleSpeedCmd);
     }
 	tag_and_send(set_offset_msg);
 }
@@ -1995,7 +2041,7 @@ void CHANGE_TOOL(int slot)
         }
 
         PositionArray pos{x,z,y,a,b,c,u,v,w};
-        straight_traverse_internal(pos, EMC_MOTION_TYPE_TOOLCHANGE);
+        straight_traverse_internal(_tag.getCallerLine(), pos, EMC_MOTION_TYPE_TOOLCHANGE);
     }
 
     /* regardless of optional moves above, we'll always send a load tool
@@ -2538,7 +2584,8 @@ void INIT_CANON()
     activePlane = CANON_PLANE_XY;
     canonUpdateEndPoint({});
     SET_MOTION_CONTROL_MODE(CANON_CONTINUOUS, 0);
-    spindleSpeed_rpm = 0.0;
+    css_maximum = 0.0;
+    spindleSpeedCmd = 0.0;
     preppedTool = 0;
     currentLinearFeedRate = 0.0;
     currentAngularFeedRate = 0.0;
@@ -2824,8 +2871,18 @@ int GET_EXTERNAL_FLOOD()
 
 double GET_EXTERNAL_SPEED()
 {
-    // speed is in RPMs everywhere
-    return spindleSpeed_rpm;
+    return spindleSpeedCmd;
+}
+
+// Is the spindle in constant RPM or constant surface mode?
+double GET_EXTERNAL_SPINDLE_CSS_MAX_SPEED()
+{
+    return css_maximum;
+}
+
+double GET_EXTERNAL_SPEED_PLANNED()
+{
+    return css_maximum ?: spindleSpeedCmd;
 }
 
 CANON_DIRECTION GET_EXTERNAL_SPINDLE()

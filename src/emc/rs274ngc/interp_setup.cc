@@ -148,38 +148,6 @@ setup_struct::setup_struct() :
   new_parameters.reserve(MAX_NAMED_PARAMETERS);
   new_named_parameters.reserve(MAX_NAMED_PARAMETERS);
 }
-    // not sure about sub_context:
-    // a plain array of a struct with non-POD data?
-int setup_struct::get_toplevel_line_number() const
-{
-    bool in_remap = (remap_level > 0);
-    bool in_subroutine = (call_level > 0);
-    /*
-     * The line number is for cosmetic labelling only. Based on the interpreter
-     * settings from the INI file, we can substitute the controlling block's
-     * line number for the actual local line number. One use of this is with
-     * external subroutines. If the UI doesn't have the means to display the
-     * text of these subroutines, then the line numbers will be wrong if
-     * overlaid on the parent file.
-    */
-
-    // Default is the current line, override for specific cases
-    int display_line = sequence_number;
-
-    if (in_remap ) {
-        // Regardless of subroutine state, we can only display the caller's line for the top-most remap
-        display_line = blocks[1].saved_line_number;
-    }
-
-    if (in_subroutine) {
-        bool external_sub = strcmp(filename, sub_context[0].filename);
-        // Check if local line number should be ignored (i.e. we don't want to step through external and/or local subroutines)
-        if ((!single_block_external_sub && external_sub) || (!single_block_local_sub && !external_sub)) {
-            return sub_context[0].sequence_number;
-        }
-    }
-    return display_line;
-}
 
 void setup_struct::clear_queue_buster_flags()
 {
@@ -191,9 +159,19 @@ block & setup_struct::getControllingBlock()
     return blocks[remap_level];
 }
 
+const block & setup_struct::getControllingBlock() const
+{
+    return const_cast<setup_struct*>(this)->getControllingBlock();
+}
+
 block & setup_struct::getExecutingBlock()
 {
     return blocks[0];
+}
+
+const block & setup_struct::getExecutingBlock() const
+{
+    return const_cast<setup_struct*>(this)->getExecutingBlock();
 }
 
 void setup_struct::setExecutingBlock(const block & b)

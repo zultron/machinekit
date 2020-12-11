@@ -53,12 +53,6 @@ enum CutterCompDirection {
     LEFT_COMP = 2,
 };
 
-// spindle control modes
-enum SPINDLE_MODE {
-    CONSTANT_RPM,
-    CONSTANT_SURFACE
-};
-
 // unary operations
 // These are not enums because the "&" operator is used in
 // reading the operation names and is illegal with an enum

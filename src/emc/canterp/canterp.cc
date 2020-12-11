@@ -85,7 +85,6 @@ public:
     int close();
     int reset();
     int line() const;
-    int toplevel_line() const;
     int const &call_level() const;
     int const &remap_level() const;
     char *command(char *buf, size_t buflen);
@@ -703,7 +702,6 @@ int Canterp::exit() { return 0; }
 int Canterp::synch() { return 0; }
 int Canterp::reset() { return 0; }
 int Canterp::line() const { return 0; }
-int Canterp::toplevel_line() const { return 0; }
 const int & Canterp::call_level() const {
     static int cl = 0;
     return cl;

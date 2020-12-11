@@ -34,6 +34,7 @@
 #include "tool_motion_data.hh"
 #include "previewkinematics.hh"
 #include "toolpointbuffer.hh"
+#include <stdio.h>
 
 #include <memory>
 #include <algorithm>
@@ -231,6 +232,7 @@ static PyTypeObject Ini_Type = {
 };
 
 #define EMC_COMMAND_TIMEOUT 5.0  // how long to wait until timeout
+// WARNING change this value with care, too slow and the UI will be hobbled, too fast and it will be wasted (delays much shorter than milltask cycle time are a waste)
 #define EMC_COMMAND_DELAY   0.01 // how long to sleep between checks
 
 static int emcWaitCommandComplete(pyCommandChannel *s, double timeout) {
@@ -2663,9 +2665,8 @@ static PyObject *Logger_set_visible_tools(pyPositionLogger *s, PyObject *o) {
         return NULL;
     }
 
-    if (li == Py_None) {
-        s->visible_tools.clear();
-    } else {
+    s->visible_tools.clear();
+    if (li != Py_None) {
         for (Py_ssize_t ix = 0; ix < PyList_Size(li); ix++) {
             s->visible_tools.insert(PyInt_AsLong(PyList_GetItem(li, ix)));
         }
@@ -2944,6 +2945,12 @@ initlinuxcnc(void) {
     ENUMX(0, M_CODE_OVERRIDES);
     ENUMX(0, M_CODE_ADAPTIVE_FEED);
     ENUMX(0, M_CODE_FEED_HOLD);
+
+    ENUM(CANON_MSG_DEBUG);
+    ENUM(CANON_MSG_QUIET);
+    ENUM(CANON_MSG_LOW);
+    ENUM(CANON_MSG_MEDIUM);
+    ENUM(CANON_MSG_HIGH);
 
     ENUM(RCS_DONE);
     ENUM(RCS_EXEC);

@@ -198,18 +198,11 @@ int Interp::write_settings(setup_struct const *settings,     //!< pointer to mac
   return INTERP_OK;
 }
 
-int Interp::write_state_tag(block_pointer block, StateTag & state) const
-{
-    if (!_setup.skipping_to_sub) {
-        state = make_state_tag(_setup, block);
-    }
-    return 0;
-}
-
-StateTag make_state_tag(setup_struct const &s, block_pointer block)
+StateTag Interp::make_state_tag(setup_struct const &s, block_pointer block, int toplevel_line) const
 {
     StateTag state;
-    state.fields[GM_FIELD_LINE_NUMBER] = s.get_toplevel_line_number();
+    // Allow caller to pass in an explicit line number and override the default and / or avoid call overhead
+    state.fields[GM_FIELD_LINE_NUMBER] = toplevel_line ?: get_toplevel_line_number();
     state.fields[GM_FIELD_LOCAL_LINE_NUMBER] = s.sequence_number;
     state.fields[GM_FIELD_STEPPING_ID] = s.stepping_id;
 #if 0
@@ -226,6 +219,8 @@ StateTag make_state_tag(setup_struct const &s, block_pointer block)
     state.flags[GM_FLAG_RESTORABLE] = 1;
     state.fields[GM_FIELD_G_MODE_0] = ((block == NULL) ? -1 : block->g_modes[GM_MODAL_0]);
     state.fields[GM_FIELD_MOTION_MODE] = s.motion_mode;
+    // Used in preview but copied here for completeness
+    state.fields[GM_FIELD_MOTION_MODE_CONTROLLING] = s.getControllingBlock().g_modes[GM_MOTION];
     state.setActivePlane(s.plane);
 
     state.fields[GM_FIELD_CUTTER_COMP] =
@@ -275,12 +270,19 @@ StateTag make_state_tag(setup_struct const &s, block_pointer block)
     return state;
 }
 
-int Interp::write_and_update_state_tag(block_pointer block)
+/**
+ * Write / send a state tag to canon layer, and return the source line number used
+ *
+ * @note Returning the line number is a bit of a hack, but it's necessary to keep the
+ * tag's line number and other line number uses in synch (e.g. canon calls).
+ */
+int Interp::write_and_update_state_tag(block_pointer block, int line_number)
 {
-    StateTag state;
-    write_state_tag(block, state);
-    UPDATE_TAG(state);
-    return INTERP_OK;
+    int line_number_fortag = line_number ?: get_toplevel_line_number();
+    if (!_setup.skipping_to_sub) {
+        UPDATE_TAG(make_state_tag(_setup, block, line_number_fortag));
+    }
+    return line_number_fortag;
 }
 
 

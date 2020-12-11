@@ -190,6 +190,7 @@ libnml = shared_library('nml',
       libnml_inc,
       interp_shared_inc,
       rs274ngc_inc,
+      emcpose_inc,
       ],
     dependencies : [ libposemath_dep, liblinklist_dep, liblinuxcncini_dep ]
     )

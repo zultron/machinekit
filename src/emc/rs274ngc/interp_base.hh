@@ -59,7 +59,6 @@ public:
     virtual int close() = 0;
     virtual int reset() = 0;
     virtual int line() const = 0;
-    virtual int toplevel_line() const = 0;
     virtual int const &call_level() const = 0;
     virtual int const &remap_level() const = 0;
     virtual char *command(char *buf, size_t buflen) = 0;

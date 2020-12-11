@@ -9,6 +9,7 @@ nml_interp_list_srcs = files([
     'emc.cc',
     'emcops.cc',
     'interpl.cc',
+    'limit_checks.cc',
 ])
 nml_interp_list_inc = include_directories('.')
 

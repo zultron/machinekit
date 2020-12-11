@@ -22,6 +22,7 @@ from gl_context_managers import *
 import linuxcnc
 import gcode
 from collections import defaultdict, namedtuple
+from minigl import *
 
 MotionKey = namedtuple('MotionKey', ['motion_type', 'exec_mode', 'tool_no'])
 
@@ -58,11 +59,13 @@ class GLCanon(Translated):
         self.suppress = 0
         Translated.__init__(self, 1)
 
+        self.linecount = 0
+
         # Computed once after parse completes then cached here
-        self.min_extents = [9e99, 9e99, 9e99]
-        self.max_extents = [-9e99, -9e99, -9e99]
-        self.min_extents_notool = [9e99, 9e99, 9e99]
-        self.max_extents_notool = [-9e99, -9e99, -9e99]
+        self.min_extents = None
+        self.max_extents = None
+        self.min_extents_notool = None
+        self.max_extents_notool = None
 
         # Settings at init time that control preview behavior
         self.rear_tp_lathe_option = bool(geometry == "-XZ")
@@ -114,24 +117,25 @@ class GLCanon(Translated):
     def draw_dwells(self, dwells, alpha, for_selection):
         return linuxcnc.draw_dwells(dwells, alpha, for_selection, self.is_lathe())
 
-    def calc_extents(self):
-        self.min_extents, self.max_extents, self.min_extents_notool, self.max_extents_notool = gcode.calc_extents_dict(self.tool_motions)
-        if self.foam_option:
-            min_z = min(self.foam_z, self.foam_w)
-            max_z = max(self.foam_z, self.foam_w)
-            self.min_extents = self.min_extents[0], self.min_extents[1], min_z
-            self.max_extents = self.max_extents[0], self.max_extents[1], max_z
-            self.min_extents_notool = \
-                self.min_extents_notool[0], self.min_extents_notool[1], min_z
-            self.max_extents_notool = \
-                self.max_extents_notool[0], self.max_extents_notool[1], max_z
-
     def set_extents(self, min_extents, max_extents, min_extents_notool, max_extents_notool):
         # TODO support foam option
         self.min_extents = min_extents
         self.max_extents = max_extents
         self.min_extents_notool = min_extents_notool
         self.max_extents_notool = max_extents_notool
+
+    def has_extents(self):
+        extents_ok = (self.max_extents is not None) and \
+                     (self.max_extents is not None) and \
+                     (self.min_extents_notool is not None) and \
+                     (self.max_extents_notool is not None)
+        return extents_ok
+
+    def set_effective_program_linecount(self, linecount):
+        self.linecount = linecount
+
+    def get_effective_program_linecount(self):
+        return self.linecount
 
     def calc_velocity(self, delta, axis_max_vel):
         """Using techniques from getStraightVelocity() in emccanon.cc, given 9
@@ -230,10 +234,13 @@ class GLCanon(Translated):
             x = reduce(lambda x,y:x+y, [c[0] for c in coords]) / len(coords)
             y = reduce(lambda x,y:x+y, [c[1] for c in coords]) / len(coords)
             z = reduce(lambda x,y:x+y, [c[2] for c in coords]) / len(coords)
-        else:
+        elif self.has_extents():
             x = (self.min_extents[0] + self.max_extents[0])/2
             y = (self.min_extents[1] + self.max_extents[1])/2
             z = (self.min_extents[2] + self.max_extents[2])/2
+        else:
+            # No extent information so assume zero
+            x = y = z = 0
 
         #print "gremlin.highlight() call time: {}".format(time.time()-t0)
         return x, y, z

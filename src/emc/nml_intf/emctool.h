@@ -23,7 +23,9 @@
 #define CANON_POCKETS_MAX 1001	// max size of carousel handled
 #define CANON_TOOL_ENTRY_LEN 256	// how long each file line can be
 
+namespace interp_shared {
 struct RotateShiftTransform;
+}
 
 #ifdef __cplusplus
 extern "C" {

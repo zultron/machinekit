@@ -383,7 +383,6 @@ struct setup_struct
   setup_struct();
  ~setup_struct();
 
-  int get_toplevel_line_number() const;
   void clear_queue_buster_flags();
   int getCurrentToolNumber() const;
   PositionArray posWithDiameterMode(const PositionArray & p_native) const;
@@ -406,7 +405,9 @@ struct setup_struct
   int remap_level;
 
   block &getControllingBlock();
+  block const &getControllingBlock() const;
   block &getExecutingBlock();
+  block const &getExecutingBlock() const;
   void setExecutingBlock(block const &b);
   block & updateControllingBlock();
 
@@ -633,10 +634,12 @@ function returns an error code, it adds an entry to the callstack object.
 // how much work canon calls do in emccanon. Especially for ARC_FEED and
 // RIGID_TAP, there's a lot of subtle checking that's beyond the scope of what
 // interp does.
+// NOTE: to differentiate between canon / interp error sources, the callee must
+// return a CanonReturn enum specifically.
 #define CHP_CANON(call)                                            \
     do {                                                           \
-    int CHP__status = (call);                                      \
-        if (CHP__status != INTERP_OK) {                            \
+       CanonReturn CHP__status = (call);                             \
+        if (CHP__status != CANON_RETURN_OK) {                            \
         ERS("%s", GET_CANON_ERROR().c_str());                              \
         }                                                          \
     } while(0)

@@ -194,7 +194,7 @@ bool Interp::need_step_increment(const setup_struct * settings) const
 
     bool in_subroutine = (settings->call_level > 0);
     if (in_subroutine) {
-        bool external_sub = strcmp(settings->filename, settings->sub_context[0].filename);
+        bool external_sub = strcmp(settings->filename, gcode_context_stack.base_file_name.c_str());
         // Check if local line number should be ignored (i.e. we don't want to step through external and/or local subroutines)
         if ((!settings->single_block_external_sub && external_sub) || (!settings->single_block_local_sub && !external_sub)) {
             return false;

@@ -2,6 +2,16 @@
 #define GCODE_PREVIEW_DATA_HH
 
 #include "tool_motion_data.hh"
+#include "coordinatetransform.hh"
+
+struct EmcPose;
+
+enum PreviewMotionPhase
+{
+    MOTION_PHASE_NORMAL, // Show both preview motion and extents
+    MOTION_PHASE_SETUP, // Show nothing (previously called a "first" move, e.g. rapids after a tool change)
+    MOTION_PHASE_RETRACT, // Show preview motion only (for G30 and similar moves, user may want to see the path, but it's not part of the program's true extents)
+};
 
 class PreviewMachine
 {
@@ -10,17 +20,19 @@ class PreviewMachine
     PositionArray machine_pos_uu;
     CANON_PLANE plane;
     double feed_rate;
-    bool first_move;
+    PreviewMotionPhase current_motion_phase;
 
     ToolMotionMap tool_motions;
 
     void add_motion(ToolMotionKey key, ToolMotion motion);
     std::vector<ToolMotion> &get_motion_set(ToolMotionKey key) {return tool_motions[key];}
     void straight_motion(int line_number, PositionArray const &goal_pos_prog, MotionType t);
-    void updateExtents(PositionArray machine_goal_pos_uu);
+    bool updateExtents(const PositionArray & machine_goal_pos_uu);
     void resetExtents();
 
 public:
+    std::bitset<64> hide_motion_phase_extents; // Indexed to PreviewMotionPhase
+    std::bitset<64> hide_motion_phase_preview;
     ExtentBox extents_tool;
     ExtentBox extents_machine;
     PreviewMachine() = default;
@@ -63,8 +75,12 @@ public:
     void clear_motions();
 
     ToolMotionMap const &getToolMotionData() const;
-    void begin_feed();
-    void end_feed();
+
+    void begin_retract_phase();
+    void begin_feed_phase();
+    void begin_setup_phase();
+
+    bool has_valid_extents() const;     
 };
 
 // for emcmodule.cc, get tool motion data from the machine object in gcodemodule
