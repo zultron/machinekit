@@ -116,47 +116,29 @@ struct nlohmann_traits {
 };
 
 
-const char* OPENSSL_BINARY = "/usr/bin/openssl";
-const char* LICENSE_FILE = "/home/operator/license.json";
-const char* LICENSE_FILE_SIGNATURE = "/home/operator/license.sig";
-const char* PUBLIC_KEY = "/home/operator/public.pem";
 
-// 64K is way bigger than any possible license.json file in the real world
-const size_t BUFFER_SIZE = (sizeof(char) * 64 * 1024);
 
 #define ZERO_STRUCT(ptr) { memset(ptr, 0, sizeof(*ptr)); }
 
 
+
+
+class License
+{
+private:
+    jwt::decoded_jwt<nlohmann_traits> _decoded;
+
+public:
+    License();
+    ~License();
+
+    void read_license(const std::string path);
+};
+
+
+#if 0
 bool is_license_expired()
 {
-    bool license_expired = true;  // assume the worst
-
-    char* buffer = (char*) malloc(BUFFER_SIZE);
-    if (buffer)
-    {
-        memset(buffer, 0, BUFFER_SIZE);  // null terminate entire buffer so later strstr can't possibly overflow
-
-        FILE* licfile = fopen(LICENSE_FILE, "r");
-        if (licfile)
-        {
-            size_t bytecount = fread(buffer, 1, BUFFER_SIZE-1, licfile);
-            if (bytecount > 0)
-            {
-                const char* buffer_limit = buffer + bytecount;
-                // buffer contains a small json structure and we're hunting for the substring
-                // "expiration_timestamp_utc": "2020-09-30 22:31:09"
-                char* token = strstr(buffer, "\"expiration_timestamp_utc\":");
-                if (token)
-                {
-                    token += strlen("\"expiration_timestamp_utc\":");
-                    while ((*token == ' ') && (token < buffer_limit)) ++token;
-                    while ((*token == '"') && (token < buffer_limit)) ++token;
-                    char* expire_timestamp_utc = token;
-                    while ((*token != '"') && (token < buffer_limit)) ++token;
-                    if (token < buffer_limit)
-                    {
-                        *token = '\0';
-
                         // Now expire_timestamp_utc points to just the timestamp.
                         printf("expire timestamp: %s\n", expire_timestamp_utc);
 
@@ -178,20 +160,10 @@ bool is_license_expired()
                                 license_expired = false;  // license still has time left
                             }
                         }
-                    }
-                }
-            }
-
-            fclose(licfile);
-            licfile = NULL;
-        }
-
-        free(buffer);
-        buffer = NULL;
-    }
 
     return license_expired;
 }
+#endif
 
 
 std::string read_entire_file(const std::string& path)
@@ -214,6 +186,53 @@ std::string read_entire_file(const std::string& path)
 }
 
 
+void init()
+{
+    // read the config ini file [HOSTMOT2] section to snag BOARD= value and the DRIVER_PARAMS parsed to pull the board_ip=n.n.n.n value
+    // which has to be first without any spaces
+
+    // how can we get the name of the INI file???
+    // tie into emctaskmain.cc as it gets the INI name as an argument
+    ;
+}
+
+
+void create_random_data_file()
+{
+    // create a tmp file and use random number generator to fill it with garbage
+    ;
+}
+
+
+void write_mesa_nvflash(std::string nvblock, std::string zippath)
+{
+    // create a tmp file exactly 64K
+    // fill it with random data
+    // overlay the zip file data into the random data starting at offset 31
+    //
+    // For each flash block:
+    //    exec mesaflash to write the tmp file
+    //    exec mesaflash to read the same block to a new tmp file
+    //    compare two tmp files to insure exactly the same
+
+    // delete all tmp files
+    ;
+}
+
+
+void read_mesa_nvflash()
+{
+    // For each flash block:
+    //    exec mesaflash to read the block into a tmp file
+    //    discard first 31 bytes of the tmp file
+    //    attempt to unzip the tmp file to confirm valid CRC
+    //    retain timestamp date
+    //
+    // compare timestamps of both blocks and declare the 'newest' the victor
+    ;
+}
+
+
 bool is_license_signature_valid()
 {
     try
@@ -221,23 +240,29 @@ bool is_license_signature_valid()
         std::string license = read_entire_file("/home/operator/license");
         std::string public_key = read_entire_file("/home/operator/public.pem");
 
-      	auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
+        // decode the base64url license
+      	jwt::decoded_jwt<nlohmann_traits> decoded = jwt::decode<nlohmann_traits>(license);
+
+        // verify the jwt signature with the public key (throws an exception if it fails)
+        auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
                         .allow_algorithm(jwt::algorithm::rs256(public_key, "", "", ""));
 
-        // decode the base64url license
-      	auto decoded = jwt::decode<nlohmann_traits>(license);
+        verify.verify(decoded);
 
       	//header_claims = decoded.get_header_claims();
       	//cout << header_claims['hub'] << std::endl;
       	//payload_claims = decoded.get_header_claims();
 
+        //must return decoded jwt from this so later we can check exp and iat and other payload claims to see if
+        //they match this machine
+
+        std::cout << "Header Claims:" << std::endl;
     	for (auto &e : decoded.get_header_claims())
     	    std::cout << e.first << " = " << e.second.to_json() << std::endl;
+
+        std::cout << "Payload Claims:" << std::endl;
       	for (auto &e : decoded.get_payload_claims())
     	    std::cout << e.first << " = " << e.second.to_json() << std::endl;
-
-        // might need to catch signature_verification_exception here...
-        verify.verify(decoded);
 
         return true;
     }
