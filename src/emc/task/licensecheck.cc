@@ -122,18 +122,52 @@ struct nlohmann_traits {
 
 
 
-
-class License
+class MachineJWT
 {
 private:
     jwt::decoded_jwt<nlohmann_traits> _decoded;
 
 public:
-    License();
-    ~License();
+    MachineJWT();
+    ~MachineJWT();
 
-    void read_license(const std::string path);
+    void load_jwt(const std::string licensejwtpath);
+
+    void write_json_file(const std::string jsonpath);
 };
+
+void MachineJWT::write_json_file(const std::string jsonpath)
+{
+
+}
+
+
+
+class LicenseJWT
+{
+private:
+    jwt::decoded_jwt<nlohmann_traits> _decoded;
+
+public:
+    LicenseJWT();
+    ~LicenseJWT();
+
+    void load_jwt(const std::string licensejwtpath);
+
+    bool is_expired();
+
+    void write_json_file(const std::string jsonpath);
+};
+
+
+void LicenseJWT::write_json_file(const std::string jsonpath)
+{
+    // The python side needs a simple data structure to read
+    // so this dumps out a json file for the license.
+    // But we don't want any of the license validation using public
+    // key or the NV storage of the license to be visible in python
+}
+
 
 
 #if 0
@@ -185,52 +219,6 @@ std::string read_entire_file(const std::string& path)
     return res;
 }
 
-
-void init()
-{
-    // read the config ini file [HOSTMOT2] section to snag BOARD= value and the DRIVER_PARAMS parsed to pull the board_ip=n.n.n.n value
-    // which has to be first without any spaces
-
-    // how can we get the name of the INI file???
-    // tie into emctaskmain.cc as it gets the INI name as an argument
-    ;
-}
-
-
-void create_random_data_file()
-{
-    // create a tmp file and use random number generator to fill it with garbage
-    ;
-}
-
-
-void write_mesa_nvflash(std::string nvblock, std::string zippath)
-{
-    // create a tmp file exactly 64K
-    // fill it with random data
-    // overlay the zip file data into the random data starting at offset 31
-    //
-    // For each flash block:
-    //    exec mesaflash to write the tmp file
-    //    exec mesaflash to read the same block to a new tmp file
-    //    compare two tmp files to insure exactly the same
-
-    // delete all tmp files
-    ;
-}
-
-
-void read_mesa_nvflash()
-{
-    // For each flash block:
-    //    exec mesaflash to read the block into a tmp file
-    //    discard first 31 bytes of the tmp file
-    //    attempt to unzip the tmp file to confirm valid CRC
-    //    retain timestamp date
-    //
-    // compare timestamps of both blocks and declare the 'newest' the victor
-    ;
-}
 
 
 bool is_license_signature_valid()

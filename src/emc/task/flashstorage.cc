@@ -15,7 +15,7 @@
 #include "flashstorage.hh"
 
 
-#if 0
+
 FlashStorage::FlashStorage(IniFile& inifile)
 {
     const char* board = inifile.Find("HOSTMOT2", "BOARD");
@@ -40,7 +40,7 @@ FlashStorage::FlashStorage(IniFile& inifile)
         }
     }
 }
-#endif
+
 
 void FlashStorage::recursive_rmdir(const std::string& dirpath)
 {
@@ -497,6 +497,7 @@ bool FlashStorage::write_flash(const std::string& contents_dir_path)
 }
 
 
+#if 0
 
 int main()
 {
@@ -512,3 +513,5 @@ int main()
 
     return 0;
 }
+
+#endif

@@ -3,7 +3,7 @@
 
 #include <string>
 
-//#include <inifile.hh>
+#include <inifile.hh>
 
 
 class FlashStorage
@@ -37,7 +37,7 @@ private:
     bool read_flash_block(const std::string& block, std::string& zipdir, time_t& timestamp);
 
 public:
-    //FlashStorage(IniFile& inifile);
+    FlashStorage(IniFile& inifile);
     FlashStorage(const std::string& board, const std::string& ipaddr)
     {
         this->_mesa_board = board;
