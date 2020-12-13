@@ -22,7 +22,7 @@ private:
 
     time_t read_timestamp(const std::string& path);
 
-    std::string read_entire_file(const std::string& path);
+    bool read_entire_file(const std::string& path, std::string& contents);
 
     bool mesaflash_exec(const std::string& rwcmd,     // --nvread    or   --nvwrite
                         const std::string& filepath,
@@ -33,6 +33,10 @@ private:
 
     bool unzip_exec(const std::string& zipfilepath,
                     const std::string& tmpdirpath);
+
+    bool read_public_keys(const std::string& zipfilepath);
+    void trim_key_bookends(std::string& public_key);
+    void restore_key_bookends(std::string& public_key);
 
     bool read_flash_block(const std::string& block, std::string& zipdir, time_t& timestamp);
 

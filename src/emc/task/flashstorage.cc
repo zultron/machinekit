@@ -88,24 +88,31 @@ time_t FlashStorage::read_timestamp(const std::string& path)
 }
 
 
-std::string FlashStorage::read_entire_file(const std::string& path)
+bool FlashStorage::read_entire_file(const std::string& path, std::string& contents)
 {
-    std::string res;
+    bool result = false;
     int fd = open(path.c_str(), O_RDONLY);
     if (fd >= 0)
     {
         struct stat sb;
         if (0 == fstat(fd, &sb))
         {
-            res.resize(sb.st_size);
-            read(fd, const_cast<char*>(res.data()), sb.st_size);
+            char* buffer = new char[sb.st_size + 1];
+            if (sb.st_size == read(fd, buffer, sb.st_size))
+            {
+                buffer[sb.st_size] = '\0';
+                contents.assign(buffer);
+                result = true;
+            }
+            delete[] buffer;
+            buffer = NULL;
         }
 
         close(fd);
         fd = -1;
     }
 
-    return res;
+    return result;
 }
 
 
@@ -154,10 +161,10 @@ bool FlashStorage::mesaflash_exec(const std::string& rwcmd,     // --nvread    o
         int ev;
         if (this->_mesa_board == "5i25")
         {
-            // xxxx fis path
+            // xxxx fix path - sudo needs a full path for mesaflash
             ev = execlp("/usr/bin/sudo",
                         "/usr/bin/sudo",
-                        "/tmp/mesaflash",
+                        "mesaflash",
                         "--device", this->_mesa_board.c_str(),
                         rwcmd.c_str(), filepath.c_str(),
                         "--nvblock", nvblock.c_str(),
@@ -165,10 +172,10 @@ bool FlashStorage::mesaflash_exec(const std::string& rwcmd,     // --nvread    o
         }
         else
         {
-            // xxxxx fix path
+            // xxxx fix path - sudo needs a full path for mesaflash
             ev = execlp("/usr/bin/sudo",
                         "/usr/bin/sudo",
-                        "/tmp/mesaflash",
+                        "mesaflash",
                         "--device", this->_mesa_board.c_str(),
                         "--addr", this->_mesa_ipaddr.c_str(),
                         rwcmd.c_str(), filepath.c_str(),
@@ -406,9 +413,17 @@ bool FlashStorage::read_flash()
 
     if (NULL != finalblock)
     {
-        // xxxx
-        //read machine jwt file
-        //read public keys file
+        // read the machine jwt which is named machine.dat
+        std::string tmp(finalblock->zipdir_path);
+        tmp.append("/machine.dat");
+        bool result = this->read_entire_file(tmp, this->_machine_jwt_encoded);
+        if (result)
+        {
+            // read the public key nested zip which is named compensation.dat as a misdirection
+            tmp.assign(finalblock->zipdir_path);
+            tmp.append("/compensation.dat");
+            result = this->read_public_keys(tmp);
+        }
 
         this->recursive_rmdir(finalblock->zipdir_path);
 
@@ -419,11 +434,76 @@ bool FlashStorage::read_flash()
 }
 
 
+void FlashStorage::trim_key_bookends(std::string& public_key)
+{
+    const char header[] = {"-----BEGIN PUBLIC KEY-----\n"};
+    const char footer[] = {"\n-----END PUBLIC KEY-----\n"};
+    size_t pos = public_key.find(header);
+    if (std::string::npos != pos)
+    {
+        public_key.erase(pos, strlen(header));
+    }
+
+    pos = public_key.find(footer);
+    if (std::string::npos != pos)
+    {
+        public_key.erase(pos, strlen(footer));
+    }
+}
+
+
+void FlashStorage::restore_key_bookends(std::string& public_key)
+{
+    public_key.insert(0, "-----BEGIN PUBLIC KEY-----\n");
+    public_key.append("\n-----END PUBLIC KEY-----\n");
+}
+
+
+bool FlashStorage::read_public_keys(const std::string& zipfilepath)
+{
+    bool result = false;
+    char zipdir_path[] = { "/tmp/XXXXXX\0" };
+    if (NULL != mkdtemp(zipdir_path))
+    {
+        // unzip zipfilepath into /tmp/XXXXX temp directory
+        std::string zipdir_path_str(zipdir_path);
+        result = this->unzip_exec(zipfilepath, zipdir_path_str);
+        if (result)
+        {
+            // The key files are not guaranteed to exist.
+            std::string keyfilepath(zipdir_path_str);
+            keyfilepath.append("/0");
+            result = this->read_entire_file(keyfilepath, this->_machine_public_key);
+            if (result)
+            {
+                this->restore_key_bookends(this->_machine_public_key);
+            }
+
+            keyfilepath.assign(zipdir_path_str);
+            keyfilepath.append("/1");
+            result = this->read_entire_file(keyfilepath, this->_license_public_key);
+            if (result)
+            {
+                this->restore_key_bookends(this->_license_public_key);
+            }
+
+            // Overall we succeed even if either of the individual public keys are missing.
+            result = true;
+        }
+
+        // Be sure to cleanup
+        this->recursive_rmdir(zipdir_path_str);
+    }
+
+    return result;
+}
+
+
 bool FlashStorage::write_flash(const std::string& contents_dir_path)
 {
     bool result = false;
 
-    // update the /nv/timestamp file that will be inside the zip.
+    // update the /timestamp file that will be inside the zip.
     time_t utcnow = time(NULL);
     std::string timestamp_path(contents_dir_path);
     timestamp_path.append("/timestamp");
@@ -498,6 +578,8 @@ bool FlashStorage::write_flash(const std::string& contents_dir_path)
 
 
 #if 0
+// Compile with  g++ -std=c++11 -g flashstorage.cc
+// For standalone testing with cdt debugger
 
 int main()
 {
