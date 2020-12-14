@@ -23,6 +23,7 @@ private:
     time_t read_timestamp(const std::string& path);
 
     bool read_entire_file(const std::string& path, std::string& contents);
+    bool write_file(const std::string& filepath, const std::string data);
 
     bool mesaflash_exec(const std::string& rwcmd,     // --nvread    or   --nvwrite
                         const std::string& filepath,
@@ -35,19 +36,29 @@ private:
                     const std::string& tmpdirpath);
 
     bool read_public_keys(const std::string& zipfilepath);
+    bool write_public_keys(std::string& zipfile_path);
+
     void trim_key_bookends(std::string& public_key);
     void restore_key_bookends(std::string& public_key);
 
     bool read_flash_block(const std::string& block, std::string& zipdir, time_t& timestamp);
 
 public:
-    FlashStorage(IniFile& inifile);
+    FlashStorage(const char* ini_filename);
+
+    #if 0
+    // Just for standalone testing
     FlashStorage(const std::string& board, const std::string& ipaddr)
     {
         this->_mesa_board = board;
         this->_mesa_ipaddr = ipaddr;
     }
+    #endif
 
     bool read_flash();
-    bool write_flash(const std::string& contents_dir_path);
+    bool write_flash();
+
+    const std::string& get_machine_jwt_encoded() { return this->_machine_jwt_encoded; }
+    const std::string& get_machine_public_key() { return this->_machine_public_key; }
+    const std::string& get_license_public_key() { return this->_license_public_key; }
 };

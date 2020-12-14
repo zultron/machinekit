@@ -9,6 +9,9 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 
+
+#include "licensecheck.hh"
+
 // Licenses are implemented using JSON web tokens (JWT). JWTs are used to share 'claims' securely between
 // two parties - in this case the PathPilot HUB server and PathPilot software on the controller.
 // They combine a json data structure, several standard algorithims for detecting modifications
@@ -132,15 +135,12 @@ public:
     ~MachineJWT();
 
     void load_jwt(const std::string licensejwtpath);
-
     void write_json_file(const std::string jsonpath);
 };
 
 void MachineJWT::write_json_file(const std::string jsonpath)
 {
-
 }
-
 
 
 class LicenseJWT
@@ -153,9 +153,7 @@ public:
     ~LicenseJWT();
 
     void load_jwt(const std::string licensejwtpath);
-
     bool is_expired();
-
     void write_json_file(const std::string jsonpath);
 };
 
@@ -200,27 +198,7 @@ bool is_license_expired()
 #endif
 
 
-std::string read_entire_file(const std::string& path)
-{
-    std::string res;
-    int fd = open(path.c_str(), O_RDONLY);
-    if (fd >= 0)
-    {
-        struct stat sb;
-        if (0 == fstat(fd, &sb))
-        {
-            res.resize(sb.st_size);
-            read(fd, const_cast<char*>(res.data()), sb.st_size);
-        }
-
-        close(fd);
-    }
-
-    return res;
-}
-
-
-
+#if 0
 bool is_license_signature_valid()
 {
     try
@@ -260,9 +238,103 @@ bool is_license_signature_valid()
     }
     return false;
 }
+#endif
+
+bool is_license_valid()
+{
+    return true;
+#if 0
+        validate license with public key (live or cached)
+
+        valid = !is_license_expired();
+        if (valid)
+        {
+            // Great, we have an unaltered license file that has a time window that hasn't expired yet.
+            // Make sure its actually for this machine...
+
+            // much easier now that we have a json class lib
+
+            // Check serial number
+            // Check model
+            // Read machine.json for now and trust it.
+            // Assume that earlier in the launch the ecm1 flash is read, signature verified, and then unpacked.
+            ;
+        }
+#endif
+}
+
+License::License(FlashStorage& flash) :
+    _flash(flash)
+{
+}
+
+bool License::refresh_cleartext_files()
+{
+    // Read the machine jwt and public keys from NV flash
+    bool result = this->_flash.read_flash();
+    if (result)
+    {
+        const std::string& jwt_encoded = this->_flash.get_machine_jwt_encoded();
+
+        // Decode the machine jwt and write over /boot/machine.dat
+        jwt::decoded_jwt<nlohmann_traits> jwt_decoded = jwt::decode<nlohmann_traits>(jwt_encoded);
+
+        // Verify the jwt signature with the public key
+        const std::string& public_key = this->_flash.get_machine_public_key();
+        if (public_key.length() > 0)
+        {
+            auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
+                            .allow_algorithm(jwt::algorithm::rs256(public_key, "", "", ""));
+            try
+            {
+                verify.verify(jwt_decoded);
+            }
+            catch (jwt::error::signature_verification_exception ex)
+            {
+                result = false;
+            }
+        }
+
+        std::cout << "                                  WOW MOM\n";
+        std::cout << "{\n";
+        for (auto &e : jwt_decoded.get_payload_claims())
+            std::cout << e.first << " = " << e.second.to_json() << std::endl;
+        std::cout << "}\n";
+    }
+
+    return result;
+}
+
+
+void License::refresh_flash()
+{
+    // Take the license that was acquired by the python UI, verify it,
+    // and write into flash for stability
+}
+
+
+#if 0
+// Here just for easy testing
+// Compile and run just this single independent file and then run ./a.out
+//     g++ -std=c++11 licensecheck.cc -lcrypto -lssl
+//
+int main(int argc, char** argv)
+{
+    bool valid = is_license_valid();
+    if (valid == true)
+    {
+        printf("Yeah Baby we're valid\n");
+        return 0;
+    }
+
+    printf("Crap, we're lying\n");
+    return 1;
+}
+#endif
 
 
 
+#if 0
 void test_jwt_cpp_lib()
 {
   std::string rsa_priv_key = R"(-----BEGIN PRIVATE KEY-----
@@ -325,50 +397,5 @@ YwIDAQAB
     std::cout << e.first << " = " << e.second.to_json() << std::endl;
   for (auto &e : decoded.get_payload_claims())
     std::cout << e.first << " = " << e.second.to_json() << std::endl;
-}
-
-bool is_license_valid()
-{
-    bool valid = is_license_signature_valid();
-    if (valid)
-    {
-        ;
-#if 0
-        valid = !is_license_expired();
-        if (valid)
-        {
-            // Great, we have an unaltered license file that has a time window that hasn't expired yet.
-            // Make sure its actually for this machine...
-
-            // much easier now that we have a json class lib
-
-            // Check serial number
-            // Check model
-            // Read machine.json for now and trust it.
-            // Assume that earlier in the launch the ecm1 flash is read, signature verified, and then unpacked.
-            ;
-        }
-#endif
-    }
-
-    return valid;
-}
-
-#if 0
-// Here just for easy testing
-// Compile and run just this single independent file and then run ./a.out
-//     g++ -std=c++11 licensecheck.cc -lcrypto -lssl
-//
-int main(int argc, char** argv)
-{
-    bool valid = is_license_valid();
-    if (valid == true)
-    {
-        printf("Yeah Baby we're valid\n");
-        return 0;
-    }
-
-    printf("Crap, we're lying\n");
-    return 1;
 }
 #endif

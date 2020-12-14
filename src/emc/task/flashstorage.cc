@@ -15,29 +15,34 @@
 #include "flashstorage.hh"
 
 
-
-FlashStorage::FlashStorage(IniFile& inifile)
+FlashStorage::FlashStorage(const char* ini_filename)
 {
-    const char* board = inifile.Find("HOSTMOT2", "BOARD");
-    if (NULL != board)
+    IniFile inifile;
+    if (inifile.Open(ini_filename))
     {
-        this->_mesa_board.assign(board);
-
-        if (this->_mesa_board != "5i25")
+        const char* board = inifile.Find("HOSTMOT2", "BOARD");
+        if (NULL != board)
         {
-            const char* params = inifile.Find("HOSTMOT2", "DRIVER_PARAMS");
-            // Pull the board_ip=n.n.n.n string which has to be first without any spaces
-            const char* addr = strstr(params, "board_ip=");
-            if (NULL != addr)
+            this->_mesa_board.assign(board);
+
+            if (this->_mesa_board != "5i25")
             {
-                addr += strlen("board_ip=");
-                const char* addrend = strstr(addr, " ");
-                if (NULL != addrend)
+                const char* params = inifile.Find("HOSTMOT2", "DRIVER_PARAMS");
+                // Pull the board_ip=n.n.n.n string which has to be first without any spaces
+                const char* addr = strstr(params, "board_ip=");
+                if (NULL != addr)
                 {
-                    this->_mesa_ipaddr.assign(addr, addrend-1);
+                    addr += strlen("board_ip=");
+                    const char* addrend = strstr(addr, " ");
+                    if (NULL != addrend)
+                    {
+                        this->_mesa_ipaddr.assign(addr, addrend-1);
+                    }
                 }
             }
         }
+
+        inifile.Close();
     }
 }
 
@@ -206,22 +211,29 @@ bool FlashStorage::zip_exec(const std::string& contents_dir_path,
 {
     bool result = false;
 
-    char zipfile_path_raw[] = { "/tmp/jeijf23FFwei434.0\0" };
-    unlink(zipfile_path_raw);
+    // if caller has a path in zipfile_path already, use it.
+    // otherwise we zip into a tmp file - and we have to just pick a
+    // name because zip is braindead.  if we create an empty file to
+    // reserve the name in the /tmp, there is no overwrite flag to zip.
+    // it always thinks its an existing zip its adding to so the file cannot
+    // exist beforehand.
+    if (zipfile_path.length() == 0)
+    {
+        zipfile_path.assign("/tmp/jeijf23FFwei434.0");
+    }
 
     pid_t pid = fork();
     if (pid == 0)
     {
         // Child
-        // setuid(0);   // effectively do a sudo
-
         // zip is rather dumb in giving control over how much of the dir path is stored in the zip
         // so must chdir first to control this.
         chdir(contents_dir_path.c_str());
+        unlink(zipfile_path.c_str());
         int ev = execlp("zip",
                         "zip",
                         "-r",
-                        zipfile_path_raw,
+                        zipfile_path.c_str(),
                         ".",
                         NULL);
         exit(ev);
@@ -234,7 +246,6 @@ bool FlashStorage::zip_exec(const std::string& contents_dir_path,
         {
             if ((WIFEXITED(status)) && (0 == WEXITSTATUS(status)))
             {
-                zipfile_path.assign(zipfile_path_raw);
                 result = true;
             }
         }
@@ -252,7 +263,6 @@ bool FlashStorage::unzip_exec(const std::string& zipfilepath,
     if (pid == 0)
     {
         // Child
-        // setuid(0);   // effectively do a sudo
         int ev = execlp("unzip",
                         "unzip",
                         zipfilepath.c_str(),
@@ -465,7 +475,7 @@ bool FlashStorage::read_public_keys(const std::string& zipfilepath)
     char zipdir_path[] = { "/tmp/XXXXXX\0" };
     if (NULL != mkdtemp(zipdir_path))
     {
-        // unzip zipfilepath into /tmp/XXXXX temp directory
+         // unzip zipfilepath into /tmp/XXXXX temp directory
         std::string zipdir_path_str(zipdir_path);
         result = this->unzip_exec(zipfilepath, zipdir_path_str);
         if (result)
@@ -499,78 +509,153 @@ bool FlashStorage::read_public_keys(const std::string& zipfilepath)
 }
 
 
-bool FlashStorage::write_flash(const std::string& contents_dir_path)
+bool FlashStorage::write_file(const std::string& filepath, const std::string data)
+{
+    bool result = false;
+    int fd = open(filepath.c_str(), O_CREAT|O_RDWR);
+    if (-1 != fd)
+    {
+        ssize_t cb = write(fd, data.c_str(), data.length());
+        result = (cb == static_cast<ssize_t>(data.length()));
+        close(fd);
+        fd = -1;
+    }
+    return result;
+}
+
+
+bool FlashStorage::write_public_keys(std::string& zipfile_path)
+{
+    bool result = false;
+    char zipdir_path[] = { "/tmp/XXXXXX\0" };
+    if (NULL != mkdtemp(zipdir_path))
+    {
+        std::string zipdir_path_str(zipdir_path);
+
+        std::string machine_public_key_trimmed(this->_machine_public_key);
+        this->trim_key_bookends(machine_public_key_trimmed);
+
+        std::string license_public_key_trimmed(this->_license_public_key);
+        this->trim_key_bookends(license_public_key_trimmed);
+
+        std::string keyfilepath(zipdir_path_str);
+        keyfilepath.append("/0");
+        result = this->write_file(keyfilepath, machine_public_key_trimmed);
+        if (result)
+        {
+            keyfilepath.assign(zipdir_path_str);
+            keyfilepath.append("/1");
+            result = this->write_file(keyfilepath, license_public_key_trimmed);
+
+            if (result)
+            {
+                result = this->zip_exec(zipdir_path_str, zipfile_path);
+            }
+        }
+
+        // Be sure to cleanup
+        this->recursive_rmdir(zipdir_path_str);
+    }
+
+    return result;
+}
+
+
+bool FlashStorage::write_flash()
 {
     bool result = false;
 
-    // update the /timestamp file that will be inside the zip.
-    time_t utcnow = time(NULL);
-    std::string timestamp_path(contents_dir_path);
-    timestamp_path.append("/timestamp");
-    int fd = open(timestamp_path.c_str(), O_CREAT|O_RDWR);
-    if (-1 != fd)
+    char contents_path_raw[] = { "/tmp/XXXXXX\0" };
+    if (NULL != mkdtemp(contents_path_raw))
     {
-        if (sizeof(utcnow) == write(fd, &utcnow, sizeof(utcnow)))
-        {
-            result = true;
-        }
-        close(fd);
-        fd = -1;
-        chmod(timestamp_path.c_str(), S_IRUSR|S_IWUSR);
-    }
+        std::string contents_path(contents_path_raw);
 
-    if (result)
-    {
-        // zip up the zipdir_path directory contents
-        std::string zipfile_path;
-        result = this->zip_exec(contents_dir_path, zipfile_path);
+        // write encoded machine jwt as machine.dat
+        std::string tmpfilepath(contents_path);
+        tmpfilepath.append("/machine.dat");
+        result = this->write_file(tmpfilepath, this->_machine_jwt_encoded);
         if (result)
         {
-            std::string blockfile_path("/tmp");
-            result = this->create_random_datafile(blockfile_path);
+            // write public keys as a zip into the dir as compensation.dat
+            tmpfilepath.assign(contents_path);
+            tmpfilepath.append("/compensation.dat");
+            result = this->write_public_keys(tmpfilepath);
             if (result)
             {
-                result = false;
-                // now we can overlay the zip file into the random data file
-                // starting at offset 31
-                fd = open(blockfile_path.c_str(), O_WRONLY);
+                // create or update the /timestamp file that will be inside the zip.
+                time_t utcnow = time(NULL);
+                std::string timestamp_path(contents_path);
+                timestamp_path.append("/timestamp");
+                int fd = open(timestamp_path.c_str(), O_CREAT|O_RDWR);
                 if (-1 != fd)
                 {
-                    if (-1 != lseek(fd, 31, SEEK_SET))
+                    if (sizeof(utcnow) == write(fd, &utcnow, sizeof(utcnow)))
                     {
-                        int zipfd = open(zipfile_path.c_str(), O_RDONLY);
-                        if (-1 != zipfd)
-                        {
-                            char* buffer = new char[64*1024];
-                            ssize_t cb = read(zipfd, buffer, 64*1024);
-                            if (-1 != cb)
-                            {
-                                if (cb == write(fd, buffer, cb))
-                                {
-                                    result = true;
-                                }
-                            }
-                            delete[] buffer;
-                            buffer = NULL;
-                            close(zipfd);
-                            zipfd = -1;
-                        }
+                        result = true;
                     }
                     close(fd);
                     fd = -1;
+                    chmod(timestamp_path.c_str(), S_IRUSR|S_IWUSR);
                 }
 
-                result = this->mesaflash_exec("--nvwrite", blockfile_path, "A");
                 if (result)
                 {
-                    result = this->mesaflash_exec("--nvwrite", blockfile_path, "B");
+                    // zip up the zipdir_path directory contents
+                    std::string zipfile_path;
+                    result = this->zip_exec(contents_path, zipfile_path);
+                    if (result)
+                    {
+                        std::string blockfile_path("/tmp");
+                        result = this->create_random_datafile(blockfile_path);
+                        if (result)
+                        {
+                            result = false;
+                            // now we can overlay the zip file into the random data file
+                            // starting at offset 31
+                            fd = open(blockfile_path.c_str(), O_WRONLY);
+                            if (-1 != fd)
+                            {
+                                if (-1 != lseek(fd, 31, SEEK_SET))
+                                {
+                                    int zipfd = open(zipfile_path.c_str(), O_RDONLY);
+                                    if (-1 != zipfd)
+                                    {
+                                        char* buffer = new char[64*1024];
+                                        ssize_t cb = read(zipfd, buffer, 64*1024);
+                                        if (-1 != cb)
+                                        {
+                                            if (cb == write(fd, buffer, cb))
+                                            {
+                                                result = true;
+                                            }
+                                        }
+                                        delete[] buffer;
+                                        buffer = NULL;
+                                        close(zipfd);
+                                        zipfd = -1;
+                                    }
+                                }
+                                close(fd);
+                                fd = -1;
+                            }
+
+                            result = this->mesaflash_exec("--nvwrite", blockfile_path, "A");
+                            if (result)
+                            {
+                                result = this->mesaflash_exec("--nvwrite", blockfile_path, "B");
+                            }
+
+                            unlink(blockfile_path.c_str());
+                        }
+
+                        unlink(zipfile_path.c_str());
+                    }
                 }
-
-                unlink(blockfile_path.c_str());
             }
-
-            unlink(zipfile_path.c_str());
         }
+
+        // Be sure to cleanup
+        this->recursive_rmdir(contents_path);
     }
 
     return result;
