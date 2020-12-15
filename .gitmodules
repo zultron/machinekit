@@ -1,0 +1,3 @@
+[submodule "src/license/jwt-cpp"]
+	path = src/license/jwt-cpp
+	url = git@bitbucket.org:tormachinc/jwt-cpp.git
