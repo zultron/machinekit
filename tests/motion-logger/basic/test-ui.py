@@ -77,7 +77,11 @@ for ngc in glob.glob('*.ngc'):
     c.program_open(ngc)
     c.auto(linuxcnc.AUTO_RUN, 0)
     c.wait_complete()
+    err = e.poll()
     end_log(basename)
+    if err is not None and err[2] >= 2:
+        print >>sys.stderr, "Got unexpected error ", err
+        sys.exit(1)
 
 
 print >>sys.stderr, "trying to exit"
