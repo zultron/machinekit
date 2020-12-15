@@ -23,9 +23,9 @@ FlashStorage::FlashStorage(const char* ini_filename)
         const char* board = inifile.Find("HOSTMOT2", "BOARD");
         if (NULL != board)
         {
-            this->_mesa_board.assign(board);
+            _mesa_board.assign(board);
 
-            if (this->_mesa_board != "5i25")
+            if (_mesa_board != "5i25")
             {
                 const char* params = inifile.Find("HOSTMOT2", "DRIVER_PARAMS");
                 // Pull the board_ip=n.n.n.n string which has to be first without any spaces
@@ -36,7 +36,7 @@ FlashStorage::FlashStorage(const char* ini_filename)
                     const char* addrend = strstr(addr, " ");
                     if (NULL != addrend)
                     {
-                        this->_mesa_ipaddr.assign(addr, addrend-1);
+                        _mesa_ipaddr.assign(addr, addrend-1);
                     }
                 }
             }
@@ -66,7 +66,7 @@ void FlashStorage::recursive_rmdir(const std::string& dirpath)
             else if (DT_DIR == dirent->d_type)
             {
                 // recurse to continue deleting...
-                this->recursive_rmdir(fullpath);
+                recursive_rmdir(fullpath);
             }
         }
 
@@ -164,13 +164,13 @@ bool FlashStorage::mesaflash_exec(const std::string& rwcmd,     // --nvread    o
     {
         // Child
         int ev;
-        if (this->_mesa_board == "5i25")
+        if (_mesa_board == "5i25")
         {
             // xxxx fix path - sudo needs a full path for mesaflash
             ev = execlp("/usr/bin/sudo",
                         "/usr/bin/sudo",
                         "mesaflash",
-                        "--device", this->_mesa_board.c_str(),
+                        "--device", _mesa_board.c_str(),
                         rwcmd.c_str(), filepath.c_str(),
                         "--nvblock", nvblock.c_str(),
                         NULL);
@@ -181,8 +181,8 @@ bool FlashStorage::mesaflash_exec(const std::string& rwcmd,     // --nvread    o
             ev = execlp("/usr/bin/sudo",
                         "/usr/bin/sudo",
                         "mesaflash",
-                        "--device", this->_mesa_board.c_str(),
-                        "--addr", this->_mesa_ipaddr.c_str(),
+                        "--device", _mesa_board.c_str(),
+                        "--addr", _mesa_ipaddr.c_str(),
                         rwcmd.c_str(), filepath.c_str(),
                         "--nvblock", nvblock.c_str(),
                         NULL);
@@ -302,7 +302,7 @@ bool FlashStorage::read_flash_block(
         close(fd);
         fd = -1;
         std::string tmppath(filepath_raw);
-        result = this->mesaflash_exec("--nvread", tmppath, block);
+        result = mesaflash_exec("--nvread", tmppath, block);
         if (result)
         {
             // toss the first 31 bytes of the block as garbage to be ignored.
@@ -361,18 +361,18 @@ bool FlashStorage::read_flash_block(
             // unzip filepath_zip -d dirpath
             std::string tmp1(filepath_zip);
             std::string tmp2(zipdir_path);
-            result = this->unzip_exec(tmp1, tmp2);
+            result = unzip_exec(tmp1, tmp2);
             if (result)
             {
                 zipdir.assign(zipdir_path);
-                timestamp = this->read_timestamp(tmp2.append("/timestamp"));
+                timestamp = read_timestamp(tmp2.append("/timestamp"));
                 result = (0 != timestamp);
             }
 
             // caller is responsible for cleaning up zipdir_path upon success
             if (!result)
             {
-                this->recursive_rmdir(zipdir_path);
+                recursive_rmdir(zipdir_path);
             }
         }
 
@@ -395,21 +395,21 @@ bool FlashStorage::read_flash()
     struct blockinfo blocka;
     struct blockinfo blockb;
     struct blockinfo* finalblock = NULL;
-    bool result_a = this->read_flash_block("A", blocka.zipdir_path, blocka.timestamp);
-    bool result_b = this->read_flash_block("B", blockb.zipdir_path, blockb.timestamp);
+    bool result_a = read_flash_block("A", blocka.zipdir_path, blocka.timestamp);
+    bool result_b = read_flash_block("B", blockb.zipdir_path, blockb.timestamp);
     if ((result_a) && (result_b))
     {
         if (blocka.timestamp >= blockb.timestamp)
         {
             // Use A
             finalblock = &blocka;
-            this->recursive_rmdir(blockb.zipdir_path);  // Cleanup B
+            recursive_rmdir(blockb.zipdir_path);  // Cleanup B
         }
         else
         {
             // Use B
             finalblock = &blockb;
-            this->recursive_rmdir(blocka.zipdir_path);  // Cleanup A
+            recursive_rmdir(blocka.zipdir_path);  // Cleanup A
         }
     }
     else if (result_a)
@@ -426,16 +426,16 @@ bool FlashStorage::read_flash()
         // read the machine jwt which is named machine.dat
         std::string tmp(finalblock->zipdir_path);
         tmp.append("/machine.dat");
-        bool result = this->read_entire_file(tmp, this->_machine_jwt_encoded);
+        bool result = read_entire_file(tmp, _machine_jwt_encoded);
         if (result)
         {
             // read the public key nested zip which is named compensation.dat as a misdirection
             tmp.assign(finalblock->zipdir_path);
             tmp.append("/compensation.dat");
-            result = this->read_public_keys(tmp);
+            result = read_public_keys(tmp);
         }
 
-        this->recursive_rmdir(finalblock->zipdir_path);
+        recursive_rmdir(finalblock->zipdir_path);
 
         return true;
     }
@@ -477,24 +477,24 @@ bool FlashStorage::read_public_keys(const std::string& zipfilepath)
     {
          // unzip zipfilepath into /tmp/XXXXX temp directory
         std::string zipdir_path_str(zipdir_path);
-        result = this->unzip_exec(zipfilepath, zipdir_path_str);
+        result = unzip_exec(zipfilepath, zipdir_path_str);
         if (result)
         {
             // The key files are not guaranteed to exist.
             std::string keyfilepath(zipdir_path_str);
             keyfilepath.append("/0");
-            result = this->read_entire_file(keyfilepath, this->_machine_public_key);
+            result = read_entire_file(keyfilepath, _machine_public_key);
             if (result)
             {
-                this->restore_key_bookends(this->_machine_public_key);
+                restore_key_bookends(_machine_public_key);
             }
 
             keyfilepath.assign(zipdir_path_str);
             keyfilepath.append("/1");
-            result = this->read_entire_file(keyfilepath, this->_license_public_key);
+            result = read_entire_file(keyfilepath, _license_public_key);
             if (result)
             {
-                this->restore_key_bookends(this->_license_public_key);
+                restore_key_bookends(_license_public_key);
             }
 
             // Overall we succeed even if either of the individual public keys are missing.
@@ -502,7 +502,7 @@ bool FlashStorage::read_public_keys(const std::string& zipfilepath)
         }
 
         // Be sure to cleanup
-        this->recursive_rmdir(zipdir_path_str);
+        recursive_rmdir(zipdir_path_str);
     }
 
     return result;
@@ -532,29 +532,29 @@ bool FlashStorage::write_public_keys(std::string& zipfile_path)
     {
         std::string zipdir_path_str(zipdir_path);
 
-        std::string machine_public_key_trimmed(this->_machine_public_key);
-        this->trim_key_bookends(machine_public_key_trimmed);
+        std::string machine_public_key_trimmed(_machine_public_key);
+        trim_key_bookends(machine_public_key_trimmed);
 
-        std::string license_public_key_trimmed(this->_license_public_key);
-        this->trim_key_bookends(license_public_key_trimmed);
+        std::string license_public_key_trimmed(_license_public_key);
+        trim_key_bookends(license_public_key_trimmed);
 
         std::string keyfilepath(zipdir_path_str);
         keyfilepath.append("/0");
-        result = this->write_file(keyfilepath, machine_public_key_trimmed);
+        result = write_file(keyfilepath, machine_public_key_trimmed);
         if (result)
         {
             keyfilepath.assign(zipdir_path_str);
             keyfilepath.append("/1");
-            result = this->write_file(keyfilepath, license_public_key_trimmed);
+            result = write_file(keyfilepath, license_public_key_trimmed);
 
             if (result)
             {
-                result = this->zip_exec(zipdir_path_str, zipfile_path);
+                result = zip_exec(zipdir_path_str, zipfile_path);
             }
         }
 
         // Be sure to cleanup
-        this->recursive_rmdir(zipdir_path_str);
+        recursive_rmdir(zipdir_path_str);
     }
 
     return result;
@@ -573,13 +573,13 @@ bool FlashStorage::write_flash()
         // write encoded machine jwt as machine.dat
         std::string tmpfilepath(contents_path);
         tmpfilepath.append("/machine.dat");
-        result = this->write_file(tmpfilepath, this->_machine_jwt_encoded);
+        result = write_file(tmpfilepath, _machine_jwt_encoded);
         if (result)
         {
             // write public keys as a zip into the dir as compensation.dat
             tmpfilepath.assign(contents_path);
             tmpfilepath.append("/compensation.dat");
-            result = this->write_public_keys(tmpfilepath);
+            result = write_public_keys(tmpfilepath);
             if (result)
             {
                 // create or update the /timestamp file that will be inside the zip.
@@ -602,11 +602,11 @@ bool FlashStorage::write_flash()
                 {
                     // zip up the zipdir_path directory contents
                     std::string zipfile_path;
-                    result = this->zip_exec(contents_path, zipfile_path);
+                    result = zip_exec(contents_path, zipfile_path);
                     if (result)
                     {
                         std::string blockfile_path("/tmp");
-                        result = this->create_random_datafile(blockfile_path);
+                        result = create_random_datafile(blockfile_path);
                         if (result)
                         {
                             result = false;
@@ -639,10 +639,10 @@ bool FlashStorage::write_flash()
                                 fd = -1;
                             }
 
-                            result = this->mesaflash_exec("--nvwrite", blockfile_path, "A");
+                            result = mesaflash_exec("--nvwrite", blockfile_path, "A");
                             if (result)
                             {
-                                result = this->mesaflash_exec("--nvwrite", blockfile_path, "B");
+                                result = mesaflash_exec("--nvwrite", blockfile_path, "B");
                             }
 
                             unlink(blockfile_path.c_str());
@@ -655,7 +655,7 @@ bool FlashStorage::write_flash()
         }
 
         // Be sure to cleanup
-        this->recursive_rmdir(contents_path);
+        recursive_rmdir(contents_path);
     }
 
     return result;

@@ -58,7 +58,7 @@ public:
     bool read_flash();
     bool write_flash();
 
-    const std::string& get_machine_jwt_encoded() { return this->_machine_jwt_encoded; }
-    const std::string& get_machine_public_key() { return this->_machine_public_key; }
-    const std::string& get_license_public_key() { return this->_license_public_key; }
+    const std::string& get_machine_jwt_encoded() { return _machine_jwt_encoded; }
+    const std::string& get_machine_public_key() { return _machine_public_key; }
+    const std::string& get_license_public_key() { return _license_public_key; }
 };
