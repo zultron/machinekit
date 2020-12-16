@@ -36,6 +36,7 @@
 
 #include "hal.h"
 
+#include "licensemgr.hh"
 
 // misdirection for user comp name
 char modname[] = {"hwmon\0"};
@@ -79,9 +80,15 @@ int main(int argc, char *argv[])
 
     hal_ready(hal_comp_id);
 
+    Storage storage("ini file name");
+    LicenseMgr licmgr(storage);
+
     // super loop
     while (1)
     {
+
+
+
         // Read NV flash and update files and such
         // Cache last modtime for .dat files on SSD
         // Upon start of exit, check to see if we need to write NV flash with updated .dat
