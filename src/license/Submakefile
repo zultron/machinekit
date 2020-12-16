@@ -1,0 +1,21 @@
+LIB_DIR:=../lib
+
+INCLUDES += license
+
+LIBLICENSESRCS := $(addprefix license/, \
+	storage.cc \
+	licensemgr.cc)
+USERSRCS += $(LIBLICENSESRCS)
+
+$(call TOOBJSDEPS, $(LIBLICENSESRCS)) : EXTRAFLAGS=-fPIC
+
+TARGETS += $(LIB_DIR)/liblicense.a
+
+$(LIB_DIR)/liblicense.a: $(patsubst %.cc,objects/%.o,$(LIBLICENSESRCS))
+	$(ECHO) Creating library $(notdir $@)
+	@mkdir -p $(LIB_DIR)
+	@rm -f $@
+	$(Q)$(AR) crf $@ $^
+
+$(patsubst ./license/%,../include/%,$(wildcard ./license/*.hh)): ../include/%.hh: ./license/%.hh
+	cp $^ $@

@@ -89,7 +89,7 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 
 #include "nml_prettyprint.hh"
 
-#include "licensecheck.hh"
+#include "licensemgr.hh"
 
 //#define EMCTASK_DEBUG
 
@@ -3594,11 +3594,20 @@ int main(int argc, char *argv[])
 	exit(1);
     }
 
-    // Read the NV flash, verify the machine jwt and refresh the cleartext
+
+
+    // Try to read the NV flash.  If it contains valid data,
+    ///    - verify the machine jwt
+    //     - refresh the cleartext machine.json and license.json files
+    //     - if machine.dat encoded jwt is newer than flash contents, verify it and then write it into flash
+
     // cleartext files for the python UI
-    FlashStorage flash(emc_inifile);
-    License license(flash);
-    license.refresh_cleartext_files();
+    Storage storage(emc_inifile);
+    LicenseMgr licmgr(storage);
+    licmgr.refresh_cleartext_files();
+
+
+
 
     // get our status data structure
     // moved up from emc_startup so we can expose it in Python right away

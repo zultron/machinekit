@@ -12,7 +12,7 @@
 #include <string>
 #include <iostream>
 
-#include "flashstorage.hh"
+#include "storage.hh"
 
 
 Storage::Storage(const char* ini_filename)
@@ -85,7 +85,10 @@ time_t Storage::read_timestamp(const std::string& path)
     int fd = open(path.c_str(), O_RDONLY);
     if (-1 != fd)
     {
-        read(fd, &timestamp, sizeof(timestamp));
+        if (read(fd, &timestamp, sizeof(timestamp)) != sizeof(timestamp))
+        {
+            timestamp = 0;  // recover from partial read and also to shutup compiler warning
+        }
         close(fd);
         fd = -1;
     }
@@ -247,14 +250,17 @@ bool Storage::zip_exec(const std::string& contents_dir_path,
         // Child
         // zip is rather dumb in giving control over how much of the dir path is stored in the zip
         // so must chdir first to control this.
-        chdir(contents_dir_path.c_str());
-        unlink(zipfile_path.c_str());
-        int ev = execlp("zip",
+        int ev = 12;
+        if (0 == chdir(contents_dir_path.c_str()))
+        {
+            unlink(zipfile_path.c_str());
+            ev = execlp("zip",
                         "zip",
                         "-r",
                         zipfile_path.c_str(),
                         ".",
                         NULL);
+        }
         exit(ev);
     }
     else
@@ -531,7 +537,7 @@ bool Storage::read_public_keys(const std::string& zipfilepath)
 bool Storage::write_file(const std::string& filepath, const std::string data)
 {
     bool result = false;
-    int fd = open(filepath.c_str(), O_CREAT|O_RDWR);
+    int fd = open(filepath.c_str(), O_CREAT|O_RDWR, S_IRUSR|S_IWUSR);
     if (-1 != fd)
     {
         ssize_t cb = write(fd, data.c_str(), data.length());
@@ -605,7 +611,7 @@ bool Storage::write_flash()
                 time_t utcnow = time(NULL);
                 std::string timestamp_path(contents_path);
                 timestamp_path.append("/timestamp");
-                int fd = open(timestamp_path.c_str(), O_CREAT|O_RDWR);
+                int fd = open(timestamp_path.c_str(), O_CREAT|O_RDWR, S_IRUSR|S_IWUSR);
                 if (-1 != fd)
                 {
                     if (sizeof(utcnow) == write(fd, &utcnow, sizeof(utcnow)))
@@ -614,7 +620,6 @@ bool Storage::write_flash()
                     }
                     close(fd);
                     fd = -1;
-                    chmod(timestamp_path.c_str(), S_IRUSR|S_IWUSR);
                 }
 
                 if (result)
