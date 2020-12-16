@@ -6,11 +6,13 @@
 class LicenseMgr
 {
 private:
-    Storage& _storage;
+    Storage _storage;
 
 public:
-    LicenseMgr(Storage& storage);
+    LicenseMgr(const std::string& ini_file_path);
 
-    bool refresh_cleartext_files();
-    void refresh_flash();
+	void perform_boot_maintenance();
+
+	// Called by Cycle Start effectively - any time we try to switch into EMC_TASK_MODE_AUTO
+	bool is_license_valid();
 };

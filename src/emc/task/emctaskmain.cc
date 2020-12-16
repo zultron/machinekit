@@ -91,6 +91,8 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 
 #include "licensemgr.hh"
 
+LicenseMgr* pLicenseMgr = NULL;   // Used by emctask.cc to verify license
+
 //#define EMCTASK_DEBUG
 
 //Simple compile-time debug macro
@@ -3594,21 +3596,6 @@ int main(int argc, char *argv[])
 	exit(1);
     }
 
-
-
-    // Try to read the NV flash.  If it contains valid data,
-    ///    - verify the machine jwt
-    //     - refresh the cleartext machine.json and license.json files
-    //     - if machine.dat encoded jwt is newer than flash contents, verify it and then write it into flash
-
-    // cleartext files for the python UI
-    Storage storage(emc_inifile);
-    LicenseMgr licmgr(storage);
-    licmgr.refresh_cleartext_files();
-
-
-
-
     // get our status data structure
     // moved up from emc_startup so we can expose it in Python right away
     emcStatus = new EMC_STAT;
@@ -3669,6 +3656,9 @@ int main(int argc, char *argv[])
     // it will be set at end of loop from now on
     minTime = DBL_MAX;		// set to value that can never be exceeded
     maxTime = 0.0;		// set to value that can never be underset
+
+    std::string ini_file_path(emc_inifile);
+    pLicenseMgr = new LicenseMgr(ini_file_path);
 
     while (!done) {
         check_ini_hal_items();
@@ -3878,6 +3868,9 @@ int main(int argc, char *argv[])
 
     // clean up everything
     emctask_shutdown();
+
+    delete pLicenseMgr;
+    pLicenseMgr = NULL;
 
     // and leave
     exit(0);

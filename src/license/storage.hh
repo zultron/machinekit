@@ -16,6 +16,19 @@ private:
     std::string _mesa_board;    // 5i25, 7i92, or ECM1
     std::string _mesa_ipaddr;   // Only used for 7i92 or ECM1 boards
 
+    std::string MACHINEJSON_FILEPATH;
+    std::string LICENSEJSON_FILEPATH;
+
+    std::string PRI_MACHINEDAT_FILEPATH;
+    std::string SEC_MACHINEDAT_FILEPATH;
+
+    std::string PRI_LICENSEDAT_FILEPATH;
+    std::string SEC_LICENSEDAT_FILEPATH;
+
+    std::string MACHINEPUBKEY_FILEPATH;
+    std::string LICENSEPUBKEY_FILEPATH;
+
+
     void recursive_rmdir(const std::string& dirpath);
 
     bool create_random_datafile(std::string& path);
@@ -43,8 +56,10 @@ private:
 
     bool read_flash_block(const std::string& block, std::string& zipdir, time_t& timestamp);
 
+
+
 public:
-    Storage(const char* ini_filename);
+    Storage(const std::string& ini_file_path);
 
     #if 0
     // Just for standalone testing

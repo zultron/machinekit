@@ -120,54 +120,6 @@ struct nlohmann_traits {
 
 
 
-
-#define ZERO_STRUCT(ptr) { memset(ptr, 0, sizeof(*ptr)); }
-
-
-
-class MachineJWT
-{
-private:
-    jwt::decoded_jwt<nlohmann_traits> _decoded;
-
-public:
-    MachineJWT();
-    ~MachineJWT();
-
-    void load_jwt(const std::string licensejwtpath);
-    void write_json_file(const std::string jsonpath);
-};
-
-void MachineJWT::write_json_file(const std::string jsonpath)
-{
-}
-
-
-class LicenseJWT
-{
-private:
-    jwt::decoded_jwt<nlohmann_traits> _decoded;
-
-public:
-    LicenseJWT();
-    ~LicenseJWT();
-
-    void load_jwt(const std::string licensejwtpath);
-    bool is_expired();
-    void write_json_file(const std::string jsonpath);
-};
-
-
-void LicenseJWT::write_json_file(const std::string jsonpath)
-{
-    // The python side needs a simple data structure to read
-    // so this dumps out a json file for the license.
-    // But we don't want any of the license validation using public
-    // key or the NV storage of the license to be visible in python
-}
-
-
-
 #if 0
 bool is_license_expired()
 {
@@ -240,41 +192,19 @@ bool is_license_signature_valid()
 }
 #endif
 
-bool is_license_valid()
-{
-    return true;
-#if 0
-        validate license with public key (live or cached)
 
-        valid = !is_license_expired();
-        if (valid)
-        {
-            // Great, we have an unaltered license file that has a time window that hasn't expired yet.
-            // Make sure its actually for this machine...
-
-            // much easier now that we have a json class lib
-
-            // Check serial number
-            // Check model
-            // Read machine.json for now and trust it.
-            // Assume that earlier in the launch the ecm1 flash is read, signature verified, and then unpacked.
-            ;
-        }
-#endif
-}
-
-
-LicenseMgr::LicenseMgr(Storage& storage) :
-    _storage(storage)
+LicenseMgr::LicenseMgr(const std::string& ini_file_path)
+    : _storage(ini_file_path)
 {
 }
 
-bool LicenseMgr::refresh_cleartext_files()
+void LicenseMgr::perform_boot_maintenance()
 {
     // Read the machine jwt and public keys from NV flash
     bool result = _storage.read_flash();
     if (result)
     {
+        std::cerr << "               flash read successful" << std::endl;
         const std::string& jwt_encoded = _storage.get_machine_jwt_encoded();
 
         // Decode the machine jwt and write over /boot/machine.dat
@@ -314,21 +244,36 @@ bool LicenseMgr::refresh_cleartext_files()
         lease image is simply an initial machine.json with the license type = limited (sprinkled around the drive in a few spots)?
         #endif
 
-        std::cout << "                                  WOW MOM\n";
-        std::cout << "{\n";
+        std::cerr << "                             Verified Machine Payload Claims" << std::endl;
+        std::cerr << "{" << std::endl;
         for (auto &e : jwt_decoded.get_payload_claims())
-            std::cout << e.first << " = " << e.second.to_json() << std::endl;
-        std::cout << "}\n";
+            std::cerr << e.first << " = " << e.second.to_json() << std::endl;
+        std::cerr << "}" << std::endl;
     }
-
-    return result;
+    else
+    {
+        std::cerr << "               flash read failed - either never written to or corrupt" << std::endl;
+    }
 }
 
 
-void LicenseMgr::refresh_flash()
+bool LicenseMgr::is_license_valid()
 {
-    // Take the license that was acquired by the python UI, verify it,
-    // and write into flash for stability
+    // Called by emctask.cc anytime we try to go into EMC_TASK_MODE_AUTO
+    // (effectively every time Cycle Start button is pressed)
+
+    // In this context we cannot read or write NV flash so we must rely on the
+    // disk primary and secondary .dat files.
+
+    #if 0
+    read public keys from files
+    read primary and secondary machine.dat jwt tokens and validate them
+    read primary and secondary license.dat jwt tokens and validate them
+    check that license matches key machine elements
+    check that license is not expired
+    #endif
+
+    return false;
 }
 
 

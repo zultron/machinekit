@@ -7,7 +7,7 @@
 * Author:
 * License: GPL Version 2
 * System: Linux
-*    
+*
 * Copyright (c) 2004 All rights reserved.
 *
 * Last change:
@@ -36,8 +36,11 @@
 #include "python_plugin.hh"
 #include "taskclass.hh"
 #include "modal_state.hh"
+#include "licensemgr.hh"
 #include "interp_parameter_def.hh"
 using namespace interp_param_global;
+
+extern LicenseMgr* pLicenseMgr;   // Declared and managed in emctaskmain.cc
 
 #define CALL_AND_RETURN(call__) do {\
     int retval = call__; \
@@ -61,8 +64,6 @@ InterpBase *pinterp = nullptr;
 
 setup_pointer _is = 0; // helper for gdb hardware watchpoints FIXME
 
-bool is_license_valid();
-
 // Saved tag for restoring interp after abort
 static state_tag_t saved_tag = {};
 
@@ -82,7 +83,7 @@ static void user_defined_add_m_code(int num, double arg1, double arg2)
     char fmt[EMC_SYSTEM_CMD_LEN];
     EMC_SYSTEM_CMD system_cmd;
 
-    //we call FINISH() to flush any linked motions before the M1xx call, 
+    //we call FINISH() to flush any linked motions before the M1xx call,
     //otherwise they would mix badly
     FINISH();
     strcpy(fmt, user_defined_fmt[user_defined_function_dirindex[num]]);
@@ -165,7 +166,7 @@ int emcTaskInit()
 		    // set the user_defined_fmt string with dirname
 		    // note the %%02d means 2 digits after the M code
 		    // and we need two % to get the literal %
-		    snprintf(user_defined_fmt[dct], sizeof(user_defined_fmt[0]), 
+		    snprintf(user_defined_fmt[dct], sizeof(user_defined_fmt[0]),
 			     "%s/M1%%02d", expanddir); // update global
 		    USER_DEFINED_FUNCTION_ADD(user_defined_add_m_code,num);
 		    if (emc_debug & EMC_DEBUG_CONFIG) {
@@ -247,7 +248,7 @@ int emcTaskAbort()
 
     // now queue up command to resynch interpreter
 
-    // hits interp list directly so uses whatever is hanging around in there for 'next line number'   
+    // hits interp list directly so uses whatever is hanging around in there for 'next line number'
     EMC_TASK_PLAN_SYNCH taskPlanSynchCmd;
     emcTaskQueueCommand(&taskPlanSynchCmd);
 
@@ -287,7 +288,7 @@ int emcTaskSetMode(int mode)
 
     case EMC_TASK_MODE_AUTO:
     	// simulate license failure...
-	licenseValid = is_license_valid();
+        licenseValid = pLicenseMgr->is_license_valid();
 	if (licenseValid) {
 	    // go to auto mode
 	    emcTrajSetMode(EMC_TRAJ_MODE_COORD);
@@ -656,11 +657,11 @@ int emcTaskPlanRead()
     if (retval > INTERP_MIN_ERROR) {
 	print_interp_error(retval);
     }
-    
+
     if (emc_debug & EMC_DEBUG_INTERP) {
         rcs_print("emcTaskPlanRead() returned %d\n", retval);
     }
-    
+
     return retval;
 }
 
@@ -721,7 +722,7 @@ int emcTaskPlanReset()
 int emcTaskPlanLine()
 {
     int retval = pinterp->line();
-    
+
     if (emc_debug & EMC_DEBUG_INTERP) {
         rcs_print("emcTaskPlanLine() returned %d\n", retval);
     }

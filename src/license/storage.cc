@@ -11,23 +11,48 @@
 
 #include <string>
 #include <iostream>
+#include <cstdlib>
 
 #include "storage.hh"
 
 
-Storage::Storage(const char* ini_filename)
+static const int LICENSE_TYPE_UNMANAGED   = 0;
+static const int LICENSE_TYPE_TIMELIMITED = 1;
+
+
+Storage::Storage(const std::string& ini_file_path) :
+    MACHINEJSON_FILEPATH(std::getenv("HOME")),
+    LICENSEJSON_FILEPATH(std::getenv("HOME")),
+    PRI_MACHINEDAT_FILEPATH(std::getenv("HOME")),
+    SEC_MACHINEDAT_FILEPATH("/boot"),
+    PRI_LICENSEDAT_FILEPATH(std::getenv("HOME")),
+    SEC_LICENSEDAT_FILEPATH("/boot"),
+    MACHINEPUBKEY_FILEPATH("/boot"),
+    LICENSEPUBKEY_FILEPATH("/boot")
 {
+    MACHINEJSON_FILEPATH.append("/machine.json");
+    LICENSEJSON_FILEPATH.append("/license.json");
+
+    PRI_MACHINEDAT_FILEPATH.append("/machine.dat");
+    SEC_MACHINEDAT_FILEPATH.append("/home/partimag/m");
+
+    PRI_LICENSEDAT_FILEPATH.append("/license.dat");
+    SEC_LICENSEDAT_FILEPATH.append("/home/partimag/l");
+
+    MACHINEPUBKEY_FILEPATH.append("/home/partimag/0");
+    LICENSEPUBKEY_FILEPATH.append("/home/partimag/1");
+
     IniFile inifile;
-    if (inifile.Open(ini_filename))
+    if (inifile.Open(ini_file_path.c_str()))
     {
-        const char* board = inifile.Find("HOSTMOT2", "BOARD");
+        const char* board = inifile.Find("BOARD", "HOSTMOT2");
         if (NULL != board)
         {
             _mesa_board.assign(board);
 
             if (_mesa_board != "5i25")
             {
-                const char* params = inifile.Find("HOSTMOT2", "DRIVER_PARAMS");
+                const char* params = inifile.Find("DRIVER_PARAMS", "HOSTMOT2");
                 // Pull the board_ip=n.n.n.n string which has to be first without any spaces
                 const char* addr = strstr(params, "board_ip=");
                 if (NULL != addr)
@@ -36,7 +61,7 @@ Storage::Storage(const char* ini_filename)
                     const char* addrend = strstr(addr, " ");
                     if (NULL != addrend)
                     {
-                        _mesa_ipaddr.assign(addr, addrend-1);
+                        _mesa_ipaddr.assign(addr, addrend);
                     }
                 }
             }
@@ -290,6 +315,7 @@ bool Storage::unzip_exec(const std::string& zipfilepath,
         // Child
         int ev = execlp("unzip",
                         "unzip",
+                        "-qq",
                         zipfilepath.c_str(),
                         "-d",
                         tmpdirpath.c_str(),

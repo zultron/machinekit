@@ -34,8 +34,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "hal.h"
+#include <string.h>
 
+#include "hal.h"
 #include "licensemgr.hh"
 
 // misdirection for user comp name
@@ -48,10 +49,12 @@ static void exit_handler(int sig)
 {
     fprintf(stderr, "%s: exiting\n", modname);
 
+    // "halcmd list comp" over and over until hostmot2 not listed
+
     // might be able to reliably put the nv flash write stuff here
-    fprintf(stderr, "%s: waiting prior to exit\n", modname);
-    sleep(15);
-    fprintf(stderr, "%s: done sleeping - now exiting\n", modname);
+    fprintf(stderr, "%s: simulating nv flash writing taking awhile\n", modname);
+    sleep(10);
+    fprintf(stderr, "%s: nv flash write done - now exiting\n", modname);
 
     exit(0);
 }
@@ -65,37 +68,41 @@ static void call_hal_exit(void)
 
 int main(int argc, char *argv[])
 {
+	int retcode = 1;
     fprintf(stderr, "%s: starting\n", modname);
+	if (argc == 2)
+	{
+		hal_comp_id = hal_init(modname);
+		if (hal_comp_id >= 1)
+		{
+		    signal(SIGINT, exit_handler);
+		    signal(SIGTERM, exit_handler);
+		    atexit(call_hal_exit);
 
-    hal_comp_id = hal_init(modname);
-    if (hal_comp_id < 1)
-    {
-        fprintf(stderr, "%s: hal_init failed\n", modname);
-        exit(1);
-    }
+		    fprintf(stderr, "%s:         LicMgr init\n", modname);
+		    std::string ini_file_path(argv[1]);
+		    LicenseMgr licmgr(ini_file_path);
+		    licmgr.perform_boot_maintenance();
 
-    signal(SIGINT, exit_handler);
-    signal(SIGTERM, exit_handler);
-    atexit(call_hal_exit);
+		    // Read of hal script is holding off for us to be ready - esp. hostmot2 so do not
+		    // signal ready until no more mesaflash interaction.
+		    hal_ready(hal_comp_id);
 
-    hal_ready(hal_comp_id);
+		    // Just kill time until exit when we might need to write nv flash
+		    while (1)
+		    {
+		        sleep(60);
+		    }
+		}
+		else
+	    {
+	        fprintf(stderr, "%s: hal_init failed\n", modname);
+	    }
+	}
+	else
+	{
+		fprintf(stderr, "%s: required ini file path argument missing\n", modname);
+	}
 
-    Storage storage("ini file name");
-    LicenseMgr licmgr(storage);
-
-    // super loop
-    while (1)
-    {
-
-
-
-        // Read NV flash and update files and such
-        // Cache last modtime for .dat files on SSD
-        // Upon start of exit, check to see if we need to write NV flash with updated .dat
-        // file material.
-        sleep(5);
-    }
-
-    // should never get here
-    exit(0);
+	exit(retcode);
 }
