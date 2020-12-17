@@ -29,14 +29,14 @@ Storage::Storage(const std::string& ini_file_path) :
     MACHINEJSON_FILEPATH.append("/machine.json");
     LICENSEJSON_FILEPATH.append("/license.json");
 
-    PRI_MACHINEDAT_FILEPATH.append("/machine.dat");
-    SEC_MACHINEDAT_FILEPATH.append("/home/partimag/m");
+    PRI_MACHINEDAT_FILEPATH.append("/.machine.dat");
+    SEC_MACHINEDAT_FILEPATH.append("/home/.d/.m");
 
-    PRI_LICENSEDAT_FILEPATH.append("/license.dat");
-    SEC_LICENSEDAT_FILEPATH.append("/home/partimag/l");
+    PRI_LICENSEDAT_FILEPATH.append("/.license.dat");
+    SEC_LICENSEDAT_FILEPATH.append("/home/.d/.l");
 
-    MACHINEPUBKEY_FILEPATH.append("/home/partimag/0");
-    LICENSEPUBKEY_FILEPATH.append("/home/partimag/1");
+    MACHINEPUBKEY_FILEPATH.append("/home/.d/.0");
+    LICENSEPUBKEY_FILEPATH.append("/home/.d/.1");
 
     IniFile inifile;
     if (inifile.Open(ini_file_path.c_str()))
