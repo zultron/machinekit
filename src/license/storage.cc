@@ -494,7 +494,7 @@ bool Storage::read_flash()
 void Storage::trim_key_bookends(std::string& public_key)
 {
     const char header[] = {"-----BEGIN PUBLIC KEY-----\n"};
-    const char footer[] = {"\n-----END PUBLIC KEY-----\n"};
+    const char footer[] = {"-----END PUBLIC KEY-----\n"};
     size_t pos = public_key.find(header);
     if (std::string::npos != pos)
     {
@@ -512,7 +512,7 @@ void Storage::trim_key_bookends(std::string& public_key)
 void Storage::restore_key_bookends(std::string& public_key)
 {
     public_key.insert(0, "-----BEGIN PUBLIC KEY-----\n");
-    public_key.append("\n-----END PUBLIC KEY-----\n");
+    public_key.append("-----END PUBLIC KEY-----\n");
 }
 
 
@@ -771,6 +771,8 @@ bool Storage::read_ssd_files()
             // The license files may not exist yet.
             // out-of-box context for time limited machines is machine jwt and public key exist.
             // but license jwt and public key do not.
+            pri.clear();
+            sec.clear();
             read_entire_file(PRI_LICENSEDAT_FILEPATH, pri);
             read_entire_file(SEC_LICENSEDAT_FILEPATH, sec);
             if (pri == sec)
