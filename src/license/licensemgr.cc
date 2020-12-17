@@ -212,19 +212,39 @@ bool LicenseMgr::check_all_claims()
 }
 
 
+void LicenseMgr::write_json_claims(
+    const std::string& filepath,
+    const std::unordered_map< typename nlohmann_traits::string_type, jwt::basic_claim<nlohmann_traits>  >& claims)
+{
+    fstream json;
+    json.open(filepath, ios_base::out | ios_base::trunc);
+    json << "{" << endl;
+    bool first = true;
+    for (auto &e : claims)
+    {
+        if (! first)
+        {
+            json << "," << endl;
+        }
+        json << "    \"" << e.first << "\": " << e.second.to_json();
+        first = false;
+    }
+    json << endl << "}" << endl;
+    json.close();
+}
+
+
 void LicenseMgr::update_json_files()
 {
     // We can trust the claims of jwt
     if (_p_machine_jwt_decoded)
     {
         // Update the cleartext machine.json for the benefit of the python UI
-        fstream mjson;
-        mjson.open(_storage.MACHINEJSON_FILEPATH, ios_base::out | ios_base::trunc);
-        mjson << "{" << endl;
-        for (auto &e : _p_machine_jwt_decoded->get_payload_claims())
-            mjson << e.first << ": " << e.second.to_json() << endl;
-        mjson << "}" << endl;
-        mjson.close();
+        // Maybe the json library or the jwt library have some way to serialize
+        // to a json string, but damned if I can figure that out (c++ header only
+        // template libraries are unreadable by anyone other than a compiler).
+        write_json_claims(_storage.MACHINEJSON_FILEPATH,
+                          _p_machine_jwt_decoded->get_payload_claims());
     }
     else
     {
@@ -234,13 +254,11 @@ void LicenseMgr::update_json_files()
     if (_p_license_jwt_decoded)
     {
         // Update the cleartext license.json for the benefit of the python UI
-        fstream ljson;
-        ljson.open(_storage.LICENSEJSON_FILEPATH, ios_base::out | ios_base::trunc);
-        ljson << "{" << endl;
-        for (auto &e : _p_license_jwt_decoded->get_payload_claims())
-            ljson << e.first << ": " << e.second.to_json() << endl;
-        ljson << "}" << endl;
-        ljson.close();
+        // Maybe the json library or the jwt library have some way to serialize
+        // to a json string, but damned if I can figure that out (c++ header only
+        // template libraries are unreadable by anyone other than a compiler).
+        write_json_claims(_storage.LICENSEJSON_FILEPATH,
+                          _p_license_jwt_decoded->get_payload_claims());
     }
     else
     {

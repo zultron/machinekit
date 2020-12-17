@@ -109,8 +109,8 @@ struct nlohmann_traits {
 
 enum license_type_t
 {
-	LICENSE_TYPE_UNMANAGED   = 0,
-	LICENSE_TYPE_TIMELIMITED
+    LICENSE_TYPE_UNMANAGED   = 0,
+    LICENSE_TYPE_TIMELIMITED
 };
 
 class LicenseMgr
@@ -118,24 +118,26 @@ class LicenseMgr
 private:
     Storage _storage;
     bool _flash_update_needed;
-  	license_type_t _license_type;
+    license_type_t _license_type;
 
     jwt::decoded_jwt<nlohmann_traits>* _p_machine_jwt_decoded;
     jwt::decoded_jwt<nlohmann_traits>* _p_license_jwt_decoded;
 
-	void update_json_files();
-	bool verify_machine_jwt();
-	bool verify_license_jwt();
-	bool check_all_claims();
+    void update_json_files();
+    bool verify_machine_jwt();
+    bool verify_license_jwt();
+    bool check_all_claims();
+    void write_json_claims(const std::string& filepath,
+                           const std::unordered_map< typename nlohmann_traits::string_type, jwt::basic_claim<nlohmann_traits>  >& claims);
 
 public:
     LicenseMgr(const std::string& ini_file_path);
     virtual ~LicenseMgr();
 
-	void perform_boot_maintenance();
+    void perform_boot_maintenance();
 
-	// Called by emctaskmain
-	void perform_emctaskmain_init();
-	// Called by Cycle Start effectively - any time we try to switch into EMC_TASK_MODE_AUTO
-	bool is_license_valid();
+    // Called by emctaskmain
+    void perform_emctaskmain_init();
+    // Called by Cycle Start effectively - any time we try to switch into EMC_TASK_MODE_AUTO
+    bool is_license_valid();
 };
