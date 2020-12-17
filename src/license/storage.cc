@@ -77,17 +77,21 @@ void Storage::recursive_rmdir(const std::string& dirpath)
              dirent != NULL;
              dirent = readdir(dir))
         {
-            std::string fullpath(dirpath);
-            fullpath.append("/");
-            fullpath.append(dirent->d_name);
-            if (DT_REG == dirent->d_type)
+            if ((0 != strcmp(dirent->d_name, ".")) &&
+                (0 != strcmp(dirent->d_name, "..")))
             {
-                unlink(fullpath.c_str());
-            }
-            else if (DT_DIR == dirent->d_type)
-            {
-                // recurse to continue deleting...
-                recursive_rmdir(fullpath);
+                std::string fullpath(dirpath);
+                fullpath.append("/");
+                fullpath.append(dirent->d_name);
+                if (DT_REG == dirent->d_type)
+                {
+                    unlink(fullpath.c_str());
+                }
+                else if (DT_DIR == dirent->d_type)
+                {
+                    // recurse to continue deleting...
+                    recursive_rmdir(fullpath);
+                }
             }
         }
 
