@@ -3659,6 +3659,7 @@ int main(int argc, char *argv[])
 
     std::string ini_file_path(emc_inifile);
     pLicenseMgr = new LicenseMgr(ini_file_path);
+    pLicenseMgr->perform_emctaskmain_init();
 
     while (!done) {
         check_ini_hal_items();

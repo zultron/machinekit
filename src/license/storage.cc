@@ -16,19 +16,15 @@
 #include "storage.hh"
 
 
-static const int LICENSE_TYPE_UNMANAGED   = 0;
-static const int LICENSE_TYPE_TIMELIMITED = 1;
-
-
 Storage::Storage(const std::string& ini_file_path) :
-    MACHINEJSON_FILEPATH(std::getenv("HOME")),
-    LICENSEJSON_FILEPATH(std::getenv("HOME")),
     PRI_MACHINEDAT_FILEPATH(std::getenv("HOME")),
     SEC_MACHINEDAT_FILEPATH("/boot"),
     PRI_LICENSEDAT_FILEPATH(std::getenv("HOME")),
     SEC_LICENSEDAT_FILEPATH("/boot"),
     MACHINEPUBKEY_FILEPATH("/boot"),
-    LICENSEPUBKEY_FILEPATH("/boot")
+    LICENSEPUBKEY_FILEPATH("/boot"),
+    MACHINEJSON_FILEPATH(std::getenv("HOME")),
+    LICENSEJSON_FILEPATH(std::getenv("HOME"))
 {
     MACHINEJSON_FILEPATH.append("/machine.json");
     LICENSEJSON_FILEPATH.append("/license.json");
@@ -520,6 +516,25 @@ void Storage::restore_key_bookends(std::string& public_key)
 }
 
 
+bool Storage::read_public_keys_from_files()
+{
+    bool result = read_entire_file(MACHINEPUBKEY_FILEPATH, _machine_public_key);
+    if (result)
+    {
+        restore_key_bookends(_machine_public_key);
+
+        // The license public key may or may not be present
+        result = read_entire_file(LICENSEPUBKEY_FILEPATH, _license_public_key);
+        if (result)
+        {
+            restore_key_bookends(_license_public_key);
+        }
+        result = true;
+    }
+    return result;
+}
+
+
 bool Storage::read_public_keys(const std::string& zipfilepath)
 {
     bool result = false;
@@ -531,25 +546,27 @@ bool Storage::read_public_keys(const std::string& zipfilepath)
         result = unzip_exec(zipfilepath, zipdir_path_str);
         if (result)
         {
-            // The key files are not guaranteed to exist.
+            // The machine key file should exist.
             std::string keyfilepath(zipdir_path_str);
             keyfilepath.append("/0");
             result = read_entire_file(keyfilepath, _machine_public_key);
             if (result)
             {
                 restore_key_bookends(_machine_public_key);
-            }
 
-            keyfilepath.assign(zipdir_path_str);
-            keyfilepath.append("/1");
-            result = read_entire_file(keyfilepath, _license_public_key);
-            if (result)
-            {
-                restore_key_bookends(_license_public_key);
-            }
+                // The license key file may or may not.  Out of box time limited machines
+                // won't have one until a successful license is acquired and written to flash.
+                keyfilepath.assign(zipdir_path_str);
+                keyfilepath.append("/1");
+                result = read_entire_file(keyfilepath, _license_public_key);
+                if (result)
+                {
+                    restore_key_bookends(_license_public_key);
+                }
 
-            // Overall we succeed even if either of the individual public keys are missing.
-            result = true;
+                // Overall we succeed even if license public key is missing.
+                result = true;
+            }
         }
 
         // Be sure to cleanup
@@ -583,20 +600,24 @@ bool Storage::write_public_keys(std::string& zipfile_path)
     {
         std::string zipdir_path_str(zipdir_path);
 
+        // machine public key should always exist
         std::string machine_public_key_trimmed(_machine_public_key);
         trim_key_bookends(machine_public_key_trimmed);
-
-        std::string license_public_key_trimmed(_license_public_key);
-        trim_key_bookends(license_public_key_trimmed);
-
         std::string keyfilepath(zipdir_path_str);
         keyfilepath.append("/0");
         result = write_file(keyfilepath, machine_public_key_trimmed);
         if (result)
         {
-            keyfilepath.assign(zipdir_path_str);
-            keyfilepath.append("/1");
-            result = write_file(keyfilepath, license_public_key_trimmed);
+            // license public key will only be present if we've been able to acquire
+            // one from hub
+            if (_license_public_key.length() > 0)
+            {
+                std::string license_public_key_trimmed(_license_public_key);
+                trim_key_bookends(license_public_key_trimmed);
+                keyfilepath.assign(zipdir_path_str);
+                keyfilepath.append("/1");
+                result = write_file(keyfilepath, license_public_key_trimmed);
+            }
 
             if (result)
             {
@@ -706,6 +727,71 @@ bool Storage::write_flash()
 
         // Be sure to cleanup
         recursive_rmdir(contents_path);
+    }
+
+    return result;
+}
+
+
+bool Storage::read_ssd_files()
+{
+    // TODO
+    // save mtimes for each file we read so we can tell on later
+    // calls if its worth reading new ones.
+    // and if mtimes have changed, then we set the flash flag
+    // to write that upon shutdown
+
+    // out-of-box context for time limited machines is machine jwt and public key exist.
+    // but license jwt and public key do not.
+    bool result = read_public_keys_from_files();
+    if (result)
+    {
+        // Now read the primary and secondary files for the machine token
+        std::string pri;
+        std::string sec;
+        read_entire_file(PRI_MACHINEDAT_FILEPATH, pri);
+        read_entire_file(SEC_MACHINEDAT_FILEPATH, sec);
+        if ((pri == sec) && (pri.length() > 0))
+        {
+            _machine_jwt_encoded = pri;
+        }
+        else if (sec.length() > 0)
+        {
+            // If pri and sec don't match, we assume they've been trying to defeat licensing
+            // by messing with the pri file.  Trust the sec if you have to pick just one.
+            _machine_jwt_encoded = sec;
+        }
+        else
+        {
+            result = false;
+        }
+
+        if (result)
+        {
+            // The license files may not exist yet.
+            // out-of-box context for time limited machines is machine jwt and public key exist.
+            // but license jwt and public key do not.
+            read_entire_file(PRI_LICENSEDAT_FILEPATH, pri);
+            read_entire_file(SEC_LICENSEDAT_FILEPATH, sec);
+            if (pri == sec)
+            {
+                if (pri.length() > 0)
+                {
+                    _license_jwt_encoded = pri;
+                }
+                // otherwise they are both empty - which is ok also as a license must not exist yet.
+            }
+            else if (sec.length() > 0)
+            {
+                // If pri and sec don't match, we assume they've been trying to defeat licensing
+                // by messing with the pri file.  Trust the sec if you have to pick just one.
+                _license_jwt_encoded = sec;
+            }
+            else
+            {
+                result = false; // something fishy going on
+            }
+        }
     }
 
     return result;
