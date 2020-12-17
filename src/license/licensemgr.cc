@@ -269,6 +269,8 @@ void LicenseMgr::update_json_files()
 
 void LicenseMgr::perform_boot_maintenance()
 {
+    bool json_overwrite = true;
+
     // out-of-box context for time limited machines is machine jwt and public key exist.
     // but license jwt and public key do not.
 
@@ -323,13 +325,47 @@ void LicenseMgr::perform_boot_maintenance()
                 // and license public key if it exists
                 _storage.write_flash();
             }
+
+            // during out of box boot, the machine jwt will only have the license flag set
+            // and no guid or sn.  the config chooser sets those in the clear text json
+            // file.  if we overwrite the json files with only verified machine jwt contents
+            // we lose that.  so in thie specific situation, we want to merge machine jwt
+            // and the existing machine.json.  That way later the hub browser can provide
+            // the full machine json to get verified and signed by the hub server and
+            // get back a fully signed machine.jwt that can then be written into flash.
+            if ((_p_machine_jwt_decoded->get_payload_claim("sn").as_string() == "") &&
+                (_p_machine_jwt_decoded->get_payload_claim("guid").as_string() == ""))
+            {
+                ifstream jsonfile;
+                jsonfile.open(_storage.MACHINEJSON_FILEPATH, ios_base::in);
+                jsonfile.seekg(0, ios::end);
+                size_t cb = jsonfile.tellg();
+                jsonfile.seekg(0);
+                char* buffer = new char[cb+1];
+                jsonfile.read(buffer, cb);
+                jsonfile.close();
+
+                nlohmann::json machinejson = nlohmann::json::parse(buffer);
+
+                delete[] buffer;
+                buffer = NULL;
+
+                if (machinejson["lic"] == _p_machine_jwt_decoded->get_payload_claim("lic").as_int())
+                {
+                    // ok - we can skip overwriting the json in this one special case.
+                    json_overwrite = false;
+                }
+            }
         }
     }
 
     // we don't do any jwt claim checking here because that's all enforced
     // if necessary at Cycle Start time with the call to is_license_valid()
 
-    update_json_files();
+    if (json_overwrite)
+    {
+        update_json_files();
+    }
 }
 
 
