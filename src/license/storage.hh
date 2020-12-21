@@ -21,11 +21,8 @@ private:
     // store mtimes for each of these files
     // have read_ssd_files check those and skip even reading the file
     // if the time hasn't changed.
-    std::string PRI_MACHINEDAT_FILEPATH;
-    std::string SEC_MACHINEDAT_FILEPATH;
-
-    std::string PRI_LICENSEDAT_FILEPATH;
-    std::string SEC_LICENSEDAT_FILEPATH;
+    std::string MACHINEDAT_FILEPATH;
+    std::string LICENSEDAT_FILEPATH;
 
     std::string MACHINEPUBKEY_FILEPATH;
     std::string LICENSEPUBKEY_FILEPATH;

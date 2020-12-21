@@ -17,10 +17,8 @@
 
 
 Storage::Storage(const std::string& ini_file_path) :
-    PRI_MACHINEDAT_FILEPATH(std::getenv("HOME")),
-    SEC_MACHINEDAT_FILEPATH("/boot"),
-    PRI_LICENSEDAT_FILEPATH(std::getenv("HOME")),
-    SEC_LICENSEDAT_FILEPATH("/boot"),
+    MACHINEDAT_FILEPATH("/boot"),
+    LICENSEDAT_FILEPATH("/boot"),
     MACHINEPUBKEY_FILEPATH("/boot"),
     LICENSEPUBKEY_FILEPATH("/boot"),
     MACHINEJSON_FILEPATH(std::getenv("HOME")),
@@ -29,11 +27,8 @@ Storage::Storage(const std::string& ini_file_path) :
     MACHINEJSON_FILEPATH.append("/machine.json");
     LICENSEJSON_FILEPATH.append("/license.json");
 
-    PRI_MACHINEDAT_FILEPATH.append("/.machine.dat");
-    SEC_MACHINEDAT_FILEPATH.append("/home/.d/.m");
-
-    PRI_LICENSEDAT_FILEPATH.append("/.license.dat");
-    SEC_LICENSEDAT_FILEPATH.append("/home/.d/.l");
+    MACHINEDAT_FILEPATH.append("/home/.d/.m");
+    LICENSEDAT_FILEPATH.append("/home/.d/.l");
 
     MACHINEPUBKEY_FILEPATH.append("/home/.d/.0");
     LICENSEPUBKEY_FILEPATH.append("/home/.d/.1");
@@ -750,22 +745,9 @@ bool Storage::read_ssd_files()
     bool result = read_public_keys_from_files();
     if (result)
     {
-        // Now read the primary and secondary files for the machine token
-        std::string pri;
-        std::string sec;
-        read_entire_file(PRI_MACHINEDAT_FILEPATH, pri);
-        read_entire_file(SEC_MACHINEDAT_FILEPATH, sec);
-        if ((pri == sec) && (pri.length() > 0))
-        {
-            _machine_jwt_encoded = pri;
-        }
-        else if (sec.length() > 0)
-        {
-            // If pri and sec don't match, we assume they've been trying to defeat licensing
-            // by messing with the pri file.  Trust the sec if you have to pick just one.
-            _machine_jwt_encoded = sec;
-        }
-        else
+        // Now read the encoded machine token
+        read_entire_file(MACHINEDAT_FILEPATH, _machine_jwt_encoded);
+        if (_machine_jwt_encoded.length() == 0)
         {
             result = false;
         }
@@ -775,28 +757,7 @@ bool Storage::read_ssd_files()
             // The license files may not exist yet.
             // out-of-box context for time limited machines is machine jwt and public key exist.
             // but license jwt and public key do not.
-            pri.clear();
-            sec.clear();
-            read_entire_file(PRI_LICENSEDAT_FILEPATH, pri);
-            read_entire_file(SEC_LICENSEDAT_FILEPATH, sec);
-            if (pri == sec)
-            {
-                if (pri.length() > 0)
-                {
-                    _license_jwt_encoded = pri;
-                }
-                // otherwise they are both empty - which is ok also as a license must not exist yet.
-            }
-            else if (sec.length() > 0)
-            {
-                // If pri and sec don't match, we assume they've been trying to defeat licensing
-                // by messing with the pri file.  Trust the sec if you have to pick just one.
-                _license_jwt_encoded = sec;
-            }
-            else
-            {
-                result = false; // something fishy going on
-            }
+            read_entire_file(LICENSEDAT_FILEPATH, _license_jwt_encoded);
         }
     }
 
