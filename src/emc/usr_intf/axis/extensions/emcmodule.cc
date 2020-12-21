@@ -1,5 +1,5 @@
 //    This is a component of AXIS, a front-end for LinuxCNC
-//    Copyright 2004, 2005, 2006 Jeff Epler <jepler@unpythonic.net> and 
+//    Copyright 2004, 2005, 2006 Jeff Epler <jepler@unpythonic.net> and
 //    Chris Radek <chris@timeguy.com>
 //
 //    This program is free software; you can redistribute it and/or modify
@@ -141,9 +141,9 @@ static int Ini_init(pyIniFile *self, PyObject *a, PyObject *k) {
 
 static PyObject *Ini_find(pyIniFile *self, PyObject *args) {
     const char *s1, *s2, *out;
-    int num = 1; 
+    int num = 1;
     if(!PyArg_ParseTuple(args, "ss|i:find", &s1, &s2, &num)) return NULL;
-    
+
     out = self->i->Find(s2, s1, num);
     if(out == NULL) {
         Py_INCREF(Py_None);
@@ -154,9 +154,9 @@ static PyObject *Ini_find(pyIniFile *self, PyObject *args) {
 
 static PyObject *Ini_findall(pyIniFile *self, PyObject *args) {
     const char *s1, *s2, *out;
-    int num = 1; 
+    int num = 1;
     if(!PyArg_ParseTuple(args, "ss:findall", &s1, &s2)) return NULL;
-    
+
     PyObject *result = PyList_New(0);
     while(1) {
         out = self->i->Find(s2, s1, num);
@@ -302,7 +302,7 @@ static void Stat_dealloc(PyObject *self) {
 }
 
 static bool check_stat(RCS_STAT_CHANNEL *emcStatusBuffer) {
-    if(!emcStatusBuffer->valid()) { 
+    if(!emcStatusBuffer->valid()) {
         PyErr_Format( error, "emcStatusBuffer invalid err=%d", emcStatusBuffer->error_type);
         return false;
     }
@@ -426,7 +426,7 @@ static PyMethodDef Stat_methods[] = {
 
 #define O(x) offsetof(pyStatChannel,status.x)
 static PyMemberDef Stat_members[] = {
-// stat 
+// stat
     {(char*)"echo_serial_number", T_INT, O(echo_serial_number), READONLY},
     {(char*)"state", T_INT, O(status), READONLY},
 
@@ -484,7 +484,7 @@ static PyMemberDef Stat_members[] = {
     {(char*)"feedrate", T_DOUBLE, O(motion.traj.scale), READONLY},
     {(char*)"rapidrate", T_DOUBLE, O(motion.traj.rapid_scale), READONLY},
     {(char*)"spindlerate", T_DOUBLE, O(motion.traj.spindle_scale), READONLY},
-    
+
     {(char*)"velocity", T_DOUBLE, O(motion.traj.velocity), READONLY},
     {(char*)"acceleration", T_DOUBLE, O(motion.traj.acceleration), READONLY},
     {(char*)"max_velocity", T_DOUBLE, O(motion.traj.maxVelocity), READONLY},
@@ -965,7 +965,7 @@ static PyObject *block_delete(pyCommandChannel *s, PyObject *o) {
 
     if(!PyArg_ParseTuple(o, "i", &t)) return NULL;
     m.state = t;
-            
+
     emcSendCommand(s, m);
 
     Py_INCREF(Py_None);
@@ -1124,8 +1124,8 @@ static PyObject *state(pyCommandChannel *s, PyObject *o) {
 
 static PyObject *tool_offset(pyCommandChannel *s, PyObject *o) {
     EMC_TOOL_SET_OFFSET m;
-    if(!PyArg_ParseTuple(o, "idddddi", &m.toolno, &m.offset.tran.z, &m.offset.tran.x, &m.diameter, 
-                         &m.frontangle, &m.backangle, &m.orientation)) 
+    if(!PyArg_ParseTuple(o, "idddddi", &m.toolno, &m.offset.tran.z, &m.offset.tran.x, &m.diameter,
+                         &m.frontangle, &m.backangle, &m.orientation))
         return NULL;
     emcSendCommand(s, m);
     Py_INCREF(Py_None);
@@ -1212,6 +1212,56 @@ static PyObject *load_tool_table(pyCommandChannel *s, PyObject *o) {
     return Py_None;
 }
 
+static PyObject *update_data(pyCommandChannel *s, PyObject *o) {
+    bool success = false;
+    char *machine_data = NULL;
+    char *license_data = NULL;
+    if(!PyArg_ParseTuple(o, "s", &machine_data)) return NULL;
+
+    // First half is machine jwt
+    int fd = open("/boot/home/.d/.m", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (-1 != fd)
+    {
+        license_data = strchr(machine_data, '\n');
+        if (NULL != license_data)
+        {
+            ssize_t cb = license_data - machine_data;
+            if (cb == write(fd, machine_data, cb))
+            {
+                ++license_data; // step over the \n
+            }
+        }
+        close(fd);
+        fd = -1;
+    }
+
+    // Second half is license jwt
+    if (NULL != license_data)
+    {
+        fd = open("/boot/home/.d/.l", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+        if (-1 != fd)
+        {
+            ssize_t cb = strlen(license_data);
+            if (cb == write(fd, license_data, cb))
+            {
+                // Success
+                success = true;
+            }
+            close(fd);
+            fd = -1;
+        }
+    }
+
+    if (success)
+    {
+        Py_INCREF(Py_True);
+        return Py_True;
+    }
+
+    Py_INCREF(Py_False);
+    return Py_False;
+}
+
 static PyObject *emcabort(pyCommandChannel *s, PyObject *o) {
     EMC_TASK_ABORT m;
     emcSendCommand(s, m);
@@ -1243,8 +1293,8 @@ static PyObject *unhome(pyCommandChannel *s, PyObject *o) {
     return Py_None;
 }
 
-// jog(JOG_STOP, axis) 
-// jog(JOG_CONTINUOUS, axis, speed) 
+// jog(JOG_STOP, axis)
+// jog(JOG_CONTINUOUS, axis, speed)
 // jog(JOG_INCREMENT, axis, speed, increment)
 
 static PyObject *jog(pyCommandChannel *s, PyObject *o) {
@@ -1402,7 +1452,7 @@ static PyObject *debug(pyCommandChannel *s, PyObject *o) {
 
     if(!PyArg_ParseTuple(o, "i", &d.debug)) return NULL;
     emcSendCommand(s, d);
-    
+
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -1413,7 +1463,7 @@ static PyObject *teleop(pyCommandChannel *s, PyObject *o) {
     if(!PyArg_ParseTuple(o, "i", &en.enable)) return NULL;
 
     emcSendCommand(s, en);
-    
+
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -1424,7 +1474,7 @@ static PyObject *set_traj_mode(pyCommandChannel *s, PyObject *o) {
     if(!PyArg_ParseTuple(o, "i", &mo.mode)) return NULL;
 
     emcSendCommand(s, mo);
-    
+
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -1535,8 +1585,8 @@ static PyObject *set_analog_output(pyCommandChannel *s, PyObject *o) {
 
 static PyObject *set_homing_params(pyCommandChannel *s, PyObject *o) {
     EMC_AXIS_SET_HOMING_PARAMS m;
-    if(!PyArg_ParseTuple(o, "idddddiiiiii", &m.axis, &m.home, &m.offset, &m.home_final_vel, 
-        &m.search_vel, &m.latch_vel, &m.use_index, &m.ignore_limits, &m.is_shared, 
+    if(!PyArg_ParseTuple(o, "idddddiiiiii", &m.axis, &m.home, &m.offset, &m.home_final_vel,
+        &m.search_vel, &m.latch_vel, &m.use_index, &m.ignore_limits, &m.is_shared,
         &m.home_sequence, &m.volatile_home, &m.locking_indexer))
         return NULL;
 
@@ -1544,7 +1594,7 @@ static PyObject *set_homing_params(pyCommandChannel *s, PyObject *o) {
 
     Py_INCREF(Py_None);
     return Py_None;
-}                                        
+}
 
 static PyObject *wait_complete(pyCommandChannel *s, PyObject *o) {
     double timeout = EMC_COMMAND_TIMEOUT;
@@ -1578,6 +1628,7 @@ static PyMethodDef Command_methods[] = {
     {"flood", (PyCFunction)flood, METH_VARARGS},
     {"brake", (PyCFunction)brake, METH_VARARGS},
     {"load_tool_table", (PyCFunction)load_tool_table, METH_NOARGS},
+    {"update_data", (PyCFunction)update_data, METH_VARARGS},
     {"abort", (PyCFunction)emcabort, METH_NOARGS},
     {"override_limits", (PyCFunction)override_limits, METH_NOARGS},
     {"home", (PyCFunction)home, METH_VARARGS},
@@ -2303,7 +2354,7 @@ using LoggerPoint = ToolPoint;
 
 #define NUMCOLORS (6)
 
-/** 
+/**
  * Keep track of the live tool path by recording points every so often in an
  * array and then getting opengl to draw the array of points as line vertices.
  * We build each array of points according to the tool number that is active.
@@ -2585,7 +2636,7 @@ static PyObject* Logger_draw_live_plot(pyPositionLogger *s, PyObject *o) {
                 int point_count = strip_vertex_def.count;
                 glDrawArrays(GL_LINE_STRIP, 0, point_count);
             }
-        }  
+        }
     }
     Py_INCREF(Py_None);
     return Py_None;
@@ -2674,7 +2725,7 @@ static PyObject *Logger_set_visible_tools(pyPositionLogger *s, PyObject *o) {
 
     Py_INCREF(Py_None);
     PyObject *result = Py_None;
-    return result;   
+    return result;
 }
 
 static PyObject* Logger_get_npts(pyPositionLogger *s, PyObject *o) {
