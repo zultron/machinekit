@@ -130,10 +130,6 @@ private:
     time_t _machinedat_file_mtime;
     time_t _licensedat_file_mtime;
 
-    // TODO
-    // store mtimes for each of these files
-    // have read_ssd_files check those and skip even reading the file
-    // if the time hasn't changed.
     std::string MACHINEDAT_FILEPATH;
     std::string LICENSEDAT_FILEPATH;
 

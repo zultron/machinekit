@@ -15,35 +15,9 @@
 
 using namespace std;
 
-#if 0
-bool is_license_expired()
-{
-                        // Now expire_timestamp_utc points to just the timestamp.
-                        printf("expire timestamp: %s\n", expire_timestamp_utc);
-
-                        // HUB returns license dates in UTC time zone in this format which
-                        // conveniently maps to the strptime function from time.h
-                        // '%Y-%m-%d %H:%M:%S'
-
-                        tzset();  // time functions now aware of proper local time zone...
-                        time_t now_utc = time(NULL);
-
-                        struct tm expiretm;
-                        ZERO_STRUCT(&expiretm);
-                        if (strptime(expire_timestamp_utc, "%Y-%m-%d %H:%M:%S", &expiretm) != NULL)
-                        {
-                            // convert from struct tm in utc time to utc time_t for easy comparision
-                            time_t expire_utc = timegm(&expiretm);
-                            if (expire_utc > now_utc)
-                            {
-                                license_expired = false;  // license still has time left
-                            }
-                        }
-
-    return license_expired;
-}
-#endif
-
+// TODO
+#define DEBUG_LOG(x) {cerr << x << endl;}
+//#define DEBUG_LOG(x)
 
 LicenseMgr::LicenseMgr(const string& ini_file_path) :
     _flash_storage(ini_file_path),
@@ -73,25 +47,25 @@ bool LicenseMgr::check_all_claims()
     chrono::system_clock::time_point iat = _ssd_storage.get_machine_jwt()->get_issued_at();
     if (iat > now)
     {
-        cerr << "                       machine jwt iat is in the future" << endl;
+        DEBUG_LOG("                       machine jwt iat is in the future");
         valid = false; // suspicious.
     }
     iat = _ssd_storage.get_license_jwt()->get_issued_at();
     if (iat > now)
     {
-        cerr << "                       license jwt iat is in the future" << endl;
+        DEBUG_LOG("                       license jwt iat is in the future");
         valid = false; // suspicious.
     }
 
     // Correlate license jwt claims with machine jwt to make sure its for the same machine.
     if (_ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string() != _ssd_storage.get_license_jwt()->get_payload_claim("guid").as_string())
     {
-        cerr << "                       machine and license jwt guid mismatch" << endl;
+        DEBUG_LOG("                       machine and license jwt guid mismatch");
         valid = false;
     }
     if (_ssd_storage.get_machine_jwt()->get_payload_claim("sn").as_string() != _ssd_storage.get_license_jwt()->get_payload_claim("sn").as_string())
     {
-        cerr << "                       machine and license sn mismatch" << endl;
+        DEBUG_LOG("                       machine and license sn mismatch");
         valid = false;
     }
 
@@ -99,7 +73,7 @@ bool LicenseMgr::check_all_claims()
     chrono::system_clock::time_point exp = _ssd_storage.get_license_jwt()->get_expires_at();
     if (now > exp)
     {
-        cerr << "                       license exp time is in the past" << endl;
+        DEBUG_LOG("                       license exp time is in the past");
         valid = false;
     }
 
@@ -153,7 +127,7 @@ void LicenseMgr::perform_boot_maintenance()
     bool ssd_result = _ssd_storage.read_ssd_files();
     if ((flash_result) && (ssd_result))
     {
-        cerr << "               flash and ssd reads successful" << endl;
+        DEBUG_LOG("               flash and ssd reads successful");
 
         // The ssd files might be 'newer' than flash contents because writing flash
         // never got a chance to occur on graceful shutdown.
@@ -168,7 +142,7 @@ void LicenseMgr::perform_boot_maintenance()
             std::string flash_guid = _flash_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
             if ((ssd_guid == flash_guid) || ((ssd_guid.length() > 0) && (flash_guid.length() == 0)))
             {
-                cerr << "               ssd files are newer, writing to flash" << endl;
+                DEBUG_LOG("               ssd files are newer, writing to flash");
 
                 // this writes the verified machine jwt, machine public key,
                 // and license public key if it exists
@@ -200,7 +174,7 @@ void LicenseMgr::perform_boot_maintenance()
     }
     else if ((flash_result) and (! ssd_result))
     {
-        cerr << "               flash worked, ssd files failed - using flash for machine.json" << endl;
+        DEBUG_LOG("               flash worked, ssd files failed - using flash for machine.json");
 
         // might be a case where a different controller is attached to the machine in an attempt
         // to get around licensing.
@@ -218,7 +192,7 @@ void LicenseMgr::perform_boot_maintenance()
     }
     else if ((! flash_result) and (ssd_result))
     {
-        cerr << "               flash failed, ssd files succeeded - writing them to flash" << endl;
+        DEBUG_LOG("               flash failed, ssd files succeeded - writing them to flash");
 
         _license_type = static_cast<license_type_t>(_ssd_storage.get_machine_jwt()->get_payload_claim("lic").as_int());
         if ((_license_type != LICENSE_TYPE_UNMANAGED) && (_license_type != LICENSE_TYPE_TIMELIMITED))

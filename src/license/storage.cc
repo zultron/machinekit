@@ -17,6 +17,8 @@
 
 using namespace std;
 
+// TODO
+#define DEBUG
 
 Storage::Storage(const std::string& ini_file_path) :
     _p_machine_jwt_decoded(NULL),
@@ -254,9 +256,10 @@ bool Storage::mesaflash_exec(const std::string& rwcmd,     // --nvread    or   -
                 // We don't want the output of the exec program to be visible in the
                 // normal inherited stdout and stderr logs as it reveals a lot of detail.
 
-                // TODO
-                //close(STDOUT_FILENO);
-                //close(STDERR_FILENO);
+                #ifndef DEBUG
+                close(STDOUT_FILENO);
+                close(STDERR_FILENO);
+                #endif
 
                 int ev;
                 if (_mesa_board == "5i25")
@@ -329,9 +332,10 @@ bool Storage::zip_exec(const std::string& contents_dir_path,
         {
             // We don't want the output of the exec program to be visible in the
             // normal inherited stdout and stderr logs as it reveals a lot of detail.
-            // TODO
-            //close(STDOUT_FILENO);
-            //close(STDERR_FILENO);
+            #ifndef DEBUG
+            close(STDOUT_FILENO);
+            close(STDERR_FILENO);
+            #endif
 
             unlink(zipfile_path.c_str());
             ev = execlp("zip",
@@ -369,9 +373,10 @@ bool Storage::unzip_exec(const std::string& zipfilepath,
     {
         // We don't want the output of the exec program to be visible in the
         // normal inherited stdout and stderr logs as it reveals a lot of detail.
-        // TODO
-        //close(STDOUT_FILENO);
-        //close(STDERR_FILENO);
+        #ifndef DEBUG
+        close(STDOUT_FILENO);
+        close(STDERR_FILENO);
+        #endif
 
         // Child
         int ev = execlp("unzip",
