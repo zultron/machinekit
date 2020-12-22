@@ -21,6 +21,10 @@ using namespace std;
 Storage::Storage(const std::string& ini_file_path) :
     _p_machine_jwt_decoded(NULL),
     _p_license_jwt_decoded(NULL),
+    _machinepubkey_file_mtime(0),
+    _licensepubkey_file_mtime(0),
+    _machinedat_file_mtime(0),
+    _licensedat_file_mtime(0),
     MACHINEDAT_FILEPATH("/boot"),
     LICENSEDAT_FILEPATH("/boot"),
     MACHINEPUBKEY_FILEPATH("/boot"),
@@ -36,6 +40,10 @@ Storage::Storage(const std::string& ini_file_path) :
 
     MACHINEPUBKEY_FILEPATH.append("/home/.d/.0");
     LICENSEPUBKEY_FILEPATH.append("/home/.d/.1");
+
+    // TODO
+    // Harden so that if /boot/home/.d is missing, it will be created
+    // automatically with proper permissions
 
     IniFile inifile;
     if (inifile.Open(ini_file_path.c_str()))
@@ -135,8 +143,24 @@ time_t Storage::read_timestamp(const std::string& path)
 }
 
 
-bool Storage::read_entire_file(const std::string& path, std::string& contents)
+bool Storage::read_entire_file(const std::string& path,
+                               std::string& contents,
+                               time_t* p_mtime)
 {
+    // Does caller care about last mod time?
+    if (p_mtime)
+    {
+        struct stat statbuf;
+        if (0 == stat(path.c_str(), &statbuf))
+        {
+            if (statbuf.st_mtime == *p_mtime)
+            {
+                // File has same last mod time so no need to do anymore
+                return true;
+            }
+        }
+    }
+
     bool result = false;
     int fd = open(path.c_str(), O_RDONLY);
     if (fd >= 0)
@@ -144,6 +168,11 @@ bool Storage::read_entire_file(const std::string& path, std::string& contents)
         struct stat sb;
         if (0 == fstat(fd, &sb))
         {
+            if (p_mtime)  // update caller mtime if desired
+            {
+                *p_mtime = sb.st_mtime;
+            }
+
             char* buffer = new char[sb.st_size + 1];
             if (sb.st_size == read(fd, buffer, sb.st_size))
             {
@@ -562,13 +591,13 @@ void Storage::restore_key_bookends(std::string& public_key)
 
 bool Storage::read_public_keys_from_files()
 {
-    bool result = read_entire_file(MACHINEPUBKEY_FILEPATH, _machine_public_key);
+    bool result = read_entire_file(MACHINEPUBKEY_FILEPATH, _machine_public_key, &_machinepubkey_file_mtime);
     if (result)
     {
         restore_key_bookends(_machine_public_key);
 
         // The license public key may or may not be present
-        result = read_entire_file(LICENSEPUBKEY_FILEPATH, _license_public_key);
+        result = read_entire_file(LICENSEPUBKEY_FILEPATH, _license_public_key, &_licensepubkey_file_mtime);
         if (result)
         {
             restore_key_bookends(_license_public_key);
@@ -806,12 +835,6 @@ bool Storage::write_flash()
 
 bool Storage::read_ssd_files()
 {
-    // TODO
-    // save mtimes for each file we read so we can tell on later
-    // calls if its worth reading new ones.
-    // and if mtimes have changed, then we set the flash flag
-    // to write that upon shutdown
-
     // out-of-box context for time limited machines is machine jwt and public key exist.
     // but license jwt and public key do not.
     bool result = read_public_keys_from_files();
@@ -819,7 +842,7 @@ bool Storage::read_ssd_files()
     {
         // Now read the encoded machine token
         result = false;
-        read_entire_file(MACHINEDAT_FILEPATH, _machine_jwt_encoded);
+        read_entire_file(MACHINEDAT_FILEPATH, _machine_jwt_encoded, &_machinedat_file_mtime);
         if (_machine_jwt_encoded.length() > 0)
         {
             result = verify_machine_jwt();
@@ -833,7 +856,7 @@ bool Storage::read_ssd_files()
             if (0 == access(LICENSEDAT_FILEPATH.c_str(), F_OK))
             {
                 result = false;
-                read_entire_file(LICENSEDAT_FILEPATH, _license_jwt_encoded);
+                read_entire_file(LICENSEDAT_FILEPATH, _license_jwt_encoded, &_licensedat_file_mtime);
                 if (_license_jwt_encoded.length() > 0)
                 {
                     result = verify_license_jwt();

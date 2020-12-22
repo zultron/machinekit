@@ -125,6 +125,11 @@ private:
     std::string _mesa_board;    // 5i25, 7i92, or ECM1
     std::string _mesa_ipaddr;   // Only used for 7i92 or ECM1 boards
 
+    time_t _machinepubkey_file_mtime;
+    time_t _licensepubkey_file_mtime;
+    time_t _machinedat_file_mtime;
+    time_t _licensedat_file_mtime;
+
     // TODO
     // store mtimes for each of these files
     // have read_ssd_files check those and skip even reading the file
@@ -135,14 +140,14 @@ private:
     std::string MACHINEPUBKEY_FILEPATH;
     std::string LICENSEPUBKEY_FILEPATH;
 
-
     void recursive_rmdir(const std::string& dirpath);
 
     bool create_random_datafile(std::string& path);
 
     time_t read_timestamp(const std::string& path);
 
-    bool read_entire_file(const std::string& path, std::string& contents);
+    bool read_entire_file(const std::string& path, std::string& contents, time_t* p_mtime = NULL);
+
     bool write_file(const std::string& filepath, const std::string data);
 
     bool mesaflash_exec(const std::string& rwcmd,     // --nvread    or   --nvwrite
