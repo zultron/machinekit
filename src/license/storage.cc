@@ -9,14 +9,17 @@
 #include <fcntl.h>
 #include <dirent.h>
 
-#include <string>
 #include <iostream>
 #include <cstdlib>
+#include <fstream>
 
 #include "storage.hh"
 
+using namespace std;
 
 Storage::Storage(const std::string& ini_file_path) :
+    _p_machine_jwt_decoded(NULL),
+    _p_license_jwt_decoded(NULL),
     MACHINEDAT_FILEPATH("/boot"),
     LICENSEDAT_FILEPATH("/boot"),
     MACHINEPUBKEY_FILEPATH("/boot"),
@@ -59,6 +62,21 @@ Storage::Storage(const std::string& ini_file_path) :
         }
 
         inifile.Close();
+    }
+}
+
+
+Storage::~Storage()
+{
+    if (_p_machine_jwt_decoded)
+    {
+        delete _p_machine_jwt_decoded;
+        _p_machine_jwt_decoded = NULL;
+    }
+    if (_p_license_jwt_decoded)
+    {
+        delete _p_license_jwt_decoded;
+        _p_license_jwt_decoded = NULL;
     }
 }
 
@@ -203,10 +221,14 @@ bool Storage::mesaflash_exec(const std::string& rwcmd,     // --nvread    or   -
             if (pid == 0)
             {
                 // Child
+                // We don't want the output of the exec program to be visible in the
+                // normal inherited stdout and stderr logs as it reveals a lot of detail.
+                close(STDOUT_FILENO);
+                close(STDERR_FILENO);
+
                 int ev;
                 if (_mesa_board == "5i25")
                 {
-
                     ev = execlp("/usr/bin/sudo",
                                 "/usr/bin/sudo",
                                 mesapath,
@@ -273,6 +295,11 @@ bool Storage::zip_exec(const std::string& contents_dir_path,
         int ev = 12;
         if (0 == chdir(contents_dir_path.c_str()))
         {
+            // We don't want the output of the exec program to be visible in the
+            // normal inherited stdout and stderr logs as it reveals a lot of detail.
+            close(STDOUT_FILENO);
+            close(STDERR_FILENO);
+
             unlink(zipfile_path.c_str());
             ev = execlp("zip",
                         "zip",
@@ -307,6 +334,11 @@ bool Storage::unzip_exec(const std::string& zipfilepath,
     pid_t pid = fork();
     if (pid == 0)
     {
+        // We don't want the output of the exec program to be visible in the
+        // normal inherited stdout and stderr logs as it reveals a lot of detail.
+        close(STDOUT_FILENO);
+        close(STDERR_FILENO);
+
         // Child
         int ev = execlp("unzip",
                         "unzip",
@@ -479,11 +511,15 @@ bool Storage::read_flash()
             tmp.assign(finalblock->zipdir_path);
             tmp.append("/compensation.dat");
             result = read_public_keys(tmp);
+            if (result)
+            {
+                result = verify_machine_jwt();
+            }
         }
 
         recursive_rmdir(finalblock->zipdir_path);
 
-        return true;
+        return result;
     }
 
     return false;
@@ -531,6 +567,26 @@ bool Storage::read_public_keys_from_files()
         result = true;
     }
     return result;
+}
+
+
+void Storage::write_public_keys_to_files()
+{
+    fstream keyfile;
+    keyfile.open(MACHINEPUBKEY_FILEPATH, ios_base::out | ios_base::trunc);
+    std::string tmpkey(_machine_public_key);
+    trim_key_bookends(tmpkey);
+    keyfile << tmpkey;
+    keyfile.close();
+
+    if (_license_public_key.length() > 0)
+    {
+        keyfile.open(LICENSEPUBKEY_FILEPATH, ios_base::out | ios_base::trunc);
+        tmpkey.assign(_license_public_key);
+        trim_key_bookends(tmpkey);
+        keyfile << tmpkey;
+        keyfile.close();
+    }
 }
 
 
@@ -746,10 +802,11 @@ bool Storage::read_ssd_files()
     if (result)
     {
         // Now read the encoded machine token
+        result = false;
         read_entire_file(MACHINEDAT_FILEPATH, _machine_jwt_encoded);
-        if (_machine_jwt_encoded.length() == 0)
+        if (_machine_jwt_encoded.length() > 0)
         {
-            result = false;
+            result = verify_machine_jwt();
         }
 
         if (result)
@@ -757,10 +814,109 @@ bool Storage::read_ssd_files()
             // The license files may not exist yet.
             // out-of-box context for time limited machines is machine jwt and public key exist.
             // but license jwt and public key do not.
-            read_entire_file(LICENSEDAT_FILEPATH, _license_jwt_encoded);
+            if (0 == access(LICENSEDAT_FILEPATH.c_str(), F_OK))
+            {
+                result = false;
+                read_entire_file(LICENSEDAT_FILEPATH, _license_jwt_encoded);
+                if (_license_jwt_encoded.length() > 0)
+                {
+                    result = verify_license_jwt();
+                }
+            }
         }
     }
 
+    return result;
+}
+
+
+void Storage::write_ssd_keys_and_machine_jwt()
+{
+    write_public_keys_to_files();
+
+    fstream mdat;
+    mdat.open(MACHINEDAT_FILEPATH, ios_base::out | ios_base::trunc);
+    mdat << _machine_jwt_encoded;
+    mdat.close();
+}
+
+
+bool Storage::verify_machine_jwt()
+{
+    bool result = false;
+    try
+    {
+        if (_p_machine_jwt_decoded)
+        {
+            delete _p_machine_jwt_decoded;
+        }
+        _p_machine_jwt_decoded = new jwt::decoded_jwt<nlohmann_traits>(_machine_jwt_encoded);
+
+        // Verify the jwt signature with the public key
+        if (_machine_public_key.length() > 0)
+        {
+            auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
+                            .allow_algorithm(jwt::algorithm::rs256(_machine_public_key, "", "", ""));
+            try
+            {
+                verify.verify(*_p_machine_jwt_decoded);
+                result = true;
+            }
+            catch (jwt::error::signature_verification_exception ex)
+            {
+            }
+        }
+
+        if (! result)
+        {
+            delete _p_machine_jwt_decoded;
+            _p_machine_jwt_decoded = NULL;
+        }
+    }
+    catch (invalid_argument ex)
+    {
+        // Thrown when machine encoded string isn't valid
+    }
+    return result;
+}
+
+
+bool Storage::verify_license_jwt()
+{
+    bool result = false;
+    try
+    {
+        if (_p_license_jwt_decoded)
+        {
+            delete _p_license_jwt_decoded;
+        }
+        _p_license_jwt_decoded = new jwt::decoded_jwt<nlohmann_traits>(_license_jwt_encoded);
+
+        // Verify the jwt signature with the public key
+        if (_license_public_key.length() > 0)
+        {
+            auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
+                            .allow_algorithm(jwt::algorithm::rs256(_license_public_key, "", "", ""));
+            try
+            {
+                verify.verify(*_p_license_jwt_decoded);
+                result = true;
+            }
+            catch (jwt::error::signature_verification_exception ex)
+            {
+            }
+        }
+
+        if (! result)
+        {
+            delete _p_license_jwt_decoded;
+            _p_license_jwt_decoded = NULL;
+        }
+    }
+    catch (invalid_argument ex)
+    {
+        // Thrown when machine encoded string isn't valid
+    }
     return result;
 }
 

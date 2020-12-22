@@ -10,7 +10,6 @@
 #include <sys/wait.h>
 #include <iostream>
 #include <fstream>
-#include <string>
 
 #include "licensemgr.hh"
 
@@ -47,120 +46,11 @@ bool is_license_expired()
 
 
 LicenseMgr::LicenseMgr(const string& ini_file_path) :
-    _storage(ini_file_path),
+    _flash_storage(ini_file_path),
+    _ssd_storage(ini_file_path),
     _flash_update_needed(false),
-    _license_type(LICENSE_TYPE_TIMELIMITED),
-    _p_machine_jwt_decoded(NULL),
-    _p_license_jwt_decoded(NULL)
+    _license_type(LICENSE_TYPE_TIMELIMITED)
 {
-}
-
-LicenseMgr::~LicenseMgr()
-{
-    if (_p_machine_jwt_decoded)
-    {
-        delete _p_machine_jwt_decoded;
-        _p_machine_jwt_decoded = NULL;
-    }
-    if (_p_license_jwt_decoded)
-    {
-        delete _p_license_jwt_decoded;
-        _p_license_jwt_decoded = NULL;
-    }
-}
-
-bool LicenseMgr::verify_machine_jwt()
-{
-    // Decode the machine jwt
-    bool result = false;
-    try
-    {
-        if (_p_machine_jwt_decoded)
-        {
-            delete _p_machine_jwt_decoded;
-            _p_machine_jwt_decoded = NULL;
-        }
-        _p_machine_jwt_decoded = new jwt::decoded_jwt<nlohmann_traits>(_storage.get_machine_jwt_encoded());
-        // Verify the jwt signature with the public key
-        const string& public_key = _storage.get_machine_public_key();
-        if (public_key.length() > 0)
-        {
-            auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
-                            .allow_algorithm(jwt::algorithm::rs256(public_key, "", "", ""));
-            try
-            {
-                verify.verify(*_p_machine_jwt_decoded);
-
-                _license_type = static_cast<license_type_t>(_p_machine_jwt_decoded->get_payload_claim("lic").as_int());
-                if ((_license_type != LICENSE_TYPE_UNMANAGED) && (_license_type != LICENSE_TYPE_TIMELIMITED))
-                {
-                    // Unsupported value - treat anything suspicious as requiring a license.
-                    _license_type = LICENSE_TYPE_TIMELIMITED;
-                }
-
-               result = true;
-            }
-            catch (jwt::error::signature_verification_exception ex)
-            {
-            }
-        }
-
-        if (! result)
-        {
-            delete _p_license_jwt_decoded;
-            _p_license_jwt_decoded = NULL;
-            _flash_update_needed = false;  // We never write unverified jwts to flash
-        }
-    }
-    catch (invalid_argument ex)
-    {
-        // Thrown when machine encoded string isn't valid
-    }
-    return result;
-}
-
-
-bool LicenseMgr::verify_license_jwt()
-{
-    // Decode the license jwt
-    bool result = false;
-    try
-    {
-        if (_p_license_jwt_decoded)
-        {
-            delete _p_license_jwt_decoded;
-            _p_license_jwt_decoded = NULL;
-        }
-        _p_license_jwt_decoded = new jwt::decoded_jwt<nlohmann_traits>(_storage.get_license_jwt_encoded());
-
-        // Verify the jwt signature with the public key
-        const string& public_key = _storage.get_license_public_key();
-        if (public_key.length() > 0)
-        {
-            auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
-                            .allow_algorithm(jwt::algorithm::rs256(public_key, "", "", ""));
-            try
-            {
-                verify.verify(*_p_license_jwt_decoded);
-                result = true;
-            }
-            catch (jwt::error::signature_verification_exception ex)
-            {
-            }
-        }
-
-        if (! result)
-        {
-            delete _p_license_jwt_decoded;
-            _p_license_jwt_decoded = NULL;
-        }
-
-    }
-    catch (invalid_argument ex)
-    {
-        // Thrown when machine encoded string isn't valid
-    }
-    return result;
 }
 
 
@@ -169,40 +59,40 @@ bool LicenseMgr::check_all_claims()
     bool valid = true;
 
     // ver
-    if (_p_machine_jwt_decoded->get_payload_claim("ver").as_int() < 1)
+    if (_ssd_storage.get_machine_jwt()->get_payload_claim("ver").as_int() < 1)
     {
         valid = false;
     }
-    if (_p_license_jwt_decoded->get_payload_claim("ver").as_int() < 1)
+    if (_ssd_storage.get_license_jwt()->get_payload_claim("ver").as_int() < 1)
     {
         valid = false;
     }
 
     // check iat claims in both jwts
-    chrono::system_clock::time_point iat = _p_machine_jwt_decoded->get_issued_at();
     chrono::system_clock::time_point now = chrono::system_clock::now();
+    chrono::system_clock::time_point iat = _ssd_storage.get_machine_jwt()->get_issued_at();
     if (iat > now)
     {
         valid = false; // suspicious.
     }
-    iat = _p_license_jwt_decoded->get_issued_at();
+    iat = _ssd_storage.get_license_jwt()->get_issued_at();
     if (iat > now)
     {
         valid = false; // suspicious.
     }
 
     // Correlate license jwt claims with machine jwt to make sure its for the same machine.
-    if (_p_machine_jwt_decoded->get_payload_claim("guid").as_string() != _p_license_jwt_decoded->get_payload_claim("guid").as_string())
+    if (_ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string() != _ssd_storage.get_license_jwt()->get_payload_claim("guid").as_string())
     {
         valid = false;
     }
-    if (_p_machine_jwt_decoded->get_payload_claim("sn").as_string() != _p_license_jwt_decoded->get_payload_claim("sn").as_string())
+    if (_ssd_storage.get_machine_jwt()->get_payload_claim("sn").as_string() != _ssd_storage.get_license_jwt()->get_payload_claim("sn").as_string())
     {
         valid = false;
     }
 
     // exp for license
-    chrono::system_clock::time_point exp = _p_license_jwt_decoded->get_expires_at();
+    chrono::system_clock::time_point exp = _ssd_storage.get_license_jwt()->get_expires_at();
     if (now > exp)
     {
         valid = false;
@@ -216,6 +106,10 @@ void LicenseMgr::write_json_claims(
     const std::string& filepath,
     const std::unordered_map< typename nlohmann_traits::string_type, jwt::basic_claim<nlohmann_traits>  >& claims)
 {
+    // Maybe the json library or the jwt library have some way to serialize
+    // to a json string, but damned if I can figure that out (c++ header only
+    // template libraries are unreadable by anyone other than a compiler).
+
     fstream json;
     json.open(filepath, ios_base::out | ios_base::trunc);
     json << "{" << endl;
@@ -234,138 +128,182 @@ void LicenseMgr::write_json_claims(
 }
 
 
-void LicenseMgr::update_json_files()
+void LicenseMgr::update_json_files(Storage& storage)
 {
-    // We can trust the claims of jwt
-    if (_p_machine_jwt_decoded)
-    {
-        // Update the cleartext machine.json for the benefit of the python UI
-        // Maybe the json library or the jwt library have some way to serialize
-        // to a json string, but damned if I can figure that out (c++ header only
-        // template libraries are unreadable by anyone other than a compiler).
-        write_json_claims(_storage.MACHINEJSON_FILEPATH,
-                          _p_machine_jwt_decoded->get_payload_claims());
-    }
-    else
-    {
-        unlink(_storage.MACHINEJSON_FILEPATH.c_str());
-    }
 
-    if (_p_license_jwt_decoded)
+    if (storage.get_license_jwt())
     {
         // Update the cleartext license.json for the benefit of the python UI
         // Maybe the json library or the jwt library have some way to serialize
         // to a json string, but damned if I can figure that out (c++ header only
         // template libraries are unreadable by anyone other than a compiler).
-        write_json_claims(_storage.LICENSEJSON_FILEPATH,
-                          _p_license_jwt_decoded->get_payload_claims());
+        write_json_claims(storage.LICENSEJSON_FILEPATH,
+                          storage.get_license_jwt()->get_payload_claims());
     }
     else
     {
-        unlink(_storage.LICENSEJSON_FILEPATH.c_str());
+        unlink(storage.LICENSEJSON_FILEPATH.c_str());
     }
 }
 
 
 void LicenseMgr::perform_boot_maintenance()
 {
-    bool json_overwrite = true;
-
     // out-of-box context for time limited machines is machine jwt and public key exist.
     // but license jwt and public key do not.
 
     // Read the jwts and public keys from NV flash
-    bool result = _storage.read_flash();
-    if (result)
+    bool flash_result = _flash_storage.read_flash();
+    if (flash_result)
     {
-        cerr << "               flash read successful" << endl;
-
-        // TODO
-        // WHEN are the SSD files overwritten with flash contents?
-        // Flash is harder to spoof and the custody chain from it
-        // to the Cycle Start button verification flows through SSD jwt files.
-        // Could always overwrite them, but then we risk
-        //    overwriting a newer jwt on disk that hub wrote that hasn't made it into flash yet (power loss)
-        //    breaking license verification is cached license public key is old and the new one is on the SSD
-    }
-    else
-    {
-        cerr << "               flash read failed - either never written to or corrupt - falling back to ssd files" << endl;
-
-        // Flash has either never been written or is corrupt.
-        _flash_update_needed = true;
-
-        // Read the SSD files instead
-        result = _storage.read_ssd_files();
-        if (! result)
+        _license_type = static_cast<license_type_t>(_flash_storage.get_machine_jwt()->get_payload_claim("lic").as_int());
+        if ((_license_type != LICENSE_TYPE_UNMANAGED) && (_license_type != LICENSE_TYPE_TIMELIMITED))
         {
-            // flash never written to or corrupt
-            // ssd files not present
-            // have to assume we are a license unmanaged machine
-
-            // TODO
-            // check to make sure NONE of the license related files exist
-            // as the above may fail if they exist, but pri and sec don't match or something fishy like that.
-            _license_type = LICENSE_TYPE_UNMANAGED;
+            // Unsupported value - treat anything suspicious as requiring a license.
+            _license_type = LICENSE_TYPE_TIMELIMITED;
         }
     }
 
-    if ((result) && (_license_type == LICENSE_TYPE_TIMELIMITED))
+    bool ssd_result = _ssd_storage.read_ssd_files();
+    if ((flash_result) && (ssd_result))
     {
-        result = verify_machine_jwt();
-        if ((result) && (_license_type == LICENSE_TYPE_TIMELIMITED))
-        {
-            // out of box context is machine jwt should verify, but there is no license yet
-            // so this might fail, but we still want to update flash with valid machine jwt.
-            verify_license_jwt();
+        cerr << "               flash and ssd reads successful" << endl;
 
-            if (_flash_update_needed)
+        // The ssd files might be 'newer' than flash contents because writing flash
+        // never got a chance to occur on graceful shutdown.
+        if (_ssd_storage.get_machine_jwt()->get_issued_at() >
+            _flash_storage.get_machine_jwt()->get_issued_at())
+        {
+            // ssd files are newer, let's write them to flash as long as a few other sanity
+            // checks match.
+            if (_ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string() ==
+                _flash_storage.get_machine_jwt()->get_payload_claim("guid").as_string())
             {
+                cerr << "               ssd files are newer, writing to flash" << endl;
+
                 // this writes the verified machine jwt, machine public key,
                 // and license public key if it exists
-                _storage.write_flash();
-            }
+                _ssd_storage.write_flash();
 
-            // during out of box boot, the machine jwt will only have the license flag set
-            // and no guid or sn.  the config chooser sets those in the clear text json
-            // file.  if we overwrite the json files with only verified machine jwt contents
-            // we lose that.  so in thie specific situation, we want to merge machine jwt
-            // and the existing machine.json.  That way later the hub browser can provide
-            // the full machine json to get verified and signed by the hub server and
-            // get back a fully signed machine.jwt that can then be written into flash.
-            if ((_p_machine_jwt_decoded->get_payload_claim("sn").as_string() == "") &&
-                (_p_machine_jwt_decoded->get_payload_claim("guid").as_string() == ""))
-            {
-                ifstream jsonfile;
-                jsonfile.open(_storage.MACHINEJSON_FILEPATH, ios_base::in);
-                jsonfile.seekg(0, ios::end);
-                size_t cb = jsonfile.tellg();
-                jsonfile.seekg(0);
-                char* buffer = new char[cb+1];
-                jsonfile.read(buffer, cb);
-                jsonfile.close();
-
-                nlohmann::json machinejson = nlohmann::json::parse(buffer);
-
-                delete[] buffer;
-                buffer = NULL;
-
-                if (machinejson["lic"] == _p_machine_jwt_decoded->get_payload_claim("lic").as_int())
-                {
-                    // ok - we can skip overwriting the json in this one special case.
-                    json_overwrite = false;
-                }
+                // Update the cleartext machine.json for the benefit of the python UI
+                write_json_claims(_ssd_storage.MACHINEJSON_FILEPATH,
+                                  _ssd_storage.get_machine_jwt()->get_payload_claims());
             }
         }
+        else
+        {
+            // Update the cleartext machine.json for the benefit of the python UI
+            write_json_claims(_flash_storage.MACHINEJSON_FILEPATH,
+                              _flash_storage.get_machine_jwt()->get_payload_claims());
+        }
+
+        // Update the cleartext license.json for the benefit of the python UI
+        // Important to overwrite it from the jwt in case it has been altered.
+        if (_ssd_storage.get_license_jwt())
+        {
+            write_json_claims(_ssd_storage.LICENSEJSON_FILEPATH,
+                              _ssd_storage.get_license_jwt()->get_payload_claims());
+        }
+        else
+        {
+            unlink(_ssd_storage.LICENSEJSON_FILEPATH.c_str());
+        }
+    }
+    else if ((flash_result) and (! ssd_result))
+    {
+        cerr << "               flash worked, ssd files failed - using flash for machine.json" << endl;
+
+        // might be a case where a different controller is attached to the machine in an attempt
+        // to get around licensing.
+        // use flash contents to lay down public keys and the machine dat.  then the UI side
+        // has what it needs to acquire a fresh license from HUB.  and cycle start could
+        // actually validate that the license matches the machine.
+        _flash_storage.write_ssd_keys_and_machine_jwt();
+
+        // flash machine.jwt can be relied on and used to overwrite machine.json
+        // update the cleartext machine.json for the benefit of the python UI
+        write_json_claims(_flash_storage.MACHINEJSON_FILEPATH,
+                          _flash_storage.get_machine_jwt()->get_payload_claims());
+
+        unlink(_ssd_storage.LICENSEJSON_FILEPATH.c_str());
+    }
+    else if ((! flash_result) and (ssd_result))
+    {
+        cerr << "               flash failed, ssd files succeeded - writing them to flash" << endl;
+
+        _license_type = static_cast<license_type_t>(_ssd_storage.get_machine_jwt()->get_payload_claim("lic").as_int());
+        if ((_license_type != LICENSE_TYPE_UNMANAGED) && (_license_type != LICENSE_TYPE_TIMELIMITED))
+        {
+            // Unsupported value - treat anything suspicious as requiring a license.
+            _license_type = LICENSE_TYPE_TIMELIMITED;
+        }
+
+        // this writes the verified machine jwt, machine public key,
+        // and license public key if it exists
+        _ssd_storage.write_flash();
+
+        // during out of box boot, the machine jwt will only have the license flag set
+        // and no guid or sn.  the config chooser sets those in the clear text json
+        // file.  if we overwrite the json files with only verified machine jwt contents
+        // we lose that.  so in this specific situation, we want to merge machine jwt
+        // and the existing machine.json.  That way later the hub browser can provide
+        // the full machine json to get verified and signed by the hub server and
+        // get back a fully signed machine.jwt that can then be written into flash.
+        bool json_overwrite = true;
+        if ((_ssd_storage.get_machine_jwt()->get_payload_claim("sn").as_string() == "") &&
+            (_ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string() == ""))
+        {
+            ifstream jsonfile;
+            jsonfile.open(_ssd_storage.MACHINEJSON_FILEPATH, ios_base::in);
+            jsonfile.seekg(0, ios::end);
+            size_t cb = jsonfile.tellg();
+            jsonfile.seekg(0);
+            char* buffer = new char[cb+1];
+            jsonfile.read(buffer, cb);
+            buffer[cb] = '\0';
+            jsonfile.close();
+            nlohmann::json machinejson = nlohmann::json::parse(buffer);
+            delete[] buffer;
+            buffer = NULL;
+            if (machinejson["lic"] == _license_type)
+            {
+                // ok - we can skip overwriting the json in this one special case.
+                json_overwrite = false;
+            }
+        }
+
+        // Update the cleartext machine.json for the benefit of the python UI
+        if (json_overwrite)
+        {
+            write_json_claims(_ssd_storage.MACHINEJSON_FILEPATH,
+                              _ssd_storage.get_machine_jwt()->get_payload_claims());
+        }
+
+        // Update the cleartext license.json for the benefit of the python UI
+        // Important to overwrite it from the jwt in case it has been altered.
+        if (_ssd_storage.get_license_jwt())
+        {
+            write_json_claims(_ssd_storage.LICENSEJSON_FILEPATH,
+                              _ssd_storage.get_license_jwt()->get_payload_claims());
+        }
+        else
+        {
+            unlink(_ssd_storage.LICENSEJSON_FILEPATH.c_str());
+        }
+    }
+    else if ((! flash_result) && (! ssd_result))
+    {
+        // flash never written to or corrupt
+        // ssd files not present
+        // have to assume we are a license unmanaged machine
+
+        // TODO
+        // check to make sure NONE of the license related files exist (vs. just failing verification)
+        _license_type = LICENSE_TYPE_UNMANAGED;
     }
 
     // we don't do any jwt claim checking here because that's all enforced
     // if necessary at Cycle Start time with the call to is_license_valid()
-
-    if (json_overwrite)
-    {
-        update_json_files();
-    }
 }
 
 
@@ -374,10 +312,15 @@ void LicenseMgr::perform_emctaskmain_init()
     // Goal is to read the SSD files and validate enough
     // to reliably tell at this point what the license type is.
     // Cannot read flash at this point so must rely on SSD files.
-    bool result = _storage.read_ssd_files();
+    bool result = _ssd_storage.read_ssd_files();
     if (result)
     {
-        verify_machine_jwt();  // updates _license_type from jwt
+        _license_type = static_cast<license_type_t>(_ssd_storage.get_machine_jwt()->get_payload_claim("lic").as_int());
+        if ((_license_type != LICENSE_TYPE_UNMANAGED) && (_license_type != LICENSE_TYPE_TIMELIMITED))
+        {
+            // Unsupported value - treat anything suspicious as requiring a license.
+            _license_type = LICENSE_TYPE_TIMELIMITED;
+        }
     }
     else
     {
@@ -410,20 +353,10 @@ bool LicenseMgr::is_license_valid()
     else if (_license_type == LICENSE_TYPE_TIMELIMITED)
     {
         // Refresh jwt and key files from SSD as the UI may have gotten new ones from HUB.
-        valid = _storage.read_ssd_files();
+        valid = _ssd_storage.read_ssd_files();
         if (valid)
         {
-            valid = verify_machine_jwt();
-            if (valid)
-            {
-                // we can't verify a license without a machine jwt to match claims against
-                // so don't even bother trying to verify the license unless machine does first.
-                valid = verify_license_jwt();
-                if (valid)
-                {
-                    valid = check_all_claims();
-                }
-            }
+            valid = check_all_claims();
         }
     }
 
