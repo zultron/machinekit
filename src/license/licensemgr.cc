@@ -270,6 +270,25 @@ void LicenseMgr::perform_boot_maintenance()
 }
 
 
+void LicenseMgr::perform_shutdown_maintenance()
+{
+    // licensecomp user comp calls this during graceful shutdowns after
+    // hostmot2 is dead.  this gives us a clear shot at writing to
+    // flash again to archive updated public keys or jwt data
+
+    // TODO
+    // use mtimes to figure out since last read_ssd_files()
+    // if its appropriate to call write_flash()
+
+    // file mtimes must have changed
+
+    // flash read was good and verified
+    // ssd read is good and verified
+    // confirm machine iat is newer on ssd
+    // confirm guid match (or flash guid is empty)
+}
+
+
 void LicenseMgr::perform_emctaskmain_init()
 {
     // Goal is to read the SSD files and validate enough

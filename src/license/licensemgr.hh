@@ -24,7 +24,9 @@ private:
 public:
     LicenseMgr(const std::string& ini_file_path);
 
+    // Used by licensecomp user comp (which is named hwmon as misdirection)
     void perform_boot_maintenance();
+    void perform_shutdown_maintenance();
 
     // Called by emctaskmain
     void perform_emctaskmain_init();
