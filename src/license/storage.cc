@@ -43,9 +43,17 @@ Storage::Storage(const std::string& ini_file_path) :
     MACHINEPUBKEY_FILEPATH.append("/home/.d/.0");
     LICENSEPUBKEY_FILEPATH.append("/home/.d/.1");
 
-    // TODO
     // Harden so that if /boot/home/.d is missing, it will be created
     // automatically with proper permissions
+    struct stat statbuf;
+    if (0 != stat("/boot/home", &statbuf))
+    {
+        mkdir("/boot/home", 0777);
+    }
+    if (0 != stat("/boot/home/.d", &statbuf))
+    {
+        mkdir("/boot/home/.d", 0700);
+    }
 
     IniFile inifile;
     if (inifile.Open(ini_file_path.c_str()))
