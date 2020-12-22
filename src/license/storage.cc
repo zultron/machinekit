@@ -17,6 +17,7 @@
 
 using namespace std;
 
+
 Storage::Storage(const std::string& ini_file_path) :
     _p_machine_jwt_decoded(NULL),
     _p_license_jwt_decoded(NULL),
@@ -223,8 +224,10 @@ bool Storage::mesaflash_exec(const std::string& rwcmd,     // --nvread    or   -
                 // Child
                 // We don't want the output of the exec program to be visible in the
                 // normal inherited stdout and stderr logs as it reveals a lot of detail.
-                close(STDOUT_FILENO);
-                close(STDERR_FILENO);
+
+                // TODO
+                //close(STDOUT_FILENO);
+                //close(STDERR_FILENO);
 
                 int ev;
                 if (_mesa_board == "5i25")
@@ -297,8 +300,9 @@ bool Storage::zip_exec(const std::string& contents_dir_path,
         {
             // We don't want the output of the exec program to be visible in the
             // normal inherited stdout and stderr logs as it reveals a lot of detail.
-            close(STDOUT_FILENO);
-            close(STDERR_FILENO);
+            // TODO
+            //close(STDOUT_FILENO);
+            //close(STDERR_FILENO);
 
             unlink(zipfile_path.c_str());
             ev = execlp("zip",
@@ -336,8 +340,9 @@ bool Storage::unzip_exec(const std::string& zipfilepath,
     {
         // We don't want the output of the exec program to be visible in the
         // normal inherited stdout and stderr logs as it reveals a lot of detail.
-        close(STDOUT_FILENO);
-        close(STDERR_FILENO);
+        // TODO
+        //close(STDOUT_FILENO);
+        //close(STDERR_FILENO);
 
         // Child
         int ev = execlp("unzip",
@@ -383,38 +388,42 @@ bool Storage::read_flash_block(
         result = mesaflash_exec("--nvread", tmppath, block);
         if (result)
         {
-            // toss the first 31 bytes of the block as garbage to be ignored.
             fd = open(filepath_raw, O_RDONLY);
             if (-1 != fd)
             {
-                if (-1 != lseek(fd, 31, SEEK_SET))
+                // copy the rest of the file to a new tmp file
+                int zipfd = mkstemp(filepath_zip);
+                if (-1 != zipfd)
                 {
-                    // copy the rest of the file to a new tmp file
-                    int zipfd = mkstemp(filepath_zip);
-                    if (-1 != zipfd)
+                    char* buffer = new char[64*1024];
+                    ssize_t cb = read(fd, buffer, 64*1024);
+                    if (cb == (64*1024))
                     {
-                        char* buffer = new char[64*1024];
-                        ssize_t cb = read(fd, buffer, 64*1024);
-                        if (cb == (64*1024-31))
+                        // Now we reverse the entire 64K block
+                        char* final_buffer = new char[64*1024];
+                        for (int ix = 0; ix < (64*1024); ++ix)
                         {
-                            ssize_t zipcb = write(zipfd, buffer, cb);
-                            if (cb == zipcb)
-                            {
-                                // Perfect.
-                                result = true;
-                            }
+                            final_buffer[ix] = buffer[64*1024 - ix - 1];
                         }
-
-                        delete[] buffer;
-                        buffer = NULL;
-                        close(zipfd);
-                        zipfd = -1;
-
-                        if (!result)
+                        ssize_t zipcb = write(zipfd, final_buffer, cb);
+                        if (cb == zipcb)
                         {
-                            // something botched above - don't need this around anymore so wipe it.
-                            unlink(filepath_zip);
+                            // Perfect.
+                            result = true;
                         }
+                        delete[] final_buffer;
+                        final_buffer = NULL;
+                    }
+
+                    delete[] buffer;
+                    buffer = NULL;
+                    close(zipfd);
+                    zipfd = -1;
+
+                    if (!result)
+                    {
+                        // something botched above - don't need this around anymore so wipe it.
+                        unlink(filepath_zip);
                     }
                 }
 
@@ -687,7 +696,6 @@ bool Storage::write_public_keys(std::string& zipfile_path)
     return result;
 }
 
-
 bool Storage::write_flash()
 {
     bool result = false;
@@ -737,30 +745,38 @@ bool Storage::write_flash()
                         {
                             result = false;
                             // now we can overlay the zip file into the random data file
-                            // starting at offset 31
+                            // backwards starting at the end
                             fd = open(blockfile_path.c_str(), O_WRONLY);
                             if (-1 != fd)
                             {
-                                if (-1 != lseek(fd, 31, SEEK_SET))
+                                int zipfd = open(zipfile_path.c_str(), O_RDONLY);
+                                if (-1 != zipfd)
                                 {
-                                    int zipfd = open(zipfile_path.c_str(), O_RDONLY);
-                                    if (-1 != zipfd)
+                                    char* buffer = new char[64*1024];
+                                    ssize_t cb = read(zipfd, buffer, 64*1024);
+                                    if (-1 != cb)
                                     {
-                                        char* buffer = new char[64*1024];
-                                        ssize_t cb = read(zipfd, buffer, 64*1024);
-                                        if (-1 != cb)
+                                        char* final_buffer = new char[cb];
+                                        for (int ix = 0; ix < cb; ++ix)
                                         {
-                                            if (cb == write(fd, buffer, cb))
+                                            final_buffer[ix] = buffer[cb-ix-1];
+                                        }
+                                        if (-1 != lseek(fd, 64*1024 - cb, SEEK_SET))
+                                        {
+                                            // Need to write cb bytes
+                                            if (cb == write(fd, final_buffer, cb))
                                             {
                                                 result = true;
                                             }
                                         }
-                                        delete[] buffer;
-                                        buffer = NULL;
-                                        close(zipfd);
-                                        zipfd = -1;
+                                        delete[] final_buffer;
+                                        final_buffer = NULL;
                                     }
-                                }
+                                    delete[] buffer;
+                                    buffer = NULL;
+                                    close(zipfd);
+                                    zipfd = -1;
+		                        }
                                 close(fd);
                                 fd = -1;
                             }
