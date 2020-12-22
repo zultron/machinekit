@@ -4,21 +4,6 @@
 //
 // Copyright 2020 Tormach, LLC
 //
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-//
-
 
 #include <errno.h>
 #include <fcntl.h>
@@ -40,6 +25,7 @@
 #include <string.h>
 
 #include "hal.h"
+#include "hal_priv.h"
 #include "licensemgr.hh"
 
 // TODO
@@ -62,17 +48,28 @@ int hal_comp_id;
 
 LicenseMgr* pLicMgr = NULL;
 
-
 static void exit_handler(int sig)
 {
-	DEBUG_LOG("performing shutdown maintenance");
+	int total_wait_sec = 0;
+	while ((total_wait_sec < 15) &&
+	       (NULL != halpr_find_comp_by_name("hostmot2")))
+	{
+		DEBUG_LOG("waiting up to 15 seconds for hostmot2 to disappear...");
+		sleep(1);
+		++total_wait_sec;
+	}
 
-    // TODO
-    // "halcmd list comp" over and over until hostmot2 not listed
+	if (NULL == halpr_find_comp_by_name("hostmot2"))
+	{
+	    if (pLicMgr)
+	    {
+			DEBUG_LOG("hostmot2 is gone!");
+		    pLicMgr->perform_shutdown_maintenance();
+		}
+	}
 
     if (pLicMgr)
     {
-	    pLicMgr->perform_shutdown_maintenance();
 	    delete pLicMgr;
 	    pLicMgr = NULL;
 	}
@@ -153,8 +150,13 @@ bool refresh_public_key_file(const char* filename)
 		    if (pid == 0)
 		    {
 		        // Child
-		        // TODO
-		        // We don't want the output of the exec program to be visible in the
+                // We don't want the output of the exec program to be visible in the
+                // normal inherited stdout and stderr logs as it reveals a lot of detail.
+
+                #ifndef DEBUG
+                close(STDOUT_FILENO);
+                close(STDERR_FILENO);
+                #endif
 
 		        int ev = 1;
   	        	char cmdline[1024];
@@ -164,7 +166,6 @@ bool refresh_public_key_file(const char* filename)
 				{
 					close(fd);
 					fd = -1;
-		       		fprintf(stderr, "/bin/bash %s\n", scriptfilename);
 			        ev = execlp("/bin/bash",
 			                    "/bin/bash",
 			                    scriptfilename,
@@ -187,8 +188,6 @@ bool refresh_public_key_file(const char* filename)
 		        {
 		            if (WIFEXITED(status))
 		            {
-	   			       	fprintf(stderr, "execlp returned %d\n", WEXITSTATUS(status));
-
 		            	if (0 == WEXITSTATUS(status))
 		            	{
 					        // Trim the bookends from the public key file
@@ -238,7 +237,6 @@ int main(int argc, char *argv[])
 		    signal(SIGTERM, exit_handler);
 		    atexit(call_hal_exit);
 
-		    // TODO
 		    std::string ini_file_path(argv[1]);
 		    pLicMgr = new LicenseMgr(ini_file_path);
 		    pLicMgr->perform_boot_maintenance();
