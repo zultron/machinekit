@@ -17,8 +17,6 @@ private:
     bool _flash_update_needed;
     license_type_t _license_type;
 
-    void update_json_files(Storage& storage);
-
     bool check_all_claims();
     void write_json_claims(const std::string& filepath,
                            const std::unordered_map< typename nlohmann_traits::string_type, jwt::basic_claim<nlohmann_traits>  >& claims);

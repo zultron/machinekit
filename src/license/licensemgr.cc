@@ -128,25 +128,6 @@ void LicenseMgr::write_json_claims(
 }
 
 
-void LicenseMgr::update_json_files(Storage& storage)
-{
-
-    if (storage.get_license_jwt())
-    {
-        // Update the cleartext license.json for the benefit of the python UI
-        // Maybe the json library or the jwt library have some way to serialize
-        // to a json string, but damned if I can figure that out (c++ header only
-        // template libraries are unreadable by anyone other than a compiler).
-        write_json_claims(storage.LICENSEJSON_FILEPATH,
-                          storage.get_license_jwt()->get_payload_claims());
-    }
-    else
-    {
-        unlink(storage.LICENSEJSON_FILEPATH.c_str());
-    }
-}
-
-
 void LicenseMgr::perform_boot_maintenance()
 {
     // out-of-box context for time limited machines is machine jwt and public key exist.
@@ -357,6 +338,23 @@ bool LicenseMgr::is_license_valid()
         if (valid)
         {
             valid = check_all_claims();
+
+            // regardless of whether the license is valid or not, update the
+            // json file so that the UI has our latest understanding.
+            // helpful for troubleshooting log data zips.
+            //
+            // overwrite license.json to reflect all the current thinking so that the
+            // UI has the info it needs to provide context to the user for how to fix
+            // (i.e. the contact info and comment from the license that is now expired).
+            if (_ssd_storage.get_license_jwt())
+            {
+                write_json_claims(_ssd_storage.LICENSEJSON_FILEPATH,
+                                  _ssd_storage.get_license_jwt()->get_payload_claims());
+            }
+            else
+            {
+                unlink(_ssd_storage.LICENSEJSON_FILEPATH.c_str());
+            }
         }
     }
 
