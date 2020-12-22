@@ -73,21 +73,25 @@ bool LicenseMgr::check_all_claims()
     chrono::system_clock::time_point iat = _ssd_storage.get_machine_jwt()->get_issued_at();
     if (iat > now)
     {
+        cerr << "                       machine jwt iat is in the future" << endl;
         valid = false; // suspicious.
     }
     iat = _ssd_storage.get_license_jwt()->get_issued_at();
     if (iat > now)
     {
+        cerr << "                       license jwt iat is in the future" << endl;
         valid = false; // suspicious.
     }
 
     // Correlate license jwt claims with machine jwt to make sure its for the same machine.
     if (_ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string() != _ssd_storage.get_license_jwt()->get_payload_claim("guid").as_string())
     {
+        cerr << "                       machine and license jwt guid mismatch" << endl;
         valid = false;
     }
     if (_ssd_storage.get_machine_jwt()->get_payload_claim("sn").as_string() != _ssd_storage.get_license_jwt()->get_payload_claim("sn").as_string())
     {
+        cerr << "                       machine and license sn mismatch" << endl;
         valid = false;
     }
 
@@ -95,6 +99,7 @@ bool LicenseMgr::check_all_claims()
     chrono::system_clock::time_point exp = _ssd_storage.get_license_jwt()->get_expires_at();
     if (now > exp)
     {
+        cerr << "                       license exp time is in the past" << endl;
         valid = false;
     }
 
@@ -155,10 +160,13 @@ void LicenseMgr::perform_boot_maintenance()
         if (_ssd_storage.get_machine_jwt()->get_issued_at() >
             _flash_storage.get_machine_jwt()->get_issued_at())
         {
-            // ssd files are newer, let's write them to flash as long as a few other sanity
-            // checks match.
-            if (_ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string() ==
-                _flash_storage.get_machine_jwt()->get_payload_claim("guid").as_string())
+            // ssd files are newer, let's write them to flash as long as it appears to match.
+            // in the out of box scenario on first boot we may have written a mostly empty, but verifiable
+            // machine.jwt to flash that doesn't have a guid yet (and perhaps there was no graceful power down
+            // where hwmon user comp would have written it).
+            std::string ssd_guid = _ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
+            std::string flash_guid = _flash_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
+            if ((ssd_guid == flash_guid) || ((ssd_guid.length() > 0) && (flash_guid.length() == 0)))
             {
                 cerr << "               ssd files are newer, writing to flash" << endl;
 
