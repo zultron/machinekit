@@ -16,8 +16,12 @@
 using namespace std;
 
 // TODO
+#define DEBUG
+#ifdef DEBUG
 #define DEBUG_LOG(x) {cerr << x << endl;}
-//#define DEBUG_LOG(x)
+#else
+#define DEBUG_LOG(x)
+#endif
 
 LicenseMgr::LicenseMgr(const string& ini_file_path) :
     _flash_storage(ini_file_path),
@@ -257,12 +261,18 @@ void LicenseMgr::perform_boot_maintenance()
     else if ((! flash_result) && (! ssd_result))
     {
         // flash never written to or corrupt
-        // ssd files not present
-        // have to assume we are a license unmanaged machine
-
-        // TODO
-        // check to make sure NONE of the license related files exist (vs. just failing verification)
-        _license_type = LICENSE_TYPE_UNMANAGED;
+        // ssd files either not present or fail verification
+        // have to assume we are a license unmanaged machine, unless debris on the drive
+        // reveals tampering perhaps.
+        if (_ssd_storage.do_license_ssd_files_exist())
+        {
+            // Something fishy going on, assume its an attempt at circumventing
+            _license_type = LICENSE_TYPE_TIMELIMITED;
+        }
+        else
+        {
+            _license_type = LICENSE_TYPE_UNMANAGED;
+        }
     }
 
     // we don't do any jwt claim checking here because that's all enforced
@@ -276,16 +286,45 @@ void LicenseMgr::perform_shutdown_maintenance()
     // hostmot2 is dead.  this gives us a clear shot at writing to
     // flash again to archive updated public keys or jwt data
 
-    // TODO
-    // use mtimes to figure out since last read_ssd_files()
-    // if its appropriate to call write_flash()
+    // During PP UI run, new maachine and license jwts and public keys
+    // could have been acquired compared to when we last read them.
 
-    // file mtimes must have changed
+    // Read the jwts and public keys from NV flash
+    bool flash_result = _flash_storage.read_flash();
+    bool ssd_result = _ssd_storage.read_ssd_files();
+    if ((flash_result) && (ssd_result))
+    {
+        DEBUG_LOG("               flash and ssd reads successful");
 
-    // flash read was good and verified
-    // ssd read is good and verified
-    // confirm machine iat is newer on ssd
-    // confirm guid match (or flash guid is empty)
+        // The ssd files might be 'newer' than flash contents because writing flash
+        // never got a chance to occur on graceful shutdown.
+        if (_ssd_storage.get_machine_jwt()->get_issued_at() >
+            _flash_storage.get_machine_jwt()->get_issued_at())
+        {
+            // ssd files are newer, let's write them to flash as long as it appears to match.
+            // in the out of box scenario on first boot we may have written a mostly empty, but verifiable
+            // machine.jwt to flash that doesn't have a guid yet (and perhaps there was no graceful power down
+            // where hwmon user comp would have written it).
+            std::string ssd_guid = _ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
+            std::string flash_guid = _flash_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
+            if ((ssd_guid == flash_guid) || ((ssd_guid.length() > 0) && (flash_guid.length() == 0)))
+            {
+                DEBUG_LOG("               ssd files are newer, writing to flash");
+
+                // this writes the verified machine jwt, machine public key,
+                // and license public key if it exists
+                _ssd_storage.write_flash();
+            }
+        }
+    }
+    else if ((! flash_result) && (ssd_result))
+    {
+        DEBUG_LOG("               flash failed, ssd files succeeded - writing them to flash");
+
+        // this writes the verified machine jwt, machine public key,
+        // and license public key if it exists
+        _ssd_storage.write_flash();
+    }
 }
 
 
@@ -306,10 +345,17 @@ void LicenseMgr::perform_emctaskmain_init()
     }
     else
     {
-        // TODO
         // check to make sure NONE of the license related files exist
-        // as the above may fail if they exist, but pri and sec don't match or something fishy like that.
-        _license_type = LICENSE_TYPE_UNMANAGED;
+        // as the above may fail if they exist, but do not verify with public keys
+        if (_ssd_storage.do_license_ssd_files_exist())
+        {
+            // Something fishy going on, assume its an attempt at circumventing
+            _license_type = LICENSE_TYPE_TIMELIMITED;
+        }
+        else
+        {
+            _license_type = LICENSE_TYPE_UNMANAGED;
+        }
     }
 }
 

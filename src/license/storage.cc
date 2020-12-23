@@ -20,6 +20,7 @@ using namespace std;
 // TODO
 #define DEBUG
 
+
 Storage::Storage(const std::string& ini_file_path) :
     _p_machine_jwt_decoded(NULL),
     _p_license_jwt_decoded(NULL),
@@ -969,6 +970,19 @@ bool Storage::verify_license_jwt()
     {
         // Thrown when machine encoded string isn't valid
     }
+    return result;
+}
+
+
+bool Storage::do_license_ssd_files_exist()
+{
+    bool result = false;
+    result |= (0 == access(MACHINEDAT_FILEPATH.c_str(), F_OK));
+    result |= (0 == access(LICENSEDAT_FILEPATH.c_str(), F_OK));
+    result |= (0 == access(MACHINEPUBKEY_FILEPATH.c_str(), F_OK));
+    result |= (0 == access(LICENSEPUBKEY_FILEPATH.c_str(), F_OK));
+    result |= (0 == access(LICENSEJSON_FILEPATH.c_str(), F_OK));
+
     return result;
 }
 
