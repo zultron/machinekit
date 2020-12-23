@@ -908,14 +908,20 @@ bool Storage::verify_machine_jwt()
         // Verify the jwt signature with the public key
         if (_machine_public_key.length() > 0)
         {
-            auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
-                            .allow_algorithm(jwt::algorithm::rs256(_machine_public_key, "", "", ""));
             try
             {
-                verify.verify(*_p_machine_jwt_decoded);
-                result = true;
+                auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
+                                .allow_algorithm(jwt::algorithm::rs256(_machine_public_key, "", "", ""));
+                try
+                {
+                    verify.verify(*_p_machine_jwt_decoded);
+                    result = true;
+                }
+                catch (jwt::error::signature_verification_exception ex)
+                {
+                }
             }
-            catch (jwt::error::signature_verification_exception ex)
+            catch (jwt::error::rsa_exception ex)
             {
             }
         }
@@ -948,14 +954,20 @@ bool Storage::verify_license_jwt()
         // Verify the jwt signature with the public key
         if (_license_public_key.length() > 0)
         {
-            auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
-                            .allow_algorithm(jwt::algorithm::rs256(_license_public_key, "", "", ""));
             try
             {
-                verify.verify(*_p_license_jwt_decoded);
-                result = true;
+                auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
+                                .allow_algorithm(jwt::algorithm::rs256(_license_public_key, "", "", ""));
+                try
+                {
+                    verify.verify(*_p_license_jwt_decoded);
+                    result = true;
+                }
+                catch (jwt::error::signature_verification_exception ex)
+                {
+                }
             }
-            catch (jwt::error::signature_verification_exception ex)
+            catch (jwt::error::rsa_exception ex)
             {
             }
         }
