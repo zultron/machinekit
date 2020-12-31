@@ -37,7 +37,7 @@
 #define VERIFY(x) {if (!(x)) debug_break();}
 #else
 #define DEBUG_LOG(x)
-#define VERIFY(x) x
+#define VERIFY(x) {if (x) ;}
 #endif
 
 
