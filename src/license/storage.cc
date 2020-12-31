@@ -577,29 +577,33 @@ bool Storage::read_flash()
     return false;
 }
 
+static const char g_header[] = {"-----BEGIN PUBLIC KEY-----\n"};
+static const char g_footer[] = {"-----END PUBLIC KEY-----\n"};
 
 void Storage::trim_key_bookends(std::string& public_key)
 {
-    const char header[] = {"-----BEGIN PUBLIC KEY-----\n"};
-    const char footer[] = {"-----END PUBLIC KEY-----\n"};
-    size_t pos = public_key.find(header);
-    if (std::string::npos != pos)
+    size_t pos = public_key.find(g_header);
+    if (string::npos != pos)
     {
-        public_key.erase(pos, strlen(header));
+        public_key.erase(pos, strlen(g_header));
     }
-
-    pos = public_key.find(footer);
-    if (std::string::npos != pos)
+    pos = public_key.find(g_footer);
+    if (string::npos != pos)
     {
-        public_key.erase(pos, strlen(footer));
+        public_key.erase(pos, strlen(g_footer));
     }
 }
 
-
 void Storage::restore_key_bookends(std::string& public_key)
 {
-    public_key.insert(0, "-----BEGIN PUBLIC KEY-----\n");
-    public_key.append("-----END PUBLIC KEY-----\n");
+    if (public_key.find(g_header) == string::npos)
+    {
+        public_key.insert(0, g_header);
+    }
+    if (public_key.find(g_footer) == string::npos)
+    {
+        public_key.append(g_footer);
+    }
 }
 
 
