@@ -113,6 +113,10 @@ struct nlohmann_traits {
 class Storage
 {
 private:
+    bool _block_a_read_ok;
+    bool _block_b_read_ok;
+    bool _write_block_a_first;
+
     std::string _machine_public_key;
     std::string _license_public_key;
 
@@ -180,6 +184,7 @@ public:
     ~Storage();
 
     bool read_flash();
+    bool is_either_flash_block_corrupt();
     bool write_flash();
 
     bool read_ssd_files();

@@ -126,6 +126,12 @@ void LicenseMgr::perform_boot_maintenance()
             // Unsupported value - treat anything suspicious as requiring a license.
             _license_type = LICENSE_TYPE_TIMELIMITED;
         }
+
+        // Try to recover immediately if one block is good and one is corrupt
+        if (_flash_storage.is_either_flash_block_corrupt())
+        {
+            _flash_storage.write_flash();
+        }
     }
 
     bool ssd_result = _ssd_storage.read_ssd_files();
@@ -309,6 +315,15 @@ void LicenseMgr::perform_shutdown_maintenance()
 
     // Read the jwts and public keys from NV flash
     bool flash_result = _flash_storage.read_flash();
+    if ((flash_result) && (_flash_storage.is_either_flash_block_corrupt()))
+    {
+        // Try to recover immediately if one block is good and one is corrupt (even if we later decide
+        // we need to refresh the flash with ssd information).  The _flash_storage object is
+        // the only one that knows which block is corrupt and will write them in the proper order
+        // to try to recover.
+        _flash_storage.write_flash();
+    }
+
     bool ssd_result = _ssd_storage.read_ssd_files();
     if ((flash_result) && (ssd_result))
     {

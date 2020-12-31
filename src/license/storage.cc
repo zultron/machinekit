@@ -22,6 +22,9 @@ using namespace std;
 
 
 Storage::Storage(const std::string& ini_file_path) :
+    _block_a_read_ok(false),
+    _block_b_read_ok(false),
+    _write_block_a_first(true),
     _p_machine_jwt_decoded(NULL),
     _p_license_jwt_decoded(NULL),
     _machinepubkey_file_mtime(0),
@@ -237,8 +240,8 @@ bool Storage::create_random_datafile(std::string& path)
 
 
 bool Storage::mesaflash_exec(const std::string& rwcmd,     // --nvread    or   --nvwrite
-                                  const std::string& filepath,
-                                  const std::string& nvblock)   //  A    or    B
+                             const std::string& filepath,
+                             const std::string& nvblock)   //  A    or    B
 {
     bool result = false;
 
@@ -525,30 +528,37 @@ bool Storage::read_flash()
     struct blockinfo blocka;
     struct blockinfo blockb;
     struct blockinfo* finalblock = NULL;
-    bool result_a = read_flash_block("A", blocka.zipdir_path, blocka.timestamp);
-    bool result_b = read_flash_block("B", blockb.zipdir_path, blockb.timestamp);
-    if ((result_a) && (result_b))
+    _block_a_read_ok = read_flash_block("A", blocka.zipdir_path, blocka.timestamp);
+    _block_b_read_ok = read_flash_block("B", blockb.zipdir_path, blockb.timestamp);
+    if ((_block_a_read_ok) && (_block_b_read_ok))
     {
         if (blocka.timestamp >= blockb.timestamp)
         {
             // Use A
             finalblock = &blocka;
             recursive_rmdir(blockb.zipdir_path);  // Cleanup B
+            // Upon write, do B first since its older
+            _write_block_a_first = false;
         }
         else
         {
             // Use B
             finalblock = &blockb;
             recursive_rmdir(blocka.zipdir_path);  // Cleanup A
+            _write_block_a_first = true;
         }
     }
-    else if (result_a)
+    else if (_block_a_read_ok)
     {
         finalblock = &blocka;
+        // Write B first since its corrupt
+        _write_block_a_first = false;
     }
-    else if (result_b)
+    else if (_block_b_read_ok)
     {
         finalblock = &blockb;
+        // Write A first since its corrupt
+        _write_block_a_first = true;
     }
 
     if (NULL != finalblock)
@@ -576,6 +586,13 @@ bool Storage::read_flash()
 
     return false;
 }
+
+
+bool Storage::is_either_flash_block_corrupt()
+{
+    return !(_block_a_read_ok && _block_b_read_ok);
+}
+
 
 static const char g_header[] = {"-----BEGIN PUBLIC KEY-----\n"};
 static const char g_footer[] = {"-----END PUBLIC KEY-----\n"};
@@ -828,10 +845,23 @@ bool Storage::write_flash()
                                 fd = -1;
                             }
 
-                            result = mesaflash_exec("--nvwrite", blockfile_path, "A");
-                            if (result)
+                            // Be careful the order we write back if one of the blocks did not
+                            // read successfully - or one of the blocks timestamp files is older.
+                            if (_write_block_a_first)
+                            {
+                                result = mesaflash_exec("--nvwrite", blockfile_path, "A");
+                                if (result)
+                                {
+                                    result = mesaflash_exec("--nvwrite", blockfile_path, "B");
+                                }
+                            }
+                            else
                             {
                                 result = mesaflash_exec("--nvwrite", blockfile_path, "B");
+                                if (result)
+                                {
+                                    result = mesaflash_exec("--nvwrite", blockfile_path, "A");
+                                }
                             }
 
                             unlink(blockfile_path.c_str());
