@@ -135,8 +135,25 @@ void LicenseMgr::perform_boot_maintenance()
 
         // The ssd files might be 'newer' than flash contents because writing flash
         // never got a chance to occur on graceful shutdown.
-        if (_ssd_storage.get_machine_jwt()->get_issued_at() >
+
+        if (_ssd_storage.get_machine_jwt()->get_issued_at() ==
             _flash_storage.get_machine_jwt()->get_issued_at())
+        {
+            // probably the same jwt with the same claims.  Normally we'd use flash contents to
+            // overwrite the machine.json, but in the out of box sceneario we might not have gotten
+            // a license and machine jwt signed from the hub server.  And in this case machine.json
+            // must be preserved as it has the new machine guid and sn.  Out of box signed machine jwt
+            // has an empty guid.
+            std::string flash_guid = _flash_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
+            if (flash_guid.length() > 0)
+            {
+                // Update the cleartext machine.json for the benefit of the python UI
+                write_json_claims(_flash_storage.MACHINEJSON_FILEPATH,
+                                  _flash_storage.get_machine_jwt()->get_payload_claims());
+            }
+        }
+        else if (_ssd_storage.get_machine_jwt()->get_issued_at() >
+                 _flash_storage.get_machine_jwt()->get_issued_at())
         {
             // ssd files are newer, let's write them to flash as long as it appears to match.
             // in the out of box scenario on first boot we may have written a mostly empty, but verifiable
@@ -159,6 +176,7 @@ void LicenseMgr::perform_boot_maintenance()
         }
         else
         {
+            // Flash is newer - use it.
             // Update the cleartext machine.json for the benefit of the python UI
             write_json_claims(_flash_storage.MACHINEJSON_FILEPATH,
                               _flash_storage.get_machine_jwt()->get_payload_claims());
