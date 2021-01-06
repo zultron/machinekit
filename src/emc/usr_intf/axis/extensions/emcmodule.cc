@@ -1214,42 +1214,46 @@ static PyObject *load_tool_table(pyCommandChannel *s, PyObject *o) {
 
 static PyObject *update_data(pyCommandChannel *s, PyObject *o) {
     bool success = false;
-    char *machine_data = NULL;
-    char *license_data = NULL;
+    char* machine_data = NULL;
     if(!PyArg_ParseTuple(o, "s", &machine_data)) return NULL;
 
     // First half is machine jwt
     int fd = open("/boot/home/.d/.m", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (-1 != fd)
     {
-        license_data = strchr(machine_data, '\n');
+        ssize_t cb = strlen(machine_data);
+        // Optional second half is \n followed by license jwt
+        // If present, figure out how long just the machine data is
+        char* license_data = strchr(machine_data, '\n');
         if (NULL != license_data)
         {
-            ssize_t cb = license_data - machine_data;
-            if (cb == write(fd, machine_data, cb))
+            cb = license_data - machine_data;
+            ++license_data; // step over the \n
+        }
+
+        if (cb == write(fd, machine_data, cb))
+        {
+            if (NULL != license_data)
             {
-                ++license_data; // step over the \n
+                int licfd = open("/boot/home/.d/.l", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+                if (-1 != licfd)
+                {
+                    ssize_t cb = strlen(license_data);
+                    if (cb == write(licfd, license_data, cb))
+                    {
+                        success = true;
+                    }
+                    close(licfd);
+                    licfd = -1;
+                }
+            }
+            else
+            {
+                success = true;
             }
         }
         close(fd);
         fd = -1;
-    }
-
-    // Second half is license jwt
-    if (NULL != license_data)
-    {
-        fd = open("/boot/home/.d/.l", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-        if (-1 != fd)
-        {
-            ssize_t cb = strlen(license_data);
-            if (cb == write(fd, license_data, cb))
-            {
-                // Success
-                success = true;
-            }
-            close(fd);
-            fd = -1;
-        }
     }
 
     if (success)
