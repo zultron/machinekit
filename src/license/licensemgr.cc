@@ -146,22 +146,51 @@ void LicenseMgr::perform_boot_maintenance()
             _flash_storage.get_machine_jwt()->get_issued_at())
         {
             // probably the same jwt with the same claims.  Normally we'd use flash contents to
-            // overwrite the machine.json, but in the out of box sceneario we might not have gotten
-            // a license and machine jwt signed from the hub server.  And in this case machine.json
-            // must be preserved as it has the new machine guid and sn.  Out of box signed machine jwt
-            // has an empty guid.
+            // completely overwrite the machine.json, but in the out of box scenario we might not have gotten
+            // license and machine jwts signed from the hub server yet (just the 'seed' signed machine jwt).
+            // And in this case machine.json must be preserved as it has the new machine guid and sn from
+            // config chooser.
+            // Out of box signed machine jwt has an empty guid.
             std::string flash_guid = _flash_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
             if (flash_guid.length() > 0)
             {
-                // Update the cleartext machine.json for the benefit of the python UI
+                // OK - we ahve a guid - so this can't be the out of box scenario.
+                // Update the cleartext machine.json for the benefit of the python UI, but preserve sn if
+                // present.  User might have gone back into config chooser at some later point,
+                // re-selected their machine, and entered a serial number (or a corrected serial number if
+                // they chubby knuckled the first one).
+                auto pclaims = _flash_storage.get_machine_jwt()->get_payload_claims();
+
+                if (0 == access(_ssd_storage.MACHINEJSON_FILEPATH.c_str(), F_OK))
+                {
+                    ifstream jsonfile;
+                    jsonfile.open(_ssd_storage.MACHINEJSON_FILEPATH, ios_base::in);
+                    jsonfile.seekg(0, ios::end);
+                    size_t cb = jsonfile.tellg();
+                    jsonfile.seekg(0);
+                    char* buffer = new char[cb+1];
+                    jsonfile.read(buffer, cb);
+                    buffer[cb] = '\0';
+                    jsonfile.close();
+                    nlohmann::json machinejson = nlohmann::json::parse(buffer);
+                    delete[] buffer;
+                    buffer = NULL;
+                    std::string sn = machinejson["sn"];
+                    if (sn.length() > 0)
+                    {
+                        pclaims["sn"] = jwt::basic_claim<nlohmann_traits>(sn);
+                    }
+                }
+
                 write_json_claims(_flash_storage.MACHINEJSON_FILEPATH,
-                                  _flash_storage.get_machine_jwt()->get_payload_claims());
+                                  pclaims);
             }
         }
         else if (_ssd_storage.get_machine_jwt()->get_issued_at() >
                  _flash_storage.get_machine_jwt()->get_issued_at())
         {
-            // ssd files are newer, let's write them to flash as long as it appears to match.
+            // ssd files are newer, let's write them to flash as long as it appears to be
+            // for the same machine.
             // in the out of box scenario on first boot we may have written a mostly empty, but verifiable
             // machine.jwt to flash that doesn't have a guid yet (and perhaps there was no graceful power down
             // where hwmon user comp would have written it).
@@ -287,7 +316,8 @@ void LicenseMgr::perform_boot_maintenance()
         // flash never written to or corrupt
         // ssd files either not present or fail verification
         // have to assume we are a license unmanaged machine, unless debris on the drive
-        // reveals tampering perhaps.
+        // reveals tampering perhaps.  The files could exist, but not be verifiable due to
+        // tampering so check for their mere existance here.
         if (_ssd_storage.do_license_ssd_files_exist())
         {
             // Something fishy going on, assume its an attempt at circumventing
