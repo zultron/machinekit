@@ -198,15 +198,21 @@ void LicenseMgr::perform_boot_maintenance()
             std::string flash_guid = _flash_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
             if ((ssd_guid == flash_guid) || ((ssd_guid.length() > 0) && (flash_guid.length() == 0)))
             {
-                DEBUG_LOG("               ssd files are newer, writing to flash");
+                // guid check is ok.  now check license type compatibility (i.e. they aren't trying to
+                // change license types somehow)
+                if (_ssd_storage.get_machine_jwt()->get_payload_claim("lic").as_int() ==
+                    _flash_storage.get_machine_jwt()->get_payload_claim("lic").as_int())
+                {
+                    DEBUG_LOG("               ssd files are newer, writing to flash");
 
-                // this writes the verified machine jwt, machine public key,
-                // and license public key if it exists
-                _ssd_storage.write_flash();
+                    // this writes the verified machine jwt, machine public key,
+                    // and license public key if it exists
+                    _ssd_storage.write_flash();
 
-                // Update the cleartext machine.json for the benefit of the python UI
-                write_json_claims(_ssd_storage.MACHINEJSON_FILEPATH,
-                                  _ssd_storage.get_machine_jwt()->get_payload_claims());
+                    // Update the cleartext machine.json for the benefit of the python UI
+                    write_json_claims(_ssd_storage.MACHINEJSON_FILEPATH,
+                                      _ssd_storage.get_machine_jwt()->get_payload_claims());
+                }
             }
         }
         else
