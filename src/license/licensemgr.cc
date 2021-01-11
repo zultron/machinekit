@@ -36,48 +36,55 @@ bool LicenseMgr::check_all_claims()
 {
     bool valid = true;
 
-    // ver
-    if (_ssd_storage.get_machine_jwt()->get_payload_claim("ver").as_int() < 1)
+    if (_ssd_storage.get_license_jwt())
     {
-        valid = false;
-    }
-    if (_ssd_storage.get_license_jwt()->get_payload_claim("ver").as_int() < 1)
-    {
-        valid = false;
-    }
+        // ver
+        if (_ssd_storage.get_machine_jwt()->get_payload_claim("ver").as_int() < 1)
+        {
+            valid = false;
+        }
+        if (_ssd_storage.get_license_jwt()->get_payload_claim("ver").as_int() < 1)
+        {
+            valid = false;
+        }
 
-    // check iat claims in both jwts
-    chrono::system_clock::time_point now = chrono::system_clock::now();
-    chrono::system_clock::time_point iat = _ssd_storage.get_machine_jwt()->get_issued_at();
-    if (iat > now)
-    {
-        DEBUG_LOG("                       machine jwt iat is in the future");
-        valid = false; // suspicious.
-    }
-    iat = _ssd_storage.get_license_jwt()->get_issued_at();
-    if (iat > now)
-    {
-        DEBUG_LOG("                       license jwt iat is in the future");
-        valid = false; // suspicious.
-    }
+        // check iat claims in both jwts
+        chrono::system_clock::time_point now = chrono::system_clock::now();
+        chrono::system_clock::time_point iat = _ssd_storage.get_machine_jwt()->get_issued_at();
+        if (iat > now)
+        {
+            DEBUG_LOG("                       machine jwt iat is in the future");
+            valid = false; // suspicious.
+        }
+        iat = _ssd_storage.get_license_jwt()->get_issued_at();
+        if (iat > now)
+        {
+            DEBUG_LOG("                       license jwt iat is in the future");
+            valid = false; // suspicious.
+        }
 
-    // Correlate license jwt claims with machine jwt to make sure its for the same machine.
-    if (_ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string() != _ssd_storage.get_license_jwt()->get_payload_claim("guid").as_string())
-    {
-        DEBUG_LOG("                       machine and license jwt guid mismatch");
-        valid = false;
-    }
-    if (_ssd_storage.get_machine_jwt()->get_payload_claim("sn").as_string() != _ssd_storage.get_license_jwt()->get_payload_claim("sn").as_string())
-    {
-        DEBUG_LOG("                       machine and license sn mismatch");
-        valid = false;
-    }
+        // Correlate license jwt claims with machine jwt to make sure its for the same machine.
+        if (_ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string() != _ssd_storage.get_license_jwt()->get_payload_claim("guid").as_string())
+        {
+            DEBUG_LOG("                       machine and license jwt guid mismatch");
+            valid = false;
+        }
+        if (_ssd_storage.get_machine_jwt()->get_payload_claim("sn").as_string() != _ssd_storage.get_license_jwt()->get_payload_claim("sn").as_string())
+        {
+            DEBUG_LOG("                       machine and license sn mismatch");
+            valid = false;
+        }
 
-    // exp for license
-    chrono::system_clock::time_point exp = _ssd_storage.get_license_jwt()->get_expires_at();
-    if (now > exp)
+        // exp for license
+        chrono::system_clock::time_point exp = _ssd_storage.get_license_jwt()->get_expires_at();
+        if (now > exp)
+        {
+            DEBUG_LOG("                       license exp time is in the past");
+            valid = false;
+        }
+    }
+    else
     {
-        DEBUG_LOG("                       license exp time is in the past");
         valid = false;
     }
 
@@ -532,22 +539,21 @@ bool LicenseMgr::is_license_valid()
     return valid;
 }
 
-
 #if 0
 // Here just for easy testing
 // Compile and run just this single independent file and then run ./a.out
-//     g++ -std=c++11 licensecheck.cc -lcrypto -lssl
+//
+//  Have to set LD_LIBRARY_PATH correct also - what a mess.
+//  g++ -g -std=c++11 -I../../include licensemgr.cc storage.cc -lcrypto -lssl -L../../lib -llinuxcncini
 //
 int main(int argc, char** argv)
 {
-    bool valid = is_license_valid();
-    if (valid == true)
-    {
-        printf("Yeah Baby we're valid\n");
-        return 0;
-    }
+    LicenseMgr lm = LicenseMgr("/home/operator/tmc/configs/tormach_mill/tormach_1100M.ini");
 
-    printf("Crap, we're lying\n");
-    return 1;
+    lm.perform_emctaskmain_init();
+    lm.is_license_valid();
+
+    return 0;
 }
 #endif
+
