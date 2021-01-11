@@ -194,20 +194,47 @@ void LicenseMgr::perform_boot_maintenance()
             // in the out of box scenario on first boot we may have written a mostly empty, but verifiable
             // machine.jwt to flash that doesn't have a guid yet (and perhaps there was no graceful power down
             // where hwmon user comp would have written it).
+            bool flash_write_necessary = false;
             std::string ssd_guid = _ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
             std::string flash_guid = _flash_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
-            if ((ssd_guid == flash_guid) || ((ssd_guid.length() > 0) && (flash_guid.length() == 0)))
+            if ((ssd_guid.length() > 0) && (flash_guid.length() == 0))
             {
-                // guid check is ok.  now check license type compatibility (i.e. they aren't trying to
+                flash_write_necessary = true;
+            }
+
+            if ((flash_write_necessary) || (ssd_guid == flash_guid))
+            {
+                // guid check is ok.
+                // now check license type compatibility (i.e. they aren't trying to
                 // change license types somehow)
                 if (_ssd_storage.get_machine_jwt()->get_payload_claim("lic").as_int() ==
                     _flash_storage.get_machine_jwt()->get_payload_claim("lic").as_int())
                 {
-                    DEBUG_LOG("               ssd files are newer, writing to flash");
+                    // Compare rest of claims and if they are different, flash write is necessary
+                    flash_write_necessary |= (_ssd_storage.get_machine_jwt()->get_payload_claim("sn").as_string() !=
+                                              _flash_storage.get_machine_jwt()->get_payload_claim("sn").as_string());
+
+                    flash_write_necessary |= (_ssd_storage.get_machine_jwt()->get_payload_claim("mcls").as_string() !=
+                                              _flash_storage.get_machine_jwt()->get_payload_claim("mcls").as_string());
+
+                    flash_write_necessary |= (_ssd_storage.get_machine_jwt()->get_payload_claim("mdl").as_string() !=
+                                              _flash_storage.get_machine_jwt()->get_payload_claim("mdl").as_string());
+
+                    // If the public key used to sign the jwt changed, we should update flash.
+                    flash_write_necessary |= (_ssd_storage.get_machine_pk() != _flash_storage.get_machine_pk());
+                    flash_write_necessary |= (_ssd_storage.get_license_pk() != _flash_storage.get_license_pk());
 
                     // this writes the verified machine jwt, machine public key,
                     // and license public key if it exists
-                    _ssd_storage.write_flash();
+                    if (flash_write_necessary)
+                    {
+                        DEBUG_LOG("               ssd files are newer and different, writing to flash");
+                        _ssd_storage.write_flash();
+                    }
+                    else
+                    {
+                        DEBUG_LOG("               ssd files are newer, but same claims so skipping flash write");
+                    }
 
                     // Update the cleartext machine.json for the benefit of the python UI
                     write_json_claims(_ssd_storage.MACHINEJSON_FILEPATH,
@@ -365,24 +392,52 @@ void LicenseMgr::perform_shutdown_maintenance()
     {
         DEBUG_LOG("               flash and ssd reads successful");
 
-        // The ssd files might be 'newer' than flash contents because writing flash
-        // never got a chance to occur on graceful shutdown.
-        if (_ssd_storage.get_machine_jwt()->get_issued_at() >
-            _flash_storage.get_machine_jwt()->get_issued_at())
+        // ssd files are newer, let's write them to flash as long as it appears to be
+        // for the same machine.
+        // in the out of box scenario on first boot we may have written a mostly empty, but verifiable
+        // machine.jwt to flash that doesn't have a guid yet (and perhaps there was no graceful power down
+        // where hwmon user comp would have written it).
+        bool flash_write_necessary = false;
+        std::string ssd_guid = _ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
+        std::string flash_guid = _flash_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
+        if ((ssd_guid.length() > 0) && (flash_guid.length() == 0))
         {
-            // ssd files are newer, let's write them to flash as long as it appears to match.
-            // in the out of box scenario on first boot we may have written a mostly empty, but verifiable
-            // machine.jwt to flash that doesn't have a guid yet (and perhaps there was no graceful power down
-            // where hwmon user comp would have written it).
-            std::string ssd_guid = _ssd_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
-            std::string flash_guid = _flash_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
-            if ((ssd_guid == flash_guid) || ((ssd_guid.length() > 0) && (flash_guid.length() == 0)))
+            flash_write_necessary = true;
+        }
+
+        if ((flash_write_necessary) || (ssd_guid == flash_guid))
+        {
+            // guid check is ok.
+            // now check license type compatibility (i.e. they aren't trying to
+            // change license types somehow)
+            if (_ssd_storage.get_machine_jwt()->get_payload_claim("lic").as_int() ==
+                _flash_storage.get_machine_jwt()->get_payload_claim("lic").as_int())
             {
-                DEBUG_LOG("               ssd files are newer, writing to flash");
+                // Compare rest of claims and if they are different, flash write is necessary
+                flash_write_necessary |= (_ssd_storage.get_machine_jwt()->get_payload_claim("sn").as_string() !=
+                                          _flash_storage.get_machine_jwt()->get_payload_claim("sn").as_string());
+
+                flash_write_necessary |= (_ssd_storage.get_machine_jwt()->get_payload_claim("mcls").as_string() !=
+                                          _flash_storage.get_machine_jwt()->get_payload_claim("mcls").as_string());
+
+                flash_write_necessary |= (_ssd_storage.get_machine_jwt()->get_payload_claim("mdl").as_string() !=
+                                          _flash_storage.get_machine_jwt()->get_payload_claim("mdl").as_string());
+
+                // If the public key used to sign the jwt changed, we should update flash.
+                flash_write_necessary |= (_ssd_storage.get_machine_pk() != _flash_storage.get_machine_pk());
+                flash_write_necessary |= (_ssd_storage.get_license_pk() != _flash_storage.get_license_pk());
 
                 // this writes the verified machine jwt, machine public key,
                 // and license public key if it exists
-                _ssd_storage.write_flash();
+                if (flash_write_necessary)
+                {
+                    DEBUG_LOG("               ssd files are newer and different, writing to flash");
+                    _ssd_storage.write_flash();
+                }
+                else
+                {
+                    DEBUG_LOG("               ssd files are newer, but same claims so skipping flash write");
+                }
             }
         }
     }

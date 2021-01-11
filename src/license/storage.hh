@@ -194,4 +194,7 @@ public:
 
     jwt::decoded_jwt<nlohmann_traits>* get_machine_jwt() { return _p_machine_jwt_decoded; }
     jwt::decoded_jwt<nlohmann_traits>* get_license_jwt() { return _p_license_jwt_decoded; }
+
+    const std::string& get_machine_pk() const { return _machine_public_key; }
+    const std::string& get_license_pk() const { return _license_public_key; }
 };
