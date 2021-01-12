@@ -953,6 +953,16 @@ bool Storage::verify_machine_jwt()
                 }
                 catch (jwt::error::signature_verification_exception ex)
                 {
+                    // signature verify failed
+                }
+                catch (jwt::error::token_verification_exception ex)
+                {
+                    // typically the issued at time is in the future so user is performing clock attacks
+                    if (ex.code() == jwt::error::token_verification_error::token_expired)
+                    {
+                        // enforcement of token issued at time is performed later within licensemgr.cc
+                        result = true;
+                    }
                 }
             }
             catch (jwt::error::rsa_exception ex)
@@ -999,6 +1009,17 @@ bool Storage::verify_license_jwt()
                 }
                 catch (jwt::error::signature_verification_exception ex)
                 {
+                    // signature verify failed
+                }
+                catch (jwt::error::token_verification_exception ex)
+                {
+                    // typically the expiration time has passed or the issued at time is in the future
+                    // so user is performing clock attacks
+                    if (ex.code() == jwt::error::token_verification_error::token_expired)
+                    {
+                        // enforcement of token times is performed later within licensemgr.cc
+                        result = true;
+                    }
                 }
             }
             catch (jwt::error::rsa_exception ex)
