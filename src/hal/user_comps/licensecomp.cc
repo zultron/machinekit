@@ -262,9 +262,8 @@ int main(int argc, char *argv[])
 			    int datadir_fd = inotify_add_watch(eventq_fd, "/boot/home/.d", IN_CLOSE_WRITE);
 			    if (-1 != datadir_fd)
 			    {
-					ssize_t event_cb = sizeof(struct inotify_event) + NAME_MAX + 1;
-				    struct inotify_event* event = (struct inotify_event*) new char[event_cb];
-
+					const ssize_t buffer_cb = 10 * (sizeof(struct inotify_event) + NAME_MAX + 1);
+                    char* buffer = new char[buffer_cb];
 				    while (1)
 				    {
 					    // efficiently block on eventq_fd or timeout poll
@@ -281,13 +280,13 @@ int main(int argc, char *argv[])
 					    int ready = ppoll(&pfd, 1, &timeout, NULL);  // Efficiently block for 60 seconds
 					    if (ready > 0)
 					    {
-						    DEBUG_LOG("ppoll indicates ready event");
-
-					    	// read an event
-					    	ssize_t cb = read(eventq_fd, event, event_cb);
-					    	if (cb >= (ssize_t)sizeof(struct inotify_event))
+						    DEBUG_LOG("ppoll indicates at least one ready event");
+					    	// read events
+					    	ssize_t cb = read(eventq_fd, buffer, buffer_cb);
+                            for (char* index = buffer; (index + sizeof(struct inotify_event)) < (buffer + cb);  )
 					    	{
-					    		// can at least trust the struct members
+                                // can at least trust the struct members
+                                struct inotify_event* event = (struct inotify_event*) index;
 					    		if (datadir_fd == event->wd)
 					    		{
 					    			#ifdef DEBUG
@@ -303,12 +302,14 @@ int main(int argc, char *argv[])
 							    		refresh_public_key_file("/boot/home/.d/.1");
 							    	}
 						    	}
+
+                                index += sizeof(struct inotify_event) + event->len;
 					    	}
 					    }
 					}
 
-					delete[] event;
-					event = NULL;
+					delete[] buffer;
+                    buffer = NULL;
 
 				    VERIFY(inotify_rm_watch(eventq_fd, datadir_fd) == 0);
 				    VERIFY(close(datadir_fd) == 0);
