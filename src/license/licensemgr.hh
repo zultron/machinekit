@@ -2,6 +2,11 @@
 
 #include "storage.hh"
 
+
+// Clocks from server to client can be off by 5 minutes when making sure that
+// IAT doesn't appear to be "in the future"
+#define IAT_LEEWAY_SECONDS 5*60
+
 enum license_type_t
 {
     LICENSE_TYPE_UNMANAGED   = 0,

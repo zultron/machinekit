@@ -51,15 +51,15 @@ bool LicenseMgr::check_all_claims()
         // check iat claims in both jwts
         chrono::system_clock::time_point now = chrono::system_clock::now();
         chrono::system_clock::time_point iat = _ssd_storage.get_machine_jwt()->get_issued_at();
-        if (iat > now)
+        if (iat > (now + std::chrono::seconds(IAT_LEEWAY_SECONDS)))
         {
-            DEBUG_LOG("                       machine jwt iat is in the future");
+            DEBUG_LOG("                       machine jwt iat is over IAT_LEEWAY_SECONDS in the future");
             valid = false; // suspicious.
         }
         iat = _ssd_storage.get_license_jwt()->get_issued_at();
-        if (iat > now)
+        if (iat > (now + std::chrono::seconds(IAT_LEEWAY_SECONDS)))
         {
-            DEBUG_LOG("                       license jwt iat is in the future");
+            DEBUG_LOG("                       license jwt iat is over IAT_LEEWAY SECONDS in the future");
             valid = false; // suspicious.
         }
 
