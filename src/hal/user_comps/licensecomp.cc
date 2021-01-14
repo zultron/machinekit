@@ -19,7 +19,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/inotify.h>
-#include <wait.h>
+#include <sys/wait.h>
 #include <poll.h>
 
 #include <string.h>
@@ -224,6 +224,44 @@ bool refresh_public_key_file(const char* filename)
 }
 
 
+bool adjust_permissions()
+{
+    bool result = false;
+    pid_t pid = fork();
+    if (pid == 0)
+    {
+        // Child
+        // We don't want the output of the exec program to be visible in the
+        // normal inherited stdout and stderr logs as it reveals a lot of detail.
+        #ifndef DEBUG
+        close(STDOUT_FILENO);
+        close(STDERR_FILENO);
+        #endif
+        int ev = execlp("/usr/bin/sudo",
+                        "/usr/bin/sudo",
+                        "/bin/chmod",
+                        "go+rwx",
+                        "/boot/home",
+                        NULL);
+        exit(ev);
+    }
+    else
+    {
+        // Parent - wait for result
+        int status = 0;
+        if (pid == waitpid(pid, &status, 0))
+        {
+            if ((WIFEXITED(status)) && (0 == WEXITSTATUS(status)))
+            {
+                result = true;
+            }
+        }
+    }
+
+    return result;
+}
+
+
 int main(int argc, char *argv[])
 {
 	int retcode = 1;
@@ -237,86 +275,89 @@ int main(int argc, char *argv[])
 		    signal(SIGTERM, exit_handler);
 		    atexit(call_hal_exit);
 
-		    std::string ini_file_path(argv[1]);
-		    pLicMgr = new LicenseMgr(ini_file_path);
-		    pLicMgr->perform_boot_maintenance();
+            if (adjust_permissions())
+            {
+    		    std::string ini_file_path(argv[1]);
+    		    pLicMgr = new LicenseMgr(ini_file_path);
+    		    pLicMgr->perform_boot_maintenance();
 
-		    // Read of hal script is holding off for us to be ready - esp. hostmot2 so do not
-		    // signal ready until no more mesaflash interaction.
-		    hal_ready(hal_comp_id);
+    		    // Read of hal script is holding off for us to be ready - esp. hostmot2 so do not
+    		    // signal ready until no more mesaflash interaction.
+    		    hal_ready(hal_comp_id);
 
-		    // Use linux inotify kernel system to efficiently get notified right away
-		    // if anything in the directory we store the ssd files in changes.
-		    // The PP UI HUB code will acquire new machine and license jwts and write them
-		    // there.  Then we wake up and refresh the cached SSL public keys from the cert
-		    // as needed.  This way the public key code isn't anywhere near the code that
-		    // updates the jwt dat files and is hidden in compiled C++ as well.
+    		    // Use linux inotify kernel system to efficiently get notified right away
+    		    // if anything in the directory we store the ssd files in changes.
+    		    // The PP UI HUB code will acquire new machine and license jwts and write them
+    		    // there.  Then we wake up and refresh the cached SSL public keys from the cert
+    		    // as needed.  This way the public key code isn't anywhere near the code that
+    		    // updates the jwt dat files and is hidden in compiled C++ as well.
 
-		    int eventq_fd = inotify_init();
-		    if (-1 != eventq_fd)
-		    {
-		    	// IN_MODIFY does not work so well.  In practice, you get 2 notification events
-		    	// for each file for some reason the way the crt libs work.  But using IN_CLOSE_WRITE
-		    	// is perfect.  Notifies us when a file that was opened for writing is closed.
+    		    int eventq_fd = inotify_init();
+    		    if (-1 != eventq_fd)
+    		    {
+    		    	// IN_MODIFY does not work so well.  In practice, you get 2 notification events
+    		    	// for each file for some reason the way the crt libs work.  But using IN_CLOSE_WRITE
+    		    	// is perfect.  Notifies us when a file that was opened for writing is closed.
 
-			    int datadir_fd = inotify_add_watch(eventq_fd, "/boot/home/.d", IN_CLOSE_WRITE);
-			    if (-1 != datadir_fd)
-			    {
-					const ssize_t buffer_cb = 10 * (sizeof(struct inotify_event) + NAME_MAX + 1);
-                    char* buffer = new char[buffer_cb];
-				    while (1)
-				    {
-					    // efficiently block on eventq_fd or timeout poll
-					    struct pollfd pfd;
-					    pfd.fd = eventq_fd;
-					    pfd.events = POLLIN;
-					    pfd.revents = 0;
+    			    int datadir_fd = inotify_add_watch(eventq_fd, "/boot/home/.d", IN_CLOSE_WRITE);
+    			    if (-1 != datadir_fd)
+    			    {
+    					const ssize_t buffer_cb = 10 * (sizeof(struct inotify_event) + NAME_MAX + 1);
+                        char* buffer = new char[buffer_cb];
+    				    while (1)
+    				    {
+    					    // efficiently block on eventq_fd or timeout poll
+    					    struct pollfd pfd;
+    					    pfd.fd = eventq_fd;
+    					    pfd.events = POLLIN;
+    					    pfd.revents = 0;
 
-					    struct timespec timeout;
-					    timeout.tv_sec = 60;
-					    timeout.tv_nsec = 0;
+    					    struct timespec timeout;
+    					    timeout.tv_sec = 60;
+    					    timeout.tv_nsec = 0;
 
-					    DEBUG_LOG("into ppoll");
-					    int ready = ppoll(&pfd, 1, &timeout, NULL);  // Efficiently block for 60 seconds
-					    if (ready > 0)
-					    {
-						    DEBUG_LOG("ppoll indicates at least one ready event");
-					    	// read events
-					    	ssize_t cb = read(eventq_fd, buffer, buffer_cb);
-                            for (char* index = buffer; (index + sizeof(struct inotify_event)) < (buffer + cb);  )
-					    	{
-                                // can at least trust the struct members
-                                struct inotify_event* event = (struct inotify_event*) index;
-					    		if (datadir_fd == event->wd)
-					    		{
-					    			#ifdef DEBUG
-					    			fprintf(stderr, "%s:  %s changed   mask=%x\n", modname, event->name, event->mask);
-					    			#endif
+    					    DEBUG_LOG("into ppoll");
+    					    int ready = ppoll(&pfd, 1, &timeout, NULL);  // Efficiently block for 60 seconds
+    					    if (ready > 0)
+    					    {
+    						    DEBUG_LOG("ppoll indicates at least one ready event");
+    					    	// read events
+    					    	ssize_t cb = read(eventq_fd, buffer, buffer_cb);
+                                for (char* index = buffer; (index + sizeof(struct inotify_event)) < (buffer + cb);  )
+    					    	{
+                                    // can at least trust the struct members
+                                    struct inotify_event* event = (struct inotify_event*) index;
+    					    		if (datadir_fd == event->wd)
+    					    		{
+    					    			#ifdef DEBUG
+    					    			fprintf(stderr, "%s:  %s changed   mask=%x\n", modname, event->name, event->mask);
+    					    			#endif
 
-					    			if (0 == strcmp(event->name, ".m"))
-					    			{
-							    		refresh_public_key_file("/boot/home/.d/.0");
-							    	}
-							    	else if (0 == strcmp(event->name, ".l"))
-							    	{
-							    		refresh_public_key_file("/boot/home/.d/.1");
-							    	}
-						    	}
+    					    			if (0 == strcmp(event->name, ".m"))
+    					    			{
+    							    		refresh_public_key_file("/boot/home/.d/.0");
+    							    	}
+    							    	else if (0 == strcmp(event->name, ".l"))
+    							    	{
+    							    		refresh_public_key_file("/boot/home/.d/.1");
+    							    	}
+    						    	}
 
-                                index += sizeof(struct inotify_event) + event->len;
-					    	}
-					    }
-					}
+                                    index += sizeof(struct inotify_event) + event->len;
+    					    	}
+    					    }
+    					}
 
-					delete[] buffer;
-                    buffer = NULL;
+    					delete[] buffer;
+                        buffer = NULL;
 
-				    VERIFY(inotify_rm_watch(eventq_fd, datadir_fd) == 0);
-				    VERIFY(close(datadir_fd) == 0);
-				}
+    				    VERIFY(inotify_rm_watch(eventq_fd, datadir_fd) == 0);
+    				    VERIFY(close(datadir_fd) == 0);
+    				}
 
-			    VERIFY(close(eventq_fd) == 0);
-			}
+    			    VERIFY(close(eventq_fd) == 0);
+    			}
+            }
 		}
 		else
 	    {
