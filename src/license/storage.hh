@@ -109,6 +109,7 @@ struct nlohmann_traits {
 };
 
 
+#define NUM_ELEMENTS(x) (sizeof(x) / sizeof(x[0]))
 
 class Storage
 {
@@ -119,6 +120,7 @@ private:
 
     std::string _machine_public_key;
     std::string _license_public_key;
+    std::string _offline_public_key;
 
     std::string _machine_jwt_encoded;
     std::string _license_jwt_encoded;
@@ -131,6 +133,7 @@ private:
 
     time_t _machinepubkey_file_mtime;
     time_t _licensepubkey_file_mtime;
+    time_t _offlinepubkey_file_mtime;
     time_t _machinedat_file_mtime;
     time_t _licensedat_file_mtime;
 
@@ -139,6 +142,11 @@ private:
 
     std::string MACHINEPUBKEY_FILEPATH;
     std::string LICENSEPUBKEY_FILEPATH;
+    // The offline public key is used as a backstop last chance
+    // The server signs machine and license jwts using that key pair when a user uploads
+    // a license request file and/or downloads a license.  We do this to avoid packaging the public key
+    // used to validate the jwt right along side the jwt in the download.
+    std::string OFFLINEPUBKEY_FILEPATH;
 
     void recursive_rmdir(const std::string& dirpath);
 

@@ -15,6 +15,8 @@
 
 using namespace std;
 
+#include "debugbreak.h"
+
 // TODO
 #define DEBUG
 #ifdef DEBUG
@@ -550,10 +552,10 @@ int main(int argc, char** argv)
 {
     LicenseMgr lm = LicenseMgr("/home/operator/tmc/configs/tormach_mill/tormach_1100M.ini");
 
-    lm.perform_emctaskmain_init();
-    lm.is_license_valid();
+    lm.perform_boot_maintenance();
+    //lm.perform_emctaskmain_init();
+    //lm.is_license_valid();
 
     return 0;
 }
 #endif
-

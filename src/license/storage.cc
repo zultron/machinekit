@@ -20,6 +20,11 @@ using namespace std;
 // TODO
 #define DEBUG
 
+#ifdef DEBUG
+#define DEBUG_LOG(x) {cerr << x << endl;}
+#else
+#define DEBUG_LOG(x)
+#endif
 
 Storage::Storage(const std::string& ini_file_path) :
     _block_a_read_ok(false),
@@ -29,12 +34,14 @@ Storage::Storage(const std::string& ini_file_path) :
     _p_license_jwt_decoded(NULL),
     _machinepubkey_file_mtime(0),
     _licensepubkey_file_mtime(0),
+    _offlinepubkey_file_mtime(0),
     _machinedat_file_mtime(0),
     _licensedat_file_mtime(0),
     MACHINEDAT_FILEPATH("/boot"),
     LICENSEDAT_FILEPATH("/boot"),
     MACHINEPUBKEY_FILEPATH("/boot"),
     LICENSEPUBKEY_FILEPATH("/boot"),
+    OFFLINEPUBKEY_FILEPATH("/boot"),
     MACHINEJSON_FILEPATH(std::getenv("HOME")),
     LICENSEJSON_FILEPATH(std::getenv("HOME"))
 {
@@ -46,6 +53,7 @@ Storage::Storage(const std::string& ini_file_path) :
 
     MACHINEPUBKEY_FILEPATH.append("/home/.d/.0");
     LICENSEPUBKEY_FILEPATH.append("/home/.d/.1");
+    OFFLINEPUBKEY_FILEPATH.append("/home/.d/.2");
 
     // Harden so that if /boot/home/.d is missing, it will be created
     // automatically with proper permissions
@@ -519,6 +527,8 @@ bool Storage::read_flash_block(
 
 bool Storage::read_flash()
 {
+    DEBUG_LOG("                       reading flash blocks");
+
     struct blockinfo
     {
         std::string zipdir_path;
@@ -631,13 +641,20 @@ bool Storage::read_public_keys_from_files()
     {
         restore_key_bookends(_machine_public_key);
 
-        // The license public key may or may not be present
-        result = read_entire_file(LICENSEPUBKEY_FILEPATH, _license_public_key, &_licensepubkey_file_mtime);
+        result = read_entire_file(OFFLINEPUBKEY_FILEPATH, _offline_public_key, &_offlinepubkey_file_mtime);
         if (result)
         {
-            restore_key_bookends(_license_public_key);
+            restore_key_bookends(_offline_public_key);
+
+            // The license public key may or may not be present
+            result = read_entire_file(LICENSEPUBKEY_FILEPATH, _license_public_key, &_licensepubkey_file_mtime);
+            if (result)
+            {
+                restore_key_bookends(_license_public_key);
+            }
+
+            result = true;  // ignore failures if the license public key was missing
         }
-        result = true;
     }
     return result;
 }
@@ -648,6 +665,12 @@ void Storage::write_public_keys_to_files()
     fstream keyfile;
     keyfile.open(MACHINEPUBKEY_FILEPATH, ios_base::out | ios_base::trunc);
     std::string tmpkey(_machine_public_key);
+    trim_key_bookends(tmpkey);
+    keyfile << tmpkey;
+    keyfile.close();
+
+    keyfile.open(OFFLINEPUBKEY_FILEPATH, ios_base::out | ios_base::trunc);
+    tmpkey.assign(_offline_public_key);
     trim_key_bookends(tmpkey);
     keyfile << tmpkey;
     keyfile.close();
@@ -682,18 +705,26 @@ bool Storage::read_public_keys(const std::string& zipfilepath)
             {
                 restore_key_bookends(_machine_public_key);
 
-                // The license key file may or may not.  Out of box time limited machines
-                // won't have one until a successful license is acquired and written to flash.
                 keyfilepath.assign(zipdir_path_str);
-                keyfilepath.append("/1");
-                result = read_entire_file(keyfilepath, _license_public_key);
+                keyfilepath.append("/2");
+                result = read_entire_file(keyfilepath, _offline_public_key);
                 if (result)
                 {
-                    restore_key_bookends(_license_public_key);
-                }
+                    restore_key_bookends(_offline_public_key);
 
-                // Overall we succeed even if license public key is missing.
-                result = true;
+                    // The license key file may or may not.  Out of box time limited machines
+                    // won't have one until a successful license is acquired and written to flash.
+                    keyfilepath.assign(zipdir_path_str);
+                    keyfilepath.append("/1");
+                    result = read_entire_file(keyfilepath, _license_public_key);
+                    if (result)
+                    {
+                        restore_key_bookends(_license_public_key);
+                    }
+
+                    // Overall we succeed even if license public key is missing.
+                    result = true;
+                }
             }
         }
 
@@ -736,20 +767,29 @@ bool Storage::write_public_keys(std::string& zipfile_path)
         result = write_file(keyfilepath, machine_public_key_trimmed);
         if (result)
         {
-            // license public key will only be present if we've been able to acquire
-            // one from hub
-            if (_license_public_key.length() > 0)
-            {
-                std::string license_public_key_trimmed(_license_public_key);
-                trim_key_bookends(license_public_key_trimmed);
-                keyfilepath.assign(zipdir_path_str);
-                keyfilepath.append("/1");
-                result = write_file(keyfilepath, license_public_key_trimmed);
-            }
-
+            // offline public key should always exist
+            std::string offline_public_key_trimmed(_offline_public_key);
+            trim_key_bookends(offline_public_key_trimmed);
+            keyfilepath.assign(zipdir_path_str);
+            keyfilepath.append("/2");
+            result = write_file(keyfilepath, offline_public_key_trimmed);
             if (result)
             {
-                result = zip_exec(zipdir_path_str, zipfile_path);
+                // license public key will only be present if we've been able to acquire
+                // one from hub
+                if (_license_public_key.length() > 0)
+                {
+                    std::string license_public_key_trimmed(_license_public_key);
+                    trim_key_bookends(license_public_key_trimmed);
+                    keyfilepath.assign(zipdir_path_str);
+                    keyfilepath.append("/1");
+                    result = write_file(keyfilepath, license_public_key_trimmed);
+                }
+
+                if (result)
+                {
+                    result = zip_exec(zipdir_path_str, zipfile_path);
+                }
             }
         }
 
@@ -883,6 +923,8 @@ bool Storage::write_flash()
 
 bool Storage::read_ssd_files()
 {
+    DEBUG_LOG("                       reading ssd files");
+
     // out-of-box context for time limited machines is machine jwt and public key exist.
     // but license jwt and public key do not.
     bool result = read_public_keys_from_files();
@@ -939,34 +981,41 @@ bool Storage::verify_machine_jwt()
         }
         _p_machine_jwt_decoded = new jwt::decoded_jwt<nlohmann_traits>(_machine_jwt_encoded);
 
-        // Verify the jwt signature with the public key
-        if (_machine_public_key.length() > 0)
+        // We try to use the machine public key first, but then use the offline public key
+        // as a backstop.
+        const std::string* public_keys[] = { &_machine_public_key, &_offline_public_key };
+        for (unsigned int ix = 0; ix < NUM_ELEMENTS(public_keys) && !result; ++ix)
         {
-            try
+            // Verify the jwt signature with the public key
+            if (public_keys[ix]->length() > 0)
             {
-                auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
-                                .allow_algorithm(jwt::algorithm::rs256(_machine_public_key, "", "", ""));
                 try
                 {
-                    verify.verify(*_p_machine_jwt_decoded);
-                    result = true;
-                }
-                catch (jwt::error::signature_verification_exception ex)
-                {
-                    // signature verify failed
-                }
-                catch (jwt::error::token_verification_exception ex)
-                {
-                    // typically the issued at time is in the future so user is performing clock attacks
-                    if (ex.code() == jwt::error::token_verification_error::token_expired)
+                    auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
+                                    .allow_algorithm(jwt::algorithm::rs256(*(public_keys[ix]), "", "", ""));
+                    try
                     {
-                        // enforcement of token issued at time is performed later within licensemgr.cc
+                        verify.verify(*_p_machine_jwt_decoded);
                         result = true;
                     }
+                    catch (jwt::error::signature_verification_exception ex)
+                    {
+                        // signature verify failed
+                        cerr << "WTF";
+                    }
+                    catch (jwt::error::token_verification_exception ex)
+                    {
+                        // typically the issued at time is in the future so user is performing clock attacks
+                        if (ex.code() == jwt::error::token_verification_error::token_expired)
+                        {
+                            // enforcement of token issued at time is performed later within licensemgr.cc
+                            result = true;
+                        }
+                    }
                 }
-            }
-            catch (jwt::error::rsa_exception ex)
-            {
+                catch (jwt::error::rsa_exception ex)
+                {
+                }
             }
         }
 
@@ -980,6 +1029,18 @@ bool Storage::verify_machine_jwt()
     {
         // Thrown when machine encoded string isn't valid
     }
+
+#ifdef DEBUG
+    if (result)
+    {
+        DEBUG_LOG("                       machine jwt verified");
+    }
+    else
+    {
+        DEBUG_LOG("                       machine jwt verify FAILED");
+    }
+#endif
+
     return result;
 }
 
@@ -995,35 +1056,41 @@ bool Storage::verify_license_jwt()
         }
         _p_license_jwt_decoded = new jwt::decoded_jwt<nlohmann_traits>(_license_jwt_encoded);
 
-        // Verify the jwt signature with the public key
-        if (_license_public_key.length() > 0)
+        // We try to use the license public key first, but then use the offline public key
+        // as a backstop.
+        const std::string* public_keys[] = { &_license_public_key, &_offline_public_key };
+        for (unsigned int ix = 0; ix < NUM_ELEMENTS(public_keys) && !result; ++ix)
         {
-            try
+            // Verify the jwt signature with the public key
+            if (public_keys[ix]->length() > 0)
             {
-                auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
-                                .allow_algorithm(jwt::algorithm::rs256(_license_public_key, "", "", ""));
                 try
                 {
-                    verify.verify(*_p_license_jwt_decoded);
-                    result = true;
-                }
-                catch (jwt::error::signature_verification_exception ex)
-                {
-                    // signature verify failed
-                }
-                catch (jwt::error::token_verification_exception ex)
-                {
-                    // typically the expiration time has passed or the issued at time is in the future
-                    // so user is performing clock attacks
-                    if (ex.code() == jwt::error::token_verification_error::token_expired)
+                    auto verify = jwt::verify<jwt::default_clock, nlohmann_traits>({})
+                                    .allow_algorithm(jwt::algorithm::rs256(*(public_keys[ix]), "", "", ""));
+                    try
                     {
-                        // enforcement of token times is performed later within licensemgr.cc
+                        verify.verify(*_p_license_jwt_decoded);
                         result = true;
                     }
+                    catch (jwt::error::signature_verification_exception ex)
+                    {
+                        // signature verify failed
+                    }
+                    catch (jwt::error::token_verification_exception ex)
+                    {
+                        // typically the expiration time has passed or the issued at time is in the future
+                        // so user is performing clock attacks
+                        if (ex.code() == jwt::error::token_verification_error::token_expired)
+                        {
+                            // enforcement of token times is performed later within licensemgr.cc
+                            result = true;
+                        }
+                    }
                 }
-            }
-            catch (jwt::error::rsa_exception ex)
-            {
+                catch (jwt::error::rsa_exception ex)
+                {
+                }
             }
         }
 
@@ -1037,6 +1104,18 @@ bool Storage::verify_license_jwt()
     {
         // Thrown when machine encoded string isn't valid
     }
+
+#ifdef DEBUG
+    if (result)
+    {
+        DEBUG_LOG("                       license jwt verified");
+    }
+    else
+    {
+        DEBUG_LOG("                       license jwt verify FAILED");
+    }
+#endif
+
     return result;
 }
 
@@ -1048,8 +1127,8 @@ bool Storage::do_license_ssd_files_exist()
     result |= (0 == access(LICENSEDAT_FILEPATH.c_str(), F_OK));
     result |= (0 == access(MACHINEPUBKEY_FILEPATH.c_str(), F_OK));
     result |= (0 == access(LICENSEPUBKEY_FILEPATH.c_str(), F_OK));
+    result |= (0 == access(OFFLINEPUBKEY_FILEPATH.c_str(), F_OK));
     result |= (0 == access(LICENSEJSON_FILEPATH.c_str(), F_OK));
-
     return result;
 }
 
