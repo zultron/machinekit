@@ -996,12 +996,15 @@ bool Storage::verify_machine_jwt()
                     try
                     {
                         verify.verify(*_p_machine_jwt_decoded);
+#ifdef DEBUG
+                        cerr << "            machine jwt verified with key index " << ix << endl;
+#endif
                         result = true;
                     }
                     catch (jwt::error::signature_verification_exception ex)
                     {
                         // signature verify failed
-                        cerr << "WTF";
+                        ;
                     }
                     catch (jwt::error::token_verification_exception ex)
                     {
@@ -1071,6 +1074,9 @@ bool Storage::verify_license_jwt()
                     try
                     {
                         verify.verify(*_p_license_jwt_decoded);
+#ifdef DEBUG
+                        cerr << "            license jwt verified with key index " << ix << endl;
+#endif
                         result = true;
                     }
                     catch (jwt::error::signature_verification_exception ex)
