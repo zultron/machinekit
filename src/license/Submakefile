@@ -1,21 +1,33 @@
 LIB_DIR:=../lib
+BIN_DIR:=../bin
 
 INCLUDES += license
 
 LIBLICENSESRCS := $(addprefix license/, \
 	storage.cc \
 	licensemgr.cc)
-USERSRCS += $(LIBLICENSESRCS)
+
+CONFIGCHECKSRCS := $(addprefix license/, \
+    configcheck.cc)
+
+USERSRCS += $(LIBLICENSESRCS) $(CONFIGCHECKSRCS)
 
 $(call TOOBJSDEPS, $(LIBLICENSESRCS)) : EXTRAFLAGS=-fPIC
+$(call TOOBJSDEPS, $(CONFIGCHECKSRCS)) : EXTRAFLAGS=-fPIC
 
-TARGETS += $(LIB_DIR)/liblicense.a
+TARGETS += $(LIB_DIR)/liblicense.a $(BIN_DIR)/configcheck
 
 $(LIB_DIR)/liblicense.a: $(patsubst %.cc,objects/%.o,$(LIBLICENSESRCS))
 	$(ECHO) Creating library $(notdir $@)
 	@mkdir -p $(LIB_DIR)
 	@rm -f $@
 	$(Q)$(AR) crf $@ $^
+
+$(BIN_DIR)/configcheck: $(patsubst %.cc,objects/%.o,$(CONFIGCHECKSRCS)) ../lib/liblicense.a ../lib/liblinuxcncini.so.0
+	$(ECHO) Linking $(notdir $@)
+	@mkdir -p $(BIN_DIR)
+	@rm -f $@
+	$(Q)$(CC) $(LDFLAGS) -o $@ $^ -lm -lstdc++ -lssl -lcrypto
 
 $(patsubst ./license/%,../include/%,$(wildcard ./license/*.hh)): ../include/%.hh: ./license/%.hh
 	cp $^ $@
