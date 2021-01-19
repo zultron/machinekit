@@ -163,7 +163,7 @@ void LicenseMgr::perform_boot_maintenance()
             std::string flash_guid = _flash_storage.get_machine_jwt()->get_payload_claim("guid").as_string();
             if (flash_guid.length() > 0)
             {
-                // OK - we ahve a guid - so this can't be the out of box scenario.
+                // OK - we have a guid - so this can't be the out of box scenario.
                 // Update the cleartext machine.json for the benefit of the python UI, but preserve sn if
                 // present.  User might have gone back into config chooser at some later point,
                 // re-selected their machine, and entered a serial number (or a corrected serial number if
@@ -457,6 +457,10 @@ void LicenseMgr::perform_shutdown_maintenance()
         // this writes the verified machine jwt, machine public key,
         // and license public key if it exists
         _ssd_storage.write_flash();
+    }
+    else
+    {
+        DEBUG_LOG("               flash and ssd reads both failed");
     }
 }
 

@@ -582,7 +582,7 @@ bool Storage::read_flash()
             // read the public key nested zip which is named compensation.dat as a misdirection
             tmp.assign(finalblock->zipdir_path);
             tmp.append("/compensation.dat");
-            result = read_public_keys(tmp);
+            result = read_public_keys_from_expanded_zip(tmp);
             if (result)
             {
                 result = verify_machine_jwt();
@@ -641,20 +641,22 @@ bool Storage::read_public_keys_from_files()
     {
         restore_key_bookends(_machine_public_key);
 
+        // The offline public key may or may not be present.  Any controller that wasn't "born" a licensed
+        // version of software won't have it.
         result = read_entire_file(OFFLINEPUBKEY_FILEPATH, _offline_public_key, &_offlinepubkey_file_mtime);
         if (result)
         {
             restore_key_bookends(_offline_public_key);
-
-            // The license public key may or may not be present
-            result = read_entire_file(LICENSEPUBKEY_FILEPATH, _license_public_key, &_licensepubkey_file_mtime);
-            if (result)
-            {
-                restore_key_bookends(_license_public_key);
-            }
-
-            result = true;  // ignore failures if the license public key was missing
         }
+
+        // The license public key may or may not be present
+        result = read_entire_file(LICENSEPUBKEY_FILEPATH, _license_public_key, &_licensepubkey_file_mtime);
+        if (result)
+        {
+            restore_key_bookends(_license_public_key);
+        }
+
+        result = true;  // ignore failures if the license public key was missing
     }
     return result;
 }
@@ -669,11 +671,14 @@ void Storage::write_public_keys_to_files()
     keyfile << tmpkey;
     keyfile.close();
 
-    keyfile.open(OFFLINEPUBKEY_FILEPATH, ios_base::out | ios_base::trunc);
-    tmpkey.assign(_offline_public_key);
-    trim_key_bookends(tmpkey);
-    keyfile << tmpkey;
-    keyfile.close();
+    if (_offline_public_key.length() > 0)
+    {
+        keyfile.open(OFFLINEPUBKEY_FILEPATH, ios_base::out | ios_base::trunc);
+        tmpkey.assign(_offline_public_key);
+        trim_key_bookends(tmpkey);
+        keyfile << tmpkey;
+        keyfile.close();
+    }
 
     if (_license_public_key.length() > 0)
     {
@@ -686,7 +691,7 @@ void Storage::write_public_keys_to_files()
 }
 
 
-bool Storage::read_public_keys(const std::string& zipfilepath)
+bool Storage::read_public_keys_from_expanded_zip(const std::string& zipfilepath)
 {
     bool result = false;
     char zipdir_path[] = { "/tmp/XXXXXX\0" };
@@ -705,26 +710,28 @@ bool Storage::read_public_keys(const std::string& zipfilepath)
             {
                 restore_key_bookends(_machine_public_key);
 
+                // The offline license key file may or may not exist.  Only controllers "born"
+                // with a licensed version of PP have it.
                 keyfilepath.assign(zipdir_path_str);
                 keyfilepath.append("/2");
                 result = read_entire_file(keyfilepath, _offline_public_key);
                 if (result)
                 {
                     restore_key_bookends(_offline_public_key);
-
-                    // The license key file may or may not.  Out of box time limited machines
-                    // won't have one until a successful license is acquired and written to flash.
-                    keyfilepath.assign(zipdir_path_str);
-                    keyfilepath.append("/1");
-                    result = read_entire_file(keyfilepath, _license_public_key);
-                    if (result)
-                    {
-                        restore_key_bookends(_license_public_key);
-                    }
-
-                    // Overall we succeed even if license public key is missing.
-                    result = true;
                 }
+
+                // The license key file may or may not.  Out of box time limited machines
+                // won't have one until a successful license is acquired and written to flash.
+                keyfilepath.assign(zipdir_path_str);
+                keyfilepath.append("/1");
+                result = read_entire_file(keyfilepath, _license_public_key);
+                if (result)
+                {
+                    restore_key_bookends(_license_public_key);
+                }
+
+                // Overall we succeed even if license public key is missing.
+                result = true;
             }
         }
 

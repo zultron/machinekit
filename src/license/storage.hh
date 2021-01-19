@@ -168,8 +168,8 @@ private:
     bool unzip_exec(const std::string& zipfilepath,
                     const std::string& tmpdirpath);
 
-    // These the zip container to house the keys inside the flash zip
-    bool read_public_keys(const std::string& zipfilepath);
+    // These use the zip container to house the keys inside the flash zip
+    bool read_public_keys_from_expanded_zip(const std::string& zipfilepath);
     bool write_public_keys(std::string& zipfile_path);
 
     // These use the files scattered on the SSD drive
