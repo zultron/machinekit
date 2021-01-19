@@ -17,8 +17,6 @@
 
 using namespace std;
 
-// TODO
-#define DEBUG
 
 #ifdef DEBUG
 #define DEBUG_LOG(x) {cerr << x << endl;}
@@ -48,23 +46,48 @@ Storage::Storage(const std::string& ini_file_path) :
     MACHINEJSON_FILEPATH.append("/machine.json");
     LICENSEJSON_FILEPATH.append("/license.json");
 
-    MACHINEDAT_FILEPATH.append("/home/.d/.m");
-    LICENSEDAT_FILEPATH.append("/home/.d/.l");
+    // Breaking things up and composing the string constants below
+    // makes it harder to discern where the file are if someone
+    // uses the 'strings' app to hunt through the static data segment
+    // of the binary.  If we put /boot/home/.d/.m as one complete
+    // string, it sticks out like a flashing light.
 
-    MACHINEPUBKEY_FILEPATH.append("/home/.d/.0");
-    LICENSEPUBKEY_FILEPATH.append("/home/.d/.1");
-    OFFLINEPUBKEY_FILEPATH.append("/home/.d/.2");
+    std::string homedir("/home");
+    std::string hiddendir("/.d");
+
+    MACHINEDAT_FILEPATH.append(homedir);
+    LICENSEDAT_FILEPATH.append(homedir);
+    MACHINEPUBKEY_FILEPATH.append(homedir);
+    LICENSEPUBKEY_FILEPATH.append(homedir);
+    OFFLINEPUBKEY_FILEPATH.append(homedir);
+
+    MACHINEDAT_FILEPATH.append(hiddendir);
+    LICENSEDAT_FILEPATH.append(hiddendir);
+    MACHINEPUBKEY_FILEPATH.append(hiddendir);
+    LICENSEPUBKEY_FILEPATH.append(hiddendir);
+    OFFLINEPUBKEY_FILEPATH.append(hiddendir);
+
+    MACHINEDAT_FILEPATH.append("/.m");
+    LICENSEDAT_FILEPATH.append("/.l");
+    MACHINEPUBKEY_FILEPATH.append("/.0");
+    LICENSEPUBKEY_FILEPATH.append("/.1");
+    OFFLINEPUBKEY_FILEPATH.append("/.2");
 
     // Harden so that if /boot/home/.d is missing, it will be created
     // automatically with proper permissions
+    // But be careful not to have a string constant with the full path
+    // all in one shot.
+    std::string tmpdir("/boot");
+    tmpdir.append(homedir);
     struct stat statbuf;
-    if (0 != stat("/boot/home", &statbuf))
+    if (0 != stat(tmpdir.c_str(), &statbuf))
     {
-        mkdir("/boot/home", 0777);
+        mkdir(tmpdir.c_str(), 0777);
     }
-    if (0 != stat("/boot/home/.d", &statbuf))
+    tmpdir.append(hiddendir);
+    if (0 != stat(tmpdir.c_str(), &statbuf))
     {
-        mkdir("/boot/home/.d", 0700);
+        mkdir(tmpdir.c_str(), 0700);
     }
 
     IniFile inifile;

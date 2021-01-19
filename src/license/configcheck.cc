@@ -3,9 +3,6 @@
 
 #include "licensemgr.hh"
 
-// TODO
-#define DEBUG
-
 #ifdef DEBUG
 #include "debugbreak.h"
 #define DEBUG_LOG(x) {fprintf(stderr, "%s\n", x);}
@@ -14,7 +11,6 @@
 #define DEBUG_LOG(x)
 #define VERIFY(x) {if (x) ;}
 #endif
-
 
 int main(int argc, char** argv)
 {

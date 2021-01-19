@@ -15,10 +15,6 @@
 
 using namespace std;
 
-#include "debugbreak.h"
-
-// TODO
-#define DEBUG
 #ifdef DEBUG
 #define DEBUG_LOG(x) {cerr << x << endl;}
 #else
