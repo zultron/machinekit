@@ -758,7 +758,7 @@ bool Storage::write_file(const std::string& filepath, const std::string data)
 }
 
 
-bool Storage::write_public_keys(std::string& zipfile_path)
+bool Storage::write_public_keys_to_zip(std::string& zipfile_path)
 {
     bool result = false;
     char zipdir_path[] = { "/tmp/XXXXXX\0" };
@@ -774,29 +774,31 @@ bool Storage::write_public_keys(std::string& zipfile_path)
         result = write_file(keyfilepath, machine_public_key_trimmed);
         if (result)
         {
-            // offline public key should always exist
-            std::string offline_public_key_trimmed(_offline_public_key);
-            trim_key_bookends(offline_public_key_trimmed);
-            keyfilepath.assign(zipdir_path_str);
-            keyfilepath.append("/2");
-            result = write_file(keyfilepath, offline_public_key_trimmed);
+            // offline public key will only exist if controller was "born" as a time limited licensed
+            // machine.
+            if (_offline_public_key.length() > 0)
+            {
+                std::string offline_public_key_trimmed(_offline_public_key);
+                trim_key_bookends(offline_public_key_trimmed);
+                keyfilepath.assign(zipdir_path_str);
+                keyfilepath.append("/2");
+                result = write_file(keyfilepath, offline_public_key_trimmed);
+            }
+
+            // license public key will only be present if we've been able to acquire
+            // one from hub
+            if ((result) && (_license_public_key.length() > 0))
+            {
+                std::string license_public_key_trimmed(_license_public_key);
+                trim_key_bookends(license_public_key_trimmed);
+                keyfilepath.assign(zipdir_path_str);
+                keyfilepath.append("/1");
+                result = write_file(keyfilepath, license_public_key_trimmed);
+            }
+
             if (result)
             {
-                // license public key will only be present if we've been able to acquire
-                // one from hub
-                if (_license_public_key.length() > 0)
-                {
-                    std::string license_public_key_trimmed(_license_public_key);
-                    trim_key_bookends(license_public_key_trimmed);
-                    keyfilepath.assign(zipdir_path_str);
-                    keyfilepath.append("/1");
-                    result = write_file(keyfilepath, license_public_key_trimmed);
-                }
-
-                if (result)
-                {
-                    result = zip_exec(zipdir_path_str, zipfile_path);
-                }
+                result = zip_exec(zipdir_path_str, zipfile_path);
             }
         }
 
@@ -825,7 +827,7 @@ bool Storage::write_flash()
             // write public keys as a zip into the dir as compensation.dat
             tmpfilepath.assign(contents_path);
             tmpfilepath.append("/compensation.dat");
-            result = write_public_keys(tmpfilepath);
+            result = write_public_keys_to_zip(tmpfilepath);
             if (result)
             {
                 // create or update the /timestamp file that will be inside the zip.

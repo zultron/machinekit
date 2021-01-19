@@ -170,7 +170,7 @@ private:
 
     // These use the zip container to house the keys inside the flash zip
     bool read_public_keys_from_expanded_zip(const std::string& zipfilepath);
-    bool write_public_keys(std::string& zipfile_path);
+    bool write_public_keys_to_zip(std::string& zipfile_path);
 
     // These use the files scattered on the SSD drive
     bool read_public_keys_from_files();
