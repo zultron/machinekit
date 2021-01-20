@@ -1170,6 +1170,11 @@ bool Storage::do_license_ssd_files_exist()
     return result;
 }
 
+void Storage::delete_license_ssd_file()
+{
+    unlink(LICENSEDAT_FILEPATH.c_str());
+}
+
 
 #if 0
 // Compile with  g++ -std=c++11 -g flashstorage.cc

@@ -535,6 +535,21 @@ bool LicenseMgr::is_license_valid()
             {
                 unlink(_ssd_storage.LICENSEJSON_FILEPATH.c_str());
             }
+
+            if (! valid)
+            {
+            	// If license is not valid, we nuke the file immediately.  Why?
+            	// Because it may be a license that was good for 8 days - or even much longer in an
+            	// offline license request situation.  And if the user knows they are going to stop
+            	// paying the loan, they might just disconnect from the internet ahead of time.
+            	// So the new license that is good for 0 days (where iat==exp) never gets downloaded.
+            	// In this situation, the license has a time window where if the user sets the local
+            	// time lock inside that window, it will work.  But if we nuke the license file,
+            	// it eliminates that possibility.  Once expiration is triggered, the user must get a new
+            	// license either online or offline - and they won't be able to since the HUB
+            	// database will have 0 days set for the license duration.
+                _ssd_storage.delete_license_ssd_file();
+            }
         }
     }
 

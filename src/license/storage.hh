@@ -202,6 +202,7 @@ public:
     void write_ssd_keys_and_machine_jwt();
 
     bool do_license_ssd_files_exist();
+    void delete_license_ssd_file();
 
     jwt::decoded_jwt<nlohmann_traits>* get_machine_jwt() { return _p_machine_jwt_decoded; }
     jwt::decoded_jwt<nlohmann_traits>* get_license_jwt() { return _p_license_jwt_decoded; }
