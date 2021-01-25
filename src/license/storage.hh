@@ -151,6 +151,8 @@ private:
     // used to validate the jwt right along side the jwt in the download.
     std::string OFFLINEPUBKEY_FILEPATH;
 
+    void common_ctor_portion();
+
     void recursive_rmdir(const std::string& dirpath);
 
     bool create_random_datafile(std::string& path);
@@ -192,6 +194,7 @@ public:
     std::string LICENSEJSON_FILEPATH;
 
     Storage(const std::string& ini_file_path);
+    Storage(const std::string& mesa_board, const std::string& mesa_ipaddr);
     ~Storage();
 
     bool read_flash();

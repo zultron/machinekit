@@ -43,6 +43,80 @@ Storage::Storage(const std::string& ini_file_path) :
     MACHINEJSON_FILEPATH(std::getenv("HOME")),
     LICENSEJSON_FILEPATH(std::getenv("HOME"))
 {
+    common_ctor_portion();
+
+    IniFile inifile;
+    if (inifile.Open(ini_file_path.c_str()))
+    {
+        const char* board = inifile.Find("BOARD", "HOSTMOT2");
+        if (NULL != board)
+        {
+            _mesa_board.assign(board);
+
+            if (_mesa_board != "5i25")
+            {
+                const char* params = inifile.Find("DRIVER_PARAMS", "HOSTMOT2");
+                // Pull the board_ip=n.n.n.n string which has to be first without any spaces
+                const char* addr = strstr(params, "board_ip=");
+                if (NULL != addr)
+                {
+                    addr += strlen("board_ip=");
+                    const char* addrend = strstr(addr, " ");
+                    if (NULL != addrend)
+                    {
+                        _mesa_ipaddr.assign(addr, addrend);
+                    }
+                }
+            }
+        }
+
+        inifile.Close();
+    }
+}
+
+
+Storage::Storage(const std::string& mesa_board, const std::string& mesa_ipaddr) :
+    _block_a_read_ok(false),
+    _block_b_read_ok(false),
+    _write_block_a_first(true),
+    _p_machine_jwt_decoded(NULL),
+    _p_license_jwt_decoded(NULL),
+    _mesa_board(mesa_board),
+    _mesa_ipaddr(mesa_ipaddr),
+    _machinepubkey_file_mtime(0),
+    _licensepubkey_file_mtime(0),
+    _offlinepubkey_file_mtime(0),
+    _machinedat_file_mtime(0),
+    _licensedat_file_mtime(0),
+    MACHINEDAT_FILEPATH("/boot"),
+    LICENSEDAT_FILEPATH("/boot"),
+    MACHINEPUBKEY_FILEPATH("/boot"),
+    LICENSEPUBKEY_FILEPATH("/boot"),
+    OFFLINEPUBKEY_FILEPATH("/boot"),
+    MACHINEJSON_FILEPATH(std::getenv("HOME")),
+    LICENSEJSON_FILEPATH(std::getenv("HOME"))
+{
+    common_ctor_portion();
+}
+
+
+Storage::~Storage()
+{
+    if (_p_machine_jwt_decoded)
+    {
+        delete _p_machine_jwt_decoded;
+        _p_machine_jwt_decoded = NULL;
+    }
+    if (_p_license_jwt_decoded)
+    {
+        delete _p_license_jwt_decoded;
+        _p_license_jwt_decoded = NULL;
+    }
+}
+
+
+void Storage::common_ctor_portion()
+{
     MACHINEJSON_FILEPATH.append("/machine.json");
     LICENSEJSON_FILEPATH.append("/license.json");
 
@@ -88,49 +162,6 @@ Storage::Storage(const std::string& ini_file_path) :
     if (0 != stat(tmpdir.c_str(), &statbuf))
     {
         mkdir(tmpdir.c_str(), 0700);
-    }
-
-    IniFile inifile;
-    if (inifile.Open(ini_file_path.c_str()))
-    {
-        const char* board = inifile.Find("BOARD", "HOSTMOT2");
-        if (NULL != board)
-        {
-            _mesa_board.assign(board);
-
-            if (_mesa_board != "5i25")
-            {
-                const char* params = inifile.Find("DRIVER_PARAMS", "HOSTMOT2");
-                // Pull the board_ip=n.n.n.n string which has to be first without any spaces
-                const char* addr = strstr(params, "board_ip=");
-                if (NULL != addr)
-                {
-                    addr += strlen("board_ip=");
-                    const char* addrend = strstr(addr, " ");
-                    if (NULL != addrend)
-                    {
-                        _mesa_ipaddr.assign(addr, addrend);
-                    }
-                }
-            }
-        }
-
-        inifile.Close();
-    }
-}
-
-
-Storage::~Storage()
-{
-    if (_p_machine_jwt_decoded)
-    {
-        delete _p_machine_jwt_decoded;
-        _p_machine_jwt_decoded = NULL;
-    }
-    if (_p_license_jwt_decoded)
-    {
-        delete _p_license_jwt_decoded;
-        _p_license_jwt_decoded = NULL;
     }
 }
 
