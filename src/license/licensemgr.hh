@@ -23,8 +23,6 @@ private:
     license_type_t _license_type;
 
     bool check_all_claims();
-    void write_json_claims(const std::string& filepath,
-                           const std::unordered_map< typename nlohmann_traits::string_type, jwt::basic_claim<nlohmann_traits>  >& claims);
 
 public:
     LicenseMgr(const std::string& ini_file_path);
@@ -37,4 +35,9 @@ public:
     void perform_emctaskmain_init();
     // Called by Cycle Start effectively - any time we try to switch into EMC_TASK_MODE_AUTO
     bool is_license_valid();
+
+    // Useful utility function - configcheck.cc uses this also
+    static void write_json_claims(const std::string& filepath,
+                                  const std::unordered_map< typename nlohmann_traits::string_type, jwt::basic_claim<nlohmann_traits>  >& claims);
+
 };
