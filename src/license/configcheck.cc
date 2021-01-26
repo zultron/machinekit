@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <iostream>
 #include <fstream>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "storage.hh"
 #include "licensemgr.hh"
@@ -23,6 +25,49 @@ typedef struct
     string board;
     string address;
 } MESA_DEVICE;
+
+
+
+int run_config_chooser(const string& model, bool ethernet_device)
+{
+    int status = 1;
+    pid_t pid = fork();
+    if (pid == 0)
+    {
+        // Child
+        // We don't want the output of the exec program to be visible in the
+        // normal inherited stdout and stderr logs as it reveals a lot of detail.
+        #ifndef DEBUG
+        close(STDOUT_FILENO);
+        close(STDERR_FILENO);
+        #endif
+        char modelarg[200];
+        sprintf(modelarg, "--model=%s", model.c_str());
+        int ev = execlp("/usr/bin/env",
+                        "/usr/bin/env",
+                        "python",
+                        "/home/operator/tmc/python/config_chooser/config_chooser.py",
+                        "--writejson",
+                        modelarg,
+                        ethernet_device ? "--ethernet" : "--db25parallel",
+                        NULL);
+        exit(ev);
+    }
+    else
+    {
+        // Parent - wait for result
+        if (pid == waitpid(pid, &status, 0))
+        {
+            if (WIFEXITED(status))
+            {
+                status = WEXITSTATUS(status);
+            }
+        }
+    }
+
+    return status;
+}
+
 
 int main(int argc, char** argv)
 {
@@ -86,13 +131,15 @@ int main(int argc, char** argv)
                     pclaims["lic"] = jwt::basic_claim<nlohmann_traits>(lic);
                 }
 
+                DEBUG_LOG("configcheck - writing machine.json");
                 LicenseMgr::write_json_claims(pStorage->MACHINEJSON_FILEPATH,
                                               pclaims);
 
-                // Then call config chooser to generate pathpilot.json from the model
-                // and mesa device we know is working (5i25 or 7i92 config for stuff that has BOTH of them)
-
-                retcode = 0;
+                // Run config_chooser.py to generate pathpilot.json from the model non-interactively
+                bool ethernet = (devices[ix].address.length() > 0);
+                string model = pclaims["mdl"].as_string();
+                DEBUG_LOG("configcheck - writing pathpilot.json");
+                retcode = run_config_chooser(model, ethernet);
             }
 
             delete pStorage;
