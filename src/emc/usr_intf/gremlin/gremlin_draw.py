@@ -1703,7 +1703,7 @@ class GremlinDraw(glnav.GlNavBase):
             if self.canon.progress is not None:
                 self.canon.progress.nextphase(1)
             #canon.calc_extents()
-            self.clear_dlists()
+        self.clear_dlists()
 
         return result, seq, annotations
 
