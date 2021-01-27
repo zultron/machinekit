@@ -630,6 +630,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         error_str = gcode.strerror(result)
         sys.stderr.write("G-Code error in " + os.path.basename(filename) + "\n" + "Near line "
                          + str(seq) + " of\n" + filename + "\n" + error_str + "\n")
+        return None
 
     def show_gcode_warnings(self, warnings, filename):
         for w in warnings:
