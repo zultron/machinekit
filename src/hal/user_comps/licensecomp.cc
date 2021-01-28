@@ -29,7 +29,7 @@
 #include "licensemgr.hh"
 
 // Define this to enable logs of valuable debugging info
-#define DEBUG
+// #define DEBUG
 
 #ifdef DEBUG
 #include "debugbreak.h"
