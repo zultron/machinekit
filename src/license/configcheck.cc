@@ -42,11 +42,15 @@ int run_config_chooser(const string& model, bool ethernet_device)
         close(STDERR_FILENO);
         #endif
         char modelarg[200];
+
+        string config_chooser_path(getenv("HOME"));
+        config_chooser_path.append("/tmc/python/config_chooser/config_chooser.py");
+
         sprintf(modelarg, "--model=%s", model.c_str());
         int ev = execlp("/usr/bin/env",
                         "/usr/bin/env",
                         "python",
-                        "/home/operator/tmc/python/config_chooser/config_chooser.py",
+                        config_chooser_path.c_str(),
                         "--writejson",
                         modelarg,
                         ethernet_device ? "--ethernet" : "--db25parallel",
