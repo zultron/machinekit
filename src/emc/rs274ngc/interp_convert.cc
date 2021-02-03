@@ -2820,12 +2820,19 @@ int Interp::create_full_restore_sequence(
     }
 #endif
 
-    if (!run_settings.keep_current_tool) {
-        generator.printMsg("program preamble: Change to active tool at start line and execute prolog and epilog");
-        generator.addPreformatted("G90"); // Necessary to allow absolute moves in toolchange prolog
-        generator.addPreformatted(preamble.toolchange_prolog, "TOOLCHANGE PROLOG");
-        generator.addToolChange(to_restore.modal_state.tool_number);
-        generator.addPreformatted(preamble.toolchange_epilog, "TOOLCHANGE EPILOG");
+    if (run_settings.keep_current_tool) {
+        generator.printMsg(std::string("program preamble: keep currently loaded tool ") + std::to_string(run_initial_state.modal_state.tool_number));
+    } else {
+        int needed_tool = to_restore.modal_state.tool_number;
+        if (run_initial_state.modal_state.tool_number == needed_tool) {
+            generator.printMsg(std::string("program preamble: required tool ") + std::to_string(needed_tool) + " is currently loaded");
+        } else {
+            generator.printMsg("program preamble: Change to active tool at start line and execute prolog and epilog");
+            generator.addPreformatted("G90"); // Necessary to allow absolute moves in toolchange prolog
+            generator.addPreformatted(preamble.toolchange_prolog, "TOOLCHANGE PROLOG");
+            generator.addToolChange(needed_tool);
+            generator.addPreformatted(preamble.toolchange_epilog, "TOOLCHANGE EPILOG");
+        }
     }
 
     // Crude way to ensure that the "persistant" values are properly copied into stat
