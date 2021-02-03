@@ -233,6 +233,8 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
             snprintf(buf,sizeof(buf)," S%.0f ", saved.settings[ii]);
             cmd+=buf;
             break;
+        case SETTINGS_CSS_MAX_SPEED:
+            // FIXME handle restoring CSS max speed
         case ACTIVE_SETTINGS: // Not a real setting index
             break;
         }

@@ -267,6 +267,7 @@ StateTag Interp::make_state_tag(setup_struct const &s, block_pointer block, int 
 
     state.feed = s.feed_rate;        /* 1 feed rate       */
     state.speed = s.speed;    /* 2 spindle speed   */
+    state.css_max_speed = s.css_max_speed;    /* 2 spindle css_max_speed   */
     return state;
 }
 

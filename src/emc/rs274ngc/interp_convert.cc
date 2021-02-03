@@ -4066,14 +4066,12 @@ int Interp::convert_spindle_mode(block_pointer block, setup_pointer settings)
 {
     if(block->g_modes[GM_SPINDLE_MODE] == G_97) {
         settings->spindle_mode = CONSTANT_RPM;
-        enqueue_SET_SPINDLE_MODE(0, make_state_tag(*settings, block));
+        settings->css_max_speed = 0;
     } else { /* G_96 */
         settings->spindle_mode = CONSTANT_SURFACE;
-	if(block->d_flag)
-        enqueue_SET_SPINDLE_MODE(fabs(block->d_number_float), make_state_tag(*settings, block));
-	else
-        enqueue_SET_SPINDLE_MODE(1e30, make_state_tag(*settings, block));
+        settings->css_max_speed = block->d_flag ? fabs(block->d_number_float) : 1e30;
     }
+    enqueue_SET_SPINDLE_MODE(settings->css_max_speed, make_state_tag(*settings, block));
     return INTERP_OK;
 }
 /****************************************************************************/
