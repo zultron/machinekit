@@ -2700,25 +2700,25 @@ int Interp::cbAfterSeekReadTransition(
             PATH_MAX+LINELEN,
             "%s/%s.ngc",
             _setup.program_prefix,
-            STATE_RESTORE_SUBROUTINE_NAME);
+                getStateRestoreSubroutineName());
         } else {
             snprintf(
                 tmp_file_path,
                 PATH_MAX+LINELEN,
                 "%s.ngc",
-                STATE_RESTORE_SUBROUTINE_NAME);
+                getStateRestoreSubroutineName());
         }
         logIf(EMC_DEBUG_SET_START_LINE, "state restore subroutine filename: %s\n", tmp_file_path);
         std::ofstream f_tmp(tmp_file_path);
 
         // Wrap the command list in a subroutine
         logIf(EMC_DEBUG_SET_START_LINE, "program preamble commands before starting at line %d:\n", start_settings.start_line);
-        f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> sub\n";
+        f_tmp << "o<" << getStateRestoreSubroutineName() << "> sub\n";
         for (auto const &cmd : restore_cmd_list) {
             logIf(EMC_DEBUG_SET_START_LINE, "  %s\n",cmd.c_str());
             f_tmp << cmd << "\n";
         }
-        f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> endsub\n";
+        f_tmp << "o<" << getStateRestoreSubroutineName() << "> endsub\n";
         f_tmp << "M2\n";
 
         CHKS(!f_tmp.good(), "Failed to write restore program");
@@ -2727,7 +2727,7 @@ int Interp::cbAfterSeekReadTransition(
     CHP(synch());
     {
         char restore_cmd[LINELEN] = {};
-        snprintf(restore_cmd, LINELEN, "o<%s> call", STATE_RESTORE_SUBROUTINE_NAME);
+        snprintf(restore_cmd, LINELEN, "o<%s> call", getStateRestoreSubroutineName());
         // NOTE: PREAMBLE is special here. It forces execute to treat the
         // restore command as if it was part of the original program,
         // effectively injecting G-code into the program

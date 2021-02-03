@@ -921,6 +921,9 @@ protected:
     bool error_has_context;
 
     virtual int check_startline_leadin_feedrate(double & feed_rate_uu, const char * move_type);
+    virtual const char * getStateRestoreSubroutineName() const {
+        return "restore_start_line_state";
+    }
 
     virtual StateTag make_state_tag(setup_struct const &s, block_pointer block, int toplevel_line=0) const;
 };
@@ -928,8 +931,6 @@ protected:
 
 bool toolOffsetActive(setup_struct const *s);
 std::tuple<PositionArrayIndex, PositionArrayIndex, PositionArrayIndex> plane_indices(CANON_PLANE plane);
-
-#define STATE_RESTORE_SUBROUTINE_NAME "restore_start_line_state"
 
 
 /**
