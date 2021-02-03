@@ -1702,7 +1702,7 @@ class GremlinDraw(glnav.GlNavBase):
         if result <= gcode.MIN_ERROR:
             if self.canon.progress is not None:
                 self.canon.progress.nextphase(1)
-            self.clear_dlists()
+        self.clear_dlists()
 
         return result, seq, annotations
 

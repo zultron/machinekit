@@ -458,6 +458,7 @@ struct setup_struct
   int sequence_number;          // sequence number of line last read
   int stepping_id;              // tag value used to control stepping
   double speed;                 // current spindle speed in rpm or SxM
+  double css_max_speed;         // Maximum allowed spindle speed in rpm if CSS mode is active (otherwise 0)
   SPINDLE_MODE spindle_mode;    // CONSTANT_RPM or CONSTANT_SURFACE
   CANON_SPEED_FEED_MODE speed_feed_mode;        // independent or synched
   bool speed_override;        // whether speed override is enabled
