@@ -194,6 +194,8 @@ int Interp::write_settings(setup_struct const *settings,     //!< pointer to mac
       settings->feed_rate;
   state.settings[SETTINGS_SPEED] =		/* 2 spindle speed */
       settings->speed;
+  state.settings[SETTINGS_CSS_MAX_SPEED] =		/* 2 spindle speed */
+      settings->css_max_speed;
 
   return INTERP_OK;
 }
