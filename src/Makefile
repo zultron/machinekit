@@ -525,9 +525,9 @@ distclean: clean configure-clean
 
 .PHONY: configure-clean
 configure-clean:
-	rm configure
-	rm Makefile.inc
-	rm Makefile.modinc
+	-rm configure
+	-rm Makefile.inc
+	-rm Makefile.modinc
 
 # So that nothing is built as root, this rule does not depend on the touched
 # files (Note that files in depends/ might be rebuilt, and there's little that
