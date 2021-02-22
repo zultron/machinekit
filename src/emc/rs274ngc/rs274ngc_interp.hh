@@ -917,10 +917,12 @@ int read_inputs(setup_pointer settings);
 
     virtual int check_leadin_feedmode(const ModalState & initial, const ModalState & to_restore, int start_line, double leadin_feedrate) const;
     
+    int check_leadin_move_feed(const ExpandedModalState & to_restore, const AutoRunSettings & run_settings, const ExpandedModalState & run_initial_state, double & leadin_feedrate);
+
 protected:
     bool error_has_context;
 
-    virtual int check_startline_leadin_feedrate(double & feed_rate_uu, const char * move_type);
+    virtual int check_startline_leadin_feedrate(double & feed_rate_uu);
     virtual const char * getStateRestoreSubroutineName() const {
         return "restore_start_line_state";
     }

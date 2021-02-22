@@ -88,10 +88,11 @@ int PreviewInterp::synch_work_offsets_from_task(setup_pointer settings) const
     return INTERP_OK;
 }
 
-int PreviewInterp::check_startline_leadin_feedrate(double &feed_rate, const char * move_type)
+int PreviewInterp::check_startline_leadin_feedrate(double &feed_rate)
 {
     if (feed_rate < 1e-10) {
-        setWarning(_("Start-line %s lead-in move needs a positive feed rate (start-line lead-in uses current machine feed)"), move_type);
+        // This is a warning, not an error, because the user will choose a feed rate before running their program
+        setWarning(_("Lead-in move needs a positive feed rate (start-line lead-in uses current machine feed)"));
         // KLUDGE force this to be non-zero so that it at least draws the path correctly
         feed_rate = 1e-10;
     }

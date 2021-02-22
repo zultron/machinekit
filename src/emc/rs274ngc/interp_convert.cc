@@ -2759,9 +2759,9 @@ int Interp::gen_toolOffset(GCodeGenerator &generator, GCodes tool_offset_mode, i
     return INTERP_OK;
 }
 
-int Interp::check_startline_leadin_feedrate(double &feed_rate_uu, const char *move_type)
+int Interp::check_startline_leadin_feedrate(double &feed_rate_uu)
 {
-    CHKS(feed_rate_uu < 1e-10, _("Can't do %s lead-in move with zero feed rate (lead-in uses current machine feed)"), move_type);
+    CHKS(feed_rate_uu < 1e-10, _("Can't do lead-in move with zero feed rate (lead-in uses current machine feed)"));
     return INTERP_OK;
 }
 
@@ -2775,6 +2775,19 @@ int Interp::check_leadin_feedmode(ModalState const &initial, ModalState const &t
             leadin_feedrate
             );
     }
+    return INTERP_OK;
+}
+
+int Interp::check_leadin_move_feed(
+    ExpandedModalState const &to_restore,
+    AutoRunSettings const &run_settings,
+    ExpandedModalState const &run_initial_state,
+    double &leadin_feedrate
+    )
+{
+    leadin_feedrate = USER_TO_PROGRAM_LEN(run_initial_state.modal_state.feed_rate_uu);
+    CHP(check_leadin_feedmode(run_initial_state.modal_state, to_restore.modal_state, run_settings.start_line, leadin_feedrate));
+    CHP(check_startline_leadin_feedrate(leadin_feedrate));
     return INTERP_OK;
 }
 
@@ -2846,14 +2859,14 @@ int Interp::create_full_restore_sequence(
     PositionArray leadin_position_raw = _setup.transform.inverse_local_from_tool(leadin_tool_prog);
     PositionArray leadin_position = _setup.posWithDiameterMode(leadin_position_raw);
 
-    double leadin_feedrate = USER_TO_PROGRAM_LEN(run_initial_state.modal_state.feed_rate_uu);
-    CHP(check_leadin_feedmode(run_initial_state.modal_state, to_restore.modal_state, run_settings.start_line, leadin_feedrate));
     double feedrate_to_restore = to_restore.modal_state.settings[SETTINGS_FEED_RATE]; // Already in program units
+    double leadin_feedrate = 0;
 
     switch (run_settings.leadin_type) {
     case PREP_LINEAR_LEADIN:
     {
-        CHP(check_startline_leadin_feedrate(leadin_feedrate, "linear"));
+        CHP(check_leadin_move_feed(to_restore, run_settings, run_initial_state, leadin_feedrate));
+
         generator.printMsg("program preamble: Linear lead-in at program feed, from initial position to program position at start of next line");
         generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);
@@ -2871,7 +2884,7 @@ int Interp::create_full_restore_sequence(
         break;
     case PREP_PLUNGE_LEADIN:
     {
-        CHP(check_startline_leadin_feedrate(leadin_feedrate, "plunge"));
+        CHP(check_leadin_move_feed(to_restore, run_settings, run_initial_state, leadin_feedrate));
         generator.printMsg("program preamble: Traverse / Plunge lead-in at program feed, from safe height to program height at start of next line");
         generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);
