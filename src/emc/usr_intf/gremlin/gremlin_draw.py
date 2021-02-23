@@ -1444,7 +1444,6 @@ class GremlinDraw(glnav.GlNavBase):
             if view != x:
                 glPushMatrix()
                 if self.is_lathe():
-                    self.color_config.gl_color('probe_shaft')
                     if self.is_rear_tool_post_lathe():
                         glTranslatef(-1.3, 0, 0)
                         glRotatef(-90, 0, 0, 1)
