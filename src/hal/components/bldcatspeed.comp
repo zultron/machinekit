@@ -1,0 +1,179 @@
+
+component bldcatspeed "spindle at speed HAL Component";
+
+license "GPL";
+author "";
+
+// Purpose:
+//
+// Input velocity from motor drive along with belt position and ratio, target spindle speed
+//
+// Output "at-speed" TRUE while in range of target and spindle enabled
+//
+// HAL mappings:
+//
+//    Inputs:
+//          rpm-target              motion.spindle-speed-out
+//          belt-position           1 -> high belt, 0 -> low belt position
+//          spindle-on              motion.spindle-on
+//          motor-rps-in            velocity from encoder -- this should already be low pass filtered
+//          tolerance               +/- range of target speed for declaring "at-speed" default 0.20, range > 0.0 and <= 1.0
+//          debounce                how long in seconds at-apeed must remain TRUE before being reported (default 0.200)
+//          dwell                   additional wait in seconds before reporting at-speed change to motion (default 0.200)
+//
+//    Outputs:
+//          at-speed                motion.spindle-at-speed
+//          rpm-out                 in RPM signed, displayed on DRO when not at-speed
+//          rps-out                 optionally connect to UI for display during gcode program execution
+//
+
+// connect to motion.spindle-speed-out
+// revolutions per minute
+pin in float rpm_target;
+
+// belt and pulley info
+pin in bit belt_position;
+pin in float lowbelt_ratio;
+pin in float highbelt_ratio;
+
+// connect to motion.spindle-on
+pin in bit spindle_on;
+
+// connect to encoder velocity after low pass filtered
+// revolutions per second
+pin in float motor_rps_in;
+
+// range > 0.0 and <= 1.0
+pin in float tolerance;
+
+// seconds at-speed must be true for false before
+// informing motion
+param rw float debounce = 0.200;
+
+// seconds to wait after new stable state before
+// informing motion
+param rw float dwell = 0.200;
+
+// connect to motion.spindle-at-speed
+pin out bit at_speed;
+
+// instantaneous and previous servo loop state
+pin out bit at_speed_now;
+pin out bit at_speed_prev;
+
+// optionally connect to UI
+pin out float rps_out;
+pin out float rpm_out;
+
+// set here in comp based on belt position
+pin out float spindle_pulley_ratio;
+
+variable float debounce_elapsed = 0.0;
+variable float dwell_elapsed = 0.0;
+variable float range_checked_tolerance = 0.0;
+
+function _ "BLDC spindle at speed HAL Component";
+
+;;
+
+#include <rtapi_math.h>
+
+#define BIT_FALSE 0
+#define BIT_TRUE  1
+
+#define BELT_POSITION_LOW  0
+#define BELT_POSITION_HIGH 1
+
+// default 0.2 for +/- 20% of commanded for at-speed
+#define TOLERANCE_DEFAULT 0.2
+
+FUNCTION(_) {
+
+    if (spindle_on && (fabs(rpm_target) > 1.0)) {
+        // spindle is on with non-zero commanded speed
+
+        spindle_pulley_ratio = highbelt_ratio;
+        if (belt_position == BELT_POSITION_LOW) {
+            spindle_pulley_ratio = lowbelt_ratio;
+        }
+
+        float spindle_rpm_in = motor_rps_in * 60.0 * spindle_pulley_ratio;
+        rpm_out = spindle_rpm_in;
+
+        // range check and set tolerance
+        range_checked_tolerance = tolerance;
+        if (tolerance <= 0.0 || tolerance > 1.0) {
+            range_checked_tolerance = TOLERANCE_DEFAULT;
+        }
+
+        // check if measured speed is within +/- range_checked_tolerance of target
+        float lower_limit = (1.0 - range_checked_tolerance) * rpm_target;
+        float upper_limit = (1.0 + range_checked_tolerance) * rpm_target;
+        if (spindle_rpm_in < -1.0) {
+            // flip limits for spindle in reverse
+            upper_limit = (1.0 - range_checked_tolerance) * rpm_target;
+            lower_limit = (1.0 + range_checked_tolerance) * rpm_target;
+        }
+
+        // get current immediate state
+        if (spindle_rpm_in >= lower_limit && spindle_rpm_in <= upper_limit) {
+            at_speed_now = BIT_TRUE;
+        }
+        else {
+            at_speed_now = BIT_FALSE;
+        }
+
+        // how this works
+        // on any change in the immediate at-speed state
+        // restart the debounce timer at 0.0
+        // this way a new state has to remain the same for the entirety
+        // of the debounce timer period before being recognized as
+        // a change reported to motion
+
+        // check for change from last time
+        if (at_speed_prev != at_speed_now) {
+            // fresh edge, restart debounce timer
+            debounce_elapsed = 0.0;
+            dwell_elapsed = 0.0;
+        }
+        else {
+            // no change in immediate state
+            // check for completed debounce timer
+            if (debounce_elapsed <= fabs(debounce)) {
+                // add to debounce timer
+                debounce_elapsed += fperiod;
+            }
+            else {
+                // debounce timer complete
+                // this is the most common state with spindle on
+
+                // is state change dwell complete?
+                if (dwell_elapsed <= fabs(dwell)) {
+                    // add to dwell timer
+                    dwell_elapsed += fperiod;
+                }
+                else {
+                    // reflect debounced and dwelled state to motion via at-speed pin
+                    at_speed = at_speed_now;
+                }
+                if (at_speed) {
+                    // when at-speed report target not measured
+                    rpm_out = fabs(rpm_target);
+                }
+            }
+        }
+        // remember now for next previous
+        at_speed_prev = at_speed_now;
+    }
+    else {
+        // spindle is off -- nothing to check
+        at_speed = BIT_FALSE;
+        at_speed_now = BIT_FALSE;
+        at_speed_prev = BIT_FALSE;
+        rps_out = 0.0;
+        rpm_out = 0.0;
+    }
+
+    rps_out = rpm_out / 60.0;
+}
+
