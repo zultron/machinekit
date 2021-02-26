@@ -41,7 +41,7 @@ pin in bit spindle_on;
 
 // connect to encoder velocity after low pass filtered
 // revolutions per second
-pin in float motor_rps_in;
+pin io float motor_rps_in;
 
 // range > 0.0 and <= 1.0
 pin in float tolerance;
@@ -72,6 +72,22 @@ variable float debounce_elapsed = 0.0;
 variable float dwell_elapsed = 0.0;
 variable float range_checked_tolerance = 0.0;
 
+pin in bit enc_a;
+pin in bit enc_b;
+pin io bit enc_a_prev;
+pin io bit enc_b_prev;
+
+pin io s32 count;
+pin io s32 count_then;
+pin io s32 count_delta;
+pin io float time_now;
+pin io float time_then;
+pin io float time_delta;
+
+pin io float enc_vel;
+pin io float spindle_rpm;
+pin in float filter_gain;
+
 function _ "BLDC spindle at speed HAL Component";
 
 ;;
@@ -89,16 +105,88 @@ function _ "BLDC spindle at speed HAL Component";
 
 FUNCTION(_) {
 
-    if (spindle_on && (fabs(rpm_target) > 1.0)) {
-        // spindle is on with non-zero commanded speed
+    time_now += fperiod;
+    // sample encoder phases
+    if (enc_a != enc_a_prev && enc_b == enc_b_prev) {
+        // a changed
+        if (enc_a && enc_b) {
+            count++;
 
-        spindle_pulley_ratio = highbelt_ratio;
-        if (belt_position == BELT_POSITION_LOW) {
-            spindle_pulley_ratio = lowbelt_ratio;
+            // compute velocity from rising edge of input a
+            time_delta = time_now - time_then;
+
+            // figure out if count rolled over or under
+            // and deal with it
+
+            count_delta = count - count_then;
+
+            enc_vel = (count_delta / time_delta) / 8.0;
+            time_then = time_now;
+            count_then = count;
         }
+        else if (!enc_a && !enc_b) {
+            count++;
+        }
+        else if (enc_a && !enc_b) {
+            count--;
 
-        float spindle_rpm_in = motor_rps_in * 60.0 * spindle_pulley_ratio;
-        rpm_out = spindle_rpm_in;
+            // compute velocity from rising edge of input a
+            time_delta = time_now - time_then;
+
+            // figure out if count rolled over or under
+            // and deal with it
+
+            count_delta = count - count_then;
+
+            enc_vel = (count_delta / time_delta) / 8.0;
+            time_then = time_now;
+            count_then = count;
+        }
+        else if (!enc_a && enc_b) {
+            count--;
+        }
+    }
+    else if (enc_a == enc_a_prev && enc_b != enc_b_prev) {
+        // b changed
+        if (enc_b && !enc_a) {
+            count++;
+        }
+        else if (!enc_b && enc_a) {
+            count++;
+        }
+        else if (enc_b && enc_a) {
+            count--;
+        }
+        else if (!enc_b && !enc_a) {
+            count--;
+        }
+    }
+    else if (enc_a == enc_a_prev && enc_b == enc_b_prev) {
+        // neither changed
+        // check for stopped
+        if ((time_now - time_then) > 0.200) {
+            enc_vel = 0.0;
+            //count = 0;
+        }
+    }
+    enc_a_prev = enc_a;
+    enc_b_prev = enc_b;
+
+    //motor_rps_in =  enc_vel;
+
+    //out += (in - out) * gain
+    motor_rps_in += (enc_vel - motor_rps_in) * filter_gain;
+
+    spindle_pulley_ratio = highbelt_ratio;
+    if (belt_position == BELT_POSITION_LOW) {
+        spindle_pulley_ratio = lowbelt_ratio;
+    }
+
+    spindle_rpm = motor_rps_in * 60.0 * spindle_pulley_ratio;
+    rpm_out = fabs(spindle_rpm);
+
+    if (spindle_on && (fabs(rpm_target) > 10.0)) {
+        // spindle is on with non-zero commanded speed
 
         // range check and set tolerance
         range_checked_tolerance = tolerance;
@@ -109,14 +197,14 @@ FUNCTION(_) {
         // check if measured speed is within +/- range_checked_tolerance of target
         float lower_limit = (1.0 - range_checked_tolerance) * rpm_target;
         float upper_limit = (1.0 + range_checked_tolerance) * rpm_target;
-        if (spindle_rpm_in < -1.0) {
+        if (spindle_rpm < -1.0) {
             // flip limits for spindle in reverse
             upper_limit = (1.0 - range_checked_tolerance) * rpm_target;
             lower_limit = (1.0 + range_checked_tolerance) * rpm_target;
         }
 
         // get current immediate state
-        if (spindle_rpm_in >= lower_limit && spindle_rpm_in <= upper_limit) {
+        if (spindle_rpm >= lower_limit && spindle_rpm <= upper_limit) {
             at_speed_now = BIT_TRUE;
         }
         else {
