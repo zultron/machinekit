@@ -1297,17 +1297,48 @@ static PyObject *unhome(pyCommandChannel *s, PyObject *o) {
     return Py_None;
 }
 
+static PyObject *jog_incremental(pyCommandChannel *s, PyObject *args, PyObject *kwargs) {
+    EMC_AXIS_INCR_JOG incr_jog_cmd{};
+    incr_jog_cmd.windup_limit = 0; // Default is legacy behavior, no windup limit
+
+    static const char * const kwarg_list[] = {
+        "axis",
+        "velocity",
+        "increment"
+        "windup_limit",
+        nullptr,
+        };
+
+    // KLUDGE shove even more parameters in here...
+    if(!PyArg_ParseTupleAndKeywords(
+            args,
+            kwargs,
+            "idd|d",
+            const_cast<char**>(kwarg_list),
+            &incr_jog_cmd.axis,
+            &incr_jog_cmd.vel,
+            &incr_jog_cmd.incr,
+            &incr_jog_cmd.windup_limit)) {
+        return nullptr;
+    }
+
+    emcSendCommand(s, incr_jog_cmd);
+
+    Py_RETURN_NONE;
+}
+
 // jog(JOG_STOP, axis)
 // jog(JOG_CONTINUOUS, axis, speed)
 // jog(JOG_INCREMENT, axis, speed, increment)
 
+
 static PyObject *jog(pyCommandChannel *s, PyObject *o) {
     int fn;
     int axis;
-    double vel, inc;
+    double vel, inc, windup=0;
 
 
-    if(!PyArg_ParseTuple(o, "ii|dd", &fn, &axis, &vel, &inc)) return NULL;
+    if(!PyArg_ParseTuple(o, "ii|ddd", &fn, &axis, &vel, &inc, &windup)) return NULL;
     if(fn == LOCAL_JOG_STOP) {
         if(PyTuple_Size(o) != 2) {
             PyErr_Format( PyExc_TypeError,
@@ -1341,6 +1372,7 @@ static PyObject *jog(pyCommandChannel *s, PyObject *o) {
         incr.axis = axis;
         incr.vel = vel;
         incr.incr = inc;
+        incr.windup_limit = windup;
         emcSendCommand(s, incr);
     } else {
         PyErr_Format( PyExc_TypeError, "jog() first argument must be JOG_xxx");
@@ -1638,6 +1670,7 @@ static PyMethodDef Command_methods[] = {
     {"home", (PyCFunction)home, METH_VARARGS},
     {"unhome", (PyCFunction)unhome, METH_VARARGS},
     {"jog", (PyCFunction)jog, METH_VARARGS},
+    {"jog_incremental", (PyCFunction)jog_incremental, METH_VARARGS | METH_KEYWORDS},
     {"reset_interpreter", (PyCFunction)reset_interpreter, METH_NOARGS},
     {"program_open", (PyCFunction)program_open, METH_VARARGS},
     {"auto", (PyCFunction)emcauto, METH_VARARGS},

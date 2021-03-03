@@ -2115,6 +2115,7 @@ void EMC_AXIS_INCR_JOG::update(CMS * cms)
     EMC_AXIS_CMD_MSG::update(cms);
     cms->update(incr);
     cms->update(vel);
+    cms->update(windup_limit);
 
 }
 

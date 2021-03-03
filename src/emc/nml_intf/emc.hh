@@ -78,7 +78,7 @@ extern int emcAxisDisable(int axis);
 extern int emcAxisHome(int axis);
 extern int emcAxisUnhome(int axis);
 extern int emcAxisJog(int axis, double vel);
-extern int emcAxisIncrJog(int axis, double incr, double vel);
+extern int emcAxisIncrJog(int axis, double incr, double vel, double windup_limit);
 extern int emcAxisAbsJog(int axis, double pos, double vel);
 extern int emcAxisActivate(int axis);
 extern int emcAxisDeactivate(int axis);
