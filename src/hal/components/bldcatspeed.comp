@@ -1,14 +1,14 @@
 
-component bldcatspeed "spindle at speed HAL Component";
+component bldcatspeed "BLDC Hall sensor spindle at speed HAL Component";
 
 license "GPL";
 author "";
 
 // Purpose:
 //
-// Input velocity from motor drive along with belt position and ratio, target spindle speed
+// Input:  two Hall sensors from motor drive along with belt position and ratio, target spindle speed
 //
-// Output "at-speed" TRUE while in range of target and spindle enabled
+// Output: "at-speed" TRUE while in range of target and spindle enabled
 //
 // HAL mappings:
 //
@@ -16,7 +16,7 @@ author "";
 //          rpm-target              motion.spindle-speed-out
 //          belt-position           1 -> high belt, 0 -> low belt position
 //          spindle-on              motion.spindle-on
-//          motor-rps-in            velocity from encoder -- this should already be low pass filtered
+//          enc-a, enc-b            two Hall sensors from motor
 //          tolerance               +/- range of target speed for declaring "at-speed" default 0.20, range > 0.0 and <= 1.0
 //          debounce                how long in seconds at-apeed must remain TRUE before being reported (default 0.200)
 //          dwell                   additional wait in seconds before reporting at-speed change to motion (default 0.200)
@@ -38,10 +38,6 @@ pin in float highbelt_ratio;
 
 // connect to motion.spindle-on
 pin in bit spindle_on;
-
-// connect to encoder velocity after low pass filtered
-// revolutions per second
-pin io float motor_rps_in;
 
 // range > 0.0 and <= 1.0
 pin in float tolerance;
@@ -65,28 +61,34 @@ pin out bit at_speed_prev;
 pin out float rps_out;
 pin out float rpm_out;
 
-// set here in comp based on belt position
-pin out float spindle_pulley_ratio;
-
-variable float debounce_elapsed = 0.0;
-variable float dwell_elapsed = 0.0;
-variable float range_checked_tolerance = 0.0;
-
+// from motor Hall sensors
 pin in bit enc_a;
 pin in bit enc_b;
+
+// used to manage encoder velocity
+// exposed as pins for easier inspection
 pin io bit enc_a_prev;
 pin io bit enc_b_prev;
-
 pin io s32 count;
 pin io s32 count_then;
 pin io s32 count_delta;
 pin io float time_now;
 pin io float time_then;
 pin io float time_delta;
+pin io float direction;
 
 pin io float enc_vel;
 pin io float spindle_rpm;
 pin in float filter_gain;
+
+// encoder velocity after low pass filtering
+// revolutions per second
+pin io float motor_rps_in;
+
+
+variable float debounce_elapsed = 0.0;
+variable float dwell_elapsed = 0.0;
+variable float range_checked_tolerance = 0.0;
 
 function _ "BLDC spindle at speed HAL Component";
 
@@ -103,6 +105,9 @@ function _ "BLDC spindle at speed HAL Component";
 // default 0.2 for +/- 20% of commanded for at-speed
 #define TOLERANCE_DEFAULT 0.2
 
+// time in seconds between velocity updates
+#define VELOCITY_SAMPLE_PERIOD 0.100
+
 FUNCTION(_) {
 
     time_now += fperiod;
@@ -111,54 +116,38 @@ FUNCTION(_) {
         // a changed
         if (enc_a && enc_b) {
             count++;
-
-            // compute velocity from rising edge of input a
-            time_delta = time_now - time_then;
-
-            // figure out if count rolled over or under
-            // and deal with it
-
-            count_delta = count - count_then;
-
-            enc_vel = (count_delta / time_delta) / 8.0;
-            time_then = time_now;
-            count_then = count;
-        }
-        else if (!enc_a && !enc_b) {
-            count++;
+            direction = 1.0;
         }
         else if (enc_a && !enc_b) {
             count--;
-
-            // compute velocity from rising edge of input a
-            time_delta = time_now - time_then;
-
-            // figure out if count rolled over or under
-            // and deal with it
-
-            count_delta = count - count_then;
-
-            enc_vel = (count_delta / time_delta) / 8.0;
-            time_then = time_now;
-            count_then = count;
+            direction = -1.0;
+        }
+        else if (!enc_a && !enc_b) {
+            count++;
+            direction = 1.0;
         }
         else if (!enc_a && enc_b) {
             count--;
+            direction = -1.0;
         }
     }
     else if (enc_a == enc_a_prev && enc_b != enc_b_prev) {
         // b changed
         if (enc_b && !enc_a) {
             count++;
-        }
-        else if (!enc_b && enc_a) {
-            count++;
+            direction = 1.0;
         }
         else if (enc_b && enc_a) {
             count--;
+            direction = -1.0;
+        }
+        else if (!enc_b && enc_a) {
+            count++;
+            direction = 1.0;
         }
         else if (!enc_b && !enc_a) {
             count--;
+            direction = -1.0;
         }
     }
     else if (enc_a == enc_a_prev && enc_b == enc_b_prev) {
@@ -166,23 +155,45 @@ FUNCTION(_) {
         // check for stopped
         if ((time_now - time_then) > 0.200) {
             enc_vel = 0.0;
-            //count = 0;
+            count = 0;
+            count_then = 0;
+            time_now = 0.0;
+            time_then = 0.0;
+            direction = 1.0;
         }
     }
     enc_a_prev = enc_a;
     enc_b_prev = enc_b;
 
-    //motor_rps_in =  enc_vel;
+    // is it time for a new velocity calculation?
+    if (time_now >= time_then + VELOCITY_SAMPLE_PERIOD) {
+        time_delta = time_now - time_then;
+        time_then = time_now;
 
-    //out += (in - out) * gain
-    motor_rps_in += (enc_vel - motor_rps_in) * filter_gain;
+        // account for roll over/under of signed integer
+        if (count >= count_then) {
+            count_delta = count - count_then;
+        }
+        else {
+            count_delta = count_then - count;
+        }
+        count_then = count;
 
-    spindle_pulley_ratio = highbelt_ratio;
-    if (belt_position == BELT_POSITION_LOW) {
-        spindle_pulley_ratio = lowbelt_ratio;
+        enc_vel = (count_delta / time_delta) / 8.0;
+
+        enc_vel = enc_vel * direction;
     }
 
-    spindle_rpm = motor_rps_in * 60.0 * spindle_pulley_ratio;
+    // low pass filter
+    // motor_rps_in =  enc_vel;
+    // out += (in - out) * gain
+    motor_rps_in += (enc_vel - motor_rps_in) * filter_gain;
+
+    spindle_rpm = motor_rps_in * 60.0 * highbelt_ratio;
+    if (belt_position == BELT_POSITION_LOW) {
+        spindle_rpm = motor_rps_in * 60.0 * lowbelt_ratio;
+    }
+
     rpm_out = fabs(spindle_rpm);
 
     if (spindle_on && (fabs(rpm_target) > 10.0)) {
