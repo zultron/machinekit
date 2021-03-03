@@ -1361,7 +1361,7 @@ static PyObject *jog(pyCommandChannel *s, PyObject *o) {
         cont.vel = vel;
         emcSendCommand(s, cont);
     } else if(fn == LOCAL_JOG_INCREMENT) {
-        if(PyTuple_Size(o) != 4) {
+        if(PyTuple_Size(o) != 5) {
             PyErr_Format( PyExc_TypeError,
                 "jog(JOG_INCREMENT, ...) takes 4 arguments (%lu given)",
                 (unsigned long)PyTuple_Size(o));
