@@ -416,6 +416,7 @@ class EMC_AXIS_INCR_JOG:public EMC_AXIS_CMD_MSG {
 
     double incr;
     double vel;
+    double windup_limit;
 };
 
 class EMC_AXIS_ABS_JOG:public EMC_AXIS_CMD_MSG {

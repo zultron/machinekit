@@ -1803,8 +1803,10 @@ static int emcTaskIssueCommand(NMLmsg * cmd)
 
     case EMC_AXIS_INCR_JOG_TYPE:
 	incr_jog_msg = (EMC_AXIS_INCR_JOG *) cmd;
-	retval = emcAxisIncrJog(incr_jog_msg->axis,
-				incr_jog_msg->incr, incr_jog_msg->vel);
+    retval = emcAxisIncrJog(incr_jog_msg->axis,
+                            incr_jog_msg->incr,
+                            incr_jog_msg->vel,
+                            incr_jog_msg->windup_limit);
 	break;
 
     case EMC_AXIS_ABS_JOG_TYPE:

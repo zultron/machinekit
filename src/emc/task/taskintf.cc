@@ -486,7 +486,7 @@ int emcAxisJog(int axis, double vel)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcAxisIncrJog(int axis, double incr, double vel)
+int emcAxisIncrJog(int axis, double incr, double vel, double windup_limit)
 {
     if (axis < 0 || axis >= EMCMOT_MAX_JOINTS) {
 	return 0;
@@ -502,6 +502,7 @@ int emcAxisIncrJog(int axis, double incr, double vel)
     emcmotCommand.axis = axis;
     emcmotCommand.vel = vel;
     emcmotCommand.offset = incr;
+    emcmotCommand.jog_windup_limit = windup_limit;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }

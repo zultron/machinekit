@@ -236,6 +236,7 @@ typedef struct emcmot_command_t {
 	int axis;		/* which index to use for below */ //FIXME-AJ: replace with joint
 	double scale;		/* velocity scale or spindle_speed scale arg */
 	double offset;		/* input, output, or home offset arg */
+    double jog_windup_limit; // Maximum target distance allowed for incremental joint jogging (0 means unlimited)
 	double home;		/* joint home position */
 	double home_final_vel;	/* joint velocity for moving from OFFSET to HOME */
 	double search_vel;	/* home search velocity */
