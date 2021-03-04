@@ -1304,7 +1304,7 @@ static PyObject *jog_incremental(pyCommandChannel *s, PyObject *args, PyObject *
     static const char * const kwarg_list[] = {
         "axis",
         "velocity",
-        "increment"
+        "increment",
         "windup_limit",
         nullptr,
         };
