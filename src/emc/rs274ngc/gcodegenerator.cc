@@ -248,7 +248,7 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
             spindle_mode,
             saved.settings[SETTINGS_CSS_MAX_SPEED],
             saved.settings[SETTINGS_SPEED]);
-    } else if (saved.settings[SETTINGS_SPEED] != current.g_codes[SETTINGS_SPEED]) {
+    } else if (saved.settings[SETTINGS_SPEED] != current.settings[SETTINGS_SPEED]) {
         addSpindleSpeed(saved.settings[SETTINGS_SPEED]);
     }
 
