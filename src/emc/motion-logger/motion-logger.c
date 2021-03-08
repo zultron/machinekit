@@ -357,7 +357,7 @@ void log_print_emcmot_cmd(emcmot_command_t *c)
         return;
 
     case EMCMOT_SS_ENABLE:
-        log_print("SS_ENABLE\n");
+        log_print("SS_ENABLE %d\n", c->mode);
         return;
 
     case EMCMOT_FEED_SCALE:
@@ -369,11 +369,11 @@ void log_print_emcmot_cmd(emcmot_command_t *c)
         return;
 
     case EMCMOT_FS_ENABLE:
-        log_print("FS_ENABLE\n");
+        log_print("FS_ENABLE %d\n", c->mode);
         return;
 
     case EMCMOT_FH_ENABLE:
-        log_print("FH_ENABLE\n");
+        log_print("FH_ENABLE %d\n", c->mode);
         return;
 
     case EMCMOT_AF_ENABLE:
