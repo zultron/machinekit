@@ -2,8 +2,8 @@
 set -x
 
 # reset the tool table to a known starting configuration
-rm -f simpockets.tbl
-cp ../../simpockets.tbl.original simpockets.tbl
+rm -f simpockets.tmp.tbl
+cp ../../simpockets.tbl.original simpockets.tmp.tbl
 
 rm -f gcode-output
 
