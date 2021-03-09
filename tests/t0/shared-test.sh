@@ -2,8 +2,8 @@
 set -x
 
 # reset the tool table to a known starting configuration
-rm -f tool.tbl
-cp tool.tbl.original tool.tbl
+rm -f tool.tmp.tbl
+cp tool.tbl.original tool.tmp.tbl
 
 rm -f gcode-output
 

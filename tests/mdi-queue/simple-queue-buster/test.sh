@@ -1,6 +1,8 @@
 #!/bin/bash
 
 rm -f gcode-output
+rm -f tool.tmp.tbl
+cp ../tool.original.tbl tool.tmp.tbl
 
 linuxcnc -r linuxcncrsh-test.ini &
 

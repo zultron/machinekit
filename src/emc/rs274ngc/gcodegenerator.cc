@@ -241,7 +241,10 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
 
     // End of bulk G-code restore here. Now restore speed / feed modes
 
-    addFeedMode((GCodes)saved.g_codes[G_CODE_FEED_MODE], saved.settings[SETTINGS_FEED_RATE]);
+    if (saved.g_codes[G_CODE_FEED_MODE] != current.g_codes[G_CODE_FEED_MODE] ||
+        saved.settings[SETTINGS_FEED_RATE] != current.settings[SETTINGS_FEED_RATE]) {
+        addFeedMode((GCodes)saved.g_codes[G_CODE_FEED_MODE], saved.settings[SETTINGS_FEED_RATE]);
+    }
 
     if (saved.g_codes[G_CODE_SPINDLE_MODE] != current.g_codes[G_CODE_SPINDLE_MODE]) {
         GCodes spindle_mode = (GCodes)saved.g_codes[G_CODE_SPINDLE_MODE];
@@ -249,7 +252,7 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
             spindle_mode,
             saved.settings[SETTINGS_CSS_MAX_SPEED],
             saved.settings[SETTINGS_SPEED]);
-    } else if (saved.settings[SETTINGS_SPEED] != current.g_codes[SETTINGS_SPEED]) {
+    } else if (saved.settings[SETTINGS_SPEED] != current.settings[SETTINGS_SPEED]) {
         addSpindleSpeed(saved.settings[SETTINGS_SPEED]);
     }
 
