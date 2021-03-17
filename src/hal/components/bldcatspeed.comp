@@ -44,7 +44,7 @@ pin in float tolerance;
 
 // seconds at-speed must be true for false before
 // informing motion
-param rw float debounce = 0.200;
+param rw float debounce = 1.000;
 
 // seconds to wait after new stable state before
 // informing motion
@@ -64,6 +64,9 @@ pin out float rpm_out;
 // from motor Hall sensors
 pin in bit enc_a;
 pin in bit enc_b;
+
+pin in bit enc_door_switch_status;
+pin in float enc_door_open_max_rpm;
 
 // used to manage encoder velocity
 // exposed as pins for easier inspection
@@ -106,14 +109,28 @@ function _ "BLDC spindle at speed HAL Component";
 #define TOLERANCE_DEFAULT 0.2
 
 // time in seconds between velocity updates
-#define VELOCITY_SAMPLE_PERIOD 0.100
+#define VELOCITY_SAMPLE_PERIOD 0.500
 
 FUNCTION(_) {
 
     time_now += fperiod;
     // sample encoder phases
-    if (enc_a != enc_a_prev && enc_b == enc_b_prev) {
-        // a changed
+    // we only tally phase A rising edges
+    if (enc_a != enc_a_prev && enc_b != enc_b_prev) {
+        // both changed, bad luck at sampling
+        // add a count in the direction we were going
+        if (enc_a) {
+            if  (direction >= 0) {
+                count++;
+            }
+            else {
+               count--;
+            }
+        }
+    }
+    else if (enc_a != enc_a_prev && enc_b == enc_b_prev) {
+        // a changed, b did not
+        // only count A rising edges
         if (enc_a && enc_b) {
             count++;
             direction = 1.0;
@@ -122,38 +139,12 @@ FUNCTION(_) {
             count--;
             direction = -1.0;
         }
-        else if (!enc_a && !enc_b) {
-            count++;
-            direction = 1.0;
-        }
-        else if (!enc_a && enc_b) {
-            count--;
-            direction = -1.0;
-        }
-    }
-    else if (enc_a == enc_a_prev && enc_b != enc_b_prev) {
-        // b changed
-        if (enc_b && !enc_a) {
-            count++;
-            direction = 1.0;
-        }
-        else if (enc_b && enc_a) {
-            count--;
-            direction = -1.0;
-        }
-        else if (!enc_b && enc_a) {
-            count++;
-            direction = 1.0;
-        }
-        else if (!enc_b && !enc_a) {
-            count--;
-            direction = -1.0;
-        }
     }
     else if (enc_a == enc_a_prev && enc_b == enc_b_prev) {
         // neither changed
         // check for stopped
-        if ((time_now - time_then) > 0.200) {
+        if ((time_now - time_then) > 2.000) {
+            // reset everything
             enc_vel = 0.0;
             count = 0;
             count_then = 0;
@@ -179,13 +170,13 @@ FUNCTION(_) {
         }
         count_then = count;
 
-        enc_vel = (count_delta / time_delta) / 8.0;
+        enc_vel = (count_delta / time_delta) / 2.0;
 
         enc_vel = enc_vel * direction;
     }
 
     // low pass filter
-    // motor_rps_in =  enc_vel;
+    //motor_rps_in =  enc_vel;
     // out += (in - out) * gain
     motor_rps_in += (enc_vel - motor_rps_in) * filter_gain;
 
@@ -263,6 +254,10 @@ FUNCTION(_) {
         }
         // remember now for next previous
         at_speed_prev = at_speed_now;
+
+        if (enc_door_switch_status) {
+            rpm_out = fabs(enc_door_open_max_rpm);
+        }
     }
     else {
         // spindle is off -- nothing to check
