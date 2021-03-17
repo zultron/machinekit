@@ -44,18 +44,15 @@ pin out u32 pic_fb_value; //current fb from 24R board
 pin out u32 fb_read_error; //fb freq read errors
 pin out float fb_bad;
 
-pin out bit user_sense;
-pin out bit pdb_sense;
-pin out bit tool_sense;
-pin out bit fb_user_pdb_allowed;
+pin out bit user_button;
+pin out bit pdb_sensor;
+pin out bit tool_sensor;
+pin out bit fb_ack;
 
-
-
-pin in bit dust_shoe_lift;
-pin in bit pdb_return;
+pin in bit dust_hood_lift;
+pin in bit tool_clamp;
 pin in bit air_blast;
-pin in bit pdb_open;
-pin in bit user_pdb_allowed;
+pin in bit tool_release;
 
 function _ "Tormach 24R Break Out Board";
 license "GPL";
@@ -78,12 +75,23 @@ if STEP_TIME = 33 ms, then full cycle of SYND, DATA, STOP takes 99 ms or just un
 //The resultant freq is 1/(8uS * (fb_value + 1))
 #define PIC_CCP_CLOCK_RATE (8.0)
 
-//U08 fb_value;
+//Replies (FB) from 24R spindle PCB to PP
+#define BMASK_J6IN  (0x1)
+#define BMASK_J7IN  (0x2)
+#define BMASK_J8IN  (0x4)
+#define BMASK_ACK   (0x8) //original use of this was BMASK_ALLOWED for button operation.  That use is deprecated, but we use it as an <ACK> that the PIC is receiving commands and acting on them.
 
-#define BMASK_BUTTON (0x1)
-#define BMASK_PDB    (0x2)
-#define BMASK_TOOL   (0x4)
-#define BMASK_ALLOWED (0x8)
+//J8 is PDB Sensor
+//J7 is Tool Sensor
+//J6 is user PDB Button
+
+//translate raw 24R PCB inputs to useage
+#define BMASK_USER_BUTTON (BMASK_J6IN)
+#define BMASK_PDB (BMASK_J8IN)
+#define BMASK_TOOL (BMASK_J7IN)
+//#define BMASK_ACK  (doesn't require translation)
+
+
 #define BMASK_FB_MAX (15.0) //(0xF) //value if all fb BMASKs are high
 //from the above fb BMASKs, the un-offsetted fb_value ranges 0x to 0xF
 
@@ -127,21 +135,21 @@ int fb_value = 0;
 void _demuxPicFB(struct __comp_state const *__comp_inst, unsigned int new_fb_value)
 {
 
-    if (new_fb_value & BMASK_BUTTON)
-        user_sense = TRUE;
-    else user_sense = FALSE;
+    if (new_fb_value & BMASK_USER_BUTTON)
+        user_button = TRUE;
+    else user_button = FALSE;
 
     if (new_fb_value & BMASK_PDB)
-        pdb_sense = TRUE;
-    else user_sense = FALSE;
+        pdb_sensor = TRUE;
+    else pdb_sensor = FALSE;
 
     if (new_fb_value & BMASK_TOOL)
-        tool_sense = TRUE;
-    else tool_sense = FALSE;
+        tool_sensor = TRUE;
+    else tool_sensor = FALSE;
 
-    if (new_fb_value & BMASK_ALLOWED)
-        fb_user_pdb_allowed = TRUE;
-    else fb_user_pdb_allowed = FALSE;
+    if (new_fb_value & BMASK_ACK)
+        fb_ack = TRUE;
+    else fb_ack = FALSE;
 
 }
 
@@ -233,11 +241,22 @@ const float ppCmdXlat[XLAT_STEPS] = {
 
 
 //Command from PP to 24R spindle
-#define BMASK_DUST   (0x1)
-#define BMASK_RETURN (0x2)
-#define BMASK_BLAST  (0x4)
-//see above #define BMASK_ALLOWED (0x8)  
-#define BMASK_OPEN   (0x10)
+//Must keep in sync with PIC code on 24R PCB
+//Command from PP to 24R spindle
+#define BMASK_J5OUT (0x1) 
+#define BMASK_J4OUT (0x2)
+#define BMASK_J3OUT (0x4)
+#define BMASK_J2OUT (0x8)
+
+//this is the translation that maps solenoid functions to raw J# outputs on 24R
+//J5 is tool release
+//J4 is tool clamp
+//J3 is dust hood lift
+//J2 is air blast solenoid
+#define BMASK_DUST_HOOD_LIFT (BMASK_J3OUT) 
+#define BMASK_TOOL_CLAMP (BMASK_J4OUT)
+#define BMASK_AIR_BLAST (BMASK_J2OUT)
+#define BMASK_TOOL_RELEASE (BMASK_J5OUT) 
 
 #define PP_MIN_CMD_FREQ (1000.0)
 #define PP_MAX_CMD_FREQ (5000.0)
@@ -271,23 +290,20 @@ unsigned int output;
         }
     }
 
-    if (dust_shoe_lift) 
-        output = BMASK_DUST;
+    if (dust_hood_lift) 
+        output = BMASK_DUST_HOOD_LIFT;
     else output = 0;
 
     //final, non-prototype, functionality
-    if (pdb_return)
-        output |= BMASK_RETURN;
+    if (tool_clamp)
+        output |= BMASK_TOOL_CLAMP;
 
     if (air_blast)
-        output |= BMASK_BLAST;
+        output |= BMASK_AIR_BLAST;
     
 
-    if (pdb_open)
-        output |= BMASK_OPEN;
-
-    if (user_pdb_allowed)
-        output |= BMASK_ALLOWED;
+    if (tool_release)
+        output |= BMASK_TOOL_RELEASE;
 
     if (last_cmd != output) {
         pp_to_pic_cmd = output;
