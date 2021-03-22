@@ -2377,9 +2377,12 @@ void EMC_TRAJ_STAT::update(CMS * cms)
     cms->update(axes);
     cms->update(axis_mask);
     cms->update((int *) &mode, 1);
+
     cms->update(enabled);
     cms->update(inpos);
+
     cms->update(queue);
+
     cms->update(activeQueue);
     cms->update(queueFull);
     cms->update(id);
@@ -2388,25 +2391,41 @@ void EMC_TRAJ_STAT::update(CMS * cms)
     cms->update(paused);
     cms->update(stopped);
     cms->update(scale);
+    cms->update(rapid_scale);
+    cms->update(spindle_scale);
+
     EmcPose_update(cms, &position);
     EmcPose_update(cms, &actualPosition);
     cms->update(velocity);
     cms->update(acceleration);
+
     cms->update(maxVelocity);
     cms->update(maxAngularVelocity);
     cms->update(maxAcceleration);
+
     EmcPose_update(cms, &probedPosition);
     cms->update(probe_tripped);
     cms->update(probeCount);
+
+    cms->update(waiting_on_spindle);
     cms->update(spindle_sync);
     cms->update(uu_per_rev);
     cms->update(spindle_max_acceleration_rps2);
     cms->update(spindle_cmd_latency_sec);
+
     cms->update(probing);
     cms->update(probeval);
     cms->update(setterval);
     cms->update(kinematics_type);
     cms->update(motion_type);
+    cms->update(distance_to_go);
+    EmcPose_update(cms, &dtg);
+    cms->update(current_vel);
+    cms->update(dwell_time_remaining);
+    cms->update(feed_override_enabled);
+    cms->update(spindle_override_enabled);
+    cms->update(adaptive_feed_enabled);
+    cms->update(feed_hold_enabled);
     cms->update(tag);
 }
 
