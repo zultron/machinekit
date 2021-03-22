@@ -1972,6 +1972,7 @@ static void output_to_hal(void)
     if(GET_MOTION_COORD_FLAG()) {
         *(emcmot_hal_data->current_vel) = emcmotStatus->current_vel;
         *(emcmot_hal_data->requested_vel) = emcmotStatus->requested_vel;
+        *(emcmot_hal_data->pure_angular_move) = emcmotStatus->pure_angular_move;
         *(emcmot_hal_data->gcode_feed) = (emcmotStatus->tag.feed / 60.0);
     } else if(GET_MOTION_TELEOP_FLAG()) {
         PmCartesian t = emcmotDebug->teleop_data.currentVel.tran;
@@ -1981,13 +1982,21 @@ static void output_to_hal(void)
     } else {
         int i;
         double v2 = 0.0;
-        for(i=0; i<num_joints; i++)
-            if(GET_JOINT_ACTIVE_FLAG(&(joints[i])) && joints[i].free_tp_active)
+        bool has_linear_movement = false;
+        for(i=0; i<num_joints; i++) {
+            if(GET_JOINT_ACTIVE_FLAG(&(joints[i])) && joints[i].free_tp_active) {
                 v2 += joints[i].vel_cmd * joints[i].vel_cmd;
-        if(v2 > 0.0)
+                if (i < 3 || i >= 6) {
+                    has_linear_movement = true;
+                }
+            }
+        }
+        if(v2 > 0.0) {
             emcmotStatus->current_vel = (*emcmot_hal_data->current_vel) = sqrt(v2);
-        else
+        } else {
             emcmotStatus->current_vel = (*emcmot_hal_data->current_vel) = 0.0;
+        }
+        emcmotStatus->pure_angular_move = *(emcmot_hal_data->pure_angular_move) = !has_linear_movement;
         *(emcmot_hal_data->requested_vel) = 0.0;
         *(emcmot_hal_data->gcode_feed) = 0.0;
     }

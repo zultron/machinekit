@@ -1101,6 +1101,7 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
     double distance_to_go;         // in current move
     EmcPose dtg;
     double current_vel;         // in current move
+    bool pure_angular_move; // Velocity cor current move is pure angular (ABC axes only) in angular units / sec
     double dwell_time_remaining; // 0 if not dwelling
     bool feed_override_enabled;
     bool spindle_override_enabled;

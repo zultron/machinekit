@@ -2421,6 +2421,7 @@ void EMC_TRAJ_STAT::update(CMS * cms)
     cms->update(distance_to_go);
     EmcPose_update(cms, &dtg);
     cms->update(current_vel);
+    cms->update(pure_angular_move);
     cms->update(dwell_time_remaining);
     cms->update(feed_override_enabled);
     cms->update(spindle_override_enabled);

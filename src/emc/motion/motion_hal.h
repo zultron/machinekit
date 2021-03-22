@@ -110,8 +110,9 @@ typedef struct {
     hal_s32_t *queued_program_line;    /* program line most recently queued*/
     hal_s32_t *mot_command;       /* command being processed in the current update*/
     hal_s32_t *mot_command_count; /* count of total commands executed by motion (will overflow)*/
-    hal_float_t *current_vel;   /* RPI: velocity magnitude in machine units */
+    hal_float_t *current_vel;   /* RPI: velocity magnitude in linear machine units / second (if any of XYZUVW is active) or angular units / second otherwise*/
     hal_float_t *requested_vel;   /* RPI: requested velocity magnitude in machine units / second */
+    hal_bit_t *pure_angular_move;	/* Motion only uses ABC axes (so reported velocity is in angular units / sec) */
     hal_float_t *gcode_feed;      /* RPI: gcode F-word velocity magnitude in machine units */
     hal_float_t *distance_to_go;/* RPI: distance to go in current move*/
     hal_bit_t *waiting_on_spindle; /* RPI: TRUE when spindle-synched
