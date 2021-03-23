@@ -1005,15 +1005,16 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
 
     flush_segments();
 
-    canonMotionMode = mode;
     canon_debug("canonMotionMode = %d\n", mode);
 
-    const double new_tol_mm = tolerance < 0 ? FROM_EXT_LEN(traj_default_tolerance) : FROM_PROG_LEN(tolerance);
+    const double default_tol_mm = FROM_EXT_LEN(traj_default_tolerance);
+    const double new_tol_mm = tolerance < 0 ? default_tol_mm : FROM_PROG_LEN(tolerance);
 
-    if (new_tol_mm != canonMotionTolerance) {
-        fprintf(stderr, "Setting tolerance to %f mm\n", new_tol_mm);
+    if (mode == CANON_CONTINUOUS && new_tol_mm != canonMotionTolerance && new_tol_mm > default_tol_mm) {
+        CANON_MESSAGE(CANON_MSG_DEBUG, "Using path blending tolerance %f mm\n", new_tol_mm);
     }
     canonMotionTolerance = new_tol_mm;
+    canonMotionMode = mode;
 
     switch (mode) {
     case CANON_CONTINUOUS:
@@ -1040,9 +1041,10 @@ double GET_MOTION_TOLERANCE()
 
 void SET_NAIVECAM_TOLERANCE(double tolerance)
 {
+    const double default_tol_mm = FROM_EXT_LEN(traj_default_naivecam_tolerance);
     const double new_tol_mm = tolerance < 0.0 ? FROM_EXT_LEN(traj_default_naivecam_tolerance) : FROM_PROG_LEN(tolerance);
-    if (canonNaivecamTolerance != new_tol_mm) {
-        fprintf(stderr,"Setting naivecam tolerance to %f mm\n", new_tol_mm);
+    if (canonMotionMode == CANON_CONTINUOUS && new_tol_mm != canonNaivecamTolerance && new_tol_mm > default_tol_mm) {
+        CANON_MESSAGE(CANON_MSG_DEBUG, "Using Naive CAM (NCD) tolerance %f mm\n", new_tol_mm);
     }
     canonNaivecamTolerance = new_tol_mm;
 }
