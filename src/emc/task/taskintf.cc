@@ -1187,6 +1187,7 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
     stat->distance_to_go = emcmotStatus.distance_to_go;
     stat->dtg = emcmotStatus.dtg;
     stat->current_vel = emcmotStatus.current_vel;
+    stat->pure_angular_move = emcmotStatus.pure_angular_move;
     stat->dwell_time_remaining = emcmotStatus.dwell_time_remaining;
     // tormach added to deal with disconnect between motion and interp time *dpr 3/12/13
     stat->uu_per_rev = emcmotStatus.uu_per_rev;

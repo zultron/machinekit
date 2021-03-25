@@ -725,6 +725,7 @@ Suggestion: Split this in to an Error and a Status flag register..
         EmcPose dtg;
         double current_vel;
         double requested_vel;
+        int pure_angular_move;
         double dwell_time_remaining; // 0 if not dwelling in TP
 
         int tcqlen;

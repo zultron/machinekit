@@ -424,6 +424,12 @@ static int init_hal_io(void)
 	return retval;
     }
     retval =
+    hal_pin_bit_new("motion.pure-angular-move", HAL_OUT, &(emcmot_hal_data->pure_angular_move),
+    mot_comp_id);
+    if (retval != 0) {
+    return retval;
+    }
+    retval =
     hal_pin_float_new("motion.gcode-feed", HAL_OUT, &(emcmot_hal_data->gcode_feed),
     mot_comp_id);
     if (retval != 0) {

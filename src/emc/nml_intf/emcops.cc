@@ -90,6 +90,7 @@ EMC_TRAJ_STAT_MSG(EMC_TRAJ_STAT_TYPE, sizeof(EMC_TRAJ_STAT)),
     kinematics_type = 0;
     motion_type = 0;
     current_vel = 0.0;
+    pure_angular_move = false;
     dwell_time_remaining = 0.0;
     feed_override_enabled = false;
     spindle_override_enabled = false;

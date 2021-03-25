@@ -505,6 +505,7 @@ static PyMemberDef Stat_members[] = {
     {(char*)"motion_type", T_INT, O(motion.traj.motion_type), READONLY},
     {(char*)"distance_to_go", T_DOUBLE, O(motion.traj.distance_to_go), READONLY},
     {(char*)"current_vel", T_DOUBLE, O(motion.traj.current_vel), READONLY},
+    {(char*)"pure_angular_move", T_BOOL, O(motion.traj.pure_angular_move), READONLY},
     {(char*)"dwell_time_remaining", T_DOUBLE, O(motion.traj.dwell_time_remaining), READONLY},
     {(char*)"feed_override_enabled", T_BOOL, O(motion.traj.feed_override_enabled), READONLY},
     {(char*)"spindle_override_enabled", T_BOOL, O(motion.traj.spindle_override_enabled), READONLY},
