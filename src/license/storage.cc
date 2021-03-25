@@ -56,6 +56,7 @@ Storage::Storage(const std::string& ini_file_path) :
         if (NULL != board)
         {
             _mesa_board.assign(board);
+            std::transform(_mesa_board.begin(), _mesa_board.end(), _mesa_board.begin(), ::tolower);
 
             if (_mesa_board != "5i25")
             {
@@ -103,6 +104,8 @@ Storage::Storage(const std::string& mesa_board, const std::string& mesa_ipaddr) 
     MACHINEJSON_FILEPATH(std::getenv("HOME")),
     LICENSEJSON_FILEPATH(std::getenv("HOME"))
 {
+    std::transform(_mesa_board.begin(), _mesa_board.end(), _mesa_board.begin(), ::tolower);
+
     common_ctor_portion();
 }
 
@@ -590,9 +593,7 @@ void Storage::verify_mesa_hmid()
     // If it is 'stmc' in lowercase, we're good to go and can issue the --nvread.
     // If its blank, we can't do any mesaflash nvreads or nvwrites
 
-    std::string board = _mesa_board;
-    //std::transform(board.begin(), board.end(), board.begin(), ::toupper);
-    if (board == "stmc")
+    if (_mesa_board == "stmc")
     {
         std::string output;
         bool result = mesaflash_hmid_exec(output);
