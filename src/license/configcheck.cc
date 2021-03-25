@@ -79,14 +79,25 @@ int main(int argc, char** argv)
 
     MESA_DEVICE devices[] = { { "5i25", "" },
                               { "ECM1", "10.10.10.10" },
-                              { "7i92", "10.10.10.10" } };
+                              { "7i92", "10.10.10.10" },
+                              { "stmc", "10.10.10.10" } };
 
 	// The problem this app is intended to solve is the fresh boot of a controller
 	// that has no idea what it is attached to (no machine.json or pathpilot.json).
-	// But the machine ECM1 or 7i92 or 5i25 or Torstep flash has been written
+	// But the machine ECM1 or 7i92 or 5i25 or stmc (Torstep) flash has been written
 	// previously by the factory during final QC or by the 2.8.0 release
 	// which started to do that, easing emergency recovery for customers where they
 	// need to completely wipe the drive and boot fresh again.
+
+    // But life's complicated.
+    // The earliest versions of the Torstep don't support any flash reading or writing
+    // and mesaflash actually hangs if you ask it to nvread the flash.  Sigh.
+    // And there's no config to check so we're just guessing at what's 'out there', but
+    // need to do that carefully to not hang while probing around.
+    // So we issue a --readhmid command and key in on the top BoardName: output line
+    // If it is 'stmc' in lowercase, we're good to go and can issue the --nvread.
+    // If its blank, we can't do any mesaflash nvreads or nvwrites
+    // In this case Storage::read_flash() will always return failure
 
     // So there is no ini file path.
     // If so, we start to gently probe trying to read the flash successfully

@@ -5,7 +5,7 @@
 #include <inifile.hh>
 
 // Uncommenting this turns on TONS of great output.  Even better if compiled with DEBUG=1 at the shell for all of linuxcnc.
-// #define DEBUG
+#define DEBUG
 
 // Licenses are implemented using JSON web tokens (JWT). JWTs are used to share 'claims' securely between
 // two parties - in this case the PathPilot HUB server and PathPilot software on the controller.
@@ -117,6 +117,8 @@ struct nlohmann_traits {
 class Storage
 {
 private:
+    bool _hmid_verified;
+    bool _hmid_ok;
     bool _block_a_read_ok;
     bool _block_b_read_ok;
     bool _write_block_a_first;
@@ -167,6 +169,8 @@ private:
                         const std::string& filepath,
                         const std::string& nvblock);
 
+    bool mesaflash_hmid_exec(std::string& output);
+
     bool zip_exec(const std::string& contents_dir_path,
                   std::string& zipfile_path);
 
@@ -183,6 +187,8 @@ private:
 
     void trim_key_bookends(std::string& public_key);
     void restore_key_bookends(std::string& public_key);
+
+    void verify_mesa_hmid();
 
     bool read_flash_block(const std::string& block, std::string& zipdir, time_t& timestamp);
 

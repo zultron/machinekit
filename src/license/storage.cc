@@ -17,14 +17,18 @@
 
 using namespace std;
 
-
 #ifdef DEBUG
 #define DEBUG_LOG(x) {cerr << x << endl;}
 #else
 #define DEBUG_LOG(x)
 #endif
 
+
+// NOTE!!!!  There are TWO constructors
+// If you add new member variables, be sure to init them in BOTH!
 Storage::Storage(const std::string& ini_file_path) :
+    _hmid_verified(false),
+    _hmid_ok(false),
     _block_a_read_ok(false),
     _block_b_read_ok(false),
     _write_block_a_first(true),
@@ -74,8 +78,11 @@ Storage::Storage(const std::string& ini_file_path) :
     }
 }
 
-
+// NOTE!!!!  There are TWO constructors
+// If you add new member variables, be sure to init them in BOTH!
 Storage::Storage(const std::string& mesa_board, const std::string& mesa_ipaddr) :
+    _hmid_verified(false),
+    _hmid_ok(false),
     _block_a_read_ok(false),
     _block_b_read_ok(false),
     _write_block_a_first(true),
@@ -348,7 +355,6 @@ bool Storage::mesaflash_exec(const std::string& rwcmd,     // --nvread    or   -
                 }
                 else
                 {
-                    // xxxx fix path - sudo needs a full path for mesaflash
                     ev = execlp("/usr/bin/sudo",
                                 "/usr/bin/sudo",
                                 mesapath,
@@ -369,6 +375,103 @@ bool Storage::mesaflash_exec(const std::string& rwcmd,     // --nvread    or   -
                     if ((WIFEXITED(status)) && (0 == WEXITSTATUS(status)))
                     {
                         result = true;
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+
+bool Storage::mesaflash_hmid_exec(std::string& output)
+{
+    bool result = false;
+
+    output.clear();
+
+    // mesaflash binary lives in same directory as *this* process.  so figure out
+    // where that is and slice off our executable filename and replace it with mesaflash
+    pid_t pid = getpid();
+    char path[100];
+    char mesapath[512];
+    sprintf(path, "/proc/%d/exe", pid);
+    ssize_t cb = readlink(path, mesapath, sizeof(mesapath));
+    if (cb > 0)
+    {
+        mesapath[cb] = '\0';  // Add null termination
+        char* slash = strrchr(mesapath, '/');
+        if (slash)
+        {
+            ++slash;
+            strcpy(slash, "mesaflash");
+
+            // Capture the stdout of the child process by having it write to this pipe and we read from it.
+            int pipefds[2];
+            if (-1 != pipe(pipefds))
+            {
+                pid_t pid = fork();
+                if (pid == 0)
+                {
+                    // Child
+                    close(pipefds[0]); // no need for read end of pipe
+
+                    // We don't want the output of the exec program to be visible in the
+                    // normal inherited stdout and stderr logs as it reveals a lot of detail.
+                    dup2(pipefds[1], STDOUT_FILENO);
+
+                    close(pipefds[1]);
+
+                    #ifndef DEBUG
+                    close(STDERR_FILENO);
+                    #endif
+
+                    int ev = execlp("/usr/bin/sudo",
+                                    "/usr/bin/sudo",
+                                    mesapath,
+                                    "--device", _mesa_board.c_str(),
+                                    "--addr", _mesa_ipaddr.c_str(),
+                                    "--readhmid",
+                                    NULL);
+
+                    exit(ev);
+                }
+                else
+                {
+                    close(pipefds[1]); // no need for write end of pipe
+
+                    // Read all the stdout until its closed or errors
+                    char* buffer = (char*) malloc(32*1024);
+                    if (buffer)
+                    {
+                        while (1)
+                        {
+                            ssize_t cb = read(pipefds[0], buffer, 32*1024);
+                            if ((cb == -1) || (cb == 0))
+                            {
+                                break;
+                            }
+                            else
+                            {
+                                output.append(buffer, cb);
+                            }
+                        }
+
+                        free(buffer);
+                        buffer = NULL;
+                    }
+
+                    close(pipefds[0]);  // close read end of pipe
+
+                    // Parent - wait for result
+                    int status = 0;
+                    if (pid == waitpid(pid, &status, 0))
+                    {
+                        if ((WIFEXITED(status)) && (0 == WEXITSTATUS(status)))
+                        {
+                            result = true;
+                        }
                     }
                 }
             }
@@ -479,100 +582,157 @@ bool Storage::unzip_exec(const std::string& zipfilepath,
 }
 
 
+void Storage::verify_mesa_hmid()
+{
+    // The earliest versions of the Torstep don't support any flash reading or writing
+    // and mesaflash actually hangs if you ask it to nvread the flash.  Sigh.
+    // So we issue a --readhmid command and key in on the top BoardName: output line
+    // If it is 'stmc' in lowercase, we're good to go and can issue the --nvread.
+    // If its blank, we can't do any mesaflash nvreads or nvwrites
+
+    std::string board = _mesa_board;
+    //std::transform(board.begin(), board.end(), board.begin(), ::toupper);
+    if (board == "stmc")
+    {
+        std::string output;
+        bool result = mesaflash_hmid_exec(output);
+        if (result)
+        {
+            // Find the line with BoardName : in it
+            size_t pos = output.find("BoardName :");
+            if (pos != string::npos)
+            {
+                pos = output.find(":", pos) + 1;  // Step over the :
+                size_t end_pos = output.find("\n", pos) - 1;  // Don't include the newline
+                // Is board name blank?
+                if (pos != end_pos)
+                {
+                    // Nope - we're in the clear.
+                    DEBUG_LOG("                       stmc board has non-blank BoardName from readhmid so ok for flash ops");
+                    _hmid_ok = true;
+                }
+                else
+                {
+                    DEBUG_LOG("                       stmc board with blank BoardName from readhmid so NOT ok for flash ops");
+                }
+            }
+        }
+    }
+    else
+    {
+        // Any other mesa board other than stmc work fine so green light them for
+        // nvread and nvwrite operations.
+        DEBUG_LOG("                       not an stmc board so ok for flash ops");
+        _hmid_ok = true;
+    }
+
+    _hmid_verified = true;
+}
+
+
 bool Storage::read_flash_block(
     const std::string& block,
     std::string& zipdir,
     time_t& timestamp)
 {
     bool result = false;
-    char filepath_raw[] = { "/tmp/XXXXXX\0" };
-    char filepath_zip[] = { "/tmp/XXXXXX\0" };
-    int fd = mkstemp(filepath_raw);
-    if (-1 != fd)
+
+    if (! _hmid_verified)
     {
-        close(fd);
-        fd = -1;
-        std::string tmppath(filepath_raw);
-        result = mesaflash_exec("--nvread", tmppath, block);
-        if (result)
-        {
-            fd = open(filepath_raw, O_RDONLY);
-            if (-1 != fd)
-            {
-                // copy the rest of the file to a new tmp file
-                int zipfd = mkstemp(filepath_zip);
-                if (-1 != zipfd)
-                {
-                    char* buffer = new char[64*1024];
-                    ssize_t cb = read(fd, buffer, 64*1024);
-                    if (cb == (64*1024))
-                    {
-                        // Now we reverse the entire 64K block
-                        char* final_buffer = new char[64*1024];
-                        for (int ix = 0; ix < (64*1024); ++ix)
-                        {
-                            final_buffer[ix] = buffer[64*1024 - ix - 1];
-                        }
-                        ssize_t zipcb = write(zipfd, final_buffer, cb);
-                        if (cb == zipcb)
-                        {
-                            // Perfect.
-                            result = true;
-                        }
-                        delete[] final_buffer;
-                        final_buffer = NULL;
-                    }
-
-                    delete[] buffer;
-                    buffer = NULL;
-                    close(zipfd);
-                    zipfd = -1;
-
-                    if (!result)
-                    {
-                        // something botched above - don't need this around anymore so wipe it.
-                        unlink(filepath_zip);
-                    }
-                }
-
-                close(fd);
-                fd = -1;
-            }
-        }
-
-        // regardless how above worked, we don't need filepath_raw anymore so wipe it.
-        unlink(filepath_raw);
+        verify_mesa_hmid();
     }
 
-    if (result)
+    if (_hmid_ok)
     {
-        // We now have filepath_zip containing what should be valid zip data.
-        // Use zip to find out and read the timestamp file inside it
-        result = false;  // assume the rest goes badly again.
-
-        char zipdir_path[] = { "/tmp/XXXXXX\0" };
-        if (NULL != mkdtemp(zipdir_path))
+        char filepath_raw[] = { "/tmp/XXXXXX\0" };
+        char filepath_zip[] = { "/tmp/XXXXXX\0" };
+        int fd = mkstemp(filepath_raw);
+        if (-1 != fd)
         {
-            // unzip filepath_zip -d dirpath
-            std::string tmp1(filepath_zip);
-            std::string tmp2(zipdir_path);
-            result = unzip_exec(tmp1, tmp2);
+            close(fd);
+            fd = -1;
+            std::string tmppath(filepath_raw);
+            result = mesaflash_exec("--nvread", tmppath, block);
             if (result)
             {
-                zipdir.assign(zipdir_path);
-                timestamp = read_timestamp(tmp2.append("/timestamp"));
-                result = (0 != timestamp);
+                fd = open(filepath_raw, O_RDONLY);
+                if (-1 != fd)
+                {
+                    // copy the rest of the file to a new tmp file
+                    int zipfd = mkstemp(filepath_zip);
+                    if (-1 != zipfd)
+                    {
+                        char* buffer = new char[64*1024];
+                        ssize_t cb = read(fd, buffer, 64*1024);
+                        if (cb == (64*1024))
+                        {
+                            // Now we reverse the entire 64K block
+                            char* final_buffer = new char[64*1024];
+                            for (int ix = 0; ix < (64*1024); ++ix)
+                            {
+                                final_buffer[ix] = buffer[64*1024 - ix - 1];
+                            }
+                            ssize_t zipcb = write(zipfd, final_buffer, cb);
+                            if (cb == zipcb)
+                            {
+                                // Perfect.
+                                result = true;
+                            }
+                            delete[] final_buffer;
+                            final_buffer = NULL;
+                        }
+
+                        delete[] buffer;
+                        buffer = NULL;
+                        close(zipfd);
+                        zipfd = -1;
+
+                        if (!result)
+                        {
+                            // something botched above - don't need this around anymore so wipe it.
+                            unlink(filepath_zip);
+                        }
+                    }
+
+                    close(fd);
+                    fd = -1;
+                }
             }
 
-            // caller is responsible for cleaning up zipdir_path upon success
-            if (!result)
-            {
-                recursive_rmdir(zipdir_path);
-            }
+            // regardless how above worked, we don't need filepath_raw anymore so wipe it.
+            unlink(filepath_raw);
         }
 
-        // don't need this around anymore so wipe it.
-        unlink(filepath_zip);
+        if (result)
+        {
+            // We now have filepath_zip containing what should be valid zip data.
+            // Use zip to find out and read the timestamp file inside it
+            result = false;  // assume the rest goes badly again.
+
+            char zipdir_path[] = { "/tmp/XXXXXX\0" };
+            if (NULL != mkdtemp(zipdir_path))
+            {
+                // unzip filepath_zip -d dirpath
+                std::string tmp1(filepath_zip);
+                std::string tmp2(zipdir_path);
+                result = unzip_exec(tmp1, tmp2);
+                if (result)
+                {
+                    zipdir.assign(zipdir_path);
+                    timestamp = read_timestamp(tmp2.append("/timestamp"));
+                    result = (0 != timestamp);
+                }
+
+                // caller is responsible for cleaning up zipdir_path upon success
+                if (!result)
+                {
+                    recursive_rmdir(zipdir_path);
+                }
+            }
+
+            // don't need this around anymore so wipe it.
+            unlink(filepath_zip);
+        }
     }
 
     return result;
@@ -867,117 +1027,125 @@ bool Storage::write_flash()
 {
     bool result = false;
 
-    char contents_path_raw[] = { "/tmp/XXXXXX\0" };
-    if (NULL != mkdtemp(contents_path_raw))
+    if (! _hmid_verified)
     {
-        std::string contents_path(contents_path_raw);
+        verify_mesa_hmid();
+    }
 
-        // write encoded machine jwt as machine.dat
-        std::string tmpfilepath(contents_path);
-        tmpfilepath.append("/machine.dat");
-        result = write_file(tmpfilepath, _machine_jwt_encoded);
-        if (result)
+    if (_hmid_ok)
+    {
+        char contents_path_raw[] = { "/tmp/XXXXXX\0" };
+        if (NULL != mkdtemp(contents_path_raw))
         {
-            // write public keys as a zip into the dir as compensation.dat
-            tmpfilepath.assign(contents_path);
-            tmpfilepath.append("/compensation.dat");
-            result = write_public_keys_to_zip(tmpfilepath);
+            std::string contents_path(contents_path_raw);
+
+            // write encoded machine jwt as machine.dat
+            std::string tmpfilepath(contents_path);
+            tmpfilepath.append("/machine.dat");
+            result = write_file(tmpfilepath, _machine_jwt_encoded);
             if (result)
             {
-                // create or update the /timestamp file that will be inside the zip.
-                time_t utcnow = time(NULL);
-                std::string timestamp_path(contents_path);
-                timestamp_path.append("/timestamp");
-                int fd = open(timestamp_path.c_str(), O_CREAT|O_RDWR, S_IRUSR|S_IWUSR);
-                if (-1 != fd)
-                {
-                    if (sizeof(utcnow) == write(fd, &utcnow, sizeof(utcnow)))
-                    {
-                        result = true;
-                    }
-                    close(fd);
-                    fd = -1;
-                }
-
+                // write public keys as a zip into the dir as compensation.dat
+                tmpfilepath.assign(contents_path);
+                tmpfilepath.append("/compensation.dat");
+                result = write_public_keys_to_zip(tmpfilepath);
                 if (result)
                 {
-                    // zip up the zipdir_path directory contents
-                    std::string zipfile_path;
-                    result = zip_exec(contents_path, zipfile_path);
+                    // create or update the /timestamp file that will be inside the zip.
+                    time_t utcnow = time(NULL);
+                    std::string timestamp_path(contents_path);
+                    timestamp_path.append("/timestamp");
+                    int fd = open(timestamp_path.c_str(), O_CREAT|O_RDWR, S_IRUSR|S_IWUSR);
+                    if (-1 != fd)
+                    {
+                        if (sizeof(utcnow) == write(fd, &utcnow, sizeof(utcnow)))
+                        {
+                            result = true;
+                        }
+                        close(fd);
+                        fd = -1;
+                    }
+
                     if (result)
                     {
-                        std::string blockfile_path("/tmp");
-                        result = create_random_datafile(blockfile_path);
+                        // zip up the zipdir_path directory contents
+                        std::string zipfile_path;
+                        result = zip_exec(contents_path, zipfile_path);
                         if (result)
                         {
-                            result = false;
-                            // now we can overlay the zip file into the random data file
-                            // backwards starting at the end
-                            fd = open(blockfile_path.c_str(), O_WRONLY);
-                            if (-1 != fd)
+                            std::string blockfile_path("/tmp");
+                            result = create_random_datafile(blockfile_path);
+                            if (result)
                             {
-                                int zipfd = open(zipfile_path.c_str(), O_RDONLY);
-                                if (-1 != zipfd)
+                                result = false;
+                                // now we can overlay the zip file into the random data file
+                                // backwards starting at the end
+                                fd = open(blockfile_path.c_str(), O_WRONLY);
+                                if (-1 != fd)
                                 {
-                                    char* buffer = new char[64*1024];
-                                    ssize_t cb = read(zipfd, buffer, 64*1024);
-                                    if (-1 != cb)
+                                    int zipfd = open(zipfile_path.c_str(), O_RDONLY);
+                                    if (-1 != zipfd)
                                     {
-                                        char* final_buffer = new char[cb];
-                                        for (int ix = 0; ix < cb; ++ix)
+                                        char* buffer = new char[64*1024];
+                                        ssize_t cb = read(zipfd, buffer, 64*1024);
+                                        if (-1 != cb)
                                         {
-                                            final_buffer[ix] = buffer[cb-ix-1];
-                                        }
-                                        if (-1 != lseek(fd, 64*1024 - cb, SEEK_SET))
-                                        {
-                                            // Need to write cb bytes
-                                            if (cb == write(fd, final_buffer, cb))
+                                            char* final_buffer = new char[cb];
+                                            for (int ix = 0; ix < cb; ++ix)
                                             {
-                                                result = true;
+                                                final_buffer[ix] = buffer[cb-ix-1];
                                             }
+                                            if (-1 != lseek(fd, 64*1024 - cb, SEEK_SET))
+                                            {
+                                                // Need to write cb bytes
+                                                if (cb == write(fd, final_buffer, cb))
+                                                {
+                                                    result = true;
+                                                }
+                                            }
+                                            delete[] final_buffer;
+                                            final_buffer = NULL;
                                         }
-                                        delete[] final_buffer;
-                                        final_buffer = NULL;
-                                    }
-                                    delete[] buffer;
-                                    buffer = NULL;
-                                    close(zipfd);
-                                    zipfd = -1;
-		                        }
-                                close(fd);
-                                fd = -1;
-                            }
-
-                            // Be careful the order we write back if one of the blocks did not
-                            // read successfully - or one of the blocks timestamp files is older.
-                            if (_write_block_a_first)
-                            {
-                                result = mesaflash_exec("--nvwrite", blockfile_path, "A");
-                                if (result)
-                                {
-                                    result = mesaflash_exec("--nvwrite", blockfile_path, "B");
+                                        delete[] buffer;
+                                        buffer = NULL;
+                                        close(zipfd);
+                                        zipfd = -1;
+    		                        }
+                                    close(fd);
+                                    fd = -1;
                                 }
-                            }
-                            else
-                            {
-                                result = mesaflash_exec("--nvwrite", blockfile_path, "B");
-                                if (result)
+
+                                // Be careful the order we write back if one of the blocks did not
+                                // read successfully - or one of the blocks timestamp files is older.
+                                if (_write_block_a_first)
                                 {
                                     result = mesaflash_exec("--nvwrite", blockfile_path, "A");
+                                    if (result)
+                                    {
+                                        result = mesaflash_exec("--nvwrite", blockfile_path, "B");
+                                    }
                                 }
+                                else
+                                {
+                                    result = mesaflash_exec("--nvwrite", blockfile_path, "B");
+                                    if (result)
+                                    {
+                                        result = mesaflash_exec("--nvwrite", blockfile_path, "A");
+                                    }
+                                }
+
+                                unlink(blockfile_path.c_str());
                             }
 
-                            unlink(blockfile_path.c_str());
+                            unlink(zipfile_path.c_str());
                         }
-
-                        unlink(zipfile_path.c_str());
                     }
                 }
             }
-        }
 
-        // Be sure to cleanup
-        recursive_rmdir(contents_path);
+            // Be sure to cleanup
+            recursive_rmdir(contents_path);
+        }
     }
 
     return result;
