@@ -5,7 +5,7 @@
 #include <inifile.hh>
 
 // Uncommenting this turns on TONS of great output.  Even better if compiled with DEBUG=1 at the shell for all of linuxcnc.
-#define DEBUG
+//#define DEBUG
 
 // Licenses are implemented using JSON web tokens (JWT). JWTs are used to share 'claims' securely between
 // two parties - in this case the PathPilot HUB server and PathPilot software on the controller.
