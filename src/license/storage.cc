@@ -593,6 +593,12 @@ void Storage::verify_mesa_hmid()
     // If it is 'stmc' in lowercase, we're good to go and can issue the --nvread.
     // If its blank, we can't do any mesaflash nvreads or nvwrites
 
+    // More complications.  The STM chip used on Torsteps doesn't have enough flash
+    // like all our other mesa devices have - not enough for 2 banks of 64K.
+    // We're likely looking at a board spin at almost no cost to change that so for
+    // right now just say that _hmid_ok is false if we recognize a torstep regardless
+    // of firmware behavior (original or upgradeable flavor).
+
     if (_mesa_board == "stmc")
     {
         std::string output;
@@ -608,9 +614,26 @@ void Storage::verify_mesa_hmid()
                 // Is board name blank?
                 if (pos != end_pos)
                 {
-                    // Nope - we're in the clear.
-                    DEBUG_LOG("                       stmc board has non-blank BoardName from readhmid so ok for flash ops");
-                    _hmid_ok = true;
+                    std::string boardname = output.substr(pos, end_pos-pos+1);
+                    pos = 0;
+                    end_pos = boardname.length();
+
+                    // Sigh. I so miss python. Trim any leading whitespace.
+                    auto start = boardname.begin();
+                    while ((start != boardname.end()) && std::isspace(*start))
+                    {
+                        ++start;
+                        ++pos;
+                    }
+                    boardname = boardname.substr(pos, end_pos-pos+1);
+
+                    if (boardname == "stmc")
+                    {
+                        // Could do something here in the future, but currently for any stmc board
+                        // we just don't support any flash operations.
+                        DEBUG_LOG("                       stmc board with stmc BoardName from readhmid so ok for flash ops, but skipping because of flash size complexity");
+                        // _hmid_ok = true;
+                    }
                 }
                 else
                 {
