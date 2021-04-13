@@ -99,6 +99,19 @@ BOOST_PYTHON_MODULE(emccanon) {
             .value("CANON_RETURN_ERROR", CANON_RETURN_ERROR)
             .export_values();
 
+    enum_<CANON_INPUT>("CANON_INPUT")
+            .value("ANALOG_INPUT", ANALOG_INPUT)
+            .value("DIGITAL_INPUT", DIGITAL_INPUT)
+            .export_values();
+
+    enum_<CANON_WAIT_MODE>("CANON_WAIT_MODE")
+            .value("WAIT_MODE_IMMEDIATE", WAIT_MODE_IMMEDIATE)
+            .value("WAIT_MODE_RISE", WAIT_MODE_RISE)
+            .value("WAIT_MODE_FALL", WAIT_MODE_FALL)
+            .value("WAIT_MODE_HIGH", WAIT_MODE_HIGH)
+            .value("WAIT_MODE_LOW", WAIT_MODE_LOW)
+            .export_values();
+
     //  scope().attr("") =  ;
 
     def("ARC_FEED",&ARC_FEED);
