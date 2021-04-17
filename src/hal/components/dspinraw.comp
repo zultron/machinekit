@@ -72,10 +72,11 @@ variable hal_u32_t state = 0;
 variable hal_u32_t reg_num = 0;
 variable hal_u32_t instance = 0;
 
+option personality yes;
 function _;
 license "GPL"; // indicates GPL v2 or later
 ;;
-#include <rtapi_math.h>
+#include "rtapi_math.h"
 #define HM2_MAX_INSTANCES 8
 static const uint32_t instance_stride = 4;  // status, 4 byte = 32bit
 static const uint32_t read_reg_num = 20; // see dspin_module_t in hm2.h,
