@@ -1486,6 +1486,7 @@ void EMC_SPINDLE_STAT::update(CMS * cms)
 
     EMC_SPINDLE_STAT_MSG::update(cms);
     cms->update(speed);
+    cms->update(speed_fb);
     cms->update(direction);
     cms->update(brake);
     cms->update(increasing);

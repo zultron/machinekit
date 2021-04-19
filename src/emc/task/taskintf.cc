@@ -1577,6 +1577,7 @@ int emcMotionUpdate(EMC_MOTION_STAT * stat)
     
     stat->spindle.enabled = emcmotStatus.spindle_cmd.velocity_rpm_out != 0;
     stat->spindle.speed = emcmotStatus.spindle_cmd.velocity_rpm_out;
+    stat->spindle.speed_fb = emcmotStatus.spindle_fb.velocity_rps * 60.;
     stat->spindle.brake = emcmotStatus.spindle_cmd.brake;
 
     // Report spindle direction based on commanded velocity

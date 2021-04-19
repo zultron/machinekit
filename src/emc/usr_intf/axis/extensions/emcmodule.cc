@@ -514,6 +514,7 @@ static PyMemberDef Stat_members[] = {
 
 // EMC_SPINDLE_STAT motion.spindle
     {(char*)"spindle_speed", T_DOUBLE, O(motion.spindle.speed), READONLY},
+    {(char*)"spindle_speed_feedback", T_DOUBLE, O(motion.spindle.speed_fb), READONLY},
     {(char*)"spindle_direction", T_INT, O(motion.spindle.direction), READONLY},
     {(char*)"spindle_brake", T_INT, O(motion.spindle.brake), READONLY},
     {(char*)"spindle_increasing", T_INT, O(motion.spindle.increasing), READONLY},

@@ -1227,6 +1227,7 @@ class EMC_SPINDLE_STAT:public EMC_SPINDLE_STAT_MSG {
     void update(CMS * cms);
 
     double speed;		// spindle speed in RPMs
+    double speed_fb;    // As reported to motion via spindle-speed-in
     int direction;		// 0 stopped, 1 forward, -1 reverse
     int brake;			// 0 released, 1 engaged
     int increasing;		// 1 increasing, -1 decreasing, 0 neither
