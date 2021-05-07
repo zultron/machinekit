@@ -190,8 +190,9 @@ static int loadTraj(EmcIniFile &trajInifile)
             consistency_check_cfg
             ));
 
+        double max_feed_override = ini_traj_find("MAX_FEED_OVERRIDE", 2.0);
         CHP(emcSetMaxFeedOverride(
-            ini_traj_find("MAX_FEED_OVERRIDE", 2.0)
+            max_feed_override
             ));
 
         CHP(emcSetMaxPosTrackingError(
@@ -204,7 +205,7 @@ static int loadTraj(EmcIniFile &trajInifile)
             ini_biarc_find("VELOCITY_REL_TOLERANCE", 0.01),
             ini_biarc_find("VELOCITY_ABS_TOLERANCE", 0.001),
             ini_biarc_find("DEVIATION_ABS_TOLERANCE", 0.000001),
-            ini_biarc_find("FEED_OVERRIDE_ALLOWANCE", 1.5),
+            ini_biarc_find("FEED_OVERRIDE_ALLOWANCE", max_feed_override), // Default to same as max feed override if unspecified
             ini_biarc_find("VELOCITY_CUTOFF", 0.001),
             ini_biarc_find("CONVERGENCE_TOLERANCE", 1e-8),
         };
