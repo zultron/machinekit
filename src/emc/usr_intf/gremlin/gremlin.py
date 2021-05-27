@@ -258,6 +258,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
     def map(self, *args):
         # don't schedule multiple timers
         if self.timeout_id is None:
+            # note: changing 50 to 80 ms here eliminated the rare PathPilot stalled or slow axes DROs condition
+            # the PathPilot UI periodic update callback also run at 50 ms intervals
             self.timeout_id = gobject.timeout_add(50, self.poll)       
 
     def poll(self):
