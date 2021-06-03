@@ -140,6 +140,7 @@ enum predefined_named_parameters {
     NP_VALUE_RETURNED,
     NP_TASK,
     NP_IN_PREVIEW_CONTEXT,
+    NP_TOOL_OFFSET_NUMBER,
 };
 
 /****************************************************************************/
@@ -840,6 +841,9 @@ int Interp::lookup_named_param(const char *nameBuf,
     *value = is_preview();
     break;
 
+    case NP_TOOL_OFFSET_NUMBER:
+    *value = _setup.tool_offset_number;
+    break;
 
     default:
 	ERS(_("BUG: lookup_named_param(%s): unhandled index=%fn"),
@@ -1049,6 +1053,7 @@ int Interp::init_named_parameters()
   // predicate: 1 in milltask instance, 0 in UI - control preview behaviour
   init_readonly_param("_task", NP_TASK, PA_USE_LOOKUP);
   init_readonly_param("_in_preview", NP_IN_PREVIEW_CONTEXT, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_number", NP_TOOL_OFFSET_NUMBER, PA_USE_LOOKUP);
 
   // debugging aids
   init_readonly_param("_call_level", NP_CALL_LEVEL, PA_USE_LOOKUP);
