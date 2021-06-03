@@ -4,7 +4,9 @@
 #include <iostream>
 #include <fstream>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #include "storage.hh"
 #include "licensemgr.hh"
@@ -38,9 +40,18 @@ int run_config_chooser(const string& model, bool ethernet_device)
         // We don't want the output of the exec program to be visible in the
         // normal inherited stdout and stderr logs as it reveals a lot of detail.
         #ifndef DEBUG
-        close(STDOUT_FILENO);
+        close(STDOUT_FILENO);  // close the inherited ones
         close(STDERR_FILENO);
+
+        // but python must have writable stdout and stderr or it can puke
+        int fd = open("/dev/null", O_WRONLY);
+        if (-1 != fd)
+        {
+            dup2(fd, STDOUT_FILENO);
+            dup2(fd, STDERR_FILENO);
+        }
         #endif
+
         char modelarg[200];
 
         string config_chooser_path(getenv("HOME"));
