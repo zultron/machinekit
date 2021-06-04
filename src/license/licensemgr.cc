@@ -553,6 +553,17 @@ bool LicenseMgr::is_license_valid()
         }
     }
 
+#ifdef DEBUG
+    if (valid)
+    {
+        DEBUG_LOG("               LicenseMgr::is_license_valid returning true");
+    }
+    else
+    {
+        DEBUG_LOG("               LicenseMgr::is_license_valid returning false");
+    }
+#endif
+
     return valid;
 }
 
