@@ -561,9 +561,6 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
     CHP(store_named_param(&_setup, param_pair.first, param_pair.second));
   }
 
-  // TODO decide if these should be cleared here or before read starts (mostly for symmetry)
-  _setup.new_named_parameters.clear();
-
   if (_setup.line_length != 0) {        /* line not blank */
 
     // at this point we have a parsed block

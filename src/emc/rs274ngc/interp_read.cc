@@ -3181,7 +3181,11 @@ int Interp::read_text(
     CHP(close_and_downcase(line, raw_line, length));
   }
 
-  _setup.new_parameters.clear();      /* initialize parameter buffer */
+  // Clear buffers for parameters in preparation for reading the next line
+  // parse_line() populates these buffers, which are then inserted into the
+  // interpreter's parameters during the execute phase.
+  _setup.new_parameters.clear();
+  _setup.new_named_parameters.clear();
   _setup.wait_flags.reset(RESERVED_PARAMETER_MODIFIED);
 
   if ((line[0] == 0) || ((line[0] == '/') && (GET_BLOCK_DELETE()))) {
