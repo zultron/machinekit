@@ -1384,9 +1384,22 @@ bool Storage::verify_license_jwt()
 bool Storage::do_license_ssd_files_exist()
 {
     bool result = false;
-    result |= (0 == access(MACHINEDAT_FILEPATH.c_str(), F_OK));
+
+    // Initially we looked for machine related ones, but there was a very rare case where
+    // a customer got the machine dat file, but the licensecomp did NOT get a machine public key
+    // file.  This was during first boot of 2.8.0 on an unmanaged license machine.
+    // On graceful shutdown, the machine dat won't verify because the public key is missing
+    // so it isn't written to flash.  Then on second boot up, flash and ssd aren't verifiable
+    // so we look for these marker files to see if it is likely a time limited license machine
+    // but the files have been tampered with so they don't verify.
+    // So we restore to time limited and lock out the user - ugh.
+    // To not fall into that rare, but possible situation we stopped looking for machine jwt
+    // related files.
+
+    //result |= (0 == access(MACHINEDAT_FILEPATH.c_str(), F_OK));
+    //result |= (0 == access(MACHINEPUBKEY_FILEPATH.c_str(), F_OK));
+
     result |= (0 == access(LICENSEDAT_FILEPATH.c_str(), F_OK));
-    result |= (0 == access(MACHINEPUBKEY_FILEPATH.c_str(), F_OK));
     result |= (0 == access(LICENSEPUBKEY_FILEPATH.c_str(), F_OK));
     result |= (0 == access(OFFLINEPUBKEY_FILEPATH.c_str(), F_OK));
     result |= (0 == access(LICENSEJSON_FILEPATH.c_str(), F_OK));

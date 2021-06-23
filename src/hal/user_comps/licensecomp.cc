@@ -315,6 +315,10 @@ int main(int argc, char *argv[])
     			    {
     					const ssize_t buffer_cb = 10 * (sizeof(struct inotify_event) + NAME_MAX + 1);
                         char* buffer = new char[buffer_cb];
+
+						bool machine_current = true;
+						bool license_current = true;
+
     				    while (1)
     				    {
     					    // efficiently block on eventq_fd or timeout poll
@@ -346,20 +350,34 @@ int main(int argc, char *argv[])
 
     					    			if (0 == strcmp(event->name, ".m"))
     					    			{
-    					    				std::string tmp(tmpdir);
-    					    				tmp.append("/.0");
-    							    		refresh_public_key_file(tmp.c_str());
+    					    				machine_current = false;
     							    	}
     							    	else if (0 == strcmp(event->name, ".l"))
     							    	{
-	  					    				std::string tmp(tmpdir);
-    					    				tmp.append("/.1");
-    							    		refresh_public_key_file(tmp.c_str());
+    					    				license_current = false;
     							    	}
     						    	}
 
                                     index += sizeof(struct inotify_event) + event->len;
     					    	}
+    					    }
+
+    					    // Structuring the code this way means if we are triggered by inotify to update the key file
+    					    // and it FAILS, we keep trying every 60 seconds (or until triggered again).  This adds
+    					    // some resiliency in case of a brief network or server outage.
+
+    					    if (! machine_current)
+    					    {
+			    				std::string tmp(tmpdir);
+			    				tmp.append("/.0");
+					    		machine_current = refresh_public_key_file(tmp.c_str());
+    					    }
+
+    					    if (! license_current)
+    					    {
+			    				std::string tmp(tmpdir);
+			    				tmp.append("/.1");
+					    		license_current = refresh_public_key_file(tmp.c_str());
     					    }
     					}
 
