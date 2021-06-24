@@ -154,14 +154,6 @@ bool refresh_public_key_file(const char* filename)
 		    if (pid == 0)
 		    {
 		        // Child
-                // We don't want the output of the exec program to be visible in the
-                // normal inherited stdout and stderr logs as it reveals a lot of detail.
-
-                #ifndef DEBUG
-                close(STDOUT_FILENO);
-                close(STDERR_FILENO);
-                #endif
-
 		        int ev = 1;
   	        	char cmdline[1024];
 		        sprintf(cmdline, "/usr/bin/openssl s_client -servername hub.pathpilot.com -connect hub.pathpilot.com:443 < /dev/null 2> /dev/null | /usr/bin/openssl x509 -pubkey -noout > %s\n", tmpfilename);
@@ -238,9 +230,18 @@ bool adjust_permissions()
         // We don't want the output of the exec program to be visible in the
         // normal inherited stdout and stderr logs as it reveals a lot of detail.
         #ifndef DEBUG
-        close(STDOUT_FILENO);
+        close(STDOUT_FILENO);  // close the inherited ones
         close(STDERR_FILENO);
+
+        // but child must have writable stdout and stderr or it can puke
+        int fd = open("/dev/null", O_WRONLY);
+        if (-1 != fd)
+        {
+            dup2(fd, STDOUT_FILENO);
+            dup2(fd, STDERR_FILENO);
+        }
         #endif
+
         // We compose /boot/home this way to be less obvious to examination
         // through static data segment string analysis
         std::string tmpdir(bootdir);

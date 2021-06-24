@@ -339,10 +339,17 @@ bool Storage::mesaflash_exec(const std::string& rwcmd,     // --nvread    or   -
                 // Child
                 // We don't want the output of the exec program to be visible in the
                 // normal inherited stdout and stderr logs as it reveals a lot of detail.
-
                 #ifndef DEBUG
-                close(STDOUT_FILENO);
+                close(STDOUT_FILENO);  // close the inherited ones
                 close(STDERR_FILENO);
+
+                // but child must have writable stdout and stderr or it can puke
+                int fd = open("/dev/null", O_WRONLY);
+                if (-1 != fd)
+                {
+                    dup2(fd, STDOUT_FILENO);
+                    dup2(fd, STDERR_FILENO);
+                }
                 #endif
 
                 int ev;
@@ -427,7 +434,16 @@ bool Storage::mesaflash_hmid_exec(std::string& output)
                     close(pipefds[1]);
 
                     #ifndef DEBUG
+                    // We don't want any stderr output of the exec program to be visible in the
+                    // normal inherited stderr logs as it reveals a lot of detail.
                     close(STDERR_FILENO);
+
+                    // but child must have writable stderr or it can puke
+                    int fd = open("/dev/null", O_WRONLY);
+                    if (-1 != fd)
+                    {
+                        dup2(fd, STDERR_FILENO);
+                    }
                     #endif
 
                     int ev = execlp("/usr/bin/sudo",
@@ -513,8 +529,16 @@ bool Storage::zip_exec(const std::string& contents_dir_path,
             // We don't want the output of the exec program to be visible in the
             // normal inherited stdout and stderr logs as it reveals a lot of detail.
             #ifndef DEBUG
-            close(STDOUT_FILENO);
+            close(STDOUT_FILENO);  // close the inherited ones
             close(STDERR_FILENO);
+
+            // but child must have writable stdout and stderr or it can puke
+            int fd = open("/dev/null", O_WRONLY);
+            if (-1 != fd)
+            {
+                dup2(fd, STDOUT_FILENO);
+                dup2(fd, STDERR_FILENO);
+            }
             #endif
 
             unlink(zipfile_path.c_str());
@@ -554,8 +578,16 @@ bool Storage::unzip_exec(const std::string& zipfilepath,
         // We don't want the output of the exec program to be visible in the
         // normal inherited stdout and stderr logs as it reveals a lot of detail.
         #ifndef DEBUG
-        close(STDOUT_FILENO);
+        close(STDOUT_FILENO);  // close the inherited ones
         close(STDERR_FILENO);
+
+        // but child must have writable stdout and stderr or it can puke
+        int fd = open("/dev/null", O_WRONLY);
+        if (-1 != fd)
+        {
+            dup2(fd, STDOUT_FILENO);
+            dup2(fd, STDERR_FILENO);
+        }
         #endif
 
         // Child
