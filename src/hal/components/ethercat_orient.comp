@@ -1,0 +1,34 @@
+component ethercat_orient "Provide an emulated spindle-index-enable for the motion module when using an EtherCAT drive with an onboard encoder";
+
+pin in   u32     encoder_counts     "Raw single-turn encoder value from the drive";
+pin in   u32     encoder_resolution "Counts per rev for the motor encoder";
+pin in   float   belt_ratio         "Spindle revs per single motor rev";
+pin out  s32     spindle_revs
+pin out  float   position           "Spindle position output, unit 1 rev";
+pin io   bit     index_pulse        "Resets position to zero on the next rotation. Pin is reset to FALSE after this occurs"
+
+variable float   last_position = 0;
+
+option fp yes;
+
+function _ "Update calculated spindle revs and command for orient";
+author "Peter Den Hartog";
+
+
+description """
+
+""";
+
+license "GPL";
+;;
+#include <rtapi_math.h>
+
+FUNCTION(_) {
+    position = fmod(((double)encoder_counts / encoder_resolution) * belt_ratio, 1.0);
+    if(abs(last_position - position) > 0.5) {
+        // We have rolled over the simulated "index pulse"
+        
+    }
+    last_position = position;
+}
+
