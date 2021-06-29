@@ -1675,7 +1675,7 @@ int Interp::open(const char *filename, const char *working_dir) //!< string: the
     int index;
     int length;
 
-    logOword("open()");
+    logOword("Interp::open()");
     if (_setup.use_lazy_close && _setup.lazy_closing) {
         _setup.use_lazy_close = 0; // so that close will work
         close();
@@ -2016,7 +2016,7 @@ int Interp::read(const char * command)
 // falling back to toplevel in a controlled way. Idempotent.
 int Interp::unwind_call(int status, const char *file, int line, const char *function, CommandSource cmd_src)
 {
-    if (hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
+  if (hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
     // Walks the subroutine call levels and appends caller / callee information
     add_error_call_context(cmd_src);
   }
@@ -2026,39 +2026,38 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 
   // TODO drain call context stack
   for(; _setup.call_level > 0; _setup.call_level--) {
-    int i;
     context * sub = &_setup.sub_context[call_level() - 1];
     free_named_parameters(&_setup.sub_context[call_level()]);
     if(sub->subName) {
       logDebug("unwind_call leaving sub '%s'", sub->subName);
-      sub->subName = nullptr;
     }
 
     if (sub->call_type != CT_NGC_M98_SUB) // M98:  pass #1..#30 from parent
-      for(i=0; i<INTERP_SUB_PARAMS; i++) {
+      for(int i=0; i<INTERP_SUB_PARAMS; i++) {
         _setup.parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
             sub->saved_params[i];
       }
 
     // When called from Interp::close via Interp::reset, this one is NULL
-    if (!_setup.file_pointer) continue;
-
-    // some frames may not have a filename and hence a position to seek to
-    // on return, like Python handlers
-    // needed to make sure this works in rs274 -n 0 (continue on error) mode
-    if (sub->filename && sub->filename[0]) {
-      if(0 != strcmp(_setup.filename, sub->filename)) {
-        fclose(_setup.file_pointer);
-        _setup.file_pointer = fopen(sub->filename, "r");
-        logDebug("unwind_call: reopening '%s' at %ld",
-                 sub->filename, sub->position);
-        strcpy(_setup.filename, sub->filename);
-      }
-      fseek(_setup.file_pointer, sub->position, SEEK_SET);
+    if (_setup.file_pointer) {
+        // some frames may not have a filename and hence a position to seek to
+        // on return, like Python handlers
+        // needed to make sure this works in rs274 -n 0 (continue on error) mode
+        if (sub->filename && sub->filename[0]) {
+            if(0 != strcmp(_setup.filename, sub->filename)) {
+                fclose(_setup.file_pointer);
+                _setup.file_pointer = fopen(sub->filename, "r");
+                logDebug("unwind_call: reopening '%s' at %ld",
+                         sub->filename, sub->position);
+                strcpy(_setup.filename, sub->filename);
+            }
+            fseek(_setup.file_pointer, sub->position, SEEK_SET);
+        }
+        _setup.sequence_number = sub->sequence_number;
+        logDebug("unwind_call: setting sequence number=%d from frame %d",
+                 _setup.sequence_number,call_level());
     }
-    _setup.sequence_number = sub->sequence_number;
-    logDebug("unwind_call: setting sequence number=%d from frame %d",
-             _setup.sequence_number,call_level());
+    sub->soft_clear(); // Avoid touching global state
   }
   // call_level == 0 here.
 
@@ -3507,15 +3506,29 @@ const char *strstore(const char *s)
     return pair.first->c_str();
 }
 
+// TODO should filename and subName be initialized to nullptr to be consistent with clear()
 context_struct::context_struct()
     : position(0), sequence_number(0), filename(""), subName(""),
-    m98_loop_counter(-1), context_status(0), modal_state(), call_type(CT_NONE)
+    m98_loop_counter(-1), saved_params{}, context_status(0), modal_state(), call_type(CT_NONE)
 {
 }
 
 void context_struct::clear()
 {
     new (this) context_struct();
+}
+
+void context_struct::soft_clear()
+{
+    // TODO figure out how to avoid duplicating this here...
+    position = 0;
+    sequence_number = 0;
+    filename = "";
+    subName = nullptr;
+    m98_loop_counter = -1;
+    context_status = 0;
+    modal_state = ModalState{};
+    call_type = CT_NONE;
 }
 
 bool toolOffsetActive(const setup_struct * s)

@@ -278,15 +278,18 @@ struct pycontext {
     pycontext_impl *impl;
 };
 
+using SavedParameterArray = std::array<double, INTERP_SUB_PARAMS>;
+
 struct context_struct {
     context_struct();
     void clear();
+    void soft_clear(); // Clears non-persistent data
     long position;       // location (ftell) in file
     int sequence_number; // location (line number) in file
     const char *filename;      // name of file for this context
     const char *subName;       // name of the subroutine (oword)
     int m98_loop_counter;      // loop counter for Fanuc-style sub calls
-    double saved_params[INTERP_SUB_PARAMS];
+    SavedParameterArray saved_params;
     parameter_map named_params;
     unsigned char context_status;		// see CONTEXT_ defines below
     ModalState modal_state;

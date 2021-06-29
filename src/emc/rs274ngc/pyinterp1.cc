@@ -47,7 +47,7 @@ static  active_settings_array saved_settings_wrapper ( context &c) {
 }
 
 static params_array saved_params_wrapper ( context &c) {
-    return params_array(c.saved_params);
+    return params_array(c.saved_params.data());
 }
 static bp::object remap_str( remap_struct const &r) {
     return  bp::object("Remap(%s argspec=%s modal_group=%d prolog=%s ngc=%s python=%s epilog=%s) " %
