@@ -1,11 +1,12 @@
 component ethercat_orient "Provide an emulated spindle-index-enable for the motion module when using an EtherCAT drive with an onboard encoder";
 
-pin in   u32     encoder_counts     "Raw single-turn encoder value from the drive";
-pin in   u32     encoder_resolution "Counts per rev for the motor encoder";
-pin in   float   belt_ratio         "Spindle revs per single motor rev";
-pin out  s32     spindle_revs
-pin out  float   position           "Spindle position output, unit 1 rev";
-pin io   bit     index_pulse        "Resets position to zero on the next rotation. Pin is reset to FALSE after this occurs"
+pin in   u32     encoder_counts         "Raw single-turn encoder value from the drive";
+pin in   u32     encoder_resolution     "Counts per rev for the motor encoder";
+pin in   float   belt_ratio             "Spindle revs per single motor rev";
+pin out  s32     spindle_revs           "How many integer revs of the spindle have occured since the last spindle-index-enable reset";
+pin out  float   single_rev_position    "Single turn spindle position output, unit 1 rev";
+pin out  float   position               "Absolute spindle position output, unit 1 rev";
+pin io   bit     spindle_index_enable   "Resets position to zero on the next rotation. Pin is reset to FALSE after this occurs";
 
 variable float   last_position = 0;
 
@@ -24,11 +25,22 @@ license "GPL";
 #include <rtapi_math.h>
 
 FUNCTION(_) {
-    position = fmod(((double)encoder_counts / encoder_resolution) * belt_ratio, 1.0);
-    if(abs(last_position - position) > 0.5) {
+    single_rev_position = fmod(((double)encoder_counts / encoder_resolution) * belt_ratio, 1.0);
+    if(fabs(last_position - single_rev_position) > 0.5) {
         // We have rolled over the simulated "index pulse"
-        
+        if(spindle_index_enable == 1) {
+            // Reset position to 0 if commanded by the motion module
+            spindle_index_enable = 0;
+            spindle_revs = 0;
+        } else {
+            int sign = (single_rev_position < last_position) - (last_position < single_rev_position); // (-1, 0, or 1)
+            spindle_revs += sign;
+        }
     }
-    last_position = position;
+    last_position = single_rev_position;
+    
+    // single_rev_position is a fraction of one turn, so we add it to the total number of complete turns to get
+    // absolute position
+    position = spindle_revs + single_rev_position;
 }
 
