@@ -8,7 +8,21 @@ pin out  float   single_rev_position    "Single turn spindle position output, un
 pin out  float   position               "Absolute spindle position output, unit 1 rev";
 pin io   bit     spindle_index_enable   "Resets position to zero on the next rotation. Pin is reset to FALSE after this occurs";
 
+
+pin in   bit     spindle_orient         "1 = Enable spindle orient";
+pin in   float   spindle_orient_angle   "Angle in degrees";
+pin in   s32     spindle_orient_mode    "0 rotate for smallest angular movement 1 always rotate clockwise 2 always rotate counterclockwise";
+pin out  s32     spindle_orient_fault   "Any number other than 0 indicates a fault";
+pin out  bit     spindle_is_oriented    "1 = oriented";
+pin in   float   orient_p = 200;
+pin in   float   orient_deadzone = 0.05 "Unit = 1/rev";
+
+pin in   float   spindle_command_in     "Spindle speed command in from motion (RPM)";
+pin out  float   spindle_command_out    "Spindle speed command out (RPM)";
+
 variable float   last_position = 0;
+variable int     has_target = 0;
+variable float   target_position = 0;
 
 option fp yes;
 
@@ -25,6 +39,7 @@ license "GPL";
 #include <rtapi_math.h>
 
 FUNCTION(_) {
+    // SPINDLE SYNC CODE
     single_rev_position = fmod(((double)encoder_counts / encoder_resolution) * belt_ratio, 1.0);
     if(fabs(last_position - single_rev_position) > 0.5) {
         // We have rolled over the simulated "index pulse"
@@ -42,5 +57,32 @@ FUNCTION(_) {
     // single_rev_position is a fraction of one turn, so we add it to the total number of complete turns to get
     // absolute position
     position = spindle_revs + single_rev_position;
+
+
+    // SPINDLE ORIENT CODE
+    if(!spindle_orient) {
+        spindle_command_out = spindle_command_in;
+        // Reset has_target once we are out of the orient move.
+        has_target = 0;
+        spindle_is_oriented = 0;
+    } else {
+        if(has_target == 0){
+            // Only set target position once at the start of an orient
+            target_position = spindle_revs + spindle_orient_angle / 360.0;
+            if(spindle_orient_mode == 1 && target_position < position) {
+                target_position += 1;
+            } else if (spindle_orient_mode == 2 && target_position > position) {
+                target_position -= 1;
+            }
+            has_target = 1;
+        }
+        if(fabs(target_position - position) < orient_deadzone) {
+            spindle_is_oriented = 1;
+            spindle_command_out = 0;
+        } else {
+            spindle_is_oriented = 0;
+            spindle_command_out = (target_position - position) * orient_p;
+        }
+    }
 }
 
