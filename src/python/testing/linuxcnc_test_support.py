@@ -294,12 +294,13 @@ class LinuxcncControl:
 # (typically with a python "UI" file running the test case)
 
 
-def float_assert(got, expect, tol=1e-6):
+def float_assert(got, expect, tol=1e-6, comment=None):
+    comment_str = "" if not comment else ": {}".format(comment)
     try:
         assert(abs(expect-got) < tol)
-        print >>sys.stderr,"Value {} within expected range {}+/-{}".format(got, expect, 1e-6)
+        print >>sys.stderr,"Value {} within expected range {}+/-{}{}".format(got, expect, 1e-6, comment_str)
     except AssertionError as e:
-        print >>sys.stderr,"Value {} outside of expected range {}+/-{}".format(got, expect, 1e-6)
+        print >>sys.stderr,"Value {} outside of expected range {}+/-{}{}".format(got, expect, 1e-6, comment_str)
         raise AssertionError, AssertionError(e), sys.exc_info()[2]
 
 
@@ -310,6 +311,27 @@ def test_assert(got, expect=True):
     except AssertionError as e:
         print >>sys.stderr,"Value {} != {}".format(got, expect)
         raise AssertionError, AssertionError(e), sys.exc_info()[2]
+
+
+def test_assert_gt(got, threshold):
+    try:
+        assert(got > threshold)
+        print >>sys.stderr, "Passed: Value {} > {}".format(got, threshold)
+    except AssertionError as e:
+        print >>sys.stderr, "Failed: Value {} > {}".format(got, threshold)
+        raise AssertionError, AssertionError(e), sys.exc_info()[2]
+
+
+def test_assert_not_none(obj):
+    try:
+        assert(obj is not None)
+    except AssertionError as e:
+        print >>sys.stderr, "Object is None"
+        raise AssertionError, AssertionError(e), sys.exc_info()[2]
+
+
+def test_fail(comment):
+    raise AssertionError(comment)
 
 
 def wait_for_linuxcnc_startup(status, timeout=10.0):
