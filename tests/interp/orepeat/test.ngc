@@ -1,0 +1,37 @@
+G90 G20 G54
+G0 X0 Y0 Z0
+
+; Increment move
+o<function1> sub
+G91 G1 X0.01 F123
+G90
+o<function1> endsub
+
+; return a value via return
+o<function2> sub
+G91 G1 Y0.01 F456
+G90
+o<function2> endsub
+
+; a procedure without return value
+o<proc> sub
+o<proc> endsub
+
+;py,from interpreter import *
+;py,from linuxcnc_test_support import float_assert
+
+#<counter> = 0
+o100 repeat [100]
+#<counter> = [#<counter>+1]
+o<function1> call
+o101 if [#<counter> GT 50]
+o<function2> call
+o101 endif
+o100 endrepeat
+
+; make sure they are properly set
+;py,float_assert(this.current_x, 1.0)
+;py,float_assert(this.current_y, 0.5)
+;py,float_assert(this.feed_rate, 456)
+
+m2
