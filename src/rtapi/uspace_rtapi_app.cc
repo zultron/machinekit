@@ -996,11 +996,12 @@ void Posix::wait() {
 		    //"Run the Latency Test and resolve before continuing.\n",
             //        task - task_array);
 
-            //printed = 1;
+            printed = 1;
+
             // TORMACH added
             struct timespec delta;
             ts_elapsed(&delta, &(task->nextstart), &now);
-            rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd. new deadline missed, delta: %ld.%09ld\n",
+            rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd. new deadline missed, delta: %ld.%09ld\nThis message will only display once per session.\n",
                     task - task_array,
                     delta.tv_sec, delta.tv_nsec);
         }
