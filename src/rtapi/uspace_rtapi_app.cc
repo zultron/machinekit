@@ -987,8 +987,9 @@ void Posix::wait() {
     if(ts_less(task->nextstart, now))
     {
         // now is past next task run -- we took too long
-        static int printed = 0;
-        if(policy == SCHED_FIFO && !printed)
+        static struct timespec print_enabled_time = {0};
+
+        if ((policy == SCHED_FIFO) && (now.tv_sec > print_enabled_time.tv_sec))
         {
             // TORMACH changed
             //rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd\n"
@@ -996,14 +997,16 @@ void Posix::wait() {
 		    //"Run the Latency Test and resolve before continuing.\n",
             //        task - task_array);
 
-            printed = 1;
-
             // TORMACH added
             struct timespec delta;
             ts_elapsed(&delta, &(task->nextstart), &now);
-            rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd. new deadline missed, delta: %ld.%09ld\nThis message will only display once per session.\n",
+            rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd. new deadline missed, delta: %ld.%09ld. this message will only display once every 5 minutes.\n",
                     task - task_array,
                     delta.tv_sec, delta.tv_nsec);
+
+            // Suppress printing for 5 minutes so we don't enter a self-repeating cycle of deadline misses
+            // due to the mere act of printing
+            print_enabled_time.tv_sec = now.tv_sec + (60*5);
         }
     }
     else
