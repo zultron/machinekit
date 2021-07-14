@@ -367,3 +367,10 @@ def wait_for_linuxcnc_startup(status, timeout=10.0):
     raise RuntimeError("LinuxCNC failed to start for test case")
 
 
+def has_error(err_ch):
+    for _ in range(1000):
+        r = err_ch.poll()
+        if r is None:
+            return False
+        elif r[2] >= linuxcnc.CANON_MSG_LOW:
+            return True
