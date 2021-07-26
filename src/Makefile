@@ -347,6 +347,7 @@ HEADERS := \
     emc/interp_shared/coordinatetransform.hh \
     emc/interp_shared/positionarray.hh \
     emc/interp_shared/array_math.hh \
+    emc/interp_shared/arc_feed_util.hh \
     hal/hal.h \
     hal/hal_parport.h \
     libnml/buffer/locmem.hh \

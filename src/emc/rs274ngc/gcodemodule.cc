@@ -24,6 +24,7 @@
 #include "rs274ngc.hh"
 #include "previewinterp.hh"
 #include "interp_return.hh"
+#include "arc_feed_util.hh"
 #include "canon.hh"
 #include "config.h"		// LINELEN
 #include <sstream>
@@ -1714,23 +1715,20 @@ void PreviewMachine::arc_feed(int line_number,
 
     PositionArray const start_lcl = transform_uu.inverse_local_from_tool(machine_pos_uu);
 
-    double theta1 = atan2(start_lcl[Y]-cy, start_lcl[X]-cx);
-    double theta2 = atan2(n[Y]-cy, n[X]-cx);
+    CircleAngle circ_angle = find_arc_angle_in_plane(
+        start_lcl[X],
+        start_lcl[Y],
+        cx,
+        cy,
+        n[X],
+        n[Y],
+        rot
+        );
 
-    if(rot < 0) {
-        while(theta2 - theta1 > -CIRCLE_FUZZ) theta2 -= 2*M_PI;
-    } else {
-        while(theta2 - theta1 < CIRCLE_FUZZ) theta2 += 2*M_PI;
-    }
-
-    // if multi-turn, add the right number of full circles
-    if(rot < -1) theta2 += 2*M_PI*(rot+1);
-    if(rot > 1) theta2 += 2*M_PI*(rot-1);
-
-    int steps = std::max(3, int(max_segments * fabs(theta1 - theta2) / M_PI));
+    const double dtheta = circ_angle.full_angle();
+    int steps = std::max(3, int(max_segments * fabs(circ_angle.full_angle()) / M_PI));
     double rsteps = 1. / steps;
 
-    double dtheta = theta2 - theta1;
     PositionArray d = n-start_lcl;
     d[X] = 0;
     d[Y] = 0;

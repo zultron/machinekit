@@ -51,6 +51,7 @@
 #include "coordinatetransform.hh"
 #include "units.h"
 #include "path_geom_util.hh"
+#include "arc_feed_util.hh"
 
 #include <algorithm>
 #include <numeric>
@@ -1496,26 +1497,9 @@ CanonReturn ARC_FEED(int line_number,
 
     // Use the "X" (1) and Y" (2) components of the planar projections to get
     // the starting and ending angle. Note that atan2 arguments are atan2(Y,X).
-    double theta_start = atan2(p_start_2, p_start_1);
-    double theta_end= atan2(p_end_2,p_end_1);
     double start_radius = hypot(p_start_1, p_start_2);
     double end_radius = hypot(p_end_1, p_end_2);
     canon_debug("radius = %f\n",start_radius);
-    canon_debug("raw values: theta_end = %.17e, theta_start = %.17e\n", theta_end, theta_start);
-
-    // Correct for angle wrap so that theta_end - theta_start > 0
-    int is_clockwise = rotation < 0;
-
-    // FIXME should be a constant in canon.hh or elsewhere
-    const double min_arc_angle = 1e-12;
-
-    if (is_clockwise) {
-        if((theta_end + min_arc_angle) >= theta_start) theta_end -= M_PI * 2.0;
-    } else {
-        if((theta_end - min_arc_angle) <= theta_start) theta_end += M_PI * 2.0;
-    }
-
-    canon_debug("theta_end = %f, theta_start = %f\n", theta_end, theta_start);
 
     /*
        mapping of rotation to full turns:
@@ -1528,21 +1512,16 @@ CanonReturn ARC_FEED(int line_number,
              -1 0
              -2 -1 */
 
-    // Compute the number of FULL turns in addition to the principal angle
-    int full_turns = 0;
-    if (rotation > 1) {
-        full_turns = rotation - 1;
-    }
-    if (rotation < -1) {
-        full_turns = rotation + 1;
-    }
 
-    double angle = theta_end - theta_start;
-    double full_angle = angle + 2.0 * M_PI * (double)full_turns;
-    canon_debug("angle = %f\n", angle);
-    canon_debug("full turns = %d\n", full_turns);
+    auto circ_data = find_arc_angle_in_plane(p_start_1, p_start_2, 0, 0, p_end_1, p_end_2, rotation);
+    const double full_angle = circ_data.full_angle();
 
-	canon_debug("full_angle = %.17e\n", full_angle);
+    canon_debug("turns = %d\n", rotation);
+    canon_debug("full_turns = %d\n", circ_data.full_turns);
+    canon_debug("force_full = %d\n", circ_data.force_full_turn);
+    canon_debug("clockwise = %d\n", circ_data.clockwise);
+    canon_debug("principle_angle = %0.17f\n", circ_data.principal_angle);
+    canon_debug("full_angle = %.17f\n", full_angle);
 
     //Use total angle to get spiral properties
     double spiral = end_radius - start_radius;
@@ -1675,9 +1654,7 @@ CanonReturn ARC_FEED(int line_number,
     circularMoveMsg.center = to_ext_len(center_cart);
     circularMoveMsg.normal = normal_cart;
 
-    circularMoveMsg.turn = rotation;
-    if (rotation > 0)
-        circularMoveMsg.turn -= 1;
+    circularMoveMsg.turn = circ_data.get_turn_cmd();
 
     circularMoveMsg.emc_motion_type = EMC_MOTION_TYPE_ARC;
 

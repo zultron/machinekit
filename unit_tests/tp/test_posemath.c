@@ -225,21 +225,6 @@ SUITE(pm_cart_basics)
     RUN_TEST(test_pmCartScalAddSub);
 }
 
-TEST test_pmCircleInit_simple()
-{
-    PmCircle c;
-    PmCartesian start = {10.0,0, 0};
-    PmCartesian end = start;
-    PmCartesian center = {0,0,0};
-    PmCartesian normal = {0,0,1};
-    pmCircleInit(&c, &start, &end, &center, &normal, 0);
-
-    ASSERT_FLOAT_EQ(c.angle, 2.0 * M_PI);
-    ASSERT_FLOAT_EQ(c.radius, 10.0);
-
-    PASS();
-}
-
 TEST test_pmCircleInit()
 {
     PmCircle c;
@@ -307,7 +292,7 @@ TEST test_pmCircleInit_helix()
     pmCartCartAddEq(&end, &center);
 
     PmCartesian normal = {0,0,1};
-    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+    pmCircleInit(&c, &start, &end, &center, &normal, 1);
 
     PmCartesian const expect_rHelix = {0,0,0.4};
 
@@ -368,6 +353,98 @@ TEST test_pmCirclePoint_helix_spiral()
 
     PASS();
 }
+
+TEST test_pmCircleInitSmallAngleCutoff()
+{
+    PmCircle c;
+
+    const double x_disp = 1.999999;
+    const double y_disp = 0.0000001;
+    const double exp_radius = hypot(x_disp, y_disp);
+    const double exp_angle = 2.*atan(y_disp / x_disp);
+
+    PmCartesian center = {x_disp, 0, 0};
+    PmCartesian start = {0.0, y_disp, 0};
+    PmCartesian end = {0, -y_disp, 0};
+
+    PmCartesian normal = {0,0,1};
+    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+
+    ASSERT_IN_RANGE(exp_radius, c.radius, CART_FUZZ);
+    ASSERT_IN_RANGE(exp_angle, c.angle, CART_FUZZ);
+
+    PASS();
+}
+
+// Test cases for other special cases with arcs
+
+
+TEST test_pmCircleInit_ZeroLength()
+{
+    // canon now explicitly specifies when an extra full turn is required, so a coincident start / end point should yield a zero length arc
+    PmCircle c;
+    PmCartesian start = {10.0,0, 0};
+    PmCartesian end = start;
+    PmCartesian center = {0,0,0};
+    PmCartesian normal = {0,0,1};
+    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+
+    ASSERT_FLOAT_EQ(c.radius, 10.0);
+    ASSERT_FLOAT_EQ(c.spiral, 0.0);
+    ASSERT_FLOAT_EQ(c.height, 0.0);
+    ASSERT_FLOAT_EQ(c.angle, 0);
+
+    double rtan, rperp;
+    pmCartMag(&c.rTan, &rtan);
+    pmCartMag(&c.rPerp, &rperp);
+    ASSERT_FLOAT_EQ(c.radius, rtan);
+    ASSERT_FLOAT_EQ(c.radius, rperp);
+
+    PASS();
+}
+
+TEST test_pmCircleInit_PerfectFullTurn()
+{
+    PmCircle c;
+    PmCartesian start = {10.0,0, 0};
+    PmCartesian end = start;
+    PmCartesian center = {0,0,0};
+    PmCartesian normal = {0,0,1};
+
+    pmCircleInit(&c, &start, &end, &center, &normal, 1);
+
+    ASSERT_FLOAT_EQ(c.radius, 10.0);
+    ASSERT_FLOAT_EQ(c.spiral, 0.0);
+    ASSERT_FLOAT_EQ(c.height, 0.0);
+    ASSERT_FLOAT_EQ(c.angle, 2.*M_PI);
+
+    PASS();
+}
+
+
+TEST test_pmCircleInit_SmallAnglePlusFullTurn()
+{
+    // Creating a circle with a base angle smaller than CIRCLE_FUZZ, but explicitly calling for an extra turn
+    const double x_disp = 1.999999;
+    const double y_disp = 0.0000001;
+    const double exp_radius = hypot(x_disp, y_disp);
+    const double exp_angle = 2.*atan(y_disp / x_disp);
+
+    PmCartesian center = {x_disp, 0, 0};
+    PmCartesian start = {0.0, y_disp, 0};
+    PmCartesian end = {0, -y_disp, 0};
+
+    PmCartesian normal = {0,0,1};
+
+    PmCircle c;
+    pmCircleInit(&c, &start, &end, &center, &normal, 1);
+
+    ASSERT_IN_RANGE(exp_radius, c.radius, CART_FUZZ);
+    ASSERT_IN_RANGE(exp_angle+2.*M_PI, c.angle, CART_FUZZ);
+
+    PASS();
+}
+
 
 static const PmCartesian center_0 = {0.0, 0.0, 0.0};
 static const PmCartesian normal_z = {0,0,1};
@@ -646,11 +723,14 @@ TEST test_pmCircleSpiralStretch_scan_end()
 
 
 SUITE(pm_circle) {
-    RUN_TEST(test_pmCircleInit_simple);
     RUN_TEST(test_pmCircleInit);
     RUN_TEST(test_pmCircleInit_spiral_short);
     RUN_TEST(test_pmCircleInit_spiral_long);
     RUN_TEST(test_pmCircleInit_helix);
+    RUN_TEST(test_pmCircleInitSmallAngleCutoff);
+    RUN_TEST(test_pmCircleInit_ZeroLength);
+    RUN_TEST(test_pmCircleInit_PerfectFullTurn);
+    RUN_TEST(test_pmCircleInit_SmallAnglePlusFullTurn);
     RUN_TEST(test_pmCirclePoint_helix_spiral);
     RUN_TEST(test_pmCircleCut);
 }
