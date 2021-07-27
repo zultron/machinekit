@@ -408,7 +408,8 @@ TEST test_pmCircleTangentVector_spiralout()
     PmCartesian end = {expect_r0 + M_PI_2,0,0};
     PmCartesian center = {0,0,0};
     PmCartesian normal = {0,0,1};
-    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+    // NOTE: full turns are now explicitly specified via the turns argument
+    pmCircleInit(&c, &start, &end, &center, &normal, 1);
 
     // a = (r1-r0)/theta = (pi/2) / (2pi) = 1/4
     double expect_spiral_a = 0.25;
@@ -450,7 +451,7 @@ TEST test_pmCircleTangentVector_spiralin()
     PmCartesian end = {expect_r0 - M_PI_2,0,0};
     PmCartesian center = {0,0,0};
     PmCartesian normal = {0,0,1};
-    pmCircleInit(&c, &start, &end, &center, &normal, 0);
+    pmCircleInit(&c, &start, &end, &center, &normal, 1);
 
     // a = (r1-r0)/theta = (pi/2) / (2pi) = 1/4
     double expect_spiral_a = -0.25;

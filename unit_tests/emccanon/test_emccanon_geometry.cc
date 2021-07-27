@@ -7,6 +7,7 @@
 #include <emccanon.hh>
 #include <interp_testing_util.hh>
 #include <interpl.hh>
+#include <iomanip>
 
 TEST_CASE("EMCCANON hello world")
 {
@@ -143,4 +144,66 @@ SCENARIO("Max feed / acceleration of circular arcs")
         }
     }
     // TODO other cases
+}
+
+SCENARIO("ARC_FEED geometry")
+{
+    DECL_INIT_TEST_INTERP();
+    INIT_CANON();
+    REQUIRE_INTERP_OK(test_interp, execute("F60"));
+    REQUIRE_INTERP_OK(test_interp, execute("G90 G20 G54"));
+    while(interp_list.get()) {} // Discard any NML commands up to this point
+
+    GIVEN("A circular arc that encloses an angle less than the CIRCLE_FUZZ cutoff") {
+        const int gcode = GENERATE(2,3);
+        const double zheight = GENERATE(-3,0,3);
+        const double xdisp = -2.000001;
+        const double ydisp = -.000002;
+        const int exp_turns = gcode == 2 ? -2 : 1;
+
+        std::ostringstream oss;
+        oss << std::fixed << "G" << gcode << " Y" << ydisp << " I" << xdisp << " J" << ydisp/2.;
+        REQUIRE_INTERP_OK(test_interp, execute(oss.str().c_str()));
+
+        NMLmsg *msg = nullptr;
+        while ((msg = interp_list.get()) && msg->type == EMC_TASK_SET_TAG_TYPE) {}
+        auto *arc_msg = (EMC_TRAJ_CIRCULAR_MOVE*) msg;
+        REQUIRE(arc_msg);
+        REQUIRE(arc_msg->type == EMC_TRAJ_CIRCULAR_MOVE_TYPE);
+        // Only check these once we're sure the type is right
+        const PM_CARTESIAN exp_center = {xdisp, ydisp/2., 0};
+        const PM_CARTESIAN exp_normal = {0.0, 0.0, -1.0};
+        const PM_CARTESIAN exp_end = {0.0, ydisp, zheight};
+        CHECK_THAT(arc_msg->center, Catch::Matchers::PoseMath::CartApproxMatcher(exp_center));
+        CHECK_THAT(arc_msg->normal, Catch::Matchers::PoseMath::CartApproxMatcher(exp_normal));
+
+        CHECK(arc_msg->turn == exp_turns); // -1 indicates it's clockwise, -2, indicates clockwise with an extra full rotation
+        CHECK_THAT(arc_msg->end.tran, Catch::Matchers::PoseMath::CartApproxMatcher(exp_end));
+    }
+    GIVEN("A circular arc that encloses an angle less than the CIRCLE_FUZZ cutoff") {
+        const int gcode = GENERATE(2,3);
+        const double zheight = GENERATE(-3,0,3);
+        const double xdisp = -1.999999;
+        const double ydisp = -.000002;
+        const int exp_turns = gcode == 2 ? -1 : 0;
+
+        std::ostringstream oss;
+        oss << std::fixed << "G" << gcode << " Y" << ydisp << " I" << xdisp << " J" << ydisp/2.;
+        REQUIRE_INTERP_OK(test_interp, execute(oss.str().c_str()));
+
+        NMLmsg *msg = nullptr;
+        while ((msg = interp_list.get()) && msg->type == EMC_TASK_SET_TAG_TYPE) {}
+        auto *arc_msg = (EMC_TRAJ_CIRCULAR_MOVE*) msg;
+        REQUIRE(arc_msg);
+        REQUIRE(arc_msg->type == EMC_TRAJ_CIRCULAR_MOVE_TYPE);
+        // Only check these once we're sure the type is right
+        const PM_CARTESIAN exp_center = {xdisp, ydisp/2., 0};
+        const PM_CARTESIAN exp_normal = {0.0, 0.0, -1.0};
+        const PM_CARTESIAN exp_end = {0.0, ydisp, zheight};
+        CHECK_THAT(arc_msg->center, Catch::Matchers::PoseMath::CartApproxMatcher(exp_center));
+        CHECK_THAT(arc_msg->normal, Catch::Matchers::PoseMath::CartApproxMatcher(exp_normal));
+
+        CHECK(arc_msg->turn == exp_turns); // -1 indicates it's clockwise, -2, indicates clockwise with an extra full rotation
+        CHECK_THAT(arc_msg->end.tran, Catch::Matchers::PoseMath::CartApproxMatcher(exp_end));
+    }
 }

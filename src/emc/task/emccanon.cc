@@ -51,6 +51,7 @@
 #include "coordinatetransform.hh"
 #include "units.h"
 #include "path_geom_util.hh"
+#include "arc_feed_util.hh"
 
 #include <algorithm>
 #include <numeric>
@@ -611,7 +612,7 @@ static void drop_segments(void) {
 static void flush_segments(void) {
     if(chained_points.empty()) return;
 
-    canon_debug("Flushing segments up to line %d\n", line_no);
+    canon_debug("Flushing segments up to line %d\n", _tag.getLocalLine());
 #ifdef SHOW_JOINED_SEGMENTS
     for(unsigned int i=0; i != chained_points.size(); i++) { printf("."); }
     printf("\n");
@@ -633,7 +634,7 @@ static void flush_segments(void) {
 
     double v_req_path = getPathVelocityFromActiveFeed(vel_data, disp_data.feed_axes);
 
-    canon_debug("Line segment maximum velocity %f, requested vel %f\n", ini_maxvel, vel);
+    canon_debug("Line segment maximum velocity %f, requested vel %f\n", v_path_max, v_req_path);
 
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = feed_mode;
@@ -755,7 +756,7 @@ void see_segment(
         flush_segments();
     }
     TaggedPoint pos(goal_pos_canon, tag);
-    canon_debug("Adding line %d to chained points\n", line_number);
+    canon_debug("Adding line %d to chained points\n", tag.getLocalLine());
     chained_points.push_back(pos);
 }
 
@@ -789,7 +790,7 @@ static CanonReturn straight_traverse_internal(
     VelData veldata = getStraightVelocity(disp_data);
     AccelData accdata = getStraightAcceleration(disp_data);
 
-    canon_debug("Line segment maximum velocity %f, requested vel %f\n", ini_maxvel, vel);
+    canon_debug("Line segment maximum velocity %f\n", veldata.v_max_path);
 
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
 
@@ -1077,7 +1078,7 @@ void STOP_CUTTER_RADIUS_COMPENSATION()
 
 static void send_speed_feed_synch_msg(double feed_per_revolution_prog, bool velocity_mode)
 {
-    canon_debug("synch state: feed_per_revolution = %f, velocity_mode = %d\n", feed_per_revolution, velocity_mode);
+    canon_debug("synch state: feed_per_revolution = %f, velocity_mode = %d\n", feed_per_revolution_prog, velocity_mode);
     EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
     spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(FROM_PROG_LEN(feed_per_revolution_prog));
     spindlesyncMsg.velocity_mode = velocity_mode;
@@ -1496,26 +1497,9 @@ CanonReturn ARC_FEED(int line_number,
 
     // Use the "X" (1) and Y" (2) components of the planar projections to get
     // the starting and ending angle. Note that atan2 arguments are atan2(Y,X).
-    double theta_start = atan2(p_start_2, p_start_1);
-    double theta_end= atan2(p_end_2,p_end_1);
     double start_radius = hypot(p_start_1, p_start_2);
     double end_radius = hypot(p_end_1, p_end_2);
     canon_debug("radius = %f\n",start_radius);
-    canon_debug("raw values: theta_end = %.17e, theta_start = %.17e\n", theta_end, theta_start);
-
-    // Correct for angle wrap so that theta_end - theta_start > 0
-    int is_clockwise = rotation < 0;
-
-    // FIXME should be a constant in canon.hh or elsewhere
-    const double min_arc_angle = 1e-12;
-
-    if (is_clockwise) {
-        if((theta_end + min_arc_angle) >= theta_start) theta_end -= M_PI * 2.0;
-    } else {
-        if((theta_end - min_arc_angle) <= theta_start) theta_end += M_PI * 2.0;
-    }
-
-    canon_debug("theta_end = %f, theta_start = %f\n", theta_end, theta_start);
 
     /*
        mapping of rotation to full turns:
@@ -1528,21 +1512,15 @@ CanonReturn ARC_FEED(int line_number,
              -1 0
              -2 -1 */
 
-    // Compute the number of FULL turns in addition to the principal angle
-    int full_turns = 0;
-    if (rotation > 1) {
-        full_turns = rotation - 1;
-    }
-    if (rotation < -1) {
-        full_turns = rotation + 1;
-    }
 
-    double angle = theta_end - theta_start;
-    double full_angle = angle + 2.0 * M_PI * (double)full_turns;
-    canon_debug("angle = %f\n", angle);
-    canon_debug("full turns = %d\n", full_turns);
+    auto circ_data = find_arc_angle_in_plane(p_start_1, p_start_2, 0, 0, p_end_1, p_end_2, rotation);
+    const double full_angle = circ_data.full_angle();
 
-	canon_debug("full_angle = %.17e\n", full_angle);
+    canon_debug("turns = %d\n", rotation);
+    canon_debug("full_turns = %d\n", circ_data.full_turns);
+    canon_debug("clockwise = %d\n", circ_data.clockwise);
+    canon_debug("principle_angle = %0.17f\n", circ_data.principal_angle);
+    canon_debug("full_angle = %.17f\n", full_angle);
 
     //Use total angle to get spiral properties
     double spiral = end_radius - start_radius;
@@ -1633,7 +1611,6 @@ CanonReturn ARC_FEED(int line_number,
     double v_xyz_path = TO_EXT_LEN(total_xyz_length / t_max);
     double total_length_path = hypot3(TO_EXT_LEN(total_xyz_length), disp_data.d_uvw, disp_data.d_abc);
     double v_max_path = total_length_path / t_max;
-    debug_canon_var(v_max);
 
     // COMPUTE ACCELERATION
     
@@ -1653,12 +1630,6 @@ CanonReturn ARC_FEED(int line_number,
     double v_active_path = std::min(getActiveExtFeedRate(CANON_FEED_XYZ), v_xyz_path);
     double v_req_path = v_max_path * v_active_path / v_xyz_path;
 
-    // Dump final values for debugging
-    debug_canon_var(v_req);
-    debug_canon_var(v_xyz);
-    debug_canon_var(v_max);
-    debug_canon_var(a_max);
-
     if(!v_req_path || !a_max_path) {
         // Generally means zero length move but that should be detected earlier
         CANON_MESSAGE(CANON_MSG_DEBUG, "Got invalid velocity %f and/or acceleration %f for circular move, assuming zero length", v_req_path, a_max_path);
@@ -1675,9 +1646,7 @@ CanonReturn ARC_FEED(int line_number,
     circularMoveMsg.center = to_ext_len(center_cart);
     circularMoveMsg.normal = normal_cart;
 
-    circularMoveMsg.turn = rotation;
-    if (rotation > 0)
-        circularMoveMsg.turn -= 1;
+    circularMoveMsg.turn = circ_data.get_turn_cmd();
 
     circularMoveMsg.emc_motion_type = EMC_MOTION_TYPE_ARC;
 
