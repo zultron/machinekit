@@ -282,7 +282,6 @@ using SavedParameterArray = std::array<double, INTERP_SUB_PARAMS>;
 
 struct context_struct {
     context_struct();
-    void clear();
     void soft_clear(); // Clears non-persistent data
     long position;       // location (ftell) in file
     int sequence_number; // location (line number) in file

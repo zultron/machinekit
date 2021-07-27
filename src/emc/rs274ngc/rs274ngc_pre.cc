@@ -3508,14 +3508,16 @@ const char *strstore(const char *s)
 
 // TODO should filename and subName be initialized to nullptr to be consistent with clear()
 context_struct::context_struct()
-    : position(0), sequence_number(0), filename(""), subName(""),
-    m98_loop_counter(-1), saved_params{}, context_status(0), modal_state(), call_type(CT_NONE)
+    : position(0),
+    sequence_number(0),
+    filename(""),
+    subName(""),
+    m98_loop_counter(-1),
+    saved_params{},
+    context_status(0),
+    modal_state(),
+    call_type(CT_NONE)
 {
-}
-
-void context_struct::clear()
-{
-    new (this) context_struct();
 }
 
 void context_struct::soft_clear()
