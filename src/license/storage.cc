@@ -339,10 +339,17 @@ bool Storage::mesaflash_exec(const std::string& rwcmd,     // --nvread    or   -
                 // Child
                 // We don't want the output of the exec program to be visible in the
                 // normal inherited stdout and stderr logs as it reveals a lot of detail.
-
                 #ifndef DEBUG
-                close(STDOUT_FILENO);
+                close(STDOUT_FILENO);  // close the inherited ones
                 close(STDERR_FILENO);
+
+                // but child must have writable stdout and stderr or it can puke
+                int fd = open("/dev/null", O_WRONLY);
+                if (-1 != fd)
+                {
+                    dup2(fd, STDOUT_FILENO);
+                    dup2(fd, STDERR_FILENO);
+                }
                 #endif
 
                 int ev;
@@ -427,7 +434,16 @@ bool Storage::mesaflash_hmid_exec(std::string& output)
                     close(pipefds[1]);
 
                     #ifndef DEBUG
+                    // We don't want any stderr output of the exec program to be visible in the
+                    // normal inherited stderr logs as it reveals a lot of detail.
                     close(STDERR_FILENO);
+
+                    // but child must have writable stderr or it can puke
+                    int fd = open("/dev/null", O_WRONLY);
+                    if (-1 != fd)
+                    {
+                        dup2(fd, STDERR_FILENO);
+                    }
                     #endif
 
                     int ev = execlp("/usr/bin/sudo",
@@ -513,8 +529,16 @@ bool Storage::zip_exec(const std::string& contents_dir_path,
             // We don't want the output of the exec program to be visible in the
             // normal inherited stdout and stderr logs as it reveals a lot of detail.
             #ifndef DEBUG
-            close(STDOUT_FILENO);
+            close(STDOUT_FILENO);  // close the inherited ones
             close(STDERR_FILENO);
+
+            // but child must have writable stdout and stderr or it can puke
+            int fd = open("/dev/null", O_WRONLY);
+            if (-1 != fd)
+            {
+                dup2(fd, STDOUT_FILENO);
+                dup2(fd, STDERR_FILENO);
+            }
             #endif
 
             unlink(zipfile_path.c_str());
@@ -554,8 +578,16 @@ bool Storage::unzip_exec(const std::string& zipfilepath,
         // We don't want the output of the exec program to be visible in the
         // normal inherited stdout and stderr logs as it reveals a lot of detail.
         #ifndef DEBUG
-        close(STDOUT_FILENO);
+        close(STDOUT_FILENO);  // close the inherited ones
         close(STDERR_FILENO);
+
+        // but child must have writable stdout and stderr or it can puke
+        int fd = open("/dev/null", O_WRONLY);
+        if (-1 != fd)
+        {
+            dup2(fd, STDOUT_FILENO);
+            dup2(fd, STDERR_FILENO);
+        }
         #endif
 
         // Child
@@ -1384,9 +1416,22 @@ bool Storage::verify_license_jwt()
 bool Storage::do_license_ssd_files_exist()
 {
     bool result = false;
-    result |= (0 == access(MACHINEDAT_FILEPATH.c_str(), F_OK));
+
+    // Initially we looked for machine related ones, but there was a very rare case where
+    // a customer got the machine dat file, but the licensecomp did NOT get a machine public key
+    // file.  This was during first boot of 2.8.0 on an unmanaged license machine.
+    // On graceful shutdown, the machine dat won't verify because the public key is missing
+    // so it isn't written to flash.  Then on second boot up, flash and ssd aren't verifiable
+    // so we look for these marker files to see if it is likely a time limited license machine
+    // but the files have been tampered with so they don't verify.
+    // So we restore to time limited and lock out the user - ugh.
+    // To not fall into that rare, but possible situation we stopped looking for machine jwt
+    // related files.
+
+    //result |= (0 == access(MACHINEDAT_FILEPATH.c_str(), F_OK));
+    //result |= (0 == access(MACHINEPUBKEY_FILEPATH.c_str(), F_OK));
+
     result |= (0 == access(LICENSEDAT_FILEPATH.c_str(), F_OK));
-    result |= (0 == access(MACHINEPUBKEY_FILEPATH.c_str(), F_OK));
     result |= (0 == access(LICENSEPUBKEY_FILEPATH.c_str(), F_OK));
     result |= (0 == access(OFFLINEPUBKEY_FILEPATH.c_str(), F_OK));
     result |= (0 == access(LICENSEJSON_FILEPATH.c_str(), F_OK));
