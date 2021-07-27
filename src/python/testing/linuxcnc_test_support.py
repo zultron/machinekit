@@ -9,6 +9,7 @@ import re
 from time import sleep
 import datetime
 import string
+import time
 
 
 class LinuxcncError(Exception):
@@ -288,5 +289,81 @@ class LinuxcncControl:
             self.do_home(-1)
             sleep(0.1)
         self.set_mode(linuxcnc.MODE_AUTO)
+
+# Standalone functions useful for test cases loading a full instance of linuxcnc
+# (typically with a python "UI" file running the test case)
+
+
+def float_assert(got, expect, tol=1e-6, comment=None):
+    comment_str = "" if not comment else ": {}".format(comment)
+    try:
+        assert(abs(expect-got) < tol)
+        print >>sys.stderr,"Value {} within expected range {}+/-{}{}".format(got, expect, 1e-6, comment_str)
+    except AssertionError as e:
+        print >>sys.stderr,"Value {} outside of expected range {}+/-{}{}".format(got, expect, 1e-6, comment_str)
+        raise AssertionError, AssertionError(e), sys.exc_info()[2]
+
+
+def test_assert(got, expect=True):
+    try:
+        assert(not(expect-got))
+        print >>sys.stderr,"Value {} == {}".format(got, expect)
+    except AssertionError as e:
+        print >>sys.stderr,"Value {} != {}".format(got, expect)
+        raise AssertionError, AssertionError(e), sys.exc_info()[2]
+
+
+def test_assert_gt(got, threshold):
+    try:
+        assert(got > threshold)
+        print >>sys.stderr, "Passed: Value {} > {}".format(got, threshold)
+    except AssertionError as e:
+        print >>sys.stderr, "Failed: Value {} > {}".format(got, threshold)
+        raise AssertionError, AssertionError(e), sys.exc_info()[2]
+
+
+def test_assert_not_none(obj):
+    try:
+        assert(obj is not None)
+    except AssertionError as e:
+        print >>sys.stderr, "Object is None"
+        raise AssertionError, AssertionError(e), sys.exc_info()[2]
+
+
+def test_fail(comment):
+    raise AssertionError(comment)
+
+
+def wait_for_linuxcnc_startup(status, timeout=10.0):
+    """
+    Poll the Status buffer waiting for it to look initialized,
+    rather than just allocated (all-zero).  Returns on success, throws
+    RuntimeError on failure.
+    """
+
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        status.poll()
+        if (status.angular_units == 0.0) \
+                or (status.axes == 0) \
+                or (status.axis_mask == 0) \
+                or (status.cycle_time == 0.0) \
+                or (status.exec_state != linuxcnc.EXEC_DONE) \
+                or (status.interp_state != linuxcnc.INTERP_IDLE) \
+                or (status.inpos == False) \
+                or (status.linear_units == 0.0) \
+                or (status.max_velocity == 0.0) \
+                or (status.max_acceleration == 0.0) \
+                or (status.program_units == 0.0) \
+                or (status.rapidrate == 0.0) \
+                or (status.state != linuxcnc.STATE_ESTOP) \
+                or (status.task_state != linuxcnc.STATE_ESTOP):
+            time.sleep(0.1)
+        else:
+            # looks good
+            return
+
+    # timeout, throw an exception
+    raise RuntimeError("LinuxCNC failed to start for test case")
 
 
