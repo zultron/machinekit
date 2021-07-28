@@ -132,8 +132,9 @@ int Interp::check_g_codes(block_pointer block,   //!< pointer to a block to be c
              || block->motion_to_be == G_1
              || block->motion_to_be == G_5_2),
              NCE_MUST_USE_G0_OR_G1_WITH_G53);
-        CHKS(((block->g_modes[GM_DISTANCE_MODE] == G_91) ||
-             ((block->g_modes[GM_DISTANCE_MODE] != G_90) &&
+        // Must either be in absolute distance mode, or the current block must enable absolute distance mode
+        CHKS(((block->g_modes[GM_DISTANCE_MODE] != G_90) &&
+             ((block->g_modes[GM_DISTANCE_MODE] != G_90_2) &&
              (get_distance_mode(nullptr, settings) == MODE_INCREMENTAL))),
                 NCE_CANNOT_USE_G53_INCREMENTAL);
         break;
