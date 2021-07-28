@@ -10,6 +10,7 @@ struct CircleAngle {
     double principal_angle;
     int full_turns;
     bool clockwise;
+    bool has_implicit_full_turn; //!< Indicates an extra full turn added to compensate for the arc angle being below the fuzz threshold
 
     double full_angle() const {
         return principal_angle + 2.* M_PI * full_turns;
@@ -20,9 +21,12 @@ struct CircleAngle {
     }
 };
 
-inline CircleAngle find_arc_angle_in_plane(double start1, double start2, double center1, double center2, double end1, double end2, int g2_g3_turns)
+inline CircleAngle find_arc_angle_in_plane(double start1, double start2, double center1, double center2, int g2_g3_turns, double end1, double end2, bool bypass_implicit_full_turn=false)
 {
     CircleAngle out{};
+    if (g2_g3_turns == 0) {
+        return out;
+    }
     double theta1 = atan2(start2-center2, start1-center1);
     double theta2 = atan2(end2-center2, end1-center1);
     out.principal_angle = theta2 - theta1;
@@ -48,8 +52,9 @@ inline CircleAngle find_arc_angle_in_plane(double start1, double start2, double 
     }
     // If after all the angle adjustments we're left with a principal angle that's smaller than the fuzz amount, we add a full turn.
     // This is not a great heuristic (since the endpoints could be significantly far apart, and ), but it's at least consistent.
-    if (fabs(out.principal_angle) < CIRCLE_FUZZ) {
+    if (fabs(out.principal_angle) < CIRCLE_FUZZ && !bypass_implicit_full_turn) {
         out.full_turns += out.clockwise ? -1 : 1;
+        out.has_implicit_full_turn = true;
     }
     return out;
 }

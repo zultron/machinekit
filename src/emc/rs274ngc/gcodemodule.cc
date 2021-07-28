@@ -253,7 +253,8 @@ CanonReturn ARC_FEED(int line_number,
               double first_end, double second_end, double first_axis,
               double second_axis, int rotation, double axis_end_point,
               double a_position, double b_position, double c_position,
-              double u_position, double v_position, double w_position) {
+              double u_position, double v_position, double w_position,
+              bool allow_implicit_full_turn) {
     // XXX: set _pos_*
     if(metric) {
         first_end /= 25.4;
@@ -270,7 +271,8 @@ CanonReturn ARC_FEED(int line_number,
                     line_number, first_end, second_end, first_axis, second_axis,
                     rotation, axis_end_point,
                     a_position, b_position, c_position,
-                    u_position, v_position, w_position);
+                    u_position, v_position, w_position,
+                    allow_implicit_full_turn);
     }
     return CANON_RETURN_OK;
 }
@@ -1685,7 +1687,8 @@ void PreviewMachine::arc_feed(int line_number,
                               double c,
                               double u,
                               double v,
-                              double w)
+                              double w,
+                              bool allow_implicit_full_turn)
 {
     static const int max_segments=64; // TODO make customizable
 
@@ -1720,10 +1723,11 @@ void PreviewMachine::arc_feed(int line_number,
         start_lcl[Y],
         cx,
         cy,
+        rot,
         n[X],
-        n[Y],
-        rot
-        );
+        n[Y]);
+    // KLUDGE Prevent a disallowed full turn
+    circ_angle.has_implicit_full_turn &= allow_implicit_full_turn;
 
     const double dtheta = circ_angle.full_angle();
     int steps = std::max(3, int(max_segments * fabs(circ_angle.full_angle()) / M_PI));

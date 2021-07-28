@@ -31,6 +31,7 @@ struct StraightFeed {
 struct ArcFeed {
     int line_number;
     double original_turns;
+    bool allow_implicit_full_turn;
     double end1, end2, center1, center2;
     int turn;
     double end3, a,b,c, u,v,w;
@@ -199,6 +200,7 @@ int enqueue_STRAIGHT_TRAVERSE(CANON_PLANE plane, int l,
                               double u, double v, double w, StateTag const &tag);
 void enqueue_ARC_FEED(int l,
                       double original_arclen,
+                      bool allow_implicit_full_turn,
                       double end1, double end2, double center1, double center2,
                       int turn,
                       double end3,
