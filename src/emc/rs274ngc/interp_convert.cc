@@ -1898,25 +1898,32 @@ Called by: convert_g.
 // doesn't issue any CANONs
 
 int Interp::convert_distance_mode(int g_code,    //!< g_code being executed (must be G_90 or G_91)
-                                 setup_pointer settings)        //!< pointer to machine settings                 
+                                 setup_pointer settings)        //!< pointer to machine settings
 {
-  if (g_code == G_90) {
-    if (settings->distance_mode != MODE_ABSOLUTE) {
+    switch (g_code) {
+    case G_90:
+        if (settings->distance_mode != MODE_ABSOLUTE) {
 #ifdef DEBUG_EMC
-      enqueue_COMMENT("interpreter: distance mode changed to absolute");
+            enqueue_COMMENT("interpreter: distance mode changed to absolute");
 #endif
-      settings->distance_mode = MODE_ABSOLUTE;
-    }
-  } else if (g_code == G_91) {
-    if (settings->distance_mode != MODE_INCREMENTAL) {
+        }
+        settings->distance_mode = MODE_ABSOLUTE;
+        return INTERP_OK;
+    case G_91:
+        if (settings->distance_mode != MODE_INCREMENTAL) {
 #ifdef DEBUG_EMC
-      enqueue_COMMENT("interpreter: distance mode changed to incremental");
+            enqueue_COMMENT("interpreter: distance mode changed to incremental");
 #endif
-      settings->distance_mode = MODE_INCREMENTAL;
+        }
+        settings->distance_mode = MODE_INCREMENTAL;
+        return INTERP_OK;
+    case G_90_2:
+    case G_91_2:
+        // No action, the distance mode setting only applies to the current block
+        return INTERP_OK;
+    default:
+        ERS(NCE_BUG_CODE_NOT_G90_OR_G91);
     }
-  } else
-    ERS(NCE_BUG_CODE_NOT_G90_OR_G91);
-  return INTERP_OK;
 }
 
 /****************************************************************************/

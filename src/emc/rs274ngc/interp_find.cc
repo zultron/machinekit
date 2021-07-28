@@ -94,7 +94,7 @@ DISTANCE_MODE Interp::get_distance_mode(block_pointer block,   //!< pointer to a
                                         ) const
 {
     // block non-modal distance mode overrides modal distance mode
-    switch(block ? block->g_modes[GM_MODAL_0] : G_INVALID)
+    switch(block ? block->g_modes[GM_DISTANCE_MODE] : G_INVALID)
     {
     case G_91_2:
         return MODE_INCREMENTAL;
