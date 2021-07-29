@@ -1718,7 +1718,7 @@ void PreviewMachine::arc_feed(int line_number,
 
     PositionArray const start_lcl = transform_uu.inverse_local_from_tool(machine_pos_uu);
 
-    auto circ_data = CircleAngle::find_arc_angle_in_plane(
+    auto circ_data = CircleAngle(
         start_lcl[X],
         start_lcl[Y],
         cx,

@@ -17,7 +17,7 @@ SCENARIO("Arc calculations")
     for (double theta1 = -M_PI; theta1 <= M_PI; theta1 += M_PI/5.) {
         printf("\ntheta1 %f\n\n", theta1);
         for (double theta2 = -M_PI; theta2 <= M_PI; theta2 += M_PI/5.) {
-            interp_shared::CircleAngle data = CircleAngle::find_arc_angle_in_plane(
+            auto data = CircleAngle(
                 cos(theta1)+cx,
                 sin(theta1)+cy,
                 cx,
@@ -43,7 +43,7 @@ SCENARIO("Arc Feed with different principal angles crossing the +pi / -pi range 
         const double angle_delta = GENERATE(CIRCLE_FUZZ * 1.1, CIRCLE_FUZZ * 10, M_PI_4, M_PI_2, M_PI - CIRCLE_FUZZ);
         const double theta1 = (M_PI - angle_delta / 2.)*turn;
         const double theta2 = -theta1;
-        interp_shared::CircleAngle data = CircleAngle::find_arc_angle_in_plane(
+        auto data = CircleAngle(
             cos(theta1)+cx,
             sin(theta1)+cy,
             cx,
@@ -64,7 +64,7 @@ SCENARIO("Arc Feed with different principal angles crossing the +pi / -pi range 
         const double angle_delta = GENERATE(CIRCLE_FUZZ *.99, 1e-9);
         const double theta1 = (M_PI - angle_delta / 2.)*turn;
         const double theta2 = -theta1;
-        interp_shared::CircleAngle data = CircleAngle::find_arc_angle_in_plane(
+        auto data = CircleAngle(
             cos(theta1)+cx,
             sin(theta1)+cy,
             cx,
@@ -85,7 +85,7 @@ SCENARIO("Arc Feed with different principal angles crossing the +pi / -pi range 
         const double angle_delta = GENERATE(CIRCLE_FUZZ *.99, 1e-9);
         const double theta1 = (M_PI - angle_delta / 2.)*turn;
         const double theta2 = -theta1;
-        interp_shared::CircleAngle data = CircleAngle::find_arc_angle_in_plane(
+        auto data = CircleAngle(
             cos(theta1)+cx,
             sin(theta1)+cy,
             cx,
@@ -107,7 +107,7 @@ SCENARIO("Arc Feed with different principal angles crossing the +pi / -pi range 
         const double angle_delta = GENERATE(CIRCLE_FUZZ / 4, CIRCLE_FUZZ, M_PI_4, M_PI_2, M_PI-CIRCLE_FUZZ);
         const double theta1 = -(M_PI - angle_delta / 2.)*turn;
         const double theta2 = -theta1;
-        interp_shared::CircleAngle data = CircleAngle::find_arc_angle_in_plane(
+        auto data = CircleAngle(
             cos(theta1)+cx,
             sin(theta1)+cy,
             cx,
