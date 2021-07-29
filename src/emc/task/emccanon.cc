@@ -1515,7 +1515,7 @@ CanonReturn ARC_FEED(int line_number,
 
 
     // Allow the ARC_FEED call to prevent the implicit full turn (e.g. cutter comp arcs)
-    auto circ_data = find_arc_angle_in_plane(
+    auto circ_data = CircleAngle::find_arc_angle_in_plane(
         p_start_1, p_start_2,
         0, 0,
         rotation,

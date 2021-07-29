@@ -565,7 +565,7 @@ int Interp::move_endpoint_and_flush(setup_pointer settings, double x, double y) 
             q.data.arc_feed.end2 = y;
             r2 = hypot(x - q.data.arc_feed.center1,
                        y - q.data.arc_feed.center2);
-            auto circ_angle = find_arc_angle_in_plane(endpoint[0], endpoint[1],
+            auto circ_angle = CircleAngle::find_arc_angle_in_plane(endpoint[0], endpoint[1],
                            q.data.arc_feed.center1, q.data.arc_feed.center2,
                            q.data.arc_feed.turn,
                            x, y, q.data.arc_feed.allow_implicit_full_turn);
