@@ -39,7 +39,7 @@ struct CircleAngle {
         if(clockwise) {
             full_turns = g2_g3_turns + 1; // Remove the extra turn leftover from the g2/g3 "turn" value
             // Detect a zero crossing and adjust the angle so that the difference produces the principal angle
-            if (theta1 < 0 && theta2 > 0) {
+            if (theta1 < theta2) {
                 theta1 += 2.*M_PI;
             }
         } else {
@@ -47,11 +47,12 @@ struct CircleAngle {
             // is more negative than the fuzz tolerance, add 1 rotation to be
             // within [0, 2pi]
             full_turns = g2_g3_turns - 1; // Remove the extra turn leftover from the g2/g3 "turn" value
-            if (theta1 > 0 && theta2 < 0) {
+            if (theta1 > theta2) {
                 theta1 -= 2.*M_PI;
             }
         }
         principal_angle = theta2 - theta1;
+
         // If after all the angle adjustments we're left with a principal angle that's smaller than the fuzz amount, we add a full turn.
         // This is not a great heuristic (since the endpoints could be significantly far apart, and ), but it's at least consistent.
         if (allow_implicit_full_turn) {
