@@ -5,6 +5,10 @@
 #include <posemath_fwd.h>
 #include <stdio.h>
 
+template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
+
 namespace interp_shared {
 struct CircleAngle {
     double principal_angle;
