@@ -1514,14 +1514,13 @@ CanonReturn ARC_FEED(int line_number,
              -2 -1 */
 
 
+    // Allow the ARC_FEED call to prevent the implicit full turn (e.g. cutter comp arcs)
     auto circ_data = find_arc_angle_in_plane(
         p_start_1, p_start_2,
         0, 0,
         rotation,
-        p_end_1, p_end_2);
-    // Allow the ARC_FEED call to prevent the implicit full turn (e.g. cutter comp arcs)
-    canon_debug("full_turns_raw = %d\n", circ_data.full_turns);
-    circ_data.has_implicit_full_turn &= allow_implicit_full_turn;
+        p_end_1, p_end_2, allow_implicit_full_turn);
+
     const double full_angle = circ_data.full_angle();
 
     canon_debug("turns = %d\n", rotation);

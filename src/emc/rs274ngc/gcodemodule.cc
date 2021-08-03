@@ -1718,19 +1718,19 @@ void PreviewMachine::arc_feed(int line_number,
 
     PositionArray const start_lcl = transform_uu.inverse_local_from_tool(machine_pos_uu);
 
-    CircleAngle circ_angle = find_arc_angle_in_plane(
+    auto circ_data = find_arc_angle_in_plane(
         start_lcl[X],
         start_lcl[Y],
         cx,
         cy,
         rot,
         n[X],
-        n[Y]);
-    // KLUDGE Prevent a disallowed full turn
-    circ_angle.has_implicit_full_turn &= allow_implicit_full_turn;
+        n[Y], allow_implicit_full_turn);
 
-    const double dtheta = circ_angle.full_angle();
-    int steps = std::max(3, int(max_segments * fabs(circ_angle.full_angle()) / M_PI));
+    const double full_angle = circ_data.full_angle();
+    // TODO check that circle data is valid here
+
+    int steps = std::max(3, int(max_segments * fabs(circ_data.full_angle()) / M_PI));
     double rsteps = 1. / steps;
 
     PositionArray d = n-start_lcl;
@@ -1740,7 +1740,7 @@ void PreviewMachine::arc_feed(int line_number,
 
     PositionArray p_lcl_last = start_lcl;
     PositionArray p_lcl = start_lcl;
-    double tx = start_lcl[X] - cx, ty = start_lcl[Y] - cy, dc = cos(dtheta*rsteps), ds = sin(dtheta*rsteps);
+    double tx = start_lcl[X] - cx, ty = start_lcl[Y] - cy, dc = cos(full_angle*rsteps), ds = sin(full_angle*rsteps);
     ToolMotionKey key{MotionType::ARC_FEED, exec_mode, current_tool_pocket};
     auto &motion_set = get_motion_set(key);
     for(int i=0; i<steps-1; i++) {

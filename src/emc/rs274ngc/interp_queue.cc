@@ -568,7 +568,7 @@ int Interp::move_endpoint_and_flush(setup_pointer settings, double x, double y) 
             auto circ_angle = find_arc_angle_in_plane(endpoint[0], endpoint[1],
                            q.data.arc_feed.center1, q.data.arc_feed.center2,
                            q.data.arc_feed.turn,
-                           x, y);
+                           x, y, q.data.arc_feed.allow_implicit_full_turn);
             l2 = circ_angle.full_angle();
             if(debug_qc) printf("moving endpoint of arc lineno %d old sweep %f new sweep %f\n", q.data.arc_feed.line_number, l1, l2);
 

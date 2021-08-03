@@ -83,7 +83,7 @@ double Interp::find_arc_length(double x1,        //!< X-coordinate of start poin
   double theta;                 /* amount of turn of arc in radians */
 
   radius = hypot((center_x - x1), (center_y - y1));
-  auto circ_angle = find_arc_angle_in_plane(x1, y1, center_x, center_y, turn, x2, y2);
+  auto circ_angle = find_arc_angle_in_plane(x1, y1, center_x, center_y, turn, x2, y2, true);
   theta = circ_angle.full_angle();
   if (z2 == z1)
     return (radius * fabs(theta));
