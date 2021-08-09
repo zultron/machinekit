@@ -158,8 +158,9 @@ SCENARIO("ARC_FEED geometry")
         const int gcode = GENERATE(2,3);
         const double zheight = GENERATE(-3,0,3);
         const double xdisp = -2.000001;
-        const double ydisp = -.000002;
-        const int exp_turns = gcode == 2 ? -2 : 1;
+        const int disp_sign = GENERATE(-1, 1);
+        const double ydisp = .000002 * disp_sign;
+        const int exp_turns = gcode == 2 ? ((disp_sign < 0) ? -2 : -1) : ((disp_sign > 0) ? 1 : 0);
 
         std::ostringstream oss;
         oss << std::fixed << "G" << gcode << " Y" << ydisp << " I" << xdisp << " J" << ydisp/2.;
