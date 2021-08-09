@@ -14,8 +14,8 @@ pin in   float   spindle_orient_angle   "Angle in degrees";
 pin in   s32     spindle_orient_mode    "0 rotate for smallest angular movement 1 always rotate clockwise 2 always rotate counterclockwise";
 pin out  s32     spindle_orient_fault   "Any number other than 0 indicates a fault";
 pin out  bit     spindle_is_oriented    "1 = oriented";
-pin in   float   orient_p = 200;
-pin in   float   orient_deadzone = 0.05 "Unit = 1/rev";
+pin in   float   orient_p = 300;
+pin in   float   orient_deadzone = 0.003 "Unit = 1/rev";
 
 pin in   float   spindle_command_in     "Spindle speed command in from motion (RPM)";
 pin out  float   spindle_command_out    "Spindle speed command out (RPM)";
