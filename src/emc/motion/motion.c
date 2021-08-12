@@ -800,7 +800,19 @@ static int export_joint(int num, joint_hal_t * addr)
     }
     retval = hal_pin_bit_newf(HAL_OUT, &(addr->homing), mot_comp_id, "axis.%d.homing", num);
     if (retval != 0) {
-	return retval;
+        return retval;
+    }
+    retval = hal_pin_bit_newf(HAL_OUT, &(addr->external_homing_mode), mot_comp_id, "axis.%d.external_homing_mode", num);
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->external_homing_error_fb), mot_comp_id, "axis.%d.external_homing_error_fb", num);
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->external_homing_success_fb), mot_comp_id, "axis.%d.external_homing_success_fb", num);
+    if (retval != 0) {
+        return retval;
     }
     /* export joint parameters */ //FIXME-AJ: changing these to joints will break configs.
     retval =
@@ -886,7 +898,7 @@ static int export_joint(int num, joint_hal_t * addr)
     }
     retval = hal_pin_bit_newf(HAL_OUT, &(addr->homed), mot_comp_id, "axis.%d.homed", num);
     if (retval != 0) {
-	return retval;
+        return retval;
     }
     retval = hal_pin_bit_newf(HAL_OUT, &(addr->f_errored), mot_comp_id, "axis.%d.f-errored", num);
     if (retval != 0) {

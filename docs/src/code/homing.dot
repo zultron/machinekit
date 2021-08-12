@@ -2,7 +2,7 @@
 # seems to conflict in some ways with the one located at src/emc/motion
 
 digraph homing {
-    HOME_IDLE -> HOME_START [label="on EMCMOT_HOME(j)"];
+    HOME_IDLE -> HOME_START [label="on EMCMOT_HOME(j)\nUNLOCK state not shown"];
     HOME_START -> HOME_IDLE [label="shared home\nswitch closed"];
     HOME_START -> HOME_SET_SWITCH_POSITION [label="no switch for this axis\nimmediate"];
     HOME_START -> HOME_EXTERNAL_START [label="HOME_EXTERNAL\n== TRUE"];

@@ -305,6 +305,21 @@ typedef struct emcmot_command_t {
 #define EMCMOT_MOTION_ERROR_BIT       0x0008
 #define EMCMOT_MOTION_TELEOP_BIT      0x0010
 
+/* joint home state flags */
+
+typedef struct
+{
+  short   external_homing_mode: 1,        	/* output flag to tell servo if it should switch to homing mode */
+  	      external_error_fb:    1,        	/* error status flag from servo system for this joint's homing */
+          external_success_fb:  1,        	/* success status flag from servo system for this joint's homing */
+          spare4 : 1,     					/* Unused */
+          spare3 : 1,     					/* Unused */
+          spare2 : 1,     					/* Unused */
+          spare1 : 1,     					/* Unused */
+          spare0 : 1;     					/* Unused */
+} EMCMOT_HOMING_FLAG;
+
+
 /* joint flag type */
     typedef unsigned short EMCMOT_JOINT_FLAG;
 /*
@@ -427,31 +442,33 @@ Suggestion: Split this in to an Error and a Status flag register..
 /* states for homing */
     typedef enum {
 	HOME_IDLE = 0,
-	HOME_START,			// 1 
-	HOME_UNLOCK,			// 2 
-	HOME_UNLOCK_WAIT,		// 3 
-	HOME_INITIAL_BACKOFF_START,	// 4 
-	HOME_INITIAL_BACKOFF_WAIT,	// 5 
-	HOME_INITIAL_SEARCH_START,	// 6 
-	HOME_INITIAL_SEARCH_WAIT,	// 7 
-	HOME_SET_COARSE_POSITION,	// 8 
-	HOME_FINAL_BACKOFF_START,	// 9 
-	HOME_FINAL_BACKOFF_WAIT,	// 10
-	HOME_RISE_SEARCH_START,		// 11
-	HOME_RISE_SEARCH_WAIT,		// 12
-	HOME_FALL_SEARCH_START,		// 13
-	HOME_FALL_SEARCH_WAIT,		// 14
-	HOME_SET_SWITCH_POSITION,	// 15
-	HOME_INDEX_ONLY_START,		// 16
-	HOME_INDEX_SEARCH_START,	// 17
-	HOME_INDEX_SEARCH_WAIT,		// 18
-	HOME_SET_INDEX_POSITION,	// 19
-	HOME_FINAL_MOVE_START,		// 20
-	HOME_FINAL_MOVE_WAIT,		// 21
-	HOME_LOCK,			// 22
-	HOME_LOCK_WAIT,			// 23
-	HOME_FINISHED,			// 24
-	HOME_ABORT			// 25
+	HOME_START,					// 1 
+	HOME_UNLOCK,				// 2 
+	HOME_UNLOCK_WAIT,			// 3 
+	HOME_EXTERNAL_START,		// 4 
+	HOME_EXTERNAL_WAIT,			// 5 
+	HOME_INITIAL_BACKOFF_START,	// 6 
+	HOME_INITIAL_BACKOFF_WAIT,	// 7 
+	HOME_INITIAL_SEARCH_START,	// 8 
+	HOME_INITIAL_SEARCH_WAIT,	// 9 
+	HOME_SET_COARSE_POSITION,	// 10
+	HOME_FINAL_BACKOFF_START,	// 11
+	HOME_FINAL_BACKOFF_WAIT,	// 12
+	HOME_RISE_SEARCH_START,		// 13
+	HOME_RISE_SEARCH_WAIT,		// 14
+	HOME_FALL_SEARCH_START,		// 15
+	HOME_FALL_SEARCH_WAIT,		// 16
+	HOME_SET_SWITCH_POSITION,	// 17
+	HOME_INDEX_ONLY_START,		// 18
+	HOME_INDEX_SEARCH_START,	// 19
+	HOME_INDEX_SEARCH_WAIT,		// 20
+	HOME_SET_INDEX_POSITION,	// 21
+	HOME_FINAL_MOVE_START,		// 22
+	HOME_FINAL_MOVE_WAIT,		// 23
+	HOME_LOCK,					// 24
+	HOME_LOCK_WAIT,				// 25
+	HOME_FINISHED,				// 26
+	HOME_ABORT					// 27
     } home_state_t;
 
     typedef enum {
@@ -519,7 +536,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 	/* many of these need to be made available to higher levels */
 	/* they can either be copied to the status struct, or an array of
 	   joint structs can be made part of the status */
-	EMCMOT_JOINT_FLAG flag;	/* see above for bit details */
+	EMCMOT_JOINT_FLAG flag;				/* see above for bit details */
 	double coarse_pos;	/* trajectory point, before interp */
 	double pos_cmd;		/* commanded joint position */
 	double vel_cmd;		/* comanded joint velocity */
@@ -549,7 +566,9 @@ Suggestion: Split this in to an Error and a Status flag register..
 	int home_pause_timer;	/* used to delay between homing states */
 	int index_enable;	/* current state of index enable pin */
 
-	home_state_t home_state;	/* state machine for homing */
+	home_state_t home_state;			/* state machine for homing */
+	EMCMOT_HOMING_FLAG homing_flags; 	/* bit flags for external homing. See above for bitfield members */
+
     double downstream_offset;   /* Offset that has been applied to this axis downstream of motmod (in HAL) */
     int continuous_output;      /* Falling edge on this signal indiccates a step function in motor_pos_cmd */
 	double motor_offset;	/* diff between internal and motor pos, used

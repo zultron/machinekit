@@ -49,8 +49,14 @@ typedef struct {
     hal_bit_t *error;		/* RPI: joint has an error */
     hal_bit_t *phl;		/* RPI: joint is at positive hard limit */
     hal_bit_t *nhl;		/* RPI: joint is at negative hard limit */
-    hal_bit_t *homing;		/* RPI: joint is homing */
-    hal_bit_t *homed;		/* RPI: joint was homed */
+
+    hal_bit_t *homing;		                /* RPI: joint is homing */
+    hal_bit_t *homed;		                /* RPI: joint was homed */
+    hal_bit_t *external_homing_mode;        /* RPI: servo should be switching into external homing mode */
+    hal_bit_t *external_homing_error_fb;    /* WPI: servo reports errors during homing with this pin */
+    hal_bit_t *external_homing_success_fb;  /* WPI: servo reports that homing is finished with this pin */
+
+
     hal_bit_t *f_errored;	/* RPI: joint had too much following error */
     hal_bit_t *faulted;		/* RPI: joint amp faulted */
     hal_bit_t *pos_lim_sw;	/* RPI: positive limit switch input */
