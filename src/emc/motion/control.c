@@ -666,14 +666,18 @@ static void process_inputs(void)
 	    SET_JOINT_FAULT_FLAG(joint, 0);
 	}
 
-	/* read home switch input */
-	if (*(joint_data->home_sw)) {
-	    SET_JOINT_HOME_SWITCH_FLAG(joint, 1);
-	} else {
-	    SET_JOINT_HOME_SWITCH_FLAG(joint, 0);
-	}
-	/* end of read and process joint inputs loop */
+    /* read home switch input */
+    if (*(joint_data->home_sw)) {
+        SET_JOINT_HOME_SWITCH_FLAG(joint, 1);
+    } else {
+        SET_JOINT_HOME_SWITCH_FLAG(joint, 0);
     }
+    /* end of read and process joint inputs loop */
+    }
+
+    /* Process external homing state flags */
+    joint->homing_flags.external_success_fb = *(joint_data->external_homing_success_fb);
+    joint->homing_flags.external_error_fb = *(joint_data->external_homing_error_fb);
 
     // a fault was signalled during a spindle-orient in progress
     // signal error, and cancel the orient
@@ -2044,7 +2048,9 @@ static void output_to_hal(void)
 	*(joint_data->joint_pos_fb) = joint->pos_fb;
 	*(joint_data->amp_enable) = GET_JOINT_ENABLE_FLAG(joint);
 	*(joint_data->index_enable) = joint->index_enable;
+
 	*(joint_data->homing) = GET_JOINT_HOMING_FLAG(joint);
+  *(joint_data->external_homing_mode) = joint->homing_flags.external_homing_mode;
 
 	*(joint_data->coarse_pos_cmd) = joint->coarse_pos;
 	*(joint_data->joint_vel_cmd) = joint->vel_cmd;
