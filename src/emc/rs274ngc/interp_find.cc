@@ -29,6 +29,7 @@
 #include "units.h"
 #include "interp_parameter_def.hh"
 #include "rotary_axis_util.hh"
+#include "arc_feed_util.hh"
 
 using namespace interp_param_global;
 using namespace interp_shared;
@@ -82,7 +83,8 @@ double Interp::find_arc_length(double x1,        //!< X-coordinate of start poin
   double theta;                 /* amount of turn of arc in radians */
 
   radius = hypot((center_x - x1), (center_y - y1));
-  theta = find_turn(x1, y1, center_x, center_y, turn, x2, y2);
+  auto circ_angle = CircleAngle(x1, y1, center_x, center_y, turn, x2, y2, true);
+  theta = circ_angle.full_angle();
   if (z2 == z1)
     return (radius * fabs(theta));
   else
@@ -620,34 +622,6 @@ All angles are in radians.
 
 */
 
-double Interp::find_turn(double x1,      //!< X-coordinate of start point       
-                        double y1,      //!< Y-coordinate of start point       
-                        double center_x,        //!< X-coordinate of arc center        
-                        double center_y,        //!< Y-coordinate of arc center        
-                        int turn,       //!< no. of full or partial circles CCW
-                        double x2,      //!< X-coordinate of end point         
-                        double y2)      //!< Y-coordinate of end point         
-{
-  double alpha;                 /* angle of first radius */
-  double beta;                  /* angle of second radius */
-  double theta;                 /* amount of turn of arc CCW - negative if CW */
-
-  if (turn == 0)
-    return 0.0;
-  alpha = atan2((y1 - center_y), (x1 - center_x));
-  beta = atan2((y2 - center_y), (x2 - center_x));
-  if (turn > 0) {
-    if (beta <= alpha)
-      beta = (beta + (2 * M_PIl));
-    theta = ((beta - alpha) + ((turn - 1) * (2 * M_PIl)));
-  } else {                      /* turn < 0 */
-
-    if (alpha <= beta)
-      alpha = (alpha + (2 * M_PIl));
-    theta = ((beta - alpha) + ((turn + 1) * (2 * M_PIl)));
-  }
-  return (theta);
-}
 
 int Interp::find_tool_pocket(setup_pointer settings, int toolno, int *pocket)
 {

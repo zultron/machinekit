@@ -34,6 +34,7 @@
 #include <rotary_axis_util.hh>
 #include "interp_internal.hh"
 #include "gcodegenerator.hh"
+#include "arc_feed_util.hh"
 
 #include "units.h"
 static inline bool TOOL_INSIDE_ARC(CutterCompDirection side, int turn) {
@@ -755,9 +756,11 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
                               AA_end, BB_end, CC_end, u_end, v_end, w_end, make_state_tag(*settings, block, toplevel_line));
         set_endpoint(cx, cy);
     }
-    
+
+    auto circ_angle = CircleAngle(cx, cy, center_x, center_y, turn, end_x, end_y, true);
     enqueue_ARC_FEED(toplevel_line,
-                     find_turn(cx, cy, center_x, center_y, turn, end_x, end_y),
+                     circ_angle.full_angle(),
+                     false, // TODO decide if this makes sense (allowing implicit full turns in a comp entry move)
                      end_x, end_y, center_x, center_y, turn, end_z,
                      AA_end, BB_end, CC_end, u_end, v_end, w_end, make_state_tag(*settings, block, toplevel_line));
 
@@ -888,6 +891,10 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     new_end_y = end_y + tool_radius * sin(gamma);
     const int toplevel_line = get_toplevel_line_number();
 
+    auto circ_angle_orig = CircleAngle(opx, opy, centerx, centery, turn, end_x, end_y, true);
+    midx = cx; // Assign defaults
+    midy = cy;
+
     if (beta < -small || 
         beta > M_PIl + small ||
         // special detection for convex corner on tangent arc->arc (like atop the middle of "m" shape)
@@ -969,7 +976,8 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
             CHP(move_endpoint_and_flush(settings, midx, midy));
         }
         enqueue_ARC_FEED(toplevel_line,
-                         find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
+                         circ_angle_orig.full_angle(),
+                         circ_angle_orig.has_implicit_full_turn,
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
                          AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block, toplevel_line));
     } else if (beta > small) {           /* convex, two arcs needed */
@@ -978,20 +986,23 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
         dequeue_canons(settings);
         enqueue_ARC_FEED(toplevel_line,
                          0.0, // doesn't matter since we won't move this arc's endpoint
+                         false,
                          midx, midy, opx, opy, ((side == LEFT_COMP) ? -1 : 1),
                          cz,
                          AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block, toplevel_line));
         dequeue_canons(settings);
         set_endpoint(midx, midy);
         enqueue_ARC_FEED(toplevel_line,
-                         find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
+                         circ_angle_orig.full_angle(),
+                         circ_angle_orig.has_implicit_full_turn,
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
                          AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block, toplevel_line));
     } else {                      /* convex, one arc needed */
         dequeue_canons(settings);
         set_endpoint(cx, cy);
         enqueue_ARC_FEED(toplevel_line,
-                         find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
+                         circ_angle_orig.full_angle(),
+                         circ_angle_orig.has_implicit_full_turn,
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
                          AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block, toplevel_line));
     }
@@ -5151,6 +5162,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
             if(move == G_1) {
                 enqueue_ARC_FEED(toplevel_line,
                                  0.0, // doesn't matter, since we will not move this arc's endpoint
+                                 false,
                                  mid_x, mid_y, opx, opy,
                                  ((side == LEFT_COMP) ? -1 : 1), cz,
                                  AA_end, BB_end, CC_end, u_end, v_end, w_end, tag);

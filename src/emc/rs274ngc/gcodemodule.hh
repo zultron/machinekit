@@ -48,8 +48,7 @@ public:
     void straight_feed(int line_number, PositionArray const &goal_pos_prog);
     void straight_probe(int line_number, PositionArray const &goal_pos_prog);
     void straight_traverse(int line_number, PositionArray const &goal_pos_prog);
-    void arc_feed(
-        int line_number,
+    void arc_feed(int line_number,
         double first_end,
         double second_end,
         double first_axis,
@@ -61,7 +60,7 @@ public:
         double c_position,
         double u_position,
         double v_position,
-        double w_position);
+        double w_position, bool allow_implicit_full_turn);
     void rigid_tap(int line_number, PositionArray const &goal_pos_prog);
     void change_tool(int tool_pocket);
     void set_plane(CANON_PLANE pl) {plane = pl;}

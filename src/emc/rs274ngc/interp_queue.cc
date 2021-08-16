@@ -18,6 +18,7 @@
 #include "interp_queue.hh"
 #include "interp_internal.hh"
 #include "rs274ngc_interp.hh"
+#include "arc_feed_util.hh"
 
 QueuedCanon::QueuedCanon(QCEnum type_in, const StateTag & t) :
     qc_type(type_in),
@@ -315,6 +316,7 @@ int enqueue_STRAIGHT_TRAVERSE(CANON_PLANE plane, int l,
 
 void enqueue_ARC_FEED(int l,
                       double original_turns,
+                      bool allow_implicit_full_turn,
                       double end1, double end2, double center1, double center2,
                       int turn,
                       double end3,
@@ -323,6 +325,7 @@ void enqueue_ARC_FEED(int l,
     ArcFeed arc_feed;
     arc_feed.line_number = l;
     arc_feed.original_turns = original_turns;
+    arc_feed.allow_implicit_full_turn = allow_implicit_full_turn;
     arc_feed.end1 = end1;
     arc_feed.end2 = end2;
     arc_feed.center1 = center1;
@@ -434,7 +437,8 @@ void dequeue_canons(setup_pointer settings) {
                      q.data.arc_feed.turn, 
                      q.data.arc_feed.end3,
                      q.data.arc_feed.a, q.data.arc_feed.b, q.data.arc_feed.c, 
-                     q.data.arc_feed.u, q.data.arc_feed.v, q.data.arc_feed.w);
+                     q.data.arc_feed.u, q.data.arc_feed.v, q.data.arc_feed.w,
+                     q.data.arc_feed.allow_implicit_full_turn);
             break;
         case QSTRAIGHT_FEED:
             if(debug_qc) printf("issuing straight feed lineno %d\n", q.data.straight_feed.line_number);
@@ -552,6 +556,7 @@ int Interp::move_endpoint_and_flush(setup_pointer settings, double x, double y) 
 
         switch(q.qc_type) {
         case QARC_FEED:
+        {
             double r1, r2, l1, l2;
             r1 = hypot(q.data.arc_feed.end1 - q.data.arc_feed.center1,
                        q.data.arc_feed.end2 - q.data.arc_feed.center2);
@@ -560,10 +565,11 @@ int Interp::move_endpoint_and_flush(setup_pointer settings, double x, double y) 
             q.data.arc_feed.end2 = y;
             r2 = hypot(x - q.data.arc_feed.center1,
                        y - q.data.arc_feed.center2);
-            l2 = find_turn(endpoint[0], endpoint[1],
+            auto circ_angle = CircleAngle(endpoint[0], endpoint[1],
                            q.data.arc_feed.center1, q.data.arc_feed.center2,
                            q.data.arc_feed.turn,
-                           x, y);
+                           x, y, q.data.arc_feed.allow_implicit_full_turn);
+            l2 = circ_angle.full_angle();
             if(debug_qc) printf("moving endpoint of arc lineno %d old sweep %f new sweep %f\n", q.data.arc_feed.line_number, l1, l2);
 
             if(fabs(r1-r2) > .01) 
@@ -573,6 +579,7 @@ int Interp::move_endpoint_and_flush(setup_pointer settings, double x, double y) 
             }
             q.data.arc_feed.end1 = x;
             q.data.arc_feed.end2 = y;
+        }
             break;
         case QSTRAIGHT_TRAVERSE:
             switch(settings->plane) {

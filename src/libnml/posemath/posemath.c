@@ -1989,6 +1989,11 @@ int pmCircleInit(PmCircle * const circle,
         circle->angle += turn * 2.0 * PM_PI;
     }
 
+    // Ensure that circle angle is nonzero or this will fail
+    if (circle->angle < DOUBLE_FUZZ) {
+        return pmErrno = PM_DIV_ERR;
+    }
+
     //Default to invalid
 /* if 0'ed out while not debugging*/
 #if 0

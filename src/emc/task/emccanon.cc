@@ -1324,7 +1324,8 @@ CanonReturn ARC_FEED(int line_number,
 	      double first_axis, double second_axis, int rotation,
 	      double axis_end_point, 
               double a, double b, double c,
-              double u, double v, double w)
+              double u, double v, double w,
+                     bool allow_implicit_full_turn)
 {
 
     canon_debug("ARC_FEED a %g b %g c %g u %g v %g w %g ",
@@ -1513,7 +1514,13 @@ CanonReturn ARC_FEED(int line_number,
              -2 -1 */
 
 
-    auto circ_data = find_arc_angle_in_plane(p_start_1, p_start_2, 0, 0, p_end_1, p_end_2, rotation);
+    // Allow the ARC_FEED call to prevent the implicit full turn (e.g. cutter comp arcs)
+    auto circ_data = CircleAngle(
+        p_start_1, p_start_2,
+        0, 0,
+        rotation,
+        p_end_1, p_end_2, allow_implicit_full_turn);
+
     const double full_angle = circ_data.full_angle();
 
     canon_debug("turns = %d\n", rotation);
