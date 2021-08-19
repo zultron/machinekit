@@ -308,6 +308,7 @@ class EMC_AXIS_SET_HOMING_PARAMS:public EMC_AXIS_CMD_MSG {
     int home_sequence;
     int volatile_home;
     int locking_indexer;
+    int home_external;
 };
 
 class EMC_AXIS_SET_MAX_VELOCITY:public EMC_AXIS_CMD_MSG {

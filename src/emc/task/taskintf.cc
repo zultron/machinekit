@@ -236,7 +236,7 @@ int emcAxisSetMinFerror(int axis, double ferror)
 int emcAxisSetHomingParams(int axis, double home, double offset, double home_final_vel,
 			   double search_vel, double latch_vel,
 			   int use_index, int ignore_limits, int is_shared,
-			   int sequence,int volatile_home, int locking_indexer)
+			   int sequence,int volatile_home, int locking_indexer, int home_external)
 {
 #ifdef ISNAN_TRAP
     if (std::isnan(home) || std::isnan(offset) || std::isnan(home_final_vel) ||
@@ -272,6 +272,7 @@ int emcAxisSetHomingParams(int axis, double home, double offset, double home_fin
     if (locking_indexer) {
         emcmotCommand.flags |= HOME_UNLOCK_FIRST;
     }
+    emcmotCommand.homing_flags.external_homing_enabled = home_external;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }

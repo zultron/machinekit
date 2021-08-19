@@ -644,6 +644,8 @@ check_stuff ( "before command_handler()" );
 	    joint->home_flags = emcmotCommand->flags;
 	    joint->home_sequence = emcmotCommand->home_sequence;
 	    joint->volatile_home = emcmotCommand->volatile_home;
+        // TODO
+        joint->homing_flags.external_homing_enabled = 0;
 	    break;
 
 	case EMCMOT_OVERRIDE_LIMITS:

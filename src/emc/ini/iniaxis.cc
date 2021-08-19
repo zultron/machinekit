@@ -95,6 +95,7 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
     bool use_index;
     bool ignore_limits;
     bool is_shared;
+    bool home_external;
     int sequence;
     int volatile_home;
     int locking_indexer;
@@ -218,11 +219,13 @@ static int loadAxis(int axis, EmcIniFile *axisIniFile)
         axisIniFile->Find(&volatile_home, "VOLATILE_HOME", axisString);
         locking_indexer = false;
         axisIniFile->Find(&locking_indexer, "LOCKING_INDEXER", axisString);
+        home_external = false;
+        axisIniFile->Find(&home_external, "HOME_EXTERNAL", axisString);
 
         // issue NML message to set all params
         if (0 != emcAxisSetHomingParams(axis, home, offset, home_final_vel, search_vel,
                                         latch_vel, (int)use_index, (int)ignore_limits,
-                                        (int)is_shared, sequence, volatile_home, locking_indexer)) {
+                                        (int)is_shared, sequence, volatile_home, locking_indexer, home_external)) {
             if (emc_debug & EMC_DEBUG_CONFIG) {
                 rcs_print_error("bad return from emcAxisSetHomingParams\n");
             }

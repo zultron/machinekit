@@ -277,7 +277,10 @@ void do_homing(void)
 
 		// either we got here without an unlock needed, or the
 		// unlock is now complete.
-		if (joint->home_search_vel == 0.0) {
+		if(joint->home_external == 1) {
+			joint->home_state = HOME_EXTERNAL_START;
+			immediate_state = 1;
+		} else if (joint->home_search_vel == 0.0) {
 		    if (joint->home_latch_vel == 0.0) {
 			/* both vels == 0 means home at current position */
 			joint->home_state = HOME_SET_SWITCH_POSITION;

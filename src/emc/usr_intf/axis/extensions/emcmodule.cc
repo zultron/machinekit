@@ -1624,9 +1624,9 @@ static PyObject *set_analog_output(pyCommandChannel *s, PyObject *o) {
 
 static PyObject *set_homing_params(pyCommandChannel *s, PyObject *o) {
     EMC_AXIS_SET_HOMING_PARAMS m;
-    if(!PyArg_ParseTuple(o, "idddddiiiiii", &m.axis, &m.home, &m.offset, &m.home_final_vel,
+    if(!PyArg_ParseTuple(o, "idddddiiiiiii", &m.axis, &m.home, &m.offset, &m.home_final_vel,
         &m.search_vel, &m.latch_vel, &m.use_index, &m.ignore_limits, &m.is_shared,
-        &m.home_sequence, &m.volatile_home, &m.locking_indexer))
+        &m.home_sequence, &m.volatile_home, &m.locking_indexer, &m.home_external))
         return NULL;
 
     emcSendCommand(s, m);
