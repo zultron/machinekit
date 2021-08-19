@@ -802,15 +802,15 @@ static int export_joint(int num, joint_hal_t * addr)
     if (retval != 0) {
         return retval;
     }
-    retval = hal_pin_bit_newf(HAL_OUT, &(addr->external_homing_mode), mot_comp_id, "axis.%d.external_homing_mode", num);
+    retval = hal_pin_bit_newf(HAL_OUT, &(addr->external_homing_mode), mot_comp_id, "axis.%d.external-homing-mode", num);
     if (retval != 0) {
         return retval;
     }
-    retval = hal_pin_bit_newf(HAL_IN, &(addr->external_homing_error_fb), mot_comp_id, "axis.%d.external_homing_error_fb", num);
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->external_homing_error_fb), mot_comp_id, "axis.%d.external-homing_error-fb", num);
     if (retval != 0) {
         return retval;
     }
-    retval = hal_pin_bit_newf(HAL_IN, &(addr->external_homing_success_fb), mot_comp_id, "axis.%d.external_homing_success_fb", num);
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->external_homing_success_fb), mot_comp_id, "axis.%d.external-homing_success-fb", num);
     if (retval != 0) {
         return retval;
     }

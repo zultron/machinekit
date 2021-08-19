@@ -1,0 +1,12 @@
+component mux2_s32 "Select from one of two input values";
+pin in bit sel;
+pin out s32 out "Follows the value of in0 if sel is FALSE, or in1 if sel is TRUE";
+pin in s32 in1;
+pin in s32 in0;
+function _;
+license "GPL";
+;;
+FUNCTION(_) {
+    if(sel) out = in1;
+    else out = in0;
+}
