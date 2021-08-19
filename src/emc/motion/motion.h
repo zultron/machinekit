@@ -94,16 +94,31 @@ to another.
 extern "C" {
 #endif
 
-    typedef struct _EMC_TELEOP_DATA {
+typedef struct _EMC_TELEOP_DATA {
 	EmcPose currentVel;
 	EmcPose currentAccel;
 	EmcPose desiredVel;
 	EmcPose desiredAccel;
-    } EMC_TELEOP_DATA;
+} EMC_TELEOP_DATA;
+
+
+/* joint home state flags */
+
+typedef struct
+{
+  short   external_homing_enabled: 1,       /* preference flag set from ini file for this joint. Default false */
+  		  external_homing_mode: 1,        	/* output flag to tell servo if it should switch to homing mode */
+  	      external_error_fb:    1,        	/* error status flag from servo system for this joint's homing */
+          external_success_fb:  1,        	/* success status flag from servo system for this joint's homing */
+          spare3 : 1,     					/* Unused */
+          spare2 : 1,     					/* Unused */
+          spare1 : 1,     					/* Unused */
+          spare0 : 1;     					/* Unused */
+} EMCMOT_HOMING_FLAG;
 
 /* This enum lists all the possible commands */
 
-    typedef enum {
+typedef enum {
 	EMCMOT_ABORT = 1,	/* abort all motion */
 	EMCMOT_AXIS_ABORT,	/* abort one axis */ //FIXME-AJ: replace command name to EMCMOT_JOINT_ABORT
 	EMCMOT_ENABLE,		/* enable servos for active joints */
@@ -186,17 +201,17 @@ extern "C" {
         EMCMOT_SETUP_BIARC_SOLVER_CFG,
         EMCMOT_SET_DWELL,
         EMCMOT_SET_MIN_DISPLACEMENT,
-    } cmd_code_t;
+} cmd_code_t;
 
 /* this enum lists the possible results of a command */
 
-    typedef enum {
+typedef enum {
 	EMCMOT_COMMAND_OK = 0,	/* cmd honored */
 	EMCMOT_COMMAND_UNKNOWN_COMMAND,	/* cmd not understood */
 	EMCMOT_COMMAND_INVALID_COMMAND,	/* cmd can't be handled now */
 	EMCMOT_COMMAND_INVALID_PARAMS,	/* bad cmd params */
 	EMCMOT_COMMAND_BAD_EXEC	/* error trying to initiate */
-    } cmd_status_t;
+} cmd_status_t;
 
 /*********************************
        COMMAND STRUCTURE
@@ -305,20 +320,6 @@ typedef struct emcmot_command_t {
 #define EMCMOT_MOTION_COORD_BIT       0x0004
 #define EMCMOT_MOTION_ERROR_BIT       0x0008
 #define EMCMOT_MOTION_TELEOP_BIT      0x0010
-
-/* joint home state flags */
-
-typedef struct
-{
-  short   external_homing_enabled: 1,       /* preference flag set from ini file for this joint. Default false */
-  		  external_homing_mode: 1,        	/* output flag to tell servo if it should switch to homing mode */
-  	      external_error_fb:    1,        	/* error status flag from servo system for this joint's homing */
-          external_success_fb:  1,        	/* success status flag from servo system for this joint's homing */
-          spare3 : 1,     					/* Unused */
-          spare2 : 1,     					/* Unused */
-          spare1 : 1,     					/* Unused */
-          spare0 : 1;     					/* Unused */
-} EMCMOT_HOMING_FLAG;
 
 
 /* joint flag type */
