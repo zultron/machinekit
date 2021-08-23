@@ -280,7 +280,7 @@ void do_homing(void)
 
 		// either we got here without an unlock needed, or the
 		// unlock is now complete.
-		if(joint->homing_flags.external_homing_enabled == 1) {
+		if(joint->homing_flags.external_homing_enabled) {
 			joint->home_state = HOME_EXTERNAL_START;
 			immediate_state = 1;
 		} else if (joint->home_search_vel == 0.0) {
@@ -854,6 +854,8 @@ void do_homing(void)
 		joint->free_tp_enable = 0;
 		joint->home_state = HOME_IDLE;
 		joint->index_enable = 0;
+		joint->homing_flags.external_homing_run = 0;
+		joint->homing_flags.external_homing_mode = 0;
 		immediate_state = 1;
 		break;
 
