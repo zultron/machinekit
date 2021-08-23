@@ -814,11 +814,11 @@ static int export_joint(int num, joint_hal_t * addr)
     if (retval != 0) {
         return retval;
     }
-    retval = hal_pin_bit_newf(HAL_IN, &(addr->external_homing_error_fb), mot_comp_id, "axis.%d.external-homing_error-fb", num);
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->external_homing_error_fb), mot_comp_id, "axis.%d.external-homing-error-fb", num);
     if (retval != 0) {
         return retval;
     }
-    retval = hal_pin_bit_newf(HAL_IN, &(addr->external_homing_success_fb), mot_comp_id, "axis.%d.external-homing_success-fb", num);
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->external_homing_success_fb), mot_comp_id, "axis.%d.external-homing-success-fb", num);
     if (retval != 0) {
         return retval;
     }
