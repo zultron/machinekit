@@ -802,6 +802,10 @@ static int export_joint(int num, joint_hal_t * addr)
     if (retval != 0) {
         return retval;
     }
+    retval = hal_pin_bit_newf(HAL_OUT, &(addr->external_homing_enabled), mot_comp_id, "axis.%d.external-homing-enabled", num);
+    if (retval != 0) {
+        return retval;
+    }
     retval = hal_pin_bit_newf(HAL_OUT, &(addr->external_homing_mode), mot_comp_id, "axis.%d.external-homing-mode", num);
     if (retval != 0) {
         return retval;

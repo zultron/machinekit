@@ -272,7 +272,9 @@ int emcAxisSetHomingParams(int axis, double home, double offset, double home_fin
     if (locking_indexer) {
         emcmotCommand.flags |= HOME_UNLOCK_FIRST;
     }
-    emcmotCommand.homing_flags.external_homing_enabled = home_external;
+    if (home_external) {
+        emcmotCommand.homing_flags.external_homing_enabled = 1;
+    }
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }

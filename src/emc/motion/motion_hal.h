@@ -52,6 +52,7 @@ typedef struct {
 
     hal_bit_t *homing;		                /* RPI: joint is homing */
     hal_bit_t *homed;		                /* RPI: joint was homed */
+    hal_bit_t *external_homing_enabled;        /* RPI: servo should be switching into external homing mode */
     hal_bit_t *external_homing_mode;        /* RPI: servo should be switching into external homing mode */
     hal_bit_t *external_homing_run;        /* RPI: servo should run external homing motion */
     hal_bit_t *external_homing_error_fb;    /* WPI: servo reports errors during homing with this pin */
