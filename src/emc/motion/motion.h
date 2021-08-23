@@ -108,9 +108,9 @@ typedef struct
 {
   short   external_homing_enabled: 1,       /* preference flag set from ini file for this joint. Default false */
   		  external_homing_mode: 1,        	/* output flag to tell servo if it should switch to homing mode */
+  	      external_homing_run: 1,           /* output flag to servo - enable homing motion */
   	      external_error_fb:    1,        	/* error status flag from servo system for this joint's homing */
           external_success_fb:  1,        	/* success status flag from servo system for this joint's homing */
-          spare3 : 1,     					/* Unused */
           spare2 : 1,     					/* Unused */
           spare1 : 1,     					/* Unused */
           spare0 : 1;     					/* Unused */

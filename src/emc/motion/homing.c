@@ -29,6 +29,9 @@
    ended.  We might want to make this user adjustable, but for
    now it's a constant.  It is in seconds */
 #define HOME_DELAY 0.100
+/* Timeout for external homing. This could be an ini value if needed,
+   but for now it is mostly serving as a sanity / safety check. */
+#define EXTERNAL_HOME_DELAY 30.00
 
 /***********************************************************************
 *                  LOCAL VARIABLE DECLARATIONS                         *
@@ -304,6 +307,65 @@ void do_homing(void)
 		    }
 		}
 		break;
+
+        case HOME_EXTERNAL_START:
+            // Wait until motion has stopped to start external homing
+            if (joint->free_tp_active) {
+                break;
+            }
+            // Reuse this timer to handle the external homing timout
+            joint->home_pause_timer = 0;
+            joint->homing_flags.external_homing_mode = 1;
+            joint->home_state = HOME_EXTERNAL_WAIT;
+            // Do not set immediate state for this transition to allow
+            // the HAL changes to propagate (change servo amplifier mode)
+        break;
+
+        case HOME_EXTERNAL_WAIT:
+            joint->home_pause_timer++;
+            // Have we timed out of the homing procedure?
+            if (joint->home_pause_timer >= (EXTERNAL_HOME_DELAY * servo_freq)) {
+                /* Yes, report error and transisiton state to ABORT */
+                reportError(_("External homing error, timeout exceeded."));
+                joint->home_state = HOME_ABORT;
+                
+                joint->homing_flags.external_homing_run = 0;
+                joint->homing_flags.external_homing_mode = 0;
+                joint->home_pause_timer=0;
+                immediate_state = 1;
+                break;
+            }
+            // We have not timed out:
+            joint->homing_flags.external_homing_run = 1;
+            // External homing implies that the servo has taken control of
+            // its own position. Therefore, we continuously reset our pos_cmd
+            // to the drive's pos_fb to prevent a following error
+            joint->pos_cmd = joint->pos_fb;
+
+            // Have we finished homing successfully?
+            if (joint->homing_flags.external_success_fb == 1) {
+                // Transisiton to the HOME_IMMEDIATE chain
+                // to set the current location as home in LCNC
+                joint->home_state = HOME_SET_SWITCH_POSITION;
+
+                joint->homing_flags.external_homing_run = 0;
+                joint->homing_flags.external_homing_mode = 0;
+                joint->home_pause_timer=0;
+                immediate_state = 1;
+                break;
+            }
+            // Did the drive error out during homing?
+            if (joint->homing_flags.external_error_fb == 1) {
+                reportError(_("External homing error, servo reports error."));
+                joint->home_state = HOME_ABORT;
+
+                joint->homing_flags.external_homing_run = 0;
+                joint->homing_flags.external_homing_mode = 0;
+                joint->home_pause_timer=0;
+                immediate_state = 1;
+                break;
+            }
+        break;
 
 	    case HOME_INITIAL_BACKOFF_START:
 		/* This state is called if the homing sequence starts at a
