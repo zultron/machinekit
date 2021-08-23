@@ -2049,7 +2049,8 @@ static void output_to_hal(void)
 	*(joint_data->index_enable) = joint->index_enable;
 
 	*(joint_data->homing) = GET_JOINT_HOMING_FLAG(joint);
-  *(joint_data->external_homing_mode) = joint->homing_flags.external_homing_mode;
+    *(joint_data->external_homing_mode) = joint->homing_flags.external_homing_mode;
+    *(joint_data->external_homing_run) = joint->homing_flags.external_homing_run;
 
 	*(joint_data->coarse_pos_cmd) = joint->coarse_pos;
 	*(joint_data->joint_vel_cmd) = joint->vel_cmd;
