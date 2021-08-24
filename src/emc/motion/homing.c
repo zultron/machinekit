@@ -202,7 +202,7 @@ void do_homing_sequence(void) {
 void do_homing(void) {
     int joint_num;
     emcmot_joint_t * joint;
-    double offset, tmp;
+    double offset, tmp, new_offset;
     int home_sw_active, homing_flag;
 
     homing_flag = 0;
@@ -242,7 +242,7 @@ void do_homing(void) {
             immediate_state = 0;
             switch (joint -> home_state) {
             case HOME_IDLE:
-                /* nothing to do */
+                ensure_external_homing_disabled(joint);
                 break;
 
             case HOME_START:
@@ -361,12 +361,25 @@ void do_homing(void) {
                 // Have we finished homing successfully?
                 if (joint -> homing_flags.external_success_fb) {
                     reportError(_("External homing external_success_fb."));
-                    // Transisiton to the HOME_IMMEDIATE chain
-                    // to set the current location as home in LCNC
-                    joint -> home_state = HOME_SET_SWITCH_POSITION;
 
                     ensure_external_homing_disabled(joint);
                     joint -> home_pause_timer = 0;
+
+                    // If the motor_offset is changing, we need to adjust pos_cmd and pos_fb
+                    // by that value, so compute it now.
+                    new_offset = joint -> motor_offset - joint -> home_offset;
+                    // Set the joint motor_offset directly to the value specified in the INI
+                    // (useful if your servo considers "home" to be something other than 0 in motor coordinates)
+                    joint -> motor_offset = joint -> home_offset;
+                    /* this moves the internal position but does not affect the
+                       motor position */
+                    joint -> pos_cmd += new_offset;
+                    joint -> pos_fb += new_offset;
+                    joint -> free_pos_cmd += new_offset;
+
+                    /* next state */
+                    joint -> home_state = HOME_FINAL_MOVE_START;
+
                     immediate_state = 1;
                     break;
                 }

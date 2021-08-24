@@ -6,9 +6,9 @@
 
 digraph finite_state_machine {
 
-        node [shape = doublecircle]; IDLE FINISHED
-        node [shape = circle];
-        rankdir=LR;
+        #node [shape = doublecircle]; IDLE FINISHED
+        #node [shape = circle];
+        #rankdir=LR;
         START -> IDLE [ label = "errors" ];
         START -> UNLOCK [ label = "unlock needed" ];
         START -> UNLOCK_WAIT [ label = "unlock not needed" ];
@@ -19,7 +19,7 @@ digraph finite_state_machine {
         UNLOCK_WAIT -> EXTERNAL_START [label="HOME_EXTERNAL\n== TRUE"];
         EXTERNAL_START -> EXTERNAL_WAIT [label="change drive state\nstart timers\nimmediate"];
         EXTERNAL_WAIT -> ABORT [label="timeout or\nerror feedback from\ndrive"];
-        EXTERNAL_WAIT -> SET_SWITCH_POSITION [label="success feedback\nfrom drive"];
+        EXTERNAL_WAIT -> FINAL_MOVE_START [label="success feedback\nfrom drive\nmotor_offset set to HOME_OFFSET"];
         INITIAL_BACKOFF_START -> INITIAL_BACKOFF_WAIT [ label = "delay times out" ];
         INITIAL_BACKOFF_WAIT -> INITIAL_SEARCH_START [ label = "!switch" ];
         INITIAL_SEARCH_START -> INITIAL_BACKOFF_START [ label = "switch" ];
