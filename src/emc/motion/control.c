@@ -638,7 +638,8 @@ static void process_inputs(void)
             joint->ferror_limit = joint->min_ferror;
         }
         /* update following error flag */
-        if (abs_ferror > joint->ferror_limit) {
+        if (abs_ferror > joint->ferror_limit && !(joint->homing_flags.external_homing_run)) {
+            // Note that following error is not recorded if a HOME_EXTERNAL is running
             SET_JOINT_FERROR_FLAG(joint, 1);
         } else {
             SET_JOINT_FERROR_FLAG(joint, 0);
