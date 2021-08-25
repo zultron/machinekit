@@ -360,8 +360,6 @@ void do_homing(void) {
 
                 // Have we finished homing successfully?
                 if (joint -> homing_flags.external_success_fb) {
-                    reportError(_("External homing external_success_fb."));
-
                     ensure_external_homing_disabled(joint);
                     joint -> home_pause_timer = 0;
 
