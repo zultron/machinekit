@@ -79,7 +79,7 @@ CanonReturn ARC_FEED(int lineno,
 		     double first_axis, double second_axis, int rotation,
 		     double axis_end_point, 
                      double a, double b, double c,
-             double u, double v, double w) {return CANON_RETURN_OK;}
+             double u, double v, double w, bool allow_implicit_full_turn) {return CANON_RETURN_OK;}
 void STRAIGHT_FEED(int lineno,
                           double x, double y, double z,
                           double a, double b, double c,
