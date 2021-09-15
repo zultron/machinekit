@@ -292,12 +292,14 @@ extern void STOP_SPEED_FEED_SYNCH();
 
 /* Machining Functions */
 
-extern CanonReturn ARC_FEED(int lineno,
-                     double first_end, double second_end,
-		     double first_axis, double second_axis, int rotation,
-		     double axis_end_point, 
-                     double a, double b, double c,
-                     double u, double v, double w);
+extern CanonReturn ARC_FEED(
+    int lineno,
+    double first_end, double second_end,
+    double first_axis, double second_axis, int rotation,
+    double axis_end_point,
+    double a, double b, double c,
+    double u, double v, double w,
+    bool allow_implicit_full_turn=true);
 
 /* Move in a helical arc from the current location at the existing feed
 rate. The axis of the helix is parallel to the x, y, or z axis,

@@ -79,7 +79,7 @@ CanonReturn ARC_FEED(int lineno,
 		     double first_axis, double second_axis, int rotation,
 		     double axis_end_point, 
                      double a, double b, double c,
-             double u, double v, double w) {return 0;}
+             double u, double v, double w, bool allow_implicit_full_turn) {return CANON_RETURN_OK;}
 void STRAIGHT_FEED(int lineno,
                           double x, double y, double z,
                           double a, double b, double c,
@@ -93,7 +93,7 @@ CanonReturn RIGID_TAP(int line_number,
     double spindle_retract_speed_scale,
     double tap_pitch,
     double retract_pitch
-              ){return 0;}
+              ){return CANON_RETURN_OK;}
 void STRAIGHT_PROBE(int lineno,
                            double x, double y, double z,
                            double a, double b, double c,

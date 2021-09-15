@@ -741,7 +741,7 @@ int Interp::enter_context(setup_pointer settings, block_pointer block)
     }
 
     context_pointer frame = &settings->sub_context[settings->call_level];
-    frame->clear();
+    *frame = context_struct{};
     // mark frame for finishing remap
     frame->context_status = (block->call_type  == CT_REMAP) ? REMAP_FRAME : 0;
     frame->subName = block->o_name;

@@ -24,6 +24,7 @@
 #include "rs274ngc.hh"
 #include "previewinterp.hh"
 #include "interp_return.hh"
+#include "arc_feed_util.hh"
 #include "canon.hh"
 #include "config.h"		// LINELEN
 #include <sstream>
@@ -252,7 +253,8 @@ CanonReturn ARC_FEED(int line_number,
               double first_end, double second_end, double first_axis,
               double second_axis, int rotation, double axis_end_point,
               double a_position, double b_position, double c_position,
-              double u_position, double v_position, double w_position) {
+              double u_position, double v_position, double w_position,
+              bool allow_implicit_full_turn) {
     // XXX: set _pos_*
     if(metric) {
         first_end /= 25.4;
@@ -269,7 +271,8 @@ CanonReturn ARC_FEED(int line_number,
                     line_number, first_end, second_end, first_axis, second_axis,
                     rotation, axis_end_point,
                     a_position, b_position, c_position,
-                    u_position, v_position, w_position);
+                    u_position, v_position, w_position,
+                    allow_implicit_full_turn);
     }
     return CANON_RETURN_OK;
 }
@@ -1684,7 +1687,8 @@ void PreviewMachine::arc_feed(int line_number,
                               double c,
                               double u,
                               double v,
-                              double w)
+                              double w,
+                              bool allow_implicit_full_turn)
 {
     static const int max_segments=64; // TODO make customizable
 
@@ -1714,23 +1718,21 @@ void PreviewMachine::arc_feed(int line_number,
 
     PositionArray const start_lcl = transform_uu.inverse_local_from_tool(machine_pos_uu);
 
-    double theta1 = atan2(start_lcl[Y]-cy, start_lcl[X]-cx);
-    double theta2 = atan2(n[Y]-cy, n[X]-cx);
+    auto circ_data = CircleAngle(
+        start_lcl[X],
+        start_lcl[Y],
+        cx,
+        cy,
+        rot,
+        n[X],
+        n[Y], allow_implicit_full_turn);
 
-    if(rot < 0) {
-        while(theta2 - theta1 > -CIRCLE_FUZZ) theta2 -= 2*M_PI;
-    } else {
-        while(theta2 - theta1 < CIRCLE_FUZZ) theta2 += 2*M_PI;
-    }
+    const double full_angle = circ_data.full_angle();
+    // TODO check that circle data is valid here
 
-    // if multi-turn, add the right number of full circles
-    if(rot < -1) theta2 += 2*M_PI*(rot+1);
-    if(rot > 1) theta2 += 2*M_PI*(rot-1);
-
-    int steps = std::max(3, int(max_segments * fabs(theta1 - theta2) / M_PI));
+    int steps = std::max(3, int(max_segments * fabs(circ_data.full_angle()) / M_PI));
     double rsteps = 1. / steps;
 
-    double dtheta = theta2 - theta1;
     PositionArray d = n-start_lcl;
     d[X] = 0;
     d[Y] = 0;
@@ -1738,7 +1740,7 @@ void PreviewMachine::arc_feed(int line_number,
 
     PositionArray p_lcl_last = start_lcl;
     PositionArray p_lcl = start_lcl;
-    double tx = start_lcl[X] - cx, ty = start_lcl[Y] - cy, dc = cos(dtheta*rsteps), ds = sin(dtheta*rsteps);
+    double tx = start_lcl[X] - cx, ty = start_lcl[Y] - cy, dc = cos(full_angle*rsteps), ds = sin(full_angle*rsteps);
     ToolMotionKey key{MotionType::ARC_FEED, exec_mode, current_tool_pocket};
     auto &motion_set = get_motion_set(key);
     for(int i=0; i<steps-1; i++) {

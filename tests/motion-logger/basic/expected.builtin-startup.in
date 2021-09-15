@@ -60,8 +60,8 @@ SET_JOINT_VEL_LIMIT joint=4, vel=4.000000
 SET_JOINT_ACC_LIMIT joint=4, acc=1000.000000
 ACTIVATE_JOINT joint=4
 SET_BACKLASH joint=5, backlash=0.000000
-SET_POSITION_LIMITS joint=5, min=-4.000000, max=0.000000
-SET_POSITION_LIMITS joint=5, min=-4.000000, max=4.000000
+SET_POSITION_LIMITS joint=5, min=-40.000000, max=0.000000
+SET_POSITION_LIMITS joint=5, min=-40.000000, max=40.000000
 SET_MAX_FERROR joint=5, maxFerror=0.050000
 SET_MIN_FERROR joint=5, minFerror=0.010000
 SET_HOMING_PARAMS joint=5, offset=0.000000 home=0.000000, final_vel=-1.000000, search_vel=0.000000, latch_vel=0.000000, flags=0x00000000, sequence=-1, volatile=0
@@ -87,8 +87,8 @@ SET_JOINT_VEL_LIMIT joint=7, vel=4.000000
 SET_JOINT_ACC_LIMIT joint=7, acc=1000.000000
 ACTIVATE_JOINT joint=7
 SET_BACKLASH joint=8, backlash=0.000000
-SET_POSITION_LIMITS joint=8, min=-4.000000, max=0.000000
-SET_POSITION_LIMITS joint=8, min=-4.000000, max=4.000000
+SET_POSITION_LIMITS joint=8, min=-40.000000, max=0.000000
+SET_POSITION_LIMITS joint=8, min=-40.000000, max=40.000000
 SET_MAX_FERROR joint=8, maxFerror=0.050000
 SET_MIN_FERROR joint=8, minFerror=0.010000
 SET_HOMING_PARAMS joint=8, offset=0.000000 home=0.000000, final_vel=-1.000000, search_vel=0.000000, latch_vel=0.000000, flags=0x00000000, sequence=-1, volatile=0

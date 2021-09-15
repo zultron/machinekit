@@ -342,7 +342,7 @@ CanonReturn ARC_FEED(int line_number,
  , double b /*BB*/
  , double c /*CC*/
  , double u, double v, double w
-)
+, bool allow_implicit_full_turn)
 {
   ECHO_WITH_ARGS("%.4f, %.4f, %.4f, %.4f, %d, %.4f"
          ", %.4f" /*AA*/

@@ -344,9 +344,11 @@ HEADERS := \
     emc/rs274ngc/saicanon.hh \
     emc/rs274ngc/StateTag.hh \
     emc/rs274ngc/work_offset_structs.hh \
+    emc/interp_shared/interp_shared_fwd.hh \
     emc/interp_shared/coordinatetransform.hh \
     emc/interp_shared/positionarray.hh \
     emc/interp_shared/array_math.hh \
+    emc/interp_shared/arc_feed_util.hh \
     hal/hal.h \
     hal/hal_parport.h \
     libnml/buffer/locmem.hh \
