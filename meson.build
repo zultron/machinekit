@@ -35,7 +35,7 @@
 # * Build linuxcnc libraries with correct build options given a configuration
 #
 
-project('linuxcnc-unit-test', ['c','cpp'])
+project('linuxcnc-unit-test', ['c','cpp'], default_options : ['c_std=c99', 'cpp_std=c++11'])
 
 # TODO make these arguments specific to libraries if we ever replace autotools
 add_global_arguments(['-DULAPI','-DUNIT_TEST','-DTP_PEDANTIC_DEBUG','-Wall'], language : 'c')
