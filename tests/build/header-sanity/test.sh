@@ -12,5 +12,5 @@ for i in $HEADERS/*.h $HEADERS/*.hh; do
     */rtapi_app.h) continue ;;
     */interp_internal.hh) continue ;;
     esac
-    g++ -DULAPI -I$HEADERS -E -x c++ $i > /dev/null
+    g++ -std=c++11 -DULAPI -I$HEADERS -E -x c++ $i > /dev/null
 done
