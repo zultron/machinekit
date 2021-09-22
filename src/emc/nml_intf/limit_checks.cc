@@ -97,13 +97,12 @@ std::string formatAxisError(unsigned below, unsigned above, const char *msg_pref
     static const char axes[] = {"XYZABCUVW"};
     std::ostringstream oss;
     if (line_number) {
-        oss << "Line " << line_number;
+        oss << "Line " << line_number << ": ";
     }
-    oss << (msg_prefix ?: "");
-    const char * const sep_str = ", ";
-    const char * delim = " ";
+    oss << (msg_prefix ?: "") << " ";
+    static constexpr const char * const delim = ", ";
+    static constexpr const size_t DELIM_LEN = 2;
     for (int i=0; i < EMCMOT_MAX_JOINTS; ++i) {
-        oss << delim;
         const unsigned mask = 1 << i;
         if (below & mask) {
             oss << "-";
@@ -113,9 +112,9 @@ std::string formatAxisError(unsigned below, unsigned above, const char *msg_pref
             // No violation so skip printing the axis
             continue;
         }
-        oss << axes[i];
-        delim = sep_str;
+        oss << axes[i] << delim;
     }
-    oss << "]";
-    return oss.str();
+    std::string axis_err = oss.str();
+    // NOTE: error string is always long enough to strip off the last delimiter
+    return axis_err.substr(0, axis_err.size() - DELIM_LEN);
 }

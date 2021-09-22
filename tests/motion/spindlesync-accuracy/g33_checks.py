@@ -5,6 +5,7 @@ import csv
 import numpy as np
 import json
 import os
+import math
 
 import re
 # String helpers
@@ -21,6 +22,16 @@ RIGIDTAP_REVERSING = 2
 RIGIDTAP_RETRACTION = 3
 RIGIDTAP_FINAL_REVERSAL = 4
 RIGIDTAP_FINAL_PLACEMENT = 5
+
+SAMPLER_SPINDLE_POSITION_MEASURED = 1
+SAMPLER_SPINDLE_VELOCITY_MEASURED_RPS = 2
+SAMPLER_ZVEL = 3
+SAMPLER_ZPOS = 4
+SAMPLER_POS_TRACKING_ERROR = 5
+SAMPLER_POS_TRACKING_STATE = 6
+SAMPLER_SPINDLE_INDEX_ENABLE = 7
+SAMPLER_RIGID_TAP_STATE = 8
+
 
 def get_spindle_direction(constants):
     return -1.0 if 'ccw' == constants.get('spindle_direction', 'cw') else 1.0
@@ -122,9 +133,10 @@ def check_abs_deviation(samples, constants, rigid_tapping_phases=None):
 
     z_axis_nominal_feed = constants["pitch"] * constants["spindle_speed_rps"]
     # Find when sync starts in rigid tap state
-    index_seek_start_idx = find_rising_edge(samples[:, 6], SYNC_SEEK_INDEX)
-    sync_start_idx = find_rising_edge(samples[:, 6], SYNC_ACCEL_RAMP)
-    sync_end_idx = find_falling_edge(samples[:, 6], SYNC_ACCEL_RAMP)
+    pos_sync_state_samples = samples[:, SAMPLER_POS_TRACKING_STATE]
+    index_seek_start_idx = find_rising_edge(pos_sync_state_samples, SYNC_SEEK_INDEX)
+    sync_start_idx = find_rising_edge(pos_sync_state_samples, SYNC_ACCEL_RAMP)
+    sync_end_idx = find_falling_edge(pos_sync_state_samples, SYNC_ACCEL_RAMP)
 
     for s, e in zip(sync_start_idx, sync_end_idx):
         sync_pos = samples[e, 4]
@@ -144,9 +156,21 @@ def check_abs_deviation(samples, constants, rigid_tapping_phases=None):
     print >> sys.stderr, "Passed: position sync started at %d, within %d steps of expected (%d)" % (
         e, max_sync_delay, s)
 
-    pos_sync_active_range = find_state(samples[:, 6], SYNC_POSITION)
+    pos_sync_active_range = find_state(pos_sync_state_samples, SYNC_POSITION)
+    # For tests where the position sync motion decelerates to a stop (causing the last bit of the move to drop out of sync)
+    ignore_end_sample_cnt = constants.get("ignore_pos_sync_end_samples", 0)
+    pos_sync_sample_cnt = len(pos_sync_active_range)
+    if ignore_end_sample_cnt >= pos_sync_sample_cnt:
+        print >> sys.stderr, "Failed: ignored too many samples {} (sync position only lasts for {} samples)".format(
+            ignore_end_sample_cnt,
+            pos_sync_sample_cnt)
+        return True
+    elif ignore_end_sample_cnt > 0:
+        # Truncate the active range
+        pos_sync_active_range = pos_sync_active_range[:(-1-ignore_end_sample_cnt)]
+
     if rigid_tapping_phases is not None:
-        rigid_tap_state_range = find_any_of_state(samples[:, 8], rigid_tapping_phases)
+        rigid_tap_state_range = find_any_of_state(samples[:, SAMPLER_RIGID_TAP_STATE], rigid_tapping_phases)
         pos_sync_active_range = np.intersect1d(pos_sync_active_range, rigid_tap_state_range)
     spindle_pos_active = spindle_pos[pos_sync_active_range]
     z_axis_pos_active = z_axis_pos[pos_sync_active_range]
