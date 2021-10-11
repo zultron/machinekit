@@ -595,84 +595,88 @@ static void process_inputs(void)
 
     /* read and process per-joint inputs */
     for (joint_num = 0; joint_num < num_joints; joint_num++) {
-	/* point to joint HAL data */
-	joint_data = &(emcmot_hal_data->joint[joint_num]);
-	/* point to joint data */
-	joint = &joints[joint_num];
-	if (!GET_JOINT_ACTIVE_FLAG(joint)) {
-	    /* if joint is not active, skip it */
-	    continue;
-	}
-	/* copy data from HAL to joint structure */
-	joint->index_enable = *(joint_data->index_enable);
-	joint->motor_pos_fb = *(joint_data->motor_pos_fb);
-        joint->downstream_offset = *(joint_data->downstream_offset);
-	/* calculate pos_fb */
-	if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
-	    ( joint->index_enable == 0 )) {
-	    /* special case - we're homing the joint, and it just
-	       hit the index.  The encoder count might have made a
-	       step change.  The homing code will correct for it
-	       later, so we ignore motor_pos_fb and set pos_fb
-	       to match the commanded value instead. */
-	    joint->pos_fb = joint->pos_cmd;
-	} else {
-	    /* normal case: subtract backlash comp and motor offset */
-	    joint->pos_fb = joint->motor_pos_fb -
-		(joint->backlash_filt + joint->motor_offset);
-	}
-	/* calculate following error */
-	joint->ferror = joint->pos_cmd - joint->pos_fb;
-	abs_ferror = fabs(joint->ferror);
-	/* update maximum ferror if needed */
-	if (abs_ferror > joint->ferror_high_mark) {
-	    joint->ferror_high_mark = abs_ferror;
-	}
+        /* point to joint HAL data */
+        joint_data = &(emcmot_hal_data->joint[joint_num]);
+        /* point to joint data */
+        joint = &joints[joint_num];
+        if (!GET_JOINT_ACTIVE_FLAG(joint)) {
+            /* if joint is not active, skip it */
+            continue;
+        }
+        /* copy data from HAL to joint structure */
+        joint->index_enable = *(joint_data->index_enable);
+        joint->motor_pos_fb = *(joint_data->motor_pos_fb);
+            joint->downstream_offset = *(joint_data->downstream_offset);
+        /* calculate pos_fb */
+        if (( joint->home_state == HOME_INDEX_SEARCH_WAIT ) &&
+            ( joint->index_enable == 0 )) {
+            /* special case - we're homing the joint, and it just
+               hit the index.  The encoder count might have made a
+               step change.  The homing code will correct for it
+               later, so we ignore motor_pos_fb and set pos_fb
+               to match the commanded value instead. */
+            joint->pos_fb = joint->pos_cmd;
+        } else {
+            /* normal case: subtract backlash comp and motor offset */
+            joint->pos_fb = joint->motor_pos_fb - (joint->backlash_filt + joint->motor_offset);
+        }
+        /* calculate following error */
+        joint->ferror = joint->pos_cmd - joint->pos_fb;
+        abs_ferror = fabs(joint->ferror);
+        /* update maximum ferror if needed */
+        if (abs_ferror > joint->ferror_high_mark) {
+            joint->ferror_high_mark = abs_ferror;
+        }
 
-	/* calculate following error limit */
-	if (joint->vel_limit > 0.0) {
-	    joint->ferror_limit =
-		joint->max_ferror * fabs(joint->vel_cmd) / joint->vel_limit;
-	} else {
-	    joint->ferror_limit = 0;
-	}
-	if (joint->ferror_limit < joint->min_ferror) {
-	    joint->ferror_limit = joint->min_ferror;
-	}
-	/* update following error flag */
-	if (abs_ferror > joint->ferror_limit) {
-	    SET_JOINT_FERROR_FLAG(joint, 1);
-	} else {
-	    SET_JOINT_FERROR_FLAG(joint, 0);
-	}
+        /* calculate following error limit */
+        if (joint->vel_limit > 0.0) {
+            joint->ferror_limit = joint->max_ferror * fabs(joint->vel_cmd) / joint->vel_limit;
+        } else {
+            joint->ferror_limit = 0;
+        }
+        if (joint->ferror_limit < joint->min_ferror) {
+            joint->ferror_limit = joint->min_ferror;
+        }
+        /* update following error flag */
+        if (abs_ferror > joint->ferror_limit && !(joint->homing_flags.external_homing_run)) {
+            // Note that following error is not recorded if a HOME_EXTERNAL is running
+            SET_JOINT_FERROR_FLAG(joint, 1);
+        } else {
+            SET_JOINT_FERROR_FLAG(joint, 0);
+        }
 
-	/* read limit switches */
-	if (*(joint_data->pos_lim_sw)) {
-	    SET_JOINT_PHL_FLAG(joint, 1);
-	} else {
-	    SET_JOINT_PHL_FLAG(joint, 0);
-	}
-	if (*(joint_data->neg_lim_sw)) {
-	    SET_JOINT_NHL_FLAG(joint, 1);
-	} else {
-	    SET_JOINT_NHL_FLAG(joint, 0);
-	}
-	joint->on_pos_limit = GET_JOINT_PHL_FLAG(joint);
-	joint->on_neg_limit = GET_JOINT_NHL_FLAG(joint);
-	/* read amp fault input */
-	if (*(joint_data->amp_fault)) {
-	    SET_JOINT_FAULT_FLAG(joint, 1);
-	} else {
-	    SET_JOINT_FAULT_FLAG(joint, 0);
-	}
+        /* read limit switches */
+        if (*(joint_data->pos_lim_sw)) {
+            SET_JOINT_PHL_FLAG(joint, 1);
+        } else {
+            SET_JOINT_PHL_FLAG(joint, 0);
+        }
+        if (*(joint_data->neg_lim_sw)) {
+            SET_JOINT_NHL_FLAG(joint, 1);
+        } else {
+            SET_JOINT_NHL_FLAG(joint, 0);
+        }
+        joint->on_pos_limit = GET_JOINT_PHL_FLAG(joint);
+        joint->on_neg_limit = GET_JOINT_NHL_FLAG(joint);
 
-	/* read home switch input */
-	if (*(joint_data->home_sw)) {
-	    SET_JOINT_HOME_SWITCH_FLAG(joint, 1);
-	} else {
-	    SET_JOINT_HOME_SWITCH_FLAG(joint, 0);
-	}
-	/* end of read and process joint inputs loop */
+        /* Process external homing state flags */
+        joint->homing_flags.external_success_fb = *(joint_data->external_homing_success_fb);
+        joint->homing_flags.external_error_fb = *(joint_data->external_homing_error_fb);
+
+        /* read amp fault input */
+        if (*(joint_data->amp_fault)) {
+            SET_JOINT_FAULT_FLAG(joint, 1);
+        } else {
+            SET_JOINT_FAULT_FLAG(joint, 0);
+        }
+
+        /* read home switch input */
+        if (*(joint_data->home_sw)) {
+            SET_JOINT_HOME_SWITCH_FLAG(joint, 1);
+        } else {
+            SET_JOINT_HOME_SWITCH_FLAG(joint, 0);
+        }
+        /* end of read and process joint inputs loop */
     }
 
     // a fault was signalled during a spindle-orient in progress
@@ -1972,6 +1976,7 @@ static void output_to_hal(void)
     if(GET_MOTION_COORD_FLAG()) {
         *(emcmot_hal_data->current_vel) = emcmotStatus->current_vel;
         *(emcmot_hal_data->requested_vel) = emcmotStatus->requested_vel;
+        *(emcmot_hal_data->pure_angular_move) = emcmotStatus->pure_angular_move;
         *(emcmot_hal_data->gcode_feed) = (emcmotStatus->tag.feed / 60.0);
     } else if(GET_MOTION_TELEOP_FLAG()) {
         PmCartesian t = emcmotDebug->teleop_data.currentVel.tran;
@@ -1981,13 +1986,21 @@ static void output_to_hal(void)
     } else {
         int i;
         double v2 = 0.0;
-        for(i=0; i<num_joints; i++)
-            if(GET_JOINT_ACTIVE_FLAG(&(joints[i])) && joints[i].free_tp_active)
+        bool has_linear_movement = false;
+        for(i=0; i<num_joints; i++) {
+            if(GET_JOINT_ACTIVE_FLAG(&(joints[i])) && joints[i].free_tp_active) {
                 v2 += joints[i].vel_cmd * joints[i].vel_cmd;
-        if(v2 > 0.0)
+                if (i < 3 || i >= 6) {
+                    has_linear_movement = true;
+                }
+            }
+        }
+        if(v2 > 0.0) {
             emcmotStatus->current_vel = (*emcmot_hal_data->current_vel) = sqrt(v2);
-        else
+        } else {
             emcmotStatus->current_vel = (*emcmot_hal_data->current_vel) = 0.0;
+        }
+        emcmotStatus->pure_angular_move = *(emcmot_hal_data->pure_angular_move) = !has_linear_movement;
         *(emcmot_hal_data->requested_vel) = 0.0;
         *(emcmot_hal_data->gcode_feed) = 0.0;
     }
@@ -2035,7 +2048,11 @@ static void output_to_hal(void)
 	*(joint_data->joint_pos_fb) = joint->pos_fb;
 	*(joint_data->amp_enable) = GET_JOINT_ENABLE_FLAG(joint);
 	*(joint_data->index_enable) = joint->index_enable;
+
 	*(joint_data->homing) = GET_JOINT_HOMING_FLAG(joint);
+    *(joint_data->external_homing_enabled) = joint->homing_flags.external_homing_enabled;
+    *(joint_data->external_homing_mode) = joint->homing_flags.external_homing_mode;
+    *(joint_data->external_homing_run) = joint->homing_flags.external_homing_run;
 
 	*(joint_data->coarse_pos_cmd) = joint->coarse_pos;
 	*(joint_data->joint_vel_cmd) = joint->vel_cmd;

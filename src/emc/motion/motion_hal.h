@@ -49,8 +49,16 @@ typedef struct {
     hal_bit_t *error;		/* RPI: joint has an error */
     hal_bit_t *phl;		/* RPI: joint is at positive hard limit */
     hal_bit_t *nhl;		/* RPI: joint is at negative hard limit */
-    hal_bit_t *homing;		/* RPI: joint is homing */
-    hal_bit_t *homed;		/* RPI: joint was homed */
+
+    hal_bit_t *homing;		                /* RPI: joint is homing */
+    hal_bit_t *homed;		                /* RPI: joint was homed */
+    hal_bit_t *external_homing_enabled;        /* RPI: servo should be switching into external homing mode */
+    hal_bit_t *external_homing_mode;        /* RPI: servo should be switching into external homing mode */
+    hal_bit_t *external_homing_run;        /* RPI: servo should run external homing motion */
+    hal_bit_t *external_homing_error_fb;    /* WPI: servo reports errors during homing with this pin */
+    hal_bit_t *external_homing_success_fb;  /* WPI: servo reports that homing is finished with this pin */
+
+
     hal_bit_t *f_errored;	/* RPI: joint had too much following error */
     hal_bit_t *faulted;		/* RPI: joint amp faulted */
     hal_bit_t *pos_lim_sw;	/* RPI: positive limit switch input */
@@ -110,8 +118,9 @@ typedef struct {
     hal_s32_t *queued_program_line;    /* program line most recently queued*/
     hal_s32_t *mot_command;       /* command being processed in the current update*/
     hal_s32_t *mot_command_count; /* count of total commands executed by motion (will overflow)*/
-    hal_float_t *current_vel;   /* RPI: velocity magnitude in machine units */
+    hal_float_t *current_vel;   /* RPI: velocity magnitude in linear machine units / second (if any of XYZUVW is active) or angular units / second otherwise*/
     hal_float_t *requested_vel;   /* RPI: requested velocity magnitude in machine units / second */
+    hal_bit_t *pure_angular_move;	/* Motion only uses ABC axes (so reported velocity is in angular units / sec) */
     hal_float_t *gcode_feed;      /* RPI: gcode F-word velocity magnitude in machine units */
     hal_float_t *distance_to_go;/* RPI: distance to go in current move*/
     hal_bit_t *waiting_on_spindle; /* RPI: TRUE when spindle-synched

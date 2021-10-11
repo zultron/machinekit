@@ -79,6 +79,7 @@ enum predefined_named_parameters {
     NP_FEED_HOLD,
     NP_FEED,
     NP_RPM,
+    NP_CSS_RPM_MAX,
     NP_CURRENT_TOOL,
     NP_SELECTED_POCKET,
     NP_CURRENT_POCKET,
@@ -139,6 +140,7 @@ enum predefined_named_parameters {
     NP_VALUE_RETURNED,
     NP_TASK,
     NP_IN_PREVIEW_CONTEXT,
+    NP_TOOL_OFFSET_NUMBER,
 };
 
 /****************************************************************************/
@@ -196,7 +198,7 @@ int Interp::read_named_parameter(
 
     CHKS((line[*counter] != '<'),
 	 NCE_BUG_FUNCTION_SHOULD_NOT_HAVE_BEEN_CALLED);
-    CHP(read_name(line, counter, paramNameBuf));
+    CHP(read_name(line, counter, paramNameBuf)); // Requires a name in brackets: <name>
 
     CHP(find_named_param(paramNameBuf, &exists, &value));
     if (check_exists) {
@@ -704,6 +706,10 @@ int Interp::lookup_named_param(const char *nameBuf,
 	*value = abs(_setup.speed);
 	break;
 
+    case NP_CSS_RPM_MAX: // speed (rpm)
+    *value = abs(_setup.css_max_speed);
+    break;
+
     case NP_CURRENT_TOOL:
 	*value = _setup.tool_table[_setup.current_pocket].toolno;
 	break;
@@ -835,6 +841,9 @@ int Interp::lookup_named_param(const char *nameBuf,
     *value = is_preview();
     break;
 
+    case NP_TOOL_OFFSET_NUMBER:
+    *value = _setup.tool_offset_number;
+    break;
 
     default:
 	ERS(_("BUG: lookup_named_param(%s): unhandled index=%fn"),
@@ -967,7 +976,7 @@ int Interp::init_named_parameters()
   // active_settings
   init_readonly_param("_feed", NP_FEED, PA_USE_LOOKUP);
   init_readonly_param("_rpm", NP_RPM, PA_USE_LOOKUP);
-
+  init_readonly_param("_css_rpm_max", NP_CSS_RPM_MAX, PA_USE_LOOKUP);
 
   // tool related
   init_readonly_param("_current_tool", NP_CURRENT_TOOL, PA_USE_LOOKUP);
@@ -1044,6 +1053,7 @@ int Interp::init_named_parameters()
   // predicate: 1 in milltask instance, 0 in UI - control preview behaviour
   init_readonly_param("_task", NP_TASK, PA_USE_LOOKUP);
   init_readonly_param("_in_preview", NP_IN_PREVIEW_CONTEXT, PA_USE_LOOKUP);
+  init_readonly_param("_tool_offset_number", NP_TOOL_OFFSET_NUMBER, PA_USE_LOOKUP);
 
   // debugging aids
   init_readonly_param("_call_level", NP_CALL_LEVEL, PA_USE_LOOKUP);

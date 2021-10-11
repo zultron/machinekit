@@ -1984,13 +1984,14 @@ int pmCircleInit(PmCircle * const circle,
         circle->angle = PM_2_PI - circle->angle;
     }
 
-    if (circle->angle > -(CIRCLE_FUZZ) && circle->angle < (CIRCLE_FUZZ)) {
-        circle->angle = PM_2_PI;
-    }
-
-    /* now add more angle for multi turns */
+    /* now add more angle for multi turns (also includes the extra turn for the case when the start / end points are coincident) */
     if (turn > 0) {
         circle->angle += turn * 2.0 * PM_PI;
+    }
+
+    // Ensure that circle angle is nonzero or this will fail
+    if (circle->angle < DOUBLE_FUZZ) {
+        return pmErrno = PM_DIV_ERR;
     }
 
     //Default to invalid

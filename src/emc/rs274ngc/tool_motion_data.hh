@@ -6,8 +6,9 @@
 #include <tuple>
 
 #include "canon_enums.hh"
-#include "positionarray.hh"
-#include "coordinatetransform.hh"
+#include "interp_shared_fwd.hh"
+using namespace interp_shared;
+//#include "coordinatetransform.hh"
 
 enum class MotionType
 {
@@ -19,9 +20,9 @@ enum class MotionType
 };
 
 enum class ParseExecMode {
-    SEEK,
-    PREP,
-    RUN,
+    SEEK, // Before the start line, motions are processed but not executed (shown in a faded color in the preview)
+    PREP, // Preparatory / lead-in motions at the start line
+    RUN, // Normal program run (i.e. everything after the start line is reached)
 };
 
 struct ToolMotionKey

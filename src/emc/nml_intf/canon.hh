@@ -22,12 +22,20 @@
 
 #include <work_offset_structs.hh>
 
+#include <positionarray.hh>
+using namespace interp_shared;
+
 enum PartsCounterTypes {
     COUNTER_M_30_A,
     COUNTER_M_30_B,
     COUNTER_M_99_A,
     COUNTER_M_99_B,
     MAX_PART_COUNTERS
+};
+
+enum CanonReturn {
+    CANON_RETURN_OK=0,
+    CANON_RETURN_ERROR=5,
 };
 
 struct StateTag;
@@ -128,7 +136,7 @@ extern void SET_TRAVERSE_RATE(double rate);
 is expected that no cutting will occur while a traverse move is being
 made. */
 
-extern void STRAIGHT_TRAVERSE(int lineno,
+extern CanonReturn STRAIGHT_TRAVERSE(int lineno,
                               double x, double y, double z,
                               double a, double b, double c,
                               double u, double v, double w);
@@ -284,12 +292,14 @@ extern void STOP_SPEED_FEED_SYNCH();
 
 /* Machining Functions */
 
-extern int ARC_FEED(int lineno,
-                     double first_end, double second_end,
-		     double first_axis, double second_axis, int rotation,
-		     double axis_end_point, 
-                     double a, double b, double c,
-                     double u, double v, double w);
+extern CanonReturn ARC_FEED(
+    int lineno,
+    double first_end, double second_end,
+    double first_axis, double second_axis, int rotation,
+    double axis_end_point,
+    double a, double b, double c,
+    double u, double v, double w,
+    bool allow_implicit_full_turn=true);
 
 /* Move in a helical arc from the current location at the existing feed
 rate. The axis of the helix is parallel to the x, y, or z axis,
@@ -374,7 +384,7 @@ extern void NURBS_FEED(int lineno, std::vector<CONTROL_POINT> nurbs_control_poin
 all axes have covered the same proportion of their required motion.
 The meanings of the parameters is the same as for STRAIGHT_TRAVERSE.*/
 
-extern int RIGID_TAP(
+extern CanonReturn RIGID_TAP(
     int lineno,
     double x,
     double y,
@@ -638,10 +648,11 @@ extern void SET_AUX_OUTPUT_VALUE(int index, double value);
 
 /* Commands to wait for, query input bits and analog values */
 
-extern int WAIT(int index, /* index of the motion exported input */
-        CANON_INPUT input_type, /* 1=DIGITAL_INPUT or 0=ANALOG_INPUT */
-            CANON_WAIT_MODE wait_type, /* 0 - immediate, 1 - rise, 2 - fall, 3 - be high, 4 - be low */
-		double timeout); /* time to wait [in seconds], if the input didn't change the value -1 is returned */
+extern int WAIT(
+    int index, /* index of the motion exported input */
+    CANON_INPUT input_type, /* 1=DIGITAL_INPUT or 0=ANALOG_INPUT */
+    CANON_WAIT_MODE wait_type, /* 0 - immediate, 1 - rise, 2 - fall, 3 - be high, 4 - be low */
+    double timeout); /* time to wait [in seconds], if the input didn't change the value -1 is returned */
 /* WAIT - program execution is stopped until the input selected by index 
    changed to the needed state (specified by wait_type).
    Return value: either wait_type if timeout didn't occur, or -1 otherwise. */

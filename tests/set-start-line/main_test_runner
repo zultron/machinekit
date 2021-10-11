@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+
+import json
+import difflib
+import sys
+import subprocess
+import shutil
+
+if __name__ == '__main__':
+    shutil.copy('sim.tbl.template','sim.tmp.tbl')
+    try:
+        shutil.copy('param.var.template','param.tmp.var')
+    except IOError:
+        print >>sys.stderr, "No param file found, using default"
+    with open('tests.json','r') as f:
+        tests=json.load(f)
+
+    leadin_map = {
+        "none": 0,
+        "linear": 1,
+        "plunge": 2,
+    }
+
+    for t in tests.get('tests',[]):
+        t_name = t.get("file",None)
+        start_line = t["start_line"]
+        leadin = leadin_map[t.get("leadin","linear")]
+        keep_tool = t.get("keep_tool", False)
+
+        lcnc_args=['linuxcnc','-r','test.ini',t_name,str(start_line),'--prep-type',str(leadin)]
+        print lcnc_args
+        subprocess.check_call(lcnc_args)

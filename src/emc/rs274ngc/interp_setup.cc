@@ -79,6 +79,7 @@ setup_struct::setup_struct() :
     sequence_number(0),
     stepping_id(0),
     speed (0.0),
+    css_max_speed (0.0),
     spindle_mode(CONSTANT_RPM),
     speed_feed_mode(CANON_INDEPENDENT),
     speed_override(0),
@@ -159,9 +160,19 @@ block & setup_struct::getControllingBlock()
     return blocks[remap_level];
 }
 
+const block & setup_struct::getControllingBlock() const
+{
+    return const_cast<setup_struct*>(this)->getControllingBlock();
+}
+
 block & setup_struct::getExecutingBlock()
 {
     return blocks[0];
+}
+
+const block & setup_struct::getExecutingBlock() const
+{
+    return const_cast<setup_struct*>(this)->getExecutingBlock();
 }
 
 void setup_struct::setExecutingBlock(const block & b)

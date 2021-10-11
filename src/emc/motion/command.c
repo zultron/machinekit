@@ -644,6 +644,7 @@ check_stuff ( "before command_handler()" );
 	    joint->home_flags = emcmotCommand->flags;
 	    joint->home_sequence = emcmotCommand->home_sequence;
 	    joint->volatile_home = emcmotCommand->volatile_home;
+        joint->homing_flags.external_homing_enabled = emcmotCommand->homing_flags.external_homing_enabled;
 	    break;
 
 	case EMCMOT_OVERRIDE_LIMITS:
@@ -859,6 +860,11 @@ check_stuff ( "before command_handler()" );
 	    if (tmp1 < joint->min_jog_limit) {
 		break;
 	    }
+        if (emcmotCommand->jog_windup_limit > 0 && fabs(tmp1 - joint->pos_cmd) > emcmotCommand->jog_windup_limit) {
+            // Ignore the jog command if the jog target is too far past the
+            // current joint position (to prevent unexpected long jogs, e.g. user spins up the MPG really fast).
+            break;
+        }
 	    /* set target position */
 	    joint->free_pos_cmd = tmp1;
 	    /* set velocity of jog */

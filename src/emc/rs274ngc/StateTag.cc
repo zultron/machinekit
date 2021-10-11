@@ -102,3 +102,14 @@ int StateTag::setActivePlane(CANON_PLANE plane)
     return fields[GM_FIELD_PLANE] < 0;
 }
 
+int StateTag::getCallerLine() const
+{
+    return fields[GM_FIELD_LINE_NUMBER];
+}
+
+int StateTag::getLocalLine() const
+{
+
+    return fields[GM_FIELD_LOCAL_LINE_NUMBER];
+}
+

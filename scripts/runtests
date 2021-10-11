@@ -12,6 +12,13 @@ unset DISPLAY
 # to a sane default.
 export LC_ALL=C
 
+RUNTEST_PYTHON_PATHS=$EMC2_HOME/lib/python/testing
+if [ -z "$PYTHONPATH" ]; then
+    PYTHONPATH=$RUNTEST_PYTHON_PATHS
+else
+    PYTHONPATH=$RUNTEST_PYTHON_PATHS:"$PYTHONPATH"
+fi
+export PYTHONPATH
 
 case "$0" in
 	*/*) MYDIR="${0%/*}" ;;

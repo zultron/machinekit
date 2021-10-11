@@ -1,11 +1,14 @@
 # dot -Tpng homing.dot > homing.png
 # dot -Txlib homing.dot
 
+# NOTE PDH 2021: I have tried to update this as best I can to reflect the new HOME_EXTERNAL state, but this diagram
+# seems to conflict in some ways with the one located at docs/src/code
+
 digraph finite_state_machine {
 
-        node [shape = doublecircle]; IDLE FINISHED
-        node [shape = circle];
-        rankdir=LR;
+        #node [shape = doublecircle]; IDLE FINISHED
+        #node [shape = circle];
+        #rankdir=LR;
         START -> IDLE [ label = "errors" ];
         START -> UNLOCK [ label = "unlock needed" ];
         START -> UNLOCK_WAIT [ label = "unlock not needed" ];
@@ -13,6 +16,10 @@ digraph finite_state_machine {
         UNLOCK_WAIT -> SET_SWITCH_POSITION [ label = "searchvel 0 latchvel 0" ];
         UNLOCK_WAIT -> INDEX_ONLY_START [ label = "searchvel 0 latchvel !0 useindex" ];
         UNLOCK_WAIT -> INITIAL_SEARCH_START [ label = "searchvel !0 latchvel !0" ];
+        UNLOCK_WAIT -> EXTERNAL_START [label="HOME_EXTERNAL\n== TRUE"];
+        EXTERNAL_START -> EXTERNAL_WAIT [label="change drive state\nstart timers\nimmediate"];
+        EXTERNAL_WAIT -> ABORT [label="timeout or\nerror feedback from\ndrive"];
+        EXTERNAL_WAIT -> FINAL_MOVE_START [label="success feedback\nfrom drive\nmotor_offset set to HOME_OFFSET"];
         INITIAL_BACKOFF_START -> INITIAL_BACKOFF_WAIT [ label = "delay times out" ];
         INITIAL_BACKOFF_WAIT -> INITIAL_SEARCH_START [ label = "!switch" ];
         INITIAL_SEARCH_START -> INITIAL_BACKOFF_START [ label = "switch" ];
@@ -34,10 +41,11 @@ digraph finite_state_machine {
         INDEX_SEARCH_WAIT -> SET_INDEX_POSITION [ label = "index found" ];
         SET_INDEX_POSITION -> FINAL_MOVE_START
         FINAL_MOVE_START -> FINAL_MOVE_WAIT
+        FINAL_MOVE_WAIT -> ABORT
         FINAL_MOVE_WAIT -> LOCK [ label = "in position" ];
         LOCK -> LOCK_WAIT
         LOCK_WAIT -> FINISHED
-
+        any -> ABORT [label="hit limit\nend of move"]
         FINISHED -> IDLE
         IDLE -> START 
 }

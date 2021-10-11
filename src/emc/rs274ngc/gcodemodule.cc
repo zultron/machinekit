@@ -24,6 +24,7 @@
 #include "rs274ngc.hh"
 #include "previewinterp.hh"
 #include "interp_return.hh"
+#include "arc_feed_util.hh"
 #include "canon.hh"
 #include "config.h"		// LINELEN
 #include <sstream>
@@ -168,6 +169,7 @@ static uint32_t max_glcanon_lines = 100000;
 static uint32_t _linecount = 0;
 static int cutoff_line_ = 0;
 
+
 static UnitsTransform convertsUserToProg()
 {
     return UnitsTransform(metric ? 25.4 : 1.0, 1.0);
@@ -247,11 +249,12 @@ void NURBS_FEED(int line_number, std::vector<CONTROL_POINT> nurbs_control_points
     knot_vector.clear();
 }
 
-int ARC_FEED(int line_number,
+CanonReturn ARC_FEED(int line_number,
               double first_end, double second_end, double first_axis,
               double second_axis, int rotation, double axis_end_point,
               double a_position, double b_position, double c_position,
-              double u_position, double v_position, double w_position) {
+              double u_position, double v_position, double w_position,
+              bool allow_implicit_full_turn) {
     // XXX: set _pos_*
     if(metric) {
         first_end /= 25.4;
@@ -268,9 +271,10 @@ int ARC_FEED(int line_number,
                     line_number, first_end, second_end, first_axis, second_axis,
                     rotation, axis_end_point,
                     a_position, b_position, c_position,
-                    u_position, v_position, w_position);
+                    u_position, v_position, w_position,
+                    allow_implicit_full_turn);
     }
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 void STRAIGHT_FEED(int line_number,
@@ -302,7 +306,7 @@ void STRAIGHT_FEED(int line_number,
     }
 }
 
-void STRAIGHT_TRAVERSE(int line_number,
+CanonReturn STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
                        double a, double b, double c,
                        double u, double v, double w) {
@@ -310,6 +314,7 @@ void STRAIGHT_TRAVERSE(int line_number,
     if (maybe_new_line()) {
         machine.straight_traverse(line_number, _pos_prog);
     }
+    return CANON_RETURN_OK;
 }
 
 void SET_G5X_TRANSFORM(int origin,
@@ -525,7 +530,25 @@ void FINISH() {}
 void ON_RESET() {}
 void PALLET_SHUTTLE() {}
 void SELECT_POCKET(int pocket, int tool) {}
-void UPDATE_TAG(StateTag const &tag) {}
+
+void prep_for_retract_motion(GCodes mode)
+{
+    switch (mode) {
+    case G_28:
+    case G_30:
+        machine.begin_retract_phase();
+        break;
+    default:
+        break;
+    }
+}
+
+void UPDATE_TAG(StateTag const &tag) {
+    // Check for retraction moves (e.g. normal or remapped G28 / G30)
+    prep_for_retract_motion((GCodes)tag.fields[GM_FIELD_MOTION_MODE_CONTROLLING]);
+    prep_for_retract_motion((GCodes)tag.fields[GM_FIELD_G_MODE_0]);
+}
+
 void SEND_TAG_MSG() {}
 void OPTIONAL_PROGRAM_STOP() {}
 void START_CHANGE() {}
@@ -607,7 +630,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
     }
 }
 
-int RIGID_TAP(int line_number,
+CanonReturn RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
@@ -658,7 +681,7 @@ int RIGID_TAP(int line_number,
     if (maybe_new_line()) {
         machine.rigid_tap(line_number, _pos_prog);
     }
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 double GET_EXTERNAL_MOTION_CONTROL_TOLERANCE() { return 0.1; }
@@ -1066,6 +1089,11 @@ static int do_parse_loop(
         rs274_interp->_setup.current = _pos_prog;
     }
 
+    // TEMPORARY hard-code the hidden / shown extents here (eventually control this by settings)
+    machine.hide_motion_phase_extents.set(MOTION_PHASE_SETUP);
+    machine.hide_motion_phase_preview.set(MOTION_PHASE_SETUP);
+    machine.hide_motion_phase_extents.set(MOTION_PHASE_RETRACT);
+
     ExpandedModalState run_initial_state;
     preview_interp->collect_expanded_modal_state(run_initial_state);
     // Assume a small but non-zero initial feed rate to avoid tripping interp checks for minimum feed
@@ -1252,7 +1280,8 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
         Py_XDECREF(res_motion_key);
     }
 
-    {
+    // Only send extent data if it's valid (otherwise leave it blank and gremlin will use default values for zoom / centerpoint)
+    if (!machine.getToolMotionData().empty() && machine.has_valid_extents()) {
         PyObject *res = callmethod(
             callback,
             "set_extents",
@@ -1545,8 +1574,9 @@ void PreviewMachine::add_motion(ToolMotionKey key, ToolMotion motion)
 
 void PreviewMachine::straight_motion(int line_number, const PositionArray & goal_pos_prog, MotionType t)
 {
-    if (first_move && exec_mode != ParseExecMode::PREP) {
-        // Don't check extents on setup moves because they
+    if (hide_motion_phase_preview[current_motion_phase] && exec_mode != ParseExecMode::PREP) {
+        // Any motion phases flagged as hidden will not be shown in the preview (just advance the current position to the end of the move)
+        // Note that this is overridden for lead-in / prep motions in set-start line because we want to show them for safety.
         set_current_pos(goal_pos_prog);
         return;
     }
@@ -1559,14 +1589,27 @@ void PreviewMachine::straight_motion(int line_number, const PositionArray & goal
     updateExtents(machine_pos_uu);
 }
 
-void PreviewMachine::updateExtents(PositionArray machine_goal_pos_uu)
+bool PreviewMachine::updateExtents(PositionArray const &machine_goal_pos_uu)
 {
+    if (hide_motion_phase_extents[current_motion_phase]) {
+        return false;
+    }
+    // Don't show extents of skipped moves or lead-in motions from set-start-line
+    switch (exec_mode) {
+    //case ParseExecMode::SEEK: // Disable this for now, re-enable when set-start-line can ignore limit violations in skipped moves
+    case ParseExecMode::PREP:
+        return false;
+    default:
+        break;
+    }
+
     max_inplace(extents_tool.max, machine_goal_pos_uu);
     min_inplace(extents_tool.min, machine_goal_pos_uu);
 
     PositionArray p1_machine = transform_uu.forward_tool_to_machine(machine_goal_pos_uu);
     max_inplace(extents_machine.max, p1_machine);
     min_inplace(extents_machine.min, p1_machine);
+    return true;
 }
 
 const PositionArray PreviewMachine::get_current_pos_local() const
@@ -1588,29 +1631,39 @@ void PreviewMachine::set_current_pos(const PositionArray & pos_local_prog) {
     machine_pos_uu =  transform_uu.forward_local_to_tool(convertsProgToUser().forward(pos_local_prog));
 }
 
-void PreviewMachine::begin_feed()
+void PreviewMachine::begin_feed_phase()
 {
-    if (first_move) {
-        first_move = false;
+    if (current_motion_phase != PreviewMotionPhase::MOTION_PHASE_NORMAL) {
+        current_motion_phase = PreviewMotionPhase::MOTION_PHASE_NORMAL;
         // Initial position is now part of a feed move, so include it in the extents calculation
         updateExtents(get_current_pos());
     }
 }
 
-void PreviewMachine::end_feed()
+void PreviewMachine::begin_retract_phase()
 {
-    first_move = true;
+    current_motion_phase = PreviewMotionPhase::MOTION_PHASE_RETRACT;
+}
+
+void PreviewMachine::begin_setup_phase()
+{
+    current_motion_phase = PreviewMotionPhase::MOTION_PHASE_SETUP;
+}
+
+bool PreviewMachine::has_valid_extents() const
+{
+    return extents_machine.max >= extents_machine.min && extents_tool.max >= extents_tool.min;
 }
 
 void PreviewMachine::straight_feed(int line_number, const PositionArray & goal_pos_prog)
 {
-    begin_feed();
+    begin_feed_phase();
     straight_motion(line_number, goal_pos_prog, MotionType::STRAIGHT_FEED);
 }
 
 void PreviewMachine::straight_probe(int line_number, const PositionArray & goal_pos_prog)
 {
-    begin_feed();
+    begin_feed_phase();
     straight_motion(line_number, goal_pos_prog, MotionType::PROBE);
 }
 
@@ -1634,11 +1687,12 @@ void PreviewMachine::arc_feed(int line_number,
                               double c,
                               double u,
                               double v,
-                              double w)
+                              double w,
+                              bool allow_implicit_full_turn)
 {
     static const int max_segments=64; // TODO make customizable
 
-    begin_feed();
+    begin_feed_phase();
 
     int X=0, Y=1, Z=2;
     switch (plane) {
@@ -1664,23 +1718,21 @@ void PreviewMachine::arc_feed(int line_number,
 
     PositionArray const start_lcl = transform_uu.inverse_local_from_tool(machine_pos_uu);
 
-    double theta1 = atan2(start_lcl[Y]-cy, start_lcl[X]-cx);
-    double theta2 = atan2(n[Y]-cy, n[X]-cx);
+    auto circ_data = CircleAngle(
+        start_lcl[X],
+        start_lcl[Y],
+        cx,
+        cy,
+        rot,
+        n[X],
+        n[Y], allow_implicit_full_turn);
 
-    if(rot < 0) {
-        while(theta2 - theta1 > -CIRCLE_FUZZ) theta2 -= 2*M_PI;
-    } else {
-        while(theta2 - theta1 < CIRCLE_FUZZ) theta2 += 2*M_PI;
-    }
+    const double full_angle = circ_data.full_angle();
+    // TODO check that circle data is valid here
 
-    // if multi-turn, add the right number of full circles
-    if(rot < -1) theta2 += 2*M_PI*(rot+1);
-    if(rot > 1) theta2 += 2*M_PI*(rot-1);
-
-    int steps = std::max(3, int(max_segments * fabs(theta1 - theta2) / M_PI));
+    int steps = std::max(3, int(max_segments * fabs(circ_data.full_angle()) / M_PI));
     double rsteps = 1. / steps;
 
-    double dtheta = theta2 - theta1;
     PositionArray d = n-start_lcl;
     d[X] = 0;
     d[Y] = 0;
@@ -1688,7 +1740,7 @@ void PreviewMachine::arc_feed(int line_number,
 
     PositionArray p_lcl_last = start_lcl;
     PositionArray p_lcl = start_lcl;
-    double tx = start_lcl[X] - cx, ty = start_lcl[Y] - cy, dc = cos(dtheta*rsteps), ds = sin(dtheta*rsteps);
+    double tx = start_lcl[X] - cx, ty = start_lcl[Y] - cy, dc = cos(full_angle*rsteps), ds = sin(full_angle*rsteps);
     ToolMotionKey key{MotionType::ARC_FEED, exec_mode, current_tool_pocket};
     auto &motion_set = get_motion_set(key);
     for(int i=0; i<steps-1; i++) {
@@ -1722,7 +1774,7 @@ void PreviewMachine::arc_feed(int line_number,
 
 void PreviewMachine::rigid_tap(int line_number, const PositionArray & goal_pos_prog)
 {
-    begin_feed();
+    begin_feed_phase();
     PositionArray orig_pos_prog = convertsUserToProg().forward(transform_uu.inverse_local_from_tool(get_current_pos()));
     straight_motion(line_number, goal_pos_prog, MotionType::RIGID_TAP);
     straight_motion(line_number, orig_pos_prog, MotionType::RIGID_TAP);
@@ -1735,6 +1787,8 @@ bool PreviewMachine::set_exec_mode(ParseExecMode mode)
     case ParseExecMode::PREP:
     case ParseExecMode::RUN:
         exec_mode = mode;
+        // Make sure toolpath extents are up to date when entering "run" mode (i.e. motions that would actually execute when user runs the program)
+        updateExtents(get_current_pos());
         return true;
     }
     return false;
@@ -1742,7 +1796,7 @@ bool PreviewMachine::set_exec_mode(ParseExecMode mode)
 
 void PreviewMachine::change_tool(int tool_pocket)
 {
-    end_feed();
+    begin_setup_phase();
     current_tool_pocket = tool_pocket;
 }
 
@@ -1751,7 +1805,7 @@ void PreviewMachine::tool_offset(EmcPose const &offset)
     // If the tool offset changes then the current tool tip location will as well
     auto new_tool_offset = ShiftTransform(convertsProgToUser().forward(toArray(offset)));
     machine_pos_uu = transform_uu.swap_tool_offset(get_current_pos(), new_tool_offset);
-    end_feed();
+    begin_setup_phase();
 }
 
 void PreviewMachine::set_feed_rate(double feed_rate_prog)
@@ -1762,11 +1816,12 @@ void PreviewMachine::set_feed_rate(double feed_rate_prog)
 void PreviewMachine::clear_motions()
 {
     tool_motions.clear();
+    // NOTE: extent values are degenerate here (min > max) so that we don't need a special case when adding the first point
     extents_tool.min.fill(1e+99);
     extents_tool.max.fill(-1e+99);
     extents_machine.min.fill(1e+99);
     extents_machine.max.fill(-1e+99);
-    end_feed();
+    begin_setup_phase();
 }
 
 /**

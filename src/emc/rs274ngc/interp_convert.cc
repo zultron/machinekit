@@ -34,6 +34,7 @@
 #include <rotary_axis_util.hh>
 #include "interp_internal.hh"
 #include "gcodegenerator.hh"
+#include "arc_feed_util.hh"
 
 #include "units.h"
 static inline bool TOOL_INSIDE_ARC(CutterCompDirection side, int turn) {
@@ -44,6 +45,7 @@ static inline bool TOOL_INSIDE_ARC(CutterCompDirection side, int turn) {
 
 using namespace interp_param_global;
 using namespace WaitFlag;
+using namespace interp_shared;
 
 // These four functions help make the rest of cutter comp
 // plane-agnostic in much the same way the ARC_FEED canon call is.
@@ -754,9 +756,11 @@ int Interp::convert_arc_comp1(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
                               AA_end, BB_end, CC_end, u_end, v_end, w_end, make_state_tag(*settings, block, toplevel_line));
         set_endpoint(cx, cy);
     }
-    
+
+    auto circ_angle = CircleAngle(cx, cy, center_x, center_y, turn, end_x, end_y, true);
     enqueue_ARC_FEED(toplevel_line,
-                     find_turn(cx, cy, center_x, center_y, turn, end_x, end_y),
+                     circ_angle.full_angle(),
+                     false, // TODO decide if this makes sense (allowing implicit full turns in a comp entry move)
                      end_x, end_y, center_x, center_y, turn, end_z,
                      AA_end, BB_end, CC_end, u_end, v_end, w_end, make_state_tag(*settings, block, toplevel_line));
 
@@ -887,6 +891,10 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
     new_end_y = end_y + tool_radius * sin(gamma);
     const int toplevel_line = get_toplevel_line_number();
 
+    auto circ_angle_orig = CircleAngle(opx, opy, centerx, centery, turn, end_x, end_y, true);
+    midx = cx; // Assign defaults
+    midy = cy;
+
     if (beta < -small || 
         beta > M_PIl + small ||
         // special detection for convex corner on tangent arc->arc (like atop the middle of "m" shape)
@@ -968,7 +976,8 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
             CHP(move_endpoint_and_flush(settings, midx, midy));
         }
         enqueue_ARC_FEED(toplevel_line,
-                         find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
+                         circ_angle_orig.full_angle(),
+                         circ_angle_orig.has_implicit_full_turn,
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
                          AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block, toplevel_line));
     } else if (beta > small) {           /* convex, two arcs needed */
@@ -977,20 +986,23 @@ int Interp::convert_arc_comp2(int move,  //!< either G_2 (cw arc) or G_3 (ccw ar
         dequeue_canons(settings);
         enqueue_ARC_FEED(toplevel_line,
                          0.0, // doesn't matter since we won't move this arc's endpoint
+                         false,
                          midx, midy, opx, opy, ((side == LEFT_COMP) ? -1 : 1),
                          cz,
                          AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block, toplevel_line));
         dequeue_canons(settings);
         set_endpoint(midx, midy);
         enqueue_ARC_FEED(toplevel_line,
-                         find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
+                         circ_angle_orig.full_angle(),
+                         circ_angle_orig.has_implicit_full_turn,
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
                          AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block, toplevel_line));
     } else {                      /* convex, one arc needed */
         dequeue_canons(settings);
         set_endpoint(cx, cy);
         enqueue_ARC_FEED(toplevel_line,
-                         find_turn(opx, opy, centerx, centery, turn, end_x, end_y),
+                         circ_angle_orig.full_angle(),
+                         circ_angle_orig.has_implicit_full_turn,
                          new_end_x, new_end_y, centerx, centery, turn, end_z,
                          AA_end, BB_end, CC_end, u, v, w, make_state_tag(*settings, block, toplevel_line));
     }
@@ -1897,25 +1909,32 @@ Called by: convert_g.
 // doesn't issue any CANONs
 
 int Interp::convert_distance_mode(int g_code,    //!< g_code being executed (must be G_90 or G_91)
-                                 setup_pointer settings)        //!< pointer to machine settings                 
+                                 setup_pointer settings)        //!< pointer to machine settings
 {
-  if (g_code == G_90) {
-    if (settings->distance_mode != MODE_ABSOLUTE) {
+    switch (g_code) {
+    case G_90:
+        if (settings->distance_mode != MODE_ABSOLUTE) {
 #ifdef DEBUG_EMC
-      enqueue_COMMENT("interpreter: distance mode changed to absolute");
+            enqueue_COMMENT("interpreter: distance mode changed to absolute");
 #endif
-      settings->distance_mode = MODE_ABSOLUTE;
-    }
-  } else if (g_code == G_91) {
-    if (settings->distance_mode != MODE_INCREMENTAL) {
+        }
+        settings->distance_mode = MODE_ABSOLUTE;
+        return INTERP_OK;
+    case G_91:
+        if (settings->distance_mode != MODE_INCREMENTAL) {
 #ifdef DEBUG_EMC
-      enqueue_COMMENT("interpreter: distance mode changed to incremental");
+            enqueue_COMMENT("interpreter: distance mode changed to incremental");
 #endif
-      settings->distance_mode = MODE_INCREMENTAL;
+        }
+        settings->distance_mode = MODE_INCREMENTAL;
+        return INTERP_OK;
+    case G_90_2:
+    case G_91_2:
+        // No action, the distance mode setting only applies to the current block
+        return INTERP_OK;
+    default:
+        ERS(NCE_BUG_CODE_NOT_G90_OR_G91);
     }
-  } else
-    ERS(NCE_BUG_CODE_NOT_G90_OR_G91);
-  return INTERP_OK;
 }
 
 /****************************************************************************/
@@ -2386,9 +2405,9 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
   if (CC_end != settings->current[C] && settings->c_indexer)
       issue_straight_index(5, CC_end, toplevel_line, settings);
 
-  STRAIGHT_TRAVERSE(toplevel_line, end_x, end_y, end_z,
-                    AA_end, BB_end, CC_end,
-                    u_end, v_end, w_end);
+  CHP_CANON(STRAIGHT_TRAVERSE(toplevel_line, end_x, end_y, end_z,
+                              AA_end, BB_end, CC_end,
+                              u_end, v_end, w_end));
 
   settings->current[X] = end_x;
   settings->current[Y] = end_y;
@@ -2467,9 +2486,9 @@ int Interp::convert_home(int move,       //!< G code, must be G_28 or G_30
   if (CC_end != settings->current[C] && settings->c_indexer)
       issue_straight_index(5, CC_end, get_toplevel_line_number(), settings);
 
-  STRAIGHT_TRAVERSE(toplevel_line, end_x, end_y, end_z,
-                    AA_end, BB_end, CC_end,
-                    u_end, v_end, w_end);
+  CHP_CANON(STRAIGHT_TRAVERSE(toplevel_line, end_x, end_y, end_z,
+                              AA_end, BB_end, CC_end,
+                              u_end, v_end, w_end));
   settings->current[X] = end_x;
   settings->current[Y] = end_y;
   settings->current[Z] = end_z;
@@ -2759,9 +2778,9 @@ int Interp::gen_toolOffset(GCodeGenerator &generator, GCodes tool_offset_mode, i
     return INTERP_OK;
 }
 
-int Interp::check_startline_leadin_feedrate(double &feed_rate_uu, const char *move_type)
+int Interp::check_startline_leadin_feedrate(double &feed_rate_uu)
 {
-    CHKS(feed_rate_uu < 1e-10, _("Can't do %s lead-in move with zero feed rate (lead-in uses current machine feed)"), move_type);
+    CHKS(feed_rate_uu < 1e-10, _("Can't do lead-in move with zero feed rate (lead-in uses current machine feed)"));
     return INTERP_OK;
 }
 
@@ -2775,6 +2794,19 @@ int Interp::check_leadin_feedmode(ModalState const &initial, ModalState const &t
             leadin_feedrate
             );
     }
+    return INTERP_OK;
+}
+
+int Interp::check_leadin_move_feed(
+    ExpandedModalState const &to_restore,
+    AutoRunSettings const &run_settings,
+    ExpandedModalState const &run_initial_state,
+    double &leadin_feedrate
+    )
+{
+    leadin_feedrate = USER_TO_PROGRAM_LEN(run_initial_state.modal_state.feed_rate_uu);
+    CHP(check_leadin_feedmode(run_initial_state.modal_state, to_restore.modal_state, run_settings.start_line, leadin_feedrate));
+    CHP(check_startline_leadin_feedrate(leadin_feedrate));
     return INTERP_OK;
 }
 
@@ -2806,12 +2838,19 @@ int Interp::create_full_restore_sequence(
     }
 #endif
 
-    if (!run_settings.keep_current_tool) {
-        generator.printMsg("program preamble: Change to active tool at start line and execute prolog and epilog");
-        generator.addPreformatted("G90"); // Necessary to allow absolute moves in toolchange prolog
-        generator.addPreformatted(preamble.toolchange_prolog, "TOOLCHANGE PROLOG");
-        generator.addToolChange(to_restore.modal_state.tool_number);
-        generator.addPreformatted(preamble.toolchange_epilog, "TOOLCHANGE EPILOG");
+    if (run_settings.keep_current_tool) {
+        generator.printMsg(std::string("program preamble: keep currently loaded tool ") + std::to_string(run_initial_state.modal_state.tool_number));
+    } else {
+        int needed_tool = to_restore.modal_state.tool_number;
+        if (run_initial_state.modal_state.tool_number == needed_tool) {
+            generator.printMsg(std::string("program preamble: required tool ") + std::to_string(needed_tool) + " is currently loaded");
+        } else {
+            generator.printMsg("program preamble: Change to active tool at start line and execute prolog and epilog");
+            generator.addPreformatted("G90"); // Necessary to allow absolute moves in toolchange prolog
+            generator.addPreformatted(preamble.toolchange_prolog, "TOOLCHANGE PROLOG");
+            generator.addToolChange(needed_tool);
+            generator.addPreformatted(preamble.toolchange_epilog, "TOOLCHANGE EPILOG");
+        }
     }
 
     // Crude way to ensure that the "persistant" values are properly copied into stat
@@ -2846,14 +2885,14 @@ int Interp::create_full_restore_sequence(
     PositionArray leadin_position_raw = _setup.transform.inverse_local_from_tool(leadin_tool_prog);
     PositionArray leadin_position = _setup.posWithDiameterMode(leadin_position_raw);
 
-    double leadin_feedrate = USER_TO_PROGRAM_LEN(run_initial_state.modal_state.feed_rate_uu);
-    CHP(check_leadin_feedmode(run_initial_state.modal_state, to_restore.modal_state, run_settings.start_line, leadin_feedrate));
     double feedrate_to_restore = to_restore.modal_state.settings[SETTINGS_FEED_RATE]; // Already in program units
+    double leadin_feedrate = 0;
 
     switch (run_settings.leadin_type) {
     case PREP_LINEAR_LEADIN:
     {
-        CHP(check_startline_leadin_feedrate(leadin_feedrate, "linear"));
+        CHP(check_leadin_move_feed(to_restore, run_settings, run_initial_state, leadin_feedrate));
+
         generator.printMsg("program preamble: Linear lead-in at program feed, from initial position to program position at start of next line");
         generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);
@@ -2871,7 +2910,7 @@ int Interp::create_full_restore_sequence(
         break;
     case PREP_PLUNGE_LEADIN:
     {
-        CHP(check_startline_leadin_feedrate(leadin_feedrate, "plunge"));
+        CHP(check_leadin_move_feed(to_restore, run_settings, run_initial_state, leadin_feedrate));
         generator.printMsg("program preamble: Traverse / Plunge lead-in at program feed, from safe height to program height at start of next line");
         generator.addPreformatted("G4 P0.001 (draw start point here)");
         generator.addPreformatted(preamble.leadin_prolog);
@@ -4066,14 +4105,12 @@ int Interp::convert_spindle_mode(block_pointer block, setup_pointer settings)
 {
     if(block->g_modes[GM_SPINDLE_MODE] == G_97) {
         settings->spindle_mode = CONSTANT_RPM;
-        enqueue_SET_SPINDLE_MODE(0, make_state_tag(*settings, block));
+        settings->css_max_speed = 0;
     } else { /* G_96 */
         settings->spindle_mode = CONSTANT_SURFACE;
-	if(block->d_flag)
-        enqueue_SET_SPINDLE_MODE(fabs(block->d_number_float), make_state_tag(*settings, block));
-	else
-        enqueue_SET_SPINDLE_MODE(1e30, make_state_tag(*settings, block));
+        settings->css_max_speed = block->d_flag ? fabs(block->d_number_float) : 1e30;
     }
+    enqueue_SET_SPINDLE_MODE(settings->css_max_speed, make_state_tag(*settings, block));
     return INTERP_OK;
 }
 /****************************************************************************/
@@ -4493,9 +4530,9 @@ int Interp::convert_straight(GCodes move,   //!< either G_0 or G_1
         const int line_number = write_and_update_state_tag(block);
         switch (move) {
         case G_0:
-            STRAIGHT_TRAVERSE(line_number, end_x, end_y, end_z,
-                      AA_end, BB_end, CC_end,
-                      u_end, v_end, w_end);
+            CHP_CANON(STRAIGHT_TRAVERSE(line_number, end_x, end_y, end_z,
+                                  AA_end, BB_end, CC_end,
+                                  u_end, v_end, w_end));
     settings->current[X] = end_x;
     settings->current[Y] = end_y;
     settings->current[Z] = end_z;
@@ -4626,9 +4663,9 @@ int Interp::issue_straight_index(int axis, double target, int lineno, setup_poin
 
     // tell canon that this is a special indexing move
     UNLOCK_ROTARY(lineno, axis);
-    STRAIGHT_TRAVERSE(lineno, settings->current[X], settings->current[Y], settings->current[Z],
-                      AA_end, BB_end, CC_end,
-                      settings->current[U], settings->current[V], settings->current[W]);
+    CHP_CANON(STRAIGHT_TRAVERSE(lineno, settings->current[X], settings->current[Y], settings->current[Z],
+                          AA_end, BB_end, CC_end,
+                          settings->current[U], settings->current[V], settings->current[W]));
     LOCK_ROTARY(lineno, axis);
 
     // restore path mode
@@ -4647,8 +4684,8 @@ struct StraightTraverseXYZ
     StraightTraverseXYZ(PositionArray const &default_pos_in) :
         default_pos(default_pos_in) {}
 
-    void operator()(int line_number, double x, double y, double z) const {
-        STRAIGHT_TRAVERSE(line_number,
+    int operator()(int line_number, double x, double y, double z) const {
+        return STRAIGHT_TRAVERSE(line_number,
                           x,
                           y,
                           z,
@@ -5125,6 +5162,7 @@ int Interp::convert_straight_comp2(int move,     //!< either G_0 or G_1
             if(move == G_1) {
                 enqueue_ARC_FEED(toplevel_line,
                                  0.0, // doesn't matter, since we will not move this arc's endpoint
+                                 false,
                                  mid_x, mid_y, opx, opy,
                                  ((side == LEFT_COMP) ? -1 : 1), cz,
                                  AA_end, BB_end, CC_end, u_end, v_end, w_end, tag);
@@ -5294,7 +5332,7 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
       PositionArray local_machine_zero = settings->transform.inverse_local_from_machine(PositionArray{});
       auto plunge_axis_zero = merge(settings->current, local_machine_zero, settings->default_seek_preamble.plunge_axes);
       COMMENT("AXIS,hide");
-      STRAIGHT_TRAVERSE(-1, UNPACK_POSITION_ARRAY_REF(plunge_axis_zero));
+      CHP_CANON(STRAIGHT_TRAVERSE(get_toplevel_line_number(), UNPACK_POSITION_ARRAY_REF(plunge_axis_zero)));
       COMMENT("AXIS,show");
       settings->current = plunge_axis_zero;
   }
@@ -5332,9 +5370,9 @@ int Interp::convert_tool_change(setup_pointer settings)  //!< pointer to machine
       if (CC_end != settings->current[C] && settings->c_indexer)
           issue_straight_index(5, CC_end, -1, settings);
 
-      STRAIGHT_TRAVERSE(-1, end_x, end_y, end_z,
-                        AA_end, BB_end, CC_end,
-                        u_end, v_end, w_end);
+      CHP_CANON(STRAIGHT_TRAVERSE(get_toplevel_line_number(), end_x, end_y, end_z,
+                                  AA_end, BB_end, CC_end,
+                                  u_end, v_end, w_end));
       COMMENT("AXIS,show");
       settings->current[X] = end_x;
       settings->current[Y] = end_y;

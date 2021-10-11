@@ -128,10 +128,8 @@ int emcAxisSetBacklash(int axis, double backlash)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-// saved values of limits, since emcmot expects them to be set in
+// NOTE: saved values of limits, since emcmot expects them to be set in
 // pairs and we set them individually.
-static double saveMinLimit[EMCMOT_MAX_JOINTS];
-static double saveMaxLimit[EMCMOT_MAX_JOINTS];
 
 int emcAxisSetMinPositionLimit(int axis, double limit)
 {
@@ -148,9 +146,9 @@ int emcAxisSetMinPositionLimit(int axis, double limit)
 
     emcmotCommand.command = EMCMOT_SET_POSITION_LIMITS;
     emcmotCommand.axis = axis;
-    emcmotCommand.maxLimit = saveMaxLimit[axis];
+    emcmotCommand.maxLimit = axis_max_position_limit[axis];
     emcmotCommand.minLimit = limit;
-    saveMinLimit[axis] = limit;
+    axis_min_position_limit[axis] = limit;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
@@ -170,9 +168,9 @@ int emcAxisSetMaxPositionLimit(int axis, double limit)
 
     emcmotCommand.command = EMCMOT_SET_POSITION_LIMITS;
     emcmotCommand.axis = axis;
-    emcmotCommand.minLimit = saveMinLimit[axis];
+    emcmotCommand.minLimit = axis_min_position_limit[axis];
     emcmotCommand.maxLimit = limit;
-    saveMaxLimit[axis] = limit;
+    axis_max_position_limit[axis] = limit;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
@@ -238,7 +236,7 @@ int emcAxisSetMinFerror(int axis, double ferror)
 int emcAxisSetHomingParams(int axis, double home, double offset, double home_final_vel,
 			   double search_vel, double latch_vel,
 			   int use_index, int ignore_limits, int is_shared,
-			   int sequence,int volatile_home, int locking_indexer)
+			   int sequence,int volatile_home, int locking_indexer, int home_external)
 {
 #ifdef ISNAN_TRAP
     if (std::isnan(home) || std::isnan(offset) || std::isnan(home_final_vel) ||
@@ -273,6 +271,9 @@ int emcAxisSetHomingParams(int axis, double home, double offset, double home_fin
     }
     if (locking_indexer) {
         emcmotCommand.flags |= HOME_UNLOCK_FIRST;
+    }
+    if (home_external) {
+        emcmotCommand.homing_flags.external_homing_enabled = 1;
     }
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
@@ -488,7 +489,7 @@ int emcAxisJog(int axis, double vel)
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
 
-int emcAxisIncrJog(int axis, double incr, double vel)
+int emcAxisIncrJog(int axis, double incr, double vel, double windup_limit)
 {
     if (axis < 0 || axis >= EMCMOT_MAX_JOINTS) {
 	return 0;
@@ -504,6 +505,7 @@ int emcAxisIncrJog(int axis, double incr, double vel)
     emcmotCommand.axis = axis;
     emcmotCommand.vel = vel;
     emcmotCommand.offset = incr;
+    emcmotCommand.jog_windup_limit = windup_limit;
 
     return usrmotWriteEmcmotCommand(&emcmotCommand);
 }
@@ -1188,6 +1190,7 @@ int emcTrajUpdate(EMC_TRAJ_STAT * stat)
     stat->distance_to_go = emcmotStatus.distance_to_go;
     stat->dtg = emcmotStatus.dtg;
     stat->current_vel = emcmotStatus.current_vel;
+    stat->pure_angular_move = emcmotStatus.pure_angular_move;
     stat->dwell_time_remaining = emcmotStatus.dwell_time_remaining;
     // tormach added to deal with disconnect between motion and interp time *dpr 3/12/13
     stat->uu_per_rev = emcmotStatus.uu_per_rev;
@@ -1577,6 +1580,7 @@ int emcMotionUpdate(EMC_MOTION_STAT * stat)
     
     stat->spindle.enabled = emcmotStatus.spindle_cmd.velocity_rpm_out != 0;
     stat->spindle.speed = emcmotStatus.spindle_cmd.velocity_rpm_out;
+    stat->spindle.speed_fb = emcmotStatus.spindle_fb.velocity_rps * 60.;
     stat->spindle.brake = emcmotStatus.spindle_cmd.brake;
 
     // Report spindle direction based on commanded velocity

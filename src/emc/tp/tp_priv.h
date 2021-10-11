@@ -32,7 +32,7 @@ int tpUpdateCycle(TP_STRUCT * const tp,
         TC_STRUCT const * const nexttc,
         UpdateCycleMode cycle_mode);
 
-double tpGetCurrentVel(TP_STRUCT const * const tp, PmVector const * const v_current);
+double tpGetCurrentVel(TP_STRUCT const * const tp, PmVector const * const v_current, int * pure_angular);
 int tpRunOptimization(TP_STRUCT * const tp);
 
 int tpAddSegmentToQueue(TP_STRUCT * const tp, TC_STRUCT * const tc);

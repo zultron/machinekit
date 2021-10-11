@@ -14,6 +14,7 @@
 
 #include "gcodegenerator.hh"
 #include "coordinatetransform.hh"
+using namespace interp_shared;
 
 #include "config.h"
 
@@ -166,12 +167,35 @@ void GCodeGenerator::printMsg(const std::string && msg)
     cmd_list.emplace_back("(PRINT,"+msg+")");
 }
 
+void GCodeGenerator::addSpindleMode(GCodes spindle_mode, double css_max_speed, double speed)
+{
+    std::string cmd;
+    char buf[LINELEN]={};
+    formatGCode(spindle_mode, cmd);
+    if (spindle_mode == G_96) {
+        snprintf(buf,sizeof(buf),"D%.17f ", css_max_speed);
+        cmd+=buf;
+    }
+    // Always include a spindle speed (even if it's unchanged) when setting spindle mode
+    snprintf(buf,sizeof(buf),"S%.17f", speed);
+    cmd+=buf;
+    cmd_list.emplace_back(cmd);
+}
+
+void GCodeGenerator::addSpindleSpeed(double speed)
+{
+    std::ostringstream speed_word;
+    speed_word << " S" << std::fixed << std::setprecision(8) << speed;
+    cmd_list.emplace_back(speed_word.str());
+}
+
 int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState & saved)
 {
     // Always restore work offset number using extended work offset format (since modal state is not fully captured in the G5x mode)
     addWorkOffset(saved.work_offset_number);
 
-    std::string cmd;
+    std::string cmd; // Main command sequence to restore modal state
+
     for (int ii = 0; ii < ACTIVE_G_CODES; ii++) {
         int val = saved.g_codes[ii];
         if (val == current.g_codes[ii]) {
@@ -185,6 +209,8 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
         case G_CODE_UNITS: // - length units (handled separately)
         case G_CODE_MOTION_MODE: // restoring the motion mode is a real bad idea to start with
         case G_CODE_ORIGIN: // Handled separately due to extended work offsets
+        case G_CODE_SPINDLE_MODE: // Handled separately (needs to occur after all offsets are updated for G96)
+        case G_CODE_FEED_MODE: // Handled separately (called together with feed rate for clarity)
             break;
 
         case G_CODE_TOOL_LENGTH_OFFSET: // - tool offset (G43/G49)
@@ -197,15 +223,9 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
             }
             break;
 
-        case G_CODE_SPINDLE_MODE: // - spindle mode
-            // Force restoration of spindle speed too
-        // If G96 spindle mode is present for constant surface speed, you must have an S word
-        // also even if S appears to be the same between saved and current vectors.
-            current.settings[SETTINGS_SPEED] = -1;
         case G_CODE_PLANE: // - plane
         case G_CODE_CUTTER_SIDE: // - cutter compensation
         case G_CODE_DISTANCE_MODE: // - distance mode
-        case G_CODE_FEED_MODE: // - feed mode
         case G_CODE_RETRACT_MODE: // - retract mode
         case G_CODE_PATH_MODE: // - control mode
         case G_CODE_DISTANCE_MODE_IJK: // - ijk distance mode
@@ -217,27 +237,25 @@ int GCodeGenerator::addModalStateGCodes(ModalState & current, const ModalState &
         }
     }
 
-    char buf[LINELEN]={};
-    for (int ii = 0; ii < ACTIVE_SETTINGS; ii++) {
-        if (saved.settings[ii] == current.settings[ii]) {
-            continue;
-        }
-        switch ((ActiveSettingIndex)ii) {
-        case SETTINGS_SEQUENCE_NUMBER: break; // sequence_number - no point in restoring
-        case SETTINGS_FEED_RATE:
-            // FPR mode feed rates get clobbered if this is rounded down too far
-            snprintf(buf,sizeof(buf)," F%.17f ", saved.settings[ii]);
-            cmd+=buf;
-            break;
-        case SETTINGS_SPEED:
-            snprintf(buf,sizeof(buf)," S%.0f ", saved.settings[ii]);
-            cmd+=buf;
-            break;
-        case ACTIVE_SETTINGS: // Not a real setting index
-            break;
-        }
-    }
     cmd_list.emplace_back(cmd);
+
+    // End of bulk G-code restore here. Now restore speed / feed modes
+
+    if (saved.g_codes[G_CODE_FEED_MODE] != current.g_codes[G_CODE_FEED_MODE] ||
+        saved.settings[SETTINGS_FEED_RATE] != current.settings[SETTINGS_FEED_RATE]) {
+        addFeedMode((GCodes)saved.g_codes[G_CODE_FEED_MODE], saved.settings[SETTINGS_FEED_RATE]);
+    }
+
+    if (saved.g_codes[G_CODE_SPINDLE_MODE] != current.g_codes[G_CODE_SPINDLE_MODE]) {
+        GCodes spindle_mode = (GCodes)saved.g_codes[G_CODE_SPINDLE_MODE];
+        addSpindleMode(
+            spindle_mode,
+            saved.settings[SETTINGS_CSS_MAX_SPEED],
+            saved.settings[SETTINGS_SPEED]);
+    } else if (saved.settings[SETTINGS_SPEED] != current.settings[SETTINGS_SPEED]) {
+        addSpindleSpeed(saved.settings[SETTINGS_SPEED]);
+    }
+
     return 0;
 }
 
@@ -315,6 +333,17 @@ int GCodeGenerator::addFeedRate(double feed_rate)
     feed_word << "F" << std::fixed << std::setprecision(8) << feed_rate;
 
     cmd_list.emplace_back(feed_word.str());
+    return 0;
+}
+
+int GCodeGenerator::addFeedMode(GCodes feed_mode, double feed_rate)
+{
+    std::string mode_str;
+    formatGCode(feed_mode, mode_str);
+    std::ostringstream feed_mode_cmd;
+    feed_mode_cmd << mode_str << "F" << std::fixed << std::setprecision(8) << feed_rate;
+
+    cmd_list.emplace_back(feed_mode_cmd.str());
     return 0;
 }
 

@@ -25,7 +25,12 @@ retval = 0
 def end_log(logfile_name):
     c.wait_complete()
     comp['reopen-log'] = True
-    while comp['reopen-log']: time.sleep(.01)
+    while comp['reopen-log']:
+        err = e.poll()
+        if err is not None and err[2] >= 2:
+            print >>sys.stderr, "Got unexpected error ", err
+            sys.exit(1)
+        time.sleep(.01)
     os.rename("out.motion-logger", 'result.%s' % logfile_name)
     status = subprocess.call(['diff', '-u', 'expected.%s' % logfile_name, 'result.%s' % logfile_name], shell=False)
     if status == 0:

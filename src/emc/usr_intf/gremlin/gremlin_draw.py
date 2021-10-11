@@ -271,7 +271,7 @@ class GremlinDraw(glnav.GlNavBase):
             return
         self.highlight_line = line
         self.stale_dlist('highlight')
-        if self.canon is None:
+        if self.canon is None or not self.canon.has_extents():
             self.set_centerpoint(0, 0, 0)
             return
         elif line is None:
@@ -354,7 +354,8 @@ class GremlinDraw(glnav.GlNavBase):
     def draw_program_extents(self):
         s = self.stat
         g = self.canon
-        if g is None: return
+        if self.canon is None or not self.canon.has_extents():
+            return
 
         # Dimensions
         x,y,z,p = 0,1,2,3
@@ -1087,13 +1088,12 @@ class GremlinDraw(glnav.GlNavBase):
             self.cached_tool = current_tool
 
     def find_tool_placeholder_scale(self):
-        if self.canon:
-            g = self.canon
+        if self.canon and self.canon.has_extents():
             x, y, z = 0, 1, 2
             return 0.5 * max(
-                g.max_extents[x] - g.min_extents[x],
-                g.max_extents[y] - g.min_extents[y],
-                g.max_extents[z] - g.min_extents[z],
+                self.canon.max_extents[x] - self.canon.min_extents[x],
+                self.canon.max_extents[y] - self.canon.min_extents[y],
+                self.canon.max_extents[z] - self.canon.min_extents[z],
                 2.)
         else:
             return 1
@@ -1383,43 +1383,42 @@ class GremlinDraw(glnav.GlNavBase):
         return limit, homed, posstrs, droposstrs
 
     def draw_small_origin(self, n):
-        glNewList(n, GL_COMPILE)
-        r = 2.0/25.4
-        glColor3f(*self.color_config.get_color('small_origin'))
+        with gl_new_list(n, GL_COMPILE):
+            r = 2.0/25.4
+            glColor3f(*self.color_config.get_color('small_origin'))
 
-        glBegin(GL_LINE_STRIP)
-        for i in range(37):
-            theta = (i*10)*math.pi/180.0
-            glVertex3f(r*math.cos(theta),r*math.sin(theta),0.0)
-        glEnd()
-        glBegin(GL_LINE_STRIP)
-        for i in range(37):
-            theta = (i*10)*math.pi/180.0
-            glVertex3f(0.0, r*math.cos(theta), r*math.sin(theta))
-        glEnd()
-        glBegin(GL_LINE_STRIP)
-        for i in range(37):
-            theta = (i*10)*math.pi/180.0
-            glVertex3f(r*math.cos(theta),0.0, r*math.sin(theta))
-        glEnd()
+            glBegin(GL_LINE_STRIP)
+            for i in range(37):
+                theta = (i*10)*math.pi/180.0
+                glVertex3f(r*math.cos(theta),r*math.sin(theta),0.0)
+            glEnd()
+            glBegin(GL_LINE_STRIP)
+            for i in range(37):
+                theta = (i*10)*math.pi/180.0
+                glVertex3f(0.0, r*math.cos(theta), r*math.sin(theta))
+            glEnd()
+            glBegin(GL_LINE_STRIP)
+            for i in range(37):
+                theta = (i*10)*math.pi/180.0
+                glVertex3f(r*math.cos(theta),0.0, r*math.sin(theta))
+            glEnd()
 
-        glBegin(GL_LINES)
-        glVertex3f(-r, -r, 0.0)
-        glVertex3f( r,  r, 0.0)
-        glVertex3f(-r,  r, 0.0)
-        glVertex3f( r, -r, 0.0)
+            glBegin(GL_LINES)
+            glVertex3f(-r, -r, 0.0)
+            glVertex3f( r,  r, 0.0)
+            glVertex3f(-r,  r, 0.0)
+            glVertex3f( r, -r, 0.0)
 
-        glVertex3f(-r, 0.0, -r)
-        glVertex3f( r, 0.0,  r)
-        glVertex3f(-r, 0.0,  r)
-        glVertex3f( r, 0.0, -r)
+            glVertex3f(-r, 0.0, -r)
+            glVertex3f( r, 0.0,  r)
+            glVertex3f(-r, 0.0,  r)
+            glVertex3f( r, 0.0, -r)
 
-        glVertex3f(0.0, -r, -r)
-        glVertex3f(0.0,  r,  r)
-        glVertex3f(0.0, -r,  r)
-        glVertex3f(0.0,  r, -r)
-        glEnd()
-        glEndList()
+            glVertex3f(0.0, -r, -r)
+            glVertex3f(0.0,  r,  r)
+            glVertex3f(0.0, -r,  r)
+            glVertex3f(0.0,  r, -r)
+            glEnd()
 
     def make_local_axes(self, dlist_name, letters="XYZ"):
         """
@@ -1429,82 +1428,80 @@ class GremlinDraw(glnav.GlNavBase):
         :param letters:
         :return:
         """
-        glNewList(dlist_name, GL_COMPILE)
-        x,y,z,p = 0,1,2,3
-        view = self.get_view()
+        with gl_new_list(dlist_name, GL_COMPILE):
+            x,y,z,p = 0,1,2,3
+            view = self.get_view()
 
-        glColor3f(*self.color_config.get_color('axis_x'))
-        glBegin(GL_LINES)
-        if self.is_rear_tool_post_lathe():
-            glVertex3f(-1.0,0.0,0.0)
-        else:
-            glVertex3f(1.0,0.0,0.0)
-        glVertex3f(0.0,0.0,0.0)
-        glEnd()
-
-        if view != x:
-            glPushMatrix()
-            if self.is_lathe():
-                self.color_config.gl_color('probe_shaft')
-                if self.is_rear_tool_post_lathe():
-                    glTranslatef(-1.3, 0, 0)
-                    glRotatef(-90, 0, 0, 1)
-                    glRotatef(90, 0, 1, 0)
-                else:
-                    glTranslatef(1.3, -0.1, 0)
-                    glTranslatef(0, 0, -0.1)
-                    glRotatef(-90, 0, 1, 0)
-                    glRotatef(90, 1, 0, 0)
-                    glTranslatef(0.1, 0, 0)
+            glColor3f(*self.color_config.get_color('axis_x'))
+            glBegin(GL_LINES)
+            if self.is_rear_tool_post_lathe():
+                glVertex3f(-1.0,0.0,0.0)
             else:
-                glTranslatef(1.2, -0.1, 0)
-                if view == y:
+                glVertex3f(1.0,0.0,0.0)
+            glVertex3f(0.0,0.0,0.0)
+            glEnd()
+
+            if view != x:
+                glPushMatrix()
+                if self.is_lathe():
+                    if self.is_rear_tool_post_lathe():
+                        glTranslatef(-1.3, 0, 0)
+                        glRotatef(-90, 0, 0, 1)
+                        glRotatef(90, 0, 1, 0)
+                    else:
+                        glTranslatef(1.3, -0.1, 0)
+                        glTranslatef(0, 0, -0.1)
+                        glRotatef(-90, 0, 1, 0)
+                        glRotatef(90, 1, 0, 0)
+                        glTranslatef(0.1, 0, 0)
+                else:
+                    glTranslatef(1.2, -0.1, 0)
+                    if view == y:
+                        glTranslatef(0, 0, -0.1)
+                        glRotatef(90, 1, 0, 0)
+                glScalef(0.2, 0.2, 0.2)
+                self.hershey.plot_string(letters[0], 0.5)
+                glPopMatrix()
+
+            glColor3f(*self.color_config.get_color('axis_y'))
+            glBegin(GL_LINES)
+            glVertex3f(0.0,0.0,0.0)
+            glVertex3f(0.0,1.0,0.0)
+            glEnd()
+
+            if view != y:
+                glPushMatrix()
+                glTranslatef(0, 1.2, 0)
+                if view == x:
                     glTranslatef(0, 0, -0.1)
+                    glRotatef(90, 0, 1, 0)
+                    glRotatef(90, 0, 0, 1)
+                glScalef(0.2, 0.2, 0.2)
+                self.hershey.plot_string(letters[1], 0.5)
+                glPopMatrix()
+
+            glColor3f(*self.color_config.get_color('axis_z'))
+            glBegin(GL_LINES)
+            glVertex3f(0.0,0.0,0.0)
+            glVertex3f(0.0,0.0,1.0)
+            glEnd()
+
+            if view != z:
+                glPushMatrix()
+                glTranslatef(0, 0, 1.2)
+                if self.is_lathe():
+                    glRotatef(90, 0, 1, 0)
+                if view == x:
+                    glRotatef(90, 0, 1, 0)
+                    glRotatef(90, 0, 0, 1)
+                elif view == y or view == p:
                     glRotatef(90, 1, 0, 0)
-            glScalef(0.2, 0.2, 0.2)
-            self.hershey.plot_string(letters[0], 0.5)
-            glPopMatrix()
+                if self.is_lathe():
+                    glTranslatef(0, -.1, 0)
+                glScalef(0.2, 0.2, 0.2)
+                self.hershey.plot_string(letters[2], 0.5)
+                glPopMatrix()
 
-        glColor3f(*self.color_config.get_color('axis_y'))
-        glBegin(GL_LINES)
-        glVertex3f(0.0,0.0,0.0)
-        glVertex3f(0.0,1.0,0.0)
-        glEnd()
-
-        if view != y:
-            glPushMatrix()
-            glTranslatef(0, 1.2, 0)
-            if view == x:
-                glTranslatef(0, 0, -0.1)
-                glRotatef(90, 0, 1, 0)
-                glRotatef(90, 0, 0, 1)
-            glScalef(0.2, 0.2, 0.2)
-            self.hershey.plot_string(letters[1], 0.5)
-            glPopMatrix()
-
-        glColor3f(*self.color_config.get_color('axis_z'))
-        glBegin(GL_LINES)
-        glVertex3f(0.0,0.0,0.0)
-        glVertex3f(0.0,0.0,1.0)
-        glEnd()
-
-        if view != z:
-            glPushMatrix()
-            glTranslatef(0, 0, 1.2)
-            if self.is_lathe():
-                glRotatef(90, 0, 1, 0)
-            if view == x:
-                glRotatef(90, 0, 1, 0)
-                glRotatef(90, 0, 0, 1)
-            elif view == y or view == p:
-                glRotatef(90, 1, 0, 0)
-            if self.is_lathe():
-                glTranslatef(0, -.1, 0)
-            glScalef(0.2, 0.2, 0.2)
-            self.hershey.plot_string(letters[2], 0.5)
-            glPopMatrix()
-
-        glEndList()
 
     def gl_draw_g92_label(self, g92_offset):
         x,y,z,p = 0,1,2,3
@@ -1626,7 +1623,7 @@ class GremlinDraw(glnav.GlNavBase):
         glDepthFunc(GL_LESS)
 
     def extents_info(self):
-        if self.canon:
+        if self.canon and self.canon.has_extents():
             lim_min = np.array(self.canon.min_extents)
             lim_max = np.array(self.canon.max_extents)
             scale = self.ortho_view_scale
@@ -1640,21 +1637,22 @@ class GremlinDraw(glnav.GlNavBase):
         return mid, size, scale
 
     def make_nonrapids_list(self, nonrapids_list, for_selection=False):
-        glNewList(nonrapids_list, GL_COMPILE)
-        if self.canon:
-            self.canon.draw_nonrapids(for_selection)
-        glEndList()
+        with gl_new_list(nonrapids_list, GL_COMPILE):
+            if self.canon:
+                self.canon.draw_nonrapids(for_selection)
 
     def make_rapids_list(self, rapids_list, for_selection=False):
-        glNewList(rapids_list, GL_COMPILE)
-        if self.canon:
-            self.canon.draw_rapids(for_selection)
-        glEndList()
+        with gl_new_list(rapids_list, GL_COMPILE):
+            if self.canon:
+                self.canon.draw_rapids(for_selection)
 
     def make_highlight_list(self, highlight_list):
         line = self.get_highlight_line()
-        glNewList(highlight_list, GL_COMPILE)
-        if line is not None and self.canon is not None:
+        with gl_new_list(highlight_list, GL_COMPILE):
+            if line is None or self.canon is None:
+                # No line data is available so we can't highlight anything
+                return
+
             if self.foam_option:
                 glPushMatrix()
                 glTranslatef(0, 0, self.get_foam_z())
@@ -1666,7 +1664,6 @@ class GremlinDraw(glnav.GlNavBase):
                 glPopMatrix()
             else:
                 self.canon.highlight(line)
-        glEndList()
 
     def get_work_offsets_used(self):
         return self._work_offsets_used
@@ -1704,8 +1701,7 @@ class GremlinDraw(glnav.GlNavBase):
         if result <= gcode.MIN_ERROR:
             if self.canon.progress is not None:
                 self.canon.progress.nextphase(1)
-            #canon.calc_extents()
-            self.clear_dlists()
+        self.clear_dlists()
 
         return result, seq, annotations
 

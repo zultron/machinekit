@@ -278,15 +278,17 @@ struct pycontext {
     pycontext_impl *impl;
 };
 
+using SavedParameterArray = std::array<double, INTERP_SUB_PARAMS>;
+
 struct context_struct {
     context_struct();
-    void clear();
+    void soft_clear(); // Clears non-persistent data
     long position;       // location (ftell) in file
     int sequence_number; // location (line number) in file
     const char *filename;      // name of file for this context
     const char *subName;       // name of the subroutine (oword)
     int m98_loop_counter;      // loop counter for Fanuc-style sub calls
-    double saved_params[INTERP_SUB_PARAMS];
+    SavedParameterArray saved_params;
     parameter_map named_params;
     unsigned char context_status;		// see CONTEXT_ defines below
     ModalState modal_state;
@@ -405,7 +407,9 @@ struct setup_struct
   int remap_level;
 
   block &getControllingBlock();
+  block const &getControllingBlock() const;
   block &getExecutingBlock();
+  block const &getExecutingBlock() const;
   void setExecutingBlock(block const &b);
   block & updateControllingBlock();
 
@@ -456,6 +460,7 @@ struct setup_struct
   int sequence_number;          // sequence number of line last read
   int stepping_id;              // tag value used to control stepping
   double speed;                 // current spindle speed in rpm or SxM
+  double css_max_speed;         // Maximum allowed spindle speed in rpm if CSS mode is active (otherwise 0)
   SPINDLE_MODE spindle_mode;    // CONSTANT_RPM or CONSTANT_SURFACE
   CANON_SPEED_FEED_MODE speed_feed_mode;        // independent or synched
   bool speed_override;        // whether speed override is enabled
@@ -632,10 +637,12 @@ function returns an error code, it adds an entry to the callstack object.
 // how much work canon calls do in emccanon. Especially for ARC_FEED and
 // RIGID_TAP, there's a lot of subtle checking that's beyond the scope of what
 // interp does.
+// NOTE: to differentiate between canon / interp error sources, the callee must
+// return a CanonReturn enum specifically.
 #define CHP_CANON(call)                                            \
     do {                                                           \
-    int CHP__status = (call);                                      \
-        if (CHP__status != INTERP_OK) {                            \
+       CanonReturn CHP__status = (call);                             \
+        if (CHP__status != CANON_RETURN_OK) {                            \
         ERS("%s", GET_CANON_ERROR().c_str());                              \
         }                                                          \
     } while(0)

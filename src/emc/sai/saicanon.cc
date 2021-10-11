@@ -227,7 +227,7 @@ void SET_TRAVERSE_RATE(double rate)
   _sai._traverse_rate = rate;
 }
 
-void STRAIGHT_TRAVERSE( int line_number,
+CanonReturn STRAIGHT_TRAVERSE( int line_number,
  double x, double y, double z
  , double a /*AA*/
  , double b /*BB*/
@@ -250,6 +250,7 @@ void STRAIGHT_TRAVERSE( int line_number,
   _sai._program_position[A] = a; /*AA*/
   _sai._program_position[B] = b; /*BB*/
   _sai._program_position[C] = c; /*CC*/
+  return CANON_RETURN_OK;
 }
 
 /* Machining Attributes */
@@ -334,14 +335,14 @@ std::vector<CONTROL_POINT> nurbs_control_points, unsigned int k)
   _sai._program_position[Y] = nurbs_control_points[nurbs_control_points.size()].Y;
 }
 
-int ARC_FEED(int line_number,
+CanonReturn ARC_FEED(int line_number,
  double first_end, double second_end,
  double first_axis, double second_axis, int rotation, double axis_end_point
  , double a /*AA*/
  , double b /*BB*/
  , double c /*CC*/
  , double u, double v, double w
-)
+, bool allow_implicit_full_turn)
 {
   ECHO_WITH_ARGS("%.4f, %.4f, %.4f, %.4f, %d, %.4f"
          ", %.4f" /*AA*/
@@ -374,7 +375,7 @@ int ARC_FEED(int line_number,
   _sai._program_position[A] = a; /*AA*/
   _sai._program_position[B] = b; /*BB*/
   _sai._program_position[C] = c; /*CC*/
-  return 0;
+  return CANON_RETURN_OK;
 }
 
 void STRAIGHT_FEED(int line_number,
@@ -462,7 +463,7 @@ void STRAIGHT_PROBE_TO_LIMIT(int line_number,
   STRAIGHT_PROBE(line_number, x, y, z, a, b, c, u, v, w, probe_type);
 }
 
-int RIGID_TAP(int line_number,
+CanonReturn RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
@@ -471,7 +472,7 @@ int RIGID_TAP(int line_number,
     double retract_pitch
 ){
     ECHO_WITH_ARGS("%.4f, %.4f, %.4f", x, y, z);
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 

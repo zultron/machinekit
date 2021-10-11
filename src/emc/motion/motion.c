@@ -424,6 +424,12 @@ static int init_hal_io(void)
 	return retval;
     }
     retval =
+    hal_pin_bit_new("motion.pure-angular-move", HAL_OUT, &(emcmot_hal_data->pure_angular_move),
+    mot_comp_id);
+    if (retval != 0) {
+    return retval;
+    }
+    retval =
     hal_pin_float_new("motion.gcode-feed", HAL_OUT, &(emcmot_hal_data->gcode_feed),
     mot_comp_id);
     if (retval != 0) {
@@ -794,7 +800,27 @@ static int export_joint(int num, joint_hal_t * addr)
     }
     retval = hal_pin_bit_newf(HAL_OUT, &(addr->homing), mot_comp_id, "axis.%d.homing", num);
     if (retval != 0) {
-	return retval;
+        return retval;
+    }
+    retval = hal_pin_bit_newf(HAL_OUT, &(addr->external_homing_enabled), mot_comp_id, "axis.%d.external-homing-enabled", num);
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_bit_newf(HAL_OUT, &(addr->external_homing_mode), mot_comp_id, "axis.%d.external-homing-mode", num);
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_bit_newf(HAL_OUT, &(addr->external_homing_run), mot_comp_id, "axis.%d.external-homing-run", num);
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->external_homing_error_fb), mot_comp_id, "axis.%d.external-homing-error-fb", num);
+    if (retval != 0) {
+        return retval;
+    }
+    retval = hal_pin_bit_newf(HAL_IN, &(addr->external_homing_success_fb), mot_comp_id, "axis.%d.external-homing-success-fb", num);
+    if (retval != 0) {
+        return retval;
     }
     /* export joint parameters */ //FIXME-AJ: changing these to joints will break configs.
     retval =
@@ -880,7 +906,7 @@ static int export_joint(int num, joint_hal_t * addr)
     }
     retval = hal_pin_bit_newf(HAL_OUT, &(addr->homed), mot_comp_id, "axis.%d.homed", num);
     if (retval != 0) {
-	return retval;
+        return retval;
     }
     retval = hal_pin_bit_newf(HAL_OUT, &(addr->f_errored), mot_comp_id, "axis.%d.f-errored", num);
     if (retval != 0) {
@@ -1039,6 +1065,9 @@ static int init_comm_buffers(void)
 	joint->home_offset = 0.0;
 	joint->home = 0.0;
 	joint->home_flags = 0;
+    // Init external homing config flag
+    joint->homing_flags.external_homing_enabled = 0;
+
 	joint->home_sequence = -1;
 	joint->backlash = 0.0;
 

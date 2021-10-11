@@ -46,10 +46,12 @@
 #include "canon_position.hh"		// data type for a machine position
 #include "interpl.hh"		// interp_list
 #include "emcglb.h"		// global values from INI for max velocity, tolerance, etc.
+#include "limit_checks.hh"
 
 #include "coordinatetransform.hh"
 #include "units.h"
 #include "path_geom_util.hh"
+#include "arc_feed_util.hh"
 
 #include <algorithm>
 #include <numeric>
@@ -213,6 +215,17 @@ static inline double FROM_PROG_ANG(double deg)
 
 static int feed_mode = 0; // 0 means IPM or inv time, 1 means IPM
 static CanonSyncLevel synched = CANON_SYNC_NONE;
+
+static CanonReturn checkPositionLimits(PositionArray const &pos, const char *msg, int line_number)
+{
+    unsigned below_min = findMinPositionViolations(pos);
+    unsigned above_max = findMaxPositionViolations(pos);
+    if (below_min || above_max) {
+        CANON_ERROR("%s", formatAxisError(below_min, above_max, msg, line_number).c_str());
+        return CANON_RETURN_ERROR;
+    }
+    return CANON_RETURN_OK;
+}
 
 static inline UnitsTransform ConvertsCanonToUserUnits()
 {
@@ -599,7 +612,7 @@ static void drop_segments(void) {
 static void flush_segments(void) {
     if(chained_points.empty()) return;
 
-    canon_debug("Flushing segments up to line %d\n", line_no);
+    canon_debug("Flushing segments up to line %d\n", _tag.getLocalLine());
 #ifdef SHOW_JOINED_SEGMENTS
     for(unsigned int i=0; i != chained_points.size(); i++) { printf("."); }
     printf("\n");
@@ -621,7 +634,7 @@ static void flush_segments(void) {
 
     double v_req_path = getPathVelocityFromActiveFeed(vel_data, disp_data.feed_axes);
 
-    canon_debug("Line segment maximum velocity %f, requested vel %f\n", ini_maxvel, vel);
+    canon_debug("Line segment maximum velocity %f, requested vel %f\n", v_path_max, v_req_path);
 
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
     linearMoveMsg.feed_mode = feed_mode;
@@ -743,7 +756,7 @@ void see_segment(
         flush_segments();
     }
     TaggedPoint pos(goal_pos_canon, tag);
-    canon_debug("Adding line %d to chained points\n", line_number);
+    canon_debug("Adding line %d to chained points\n", tag.getLocalLine());
     chained_points.push_back(pos);
 }
 
@@ -756,7 +769,8 @@ void ON_RESET() {
     drop_segments();
 }
 
-static int straight_traverse_internal(
+static CanonReturn straight_traverse_internal(
+    int line_number,
     PositionArray goal_pos_canon,
     EMCMotionTypes emc_motion_type = EMC_MOTION_TYPE_TRAVERSE)
 {
@@ -770,13 +784,13 @@ static int straight_traverse_internal(
     DisplacementData disp_data = getCanonStraightDisplacement(p_goal_ext, _tag);
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
-        return 1;
+        return CANON_RETURN_OK;
     }
 
     VelData veldata = getStraightVelocity(disp_data);
     AccelData accdata = getStraightAcceleration(disp_data);
 
-    canon_debug("Line segment maximum velocity %f, requested vel %f\n", ini_maxvel, vel);
+    canon_debug("Line segment maximum velocity %f\n", veldata.v_max_path);
 
     EMC_TRAJ_LINEAR_MOVE linearMoveMsg;
 
@@ -786,6 +800,10 @@ static int straight_traverse_internal(
     linearMoveMsg.vel = linearMoveMsg.ini_maxvel = veldata.v_max_path;
     linearMoveMsg.acc = accdata.a_max_path;
     linearMoveMsg.indexrotary = rotary_unlock_for_traverse;
+
+    if (checkPositionLimits(p_goal_ext, "Rapid move would exceed machine position limits in", line_number)) {
+        return CANON_RETURN_ERROR;
+    }
 
     int old_feed_mode = feed_mode;
     if(feed_mode)
@@ -797,17 +815,17 @@ static int straight_traverse_internal(
         START_SPEED_FEED_SYNCH(uuPerRev_vel, 1);
 
     canonUpdateEndPoint(goal_pos_canon);
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 
-void STRAIGHT_TRAVERSE(int line_number,
+CanonReturn STRAIGHT_TRAVERSE(int line_number,
                        double x, double y, double z,
 		       double a, double b, double c,
                        double u, double v, double w)
 {
     EMCMotionTypes emc_motion_type = (rotary_unlock_for_traverse != -1) ? EMC_MOTION_TYPE_INDEXROTARY : EMC_MOTION_TYPE_TRAVERSE;
-    straight_traverse_internal(PositionArray{x,y,z,a,b,c,u,v,w}, emc_motion_type);
+    return straight_traverse_internal(line_number, PositionArray{x,y,z,a,b,c,u,v,w}, emc_motion_type);
 }
 
 void STRAIGHT_FEED(int line_number,
@@ -825,7 +843,7 @@ void STRAIGHT_FEED(int line_number,
 }
 
 
-int RIGID_TAP(int line_number,
+CanonReturn RIGID_TAP(int line_number,
     double x,
     double y,
     double z,
@@ -851,7 +869,7 @@ int RIGID_TAP(int line_number,
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
         // Not strictly an error, just means there is nothing to do zince the move is zero length
-        return 0;
+        return CANON_RETURN_OK;
     }
 
     VelData vel_data = getStraightVelocity(disp_data);
@@ -871,7 +889,7 @@ int RIGID_TAP(int line_number,
     if (safe_lead > depth) {
         CANON_ERROR("Rigid tap move is too short for proper spindle synchronization. For the given spindle speed / pitch, the cycle depth (initial - bottom) must be at least %0.3f. The requested move is only %0.3f deep",
                     TO_PROG_LEN(safe_lead), TO_PROG_LEN(depth));
-        return -1;
+        return CANON_RETURN_ERROR;
     } else {
         EMC_TRAJ_RIGID_TAP rigidTapMsg;
         rigidTapMsg.pos = to_ext_pose(bottom);
@@ -885,7 +903,7 @@ int RIGID_TAP(int line_number,
     }
 
     // don't move the endpoint because after this move, we are back where we started
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 /**
@@ -988,15 +1006,16 @@ void SET_MOTION_CONTROL_MODE(CANON_MOTION_MODE mode, double tolerance)
 
     flush_segments();
 
-    canonMotionMode = mode;
     canon_debug("canonMotionMode = %d\n", mode);
 
-    const double new_tol_mm = tolerance < 0 ? FROM_EXT_LEN(traj_default_tolerance) : FROM_PROG_LEN(tolerance);
+    const double default_tol_mm = FROM_EXT_LEN(traj_default_tolerance);
+    const double new_tol_mm = tolerance < 0 ? default_tol_mm : FROM_PROG_LEN(tolerance);
 
-    if (new_tol_mm != canonMotionTolerance) {
-        fprintf(stderr, "Setting tolerance to %f mm\n", new_tol_mm);
+    if (mode == CANON_CONTINUOUS && new_tol_mm != canonMotionTolerance && new_tol_mm > default_tol_mm) {
+        CANON_MESSAGE(CANON_MSG_DEBUG, "Using path blending tolerance %f mm\n", new_tol_mm);
     }
     canonMotionTolerance = new_tol_mm;
+    canonMotionMode = mode;
 
     switch (mode) {
     case CANON_CONTINUOUS:
@@ -1023,9 +1042,10 @@ double GET_MOTION_TOLERANCE()
 
 void SET_NAIVECAM_TOLERANCE(double tolerance)
 {
+    const double default_tol_mm = FROM_EXT_LEN(traj_default_naivecam_tolerance);
     const double new_tol_mm = tolerance < 0.0 ? FROM_EXT_LEN(traj_default_naivecam_tolerance) : FROM_PROG_LEN(tolerance);
-    if (canonNaivecamTolerance != new_tol_mm) {
-        fprintf(stderr,"Setting naivecam tolerance to %f mm\n", new_tol_mm);
+    if (canonMotionMode == CANON_CONTINUOUS && new_tol_mm != canonNaivecamTolerance && new_tol_mm > default_tol_mm) {
+        CANON_MESSAGE(CANON_MSG_DEBUG, "Using Naive CAM (NCD) tolerance %f mm\n", new_tol_mm);
     }
     canonNaivecamTolerance = new_tol_mm;
 }
@@ -1058,7 +1078,7 @@ void STOP_CUTTER_RADIUS_COMPENSATION()
 
 static void send_speed_feed_synch_msg(double feed_per_revolution_prog, bool velocity_mode)
 {
-    canon_debug("synch state: feed_per_revolution = %f, velocity_mode = %d\n", feed_per_revolution, velocity_mode);
+    canon_debug("synch state: feed_per_revolution = %f, velocity_mode = %d\n", feed_per_revolution_prog, velocity_mode);
     EMC_TRAJ_SET_SPINDLESYNC spindlesyncMsg;
     spindlesyncMsg.feed_per_revolution = TO_EXT_LEN(FROM_PROG_LEN(feed_per_revolution_prog));
     spindlesyncMsg.velocity_mode = velocity_mode;
@@ -1299,12 +1319,13 @@ static double axis_acc_time(const PositionArray & start, const PositionArray & e
 }
 #endif
 
-int ARC_FEED(int line_number,
+CanonReturn ARC_FEED(int line_number,
               double first_end, double second_end,
 	      double first_axis, double second_axis, int rotation,
 	      double axis_end_point, 
               double a, double b, double c,
-              double u, double v, double w)
+              double u, double v, double w,
+                     bool allow_implicit_full_turn)
 {
 
     canon_debug("ARC_FEED a %g b %g c %g u %g v %g w %g ",
@@ -1349,7 +1370,7 @@ int ARC_FEED(int line_number,
                         });
             see_segment(_tag,
                         {fe, se, ae, a, b, c, u, v, w});
-            return 0;
+            return CANON_RETURN_OK;
         }
     }
 
@@ -1477,26 +1498,9 @@ int ARC_FEED(int line_number,
 
     // Use the "X" (1) and Y" (2) components of the planar projections to get
     // the starting and ending angle. Note that atan2 arguments are atan2(Y,X).
-    double theta_start = atan2(p_start_2, p_start_1);
-    double theta_end= atan2(p_end_2,p_end_1);
     double start_radius = hypot(p_start_1, p_start_2);
     double end_radius = hypot(p_end_1, p_end_2);
     canon_debug("radius = %f\n",start_radius);
-    canon_debug("raw values: theta_end = %.17e, theta_start = %.17e\n", theta_end, theta_start);
-
-    // Correct for angle wrap so that theta_end - theta_start > 0
-    int is_clockwise = rotation < 0;
-
-    // FIXME should be a constant in canon.hh or elsewhere
-    const double min_arc_angle = 1e-12;
-
-    if (is_clockwise) {
-        if((theta_end + min_arc_angle) >= theta_start) theta_end -= M_PI * 2.0;
-    } else {
-        if((theta_end - min_arc_angle) <= theta_start) theta_end += M_PI * 2.0;
-    }
-
-    canon_debug("theta_end = %f, theta_start = %f\n", theta_end, theta_start);
 
     /*
        mapping of rotation to full turns:
@@ -1509,21 +1513,21 @@ int ARC_FEED(int line_number,
              -1 0
              -2 -1 */
 
-    // Compute the number of FULL turns in addition to the principal angle
-    int full_turns = 0;
-    if (rotation > 1) {
-        full_turns = rotation - 1;
-    }
-    if (rotation < -1) {
-        full_turns = rotation + 1;
-    }
 
-    double angle = theta_end - theta_start;
-    double full_angle = angle + 2.0 * M_PI * (double)full_turns;
-    canon_debug("angle = %f\n", angle);
-    canon_debug("full turns = %d\n", full_turns);
+    // Allow the ARC_FEED call to prevent the implicit full turn (e.g. cutter comp arcs)
+    auto circ_data = CircleAngle(
+        p_start_1, p_start_2,
+        0, 0,
+        rotation,
+        p_end_1, p_end_2, allow_implicit_full_turn);
 
-	canon_debug("full_angle = %.17e\n", full_angle);
+    const double full_angle = circ_data.full_angle();
+
+    canon_debug("turns = %d\n", rotation);
+    canon_debug("full_turns = %d\n", circ_data.full_turns);
+    canon_debug("clockwise = %d\n", circ_data.clockwise);
+    canon_debug("principle_angle = %0.17f\n", circ_data.principal_angle);
+    canon_debug("full_angle = %.17f\n", full_angle);
 
     //Use total angle to get spiral properties
     double spiral = end_radius - start_radius;
@@ -1597,7 +1601,7 @@ int ARC_FEED(int line_number,
 
     if(disp_data.feed_axes == CANON_FEED_NONE)  {
         // Not strictly an error, just means the move is zero length
-        return 0;
+        return CANON_RETURN_OK;
     }
 
     // Next, compute the minimum time that we must take to complete the segment. 
@@ -1614,7 +1618,6 @@ int ARC_FEED(int line_number,
     double v_xyz_path = TO_EXT_LEN(total_xyz_length / t_max);
     double total_length_path = hypot3(TO_EXT_LEN(total_xyz_length), disp_data.d_uvw, disp_data.d_abc);
     double v_max_path = total_length_path / t_max;
-    debug_canon_var(v_max);
 
     // COMPUTE ACCELERATION
     
@@ -1634,21 +1637,15 @@ int ARC_FEED(int line_number,
     double v_active_path = std::min(getActiveExtFeedRate(CANON_FEED_XYZ), v_xyz_path);
     double v_req_path = v_max_path * v_active_path / v_xyz_path;
 
-    // Dump final values for debugging
-    debug_canon_var(v_req);
-    debug_canon_var(v_xyz);
-    debug_canon_var(v_max);
-    debug_canon_var(a_max);
-
     if(!v_req_path || !a_max_path) {
         // Generally means zero length move but that should be detected earlier
         CANON_MESSAGE(CANON_MSG_DEBUG, "Got invalid velocity %f and/or acceleration %f for circular move, assuming zero length", v_req_path, a_max_path);
-        return 0;
+        return CANON_RETURN_OK;
     }
 
     if (rotation == 0) {
         CANON_ERROR("Cannot have 0 rotation in a circular segment");
-        return -1;
+        return CANON_RETURN_ERROR;
     }
     circularMoveMsg.end = toEmcPose(p_goal_ext);
 
@@ -1656,9 +1653,7 @@ int ARC_FEED(int line_number,
     circularMoveMsg.center = to_ext_len(center_cart);
     circularMoveMsg.normal = normal_cart;
 
-    circularMoveMsg.turn = rotation;
-    if (rotation > 0)
-        circularMoveMsg.turn -= 1;
+    circularMoveMsg.turn = circ_data.get_turn_cmd();
 
     circularMoveMsg.emc_motion_type = EMC_MOTION_TYPE_ARC;
 
@@ -1669,7 +1664,7 @@ int ARC_FEED(int line_number,
 
     tag_and_send(circularMoveMsg);
     canonUpdateEndPoint(endpt);
-    return 0;
+    return CANON_RETURN_OK;
 }
 
 void DWELL(double seconds)
@@ -2024,7 +2019,7 @@ void CHANGE_TOOL(int slot)
         }
 
         PositionArray pos{x,z,y,a,b,c,u,v,w};
-        straight_traverse_internal(pos, EMC_MOTION_TYPE_TOOLCHANGE);
+        straight_traverse_internal(_tag.getCallerLine(), pos, EMC_MOTION_TYPE_TOOLCHANGE);
     }
 
     /* regardless of optional moves above, we'll always send a load tool

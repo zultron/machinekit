@@ -64,6 +64,7 @@ typedef enum {
     GM_FIELD_G_MODE_0,
     GM_FIELD_CUTTER_COMP,
     GM_FIELD_MOTION_MODE,
+    GM_FIELD_MOTION_MODE_CONTROLLING,
     GM_FIELD_PLANE,
     GM_FIELD_M_MODE_STOPPING,
     GM_FIELD_WORK_OFFSET_NUMBER,
@@ -89,6 +90,7 @@ struct state_tag_t {
     // Machine settings 
     float feed;
     float speed;
+    float css_max_speed;
 
     // Any G / M code states that doesn't pack nicely into a single bit
     // These are an array mostly because it's easier to pass an

@@ -1,0 +1,27 @@
+G90
+G20
+G54
+
+G0 X0 Y0 Z0
+G1 Z0.01 F10000
+M66 P0
+#<_p100_loopcount>=0
+M98 P100 L100 (call first subprogram in a loop, expect an error here due to the ABORT call)
+G1 Z-0.01 F10000
+M98 P101 L100 (call second subprogram in a loop, but this should never happen due to the previous error)
+M2
+
+O100
+o1000 if [#<_p100_loopcount> GT 20]
+(ABORT,aborted the sub at #<_p100_loopcount> counts)
+o1000 endif
+#<_p100_loopcount>=[#<_p100_loopcount>+1]
+M99 (Return to main program)
+
+O101
+G91
+(Move the axes as a crude test to see if the program aborted properly)
+G1 X0.01 F10000
+G1 Y0.01 F10000
+G90
+M99 (Return to main program)

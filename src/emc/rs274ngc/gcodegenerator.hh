@@ -5,12 +5,12 @@
 #include <string>
 #include <modal_state.hh>
 #include <featureset.hh>
-#include <positionarray.hh>
+#include <interp_shared_fwd.hh>
+using namespace interp_shared;
 
 using RestoreCommandList = std::vector<std::string>;
 
 struct setup_struct;
-struct ShiftTransform;
 
 class GCodeGenerator
 {
@@ -48,6 +48,7 @@ public:
     int addLinearRapidMove(PositionArray const &goal, AxisMask active_axes=-1);
 
     int addFeedRate(double feed_rate);
+    int addFeedMode(GCodes feed_mode, double feed_rate=0.);
 
     int gen_modalStateRestore(ModalState & current, const ModalState & saved);
 
@@ -56,6 +57,8 @@ public:
     void addToolCompensationWithRadius(GCodes cutter_side, double cutter_radius);
     void addToolCompensationFromTable(GCodes cutter_side, int tool_number);
     void printMsg(std::string const &&msg);
+    void addSpindleMode(GCodes spindle_mode, double css_max_speed, double speed);
+    void addSpindleSpeed(double speed);
 };
 
 #endif // GCODEGENERATOR_HH

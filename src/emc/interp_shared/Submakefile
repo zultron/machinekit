@@ -1,22 +1,6 @@
 INCLUDES += emc/interp_shared
 
-LIB_SRCS := \
-    emc/interp_shared/positionarray.cc \
-    emc/interp_shared/coordinatetransform.cc \
-    emc/interp_shared/rotary_axis_util.cc \
-    emc/interp_shared/callstacktracker.cc \
-
-USERSRCS += $(LIB_SRCS)
-
-$(call TOOBJSDEPS, $(LIB_SRCS)) : EXTRAFLAGS=-fPIC
-
-TARGETS += ../lib/libinterp_shared.so
-
-../lib/libinterp_shared.so: $(call TOOBJS,$(LIB_SRCS))
-	$(ECHO) Linking $(notdir $@)
-	@mkdir -p ../lib
-	@rm -f $@
-	@$(AR) $(ARFLAGS) $@ $^
+# No source files, interp_shared is header-only
 
 $(patsubst ./emc/interp_shared/%,../include/%,$(wildcard ./emc/interp_shared/*.h)): ../include/%.h: ./emc/interp_shared/%.h
 	cp $^ $@

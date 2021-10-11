@@ -3237,11 +3237,12 @@ int tpRunCycleInternal(TP_STRUCT * const tp)
     return TP_ERR_OK;
 }
 
-double tpGetCurrentVel(TP_STRUCT const * const tp, PmVector const * const v_current)
+double tpGetCurrentVel(TP_STRUCT const * const tp, PmVector const * const v_current, int *pure_angular)
 {
     PmCartesian xyz, abc, uvw;
     VecToCart(v_current, &xyz, &abc, &uvw);
     double v_out = 0.0;
+    *pure_angular = 0;
     switch (tpGetExecTag(tp).fields[GM_FIELD_FEED_AXES]) {
     case 0:
         break;
@@ -3253,6 +3254,7 @@ double tpGetCurrentVel(TP_STRUCT const * const tp, PmVector const * const v_curr
         break;
     case 3:
         pmCartMag(&abc, &v_out);
+        *pure_angular = 1;
         break;
     }
     return v_out;
@@ -3277,7 +3279,7 @@ int tpRunCycle(TP_STRUCT *tp)
     VecScalMultEq(&axis_vel, 1.0 / tp->cycleTime);
     tp->currentVel = axis_vel;
 
-    emcmotStatus->current_vel = tpGetCurrentVel(tp, &tp->currentVel);
+    emcmotStatus->current_vel = tpGetCurrentVel(tp, &tp->currentVel, &emcmotStatus->pure_angular_move);
 
     if (needConsistencyCheck(CCHECK_AXIS_LIMITS)) {
         PmVector axis_accel;

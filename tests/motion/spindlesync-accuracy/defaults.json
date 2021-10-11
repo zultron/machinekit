@@ -12,5 +12,6 @@
     "max_sync_delay": 100,
     "settle_time_ms": 1.0,
     "overrun_allowance_rev": 0.5,
+    "ignore_pos_sync_end_samples": 0,
     "test_subroutine": "rigid_tap_sub"
 }

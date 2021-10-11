@@ -22,6 +22,8 @@
 #include <array>
 #include <callstacktracker.hh>
 
+using namespace interp_shared;
+
 /**
  * Stores information about a single line of G-code (where it came from, line number, etc.).
  * This is designed for error messages / diagnostics, so it's not
@@ -523,8 +525,6 @@ public:
                              double x1, double y1, double z1,
                              double AA_1, double BB_1, double CC_1,
                              double u_1, double v_1, double w_1);
- double find_turn(double x1, double y1, double center_x,
-                        double center_y, int turn, double x2, double y2);
  int init_block(block_pointer block);
  int inverse_time_rate_arc(double x1, double y1, double z1,
                                  double cx, double cy, int turn, double x2,
@@ -917,19 +917,22 @@ int read_inputs(setup_pointer settings);
 
     virtual int check_leadin_feedmode(const ModalState & initial, const ModalState & to_restore, int start_line, double leadin_feedrate) const;
     
+    int check_leadin_move_feed(const ExpandedModalState & to_restore, const AutoRunSettings & run_settings, const ExpandedModalState & run_initial_state, double & leadin_feedrate);
+
 protected:
     bool error_has_context;
 
-    virtual int check_startline_leadin_feedrate(double & feed_rate_uu, const char * move_type);
+    virtual int check_startline_leadin_feedrate(double & feed_rate_uu);
+    virtual const char * getStateRestoreSubroutineName() const {
+        return "restore_start_line_state";
+    }
 
-    StateTag make_state_tag(setup_struct const &s, block_pointer block, int toplevel_line=0) const;
+    virtual StateTag make_state_tag(setup_struct const &s, block_pointer block, int toplevel_line=0) const;
 };
 
 
 bool toolOffsetActive(setup_struct const *s);
 std::tuple<PositionArrayIndex, PositionArrayIndex, PositionArrayIndex> plane_indices(CANON_PLANE plane);
-
-#define STATE_RESTORE_SUBROUTINE_NAME "restore_start_line_state"
 
 
 /**

@@ -66,7 +66,7 @@ extern int emcAxisSetMinFerror(int axis, double ferror);
 extern int emcAxisSetHomingParams(int axis, double home, double offset, double home_final_vel,
 				  double search_vel, double latch_vel,
 				  int use_index, int ignore_limits,
-				  int is_shared, int home_sequence, int volatile_home, int locking_indexer);
+				  int is_shared, int home_sequence, int volatile_home, int locking_indexer, int home_external);
 extern int emcAxisSetMaxVelocity(int axis, double vel);
 extern int emcAxisSetMaxAcceleration(int axis, double acc);
 
@@ -78,7 +78,7 @@ extern int emcAxisDisable(int axis);
 extern int emcAxisHome(int axis);
 extern int emcAxisUnhome(int axis);
 extern int emcAxisJog(int axis, double vel);
-extern int emcAxisIncrJog(int axis, double incr, double vel);
+extern int emcAxisIncrJog(int axis, double incr, double vel, double windup_limit);
 extern int emcAxisAbsJog(int axis, double pos, double vel);
 extern int emcAxisActivate(int axis);
 extern int emcAxisDeactivate(int axis);

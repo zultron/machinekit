@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
+# Start with a clean environment to avoid reusing libinterp_shared
 # Assumes path to root linuxcnc directory
 set -x
-cd ../..
-meson ./build
-cd build
-meson test -v 1>&2
+env -i HOME="$HOME" bash -l -c './unit_test_runner.sh'

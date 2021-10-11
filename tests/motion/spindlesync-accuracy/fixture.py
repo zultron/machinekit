@@ -3,12 +3,17 @@
 import linuxcnc
 import sys
 from subprocess import Popen
+from linuxcnc_test_support import wait_for_linuxcnc_startup, has_error
 
 import g33_checks
 
 # Initialize linuxcnc backend for MDI mode
 c = linuxcnc.command()
 s = linuxcnc.stat()
+e = linuxcnc.error_channel()
+
+wait_for_linuxcnc_startup(s)
+
 s.poll()
 c.state(linuxcnc.STATE_ESTOP_RESET)
 c.wait_complete()
@@ -62,6 +67,11 @@ print >> sys.stderr, "halsampler done with code %d" % p_read.returncode
 
 c.wait_complete()
 failed = g33_checks.check_all(test_name)
+
+if has_error(e):
+    print >> sys.stderr, "Test {} Failed".format(test_name)
+    sys.exit(1)
+
 
 if failed:
     print >> sys.stderr, "Test {} failed".format(test_name)

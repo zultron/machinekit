@@ -308,6 +308,7 @@ class EMC_AXIS_SET_HOMING_PARAMS:public EMC_AXIS_CMD_MSG {
     int home_sequence;
     int volatile_home;
     int locking_indexer;
+    int home_external;
 };
 
 class EMC_AXIS_SET_MAX_VELOCITY:public EMC_AXIS_CMD_MSG {
@@ -416,6 +417,7 @@ class EMC_AXIS_INCR_JOG:public EMC_AXIS_CMD_MSG {
 
     double incr;
     double vel;
+    double windup_limit;
 };
 
 class EMC_AXIS_ABS_JOG:public EMC_AXIS_CMD_MSG {
@@ -1101,6 +1103,7 @@ class EMC_TRAJ_STAT:public EMC_TRAJ_STAT_MSG {
     double distance_to_go;         // in current move
     EmcPose dtg;
     double current_vel;         // in current move
+    bool pure_angular_move; // Velocity cor current move is pure angular (ABC axes only) in angular units / sec
     double dwell_time_remaining; // 0 if not dwelling
     bool feed_override_enabled;
     bool spindle_override_enabled;
@@ -1225,6 +1228,7 @@ class EMC_SPINDLE_STAT:public EMC_SPINDLE_STAT_MSG {
     void update(CMS * cms);
 
     double speed;		// spindle speed in RPMs
+    double speed_fb;    // As reported to motion via spindle-speed-in
     int direction;		// 0 stopped, 1 forward, -1 reverse
     int brake;			// 0 released, 1 engaged
     int increasing;		// 1 increasing, -1 decreasing, 0 neither

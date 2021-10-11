@@ -12,6 +12,7 @@ pin in bit enable = 0 """If True, torch relight is enabled. If False, torch-out 
 Enable should be asserted after pierce has completed successfully and cutting is starting""";
 
 function _;
+option extra_setup;
 license "GPL";
 ;;
 #include "rtapi_math.h"
@@ -21,7 +22,7 @@ void error_msg(char *msg) {
 }
 
 void debug_msg(char *msg) {
-    rtapi_print_msg(RTAPI_MSG_ERR, "Plasma source info: %s\n", msg);
+    rtapi_print_msg(RTAPI_MSG_INFO, "Plasma source info: %s\n", msg);
 }
 
 enum torch_states {
@@ -35,6 +36,12 @@ enum torch_states {
 
 float elapsed_timer = 0.0;
 int retries = 0;
+
+EXTRA_SETUP()
+{
+    rtapi_set_msg_level(RTAPI_MSG_INFO);
+    return(0);
+}
 
 FUNCTION(_) {
     // Global transition to the "DISABLED" state

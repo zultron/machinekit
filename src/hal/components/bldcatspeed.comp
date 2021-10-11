@@ -1,0 +1,273 @@
+
+component bldcatspeed "BLDC Hall sensor spindle at speed HAL Component";
+
+license "GPL";
+author "";
+
+// Purpose:
+//
+// Input:  two Hall sensors from motor drive along with belt position and ratio, target spindle speed
+//
+// Output: "at-speed" TRUE while in range of target and spindle enabled
+//
+// HAL mappings:
+//
+//    Inputs:
+//          rpm-target              motion.spindle-speed-out
+//          belt-position           1 -> high belt, 0 -> low belt position
+//          spindle-on              motion.spindle-on
+//          enc-a, enc-b            two Hall sensors from motor
+//          tolerance               +/- range of target speed for declaring "at-speed" default 0.20, range > 0.0 and <= 1.0
+//          debounce                how long in seconds at-apeed must remain TRUE before being reported (default 0.200)
+//          dwell                   additional wait in seconds before reporting at-speed change to motion (default 0.200)
+//
+//    Outputs:
+//          at-speed                motion.spindle-at-speed
+//          rpm-out                 in RPM signed, displayed on DRO when not at-speed
+//          rps-out                 optionally connect to UI for display during gcode program execution
+//
+
+// connect to motion.spindle-speed-out
+// revolutions per minute
+pin in float rpm_target;
+
+// belt and pulley info
+pin in bit belt_position;
+pin in float lowbelt_ratio;
+pin in float highbelt_ratio;
+
+// connect to motion.spindle-on
+pin in bit spindle_on;
+
+// range > 0.0 and <= 1.0
+pin in float tolerance;
+
+// seconds at-speed must be true for false before
+// informing motion
+param rw float debounce = 1.000;
+
+// seconds to wait after new stable state before
+// informing motion
+param rw float dwell = 0.200;
+
+// connect to motion.spindle-at-speed
+pin out bit at_speed;
+
+// instantaneous and previous servo loop state
+pin out bit at_speed_now;
+pin out bit at_speed_prev;
+
+// optionally connect to UI
+pin out float rps_out;
+pin out float rpm_out;
+
+// from motor Hall sensors
+pin in bit enc_a;
+pin in bit enc_b;
+
+pin in bit enc_door_switch_status;
+pin in float enc_door_open_max_rpm;
+
+// used to manage encoder velocity
+// exposed as pins for easier inspection
+pin io bit enc_a_prev;
+pin io bit enc_b_prev;
+pin io s32 count;
+pin io s32 count_then;
+pin io s32 count_delta;
+pin io float time_now;
+pin io float time_then;
+pin io float time_delta;
+pin io float direction;
+
+pin io float enc_vel;
+pin io float spindle_rpm;
+pin in float filter_gain;
+
+// encoder velocity after low pass filtering
+// revolutions per second
+pin io float motor_rps_in;
+
+
+variable float debounce_elapsed = 0.0;
+variable float dwell_elapsed = 0.0;
+variable float range_checked_tolerance = 0.0;
+
+function _ "BLDC spindle at speed HAL Component";
+
+;;
+
+#include <rtapi_math.h>
+
+#define BIT_FALSE 0
+#define BIT_TRUE  1
+
+#define BELT_POSITION_LOW  0
+#define BELT_POSITION_HIGH 1
+
+// default 0.2 for +/- 20% of commanded for at-speed
+#define TOLERANCE_DEFAULT 0.2
+
+// time in seconds between velocity updates
+#define VELOCITY_SAMPLE_PERIOD 0.500
+
+FUNCTION(_) {
+
+    time_now += fperiod;
+    // sample encoder phases
+    // we only tally phase A rising edges
+    if (enc_a != enc_a_prev && enc_b != enc_b_prev) {
+        // both changed, bad luck at sampling
+        // add a count in the direction we were going
+        if (enc_a) {
+            if  (direction >= 0) {
+                count++;
+            }
+            else {
+               count--;
+            }
+        }
+    }
+    else if (enc_a != enc_a_prev && enc_b == enc_b_prev) {
+        // a changed, b did not
+        // only count A rising edges
+        if (enc_a && enc_b) {
+            count++;
+            direction = 1.0;
+        }
+        else if (enc_a && !enc_b) {
+            count--;
+            direction = -1.0;
+        }
+    }
+    else if (enc_a == enc_a_prev && enc_b == enc_b_prev) {
+        // neither changed
+        // check for stopped
+        if ((time_now - time_then) > 2.000) {
+            // reset everything
+            enc_vel = 0.0;
+            count = 0;
+            count_then = 0;
+            time_now = 0.0;
+            time_then = 0.0;
+            direction = 1.0;
+        }
+    }
+    enc_a_prev = enc_a;
+    enc_b_prev = enc_b;
+
+    // is it time for a new velocity calculation?
+    if (time_now >= time_then + VELOCITY_SAMPLE_PERIOD) {
+        time_delta = time_now - time_then;
+        time_then = time_now;
+
+        // account for roll over/under of signed integer
+        if (count >= count_then) {
+            count_delta = count - count_then;
+        }
+        else {
+            count_delta = count_then - count;
+        }
+        count_then = count;
+
+        enc_vel = (count_delta / time_delta) / 2.0;
+
+        enc_vel = enc_vel * direction;
+    }
+
+    // low pass filter
+    //motor_rps_in =  enc_vel;
+    // out += (in - out) * gain
+    motor_rps_in += (enc_vel - motor_rps_in) * filter_gain;
+
+    spindle_rpm = motor_rps_in * 60.0 * highbelt_ratio;
+    if (belt_position == BELT_POSITION_LOW) {
+        spindle_rpm = motor_rps_in * 60.0 * lowbelt_ratio;
+    }
+
+    rpm_out = fabs(spindle_rpm);
+
+    if (spindle_on && (fabs(rpm_target) > 10.0)) {
+        // spindle is on with non-zero commanded speed
+
+        // range check and set tolerance
+        range_checked_tolerance = tolerance;
+        if (tolerance <= 0.0 || tolerance > 1.0) {
+            range_checked_tolerance = TOLERANCE_DEFAULT;
+        }
+
+        // check if measured speed is within +/- range_checked_tolerance of target
+        float lower_limit = (1.0 - range_checked_tolerance) * rpm_target;
+        float upper_limit = (1.0 + range_checked_tolerance) * rpm_target;
+        if (spindle_rpm < -1.0) {
+            // flip limits for spindle in reverse
+            upper_limit = (1.0 - range_checked_tolerance) * rpm_target;
+            lower_limit = (1.0 + range_checked_tolerance) * rpm_target;
+        }
+
+        // get current immediate state
+        if (spindle_rpm >= lower_limit && spindle_rpm <= upper_limit) {
+            at_speed_now = BIT_TRUE;
+        }
+        else {
+            at_speed_now = BIT_FALSE;
+        }
+
+        // how this works
+        // on any change in the immediate at-speed state
+        // restart the debounce timer at 0.0
+        // this way a new state has to remain the same for the entirety
+        // of the debounce timer period before being recognized as
+        // a change reported to motion
+
+        // check for change from last time
+        if (at_speed_prev != at_speed_now) {
+            // fresh edge, restart debounce timer
+            debounce_elapsed = 0.0;
+            dwell_elapsed = 0.0;
+        }
+        else {
+            // no change in immediate state
+            // check for completed debounce timer
+            if (debounce_elapsed <= fabs(debounce)) {
+                // add to debounce timer
+                debounce_elapsed += fperiod;
+            }
+            else {
+                // debounce timer complete
+                // this is the most common state with spindle on
+
+                // is state change dwell complete?
+                if (dwell_elapsed <= fabs(dwell)) {
+                    // add to dwell timer
+                    dwell_elapsed += fperiod;
+                }
+                else {
+                    // reflect debounced and dwelled state to motion via at-speed pin
+                    at_speed = at_speed_now;
+                }
+                if (at_speed) {
+                    // when at-speed report target not measured
+                    rpm_out = fabs(rpm_target);
+                }
+            }
+        }
+        // remember now for next previous
+        at_speed_prev = at_speed_now;
+
+        if (enc_door_switch_status) {
+            rpm_out = fabs(enc_door_open_max_rpm);
+        }
+    }
+    else {
+        // spindle is off -- nothing to check
+        at_speed = BIT_FALSE;
+        at_speed_now = BIT_FALSE;
+        at_speed_prev = BIT_FALSE;
+        rps_out = 0.0;
+        rpm_out = 0.0;
+    }
+
+    rps_out = rpm_out / 60.0;
+}
+

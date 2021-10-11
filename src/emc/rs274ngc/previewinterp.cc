@@ -3,12 +3,6 @@
 
 using namespace interp_param_global;
 
-int PreviewInterp::write_and_update_state_tag(block_pointer block, int line_number)
-{
-    // Pass through the line number but don't write a tag because they're not needed in the preview context
-    return line_number ?: get_toplevel_line_number();
-}
-
 int PreviewInterp::restore_parameters(const char * filename)
 {
   _setup.parameters.fill(0);
@@ -94,10 +88,11 @@ int PreviewInterp::synch_work_offsets_from_task(setup_pointer settings) const
     return INTERP_OK;
 }
 
-int PreviewInterp::check_startline_leadin_feedrate(double &feed_rate, const char * move_type)
+int PreviewInterp::check_startline_leadin_feedrate(double &feed_rate)
 {
     if (feed_rate < 1e-10) {
-        setWarning(_("Start-line %s lead-in move needs a positive feed rate (start-line lead-in uses current machine feed)"), move_type);
+        // This is a warning, not an error, because the user will choose a feed rate before running their program
+        setWarning(_("Lead-in move needs a positive feed rate (start-line lead-in uses current machine feed)"));
         // KLUDGE force this to be non-zero so that it at least draws the path correctly
         feed_rate = 1e-10;
     }
@@ -108,4 +103,14 @@ int PreviewInterp::check_leadin_feedmode(const ModalState & initial, const Modal
 {
     // Don't check this in preview because users can change the feed mode. We want to show what the lead-in motion will be if everything is set up correctly, not based on the conditions at load.
     return INTERP_OK;
+}
+
+StateTag PreviewInterp::make_state_tag(const setup_struct & s, block_pointer block, int toplevel_line) const
+{
+    StateTag tag;
+    auto const &cblock = s.getControllingBlock();
+    tag.fields[GM_FIELD_MOTION_MODE_CONTROLLING] = cblock.g_modes[GM_MOTION];
+    tag.fields[GM_FIELD_MOTION_MODE] = s.motion_mode;
+    tag.fields[GM_FIELD_G_MODE_0] = block ? block->g_modes[GM_MODAL_0] : -1;
+    return tag;
 }

@@ -1,0 +1,30 @@
+component deadbandposfb "Use to make the DRO display commanded position when minimum step distance is larger than DRO resolution";
+
+pin out float position_to_motion;
+pin in float deadband;
+pin in float position_fb;
+pin in float position_cmd;
+pin in float velocity_cmd;
+
+// manage what motion sees for position feedback
+// when not moving it needs to see the commanded position so the DRO display is correct
+// otherwise the PID deadband required for the minimum step distance throws off the DRO display
+// beacause fb vs command position are not exactly out to sufficient number of DRO digits displayed
+// if commanded position and feedback position are within deadband or commanded velocity is 0
+// axis is not moving so reflect the commanded position to motion as the the feedback position
+
+function _;
+license "GPL";
+;;
+
+#include "rtapi_math.h"
+
+FUNCTION(_) {
+
+    position_to_motion = position_fb;
+    // position error check may be pointless
+    if (velocity_cmd == 0.0 || (fabs(position_fb - position_cmd) <= deadband)) {
+        position_to_motion = position_cmd;
+    }
+
+}

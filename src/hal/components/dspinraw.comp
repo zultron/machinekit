@@ -1,0 +1,343 @@
+component dspinraw "direct register settings for dspin stepper drivers";
+
+pin in u32 #.overcurrent_threshold[7 : personality] = 5;
+pin in u32 #.stall_threshold[7 : personality] = 1;
+
+pin in u32 #.full_step_speed[7 : personality] = 1023;
+pin in bit #.current_mode[7 : personality] = 1;
+pin in u32 #.micro_stepping[7 : personality] = 4;
+
+pin in bit #.dclink_compensation[7 : personality] = 1;
+pin in bit #.current_prediction[7 : personality] = 1;
+
+pin in u32 #.pwm_div[7 : personality] = 0;
+pin in u32 #.pwm_mul[7 : personality] = 7;
+pin in u32 #.current_loop_freq[7 : personality] = 8; // 4 - 124us, 4us steps (1 = 4us)
+
+pin in u32 #.kval_hold[7 : personality] = 0;
+pin in u32 #.kval_run[7 : personality] = 0;
+pin in u32 #.kval_acc[7 : personality] = 0;
+pin in u32 #.kval_dec[7 : personality] = 0;
+
+pin in u32 #.int_speed[7 : personality] = 1032;
+pin in u32 #.st_slp[7 : personality] = 25;
+pin in u32 #.fn_slp_acc[7 : personality] = 41;
+pin in u32 #.fn_slp_dec[7 : personality] = 41;
+
+pin in u32 #.tval_hold[7 : personality] = 0;
+pin in u32 #.tval_run[7 : personality] = 0;
+pin in u32 #.tval_acc[7 : personality] = 0;
+pin in u32 #.tval_dec[7 : personality] = 0;
+
+pin in bit #.vccval[7 : personality] = 1;
+pin in u32 #.gate_current[7 : personality] = 7; // Igate, 4 - 96mA, 4mA steps
+pin in u32 #.gate_time[7 : personality] = 2; // tCC, 125 - 3750ns, 125ns steps
+pin in u32 #.gate_boost[7 : personality] = 0; // tboost, 0 - 1000ns, 125ns steps (2 = 125ns)
+pin in u32 #.deadtime[7 : personality] = 2; // tDT, 125 - 4000ns, 125ns steps
+pin in u32 #.current_sense_blanking[7 : personality] = 2; // tblank, 125 - 1000ns, 125ns steps
+
+pin in u32 #.toff_fast[7 : personality] = 1; // 2 - 32us, 2us steps
+pin in u32 #.fast_step[7 : personality] = 9; // 2 - 32us, 2us steps
+pin in u32 #.ton_min[7 : personality] = 3; // 0.5 - 64us, 0.5us steps
+pin in u32 #.toff_min[7 : personality] = 41; // 0.5 - 64us, 0.5us steps
+
+pin in u32 #.acc[7 : personality] = 4094;
+pin in u32 #.dec[7 : personality] = 4094;
+pin in u32 #.max_speed[7 : personality] = 1023;
+
+
+pin in unsigned reg_addr;
+pin out float value;
+
+//interface to hm2_raw
+pin out u32 read_address;
+pin in  u32 read_data;
+pin out u32 write_data;
+pin out u32 write_address;
+pin out bit write_strobe;
+
+pin out u32 #.stat[7 : personality];       //status word
+pin out bit #.stall_a[7 : personality];    //stall detected
+pin out bit #.stall_b[7 : personality];    //stall detected
+pin out bit #.ocd[7 : personality];        // overcurrent
+pin out u32 #.th-status[7 : personality];  //thermal status
+pin out u32 #.uvlo-adc[7 : personality];   //ADC undervoltage
+pin out u32 #.uvlo[7 : personality];       //undervoltage
+pin out u32 #.mot_status[7 : personality]; //motor status, stopped, acc, dec, constant speed
+pin out u32 #.dir[7 : personality];        //motor direction
+pin out u32 #.hiz[7 : personality];        //powerstage disabled
+pin out u32 #.cmd-err[7 : personality];    //command error
+
+variable hal_u32_t state = 0;
+variable hal_u32_t reg_num = 0;
+variable hal_u32_t instance = 0;
+
+option personality yes;
+function _;
+license "GPL"; // indicates GPL v2 or later
+;;
+#include "rtapi_math.h"
+#define HM2_MAX_INSTANCES 8
+static const uint32_t instance_stride = 4;  // status, 4 byte = 32bit
+static const uint32_t read_reg_num = 20; // see dspin_module_t in hm2.h,
+static const uint32_t base_addr = 760;  // see hm2.h, dspin after ioports
+static const uint32_t register_stride = 4 * HM2_MAX_INSTANCES; // 4 byte = 32bit
+
+#pragma pack(1)
+typedef union {
+    struct{
+        uint16_t acc_r : 12; // 0x05
+        uint16_t tmp30 : 4;
+        uint16_t dec_r : 12; // 0x06
+        uint16_t tmp31 : 4;
+        uint16_t max_speed_r : 10; // 0x07
+        uint16_t tmp32 : 6;
+        uint16_t kval_hold_r : 8; // 0x09
+        uint16_t tmp0 : 8;
+        uint16_t kval_run_r : 8; // 0x0a
+        uint16_t tmp1 : 8;
+        uint16_t kval_acc_r : 8; // 0x0b
+        uint16_t tmp2 : 8;
+        uint16_t kval_dec_r : 8; // 0x0c
+        uint16_t tmp3 : 8;
+        uint16_t int_speed_r : 14; // 0x0d
+        uint16_t tmp4 : 2;
+        uint16_t st_slp_r : 8; // 0x0e
+        uint16_t tmp5 : 8;
+        uint16_t fn_slp_acc_r : 8; // 0x0f
+        uint16_t tmp6 : 8;
+        uint16_t fn_slp_dec_r : 8; // 0x10
+        uint16_t tmp7 : 8;
+        uint16_t ocd_th_r : 5; // 0x13
+        uint16_t tmp8 : 11;
+        uint16_t stall_th_r : 5; // 0x14
+        uint16_t tmp9 : 11;
+        uint16_t fs_spd_r : 11; // 0x15
+        uint16_t tmp10 : 5;
+        uint16_t step_mode_step_sel_r : 3; // 0x16
+        uint16_t step_mode_cm_vm_r : 1;
+        uint16_t step_mode_sync_sel_r : 3;
+        uint16_t step_mode_sync_en_r : 1;
+        uint16_t tmp11 : 8;
+        uint16_t gatecfg1_tcc_r : 5; // 0x18
+        uint16_t gatecfg1_igate_r : 3;
+        uint16_t gatecfg1_tboost_r : 3;
+        uint16_t gatecfg1_wd_en_r : 1;
+        uint16_t tmp12 : 5;
+        uint16_t gatecfg2_tdt_r : 5; // 0x19
+        uint16_t gatecfg2_tblank_r : 3;
+        uint16_t tmp13 : 8;
+        uint16_t config_osc_sel_r : 3; // 0x1a
+        uint16_t config_ext_clk_r : 1;
+        uint16_t config_sw_mode_r : 1;
+        uint16_t config_en_vscomp_r : 1;
+        uint16_t tmp14 : 1;
+        uint16_t config_oc_sd_r : 1;
+        uint16_t config_uvloval_r : 1;
+        uint16_t config_vccval_r : 1;
+        uint16_t config_f_pwm_dec_r : 3;
+        uint16_t config_f_pwm_int_r : 3;
+        uint16_t revision;
+        uint16_t unused;
+    } volt;
+    struct{
+        uint16_t acc_r : 12; // 0x05
+        uint16_t tmp33 : 4;
+        uint16_t dec_r : 12; // 0x06
+        uint16_t tmp34 : 4;
+        uint16_t max_speed_r : 10; // 0x07
+        uint16_t tmp35 : 6;
+        uint16_t tval_hold_r : 8; // 0x09
+        uint16_t tmp15 : 8;
+        uint16_t tval_run_r : 8; // 0x0a
+        uint16_t tmp16 : 8;
+        uint16_t tval_acc_r : 8; // 0x0b
+        uint16_t tmp17 : 8;
+        uint16_t tval_dec_r : 8; // 0x0c
+        uint16_t tmp18 : 8;
+        uint16_t tmp19 : 16; // 0xd
+        uint16_t t_fast_fast_step_r : 4; // 0x0e
+        uint16_t t_fast_foff_fast_r : 4;
+        uint16_t tmp20 : 8;
+        uint16_t ton_min_r : 8; // 0x0f
+        uint16_t tmp21 : 8;
+        uint16_t toff_min_r : 8; // 0x10
+        uint16_t tmp22 : 8;
+        uint16_t ocd_th_r : 5; // 0x13
+        uint16_t tmp23 : 11;
+        uint16_t tmp24 : 16; // 0x14
+        uint16_t fs_spd_r : 11; // 0x15
+        uint16_t tmp25 : 5;
+        uint16_t step_mode_step_sel_r : 3; // 0x16
+        uint16_t step_mode_cm_vm_r : 1;
+        uint16_t step_mode_sync_sel_r : 3;
+        uint16_t step_mode_sync_en_r : 1;
+        uint16_t tmp26 : 8;
+        uint16_t gatecfg1_tcc_r : 5; // 0x18
+        uint16_t gatecfg1_igate_r : 3;
+        uint16_t gatecfg1_tboost_r : 3;
+        uint16_t gatecfg1_wd_en_r : 1;
+        uint16_t tmp27 : 4;
+        uint16_t gatecfg2_tdt_r : 5; // 0x19
+        uint16_t gatecfg2_tblank_r : 3;
+        uint16_t tmp28 : 8;
+        uint16_t config_osc_sel_r : 3; // 0x1a
+        uint16_t config_ext_clk_r : 1;
+        uint16_t config_sw_mode_r : 1;
+        uint16_t config_en_toreq_r : 1;
+        uint16_t tmp29 : 1;
+        uint16_t config_oc_sd_r : 1;
+        uint16_t config_uvloval_r : 1;
+        uint16_t config_vccval_r : 1;
+        uint16_t config_tsw_r : 5;
+        uint16_t config_pred_en : 1;
+        uint16_t revision;
+        uint16_t unused;
+    } current;
+    uint16_t data_r[20];
+} reg_t;
+
+#pragma pack(1)
+typedef union{
+    struct{
+        uint16_t hiz : 1;
+        uint16_t busy : 1;
+        uint16_t sw_f : 1;
+        uint16_t sw_evn : 1;
+        uint16_t dir : 1;
+        uint16_t mot_status : 2;
+        uint16_t cmd_err : 1;
+        uint16_t stck_mod : 1;
+        uint16_t uvlo : 1;
+        uint16_t uvlo_adc : 1;
+        uint16_t th_status : 2;
+        uint16_t ocd : 1;
+        uint16_t stall_b : 1;
+        uint16_t stall_a : 1;
+    };
+    uint16_t word;
+} status_t;
+
+FUNCTION(_)
+{
+    reg_t regs;
+    for (int i = 0; i < sizeof(regs) / 2; ++i)
+    {
+      regs.data_r[i] = 0;
+    }
+    regs.current.revision = 1;
+
+    regs.current.acc_r = _acc(instance);
+    regs.current.dec_r = _dec(instance);
+    regs.current.max_speed_r = _max_speed(instance);
+
+    regs.current.ocd_th_r = _overcurrent_threshold(instance);
+    regs.current.fs_spd_r = _full_step_speed(instance);
+
+    regs.current.step_mode_cm_vm_r = _current_mode(instance);
+    regs.current.step_mode_sync_sel_r = 0;
+    regs.current.step_mode_sync_en_r = 0;
+
+    regs.current.gatecfg1_tcc_r = _gate_time(instance);
+    regs.current.gatecfg1_igate_r = _gate_current(instance);
+    regs.current.gatecfg1_tboost_r = _gate_boost(instance);
+    regs.current.gatecfg1_wd_en_r = 0;
+
+    regs.current.gatecfg2_tdt_r = _deadtime(instance);
+    regs.current.gatecfg2_tblank_r = _current_sense_blanking(instance);
+
+    // disable external clock source, use internal, 16Mhz
+    regs.current.config_osc_sel_r = 0;
+    regs.current.config_ext_clk_r = 0;
+
+    regs.current.config_sw_mode_r = 1;
+    regs.current.config_oc_sd_r = 1;
+    regs.current.config_uvloval_r = _vccval(instance);
+    regs.current.config_vccval_r = _vccval(instance);
+
+    if (_current_mode(instance))
+    {
+      regs.current.tval_hold_r = _tval_hold(instance);
+      regs.current.tval_run_r = _tval_run(instance);
+      regs.current.tval_acc_r = _tval_acc(instance);
+      regs.current.tval_dec_r = _tval_dec(instance);
+
+      regs.current.t_fast_fast_step_r = _fast_step(instance);
+      regs.current.t_fast_foff_fast_r = _toff_fast(instance);
+
+      regs.current.ton_min_r = _ton_min(instance);
+      regs.current.toff_min_r = _toff_min(instance);
+
+      regs.current.step_mode_step_sel_r =
+          _micro_stepping(instance) < 4 ? _micro_stepping(instance) : 4;
+
+      regs.current.config_en_toreq_r = 0; // disable peak current adjustment through ADC in
+      regs.current.config_tsw_r = _current_loop_freq(instance);
+      regs.current.config_pred_en = _current_prediction(instance);
+    }
+    else
+    {
+      regs.volt.kval_hold_r = _kval_hold(instance);
+      regs.volt.kval_run_r = _kval_run(instance);
+      regs.volt.kval_acc_r = _kval_acc(instance);
+      regs.volt.kval_dec_r = _kval_dec(instance);
+
+      regs.volt.int_speed_r = _int_speed(instance);
+      regs.volt.st_slp_r = _st_slp(instance);
+      regs.volt.fn_slp_acc_r = _fn_slp_acc(instance);
+      regs.volt.fn_slp_dec_r = _fn_slp_dec(instance);
+
+      regs.volt.stall_th_r = _stall_threshold(instance);
+
+      regs.volt.step_mode_step_sel_r = _micro_stepping(instance);
+
+      regs.volt.config_en_vscomp_r = _dclink_compensation(instance);
+      regs.volt.config_f_pwm_dec_r = _pwm_mul(instance);
+      regs.volt.config_f_pwm_int_r = _pwm_div(instance);
+    }
+
+    value = regs.data_r[reg_addr];
+
+
+//1272 1276 1280 1284
+
+
+    if (state == 0) // set address and data
+    {
+      write_strobe = 0;
+      write_address =
+          base_addr + reg_num * register_stride + instance * instance_stride;
+      write_data = regs.data_r[reg_num];
+      _stat(instance) = read_data;
+      status_t status;
+      status.word = read_data;
+      _stall_a(instance) = status.stall_a;
+      _stall_b(instance) = status.stall_b;
+      _ocd(instance) = status.ocd;
+      _th_status(instance) = status.th_status;
+      _uvlo_adc(instance) = status.uvlo_adc;
+      _uvlo(instance) = status.uvlo;
+      _mot_status(instance) = status.mot_status;
+      _dir(instance) = status.dir;
+      _hiz(instance) = status.hiz;
+      _cmd_err(instance) = status.cmd_err;
+      instance++;
+      if (instance > (personality - 1))
+      {
+        instance = 0;
+        reg_num++;
+      }
+      if (reg_num > sizeof(regs) / 2)
+      {
+        reg_num = 0;
+      }
+      state = 1;
+    }
+    else //strobe write
+    {
+      write_strobe = 1;
+      read_address = base_addr + read_reg_num * register_stride +
+                     instance * instance_stride;
+      state = 0;
+    }
+}

@@ -108,6 +108,8 @@ GENERATED_MANPAGES :=
 
 # Submakefiles from each of these directories will be included if they exist
 SUBDIRS := \
+    license \
+    \
     machinetalk \
     machinetalk/config-service \
     machinetalk/mkwrapper \
@@ -136,6 +138,7 @@ SUBDIRS := \
     python \
     python/rs274 \
     python/support \
+    python/testing \
     \
     po \
     \
@@ -347,9 +350,11 @@ HEADERS := \
     emc/rs274ngc/saicanon.hh \
     emc/rs274ngc/StateTag.hh \
     emc/rs274ngc/work_offset_structs.hh \
+    emc/interp_shared/interp_shared_fwd.hh \
     emc/interp_shared/coordinatetransform.hh \
     emc/interp_shared/positionarray.hh \
     emc/interp_shared/array_math.hh \
+    emc/interp_shared/arc_feed_util.hh \
     hal/hal.h \
     hal/hal_parport.h \
     libnml/buffer/locmem.hh \
@@ -528,9 +533,9 @@ distclean: clean configure-clean
 
 .PHONY: configure-clean
 configure-clean:
-	rm configure
-	rm Makefile.inc
-	rm Makefile.modinc
+	-rm configure
+	-rm Makefile.inc
+	-rm Makefile.modinc
 
 # So that nothing is built as root, this rule does not depend on the touched
 # files (Note that files in depends/ might be rebuilt, and there's little that

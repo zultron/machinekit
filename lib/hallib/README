@@ -72,3 +72,27 @@ util_lib.tcl               utility procedures
                                show_context (calling parms)
                                show_ini     (ini file settings)
                                show_env     (environmental vars)
+
+
+How to use a-la-carte sim components in an INI file:
+
+Include hal files in the following order:
+
+...
+
+# First, include the core sim components used for any simulation config:
+HALFILE = core_sim_components.hal
+
+# Include any other "load" files that create named / numbered components (used by axis-[XYZABCUVW] files, for example).
+HALFILE = sim_load_axis_constraint_components.tcl
+
+# One or more axis files (defines all the sim signals and constraints for that axis, based on corresponding INI parameters)
+HALFILE = axis-X.tcl
+HALFILE = axis-Y.tcl
+HALFILE = axis-Z.tcl
+HALFILE = axis-A.tcl
+
+# Any other setup files such as the simulated spindle encoder / reader
+HALFILE = sim_spindle_encoder.hal
+...
+

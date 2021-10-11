@@ -561,9 +561,6 @@ int Interp::execute_impl(const char *command, CommandSource cmd_src)
     CHP(store_named_param(&_setup, param_pair.first, param_pair.second));
   }
 
-  // TODO decide if these should be cleared here or before read starts (mostly for symmetry)
-  _setup.new_named_parameters.clear();
-
   if (_setup.line_length != 0) {        /* line not blank */
 
     // at this point we have a parsed block
@@ -1678,7 +1675,7 @@ int Interp::open(const char *filename, const char *working_dir) //!< string: the
     int index;
     int length;
 
-    logOword("open()");
+    logOword("Interp::open()");
     if (_setup.use_lazy_close && _setup.lazy_closing) {
         _setup.use_lazy_close = 0; // so that close will work
         close();
@@ -2019,7 +2016,7 @@ int Interp::read(const char * command)
 // falling back to toplevel in a controlled way. Idempotent.
 int Interp::unwind_call(int status, const char *file, int line, const char *function, CommandSource cmd_src)
 {
-    if (hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
+  if (hasFeature(FEATURE_EXTENDED_ERROR_MESSAGES) && isInterpError((InterpReturn)status)) {
     // Walks the subroutine call levels and appends caller / callee information
     add_error_call_context(cmd_src);
   }
@@ -2029,39 +2026,38 @@ int Interp::unwind_call(int status, const char *file, int line, const char *func
 
   // TODO drain call context stack
   for(; _setup.call_level > 0; _setup.call_level--) {
-    int i;
     context * sub = &_setup.sub_context[call_level() - 1];
     free_named_parameters(&_setup.sub_context[call_level()]);
     if(sub->subName) {
       logDebug("unwind_call leaving sub '%s'", sub->subName);
-      sub->subName = nullptr;
     }
 
     if (sub->call_type != CT_NGC_M98_SUB) // M98:  pass #1..#30 from parent
-      for(i=0; i<INTERP_SUB_PARAMS; i++) {
+      for(int i=0; i<INTERP_SUB_PARAMS; i++) {
         _setup.parameters[i+INTERP_FIRST_SUBROUTINE_PARAM] =
             sub->saved_params[i];
       }
 
     // When called from Interp::close via Interp::reset, this one is NULL
-    if (!_setup.file_pointer) continue;
-
-    // some frames may not have a filename and hence a position to seek to
-    // on return, like Python handlers
-    // needed to make sure this works in rs274 -n 0 (continue on error) mode
-    if (sub->filename && sub->filename[0]) {
-      if(0 != strcmp(_setup.filename, sub->filename)) {
-        fclose(_setup.file_pointer);
-        _setup.file_pointer = fopen(sub->filename, "r");
-        logDebug("unwind_call: reopening '%s' at %ld",
-                 sub->filename, sub->position);
-        strcpy(_setup.filename, sub->filename);
-      }
-      fseek(_setup.file_pointer, sub->position, SEEK_SET);
+    if (_setup.file_pointer) {
+        // some frames may not have a filename and hence a position to seek to
+        // on return, like Python handlers
+        // needed to make sure this works in rs274 -n 0 (continue on error) mode
+        if (sub->filename && sub->filename[0]) {
+            if(0 != strcmp(_setup.filename, sub->filename)) {
+                fclose(_setup.file_pointer);
+                _setup.file_pointer = fopen(sub->filename, "r");
+                logDebug("unwind_call: reopening '%s' at %ld",
+                         sub->filename, sub->position);
+                strcpy(_setup.filename, sub->filename);
+            }
+            fseek(_setup.file_pointer, sub->position, SEEK_SET);
+        }
+        _setup.sequence_number = sub->sequence_number;
+        logDebug("unwind_call: setting sequence number=%d from frame %d",
+                 _setup.sequence_number,call_level());
     }
-    _setup.sequence_number = sub->sequence_number;
-    logDebug("unwind_call: setting sequence number=%d from frame %d",
-             _setup.sequence_number,call_level());
+    sub->soft_clear(); // Avoid touching global state
   }
   // call_level == 0 here.
 
@@ -2620,7 +2616,8 @@ int Interp::synch_external_state(setup_pointer settings) const
     settings->mist = GET_EXTERNAL_MIST();
     settings->plane = GET_EXTERNAL_PLANE();
     settings->selected_pocket = GET_EXTERNAL_SELECTED_TOOL_SLOT();
-    settings->spindle_mode = GET_EXTERNAL_SPINDLE_CSS_MAX_SPEED() ? CONSTANT_SURFACE : CONSTANT_RPM;
+    settings->css_max_speed = GET_EXTERNAL_SPINDLE_CSS_MAX_SPEED();
+    settings->spindle_mode = settings->css_max_speed ? CONSTANT_SURFACE : CONSTANT_RPM;
     settings->speed = GET_EXTERNAL_SPEED();
     settings->spindle_turning = GET_EXTERNAL_SPINDLE();
     settings->pockets_max = GET_EXTERNAL_POCKETS_MAX();
@@ -2699,25 +2696,25 @@ int Interp::cbAfterSeekReadTransition(
             PATH_MAX+LINELEN,
             "%s/%s.ngc",
             _setup.program_prefix,
-            STATE_RESTORE_SUBROUTINE_NAME);
+                getStateRestoreSubroutineName());
         } else {
             snprintf(
                 tmp_file_path,
                 PATH_MAX+LINELEN,
                 "%s.ngc",
-                STATE_RESTORE_SUBROUTINE_NAME);
+                getStateRestoreSubroutineName());
         }
         logIf(EMC_DEBUG_SET_START_LINE, "state restore subroutine filename: %s\n", tmp_file_path);
         std::ofstream f_tmp(tmp_file_path);
 
         // Wrap the command list in a subroutine
         logIf(EMC_DEBUG_SET_START_LINE, "program preamble commands before starting at line %d:\n", start_settings.start_line);
-        f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> sub\n";
+        f_tmp << "o<" << getStateRestoreSubroutineName() << "> sub\n";
         for (auto const &cmd : restore_cmd_list) {
             logIf(EMC_DEBUG_SET_START_LINE, "  %s\n",cmd.c_str());
             f_tmp << cmd << "\n";
         }
-        f_tmp << "o<" STATE_RESTORE_SUBROUTINE_NAME << "> endsub\n";
+        f_tmp << "o<" << getStateRestoreSubroutineName() << "> endsub\n";
         f_tmp << "M2\n";
 
         CHKS(!f_tmp.good(), "Failed to write restore program");
@@ -2726,7 +2723,7 @@ int Interp::cbAfterSeekReadTransition(
     CHP(synch());
     {
         char restore_cmd[LINELEN] = {};
-        snprintf(restore_cmd, LINELEN, "o<%s> call", STATE_RESTORE_SUBROUTINE_NAME);
+        snprintf(restore_cmd, LINELEN, "o<%s> call", getStateRestoreSubroutineName());
         // NOTE: PREAMBLE is special here. It forces execute to treat the
         // restore command as if it was part of the original program,
         // effectively injecting G-code into the program
@@ -2843,6 +2840,9 @@ int Interp::active_modes(ModalState &active_state,
 
     // Extract as-is field values directly into appropriate array
     // position
+    // FIXME remove ambiguity on state restore between LOCAL_LINE_NUMBER and
+    // LINE_NUMBER. Only top-level tags can be restored anyway so it works, but
+    // we should be more consistent about the definition / usage.
     g_codes[G_CODE_SEQUENCE_NUMBER] = tag.fields[GM_FIELD_LINE_NUMBER];
     g_codes[G_CODE_MOTION_MODE] = tag.fields[GM_FIELD_MOTION_MODE];
     g_codes[G_CODE_MODE_0] = tag.fields[GM_FIELD_G_MODE_0];
@@ -3506,15 +3506,31 @@ const char *strstore(const char *s)
     return pair.first->c_str();
 }
 
+// TODO should filename and subName be initialized to nullptr to be consistent with clear()
 context_struct::context_struct()
-    : position(0), sequence_number(0), filename(""), subName(""),
-    m98_loop_counter(-1), context_status(0), modal_state(), call_type(CT_NONE)
+    : position(0),
+    sequence_number(0),
+    filename(""),
+    subName(""),
+    m98_loop_counter(-1),
+    saved_params{},
+    context_status(0),
+    modal_state(),
+    call_type(CT_NONE)
 {
 }
 
-void context_struct::clear()
+void context_struct::soft_clear()
 {
-    new (this) context_struct();
+    // TODO figure out how to avoid duplicating this here...
+    position = 0;
+    sequence_number = 0;
+    filename = "";
+    subName = nullptr;
+    m98_loop_counter = -1;
+    context_status = 0;
+    modal_state = ModalState{};
+    call_type = CT_NONE;
 }
 
 bool toolOffsetActive(const setup_struct * s)

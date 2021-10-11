@@ -71,6 +71,19 @@ class DummyProgress:
     def progress(self): pass
 
 
+def IniFloatOrDefaultFinder(inifile):
+    def find_float_or_default(section, tag, default_value=0.0):
+        """ Find a value in an INI file, or use a default if it's missing / invalid"""
+        res_str = inifile.find(section, tag)
+        if not res_str:
+            return default_value
+        try:
+            return float(res_str)
+        except ValueError:
+            return default_value
+    return find_float_or_default
+
+
 class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
     def __init__(self, color_config, geometry, lathe_view_option, stat, random, inifile):
         rs274.glcanon.GLCanon.__init__(self, color_config, geometry, inifile)
@@ -78,10 +91,15 @@ class StatCanon(rs274.glcanon.GLCanon, rs274.interpret.StatMixin):
         self.progress = None
         self.lathe_view_option = lathe_view_option
         self.tools_used = []
-        vfd_rps2 = float(inifile.find("TORMACH_SPINDLE", "SPINDLE_VFD_PEAK_ACCEL_RPS2") or 1000.0/60)
-        vfd_cmd_latency = float(inifile.find("TORMACH_SPINDLE", "SPINDLE_CMD_LATENCY_SEC") or 0.0)
-        lo_belt_ratio = float(inifile.find("SPINDLE", "LO_RANGE_PULLEY_RATIO") or 1.0)
-        hi_belt_ratio = float(inifile.find("SPINDLE", "HI_RANGE_PULLEY_RATIO") or 1.0)
+
+        finder = IniFloatOrDefaultFinder(inifile)
+        # Explicitly set a non-zero acceleration if none is provided
+        vfd_rps2 = finder("TORMACH_SPINDLE", "SPINDLE_VFD_PEAK_ACCEL_RPS2") or 1000.0/60
+        vfd_cmd_latency = finder("TORMACH_SPINDLE", "SPINDLE_CMD_LATENCY_SEC")
+        # Enforce a non-zero pulley ratio
+        lo_belt_ratio = finder("SPINDLE", "LO_RANGE_PULLEY_RATIO") or 1.0
+        hi_belt_ratio = finder("SPINDLE", "HI_RANGE_PULLEY_RATIO") or 1.0
+
         self.spindle_dwell_data = (
             (1.0 / 60.0 / (vfd_rps2 * lo_belt_ratio), vfd_cmd_latency,),
             (1.0 / 60.0 / (vfd_rps2 * hi_belt_ratio), vfd_cmd_latency,),
@@ -240,6 +258,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
     def map(self, *args):
         # don't schedule multiple timers
         if self.timeout_id is None:
+            # note: changing 50 to 80 ms here eliminated the rare PathPilot stalled or slow axes DROs condition
+            # the PathPilot UI periodic update callback also run at 50 ms intervals
             self.timeout_id = gobject.timeout_add(50, self.poll)       
 
     def poll(self):
@@ -410,7 +430,8 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         # KLUDGE: reverse engineer the machine units
         unit_suffix = "mm" if s.linear_units == 1 else "in"
         for i in range(3): # Does not enforce angle limits
-            if not(s.axis_mask & (1<<i)): continue
+            if not (s.axis_mask & (1 << i)) or self.canon is None or not self.canon.has_extents():
+                continue
             if self.canon.min_extents_notool[i] < (machine_limit_min[i] - limit_padding):
                 neg_overhang = self.canon.min_extents_notool[i] - machine_limit_min[i]
                 annotations.append((
@@ -612,6 +633,7 @@ class Gremlin(gtk.gtkgl.widget.DrawingArea,
         error_str = gcode.strerror(result)
         sys.stderr.write("G-Code error in " + os.path.basename(filename) + "\n" + "Near line "
                          + str(seq) + " of\n" + filename + "\n" + error_str + "\n")
+        return None
 
     def show_gcode_warnings(self, warnings, filename):
         for w in warnings:

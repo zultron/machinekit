@@ -246,6 +246,8 @@ TEST_CASE("G10 L10 ")
 SCENARIO("G10 called with L11")
 {
     DECL_INIT_TEST_INTERP();
+    // TEMPORARY tweak global limits to allow more Z travel
+    set_axis_position_limit(Z, 20, -40);
 
     GIVEN("tool offsets relative to position no rotation")
     {
@@ -1245,6 +1247,45 @@ SCENARIO("Modal behavior of incremental vs absolute motion")
                     0,0,0,0,0,0};
                 CHECK_THAT(settings->current, Catch::Matchers::Approx(
                                                   expected_incr_result2).margin(CART_FUZZ));
+            }
+        }
+    }
+}
+
+SCENARIO("Behavior of named parameter errors")
+{
+    DECL_INIT_TEST_INTERP();
+
+    const char *test_setup[] = {
+        "g20g90",
+        "g0x0y0z0a0"
+    };
+    REQUIRE_INTERP_EXEC_LINES_OK(test_interp, test_setup);
+
+    GIVEN("A read-only parameter is written from a G-code line")
+    {
+        double my_param=0;
+        int status=0;
+        GIVEN("No user named parameters (blank slate)") {
+            REQUIRE_INTERP_OK(test_interp, find_named_param("_my_named_param", &status, &my_param));
+            CHECK(status == 0);
+        }
+        REQUIRE_INTERP_ERROR(test_interp, execute("#<_task>=-1000.0"));
+        THEN("The bad parameter write is rejected (and the new parameter entry is cleared before the next execution)") {
+            REQUIRE_INTERP_OK(test_interp, execute("#<_my_named_param>=-2000.0"));
+            double my_param=0;
+            int status=0;
+            REQUIRE_INTERP_OK(test_interp, find_named_param("_my_named_param", &status, &my_param));
+            CHECK(status == 1);
+            CHECK(my_param == -2000.0);
+
+            THEN("Also, _task parameter is unaffected by attempt to write") {
+                double my_param=0;
+                int status=0;
+                REQUIRE_INTERP_OK(test_interp, execute("#<_my_named_param>=#<_task>"));
+                REQUIRE_INTERP_OK(test_interp, find_named_param("_my_named_param", &status, &my_param));
+                CHECK(status == 1);
+                CHECK(my_param == 1.0);
             }
         }
     }

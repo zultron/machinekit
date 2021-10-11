@@ -837,6 +837,7 @@ int Posix::task_start(int task_id, unsigned long int period_nsec)
   CPU_ZERO(&cpuset);
   int nprocs = sysconf( _SC_NPROCESSORS_ONLN );
   CPU_SET(nprocs-1, &cpuset); // assumes processor numbers are contiguous
+  rtapi_print_msg(RTAPI_MSG_ERR, "number of cpus found: %d\n", nprocs);
 
   pthread_attr_t attr;
   if(pthread_attr_init(&attr) < 0)
@@ -849,9 +850,43 @@ int Posix::task_start(int task_id, unsigned long int period_nsec)
       return -errno;
   if(pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED) < 0)
       return -errno;
+
+  // if an 'rt' cpuset partition exists move ourself to it
+  // if it does and we do not add ourself to it the thread will never run
+  // if we set the cpu affinity to the last cpu which is in the rt partition
+  const char *rttask = "/sys/fs/cgroup/cpuset/rt/tasks";
+  if (access(rttask, F_OK) == 0) {
+    // file exists
+    // write our PID to rt/tasks
+    FILE *fp;
+    // go back to UID root for file open
+    WITH_ROOT;
+#if defined(__x86_64__) || defined(__i386__)
+    if (iopl(3) < 0) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "task_start() failed to raise privileges\n");
+    }
+#endif
+    fp=fopen(rttask, "w");
+    if(fp != NULL) {
+        pid_t pid = getpid();
+        int cnt = fprintf(fp, "%d", pid);
+        if (cnt > 0)
+            rtapi_print_msg(RTAPI_MSG_ERR, "wrote rtapi_app pid %d to %s\n", pid, rttask);
+        else
+            rtapi_print_msg(RTAPI_MSG_ERR, "failed to write '%d' to %s\n", pid, rttask);
+        fclose(fp);
+    }
+    else {
+        rtapi_print_msg(RTAPI_MSG_ERR, "failed to open %s errno: %d\n", rttask, errno);
+    }
+  }
+  else {
+    rtapi_print_msg(RTAPI_MSG_ERR, "cpuset rt partiton file not found: %s\n", rttask);
+  }
   if(nprocs > 1)
-      if(pthread_attr_setaffinity_np(&attr, sizeof(cpuset), &cpuset) < 0)
-          return -errno;
+    if(pthread_attr_setaffinity_np(&attr, sizeof(cpuset), &cpuset) < 0)
+        return -errno;
+
   if(pthread_create(&task->thr, &attr, &wrapper, reinterpret_cast<void*>(task)) < 0)
       return -errno;
 
@@ -951,24 +986,27 @@ void Posix::wait() {
     clock_gettime(RTAPI_CLOCK, &now);
     if(ts_less(task->nextstart, now))
     {
-        static int printed = 0;
-        if(policy == SCHED_FIFO && !printed)
+        // now is past next task run -- we took too long
+        static struct timespec print_enabled_time = {0};
+
+        if ((policy == SCHED_FIFO) && (now.tv_sec > print_enabled_time.tv_sec))
         {
             // TORMACH changed
-            rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd\n"
-		    "This Message will only display once per session.\n"
-		    "Run the Latency Test and resolve before continuing.\n",
-                    task - task_array);
+            //rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd\n"
+		    //"This Message will only display once per session.\n"
+		    //"Run the Latency Test and resolve before continuing.\n",
+            //        task - task_array);
 
-            printed = 1;
             // TORMACH added
-            //struct timespec delta;
-            //ts_elapsed(&delta, &(task->nextstart), &now);
-            //rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd. now: %ld.%09ld is after nextstart: %ld.%09ld - new deadline missed, delta: %ld.%09ld\n",
-            //        task - task_array,
-            //        now.tv_sec, now.tv_nsec,
-            //        task->nextstart.tv_sec, task->nextstart.tv_nsec,
-            //        delta.tv_sec, delta.tv_nsec);
+            struct timespec delta;
+            ts_elapsed(&delta, &(task->nextstart), &now);
+            rtapi_print_msg(RTAPI_MSG_ERR, "Unexpected realtime delay on task %zd. new deadline missed, delta: %ld.%09ld. this message will only display once every 5 minutes.\n",
+                    task - task_array,
+                    delta.tv_sec, delta.tv_nsec);
+
+            // Suppress printing for 5 minutes so we don't enter a self-repeating cycle of deadline misses
+            // due to the mere act of printing
+            print_enabled_time.tv_sec = now.tv_sec + (60*5);
         }
     }
     else
