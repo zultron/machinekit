@@ -26,7 +26,7 @@ pin out float stop_period;
 pin out float this_period;
 
 //pin out unsigned stall-# [4];      //stall detected
-//pin in bit proto2board;  //flip SLP4 BMASK_RETURN and BMASK_BLAST command bits; this is to compensate for the J2 output on reid's
+//pin in bit proto2board;  //flip RACK_TODO BMASK_RETURN and BMASK_BLAST command bits; this is to compensate for the J2 output on reid's
                 //board not being functional
 
 pin out s32 index;
@@ -54,6 +54,18 @@ pin in bit tool_clamp;
 pin in bit air_blast;
 pin in bit tool_release;
 
+//these enable the spindle head user PDB button to be active during the time that
+//there are ZBot ATC Pop-ups ask user to remove or insert tools.  During this time, the PP's normal 50 mS loop is not active
+pin in bit atc_active;  //meant to be connected to atc-ngc-running signal
+pin in bit enable_local_pdb; //meant to be connect to local-pdb-control signal
+pin out bit local_pdb_release;
+pin out bit local_pdb_clamp;
+pin out u32 local_pdb_state;
+pin out u32 local_pdb_timer; 
+pin in u32 local_pdb_clamp_ms;
+pin in u32 local_pdb_clamp_pause_ms;
+//end of 
+
 function _ "Tormach 24R Break Out Board";
 license "GPL";
 ;;
@@ -67,6 +79,15 @@ Then another STEP_TIME "STOP" pulse from 24 I/O expansion board.
 if STEP_TIME = 33 ms, then full cycle of SYND, DATA, STOP takes 99 ms or just under 100ms or 1/10 sec of delay
 
 */
+
+// L_PDB_S = LOCAL_PDB_STATE 
+// defines used by local_pdb_state
+#define L_PDB_S_IDLE (0)
+#define L_PDB_S_RELEASE (1)
+#define L_PDB_S_CLAMP (2)
+
+#define DEFAULT_PDB_CLAMP_MS (500)
+#define DEFAULT_PDB_CLAMP_PAUSE_MS (500)
 
 //KEEP IN SYNC with PIC on 24R!   Both ends must be in agreement for what the freqs mean!
 
@@ -286,23 +307,77 @@ unsigned int output;
             && ((PIC_MIN_FB_FREQ * (1.0 - (PIC_TOLERANCE/100))) < low)
             ) {
             comp2 = hi/PIC_MAX_FB_FREQ;
-            comp = low/PIC_MIN_FB_FREQ; //lower freq means more cnts, and better resolution?? SLP
+            comp = low/PIC_MIN_FB_FREQ; //lower freq means more cnts, and better resolution?? RACK_TODO 
         }
     }
 
+    //note trick that we started with output = 0 here
     if (dust_hood_lift) 
         output = BMASK_DUST_HOOD_LIFT;
     else output = 0;
 
-    //final, non-prototype, functionality
-    if (tool_clamp)
-        output |= BMASK_TOOL_CLAMP;
-
     if (air_blast)
         output |= BMASK_AIR_BLAST;
     
+    if ( !atc_active || !enable_local_pdb) {
+        local_pdb_release = 0;
+        local_pdb_state = L_PDB_S_IDLE;
+        local_pdb_timer = 0;
+    }
+    
+    if (atc_active && enable_local_pdb) {
 
-    if (tool_release)
+        switch (local_pdb_state) {
+        case L_PDB_S_IDLE:
+            if (user_button) {
+                local_pdb_state = L_PDB_S_RELEASE;
+                local_pdb_release = 1;
+                local_pdb_clamp = 0;
+            }
+            else { 
+                local_pdb_release = 0; //defensive clearing of these 
+                local_pdb_clamp = 0;
+            }   
+            break;
+        case L_PDB_S_RELEASE:
+            if (!user_button) { 
+                if (!local_pdb_clamp_pause_ms)
+                    local_pdb_timer = DEFAULT_PDB_CLAMP_PAUSE_MS;
+                else local_pdb_timer = local_pdb_clamp_pause_ms;
+                local_pdb_state = L_PDB_S_CLAMP;
+                local_pdb_release = 0;
+                local_pdb_clamp = 0;
+            }
+            break;
+        case L_PDB_S_CLAMP:
+            if (--local_pdb_timer == 0) { //run and check timer
+                if (!local_pdb_release && !local_pdb_clamp) { //if waiting for PDB solenoid release to happen
+                    //restart timer for the clamp solenoid active period
+                    if (!local_pdb_clamp_ms)
+                        local_pdb_timer = DEFAULT_PDB_CLAMP_MS;
+                    else local_pdb_timer = local_pdb_clamp_ms;
+                    local_pdb_clamp = 1;
+                }
+                else { //we've completed both main PDB solenoid release wait and clamp solenoid pulse times
+                    local_pdb_state = L_PDB_S_IDLE;
+                    local_pdb_clamp = 0;
+                    local_pdb_release = 0; //defensive
+                }
+            }
+            break;
+        default: //can't happen, but 
+            local_pdb_state = L_PDB_S_IDLE;
+            local_pdb_clamp = 0;
+            local_pdb_release = 0; //defensive
+            break;
+        }        
+    }
+
+    if (tool_clamp || local_pdb_clamp)
+        output |= BMASK_TOOL_CLAMP;
+
+
+    if (tool_release || local_pdb_release)
         output |= BMASK_TOOL_RELEASE;
 
     if (last_cmd != output) {
