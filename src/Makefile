@@ -122,13 +122,12 @@ SUBDIRS := \
     rtapi/examples/extint rtapi/examples/fifo rtapi/examples rtapi \
     \
     hal/components hal/drivers hal/user_comps/devices hal/user_comps/mb2hal \
-    hal/user_comps hal/user_comps/vismach hal/user_comps/vfs11_vfd hal/classicladder hal/utils hal \
+    hal/user_comps hal/user_comps/vfs11_vfd hal/utils hal \
     hal/user_comps/vfdb_vfd hal/user_comps/wj200_vfd \
     hal/user_comps/huanyang-vfd \
     \
-    emc/usr_intf/axis emc/usr_intf/touchy emc/usr_intf/stepconf emc/usr_intf/pncconf \
-    emc/usr_intf/gremlin \ emc/usr_intf/gscreen \
-    emc/usr_intf/gmoccapy \
+    emc/usr_intf/axis \
+    emc/usr_intf/gremlin \
     emc/usr_intf emc/nml_intf emc/task emc/iotask emc/kinematics emc/tp emc/canterp \
     emc/motion emc/ini emc/rs274ngc emc/sai emc emc/pythonplugin \
     emc/motion-logger \
@@ -198,7 +197,8 @@ endif
 # Each directory in $(INCLUDES) is passed as a -I directory when compiling.
 INCLUDE := $(patsubst %,-I%, $(INCLUDES)) -I$(RTDIR)/include
 ifeq ($(BUILD_PYTHON),yes)
-INCLUDE += -I$(INCLUDEPY)
+INCLUDE += $(PYTHON_CPPFLAGS)
+INCLUDE += $(LIBTIRPC_CFLAGS)
 endif
 
 # Compilation options.	Perhaps some of these should come from Makefile.inc? (CXXFLAGS now does)
@@ -219,14 +219,14 @@ OPT := -Os
 endif
 
 OPT := $(OPT) $(INTEGER_OVERFLOW_FLAGS)
-DEBUG := -g -Wall -Werror
+DEBUG := -g -Wall
 CFLAGS := $(INCLUDE) $(OPT) $(DEBUG) $(EXTRA_DEBUG) -DULAPI -std=gnu99 -fgnu89-inline
 CXXFLAGS := $(INCLUDE) $(CXXFLAGS)   $(EXTRA_DEBUG) -DULAPI $(DEBUG) $(OPT)
 
 ifeq ($(RUN_IN_PLACE),yes)
-LDFLAGS := -L$(LIB_DIR) -Wl,-rpath,$(LIB_DIR)
+LDFLAGS := -L$(LIB_DIR) -Wl,-rpath,$(LIB_DIR) $(LIBTIRPC_LIBS)
 else
-LDFLAGS := -Wl,-rpath-link,../lib
+LDFLAGS := -Wl,-rpath-link,../lib $(LIBTIRPC_LIBS)
 endif
 
 # Rules to make .o (object) files

@@ -55,8 +55,7 @@ $(LIB_DIR)/librs274.so.0: $(patsubst %.cc,objects/%.o,$(LIBRS274SRCS)) $(REQUIRE
 	$(ECHO) Linking $(notdir $@)
 	@mkdir -p $(LIB_DIR)
 	@rm -f $@
-	$(Q)$(CXX) -g $(LDFLAGS) -Wl,-soname,$(notdir $@) -shared -o $@ $^ \
-	    -lstdc++ $(BOOST_PYTHON_LIBS) -l$(LIBPYTHON) -ldl
+	$(Q)$(CXX) -g $(LDFLAGS) -Wl,-soname,$(notdir $@) -shared -o $@ $^ -lstdc++ $(BOOST_PYTHON_LIB) $(PYTHON_LIBS) $(PYTHON_EXTRA_LIBS)
 
 $(patsubst ./emc/rs274ngc/%,../include/%,$(wildcard ./emc/rs274ngc/*.h)): ../include/%.h: ./emc/rs274ngc/%.h
 	cp $^ $@
