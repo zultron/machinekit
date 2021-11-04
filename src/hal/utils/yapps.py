@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 #
 # Yapps 2 - yet another python parser system
@@ -11,27 +11,42 @@
 # <http://www.opensource.org/licenses/mit-license.php>
 #
 
-import sys, os, re
-BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
-sys.path.insert(0, os.path.join(BASE, "lib", "python"))
+import os, sys, re, types
+#from six import string_types
+PY2 = sys.version_info[0] == 2
+if PY2:
+    string_types = (basestring,)
+else:
+    string_types = (str,)
 
-from yapps import runtime, parsetree
+try: from yapps import runtime, parsetree, grammar
+except ImportError:
+    # For running binary from a checkout-path directly
+    if os.path.isfile('yapps/__init__.py'):
+        sys.path.append('.')
+        from yapps import runtime, parsetree, grammar
+    else: raise
 
-def generate(inputfilename, outputfilename='', dump=0, **flags):
+
+def generate(inputfile, outputfile=None, dump=0, **flags):
     """Generate a grammar, given an input filename (X.g)
     and an output filename (defaulting to X.py)."""
 
-    if not outputfilename:
+    inputfilename = inputfile if isinstance(
+        inputfile, string_types ) else inputfile.name
+    if not outputfile:
         if inputfilename.endswith('.g'):
-            outputfilename = inputfilename[:-2] + '.py'
+            outputfile = inputfilename[:-2] + '.py'
         else:
             raise Exception('Must specify output filename if input filename is not *.g')
-        
+
     DIVIDER = '\n%%\n' # This pattern separates the pre/post parsers
     preparser, postparser = None, None # Code before and after the parser desc
 
     # Read the entire file
-    s = open(inputfilename,'r').read()
+    if isinstance(inputfile, string_types):
+        inputfile = open(inputfilename)
+    s = inputfile.read()
 
     # See if there's a separation between the pre-parser and parser
     f = s.find(DIVIDER)
@@ -51,65 +66,49 @@ def generate(inputfilename, outputfilename='', dump=0, **flags):
     if preparser is not None: t.preparser = preparser
     if postparser is not None: t.postparser = postparser
 
-    # Check the options
-    for f in t.options.keys():
-        for opt,_,_ in yapps_options:
-            if f == opt: break
-        else:
-            print >>sys.stderr, 'Warning: unrecognized option', f
     # Add command line options to the set
-    for f in flags.keys(): t.options[f] = flags[f]
-            
+    t.options.update(flags)
+
     # Generate the output
     if dump:
         t.dump_information()
     else:
-        t.output = open(outputfilename, 'w')
+        if isinstance(outputfile, string_types):
+            outputfile = open(outputfile, 'w')
+        t.output = outputfile
         t.generate_output()
     return 0
 
-if __name__ == '__main__':
+
+def main(argv=None):
     import doctest
     doctest.testmod(sys.modules['__main__'])
     doctest.testmod(parsetree)
 
-    # Someday I will use optparse, but Python 2.3 is too new at the moment.
-    yapps_options = [
-        ('context-insensitive-scanner',
-         'context-insensitive-scanner',
-         'Scan all tokens (see docs)'),
-        ]
+    import argparse
+    parser = argparse.ArgumentParser(
+        description='Generate python parser code from grammar description file.')
+    parser.add_argument('grammar_path', help='Path to grammar description file (input).')
+    parser.add_argument('parser_path', nargs='?',
+        help='Path to output file to be generated.'
+                ' Input path, but with .py will be used, if omitted.'
+            ' "-" or "/dev/stdout" (on some systems) can be used to output generated code to stdout.')
+    parser.add_argument('-i', '--context-insensitive-scanner',
+        action='store_true', help='Scan all tokens (see docs).')
+    parser.add_argument('-t', '--indent-with-tabs', action='store_true',
+        help='Use tabs instead of four spaces for indentation in generated code.')
+    parser.add_argument('--dump', action='store_true', help='Dump out grammar information.')
+    optz = parser.parse_args(argv if argv is not None else sys.argv[1:])
 
-    import getopt
-    optlist, args = getopt.getopt(sys.argv[1:], 'f:', ['help', 'dump', 'use-devel-grammar'])
-    if not args or len(args) > 2:
-        print >>sys.stderr, 'Usage:'
-        print >>sys.stderr, '  python', sys.argv[0], '[flags] input.g [output.py]'
-        print >>sys.stderr, 'Flags:'
-        print >>sys.stderr, ('  --dump' + ' '*40)[:35] + 'Dump out grammar information'
-        print >>sys.stderr, ('  --use-devel-grammar' + ' '*40)[:35] + 'Use the devel grammar parser from yapps_grammar.py instead of the stable grammar from grammar.py'
-        for flag, _, doc in yapps_options:
-            print >>sys.stderr, ('  -f' + flag + ' '*40)[:35] + doc
-    else:
-        # Read in the options and create a list of flags
-        flags = {}
-        use_devel_grammar = 0
-        for opt in optlist:
-            for flag, name, _ in yapps_options:
-                if opt == ('-f', flag):
-                    flags[name] = 1
-                    break
-            else:
-                if opt == ('--dump', ''):
-                    flags['dump'] = 1
-                elif opt == ('--use-devel-grammar', ''):
-                    use_devel_grammar = 1
-                else:
-                    print >>sys.stderr, 'Warning: unrecognized option', opt[0], opt[1]
+    parser_flags = dict()
+    for k in 'dump', 'context_insensitive_scanner':
+        if getattr(optz, k, False): parser_flags[k] = True
+    if optz.indent_with_tabs: parsetree.INDENT = '\t' # not the cleanest way
 
-        if use_devel_grammar:
-            import yapps_grammar as grammar
-        else:
-            from yapps import grammar
-            
-        sys.exit(generate(*tuple(args), **flags))
+    outputfile = optz.parser_path
+    if outputfile == '-': outputfile = sys.stdout
+
+    sys.exit(generate(optz.grammar_path, outputfile, **parser_flags))
+
+
+if __name__ == '__main__': main()
