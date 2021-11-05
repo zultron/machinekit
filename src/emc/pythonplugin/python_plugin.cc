@@ -50,26 +50,17 @@ namespace bp = boost::python;
 
 static const char *strstore(const char *s);
 
-// boost python versions from 1.58 to 1.61 (the latest at the time of
-// writing) all have a bug in boost::python::execfile that results in a
-// double free.  Work around it by using the Python implementation of
-// execfile instead.
-// The bug was introduced at https://github.com/boostorg/python/commit/fe24ab9dd5440562e27422cd38f7de03356bfd16
-bp::object working_execfile(const char *filename, bp::object globals, bp::object locals) {
-    return bp::import("__builtin__").attr("execfile")(filename, globals, locals);
-}
-
 int PythonPlugin::run_string(const char *cmd, bp::object &retval, bool as_file)
 {
     reload();
     try {
 	if (as_file)
-	    retval = working_execfile(cmd, main_namespace, main_namespace);
+	    retval = bp::exec_file(cmd, main_namespace, main_namespace);
 	else
 	    retval = bp::exec(cmd, main_namespace, main_namespace);
 	status = PLUGIN_OK;
     }
-    catch (bp::error_already_set) {
+    catch (bp::error_already_set &) {
 	if (PyErr_Occurred()) {
 	    exception_msg = handle_pyerror();
 	} else
@@ -96,7 +87,7 @@ int PythonPlugin::call_method(bp::object method, bp::object &retval)
 	retval = method(); 
 	status = PLUGIN_OK;
     }
-    catch (bp::error_already_set) {
+    catch (bp::error_already_set &) {
 	if (PyErr_Occurred()) {
 	   exception_msg = handle_pyerror();
 	} else
@@ -146,7 +137,7 @@ int PythonPlugin::call(const char *module, const char *callable,
 	    retval = bp::object();
 	status = PLUGIN_OK;
     }
-    catch (bp::error_already_set) {
+    catch (bp::error_already_set &) {
 	if (PyErr_Occurred()) {
 	   exception_msg = handle_pyerror();
 	} else
@@ -186,7 +177,7 @@ bool PythonPlugin::is_callable(const char *module,
 	}
 	result = PyCallable_Check(function.ptr());
     }
-    catch (bp::error_already_set) {
+    catch (bp::error_already_set &) {
 	// KeyError expected if not callable
 	if (!PyErr_ExceptionMatches(PyExc_KeyError)) {
 	    // something else, strange
@@ -264,12 +255,10 @@ int PythonPlugin::initialize()
 		main_namespace[inittab_entries[i]] = bp::import(inittab_entries[i].c_str());
 	    }
 	    if (toplevel) // only execute a file if there's one configured.
-		bp::object result = working_execfile(abs_path,
-						  main_namespace,
-						  main_namespace);
+		bp::object result = bp::exec_file(abs_path, main_namespace, main_namespace);
 	    status = PLUGIN_OK;
 	}
-	catch (bp::error_already_set) {
+	catch (bp::error_already_set &) {
 	    if (PyErr_Occurred()) {
 		exception_msg = handle_pyerror();
 	    } else
@@ -297,7 +286,8 @@ PythonPlugin::PythonPlugin(struct _inittab *inittab) :
     abs_path(0),
     log_level(0)
 {
-    Py_SetProgramName((char *) abs_path);
+    wchar_t *program = Py_DecodeLocale(abs_path, NULL);
+    Py_SetProgramName(program);
 
     if ((inittab != NULL) &&
 	PyImport_ExtendInittab(inittab)) {
