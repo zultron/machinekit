@@ -149,7 +149,7 @@ static PyObject *Ini_find(pyIniFile *self, PyObject *args) {
         Py_INCREF(Py_None);
         return Py_None;
     }
-    return PyString_FromString(const_cast<char*>(out));
+    return PyUnicode_FromString(const_cast<char*>(out));
 }
 
 static PyObject *Ini_findall(pyIniFile *self, PyObject *args) {
@@ -163,7 +163,7 @@ static PyObject *Ini_findall(pyIniFile *self, PyObject *args) {
         if(out == NULL) {
             break;
         }
-        PyList_Append(result, PyString_FromString(const_cast<char*>(out)));
+        PyList_Append(result, PyUnicode_FromString(const_cast<char*>(out)));
         num++;
     }
     return result;
@@ -187,8 +187,7 @@ static PyMethodDef Ini_methods[] = {
 };
 
 static PyTypeObject Ini_Type = {
-    PyObject_HEAD_INIT(NULL)
-    0,                      /*ob_size*/
+    PyVarObject_HEAD_INIT(NULL, 0)
     "linuxcnc.ini",              /*tp_name*/
     sizeof(pyIniFile),      /*tp_basicsize*/
     0,                      /*tp_itemsize*/
@@ -275,14 +274,14 @@ static int emcSendCommand(pyCommandChannel *s, RCS_CMD_MSG & cmd) {
     return -1;
 }
 
-static char *get_nmlfile(void) {
+static const char *get_nmlfile(void) {
     PyObject *fileobj = PyObject_GetAttrString(m, "nmlfile");
     if(fileobj == NULL) return NULL;
-    return PyString_AsString(fileobj);
+    return PyUnicode_AsUTF8(fileobj);
 }
 
 static int Stat_init(pyStatChannel *self, PyObject *a, PyObject *k) {
-    char *file = get_nmlfile();
+    const char *file = get_nmlfile();
     if(file == NULL) return -1;
 
     RCS_STAT_CHANNEL *c =
@@ -543,7 +542,7 @@ static PyMemberDef Stat_members[] = {
 static PyObject *int_array(int const *arr, int sz) {
     PyObject *res = PyTuple_New(sz);
     for(int i = 0; i < sz; i++) {
-        PyTuple_SET_ITEM(res, i, PyInt_FromLong(arr[i]));
+        PyTuple_SET_ITEM(res, i, PyLong_FromLong(arr[i]));
     }
     return res;
 }
@@ -595,7 +594,7 @@ static PyObject *asPyTuple(const ShiftTransform &p) {
 
 
 static PyObject *Stat_g5x_index(pyStatChannel *s) {
-    return PyInt_FromLong(s->status.task.g5x_index);
+    return PyLong_FromLong(s->status.task.g5x_index);
 }
 
 static PyObject *Stat_g5x_offset(pyStatChannel *s) {
@@ -617,14 +616,14 @@ static PyObject *Stat_g5x_offsets(pyStatChannel *s) {
     if (!res) {return res;}
     // Set index 0 to the current offset so that we can write
     // `stat.g5x_offsets[stat.g5x_index]` in python
-    PyObject *k0 = PyInt_FromLong(0);
+    PyObject *k0 = PyLong_FromLong(0);
     PyObject *v0 = asPyTuple(s->status.task.g5x_table[s->status.task.g5x_index]);
     PyDict_SetItem(res, k0, v0);
     Py_XDECREF(k0);
     Py_XDECREF(v0);
 
     for (size_t i = 1; i < s->status.task.g5x_table.size(); ++i) {
-        PyObject *key = PyInt_FromSize_t(i);
+        PyObject *key = PyLong_FromSize_t(i);
         PyObject *val = asPyTuple(s->status.task.g5x_table[i]);
 
         PyDict_SetItem(res, key, val);
@@ -712,7 +711,7 @@ static PyObject *Stat_limit(pyStatChannel *s) {
         if(s->status.motion.axis[i].maxHardLimit) v |= 2;
         if(s->status.motion.axis[i].minSoftLimit) v |= 4;
         if(s->status.motion.axis[i].maxSoftLimit) v |= 8;
-        PyTuple_SET_ITEM(res, i, PyInt_FromLong(v));
+        PyTuple_SET_ITEM(res, i, PyLong_FromLong(v));
     }
     return res;
 }
@@ -721,7 +720,7 @@ static PyObject *Stat_homed(pyStatChannel *s) {
     int sz = NUM_AXES;
     PyObject *res = PyTuple_New(sz);
     for(int i = 0; i < sz; i++) {
-        PyTuple_SET_ITEM(res, i, PyInt_FromLong(s->status.motion.axis[i].homed));
+        PyTuple_SET_ITEM(res, i, PyLong_FromLong(s->status.motion.axis[i].homed));
     }
     return res;
 }
@@ -736,7 +735,7 @@ static PyObject *Stat_aout(pyStatChannel *s) {
 
 static void dict_add(PyObject *d, const char *name, unsigned char v) {
     PyObject *o;
-    PyDict_SetItemString(d, name, o = PyInt_FromLong(v));
+    PyDict_SetItemString(d, name, o = PyLong_FromLong(v));
     Py_XDECREF(o);
 }
 static void dict_add(PyObject *d, const char *name, double v) {
@@ -832,7 +831,7 @@ static PyObject *Stat_tool_table(pyStatChannel *s) {
     for(int i=0; i<CANON_POCKETS_MAX; i++) {
         struct CANON_TOOL_TABLE &t = s->status.io.tool.toolTable[i];
         PyObject *tool = PyStructSequence_New(&ToolResultType);
-        PyStructSequence_SET_ITEM(tool, 0, PyInt_FromLong(t.toolno));
+        PyStructSequence_SET_ITEM(tool, 0, PyLong_FromLong(t.toolno));
         PyStructSequence_SET_ITEM(tool, 1, PyFloat_FromDouble(t.offset.tran.x));
         PyStructSequence_SET_ITEM(tool, 2, PyFloat_FromDouble(t.offset.tran.y));
         PyStructSequence_SET_ITEM(tool, 3, PyFloat_FromDouble(t.offset.tran.z));
@@ -845,7 +844,7 @@ static PyObject *Stat_tool_table(pyStatChannel *s) {
         PyStructSequence_SET_ITEM(tool, 10, PyFloat_FromDouble(t.diameter));
         PyStructSequence_SET_ITEM(tool, 11, PyFloat_FromDouble(t.frontangle));
         PyStructSequence_SET_ITEM(tool, 12, PyFloat_FromDouble(t.backangle));
-        PyStructSequence_SET_ITEM(tool, 13, PyInt_FromLong(t.orientation));
+        PyStructSequence_SET_ITEM(tool, 13, PyLong_FromLong(t.orientation));
         PyTuple_SetItem(res, j, tool);
         j++;
     }
@@ -889,8 +888,7 @@ static PyGetSetDef Stat_getsetlist[] = {
 };
 
 static PyTypeObject Stat_Type = {
-    PyObject_HEAD_INIT(NULL)
-    0,                      /*ob_size*/
+    PyVarObject_HEAD_INIT(NULL, 0)
     "linuxcnc.stat",             /*tp_name*/
     sizeof(pyStatChannel),  /*tp_basicsize*/
     0,                      /*tp_itemsize*/
@@ -934,7 +932,7 @@ static PyTypeObject Stat_Type = {
 };
 
 static int Command_init(pyCommandChannel *self, PyObject *a, PyObject *k) {
-    char *file = get_nmlfile();
+    const char *file = get_nmlfile();
     if(file == NULL) return -1;
 
     RCS_CMD_CHANNEL *c =
@@ -1639,7 +1637,7 @@ static PyObject *wait_complete(pyCommandChannel *s, PyObject *o) {
     double timeout = EMC_COMMAND_TIMEOUT;
     if (!PyArg_ParseTuple(o, "|d:emc.command.wait_complete", &timeout))
         return NULL;
-    return PyInt_FromLong(emcWaitCommandComplete(s, timeout));
+    return PyLong_FromLong(emcWaitCommandComplete(s, timeout));
 }
 
 
@@ -1696,8 +1694,7 @@ static PyMethodDef Command_methods[] = {
 };
 
 static PyTypeObject Command_Type = {
-    PyObject_HEAD_INIT(NULL)
-    0,                      /*ob_size*/
+    PyVarObject_HEAD_INIT(NULL, 0)
     "linuxcnc.command",          /*tp_name*/
     sizeof(pyCommandChannel),/*tp_basicsize*/
     0,                      /*tp_itemsize*/
@@ -1741,7 +1738,7 @@ static PyTypeObject Command_Type = {
 };
 
 static int Error_init(pyErrorChannel *self, PyObject *a, PyObject *k) {
-    char *file = get_nmlfile();
+    const char *file = get_nmlfile();
     if(file == NULL) return -1;
 
     NML *c = new NML(emcFormat, "emcError", "xemc", file);
@@ -1760,44 +1757,44 @@ void addMsgFields(NmlMsgType const &e, PyObject *r);
 template<>
 void addMsgFields(EMC_OPERATOR_ERROR const &e, PyObject *r)
 {
-    PyTuple_SET_ITEM(r, 1, PyString_FromString(e.text));
-    PyTuple_SET_ITEM(r, 2, PyInt_FromLong(e.lvl));
+    PyTuple_SET_ITEM(r, 1, PyUnicode_FromString(e.text));
+    PyTuple_SET_ITEM(r, 2, PyLong_FromLong(e.lvl));
 }
 
 template<>
 void addMsgFields(EMC_OPERATOR_TEXT const &e, PyObject *r)
 {
-    PyTuple_SET_ITEM(r, 1, PyString_FromString(e.text));
-    PyTuple_SET_ITEM(r, 2, PyInt_FromLong(e.lvl));
+    PyTuple_SET_ITEM(r, 1, PyUnicode_FromString(e.text));
+    PyTuple_SET_ITEM(r, 2, PyLong_FromLong(e.lvl));
 }
 
 template<>
 void addMsgFields(EMC_OPERATOR_DISPLAY const &e, PyObject *r)
 {
-    PyTuple_SET_ITEM(r, 1, PyString_FromString(e.text));
-    PyTuple_SET_ITEM(r, 2, PyInt_FromLong(e.lvl));
+    PyTuple_SET_ITEM(r, 1, PyUnicode_FromString(e.text));
+    PyTuple_SET_ITEM(r, 2, PyLong_FromLong(e.lvl));
 }
 
 // These should never appear under normal conditions but handle them anyway
 template<>
 void addMsgFields(NML_TEXT const &e, PyObject *r)
 {
-    PyTuple_SET_ITEM(r, 1, PyString_FromString(e.text));
-    PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_LOW));
+    PyTuple_SET_ITEM(r, 1, PyUnicode_FromString(e.text));
+    PyTuple_SET_ITEM(r, 2, PyLong_FromLong(CANON_MSG_LOW));
 }
 
 template<>
 void addMsgFields(NML_DISPLAY const &e, PyObject *r)
 {
-    PyTuple_SET_ITEM(r, 1, PyString_FromString(e.display));
-    PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_LOW));
+    PyTuple_SET_ITEM(r, 1, PyUnicode_FromString(e.display));
+    PyTuple_SET_ITEM(r, 2, PyLong_FromLong(CANON_MSG_LOW));
 }
 
 template<>
 void addMsgFields(NML_ERROR const &e, PyObject *r)
 {
-    PyTuple_SET_ITEM(r, 1, PyString_FromString(e.error));
-    PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_HIGH));
+    PyTuple_SET_ITEM(r, 1, PyUnicode_FromString(e.error));
+    PyTuple_SET_ITEM(r, 2, PyLong_FromLong(CANON_MSG_HIGH));
 }
 
 static PyObject* Error_poll(pyErrorChannel *s) {
@@ -1812,7 +1809,7 @@ static PyObject* Error_poll(pyErrorChannel *s) {
     }
     // TODO fix this to map the alarm level to the message type (or replace the separate error message type)
     PyObject *r = PyTuple_New(3);
-    PyTuple_SET_ITEM(r, 0, PyInt_FromLong(type));
+    PyTuple_SET_ITEM(r, 0, PyLong_FromLong(type));
 
 #define PASTE(a,b) a ## b
 #define TYPECASE_IMPL(tag, type) \
@@ -1835,16 +1832,16 @@ static PyObject* Error_poll(pyErrorChannel *s) {
         if (0 == msg.compare(0, 4, CONTEXT_MARKER)) {
             msg_ptr+=strlen(CONTEXT_MARKER);
         }
-        PyTuple_SET_ITEM(r, 1, PyString_FromString(msg_ptr));
-        PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_MEDIUM));
+        PyTuple_SET_ITEM(r, 1, PyUnicode_FromString(msg_ptr));
+        PyTuple_SET_ITEM(r, 2, PyLong_FromLong(CANON_MSG_MEDIUM));
         break;
     }
     default:
         {
             char error_string[256];
             sprintf(error_string, "unrecognized error %" PRId32, type);
-            PyTuple_SET_ITEM(r, 1, PyString_FromString(error_string));
-            PyTuple_SET_ITEM(r, 2, PyInt_FromLong(CANON_MSG_HIGH));
+            PyTuple_SET_ITEM(r, 1, PyUnicode_FromString(error_string));
+            PyTuple_SET_ITEM(r, 2, PyLong_FromLong(CANON_MSG_HIGH));
             break;
         }
     }
@@ -1862,8 +1859,7 @@ static PyMethodDef Error_methods[] = {
 };
 
 static PyTypeObject Error_Type = {
-    PyObject_HEAD_INIT(NULL)
-    0,                      /*ob_size*/
+    PyVarObject_HEAD_INIT(NULL, 0)
     "linuxcnc.error_channel",    /*tp_name*/
     sizeof(pyErrorChannel), /*tp_basicsize*/
     0,                      /*tp_itemsize*/
@@ -1935,7 +1931,7 @@ static PyObject *pyset_preview_kinematics(PyObject *s, PyObject *o) {
 }
 
 static PyObject *pydescribe_kinematics(PyObject *s, PyObject *o) {
-    return PyString_FromString(kinematics->describe().c_str());
+    return PyUnicode_FromString(kinematics->describe().c_str());
 }
 
 #include <GL/gl.h>
@@ -2759,7 +2755,7 @@ static PyObject *Logger_set_visible_tools(pyPositionLogger *s, PyObject *o) {
     s->visible_tools.clear();
     if (li != Py_None) {
         for (Py_ssize_t ix = 0; ix < PyList_Size(li); ix++) {
-            s->visible_tools.insert(PyInt_AsLong(PyList_GetItem(li, ix)));
+            s->visible_tools.insert(PyLong_AsLong(PyList_GetItem(li, ix)));
         }
     }
 
@@ -2811,8 +2807,7 @@ static PyMethodDef Logger_methods[] = {
 };
 
 static PyTypeObject PositionLoggerType = {
-    PyObject_HEAD_INIT(NULL)
-    0,                      /*ob_size*/
+    PyVarObject_HEAD_INIT(NULL, 0)
     "linuxcnc.positionlogger",   /*tp_name*/
     sizeof(pyPositionLogger), /*tp_basicsize*/
     0,                      /*tp_itemsize*/
@@ -2876,13 +2871,20 @@ static PyMethodDef emc_methods[] = {
 #define ENUM(e) PyModule_AddIntConstant(m, const_cast<char*>(#e), e)
 #define ENUMX(x,e) PyModule_AddIntConstant(m, x + const_cast<char*>(#e), e)
 
-PyMODINIT_FUNC
-initlinuxcnc(void) {
-    emcInitGlobals();
+static struct PyModuleDef linuxcnc_moduledef = {
+    PyModuleDef_HEAD_INIT,  /* m_base */
+    "linuxcnc",     /* m_name */
+    "Interface to LinuxCNC",    /* m_doc */
+    -1,     /* m_size */
+    emc_methods     /* m_methods */
+};
+
+PyMODINIT_FUNC PyInit_linuxcnc(void);
+PyMODINIT_FUNC PyInit_linuxcnc(void)
+{
+
     verbose_nml_error_messages = 0;
     clear_rcs_print_flag(~0);
-
-    m = Py_InitModule3("linuxcnc", emc_methods, "Interface to LinuxCNC");
 
     PyType_Ready(&Stat_Type);
     PyType_Ready(&Command_Type);
@@ -2890,6 +2892,7 @@ initlinuxcnc(void) {
     PyType_Ready(&Ini_Type);
     error = PyErr_NewException((char*)"linuxcnc.error", PyExc_RuntimeError, NULL);
 
+    m = PyModule_Create(&linuxcnc_moduledef);
     PyModule_AddObject(m, "stat", (PyObject*)&Stat_Type);
     PyModule_AddObject(m, "command", (PyObject*)&Command_Type);
     PyModule_AddObject(m, "error_channel", (PyObject*)&Error_Type);
@@ -2922,8 +2925,8 @@ initlinuxcnc(void) {
 
     PyStructSequence_InitType(&ToolResultType, &tool_result_desc);
     PyModule_AddObject(m, "tool", (PyObject*)&ToolResultType);
-    PyModule_AddObject(m, "version", PyString_FromString(PACKAGE_VERSION));
-    PyModule_AddObject(m, "context_marker", PyString_FromString(CONTEXT_MARKER));
+    PyModule_AddObject(m, "version", PyUnicode_FromString(PACKAGE_VERSION));
+    PyModule_AddObject(m, "context_marker", PyUnicode_FromString(CONTEXT_MARKER));
 
 
     ENUMX(4, EMC_AXIS_LINEAR);
@@ -3060,6 +3063,7 @@ initlinuxcnc(void) {
     ENUM(EMC_MOTION_TYPE_TOOLCHANGE);
     ENUM(EMC_MOTION_TYPE_PROBING);
     ENUM(EMC_MOTION_TYPE_INDEXROTARY);
+    return m;
 }
 
 
