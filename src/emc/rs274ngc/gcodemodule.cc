@@ -31,20 +31,21 @@
 
 int _task = 0; // control preview behaviour when remapping
 
-extern "C" void initinterpreter();
-extern "C" void initemccanon();
+extern "C" PyObject* PyInit_emctask(void);
+extern "C" PyObject* PyInit_interpreter(void);
+extern "C" PyObject* PyInit_emccanon(void);
 extern "C" struct _inittab builtin_modules[];
 struct _inittab builtin_modules[] = {
-    { const_cast<char*>("interpreter"), initinterpreter },
-    { const_cast<char*>("emccanon"), initemccanon },
-    // any others...
-    { nullptr, nullptr }
+    { "interpreter", PyInit_interpreter },
+    { "emccanon", PyInit_emccanon },
+    { NULL, NULL }
 };
+
 
 static PyObject *int_array(int *arr, int sz) {
     PyObject *res = PyTuple_New(sz);
     for(int i = 0; i < sz; i++) {
-        PyTuple_SET_ITEM(res, i, PyInt_FromLong(arr[i]));
+        PyTuple_SET_ITEM(res, i, PyLong_FromLong(arr[i]));
     }
     return res;
 }
@@ -64,9 +65,9 @@ static PyObject *LineCode_mcodes(LineCode *l) {
 }
 
 static PyGetSetDef LineCodeGetSet[] = {
-    {const_cast<char*>("gcodes"), (getter)LineCode_gcodes, nullptr, nullptr, nullptr},
-    {const_cast<char*>("mcodes"), (getter)LineCode_mcodes, nullptr, nullptr, nullptr},
-    {},
+    {(char*)"gcodes", (getter)LineCode_gcodes},
+    {(char*)"mcodes", (getter)LineCode_mcodes},
+    {NULL, NULL},
 };
 
 static PyMemberDef LineCodeMembers[] = {
@@ -116,48 +117,47 @@ static PyMemberDef LineCodeMembers[] = {
 };
 
 static PyTypeObject LineCodeType = {
-    PyObject_HEAD_INIT(nullptr)
-    0,                      /*ob_size*/
+    PyVarObject_HEAD_INIT(NULL, 0)
     "gcode.linecode",       /*tp_name*/
     sizeof(LineCode),       /*tp_basicsize*/
     0,                      /*tp_itemsize*/
     /* methods */
-    nullptr,                      /*tp_dealloc*/
-    nullptr,                      /*tp_print*/
-    nullptr,                      /*tp_getattr*/
-    nullptr,                      /*tp_setattr*/
-    nullptr,                      /*tp_compare*/
-    nullptr,                      /*tp_repr*/
-    nullptr,                      /*tp_as_number*/
-    nullptr,                      /*tp_as_sequence*/
-    nullptr,                      /*tp_as_mapping*/
-    nullptr,                      /*tp_hash*/
-    nullptr,                      /*tp_call*/
-    nullptr,                      /*tp_str*/
-    nullptr,                      /*tp_getattro*/
-    nullptr,                      /*tp_setattro*/
-    nullptr,                      /*tp_as_buffer*/
+    0,                      /*tp_dealloc*/
+    0,                      /*tp_print*/
+    0,                      /*tp_getattr*/
+    0,                      /*tp_setattr*/
+    0,                      /*tp_compare*/
+    0,                      /*tp_repr*/
+    0,                      /*tp_as_number*/
+    0,                      /*tp_as_sequence*/
+    0,                      /*tp_as_mapping*/
+    0,                      /*tp_hash*/
+    0,                      /*tp_call*/
+    0,                      /*tp_str*/
+    0,                      /*tp_getattro*/
+    0,                      /*tp_setattro*/
+    0,                      /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT,     /*tp_flags*/
-    nullptr,                      /*tp_doc*/
-    nullptr,                      /*tp_traverse*/
-    nullptr,                      /*tp_clear*/
-    nullptr,                      /*tp_richcompare*/
+    0,                      /*tp_doc*/
+    0,                      /*tp_traverse*/
+    0,                      /*tp_clear*/
+    0,                      /*tp_richcompare*/
     0,                      /*tp_weaklistoffset*/
-    nullptr,                      /*tp_iter*/
-    nullptr,                      /*tp_iternext*/
-    nullptr,                      /*tp_methods*/
+    0,                      /*tp_iter*/
+    0,                      /*tp_iternext*/
+    0,                      /*tp_methods*/
     LineCodeMembers,     /*tp_members*/
     LineCodeGetSet,      /*tp_getset*/
-    nullptr,                      /*tp_base*/
-    nullptr,                      /*tp_dict*/
-    nullptr,                      /*tp_descr_get*/
-    nullptr,                      /*tp_descr_set*/
+    0,                      /*tp_base*/
+    0,                      /*tp_dict*/
+    0,                      /*tp_descr_get*/
+    0,                      /*tp_descr_set*/
     0,                      /*tp_dictoffset*/
-    nullptr,                      /*tp_init*/
-    nullptr,                      /*tp_alloc*/
+    0,                      /*tp_init*/
+    0,                      /*tp_alloc*/
     PyType_GenericNew,      /*tp_new*/
-    nullptr,                      /*tp_free*/
-    nullptr,                      /*tp_is_gc*/
+    0,                      /*tp_free*/
+    0,                      /*tp_is_gc*/
 };
 
 static PyObject *callback;
@@ -722,7 +722,7 @@ void INIT_CANON() {}
 
 void SET_PARAMETER_FILE_NAME(const char *name)
 {
-    PyObject *fname = PyString_FromString(name);
+    PyObject *fname = PyUnicode_FromString(name);
     PyObject_SetAttrString(callback, "parameter_file", fname);
     Py_XDECREF(fname);
 }
@@ -730,7 +730,7 @@ void SET_PARAMETER_FILE_NAME(const char *name)
 void GET_EXTERNAL_PARAMETER_FILE_NAME(char *name, int max_size) {
     PyObject *result = PyObject_GetAttrString(callback, "parameter_file");
     if(!result) { name[0] = 0; return; }
-    char *s = PyString_AsString(result);
+    char *s = (char*)PyUnicode_AsUTF8(result);
     if(!s) { name[0] = 0; return; }
     memset(name, 0, max_size);
     strncpy(name, s, max_size - 1);
@@ -826,8 +826,8 @@ int GET_EXTERNAL_AXIS_MASK() {
     PyObject *result =
         callmethod(callback, "get_axis_mask", "");
     if(!result) { interp_error ++; return 7 /* XYZABC */; }
-    if(!PyInt_Check(result)) { interp_error ++; return 7 /* XYZABC */; }
-    int mask = PyInt_AsLong(result);
+    if(!PyLong_Check(result)) { interp_error ++; return 7 /* XYZABC */; }
+    int mask = PyLong_AsLong(result);
     Py_DECREF(result);
     return mask;
 }
@@ -943,7 +943,7 @@ static PyObject *get_work_offsets_used(PyObject *self, PyObject *args) {
     int ix = 0;
     for (auto offset : used_offsets)
     {
-       PyTuple_SetItem(offsets, ix, PyInt_FromLong(offset));
+       PyTuple_SetItem(offsets, ix, PyLong_FromLong(offset));
        ++ix;
     }   
     return offsets;
@@ -1168,7 +1168,7 @@ void reset_gcode_canon_globals(const char *interp_name)
 PyObject *py_make_annotation_tuple(GCodeAnnotation const &a)
 {
     PyObject *annotation_tuple = PyTuple_New(3);
-    PyTuple_SET_ITEM(annotation_tuple, 0, PyString_FromString(a.message.c_str()));
+    PyTuple_SET_ITEM(annotation_tuple, 0, PyUnicode_FromString(a.message.c_str()));
     PyTuple_SET_ITEM(annotation_tuple, 1, PyLong_FromLong(a.toplevel_line));
     PyTuple_SET_ITEM(annotation_tuple, 2, PyLong_FromLong(a.severity));
     return annotation_tuple;
@@ -1320,9 +1320,9 @@ static PyObject *parse_file(PyObject *self, PyObject *args, PyObject *kwargs) {
     }
 
     PyObject *retval = PyTuple_New(3);
-    PyTuple_SET_ITEM(retval, 0, PyInt_FromLong(result));
+    PyTuple_SET_ITEM(retval, 0, PyLong_FromLong(result));
     long error_line = interp->get_toplevel_line_number();
-    PyTuple_SET_ITEM(retval, 1, PyInt_FromLong(error_line));
+    PyTuple_SET_ITEM(retval, 1, PyLong_FromLong(error_line));
 
     {
         const size_t annotation_count = gcode_annotations.size();
@@ -1353,7 +1353,7 @@ static PyObject *rs274_strerror(PyObject *s, PyObject *o) {
     if(!PyArg_ParseTuple(o, "i", &err)) return nullptr;
     char error_buf[ERROR_TEXT_LEN]={};
     preview_interp->error_text(err, error_buf, ERROR_TEXT_LEN);
-    return PyString_FromString(error_buf);
+    return PyUnicode_FromString(error_buf);
 }
 
 static PyObject *rs274_calc_extents_dict(PyObject *self, PyObject *args) {
@@ -1537,34 +1537,7 @@ static PyObject *get_set_max_glcanon_lines(PyObject *self, PyObject *args) {
     return Py_BuildValue("I", max_glcanon_lines);
 }
 
-static PyMethodDef gcode_methods[] = {
-    {"parse", (PyCFunction)parse_file, METH_VARARGS | METH_KEYWORDS, "Parse a G-Code file"},
-    {"strerror", (PyCFunction)rs274_strerror, METH_VARARGS,
-        "Convert a numeric error to a string"},
-    {"calc_extents", (PyCFunction)rs274_calc_extents, METH_VARARGS,
-        "Calculate information about extents of gcode"},
-    {"calc_extents_dict", (PyCFunction)rs274_calc_extents_dict, METH_VARARGS,
-        "Calculate information about extents of gcode using the dict of lines"},
-    {"max_glcanon_lines", (PyCFunction)get_set_max_glcanon_lines, METH_VARARGS,
-     "Get maximum number of lines to preview; pass integer argument to set"},
-    {"get_work_offsets_used", (PyCFunction)get_work_offsets_used, METH_VARARGS,
-     "Get set of work offset integers used by last parsed gcode file"},
-    {}
-};
 
-PyMODINIT_FUNC
-initgcode(void) {
-    PyObject *m = Py_InitModule3("gcode", gcode_methods,
-                "Interface to EMC rs274ngc interpreter");
-    PyType_Ready(&LineCodeType);
-    PyModule_AddObject(m, "linecode", (PyObject*)&LineCodeType);
-    PyObject_SetAttrString(m, "MAX_ERROR", PyInt_FromLong(maxerror));
-    PyObject_SetAttrString(m, "MIN_ERROR",
-            PyInt_FromLong(INTERP_MIN_ERROR));
-    PyModule_AddIntConstant(m, "PARSE_EXEC_SEEK", (long)ParseExecMode::SEEK);
-    PyModule_AddIntConstant(m, "PARSE_EXEC_PREP", (long)ParseExecMode::PREP);
-    PyModule_AddIntConstant(m, "PARSE_EXEC_RUN", (long)ParseExecMode::RUN);
-}
 
 void PreviewMachine::add_motion(ToolMotionKey key, ToolMotion motion)
 {
@@ -1840,4 +1813,42 @@ const ToolMotionMap & PreviewMachine::getToolMotionData() const
 const ToolMotionMap & getToolMotionData()
 {
     return machine.getToolMotionData();
+}
+
+static PyMethodDef gcode_methods[] = {
+    {"parse", (PyCFunction)parse_file, METH_VARARGS | METH_KEYWORDS, "Parse a G-Code file"},
+    {"strerror", (PyCFunction)rs274_strerror, METH_VARARGS,
+        "Convert a numeric error to a string"},
+    {"calc_extents", (PyCFunction)rs274_calc_extents, METH_VARARGS,
+        "Calculate information about extents of gcode"},
+    {"calc_extents_dict", (PyCFunction)rs274_calc_extents_dict, METH_VARARGS,
+        "Calculate information about extents of gcode using the dict of lines"},
+    {"max_glcanon_lines", (PyCFunction)get_set_max_glcanon_lines, METH_VARARGS,
+     "Get maximum number of lines to preview; pass integer argument to set"},
+    {"get_work_offsets_used", (PyCFunction)get_work_offsets_used, METH_VARARGS,
+     "Get set of work offset integers used by last parsed gcode file"},
+    {}
+};
+
+static struct PyModuleDef gcode_moduledef = {
+    PyModuleDef_HEAD_INIT,                    /* m_base    */
+    "gcode",                                  /* m_name    */
+    "Interface to EMC rs274ngc interpreter",  /* m_doc     */
+    -1,                                       /* m_size    */
+    gcode_methods                             /* m_methods */
+};
+
+PyMODINIT_FUNC PyInit_gcode(void);
+PyMODINIT_FUNC PyInit_gcode(void)
+{
+    PyObject *m = PyModule_Create(&gcode_moduledef);
+    PyType_Ready(&LineCodeType);
+    PyModule_AddObject(m, "linecode", (PyObject*)&LineCodeType);
+    PyObject_SetAttrString(m, "MAX_ERROR", PyLong_FromLong(maxerror));
+    PyObject_SetAttrString(m, "MIN_ERROR",
+            PyLong_FromLong(INTERP_MIN_ERROR));
+    PyModule_AddIntConstant(m, "PARSE_EXEC_SEEK", (long)ParseExecMode::SEEK);
+    PyModule_AddIntConstant(m, "PARSE_EXEC_PREP", (long)ParseExecMode::PREP);
+    PyModule_AddIntConstant(m, "PARSE_EXEC_RUN", (long)ParseExecMode::RUN);
+    return m;
 }
