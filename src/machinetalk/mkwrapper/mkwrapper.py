@@ -271,7 +271,7 @@ class LinuxCNCWrapper(object):
                     if extension[0] == '.':
                         extension = extension[1:]
                     program = self.ini.find("FILTER", extension) or ""
-                    if program is not "":
+                    if program != "":
                         self.program_extensions[extension] = program
 
             # initialize total line count
@@ -279,7 +279,7 @@ class LinuxCNCWrapper(object):
             # initialize tool table path
             if self._tool_table_enabled:
                 self.tool_table_path = self.ini.find('EMCIO', 'TOOL_TABLE') or ''
-                if self.tool_table_path is not '':
+                if self.tool_table_path != '':
                     self.tool_table_path = os.path.abspath(
                         os.path.expanduser(self.tool_table_path)
                     )
@@ -490,7 +490,7 @@ class LinuxCNCWrapper(object):
         return file_path
 
     def load_tool_table(self, io, tx_io):
-        if self.tool_table_path is '':
+        if self.tool_table_path == '':
             return
 
         with codecs.open(self.tool_table_path, 'r', encoding='utf-8') as f:
@@ -525,7 +525,7 @@ class LinuxCNCWrapper(object):
                 tx_tool_result.comment = tool_map[id_]['comment'] or ''
 
     def update_tool_table(self, tool_table):
-        if self.tool_table_path is '':
+        if self.tool_table_path == '':
             return False
 
         with codecs.open(self.tool_table_path, 'w', encoding='utf-8') as f:
@@ -999,7 +999,7 @@ class LinuxCNCWrapper(object):
                     tool_result, tx_tool_result, name, value
                 )
 
-            position = range(0, 9)
+            position = list(range(0, 9))
             for i, axis in enumerate(['x', 'y', 'z', 'a', 'b', 'c', 'u', 'v', 'w']):
                 value = getattr(stat_tool_result, axis + 'offset')
                 position[i] = value
@@ -1989,7 +1989,7 @@ class LinuxCNCWrapper(object):
                 ):
                     file_name = self.rx.emc_command_params.path
                     file_name = self.preprocess_program(file_name)
-                    if file_name is not '':
+                    if file_name != '':
                         if self.rx.interp_name == 'execute':
                             self.command.program_open(file_name)
                             if self.rx.HasField('ticket'):

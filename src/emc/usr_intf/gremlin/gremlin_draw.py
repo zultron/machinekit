@@ -241,7 +241,7 @@ class GremlinDraw(glnav.GlNavBase):
                 found[picked_line_no] += float(picked_line_no > 0) * w
                 # print "pixel at {}, {} is line {} with weight {}".format(x_test, y_test, picked_line_no, found[picked_line_no])
 
-        most_hits = max(found.iteritems(), key=operator.itemgetter(1))[0]
+        most_hits = max(iter(found.items()), key=operator.itemgetter(1))[0]
         if most_hits and found[most_hits] > 0:
             # print "found best candidate {} with weight {}".format(most_hits, found[most_hits])
             self.set_highlight_line(most_hits)
@@ -262,7 +262,7 @@ class GremlinDraw(glnav.GlNavBase):
         glDeleteLists(base, count)
 
     def __del__(self):
-        for base, count in self._dlists.values():
+        for base, count in list(self._dlists.values()):
             glDeleteLists(base, count)
 
     def set_current_line(self, line): pass
@@ -643,21 +643,29 @@ class GremlinDraw(glnav.GlNavBase):
         if self.canon and self.canon.grid: return self.canon.grid
         return 5./25.4
 
-    def comp(self, (sx, sy), (cx, cy)):
+    def comp(self, xxx_todo_changeme, xxx_todo_changeme4):
+        (sx, sy) = xxx_todo_changeme
+        (cx, cy) = xxx_todo_changeme4
         return -(sx*cx + sy*cy) / (sx*sx + sy*sy)
 
-    def param(self, (x1, y1), (dx1, dy1), (x_limit, y_limit), (dx3, dy3)):
+    def param(self, xxx_todo_changeme5, xxx_todo_changeme6, xxx_todo_changeme7, xxx_todo_changeme8):
+        (x1, y1) = xxx_todo_changeme5
+        (dx1, dy1) = xxx_todo_changeme6
+        (x_limit, y_limit) = xxx_todo_changeme7
+        (dx3, dy3) = xxx_todo_changeme8
         den = (dy3)*(dx1) - (dx3)*(dy1)
         if den == 0:
             return 0
         num = (dx3) * (y1 - y_limit) - (dy3) * (x1 - x_limit)
         return num * 1. / den
 
-    def draw_grid_lines(self, space, (ox, oy), (dx, dy), lim_min, lim_max,
+    def draw_grid_lines(self, space, xxx_todo_changeme9, xxx_todo_changeme10, lim_min, lim_max,
             inverse_permutation, line_dir, grid_plane_offset=None):
         # draw a series of line segments of the form
         #   dx(x-ox) + dy(y-oy) + k*space = 0
         # for integers k that intersect the AABB [lim_min, lim_max]
+        (ox, oy) = xxx_todo_changeme9
+        (dx, dy) = xxx_todo_changeme10
         lim_pts = [
                 (lim_min[0], lim_min[1]),
                 (lim_max[0], lim_min[1]),
@@ -827,14 +835,14 @@ class GremlinDraw(glnav.GlNavBase):
         if rotation != 0 and view != z and self.get_show_relative():
             return
         permutations = [
-                lambda (x, y, z): np.array((z, y, x)),  # YZ X
-                lambda (x, y, z): np.array((z, x, y)),  # ZX Y
-                lambda (x, y, z): np.array((x, y, z)),  # XY Z
+                lambda x_y_z: np.array((x_y_z[2], x_y_z[1], x_y_z[0])),  # YZ X
+                lambda x_y_z1: np.array((x_y_z1[2], x_y_z1[0], x_y_z1[1])),  # ZX Y
+                lambda x_y_z2: np.array((x_y_z2[0], x_y_z2[1], x_y_z2[2])),  # XY Z
         ]
         inverse_permutations = [
-                lambda (z, y, x): np.array((x, y, z)),  # YZ X
-                lambda (z, x, y): np.array((x, y, z)),  # ZX Y
-                lambda (x, y, z): np.array((x, y, z)),  # XY Z
+                lambda z_y_x: np.array((z_y_x[2], z_y_x[1], z_y_x[0])),  # YZ X
+                lambda z_x_y: np.array((z_x_y[1], z_x_y[2], z_x_y[0])),  # ZX Y
+                lambda x_y_z3: np.array((x_y_z3[0], x_y_z3[1], x_y_z3[2])),  # XY Z
         ]
         self.draw_grid_permuted(rotation, permutations[view],
                 inverse_permutations[view])
@@ -893,7 +901,7 @@ class GremlinDraw(glnav.GlNavBase):
         dt_ms = 1000. * (t1 - t0)
         dt_cutoff_ms = 40.
         if self.debug_drawtime and dt_ms > dt_cutoff_ms:
-            print "glcanon.redraw() call exceeded {} ms: {:0.3f} ms".format(dt_cutoff_ms, dt_ms)
+            print("glcanon.redraw() call exceeded {} ms: {:0.3f} ms".format(dt_cutoff_ms, dt_ms))
 
     def draw_coordinate_systems(self, last_position):
         # For reference only
@@ -1322,7 +1330,7 @@ class GremlinDraw(glnav.GlNavBase):
         else:
             # N.B. no conversion here because joint positions are unitless
             posstrs = ["  %s:% 9.4f" % i for i in
-                zip(range(self.get_num_joints()), s.joint_actual_position)]
+                zip(list(range(self.get_num_joints())), s.joint_actual_position)]
             droposstrs = posstrs
         return limit, homed, posstrs, droposstrs
 
@@ -1677,10 +1685,10 @@ class GremlinDraw(glnav.GlNavBase):
 
     def load_preview(self, f, canon, unitcode, initcode, interpname=None, working_dir=None, start_line=0, leadin_type=None, keep_current_tool=True):
         self.set_canon(canon)
-        print "preview working directory: ", working_dir
-        print "preview start line: ", start_line
-        print "preview leadin: ", leadin_type
-        print "preview keep-current-tool: ", keep_current_tool
+        print("preview working directory: ", working_dir)
+        print("preview start line: ", start_line)
+        print("preview leadin: ", leadin_type)
+        print("preview keep-current-tool: ", keep_current_tool)
         result, seq, annotations = gcode.parse(
             file_name=f,
             canon_instance=canon,

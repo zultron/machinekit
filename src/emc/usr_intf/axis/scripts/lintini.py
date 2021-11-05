@@ -28,9 +28,9 @@ def report_problem(msg, *args):
     global nproblems
     nproblems += 1
     if args:
-        print msg % args
+        print(msg % args)
     else:
-        print msg
+        print(msg)
 
 
 def get_int(section, key):
@@ -42,8 +42,8 @@ period = get_int("EMCMOT", "BASE_PERIOD")
 naxes = get_int("TRAJ", "AXES")
 
 is_stepper = ini.find("AXIS_0", "STEPGEN_MAXVEL") is not None
-if is_stepper: print "Appears to be a stepper configuration"
-else: print "Appears to be a servo configuration"
+if is_stepper: print("Appears to be a stepper configuration")
+else: print("Appears to be a servo configuration")
 
 for i in range(naxes):
     axis = "AXIS_%d" % i
@@ -73,10 +73,10 @@ for i in range(naxes):
 
 
 if nproblems == 0:
-    print "No problems found"
+    print("No problems found")
 elif nproblems == 1:
-    print "One problem found"
+    print("One problem found")
 else:
-    print "%d problems found" % nproblems
+    print("%d problems found" % nproblems)
 
 # vim:sw=4:sts=4:et

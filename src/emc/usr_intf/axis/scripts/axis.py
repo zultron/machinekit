@@ -32,26 +32,26 @@ sys.path.insert(0, os.path.join(BASE, "lib", "python"))
 sys.excepthook = sys.__excepthook__
 
 import gettext;
-gettext.install("linuxcnc", localedir=os.path.join(BASE, "share", "locale"), unicode=True)
+gettext.install("linuxcnc", localedir=os.path.join(BASE, "share", "locale"), str=True)
 
-import time, atexit, tempfile, shutil, thread, select, getopt
+import time, atexit, tempfile, shutil, _thread, select, getopt
 import traceback
 
 # Print Tk errors to stdout. python.org/sf/639266
-import Tkinter
-OldTk = Tkinter.Tk
+import tkinter
+OldTk = tkinter.Tk
 class Tk(OldTk):
     def __init__(self, *args, **kw):
         OldTk.__init__(self, *args, **kw)
         self.tk.createcommand('tkerror', self.tkerror)
 
     def tkerror(self, arg):
-        print "TCL error in asynchronous code:"
-        print self.tk.call("set", "errorInfo")
+        print("TCL error in asynchronous code:")
+        print(self.tk.call("set", "errorInfo"))
 
-Tkinter.Tk = Tk
+tkinter.Tk = Tk
 
-from Tkinter import *
+from tkinter import *
 
 RTLD_NOW, RTLD_GLOBAL = 0x1, 0x100  # XXX portable?
 old_flags = sys.getdlopenflags()
@@ -70,7 +70,7 @@ import bwidget
 import linuxcnc
 from glnav import *
 
-if os.environ.has_key("AXIS_NO_HAL"):
+if "AXIS_NO_HAL" in os.environ:
     hal_present = 0;
 else:
     hal_present = 1;
@@ -79,8 +79,8 @@ if hal_present == 1 :
     import hal
 
 
-import ConfigParser
-cp = ConfigParser.ConfigParser
+import configparser
+cp = configparser.ConfigParser
 class AxisPreferences(cp):
     types = {
         bool: cp.getboolean,
@@ -99,8 +99,8 @@ class AxisPreferences(cp):
         m = self.types.get(type)
         try:
             o = m(self, "DEFAULT", option)
-        except Exception, detail:
-            print detail
+        except Exception as detail:
+            print(detail)
             self.set("DEFAULT", option, default)
             self.write(open(self.fn, "w"))
             o = default
@@ -111,14 +111,14 @@ class AxisPreferences(cp):
         self.write(open(self.fn, "w"))
 
 if sys.argv[1] != "-ini":
-    raise SystemExit, "-ini must be first argument"
+    raise SystemExit("-ini must be first argument")
 
 inifile = linuxcnc.ini(sys.argv[2])
 
 ap = AxisPreferences()
 
 os.system("xhost -SI:localuser:gdm -SI:localuser:root > /dev/null 2>&1")
-root_window = Tkinter.Tk(className="Axis")
+root_window = tkinter.Tk(className="Axis")
 root_window.iconify()
 nf.start(root_window)
 nf.makecommand(root_window, "_", _)
@@ -128,7 +128,7 @@ root_window.tk.call("set", "version", linuxcnc.version)
 try:
     nf.source_lib_tcl(root_window,"axis.tcl")
 except TclError:
-    print root_window.tk.call("set", "errorInfo")
+    print(root_window.tk.call("set", "errorInfo"))
     raise
 
 
@@ -279,11 +279,11 @@ def from_internal_linear_unit(v, unit=None):
     lu = (unit or 1) * 25.4
     return v*lu
 
-class Notification(Tkinter.Frame):
+class Notification(tkinter.Frame):
     def __init__(self, master):
         self.widgets = []
         self.cache = []
-        Tkinter.Frame.__init__(self, master)
+        tkinter.Frame.__init__(self, master)
 
     def clear(self,iconname=None):
         if iconname:
@@ -313,10 +313,10 @@ class Notification(Tkinter.Frame):
             text.configure(text=message)
             widgets = frame, icon, text, button, iconname
         else:
-            frame = Tkinter.Frame(self)
-            icon = Tkinter.Label(frame, image=iconname)
-            text = Tkinter.Label(frame, text=message, wraplength=300, justify="left")
-            button = Tkinter.Button(frame, image=close)
+            frame = tkinter.Frame(self)
+            icon = tkinter.Label(frame, image=iconname)
+            text = tkinter.Label(frame, text=message, wraplength=300, justify="left")
+            button = tkinter.Button(frame, image=close)
             widgets = frame, icon, text, button, iconname
             text.pack(side="left")
             icon.pack(side="left")
@@ -386,7 +386,7 @@ class MyOpengl(GremlinDraw, Opengl):
 
     def get_resources(self):
         self.colors = dict(GremlinDraw.colors)
-        for c in self.colors.keys():
+        for c in list(self.colors.keys()):
             if isinstance(c, tuple):
                 c, d = c
             elif c.endswith("_alpha"):
@@ -691,7 +691,7 @@ class LivePlotter:
             C('backplotprobing'),
             geometry, foam
         )
-        o.after_idle(lambda: thread.start_new_thread(self.logger.start, (.01,)))
+        o.after_idle(lambda: _thread.start_new_thread(self.logger.start, (.01,)))
 
         global feedrate_blackout, rapidrate_blackout, spindlerate_blackout, maxvel_blackout
         feedrate_blackout=rapidrate_blackout=spindlerate_blackout=maxvel_blackout=time.time()+1
@@ -727,8 +727,8 @@ class LivePlotter:
             return
         try:
             self.stat.poll()
-        except linuxcnc.error, detail:
-            print "error", detail
+        except linuxcnc.error as detail:
+            print("error", detail)
             del self.stat
             return
         if (self.stat.task_mode != self.current_task_mode):
@@ -941,8 +941,8 @@ class Progress:
             self.lastcount = count
             try:
                 width = int(t.tk.call("winfo", "width", ".info.progress"))
-            except Tkinter.TclError, detail:
-                print detail
+            except tkinter.TclError as detail:
+                print(detail)
                 return
             height = int(t.tk.call("winfo", "height", ".info.progress"))
             t.tk.call(".info.progress", "coords", "1",
@@ -1134,9 +1134,9 @@ def open_file_guts(f, filtered=False, addrecent=True):
         if initcode == "":
             initcode = inifile.find("RS274NGC", "RS274NGC_STARTUP_CODE") or ""
         if not interpname:
-		unitcode = "G%d" % (20 + (s.linear_units == 1))
+            unitcode = "G%d" % (20 + (s.linear_units == 1))
         else:
-		unitcode = ''
+            unitcode = ''
         try:
             result, seq, annotations = o.load_preview(f, canon, unitcode, initcode, interpname)
         except KeyboardInterrupt:
@@ -1171,7 +1171,7 @@ def open_file_guts(f, filtered=False, addrecent=True):
         o.logger.set_depth(from_internal_linear_unit(o.get_foam_z()),
                        from_internal_linear_unit(o.get_foam_w()))
 
-    except Exception, e:
+    except Exception as e:
         notifications.add("error", str(e))
     finally:
         # Before unbusying, I update again, so that any keystroke events
@@ -1343,7 +1343,7 @@ def jogspeed_listbox_change(dummy, value):
     idx = 0
     cursel = -1
     for i in iterator:
-        if i == unicode(value, 'utf-8'):
+        if i == str(value, 'utf-8'):
             cursel= idx
             break
         idx += 1
@@ -1438,11 +1438,11 @@ class _prompt_areyousure:
         self.status=False
         m = Message(t, text=text, aspect=500, anchor="w", justify="left")
         self.w = w = StringVar(t)
-        l = Tkinter.Message(t, textvariable=w, justify="left", anchor="w",
+        l = tkinter.Message(t, textvariable=w, justify="left", anchor="w",
                 aspect=500)
-        self.buttons = f = Tkinter.Frame(t)
-        self.ok = Tkinter.Button(f, text=_("Ok"), command=self.do_ok, width=10,height=1,padx=0,pady=.25, default="active")
-        self.cancel = Tkinter.Button(f, text=_("Cancel"), command=self.do_cancel, width=10,height=1,padx=0,pady=.25, default="normal")
+        self.buttons = f = tkinter.Frame(t)
+        self.ok = tkinter.Button(f, text=_("Ok"), command=self.do_ok, width=10,height=1,padx=0,pady=.25, default="active")
+        self.cancel = tkinter.Button(f, text=_("Cancel"), command=self.do_cancel, width=10,height=1,padx=0,pady=.25, default="normal")
         t.wm_protocol("WM_DELETE_WINDOW", self.cancel.invoke)
         t.bind("<Return>", lambda event: (self.ok.flash(), self.ok.invoke()))
         t.bind("<KP_Enter>", lambda event: (self.ok.flash(), self.ok.invoke()))
@@ -1471,7 +1471,7 @@ class _prompt_areyousure:
         self.t.wait_window()
         try:
             self.t.destroy()
-        except Tkinter.TclError:
+        except tkinter.TclError:
             pass
         return self.result()
 
@@ -1492,13 +1492,13 @@ class _prompt_float:
         self.vv = vv = DoubleVar(t)
         self.u = u = BooleanVar(t)
         self.w = w = StringVar(t)
-        l = Tkinter.Message(t, textvariable=w, justify="left", anchor="w",
+        l = tkinter.Message(t, textvariable=w, justify="left", anchor="w",
                 aspect=500)
         v.set(default)
         self.e = e = Entry(t, textvariable=v)
-        self.buttons = f = Tkinter.Frame(t)
-        self.ok = Tkinter.Button(f, text=_("OK"), command=self.do_ok, width=10,height=1,padx=0,pady=.25, default="active")
-        self.cancel = Tkinter.Button(f, text=_("Cancel"), command=self.do_cancel, width=10,height=1,padx=0,pady=.25, default="normal")
+        self.buttons = f = tkinter.Frame(t)
+        self.ok = tkinter.Button(f, text=_("OK"), command=self.do_ok, width=10,height=1,padx=0,pady=.25, default="active")
+        self.cancel = tkinter.Button(f, text=_("Cancel"), command=self.do_cancel, width=10,height=1,padx=0,pady=.25, default="normal")
         v.trace("w", self.check_valid)
         t.wm_protocol("WM_DELETE_WINDOW", self.cancel.invoke)
         t.bind("<Return>", lambda event: (self.ok.flash(), self.ok.invoke()))
@@ -1578,7 +1578,7 @@ class _prompt_float:
             self.t.after_cancel(self._after)
         try:
             self.t.destroy()
-        except Tkinter.TclError:
+        except tkinter.TclError:
             pass
         return self.result()
 
@@ -1663,7 +1663,9 @@ property_names = [
     ('c', _("C bounds:"))
 ]
 
-def dist((x,y,z),(p,q,r)):
+def dist(xxx_todo_changeme, xxx_todo_changeme1):
+    (x,y,z) = xxx_todo_changeme
+    (p,q,r) = xxx_todo_changeme1
     return ((x-p)**2 + (y-q)**2 + (z-r)**2) ** .5
 
 # returns units/sec
@@ -2238,7 +2240,7 @@ class TclCommands(nf.TclCommands):
                 finally:
                     f.close()
             except IOError:
-                print >>sys.stderr, "Can't open MDI history file [%s] for writing" % file_name
+                print("Can't open MDI history file [%s] for writing" % file_name, file=sys.stderr)
 
     def mdi_history_hist2clip(*event):
         cursel = widgets.mdi_history.curselection()
@@ -2275,8 +2277,8 @@ class TclCommands(nf.TclCommands):
                         mdi_history_index = widgets.mdi_history.index("end") - 1
             commands.mdi_history_write_to_file(mdi_history_save_filename, history_size)
             return
-        except Tkinter.TclError:
-            print "DBG: Sorry, but the clipboard is empty ..."
+        except tkinter.TclError:
+            print("DBG: Sorry, but the clipboard is empty ...")
 
     def mdi_history_double_butt_1(event):
         if widgets.mdi_command.cget("state") == "disabled":
@@ -2388,13 +2390,13 @@ class TclCommands(nf.TclCommands):
     # jog_off
     def jog_plus(incr=False):
         a = vars.current_axis.get()
-        if isinstance(a, (str, unicode)):
+        if isinstance(a, str):
             a = "xyzabcuvw".index(a)
         speed = get_jog_speed(a)
         jog_on(a, speed)
     def jog_minus(incr=False):
         a = vars.current_axis.get()
-        if isinstance(a, (str, unicode)):
+        if isinstance(a, str):
             a = "xyzabcuvw".index(a)
         speed = get_jog_speed(a)
         jog_on(a, -speed)
@@ -2653,7 +2655,7 @@ class TclCommands(nf.TclCommands):
             "-filetypes",
              ((_("rs274ngc files"), ".ngc"),))
         if not f: return
-        f = unicode(f)
+        f = str(f)
         open_directory = os.path.dirname(f)
         if get_filter(loaded_file):
             srcfile = os.path.join(tempdir, os.path.basename(loaded_file))
@@ -2661,7 +2663,7 @@ class TclCommands(nf.TclCommands):
             srcfile = loaded_file
         try:
             shutil.copyfile(srcfile, f)
-        except (shutil.Error, os.error, IOError), detail:
+        except (shutil.Error, os.error, IOError) as detail:
             tb = traceback.format_exc()
             root_window.tk.call("nf_dialog", ".error", _("Error saving file"),
                 str(detail), "error", 0, _("OK"))
@@ -2679,8 +2681,8 @@ class TclCommands(nf.TclCommands):
         return _dynamic_tab(name,text) # caller: make a frame and pack
 
     def inifindall(section, item):
-	items = tuple(inifile.findall(section, item))
-	return root_window.tk.merge(*items)
+        items = tuple(inifile.findall(section, item))
+        return root_window.tk.merge(*items)
 
 commands = TclCommands(root_window)
 
@@ -2907,7 +2909,7 @@ jogging   = [0] * 9
 def jog_on(a, b):
     if not manual_ok(): return
     if not manual_tab_visible(): return
-    if isinstance(a, (str, unicode)):
+    if isinstance(a, str):
         a = "xyzabcuvw".index(a)
     if a < 3 or a > 5:
         if vars.metric.get(): b = b / 25.4
@@ -2935,7 +2937,7 @@ def jog_on(a, b):
             jogging[a] = b
 
 def jog_off(a):
-    if isinstance(a, (str, unicode)):
+    if isinstance(a, str):
         a = "xyzabcuvw".index(a)
     if jog_after[a]: return
     jog_after[a] = root_window.after_idle(lambda: jog_off_actual(a))
@@ -3054,7 +3056,7 @@ if lu == 1:
 else:
     root_window.tk.eval("${pane_top}.jogspeed.l1 configure -text in/min")
     root_window.tk.eval("${pane_top}.maxvel.l1 configure -text in/min")
-root_window.tk.eval(u"${pane_top}.ajogspeed.l1 configure -text deg/min")
+root_window.tk.eval("${pane_top}.ajogspeed.l1 configure -text deg/min")
 homing_order_defined = inifile.find("AXIS_0", "HOME_SEQUENCE") is not None
 
 if homing_order_defined:
@@ -3077,12 +3079,12 @@ s.poll()
 statfail=0
 statwait=.01
 while s.axes == 0:
-    print "waiting for s.axes"
+    print("waiting for s.axes")
     time.sleep(statwait)
     statfail+=1
     statwait *= 2
     if statfail > 8:
-        raise SystemExit, (
+        raise SystemExit(
             "A configuration error is preventing LinuxCNC from starting.\n"
             "More information may be available when running from a terminal.")
     s.poll()
@@ -3271,7 +3273,7 @@ def rClicker(e):
         (' ------ ',None),   #
         (_('Run from here'), lambda e=e: select_run_from(e)),
         ]
-    rmenu = Tkinter.Menu(None, tearoff=0, takefocus=0)
+    rmenu = tkinter.Menu(None, tearoff=0, takefocus=0)
     cas = {}
     for (txt, cmd) in nclst:
         if txt == ' ------ ':
@@ -3317,7 +3319,7 @@ if hal_present == 1 :
     if vcp:
         import vcpparse
         comp.setprefix("pyvcp")
-        f = Tkinter.Frame(root_window)
+        f = tkinter.Frame(root_window)
         f.grid(row=0, column=4, rowspan=6, sticky="nw", padx=4, pady=4)
         vcpparse.filename = vcp
         vcpparse.create_vcp(f, comp)
@@ -3325,7 +3327,7 @@ if hal_present == 1 :
 
     gladevcp = inifile.find("DISPLAY", "GLADEVCP")
     if gladevcp:
-        f = Tkinter.Frame(root_window, container=1, borderwidth=0, highlightthickness=0)
+        f = tkinter.Frame(root_window, container=1, borderwidth=0, highlightthickness=0)
         f.grid(row=0, column=5, rowspan=6, sticky="nsew", padx=4, pady=4)
     else:
         f = None
@@ -3369,7 +3371,7 @@ code = []
 addrecent = True
 if args:
     initialfile = args[0]
-elif os.environ.has_key("AXIS_OPEN_FILE"):
+elif "AXIS_OPEN_FILE" in os.environ:
     initialfile = os.environ["AXIS_OPEN_FILE"]
 elif inifile.find("DISPLAY", "OPEN_FILE"):
     initialfile = inifile.find("DISPLAY", "OPEN_FILE")
@@ -3396,7 +3398,7 @@ if o.canon:
 def destroy_splash():
     try:
         root_window.send("popimage", "destroy", ".")
-    except Tkinter.TclError:
+    except tkinter.TclError:
         pass
 
 def _dynamic_tab(name, text):
@@ -3409,7 +3411,7 @@ def _dynamic_tabs(inifile):
     tab_names = inifile.findall("DISPLAY", "EMBED_TAB_NAME")
     tab_cmd   = inifile.findall("DISPLAY", "EMBED_TAB_COMMAND")
     if len(tab_names) != len(tab_cmd):
-        print "Invalid tab configuration"
+        print("Invalid tab configuration")
         # Complain somehow
         return
 
@@ -3418,9 +3420,9 @@ def _dynamic_tabs(inifile):
     rxid = root_window.winfo_id()
     os.environ['AXIS_FORWARD_EVENTS_TO'] = str(rxid)
 
-    for i,t,c in zip(range(len(tab_cmd)), tab_names, tab_cmd):
+    for i,t,c in zip(list(range(len(tab_cmd))), tab_names, tab_cmd):
         w = _dynamic_tab("user_" + str(i), t)
-        f = Tkinter.Frame(w, container=1, borderwidth=0, highlightthickness=0)
+        f = tkinter.Frame(w, container=1, borderwidth=0, highlightthickness=0)
         f.pack(fill="both", expand=1)
         xid = f.winfo_id()
         cmd = c.replace('{XID}', str(xid)).split()
@@ -3431,12 +3433,12 @@ def _dynamic_tabs(inifile):
 
 @atexit.register
 def kill_dynamic_childs():
-    for c,_,w in _dynamic_childs.values():
+    for c,_,w in list(_dynamic_childs.values()):
         if not w:
             c.terminate()
 
 def check_dynamic_tabs():
-    for c,cmd,w in _dynamic_childs.values():
+    for c,cmd,w in list(_dynamic_childs.values()):
         if not w:
             continue
         r = c.poll()
@@ -3444,8 +3446,8 @@ def check_dynamic_tabs():
             continue
         if r is None:
             break
-        print 'Embeded tab command "%s" exited with error: %s' %\
-                             (" ".join(cmd), r)
+        print('Embeded tab command "%s" exited with error: %s' %\
+                             (" ".join(cmd), r))
         raise SystemExit(r)
     else:
         if postgui_halfile:
@@ -3453,7 +3455,7 @@ def check_dynamic_tabs():
                 res = os.spawnvp(os.P_WAIT, "haltcl", ["haltcl", "-i", vars.emcini.get(), postgui_halfile])
             else:
                 res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-i", vars.emcini.get(), "-f", postgui_halfile])
-            if res: raise SystemExit, res
+            if res: raise SystemExit(res)
         root_window.deiconify()
         destroy_splash()
         return
@@ -3519,7 +3521,7 @@ widgets.spinoverride.set(100)
 commands.set_spindlerate(100)
 
 def forget(widget, *pins):
-    if os.environ.has_key("AXIS_NO_AUTOCONFIGURE"): return
+    if "AXIS_NO_AUTOCONFIGURE" in os.environ: return
     if hal_present == 1 :
         for p in pins:
             if hal.pin_has_writer(p): return
@@ -3557,7 +3559,7 @@ for j in range(9):
         if hal.pin_has_writer("axis.%d.pos-lim-sw-in" % j):
             has_limit_switch=1
             break
-    except NameError, detail:
+    except NameError as detail:
         break
 if not has_limit_switch:
     widgets.override.grid_forget()
@@ -3574,10 +3576,10 @@ if user_command_file:
 rcfile = os.path.expanduser(rcfile)
 if os.path.exists(rcfile):
     try:
-        execfile(rcfile)
+        exec(compile(open(rcfile, "rb").read(), rcfile, 'exec'))
     except:
         tb = traceback.format_exc()
-        print >>sys.stderr, tb
+        print(tb, file=sys.stderr)
         root_window.tk.call("nf_dialog", ".error", _("Error in ~/.axisrc"),
             tb, "error", 0, _("OK"))
 

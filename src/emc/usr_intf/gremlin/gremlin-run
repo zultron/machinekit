@@ -5,7 +5,7 @@ import os
 import gtk
 
 import linuxcnc
-from gremlin import Gremlin
+from .gremlin import Gremlin
 
 def W(p, k, *args, **kw):
     w = k(*args, **kw)
@@ -22,7 +22,7 @@ class GremlinApp(gtk.Window):
 
         try:
             inifile = linuxcnc.ini(inifile)
-        except linuxcnc.error,detail:
+        except linuxcnc.error as detail:
             usage('Using filename = %s\n %s' % (inifile,detail))
 
         gtk.Window.__init__(self)
@@ -59,4 +59,4 @@ def main():
     g = GremlinApp(inifilename)
     gtk.main()
 
-if __name__ == '__main__': raise SystemExit, main()
+if __name__ == '__main__': raise SystemExit(main())
