@@ -57,3 +57,4 @@ To build and run the unit tests (from the repositor root directory):
 
   meson build && cd build
   ninja test
+
