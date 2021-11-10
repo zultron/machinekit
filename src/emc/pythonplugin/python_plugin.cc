@@ -14,7 +14,7 @@
  *
  *    You should have received a copy of the GNU General Public License
  *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 #include "python_plugin.hh"
 #include "inifile.hh"
@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <set>
 
+#define BOOST_PYTHON_MAX_ARITY 4
 #include <boost/python/exec.hpp>
 #include <boost/python/extract.hpp>
 #include <boost/python/import.hpp>
@@ -35,8 +36,12 @@ namespace bp = boost::python;
 #define ERRMSG(fmt, args...)					\
     do {							\
         char msgbuf[MAX_ERRMSG_SIZE];				\
-        snprintf(msgbuf, sizeof(msgbuf) -1,  fmt, ##args);	\
-        error_msg = std::string(msgbuf);			\
+        size_t ret = snprintf(msgbuf, sizeof(msgbuf) -1,  fmt, ##args); \
+        if (ret >= sizeof(msgbuf)){                                      \
+            snprintf(msgbuf, sizeof(msgbuf), "Error message too long"); \
+        } else {                                                        \
+            error_msg = std::string(msgbuf);                            \
+        }                                                               \
     } while(0)
 
 #define logPP(level, fmt, ...)						\
@@ -286,17 +291,39 @@ PythonPlugin::PythonPlugin(struct _inittab *inittab) :
     abs_path(0),
     log_level(0)
 {
+  if (abs_path) {
     wchar_t *program = Py_DecodeLocale(abs_path, NULL);
     Py_SetProgramName(program);
+  }
+    if (inittab != NULL) {
+      if (!Py_IsInitialized()) {
+        if (PyImport_ExtendInittab(inittab) != 0) {
+          logPP(-1, "cannot extend inittab");
+          status = PLUGIN_INITTAB_FAILED;
+          return;
+        }
+      }
+      else {
+        PyObject *sys_modules = PyImport_GetModuleDict(); // borrowed
 
-    if ((inittab != NULL) &&
-	PyImport_ExtendInittab(inittab)) {
-	logPP(-1, "cant extend inittab");
-	status = PLUGIN_INITTAB_FAILED;
-	return;
-    }
-    Py_Initialize();
-    initialize();
+        for (int i = 0; inittab[i].name != NULL; i++) {
+          struct _inittab tab = inittab[i];
+          PyObject *module = tab.initfunc();
+          if (module == NULL) {
+            logPP(-1, "failed to initialize built-in module '%s'", tab.name);
+            status = PLUGIN_INITTAB_FAILED;
+            return;
+          }
+
+          PyImport_AddModule(tab.name); // borrowed
+          PyDict_SetItemString(sys_modules, tab.name, module);
+          Py_DECREF(module);
+        }
+      }
+  }
+  Py_UnbufferedStdioFlag = 1;
+  Py_Initialize();
+  initialize();
 }
 
 
@@ -331,7 +358,7 @@ int PythonPlugin::configure(const char *iniFilename,
 	    reload_on_change = (atoi(inistring) > 0);
 
 	if (realpath(toplevel, real_path) == NULL) {
-	    logPP(-1, "cant resolve path to '%s'", toplevel);
+	    logPP(-1, "can\'t resolve path to '%s'", toplevel);
 	    status = PLUGIN_BAD_PATH;
 	    return status;
 	}
@@ -362,12 +389,12 @@ int PythonPlugin::configure(const char *iniFilename,
     int lineno;
     while (NULL != (inistring = inifile.Find("PATH_PREPEND", "PYTHON",
 					     n, &lineno))) {
-	sprintf(pycmd, "import sys\nsys.path.insert(0,\"%s\")", inistring);
+	snprintf(pycmd, sizeof(pycmd), "import sys\nsys.path.insert(0,\"%s\")", inistring);
 	logPP(1, "%s:%d: executing '%s'",iniFilename, lineno, pycmd);
 
 	if (PyRun_SimpleString(pycmd)) {
-	    logPP(-1, "%s:%d: exeception running '%s'",iniFilename, lineno, pycmd);
-	    exception_msg = "exeception running:" + std::string((const char*)pycmd);
+	    logPP(-1, "%s:%d: exception running '%s'",iniFilename, lineno, pycmd);
+	    exception_msg = "exception running:" + std::string((const char*)pycmd);
 	    status = PLUGIN_EXCEPTION_DURING_PATH_PREPEND;
 	    return status;
 	}
@@ -376,11 +403,11 @@ int PythonPlugin::configure(const char *iniFilename,
     n = 1;
     while (NULL != (inistring = inifile.Find("PATH_APPEND", "PYTHON",
 					     n, &lineno))) {
-	sprintf(pycmd, "import sys\nsys.path.append(\"%s\")", inistring);
+	snprintf(pycmd, sizeof(pycmd), "import sys\nsys.path.append(\"%s\")", inistring);
 	logPP(1, "%s:%d: executing '%s'",iniFilename, lineno, pycmd);
 	if (PyRun_SimpleString(pycmd)) {
-	    logPP(-1, "%s:%d: exeception running '%s'",iniFilename, lineno, pycmd);
-	    exception_msg = "exeception running " + std::string((const char*)pycmd);
+	    logPP(-1, "%s:%d: exception running '%s'",iniFilename, lineno, pycmd);
+	    exception_msg = "exception running " + std::string((const char*)pycmd);
 	    status = PLUGIN_EXCEPTION_DURING_PATH_APPEND;
 	    return status;
 	}

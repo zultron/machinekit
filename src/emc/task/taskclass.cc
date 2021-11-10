@@ -279,9 +279,9 @@ static const char *instance_name = "task_instance";
 
 int emcTaskOnce(const char *filename)
 {
-    bp::object retval;
-    bp::tuple arg;
-    bp::dict kwarg;
+    //bp::object retval;
+    //bp::tuple arg;
+    //bp::dict kwarg;
 
     // initialize the Python plugin singleton
     // Interp is already instantiated but not yet fully configured
