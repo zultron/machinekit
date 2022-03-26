@@ -8,7 +8,6 @@ import sys
 import re
 from time import sleep
 import datetime
-import string
 import time
 
 
@@ -254,7 +253,7 @@ class LinuxcncControl:
     def log(self, ngc_file, level, msg_text):
         full_msg = '{} | {}: {}: {}\n'.format(datetime.datetime.now(), ngc_file, level, msg_text)
         sys.stderr.write(full_msg)
-        if string.lower(level) is 'error':
+        if level.lower() is 'error':
             self.has_error_ = True
         return full_msg
 

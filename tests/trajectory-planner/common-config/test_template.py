@@ -12,7 +12,7 @@ def find_test_cases():
     cases = []
     for g in ('*.ngc','*.nc','*.TAP'):
         cases.extend(glob.glob(g))
-    print cases
+    print(cases)
     test_cases = [os.path.abspath(c) for c in cases]
     return test_cases
 
@@ -40,7 +40,7 @@ def run_test(test_case):
     test_dir = os.path.dirname(test_case)
     stdout_file = os.path.join(test_dir, 'stdout_' + test_name + '.log')
 
-    print >>sys.stderr, "Running test case", test_case
+    print("Running test case", test_case, file=sys.stderr)
     setup_test()
     with open(stdout_file, 'w') as f_out:
         f_out.write('{{start_collection: "{}"}}\n'.format(test_case))
