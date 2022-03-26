@@ -16,6 +16,8 @@
 //    along with this program; if not, write to the Free Software
 //    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+#define PY_SSIZE_T_CLEAN
+#define __STDC_FORMAT_MACROS
 #include <Python.h>
 #include <structseq.h>
 #include <pthread.h>
@@ -1091,7 +1093,7 @@ static PyObject *spindle(pyCommandChannel *s, PyObject *o) {
 static PyObject *mdi(pyCommandChannel *s, PyObject *o) {
     EMC_TASK_PLAN_EXECUTE m;
     char *cmd;
-    int len;
+    Py_ssize_t len;
     if(!PyArg_ParseTuple(o, "s#", &cmd, &len)) return NULL;
     if(unsigned(len) > sizeof(m.command) - 1) {
         PyErr_Format(PyExc_ValueError, "MDI commands limited to %zu characters", sizeof(m.command) - 1);
@@ -1395,7 +1397,7 @@ static PyObject *program_open(pyCommandChannel *s, PyObject *o) {
     EMC_TASK_PLAN_OPEN m{};
     char *file = nullptr;
     char *working_dir = nullptr;
-    int len = 0;
+    Py_ssize_t len = 0;
 
     if(!PyArg_ParseTuple(o, "s#|s", &file, &len, &working_dir)) return nullptr;
     if(unsigned(len) > sizeof(m.file) - 1) {
@@ -1423,7 +1425,7 @@ static PyObject *synch_and_export(pyCommandChannel *s, PyObject *o) {
     EMC_TASK_PLAN_SYNCH_EXPORT m;
 
     char *file = nullptr;
-    int len = 0;
+    Py_ssize_t len = 0;
 
     if(!PyArg_ParseTuple(o, "s", &file, &len)) return nullptr;
     const size_t max_len = sizeof(m.export_file) - 1;

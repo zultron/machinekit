@@ -25,15 +25,15 @@ def do_dout(cmd, with_motion=False):
     if with_motion:  c.mdi('G0 X%d' % with_motion)
     c.wait_complete()
     s.poll()
-    print "After %s:  s.dout[0] = %s, s.dout[1] = %s" % \
-        (cmd, s.dout[0], s.dout[1])
+    print("After %s:  s.dout[0] = %s, s.dout[1] = %s" % \
+        (cmd, s.dout[0], s.dout[1]))
     error = e.poll()
     if error:
         type_code, msg, lvl = error
         if type_code == linuxcnc.OPERATOR_DISPLAY:
             sys.stderr.write("%s\n" % msg)
         else:
-            print "Error:  type %d; message %s" % error
+            print("Error:  type %d; message %s" % error)
 
 # M64/M65 test:  toggle DIO & verify
 do_dout('M64')
