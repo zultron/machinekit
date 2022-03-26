@@ -15,24 +15,8 @@
  *    along with this program; if not, write to the Free Software
  *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-// Support for embedding Python in the RS274NGC interpreter
-// with access to Interp and Canon
-//
-// NB: all this is executed at readahead time
-//
-// Michael Haberler 4/2011
-//
-// if you get a segfault like described
-// here: https://bugs.launchpad.net/ubuntu/+source/mesa/+bug/259219
-// or here: https://www.libavg.de/wiki/LinuxInstallIssues#glibc_invalid_pointer :
-//
-// try this before starting milltask and axis in emc:
-//  LD_PRELOAD=/usr/lib/libstdc++.so.6 $EMCTASK ...
-//  LD_PRELOAD=/usr/lib/libstdc++.so.6 $EMCDISPLAY ...
-//
-// this is actually a bug in libgl1-mesa-dri and it looks
-// it has been fixed in mesa - 7.10.1-0ubuntu2
 
+#define BOOST_PYTHON_MAX_ARITY 4
 #include "python_plugin.hh"
 #include "interp_python.hh"
 #include <boost/python/extract.hpp>
@@ -67,29 +51,33 @@ extern    PythonPlugin *python_plugin;
         }                                                      \
     } while(0)
 
-#define IS_STRING(x) (PyObject_IsInstance(x.ptr(), (PyObject*)&PyString_Type))
-#define IS_INT(x) (PyObject_IsInstance(x.ptr(), (PyObject*)&PyInt_Type))
-
 // decode a Python exception into a string.
 std::string handle_pyerror()
 {
-    using namespace boost::python;
-    using namespace boost;
-
     PyObject *exc,*val,*tb;
-    object formatted_list, formatted;
+    bp::object formatted_list, formatted;
+
     PyErr_Fetch(&exc,&val,&tb);
-    handle<> hexc(exc),hval(allow_null(val)),htb(allow_null(tb));
-    object traceback(import("traceback"));
+    PyErr_NormalizeException(&exc,&val,&tb);
+    bp::handle<> 
+        hexc(bp::allow_null(exc)), 
+        hval(bp::allow_null(val)),
+        htb(bp::allow_null(tb));
+    if(!hval)
+    {
+        return bp::extract<std::string>(bp::str(hexc));
+    } else{
+        bp::object traceback(bp::import("traceback"));
     if (!tb) {
-	object format_exception_only(traceback.attr("format_exception_only"));
+        bp::object format_exception_only(traceback.attr("format_exception_only"));
 	formatted_list = format_exception_only(hexc,hval);
     } else {
-	object format_exception(traceback.attr("format_exception"));
+        bp::object format_exception(traceback.attr("format_exception"));
 	formatted_list = format_exception(hexc,hval,htb);
     }
-    formatted = str("\n").join(formatted_list);
-    return extract<std::string>(formatted);
+    formatted = bp::str("\n").join(formatted_list);
+    return bp::extract<std::string>(formatted);
+    }
 }
 
 int Interp::py_reload()
@@ -101,7 +89,7 @@ int Interp::py_reload()
     return INTERP_OK;
 }
 
-// determine wether [module.]funcname is callable
+// determine whether [module.]funcname is callable
 bool Interp::is_pycallable(setup_pointer settings,
 			   const char *module,
 			   const char *funcname)
@@ -129,7 +117,7 @@ int Interp::pycall(setup_pointer settings,
     if (_setup.loggingLevel > 4)
 	logPy("pycall(%s.%s) \n", module ? module : "", funcname);
 
-    CHKS(!PYUSABLE, "pycall(%s): Python plugin not initialized", funcname);
+    CHKS(!PYUSABLE, "pycall(%s): Python plugin not initialized",funcname);
     frame->pystuff.impl->py_return_type = 0;
 
     switch (calltype) {
@@ -149,12 +137,11 @@ int Interp::pycall(setup_pointer settings,
 	
 	// check inputs here, since _read() may not be called
 	read_inputs(&_setup); 
-
 	// handler continuation if a generator was used
 	try {
 	    retval = frame->pystuff.impl->generator_next();
 	}
-	catch (bp::error_already_set) {
+	catch (bp::error_already_set &) {
 	    if (PyErr_Occurred()) {
 		// StopIteration is raised when the generator executes 'return'
 		// instead of another 'yield INTERP_EXECUTE_FINISH
@@ -180,19 +167,9 @@ int Interp::pycall(setup_pointer settings,
 	break;
     default:
         python_plugin->call(module,funcname, frame->pystuff.impl->tupleargs,frame->pystuff.impl->kwargs,retval);
-        // NOTE: Assume that an exception containing a formatted interp error already has the appropriate context G-code context
-        if (python_plugin->plugin_status() == PLUGIN_EXCEPTION) {
-            if (getSavedError()[0]) {
-                // Already have error context (assume an interp error triggered this error),
-                // so signal to upstream error handlers not to add anymore context.
-                ERS("%sPython Exception %s", CONTEXT_MARKER,
-                    python_plugin->last_exception().c_str());
-            } else {
-                // Assume exception originated from within python code itself, so we still need the call context that got us here
-                ERS("Python Exception %s",
-                    python_plugin->last_exception().c_str());
-            }
-        }
+CHKS(python_plugin->plugin_status() == PLUGIN_EXCEPTION,
+	     "pycall(%s):\n%s", funcname,
+	     python_plugin->last_exception().c_str());
     }
 
     try {
@@ -217,13 +194,11 @@ int Interp::pycall(setup_pointer settings,
 
 		    // a generator was returned. This must have been the first time call to a handler
 		    // which contains a yield. Extract next() method.
-		    frame->pystuff.impl->generator_next = bp::getattr(retval, "next");
-
+		    frame->pystuff.impl->generator_next = bp::getattr(retval, "__next__");
 		    // and  call it for the first time.
 		    // Expect execution up to first 'yield INTERP_EXECUTE_FINISH'.
 		    frame->pystuff.impl->py_returned_int = bp::extract<int>(frame->pystuff.impl->generator_next());
 		    frame->pystuff.impl->py_return_type = RET_YIELD;
-		
 		} else if (PyUnicode_Check(retval.ptr())) {  
 		    // returning a string sets the interpreter error message and aborts
 		    char *msg = bp::extract<char *>(retval);

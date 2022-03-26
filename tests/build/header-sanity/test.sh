@@ -1,6 +1,7 @@
 #!/bin/sh
 set -xe 
 HEADERS=$(readlink -f ../../../include)
+CPPFLAGS=$(pkg-config --silence-errors --cflags libtirpc)
 for i in $HEADERS/*.h; do
     case $i in
     */rtapi_app.h) continue ;;
@@ -12,5 +13,5 @@ for i in $HEADERS/*.h $HEADERS/*.hh; do
     */rtapi_app.h) continue ;;
     */interp_internal.hh) continue ;;
     esac
-    g++ -std=c++11 -DULAPI -I$HEADERS -E -x c++ $i > /dev/null
+    g++ ${CPPFLAGS} -std=c++11 -DULAPI -I$HEADERS -E -x c++ $i > /dev/null
 done
