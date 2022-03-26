@@ -3,7 +3,7 @@
 import linuxcnc
 import time
 import sys
-from linuxcnc_test_support import wait_for_linuxcnc_startup
+from testing.linuxcnc_test_support import wait_for_linuxcnc_startup
 
 
 c = linuxcnc.command()
@@ -21,10 +21,10 @@ c.wait_complete()
 
 def do_unit_checks(s):
     # - Header
-    print "CHECK %s at line %d:  Feed rate mode gcodes[7] = %d" % \
+    print("CHECK %s at line %d:  Feed rate mode gcodes[7] = %d" % \
         ("Paused" if (s.interp_state==linuxcnc.INTERP_PAUSED) else "Not paused",
          s.current_line,
-         s.gcodes[7])
+         s.gcodes[7]))
 
 def wait_for_pause():
     done = False
@@ -40,15 +40,15 @@ def wait_for_pause():
         else:
             # Timeout:  last case is long motion where we're expected
             # to abort
-            print "CHECK hit timeout (expected during motion); aborting"
-            print "CHECK    Pre-abort checks:"
+            print("CHECK hit timeout (expected during motion); aborting")
+            print("CHECK    Pre-abort checks:")
             do_unit_checks(s)
             c.abort()
             c.wait_complete()
             s.poll()
-            print "CHECK    Post-abort checks:"
+            print("CHECK    Post-abort checks:")
             do_unit_checks(s)
-            print "CHECK Done; exiting"
+            print("CHECK Done; exiting")
             return
 
         # Print unit checks and resume program

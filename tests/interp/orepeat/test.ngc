@@ -18,7 +18,7 @@ o<proc> sub
 o<proc> endsub
 
 ;py,from interpreter import *
-;py,from linuxcnc_test_support import float_assert
+;py,from testing.linuxcnc_test_support import float_assert
 
 #<counter> = 0
 o100 repeat [100]

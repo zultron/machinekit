@@ -3,7 +3,7 @@
 import linuxcnc
 import time
 import sys
-from linuxcnc_test_support import wait_for_linuxcnc_startup
+from testing.linuxcnc_test_support import wait_for_linuxcnc_startup
 
 
 c = linuxcnc.command()
@@ -26,15 +26,15 @@ def do_unit_checks(s):
         linuxcnc.UNITS_MM : "UNITS_MM",
     }
     # - Header
-    print "CHECK %s at line %d:  units %d=%s; gcodes[5]=%d" % \
+    print("CHECK %s at line %d:  units %d=%s; gcodes[5]=%d" % \
         ("Paused" if (s.interp_state==linuxcnc.INTERP_PAUSED) else "Not paused",
          s.current_line,
          s.program_units,
          units_map.get(s.program_units, 'unknown'),
-         s.gcodes[5])
+         s.gcodes[5]))
     # - Sanity checks
     if (s.program_units*10+190) != s.gcodes[5]:
-        print "CHECK ERROR:  s.program_units does not match s.gcodes[5]"
+        print("CHECK ERROR:  s.program_units does not match s.gcodes[5]")
 
 def wait_for_pause():
     done = False
@@ -50,15 +50,15 @@ def wait_for_pause():
         else:
             # Timeout:  last case is long motion where we're expected
             # to abort
-            print "CHECK hit timeout (expected during motion); aborting"
-            print "CHECK    Pre-abort checks:"
+            print("CHECK hit timeout (expected during motion); aborting")
+            print("CHECK    Pre-abort checks:")
             do_unit_checks(s)
             c.abort()
             c.wait_complete()
             s.poll()
-            print "CHECK    Post-abort checks:"
+            print("CHECK    Post-abort checks:")
             do_unit_checks(s)
-            print "CHECK Done; exiting"
+            print("CHECK Done; exiting")
             return
 
         # Print unit checks and resume program

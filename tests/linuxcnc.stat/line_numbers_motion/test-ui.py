@@ -2,7 +2,7 @@
 
 import linuxcnc, hal
 import sys, os, time
-from linuxcnc_test_support import wait_for_linuxcnc_startup
+from testing.linuxcnc_test_support import wait_for_linuxcnc_startup
 
 
 # Set up component
@@ -36,25 +36,25 @@ timeout = 5 # seconds to wait before erroring out
 time_elapsed = 0 # elapsed time
 time_incr = 0.1 # how long to sleep
 while time_elapsed < timeout:
-    print "Current Xpos = %.3f; elapsed = %.1f" % (h['Xpos'], time_elapsed)
+    print("Current Xpos = %.3f; elapsed = %.1f" % (h['Xpos'], time_elapsed))
     if abs(h['Xpos'] - goal) < 0.0001:
-        print "Reached test position"
+        print("Reached test position")
         break
     time_elapsed += time_incr
     time.sleep(time_incr)
 else:
-    print "Error:  timeout exceeded waiting for X pos to reach %.2f" % goal
+    print("Error:  timeout exceeded waiting for X pos to reach %.2f" % goal)
     sys.exit(1)
 
 # Check that line number is 8
 s.poll()
 if s.current_line < 8:
-    print "Error:  line number %d < 8" % s.current_line
+    print("Error:  line number %d < 8" % s.current_line)
     sys.exit(1)
 if s.current_line > 8:
-    print "Error:  line number %d > 8" % s.current_line
+    print("Error:  line number %d > 8" % s.current_line)
     sys.exit(1)
-print "Ok:  line number %d" % s.current_line
+print("Ok:  line number %d" % s.current_line)
 
 # Abort and exit
 c.abort()

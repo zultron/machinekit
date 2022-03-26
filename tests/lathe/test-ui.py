@@ -14,7 +14,7 @@ timeout = 5.0
 
 
 # unbuffer stdout
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w')
 
 
 def introspect(h):
@@ -23,7 +23,7 @@ def introspect(h):
 
 
 def wait_for_joint_to_stop(joint_number):
-    print "waiting for joint", joint_number, "to stop"
+    print("waiting for joint", joint_number, "to stop")
     s.poll()
     start_time = time.time()
     timeout = 2.0
@@ -35,8 +35,8 @@ def wait_for_joint_to_stop(joint_number):
         if new_pos == prev_pos:
             return
         prev_pos = new_pos
-    print "Error: joint", joint_number, "didn't stop jogging!"
-    print "joint %d is at %.3f %.3f seconds after reaching target (prev_pos=%.3f)" % (joint_number, s.position[joint_number], timeout, prev_pos)
+    print("Error: joint", joint_number, "didn't stop jogging!")
+    print("joint %d is at %.3f %.3f seconds after reaching target (prev_pos=%.3f)" % (joint_number, s.position[joint_number], timeout, prev_pos))
     sys.exit(1)
 
 
@@ -44,7 +44,7 @@ def jog_joint(joint_number, target):
     s.poll()
     start_pos = s.position
 
-    print "jogging joint %d from %.3f to %.3f" % (joint_number, start_pos[joint_number], target)
+    print("jogging joint %d from %.3f to %.3f" % (joint_number, start_pos[joint_number], target))
 
     if s.position[joint_number] < target:
         vel = 5
@@ -63,12 +63,12 @@ def jog_joint(joint_number, target):
     c.jog(linuxcnc.JOG_STOP, joint_number)
 
     if not done(s.position[joint_number]):
-        print "failed to jog joint %d to %.3f" % (joint_number, target)
-        print "timed out at %.3f after %.3f seconds" % (s.position[joint_number], timeout)
+        print("failed to jog joint %d to %.3f" % (joint_number, target))
+        print("timed out at %.3f after %.3f seconds" % (s.position[joint_number], timeout))
         introspect(h)
         sys.exit(1)
 
-    print "    jogged joint %d past target %.3f" % (joint_number, target)
+    print("    jogged joint %d past target %.3f" % (joint_number, target))
 
     wait_for_joint_to_stop(joint_number);
 
@@ -77,7 +77,7 @@ def jog_joint(joint_number, target):
         if i == joint_number:
             continue;
         if start_pos[i] != s.position[i]:
-            print "joint %d moved from %.3f to %.3f but shouldnt have!" % (i, start_pos[i], s.position[i])
+            print("joint %d moved from %.3f to %.3f but shouldnt have!" % (i, start_pos[i], s.position[i]))
             success = False
     if not success:
         sys.exit(1)
@@ -92,7 +92,7 @@ def all_joints_homed(joints):
 
 
 def wait_for_home(joints):
-    print "homing..."
+    print("homing...")
     start_time = time.time()
     timeout = 10.0
     while (time.time() - start_time) < timeout:
@@ -101,9 +101,9 @@ def wait_for_home(joints):
         time.sleep(0.1)
 
     s.poll()
-    print "timeout waiting for homing to complete"
-    print "s.homed:", s.homed
-    print "s.position:", s.position
+    print("timeout waiting for homing to complete")
+    print("s.homed:", s.homed)
+    print("s.position:", s.position)
     sys.exit(1)
 
 
@@ -120,10 +120,10 @@ def wait_for_joint_to_stop_at(joint, target):
         vel = s.position[joint] - prev_pos
         error = math.fabs(s.position[joint] - target)
         if (error < tolerance) and (vel == 0):
-            print "joint %d stopped at %.3f" % (joint, target)
+            print("joint %d stopped at %.3f" % (joint, target))
             return
         time.sleep(0.1)
-    print "timeout waiting for joint %d to stop at %.3f (pos=%.3f, vel=%.3f)" % (joint, target, s.position[joint], vel)
+    print("timeout waiting for joint %d to stop at %.3f (pos=%.3f, vel=%.3f)" % (joint, target, s.position[joint], vel))
     sys.exit(1)
 
 
@@ -161,21 +161,21 @@ jog_joint(2, 0.0)
 c.mode(linuxcnc.MODE_MDI)
 
 gcode = 'g0 x2 z2'
-print "running gcode:", gcode
+print("running gcode:", gcode)
 c.mdi(gcode)
 c.wait_complete()
 wait_for_joint_to_stop_at(0, 2);
 wait_for_joint_to_stop_at(2, 2);
 
 gcode = 'g0 x-2'
-print "running gcode:", gcode
+print("running gcode:", gcode)
 c.mdi(gcode)
 c.wait_complete()
 wait_for_joint_to_stop_at(0, -2);
 wait_for_joint_to_stop_at(2, 2);
 
 gcode = 'g0 z-2'
-print "running gcode:", gcode
+print("running gcode:", gcode)
 c.mdi(gcode)
 c.wait_complete()
 wait_for_joint_to_stop_at(0, -2);

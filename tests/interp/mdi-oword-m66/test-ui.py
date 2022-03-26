@@ -124,7 +124,7 @@ class LinuxcncControl:
                     pass
                 return True
             except KeyboardInterrupt:
-                print "interrupted by keyboard in c.wait_complete()"
+                print("interrupted by keyboard in c.wait_complete()")
                 return False
 
         self.error = self.e.poll()
@@ -134,9 +134,9 @@ class LinuxcncControl:
                 if self.g_raise_except:
                     raise LinuxcncError(text)
                 else:        
-                    print ("error " + text)
+                    print(("error " + text))
             else:
-                print ("info " + text)
+                print(("info " + text))
         return False
 
     def get_current_tool(self):
@@ -193,7 +193,7 @@ while (time.time() - start_time) < 2.0:
     time.sleep(0.1)
 
 if e.s.homed != ( 1, 1, 1, 0, 0, 0, 0, 0, 0 ):
-    print "failed to home in 2 seconds"
+    print("failed to home in 2 seconds")
     sys.exit(1)
 
 e.set_mode(linuxcnc.MODE_MDI)
@@ -201,16 +201,16 @@ e.set_mode(linuxcnc.MODE_MDI)
 e.g("O<obug> call [0]", True)
 e.s.poll()
 if e.s.position[0] != 0:
-    print "ended at wrong location (did O-call terminate with error?)"
+    print("ended at wrong location (did O-call terminate with error?)")
     sys.exit(1)
 
 e.g("O<obug> call [1]", True)
 e.s.poll()
 if abs(e.s.position[0] - 1) > 1e-5:
-    print "ended at wrong location (did O-call terminate with error?)"
-    print e.s.position
+    print("ended at wrong location (did O-call terminate with error?)")
+    print(e.s.position)
     sys.exit(1)
-print "done! it all worked"
+print("done! it all worked")
 
 # if we get here it all worked!
 sys.exit(0)

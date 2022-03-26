@@ -3,7 +3,7 @@
 import linuxcnc
 import time
 import sys
-from linuxcnc_test_support import wait_for_linuxcnc_startup
+from testing.linuxcnc_test_support import wait_for_linuxcnc_startup
 
 
 c = linuxcnc.command()
@@ -27,24 +27,24 @@ def do_unit_checks(s):
         [ i+591 for i in range(3) ] +
         [ i*20 + 10001 for i in range(10,500)]))
     # - Header
-    print "CHECK %s at line %d:  offset %d/%s" % \
+    print("CHECK %s at line %d:  offset %d/%s" % \
         ("Paused" if (s.interp_state==linuxcnc.INTERP_PAUSED) else "Not paused",
          s.current_line,
          s.g5x_index,
-         offsets_map.get(s.g5x_index, 'unknown'))
+         offsets_map.get(s.g5x_index, 'unknown')))
     # - Active modes
-    print "CHECK gcodes:  %s" % (s.gcodes,)
+    print("CHECK gcodes:  %s" % (s.gcodes,))
     # - Current + all offsets in both user and program units
     standard_offsets = [ (k, s.g5x_offsets[k]) for k in range(10)]
     for i, o in [(0, s.g5x_offset)] + standard_offsets:
-        print "CHECK offset %d/%s:  X%.2f Y%.2f Z%.2f" % \
-            tuple([i, offsets_map[i]] + list(o[:3]))
+        print("CHECK offset %d/%s:  X%.2f Y%.2f Z%.2f" % \
+            tuple([i, offsets_map[i]] + list(o[:3])))
     for n,v in zip('xyzabcuvw',s.g92_offset):
-        print "CHECK axis offset {} = {}".format(n,v)
+        print("CHECK axis offset {} = {}".format(n,v))
     # - Sanity checks
     if offsets_map.get(s.g5x_index, None) != s.gcodes[8]:
-        print "CHECK ERROR:  s.g5x_index=%s/%s != s.gcodes[8]=%s" % \
-            (s.g5x_index, offsets_map.get(s.g5x_index, None), s.gcodes[8])
+        print("CHECK ERROR:  s.g5x_index=%s/%s != s.gcodes[8]=%s" % \
+            (s.g5x_index, offsets_map.get(s.g5x_index, None), s.gcodes[8]))
 
 def wait_for_pause():
     done = False
@@ -63,15 +63,15 @@ def wait_for_pause():
             sys.stderr.write("do unit checks\n")
             # Timeout:  last case is long motion where we're expected
             # to abort
-            print "CHECK hit timeout (expected during motion); aborting"
-            print "CHECK    Pre-abort checks:"
+            print("CHECK hit timeout (expected during motion); aborting")
+            print("CHECK    Pre-abort checks:")
             do_unit_checks(s)
             c.abort()
             c.wait_complete()
             s.poll()
-            print "CHECK    Post-abort checks:"
+            print("CHECK    Post-abort checks:")
             do_unit_checks(s)
-            print "CHECK Done; exiting"
+            print("CHECK Done; exiting")
             return
 
         # Print unit checks and resume program

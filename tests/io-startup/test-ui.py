@@ -12,7 +12,7 @@ timeout = 5.0
 
 
 # unbuffer stdout
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w')
 
 
 class LinuxcncError(Exception):
@@ -127,7 +127,7 @@ class LinuxcncControl:
                     pass
                 return True
             except KeyboardInterrupt:
-                print "interrupted by keyboard in c.wait_complete()"
+                print("interrupted by keyboard in c.wait_complete()")
                 return False
 
         self.error = self.e.poll()
@@ -137,9 +137,9 @@ class LinuxcncControl:
                 if LinuxcncControl.g_raise_except:
                     raise LinuxcncError(text)
                 else:        
-                    print ("error " + text)
+                    print("error " + text)
             else:
-                print ("info " + text)
+                print("info " + text)
         return False
 
     def get_current_tool(self):
@@ -169,9 +169,9 @@ def wait_for_pin_value(pin_name, value, timeout=5.0):
     while (time.time() - start_time) < timeout:
         time.sleep(0.1)
         if h[pin_name] == value:
-            print "pin '%s' reached target value '%s' after %f seconds" % (pin_name, value, time.time() - start_time)
+            print("pin '%s' reached target value '%s' after %f seconds" % (pin_name, value, time.time() - start_time))
             return
-    print "Error: pin '%s' didn't reach value '%s' within timeout of %f seconds (it's %s instead)" % (pin_name, value, timeout, h[pin_name])
+    print("Error: pin '%s' didn't reach value '%s' within timeout of %f seconds (it's %s instead)" % (pin_name, value, timeout, h[pin_name]))
     sys.exit(1)
 
 
@@ -180,9 +180,9 @@ def wait_for_stat_buffer_toolInSpindle(value, timeout=5.0):
     while (time.time() - start_time) < timeout:
         time.sleep(0.1)
         if e.tool_in_spindle() == expected_startup_tool_number:
-            print "the Stat buffer's toolInSpindle reached the value of %d after %f seconds" % (expected_startup_tool_number, time.time() - start_time)
+            print("the Stat buffer's toolInSpindle reached the value of %d after %f seconds" % (expected_startup_tool_number, time.time() - start_time))
             return
-    print "the Stat buffer's toolInSpindle value is %d, expected %d" % (e.tool_in_spindle(), expected_startup_tool_number)
+    print("the Stat buffer's toolInSpindle value is %d, expected %d" % (e.tool_in_spindle(), expected_startup_tool_number))
     sys.exit(1)
 
 
@@ -190,7 +190,7 @@ f = open('expected-startup-tool-number', 'r')
 contents = f.read()
 f.close()
 expected_startup_tool_number = int(contents)
-print "expecting tool number %d" % expected_startup_tool_number
+print("expecting tool number %d" % expected_startup_tool_number)
 
 #
 # set up pins

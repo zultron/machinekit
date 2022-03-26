@@ -124,7 +124,7 @@ class LinuxcncControl:
                     pass
                 return True
             except KeyboardInterrupt:
-                print "interrupted by keyboard in c.wait_complete()"
+                print("interrupted by keyboard in c.wait_complete()")
                 return False
 
         self.error = self.e.poll()
@@ -134,9 +134,9 @@ class LinuxcncControl:
                 if self.g_raise_except:
                     raise LinuxcncError(text)
                 else:        
-                    print ("error " + text)
+                    print("error " + text)
             else:
-                print ("info " + text)
+                print("info " + text)
         return False
 
     def get_current_tool(self):
@@ -193,7 +193,7 @@ while (time.time() - start_time) < 2.0:
     time.sleep(0.1)
 
 if e.s.homed != ( 1, 1, 1, 0, 0, 0, 0, 0, 0 ):
-    print "failed to home in 2 seconds"
+    print("failed to home in 2 seconds")
     sys.exit(1)
 
 e.set_mode(linuxcnc.MODE_AUTO)
@@ -209,7 +209,7 @@ while (time.time() - start_time) < 2.0:
     time.sleep(0.001)
 
 if e.s.interp_state == linuxcnc.INTERP_IDLE:
-    print "failed to start interpreter, interp_state is", e.s.interp_state
+    print("failed to start interpreter, interp_state is", e.s.interp_state)
     sys.exit(1)
 
 # tee hee!
@@ -224,7 +224,7 @@ while (time.time() - start_time) < 5.0:
     time.sleep(0.001)
 
 if e.s.interp_state != linuxcnc.INTERP_IDLE:
-    print "interpreter did not finish"
+    print("interpreter did not finish")
     sys.exit(1)
 
 # ok fine, have it back
@@ -232,7 +232,7 @@ os.rename('moved-test.ngc', 'test.ngc')
 #os.rename('subs/moved-sub.ngc', 'subs/sub.ngc')
 
 
-print "done! it all worked"
+print("done! it all worked")
 
 # if we get here it all worked!
 sys.exit(0)

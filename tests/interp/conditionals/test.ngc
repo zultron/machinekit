@@ -10,7 +10,7 @@ g90 g20 g54
 g0 x0 y0 z0
 
 ;py,from interpreter import *
-;py,from linuxcnc_test_support import float_assert
+;py,from testing.linuxcnc_test_support import float_assert
 
 #1000=0
 o1 if [1 eq 1]

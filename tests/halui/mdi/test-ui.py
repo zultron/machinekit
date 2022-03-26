@@ -13,7 +13,7 @@ timeout = 1.0
 
 
 # unbuffer stdout
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w')
 
 
 class LinuxcncError(Exception):
@@ -128,7 +128,7 @@ class LinuxcncControl:
                     pass
                 return True
             except KeyboardInterrupt:
-                print "interrupted by keyboard in c.wait_complete()"
+                print("interrupted by keyboard in c.wait_complete()")
                 return False
 
         self.error = self.e.poll()
@@ -138,9 +138,9 @@ class LinuxcncControl:
                 if LinuxcncControl.g_raise_except:
                     raise LinuxcncError(text)
                 else:        
-                    print ("error " + text)
+                    print(("error " + text))
             else:
-                print ("info " + text)
+                print(("info " + text))
         return False
 
     def get_current_tool(self):
@@ -183,10 +183,10 @@ def wait_for_joint_to_stop_at(joint, target):
         vel = curr_pos - prev_pos
         error = math.fabs(curr_pos - target)
         if (error < tolerance) and (vel == 0):
-            print "joint %d stopped at %.3f" % (joint, target)
+            print("joint %d stopped at %.3f" % (joint, target))
             return
         time.sleep(0.1)
-    print "timeout waiting for joint %d to stop at %.3f (pos=%.3f, vel=%.3f)" % (joint, target, curr_pos, vel)
+    print("timeout waiting for joint %d to stop at %.3f (pos=%.3f, vel=%.3f)" % (joint, target, curr_pos, vel))
     sys.exit(1)
 
 
@@ -200,7 +200,7 @@ def wait_for_task_mode(target):
             return
         time.sleep(0.1)
 
-    print "timeout waiting for task mode to get to  %d (it's %d)" % (target, e.s.task_mode)
+    print("timeout waiting for task mode to get to  %d (it's %d)" % (target, e.s.task_mode))
     sys.exit(1)
 
 
@@ -211,10 +211,10 @@ def wait_for_halui_mode(pin_name):
 
     while ((time.time() - start) < timeout):
         if h[pin_name]:
-            print "halui reports mode", pin_name
+            print("halui reports mode", pin_name)
             return
         time.sleep(0.1)
-    print "timeout waiting for halui to report mode", pin_name
+    print("timeout waiting for halui to report mode", pin_name)
     sys.exit(1)
 
 
@@ -262,7 +262,7 @@ e.set_state(linuxcnc.STATE_ON)
 
 e.set_mode(linuxcnc.MODE_MANUAL)
 wait_for_halui_mode('is-manual')
-print "running MDI command 0"
+print("running MDI command 0")
 h['mdi-0'] = 1
 wait_for_joint_to_stop_at(0, -1);
 wait_for_joint_to_stop_at(1, 0);
@@ -273,7 +273,7 @@ wait_for_halui_mode('is-manual')
 
 e.set_mode(linuxcnc.MODE_AUTO)
 wait_for_halui_mode('is-auto')
-print "running MDI command 1"
+print("running MDI command 1")
 h['mdi-1'] = 1
 wait_for_joint_to_stop_at(0, 1);
 wait_for_joint_to_stop_at(1, 0);
@@ -284,7 +284,7 @@ wait_for_halui_mode('is-auto')
 
 e.set_mode(linuxcnc.MODE_MDI)
 wait_for_halui_mode('is-mdi')
-print "running MDI command 2"
+print("running MDI command 2")
 h['mdi-2'] = 1
 wait_for_joint_to_stop_at(0, 1);
 wait_for_joint_to_stop_at(1, 2);
@@ -294,7 +294,7 @@ e.s.poll()
 wait_for_task_mode(linuxcnc.MODE_MDI)
 wait_for_halui_mode('is-mdi')
 
-print "running MDI command 3"
+print("running MDI command 3")
 h['mdi-3'] = 1
 wait_for_joint_to_stop_at(0, 1);
 wait_for_joint_to_stop_at(1, 2);
@@ -303,7 +303,7 @@ h['mdi-3'] = 0
 wait_for_task_mode(linuxcnc.MODE_MDI)
 wait_for_halui_mode('is-mdi')
 
-print "running MDI command 0"
+print("running MDI command 0")
 h['mdi-0'] = 1
 wait_for_joint_to_stop_at(0, -1);
 wait_for_joint_to_stop_at(1, 0);

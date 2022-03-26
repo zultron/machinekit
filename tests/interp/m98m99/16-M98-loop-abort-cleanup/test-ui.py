@@ -5,7 +5,7 @@ import hal
 
 import time
 import sys
-from linuxcnc_test_support import *
+from testing.linuxcnc_test_support import *
 
 
 # connect to LinuxCNC
@@ -23,7 +23,7 @@ c.mode(linuxcnc.MODE_AUTO)
 repetitions = 10
 # run the .ngc test file which will fail due to the ABORT statement in the subroutine
 for k in range(repetitions):
-    print >>sys.stderr, "Running test program, iteration {}".format(k)
+    print("Running test program, iteration {}".format(k), file=sys.stderr)
     c.program_open('test.ngc')
     c.wait_complete()
     c.auto(linuxcnc.AUTO_RUN, 1)
