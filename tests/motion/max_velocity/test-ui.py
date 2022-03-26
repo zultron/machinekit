@@ -120,7 +120,7 @@ class LinuxcncControl:
                     pass
                 return True
             except KeyboardInterrupt:
-                print "interrupted by keyboard in c.wait_complete()"
+                print("interrupted by keyboard in c.wait_complete()")
                 return False
 
         self.error = self.e.poll()
@@ -130,9 +130,9 @@ class LinuxcncControl:
                 if LinuxcncControl.g_raise_except:
                     raise LinuxcncError(text)
                 else:        
-                    print ("error " + text)
+                    print("error " + text)
             else:
-                print ("info " + text)
+                print("info " + text)
         return False
 
 
@@ -147,8 +147,8 @@ def wait_for_joint_to_stop(joint_number):
         if new_pos == prev_pos:
             return
         prev_pos = new_pos
-    print "Error: joint didn't stop jogging!"
-    print "joint %d is at %.6f %.6f seconds after reaching target (prev_pos=%.6f)" % (joint_number, h[pos_pin], timeout, prev_pos)
+    print("Error: joint didn't stop jogging!")
+    print("joint %d is at %.6f %.6f seconds after reaching target (prev_pos=%.6f)" % (joint_number, h[pos_pin], timeout, prev_pos))
     sys.exit(1)
 
 
@@ -160,9 +160,9 @@ def reset_minmax(h):
     h['minmax-reset'] = 1
     time.sleep(0.1)  # Time for reset to be recognized
     if h['XYZmax'] != 0 or h['ABCmax'] != 0:
-        print "Error:  max velocity failed to reset:  " \
+        print("Error:  max velocity failed to reset:  " \
             "XYZmax=%.3f, ABCmax=%.3f" % \
-            (h['XYZmax'], h['ABCmax'])
+            (h['XYZmax'], h['ABCmax']))
         # os.system('halcmd show pin')
         sys.exit(1)
     h['minmax-reset'] = 0
@@ -188,19 +188,19 @@ def move_joints(e, h, maxvel_set, maxvel_expected=None,
     pure_rotary = (X==0 and Y==0 and Z==0)
     maxvel_pin = 'ABCmax' if pure_rotary else 'XYZmax'
     maxvel = h[maxvel_pin]
-    print "cmd = %s" % cmd
-    print "  max %s vel: set = %6.3f, measured = %6.3f, expecting = %6.3f" % \
+    print("cmd = %s" % cmd)
+    print("  max %s vel: set = %6.3f, measured = %6.3f, expecting = %6.3f" % \
         ('ang' if pure_rotary else 'lin',
-         maxvel_set, maxvel, maxvel_expected)
+         maxvel_set, maxvel, maxvel_expected))
     # print "  ending coords:  X=%6.3f Y=%6.3f Z=%6.3f A=%6.3f B=%6.3f C=%6.3f " % \
     #     tuple([ h['joint-%d-position' % i] for i in range(6) ])
-    print "  cartesian max vel           X=%6.3f Y=%6.3f Z=%6.3f => %6.3f" % \
-        tuple([h['joint-%d-velocity' % i] for i in range(0,3)] + [h['XYZmax']])
-    print "  angular max vel             A=%6.3f B=%6.3f C=%6.3f => %6.3f" % \
-        tuple([h['joint-%d-velocity' % i] for i in range(3,6)] + [h['ABCmax']])
+    print("  cartesian max vel           X=%6.3f Y=%6.3f Z=%6.3f => %6.3f" % \
+        tuple([h['joint-%d-velocity' % i] for i in range(0,3)] + [h['XYZmax']]))
+    print("  angular max vel             A=%6.3f B=%6.3f C=%6.3f => %6.3f" % \
+        tuple([h['joint-%d-velocity' % i] for i in range(3,6)] + [h['ABCmax']]))
     if not close_enough(maxvel, maxvel_expected):
-        print "Error:  max velocity %.3f != set %.3f" % \
-            (maxvel, maxvel_expected)
+        print("Error:  max velocity %.3f != set %.3f" % \
+            (maxvel, maxvel_expected))
         sys.exit(1)
 
     # Go back to zero

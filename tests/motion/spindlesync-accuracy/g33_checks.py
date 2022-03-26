@@ -142,28 +142,28 @@ def check_abs_deviation(samples, constants, rigid_tapping_phases=None):
         sync_pos = samples[e, 4]
         endpoint = constants["z_depth"]
         if sync_pos < endpoint:
-            print >> sys.stderr, "Failed: position sync starts at position %f, after endpoint %f)" % (sync_pos, endpoint)
+            print("Failed: position sync starts at position %f, after endpoint %f)" % (sync_pos, endpoint), file=sys.stderr)
             return True
-        print >> sys.stderr, "Passed: position sync starts at position %f, before endpoint %f)" % (sync_pos, endpoint)
+        print("Passed: position sync starts at position %f, before endpoint %f)" % (sync_pos, endpoint), file=sys.stderr)
 
     max_sync_delay = constants.get("max_sync_delay", 1)
     for e, s in zip(index_seek_start_idx, sync_start_idx):
         if e-s > max_sync_delay:
-            print >> sys.stderr, "Failed: position sync started at %d, not within %d steps of expected (%d)" % (
-                e, max_sync_delay, s)
+            print("Failed: position sync started at %d, not within %d steps of expected (%d)" % (
+                e, max_sync_delay, s), file=sys.stderr)
             return True
 
-    print >> sys.stderr, "Passed: position sync started at %d, within %d steps of expected (%d)" % (
-        e, max_sync_delay, s)
+    print("Passed: position sync started at %d, within %d steps of expected (%d)" % (
+        e, max_sync_delay, s), file=sys.stderr)
 
     pos_sync_active_range = find_state(pos_sync_state_samples, SYNC_POSITION)
     # For tests where the position sync motion decelerates to a stop (causing the last bit of the move to drop out of sync)
     ignore_end_sample_cnt = constants.get("ignore_pos_sync_end_samples", 0)
     pos_sync_sample_cnt = len(pos_sync_active_range)
     if ignore_end_sample_cnt >= pos_sync_sample_cnt:
-        print >> sys.stderr, "Failed: ignored too many samples {} (sync position only lasts for {} samples)".format(
+        print("Failed: ignored too many samples {} (sync position only lasts for {} samples)".format(
             ignore_end_sample_cnt,
-            pos_sync_sample_cnt)
+            pos_sync_sample_cnt), file=sys.stderr)
         return True
     elif ignore_end_sample_cnt > 0:
         # Truncate the active range
@@ -174,10 +174,10 @@ def check_abs_deviation(samples, constants, rigid_tapping_phases=None):
         pos_sync_active_range = np.intersect1d(pos_sync_active_range, rigid_tap_state_range)
     spindle_pos_active = spindle_pos[pos_sync_active_range]
     z_axis_pos_active = z_axis_pos[pos_sync_active_range]
-    print >> sys.stderr, np.size(pos_sync_active_range)
+    print(np.size(pos_sync_active_range), file=sys.stderr)
 
     p_bestfit = np.polyfit(spindle_pos_active, z_axis_pos_active, 1)
-    print >> sys.stderr, "Linear fit for spindle / axis motion: ", np.poly1d(p_bestfit)
+    print("Linear fit for spindle / axis motion: ", np.poly1d(p_bestfit), file=sys.stderr)
 
     # Force the slope to match the pitch to check for effective deviation from the ideal path
     p_from_pitch = p_bestfit
@@ -191,7 +191,7 @@ def check_abs_deviation(samples, constants, rigid_tapping_phases=None):
 
     deviation_failure = max_abs_dev > constants["max_tracking_error"] and not constants.get("expect_deviation_violation", False)
 
-    print >> sys.stderr, "{}: Maximum position deviation is: {} ".format("Passed" if not deviation_failure else "Failed", max_abs_dev)
+    print("{}: Maximum position deviation is: {} ".format("Passed" if not deviation_failure else "Failed", max_abs_dev), file=sys.stderr)
     return deviation_failure
 
 
@@ -199,20 +199,20 @@ def check_overrun(axis_pos, nominal_endpt, max_threading_overshoot, max_retract_
     min_pos = np.min(np.array(axis_pos))
     max_pos = np.max(np.array(axis_pos))
 
-    print >> sys.stderr, "min axis position: ", min_pos
-    print >> sys.stderr, "max axis position: ", max_pos
+    print("min axis position: ", min_pos, file=sys.stderr)
+    print("max axis position: ", max_pos, file=sys.stderr)
     allowed_min = nominal_endpt - max_threading_overshoot
     if min_pos < allowed_min:
-        print >> sys.stderr, "Failed: threading overrun detected at bottom of hole, min_pos {} exceeds limit of {}".format(min_pos, allowed_min)
+        print("Failed: threading overrun detected at bottom of hole, min_pos {} exceeds limit of {}".format(min_pos, allowed_min), file=sys.stderr)
         return True
     else:
-        print >> sys.stderr, "Passed: threading overrun {} within limit of {}".format(min_pos, allowed_min)
+        print("Passed: threading overrun {} within limit of {}".format(min_pos, allowed_min), file=sys.stderr)
 
     if max_pos > max_retract_overshoot:
-        print >> sys.stderr, "Failed: retract overrun detected at retract, max_pos {} exceeds limit of {}".format(max_pos, max_retract_overshoot)
+        print("Failed: retract overrun detected at retract, max_pos {} exceeds limit of {}".format(max_pos, max_retract_overshoot), file=sys.stderr)
         return True
     else:
-        print >> sys.stderr, "Passed: retract overrun {} within limit of {}".format(max_pos, max_retract_overshoot)
+        print("Passed: retract overrun {} within limit of {}".format(max_pos, max_retract_overshoot), file=sys.stderr)
 
     return False
 
@@ -231,9 +231,9 @@ if __name__ == '__main__':
 
     for test_name in find_test_cases():
         sf = get_sample_file_name(test_name)
-        print >> sys.stderr, "Checking results of test", test_name
+        print("Checking results of test", test_name, file=sys.stderr)
         if not os.path.exists(sf):
-            print >> sys.stderr, "No samples found for", test_name
+            print("No samples found for", test_name, file=sys.stderr)
             continue
         exceeds_limits = check_all(test_name)
         if exceeds_limits:

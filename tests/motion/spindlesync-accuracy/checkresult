@@ -27,7 +27,7 @@ def check_results(raw_output, dest_file):
         r.writelines(results)
     for row in results:
         if "failed" in row:
-            print row
+            print(row)
 
     return failure_count
 

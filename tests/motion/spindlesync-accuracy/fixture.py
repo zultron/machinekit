@@ -3,7 +3,7 @@
 import linuxcnc
 import sys
 from subprocess import Popen
-from linuxcnc_test_support import wait_for_linuxcnc_startup, has_error
+from testing.linuxcnc_test_support import wait_for_linuxcnc_startup, has_error
 
 import g33_checks
 
@@ -25,15 +25,15 @@ c.wait_complete()
 # Read in the current test case (passed to the fixture via sys args)
 test_name = sys.argv[3]
 constants = g33_checks.load_test_case(test_name)
-print >> sys.stderr, "Test {} configuration: {}".format(test_name,constants)
+print("Test {} configuration: {}".format(test_name,constants), file=sys.stderr)
 
 if constants.get("skip", False):
-    print >> sys.stderr, "Test {} skipped".format(test_name)
+    print("Test {} skipped".format(test_name), file=sys.stderr)
     sys.exit(0)
 
 # Start halsampler asynchronously to make sure that the entire test is captured
 sample_file = g33_checks.get_sample_file_name(test_name)
-print >> sys.stderr, "Starting halsampler writing to ", sample_file
+print("Starting halsampler writing to ", sample_file, file=sys.stderr)
 p_read = Popen([
     'halsampler',
     '-t',
@@ -45,7 +45,7 @@ c.wait_complete(10)
 c.mdi('G0 X0 Y0 Z0')
 c.wait_complete(10)
 spindle_cmd = 'S%d %s' % (constants["spindle_speed_rps"]*60., g33_checks.get_spindle_mcode(constants))
-print >> sys.stderr, spindle_cmd
+print(spindle_cmd, file=sys.stderr)
 c.mdi(spindle_cmd)
 c.wait_complete(10)
 cmd_str = 'o<{}> call [{}] [{}] [{}] [{}] [{}]'.format(
@@ -56,23 +56,23 @@ cmd_str = 'o<{}> call [{}] [{}] [{}] [{}] [{}]'.format(
     constants.get("retract_rate_scale", 1.0),
     constants.get("tap_pitch_scale", 1.0),
 )
-print >> sys.stderr, cmd_str
+print(cmd_str, file=sys.stderr)
 c.mdi(cmd_str)
 c.wait_complete(1000)
 c.mdi('G4 P0.01')
 c.wait_complete(1000)
 p_read.terminate()
 p_read.wait()
-print >> sys.stderr, "halsampler done with code %d" % p_read.returncode
+print("halsampler done with code %d" % p_read.returncode, file=sys.stderr)
 
 c.wait_complete()
 failed = g33_checks.check_all(test_name)
 
 if has_error(e):
-    print >> sys.stderr, "Test {} Failed".format(test_name)
+    print("Test {} Failed".format(test_name), file=sys.stderr)
     sys.exit(1)
 
 
 if failed:
-    print >> sys.stderr, "Test {} failed".format(test_name)
+    print("Test {} failed".format(test_name), file=sys.stderr)
 

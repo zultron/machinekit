@@ -28,15 +28,15 @@ def end_log(logfile_name):
     while comp['reopen-log']:
         err = e.poll()
         if err is not None and err[2] >= 2:
-            print >>sys.stderr, "Got unexpected error ", err
+            print("Got unexpected error ", err, file=sys.stderr)
             sys.exit(1)
         time.sleep(.01)
     os.rename("out.motion-logger", 'result.%s' % logfile_name)
     status = subprocess.call(['diff', '-u', 'expected.%s' % logfile_name, 'result.%s' % logfile_name], shell=False)
     if status == 0:
-        print "sub-test %s ok" % logfile_name
+        print("sub-test %s ok" % logfile_name)
     else:
-        print "unexpected output in logfile '%s'" % logfile_name
+        print("unexpected output in logfile '%s'" % logfile_name)
         global retval
         retval = 1
     sys.stdout.flush()
@@ -72,18 +72,18 @@ for ngc in glob.glob('*.ngc'):
     m = re.match('(.*)\.ngc', ngc)
     basename = m.group(1)
 
-    print >>sys.stderr, "running reset.ngc"
+    print("running reset.ngc", file=sys.stderr)
     c.program_open('reset.ngc')
     c.auto(linuxcnc.AUTO_RUN, 0)
     c.wait_complete()
     end_log('reset')
 
-    print >>sys.stderr, "running ", ngc
+    print("running ", ngc, file=sys.stderr)
     c.program_open(ngc)
     c.auto(linuxcnc.AUTO_RUN, 0)
     c.wait_complete()
     end_log(basename)
 
 
-print >>sys.stderr, "trying to exit"
+print("trying to exit", file=sys.stderr)
 sys.exit(retval)

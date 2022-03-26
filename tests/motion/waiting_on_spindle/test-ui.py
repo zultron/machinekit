@@ -26,8 +26,8 @@ c.mode(linuxcnc.MODE_MDI)
 s.poll()
 
 # Check waiting_on_spindle
-print "After init:  waiting_on_spindle:  stat = %s; HAL = %s" % (
-        s.waiting_on_spindle, h['waiting-on-spindle'])
+print("After init:  waiting_on_spindle:  stat = %s; HAL = %s" % (
+        s.waiting_on_spindle, h['waiting-on-spindle']))
 
 # Spindle:  set speed and start
 c.mdi('S750 M3')
@@ -35,71 +35,71 @@ c.wait_complete()
 time.sleep(0.2)
     
 def test_motion(cmd, msg, wos_state):
-    print msg
+    print(msg)
 
     # Params for waiting for spindle
     time_incr = 0.1 # Seconds between checks
     time_error = 5  # Seconds to wait before aborting
 
-    print "    Before spindle override = 0:  " \
+    print("    Before spindle override = 0:  " \
         "waiting_on_spindle:  stat = %s; HAL = %s; spindle speed = %.3f" % (
-            s.waiting_on_spindle, h['waiting-on-spindle'], h['spindle-speed'])
-    print "    Zpos = %.3f" % h['Zpos']
+            s.waiting_on_spindle, h['waiting-on-spindle'], h['spindle-speed']))
+    print("    Zpos = %.3f" % h['Zpos'])
     if s.waiting_on_spindle or h['waiting-on-spindle']:
-        print "*** waiting_on_spindle unexpectedly asserted before test:"
-        print "***    stat = %s;  HAL=%s" % (
-            s.waiting_on_spindle, h['waiting-on-spindle'])
+        print("*** waiting_on_spindle unexpectedly asserted before test:")
+        print("***    stat = %s;  HAL=%s" % (
+            s.waiting_on_spindle, h['waiting-on-spindle']))
         return 1
 
     # Set spindle override to zero and wait for it to stop
-    print "    Zeroing spindle override"
+    print("    Zeroing spindle override")
     c.spindleoverride(0.0)
     spindle_time = 0.0
     while spindle_time < time_error and h['spindle-speed'] > 0.001:
         s.poll()
-        print "        After %.1fs:  spindle_speed = %.3f" % (
-            spindle_time, h['spindle-speed'])
-        print "            waiting_on_spindle:  stat = %s; HAL = %s" % (
-            s.waiting_on_spindle, h['waiting-on-spindle'])
+        print("        After %.1fs:  spindle_speed = %.3f" % (
+            spindle_time, h['spindle-speed']))
+        print("            waiting_on_spindle:  stat = %s; HAL = %s" % (
+            s.waiting_on_spindle, h['waiting-on-spindle']))
         spindle_time += time_incr
         time.sleep(time_incr)
     if spindle_time >= time_error or h['spindle-speed'] > 0.001:
-        print "*** Spindle failed to stop in time " \
+        print("*** Spindle failed to stop in time " \
             "(timeout=%.1f; spindle-speed=%.3f)" % (
-                spindle_time, h['spindle-speed'])
+                spindle_time, h['spindle-speed']))
         return 1
-    print "        Spindle is stopped:  %.3f" % h['spindle-speed']
+    print("        Spindle is stopped:  %.3f" % h['spindle-speed'])
 
     # Start command
-    print "    Running command '%s'" % cmd
+    print("    Running command '%s'" % cmd)
     c.mdi(cmd)
     c.wait_complete()
     s.poll()
 
     # Check waiting_on_spindle
-    print "    After cmd:  waiting_on_spindle:  stat = %s; HAL = %s; " \
+    print("    After cmd:  waiting_on_spindle:  stat = %s; HAL = %s; " \
         "spindle speed = %.3f" % (
-            s.waiting_on_spindle, h['waiting-on-spindle'], h['spindle-speed'])
+            s.waiting_on_spindle, h['waiting-on-spindle'], h['spindle-speed']))
 
     # Start spindle and continue checks
-    print "    Resetting spindle override"
+    print("    Resetting spindle override")
     c.spindleoverride(1.0)
     spindle_time = 0.0
     while spindle_time < time_error and s.waiting_on_spindle is not wos_state:
         s.poll()
-        print "        After %.1fs:  spindle_speed:  stat = %.1f" % (
-            spindle_time, h['spindle-speed'])
-        print "            waiting_on_spindle:  stat = %s; HAL = %s" % (
-            s.waiting_on_spindle, h['waiting-on-spindle'])
+        print("        After %.1fs:  spindle_speed:  stat = %.1f" % (
+            spindle_time, h['spindle-speed']))
+        print("            waiting_on_spindle:  stat = %s; HAL = %s" % (
+            s.waiting_on_spindle, h['waiting-on-spindle']))
         spindle_time += time_incr
         time.sleep(time_incr)
     # Error out if spindle never got up to speed
     if spindle_time >= time_error:
-        print "*** waiting_on_spindle never asserted within time limit"
+        print("*** waiting_on_spindle never asserted within time limit")
         return 1
-    print "    waiting_on_spindle:  stat = %s; HAL = %s; " \
+    print("    waiting_on_spindle:  stat = %s; HAL = %s; " \
         "spindle speed = %.3f" % (
-            s.waiting_on_spindle, h['waiting-on-spindle'], h['spindle-speed'])
+            s.waiting_on_spindle, h['waiting-on-spindle'], h['spindle-speed']))
 
     # Let motion continue a little and abort command
     time.sleep(0.2)
@@ -108,13 +108,13 @@ def test_motion(cmd, msg, wos_state):
     s.poll()
 
     # Check waiting_on_spindle
-    print "    After abort:  waiting_on_spindle:  stat = %s; HAL = %s; " \
+    print("    After abort:  waiting_on_spindle:  stat = %s; HAL = %s; " \
         "spindle speed = %.3f" % (
-            s.waiting_on_spindle, h['waiting-on-spindle'], h['spindle-speed'])
+            s.waiting_on_spindle, h['waiting-on-spindle'], h['spindle-speed']))
     if s.waiting_on_spindle or h['waiting-on-spindle']:
-        print "*** waiting_on_spindle unexpectedly asserted after abort:"
-        print "***    stat = %s;  HAL=%s" % (
-            s.waiting_on_spindle, h['waiting-on-spindle'])
+        print("*** waiting_on_spindle unexpectedly asserted after abort:")
+        print("***    stat = %s;  HAL=%s" % (
+            s.waiting_on_spindle, h['waiting-on-spindle']))
         return 1
     return 0
 
@@ -125,5 +125,5 @@ res += test_motion('G33 Z-5 K0.01', 'G33 spindle-synchronized move', True)
 res += test_motion('G1 Z-5 F0.01', 'G1 unsynchronized move', False)
 
 
-print "Final Zpos = %.3f" % h['Zpos']
+print("Final Zpos = %.3f" % h['Zpos'])
 sys.exit(res)

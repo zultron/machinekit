@@ -16,7 +16,7 @@ for f in glob.glob('test_results'):
     os.remove(f)
 
 for t in g33_checks.find_test_cases():
-    print >>sys.stderr, "Running test case", t
+    print("Running test case", t, file=sys.stderr)
     p = subprocess.Popen(['linuxcnc', '-r', 'spindlesync-accuracy.ini', t])
     p.wait()
     if p.returncode != 0:
