@@ -1,11 +1,11 @@
 executing
- MixedCase param42=20.000000 named=4711.000000 ini=3.140000
-     (abort, MixedCase param42=#42 named=#<named> ini=#<_ini[a]value>)
     1 N..... USE_TOOL_LENGTH_OFFSET(0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000)
     2 N..... USE_LENGTH_UNITS(CANON_UNITS_MM)
     3 N..... SET_G5X_TRANSFORM(1, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
     4 N..... SET_G92_OFFSET(0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
     5 N..... SET_FEED_REFERENCE(CANON_XYZ)
     6 N..... ON_RESET()
+ MixedCase param42=20.000000 named=4711.000000 ini=3.140000
+     (abort, MixedCase param42=#42 named=#<named> ini=#<_ini[a]value>)
     7 N..... ON_RESET()
     8 N..... ON_RESET()

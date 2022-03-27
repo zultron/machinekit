@@ -1,4 +1,5 @@
 #!/bin/bash
+export PYTHONUNBUFFERED=1
 rs274  -g test.ngc 2>&1
 
 # expected to fail

@@ -31,12 +31,12 @@ int main() {
 // implemented the python "remap" functionality of the interpreter
 // (and it needs Python.h for the definition of struct inttab)
 int _task = 0;
-extern "C" void initinterpreter();
-extern "C" void initemccanon();
+extern "C" PyObject* PyInit_interpreter(void);
+extern "C" PyObject* PyInit_emccanon(void);
 extern "C" struct _inittab builtin_modules[];
 struct _inittab builtin_modules[] = {
-    { (char *) "interpreter", initinterpreter },
-    { (char *) "emccanon", initemccanon },
+    { "interpreter", PyInit_interpreter },
+    { "emccanon", PyInit_emccanon },
     { NULL, NULL }
 };
 

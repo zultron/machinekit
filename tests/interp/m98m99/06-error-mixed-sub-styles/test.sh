@@ -1,4 +1,5 @@
 #!/bin/bash
+export PYTHONUNBUFFERED=1
 # All expected to fail
 
 # Fanuc 'O...' sub definition mixed with RS274NGC 'O... endsub'/'O... call'

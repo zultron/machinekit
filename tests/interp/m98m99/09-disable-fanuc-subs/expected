@@ -77,8 +77,6 @@ executing
    28 N..... ON_RESET()
    29 N..... ON_RESET()
 executing
-DISABLE_FANUC_STYLE_SUB set in .ini file, but found m98
-M98 P1 L3
     1 N..... USE_TOOL_LENGTH_OFFSET(0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000, 0.0000 0.0000 0.0000)
     2 N..... USE_LENGTH_UNITS(CANON_UNITS_MM)
     3 N..... SET_G5X_TRANSFORM(1, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000)
@@ -88,6 +86,8 @@ M98 P1 L3
     7 N..... COMMENT("A simple O sub example ")
     8 N..... SET_FEED_RATE(40.0000)
     9 N..... STRAIGHT_TRAVERSE(0.0000, 0.0000, 0.2500, 0.0000, 0.0000, 0.0000)
+DISABLE_FANUC_STYLE_SUB set in .ini file, but found m98
+M98 P1 L3
    10 N..... ON_RESET()
    11 N..... ON_RESET()
 executing
