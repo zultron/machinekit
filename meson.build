@@ -44,7 +44,7 @@ add_global_arguments(['-DULAPI','-DUNIT_TEST'], language : 'cpp')
 # Common external dependencies 
 m_dep = meson.get_compiler('c').find_library('m', required : true)
 boost_dep = dependency('boost', modules : ['python'])
-python2_dep = dependency('python2')
+python3_dep = dependency('python3')
 
 # Define source files and include paths
 
@@ -107,7 +107,7 @@ liblinuxcncini_dep = declare_dependency(include_directories : liblinuxcncini_inc
 libpyplugin = shared_library('pyplugin',
     pythonplugin_srcs,
     include_directories : pythonplugin_inc,
-    dependencies : [ boost_dep, python2_dep, liblinuxcncini_dep, dl_dep]
+    dependencies : [ boost_dep, python3_dep, liblinuxcncini_dep, dl_dep]
     )
 
 libpyplugin_dep = declare_dependency(include_directories : pythonplugin_inc,
@@ -395,7 +395,7 @@ librs274ngc = shared_module('rs274ngc',
   rs274ngc_srcs,
   dependencies : [
     boost_dep, 
-    python2_dep, 
+    python3_dep,
     liblinuxcncini_dep, 
     liblinuxcnchal_dep,
     libpyplugin_dep,
@@ -411,7 +411,7 @@ librs274ngc_dep = declare_dependency(include_directories : rs274ngc_inc,
 libsaicanon = shared_module('saicanon',
   saicanon_srcs,
   include_directories : [sai_inc, rs274ngc_external_inc ],
-  dependencies : [boost_dep, python2_dep, dl_dep, liblinuxcncini_dep, librs274ngc_dep, libinterp_shared_dep]
+  dependencies : [boost_dep, python3_dep, dl_dep, liblinuxcncini_dep, librs274ngc_dep, libinterp_shared_dep]
   )
 
 libsaicanon_dep = declare_dependency(include_directories : sai_inc,
@@ -421,7 +421,7 @@ libsaicanon_dep = declare_dependency(include_directories : sai_inc,
 libut_emccanon = shared_module('ut_emccanon',
   [emccanon_srcs, mock_emctask_srcs ],
   include_directories : [task_inc, rs274ngc_external_inc, motion_inc, kinematics_inc, rtapi_inc],
-  dependencies : [boost_dep, python2_dep, dl_dep, liblinuxcncini_dep, librs274ngc_dep, libinterp_shared_dep, libposemath_cpp_dep, libnml_interp_list_dep, libnml_dep, liblinuxcncini_dep]
+  dependencies : [boost_dep, python3_dep, dl_dep, liblinuxcncini_dep, librs274ngc_dep, libinterp_shared_dep, libposemath_cpp_dep, libnml_interp_list_dep, libnml_dep, liblinuxcncini_dep]
   )
 
 libut_emccanon_dep = declare_dependency(include_directories : task_inc,
@@ -460,7 +460,7 @@ libmock_stat_config_dep = declare_dependency(include_directories : [mock_inc],
 libinterp_testing_util = library('interp_testing_util',
   interp_testing_util_srcs,
   include_directories : [test_interp_inc, nml_intf_inc, motion_inc, config_inc, unit_test_support_inc ],
-  dependencies : [librs274ngc_dep, libinterp_shared_dep, libposemath_dep, libnml_dep, python2_dep, libemc_global_dep, libmock_stat_config_dep]
+  dependencies : [librs274ngc_dep, libinterp_shared_dep, libposemath_dep, libnml_dep, python3_dep, libemc_global_dep, libmock_stat_config_dep]
   )
 
 libinterp_testing_util_dep = declare_dependency(include_directories : test_interp_inc,
@@ -471,7 +471,7 @@ test_interp_ex = executable('test_interp',
     include_directories : [test_interp_inc, rs274ngc_external_inc, unit_test_support_inc, nml_intf_inc],
     dependencies: [
         dl_dep,
-        python2_dep,
+        python3_dep,
         librs274ngc_dep,
         libpyplugin_dep,
         liblinuxcnchal_dep,
@@ -513,7 +513,7 @@ test_emccanon_ex = executable('test_emccanon',
       ],
     dependencies: [
         dl_dep,
-        python2_dep,
+        python3_dep,
         librs274ngc_dep,
         libpyplugin_dep,
         liblinuxcnchal_dep,
