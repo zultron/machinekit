@@ -43,8 +43,8 @@ add_global_arguments(['-DULAPI','-DUNIT_TEST'], language : 'cpp')
 
 # Common external dependencies 
 m_dep = meson.get_compiler('c').find_library('m', required : true)
-boost_dep = dependency('boost', modules : ['python'])
-python3_dep = dependency('python3')
+boost_dep = dependency('boost', modules : ['python3'])
+python3_dep = dependency('python3-embed')
 
 # Define source files and include paths
 
@@ -79,6 +79,7 @@ subdir('unit_tests/mock')
 # Global library dependencies
 dl_dep = meson.get_compiler('cpp').find_library('dl', required : true)
 m_dep = meson.get_compiler('cpp').find_library('m', required : true)
+rpc_dep = dependency('libtirpc', required: false)
 
 # Source path locations
 src_root = 'src'
@@ -192,7 +193,7 @@ libnml = shared_library('nml',
       rs274ngc_inc,
       emcpose_inc,
       ],
-    dependencies : [ libposemath_dep, liblinklist_dep, liblinuxcncini_dep ]
+    dependencies : [ libposemath_dep, liblinklist_dep, liblinuxcncini_dep, rpc_dep]
     )
 
 libnml_dep = declare_dependency(include_directories : nml_common_inc,
