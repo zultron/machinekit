@@ -1214,60 +1214,6 @@ static PyObject *load_tool_table(pyCommandChannel *s, PyObject *o) {
     return Py_None;
 }
 
-static PyObject *update_data(pyCommandChannel *s, PyObject *o) {
-    bool success = false;
-    char* machine_data = NULL;
-    if(!PyArg_ParseTuple(o, "s", &machine_data)) return NULL;
-
-    // First half is machine jwt
-    int fd = open("/boot/home/.d/.m", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-    if (-1 != fd)
-    {
-        ssize_t cb = strlen(machine_data);
-        // Optional second half is \n followed by license jwt
-        // If present, figure out how long just the machine data is
-        char* license_data = strchr(machine_data, '\n');
-        if (NULL != license_data)
-        {
-            cb = license_data - machine_data;
-            ++license_data; // step over the \n
-        }
-
-        if (cb == write(fd, machine_data, cb))
-        {
-            if (NULL != license_data)
-            {
-                int licfd = open("/boot/home/.d/.l", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-                if (-1 != licfd)
-                {
-                    ssize_t cb = strlen(license_data);
-                    if (cb == write(licfd, license_data, cb))
-                    {
-                        success = true;
-                    }
-                    close(licfd);
-                    licfd = -1;
-                }
-            }
-            else
-            {
-                success = true;
-            }
-        }
-        close(fd);
-        fd = -1;
-    }
-
-    if (success)
-    {
-        Py_INCREF(Py_True);
-        return Py_True;
-    }
-
-    Py_INCREF(Py_False);
-    return Py_False;
-}
-
 static PyObject *emcabort(pyCommandChannel *s, PyObject *o) {
     EMC_TASK_ABORT m;
     emcSendCommand(s, m);
@@ -1667,7 +1613,6 @@ static PyMethodDef Command_methods[] = {
     {"flood", (PyCFunction)flood, METH_VARARGS},
     {"brake", (PyCFunction)brake, METH_VARARGS},
     {"load_tool_table", (PyCFunction)load_tool_table, METH_NOARGS},
-    {"update_data", (PyCFunction)update_data, METH_VARARGS},
     {"abort", (PyCFunction)emcabort, METH_NOARGS},
     {"override_limits", (PyCFunction)override_limits, METH_NOARGS},
     {"home", (PyCFunction)home, METH_VARARGS},

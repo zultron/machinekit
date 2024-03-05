@@ -108,8 +108,6 @@ GENERATED_MANPAGES :=
 
 # Submakefiles from each of these directories will be included if they exist
 SUBDIRS := \
-    license \
-    \
     machinetalk \
     machinetalk/config-service \
     machinetalk/mkwrapper \

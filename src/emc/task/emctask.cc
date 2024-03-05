@@ -36,11 +36,8 @@
 #include "python_plugin.hh"
 #include "taskclass.hh"
 #include "modal_state.hh"
-#include "licensemgr.hh"
 #include "interp_parameter_def.hh"
 using namespace interp_param_global;
-
-extern LicenseMgr* pLicenseMgr;   // Declared and managed in emctaskmain.cc
 
 #define CALL_AND_RETURN(call__) do {\
     int retval = call__; \
@@ -269,7 +266,6 @@ int emcTaskAbort()
 int emcTaskSetMode(int mode)
 {
     int retval = 0;
-    bool licenseValid = false;
 
     switch (mode) {
     case EMC_TASK_MODE_MANUAL:
@@ -287,18 +283,11 @@ int emcTaskSetMode(int mode)
 	break;
 
     case EMC_TASK_MODE_AUTO:
-    	// simulate license failure...
-        licenseValid = pLicenseMgr->is_license_valid();
-	if (licenseValid) {
-	    // go to auto mode
-	    emcTrajSetMode(EMC_TRAJ_MODE_COORD);
-	    emcTaskAbort();
-	    emcTaskPlanSynch();
-	    mdiOrAuto = EMC_TASK_MODE_AUTO;
-	} else {
-	    retval = -1;
-    	    emcOperatorError("License has expired.");
-	}
+        // go to auto mode
+        emcTrajSetMode(EMC_TRAJ_MODE_COORD);
+        emcTaskAbort();
+        emcTaskPlanSynch();
+        mdiOrAuto = EMC_TASK_MODE_AUTO;
 	break;
 
     default:

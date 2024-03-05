@@ -54,14 +54,6 @@ TARGETS += ../bin/xhc-hb04
 endif # HAVE_LIBUSB10
 
 
-LICENSE_COMP_SRC = hal/user_comps/licensecomp.cc
-USERSRCS += $(LICENSE_COMP_SRC)
-../bin/hwmon: $(call TOOBJS, $(LICENSE_COMP_SRC)) ../lib/liblinuxcnchal.so.0 ../lib/liblicense.a ../lib/liblinuxcncini.so.0
-	$(ECHO) Linking $(notdir $@)
-	$(Q)$(CC) $(LDFLAGS) -o $@ $^ -lm -lstdc++ -lssl -lcrypto
-TARGETS += ../bin/hwmon
-
-
 $(patsubst ./hal/user_comps/%,../include/%,$(wildcard ./hal/user_comps/*.h)): ../include/%.h: ./hal/user_comps/%.h
 	cp $^ $@
 $(patsubst ./hal/user_comps/%,../include/%,$(wildcard ./hal/user_comps/*.hh)): ../include/%.hh: ./hal/user_comps/%.hh

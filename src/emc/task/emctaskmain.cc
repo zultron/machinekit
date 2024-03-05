@@ -89,10 +89,6 @@ fpu_control_t __fpu_control = _FPU_IEEE & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_M
 
 #include "nml_prettyprint.hh"
 
-#include "licensemgr.hh"
-
-LicenseMgr* pLicenseMgr = NULL;   // Used by emctask.cc to verify license
-
 //#define EMCTASK_DEBUG
 
 //Simple compile-time debug macro
@@ -3661,8 +3657,6 @@ int main(int argc, char *argv[])
     maxTime = 0.0;		// set to value that can never be underset
 
     std::string ini_file_path(emc_inifile);
-    pLicenseMgr = new LicenseMgr(ini_file_path);
-    pLicenseMgr->perform_emctaskmain_init();
 
     while (!done) {
         check_ini_hal_items();
@@ -3872,9 +3866,6 @@ int main(int argc, char *argv[])
 
     // clean up everything
     emctask_shutdown();
-
-    delete pLicenseMgr;
-    pLicenseMgr = NULL;
 
     // and leave
     exit(0);
