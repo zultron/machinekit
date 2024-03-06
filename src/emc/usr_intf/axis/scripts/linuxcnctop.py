@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 #    This is a component of AXIS, a front-end for linuxcnc
 #    Copyright 2004, 2005, 2006 Jeff Epler <jepler@unpythonic.net>
 #                         and Chris Radek <chris@timeguy.com>
@@ -23,7 +23,7 @@ import rs274.options
 
 import gettext
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
-gettext.install("linuxcnc", localedir=os.path.join(BASE, "share", "locale"), str=True)
+gettext.install("linuxcnc", localedir=os.path.join(BASE, "share", "locale"))
 
 if len(sys.argv) > 1 and sys.argv[1] == '-ini':
     ini = linuxcnc.ini(sys.argv[2])

@@ -88,7 +88,7 @@ g_alive = not g_is_glade
 
 import gettext
 LOCALEDIR = linuxcnc.SHARE + "/locale"
-gettext.install("linuxcnc", localedir=LOCALEDIR, unicode=True)
+gettext.install("linuxcnc", localedir=LOCALEDIR)
 
 try:
     import pygtk

@@ -7,7 +7,7 @@ import math
 def _(s): return s
 
 def ui():
-    import Tkinter
+    import tkinter as Tkinter
     import pickle
     import nf
     import rs274.options

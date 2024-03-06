@@ -1,5 +1,4 @@
 #!/usr/bin/python
-# -*- coding:UTF-8 -*-
 """
     A try of a new GUI for LinuxCNC based on gladevcp and Python
     Based on the design of moccagui from Tom
@@ -133,7 +132,7 @@ class gmoccapy( object ):
         # prepare for translation / internationalisation
         locale.setlocale( locale.LC_ALL, '' )
         locale.bindtextdomain( "gmoccapy", LOCALEDIR )
-        gettext.install( "gmoccapy", localedir = LOCALEDIR, unicode = True )
+        gettext.install( "gmoccapy", localedir = LOCALEDIR )
         gettext.bindtextdomain( "gmoccapy", LOCALEDIR )
 
         # needed components to comunicate with hal and linuxcnc

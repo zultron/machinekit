@@ -9,11 +9,7 @@
 # University of York, UK
 # 
 
-from minigl import *
-from Tkinter import _default_root
-from Tkinter import *
-import math
-import os,sys
+from tkinter import *
 import _togl
 import glnav
 
@@ -161,7 +157,7 @@ http://www.yorvic.york.ac.uk/~mjh/
         it changes size."""
 
         #Widget.__init__(self, master, 'togl', cnf, kw)
-        apply(RawOpengl.__init__, (self, master, cnf), kw)
+        RawOpengl.__init__(*(self, master, cnf), **kw)
         glnav.GlNavBase.__init__(self)
 
         # Basic bindings for the virtual trackball

@@ -2,7 +2,7 @@
 import sys, os
 import gettext
 BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
-gettext.install("linuxcnc", localedir=os.path.join(BASE, "share", "locale"), unicode=True)
+gettext.install("linuxcnc", localedir=os.path.join(BASE, "share", "locale"))
 
 import linuxcnc, hal
 
@@ -57,7 +57,8 @@ h.newpin("change_button", hal.HAL_BIT, hal.HAL_IN)
 h.newpin("changed", hal.HAL_BIT, hal.HAL_OUT)
 h.ready()
 
-import Tkinter, nf, rs274.options
+import tkinter as Tkinter
+import nf, rs274.options
 
 app = Tkinter.Tk(className="AxisToolChanger")
 app.wm_geometry("-60-60")

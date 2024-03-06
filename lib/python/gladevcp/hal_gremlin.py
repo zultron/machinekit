@@ -30,7 +30,7 @@ import gobject
 
 import linuxcnc
 import gremlin
-import gremlin_draw
+from gremlin import gremlin_draw
 import gcode
 
 from hal_actions import _EMC_ActionBase

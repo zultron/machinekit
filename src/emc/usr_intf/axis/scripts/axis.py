@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #    This is a component of AXIS, a front-end for LinuxCNC
 #    Copyright 2004, 2005, 2006, 2007, 2008, 2009
 #    Jeff Epler <jepler@unpythonic.net> and Chris Radek <chris@timeguy.com>
@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.join(BASE, "lib", "python"))
 sys.excepthook = sys.__excepthook__
 
 import gettext;
-gettext.install("linuxcnc", localedir=os.path.join(BASE, "share", "locale"), str=True)
+gettext.install("linuxcnc", localedir=os.path.join(BASE, "share", "locale"))
 
 import time, atexit, tempfile, shutil, _thread, select, getopt
 import traceback
@@ -61,7 +61,7 @@ sys.setdlopenflags(old_flags)
 from rs274.OpenGLTk import *
 from rs274.interpret import StatMixin
 from rs274.glcanon import GLCanon
-from gremlin_draw import GremlinDraw, GlDrawColors
+from gremlin.gremlin_draw import GremlinDraw, GlDrawColors
 from hershey import Hershey
 from propertywindow import properties
 import rs274.options
@@ -97,10 +97,11 @@ class AxisPreferences(cp):
 
     def getpref(self, option, default=False, type=bool):
         m = self.types.get(type)
+        if type == repr and len(default) == 0: default=""
         try:
             o = m(self, "DEFAULT", option)
         except Exception as detail:
-            print(detail)
+            if default != "": print(detail)
             self.set("DEFAULT", option, default)
             self.write(open(self.fn, "w"))
             o = default
@@ -1342,8 +1343,10 @@ def jogspeed_listbox_change(dummy, value):
     iterator = iter(root_window.call(widgets.jogincr._w, "list", "get", "0", "end"))
     idx = 0
     cursel = -1
+    if isinstance(value, str): value = value.encode('utf-8', 'replace')
     for i in iterator:
-        if i == str(value, 'utf-8'):
+        if isinstance(i, str): i = i.encode('utf-8', 'replace')
+        if i == value:
             cursel= idx
             break
         idx += 1

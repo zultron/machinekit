@@ -16,6 +16,7 @@
 #    along with this program; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+import tkinter as Tkinter
 import nf, os
 
 # lib/tcltk/emc2 for installed emc
@@ -163,8 +164,6 @@ option add *Togl.tool_alpha .2 startupFile
 option add *Togl.lathetool #cccccc startupFile
 option add *Togl.lathetool_alpha .1 startupFile
 '''
-
-import commands, sys
 
 def install(root = None):
     if root is None: root = Tkinter._default_root

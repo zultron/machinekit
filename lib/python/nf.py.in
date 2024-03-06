@@ -15,7 +15,7 @@
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 import os
-import Tkinter
+import tkinter as Tkinter
 
 __all__ = 'makecommand makevar makebool makewidget start'.split()
 
@@ -100,7 +100,8 @@ def makewidget(master, klass, path):
 def find_prefix(f):
     s = os.path.join(f, "share")
     if os.path.exists(s): return f
-    if f == "/" or f == '': raise RuntimeError, "Share directory not found"
+    if f == "/" or f == '':
+        raise RuntimeError("Share directory not found")
     return find_prefix(os.path.dirname(f))
 
 PREFIX = "@prefix@"

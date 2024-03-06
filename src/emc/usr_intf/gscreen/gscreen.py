@@ -436,7 +436,7 @@ class Gscreen:
                 domain = "linuxcnc"
         locale.setlocale(locale.LC_ALL, '')
         locale.bindtextdomain(domain, LOCALEDIR)
-        gettext.install(domain, localedir=LOCALEDIR, unicode=True)
+        gettext.install(domain, localedir=LOCALEDIR)
         gettext.bindtextdomain(domain, LOCALEDIR)
 
         # main screen

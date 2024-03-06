@@ -43,7 +43,7 @@ empty_program.flush()
 
 import gettext
 LOCALEDIR = os.path.join(BASE, "share", "locale")
-gettext.install("linuxcnc", localedir=LOCALEDIR, unicode=True)
+gettext.install("linuxcnc", localedir=LOCALEDIR)
 gtk.glade.bindtextdomain("linuxcnc", LOCALEDIR)
 gtk.glade.textdomain("linuxcnc")
 

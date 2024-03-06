@@ -44,7 +44,7 @@ import gtk.gdk
 import glnav
 import gobject
 
-import gremlin_draw
+from . import gremlin_draw
 import rs274.glcanon
 import rs274.interpret
 import linuxcnc

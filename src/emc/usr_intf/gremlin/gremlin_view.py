@@ -91,7 +91,7 @@ g_progname        = os.path.basename(sys.argv[0])
 g_verbose         = False
 
 LOCALEDIR = linuxcnc.SHARE + "/locale"
-gettext.install("linuxcnc", localedir=LOCALEDIR, str=True)
+gettext.install("linuxcnc", localedir=LOCALEDIR)
 
 def ini_setup ():
     """set environmental variable and change directory"""
