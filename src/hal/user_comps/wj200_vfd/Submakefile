@@ -17,8 +17,7 @@ hal/user_comps/wj200_vfd/wj200_vfd.c: hal/user_comps/wj200_vfd/wj200_vfd.comp ..
 	$(Q)../bin/halcompile --preprocess $<
 
 ../docs/man/man9/wj200_vfd.9: hal/user_comps/wj200_vfd/wj200_vfd.comp ../bin/halcompile
-	$(Q)../bin/halcompile --document $<
-	$(Q)install --mode=0644 hal/user_comps/wj200_vfd/wj200_vfd.9 $@
+	$(Q)../bin/halcompile -o $@ --document $<
 
 clean: wj200_clean
 wj200_clean:
