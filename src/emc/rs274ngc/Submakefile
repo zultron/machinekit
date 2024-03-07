@@ -72,3 +72,4 @@ $(GCODEMODULE): $(call TOOBJS, $(GCODEMODULESRCS)) ../lib/librs274.so.0 ../lib/l
 
 
 PYTARGETS += $(GCODEMODULE)
+TARGETS += ../lib/librs274.so.0
