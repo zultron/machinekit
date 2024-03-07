@@ -679,13 +679,13 @@ install-kernel-indep: install-dirs
 	$(EXE) $(TCL_BIN) $(DESTDIR)$(tcldir)/bin
 	$(FILE) ../tcl/scripts/balloon.tcl ../tcl/scripts/emchelp.tcl $(DESTDIR)$(tcldir)/scripts
 	$(EXE) ../tcl/scripts/Set_Coordinates.tcl $(DESTDIR)$(tcldir)/scripts
-	$(FILE) ../share/linuxcnc/*.glade $(DESTDIR)$(prefix)/share/linuxcnc
-	$(FILE) ../share/linuxcnc/stepconf/*.glade $(DESTDIR)$(prefix)/share/linuxcnc/stepconf
-	$(FILE) ../share/linuxcnc/touchy.glade $(DESTDIR)$(prefix)/share/linuxcnc
-	$(FILE) ../share/linuxcnc/gscreen.glade $(DESTDIR)$(prefix)/share/linuxcnc
-	$(FILE) ../share/linuxcnc/gscreen2.glade $(DESTDIR)$(prefix)/share/linuxcnc
-	$(FILE) ../share/gmoccapy/gmoccapy.glade $(DESTDIR)$(prefix)/share/gmoccapy
-	$(FILE) ../share/linuxcnc/pncconf/*.glade $(DESTDIR)$(prefix)/share/linuxcnc/pncconf
+#	$(FILE) ../share/linuxcnc/*.glade $(DESTDIR)$(prefix)/share/linuxcnc
+#	$(FILE) ../share/linuxcnc/stepconf/*.glade $(DESTDIR)$(prefix)/share/linuxcnc/stepconf
+#	$(FILE) ../share/linuxcnc/touchy.glade $(DESTDIR)$(prefix)/share/linuxcnc
+#	$(FILE) ../share/linuxcnc/gscreen.glade $(DESTDIR)$(prefix)/share/linuxcnc
+#	$(FILE) ../share/linuxcnc/gscreen2.glade $(DESTDIR)$(prefix)/share/linuxcnc
+#	$(FILE) ../share/gmoccapy/gmoccapy.glade $(DESTDIR)$(prefix)/share/gmoccapy
+#	$(FILE) ../share/linuxcnc/pncconf/*.glade $(DESTDIR)$(prefix)/share/linuxcnc/pncconf
 	$(FILE) ../share/linuxcnc/gremlin_view.ui $(DESTDIR)$(prefix)/share/linuxcnc
 	$(FILE) ../share/linuxcnc/popupkeyboard.ui $(DESTDIR)$(prefix)/share/linuxcnc
 	$(FILE) ../configs/common/linuxcnc.nml $(DESTDIR)$(prefix)/share/linuxcnc
@@ -709,16 +709,16 @@ install-python: install-dirs
 	$(DIR) $(DESTDIR)$(SITEPY)/pncconf
 	$(FILE) ../lib/python/*.py ../lib/python/*.so $(DESTDIR)$(SITEPY)
 	$(FILE) ../lib/python/rs274/*.py $(DESTDIR)$(SITEPY)/rs274
-	$(FILE) ../lib/python/touchy/*.py $(DESTDIR)$(SITEPY)/touchy
-	$(FILE) ../lib/python/gscreen/*.py $(DESTDIR)$(SITEPY)/gscreen
-	$(FILE) ../lib/python/gmoccapy/*.py $(DESTDIR)$(SITEPY)/gmoccapy
+#	$(FILE) ../lib/python/touchy/*.py $(DESTDIR)$(SITEPY)/touchy
+#	$(FILE) ../lib/python/gscreen/*.py $(DESTDIR)$(SITEPY)/gscreen
+#	$(FILE) ../lib/python/gmoccapy/*.py $(DESTDIR)$(SITEPY)/gmoccapy
 	$(FILE) ../lib/python/gladevcp/*.py $(DESTDIR)$(SITEPY)/gladevcp
 	$(FILE) ../lib/python/gladevcp/*.glade $(DESTDIR)$(SITEPY)/gladevcp
 	$(FILE) ../lib/python/gladevcp/*.glade $(DESTDIR)$(SITEPY)/gladevcp
-	$(FILE) ../lib/python/stepconf/*.py $(DESTDIR)$(SITEPY)/stepconf
-	$(FILE) ../lib/python/pncconf/*.py $(DESTDIR)$(SITEPY)/pncconf
-	$(EXE) ../bin/stepconf $(DESTDIR)$(bindir)
-	$(EXE) ../bin/pncconf $(DESTDIR)$(bindir)
+#	$(FILE) ../lib/python/stepconf/*.py $(DESTDIR)$(SITEPY)/stepconf
+#	$(FILE) ../lib/python/pncconf/*.py $(DESTDIR)$(SITEPY)/pncconf
+#	$(EXE) ../bin/stepconf $(DESTDIR)$(bindir)
+#	$(EXE) ../bin/pncconf $(DESTDIR)$(bindir)
 	$(EXE) ../bin/hal_input $(DESTDIR)$(bindir)
 	$(EXE) ../bin/pyvcp $(DESTDIR)$(bindir)
 	$(EXE) ../bin/gladevcp $(DESTDIR)$(bindir)
@@ -729,11 +729,11 @@ install-python: install-dirs
 	$(EXE) ../bin/mdi $(DESTDIR)$(bindir)
 	$(EXE) ../bin/hal_manualtoolchange $(DESTDIR)$(bindir)
 	$(EXE) ../bin/image-to-gcode $(DESTDIR)$(bindir)
-	$(EXE) ../bin/touchy $(DESTDIR)$(bindir)
-	$(EXE) ../bin/gscreen $(DESTDIR)$(bindir)
-	$(EXE) ../bin/gmoccapy $(DESTDIR)$(bindir)
-	$(EXE) $(patsubst %.py,../bin/%,$(VISMACH_PY)) $(DESTDIR)$(bindir)
-	$(FILE) ../share/linuxcnc/linuxcnc-wizard.gif $(DESTDIR)$(prefix)/share/linuxcnc
+#	$(EXE) ../bin/touchy $(DESTDIR)$(bindir)
+#	$(EXE) ../bin/gscreen $(DESTDIR)$(bindir)
+#	$(EXE) ../bin/gmoccapy $(DESTDIR)$(bindir)
+#	$(EXE) $(patsubst %.py,../bin/%,$(VISMACH_PY)) $(DESTDIR)$(bindir)
+#	$(FILE) ../share/linuxcnc/linuxcnc-wizard.gif $(DESTDIR)$(prefix)/share/linuxcnc
 	$(FILE) emc/usr_intf/axis/etc/axis_light_background $(DESTDIR)$(docsdir)
 	$(FILE) emc/usr_intf/axis/README $(DESTDIR)$(docsdir)/README.axis
 	$(FILE) ../share/axis/images/*.png ../share/axis/images/*.gif ../share/axis/images/*.xbm ../share/axis/images/*.ngc $(DESTDIR)$(datadir)/axis/images
