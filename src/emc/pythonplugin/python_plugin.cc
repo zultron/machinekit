@@ -16,6 +16,7 @@
  *    along with this program; if not, write to the Free Software
  *    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
+#define BOOST_PYTHON_MAX_ARITY 4
 #include "python_plugin.hh"
 #include "inifile.hh"
 
@@ -24,7 +25,6 @@
 #include <unistd.h>
 #include <set>
 
-#define BOOST_PYTHON_MAX_ARITY 4
 #include <boost/python/exec.hpp>
 #include <boost/python/extract.hpp>
 #include <boost/python/import.hpp>
