@@ -157,14 +157,23 @@ int emcTaskInit()
 		rcs_print("emcTaskInit: TildeExpansion failed for %s, ignoring\n",
 			 mdir[dct]);
             }
-	    snprintf(path, sizeof(path), "%s/M1%02d",expanddir,num);
+            if (snprintf(path, sizeof(path), "%s/M1%02d",expanddir,num) < 0) {
+                rcs_print("emcTaskInit: path exceeds max length:  %s\n",
+                          expanddir);
+                continue;
+            }
 	    if (0 == stat(path, &buf)) {
 	        if (buf.st_mode & S_IXUSR) {
+                    // update global
 		    // set the user_defined_fmt string with dirname
 		    // note the %%02d means 2 digits after the M code
 		    // and we need two % to get the literal %
-		    snprintf(user_defined_fmt[dct], sizeof(user_defined_fmt[0]),
-			     "%s/M1%%02d", expanddir); // update global
+		    if (snprintf(user_defined_fmt[dct], sizeof(user_defined_fmt[0]),
+                                 "%s/M1%%02d", expanddir) < 0) {
+                        rcs_print("emcTaskInit: path exceeds max length:  %s\n",
+                                  expanddir);
+                        continue;
+                    }
 		    USER_DEFINED_FUNCTION_ADD(user_defined_add_m_code,num);
 		    if (emc_debug & EMC_DEBUG_CONFIG) {
 		        rcs_print("emcTaskInit: adding user-defined function %s\n",
