@@ -488,7 +488,7 @@ static int createWidgets()
   int i;
 
   for (i=0; i<WIDGET_COUNT; i++) {
-    sprintf(sockStr, "widget_add %s %s %s\n", widgets[i].screenName,
+    snprintf(sockStr, sizeof(sockStr), "widget_add %s %s %s\n", widgets[i].screenName,
       widgets[i].widgetName, typeStrs[widgets[i].type]);
     sockSendStr(sockfd, sockStr);
     switch (widgets[i].type) {
