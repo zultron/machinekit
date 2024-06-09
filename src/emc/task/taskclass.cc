@@ -312,7 +312,7 @@ int emcTaskOnce(const char *filename)
 		rcs_print("cant extract a Task instance out of '%s'\n", instance_name);
 		task_methods = NULL;
 	    }
-	} catch( bp::error_already_set ) {
+	} catch( bp::error_already_set const& ) {
 	    std::string msg = handle_pyerror();
 	    if (emc_debug & EMC_DEBUG_PYTHON_TASK) {
 		// this really just means the task python backend wasnt configured.
