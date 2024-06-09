@@ -3473,7 +3473,9 @@ FILE *Interp::find_ngc_file(
         ret = findFile(settings->wizard_root, tmpFileName, foundPlace);
 
         if (INTERP_OK == ret) {
-            sprintf(newFileName, "%s/%s", foundPlace, tmpFileName);
+            size_t chk = snprintf(newFileName, sizeof(newFileName),
+                                  "%s/%s", foundPlace, tmpFileName);
+            if (chk > sizeof(newFileName)) return NULL;
             newFP = fopen(newFileName, "r");
         }
         else {
@@ -3482,7 +3484,9 @@ FILE *Interp::find_ngc_file(
             ret = findFile(settings->wizard_root, tmpFileName, foundPlace);
             if (INTERP_OK == ret) {
                 // create the long name
-                sprintf(newFileName, "%s/%s", foundPlace, tmpFileName);
+                size_t chk = snprintf(newFileName, sizeof(newFileName),
+                                      "%s/%s", foundPlace, tmpFileName);
+                if (chk > sizeof(newFileName)) return NULL;
                 newFP = fopen(newFileName, "r");
             }
         }
