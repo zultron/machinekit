@@ -1425,7 +1425,7 @@ static int emcErrorNmlGet()
 }
 
 // string for ini file version num
-static char version_string[LINELEN] = "";
+static char version_string[LINELEN*2+200] = "";
 
 // destructively converts string to its uppercase counterpart
 static char *upcase(char *string)

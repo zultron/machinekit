@@ -632,7 +632,7 @@ static FILE_WINDOW programFw;
 #define XEMC_NUM_AXES 3
 
 // string for ini file version num
-static char version_string[LINELEN] = "";
+static char version_string[LINELEN*2+200] = "";
 
 // interpreter parameter file name, from ini file
 static char PARAMETER_FILE[LINELEN] = "";
