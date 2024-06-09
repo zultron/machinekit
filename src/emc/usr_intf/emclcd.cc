@@ -298,7 +298,7 @@ int err;
 int len;
 const char *testMsg = "hello\n";
 char buffer[255];
-char sockStr[1024];
+char sockStr[4096];
 char *bufptr;
 int screensInitialized = -1;
 screenType curScreen = stStartup;
@@ -488,7 +488,8 @@ static int createWidgets()
   int i;
 
   for (i=0; i<WIDGET_COUNT; i++) {
-    snprintf(sockStr, sizeof(sockStr), "widget_add %s %s %s\n", widgets[i].screenName,
+    snprintf(
+      sockStr, sizeof(sockStr), "widget_add %s %s %s\n", widgets[i].screenName,
       widgets[i].widgetName, typeStrs[widgets[i].type]);
     sockSendStr(sockfd, sockStr);
     switch (widgets[i].type) {
