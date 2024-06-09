@@ -253,7 +253,7 @@ class LinuxcncControl:
     def log(self, ngc_file, level, msg_text):
         full_msg = '{} | {}: {}: {}\n'.format(datetime.datetime.now(), ngc_file, level, msg_text)
         sys.stderr.write(full_msg)
-        if level.lower() is 'error':
+        if level.lower() == 'error':
             self.has_error_ = True
         return full_msg
 
